@@ -61,7 +61,7 @@
 #include <asm/proto.h>
 #else
 #include <asm/processor-flags.h>
-#include <asm/arch_hooks.h>
+#include <asm/setup.h>
 #include <asm/traps.h>
 
 #include "cpu/mcheck/mce.h"
@@ -1026,6 +1026,6 @@ void __init trap_init(void)
 	cpu_init();
 
 #ifdef CONFIG_X86_32
-	trap_init_hook();
+	x86_quirk_trap_init();
 #endif
 }

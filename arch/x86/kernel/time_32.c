@@ -33,7 +33,7 @@
 #include <linux/time.h>
 #include <linux/mca.h>
 
-#include <asm/arch_hooks.h>
+#include <asm/setup.h>
 #include <asm/hpet.h>
 #include <asm/time.h>
 #include <asm/timer.h>
@@ -118,7 +118,7 @@ void __init hpet_time_init(void)
 {
 	if (!hpet_enable())
 		setup_pit_timer();
-	time_init_hook();
+	x86_quirk_time_init();
 }
 
 /*
@@ -131,7 +131,7 @@ void __init hpet_time_init(void)
  */
 void __init time_init(void)
 {
-	pre_time_init_hook();
+	x86_quirk_pre_time_init();
 	tsc_init();
 	late_time_init = choose_time_init();
 }

@@ -74,8 +74,9 @@
 #include <asm/e820.h>
 #include <asm/mpspec.h>
 #include <asm/setup.h>
-#include <asm/arch_hooks.h>
 #include <asm/efi.h>
+#include <asm/timer.h>
+#include <asm/i8259.h>
 #include <asm/sections.h>
 #include <asm/dmi.h>
 #include <asm/io_apic.h>
@@ -987,7 +988,7 @@ void __init setup_arch(char **cmdline_p)
 #ifdef CONFIG_X86_32
 
 /**
- * pre_intr_init_hook - initialisation prior to setting up interrupt vectors
+ * x86_quirk_pre_intr_init - initialisation prior to setting up interrupt vectors
  *
  * Description:
  *	Perform any necessary interrupt initialisation prior to setting up
@@ -995,7 +996,7 @@ void __init setup_arch(char **cmdline_p)
  *	interrupts should be initialised here if the machine emulates a PC
  *	in any way.
  **/
-void __init pre_intr_init_hook(void)
+void __init x86_quirk_pre_intr_init(void)
 {
 	if (x86_quirks->arch_pre_intr_init) {
 		if (x86_quirks->arch_pre_intr_init())
@@ -1005,7 +1006,7 @@ void __init pre_intr_init_hook(void)
 }
 
 /**
- * intr_init_hook - post gate setup interrupt initialisation
+ * x86_quirk_intr_init - post gate setup interrupt initialisation
  *
  * Description:
  *	Fill in any interrupts that may have been left out by the general
@@ -1013,7 +1014,7 @@ void __init pre_intr_init_hook(void)
  *	than the devices on the I/O bus (like APIC interrupts in intel MP
  *	systems) are started here.
  **/
-void __init intr_init_hook(void)
+void __init x86_quirk_intr_init(void)
 {
 	if (x86_quirks->arch_intr_init) {
 		if (x86_quirks->arch_intr_init())
@@ -1022,13 +1023,13 @@ void __init intr_init_hook(void)
 }
 
 /**
- * trap_init_hook - initialise system specific traps
+ * x86_quirk_trap_init - initialise system specific traps
  *
  * Description:
  *	Called as the final act of trap_init().  Used in VISWS to initialise
  *	the various board specific APIC traps.
  **/
-void __init trap_init_hook(void)
+void __init x86_quirk_trap_init(void)
 {
 	if (x86_quirks->arch_trap_init) {
 		if (x86_quirks->arch_trap_init())
@@ -1044,23 +1045,23 @@ static struct irqaction irq0  = {
 };
 
 /**
- * pre_time_init_hook - do any specific initialisations before.
+ * x86_quirk_pre_time_init - do any specific initialisations before.
  *
  **/
-void __init pre_time_init_hook(void)
+void __init x86_quirk_pre_time_init(void)
 {
 	if (x86_quirks->arch_pre_time_init)
 		x86_quirks->arch_pre_time_init();
 }
 
 /**
- * time_init_hook - do any specific initialisations for the system timer.
+ * x86_quirk_time_init - do any specific initialisations for the system timer.
  *
  * Description:
  *	Must plug the system timer interrupt source at HZ into the IRQ listed
  *	in irq_vectors.h:TIMER_IRQ
  **/
-void __init time_init_hook(void)
+void __init x86_quirk_time_init(void)
 {
 	if (x86_quirks->arch_time_init) {
 		/*

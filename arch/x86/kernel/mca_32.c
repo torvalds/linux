@@ -51,7 +51,6 @@
 #include <linux/ioport.h>
 #include <asm/uaccess.h>
 #include <linux/init.h>
-#include <asm/arch_hooks.h>
 
 static unsigned char which_scsi;
 

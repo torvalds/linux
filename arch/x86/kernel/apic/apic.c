@@ -34,7 +34,6 @@
 #include <linux/smp.h>
 #include <linux/mm.h>
 
-#include <asm/arch_hooks.h>
 #include <asm/pgalloc.h>
 #include <asm/atomic.h>
 #include <asm/mpspec.h>

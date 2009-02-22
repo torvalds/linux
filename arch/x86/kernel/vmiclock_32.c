@@ -28,7 +28,6 @@
 
 #include <asm/vmi.h>
 #include <asm/vmi_time.h>
-#include <asm/arch_hooks.h>
 #include <asm/apicdef.h>
 #include <asm/apic.h>
 #include <asm/timer.h>
