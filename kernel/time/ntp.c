@@ -332,6 +332,102 @@ static void notify_cmos_timer(void)
 static inline void notify_cmos_timer(void) { }
 #endif
 
+
+/*
+ * Propagate a new txc->status value into the NTP state:
+ */
+static inline void process_adj_status(struct timex *txc, struct timespec *ts)
+{
+	long now;
+
+	if ((time_status & STA_PLL) && !(txc->status & STA_PLL)) {
+		time_state = TIME_OK;
+		time_status = STA_UNSYNC;
+	}
+	/* only set allowed bits */
+	time_status &= STA_RONLY;
+
+	/*
+	 * If we turn on PLL adjustments then reset the
+	 * reference time to current time.
+	 */
+	if (!(time_status & STA_PLL) && (txc->status & STA_PLL))
+		time_reftime = xtime.tv_sec;
+
+	time_status |= txc->status & ~STA_RONLY;
+
+	switch (time_state) {
+	case TIME_OK:
+	start_timer:
+		now = ts->tv_sec;
+		if (time_status & STA_INS) {
+			time_state = TIME_INS;
+			now += 86400 - now % 86400;
+			hrtimer_start(&leap_timer, ktime_set(now, 0), HRTIMER_MODE_ABS);
+		} else if (time_status & STA_DEL) {
+			time_state = TIME_DEL;
+			now += 86400 - (now + 1) % 86400;
+			hrtimer_start(&leap_timer, ktime_set(now, 0), HRTIMER_MODE_ABS);
+		}
+		break;
+	case TIME_INS:
+	case TIME_DEL:
+		time_state = TIME_OK;
+		goto start_timer;
+	case TIME_WAIT:
+		if (!(time_status & (STA_INS | STA_DEL)))
+			time_state = TIME_OK;
+		break;
+	case TIME_OOP:
+		hrtimer_restart(&leap_timer);
+		break;
+	}
+}
+/*
+ * Called with the xtime lock held, so we can access and modify
+ * all the global NTP state:
+ */
+static inline void process_adjtimex_modes(struct timex *txc, struct timespec *ts)
+{
+	if (txc->modes & ADJ_STATUS)
+		process_adj_status(txc, ts);
+
+	if (txc->modes & ADJ_NANO)
+		time_status |= STA_NANO;
+	if (txc->modes & ADJ_MICRO)
+		time_status &= ~STA_NANO;
+
+	if (txc->modes & ADJ_FREQUENCY) {
+		time_freq = (s64)txc->freq * PPM_SCALE;
+		time_freq = min(time_freq, MAXFREQ_SCALED);
+		time_freq = max(time_freq, -MAXFREQ_SCALED);
+	}
+
+	if (txc->modes & ADJ_MAXERROR)
+		time_maxerror = txc->maxerror;
+	if (txc->modes & ADJ_ESTERROR)
+		time_esterror = txc->esterror;
+
+	if (txc->modes & ADJ_TIMECONST) {
+		time_constant = txc->constant;
+		if (!(time_status & STA_NANO))
+			time_constant += 4;
+		time_constant = min(time_constant, (long)MAXTC);
+		time_constant = max(time_constant, 0l);
+	}
+
+	if (txc->modes & ADJ_TAI && txc->constant > 0)
+		time_tai = txc->constant;
+
+	if (txc->modes & ADJ_OFFSET)
+		ntp_update_offset(txc->offset);
+	if (txc->modes & ADJ_TICK)
+		tick_usec = txc->tick;
+
+	if (txc->modes & (ADJ_TICK|ADJ_FREQUENCY|ADJ_OFFSET))
+		ntp_update_frequency();
+}
+
 /*
  * adjtimex mainly allows reading (and writing, if superuser) of
  * kernel time-keeping variables. used by xntpd.
@@ -383,90 +479,10 @@ int do_adjtimex(struct timex *txc)
 		txc->offset = save_adjust;
 		goto adj_done;
 	}
-	if (txc->modes) {
-		long sec;
 
-		if (txc->modes & ADJ_STATUS) {
-			if ((time_status & STA_PLL) &&
-			    !(txc->status & STA_PLL)) {
-				time_state = TIME_OK;
-				time_status = STA_UNSYNC;
-			}
-			/* only set allowed bits */
-			time_status &= STA_RONLY;
-			/*
-			 * If we turn on PLL adjustments then reset the
-			 * reference time to current time.
-			 */
-			if (!(time_status & STA_PLL) && (txc->status & STA_PLL))
-				time_reftime = xtime.tv_sec;
-
-			time_status |= txc->status & ~STA_RONLY;
-
-			switch (time_state) {
-			case TIME_OK:
-			start_timer:
-				sec = ts.tv_sec;
-				if (time_status & STA_INS) {
-					time_state = TIME_INS;
-					sec += 86400 - sec % 86400;
-					hrtimer_start(&leap_timer, ktime_set(sec, 0), HRTIMER_MODE_ABS);
-				} else if (time_status & STA_DEL) {
-					time_state = TIME_DEL;
-					sec += 86400 - (sec + 1) % 86400;
-					hrtimer_start(&leap_timer, ktime_set(sec, 0), HRTIMER_MODE_ABS);
-				}
-				break;
-			case TIME_INS:
-			case TIME_DEL:
-				time_state = TIME_OK;
-				goto start_timer;
-				break;
-			case TIME_WAIT:
-				if (!(time_status & (STA_INS | STA_DEL)))
-					time_state = TIME_OK;
-				break;
-			case TIME_OOP:
-				hrtimer_restart(&leap_timer);
-				break;
-			}
-		}
-
-		if (txc->modes & ADJ_NANO)
-			time_status |= STA_NANO;
-		if (txc->modes & ADJ_MICRO)
-			time_status &= ~STA_NANO;
-
-		if (txc->modes & ADJ_FREQUENCY) {
-			time_freq = (s64)txc->freq * PPM_SCALE;
-			time_freq = min(time_freq, MAXFREQ_SCALED);
-			time_freq = max(time_freq, -MAXFREQ_SCALED);
-		}
-
-		if (txc->modes & ADJ_MAXERROR)
-			time_maxerror = txc->maxerror;
-		if (txc->modes & ADJ_ESTERROR)
-			time_esterror = txc->esterror;
-
-		if (txc->modes & ADJ_TIMECONST) {
-			time_constant = txc->constant;
-			if (!(time_status & STA_NANO))
-				time_constant += 4;
-			time_constant = min(time_constant, (long)MAXTC);
-			time_constant = max(time_constant, 0l);
-		}
-
-		if (txc->modes & ADJ_TAI && txc->constant > 0)
-			time_tai = txc->constant;
-
-		if (txc->modes & ADJ_OFFSET)
-			ntp_update_offset(txc->offset);
-		if (txc->modes & ADJ_TICK)
-			tick_usec = txc->tick;
-
-		if (txc->modes & (ADJ_TICK|ADJ_FREQUENCY|ADJ_OFFSET))
-			ntp_update_frequency();
-	}
+	/* If there are input parameters, then process them: */
+	if (txc->modes)
+		process_adjtimex_modes(txc, &ts);
 
 	txc->offset = shift_right(time_offset * NTP_INTERVAL_FREQ,
 				  NTP_SCALE_SHIFT);
