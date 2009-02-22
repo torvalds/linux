@@ -1526,6 +1526,11 @@ static int wm8753_resume(struct platform_device *pdev)
 	for (i = 0; i < ARRAY_SIZE(wm8753_reg); i++) {
 		if (i + 1 == WM8753_RESET)
 			continue;
+
+		/* No point in writing hardware default values back */
+		if (cache[i] == wm8753_reg[i])
+			continue;
+
 		data[0] = ((i + 1) << 1) | ((cache[i] >> 8) & 0x0001);
 		data[1] = cache[i] & 0x00ff;
 		codec->hw_write(codec->control_data, data, 2);
