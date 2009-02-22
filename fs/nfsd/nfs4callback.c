@@ -389,12 +389,10 @@ static int do_probe_callback(void *data)
 		.rpc_argp       = clp,
 	};
 	struct rpc_clnt *client;
-	int status;
+	int status = -EINVAL;
 
-	if (!clp->cl_principal && (clp->cl_flavor >= RPC_AUTH_GSS_KRB5)) {
-		status = nfserr_cb_path_down;
+	if (!clp->cl_principal && (clp->cl_flavor >= RPC_AUTH_GSS_KRB5))
 		goto out_err;
-	}
 
 	/* Initialize address */
 	memset(&addr, 0, sizeof(addr));
@@ -405,8 +403,9 @@ static int do_probe_callback(void *data)
 	/* Create RPC client */
 	client = rpc_create(&args);
 	if (IS_ERR(client)) {
-		dprintk("NFSD: couldn't create callback client\n");
 		status = PTR_ERR(client);
+		dprintk("NFSD: couldn't create callback client: %d\n",
+								status);
 		goto out_err;
 	}
 
@@ -422,10 +421,10 @@ static int do_probe_callback(void *data)
 out_release_client:
 	rpc_shutdown_client(client);
 out_err:
-	dprintk("NFSD: warning: no callback path to client %.*s\n",
-		(int)clp->cl_name.len, clp->cl_name.data);
+	dprintk("NFSD: warning: no callback path to client %.*s: error %d\n",
+		(int)clp->cl_name.len, clp->cl_name.data, status);
 	put_nfs4_client(clp);
-	return status;
+	return 0;
 }
 
 /*
