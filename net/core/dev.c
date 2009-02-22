@@ -2267,12 +2267,6 @@ int netif_receive_skb(struct sk_buff *skb)
 
 	rcu_read_lock();
 
-	/* Don't receive packets in an exiting network namespace */
-	if (!net_alive(dev_net(skb->dev))) {
-		kfree_skb(skb);
-		goto out;
-	}
-
 #ifdef CONFIG_NET_CLS_ACT
 	if (skb->tc_verd & TC_NCLS) {
 		skb->tc_verd = CLR_TC_NCLS(skb->tc_verd);
