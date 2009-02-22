@@ -408,7 +408,7 @@ static inline void process_adjtimex_modes(struct timex *txc, struct timespec *ts
 		time_status &= ~STA_NANO;
 
 	if (txc->modes & ADJ_FREQUENCY) {
-		time_freq = (s64)txc->freq * PPM_SCALE;
+		time_freq = txc->freq * PPM_SCALE;
 		time_freq = min(time_freq, MAXFREQ_SCALED);
 		time_freq = max(time_freq, -MAXFREQ_SCALED);
 	}
@@ -505,7 +505,7 @@ int do_adjtimex(struct timex *txc)
 		result = TIME_ERROR;
 
 	txc->freq	   = shift_right((time_freq >> PPM_SCALE_INV_SHIFT) *
-					 (s64)PPM_SCALE_INV, NTP_SCALE_SHIFT);
+					 PPM_SCALE_INV, NTP_SCALE_SHIFT);
 	txc->maxerror	   = time_maxerror;
 	txc->esterror	   = time_esterror;
 	txc->status	   = time_status;
