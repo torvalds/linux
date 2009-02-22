@@ -77,24 +77,33 @@ static long			ntp_tick_adj;
  * NTP methods:
  */
 
+/*
+ * Update (tick_length, tick_length_base, tick_nsec), based
+ * on (tick_usec, ntp_tick_adj, time_freq):
+ */
 static void ntp_update_frequency(void)
 {
-	u64 old_tick_length_base = tick_length_base;
-	u64 second_length = (u64)(tick_usec * NSEC_PER_USEC * USER_HZ)
-				<< NTP_SCALE_SHIFT;
-	second_length += (s64)ntp_tick_adj << NTP_SCALE_SHIFT;
-	second_length += time_freq;
+	u64 prev_base;
+	u64 second_length;
 
-	tick_length_base = second_length;
+	prev_base = tick_length_base;
 
-	tick_nsec = div_u64(second_length, HZ) >> NTP_SCALE_SHIFT;
-	tick_length_base = div_u64(tick_length_base, NTP_INTERVAL_FREQ);
+	second_length		 = (u64)(tick_usec * NSEC_PER_USEC * USER_HZ)
+						<< NTP_SCALE_SHIFT;
+
+	second_length		+= (s64)ntp_tick_adj << NTP_SCALE_SHIFT;
+	second_length		+= time_freq;
+
+	tick_length_base	 = second_length;
+
+	tick_nsec		 = div_u64(second_length, HZ) >> NTP_SCALE_SHIFT;
+	tick_length_base	 = div_u64(tick_length_base, NTP_INTERVAL_FREQ);
 
 	/*
 	 * Don't wait for the next second_overflow, apply
 	 * the change to the tick length immediately
 	 */
-	tick_length += tick_length_base - old_tick_length_base;
+	tick_length		+= tick_length_base - prev_base;
 }
 
 static void ntp_update_offset(long offset)
