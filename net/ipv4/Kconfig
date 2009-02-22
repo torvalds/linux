@@ -35,7 +35,7 @@ config IP_ADVANCED_ROUTER
 
 	  at boot time after the /proc file system has been mounted.
 
-	  If you turn on IP forwarding, you will also get the rp_filter, which
+	  If you turn on IP forwarding, you should consider the rp_filter, which
 	  automatically rejects incoming packets if the routing table entry
 	  for their source address doesn't match the network interface they're
 	  arriving on. This has security advantages because it prevents the
@@ -46,8 +46,10 @@ config IP_ADVANCED_ROUTER
 	  rp_filter on use:
 
 	  echo 1 > /proc/sys/net/ipv4/conf/<device>/rp_filter
-	  or
+	   and
 	  echo 1 > /proc/sys/net/ipv4/conf/all/rp_filter
+
+	  Note that some distributions enable it in startup scripts.
 
 	  If unsure, say N here.
 
