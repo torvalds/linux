@@ -126,11 +126,6 @@ static void enable_a20_fast(void)
 
 int enable_a20(void)
 {
-#ifdef CONFIG_X86_VOYAGER
-	/* On Voyager, a20_test() is unsafe? */
-	enable_a20_kbc();
-	return 0;
-#else
        int loops = A20_ENABLE_LOOPS;
        int kbc_err;
 
@@ -164,5 +159,4 @@ int enable_a20(void)
        }
        
        return -1;
-#endif
 }

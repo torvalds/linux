@@ -302,7 +302,6 @@ config X86_EXTENDED_PLATFORM
 		SGI 320/540 (Visual Workstation)
 		Summit/EXA (IBM x440)
 		Unisys ES7000 IA32 series
-		Voyager (NCR)
 
 	  If you have one of these systems, or if you want to build a
 	  generic distribution kernel, say Y here - otherwise say N.
@@ -422,19 +421,6 @@ config X86_ES7000
 	---help---
 	  Support for Unisys ES7000 systems.  Say 'Y' here if this kernel is
 	  supposed to run on an IA32-based Unisys ES7000 system.
-
-config X86_VOYAGER
-	bool "Voyager (NCR)"
-	depends on SMP && !PCI && BROKEN
-	depends on X86_32_NON_STANDARD
-	---help---
-	  Voyager is an MCA-based 32-way capable SMP architecture proprietary
-	  to NCR Corp.  Machine classes 345x/35xx/4100/51xx are Voyager-based.
-
-	  *** WARNING ***
-
-	  If you do not specifically know you have a Voyager based machine,
-	  say N here, otherwise the kernel you build will not be bootable.
 
 config SCHED_OMIT_FRAME_POINTER
 	def_bool y
