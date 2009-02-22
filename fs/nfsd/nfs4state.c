@@ -78,13 +78,17 @@ static struct nfs4_delegation * find_delegation_stateid(struct inode *ino, state
 static char user_recovery_dirname[PATH_MAX] = "/var/lib/nfs/v4recovery";
 static void nfs4_set_recdir(char *recdir);
 
-/* Locking:
- *
- * client_mutex:
- * 	protects clientid_hashtbl[], clientstr_hashtbl[],
- * 	unconfstr_hashtbl[], uncofid_hashtbl[].
- */
+/* Locking: */
+
+/* Currently used for almost all code touching nfsv4 state: */
 static DEFINE_MUTEX(client_mutex);
+
+/*
+ * Currently used for the del_recall_lru and file hash table.  In an
+ * effort to decrease the scope of the client_mutex, this spinlock may
+ * eventually cover more:
+ */
+static DEFINE_SPINLOCK(recall_lock);
 
 static struct kmem_cache *stateowner_slab = NULL;
 static struct kmem_cache *file_slab = NULL;
@@ -116,33 +120,23 @@ opaque_hashval(const void *ptr, int nbytes)
 	return x;
 }
 
-/*
- * Delegation state
- */
-
-/* recall_lock protects the del_recall_lru */
-static DEFINE_SPINLOCK(recall_lock);
 static struct list_head del_recall_lru;
-
-static void
-free_nfs4_file(struct kref *kref)
-{
-	struct nfs4_file *fp = container_of(kref, struct nfs4_file, fi_ref);
-	list_del(&fp->fi_hash);
-	iput(fp->fi_inode);
-	kmem_cache_free(file_slab, fp);
-}
 
 static inline void
 put_nfs4_file(struct nfs4_file *fi)
 {
-	kref_put(&fi->fi_ref, free_nfs4_file);
+	if (atomic_dec_and_lock(&fi->fi_ref, &recall_lock)) {
+		list_del(&fi->fi_hash);
+		spin_unlock(&recall_lock);
+		iput(fi->fi_inode);
+		kmem_cache_free(file_slab, fi);
+	}
 }
 
 static inline void
 get_nfs4_file(struct nfs4_file *fi)
 {
-	kref_get(&fi->fi_ref);
+	atomic_inc(&fi->fi_ref);
 }
 
 static int num_delegations;
@@ -1000,11 +994,13 @@ alloc_init_file(struct inode *ino)
 
 	fp = kmem_cache_alloc(file_slab, GFP_KERNEL);
 	if (fp) {
-		kref_init(&fp->fi_ref);
+		atomic_set(&fp->fi_ref, 1);
 		INIT_LIST_HEAD(&fp->fi_hash);
 		INIT_LIST_HEAD(&fp->fi_stateids);
 		INIT_LIST_HEAD(&fp->fi_delegations);
+		spin_lock(&recall_lock);
 		list_add(&fp->fi_hash, &file_hashtbl[hashval]);
+		spin_unlock(&recall_lock);
 		fp->fi_inode = igrab(ino);
 		fp->fi_id = current_fileid++;
 		fp->fi_had_conflict = false;
@@ -1177,12 +1173,15 @@ find_file(struct inode *ino)
 	unsigned int hashval = file_hashval(ino);
 	struct nfs4_file *fp;
 
+	spin_lock(&recall_lock);
 	list_for_each_entry(fp, &file_hashtbl[hashval], fi_hash) {
 		if (fp->fi_inode == ino) {
 			get_nfs4_file(fp);
+			spin_unlock(&recall_lock);
 			return fp;
 		}
 	}
+	spin_unlock(&recall_lock);
 	return NULL;
 }
 

@@ -491,8 +491,6 @@ out_put_cred:
 	 * or deleg_return.
 	 */
 	put_nfs4_client(clp);
-	nfs4_lock_state();
 	nfs4_put_delegation(dp);
-	nfs4_unlock_state();
 	return;
 }

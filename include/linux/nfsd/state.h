@@ -214,7 +214,7 @@ struct nfs4_stateowner {
 *      share_acces, share_deny on the file.
 */
 struct nfs4_file {
-	struct kref		fi_ref;
+	atomic_t		fi_ref;
 	struct list_head        fi_hash;    /* hash by "struct inode *" */
 	struct list_head        fi_stateids;
 	struct list_head	fi_delegations;
