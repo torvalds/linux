@@ -557,8 +557,11 @@ static void ftrace_replace_code(int enable)
 			if ((system_state == SYSTEM_BOOTING) ||
 			    !core_kernel_text(rec->ip)) {
 				ftrace_free_rec(rec);
-			} else
+				} else {
 				ftrace_bug(failed, rec->ip);
+					/* Stop processing */
+					return;
+				}
 		}
 	} while_for_each_ftrace_rec();
 }
@@ -578,6 +581,24 @@ ftrace_code_disable(struct module *mod, struct dyn_ftrace *rec)
 		return 0;
 	}
 	return 1;
+}
+
+/*
+ * archs can override this function if they must do something
+ * before the modifying code is performed.
+ */
+int __weak ftrace_arch_code_modify_prepare(void)
+{
+	return 0;
+}
+
+/*
+ * archs can override this function if they must do something
+ * after the modifying code is performed.
+ */
+int __weak ftrace_arch_code_modify_post_process(void)
+{
+	return 0;
 }
 
 static int __ftrace_modify_code(void *data)
@@ -602,7 +623,17 @@ static int __ftrace_modify_code(void *data)
 
 static void ftrace_run_update_code(int command)
 {
+	int ret;
+
+	ret = ftrace_arch_code_modify_prepare();
+	FTRACE_WARN_ON(ret);
+	if (ret)
+		return;
+
 	stop_machine(__ftrace_modify_code, &command, NULL);
+
+	ret = ftrace_arch_code_modify_post_process();
+	FTRACE_WARN_ON(ret);
 }
 
 static ftrace_func_t saved_ftrace_func;

@@ -106,6 +106,9 @@ struct ftrace_func_command {
 /* asm/ftrace.h must be defined for archs supporting dynamic ftrace */
 #include <asm/ftrace.h>
 
+int ftrace_arch_code_modify_prepare(void);
+int ftrace_arch_code_modify_post_process(void);
+
 struct seq_file;
 
 struct ftrace_probe_ops {
