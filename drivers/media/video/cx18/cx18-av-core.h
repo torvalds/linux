@@ -343,7 +343,6 @@ int cx18_av_and_or4(struct cx18 *cx, u16 addr, u32 mask, u32 value);
 void cx18_av_std_setup(struct cx18 *cx);
 
 int cx18_av_probe(struct cx18 *cx);
-void cx18_av_exit(struct cx18 *cx, struct v4l2_subdev *sd);
 
 /* ----------------------------------------------------------------------- */
 /* cx18_av-firmware.c                                                      */

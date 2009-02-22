@@ -110,8 +110,8 @@ static int gpiomux_log_status(struct v4l2_subdev *sd)
 	struct cx18 *cx = v4l2_get_subdevdata(sd);
 
 	mutex_lock(&cx->gpio_lock);
-	CX18_INFO("GPIO:  direction 0x%08x, value 0x%08x\n",
-		cx->gpio_dir, cx->gpio_val);
+	CX18_INFO_DEV(sd, "GPIO:  direction 0x%08x, value 0x%08x\n",
+		      cx->gpio_dir, cx->gpio_val);
 	mutex_unlock(&cx->gpio_lock);
 	return 0;
 }
@@ -205,8 +205,8 @@ static int resetctrl_log_status(struct v4l2_subdev *sd)
 	struct cx18 *cx = v4l2_get_subdevdata(sd);
 
 	mutex_lock(&cx->gpio_lock);
-	CX18_INFO("GPIO:  direction 0x%08x, value 0x%08x\n",
-		cx->gpio_dir, cx->gpio_val);
+	CX18_INFO_DEV(sd, "GPIO:  direction 0x%08x, value 0x%08x\n",
+		      cx->gpio_dir, cx->gpio_val);
 	mutex_unlock(&cx->gpio_lock);
 	return 0;
 }
@@ -297,12 +297,12 @@ int cx18_gpio_register(struct cx18 *cx, u32 hw)
 	case CX18_HW_GPIO_MUX:
 		sd = &cx->sd_gpiomux;
 		ops = &gpiomux_ops;
-		str = "gpio mux";
+		str = "gpio-mux";
 		break;
 	case CX18_HW_GPIO_RESET_CTRL:
 		sd = &cx->sd_resetctrl;
 		ops = &resetctrl_ops;
-		str = "gpio reset ctrl";
+		str = "gpio-reset-ctrl";
 		break;
 	default:
 		return -EINVAL;

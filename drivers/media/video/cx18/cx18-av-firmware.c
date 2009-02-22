@@ -29,6 +29,7 @@
 
 int cx18_av_loadfw(struct cx18 *cx)
 {
+	struct v4l2_subdev *sd = &cx->av_state.sd;
 	const struct firmware *fw = NULL;
 	u32 size;
 	u32 v;
@@ -37,7 +38,7 @@ int cx18_av_loadfw(struct cx18 *cx)
 	int retries1 = 0;
 
 	if (request_firmware(&fw, FWFILE, &cx->pci_dev->dev) != 0) {
-		CX18_ERR("unable to open firmware %s\n", FWFILE);
+		CX18_ERR_DEV(sd, "unable to open firmware %s\n", FWFILE);
 		return -EINVAL;
 	}
 
@@ -88,7 +89,7 @@ int cx18_av_loadfw(struct cx18 *cx)
 		retries1++;
 	}
 	if (retries1 >= 5) {
-		CX18_ERR("unable to load firmware %s\n", FWFILE);
+		CX18_ERR_DEV(sd, "unable to load firmware %s\n", FWFILE);
 		release_firmware(fw);
 		return -EIO;
 	}
@@ -143,6 +144,6 @@ int cx18_av_loadfw(struct cx18 *cx)
 
 	release_firmware(fw);
 
-	CX18_INFO("loaded %s firmware (%d bytes)\n", FWFILE, size);
+	CX18_INFO_DEV(sd, "loaded %s firmware (%d bytes)\n", FWFILE, size);
 	return 0;
 }

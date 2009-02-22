@@ -272,6 +272,7 @@ void cx18_read_eeprom(struct cx18 *cx, struct tveeprom *tv)
 	struct i2c_client c;
 	u8 eedata[256];
 
+	memset(&c, 0, sizeof(c));
 	strncpy(c.name, "cx18 tveeprom tmp", sizeof(c.name));
 	c.name[sizeof(c.name)-1] = '\0';
 	c.adapter = &cx->i2c_adap[0];

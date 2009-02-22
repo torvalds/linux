@@ -179,6 +179,55 @@
 #define CX18_WARN(fmt, args...)     v4l2_warn(&cx->v4l2_dev, fmt , ## args)
 #define CX18_INFO(fmt, args...)     v4l2_info(&cx->v4l2_dev, fmt , ## args)
 
+/* Messages for internal subdevs to use */
+#define CX18_DEBUG_DEV(x, dev, type, fmt, args...) \
+	do { \
+		if ((x) & cx18_debug) \
+			v4l2_info(dev, " " type ": " fmt , ## args); \
+	} while (0)
+#define CX18_DEBUG_WARN_DEV(dev, fmt, args...) \
+		CX18_DEBUG_DEV(CX18_DBGFLG_WARN, dev, "warning", fmt , ## args)
+#define CX18_DEBUG_INFO_DEV(dev, fmt, args...) \
+		CX18_DEBUG_DEV(CX18_DBGFLG_INFO, dev, "info", fmt , ## args)
+#define CX18_DEBUG_API_DEV(dev, fmt, args...) \
+		CX18_DEBUG_DEV(CX18_DBGFLG_API, dev, "api", fmt , ## args)
+#define CX18_DEBUG_DMA_DEV(dev, fmt, args...) \
+		CX18_DEBUG_DEV(CX18_DBGFLG_DMA, dev, "dma", fmt , ## args)
+#define CX18_DEBUG_IOCTL_DEV(dev, fmt, args...) \
+		CX18_DEBUG_DEV(CX18_DBGFLG_IOCTL, dev, "ioctl", fmt , ## args)
+#define CX18_DEBUG_FILE_DEV(dev, fmt, args...) \
+		CX18_DEBUG_DEV(CX18_DBGFLG_FILE, dev, "file", fmt , ## args)
+#define CX18_DEBUG_I2C_DEV(dev, fmt, args...) \
+		CX18_DEBUG_DEV(CX18_DBGFLG_I2C, dev, "i2c", fmt , ## args)
+#define CX18_DEBUG_IRQ_DEV(dev, fmt, args...) \
+		CX18_DEBUG_DEV(CX18_DBGFLG_IRQ, dev, "irq", fmt , ## args)
+
+#define CX18_DEBUG_HIGH_VOL_DEV(x, dev, type, fmt, args...) \
+	do { \
+		if (((x) & cx18_debug) && (cx18_debug & CX18_DBGFLG_HIGHVOL)) \
+			v4l2_info(dev, " " type ": " fmt , ## args); \
+	} while (0)
+#define CX18_DEBUG_HI_WARN_DEV(dev, fmt, args...) \
+	CX18_DEBUG_HIGH_VOL_DEV(CX18_DBGFLG_WARN, dev, "warning", fmt , ## args)
+#define CX18_DEBUG_HI_INFO_DEV(dev, fmt, args...) \
+	CX18_DEBUG_HIGH_VOL_DEV(CX18_DBGFLG_INFO, dev, "info", fmt , ## args)
+#define CX18_DEBUG_HI_API_DEV(dev, fmt, args...) \
+	CX18_DEBUG_HIGH_VOL_DEV(CX18_DBGFLG_API, dev, "api", fmt , ## args)
+#define CX18_DEBUG_HI_DMA_DEV(dev, fmt, args...) \
+	CX18_DEBUG_HIGH_VOL_DEV(CX18_DBGFLG_DMA, dev, "dma", fmt , ## args)
+#define CX18_DEBUG_HI_IOCTL_DEV(dev, fmt, args...) \
+	CX18_DEBUG_HIGH_VOL_DEV(CX18_DBGFLG_IOCTL, dev, "ioctl", fmt , ## args)
+#define CX18_DEBUG_HI_FILE_DEV(dev, fmt, args...) \
+	CX18_DEBUG_HIGH_VOL_DEV(CX18_DBGFLG_FILE, dev, "file", fmt , ## args)
+#define CX18_DEBUG_HI_I2C_DEV(dev, fmt, args...) \
+	CX18_DEBUG_HIGH_VOL_DEV(CX18_DBGFLG_I2C, dev, "i2c", fmt , ## args)
+#define CX18_DEBUG_HI_IRQ_DEV(dev, fmt, args...) \
+	CX18_DEBUG_HIGH_VOL_DEV(CX18_DBGFLG_IRQ, dev, "irq", fmt , ## args)
+
+#define CX18_ERR_DEV(dev, fmt, args...)      v4l2_err(dev, fmt , ## args)
+#define CX18_WARN_DEV(dev, fmt, args...)     v4l2_warn(dev, fmt , ## args)
+#define CX18_INFO_DEV(dev, fmt, args...)     v4l2_info(dev, fmt , ## args)
+
 /* Values for CX18_API_DEC_PLAYBACK_SPEED mpeg_frame_type_mask parameter: */
 #define MPEG_FRAME_TYPE_IFRAME 1
 #define MPEG_FRAME_TYPE_IFRAME_PFRAME 3
