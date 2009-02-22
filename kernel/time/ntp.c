@@ -142,7 +142,7 @@ static void ntp_update_offset(long offset)
 	 * and in which mode (PLL or FLL).
 	 */
 	secs = xtime.tv_sec - time_reftime;
-	if (unlikely(time_status & STA_FREQHOLD || time_reftime == 0))
+	if (unlikely(time_status & STA_FREQHOLD))
 		secs = 0;
 
 	time_reftime = xtime.tv_sec;
@@ -394,6 +394,13 @@ int do_adjtimex(struct timex *txc)
 			}
 			/* only set allowed bits */
 			time_status &= STA_RONLY;
+			/*
+			 * If we turn on PLL adjustments then reset the
+			 * reference time to current time.
+			 */
+			if (!(time_status & STA_PLL) && (txc->status & STA_PLL))
+				time_reftime = xtime.tv_sec;
+
 			time_status |= txc->status & ~STA_RONLY;
 
 			switch (time_state) {
