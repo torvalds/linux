@@ -236,7 +236,7 @@ static enum hrtimer_restart ntp_leap_second(struct hrtimer *timer)
  */
 void second_overflow(void)
 {
-	s64 time_adj;
+	s64 delta;
 
 	/* Bump the maxerror field */
 	time_maxerror += MAXFREQ / NSEC_PER_USEC;
@@ -249,10 +249,11 @@ void second_overflow(void)
 	 * Compute the phase adjustment for the next second. The offset is
 	 * reduced by a fixed factor times the time constant.
 	 */
-	tick_length	= tick_length_base;
-	time_adj	= shift_right(time_offset, SHIFT_PLL + time_constant);
-	time_offset	-= time_adj;
-	tick_length	+= time_adj;
+	tick_length	 = tick_length_base;
+
+	delta		 = shift_right(time_offset, SHIFT_PLL + time_constant);
+	time_offset	-= delta;
+	tick_length	+= delta;
 
 	if (!time_adjust)
 		return;
