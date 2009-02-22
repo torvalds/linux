@@ -737,15 +737,13 @@ int request_irq(unsigned int irq, irq_handler_t handler,
 	if (!handler)
 		return -EINVAL;
 
-	action = kmalloc(sizeof(struct irqaction), GFP_KERNEL);
+	action = kzalloc(sizeof(struct irqaction), GFP_KERNEL);
 	if (!action)
 		return -ENOMEM;
 
 	action->handler = handler;
 	action->flags = irqflags;
-	cpus_clear(action->mask);
 	action->name = devname;
-	action->next = NULL;
 	action->dev_id = dev_id;
 
 	retval = __setup_irq(irq, desc, action);
