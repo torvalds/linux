@@ -141,10 +141,10 @@ static void ntp_update_offset(long offset)
 	 * Select how the frequency is to be controlled
 	 * and in which mode (PLL or FLL).
 	 */
-	if (time_status & STA_FREQHOLD || time_reftime == 0)
-		time_reftime = xtime.tv_sec;
-
 	secs = xtime.tv_sec - time_reftime;
+	if (unlikely(time_status & STA_FREQHOLD || time_reftime == 0))
+		secs = 0;
+
 	time_reftime = xtime.tv_sec;
 
 	offset64    = offset;
