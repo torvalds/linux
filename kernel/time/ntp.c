@@ -332,14 +332,33 @@ static void notify_cmos_timer(void)
 static inline void notify_cmos_timer(void) { }
 #endif
 
+/*
+ * Start the leap seconds timer:
+ */
+static inline void ntp_start_leap_timer(struct timespec *ts)
+{
+	long now = ts->tv_sec;
+
+	if (time_status & STA_INS) {
+		time_state = TIME_INS;
+		now += 86400 - now % 86400;
+		hrtimer_start(&leap_timer, ktime_set(now, 0), HRTIMER_MODE_ABS);
+
+		return;
+	}
+
+	if (time_status & STA_DEL) {
+		time_state = TIME_DEL;
+		now += 86400 - (now + 1) % 86400;
+		hrtimer_start(&leap_timer, ktime_set(now, 0), HRTIMER_MODE_ABS);
+	}
+}
 
 /*
  * Propagate a new txc->status value into the NTP state:
  */
 static inline void process_adj_status(struct timex *txc, struct timespec *ts)
 {
-	long now;
-
 	if ((time_status & STA_PLL) && !(txc->status & STA_PLL)) {
 		time_state = TIME_OK;
 		time_status = STA_UNSYNC;
@@ -358,22 +377,12 @@ static inline void process_adj_status(struct timex *txc, struct timespec *ts)
 
 	switch (time_state) {
 	case TIME_OK:
-	start_timer:
-		now = ts->tv_sec;
-		if (time_status & STA_INS) {
-			time_state = TIME_INS;
-			now += 86400 - now % 86400;
-			hrtimer_start(&leap_timer, ktime_set(now, 0), HRTIMER_MODE_ABS);
-		} else if (time_status & STA_DEL) {
-			time_state = TIME_DEL;
-			now += 86400 - (now + 1) % 86400;
-			hrtimer_start(&leap_timer, ktime_set(now, 0), HRTIMER_MODE_ABS);
-		}
+		ntp_start_leap_timer(ts);
 		break;
 	case TIME_INS:
 	case TIME_DEL:
 		time_state = TIME_OK;
-		goto start_timer;
+		ntp_start_leap_timer(ts);
 	case TIME_WAIT:
 		if (!(time_status & (STA_INS | STA_DEL)))
 			time_state = TIME_OK;
@@ -394,6 +403,7 @@ static inline void process_adjtimex_modes(struct timex *txc, struct timespec *ts
 
 	if (txc->modes & ADJ_NANO)
 		time_status |= STA_NANO;
+
 	if (txc->modes & ADJ_MICRO)
 		time_status &= ~STA_NANO;
 
@@ -405,6 +415,7 @@ static inline void process_adjtimex_modes(struct timex *txc, struct timespec *ts
 
 	if (txc->modes & ADJ_MAXERROR)
 		time_maxerror = txc->maxerror;
+
 	if (txc->modes & ADJ_ESTERROR)
 		time_esterror = txc->esterror;
 
@@ -421,6 +432,7 @@ static inline void process_adjtimex_modes(struct timex *txc, struct timespec *ts
 
 	if (txc->modes & ADJ_OFFSET)
 		ntp_update_offset(txc->offset);
+
 	if (txc->modes & ADJ_TICK)
 		tick_usec = txc->tick;
 
@@ -457,7 +469,7 @@ int do_adjtimex(struct timex *txc)
 		if (txc->modes & ADJ_TICK &&
 		    (txc->tick <  900000/USER_HZ ||
 		     txc->tick > 1100000/USER_HZ))
-				return -EINVAL;
+			return -EINVAL;
 
 		if (txc->modes & ADJ_STATUS && time_state != TIME_OK)
 			hrtimer_cancel(&leap_timer);
@@ -467,7 +479,6 @@ int do_adjtimex(struct timex *txc)
 
 	write_seqlock_irq(&xtime_lock);
 
-	/* If there are input parameters, then process them */
 	if (txc->modes & ADJ_ADJTIME) {
 		long save_adjust = time_adjust;
 
@@ -477,19 +488,18 @@ int do_adjtimex(struct timex *txc)
 			ntp_update_frequency();
 		}
 		txc->offset = save_adjust;
-		goto adj_done;
+	} else {
+
+		/* If there are input parameters, then process them: */
+		if (txc->modes)
+			process_adjtimex_modes(txc, &ts);
+
+		txc->offset = shift_right(time_offset * NTP_INTERVAL_FREQ,
+				  NTP_SCALE_SHIFT);
+		if (!(time_status & STA_NANO))
+			txc->offset /= NSEC_PER_USEC;
 	}
 
-	/* If there are input parameters, then process them: */
-	if (txc->modes)
-		process_adjtimex_modes(txc, &ts);
-
-	txc->offset = shift_right(time_offset * NTP_INTERVAL_FREQ,
-				  NTP_SCALE_SHIFT);
-	if (!(time_status & STA_NANO))
-		txc->offset /= NSEC_PER_USEC;
-
-adj_done:
 	result = time_state;	/* mostly `TIME_OK' */
 	if (time_status & (STA_UNSYNC|STA_CLOCKERR))
 		result = TIME_ERROR;
@@ -514,6 +524,7 @@ adj_done:
 	txc->calcnt	   = 0;
 	txc->errcnt	   = 0;
 	txc->stbcnt	   = 0;
+
 	write_sequnlock_irq(&xtime_lock);
 
 	txc->time.tv_sec = ts.tv_sec;
