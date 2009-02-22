@@ -750,7 +750,7 @@ static struct xfrm_tunnel ipip_handler = {
 	.priority	=	1,
 };
 
-static char banner[] __initdata =
+static const char banner[] __initconst =
 	KERN_INFO "IPv4 over IPv4 tunneling driver\n";
 
 static void ipip_destroy_tunnels(struct ipip_net *ipn)
