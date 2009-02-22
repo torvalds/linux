@@ -271,6 +271,11 @@ extern int arch_setup_additional_pages(struct linux_binprm *bprm,
 				       int uses_interp);
 #define VDSO_AUX_ENT(a,b) NEW_AUX_ENT(a,b);
 
+/* 1GB for 64bit, 8MB for 32bit */
+#define STACK_RND_MASK (is_32bit_task() ? \
+	(0x7ff >> (PAGE_SHIFT - 12)) : \
+	(0x3ffff >> (PAGE_SHIFT - 12)))
+
 #endif /* __KERNEL__ */
 
 /*
