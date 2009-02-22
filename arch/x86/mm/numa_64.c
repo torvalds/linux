@@ -145,7 +145,7 @@ int __init compute_hash_shift(struct bootnode *nodes, int numnodes,
 	return shift;
 }
 
-int early_pfn_to_nid(unsigned long pfn)
+int __meminit  __early_pfn_to_nid(unsigned long pfn)
 {
 	return phys_to_nid(pfn << PAGE_SHIFT);
 }

@@ -140,6 +140,7 @@ config USB_OHCI_HCD
 	tristate "OHCI HCD support"
 	depends on USB && USB_ARCH_HAS_OHCI
 	select ISP1301_OMAP if MACH_OMAP_H2 || MACH_OMAP_H3
+	select USB_OTG_UTILS if ARCH_OMAP
 	---help---
 	  The Open Host Controller Interface (OHCI) is a standard for accessing
 	  USB 1.1 host controller hardware.  It does more in hardware than Intel's
@@ -237,6 +238,23 @@ config USB_UHCI_HCD
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called uhci-hcd.
+
+config USB_FHCI_HCD
+	tristate "Freescale QE USB Host Controller support"
+	depends on USB && OF_GPIO && QE_GPIO && QUICC_ENGINE
+	select FSL_GTM
+	select QE_USB
+	help
+	  This driver enables support for Freescale QE USB Host Controller
+	  (as found on MPC8360 and MPC8323 processors), the driver supports
+	  Full and Low Speed USB.
+
+config FHCI_DEBUG
+	bool "Freescale QE USB Host Controller debug support"
+	depends on USB_FHCI_HCD && DEBUG_FS
+	help
+	  Say "y" to see some FHCI debug information and statistics
+	  throught debugfs.
 
 config USB_U132_HCD
 	tristate "Elan U132 Adapter Host Controller"

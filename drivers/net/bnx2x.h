@@ -1,6 +1,6 @@
 /* bnx2x.h: Broadcom Everest network driver.
  *
- * Copyright (c) 2007-2008 Broadcom Corporation
+ * Copyright (c) 2007-2009 Broadcom Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,6 +19,11 @@
 /* define this to make the driver freeze on error to allow getting debug info
  * (you will need to reboot afterwards) */
 /* #define BNX2X_STOP_ON_ERROR */
+
+#if defined(CONFIG_VLAN_8021Q) || defined(CONFIG_VLAN_8021Q_MODULE)
+#define BCM_VLAN			1
+#endif
+
 
 /* error/debug prints */
 
@@ -75,11 +80,6 @@
 		BNX2X_ERR("driver assert\n"); \
 		bnx2x_panic_dump(bp); \
 	} while (0)
-#endif
-
-
-#ifdef NETIF_F_HW_VLAN_TX
-#define BCM_VLAN			1
 #endif
 
 
@@ -150,6 +150,9 @@ struct sw_rx_page {
 
 #define PAGES_PER_SGE_SHIFT		0
 #define PAGES_PER_SGE			(1 << PAGES_PER_SGE_SHIFT)
+#define SGE_PAGE_SIZE			PAGE_SIZE
+#define SGE_PAGE_SHIFT			PAGE_SHIFT
+#define SGE_PAGE_ALIGN(addr)		PAGE_ALIGN(addr)
 
 #define BCM_RX_ETH_PAYLOAD_ALIGN	64
 
@@ -268,14 +271,7 @@ struct bnx2x_fastpath {
 
 #define bnx2x_fp(bp, nr, var)		(bp->fp[nr].var)
 
-#define BNX2X_HAS_TX_WORK(fp) \
-			((fp->tx_pkt_prod != le16_to_cpu(*fp->tx_cons_sb)) || \
-			 (fp->tx_pkt_prod != fp->tx_pkt_cons))
-
-#define BNX2X_HAS_RX_WORK(fp) \
-			(fp->rx_comp_cons != rx_cons_sb)
-
-#define BNX2X_HAS_WORK(fp)	(BNX2X_HAS_RX_WORK(fp) || BNX2X_HAS_TX_WORK(fp))
+#define BNX2X_HAS_WORK(fp)	(bnx2x_has_rx_work(fp) || bnx2x_has_tx_work(fp))
 
 
 /* MC hsi */
@@ -736,7 +732,7 @@ struct bnx2x {
 	struct bnx2x_fastpath	fp[MAX_CONTEXT];
 	void __iomem		*regview;
 	void __iomem		*doorbells;
-#define BNX2X_DB_SIZE		(16*2048)
+#define BNX2X_DB_SIZE		(16*BCM_PAGE_SIZE)
 
 	struct net_device	*dev;
 	struct pci_dev		*pdev;
@@ -801,6 +797,8 @@ struct bnx2x {
 #define TPA_ENABLE_FLAG			0x80
 #define NO_MCP_FLAG			0x100
 #define BP_NOMCP(bp)			(bp->flags & NO_MCP_FLAG)
+#define HW_VLAN_TX_FLAG			0x400
+#define HW_VLAN_RX_FLAG			0x800
 
 	int			func;
 #define BP_PORT(bp)			(bp->func % PORT_MAX)
@@ -811,7 +809,7 @@ struct bnx2x {
 	int			pm_cap;
 	int			pcie_cap;
 
-	struct work_struct	sp_task;
+	struct delayed_work	sp_task;
 	struct work_struct	reset_task;
 
 	struct timer_list	timer;

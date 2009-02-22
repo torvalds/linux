@@ -565,7 +565,7 @@ u32 omap2_clksel_to_divisor(struct clk *clk, u32 field_val)
  *
  * Given a struct clk of a rate-selectable clksel clock, and a clock divisor,
  * find the corresponding register field value.  The return register value is
- * the value before left-shifting.  Returns 0xffffffff on error
+ * the value before left-shifting.  Returns ~0 on error
  */
 u32 omap2_divisor_to_clksel(struct clk *clk, u32 div)
 {
@@ -577,7 +577,7 @@ u32 omap2_divisor_to_clksel(struct clk *clk, u32 div)
 
 	clks = omap2_get_clksel_by_parent(clk, clk->parent);
 	if (clks == NULL)
-		return 0;
+		return ~0;
 
 	for (clkr = clks->rates; clkr->div; clkr++) {
 		if ((clkr->flags & cpu_mask) && (clkr->div == div))
@@ -588,7 +588,7 @@ u32 omap2_divisor_to_clksel(struct clk *clk, u32 div)
 		printk(KERN_ERR "clock: Could not find divisor %d for "
 		       "clock %s parent %s\n", div, clk->name,
 		       clk->parent->name);
-		return 0;
+		return ~0;
 	}
 
 	return clkr->val;
@@ -708,7 +708,7 @@ static u32 omap2_clksel_get_src_field(void __iomem **src_addr,
 		return 0;
 
 	for (clkr = clks->rates; clkr->div; clkr++) {
-		if (clkr->flags & (cpu_mask | DEFAULT_RATE))
+		if (clkr->flags & cpu_mask && clkr->flags & DEFAULT_RATE)
 			break; /* Found the default rate for this platform */
 	}
 
@@ -746,7 +746,7 @@ int omap2_clk_set_parent(struct clk *clk, struct clk *new_parent)
 		return -EINVAL;
 
 	if (clk->usecount > 0)
-		_omap2_clk_disable(clk);
+		omap2_clk_disable(clk);
 
 	/* Set new source value (previous dividers if any in effect) */
 	reg_val = __raw_readl(src_addr) & ~field_mask;
@@ -759,10 +759,10 @@ int omap2_clk_set_parent(struct clk *clk, struct clk *new_parent)
 		wmb();
 	}
 
-	if (clk->usecount > 0)
-		_omap2_clk_enable(clk);
-
 	clk->parent = new_parent;
+
+	if (clk->usecount > 0)
+		omap2_clk_enable(clk);
 
 	/* CLKSEL clocks follow their parents' rates, divided by a divisor */
 	clk->rate = new_parent->rate;

@@ -326,6 +326,9 @@ restore_sigcontext(struct pt_regs *regs, struct sigcontext __user *usc, void __u
 	struct sigcontext context;
 	int err;
 
+	/* Always make any pending restarted system calls return -EINTR */
+	current_thread_info()->restart_block.fn = do_no_restart_syscall;
+
 	/* get previous context */
 	if (copy_from_user(&context, usc, sizeof(context)))
 		goto badframe;
@@ -410,6 +413,9 @@ rt_restore_ucontext(struct pt_regs *regs, struct switch_stack *sw,
 	greg_t __user *gregs = uc->uc_mcontext.gregs;
 	unsigned long usp;
 	int err;
+
+	/* Always make any pending restarted system calls return -EINTR */
+	current_thread_info()->restart_block.fn = do_no_restart_syscall;
 
 	err = __get_user(temp, &uc->uc_mcontext.version);
 	if (temp != MCONTEXT_VERSION)
@@ -934,6 +940,15 @@ handle_restart(struct pt_regs *regs, struct k_sigaction *ka, int has_handler)
 	case -ERESTARTNOHAND:
 		if (!has_handler)
 			goto do_restart;
+		regs->d0 = -EINTR;
+		break;
+
+	case -ERESTART_RESTARTBLOCK:
+		if (!has_handler) {
+			regs->d0 = __NR_restart_syscall;
+			regs->pc -= 2;
+			break;
+		}
 		regs->d0 = -EINTR;
 		break;
 

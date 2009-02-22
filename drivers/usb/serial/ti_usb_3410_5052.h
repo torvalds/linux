@@ -27,12 +27,24 @@
 
 /* Vendor and product ids */
 #define TI_VENDOR_ID			0x0451
+#define IBM_VENDOR_ID			0x04b3
 #define TI_3410_PRODUCT_ID		0x3410
+#define IBM_4543_PRODUCT_ID		0x4543
+#define IBM_454B_PRODUCT_ID		0x454b
+#define IBM_454C_PRODUCT_ID		0x454c
 #define TI_3410_EZ430_ID		0xF430  /* TI ez430 development tool */
 #define TI_5052_BOOT_PRODUCT_ID		0x5052	/* no EEPROM, no firmware */
 #define TI_5152_BOOT_PRODUCT_ID		0x5152	/* no EEPROM, no firmware */
 #define TI_5052_EEPROM_PRODUCT_ID	0x505A	/* EEPROM, no firmware */
 #define TI_5052_FIRMWARE_PRODUCT_ID	0x505F	/* firmware is running */
+
+/* Multi-Tech vendor and product ids */
+#define MTS_VENDOR_ID			0x06E0
+#define MTS_GSM_NO_FW_PRODUCT_ID	0xF108
+#define MTS_CDMA_NO_FW_PRODUCT_ID	0xF109
+#define MTS_CDMA_PRODUCT_ID		0xF110
+#define MTS_GSM_PRODUCT_ID		0xF111
+#define MTS_EDGE_PRODUCT_ID		0xF112
 
 /* Commands */
 #define TI_GET_VERSION			0x01

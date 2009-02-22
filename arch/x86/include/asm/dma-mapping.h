@@ -2,8 +2,8 @@
 #define _ASM_X86_DMA_MAPPING_H
 
 /*
- * IOMMU interface. See Documentation/DMA-mapping.txt and DMA-API.txt for
- * documentation.
+ * IOMMU interface. See Documentation/PCI/PCI-DMA-mapping.txt and
+ * Documentation/DMA-API.txt for documentation.
  */
 
 #include <linux/scatterlist.h>

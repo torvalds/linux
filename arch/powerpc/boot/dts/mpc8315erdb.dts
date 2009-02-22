@@ -255,7 +255,7 @@
 			device_type = "serial";
 			compatible = "ns16550";
 			reg = <0x4500 0x100>;
-			clock-frequency = <0>;
+			clock-frequency = <133333333>;
 			interrupts = <9 0x8>;
 			interrupt-parent = <&ipic>;
 		};
@@ -265,7 +265,7 @@
 			device_type = "serial";
 			compatible = "ns16550";
 			reg = <0x4600 0x100>;
-			clock-frequency = <0>;
+			clock-frequency = <133333333>;
 			interrupts = <10 0x8>;
 			interrupt-parent = <&ipic>;
 		};

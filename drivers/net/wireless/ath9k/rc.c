@@ -490,7 +490,7 @@ static inline int ath_rc_get_nextvalid_txrate(struct ath_rate_table *rate_table,
 
 static int ath_rc_valid_phyrate(u32 phy, u32 capflag, int ignore_cw)
 {
-	if (WLAN_RC_PHY_HT(phy) & !(capflag & WLAN_RC_HT_FLAG))
+	if (WLAN_RC_PHY_HT(phy) && !(capflag & WLAN_RC_HT_FLAG))
 		return 0;
 	if (WLAN_RC_PHY_DS(phy) && !(capflag & WLAN_RC_DS_FLAG))
 		return 0;

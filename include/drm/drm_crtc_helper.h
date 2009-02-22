@@ -54,13 +54,13 @@ struct drm_crtc_helper_funcs {
 			   struct drm_display_mode *mode,
 			   struct drm_display_mode *adjusted_mode);
 	/* Actually set the mode */
-	void (*mode_set)(struct drm_crtc *crtc, struct drm_display_mode *mode,
-			 struct drm_display_mode *adjusted_mode, int x, int y,
-			 struct drm_framebuffer *old_fb);
+	int (*mode_set)(struct drm_crtc *crtc, struct drm_display_mode *mode,
+			struct drm_display_mode *adjusted_mode, int x, int y,
+			struct drm_framebuffer *old_fb);
 
 	/* Move the crtc on the current fb to the given position *optional* */
-	void (*mode_set_base)(struct drm_crtc *crtc, int x, int y,
-			      struct drm_framebuffer *old_fb);
+	int (*mode_set_base)(struct drm_crtc *crtc, int x, int y,
+			     struct drm_framebuffer *old_fb);
 };
 
 struct drm_encoder_helper_funcs {
@@ -88,7 +88,7 @@ struct drm_connector_helper_funcs {
 	struct drm_encoder *(*best_encoder)(struct drm_connector *connector);
 };
 
-extern void drm_helper_probe_single_connector_modes(struct drm_connector *connector, uint32_t maxX, uint32_t maxY);
+extern int drm_helper_probe_single_connector_modes(struct drm_connector *connector, uint32_t maxX, uint32_t maxY);
 extern void drm_helper_disable_unused_functions(struct drm_device *dev);
 extern int drm_helper_hotplug_stage_two(struct drm_device *dev);
 extern bool drm_helper_initial_config(struct drm_device *dev, bool can_grow);

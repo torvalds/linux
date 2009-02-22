@@ -1,8 +1,6 @@
 #ifndef __ASM_SH_BYTEORDER_H
 #define __ASM_SH_BYTEORDER_H
 
-#include <asm/swab.h>
-
 #ifdef __LITTLE_ENDIAN__
 #include <linux/byteorder/little_endian.h>
 #else

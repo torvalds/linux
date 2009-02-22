@@ -245,6 +245,7 @@ static inline int __raw_spin_is_contended(raw_spinlock_t *lock)
 {
 	return __ticket_spin_is_contended(lock);
 }
+#define __raw_spin_is_contended	__raw_spin_is_contended
 
 static __always_inline void __raw_spin_lock(raw_spinlock_t *lock)
 {

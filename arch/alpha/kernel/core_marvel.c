@@ -658,16 +658,8 @@ __marvel_rtc_io(u8 b, unsigned long addr, int write)
 		rtc_access.data = bcd2bin(b);
 		rtc_access.function = 0x48 + !write;	/* GET/PUT_TOY */
 
-#ifdef CONFIG_SMP
-		if (smp_processor_id() != boot_cpuid)
-			smp_call_function_single(boot_cpuid,
-						 __marvel_access_rtc,
-						 &rtc_access, 1);
-		else
-			__marvel_access_rtc(&rtc_access);
-#else
 		__marvel_access_rtc(&rtc_access);
-#endif
+
 		ret = bin2bcd(rtc_access.data);
 		break;
 

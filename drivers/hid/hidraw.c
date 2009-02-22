@@ -267,8 +267,10 @@ static long hidraw_ioctl(struct file *file, unsigned int cmd,
 		default:
 			{
 				struct hid_device *hid = dev->hid;
-				if (_IOC_TYPE(cmd) != 'H' || _IOC_DIR(cmd) != _IOC_READ)
-					return -EINVAL;
+				if (_IOC_TYPE(cmd) != 'H' || _IOC_DIR(cmd) != _IOC_READ) {
+					ret = -EINVAL;
+					break;
+				}
 
 				if (_IOC_NR(cmd) == _IOC_NR(HIDIOCGRAWNAME(0))) {
 					int len;
@@ -277,8 +279,9 @@ static long hidraw_ioctl(struct file *file, unsigned int cmd,
 					len = strlen(hid->name) + 1;
 					if (len > _IOC_SIZE(cmd))
 						len = _IOC_SIZE(cmd);
-					return copy_to_user(user_arg, hid->name, len) ?
+					ret = copy_to_user(user_arg, hid->name, len) ?
 						-EFAULT : len;
+					break;
 				}
 
 				if (_IOC_NR(cmd) == _IOC_NR(HIDIOCGRAWPHYS(0))) {
@@ -288,12 +291,13 @@ static long hidraw_ioctl(struct file *file, unsigned int cmd,
 					len = strlen(hid->phys) + 1;
 					if (len > _IOC_SIZE(cmd))
 						len = _IOC_SIZE(cmd);
-					return copy_to_user(user_arg, hid->phys, len) ?
+					ret = copy_to_user(user_arg, hid->phys, len) ?
 						-EFAULT : len;
+					break;
 				}
                 }
 
-			ret = -ENOTTY;
+		ret = -ENOTTY;
 	}
 	unlock_kernel();
 	return ret;

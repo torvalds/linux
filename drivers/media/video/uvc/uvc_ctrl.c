@@ -1,7 +1,7 @@
 /*
  *      uvc_ctrl.c  --  USB Video Class driver - Controls
  *
- *      Copyright (C) 2005-2008
+ *      Copyright (C) 2005-2009
  *          Laurent Pinchart (laurent.pinchart@skynet.be)
  *
  *      This program is free software; you can redistribute it and/or modify
@@ -12,7 +12,6 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/version.h>
 #include <linux/list.h>
 #include <linux/module.h>
 #include <linux/uaccess.h>
@@ -29,7 +28,7 @@
 #define UVC_CTRL_DATA_BACKUP	1
 
 /* ------------------------------------------------------------------------
- * Control, formats, ...
+ * Controls
  */
 
 static struct uvc_control_info uvc_ctrls[] = {
@@ -635,7 +634,7 @@ static __s32 uvc_get_le_value(struct uvc_control_mapping *mapping,
 		mask = (1 << bits) - 1;
 	}
 
-	/* Sign-extend the value if needed */
+	/* Sign-extend the value if needed. */
 	if (mapping->data_type == UVC_CTRL_DATA_TYPE_SIGNED)
 		value |= -(value & (1 << (mapping->size - 1)));
 

@@ -296,9 +296,8 @@ static int mdio_bus_suspend(struct device * dev, pm_message_t state)
 	struct phy_driver *phydrv = to_phy_driver(drv);
 	struct phy_device *phydev = to_phy_device(dev);
 
-	if ((!device_may_wakeup(phydev->dev.parent)) &&
-		(phydrv && phydrv->suspend))
-			ret = phydrv->suspend(phydev);
+	if (drv && phydrv->suspend && !device_may_wakeup(phydev->dev.parent))
+		ret = phydrv->suspend(phydev);
 
 	return ret;
 }
@@ -310,8 +309,7 @@ static int mdio_bus_resume(struct device * dev)
 	struct phy_driver *phydrv = to_phy_driver(drv);
 	struct phy_device *phydev = to_phy_device(dev);
 
-	if ((!device_may_wakeup(phydev->dev.parent)) &&
-		(phydrv && phydrv->resume))
+	if (drv && phydrv->resume && !device_may_wakeup(phydev->dev.parent))
 		ret = phydrv->resume(phydev);
 
 	return ret;

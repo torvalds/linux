@@ -187,10 +187,10 @@ config EP93XX_WATCHDOG
 
 config OMAP_WATCHDOG
 	tristate "OMAP Watchdog"
-	depends on ARCH_OMAP16XX || ARCH_OMAP24XX
+	depends on ARCH_OMAP16XX || ARCH_OMAP24XX || ARCH_OMAP34XX
 	help
-	  Support for TI OMAP1610/OMAP1710/OMAP2420 watchdog.  Say 'Y' here to
-	  enable the OMAP1610/OMAP1710 watchdog timer.
+	  Support for TI OMAP1610/OMAP1710/OMAP2420/OMAP3430 watchdog.  Say 'Y'
+	  here to enable the OMAP1610/OMAP1710/OMAP2420/OMAP3430 watchdog timer.
 
 config PNX4008_WATCHDOG
 	tristate "PNX4008 Watchdog"
@@ -406,7 +406,7 @@ config ITCO_WDT
 	---help---
 	  Hardware driver for the intel TCO timer based watchdog devices.
 	  These drivers are included in the Intel 82801 I/O Controller
-	  Hub family (from ICH0 up to ICH8) and in the Intel 6300ESB
+	  Hub family (from ICH0 up to ICH10) and in the Intel 63xxESB
 	  controller hub.
 
 	  The TCO (Total Cost of Ownership) timer is a watchdog timer
@@ -770,6 +770,12 @@ config TXX9_WDT
 
 # POWERPC Architecture
 
+config GEF_WDT
+	tristate "GE Fanuc Watchdog Timer"
+	depends on GEF_SBC610
+	---help---
+	  Watchdog timer found in a number of GE Fanuc single board computers.
+
 config MPC5200_WDT
 	tristate "MPC5200 Watchdog Timer"
 	depends on PPC_MPC52xx
@@ -789,6 +795,14 @@ config 8xxx_WDT
 config MV64X60_WDT
 	tristate "MV64X60 (Marvell Discovery) Watchdog Timer"
 	depends on MV64X60
+
+config PIKA_WDT
+	tristate "PIKA FPGA Watchdog"
+	depends on WARP
+	default y
+	help
+	  This enables the watchdog in the PIKA FPGA. Currently used on
+	  the Warp platform.
 
 config BOOKE_WDT
 	bool "PowerPC Book-E Watchdog Timer"

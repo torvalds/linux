@@ -99,6 +99,7 @@ static inline bool css_tryget(struct cgroup_subsys_state *css)
 	while (!atomic_inc_not_zero(&css->refcnt)) {
 		if (test_bit(CSS_REMOVED, &css->flags))
 			return false;
+		cpu_relax();
 	}
 	return true;
 }
@@ -377,6 +378,7 @@ struct cgroup_subsys {
 	 * - initiating hotplug events
 	 */
 	struct mutex hierarchy_mutex;
+	struct lock_class_key subsys_key;
 
 	/*
 	 * Link to parent, and list entry in parent's children.

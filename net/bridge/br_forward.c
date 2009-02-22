@@ -67,6 +67,11 @@ static void __br_forward(const struct net_bridge_port *to, struct sk_buff *skb)
 {
 	struct net_device *indev;
 
+	if (skb_warn_if_lro(skb)) {
+		kfree_skb(skb);
+		return;
+	}
+
 	indev = skb->dev;
 	skb->dev = to->dev;
 	skb_forward_csum(skb);
@@ -89,7 +94,7 @@ void br_deliver(const struct net_bridge_port *to, struct sk_buff *skb)
 /* called with rcu_read_lock */
 void br_forward(const struct net_bridge_port *to, struct sk_buff *skb)
 {
-	if (!skb_warn_if_lro(skb) && should_deliver(to, skb)) {
+	if (should_deliver(to, skb)) {
 		__br_forward(to, skb);
 		return;
 	}

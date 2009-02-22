@@ -144,7 +144,7 @@ struct bio {
  * bit 1 -- rw-ahead when set
  * bit 2 -- barrier
  *	Insert a serialization point in the IO queue, forcing previously
- *	submitted IO to be completed before this oen is issued.
+ *	submitted IO to be completed before this one is issued.
  * bit 3 -- synchronous I/O hint: the block layer will unplug immediately
  *	Note that this does NOT indicate that the IO itself is sync, just
  *	that the block layer will not postpone issue of this IO by plugging.
@@ -163,12 +163,31 @@ struct bio {
 #define BIO_RW		0	/* Must match RW in req flags (blkdev.h) */
 #define BIO_RW_AHEAD	1	/* Must match FAILFAST in req flags */
 #define BIO_RW_BARRIER	2
-#define BIO_RW_SYNC	3
-#define BIO_RW_META	4
-#define BIO_RW_DISCARD	5
-#define BIO_RW_FAILFAST_DEV		6
-#define BIO_RW_FAILFAST_TRANSPORT	7
-#define BIO_RW_FAILFAST_DRIVER		8
+#define BIO_RW_SYNCIO	3
+#define BIO_RW_UNPLUG	4
+#define BIO_RW_META	5
+#define BIO_RW_DISCARD	6
+#define BIO_RW_FAILFAST_DEV		7
+#define BIO_RW_FAILFAST_TRANSPORT	8
+#define BIO_RW_FAILFAST_DRIVER		9
+
+#define bio_rw_flagged(bio, flag)	((bio)->bi_rw & (1 << (flag)))
+
+/*
+ * Old defines, these should eventually be replaced by direct usage of
+ * bio_rw_flagged()
+ */
+#define bio_barrier(bio)	bio_rw_flagged(bio, BIO_RW_BARRIER)
+#define bio_sync(bio)		bio_rw_flagged(bio, BIO_RW_SYNCIO)
+#define bio_unplug(bio)		bio_rw_flagged(bio, BIO_RW_UNPLUG)
+#define bio_failfast_dev(bio)	bio_rw_flagged(bio, BIO_RW_FAILFAST_DEV)
+#define bio_failfast_transport(bio)	\
+		bio_rw_flagged(bio, BIO_RW_FAILFAST_TRANSPORT)
+#define bio_failfast_driver(bio) 	\
+		bio_rw_flagged(bio, BIO_RW_FAILFAST_DRIVER)
+#define bio_rw_ahead(bio)	bio_rw_flagged(bio, BIO_RW_AHEAD)
+#define bio_rw_meta(bio)	bio_rw_flagged(bio, BIO_RW_META)
+#define bio_discard(bio)	bio_rw_flagged(bio, BIO_RW_DISCARD)
 
 /*
  * upper 16 bits of bi_rw define the io priority of this bio
@@ -193,15 +212,6 @@ struct bio {
 #define bio_offset(bio)		bio_iovec((bio))->bv_offset
 #define bio_segments(bio)	((bio)->bi_vcnt - (bio)->bi_idx)
 #define bio_sectors(bio)	((bio)->bi_size >> 9)
-#define bio_barrier(bio)	((bio)->bi_rw & (1 << BIO_RW_BARRIER))
-#define bio_sync(bio)		((bio)->bi_rw & (1 << BIO_RW_SYNC))
-#define bio_failfast_dev(bio)	((bio)->bi_rw &	(1 << BIO_RW_FAILFAST_DEV))
-#define bio_failfast_transport(bio)	\
-	((bio)->bi_rw & (1 << BIO_RW_FAILFAST_TRANSPORT))
-#define bio_failfast_driver(bio) ((bio)->bi_rw & (1 << BIO_RW_FAILFAST_DRIVER))
-#define bio_rw_ahead(bio)	((bio)->bi_rw & (1 << BIO_RW_AHEAD))
-#define bio_rw_meta(bio)	((bio)->bi_rw & (1 << BIO_RW_META))
-#define bio_discard(bio)	((bio)->bi_rw & (1 << BIO_RW_DISCARD))
 #define bio_empty_barrier(bio)	(bio_barrier(bio) && !bio_has_data(bio) && !bio_discard(bio))
 
 static inline unsigned int bio_cur_sectors(struct bio *bio)
@@ -312,7 +322,6 @@ struct bio_integrity_payload {
 	void			*bip_buf;	/* generated integrity data */
 	bio_end_io_t		*bip_end_io;	/* saved I/O completion fn */
 
-	int			bip_error;	/* saved I/O error */
 	unsigned int		bip_size;
 
 	unsigned short		bip_pool;	/* pool the ivec came from */
@@ -440,12 +449,13 @@ extern struct biovec_slab bvec_slabs[BIOVEC_NR_POOLS] __read_mostly;
 
 #ifdef CONFIG_HIGHMEM
 /*
- * remember to add offset! and never ever reenable interrupts between a
- * bvec_kmap_irq and bvec_kunmap_irq!!
+ * remember never ever reenable interrupts between a bvec_kmap_irq and
+ * bvec_kunmap_irq!
  *
  * This function MUST be inlined - it plays with the CPU interrupt flags.
  */
-static inline char *bvec_kmap_irq(struct bio_vec *bvec, unsigned long *flags)
+static __always_inline char *bvec_kmap_irq(struct bio_vec *bvec,
+		unsigned long *flags)
 {
 	unsigned long addr;
 
@@ -461,7 +471,8 @@ static inline char *bvec_kmap_irq(struct bio_vec *bvec, unsigned long *flags)
 	return (char *) addr + bvec->bv_offset;
 }
 
-static inline void bvec_kunmap_irq(char *buffer, unsigned long *flags)
+static __always_inline void bvec_kunmap_irq(char *buffer,
+		unsigned long *flags)
 {
 	unsigned long ptr = (unsigned long) buffer & PAGE_MASK;
 

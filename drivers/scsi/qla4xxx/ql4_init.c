@@ -342,8 +342,12 @@ static struct ddb_entry* qla4xxx_get_ddb_entry(struct scsi_qla_host *ha,
 	DEBUG2(printk("scsi%ld: %s: Looking for ddb[%d]\n", ha->host_no,
 		      __func__, fw_ddb_index));
 	list_for_each_entry(ddb_entry, &ha->ddb_list, list) {
-		if (memcmp(ddb_entry->iscsi_name, fw_ddb_entry->iscsi_name,
-			   ISCSI_NAME_SIZE) == 0) {
+		if ((memcmp(ddb_entry->iscsi_name, fw_ddb_entry->iscsi_name,
+			   ISCSI_NAME_SIZE) == 0) &&
+			(ddb_entry->tpgt ==
+				le32_to_cpu(fw_ddb_entry->tgt_portal_grp)) &&
+			(memcmp(ddb_entry->isid, fw_ddb_entry->isid,
+				sizeof(ddb_entry->isid)) == 0)) {
 			found++;
 			break;
 		}
@@ -430,6 +434,8 @@ static int qla4xxx_update_ddb_entry(struct scsi_qla_host *ha,
 
 	ddb_entry->port = le16_to_cpu(fw_ddb_entry->port);
 	ddb_entry->tpgt = le32_to_cpu(fw_ddb_entry->tgt_portal_grp);
+	memcpy(ddb_entry->isid, fw_ddb_entry->isid, sizeof(ddb_entry->isid));
+
 	memcpy(&ddb_entry->iscsi_name[0], &fw_ddb_entry->iscsi_name[0],
 	       min(sizeof(ddb_entry->iscsi_name),
 		   sizeof(fw_ddb_entry->iscsi_name)));

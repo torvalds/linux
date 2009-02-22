@@ -42,8 +42,6 @@
 #include <mach/irda.h>
 #include <mach/keypad.h>
 #include <mach/common.h>
-#include <mach/mcbsp.h>
-#include <mach/omap-alsa.h>
 
 static void __init omap_palmte_init_irq(void)
 {
@@ -195,39 +193,12 @@ static struct omap_usb_config palmte_usb_config __initdata = {
 	.pins[0]	= 2,
 };
 
-static struct omap_mmc_config palmte_mmc_config __initdata = {
-	.mmc[0]		= {
-		.enabled 	= 1,
-		.wp_pin		= PALMTE_MMC_WP_GPIO,
-		.power_pin	= PALMTE_MMC_POWER_GPIO,
-		.switch_pin	= PALMTE_MMC_SWITCH_GPIO,
-	},
-};
-
 static struct omap_lcd_config palmte_lcd_config __initdata = {
 	.ctrl_name	= "internal",
 };
 
 static struct omap_uart_config palmte_uart_config __initdata = {
 	.enabled_uarts = (1 << 0) | (1 << 1) | (0 << 2),
-};
-
-static struct omap_mcbsp_reg_cfg palmte_mcbsp1_regs = {
-	.spcr2	= FRST | GRST | XRST | XINTM(3),
-	.xcr2	= XDATDLY(1) | XFIG,
-	.xcr1	= XWDLEN1(OMAP_MCBSP_WORD_32),
-	.pcr0	= SCLKME | FSXP | CLKXP,
-};
-
-static struct omap_alsa_codec_config palmte_alsa_config = {
-	.name			= "TSC2102 audio",
-	.mcbsp_regs_alsa	= &palmte_mcbsp1_regs,
-	.codec_configure_dev	= NULL,	/* tsc2102_configure, */
-	.codec_set_samplerate	= NULL,	/* tsc2102_set_samplerate, */
-	.codec_clock_setup	= NULL,	/* tsc2102_clock_setup, */
-	.codec_clock_on		= NULL,	/* tsc2102_clock_on, */
-	.codec_clock_off	= NULL,	/* tsc2102_clock_off, */
-	.get_default_samplerate	= NULL,	/* tsc2102_get_default_samplerate, */
 };
 
 #ifdef CONFIG_APM

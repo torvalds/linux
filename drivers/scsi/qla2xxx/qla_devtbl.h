@@ -72,7 +72,7 @@ static char *qla2x00_model_name[QLA_MODEL_NAMES*2] = {
 	"QLA2462",	"Sun PCI-X 2.0 to 4Gb FC, Dual Channel",	/* 0x141 */
 	"QLE2460",	"Sun PCI-Express to 2Gb FC, Single Channel",	/* 0x142 */
 	"QLE2462",	"Sun PCI-Express to 4Gb FC, Single Channel",	/* 0x143 */
-	"QEM2462"	"Server I/O Module 4Gb FC, Dual Channel",	/* 0x144 */
+	"QEM2462",	"Server I/O Module 4Gb FC, Dual Channel",	/* 0x144 */
 	"QLE2440",	"PCI-Express to 4Gb FC, Single Channel",	/* 0x145 */
 	"QLE2464",	"PCI-Express to 4Gb FC, Quad Channel",		/* 0x146 */
 	"QLA2440",	"PCI-X 2.0 to 4Gb FC, Single Channel",		/* 0x147 */

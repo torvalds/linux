@@ -1165,6 +1165,7 @@ static int futex_wait(u32 __user *uaddr, int fshared,
 		      u32 val, ktime_t *abs_time, u32 bitset, int clockrt)
 {
 	struct task_struct *curr = current;
+	struct restart_block *restart;
 	DECLARE_WAITQUEUE(wait, curr);
 	struct futex_hash_bucket *hb;
 	struct futex_q q;
@@ -1216,11 +1217,13 @@ retry:
 
 		if (!ret)
 			goto retry;
-		return ret;
+		goto out;
 	}
 	ret = -EWOULDBLOCK;
-	if (uval != val)
-		goto out_unlock_put_key;
+	if (unlikely(uval != val)) {
+		queue_unlock(&q, hb);
+		goto out_put_key;
+	}
 
 	/* Only actually queue if *uaddr contained val.  */
 	queue_me(&q, hb);
@@ -1284,38 +1287,38 @@ retry:
 	 */
 
 	/* If we were woken (and unqueued), we succeeded, whatever. */
+	ret = 0;
 	if (!unqueue_me(&q))
-		return 0;
+		goto out_put_key;
+	ret = -ETIMEDOUT;
 	if (rem)
-		return -ETIMEDOUT;
+		goto out_put_key;
 
 	/*
 	 * We expect signal_pending(current), but another thread may
 	 * have handled it for us already.
 	 */
+	ret = -ERESTARTSYS;
 	if (!abs_time)
-		return -ERESTARTSYS;
-	else {
-		struct restart_block *restart;
-		restart = &current_thread_info()->restart_block;
-		restart->fn = futex_wait_restart;
-		restart->futex.uaddr = (u32 *)uaddr;
-		restart->futex.val = val;
-		restart->futex.time = abs_time->tv64;
-		restart->futex.bitset = bitset;
-		restart->futex.flags = 0;
+		goto out_put_key;
 
-		if (fshared)
-			restart->futex.flags |= FLAGS_SHARED;
-		if (clockrt)
-			restart->futex.flags |= FLAGS_CLOCKRT;
-		return -ERESTART_RESTARTBLOCK;
-	}
+	restart = &current_thread_info()->restart_block;
+	restart->fn = futex_wait_restart;
+	restart->futex.uaddr = (u32 *)uaddr;
+	restart->futex.val = val;
+	restart->futex.time = abs_time->tv64;
+	restart->futex.bitset = bitset;
+	restart->futex.flags = 0;
 
-out_unlock_put_key:
-	queue_unlock(&q, hb);
+	if (fshared)
+		restart->futex.flags |= FLAGS_SHARED;
+	if (clockrt)
+		restart->futex.flags |= FLAGS_CLOCKRT;
+
+	ret = -ERESTART_RESTARTBLOCK;
+
+out_put_key:
 	put_futex_key(fshared, &q.key);
-
 out:
 	return ret;
 }
@@ -1733,9 +1736,8 @@ pi_faulted:
  * @head: pointer to the list-head
  * @len: length of the list-head, as userspace expects
  */
-asmlinkage long
-sys_set_robust_list(struct robust_list_head __user *head,
-		    size_t len)
+SYSCALL_DEFINE2(set_robust_list, struct robust_list_head __user *, head,
+		size_t, len)
 {
 	if (!futex_cmpxchg_enabled)
 		return -ENOSYS;
@@ -1756,9 +1758,9 @@ sys_set_robust_list(struct robust_list_head __user *head,
  * @head_ptr: pointer to a list-head pointer, the kernel fills it in
  * @len_ptr: pointer to a length field, the kernel fills in the header size
  */
-asmlinkage long
-sys_get_robust_list(int pid, struct robust_list_head __user * __user *head_ptr,
-		    size_t __user *len_ptr)
+SYSCALL_DEFINE3(get_robust_list, int, pid,
+		struct robust_list_head __user * __user *, head_ptr,
+		size_t __user *, len_ptr)
 {
 	struct robust_list_head __user *head;
 	unsigned long ret;
@@ -1978,9 +1980,9 @@ long do_futex(u32 __user *uaddr, int op, u32 val, ktime_t *timeout,
 }
 
 
-asmlinkage long sys_futex(u32 __user *uaddr, int op, u32 val,
-			  struct timespec __user *utime, u32 __user *uaddr2,
-			  u32 val3)
+SYSCALL_DEFINE6(futex, u32 __user *, uaddr, int, op, u32, val,
+		struct timespec __user *, utime, u32 __user *, uaddr2,
+		u32, val3)
 {
 	struct timespec ts;
 	ktime_t t, *tp = NULL;

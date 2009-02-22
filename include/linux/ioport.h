@@ -143,7 +143,8 @@ static inline unsigned long resource_type(struct resource *res)
 
 extern struct resource * __request_region(struct resource *,
 					resource_size_t start,
-					resource_size_t n, const char *name, int relaxed);
+					resource_size_t n,
+					const char *name, int flags);
 
 /* Compatibility cruft */
 #define release_region(start,n)	__release_region(&ioport_resource, (start), (n))

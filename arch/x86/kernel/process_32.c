@@ -104,9 +104,6 @@ void cpu_idle(void)
 			check_pgt_cache();
 			rmb();
 
-			if (rcu_pending(cpu))
-				rcu_check_callbacks(cpu, 0);
-
 			if (cpu_is_offline(cpu))
 				play_dead();
 

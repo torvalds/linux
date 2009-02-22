@@ -3615,7 +3615,7 @@ hfcm_bctrl(struct mISDNchannel *ch, u_int cmd, void *arg)
 static void
 ph_state_change(struct dchannel *dch)
 {
-	struct hfc_multi *hc = dch->hw;
+	struct hfc_multi *hc;
 	int ch, i;
 
 	if (!dch) {
@@ -3623,6 +3623,7 @@ ph_state_change(struct dchannel *dch)
 		    __func__);
 		return;
 	}
+	hc = dch->hw;
 	ch = dch->slot;
 
 	if (hc->type == 1) {
@@ -4598,6 +4599,7 @@ init_e1_port(struct hfc_multi *hc, struct hm_map *m)
 			printk(KERN_ERR "%s: no memory for coeffs\n",
 			    __func__);
 			ret = -ENOMEM;
+			kfree(bch);
 			goto free_chan;
 		}
 		bch->nr = ch;
@@ -4766,6 +4768,7 @@ init_multi_port(struct hfc_multi *hc, int pt)
 			printk(KERN_ERR "%s: no memory for coeffs\n",
 			    __func__);
 			ret = -ENOMEM;
+			kfree(bch);
 			goto free_chan;
 		}
 		bch->nr = ch + 1;

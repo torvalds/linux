@@ -95,3 +95,4 @@ int io_remap_pfn_range(struct vm_area_struct *vma, unsigned long from,
 	flush_tlb_range(vma, beg, end);
 	return error;
 }
+EXPORT_SYMBOL(io_remap_pfn_range);

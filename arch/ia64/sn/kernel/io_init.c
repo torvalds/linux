@@ -269,7 +269,7 @@ sn_io_slot_fixup(struct pci_dev *dev)
 
 			rom = ioremap(pci_resource_start(dev, PCI_ROM_RESOURCE),
 				      size + 1);
-			image_size = pci_get_rom_size(rom, size + 1);
+			image_size = pci_get_rom_size(dev, rom, size + 1);
 			dev->resource[PCI_ROM_RESOURCE].end =
 				dev->resource[PCI_ROM_RESOURCE].start +
 				image_size - 1;

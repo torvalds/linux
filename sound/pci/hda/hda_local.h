@@ -251,6 +251,8 @@ int snd_hda_multi_out_dig_prepare(struct hda_codec *codec,
 				  unsigned int stream_tag,
 				  unsigned int format,
 				  struct snd_pcm_substream *substream);
+int snd_hda_multi_out_dig_cleanup(struct hda_codec *codec,
+				  struct hda_multi_out *mout);
 int snd_hda_multi_out_analog_open(struct hda_codec *codec,
 				  struct hda_multi_out *mout,
 				  struct snd_pcm_substream *substream,
@@ -296,6 +298,9 @@ void snd_print_pcm_bits(int pcm, char *buf, int buflen);
 int snd_hda_check_board_config(struct hda_codec *codec, int num_configs,
 			       const char **modelnames,
 			       const struct snd_pci_quirk *pci_list);
+int snd_hda_check_board_codec_sid_config(struct hda_codec *codec,
+                               int num_configs, const char **models,
+                               const struct snd_pci_quirk *tbl);
 int snd_hda_add_new_ctls(struct hda_codec *codec,
 			 struct snd_kcontrol_new *knew);
 
