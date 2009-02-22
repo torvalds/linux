@@ -668,7 +668,6 @@ void __init setup_arch(char **cmdline_p)
 #ifdef CONFIG_X86_32
 	memcpy(&boot_cpu_data, &new_cpu_data, sizeof(new_cpu_data));
 	visws_early_detect();
-	pre_setup_arch_hook();
 #else
 	printk(KERN_INFO "Command line: %s\n", boot_command_line);
 #endif
@@ -1023,18 +1022,6 @@ void __init intr_init_hook(void)
 }
 
 /**
- * pre_setup_arch_hook - hook called prior to any setup_arch() execution
- *
- * Description:
- *	generally used to activate any machine specific identification
- *	routines that may be needed before setup_arch() runs.  On Voyager
- *	this is used to get the board revision and type.
- **/
-void __init pre_setup_arch_hook(void)
-{
-}
-
-/**
  * trap_init_hook - initialise system specific traps
  *
  * Description:
@@ -1088,25 +1075,4 @@ void __init time_init_hook(void)
 	irq0.mask = cpumask_of_cpu(0);
 	setup_irq(0, &irq0);
 }
-
-#ifdef CONFIG_MCA
-/**
- * mca_nmi_hook - hook into MCA specific NMI chain
- *
- * Description:
- *	The MCA (Microchannel Architecture) has an NMI chain for NMI sources
- *	along the MCA bus.  Use this to hook into that chain if you will need
- *	it.
- **/
-void mca_nmi_hook(void)
-{
-	/*
-	 * If I recall correctly, there's a whole bunch of other things that
-	 * we can do to check for NMI problems, but that's all I know about
-	 * at the moment.
-	 */
-	pr_warning("NMI generated from unknown source!\n");
-}
-#endif /* CONFIG_MCA */
-
 #endif /* CONFIG_X86_32 */
