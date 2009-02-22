@@ -1845,6 +1845,7 @@ static int wm8753_remove(struct platform_device *pdev)
 {
 	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
 	struct snd_soc_codec *codec = socdev->card->codec;
+	struct wm8753_setup_data *setup = socdev->codec_data;
 
 	if (codec->control_data)
 		wm8753_set_bias_level(codec, SND_SOC_BIAS_OFF);
@@ -1852,11 +1853,14 @@ static int wm8753_remove(struct platform_device *pdev)
 	snd_soc_free_pcms(socdev);
 	snd_soc_dapm_free(socdev);
 #if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
-	i2c_unregister_device(codec->control_data);
-	i2c_del_driver(&wm8753_i2c_driver);
+	if (setup->i2c_address) {
+		i2c_unregister_device(codec->control_data);
+		i2c_del_driver(&wm8753_i2c_driver);
+	}
 #endif
 #if defined(CONFIG_SPI_MASTER)
-	spi_unregister_driver(&wm8753_spi_driver);
+	if (setup->spi)
+		spi_unregister_driver(&wm8753_spi_driver);
 #endif
 	kfree(codec->private_data);
 	kfree(codec);
