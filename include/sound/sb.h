@@ -249,6 +249,7 @@ struct snd_sb {
 #define SB_ALS4000_3D_AUTO_MUTE	0x52
 #define SB_ALS4000_ANALOG_BLOCK_CTRL 0x53
 #define SB_ALS4000_3D_DELAYLINE_PATTERN 0x54
+#define SB_ALS4000_CR3_CONFIGURATION	0xc3 /* bit 7 is Digital Loop Enable */
 #define SB_ALS4000_QSOUND	0xdb
 
 /* IRQ setting bitmap */
@@ -330,7 +331,8 @@ enum {
 	SB_MIX_DOUBLE,
 	SB_MIX_INPUT_SW,
 	SB_MIX_CAPTURE_PRO,
-	SB_MIX_CAPTURE_DT019X
+	SB_MIX_CAPTURE_DT019X,
+	SB_MIX_MONO_CAPTURE_ALS4K
 };
 
 #define SB_MIXVAL_DOUBLE(left_reg, right_reg, left_shift, right_shift, mask) \
