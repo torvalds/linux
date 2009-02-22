@@ -35,6 +35,8 @@
 #include <linux/utsname.h>
 #include <linux/ftrace.h>
 #include <linux/kernel_stat.h>
+#include <linux/personality.h>
+#include <linux/random.h>
 
 #include <asm/pgtable.h>
 #include <asm/uaccess.h>
@@ -1138,3 +1140,10 @@ void thread_info_cache_init(void)
 }
 
 #endif /* THREAD_SHIFT < PAGE_SHIFT */
+
+unsigned long arch_align_stack(unsigned long sp)
+{
+	if (!(current->personality & ADDR_NO_RANDOMIZE) && randomize_va_space)
+		sp -= get_random_int() & ~PAGE_MASK;
+	return sp & ~0xf;
+}
