@@ -184,6 +184,8 @@ typedef struct drm_i915_private {
 	unsigned int lvds_dither:1;
 	unsigned int lvds_vbt:1;
 	unsigned int int_crt_support:1;
+	unsigned int lvds_use_ssc:1;
+	int lvds_ssc_freq;
 
 	struct drm_i915_fence_reg fence_regs[16]; /* assume 965 */
 	int fence_reg_start; /* 4 if userland hasn't ioctl'd us yet */

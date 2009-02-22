@@ -139,7 +139,8 @@ static int atmel_nand_device_ready(struct mtd_info *mtd)
 	struct nand_chip *nand_chip = mtd->priv;
 	struct atmel_nand_host *host = nand_chip->priv;
 
-	return gpio_get_value(host->board->rdy_pin);
+	return gpio_get_value(host->board->rdy_pin) ^
+                !!host->board->rdy_pin_active_low;
 }
 
 /*

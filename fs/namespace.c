@@ -614,9 +614,11 @@ static inline void __mntput(struct vfsmount *mnt)
 	 */
 	for_each_possible_cpu(cpu) {
 		struct mnt_writer *cpu_writer = &per_cpu(mnt_writers, cpu);
-		if (cpu_writer->mnt != mnt)
-			continue;
 		spin_lock(&cpu_writer->lock);
+		if (cpu_writer->mnt != mnt) {
+			spin_unlock(&cpu_writer->lock);
+			continue;
+		}
 		atomic_add(cpu_writer->count, &mnt->__mnt_writers);
 		cpu_writer->count = 0;
 		/*

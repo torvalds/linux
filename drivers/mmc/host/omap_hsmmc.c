@@ -55,6 +55,7 @@
 #define VS30			(1 << 25)
 #define SDVS18			(0x5 << 9)
 #define SDVS30			(0x6 << 9)
+#define SDVS33			(0x7 << 9)
 #define SDVSCLR			0xFFFFF1FF
 #define SDVSDET			0x00000400
 #define AUTOIDLE		0x1
@@ -375,6 +376,32 @@ static void mmc_omap_report_irq(struct mmc_omap_host *host, u32 status)
 }
 #endif  /* CONFIG_MMC_DEBUG */
 
+/*
+ * MMC controller internal state machines reset
+ *
+ * Used to reset command or data internal state machines, using respectively
+ *  SRC or SRD bit of SYSCTL register
+ * Can be called from interrupt context
+ */
+static inline void mmc_omap_reset_controller_fsm(struct mmc_omap_host *host,
+		unsigned long bit)
+{
+	unsigned long i = 0;
+	unsigned long limit = (loops_per_jiffy *
+				msecs_to_jiffies(MMC_TIMEOUT_MS));
+
+	OMAP_HSMMC_WRITE(host->base, SYSCTL,
+			 OMAP_HSMMC_READ(host->base, SYSCTL) | bit);
+
+	while ((OMAP_HSMMC_READ(host->base, SYSCTL) & bit) &&
+		(i++ < limit))
+		cpu_relax();
+
+	if (OMAP_HSMMC_READ(host->base, SYSCTL) & bit)
+		dev_err(mmc_dev(host->mmc),
+			"Timeout waiting on controller reset in %s\n",
+			__func__);
+}
 
 /*
  * MMC controller IRQ handler
@@ -403,21 +430,17 @@ static irqreturn_t mmc_omap_irq(int irq, void *dev_id)
 			(status & CMD_CRC)) {
 			if (host->cmd) {
 				if (status & CMD_TIMEOUT) {
-					OMAP_HSMMC_WRITE(host->base, SYSCTL,
-						OMAP_HSMMC_READ(host->base,
-								SYSCTL) | SRC);
-					while (OMAP_HSMMC_READ(host->base,
-							SYSCTL) & SRC)
-						;
-
+					mmc_omap_reset_controller_fsm(host, SRC);
 					host->cmd->error = -ETIMEDOUT;
 				} else {
 					host->cmd->error = -EILSEQ;
 				}
 				end_cmd = 1;
 			}
-			if (host->data)
+			if (host->data) {
 				mmc_dma_cleanup(host);
+				mmc_omap_reset_controller_fsm(host, SRD);
+			}
 		}
 		if ((status & DATA_TIMEOUT) ||
 			(status & DATA_CRC)) {
@@ -426,12 +449,7 @@ static irqreturn_t mmc_omap_irq(int irq, void *dev_id)
 					mmc_dma_cleanup(host);
 				else
 					host->data->error = -EILSEQ;
-				OMAP_HSMMC_WRITE(host->base, SYSCTL,
-					OMAP_HSMMC_READ(host->base,
-							SYSCTL) | SRD);
-				while (OMAP_HSMMC_READ(host->base,
-						SYSCTL) & SRD)
-					;
+				mmc_omap_reset_controller_fsm(host, SRD);
 				end_trans = 1;
 			}
 		}
@@ -456,12 +474,19 @@ static irqreturn_t mmc_omap_irq(int irq, void *dev_id)
 }
 
 /*
- * Switch MMC operating voltage
+ * Switch MMC interface voltage ... only relevant for MMC1.
+ *
+ * MMC2 and MMC3 use fixed 1.8V levels, and maybe a transceiver.
+ * The MMC2 transceiver controls are used instead of DAT4..DAT7.
+ * Some chips, like eMMC ones, use internal transceivers.
  */
 static int omap_mmc_switch_opcond(struct mmc_omap_host *host, int vdd)
 {
 	u32 reg_val = 0;
 	int ret;
+
+	if (host->id != OMAP_MMC1_DEVID)
+		return 0;
 
 	/* Disable the clocks */
 	clk_disable(host->fclk);
@@ -485,19 +510,26 @@ static int omap_mmc_switch_opcond(struct mmc_omap_host *host, int vdd)
 	OMAP_HSMMC_WRITE(host->base, HCTL,
 		OMAP_HSMMC_READ(host->base, HCTL) & SDVSCLR);
 	reg_val = OMAP_HSMMC_READ(host->base, HCTL);
+
 	/*
 	 * If a MMC dual voltage card is detected, the set_ios fn calls
 	 * this fn with VDD bit set for 1.8V. Upon card removal from the
 	 * slot, omap_mmc_set_ios sets the VDD back to 3V on MMC_POWER_OFF.
 	 *
-	 * Only MMC1 supports 3.0V.  MMC2 will not function if SDVS30 is
-	 * set in HCTL.
+	 * Cope with a bit of slop in the range ... per data sheets:
+	 *  - "1.8V" for vdds_mmc1/vdds_mmc1a can be up to 2.45V max,
+	 *    but recommended values are 1.71V to 1.89V
+	 *  - "3.0V" for vdds_mmc1/vdds_mmc1a can be up to 3.5V max,
+	 *    but recommended values are 2.7V to 3.3V
+	 *
+	 * Board setup code shouldn't permit anything very out-of-range.
+	 * TWL4030-family VMMC1 and VSIM regulators are fine (avoiding the
+	 * middle range) but VSIM can't power DAT4..DAT7 at more than 3V.
 	 */
-	if (host->id == OMAP_MMC1_DEVID && (((1 << vdd) == MMC_VDD_32_33) ||
-				((1 << vdd) == MMC_VDD_33_34)))
-		reg_val |= SDVS30;
-	if ((1 << vdd) == MMC_VDD_165_195)
+	if ((1 << vdd) <= MMC_VDD_23_24)
 		reg_val |= SDVS18;
+	else
+		reg_val |= SDVS30;
 
 	OMAP_HSMMC_WRITE(host->base, HCTL, reg_val);
 
@@ -517,16 +549,15 @@ static void mmc_omap_detect(struct work_struct *work)
 {
 	struct mmc_omap_host *host = container_of(work, struct mmc_omap_host,
 						mmc_carddetect_work);
+	struct omap_mmc_slot_data *slot = &mmc_slot(host);
+
+	host->carddetect = slot->card_detect(slot->card_detect_irq);
 
 	sysfs_notify(&host->mmc->class_dev.kobj, NULL, "cover_switch");
 	if (host->carddetect) {
 		mmc_detect_change(host->mmc, (HZ * 200) / 1000);
 	} else {
-		OMAP_HSMMC_WRITE(host->base, SYSCTL,
-			OMAP_HSMMC_READ(host->base, SYSCTL) | SRD);
-		while (OMAP_HSMMC_READ(host->base, SYSCTL) & SRD)
-			;
-
+		mmc_omap_reset_controller_fsm(host, SRD);
 		mmc_detect_change(host->mmc, (HZ * 50) / 1000);
 	}
 }
@@ -538,7 +569,6 @@ static irqreturn_t omap_mmc_cd_handler(int irq, void *dev_id)
 {
 	struct mmc_omap_host *host = (struct mmc_omap_host *)dev_id;
 
-	host->carddetect = mmc_slot(host).card_detect(irq);
 	schedule_work(&host->mmc_carddetect_work);
 
 	return IRQ_HANDLED;
@@ -757,10 +787,14 @@ static void omap_mmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	case MMC_POWER_OFF:
 		mmc_slot(host).set_power(host->dev, host->slot_id, 0, 0);
 		/*
-		 * Reset bus voltage to 3V if it got set to 1.8V earlier.
+		 * Reset interface voltage to 3V if it's 1.8V now;
+		 * only relevant on MMC-1, the others always use 1.8V.
+		 *
 		 * REVISIT: If we are able to detect cards after unplugging
 		 * a 1.8V card, this code should not be needed.
 		 */
+		if (host->id != OMAP_MMC1_DEVID)
+			break;
 		if (!(OMAP_HSMMC_READ(host->base, HCTL) & SDVSDET)) {
 			int vdd = fls(host->mmc->ocr_avail) - 1;
 			if (omap_mmc_switch_opcond(host, vdd) != 0)
@@ -784,7 +818,9 @@ static void omap_mmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	}
 
 	if (host->id == OMAP_MMC1_DEVID) {
-		/* Only MMC1 can operate at 3V/1.8V */
+		/* Only MMC1 can interface at 3V without some flavor
+		 * of external transceiver; but they all handle 1.8V.
+		 */
 		if ((OMAP_HSMMC_READ(host->base, HCTL) & SDVSDET) &&
 			(ios->vdd == DUAL_VOLT_OCR_BIT)) {
 				/*
@@ -1137,7 +1173,9 @@ static int omap_mmc_suspend(struct platform_device *pdev, pm_message_t state)
 						" level suspend\n");
 			}
 
-			if (!(OMAP_HSMMC_READ(host->base, HCTL) & SDVSDET)) {
+			if (host->id == OMAP_MMC1_DEVID
+					&& !(OMAP_HSMMC_READ(host->base, HCTL)
+							& SDVSDET)) {
 				OMAP_HSMMC_WRITE(host->base, HCTL,
 					OMAP_HSMMC_READ(host->base, HCTL)
 					& SDVSCLR);

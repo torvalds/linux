@@ -490,7 +490,8 @@ postcore_initcall(at91_gpio_debugfs_init);
 
 /*--------------------------------------------------------------------------*/
 
-/* This lock class tells lockdep that GPIO irqs are in a different
+/*
+ * This lock class tells lockdep that GPIO irqs are in a different
  * category than their parents, so it won't report false recursion.
  */
 static struct lock_class_key gpio_lock_class;
@@ -508,9 +509,6 @@ void __init at91_gpio_irq_setup(void)
 			prev = this, this++) {
 		unsigned	id = this->id;
 		unsigned	i;
-
-		/* enable PIO controller's clock */
-		clk_enable(this->clock);
 
 		__raw_writel(~0, this->regbase + PIO_IDR);
 
@@ -556,7 +554,14 @@ void __init at91_gpio_init(struct at91_gpio_bank *data, int nr_banks)
 		data->chipbase = PIN_BASE + i * 32;
 		data->regbase = data->offset + (void __iomem *)AT91_VA_BASE_SYS;
 
-		/* AT91SAM9263_ID_PIOCDE groups PIOC, PIOD, PIOE */
+		/* enable PIO controller's clock */
+		clk_enable(data->clock);
+
+		/*
+		 * Some processors share peripheral ID between multiple GPIO banks.
+		 *  SAM9263 (PIOC, PIOD, PIOE)
+		 *  CAP9 (PIOA, PIOB, PIOC, PIOD)
+		 */
 		if (last && last->id == data->id)
 			last->next = data;
 	}

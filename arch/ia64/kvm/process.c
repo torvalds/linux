@@ -455,13 +455,18 @@ fpswa_ret_t vmm_fp_emulate(int fp_fault, void *bundle, unsigned long *ipsr,
 	if (!vmm_fpswa_interface)
 		return (fpswa_ret_t) {-1, 0, 0, 0};
 
-	/*
-	 * Just let fpswa driver to use hardware fp registers.
-	 * No fp register is valid in memory.
-	 */
 	memset(&fp_state, 0, sizeof(fp_state_t));
 
 	/*
+	 * compute fp_state.  only FP registers f6 - f11 are used by the
+	 * vmm, so set those bits in the mask and set the low volatile
+	 * pointer to point to these registers.
+	 */
+	fp_state.bitmask_low64 = 0xfc0;  /* bit6..bit11 */
+
+	fp_state.fp_state_low_volatile = (fp_state_low_volatile_t *) &regs->f6;
+
+   /*
 	 * unsigned long (*EFI_FPSWA) (
 	 *      unsigned long    trap_type,
 	 *      void             *Bundle,
@@ -545,10 +550,6 @@ void reflect_interruption(u64 ifa, u64 isr, u64 iim,
 		status = vmm_handle_fpu_swa(0, regs, isr);
 		if (!status)
 			return ;
-		else if (-EAGAIN == status) {
-			vcpu_decrement_iip(vcpu);
-			return ;
-		}
 		break;
 	}
 
