@@ -884,13 +884,11 @@ static int __devinit cx18_probe(struct pci_dev *pci_dev,
 
 	cx18_init_subdevs(cx);
 
-	if (cx->std & V4L2_STD_525_60) {
+	if (cx->std & V4L2_STD_525_60)
 		cx->is_60hz = 1;
-		cx->is_out_60hz = 1;
-	} else {
+	else
 		cx->is_50hz = 1;
-		cx->is_out_50hz = 1;
-	}
+
 	cx->params.video_gop_size = cx->is_60hz ? 15 : 12;
 
 	if (cx->options.radio > 0)

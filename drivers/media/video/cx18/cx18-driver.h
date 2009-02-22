@@ -505,8 +505,6 @@ struct cx18 {
 	const struct cx18_card_tuner_i2c *card_i2c; /* i2c addresses to probe for tuner */
 	u8 is_50hz;
 	u8 is_60hz;
-	u8 is_out_50hz; /* FIXME - remove, we don't have an output decoder */
-	u8 is_out_60hz; /* FIXME - remove, we don't have an output decoder */
 	u8 nof_inputs;		/* number of video inputs */
 	u8 nof_audio_inputs;	/* number of audio inputs */
 	u16 buffer_id;		/* buffer ID counter */
@@ -591,7 +589,6 @@ struct cx18 {
 	/* codec settings */
 	u32 audio_input;
 	u32 active_input;
-	u32 active_output;
 	v4l2_std_id std;
 	v4l2_std_id tuner_std;	/* The norm of the tuner (fixed) */
 };
