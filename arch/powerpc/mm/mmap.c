@@ -30,9 +30,16 @@
 /*
  * Top of mmap area (just below the process stack).
  *
- * Leave an at least ~128 MB hole.
+ * Leave at least a ~128 MB hole on 32bit applications.
+ *
+ * On 64bit applications we randomise the stack by 1GB so we need to
+ * space our mmap start address by a further 1GB, otherwise there is a
+ * chance the mmap area will end up closer to the stack than our ulimit
+ * requires.
  */
-#define MIN_GAP (128*1024*1024)
+#define MIN_GAP32 (128*1024*1024)
+#define MIN_GAP64 ((128 + 1024)*1024*1024UL)
+#define MIN_GAP ((is_32bit_task()) ? MIN_GAP32 : MIN_GAP64)
 #define MAX_GAP (TASK_SIZE/6*5)
 
 static inline int mmap_is_legacy(void)
