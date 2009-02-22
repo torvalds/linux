@@ -74,14 +74,11 @@ static void _autodep_lookup(struct clkdm_pwrdm_autodep *autodep)
 
 	pwrdm = pwrdm_lookup(autodep->pwrdm.name);
 	if (!pwrdm) {
-		pr_debug("clockdomain: _autodep_lookup: powerdomain %s "
-			 "does not exist\n", autodep->pwrdm.name);
-		WARN_ON(1);
+		pr_err("clockdomain: autodeps: powerdomain %s does not exist\n",
+			 autodep->pwrdm.name);
 		pwrdm = ERR_PTR(-ENOENT);
 	}
 	autodep->pwrdm.ptr = pwrdm;
-
-	return;
 }
 
 /*
@@ -211,8 +208,8 @@ int clkdm_register(struct clockdomain *clkdm)
 
 	pwrdm = pwrdm_lookup(clkdm->pwrdm.name);
 	if (!pwrdm) {
-		pr_debug("clockdomain: clkdm_register %s: powerdomain %s "
-			 "does not exist\n", clkdm->name, clkdm->pwrdm.name);
+		pr_err("clockdomain: %s: powerdomain %s does not exist\n",
+			clkdm->name, clkdm->pwrdm.name);
 		return -EINVAL;
 	}
 	clkdm->pwrdm.ptr = pwrdm;
@@ -222,7 +219,7 @@ int clkdm_register(struct clockdomain *clkdm)
 	if (_clkdm_lookup(clkdm->name)) {
 		ret = -EEXIST;
 		goto cr_unlock;
-	};
+	}
 
 	list_add(&clkdm->node, &clkdm_list);
 
