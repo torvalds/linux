@@ -51,6 +51,11 @@
 
 #include "wm8753.h"
 
+#ifdef CONFIG_SPI_MASTER
+static struct spi_driver wm8753_spi_driver;
+static int wm8753_spi_write(struct spi_device *spi, const char *data, int len);
+#endif
+
 static int caps_charge = 2000;
 module_param(caps_charge, int, 0);
 MODULE_PARM_DESC(caps_charge, "WM8753 cap charge time (msecs)");
@@ -1626,53 +1631,7 @@ pcm_err:
 static struct snd_soc_device *wm8753_socdev;
 
 #if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
-
-/*
- * WM8753 2 wire address is determined by GPIO5
- * state during powerup.
- *    low  = 0x1a
- *    high = 0x1b
- */
-
-static int wm8753_i2c_probe(struct i2c_client *i2c,
-			    const struct i2c_device_id *id)
-{
-	struct snd_soc_device *socdev = wm8753_socdev;
-	struct snd_soc_codec *codec = socdev->card->codec;
-	int ret;
-
-	i2c_set_clientdata(i2c, codec);
-	codec->control_data = i2c;
-
-	ret = wm8753_init(socdev);
-	if (ret < 0)
-		pr_err("failed to initialise WM8753\n");
-
-	return ret;
-}
-
-static int wm8753_i2c_remove(struct i2c_client *client)
-{
-	struct snd_soc_codec *codec = i2c_get_clientdata(client);
-	kfree(codec->reg_cache);
-	return 0;
-}
-
-static const struct i2c_device_id wm8753_i2c_id[] = {
-	{ "wm8753", 0 },
-	{ }
-};
-MODULE_DEVICE_TABLE(i2c, wm8753_i2c_id);
-
-static struct i2c_driver wm8753_i2c_driver = {
-	.driver = {
-		.name = "WM8753 I2C Codec",
-		.owner = THIS_MODULE,
-	},
-	.probe =    wm8753_i2c_probe,
-	.remove =   wm8753_i2c_remove,
-	.id_table = wm8753_i2c_id,
-};
+static struct i2c_driver wm8753_i2c_driver;
 
 static int wm8753_add_i2c_device(struct platform_device *pdev,
 				 const struct wm8753_setup_data *setup)
@@ -1714,63 +1673,6 @@ err_driver:
 	return -ENODEV;
 }
 #endif
-
-#if defined(CONFIG_SPI_MASTER)
-static int __devinit wm8753_spi_probe(struct spi_device *spi)
-{
-	struct snd_soc_device *socdev = wm8753_socdev;
-	struct snd_soc_codec *codec = socdev->card->codec;
-	int ret;
-
-	codec->control_data = spi;
-
-	ret = wm8753_init(socdev);
-	if (ret < 0)
-		dev_err(&spi->dev, "failed to initialise WM8753\n");
-
-	return ret;
-}
-
-static int __devexit wm8753_spi_remove(struct spi_device *spi)
-{
-	return 0;
-}
-
-static struct spi_driver wm8753_spi_driver = {
-	.driver = {
-		.name	= "wm8753",
-		.bus	= &spi_bus_type,
-		.owner	= THIS_MODULE,
-	},
-	.probe		= wm8753_spi_probe,
-	.remove		= __devexit_p(wm8753_spi_remove),
-};
-
-static int wm8753_spi_write(struct spi_device *spi, const char *data, int len)
-{
-	struct spi_transfer t;
-	struct spi_message m;
-	u8 msg[2];
-
-	if (len <= 0)
-		return 0;
-
-	msg[0] = data[0];
-	msg[1] = data[1];
-
-	spi_message_init(&m);
-	memset(&t, 0, (sizeof t));
-
-	t.tx_buf = &msg[0];
-	t.len = len;
-
-	spi_message_add_tail(&t, &m);
-	spi_sync(spi, &m);
-
-	return len;
-}
-#endif
-
 
 static int wm8753_probe(struct platform_device *pdev)
 {
@@ -1875,6 +1777,105 @@ struct snd_soc_codec_device soc_codec_dev_wm8753 = {
 	.resume =	wm8753_resume,
 };
 EXPORT_SYMBOL_GPL(soc_codec_dev_wm8753);
+
+#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
+
+static int wm8753_i2c_probe(struct i2c_client *i2c,
+			    const struct i2c_device_id *id)
+{
+	struct snd_soc_device *socdev = wm8753_socdev;
+	struct snd_soc_codec *codec = socdev->card->codec;
+	int ret;
+
+	i2c_set_clientdata(i2c, codec);
+	codec->control_data = i2c;
+
+	ret = wm8753_init(socdev);
+	if (ret < 0)
+		pr_err("failed to initialise WM8753\n");
+
+	return ret;
+}
+
+static int wm8753_i2c_remove(struct i2c_client *client)
+{
+	struct snd_soc_codec *codec = i2c_get_clientdata(client);
+	kfree(codec->reg_cache);
+	return 0;
+}
+
+static const struct i2c_device_id wm8753_i2c_id[] = {
+	{ "wm8753", 0 },
+	{ }
+};
+MODULE_DEVICE_TABLE(i2c, wm8753_i2c_id);
+
+static struct i2c_driver wm8753_i2c_driver = {
+	.driver = {
+		.name = "WM8753 I2C Codec",
+		.owner = THIS_MODULE,
+	},
+	.probe =    wm8753_i2c_probe,
+	.remove =   wm8753_i2c_remove,
+	.id_table = wm8753_i2c_id,
+};
+#endif
+
+#if defined(CONFIG_SPI_MASTER)
+static int wm8753_spi_write(struct spi_device *spi, const char *data, int len)
+{
+	struct spi_transfer t;
+	struct spi_message m;
+	u8 msg[2];
+
+	if (len <= 0)
+		return 0;
+
+	msg[0] = data[0];
+	msg[1] = data[1];
+
+	spi_message_init(&m);
+	memset(&t, 0, (sizeof t));
+
+	t.tx_buf = &msg[0];
+	t.len = len;
+
+	spi_message_add_tail(&t, &m);
+	spi_sync(spi, &m);
+
+	return len;
+}
+
+static int __devinit wm8753_spi_probe(struct spi_device *spi)
+{
+	struct snd_soc_device *socdev = wm8753_socdev;
+	struct snd_soc_codec *codec = socdev->card->codec;
+	int ret;
+
+	codec->control_data = spi;
+
+	ret = wm8753_init(socdev);
+	if (ret < 0)
+		dev_err(&spi->dev, "failed to initialise WM8753\n");
+
+	return ret;
+}
+
+static int __devexit wm8753_spi_remove(struct spi_device *spi)
+{
+	return 0;
+}
+
+static struct spi_driver wm8753_spi_driver = {
+	.driver = {
+		.name	= "wm8753",
+		.bus	= &spi_bus_type,
+		.owner	= THIS_MODULE,
+	},
+	.probe		= wm8753_spi_probe,
+	.remove		= __devexit_p(wm8753_spi_remove),
+};
+#endif
 
 static int __init wm8753_modinit(void)
 {
