@@ -30,9 +30,9 @@ static u64			tick_length_base;
 
 static struct hrtimer		leap_timer;
 
-#define MAX_TICKADJ		500		/* usecs */
+#define MAX_TICKADJ		500LL		/* usecs */
 #define MAX_TICKADJ_SCALED \
-  (((u64)(MAX_TICKADJ * NSEC_PER_USEC) << NTP_SCALE_SHIFT) / NTP_INTERVAL_FREQ)
+	(((MAX_TICKADJ * NSEC_PER_USEC) << NTP_SCALE_SHIFT) / NTP_INTERVAL_FREQ)
 
 /*
  * phase-lock loop variables
