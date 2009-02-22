@@ -2894,10 +2894,6 @@ static int read_one_chunk(struct btrfs_root *root, struct btrfs_key *key,
 		free_extent_map(em);
 	}
 
-	map = kzalloc(sizeof(*map), GFP_NOFS);
-	if (!map)
-		return -ENOMEM;
-
 	em = alloc_extent_map(GFP_NOFS);
 	if (!em)
 		return -ENOMEM;
@@ -3106,6 +3102,8 @@ int btrfs_read_sys_array(struct btrfs_root *root)
 	if (!sb)
 		return -ENOMEM;
 	btrfs_set_buffer_uptodate(sb);
+	btrfs_set_buffer_lockdep_class(sb, 0);
+
 	write_extent_buffer(sb, super_copy, 0, BTRFS_SUPER_INFO_SIZE);
 	array_size = btrfs_super_sys_array_size(super_copy);
 

@@ -393,7 +393,7 @@ static int ivtv_g_fmt_sliced_vbi_cap(struct file *file, void *fh, struct v4l2_fo
 		return 0;
 	}
 
-	v4l2_subdev_call(itv->sd_video, video, s_fmt, fmt);
+	v4l2_subdev_call(itv->sd_video, video, g_fmt, fmt);
 	vbifmt->service_set = ivtv_get_service_set(vbifmt);
 	return 0;
 }
@@ -1748,6 +1748,18 @@ static long ivtv_default(struct file *file, void *fh, int cmd, void *arg)
 		break;
 	}
 
+	case IVTV_IOC_DMA_FRAME:
+	case VIDEO_GET_PTS:
+	case VIDEO_GET_FRAME_COUNT:
+	case VIDEO_GET_EVENT:
+	case VIDEO_PLAY:
+	case VIDEO_STOP:
+	case VIDEO_FREEZE:
+	case VIDEO_CONTINUE:
+	case VIDEO_COMMAND:
+	case VIDEO_TRY_COMMAND:
+		return ivtv_decoder_ioctls(file, cmd, (void *)arg);
+
 	default:
 		return -EINVAL;
 	}
@@ -1789,18 +1801,6 @@ static long ivtv_serialized_ioctl(struct ivtv *itv, struct file *filp,
 		itv->audio_bilingual_mode = arg;
 		ivtv_vapi(itv, CX2341X_DEC_SET_AUDIO_MODE, 2, itv->audio_bilingual_mode, itv->audio_stereo_mode);
 		return 0;
-
-	case IVTV_IOC_DMA_FRAME:
-	case VIDEO_GET_PTS:
-	case VIDEO_GET_FRAME_COUNT:
-	case VIDEO_GET_EVENT:
-	case VIDEO_PLAY:
-	case VIDEO_STOP:
-	case VIDEO_FREEZE:
-	case VIDEO_CONTINUE:
-	case VIDEO_COMMAND:
-	case VIDEO_TRY_COMMAND:
-		return ivtv_decoder_ioctls(filp, cmd, (void *)arg);
 
 	default:
 		break;
