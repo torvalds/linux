@@ -71,7 +71,8 @@ static long			time_reftime;
 
 long				time_adjust;
 
-static long			ntp_tick_adj;
+/* constant (boot-param configurable) NTP tick adjustment (upscaled)	*/
+static s64			ntp_tick_adj;
 
 /*
  * NTP methods:
@@ -89,7 +90,7 @@ static void ntp_update_frequency(void)
 	second_length		 = (u64)(tick_usec * NSEC_PER_USEC * USER_HZ)
 						<< NTP_SCALE_SHIFT;
 
-	second_length		+= (s64)ntp_tick_adj << NTP_SCALE_SHIFT;
+	second_length		+= ntp_tick_adj;
 	second_length		+= time_freq;
 
 	tick_nsec		 = div_u64(second_length, HZ) >> NTP_SCALE_SHIFT;
@@ -540,6 +541,8 @@ int do_adjtimex(struct timex *txc)
 static int __init ntp_tick_adj_setup(char *str)
 {
 	ntp_tick_adj = simple_strtol(str, NULL, 0);
+	ntp_tick_adj <<= NTP_SCALE_SHIFT;
+
 	return 1;
 }
 
