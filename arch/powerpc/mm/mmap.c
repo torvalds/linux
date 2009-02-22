@@ -24,6 +24,7 @@
 
 #include <linux/personality.h>
 #include <linux/mm.h>
+#include <linux/random.h>
 #include <linux/sched.h>
 
 /*
@@ -45,6 +46,20 @@ static inline int mmap_is_legacy(void)
 	return sysctl_legacy_va_layout;
 }
 
+static unsigned long mmap_rnd(void)
+{
+	unsigned long rnd = 0;
+
+	if (current->flags & PF_RANDOMIZE) {
+		/* 8MB for 32bit, 1GB for 64bit */
+		if (is_32bit_task())
+			rnd = (long)(get_random_int() % (1<<(23-PAGE_SHIFT)));
+		else
+			rnd = (long)(get_random_int() % (1<<(30-PAGE_SHIFT)));
+	}
+	return rnd << PAGE_SHIFT;
+}
+
 static inline unsigned long mmap_base(void)
 {
 	unsigned long gap = current->signal->rlim[RLIMIT_STACK].rlim_cur;
@@ -54,7 +69,7 @@ static inline unsigned long mmap_base(void)
 	else if (gap > MAX_GAP)
 		gap = MAX_GAP;
 
-	return TASK_SIZE - (gap & PAGE_MASK);
+	return PAGE_ALIGN(TASK_SIZE - gap - mmap_rnd());
 }
 
 /*
