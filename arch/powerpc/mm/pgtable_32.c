@@ -129,7 +129,8 @@ pgtable_t pte_alloc_one(struct mm_struct *mm, unsigned long address)
 void __iomem *
 ioremap(phys_addr_t addr, unsigned long size)
 {
-	return __ioremap(addr, size, _PAGE_NO_CACHE | _PAGE_GUARDED);
+	return __ioremap_caller(addr, size, _PAGE_NO_CACHE | _PAGE_GUARDED,
+				__builtin_return_address(0));
 }
 EXPORT_SYMBOL(ioremap);
 
@@ -143,12 +144,19 @@ ioremap_flags(phys_addr_t addr, unsigned long size, unsigned long flags)
 	/* we don't want to let _PAGE_USER and _PAGE_EXEC leak out */
 	flags &= ~(_PAGE_USER | _PAGE_EXEC | _PAGE_HWEXEC);
 
-	return __ioremap(addr, size, flags);
+	return __ioremap_caller(addr, size, flags, __builtin_return_address(0));
 }
 EXPORT_SYMBOL(ioremap_flags);
 
 void __iomem *
 __ioremap(phys_addr_t addr, unsigned long size, unsigned long flags)
+{
+	return __ioremap_caller(addr, size, flags, __builtin_return_address(0));
+}
+
+void __iomem *
+__ioremap_caller(phys_addr_t addr, unsigned long size, unsigned long flags,
+		 void *caller)
 {
 	unsigned long v, i;
 	phys_addr_t p;
@@ -212,7 +220,7 @@ __ioremap(phys_addr_t addr, unsigned long size, unsigned long flags)
 
 	if (mem_init_done) {
 		struct vm_struct *area;
-		area = get_vm_area(size, VM_IOREMAP);
+		area = get_vm_area_caller(size, VM_IOREMAP, caller);
 		if (area == 0)
 			return NULL;
 		v = (unsigned long) area->addr;

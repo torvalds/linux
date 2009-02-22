@@ -90,7 +90,7 @@ struct machdep_calls {
 	void		(*tce_flush)(struct iommu_table *tbl);
 
 	void __iomem *	(*ioremap)(phys_addr_t addr, unsigned long size,
-				   unsigned long flags);
+				   unsigned long flags, void *caller);
 	void		(*iounmap)(volatile void __iomem *token);
 
 #ifdef CONFIG_PM

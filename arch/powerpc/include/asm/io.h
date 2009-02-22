@@ -632,6 +632,9 @@ static inline void iosync(void)
  *   ioremap_flags and cannot be hooked (but can be used by a hook on one
  *   of the previous ones)
  *
+ * * __ioremap_caller is the same as above but takes an explicit caller
+ *   reference rather than using __builtin_return_address(0)
+ *
  * * __iounmap, is the low level implementation used by iounmap and cannot
  *   be hooked (but can be used by a hook on iounmap)
  *
@@ -646,6 +649,9 @@ extern void iounmap(volatile void __iomem *addr);
 
 extern void __iomem *__ioremap(phys_addr_t, unsigned long size,
 			       unsigned long flags);
+extern void __iomem *__ioremap_caller(phys_addr_t, unsigned long size,
+				      unsigned long flags, void *caller);
+
 extern void __iounmap(volatile void __iomem *addr);
 
 extern void __iomem * __ioremap_at(phys_addr_t pa, void *ea,
