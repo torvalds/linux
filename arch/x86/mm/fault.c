@@ -57,7 +57,8 @@ enum x86_pf_error_code {
 };
 
 /*
- * (returns 0 if mmiotrace is disabled)
+ * Returns 0 if mmiotrace is disabled, or if the fault is not
+ * handled by mmiotrace:
  */
 static inline int kmmio_fault(struct pt_regs *regs, unsigned long addr)
 {
