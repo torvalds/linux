@@ -711,8 +711,8 @@ rp_filter - INTEGER
 	    the packet check will fail.
 
         Current recommended practice in RFC3704 is to enable strict mode
-	to prevent IP spoofin from DDos attacks. If using asymmetric routing
-        or other complicated routing,t hen loose mode is recommended.
+	to prevent IP spoofing from DDos attacks. If using asymmetric routing
+        or other complicated routing, then loose mode is recommended.
 
 	conf/all/rp_filter must also be set to non-zero to do source validation
 	on the interface
