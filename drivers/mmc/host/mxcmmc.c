@@ -42,7 +42,7 @@
 #define HAS_DMA
 #endif
 
-#define DRIVER_NAME "imx-mmc"
+#define DRIVER_NAME "mxc-mmc"
 
 #define MMC_REG_STR_STP_CLK		0x00
 #define MMC_REG_STATUS			0x04
