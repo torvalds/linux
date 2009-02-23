@@ -188,6 +188,7 @@ return_to_handler:
 ENTRY(native_usergs_sysret64)
 	swapgs
 	sysretq
+ENDPROC(native_usergs_sysret64)
 #endif /* CONFIG_PARAVIRT */
 
 
