@@ -3488,8 +3488,7 @@ int snd_hda_parse_pin_def_config(struct hda_codec *codec,
 		if (ignore_nids && is_in_nid_list(nid, ignore_nids))
 			continue;
 
-		def_conf = snd_hda_codec_read(codec, nid, 0,
-					      AC_VERB_GET_CONFIG_DEFAULT, 0);
+		def_conf = snd_hda_codec_get_pincfg(codec, nid);
 		if (get_defcfg_connect(def_conf) == AC_JACK_PORT_NONE)
 			continue;
 		loc = get_defcfg_location(def_conf);
