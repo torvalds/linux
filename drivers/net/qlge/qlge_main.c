@@ -2958,6 +2958,24 @@ static int ql_route_initialize(struct ql_adapter *qdev)
 	return status;
 }
 
+static int ql_cam_route_initialize(struct ql_adapter *qdev)
+{
+	int status;
+
+	status = ql_set_mac_addr_reg(qdev, (u8 *) qdev->ndev->perm_addr,
+			     MAC_ADDR_TYPE_CAM_MAC, qdev->func * MAX_CQ);
+	if (status) {
+		QPRINTK(qdev, IFUP, ERR, "Failed to init mac address.\n");
+		return status;
+	}
+
+	status = ql_route_initialize(qdev);
+	if (status)
+		QPRINTK(qdev, IFUP, ERR, "Failed to init routing table.\n");
+
+	return status;
+}
+
 static int ql_adapter_initialize(struct ql_adapter *qdev)
 {
 	u32 value, mask;
@@ -3028,16 +3046,11 @@ static int ql_adapter_initialize(struct ql_adapter *qdev)
 		return status;
 	}
 
-	status = ql_set_mac_addr_reg(qdev, (u8 *) qdev->ndev->perm_addr,
-				     MAC_ADDR_TYPE_CAM_MAC, qdev->func);
+	/* Set up the MAC address and frame routing filter. */
+	status = ql_cam_route_initialize(qdev);
 	if (status) {
-		QPRINTK(qdev, IFUP, ERR, "Failed to init mac address.\n");
-		return status;
-	}
-
-	status = ql_route_initialize(qdev);
-	if (status) {
-		QPRINTK(qdev, IFUP, ERR, "Failed to init routing table.\n");
+		QPRINTK(qdev, IFUP, ERR,
+				"Failed to init CAM/Routing tables.\n");
 		return status;
 	}
 
