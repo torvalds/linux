@@ -301,11 +301,17 @@ static int __devexit rc32434_wdt_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static void rc32434_wdt_shutdown(struct platform_device *pdev)
+{
+	rc32434_wdt_stop();
+}
+
 static struct platform_driver rc32434_wdt_driver = {
-	.probe	= rc32434_wdt_probe,
-	.remove	= __devexit_p(rc32434_wdt_remove),
-	.driver	= {
-		.name = "rc32434_wdt",
+	.probe		= rc32434_wdt_probe,
+	.remove		= __devexit_p(rc32434_wdt_remove),
+	.shutdown	= rc32434_wdt_shutdown,
+	.driver		= {
+			.name = "rc32434_wdt",
 	}
 };
 
