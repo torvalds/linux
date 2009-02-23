@@ -779,6 +779,13 @@ config SOC_CAMERA_OV772X
 	help
 	  This is a ov772x camera driver
 
+config VIDEO_MX3
+	tristate "i.MX3x Camera Sensor Interface driver"
+	depends on VIDEO_DEV && MX3_IPU && SOC_CAMERA
+	select VIDEOBUF_DMA_CONTIG
+	---help---
+	  This is a v4l2 driver for the i.MX3x Camera Sensor Interface
+
 config VIDEO_PXA27x
 	tristate "PXA27x Quick Capture Interface driver"
 	depends on VIDEO_DEV && PXA27x && SOC_CAMERA
