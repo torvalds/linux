@@ -312,7 +312,6 @@ skip_restore:
 	mov	#0, k1
 	mov.b	k1, @k0
 #endif
-	mov.l	@r15+, k2		! restore EXPEVT
 	mov	k4, r15
 	rte
 	 nop
@@ -487,20 +486,18 @@ handle_exception_special:
 	.align	L1_CACHE_SHIFT
 
 ! save_regs()
-! - save vector, default tra, macl, mach, gbr, ssr, pr* and spc on the stack
+! - save default tra, macl, mach, gbr, ssr, pr* and spc on the stack
 ! - save r15*, r14, r13, r12, r11, r10, r9, r8 on the stack
 ! - switch bank
 ! - save r7, r6, r5, r4, r3, r2, r1, r0 on the stack
 ! k0 contains original stack pointer*
 ! k1 trashed
-! k2 passes vector (EXPEVT)
 ! k3 passes original pr*
 ! k4 trashed
 ! BL=1 on entry, on exit BL=0.
 
 save_regs:
 	mov	#-1, r1
-	mov.l	k2, @-r15	! vector in k2
 	mov.l	k1, @-r15	! set TRA (default: -1)
 	sts.l	macl, @-r15
 	sts.l	mach, @-r15
