@@ -849,6 +849,9 @@ static void fw_device_init(struct work_struct *work)
 				  device->config_rom[3], device->config_rom[4],
 				  1 << device->max_speed);
 		device->config_rom_retries = 0;
+		if (device->card->is_irm)
+			fw_irm_set_broadcast_channel_register(&device->device,
+							      NULL);
 	}
 
 	/*

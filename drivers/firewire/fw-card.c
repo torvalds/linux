@@ -181,6 +181,147 @@ void fw_core_remove_descriptor(struct fw_descriptor *desc)
 	mutex_unlock(&card_mutex);
 }
 
+/* ------------------------------------------------------------------ */
+/* Code to handle 1394a broadcast channel */
+
+#define THIRTY_TWO_CHANNELS (0xFFFFFFFFU)
+#define IRM_RETRIES 2
+
+/*
+ * The abi is set by device_for_each_child(), even though we have no use
+ * for data, nor do we have a meaningful return value.
+ */
+int fw_irm_set_broadcast_channel_register(struct device *dev, void *data)
+{
+	struct fw_device *d;
+	int rcode;
+	int node_id;
+	int max_speed;
+	int retries;
+	int generation;
+	__be32 regval;
+	struct fw_card *card;
+
+	d = fw_device(dev);
+	/* FIXME: do we need locking here? */
+	generation = d->generation;
+	smp_rmb(); /* Ensure generation is at least as old as node_id */
+	node_id = d->node_id;
+	max_speed = d->max_speed;
+	retries = IRM_RETRIES;
+	card = d->card;
+tryagain_r:
+	rcode = fw_run_transaction(card, TCODE_READ_QUADLET_REQUEST,
+				   node_id, generation, max_speed,
+				   CSR_REGISTER_BASE + CSR_BROADCAST_CHANNEL,
+				   &regval, 4);
+	switch (rcode) {
+	case RCODE_BUSY:
+		if (retries--)
+			goto tryagain_r;
+		fw_notify("node %x read broadcast channel busy\n",
+			  node_id);
+		return 0;
+
+	default:
+		fw_notify("node %x read broadcast channel failed %x\n",
+			  node_id, rcode);
+		return 0;
+
+	case RCODE_COMPLETE:
+		/*
+		 * Paranoid reporting of nonstandard broadcast channel
+		 * contents goes here
+		 */
+		if (regval != cpu_to_be32(BROADCAST_CHANNEL_INITIAL))
+			return 0;
+		break;
+	}
+	retries = IRM_RETRIES;
+	regval = cpu_to_be32(BROADCAST_CHANNEL_INITIAL |
+			     BROADCAST_CHANNEL_VALID);
+tryagain_w:
+	rcode = fw_run_transaction(card,
+			TCODE_WRITE_QUADLET_REQUEST, node_id,
+			generation, max_speed,
+			CSR_REGISTER_BASE + CSR_BROADCAST_CHANNEL,
+			&regval, 4);
+	switch (rcode) {
+	case RCODE_BUSY:
+		if (retries--)
+			goto tryagain_w;
+		fw_notify("node %x write broadcast channel busy\n",
+			  node_id);
+		return 0;
+
+	default:
+		fw_notify("node %x write broadcast channel failed %x\n",
+			  node_id, rcode);
+		return 0;
+
+	case RCODE_COMPLETE:
+		return 0;
+	}
+	return 0;
+}
+
+static void
+irm_allocate_broadcast(struct fw_device *irm_dev, struct device *locald)
+{
+	u32 generation;
+	u32 node_id;
+	u32 max_speed;
+	u32 retries;
+	__be32 old_data;
+	__be32 lock_data[2];
+	int rcode;
+
+	/*
+	 * The device we are updating is the IRM, so we must do
+	 * some extra work.
+	 */
+	retries = IRM_RETRIES;
+	generation = irm_dev->generation;
+	/* FIXME: do we need locking here? */
+	smp_rmb();
+	node_id = irm_dev->node_id;
+	max_speed = irm_dev->max_speed;
+
+	lock_data[0] = cpu_to_be32(THIRTY_TWO_CHANNELS);
+	lock_data[1] = cpu_to_be32(THIRTY_TWO_CHANNELS & ~1);
+tryagain:
+	old_data = lock_data[0];
+	rcode = fw_run_transaction(irm_dev->card, TCODE_LOCK_COMPARE_SWAP,
+				   node_id, generation, max_speed,
+				   CSR_REGISTER_BASE+CSR_CHANNELS_AVAILABLE_HI,
+				   &lock_data[0], 8);
+	switch (rcode) {
+	case RCODE_BUSY:
+		if (retries--)
+			goto tryagain;
+		/* fallthrough */
+	default:
+		fw_error("node %x: allocate broadcast channel failed (%x)\n",
+			 node_id, rcode);
+		return;
+
+	case RCODE_COMPLETE:
+		if (lock_data[0] == old_data)
+			break;
+		if (retries--) {
+			lock_data[1] = cpu_to_be32(be32_to_cpu(lock_data[0])&~1);
+			goto tryagain;
+		}
+		fw_error("node %x: allocate broadcast channel failed: too many"
+			 " retries\n", node_id);
+		return;
+	}
+	irm_dev->card->is_irm = true;
+	device_for_each_child(locald, NULL, fw_irm_set_broadcast_channel_register);
+}
+/* ------------------------------------------------------------------ */
+
+
 static const char gap_count_table[] = {
 	63, 5, 7, 8, 10, 13, 16, 18, 21, 24, 26, 29, 32, 35, 37, 40
 };
@@ -198,8 +339,8 @@ void fw_schedule_bm_work(struct fw_card *card, unsigned long delay)
 static void fw_card_bm_work(struct work_struct *work)
 {
 	struct fw_card *card = container_of(work, struct fw_card, work.work);
-	struct fw_device *root_device;
-	struct fw_node *root_node, *local_node;
+	struct fw_device *root_device, *irm_device, *local_device;
+	struct fw_node *root_node, *local_node, *irm_node;
 	unsigned long flags;
 	int root_id, new_root_id, irm_id, gap_count, generation, grace, rcode;
 	bool do_reset = false;
@@ -208,8 +349,10 @@ static void fw_card_bm_work(struct work_struct *work)
 	__be32 lock_data[2];
 
 	spin_lock_irqsave(&card->lock, flags);
+	card->is_irm = false;
 	local_node = card->local_node;
 	root_node  = card->root_node;
+	irm_node = card->irm_node;
 
 	if (local_node == NULL) {
 		spin_unlock_irqrestore(&card->lock, flags);
@@ -217,6 +360,7 @@ static void fw_card_bm_work(struct work_struct *work)
 	}
 	fw_node_get(local_node);
 	fw_node_get(root_node);
+	fw_node_get(irm_node);
 
 	generation = card->generation;
 	root_device = root_node->data;
@@ -225,7 +369,8 @@ static void fw_card_bm_work(struct work_struct *work)
 	root_device_is_cmc = root_device && root_device->cmc;
 	root_id = root_node->node_id;
 	grace = time_after(jiffies, card->reset_jiffies + DIV_ROUND_UP(HZ, 10));
-
+	irm_device = irm_node->data;
+	local_device = local_node->data;
 	if (is_next_generation(generation, card->bm_generation) ||
 	    (card->bm_generation != generation && grace)) {
 		/*
@@ -240,8 +385,8 @@ static void fw_card_bm_work(struct work_struct *work)
 		 * next generation.
 		 */
 
-		irm_id = card->irm_node->node_id;
-		if (!card->irm_node->link_on) {
+		irm_id = irm_node->node_id;
+		if (!irm_node->link_on) {
 			new_root_id = local_node->node_id;
 			fw_notify("IRM has link off, making local node (%02x) root.\n",
 				  new_root_id);
@@ -263,9 +408,15 @@ static void fw_card_bm_work(struct work_struct *work)
 			goto out;
 
 		if (rcode == RCODE_COMPLETE &&
-		    lock_data[0] != cpu_to_be32(0x3f))
+		    lock_data[0] != cpu_to_be32(0x3f)) {
 			/* Somebody else is BM, let them do the work. */
+			if (irm_id == local_node->node_id) {
+				/* But we are IRM, so do irm-y things */
+				irm_allocate_broadcast(irm_device,
+						       card->device);
+			}
 			goto out;
+		}
 
 		spin_lock_irqsave(&card->lock, flags);
 
@@ -357,10 +508,19 @@ static void fw_card_bm_work(struct work_struct *work)
 			  card->index, new_root_id, gap_count);
 		fw_send_phy_config(card, new_root_id, generation, gap_count);
 		fw_core_initiate_bus_reset(card, 1);
+	} else if (irm_node->node_id == local_node->node_id) {
+		/*
+		 * We are IRM, so do irm-y things.
+		 * There's no reason to do this if we're doing a reset. . .
+		 * We'll be back.
+		 */
+		irm_allocate_broadcast(irm_device, card->device);
 	}
+
  out:
 	fw_node_put(root_node);
 	fw_node_put(local_node);
+	fw_node_put(irm_node);
  out_put_card:
 	fw_card_put(card);
 }

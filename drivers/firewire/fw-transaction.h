@@ -230,6 +230,11 @@ struct fw_card {
 	u8 color; /* must be u8 to match the definition in struct fw_node */
 	int gap_count;
 	bool beta_repeaters_present;
+	/*
+	 * Set if the local device is the IRM and the broadcast channel
+	 * was allocated.
+	 */
+	bool is_irm;
 
 	int index;
 
@@ -437,5 +442,8 @@ void fw_core_handle_bus_reset(struct fw_card *card, int node_id,
 		int generation, int self_id_count, u32 *self_ids);
 void fw_core_handle_request(struct fw_card *card, struct fw_packet *request);
 void fw_core_handle_response(struct fw_card *card, struct fw_packet *packet);
+
+extern int fw_irm_set_broadcast_channel_register(struct device *dev,
+						 void *data);
 
 #endif /* __fw_transaction_h */
