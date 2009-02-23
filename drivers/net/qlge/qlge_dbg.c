@@ -83,6 +83,10 @@ static void ql_dump_cam_entries(struct ql_adapter *qdev)
 {
 	int i;
 	u32 value[3];
+
+	i = ql_sem_spinlock(qdev, SEM_MAC_ADDR_MASK);
+	if (i)
+		return;
 	for (i = 0; i < 4; i++) {
 		if (ql_get_mac_addr_reg(qdev, MAC_ADDR_TYPE_CAM_MAC, i, value)) {
 			printk(KERN_ERR PFX
@@ -111,12 +115,16 @@ static void ql_dump_cam_entries(struct ql_adapter *qdev)
 				       qdev->ndev->name, i, value[1], value[0]);
 		}
 	}
+	ql_sem_unlock(qdev, SEM_MAC_ADDR_MASK);
 }
 
 void ql_dump_routing_entries(struct ql_adapter *qdev)
 {
 	int i;
 	u32 value;
+	i = ql_sem_spinlock(qdev, SEM_RT_IDX_MASK);
+	if (i)
+		return;
 	for (i = 0; i < 16; i++) {
 		value = 0;
 		if (ql_get_routing_reg(qdev, i, &value)) {
@@ -131,6 +139,7 @@ void ql_dump_routing_entries(struct ql_adapter *qdev)
 				       qdev->ndev->name, i, value);
 		}
 	}
+	ql_sem_unlock(qdev, SEM_RT_IDX_MASK);
 }
 
 void ql_dump_regs(struct ql_adapter *qdev)

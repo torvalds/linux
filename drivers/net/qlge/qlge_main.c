@@ -247,9 +247,6 @@ int ql_get_mac_addr_reg(struct ql_adapter *qdev, u32 type, u16 index,
 	u32 offset = 0;
 	int status;
 
-	status = ql_sem_spinlock(qdev, SEM_MAC_ADDR_MASK);
-	if (status)
-		return status;
 	switch (type) {
 	case MAC_ADDR_TYPE_MULTI_MAC:
 	case MAC_ADDR_TYPE_CAM_MAC:
@@ -308,7 +305,6 @@ int ql_get_mac_addr_reg(struct ql_adapter *qdev, u32 type, u16 index,
 		status = -EPERM;
 	}
 exit:
-	ql_sem_unlock(qdev, SEM_MAC_ADDR_MASK);
 	return status;
 }
 
@@ -321,9 +317,6 @@ static int ql_set_mac_addr_reg(struct ql_adapter *qdev, u8 *addr, u32 type,
 	u32 offset = 0;
 	int status = 0;
 
-	status = ql_sem_spinlock(qdev, SEM_MAC_ADDR_MASK);
-	if (status)
-		return status;
 	switch (type) {
 	case MAC_ADDR_TYPE_MULTI_MAC:
 	case MAC_ADDR_TYPE_CAM_MAC:
@@ -415,7 +408,6 @@ static int ql_set_mac_addr_reg(struct ql_adapter *qdev, u8 *addr, u32 type,
 		status = -EPERM;
 	}
 exit:
-	ql_sem_unlock(qdev, SEM_MAC_ADDR_MASK);
 	return status;
 }
 
@@ -1690,19 +1682,29 @@ static void ql_vlan_rx_add_vid(struct net_device *ndev, u16 vid)
 {
 	struct ql_adapter *qdev = netdev_priv(ndev);
 	u32 enable_bit = MAC_ADDR_E;
+	int status;
 
+	status = ql_sem_spinlock(qdev, SEM_MAC_ADDR_MASK);
+	if (status)
+		return;
 	spin_lock(&qdev->hw_lock);
 	if (ql_set_mac_addr_reg
 	    (qdev, (u8 *) &enable_bit, MAC_ADDR_TYPE_VLAN, vid)) {
 		QPRINTK(qdev, IFUP, ERR, "Failed to init vlan address.\n");
 	}
 	spin_unlock(&qdev->hw_lock);
+	ql_sem_unlock(qdev, SEM_MAC_ADDR_MASK);
 }
 
 static void ql_vlan_rx_kill_vid(struct net_device *ndev, u16 vid)
 {
 	struct ql_adapter *qdev = netdev_priv(ndev);
 	u32 enable_bit = 0;
+	int status;
+
+	status = ql_sem_spinlock(qdev, SEM_MAC_ADDR_MASK);
+	if (status)
+		return;
 
 	spin_lock(&qdev->hw_lock);
 	if (ql_set_mac_addr_reg
@@ -1710,6 +1712,7 @@ static void ql_vlan_rx_kill_vid(struct net_device *ndev, u16 vid)
 		QPRINTK(qdev, IFUP, ERR, "Failed to clear vlan address.\n");
 	}
 	spin_unlock(&qdev->hw_lock);
+	ql_sem_unlock(qdev, SEM_MAC_ADDR_MASK);
 
 }
 
@@ -2962,8 +2965,12 @@ static int ql_cam_route_initialize(struct ql_adapter *qdev)
 {
 	int status;
 
+	status = ql_sem_spinlock(qdev, SEM_MAC_ADDR_MASK);
+	if (status)
+		return status;
 	status = ql_set_mac_addr_reg(qdev, (u8 *) qdev->ndev->perm_addr,
 			     MAC_ADDR_TYPE_CAM_MAC, qdev->func * MAX_CQ);
+	ql_sem_unlock(qdev, SEM_MAC_ADDR_MASK);
 	if (status) {
 		QPRINTK(qdev, IFUP, ERR, "Failed to init mac address.\n");
 		return status;
@@ -3428,8 +3435,11 @@ static void qlge_set_multicast_list(struct net_device *ndev)
 {
 	struct ql_adapter *qdev = (struct ql_adapter *)netdev_priv(ndev);
 	struct dev_mc_list *mc_ptr;
-	int i;
+	int i, status;
 
+	status = ql_sem_spinlock(qdev, SEM_RT_IDX_MASK);
+	if (status)
+		return;
 	spin_lock(&qdev->hw_lock);
 	/*
 	 * Set or clear promiscuous mode if a
@@ -3485,14 +3495,19 @@ static void qlge_set_multicast_list(struct net_device *ndev)
 	}
 
 	if (ndev->mc_count) {
+		status = ql_sem_spinlock(qdev, SEM_MAC_ADDR_MASK);
+		if (status)
+			goto exit;
 		for (i = 0, mc_ptr = ndev->mc_list; mc_ptr;
 		     i++, mc_ptr = mc_ptr->next)
 			if (ql_set_mac_addr_reg(qdev, (u8 *) mc_ptr->dmi_addr,
 						MAC_ADDR_TYPE_MULTI_MAC, i)) {
 				QPRINTK(qdev, HW, ERR,
 					"Failed to loadmulticast address.\n");
+				ql_sem_unlock(qdev, SEM_MAC_ADDR_MASK);
 				goto exit;
 			}
+		ql_sem_unlock(qdev, SEM_MAC_ADDR_MASK);
 		if (ql_set_routing_reg
 		    (qdev, RT_IDX_MCAST_MATCH_SLOT, RT_IDX_MCAST_MATCH, 1)) {
 			QPRINTK(qdev, HW, ERR,
@@ -3509,7 +3524,7 @@ static int qlge_set_mac_address(struct net_device *ndev, void *p)
 {
 	struct ql_adapter *qdev = (struct ql_adapter *)netdev_priv(ndev);
 	struct sockaddr *addr = p;
-	int ret = 0;
+	int status;
 
 	if (netif_running(ndev))
 		return -EBUSY;
@@ -3518,15 +3533,17 @@ static int qlge_set_mac_address(struct net_device *ndev, void *p)
 		return -EADDRNOTAVAIL;
 	memcpy(ndev->dev_addr, addr->sa_data, ndev->addr_len);
 
+	status = ql_sem_spinlock(qdev, SEM_MAC_ADDR_MASK);
+	if (status)
+		return status;
 	spin_lock(&qdev->hw_lock);
-	if (ql_set_mac_addr_reg(qdev, (u8 *) ndev->dev_addr,
-			MAC_ADDR_TYPE_CAM_MAC, qdev->func)) {/* Unicast */
-		QPRINTK(qdev, HW, ERR, "Failed to load MAC address.\n");
-		ret = -1;
-	}
+	status = ql_set_mac_addr_reg(qdev, (u8 *) ndev->dev_addr,
+			MAC_ADDR_TYPE_CAM_MAC, qdev->func * MAX_CQ);
 	spin_unlock(&qdev->hw_lock);
-
-	return ret;
+	if (status)
+		QPRINTK(qdev, HW, ERR, "Failed to load MAC address.\n");
+	ql_sem_unlock(qdev, SEM_MAC_ADDR_MASK);
+	return status;
 }
 
 static void qlge_tx_timeout(struct net_device *ndev)
