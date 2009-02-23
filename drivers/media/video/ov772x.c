@@ -271,11 +271,13 @@
 #define SLCT_QVGA       0x40	/*   1 : QVGA */
 #define ITU656_ON_OFF   0x20	/* ITU656 protocol ON/OFF selection */
 				/* RGB output format control */
+#define FMT_MASK        0x0c	/*      Mask of color format */
 #define FMT_GBR422      0x00	/*      00 : GBR 4:2:2 */
 #define FMT_RGB565      0x04	/*      01 : RGB 565 */
 #define FMT_RGB555      0x08	/*      10 : RGB 555 */
 #define FMT_RGB444      0x0c	/* 11 : RGB 444 */
 				/* Output format control */
+#define OFMT_MASK       0x03    /*      Mask of output format */
 #define OFMT_YUV        0x00	/*      00 : YUV */
 #define OFMT_P_BRAW     0x01	/*      01 : Processed Bayer RAW */
 #define OFMT_RGB        0x02	/*      10 : RGB */
@@ -299,7 +301,7 @@
 #define GAIN_2x         0x00	/*    000 :   2x */
 #define GAIN_4x         0x10	/*    001 :   4x */
 #define GAIN_8x         0x20	/*    010 :   8x */
-#define GAIN_16x        0x30	/* 011 :  16x */
+#define GAIN_16x        0x30	/*    011 :  16x */
 #define GAIN_32x        0x40	/*    100 :  32x */
 #define GAIN_64x        0x50	/* 101 :  64x */
 #define GAIN_128x       0x60	/* 110 : 128x */
@@ -356,13 +358,6 @@
 #define VOSZ_QVGA       0x78
 
 /*
- * bit configure (32 bit)
- * this is used in struct ov772x_color_format :: option
- */
-#define OP_UV       0x00000001
-#define OP_SWAP_RGB 0x00000002
-
-/*
  * ID
  */
 #define OV7720  0x7720
@@ -380,8 +375,9 @@ struct regval_list {
 struct ov772x_color_format {
 	char                     *name;
 	__u32                     fourcc;
-	const struct regval_list *regs;
-	unsigned int              option;
+	u8                        dsp3;
+	u8                        com3;
+	u8                        com7;
 };
 
 struct ov772x_win_size {
@@ -402,34 +398,6 @@ struct ov772x_priv {
 };
 
 #define ENDMARKER { 0xff, 0xff }
-
-/*
- * register setting for color format
- */
-static const struct regval_list ov772x_RGB555_regs[] = {
-	{ COM3, 0x00 },
-	{ COM7, FMT_RGB555 | OFMT_RGB },
-	ENDMARKER,
-};
-
-static const struct regval_list ov772x_RGB565_regs[] = {
-	{ COM3, 0x00 },
-	{ COM7, FMT_RGB565 | OFMT_RGB },
-	ENDMARKER,
-};
-
-static const struct regval_list ov772x_YYUV_regs[] = {
-	{ COM3, SWAP_YUV },
-	{ COM7, OFMT_YUV },
-	ENDMARKER,
-};
-
-static const struct regval_list ov772x_UVYY_regs[] = {
-	{ COM3, 0x00 },
-	{ COM7, OFMT_YUV },
-	ENDMARKER,
-};
-
 
 /*
  * register setting for window size
@@ -503,34 +471,45 @@ static const struct soc_camera_data_format ov772x_fmt_lists[] = {
 static const struct ov772x_color_format ov772x_cfmts[] = {
 	{
 		SETFOURCC(YUYV),
-		.regs   = ov772x_YYUV_regs,
+		.dsp3   = 0x0,
+		.com3   = SWAP_YUV,
+		.com7   = OFMT_YUV,
 	},
 	{
 		SETFOURCC(YVYU),
-		.regs   = ov772x_YYUV_regs,
-		.option = OP_UV,
+		.dsp3   = UV_ON,
+		.com3   = SWAP_YUV,
+		.com7   = OFMT_YUV,
 	},
 	{
 		SETFOURCC(UYVY),
-		.regs   = ov772x_UVYY_regs,
+		.dsp3   = 0x0,
+		.com3   = 0x0,
+		.com7   = OFMT_YUV,
 	},
 	{
 		SETFOURCC(RGB555),
-		.regs   = ov772x_RGB555_regs,
-		.option = OP_SWAP_RGB,
+		.dsp3   = 0x0,
+		.com3   = SWAP_RGB,
+		.com7   = FMT_RGB555 | OFMT_RGB,
 	},
 	{
 		SETFOURCC(RGB555X),
-		.regs   = ov772x_RGB555_regs,
+		.dsp3   = 0x0,
+		.com3   = 0x0,
+		.com7   = FMT_RGB555 | OFMT_RGB,
 	},
 	{
 		SETFOURCC(RGB565),
-		.regs   = ov772x_RGB565_regs,
-		.option = OP_SWAP_RGB,
+		.dsp3   = 0x0,
+		.com3   = SWAP_RGB,
+		.com7   = FMT_RGB565 | OFMT_RGB,
 	},
 	{
 		SETFOURCC(RGB565X),
-		.regs   = ov772x_RGB565_regs,
+		.dsp3   = 0x0,
+		.com3   = 0x0,
+		.com7   = FMT_RGB565 | OFMT_RGB,
 	},
 };
 
@@ -738,6 +717,7 @@ static int ov772x_set_fmt(struct soc_camera_device *icd,
 {
 	struct ov772x_priv *priv = container_of(icd, struct ov772x_priv, icd);
 	int ret = -EINVAL;
+	u8  val;
 	int i;
 
 	/*
@@ -764,13 +744,6 @@ static int ov772x_set_fmt(struct soc_camera_device *icd,
 	ov772x_reset(priv->client);
 
 	/*
-	 * set color format
-	 */
-	ret = ov772x_write_array(priv->client, priv->fmt->regs);
-	if (ret < 0)
-		goto ov772x_set_fmt_error;
-
-	/*
 	 * set size format
 	 */
 	ret = ov772x_write_array(priv->client, priv->win->regs);
@@ -778,32 +751,34 @@ static int ov772x_set_fmt(struct soc_camera_device *icd,
 		goto ov772x_set_fmt_error;
 
 	/*
-	 * set COM7 bit ( QVGA or VGA )
+	 * set DSP_CTRL3
 	 */
+	val = priv->fmt->dsp3;
+	if (val) {
+		ret = ov772x_mask_set(priv->client,
+				      DSP_CTRL3, UV_MASK, val);
+		if (ret < 0)
+			goto ov772x_set_fmt_error;
+	}
+
+	/*
+	 * set COM3
+	 */
+	val = priv->fmt->com3;
 	ret = ov772x_mask_set(priv->client,
-			      COM7, SLCT_MASK, priv->win->com7_bit);
+			      COM3, SWAP_MASK, val);
 	if (ret < 0)
 		goto ov772x_set_fmt_error;
 
 	/*
-	 * set UV setting
+	 * set COM7
 	 */
-	if (priv->fmt->option & OP_UV) {
-		ret = ov772x_mask_set(priv->client,
-				      DSP_CTRL3, UV_MASK, UV_ON);
-		if (ret < 0)
-			goto ov772x_set_fmt_error;
-	}
-
-	/*
-	 * set SWAP setting
-	 */
-	if (priv->fmt->option & OP_SWAP_RGB) {
-		ret = ov772x_mask_set(priv->client,
-				      COM3, SWAP_MASK, SWAP_RGB);
-		if (ret < 0)
-			goto ov772x_set_fmt_error;
-	}
+	val = priv->win->com7_bit | priv->fmt->com7;
+	ret = ov772x_mask_set(priv->client,
+			      COM7, (SLCT_MASK | FMT_MASK | OFMT_MASK),
+			      val);
+	if (ret < 0)
+		goto ov772x_set_fmt_error;
 
 	return ret;
 
