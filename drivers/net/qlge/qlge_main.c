@@ -863,7 +863,8 @@ static void ql_write_cq_idx(struct rx_ring *rx_ring)
 /* Process (refill) a large buffer queue. */
 static void ql_update_lbq(struct ql_adapter *qdev, struct rx_ring *rx_ring)
 {
-	int clean_idx = rx_ring->lbq_clean_idx;
+	u32 clean_idx = rx_ring->lbq_clean_idx;
+	u32 start_idx = clean_idx;
 	struct bq_desc *lbq_desc;
 	u64 map;
 	int i;
@@ -910,19 +911,23 @@ static void ql_update_lbq(struct ql_adapter *qdev, struct rx_ring *rx_ring)
 		rx_ring->lbq_prod_idx += 16;
 		if (rx_ring->lbq_prod_idx == rx_ring->lbq_len)
 			rx_ring->lbq_prod_idx = 0;
+		rx_ring->lbq_free_cnt -= 16;
+	}
+
+	if (start_idx != clean_idx) {
 		QPRINTK(qdev, RX_STATUS, DEBUG,
 			"lbq: updating prod idx = %d.\n",
 			rx_ring->lbq_prod_idx);
 		ql_write_db_reg(rx_ring->lbq_prod_idx,
 				rx_ring->lbq_prod_idx_db_reg);
-		rx_ring->lbq_free_cnt -= 16;
 	}
 }
 
 /* Process (refill) a small buffer queue. */
 static void ql_update_sbq(struct ql_adapter *qdev, struct rx_ring *rx_ring)
 {
-	int clean_idx = rx_ring->sbq_clean_idx;
+	u32 clean_idx = rx_ring->sbq_clean_idx;
+	u32 start_idx = clean_idx;
 	struct bq_desc *sbq_desc;
 	u64 map;
 	int i;
@@ -972,13 +977,15 @@ static void ql_update_sbq(struct ql_adapter *qdev, struct rx_ring *rx_ring)
 		rx_ring->sbq_prod_idx += 16;
 		if (rx_ring->sbq_prod_idx == rx_ring->sbq_len)
 			rx_ring->sbq_prod_idx = 0;
+		rx_ring->sbq_free_cnt -= 16;
+	}
+
+	if (start_idx != clean_idx) {
 		QPRINTK(qdev, RX_STATUS, DEBUG,
 			"sbq: updating prod idx = %d.\n",
 			rx_ring->sbq_prod_idx);
 		ql_write_db_reg(rx_ring->sbq_prod_idx,
 				rx_ring->sbq_prod_idx_db_reg);
-
-		rx_ring->sbq_free_cnt -= 16;
 	}
 }
 
