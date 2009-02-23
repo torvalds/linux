@@ -144,6 +144,7 @@ extern int acct_parm[];
 
 #ifdef CONFIG_IA64
 extern int no_unaligned_warning;
+extern int unaligned_dump_stack;
 #endif
 
 #ifdef CONFIG_RT_MUTEXES
@@ -781,6 +782,14 @@ static struct ctl_table kern_table[] = {
 	 	.mode		= 0644,
 		.proc_handler	= &proc_dointvec,
 	},
+	{
+		.ctl_name	= CTL_UNNUMBERED,
+		.procname	= "unaligned-dump-stack",
+		.data		= &unaligned_dump_stack,
+		.maxlen		= sizeof (int),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec,
+	},
 #endif
 #ifdef CONFIG_DETECT_SOFTLOCKUP
 	{
@@ -800,7 +809,7 @@ static struct ctl_table kern_table[] = {
 		.data		= &softlockup_thresh,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec_minmax,
+		.proc_handler	= &proc_dosoftlockup_thresh,
 		.strategy	= &sysctl_intvec,
 		.extra1		= &neg_one,
 		.extra2		= &sixty,
@@ -1688,7 +1697,7 @@ int do_sysctl(int __user *name, int nlen, void __user *oldval, size_t __user *ol
 	return error;
 }
 
-asmlinkage long sys_sysctl(struct __sysctl_args __user *args)
+SYSCALL_DEFINE1(sysctl, struct __sysctl_args __user *, args)
 {
 	struct __sysctl_args tmp;
 	int error;
@@ -2989,7 +2998,7 @@ int sysctl_ms_jiffies(struct ctl_table *table,
 #else /* CONFIG_SYSCTL_SYSCALL */
 
 
-asmlinkage long sys_sysctl(struct __sysctl_args __user *args)
+SYSCALL_DEFINE1(sysctl, struct __sysctl_args __user *, args)
 {
 	struct __sysctl_args tmp;
 	int error;

@@ -4100,13 +4100,6 @@ static int snd_hdspm_capture_release(struct snd_pcm_substream *substream)
 	return 0;
 }
 
-static int snd_hdspm_hwdep_dummy_op(struct snd_hwdep * hw, struct file *file)
-{
-	/* we have nothing to initialize but the call is required */
-	return 0;
-}
-
-
 static int snd_hdspm_hwdep_ioctl(struct snd_hwdep * hw, struct file *file,
 				 unsigned int cmd, unsigned long arg)
 {
@@ -4213,9 +4206,7 @@ static int __devinit snd_hdspm_create_hwdep(struct snd_card *card,
 	hw->private_data = hdspm;
 	strcpy(hw->name, "HDSPM hwdep interface");
 
-	hw->ops.open = snd_hdspm_hwdep_dummy_op;
 	hw->ops.ioctl = snd_hdspm_hwdep_ioctl;
-	hw->ops.release = snd_hdspm_hwdep_dummy_op;
 
 	return 0;
 }

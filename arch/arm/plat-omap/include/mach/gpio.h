@@ -87,16 +87,6 @@ extern void omap_set_gpio_debounce_time(int gpio, int enable);
 #include <linux/errno.h>
 #include <asm-generic/gpio.h>
 
-static inline int omap_request_gpio(int gpio)
-{
-	return gpio_request(gpio, "FIXME");
-}
-
-static inline void omap_free_gpio(int gpio)
-{
-	gpio_free(gpio);
-}
-
 static inline int gpio_get_value(unsigned gpio)
 {
 	return __gpio_get_value(gpio);

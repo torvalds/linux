@@ -1600,7 +1600,7 @@ config 8139_OLD_RX_RESET
 	  old RX-reset behavior.  If unsure, say N.
 
 config R6040
-	tristate "RDC R6040 Fast Ethernet Adapter support (EXPERIMENTAL)"
+	tristate "RDC R6040 Fast Ethernet Adapter support"
 	depends on NET_PCI && PCI
 	select CRC32
 	select MII
@@ -1829,7 +1829,7 @@ config 68360_ENET
 
 config FEC
 	bool "FEC ethernet controller (of ColdFire CPUs)"
-	depends on M523x || M527x || M5272 || M528x || M520x
+	depends on M523x || M527x || M5272 || M528x || M520x || M532x
 	help
 	  Say Y here if you want to use the built-in 10/100 Fast ethernet
 	  controller on some Motorola ColdFire processors.

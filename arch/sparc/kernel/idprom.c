@@ -8,11 +8,14 @@
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/init.h>
+#include <linux/module.h>
 
 #include <asm/oplib.h>
 #include <asm/idprom.h>
 
 struct idprom *idprom;
+EXPORT_SYMBOL(idprom);
+
 static struct idprom idprom_buffer;
 
 #ifdef CONFIG_SPARC32

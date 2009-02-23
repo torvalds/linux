@@ -120,6 +120,7 @@ void __iomem *ioremap(unsigned long offset, unsigned long size)
 	sprintf(name, "phys_%08x", (u32)offset);
 	return _sparc_alloc_io(0, offset, size, name);
 }
+EXPORT_SYMBOL(ioremap);
 
 /*
  * Comlimentary to ioremap().
@@ -141,6 +142,7 @@ void iounmap(volatile void __iomem *virtual)
 		kfree(res);
 	}
 }
+EXPORT_SYMBOL(iounmap);
 
 void __iomem *of_ioremap(struct resource *res, unsigned long offset,
 			 unsigned long size, char *name)
@@ -237,6 +239,7 @@ void sbus_set_sbus64(struct device *dev, int x)
 {
 	printk("sbus_set_sbus64: unsupported\n");
 }
+EXPORT_SYMBOL(sbus_set_sbus64);
 
 /*
  * Allocate a chunk of memory suitable for DMA.
@@ -436,6 +439,7 @@ void *pci_alloc_consistent(struct pci_dev *pdev, size_t len, dma_addr_t *pba)
 	*pba = virt_to_phys(va); /* equals virt_to_bus (R.I.P.) for us. */
 	return (void *) res->start;
 }
+EXPORT_SYMBOL(pci_alloc_consistent);
 
 /* Free and unmap a consistent DMA buffer.
  * cpu_addr is what was returned from pci_alloc_consistent,
@@ -477,6 +481,7 @@ void pci_free_consistent(struct pci_dev *pdev, size_t n, void *p, dma_addr_t ba)
 
 	free_pages(pgp, get_order(n));
 }
+EXPORT_SYMBOL(pci_free_consistent);
 
 /* Map a single buffer of the indicated size for DMA in streaming mode.
  * The 32-bit bus address to use is returned.
@@ -491,6 +496,7 @@ dma_addr_t pci_map_single(struct pci_dev *hwdev, void *ptr, size_t size,
 	/* IIep is write-through, not flushing. */
 	return virt_to_phys(ptr);
 }
+EXPORT_SYMBOL(pci_map_single);
 
 /* Unmap a single streaming mode DMA translation.  The dma_addr and size
  * must match what was provided for in a previous pci_map_single call.  All
@@ -508,6 +514,7 @@ void pci_unmap_single(struct pci_dev *hwdev, dma_addr_t ba, size_t size,
 		    (size + PAGE_SIZE-1) & PAGE_MASK);
 	}
 }
+EXPORT_SYMBOL(pci_unmap_single);
 
 /*
  * Same as pci_map_single, but with pages.
@@ -519,6 +526,7 @@ dma_addr_t pci_map_page(struct pci_dev *hwdev, struct page *page,
 	/* IIep is write-through, not flushing. */
 	return page_to_phys(page) + offset;
 }
+EXPORT_SYMBOL(pci_map_page);
 
 void pci_unmap_page(struct pci_dev *hwdev,
 			dma_addr_t dma_address, size_t size, int direction)
@@ -526,6 +534,7 @@ void pci_unmap_page(struct pci_dev *hwdev,
 	BUG_ON(direction == PCI_DMA_NONE);
 	/* mmu_inval_dma_area XXX */
 }
+EXPORT_SYMBOL(pci_unmap_page);
 
 /* Map a set of buffers described by scatterlist in streaming
  * mode for DMA.  This is the scather-gather version of the
@@ -557,6 +566,7 @@ int pci_map_sg(struct pci_dev *hwdev, struct scatterlist *sgl, int nents,
 	}
 	return nents;
 }
+EXPORT_SYMBOL(pci_map_sg);
 
 /* Unmap a set of streaming mode DMA translations.
  * Again, cpu read rules concerning calls here are the same as for
@@ -578,6 +588,7 @@ void pci_unmap_sg(struct pci_dev *hwdev, struct scatterlist *sgl, int nents,
 		}
 	}
 }
+EXPORT_SYMBOL(pci_unmap_sg);
 
 /* Make physical memory consistent for a single
  * streaming mode DMA translation before or after a transfer.
@@ -597,6 +608,7 @@ void pci_dma_sync_single_for_cpu(struct pci_dev *hwdev, dma_addr_t ba, size_t si
 		    (size + PAGE_SIZE-1) & PAGE_MASK);
 	}
 }
+EXPORT_SYMBOL(pci_dma_sync_single_for_cpu);
 
 void pci_dma_sync_single_for_device(struct pci_dev *hwdev, dma_addr_t ba, size_t size, int direction)
 {
@@ -606,6 +618,7 @@ void pci_dma_sync_single_for_device(struct pci_dev *hwdev, dma_addr_t ba, size_t
 		    (size + PAGE_SIZE-1) & PAGE_MASK);
 	}
 }
+EXPORT_SYMBOL(pci_dma_sync_single_for_device);
 
 /* Make physical memory consistent for a set of streaming
  * mode DMA translations after a transfer.
@@ -628,6 +641,7 @@ void pci_dma_sync_sg_for_cpu(struct pci_dev *hwdev, struct scatterlist *sgl, int
 		}
 	}
 }
+EXPORT_SYMBOL(pci_dma_sync_sg_for_cpu);
 
 void pci_dma_sync_sg_for_device(struct pci_dev *hwdev, struct scatterlist *sgl, int nents, int direction)
 {
@@ -644,6 +658,7 @@ void pci_dma_sync_sg_for_device(struct pci_dev *hwdev, struct scatterlist *sgl, 
 		}
 	}
 }
+EXPORT_SYMBOL(pci_dma_sync_sg_for_device);
 #endif /* CONFIG_PCI */
 
 #ifdef CONFIG_PROC_FS

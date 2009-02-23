@@ -129,8 +129,8 @@ consider_steal_time(unsigned long new_itm)
 		blocked = stolentick;
 
 	if (stolen > 0 || blocked > 0) {
-		account_steal_time(NULL, jiffies_to_cputime(stolen));
-		account_steal_time(idle_task(cpu), jiffies_to_cputime(blocked));
+		account_steal_ticks(stolen);
+		account_idle_ticks(blocked);
 		run_local_timers();
 
 		if (rcu_pending(cpu))

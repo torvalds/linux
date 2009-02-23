@@ -516,7 +516,11 @@ EXPORT_SYMBOL(del_virt_timer);
  */
 void init_cpu_vtimer(void)
 {
+	struct thread_info *ti = current_thread_info();
 	struct vtimer_queue *vq;
+
+	S390_lowcore.user_timer = ti->user_timer;
+	S390_lowcore.system_timer = ti->system_timer;
 
 	/* kick the virtual timer */
 	asm volatile ("STCK %0" : "=m" (S390_lowcore.last_update_clock));

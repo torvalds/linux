@@ -22,7 +22,7 @@
 #include <asm/dma.h>	/* isa_dma_bridge_buggy */
 #include "pci.h"
 
-unsigned int pci_pm_d3_delay = 10;
+unsigned int pci_pm_d3_delay = PCI_PM_D3_WAIT;
 
 #ifdef CONFIG_PCI_DOMAINS
 int pci_domains_supported = 1;
@@ -426,6 +426,7 @@ static inline int platform_pci_sleep_wake(struct pci_dev *dev, bool enable)
  *                           given PCI device
  * @dev: PCI device to handle.
  * @state: PCI power state (D0, D1, D2, D3hot) to put the device into.
+ * @wait: If 'true', wait for the device to change its power state
  *
  * RETURN VALUE:
  * -EINVAL if the requested state is invalid.
@@ -435,7 +436,7 @@ static inline int platform_pci_sleep_wake(struct pci_dev *dev, bool enable)
  * 0 if device's power state has been successfully changed.
  */
 static int
-pci_raw_set_power_state(struct pci_dev *dev, pci_power_t state)
+pci_raw_set_power_state(struct pci_dev *dev, pci_power_t state, bool wait)
 {
 	u16 pmcsr;
 	bool need_restore = false;
@@ -480,8 +481,10 @@ pci_raw_set_power_state(struct pci_dev *dev, pci_power_t state)
 		break;
 	case PCI_UNKNOWN: /* Boot-up */
 		if ((pmcsr & PCI_PM_CTRL_STATE_MASK) == PCI_D3hot
-		 && !(pmcsr & PCI_PM_CTRL_NO_SOFT_RESET))
+		 && !(pmcsr & PCI_PM_CTRL_NO_SOFT_RESET)) {
 			need_restore = true;
+			wait = true;
+		}
 		/* Fall-through: force to D0 */
 	default:
 		pmcsr = 0;
@@ -491,12 +494,15 @@ pci_raw_set_power_state(struct pci_dev *dev, pci_power_t state)
 	/* enter specified state */
 	pci_write_config_word(dev, dev->pm_cap + PCI_PM_CTRL, pmcsr);
 
+	if (!wait)
+		return 0;
+
 	/* Mandatory power management transition delays */
 	/* see PCI PM 1.1 5.6.1 table 18 */
 	if (state == PCI_D3hot || dev->current_state == PCI_D3hot)
 		msleep(pci_pm_d3_delay);
 	else if (state == PCI_D2 || dev->current_state == PCI_D2)
-		udelay(200);
+		udelay(PCI_PM_D2_DELAY);
 
 	dev->current_state = state;
 
@@ -515,7 +521,7 @@ pci_raw_set_power_state(struct pci_dev *dev, pci_power_t state)
 	if (need_restore)
 		pci_restore_bars(dev);
 
-	if (dev->bus->self)
+	if (wait && dev->bus->self)
 		pcie_aspm_pm_state_change(dev->bus->self);
 
 	return 0;
@@ -585,7 +591,7 @@ int pci_set_power_state(struct pci_dev *dev, pci_power_t state)
 	if (state == PCI_D3hot && (dev->dev_flags & PCI_DEV_FLAGS_NO_D3))
 		return 0;
 
-	error = pci_raw_set_power_state(dev, state);
+	error = pci_raw_set_power_state(dev, state, true);
 
 	if (state > PCI_D0 && platform_pci_power_manageable(dev)) {
 		/* Allow the platform to finalize the transition */
@@ -730,6 +736,7 @@ pci_save_state(struct pci_dev *dev)
 	/* XXX: 100% dword access ok here? */
 	for (i = 0; i < 16; i++)
 		pci_read_config_dword(dev, i * 4,&dev->saved_config_space[i]);
+	dev->state_saved = true;
 	if ((i = pci_save_pcie_state(dev)) != 0)
 		return i;
 	if ((i = pci_save_pcix_state(dev)) != 0)
@@ -1260,15 +1267,14 @@ void pci_pm_init(struct pci_dev *dev)
 	/* find PCI PM capability in list */
 	pm = pci_find_capability(dev, PCI_CAP_ID_PM);
 	if (!pm)
-		goto Exit;
-
+		return;
 	/* Check device's ability to generate PME# */
 	pci_read_config_word(dev, pm + PCI_PM_PMC, &pmc);
 
 	if ((pmc & PCI_PM_CAP_VER_MASK) > 3) {
 		dev_err(&dev->dev, "unsupported PM cap regs version (%u)\n",
 			pmc & PCI_PM_CAP_VER_MASK);
-		goto Exit;
+		return;
 	}
 
 	dev->pm_cap = pm;
@@ -1307,9 +1313,6 @@ void pci_pm_init(struct pci_dev *dev)
 	} else {
 		dev->pme_support = 0;
 	}
-
- Exit:
-	pci_update_current_state(dev, PCI_D0);
 }
 
 /**
@@ -1375,6 +1378,50 @@ void pci_allocate_cap_save_buffers(struct pci_dev *dev)
 	if (error)
 		dev_err(&dev->dev,
 			"unable to preallocate PCI-X save buffer\n");
+}
+
+/**
+ * pci_restore_standard_config - restore standard config registers of PCI device
+ * @dev: PCI device to handle
+ *
+ * This function assumes that the device's configuration space is accessible.
+ * If the device needs to be powered up, the function will wait for it to
+ * change the state.
+ */
+int pci_restore_standard_config(struct pci_dev *dev)
+{
+	pci_power_t prev_state;
+	int error;
+
+	pci_restore_state(dev);
+	pci_update_current_state(dev, PCI_D0);
+
+	prev_state = dev->current_state;
+	if (prev_state == PCI_D0)
+		return 0;
+
+	error = pci_raw_set_power_state(dev, PCI_D0, false);
+	if (error)
+		return error;
+
+	if (pci_is_bridge(dev)) {
+		if (prev_state > PCI_D1)
+			mdelay(PCI_PM_BUS_WAIT);
+	} else {
+		switch(prev_state) {
+		case PCI_D3cold:
+		case PCI_D3hot:
+			mdelay(pci_pm_d3_delay);
+			break;
+		case PCI_D2:
+			udelay(PCI_PM_D2_DELAY);
+			break;
+		}
+	}
+
+	dev->current_state = PCI_D0;
+
+	return 0;
 }
 
 /**

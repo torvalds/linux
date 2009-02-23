@@ -1585,37 +1585,6 @@ int snd_soc_put_enum_double(struct snd_kcontrol *kcontrol,
 EXPORT_SYMBOL_GPL(snd_soc_put_enum_double);
 
 /**
- * snd_soc_info_value_enum_double - semi enumerated double mixer info callback
- * @kcontrol: mixer control
- * @uinfo: control element information
- *
- * Callback to provide information about a double semi enumerated
- * mixer control.
- *
- * Semi enumerated mixer: the enumerated items are referred as values. Can be
- * used for handling bitfield coded enumeration for example.
- *
- * Returns 0 for success.
- */
-int snd_soc_info_value_enum_double(struct snd_kcontrol *kcontrol,
-	struct snd_ctl_elem_info *uinfo)
-{
-	struct soc_value_enum *e = (struct soc_value_enum *)
-			kcontrol->private_value;
-
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	uinfo->count = e->shift_l == e->shift_r ? 1 : 2;
-	uinfo->value.enumerated.items = e->max;
-
-	if (uinfo->value.enumerated.item > e->max - 1)
-		uinfo->value.enumerated.item = e->max - 1;
-	strcpy(uinfo->value.enumerated.name,
-		e->texts[uinfo->value.enumerated.item]);
-	return 0;
-}
-EXPORT_SYMBOL_GPL(snd_soc_info_value_enum_double);
-
-/**
  * snd_soc_get_value_enum_double - semi enumerated double mixer get callback
  * @kcontrol: mixer control
  * @ucontrol: control element information
@@ -1631,8 +1600,7 @@ int snd_soc_get_value_enum_double(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
-	struct soc_value_enum *e = (struct soc_value_enum *)
-			kcontrol->private_value;
+	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
 	unsigned short reg_val, val, mux;
 
 	reg_val = snd_soc_read(codec, e->reg);
@@ -1671,8 +1639,7 @@ int snd_soc_put_value_enum_double(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
-	struct soc_value_enum *e = (struct soc_value_enum *)
-			kcontrol->private_value;
+	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
 	unsigned short val;
 	unsigned short mask;
 

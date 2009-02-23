@@ -97,7 +97,7 @@ void rt2x00leds_led_assoc(struct rt2x00_dev *rt2x00dev, bool enabled)
 
 void rt2x00leds_led_radio(struct rt2x00_dev *rt2x00dev, bool enabled)
 {
-	if (rt2x00dev->led_radio.type == LED_TYPE_ASSOC)
+	if (rt2x00dev->led_radio.type == LED_TYPE_RADIO)
 		rt2x00led_led_simple(&rt2x00dev->led_radio, enabled);
 }
 

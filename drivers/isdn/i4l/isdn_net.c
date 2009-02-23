@@ -292,7 +292,9 @@ isdn_net_unbind_channel(isdn_net_local * lp)
 	lp->dialstate = 0;
 	dev->rx_netdev[isdn_dc2minor(lp->isdn_device, lp->isdn_channel)] = NULL;
 	dev->st_netdev[isdn_dc2minor(lp->isdn_device, lp->isdn_channel)] = NULL;
-	isdn_free_channel(lp->isdn_device, lp->isdn_channel, ISDN_USAGE_NET);
+	if (lp->isdn_device != -1 && lp->isdn_channel != -1)
+		isdn_free_channel(lp->isdn_device, lp->isdn_channel,
+				  ISDN_USAGE_NET);
 	lp->flags &= ~ISDN_NET_CONNECTED;
 	lp->isdn_device = -1;
 	lp->isdn_channel = -1;
@@ -2513,7 +2515,6 @@ static const struct net_device_ops isdn_netdev_ops = {
 	.ndo_stop	      = isdn_net_close,
 	.ndo_do_ioctl	      = isdn_net_ioctl,
 
-	.ndo_validate_addr    = NULL,
 	.ndo_start_xmit	      = isdn_net_start_xmit,
 	.ndo_get_stats	      = isdn_net_get_stats,
 	.ndo_tx_timeout	      = isdn_net_tx_timeout,
@@ -2528,12 +2529,8 @@ static void _isdn_setup(struct net_device *dev)
 
 	ether_setup(dev);
 
-	dev->flags = IFF_NOARP | IFF_POINTOPOINT;
 	/* Setup the generic properties */
-	dev->mtu = 1500;
 	dev->flags = IFF_NOARP|IFF_POINTOPOINT;
-	dev->type = ARPHRD_ETHER;
-	dev->addr_len = ETH_ALEN;
 	dev->header_ops = NULL;
 	dev->netdev_ops = &isdn_netdev_ops;
 

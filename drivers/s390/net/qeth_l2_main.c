@@ -916,7 +916,7 @@ static struct ethtool_ops qeth_l2_osn_ops = {
 	.get_drvinfo = qeth_core_get_drvinfo,
 };
 
-static struct net_device_ops qeth_l2_netdev_ops = {
+static const struct net_device_ops qeth_l2_netdev_ops = {
 	.ndo_open		= qeth_l2_open,
 	.ndo_stop		= qeth_l2_stop,
 	.ndo_get_stats		= qeth_get_stats,

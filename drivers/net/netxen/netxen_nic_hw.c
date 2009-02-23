@@ -503,17 +503,15 @@ netxen_send_cmd_descs(struct netxen_adapter *adapter,
 
 	i = 0;
 
+	netif_tx_lock_bh(adapter->netdev);
+
 	producer = adapter->cmd_producer;
 	do {
 		cmd_desc = &cmd_desc_arr[i];
 
 		pbuf = &adapter->cmd_buf_arr[producer];
-		pbuf->mss = 0;
-		pbuf->total_length = 0;
 		pbuf->skb = NULL;
-		pbuf->cmd = 0;
 		pbuf->frag_count = 0;
-		pbuf->port = 0;
 
 		/* adapter->ahw.cmd_desc_head[producer] = *cmd_desc; */
 		memcpy(&adapter->ahw.cmd_desc_head[producer],
@@ -531,6 +529,8 @@ netxen_send_cmd_descs(struct netxen_adapter *adapter,
 
 	netxen_nic_update_cmd_producer(adapter, adapter->cmd_producer);
 
+	netif_tx_unlock_bh(adapter->netdev);
+
 	return 0;
 }
 
@@ -539,16 +539,19 @@ static int nx_p3_sre_macaddr_change(struct net_device *dev,
 {
 	struct netxen_adapter *adapter = netdev_priv(dev);
 	nx_nic_req_t req;
-	nx_mac_req_t mac_req;
+	nx_mac_req_t *mac_req;
+	u64 word;
 	int rv;
 
 	memset(&req, 0, sizeof(nx_nic_req_t));
-	req.qhdr |= (NX_NIC_REQUEST << 23);
-	req.req_hdr |= NX_MAC_EVENT;
-	req.req_hdr |= ((u64)adapter->portnum << 16);
-	mac_req.op = op;
-	memcpy(&mac_req.mac_addr, addr, 6);
-	req.words[0] = cpu_to_le64(*(u64 *)&mac_req);
+	req.qhdr = cpu_to_le64(NX_NIC_REQUEST << 23);
+
+	word = NX_MAC_EVENT | ((u64)adapter->portnum << 16);
+	req.req_hdr = cpu_to_le64(word);
+
+	mac_req = (nx_mac_req_t *)&req.words[0];
+	mac_req->op = op;
+	memcpy(mac_req->mac_addr, addr, 6);
 
 	rv = netxen_send_cmd_descs(adapter, (struct cmd_desc_type0 *)&req, 1);
 	if (rv != 0) {
@@ -612,16 +615,33 @@ send_fw_cmd:
 int netxen_p3_nic_set_promisc(struct netxen_adapter *adapter, u32 mode)
 {
 	nx_nic_req_t req;
+	u64 word;
 
 	memset(&req, 0, sizeof(nx_nic_req_t));
 
-	req.qhdr |= (NX_HOST_REQUEST << 23);
-	req.req_hdr |= NX_NIC_H2C_OPCODE_PROXY_SET_VPORT_MISS_MODE;
-	req.req_hdr |= ((u64)adapter->portnum << 16);
+	req.qhdr = cpu_to_le64(NX_HOST_REQUEST << 23);
+
+	word = NX_NIC_H2C_OPCODE_PROXY_SET_VPORT_MISS_MODE |
+			((u64)adapter->portnum << 16);
+	req.req_hdr = cpu_to_le64(word);
+
 	req.words[0] = cpu_to_le64(mode);
 
 	return netxen_send_cmd_descs(adapter,
 				(struct cmd_desc_type0 *)&req, 1);
+}
+
+void netxen_p3_free_mac_list(struct netxen_adapter *adapter)
+{
+	nx_mac_list_t *cur, *next;
+
+	cur = adapter->mac_list;
+
+	while (cur) {
+		next = cur->next;
+		kfree(cur);
+		cur = next;
+	}
 }
 
 #define	NETXEN_CONFIG_INTR_COALESCE	3
@@ -632,13 +652,15 @@ int netxen_p3_nic_set_promisc(struct netxen_adapter *adapter, u32 mode)
 int netxen_config_intr_coalesce(struct netxen_adapter *adapter)
 {
 	nx_nic_req_t req;
+	u64 word;
 	int rv;
 
 	memset(&req, 0, sizeof(nx_nic_req_t));
 
-	req.qhdr |= (NX_NIC_REQUEST << 23);
-	req.req_hdr |= NETXEN_CONFIG_INTR_COALESCE;
-	req.req_hdr |= ((u64)adapter->portnum << 16);
+	req.qhdr = cpu_to_le64(NX_NIC_REQUEST << 23);
+
+	word = NETXEN_CONFIG_INTR_COALESCE | ((u64)adapter->portnum << 16);
+	req.req_hdr = cpu_to_le64(word);
 
 	memcpy(&req.words[0], &adapter->coal, sizeof(adapter->coal));
 
@@ -772,13 +794,10 @@ int netxen_p3_get_mac_addr(struct netxen_adapter *adapter, __le64 *mac)
 	adapter->hw_read_wx(adapter, crbaddr, &mac_lo, 4);
 	adapter->hw_read_wx(adapter, crbaddr+4, &mac_hi, 4);
 
-	mac_hi = cpu_to_le32(mac_hi);
-	mac_lo = cpu_to_le32(mac_lo);
-
 	if (pci_func & 1)
-		*mac = ((mac_lo >> 16) | ((u64)mac_hi << 16));
+		*mac = le64_to_cpu((mac_lo >> 16) | ((u64)mac_hi << 16));
 	else
-		*mac = ((mac_lo) | ((u64)mac_hi << 32));
+		*mac = le64_to_cpu((u64)mac_lo | ((u64)mac_hi << 32));
 
 	return 0;
 }
@@ -937,7 +956,7 @@ int netxen_load_firmware(struct netxen_adapter *adapter)
 {
 	int i;
 	u32 data, size = 0;
-	u32 flashaddr = NETXEN_BOOTLD_START, memaddr = NETXEN_BOOTLD_START;
+	u32 flashaddr = NETXEN_BOOTLD_START;
 
 	size = (NETXEN_IMAGE_START - NETXEN_BOOTLD_START)/4;
 
@@ -949,10 +968,8 @@ int netxen_load_firmware(struct netxen_adapter *adapter)
 		if (netxen_rom_fast_read(adapter, flashaddr, (int *)&data) != 0)
 			return -EIO;
 
-		adapter->pci_mem_write(adapter, memaddr, &data, 4);
+		adapter->pci_mem_write(adapter, flashaddr, &data, 4);
 		flashaddr += 4;
-		memaddr += 4;
-		cond_resched();
 	}
 	msleep(1);
 
@@ -2034,7 +2051,13 @@ int netxen_nic_get_board_info(struct netxen_adapter *adapter)
 		rv = -1;
 	}
 
-	DPRINTK(INFO, "Discovered board type:0x%x  ", boardinfo->board_type);
+	if (boardinfo->board_type == NETXEN_BRDTYPE_P3_4_GB_MM) {
+		u32 gpio = netxen_nic_reg_read(adapter,
+				NETXEN_ROMUSB_GLB_PAD_GPIO_I);
+		if ((gpio & 0x8000) == 0)
+			boardinfo->board_type = NETXEN_BRDTYPE_P3_10G_TP;
+	}
+
 	switch ((netxen_brdtype_t) boardinfo->board_type) {
 	case NETXEN_BRDTYPE_P2_SB35_4G:
 		adapter->ahw.board_type = NETXEN_NIC_GBE;
@@ -2053,7 +2076,6 @@ int netxen_nic_get_board_info(struct netxen_adapter *adapter)
 	case NETXEN_BRDTYPE_P3_10G_SFP_QT:
 	case NETXEN_BRDTYPE_P3_10G_XFP:
 	case NETXEN_BRDTYPE_P3_10000_BASE_T:
-
 		adapter->ahw.board_type = NETXEN_NIC_XGBE;
 		break;
 	case NETXEN_BRDTYPE_P1_BD:
@@ -2063,8 +2085,11 @@ int netxen_nic_get_board_info(struct netxen_adapter *adapter)
 	case NETXEN_BRDTYPE_P3_REF_QG:
 	case NETXEN_BRDTYPE_P3_4_GB:
 	case NETXEN_BRDTYPE_P3_4_GB_MM:
-
 		adapter->ahw.board_type = NETXEN_NIC_GBE;
+		break;
+	case NETXEN_BRDTYPE_P3_10G_TP:
+		adapter->ahw.board_type = (adapter->portnum < 2) ?
+			NETXEN_NIC_XGBE : NETXEN_NIC_GBE;
 		break;
 	default:
 		printk("%s: Unknown(%x)\n", netxen_nic_driver_name,
@@ -2110,12 +2135,16 @@ void netxen_nic_set_link_parameters(struct netxen_adapter *adapter)
 {
 	__u32 status;
 	__u32 autoneg;
-	__u32 mode;
 	__u32 port_mode;
 
-	netxen_nic_read_w0(adapter, NETXEN_NIU_MODE, &mode);
-	if (netxen_get_niu_enable_ge(mode)) {	/* Gb 10/100/1000 Mbps mode */
+	if (!netif_carrier_ok(adapter->netdev)) {
+		adapter->link_speed   = 0;
+		adapter->link_duplex  = -1;
+		adapter->link_autoneg = AUTONEG_ENABLE;
+		return;
+	}
 
+	if (adapter->ahw.board_type == NETXEN_NIC_GBE) {
 		adapter->hw_read_wx(adapter,
 				NETXEN_PORT_MODE_ADDR, &port_mode, 4);
 		if (port_mode == NETXEN_PORT_MODE_802_3_AP) {
@@ -2141,7 +2170,7 @@ void netxen_nic_set_link_parameters(struct netxen_adapter *adapter)
 					adapter->link_speed = SPEED_1000;
 					break;
 				default:
-					adapter->link_speed = -1;
+					adapter->link_speed = 0;
 					break;
 				}
 				switch (netxen_get_phy_duplex(status)) {
@@ -2164,7 +2193,7 @@ void netxen_nic_set_link_parameters(struct netxen_adapter *adapter)
 				goto link_down;
 		} else {
 		      link_down:
-			adapter->link_speed = -1;
+			adapter->link_speed = 0;
 			adapter->link_duplex = -1;
 		}
 	}

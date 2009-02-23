@@ -22,7 +22,7 @@
 #ifndef __CONNECTOR_H
 #define __CONNECTOR_H
 
-#include <asm/types.h>
+#include <linux/types.h>
 
 #define CN_IDX_CONNECTOR		0xffffffff
 #define CN_VAL_CONNECTOR		0xffffffff

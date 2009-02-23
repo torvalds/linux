@@ -34,16 +34,13 @@ xfs_find_handle(
 
 extern int
 xfs_open_by_handle(
-	xfs_mount_t		*mp,
-	xfs_fsop_handlereq_t	*hreq,
 	struct file		*parfilp,
-	struct inode		*parinode);
+	xfs_fsop_handlereq_t	*hreq);
 
 extern int
 xfs_readlink_by_handle(
-	xfs_mount_t		*mp,
-	xfs_fsop_handlereq_t	*hreq,
-	struct inode		*parinode);
+	struct file		*parfilp,
+	xfs_fsop_handlereq_t	*hreq);
 
 extern int
 xfs_attrmulti_attr_get(
@@ -66,6 +63,12 @@ xfs_attrmulti_attr_remove(
 	struct inode		*inode,
 	char			*name,
 	__uint32_t		flags);
+
+extern struct dentry *
+xfs_handle_to_dentry(
+	struct file		*parfilp,
+	void __user		*uhandle,
+	u32			hlen);
 
 extern long
 xfs_file_ioctl(

@@ -77,6 +77,7 @@ mainmenu "Linux Kernel Configuration"
 config S390
 	def_bool y
 	select USE_GENERIC_SMP_HELPERS if SMP
+	select HAVE_SYSCALL_WRAPPERS
 	select HAVE_FUNCTION_TRACER
 	select HAVE_OPROFILE
 	select HAVE_KPROBES

@@ -44,7 +44,7 @@ static void _dump_field(const char *hdr, u64 n, const char *func, int line)
 		s[i] = (in[i] <= 126 && in[i] >= 32) ? in[i] : '.';
 	s[i] = 0;
 
-	pr_debug("%s:%d: %s%016lx : %s\n", func, line, hdr, n, s);
+	pr_debug("%s:%d: %s%016llx : %s\n", func, line, hdr, n, s);
 #endif
 }
 
@@ -70,8 +70,8 @@ static void _dump_node(unsigned int lpar_id, u64 n1, u64 n2, u64 n3, u64 n4,
 	_dump_field("n2: ", n2, func, line);
 	_dump_field("n3: ", n3, func, line);
 	_dump_field("n4: ", n4, func, line);
-	pr_debug("%s:%d: v1: %016lx\n", func, line, v1);
-	pr_debug("%s:%d: v2: %016lx\n", func, line, v2);
+	pr_debug("%s:%d: v1: %016llx\n", func, line, v1);
+	pr_debug("%s:%d: v2: %016llx\n", func, line, v2);
 }
 
 /**
@@ -149,10 +149,10 @@ static int read_node(unsigned int lpar_id, u64 n1, u64 n2, u64 n3, u64 n4,
 		*_v2 = v2;
 
 	if (v1 && !_v1)
-		pr_debug("%s:%d: warning: discarding non-zero v1: %016lx\n",
+		pr_debug("%s:%d: warning: discarding non-zero v1: %016llx\n",
 			__func__, __LINE__, v1);
 	if (v2 && !_v2)
-		pr_debug("%s:%d: warning: discarding non-zero v2: %016lx\n",
+		pr_debug("%s:%d: warning: discarding non-zero v2: %016llx\n",
 			__func__, __LINE__, v2);
 
 	return 0;
@@ -327,7 +327,7 @@ int ps3_repository_find_device(struct ps3_repository_device *repo)
 		return result;
 	}
 
-	pr_debug("%s:%d: bus_type %u, bus_index %u, bus_id %lu, num_dev %u\n",
+	pr_debug("%s:%d: bus_type %u, bus_index %u, bus_id %llu, num_dev %u\n",
 		__func__, __LINE__, tmp.bus_type, tmp.bus_index, tmp.bus_id,
 		num_dev);
 
@@ -353,7 +353,7 @@ int ps3_repository_find_device(struct ps3_repository_device *repo)
 		return result;
 	}
 
-	pr_debug("%s:%d: found: dev_type %u, dev_index %u, dev_id %lu\n",
+	pr_debug("%s:%d: found: dev_type %u, dev_index %u, dev_id %llu\n",
 		__func__, __LINE__, tmp.dev_type, tmp.dev_index, tmp.dev_id);
 
 	*repo = tmp;
@@ -367,7 +367,7 @@ int ps3_repository_find_device_by_id(struct ps3_repository_device *repo,
 	struct ps3_repository_device tmp;
 	unsigned int num_dev;
 
-	pr_debug(" -> %s:%u: find device by id %lu:%lu\n", __func__, __LINE__,
+	pr_debug(" -> %s:%u: find device by id %llu:%llu\n", __func__, __LINE__,
 		 bus_id, dev_id);
 
 	for (tmp.bus_index = 0; tmp.bus_index < 10; tmp.bus_index++) {
@@ -382,7 +382,7 @@ int ps3_repository_find_device_by_id(struct ps3_repository_device *repo,
 		if (tmp.bus_id == bus_id)
 			goto found_bus;
 
-		pr_debug("%s:%u: skip, bus_id %lu\n", __func__, __LINE__,
+		pr_debug("%s:%u: skip, bus_id %llu\n", __func__, __LINE__,
 			 tmp.bus_id);
 	}
 	pr_debug(" <- %s:%u: bus not found\n", __func__, __LINE__);
@@ -416,7 +416,7 @@ found_bus:
 		if (tmp.dev_id == dev_id)
 			goto found_dev;
 
-		pr_debug("%s:%u: skip, dev_id %lu\n", __func__, __LINE__,
+		pr_debug("%s:%u: skip, dev_id %llu\n", __func__, __LINE__,
 			 tmp.dev_id);
 	}
 	pr_debug(" <- %s:%u: dev not found\n", __func__, __LINE__);
@@ -430,7 +430,7 @@ found_dev:
 		return result;
 	}
 
-	pr_debug(" <- %s:%u: found: type (%u:%u) index (%u:%u) id (%lu:%lu)\n",
+	pr_debug(" <- %s:%u: found: type (%u:%u) index (%u:%u) id (%llu:%llu)\n",
 		 __func__, __LINE__, tmp.bus_type, tmp.dev_type, tmp.bus_index,
 		 tmp.dev_index, tmp.bus_id, tmp.dev_id);
 	*repo = tmp;

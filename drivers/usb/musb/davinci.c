@@ -32,9 +32,10 @@
 #include <linux/io.h>
 #include <linux/gpio.h>
 
-#include <mach/arch/hardware.h>
-#include <mach/arch/memory.h>
-#include <mach/arch/gpio.h>
+#include <mach/hardware.h>
+#include <mach/memory.h>
+#include <mach/gpio.h>
+
 #include <asm/mach-types.h>
 
 #include "musb_core.h"
@@ -368,12 +369,6 @@ int musb_platform_set_mode(struct musb *musb, u8 mode)
 {
 	/* EVM can't do this (right?) */
 	return -EIO;
-}
-
-int musb_platform_set_mode(struct musb *musb, u8 mode)
-{
-       /* EVM can't do this (right?) */
-       return -EIO;
 }
 
 int __init musb_platform_init(struct musb *musb)

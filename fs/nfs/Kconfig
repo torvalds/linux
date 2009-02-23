@@ -1,0 +1,86 @@
+config NFS_FS
+	tristate "NFS client support"
+	depends on INET
+	select LOCKD
+	select SUNRPC
+	select NFS_ACL_SUPPORT if NFS_V3_ACL
+	help
+	  Choose Y here if you want to access files residing on other
+	  computers using Sun's Network File System protocol.  To compile
+	  this file system support as a module, choose M here: the module
+	  will be called nfs.
+
+	  To mount file systems exported by NFS servers, you also need to
+	  install the user space mount.nfs command which can be found in
+	  the Linux nfs-utils package, available from http://linux-nfs.org/.
+	  Information about using the mount command is available in the
+	  mount(8) man page.  More detail about the Linux NFS client
+	  implementation is available via the nfs(5) man page.
+
+	  Below you can choose which versions of the NFS protocol are
+	  available in the kernel to mount NFS servers.  Support for NFS
+	  version 2 (RFC 1094) is always available when NFS_FS is selected.
+
+	  To configure a system which mounts its root file system via NFS
+	  at boot time, say Y here, select "Kernel level IP
+	  autoconfiguration" in the NETWORK menu, and select "Root file
+	  system on NFS" below.  You cannot compile this file system as a
+	  module in this case.
+
+	  If unsure, say N.
+
+config NFS_V3
+	bool "NFS client support for NFS version 3"
+	depends on NFS_FS
+	help
+	  This option enables support for version 3 of the NFS protocol
+	  (RFC 1813) in the kernel's NFS client.
+
+	  If unsure, say Y.
+
+config NFS_V3_ACL
+	bool "NFS client support for the NFSv3 ACL protocol extension"
+	depends on NFS_V3
+	help
+	  Some NFS servers support an auxiliary NFSv3 ACL protocol that
+	  Sun added to Solaris but never became an official part of the
+	  NFS version 3 protocol.  This protocol extension allows
+	  applications on NFS clients to manipulate POSIX Access Control
+	  Lists on files residing on NFS servers.  NFS servers enforce
+	  ACLs on local files whether this protocol is available or not.
+
+	  Choose Y here if your NFS server supports the Solaris NFSv3 ACL
+	  protocol extension and you want your NFS client to allow
+	  applications to access and modify ACLs on files on the server.
+
+	  Most NFS servers don't support the Solaris NFSv3 ACL protocol
+	  extension.  You can choose N here or specify the "noacl" mount
+	  option to prevent your NFS client from trying to use the NFSv3
+	  ACL protocol.
+
+	  If unsure, say N.
+
+config NFS_V4
+	bool "NFS client support for NFS version 4 (EXPERIMENTAL)"
+	depends on NFS_FS && EXPERIMENTAL
+	select RPCSEC_GSS_KRB5
+	help
+	  This option enables support for version 4 of the NFS protocol
+	  (RFC 3530) in the kernel's NFS client.
+
+	  To mount NFS servers using NFSv4, you also need to install user
+	  space programs which can be found in the Linux nfs-utils package,
+	  available from http://linux-nfs.org/.
+
+	  If unsure, say N.
+
+config ROOT_NFS
+	bool "Root file system on NFS"
+	depends on NFS_FS=y && IP_PNP
+	help
+	  If you want your system to mount its root file system via NFS,
+	  choose Y here.  This is common practice for managing systems
+	  without local permanent storage.  For details, read
+	  <file:Documentation/filesystems/nfsroot.txt>.
+
+	  Most people say N here.

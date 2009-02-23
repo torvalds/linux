@@ -795,6 +795,7 @@ static int fs_enet_open(struct net_device *dev)
 
 	err = fs_init_phy(dev);
 	if (err) {
+		free_irq(fep->interrupt, dev);
 		if (fep->fpi->use_napi)
 			napi_disable(&fep->napi);
 		return err;
