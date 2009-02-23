@@ -739,7 +739,9 @@ int snd_hda_add_pincfg(struct hda_codec *codec, struct snd_array *list,
 		       hda_nid_t nid, unsigned int cfg)
 {
 	struct hda_pincfg *pin;
+	unsigned int oldcfg;
 
+	oldcfg = snd_hda_codec_get_pincfg(codec, nid);
 	pin = look_up_pincfg(codec, list, nid);
 	if (!pin) {
 		pin = snd_array_new(list);
@@ -748,7 +750,13 @@ int snd_hda_add_pincfg(struct hda_codec *codec, struct snd_array *list,
 		pin->nid = nid;
 	}
 	pin->cfg = cfg;
-	set_pincfg(codec, nid, cfg);
+
+	/* change only when needed; e.g. if the pincfg is already present
+	 * in user_pins[], don't write it
+	 */
+	cfg = snd_hda_codec_get_pincfg(codec, nid);
+	if (oldcfg != cfg)
+		set_pincfg(codec, nid, cfg);
 	return 0;
 }
 
@@ -764,14 +772,14 @@ unsigned int snd_hda_codec_get_pincfg(struct hda_codec *codec, hda_nid_t nid)
 {
 	struct hda_pincfg *pin;
 
-	pin = look_up_pincfg(codec, &codec->driver_pins, nid);
-	if (pin)
-		return pin->cfg;
 #ifdef CONFIG_SND_HDA_HWDEP
 	pin = look_up_pincfg(codec, &codec->user_pins, nid);
 	if (pin)
 		return pin->cfg;
 #endif
+	pin = look_up_pincfg(codec, &codec->driver_pins, nid);
+	if (pin)
+		return pin->cfg;
 	pin = look_up_pincfg(codec, &codec->init_pins, nid);
 	if (pin)
 		return pin->cfg;
