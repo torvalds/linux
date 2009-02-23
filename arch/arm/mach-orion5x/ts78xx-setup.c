@@ -117,6 +117,7 @@ static struct platform_device ts78xx_ts_rtc_device = {
  */
 static int ts78xx_ts_rtc_load(void)
 {
+	int rc;
 	unsigned char tmp_rtc0, tmp_rtc1;
 
 	tmp_rtc0 = ts78xx_ts_rtc_readbyte(126);
@@ -130,16 +131,18 @@ static int ts78xx_ts_rtc_load(void)
 				&& ts78xx_ts_rtc_readbyte(126) == 0x00) {
 			ts78xx_ts_rtc_writebyte(tmp_rtc0, 126);
 			ts78xx_ts_rtc_writebyte(tmp_rtc1, 127);
+
 			if (ts78xx_fpga.supports.ts_rtc.init == 0) {
-				ts78xx_fpga.supports.ts_rtc.init = 1;
-				platform_device_register(&ts78xx_ts_rtc_device);
+				rc = platform_device_register(&ts78xx_ts_rtc_device);
+				if (!rc)
+					ts78xx_fpga.supports.ts_rtc.init = 1;
 			} else
-				platform_device_add(&ts78xx_ts_rtc_device);
-			return 0;
+				rc = platform_device_add(&ts78xx_ts_rtc_device);
+
+			return rc;
 		}
 	}
 
-	ts78xx_fpga.supports.ts_rtc.present = 0;
 	return -ENODEV;
 };
 
@@ -150,7 +153,7 @@ static void ts78xx_ts_rtc_unload(void)
 #else
 static int ts78xx_ts_rtc_load(void)
 {
-	return 0;
+	return -ENODEV;
 }
 
 static void ts78xx_ts_rtc_unload(void)
@@ -184,8 +187,11 @@ static int ts78xx_fpga_load_devices(void)
 
 	if (ts78xx_fpga.supports.ts_rtc.present == 1) {
 		tmp = ts78xx_ts_rtc_load();
-		if (tmp)
-			printk(KERN_INFO "TS-78xx RTC not detected or enabled\n");
+		if (tmp) {
+			printk(KERN_INFO "TS-78xx RTC"
+					" not detected or enabled\n");
+			ts78xx_fpga.supports.ts_rtc.present = 0;
+		}
 		ret |= tmp;
 	}
 
