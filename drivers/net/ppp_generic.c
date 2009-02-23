@@ -991,7 +991,7 @@ ppp_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
  outf:
 	kfree_skb(skb);
-	++ppp->dev->stats.tx_dropped;
+	++dev->stats.tx_dropped;
 	return 0;
 }
 
