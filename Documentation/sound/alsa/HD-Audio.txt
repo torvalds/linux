@@ -391,6 +391,14 @@ clear::
   Resets the codec, removes the mixer elements and PCM stuff of the
   specified codec, and clear all init verbs and hints.
 
+For example, when you want to change the pin default configuration
+value of the pin widget 0x14 to 0x9993013f, and let the driver
+re-configure based on that state, run like below:
+------------------------------------------------------------------------
+  # echo 0x14 0x9993013f > /sys/class/sound/hwC0D0/user_pin_configs
+  # echo 1 > /sys/class/sound/hwC0D0/reconfig  
+------------------------------------------------------------------------
+
 
 Power-Saving
 ~~~~~~~~~~~~
