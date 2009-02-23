@@ -2041,6 +2041,131 @@ NDIS_STATUS	NICInitializeAsic(
 	return NDIS_STATUS_SUCCESS;
 }
 
+
+VOID NICRestoreBBPValue(
+	IN PRTMP_ADAPTER pAd)
+{
+	UCHAR		index;
+	UCHAR		Value;
+	ULONG		Data;
+
+	DBGPRINT(RT_DEBUG_TRACE, ("--->  NICRestoreBBPValue !!!!!!!!!!!!!!!!!!!!!!!  \n"));
+	// Initialize BBP register to default value (rtmp_init.c)
+	for (index = 0; index < NUM_BBP_REG_PARMS; index++)
+	{
+		RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, BBPRegTable[index].Register, BBPRegTable[index].Value);
+	}
+	// copy from (rtmp_init.c)
+	if (pAd->MACVersion == 0x28600100)
+	{
+		RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, BBP_R69, 0x16);
+		RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, BBP_R73, 0x12);
+	}
+
+	// copy from (connect.c LinkUp function)
+	if (INFRA_ON(pAd))
+	{
+		// Change to AP channel
+		if ((pAd->CommonCfg.CentralChannel > pAd->CommonCfg.Channel) && (pAd->MlmeAux.HtCapability.HtCapInfo.ChannelWidth == BW_40))
+		{
+			// Must using 40MHz.
+			pAd->CommonCfg.BBPCurrentBW = BW_40;
+			AsicSwitchChannel(pAd, pAd->CommonCfg.CentralChannel, FALSE);
+			AsicLockChannel(pAd, pAd->CommonCfg.CentralChannel);
+
+			RTMP_BBP_IO_READ8_BY_REG_ID(pAd, BBP_R4, &Value);
+			Value &= (~0x18);
+			Value |= 0x10;
+			RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, BBP_R4, Value);
+
+			//  RX : control channel at lower
+			RTMP_BBP_IO_READ8_BY_REG_ID(pAd, BBP_R3, &Value);
+			Value &= (~0x20);
+			RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, BBP_R3, Value);
+			// Record BBPR3 setting, But don't keep R Antenna # information.
+			pAd->StaCfg.BBPR3 = Value;
+
+			RTMP_IO_READ32(pAd, TX_BAND_CFG, &Data);
+			Data &= 0xfffffffe;
+			RTMP_IO_WRITE32(pAd, TX_BAND_CFG, Data);
+
+			if (pAd->MACVersion == 0x28600100)
+			{
+				RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, BBP_R69, 0x1A);
+				RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, BBP_R70, 0x0A);
+				RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, BBP_R73, 0x16);
+				DBGPRINT(RT_DEBUG_TRACE, ("!!!rt2860C !!! \n" ));
+			}
+
+			DBGPRINT(RT_DEBUG_TRACE, ("!!!40MHz Lower LINK UP !!! Control Channel at Below. Central = %d \n", pAd->CommonCfg.CentralChannel ));
+		}
+		else if ((pAd->CommonCfg.CentralChannel < pAd->CommonCfg.Channel) && (pAd->MlmeAux.HtCapability.HtCapInfo.ChannelWidth == BW_40))
+		{
+			// Must using 40MHz.
+			pAd->CommonCfg.BBPCurrentBW = BW_40;
+			AsicSwitchChannel(pAd, pAd->CommonCfg.CentralChannel, FALSE);
+			AsicLockChannel(pAd, pAd->CommonCfg.CentralChannel);
+
+			RTMP_BBP_IO_READ8_BY_REG_ID(pAd, BBP_R4, &Value);
+			Value &= (~0x18);
+			Value |= 0x10;
+			RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, BBP_R4, Value);
+
+			RTMP_IO_READ32(pAd, TX_BAND_CFG, &Data);
+			Data |= 0x1;
+			RTMP_IO_WRITE32(pAd, TX_BAND_CFG, Data);
+
+			RTMP_BBP_IO_READ8_BY_REG_ID(pAd, BBP_R3, &Value);
+			Value |= (0x20);
+			RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, BBP_R3, Value);
+			// Record BBPR3 setting, But don't keep R Antenna # information.
+			pAd->StaCfg.BBPR3 = Value;
+
+			if (pAd->MACVersion == 0x28600100)
+			{
+				RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, BBP_R69, 0x1A);
+				RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, BBP_R70, 0x0A);
+				RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, BBP_R73, 0x16);
+				DBGPRINT(RT_DEBUG_TRACE, ("!!!rt2860C !!! \n" ));
+			}
+
+			DBGPRINT(RT_DEBUG_TRACE, ("!!!40MHz Upper LINK UP !!! Control Channel at UpperCentral = %d \n", pAd->CommonCfg.CentralChannel ));
+		}
+		else
+		{
+			pAd->CommonCfg.BBPCurrentBW = BW_20;
+			AsicSwitchChannel(pAd, pAd->CommonCfg.Channel, FALSE);
+			AsicLockChannel(pAd, pAd->CommonCfg.Channel);
+
+			RTMP_BBP_IO_READ8_BY_REG_ID(pAd, BBP_R4, &Value);
+			Value &= (~0x18);
+			RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, BBP_R4, Value);
+
+			RTMP_IO_READ32(pAd, TX_BAND_CFG, &Data);
+			Data &= 0xfffffffe;
+			RTMP_IO_WRITE32(pAd, TX_BAND_CFG, Data);
+
+			RTMP_BBP_IO_READ8_BY_REG_ID(pAd, BBP_R3, &Value);
+			Value &= (~0x20);
+			RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, BBP_R3, Value);
+			// Record BBPR3 setting, But don't keep R Antenna # information.
+			pAd->StaCfg.BBPR3 = Value;
+
+			if (pAd->MACVersion == 0x28600100)
+			{
+				RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, BBP_R69, 0x16);
+				RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, BBP_R70, 0x08);
+				RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, BBP_R73, 0x11);
+				DBGPRINT(RT_DEBUG_TRACE, ("!!!rt2860C !!! \n" ));
+			}
+
+			DBGPRINT(RT_DEBUG_TRACE, ("!!!20MHz LINK UP !!! \n" ));
+		}
+	}
+
+	DBGPRINT(RT_DEBUG_TRACE, ("<---  NICRestoreBBPValue !!!!!!!!!!!!!!!!!!!!!!!  \n"));
+}
+
 /*
 	========================================================================
 
@@ -3032,6 +3157,7 @@ VOID	UserCfgInit(
 	pAd->LedIndicatorStregth = 0;
 	pAd->RLnkCtrlOffset = 0;
 	pAd->HostLnkCtrlOffset = 0;
+	pAd->CheckDmaBusyCount = 0;
 #endif // RT2860 //
 
 	pAd->bAutoTxAgcA = FALSE;			// Default is OFF
@@ -3308,7 +3434,7 @@ VOID	UserCfgInit(
     pAd->bPCIclkOff = FALSE;
 #endif // RT2860 //
 
-
+	RTMP_SET_PSFLAG(pAd, fRTMP_PS_CAN_GO_SLEEP);
 	DBGPRINT(RT_DEBUG_TRACE, ("<-- UserCfgInit\n"));
 }
 

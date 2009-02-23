@@ -337,6 +337,10 @@ VOID CntlOidSsidProc(
 	MLME_DISASSOC_REQ_STRUCT   DisassocReq;
 	ULONG					   Now;
 
+	// BBP and RF are not accessible in PS mode, we has to wake them up first
+	if (OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_DOZE))
+		AsicForceWakeup(pAd, RTMP_HALT);
+
 	// Step 1. record the desired user settings to MlmeAux
 	NdisZeroMemory(pAd->MlmeAux.Ssid, MAX_LEN_OF_SSID);
 	NdisMoveMemory(pAd->MlmeAux.Ssid, pOidSsid->Ssid, pOidSsid->SsidLength);
@@ -1240,6 +1244,13 @@ VOID LinkUp(
 	UCHAR	Value = 0, idx;
 	MAC_TABLE_ENTRY *pEntry = NULL, *pCurrEntry;
 
+	if (RTMP_TEST_PSFLAG(pAd, fRTMP_PS_SET_PCI_CLK_OFF_COMMAND))
+	{
+		RTMPPCIeLinkCtrlValueRestore(pAd, RESTORE_HALT);
+		RTMPusecDelay(6000);
+		pAd->bPCIclkOff = FALSE;
+	}
+
 	pEntry = &pAd->MacTab.Content[BSSID_WCID];
 
 	//
@@ -1598,6 +1609,8 @@ VOID LinkUp(
 			IV = 0;
 			IV |= (pAd->StaCfg.DefaultKeyId << 30);
 			AsicUpdateWCIDIVEIV(pAd, BSSID_WCID, IV, 0);
+
+			RTMP_CLEAR_PSFLAG(pAd, fRTMP_PS_CAN_GO_SLEEP);
 		}
 		// NOTE:
 		// the decision of using "short slot time" or not may change dynamically due to
@@ -1919,6 +1932,7 @@ VOID LinkUp(
 	}
 
 	RTMP_CLEAR_FLAG(pAd, fRTMP_ADAPTER_BSS_SCAN_IN_PROGRESS);
+	RTMP_CLEAR_PSFLAG(pAd, fRTMP_PS_GO_TO_SLEEP_NOW);
 
 #ifdef DOT11_N_SUPPORT
 #ifdef DOT11N_DRAFT3
@@ -1961,6 +1975,7 @@ VOID LinkDown(
 	IN  BOOLEAN      IsReqFromAP)
 {
 	UCHAR			    i, ByteValue = 0;
+	BOOLEAN		Cancelled;
 
 	// Do nothing if monitor mode is on
 	if (MONITOR_ON(pAd))
@@ -1971,6 +1986,12 @@ VOID LinkDown(
 	if (ATE_ON(pAd))
 		return;
 #endif // RALINK_ATE //
+
+	RTMP_CLEAR_PSFLAG(pAd, fRTMP_PS_GO_TO_SLEEP_NOW);
+	RTMPCancelTimer(&pAd->Mlme.PsPollTimer,		&Cancelled);
+
+	// Not allow go to sleep within linkdown function.
+	RTMP_CLEAR_PSFLAG(pAd, fRTMP_PS_CAN_GO_SLEEP);
 
     if (pAd->CommonCfg.bWirelessEvent)
 	{
@@ -1988,12 +2009,11 @@ VOID LinkDown(
         RTMPCancelTimer(&pAd->Mlme.PsPollTimer,	&Cancelled);
     }
 
-    if (OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_DOZE))
+    if (OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_DOZE) ||
+		RTMP_TEST_PSFLAG(pAd, fRTMP_PS_SET_PCI_CLK_OFF_COMMAND) ||
+		RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_IDLE_RADIO_OFF))
     {
-        AUTO_WAKEUP_STRUC AutoWakeupCfg;
-		AsicForceWakeup(pAd, TRUE);
-        AutoWakeupCfg.word = 0;
-	    RTMP_IO_WRITE32(pAd, AUTO_WAKEUP_CFG, AutoWakeupCfg.word);
+		AsicForceWakeup(pAd, RTMP_HALT);
         OPSTATUS_CLEAR_FLAG(pAd, fOP_STATUS_DOZE);
     }
 
@@ -2265,6 +2285,9 @@ VOID LinkDown(
 
 	RTMP_IO_WRITE32(pAd, MAX_LEN_CFG, 0x1fff);
 	RTMP_CLEAR_FLAG(pAd, fRTMP_ADAPTER_BSS_SCAN_IN_PROGRESS);
+
+	// Allow go to sleep after linkdown steps.
+	RTMP_SET_PSFLAG(pAd, fRTMP_PS_CAN_GO_SLEEP);
 
 #ifdef WPA_SUPPLICANT_SUPPORT
 #ifndef NATIVE_WPA_SUPPLICANT_SUPPORT

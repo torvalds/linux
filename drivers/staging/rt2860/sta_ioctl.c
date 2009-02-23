@@ -352,6 +352,20 @@ VOID RTMPAddKey(
 
     DBGPRINT(RT_DEBUG_TRACE, ("RTMPAddKey ------>\n"));
 
+	RTMP_CLEAR_PSFLAG(pAd, fRTMP_PS_CAN_GO_SLEEP);
+	if (RTMP_TEST_PSFLAG(pAd, fRTMP_PS_SET_PCI_CLK_OFF_COMMAND))
+	{
+		if (pAd->StaCfg.bRadio == FALSE)
+		{
+			RTMP_SET_PSFLAG(pAd, fRTMP_PS_CAN_GO_SLEEP);
+			return (NDIS_STATUS_SUCCESS);
+		}
+		DBGPRINT(RT_DEBUG_TRACE,("RTMPWPAAddKeyProc1==>\n"));
+		RTMPPCIeLinkCtrlValueRestore(pAd, RESTORE_HALT);
+		RTMPusecDelay(6000);
+		pAd->bPCIclkOff = FALSE;
+	}
+
 	if (pAd->StaCfg.AuthMode >= Ndis802_11AuthModeWPA)
 	{
 		if (pKey->KeyIndex & 0x80000000)
@@ -545,6 +559,8 @@ VOID RTMPAddKey(
 		}
 	}
 end:
+	RTMP_SET_PSFLAG(pAd, fRTMP_PS_CAN_GO_SLEEP);
+    DBGPRINT(RT_DEBUG_INFO, ("<------ RTMPAddKey\n"));
 	return;
 }
 
@@ -1028,6 +1044,15 @@ int rt_ioctl_siwscan(struct net_device *dev,
         return -EINVAL;
     }
 
+	if ((pAdapter->OpMode == OPMODE_STA) && (IDLE_ON(pAdapter))
+		&& (pAdapter->StaCfg.bRadio == TRUE)
+		&& (RTMP_TEST_FLAG(pAdapter, fRTMP_ADAPTER_IDLE_RADIO_OFF)))
+	{
+		RT28xxPciAsicRadioOn(pAdapter, GUI_IDLE_POWER_SAVE);
+	}
+	// Check if still radio off.
+	else if (pAdapter->bPCIclkOff == TRUE)
+		return 0;
 
 #ifdef WPA_SUPPLICANT_SUPPORT
 	if (pAdapter->StaCfg.WpaSupplicantUP == WPA_SUPPLICANT_ENABLE)
@@ -2151,12 +2176,6 @@ rt_private_show(struct net_device *dev, struct iw_request_info *info,
             wrq->length = strlen(extra) + 1; // 1: size of '\0'
             break;
         case RAIO_ON:
-            if (RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_BSS_SCAN_IN_PROGRESS))
-            {
-                sprintf(extra, "Scanning\n");
-                wrq->length = strlen(extra) + 1; // 1: size of '\0'
-                break;
-            }
             pAd->StaCfg.bSwRadio = TRUE;
             //if (pAd->StaCfg.bRadio != (pAd->StaCfg.bHwRadio && pAd->StaCfg.bSwRadio))
             {
@@ -2440,6 +2459,20 @@ void fnSetCipherKey(
     IN  BOOLEAN         bGTK,
     IN  struct iw_encode_ext *ext)
 {
+	RTMP_CLEAR_PSFLAG(pAdapter, fRTMP_PS_CAN_GO_SLEEP);
+	if (RTMP_TEST_PSFLAG(pAdapter, fRTMP_PS_SET_PCI_CLK_OFF_COMMAND))
+	{
+		if (pAdapter->StaCfg.bRadio == FALSE)
+		{
+			RTMP_SET_PSFLAG(pAdapter, fRTMP_PS_CAN_GO_SLEEP);
+			return (NDIS_STATUS_SUCCESS);
+		}
+		DBGPRINT(RT_DEBUG_TRACE,("RTMPWPAAddKeyProc1==>\n"));
+		RTMPPCIeLinkCtrlValueRestore(pAdapter, RESTORE_HALT);
+		RTMPusecDelay(6000);
+		pAdapter->bPCIclkOff = FALSE;
+	}
+
     NdisZeroMemory(&pAdapter->SharedKey[BSS0][keyIdx], sizeof(CIPHER_KEY));
     pAdapter->SharedKey[BSS0][keyIdx].KeyLen = LEN_TKIP_EK;
     NdisMoveMemory(pAdapter->SharedKey[BSS0][keyIdx].Key, ext->key, LEN_TKIP_EK);
@@ -2470,6 +2503,8 @@ void fnSetCipherKey(
     							  keyIdx,
     							  pAdapter->SharedKey[BSS0][keyIdx].CipherAlg,
     							  &pAdapter->MacTab.Content[BSSID_WCID]);
+
+	RTMP_SET_PSFLAG(pAdapter, fRTMP_PS_CAN_GO_SLEEP);
 }
 
 int rt_ioctl_siwencodeext(struct net_device *dev,
@@ -2534,6 +2569,21 @@ int rt_ioctl_siwencodeext(struct net_device *dev,
 
                 NdisZeroMemory(pAdapter->SharedKey[BSS0][keyIdx].Key,  16);
 			    NdisMoveMemory(pAdapter->SharedKey[BSS0][keyIdx].Key, ext->key, ext->key_len);
+
+				if (pAdapter->StaCfg.GroupCipher == Ndis802_11GroupWEP40Enabled ||
+					pAdapter->StaCfg.GroupCipher == Ndis802_11GroupWEP104Enabled)
+				{
+					// Set Group key material to Asic
+					AsicAddSharedKeyEntry(pAdapter, BSS0, keyIdx, pAdapter->SharedKey[BSS0][keyIdx].CipherAlg, pAdapter->SharedKey[BSS0][keyIdx].Key, NULL, NULL);
+
+					// Update WCID attribute table and IVEIV table for this group key table
+					RTMPAddWcidAttributeEntry(pAdapter, BSS0, keyIdx, pAdapter->SharedKey[BSS0][keyIdx].CipherAlg, NULL);
+
+					STA_PORT_SECURED(pAdapter);
+
+    				// Indicate Connected for GUI
+    				pAdapter->IndicateMediaState = NdisMediaStateConnected;
+				}
     			break;
             case IW_ENCODE_ALG_TKIP:
                 DBGPRINT(RT_DEBUG_TRACE, ("%s::IW_ENCODE_ALG_TKIP - keyIdx = %d, ext->key_len = %d\n", __func__, keyIdx, ext->key_len));
@@ -4249,7 +4299,23 @@ INT RTMPSetInformation(
                     }
 
 #ifdef WPA_SUPPLICANT_SUPPORT
-                    if (pAdapter->StaCfg.PortSecured == WPA_802_1X_PORT_SECURED)
+					if ((pAdapter->StaCfg.WpaSupplicantUP != 0) &&
+						(pAdapter->StaCfg.AuthMode >= Ndis802_11AuthModeWPA))
+					{
+						Key = pWepKey->KeyMaterial;
+
+						// Set Group key material to Asic
+    					AsicAddSharedKeyEntry(pAdapter, BSS0, KeyIdx, CipherAlg, Key, NULL, NULL);
+
+						// Update WCID attribute table and IVEIV table for this group key table
+						RTMPAddWcidAttributeEntry(pAdapter, BSS0, KeyIdx, CipherAlg, NULL);
+
+						STA_PORT_SECURED(pAdapter);
+
+        				// Indicate Connected for GUI
+        				pAdapter->IndicateMediaState = NdisMediaStateConnected;
+					}
+                    else if (pAdapter->StaCfg.PortSecured == WPA_802_1X_PORT_SECURED)
 #endif // WPA_SUPPLICANT_SUPPORT
                     {
                         Key = pAdapter->SharedKey[BSS0][KeyIdx].Key;

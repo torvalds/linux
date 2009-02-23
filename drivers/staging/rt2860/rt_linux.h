@@ -93,7 +93,7 @@ typedef int (*HARD_START_XMIT_FUNC)(struct sk_buff *skb, struct net_device *net_
 #define STA_PROFILE_PATH			"/etc/Wireless/RT2860STA/RT2860STA.dat"
 #define STA_RTMP_FIRMWARE_FILE_NAME "/etc/Wireless/RT2860STA/RT2860STA.bin"
 #define STA_NIC_DEVICE_NAME			"RT2860STA"
-#define STA_DRIVER_VERSION			"1.8.0.0"
+#define STA_DRIVER_VERSION			"1.8.1.1"
 #ifdef MULTIPLE_CARD_SUPPORT
 #define CARD_INFO_PATH			"/etc/Wireless/RT2860STA/RT2860STACard.dat"
 #endif // MULTIPLE_CARD_SUPPORT //
@@ -393,6 +393,12 @@ extern ULONG    RTDebugLevel;
 	(*_pV = SWAP32(*((UINT32 *)(_pV))));                           \
     }                                                                   \
 }
+#define RTMP_IO_FORCE_READ32(_A, _R, _pV)							\
+{																	\
+	(*_pV = readl((void *)((_A)->CSRBaseAddress + MAC_CSR0)));		\
+	(*_pV = readl((void *)((_A)->CSRBaseAddress + (_R))));			\
+	(*_pV = SWAP32(*((UINT32 *)(_pV))));                           \
+}
 #define RTMP_IO_READ8(_A, _R, _pV)									\
 {																	\
 	(*_pV = readl((void *)((_A)->CSRBaseAddress + MAC_CSR0)));		\
@@ -431,6 +437,11 @@ extern ULONG    RTDebugLevel;
     }                                                               \
     else															\
 		*_pV = 0;													\
+}
+#define RTMP_IO_FORCE_READ32(_A, _R, _pV)							\
+{																	\
+	(*_pV = readl((void *)((_A)->CSRBaseAddress + MAC_CSR0)));		\
+	(*_pV = readl((void *)((_A)->CSRBaseAddress + (_R))));			\
 }
 #define RTMP_IO_READ8(_A, _R, _pV)								\
 {																\

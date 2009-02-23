@@ -315,8 +315,8 @@ rt2860_interrupt(int irq, void *dev_instance);
     reg16 = cpu2le16(Configuration);                        \
     pci_write_config_word(pci_dev, offset, reg16);          \
 
-#define RT28XX_STA_FORCE_WAKEUP(pAd, bFromTx) \
-    RT28xxPciStaAsicForceWakeup(pAd, bFromTx);
+#define RT28XX_STA_FORCE_WAKEUP(pAd, Level) \
+    RT28xxPciStaAsicForceWakeup(pAd, Level);
 
 #define RT28XX_STA_SLEEP_THEN_AUTO_WAKEUP(pAd, TbttNumToNextWakeUp) \
     RT28xxPciStaAsicSleepThenAutoWakeup(pAd, TbttNumToNextWakeUp);

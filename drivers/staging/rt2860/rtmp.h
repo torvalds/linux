@@ -366,6 +366,13 @@ typedef struct  _QUEUE_HEADER   {
 #define RTMP_TEST_FLAG(_M, _F)      (((_M)->Flags & (_F)) != 0)
 #define RTMP_TEST_FLAGS(_M, _F)     (((_M)->Flags & (_F)) == (_F))
 
+// Macro for power save flag.
+#define RTMP_SET_PSFLAG(_M, _F)       ((_M)->PSFlags |= (_F))
+#define RTMP_CLEAR_PSFLAG(_M, _F)     ((_M)->PSFlags &= ~(_F))
+#define RTMP_CLEAR_PSFLAGS(_M)        ((_M)->PSFlags = 0)
+#define RTMP_TEST_PSFLAG(_M, _F)      (((_M)->PSFlags & (_F)) != 0)
+#define RTMP_TEST_PSFLAGS(_M, _F)     (((_M)->PSFlags & (_F)) == (_F))
+
 #define OPSTATUS_SET_FLAG(_pAd, _F)     ((_pAd)->CommonCfg.OpStatusFlags |= (_F))
 #define OPSTATUS_CLEAR_FLAG(_pAd, _F)   ((_pAd)->CommonCfg.OpStatusFlags &= ~(_F))
 #define OPSTATUS_TEST_FLAG(_pAd, _F)    (((_pAd)->CommonCfg.OpStatusFlags & (_F)) != 0)
@@ -919,9 +926,10 @@ typedef struct _RTMP_SCATTER_GATHER_LIST {
 #define STA_PORT_SECURED(_pAd) \
 { \
 	_pAd->StaCfg.PortSecured = WPA_802_1X_PORT_SECURED; \
-	NdisAcquireSpinLock(&_pAd->MacTabLock); \
+	RTMP_SET_PSFLAG(_pAd, fRTMP_PS_CAN_GO_SLEEP); \
+	NdisAcquireSpinLock(&(_pAd)->MacTabLock); \
 	_pAd->MacTab.Content[BSSID_WCID].PortSecured = _pAd->StaCfg.PortSecured; \
-	NdisReleaseSpinLock(&_pAd->MacTabLock); \
+	NdisReleaseSpinLock(&(_pAd)->MacTabLock); \
 }
 #endif // CONFIG_STA_SUPPORT //
 
@@ -1101,6 +1109,7 @@ typedef struct _COUNTER_802_11 {
 
 typedef struct _COUNTER_RALINK {
 	ULONG           TransmittedByteCount;   // both successful and failure, used to calculate TX throughput
+	ULONG           LastReceivedByteCount;
 	ULONG           ReceivedByteCount;      // both CRC okay and CRC error, used to calculate RX throughput
 	ULONG           BeenDisassociatedCount;
 	ULONG           BadCQIAutoRecoveryCount;
@@ -2671,7 +2680,9 @@ typedef struct _RTMP_ADAPTER
     USHORT                  HostLnkCtrlOffset;
 	USHORT		            PCIePowerSaveLevel;
    	BOOLEAN					bPCIclkOff;						// flag that indicate if the PICE power status in Configuration SPace..
-	BOOLEAN					bPCIclkOffDisableTx;			//
+   	ULONG					CheckDmaBusyCount;  // Check Interrupt Status Register Count.
+   	USHORT					ThisTbttNumToNextWakeUp;
+	ULONG					SameRxByteCount;
 
 
 /*****************************************************************************************/
@@ -2895,6 +2906,7 @@ typedef struct _RTMP_ADAPTER
 
 	// flags, see fRTMP_ADAPTER_xxx flags
 	ULONG                   Flags;                      // Represent current device status
+	ULONG                   PSFlags;                    // Power Save operation flag.
 
 	// current TX sequence #
 	USHORT                  Sequence;
@@ -3549,6 +3561,9 @@ NDIS_STATUS NICInitializeAdapter(
 NDIS_STATUS NICInitializeAsic(
 	IN  PRTMP_ADAPTER   pAd,
 	IN  BOOLEAN		bHardReset);
+
+VOID NICRestoreBBPValue(
+	IN PRTMP_ADAPTER pAd);
 
 VOID NICIssueReset(
 	IN  PRTMP_ADAPTER   pAd);
@@ -4208,7 +4223,7 @@ VOID AsicForceSleep(
 
 VOID AsicForceWakeup(
 	IN PRTMP_ADAPTER pAd,
-	IN BOOLEAN    bFromTx);
+	IN UCHAR    	 Level);
 #endif // CONFIG_STA_SUPPORT //
 
 VOID AsicSetBssid(
@@ -7069,7 +7084,7 @@ BOOLEAN RT28xxPciAsicRadioOn(
 
 VOID RT28xxPciStaAsicForceWakeup(
 	IN PRTMP_ADAPTER pAd,
-	IN BOOLEAN       bFromTx);
+	IN UCHAR    	 Level);
 
 VOID RT28xxPciStaAsicSleepThenAutoWakeup(
 	IN PRTMP_ADAPTER pAd,
@@ -7131,6 +7146,18 @@ PCHAR   RTMPGetRalinkEncryModeStr(
 
 #ifdef CONFIG_STA_SUPPORT
 VOID AsicStaBbpTuning(
+	IN PRTMP_ADAPTER pAd);
+
+VOID AsicResetFromDMABusy(
+	IN PRTMP_ADAPTER pAd);
+
+VOID AsicResetBBP(
+	IN PRTMP_ADAPTER pAd);
+
+VOID AsicResetMAC(
+	IN PRTMP_ADAPTER pAd);
+
+VOID AsicResetPBF(
 	IN PRTMP_ADAPTER pAd);
 #endif // CONFIG_STA_SUPPORT //
 

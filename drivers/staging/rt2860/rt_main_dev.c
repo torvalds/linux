@@ -224,15 +224,13 @@ int rt28xx_close(IN PNET_DEV dev)
 #ifdef CONFIG_STA_SUPPORT
 	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 	{
-#ifdef RT2860
-		RTMPPCIeLinkCtrlValueRestore(pAd, RESTORE_CLOSE);
-#endif // RT2860 //
-
 		// If dirver doesn't wake up firmware here,
 		// NICLoadFirmware will hang forever when interface is up again.
-		if (OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_DOZE))
+		if (OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_DOZE) ||
+			RTMP_SET_PSFLAG(pAd, fRTMP_PS_SET_PCI_CLK_OFF_COMMAND) ||
+			RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_IDLE_RADIO_OFF))
         {
-		    AsicForceWakeup(pAd, TRUE);
+		    AsicForceWakeup(pAd, RTMP_HALT);
         }
 
 #ifdef QOS_DLS_SUPPORT
@@ -655,26 +653,6 @@ int rt28xx_open(IN PNET_DEV dev)
 	}
 #endif // WIRELESS_EXT >= 12 //
 #endif // CONFIG_APSTA_MIXED_SUPPORT //
-
-#ifdef CONFIG_STA_SUPPORT
-#ifdef RT2860
-	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
-	{
-    	// If dirver doesn't wake up firmware here,
-    	// NICLoadFirmware will hang forever when interface is up again.
-    	// RT2860 PCI
-    	if (OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_DOZE) &&
-        	OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_ADVANCE_POWER_SAVE_PCIE_DEVICE))
-    	{
-        	AUTO_WAKEUP_STRUC AutoWakeupCfg;
-			AsicForceWakeup(pAd, TRUE);
-        	AutoWakeupCfg.word = 0;
-	    	RTMP_IO_WRITE32(pAd, AUTO_WAKEUP_CFG, AutoWakeupCfg.word);
-        	OPSTATUS_CLEAR_FLAG(pAd, fOP_STATUS_DOZE);
-    	}
-	}
-#endif // RT2860 //
-#endif // CONFIG_STA_SUPPORT //
 
 	// Init
  	pObj = (POS_COOKIE)pAd->OS_Cookie;

@@ -746,6 +746,7 @@ rt2860_interrupt(int irq, void *dev_instance)
 	PRTMP_ADAPTER pAd = net_dev->ml_priv;
 	INT_SOURCE_CSR_STRUC	IntSource;
 	POS_COOKIE pObj;
+	BOOLEAN	bOldValue;
 
 	pObj = (POS_COOKIE) pAd->OS_Cookie;
 
@@ -778,10 +779,13 @@ rt2860_interrupt(int irq, void *dev_instance)
 	// RT2661 => when ASIC is sleeping, MAC register cannot be read and written.
 	// RT2860 => when ASIC is sleeping, MAC register can be read and written.
 
+	bOldValue = pAd->bPCIclkOff;
+	pAd->bPCIclkOff = FALSE;
 	{
 		RTMP_IO_READ32(pAd, INT_SOURCE_CSR, &IntSource.word);
 		RTMP_IO_WRITE32(pAd, INT_SOURCE_CSR, IntSource.word); // write 1 to clear
 	}
+	pAd->bPCIclkOff = bOldValue;
 
 	// Do nothing if Reset in progress
 	if (RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_RESET_IN_PROGRESS) ||
@@ -796,8 +800,6 @@ rt2860_interrupt(int irq, void *dev_instance)
 	// The priority can be adjust by altering processing if statement
 	//
 
-    pAd->bPCIclkOff = FALSE;
-
 	// If required spinlock, each interrupt service routine has to acquire
 	// and release itself.
 	//
@@ -806,6 +808,7 @@ rt2860_interrupt(int irq, void *dev_instance)
 	if (IntSource.word == 0xffffffff)
 	{
 		RTMP_SET_FLAG(pAd, fRTMP_ADAPTER_NIC_NOT_EXIST | fRTMP_ADAPTER_HALT_IN_PROGRESS);
+		printk("snowpin - IntSource.word == 0xffffffff\n");
 		return IRQ_HANDLED;
 	}
 

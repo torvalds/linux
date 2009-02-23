@@ -1536,7 +1536,6 @@ VOID PeerBeacon(
 					if (OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_ADVANCE_POWER_SAVE_PCIE_DEVICE))
 					{
 						RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, BBP_R3, pAd->StaCfg.BBPR3);
-						// Turn clk to 80Mhz.
 					}
 #endif // RT2860 //
 					if (pAd->CommonCfg.bAPSDCapable && pAd->CommonCfg.APEdcaParm.bAPSDCapable &&
@@ -1588,7 +1587,10 @@ VOID PeerBeacon(
 
 					if (!OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_DOZE))
 					{
-						AsicSleepThenAutoWakeup(pAd, TbttNumToNextWakeUp);
+						// Set a flag to go to sleep . Then after parse this RxDoneInterrupt, will go to sleep mode.
+						RTMP_SET_PSFLAG(pAd, fRTMP_PS_GO_TO_SLEEP_NOW);
+						pAd->ThisTbttNumToNextWakeUp = TbttNumToNextWakeUp;
+						//AsicSleepThenAutoWakeup(pAd, TbttNumToNextWakeUp);
 					}
 				}
 			}

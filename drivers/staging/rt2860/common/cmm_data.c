@@ -366,7 +366,7 @@ NDIS_STATUS MlmeHardTransmitTxRing(
 	{
 		// outgoing frame always wakeup PHY to prevent frame lost
 		if (OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_DOZE))
-			AsicForceWakeup(pAd, TRUE);
+			AsicForceWakeup(pAd, FROM_TX);
 	}
 #endif // CONFIG_STA_SUPPORT //
 	pFirstTxWI	=(PTXWI_STRUC)pSrcBufVA;
@@ -541,7 +541,7 @@ NDIS_STATUS MlmeHardTransmitMgmtRing(
 	{
 		// outgoing frame always wakeup PHY to prevent frame lost
 		if (OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_DOZE))
-			AsicForceWakeup(pAd, TRUE);
+			AsicForceWakeup(pAd, FROM_TX);
 	}
 #endif // CONFIG_STA_SUPPORT //
 
