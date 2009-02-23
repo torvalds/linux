@@ -1112,12 +1112,9 @@ struct dvb_frontend *cx24116_attach(const struct cx24116_config *config,
 	dprintk("%s\n", __func__);
 
 	/* allocate memory for the internal state */
-	state = kmalloc(sizeof(struct cx24116_state), GFP_KERNEL);
+	state = kzalloc(sizeof(struct cx24116_state), GFP_KERNEL);
 	if (state == NULL)
 		goto error1;
-
-	/* setup the state */
-	memset(state, 0, sizeof(struct cx24116_state));
 
 	state->config = config;
 	state->i2c = i2c;
