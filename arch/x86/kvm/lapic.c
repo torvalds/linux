@@ -528,12 +528,13 @@ static u32 apic_get_tmcct(struct kvm_lapic *apic)
 	if (apic_get_reg(apic, APIC_TMICT) == 0)
 		return 0;
 
-	remaining = hrtimer_expires_remaining(&apic->timer.dev);
+	remaining = hrtimer_expires_remaining(&apic->lapic_timer.timer);
 	if (ktime_to_ns(remaining) < 0)
 		remaining = ktime_set(0, 0);
 
-	ns = mod_64(ktime_to_ns(remaining), apic->timer.period);
-	tmcct = div64_u64(ns, (APIC_BUS_CYCLE_NS * apic->timer.divide_count));
+	ns = mod_64(ktime_to_ns(remaining), apic->lapic_timer.period);
+	tmcct = div64_u64(ns,
+			 (APIC_BUS_CYCLE_NS * apic->divide_count));
 
 	return tmcct;
 }
@@ -620,25 +621,25 @@ static void update_divide_count(struct kvm_lapic *apic)
 	tdcr = apic_get_reg(apic, APIC_TDCR);
 	tmp1 = tdcr & 0xf;
 	tmp2 = ((tmp1 & 0x3) | ((tmp1 & 0x8) >> 1)) + 1;
-	apic->timer.divide_count = 0x1 << (tmp2 & 0x7);
+	apic->divide_count = 0x1 << (tmp2 & 0x7);
 
 	apic_debug("timer divide count is 0x%x\n",
-				   apic->timer.divide_count);
+				   apic->lapic_timer.divide_count);
 }
 
 static void start_apic_timer(struct kvm_lapic *apic)
 {
-	ktime_t now = apic->timer.dev.base->get_time();
+	ktime_t now = apic->lapic_timer.timer.base->get_time();
 
-	apic->timer.period = apic_get_reg(apic, APIC_TMICT) *
-		    APIC_BUS_CYCLE_NS * apic->timer.divide_count;
-	atomic_set(&apic->timer.pending, 0);
+	apic->lapic_timer.period = apic_get_reg(apic, APIC_TMICT) *
+		    APIC_BUS_CYCLE_NS * apic->divide_count;
+	atomic_set(&apic->lapic_timer.pending, 0);
 
-	if (!apic->timer.period)
+	if (!apic->lapic_timer.period)
 		return;
 
-	hrtimer_start(&apic->timer.dev,
-		      ktime_add_ns(now, apic->timer.period),
+	hrtimer_start(&apic->lapic_timer.timer,
+		      ktime_add_ns(now, apic->lapic_timer.period),
 		      HRTIMER_MODE_ABS);
 
 	apic_debug("%s: bus cycle is %" PRId64 "ns, now 0x%016"
@@ -647,9 +648,9 @@ static void start_apic_timer(struct kvm_lapic *apic)
 			   "expire @ 0x%016" PRIx64 ".\n", __func__,
 			   APIC_BUS_CYCLE_NS, ktime_to_ns(now),
 			   apic_get_reg(apic, APIC_TMICT),
-			   apic->timer.period,
+			   apic->lapic_timer.period,
 			   ktime_to_ns(ktime_add_ns(now,
-					apic->timer.period)));
+					apic->lapic_timer.period)));
 }
 
 static void apic_manage_nmi_watchdog(struct kvm_lapic *apic, u32 lvt0_val)
@@ -731,7 +732,7 @@ static void apic_mmio_write(struct kvm_io_device *this,
 				apic_set_reg(apic, APIC_LVTT + 0x10 * i,
 					     lvt_val | APIC_LVT_MASKED);
 			}
-			atomic_set(&apic->timer.pending, 0);
+			atomic_set(&apic->lapic_timer.pending, 0);
 
 		}
 		break;
@@ -763,7 +764,7 @@ static void apic_mmio_write(struct kvm_io_device *this,
 		break;
 
 	case APIC_TMICT:
-		hrtimer_cancel(&apic->timer.dev);
+		hrtimer_cancel(&apic->lapic_timer.timer);
 		apic_set_reg(apic, APIC_TMICT, val);
 		start_apic_timer(apic);
 		return;
@@ -803,7 +804,7 @@ void kvm_free_lapic(struct kvm_vcpu *vcpu)
 	if (!vcpu->arch.apic)
 		return;
 
-	hrtimer_cancel(&vcpu->arch.apic->timer.dev);
+	hrtimer_cancel(&vcpu->arch.apic->lapic_timer.timer);
 
 	if (vcpu->arch.apic->regs_page)
 		__free_page(vcpu->arch.apic->regs_page);
@@ -881,7 +882,7 @@ void kvm_lapic_reset(struct kvm_vcpu *vcpu)
 	ASSERT(apic != NULL);
 
 	/* Stop the timer in case it's a reset to an active apic */
-	hrtimer_cancel(&apic->timer.dev);
+	hrtimer_cancel(&apic->lapic_timer.timer);
 
 	apic_set_reg(apic, APIC_ID, vcpu->vcpu_id << 24);
 	apic_set_reg(apic, APIC_LVR, APIC_VERSION);
@@ -906,7 +907,7 @@ void kvm_lapic_reset(struct kvm_vcpu *vcpu)
 		apic_set_reg(apic, APIC_TMR + 0x10 * i, 0);
 	}
 	update_divide_count(apic);
-	atomic_set(&apic->timer.pending, 0);
+	atomic_set(&apic->lapic_timer.pending, 0);
 	if (vcpu->vcpu_id == 0)
 		vcpu->arch.apic_base |= MSR_IA32_APICBASE_BSP;
 	apic_update_ppr(apic);
@@ -937,22 +938,11 @@ EXPORT_SYMBOL_GPL(kvm_lapic_enabled);
  *----------------------------------------------------------------------
  */
 
-/* TODO: make sure __apic_timer_fn runs in current pCPU */
-static int __apic_timer_fn(struct kvm_lapic *apic)
+static bool lapic_is_periodic(struct kvm_timer *ktimer)
 {
-	int result = 0;
-	wait_queue_head_t *q = &apic->vcpu->wq;
-
-	if(!atomic_inc_and_test(&apic->timer.pending))
-		set_bit(KVM_REQ_PENDING_TIMER, &apic->vcpu->requests);
-	if (waitqueue_active(q))
-		wake_up_interruptible(q);
-
-	if (apic_lvtt_period(apic)) {
-		result = 1;
-		hrtimer_add_expires_ns(&apic->timer.dev, apic->timer.period);
-	}
-	return result;
+	struct kvm_lapic *apic = container_of(ktimer, struct kvm_lapic,
+					      lapic_timer);
+	return apic_lvtt_period(apic);
 }
 
 int apic_has_pending_timer(struct kvm_vcpu *vcpu)
@@ -960,7 +950,7 @@ int apic_has_pending_timer(struct kvm_vcpu *vcpu)
 	struct kvm_lapic *lapic = vcpu->arch.apic;
 
 	if (lapic && apic_enabled(lapic) && apic_lvt_enabled(lapic, APIC_LVTT))
-		return atomic_read(&lapic->timer.pending);
+		return atomic_read(&lapic->lapic_timer.pending);
 
 	return 0;
 }
@@ -987,20 +977,9 @@ void kvm_apic_nmi_wd_deliver(struct kvm_vcpu *vcpu)
 		kvm_apic_local_deliver(apic, APIC_LVT0);
 }
 
-static enum hrtimer_restart apic_timer_fn(struct hrtimer *data)
-{
-	struct kvm_lapic *apic;
-	int restart_timer = 0;
-
-	apic = container_of(data, struct kvm_lapic, timer.dev);
-
-	restart_timer = __apic_timer_fn(apic);
-
-	if (restart_timer)
-		return HRTIMER_RESTART;
-	else
-		return HRTIMER_NORESTART;
-}
+struct kvm_timer_ops lapic_timer_ops = {
+	.is_periodic = lapic_is_periodic,
+};
 
 int kvm_create_lapic(struct kvm_vcpu *vcpu)
 {
@@ -1025,8 +1004,13 @@ int kvm_create_lapic(struct kvm_vcpu *vcpu)
 	memset(apic->regs, 0, PAGE_SIZE);
 	apic->vcpu = vcpu;
 
-	hrtimer_init(&apic->timer.dev, CLOCK_MONOTONIC, HRTIMER_MODE_ABS);
-	apic->timer.dev.function = apic_timer_fn;
+	hrtimer_init(&apic->lapic_timer.timer, CLOCK_MONOTONIC,
+		     HRTIMER_MODE_ABS);
+	apic->lapic_timer.timer.function = kvm_timer_fn;
+	apic->lapic_timer.t_ops = &lapic_timer_ops;
+	apic->lapic_timer.kvm = vcpu->kvm;
+	apic->lapic_timer.vcpu_id = vcpu->vcpu_id;
+
 	apic->base_address = APIC_DEFAULT_PHYS_BASE;
 	vcpu->arch.apic_base = APIC_DEFAULT_PHYS_BASE;
 
@@ -1079,9 +1063,9 @@ void kvm_inject_apic_timer_irqs(struct kvm_vcpu *vcpu)
 {
 	struct kvm_lapic *apic = vcpu->arch.apic;
 
-	if (apic && atomic_read(&apic->timer.pending) > 0) {
+	if (apic && atomic_read(&apic->lapic_timer.pending) > 0) {
 		if (kvm_apic_local_deliver(apic, APIC_LVTT))
-			atomic_dec(&apic->timer.pending);
+			atomic_dec(&apic->lapic_timer.pending);
 	}
 }
 
@@ -1107,7 +1091,7 @@ void kvm_apic_post_state_restore(struct kvm_vcpu *vcpu)
 			     MSR_IA32_APICBASE_BASE;
 	apic_set_reg(apic, APIC_LVR, APIC_VERSION);
 	apic_update_ppr(apic);
-	hrtimer_cancel(&apic->timer.dev);
+	hrtimer_cancel(&apic->lapic_timer.timer);
 	update_divide_count(apic);
 	start_apic_timer(apic);
 }
@@ -1120,7 +1104,7 @@ void __kvm_migrate_apic_timer(struct kvm_vcpu *vcpu)
 	if (!apic)
 		return;
 
-	timer = &apic->timer.dev;
+	timer = &apic->lapic_timer.timer;
 	if (hrtimer_cancel(timer))
 		hrtimer_start_expires(timer, HRTIMER_MODE_ABS);
 }

@@ -2,18 +2,15 @@
 #define __KVM_X86_LAPIC_H
 
 #include "iodev.h"
+#include "kvm_timer.h"
 
 #include <linux/kvm_host.h>
 
 struct kvm_lapic {
 	unsigned long base_address;
 	struct kvm_io_device dev;
-	struct {
-		atomic_t pending;
-		s64 period;	/* unit: ns */
-		u32 divide_count;
-		struct hrtimer dev;
-	} timer;
+	struct kvm_timer lapic_timer;
+	u32 divide_count;
 	struct kvm_vcpu *vcpu;
 	struct page *regs_page;
 	void *regs;

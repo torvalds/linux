@@ -219,25 +219,6 @@ static void pit_latch_status(struct kvm *kvm, int channel)
 	}
 }
 
-static int __pit_timer_fn(struct kvm_kpit_state *ps)
-{
-	struct kvm_vcpu *vcpu0 = ps->pit->kvm->vcpus[0];
-	struct kvm_kpit_timer *pt = &ps->pit_timer;
-
-	if (!atomic_inc_and_test(&pt->pending))
-		set_bit(KVM_REQ_PENDING_TIMER, &vcpu0->requests);
-
-	if (!pt->reinject)
-		atomic_set(&pt->pending, 1);
-
-	if (vcpu0 && waitqueue_active(&vcpu0->wq))
-		wake_up_interruptible(&vcpu0->wq);
-
-	hrtimer_add_expires_ns(&pt->timer, pt->period);
-
-	return (pt->period == 0 ? 0 : 1);
-}
-
 int pit_has_pending_timer(struct kvm_vcpu *vcpu)
 {
 	struct kvm_pit *pit = vcpu->kvm->arch.vpit;
@@ -258,21 +239,6 @@ static void kvm_pit_ack_irq(struct kvm_irq_ack_notifier *kian)
 	spin_unlock(&ps->inject_lock);
 }
 
-static enum hrtimer_restart pit_timer_fn(struct hrtimer *data)
-{
-	struct kvm_kpit_state *ps;
-	int restart_timer = 0;
-
-	ps = container_of(data, struct kvm_kpit_state, pit_timer.timer);
-
-	restart_timer = __pit_timer_fn(ps);
-
-	if (restart_timer)
-		return HRTIMER_RESTART;
-	else
-		return HRTIMER_NORESTART;
-}
-
 void __kvm_migrate_pit_timer(struct kvm_vcpu *vcpu)
 {
 	struct kvm_pit *pit = vcpu->kvm->arch.vpit;
@@ -286,15 +252,26 @@ void __kvm_migrate_pit_timer(struct kvm_vcpu *vcpu)
 		hrtimer_start_expires(timer, HRTIMER_MODE_ABS);
 }
 
-static void destroy_pit_timer(struct kvm_kpit_timer *pt)
+static void destroy_pit_timer(struct kvm_timer *pt)
 {
 	pr_debug("pit: execute del timer!\n");
 	hrtimer_cancel(&pt->timer);
 }
 
+static bool kpit_is_periodic(struct kvm_timer *ktimer)
+{
+	struct kvm_kpit_state *ps = container_of(ktimer, struct kvm_kpit_state,
+						 pit_timer);
+	return ps->is_periodic;
+}
+
+struct kvm_timer_ops kpit_ops = {
+	.is_periodic = kpit_is_periodic,
+};
+
 static void create_pit_timer(struct kvm_kpit_state *ps, u32 val, int is_period)
 {
-	struct kvm_kpit_timer *pt = &ps->pit_timer;
+	struct kvm_timer *pt = &ps->pit_timer;
 	s64 interval;
 
 	interval = muldiv64(val, NSEC_PER_SEC, KVM_PIT_FREQ);
@@ -304,7 +281,13 @@ static void create_pit_timer(struct kvm_kpit_state *ps, u32 val, int is_period)
 	/* TODO The new value only affected after the retriggered */
 	hrtimer_cancel(&pt->timer);
 	pt->period = (is_period == 0) ? 0 : interval;
-	pt->timer.function = pit_timer_fn;
+	ps->is_periodic = is_period;
+
+	pt->timer.function = kvm_timer_fn;
+	pt->t_ops = &kpit_ops;
+	pt->kvm = ps->pit->kvm;
+	pt->vcpu_id = 0;
+
 	atomic_set(&pt->pending, 0);
 	ps->irq_ack = 1;
 
