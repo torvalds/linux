@@ -329,8 +329,6 @@ early_idt_ripmsg:
 #endif /* CONFIG_EARLY_PRINTK */
 	.previous
 
-.balign PAGE_SIZE
-
 #define NEXT_PAGE(name) \
 	.balign	PAGE_SIZE; \
 ENTRY(name)
