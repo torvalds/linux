@@ -1051,6 +1051,9 @@ i915_gem_retire_requests(struct drm_device *dev)
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	uint32_t seqno;
 
+	if (!dev_priv->hw_status_page)
+		return;
+
 	seqno = i915_get_gem_seqno(dev);
 
 	while (!list_empty(&dev_priv->mm.request_list)) {
