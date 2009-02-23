@@ -1308,16 +1308,13 @@ static void vt1708_set_pinconfig_connect(struct hda_codec *codec, hda_nid_t nid)
 	unsigned int def_conf;
 	unsigned char seqassoc;
 
-	def_conf = snd_hda_codec_read(codec, nid, 0,
-				      AC_VERB_GET_CONFIG_DEFAULT, 0);
+	def_conf = snd_hda_codec_get_pincfg(codec, nid);
 	seqassoc = (unsigned char) get_defcfg_association(def_conf);
 	seqassoc = (seqassoc << 4) | get_defcfg_sequence(def_conf);
 	if (get_defcfg_connect(def_conf) == AC_JACK_PORT_NONE) {
 		if (seqassoc == 0xff) {
 			def_conf = def_conf & (~(AC_JACK_PORT_BOTH << 30));
-			snd_hda_codec_write(codec, nid, 0,
-					    AC_VERB_SET_CONFIG_DEFAULT_BYTES_3,
-					    def_conf >> 24);
+			snd_hda_codec_set_pincfg(codec, nid, def_conf);
 		}
 	}
 
