@@ -155,7 +155,13 @@ int /*__devinit*/ snd_hda_create_hwdep(struct hda_codec *codec)
 
 static int clear_codec(struct hda_codec *codec)
 {
-	snd_hda_codec_reset(codec);
+	int err;
+
+	err = snd_hda_codec_reset(codec);
+	if (err < 0) {
+		snd_printk(KERN_ERR "The codec is being used, can't free.\n");
+		return err;
+	}
 	clear_hwdep_elements(codec);
 	return 0;
 }
@@ -165,7 +171,12 @@ static int reconfig_codec(struct hda_codec *codec)
 	int err;
 
 	snd_printk(KERN_INFO "hda-codec: reconfiguring\n");
-	snd_hda_codec_reset(codec);
+	err = snd_hda_codec_reset(codec);
+	if (err < 0) {
+		snd_printk(KERN_ERR
+			   "The codec is being used, can't reconfigure.\n");
+		return err;
+	}
 	err = snd_hda_codec_configure(codec);
 	if (err < 0)
 		return err;

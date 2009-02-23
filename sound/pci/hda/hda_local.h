@@ -98,7 +98,7 @@ struct snd_kcontrol *snd_hda_find_mixer_ctl(struct hda_codec *codec,
 					    const char *name);
 int snd_hda_add_vmaster(struct hda_codec *codec, char *name,
 			unsigned int *tlv, const char **slaves);
-void snd_hda_codec_reset(struct hda_codec *codec);
+int snd_hda_codec_reset(struct hda_codec *codec);
 int snd_hda_codec_configure(struct hda_codec *codec);
 
 /* amp value bits */

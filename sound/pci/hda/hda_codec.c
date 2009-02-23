@@ -1445,9 +1445,52 @@ void snd_hda_ctls_clear(struct hda_codec *codec)
 	snd_array_free(&codec->mixers);
 }
 
-void snd_hda_codec_reset(struct hda_codec *codec)
+/* pseudo device locking
+ * toggle card->shutdown to allow/disallow the device access (as a hack)
+ */
+static int hda_lock_devices(struct snd_card *card)
 {
-	int i;
+	spin_lock(&card->files_lock);
+	if (card->shutdown) {
+		spin_unlock(&card->files_lock);
+		return -EINVAL;
+	}
+	card->shutdown = 1;
+	spin_unlock(&card->files_lock);
+	return 0;
+}
+
+static void hda_unlock_devices(struct snd_card *card)
+{
+	spin_lock(&card->files_lock);
+	card->shutdown = 0;
+	spin_unlock(&card->files_lock);
+}
+
+int snd_hda_codec_reset(struct hda_codec *codec)
+{
+	struct snd_card *card = codec->bus->card;
+	int i, pcm;
+
+	if (hda_lock_devices(card) < 0)
+		return -EBUSY;
+	/* check whether the codec isn't used by any mixer or PCM streams */
+	if (!list_empty(&card->ctl_files)) {
+		hda_unlock_devices(card);
+		return -EBUSY;
+	}
+	for (pcm = 0; pcm < codec->num_pcms; pcm++) {
+		struct hda_pcm *cpcm = &codec->pcm_info[pcm];
+		if (!cpcm->pcm)
+			continue;
+		if (cpcm->pcm->streams[0].substream_opened ||
+		    cpcm->pcm->streams[1].substream_opened) {
+			hda_unlock_devices(card);
+			return -EBUSY;
+		}
+	}
+
+	/* OK, let it free */
 
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 	cancel_delayed_work(&codec->power_work);
@@ -1457,8 +1500,7 @@ void snd_hda_codec_reset(struct hda_codec *codec)
 	/* relase PCMs */
 	for (i = 0; i < codec->num_pcms; i++) {
 		if (codec->pcm_info[i].pcm) {
-			snd_device_free(codec->bus->card,
-					codec->pcm_info[i].pcm);
+			snd_device_free(card, codec->pcm_info[i].pcm);
 			clear_bit(codec->pcm_info[i].device,
 				  codec->bus->pcm_dev_bits);
 		}
@@ -1479,6 +1521,10 @@ void snd_hda_codec_reset(struct hda_codec *codec)
 	codec->preset = NULL;
 	module_put(codec->owner);
 	codec->owner = NULL;
+
+	/* allow device access again */
+	hda_unlock_devices(card);
+	return 0;
 }
 #endif /* CONFIG_SND_HDA_RECONFIG */
 
