@@ -177,19 +177,23 @@ acpi_tb_print_table_header(acpi_physical_address address,
 			   struct acpi_table_header *header)
 {
 
+	/*
+	 * The reason that the Address is cast to a void pointer is so that we
+	 * can use %p which will work properly on both 32-bit and 64-bit hosts.
+	 */
 	if (ACPI_COMPARE_NAME(header->signature, ACPI_SIG_FACS)) {
 
-		/* FACS only has signature and length fields of common table header */
+		/* FACS only has signature and length fields */
 
-		ACPI_INFO((AE_INFO, "%4.4s %08lX, %04X",
-			   header->signature, (unsigned long)address,
+		ACPI_INFO((AE_INFO, "%4.4s %p %05X",
+			   header->signature, ACPI_CAST_PTR(void, address),
 			   header->length));
 	} else if (ACPI_COMPARE_NAME(header->signature, ACPI_SIG_RSDP)) {
 
 		/* RSDP has no common fields */
 
-		ACPI_INFO((AE_INFO, "RSDP %08lX, %04X (r%d %6.6s)",
-			   (unsigned long)address,
+		ACPI_INFO((AE_INFO, "RSDP %p %05X (v%.2d %6.6s)",
+			   ACPI_CAST_PTR (void, address),
 			   (ACPI_CAST_PTR(struct acpi_table_rsdp, header)->
 			    revision >
 			    0) ? ACPI_CAST_PTR(struct acpi_table_rsdp,
@@ -202,8 +206,8 @@ acpi_tb_print_table_header(acpi_physical_address address,
 		/* Standard ACPI table with full common header */
 
 		ACPI_INFO((AE_INFO,
-			   "%4.4s %08lX, %04X (r%d %6.6s %8.8s %8X %4.4s %8X)",
-			   header->signature, (unsigned long)address,
+			   "%4.4s %p %05X (v%.2d %6.6s %8.8s %08X %4.4s %08X)",
+			   header->signature, ACPI_CAST_PTR (void, address),
 			   header->length, header->revision, header->oem_id,
 			   header->oem_table_id, header->oem_revision,
 			   header->asl_compiler_id,
