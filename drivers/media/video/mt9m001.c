@@ -276,7 +276,7 @@ static unsigned long mt9m001_query_bus_param(struct soc_camera_device *icd)
 	/* MT9M001 has all capture_format parameters fixed */
 	unsigned long flags = SOCAM_DATAWIDTH_10 | SOCAM_PCLK_SAMPLE_RISING |
 		SOCAM_HSYNC_ACTIVE_HIGH | SOCAM_VSYNC_ACTIVE_HIGH |
-		SOCAM_MASTER;
+		SOCAM_DATA_ACTIVE_HIGH | SOCAM_MASTER;
 
 	if (bus_switch_possible(mt9m001))
 		flags |= SOCAM_DATAWIDTH_8;

@@ -878,6 +878,7 @@ static int test_platform_param(struct pxa_camera_dev *pcdev,
 		SOCAM_HSYNC_ACTIVE_LOW |
 		SOCAM_VSYNC_ACTIVE_HIGH |
 		SOCAM_VSYNC_ACTIVE_LOW |
+		SOCAM_DATA_ACTIVE_HIGH |
 		SOCAM_PCLK_SAMPLE_RISING |
 		SOCAM_PCLK_SAMPLE_FALLING;
 
