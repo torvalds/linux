@@ -12,7 +12,6 @@ struct kvm_lapic {
 		atomic_t pending;
 		s64 period;	/* unit: ns */
 		u32 divide_count;
-		ktime_t last_update;
 		struct hrtimer dev;
 	} timer;
 	struct kvm_vcpu *vcpu;
@@ -42,7 +41,6 @@ void kvm_set_apic_base(struct kvm_vcpu *vcpu, u64 data);
 void kvm_apic_post_state_restore(struct kvm_vcpu *vcpu);
 int kvm_lapic_enabled(struct kvm_vcpu *vcpu);
 int kvm_lapic_find_highest_irr(struct kvm_vcpu *vcpu);
-void kvm_apic_timer_intr_post(struct kvm_vcpu *vcpu, int vec);
 
 void kvm_lapic_set_vapic_addr(struct kvm_vcpu *vcpu, gpa_t vapic_addr);
 void kvm_lapic_sync_from_vapic(struct kvm_vcpu *vcpu);

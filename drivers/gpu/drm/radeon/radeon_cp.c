@@ -557,8 +557,10 @@ static int radeon_do_engine_reset(struct drm_device * dev)
 }
 
 static void radeon_cp_init_ring_buffer(struct drm_device * dev,
-				       drm_radeon_private_t * dev_priv)
+				       drm_radeon_private_t *dev_priv,
+				       struct drm_file *file_priv)
 {
+	struct drm_radeon_master_private *master_priv;
 	u32 ring_start, cur_read_ptr;
 	u32 tmp;
 
@@ -676,6 +678,14 @@ static void radeon_cp_init_ring_buffer(struct drm_device * dev,
 
 	dev_priv->scratch[2] = 0;
 	RADEON_WRITE(RADEON_LAST_CLEAR_REG, 0);
+
+	/* reset sarea copies of these */
+	master_priv = file_priv->master->driver_priv;
+	if (master_priv->sarea_priv) {
+		master_priv->sarea_priv->last_frame = 0;
+		master_priv->sarea_priv->last_dispatch = 0;
+		master_priv->sarea_priv->last_clear = 0;
+	}
 
 	radeon_do_wait_for_idle(dev_priv);
 
@@ -1039,9 +1049,9 @@ static int radeon_do_init_cp(struct drm_device *dev, drm_radeon_init_t *init,
 
 #if __OS_HAS_AGP
 	if (dev_priv->flags & RADEON_IS_AGP) {
-		drm_core_ioremap(dev_priv->cp_ring, dev);
-		drm_core_ioremap(dev_priv->ring_rptr, dev);
-		drm_core_ioremap(dev->agp_buffer_map, dev);
+		drm_core_ioremap_wc(dev_priv->cp_ring, dev);
+		drm_core_ioremap_wc(dev_priv->ring_rptr, dev);
+		drm_core_ioremap_wc(dev->agp_buffer_map, dev);
 		if (!dev_priv->cp_ring->handle ||
 		    !dev_priv->ring_rptr->handle ||
 		    !dev->agp_buffer_map->handle) {
@@ -1215,7 +1225,7 @@ static int radeon_do_init_cp(struct drm_device *dev, drm_radeon_init_t *init,
 	}
 
 	radeon_cp_load_microcode(dev_priv);
-	radeon_cp_init_ring_buffer(dev, dev_priv);
+	radeon_cp_init_ring_buffer(dev, dev_priv, file_priv);
 
 	dev_priv->last_buf = 0;
 
@@ -1281,7 +1291,7 @@ static int radeon_do_cleanup_cp(struct drm_device * dev)
  *
  * Charl P. Botha <http://cpbotha.net>
  */
-static int radeon_do_resume_cp(struct drm_device * dev)
+static int radeon_do_resume_cp(struct drm_device *dev, struct drm_file *file_priv)
 {
 	drm_radeon_private_t *dev_priv = dev->dev_private;
 
@@ -1304,7 +1314,7 @@ static int radeon_do_resume_cp(struct drm_device * dev)
 	}
 
 	radeon_cp_load_microcode(dev_priv);
-	radeon_cp_init_ring_buffer(dev, dev_priv);
+	radeon_cp_init_ring_buffer(dev, dev_priv, file_priv);
 
 	radeon_do_engine_reset(dev);
 	radeon_irq_set_state(dev, RADEON_SW_INT_ENABLE, 1);
@@ -1479,8 +1489,7 @@ int radeon_cp_idle(struct drm_device *dev, void *data, struct drm_file *file_pri
  */
 int radeon_cp_resume(struct drm_device *dev, void *data, struct drm_file *file_priv)
 {
-
-	return radeon_do_resume_cp(dev);
+	return radeon_do_resume_cp(dev, file_priv);
 }
 
 int radeon_engine_reset(struct drm_device *dev, void *data, struct drm_file *file_priv)

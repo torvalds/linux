@@ -1737,9 +1737,12 @@ static void clear_ftrace_pid(struct pid *pid)
 {
 	struct task_struct *p;
 
+	rcu_read_lock();
 	do_each_pid_task(pid, PIDTYPE_PID, p) {
 		clear_tsk_trace_trace(p);
 	} while_each_pid_task(pid, PIDTYPE_PID, p);
+	rcu_read_unlock();
+
 	put_pid(pid);
 }
 
@@ -1747,9 +1750,11 @@ static void set_ftrace_pid(struct pid *pid)
 {
 	struct task_struct *p;
 
+	rcu_read_lock();
 	do_each_pid_task(pid, PIDTYPE_PID, p) {
 		set_tsk_trace_trace(p);
 	} while_each_pid_task(pid, PIDTYPE_PID, p);
+	rcu_read_unlock();
 }
 
 static void clear_ftrace_pid_task(struct pid **pid)
@@ -2028,7 +2033,7 @@ free:
 static int start_graph_tracing(void)
 {
 	struct ftrace_ret_stack **ret_stack_list;
-	int ret;
+	int ret, cpu;
 
 	ret_stack_list = kmalloc(FTRACE_RETSTACK_ALLOC_SIZE *
 				sizeof(struct ftrace_ret_stack *),
@@ -2036,6 +2041,10 @@ static int start_graph_tracing(void)
 
 	if (!ret_stack_list)
 		return -ENOMEM;
+
+	/* The cpu_boot init_task->ret_stack will never be freed */
+	for_each_online_cpu(cpu)
+		ftrace_graph_init_task(idle_task(cpu));
 
 	do {
 		ret = alloc_retstack_tasklist(ret_stack_list);

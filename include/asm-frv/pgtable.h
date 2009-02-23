@@ -478,7 +478,7 @@ static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 #define __swp_type(x)			(((x).val >> 2) & 0x1f)
 #define __swp_offset(x)			((x).val >> 8)
 #define __swp_entry(type, offset)	((swp_entry_t) { ((type) << 2) | ((offset) << 8) })
-#define __pte_to_swp_entry(pte)		((swp_entry_t) { (pte).pte })
+#define __pte_to_swp_entry(_pte)	((swp_entry_t) { (_pte).pte })
 #define __swp_entry_to_pte(x)		((pte_t) { (x).val })
 
 static inline int pte_file(pte_t pte)

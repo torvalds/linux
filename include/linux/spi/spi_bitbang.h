@@ -83,6 +83,13 @@ extern int spi_bitbang_stop(struct spi_bitbang *spi);
  *  int getmiso(struct spi_device *);
  *  void spidelay(unsigned);
  *
+ * setsck()'s is_on parameter is a zero/nonzero boolean.
+ *
+ * setmosi()'s is_on parameter is a zero/nonzero boolean.
+ *
+ * getmiso() is required to return 0 or 1 only. Any other value is invalid
+ * and will result in improper operation.
+ *
  * A non-inlined routine would call bitbang_txrx_*() routines.  The
  * main loop could easily compile down to a handful of instructions,
  * especially if the delay is a NOP (to run at peak speed).

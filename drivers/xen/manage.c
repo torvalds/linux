@@ -45,6 +45,13 @@ static int xen_suspend(void *data)
 		       err);
 		return err;
 	}
+	err = sysdev_suspend(PMSG_SUSPEND);
+	if (err) {
+		printk(KERN_ERR "xen_suspend: sysdev_suspend failed: %d\n",
+			err);
+		device_power_up(PMSG_RESUME);
+		return err;
+	}
 
 	xen_mm_pin_all();
 	gnttab_suspend();
@@ -61,6 +68,7 @@ static int xen_suspend(void *data)
 	gnttab_resume();
 	xen_mm_unpin_all();
 
+	sysdev_resume();
 	device_power_up(PMSG_RESUME);
 
 	if (!*cancelled) {

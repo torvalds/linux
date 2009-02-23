@@ -1,3 +1,13 @@
+Version 1.57
+------------
+Improve support for multiple security contexts to the same server. We
+used to use the same "vcnumber" for all connections which could cause
+the server to treat subsequent connections, especially those that
+are authenticated as guest, as reconnections, invalidating the earlier
+user's smb session.  This fix allows cifs to mount multiple times to the
+same server with different userids without risking invalidating earlier
+established security contexts.
+
 Version 1.56
 ------------
 Add "forcemandatorylock" mount option to allow user to use mandatory
@@ -7,7 +17,10 @@ specified and user does not have access to query information about the
 top of the share.  Fix problem in 2.6.28 resolving DFS paths to
 Samba servers (worked to Windows).  Fix rmdir so that pending search
 (readdir) requests do not get invalid results which include the now
-removed directory.
+removed directory.  Fix oops in cifs_dfs_ref.c when prefixpath is not reachable
+when using DFS.  Add better file create support to servers which support
+the CIFS POSIX protocol extensions (this adds support for new flags
+on create, and improves semantics for write of locked ranges).
 
 Version 1.55
 ------------

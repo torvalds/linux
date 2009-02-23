@@ -84,7 +84,6 @@ int btrfs_find_free_objectid(struct btrfs_trans_handle *trans,
 	search_key.type = 0;
 	search_key.offset = 0;
 
-	btrfs_init_path(path);
 	start_found = 0;
 	ret = btrfs_search_slot(trans, root, &search_key, path, 0, 0);
 	if (ret < 0)

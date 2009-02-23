@@ -1,7 +1,7 @@
 /*
- *	intel TCO Watchdog Driver (Used in i82801 and i6300ESB chipsets)
+ *	intel TCO Watchdog Driver (Used in i82801 and i63xxESB chipsets)
  *
- *	(c) Copyright 2006-2008 Wim Van Sebroeck <wim@iguana.be>.
+ *	(c) Copyright 2006-2009 Wim Van Sebroeck <wim@iguana.be>.
  *
  *	This program is free software; you can redistribute it and/or
  *	modify it under the terms of the GNU General Public License
@@ -63,7 +63,7 @@
 
 /* Module and version information */
 #define DRV_NAME	"iTCO_wdt"
-#define DRV_VERSION	"1.04"
+#define DRV_VERSION	"1.05"
 #define PFX		DRV_NAME ": "
 
 /* Includes */
@@ -236,16 +236,16 @@ MODULE_DEVICE_TABLE(pci, iTCO_wdt_pci_tbl);
 
 /* Address definitions for the TCO */
 /* TCO base address */
-#define	TCOBASE		iTCO_wdt_private.ACPIBASE + 0x60
+#define TCOBASE		iTCO_wdt_private.ACPIBASE + 0x60
 /* SMI Control and Enable Register */
-#define	SMI_EN		iTCO_wdt_private.ACPIBASE + 0x30
+#define SMI_EN		iTCO_wdt_private.ACPIBASE + 0x30
 
 #define TCO_RLD		TCOBASE + 0x00	/* TCO Timer Reload and Curr. Value */
 #define TCOv1_TMR	TCOBASE + 0x01	/* TCOv1 Timer Initial Value	*/
-#define	TCO_DAT_IN	TCOBASE + 0x02	/* TCO Data In Register		*/
-#define	TCO_DAT_OUT	TCOBASE + 0x03	/* TCO Data Out Register	*/
-#define	TCO1_STS	TCOBASE + 0x04	/* TCO1 Status Register		*/
-#define	TCO2_STS	TCOBASE + 0x06	/* TCO2 Status Register		*/
+#define TCO_DAT_IN	TCOBASE + 0x02	/* TCO Data In Register		*/
+#define TCO_DAT_OUT	TCOBASE + 0x03	/* TCO Data Out Register	*/
+#define TCO1_STS	TCOBASE + 0x04	/* TCO1 Status Register		*/
+#define TCO2_STS	TCOBASE + 0x06	/* TCO2 Status Register		*/
 #define TCO1_CNT	TCOBASE + 0x08	/* TCO1 Control Register	*/
 #define TCO2_CNT	TCOBASE + 0x0a	/* TCO2 Control Register	*/
 #define TCOv2_TMR	TCOBASE + 0x12	/* TCOv2 Timer Initial Value	*/
@@ -338,7 +338,6 @@ static int iTCO_wdt_unset_NO_REBOOT_bit(void)
 static int iTCO_wdt_start(void)
 {
 	unsigned int val;
-	unsigned long val32;
 
 	spin_lock(&iTCO_wdt_private.io_lock);
 
@@ -350,11 +349,6 @@ static int iTCO_wdt_start(void)
 		printk(KERN_ERR PFX "failed to reset NO_REBOOT flag, reboot disabled by hardware\n");
 		return -EIO;
 	}
-
-	/* Bit 13: TCO_EN -> 0 = Disables TCO logic generating an SMI# */
-	val32 = inl(SMI_EN);
-	val32 &= 0xffffdfff;	/* Turn off SMI clearing watchdog */
-	outl(val32, SMI_EN);
 
 	/* Force the timer to its reload value by writing to the TCO_RLD
 	   register */
@@ -378,7 +372,6 @@ static int iTCO_wdt_start(void)
 static int iTCO_wdt_stop(void)
 {
 	unsigned int val;
-	unsigned long val32;
 
 	spin_lock(&iTCO_wdt_private.io_lock);
 
@@ -389,11 +382,6 @@ static int iTCO_wdt_stop(void)
 	val |= 0x0800;
 	outw(val, TCO1_CNT);
 	val = inw(TCO1_CNT);
-
-	/* Bit 13: TCO_EN -> 1 = Enables the TCO logic to generate SMI# */
-	val32 = inl(SMI_EN);
-	val32 |= 0x00002000;
-	outl(val32, SMI_EN);
 
 	/* Set the NO_REBOOT bit to prevent later reboots, just for sure */
 	iTCO_wdt_set_NO_REBOOT_bit();
@@ -649,6 +637,7 @@ static int __devinit iTCO_wdt_init(struct pci_dev *pdev,
 	int ret;
 	u32 base_address;
 	unsigned long RCBA;
+	unsigned long val32;
 
 	/*
 	 *      Find the ACPI/PM base I/O address which is the base
@@ -695,6 +684,10 @@ static int __devinit iTCO_wdt_init(struct pci_dev *pdev,
 		ret = -EIO;
 		goto out;
 	}
+	/* Bit 13: TCO_EN -> 0 = Disables TCO logic generating an SMI# */
+	val32 = inl(SMI_EN);
+	val32 &= 0xffffdfff;	/* Turn off SMI clearing watchdog */
+	outl(val32, SMI_EN);
 
 	/* The TCO I/O registers reside in a 32-byte range pointed to
 	   by the TCOBASE value */
