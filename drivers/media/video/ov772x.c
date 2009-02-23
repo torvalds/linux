@@ -500,9 +500,8 @@ static const struct soc_camera_data_format ov772x_fmt_lists[] = {
 /*
  * color format list
  */
-#define T_YUYV 0
 static const struct ov772x_color_format ov772x_cfmts[] = {
-	[T_YUYV] = {
+	{
 		SETFOURCC(YUYV),
 		.regs   = ov772x_YYUV_regs,
 	},
@@ -635,74 +634,20 @@ static int ov772x_release(struct soc_camera_device *icd)
 static int ov772x_start_capture(struct soc_camera_device *icd)
 {
 	struct ov772x_priv *priv = container_of(icd, struct ov772x_priv, icd);
-	int                 ret;
 
-	if (!priv->win)
-		priv->win = &ov772x_win_vga;
-	if (!priv->fmt)
-		priv->fmt = &ov772x_cfmts[T_YUYV];
-
-	/*
-	 * reset hardware
-	 */
-	ov772x_reset(priv->client);
-
-	/*
-	 * set color format
-	 */
-	ret = ov772x_write_array(priv->client, priv->fmt->regs);
-	if (ret < 0)
-		goto start_end;
-
-	/*
-	 * set size format
-	 */
-	ret = ov772x_write_array(priv->client, priv->win->regs);
-	if (ret < 0)
-		goto start_end;
-
-	/*
-	 * set COM7 bit ( QVGA or VGA )
-	 */
-	ret = ov772x_mask_set(priv->client,
-			      COM7, SLCT_MASK, priv->win->com7_bit);
-	if (ret < 0)
-		goto start_end;
-
-	/*
-	 * set UV setting
-	 */
-	if (priv->fmt->option & OP_UV) {
-		ret = ov772x_mask_set(priv->client,
-				      DSP_CTRL3, UV_MASK, UV_ON);
-		if (ret < 0)
-			goto start_end;
-	}
-
-	/*
-	 * set SWAP setting
-	 */
-	if (priv->fmt->option & OP_SWAP_RGB) {
-		ret = ov772x_mask_set(priv->client,
-				      COM3, SWAP_MASK, SWAP_RGB);
-		if (ret < 0)
-			goto start_end;
+	if (!priv->win || !priv->fmt) {
+		dev_err(&icd->dev, "norm or win select error\n");
+		return -EPERM;
 	}
 
 	dev_dbg(&icd->dev,
 		 "format %s, win %s\n", priv->fmt->name, priv->win->name);
 
-start_end:
-	priv->fmt = NULL;
-	priv->win = NULL;
-
-	return ret;
+	return 0;
 }
 
 static int ov772x_stop_capture(struct soc_camera_device *icd)
 {
-	struct ov772x_priv *priv = container_of(icd, struct ov772x_priv, icd);
-	ov772x_reset(priv->client);
 	return 0;
 }
 
@@ -787,7 +732,6 @@ ov772x_select_win(u32 width, u32 height)
 	return win;
 }
 
-
 static int ov772x_set_fmt(struct soc_camera_device *icd,
 			  __u32                     pixfmt,
 			  struct v4l2_rect         *rect)
@@ -803,15 +747,71 @@ static int ov772x_set_fmt(struct soc_camera_device *icd,
 	for (i = 0; i < ARRAY_SIZE(ov772x_cfmts); i++) {
 		if (pixfmt == ov772x_cfmts[i].fourcc) {
 			priv->fmt = ov772x_cfmts + i;
-			ret = 0;
 			break;
 		}
 	}
+	if (!priv->fmt)
+		goto ov772x_set_fmt_error;
 
 	/*
 	 * select win
 	 */
 	priv->win = ov772x_select_win(rect->width, rect->height);
+
+	/*
+	 * reset hardware
+	 */
+	ov772x_reset(priv->client);
+
+	/*
+	 * set color format
+	 */
+	ret = ov772x_write_array(priv->client, priv->fmt->regs);
+	if (ret < 0)
+		goto ov772x_set_fmt_error;
+
+	/*
+	 * set size format
+	 */
+	ret = ov772x_write_array(priv->client, priv->win->regs);
+	if (ret < 0)
+		goto ov772x_set_fmt_error;
+
+	/*
+	 * set COM7 bit ( QVGA or VGA )
+	 */
+	ret = ov772x_mask_set(priv->client,
+			      COM7, SLCT_MASK, priv->win->com7_bit);
+	if (ret < 0)
+		goto ov772x_set_fmt_error;
+
+	/*
+	 * set UV setting
+	 */
+	if (priv->fmt->option & OP_UV) {
+		ret = ov772x_mask_set(priv->client,
+				      DSP_CTRL3, UV_MASK, UV_ON);
+		if (ret < 0)
+			goto ov772x_set_fmt_error;
+	}
+
+	/*
+	 * set SWAP setting
+	 */
+	if (priv->fmt->option & OP_SWAP_RGB) {
+		ret = ov772x_mask_set(priv->client,
+				      COM3, SWAP_MASK, SWAP_RGB);
+		if (ret < 0)
+			goto ov772x_set_fmt_error;
+	}
+
+	return ret;
+
+ov772x_set_fmt_error:
+
+	ov772x_reset(priv->client);
+	priv->win = NULL;
+	priv->fmt = NULL;
 
 	return ret;
 }
@@ -888,7 +888,6 @@ static int ov772x_video_probe(struct soc_camera_device *icd)
 		 ver,
 		 i2c_smbus_read_byte_data(priv->client, MIDH),
 		 i2c_smbus_read_byte_data(priv->client, MIDL));
-
 
 	return soc_camera_video_start(icd);
 }
