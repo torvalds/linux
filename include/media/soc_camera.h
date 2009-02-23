@@ -239,15 +239,19 @@ static inline struct v4l2_queryctrl const *soc_camera_find_qctrl(
 static inline unsigned long soc_camera_bus_param_compatible(
 			unsigned long camera_flags, unsigned long bus_flags)
 {
-	unsigned long common_flags, hsync, vsync, pclk;
+	unsigned long common_flags, hsync, vsync, pclk, data, buswidth, mode;
 
 	common_flags = camera_flags & bus_flags;
 
 	hsync = common_flags & (SOCAM_HSYNC_ACTIVE_HIGH | SOCAM_HSYNC_ACTIVE_LOW);
 	vsync = common_flags & (SOCAM_VSYNC_ACTIVE_HIGH | SOCAM_VSYNC_ACTIVE_LOW);
 	pclk = common_flags & (SOCAM_PCLK_SAMPLE_RISING | SOCAM_PCLK_SAMPLE_FALLING);
+	data = common_flags & (SOCAM_DATA_ACTIVE_HIGH | SOCAM_DATA_ACTIVE_LOW);
+	mode = common_flags & (SOCAM_MASTER | SOCAM_SLAVE);
+	buswidth = common_flags & SOCAM_DATAWIDTH_MASK;
 
-	return (!hsync || !vsync || !pclk) ? 0 : common_flags;
+	return (!hsync || !vsync || !pclk || !data || !mode || !buswidth) ? 0 :
+		common_flags;
 }
 
 extern unsigned long soc_camera_apply_sensor_flags(struct soc_camera_link *icl,
