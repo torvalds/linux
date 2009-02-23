@@ -78,8 +78,36 @@ static inline int cifs_convert_flags(unsigned int flags)
 	return (READ_CONTROL | FILE_WRITE_ATTRIBUTES | FILE_READ_ATTRIBUTES |
 		FILE_WRITE_EA | FILE_APPEND_DATA | FILE_WRITE_DATA |
 		FILE_READ_DATA);
+}
 
+static inline fmode_t cifs_posix_convert_flags(unsigned int flags)
+{
+	fmode_t posix_flags = 0;
 
+	if ((flags & O_ACCMODE) == O_RDONLY)
+		posix_flags = FMODE_READ;
+	else if ((flags & O_ACCMODE) == O_WRONLY)
+		posix_flags = FMODE_WRITE;
+	else if ((flags & O_ACCMODE) == O_RDWR) {
+		/* GENERIC_ALL is too much permission to request
+		   can cause unnecessary access denied on create */
+		/* return GENERIC_ALL; */
+		posix_flags = FMODE_READ | FMODE_WRITE;
+	}
+	/* can not map O_CREAT or O_EXCL or O_TRUNC flags when
+	   reopening a file.  They had their effect on the original open */
+	if (flags & O_APPEND)
+		posix_flags |= (fmode_t)O_APPEND;
+	if (flags & O_SYNC)
+		posix_flags |= (fmode_t)O_SYNC;
+	if (flags & O_DIRECTORY)
+		posix_flags |= (fmode_t)O_DIRECTORY;
+	if (flags & O_NOFOLLOW)
+		posix_flags |= (fmode_t)O_NOFOLLOW;
+	if (flags & O_DIRECT)
+		posix_flags |= (fmode_t)O_DIRECT;
+
+	return posix_flags;
 }
 
 static inline int cifs_get_disposition(unsigned int flags)
@@ -349,7 +377,7 @@ static int cifs_reopen_file(struct file *file, bool can_flush)
 	int rc = -EACCES;
 	int xid, oplock;
 	struct cifs_sb_info *cifs_sb;
-	struct cifsTconInfo *pTcon;
+	struct cifsTconInfo *tcon;
 	struct cifsFileInfo *pCifsFile;
 	struct cifsInodeInfo *pCifsInode;
 	struct inode *inode;
@@ -387,7 +415,7 @@ static int cifs_reopen_file(struct file *file, bool can_flush)
 	}
 
 	cifs_sb = CIFS_SB(inode->i_sb);
-	pTcon = cifs_sb->tcon;
+	tcon = cifs_sb->tcon;
 
 /* can not grab rename sem here because various ops, including
    those that already have the rename sem can end up causing writepage
@@ -404,12 +432,29 @@ reopen_error_exit:
 
 	cFYI(1, ("inode = 0x%p file flags 0x%x for %s",
 		 inode, file->f_flags, full_path));
-	desiredAccess = cifs_convert_flags(file->f_flags);
 
 	if (oplockEnabled)
 		oplock = REQ_OPLOCK;
 	else
 		oplock = 0;
+
+	if (tcon->unix_ext && (tcon->ses->capabilities & CAP_UNIX) &&
+	    (CIFS_UNIX_POSIX_PATH_OPS_CAP &
+			le64_to_cpu(tcon->fsUnixInfo.Capability))) {
+		int oflags = (int) cifs_posix_convert_flags(file->f_flags);
+		/* can not refresh inode info since size could be stale */
+		rc = cifs_posix_open(full_path, NULL, inode->i_sb,
+				     cifs_sb->mnt_file_mode /* ignored */,
+				     oflags, &oplock, &netfid, xid);
+		if (rc == 0) {
+			cFYI(1, ("posix reopen succeeded"));
+			goto reopen_success;
+		}
+		/* fallthrough to retry open the old way on errors, especially
+		   in the reconnect path it is important to retry hard */
+	}
+
+	desiredAccess = cifs_convert_flags(file->f_flags);
 
 	/* Can not refresh inode by passing in file_info buf to be returned
 	   by SMBOpen and then calling get_inode_info with returned buf
@@ -417,7 +462,7 @@ reopen_error_exit:
 	   and server version of file size can be stale. If we knew for sure
 	   that inode was not dirty locally we could do this */
 
-	rc = CIFSSMBOpen(xid, pTcon, full_path, disposition, desiredAccess,
+	rc = CIFSSMBOpen(xid, tcon, full_path, disposition, desiredAccess,
 			 CREATE_NOT_DIR, &netfid, &oplock, NULL,
 			 cifs_sb->local_nls, cifs_sb->mnt_cifs_flags &
 				CIFS_MOUNT_MAP_SPECIAL_CHR);
@@ -426,6 +471,7 @@ reopen_error_exit:
 		cFYI(1, ("cifs_open returned 0x%x", rc));
 		cFYI(1, ("oplock: %d", oplock));
 	} else {
+reopen_success:
 		pCifsFile->netfid = netfid;
 		pCifsFile->invalidHandle = false;
 		up(&pCifsFile->fh_sem);
@@ -439,7 +485,7 @@ reopen_error_exit:
 			   go to server to get inode info */
 				pCifsInode->clientCanCacheAll = false;
 				pCifsInode->clientCanCacheRead = false;
-				if (pTcon->unix_ext)
+				if (tcon->unix_ext)
 					rc = cifs_get_inode_info_unix(&inode,
 						full_path, inode->i_sb, xid);
 				else
@@ -467,7 +513,6 @@ reopen_error_exit:
 			cifs_relock_file(pCifsFile);
 		}
 	}
-
 	kfree(full_path);
 	FreeXid(xid);
 	return rc;
