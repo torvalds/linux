@@ -2978,8 +2978,6 @@ static int hso_probe(struct usb_interface *interface,
 		goto exit;
 	}
 
-	usb_driver_claim_interface(&hso_driver, interface, hso_dev);
-
 	/* save our data pointer in this device */
 	usb_set_intfdata(interface, hso_dev);
 
@@ -2997,8 +2995,6 @@ static void hso_disconnect(struct usb_interface *interface)
 
 	/* remove reference of our private data */
 	usb_set_intfdata(interface, NULL);
-
-	usb_driver_release_interface(&hso_driver, interface);
 }
 
 static void async_get_intf(struct work_struct *data)
