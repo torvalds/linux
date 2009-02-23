@@ -212,8 +212,7 @@ void flexcop_reset_block_300(struct flexcop_device *fc)
 	v210.sw_reset_210.Block_reset_enable = 0xb2;
 
 	fc->write_ibi_reg(fc,sw_reset_210,v210);
-	msleep(1);
-
+	udelay(1000);
 	fc->write_ibi_reg(fc,ctrl_208,v208_save);
 }
 
