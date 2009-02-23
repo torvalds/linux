@@ -92,18 +92,32 @@ struct intel_limit {
 #define I9XX_DOT_MAX		 400000
 #define I9XX_VCO_MIN		1400000
 #define I9XX_VCO_MAX		2800000
+#define IGD_VCO_MIN		1700000
+#define IGD_VCO_MAX		3500000
 #define I9XX_N_MIN		      1
 #define I9XX_N_MAX		      6
+/* IGD's Ncounter is a ring counter */
+#define IGD_N_MIN		      3
+#define IGD_N_MAX		      6
 #define I9XX_M_MIN		     70
 #define I9XX_M_MAX		    120
+#define IGD_M_MIN		      2
+#define IGD_M_MAX		    256
 #define I9XX_M1_MIN		     10
 #define I9XX_M1_MAX		     22
 #define I9XX_M2_MIN		      5
 #define I9XX_M2_MAX		      9
+/* IGD M1 is reserved, and must be 0 */
+#define IGD_M1_MIN		      0
+#define IGD_M1_MAX		      0
+#define IGD_M2_MIN		      0
+#define IGD_M2_MAX		      254
 #define I9XX_P_SDVO_DAC_MIN	      5
 #define I9XX_P_SDVO_DAC_MAX	     80
 #define I9XX_P_LVDS_MIN		      7
 #define I9XX_P_LVDS_MAX		     98
+#define IGD_P_LVDS_MIN		      7
+#define IGD_P_LVDS_MAX		     112
 #define I9XX_P1_MIN		      1
 #define I9XX_P1_MAX		      8
 #define I9XX_P2_SDVO_DAC_SLOW		     10
@@ -121,6 +135,8 @@ struct intel_limit {
 #define INTEL_LIMIT_G4X_HDMI_DAC   5
 #define INTEL_LIMIT_G4X_SINGLE_CHANNEL_LVDS   6
 #define INTEL_LIMIT_G4X_DUAL_CHANNEL_LVDS   7
+#define INTEL_LIMIT_IGD_SDVO_DAC    8
+#define INTEL_LIMIT_IGD_LVDS	    9
 
 /*The parameter is for SDVO on G4x platform*/
 #define G4X_DOT_SDVO_MIN           25000
@@ -340,6 +356,32 @@ static const intel_limit_t intel_limits[] = {
 	},
 	.find_pll = intel_g4x_find_best_PLL,
     },
+    { /* INTEL_LIMIT_IGD_SDVO */
+        .dot = { .min = I9XX_DOT_MIN,		.max = I9XX_DOT_MAX},
+        .vco = { .min = IGD_VCO_MIN,		.max = IGD_VCO_MAX },
+        .n   = { .min = IGD_N_MIN,		.max = IGD_N_MAX },
+        .m   = { .min = IGD_M_MIN,		.max = IGD_M_MAX },
+        .m1  = { .min = IGD_M1_MIN,		.max = IGD_M1_MAX },
+        .m2  = { .min = IGD_M2_MIN,		.max = IGD_M2_MAX },
+        .p   = { .min = I9XX_P_SDVO_DAC_MIN,    .max = I9XX_P_SDVO_DAC_MAX },
+        .p1  = { .min = I9XX_P1_MIN,		.max = I9XX_P1_MAX },
+	.p2  = { .dot_limit = I9XX_P2_SDVO_DAC_SLOW_LIMIT,
+		 .p2_slow = I9XX_P2_SDVO_DAC_SLOW,	.p2_fast = I9XX_P2_SDVO_DAC_FAST },
+    },
+    { /* INTEL_LIMIT_IGD_LVDS */
+        .dot = { .min = I9XX_DOT_MIN,		.max = I9XX_DOT_MAX },
+        .vco = { .min = IGD_VCO_MIN,		.max = IGD_VCO_MAX },
+        .n   = { .min = IGD_N_MIN,		.max = IGD_N_MAX },
+        .m   = { .min = IGD_M_MIN,		.max = IGD_M_MAX },
+        .m1  = { .min = IGD_M1_MIN,		.max = IGD_M1_MAX },
+        .m2  = { .min = IGD_M2_MIN,		.max = IGD_M2_MAX },
+        .p   = { .min = IGD_P_LVDS_MIN,	.max = IGD_P_LVDS_MAX },
+        .p1  = { .min = I9XX_P1_MIN,		.max = I9XX_P1_MAX },
+	/* IGD only supports single-channel mode. */
+	.p2  = { .dot_limit = I9XX_P2_LVDS_SLOW_LIMIT,
+		 .p2_slow = I9XX_P2_LVDS_SLOW,	.p2_fast = I9XX_P2_LVDS_SLOW },
+    },
+
 };
 
 static const intel_limit_t *intel_g4x_limit(struct drm_crtc *crtc)
@@ -376,11 +418,16 @@ static const intel_limit_t *intel_limit(struct drm_crtc *crtc)
 
 	if (IS_G4X(dev)) {
 		limit = intel_g4x_limit(crtc);
-	} else if (IS_I9XX(dev)) {
+	} else if (IS_I9XX(dev) && !IS_IGD(dev)) {
 		if (intel_pipe_has_type(crtc, INTEL_OUTPUT_LVDS))
 			limit = &intel_limits[INTEL_LIMIT_I9XX_LVDS];
 		else
 			limit = &intel_limits[INTEL_LIMIT_I9XX_SDVO_DAC];
+	} else if (IS_IGD(dev)) {
+		if (intel_pipe_has_type(crtc, INTEL_OUTPUT_LVDS))
+			limit = &intel_limits[INTEL_LIMIT_IGD_LVDS];
+		else
+			limit = &intel_limits[INTEL_LIMIT_IGD_SDVO_DAC];
 	} else {
 		if (intel_pipe_has_type(crtc, INTEL_OUTPUT_LVDS))
 			limit = &intel_limits[INTEL_LIMIT_I8XX_LVDS];
@@ -390,8 +437,21 @@ static const intel_limit_t *intel_limit(struct drm_crtc *crtc)
 	return limit;
 }
 
-static void intel_clock(int refclk, intel_clock_t *clock)
+/* m1 is reserved as 0 in IGD, n is a ring counter */
+static void igd_clock(int refclk, intel_clock_t *clock)
 {
+	clock->m = clock->m2 + 2;
+	clock->p = clock->p1 * clock->p2;
+	clock->vco = refclk * clock->m / clock->n;
+	clock->dot = clock->vco / clock->p;
+}
+
+static void intel_clock(struct drm_device *dev, int refclk, intel_clock_t *clock)
+{
+	if (IS_IGD(dev)) {
+		igd_clock(refclk, clock);
+		return;
+	}
 	clock->m = 5 * (clock->m1 + 2) + (clock->m2 + 2);
 	clock->p = clock->p1 * clock->p2;
 	clock->vco = refclk * clock->m / (clock->n + 2);
@@ -427,6 +487,7 @@ bool intel_pipe_has_type (struct drm_crtc *crtc, int type)
 static bool intel_PLL_is_valid(struct drm_crtc *crtc, intel_clock_t *clock)
 {
 	const intel_limit_t *limit = intel_limit (crtc);
+	struct drm_device *dev = crtc->dev;
 
 	if (clock->p1  < limit->p1.min  || limit->p1.max  < clock->p1)
 		INTELPllInvalid ("p1 out of range\n");
@@ -436,7 +497,7 @@ static bool intel_PLL_is_valid(struct drm_crtc *crtc, intel_clock_t *clock)
 		INTELPllInvalid ("m2 out of range\n");
 	if (clock->m1  < limit->m1.min  || limit->m1.max  < clock->m1)
 		INTELPllInvalid ("m1 out of range\n");
-	if (clock->m1 <= clock->m2)
+	if (clock->m1 <= clock->m2 && !IS_IGD(dev))
 		INTELPllInvalid ("m1 <= m2\n");
 	if (clock->m   < limit->m.min   || limit->m.max   < clock->m)
 		INTELPllInvalid ("m out of range\n");
@@ -486,15 +547,17 @@ intel_find_best_PLL(const intel_limit_t *limit, struct drm_crtc *crtc,
 	memset (best_clock, 0, sizeof (*best_clock));
 
 	for (clock.m1 = limit->m1.min; clock.m1 <= limit->m1.max; clock.m1++) {
-		for (clock.m2 = limit->m2.min; clock.m2 < clock.m1 &&
-			     clock.m2 <= limit->m2.max; clock.m2++) {
+		for (clock.m2 = limit->m2.min; clock.m2 <= limit->m2.max; clock.m2++) {
+			/* m1 is always 0 in IGD */
+			if (clock.m2 >= clock.m1 && !IS_IGD(dev))
+				break;
 			for (clock.n = limit->n.min; clock.n <= limit->n.max;
 			     clock.n++) {
 				for (clock.p1 = limit->p1.min;
 				     clock.p1 <= limit->p1.max; clock.p1++) {
 					int this_err;
 
-					intel_clock(refclk, &clock);
+					intel_clock(dev, refclk, &clock);
 
 					if (!intel_PLL_is_valid(crtc, &clock))
 						continue;
@@ -551,7 +614,7 @@ intel_g4x_find_best_PLL(const intel_limit_t *limit, struct drm_crtc *crtc,
 				     clock.p1 >= limit->p1.min; clock.p1--) {
 					int this_err;
 
-					intel_clock(refclk, &clock);
+					intel_clock(dev, refclk, &clock);
 					if (!intel_PLL_is_valid(crtc, &clock))
 						continue;
 					this_err = abs(clock.dot - target) ;
@@ -888,7 +951,7 @@ static int intel_get_core_clock_speed(struct drm_device *dev)
 		return 400000;
 	else if (IS_I915G(dev))
 		return 333000;
-	else if (IS_I945GM(dev) || IS_845G(dev))
+	else if (IS_I945GM(dev) || IS_845G(dev) || IS_IGDGM(dev))
 		return 200000;
 	else if (IS_I915GM(dev)) {
 		u16 gcfgc = 0;
@@ -1043,7 +1106,10 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 		return -EINVAL;
 	}
 
-	fp = clock.n << 16 | clock.m1 << 8 | clock.m2;
+	if (IS_IGD(dev))
+		fp = (1 << clock.n) << 16 | clock.m1 << 8 | clock.m2;
+	else
+		fp = clock.n << 16 | clock.m1 << 8 | clock.m2;
 
 	dpll = DPLL_VGA_MODE_DIS;
 	if (IS_I9XX(dev)) {
@@ -1060,7 +1126,10 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 		}
 
 		/* compute bitmask from p1 value */
-		dpll |= (1 << (clock.p1 - 1)) << 16;
+		if (IS_IGD(dev))
+			dpll |= (1 << (clock.p1 - 1)) << DPLL_FPA01_P1_POST_DIV_SHIFT_IGD;
+		else
+			dpll |= (1 << (clock.p1 - 1)) << DPLL_FPA01_P1_POST_DIV_SHIFT;
 		switch (clock.p2) {
 		case 5:
 			dpll |= DPLL_DAC_SERIAL_P2_CLOCK_DIV_5;
@@ -1540,10 +1609,20 @@ static int intel_crtc_clock_get(struct drm_device *dev, struct drm_crtc *crtc)
 		fp = I915_READ((pipe == 0) ? FPA1 : FPB1);
 
 	clock.m1 = (fp & FP_M1_DIV_MASK) >> FP_M1_DIV_SHIFT;
-	clock.m2 = (fp & FP_M2_DIV_MASK) >> FP_M2_DIV_SHIFT;
-	clock.n = (fp & FP_N_DIV_MASK) >> FP_N_DIV_SHIFT;
+	if (IS_IGD(dev)) {
+		clock.n = ffs((fp & FP_N_IGD_DIV_MASK) >> FP_N_DIV_SHIFT) - 1;
+		clock.m2 = (fp & FP_M2_IGD_DIV_MASK) >> FP_M2_DIV_SHIFT;
+	} else {
+		clock.n = (fp & FP_N_DIV_MASK) >> FP_N_DIV_SHIFT;
+		clock.m2 = (fp & FP_M2_DIV_MASK) >> FP_M2_DIV_SHIFT;
+	}
+
 	if (IS_I9XX(dev)) {
-		clock.p1 = ffs((dpll & DPLL_FPA01_P1_POST_DIV_MASK) >>
+		if (IS_IGD(dev))
+			clock.p1 = ffs((dpll & DPLL_FPA01_P1_POST_DIV_MASK_IGD) >>
+				DPLL_FPA01_P1_POST_DIV_SHIFT_IGD);
+		else
+			clock.p1 = ffs((dpll & DPLL_FPA01_P1_POST_DIV_MASK) >>
 			       DPLL_FPA01_P1_POST_DIV_SHIFT);
 
 		switch (dpll & DPLL_MODE_MASK) {
@@ -1562,7 +1641,7 @@ static int intel_crtc_clock_get(struct drm_device *dev, struct drm_crtc *crtc)
 		}
 
 		/* XXX: Handle the 100Mhz refclk */
-		intel_clock(96000, &clock);
+		intel_clock(dev, 96000, &clock);
 	} else {
 		bool is_lvds = (pipe == 1) && (I915_READ(LVDS) & LVDS_PORT_EN);
 
@@ -1574,9 +1653,9 @@ static int intel_crtc_clock_get(struct drm_device *dev, struct drm_crtc *crtc)
 			if ((dpll & PLL_REF_INPUT_MASK) ==
 			    PLLB_REF_INPUT_SPREADSPECTRUMIN) {
 				/* XXX: might not be 66MHz */
-				intel_clock(66000, &clock);
+				intel_clock(dev, 66000, &clock);
 			} else
-				intel_clock(48000, &clock);
+				intel_clock(dev, 48000, &clock);
 		} else {
 			if (dpll & PLL_P1_DIVIDE_BY_TWO)
 				clock.p1 = 2;
@@ -1589,7 +1668,7 @@ static int intel_crtc_clock_get(struct drm_device *dev, struct drm_crtc *crtc)
 			else
 				clock.p2 = 2;
 
-			intel_clock(48000, &clock);
+			intel_clock(dev, 48000, &clock);
 		}
 	}
 
