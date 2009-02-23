@@ -8,7 +8,9 @@ user's smb session.  This fix allows cifs to mount multiple times to the
 same server with different userids without risking invalidating earlier
 established security contexts.  fsync now sends SMB Flush operation
 to better ensure that we wait for server to write all of the data to
-server disk (not just write it over the network).
+server disk (not just write it over the network).  Add new mount
+parameter to allow user to disable sending the (slow) SMB flush on
+fsync if desired (fsync still flushes all cached write data to the server).
 
 Version 1.56
 ------------

@@ -95,6 +95,7 @@ struct smb_vol {
 	bool local_lease:1; /* check leases only on local system, not remote */
 	bool noblocksnd:1;
 	bool noautotune:1;
+	bool nostrictsync:1; /* do not force expensive SMBflush on every sync */
 	unsigned int rsize;
 	unsigned int wsize;
 	unsigned int sockopt;
@@ -1274,6 +1275,10 @@ cifs_parse_mount_options(char *options, const char *devname,
 			vol->intr = 0;
 		} else if (strnicmp(data, "intr", 4) == 0) {
 			vol->intr = 1;
+		} else if (strnicmp(data, "nostrictsync", 12) == 0) {
+			vol->nostrictsync = 1;
+		} else if (strnicmp(data, "strictsync", 10) == 0) {
+			vol->nostrictsync = 0;
 		} else if (strnicmp(data, "serverino", 7) == 0) {
 			vol->server_ino = 1;
 		} else if (strnicmp(data, "noserverino", 9) == 0) {
@@ -2160,6 +2165,8 @@ static void setup_cifs_sb(struct smb_vol *pvolume_info,
 		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_UNX_EMUL;
 	if (pvolume_info->nobrl)
 		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_NO_BRL;
+	if (pvolume_info->nostrictsync)
+		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_NO_SSYNC;
 	if (pvolume_info->mand_lock)
 		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_NOPOSIXBRL;
 	if (pvolume_info->cifs_acl)
