@@ -35,7 +35,7 @@
 
 #define PFX KBUILD_MODNAME ": "
 
-#define VERSION "0.5"
+#define VERSION "1.0"
 
 static struct {
 	unsigned long inuse;
@@ -283,6 +283,9 @@ static int __devinit rc32434_wdt_probe(struct platform_device *pdev)
 	}
 
 	spin_lock_init(&rc32434_wdt_device.io_lock);
+
+	/* Make sure the watchdog is not running */
+	rc32434_wdt_stop();
 
 	/* Check that the heartbeat value is within it's range;
 	 * if not reset to the default */
