@@ -27,6 +27,7 @@
  *
  */
 
+#include <linux/device.h>
 #include "drmP.h"
 #include "drm.h"
 #include "i915_drm.h"
@@ -66,6 +67,12 @@ static int i915_suspend(struct drm_device *dev, pm_message_t state)
 
 	i915_save_state(dev);
 
+	/* If KMS is active, we do the leavevt stuff here */
+	if (drm_core_check_feature(dev, DRIVER_MODESET) && i915_gem_idle(dev)) {
+		dev_err(&dev->pdev->dev, "GEM idle failed, aborting suspend\n");
+		return -EBUSY;
+	}
+
 	intel_opregion_free(dev);
 
 	if (state.event == PM_EVENT_SUSPEND) {
@@ -79,6 +86,9 @@ static int i915_suspend(struct drm_device *dev, pm_message_t state)
 
 static int i915_resume(struct drm_device *dev)
 {
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	int ret = 0;
+
 	pci_set_power_state(dev->pdev, PCI_D0);
 	pci_restore_state(dev->pdev);
 	if (pci_enable_device(dev->pdev))
@@ -89,7 +99,18 @@ static int i915_resume(struct drm_device *dev)
 
 	intel_opregion_init(dev);
 
-	return 0;
+	/* KMS EnterVT equivalent */
+	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
+		mutex_lock(&dev->struct_mutex);
+		dev_priv->mm.suspended = 0;
+
+		ret = i915_gem_init_ringbuffer(dev);
+		if (ret != 0)
+			ret = -1;
+		mutex_unlock(&dev->struct_mutex);
+	}
+
+	return ret;
 }
 
 static struct vm_operations_struct i915_gem_vm_ops = {

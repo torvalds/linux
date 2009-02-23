@@ -34,10 +34,6 @@
 
 #define I915_GEM_GPU_DOMAINS	(~(I915_GEM_DOMAIN_CPU | I915_GEM_DOMAIN_GTT))
 
-static void
-i915_gem_object_set_to_gpu_domain(struct drm_gem_object *obj,
-				  uint32_t read_domains,
-				  uint32_t write_domain);
 static void i915_gem_object_flush_gpu_write_domain(struct drm_gem_object *obj);
 static void i915_gem_object_flush_gtt_write_domain(struct drm_gem_object *obj);
 static void i915_gem_object_flush_cpu_write_domain(struct drm_gem_object *obj);
@@ -2021,30 +2017,28 @@ i915_gem_object_set_to_cpu_domain(struct drm_gem_object *obj, int write)
  *		drm_agp_chipset_flush
  */
 static void
-i915_gem_object_set_to_gpu_domain(struct drm_gem_object *obj,
-				  uint32_t read_domains,
-				  uint32_t write_domain)
+i915_gem_object_set_to_gpu_domain(struct drm_gem_object *obj)
 {
 	struct drm_device		*dev = obj->dev;
 	struct drm_i915_gem_object	*obj_priv = obj->driver_private;
 	uint32_t			invalidate_domains = 0;
 	uint32_t			flush_domains = 0;
 
-	BUG_ON(read_domains & I915_GEM_DOMAIN_CPU);
-	BUG_ON(write_domain == I915_GEM_DOMAIN_CPU);
+	BUG_ON(obj->pending_read_domains & I915_GEM_DOMAIN_CPU);
+	BUG_ON(obj->pending_write_domain == I915_GEM_DOMAIN_CPU);
 
 #if WATCH_BUF
 	DRM_INFO("%s: object %p read %08x -> %08x write %08x -> %08x\n",
 		 __func__, obj,
-		 obj->read_domains, read_domains,
-		 obj->write_domain, write_domain);
+		 obj->read_domains, obj->pending_read_domains,
+		 obj->write_domain, obj->pending_write_domain);
 #endif
 	/*
 	 * If the object isn't moving to a new write domain,
 	 * let the object stay in multiple read domains
 	 */
-	if (write_domain == 0)
-		read_domains |= obj->read_domains;
+	if (obj->pending_write_domain == 0)
+		obj->pending_read_domains |= obj->read_domains;
 	else
 		obj_priv->dirty = 1;
 
@@ -2054,15 +2048,17 @@ i915_gem_object_set_to_gpu_domain(struct drm_gem_object *obj,
 	 * any read domains which differ from the old
 	 * write domain
 	 */
-	if (obj->write_domain && obj->write_domain != read_domains) {
+	if (obj->write_domain &&
+	    obj->write_domain != obj->pending_read_domains) {
 		flush_domains |= obj->write_domain;
-		invalidate_domains |= read_domains & ~obj->write_domain;
+		invalidate_domains |=
+			obj->pending_read_domains & ~obj->write_domain;
 	}
 	/*
 	 * Invalidate any read caches which may have
 	 * stale data. That is, any new read domains.
 	 */
-	invalidate_domains |= read_domains & ~obj->read_domains;
+	invalidate_domains |= obj->pending_read_domains & ~obj->read_domains;
 	if ((flush_domains | invalidate_domains) & I915_GEM_DOMAIN_CPU) {
 #if WATCH_BUF
 		DRM_INFO("%s: CPU domain flush %08x invalidate %08x\n",
@@ -2071,9 +2067,15 @@ i915_gem_object_set_to_gpu_domain(struct drm_gem_object *obj,
 		i915_gem_clflush_object(obj);
 	}
 
-	if ((write_domain | flush_domains) != 0)
-		obj->write_domain = write_domain;
-	obj->read_domains = read_domains;
+	/* The actual obj->write_domain will be updated with
+	 * pending_write_domain after we emit the accumulated flush for all
+	 * of our domain changes in execbuffers (which clears objects'
+	 * write_domains).  So if we have a current write domain that we
+	 * aren't changing, set pending_write_domain to that.
+	 */
+	if (flush_domains == 0 && obj->pending_write_domain == 0)
+		obj->pending_write_domain = obj->write_domain;
+	obj->read_domains = obj->pending_read_domains;
 
 	dev->invalidate_domains |= invalidate_domains;
 	dev->flush_domains |= flush_domains;
@@ -2583,9 +2585,7 @@ i915_gem_execbuffer(struct drm_device *dev, void *data,
 		struct drm_gem_object *obj = object_list[i];
 
 		/* Compute new gpu domains and update invalidate/flush */
-		i915_gem_object_set_to_gpu_domain(obj,
-						  obj->pending_read_domains,
-						  obj->pending_write_domain);
+		i915_gem_object_set_to_gpu_domain(obj);
 	}
 
 	i915_verify_inactive(dev, __FILE__, __LINE__);
@@ -2602,6 +2602,12 @@ i915_gem_execbuffer(struct drm_device *dev, void *data,
 			       dev->flush_domains);
 		if (dev->flush_domains)
 			(void)i915_add_request(dev, dev->flush_domains);
+	}
+
+	for (i = 0; i < args->buffer_count; i++) {
+		struct drm_gem_object *obj = object_list[i];
+
+		obj->write_domain = obj->pending_write_domain;
 	}
 
 	i915_verify_inactive(dev, __FILE__, __LINE__);
@@ -2866,6 +2872,13 @@ i915_gem_busy_ioctl(struct drm_device *dev, void *data,
 		return -EBADF;
 	}
 
+	/* Update the active list for the hardware's current position.
+	 * Otherwise this only updates on a delayed timer or when irqs are
+	 * actually unmasked, and our working set ends up being larger than
+	 * required.
+	 */
+	i915_gem_retire_requests(dev);
+
 	obj_priv = obj->driver_private;
 	/* Don't count being on the flushing list against the object being
 	 * done.  Otherwise, a buffer left on the flushing list but not getting
@@ -2967,7 +2980,7 @@ i915_gem_evict_from_list(struct drm_device *dev, struct list_head *head)
 	return 0;
 }
 
-static int
+int
 i915_gem_idle(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
@@ -3130,16 +3143,20 @@ static void
 i915_gem_cleanup_hws(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
-	struct drm_gem_object *obj = dev_priv->hws_obj;
-	struct drm_i915_gem_object *obj_priv = obj->driver_private;
+	struct drm_gem_object *obj;
+	struct drm_i915_gem_object *obj_priv;
 
 	if (dev_priv->hws_obj == NULL)
 		return;
+
+	obj = dev_priv->hws_obj;
+	obj_priv = obj->driver_private;
 
 	kunmap(obj_priv->page_list[0]);
 	i915_gem_object_unpin(obj);
 	drm_gem_object_unreference(obj);
 	dev_priv->hws_obj = NULL;
+
 	memset(&dev_priv->hws_map, 0, sizeof(dev_priv->hws_map));
 	dev_priv->hw_status_page = NULL;
 

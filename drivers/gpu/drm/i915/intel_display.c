@@ -1008,6 +1008,7 @@ static int intel_crtc_cursor_set(struct drm_crtc *crtc,
 		temp = CURSOR_MODE_DISABLE;
 		addr = 0;
 		bo = NULL;
+		mutex_lock(&dev->struct_mutex);
 		goto finish;
 	}
 
