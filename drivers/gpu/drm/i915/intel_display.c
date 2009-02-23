@@ -217,7 +217,7 @@ bool intel_pipe_has_type (struct drm_crtc *crtc, int type)
     return false;
 }
 
-#define INTELPllInvalid(s)   do { DRM_DEBUG(s); return false; } while (0)
+#define INTELPllInvalid(s)   do { /* DRM_DEBUG(s); */ return false; } while (0)
 /**
  * Returns whether the given set of divisors are valid for a given refclk with
  * the given connectors.
