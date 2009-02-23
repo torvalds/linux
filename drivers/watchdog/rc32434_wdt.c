@@ -28,6 +28,7 @@
 #include <linux/watchdog.h>		/* For the watchdog specific items */
 #include <linux/init.h>			/* For __init/__exit/... */
 #include <linux/platform_device.h>	/* For platform_driver framework */
+#include <linux/spinlock.h>		/* For spin_lock/spin_unlock/... */
 #include <linux/uaccess.h>		/* For copy_to_user/put_user/... */
 
 #include <asm/mach-rc32434/integ.h>	/* For the Watchdog registers */
@@ -38,6 +39,7 @@
 
 static struct {
 	unsigned long inuse;
+	spinlock_t io_lock;
 } rc32434_wdt_device;
 
 static struct integ __iomem *wdt_reg;
@@ -81,7 +83,9 @@ static int rc32434_wdt_set(int new_timeout)
 		return -EINVAL;
 	}
 	timeout = new_timeout;
+	spin_lock(&rc32434_wdt_device.io_lock);
 	writel(SEC2WTCOMP(timeout), &wdt_reg->wtcompare);
+	spin_unlock(&rc32434_wdt_device.io_lock);
 
 	return 0;
 }
@@ -89,6 +93,8 @@ static int rc32434_wdt_set(int new_timeout)
 static void rc32434_wdt_start(void)
 {
 	u32 or, nand;
+
+	spin_lock(&rc32434_wdt_device.io_lock);
 
 	/* zero the counter before enabling */
 	writel(0, &wdt_reg->wtcount);
@@ -112,20 +118,26 @@ static void rc32434_wdt_start(void)
 
 	SET_BITS(wdt_reg->wtc, or, nand);
 
+	spin_unlock(&rc32434_wdt_device.io_lock);
 	printk(KERN_INFO PFX "Started watchdog timer.\n");
 }
 
 static void rc32434_wdt_stop(void)
 {
+	spin_lock(&rc32434_wdt_device.io_lock);
+
 	/* Disable WDT */
 	SET_BITS(wdt_reg->wtc, 0, 1 << RC32434_WTC_EN);
 
+	spin_unlock(&rc32434_wdt_device.io_lock);
 	printk(KERN_INFO PFX "Stopped watchdog timer.\n");
 }
 
 static void rc32434_wdt_ping(void)
 {
+	spin_lock(&rc32434_wdt_device.io_lock);
 	writel(0, &wdt_reg->wtcount);
+	spin_unlock(&rc32434_wdt_device.io_lock);
 }
 
 static int rc32434_wdt_open(struct inode *inode, struct file *file)
@@ -269,6 +281,8 @@ static int __devinit rc32434_wdt_probe(struct platform_device *pdev)
 		printk(KERN_ERR PFX "failed to remap I/O resources\n");
 		return -ENXIO;
 	}
+
+	spin_lock_init(&rc32434_wdt_device.io_lock);
 
 	/* Check that the heartbeat value is within it's range;
 	 * if not reset to the default */
