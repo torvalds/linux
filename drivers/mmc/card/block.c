@@ -41,6 +41,8 @@
 
 #include "queue.h"
 
+MODULE_ALIAS("mmc:block");
+
 /*
  * max 8 partitions per card
  */
