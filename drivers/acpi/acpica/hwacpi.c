@@ -172,7 +172,7 @@ u32 acpi_hw_get_mode(void)
 		return_UINT32(ACPI_SYS_MODE_ACPI);
 	}
 
-	status = acpi_get_register(ACPI_BITREG_SCI_ENABLE, &value);
+	status = acpi_read_bit_register(ACPI_BITREG_SCI_ENABLE, &value);
 	if (ACPI_FAILURE(status)) {
 		return_UINT32(ACPI_SYS_MODE_LEGACY);
 	}

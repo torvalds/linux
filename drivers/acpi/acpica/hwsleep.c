@@ -250,7 +250,7 @@ acpi_status asmlinkage acpi_enter_sleep_state(u8 sleep_state)
 
 	/* Clear wake status */
 
-	status = acpi_set_register(ACPI_BITREG_WAKE_STATUS, 1);
+	status = acpi_write_bit_register(ACPI_BITREG_WAKE_STATUS, 1);
 	if (ACPI_FAILURE(status)) {
 		return_ACPI_STATUS(status);
 	}
@@ -365,7 +365,7 @@ acpi_status asmlinkage acpi_enter_sleep_state(u8 sleep_state)
 	/* Wait until we enter sleep state */
 
 	do {
-		status = acpi_get_register(ACPI_BITREG_WAKE_STATUS,
+		status = acpi_read_bit_register(ACPI_BITREG_WAKE_STATUS,
 						    &in_value);
 		if (ACPI_FAILURE(status)) {
 			return_ACPI_STATUS(status);
@@ -399,7 +399,7 @@ acpi_status asmlinkage acpi_enter_sleep_state_s4bios(void)
 
 	ACPI_FUNCTION_TRACE(acpi_enter_sleep_state_s4bios);
 
-	status = acpi_set_register(ACPI_BITREG_WAKE_STATUS, 1);
+	status = acpi_write_bit_register(ACPI_BITREG_WAKE_STATUS, 1);
 	if (ACPI_FAILURE(status)) {
 		return_ACPI_STATUS(status);
 	}
@@ -431,7 +431,8 @@ acpi_status asmlinkage acpi_enter_sleep_state_s4bios(void)
 
 	do {
 		acpi_os_stall(1000);
-		status = acpi_get_register(ACPI_BITREG_WAKE_STATUS, &in_value);
+		status =
+		    acpi_read_bit_register(ACPI_BITREG_WAKE_STATUS, &in_value);
 		if (ACPI_FAILURE(status)) {
 			return_ACPI_STATUS(status);
 		}
@@ -592,18 +593,18 @@ acpi_status acpi_leave_sleep_state(u8 sleep_state)
 	 * it to determine whether the system is rebooting or resuming. Clear
 	 * it for compatibility.
 	 */
-	acpi_set_register(ACPI_BITREG_WAKE_STATUS, 1);
+	acpi_write_bit_register(ACPI_BITREG_WAKE_STATUS, 1);
 
 	acpi_gbl_system_awake_and_running = TRUE;
 
 	/* Enable power button */
 
 	(void)
-	    acpi_set_register(acpi_gbl_fixed_event_info
+	    acpi_write_bit_register(acpi_gbl_fixed_event_info
 			      [ACPI_EVENT_POWER_BUTTON].enable_register_id, 1);
 
 	(void)
-	    acpi_set_register(acpi_gbl_fixed_event_info
+	    acpi_write_bit_register(acpi_gbl_fixed_event_info
 			      [ACPI_EVENT_POWER_BUTTON].status_register_id, 1);
 
 	arg.integer.value = ACPI_SST_WORKING;

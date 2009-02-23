@@ -534,8 +534,8 @@ acpi_status acpi_ev_release_global_lock(void)
 		 */
 		if (pending) {
 			status =
-			    acpi_set_register(ACPI_BITREG_GLOBAL_LOCK_RELEASE,
-					      1);
+			    acpi_write_bit_register
+			    (ACPI_BITREG_GLOBAL_LOCK_RELEASE, 1);
 		}
 
 		ACPI_DEBUG_PRINT((ACPI_DB_EXEC,

@@ -248,7 +248,7 @@ static int acpi_suspend_enter(suspend_state_t pm_state)
 
 	/* If ACPI is not enabled by the BIOS, we need to enable it here. */
 	if (set_sci_en_on_resume)
-		acpi_set_register(ACPI_BITREG_SCI_ENABLE, 1);
+		acpi_write_bit_register(ACPI_BITREG_SCI_ENABLE, 1);
 	else
 		acpi_enable();
 

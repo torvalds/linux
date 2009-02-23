@@ -242,7 +242,7 @@ ACPI_EXPORT_SYMBOL(acpi_write)
 
 /*******************************************************************************
  *
- * FUNCTION:    acpi_get_register
+ * FUNCTION:    acpi_read_bit_register
  *
  * PARAMETERS:  register_id     - ID of ACPI Bit Register to access
  *              return_value    - Value that was read from the register,
@@ -264,13 +264,13 @@ ACPI_EXPORT_SYMBOL(acpi_write)
  *       it make much sense to actually read this field.)
  *
  ******************************************************************************/
-acpi_status acpi_get_register(u32 register_id, u32 *return_value)
+acpi_status acpi_read_bit_register(u32 register_id, u32 *return_value)
 {
 	u32 register_value = 0;
 	struct acpi_bit_register_info *bit_reg_info;
 	acpi_status status;
 
-	ACPI_FUNCTION_TRACE(acpi_get_register);
+	ACPI_FUNCTION_TRACE(acpi_read_bit_register);
 
 	/* Get the info structure corresponding to the requested ACPI Register */
 
@@ -302,11 +302,11 @@ acpi_status acpi_get_register(u32 register_id, u32 *return_value)
 	return_ACPI_STATUS(status);
 }
 
-ACPI_EXPORT_SYMBOL(acpi_get_register)
+ACPI_EXPORT_SYMBOL(acpi_read_bit_register)
 
 /*******************************************************************************
  *
- * FUNCTION:    acpi_set_register
+ * FUNCTION:    acpi_write_bit_register
  *
  * PARAMETERS:  register_id     - ID of ACPI Bit Register to access
  *              Value           - Value to write to the register, in bit
@@ -322,14 +322,14 @@ ACPI_EXPORT_SYMBOL(acpi_get_register)
  *              PM2 Control.
  *
  ******************************************************************************/
-acpi_status acpi_set_register(u32 register_id, u32 value)
+acpi_status acpi_write_bit_register(u32 register_id, u32 value)
 {
 	u32 register_value = 0;
 	struct acpi_bit_register_info *bit_reg_info;
 	acpi_status status;
 	acpi_cpu_flags lock_flags;
 
-	ACPI_FUNCTION_TRACE_U32(acpi_set_register, register_id);
+	ACPI_FUNCTION_TRACE_U32(acpi_write_bit_register, register_id);
 
 	/* Get the info structure corresponding to the requested ACPI Register */
 
@@ -459,7 +459,7 @@ acpi_status acpi_set_register(u32 register_id, u32 value)
 	return_ACPI_STATUS(status);
 }
 
-ACPI_EXPORT_SYMBOL(acpi_set_register)
+ACPI_EXPORT_SYMBOL(acpi_write_bit_register)
 
 /*******************************************************************************
  *

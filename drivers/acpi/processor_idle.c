@@ -630,7 +630,7 @@ static void acpi_processor_power_verify_c3(struct acpi_processor *pr,
 	 * In either case, the proper way to
 	 * handle BM_RLD is to set it and leave it set.
 	 */
-	acpi_set_register(ACPI_BITREG_BUS_MASTER_RLD, 1);
+	acpi_write_bit_register(ACPI_BITREG_BUS_MASTER_RLD, 1);
 
 	return;
 }
@@ -800,9 +800,9 @@ static int acpi_idle_bm_check(void)
 {
 	u32 bm_status = 0;
 
-	acpi_get_register(ACPI_BITREG_BUS_MASTER_STATUS, &bm_status);
+	acpi_read_bit_register(ACPI_BITREG_BUS_MASTER_STATUS, &bm_status);
 	if (bm_status)
-		acpi_set_register(ACPI_BITREG_BUS_MASTER_STATUS, 1);
+		acpi_write_bit_register(ACPI_BITREG_BUS_MASTER_STATUS, 1);
 	/*
 	 * PIIX4 Erratum #18: Note that BM_STS doesn't always reflect
 	 * the true state of bus mastering activity; forcing us to
@@ -1028,7 +1028,7 @@ static int acpi_idle_enter_bm(struct cpuidle_device *dev,
 		c3_cpu_count++;
 		/* Disable bus master arbitration when all CPUs are in C3 */
 		if (c3_cpu_count == num_online_cpus())
-			acpi_set_register(ACPI_BITREG_ARB_DISABLE, 1);
+			acpi_write_bit_register(ACPI_BITREG_ARB_DISABLE, 1);
 		spin_unlock(&c3_lock);
 	} else if (!pr->flags.bm_check) {
 		ACPI_FLUSH_CPU_CACHE();
@@ -1041,7 +1041,7 @@ static int acpi_idle_enter_bm(struct cpuidle_device *dev,
 	/* Re-enable bus master arbitration */
 	if (pr->flags.bm_check && pr->flags.bm_control) {
 		spin_lock(&c3_lock);
-		acpi_set_register(ACPI_BITREG_ARB_DISABLE, 0);
+		acpi_write_bit_register(ACPI_BITREG_ARB_DISABLE, 0);
 		c3_cpu_count--;
 		spin_unlock(&c3_lock);
 	}
