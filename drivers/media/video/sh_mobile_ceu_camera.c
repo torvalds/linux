@@ -586,11 +586,29 @@ static int sh_mobile_ceu_get_formats(struct soc_camera_device *icd, int idx,
 	if (ret < 0)
 		return 0;
 
+	/* Beginning of a pass */
+	if (!idx)
+		icd->host_priv = NULL;
+
 	switch (icd->formats[idx].fourcc) {
 	case V4L2_PIX_FMT_UYVY:
 	case V4L2_PIX_FMT_VYUY:
 	case V4L2_PIX_FMT_YUYV:
 	case V4L2_PIX_FMT_YVYU:
+		if (icd->host_priv)
+			goto add_single_format;
+
+		/*
+		 * Our case is simple so far: for any of the above four camera
+		 * formats we add all our four synthesized NV* formats, so,
+		 * just marking the device with a single flag suffices. If
+		 * the format generation rules are more complex, you would have
+		 * to actually hang your already added / counted formats onto
+		 * the host_priv pointer and check whether the format you're
+		 * going to add now is already there.
+		 */
+		icd->host_priv = (void *)sh_mobile_ceu_formats;
+
 		n = ARRAY_SIZE(sh_mobile_ceu_formats);
 		formats += n;
 		for (k = 0; xlate && k < n; k++) {
@@ -603,6 +621,7 @@ static int sh_mobile_ceu_get_formats(struct soc_camera_device *icd, int idx,
 				icd->formats[idx].name);
 		}
 	default:
+add_single_format:
 		/* Generic pass-through */
 		formats++;
 		if (xlate) {
