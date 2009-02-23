@@ -1703,7 +1703,9 @@ static void ext4_da_page_release_reservation(struct page *page,
 
 struct mpage_da_data {
 	struct inode *inode;
-	struct buffer_head lbh;			/* extent of blocks */
+	sector_t b_blocknr;		/* start block number of extent */
+	size_t b_size;			/* size of extent */
+	unsigned long b_state;		/* state of the extent */
 	unsigned long first_page, next_page;	/* extent of pages */
 	struct writeback_control *wbc;
 	int io_done;
@@ -1737,7 +1739,7 @@ static int mpage_da_submit_io(struct mpage_da_data *mpd)
 	/*
 	 * We need to start from the first_page to the next_page - 1
 	 * to make sure we also write the mapped dirty buffer_heads.
-	 * If we look at mpd->lbh.b_blocknr we would only be looking
+	 * If we look at mpd->b_blocknr we would only be looking
 	 * at the currently mapped buffer_heads.
 	 */
 	index = mpd->first_page;
@@ -1975,7 +1977,7 @@ static int ext4_da_get_block_write(struct inode *inode, sector_t iblock,
 /*
  * mpage_da_map_blocks - go through given space
  *
- * @mpd->lbh - bh describing space
+ * @mpd - bh describing space
  *
  * The function skips space we know is already mapped to disk blocks.
  *
@@ -1984,18 +1986,18 @@ static int mpage_da_map_blocks(struct mpage_da_data *mpd)
 {
 	int err = 0;
 	struct buffer_head new;
-	struct buffer_head *lbh = &mpd->lbh;
 	sector_t next;
 
 	/*
 	 * We consider only non-mapped and non-allocated blocks
 	 */
-	if (buffer_mapped(lbh) && !buffer_delay(lbh))
+	if ((mpd->b_state  & (1 << BH_Mapped)) &&
+	    !(mpd->b_state & (1 << BH_Delay)))
 		return 0;
-	new.b_state = lbh->b_state;
+	new.b_state = mpd->b_state;
 	new.b_blocknr = 0;
-	new.b_size = lbh->b_size;
-	next = lbh->b_blocknr;
+	new.b_size = mpd->b_size;
+	next = mpd->b_blocknr;
 	/*
 	 * If we didn't accumulate anything
 	 * to write simply return
@@ -2031,7 +2033,7 @@ static int mpage_da_map_blocks(struct mpage_da_data *mpd)
 				  "%zd with error %d\n",
 				  __func__, mpd->inode->i_ino,
 				  (unsigned long long)next,
-				  lbh->b_size >> mpd->inode->i_blkbits, err);
+				  mpd->b_size >> mpd->inode->i_blkbits, err);
 		printk(KERN_EMERG "This should not happen.!! "
 					"Data will be lost\n");
 		if (err == -ENOSPC) {
@@ -2039,7 +2041,7 @@ static int mpage_da_map_blocks(struct mpage_da_data *mpd)
 		}
 		/* invlaidate all the pages */
 		ext4_da_block_invalidatepages(mpd, next,
-				lbh->b_size >> mpd->inode->i_blkbits);
+				mpd->b_size >> mpd->inode->i_blkbits);
 		return err;
 	}
 	BUG_ON(new.b_size == 0);
@@ -2051,7 +2053,8 @@ static int mpage_da_map_blocks(struct mpage_da_data *mpd)
 	 * If blocks are delayed marked, we need to
 	 * put actual blocknr and drop delayed bit
 	 */
-	if (buffer_delay(lbh) || buffer_unwritten(lbh))
+	if ((mpd->b_state & (1 << BH_Delay)) ||
+	    (mpd->b_state & (1 << BH_Unwritten)))
 		mpage_put_bnr_to_bhs(mpd, next, &new);
 
 	return 0;
@@ -2070,12 +2073,11 @@ static int mpage_da_map_blocks(struct mpage_da_data *mpd)
  * the function is used to collect contig. blocks in same state
  */
 static void mpage_add_bh_to_extent(struct mpage_da_data *mpd,
-				   sector_t logical, struct buffer_head *bh)
+				   sector_t logical, size_t b_size,
+				   unsigned long b_state)
 {
 	sector_t next;
-	size_t b_size = bh->b_size;
-	struct buffer_head *lbh = &mpd->lbh;
-	int nrblocks = lbh->b_size >> mpd->inode->i_blkbits;
+	int nrblocks = mpd->b_size >> mpd->inode->i_blkbits;
 
 	/* check if thereserved journal credits might overflow */
 	if (!(EXT4_I(mpd->inode)->i_flags & EXT4_EXTENTS_FL)) {
@@ -2102,19 +2104,19 @@ static void mpage_add_bh_to_extent(struct mpage_da_data *mpd,
 	/*
 	 * First block in the extent
 	 */
-	if (lbh->b_size == 0) {
-		lbh->b_blocknr = logical;
-		lbh->b_size = b_size;
-		lbh->b_state = bh->b_state & BH_FLAGS;
+	if (mpd->b_size == 0) {
+		mpd->b_blocknr = logical;
+		mpd->b_size = b_size;
+		mpd->b_state = b_state & BH_FLAGS;
 		return;
 	}
 
-	next = lbh->b_blocknr + nrblocks;
+	next = mpd->b_blocknr + nrblocks;
 	/*
 	 * Can we merge the block to our big extent?
 	 */
-	if (logical == next && (bh->b_state & BH_FLAGS) == lbh->b_state) {
-		lbh->b_size += b_size;
+	if (logical == next && (b_state & BH_FLAGS) == mpd->b_state) {
+		mpd->b_size += b_size;
 		return;
 	}
 
@@ -2143,7 +2145,7 @@ static int __mpage_da_writepage(struct page *page,
 {
 	struct mpage_da_data *mpd = data;
 	struct inode *inode = mpd->inode;
-	struct buffer_head *bh, *head, fake;
+	struct buffer_head *bh, *head;
 	sector_t logical;
 
 	if (mpd->io_done) {
@@ -2185,9 +2187,9 @@ static int __mpage_da_writepage(struct page *page,
 		/*
 		 * ... and blocks
 		 */
-		mpd->lbh.b_size = 0;
-		mpd->lbh.b_state = 0;
-		mpd->lbh.b_blocknr = 0;
+		mpd->b_size = 0;
+		mpd->b_state = 0;
+		mpd->b_blocknr = 0;
 	}
 
 	mpd->next_page = page->index + 1;
@@ -2195,16 +2197,8 @@ static int __mpage_da_writepage(struct page *page,
 		  (PAGE_CACHE_SHIFT - inode->i_blkbits);
 
 	if (!page_has_buffers(page)) {
-		/*
-		 * There is no attached buffer heads yet (mmap?)
-		 * we treat the page asfull of dirty blocks
-		 */
-		bh = &fake;
-		bh->b_size = PAGE_CACHE_SIZE;
-		bh->b_state = 0;
-		set_buffer_dirty(bh);
-		set_buffer_uptodate(bh);
-		mpage_add_bh_to_extent(mpd, logical, bh);
+		mpage_add_bh_to_extent(mpd, logical, PAGE_CACHE_SIZE,
+				       (1 << BH_Dirty) | (1 << BH_Uptodate));
 		if (mpd->io_done)
 			return MPAGE_DA_EXTENT_TAIL;
 	} else {
@@ -2222,8 +2216,10 @@ static int __mpage_da_writepage(struct page *page,
 			 * with the page in ext4_da_writepage
 			 */
 			if (buffer_dirty(bh) &&
-				(!buffer_mapped(bh) || buffer_delay(bh))) {
-				mpage_add_bh_to_extent(mpd, logical, bh);
+			    (!buffer_mapped(bh) || buffer_delay(bh))) {
+				mpage_add_bh_to_extent(mpd, logical,
+						       bh->b_size,
+						       bh->b_state);
 				if (mpd->io_done)
 					return MPAGE_DA_EXTENT_TAIL;
 			} else if (buffer_dirty(bh) && (buffer_mapped(bh))) {
@@ -2235,9 +2231,8 @@ static int __mpage_da_writepage(struct page *page,
 				 * unmapped buffer_head later we need to
 				 * use the b_state flag of that buffer_head.
 				 */
-				if (mpd->lbh.b_size == 0)
-					mpd->lbh.b_state =
-						bh->b_state & BH_FLAGS;
+				if (mpd->b_size == 0)
+					mpd->b_state = bh->b_state & BH_FLAGS;
 			}
 			logical++;
 		} while ((bh = bh->b_this_page) != head);
@@ -2263,9 +2258,9 @@ static int mpage_da_writepages(struct address_space *mapping,
 {
 	int ret;
 
-	mpd->lbh.b_size = 0;
-	mpd->lbh.b_state = 0;
-	mpd->lbh.b_blocknr = 0;
+	mpd->b_size = 0;
+	mpd->b_state = 0;
+	mpd->b_blocknr = 0;
 	mpd->first_page = 0;
 	mpd->next_page = 0;
 	mpd->io_done = 0;
