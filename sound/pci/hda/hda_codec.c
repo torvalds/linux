@@ -755,7 +755,7 @@ int snd_hda_add_pincfg(struct hda_codec *codec, struct snd_array *list,
 int snd_hda_codec_set_pincfg(struct hda_codec *codec,
 			     hda_nid_t nid, unsigned int cfg)
 {
-	return snd_hda_add_pincfg(codec, &codec->cur_pins, nid, cfg);
+	return snd_hda_add_pincfg(codec, &codec->driver_pins, nid, cfg);
 }
 EXPORT_SYMBOL_HDA(snd_hda_codec_set_pincfg);
 
@@ -764,11 +764,11 @@ unsigned int snd_hda_codec_get_pincfg(struct hda_codec *codec, hda_nid_t nid)
 {
 	struct hda_pincfg *pin;
 
-	pin = look_up_pincfg(codec, &codec->cur_pins, nid);
+	pin = look_up_pincfg(codec, &codec->driver_pins, nid);
 	if (pin)
 		return pin->cfg;
 #ifdef CONFIG_SND_HDA_HWDEP
-	pin = look_up_pincfg(codec, &codec->override_pins, nid);
+	pin = look_up_pincfg(codec, &codec->user_pins, nid);
 	if (pin)
 		return pin->cfg;
 #endif
@@ -797,12 +797,12 @@ static void free_hda_cache(struct hda_cache_rec *cache);
 /* restore the initial pin cfgs and release all pincfg lists */
 static void restore_init_pincfgs(struct hda_codec *codec)
 {
-	/* first free cur_pins and override_pins, then call restore_pincfg
+	/* first free driver_pins and user_pins, then call restore_pincfg
 	 * so that only the values in init_pins are restored
 	 */
-	snd_array_free(&codec->cur_pins);
+	snd_array_free(&codec->driver_pins);
 #ifdef CONFIG_SND_HDA_HWDEP
-	snd_array_free(&codec->override_pins);
+	snd_array_free(&codec->user_pins);
 #endif
 	restore_pincfgs(codec);
 	snd_array_free(&codec->init_pins);
@@ -874,7 +874,7 @@ int /*__devinit*/ snd_hda_codec_new(struct hda_bus *bus, unsigned int codec_addr
 	init_hda_cache(&codec->cmd_cache, sizeof(struct hda_cache_head));
 	snd_array_init(&codec->mixers, sizeof(struct snd_kcontrol *), 32);
 	snd_array_init(&codec->init_pins, sizeof(struct hda_pincfg), 16);
-	snd_array_init(&codec->cur_pins, sizeof(struct hda_pincfg), 16);
+	snd_array_init(&codec->driver_pins, sizeof(struct hda_pincfg), 16);
 	if (codec->bus->modelname) {
 		codec->modelname = kstrdup(codec->bus->modelname, GFP_KERNEL);
 		if (!codec->modelname) {
@@ -1463,8 +1463,8 @@ void snd_hda_codec_reset(struct hda_codec *codec)
 	free_hda_cache(&codec->cmd_cache);
 	init_hda_cache(&codec->amp_cache, sizeof(struct hda_amp_info));
 	init_hda_cache(&codec->cmd_cache, sizeof(struct hda_cache_head));
-	/* free only cur_pins so that init_pins + override_pins are restored */
-	snd_array_free(&codec->cur_pins);
+	/* free only driver_pins so that init_pins + user_pins are restored */
+	snd_array_free(&codec->driver_pins);
 	restore_pincfgs(codec);
 	codec->num_pcms = 0;
 	codec->pcm_info = NULL;

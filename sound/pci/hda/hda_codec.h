@@ -779,13 +779,13 @@ struct hda_codec {
 	unsigned int spdif_in_enable;	/* SPDIF input enable? */
 	hda_nid_t *slave_dig_outs; /* optional digital out slave widgets */
 	struct snd_array init_pins;	/* initial (BIOS) pin configurations */
-	struct snd_array cur_pins;	/* current pin configurations */
+	struct snd_array driver_pins;	/* pin configs set by codec parser */
 
 #ifdef CONFIG_SND_HDA_HWDEP
 	struct snd_hwdep *hwdep;	/* assigned hwdep device */
 	struct snd_array init_verbs;	/* additional init verbs */
 	struct snd_array hints;		/* additional hints */
-	struct snd_array override_pins;	/* default pin configs to override */
+	struct snd_array user_pins;	/* default pin configs to override */
 #endif
 
 	/* misc flags */
