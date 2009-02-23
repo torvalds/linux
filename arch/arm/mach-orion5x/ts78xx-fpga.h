@@ -17,6 +17,7 @@ struct fpga_device {
 struct fpga_devices {
 	/* Technologic Systems */
 	struct fpga_device 	ts_rtc;
+	struct fpga_device 	ts_nand;
 };
 
 struct ts78xx_fpga_data {

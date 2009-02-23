@@ -15,6 +15,8 @@
 #include <linux/mv643xx_eth.h>
 #include <linux/ata_platform.h>
 #include <linux/m48t86.h>
+#include <linux/mtd/nand.h>
+#include <linux/mtd/partitions.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
@@ -151,11 +153,129 @@ static void ts78xx_ts_rtc_unload(void)
 }
 
 /*****************************************************************************
+ * NAND Flash
+ ****************************************************************************/
+#define TS_NAND_CTRL	(TS78XX_FPGA_REGS_VIRT_BASE | 0x800)	/* VIRT */
+#define TS_NAND_DATA	(TS78XX_FPGA_REGS_PHYS_BASE | 0x804)	/* PHYS */
+
+/*
+ * hardware specific access to control-lines
+ *
+ * ctrl:
+ * NAND_NCE: bit 0 -> bit 2
+ * NAND_CLE: bit 1 -> bit 1
+ * NAND_ALE: bit 2 -> bit 0
+ */
+static void ts78xx_ts_nand_cmd_ctrl(struct mtd_info *mtd, int cmd,
+			unsigned int ctrl)
+{
+	struct nand_chip *this = mtd->priv;
+
+	if (ctrl & NAND_CTRL_CHANGE) {
+		unsigned char bits;
+
+		bits = (ctrl & NAND_NCE) << 2;
+		bits |= ctrl & NAND_CLE;
+		bits |= (ctrl & NAND_ALE) >> 2;
+
+		writeb((readb(TS_NAND_CTRL) & ~0x7) | bits, TS_NAND_CTRL);
+	}
+
+	if (cmd != NAND_CMD_NONE)
+		writeb(cmd, this->IO_ADDR_W);
+}
+
+static int ts78xx_ts_nand_dev_ready(struct mtd_info *mtd)
+{
+	return readb(TS_NAND_CTRL) & 0x20;
+}
+
+const char *ts_nand_part_probes[] = { "cmdlinepart", NULL };
+
+static struct mtd_partition ts78xx_ts_nand_parts[] = {
+	{
+		.name		= "mbr",
+		.offset		= 0,
+		.size		= SZ_128K,
+		.mask_flags	= MTD_WRITEABLE,
+	}, {
+		.name		= "kernel",
+		.offset		= MTDPART_OFS_APPEND,
+		.size		= SZ_4M,
+	}, {
+		.name		= "initrd",
+		.offset		= MTDPART_OFS_APPEND,
+		.size		= SZ_4M,
+	}, {
+		.name		= "rootfs",
+		.offset		= MTDPART_OFS_APPEND,
+		.size		= MTDPART_SIZ_FULL,
+	}
+};
+
+static struct platform_nand_data ts78xx_ts_nand_data = {
+	.chip	= {
+		.part_probe_types	= ts_nand_part_probes,
+		.partitions		= ts78xx_ts_nand_parts,
+		.nr_partitions		= ARRAY_SIZE(ts78xx_ts_nand_parts),
+		.chip_delay		= 15,
+		.options		= NAND_USE_FLASH_BBT,
+	},
+	.ctrl	= {
+		/*
+		 * The HW ECC offloading functions, used to give about a 9%
+		 * performance increase for 'dd if=/dev/mtdblockX' and 5% for
+		 * nanddump.  This all however was changed by git commit
+		 * e6cf5df1838c28bb060ac45b5585e48e71bbc740 so now there is
+		 * no performance advantage to be had so we no longer bother
+		 */
+		.cmd_ctrl		= ts78xx_ts_nand_cmd_ctrl,
+		.dev_ready		= ts78xx_ts_nand_dev_ready,
+	},
+};
+
+static struct resource ts78xx_ts_nand_resources = {
+	.start		= TS_NAND_DATA,
+	.end		= TS_NAND_DATA + 4,
+	.flags		= IORESOURCE_IO,
+};
+
+static struct platform_device ts78xx_ts_nand_device = {
+	.name		= "gen_nand",
+	.id		= -1,
+	.dev		= {
+		.platform_data	= &ts78xx_ts_nand_data,
+	},
+	.resource	= &ts78xx_ts_nand_resources,
+	.num_resources	= 1,
+};
+
+static int ts78xx_ts_nand_load(void)
+{
+	int rc;
+
+	if (ts78xx_fpga.supports.ts_nand.init == 0) {
+		rc = platform_device_register(&ts78xx_ts_nand_device);
+		if (!rc)
+			ts78xx_fpga.supports.ts_nand.init = 1;
+	} else
+		rc = platform_device_add(&ts78xx_ts_nand_device);
+
+	return rc;
+};
+
+static void ts78xx_ts_nand_unload(void)
+{
+	platform_device_del(&ts78xx_ts_nand_device);
+}
+
+/*****************************************************************************
  * FPGA 'hotplug' support code
  ****************************************************************************/
 static void ts78xx_fpga_devices_zero_init(void)
 {
 	ts78xx_fpga.supports.ts_rtc.init = 0;
+	ts78xx_fpga.supports.ts_nand.init = 0;
 }
 
 static void ts78xx_fpga_supports(void)
@@ -164,9 +284,11 @@ static void ts78xx_fpga_supports(void)
 	switch (ts78xx_fpga.id) {
 	case TS7800_REV_B:
 		ts78xx_fpga.supports.ts_rtc.present = 1;
+		ts78xx_fpga.supports.ts_nand.present = 1;
 		break;
 	default:
 		ts78xx_fpga.supports.ts_rtc.present = 0;
+		ts78xx_fpga.supports.ts_nand.present = 0;
 	}
 }
 
@@ -182,6 +304,14 @@ static int ts78xx_fpga_load_devices(void)
 		}
 		ret |= tmp;
 	}
+	if (ts78xx_fpga.supports.ts_nand.present == 1) {
+		tmp = ts78xx_ts_nand_load();
+		if (tmp) {
+			printk(KERN_INFO "TS-78xx: NAND not registered\n");
+			ts78xx_fpga.supports.ts_nand.present = 0;
+		}
+		ret |= tmp;
+	}
 
 	return ret;
 }
@@ -192,6 +322,8 @@ static int ts78xx_fpga_unload_devices(void)
 
 	if (ts78xx_fpga.supports.ts_rtc.present == 1)
 		ts78xx_ts_rtc_unload();
+	if (ts78xx_fpga.supports.ts_nand.present == 1)
+		ts78xx_ts_nand_unload();
 
 	return ret;
 }
