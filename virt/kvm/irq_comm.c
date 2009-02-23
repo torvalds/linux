@@ -48,7 +48,7 @@ static int kvm_set_ioapic_irq(struct kvm_kernel_irq_routing_entry *e,
 static int kvm_set_msi(struct kvm_kernel_irq_routing_entry *e,
 		       struct kvm *kvm, int level)
 {
-	int vcpu_id;
+	int vcpu_id, r = -1;
 	struct kvm_vcpu *vcpu;
 	struct kvm_ioapic *ioapic = ioapic_irqchip(kvm);
 	int dest_id = (e->msi.address_lo & MSI_ADDR_DEST_ID_MASK)
@@ -73,7 +73,7 @@ static int kvm_set_msi(struct kvm_kernel_irq_routing_entry *e,
 		vcpu = kvm_get_lowest_prio_vcpu(ioapic->kvm, vector,
 				deliver_bitmask);
 		if (vcpu != NULL)
-			kvm_apic_set_irq(vcpu, vector, trig_mode);
+			r = kvm_apic_set_irq(vcpu, vector, trig_mode);
 		else
 			printk(KERN_INFO "kvm: null lowest priority vcpu!\n");
 		break;
@@ -83,14 +83,17 @@ static int kvm_set_msi(struct kvm_kernel_irq_routing_entry *e,
 				continue;
 			deliver_bitmask &= ~(1 << vcpu_id);
 			vcpu = ioapic->kvm->vcpus[vcpu_id];
-			if (vcpu)
-				kvm_apic_set_irq(vcpu, vector, trig_mode);
+			if (vcpu) {
+				if (r < 0)
+					r = 0;
+				r += kvm_apic_set_irq(vcpu, vector, trig_mode);
+			}
 		}
 		break;
 	default:
 		break;
 	}
-	return 1;
+	return r;
 }
 
 /* This should be called with the kvm->lock mutex held
