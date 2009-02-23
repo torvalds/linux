@@ -366,8 +366,9 @@ nfsd_setattr(struct svc_rqst *rqstp, struct svc_fh *fhp, struct iattr *iap,
 	}
 
 	/* Revoke setuid/setgid on chown */
-	if (((iap->ia_valid & ATTR_UID) && iap->ia_uid != inode->i_uid) ||
-	    ((iap->ia_valid & ATTR_GID) && iap->ia_gid != inode->i_gid)) {
+	if (!S_ISDIR(inode->i_mode) &&
+	    (((iap->ia_valid & ATTR_UID) && iap->ia_uid != inode->i_uid) ||
+	     ((iap->ia_valid & ATTR_GID) && iap->ia_gid != inode->i_gid))) {
 		iap->ia_valid |= ATTR_KILL_PRIV;
 		if (iap->ia_valid & ATTR_MODE) {
 			/* we're setting mode too, just clear the s*id bits */
