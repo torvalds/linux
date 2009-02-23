@@ -565,8 +565,11 @@ static int ov772x_mask_set(struct i2c_client *client,
 					  u8  set)
 {
 	s32 val = i2c_smbus_read_byte_data(client, command);
+	if (val < 0)
+		return val;
+
 	val &= ~mask;
-	val |=  set;
+	val |= set & mask;
 
 	return i2c_smbus_write_byte_data(client, command, val);
 }
