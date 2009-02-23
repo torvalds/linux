@@ -10,6 +10,7 @@
  *	the License, or (at your option) any later version.
  */
 
+#include <linux/device.h>
 #include <linux/errno.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
@@ -17,8 +18,6 @@
 
 #include <dvb_frontend.h>
 
-#include "avc.h"
-#include "cmp.h"
 #include "firedtv.h"
 
 static int fdtv_dvb_init(struct dvb_frontend *fe)
@@ -32,35 +31,37 @@ static int fdtv_dvb_init(struct dvb_frontend *fe)
 	err = cmp_establish_pp_connection(fdtv, fdtv->subunit,
 					  fdtv->isochannel);
 	if (err) {
-		printk(KERN_ERR "Could not establish point to point "
-		       "connection.\n");
+		dev_err(fdtv->device,
+			"could not establish point to point connection\n");
 		return err;
 	}
 
-	return setup_iso_channel(fdtv);
+	return fdtv->backend->start_iso(fdtv);
 }
 
 static int fdtv_sleep(struct dvb_frontend *fe)
 {
 	struct firedtv *fdtv = fe->sec_priv;
 
-	tear_down_iso_channel(fdtv);
+	fdtv->backend->stop_iso(fdtv);
 	cmp_break_pp_connection(fdtv, fdtv->subunit, fdtv->isochannel);
 	fdtv->isochannel = -1;
 	return 0;
 }
 
+#define LNBCONTROL_DONTCARE 0xff
+
 static int fdtv_diseqc_send_master_cmd(struct dvb_frontend *fe,
-					  struct dvb_diseqc_master_cmd *cmd)
+				       struct dvb_diseqc_master_cmd *cmd)
 {
 	struct firedtv *fdtv = fe->sec_priv;
 
-	return avc_lnb_control(fdtv, LNBCONTROL_DONTCARE,
-			LNBCONTROL_DONTCARE, LNBCONTROL_DONTCARE, 1, cmd);
+	return avc_lnb_control(fdtv, LNBCONTROL_DONTCARE, LNBCONTROL_DONTCARE,
+			       LNBCONTROL_DONTCARE, 1, cmd);
 }
 
 static int fdtv_diseqc_send_burst(struct dvb_frontend *fe,
-				     fe_sec_mini_cmd_t minicmd)
+				  fe_sec_mini_cmd_t minicmd)
 {
 	return 0;
 }
@@ -74,7 +75,7 @@ static int fdtv_set_tone(struct dvb_frontend *fe, fe_sec_tone_mode_t tone)
 }
 
 static int fdtv_set_voltage(struct dvb_frontend *fe,
-			       fe_sec_voltage_t voltage)
+			    fe_sec_voltage_t voltage)
 {
 	struct firedtv *fdtv = fe->sec_priv;
 
@@ -85,12 +86,12 @@ static int fdtv_set_voltage(struct dvb_frontend *fe,
 static int fdtv_read_status(struct dvb_frontend *fe, fe_status_t *status)
 {
 	struct firedtv *fdtv = fe->sec_priv;
-	ANTENNA_INPUT_INFO info;
+	struct firedtv_tuner_status stat;
 
-	if (avc_tuner_status(fdtv, &info))
+	if (avc_tuner_status(fdtv, &stat))
 		return -EINVAL;
 
-	if (info.NoRF)
+	if (stat.no_rf)
 		*status = 0;
 	else
 		*status = FE_HAS_SIGNAL | FE_HAS_VITERBI | FE_HAS_SYNC |
@@ -101,39 +102,37 @@ static int fdtv_read_status(struct dvb_frontend *fe, fe_status_t *status)
 static int fdtv_read_ber(struct dvb_frontend *fe, u32 *ber)
 {
 	struct firedtv *fdtv = fe->sec_priv;
-	ANTENNA_INPUT_INFO info;
+	struct firedtv_tuner_status stat;
 
-	if (avc_tuner_status(fdtv, &info))
+	if (avc_tuner_status(fdtv, &stat))
 		return -EINVAL;
 
-	*ber = info.BER[0] << 24 | info.BER[1] << 16 |
-	       info.BER[2] << 8 | info.BER[3];
+	*ber = stat.ber;
 	return 0;
 }
 
-static int fdtv_read_signal_strength (struct dvb_frontend *fe, u16 *strength)
+static int fdtv_read_signal_strength(struct dvb_frontend *fe, u16 *strength)
 {
 	struct firedtv *fdtv = fe->sec_priv;
-	ANTENNA_INPUT_INFO info;
+	struct firedtv_tuner_status stat;
 
-	if (avc_tuner_status(fdtv, &info))
+	if (avc_tuner_status(fdtv, &stat))
 		return -EINVAL;
 
-	*strength = info.SignalStrength << 8;
+	*strength = stat.signal_strength << 8;
 	return 0;
 }
 
 static int fdtv_read_snr(struct dvb_frontend *fe, u16 *snr)
 {
 	struct firedtv *fdtv = fe->sec_priv;
-	ANTENNA_INPUT_INFO info;
+	struct firedtv_tuner_status stat;
 
-	if (avc_tuner_status(fdtv, &info))
+	if (avc_tuner_status(fdtv, &stat))
 		return -EINVAL;
 
 	/* C/N[dB] = -10 * log10(snr / 65535) */
-	*snr = (info.CarrierNoiseRatio[0] << 8) + info.CarrierNoiseRatio[1];
-	*snr *= 257;
+	*snr = stat.carrier_noise_ratio * 257;
 	return 0;
 }
 
@@ -142,8 +141,10 @@ static int fdtv_read_uncorrected_blocks(struct dvb_frontend *fe, u32 *ucblocks)
 	return -EOPNOTSUPP;
 }
 
+#define ACCEPTED 0x9
+
 static int fdtv_set_frontend(struct dvb_frontend *fe,
-				struct dvb_frontend_parameters *params)
+			     struct dvb_frontend_parameters *params)
 {
 	struct firedtv *fdtv = fe->sec_priv;
 
@@ -155,7 +156,7 @@ static int fdtv_set_frontend(struct dvb_frontend *fe,
 }
 
 static int fdtv_get_frontend(struct dvb_frontend *fe,
-				struct dvb_frontend_parameters *params)
+			     struct dvb_frontend_parameters *params)
 {
 	return -EOPNOTSUPP;
 }
@@ -235,8 +236,8 @@ void fdtv_frontend_init(struct firedtv *fdtv)
 		break;
 
 	default:
-		printk(KERN_ERR "FireDTV: no frontend for model type %d\n",
-		       fdtv->type);
+		dev_err(fdtv->device, "no frontend for model type %d\n",
+			fdtv->type);
 	}
 	strcpy(fi->name, fdtv_model_names[fdtv->type]);
 

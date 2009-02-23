@@ -15,7 +15,6 @@
 #include <linux/string.h>
 #include <linux/types.h>
 
-#include "firedtv-rc.h"
 #include "firedtv.h"
 
 /* fixed table with older keycodes, geared towards MythTV */
