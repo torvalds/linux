@@ -50,6 +50,8 @@ config IP_ADVANCED_ROUTER
 	  echo 1 > /proc/sys/net/ipv4/conf/all/rp_filter
 
 	  Note that some distributions enable it in startup scripts.
+	  For details about rp_filter strict and loose mode read
+	  <file:Documentation/networking/ip-sysctl.txt>.
 
 	  If unsure, say N here.
 
