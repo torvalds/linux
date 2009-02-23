@@ -2363,12 +2363,6 @@ exit:
 	return -1;
 }
 
-/* Frees a general hso device */
-static void hso_free_device(struct hso_device *hso_dev)
-{
-	kfree(hso_dev);
-}
-
 /* Creates a general hso device */
 static struct hso_device *hso_create_device(struct usb_interface *intf,
 					    int port_spec)
@@ -2431,7 +2425,7 @@ static void hso_free_net_device(struct hso_device *hso_dev)
 		free_netdev(hso_net->net);
 	}
 
-	hso_free_device(hso_dev);
+	kfree(hso_dev);
 }
 
 /* initialize the network interface */
@@ -2645,7 +2639,7 @@ static void hso_free_serial_device(struct hso_device *hso_dev)
 	}
 	hso_free_tiomget(serial);
 	kfree(serial);
-	hso_free_device(hso_dev);
+	kfree(hso_dev);
 }
 
 /* Creates a bulk AT channel */
@@ -2726,7 +2720,7 @@ exit2:
 exit:
 	hso_free_tiomget(serial);
 	kfree(serial);
-	hso_free_device(hso_dev);
+	kfree(hso_dev);
 	return NULL;
 }
 
@@ -2785,7 +2779,7 @@ exit:
 		kfree(serial);
 	}
 	if (hso_dev)
-		hso_free_device(hso_dev);
+		kfree(hso_dev);
 	return NULL;
 
 }
