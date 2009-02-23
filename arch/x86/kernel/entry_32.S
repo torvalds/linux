@@ -1359,7 +1359,7 @@ nmi_espfix_stack:
 	CFI_ADJUST_CFA_OFFSET 4
 	pushl %esp
 	CFI_ADJUST_CFA_OFFSET 4
-	addw $4, (%esp)
+	addl $4, (%esp)
 	/* copy the iret frame of 12 bytes */
 	.rept 3
 	pushl 16(%esp)
