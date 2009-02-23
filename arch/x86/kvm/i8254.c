@@ -208,7 +208,6 @@ static int __pit_timer_fn(struct kvm_kpit_state *ps)
 		wake_up_interruptible(&vcpu0->wq);
 
 	hrtimer_add_expires_ns(&pt->timer, pt->period);
-	pt->scheduled = hrtimer_get_expires_ns(&pt->timer);
 	if (pt->period)
 		ps->channels[0].count_load_time = ktime_get();
 

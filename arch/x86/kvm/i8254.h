@@ -7,7 +7,6 @@ struct kvm_kpit_timer {
 	struct hrtimer timer;
 	int irq;
 	s64 period; /* unit: ns */
-	s64 scheduled;
 	atomic_t pending;
 	bool reinject;
 };
