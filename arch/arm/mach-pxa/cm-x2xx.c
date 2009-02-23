@@ -94,7 +94,7 @@ static struct resource cmx270_dm9000_resource[] = {
 };
 
 static struct dm9000_plat_data cmx270_dm9000_platdata = {
-	.flags		= DM9000_PLATF_32BITONLY,
+	.flags		= DM9000_PLATF_32BITONLY | DM9000_PLATF_NO_EEPROM,
 };
 
 static struct platform_device cmx2xx_dm9000_device = {
