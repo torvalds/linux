@@ -598,7 +598,7 @@ static void mce_init(void *dummy)
 }
 
 /* Add per CPU specific workarounds here */
-static void __cpuinit mce_cpu_quirks(struct cpuinfo_x86 *c)
+static void mce_cpu_quirks(struct cpuinfo_x86 *c)
 {
 	/* This should be disabled by the BIOS, but isn't always */
 	if (c->x86_vendor == X86_VENDOR_AMD) {
@@ -1056,7 +1056,7 @@ static __cpuinit void mce_remove_device(unsigned int cpu)
 }
 
 /* Make sure there are no machine checks on offlined CPUs. */
-static void __cpuexit mce_disable_cpu(void *h)
+static void mce_disable_cpu(void *h)
 {
 	int i;
 
@@ -1066,7 +1066,7 @@ static void __cpuexit mce_disable_cpu(void *h)
 		wrmsrl(MSR_IA32_MC0_CTL + i*4, 0);
 }
 
-static void __cpuexit mce_reenable_cpu(void *h)
+static void mce_reenable_cpu(void *h)
 {
 	int i;
 
