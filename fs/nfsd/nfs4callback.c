@@ -361,9 +361,8 @@ static struct rpc_program cb_program = {
 /* Reference counting, callback cleanup, etc., all look racy as heck.
  * And why is cb_set an atomic? */
 
-static int do_probe_callback(void *data)
+static struct rpc_clnt *setup_callback_client(struct nfs4_client *clp)
 {
-	struct nfs4_client *clp = data;
 	struct sockaddr_in	addr;
 	struct nfs4_callback    *cb = &clp->cl_callback;
 	struct rpc_timeout	timeparms = {
@@ -384,15 +383,10 @@ static int do_probe_callback(void *data)
 		.flags		= (RPC_CLNT_CREATE_NOPING | RPC_CLNT_CREATE_QUIET),
 		.client_name    = clp->cl_principal,
 	};
-	struct rpc_message msg = {
-		.rpc_proc       = &nfs4_cb_procedures[NFSPROC4_CLNT_CB_NULL],
-		.rpc_argp       = clp,
-	};
 	struct rpc_clnt *client;
-	int status = -EINVAL;
 
 	if (!clp->cl_principal && (clp->cl_flavor >= RPC_AUTH_GSS_KRB5))
-		goto out_err;
+		return ERR_PTR(-EINVAL);
 
 	/* Initialize address */
 	memset(&addr, 0, sizeof(addr));
@@ -402,6 +396,25 @@ static int do_probe_callback(void *data)
 
 	/* Create RPC client */
 	client = rpc_create(&args);
+	if (IS_ERR(client))
+		dprintk("NFSD: couldn't create callback client: %ld\n",
+			PTR_ERR(client));
+	return client;
+
+}
+
+static int do_probe_callback(void *data)
+{
+	struct nfs4_client *clp = data;
+	struct nfs4_callback    *cb = &clp->cl_callback;
+	struct rpc_message msg = {
+		.rpc_proc       = &nfs4_cb_procedures[NFSPROC4_CLNT_CB_NULL],
+		.rpc_argp       = clp,
+	};
+	struct rpc_clnt *client;
+	int status;
+
+	client = setup_callback_client(clp);
 	if (IS_ERR(client)) {
 		status = PTR_ERR(client);
 		dprintk("NFSD: couldn't create callback client: %d\n",
