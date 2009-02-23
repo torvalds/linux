@@ -417,7 +417,7 @@ ENTRY(phys_base)
 	.section .bss, "aw", @nobits
 	.align L1_CACHE_BYTES
 ENTRY(idt_table)
-	.skip 256 * 16
+	.skip IDT_ENTRIES * 16
 
 	.section .bss.page_aligned, "aw", @nobits
 	.align PAGE_SIZE
