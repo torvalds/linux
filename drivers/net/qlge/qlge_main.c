@@ -418,10 +418,6 @@ int ql_get_routing_reg(struct ql_adapter *qdev, u32 index, u32 *value)
 {
 	int status = 0;
 
-	status = ql_sem_spinlock(qdev, SEM_RT_IDX_MASK);
-	if (status)
-		goto exit;
-
 	status = ql_wait_reg_rdy(qdev, RT_IDX, RT_IDX_MW, 0);
 	if (status)
 		goto exit;
@@ -433,7 +429,6 @@ int ql_get_routing_reg(struct ql_adapter *qdev, u32 index, u32 *value)
 		goto exit;
 	*value = ql_read32(qdev, RT_DATA);
 exit:
-	ql_sem_unlock(qdev, SEM_RT_IDX_MASK);
 	return status;
 }
 
@@ -445,12 +440,8 @@ exit:
 static int ql_set_routing_reg(struct ql_adapter *qdev, u32 index, u32 mask,
 			      int enable)
 {
-	int status;
+	int status = -EINVAL; /* Return error if no mask match. */
 	u32 value = 0;
-
-	status = ql_sem_spinlock(qdev, SEM_RT_IDX_MASK);
-	if (status)
-		return status;
 
 	QPRINTK(qdev, IFUP, DEBUG,
 		"%s %s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s mask %s the routing reg.\n",
@@ -547,7 +538,6 @@ static int ql_set_routing_reg(struct ql_adapter *qdev, u32 index, u32 mask,
 		ql_write32(qdev, RT_DATA, enable ? mask : 0);
 	}
 exit:
-	ql_sem_unlock(qdev, SEM_RT_IDX_MASK);
 	return status;
 }
 
@@ -2916,13 +2906,17 @@ static int ql_route_initialize(struct ql_adapter *qdev)
 	int status = 0;
 	int i;
 
+	status = ql_sem_spinlock(qdev, SEM_RT_IDX_MASK);
+	if (status)
+		return status;
+
 	/* Clear all the entries in the routing table. */
 	for (i = 0; i < 16; i++) {
 		status = ql_set_routing_reg(qdev, i, 0, 0);
 		if (status) {
 			QPRINTK(qdev, IFUP, ERR,
 				"Failed to init routing register for CAM packets.\n");
-			return status;
+			goto exit;
 		}
 	}
 
@@ -2930,13 +2924,13 @@ static int ql_route_initialize(struct ql_adapter *qdev)
 	if (status) {
 		QPRINTK(qdev, IFUP, ERR,
 			"Failed to init routing register for error packets.\n");
-		return status;
+		goto exit;
 	}
 	status = ql_set_routing_reg(qdev, RT_IDX_BCAST_SLOT, RT_IDX_BCAST, 1);
 	if (status) {
 		QPRINTK(qdev, IFUP, ERR,
 			"Failed to init routing register for broadcast packets.\n");
-		return status;
+		goto exit;
 	}
 	/* If we have more than one inbound queue, then turn on RSS in the
 	 * routing block.
@@ -2947,17 +2941,17 @@ static int ql_route_initialize(struct ql_adapter *qdev)
 		if (status) {
 			QPRINTK(qdev, IFUP, ERR,
 				"Failed to init routing register for MATCH RSS packets.\n");
-			return status;
+			goto exit;
 		}
 	}
 
 	status = ql_set_routing_reg(qdev, RT_IDX_CAM_HIT_SLOT,
 				    RT_IDX_CAM_HIT, 1);
-	if (status) {
+	if (status)
 		QPRINTK(qdev, IFUP, ERR,
 			"Failed to init routing register for CAM packets.\n");
-		return status;
-	}
+exit:
+	ql_sem_unlock(qdev, SEM_RT_IDX_MASK);
 	return status;
 }
 
@@ -3518,6 +3512,7 @@ static void qlge_set_multicast_list(struct net_device *ndev)
 	}
 exit:
 	spin_unlock(&qdev->hw_lock);
+	ql_sem_unlock(qdev, SEM_RT_IDX_MASK);
 }
 
 static int qlge_set_mac_address(struct net_device *ndev, void *p)
