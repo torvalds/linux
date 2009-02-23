@@ -217,10 +217,11 @@
 #define OCAP_4x         0x03	/* 4x */
 
 /* COM3 */
-#define SWAP_MASK       0x38
+#define SWAP_MASK       (SWAP_RGB | SWAP_YUV | SWAP_ML)
+#define IMG_MASK        (VFLIP_IMG | HFLIP_IMG)
 
-#define VFIMG_ON_OFF    0x80	/* Vertical flip image ON/OFF selection */
-#define HMIMG_ON_OFF    0x40	/* Horizontal mirror image ON/OFF selection */
+#define VFLIP_IMG       0x80	/* Vertical flip image ON/OFF selection */
+#define HFLIP_IMG       0x40	/* Horizontal mirror image ON/OFF selection */
 #define SWAP_RGB        0x20	/* Swap B/R  output sequence in RGB mode */
 #define SWAP_YUV        0x10	/* Swap Y/UV output sequence in YUV mode */
 #define SWAP_ML         0x08	/* Swap output MSB/LSB */
@@ -395,6 +396,8 @@ struct ov772x_priv {
 	const struct ov772x_color_format *fmt;
 	const struct ov772x_win_size     *win;
 	int                               model;
+	unsigned int                      flag_vflip:1;
+	unsigned int                      flag_hflip:1;
 };
 
 #define ENDMARKER { 0xff, 0xff }
@@ -540,6 +543,27 @@ static const struct ov772x_win_size ov772x_win_qvga = {
 	.regs     = ov772x_qvga_regs,
 };
 
+static const struct v4l2_queryctrl ov772x_controls[] = {
+	{
+		.id		= V4L2_CID_VFLIP,
+		.type		= V4L2_CTRL_TYPE_BOOLEAN,
+		.name		= "Flip Vertically",
+		.minimum	= 0,
+		.maximum	= 1,
+		.step		= 1,
+		.default_value	= 0,
+	},
+	{
+		.id		= V4L2_CID_HFLIP,
+		.type		= V4L2_CTRL_TYPE_BOOLEAN,
+		.name		= "Flip Horizontally",
+		.minimum	= 0,
+		.maximum	= 1,
+		.step		= 1,
+		.default_value	= 0,
+	},
+};
+
 
 /*
  * general function
@@ -648,6 +672,49 @@ static unsigned long ov772x_query_bus_param(struct soc_camera_device *icd)
 		SOCAM_DATA_ACTIVE_HIGH | priv->info->buswidth;
 
 	return soc_camera_apply_sensor_flags(icl, flags);
+}
+
+static int ov772x_get_control(struct soc_camera_device *icd,
+			      struct v4l2_control *ctrl)
+{
+	struct ov772x_priv *priv = container_of(icd, struct ov772x_priv, icd);
+
+	switch (ctrl->id) {
+	case V4L2_CID_VFLIP:
+		ctrl->value = priv->flag_vflip;
+		break;
+	case V4L2_CID_HFLIP:
+		ctrl->value = priv->flag_hflip;
+		break;
+	}
+	return 0;
+}
+
+static int ov772x_set_control(struct soc_camera_device *icd,
+			      struct v4l2_control *ctrl)
+{
+	struct ov772x_priv *priv = container_of(icd, struct ov772x_priv, icd);
+	int ret = 0;
+	u8 val;
+
+	switch (ctrl->id) {
+	case V4L2_CID_VFLIP:
+		val = ctrl->value ? VFLIP_IMG : 0x00;
+		priv->flag_vflip = ctrl->value;
+		if (priv->info->flags & OV772X_FLAG_VFLIP)
+			val ^= VFLIP_IMG;
+		ret = ov772x_mask_set(priv->client, COM3, VFLIP_IMG, val);
+		break;
+	case V4L2_CID_HFLIP:
+		val = ctrl->value ? HFLIP_IMG : 0x00;
+		priv->flag_hflip = ctrl->value;
+		if (priv->info->flags & OV772X_FLAG_HFLIP)
+			val ^= HFLIP_IMG;
+		ret = ov772x_mask_set(priv->client, COM3, HFLIP_IMG, val);
+		break;
+	}
+
+	return ret;
 }
 
 static int ov772x_get_chip_id(struct soc_camera_device *icd,
@@ -768,8 +835,17 @@ static int ov772x_set_fmt(struct soc_camera_device *icd,
 	 * set COM3
 	 */
 	val = priv->fmt->com3;
+	if (priv->info->flags & OV772X_FLAG_VFLIP)
+		val |= VFLIP_IMG;
+	if (priv->info->flags & OV772X_FLAG_HFLIP)
+		val |= HFLIP_IMG;
+	if (priv->flag_vflip)
+		val ^= VFLIP_IMG;
+	if (priv->flag_hflip)
+		val ^= HFLIP_IMG;
+
 	ret = ov772x_mask_set(priv->client,
-			      COM3, SWAP_MASK, val);
+			      COM3, SWAP_MASK | IMG_MASK, val);
 	if (ret < 0)
 		goto ov772x_set_fmt_error;
 
@@ -887,6 +963,10 @@ static struct soc_camera_ops ov772x_ops = {
 	.try_fmt		= ov772x_try_fmt,
 	.set_bus_param		= ov772x_set_bus_param,
 	.query_bus_param	= ov772x_query_bus_param,
+	.controls		= ov772x_controls,
+	.num_controls		= ARRAY_SIZE(ov772x_controls),
+	.get_control		= ov772x_get_control,
+	.set_control		= ov772x_set_control,
 	.get_chip_id		= ov772x_get_chip_id,
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	.get_register		= ov772x_get_register,
