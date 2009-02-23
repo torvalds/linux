@@ -1705,7 +1705,6 @@ struct mpage_da_data {
 	struct inode *inode;
 	struct buffer_head lbh;			/* extent of blocks */
 	unsigned long first_page, next_page;	/* extent of pages */
-	get_block_t *get_block;
 	struct writeback_control *wbc;
 	int io_done;
 	int pages_written;
@@ -1719,7 +1718,6 @@ struct mpage_da_data {
  * @mpd->inode: inode
  * @mpd->first_page: first page of the extent
  * @mpd->next_page: page after the last page of the extent
- * @mpd->get_block: the filesystem's block mapper function
  *
  * By the time mpage_da_submit_io() is called we expect all blocks
  * to be allocated. this may be wrong if allocation failed.
@@ -1929,16 +1927,60 @@ static void ext4_print_free_blocks(struct inode *inode)
 	return;
 }
 
+#define		EXT4_DELALLOC_RSVED	1
+static int ext4_da_get_block_write(struct inode *inode, sector_t iblock,
+				   struct buffer_head *bh_result, int create)
+{
+	int ret;
+	unsigned max_blocks = bh_result->b_size >> inode->i_blkbits;
+	loff_t disksize = EXT4_I(inode)->i_disksize;
+	handle_t *handle = NULL;
+
+	handle = ext4_journal_current_handle();
+	BUG_ON(!handle);
+	ret = ext4_get_blocks_wrap(handle, inode, iblock, max_blocks,
+				   bh_result, create, 0, EXT4_DELALLOC_RSVED);
+	if (ret <= 0)
+		return ret;
+
+	bh_result->b_size = (ret << inode->i_blkbits);
+
+	if (ext4_should_order_data(inode)) {
+		int retval;
+		retval = ext4_jbd2_file_inode(handle, inode);
+		if (retval)
+			/*
+			 * Failed to add inode for ordered mode. Don't
+			 * update file size
+			 */
+			return retval;
+	}
+
+	/*
+	 * Update on-disk size along with block allocation we don't
+	 * use 'extend_disksize' as size may change within already
+	 * allocated block -bzzz
+	 */
+	disksize = ((loff_t) iblock + ret) << inode->i_blkbits;
+	if (disksize > i_size_read(inode))
+		disksize = i_size_read(inode);
+	if (disksize > EXT4_I(inode)->i_disksize) {
+		ext4_update_i_disksize(inode, disksize);
+		ret = ext4_mark_inode_dirty(handle, inode);
+		return ret;
+	}
+	return 0;
+}
+
 /*
  * mpage_da_map_blocks - go through given space
  *
  * @mpd->lbh - bh describing space
- * @mpd->get_block - the filesystem's block mapper function
  *
  * The function skips space we know is already mapped to disk blocks.
  *
  */
-static int  mpage_da_map_blocks(struct mpage_da_data *mpd)
+static int mpage_da_map_blocks(struct mpage_da_data *mpd)
 {
 	int err = 0;
 	struct buffer_head new;
@@ -1960,30 +2002,29 @@ static int  mpage_da_map_blocks(struct mpage_da_data *mpd)
 	 */
 	if (!new.b_size)
 		return 0;
-	err = mpd->get_block(mpd->inode, next, &new, 1);
-	if (err) {
 
-		/* If get block returns with error
-		 * we simply return. Later writepage
-		 * will redirty the page and writepages
-		 * will find the dirty page again
+	err = ext4_da_get_block_write(mpd->inode, next, &new, 1);
+	if (err) {
+		/*
+		 * If get block returns with error we simply
+		 * return. Later writepage will redirty the page and
+		 * writepages will find the dirty page again
 		 */
 		if (err == -EAGAIN)
 			return 0;
 
 		if (err == -ENOSPC &&
-				ext4_count_free_blocks(mpd->inode->i_sb)) {
+		    ext4_count_free_blocks(mpd->inode->i_sb)) {
 			mpd->retval = err;
 			return 0;
 		}
 
 		/*
-		 * get block failure will cause us
-		 * to loop in writepages. Because
-		 * a_ops->writepage won't be able to
-		 * make progress. The page will be redirtied
-		 * by writepage and writepages will again
-		 * try to write the same.
+		 * get block failure will cause us to loop in
+		 * writepages, because a_ops->writepage won't be able
+		 * to make progress. The page will be redirtied by
+		 * writepage and writepages will again try to write
+		 * the same.
 		 */
 		printk(KERN_EMERG "%s block allocation failed for inode %lu "
 				  "at logical offset %llu with max blocks "
@@ -2212,7 +2253,6 @@ static int __mpage_da_writepage(struct page *page,
  *
  * @mapping: address space structure to write
  * @wbc: subtract the number of written pages from *@wbc->nr_to_write
- * @get_block: the filesystem's block mapper function.
  *
  * This is a library function, which implements the writepages()
  * address_space_operation.
@@ -2222,9 +2262,6 @@ static int mpage_da_writepages(struct address_space *mapping,
 			       struct mpage_da_data *mpd)
 {
 	int ret;
-
-	if (!mpd->get_block)
-		return generic_writepages(mapping, wbc);
 
 	mpd->lbh.b_size = 0;
 	mpd->lbh.b_state = 0;
@@ -2287,51 +2324,6 @@ static int ext4_da_get_block_prep(struct inode *inode, sector_t iblock,
 		ret = 0;
 	}
 
-	return ret;
-}
-#define		EXT4_DELALLOC_RSVED	1
-static int ext4_da_get_block_write(struct inode *inode, sector_t iblock,
-				   struct buffer_head *bh_result, int create)
-{
-	int ret;
-	unsigned max_blocks = bh_result->b_size >> inode->i_blkbits;
-	loff_t disksize = EXT4_I(inode)->i_disksize;
-	handle_t *handle = NULL;
-
-	handle = ext4_journal_current_handle();
-	BUG_ON(!handle);
-	ret = ext4_get_blocks_wrap(handle, inode, iblock, max_blocks,
-			bh_result, create, 0, EXT4_DELALLOC_RSVED);
-	if (ret > 0) {
-
-		bh_result->b_size = (ret << inode->i_blkbits);
-
-		if (ext4_should_order_data(inode)) {
-			int retval;
-			retval = ext4_jbd2_file_inode(handle, inode);
-			if (retval)
-				/*
-				 * Failed to add inode for ordered
-				 * mode. Don't update file size
-				 */
-				return retval;
-		}
-
-		/*
-		 * Update on-disk size along with block allocation
-		 * we don't use 'extend_disksize' as size may change
-		 * within already allocated block -bzzz
-		 */
-		disksize = ((loff_t) iblock + ret) << inode->i_blkbits;
-		if (disksize > i_size_read(inode))
-			disksize = i_size_read(inode);
-		if (disksize > EXT4_I(inode)->i_disksize) {
-			ext4_update_i_disksize(inode, disksize);
-			ret = ext4_mark_inode_dirty(handle, inode);
-			return ret;
-		}
-		ret = 0;
-	}
 	return ret;
 }
 
@@ -2584,7 +2576,6 @@ retry:
 			dump_stack();
 			goto out_writepages;
 		}
-		mpd.get_block = ext4_da_get_block_write;
 		ret = mpage_da_writepages(mapping, wbc, &mpd);
 
 		ext4_journal_stop(handle);
