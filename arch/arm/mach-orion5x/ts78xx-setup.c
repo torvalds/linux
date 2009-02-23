@@ -75,7 +75,6 @@ static struct mv_sata_platform_data ts78xx_sata_data = {
 /*****************************************************************************
  * RTC M48T86 - nicked^Wborrowed from arch/arm/mach-ep93xx/ts72xx.c
  ****************************************************************************/
-#ifdef CONFIG_RTC_DRV_M48T86
 #define TS_RTC_CTRL	(TS78XX_FPGA_REGS_VIRT_BASE | 0x808)
 #define TS_RTC_DATA	(TS78XX_FPGA_REGS_VIRT_BASE | 0x80c)
 
@@ -150,16 +149,6 @@ static void ts78xx_ts_rtc_unload(void)
 {
 	platform_device_del(&ts78xx_ts_rtc_device);
 }
-#else
-static int ts78xx_ts_rtc_load(void)
-{
-	return -ENODEV;
-}
-
-static void ts78xx_ts_rtc_unload(void)
-{
-}
-#endif
 
 /*****************************************************************************
  * FPGA 'hotplug' support code
@@ -188,8 +177,7 @@ static int ts78xx_fpga_load_devices(void)
 	if (ts78xx_fpga.supports.ts_rtc.present == 1) {
 		tmp = ts78xx_ts_rtc_load();
 		if (tmp) {
-			printk(KERN_INFO "TS-78xx RTC"
-					" not detected or enabled\n");
+			printk(KERN_INFO "TS-78xx: RTC not registered\n");
 			ts78xx_fpga.supports.ts_rtc.present = 0;
 		}
 		ret |= tmp;
