@@ -708,6 +708,8 @@ struct req_iterator {
 };
 
 /* This should not be used directly - use rq_for_each_segment */
+#define for_each_bio(_bio)		\
+	for (; _bio; _bio = _bio->bi_next)
 #define __rq_for_each_bio(_bio, rq)	\
 	if ((rq->bio))			\
 		for (_bio = (rq)->bio; _bio; _bio = _bio->bi_next)
