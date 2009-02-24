@@ -78,12 +78,47 @@
 
 #ifdef CONFIG_HAVE_DYNAMIC_PER_CPU_AREA
 
+/* minimum unit size, also is the maximum supported allocation size */
+#define PCPU_MIN_UNIT_SIZE		(16UL << PAGE_SHIFT)
+
+/*
+ * PERCPU_DYNAMIC_RESERVE indicates the amount of free area to piggy
+ * back on the first chunk if arch is manually allocating and mapping
+ * it for faster access (as a part of large page mapping for example).
+ * Note that dynamic percpu allocator covers both static and dynamic
+ * areas, so these values are bigger than PERCPU_MODULE_RESERVE.
+ *
+ * On typical configuration with modules, the following values leave
+ * about 8k of free space on the first chunk after boot on both x86_32
+ * and 64 when module support is enabled.  When module support is
+ * disabled, it's much tighter.
+ */
+#ifndef PERCPU_DYNAMIC_RESERVE
+#  if BITS_PER_LONG > 32
+#    ifdef CONFIG_MODULES
+#      define PERCPU_DYNAMIC_RESERVE	(6 << PAGE_SHIFT)
+#    else
+#      define PERCPU_DYNAMIC_RESERVE	(4 << PAGE_SHIFT)
+#    endif
+#  else
+#    ifdef CONFIG_MODULES
+#      define PERCPU_DYNAMIC_RESERVE	(4 << PAGE_SHIFT)
+#    else
+#      define PERCPU_DYNAMIC_RESERVE	(2 << PAGE_SHIFT)
+#    endif
+#  endif
+#endif	/* PERCPU_DYNAMIC_RESERVE */
+
 extern void *pcpu_base_addr;
 
+typedef struct page * (*pcpu_get_page_fn_t)(unsigned int cpu, int pageno);
 typedef void (*pcpu_populate_pte_fn_t)(unsigned long addr);
 
-extern size_t __init pcpu_setup_static(pcpu_populate_pte_fn_t populate_pte_fn,
-				       struct page **pages, size_t cpu_size);
+extern size_t __init pcpu_setup_first_chunk(pcpu_get_page_fn_t get_page_fn,
+					size_t static_size, size_t unit_size,
+					size_t free_size, void *base_addr,
+					pcpu_populate_pte_fn_t populate_pte_fn);
+
 /*
  * Use this to get to a cpu's version of the per-cpu object
  * dynamically allocated. Non-atomic access to the current CPU's

@@ -41,6 +41,16 @@ unsigned long __per_cpu_offset[NR_CPUS] __read_mostly = {
 };
 EXPORT_SYMBOL(__per_cpu_offset);
 
+static struct page **pcpu4k_pages __initdata;
+static int pcpu4k_nr_static_pages __initdata;
+
+static struct page * __init pcpu4k_get_page(unsigned int cpu, int pageno)
+{
+	if (pageno < pcpu4k_nr_static_pages)
+		return pcpu4k_pages[cpu * pcpu4k_nr_static_pages + pageno];
+	return NULL;
+}
+
 static void __init pcpu4k_populate_pte(unsigned long addr)
 {
 	populate_extra_pte(addr);
@@ -109,7 +119,10 @@ void __init setup_per_cpu_areas(void)
 		}
 	}
 
-	pcpu_unit_size = pcpu_setup_static(pcpu4k_populate_pte, pages, size);
+	pcpu4k_pages = pages;
+	pcpu4k_nr_static_pages = nr_cpu_pages;
+	pcpu_unit_size = pcpu_setup_first_chunk(pcpu4k_get_page, size, 0, 0,
+						NULL, pcpu4k_populate_pte);
 
 	free_bootmem(__pa(pages), pages_size);
 
