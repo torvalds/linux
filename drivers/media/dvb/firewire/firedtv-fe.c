@@ -185,6 +185,7 @@ void fdtv_frontend_init(struct firedtv *fdtv)
 
 	switch (fdtv->type) {
 	case FIREDTV_DVB_S:
+	case FIREDTV_DVB_S2:
 		fi->type		= FE_QPSK;
 
 		fi->frequency_min	= 950000;
