@@ -3641,6 +3641,12 @@ M:	florian.fainelli@telecomint.eu
 L:	netdev@vger.kernel.org
 S:	Maintained
 
+RDS - RELIABLE DATAGRAM SOCKETS
+P:	Andy Grover
+M:	andy.grover@oracle.com
+L:	rds-devel@oss.oracle.com
+S:	Supported
+
 READ-COPY UPDATE (RCU)
 P:	Dipankar Sarma
 M:	dipankar@in.ibm.com
