@@ -343,6 +343,9 @@ struct ocfs2_super
 
 	unsigned int			osb_dx_mask;
 	u32				osb_dx_seed[4];
+
+	/* the group we used to allocate inodes. */
+	u64				osb_inode_alloc_group;
 };
 
 #define OCFS2_SB(sb)	    ((struct ocfs2_super *)(sb)->s_fs_info)

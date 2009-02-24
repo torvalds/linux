@@ -66,6 +66,7 @@ static int ocfs2_block_group_alloc(struct ocfs2_super *osb,
 				   struct inode *alloc_inode,
 				   struct buffer_head *bh,
 				   u64 max_block,
+				   u64 *last_alloc_group,
 				   int flags);
 
 static int ocfs2_cluster_group_search(struct inode *inode,
@@ -407,6 +408,7 @@ static int ocfs2_block_group_alloc(struct ocfs2_super *osb,
 				   struct inode *alloc_inode,
 				   struct buffer_head *bh,
 				   u64 max_block,
+				   u64 *last_alloc_group,
 				   int flags)
 {
 	int status, credits;
@@ -444,6 +446,11 @@ static int ocfs2_block_group_alloc(struct ocfs2_super *osb,
 		goto bail;
 	}
 
+	if (last_alloc_group && *last_alloc_group != 0) {
+		mlog(0, "use old allocation group %llu for block group alloc\n",
+		     (unsigned long long)*last_alloc_group);
+		ac->ac_last_group = *last_alloc_group;
+	}
 	status = ocfs2_claim_clusters(osb,
 				      handle,
 				      ac,
@@ -518,6 +525,11 @@ static int ocfs2_block_group_alloc(struct ocfs2_super *osb,
 	alloc_inode->i_blocks = ocfs2_inode_sector_count(alloc_inode);
 
 	status = 0;
+
+	/* save the new last alloc group so that the caller can cache it. */
+	if (last_alloc_group)
+		*last_alloc_group = ac->ac_last_group;
+
 bail:
 	if (handle)
 		ocfs2_commit_trans(osb, handle);
@@ -535,6 +547,7 @@ static int ocfs2_reserve_suballoc_bits(struct ocfs2_super *osb,
 				       struct ocfs2_alloc_context *ac,
 				       int type,
 				       u32 slot,
+				       u64 *last_alloc_group,
 				       int flags)
 {
 	int status;
@@ -600,7 +613,8 @@ static int ocfs2_reserve_suballoc_bits(struct ocfs2_super *osb,
 		}
 
 		status = ocfs2_block_group_alloc(osb, alloc_inode, bh,
-						 ac->ac_max_block, flags);
+						 ac->ac_max_block,
+						 last_alloc_group, flags);
 		if (status < 0) {
 			if (status != -ENOSPC)
 				mlog_errno(status);
@@ -644,7 +658,7 @@ int ocfs2_reserve_new_metadata_blocks(struct ocfs2_super *osb,
 
 	status = ocfs2_reserve_suballoc_bits(osb, (*ac),
 					     EXTENT_ALLOC_SYSTEM_INODE,
-					     slot, ALLOC_NEW_GROUP);
+					     slot, NULL, ALLOC_NEW_GROUP);
 	if (status < 0) {
 		if (status != -ENOSPC)
 			mlog_errno(status);
@@ -690,7 +704,8 @@ static int ocfs2_steal_inode_from_other_nodes(struct ocfs2_super *osb,
 
 		status = ocfs2_reserve_suballoc_bits(osb, ac,
 						     INODE_ALLOC_SYSTEM_INODE,
-						     slot, NOT_ALLOC_NEW_GROUP);
+						     slot, NULL,
+						     NOT_ALLOC_NEW_GROUP);
 		if (status >= 0) {
 			ocfs2_set_inode_steal_slot(osb, slot);
 			break;
@@ -707,6 +722,7 @@ int ocfs2_reserve_new_inode(struct ocfs2_super *osb,
 {
 	int status;
 	s16 slot = ocfs2_get_inode_steal_slot(osb);
+	u64 alloc_group;
 
 	*ac = kzalloc(sizeof(struct ocfs2_alloc_context), GFP_KERNEL);
 	if (!(*ac)) {
@@ -742,13 +758,21 @@ int ocfs2_reserve_new_inode(struct ocfs2_super *osb,
 		goto inode_steal;
 
 	atomic_set(&osb->s_num_inodes_stolen, 0);
+	alloc_group = osb->osb_inode_alloc_group;
 	status = ocfs2_reserve_suballoc_bits(osb, *ac,
 					     INODE_ALLOC_SYSTEM_INODE,
 					     osb->slot_num,
+					     &alloc_group,
 					     ALLOC_NEW_GROUP |
 					     ALLOC_GROUPS_FROM_GLOBAL);
 	if (status >= 0) {
 		status = 0;
+
+		spin_lock(&osb->osb_lock);
+		osb->osb_inode_alloc_group = alloc_group;
+		spin_unlock(&osb->osb_lock);
+		mlog(0, "after reservation, new allocation group is "
+		     "%llu\n", (unsigned long long)alloc_group);
 
 		/*
 		 * Some inodes must be freed by us, so try to allocate
@@ -796,7 +820,7 @@ int ocfs2_reserve_cluster_bitmap_bits(struct ocfs2_super *osb,
 
 	status = ocfs2_reserve_suballoc_bits(osb, ac,
 					     GLOBAL_BITMAP_SYSTEM_INODE,
-					     OCFS2_INVALID_SLOT,
+					     OCFS2_INVALID_SLOT, NULL,
 					     ALLOC_NEW_GROUP);
 	if (status < 0 && status != -ENOSPC) {
 		mlog_errno(status);
