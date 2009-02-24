@@ -76,7 +76,7 @@ extern struct list_head cfg80211_drv_list;
 
 static inline void assert_cfg80211_lock(void)
 {
-	BUG_ON(!mutex_is_locked(&cfg80211_mutex));
+	WARN_ON(!mutex_is_locked(&cfg80211_mutex));
 }
 
 /*

@@ -137,8 +137,6 @@ static int nl80211_send_wiphy(struct sk_buff *msg, u32 pid, u32 seq, int flags,
 	int i;
 	u16 ifmodes = dev->wiphy.interface_modes;
 
-	assert_cfg80211_lock();
-
 	hdr = nl80211hdr_put(msg, pid, seq, flags, NL80211_CMD_NEW_WIPHY);
 	if (!hdr)
 		return -1;
