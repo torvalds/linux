@@ -67,7 +67,7 @@
 #include <asm/cacheflush.h>
 #include <asm/tlbflush.h>
 
-#define PCPU_MIN_UNIT_PAGES_SHIFT	4	/* also max alloc size */
+#define PCPU_MIN_UNIT_PAGES		16	/* max alloc size in pages */
 #define PCPU_SLOT_BASE_SHIFT		5	/* 1-31 shares the same slot */
 #define PCPU_DFL_MAP_ALLOC		16	/* start a map with 16 ents */
 
@@ -83,9 +83,7 @@ struct pcpu_chunk {
 	struct page		*page[];	/* #cpus * UNIT_PAGES */
 };
 
-static int pcpu_unit_pages_shift;
 static int pcpu_unit_pages;
-static int pcpu_unit_shift;
 static int pcpu_unit_size;
 static int pcpu_chunk_size;
 static int pcpu_nr_slots;
@@ -117,10 +115,17 @@ static DEFINE_MUTEX(pcpu_mutex);
 static struct list_head *pcpu_slot;		/* chunk list slots */
 static struct rb_root pcpu_addr_root = RB_ROOT;	/* chunks by address */
 
-static int pcpu_size_to_slot(int size)
+static int __pcpu_size_to_slot(int size)
 {
 	int highbit = fls(size);	/* size is in bytes */
 	return max(highbit - PCPU_SLOT_BASE_SHIFT + 2, 1);
+}
+
+static int pcpu_size_to_slot(int size)
+{
+	if (size == pcpu_unit_size)
+		return pcpu_nr_slots - 1;
+	return __pcpu_size_to_slot(size);
 }
 
 static int pcpu_chunk_slot(const struct pcpu_chunk *chunk)
@@ -133,7 +138,7 @@ static int pcpu_chunk_slot(const struct pcpu_chunk *chunk)
 
 static int pcpu_page_idx(unsigned int cpu, int page_idx)
 {
-	return (cpu << pcpu_unit_pages_shift) + page_idx;
+	return cpu * pcpu_unit_pages + page_idx;
 }
 
 static struct page **pcpu_chunk_pagep(struct pcpu_chunk *chunk,
@@ -659,7 +664,7 @@ static int pcpu_populate_chunk(struct pcpu_chunk *chunk, int off, int size)
 		goto err;
 
 	for_each_possible_cpu(cpu)
-		memset(chunk->vm->addr + (cpu << pcpu_unit_shift) + off, 0,
+		memset(chunk->vm->addr + cpu * pcpu_unit_size + off, 0,
 		       size);
 
 	return 0;
@@ -722,7 +727,7 @@ void *__alloc_percpu(size_t size, size_t align)
 	struct pcpu_chunk *chunk;
 	int slot, off;
 
-	if (unlikely(!size || size > PAGE_SIZE << PCPU_MIN_UNIT_PAGES_SHIFT ||
+	if (unlikely(!size || size > PCPU_MIN_UNIT_PAGES * PAGE_SIZE ||
 		     align > PAGE_SIZE)) {
 		WARN(true, "illegal size (%zu) or align (%zu) for "
 		     "percpu allocation\n", size, align);
@@ -840,19 +845,19 @@ size_t __init pcpu_setup_static(pcpu_populate_pte_fn_t populate_pte_fn,
 	unsigned int cpu;
 	int err, i;
 
-	pcpu_unit_pages_shift = max_t(int, PCPU_MIN_UNIT_PAGES_SHIFT,
-				      order_base_2(cpu_size) - PAGE_SHIFT);
+	pcpu_unit_pages = max_t(int, PCPU_MIN_UNIT_PAGES, PFN_UP(cpu_size));
 
 	pcpu_static_size = cpu_size;
-	pcpu_unit_pages = 1 << pcpu_unit_pages_shift;
-	pcpu_unit_shift = PAGE_SHIFT + pcpu_unit_pages_shift;
-	pcpu_unit_size = 1 << pcpu_unit_shift;
+	pcpu_unit_size = pcpu_unit_pages << PAGE_SHIFT;
 	pcpu_chunk_size = num_possible_cpus() * pcpu_unit_size;
-	pcpu_nr_slots = pcpu_size_to_slot(pcpu_unit_size) + 1;
 	pcpu_chunk_struct_size = sizeof(struct pcpu_chunk)
 		+ num_possible_cpus() * pcpu_unit_pages * sizeof(struct page *);
 
-	/* allocate chunk slots */
+	/*
+	 * Allocate chunk slots.  The additional last slot is for
+	 * empty chunks.
+	 */
+	pcpu_nr_slots = __pcpu_size_to_slot(pcpu_unit_size) + 2;
 	pcpu_slot = alloc_bootmem(pcpu_nr_slots * sizeof(pcpu_slot[0]));
 	for (i = 0; i < pcpu_nr_slots; i++)
 		INIT_LIST_HEAD(&pcpu_slot[i]);
