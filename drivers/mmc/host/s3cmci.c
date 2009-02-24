@@ -329,7 +329,7 @@ static void do_pio_write(struct s3cmci_host *host)
 
 	to_ptr = host->base + host->sdidata;
 
-	while ((fifo = fifo_free(host))) {
+	while ((fifo = fifo_free(host)) > 3) {
 		if (!host->pio_bytes) {
 			res = get_data_buffer(host, &host->pio_bytes,
 							&host->pio_ptr);

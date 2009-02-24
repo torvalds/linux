@@ -34,9 +34,9 @@ static struct console atari_console_driver = {
 
 static inline void ata_mfp_out(char c)
 {
-	while (!(mfp.trn_stat & 0x80))	/* wait for tx buf empty */
+	while (!(st_mfp.trn_stat & 0x80))	/* wait for tx buf empty */
 		barrier();
-	mfp.usart_dta = c;
+	st_mfp.usart_dta = c;
 }
 
 static void atari_mfp_console_write(struct console *co, const char *str,
@@ -91,7 +91,7 @@ static int ata_par_out(char c)
 	/* This a some-seconds timeout in case no printer is connected */
 	unsigned long i = loops_per_jiffy > 1 ? loops_per_jiffy : 10000000/HZ;
 
-	while ((mfp.par_dt_reg & 1) && --i) /* wait for BUSY == L */
+	while ((st_mfp.par_dt_reg & 1) && --i) /* wait for BUSY == L */
 		;
 	if (!i)
 		return 0;
@@ -131,9 +131,9 @@ static void atari_par_console_write(struct console *co, const char *str,
 #if 0
 int atari_mfp_console_wait_key(struct console *co)
 {
-	while (!(mfp.rcv_stat & 0x80))	/* wait for rx buf filled */
+	while (!(st_mfp.rcv_stat & 0x80))	/* wait for rx buf filled */
 		barrier();
-	return mfp.usart_dta;
+	return st_mfp.usart_dta;
 }
 
 int atari_scc_console_wait_key(struct console *co)
@@ -175,12 +175,12 @@ static void __init atari_init_mfp_port(int cflag)
 		baud = B9600;		/* use default 9600bps for non-implemented rates */
 	baud -= B1200;			/* baud_table[] starts at 1200bps */
 
-	mfp.trn_stat &= ~0x01;		/* disable TX */
-	mfp.usart_ctr = parity | csize | 0x88; /* 1:16 clk mode, 1 stop bit */
-	mfp.tim_ct_cd &= 0x70;		/* stop timer D */
-	mfp.tim_dt_d = baud_table[baud];
-	mfp.tim_ct_cd |= 0x01;		/* start timer D, 1:4 */
-	mfp.trn_stat |= 0x01;		/* enable TX */
+	st_mfp.trn_stat &= ~0x01;	/* disable TX */
+	st_mfp.usart_ctr = parity | csize | 0x88; /* 1:16 clk mode, 1 stop bit */
+	st_mfp.tim_ct_cd &= 0x70;	/* stop timer D */
+	st_mfp.tim_dt_d = baud_table[baud];
+	st_mfp.tim_ct_cd |= 0x01;	/* start timer D, 1:4 */
+	st_mfp.trn_stat |= 0x01;	/* enable TX */
 }
 
 #define SCC_WRITE(reg, val)				\

@@ -1730,7 +1730,7 @@ static int __init fd_test_drive_present( int drive )
 
 	timeout = jiffies + 2*HZ+HZ/2;
 	while (time_before(jiffies, timeout))
-		if (!(mfp.par_dt_reg & 0x20))
+		if (!(st_mfp.par_dt_reg & 0x20))
 			break;
 
 	status = FDC_READ( FDCREG_STATUS );
@@ -1747,7 +1747,7 @@ static int __init fd_test_drive_present( int drive )
 		/* dummy seek command to make WP bit accessible */
 		FDC_WRITE( FDCREG_DATA, 0 );
 		FDC_WRITE( FDCREG_CMD, FDCCMD_SEEK );
-		while( mfp.par_dt_reg & 0x20 )
+		while( st_mfp.par_dt_reg & 0x20 )
 			;
 		status = FDC_READ( FDCREG_STATUS );
 	}

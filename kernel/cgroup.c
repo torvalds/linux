@@ -1122,8 +1122,8 @@ static void cgroup_kill_sb(struct super_block *sb) {
 
 	mutex_unlock(&cgroup_mutex);
 
-	kfree(root);
 	kill_litter_super(sb);
+	kfree(root);
 }
 
 static struct file_system_type cgroup_fs_type = {

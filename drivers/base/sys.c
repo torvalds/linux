@@ -303,7 +303,6 @@ void sysdev_unregister(struct sys_device * sysdev)
  *	is guaranteed by virtue of the fact that child devices are registered
  *	after their parents.
  */
-
 void sysdev_shutdown(void)
 {
 	struct sysdev_class * cls;
@@ -363,7 +362,6 @@ static void __sysdev_resume(struct sys_device *dev)
  *	This is only called by the device PM core, so we let them handle
  *	all synchronization.
  */
-
 int sysdev_suspend(pm_message_t state)
 {
 	struct sysdev_class * cls;
@@ -432,7 +430,7 @@ aux_driver:
 	}
 	return ret;
 }
-
+EXPORT_SYMBOL_GPL(sysdev_suspend);
 
 /**
  *	sysdev_resume - Bring system devices back to life.
@@ -442,7 +440,6 @@ aux_driver:
  *
  *	Note: Interrupts are disabled when called.
  */
-
 int sysdev_resume(void)
 {
 	struct sysdev_class * cls;
@@ -463,7 +460,7 @@ int sysdev_resume(void)
 	}
 	return 0;
 }
-
+EXPORT_SYMBOL_GPL(sysdev_resume);
 
 int __init system_bus_init(void)
 {

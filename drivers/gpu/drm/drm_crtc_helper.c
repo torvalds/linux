@@ -512,8 +512,8 @@ bool drm_crtc_helper_set_mode(struct drm_crtc *crtc,
 	if (drm_mode_equal(&saved_mode, &crtc->mode)) {
 		if (saved_x != crtc->x || saved_y != crtc->y ||
 		    depth_changed || bpp_changed) {
-			crtc_funcs->mode_set_base(crtc, crtc->x, crtc->y,
-						  old_fb);
+			ret = !crtc_funcs->mode_set_base(crtc, crtc->x, crtc->y,
+							 old_fb);
 			goto done;
 		}
 	}
@@ -552,7 +552,9 @@ bool drm_crtc_helper_set_mode(struct drm_crtc *crtc,
 	/* Set up the DPLL and any encoders state that needs to adjust or depend
 	 * on the DPLL.
 	 */
-	crtc_funcs->mode_set(crtc, mode, adjusted_mode, x, y, old_fb);
+	ret = !crtc_funcs->mode_set(crtc, mode, adjusted_mode, x, y, old_fb);
+	if (!ret)
+	    goto done;
 
 	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
 
@@ -752,6 +754,8 @@ int drm_crtc_helper_set_config(struct drm_mode_set *set)
 			if (!drm_crtc_helper_set_mode(set->crtc, set->mode,
 						      set->x, set->y,
 						      old_fb)) {
+				DRM_ERROR("failed to set mode on crtc %p\n",
+					  set->crtc);
 				ret = -EINVAL;
 				goto fail_set_mode;
 			}
@@ -765,7 +769,10 @@ int drm_crtc_helper_set_config(struct drm_mode_set *set)
 		old_fb = set->crtc->fb;
 		if (set->crtc->fb != set->fb)
 			set->crtc->fb = set->fb;
-		crtc_funcs->mode_set_base(set->crtc, set->x, set->y, old_fb);
+		ret = crtc_funcs->mode_set_base(set->crtc,
+						set->x, set->y, old_fb);
+		if (ret != 0)
+		    goto fail_set_mode;
 	}
 
 	kfree(save_encoders);
@@ -775,8 +782,12 @@ int drm_crtc_helper_set_config(struct drm_mode_set *set)
 fail_set_mode:
 	set->crtc->enabled = save_enabled;
 	count = 0;
-	list_for_each_entry(connector, &dev->mode_config.connector_list, head)
+	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
+		if (!connector->encoder)
+			continue;
+
 		connector->encoder->crtc = save_crtcs[count++];
+	}
 fail_no_encoder:
 	kfree(save_crtcs);
 	count = 0;

@@ -2237,8 +2237,8 @@ static int tg3_set_power_state(struct tg3 *tp, pci_power_t state)
 			phyid = phydev->drv->phy_id & phydev->drv->phy_id_mask;
 			if (phyid != TG3_PHY_ID_BCMAC131) {
 				phyid &= TG3_PHY_OUI_MASK;
-				if (phyid == TG3_PHY_OUI_1 &&
-				    phyid == TG3_PHY_OUI_2 &&
+				if (phyid == TG3_PHY_OUI_1 ||
+				    phyid == TG3_PHY_OUI_2 ||
 				    phyid == TG3_PHY_OUI_3)
 					do_low_power = true;
 			}

@@ -157,7 +157,7 @@ enum {
 
 
 /* Firmware version we request when pulling the fw image file */
-#define I2400M_FW_VERSION "1.3"
+#define I2400M_FW_VERSION "1.4"
 
 
 /**

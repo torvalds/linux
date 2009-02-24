@@ -609,7 +609,7 @@ extern char *drm_get_dvi_i_subconnector_name(int val);
 extern char *drm_get_dvi_i_select_name(int val);
 extern char *drm_get_tv_subconnector_name(int val);
 extern char *drm_get_tv_select_name(int val);
-extern void drm_fb_release(struct file *filp);
+extern void drm_fb_release(struct drm_file *file_priv);
 extern int drm_mode_group_init_legacy_group(struct drm_device *dev, struct drm_mode_group *group);
 extern struct edid *drm_get_edid(struct drm_connector *connector,
 				 struct i2c_adapter *adapter);

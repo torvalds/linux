@@ -2352,6 +2352,17 @@ config ATL1E
 	  To compile this driver as a module, choose M here.  The module
 	  will be called atl1e.
 
+config ATL1C
+	tristate "Atheros L1C Gigabit Ethernet support (EXPERIMENTAL)"
+	depends on PCI && EXPERIMENTAL
+	select CRC32
+	select MII
+	help
+	  This driver supports the Atheros L1C gigabit ethernet adapter.
+
+	  To compile this driver as a module, choose M here.  The module
+	  will be called atl1c.
+
 config JME
 	tristate "JMicron(R) PCI-Express Gigabit Ethernet support"
 	depends on PCI
