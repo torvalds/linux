@@ -2301,6 +2301,7 @@ config UGETH_TX_ON_DEMAND
 config MV643XX_ETH
 	tristate "Marvell Discovery (643XX) and Orion ethernet support"
 	depends on MV64360 || MV64X60 || (PPC_MULTIPLATFORM && PPC32) || PLAT_ORION
+	select INET_LRO
 	select PHYLIB
 	help
 	  This driver supports the gigabit ethernet MACs in the
@@ -2309,16 +2310,6 @@ config MV643XX_ETH
 
 	  Some boards that use the Discovery chipset are the Momenco
 	  Ocelot C and Jaguar ATX and Pegasos II.
-
-config MV643XX_ETH_LRO
-	tristate "Marvell 643XX ethernet driver LRO support"
-	depends on MV643XX_ETH
-	select INET_LRO
-	help
-	  Say y here if you want to use Large Receive Offload for the
-	  mv643xx_eth driver.
-
-	  If in doubt, say N.
 
 config QLA3XXX
 	tristate "QLogic QLA3XXX Network Driver Support"
