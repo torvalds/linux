@@ -950,4 +950,6 @@ static inline void zd_mc_add_addr(struct zd_mc_hash *hash, u8 *addr)
 int zd_chip_set_multicast_hash(struct zd_chip *chip,
 	                       struct zd_mc_hash *hash);
 
+u64 zd_chip_get_tsf(struct zd_chip *chip);
+
 #endif /* _ZD_CHIP_H */
