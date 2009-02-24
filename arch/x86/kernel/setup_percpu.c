@@ -111,6 +111,133 @@ static void * __init pcpu_alloc_bootmem(unsigned int cpu, unsigned long size,
 }
 
 /*
+ * Remap allocator
+ *
+ * This allocator uses PMD page as unit.  A PMD page is allocated for
+ * each cpu and each is remapped into vmalloc area using PMD mapping.
+ * As PMD page is quite large, only part of it is used for the first
+ * chunk.  Unused part is returned to the bootmem allocator.
+ *
+ * So, the PMD pages are mapped twice - once to the physical mapping
+ * and to the vmalloc area for the first percpu chunk.  The double
+ * mapping does add one more PMD TLB entry pressure but still is much
+ * better than only using 4k mappings while still being NUMA friendly.
+ */
+#ifdef CONFIG_NEED_MULTIPLE_NODES
+static size_t pcpur_size __initdata;
+static void **pcpur_ptrs __initdata;
+
+static struct page * __init pcpur_get_page(unsigned int cpu, int pageno)
+{
+	size_t off = (size_t)pageno << PAGE_SHIFT;
+
+	if (off >= pcpur_size)
+		return NULL;
+
+	return virt_to_page(pcpur_ptrs[cpu] + off);
+}
+
+static ssize_t __init setup_pcpu_remap(size_t static_size)
+{
+	static struct vm_struct vm;
+	pg_data_t *last;
+	size_t ptrs_size;
+	unsigned int cpu;
+	ssize_t ret;
+
+	/*
+	 * If large page isn't supported, there's no benefit in doing
+	 * this.  Also, on non-NUMA, embedding is better.
+	 */
+	if (!cpu_has_pse || pcpu_need_numa())
+		return -EINVAL;
+
+	last = NULL;
+	for_each_possible_cpu(cpu) {
+		int node = early_cpu_to_node(cpu);
+
+		if (node_online(node) && NODE_DATA(node) &&
+		    last && last != NODE_DATA(node))
+			goto proceed;
+
+		last = NODE_DATA(node);
+	}
+	return -EINVAL;
+
+proceed:
+	/*
+	 * Currently supports only single page.  Supporting multiple
+	 * pages won't be too difficult if it ever becomes necessary.
+	 */
+	pcpur_size = PFN_ALIGN(static_size + PERCPU_DYNAMIC_RESERVE);
+	if (pcpur_size > PMD_SIZE) {
+		pr_warning("PERCPU: static data is larger than large page, "
+			   "can't use large page\n");
+		return -EINVAL;
+	}
+
+	/* allocate pointer array and alloc large pages */
+	ptrs_size = PFN_ALIGN(num_possible_cpus() * sizeof(pcpur_ptrs[0]));
+	pcpur_ptrs = alloc_bootmem(ptrs_size);
+
+	for_each_possible_cpu(cpu) {
+		pcpur_ptrs[cpu] = pcpu_alloc_bootmem(cpu, PMD_SIZE, PMD_SIZE);
+		if (!pcpur_ptrs[cpu])
+			goto enomem;
+
+		/*
+		 * Only use pcpur_size bytes and give back the rest.
+		 *
+		 * Ingo: The 2MB up-rounding bootmem is needed to make
+		 * sure the partial 2MB page is still fully RAM - it's
+		 * not well-specified to have a PAT-incompatible area
+		 * (unmapped RAM, device memory, etc.) in that hole.
+		 */
+		free_bootmem(__pa(pcpur_ptrs[cpu] + pcpur_size),
+			     PMD_SIZE - pcpur_size);
+
+		memcpy(pcpur_ptrs[cpu], __per_cpu_load, static_size);
+	}
+
+	/* allocate address and map */
+	vm.flags = VM_ALLOC;
+	vm.size = num_possible_cpus() * PMD_SIZE;
+	vm_area_register_early(&vm, PMD_SIZE);
+
+	for_each_possible_cpu(cpu) {
+		pmd_t *pmd;
+
+		pmd = populate_extra_pmd((unsigned long)vm.addr
+					 + cpu * PMD_SIZE);
+		set_pmd(pmd, pfn_pmd(page_to_pfn(virt_to_page(pcpur_ptrs[cpu])),
+				     PAGE_KERNEL_LARGE));
+	}
+
+	/* we're ready, commit */
+	pr_info("PERCPU: Remapped at %p with large pages, static data "
+		"%zu bytes\n", vm.addr, static_size);
+
+	ret = pcpu_setup_first_chunk(pcpur_get_page, static_size, PMD_SIZE,
+				     pcpur_size - static_size, vm.addr, NULL);
+	goto out_free_ar;
+
+enomem:
+	for_each_possible_cpu(cpu)
+		if (pcpur_ptrs[cpu])
+			free_bootmem(__pa(pcpur_ptrs[cpu]), PMD_SIZE);
+	ret = -ENOMEM;
+out_free_ar:
+	free_bootmem(__pa(pcpur_ptrs), ptrs_size);
+	return ret;
+}
+#else
+static ssize_t __init setup_pcpu_remap(size_t static_size)
+{
+	return -EINVAL;
+}
+#endif
+
+/*
  * Embedding allocator
  *
  * The first chunk is sized to just contain the static area plus
@@ -259,8 +386,14 @@ void __init setup_per_cpu_areas(void)
 	pr_info("NR_CPUS:%d nr_cpumask_bits:%d nr_cpu_ids:%d nr_node_ids:%d\n",
 		NR_CPUS, nr_cpumask_bits, nr_cpu_ids, nr_node_ids);
 
-	/* allocate percpu area */
-	ret = setup_pcpu_embed(static_size);
+	/*
+	 * Allocate percpu area.  If PSE is supported, try to make use
+	 * of large page mappings.  Please read comments on top of
+	 * each allocator for details.
+	 */
+	ret = setup_pcpu_remap(static_size);
+	if (ret < 0)
+		ret = setup_pcpu_embed(static_size);
 	if (ret < 0)
 		ret = setup_pcpu_4k(static_size);
 	if (ret < 0)
