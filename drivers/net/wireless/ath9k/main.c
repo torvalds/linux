@@ -2145,6 +2145,7 @@ static int ath9k_add_interface(struct ieee80211_hw *hw,
 	default:
 		DPRINTF(sc, ATH_DBG_FATAL,
 			"Interface type %d not yet supported\n", conf->type);
+		mutex_unlock(&sc->mutex);
 		return -EOPNOTSUPP;
 	}
 
