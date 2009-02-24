@@ -807,9 +807,6 @@ int omap2_clk_set_parent(struct clk *clk, struct clk *new_parent)
 	if (!parent_div)
 		return -EINVAL;
 
-	if (clk->usecount > 0)
-		_omap2_clk_disable(clk);
-
 	/* Set new source value (previous dividers if any in effect) */
 	v = __raw_readl(clk->clksel_reg);
 	v &= ~clk->clksel_mask;
@@ -818,9 +815,6 @@ int omap2_clk_set_parent(struct clk *clk, struct clk *new_parent)
 	v = __raw_readl(clk->clksel_reg);    /* OCP barrier */
 
 	_omap2xxx_clk_commit(clk);
-
-	if (clk->usecount > 0)
-		_omap2_clk_enable(clk);
 
 	clk_reparent(clk, new_parent);
 
