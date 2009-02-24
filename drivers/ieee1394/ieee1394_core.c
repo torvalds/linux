@@ -1314,6 +1314,7 @@ EXPORT_SYMBOL(hpsb_make_lock64packet);
 EXPORT_SYMBOL(hpsb_make_phypacket);
 EXPORT_SYMBOL(hpsb_read);
 EXPORT_SYMBOL(hpsb_write);
+EXPORT_SYMBOL(hpsb_lock);
 EXPORT_SYMBOL(hpsb_packet_success);
 
 /** highlevel.c **/

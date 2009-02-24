@@ -12,6 +12,7 @@
 
 #include <asm/types.h>
 
+struct file;
 struct pci_dev;
 struct scatterlist;
 struct vm_area_struct;
