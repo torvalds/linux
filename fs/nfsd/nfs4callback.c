@@ -415,6 +415,22 @@ static void warn_no_callback_path(struct nfs4_client *clp, int reason)
 		(int)clp->cl_name.len, clp->cl_name.data, reason);
 }
 
+static struct rpc_cred *lookup_cb_cred(struct nfs4_callback *cb)
+{
+	struct auth_cred acred = {
+		.machine_cred = 1
+	};
+
+	/*
+	 * Note in the gss case this doesn't actually have to wait for a
+	 * gss upcall (or any calls to the client); this just creates a
+	 * non-uptodate cred which the rpc state machine will fill in with
+	 * a refresh_upcall later.
+	 */
+	return rpcauth_lookup_credcache(cb->cb_client->cl_auth, &acred,
+							RPCAUTH_LOOKUP_NEW);
+}
+
 static int do_probe_callback(void *data)
 {
 	struct nfs4_client *clp = data;
@@ -423,9 +439,18 @@ static int do_probe_callback(void *data)
 		.rpc_proc       = &nfs4_cb_procedures[NFSPROC4_CLNT_CB_NULL],
 		.rpc_argp       = clp,
 	};
+	struct rpc_cred *cred;
 	int status;
 
+	cred = lookup_cb_cred(cb);
+	if (IS_ERR(cred)) {
+		status = PTR_ERR(cred);
+		goto out;
+	}
+	cb->cb_cred = cred;
+	msg.rpc_cred = cb->cb_cred;
 	status = rpc_call_sync(cb->cb_client, &msg, RPC_TASK_SOFT);
+out:
 	if (status)
 		warn_no_callback_path(clp, status);
 	else
@@ -475,6 +500,7 @@ nfsd4_cb_recall(struct nfs4_delegation *dp)
 	struct rpc_message msg = {
 		.rpc_proc = &nfs4_cb_procedures[NFSPROC4_CLNT_CB_RECALL],
 		.rpc_argp = cbr,
+		.rpc_cred = clp->cl_callback.cb_cred
 	};
 	int retries = 1;
 	int status = 0;

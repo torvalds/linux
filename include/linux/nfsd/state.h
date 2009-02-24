@@ -97,6 +97,7 @@ struct nfs4_callback {
 	/* RPC client info */
 	atomic_t		cb_set;     /* successful CB_NULL call */
 	struct rpc_clnt *       cb_client;
+	struct rpc_cred	*	cb_cred;
 };
 
 /* Maximum number of slots per session. 128 is useful for long haul TCP */

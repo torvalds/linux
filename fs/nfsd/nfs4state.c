@@ -643,6 +643,10 @@ shutdown_callback_client(struct nfs4_client *clp)
 		clp->cl_callback.cb_client = NULL;
 		rpc_shutdown_client(clnt);
 	}
+	if (clp->cl_callback.cb_cred) {
+		put_rpccred(clp->cl_callback.cb_cred);
+		clp->cl_callback.cb_cred = NULL;
+	}
 }
 
 static inline void
