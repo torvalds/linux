@@ -613,8 +613,7 @@ static bool sxg_download_microcode(struct adapter_t *adapter,
  */
 static int sxg_allocate_resources(struct adapter_t *adapter)
 {
-	int status;
-	u32 i;
+	int status = STATUS_SUCCESS;
 	u32 RssIds, IsrCount;
 	/* struct sxg_xmt_ring	*XmtRing; */
 	/* struct sxg_rcv_ring	*RcvRing; */
@@ -735,30 +734,6 @@ static int sxg_allocate_resources(struct adapter_t *adapter)
 	       (adapter->ReceiveBufferSize == SXG_RCV_JUMBO_BUFFER_SIZE)); */
 	ASSERT(sizeof(struct sxg_rcv_descriptor_block) ==
 	       SXG_RCV_DESCRIPTOR_BLOCK_SIZE);
-
-	/*
-	 * Allocate receive data buffers.  We allocate a block of buffers and
-	 * a corresponding descriptor block at once.  See sxghw.h:SXG_RCV_BLOCK
-	 */
-	for (i = 0; i < SXG_INITIAL_RCV_DATA_BUFFERS;
-				i += SXG_RCV_DESCRIPTORS_PER_BLOCK) {
-			status = sxg_allocate_buffer_memory(adapter,
-				SXG_RCV_BLOCK_SIZE(SXG_RCV_DATA_HDR_SIZE),
-					   SXG_BUFFER_TYPE_RCV);
-			if (status != STATUS_SUCCESS)
-				return status;
-	}
-	/*
-	 * NBL resource allocation can fail in the 'AllocateComplete' routine,
-	 * which doesn't return status.  Make sure we got the number of buffers
-	 * we requested
-	 */
-	if (adapter->FreeRcvBufferCount < SXG_INITIAL_RCV_DATA_BUFFERS) {
-		SXG_TRACE(TRACE_SXG, SxgTraceBuffer, TRACE_NOISY, "XAResF6",
-			  adapter, adapter->FreeRcvBufferCount, SXG_MAX_ENTRIES,
-			  0);
-		return (STATUS_RESOURCES);
-	}
 
 	DBG_ERROR("%s Allocate EventRings size[%x]\n", __func__,
 		  (unsigned int)(sizeof(struct sxg_event_ring) * RssIds));
