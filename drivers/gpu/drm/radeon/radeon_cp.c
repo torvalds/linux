@@ -43,7 +43,7 @@
 static int radeon_do_cleanup_cp(struct drm_device * dev);
 static void radeon_do_cp_start(drm_radeon_private_t * dev_priv);
 
-static u32 radeon_read_ring_rptr(drm_radeon_private_t *dev_priv, u32 off)
+u32 radeon_read_ring_rptr(drm_radeon_private_t *dev_priv, u32 off)
 {
 	u32 val;
 
@@ -62,11 +62,15 @@ u32 radeon_get_ring_head(drm_radeon_private_t *dev_priv)
 {
 	if (dev_priv->writeback_works)
 		return radeon_read_ring_rptr(dev_priv, 0);
-	else
-		return RADEON_READ(RADEON_CP_RB_RPTR);
+	else {
+		if ((dev_priv->flags & RADEON_FAMILY_MASK) >= CHIP_R600)
+			return RADEON_READ(R600_CP_RB_RPTR);
+		else
+			return RADEON_READ(RADEON_CP_RB_RPTR);
+	}
 }
 
-static void radeon_write_ring_rptr(drm_radeon_private_t *dev_priv, u32 off, u32 val)
+void radeon_write_ring_rptr(drm_radeon_private_t *dev_priv, u32 off, u32 val)
 {
 	if (dev_priv->flags & RADEON_IS_AGP)
 		DRM_WRITE32(dev_priv->ring_rptr, off, val);
@@ -82,11 +86,19 @@ void radeon_set_ring_head(drm_radeon_private_t *dev_priv, u32 val)
 
 u32 radeon_get_scratch(drm_radeon_private_t *dev_priv, int index)
 {
-	if (dev_priv->writeback_works)
-		return radeon_read_ring_rptr(dev_priv,
-					     RADEON_SCRATCHOFF(index));
-	else
-		return RADEON_READ(RADEON_SCRATCH_REG0 + 4*index);
+	if (dev_priv->writeback_works) {
+		if ((dev_priv->flags & RADEON_FAMILY_MASK) >= CHIP_R600)
+			return radeon_read_ring_rptr(dev_priv,
+						     R600_SCRATCHOFF(index));
+		else
+			return radeon_read_ring_rptr(dev_priv,
+						     RADEON_SCRATCHOFF(index));
+	} else {
+		if ((dev_priv->flags & RADEON_FAMILY_MASK) >= CHIP_R600)
+			return RADEON_READ(R600_SCRATCH_REG0 + 4*index);
+		else
+			return RADEON_READ(RADEON_SCRATCH_REG0 + 4*index);
+	}
 }
 
 u32 RADEON_READ_MM(drm_radeon_private_t *dev_priv, int addr)
@@ -142,7 +154,11 @@ static u32 IGP_READ_MCIND(drm_radeon_private_t *dev_priv, int addr)
 u32 radeon_read_fb_location(drm_radeon_private_t *dev_priv)
 {
 
-	if ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RV515)
+	if ((dev_priv->flags & RADEON_FAMILY_MASK) >= CHIP_RV770)
+		return RADEON_READ(R700_MC_VM_FB_LOCATION);
+	else if ((dev_priv->flags & RADEON_FAMILY_MASK) >= CHIP_R600)
+		return RADEON_READ(R600_MC_VM_FB_LOCATION);
+	else if ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RV515)
 		return R500_READ_MCIND(dev_priv, RV515_MC_FB_LOCATION);
 	else if (((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RS690) ||
 		 ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RS740))
@@ -155,7 +171,11 @@ u32 radeon_read_fb_location(drm_radeon_private_t *dev_priv)
 
 static void radeon_write_fb_location(drm_radeon_private_t *dev_priv, u32 fb_loc)
 {
-	if ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RV515)
+	if ((dev_priv->flags & RADEON_FAMILY_MASK) >= CHIP_RV770)
+		RADEON_WRITE(R700_MC_VM_FB_LOCATION, fb_loc);
+	else if ((dev_priv->flags & RADEON_FAMILY_MASK) >= CHIP_R600)
+		RADEON_WRITE(R600_MC_VM_FB_LOCATION, fb_loc);
+	else if ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RV515)
 		R500_WRITE_MCIND(RV515_MC_FB_LOCATION, fb_loc);
 	else if (((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RS690) ||
 		 ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RS740))
@@ -166,9 +186,16 @@ static void radeon_write_fb_location(drm_radeon_private_t *dev_priv, u32 fb_loc)
 		RADEON_WRITE(RADEON_MC_FB_LOCATION, fb_loc);
 }
 
-static void radeon_write_agp_location(drm_radeon_private_t *dev_priv, u32 agp_loc)
+void radeon_write_agp_location(drm_radeon_private_t *dev_priv, u32 agp_loc)
 {
-	if ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RV515)
+	/*R6xx/R7xx: AGP_TOP and BOT are actually 18 bits each */
+	if ((dev_priv->flags & RADEON_FAMILY_MASK) >= CHIP_RV770) {
+		RADEON_WRITE(R700_MC_VM_AGP_BOT, agp_loc & 0xffff); /* FIX ME */
+		RADEON_WRITE(R700_MC_VM_AGP_TOP, (agp_loc >> 16) & 0xffff);
+	} else if ((dev_priv->flags & RADEON_FAMILY_MASK) >= CHIP_R600) {
+		RADEON_WRITE(R600_MC_VM_AGP_BOT, agp_loc & 0xffff); /* FIX ME */
+		RADEON_WRITE(R600_MC_VM_AGP_TOP, (agp_loc >> 16) & 0xffff);
+	} else if ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RV515)
 		R500_WRITE_MCIND(RV515_MC_AGP_LOCATION, agp_loc);
 	else if (((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RS690) ||
 		 ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RS740))
@@ -179,12 +206,18 @@ static void radeon_write_agp_location(drm_radeon_private_t *dev_priv, u32 agp_lo
 		RADEON_WRITE(RADEON_MC_AGP_LOCATION, agp_loc);
 }
 
-static void radeon_write_agp_base(drm_radeon_private_t *dev_priv, u64 agp_base)
+void radeon_write_agp_base(drm_radeon_private_t *dev_priv, u64 agp_base)
 {
 	u32 agp_base_hi = upper_32_bits(agp_base);
 	u32 agp_base_lo = agp_base & 0xffffffff;
+	u32 r6xx_agp_base = (agp_base >> 22) & 0x3ffff;
 
-	if ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RV515) {
+	/* R6xx/R7xx must be aligned to a 4MB boundry */
+	if ((dev_priv->flags & RADEON_FAMILY_MASK) >= CHIP_RV770)
+		RADEON_WRITE(R700_MC_VM_AGP_BASE, r6xx_agp_base);
+	else if ((dev_priv->flags & RADEON_FAMILY_MASK) >= CHIP_R600)
+		RADEON_WRITE(R600_MC_VM_AGP_BASE, r6xx_agp_base);
+	else if ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RV515) {
 		R500_WRITE_MCIND(RV515_MC_AGP_BASE, agp_base_lo);
 		R500_WRITE_MCIND(RV515_MC_AGP_BASE_2, agp_base_hi);
 	} else if (((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RS690) ||
@@ -205,7 +238,7 @@ static void radeon_write_agp_base(drm_radeon_private_t *dev_priv, u64 agp_base)
 	}
 }
 
-static void radeon_enable_bm(struct drm_radeon_private *dev_priv)
+void radeon_enable_bm(struct drm_radeon_private *dev_priv)
 {
 	u32 tmp;
 	/* Turn on bus mastering */
@@ -1440,6 +1473,7 @@ static int radeon_do_resume_cp(struct drm_device *dev, struct drm_file *file_pri
 
 int radeon_cp_init(struct drm_device *dev, void *data, struct drm_file *file_priv)
 {
+	drm_radeon_private_t *dev_priv = dev->dev_private;
 	drm_radeon_init_t *init = data;
 
 	LOCK_TEST_WITH_RETURN(dev, file_priv);
@@ -1452,8 +1486,13 @@ int radeon_cp_init(struct drm_device *dev, void *data, struct drm_file *file_pri
 	case RADEON_INIT_R200_CP:
 	case RADEON_INIT_R300_CP:
 		return radeon_do_init_cp(dev, init, file_priv);
+	case RADEON_INIT_R600_CP:
+		return r600_do_init_cp(dev, init, file_priv);
 	case RADEON_CLEANUP_CP:
-		return radeon_do_cleanup_cp(dev);
+		if ((dev_priv->flags & RADEON_FAMILY_MASK) >= CHIP_R600)
+			return r600_do_cleanup_cp(dev);
+		else
+			return radeon_do_cleanup_cp(dev);
 	}
 
 	return -EINVAL;
@@ -1476,7 +1515,10 @@ int radeon_cp_start(struct drm_device *dev, void *data, struct drm_file *file_pr
 		return 0;
 	}
 
-	radeon_do_cp_start(dev_priv);
+	if ((dev_priv->flags & RADEON_FAMILY_MASK) >= CHIP_R600)
+		r600_do_cp_start(dev_priv);
+	else
+		radeon_do_cp_start(dev_priv);
 
 	return 0;
 }
@@ -1507,7 +1549,10 @@ int radeon_cp_stop(struct drm_device *dev, void *data, struct drm_file *file_pri
 	 * code so that the DRM ioctl wrapper can try again.
 	 */
 	if (stop->idle) {
-		ret = radeon_do_cp_idle(dev_priv);
+		if ((dev_priv->flags & RADEON_FAMILY_MASK) >= CHIP_R600)
+			ret = r600_do_cp_idle(dev_priv);
+		else
+			ret = radeon_do_cp_idle(dev_priv);
 		if (ret)
 			return ret;
 	}
@@ -1516,10 +1561,16 @@ int radeon_cp_stop(struct drm_device *dev, void *data, struct drm_file *file_pri
 	 * we will get some dropped triangles as they won't be fully
 	 * rendered before the CP is shut down.
 	 */
-	radeon_do_cp_stop(dev_priv);
+	if ((dev_priv->flags & RADEON_FAMILY_MASK) >= CHIP_R600)
+		r600_do_cp_stop(dev_priv);
+	else
+		radeon_do_cp_stop(dev_priv);
 
 	/* Reset the engine */
-	radeon_do_engine_reset(dev);
+	if ((dev_priv->flags & RADEON_FAMILY_MASK) >= CHIP_R600)
+		r600_do_engine_reset(dev);
+	else
+		radeon_do_engine_reset(dev);
 
 	return 0;
 }
@@ -1532,29 +1583,47 @@ void radeon_do_release(struct drm_device * dev)
 	if (dev_priv) {
 		if (dev_priv->cp_running) {
 			/* Stop the cp */
-			while ((ret = radeon_do_cp_idle(dev_priv)) != 0) {
-				DRM_DEBUG("radeon_do_cp_idle %d\n", ret);
+			if ((dev_priv->flags & RADEON_FAMILY_MASK) < CHIP_R600) {
+				while ((ret = r600_do_cp_idle(dev_priv)) != 0) {
+					DRM_DEBUG("radeon_do_cp_idle %d\n", ret);
 #ifdef __linux__
-				schedule();
+					schedule();
 #else
-				tsleep(&ret, PZERO, "rdnrel", 1);
+					tsleep(&ret, PZERO, "rdnrel", 1);
 #endif
+				}
+			} else {
+				while ((ret = radeon_do_cp_idle(dev_priv)) != 0) {
+					DRM_DEBUG("radeon_do_cp_idle %d\n", ret);
+#ifdef __linux__
+					schedule();
+#else
+					tsleep(&ret, PZERO, "rdnrel", 1);
+#endif
+				}
 			}
-			radeon_do_cp_stop(dev_priv);
-			radeon_do_engine_reset(dev);
+			if ((dev_priv->flags & RADEON_FAMILY_MASK) >= CHIP_R600) {
+				r600_do_cp_stop(dev_priv);
+				r600_do_engine_reset(dev);
+			} else {
+				radeon_do_cp_stop(dev_priv);
+				radeon_do_engine_reset(dev);
+			}
 		}
 
-		/* Disable *all* interrupts */
-		if (dev_priv->mmio)	/* remove this after permanent addmaps */
-			RADEON_WRITE(RADEON_GEN_INT_CNTL, 0);
+		if ((dev_priv->flags & RADEON_FAMILY_MASK) < CHIP_R600) {
+			/* Disable *all* interrupts */
+			if (dev_priv->mmio)	/* remove this after permanent addmaps */
+				RADEON_WRITE(RADEON_GEN_INT_CNTL, 0);
 
-		if (dev_priv->mmio) {	/* remove all surfaces */
-			for (i = 0; i < RADEON_MAX_SURFACES; i++) {
-				RADEON_WRITE(RADEON_SURFACE0_INFO + 16 * i, 0);
-				RADEON_WRITE(RADEON_SURFACE0_LOWER_BOUND +
-					     16 * i, 0);
-				RADEON_WRITE(RADEON_SURFACE0_UPPER_BOUND +
-					     16 * i, 0);
+			if (dev_priv->mmio) {	/* remove all surfaces */
+				for (i = 0; i < RADEON_MAX_SURFACES; i++) {
+					RADEON_WRITE(RADEON_SURFACE0_INFO + 16 * i, 0);
+					RADEON_WRITE(RADEON_SURFACE0_LOWER_BOUND +
+						     16 * i, 0);
+					RADEON_WRITE(RADEON_SURFACE0_UPPER_BOUND +
+						     16 * i, 0);
+				}
 			}
 		}
 
@@ -1563,7 +1632,10 @@ void radeon_do_release(struct drm_device * dev)
 		radeon_mem_takedown(&(dev_priv->fb_heap));
 
 		/* deallocate kernel resources */
-		radeon_do_cleanup_cp(dev);
+		if ((dev_priv->flags & RADEON_FAMILY_MASK) >= CHIP_R600)
+			r600_do_cleanup_cp(dev);
+		else
+			radeon_do_cleanup_cp(dev);
 	}
 }
 
@@ -1581,7 +1653,10 @@ int radeon_cp_reset(struct drm_device *dev, void *data, struct drm_file *file_pr
 		return -EINVAL;
 	}
 
-	radeon_do_cp_reset(dev_priv);
+	if ((dev_priv->flags & RADEON_FAMILY_MASK) >= CHIP_R600)
+		r600_do_cp_reset(dev_priv);
+	else
+		radeon_do_cp_reset(dev_priv);
 
 	/* The CP is no longer running after an engine reset */
 	dev_priv->cp_running = 0;
@@ -1596,23 +1671,36 @@ int radeon_cp_idle(struct drm_device *dev, void *data, struct drm_file *file_pri
 
 	LOCK_TEST_WITH_RETURN(dev, file_priv);
 
-	return radeon_do_cp_idle(dev_priv);
+	if ((dev_priv->flags & RADEON_FAMILY_MASK) >= CHIP_R600)
+		return r600_do_cp_idle(dev_priv);
+	else
+		return radeon_do_cp_idle(dev_priv);
 }
 
 /* Added by Charl P. Botha to call radeon_do_resume_cp().
  */
 int radeon_cp_resume(struct drm_device *dev, void *data, struct drm_file *file_priv)
 {
-	return radeon_do_resume_cp(dev, file_priv);
+	drm_radeon_private_t *dev_priv = dev->dev_private;
+	DRM_DEBUG("\n");
+
+	if ((dev_priv->flags & RADEON_FAMILY_MASK) >= CHIP_R600)
+		return r600_do_resume_cp(dev, file_priv);
+	else
+		return radeon_do_resume_cp(dev, file_priv);
 }
 
 int radeon_engine_reset(struct drm_device *dev, void *data, struct drm_file *file_priv)
 {
+	drm_radeon_private_t *dev_priv = dev->dev_private;
 	DRM_DEBUG("\n");
 
 	LOCK_TEST_WITH_RETURN(dev, file_priv);
 
-	return radeon_do_engine_reset(dev);
+	if ((dev_priv->flags & RADEON_FAMILY_MASK) >= CHIP_R600)
+		return r600_do_engine_reset(dev);
+	else
+		return radeon_do_engine_reset(dev);
 }
 
 /* ================================================================
@@ -1997,7 +2085,13 @@ void radeon_commit_ring(drm_radeon_private_t *dev_priv)
 	DRM_MEMORYBARRIER();
 	GET_RING_HEAD( dev_priv );
 
-	RADEON_WRITE( RADEON_CP_RB_WPTR, dev_priv->ring.tail );
-	/* read from PCI bus to ensure correct posting */
-	RADEON_READ( RADEON_CP_RB_RPTR );
+	if ((dev_priv->flags & RADEON_FAMILY_MASK) >= CHIP_R600) {
+		RADEON_WRITE(R600_CP_RB_WPTR, dev_priv->ring.tail);
+		/* read from PCI bus to ensure correct posting */
+		RADEON_READ(R600_CP_RB_RPTR);
+	} else {
+		RADEON_WRITE(RADEON_CP_RB_WPTR, dev_priv->ring.tail);
+		/* read from PCI bus to ensure correct posting */
+		RADEON_READ(RADEON_CP_RB_RPTR);
+	}
 }

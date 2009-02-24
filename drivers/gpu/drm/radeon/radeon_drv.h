@@ -396,6 +396,8 @@ extern int radeon_engine_reset(struct drm_device *dev, void *data, struct drm_fi
 extern int radeon_fullscreen(struct drm_device *dev, void *data, struct drm_file *file_priv);
 extern int radeon_cp_buffers(struct drm_device *dev, void *data, struct drm_file *file_priv);
 extern u32 radeon_read_fb_location(drm_radeon_private_t *dev_priv);
+extern void radeon_write_agp_location(drm_radeon_private_t *dev_priv, u32 agp_loc);
+extern void radeon_write_agp_base(drm_radeon_private_t *dev_priv, u64 agp_base);
 extern u32 RADEON_READ_MM(drm_radeon_private_t *dev_priv, int addr);
 
 extern void radeon_freelist_reset(struct drm_device * dev);
@@ -415,6 +417,10 @@ extern int radeon_mem_init_heap(struct drm_device *dev, void *data, struct drm_f
 extern void radeon_mem_takedown(struct mem_block **heap);
 extern void radeon_mem_release(struct drm_file *file_priv,
 			       struct mem_block *heap);
+
+extern void radeon_enable_bm(struct drm_radeon_private *dev_priv);
+extern u32 radeon_read_ring_rptr(drm_radeon_private_t *dev_priv, u32 off);
+extern void radeon_write_ring_rptr(drm_radeon_private_t *dev_priv, u32 off, u32 val);
 
 				/* radeon_irq.c */
 extern void radeon_irq_set_state(struct drm_device *dev, u32 mask, int state);
@@ -455,6 +461,19 @@ extern void r300_init_reg_flags(struct drm_device *dev);
 extern int r300_do_cp_cmdbuf(struct drm_device *dev,
 			     struct drm_file *file_priv,
 			     drm_radeon_kcmd_buffer_t *cmdbuf);
+
+/* r600_cp.c */
+extern int r600_do_engine_reset(struct drm_device *dev);
+extern int r600_do_cleanup_cp(struct drm_device *dev);
+extern int r600_do_init_cp(struct drm_device *dev, drm_radeon_init_t *init,
+			   struct drm_file *file_priv);
+extern int r600_do_resume_cp(struct drm_device *dev, struct drm_file *file_priv);
+extern int r600_do_cp_idle(drm_radeon_private_t *dev_priv);
+extern void r600_do_cp_start(drm_radeon_private_t *dev_priv);
+extern void r600_do_cp_reset(drm_radeon_private_t *dev_priv);
+extern void r600_do_cp_stop(drm_radeon_private_t *dev_priv);
+extern int r600_cp_dispatch_indirect(struct drm_device *dev,
+				     struct drm_buf *buf, int start, int end);
 
 /* Flags for stats.boxes
  */
@@ -1832,7 +1851,11 @@ do {								\
 	struct drm_radeon_master_private *master_priv = file_priv->master->driver_priv;	\
 	drm_radeon_sarea_t *sarea_priv = master_priv->sarea_priv;	\
 	if ( sarea_priv->last_dispatch >= RADEON_MAX_VB_AGE ) {		\
-		int __ret = radeon_do_cp_idle( dev_priv );		\
+		int __ret;						\
+		if ((dev_priv->flags & RADEON_FAMILY_MASK) >= CHIP_R600) \
+			__ret = r600_do_cp_idle(dev_priv);		\
+		else							\
+			__ret = radeon_do_cp_idle(dev_priv);		\
 		if ( __ret ) return __ret;				\
 		sarea_priv->last_dispatch = 0;				\
 		radeon_freelist_reset( dev );				\
