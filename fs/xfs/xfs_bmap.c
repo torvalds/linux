@@ -5890,12 +5890,13 @@ xfs_getbmap(
 	int			nexleft;	/* # of user extents left */
 	int			subnex;		/* # of bmapi's can do */
 	int			nmap;		/* number of map entries */
-	struct getbmapx		out;		/* output structure */
+	struct getbmapx		*out;		/* output structure */
 	int			whichfork;	/* data or attr fork */
 	int			prealloced;	/* this is a file with
 						 * preallocated data space */
 	int			iflags;		/* interface flags */
 	int			bmapi_flags;	/* flags for xfs_bmapi */
+	int			cur_ext = 0;
 
 	mp = ip->i_mount;
 	iflags = bmv->bmv_iflags;
@@ -5971,6 +5972,13 @@ xfs_getbmap(
 		return XFS_ERROR(EINVAL);
 	bmvend = bmv->bmv_offset + bmv->bmv_length;
 
+
+	if (bmv->bmv_count > ULONG_MAX / sizeof(struct getbmapx))
+		return XFS_ERROR(ENOMEM);
+	out = kmem_zalloc(bmv->bmv_count * sizeof(struct getbmapx), KM_MAYFAIL);
+	if (!out)
+		return XFS_ERROR(ENOMEM);
+
 	xfs_ilock(ip, XFS_IOLOCK_SHARED);
 	if (whichfork == XFS_DATA_FORK && !(iflags & BMV_IF_DELALLOC)) {
 		if (ip->i_delayed_blks || ip->i_size > ip->i_d.di_size) {
@@ -6025,39 +6033,39 @@ xfs_getbmap(
 		ASSERT(nmap <= subnex);
 
 		for (i = 0; i < nmap && nexleft && bmv->bmv_length; i++) {
-			int full = 0;	/* user array is full */
-
-			out.bmv_oflags = 0;
+			out[cur_ext].bmv_oflags = 0;
 			if (map[i].br_state == XFS_EXT_UNWRITTEN)
-				out.bmv_oflags |= BMV_OF_PREALLOC;
+				out[cur_ext].bmv_oflags |= BMV_OF_PREALLOC;
 			else if (map[i].br_startblock == DELAYSTARTBLOCK)
-				out.bmv_oflags |= BMV_OF_DELALLOC;
-			out.bmv_offset = XFS_FSB_TO_BB(mp, map[i].br_startoff);
-			out.bmv_length = XFS_FSB_TO_BB(mp, map[i].br_blockcount);
-			out.bmv_unused1 = out.bmv_unused2 = 0;
+				out[cur_ext].bmv_oflags |= BMV_OF_DELALLOC;
+			out[cur_ext].bmv_offset =
+				XFS_FSB_TO_BB(mp, map[i].br_startoff);
+			out[cur_ext].bmv_length =
+				XFS_FSB_TO_BB(mp, map[i].br_blockcount);
+			out[cur_ext].bmv_unused1 = 0;
+			out[cur_ext].bmv_unused2 = 0;
 			ASSERT(((iflags & BMV_IF_DELALLOC) != 0) ||
 			      (map[i].br_startblock != DELAYSTARTBLOCK));
                         if (map[i].br_startblock == HOLESTARTBLOCK &&
 			    whichfork == XFS_ATTR_FORK) {
 				/* came to the end of attribute fork */
-				out.bmv_oflags |= BMV_OF_LAST;
+				out[cur_ext].bmv_oflags |= BMV_OF_LAST;
 				goto out_free_map;
 			}
 
-			if (!xfs_getbmapx_fix_eof_hole(ip, &out, prealloced,
-					bmvend, map[i].br_startblock))
+			if (!xfs_getbmapx_fix_eof_hole(ip, &out[cur_ext],
+					prealloced, bmvend,
+					map[i].br_startblock))
 				goto out_free_map;
 
-			/* format results & advance arg */
-			error = formatter(&arg, &out, &full);
-			if (error || full)
-				goto out_free_map;
 			nexleft--;
 			bmv->bmv_offset =
-				out.bmv_offset + out.bmv_length;
+				out[cur_ext].bmv_offset +
+				out[cur_ext].bmv_length;
 			bmv->bmv_length =
 				max_t(__int64_t, 0, bmvend - bmv->bmv_offset);
 			bmv->bmv_entries++;
+			cur_ext++;
 		}
 	} while (nmap && nexleft && bmv->bmv_length);
 
@@ -6067,6 +6075,16 @@ xfs_getbmap(
 	xfs_iunlock_map_shared(ip, lock);
  out_unlock_iolock:
 	xfs_iunlock(ip, XFS_IOLOCK_SHARED);
+
+	for (i = 0; i < cur_ext; i++) {
+		int full = 0;	/* user array is full */
+
+		/* format results & advance arg */
+		error = formatter(&arg, &out[i], &full);
+		if (error || full)
+			break;
+	}
+
 	return error;
 }
 
