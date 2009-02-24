@@ -26,6 +26,10 @@ MODULE_DESCRIPTION("Support for Atheros 802.11n wireless LAN cards.");
 MODULE_SUPPORTED_DEVICE("Atheros 802.11n WLAN cards");
 MODULE_LICENSE("Dual BSD/GPL");
 
+static int modparam_nohwcrypt;
+module_param_named(nohwcrypt, modparam_nohwcrypt, int, 0444);
+MODULE_PARM_DESC(nohwcrypt, "Disable hardware encryption");
+
 /* We use the hw_value as an index into our private channel structure */
 
 #define CHAN2G(_freq, _idx)  { \
@@ -1587,7 +1591,7 @@ int ath_attach(u16 devid, struct ath_softc *sc)
 		IEEE80211_HW_SUPPORTS_PS |
 		IEEE80211_HW_PS_NULLFUNC_STACK;
 
-	if (AR_SREV_9160_10_OR_LATER(sc->sc_ah))
+	if (AR_SREV_9160_10_OR_LATER(sc->sc_ah) || modparam_nohwcrypt)
 		hw->flags |= IEEE80211_HW_MFP_CAPABLE;
 
 	hw->wiphy->interface_modes =
@@ -2467,6 +2471,9 @@ static int ath9k_set_key(struct ieee80211_hw *hw,
 {
 	struct ath_softc *sc = hw->priv;
 	int ret = 0;
+
+	if (modparam_nohwcrypt)
+		return -ENOSPC;
 
 	mutex_lock(&sc->mutex);
 	ath9k_ps_wakeup(sc);
