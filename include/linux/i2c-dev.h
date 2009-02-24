@@ -33,7 +33,7 @@
  */
 #define I2C_RETRIES	0x0701	/* number of times a device address should
 				   be polled when not acknowledging */
-#define I2C_TIMEOUT	0x0702	/* set timeout in jiffies - call with int */
+#define I2C_TIMEOUT	0x0702	/* set timeout in units of 10 ms */
 
 /* NOTE: Slave address is 7 or 10 bits, but 10-bit addresses
  * are NOT supported! (due to code brokenness)
