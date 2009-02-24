@@ -113,7 +113,8 @@ static DEFINE_PER_CPU(struct list_head, vcpus_on_cpu);
 
 static unsigned long *vmx_io_bitmap_a;
 static unsigned long *vmx_io_bitmap_b;
-static unsigned long *vmx_msr_bitmap;
+static unsigned long *vmx_msr_bitmap_legacy;
+static unsigned long *vmx_msr_bitmap_longmode;
 
 static DECLARE_BITMAP(vmx_vpid_bitmap, VMX_NR_VPIDS);
 static DEFINE_SPINLOCK(vmx_vpid_lock);
@@ -812,6 +813,7 @@ static void move_msr_up(struct vcpu_vmx *vmx, int from, int to)
 static void setup_msrs(struct vcpu_vmx *vmx)
 {
 	int save_nmsrs;
+	unsigned long *msr_bitmap;
 
 	vmx_load_host_state(vmx);
 	save_nmsrs = 0;
@@ -847,6 +849,15 @@ static void setup_msrs(struct vcpu_vmx *vmx)
 		__find_msr_index(vmx, MSR_KERNEL_GS_BASE);
 #endif
 	vmx->msr_offset_efer = __find_msr_index(vmx, MSR_EFER);
+
+	if (cpu_has_vmx_msr_bitmap()) {
+		if (is_long_mode(&vmx->vcpu))
+			msr_bitmap = vmx_msr_bitmap_longmode;
+		else
+			msr_bitmap = vmx_msr_bitmap_legacy;
+
+		vmcs_write64(MSR_BITMAP, __pa(msr_bitmap));
+	}
 }
 
 /*
@@ -2082,7 +2093,7 @@ static void allocate_vpid(struct vcpu_vmx *vmx)
 	spin_unlock(&vmx_vpid_lock);
 }
 
-static void vmx_disable_intercept_for_msr(unsigned long *msr_bitmap, u32 msr)
+static void __vmx_disable_intercept_for_msr(unsigned long *msr_bitmap, u32 msr)
 {
 	int f = sizeof(unsigned long);
 
@@ -2104,6 +2115,13 @@ static void vmx_disable_intercept_for_msr(unsigned long *msr_bitmap, u32 msr)
 	}
 }
 
+static void vmx_disable_intercept_for_msr(u32 msr, bool longmode_only)
+{
+	if (!longmode_only)
+		__vmx_disable_intercept_for_msr(vmx_msr_bitmap_legacy, msr);
+	__vmx_disable_intercept_for_msr(vmx_msr_bitmap_longmode, msr);
+}
+
 /*
  * Sets up the vmcs for emulated real mode.
  */
@@ -2123,7 +2141,7 @@ static int vmx_vcpu_setup(struct vcpu_vmx *vmx)
 	vmcs_write64(IO_BITMAP_B, __pa(vmx_io_bitmap_b));
 
 	if (cpu_has_vmx_msr_bitmap())
-		vmcs_write64(MSR_BITMAP, __pa(vmx_msr_bitmap));
+		vmcs_write64(MSR_BITMAP, __pa(vmx_msr_bitmap_legacy));
 
 	vmcs_write64(VMCS_LINK_POINTER, -1ull); /* 22.3.1.5 */
 
@@ -3705,10 +3723,16 @@ static int __init vmx_init(void)
 		goto out;
 	}
 
-	vmx_msr_bitmap = (unsigned long *)__get_free_page(GFP_KERNEL);
-	if (!vmx_msr_bitmap) {
+	vmx_msr_bitmap_legacy = (unsigned long *)__get_free_page(GFP_KERNEL);
+	if (!vmx_msr_bitmap_legacy) {
 		r = -ENOMEM;
 		goto out1;
+	}
+
+	vmx_msr_bitmap_longmode = (unsigned long *)__get_free_page(GFP_KERNEL);
+	if (!vmx_msr_bitmap_longmode) {
+		r = -ENOMEM;
+		goto out2;
 	}
 
 	/*
@@ -3720,19 +3744,21 @@ static int __init vmx_init(void)
 
 	memset(vmx_io_bitmap_b, 0xff, PAGE_SIZE);
 
-	memset(vmx_msr_bitmap, 0xff, PAGE_SIZE);
+	memset(vmx_msr_bitmap_legacy, 0xff, PAGE_SIZE);
+	memset(vmx_msr_bitmap_longmode, 0xff, PAGE_SIZE);
 
 	set_bit(0, vmx_vpid_bitmap); /* 0 is reserved for host */
 
 	r = kvm_init(&vmx_x86_ops, sizeof(struct vcpu_vmx), THIS_MODULE);
 	if (r)
-		goto out2;
+		goto out3;
 
-	vmx_disable_intercept_for_msr(vmx_msr_bitmap, MSR_FS_BASE);
-	vmx_disable_intercept_for_msr(vmx_msr_bitmap, MSR_GS_BASE);
-	vmx_disable_intercept_for_msr(vmx_msr_bitmap, MSR_IA32_SYSENTER_CS);
-	vmx_disable_intercept_for_msr(vmx_msr_bitmap, MSR_IA32_SYSENTER_ESP);
-	vmx_disable_intercept_for_msr(vmx_msr_bitmap, MSR_IA32_SYSENTER_EIP);
+	vmx_disable_intercept_for_msr(MSR_FS_BASE, false);
+	vmx_disable_intercept_for_msr(MSR_GS_BASE, false);
+	vmx_disable_intercept_for_msr(MSR_KERNEL_GS_BASE, true);
+	vmx_disable_intercept_for_msr(MSR_IA32_SYSENTER_CS, false);
+	vmx_disable_intercept_for_msr(MSR_IA32_SYSENTER_ESP, false);
+	vmx_disable_intercept_for_msr(MSR_IA32_SYSENTER_EIP, false);
 
 	if (vm_need_ept()) {
 		bypass_guest_pf = 0;
@@ -3752,8 +3778,10 @@ static int __init vmx_init(void)
 
 	return 0;
 
+out3:
+	free_page((unsigned long)vmx_msr_bitmap_longmode);
 out2:
-	free_page((unsigned long)vmx_msr_bitmap);
+	free_page((unsigned long)vmx_msr_bitmap_legacy);
 out1:
 	free_page((unsigned long)vmx_io_bitmap_b);
 out:
@@ -3763,7 +3791,8 @@ out:
 
 static void __exit vmx_exit(void)
 {
-	free_page((unsigned long)vmx_msr_bitmap);
+	free_page((unsigned long)vmx_msr_bitmap_legacy);
+	free_page((unsigned long)vmx_msr_bitmap_longmode);
 	free_page((unsigned long)vmx_io_bitmap_b);
 	free_page((unsigned long)vmx_io_bitmap_a);
 
