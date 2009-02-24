@@ -51,6 +51,9 @@
 
 #include "zl10353.h"
 
+#include "zl10036.h"
+#include "mt312.h"
+
 MODULE_AUTHOR("Gerd Knorr <kraxel@bytesex.org> [SuSE Labs]");
 MODULE_LICENSE("GPL");
 
@@ -950,6 +953,17 @@ static struct nxt200x_config kworldatsc110 = {
 	.demod_address    = 0x0a,
 };
 
+/* ------------------------------------------------------------------ */
+
+static struct mt312_config avertv_a700_mt312 = {
+	.demod_address = 0x0e,
+	.voltage_inverted = 1,
+};
+
+static struct zl10036_config avertv_a700_tuner = {
+	.tuner_address = 0x60,
+};
+
 /* ==================================================================
  * Core code
  */
@@ -1374,6 +1388,19 @@ static int dvb_init(struct saa7134_dev *dev)
 			dvb_attach(simple_tuner_attach, fe0->dvb.frontend,
 				   &dev->i2c_adap, 0x61,
 				   TUNER_PHILIPS_FMD1216ME_MK3);
+		}
+		break;
+	case SAA7134_BOARD_AVERMEDIA_A700_PRO:
+	case SAA7134_BOARD_AVERMEDIA_A700_HYBRID:
+		/* Zarlink ZL10313 */
+		fe0->dvb.frontend = dvb_attach(mt312_attach,
+			&avertv_a700_mt312, &dev->i2c_adap);
+		if (fe0->dvb.frontend) {
+			if (dvb_attach(zl10036_attach, fe0->dvb.frontend,
+					&avertv_a700_tuner, &dev->i2c_adap) == NULL) {
+				wprintk("%s: No zl10036 found!\n",
+					__func__);
+			}
 		}
 		break;
 	default:

@@ -4421,8 +4421,7 @@ struct saa7134_board saa7134_boards[] = {
 		.radio_type     = UNSET,
 		.tuner_addr     = ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
-		/* no DVB support for now */
-		/* .mpeg           = SAA7134_MPEG_DVB, */
+		.mpeg           = SAA7134_MPEG_DVB,
 		.inputs         = { {
 			.name = name_comp,
 			.vmux = 1,
@@ -4441,8 +4440,7 @@ struct saa7134_board saa7134_boards[] = {
 		.radio_type     = UNSET,
 		.tuner_addr     = ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
-		/* no DVB support for now */
-		/* .mpeg           = SAA7134_MPEG_DVB, */
+		.mpeg           = SAA7134_MPEG_DVB,
 		.inputs         = { {
 			.name = name_comp,
 			.vmux = 1,
@@ -6084,15 +6082,15 @@ int saa7134_board_init1(struct saa7134_dev *dev)
 		saa_andorl(SAA7134_GPIO_GPMODE0 >> 2,   0x8c040007, 0x8c040007);
 		saa_andorl(SAA7134_GPIO_GPSTATUS0 >> 2, 0x0c0007cd, 0x0c0007cd);
 		break;
-	case SAA7134_BOARD_AVERMEDIA_A700_PRO:
 	case SAA7134_BOARD_AVERMEDIA_A700_HYBRID:
+		printk("%s: %s: hybrid analog/dvb card\n"
+		       "%s: Sorry, of the analog inputs, only analog s-video and composite "
+		       "are supported for now.\n",
+			dev->name, card(dev).name, dev->name);
+	case SAA7134_BOARD_AVERMEDIA_A700_PRO:
 		/* write windows gpio values */
 		saa_andorl(SAA7134_GPIO_GPMODE0 >> 2,   0x80040100, 0x80040100);
 		saa_andorl(SAA7134_GPIO_GPSTATUS0 >> 2, 0x80040100, 0x00040100);
-		printk("%s: %s: hybrid analog/dvb card\n"
-		       "%s: Sorry, only analog s-video and composite input "
-		       "are supported for now.\n",
-			dev->name, card(dev).name, dev->name);
 		break;
 	}
 	return 0;
