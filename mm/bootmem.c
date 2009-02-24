@@ -37,6 +37,16 @@ static struct list_head bdata_list __initdata = LIST_HEAD_INIT(bdata_list);
 
 static int bootmem_debug;
 
+/*
+ * If an arch needs to apply workarounds to bootmem allocation, it can
+ * set CONFIG_HAVE_ARCH_BOOTMEM and define a wrapper around
+ * __alloc_bootmem_core().
+ */
+#ifndef CONFIG_HAVE_ARCH_BOOTMEM
+#define alloc_bootmem_core(bdata, size, align, goal, limit)		\
+	__alloc_bootmem_core((bdata), (size), (align), (goal), (limit))
+#endif
+
 static int __init bootmem_debug_setup(char *buf)
 {
 	bootmem_debug = 1;
@@ -382,7 +392,6 @@ int __init reserve_bootmem_node(pg_data_t *pgdat, unsigned long physaddr,
 	return mark_bootmem_node(pgdat->bdata, start, end, 1, flags);
 }
 
-#ifndef CONFIG_HAVE_ARCH_BOOTMEM_NODE
 /**
  * reserve_bootmem - mark a page range as usable
  * @addr: starting address of the range
@@ -403,7 +412,6 @@ int __init reserve_bootmem(unsigned long addr, unsigned long size,
 
 	return mark_bootmem(start, end, 1, flags);
 }
-#endif /* !CONFIG_HAVE_ARCH_BOOTMEM_NODE */
 
 static unsigned long align_idx(struct bootmem_data *bdata, unsigned long idx,
 			unsigned long step)
@@ -428,7 +436,7 @@ static unsigned long align_off(struct bootmem_data *bdata, unsigned long off,
 	return ALIGN(base + off, align) - base;
 }
 
-static void * __init alloc_bootmem_core(struct bootmem_data *bdata,
+static void * __init __alloc_bootmem_core(struct bootmem_data *bdata,
 				unsigned long size, unsigned long align,
 				unsigned long goal, unsigned long limit)
 {
