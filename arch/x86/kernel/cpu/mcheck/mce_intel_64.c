@@ -104,7 +104,7 @@ static DEFINE_SPINLOCK(cmci_discover_lock);
 
 #define CMCI_THRESHOLD 1
 
-static __cpuinit int cmci_supported(int *banks)
+static int cmci_supported(int *banks)
 {
 	u64 cap;
 
@@ -147,7 +147,7 @@ static void print_update(char *type, int *hdr, int num)
  * on this CPU. Use the algorithm recommended in the SDM to discover shared
  * banks.
  */
-static __cpuinit void cmci_discover(int banks, int boot)
+static void cmci_discover(int banks, int boot)
 {
 	unsigned long *owned = (void *)&__get_cpu_var(mce_banks_owned);
 	int hdr = 0;
@@ -192,7 +192,7 @@ static __cpuinit void cmci_discover(int banks, int boot)
  * Just in case we missed an event during initialization check
  * all the CMCI owned banks.
  */
-__cpuinit void cmci_recheck(void)
+void cmci_recheck(void)
 {
 	unsigned long flags;
 	int banks;
@@ -208,7 +208,7 @@ __cpuinit void cmci_recheck(void)
  * Disable CMCI on this CPU for all banks it owns when it goes down.
  * This allows other CPUs to claim the banks on rediscovery.
  */
-void __cpuexit cmci_clear(void)
+void cmci_clear(void)
 {
 	int i;
 	int banks;
@@ -233,7 +233,7 @@ void __cpuexit cmci_clear(void)
  * After a CPU went down cycle through all the others and rediscover
  * Must run in process context.
  */
-void __cpuexit cmci_rediscover(int dying)
+void cmci_rediscover(int dying)
 {
 	int banks;
 	int cpu;
