@@ -1260,8 +1260,8 @@ static inline int should_inject_overflow(struct b43_dmaring *ring)
 }
 
 /* Static mapping of mac80211's queues (priorities) to b43 DMA rings. */
-static struct b43_dmaring * select_ring_by_priority(struct b43_wldev *dev,
-						    u8 queue_prio)
+static struct b43_dmaring *select_ring_by_priority(struct b43_wldev *dev,
+						   u8 queue_prio)
 {
 	struct b43_dmaring *ring;
 

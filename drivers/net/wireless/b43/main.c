@@ -512,7 +512,7 @@ void b43_shm_write16(struct b43_wldev *dev, u16 routing, u16 offset, u16 value)
 }
 
 /* Read HostFlags */
-u64 b43_hf_read(struct b43_wldev * dev)
+u64 b43_hf_read(struct b43_wldev *dev)
 {
 	u64 ret;
 
@@ -600,7 +600,7 @@ void b43_tsf_write(struct b43_wldev *dev, u64 tsf)
 }
 
 static
-void b43_macfilter_set(struct b43_wldev *dev, u16 offset, const u8 * mac)
+void b43_macfilter_set(struct b43_wldev *dev, u16 offset, const u8 *mac)
 {
 	static const u8 zero_addr[ETH_ALEN] = { 0 };
 	u16 data;
@@ -790,7 +790,7 @@ void b43_dummy_transmission(struct b43_wldev *dev)
 }
 
 static void key_write(struct b43_wldev *dev,
-		      u8 index, u8 algorithm, const u8 * key)
+		      u8 index, u8 algorithm, const u8 *key)
 {
 	unsigned int i;
 	u32 offset;
@@ -812,7 +812,7 @@ static void key_write(struct b43_wldev *dev,
 	}
 }
 
-static void keymac_write(struct b43_wldev *dev, u8 index, const u8 * addr)
+static void keymac_write(struct b43_wldev *dev, u8 index, const u8 *addr)
 {
 	u32 addrtmp[2] = { 0, 0, };
 	u8 per_sta_keys_start = 8;
@@ -862,7 +862,7 @@ static void keymac_write(struct b43_wldev *dev, u8 index, const u8 * addr)
 
 static void do_key_write(struct b43_wldev *dev,
 			 u8 index, u8 algorithm,
-			 const u8 * key, size_t key_len, const u8 * mac_addr)
+			 const u8 *key, size_t key_len, const u8 *mac_addr)
 {
 	u8 buf[B43_SEC_KEYSIZE] = { 0, };
 	u8 per_sta_keys_start = 8;
@@ -886,8 +886,8 @@ static void do_key_write(struct b43_wldev *dev,
 
 static int b43_key_write(struct b43_wldev *dev,
 			 int index, u8 algorithm,
-			 const u8 * key, size_t key_len,
-			 const u8 * mac_addr,
+			 const u8 *key, size_t key_len,
+			 const u8 *mac_addr,
 			 struct ieee80211_key_conf *keyconf)
 {
 	int i;
@@ -1286,7 +1286,7 @@ static void handle_irq_pmq(struct b43_wldev *dev)
 }
 
 static void b43_write_template_common(struct b43_wldev *dev,
-				      const u8 * data, u16 size,
+				      const u8 *data, u16 size,
 				      u16 ram_offset,
 				      u16 shm_size_offset, u8 rate)
 {
@@ -1476,9 +1476,9 @@ static void b43_write_probe_resp_plcp(struct b43_wldev *dev,
  * 2) Patching duration field
  * 3) Stripping TIM
  */
-static const u8 * b43_generate_probe_resp(struct b43_wldev *dev,
-					  u16 *dest_size,
-					  struct ieee80211_rate *rate)
+static const u8 *b43_generate_probe_resp(struct b43_wldev *dev,
+					 u16 *dest_size,
+					 struct ieee80211_rate *rate)
 {
 	const u8 *src_data;
 	u8 *dest_data;
@@ -2980,7 +2980,7 @@ static void b43_security_init(struct b43_wldev *dev)
 	b43_clear_keys(dev);
 }
 
-static int b43_rng_read(struct hwrng *rng, u32 * data)
+static int b43_rng_read(struct hwrng *rng, u32 *data)
 {
 	struct b43_wl *wl = (struct b43_wl *)rng->priv;
 	unsigned long flags;
@@ -3311,7 +3311,7 @@ static void b43_put_phy_into_reset(struct b43_wldev *dev)
 	msleep(1);
 }
 
-static const char * band_to_string(enum ieee80211_band band)
+static const char *band_to_string(enum ieee80211_band band)
 {
 	switch (band) {
 	case IEEE80211_BAND_5GHZ:

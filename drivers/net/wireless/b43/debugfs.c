@@ -51,8 +51,8 @@ struct b43_debugfs_fops {
 };
 
 static inline
-struct b43_dfs_file * fops_to_dfs_file(struct b43_wldev *dev,
-				       const struct b43_debugfs_fops *dfops)
+struct b43_dfs_file *fops_to_dfs_file(struct b43_wldev *dev,
+				      const struct b43_debugfs_fops *dfops)
 {
 	void *p;
 

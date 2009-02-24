@@ -767,7 +767,7 @@ static void b43_calc_nrssi_threshold(struct b43_wldev *dev)
  * interference mitigation code.
  * It is save to restore values in random order.
  */
-static void _stack_save(u32 * _stackptr, size_t * stackidx,
+static void _stack_save(u32 *_stackptr, size_t *stackidx,
 			u8 id, u16 offset, u16 value)
 {
 	u32 *stackptr = &(_stackptr[*stackidx]);
@@ -781,7 +781,7 @@ static void _stack_save(u32 * _stackptr, size_t * stackidx,
 	B43_WARN_ON(*stackidx >= B43_INTERFSTACK_SIZE);
 }
 
-static u16 _stack_restore(u32 * stackptr, u8 id, u16 offset)
+static u16 _stack_restore(u32 *stackptr, u8 id, u16 offset)
 {
 	size_t i;
 
@@ -2350,8 +2350,8 @@ static s8 b43_tssi2dbm_entry(s8 entry[], u8 index,
 	return 0;
 }
 
-u8 * b43_generate_dyn_tssi2dbm_tab(struct b43_wldev *dev,
-				   s16 pab0, s16 pab1, s16 pab2)
+u8 *b43_generate_dyn_tssi2dbm_tab(struct b43_wldev *dev,
+				  s16 pab0, s16 pab1, s16 pab2)
 {
 	unsigned int i;
 	u8 *tab;

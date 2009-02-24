@@ -36,8 +36,8 @@
 #include <linux/sched.h>
 
 
-static struct b43_lo_calib * b43_find_lo_calib(struct b43_txpower_lo_control *lo,
-					       const struct b43_bbatt *bbatt,
+static struct b43_lo_calib *b43_find_lo_calib(struct b43_txpower_lo_control *lo,
+					      const struct b43_bbatt *bbatt,
 					       const struct b43_rfatt *rfatt)
 {
 	struct b43_lo_calib *c;
@@ -138,7 +138,7 @@ static u16 lo_measure_feedthrough(struct b43_wldev *dev,
  * "pad_mix_gain" is the PAD Mixer Gain.
  */
 static u16 lo_txctl_register_table(struct b43_wldev *dev,
-				   u16 * value, u16 * pad_mix_gain)
+				   u16 *value, u16 *pad_mix_gain)
 {
 	struct b43_phy *phy = &dev->phy;
 	u16 reg, v, padmix;
@@ -731,9 +731,9 @@ static void lo_probe_loctls_statemachine(struct b43_wldev *dev,
 }
 
 static
-struct b43_lo_calib * b43_calibrate_lo_setting(struct b43_wldev *dev,
-					       const struct b43_bbatt *bbatt,
-					       const struct b43_rfatt *rfatt)
+struct b43_lo_calib *b43_calibrate_lo_setting(struct b43_wldev *dev,
+					      const struct b43_bbatt *bbatt,
+					      const struct b43_rfatt *rfatt)
 {
 	struct b43_phy *phy = &dev->phy;
 	struct b43_phy_g *gphy = phy->g;
@@ -797,9 +797,9 @@ struct b43_lo_calib * b43_calibrate_lo_setting(struct b43_wldev *dev,
 /* Get a calibrated LO setting for the given attenuation values.
  * Might return a NULL pointer under OOM! */
 static
-struct b43_lo_calib * b43_get_calib_lo_settings(struct b43_wldev *dev,
-						const struct b43_bbatt *bbatt,
-						const struct b43_rfatt *rfatt)
+struct b43_lo_calib *b43_get_calib_lo_settings(struct b43_wldev *dev,
+					       const struct b43_bbatt *bbatt,
+					       const struct b43_rfatt *rfatt)
 {
 	struct b43_txpower_lo_control *lo = dev->phy.g->lo_control;
 	struct b43_lo_calib *c;
