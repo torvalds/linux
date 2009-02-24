@@ -485,9 +485,6 @@ static int omap_mmc_switch_opcond(struct mmc_omap_host *host, int vdd)
 	u32 reg_val = 0;
 	int ret;
 
-	if (host->id != OMAP_MMC1_DEVID)
-		return 0;
-
 	/* Disable the clocks */
 	clk_disable(host->fclk);
 	clk_disable(host->iclk);
@@ -786,20 +783,6 @@ static void omap_mmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	switch (ios->power_mode) {
 	case MMC_POWER_OFF:
 		mmc_slot(host).set_power(host->dev, host->slot_id, 0, 0);
-		/*
-		 * Reset interface voltage to 3V if it's 1.8V now;
-		 * only relevant on MMC-1, the others always use 1.8V.
-		 *
-		 * REVISIT: If we are able to detect cards after unplugging
-		 * a 1.8V card, this code should not be needed.
-		 */
-		if (host->id != OMAP_MMC1_DEVID)
-			break;
-		if (!(OMAP_HSMMC_READ(host->base, HCTL) & SDVSDET)) {
-			int vdd = fls(host->mmc->ocr_avail) - 1;
-			if (omap_mmc_switch_opcond(host, vdd) != 0)
-				host->mmc->ios.vdd = vdd;
-		}
 		break;
 	case MMC_POWER_UP:
 		mmc_slot(host).set_power(host->dev, host->slot_id, 1, ios->vdd);
