@@ -168,34 +168,51 @@ static __ref void *spp_getpage(void)
 	return ptr;
 }
 
-void
-set_pte_vaddr_pud(pud_t *pud_page, unsigned long vaddr, pte_t new_pte)
+static pud_t * __init fill_pud(pgd_t *pgd, unsigned long vaddr)
+{
+	if (pgd_none(*pgd)) {
+		pud_t *pud = (pud_t *)spp_getpage();
+		pgd_populate(&init_mm, pgd, pud);
+		if (pud != pud_offset(pgd, 0))
+			printk(KERN_ERR "PAGETABLE BUG #00! %p <-> %p\n",
+			       pud, pud_offset(pgd, 0));
+	}
+	return pud_offset(pgd, vaddr);
+}
+
+static pmd_t * __init fill_pmd(pud_t *pud, unsigned long vaddr)
+{
+	if (pud_none(*pud)) {
+		pmd_t *pmd = (pmd_t *) spp_getpage();
+		pud_populate(&init_mm, pud, pmd);
+		if (pmd != pmd_offset(pud, 0))
+			printk(KERN_ERR "PAGETABLE BUG #01! %p <-> %p\n",
+			       pmd, pmd_offset(pud, 0));
+	}
+	return pmd_offset(pud, vaddr);
+}
+
+static pte_t * __init fill_pte(pmd_t *pmd, unsigned long vaddr)
+{
+	if (pmd_none(*pmd)) {
+		pte_t *pte = (pte_t *) spp_getpage();
+		pmd_populate_kernel(&init_mm, pmd, pte);
+		if (pte != pte_offset_kernel(pmd, 0))
+			printk(KERN_ERR "PAGETABLE BUG #02!\n");
+	}
+	return pte_offset_kernel(pmd, vaddr);
+}
+
+void set_pte_vaddr_pud(pud_t *pud_page, unsigned long vaddr, pte_t new_pte)
 {
 	pud_t *pud;
 	pmd_t *pmd;
 	pte_t *pte;
 
 	pud = pud_page + pud_index(vaddr);
-	if (pud_none(*pud)) {
-		pmd = (pmd_t *) spp_getpage();
-		pud_populate(&init_mm, pud, pmd);
-		if (pmd != pmd_offset(pud, 0)) {
-			printk(KERN_ERR "PAGETABLE BUG #01! %p <-> %p\n",
-				pmd, pmd_offset(pud, 0));
-			return;
-		}
-	}
-	pmd = pmd_offset(pud, vaddr);
-	if (pmd_none(*pmd)) {
-		pte = (pte_t *) spp_getpage();
-		pmd_populate_kernel(&init_mm, pmd, pte);
-		if (pte != pte_offset_kernel(pmd, 0)) {
-			printk(KERN_ERR "PAGETABLE BUG #02!\n");
-			return;
-		}
-	}
+	pmd = fill_pmd(pud, vaddr);
+	pte = fill_pte(pmd, vaddr);
 
-	pte = pte_offset_kernel(pmd, vaddr);
 	set_pte(pte, new_pte);
 
 	/*
@@ -205,8 +222,7 @@ set_pte_vaddr_pud(pud_t *pud_page, unsigned long vaddr, pte_t new_pte)
 	__flush_tlb_one(vaddr);
 }
 
-void
-set_pte_vaddr(unsigned long vaddr, pte_t pteval)
+void set_pte_vaddr(unsigned long vaddr, pte_t pteval)
 {
 	pgd_t *pgd;
 	pud_t *pud_page;
@@ -223,23 +239,22 @@ set_pte_vaddr(unsigned long vaddr, pte_t pteval)
 	set_pte_vaddr_pud(pud_page, vaddr, pteval);
 }
 
-void __init populate_extra_pte(unsigned long vaddr)
+pmd_t * __init populate_extra_pmd(unsigned long vaddr)
 {
 	pgd_t *pgd;
 	pud_t *pud;
 
 	pgd = pgd_offset_k(vaddr);
-	if (pgd_none(*pgd)) {
-		pud = (pud_t *)spp_getpage();
-		pgd_populate(&init_mm, pgd, pud);
-		if (pud != pud_offset(pgd, 0)) {
-			printk(KERN_ERR "PAGETABLE BUG #00! %p <-> %p\n",
-			       pud, pud_offset(pgd, 0));
-			return;
-		}
-	}
+	pud = fill_pud(pgd, vaddr);
+	return fill_pmd(pud, vaddr);
+}
 
-	set_pte_vaddr_pud((pud_t *)pgd_page_vaddr(*pgd), vaddr, __pte(0));
+pte_t * __init populate_extra_pte(unsigned long vaddr)
+{
+	pmd_t *pmd;
+
+	pmd = populate_extra_pmd(vaddr);
+	return fill_pte(pmd, vaddr);
 }
 
 /*

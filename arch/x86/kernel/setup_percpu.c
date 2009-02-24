@@ -41,6 +41,11 @@ unsigned long __per_cpu_offset[NR_CPUS] __read_mostly = {
 };
 EXPORT_SYMBOL(__per_cpu_offset);
 
+static void __init pcpu4k_populate_pte(unsigned long addr)
+{
+	populate_extra_pte(addr);
+}
+
 static inline void setup_percpu_segment(int cpu)
 {
 #ifdef CONFIG_X86_32
@@ -104,7 +109,7 @@ void __init setup_per_cpu_areas(void)
 		}
 	}
 
-	pcpu_unit_size = pcpu_setup_static(populate_extra_pte, pages, size);
+	pcpu_unit_size = pcpu_setup_static(pcpu4k_populate_pte, pages, size);
 
 	free_bootmem(__pa(pages), pages_size);
 
