@@ -1419,6 +1419,7 @@ struct usb_device_id dib0700_usb_id_table[] = {
 	{ USB_DEVICE(USB_VID_TERRATEC,	USB_PID_TERRATEC_CINERGY_T_EXPRESS) },
 	{ USB_DEVICE(USB_VID_TERRATEC,
 			USB_PID_TERRATEC_CINERGY_DT_XS_DIVERSITY_2) },
+	{ USB_DEVICE(USB_VID_SONY,	USB_PID_SONY_PLAYTV) },
 	{ 0 }		/* Terminating entry */
 };
 MODULE_DEVICE_TABLE(usb, dib0700_usb_id_table);
@@ -1684,7 +1685,7 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 			}
 		},
 
-		.num_device_descs = 5,
+		.num_device_descs = 6,
 		.devices = {
 			{   "DiBcom STK7070PD reference design",
 				{ &dib0700_usb_id_table[17], NULL },
@@ -1704,6 +1705,10 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 			},
 			{  "Terratec Cinergy DT USB XS Diversity",
 				{ &dib0700_usb_id_table[43], NULL },
+				{ NULL },
+			},
+			{  "Sony PlayTV",
+				{ &dib0700_usb_id_table[44], NULL },
 				{ NULL },
 			}
 		},
