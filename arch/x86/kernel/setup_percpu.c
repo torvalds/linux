@@ -43,6 +43,35 @@ unsigned long __per_cpu_offset[NR_CPUS] __read_mostly = {
 EXPORT_SYMBOL(__per_cpu_offset);
 
 /**
+ * pcpu_need_numa - determine percpu allocation needs to consider NUMA
+ *
+ * If NUMA is not configured or there is only one NUMA node available,
+ * there is no reason to consider NUMA.  This function determines
+ * whether percpu allocation should consider NUMA or not.
+ *
+ * RETURNS:
+ * true if NUMA should be considered; otherwise, false.
+ */
+static bool __init pcpu_need_numa(void)
+{
+#ifdef CONFIG_NEED_MULTIPLE_NODES
+	pg_data_t *last = NULL;
+	unsigned int cpu;
+
+	for_each_possible_cpu(cpu) {
+		int node = early_cpu_to_node(cpu);
+
+		if (node_online(node) && NODE_DATA(node) &&
+		    last && last != NODE_DATA(node))
+			return true;
+
+		last = NODE_DATA(node);
+	}
+#endif
+	return false;
+}
+
+/**
  * pcpu_alloc_bootmem - NUMA friendly alloc_bootmem wrapper for percpu
  * @cpu: cpu to allocate for
  * @size: size allocation in bytes
@@ -79,6 +108,59 @@ static void * __init pcpu_alloc_bootmem(unsigned int cpu, unsigned long size,
 #else
 	return __alloc_bootmem_nopanic(size, align, goal);
 #endif
+}
+
+/*
+ * Embedding allocator
+ *
+ * The first chunk is sized to just contain the static area plus
+ * PERCPU_DYNAMIC_RESERVE and allocated as a contiguous area using
+ * bootmem allocator and used as-is without being mapped into vmalloc
+ * area.  This enables the first chunk to piggy back on the linear
+ * physical PMD mapping and doesn't add any additional pressure to
+ * TLB.
+ */
+static void *pcpue_ptr __initdata;
+static size_t pcpue_unit_size __initdata;
+
+static struct page * __init pcpue_get_page(unsigned int cpu, int pageno)
+{
+	return virt_to_page(pcpue_ptr + cpu * pcpue_unit_size
+			    + ((size_t)pageno << PAGE_SHIFT));
+}
+
+static ssize_t __init setup_pcpu_embed(size_t static_size)
+{
+	unsigned int cpu;
+
+	/*
+	 * If large page isn't supported, there's no benefit in doing
+	 * this.  Also, embedding allocation doesn't play well with
+	 * NUMA.
+	 */
+	if (!cpu_has_pse || pcpu_need_numa())
+		return -EINVAL;
+
+	/* allocate and copy */
+	pcpue_unit_size = PFN_ALIGN(static_size + PERCPU_DYNAMIC_RESERVE);
+	pcpue_unit_size = max(pcpue_unit_size, PCPU_MIN_UNIT_SIZE);
+	pcpue_ptr = pcpu_alloc_bootmem(0, num_possible_cpus() * pcpue_unit_size,
+				       PAGE_SIZE);
+	if (!pcpue_ptr)
+		return -ENOMEM;
+
+	for_each_possible_cpu(cpu)
+		memcpy(pcpue_ptr + cpu * pcpue_unit_size, __per_cpu_load,
+		       static_size);
+
+	/* we're ready, commit */
+	pr_info("PERCPU: Embedded %zu pages at %p, static data %zu bytes\n",
+		pcpue_unit_size >> PAGE_SHIFT, pcpue_ptr, static_size);
+
+	return pcpu_setup_first_chunk(pcpue_get_page, static_size,
+				      pcpue_unit_size,
+				      pcpue_unit_size - static_size, pcpue_ptr,
+				      NULL);
 }
 
 /*
@@ -178,7 +260,9 @@ void __init setup_per_cpu_areas(void)
 		NR_CPUS, nr_cpumask_bits, nr_cpu_ids, nr_node_ids);
 
 	/* allocate percpu area */
-	ret = setup_pcpu_4k(static_size);
+	ret = setup_pcpu_embed(static_size);
+	if (ret < 0)
+		ret = setup_pcpu_4k(static_size);
 	if (ret < 0)
 		panic("cannot allocate static percpu area (%zu bytes, err=%zd)",
 		      static_size, ret);
