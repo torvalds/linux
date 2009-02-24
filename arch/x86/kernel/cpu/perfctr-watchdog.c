@@ -19,7 +19,7 @@
 #include <linux/nmi.h>
 #include <linux/kprobes.h>
 
-#include <asm/apic.h>
+#include <asm/genapic.h>
 #include <asm/intel_arch_perfmon.h>
 
 struct nmi_watchdog_ctlblk {

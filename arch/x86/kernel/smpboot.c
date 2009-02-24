@@ -2,7 +2,7 @@
  *	x86 SMP booting functions
  *
  *	(c) 1995 Alan Cox, Building #3 <alan@lxorguk.ukuu.org.uk>
- *	(c) 1998, 1999, 2000 Ingo Molnar <mingo@redhat.com>
+ *	(c) 1998, 1999, 2000, 2009 Ingo Molnar <mingo@redhat.com>
  *	Copyright 2001 Andi Kleen, SuSE Labs.
  *
  *	Much of the core SMP work is based on previous work by Thomas Radke, to
@@ -53,7 +53,6 @@
 #include <asm/nmi.h>
 #include <asm/irq.h>
 #include <asm/idle.h>
-#include <asm/smp.h>
 #include <asm/trampoline.h>
 #include <asm/cpu.h>
 #include <asm/numa.h>
@@ -61,13 +60,12 @@
 #include <asm/tlbflush.h>
 #include <asm/mtrr.h>
 #include <asm/vmi.h>
-#include <asm/genapic.h>
+#include <asm/apic.h>
 #include <asm/setup.h>
+#include <asm/uv/uv.h>
 #include <linux/mc146818rtc.h>
 
-#include <mach_apic.h>
-#include <mach_wakecpu.h>
-#include <smpboot_hooks.h>
+#include <asm/smpboot_hooks.h>
 
 #ifdef CONFIG_X86_32
 u8 apicid_2_node[MAX_APICID];
@@ -163,7 +161,7 @@ static void map_cpu_to_logical_apicid(void)
 {
 	int cpu = smp_processor_id();
 	int apicid = logical_smp_processor_id();
-	int node = apicid_to_node(apicid);
+	int node = apic->apicid_to_node(apicid);
 
 	if (!node_online(node))
 		node = first_online_node;
@@ -196,7 +194,8 @@ static void __cpuinit smp_callin(void)
 	 * our local APIC.  We have to wait for the IPI or we'll
 	 * lock up on an APIC access.
 	 */
-	wait_for_init_deassert(&init_deasserted);
+	if (apic->wait_for_init_deassert)
+		apic->wait_for_init_deassert(&init_deasserted);
 
 	/*
 	 * (This works even if the APIC is not enabled.)
@@ -243,7 +242,8 @@ static void __cpuinit smp_callin(void)
 	 */
 
 	pr_debug("CALLIN, before setup_local_APIC().\n");
-	smp_callin_clear_local_apic();
+	if (apic->smp_callin_clear_local_apic)
+		apic->smp_callin_clear_local_apic();
 	setup_local_APIC();
 	end_local_APIC_setup();
 	map_cpu_to_logical_apicid();
@@ -583,7 +583,7 @@ wakeup_secondary_cpu_via_nmi(int logical_apicid, unsigned long start_eip)
 	/* Target chip */
 	/* Boot on the stack */
 	/* Kick the second */
-	apic_icr_write(APIC_DM_NMI | APIC_DEST_LOGICAL, logical_apicid);
+	apic_icr_write(APIC_DM_NMI | apic->dest_logical, logical_apicid);
 
 	pr_debug("Waiting for send to finish...\n");
 	send_status = safe_apic_wait_icr_idle();
@@ -745,78 +745,22 @@ static void __cpuinit do_fork_idle(struct work_struct *work)
 	complete(&c_idle->done);
 }
 
-#ifdef CONFIG_X86_64
-
-/* __ref because it's safe to call free_bootmem when after_bootmem == 0. */
-static void __ref free_bootmem_pda(struct x8664_pda *oldpda)
-{
-	if (!after_bootmem)
-		free_bootmem((unsigned long)oldpda, sizeof(*oldpda));
-}
-
-/*
- * Allocate node local memory for the AP pda.
- *
- * Must be called after the _cpu_pda pointer table is initialized.
- */
-int __cpuinit get_local_pda(int cpu)
-{
-	struct x8664_pda *oldpda, *newpda;
-	unsigned long size = sizeof(struct x8664_pda);
-	int node = cpu_to_node(cpu);
-
-	if (cpu_pda(cpu) && !cpu_pda(cpu)->in_bootmem)
-		return 0;
-
-	oldpda = cpu_pda(cpu);
-	newpda = kmalloc_node(size, GFP_ATOMIC, node);
-	if (!newpda) {
-		printk(KERN_ERR "Could not allocate node local PDA "
-			"for CPU %d on node %d\n", cpu, node);
-
-		if (oldpda)
-			return 0;	/* have a usable pda */
-		else
-			return -1;
-	}
-
-	if (oldpda) {
-		memcpy(newpda, oldpda, size);
-		free_bootmem_pda(oldpda);
-	}
-
-	newpda->in_bootmem = 0;
-	cpu_pda(cpu) = newpda;
-	return 0;
-}
-#endif /* CONFIG_X86_64 */
-
-static int __cpuinit do_boot_cpu(int apicid, int cpu)
 /*
  * NOTE - on most systems this is a PHYSICAL apic ID, but on multiquad
  * (ie clustered apic addressing mode), this is a LOGICAL apic ID.
- * Returns zero if CPU booted OK, else error code from wakeup_secondary_cpu.
+ * Returns zero if CPU booted OK, else error code from ->wakeup_cpu.
  */
+static int __cpuinit do_boot_cpu(int apicid, int cpu)
 {
 	unsigned long boot_error = 0;
-	int timeout;
 	unsigned long start_ip;
-	unsigned short nmi_high = 0, nmi_low = 0;
+	int timeout;
 	struct create_idle c_idle = {
-		.cpu = cpu,
-		.done = COMPLETION_INITIALIZER_ONSTACK(c_idle.done),
+		.cpu	= cpu,
+		.done	= COMPLETION_INITIALIZER_ONSTACK(c_idle.done),
 	};
-	INIT_WORK(&c_idle.work, do_fork_idle);
 
-#ifdef CONFIG_X86_64
-	/* Allocate node local memory for AP pdas */
-	if (cpu > 0) {
-		boot_error = get_local_pda(cpu);
-		if (boot_error)
-			goto restore_state;
-			/* if can't get pda memory, can't start cpu */
-	}
-#endif
+	INIT_WORK(&c_idle.work, do_fork_idle);
 
 	alternatives_smp_switch(1);
 
@@ -847,14 +791,16 @@ static int __cpuinit do_boot_cpu(int apicid, int cpu)
 
 	set_idle_for_cpu(cpu, c_idle.idle);
 do_rest:
-#ifdef CONFIG_X86_32
 	per_cpu(current_task, cpu) = c_idle.idle;
-	init_gdt(cpu);
+#ifdef CONFIG_X86_32
 	/* Stack for startup_32 can be just as for start_secondary onwards */
 	irq_ctx_init(cpu);
 #else
-	cpu_pda(cpu)->pcurrent = c_idle.idle;
 	clear_tsk_thread_flag(c_idle.idle, TIF_FORK);
+	initial_gs = per_cpu_offset(cpu);
+	per_cpu(kernel_stack, cpu) =
+		(unsigned long)task_stack_page(c_idle.idle) -
+		KERNEL_STACK_OFFSET + THREAD_SIZE;
 #endif
 	early_gdt_descr.address = (unsigned long)get_cpu_gdt_table(cpu);
 	initial_code = (unsigned long)start_secondary;
@@ -878,8 +824,6 @@ do_rest:
 
 		pr_debug("Setting warm reset code and vector.\n");
 
-		store_NMI_vector(&nmi_high, &nmi_low);
-
 		smpboot_setup_warm_reset_vector(start_ip);
 		/*
 		 * Be paranoid about clearing APIC errors.
@@ -893,7 +837,7 @@ do_rest:
 	/*
 	 * Starting actual IPI sequence...
 	 */
-	boot_error = wakeup_secondary_cpu(apicid, start_ip);
+	boot_error = apic->wakeup_cpu(apicid, start_ip);
 
 	if (!boot_error) {
 		/*
@@ -927,13 +871,11 @@ do_rest:
 			else
 				/* trampoline code not run */
 				printk(KERN_ERR "Not responding.\n");
-			if (get_uv_system_type() != UV_NON_UNIQUE_APIC)
-				inquire_remote_apic(apicid);
+			if (apic->inquire_remote_apic)
+				apic->inquire_remote_apic(apicid);
 		}
 	}
-#ifdef CONFIG_X86_64
-restore_state:
-#endif
+
 	if (boot_error) {
 		/* Try to put things back the way they were before ... */
 		numa_remove_cpu(cpu); /* was set by numa_add_cpu */
@@ -961,7 +903,7 @@ restore_state:
 
 int __cpuinit native_cpu_up(unsigned int cpu)
 {
-	int apicid = cpu_present_to_apicid(cpu);
+	int apicid = apic->cpu_present_to_apicid(cpu);
 	unsigned long flags;
 	int err;
 
@@ -1054,14 +996,14 @@ static int __init smp_sanity_check(unsigned max_cpus)
 {
 	preempt_disable();
 
-#if defined(CONFIG_X86_PC) && defined(CONFIG_X86_32)
+#if !defined(CONFIG_X86_BIGSMP) && defined(CONFIG_X86_32)
 	if (def_to_bigsmp && nr_cpu_ids > 8) {
 		unsigned int cpu;
 		unsigned nr;
 
 		printk(KERN_WARNING
 		       "More than 8 CPUs detected - skipping them.\n"
-		       "Use CONFIG_X86_GENERICARCH and CONFIG_X86_BIGSMP.\n");
+		       "Use CONFIG_X86_BIGSMP.\n");
 
 		nr = 0;
 		for_each_present_cpu(cpu) {
@@ -1107,7 +1049,7 @@ static int __init smp_sanity_check(unsigned max_cpus)
 	 * Should not be necessary because the MP table should list the boot
 	 * CPU too, but we do it for the sake of robustness anyway.
 	 */
-	if (!check_phys_apicid_present(boot_cpu_physical_apicid)) {
+	if (!apic->check_phys_apicid_present(boot_cpu_physical_apicid)) {
 		printk(KERN_NOTICE
 			"weird, boot CPU (#%d) not listed by the BIOS.\n",
 			boot_cpu_physical_apicid);
@@ -1125,6 +1067,7 @@ static int __init smp_sanity_check(unsigned max_cpus)
 		printk(KERN_ERR "... forcing use of dummy APIC emulation."
 				"(tell your hw vendor)\n");
 		smpboot_clear_io_apic();
+		arch_disable_smp_support();
 		return -1;
 	}
 
@@ -1181,9 +1124,9 @@ void __init native_smp_prepare_cpus(unsigned int max_cpus)
 	current_thread_info()->cpu = 0;  /* needed? */
 	set_cpu_sibling_map(0);
 
-#ifdef CONFIG_X86_64
 	enable_IR_x2apic();
-	setup_apic_routing();
+#ifdef CONFIG_X86_64
+	default_setup_apic_routing();
 #endif
 
 	if (smp_sanity_check(max_cpus) < 0) {
@@ -1207,18 +1150,18 @@ void __init native_smp_prepare_cpus(unsigned int max_cpus)
 	 */
 	setup_local_APIC();
 
-#ifdef CONFIG_X86_64
 	/*
 	 * Enable IO APIC before setting up error vector
 	 */
 	if (!skip_ioapic_setup && nr_ioapics)
 		enable_IO_APIC();
-#endif
+
 	end_local_APIC_setup();
 
 	map_cpu_to_logical_apicid();
 
-	setup_portio_remap();
+	if (apic->setup_portio_remap)
+		apic->setup_portio_remap();
 
 	smpboot_setup_io_apic();
 	/*
@@ -1240,10 +1183,7 @@ out:
 void __init native_smp_prepare_boot_cpu(void)
 {
 	int me = smp_processor_id();
-#ifdef CONFIG_X86_32
-	init_gdt(me);
-#endif
-	switch_to_new_gdt();
+	switch_to_new_gdt(me);
 	/* already set me in cpu_online_mask in boot_cpu_init() */
 	cpumask_set_cpu(me, cpu_callout_mask);
 	per_cpu(cpu_state, me) = CPU_ONLINE;

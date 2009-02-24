@@ -45,6 +45,13 @@ static int xen_suspend(void *data)
 		       err);
 		return err;
 	}
+	err = sysdev_suspend(PMSG_SUSPEND);
+	if (err) {
+		printk(KERN_ERR "xen_suspend: sysdev_suspend failed: %d\n",
+			err);
+		device_power_up(PMSG_RESUME);
+		return err;
+	}
 
 	xen_mm_pin_all();
 	gnttab_suspend();
@@ -61,6 +68,7 @@ static int xen_suspend(void *data)
 	gnttab_resume();
 	xen_mm_unpin_all();
 
+	sysdev_resume();
 	device_power_up(PMSG_RESUME);
 
 	if (!*cancelled) {
@@ -100,7 +108,7 @@ static void do_suspend(void)
 	/* XXX use normal device tree? */
 	xenbus_suspend();
 
-	err = stop_machine(xen_suspend, &cancelled, &cpumask_of_cpu(0));
+	err = stop_machine(xen_suspend, &cancelled, cpumask_of(0));
 	if (err) {
 		printk(KERN_ERR "failed to start xen_suspend: %d\n", err);
 		goto out;

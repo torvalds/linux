@@ -415,8 +415,9 @@ static int parse_elf(struct elf_info *info, const char *filename)
 		const char *secstrings
 			= (void *)hdr + sechdrs[hdr->e_shstrndx].sh_offset;
 		const char *secname;
+		int nobits = sechdrs[i].sh_type == SHT_NOBITS;
 
-		if (sechdrs[i].sh_offset > info->size) {
+		if (!nobits && sechdrs[i].sh_offset > info->size) {
 			fatal("%s is truncated. sechdrs[i].sh_offset=%lu > "
 			      "sizeof(*hrd)=%zu\n", filename,
 			      (unsigned long)sechdrs[i].sh_offset,
@@ -425,6 +426,8 @@ static int parse_elf(struct elf_info *info, const char *filename)
 		}
 		secname = secstrings + sechdrs[i].sh_name;
 		if (strcmp(secname, ".modinfo") == 0) {
+			if (nobits)
+				fatal("%s has NOBITS .modinfo\n", filename);
 			info->modinfo = (void *)hdr + sechdrs[i].sh_offset;
 			info->modinfo_len = sechdrs[i].sh_size;
 		} else if (strcmp(secname, "__ksymtab") == 0)

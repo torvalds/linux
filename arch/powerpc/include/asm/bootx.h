@@ -9,7 +9,7 @@
 #ifndef __ASM_BOOTX_H__
 #define __ASM_BOOTX_H__
 
-#include <asm/types.h>
+#include <linux/types.h>
 
 #ifdef macintosh
 #include <Types.h>

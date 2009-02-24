@@ -173,15 +173,12 @@ static void kvm_assigned_dev_interrupt_work_handler(struct work_struct *work)
 		assigned_dev->host_irq_disabled = false;
 	}
 	mutex_unlock(&assigned_dev->kvm->lock);
-	kvm_put_kvm(assigned_dev->kvm);
 }
 
 static irqreturn_t kvm_assigned_dev_intr(int irq, void *dev_id)
 {
 	struct kvm_assigned_dev_kernel *assigned_dev =
 		(struct kvm_assigned_dev_kernel *) dev_id;
-
-	kvm_get_kvm(assigned_dev->kvm);
 
 	schedule_work(&assigned_dev->interrupt_work);
 
@@ -213,6 +210,7 @@ static void kvm_assigned_dev_ack_irq(struct kvm_irq_ack_notifier *kian)
 	}
 }
 
+/* The function implicit hold kvm->lock mutex due to cancel_work_sync() */
 static void kvm_free_assigned_irq(struct kvm *kvm,
 				  struct kvm_assigned_dev_kernel *assigned_dev)
 {
@@ -228,11 +226,24 @@ static void kvm_free_assigned_irq(struct kvm *kvm,
 	if (!assigned_dev->irq_requested_type)
 		return;
 
-	if (cancel_work_sync(&assigned_dev->interrupt_work))
-		/* We had pending work. That means we will have to take
-		 * care of kvm_put_kvm.
-		 */
-		kvm_put_kvm(kvm);
+	/*
+	 * In kvm_free_device_irq, cancel_work_sync return true if:
+	 * 1. work is scheduled, and then cancelled.
+	 * 2. work callback is executed.
+	 *
+	 * The first one ensured that the irq is disabled and no more events
+	 * would happen. But for the second one, the irq may be enabled (e.g.
+	 * for MSI). So we disable irq here to prevent further events.
+	 *
+	 * Notice this maybe result in nested disable if the interrupt type is
+	 * INTx, but it's OK for we are going to free it.
+	 *
+	 * If this function is a part of VM destroy, please ensure that till
+	 * now, the kvm state is still legal for probably we also have to wait
+	 * interrupt_work done.
+	 */
+	disable_irq_nosync(assigned_dev->host_irq);
+	cancel_work_sync(&assigned_dev->interrupt_work);
 
 	free_irq(assigned_dev->host_irq, (void *)assigned_dev);
 
@@ -285,8 +296,8 @@ static int assigned_device_update_intx(struct kvm *kvm,
 
 	if (irqchip_in_kernel(kvm)) {
 		if (!msi2intx &&
-		    adev->irq_requested_type & KVM_ASSIGNED_DEV_HOST_MSI) {
-			free_irq(adev->host_irq, (void *)kvm);
+		    (adev->irq_requested_type & KVM_ASSIGNED_DEV_HOST_MSI)) {
+			free_irq(adev->host_irq, (void *)adev);
 			pci_disable_msi(adev->dev);
 		}
 
@@ -455,6 +466,7 @@ static int kvm_vm_ioctl_assign_device(struct kvm *kvm,
 	struct kvm_assigned_dev_kernel *match;
 	struct pci_dev *dev;
 
+	down_read(&kvm->slots_lock);
 	mutex_lock(&kvm->lock);
 
 	match = kvm_find_assigned_dev(&kvm->arch.assigned_dev_head,
@@ -516,6 +528,7 @@ static int kvm_vm_ioctl_assign_device(struct kvm *kvm,
 
 out:
 	mutex_unlock(&kvm->lock);
+	up_read(&kvm->slots_lock);
 	return r;
 out_list_del:
 	list_del(&match->list);
@@ -527,6 +540,7 @@ out_put:
 out_free:
 	kfree(match);
 	mutex_unlock(&kvm->lock);
+	up_read(&kvm->slots_lock);
 	return r;
 }
 #endif
@@ -789,11 +803,19 @@ static int kvm_mmu_notifier_clear_flush_young(struct mmu_notifier *mn,
 	return young;
 }
 
+static void kvm_mmu_notifier_release(struct mmu_notifier *mn,
+				     struct mm_struct *mm)
+{
+	struct kvm *kvm = mmu_notifier_to_kvm(mn);
+	kvm_arch_flush_shadow(kvm);
+}
+
 static const struct mmu_notifier_ops kvm_mmu_notifier_ops = {
 	.invalidate_page	= kvm_mmu_notifier_invalidate_page,
 	.invalidate_range_start	= kvm_mmu_notifier_invalidate_range_start,
 	.invalidate_range_end	= kvm_mmu_notifier_invalidate_range_end,
 	.clear_flush_young	= kvm_mmu_notifier_clear_flush_young,
+	.release		= kvm_mmu_notifier_release,
 };
 #endif /* CONFIG_MMU_NOTIFIER && KVM_ARCH_WANT_MMU_NOTIFIER */
 
@@ -883,6 +905,7 @@ static void kvm_destroy_vm(struct kvm *kvm)
 {
 	struct mm_struct *mm = kvm->mm;
 
+	kvm_arch_sync_events(kvm);
 	spin_lock(&kvm_lock);
 	list_del(&kvm->vm_list);
 	spin_unlock(&kvm_lock);

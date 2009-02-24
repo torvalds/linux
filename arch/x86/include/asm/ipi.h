@@ -1,6 +1,8 @@
 #ifndef _ASM_X86_IPI_H
 #define _ASM_X86_IPI_H
 
+#ifdef CONFIG_X86_LOCAL_APIC
+
 /*
  * Copyright 2004 James Cleverdon, IBM.
  * Subject to the GNU Public License, v.2
@@ -55,8 +57,8 @@ static inline void __xapic_wait_icr_idle(void)
 		cpu_relax();
 }
 
-static inline void __send_IPI_shortcut(unsigned int shortcut, int vector,
-				       unsigned int dest)
+static inline void
+__default_send_IPI_shortcut(unsigned int shortcut, int vector, unsigned int dest)
 {
 	/*
 	 * Subtle. In the case of the 'never do double writes' workaround
@@ -87,8 +89,8 @@ static inline void __send_IPI_shortcut(unsigned int shortcut, int vector,
  * This is used to send an IPI with no shorthand notation (the destination is
  * specified in bits 56 to 63 of the ICR).
  */
-static inline void __send_IPI_dest_field(unsigned int mask, int vector,
-					 unsigned int dest)
+static inline void
+ __default_send_IPI_dest_field(unsigned int mask, int vector, unsigned int dest)
 {
 	unsigned long cfg;
 
@@ -117,41 +119,44 @@ static inline void __send_IPI_dest_field(unsigned int mask, int vector,
 	native_apic_mem_write(APIC_ICR, cfg);
 }
 
-static inline void send_IPI_mask_sequence(const struct cpumask *mask,
-					  int vector)
-{
-	unsigned long flags;
-	unsigned long query_cpu;
+extern void default_send_IPI_mask_sequence_phys(const struct cpumask *mask,
+						 int vector);
+extern void default_send_IPI_mask_allbutself_phys(const struct cpumask *mask,
+							 int vector);
+extern void default_send_IPI_mask_sequence_logical(const struct cpumask *mask,
+							 int vector);
+extern void default_send_IPI_mask_allbutself_logical(const struct cpumask *mask,
+							 int vector);
 
-	/*
-	 * Hack. The clustered APIC addressing mode doesn't allow us to send
-	 * to an arbitrary mask, so I do a unicast to each CPU instead.
-	 * - mbligh
-	 */
-	local_irq_save(flags);
-	for_each_cpu(query_cpu, mask) {
-		__send_IPI_dest_field(per_cpu(x86_cpu_to_apicid, query_cpu),
-				      vector, APIC_DEST_PHYSICAL);
-	}
-	local_irq_restore(flags);
+/* Avoid include hell */
+#define NMI_VECTOR 0x02
+
+extern int no_broadcast;
+
+static inline void __default_local_send_IPI_allbutself(int vector)
+{
+	if (no_broadcast || vector == NMI_VECTOR)
+		apic->send_IPI_mask_allbutself(cpu_online_mask, vector);
+	else
+		__default_send_IPI_shortcut(APIC_DEST_ALLBUT, vector, apic->dest_logical);
 }
 
-static inline void send_IPI_mask_allbutself(const struct cpumask *mask,
-					    int vector)
+static inline void __default_local_send_IPI_all(int vector)
 {
-	unsigned long flags;
-	unsigned int query_cpu;
-	unsigned int this_cpu = smp_processor_id();
-
-	/* See Hack comment above */
-
-	local_irq_save(flags);
-	for_each_cpu(query_cpu, mask)
-		if (query_cpu != this_cpu)
-			__send_IPI_dest_field(
-				per_cpu(x86_cpu_to_apicid, query_cpu),
-				vector, APIC_DEST_PHYSICAL);
-	local_irq_restore(flags);
+	if (no_broadcast || vector == NMI_VECTOR)
+		apic->send_IPI_mask(cpu_online_mask, vector);
+	else
+		__default_send_IPI_shortcut(APIC_DEST_ALLINC, vector, apic->dest_logical);
 }
+
+#ifdef CONFIG_X86_32
+extern void default_send_IPI_mask_logical(const struct cpumask *mask,
+						 int vector);
+extern void default_send_IPI_allbutself(int vector);
+extern void default_send_IPI_all(int vector);
+extern void default_send_IPI_self(int vector);
+#endif
+
+#endif
 
 #endif /* _ASM_X86_IPI_H */

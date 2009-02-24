@@ -1130,7 +1130,7 @@ void crash_save_cpu(struct pt_regs *regs, int cpu)
 		return;
 	memset(&prstatus, 0, sizeof(prstatus));
 	prstatus.pr_pid = current->pid;
-	elf_core_copy_regs(&prstatus.pr_reg, regs);
+	elf_core_copy_kernel_regs(&prstatus.pr_reg, regs);
 	buf = append_elf_note(buf, KEXEC_CORE_NOTE_NAME, NT_PRSTATUS,
 		      	      &prstatus, sizeof(prstatus));
 	final_note(buf);
@@ -1465,6 +1465,11 @@ int kernel_kexec(void)
 		error = device_power_down(PMSG_FREEZE);
 		if (error)
 			goto Enable_irqs;
+
+		/* Suspend system devices */
+		error = sysdev_suspend(PMSG_FREEZE);
+		if (error)
+			goto Power_up_devices;
 	} else
 #endif
 	{
@@ -1477,6 +1482,8 @@ int kernel_kexec(void)
 
 #ifdef CONFIG_KEXEC_JUMP
 	if (kexec_image->preserve_context) {
+		sysdev_resume();
+ Power_up_devices:
 		device_power_up(PMSG_RESTORE);
  Enable_irqs:
 		local_irq_enable();

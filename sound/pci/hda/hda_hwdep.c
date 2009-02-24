@@ -175,7 +175,7 @@ static int reconfig_codec(struct hda_codec *codec)
 	err = snd_hda_codec_build_controls(codec);
 	if (err < 0)
 		return err;
-	return 0;
+	return snd_card_register(codec->bus->card);
 }
 
 /*

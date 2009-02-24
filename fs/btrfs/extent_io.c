@@ -415,8 +415,6 @@ static int split_state(struct extent_io_tree *tree, struct extent_state *orig,
 
 	node = tree_insert(&tree->state, prealloc->end, &prealloc->rb_node);
 	if (node) {
-		struct extent_state *found;
-		found = rb_entry(node, struct extent_state, rb_node);
 		free_extent_state(prealloc);
 		return -EEXIST;
 	}

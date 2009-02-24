@@ -558,32 +558,10 @@ static void last_sector_hacks(struct us_data *us, struct scsi_cmnd *srb)
 
 	if (srb->result == SAM_STAT_GOOD && scsi_get_resid(srb) == 0) {
 
-		/* The command succeeded.  If the capacity is odd
-		 * (i.e., if the sector number is even) then the
-		 * "always-even" heuristic would be wrong for this
-		 * device.  Issue a WARN() so that the kerneloops.org
-		 * project will be notified and we will then know to
-		 * mark the device with a CAPACITY_OK flag.  Hopefully
-		 * this will occur for only a few devices.
-		 *
-		 * Use the sign of us->last_sector_hacks to tell whether
-		 * the warning has already been issued; we don't need
-		 * more than one warning per device.
+		/* The command succeeded.  We know this device doesn't
+		 * have the last-sector bug, so stop checking it.
 		 */
-		if (!(sector & 1) && us->use_last_sector_hacks > 0) {
-			unsigned vid = le16_to_cpu(
-					us->pusb_dev->descriptor.idVendor);
-			unsigned pid = le16_to_cpu(
-					us->pusb_dev->descriptor.idProduct);
-			unsigned rev = le16_to_cpu(
-					us->pusb_dev->descriptor.bcdDevice);
-
-			WARN(1, "%s: Successful last sector success at %u, "
-					"device %04x:%04x:%04x\n",
-					sdkp->disk->disk_name, sector,
-					vid, pid, rev);
-			us->use_last_sector_hacks = -1;
-		}
+		us->use_last_sector_hacks = 0;
 
 	} else {
 		/* The command failed.  Allow up to 3 retries in case this
@@ -599,14 +577,6 @@ static void last_sector_hacks(struct us_data *us, struct scsi_cmnd *srb)
 		srb->result = SAM_STAT_CHECK_CONDITION;
 		memcpy(srb->sense_buffer, record_not_found,
 				sizeof(record_not_found));
-
-		/* In theory we might want to issue a WARN() here if the
-		 * capacity is even, since it could indicate the device
-		 * has the READ CAPACITY bug _and_ the real capacity is
-		 * odd.  But it could also indicate that the device
-		 * simply can't access its last sector, a failure mode
-		 * which is surprisingly common.  So no warning.
-		 */
 	}
 
  done:

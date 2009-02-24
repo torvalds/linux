@@ -432,6 +432,7 @@ static int map_sg_data(struct scsi_cmnd *cmd,
 				sdev_printk(KERN_ERR, cmd->device,
 				            "Can't allocate memory "
 				            "for indirect table\n");
+			scsi_dma_unmap(cmd);
 			return 0;
 		}
 	}

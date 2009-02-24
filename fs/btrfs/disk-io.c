@@ -75,6 +75,40 @@ struct async_submit_bio {
 	struct btrfs_work work;
 };
 
+/* These are used to set the lockdep class on the extent buffer locks.
+ * The class is set by the readpage_end_io_hook after the buffer has
+ * passed csum validation but before the pages are unlocked.
+ *
+ * The lockdep class is also set by btrfs_init_new_buffer on freshly
+ * allocated blocks.
+ *
+ * The class is based on the level in the tree block, which allows lockdep
+ * to know that lower nodes nest inside the locks of higher nodes.
+ *
+ * We also add a check to make sure the highest level of the tree is
+ * the same as our lockdep setup here.  If BTRFS_MAX_LEVEL changes, this
+ * code needs update as well.
+ */
+#ifdef CONFIG_DEBUG_LOCK_ALLOC
+# if BTRFS_MAX_LEVEL != 8
+#  error
+# endif
+static struct lock_class_key btrfs_eb_class[BTRFS_MAX_LEVEL + 1];
+static const char *btrfs_eb_name[BTRFS_MAX_LEVEL + 1] = {
+	/* leaf */
+	"btrfs-extent-00",
+	"btrfs-extent-01",
+	"btrfs-extent-02",
+	"btrfs-extent-03",
+	"btrfs-extent-04",
+	"btrfs-extent-05",
+	"btrfs-extent-06",
+	"btrfs-extent-07",
+	/* highest possible level */
+	"btrfs-extent-08",
+};
+#endif
+
 /*
  * extents on the btree inode are pretty simple, there's one extent
  * that covers the entire device
@@ -347,6 +381,15 @@ static int check_tree_block_fsid(struct btrfs_root *root,
 	return ret;
 }
 
+#ifdef CONFIG_DEBUG_LOCK_ALLOC
+void btrfs_set_buffer_lockdep_class(struct extent_buffer *eb, int level)
+{
+	lockdep_set_class_and_name(&eb->lock,
+			   &btrfs_eb_class[level],
+			   btrfs_eb_name[level]);
+}
+#endif
+
 static int btree_readpage_end_io_hook(struct page *page, u64 start, u64 end,
 			       struct extent_state *state)
 {
@@ -391,6 +434,8 @@ static int btree_readpage_end_io_hook(struct page *page, u64 start, u64 end,
 		goto err;
 	}
 	found_level = btrfs_header_level(eb);
+
+	btrfs_set_buffer_lockdep_class(eb, found_level);
 
 	ret = csum_tree_block(root, eb, 1);
 	if (ret)
@@ -1777,7 +1822,6 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	ret = find_and_setup_root(tree_root, fs_info,
 				  BTRFS_DEV_TREE_OBJECTID, dev_root);
 	dev_root->track_dirty = 1;
-
 	if (ret)
 		goto fail_extent_root;
 

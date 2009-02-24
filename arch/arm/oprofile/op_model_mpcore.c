@@ -263,7 +263,7 @@ static void em_route_irq(int irq, unsigned int cpu)
 	const struct cpumask *mask = cpumask_of(cpu);
 
 	spin_lock_irq(&desc->lock);
-	desc->affinity = *mask;
+	cpumask_copy(desc->affinity, mask);
 	desc->chip->set_affinity(irq, mask);
 	spin_unlock_irq(&desc->lock);
 }

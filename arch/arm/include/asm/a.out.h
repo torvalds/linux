@@ -2,7 +2,7 @@
 #define __ARM_A_OUT_H__
 
 #include <linux/personality.h>
-#include <asm/types.h>
+#include <linux/types.h>
 
 struct exec
 {
