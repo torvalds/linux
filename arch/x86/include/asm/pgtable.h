@@ -288,6 +288,8 @@ static inline int is_new_memtype_allowed(unsigned long flags,
 	return 1;
 }
 
+pmd_t *populate_extra_pmd(unsigned long vaddr);
+pte_t *populate_extra_pte(unsigned long vaddr);
 #endif	/* __ASSEMBLY__ */
 
 #ifdef CONFIG_X86_32

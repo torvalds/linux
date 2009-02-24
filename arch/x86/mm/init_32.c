@@ -137,6 +137,23 @@ static pte_t * __init one_page_table_init(pmd_t *pmd)
 	return pte_offset_kernel(pmd, 0);
 }
 
+pmd_t * __init populate_extra_pmd(unsigned long vaddr)
+{
+	int pgd_idx = pgd_index(vaddr);
+	int pmd_idx = pmd_index(vaddr);
+
+	return one_md_table_init(swapper_pg_dir + pgd_idx) + pmd_idx;
+}
+
+pte_t * __init populate_extra_pte(unsigned long vaddr)
+{
+	int pte_idx = pte_index(vaddr);
+	pmd_t *pmd;
+
+	pmd = populate_extra_pmd(vaddr);
+	return one_page_table_init(pmd) + pte_idx;
+}
+
 static pte_t *__init page_table_kmap_check(pte_t *pte, pmd_t *pmd,
 					   unsigned long vaddr, pte_t *lastpte)
 {
