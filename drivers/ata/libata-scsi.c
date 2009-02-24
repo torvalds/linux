@@ -415,6 +415,7 @@ int ata_std_bios_param(struct scsi_device *sdev, struct block_device *bdev,
 
 /**
  *	ata_get_identity - Handler for HDIO_GET_IDENTITY ioctl
+ *	@ap: target port
  *	@sdev: SCSI device to get identify data for
  *	@arg: User buffer area for identify data
  *

@@ -4729,13 +4729,6 @@ static int ocfs2_xattr_bucket_value_truncate(struct inode *inode,
 	vb.vb_xv = (struct ocfs2_xattr_value_root *)
 		(vb.vb_bh->b_data + offset % blocksize);
 
-	ret = ocfs2_xattr_bucket_journal_access(ctxt->handle, bucket,
-						OCFS2_JOURNAL_ACCESS_WRITE);
-	if (ret) {
-		mlog_errno(ret);
-		goto out;
-	}
-
 	/*
 	 * From here on out we have to dirty the bucket.  The generic
 	 * value calls only modify one of the bucket's bhs, but we need
@@ -4748,12 +4741,18 @@ static int ocfs2_xattr_bucket_value_truncate(struct inode *inode,
 	ret = ocfs2_xattr_value_truncate(inode, &vb, len, ctxt);
 	if (ret) {
 		mlog_errno(ret);
-		goto out_dirty;
+		goto out;
+	}
+
+	ret = ocfs2_xattr_bucket_journal_access(ctxt->handle, bucket,
+						OCFS2_JOURNAL_ACCESS_WRITE);
+	if (ret) {
+		mlog_errno(ret);
+		goto out;
 	}
 
 	xe->xe_value_size = cpu_to_le64(len);
 
-out_dirty:
 	ocfs2_xattr_bucket_journal_dirty(ctxt->handle, bucket);
 
 out:

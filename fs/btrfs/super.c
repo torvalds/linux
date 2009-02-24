@@ -37,7 +37,6 @@
 #include <linux/ctype.h>
 #include <linux/namei.h>
 #include <linux/miscdevice.h>
-#include <linux/version.h>
 #include <linux/magic.h>
 #include "compat.h"
 #include "ctree.h"
@@ -380,7 +379,6 @@ int btrfs_sync_fs(struct super_block *sb, int wait)
 	btrfs_start_delalloc_inodes(root);
 	btrfs_wait_ordered_extents(root, 0);
 
-	btrfs_clean_old_snapshots(root);
 	trans = btrfs_start_transaction(root, 1);
 	ret = btrfs_commit_transaction(trans, root);
 	sb->s_dirt = 0;
@@ -512,6 +510,10 @@ static int btrfs_remount(struct super_block *sb, int *flags, char *data)
 	struct btrfs_root *root = btrfs_sb(sb);
 	int ret;
 
+	ret = btrfs_parse_options(root, data);
+	if (ret)
+		return -EINVAL;
+
 	if ((*flags & MS_RDONLY) == (sb->s_flags & MS_RDONLY))
 		return 0;
 
@@ -583,17 +585,18 @@ static long btrfs_control_ioctl(struct file *file, unsigned int cmd,
 	struct btrfs_ioctl_vol_args *vol;
 	struct btrfs_fs_devices *fs_devices;
 	int ret = -ENOTTY;
-	int len;
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
 	vol = kmalloc(sizeof(*vol), GFP_KERNEL);
+	if (!vol)
+		return -ENOMEM;
+
 	if (copy_from_user(vol, (void __user *)arg, sizeof(*vol))) {
 		ret = -EFAULT;
 		goto out;
 	}
-	len = strnlen(vol->name, BTRFS_PATH_NAME_MAX);
 
 	switch (cmd) {
 	case BTRFS_IOC_SCAN_DEV:

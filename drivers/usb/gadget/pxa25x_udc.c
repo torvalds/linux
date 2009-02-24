@@ -904,8 +904,8 @@ static void pxa25x_ep_fifo_flush(struct usb_ep *_ep)
 
 	/* most IN status is the same, but ISO can't stall */
 	*ep->reg_udccs = UDCCS_BI_TPC|UDCCS_BI_FTF|UDCCS_BI_TUR
-		| (ep->bmAttributes == USB_ENDPOINT_XFER_ISOC)
-			? 0 : UDCCS_BI_SST;
+		| (ep->bmAttributes == USB_ENDPOINT_XFER_ISOC
+			? 0 : UDCCS_BI_SST);
 }
 
 

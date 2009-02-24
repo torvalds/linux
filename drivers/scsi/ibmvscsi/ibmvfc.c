@@ -1573,9 +1573,6 @@ static int ibmvfc_queuecommand(struct scsi_cmnd *cmnd,
 	vfc_cmd->resp_len = sizeof(vfc_cmd->rsp);
 	vfc_cmd->cancel_key = (unsigned long)cmnd->device->hostdata;
 	vfc_cmd->tgt_scsi_id = rport->port_id;
-	if ((rport->supported_classes & FC_COS_CLASS3) &&
-	    (fc_host_supported_classes(vhost->host) & FC_COS_CLASS3))
-		vfc_cmd->flags = IBMVFC_CLASS_3_ERR;
 	vfc_cmd->iu.xfer_len = scsi_bufflen(cmnd);
 	int_to_scsilun(cmnd->device->lun, &vfc_cmd->iu.lun);
 	memcpy(vfc_cmd->iu.cdb, cmnd->cmnd, cmnd->cmd_len);
@@ -3266,6 +3263,7 @@ static int ibmvfc_alloc_target(struct ibmvfc_host *vhost, u64 scsi_id)
 		return -ENOMEM;
 	}
 
+	memset(tgt, 0, sizeof(*tgt));
 	tgt->scsi_id = scsi_id;
 	tgt->new_scsi_id = scsi_id;
 	tgt->vhost = vhost;
@@ -3576,8 +3574,17 @@ static void ibmvfc_log_ae(struct ibmvfc_host *vhost, int events)
 static void ibmvfc_tgt_add_rport(struct ibmvfc_target *tgt)
 {
 	struct ibmvfc_host *vhost = tgt->vhost;
-	struct fc_rport *rport;
+	struct fc_rport *rport = tgt->rport;
 	unsigned long flags;
+
+	if (rport) {
+		tgt_dbg(tgt, "Setting rport roles\n");
+		fc_remote_port_rolechg(rport, tgt->ids.roles);
+		spin_lock_irqsave(vhost->host->host_lock, flags);
+		ibmvfc_set_tgt_action(tgt, IBMVFC_TGT_ACTION_NONE);
+		spin_unlock_irqrestore(vhost->host->host_lock, flags);
+		return;
+	}
 
 	tgt_dbg(tgt, "Adding rport\n");
 	rport = fc_remote_port_add(vhost->host, 0, &tgt->ids);

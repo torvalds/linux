@@ -480,7 +480,8 @@ static inline char *pack_hex_byte(char *buf, u8 byte)
 /*
  * swap - swap value of @a and @b
  */
-#define swap(a, b) ({ typeof(a) __tmp = (a); (a) = (b); (b) = __tmp; })
+#define swap(a, b) \
+	do { typeof(a) __tmp = (a); (a) = (b); (b) = __tmp; } while (0)
 
 /**
  * container_of - cast a member of a structure out to the containing structure

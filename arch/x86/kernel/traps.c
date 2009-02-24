@@ -99,6 +99,12 @@ static inline void preempt_conditional_sti(struct pt_regs *regs)
 		local_irq_enable();
 }
 
+static inline void conditional_cli(struct pt_regs *regs)
+{
+	if (regs->flags & X86_EFLAGS_IF)
+		local_irq_disable();
+}
+
 static inline void preempt_conditional_cli(struct pt_regs *regs)
 {
 	if (regs->flags & X86_EFLAGS_IF)
@@ -626,8 +632,10 @@ clear_dr7:
 
 #ifdef CONFIG_X86_32
 debug_vm86:
+	/* reenable preemption: handle_vm86_trap() might sleep */
+	dec_preempt_count();
 	handle_vm86_trap((struct kernel_vm86_regs *) regs, error_code, 1);
-	preempt_conditional_cli(regs);
+	conditional_cli(regs);
 	return;
 #endif
 
@@ -896,7 +904,7 @@ asmlinkage void math_state_restore(void)
 EXPORT_SYMBOL_GPL(math_state_restore);
 
 #ifndef CONFIG_MATH_EMULATION
-asmlinkage void math_emulate(long arg)
+void math_emulate(struct math_emu_info *info)
 {
 	printk(KERN_EMERG
 		"math-emulation not enabled and no coprocessor found.\n");
@@ -906,16 +914,19 @@ asmlinkage void math_emulate(long arg)
 }
 #endif /* CONFIG_MATH_EMULATION */
 
-dotraplinkage void __kprobes
-do_device_not_available(struct pt_regs *regs, long error)
+dotraplinkage void __kprobes do_device_not_available(struct pt_regs regs)
 {
 #ifdef CONFIG_X86_32
 	if (read_cr0() & X86_CR0_EM) {
-		conditional_sti(regs);
-		math_emulate(0);
+		struct math_emu_info info = { };
+
+		conditional_sti(&regs);
+
+		info.regs = &regs;
+		math_emulate(&info);
 	} else {
 		math_state_restore(); /* interrupts still off */
-		conditional_sti(regs);
+		conditional_sti(&regs);
 	}
 #else
 	math_state_restore();

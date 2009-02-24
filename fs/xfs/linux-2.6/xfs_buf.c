@@ -166,6 +166,75 @@ test_page_region(
 }
 
 /*
+ *	Mapping of multi-page buffers into contiguous virtual space
+ */
+
+typedef struct a_list {
+	void		*vm_addr;
+	struct a_list	*next;
+} a_list_t;
+
+static a_list_t		*as_free_head;
+static int		as_list_len;
+static DEFINE_SPINLOCK(as_lock);
+
+/*
+ *	Try to batch vunmaps because they are costly.
+ */
+STATIC void
+free_address(
+	void		*addr)
+{
+	a_list_t	*aentry;
+
+#ifdef CONFIG_XEN
+	/*
+	 * Xen needs to be able to make sure it can get an exclusive
+	 * RO mapping of pages it wants to turn into a pagetable.  If
+	 * a newly allocated page is also still being vmap()ed by xfs,
+	 * it will cause pagetable construction to fail.  This is a
+	 * quick workaround to always eagerly unmap pages so that Xen
+	 * is happy.
+	 */
+	vunmap(addr);
+	return;
+#endif
+
+	aentry = kmalloc(sizeof(a_list_t), GFP_NOWAIT);
+	if (likely(aentry)) {
+		spin_lock(&as_lock);
+		aentry->next = as_free_head;
+		aentry->vm_addr = addr;
+		as_free_head = aentry;
+		as_list_len++;
+		spin_unlock(&as_lock);
+	} else {
+		vunmap(addr);
+	}
+}
+
+STATIC void
+purge_addresses(void)
+{
+	a_list_t	*aentry, *old;
+
+	if (as_free_head == NULL)
+		return;
+
+	spin_lock(&as_lock);
+	aentry = as_free_head;
+	as_free_head = NULL;
+	as_list_len = 0;
+	spin_unlock(&as_lock);
+
+	while ((old = aentry) != NULL) {
+		vunmap(aentry->vm_addr);
+		aentry = aentry->next;
+		kfree(old);
+	}
+}
+
+/*
  *	Internal xfs_buf_t object manipulation
  */
 
@@ -264,7 +333,7 @@ xfs_buf_free(
 		uint		i;
 
 		if ((bp->b_flags & XBF_MAPPED) && (bp->b_page_count > 1))
-                       vm_unmap_ram(bp->b_addr - bp->b_offset, bp->b_page_count);
+			free_address(bp->b_addr - bp->b_offset);
 
 		for (i = 0; i < bp->b_page_count; i++) {
 			struct page	*page = bp->b_pages[i];
@@ -386,8 +455,10 @@ _xfs_buf_map_pages(
 		bp->b_addr = page_address(bp->b_pages[0]) + bp->b_offset;
 		bp->b_flags |= XBF_MAPPED;
 	} else if (flags & XBF_MAPPED) {
-               bp->b_addr = vm_map_ram(bp->b_pages, bp->b_page_count,
-                                       -1, PAGE_KERNEL);
+		if (as_list_len > 64)
+			purge_addresses();
+		bp->b_addr = vmap(bp->b_pages, bp->b_page_count,
+					VM_MAP, PAGE_KERNEL);
 		if (unlikely(bp->b_addr == NULL))
 			return -ENOMEM;
 		bp->b_addr += bp->b_offset;
@@ -1672,6 +1743,8 @@ xfsbufd(
 			count++;
 		}
 
+		if (as_list_len > 0)
+			purge_addresses();
 		if (count)
 			blk_run_address_space(target->bt_mapping);
 

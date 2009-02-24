@@ -207,7 +207,7 @@ static void ilo_ccb_close(struct pci_dev *pdev, struct ccb_data *data)
 		  &device_ccb->recv_ctrl);
 
 	/* give iLO some time to process stop request */
-	for (retries = 1000; retries > 0; retries--) {
+	for (retries = MAX_WAIT; retries > 0; retries--) {
 		doorbell_set(driver_ccb);
 		udelay(1);
 		if (!(ioread32(&device_ccb->send_ctrl) & (1 << CTRL_BITPOS_A))
@@ -309,7 +309,7 @@ static int ilo_ccb_open(struct ilo_hwinfo *hw, struct ccb_data *data, int slot)
 	doorbell_clr(driver_ccb);
 
 	/* make sure iLO is really handling requests */
-	for (i = 1000; i > 0; i--) {
+	for (i = MAX_WAIT; i > 0; i--) {
 		if (ilo_pkt_dequeue(hw, driver_ccb, SENDQ, &pkt_id, NULL, NULL))
 			break;
 		udelay(1);
@@ -326,7 +326,7 @@ static int ilo_ccb_open(struct ilo_hwinfo *hw, struct ccb_data *data, int slot)
 
 	return 0;
 free:
-	pci_free_consistent(pdev, data->dma_size, data->dma_va, data->dma_pa);
+	ilo_ccb_close(pdev, data);
 out:
 	return error;
 }

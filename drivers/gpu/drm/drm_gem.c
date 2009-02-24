@@ -104,8 +104,8 @@ drm_gem_init(struct drm_device *dev)
 
 	if (drm_mm_init(&mm->offset_manager, DRM_FILE_PAGE_OFFSET_START,
 			DRM_FILE_PAGE_OFFSET_SIZE)) {
-		drm_free(mm, sizeof(struct drm_gem_mm), DRM_MEM_MM);
 		drm_ht_remove(&mm->offset_hash);
+		drm_free(mm, sizeof(struct drm_gem_mm), DRM_MEM_MM);
 		return -ENOMEM;
 	}
 
@@ -295,35 +295,37 @@ drm_gem_flink_ioctl(struct drm_device *dev, void *data,
 		return -EBADF;
 
 again:
-	if (idr_pre_get(&dev->object_name_idr, GFP_KERNEL) == 0)
-		return -ENOMEM;
+	if (idr_pre_get(&dev->object_name_idr, GFP_KERNEL) == 0) {
+		ret = -ENOMEM;
+		goto err;
+	}
 
 	spin_lock(&dev->object_name_lock);
-	if (obj->name) {
-		args->name = obj->name;
+	if (!obj->name) {
+		ret = idr_get_new_above(&dev->object_name_idr, obj, 1,
+					&obj->name);
+		args->name = (uint64_t) obj->name;
 		spin_unlock(&dev->object_name_lock);
-		return 0;
+
+		if (ret == -EAGAIN)
+			goto again;
+
+		if (ret != 0)
+			goto err;
+
+		/* Allocate a reference for the name table.  */
+		drm_gem_object_reference(obj);
+	} else {
+		args->name = (uint64_t) obj->name;
+		spin_unlock(&dev->object_name_lock);
+		ret = 0;
 	}
-	ret = idr_get_new_above(&dev->object_name_idr, obj, 1,
-				 &obj->name);
-	spin_unlock(&dev->object_name_lock);
-	if (ret == -EAGAIN)
-		goto again;
 
-	if (ret != 0) {
-		mutex_lock(&dev->struct_mutex);
-		drm_gem_object_unreference(obj);
-		mutex_unlock(&dev->struct_mutex);
-		return ret;
-	}
-
-	/*
-	 * Leave the reference from the lookup around as the
-	 * name table now holds one
-	 */
-	args->name = (uint64_t) obj->name;
-
-	return 0;
+err:
+	mutex_lock(&dev->struct_mutex);
+	drm_gem_object_unreference(obj);
+	mutex_unlock(&dev->struct_mutex);
+	return ret;
 }
 
 /**
@@ -448,6 +450,7 @@ drm_gem_object_handle_free(struct kref *kref)
 	spin_lock(&dev->object_name_lock);
 	if (obj->name) {
 		idr_remove(&dev->object_name_idr, obj->name);
+		obj->name = 0;
 		spin_unlock(&dev->object_name_lock);
 		/*
 		 * The object name held a reference to this object, drop
@@ -459,6 +462,26 @@ drm_gem_object_handle_free(struct kref *kref)
 
 }
 EXPORT_SYMBOL(drm_gem_object_handle_free);
+
+void drm_gem_vm_open(struct vm_area_struct *vma)
+{
+	struct drm_gem_object *obj = vma->vm_private_data;
+
+	drm_gem_object_reference(obj);
+}
+EXPORT_SYMBOL(drm_gem_vm_open);
+
+void drm_gem_vm_close(struct vm_area_struct *vma)
+{
+	struct drm_gem_object *obj = vma->vm_private_data;
+	struct drm_device *dev = obj->dev;
+
+	mutex_lock(&dev->struct_mutex);
+	drm_gem_object_unreference(obj);
+	mutex_unlock(&dev->struct_mutex);
+}
+EXPORT_SYMBOL(drm_gem_vm_close);
+
 
 /**
  * drm_gem_mmap - memory map routine for GEM objects
@@ -520,6 +543,14 @@ int drm_gem_mmap(struct file *filp, struct vm_area_struct *vma)
 	prot |= _PAGE_CACHE_WC;
 #endif
 	vma->vm_page_prot = __pgprot(prot);
+
+	/* Take a ref for this mapping of the object, so that the fault
+	 * handler can dereference the mmap offset's pointer to the object.
+	 * This reference is cleaned up by the corresponding vm_close
+	 * (which should happen whether the vma was created by this call, or
+	 * by a vm_open due to mremap or partial unmap or whatever).
+	 */
+	drm_gem_object_reference(obj);
 
 	vma->vm_file = filp;	/* Needed for drm_vm_open() */
 	drm_vm_open_locked(vma);

@@ -33,11 +33,21 @@ void __init intr_init_hook(void)
 	setup_irq(2, &irq2);
 }
 
-void __init pre_setup_arch_hook(void)
+static void voyager_disable_tsc(void)
 {
 	/* Voyagers run their CPUs from independent clocks, so disable
 	 * the TSC code because we can't sync them */
 	setup_clear_cpu_cap(X86_FEATURE_TSC);
+}
+
+void __init pre_setup_arch_hook(void)
+{
+	voyager_disable_tsc();
+}
+
+void __init pre_time_init_hook(void)
+{
+	voyager_disable_tsc();
 }
 
 void __init trap_init_hook(void)
@@ -46,7 +56,7 @@ void __init trap_init_hook(void)
 
 static struct irqaction irq0 = {
 	.handler = timer_interrupt,
-	.flags = IRQF_DISABLED | IRQF_NOBALANCING | IRQF_IRQPOLL,
+	.flags = IRQF_DISABLED | IRQF_NOBALANCING | IRQF_IRQPOLL | IRQF_TIMER,
 	.mask = CPU_MASK_NONE,
 	.name = "timer"
 };

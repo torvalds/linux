@@ -18,9 +18,11 @@
  */
 
 #include <linux/device.h>
+#include <linux/delay.h>
 #include <linux/module.h>
 #include <linux/kthread.h>
 #include <linux/wait.h>
+#include <linux/async.h>
 
 #include "base.h"
 #include "power/power.h"
@@ -164,6 +166,21 @@ int driver_probe_done(void)
 		 atomic_read(&probe_count));
 	if (atomic_read(&probe_count))
 		return -EBUSY;
+	return 0;
+}
+
+/**
+ * wait_for_device_probe
+ * Wait for device probing to be completed.
+ *
+ * Note: this function polls at 100 msec intervals.
+ */
+int wait_for_device_probe(void)
+{
+	/* wait for the known devices to complete their probing */
+	while (driver_probe_done() != 0)
+		msleep(100);
+	async_synchronize_full();
 	return 0;
 }
 

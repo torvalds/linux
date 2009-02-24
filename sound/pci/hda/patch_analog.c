@@ -275,6 +275,14 @@ static int ad198x_dig_playback_pcm_prepare(struct hda_pcm_stream *hinfo,
 					     format, substream);
 }
 
+static int ad198x_dig_playback_pcm_cleanup(struct hda_pcm_stream *hinfo,
+					   struct hda_codec *codec,
+					   struct snd_pcm_substream *substream)
+{
+	struct ad198x_spec *spec = codec->spec;
+	return snd_hda_multi_out_dig_cleanup(codec, &spec->multiout);
+}
+
 /*
  * Analog capture
  */
@@ -333,7 +341,8 @@ static struct hda_pcm_stream ad198x_pcm_digital_playback = {
 	.ops = {
 		.open = ad198x_dig_playback_pcm_open,
 		.close = ad198x_dig_playback_pcm_close,
-		.prepare = ad198x_dig_playback_pcm_prepare
+		.prepare = ad198x_dig_playback_pcm_prepare,
+		.cleanup = ad198x_dig_playback_pcm_cleanup
 	},
 };
 
@@ -1885,8 +1894,8 @@ static hda_nid_t ad1988_capsrc_nids[3] = {
 #define AD1988_SPDIF_OUT_HDMI	0x0b
 #define AD1988_SPDIF_IN		0x07
 
-static hda_nid_t ad1989b_slave_dig_outs[2] = {
-	AD1988_SPDIF_OUT, AD1988_SPDIF_OUT_HDMI
+static hda_nid_t ad1989b_slave_dig_outs[] = {
+	AD1988_SPDIF_OUT, AD1988_SPDIF_OUT_HDMI, 0
 };
 
 static struct hda_input_mux ad1988_6stack_capture_source = {

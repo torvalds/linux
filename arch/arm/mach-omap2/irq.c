@@ -134,6 +134,7 @@ static struct irq_chip omap_irq_chip = {
 	.ack	= omap_mask_ack_irq,
 	.mask	= omap_mask_irq,
 	.unmask	= omap_unmask_irq,
+	.disable = omap_mask_irq,
 };
 
 static void __init omap_irq_bank_init_one(struct omap_irq_bank *bank)

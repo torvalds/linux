@@ -82,7 +82,9 @@ char elf_platform[ELF_PLATFORM_SIZE];
 
 struct mem_chunk __initdata memory_chunk[MEMORY_CHUNKS];
 volatile int __cpu_logical_map[NR_CPUS]; /* logical cpu to cpu address */
-static unsigned long __initdata memory_end;
+
+int __initdata memory_end_set;
+unsigned long __initdata memory_end;
 
 /*
  * This is set up by the setup-routine at boot-time
@@ -281,6 +283,7 @@ void (*pm_power_off)(void) = machine_power_off;
 static int __init early_parse_mem(char *p)
 {
 	memory_end = memparse(p, &p);
+	memory_end_set = 1;
 	return 0;
 }
 early_param("mem", early_parse_mem);
@@ -508,8 +511,10 @@ static void __init setup_memory_end(void)
 	int i;
 
 #if defined(CONFIG_ZFCPDUMP) || defined(CONFIG_ZFCPDUMP_MODULE)
-	if (ipl_info.type == IPL_TYPE_FCP_DUMP)
+	if (ipl_info.type == IPL_TYPE_FCP_DUMP) {
 		memory_end = ZFCPDUMP_HSA_SIZE;
+		memory_end_set = 1;
+	}
 #endif
 	memory_size = 0;
 	memory_end &= PAGE_MASK;

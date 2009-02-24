@@ -60,6 +60,7 @@ extern void mp_override_legacy_irq(u8 bus_irq, u8 polarity, u8 trigger,
 				   u32 gsi);
 extern void mp_config_acpi_legacy_irqs(void);
 extern int mp_register_gsi(u32 gsi, int edge_level, int active_high_low);
+extern int acpi_probe_gsi(void);
 #ifdef CONFIG_X86_IO_APIC
 extern int mp_config_acpi_gsi(unsigned char number, unsigned int devfn, u8 pin,
 				u32 gsi, int triggering, int polarity);
@@ -71,6 +72,11 @@ mp_config_acpi_gsi(unsigned char number, unsigned int devfn, u8 pin,
 	return 0;
 }
 #endif
+#else /* !CONFIG_ACPI: */
+static inline int acpi_probe_gsi(void)
+{
+	return 0;
+}
 #endif /* CONFIG_ACPI */
 
 #define PHYSID_ARRAY_SIZE	BITS_TO_LONGS(MAX_APICS)

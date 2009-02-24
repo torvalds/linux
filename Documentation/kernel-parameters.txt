@@ -134,7 +134,7 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	acpi=		[HW,ACPI,X86-64,i386]
 			Advanced Configuration and Power Interface
-			Format: { force | off | ht | strict | noirq }
+			Format: { force | off | ht | strict | noirq | rsdt }
 			force -- enable ACPI if default was off
 			off -- disable ACPI if default was on
 			noirq -- do not use ACPI for IRQ routing
@@ -937,6 +937,8 @@ and is between 256 and 4096 characters. It is defined in the file
 
 
 	intel_iommu=	[DMAR] Intel IOMMU driver (DMAR) option
+		on
+			Enable intel iommu driver.
 		off
 			Disable intel iommu driver.
 		igfx_off [Default Off]

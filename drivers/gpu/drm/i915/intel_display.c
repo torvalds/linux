@@ -90,12 +90,12 @@ typedef struct {
 #define I9XX_DOT_MAX		 400000
 #define I9XX_VCO_MIN		1400000
 #define I9XX_VCO_MAX		2800000
-#define I9XX_N_MIN		      3
-#define I9XX_N_MAX		      8
+#define I9XX_N_MIN		      1
+#define I9XX_N_MAX		      6
 #define I9XX_M_MIN		     70
 #define I9XX_M_MAX		    120
 #define I9XX_M1_MIN		     10
-#define I9XX_M1_MAX		     20
+#define I9XX_M1_MAX		     22
 #define I9XX_M2_MIN		      5
 #define I9XX_M2_MAX		      9
 #define I9XX_P_SDVO_DAC_MIN	      5
@@ -189,33 +189,12 @@ static const intel_limit_t *intel_limit(struct drm_crtc *crtc)
 	return limit;
 }
 
-/** Derive the pixel clock for the given refclk and divisors for 8xx chips. */
-
-static void i8xx_clock(int refclk, intel_clock_t *clock)
+static void intel_clock(int refclk, intel_clock_t *clock)
 {
 	clock->m = 5 * (clock->m1 + 2) + (clock->m2 + 2);
 	clock->p = clock->p1 * clock->p2;
 	clock->vco = refclk * clock->m / (clock->n + 2);
 	clock->dot = clock->vco / clock->p;
-}
-
-/** Derive the pixel clock for the given refclk and divisors for 9xx chips. */
-
-static void i9xx_clock(int refclk, intel_clock_t *clock)
-{
-	clock->m = 5 * (clock->m1 + 2) + (clock->m2 + 2);
-	clock->p = clock->p1 * clock->p2;
-	clock->vco = refclk * clock->m / (clock->n + 2);
-	clock->dot = clock->vco / clock->p;
-}
-
-static void intel_clock(struct drm_device *dev, int refclk,
-			intel_clock_t *clock)
-{
-	if (IS_I9XX(dev))
-		i9xx_clock (refclk, clock);
-	else
-		i8xx_clock (refclk, clock);
 }
 
 /**
@@ -238,7 +217,7 @@ bool intel_pipe_has_type (struct drm_crtc *crtc, int type)
     return false;
 }
 
-#define INTELPllInvalid(s)   { /* ErrorF (s) */; return false; }
+#define INTELPllInvalid(s)   do { DRM_DEBUG(s); return false; } while (0)
 /**
  * Returns whether the given set of divisors are valid for a given refclk with
  * the given connectors.
@@ -318,7 +297,7 @@ static bool intel_find_best_PLL(struct drm_crtc *crtc, int target,
 				     clock.p1 <= limit->p1.max; clock.p1++) {
 					int this_err;
 
-					intel_clock(dev, refclk, &clock);
+					intel_clock(refclk, &clock);
 
 					if (!intel_PLL_is_valid(crtc, &clock))
 						continue;
@@ -343,7 +322,7 @@ intel_wait_for_vblank(struct drm_device *dev)
 	udelay(20000);
 }
 
-static void
+static int
 intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 		    struct drm_framebuffer *old_fb)
 {
@@ -361,11 +340,21 @@ intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 	int dspstride = (pipe == 0) ? DSPASTRIDE : DSPBSTRIDE;
 	int dspcntr_reg = (pipe == 0) ? DSPACNTR : DSPBCNTR;
 	u32 dspcntr, alignment;
+	int ret;
 
 	/* no fb bound */
 	if (!crtc->fb) {
 		DRM_DEBUG("No FB bound\n");
-		return;
+		return 0;
+	}
+
+	switch (pipe) {
+	case 0:
+	case 1:
+		break;
+	default:
+		DRM_ERROR("Can't update pipe %d in SAREA\n", pipe);
+		return -EINVAL;
 	}
 
 	intel_fb = to_intel_framebuffer(crtc->fb);
@@ -377,28 +366,30 @@ intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 		alignment = 64 * 1024;
 		break;
 	case I915_TILING_X:
-		if (IS_I9XX(dev))
-			alignment = 1024 * 1024;
-		else
-			alignment = 512 * 1024;
+		/* pin() will align the object as required by fence */
+		alignment = 0;
 		break;
 	case I915_TILING_Y:
 		/* FIXME: Is this true? */
 		DRM_ERROR("Y tiled not allowed for scan out buffers\n");
-		return;
+		return -EINVAL;
 	default:
 		BUG();
 	}
 
-	if (i915_gem_object_pin(intel_fb->obj, alignment))
-		return;
+	mutex_lock(&dev->struct_mutex);
+	ret = i915_gem_object_pin(intel_fb->obj, alignment);
+	if (ret != 0) {
+		mutex_unlock(&dev->struct_mutex);
+		return ret;
+	}
 
-	i915_gem_object_set_to_gtt_domain(intel_fb->obj, 1);
-
-	Start = obj_priv->gtt_offset;
-	Offset = y * crtc->fb->pitch + x * (crtc->fb->bits_per_pixel / 8);
-
-	I915_WRITE(dspstride, crtc->fb->pitch);
+	ret = i915_gem_object_set_to_gtt_domain(intel_fb->obj, 1);
+	if (ret != 0) {
+		i915_gem_object_unpin(intel_fb->obj);
+		mutex_unlock(&dev->struct_mutex);
+		return ret;
+	}
 
 	dspcntr = I915_READ(dspcntr_reg);
 	/* Mask out pixel format bits in case we change it */
@@ -419,11 +410,17 @@ intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 		break;
 	default:
 		DRM_ERROR("Unknown color depth\n");
-		return;
+		i915_gem_object_unpin(intel_fb->obj);
+		mutex_unlock(&dev->struct_mutex);
+		return -EINVAL;
 	}
 	I915_WRITE(dspcntr_reg, dspcntr);
 
+	Start = obj_priv->gtt_offset;
+	Offset = y * crtc->fb->pitch + x * (crtc->fb->bits_per_pixel / 8);
+
 	DRM_DEBUG("Writing base %08lX %08lX %d %d\n", Start, Offset, x, y);
+	I915_WRITE(dspstride, crtc->fb->pitch);
 	if (IS_I965G(dev)) {
 		I915_WRITE(dspbase, Offset);
 		I915_READ(dspbase);
@@ -440,27 +437,24 @@ intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 		intel_fb = to_intel_framebuffer(old_fb);
 		i915_gem_object_unpin(intel_fb->obj);
 	}
+	mutex_unlock(&dev->struct_mutex);
 
 	if (!dev->primary->master)
-		return;
+		return 0;
 
 	master_priv = dev->primary->master->driver_priv;
 	if (!master_priv->sarea_priv)
-		return;
+		return 0;
 
-	switch (pipe) {
-	case 0:
-		master_priv->sarea_priv->pipeA_x = x;
-		master_priv->sarea_priv->pipeA_y = y;
-		break;
-	case 1:
+	if (pipe) {
 		master_priv->sarea_priv->pipeB_x = x;
 		master_priv->sarea_priv->pipeB_y = y;
-		break;
-	default:
-		DRM_ERROR("Can't update pipe %d in SAREA\n", pipe);
-		break;
+	} else {
+		master_priv->sarea_priv->pipeA_x = x;
+		master_priv->sarea_priv->pipeA_y = y;
 	}
+
+	return 0;
 }
 
 
@@ -708,11 +702,11 @@ static int intel_panel_fitter_pipe (struct drm_device *dev)
 	return 1;
 }
 
-static void intel_crtc_mode_set(struct drm_crtc *crtc,
-				struct drm_display_mode *mode,
-				struct drm_display_mode *adjusted_mode,
-				int x, int y,
-				struct drm_framebuffer *old_fb)
+static int intel_crtc_mode_set(struct drm_crtc *crtc,
+			       struct drm_display_mode *mode,
+			       struct drm_display_mode *adjusted_mode,
+			       int x, int y,
+			       struct drm_framebuffer *old_fb)
 {
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -732,13 +726,14 @@ static void intel_crtc_mode_set(struct drm_crtc *crtc,
 	int dspsize_reg = (pipe == 0) ? DSPASIZE : DSPBSIZE;
 	int dsppos_reg = (pipe == 0) ? DSPAPOS : DSPBPOS;
 	int pipesrc_reg = (pipe == 0) ? PIPEASRC : PIPEBSRC;
-	int refclk;
+	int refclk, num_outputs = 0;
 	intel_clock_t clock;
 	u32 dpll = 0, fp = 0, dspcntr, pipeconf;
 	bool ok, is_sdvo = false, is_dvo = false;
 	bool is_crt = false, is_lvds = false, is_tv = false;
 	struct drm_mode_config *mode_config = &dev->mode_config;
 	struct drm_connector *connector;
+	int ret;
 
 	drm_vblank_pre_modeset(dev, pipe);
 
@@ -755,6 +750,8 @@ static void intel_crtc_mode_set(struct drm_crtc *crtc,
 		case INTEL_OUTPUT_SDVO:
 		case INTEL_OUTPUT_HDMI:
 			is_sdvo = true;
+			if (intel_output->needs_tv_clock)
+				is_tv = true;
 			break;
 		case INTEL_OUTPUT_DVO:
 			is_dvo = true;
@@ -766,9 +763,14 @@ static void intel_crtc_mode_set(struct drm_crtc *crtc,
 			is_crt = true;
 			break;
 		}
+
+		num_outputs++;
 	}
 
-	if (IS_I9XX(dev)) {
+	if (is_lvds && dev_priv->lvds_use_ssc && num_outputs < 2) {
+		refclk = dev_priv->lvds_ssc_freq * 1000;
+		DRM_DEBUG("using SSC reference clock of %d MHz\n", refclk / 1000);
+	} else if (IS_I9XX(dev)) {
 		refclk = 96000;
 	} else {
 		refclk = 48000;
@@ -777,7 +779,7 @@ static void intel_crtc_mode_set(struct drm_crtc *crtc,
 	ok = intel_find_best_PLL(crtc, adjusted_mode->clock, refclk, &clock);
 	if (!ok) {
 		DRM_ERROR("Couldn't find PLL settings for mode!\n");
-		return;
+		return -EINVAL;
 	}
 
 	fp = clock.n << 16 | clock.m1 << 8 | clock.m2;
@@ -827,11 +829,14 @@ static void intel_crtc_mode_set(struct drm_crtc *crtc,
 		}
 	}
 
-	if (is_tv) {
+	if (is_sdvo && is_tv)
+		dpll |= PLL_REF_INPUT_TVCLKINBC;
+	else if (is_tv)
 		/* XXX: just matching BIOS for now */
-/*	dpll |= PLL_REF_INPUT_TVCLKINBC; */
+		/*	dpll |= PLL_REF_INPUT_TVCLKINBC; */
 		dpll |= 3;
-	}
+	else if (is_lvds && dev_priv->lvds_use_ssc && num_outputs < 2)
+		dpll |= PLLB_REF_INPUT_SPREADSPECTRUMIN;
 	else
 		dpll |= PLL_REF_INPUT_DREFCLK;
 
@@ -948,9 +953,13 @@ static void intel_crtc_mode_set(struct drm_crtc *crtc,
 	I915_WRITE(dspcntr_reg, dspcntr);
 
 	/* Flush the plane changes */
-	intel_pipe_set_base(crtc, x, y, old_fb);
+	ret = intel_pipe_set_base(crtc, x, y, old_fb);
+	if (ret != 0)
+	    return ret;
 
 	drm_vblank_post_modeset(dev, pipe);
+
+	return 0;
 }
 
 /** Loads the palette/gamma unit for the CRTC with the prepared values */
@@ -999,6 +1008,7 @@ static int intel_crtc_cursor_set(struct drm_crtc *crtc,
 		temp = CURSOR_MODE_DISABLE;
 		addr = 0;
 		bo = NULL;
+		mutex_lock(&dev->struct_mutex);
 		goto finish;
 	}
 
@@ -1021,18 +1031,19 @@ static int intel_crtc_cursor_set(struct drm_crtc *crtc,
 	}
 
 	/* we only need to pin inside GTT if cursor is non-phy */
+	mutex_lock(&dev->struct_mutex);
 	if (!dev_priv->cursor_needs_physical) {
 		ret = i915_gem_object_pin(bo, PAGE_SIZE);
 		if (ret) {
 			DRM_ERROR("failed to pin cursor bo\n");
-			goto fail;
+			goto fail_locked;
 		}
 		addr = obj_priv->gtt_offset;
 	} else {
 		ret = i915_gem_attach_phys_object(dev, bo, (pipe == 0) ? I915_GEM_PHYS_CURSOR_0 : I915_GEM_PHYS_CURSOR_1);
 		if (ret) {
 			DRM_ERROR("failed to attach phys object\n");
-			goto fail;
+			goto fail_locked;
 		}
 		addr = obj_priv->phys_obj->handle->busaddr;
 	}
@@ -1052,10 +1063,9 @@ static int intel_crtc_cursor_set(struct drm_crtc *crtc,
 				i915_gem_detach_phys_object(dev, intel_crtc->cursor_bo);
 		} else
 			i915_gem_object_unpin(intel_crtc->cursor_bo);
-		mutex_lock(&dev->struct_mutex);
 		drm_gem_object_unreference(intel_crtc->cursor_bo);
-		mutex_unlock(&dev->struct_mutex);
 	}
+	mutex_unlock(&dev->struct_mutex);
 
 	intel_crtc->cursor_addr = addr;
 	intel_crtc->cursor_bo = bo;
@@ -1063,6 +1073,7 @@ static int intel_crtc_cursor_set(struct drm_crtc *crtc,
 	return 0;
 fail:
 	mutex_lock(&dev->struct_mutex);
+fail_locked:
 	drm_gem_object_unreference(bo);
 	mutex_unlock(&dev->struct_mutex);
 	return ret;
@@ -1290,7 +1301,7 @@ static int intel_crtc_clock_get(struct drm_device *dev, struct drm_crtc *crtc)
 		}
 
 		/* XXX: Handle the 100Mhz refclk */
-		i9xx_clock(96000, &clock);
+		intel_clock(96000, &clock);
 	} else {
 		bool is_lvds = (pipe == 1) && (I915_READ(LVDS) & LVDS_PORT_EN);
 
@@ -1302,9 +1313,9 @@ static int intel_crtc_clock_get(struct drm_device *dev, struct drm_crtc *crtc)
 			if ((dpll & PLL_REF_INPUT_MASK) ==
 			    PLLB_REF_INPUT_SPREADSPECTRUMIN) {
 				/* XXX: might not be 66MHz */
-				i8xx_clock(66000, &clock);
+				intel_clock(66000, &clock);
 			} else
-				i8xx_clock(48000, &clock);
+				intel_clock(48000, &clock);
 		} else {
 			if (dpll & PLL_P1_DIVIDE_BY_TWO)
 				clock.p1 = 2;
@@ -1317,7 +1328,7 @@ static int intel_crtc_clock_get(struct drm_device *dev, struct drm_crtc *crtc)
 			else
 				clock.p2 = 2;
 
-			i8xx_clock(48000, &clock);
+			intel_clock(48000, &clock);
 		}
 	}
 
@@ -1452,6 +1463,7 @@ static int intel_connector_clones(struct drm_device *dev, int type_mask)
 
 static void intel_setup_outputs(struct drm_device *dev)
 {
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_connector *connector;
 
 	intel_crt_init(dev);
@@ -1463,13 +1475,16 @@ static void intel_setup_outputs(struct drm_device *dev)
 	if (IS_I9XX(dev)) {
 		int found;
 
-		found = intel_sdvo_init(dev, SDVOB);
-		if (!found && SUPPORTS_INTEGRATED_HDMI(dev))
-			intel_hdmi_init(dev, SDVOB);
-
-		found = intel_sdvo_init(dev, SDVOC);
-		if (!found && SUPPORTS_INTEGRATED_HDMI(dev))
-			intel_hdmi_init(dev, SDVOC);
+		if (I915_READ(SDVOB) & SDVO_DETECTED) {
+			found = intel_sdvo_init(dev, SDVOB);
+			if (!found && SUPPORTS_INTEGRATED_HDMI(dev))
+				intel_hdmi_init(dev, SDVOB);
+		}
+		if (!IS_G4X(dev) || (I915_READ(SDVOB) & SDVO_DETECTED)) {
+			found = intel_sdvo_init(dev, SDVOC);
+			if (!found && SUPPORTS_INTEGRATED_HDMI(dev))
+				intel_hdmi_init(dev, SDVOC);
+		}
 	} else
 		intel_dvo_init(dev);
 
@@ -1592,7 +1607,9 @@ intel_user_framebuffer_create(struct drm_device *dev,
 
 	ret = intel_framebuffer_create(dev, mode_cmd, &fb, obj);
 	if (ret) {
+		mutex_lock(&dev->struct_mutex);
 		drm_gem_object_unreference(obj);
+		mutex_unlock(&dev->struct_mutex);
 		return NULL;
 	}
 

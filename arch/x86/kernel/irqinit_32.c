@@ -78,15 +78,6 @@ void __init init_ISA_irqs(void)
 	}
 }
 
-/*
- * IRQ2 is cascade interrupt to second interrupt controller
- */
-static struct irqaction irq2 = {
-	.handler = no_action,
-	.mask = CPU_MASK_NONE,
-	.name = "cascade",
-};
-
 DEFINE_PER_CPU(vector_irq_t, vector_irq) = {
 	[0 ... IRQ0_VECTOR - 1] = -1,
 	[IRQ0_VECTOR] = 0,
@@ -177,9 +168,6 @@ void __init native_init_IRQ(void)
 	/* thermal monitor LVT interrupt */
 	alloc_intr_gate(THERMAL_APIC_VECTOR, thermal_interrupt);
 #endif
-
-	if (!acpi_ioapic)
-		setup_irq(2, &irq2);
 
 	/* setup after call gates are initialised (usually add in
 	 * the architecture specific gates)
