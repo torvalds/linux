@@ -38,7 +38,8 @@ struct kmmio_fault_page {
 	/*
 	 * Number of times this page has been registered as a part
 	 * of a probe. If zero, page is disarmed and this may be freed.
-	 * Used only by writers (RCU).
+	 * Used only by writers (RCU) and post_kmmio_handler().
+	 * Protected by kmmio_lock, when linked into kmmio_page_table.
 	 */
 	int count;
 };
@@ -317,7 +318,11 @@ static int post_kmmio_handler(unsigned long condition, struct pt_regs *regs)
 	if (ctx->probe && ctx->probe->post_handler)
 		ctx->probe->post_handler(ctx->probe, condition, regs);
 
-	arm_kmmio_fault_page(ctx->fpage);
+	/* Prevent racing against release_kmmio_fault_page(). */
+	spin_lock(&kmmio_lock);
+	if (ctx->fpage->count)
+		arm_kmmio_fault_page(ctx->fpage);
+	spin_unlock(&kmmio_lock);
 
 	regs->flags &= ~X86_EFLAGS_TF;
 	regs->flags |= ctx->saved_flags;
