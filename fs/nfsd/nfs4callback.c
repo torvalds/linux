@@ -409,6 +409,12 @@ int setup_callback_client(struct nfs4_client *clp)
 
 }
 
+static void warn_no_callback_path(struct nfs4_client *clp, int reason)
+{
+	dprintk("NFSD: warning: no callback path to client %.*s: error %d\n",
+		(int)clp->cl_name.len, clp->cl_name.data, reason);
+}
+
 static int do_probe_callback(void *data)
 {
 	struct nfs4_client *clp = data;
@@ -419,24 +425,12 @@ static int do_probe_callback(void *data)
 	};
 	int status;
 
-	status = setup_callback_client(clp);
-	if (status)
-		goto out_err;
-
 	status = rpc_call_sync(cb->cb_client, &msg, RPC_TASK_SOFT);
-
 	if (status)
-		goto out_release_client;
+		warn_no_callback_path(clp, status);
+	else
+		atomic_set(&cb->cb_set, 1);
 
-	atomic_set(&cb->cb_set, 1);
-	put_nfs4_client(clp);
-	return 0;
-out_release_client:
-	rpc_shutdown_client(cb->cb_client);
-	cb->cb_client = NULL;
-out_err:
-	dprintk("NFSD: warning: no callback path to client %.*s: error %d\n",
-		(int)clp->cl_name.len, clp->cl_name.data, status);
 	put_nfs4_client(clp);
 	return 0;
 }
@@ -448,8 +442,15 @@ void
 nfsd4_probe_callback(struct nfs4_client *clp)
 {
 	struct task_struct *t;
+	int status;
 
 	BUG_ON(atomic_read(&clp->cl_callback.cb_set));
+
+	status = setup_callback_client(clp);
+	if (status) {
+		warn_no_callback_path(clp, status);
+		return;
+	}
 
 	/* the task holds a reference to the nfs4_client struct */
 	atomic_inc(&clp->cl_count);
