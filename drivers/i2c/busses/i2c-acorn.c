@@ -79,10 +79,11 @@ static struct i2c_algo_bit_data ioc_data = {
 	.getsda		= ioc_getsda,
 	.getscl		= ioc_getscl,
 	.udelay		= 80,
-	.timeout	= 100
+	.timeout	= HZ,
 };
 
 static struct i2c_adapter ioc_ops = {
+	.nr			= 0,
 	.algo_data		= &ioc_data,
 };
 
@@ -90,7 +91,7 @@ static int __init i2c_ioc_init(void)
 {
 	force_ones = FORCE_ONES | SCL | SDA;
 
-	return i2c_bit_add_bus(&ioc_ops);
+	return i2c_bit_add_numbered_bus(&ioc_ops);
 }
 
 module_init(i2c_ioc_init);
