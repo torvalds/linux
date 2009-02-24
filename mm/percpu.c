@@ -860,7 +860,7 @@ size_t __init pcpu_setup_static(pcpu_populate_pte_fn_t populate_pte_fn,
 	/* init and register vm area */
 	static_vm.flags = VM_ALLOC;
 	static_vm.size = pcpu_chunk_size;
-	vm_area_register_early(&static_vm);
+	vm_area_register_early(&static_vm, PAGE_SIZE);
 
 	/* init static_chunk */
 	static_chunk = alloc_bootmem(pcpu_chunk_struct_size);

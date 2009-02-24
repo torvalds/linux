@@ -995,7 +995,7 @@ EXPORT_SYMBOL(vm_map_ram);
 /**
  * vm_area_register_early - register vmap area early during boot
  * @vm: vm_struct to register
- * @size: size of area to register
+ * @align: requested alignment
  *
  * This function is used to register kernel vm area before
  * vmalloc_init() is called.  @vm->size and @vm->flags should contain
@@ -1004,12 +1004,15 @@ EXPORT_SYMBOL(vm_map_ram);
  *
  * DO NOT USE THIS FUNCTION UNLESS YOU KNOW WHAT YOU'RE DOING.
  */
-void __init vm_area_register_early(struct vm_struct *vm)
+void __init vm_area_register_early(struct vm_struct *vm, size_t align)
 {
 	static size_t vm_init_off __initdata;
+	unsigned long addr;
 
-	vm->addr = (void *)VMALLOC_START + vm_init_off;
-	vm_init_off = PFN_ALIGN(vm_init_off + vm->size);
+	addr = ALIGN(VMALLOC_START + vm_init_off, align);
+	vm_init_off = PFN_ALIGN(addr + vm->size) - VMALLOC_START;
+
+	vm->addr = (void *)addr;
 
 	vm->next = vmlist;
 	vmlist = vm;

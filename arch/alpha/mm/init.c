@@ -200,7 +200,7 @@ callback_init(void * kernel_end)
 		/* register the vm area */
 		console_remap_vm.flags = VM_ALLOC;
 		console_remap_vm.size = nr_pages << PAGE_SHIFT;
-		vm_area_register_early(&console_remap_vm);
+		vm_area_register_early(&console_remap_vm, PAGE_SIZE);
 
 		vaddr = (unsigned long)consle_remap_vm.addr;
 
