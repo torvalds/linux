@@ -127,20 +127,18 @@ static struct notifier_block bts_hotcpu_notifier __cpuinitdata = {
 	.notifier_call = bts_hotcpu_handler
 };
 
-static int __cpuinit bts_trace_init(struct trace_array *tr)
+static int bts_trace_init(struct trace_array *tr)
 {
 	hw_branch_trace = tr;
 
-	register_hotcpu_notifier(&bts_hotcpu_notifier);
 	bts_trace_start(tr);
 
 	return 0;
 }
 
-static void __cpuinit bts_trace_reset(struct trace_array *tr)
+static void bts_trace_reset(struct trace_array *tr)
 {
 	bts_trace_stop(tr);
-	unregister_hotcpu_notifier(&bts_hotcpu_notifier);
 }
 
 static void bts_trace_print_header(struct seq_file *m)
@@ -299,6 +297,7 @@ struct tracer bts_tracer __read_mostly =
 
 __init static int init_bts_trace(void)
 {
+	register_hotcpu_notifier(&bts_hotcpu_notifier);
 	return register_tracer(&bts_tracer);
 }
 device_initcall(init_bts_trace);
