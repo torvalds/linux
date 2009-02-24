@@ -2166,7 +2166,7 @@ static void setup_cifs_sb(struct smb_vol *pvolume_info,
 	if (pvolume_info->nobrl)
 		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_NO_BRL;
 	if (pvolume_info->nostrictsync)
-		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_NO_SSYNC;
+		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_NOSSYNC;
 	if (pvolume_info->mand_lock)
 		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_NOPOSIXBRL;
 	if (pvolume_info->cifs_acl)

@@ -1584,7 +1584,7 @@ int cifs_fsync(struct file *file, struct dentry *dentry, int datasync)
 		CIFS_I(inode)->write_behind_rc = 0;
 		tcon = CIFS_SB(inode->i_sb)->tcon;
 		if (!rc && tcon && smbfile &&
-		   !(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NO_SSYNC))
+		   !(CIFS_SB(inode->i_sb)->mnt_cifs_flags & CIFS_MOUNT_NOSSYNC))
 			rc = CIFSSMBFlush(xid, tcon, smbfile->netfid);
 	}
 
