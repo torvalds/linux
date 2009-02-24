@@ -33,6 +33,14 @@ rate - reports the sampling rate of the accelerometer device in HZ
 This driver also provides an absolute input class device, allowing
 the laptop to act as a pinball machine-esque joystick.
 
+Another feature of the driver is misc device called "freefall" that
+acts similar to /dev/rtc and reacts on free-fall interrupts received
+from the device. It supports blocking operations, poll/select and
+fasync operation modes. You must read 1 bytes from the device.  The
+result is number of free-fall interrupts since the last successful
+read (or 255 if number of interrupts would not fit).
+
+
 Axes orientation
 ----------------
 

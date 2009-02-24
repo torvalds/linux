@@ -280,8 +280,11 @@ sclp_dispatch_evbufs(struct sccb_header *sccb)
 	rc = 0;
 	for (offset = sizeof(struct sccb_header); offset < sccb->length;
 	     offset += evbuf->length) {
-		/* Search for event handler */
 		evbuf = (struct evbuf_header *) ((addr_t) sccb + offset);
+		/* Check for malformed hardware response */
+		if (evbuf->length == 0)
+			break;
+		/* Search for event handler */
 		reg = NULL;
 		list_for_each(l, &sclp_reg_list) {
 			reg = list_entry(l, struct sclp_register, list);

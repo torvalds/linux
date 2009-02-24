@@ -43,7 +43,8 @@ Only comments so marked will be considered by the kernel-doc scripts,
 and any comment so marked must be in kernel-doc format.  Do not use
 "/**" to be begin a comment block unless the comment block contains
 kernel-doc formatted comments.  The closing comment marker for
-kernel-doc comments can be either "*/" or "**/".
+kernel-doc comments can be either "*/" or "**/", but "*/" is
+preferred in the Linux kernel tree.
 
 Kernel-doc comments should be placed just before the function
 or data structure being described.
@@ -63,7 +64,7 @@ Example kernel-doc function comment:
  * comment lines.
  *
  * The longer description can have multiple paragraphs.
- **/
+ */
 
 The first line, with the short description, must be on a single line.
 
@@ -85,7 +86,7 @@ Example kernel-doc data structure comment.
  *		perhaps with more lines and words.
  *
  * Longer description of this structure.
- **/
+ */
 
 The kernel-doc function comments describe each parameter to the
 function, in order, with the @name lines.

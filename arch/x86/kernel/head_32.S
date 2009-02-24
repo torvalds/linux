@@ -11,8 +11,8 @@
 #include <linux/init.h>
 #include <linux/linkage.h>
 #include <asm/segment.h>
-#include <asm/page.h>
-#include <asm/pgtable.h>
+#include <asm/page_types.h>
+#include <asm/pgtable_types.h>
 #include <asm/desc.h>
 #include <asm/cache.h>
 #include <asm/thread_info.h>
@@ -567,11 +567,7 @@ early_fault:
 	pushl %eax
 	pushl %edx		/* trapno */
 	pushl $fault_msg
-#ifdef CONFIG_EARLY_PRINTK
-	call early_printk
-#else
 	call printk
-#endif
 #endif
 	call dump_stack
 hlt_loop:
@@ -599,11 +595,10 @@ ignore_int:
 	pushl 32(%esp)
 	pushl 40(%esp)
 	pushl $int_msg
-#ifdef CONFIG_EARLY_PRINTK
-	call early_printk
-#else
 	call printk
-#endif
+
+	call dump_stack
+
 	addl $(5*4),%esp
 	popl %ds
 	popl %es
@@ -679,7 +674,7 @@ early_recursion_flag:
 	.long 0
 
 int_msg:
-	.asciz "Unknown interrupt or fault at EIP %p %p %p\n"
+	.asciz "Unknown interrupt or fault at: %p %p %p\n"
 
 fault_msg:
 /* fault info: */

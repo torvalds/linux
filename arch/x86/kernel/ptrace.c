@@ -268,7 +268,7 @@ static unsigned long debugreg_addr_limit(struct task_struct *task)
 	if (test_tsk_thread_flag(task, TIF_IA32))
 		return IA32_PAGE_OFFSET - 3;
 #endif
-	return TASK_SIZE64 - 7;
+	return TASK_SIZE_MAX - 7;
 }
 
 #endif	/* CONFIG_X86_32 */
@@ -805,12 +805,16 @@ static void ptrace_bts_untrace(struct task_struct *child)
 
 static void ptrace_bts_detach(struct task_struct *child)
 {
-	if (unlikely(child->bts)) {
-		ds_release_bts(child->bts);
-		child->bts = NULL;
-
-		ptrace_bts_free_buffer(child);
-	}
+	/*
+	 * Ptrace_detach() races with ptrace_untrace() in case
+	 * the child dies and is reaped by another thread.
+	 *
+	 * We only do the memory accounting at this point and
+	 * leave the buffer deallocation and the bts tracer
+	 * release to ptrace_bts_untrace() which will be called
+	 * later on with tasklist_lock held.
+	 */
+	release_locked_buffer(child->bts_buffer, child->bts_size);
 }
 #else
 static inline void ptrace_bts_fork(struct task_struct *tsk) {}

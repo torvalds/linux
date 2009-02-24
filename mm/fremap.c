@@ -198,7 +198,7 @@ SYSCALL_DEFINE5(remap_file_pages, unsigned long, start, unsigned long, size,
 			flags &= MAP_NONBLOCK;
 			get_file(file);
 			addr = mmap_region(file, start, size,
-					flags, vma->vm_flags, pgoff, 1);
+					flags, vma->vm_flags, pgoff);
 			fput(file);
 			if (IS_ERR_VALUE(addr)) {
 				err = addr;

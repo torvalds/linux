@@ -78,12 +78,10 @@ to view your kernel log and look for "mmiotrace has lost events" warning. If
 events were lost, the trace is incomplete. You should enlarge the buffers and
 try again. Buffers are enlarged by first seeing how large the current buffers
 are:
-$ cat /debug/tracing/trace_entries
+$ cat /debug/tracing/buffer_size_kb
 gives you a number. Approximately double this number and write it back, for
 instance:
-$ echo 0 > /debug/tracing/tracing_enabled
-$ echo 128000 > /debug/tracing/trace_entries
-$ echo 1 > /debug/tracing/tracing_enabled
+$ echo 128000 > /debug/tracing/buffer_size_kb
 Then start again from the top.
 
 If you are doing a trace for a driver project, e.g. Nouveau, you should also

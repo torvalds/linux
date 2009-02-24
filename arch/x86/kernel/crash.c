@@ -28,8 +28,6 @@
 #include <asm/reboot.h>
 #include <asm/virtext.h>
 
-#include <mach_ipi.h>
-
 
 #if defined(CONFIG_SMP) && defined(CONFIG_X86_LOCAL_APIC)
 

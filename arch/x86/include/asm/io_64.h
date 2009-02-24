@@ -136,72 +136,11 @@ __OUTS(b)
 __OUTS(w)
 __OUTS(l)
 
-#define IO_SPACE_LIMIT 0xffff
-
 #if defined(__KERNEL__) && defined(__x86_64__)
 
 #include <linux/vmalloc.h>
 
-#ifndef __i386__
-/*
- * Change virtual addresses to physical addresses and vv.
- * These are pretty trivial
- */
-static inline unsigned long virt_to_phys(volatile void *address)
-{
-	return __pa(address);
-}
-
-static inline void *phys_to_virt(unsigned long address)
-{
-	return __va(address);
-}
-#endif
-
-/*
- * Change "struct page" to physical address.
- */
-#define page_to_phys(page)    ((dma_addr_t)page_to_pfn(page) << PAGE_SHIFT)
-
 #include <asm-generic/iomap.h>
-
-/*
- * This one maps high address device memory and turns off caching for that area.
- * it's useful if some control registers are in such an area and write combining
- * or read caching is not desirable:
- */
-extern void __iomem *ioremap_nocache(resource_size_t offset, unsigned long size);
-extern void __iomem *ioremap_cache(resource_size_t offset, unsigned long size);
-extern void __iomem *ioremap_prot(resource_size_t offset, unsigned long size,
-				unsigned long prot_val);
-
-/*
- * The default ioremap() behavior is non-cached:
- */
-static inline void __iomem *ioremap(resource_size_t offset, unsigned long size)
-{
-	return ioremap_nocache(offset, size);
-}
-
-extern void iounmap(volatile void __iomem *addr);
-
-extern void __iomem *fix_ioremap(unsigned idx, unsigned long phys);
-
-/*
- * ISA I/O bus memory addresses are 1:1 with the physical address.
- */
-#define isa_virt_to_bus virt_to_phys
-#define isa_page_to_bus page_to_phys
-#define isa_bus_to_virt phys_to_virt
-
-/*
- * However PCI ones are not necessarily 1:1 and therefore these interfaces
- * are forbidden in portable PCI drivers.
- *
- * Allow them on x86 for legacy drivers, though.
- */
-#define virt_to_bus virt_to_phys
-#define bus_to_virt phys_to_virt
 
 void __memcpy_fromio(void *, unsigned long, unsigned);
 void __memcpy_toio(unsigned long, const void *, unsigned);

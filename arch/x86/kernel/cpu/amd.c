@@ -12,8 +12,6 @@
 # include <asm/cacheflush.h>
 #endif
 
-#include <mach_apic.h>
-
 #include "cpu.h"
 
 #ifdef CONFIG_X86_32

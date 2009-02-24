@@ -101,4 +101,14 @@ int btrfs_init_log_root_tree(struct btrfs_trans_handle *trans,
 int btrfs_add_log_tree(struct btrfs_trans_handle *trans,
 		       struct btrfs_root *root);
 int btree_lock_page_hook(struct page *page);
+
+
+#ifdef CONFIG_DEBUG_LOCK_ALLOC
+void btrfs_set_buffer_lockdep_class(struct extent_buffer *eb, int level);
+#else
+static inline void btrfs_set_buffer_lockdep_class(struct extent_buffer *eb,
+						 int level)
+{
+}
+#endif
 #endif

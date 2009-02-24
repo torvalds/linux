@@ -7,10 +7,10 @@
  */
 
 #include <linux/linkage.h>
-#include <asm/page.h>
+#include <asm/page_types.h>
 #include <asm/kexec.h>
 #include <asm/processor-flags.h>
-#include <asm/pgtable.h>
+#include <asm/pgtable_types.h>
 
 /*
  * Must be relocatable PIC code callable as a C function
@@ -29,122 +29,6 @@ relocate_kernel:
 	 * %rdx start address
 	 */
 
-	/* map the control page at its virtual address */
-
-	movq	$0x0000ff8000000000, %r10        /* mask */
-	mov	$(39 - 3), %cl                   /* bits to shift */
-	movq	PTR(VA_CONTROL_PAGE)(%rsi), %r11 /* address to map */
-
-	movq	%r11, %r9
-	andq	%r10, %r9
-	shrq	%cl, %r9
-
-	movq	PTR(VA_PGD)(%rsi), %r8
-	addq	%r8, %r9
-	movq	PTR(PA_PUD_0)(%rsi), %r8
-	orq	$PAGE_ATTR, %r8
-	movq	%r8, (%r9)
-
-	shrq	$9, %r10
-	sub	$9, %cl
-
-	movq	%r11, %r9
-	andq	%r10, %r9
-	shrq	%cl, %r9
-
-	movq	PTR(VA_PUD_0)(%rsi), %r8
-	addq	%r8, %r9
-	movq	PTR(PA_PMD_0)(%rsi), %r8
-	orq	$PAGE_ATTR, %r8
-	movq	%r8, (%r9)
-
-	shrq	$9, %r10
-	sub	$9, %cl
-
-	movq	%r11, %r9
-	andq	%r10, %r9
-	shrq	%cl, %r9
-
-	movq	PTR(VA_PMD_0)(%rsi), %r8
-	addq	%r8, %r9
-	movq	PTR(PA_PTE_0)(%rsi), %r8
-	orq	$PAGE_ATTR, %r8
-	movq	%r8, (%r9)
-
-	shrq	$9, %r10
-	sub	$9, %cl
-
-	movq	%r11, %r9
-	andq	%r10, %r9
-	shrq	%cl, %r9
-
-	movq	PTR(VA_PTE_0)(%rsi), %r8
-	addq	%r8, %r9
-	movq	PTR(PA_CONTROL_PAGE)(%rsi), %r8
-	orq	$PAGE_ATTR, %r8
-	movq	%r8, (%r9)
-
-	/* identity map the control page at its physical address */
-
-	movq	$0x0000ff8000000000, %r10        /* mask */
-	mov	$(39 - 3), %cl                   /* bits to shift */
-	movq	PTR(PA_CONTROL_PAGE)(%rsi), %r11 /* address to map */
-
-	movq	%r11, %r9
-	andq	%r10, %r9
-	shrq	%cl, %r9
-
-	movq	PTR(VA_PGD)(%rsi), %r8
-	addq	%r8, %r9
-	movq	PTR(PA_PUD_1)(%rsi), %r8
-	orq	$PAGE_ATTR, %r8
-	movq	%r8, (%r9)
-
-	shrq	$9, %r10
-	sub	$9, %cl
-
-	movq	%r11, %r9
-	andq	%r10, %r9
-	shrq	%cl, %r9
-
-	movq	PTR(VA_PUD_1)(%rsi), %r8
-	addq	%r8, %r9
-	movq	PTR(PA_PMD_1)(%rsi), %r8
-	orq	$PAGE_ATTR, %r8
-	movq	%r8, (%r9)
-
-	shrq	$9, %r10
-	sub	$9, %cl
-
-	movq	%r11, %r9
-	andq	%r10, %r9
-	shrq	%cl, %r9
-
-	movq	PTR(VA_PMD_1)(%rsi), %r8
-	addq	%r8, %r9
-	movq	PTR(PA_PTE_1)(%rsi), %r8
-	orq	$PAGE_ATTR, %r8
-	movq	%r8, (%r9)
-
-	shrq	$9, %r10
-	sub	$9, %cl
-
-	movq	%r11, %r9
-	andq	%r10, %r9
-	shrq	%cl, %r9
-
-	movq	PTR(VA_PTE_1)(%rsi), %r8
-	addq	%r8, %r9
-	movq	PTR(PA_CONTROL_PAGE)(%rsi), %r8
-	orq	$PAGE_ATTR, %r8
-	movq	%r8, (%r9)
-
-relocate_new_kernel:
-	/* %rdi indirection_page
-	 * %rsi page_list
-	 * %rdx start address
-	 */
-
 	/* zero out flags, and disable interrupts */
 	pushq $0
 	popfq
@@ -156,9 +40,8 @@ relocate_new_kernel:
 	/* get physical address of page table now too */
 	movq	PTR(PA_TABLE_PAGE)(%rsi), %rcx
 
-	/* switch to new set of page tables */
-	movq	PTR(PA_PGD)(%rsi), %r9
-	movq	%r9, %cr3
+	/* Switch to the identity mapped page tables */
+	movq	%rcx, %cr3
 
 	/* setup a new stack at the end of the physical control page */
 	lea	PAGE_SIZE(%r8), %rsp
@@ -194,9 +77,7 @@ identity_mapped:
 	jmp 1f
 1:
 
-	/* Switch to the identity mapped page tables,
-	 * and flush the TLB.
-	*/
+	/* Flush the TLB (needed?) */
 	movq	%rcx, %cr3
 
 	/* Do the copies */

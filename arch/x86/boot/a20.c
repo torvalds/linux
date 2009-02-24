@@ -2,6 +2,7 @@
  *
  *   Copyright (C) 1991, 1992 Linus Torvalds
  *   Copyright 2007-2008 rPath, Inc. - All Rights Reserved
+ *   Copyright 2009 Intel Corporation
  *
  *   This file is part of the Linux kernel, and is made available under
  *   the terms of the GNU General Public License version 2.
@@ -15,16 +16,23 @@
 #include "boot.h"
 
 #define MAX_8042_LOOPS	100000
+#define MAX_8042_FF	32
 
 static int empty_8042(void)
 {
 	u8 status;
 	int loops = MAX_8042_LOOPS;
+	int ffs   = MAX_8042_FF;
 
 	while (loops--) {
 		io_delay();
 
 		status = inb(0x64);
+		if (status == 0xff) {
+			/* FF is a plausible, but very unlikely status */
+			if (!--ffs)
+				return -1; /* Assume no KBC present */
+		}
 		if (status & 1) {
 			/* Read and discard input data */
 			io_delay();
@@ -118,44 +126,37 @@ static void enable_a20_fast(void)
 
 int enable_a20(void)
 {
-#if defined(CONFIG_X86_ELAN)
-	/* Elan croaks if we try to touch the KBC */
-	enable_a20_fast();
-	while (!a20_test_long())
-		;
-	return 0;
-#elif defined(CONFIG_X86_VOYAGER)
-	/* On Voyager, a20_test() is unsafe? */
-	enable_a20_kbc();
-	return 0;
-#else
        int loops = A20_ENABLE_LOOPS;
-	while (loops--) {
-		/* First, check to see if A20 is already enabled
-		   (legacy free, etc.) */
-		if (a20_test_short())
-			return 0;
+       int kbc_err;
 
-		/* Next, try the BIOS (INT 0x15, AX=0x2401) */
-		enable_a20_bios();
-		if (a20_test_short())
-			return 0;
+       while (loops--) {
+	       /* First, check to see if A20 is already enabled
+		  (legacy free, etc.) */
+	       if (a20_test_short())
+		       return 0;
+	       
+	       /* Next, try the BIOS (INT 0x15, AX=0x2401) */
+	       enable_a20_bios();
+	       if (a20_test_short())
+		       return 0;
+	       
+	       /* Try enabling A20 through the keyboard controller */
+	       kbc_err = empty_8042();
 
-		/* Try enabling A20 through the keyboard controller */
-		empty_8042();
-		if (a20_test_short())
-			return 0; /* BIOS worked, but with delayed reaction */
-
-		enable_a20_kbc();
-		if (a20_test_long())
-			return 0;
-
-		/* Finally, try enabling the "fast A20 gate" */
-		enable_a20_fast();
-		if (a20_test_long())
-			return 0;
-	}
-
-	return -1;
-#endif
+	       if (a20_test_short())
+		       return 0; /* BIOS worked, but with delayed reaction */
+	
+	       if (!kbc_err) {
+		       enable_a20_kbc();
+		       if (a20_test_long())
+			       return 0;
+	       }
+	       
+	       /* Finally, try enabling the "fast A20 gate" */
+	       enable_a20_fast();
+	       if (a20_test_long())
+		       return 0;
+       }
+       
+       return -1;
 }

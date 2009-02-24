@@ -22,7 +22,6 @@
 #include <asm/pgtable.h>
 #include <asm/desc.h>
 #include <asm/apic.h>
-#include <asm/arch_hooks.h>
 #include <asm/i8259.h>
 
 /*

@@ -9,7 +9,7 @@
 #define _ASM_SWAB_H
 
 #include <linux/compiler.h>
-#include <asm/types.h>
+#include <linux/types.h>
 
 #define __SWAB_64_THRU_32__
 

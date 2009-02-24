@@ -121,7 +121,7 @@ static void machine_kexec_page_table_set_one(
 static void machine_kexec_prepare_page_tables(struct kimage *image)
 {
 	void *control_page;
-	pmd_t *pmd = 0;
+	pmd_t *pmd = NULL;
 
 	control_page = page_address(image->control_code_page);
 #ifdef CONFIG_X86_PAE

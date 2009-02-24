@@ -113,7 +113,7 @@ static inline int get_mfp_bit( unsigned irq, int type )
 {	unsigned char	mask, *reg;
 
 	mask = 1 << (irq & 7);
-	reg = (unsigned char *)&mfp.int_en_a + type*4 +
+	reg = (unsigned char *)&st_mfp.int_en_a + type*4 +
 		  ((irq & 8) >> 2) + (((irq-8) & 16) << 3);
 	return( *reg & mask );
 }
@@ -123,7 +123,7 @@ static inline void set_mfp_bit( unsigned irq, int type )
 {	unsigned char	mask, *reg;
 
 	mask = 1 << (irq & 7);
-	reg = (unsigned char *)&mfp.int_en_a + type*4 +
+	reg = (unsigned char *)&st_mfp.int_en_a + type*4 +
 		  ((irq & 8) >> 2) + (((irq-8) & 16) << 3);
 	__asm__ __volatile__ ( "orb %0,%1"
 			      : : "di" (mask), "m" (*reg) : "memory" );
@@ -134,7 +134,7 @@ static inline void clear_mfp_bit( unsigned irq, int type )
 {	unsigned char	mask, *reg;
 
 	mask = ~(1 << (irq & 7));
-	reg = (unsigned char *)&mfp.int_en_a + type*4 +
+	reg = (unsigned char *)&st_mfp.int_en_a + type*4 +
 		  ((irq & 8) >> 2) + (((irq-8) & 16) << 3);
 	if (type == MFP_PENDING || type == MFP_SERVICE)
 		__asm__ __volatile__ ( "moveb %0,%1"

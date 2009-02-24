@@ -4,7 +4,7 @@
  * para-virtualization: those hooks are defined here. */
 
 #ifdef CONFIG_PARAVIRT
-#include <asm/page.h>
+#include <asm/pgtable_types.h>
 #include <asm/asm.h>
 
 /* Bitmask of what can be clobbered: usually at least eax. */
@@ -1431,14 +1431,7 @@ static inline void arch_leave_lazy_cpu_mode(void)
 	PVOP_VCALL0(pv_cpu_ops.lazy_mode.leave);
 }
 
-static inline void arch_flush_lazy_cpu_mode(void)
-{
-	if (unlikely(paravirt_get_lazy_mode() == PARAVIRT_LAZY_CPU)) {
-		arch_leave_lazy_cpu_mode();
-		arch_enter_lazy_cpu_mode();
-	}
-}
-
+void arch_flush_lazy_cpu_mode(void);
 
 #define  __HAVE_ARCH_ENTER_LAZY_MMU_MODE
 static inline void arch_enter_lazy_mmu_mode(void)
@@ -1451,13 +1444,7 @@ static inline void arch_leave_lazy_mmu_mode(void)
 	PVOP_VCALL0(pv_mmu_ops.lazy_mode.leave);
 }
 
-static inline void arch_flush_lazy_mmu_mode(void)
-{
-	if (unlikely(paravirt_get_lazy_mode() == PARAVIRT_LAZY_MMU)) {
-		arch_leave_lazy_mmu_mode();
-		arch_enter_lazy_mmu_mode();
-	}
-}
+void arch_flush_lazy_mmu_mode(void);
 
 static inline void __set_fixmap(unsigned /* enum fixed_addresses */ idx,
 				unsigned long phys, pgprot_t flags)
@@ -1482,6 +1469,7 @@ static inline int __raw_spin_is_contended(struct raw_spinlock *lock)
 {
 	return PVOP_CALL1(int, pv_lock_ops.spin_is_contended, lock);
 }
+#define __raw_spin_is_contended	__raw_spin_is_contended
 
 static __always_inline void __raw_spin_lock(struct raw_spinlock *lock)
 {

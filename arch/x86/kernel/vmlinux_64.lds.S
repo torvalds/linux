@@ -6,7 +6,7 @@
 
 #include <asm-generic/vmlinux.lds.h>
 #include <asm/asm-offsets.h>
-#include <asm/page.h>
+#include <asm/page_types.h>
 
 #undef i386	/* in case the preprocessor is a 32bit one */
 

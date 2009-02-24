@@ -3,6 +3,7 @@
 #include <linux/init.h>
 #include <linux/pm.h>
 #include <linux/percpu.h>
+#include <linux/interrupt.h>
 
 #define TICK_SIZE (tick_nsec / 1000)
 
@@ -12,6 +13,7 @@ unsigned long native_calibrate_tsc(void);
 #ifdef CONFIG_X86_32
 extern int timer_ack;
 extern int recalibrate_cpu_khz(void);
+extern irqreturn_t timer_interrupt(int irq, void *dev_id);
 #endif /* CONFIG_X86_32 */
 
 extern int no_timer_check;

@@ -54,14 +54,14 @@
 #include <asm/desc.h>
 #include <asm/i387.h>
 
-#include <mach_traps.h>
+#include <asm/mach_traps.h>
 
 #ifdef CONFIG_X86_64
 #include <asm/pgalloc.h>
 #include <asm/proto.h>
 #else
 #include <asm/processor-flags.h>
-#include <asm/arch_hooks.h>
+#include <asm/setup.h>
 #include <asm/traps.h>
 
 #include "cpu/mcheck/mce.h"
@@ -96,6 +96,12 @@ static inline void preempt_conditional_sti(struct pt_regs *regs)
 	inc_preempt_count();
 	if (regs->flags & X86_EFLAGS_IF)
 		local_irq_enable();
+}
+
+static inline void conditional_cli(struct pt_regs *regs)
+{
+	if (regs->flags & X86_EFLAGS_IF)
+		local_irq_disable();
 }
 
 static inline void preempt_conditional_cli(struct pt_regs *regs)
@@ -625,8 +631,10 @@ clear_dr7:
 
 #ifdef CONFIG_X86_32
 debug_vm86:
+	/* reenable preemption: handle_vm86_trap() might sleep */
+	dec_preempt_count();
 	handle_vm86_trap((struct kernel_vm86_regs *) regs, error_code, 1);
-	preempt_conditional_cli(regs);
+	conditional_cli(regs);
 	return;
 #endif
 
@@ -934,7 +942,7 @@ dotraplinkage void do_iret_error(struct pt_regs *regs, long error_code)
 	info.si_signo = SIGILL;
 	info.si_errno = 0;
 	info.si_code = ILL_BADSTK;
-	info.si_addr = 0;
+	info.si_addr = NULL;
 	if (notify_die(DIE_TRAP, "iret exception",
 			regs, error_code, 32, SIGILL) == NOTIFY_STOP)
 		return;
@@ -1018,6 +1026,6 @@ void __init trap_init(void)
 	cpu_init();
 
 #ifdef CONFIG_X86_32
-	trap_init_hook();
+	x86_quirk_trap_init();
 #endif
 }

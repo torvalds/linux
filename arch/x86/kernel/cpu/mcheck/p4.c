@@ -85,7 +85,7 @@ static void intel_init_thermal(struct cpuinfo_x86 *c)
 	 */
 	rdmsr(MSR_IA32_MISC_ENABLE, l, h);
 	h = apic_read(APIC_LVTTHMR);
-	if ((l & (1<<3)) && (h & APIC_DM_SMI)) {
+	if ((l & MSR_IA32_MISC_ENABLE_TM1) && (h & APIC_DM_SMI)) {
 		printk(KERN_DEBUG "CPU%d: Thermal monitoring handled by SMI\n",
 				cpu);
 		return; /* -EBUSY */
@@ -111,7 +111,7 @@ static void intel_init_thermal(struct cpuinfo_x86 *c)
 	vendor_thermal_interrupt = intel_thermal_interrupt;
 
 	rdmsr(MSR_IA32_MISC_ENABLE, l, h);
-	wrmsr(MSR_IA32_MISC_ENABLE, l | (1<<3), h);
+	wrmsr(MSR_IA32_MISC_ENABLE, l | MSR_IA32_MISC_ENABLE_TM1, h);
 
 	l = apic_read(APIC_LVTTHMR);
 	apic_write(APIC_LVTTHMR, l & ~APIC_LVT_MASKED);

@@ -1600,7 +1600,6 @@ static void svm_intr_assist(struct kvm_vcpu *vcpu)
 	/* Okay, we can deliver the interrupt: grab it and update PIC state. */
 	intr_vector = kvm_cpu_get_interrupt(vcpu);
 	svm_inject_irq(svm, intr_vector);
-	kvm_timer_intr_post(vcpu, intr_vector);
 out:
 	update_cr8_intercept(vcpu);
 }
