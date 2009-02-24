@@ -858,6 +858,9 @@ void __init reserve_early_overlap_ok(u64 start, u64 end, char *name)
  */
 void __init reserve_early(u64 start, u64 end, char *name)
 {
+	if (start >= end)
+		return;
+
 	drop_overlaps_that_are_ok(start, end);
 	__reserve_early(start, end, name, 0);
 }
