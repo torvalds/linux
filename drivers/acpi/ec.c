@@ -120,6 +120,8 @@ static struct acpi_ec {
 	spinlock_t curr_lock;
 } *boot_ec, *first_ec;
 
+static int EC_FLAGS_MSI; /* Out-of-spec MSI controller */
+
 /* --------------------------------------------------------------------------
                              Transaction Management
    -------------------------------------------------------------------------- */
@@ -259,6 +261,8 @@ static int acpi_ec_transaction_unlocked(struct acpi_ec *ec,
 		clear_bit(EC_FLAGS_GPE_MODE, &ec->flags);
 		acpi_disable_gpe(NULL, ec->gpe);
 	}
+	if (EC_FLAGS_MSI)
+		udelay(ACPI_EC_DELAY);
 	/* start transaction */
 	spin_lock_irqsave(&ec->curr_lock, tmp);
 	/* following two actions should be kept atomic */
@@ -967,6 +971,11 @@ int __init acpi_ec_ecdt_probe(void)
 	/*
 	 * Generate a boot ec context
 	 */
+	if (dmi_name_in_vendors("Micro-Star") ||
+	    dmi_name_in_vendors("Notebook")) {
+		pr_info(PREFIX "Enabling special treatment for EC from MSI.\n");
+		EC_FLAGS_MSI = 1;
+	}
 	status = acpi_get_table(ACPI_SIG_ECDT, 1,
 				(struct acpi_table_header **)&ecdt_ptr);
 	if (ACPI_SUCCESS(status)) {

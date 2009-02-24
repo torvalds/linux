@@ -333,7 +333,6 @@ static void dpm_power_up(pm_message_t state)
  */
 void device_power_up(pm_message_t state)
 {
-	sysdev_resume();
 	dpm_power_up(state);
 }
 EXPORT_SYMBOL_GPL(device_power_up);
@@ -577,8 +576,6 @@ int device_power_down(pm_message_t state)
 		}
 		dev->power.status = DPM_OFF_IRQ;
 	}
-	if (!error)
-		error = sysdev_suspend(state);
 	if (error)
 		dpm_power_up(resume_event(state));
 	return error;

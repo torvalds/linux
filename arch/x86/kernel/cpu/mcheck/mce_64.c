@@ -490,7 +490,7 @@ static void __cpuinit mce_cpu_quirks(struct cpuinfo_x86 *c)
 
 }
 
-static void __cpuinit mce_cpu_features(struct cpuinfo_x86 *c)
+static void mce_cpu_features(struct cpuinfo_x86 *c)
 {
 	switch (c->x86_vendor) {
 	case X86_VENDOR_INTEL:

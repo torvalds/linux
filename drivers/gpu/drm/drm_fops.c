@@ -457,6 +457,9 @@ int drm_release(struct inode *inode, struct file *filp)
 	if (dev->driver->driver_features & DRIVER_GEM)
 		drm_gem_release(dev, file_priv);
 
+	if (dev->driver->driver_features & DRIVER_MODESET)
+		drm_fb_release(file_priv);
+
 	mutex_lock(&dev->ctxlist_mutex);
 	if (!list_empty(&dev->ctxlist)) {
 		struct drm_ctx_list *pos, *n;
