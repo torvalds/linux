@@ -850,7 +850,7 @@ size_t __init pcpu_setup_static(pcpu_populate_pte_fn_t populate_pte_fn,
 	pcpu_chunk_size = num_possible_cpus() * pcpu_unit_size;
 	pcpu_nr_slots = pcpu_size_to_slot(pcpu_unit_size) + 1;
 	pcpu_chunk_struct_size = sizeof(struct pcpu_chunk)
-		+ (1 << pcpu_unit_pages_shift) * sizeof(struct page *);
+		+ num_possible_cpus() * pcpu_unit_pages * sizeof(struct page *);
 
 	/* allocate chunk slots */
 	pcpu_slot = alloc_bootmem(pcpu_nr_slots * sizeof(pcpu_slot[0]));
