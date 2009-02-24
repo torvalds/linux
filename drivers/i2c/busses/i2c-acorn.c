@@ -79,7 +79,7 @@ static struct i2c_algo_bit_data ioc_data = {
 	.getsda		= ioc_getsda,
 	.getscl		= ioc_getscl,
 	.udelay		= 80,
-	.timeout	= 100
+	.timeout	= HZ,
 };
 
 static struct i2c_adapter ioc_ops = {
