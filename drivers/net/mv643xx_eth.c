@@ -2957,7 +2957,7 @@ static int mv643xx_eth_probe(struct platform_device *pdev)
 
 	netif_carrier_off(dev);
 
-	set_rx_coal(mp, 0);
+	set_rx_coal(mp, 250);
 	set_tx_coal(mp, 0);
 
 	err = register_netdev(dev);
