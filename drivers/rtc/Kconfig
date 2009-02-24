@@ -741,4 +741,13 @@ config RTC_DRV_MV
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-mv.
 
+config RTC_DRV_PS3
+	tristate "PS3 RTC"
+	depends on PPC_PS3
+	help
+	  If you say yes here you will get support for the RTC on PS3.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called rtc-ps3.
+
 endif # RTC_CLASS
