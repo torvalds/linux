@@ -64,11 +64,8 @@
  *
  * - DMA (Mentor/OMAP) ...has at least toggle update problems
  *
- * - Still no traffic scheduling code to make NAKing for bulk or control
- *   transfers unable to starve other requests; or to make efficient use
- *   of hardware with periodic transfers.  (Note that network drivers
- *   commonly post bulk reads that stay pending for a long time; these
- *   would make very visible trouble.)
+ * - [23-feb-2009] minimal traffic scheduling to avoid bulk RX packet
+ *   starvation ... nothing yet for TX, interrupt, or bulk.
  *
  * - Not tested with HNP, but some SRP paths seem to behave.
  *
@@ -88,11 +85,8 @@
  *
  * CONTROL transfers all go through ep0.  BULK ones go through dedicated IN
  * and OUT endpoints ... hardware is dedicated for those "async" queue(s).
- *
  * (Yes, bulk _could_ use more of the endpoints than that, and would even
- * benefit from it ... one remote device may easily be NAKing while others
- * need to perform transfers in that same direction.  The same thing could
- * be done in software though, assuming dma cooperates.)
+ * benefit from it.)
  *
  * INTERUPPT and ISOCHRONOUS transfers are scheduled to the other endpoints.
  * So far that scheduling is both dumb and optimistic:  the endpoint will be
@@ -201,8 +195,9 @@ musb_start_urb(struct musb *musb, int is_in, struct musb_qh *qh)
 		len = urb->iso_frame_desc[0].length;
 		break;
 	default:		/* bulk, interrupt */
-		buf = urb->transfer_buffer;
-		len = urb->transfer_buffer_length;
+		/* actual_length may be nonzero on retry paths */
+		buf = urb->transfer_buffer + urb->actual_length;
+		len = urb->transfer_buffer_length - urb->actual_length;
 	}
 
 	DBG(4, "qh %p urb %p dev%d ep%d%s%s, hw_ep %d, %p/%d\n",
@@ -1044,7 +1039,8 @@ irqreturn_t musb_h_ep0_irq(struct musb *musb)
 
 		/* NOTE:  this code path would be a good place to PAUSE a
 		 * control transfer, if another one is queued, so that
-		 * ep0 is more likely to stay busy.
+		 * ep0 is more likely to stay busy.  That's already done
+		 * for bulk RX transfers.
 		 *
 		 * if (qh->ring.next != &musb->control), then
 		 * we have a candidate... NAKing is *NOT* an error
@@ -1196,6 +1192,7 @@ void musb_host_tx(struct musb *musb, u8 epnum)
 		/* NOTE:  this code path would be a good place to PAUSE a
 		 * transfer, if there's some other (nonperiodic) tx urb
 		 * that could use this fifo.  (dma complicates it...)
+		 * That's already done for bulk RX transfers.
 		 *
 		 * if (bulk && qh->ring.next != &musb->out_bulk), then
 		 * we have a candidate... NAKing is *NOT* an error
@@ -1357,6 +1354,50 @@ finish:
 
 #endif
 
+/* Schedule next QH from musb->in_bulk and move the current qh to
+ * the end; avoids starvation for other endpoints.
+ */
+static void musb_bulk_rx_nak_timeout(struct musb *musb, struct musb_hw_ep *ep)
+{
+	struct dma_channel	*dma;
+	struct urb		*urb;
+	void __iomem		*mbase = musb->mregs;
+	void __iomem		*epio = ep->regs;
+	struct musb_qh		*cur_qh, *next_qh;
+	u16			rx_csr;
+
+	musb_ep_select(mbase, ep->epnum);
+	dma = is_dma_capable() ? ep->rx_channel : NULL;
+
+	/* clear nak timeout bit */
+	rx_csr = musb_readw(epio, MUSB_RXCSR);
+	rx_csr |= MUSB_RXCSR_H_WZC_BITS;
+	rx_csr &= ~MUSB_RXCSR_DATAERROR;
+	musb_writew(epio, MUSB_RXCSR, rx_csr);
+
+	cur_qh = first_qh(&musb->in_bulk);
+	if (cur_qh) {
+		urb = next_urb(cur_qh);
+		if (dma_channel_status(dma) == MUSB_DMA_STATUS_BUSY) {
+			dma->status = MUSB_DMA_STATUS_CORE_ABORT;
+			musb->dma_controller->channel_abort(dma);
+			urb->actual_length += dma->actual_len;
+			dma->actual_len = 0L;
+		}
+		musb_save_toggle(ep, 1, urb);
+
+		/* move cur_qh to end of queue */
+		list_move_tail(&cur_qh->ring, &musb->in_bulk);
+
+		/* get the next qh from musb->in_bulk */
+		next_qh = first_qh(&musb->in_bulk);
+
+		/* set rx_reinit and schedule the next qh */
+		ep->rx_reinit = 1;
+		musb_start_urb(musb, 1, next_qh);
+	}
+}
+
 /*
  * Service an RX interrupt for the given IN endpoint; docs cover bulk, iso,
  * and high-bandwidth IN transfer cases.
@@ -1420,18 +1461,26 @@ void musb_host_rx(struct musb *musb, u8 epnum)
 	} else if (rx_csr & MUSB_RXCSR_DATAERROR) {
 
 		if (USB_ENDPOINT_XFER_ISOC != qh->type) {
-			/* NOTE this code path would be a good place to PAUSE a
-			 * transfer, if there's some other (nonperiodic) rx urb
-			 * that could use this fifo.  (dma complicates it...)
-			 *
-			 * if (bulk && qh->ring.next != &musb->in_bulk), then
-			 * we have a candidate... NAKing is *NOT* an error
-			 */
 			DBG(6, "RX end %d NAK timeout\n", epnum);
+
+			/* NOTE: NAKing is *NOT* an error, so we want to
+			 * continue.  Except ... if there's a request for
+			 * another QH, use that instead of starving it.
+			 *
+			 * Devices like Ethernet and serial adapters keep
+			 * reads posted at all times, which will starve
+			 * other devices without this logic.
+			 */
+			if (usb_pipebulk(urb->pipe)
+					&& qh->mux == 1
+					&& !list_is_singular(&musb->in_bulk)) {
+				musb_bulk_rx_nak_timeout(musb, hw_ep);
+				return;
+			}
 			musb_ep_select(mbase, epnum);
-			musb_writew(epio, MUSB_RXCSR,
-					MUSB_RXCSR_H_WZC_BITS
-					| MUSB_RXCSR_H_REQPKT);
+			rx_csr |= MUSB_RXCSR_H_WZC_BITS;
+			rx_csr &= ~MUSB_RXCSR_DATAERROR;
+			musb_writew(epio, MUSB_RXCSR, rx_csr);
 
 			goto finish;
 		} else {
@@ -1751,6 +1800,17 @@ static int musb_schedule(
 			head = &musb->in_bulk;
 		else
 			head = &musb->out_bulk;
+
+		/* Enable bulk RX NAK timeout scheme when bulk requests are
+		 * multiplexed.  This scheme doen't work in high speed to full
+		 * speed scenario as NAK interrupts are not coming from a
+		 * full speed device connected to a high speed device.
+		 * NAK timeout interval is 8 (128 uframe or 16ms) for HS and
+		 * 4 (8 frame or 8ms) for FS device.
+		 */
+		if (is_in && qh->dev)
+			qh->intv_reg =
+				(USB_SPEED_HIGH == qh->dev->speed) ? 8 : 4;
 		goto success;
 	} else if (best_end < 0) {
 		return -ENOSPC;
@@ -1882,13 +1942,11 @@ static int musb_urb_enqueue(
 		 *
 		 * The downside of disabling this is that transfer scheduling
 		 * gets VERY unfair for nonperiodic transfers; a misbehaving
-		 * peripheral could make that hurt.  Or for reads, one that's
-		 * perfectly normal:  network and other drivers keep reads
-		 * posted at all times, having one pending for a week should
-		 * be perfectly safe.
+		 * peripheral could make that hurt.  That's perfectly normal
+		 * for reads from network or serial adapters ... so we have
+		 * partial NAKlimit support for bulk RX.
 		 *
-		 * The upside of disabling it is avoidng transfer scheduling
-		 * code to put this aside for while.
+		 * The upside of disabling it is simpler transfer scheduling.
 		 */
 		interval = 0;
 	}
