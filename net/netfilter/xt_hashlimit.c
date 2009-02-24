@@ -565,8 +565,7 @@ hashlimit_init_dst(const struct xt_hashlimit_htable *hinfo,
 static bool
 hashlimit_mt_v0(const struct sk_buff *skb, const struct xt_match_param *par)
 {
-	const struct xt_hashlimit_info *r =
-		((const struct xt_hashlimit_info *)par->matchinfo)->u.master;
+	const struct xt_hashlimit_info *r = par->matchinfo;
 	struct xt_hashlimit_htable *hinfo = r->hinfo;
 	unsigned long now = jiffies;
 	struct dsthash_ent *dh;
@@ -702,8 +701,6 @@ static bool hashlimit_mt_check_v0(const struct xt_mtchk_param *par)
 	}
 	mutex_unlock(&hlimit_mutex);
 
-	/* Ugly hack: For SMP, we only want to use one set */
-	r->u.master = r;
 	return true;
 }
 
