@@ -12,6 +12,11 @@
 
 #include "trace_events.h"
 
+#define events_for_each(event)						\
+	for (event = __start_ftrace_events;				\
+	     (unsigned long)event < (unsigned long)__stop_ftrace_events; \
+	     event++)
+
 void event_trace_printk(unsigned long ip, const char *fmt, ...)
 {
 	va_list ap;
@@ -39,15 +44,16 @@ static void ftrace_clear_events(void)
 
 static int ftrace_set_clr_event(char *buf, int set)
 {
-	struct ftrace_event_call *call = (void *)__start_ftrace_events;
+	struct ftrace_event_call *call = __start_ftrace_events;
 
 
-	while ((unsigned long)call < (unsigned long)__stop_ftrace_events) {
+	events_for_each(call) {
 
-		if (strcmp(buf, call->name) != 0) {
-			call++;
+		if (!call->name)
 			continue;
-		}
+
+		if (strcmp(buf, call->name) != 0)
+			continue;
 
 		if (set) {
 			/* Already set? */
@@ -223,6 +229,67 @@ ftrace_event_seq_open(struct inode *inode, struct file *file)
 	return ret;
 }
 
+static ssize_t
+event_enable_read(struct file *filp, char __user *ubuf, size_t cnt,
+		  loff_t *ppos)
+{
+	struct ftrace_event_call *call = filp->private_data;
+	char *buf;
+
+	if (call->enabled)
+		buf = "1\n";
+	else
+		buf = "0\n";
+
+	return simple_read_from_buffer(ubuf, cnt, ppos, buf, 2);
+}
+
+static ssize_t
+event_enable_write(struct file *filp, const char __user *ubuf, size_t cnt,
+		   loff_t *ppos)
+{
+	struct ftrace_event_call *call = filp->private_data;
+	char buf[64];
+	unsigned long val;
+	int ret;
+
+	if (cnt >= sizeof(buf))
+		return -EINVAL;
+
+	if (copy_from_user(&buf, ubuf, cnt))
+		return -EFAULT;
+
+	buf[cnt] = 0;
+
+	ret = strict_strtoul(buf, 10, &val);
+	if (ret < 0)
+		return ret;
+
+	switch (val) {
+	case 0:
+		if (!call->enabled)
+			break;
+
+		call->enabled = 0;
+		call->unregfunc();
+		break;
+	case 1:
+		if (call->enabled)
+			break;
+
+		call->enabled = 1;
+		call->regfunc();
+		break;
+
+	default:
+		return -EINVAL;
+	}
+
+	*ppos += cnt;
+
+	return cnt;
+}
+
 static const struct seq_operations show_event_seq_ops = {
 	.start = t_start,
 	.next = t_next,
@@ -252,10 +319,59 @@ static const struct file_operations ftrace_set_event_fops = {
 	.release = seq_release,
 };
 
+static const struct file_operations ftrace_enable_fops = {
+	.open = tracing_open_generic,
+	.read = event_enable_read,
+	.write = event_enable_write,
+};
+
+static struct dentry *event_trace_events_dir(void)
+{
+	static struct dentry *d_tracer;
+	static struct dentry *d_events;
+
+	if (d_events)
+		return d_events;
+
+	d_tracer = tracing_init_dentry();
+	if (!d_tracer)
+		return NULL;
+
+	d_events = debugfs_create_dir("events", d_tracer);
+	if (!d_events)
+		pr_warning("Could not create debugfs "
+			   "'events' directory\n");
+
+	return d_events;
+}
+
+static int
+event_create_dir(struct ftrace_event_call *call, struct dentry *d_events)
+{
+	struct dentry *entry;
+
+	call->dir = debugfs_create_dir(call->name, d_events);
+	if (!call->dir) {
+		pr_warning("Could not create debugfs "
+			   "'%s' directory\n", call->name);
+		return -1;
+	}
+
+	entry = debugfs_create_file("enable", 0644, call->dir, call,
+				    &ftrace_enable_fops);
+	if (!entry)
+		pr_warning("Could not create debugfs "
+			   "'%s/enable' entry\n", call->name);
+
+	return 0;
+}
+
 static __init int event_trace_init(void)
 {
+	struct ftrace_event_call *call = __start_ftrace_events;
 	struct dentry *d_tracer;
 	struct dentry *entry;
+	struct dentry *d_events;
 
 	d_tracer = tracing_init_dentry();
 	if (!d_tracer)
@@ -274,6 +390,17 @@ static __init int event_trace_init(void)
 	if (!entry)
 		pr_warning("Could not create debugfs "
 			   "'set_event' entry\n");
+
+	d_events = event_trace_events_dir();
+	if (!d_events)
+		return 0;
+
+	events_for_each(call) {
+		/* The linker may leave blanks */
+		if (!call->name)
+			continue;
+		event_create_dir(call, d_events);
+	}
 
 	return 0;
 }

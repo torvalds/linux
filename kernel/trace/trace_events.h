@@ -1,11 +1,13 @@
 #ifndef _LINUX_KERNEL_TRACE_EVENTS_H
 #define _LINUX_KERNEL_TRACE_EVENTS_H
 
+#include <linux/debugfs.h>
 #include <linux/ftrace.h>
 #include "trace.h"
 
 struct ftrace_event_call {
 	char		*name;
+	struct dentry	*dir;
 	int		enabled;
 	int		(*regfunc)(void);
 	void		(*unregfunc)(void);
@@ -39,6 +41,7 @@ static void ftrace_unreg_event_##call(void)				\
 }									\
 									\
 static struct ftrace_event_call __used					\
+__attribute__((__aligned__(4)))						\
 __attribute__((section("_ftrace_events"))) event_##call = {		\
 	.name 			= #call,				\
 	.regfunc		= ftrace_reg_event_##call,		\
@@ -46,7 +49,7 @@ __attribute__((section("_ftrace_events"))) event_##call = {		\
 }
 
 void event_trace_printk(unsigned long ip, const char *fmt, ...);
-extern unsigned long __start_ftrace_events[];
-extern unsigned long __stop_ftrace_events[];
+extern struct ftrace_event_call __start_ftrace_events[];
+extern struct ftrace_event_call __stop_ftrace_events[];
 
 #endif /* _LINUX_KERNEL_TRACE_EVENTS_H */
