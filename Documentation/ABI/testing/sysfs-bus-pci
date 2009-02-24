@@ -41,6 +41,22 @@ Description:
 		for the device and attempt to bind to it.  For example:
 		# echo "8086 10f5" > /sys/bus/pci/drivers/foo/new_id
 
+What:		/sys/bus/pci/drivers/.../remove_id
+Date:		February 2009
+Contact:	Chris Wright <chrisw@sous-sol.org>
+Description:
+		Writing a device ID to this file will remove an ID
+		that was dynamically added via the new_id sysfs entry.
+		The format for the device ID is:
+		VVVV DDDD SVVV SDDD CCCC MMMM.	That is Vendor ID, Device
+		ID, Subsystem Vendor ID, Subsystem Device ID, Class,
+		and Class Mask.  The Vendor ID and Device ID fields are
+		required, the rest are optional.  After successfully
+		removing an ID, the driver will no longer support the
+		device.  This is useful to ensure auto probing won't
+		match the driver to the device.  For example:
+		# echo "8086 10f5" > /sys/bus/pci/drivers/foo/remove_id
+
 What:		/sys/bus/pci/devices/.../vpd
 Date:		February 2008
 Contact:	Ben Hutchings <bhutchings@solarflare.com>
