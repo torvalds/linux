@@ -88,6 +88,8 @@ int ocfs2_claim_metadata(struct ocfs2_super *osb,
 			 u64 *blkno_start);
 int ocfs2_claim_new_inode(struct ocfs2_super *osb,
 			  handle_t *handle,
+			  struct inode *dir,
+			  struct buffer_head *parent_fe_bh,
 			  struct ocfs2_alloc_context *ac,
 			  u16 *suballoc_bit,
 			  u64 *fe_blkno);

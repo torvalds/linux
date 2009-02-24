@@ -1618,8 +1618,41 @@ bail:
 	return status;
 }
 
+static void ocfs2_init_inode_ac_group(struct inode *dir,
+				      struct buffer_head *parent_fe_bh,
+				      struct ocfs2_alloc_context *ac)
+{
+	struct ocfs2_dinode *fe = (struct ocfs2_dinode *)parent_fe_bh->b_data;
+	/*
+	 * Try to allocate inodes from some specific group.
+	 *
+	 * If the parent dir has recorded the last group used in allocation,
+	 * cool, use it. Otherwise if we try to allocate new inode from the
+	 * same slot the parent dir belongs to, use the same chunk.
+	 *
+	 * We are very careful here to avoid the mistake of setting
+	 * ac_last_group to a group descriptor from a different (unlocked) slot.
+	 */
+	if (OCFS2_I(dir)->ip_last_used_group &&
+	    OCFS2_I(dir)->ip_last_used_slot == ac->ac_alloc_slot)
+		ac->ac_last_group = OCFS2_I(dir)->ip_last_used_group;
+	else if (le16_to_cpu(fe->i_suballoc_slot) == ac->ac_alloc_slot)
+		ac->ac_last_group = ocfs2_which_suballoc_group(
+					le64_to_cpu(fe->i_blkno),
+					le16_to_cpu(fe->i_suballoc_bit));
+}
+
+static inline void ocfs2_save_inode_ac_group(struct inode *dir,
+					     struct ocfs2_alloc_context *ac)
+{
+	OCFS2_I(dir)->ip_last_used_group = ac->ac_last_group;
+	OCFS2_I(dir)->ip_last_used_slot = ac->ac_alloc_slot;
+}
+
 int ocfs2_claim_new_inode(struct ocfs2_super *osb,
 			  handle_t *handle,
+			  struct inode *dir,
+			  struct buffer_head *parent_fe_bh,
 			  struct ocfs2_alloc_context *ac,
 			  u16 *suballoc_bit,
 			  u64 *fe_blkno)
@@ -1634,6 +1667,8 @@ int ocfs2_claim_new_inode(struct ocfs2_super *osb,
 	BUG_ON(ac->ac_bits_given != 0);
 	BUG_ON(ac->ac_bits_wanted != 1);
 	BUG_ON(ac->ac_which != OCFS2_AC_USE_INODE);
+
+	ocfs2_init_inode_ac_group(dir, parent_fe_bh, ac);
 
 	status = ocfs2_claim_suballoc_bits(osb,
 					   ac,
@@ -1653,6 +1688,7 @@ int ocfs2_claim_new_inode(struct ocfs2_super *osb,
 
 	*fe_blkno = bg_blkno + (u64) (*suballoc_bit);
 	ac->ac_bits_given++;
+	ocfs2_save_inode_ac_group(dir, ac);
 	status = 0;
 bail:
 	mlog_exit(status);

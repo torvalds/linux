@@ -485,8 +485,8 @@ static int ocfs2_mknod_locked(struct ocfs2_super *osb,
 
 	*new_fe_bh = NULL;
 
-	status = ocfs2_claim_new_inode(osb, handle, inode_ac, &suballoc_bit,
-				       &fe_blkno);
+	status = ocfs2_claim_new_inode(osb, handle, dir, parent_fe_bh,
+				       inode_ac, &suballoc_bit, &fe_blkno);
 	if (status < 0) {
 		mlog_errno(status);
 		goto leave;

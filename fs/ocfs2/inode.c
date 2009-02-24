@@ -352,6 +352,8 @@ void ocfs2_populate_inode(struct inode *inode, struct ocfs2_dinode *fe,
 
 	ocfs2_set_inode_flags(inode);
 
+	OCFS2_I(inode)->ip_last_used_slot = 0;
+	OCFS2_I(inode)->ip_last_used_group = 0;
 	mlog_exit_void();
 }
 

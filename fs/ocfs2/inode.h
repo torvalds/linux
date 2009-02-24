@@ -72,6 +72,10 @@ struct ocfs2_inode_info
 
 	struct inode			vfs_inode;
 	struct jbd2_inode		ip_jinode;
+
+	/* Only valid if the inode is the dir. */
+	u32				ip_last_used_slot;
+	u64				ip_last_used_group;
 };
 
 /*
