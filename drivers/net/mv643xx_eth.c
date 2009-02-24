@@ -2388,12 +2388,7 @@ static int mv643xx_eth_open(struct net_device *dev)
 		}
 	}
 
-	netif_carrier_off(dev);
-
 	port_start(mp);
-
-	set_rx_coal(mp, 0);
-	set_tx_coal(mp, 0);
 
 	wrlp(mp, INT_MASK_EXT, INT_EXT_LINK_PHY | INT_EXT_TX);
 	wrlp(mp, INT_MASK, INT_TX_END | INT_RX | INT_EXT);
@@ -2959,6 +2954,11 @@ static int mv643xx_eth_probe(struct platform_device *pdev)
 
 	if (mp->shared->win_protect)
 		wrl(mp, WINDOW_PROTECT(mp->port_num), mp->shared->win_protect);
+
+	netif_carrier_off(dev);
+
+	set_rx_coal(mp, 0);
+	set_tx_coal(mp, 0);
 
 	err = register_netdev(dev);
 	if (err)
