@@ -303,12 +303,10 @@ static inline unsigned int summit_cpu_mask_to_apicid(const cpumask_t *cpumask)
 	int cpu;
 
 	num_bits_set = cpus_weight(*cpumask);
-	/* Return id to all */
 	if (num_bits_set >= nr_cpu_ids)
-		return 0xFF;
+		return BAD_APICID;
 	/*
-	 * The cpus in the mask must all be on the apic cluster.  If are not
-	 * on the same apicid cluster return default value of target_cpus():
+	 * The cpus in the mask must all be on the apic cluster.
 	 */
 	cpu = first_cpu(*cpumask);
 	apicid = summit_cpu_to_logical_apicid(cpu);
@@ -318,9 +316,9 @@ static inline unsigned int summit_cpu_mask_to_apicid(const cpumask_t *cpumask)
 			int new_apicid = summit_cpu_to_logical_apicid(cpu);
 
 			if (APIC_CLUSTER(apicid) != APIC_CLUSTER(new_apicid)) {
-				printk ("%s: Not a valid mask!\n", __func__);
+				printk("%s: Not a valid mask!\n", __func__);
 
-				return 0xFF;
+				return BAD_APICID;
 			}
 			apicid = apicid | new_apicid;
 			cpus_found++;
