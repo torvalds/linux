@@ -83,18 +83,18 @@ struct pcpu_chunk {
 	struct page		*page[];	/* #cpus * UNIT_PAGES */
 };
 
-static int pcpu_unit_pages;
-static int pcpu_unit_size;
-static int pcpu_chunk_size;
-static int pcpu_nr_slots;
-static size_t pcpu_chunk_struct_size;
+static int pcpu_unit_pages __read_mostly;
+static int pcpu_unit_size __read_mostly;
+static int pcpu_chunk_size __read_mostly;
+static int pcpu_nr_slots __read_mostly;
+static size_t pcpu_chunk_struct_size __read_mostly;
 
 /* the address of the first chunk which starts with the kernel static area */
-void *pcpu_base_addr;
+void *pcpu_base_addr __read_mostly;
 EXPORT_SYMBOL_GPL(pcpu_base_addr);
 
 /* the size of kernel static area */
-static int pcpu_static_size;
+static int pcpu_static_size __read_mostly;
 
 /*
  * One mutex to rule them all.
@@ -112,7 +112,7 @@ static int pcpu_static_size;
  */
 static DEFINE_MUTEX(pcpu_mutex);
 
-static struct list_head *pcpu_slot;		/* chunk list slots */
+static struct list_head *pcpu_slot __read_mostly; /* chunk list slots */
 static struct rb_root pcpu_addr_root = RB_ROOT;	/* chunks by address */
 
 static int __pcpu_size_to_slot(int size)
