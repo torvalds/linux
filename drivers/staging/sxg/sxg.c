@@ -1486,23 +1486,25 @@ static int sxg_process_isr(struct adapter_t *adapter, u32 MessageId)
  * sxg_rcv_checksum - Set the checksum for received packet
  *
  * Arguements:
+ * 		@adapter - Adapter structure on which packet is received
  * 		@skb - Packet which is receieved
  * 		@Event - Event read from hardware
  */
 
-void sxg_rcv_checksum(struct sk_buff *skb, struct sxg_event *Event)
+void sxg_rcv_checksum(struct adapter_t *adapter, struct sk_buff *skb,
+			 struct sxg_event *Event)
 {
 	skb->ip_summed = CHECKSUM_NONE;
-	if(Event->Status & EVENT_STATUS_TCPIP) {
-		if(!(Event->Status & EVENT_STATUS_TCPBAD)) {
+	if (likely(adapter->flags & SXG_RCV_IP_CSUM_ENABLED)) {
+		if (likely(adapter->flags & SXG_RCV_TCP_CSUM_ENABLED)
+			&& (Event->Status & EVENT_STATUS_TCPIP)) {
+			if(!(Event->Status & EVENT_STATUS_TCPBAD))
+				skb->ip_summed = CHECKSUM_UNNECESSARY;
+		if(!(Event->Status & EVENT_STATUS_IPBAD))
 			skb->ip_summed = CHECKSUM_UNNECESSARY;
-		}
-		if(!(Event->Status & EVENT_STATUS_IPBAD)) {
-			skb->ip_summed = CHECKSUM_UNNECESSARY;
-		}
-	} else if(Event->Status & EVENT_STATUS_IPONLY) {
-		if(!(Event->Status & EVENT_STATUS_IPBAD)) {
-			skb->ip_summed = CHECKSUM_UNNECESSARY;
+		} else if(Event->Status & EVENT_STATUS_IPONLY) {
+			if(!(Event->Status & EVENT_STATUS_IPBAD))
+				skb->ip_summed = CHECKSUM_UNNECESSARY;
 		}
 	}
 }
@@ -1581,7 +1583,7 @@ static u32 sxg_process_event_queue(struct adapter_t *adapter, u32 RssId,
 				rx_bytes = Event->Length;
 				adapter->stats.rx_packets++;
 				adapter->stats.rx_bytes += rx_bytes;
-				sxg_rcv_checksum(skb, Event);
+				sxg_rcv_checksum(adapter, skb, Event);
 				skb->dev = adapter->netdev;
 				netif_receive_skb(skb);
 #endif

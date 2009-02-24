@@ -221,7 +221,7 @@ static int sxg_nic_get_settings(struct net_device *netdev,
 static u32 sxg_nic_get_rx_csum(struct net_device *netdev)
 {
 	struct adapter_t *adapter = netdev_priv(netdev);
-	return ((adapter->flags & SXG_RCV_IP_CSUM_ENABLED) ||
+	return ((adapter->flags & SXG_RCV_IP_CSUM_ENABLED) &&
 		 (adapter->flags & SXG_RCV_TCP_CSUM_ENABLED));
 }
 
@@ -232,9 +232,10 @@ static int sxg_nic_set_rx_csum(struct net_device *netdev, u32 data)
 		adapter->flags |= SXG_RCV_IP_CSUM_ENABLED;
 	else
 		adapter->flags &= ~SXG_RCV_IP_CSUM_ENABLED;
-
-	/* Reset the card here (call the reset functions .. currently unavailable)*/
-
+	/*
+	 * We dont need to write to the card to do checksums.
+	 * It does it anyways.
+	 */
 	return 0;
 }
 
