@@ -395,7 +395,6 @@ musb_giveback(struct musb_qh *qh, struct urb *urb, int status)
 			 * de-allocated if it's tracked and allocated;
 			 * and where we'd update the schedule tree...
 			 */
-			musb->periodic[ep->epnum] = NULL;
 			kfree(qh);
 			qh = NULL;
 			break;
@@ -1711,31 +1710,27 @@ static int musb_schedule(
 
 	/* else, periodic transfers get muxed to other endpoints */
 
-	/* FIXME this doesn't consider direction, so it can only
-	 * work for one half of the endpoint hardware, and assumes
-	 * the previous cases handled all non-shared endpoints...
-	 */
-
-	/* we know this qh hasn't been scheduled, so all we need to do
+	/*
+	 * We know this qh hasn't been scheduled, so all we need to do
 	 * is choose which hardware endpoint to put it on ...
 	 *
 	 * REVISIT what we really want here is a regular schedule tree
-	 * like e.g. OHCI uses, but for now musb->periodic is just an
-	 * array of the _single_ logical endpoint associated with a
-	 * given physical one (identity mapping logical->physical).
-	 *
-	 * that simplistic approach makes TT scheduling a lot simpler;
-	 * there is none, and thus none of its complexity...
+	 * like e.g. OHCI uses.
 	 */
 	best_diff = 4096;
 	best_end = -1;
 
-	for (epnum = 1; epnum < musb->nr_endpoints; epnum++) {
+	for (epnum = 1, hw_ep = musb->endpoints + 1;
+			epnum < musb->nr_endpoints;
+			epnum++, hw_ep++) {
 		int	diff;
 
-		if (musb->periodic[epnum])
+		if (is_in || hw_ep->is_shared_fifo) {
+			if (hw_ep->in_qh  != NULL)
+				continue;
+		} else	if (hw_ep->out_qh != NULL)
 			continue;
-		hw_ep = &musb->endpoints[epnum];
+
 		if (hw_ep == musb->bulk_ep)
 			continue;
 
@@ -1764,7 +1759,6 @@ static int musb_schedule(
 	idle = 1;
 	qh->mux = 0;
 	hw_ep = musb->endpoints + best_end;
-	musb->periodic[best_end] = qh;
 	DBG(4, "qh %p periodic slot %d\n", qh, best_end);
 success:
 	if (head) {

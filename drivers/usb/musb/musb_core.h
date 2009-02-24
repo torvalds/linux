@@ -331,7 +331,6 @@ struct musb {
 	struct list_head	control;	/* of musb_qh */
 	struct list_head	in_bulk;	/* of musb_qh */
 	struct list_head	out_bulk;	/* of musb_qh */
-	struct musb_qh		*periodic[32];	/* tree of interrupt+iso */
 #endif
 
 	/* called with IRQs blocked; ON/nonzero implies starting a session,
