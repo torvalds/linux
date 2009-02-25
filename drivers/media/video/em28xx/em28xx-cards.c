@@ -369,26 +369,6 @@ struct em28xx_board em28xx_boards[] = {
 			.amux     = EM28XX_AMUX_VIDEO,
 		} },
 	},
-	[EM2821_BOARD_PROLINK_PLAYTV_USB2] = {
-		.name         = "SIIG AVTuner-PVR/Prolink PlayTV USB 2.0",
-		.valid        = EM28XX_BOARD_NOT_VALIDATED,
-		.tuner_type   = TUNER_LG_PAL_NEW_TAPC,	/* unknown? */
-		.tda9887_conf = TDA9887_PRESENT,	/* unknown? */
-		.decoder      = EM28XX_SAA711X,
-		.input        = { {
-			.type     = EM28XX_VMUX_TELEVISION,
-			.vmux     = SAA7115_COMPOSITE2,
-			.amux     = EM28XX_AMUX_LINE_IN,
-		}, {
-			.type     = EM28XX_VMUX_COMPOSITE1,
-			.vmux     = SAA7115_COMPOSITE0,
-			.amux     = EM28XX_AMUX_LINE_IN,
-		}, {
-			.type     = EM28XX_VMUX_SVIDEO,
-			.vmux     = SAA7115_SVIDEO3,
-			.amux     = EM28XX_AMUX_LINE_IN,
-		} },
-	},
 	[EM2821_BOARD_SUPERCOMP_USB_2] = {
 		.name         = "Supercomp USB 2.0 TV",
 		.valid        = EM28XX_BOARD_NOT_VALIDATED,
