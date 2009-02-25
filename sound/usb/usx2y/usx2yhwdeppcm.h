@@ -18,3 +18,5 @@ struct snd_usX2Y_hwdep_pcm_shm {
 	volatile unsigned captured_iso_frames;
 	int capture_iso_start;
 };
+
+int usX2Y_hwdep_pcm_new(struct snd_card *card);

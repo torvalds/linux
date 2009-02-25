@@ -30,9 +30,6 @@
 #include "usbusx2y.h"
 #include "usX2Yhwdep.h"
 
-int usX2Y_hwdep_pcm_new(struct snd_card *card);
-
-
 static int snd_us428ctls_vm_fault(struct vm_area_struct *area,
 				  struct vm_fault *vmf)
 {
