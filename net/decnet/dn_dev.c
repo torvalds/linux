@@ -684,7 +684,6 @@ static int dn_nl_newaddr(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 		return -ENODEV;
 
 	if ((dn_db = dev->dn_ptr) == NULL) {
-		int err;
 		dn_db = dn_dev_create(dev, &err);
 		if (!dn_db)
 			return err;
