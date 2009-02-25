@@ -61,13 +61,10 @@ struct cap_dev {
 	struct cdev cdev;
 };
 
-char *cap_hash(char *plain_text, unsigned int plain_text_size, char *key,
-	       unsigned int key_size);
-
-int cap_major = CAP_MAJOR;
-int cap_minor;
-int cap_nr_devs = CAP_NR_DEVS;
-int cap_node_size = CAP_NODE_SIZE;
+static int cap_major = CAP_MAJOR;
+static int cap_minor;
+static int cap_nr_devs = CAP_NR_DEVS;
+static int cap_node_size = CAP_NODE_SIZE;
 
 module_param(cap_major, int, S_IRUGO);
 module_param(cap_minor, int, S_IRUGO);
@@ -76,16 +73,65 @@ module_param(cap_nr_devs, int, S_IRUGO);
 MODULE_AUTHOR("Ashwin Ganti");
 MODULE_LICENSE("GPL");
 
-struct cap_dev *cap_devices;
+static struct cap_dev *cap_devices;
 
-void hexdump(unsigned char *buf, unsigned int len)
+static void hexdump(unsigned char *buf, unsigned int len)
 {
 	while (len--)
 		printk("%02x", *buf++);
 	printk("\n");
 }
 
-int cap_trim(struct cap_dev *dev)
+static char *cap_hash(char *plain_text, unsigned int plain_text_size,
+		      char *key, unsigned int key_size)
+{
+	struct scatterlist sg;
+	char *result = kmalloc(MAX_DIGEST_SIZE, GFP_KERNEL);
+	struct crypto_hash *tfm;
+	struct hash_desc desc;
+	int ret;
+
+	tfm = crypto_alloc_hash("hmac(sha1)", 0, CRYPTO_ALG_ASYNC);
+	if (IS_ERR(tfm)) {
+		printk(KERN_ERR
+		       "failed to load transform for hmac(sha1): %ld\n",
+		       PTR_ERR(tfm));
+		kfree(result);
+		return NULL;
+	}
+
+	desc.tfm = tfm;
+	desc.flags = 0;
+
+	memset(result, 0, MAX_DIGEST_SIZE);
+	sg_set_buf(&sg, plain_text, plain_text_size);
+
+	ret = crypto_hash_setkey(tfm, key, key_size);
+	if (ret) {
+		printk(KERN_ERR "setkey() failed ret=%d\n", ret);
+		kfree(result);
+		result = NULL;
+		goto out;
+	}
+
+	ret = crypto_hash_digest(&desc, &sg, plain_text_size, result);
+	if (ret) {
+		printk(KERN_ERR "digest () failed ret=%d\n", ret);
+		kfree(result);
+		result = NULL;
+		goto out;
+	}
+
+	printk(KERN_DEBUG "crypto hash digest size %d\n",
+	       crypto_hash_digestsize(tfm));
+	hexdump(result, MAX_DIGEST_SIZE);
+
+out:
+	crypto_free_hash(tfm);
+	return result;
+}
+
+static int cap_trim(struct cap_dev *dev)
 {
 	struct cap_node *tmp;
 	struct list_head *pos, *q;
@@ -99,7 +145,7 @@ int cap_trim(struct cap_dev *dev)
 	return 0;
 }
 
-int cap_open(struct inode *inode, struct file *filp)
+static int cap_open(struct inode *inode, struct file *filp)
 {
 	struct cap_dev *dev;
 	dev = container_of(inode->i_cdev, struct cap_dev, cdev);
@@ -120,13 +166,13 @@ int cap_open(struct inode *inode, struct file *filp)
 	return 0;
 }
 
-int cap_release(struct inode *inode, struct file *filp)
+static int cap_release(struct inode *inode, struct file *filp)
 {
 	return 0;
 }
 
-ssize_t cap_write(struct file *filp, const char __user *buf, size_t count,
-		  loff_t *f_pos)
+static ssize_t cap_write(struct file *filp, const char __user *buf,
+			 size_t count, loff_t *f_pos)
 {
 	struct cap_node *node_ptr, *tmp;
 	struct list_head *pos;
@@ -181,8 +227,7 @@ ssize_t cap_write(struct file *filp, const char __user *buf, size_t count,
 		printk(KERN_ALERT "the source user is %s \n", source_user);
 		printk(KERN_ALERT "the target user is %s \n", target_user);
 
-		result =
-		    cap_hash(hash_str, len, rand_str, strlen(rand_str));
+		result = cap_hash(hash_str, len, rand_str, strlen(rand_str));
 		if (NULL == result) {
 			retval = -EFAULT;
 			goto out;
@@ -266,15 +311,14 @@ out:
 	return retval;
 }
 
-const struct file_operations cap_fops = {
+static const struct file_operations cap_fops = {
 	.owner = THIS_MODULE,
 	.write = cap_write,
 	.open = cap_open,
 	.release = cap_release,
 };
 
-
-void cap_cleanup_module(void)
+static void cap_cleanup_module(void)
 {
 	int i;
 	dev_t devno = MKDEV(cap_major, cap_minor);
@@ -289,7 +333,6 @@ void cap_cleanup_module(void)
 
 }
 
-
 static void cap_setup_cdev(struct cap_dev *dev, int index)
 {
 	int err, devno = MKDEV(cap_major, cap_minor + index);
@@ -301,8 +344,7 @@ static void cap_setup_cdev(struct cap_dev *dev, int index)
 		printk(KERN_NOTICE "Error %d adding cap%d", err, index);
 }
 
-
-int cap_init_module(void)
+static int cap_init_module(void)
 {
 	int result, i;
 	dev_t dev = 0;
@@ -347,51 +389,4 @@ fail:
 module_init(cap_init_module);
 module_exit(cap_cleanup_module);
 
-char *cap_hash(char *plain_text, unsigned int plain_text_size,
-	       char *key, unsigned int key_size)
-{
-	struct scatterlist sg;
-	char *result = kmalloc(MAX_DIGEST_SIZE, GFP_KERNEL);
-	struct crypto_hash *tfm;
-	struct hash_desc desc;
-	int ret;
 
-	tfm = crypto_alloc_hash("hmac(sha1)", 0, CRYPTO_ALG_ASYNC);
-	if (IS_ERR(tfm)) {
-		printk(KERN_ERR
-		       "failed to load transform for hmac(sha1): %ld\n",
-		       PTR_ERR(tfm));
-		kfree(result);
-		return NULL;
-	}
-
-	desc.tfm = tfm;
-	desc.flags = 0;
-
-	memset(result, 0, MAX_DIGEST_SIZE);
-	sg_set_buf(&sg, plain_text, plain_text_size);
-
-	ret = crypto_hash_setkey(tfm, key, key_size);
-	if (ret) {
-		printk(KERN_ERR "setkey() failed ret=%d\n", ret);
-		kfree(result);
-		result = NULL;
-		goto out;
-	}
-
-	ret = crypto_hash_digest(&desc, &sg, plain_text_size, result);
-	if (ret) {
-		printk(KERN_ERR "digest () failed ret=%d\n", ret);
-		kfree(result);
-		result = NULL;
-		goto out;
-	}
-
-	printk(KERN_DEBUG "crypto hash digest size %d\n",
-	       crypto_hash_digestsize(tfm));
-	hexdump(result, MAX_DIGEST_SIZE);
-
-out:
-	crypto_free_hash(tfm);
-	return result;
-}
