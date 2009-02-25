@@ -420,7 +420,7 @@ __writeback_single_inode(struct inode *inode, struct writeback_control *wbc)
  * If older_than_this is non-NULL, then only write out inodes which
  * had their first dirtying at a time earlier than *older_than_this.
  *
- * If we're a pdlfush thread, then implement pdflush collision avoidance
+ * If we're a pdflush thread, then implement pdflush collision avoidance
  * against the entire list.
  *
  * If `bdi' is non-zero then we're being asked to writeback a specific queue.
