@@ -971,8 +971,7 @@ int zfLnxCencSendMsg(struct sock *netlink_sk, u_int8_t *msg, int len)
 out:
 	return ret;
 nlmsg_failure: /*NLMSG_PUT Ê§°Ü£¬Ôò³·ÏúÌ×½Ó×Ö»º´æ*/
-  	if(skb)
-    		kfree_skb(skb);
+	kfree_skb(skb);
 	goto out;
 
 #undef COMMTYPE_GROUP
