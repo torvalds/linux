@@ -1245,8 +1245,7 @@ ppp_send_frame(struct ppp *ppp, struct sk_buff *skb)
 	return;
 
  drop:
-	if (skb)
-		kfree_skb(skb);
+	kfree_skb(skb);
 	++ppp->dev->stats.tx_errors;
 }
 
@@ -2658,8 +2657,7 @@ static void ppp_destroy_interface(struct ppp *ppp)
 	ppp->active_filter = NULL;
 #endif /* CONFIG_PPP_FILTER */
 
-	if (ppp->xmit_pending)
-		kfree_skb(ppp->xmit_pending);
+	kfree_skb(ppp->xmit_pending);
 
 	free_netdev(ppp->dev);
 }

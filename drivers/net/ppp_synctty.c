@@ -281,8 +281,7 @@ ppp_sync_close(struct tty_struct *tty)
 
 	ppp_unregister_channel(&ap->chan);
 	skb_queue_purge(&ap->rqueue);
-	if (ap->tpkt)
-		kfree_skb(ap->tpkt);
+	kfree_skb(ap->tpkt);
 	kfree(ap);
 }
 

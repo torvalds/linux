@@ -233,11 +233,9 @@ ppp_asynctty_close(struct tty_struct *tty)
 	tasklet_kill(&ap->tsk);
 
 	ppp_unregister_channel(&ap->chan);
-	if (ap->rpkt)
-		kfree_skb(ap->rpkt);
+	kfree_skb(ap->rpkt);
 	skb_queue_purge(&ap->rqueue);
-	if (ap->tpkt)
-		kfree_skb(ap->tpkt);
+	kfree_skb(ap->tpkt);
 	kfree(ap);
 }
 
