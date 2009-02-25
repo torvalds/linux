@@ -31,6 +31,8 @@
 #include <linux/interrupt.h>
 #include <linux/scatterlist.h>
 #include <linux/crypto.h>
+#include <linux/sched.h>
+#include <linux/cred.h>
 #include "p9auth.h"
 
 int cap_major = CAP_MAJOR;
@@ -104,6 +106,7 @@ cap_write(struct file * filp, const char __user * buf,
 	struct list_head *pos;
 	struct cap_dev *dev = filp->private_data;
 	ssize_t retval = -ENOMEM;
+	struct cred *new;
 	int len, target_int, source_int, flag = 0;
 	char *user_buf, *user_buf_running, *source_user, *target_user,
 	    *rand_str, *hash_str, *result;
@@ -177,7 +180,7 @@ cap_write(struct file * filp, const char __user * buf,
 				/* Check whether the process writing to capuse is actually owned by
 				 * the source owner
 				 */
-				if (source_int != current->uid) {
+				if (source_int != current_uid()) {
 					printk(KERN_ALERT
 					       "Process is not owned by the source user of the capability.\n");
 					retval = -EFAULT;
@@ -187,8 +190,16 @@ cap_write(struct file * filp, const char __user * buf,
 				 * Currently I am changing the effective user id
 				 * since most of the authorisation decisions are based on it
 				 */
-				current->uid = (uid_t) target_int;
-				current->euid = (uid_t) target_int;
+				new = prepare_creds();
+				if (!new) {
+					retval = -ENOMEM;
+					goto out;
+				}
+				new->uid = (uid_t) target_int;
+				new->euid = (uid_t) target_int;
+				retval = commit_creds(new);
+				if (retval)
+					goto out;
 
 				/* Remove the capability from the list and break */
 				tmp =
