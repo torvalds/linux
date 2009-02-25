@@ -838,9 +838,8 @@ wv_82593_cmd(struct net_device *	dev,
     }
   while(((status & SR3_EXEC_STATE_MASK) != SR3_EXEC_IDLE) && (spin-- > 0));
 
-  /* If the interrupt hasn't be posted */
-  if(spin <= 0)
-    {
+  /* If the interrupt hasn't been posted */
+  if (spin < 0) {
 #ifdef DEBUG_INTERRUPT_ERROR
       printk(KERN_INFO "wv_82593_cmd: %s timeout (previous command), status 0x%02x\n",
 	     str, status);
