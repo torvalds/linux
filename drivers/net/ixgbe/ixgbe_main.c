@@ -1550,7 +1550,14 @@ static void ixgbe_configure_srrctl(struct ixgbe_adapter *adapter, int index)
 	srrctl &= ~IXGBE_SRRCTL_BSIZEPKT_MASK;
 
 	if (adapter->flags & IXGBE_FLAG_RX_PS_ENABLED) {
-		srrctl |= IXGBE_RXBUFFER_2048 >> IXGBE_SRRCTL_BSIZEPKT_SHIFT;
+		u16 bufsz = IXGBE_RXBUFFER_2048;
+		/* grow the amount we can receive on large page machines */
+		if (bufsz < (PAGE_SIZE / 2))
+			bufsz = (PAGE_SIZE / 2);
+		/* cap the bufsz at our largest descriptor size */
+		bufsz = min((u16)IXGBE_MAX_RXBUFFER, bufsz);
+
+		srrctl |= bufsz >> IXGBE_SRRCTL_BSIZEPKT_SHIFT;
 		srrctl |= IXGBE_SRRCTL_DESCTYPE_HDR_SPLIT_ALWAYS;
 		srrctl |= ((IXGBE_RX_HDR_SIZE <<
 		            IXGBE_SRRCTL_BSIZEHDRSIZE_SHIFT) &
