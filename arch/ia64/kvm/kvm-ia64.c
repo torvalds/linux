@@ -1671,8 +1671,37 @@ out:
 	return 0;
 }
 
+
+/*
+ * On SN2, the ITC isn't stable, so copy in fast path code to use the
+ * SN2 RTC, replacing the ITC based default verion.
+ */
+static void kvm_patch_vmm(struct kvm_vmm_info *vmm_info,
+			  struct module *module)
+{
+	unsigned long new_ar, new_ar_sn2;
+	unsigned long module_base;
+
+	if (!ia64_platform_is("sn2"))
+		return;
+
+	module_base = (unsigned long)module->module_core;
+
+	new_ar = kvm_vmm_base + vmm_info->patch_mov_ar - module_base;
+	new_ar_sn2 = kvm_vmm_base + vmm_info->patch_mov_ar_sn2 - module_base;
+
+	printk(KERN_INFO "kvm: Patching ITC emulation to use SGI SN2 RTC "
+	       "as source\n");
+
+	/*
+	 * Copy the SN2 version of mov_ar into place. They are both
+	 * the same size, so 6 bundles is sufficient (6 * 0x10).
+	 */
+	memcpy((void *)new_ar, (void *)new_ar_sn2, 0x60);
+}
+
 static int kvm_relocate_vmm(struct kvm_vmm_info *vmm_info,
-						struct module *module)
+			    struct module *module)
 {
 	unsigned long module_base;
 	unsigned long vmm_size;
@@ -1694,6 +1723,7 @@ static int kvm_relocate_vmm(struct kvm_vmm_info *vmm_info,
 		return -EFAULT;
 
 	memcpy((void *)kvm_vmm_base, (void *)module_base, vmm_size);
+	kvm_patch_vmm(vmm_info, module);
 	kvm_flush_icache(kvm_vmm_base, vmm_size);
 
 	/*Recalculate kvm_vmm_info based on new VMM*/

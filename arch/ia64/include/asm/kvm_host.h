@@ -580,6 +580,8 @@ struct kvm_vmm_info{
 	kvm_vmm_entry 	*vmm_entry;
 	kvm_tramp_entry *tramp_entry;
 	unsigned long 	vmm_ivt;
+	unsigned long	patch_mov_ar;
+	unsigned long	patch_mov_ar_sn2;
 };
 
 int kvm_highest_pending_irq(struct kvm_vcpu *vcpu);
