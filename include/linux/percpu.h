@@ -157,7 +157,7 @@ static inline void *__alloc_percpu(size_t size, size_t align)
 	 * percpu sections on SMP for which this path isn't used.
 	 */
 	WARN_ON_ONCE(align > __alignof__(unsigned long long));
-	return kzalloc(size, gfp);
+	return kzalloc(size, GFP_KERNEL);
 }
 
 static inline void free_percpu(void *p)
