@@ -77,7 +77,7 @@ config DEBUG_ICEDCC
 	  Say Y here if you want the debug print routines to direct their
 	  output to the EmbeddedICE macrocell's DCC channel using
 	  co-processor 14. This is known to work on the ARM9 style ICE
-	  channel.
+	  channel and on the XScale with the PEEDI.
 
 	  It does include a timeout to ensure that the system does not
 	  totally freeze when there is nothing connected to read.
