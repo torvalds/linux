@@ -112,7 +112,7 @@ extern unsigned int vdso_enabled;
  * now struct_user_regs, they are different)
  */
 
-#define ELF_CORE_COPY_REGS(pr_reg, regs)	\
+#define ELF_CORE_COPY_REGS_COMMON(pr_reg, regs)	\
 do {						\
 	pr_reg[0] = regs->bx;			\
 	pr_reg[1] = regs->cx;			\
@@ -124,13 +124,24 @@ do {						\
 	pr_reg[7] = regs->ds & 0xffff;		\
 	pr_reg[8] = regs->es & 0xffff;		\
 	pr_reg[9] = regs->fs & 0xffff;		\
-	savesegment(gs, pr_reg[10]);		\
 	pr_reg[11] = regs->orig_ax;		\
 	pr_reg[12] = regs->ip;			\
 	pr_reg[13] = regs->cs & 0xffff;		\
 	pr_reg[14] = regs->flags;		\
 	pr_reg[15] = regs->sp;			\
 	pr_reg[16] = regs->ss & 0xffff;		\
+} while (0);
+
+#define ELF_CORE_COPY_REGS(pr_reg, regs)	\
+do {						\
+	ELF_CORE_COPY_REGS_COMMON(pr_reg, regs);\
+	pr_reg[10] = get_user_gs(regs);		\
+} while (0);
+
+#define ELF_CORE_COPY_KERNEL_REGS(pr_reg, regs)	\
+do {						\
+	ELF_CORE_COPY_REGS_COMMON(pr_reg, regs);\
+	savesegment(gs, pr_reg[10]);		\
 } while (0);
 
 #define ELF_PLATFORM	(utsname()->machine)

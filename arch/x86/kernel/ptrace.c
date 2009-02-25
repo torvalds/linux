@@ -75,10 +75,7 @@ static inline bool invalid_selector(u16 value)
 static unsigned long *pt_regs_access(struct pt_regs *regs, unsigned long regno)
 {
 	BUILD_BUG_ON(offsetof(struct pt_regs, bx) != 0);
-	regno >>= 2;
-	if (regno > FS)
-		--regno;
-	return &regs->bx + regno;
+	return &regs->bx + (regno >> 2);
 }
 
 static u16 get_segment_reg(struct task_struct *task, unsigned long offset)
@@ -90,9 +87,10 @@ static u16 get_segment_reg(struct task_struct *task, unsigned long offset)
 	if (offset != offsetof(struct user_regs_struct, gs))
 		retval = *pt_regs_access(task_pt_regs(task), offset);
 	else {
-		retval = task->thread.gs;
 		if (task == current)
-			savesegment(gs, retval);
+			retval = get_user_gs(task_pt_regs(task));
+		else
+			retval = task_user_gs(task);
 	}
 	return retval;
 }
@@ -126,13 +124,10 @@ static int set_segment_reg(struct task_struct *task,
 		break;
 
 	case offsetof(struct user_regs_struct, gs):
-		task->thread.gs = value;
 		if (task == current)
-			/*
-			 * The user-mode %gs is not affected by
-			 * kernel entry, so we must update the CPU.
-			 */
-			loadsegment(gs, value);
+			set_user_gs(task_pt_regs(task), value);
+		else
+			task_user_gs(task) = value;
 	}
 
 	return 0;
@@ -273,7 +268,7 @@ static unsigned long debugreg_addr_limit(struct task_struct *task)
 	if (test_tsk_thread_flag(task, TIF_IA32))
 		return IA32_PAGE_OFFSET - 3;
 #endif
-	return TASK_SIZE64 - 7;
+	return TASK_SIZE_MAX - 7;
 }
 
 #endif	/* CONFIG_X86_32 */

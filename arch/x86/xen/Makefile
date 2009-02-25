@@ -6,7 +6,8 @@ CFLAGS_REMOVE_irq.o = -pg
 endif
 
 obj-y		:= enlighten.o setup.o multicalls.o mmu.o irq.o \
-			time.o xen-asm_$(BITS).o grant-table.o suspend.o
+			time.o xen-asm.o xen-asm_$(BITS).o \
+			grant-table.o suspend.o
 
 obj-$(CONFIG_SMP)		+= smp.o spinlock.o
 obj-$(CONFIG_XEN_DEBUG_FS)	+= debugfs.o

@@ -108,7 +108,7 @@ static void do_suspend(void)
 	/* XXX use normal device tree? */
 	xenbus_suspend();
 
-	err = stop_machine(xen_suspend, &cancelled, &cpumask_of_cpu(0));
+	err = stop_machine(xen_suspend, &cancelled, cpumask_of(0));
 	if (err) {
 		printk(KERN_ERR "failed to start xen_suspend: %d\n", err);
 		goto out;

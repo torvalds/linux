@@ -54,15 +54,14 @@
 #include <asm/desc.h>
 #include <asm/i387.h>
 
-#include <mach_traps.h>
+#include <asm/mach_traps.h>
 
 #ifdef CONFIG_X86_64
 #include <asm/pgalloc.h>
 #include <asm/proto.h>
-#include <asm/pda.h>
 #else
 #include <asm/processor-flags.h>
-#include <asm/arch_hooks.h>
+#include <asm/setup.h>
 #include <asm/traps.h>
 
 #include "cpu/mcheck/mce.h"
@@ -914,19 +913,20 @@ void math_emulate(struct math_emu_info *info)
 }
 #endif /* CONFIG_MATH_EMULATION */
 
-dotraplinkage void __kprobes do_device_not_available(struct pt_regs regs)
+dotraplinkage void __kprobes
+do_device_not_available(struct pt_regs *regs, long error_code)
 {
 #ifdef CONFIG_X86_32
 	if (read_cr0() & X86_CR0_EM) {
 		struct math_emu_info info = { };
 
-		conditional_sti(&regs);
+		conditional_sti(regs);
 
-		info.regs = &regs;
+		info.regs = regs;
 		math_emulate(&info);
 	} else {
 		math_state_restore(); /* interrupts still off */
-		conditional_sti(&regs);
+		conditional_sti(regs);
 	}
 #else
 	math_state_restore();
@@ -942,7 +942,7 @@ dotraplinkage void do_iret_error(struct pt_regs *regs, long error_code)
 	info.si_signo = SIGILL;
 	info.si_errno = 0;
 	info.si_code = ILL_BADSTK;
-	info.si_addr = 0;
+	info.si_addr = NULL;
 	if (notify_die(DIE_TRAP, "iret exception",
 			regs, error_code, 32, SIGILL) == NOTIFY_STOP)
 		return;
@@ -1026,6 +1026,6 @@ void __init trap_init(void)
 	cpu_init();
 
 #ifdef CONFIG_X86_32
-	trap_init_hook();
+	x86_quirk_trap_init();
 #endif
 }

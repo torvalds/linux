@@ -1082,8 +1082,8 @@ static int __init arlan_probe_here(struct net_device *dev,
 	if (arlan_check_fingerprint(memaddr))
 		return -ENODEV;
 
-	printk(KERN_NOTICE "%s: Arlan found at %x, \n ", dev->name, 
-	       (int) virt_to_phys((void*)memaddr));
+	printk(KERN_NOTICE "%s: Arlan found at %llx, \n ", dev->name, 
+	       (u64) virt_to_phys((void*)memaddr));
 
 	ap->card = (void *) memaddr;
 	dev->mem_start = memaddr;

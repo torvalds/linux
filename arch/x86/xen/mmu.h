@@ -54,4 +54,7 @@ pte_t xen_ptep_modify_prot_start(struct mm_struct *mm, unsigned long addr, pte_t
 void  xen_ptep_modify_prot_commit(struct mm_struct *mm, unsigned long addr,
 				  pte_t *ptep, pte_t pte);
 
+unsigned long xen_read_cr2_direct(void);
+
+extern const struct pv_mmu_ops xen_mmu_ops;
 #endif	/* _XEN_MMU_H */

@@ -67,7 +67,7 @@ static struct threshold_block threshold_defaults = {
 struct threshold_bank {
 	struct kobject *kobj;
 	struct threshold_block *blocks;
-	cpumask_t cpus;
+	cpumask_var_t cpus;
 };
 static DEFINE_PER_CPU(struct threshold_bank *, threshold_banks[NR_BANKS]);
 
@@ -477,7 +477,7 @@ static __cpuinit int threshold_create_bank(unsigned int cpu, unsigned int bank)
 
 #ifdef CONFIG_SMP
 	if (cpu_data(cpu).cpu_core_id && shared_bank[bank]) {	/* symlink */
-		i = first_cpu(per_cpu(cpu_core_map, cpu));
+		i = cpumask_first(&per_cpu(cpu_core_map, cpu));
 
 		/* first core not up yet */
 		if (cpu_data(i).cpu_core_id)
@@ -497,7 +497,7 @@ static __cpuinit int threshold_create_bank(unsigned int cpu, unsigned int bank)
 		if (err)
 			goto out;
 
-		b->cpus = per_cpu(cpu_core_map, cpu);
+		cpumask_copy(b->cpus, &per_cpu(cpu_core_map, cpu));
 		per_cpu(threshold_banks, cpu)[bank] = b;
 		goto out;
 	}
@@ -508,15 +508,20 @@ static __cpuinit int threshold_create_bank(unsigned int cpu, unsigned int bank)
 		err = -ENOMEM;
 		goto out;
 	}
+	if (!alloc_cpumask_var(&b->cpus, GFP_KERNEL)) {
+		kfree(b);
+		err = -ENOMEM;
+		goto out;
+	}
 
 	b->kobj = kobject_create_and_add(name, &per_cpu(device_mce, cpu).kobj);
 	if (!b->kobj)
 		goto out_free;
 
 #ifndef CONFIG_SMP
-	b->cpus = CPU_MASK_ALL;
+	cpumask_setall(b->cpus);
 #else
-	b->cpus = per_cpu(cpu_core_map, cpu);
+	cpumask_copy(b->cpus, &per_cpu(cpu_core_map, cpu));
 #endif
 
 	per_cpu(threshold_banks, cpu)[bank] = b;
@@ -525,7 +530,7 @@ static __cpuinit int threshold_create_bank(unsigned int cpu, unsigned int bank)
 	if (err)
 		goto out_free;
 
-	for_each_cpu_mask_nr(i, b->cpus) {
+	for_each_cpu(i, b->cpus) {
 		if (i == cpu)
 			continue;
 
@@ -541,6 +546,7 @@ static __cpuinit int threshold_create_bank(unsigned int cpu, unsigned int bank)
 
 out_free:
 	per_cpu(threshold_banks, cpu)[bank] = NULL;
+	free_cpumask_var(b->cpus);
 	kfree(b);
 out:
 	return err;
@@ -615,7 +621,7 @@ static void threshold_remove_bank(unsigned int cpu, int bank)
 #endif
 
 	/* remove all sibling symlinks before unregistering */
-	for_each_cpu_mask_nr(i, b->cpus) {
+	for_each_cpu(i, b->cpus) {
 		if (i == cpu)
 			continue;
 
@@ -628,6 +634,7 @@ static void threshold_remove_bank(unsigned int cpu, int bank)
 free_out:
 	kobject_del(b->kobj);
 	kobject_put(b->kobj);
+	free_cpumask_var(b->cpus);
 	kfree(b);
 	per_cpu(threshold_banks, cpu)[bank] = NULL;
 }

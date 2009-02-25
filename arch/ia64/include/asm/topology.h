@@ -84,7 +84,7 @@ void build_cpu_to_node_map(void);
 	.child			= NULL,			\
 	.groups			= NULL,			\
 	.min_interval		= 8,			\
-	.max_interval		= 8*(min(num_online_cpus(), 32)), \
+	.max_interval		= 8*(min(num_online_cpus(), 32U)), \
 	.busy_factor		= 64,			\
 	.imbalance_pct		= 125,			\
 	.cache_nice_tries	= 2,			\

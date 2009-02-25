@@ -6,7 +6,7 @@
  */
 
 #include <linux/linkage.h>
-#include <asm/page.h>
+#include <asm/page_types.h>
 
 /*
  * efi_call_phys(void *, ...) is a function with variable parameters.
@@ -113,6 +113,7 @@ ENTRY(efi_call_phys)
 	movl	(%edx), %ecx
 	pushl	%ecx
 	ret
+ENDPROC(efi_call_phys)
 .previous
 
 .data

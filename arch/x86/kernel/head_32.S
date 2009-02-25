@@ -11,14 +11,15 @@
 #include <linux/init.h>
 #include <linux/linkage.h>
 #include <asm/segment.h>
-#include <asm/page.h>
-#include <asm/pgtable.h>
+#include <asm/page_types.h>
+#include <asm/pgtable_types.h>
 #include <asm/desc.h>
 #include <asm/cache.h>
 #include <asm/thread_info.h>
 #include <asm/asm-offsets.h>
 #include <asm/setup.h>
 #include <asm/processor-flags.h>
+#include <asm/percpu.h>
 
 /* Physical address */
 #define pa(X) ((X) - __PAGE_OFFSET)
@@ -429,14 +430,34 @@ is386:	movl $2,%ecx		# set MP
 	ljmp $(__KERNEL_CS),$1f
 1:	movl $(__KERNEL_DS),%eax	# reload all the segment registers
 	movl %eax,%ss			# after changing gdt.
-	movl %eax,%fs			# gets reset once there's real percpu
 
 	movl $(__USER_DS),%eax		# DS/ES contains default USER segment
 	movl %eax,%ds
 	movl %eax,%es
 
-	xorl %eax,%eax			# Clear GS and LDT
+	movl $(__KERNEL_PERCPU), %eax
+	movl %eax,%fs			# set this cpu's percpu
+
+#ifdef CONFIG_CC_STACKPROTECTOR
+	/*
+	 * The linker can't handle this by relocation.  Manually set
+	 * base address in stack canary segment descriptor.
+	 */
+	cmpb $0,ready
+	jne 1f
+	movl $per_cpu__gdt_page,%eax
+	movl $per_cpu__stack_canary,%ecx
+	subl $20, %ecx
+	movw %cx, 8 * GDT_ENTRY_STACK_CANARY + 2(%eax)
+	shrl $16, %ecx
+	movb %cl, 8 * GDT_ENTRY_STACK_CANARY + 4(%eax)
+	movb %ch, 8 * GDT_ENTRY_STACK_CANARY + 7(%eax)
+1:
+#endif
+	movl $(__KERNEL_STACK_CANARY),%eax
 	movl %eax,%gs
+
+	xorl %eax,%eax			# Clear LDT
 	lldt %ax
 
 	cld			# gcc2 wants the direction flag cleared at all times
@@ -446,8 +467,6 @@ is386:	movl $2,%ecx		# set MP
 	movb $1, ready
 	cmpb $0,%cl		# the first CPU calls start_kernel
 	je   1f
-	movl $(__KERNEL_PERCPU), %eax
-	movl %eax,%fs		# set this cpu's percpu
 	movl (stack_start), %esp
 1:
 #endif /* CONFIG_SMP */
@@ -548,11 +567,7 @@ early_fault:
 	pushl %eax
 	pushl %edx		/* trapno */
 	pushl $fault_msg
-#ifdef CONFIG_EARLY_PRINTK
-	call early_printk
-#else
 	call printk
-#endif
 #endif
 	call dump_stack
 hlt_loop:
@@ -580,11 +595,10 @@ ignore_int:
 	pushl 32(%esp)
 	pushl 40(%esp)
 	pushl $int_msg
-#ifdef CONFIG_EARLY_PRINTK
-	call early_printk
-#else
 	call printk
-#endif
+
+	call dump_stack
+
 	addl $(5*4),%esp
 	popl %ds
 	popl %es
@@ -660,7 +674,7 @@ early_recursion_flag:
 	.long 0
 
 int_msg:
-	.asciz "Unknown interrupt or fault at EIP %p %p %p\n"
+	.asciz "Unknown interrupt or fault at: %p %p %p\n"
 
 fault_msg:
 /* fault info: */

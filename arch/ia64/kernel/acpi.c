@@ -199,6 +199,10 @@ char *__init __acpi_map_table(unsigned long phys_addr, unsigned long size)
 	return __va(phys_addr);
 }
 
+void __init __acpi_unmap_table(char *map, unsigned long size)
+{
+}
+
 /* --------------------------------------------------------------------------
                             Boot-time Table Parsing
    -------------------------------------------------------------------------- */

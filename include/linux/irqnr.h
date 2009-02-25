@@ -20,6 +20,7 @@
 
 # define for_each_irq_desc_reverse(irq, desc)                          \
 	for (irq = nr_irqs - 1; irq >= 0; irq--)
+
 #else /* CONFIG_GENERIC_HARDIRQS */
 
 extern int nr_irqs;

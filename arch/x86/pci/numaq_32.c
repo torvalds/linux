@@ -5,7 +5,7 @@
 #include <linux/pci.h>
 #include <linux/init.h>
 #include <linux/nodemask.h>
-#include <mach_apic.h>
+#include <asm/apic.h>
 #include <asm/mpspec.h>
 #include <asm/pci_x86.h>
 
@@ -17,10 +17,6 @@
 #define BUS2LOCAL(global) (mp_bus_id_to_local[global])
 
 #define QUADLOCAL2BUS(quad,local) (quad_local_to_mp_bus_id[quad][local])
-
-/* Where the IO area was mapped on multiquad, always 0 otherwise */
-void *xquad_portio;
-EXPORT_SYMBOL(xquad_portio);
 
 #define XQUAD_PORT_ADDR(port, quad) (xquad_portio + (XQUAD_PORTIO_QUAD*quad) + port)
 
