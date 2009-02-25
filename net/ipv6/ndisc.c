@@ -1095,11 +1095,7 @@ static void ndisc_ra_useropt(struct sk_buff *ra, struct nd_opt_hdr *opt)
 		&ipv6_hdr(ra)->saddr);
 	nlmsg_end(skb, nlh);
 
-	err = rtnl_notify(skb, net, 0, RTNLGRP_ND_USEROPT, NULL,
-			  GFP_ATOMIC);
-	if (err < 0)
-		goto errout;
-
+	rtnl_notify(skb, net, 0, RTNLGRP_ND_USEROPT, NULL, GFP_ATOMIC);
 	return;
 
 nla_put_failure:

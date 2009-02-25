@@ -47,8 +47,9 @@ static void rtmsg_notify(int event, struct net_device *dev, u8 addr)
 		kfree_skb(skb);
 		goto errout;
 	}
-	err = rtnl_notify(skb, dev_net(dev), 0,
-			  RTNLGRP_PHONET_IFADDR, NULL, GFP_KERNEL);
+	rtnl_notify(skb, dev_net(dev), 0,
+		    RTNLGRP_PHONET_IFADDR, NULL, GFP_KERNEL);
+	return;
 errout:
 	if (err < 0)
 		rtnl_set_sk_err(dev_net(dev), RTNLGRP_PHONET_IFADDR, err);
