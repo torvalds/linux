@@ -810,6 +810,53 @@ static int netxen_nic_set_tso(struct net_device *dev, u32 data)
 	return 0;
 }
 
+static void
+netxen_nic_get_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
+{
+	struct netxen_adapter *adapter = netdev_priv(dev);
+	u32 wol_cfg = 0;
+
+	wol->supported = 0;
+	wol->wolopts = 0;
+
+	if (NX_IS_REVISION_P2(adapter->ahw.revision_id))
+		return;
+
+	wol_cfg = netxen_nic_reg_read(adapter, NETXEN_WOL_CONFIG_NV);
+	if (wol_cfg & (1UL << adapter->portnum))
+		wol->supported |= WAKE_MAGIC;
+
+	wol_cfg = netxen_nic_reg_read(adapter, NETXEN_WOL_CONFIG);
+	if (wol_cfg & (1UL << adapter->portnum))
+		wol->wolopts |= WAKE_MAGIC;
+}
+
+static int
+netxen_nic_set_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
+{
+	struct netxen_adapter *adapter = netdev_priv(dev);
+	u32 wol_cfg = 0;
+
+	if (NX_IS_REVISION_P2(adapter->ahw.revision_id))
+		return -EOPNOTSUPP;
+
+	if (wol->wolopts & ~WAKE_MAGIC)
+		return -EOPNOTSUPP;
+
+	wol_cfg = netxen_nic_reg_read(adapter, NETXEN_WOL_CONFIG_NV);
+	if (!(wol_cfg & (1 << adapter->portnum)))
+		return -EOPNOTSUPP;
+
+	wol_cfg = netxen_nic_reg_read(adapter, NETXEN_WOL_CONFIG);
+	if (wol->wolopts & WAKE_MAGIC)
+		wol_cfg |= 1UL << adapter->portnum;
+	else
+		wol_cfg &= ~(1UL << adapter->portnum);
+	netxen_nic_reg_write(adapter, NETXEN_WOL_CONFIG, wol_cfg);
+
+	return 0;
+}
+
 /*
  * Set the coalescing parameters. Currently only normal is supported.
  * If rx_coalesce_usecs == 0 or rx_max_coalesced_frames == 0 then set the
@@ -916,6 +963,8 @@ struct ethtool_ops netxen_nic_ethtool_ops = {
 	.set_sg = ethtool_op_set_sg,
 	.get_tso = netxen_nic_get_tso,
 	.set_tso = netxen_nic_set_tso,
+	.get_wol = netxen_nic_get_wol,
+	.set_wol = netxen_nic_set_wol,
 	.self_test = netxen_nic_diag_test,
 	.get_strings = netxen_nic_get_strings,
 	.get_ethtool_stats = netxen_nic_get_ethtool_stats,
