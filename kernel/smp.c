@@ -74,9 +74,16 @@ static void generic_exec_single(int cpu, struct call_single_data *data)
 	spin_unlock_irqrestore(&dst->lock, flags);
 
 	/*
-	 * Make the list addition visible before sending the ipi.
+	 * The list addition should be visible before sending the IPI
+	 * handler locks the list to pull the entry off it because of
+	 * normal cache coherency rules implied by spinlocks.
+	 *
+	 * If IPIs can go out of order to the cache coherency protocol
+	 * in an architecture, sufficient synchronisation should be added
+	 * to arch code to make it appear to obey cache coherency WRT
+	 * locking and barrier primitives. Generic code isn't really equipped
+	 * to do the right thing...
 	 */
-	smp_mb();
 
 	if (ipi)
 		arch_send_call_function_single_ipi(cpu);
@@ -102,6 +109,14 @@ void generic_smp_call_function_interrupt(void)
 {
 	struct call_function_data *data;
 	int cpu = get_cpu();
+
+	/*
+	 * Ensure entry is visible on call_function_queue after we have
+	 * entered the IPI. See comment in smp_call_function_many.
+	 * If we don't have this, then we may miss an entry on the list
+	 * and never get another IPI to process it.
+	 */
+	smp_mb();
 
 	/*
 	 * It's ok to use list_for_each_rcu() here even though we may delete
@@ -154,49 +169,37 @@ void generic_smp_call_function_single_interrupt(void)
 {
 	struct call_single_queue *q = &__get_cpu_var(call_single_queue);
 	LIST_HEAD(list);
+	unsigned int data_flags;
 
-	/*
-	 * Need to see other stores to list head for checking whether
-	 * list is empty without holding q->lock
-	 */
-	smp_read_barrier_depends();
-	while (!list_empty(&q->list)) {
-		unsigned int data_flags;
+	spin_lock(&q->lock);
+	list_replace_init(&q->list, &list);
+	spin_unlock(&q->lock);
 
-		spin_lock(&q->lock);
-		list_replace_init(&q->list, &list);
-		spin_unlock(&q->lock);
+	while (!list_empty(&list)) {
+		struct call_single_data *data;
 
-		while (!list_empty(&list)) {
-			struct call_single_data *data;
+		data = list_entry(list.next, struct call_single_data,
+					list);
+		list_del(&data->list);
 
-			data = list_entry(list.next, struct call_single_data,
-						list);
-			list_del(&data->list);
-
-			/*
-			 * 'data' can be invalid after this call if
-			 * flags == 0 (when called through
-			 * generic_exec_single(), so save them away before
-			 * making the call.
-			 */
-			data_flags = data->flags;
-
-			data->func(data->info);
-
-			if (data_flags & CSD_FLAG_WAIT) {
-				smp_wmb();
-				data->flags &= ~CSD_FLAG_WAIT;
-			} else if (data_flags & CSD_FLAG_LOCK) {
-				smp_wmb();
-				data->flags &= ~CSD_FLAG_LOCK;
-			} else if (data_flags & CSD_FLAG_ALLOC)
-				kfree(data);
-		}
 		/*
-		 * See comment on outer loop
+		 * 'data' can be invalid after this call if
+		 * flags == 0 (when called through
+		 * generic_exec_single(), so save them away before
+		 * making the call.
 		 */
-		smp_read_barrier_depends();
+		data_flags = data->flags;
+
+		data->func(data->info);
+
+		if (data_flags & CSD_FLAG_WAIT) {
+			smp_wmb();
+			data->flags &= ~CSD_FLAG_WAIT;
+		} else if (data_flags & CSD_FLAG_LOCK) {
+			smp_wmb();
+			data->flags &= ~CSD_FLAG_LOCK;
+		} else if (data_flags & CSD_FLAG_ALLOC)
+			kfree(data);
 	}
 }
 
@@ -375,6 +378,8 @@ void smp_call_function_many(const struct cpumask *mask,
 
 	/*
 	 * Make the list addition visible before sending the ipi.
+	 * (IPIs must obey or appear to obey normal Linux cache coherency
+	 * rules -- see comment in generic_exec_single).
 	 */
 	smp_mb();
 
