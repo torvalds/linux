@@ -109,6 +109,7 @@ struct cs4270_private {
 	u8 reg_cache[CS4270_NUMREGS];
 	unsigned int mclk; /* Input frequency of the MCLK pin */
 	unsigned int mode; /* The mode (I2S or left-justified) */
+	unsigned int slave_mode;
 };
 
 /**
@@ -247,6 +248,7 @@ static int cs4270_set_dai_fmt(struct snd_soc_dai *codec_dai,
 	struct cs4270_private *cs4270 = codec->private_data;
 	int ret = 0;
 
+	/* set DAI format */
 	switch (format & SND_SOC_DAIFMT_FORMAT_MASK) {
 	case SND_SOC_DAIFMT_I2S:
 	case SND_SOC_DAIFMT_LEFT_J:
@@ -254,6 +256,21 @@ static int cs4270_set_dai_fmt(struct snd_soc_dai *codec_dai,
 		break;
 	default:
 		dev_err(codec->dev, "invalid dai format\n");
+		ret = -EINVAL;
+	}
+
+	/* set master/slave audio interface */
+	switch (format & SND_SOC_DAIFMT_MASTER_MASK) {
+	case SND_SOC_DAIFMT_CBS_CFS:
+		cs4270->slave_mode = 1;
+		break;
+	case SND_SOC_DAIFMT_CBM_CFM:
+		cs4270->slave_mode = 0;
+		break;
+	case SND_SOC_DAIFMT_CBM_CFS:
+		/* unsupported - cs4270 can eigther be slave or master to
+		 * both the bitclk and the lrclk. */
+	default:
 		ret = -EINVAL;
 	}
 
@@ -399,7 +416,12 @@ static int cs4270_hw_params(struct snd_pcm_substream *substream,
 
 	reg = snd_soc_read(codec, CS4270_MODE);
 	reg &= ~(CS4270_MODE_SPEED_MASK | CS4270_MODE_DIV_MASK);
-	reg |= cs4270_mode_ratios[i].speed_mode | cs4270_mode_ratios[i].mclk;
+	reg |= cs4270_mode_ratios[i].mclk;
+
+	if (cs4270->slave_mode)
+		reg |= CS4270_MODE_SLAVE;
+	else
+		reg |= cs4270_mode_ratios[i].speed_mode;
 
 	ret = snd_soc_write(codec, CS4270_MODE, reg);
 	if (ret < 0) {
