@@ -712,6 +712,15 @@ typedef enum {
 	NETXEN_FIXED_START = 0x3F0000	/* backup of crbinit */
 } netxen_flash_map_t;
 
+#define NX_FW_VERSION_OFFSET	(NETXEN_USER_START+0x408)
+#define NX_FW_SIZE_OFFSET	(NETXEN_USER_START+0x40c)
+#define NX_BIOS_VERSION_OFFSET	(NETXEN_USER_START+0x83c)
+#define NX_FW_MAGIC_OFFSET	(NETXEN_BRDCFG_START+0x128)
+#define NX_FW_MIN_SIZE		(0x3fffff)
+#define NX_P2_MN_ROMIMAGE	"nxromimg.bin"
+#define NX_P3_CT_ROMIMAGE	"nx3fwct.bin"
+#define NX_P3_MN_ROMIMAGE	"nx3fwmn.bin"
+
 #define NETXEN_USER_START_OLD NETXEN_PXE_START	/* for backward compatibility */
 
 #define NETXEN_FLASH_START		(NETXEN_CRBINIT_START)

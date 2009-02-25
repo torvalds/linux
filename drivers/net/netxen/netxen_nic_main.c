@@ -457,18 +457,65 @@ static const struct net_device_ops netxen_netdev_ops = {
 #endif
 };
 
-/*
- * netxen_nic_probe()
- *
- * The Linux system will invoke this after identifying the vendor ID and
- * device Id in the pci_tbl supported by this module.
- *
- * A quad port card has one operational PCI config space, (function 0),
- * which is used to access all four ports.
- *
- * This routine will initialize the adapter, and setup the global parameters
- * along with the port's specific structure.
- */
+static int
+netxen_start_firmware(struct netxen_adapter *adapter)
+{
+	int val, err, first_boot;
+	struct pci_dev *pdev = adapter->pdev;
+
+	first_boot = adapter->pci_read_normalize(adapter,
+			NETXEN_CAM_RAM(0x1fc));
+
+	err = netxen_check_hw_init(adapter, first_boot);
+	if (err) {
+		dev_err(&pdev->dev, "error in init HW init sequence\n");
+		return err;
+	}
+
+	if (NX_IS_REVISION_P3(adapter->ahw.revision_id))
+		netxen_set_port_mode(adapter);
+
+	if (first_boot != 0x55555555) {
+		adapter->pci_write_normalize(adapter,
+					CRB_CMDPEG_STATE, 0);
+		netxen_pinit_from_rom(adapter, 0);
+		msleep(1);
+	}
+	netxen_load_firmware(adapter);
+
+	if (NX_IS_REVISION_P2(adapter->ahw.revision_id)) {
+
+		/* Initialize multicast addr pool owners */
+		val = 0x7654;
+		if (adapter->ahw.board_type == NETXEN_NIC_XGBE)
+			val |= 0x0f000000;
+		netxen_crb_writelit_adapter(adapter,
+				NETXEN_MAC_ADDR_CNTL_REG, val);
+
+	}
+
+	err = netxen_initialize_adapter_offload(adapter);
+	if (err)
+		return err;
+
+	/*
+	 * Tell the hardware our version number.
+	 */
+	val = (_NETXEN_NIC_LINUX_MAJOR << 16)
+		| ((_NETXEN_NIC_LINUX_MINOR << 8))
+		| (_NETXEN_NIC_LINUX_SUBVERSION);
+	adapter->pci_write_normalize(adapter, CRB_DRIVER_VERSION, val);
+
+	/* Handshake with the card before we register the devices. */
+	err = netxen_phantom_init(adapter, NETXEN_NIC_PEG_TUNE);
+	if (err) {
+		netxen_free_adapter_offload(adapter);
+		return err;
+	}
+
+	return 0;
+}
+
 static int __devinit
 netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
@@ -484,7 +531,7 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	u8 __iomem *db_ptr = NULL;
 	unsigned long mem_base, mem_len, db_base, db_len = 0, pci_len0 = 0;
 	int i = 0, err;
-	int first_driver, first_boot;
+	int first_driver;
 	u32 val;
 	int pci_func_id = PCI_FUNC(pdev->devfn);
 	struct netxen_legacy_intr_set *legacy_intrp;
@@ -736,56 +783,10 @@ skip_doorbell:
 	}
 
 	if (first_driver) {
-		first_boot = adapter->pci_read_normalize(adapter,
-				NETXEN_CAM_RAM(0x1fc));
-
-		err = netxen_check_hw_init(adapter, first_boot);
-		if (err) {
-			printk(KERN_ERR "%s: error in init HW init sequence\n",
-					netxen_nic_driver_name);
-			goto err_out_iounmap;
-		}
-
-		if (NX_IS_REVISION_P3(revision_id))
-			netxen_set_port_mode(adapter);
-
-		if (first_boot != 0x55555555) {
-			adapter->pci_write_normalize(adapter,
-						CRB_CMDPEG_STATE, 0);
-			netxen_pinit_from_rom(adapter, 0);
-			msleep(1);
-		}
-		netxen_load_firmware(adapter);
-
-		if (NX_IS_REVISION_P2(revision_id)) {
-
-			/* Initialize multicast addr pool owners */
-			val = 0x7654;
-			if (adapter->ahw.board_type == NETXEN_NIC_XGBE)
-				val |= 0x0f000000;
-			netxen_crb_writelit_adapter(adapter,
-					NETXEN_MAC_ADDR_CNTL_REG, val);
-
-		}
-
-		err = netxen_initialize_adapter_offload(adapter);
+		err = netxen_start_firmware(adapter);
 		if (err)
 			goto err_out_iounmap;
-
-		/*
-		 * Tell the hardware our version number.
-		 */
-		i = (_NETXEN_NIC_LINUX_MAJOR << 16)
-			| ((_NETXEN_NIC_LINUX_MINOR << 8))
-			| (_NETXEN_NIC_LINUX_SUBVERSION);
-		adapter->pci_write_normalize(adapter, CRB_DRIVER_VERSION, i);
-
-		/* Handshake with the card before we register the devices. */
-		err = netxen_phantom_init(adapter, NETXEN_NIC_PEG_TUNE);
-		if (err)
-			goto err_out_free_offload;
-
-	}	/* first_driver */
+	}
 
 	netxen_nic_flash_print(adapter);
 
@@ -890,14 +891,12 @@ err_out_disable_msi:
 	if (adapter->flags & NETXEN_NIC_MSI_ENABLED)
 		pci_disable_msi(pdev);
 
-err_out_free_offload:
 	if (first_driver)
 		netxen_free_adapter_offload(adapter);
 
 err_out_iounmap:
 	if (db_ptr)
 		iounmap(db_ptr);
-
 	if (mem_ptr0)
 		iounmap(mem_ptr0);
 	if (mem_ptr1)
