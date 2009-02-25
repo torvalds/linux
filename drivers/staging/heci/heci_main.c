@@ -58,7 +58,6 @@
 #include <linux/device.h>
 #include <linux/unistd.h>
 #include <linux/kthread.h>
-#include "kcompat.h"
 
 #include "heci.h"
 #include "heci_interface.h"

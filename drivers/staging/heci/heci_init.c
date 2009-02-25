@@ -48,7 +48,6 @@
 #include <linux/wait.h>
 #include <linux/delay.h>
 #include <linux/kthread.h>
-#include "kcompat.h"
 
 #include "heci_data_structures.h"
 #include "heci_interface.h"

@@ -57,7 +57,6 @@
 #include <linux/list.h>
 #include <linux/unistd.h>
 #include <linux/delay.h>
-#include "kcompat.h"
 
 #include "heci_data_structures.h"
 #include "heci.h"
