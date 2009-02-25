@@ -82,7 +82,8 @@ smp_call_function_mask(cpumask_t mask, void(*func)(void *info), void *info,
 	return 0;
 }
 
-void __smp_call_function_single(int cpuid, struct call_single_data *data);
+void __smp_call_function_single(int cpuid, struct call_single_data *data,
+				int wait);
 
 /*
  * Generic and arch helpers

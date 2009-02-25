@@ -23,8 +23,7 @@ static struct {
 };
 
 enum {
-	CSD_FLAG_WAIT		= 0x01,
-	CSD_FLAG_LOCK		= 0x02,
+	CSD_FLAG_LOCK		= 0x01,
 };
 
 struct call_function_data {
@@ -95,41 +94,21 @@ static int __cpuinit init_call_single_data(void)
 early_initcall(init_call_single_data);
 
 /*
- * csd_wait/csd_complete are used for synchronous ipi calls
- */
-static void csd_wait_prepare(struct call_single_data *data)
-{
-	data->flags |= CSD_FLAG_WAIT;
-}
-
-static void csd_complete(struct call_single_data *data)
-{
-	if (data->flags & CSD_FLAG_WAIT) {
-		/*
-		 * ensure we're all done before saying we are
-		 */
-		smp_mb();
-		data->flags &= ~CSD_FLAG_WAIT;
-	}
-}
-
-static void csd_wait(struct call_single_data *data)
-{
-	while (data->flags & CSD_FLAG_WAIT)
-		cpu_relax();
-}
-
-/*
  * csd_lock/csd_unlock used to serialize access to per-cpu csd resources
  *
  * For non-synchronous ipi calls the csd can still be in use by the previous
  * function call. For multi-cpu calls its even more interesting as we'll have
  * to ensure no other cpu is observing our csd.
  */
-static void csd_lock(struct call_single_data *data)
+static void csd_lock_wait(struct call_single_data *data)
 {
 	while (data->flags & CSD_FLAG_LOCK)
 		cpu_relax();
+}
+
+static void csd_lock(struct call_single_data *data)
+{
+	csd_lock_wait(data);
 	data->flags = CSD_FLAG_LOCK;
 
 	/*
@@ -155,11 +134,12 @@ static void csd_unlock(struct call_single_data *data)
  * Insert a previously allocated call_single_data element for execution
  * on the given CPU. data must already have ->func, ->info, and ->flags set.
  */
-static void generic_exec_single(int cpu, struct call_single_data *data)
+static
+void generic_exec_single(int cpu, struct call_single_data *data, int wait)
 {
 	struct call_single_queue *dst = &per_cpu(call_single_queue, cpu);
-	int wait = data->flags & CSD_FLAG_WAIT, ipi;
 	unsigned long flags;
+	int ipi;
 
 	spin_lock_irqsave(&dst->lock, flags);
 	ipi = list_empty(&dst->list);
@@ -182,7 +162,7 @@ static void generic_exec_single(int cpu, struct call_single_data *data)
 		arch_send_call_function_single_ipi(cpu);
 
 	if (wait)
-		csd_wait(data);
+		csd_lock_wait(data);
 }
 
 /*
@@ -232,7 +212,6 @@ void generic_smp_call_function_interrupt(void)
 		if (refs)
 			continue;
 
-		csd_complete(&data->csd);
 		csd_unlock(&data->csd);
 	}
 
@@ -269,9 +248,6 @@ void generic_smp_call_function_single_interrupt(void)
 		data_flags = data->flags;
 
 		data->func(data->info);
-
-		if (data_flags & CSD_FLAG_WAIT)
-			csd_complete(data);
 
 		/*
 		 * Unlocked CSDs are valid through generic_exec_single()
@@ -313,36 +289,16 @@ int smp_call_function_single(int cpu, void (*func) (void *info), void *info,
 		func(info);
 		local_irq_restore(flags);
 	} else if ((unsigned)cpu < nr_cpu_ids && cpu_online(cpu)) {
-		struct call_single_data *data;
+		struct call_single_data *data = &d;
 
-		if (!wait) {
-			/*
-			 * We are calling a function on a single CPU
-			 * and we are not going to wait for it to finish.
-			 * We use a per cpu data to pass the information to
-			 * that CPU. Since all callers of this code will
-			 * use the same data, we must synchronize the
-			 * callers to prevent a new caller from corrupting
-			 * the data before the callee can access it.
-			 *
-			 * The CSD_FLAG_LOCK is used to let us know when
-			 * the IPI handler is done with the data.
-			 * The first caller will set it, and the callee
-			 * will clear it. The next caller must wait for
-			 * it to clear before we set it again. This
-			 * will make sure the callee is done with the
-			 * data before a new caller will use it.
-			 */
+		if (!wait)
 			data = &__get_cpu_var(csd_data);
-			csd_lock(data);
-		} else {
-			data = &d;
-			csd_wait_prepare(data);
-		}
+
+		csd_lock(data);
 
 		data->func = func;
 		data->info = info;
-		generic_exec_single(cpu, data);
+		generic_exec_single(cpu, data, wait);
 	} else {
 		err = -ENXIO;	/* CPU not online */
 	}
@@ -362,12 +318,15 @@ EXPORT_SYMBOL(smp_call_function_single);
  * instance.
  *
  */
-void __smp_call_function_single(int cpu, struct call_single_data *data)
+void __smp_call_function_single(int cpu, struct call_single_data *data,
+				int wait)
 {
-	/* Can deadlock when called with interrupts disabled */
-	WARN_ON((data->flags & CSD_FLAG_WAIT) && irqs_disabled());
+	csd_lock(data);
 
-	generic_exec_single(cpu, data);
+	/* Can deadlock when called with interrupts disabled */
+	WARN_ON(wait && irqs_disabled());
+
+	generic_exec_single(cpu, data, wait);
 }
 
 /* FIXME: Shim for archs using old arch_send_call_function_ipi API. */
@@ -425,9 +384,6 @@ void smp_call_function_many(const struct cpumask *mask,
 	csd_lock(&data->csd);
 
 	spin_lock_irqsave(&data->lock, flags);
-	if (wait)
-		csd_wait_prepare(&data->csd);
-
 	data->csd.func = func;
 	data->csd.info = info;
 	cpumask_and(data->cpumask, mask, cpu_online_mask);
@@ -456,7 +412,7 @@ void smp_call_function_many(const struct cpumask *mask,
 
 	/* optionally wait for the CPUs to complete */
 	if (wait)
-		csd_wait(&data->csd);
+		csd_lock_wait(&data->csd);
 }
 EXPORT_SYMBOL(smp_call_function_many);
 
