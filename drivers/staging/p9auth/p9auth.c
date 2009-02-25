@@ -86,7 +86,7 @@ static char *cap_hash(char *plain_text, unsigned int plain_text_size,
 		      char *key, unsigned int key_size)
 {
 	struct scatterlist sg;
-	char *result = kmalloc(MAX_DIGEST_SIZE, GFP_KERNEL);
+	char *result;
 	struct crypto_hash *tfm;
 	struct hash_desc desc;
 	int ret;
@@ -96,14 +96,18 @@ static char *cap_hash(char *plain_text, unsigned int plain_text_size,
 		printk(KERN_ERR
 		       "failed to load transform for hmac(sha1): %ld\n",
 		       PTR_ERR(tfm));
-		kfree(result);
 		return NULL;
 	}
 
 	desc.tfm = tfm;
 	desc.flags = 0;
 
-	memset(result, 0, MAX_DIGEST_SIZE);
+	result = kzalloc(MAX_DIGEST_SIZE, GFP_KERNEL);
+	if (!result) {
+		printk(KERN_ERR "out of memory!\n");
+		goto out;
+	}
+
 	sg_set_buf(&sg, plain_text, plain_text_size);
 
 	ret = crypto_hash_setkey(tfm, key, key_size);
@@ -187,8 +191,7 @@ static ssize_t cap_write(struct file *filp, const char __user *buf,
 		return -ERESTARTSYS;
 
 	node_ptr = kmalloc(sizeof(struct cap_node), GFP_KERNEL);
-	user_buf = kmalloc(count, GFP_KERNEL);
-	memset(user_buf, 0, count);
+	user_buf = kzalloc(count, GFP_KERNEL);
 
 	if (copy_from_user(user_buf, buf, count)) {
 		retval = -EFAULT;
@@ -218,8 +221,7 @@ static ssize_t cap_write(struct file *filp, const char __user *buf,
 
 		/* hash the string user1@user2 with rand_str as the key */
 		len = strlen(source_user) + strlen(target_user) + 1;
-		hash_str = kmalloc(len, GFP_KERNEL);
-		memset(hash_str, 0, len);
+		hash_str = kzalloc(len, GFP_KERNEL);
 		strcat(hash_str, source_user);
 		strcat(hash_str, "@");
 		strcat(hash_str, target_user);
@@ -364,13 +366,12 @@ static int cap_init_module(void)
 		return result;
 	}
 
-	cap_devices =
-	    kmalloc(cap_nr_devs * sizeof(struct cap_dev), GFP_KERNEL);
+	cap_devices = kzalloc(cap_nr_devs * sizeof(struct cap_dev),
+			      GFP_KERNEL);
 	if (!cap_devices) {
 		result = -ENOMEM;
 		goto fail;
 	}
-	memset(cap_devices, 0, cap_nr_devs * sizeof(struct cap_dev));
 
 	/* Initialize each device. */
 	for (i = 0; i < cap_nr_devs; i++) {
