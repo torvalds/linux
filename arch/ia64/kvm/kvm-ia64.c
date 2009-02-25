@@ -41,6 +41,9 @@
 #include <asm/div64.h>
 #include <asm/tlb.h>
 #include <asm/elf.h>
+#include <asm/sn/addrs.h>
+#include <asm/sn/clksupport.h>
+#include <asm/sn/shub_mmr.h>
 
 #include "misc.h"
 #include "vti.h"
@@ -119,8 +122,7 @@ void kvm_arch_hardware_enable(void *garbage)
 	unsigned long saved_psr;
 	int slot;
 
-	pte = pte_val(mk_pte_phys(__pa(kvm_vmm_base),
-				PAGE_KERNEL));
+	pte = pte_val(mk_pte_phys(__pa(kvm_vmm_base), PAGE_KERNEL));
 	local_irq_save(saved_psr);
 	slot = ia64_itr_entry(0x3, KVM_VMM_BASE, pte, KVM_VMM_SHIFT);
 	local_irq_restore(saved_psr);
@@ -425,6 +427,23 @@ static int handle_switch_rr6(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	return 1;
 }
 
+static int kvm_sn2_setup_mappings(struct kvm_vcpu *vcpu)
+{
+	unsigned long pte, rtc_phys_addr, map_addr;
+	int slot;
+
+	map_addr = KVM_VMM_BASE + (1UL << KVM_VMM_SHIFT);
+	rtc_phys_addr = LOCAL_MMR_OFFSET | SH_RTC;
+	pte = pte_val(mk_pte_phys(rtc_phys_addr, PAGE_KERNEL_UC));
+	slot = ia64_itr_entry(0x3, map_addr, pte, PAGE_SHIFT);
+	vcpu->arch.sn_rtc_tr_slot = slot;
+	if (slot < 0) {
+		printk(KERN_ERR "Mayday mayday! RTC mapping failed!\n");
+		slot = 0;
+	}
+	return slot;
+}
+
 int kvm_emulate_halt(struct kvm_vcpu *vcpu)
 {
 
@@ -563,18 +582,29 @@ static int kvm_insert_vmm_mapping(struct kvm_vcpu *vcpu)
 	if (r < 0)
 		goto out;
 	vcpu->arch.vm_tr_slot = r;
+
+#if defined(CONFIG_IA64_SGI_SN2) || defined(CONFIG_IA64_GENERIC)
+	if (kvm->arch.is_sn2) {
+		r = kvm_sn2_setup_mappings(vcpu);
+		if (r < 0)
+			goto out;
+	}
+#endif
+
 	r = 0;
 out:
 	return r;
-
 }
 
 static void kvm_purge_vmm_mapping(struct kvm_vcpu *vcpu)
 {
-
+	struct kvm *kvm = vcpu->kvm;
 	ia64_ptr_entry(0x3, vcpu->arch.vmm_tr_slot);
 	ia64_ptr_entry(0x3, vcpu->arch.vm_tr_slot);
-
+#if defined(CONFIG_IA64_SGI_SN2) || defined(CONFIG_IA64_GENERIC)
+	if (kvm->arch.is_sn2)
+		ia64_ptr_entry(0x3, vcpu->arch.sn_rtc_tr_slot);
+#endif
 }
 
 static int kvm_vcpu_pre_transition(struct kvm_vcpu *vcpu)
@@ -800,6 +830,9 @@ struct  kvm *kvm_arch_create_vm(void)
 
 	if (IS_ERR(kvm))
 		return ERR_PTR(-ENOMEM);
+
+	kvm->arch.is_sn2 = ia64_platform_is("sn2");
+
 	kvm_init_vm(kvm);
 
 	kvm->arch.online_vcpus = 0;

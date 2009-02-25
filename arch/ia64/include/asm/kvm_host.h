@@ -371,6 +371,7 @@ struct kvm_vcpu_arch {
 	int last_run_cpu;
 	int vmm_tr_slot;
 	int vm_tr_slot;
+	int sn_rtc_tr_slot;
 
 #define KVM_MP_STATE_RUNNABLE          0
 #define KVM_MP_STATE_UNINITIALIZED     1
@@ -465,6 +466,7 @@ struct kvm_arch {
 	unsigned long	vmm_init_rr;
 
 	int		online_vcpus;
+	int		is_sn2;
 
 	struct kvm_ioapic *vioapic;
 	struct kvm_vm_stat stat;
