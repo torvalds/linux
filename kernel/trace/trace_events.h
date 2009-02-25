@@ -17,8 +17,8 @@ struct ftrace_event_call {
 #undef TPFMT
 #define TPFMT(fmt, args...)	fmt "\n", ##args
 
-#undef DEFINE_TRACE_FMT
-#define DEFINE_TRACE_FMT(call, proto, args, fmt)			\
+#undef TRACE_FORMAT
+#define TRACE_FORMAT(call, proto, args, fmt)				\
 static void ftrace_event_##call(proto)					\
 {									\
 	event_trace_printk(_RET_IP_, "(" #call ") " fmt);		\
