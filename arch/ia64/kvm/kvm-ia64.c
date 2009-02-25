@@ -68,6 +68,16 @@ struct kvm_stats_debugfs_item debugfs_entries[] = {
 	{ NULL }
 };
 
+static unsigned long kvm_get_itc(struct kvm_vcpu *vcpu)
+{
+#if defined(CONFIG_IA64_SGI_SN2) || defined(CONFIG_IA64_GENERIC)
+	if (vcpu->kvm->arch.is_sn2)
+		return rtc_time();
+	else
+#endif
+		return ia64_getreg(_IA64_REG_AR_ITC);
+}
+
 static void kvm_flush_icache(unsigned long start, unsigned long len)
 {
 	int l;
@@ -457,7 +467,7 @@ int kvm_emulate_halt(struct kvm_vcpu *vcpu)
 
 	if (irqchip_in_kernel(vcpu->kvm)) {
 
-		vcpu_now_itc = ia64_getreg(_IA64_REG_AR_ITC) + vcpu->arch.itc_offset;
+		vcpu_now_itc = kvm_get_itc(vcpu) + vcpu->arch.itc_offset;
 
 		if (time_after(vcpu_now_itc, vpd->itm)) {
 			vcpu->arch.timer_check = 1;
@@ -929,7 +939,7 @@ int kvm_arch_vcpu_ioctl_set_regs(struct kvm_vcpu *vcpu, struct kvm_regs *regs)
 	RESTORE_REGS(saved_gp);
 
 	vcpu->arch.irq_new_pending = 1;
-	vcpu->arch.itc_offset = regs->saved_itc - ia64_getreg(_IA64_REG_AR_ITC);
+	vcpu->arch.itc_offset = regs->saved_itc - kvm_get_itc(vcpu);
 	set_bit(KVM_REQ_RESUME, &vcpu->requests);
 
 	vcpu_put(vcpu);
@@ -1210,7 +1220,7 @@ int kvm_arch_vcpu_init(struct kvm_vcpu *vcpu)
 		regs->cr_iip = PALE_RESET_ENTRY;
 
 		/*Initialize itc offset for vcpus*/
-		itc_offset = 0UL - ia64_getreg(_IA64_REG_AR_ITC);
+		itc_offset = 0UL - kvm_get_itc(vcpu);
 		for (i = 0; i < kvm->arch.online_vcpus; i++) {
 			v = (struct kvm_vcpu *)((char *)vcpu +
 					sizeof(struct kvm_vcpu_data) * i);
@@ -1472,7 +1482,7 @@ int kvm_arch_vcpu_ioctl_get_regs(struct kvm_vcpu *vcpu, struct kvm_regs *regs)
 	}
 	for (i = 0; i < 4; i++)
 		regs->insvc[i] = vcpu->arch.insvc[i];
-	regs->saved_itc = vcpu->arch.itc_offset + ia64_getreg(_IA64_REG_AR_ITC);
+	regs->saved_itc = vcpu->arch.itc_offset + kvm_get_itc(vcpu);
 	SAVE_REGS(xtp);
 	SAVE_REGS(metaphysical_rr0);
 	SAVE_REGS(metaphysical_rr4);
