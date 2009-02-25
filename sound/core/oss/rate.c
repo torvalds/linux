@@ -157,7 +157,7 @@ static void resample_shrink(struct snd_pcm_plugin *plugin,
 		while (dst_frames1 > 0) {
 			S1 = S2;
 			if (src_frames1-- > 0) {
-				S1 = *src;
+				S2 = *src;
 				src += src_step;
 			}
 			if (pos & ~R_MASK) {
