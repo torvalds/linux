@@ -756,8 +756,7 @@ ring_is_full:
 	spin_unlock(&sk->sk_receive_queue.lock);
 
 	sk->sk_data_ready(sk, 0);
-	if (copy_skb)
-		kfree_skb(copy_skb);
+	kfree_skb(copy_skb);
 	goto drop_n_restore;
 }
 
