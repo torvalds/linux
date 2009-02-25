@@ -3157,8 +3157,20 @@ static int orinoco_pm_notifier(struct notifier_block *notifier,
 
 	return NOTIFY_DONE;
 }
+
+static void orinoco_register_pm_notifier(struct orinoco_private *priv)
+{
+	priv->pm_notifier.notifier_call = orinoco_pm_notifier;
+	register_pm_notifier(&priv->pm_notifier);
+}
+
+static void orinoco_unregister_pm_notifier(struct orinoco_private *priv)
+{
+	unregister_pm_notifier(&priv->pm_notifier);
+}
 #else /* !PM_SLEEP || HERMES_CACHE_FW_ON_INIT */
-#define orinoco_pm_notifier NULL
+#define orinoco_register_pm_notifier(priv) do { } while(0)
+#define orinoco_unregister_pm_notifier(priv) do { } while(0)
 #endif
 
 /********************************************************************/
@@ -3648,8 +3660,7 @@ struct net_device
 	priv->cached_fw = NULL;
 
 	/* Register PM notifiers */
-	priv->pm_notifier.notifier_call = orinoco_pm_notifier;
-	register_pm_notifier(&priv->pm_notifier);
+	orinoco_register_pm_notifier(priv);
 
 	return dev;
 }
@@ -3673,7 +3684,7 @@ void free_orinocodev(struct net_device *dev)
 		kfree(rx_data);
 	}
 
-	unregister_pm_notifier(&priv->pm_notifier);
+	orinoco_unregister_pm_notifier(priv);
 	orinoco_uncache_fw(priv);
 
 	priv->wpa_ie_len = 0;
