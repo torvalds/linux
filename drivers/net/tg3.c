@@ -11463,8 +11463,9 @@ static int __devinit tg3_fw_img_is_valid(struct tg3 *tp, u32 offset)
 
 static void __devinit tg3_read_bc_ver(struct tg3 *tp)
 {
-	u32 offset, start, ver_offset;
+	u32 val, offset, start, ver_offset;
 	int i;
+	bool newver = false;
 
 	if (tg3_nvram_read(tp, 0xc, &offset) ||
 	    tg3_nvram_read(tp, 0x4, &start))
@@ -11472,17 +11473,39 @@ static void __devinit tg3_read_bc_ver(struct tg3 *tp)
 
 	offset = tg3_nvram_logical_addr(tp, offset);
 
-	if (!tg3_fw_img_is_valid(tp, offset) ||
-	    tg3_nvram_read(tp, offset + 8, &ver_offset))
+	if (tg3_nvram_read(tp, offset, &val))
 		return;
 
-	offset = offset + ver_offset - start;
-	for (i = 0; i < 16; i += 4) {
-		__be32 v;
-		if (tg3_nvram_read_be32(tp, offset + i, &v))
+	if ((val & 0xfc000000) == 0x0c000000) {
+		if (tg3_nvram_read(tp, offset + 4, &val))
 			return;
 
-		memcpy(tp->fw_ver + i, &v, sizeof(v));
+		if (val == 0)
+			newver = true;
+	}
+
+	if (newver) {
+		if (tg3_nvram_read(tp, offset + 8, &ver_offset))
+			return;
+
+		offset = offset + ver_offset - start;
+		for (i = 0; i < 16; i += 4) {
+			__be32 v;
+			if (tg3_nvram_read_be32(tp, offset + i, &v))
+				return;
+
+			memcpy(tp->fw_ver + i, &v, sizeof(v));
+		}
+	} else {
+		u32 major, minor;
+
+		if (tg3_nvram_read(tp, TG3_NVM_PTREV_BCVER, &ver_offset))
+			return;
+
+		major = (ver_offset & TG3_NVM_BCVER_MAJMSK) >>
+			TG3_NVM_BCVER_MAJSFT;
+		minor = ver_offset & TG3_NVM_BCVER_MINMSK;
+		snprintf(&tp->fw_ver[0], 32, "v%d.%02d", major, minor);
 	}
 }
 
