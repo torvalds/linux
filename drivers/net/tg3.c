@@ -9896,8 +9896,12 @@ static void tg3_vlan_rx_register(struct net_device *dev, struct vlan_group *grp)
 {
 	struct tg3 *tp = netdev_priv(dev);
 
-	if (netif_running(dev))
-		tg3_netif_stop(tp);
+	if (!netif_running(dev)) {
+		tp->vlgrp = grp;
+		return;
+	}
+
+	tg3_netif_stop(tp);
 
 	tg3_full_lock(tp, 0);
 
@@ -9906,8 +9910,7 @@ static void tg3_vlan_rx_register(struct net_device *dev, struct vlan_group *grp)
 	/* Update RX_MODE_KEEP_VLAN_TAG bit in RX_MODE register. */
 	__tg3_set_rx_mode(dev);
 
-	if (netif_running(dev))
-		tg3_netif_start(tp);
+	tg3_netif_start(tp);
 
 	tg3_full_unlock(tp);
 }
