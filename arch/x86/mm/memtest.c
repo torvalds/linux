@@ -16,25 +16,22 @@ static u64 patterns[] __initdata = {
 	0xaaaaaaaaaaaaaaaaULL,
 };
 
-static void __init reserve_bad_mem(u64 pattern, unsigned long start_bad,
-			    unsigned long end_bad)
+static void __init reserve_bad_mem(u64 pattern, u64 start_bad, u64 end_bad)
 {
-	printk(KERN_CONT "\n  %016llx bad mem addr "
-	       "%010lx - %010lx reserved",
-	       (unsigned long long) pattern, start_bad, end_bad);
+	printk(KERN_INFO "  %016llx bad mem addr %010llx - %010llx reserved\n",
+	       (unsigned long long) pattern,
+	       (unsigned long long) start_bad,
+	       (unsigned long long) end_bad);
 	reserve_early(start_bad, end_bad, "BAD RAM");
 }
 
-static void __init memtest(unsigned long start_phys, unsigned long size,
-			   u64 pattern)
+static void __init memtest(u64 pattern, u64 start_phys, u64 size)
 {
-	unsigned long i;
+	u64 i, count;
 	u64 *start;
-	unsigned long start_bad;
-	unsigned long last_bad;
-	unsigned long start_phys_aligned;
-	unsigned long count;
-	unsigned long incr;
+	u64 start_bad, last_bad;
+	u64 start_phys_aligned;
+	size_t incr;
 
 	incr = sizeof(pattern);
 	start_phys_aligned = ALIGN(start_phys, incr);
@@ -81,7 +78,7 @@ void __init early_memtest(unsigned long start, unsigned long end)
 	if (!memtest_pattern)
 		return;
 
-	printk(KERN_INFO "early_memtest: pattern num %d", memtest_pattern);
+	printk(KERN_INFO "early_memtest: # of tests: %d\n", memtest_pattern);
 	for (i = 0; i < memtest_pattern; i++) {
 		unsigned int idx = i % ARRAY_SIZE(patterns);
 		pattern = patterns[idx];
@@ -96,14 +93,13 @@ void __init early_memtest(unsigned long start, unsigned long end)
 			if (t_start + t_size > end)
 				t_size = end - t_start;
 
-			printk(KERN_CONT "\n  %010llx - %010llx pattern %d",
-			       (unsigned long long)t_start,
-			       (unsigned long long)t_start + t_size, idx);
-
-			memtest(t_start, t_size, pattern);
+			printk(KERN_INFO "  %010llx - %010llx pattern %016llx\n",
+			       (unsigned long long) t_start,
+			       (unsigned long long) t_start + t_size,
+			       (unsigned long long) cpu_to_be64(pattern));
+			memtest(pattern, t_start, t_size);
 
 			t_start += t_size;
 		}
 	}
-	printk(KERN_CONT "\n");
 }
