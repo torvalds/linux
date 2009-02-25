@@ -57,6 +57,29 @@ static void __init memtest(u64 pattern, u64 start_phys, u64 size)
 		reserve_bad_mem(pattern, start_bad, last_bad + incr);
 }
 
+static void __init do_one_pass(u64 pattern, u64 start, u64 end)
+{
+	u64 size = 0;
+
+	while (start < end) {
+		start = find_e820_area_size(start, &size, 1);
+
+		/* done ? */
+		if (start >= end)
+			break;
+		if (start + size > end)
+			size = end - start;
+
+		printk(KERN_INFO "  %010llx - %010llx pattern %016llx\n",
+		       (unsigned long long) start,
+		       (unsigned long long) start + size,
+		       (unsigned long long) cpu_to_be64(pattern));
+		memtest(pattern, start, size);
+
+		start += size;
+	}
+}
+
 /* default is disabled */
 static int memtest_pattern __initdata;
 
@@ -71,35 +94,22 @@ early_param("memtest", parse_memtest);
 
 void __init early_memtest(unsigned long start, unsigned long end)
 {
-	u64 t_start, t_size;
 	unsigned int i;
-	u64 pattern;
+	unsigned int idx = 0;
 
 	if (!memtest_pattern)
 		return;
 
 	printk(KERN_INFO "early_memtest: # of tests: %d\n", memtest_pattern);
 	for (i = 0; i < memtest_pattern; i++) {
-		unsigned int idx = i % ARRAY_SIZE(patterns);
-		pattern = patterns[idx];
-		t_start = start;
-		t_size = 0;
-		while (t_start < end) {
-			t_start = find_e820_area_size(t_start, &t_size, 1);
+		idx = i % ARRAY_SIZE(patterns);
+		do_one_pass(patterns[idx], start, end);
+	}
 
-			/* done ? */
-			if (t_start >= end)
-				break;
-			if (t_start + t_size > end)
-				t_size = end - t_start;
-
-			printk(KERN_INFO "  %010llx - %010llx pattern %016llx\n",
-			       (unsigned long long) t_start,
-			       (unsigned long long) t_start + t_size,
-			       (unsigned long long) cpu_to_be64(pattern));
-			memtest(pattern, t_start, t_size);
-
-			t_start += t_size;
-		}
+	if (idx > 0) {
+		printk(KERN_INFO "early_memtest: wipe out "
+		       "test pattern from memory\n");
+		/* additional test with pattern 0 will do this */
+		do_one_pass(0, start, end);
 	}
 }
