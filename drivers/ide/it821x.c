@@ -5,9 +5,8 @@
  *  May be copied or modified under the terms of the GNU General Public License
  *  Based in part on the ITE vendor provided SCSI driver.
  *
- *  Documentation available from
- * 	http://www.ite.com.tw/pc/IT8212F_V04.pdf
- *  Some other documents are NDA.
+ *  Documentation:
+ *	Datasheet is freely available, some other documents under NDA.
  *
  *  The ITE8212 isn't exactly a standard IDE controller. It has two
  *  modes. In pass through mode then it is an IDE controller. In its smart
