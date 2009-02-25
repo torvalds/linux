@@ -473,78 +473,6 @@ netxen_nic_get_eeprom(struct net_device *dev, struct ethtool_eeprom *eeprom,
 	return 0;
 }
 
-#if 0
-static int
-netxen_nic_set_eeprom(struct net_device *dev, struct ethtool_eeprom *eeprom,
-			u8 * bytes)
-{
-	struct netxen_adapter *adapter = netdev_priv(dev);
-	int offset = eeprom->offset;
-	static int flash_start;
-	static int ready_to_flash;
-	int ret;
-
-	if (flash_start == 0) {
-		netxen_halt_pegs(adapter);
-		ret = netxen_flash_unlock(adapter);
-		if (ret < 0) {
-			printk(KERN_ERR "%s: Flash unlock failed.\n",
-				netxen_nic_driver_name);
-			return ret;
-		}
-		printk(KERN_INFO "%s: flash unlocked. \n",
-			netxen_nic_driver_name);
-		ret = netxen_flash_erase_secondary(adapter);
-		if (ret != FLASH_SUCCESS) {
-			printk(KERN_ERR "%s: Flash erase failed.\n",
-				netxen_nic_driver_name);
-			return ret;
-		}
-		printk(KERN_INFO "%s: secondary flash erased successfully.\n",
-			netxen_nic_driver_name);
-		flash_start = 1;
-		return 0;
-	}
-
-	if (offset == NETXEN_BOOTLD_START) {
-		ret = netxen_flash_erase_primary(adapter);
-		if (ret != FLASH_SUCCESS) {
-			printk(KERN_ERR "%s: Flash erase failed.\n",
-				netxen_nic_driver_name);
-			return ret;
-		}
-
-		ret = netxen_rom_se(adapter, NETXEN_USER_START);
-		if (ret != FLASH_SUCCESS)
-			return ret;
-		ret = netxen_rom_se(adapter, NETXEN_FIXED_START);
-		if (ret != FLASH_SUCCESS)
-			return ret;
-
-		printk(KERN_INFO "%s: primary flash erased successfully\n",
-			netxen_nic_driver_name);
-
-		ret = netxen_backup_crbinit(adapter);
-		if (ret != FLASH_SUCCESS) {
-			printk(KERN_ERR "%s: CRBinit backup failed.\n",
-				netxen_nic_driver_name);
-			return ret;
-		}
-		printk(KERN_INFO "%s: CRBinit backup done.\n",
-			netxen_nic_driver_name);
-		ready_to_flash = 1;
-	}
-
-	if (!ready_to_flash) {
-		printk(KERN_ERR "%s: Invalid write sequence, returning...\n",
-			netxen_nic_driver_name);
-		return -EINVAL;
-	}
-
-	return netxen_rom_fast_write_words(adapter, offset, bytes, eeprom->len);
-}
-#endif /* 0 */
-
 static void
 netxen_nic_get_ringparam(struct net_device *dev, struct ethtool_ringparam *ring)
 {
@@ -953,9 +881,6 @@ struct ethtool_ops netxen_nic_ethtool_ops = {
 	.get_link = ethtool_op_get_link,
 	.get_eeprom_len = netxen_nic_get_eeprom_len,
 	.get_eeprom = netxen_nic_get_eeprom,
-#if 0
-	.set_eeprom = netxen_nic_set_eeprom,
-#endif
 	.get_ringparam = netxen_nic_get_ringparam,
 	.get_pauseparam = netxen_nic_get_pauseparam,
 	.set_pauseparam = netxen_nic_set_pauseparam,

@@ -124,33 +124,6 @@ typedef enum {
 #define netxen_gb_get_soft_reset(config_word)	\
 		_netxen_crb_get_bit((config_word), 31)
 
-/*
- * NIU GB MAC Config Register 1 (applies to GB0, GB1, GB2, GB3)
- *
- *	Bit 0	    : duplex => 1:full duplex mode, 0:half duplex
- *	Bit 1	    : crc_enable => 1:append CRC to xmit frames, 0:dont append
- *	Bit 2	    : padshort => 1:pad short frames and add CRC, 0:dont pad
- *	Bit 4	    : checklength => 1:check framelen with actual,0:dont check
- *	Bit 5	    : hugeframes => 1:allow oversize xmit frames, 0:dont allow
- *	Bits 8-9    : intfmode => 01:nibble (10/100), 10:byte (1000)
- *	Bits 12-15  : preamblelen => preamble field length in bytes, default 7
- */
-
-#define netxen_gb_set_duplex(config_word)	\
-		((config_word) |= 1 << 0)
-#define netxen_gb_set_crc_enable(config_word)	\
-		((config_word) |= 1 << 1)
-#define netxen_gb_set_padshort(config_word)	\
-		((config_word) |= 1 << 2)
-#define netxen_gb_set_checklength(config_word)	\
-		((config_word) |= 1 << 4)
-#define netxen_gb_set_hugeframes(config_word)	\
-		((config_word) |= 1 << 5)
-#define netxen_gb_set_preamblelen(config_word, val)	\
-		((config_word) |= ((val) << 12) & 0xF000)
-#define netxen_gb_set_intfmode(config_word, val)		\
-		((config_word) |= ((val) << 8) & 0x300)
-
 #define netxen_gb_get_stationaddress_low(config_word) ((config_word) >> 16)
 
 #define netxen_gb_set_mii_mgmt_clockselect(config_word, val)	\

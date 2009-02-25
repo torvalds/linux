@@ -2077,19 +2077,6 @@ u32 netxen_nic_pci_read_normalize_2M(struct netxen_adapter *adapter, u64 off)
 	return temp;
 }
 
-#if 0
-int
-netxen_nic_erase_pxe(struct netxen_adapter *adapter)
-{
-	if (netxen_rom_fast_write(adapter, NETXEN_PXE_START, 0) == -1) {
-		printk(KERN_ERR "%s: erase pxe failed\n",
-			netxen_nic_driver_name);
-		return -1;
-	}
-	return 0;
-}
-#endif  /*  0  */
-
 int netxen_nic_get_board_info(struct netxen_adapter *adapter)
 {
 	int rv = 0;
