@@ -2010,13 +2010,13 @@ static sector_t sync_request(mddev_t *mddev, sector_t sector_nr, int *skipped, i
 	/* There is nowhere to write, so all non-sync
 	 * drives must be failed, so try the next chunk...
 	 */
-	{
-	sector_t sec = max_sector - sector_nr;
-	sectors_skipped += sec;
+	if (sector_nr + max_sync < max_sector)
+		max_sector = sector_nr + max_sync;
+
+	sectors_skipped += (max_sector - sector_nr);
 	chunks_skipped ++;
 	sector_nr = max_sector;
 	goto skipped;
-	}
 }
 
 static int run(mddev_t *mddev)
