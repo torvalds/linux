@@ -951,7 +951,7 @@ struct em28xx_board em28xx_boards[] = {
 		} },
 	},
 	[EM2820_BOARD_PROLINK_PLAYTV_USB2] = {
-		.name         = "Pixelview Prolink PlayTV USB 2.0",
+		.name         = "SIIG AVTuner-PVR / Pixelview Prolink PlayTV USB 2.0",
 		.has_snapshot_button = 1,
 		.tda9887_conf = TDA9887_PRESENT,
 		.tuner_type   = TUNER_YMEC_TVF_5533MF,
