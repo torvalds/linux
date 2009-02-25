@@ -279,7 +279,6 @@ typedef struct drm_i915_private {
 	u8 saveAR_INDEX;
 	u8 saveAR[21];
 	u8 saveDACMASK;
-	u8 saveDACDATA[256*3]; /* 256 3-byte colors */
 	u8 saveCR[37];
 
 	struct {
