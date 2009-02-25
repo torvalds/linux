@@ -6,33 +6,23 @@
  * Released under the GPLv2
  *
  */
-#include <linux/module.h>
-#include <linux/moduleparam.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
+#include <linux/moduleparam.h>
 #include <linux/slab.h>
 #include <linux/fs.h>
 #include <linux/errno.h>
-#include <linux/types.h>
-#include <linux/proc_fs.h>
 #include <linux/fcntl.h>
 #include <linux/cdev.h>
-#include <linux/syscalls.h>
 #include <linux/uaccess.h>
 #include <linux/list.h>
-#include <linux/err.h>
 #include <linux/mm.h>
 #include <linux/string.h>
 #include <linux/crypto.h>
 #include <linux/highmem.h>
-#include <linux/jiffies.h>
-#include <linux/timex.h>
-#include <linux/interrupt.h>
 #include <linux/scatterlist.h>
-#include <linux/crypto.h>
 #include <linux/sched.h>
 #include <linux/cred.h>
-#include <asm/system.h>
 
 #ifndef CAP_MAJOR
 #define CAP_MAJOR 0
