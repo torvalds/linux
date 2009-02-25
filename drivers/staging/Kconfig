@@ -107,5 +107,7 @@ source "drivers/staging/phison/Kconfig"
 
 source "drivers/staging/p9auth/Kconfig"
 
+source "drivers/staging/heci/Kconfig"
+
 endif # !STAGING_EXCLUDE_BUILD
 endif # STAGING
