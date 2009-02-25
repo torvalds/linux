@@ -2,13 +2,12 @@
  * Generic helpers for smp ipi calls
  *
  * (C) Jens Axboe <jens.axboe@oracle.com> 2008
- *
  */
-#include <linux/init.h>
-#include <linux/module.h>
-#include <linux/percpu.h>
 #include <linux/rcupdate.h>
 #include <linux/rculist.h>
+#include <linux/module.h>
+#include <linux/percpu.h>
+#include <linux/init.h>
 #include <linux/smp.h>
 #include <linux/cpu.h>
 
@@ -17,29 +16,30 @@ static DEFINE_PER_CPU(struct call_single_queue, call_single_queue);
 static struct {
 	struct list_head	queue;
 	spinlock_t		lock;
-} call_function __cacheline_aligned_in_smp = {
-	.queue = LIST_HEAD_INIT(call_function.queue),
-	.lock  = __SPIN_LOCK_UNLOCKED(call_function.lock),
-};
+} call_function __cacheline_aligned_in_smp =
+	{
+		.queue		= LIST_HEAD_INIT(call_function.queue),
+		.lock		= __SPIN_LOCK_UNLOCKED(call_function.lock),
+	};
 
 enum {
 	CSD_FLAG_LOCK		= 0x01,
 };
 
 struct call_function_data {
-	struct call_single_data csd;
-	spinlock_t lock;
-	unsigned int refs;
-	cpumask_var_t cpumask;
+	struct call_single_data	csd;
+	spinlock_t		lock;
+	unsigned int		refs;
+	cpumask_var_t		cpumask;
 };
 
 struct call_single_queue {
-	struct list_head list;
-	spinlock_t lock;
+	struct list_head	list;
+	spinlock_t		lock;
 };
 
 static DEFINE_PER_CPU(struct call_function_data, cfd_data) = {
-	.lock = __SPIN_LOCK_UNLOCKED(cfd_data.lock),
+	.lock			= __SPIN_LOCK_UNLOCKED(cfd_data.lock),
 };
 
 static int
@@ -71,7 +71,7 @@ hotplug_cfd(struct notifier_block *nfb, unsigned long action, void *hcpu)
 }
 
 static struct notifier_block __cpuinitdata hotplug_cfd_notifier = {
-	.notifier_call = hotplug_cfd,
+	.notifier_call		= hotplug_cfd,
 };
 
 static int __cpuinit init_call_single_data(void)
@@ -96,9 +96,9 @@ early_initcall(init_call_single_data);
 /*
  * csd_lock/csd_unlock used to serialize access to per-cpu csd resources
  *
- * For non-synchronous ipi calls the csd can still be in use by the previous
- * function call. For multi-cpu calls its even more interesting as we'll have
- * to ensure no other cpu is observing our csd.
+ * For non-synchronous ipi calls the csd can still be in use by the
+ * previous function call. For multi-cpu calls its even more interesting
+ * as we'll have to ensure no other cpu is observing our csd.
  */
 static void csd_lock_wait(struct call_single_data *data)
 {
@@ -112,27 +112,29 @@ static void csd_lock(struct call_single_data *data)
 	data->flags = CSD_FLAG_LOCK;
 
 	/*
-	 * prevent CPU from reordering the above assignment to ->flags
-	 * with any subsequent assignments to other fields of the
-	 * specified call_single_data structure.
+	 * prevent CPU from reordering the above assignment
+	 * to ->flags with any subsequent assignments to other
+	 * fields of the specified call_single_data structure:
 	 */
-
 	smp_mb();
 }
 
 static void csd_unlock(struct call_single_data *data)
 {
 	WARN_ON(!(data->flags & CSD_FLAG_LOCK));
+
 	/*
-	 * ensure we're all done before releasing data
+	 * ensure we're all done before releasing data:
 	 */
 	smp_mb();
+
 	data->flags &= ~CSD_FLAG_LOCK;
 }
 
 /*
- * Insert a previously allocated call_single_data element for execution
- * on the given CPU. data must already have ->func, ->info, and ->flags set.
+ * Insert a previously allocated call_single_data element
+ * for execution on the given CPU. data must already have
+ * ->func, ->info, and ->flags set.
  */
 static
 void generic_exec_single(int cpu, struct call_single_data *data, int wait)
@@ -154,10 +156,9 @@ void generic_exec_single(int cpu, struct call_single_data *data, int wait)
 	 * If IPIs can go out of order to the cache coherency protocol
 	 * in an architecture, sufficient synchronisation should be added
 	 * to arch code to make it appear to obey cache coherency WRT
-	 * locking and barrier primitives. Generic code isn't really equipped
-	 * to do the right thing...
+	 * locking and barrier primitives. Generic code isn't really
+	 * equipped to do the right thing...
 	 */
-
 	if (ipi)
 		arch_send_call_function_single_ipi(cpu);
 
@@ -183,8 +184,8 @@ void generic_smp_call_function_interrupt(void)
 	smp_mb();
 
 	/*
-	 * It's ok to use list_for_each_rcu() here even though we may delete
-	 * 'pos', since list_del_rcu() doesn't clear ->next
+	 * It's ok to use list_for_each_rcu() here even though we may
+	 * delete 'pos', since list_del_rcu() doesn't clear ->next
 	 */
 	list_for_each_entry_rcu(data, &call_function.queue, csd.list) {
 		int refs;
@@ -219,14 +220,14 @@ void generic_smp_call_function_interrupt(void)
 }
 
 /*
- * Invoked by arch to handle an IPI for call function single. Must be called
- * from the arch with interrupts disabled.
+ * Invoked by arch to handle an IPI for call function single. Must be
+ * called from the arch with interrupts disabled.
  */
 void generic_smp_call_function_single_interrupt(void)
 {
 	struct call_single_queue *q = &__get_cpu_var(call_single_queue);
-	LIST_HEAD(list);
 	unsigned int data_flags;
+	LIST_HEAD(list);
 
 	spin_lock(&q->lock);
 	list_replace_init(&q->list, &list);
@@ -235,22 +236,20 @@ void generic_smp_call_function_single_interrupt(void)
 	while (!list_empty(&list)) {
 		struct call_single_data *data;
 
-		data = list_entry(list.next, struct call_single_data,
-					list);
+		data = list_entry(list.next, struct call_single_data, list);
 		list_del(&data->list);
 
 		/*
-		 * 'data' can be invalid after this call if
-		 * flags == 0 (when called through
-		 * generic_exec_single(), so save them away before
-		 * making the call.
+		 * 'data' can be invalid after this call if flags == 0
+		 * (when called through generic_exec_single()),
+		 * so save them away before making the call:
 		 */
 		data_flags = data->flags;
 
 		data->func(data->info);
 
 		/*
-		 * Unlocked CSDs are valid through generic_exec_single()
+		 * Unlocked CSDs are valid through generic_exec_single():
 		 */
 		if (data_flags & CSD_FLAG_LOCK)
 			csd_unlock(data);
@@ -276,34 +275,41 @@ int smp_call_function_single(int cpu, void (*func) (void *info), void *info,
 		.flags = 0,
 	};
 	unsigned long flags;
-	/* prevent preemption and reschedule on another processor,
-	   as well as CPU removal */
-	int me = get_cpu();
+	int this_cpu;
 	int err = 0;
+
+	/*
+	 * prevent preemption and reschedule on another processor,
+	 * as well as CPU removal
+	 */
+	this_cpu = get_cpu();
 
 	/* Can deadlock when called with interrupts disabled */
 	WARN_ON(irqs_disabled());
 
-	if (cpu == me) {
+	if (cpu == this_cpu) {
 		local_irq_save(flags);
 		func(info);
 		local_irq_restore(flags);
-	} else if ((unsigned)cpu < nr_cpu_ids && cpu_online(cpu)) {
-		struct call_single_data *data = &d;
-
-		if (!wait)
-			data = &__get_cpu_var(csd_data);
-
-		csd_lock(data);
-
-		data->func = func;
-		data->info = info;
-		generic_exec_single(cpu, data, wait);
 	} else {
-		err = -ENXIO;	/* CPU not online */
+		if ((unsigned)cpu < nr_cpu_ids && cpu_online(cpu)) {
+			struct call_single_data *data = &d;
+
+			if (!wait)
+				data = &__get_cpu_var(csd_data);
+
+			csd_lock(data);
+
+			data->func = func;
+			data->info = info;
+			generic_exec_single(cpu, data, wait);
+		} else {
+			err = -ENXIO;	/* CPU not online */
+		}
 	}
 
 	put_cpu();
+
 	return err;
 }
 EXPORT_SYMBOL(smp_call_function_single);
@@ -313,10 +319,9 @@ EXPORT_SYMBOL(smp_call_function_single);
  * @cpu: The CPU to run on.
  * @data: Pre-allocated and setup data structure
  *
- * Like smp_call_function_single(), but allow caller to pass in a pre-allocated
- * data structure. Useful for embedding @data inside other structures, for
- * instance.
- *
+ * Like smp_call_function_single(), but allow caller to pass in a
+ * pre-allocated data structure. Useful for embedding @data inside
+ * other structures, for instance.
  */
 void __smp_call_function_single(int cpu, struct call_single_data *data,
 				int wait)
@@ -329,10 +334,11 @@ void __smp_call_function_single(int cpu, struct call_single_data *data,
 	generic_exec_single(cpu, data, wait);
 }
 
-/* FIXME: Shim for archs using old arch_send_call_function_ipi API. */
+/* Deprecated: shim for archs using old arch_send_call_function_ipi API. */
+
 #ifndef arch_send_call_function_ipi_mask
-#define arch_send_call_function_ipi_mask(maskp) \
-	arch_send_call_function_ipi(*(maskp))
+# define arch_send_call_function_ipi_mask(maskp) \
+	 arch_send_call_function_ipi(*(maskp))
 #endif
 
 /**
@@ -340,7 +346,8 @@ void __smp_call_function_single(int cpu, struct call_single_data *data,
  * @mask: The set of cpus to run on (only runs on online subset).
  * @func: The function to run. This must be fast and non-blocking.
  * @info: An arbitrary pointer to pass to the function.
- * @wait: If true, wait (atomically) until function has completed on other CPUs.
+ * @wait: If true, wait (atomically) until function has completed
+ *        on other CPUs.
  *
  * If @wait is true, then returns once @func has returned. Note that @wait
  * will be implicitly turned on in case of allocation failures, since
@@ -351,27 +358,27 @@ void __smp_call_function_single(int cpu, struct call_single_data *data,
  * must be disabled when calling this function.
  */
 void smp_call_function_many(const struct cpumask *mask,
-			    void (*func)(void *), void *info,
-			    bool wait)
+			    void (*func)(void *), void *info, bool wait)
 {
 	struct call_function_data *data;
 	unsigned long flags;
-	int cpu, next_cpu, me = smp_processor_id();
+	int cpu, next_cpu, this_cpu = smp_processor_id();
 
 	/* Can deadlock when called with interrupts disabled */
 	WARN_ON(irqs_disabled());
 
-	/* So, what's a CPU they want?  Ignoring this one. */
+	/* So, what's a CPU they want? Ignoring this one. */
 	cpu = cpumask_first_and(mask, cpu_online_mask);
-	if (cpu == me)
+	if (cpu == this_cpu)
 		cpu = cpumask_next_and(cpu, mask, cpu_online_mask);
+
 	/* No online cpus?  We're done. */
 	if (cpu >= nr_cpu_ids)
 		return;
 
 	/* Do we have another CPU which isn't us? */
 	next_cpu = cpumask_next_and(cpu, mask, cpu_online_mask);
-	if (next_cpu == me)
+	if (next_cpu == this_cpu)
 		next_cpu = cpumask_next_and(next_cpu, mask, cpu_online_mask);
 
 	/* Fastpath: do that cpu by itself. */
@@ -387,30 +394,31 @@ void smp_call_function_many(const struct cpumask *mask,
 	data->csd.func = func;
 	data->csd.info = info;
 	cpumask_and(data->cpumask, mask, cpu_online_mask);
-	cpumask_clear_cpu(me, data->cpumask);
+	cpumask_clear_cpu(this_cpu, data->cpumask);
 	data->refs = cpumask_weight(data->cpumask);
 
 	spin_lock(&call_function.lock);
 	/*
 	 * Place entry at the _HEAD_ of the list, so that any cpu still
-	 * observing the entry in generic_smp_call_function_interrupt() will
-	 * not miss any other list entries.
+	 * observing the entry in generic_smp_call_function_interrupt()
+	 * will not miss any other list entries:
 	 */
 	list_add_rcu(&data->csd.list, &call_function.queue);
 	spin_unlock(&call_function.lock);
+
 	spin_unlock_irqrestore(&data->lock, flags);
 
 	/*
 	 * Make the list addition visible before sending the ipi.
-	 * (IPIs must obey or appear to obey normal Linux cache coherency
-	 * rules -- see comment in generic_exec_single).
+	 * (IPIs must obey or appear to obey normal Linux cache
+	 * coherency rules -- see comment in generic_exec_single).
 	 */
 	smp_mb();
 
 	/* Send a message to all CPUs in the map */
 	arch_send_call_function_ipi_mask(data->cpumask);
 
-	/* optionally wait for the CPUs to complete */
+	/* Optionally wait for the CPUs to complete */
 	if (wait)
 		csd_lock_wait(&data->csd);
 }
@@ -420,7 +428,8 @@ EXPORT_SYMBOL(smp_call_function_many);
  * smp_call_function(): Run a function on all other CPUs.
  * @func: The function to run. This must be fast and non-blocking.
  * @info: An arbitrary pointer to pass to the function.
- * @wait: If true, wait (atomically) until function has completed on other CPUs.
+ * @wait: If true, wait (atomically) until function has completed
+ *        on other CPUs.
  *
  * Returns 0.
  *
@@ -436,6 +445,7 @@ int smp_call_function(void (*func)(void *), void *info, int wait)
 	preempt_disable();
 	smp_call_function_many(cpu_online_mask, func, info, wait);
 	preempt_enable();
+
 	return 0;
 }
 EXPORT_SYMBOL(smp_call_function);
