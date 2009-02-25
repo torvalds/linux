@@ -270,7 +270,7 @@ static ssize_t __init setup_pcpu_embed(size_t static_size)
 
 	/* allocate and copy */
 	pcpue_unit_size = PFN_ALIGN(static_size + PERCPU_DYNAMIC_RESERVE);
-	pcpue_unit_size = max(pcpue_unit_size, PCPU_MIN_UNIT_SIZE);
+	pcpue_unit_size = max_t(size_t, pcpue_unit_size, PCPU_MIN_UNIT_SIZE);
 	pcpue_ptr = pcpu_alloc_bootmem(0, num_possible_cpus() * pcpue_unit_size,
 				       PAGE_SIZE);
 	if (!pcpue_ptr)
@@ -438,8 +438,6 @@ void __init setup_per_cpu_areas(void)
 		 */
 		if (cpu == boot_cpu_id)
 			switch_to_new_gdt(cpu);
-
-		DBG("PERCPU: cpu %4d %p\n", cpu, ptr);
 	}
 
 	/* indicate the early static arrays will soon be gone */
