@@ -11509,6 +11509,22 @@ static void __devinit tg3_read_bc_ver(struct tg3 *tp)
 	}
 }
 
+static void __devinit tg3_read_hwsb_ver(struct tg3 *tp)
+{
+	u32 val, major, minor;
+
+	/* Use native endian representation */
+	if (tg3_nvram_read(tp, TG3_NVM_HWSB_CFG1, &val))
+		return;
+
+	major = (val & TG3_NVM_HWSB_CFG1_MAJMSK) >>
+		TG3_NVM_HWSB_CFG1_MAJSFT;
+	minor = (val & TG3_NVM_HWSB_CFG1_MINMSK) >>
+		TG3_NVM_HWSB_CFG1_MINSFT;
+
+	snprintf(&tp->fw_ver[0], 32, "sb v%d.%02d", major, minor);
+}
+
 static void __devinit tg3_read_sb_ver(struct tg3 *tp, u32 val)
 {
 	u32 offset, major, minor, build;
@@ -11645,6 +11661,8 @@ static void __devinit tg3_read_fw_ver(struct tg3 *tp)
 		tg3_read_bc_ver(tp);
 	else if ((val & TG3_EEPROM_MAGIC_FW_MSK) == TG3_EEPROM_MAGIC_FW)
 		tg3_read_sb_ver(tp, val);
+	else if ((val & TG3_EEPROM_MAGIC_HW_MSK) == TG3_EEPROM_MAGIC_HW)
+		tg3_read_hwsb_ver(tp);
 	else
 		return;
 
