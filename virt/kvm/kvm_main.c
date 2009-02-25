@@ -1593,6 +1593,88 @@ static int kvm_vcpu_ioctl_set_sigmask(struct kvm_vcpu *vcpu, sigset_t *sigset)
 	return 0;
 }
 
+#ifdef __KVM_HAVE_MSIX
+static int kvm_vm_ioctl_set_msix_nr(struct kvm *kvm,
+				    struct kvm_assigned_msix_nr *entry_nr)
+{
+	int r = 0;
+	struct kvm_assigned_dev_kernel *adev;
+
+	mutex_lock(&kvm->lock);
+
+	adev = kvm_find_assigned_dev(&kvm->arch.assigned_dev_head,
+				      entry_nr->assigned_dev_id);
+	if (!adev) {
+		r = -EINVAL;
+		goto msix_nr_out;
+	}
+
+	if (adev->entries_nr == 0) {
+		adev->entries_nr = entry_nr->entry_nr;
+		if (adev->entries_nr == 0 ||
+		    adev->entries_nr >= KVM_MAX_MSIX_PER_DEV) {
+			r = -EINVAL;
+			goto msix_nr_out;
+		}
+
+		adev->host_msix_entries = kzalloc(sizeof(struct msix_entry) *
+						entry_nr->entry_nr,
+						GFP_KERNEL);
+		if (!adev->host_msix_entries) {
+			r = -ENOMEM;
+			goto msix_nr_out;
+		}
+		adev->guest_msix_entries = kzalloc(
+				sizeof(struct kvm_guest_msix_entry) *
+				entry_nr->entry_nr, GFP_KERNEL);
+		if (!adev->guest_msix_entries) {
+			kfree(adev->host_msix_entries);
+			r = -ENOMEM;
+			goto msix_nr_out;
+		}
+	} else /* Not allowed set MSI-X number twice */
+		r = -EINVAL;
+msix_nr_out:
+	mutex_unlock(&kvm->lock);
+	return r;
+}
+
+static int kvm_vm_ioctl_set_msix_entry(struct kvm *kvm,
+				       struct kvm_assigned_msix_entry *entry)
+{
+	int r = 0, i;
+	struct kvm_assigned_dev_kernel *adev;
+
+	mutex_lock(&kvm->lock);
+
+	adev = kvm_find_assigned_dev(&kvm->arch.assigned_dev_head,
+				      entry->assigned_dev_id);
+
+	if (!adev) {
+		r = -EINVAL;
+		goto msix_entry_out;
+	}
+
+	for (i = 0; i < adev->entries_nr; i++)
+		if (adev->guest_msix_entries[i].vector == 0 ||
+		    adev->guest_msix_entries[i].entry == entry->entry) {
+			adev->guest_msix_entries[i].entry = entry->entry;
+			adev->guest_msix_entries[i].vector = entry->gsi;
+			adev->host_msix_entries[i].entry = entry->entry;
+			break;
+		}
+	if (i == adev->entries_nr) {
+		r = -ENOSPC;
+		goto msix_entry_out;
+	}
+
+msix_entry_out:
+	mutex_unlock(&kvm->lock);
+
+	return r;
+}
+#endif
+
 static long kvm_vcpu_ioctl(struct file *filp,
 			   unsigned int ioctl, unsigned long arg)
 {
@@ -1917,7 +1999,29 @@ static long kvm_vm_ioctl(struct file *filp,
 		vfree(entries);
 		break;
 	}
+#ifdef __KVM_HAVE_MSIX
+	case KVM_ASSIGN_SET_MSIX_NR: {
+		struct kvm_assigned_msix_nr entry_nr;
+		r = -EFAULT;
+		if (copy_from_user(&entry_nr, argp, sizeof entry_nr))
+			goto out;
+		r = kvm_vm_ioctl_set_msix_nr(kvm, &entry_nr);
+		if (r)
+			goto out;
+		break;
+	}
+	case KVM_ASSIGN_SET_MSIX_ENTRY: {
+		struct kvm_assigned_msix_entry entry;
+		r = -EFAULT;
+		if (copy_from_user(&entry, argp, sizeof entry))
+			goto out;
+		r = kvm_vm_ioctl_set_msix_entry(kvm, &entry);
+		if (r)
+			goto out;
+		break;
+	}
 #endif
+#endif /* KVM_CAP_IRQ_ROUTING */
 	default:
 		r = kvm_arch_vm_ioctl(filp, ioctl, arg);
 	}

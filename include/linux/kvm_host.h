@@ -319,6 +319,12 @@ struct kvm_irq_ack_notifier {
 	void (*irq_acked)(struct kvm_irq_ack_notifier *kian);
 };
 
+struct kvm_guest_msix_entry {
+	u32 vector;
+	u16 entry;
+	u16 flags;
+};
+
 struct kvm_assigned_dev_kernel {
 	struct kvm_irq_ack_notifier ack_notifier;
 	struct work_struct interrupt_work;
@@ -326,13 +332,17 @@ struct kvm_assigned_dev_kernel {
 	int assigned_dev_id;
 	int host_busnr;
 	int host_devfn;
+	unsigned int entries_nr;
 	int host_irq;
 	bool host_irq_disabled;
+	struct msix_entry *host_msix_entries;
 	int guest_irq;
+	struct kvm_guest_msix_entry *guest_msix_entries;
 #define KVM_ASSIGNED_DEV_GUEST_INTX	(1 << 0)
 #define KVM_ASSIGNED_DEV_GUEST_MSI	(1 << 1)
 #define KVM_ASSIGNED_DEV_HOST_INTX	(1 << 8)
 #define KVM_ASSIGNED_DEV_HOST_MSI	(1 << 9)
+#define KVM_ASSIGNED_DEV_MSIX		((1 << 2) | (1 << 10))
 	unsigned long irq_requested_type;
 	int irq_source_id;
 	int flags;

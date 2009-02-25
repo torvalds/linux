@@ -487,6 +487,10 @@ struct kvm_irq_routing {
 #define KVM_REINJECT_CONTROL      _IO(KVMIO, 0x71)
 #define KVM_DEASSIGN_PCI_DEVICE _IOW(KVMIO, 0x72, \
 				     struct kvm_assigned_pci_dev)
+#define KVM_ASSIGN_SET_MSIX_NR \
+			_IOW(KVMIO, 0x73, struct kvm_assigned_msix_nr)
+#define KVM_ASSIGN_SET_MSIX_ENTRY \
+			_IOW(KVMIO, 0x74, struct kvm_assigned_msix_entry)
 
 /*
  * ioctls for vcpu fds
@@ -606,5 +610,19 @@ struct kvm_assigned_irq {
 
 #define KVM_DEV_IRQ_ASSIGN_MSI_ACTION	KVM_DEV_IRQ_ASSIGN_ENABLE_MSI
 #define KVM_DEV_IRQ_ASSIGN_ENABLE_MSI	(1 << 0)
+
+struct kvm_assigned_msix_nr {
+	__u32 assigned_dev_id;
+	__u16 entry_nr;
+	__u16 padding;
+};
+
+#define KVM_MAX_MSIX_PER_DEV		512
+struct kvm_assigned_msix_entry {
+	__u32 assigned_dev_id;
+	__u32 gsi;
+	__u16 entry; /* The index of entry in the MSI-X table */
+	__u16 padding[3];
+};
 
 #endif
