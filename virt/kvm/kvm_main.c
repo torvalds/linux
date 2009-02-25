@@ -236,13 +236,33 @@ static void kvm_free_assigned_irq(struct kvm *kvm,
 	 * now, the kvm state is still legal for probably we also have to wait
 	 * interrupt_work done.
 	 */
-	disable_irq_nosync(assigned_dev->host_irq);
-	cancel_work_sync(&assigned_dev->interrupt_work);
+	if (assigned_dev->irq_requested_type & KVM_ASSIGNED_DEV_MSIX) {
+		int i;
+		for (i = 0; i < assigned_dev->entries_nr; i++)
+			disable_irq_nosync(assigned_dev->
+					   host_msix_entries[i].vector);
 
-	free_irq(assigned_dev->host_irq, (void *)assigned_dev);
+		cancel_work_sync(&assigned_dev->interrupt_work);
 
-	if (assigned_dev->irq_requested_type & KVM_ASSIGNED_DEV_HOST_MSI)
-		pci_disable_msi(assigned_dev->dev);
+		for (i = 0; i < assigned_dev->entries_nr; i++)
+			free_irq(assigned_dev->host_msix_entries[i].vector,
+				 (void *)assigned_dev);
+
+		assigned_dev->entries_nr = 0;
+		kfree(assigned_dev->host_msix_entries);
+		kfree(assigned_dev->guest_msix_entries);
+		pci_disable_msix(assigned_dev->dev);
+	} else {
+		/* Deal with MSI and INTx */
+		disable_irq_nosync(assigned_dev->host_irq);
+		cancel_work_sync(&assigned_dev->interrupt_work);
+
+		free_irq(assigned_dev->host_irq, (void *)assigned_dev);
+
+		if (assigned_dev->irq_requested_type &
+				KVM_ASSIGNED_DEV_HOST_MSI)
+			pci_disable_msi(assigned_dev->dev);
+	}
 
 	assigned_dev->irq_requested_type = 0;
 }
@@ -373,6 +393,60 @@ static int assigned_device_update_msi(struct kvm *kvm,
 }
 #endif
 
+#ifdef __KVM_HAVE_MSIX
+static int assigned_device_update_msix(struct kvm *kvm,
+			struct kvm_assigned_dev_kernel *adev,
+			struct kvm_assigned_irq *airq)
+{
+	/* TODO Deal with KVM_DEV_IRQ_ASSIGNED_MASK_MSIX */
+	int i, r;
+
+	adev->ack_notifier.gsi = -1;
+
+	if (irqchip_in_kernel(kvm)) {
+		if (airq->flags & KVM_DEV_IRQ_ASSIGN_MASK_MSIX)
+			return -ENOTTY;
+
+		if (!(airq->flags & KVM_DEV_IRQ_ASSIGN_ENABLE_MSIX)) {
+			/* Guest disable MSI-X */
+			kvm_free_assigned_irq(kvm, adev);
+			if (msi2intx) {
+				pci_enable_msi(adev->dev);
+				if (adev->dev->msi_enabled)
+					return assigned_device_update_msi(kvm,
+							adev, airq);
+			}
+			return assigned_device_update_intx(kvm, adev, airq);
+		}
+
+		/* host_msix_entries and guest_msix_entries should have been
+		 * initialized */
+		if (adev->entries_nr == 0)
+			return -EINVAL;
+
+		kvm_free_assigned_irq(kvm, adev);
+
+		r = pci_enable_msix(adev->dev, adev->host_msix_entries,
+				    adev->entries_nr);
+		if (r)
+			return r;
+
+		for (i = 0; i < adev->entries_nr; i++) {
+			r = request_irq((adev->host_msix_entries + i)->vector,
+					kvm_assigned_dev_intr, 0,
+					"kvm_assigned_msix_device",
+					(void *)adev);
+			if (r)
+				return r;
+		}
+	}
+
+	adev->irq_requested_type |= KVM_ASSIGNED_DEV_MSIX;
+
+	return 0;
+}
+#endif
+
 static int kvm_vm_ioctl_assign_irq(struct kvm *kvm,
 				   struct kvm_assigned_irq
 				   *assigned_irq)
@@ -417,12 +491,24 @@ static int kvm_vm_ioctl_assign_irq(struct kvm *kvm,
 		}
 	}
 
-	if ((match->irq_requested_type & KVM_ASSIGNED_DEV_HOST_MSI) &&
+	if (match->irq_requested_type & KVM_ASSIGNED_DEV_MSIX)
+		current_flags |= KVM_DEV_IRQ_ASSIGN_ENABLE_MSIX;
+	else if ((match->irq_requested_type & KVM_ASSIGNED_DEV_HOST_MSI) &&
 		 (match->irq_requested_type & KVM_ASSIGNED_DEV_GUEST_MSI))
 		current_flags |= KVM_DEV_IRQ_ASSIGN_ENABLE_MSI;
 
 	changed_flags = assigned_irq->flags ^ current_flags;
 
+#ifdef __KVM_HAVE_MSIX
+	if (changed_flags & KVM_DEV_IRQ_ASSIGN_MSIX_ACTION) {
+		r = assigned_device_update_msix(kvm, match, assigned_irq);
+		if (r) {
+			printk(KERN_WARNING "kvm: failed to execute "
+					"MSI-X action!\n");
+			goto out_release;
+		}
+	} else
+#endif
 	if ((changed_flags & KVM_DEV_IRQ_ASSIGN_MSI_ACTION) ||
 	    (msi2intx && match->dev->msi_enabled)) {
 #ifdef CONFIG_X86
