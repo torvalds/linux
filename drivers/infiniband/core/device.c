@@ -193,7 +193,7 @@ void ib_dealloc_device(struct ib_device *device)
 
 	BUG_ON(device->reg_state != IB_DEV_UNREGISTERED);
 
-	ib_device_unregister_sysfs(device);
+	kobject_put(&device->dev.kobj);
 }
 EXPORT_SYMBOL(ib_dealloc_device);
 
@@ -347,6 +347,8 @@ void ib_unregister_device(struct ib_device *device)
 	kfree(device->pkey_tbl_len);
 
 	mutex_unlock(&device_mutex);
+
+	ib_device_unregister_sysfs(device);
 
 	spin_lock_irqsave(&device->client_data_lock, flags);
 	list_for_each_entry_safe(context, tmp, &device->client_data_list, list)

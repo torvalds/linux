@@ -848,6 +848,9 @@ void ib_device_unregister_sysfs(struct ib_device *device)
 	struct kobject *p, *t;
 	struct ib_port *port;
 
+	/* Hold kobject until ib_dealloc_device() */
+	kobject_get(&device->dev.kobj);
+
 	list_for_each_entry_safe(p, t, &device->port_list, entry) {
 		list_del(&p->entry);
 		port = container_of(p, struct ib_port, kobj);
