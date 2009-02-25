@@ -1932,9 +1932,9 @@ int r600_do_init_cp(struct drm_device *dev, drm_radeon_init_t *init,
 #if __OS_HAS_AGP
 	/* XXX */
 	if (dev_priv->flags & RADEON_IS_AGP) {
-		drm_core_ioremap(dev_priv->cp_ring, dev);
-		drm_core_ioremap(dev_priv->ring_rptr, dev);
-		drm_core_ioremap(dev->agp_buffer_map, dev);
+		drm_core_ioremap_wc(dev_priv->cp_ring, dev);
+		drm_core_ioremap_wc(dev_priv->ring_rptr, dev);
+		drm_core_ioremap_wc(dev->agp_buffer_map, dev);
 		if (!dev_priv->cp_ring->handle ||
 		    !dev_priv->ring_rptr->handle ||
 		    !dev->agp_buffer_map->handle) {
