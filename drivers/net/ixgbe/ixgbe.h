@@ -148,9 +148,15 @@ struct ixgbe_ring {
 	u16 rx_buf_len;
 };
 
-#define RING_F_DCB  0
-#define RING_F_VMDQ 1
-#define RING_F_RSS  2
+enum ixgbe_ring_f_enum {
+	RING_F_NONE = 0,
+	RING_F_DCB,
+	RING_F_VMDQ,
+	RING_F_RSS,
+
+	RING_F_ARRAY_SIZE      /* must be last in enum set */
+};
+
 #define IXGBE_MAX_DCB_INDICES   8
 #define IXGBE_MAX_RSS_INDICES  16
 #define IXGBE_MAX_VMDQ_INDICES 16
@@ -249,7 +255,7 @@ struct ixgbe_adapter {
 	u64 non_eop_descs;
 	int num_msix_vectors;
 	int max_msix_q_vectors;         /* true count of q_vectors for device */
-	struct ixgbe_ring_feature ring_feature[3];
+	struct ixgbe_ring_feature ring_feature[RING_F_ARRAY_SIZE];
 	struct msix_entry *msix_entries;
 
 	u64 rx_hdr_split;
