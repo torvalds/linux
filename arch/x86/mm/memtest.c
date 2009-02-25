@@ -16,6 +16,15 @@ static u64 patterns[] __initdata = {
 	0xaaaaaaaaaaaaaaaaULL,
 };
 
+static void __init reserve_bad_mem(u64 pattern, unsigned long start_bad,
+			    unsigned long end_bad)
+{
+	printk(KERN_CONT "\n  %016llx bad mem addr "
+	       "%010lx - %010lx reserved",
+	       (unsigned long long) pattern, start_bad, end_bad);
+	reserve_early(start_bad, end_bad, "BAD RAM");
+}
+
 static void __init memtest(unsigned long start_phys, unsigned long size,
 			   u64 pattern)
 {
@@ -37,26 +46,18 @@ static void __init memtest(unsigned long start_phys, unsigned long size,
 	for (i = 0; i < count; i++)
 		start[i] = pattern;
 	for (i = 0; i < count; i++, start++, start_phys_aligned += incr) {
-		if (*start != pattern) {
-			if (start_phys_aligned == last_bad + incr) {
-				last_bad += incr;
-			} else {
-				if (start_bad) {
-					printk(KERN_CONT "\n  %016llx bad mem addr %010lx - %010lx reserved",
-					       (unsigned long long) pattern,
-					       start_bad, last_bad + incr);
-					reserve_early(start_bad, last_bad + incr, "BAD RAM");
-				}
-				start_bad = last_bad = start_phys_aligned;
-			}
+		if (*start == pattern)
+			continue;
+		if (start_phys_aligned == last_bad + incr) {
+			last_bad += incr;
+			continue;
 		}
+		if (start_bad)
+			reserve_bad_mem(pattern, start_bad, last_bad + incr);
+		start_bad = last_bad = start_phys_aligned;
 	}
-	if (start_bad) {
-		printk(KERN_CONT "\n  %016llx bad mem addr %010lx - %010lx reserved",
-		       (unsigned long long) pattern, start_bad,
-		       last_bad + incr);
-		reserve_early(start_bad, last_bad + incr, "BAD RAM");
-	}
+	if (start_bad)
+		reserve_bad_mem(pattern, start_bad, last_bad + incr);
 }
 
 /* default is disabled */
