@@ -518,8 +518,7 @@ static void l2cap_conn_del(struct hci_conn *hcon, int err)
 
 	BT_DBG("hcon %p conn %p, err %d", hcon, conn, err);
 
-	if (conn->rx_skb)
-		kfree_skb(conn->rx_skb);
+	kfree_skb(conn->rx_skb);
 
 	/* Kill channels */
 	while ((sk = conn->chan_list.head)) {
