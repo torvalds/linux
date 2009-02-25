@@ -2071,8 +2071,7 @@ static int dn_sendmsg(struct kiocb *iocb, struct socket *sock,
 	}
 out:
 
-	if (skb)
-		kfree_skb(skb);
+	kfree_skb(skb);
 
 	release_sock(sk);
 
