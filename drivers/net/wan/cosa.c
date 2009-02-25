@@ -731,8 +731,7 @@ static char *cosa_net_setup_rx(struct channel_data *chan, int size)
 	 * We can safely fall back to non-dma-able memory, because we have
 	 * the cosa->bouncebuf pre-allocated.
 	 */
-	if (chan->rx_skb)
-		kfree_skb(chan->rx_skb);
+	kfree_skb(chan->rx_skb);
 	chan->rx_skb = dev_alloc_skb(size);
 	if (chan->rx_skb == NULL) {
 		printk(KERN_NOTICE "%s: Memory squeeze, dropping packet\n",
