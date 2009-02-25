@@ -2938,11 +2938,6 @@ static __init int tracer_init_debugfs(void)
 	if (!entry)
 		pr_warning("Could not create debugfs 'tracing_cpumask' entry\n");
 
-	entry = debugfs_create_file("latency_trace", 0444, d_tracer,
-				    &global_trace, &tracing_lt_fops);
-	if (!entry)
-		pr_warning("Could not create debugfs 'latency_trace' entry\n");
-
 	entry = debugfs_create_file("trace", 0444, d_tracer,
 				    &global_trace, &tracing_fops);
 	if (!entry)
