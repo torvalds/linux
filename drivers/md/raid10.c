@@ -1236,6 +1236,7 @@ static void end_sync_read(struct bio *bio, int error)
 	/* for reconstruct, we always reschedule after a read.
 	 * for resync, only after all reads
 	 */
+	rdev_dec_pending(conf->mirrors[d].rdev, conf->mddev);
 	if (test_bit(R10BIO_IsRecover, &r10_bio->state) ||
 	    atomic_dec_and_test(&r10_bio->remaining)) {
 		/* we have read all the blocks,
@@ -1243,7 +1244,6 @@ static void end_sync_read(struct bio *bio, int error)
 		 */
 		reschedule_retry(r10_bio);
 	}
-	rdev_dec_pending(conf->mirrors[d].rdev, conf->mddev);
 }
 
 static void end_sync_write(struct bio *bio, int error)
@@ -1264,11 +1264,13 @@ static void end_sync_write(struct bio *bio, int error)
 
 	update_head_pos(i, r10_bio);
 
+	rdev_dec_pending(conf->mirrors[d].rdev, mddev);
 	while (atomic_dec_and_test(&r10_bio->remaining)) {
 		if (r10_bio->master_bio == NULL) {
 			/* the primary of several recovery bios */
-			md_done_sync(mddev, r10_bio->sectors, 1);
+			sector_t s = r10_bio->sectors;
 			put_buf(r10_bio);
+			md_done_sync(mddev, s, 1);
 			break;
 		} else {
 			r10bio_t *r10_bio2 = (r10bio_t *)r10_bio->master_bio;
@@ -1276,7 +1278,6 @@ static void end_sync_write(struct bio *bio, int error)
 			r10_bio = r10_bio2;
 		}
 	}
-	rdev_dec_pending(conf->mirrors[d].rdev, mddev);
 }
 
 /*
@@ -1749,8 +1750,6 @@ static sector_t sync_request(mddev_t *mddev, sector_t sector_nr, int *skipped, i
 	if (!go_faster && conf->nr_waiting)
 		msleep_interruptible(1000);
 
-	bitmap_cond_end_sync(mddev->bitmap, sector_nr);
-
 	/* Again, very different code for resync and recovery.
 	 * Both must result in an r10bio with a list of bios that
 	 * have bi_end_io, bi_sector, bi_bdev set,
@@ -1886,6 +1885,8 @@ static sector_t sync_request(mddev_t *mddev, sector_t sector_nr, int *skipped, i
 		/* resync. Schedule a read for every block at this virt offset */
 		int count = 0;
 
+		bitmap_cond_end_sync(mddev->bitmap, sector_nr);
+
 		if (!bitmap_start_sync(mddev->bitmap, sector_nr,
 				       &sync_blocks, mddev->degraded) &&
 		    !conf->fullsync && !test_bit(MD_RECOVERY_REQUESTED, &mddev->recovery)) {
@@ -2010,13 +2011,13 @@ static sector_t sync_request(mddev_t *mddev, sector_t sector_nr, int *skipped, i
 	/* There is nowhere to write, so all non-sync
 	 * drives must be failed, so try the next chunk...
 	 */
-	{
-	sector_t sec = max_sector - sector_nr;
-	sectors_skipped += sec;
+	if (sector_nr + max_sync < max_sector)
+		max_sector = sector_nr + max_sync;
+
+	sectors_skipped += (max_sector - sector_nr);
 	chunks_skipped ++;
 	sector_nr = max_sector;
 	goto skipped;
-	}
 }
 
 static int run(mddev_t *mddev)
