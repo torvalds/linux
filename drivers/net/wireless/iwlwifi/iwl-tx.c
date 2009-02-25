@@ -148,7 +148,7 @@ static void iwl_hw_txq_free_tfd(struct iwl_priv *priv, struct iwl_tx_queue *txq)
 		pci_unmap_single(dev,
 				pci_unmap_addr(&txq->cmd[index]->meta, mapping),
 				pci_unmap_len(&txq->cmd[index]->meta, len),
-				PCI_DMA_TODEVICE);
+				PCI_DMA_BIDIRECTIONAL);
 
 	/* Unmap chunks, if any. */
 	for (i = 1; i < num_tbs; i++) {
@@ -964,7 +964,7 @@ int iwl_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 	 * within command buffer array. */
 	txcmd_phys = pci_map_single(priv->pci_dev,
 				    out_cmd, sizeof(struct iwl_cmd),
-				    PCI_DMA_TODEVICE);
+				    PCI_DMA_BIDIRECTIONAL);
 	pci_unmap_addr_set(&out_cmd->meta, mapping, txcmd_phys);
 	pci_unmap_len_set(&out_cmd->meta, len, sizeof(struct iwl_cmd));
 	/* Add buffer containing Tx command and MAC(!) header to TFD's
@@ -1115,7 +1115,7 @@ int iwl_enqueue_hcmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 			IWL_MAX_SCAN_SIZE : sizeof(struct iwl_cmd);
 
 	phys_addr = pci_map_single(priv->pci_dev, out_cmd,
-				   len, PCI_DMA_TODEVICE);
+				   len, PCI_DMA_BIDIRECTIONAL);
 	pci_unmap_addr_set(&out_cmd->meta, mapping, phys_addr);
 	pci_unmap_len_set(&out_cmd->meta, len, len);
 	phys_addr += offsetof(struct iwl_cmd, hdr);
@@ -1212,7 +1212,7 @@ static void iwl_hcmd_queue_reclaim(struct iwl_priv *priv, int txq_id,
 	pci_unmap_single(priv->pci_dev,
 		pci_unmap_addr(&txq->cmd[cmd_idx]->meta, mapping),
 		pci_unmap_len(&txq->cmd[cmd_idx]->meta, len),
-		PCI_DMA_TODEVICE);
+		PCI_DMA_BIDIRECTIONAL);
 
 	for (idx = iwl_queue_inc_wrap(idx, q->n_bd); q->read_ptr != idx;
 	     q->read_ptr = iwl_queue_inc_wrap(q->read_ptr, q->n_bd)) {
