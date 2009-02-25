@@ -7148,10 +7148,14 @@ static int airo_get_aplist(struct net_device *dev,
 {
 	struct airo_info *local = dev->ml_priv;
 	struct sockaddr *address = (struct sockaddr *) extra;
-	struct iw_quality qual[IW_MAX_AP];
+	struct iw_quality *qual;
 	BSSListRid BSSList;
 	int i;
 	int loseSync = capable(CAP_NET_ADMIN) ? 1: -1;
+
+	qual = kmalloc(IW_MAX_AP * sizeof(*qual), GFP_KERNEL);
+	if (!qual)
+		return -ENOMEM;
 
 	for (i = 0; i < IW_MAX_AP; i++) {
 		u16 dBm;
@@ -7207,6 +7211,7 @@ static int airo_get_aplist(struct net_device *dev,
 	}
 	dwrq->length = i;
 
+	kfree(qual);
 	return 0;
 }
 
