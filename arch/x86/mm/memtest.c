@@ -9,6 +9,8 @@
 
 #include <asm/e820.h>
 
+#define _MAX_MEM_PATTERNS 4
+
 static void __init memtest(unsigned long start_phys, unsigned long size,
 				 unsigned pattern)
 {
@@ -20,6 +22,8 @@ static void __init memtest(unsigned long start_phys, unsigned long size,
 	unsigned long start_phys_aligned;
 	unsigned long count;
 	unsigned long incr;
+
+	pattern = pattern % _MAX_MEM_PATTERNS;
 
 	switch (pattern) {
 	case 0:
@@ -110,8 +114,9 @@ void __init early_memtest(unsigned long start, unsigned long end)
 				t_size = end - t_start;
 
 			printk(KERN_CONT "\n  %010llx - %010llx pattern %d",
-				(unsigned long long)t_start,
-				(unsigned long long)t_start + t_size, pattern);
+			       (unsigned long long)t_start,
+			       (unsigned long long)t_start + t_size,
+			       pattern % _MAX_MEM_PATTERNS);
 
 			memtest(t_start, t_size, pattern);
 
