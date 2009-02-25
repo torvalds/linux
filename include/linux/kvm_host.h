@@ -319,6 +319,7 @@ struct kvm_irq_ack_notifier {
 	void (*irq_acked)(struct kvm_irq_ack_notifier *kian);
 };
 
+#define KVM_ASSIGNED_MSIX_PENDING		0x1
 struct kvm_guest_msix_entry {
 	u32 vector;
 	u16 entry;

@@ -95,25 +95,69 @@ static struct kvm_assigned_dev_kernel *kvm_find_assigned_dev(struct list_head *h
 	return NULL;
 }
 
+static int find_index_from_host_irq(struct kvm_assigned_dev_kernel
+				    *assigned_dev, int irq)
+{
+	int i, index;
+	struct msix_entry *host_msix_entries;
+
+	host_msix_entries = assigned_dev->host_msix_entries;
+
+	index = -1;
+	for (i = 0; i < assigned_dev->entries_nr; i++)
+		if (irq == host_msix_entries[i].vector) {
+			index = i;
+			break;
+		}
+	if (index < 0) {
+		printk(KERN_WARNING "Fail to find correlated MSI-X entry!\n");
+		return 0;
+	}
+
+	return index;
+}
+
 static void kvm_assigned_dev_interrupt_work_handler(struct work_struct *work)
 {
 	struct kvm_assigned_dev_kernel *assigned_dev;
+	struct kvm *kvm;
+	int irq, i;
 
 	assigned_dev = container_of(work, struct kvm_assigned_dev_kernel,
 				    interrupt_work);
+	kvm = assigned_dev->kvm;
 
 	/* This is taken to safely inject irq inside the guest. When
 	 * the interrupt injection (or the ioapic code) uses a
 	 * finer-grained lock, update this
 	 */
-	mutex_lock(&assigned_dev->kvm->lock);
-	kvm_set_irq(assigned_dev->kvm, assigned_dev->irq_source_id,
-		    assigned_dev->guest_irq, 1);
-
-	if (assigned_dev->irq_requested_type & KVM_ASSIGNED_DEV_GUEST_MSI) {
-		enable_irq(assigned_dev->host_irq);
-		assigned_dev->host_irq_disabled = false;
+	mutex_lock(&kvm->lock);
+	if (assigned_dev->irq_requested_type & KVM_ASSIGNED_DEV_MSIX) {
+		struct kvm_guest_msix_entry *guest_entries =
+			assigned_dev->guest_msix_entries;
+		for (i = 0; i < assigned_dev->entries_nr; i++) {
+			if (!(guest_entries[i].flags &
+					KVM_ASSIGNED_MSIX_PENDING))
+				continue;
+			guest_entries[i].flags &= ~KVM_ASSIGNED_MSIX_PENDING;
+			kvm_set_irq(assigned_dev->kvm,
+				    assigned_dev->irq_source_id,
+				    guest_entries[i].vector, 1);
+			irq = assigned_dev->host_msix_entries[i].vector;
+			if (irq != 0)
+				enable_irq(irq);
+			assigned_dev->host_irq_disabled = false;
+		}
+	} else {
+		kvm_set_irq(assigned_dev->kvm, assigned_dev->irq_source_id,
+			    assigned_dev->guest_irq, 1);
+		if (assigned_dev->irq_requested_type &
+				KVM_ASSIGNED_DEV_GUEST_MSI) {
+			enable_irq(assigned_dev->host_irq);
+			assigned_dev->host_irq_disabled = false;
+		}
 	}
+
 	mutex_unlock(&assigned_dev->kvm->lock);
 }
 
@@ -121,6 +165,14 @@ static irqreturn_t kvm_assigned_dev_intr(int irq, void *dev_id)
 {
 	struct kvm_assigned_dev_kernel *assigned_dev =
 		(struct kvm_assigned_dev_kernel *) dev_id;
+
+	if (assigned_dev->irq_requested_type == KVM_ASSIGNED_DEV_MSIX) {
+		int index = find_index_from_host_irq(assigned_dev, irq);
+		if (index < 0)
+			return IRQ_HANDLED;
+		assigned_dev->guest_msix_entries[index].flags |=
+			KVM_ASSIGNED_MSIX_PENDING;
+	}
 
 	schedule_work(&assigned_dev->interrupt_work);
 
