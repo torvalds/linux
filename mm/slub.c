@@ -2170,7 +2170,7 @@ static int init_kmem_cache_nodes(struct kmem_cache *s, gfp_t gfpflags)
 }
 #endif
 
-static void calculate_min_partial(struct kmem_cache *s, unsigned long min)
+static void set_min_partial(struct kmem_cache *s, unsigned long min)
 {
 	if (min < MIN_PARTIAL)
 		min = MIN_PARTIAL;
@@ -2321,7 +2321,7 @@ static int kmem_cache_open(struct kmem_cache *s, gfp_t gfpflags,
 	 * The larger the object size is, the more pages we want on the partial
 	 * list to avoid pounding the page allocator excessively.
 	 */
-	calculate_min_partial(s, ilog2(s->size));
+	set_min_partial(s, ilog2(s->size));
 	s->refcount = 1;
 #ifdef CONFIG_NUMA
 	s->remote_node_defrag_ratio = 1000;
@@ -3853,7 +3853,7 @@ static ssize_t min_partial_store(struct kmem_cache *s, const char *buf,
 	if (err)
 		return err;
 
-	calculate_min_partial(s, min);
+	set_min_partial(s, min);
 	return length;
 }
 SLAB_ATTR(min_partial);
