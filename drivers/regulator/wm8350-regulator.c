@@ -1435,7 +1435,7 @@ int wm8350_register_led(struct wm8350 *wm8350, int lednum, int dcdc, int isink,
 	struct platform_device *pdev;
 	int ret;
 
-	if (lednum > ARRAY_SIZE(wm8350->pmic.led) || lednum < 0) {
+	if (lednum >= ARRAY_SIZE(wm8350->pmic.led) || lednum < 0) {
 		dev_err(wm8350->dev, "Invalid LED index %d\n", lednum);
 		return -ENODEV;
 	}

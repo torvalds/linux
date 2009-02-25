@@ -78,104 +78,6 @@ static int link_to_fixup_dir(struct btrfs_trans_handle *trans,
  */
 
 /*
- * btrfs_add_log_tree adds a new per-subvolume log tree into the
- * tree of log tree roots.  This must be called with a tree log transaction
- * running (see start_log_trans).
- */
-static int btrfs_add_log_tree(struct btrfs_trans_handle *trans,
-		      struct btrfs_root *root)
-{
-	struct btrfs_key key;
-	struct btrfs_root_item root_item;
-	struct btrfs_inode_item *inode_item;
-	struct extent_buffer *leaf;
-	struct btrfs_root *new_root = root;
-	int ret;
-	u64 objectid = root->root_key.objectid;
-
-	leaf = btrfs_alloc_free_block(trans, root, root->leafsize, 0,
-				      BTRFS_TREE_LOG_OBJECTID,
-				      trans->transid, 0, 0, 0);
-	if (IS_ERR(leaf)) {
-		ret = PTR_ERR(leaf);
-		return ret;
-	}
-
-	btrfs_set_header_nritems(leaf, 0);
-	btrfs_set_header_level(leaf, 0);
-	btrfs_set_header_bytenr(leaf, leaf->start);
-	btrfs_set_header_generation(leaf, trans->transid);
-	btrfs_set_header_owner(leaf, BTRFS_TREE_LOG_OBJECTID);
-
-	write_extent_buffer(leaf, root->fs_info->fsid,
-			    (unsigned long)btrfs_header_fsid(leaf),
-			    BTRFS_FSID_SIZE);
-	btrfs_mark_buffer_dirty(leaf);
-
-	inode_item = &root_item.inode;
-	memset(inode_item, 0, sizeof(*inode_item));
-	inode_item->generation = cpu_to_le64(1);
-	inode_item->size = cpu_to_le64(3);
-	inode_item->nlink = cpu_to_le32(1);
-	inode_item->nbytes = cpu_to_le64(root->leafsize);
-	inode_item->mode = cpu_to_le32(S_IFDIR | 0755);
-
-	btrfs_set_root_bytenr(&root_item, leaf->start);
-	btrfs_set_root_generation(&root_item, trans->transid);
-	btrfs_set_root_level(&root_item, 0);
-	btrfs_set_root_refs(&root_item, 0);
-	btrfs_set_root_used(&root_item, 0);
-
-	memset(&root_item.drop_progress, 0, sizeof(root_item.drop_progress));
-	root_item.drop_level = 0;
-
-	btrfs_tree_unlock(leaf);
-	free_extent_buffer(leaf);
-	leaf = NULL;
-
-	btrfs_set_root_dirid(&root_item, 0);
-
-	key.objectid = BTRFS_TREE_LOG_OBJECTID;
-	key.offset = objectid;
-	btrfs_set_key_type(&key, BTRFS_ROOT_ITEM_KEY);
-	ret = btrfs_insert_root(trans, root->fs_info->log_root_tree, &key,
-				&root_item);
-	if (ret)
-		goto fail;
-
-	new_root = btrfs_read_fs_root_no_radix(root->fs_info->log_root_tree,
-					       &key);
-	BUG_ON(!new_root);
-
-	WARN_ON(root->log_root);
-	root->log_root = new_root;
-
-	/*
-	 * log trees do not get reference counted because they go away
-	 * before a real commit is actually done.  They do store pointers
-	 * to file data extents, and those reference counts still get
-	 * updated (along with back refs to the log tree).
-	 */
-	new_root->ref_cows = 0;
-	new_root->last_trans = trans->transid;
-
-	/*
-	 * we need to make sure the root block for this new tree
-	 * is marked as dirty in the dirty_log_pages tree.  This
-	 * is how it gets flushed down to disk at tree log commit time.
-	 *
-	 * the tree logging mutex keeps others from coming in and changing
-	 * the new_root->node, so we can safely access it here
-	 */
-	set_extent_dirty(&new_root->dirty_log_pages, new_root->node->start,
-			 new_root->node->start + new_root->node->len - 1,
-			 GFP_NOFS);
-
-fail:
-	return ret;
-}
-
-/*
  * start a sub transaction and setup the log tree
  * this increments the log tree writer count to make the people
  * syncing the tree wait for us to finish
@@ -184,6 +86,14 @@ static int start_log_trans(struct btrfs_trans_handle *trans,
 			   struct btrfs_root *root)
 {
 	int ret;
+
+	mutex_lock(&root->log_mutex);
+	if (root->log_root) {
+		root->log_batch++;
+		atomic_inc(&root->log_writers);
+		mutex_unlock(&root->log_mutex);
+		return 0;
+	}
 	mutex_lock(&root->fs_info->tree_log_mutex);
 	if (!root->fs_info->log_root_tree) {
 		ret = btrfs_init_log_root_tree(trans, root->fs_info);
@@ -193,9 +103,10 @@ static int start_log_trans(struct btrfs_trans_handle *trans,
 		ret = btrfs_add_log_tree(trans, root);
 		BUG_ON(ret);
 	}
-	atomic_inc(&root->fs_info->tree_log_writers);
-	root->fs_info->tree_log_batch++;
 	mutex_unlock(&root->fs_info->tree_log_mutex);
+	root->log_batch++;
+	atomic_inc(&root->log_writers);
+	mutex_unlock(&root->log_mutex);
 	return 0;
 }
 
@@ -212,13 +123,12 @@ static int join_running_log_trans(struct btrfs_root *root)
 	if (!root->log_root)
 		return -ENOENT;
 
-	mutex_lock(&root->fs_info->tree_log_mutex);
+	mutex_lock(&root->log_mutex);
 	if (root->log_root) {
 		ret = 0;
-		atomic_inc(&root->fs_info->tree_log_writers);
-		root->fs_info->tree_log_batch++;
+		atomic_inc(&root->log_writers);
 	}
-	mutex_unlock(&root->fs_info->tree_log_mutex);
+	mutex_unlock(&root->log_mutex);
 	return ret;
 }
 
@@ -228,10 +138,11 @@ static int join_running_log_trans(struct btrfs_root *root)
  */
 static int end_log_trans(struct btrfs_root *root)
 {
-	atomic_dec(&root->fs_info->tree_log_writers);
-	smp_mb();
-	if (waitqueue_active(&root->fs_info->tree_log_wait))
-		wake_up(&root->fs_info->tree_log_wait);
+	if (atomic_dec_and_test(&root->log_writers)) {
+		smp_mb();
+		if (waitqueue_active(&root->log_writer_wait))
+			wake_up(&root->log_writer_wait);
+	}
 	return 0;
 }
 
@@ -1704,6 +1615,7 @@ static noinline int walk_down_log_tree(struct btrfs_trans_handle *trans,
 
 				btrfs_tree_lock(next);
 				clean_tree_block(trans, root, next);
+				btrfs_set_lock_blocking(next);
 				btrfs_wait_tree_block_writeback(next);
 				btrfs_tree_unlock(next);
 
@@ -1750,6 +1662,7 @@ static noinline int walk_down_log_tree(struct btrfs_trans_handle *trans,
 		next = path->nodes[*level];
 		btrfs_tree_lock(next);
 		clean_tree_block(trans, root, next);
+		btrfs_set_lock_blocking(next);
 		btrfs_wait_tree_block_writeback(next);
 		btrfs_tree_unlock(next);
 
@@ -1807,6 +1720,7 @@ static noinline int walk_up_log_tree(struct btrfs_trans_handle *trans,
 
 				btrfs_tree_lock(next);
 				clean_tree_block(trans, root, next);
+				btrfs_set_lock_blocking(next);
 				btrfs_wait_tree_block_writeback(next);
 				btrfs_tree_unlock(next);
 
@@ -1879,6 +1793,7 @@ static int walk_log_tree(struct btrfs_trans_handle *trans,
 
 			btrfs_tree_lock(next);
 			clean_tree_block(trans, log, next);
+			btrfs_set_lock_blocking(next);
 			btrfs_wait_tree_block_writeback(next);
 			btrfs_tree_unlock(next);
 
@@ -1902,26 +1817,65 @@ static int walk_log_tree(struct btrfs_trans_handle *trans,
 		}
 	}
 	btrfs_free_path(path);
-	if (wc->free)
-		free_extent_buffer(log->node);
 	return ret;
 }
 
-static int wait_log_commit(struct btrfs_root *log)
+/*
+ * helper function to update the item for a given subvolumes log root
+ * in the tree of log roots
+ */
+static int update_log_root(struct btrfs_trans_handle *trans,
+			   struct btrfs_root *log)
+{
+	int ret;
+
+	if (log->log_transid == 1) {
+		/* insert root item on the first sync */
+		ret = btrfs_insert_root(trans, log->fs_info->log_root_tree,
+				&log->root_key, &log->root_item);
+	} else {
+		ret = btrfs_update_root(trans, log->fs_info->log_root_tree,
+				&log->root_key, &log->root_item);
+	}
+	return ret;
+}
+
+static int wait_log_commit(struct btrfs_root *root, unsigned long transid)
 {
 	DEFINE_WAIT(wait);
-	u64 transid = log->fs_info->tree_log_transid;
+	int index = transid % 2;
 
+	/*
+	 * we only allow two pending log transactions at a time,
+	 * so we know that if ours is more than 2 older than the
+	 * current transaction, we're done
+	 */
 	do {
-		prepare_to_wait(&log->fs_info->tree_log_wait, &wait,
-				TASK_UNINTERRUPTIBLE);
-		mutex_unlock(&log->fs_info->tree_log_mutex);
-		if (atomic_read(&log->fs_info->tree_log_commit))
+		prepare_to_wait(&root->log_commit_wait[index],
+				&wait, TASK_UNINTERRUPTIBLE);
+		mutex_unlock(&root->log_mutex);
+		if (root->log_transid < transid + 2 &&
+		    atomic_read(&root->log_commit[index]))
 			schedule();
-		finish_wait(&log->fs_info->tree_log_wait, &wait);
-		mutex_lock(&log->fs_info->tree_log_mutex);
-	} while (transid == log->fs_info->tree_log_transid &&
-		atomic_read(&log->fs_info->tree_log_commit));
+		finish_wait(&root->log_commit_wait[index], &wait);
+		mutex_lock(&root->log_mutex);
+	} while (root->log_transid < transid + 2 &&
+		 atomic_read(&root->log_commit[index]));
+	return 0;
+}
+
+static int wait_for_writer(struct btrfs_root *root)
+{
+	DEFINE_WAIT(wait);
+	while (atomic_read(&root->log_writers)) {
+		prepare_to_wait(&root->log_writer_wait,
+				&wait, TASK_UNINTERRUPTIBLE);
+		mutex_unlock(&root->log_mutex);
+		if (atomic_read(&root->log_writers))
+			schedule();
+		mutex_lock(&root->log_mutex);
+		finish_wait(&root->log_writer_wait, &wait);
+	}
 	return 0;
 }
 
@@ -1933,57 +1887,114 @@ static int wait_log_commit(struct btrfs_root *log)
 int btrfs_sync_log(struct btrfs_trans_handle *trans,
 		   struct btrfs_root *root)
 {
+	int index1;
+	int index2;
 	int ret;
-	unsigned long batch;
 	struct btrfs_root *log = root->log_root;
+	struct btrfs_root *log_root_tree = root->fs_info->log_root_tree;
 
-	mutex_lock(&log->fs_info->tree_log_mutex);
-	if (atomic_read(&log->fs_info->tree_log_commit)) {
-		wait_log_commit(log);
-		goto out;
+	mutex_lock(&root->log_mutex);
+	index1 = root->log_transid % 2;
+	if (atomic_read(&root->log_commit[index1])) {
+		wait_log_commit(root, root->log_transid);
+		mutex_unlock(&root->log_mutex);
+		return 0;
 	}
-	atomic_set(&log->fs_info->tree_log_commit, 1);
+	atomic_set(&root->log_commit[index1], 1);
+
+	/* wait for previous tree log sync to complete */
+	if (atomic_read(&root->log_commit[(index1 + 1) % 2]))
+		wait_log_commit(root, root->log_transid - 1);
 
 	while (1) {
-		batch = log->fs_info->tree_log_batch;
-		mutex_unlock(&log->fs_info->tree_log_mutex);
+		unsigned long batch = root->log_batch;
+		mutex_unlock(&root->log_mutex);
 		schedule_timeout_uninterruptible(1);
-		mutex_lock(&log->fs_info->tree_log_mutex);
-
-		while (atomic_read(&log->fs_info->tree_log_writers)) {
-			DEFINE_WAIT(wait);
-			prepare_to_wait(&log->fs_info->tree_log_wait, &wait,
-					TASK_UNINTERRUPTIBLE);
-			mutex_unlock(&log->fs_info->tree_log_mutex);
-			if (atomic_read(&log->fs_info->tree_log_writers))
-				schedule();
-			mutex_lock(&log->fs_info->tree_log_mutex);
-			finish_wait(&log->fs_info->tree_log_wait, &wait);
-		}
-		if (batch == log->fs_info->tree_log_batch)
+		mutex_lock(&root->log_mutex);
+		wait_for_writer(root);
+		if (batch == root->log_batch)
 			break;
 	}
 
 	ret = btrfs_write_and_wait_marked_extents(log, &log->dirty_log_pages);
 	BUG_ON(ret);
-	ret = btrfs_write_and_wait_marked_extents(root->fs_info->log_root_tree,
-			       &root->fs_info->log_root_tree->dirty_log_pages);
+
+	btrfs_set_root_bytenr(&log->root_item, log->node->start);
+	btrfs_set_root_generation(&log->root_item, trans->transid);
+	btrfs_set_root_level(&log->root_item, btrfs_header_level(log->node));
+
+	root->log_batch = 0;
+	root->log_transid++;
+	log->log_transid = root->log_transid;
+	smp_mb();
+	/*
+	 * log tree has been flushed to disk, new modifications of
+	 * the log will be written to new positions. so it's safe to
+	 * allow log writers to go in.
+	 */
+	mutex_unlock(&root->log_mutex);
+
+	mutex_lock(&log_root_tree->log_mutex);
+	log_root_tree->log_batch++;
+	atomic_inc(&log_root_tree->log_writers);
+	mutex_unlock(&log_root_tree->log_mutex);
+
+	ret = update_log_root(trans, log);
+	BUG_ON(ret);
+
+	mutex_lock(&log_root_tree->log_mutex);
+	if (atomic_dec_and_test(&log_root_tree->log_writers)) {
+		smp_mb();
+		if (waitqueue_active(&log_root_tree->log_writer_wait))
+			wake_up(&log_root_tree->log_writer_wait);
+	}
+
+	index2 = log_root_tree->log_transid % 2;
+	if (atomic_read(&log_root_tree->log_commit[index2])) {
+		wait_log_commit(log_root_tree, log_root_tree->log_transid);
+		mutex_unlock(&log_root_tree->log_mutex);
+		goto out;
+	}
+	atomic_set(&log_root_tree->log_commit[index2], 1);
+
+	if (atomic_read(&log_root_tree->log_commit[(index2 + 1) % 2]))
+		wait_log_commit(log_root_tree, log_root_tree->log_transid - 1);
+
+	wait_for_writer(log_root_tree);
+
+	ret = btrfs_write_and_wait_marked_extents(log_root_tree,
+				&log_root_tree->dirty_log_pages);
 	BUG_ON(ret);
 
 	btrfs_set_super_log_root(&root->fs_info->super_for_commit,
-				 log->fs_info->log_root_tree->node->start);
+				log_root_tree->node->start);
 	btrfs_set_super_log_root_level(&root->fs_info->super_for_commit,
-		       btrfs_header_level(log->fs_info->log_root_tree->node));
+				btrfs_header_level(log_root_tree->node));
 
-	write_ctree_super(trans, log->fs_info->tree_root, 2);
-	log->fs_info->tree_log_transid++;
-	log->fs_info->tree_log_batch = 0;
-	atomic_set(&log->fs_info->tree_log_commit, 0);
+	log_root_tree->log_batch = 0;
+	log_root_tree->log_transid++;
 	smp_mb();
-	if (waitqueue_active(&log->fs_info->tree_log_wait))
-		wake_up(&log->fs_info->tree_log_wait);
+
+	mutex_unlock(&log_root_tree->log_mutex);
+
+	/*
+	 * nobody else is going to jump in and write the the ctree
+	 * super here because the log_commit atomic below is protecting
+	 * us.  We must be called with a transaction handle pinning
+	 * the running transaction open, so a full commit can't hop
+	 * in and cause problems either.
+	 */
+	write_ctree_super(trans, root->fs_info->tree_root, 2);
+
+	atomic_set(&log_root_tree->log_commit[index2], 0);
+	smp_mb();
+	if (waitqueue_active(&log_root_tree->log_commit_wait[index2]))
+		wake_up(&log_root_tree->log_commit_wait[index2]);
 out:
-	mutex_unlock(&log->fs_info->tree_log_mutex);
+	atomic_set(&root->log_commit[index1], 0);
+	smp_mb();
+	if (waitqueue_active(&root->log_commit_wait[index1]))
+		wake_up(&root->log_commit_wait[index1]);
 	return 0;
 }
 
@@ -2019,35 +2030,15 @@ int btrfs_free_log(struct btrfs_trans_handle *trans, struct btrfs_root *root)
 				   start, end, GFP_NOFS);
 	}
 
-	log = root->log_root;
-	ret = btrfs_del_root(trans, root->fs_info->log_root_tree,
-			     &log->root_key);
-	BUG_ON(ret);
+	if (log->log_transid > 0) {
+		ret = btrfs_del_root(trans, root->fs_info->log_root_tree,
+				     &log->root_key);
+		BUG_ON(ret);
+	}
 	root->log_root = NULL;
-	kfree(root->log_root);
+	free_extent_buffer(log->node);
+	kfree(log);
 	return 0;
-}
-
-/*
- * helper function to update the item for a given subvolumes log root
- * in the tree of log roots
- */
-static int update_log_root(struct btrfs_trans_handle *trans,
-			   struct btrfs_root *log)
-{
-	u64 bytenr = btrfs_root_bytenr(&log->root_item);
-	int ret;
-
-	if (log->node->start == bytenr)
-		return 0;
-
-	btrfs_set_root_bytenr(&log->root_item, log->node->start);
-	btrfs_set_root_generation(&log->root_item, trans->transid);
-	btrfs_set_root_level(&log->root_item, btrfs_header_level(log->node));
-	ret = btrfs_update_root(trans, log->fs_info->log_root_tree,
-				&log->root_key, &log->root_item);
-	BUG_ON(ret);
-	return ret;
 }
 
 /*
@@ -2711,11 +2702,6 @@ next_slot:
 
 	btrfs_free_path(path);
 	btrfs_free_path(dst_path);
-
-	mutex_lock(&root->fs_info->tree_log_mutex);
-	ret = update_log_root(trans, log);
-	BUG_ON(ret);
-	mutex_unlock(&root->fs_info->tree_log_mutex);
 out:
 	return 0;
 }
@@ -2846,7 +2832,9 @@ again:
 		BUG_ON(!wc.replay_dest);
 
 		wc.replay_dest->log_root = log;
+		mutex_lock(&fs_info->trans_mutex);
 		btrfs_record_root_in_trans(wc.replay_dest);
+		mutex_unlock(&fs_info->trans_mutex);
 		ret = walk_log_tree(trans, log, &wc);
 		BUG_ON(ret);
 

@@ -164,9 +164,12 @@ struct TCP_Server_Info {
 	/* multiplexed reads or writes */
 	unsigned int maxBuf;	/* maxBuf specifies the maximum */
 	/* message size the server can send or receive for non-raw SMBs */
-	unsigned int maxRw;	/* maxRw specifies the maximum */
+	unsigned int max_rw;	/* maxRw specifies the maximum */
 	/* message size the server can send or receive for */
 	/* SMB_COM_WRITE_RAW or SMB_COM_READ_RAW. */
+	unsigned int max_vcs;	/* maximum number of smb sessions, at least
+				   those that can be specified uniquely with
+				   vcnumbers */
 	char sessid[4];		/* unique token id for this session */
 	/* (returned on Negotiate */
 	int capabilities; /* allow selective disabling of caps by smb sess */
@@ -210,6 +213,7 @@ struct cifsSesInfo {
 	unsigned overrideSecFlg;  /* if non-zero override global sec flags */
 	__u16 ipc_tid;		/* special tid for connection to IPC share */
 	__u16 flags;
+	__u16 vcnum;
 	char *serverOS;		/* name of operating system underlying server */
 	char *serverNOS;	/* name of network operating system of server */
 	char *serverDomain;	/* security realm of server */

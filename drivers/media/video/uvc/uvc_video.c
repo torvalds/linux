@@ -1,7 +1,7 @@
 /*
  *      uvc_video.c  --  USB Video Class driver - Video handling
  *
- *      Copyright (C) 2005-2008
+ *      Copyright (C) 2005-2009
  *          Laurent Pinchart (laurent.pinchart@skynet.be)
  *
  *      This program is free software; you can redistribute it and/or modify
@@ -12,7 +12,6 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/version.h>
 #include <linux/list.h>
 #include <linux/module.h>
 #include <linux/usb.h>
@@ -115,7 +114,7 @@ static int uvc_get_video_ctrl(struct uvc_video_device *video,
 		ctrl->wCompQuality = le16_to_cpup((__le16 *)data);
 		ret = 0;
 		goto out;
-	} else if (query == GET_DEF && probe == 1) {
+	} else if (query == GET_DEF && probe == 1 && ret != size) {
 		/* Many cameras don't support the GET_DEF request on their
 		 * video probe control. Warn once and return, the caller will
 		 * fall back to GET_CUR.
@@ -160,7 +159,7 @@ static int uvc_get_video_ctrl(struct uvc_video_device *video,
 	}
 
 	/* Some broken devices return a null or wrong dwMaxVideoFrameSize.
-	 * Try to get the value from the format and frame descriptor.
+	 * Try to get the value from the format and frame descriptors.
 	 */
 	uvc_fixup_buffer_size(video, ctrl);
 	ret = 0;
@@ -191,9 +190,6 @@ static int uvc_set_video_ctrl(struct uvc_video_device *video,
 	*(__le16 *)&data[12] = cpu_to_le16(ctrl->wCompQuality);
 	*(__le16 *)&data[14] = cpu_to_le16(ctrl->wCompWindowSize);
 	*(__le16 *)&data[16] = cpu_to_le16(ctrl->wDelay);
-	/* Note: Some of the fields below are not required for IN devices (see
-	 * UVC spec, 4.3.1.1), but we still copy them in case support for OUT
-	 * devices is added in the future. */
 	put_unaligned_le32(ctrl->dwMaxVideoFrameSize, &data[18]);
 	put_unaligned_le32(ctrl->dwMaxPayloadTransferSize, &data[22]);
 
@@ -400,7 +396,7 @@ static int uvc_video_decode_start(struct uvc_video_device *video,
 	 *
 	 * Empty buffers (bytesused == 0) don't trigger end of frame detection
 	 * as it doesn't make sense to return an empty buffer. This also
-	 * avoids detecting and of frame conditions at FID toggling if the
+	 * avoids detecting end of frame conditions at FID toggling if the
 	 * previous payload had the EOF bit set.
 	 */
 	if (fid != video->last_fid && buf->buf.bytesused != 0) {
@@ -453,6 +449,17 @@ static void uvc_video_decode_end(struct uvc_video_device *video,
 	}
 }
 
+/* Video payload encoding is handled by uvc_video_encode_header() and
+ * uvc_video_encode_data(). Only bulk transfers are currently supported.
+ *
+ * uvc_video_encode_header is called at the start of a payload. It adds header
+ * data to the transfer buffer and returns the header size. As the only known
+ * UVC output device transfers a whole frame in a single payload, the EOF bit
+ * is always set in the header.
+ *
+ * uvc_video_encode_data is called for every URB and copies the data from the
+ * video buffer to the transfer buffer.
+ */
 static int uvc_video_encode_header(struct uvc_video_device *video,
 		struct uvc_buffer *buf, __u8 *data, int len)
 {
@@ -953,7 +960,7 @@ int uvc_video_suspend(struct uvc_video_device *video)
 }
 
 /*
- * Reconfigure the video interface and restart streaming if it was enable
+ * Reconfigure the video interface and restart streaming if it was enabled
  * before suspend.
  *
  * If an error occurs, disable the video queue. This will wake all pending
@@ -985,8 +992,8 @@ int uvc_video_resume(struct uvc_video_device *video)
  */
 
 /*
- * Initialize the UVC video device by retrieving the default format and
- * committing it.
+ * Initialize the UVC video device by switching to alternate setting 0 and
+ * retrieve the default format.
  *
  * Some cameras (namely the Fuji Finepix) set the format and frame
  * indexes to zero. The UVC standard doesn't clearly make this a spec
@@ -1014,7 +1021,7 @@ int uvc_video_init(struct uvc_video_device *video)
 	 */
 	usb_set_interface(video->dev->udev, video->streaming->intfnum, 0);
 
-	/* Some webcams don't suport GET_DEF request on the probe control. We
+	/* Some webcams don't suport GET_DEF requests on the probe control. We
 	 * fall back to GET_CUR if GET_DEF fails.
 	 */
 	if ((ret = uvc_get_video_ctrl(video, probe, 1, GET_DEF)) < 0 &&

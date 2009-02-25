@@ -5,7 +5,7 @@
 
 This document describes the DMA API.  For a more gentle introduction
 phrased in terms of the pci_ equivalents (and actual examples) see
-DMA-mapping.txt
+Documentation/PCI/PCI-DMA-mapping.txt.
 
 This API is split into two pieces.  Part I describes the API and the
 corresponding pci_ API.  Part II describes the extensions to the API

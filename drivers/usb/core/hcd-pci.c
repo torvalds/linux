@@ -128,7 +128,6 @@ int usb_hcd_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	}
 
 	pci_set_master(dev);
-	device_set_wakeup_enable(&dev->dev, 1);
 
 	retval = usb_add_hcd(hcd, dev->irq, IRQF_DISABLED | IRQF_SHARED);
 	if (retval != 0)
@@ -201,6 +200,7 @@ int usb_hcd_pci_suspend(struct pci_dev *dev, pm_message_t message)
 	struct usb_hcd		*hcd = pci_get_drvdata(dev);
 	int			retval = 0;
 	int			wake, w;
+	int			has_pci_pm;
 
 	/* Root hub suspend should have stopped all downstream traffic,
 	 * and all bus master traffic.  And done so for both the interface
@@ -230,6 +230,15 @@ int usb_hcd_pci_suspend(struct pci_dev *dev, pm_message_t message)
 
 	synchronize_irq(dev->irq);
 
+	/* Downstream ports from this root hub should already be quiesced, so
+	 * there will be no DMA activity.  Now we can shut down the upstream
+	 * link (except maybe for PME# resume signaling) and enter some PCI
+	 * low power state, if the hardware allows.
+	 */
+	pci_disable_device(dev);
+
+	pci_save_state(dev);
+
 	/* Don't fail on error to enable wakeup.  We rely on pci code
 	 * to reject requests the hardware can't implement, rather
 	 * than coding the same thing.
@@ -240,35 +249,6 @@ int usb_hcd_pci_suspend(struct pci_dev *dev, pm_message_t message)
 	if (w < 0)
 		wake = w;
 	dev_dbg(&dev->dev, "wakeup: %d\n", wake);
-
-	/* Downstream ports from this root hub should already be quiesced, so
-	 * there will be no DMA activity.  Now we can shut down the upstream
-	 * link (except maybe for PME# resume signaling) and enter some PCI
-	 * low power state, if the hardware allows.
-	 */
-	pci_disable_device(dev);
- done:
-	return retval;
-}
-EXPORT_SYMBOL_GPL(usb_hcd_pci_suspend);
-
-/**
- * usb_hcd_pci_suspend_late - suspend a PCI-based HCD after IRQs are disabled
- * @dev: USB Host Controller being suspended
- * @message: Power Management message describing this state transition
- *
- * Store this function in the HCD's struct pci_driver as .suspend_late.
- */
-int usb_hcd_pci_suspend_late(struct pci_dev *dev, pm_message_t message)
-{
-	int			retval = 0;
-	int			has_pci_pm;
-
-	/* We might already be suspended (runtime PM -- not yet written) */
-	if (dev->current_state != PCI_D0)
-		goto done;
-
-	pci_save_state(dev);
 
 	/* Don't change state if we don't need to */
 	if (message.event == PM_EVENT_FREEZE ||
@@ -315,18 +295,18 @@ int usb_hcd_pci_suspend_late(struct pci_dev *dev, pm_message_t message)
  done:
 	return retval;
 }
-EXPORT_SYMBOL_GPL(usb_hcd_pci_suspend_late);
+EXPORT_SYMBOL_GPL(usb_hcd_pci_suspend);
 
 /**
- * usb_hcd_pci_resume_early - resume a PCI-based HCD before IRQs are enabled
+ * usb_hcd_pci_resume - power management resume of a PCI-based HCD
  * @dev: USB Host Controller being resumed
  *
- * Store this function in the HCD's struct pci_driver as .resume_early.
+ * Store this function in the HCD's struct pci_driver as .resume.
  */
-int usb_hcd_pci_resume_early(struct pci_dev *dev)
+int usb_hcd_pci_resume(struct pci_dev *dev)
 {
-	int		retval = 0;
-	pci_power_t	state = dev->current_state;
+	struct usb_hcd		*hcd;
+	int			retval;
 
 #ifdef CONFIG_PPC_PMAC
 	/* Reenable ASIC clocks for USB */
@@ -340,63 +320,7 @@ int usb_hcd_pci_resume_early(struct pci_dev *dev)
 	}
 #endif
 
-	/* NOTE:  chip docs cover clean "real suspend" cases (what Linux
-	 * calls "standby", "suspend to RAM", and so on).  There are also
-	 * dirty cases when swsusp fakes a suspend in "shutdown" mode.
-	 */
-	if (state != PCI_D0) {
-#ifdef	DEBUG
-		int	pci_pm;
-		u16	pmcr;
-
-		pci_pm = pci_find_capability(dev, PCI_CAP_ID_PM);
-		pci_read_config_word(dev, pci_pm + PCI_PM_CTRL, &pmcr);
-		pmcr &= PCI_PM_CTRL_STATE_MASK;
-		if (pmcr) {
-			/* Clean case:  power to USB and to HC registers was
-			 * maintained; remote wakeup is easy.
-			 */
-			dev_dbg(&dev->dev, "resume from PCI D%d\n", pmcr);
-		} else {
-			/* Clean:  HC lost Vcc power, D0 uninitialized
-			 *   + Vaux may have preserved port and transceiver
-			 *     state ... for remote wakeup from D3cold
-			 *   + or not; HCD must reinit + re-enumerate
-			 *
-			 * Dirty: D0 semi-initialized cases with swsusp
-			 *   + after BIOS init
-			 *   + after Linux init (HCD statically linked)
-			 */
-			dev_dbg(&dev->dev, "resume from previous PCI D%d\n",
-					state);
-		}
-#endif
-
-		retval = pci_set_power_state(dev, PCI_D0);
-	} else {
-		/* Same basic cases: clean (powered/not), dirty */
-		dev_dbg(&dev->dev, "PCI legacy resume\n");
-	}
-
-	if (retval < 0)
-		dev_err(&dev->dev, "can't resume: %d\n", retval);
-	else
-		pci_restore_state(dev);
-
-	return retval;
-}
-EXPORT_SYMBOL_GPL(usb_hcd_pci_resume_early);
-
-/**
- * usb_hcd_pci_resume - power management resume of a PCI-based HCD
- * @dev: USB Host Controller being resumed
- *
- * Store this function in the HCD's struct pci_driver as .resume.
- */
-int usb_hcd_pci_resume(struct pci_dev *dev)
-{
-	struct usb_hcd		*hcd;
-	int			retval;
+	pci_restore_state(dev);
 
 	hcd = pci_get_drvdata(dev);
 	if (hcd->state != HC_STATE_SUSPENDED) {
@@ -404,6 +328,8 @@ int usb_hcd_pci_resume(struct pci_dev *dev)
 				"can't resume, not suspended!\n");
 		return 0;
 	}
+
+	pci_enable_wake(dev, PCI_D0, false);
 
 	retval = pci_enable_device(dev);
 	if (retval < 0) {

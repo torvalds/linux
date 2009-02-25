@@ -73,14 +73,13 @@ static int kvm_iommu_map_memslots(struct kvm *kvm)
 {
 	int i, r = 0;
 
-	down_read(&kvm->slots_lock);
 	for (i = 0; i < kvm->nmemslots; i++) {
 		r = kvm_iommu_map_pages(kvm, kvm->memslots[i].base_gfn,
 					kvm->memslots[i].npages);
 		if (r)
 			break;
 	}
-	up_read(&kvm->slots_lock);
+
 	return r;
 }
 
@@ -190,12 +189,11 @@ static void kvm_iommu_put_pages(struct kvm *kvm,
 static int kvm_iommu_unmap_memslots(struct kvm *kvm)
 {
 	int i;
-	down_read(&kvm->slots_lock);
+
 	for (i = 0; i < kvm->nmemslots; i++) {
 		kvm_iommu_put_pages(kvm, kvm->memslots[i].base_gfn,
 				    kvm->memslots[i].npages);
 	}
-	up_read(&kvm->slots_lock);
 
 	return 0;
 }

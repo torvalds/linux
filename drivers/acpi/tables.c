@@ -293,7 +293,12 @@ static void __init check_multiple_madt(void)
 
 int __init acpi_table_init(void)
 {
-	acpi_initialize_tables(initial_tables, ACPI_MAX_TABLES, 0);
+	acpi_status status;
+
+	status = acpi_initialize_tables(initial_tables, ACPI_MAX_TABLES, 0);
+	if (ACPI_FAILURE(status))
+		return 1;
+
 	check_multiple_madt();
 	return 0;
 }

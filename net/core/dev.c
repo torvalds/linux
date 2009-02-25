@@ -1090,7 +1090,7 @@ int dev_open(struct net_device *dev)
 		/*
 		 *	Enable NET_DMA
 		 */
-		dmaengine_get();
+		net_dmaengine_get();
 
 		/*
 		 *	Initialize multicasting status
@@ -1172,7 +1172,7 @@ int dev_close(struct net_device *dev)
 	/*
 	 *	Shutdown NET_DMA
 	 */
-	dmaengine_put();
+	net_dmaengine_put();
 
 	return 0;
 }
@@ -1534,7 +1534,19 @@ struct sk_buff *skb_gso_segment(struct sk_buff *skb, int features)
 	skb->mac_len = skb->network_header - skb->mac_header;
 	__skb_pull(skb, skb->mac_len);
 
-	if (WARN_ON(skb->ip_summed != CHECKSUM_PARTIAL)) {
+	if (unlikely(skb->ip_summed != CHECKSUM_PARTIAL)) {
+		struct net_device *dev = skb->dev;
+		struct ethtool_drvinfo info = {};
+
+		if (dev && dev->ethtool_ops && dev->ethtool_ops->get_drvinfo)
+			dev->ethtool_ops->get_drvinfo(dev, &info);
+
+		WARN(1, "%s: caps=(0x%lx, 0x%lx) len=%d data_len=%d "
+			"ip_summed=%d",
+		     info.driver, dev ? dev->features : 0L,
+		     skb->sk ? skb->sk->sk_route_caps : 0L,
+		     skb->len, skb->data_len, skb->ip_summed);
+
 		if (skb_header_cloned(skb) &&
 		    (err = pskb_expand_head(skb, 0, 0, GFP_ATOMIC)))
 			return ERR_PTR(err);
@@ -2524,6 +2536,7 @@ struct sk_buff *napi_fraginfo_skb(struct napi_struct *napi,
 
 	if (!pskb_may_pull(skb, ETH_HLEN)) {
 		napi_reuse_skb(napi, skb);
+		skb = NULL;
 		goto out;
 	}
 

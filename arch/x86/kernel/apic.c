@@ -862,7 +862,7 @@ void clear_local_APIC(void)
 	}
 
 	/* lets not touch this if we didn't frob it */
-#if defined(CONFIG_X86_MCE_P4THERMAL) || defined(X86_MCE_INTEL)
+#if defined(CONFIG_X86_MCE_P4THERMAL) || defined(CONFIG_X86_MCE_INTEL)
 	if (maxlvt >= 5) {
 		v = apic_read(APIC_LVTTHMR);
 		apic_write(APIC_LVTTHMR, v | APIC_LVT_MASKED);
@@ -894,6 +894,10 @@ void clear_local_APIC(void)
 void disable_local_APIC(void)
 {
 	unsigned int value;
+
+	/* APIC hasn't been mapped yet */
+	if (!apic_phys)
+		return;
 
 	clear_local_APIC();
 
@@ -1432,7 +1436,7 @@ static int __init detect_init_APIC(void)
 	switch (boot_cpu_data.x86_vendor) {
 	case X86_VENDOR_AMD:
 		if ((boot_cpu_data.x86 == 6 && boot_cpu_data.x86_model > 1) ||
-		    (boot_cpu_data.x86 == 15))
+		    (boot_cpu_data.x86 >= 15))
 			break;
 		goto no_apic;
 	case X86_VENDOR_INTEL:
@@ -1832,6 +1836,11 @@ void __cpuinit generic_processor_info(int apicid, int version)
 
 	num_processors++;
 	cpu = cpumask_next_zero(-1, cpu_present_mask);
+
+	if (version != apic_version[boot_cpu_physical_apicid])
+		WARN_ONCE(1,
+			"ACPI: apic version mismatch, bootcpu: %x cpu %d: %x\n",
+			apic_version[boot_cpu_physical_apicid], cpu, version);
 
 	physid_set(apicid, phys_cpu_present_map);
 	if (apicid == boot_cpu_physical_apicid) {

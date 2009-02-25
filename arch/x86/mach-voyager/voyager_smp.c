@@ -65,7 +65,7 @@ static volatile unsigned long smp_invalidate_needed;
 
 /* Bitmask of CPUs present in the system - exported by i386_syms.c, used
  * by scheduler but indexed physically */
-cpumask_t phys_cpu_present_map = CPU_MASK_NONE;
+static cpumask_t voyager_phys_cpu_present_map = CPU_MASK_NONE;
 
 /* The internal functions */
 static void send_CPI(__u32 cpuset, __u8 cpi);
@@ -81,7 +81,7 @@ static void enable_local_vic_irq(unsigned int irq);
 static void disable_local_vic_irq(unsigned int irq);
 static void before_handle_vic_irq(unsigned int irq);
 static void after_handle_vic_irq(unsigned int irq);
-static void set_vic_irq_affinity(unsigned int irq, cpumask_t mask);
+static void set_vic_irq_affinity(unsigned int irq, const struct cpumask *mask);
 static void ack_vic_irq(unsigned int irq);
 static void vic_enable_cpi(void);
 static void do_boot_cpu(__u8 cpuid);
@@ -211,8 +211,6 @@ static __u32 cpu_booted_map;
 static cpumask_t smp_commenced_mask = CPU_MASK_NONE;
 
 /* This is for the new dynamic CPU boot code */
-cpumask_t cpu_callin_map = CPU_MASK_NONE;
-cpumask_t cpu_callout_map = CPU_MASK_NONE;
 
 /* The per processor IRQ masks (these are usually kept in sync) */
 static __u16 vic_irq_mask[NR_CPUS] __cacheline_aligned;
@@ -368,19 +366,19 @@ void __init find_smp_config(void)
 	/* set up everything for just this CPU, we can alter
 	 * this as we start the other CPUs later */
 	/* now get the CPU disposition from the extended CMOS */
-	cpus_addr(phys_cpu_present_map)[0] =
+	cpus_addr(voyager_phys_cpu_present_map)[0] =
 	    voyager_extended_cmos_read(VOYAGER_PROCESSOR_PRESENT_MASK);
-	cpus_addr(phys_cpu_present_map)[0] |=
+	cpus_addr(voyager_phys_cpu_present_map)[0] |=
 	    voyager_extended_cmos_read(VOYAGER_PROCESSOR_PRESENT_MASK + 1) << 8;
-	cpus_addr(phys_cpu_present_map)[0] |=
+	cpus_addr(voyager_phys_cpu_present_map)[0] |=
 	    voyager_extended_cmos_read(VOYAGER_PROCESSOR_PRESENT_MASK +
 				       2) << 16;
-	cpus_addr(phys_cpu_present_map)[0] |=
+	cpus_addr(voyager_phys_cpu_present_map)[0] |=
 	    voyager_extended_cmos_read(VOYAGER_PROCESSOR_PRESENT_MASK +
 				       3) << 24;
-	cpu_possible_map = phys_cpu_present_map;
-	printk("VOYAGER SMP: phys_cpu_present_map = 0x%lx\n",
-	       cpus_addr(phys_cpu_present_map)[0]);
+	init_cpu_possible(&voyager_phys_cpu_present_map);
+	printk("VOYAGER SMP: voyager_phys_cpu_present_map = 0x%lx\n",
+	       cpus_addr(voyager_phys_cpu_present_map)[0]);
 	/* Here we set up the VIC to enable SMP */
 	/* enable the CPIs by writing the base vector to their register */
 	outb(VIC_DEFAULT_CPI_BASE, VIC_CPI_BASE_REGISTER);
@@ -630,15 +628,15 @@ void __init smp_boot_cpus(void)
 		/* now that the cat has probed the Voyager System Bus, sanity
 		 * check the cpu map */
 		if (((voyager_quad_processors | voyager_extended_vic_processors)
-		     & cpus_addr(phys_cpu_present_map)[0]) !=
-		    cpus_addr(phys_cpu_present_map)[0]) {
+		     & cpus_addr(voyager_phys_cpu_present_map)[0]) !=
+		    cpus_addr(voyager_phys_cpu_present_map)[0]) {
 			/* should panic */
 			printk("\n\n***WARNING*** "
 			       "Sanity check of CPU present map FAILED\n");
 		}
 	} else if (voyager_level == 4)
 		voyager_extended_vic_processors =
-		    cpus_addr(phys_cpu_present_map)[0];
+		    cpus_addr(voyager_phys_cpu_present_map)[0];
 
 	/* this sets up the idle task to run on the current cpu */
 	voyager_extended_cpus = 1;
@@ -672,7 +670,7 @@ void __init smp_boot_cpus(void)
 	/* loop over all the extended VIC CPUs and boot them.  The
 	 * Quad CPUs must be bootstrapped by their extended VIC cpu */
 	for (i = 0; i < nr_cpu_ids; i++) {
-		if (i == boot_cpu_id || !cpu_isset(i, phys_cpu_present_map))
+		if (i == boot_cpu_id || !cpu_isset(i, voyager_phys_cpu_present_map))
 			continue;
 		do_boot_cpu(i);
 		/* This udelay seems to be needed for the Quad boots
@@ -1599,16 +1597,16 @@ static void after_handle_vic_irq(unsigned int irq)
  * change the mask and then do an interrupt enable CPI to re-enable on
  * the selected processors */
 
-void set_vic_irq_affinity(unsigned int irq, cpumask_t mask)
+void set_vic_irq_affinity(unsigned int irq, const struct cpumask *mask)
 {
 	/* Only extended processors handle interrupts */
 	unsigned long real_mask;
 	unsigned long irq_mask = 1 << irq;
 	int cpu;
 
-	real_mask = cpus_addr(mask)[0] & voyager_extended_vic_processors;
+	real_mask = cpus_addr(*mask)[0] & voyager_extended_vic_processors;
 
-	if (cpus_addr(mask)[0] == 0)
+	if (cpus_addr(*mask)[0] == 0)
 		/* can't have no CPUs to accept the interrupt -- extremely
 		 * bad things will happen */
 		return;
@@ -1750,10 +1748,11 @@ static void __cpuinit voyager_smp_prepare_boot_cpu(void)
 	init_gdt(smp_processor_id());
 	switch_to_new_gdt();
 
-	cpu_set(smp_processor_id(), cpu_online_map);
-	cpu_set(smp_processor_id(), cpu_callout_map);
-	cpu_set(smp_processor_id(), cpu_possible_map);
-	cpu_set(smp_processor_id(), cpu_present_map);
+	cpu_online_map = cpumask_of_cpu(smp_processor_id());
+	cpu_callout_map = cpumask_of_cpu(smp_processor_id());
+	cpu_callin_map = CPU_MASK_NONE;
+	cpu_present_map = cpumask_of_cpu(smp_processor_id());
+
 }
 
 static int __cpuinit voyager_cpu_up(unsigned int cpu)
@@ -1783,9 +1782,9 @@ void __init smp_setup_processor_id(void)
 	x86_write_percpu(cpu_number, hard_smp_processor_id());
 }
 
-static void voyager_send_call_func(cpumask_t callmask)
+static void voyager_send_call_func(const struct cpumask *callmask)
 {
-	__u32 mask = cpus_addr(callmask)[0] & ~(1 << smp_processor_id());
+	__u32 mask = cpus_addr(*callmask)[0] & ~(1 << smp_processor_id());
 	send_CPI(mask, VIC_CALL_FUNCTION_CPI);
 }
 

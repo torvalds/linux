@@ -61,6 +61,8 @@
 /* global iommu list, set NULL for ignored DMAR units */
 static struct intel_iommu **g_iommus;
 
+static int rwbf_quirk;
+
 /*
  * 0: Present
  * 1-11: Reserved
@@ -268,7 +270,12 @@ static long list_size;
 
 static void domain_remove_dev_info(struct dmar_domain *domain);
 
-int dmar_disabled;
+#ifdef CONFIG_DMAR_DEFAULT_ON
+int dmar_disabled = 0;
+#else
+int dmar_disabled = 1;
+#endif /*CONFIG_DMAR_DEFAULT_ON*/
+
 static int __initdata dmar_map_gfx = 1;
 static int dmar_forcedac;
 static int intel_iommu_strict;
@@ -284,9 +291,12 @@ static int __init intel_iommu_setup(char *str)
 	if (!str)
 		return -EINVAL;
 	while (*str) {
-		if (!strncmp(str, "off", 3)) {
+		if (!strncmp(str, "on", 2)) {
+			dmar_disabled = 0;
+			printk(KERN_INFO "Intel-IOMMU: enabled\n");
+		} else if (!strncmp(str, "off", 3)) {
 			dmar_disabled = 1;
-			printk(KERN_INFO"Intel-IOMMU: disabled\n");
+			printk(KERN_INFO "Intel-IOMMU: disabled\n");
 		} else if (!strncmp(str, "igfx_off", 8)) {
 			dmar_map_gfx = 0;
 			printk(KERN_INFO
@@ -777,7 +787,7 @@ static void iommu_flush_write_buffer(struct intel_iommu *iommu)
 	u32 val;
 	unsigned long flag;
 
-	if (!cap_rwbf(iommu->cap))
+	if (!rwbf_quirk && !cap_rwbf(iommu->cap))
 		return;
 	val = iommu->gcmd | DMA_GCMD_WBF;
 
@@ -3129,3 +3139,15 @@ static struct iommu_ops intel_iommu_ops = {
 	.unmap		= intel_iommu_unmap_range,
 	.iova_to_phys	= intel_iommu_iova_to_phys,
 };
+
+static void __devinit quirk_iommu_rwbf(struct pci_dev *dev)
+{
+	/*
+	 * Mobile 4 Series Chipset neglects to set RWBF capability,
+	 * but needs it:
+	 */
+	printk(KERN_INFO "DMAR: Forcing write-buffer flush capability\n");
+	rwbf_quirk = 1;
+}
+
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, 0x2a40, quirk_iommu_rwbf);

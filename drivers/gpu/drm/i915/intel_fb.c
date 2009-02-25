@@ -473,7 +473,7 @@ static int intelfb_create(struct drm_device *dev, uint32_t fb_width,
 	ret = intel_framebuffer_create(dev, &mode_cmd, &fb, fbo);
 	if (ret) {
 		DRM_ERROR("failed to allocate fb.\n");
-		goto out_unref;
+		goto out_unpin;
 	}
 
 	list_add(&fb->filp_head, &dev->mode_config.fb_kernel_list);
@@ -484,7 +484,7 @@ static int intelfb_create(struct drm_device *dev, uint32_t fb_width,
 	info = framebuffer_alloc(sizeof(struct intelfb_par), device);
 	if (!info) {
 		ret = -ENOMEM;
-		goto out_unref;
+		goto out_unpin;
 	}
 
 	par = info->par;
@@ -513,7 +513,7 @@ static int intelfb_create(struct drm_device *dev, uint32_t fb_width,
 				       size);
 	if (!info->screen_base) {
 		ret = -ENOSPC;
-		goto out_unref;
+		goto out_unpin;
 	}
 	info->screen_size = size;
 
@@ -608,6 +608,8 @@ static int intelfb_create(struct drm_device *dev, uint32_t fb_width,
 	mutex_unlock(&dev->struct_mutex);
 	return 0;
 
+out_unpin:
+	i915_gem_object_unpin(fbo);
 out_unref:
 	drm_gem_object_unreference(fbo);
 	mutex_unlock(&dev->struct_mutex);

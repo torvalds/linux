@@ -17,7 +17,7 @@ sys_call_table:
 	.quad sys_write
 	.quad alpha_ni_syscall			/* 5 */
 	.quad sys_close
-	.quad osf_wait4
+	.quad sys_osf_wait4
 	.quad alpha_ni_syscall
 	.quad sys_link
 	.quad sys_unlink			/* 10 */
@@ -27,11 +27,11 @@ sys_call_table:
 	.quad sys_mknod
 	.quad sys_chmod				/* 15 */
 	.quad sys_chown
-	.quad osf_brk
+	.quad sys_osf_brk
 	.quad alpha_ni_syscall
 	.quad sys_lseek
 	.quad sys_getxpid			/* 20 */
-	.quad osf_mount
+	.quad sys_osf_mount
 	.quad sys_umount
 	.quad sys_setuid
 	.quad sys_getxuid
@@ -53,7 +53,7 @@ sys_call_table:
 	.quad alpha_ni_syscall			/* 40 */
 	.quad sys_dup
 	.quad sys_alpha_pipe
-	.quad osf_set_program_attributes
+	.quad sys_osf_set_program_attributes
 	.quad alpha_ni_syscall
 	.quad sys_open				/* 45 */
 	.quad alpha_ni_syscall
@@ -81,7 +81,7 @@ sys_call_table:
 	.quad sys_newlstat
 	.quad alpha_ni_syscall
 	.quad alpha_ni_syscall			/* 70 */
-	.quad osf_mmap
+	.quad sys_osf_mmap
 	.quad alpha_ni_syscall
 	.quad sys_munmap
 	.quad sys_mprotect
@@ -94,17 +94,17 @@ sys_call_table:
 	.quad sys_setgroups			/* 80 */
 	.quad alpha_ni_syscall
 	.quad sys_setpgid
-	.quad osf_setitimer
+	.quad sys_osf_setitimer
 	.quad alpha_ni_syscall
 	.quad alpha_ni_syscall			/* 85 */
-	.quad osf_getitimer
+	.quad sys_osf_getitimer
 	.quad sys_gethostname
 	.quad sys_sethostname
 	.quad sys_getdtablesize
 	.quad sys_dup2				/* 90 */
 	.quad sys_newfstat
 	.quad sys_fcntl
-	.quad osf_select
+	.quad sys_osf_select
 	.quad sys_poll
 	.quad sys_fsync				/* 95 */
 	.quad sys_setpriority
@@ -123,22 +123,22 @@ sys_call_table:
 	.quad alpha_ni_syscall
 	.quad alpha_ni_syscall			/* 110 */
 	.quad sys_sigsuspend
-	.quad osf_sigstack
+	.quad sys_osf_sigstack
 	.quad sys_recvmsg
 	.quad sys_sendmsg
 	.quad alpha_ni_syscall			/* 115 */
-	.quad osf_gettimeofday
-	.quad osf_getrusage
+	.quad sys_osf_gettimeofday
+	.quad sys_osf_getrusage
 	.quad sys_getsockopt
 	.quad alpha_ni_syscall
 #ifdef CONFIG_OSF4_COMPAT
-	.quad osf_readv				/* 120 */
-	.quad osf_writev
+	.quad sys_osf_readv			/* 120 */
+	.quad sys_osf_writev
 #else
 	.quad sys_readv				/* 120 */
 	.quad sys_writev
 #endif
-	.quad osf_settimeofday
+	.quad sys_osf_settimeofday
 	.quad sys_fchown
 	.quad sys_fchmod
 	.quad sys_recvfrom			/* 125 */
@@ -154,7 +154,7 @@ sys_call_table:
 	.quad sys_socketpair			/* 135 */
 	.quad sys_mkdir
 	.quad sys_rmdir
-	.quad osf_utimes
+	.quad sys_osf_utimes
 	.quad alpha_ni_syscall
 	.quad alpha_ni_syscall			/* 140 */
 	.quad sys_getpeername
@@ -172,16 +172,16 @@ sys_call_table:
 	.quad alpha_ni_syscall
 	.quad alpha_ni_syscall
 	.quad alpha_ni_syscall			/* 155 */
-	.quad osf_sigaction
+	.quad sys_osf_sigaction
 	.quad alpha_ni_syscall
 	.quad alpha_ni_syscall
-	.quad osf_getdirentries
-	.quad osf_statfs			/* 160 */
-	.quad osf_fstatfs
+	.quad sys_osf_getdirentries
+	.quad sys_osf_statfs			/* 160 */
+	.quad sys_osf_fstatfs
 	.quad alpha_ni_syscall
 	.quad alpha_ni_syscall
 	.quad alpha_ni_syscall
-	.quad osf_getdomainname			/* 165 */
+	.quad sys_osf_getdomainname		/* 165 */
 	.quad sys_setdomainname
 	.quad alpha_ni_syscall
 	.quad alpha_ni_syscall
@@ -224,7 +224,7 @@ sys_call_table:
 	.quad sys_semctl
 	.quad sys_semget			/* 205 */
 	.quad sys_semop
-	.quad osf_utsname
+	.quad sys_osf_utsname
 	.quad sys_lchown
 	.quad sys_shmat
 	.quad sys_shmctl			/* 210 */
@@ -258,23 +258,23 @@ sys_call_table:
 	.quad alpha_ni_syscall
 	.quad alpha_ni_syscall
 	.quad alpha_ni_syscall			/* 240 */
-	.quad osf_sysinfo
+	.quad sys_osf_sysinfo
 	.quad alpha_ni_syscall
 	.quad alpha_ni_syscall
-	.quad osf_proplist_syscall
+	.quad sys_osf_proplist_syscall
 	.quad alpha_ni_syscall			/* 245 */
 	.quad alpha_ni_syscall
 	.quad alpha_ni_syscall
 	.quad alpha_ni_syscall
 	.quad alpha_ni_syscall
 	.quad alpha_ni_syscall			/* 250 */
-	.quad osf_usleep_thread
+	.quad sys_osf_usleep_thread
 	.quad alpha_ni_syscall
 	.quad alpha_ni_syscall
 	.quad sys_sysfs
 	.quad alpha_ni_syscall			/* 255 */
-	.quad osf_getsysinfo
-	.quad osf_setsysinfo
+	.quad sys_osf_getsysinfo
+	.quad sys_osf_setsysinfo
 	.quad alpha_ni_syscall
 	.quad alpha_ni_syscall
 	.quad alpha_ni_syscall			/* 260 */

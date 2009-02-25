@@ -1994,8 +1994,8 @@ static int neightbl_dump_info(struct sk_buff *skb, struct netlink_callback *cb)
 			if (!net_eq(neigh_parms_net(p), net))
 				continue;
 
-			if (nidx++ < neigh_skip)
-				continue;
+			if (nidx < neigh_skip)
+				goto next;
 
 			if (neightbl_fill_param_info(skb, tbl, p,
 						     NETLINK_CB(cb->skb).pid,
@@ -2003,6 +2003,8 @@ static int neightbl_dump_info(struct sk_buff *skb, struct netlink_callback *cb)
 						     RTM_NEWNEIGHTBL,
 						     NLM_F_MULTI) <= 0)
 				goto out;
+		next:
+			nidx++;
 		}
 
 		neigh_skip = 0;
@@ -2082,12 +2084,10 @@ static int neigh_dump_table(struct neigh_table *tbl, struct sk_buff *skb,
 		if (h > s_h)
 			s_idx = 0;
 		for (n = tbl->hash_buckets[h], idx = 0; n; n = n->next) {
-			int lidx;
 			if (dev_net(n->dev) != net)
 				continue;
-			lidx = idx++;
-			if (lidx < s_idx)
-				continue;
+			if (idx < s_idx)
+				goto next;
 			if (neigh_fill_info(skb, n, NETLINK_CB(cb->skb).pid,
 					    cb->nlh->nlmsg_seq,
 					    RTM_NEWNEIGH,
@@ -2096,6 +2096,8 @@ static int neigh_dump_table(struct neigh_table *tbl, struct sk_buff *skb,
 				rc = -1;
 				goto out;
 			}
+		next:
+			idx++;
 		}
 	}
 	read_unlock_bh(&tbl->lock);

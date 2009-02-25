@@ -37,6 +37,7 @@
 #define MON_IOCX_GET   _IOW(MON_IOC_MAGIC, 6, struct mon_bin_get)
 #define MON_IOCX_MFETCH _IOWR(MON_IOC_MAGIC, 7, struct mon_bin_mfetch)
 #define MON_IOCH_MFLUSH _IO(MON_IOC_MAGIC, 8)
+
 #ifdef CONFIG_COMPAT
 #define MON_IOCX_GET32 _IOW(MON_IOC_MAGIC, 6, struct mon_bin_get32)
 #define MON_IOCX_MFETCH32 _IOWR(MON_IOC_MAGIC, 7, struct mon_bin_mfetch32)
@@ -921,21 +922,6 @@ static int mon_bin_ioctl(struct inode *inode, struct file *file,
 		}
 		break;
 
-#ifdef CONFIG_COMPAT
-	case MON_IOCX_GET32: {
-		struct mon_bin_get32 getb;
-
-		if (copy_from_user(&getb, (void __user *)arg,
-					    sizeof(struct mon_bin_get32)))
-			return -EFAULT;
-
-		ret = mon_bin_get_event(file, rp,
-		    compat_ptr(getb.hdr32), compat_ptr(getb.data32),
-		    getb.alloc32);
-		}
-		break;
-#endif
-
 	case MON_IOCX_MFETCH:
 		{
 		struct mon_bin_mfetch mfetch;
@@ -961,35 +947,6 @@ static int mon_bin_ioctl(struct inode *inode, struct file *file,
 		ret = 0;
 		}
 		break;
-
-#ifdef CONFIG_COMPAT
-	case MON_IOCX_MFETCH32:
-		{
-		struct mon_bin_mfetch32 mfetch;
-		struct mon_bin_mfetch32 __user *uptr;
-
-		uptr = (struct mon_bin_mfetch32 __user *) compat_ptr(arg);
-
-		if (copy_from_user(&mfetch, uptr, sizeof(mfetch)))
-			return -EFAULT;
-
-		if (mfetch.nflush32) {
-			ret = mon_bin_flush(rp, mfetch.nflush32);
-			if (ret < 0)
-				return ret;
-			if (put_user(ret, &uptr->nflush32))
-				return -EFAULT;
-		}
-		ret = mon_bin_fetch(file, rp, compat_ptr(mfetch.offvec32),
-		    mfetch.nfetch32);
-		if (ret < 0)
-			return ret;
-		if (put_user(ret, &uptr->nfetch32))
-			return -EFAULT;
-		ret = 0;
-		}
-		break;
-#endif
 
 	case MON_IOCG_STATS: {
 		struct mon_bin_stats __user *sp;
@@ -1017,6 +974,73 @@ static int mon_bin_ioctl(struct inode *inode, struct file *file,
 
 	return ret;
 }
+
+#ifdef CONFIG_COMPAT
+static long mon_bin_compat_ioctl(struct file *file,
+    unsigned int cmd, unsigned long arg)
+{
+	struct mon_reader_bin *rp = file->private_data;
+	int ret;
+
+	switch (cmd) {
+
+	case MON_IOCX_GET32: {
+		struct mon_bin_get32 getb;
+
+		if (copy_from_user(&getb, (void __user *)arg,
+					    sizeof(struct mon_bin_get32)))
+			return -EFAULT;
+
+		ret = mon_bin_get_event(file, rp,
+		    compat_ptr(getb.hdr32), compat_ptr(getb.data32),
+		    getb.alloc32);
+		if (ret < 0)
+			return ret;
+		}
+		return 0;
+
+	case MON_IOCX_MFETCH32:
+		{
+		struct mon_bin_mfetch32 mfetch;
+		struct mon_bin_mfetch32 __user *uptr;
+
+		uptr = (struct mon_bin_mfetch32 __user *) compat_ptr(arg);
+
+		if (copy_from_user(&mfetch, uptr, sizeof(mfetch)))
+			return -EFAULT;
+
+		if (mfetch.nflush32) {
+			ret = mon_bin_flush(rp, mfetch.nflush32);
+			if (ret < 0)
+				return ret;
+			if (put_user(ret, &uptr->nflush32))
+				return -EFAULT;
+		}
+		ret = mon_bin_fetch(file, rp, compat_ptr(mfetch.offvec32),
+		    mfetch.nfetch32);
+		if (ret < 0)
+			return ret;
+		if (put_user(ret, &uptr->nfetch32))
+			return -EFAULT;
+		}
+		return 0;
+
+	case MON_IOCG_STATS:
+		return mon_bin_ioctl(NULL, file, cmd,
+					    (unsigned long) compat_ptr(arg));
+
+	case MON_IOCQ_URB_LEN:
+	case MON_IOCQ_RING_SIZE:
+	case MON_IOCT_RING_SIZE:
+	case MON_IOCH_MFLUSH:
+		return mon_bin_ioctl(NULL, file, cmd, arg);
+
+	default:
+		;
+	}
+	return -ENOTTY;
+}
+#endif /* CONFIG_COMPAT */
 
 static unsigned int
 mon_bin_poll(struct file *file, struct poll_table_struct *wait)
@@ -1094,6 +1118,9 @@ static const struct file_operations mon_fops_binary = {
 	/* .write =	mon_text_write, */
 	.poll =		mon_bin_poll,
 	.ioctl =	mon_bin_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl =	mon_bin_compat_ioctl,
+#endif
 	.release =	mon_bin_release,
 	.mmap =		mon_bin_mmap,
 };

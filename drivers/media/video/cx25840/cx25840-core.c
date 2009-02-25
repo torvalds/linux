@@ -1382,6 +1382,14 @@ static int cx25840_log_status(struct v4l2_subdev *sd)
 
 static int cx25840_command(struct i2c_client *client, unsigned cmd, void *arg)
 {
+	/* ignore this command */
+	if (cmd == TUNER_SET_TYPE_ADDR || cmd == TUNER_SET_CONFIG)
+		return 0;
+
+	/* Old-style drivers rely on initialization on first use, so
+	   call the init whenever a command is issued to this driver.
+	   New-style drivers using v4l2_subdev should call init explicitly. */
+	cx25840_init(i2c_get_clientdata(client), 0);
 	return v4l2_subdev_command(i2c_get_clientdata(client), cmd, arg);
 }
 

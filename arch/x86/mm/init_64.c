@@ -596,7 +596,7 @@ static void __init init_gbpages(void)
 		direct_gbpages = 0;
 }
 
-static unsigned long __init kernel_physical_mapping_init(unsigned long start,
+static unsigned long __meminit kernel_physical_mapping_init(unsigned long start,
 						unsigned long end,
 						unsigned long page_size_mask)
 {

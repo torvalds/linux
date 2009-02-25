@@ -528,7 +528,8 @@ struct drm_mode_group {
  *
  */
 struct drm_mode_config {
-	struct mutex mutex; /* protects configuration and IDR */
+	struct mutex mutex; /* protects configuration (mode lists etc.) */
+	struct mutex idr_mutex; /* for IDR management */
 	struct idr crtc_idr; /* use this idr for all IDs, fb, crtc, connector, modes - just makes life easier */
 	/* this is limited to one for now */
 	int num_fb;
@@ -608,7 +609,7 @@ extern char *drm_get_dvi_i_subconnector_name(int val);
 extern char *drm_get_dvi_i_select_name(int val);
 extern char *drm_get_tv_subconnector_name(int val);
 extern char *drm_get_tv_select_name(int val);
-extern void drm_fb_release(struct file *filp);
+extern void drm_fb_release(struct drm_file *file_priv);
 extern int drm_mode_group_init_legacy_group(struct drm_device *dev, struct drm_mode_group *group);
 extern struct edid *drm_get_edid(struct drm_connector *connector,
 				 struct i2c_adapter *adapter);

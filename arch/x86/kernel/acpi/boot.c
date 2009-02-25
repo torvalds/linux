@@ -973,6 +973,29 @@ void __init mp_register_ioapic(int id, u32 address, u32 gsi_base)
 	nr_ioapics++;
 }
 
+int __init acpi_probe_gsi(void)
+{
+	int idx;
+	int gsi;
+	int max_gsi = 0;
+
+	if (acpi_disabled)
+		return 0;
+
+	if (!acpi_ioapic)
+		return 0;
+
+	max_gsi = 0;
+	for (idx = 0; idx < nr_ioapics; idx++) {
+		gsi = mp_ioapic_routing[idx].gsi_end;
+
+		if (gsi > max_gsi)
+			max_gsi = gsi;
+	}
+
+	return max_gsi + 1;
+}
+
 static void assign_to_mp_irq(struct mp_config_intsrc *m,
 				    struct mp_config_intsrc *mp_irq)
 {

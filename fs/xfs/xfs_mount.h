@@ -44,9 +44,9 @@ typedef struct xfs_trans_reservations {
 
 #ifndef __KERNEL__
 
-#define XFS_DADDR_TO_AGNO(mp,d) \
+#define xfs_daddr_to_agno(mp,d) \
 	((xfs_agnumber_t)(XFS_BB_TO_FSBT(mp, d) / (mp)->m_sb.sb_agblocks))
-#define XFS_DADDR_TO_AGBNO(mp,d) \
+#define xfs_daddr_to_agbno(mp,d) \
 	((xfs_agblock_t)(XFS_BB_TO_FSBT(mp, d) % (mp)->m_sb.sb_agblocks))
 
 #else /* __KERNEL__ */
@@ -327,6 +327,8 @@ typedef struct xfs_mount {
 	spinlock_t		m_sync_lock;	/* work item list lock */
 	int			m_sync_seq;	/* sync thread generation no. */
 	wait_queue_head_t	m_wait_single_sync_task;
+	__int64_t		m_update_flags;	/* sb flags we need to update
+						   on the next remount,rw */
 } xfs_mount_t;
 
 /*
@@ -439,7 +441,6 @@ void xfs_do_force_shutdown(struct xfs_mount *mp, int flags, char *fname,
  */
 #define XFS_MFSI_QUIET		0x40	/* Be silent if mount errors found */
 
-#define XFS_DADDR_TO_AGNO(mp,d)         xfs_daddr_to_agno(mp,d)
 static inline xfs_agnumber_t
 xfs_daddr_to_agno(struct xfs_mount *mp, xfs_daddr_t d)
 {
@@ -448,7 +449,6 @@ xfs_daddr_to_agno(struct xfs_mount *mp, xfs_daddr_t d)
 	return (xfs_agnumber_t) ld;
 }
 
-#define XFS_DADDR_TO_AGBNO(mp,d)        xfs_daddr_to_agbno(mp,d)
 static inline xfs_agblock_t
 xfs_daddr_to_agbno(struct xfs_mount *mp, xfs_daddr_t d)
 {
@@ -514,6 +514,7 @@ extern int	xfs_mod_incore_sb_unlocked(xfs_mount_t *, xfs_sb_field_t,
 			int64_t, int);
 extern int	xfs_mod_incore_sb_batch(xfs_mount_t *, xfs_mod_sb_t *,
 			uint, int);
+extern int	xfs_mount_log_sb(xfs_mount_t *, __int64_t);
 extern struct xfs_buf *xfs_getsb(xfs_mount_t *, int);
 extern int	xfs_readsb(xfs_mount_t *, int);
 extern void	xfs_freesb(xfs_mount_t *);

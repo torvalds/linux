@@ -66,6 +66,13 @@ static inline void op_cpu_buffer_reset(int cpu)
 	cpu_buf->last_task = NULL;
 }
 
+/*
+ * op_cpu_buffer_add_data() and op_cpu_buffer_write_commit() may be
+ * called only if op_cpu_buffer_write_reserve() did not return NULL or
+ * entry->event != NULL, otherwise entry->size or entry->event will be
+ * used uninitialized.
+ */
+
 struct op_sample
 *op_cpu_buffer_write_reserve(struct op_entry *entry, unsigned long size);
 int op_cpu_buffer_write_commit(struct op_entry *entry);

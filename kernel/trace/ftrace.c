@@ -17,6 +17,7 @@
 #include <linux/clocksource.h>
 #include <linux/kallsyms.h>
 #include <linux/seq_file.h>
+#include <linux/suspend.h>
 #include <linux/debugfs.h>
 #include <linux/hardirq.h>
 #include <linux/kthread.h>
@@ -1736,9 +1737,12 @@ static void clear_ftrace_pid(struct pid *pid)
 {
 	struct task_struct *p;
 
+	rcu_read_lock();
 	do_each_pid_task(pid, PIDTYPE_PID, p) {
 		clear_tsk_trace_trace(p);
 	} while_each_pid_task(pid, PIDTYPE_PID, p);
+	rcu_read_unlock();
+
 	put_pid(pid);
 }
 
@@ -1746,9 +1750,11 @@ static void set_ftrace_pid(struct pid *pid)
 {
 	struct task_struct *p;
 
+	rcu_read_lock();
 	do_each_pid_task(pid, PIDTYPE_PID, p) {
 		set_tsk_trace_trace(p);
 	} while_each_pid_task(pid, PIDTYPE_PID, p);
+	rcu_read_unlock();
 }
 
 static void clear_ftrace_pid_task(struct pid **pid)
@@ -1965,6 +1971,7 @@ ftrace_enable_sysctl(struct ctl_table *table, int write,
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 
 static atomic_t ftrace_graph_active;
+static struct notifier_block ftrace_suspend_notifier;
 
 int ftrace_graph_entry_stub(struct ftrace_graph_ent *trace)
 {
@@ -2026,7 +2033,7 @@ free:
 static int start_graph_tracing(void)
 {
 	struct ftrace_ret_stack **ret_stack_list;
-	int ret;
+	int ret, cpu;
 
 	ret_stack_list = kmalloc(FTRACE_RETSTACK_ALLOC_SIZE *
 				sizeof(struct ftrace_ret_stack *),
@@ -2034,6 +2041,10 @@ static int start_graph_tracing(void)
 
 	if (!ret_stack_list)
 		return -ENOMEM;
+
+	/* The cpu_boot init_task->ret_stack will never be freed */
+	for_each_online_cpu(cpu)
+		ftrace_graph_init_task(idle_task(cpu));
 
 	do {
 		ret = alloc_retstack_tasklist(ret_stack_list);
@@ -2043,12 +2054,36 @@ static int start_graph_tracing(void)
 	return ret;
 }
 
+/*
+ * Hibernation protection.
+ * The state of the current task is too much unstable during
+ * suspend/restore to disk. We want to protect against that.
+ */
+static int
+ftrace_suspend_notifier_call(struct notifier_block *bl, unsigned long state,
+							void *unused)
+{
+	switch (state) {
+	case PM_HIBERNATION_PREPARE:
+		pause_graph_tracing();
+		break;
+
+	case PM_POST_HIBERNATION:
+		unpause_graph_tracing();
+		break;
+	}
+	return NOTIFY_DONE;
+}
+
 int register_ftrace_graph(trace_func_graph_ret_t retfunc,
 			trace_func_graph_ent_t entryfunc)
 {
 	int ret = 0;
 
 	mutex_lock(&ftrace_sysctl_lock);
+
+	ftrace_suspend_notifier.notifier_call = ftrace_suspend_notifier_call;
+	register_pm_notifier(&ftrace_suspend_notifier);
 
 	atomic_inc(&ftrace_graph_active);
 	ret = start_graph_tracing();
@@ -2075,6 +2110,7 @@ void unregister_ftrace_graph(void)
 	ftrace_graph_return = (trace_func_graph_ret_t)ftrace_stub;
 	ftrace_graph_entry = ftrace_graph_entry_stub;
 	ftrace_shutdown(FTRACE_STOP_FUNC_RET);
+	unregister_pm_notifier(&ftrace_suspend_notifier);
 
 	mutex_unlock(&ftrace_sysctl_lock);
 }

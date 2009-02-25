@@ -862,7 +862,7 @@ xfs_inactive_symlink_rmt(
 	 * Find the block(s) so we can inval and unmap them.
 	 */
 	done = 0;
-	XFS_BMAP_INIT(&free_list, &first_block);
+	xfs_bmap_init(&free_list, &first_block);
 	nmaps = ARRAY_SIZE(mval);
 	if ((error = xfs_bmapi(tp, ip, 0, XFS_B_TO_FSB(mp, size),
 			XFS_BMAPI_METADATA, &first_block, 0, mval, &nmaps,
@@ -1288,7 +1288,7 @@ xfs_inactive(
 	/*
 	 * Free the inode.
 	 */
-	XFS_BMAP_INIT(&free_list, &first_block);
+	xfs_bmap_init(&free_list, &first_block);
 	error = xfs_ifree(tp, ip, &free_list);
 	if (error) {
 		/*
@@ -1461,7 +1461,7 @@ xfs_create(
 	xfs_ilock(dp, XFS_ILOCK_EXCL | XFS_ILOCK_PARENT);
 	unlock_dp_on_error = B_TRUE;
 
-	XFS_BMAP_INIT(&free_list, &first_block);
+	xfs_bmap_init(&free_list, &first_block);
 
 	ASSERT(ip == NULL);
 
@@ -1879,7 +1879,7 @@ xfs_remove(
 		}
 	}
 
-	XFS_BMAP_INIT(&free_list, &first_block);
+	xfs_bmap_init(&free_list, &first_block);
 	error = xfs_dir_removename(tp, dp, name, ip->i_ino,
 					&first_block, &free_list, resblks);
 	if (error) {
@@ -2059,7 +2059,7 @@ xfs_link(
 	if (error)
 		goto error_return;
 
-	XFS_BMAP_INIT(&free_list, &first_block);
+	xfs_bmap_init(&free_list, &first_block);
 
 	error = xfs_dir_createname(tp, tdp, target_name, sip->i_ino,
 					&first_block, &free_list, resblks);
@@ -2231,7 +2231,7 @@ xfs_mkdir(
 	xfs_trans_ijoin(tp, dp, XFS_ILOCK_EXCL);
 	unlock_dp_on_error = B_FALSE;
 
-	XFS_BMAP_INIT(&free_list, &first_block);
+	xfs_bmap_init(&free_list, &first_block);
 
 	error = xfs_dir_createname(tp, dp, dir_name, cdp->i_ino,
 					&first_block, &free_list, resblks ?
@@ -2438,7 +2438,7 @@ xfs_symlink(
 	 * Initialize the bmap freelist prior to calling either
 	 * bmapi or the directory create code.
 	 */
-	XFS_BMAP_INIT(&free_list, &first_block);
+	xfs_bmap_init(&free_list, &first_block);
 
 	/*
 	 * Allocate an inode for the symlink.
@@ -2860,7 +2860,7 @@ retry:
 		/*
 		 * Issue the xfs_bmapi() call to allocate the blocks
 		 */
-		XFS_BMAP_INIT(&free_list, &firstfsb);
+		xfs_bmap_init(&free_list, &firstfsb);
 		error = xfs_bmapi(tp, ip, startoffset_fsb,
 				  allocatesize_fsb, bmapi_flag,
 				  &firstfsb, 0, imapp, &nimaps,
@@ -2980,7 +2980,7 @@ xfs_zero_remaining_bytes(
 		XFS_BUF_UNDONE(bp);
 		XFS_BUF_UNWRITE(bp);
 		XFS_BUF_READ(bp);
-		XFS_BUF_SET_ADDR(bp, XFS_FSB_TO_DB(ip, imap.br_startblock));
+		XFS_BUF_SET_ADDR(bp, xfs_fsb_to_db(ip, imap.br_startblock));
 		xfsbdstrat(mp, bp);
 		error = xfs_iowait(bp);
 		if (error) {
@@ -3186,7 +3186,7 @@ xfs_free_file_space(
 		/*
 		 * issue the bunmapi() call to free the blocks
 		 */
-		XFS_BMAP_INIT(&free_list, &firstfsb);
+		xfs_bmap_init(&free_list, &firstfsb);
 		error = xfs_bunmapi(tp, ip, startoffset_fsb,
 				  endoffset_fsb - startoffset_fsb,
 				  0, 2, &firstfsb, &free_list, NULL, &done);

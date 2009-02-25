@@ -55,6 +55,7 @@ void pci_disable_rom(struct pci_dev *pdev)
 
 /**
  * pci_get_rom_size - obtain the actual size of the ROM image
+ * @pdev: target PCI device
  * @rom: kernel virtual pointer to image of ROM
  * @size: size of PCI window
  *  return: size of actual ROM image
@@ -63,7 +64,7 @@ void pci_disable_rom(struct pci_dev *pdev)
  * The PCI window size could be much larger than the
  * actual image size.
  */
-size_t pci_get_rom_size(void __iomem *rom, size_t size)
+size_t pci_get_rom_size(struct pci_dev *pdev, void __iomem *rom, size_t size)
 {
 	void __iomem *image;
 	int last_image;
@@ -72,8 +73,10 @@ size_t pci_get_rom_size(void __iomem *rom, size_t size)
 	do {
 		void __iomem *pds;
 		/* Standard PCI ROMs start out with these bytes 55 AA */
-		if (readb(image) != 0x55)
+		if (readb(image) != 0x55) {
+			dev_err(&pdev->dev, "Invalid ROM contents\n");
 			break;
+		}
 		if (readb(image + 1) != 0xAA)
 			break;
 		/* get the PCI data structure and check its signature */
@@ -159,7 +162,7 @@ void __iomem *pci_map_rom(struct pci_dev *pdev, size_t *size)
 	 * size is much larger than the actual size of the ROM.
 	 * True size is important if the ROM is going to be copied.
 	 */
-	*size = pci_get_rom_size(rom, *size);
+	*size = pci_get_rom_size(pdev, rom, *size);
 	return rom;
 }
 

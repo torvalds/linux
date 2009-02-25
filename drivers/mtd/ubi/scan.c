@@ -42,7 +42,7 @@
 
 #include <linux/err.h>
 #include <linux/crc32.h>
-#include <asm/div64.h>
+#include <linux/math64.h>
 #include "ubi.h"
 
 #ifdef CONFIG_MTD_UBI_DEBUG_PARANOID
@@ -904,10 +904,8 @@ struct ubi_scan_info *ubi_scan(struct ubi_device *ubi)
 	dbg_msg("scanning is finished");
 
 	/* Calculate mean erase counter */
-	if (si->ec_count) {
-		do_div(si->ec_sum, si->ec_count);
-		si->mean_ec = si->ec_sum;
-	}
+	if (si->ec_count)
+		si->mean_ec = div_u64(si->ec_sum, si->ec_count);
 
 	if (si->is_empty)
 		ubi_msg("empty MTD device detected");

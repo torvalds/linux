@@ -10,7 +10,7 @@
  *  Copyright (c) 2000-2003 David McCullough <davidm@snapgear.com>
  *  Copyright (c) 2000-2001 D Jeff Dionne <jeff@uClinux.org>
  *  Copyright (c) 2002      Greg Ungerer <gerg@snapgear.com>
- *  Copyright (c) 2007-2008 Paul Mundt <lethal@linux-sh.org>
+ *  Copyright (c) 2007-2009 Paul Mundt <lethal@linux-sh.org>
  */
 
 #include <linux/module.h>
@@ -393,6 +393,24 @@ void vunmap(const void *addr)
 	BUG();
 }
 EXPORT_SYMBOL(vunmap);
+
+void *vm_map_ram(struct page **pages, unsigned int count, int node, pgprot_t prot)
+{
+	BUG();
+	return NULL;
+}
+EXPORT_SYMBOL(vm_map_ram);
+
+void vm_unmap_ram(const void *mem, unsigned int count)
+{
+	BUG();
+}
+EXPORT_SYMBOL(vm_unmap_ram);
+
+void vm_unmap_aliases(void)
+{
+}
+EXPORT_SYMBOL_GPL(vm_unmap_aliases);
 
 /*
  * Implement a stub for vmalloc_sync_all() if the architecture chose not to
@@ -1143,8 +1161,8 @@ error_free:
 	return ret;
 
 enomem:
-	printk("Allocation of length %lu from process %d failed\n",
-	       len, current->pid);
+	printk("Allocation of length %lu from process %d (%s) failed\n",
+	       len, current->pid, current->comm);
 	show_free_areas();
 	return -ENOMEM;
 }
