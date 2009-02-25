@@ -189,7 +189,7 @@ extern long __copy_user_nocache(void *dst, const void __user *src,
 				unsigned size, int zerorest);
 
 static inline int __copy_from_user_nocache(void *dst, const void __user *src,
-					   unsigned size)
+				   unsigned size, unsigned long total)
 {
 	might_sleep();
 	/*
@@ -205,8 +205,7 @@ static inline int __copy_from_user_nocache(void *dst, const void __user *src,
 }
 
 static inline int __copy_from_user_inatomic_nocache(void *dst,
-						    const void __user *src,
-						    unsigned size)
+	    const void __user *src, unsigned size, unsigned total)
 {
 	if (likely(size >= PAGE_SIZE))
 		return __copy_user_nocache(dst, src, size, 0);
