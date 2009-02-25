@@ -71,10 +71,10 @@
 /*
  *  heci driver strings
  */
-char heci_driver_name[] = HECI_DRIVER_NAME;
-char heci_driver_string[] = "Intel(R) Management Engine Interface";
-char heci_driver_version[] = HECI_DRIVER_VERSION;
-char heci_copyright[] = "Copyright (c) 2003 - 2008 Intel Corporation.";
+static char heci_driver_name[] = HECI_DRIVER_NAME;
+static char heci_driver_string[] = "Intel(R) Management Engine Interface";
+static char heci_driver_version[] = HECI_DRIVER_VERSION;
+static char heci_copyright[] = "Copyright (c) 2003 - 2008 Intel Corporation.";
 
 
 #ifdef HECI_DEBUG
@@ -96,7 +96,7 @@ static int heci_major;
 /* The device pointer */
 static struct pci_dev *heci_device;
 
-struct class *heci_class;
+static struct class *heci_class;
 
 
 /* heci_pci_tbl - PCI Device ID Table */
@@ -1331,7 +1331,7 @@ static int heci_ioctl(struct inode *inode, struct file *file,
 	int if_num = iminor(inode);
 	struct heci_file_private *file_ext = file->private_data;
 	/* in user space */
-	struct heci_message_data *u_msg = (struct heci_message_data *) data;
+	struct heci_message_data __user *u_msg;
 	struct heci_message_data k_msg;	/* all in kernel on the stack */
 	struct iamt_heci_device *dev;
 
@@ -1353,6 +1353,7 @@ static int heci_ioctl(struct inode *inode, struct file *file,
 	spin_unlock_bh(&dev->device_lock);
 
 	/* first copy from user all data needed */
+	u_msg = (struct heci_message_data __user *)data;
 	if (copy_from_user(&k_msg, u_msg, sizeof(k_msg))) {
 		DBG("first copy from user all data needed filled\n");
 		return -EFAULT;

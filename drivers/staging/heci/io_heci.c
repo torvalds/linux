@@ -76,7 +76,7 @@
  * returns 0 on success, <0 on failure.
  */
 int heci_ioctl_get_version(struct iamt_heci_device *dev, int if_num,
-			   struct heci_message_data *u_msg,
+			   struct heci_message_data __user *u_msg,
 			   struct heci_message_data k_msg,
 			   struct heci_file_private *file_ext)
 {
@@ -136,7 +136,7 @@ end:
  * returns 0 on success, <0 on failure.
  */
 int heci_ioctl_connect_client(struct iamt_heci_device *dev, int if_num,
-			      struct heci_message_data *u_msg,
+			      struct heci_message_data __user *u_msg,
 			      struct heci_message_data k_msg,
 			      struct file *file)
 {
@@ -524,7 +524,7 @@ struct heci_cb_private *find_pthi_read_list_entry(
  *  negative on failure.
  */
 int pthi_read(struct iamt_heci_device *dev, int if_num, struct file *file,
-	      char *ubuf, size_t length, loff_t *offset)
+	      char __user *ubuf, size_t length, loff_t *offset)
 {
 	int rets = 0;
 	struct heci_cb_private *priv_cb = NULL;

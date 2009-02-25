@@ -428,7 +428,7 @@ struct iamt_heci_device {
 	 */
 	unsigned int mem_base;
 	unsigned int mem_length;
-	char *mem_addr;
+	void __iomem *mem_addr;
 	/*
 	 * lock for the device
 	 */
