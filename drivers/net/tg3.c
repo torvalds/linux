@@ -4339,6 +4339,13 @@ static int tg3_rx(struct tg3 *tp, int budget)
 			skb->ip_summed = CHECKSUM_NONE;
 
 		skb->protocol = eth_type_trans(skb, tp->dev);
+
+		if (len > (tp->dev->mtu + ETH_HLEN) &&
+		    skb->protocol != htons(ETH_P_8021Q)) {
+			dev_kfree_skb(skb);
+			goto next_pkt;
+		}
+
 #if TG3_VLAN_TAG_USED
 		if (tp->vlgrp != NULL &&
 		    desc->type_flags & RXD_FLAG_VLAN) {
@@ -6824,7 +6831,8 @@ static int tg3_reset_hw(struct tg3 *tp, int reset_phy)
 	__tg3_set_mac_addr(tp, 0);
 
 	/* MTU + ethernet header + FCS + optional VLAN tag */
-	tw32(MAC_RX_MTU_SIZE, tp->dev->mtu + ETH_HLEN + 8);
+	tw32(MAC_RX_MTU_SIZE,
+	     tp->dev->mtu + ETH_HLEN + ETH_FCS_LEN + VLAN_HLEN);
 
 	/* The slot time is changed by tg3_setup_phy if we
 	 * run at gigabit with half duplex.
