@@ -23,9 +23,10 @@
 #ifndef __SOUND_ASOUND_H
 #define __SOUND_ASOUND_H
 
+#include <linux/types.h>
+
 #ifdef __KERNEL__
 #include <linux/ioctl.h>
-#include <linux/types.h>
 #include <linux/time.h>
 #include <asm/byteorder.h>
 
@@ -342,7 +343,7 @@ struct snd_interval {
 #define SNDRV_MASK_MAX	256
 
 struct snd_mask {
-	u_int32_t bits[(SNDRV_MASK_MAX+31)/32];
+	__u32 bits[(SNDRV_MASK_MAX+31)/32];
 };
 
 struct snd_pcm_hw_params {
