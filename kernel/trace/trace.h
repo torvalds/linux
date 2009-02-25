@@ -395,6 +395,8 @@ struct trace_seq {
 	unsigned int		readpos;
 };
 
+#define TRACE_PIPE_ALL_CPU	-1
+
 /*
  * Trace iterator - used by printout routines who present trace
  * results to users and which routines might sleep, etc:
@@ -404,6 +406,7 @@ struct trace_iterator {
 	struct tracer		*trace;
 	void			*private;
 	struct ring_buffer_iter	*buffer_iter[NR_CPUS];
+	int			cpu_file;
 
 	/* The below is zeroed out in pipe_read */
 	struct trace_seq	seq;
