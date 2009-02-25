@@ -125,7 +125,7 @@ static bool edid_is_valid(struct edid *edid)
 		DRM_ERROR("EDID has major version %d, instead of 1\n", edid->version);
 		goto bad;
 	}
-	if (edid->revision <= 0 || edid->revision > 3) {
+	if (edid->revision > 3) {
 		DRM_ERROR("EDID has minor version %d, which is not between 0-3\n", edid->revision);
 		goto bad;
 	}
