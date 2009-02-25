@@ -8552,7 +8552,7 @@ static int tg3_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 		cmd->duplex = tp->link_config.active_duplex;
 	}
 	cmd->phy_address = PHY_ADDR;
-	cmd->transceiver = 0;
+	cmd->transceiver = XCVR_INTERNAL;
 	cmd->autoneg = tp->link_config.autoneg;
 	cmd->maxtxpkt = 0;
 	cmd->maxrxpkt = 0;
@@ -8569,25 +8569,57 @@ static int tg3_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 		return phy_ethtool_sset(tp->mdio_bus->phy_map[PHY_ADDR], cmd);
 	}
 
-	if (tp->tg3_flags2 & TG3_FLG2_ANY_SERDES) {
-		/* These are the only valid advertisement bits allowed.  */
-		if (cmd->autoneg == AUTONEG_ENABLE &&
-		    (cmd->advertising & ~(ADVERTISED_1000baseT_Half |
-					  ADVERTISED_1000baseT_Full |
-					  ADVERTISED_Autoneg |
-					  ADVERTISED_FIBRE)))
-			return -EINVAL;
-		/* Fiber can only do SPEED_1000.  */
-		else if ((cmd->autoneg != AUTONEG_ENABLE) &&
-			 (cmd->speed != SPEED_1000))
-			return -EINVAL;
-	/* Copper cannot force SPEED_1000.  */
-	} else if ((cmd->autoneg != AUTONEG_ENABLE) &&
-		   (cmd->speed == SPEED_1000))
+	if (cmd->autoneg != AUTONEG_ENABLE &&
+	    cmd->autoneg != AUTONEG_DISABLE)
 		return -EINVAL;
-	else if ((cmd->speed == SPEED_1000) &&
-		 (tp->tg3_flags & TG3_FLAG_10_100_ONLY))
+
+	if (cmd->autoneg == AUTONEG_DISABLE &&
+	    cmd->duplex != DUPLEX_FULL &&
+	    cmd->duplex != DUPLEX_HALF)
 		return -EINVAL;
+
+	if (cmd->autoneg == AUTONEG_ENABLE) {
+		u32 mask = ADVERTISED_Autoneg |
+			   ADVERTISED_Pause |
+			   ADVERTISED_Asym_Pause;
+
+		if (!(tp->tg3_flags2 & TG3_FLAG_10_100_ONLY))
+			mask |= ADVERTISED_1000baseT_Half |
+				ADVERTISED_1000baseT_Full;
+
+		if (!(tp->tg3_flags2 & TG3_FLG2_ANY_SERDES))
+			mask |= ADVERTISED_100baseT_Half |
+				ADVERTISED_100baseT_Full |
+				ADVERTISED_10baseT_Half |
+				ADVERTISED_10baseT_Full |
+				ADVERTISED_TP;
+		else
+			mask |= ADVERTISED_FIBRE;
+
+		if (cmd->advertising & ~mask)
+			return -EINVAL;
+
+		mask &= (ADVERTISED_1000baseT_Half |
+			 ADVERTISED_1000baseT_Full |
+			 ADVERTISED_100baseT_Half |
+			 ADVERTISED_100baseT_Full |
+			 ADVERTISED_10baseT_Half |
+			 ADVERTISED_10baseT_Full);
+
+		cmd->advertising &= mask;
+	} else {
+		if (tp->tg3_flags2 & TG3_FLG2_ANY_SERDES) {
+			if (cmd->speed != SPEED_1000)
+				return -EINVAL;
+
+			if (cmd->duplex != DUPLEX_FULL)
+				return -EINVAL;
+		} else {
+			if (cmd->speed != SPEED_100 &&
+			    cmd->speed != SPEED_10)
+				return -EINVAL;
+		}
+	}
 
 	tg3_full_lock(tp, 0);
 
