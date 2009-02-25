@@ -111,6 +111,12 @@ parse_panel_data(struct drm_i915_private *dev_priv, struct bdb_header *bdb)
 	panel_fixed_mode->clock = dvo_timing->clock * 10;
 	panel_fixed_mode->type = DRM_MODE_TYPE_PREFERRED;
 
+	/* Some VBTs have bogus h/vtotal values */
+	if (panel_fixed_mode->hsync_end > panel_fixed_mode->htotal)
+		panel_fixed_mode->htotal = panel_fixed_mode->hsync_end + 1;
+	if (panel_fixed_mode->vsync_end > panel_fixed_mode->vtotal)
+		panel_fixed_mode->vtotal = panel_fixed_mode->vsync_end + 1;
+
 	drm_mode_set_name(panel_fixed_mode);
 
 	dev_priv->vbt_mode = panel_fixed_mode;

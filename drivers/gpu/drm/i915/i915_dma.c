@@ -811,7 +811,7 @@ static int i915_set_status_page(struct drm_device *dev, void *data,
 	dev_priv->hws_map.flags = 0;
 	dev_priv->hws_map.mtrr = 0;
 
-	drm_core_ioremap(&dev_priv->hws_map, dev);
+	drm_core_ioremap_wc(&dev_priv->hws_map, dev);
 	if (dev_priv->hws_map.handle == NULL) {
 		i915_dma_cleanup(dev);
 		dev_priv->status_gfx_addr = 0;

@@ -452,6 +452,59 @@ static void drm_setup_crtcs(struct drm_device *dev)
 	kfree(modes);
 	kfree(enabled);
 }
+
+/**
+ * drm_encoder_crtc_ok - can a given crtc drive a given encoder?
+ * @encoder: encoder to test
+ * @crtc: crtc to test
+ *
+ * Return false if @encoder can't be driven by @crtc, true otherwise.
+ */
+static bool drm_encoder_crtc_ok(struct drm_encoder *encoder,
+				struct drm_crtc *crtc)
+{
+	struct drm_device *dev;
+	struct drm_crtc *tmp;
+	int crtc_mask = 1;
+
+	WARN(!crtc, "checking null crtc?");
+
+	dev = crtc->dev;
+
+	list_for_each_entry(tmp, &dev->mode_config.crtc_list, head) {
+		if (tmp == crtc)
+			break;
+		crtc_mask <<= 1;
+	}
+
+	if (encoder->possible_crtcs & crtc_mask)
+		return true;
+	return false;
+}
+
+/*
+ * Check the CRTC we're going to map each output to vs. its current
+ * CRTC.  If they don't match, we have to disable the output and the CRTC
+ * since the driver will have to re-route things.
+ */
+static void
+drm_crtc_prepare_encoders(struct drm_device *dev)
+{
+	struct drm_encoder_helper_funcs *encoder_funcs;
+	struct drm_encoder *encoder;
+
+	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
+		encoder_funcs = encoder->helper_private;
+		/* Disable unused encoders */
+		if (encoder->crtc == NULL)
+			(*encoder_funcs->dpms)(encoder, DRM_MODE_DPMS_OFF);
+		/* Disable encoders whose CRTC is about to change */
+		if (encoder_funcs->get_crtc &&
+		    encoder->crtc != (*encoder_funcs->get_crtc)(encoder))
+			(*encoder_funcs->dpms)(encoder, DRM_MODE_DPMS_OFF);
+	}
+}
+
 /**
  * drm_crtc_set_mode - set a mode
  * @crtc: CRTC to program
@@ -547,6 +600,8 @@ bool drm_crtc_helper_set_mode(struct drm_crtc *crtc,
 		encoder_funcs->prepare(encoder);
 	}
 
+	drm_crtc_prepare_encoders(dev);
+
 	crtc_funcs->prepare(crtc);
 
 	/* Set up the DPLL and any encoders state that needs to adjust or depend
@@ -617,7 +672,7 @@ int drm_crtc_helper_set_config(struct drm_mode_set *set)
 	struct drm_device *dev;
 	struct drm_crtc **save_crtcs, *new_crtc;
 	struct drm_encoder **save_encoders, *new_encoder;
-	struct drm_framebuffer *old_fb;
+	struct drm_framebuffer *old_fb = NULL;
 	bool save_enabled;
 	bool mode_changed = false;
 	bool fb_changed = false;
@@ -668,9 +723,10 @@ int drm_crtc_helper_set_config(struct drm_mode_set *set)
 	 * and then just flip_or_move it */
 	if (set->crtc->fb != set->fb) {
 		/* If we have no fb then treat it as a full mode set */
-		if (set->crtc->fb == NULL)
+		if (set->crtc->fb == NULL) {
+			DRM_DEBUG("crtc has no fb, full mode set\n");
 			mode_changed = true;
-		else if ((set->fb->bits_per_pixel !=
+		} else if ((set->fb->bits_per_pixel !=
 			 set->crtc->fb->bits_per_pixel) ||
 			 set->fb->depth != set->crtc->fb->depth)
 			fb_changed = true;
@@ -682,7 +738,7 @@ int drm_crtc_helper_set_config(struct drm_mode_set *set)
 		fb_changed = true;
 
 	if (set->mode && !drm_mode_equal(set->mode, &set->crtc->mode)) {
-		DRM_DEBUG("modes are different\n");
+		DRM_DEBUG("modes are different, full mode set\n");
 		drm_mode_debug_printmodeline(&set->crtc->mode);
 		drm_mode_debug_printmodeline(set->mode);
 		mode_changed = true;
@@ -708,6 +764,7 @@ int drm_crtc_helper_set_config(struct drm_mode_set *set)
 		}
 
 		if (new_encoder != connector->encoder) {
+			DRM_DEBUG("encoder changed, full mode switch\n");
 			mode_changed = true;
 			connector->encoder = new_encoder;
 		}
@@ -734,10 +791,20 @@ int drm_crtc_helper_set_config(struct drm_mode_set *set)
 			if (set->connectors[ro] == connector)
 				new_crtc = set->crtc;
 		}
+
+		/* Make sure the new CRTC will work with the encoder */
+		if (new_crtc &&
+		    !drm_encoder_crtc_ok(connector->encoder, new_crtc)) {
+			ret = -EINVAL;
+			goto fail_set_mode;
+		}
 		if (new_crtc != connector->encoder->crtc) {
+			DRM_DEBUG("crtc changed, full mode switch\n");
 			mode_changed = true;
 			connector->encoder->crtc = new_crtc;
 		}
+		DRM_DEBUG("setting connector %d crtc to %p\n",
+			  connector->base.id, new_crtc);
 	}
 
 	/* mode_set_base is not a required function */
@@ -781,6 +848,7 @@ int drm_crtc_helper_set_config(struct drm_mode_set *set)
 
 fail_set_mode:
 	set->crtc->enabled = save_enabled;
+	set->crtc->fb = old_fb;
 	count = 0;
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
 		if (!connector->encoder)

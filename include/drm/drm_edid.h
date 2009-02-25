@@ -58,10 +58,10 @@ struct detailed_pixel_timing {
 	u8 hsync_pulse_width_lo;
 	u8 vsync_pulse_width_lo:4;
 	u8 vsync_offset_lo:4;
-	u8 hsync_pulse_width_hi:2;
-	u8 hsync_offset_hi:2;
 	u8 vsync_pulse_width_hi:2;
 	u8 vsync_offset_hi:2;
+	u8 hsync_pulse_width_hi:2;
+	u8 hsync_offset_hi:2;
 	u8 width_mm_lo;
 	u8 height_mm_lo;
 	u8 height_mm_hi:4;

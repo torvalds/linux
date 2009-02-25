@@ -125,7 +125,7 @@ static bool edid_is_valid(struct edid *edid)
 		DRM_ERROR("EDID has major version %d, instead of 1\n", edid->version);
 		goto bad;
 	}
-	if (edid->revision <= 0 || edid->revision > 3) {
+	if (edid->revision > 3) {
 		DRM_ERROR("EDID has minor version %d, which is not between 0-3\n", edid->revision);
 		goto bad;
 	}
@@ -320,10 +320,10 @@ static struct drm_display_mode *drm_mode_detailed(struct drm_device *dev,
 	mode->htotal = mode->hdisplay + ((pt->hblank_hi << 8) | pt->hblank_lo);
 
 	mode->vdisplay = (pt->vactive_hi << 8) | pt->vactive_lo;
-	mode->vsync_start = mode->vdisplay + ((pt->vsync_offset_hi << 8) |
+	mode->vsync_start = mode->vdisplay + ((pt->vsync_offset_hi << 4) |
 					      pt->vsync_offset_lo);
 	mode->vsync_end = mode->vsync_start +
-		((pt->vsync_pulse_width_hi << 8) |
+		((pt->vsync_pulse_width_hi << 4) |
 		 pt->vsync_pulse_width_lo);
 	mode->vtotal = mode->vdisplay + ((pt->vblank_hi << 8) | pt->vblank_lo);
 
