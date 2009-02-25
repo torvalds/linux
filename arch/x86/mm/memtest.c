@@ -14,6 +14,19 @@ static u64 patterns[] __initdata = {
 	0xffffffffffffffffULL,
 	0x5555555555555555ULL,
 	0xaaaaaaaaaaaaaaaaULL,
+	0x1111111111111111ULL,
+	0x2222222222222222ULL,
+	0x4444444444444444ULL,
+	0x8888888888888888ULL,
+	0x3333333333333333ULL,
+	0x6666666666666666ULL,
+	0x9999999999999999ULL,
+	0xccccccccccccccccULL,
+	0x7777777777777777ULL,
+	0xbbbbbbbbbbbbbbbbULL,
+	0xddddddddddddddddULL,
+	0xeeeeeeeeeeeeeeeeULL,
+	0x7a6c7258554e494cULL, /* yeah ;-) */
 };
 
 static void __init reserve_bad_mem(u64 pattern, u64 start_bad, u64 end_bad)
