@@ -97,12 +97,12 @@ struct pcxhr_mgr {
 	int capture_chips;
 	int fw_file_set;
 	int firmware_num;
-	int is_hr_stereo:1;
-	int board_has_aes1:1;	/* if 1 board has AES1 plug and SRC */
-	int board_has_analog:1;	/* if 0 the board is digital only */
-	int board_has_mic:1;	/* if 1 the board has microphone input */
-	int board_aes_in_192k:1;/* if 1 the aes input plugs do support 192kHz */
-	int mono_capture:1;	/* if 1 the board does mono capture */
+	unsigned int is_hr_stereo:1;
+	unsigned int board_has_aes1:1;	/* if 1 board has AES1 plug and SRC */
+	unsigned int board_has_analog:1; /* if 0 the board is digital only */
+	unsigned int board_has_mic:1; /* if 1 the board has microphone input */
+	unsigned int board_aes_in_192k:1;/* if 1 the aes input plugs do support 192kHz */
+	unsigned int mono_capture:1; /* if 1 the board does mono capture */
 
 	struct snd_dma_buffer hostport;
 
