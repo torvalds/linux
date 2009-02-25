@@ -1967,8 +1967,7 @@ void t1_sge_stop(struct sge *sge)
 		tx_sched_stop(sge);
 
 	for (i = 0; i < MAX_NPORTS; i++)
-		if (sge->espibug_skb[i])
-			kfree_skb(sge->espibug_skb[i]);
+		kfree_skb(sge->espibug_skb[i]);
 }
 
 /*
