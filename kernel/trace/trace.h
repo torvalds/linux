@@ -405,8 +405,9 @@ struct trace_iterator {
 	struct trace_array	*tr;
 	struct tracer		*trace;
 	void			*private;
-	struct ring_buffer_iter	*buffer_iter[NR_CPUS];
 	int			cpu_file;
+	struct mutex		mutex;
+	struct ring_buffer_iter	*buffer_iter[NR_CPUS];
 
 	/* The below is zeroed out in pipe_read */
 	struct trace_seq	seq;
