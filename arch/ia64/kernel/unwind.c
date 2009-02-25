@@ -2149,7 +2149,7 @@ unw_remove_unwind_table (void *handle)
 
 	/* next, remove hash table entries for this table */
 
-	for (index = 0; index <= UNW_HASH_SIZE; ++index) {
+	for (index = 0; index < UNW_HASH_SIZE; ++index) {
 		tmp = unw.cache + unw.hash[index];
 		if (unw.hash[index] >= UNW_CACHE_SIZE
 		    || tmp->ip < table->start || tmp->ip >= table->end)
