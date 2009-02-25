@@ -159,6 +159,15 @@ config CONTEXT_SWITCH_TRACER
 	  This tracer gets called from the context switch and records
 	  all switching of tasks.
 
+config EVENT_TRACER
+	bool "Trace various events in the kernel"
+	depends on DEBUG_KERNEL
+	select TRACING
+	help
+	  This tracer hooks to various trace points in the kernel
+	  allowing the user to pick and choose which trace point they
+	  want to trace.
+
 config BOOT_TRACER
 	bool "Trace boot initcalls"
 	depends on DEBUG_KERNEL

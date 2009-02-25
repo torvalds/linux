@@ -153,4 +153,7 @@ static inline void tracepoint_synchronize_unregister(void)
 	synchronize_sched();
 }
 
+#define DEFINE_TRACE_FMT(name, proto, args, fmt)		\
+	DECLARE_TRACE(name, TPPROTO(proto), TPARGS(args))
+
 #endif
