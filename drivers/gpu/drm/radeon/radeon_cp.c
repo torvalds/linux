@@ -142,11 +142,22 @@ static u32 RS690_READ_MCIND(drm_radeon_private_t *dev_priv, int addr)
 	return ret;
 }
 
+static u32 RS600_READ_MCIND(drm_radeon_private_t *dev_priv, int addr)
+{
+	u32 ret;
+	RADEON_WRITE(RS600_MC_INDEX, ((addr & RS600_MC_ADDR_MASK) |
+				      RS600_MC_IND_CITF_ARB0));
+	ret = RADEON_READ(RS600_MC_DATA);
+	return ret;
+}
+
 static u32 IGP_READ_MCIND(drm_radeon_private_t *dev_priv, int addr)
 {
 	if (((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RS690) ||
 	    ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RS740))
 		return RS690_READ_MCIND(dev_priv, addr);
+	else if ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RS600)
+		return RS600_READ_MCIND(dev_priv, addr);
 	else
 		return RS480_READ_MCIND(dev_priv, addr);
 }
@@ -163,6 +174,8 @@ u32 radeon_read_fb_location(drm_radeon_private_t *dev_priv)
 	else if (((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RS690) ||
 		 ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RS740))
 		return RS690_READ_MCIND(dev_priv, RS690_MC_FB_LOCATION);
+	else if ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RS600)
+		return RS600_READ_MCIND(dev_priv, RS600_MC_FB_LOCATION);
 	else if ((dev_priv->flags & RADEON_FAMILY_MASK) > CHIP_RV515)
 		return R500_READ_MCIND(dev_priv, R520_MC_FB_LOCATION);
 	else
@@ -180,6 +193,8 @@ static void radeon_write_fb_location(drm_radeon_private_t *dev_priv, u32 fb_loc)
 	else if (((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RS690) ||
 		 ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RS740))
 		RS690_WRITE_MCIND(RS690_MC_FB_LOCATION, fb_loc);
+	else if ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RS600)
+		RS600_WRITE_MCIND(RS600_MC_FB_LOCATION, fb_loc);
 	else if ((dev_priv->flags & RADEON_FAMILY_MASK) > CHIP_RV515)
 		R500_WRITE_MCIND(R520_MC_FB_LOCATION, fb_loc);
 	else
@@ -200,6 +215,8 @@ void radeon_write_agp_location(drm_radeon_private_t *dev_priv, u32 agp_loc)
 	else if (((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RS690) ||
 		 ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RS740))
 		RS690_WRITE_MCIND(RS690_MC_AGP_LOCATION, agp_loc);
+	else if ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RS600)
+		RS600_WRITE_MCIND(RS600_MC_AGP_LOCATION, agp_loc);
 	else if ((dev_priv->flags & RADEON_FAMILY_MASK) > CHIP_RV515)
 		R500_WRITE_MCIND(R520_MC_AGP_LOCATION, agp_loc);
 	else
@@ -224,6 +241,9 @@ void radeon_write_agp_base(drm_radeon_private_t *dev_priv, u64 agp_base)
 		 ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RS740)) {
 		RS690_WRITE_MCIND(RS690_MC_AGP_BASE, agp_base_lo);
 		RS690_WRITE_MCIND(RS690_MC_AGP_BASE_2, agp_base_hi);
+	} else if ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RS600) {
+		RS600_WRITE_MCIND(RS600_AGP_BASE, agp_base_lo);
+		RS600_WRITE_MCIND(RS600_AGP_BASE_2, agp_base_hi);
 	} else if ((dev_priv->flags & RADEON_FAMILY_MASK) > CHIP_RV515) {
 		R500_WRITE_MCIND(R520_MC_AGP_BASE, agp_base_lo);
 		R500_WRITE_MCIND(R520_MC_AGP_BASE_2, agp_base_hi);
@@ -493,6 +513,14 @@ static void radeon_cp_load_microcode(drm_radeon_private_t * dev_priv)
 				     RS690_cp_microcode[i][1]);
 			RADEON_WRITE(RADEON_CP_ME_RAM_DATAL,
 				     RS690_cp_microcode[i][0]);
+		}
+	} else if ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RS600) {
+		DRM_INFO("Loading RS600 Microcode\n");
+		for (i = 0; i < 256; i++) {
+			RADEON_WRITE(RADEON_CP_ME_RAM_DATAH,
+				     RS600_cp_microcode[i][1]);
+			RADEON_WRITE(RADEON_CP_ME_RAM_DATAL,
+				     RS600_cp_microcode[i][0]);
 		}
 	} else if (((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RV515) ||
 		   ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_R520) ||
@@ -899,6 +927,82 @@ static void radeon_set_igpgart(drm_radeon_private_t * dev_priv, int on)
 	}
 }
 
+/* Enable or disable IGP GART on the chip */
+static void rs600_set_igpgart(drm_radeon_private_t *dev_priv, int on)
+{
+	u32 temp;
+	int i;
+
+	if (on) {
+		DRM_DEBUG("programming igp gart %08X %08lX %08X\n",
+			 dev_priv->gart_vm_start,
+			 (long)dev_priv->gart_info.bus_addr,
+			 dev_priv->gart_size);
+
+		IGP_WRITE_MCIND(RS600_MC_PT0_CNTL, (RS600_EFFECTIVE_L2_CACHE_SIZE(6) |
+						    RS600_EFFECTIVE_L2_QUEUE_SIZE(6)));
+
+		for (i = 0; i < 19; i++)
+			IGP_WRITE_MCIND(RS600_MC_PT0_CLIENT0_CNTL + i,
+					(RS600_ENABLE_TRANSLATION_MODE_OVERRIDE |
+					 RS600_SYSTEM_ACCESS_MODE_IN_SYS |
+					 RS600_SYSTEM_APERTURE_UNMAPPED_ACCESS_PASSTHROUGH |
+					 RS600_EFFECTIVE_L1_CACHE_SIZE(3) |
+					 RS600_ENABLE_FRAGMENT_PROCESSING |
+					 RS600_EFFECTIVE_L1_QUEUE_SIZE(3)));
+
+		IGP_WRITE_MCIND(RS600_MC_PT0_CONTEXT0_CNTL, (RS600_ENABLE_PAGE_TABLE |
+							     RS600_PAGE_TABLE_TYPE_FLAT));
+
+		/* disable all other contexts */
+		for (i = 1; i < 8; i++)
+			IGP_WRITE_MCIND(RS600_MC_PT0_CONTEXT0_CNTL + i, 0);
+
+		/* setup the page table aperture */
+		IGP_WRITE_MCIND(RS600_MC_PT0_CONTEXT0_FLAT_BASE_ADDR,
+				dev_priv->gart_info.bus_addr);
+		IGP_WRITE_MCIND(RS600_MC_PT0_CONTEXT0_FLAT_START_ADDR,
+				dev_priv->gart_vm_start);
+		IGP_WRITE_MCIND(RS600_MC_PT0_CONTEXT0_FLAT_END_ADDR,
+				(dev_priv->gart_vm_start + dev_priv->gart_size - 1));
+		IGP_WRITE_MCIND(RS600_MC_PT0_CONTEXT0_DEFAULT_READ_ADDR, 0);
+
+		/* setup the system aperture */
+		IGP_WRITE_MCIND(RS600_MC_PT0_SYSTEM_APERTURE_LOW_ADDR,
+				dev_priv->gart_vm_start);
+		IGP_WRITE_MCIND(RS600_MC_PT0_SYSTEM_APERTURE_HIGH_ADDR,
+				(dev_priv->gart_vm_start + dev_priv->gart_size - 1));
+
+		/* enable page tables */
+		temp = IGP_READ_MCIND(dev_priv, RS600_MC_PT0_CNTL);
+		IGP_WRITE_MCIND(RS600_MC_PT0_CNTL, (temp | RS600_ENABLE_PT));
+
+		temp = IGP_READ_MCIND(dev_priv, RS600_MC_CNTL1);
+		IGP_WRITE_MCIND(RS600_MC_CNTL1, (temp | RS600_ENABLE_PAGE_TABLES));
+
+		/* invalidate the cache */
+		temp = IGP_READ_MCIND(dev_priv, RS600_MC_PT0_CNTL);
+
+		temp &= ~(RS600_INVALIDATE_ALL_L1_TLBS | RS600_INVALIDATE_L2_CACHE);
+		IGP_WRITE_MCIND(RS600_MC_PT0_CNTL, temp);
+		temp = IGP_READ_MCIND(dev_priv, RS600_MC_PT0_CNTL);
+
+		temp |= RS600_INVALIDATE_ALL_L1_TLBS | RS600_INVALIDATE_L2_CACHE;
+		IGP_WRITE_MCIND(RS600_MC_PT0_CNTL, temp);
+		temp = IGP_READ_MCIND(dev_priv, RS600_MC_PT0_CNTL);
+
+		temp &= ~(RS600_INVALIDATE_ALL_L1_TLBS | RS600_INVALIDATE_L2_CACHE);
+		IGP_WRITE_MCIND(RS600_MC_PT0_CNTL, temp);
+		temp = IGP_READ_MCIND(dev_priv, RS600_MC_PT0_CNTL);
+
+	} else {
+		IGP_WRITE_MCIND(RS600_MC_PT0_CNTL, 0);
+		temp = IGP_READ_MCIND(dev_priv, RS600_MC_CNTL1);
+		temp &= ~RS600_ENABLE_PAGE_TABLES;
+		IGP_WRITE_MCIND(RS600_MC_CNTL1, temp);
+	}
+}
+
 static void radeon_set_pciegart(drm_radeon_private_t * dev_priv, int on)
 {
 	u32 tmp = RADEON_READ_PCIE(dev_priv, RADEON_PCIE_TX_GART_CNTL);
@@ -937,6 +1041,11 @@ static void radeon_set_pcigart(drm_radeon_private_t * dev_priv, int on)
 	    ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RS740) ||
 	    (dev_priv->flags & RADEON_IS_IGPGART)) {
 		radeon_set_igpgart(dev_priv, on);
+		return;
+	}
+
+	if ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RS600) {
+		rs600_set_igpgart(dev_priv, on);
 		return;
 	}
 
@@ -1350,7 +1459,10 @@ static int radeon_do_init_cp(struct drm_device *dev, drm_radeon_init_t *init,
 
 		sctrl = RADEON_READ(RADEON_SURFACE_CNTL);
 		RADEON_WRITE(RADEON_SURFACE_CNTL, 0);
-		ret = drm_ati_pcigart_init(dev, &dev_priv->gart_info);
+		if ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RS600)
+			ret = r600_page_table_init(dev);
+		else
+			ret = drm_ati_pcigart_init(dev, &dev_priv->gart_info);
 		RADEON_WRITE(RADEON_SURFACE_CNTL, sctrl);
 
 		if (!ret) {
@@ -1362,7 +1474,10 @@ static int radeon_do_init_cp(struct drm_device *dev, drm_radeon_init_t *init,
 		ret = radeon_setup_pcigart_surface(dev_priv);
 		if (ret) {
 			DRM_ERROR("failed to setup GART surface!\n");
-			drm_ati_pcigart_cleanup(dev, &dev_priv->gart_info);
+			if ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RS600)
+				r600_page_table_cleanup(dev, &dev_priv->gart_info);
+			else
+				drm_ati_pcigart_cleanup(dev, &dev_priv->gart_info);
 			radeon_do_cleanup_cp(dev);
 			return ret;
 		}
@@ -1415,8 +1530,12 @@ static int radeon_do_cleanup_cp(struct drm_device * dev)
 		if (dev_priv->gart_info.bus_addr) {
 			/* Turn off PCI GART */
 			radeon_set_pcigart(dev_priv, 0);
-			if (!drm_ati_pcigart_cleanup(dev, &dev_priv->gart_info))
-				DRM_ERROR("failed to cleanup PCI GART!\n");
+			if ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RS600)
+				r600_page_table_cleanup(dev, &dev_priv->gart_info);
+			else {
+				if (!drm_ati_pcigart_cleanup(dev, &dev_priv->gart_info))
+					DRM_ERROR("failed to cleanup PCI GART!\n");
+			}
 		}
 
 		if (dev_priv->gart_info.gart_table_location == DRM_ATI_GART_FB)

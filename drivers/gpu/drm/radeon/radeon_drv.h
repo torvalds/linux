@@ -126,6 +126,7 @@ enum radeon_family {
 	CHIP_RV410,
 	CHIP_RS400,
 	CHIP_RS480,
+	CHIP_RS600,
 	CHIP_RS690,
 	CHIP_RS740,
 	CHIP_RV515,
@@ -474,6 +475,8 @@ extern void r600_do_cp_reset(drm_radeon_private_t *dev_priv);
 extern void r600_do_cp_stop(drm_radeon_private_t *dev_priv);
 extern int r600_cp_dispatch_indirect(struct drm_device *dev,
 				     struct drm_buf *buf, int start, int end);
+extern int r600_page_table_init(struct drm_device *dev);
+extern void r600_page_table_cleanup(struct drm_device *dev, struct drm_ati_pcigart_info *gart_info);
 
 /* Flags for stats.boxes
  */
@@ -609,6 +612,56 @@ extern int r600_cp_dispatch_indirect(struct drm_device *dev,
 #define RS690_MC_AGP_LOCATION           0x101
 #define RS690_MC_AGP_BASE               0x102
 #define RS690_MC_AGP_BASE_2             0x103
+
+#define RS600_MC_INDEX                          0x70
+#       define RS600_MC_ADDR_MASK               0xffff
+#       define RS600_MC_IND_SEQ_RBS_0           (1 << 16)
+#       define RS600_MC_IND_SEQ_RBS_1           (1 << 17)
+#       define RS600_MC_IND_SEQ_RBS_2           (1 << 18)
+#       define RS600_MC_IND_SEQ_RBS_3           (1 << 19)
+#       define RS600_MC_IND_AIC_RBS             (1 << 20)
+#       define RS600_MC_IND_CITF_ARB0           (1 << 21)
+#       define RS600_MC_IND_CITF_ARB1           (1 << 22)
+#       define RS600_MC_IND_WR_EN               (1 << 23)
+#define RS600_MC_DATA                           0x74
+
+#define RS600_MC_STATUS                         0x0
+#       define RS600_MC_IDLE                    (1 << 1)
+#define RS600_MC_FB_LOCATION                    0x4
+#define RS600_MC_AGP_LOCATION                   0x5
+#define RS600_AGP_BASE                          0x6
+#define RS600_AGP_BASE_2                        0x7
+#define RS600_MC_CNTL1                          0x9
+#       define RS600_ENABLE_PAGE_TABLES         (1 << 26)
+#define RS600_MC_PT0_CNTL                       0x100
+#       define RS600_ENABLE_PT                  (1 << 0)
+#       define RS600_EFFECTIVE_L2_CACHE_SIZE(x) ((x) << 15)
+#       define RS600_EFFECTIVE_L2_QUEUE_SIZE(x) ((x) << 21)
+#       define RS600_INVALIDATE_ALL_L1_TLBS     (1 << 28)
+#       define RS600_INVALIDATE_L2_CACHE        (1 << 29)
+#define RS600_MC_PT0_CONTEXT0_CNTL              0x102
+#       define RS600_ENABLE_PAGE_TABLE          (1 << 0)
+#       define RS600_PAGE_TABLE_TYPE_FLAT       (0 << 1)
+#define RS600_MC_PT0_SYSTEM_APERTURE_LOW_ADDR   0x112
+#define RS600_MC_PT0_SYSTEM_APERTURE_HIGH_ADDR  0x114
+#define RS600_MC_PT0_CONTEXT0_DEFAULT_READ_ADDR 0x11c
+#define RS600_MC_PT0_CONTEXT0_FLAT_BASE_ADDR    0x12c
+#define RS600_MC_PT0_CONTEXT0_FLAT_START_ADDR   0x13c
+#define RS600_MC_PT0_CONTEXT0_FLAT_END_ADDR     0x14c
+#define RS600_MC_PT0_CLIENT0_CNTL               0x16c
+#       define RS600_ENABLE_TRANSLATION_MODE_OVERRIDE       (1 << 0)
+#       define RS600_TRANSLATION_MODE_OVERRIDE              (1 << 1)
+#       define RS600_SYSTEM_ACCESS_MODE_MASK                (3 << 8)
+#       define RS600_SYSTEM_ACCESS_MODE_PA_ONLY             (0 << 8)
+#       define RS600_SYSTEM_ACCESS_MODE_USE_SYS_MAP         (1 << 8)
+#       define RS600_SYSTEM_ACCESS_MODE_IN_SYS              (2 << 8)
+#       define RS600_SYSTEM_ACCESS_MODE_NOT_IN_SYS          (3 << 8)
+#       define RS600_SYSTEM_APERTURE_UNMAPPED_ACCESS_PASSTHROUGH        (0 << 10)
+#       define RS600_SYSTEM_APERTURE_UNMAPPED_ACCESS_DEFAULT_PAGE       (1 << 10)
+#       define RS600_EFFECTIVE_L1_CACHE_SIZE(x) ((x) << 11)
+#       define RS600_ENABLE_FRAGMENT_PROCESSING (1 << 14)
+#       define RS600_EFFECTIVE_L1_QUEUE_SIZE(x) ((x) << 15)
+#       define RS600_INVALIDATE_L1_TLB          (1 << 20)
 
 #define R520_MC_IND_INDEX 0x70
 #define R520_MC_IND_WR_EN (1 << 24)
@@ -1743,11 +1796,19 @@ do {								\
 	RADEON_WRITE(RS690_MC_INDEX, RS690_MC_INDEX_WR_ACK);	\
 } while (0)
 
+#define RS600_WRITE_MCIND(addr, val)				\
+do {							        \
+	RADEON_WRITE(RS600_MC_INDEX, RS600_MC_IND_WR_EN | RS600_MC_IND_CITF_ARB0 | ((addr) & RS600_MC_ADDR_MASK)); \
+	RADEON_WRITE(RS600_MC_DATA, val);                       \
+} while (0)
+
 #define IGP_WRITE_MCIND(addr, val)				\
 do {									\
 	if (((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RS690) ||   \
 	    ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RS740))      \
 		RS690_WRITE_MCIND(addr, val);				\
+	else if ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RS600)  \
+		RS600_WRITE_MCIND(addr, val);				\
 	else								\
 		RS480_WRITE_MCIND(addr, val);				\
 } while (0)
