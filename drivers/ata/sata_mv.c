@@ -3114,19 +3114,17 @@ static int mv_init_host(struct ata_host *host, unsigned int board_idx)
 		writelfl(0, hc_mmio + HC_IRQ_CAUSE_OFS);
 	}
 
-	if (!IS_SOC(hpriv)) {
-		/* Clear any currently outstanding host interrupt conditions */
-		writelfl(0, mmio + hpriv->irq_cause_ofs);
+	/* Clear any currently outstanding host interrupt conditions */
+	writelfl(0, mmio + hpriv->irq_cause_ofs);
 
-		/* and unmask interrupt generation for host regs */
-		writelfl(hpriv->unmask_all_irqs, mmio + hpriv->irq_mask_ofs);
+	/* and unmask interrupt generation for host regs */
+	writelfl(hpriv->unmask_all_irqs, mmio + hpriv->irq_mask_ofs);
 
-		/*
-		 * enable only global host interrupts for now.
-		 * The per-port interrupts get done later as ports are set up.
-		 */
-		mv_set_main_irq_mask(host, 0, PCI_ERR);
-	}
+	/*
+	 * enable only global host interrupts for now.
+	 * The per-port interrupts get done later as ports are set up.
+	 */
+	mv_set_main_irq_mask(host, 0, PCI_ERR);
 done:
 	return rc;
 }
