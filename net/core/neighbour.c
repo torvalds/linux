@@ -871,8 +871,7 @@ static void neigh_timer_handler(unsigned long arg)
 		write_unlock(&neigh->lock);
 		neigh->ops->solicit(neigh, skb);
 		atomic_inc(&neigh->probes);
-		if (skb)
-			kfree_skb(skb);
+		kfree_skb(skb);
 	} else {
 out:
 		write_unlock(&neigh->lock);
@@ -908,8 +907,7 @@ int __neigh_event_send(struct neighbour *neigh, struct sk_buff *skb)
 			neigh->updated = jiffies;
 			write_unlock_bh(&neigh->lock);
 
-			if (skb)
-				kfree_skb(skb);
+			kfree_skb(skb);
 			return 1;
 		}
 	} else if (neigh->nud_state & NUD_STALE) {
