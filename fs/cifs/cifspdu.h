@@ -1,7 +1,7 @@
 /*
  *   fs/cifs/cifspdu.h
  *
- *   Copyright (c) International Business Machines  Corp., 2002,2008
+ *   Copyright (c) International Business Machines  Corp., 2002,2009
  *   Author(s): Steve French (sfrench@us.ibm.com)
  *
  *   This library is free software; you can redistribute it and/or modify
@@ -23,6 +23,7 @@
 #define _CIFSPDU_H
 
 #include <net/sock.h>
+#include "smbfsctl.h"
 
 #ifdef CONFIG_CIFS_WEAK_PW_HASH
 #define LANMAN_PROT 0
@@ -34,11 +35,10 @@
 #define POSIX_PROT  (CIFS_PROT+1)
 #define BAD_PROT 0xFFFF
 
-/* SMB command codes */
-/*
- * Some commands have minimal (wct=0,bcc=0), or uninteresting, responses
+/* SMB command codes:
+ * Note some commands have minimal (wct=0,bcc=0), or uninteresting, responses
  * (ie which include no useful data other than the SMB error code itself).
- * Knowing this helps avoid response buffer allocations and copy in some cases
+ * This can allow us to avoid response buffer allocations and copy in some cases
  */
 #define SMB_COM_CREATE_DIRECTORY      0x00 /* trivial response */
 #define SMB_COM_DELETE_DIRECTORY      0x01 /* trivial response */
@@ -1963,39 +1963,6 @@ typedef struct smb_com_transaction_get_dfs_refer_rsp {
 #define DFSREF_STORAGE_SERVER   0x00000002 /* no further ref requests needed */
 #define DFSREF_TARGET_FAILBACK  0x00000004 /* only for DFS referral version 4 */
 
-/* IOCTL information */
-/*
- * List of ioctl function codes that look to be of interest to remote clients
- * like this one.  Need to do some experimentation to make sure they all work
- * remotely.  Some of the following, such as the encryption/compression ones
- * would be invoked from tools via a specialized hook into the VFS rather
- * than via the standard vfs entry points
- */
-#define FSCTL_REQUEST_OPLOCK_LEVEL_1 0x00090000
-#define FSCTL_REQUEST_OPLOCK_LEVEL_2 0x00090004
-#define FSCTL_REQUEST_BATCH_OPLOCK   0x00090008
-#define FSCTL_LOCK_VOLUME            0x00090018
-#define FSCTL_UNLOCK_VOLUME          0x0009001C
-#define FSCTL_GET_COMPRESSION        0x0009003C
-#define FSCTL_SET_COMPRESSION        0x0009C040
-#define FSCTL_REQUEST_FILTER_OPLOCK  0x0009008C
-#define FSCTL_FILESYS_GET_STATISTICS 0x00090090
-#define FSCTL_SET_REPARSE_POINT      0x000900A4
-#define FSCTL_GET_REPARSE_POINT      0x000900A8
-#define FSCTL_DELETE_REPARSE_POINT   0x000900AC
-#define FSCTL_SET_SPARSE             0x000900C4
-#define FSCTL_SET_ZERO_DATA          0x000900C8
-#define FSCTL_SET_ENCRYPTION         0x000900D7
-#define FSCTL_ENCRYPTION_FSCTL_IO    0x000900DB
-#define FSCTL_WRITE_RAW_ENCRYPTED    0x000900DF
-#define FSCTL_READ_RAW_ENCRYPTED     0x000900E3
-#define FSCTL_SIS_COPYFILE           0x00090100
-#define FSCTL_SIS_LINK_FILES         0x0009C104
-
-#define IO_REPARSE_TAG_MOUNT_POINT   0xA0000003
-#define IO_REPARSE_TAG_HSM           0xC0000004
-#define IO_REPARSE_TAG_SIS           0x80000007
-
 /*
  ************************************************************************
  * All structs for everything above the SMB PDUs themselves
@@ -2515,8 +2482,6 @@ struct data_blob {
 	6) Use nanosecond timestamps throughout all time fields if
 	   corresponding attribute flag is set
 	7) sendfile - handle based copy
-	8) Direct i/o
-	9) Misc fcntls?
 
 	what about fixing 64 bit alignment
 
@@ -2635,7 +2600,5 @@ typedef struct file_chattr_info {
 	__le64	mode; /* list of actual attribute bits on this inode */
 } __attribute__((packed)) FILE_CHATTR_INFO;  /* ext attributes
 						(chattr, chflags) level 0x206 */
-
-#endif
-
+#endif 				/* POSIX */
 #endif				/* _CIFSPDU_H */
