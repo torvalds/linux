@@ -120,8 +120,6 @@ struct ath_rate_table {
 		u8 sgi_index;
 		u8 ht_index;
 		u32 max_4ms_framelen;
-		u16 lpAckDuration;
-		u16 spAckDuration;
 	} info[RATE_TABLE_SIZE];
 	u32 probe_interval;
 	u32 rssi_reduce_interval;

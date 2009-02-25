@@ -1656,27 +1656,6 @@ static struct rate_control_ops ath_rate_ops = {
 	.free_sta = ath_rate_free_sta,
 };
 
-static void ath_setup_rate_table(struct ath_softc *sc,
-				 struct ath_rate_table *rate_table)
-{
-	int i;
-
-	for (i = 0; i < rate_table->rate_cnt; i++) {
-		u8 cix = rate_table->info[i].ctrl_rate;
-
-		rate_table->info[i].lpAckDuration =
-			ath9k_hw_computetxtime(sc->sc_ah, rate_table,
-					       WLAN_CTRL_FRAME_SIZE,
-					       cix,
-					       false);
-		rate_table->info[i].spAckDuration =
-			ath9k_hw_computetxtime(sc->sc_ah, rate_table,
-					       WLAN_CTRL_FRAME_SIZE,
-					       cix,
-					       true);
-	}
-}
-
 void ath_rate_attach(struct ath_softc *sc)
 {
 	sc->hw_rate_table[ATH9K_MODE_11B] =
@@ -1697,12 +1676,6 @@ void ath_rate_attach(struct ath_softc *sc)
 		&ar5416_11ng_ratetable;
 	sc->hw_rate_table[ATH9K_MODE_11NG_HT40MINUS] =
 		&ar5416_11ng_ratetable;
-
-	ath_setup_rate_table(sc, &ar5416_11b_ratetable);
-	ath_setup_rate_table(sc, &ar5416_11a_ratetable);
-	ath_setup_rate_table(sc, &ar5416_11g_ratetable);
-	ath_setup_rate_table(sc, &ar5416_11na_ratetable);
-	ath_setup_rate_table(sc, &ar5416_11ng_ratetable);
 }
 
 int ath_rate_control_register(void)
