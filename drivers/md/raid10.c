@@ -1236,6 +1236,7 @@ static void end_sync_read(struct bio *bio, int error)
 	/* for reconstruct, we always reschedule after a read.
 	 * for resync, only after all reads
 	 */
+	rdev_dec_pending(conf->mirrors[d].rdev, conf->mddev);
 	if (test_bit(R10BIO_IsRecover, &r10_bio->state) ||
 	    atomic_dec_and_test(&r10_bio->remaining)) {
 		/* we have read all the blocks,
@@ -1243,7 +1244,6 @@ static void end_sync_read(struct bio *bio, int error)
 		 */
 		reschedule_retry(r10_bio);
 	}
-	rdev_dec_pending(conf->mirrors[d].rdev, conf->mddev);
 }
 
 static void end_sync_write(struct bio *bio, int error)
@@ -1264,11 +1264,13 @@ static void end_sync_write(struct bio *bio, int error)
 
 	update_head_pos(i, r10_bio);
 
+	rdev_dec_pending(conf->mirrors[d].rdev, mddev);
 	while (atomic_dec_and_test(&r10_bio->remaining)) {
 		if (r10_bio->master_bio == NULL) {
 			/* the primary of several recovery bios */
-			md_done_sync(mddev, r10_bio->sectors, 1);
+			sector_t s = r10_bio->sectors;
 			put_buf(r10_bio);
+			md_done_sync(mddev, s, 1);
 			break;
 		} else {
 			r10bio_t *r10_bio2 = (r10bio_t *)r10_bio->master_bio;
@@ -1276,7 +1278,6 @@ static void end_sync_write(struct bio *bio, int error)
 			r10_bio = r10_bio2;
 		}
 	}
-	rdev_dec_pending(conf->mirrors[d].rdev, mddev);
 }
 
 /*
