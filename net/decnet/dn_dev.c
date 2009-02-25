@@ -1323,6 +1323,7 @@ static inline int is_dn_dev(struct net_device *dev)
 }
 
 static void *dn_dev_seq_start(struct seq_file *seq, loff_t *pos)
+	__acquires(&dev_base_lock)
 {
 	int i;
 	struct net_device *dev;
@@ -1365,6 +1366,7 @@ static void *dn_dev_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 }
 
 static void dn_dev_seq_stop(struct seq_file *seq, void *v)
+	__releases(&dev_base_lock)
 {
 	read_unlock(&dev_base_lock);
 }
