@@ -1809,7 +1809,7 @@ static unsigned int mv_qc_issue(struct ata_queued_cmd *qc)
 	void __iomem *port_mmio = mv_ap_base(ap);
 	struct mv_port_priv *pp = ap->private_data;
 	u32 in_index;
-	unsigned int port_irqs = DONE_IRQ | ERR_IRQ;
+	unsigned int port_irqs;
 
 	switch (qc->tf.protocol) {
 	case ATA_PROT_DMA:
@@ -1842,20 +1842,28 @@ static unsigned int mv_qc_issue(struct ata_queued_cmd *qc)
 					"this may fail due to h/w errata\n");
 		}
 		/* drop through */
+	case ATA_PROT_NODATA:
 	case ATAPI_PROT_PIO:
-		port_irqs = ERR_IRQ;	/* leave DONE_IRQ masked for PIO */
-		/* drop through */
-	default:
-		/*
-		 * We're about to send a non-EDMA capable command to the
-		 * port.  Turn off EDMA so there won't be problems accessing
-		 * shadow block, etc registers.
-		 */
-		mv_stop_edma(ap);
-		mv_clear_and_enable_port_irqs(ap, mv_ap_base(ap), port_irqs);
-		mv_pmp_select(ap, qc->dev->link->pmp);
-		return ata_sff_qc_issue(qc);
+	case ATAPI_PROT_NODATA:
+		if (ap->flags & ATA_FLAG_PIO_POLLING)
+			qc->tf.flags |= ATA_TFLAG_POLLING;
+		break;
 	}
+
+	if (qc->tf.flags & ATA_TFLAG_POLLING)
+		port_irqs = ERR_IRQ;	/* mask device interrupt when polling */
+	else
+		port_irqs = ERR_IRQ | DONE_IRQ;	/* unmask all interrupts */
+
+	/*
+	 * We're about to send a non-EDMA capable command to the
+	 * port.  Turn off EDMA so there won't be problems accessing
+	 * shadow block, etc registers.
+	 */
+	mv_stop_edma(ap);
+	mv_clear_and_enable_port_irqs(ap, mv_ap_base(ap), port_irqs);
+	mv_pmp_select(ap, qc->dev->link->pmp);
+	return ata_sff_qc_issue(qc);
 }
 
 static struct ata_queued_cmd *mv_get_active_qc(struct ata_port *ap)
