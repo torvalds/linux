@@ -3061,28 +3061,31 @@ struct dentry *tracing_dentry_percpu(void)
 static void tracing_init_debugfs_percpu(long cpu)
 {
 	struct dentry *d_percpu = tracing_dentry_percpu();
-	struct dentry *entry;
-	/* strlen(trace_pipe) + MAX(log10(cpu)) + '\0' */
-	char filename[17];
+	struct dentry *entry, *d_cpu;
+	/* strlen(cpu) + MAX(log10(cpu)) + '\0' */
+	char cpu_dir[7];
 
 	if (cpu > 999 || cpu < 0)
 		return;
 
-	/* per cpu trace_pipe */
-	sprintf(filename, "trace_pipe%ld", cpu);
+	sprintf(cpu_dir, "cpu%ld", cpu);
+	d_cpu = debugfs_create_dir(cpu_dir, d_percpu);
+	if (!d_cpu) {
+		pr_warning("Could not create debugfs '%s' entry\n", cpu_dir);
+		return;
+	}
 
-	entry = debugfs_create_file(filename, 0444, d_percpu,
+	/* per cpu trace_pipe */
+	entry = debugfs_create_file("trace_pipe", 0444, d_cpu,
 				(void *) cpu, &tracing_pipe_fops);
 	if (!entry)
-		pr_warning("Could not create debugfs '%s' entry\n", filename);
+		pr_warning("Could not create debugfs 'trace_pipe' entry\n");
 
 	/* per cpu trace */
-	sprintf(filename, "trace%ld", cpu);
-
-	entry = debugfs_create_file(filename, 0444, d_percpu,
+	entry = debugfs_create_file("trace", 0444, d_cpu,
 				(void *) cpu, &tracing_fops);
 	if (!entry)
-		pr_warning("Could not create debugfs '%s' entry\n", filename);
+		pr_warning("Could not create debugfs 'trace' entry\n");
 }
 
 #ifdef CONFIG_FTRACE_SELFTEST
