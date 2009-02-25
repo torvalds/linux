@@ -175,7 +175,7 @@ static struct pci_driver heci_driver = {
 /*
  * file operations structure will be use heci char device.
  */
-static struct file_operations heci_fops = {
+static const struct file_operations heci_fops = {
 	.owner = THIS_MODULE,
 	.read = heci_read,
 	.ioctl = heci_ioctl,
@@ -195,7 +195,7 @@ static struct file_operations heci_fops = {
  * returns 0 on success, <0 on failure.
  */
 static int heci_registration_cdev(struct cdev *dev, int hminor,
-				  struct file_operations *fops)
+				  const struct file_operations *fops)
 {
 	int ret, devno = MKDEV(heci_major, hminor);
 
@@ -625,7 +625,7 @@ static int heci_clear_list(struct iamt_heci_device *dev,
 		struct file *file, struct list_head *heci_cb_list)
 {
 	struct heci_cb_private *priv_cb_pos = NULL;
-	struct heci_cb_private*priv_cb_next = NULL;
+	struct heci_cb_private *priv_cb_next = NULL;
 	struct file *file_temp;
 	int rets = 0;
 
@@ -846,7 +846,7 @@ static int heci_release(struct inode *inode, struct file *file)
 		}
 
 		if (heci_clear_lists(dev, file))
-		    dev->iamthif_state = HECI_IAMTHIF_IDLE;
+			dev->iamthif_state = HECI_IAMTHIF_IDLE;
 
 		spin_unlock_bh(&dev->device_lock);
 	}
