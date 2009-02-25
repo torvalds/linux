@@ -177,8 +177,7 @@ void i2400m_rx_ctl_ack(struct i2400m *i2400m,
 	return;
 
 error_waiter_cancelled:
-	if (ack_skb)
-		kfree_skb(ack_skb);
+	kfree_skb(ack_skb);
 error_no_waiter:
 	spin_unlock_irqrestore(&i2400m->rx_lock, flags);
 	return;
