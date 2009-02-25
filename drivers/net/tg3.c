@@ -11606,6 +11606,34 @@ static void __devinit tg3_read_mgmtfw_ver(struct tg3 *tp)
 	}
 }
 
+static void __devinit tg3_read_dash_ver(struct tg3 *tp)
+{
+	int vlen;
+	u32 apedata;
+
+	if (!(tp->tg3_flags3 & TG3_FLG3_ENABLE_APE) ||
+	    !(tp->tg3_flags  & TG3_FLAG_ENABLE_ASF))
+		return;
+
+	apedata = tg3_ape_read32(tp, TG3_APE_SEG_SIG);
+	if (apedata != APE_SEG_SIG_MAGIC)
+		return;
+
+	apedata = tg3_ape_read32(tp, TG3_APE_FW_STATUS);
+	if (!(apedata & APE_FW_STATUS_READY))
+		return;
+
+	apedata = tg3_ape_read32(tp, TG3_APE_FW_VERSION);
+
+	vlen = strlen(tp->fw_ver);
+
+	snprintf(&tp->fw_ver[vlen], TG3_VER_SIZE - vlen, " DASH v%d.%d.%d.%d",
+		 (apedata & APE_FW_VERSION_MAJMSK) >> APE_FW_VERSION_MAJSFT,
+		 (apedata & APE_FW_VERSION_MINMSK) >> APE_FW_VERSION_MINSFT,
+		 (apedata & APE_FW_VERSION_REVMSK) >> APE_FW_VERSION_REVSFT,
+		 (apedata & APE_FW_VERSION_BLDMSK));
+}
+
 static void __devinit tg3_read_fw_ver(struct tg3 *tp)
 {
 	u32 val;
@@ -13279,6 +13307,9 @@ static int __devinit tg3_init_one(struct pci_dev *pdev,
 		}
 
 		tg3_ape_lock_init(tp);
+
+		if (tp->tg3_flags & TG3_FLAG_ENABLE_ASF)
+			tg3_read_dash_ver(tp);
 	}
 
 	/*
