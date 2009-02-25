@@ -1244,6 +1244,7 @@ struct em28xx_board em28xx_boards[] = {
 		.tuner_type   = TUNER_LG_PAL_NEW_TAPC,
 		.tda9887_conf = TDA9887_PRESENT,
 		.decoder      = EM28XX_TVP5150,
+		.adecoder     = EM28XX_TVAUDIO,
 		.input        = { {
 			.type     = EM28XX_VMUX_TELEVISION,
 			.vmux     = TVP5150_COMPOSITE0,
@@ -1917,6 +1918,8 @@ void em28xx_card_setup(struct em28xx *dev)
 		request_module("tvp5150");
 	if (dev->board.tuner_type != TUNER_ABSENT)
 		request_module("tuner");
+	if (dev->board.adecoder == EM28XX_TVAUDIO)
+		request_module("tvaudio");
 #endif
 
 	em28xx_config_tuner(dev);

@@ -357,6 +357,11 @@ enum em28xx_decoder {
 	EM28XX_SAA711X,
 };
 
+enum em28xx_adecoder {
+	EM28XX_NOADECODER = 0,
+	EM28XX_TVAUDIO,
+};
+
 struct em28xx_board {
 	char *name;
 	int vchannels;
@@ -382,6 +387,7 @@ struct em28xx_board {
 	unsigned char xclk, i2c_speed;
 
 	enum em28xx_decoder decoder;
+	enum em28xx_adecoder adecoder;
 
 	struct em28xx_input       input[MAX_EM28XX_INPUT];
 	struct em28xx_input	  radio;
