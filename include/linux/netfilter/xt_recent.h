@@ -1,6 +1,8 @@
 #ifndef _LINUX_NETFILTER_XT_RECENT_H
 #define _LINUX_NETFILTER_XT_RECENT_H 1
 
+#include <linux/types.h>
+
 enum {
 	XT_RECENT_CHECK    = 1 << 0,
 	XT_RECENT_SET      = 1 << 1,
@@ -15,12 +17,12 @@ enum {
 };
 
 struct xt_recent_mtinfo {
-	u_int32_t seconds;
-	u_int32_t hit_count;
-	u_int8_t check_set;
-	u_int8_t invert;
+	__u32 seconds;
+	__u32 hit_count;
+	__u8 check_set;
+	__u8 invert;
 	char name[XT_RECENT_NAME_LEN];
-	u_int8_t side;
+	__u8 side;
 };
 
 #endif /* _LINUX_NETFILTER_XT_RECENT_H */

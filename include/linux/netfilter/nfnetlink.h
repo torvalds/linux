@@ -25,8 +25,8 @@ enum nfnetlink_groups {
 /* General form of address family dependent message.
  */
 struct nfgenmsg {
-	u_int8_t  nfgen_family;		/* AF_xxx */
-	u_int8_t  version;		/* nfnetlink version */
+	__u8  nfgen_family;		/* AF_xxx */
+	__u8  version;		/* nfnetlink version */
 	__be16    res_id;		/* resource id */
 };
 
