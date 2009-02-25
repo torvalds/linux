@@ -49,8 +49,9 @@ static inline struct io_mapping *
 io_mapping_create_wc(resource_size_t base, unsigned long size)
 {
 	struct io_mapping *iomap;
+	pgprot_t prot;
 
-	if (!is_io_mapping_possible(base, size))
+	if (!reserve_io_memtype_wc(base, size, &prot))
 		return NULL;
 
 	iomap = kmalloc(sizeof(*iomap), GFP_KERNEL);
@@ -59,13 +60,14 @@ io_mapping_create_wc(resource_size_t base, unsigned long size)
 
 	iomap->base = base;
 	iomap->size = size;
-	iomap->prot = pgprot_writecombine(__pgprot(__PAGE_KERNEL));
+	iomap->prot = prot;
 	return iomap;
 }
 
 static inline void
 io_mapping_free(struct io_mapping *mapping)
 {
+	free_io_memtype(mapping->base, mapping->size);
 	kfree(mapping);
 }
 
