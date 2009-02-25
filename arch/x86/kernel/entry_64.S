@@ -77,20 +77,17 @@ ENTRY(ftrace_caller)
 	movq 8(%rbp), %rsi
 	subq $MCOUNT_INSN_SIZE, %rdi
 
-.globl ftrace_call
-ftrace_call:
+GLOBAL(ftrace_call)
 	call ftrace_stub
 
 	MCOUNT_RESTORE_FRAME
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
-.globl ftrace_graph_call
-ftrace_graph_call:
+GLOBAL(ftrace_graph_call)
 	jmp ftrace_stub
 #endif
 
-.globl ftrace_stub
-ftrace_stub:
+GLOBAL(ftrace_stub)
 	retq
 END(ftrace_caller)
 
@@ -110,8 +107,7 @@ ENTRY(mcount)
 	jnz ftrace_graph_caller
 #endif
 
-.globl ftrace_stub
-ftrace_stub:
+GLOBAL(ftrace_stub)
 	retq
 
 trace:
@@ -148,9 +144,7 @@ ENTRY(ftrace_graph_caller)
 	retq
 END(ftrace_graph_caller)
 
-
-.globl return_to_handler
-return_to_handler:
+GLOBAL(return_to_handler)
 	subq  $80, %rsp
 
 	movq %rax, (%rsp)
@@ -188,6 +182,7 @@ return_to_handler:
 ENTRY(native_usergs_sysret64)
 	swapgs
 	sysretq
+ENDPROC(native_usergs_sysret64)
 #endif /* CONFIG_PARAVIRT */
 
 
@@ -633,16 +628,14 @@ tracesys:
  * Syscall return path ending with IRET.
  * Has correct top of stack, but partial stack frame.
  */
-	.globl int_ret_from_sys_call
-	.globl int_with_check
-int_ret_from_sys_call:
+GLOBAL(int_ret_from_sys_call)
 	DISABLE_INTERRUPTS(CLBR_NONE)
 	TRACE_IRQS_OFF
 	testl $3,CS-ARGOFFSET(%rsp)
 	je retint_restore_args
 	movl $_TIF_ALLWORK_MASK,%edi
 	/* edi:	mask to check */
-int_with_check:
+GLOBAL(int_with_check)
 	LOCKDEP_SYS_EXIT_IRQ
 	GET_THREAD_INFO(%rcx)
 	movl TI_flags(%rcx),%edx

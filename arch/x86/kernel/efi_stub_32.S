@@ -113,6 +113,7 @@ ENTRY(efi_call_phys)
 	movl	(%edx), %ecx
 	pushl	%ecx
 	ret
+ENDPROC(efi_call_phys)
 .previous
 
 .data
