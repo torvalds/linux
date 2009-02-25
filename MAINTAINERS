@@ -1011,6 +1011,8 @@ L:	netdev@vger.kernel.org
 S:	Supported
 
 BROADCOM TG3 GIGABIT ETHERNET DRIVER
+P:	Matt Carlson
+M:	mcarlson@broadcom.com
 P:	Michael Chan
 M:	mchan@broadcom.com
 L:	netdev@vger.kernel.org
