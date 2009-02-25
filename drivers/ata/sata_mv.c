@@ -345,7 +345,7 @@ enum {
 	EDMA_ARB_CFG_OFS	= 0x38,
 
 	EDMA_HALTCOND_OFS	= 0x60,		/* GenIIe halt conditions */
-
+	EDMA_UNKNOWN_RSVD_OFS	= 0x6C,		/* GenIIe unknown/reserved */
 
 	BMDMA_CMD_OFS		= 0x224,	/* bmdma command register */
 	BMDMA_STATUS_OFS	= 0x228,	/* bmdma status register */
@@ -447,6 +447,7 @@ struct mv_cached_regs {
 	u32			fiscfg;
 	u32			ltmode;
 	u32			haltcond;
+	u32			unknown_rsvd;
 };
 
 struct mv_port_priv {
@@ -563,8 +564,6 @@ static void mv_pmp_error_handler(struct ata_port *ap);
 static void mv_process_crpb_entries(struct ata_port *ap,
 					struct mv_port_priv *pp);
 
-static unsigned long mv_mode_filter(struct ata_device *dev,
-				    unsigned long xfer_mask);
 static void mv_sff_irq_clear(struct ata_port *ap);
 static int mv_check_atapi_dma(struct ata_queued_cmd *qc);
 static void mv_bmdma_setup(struct ata_queued_cmd *qc);
@@ -626,7 +625,6 @@ static struct ata_port_operations mv6_ops = {
 	.bmdma_start		= mv_bmdma_start,
 	.bmdma_stop		= mv_bmdma_stop,
 	.bmdma_status		= mv_bmdma_status,
-	.mode_filter		= mv_mode_filter,
 };
 
 static struct ata_port_operations mv_iie_ops = {
@@ -842,6 +840,7 @@ static void mv_save_cached_regs(struct ata_port *ap)
 	pp->cached.fiscfg = readl(port_mmio + FISCFG_OFS);
 	pp->cached.ltmode = readl(port_mmio + LTMODE_OFS);
 	pp->cached.haltcond = readl(port_mmio + EDMA_HALTCOND_OFS);
+	pp->cached.unknown_rsvd = readl(port_mmio + EDMA_UNKNOWN_RSVD_OFS);
 }
 
 /**
@@ -1252,6 +1251,30 @@ static void mv_60x1_errata_sata25(struct ata_port *ap, int want_ncq)
 		writel(new, hpriv->base + MV_GPIO_PORT_CTL_OFS);
 }
 
+/**
+ * 	mv_bmdma_enable - set a magic bit on GEN_IIE to allow bmdma
+ * 	@ap: Port being initialized
+ *
+ *	There are two DMA modes on these chips:  basic DMA, and EDMA.
+ *
+ *	Bit-0 of the "EDMA RESERVED" register enables/disables use
+ *	of basic DMA on the GEN_IIE versions of the chips.
+ *
+ *	This bit survives EDMA resets, and must be set for basic DMA
+ *	to function, and should be cleared when EDMA is active.
+ */
+static void mv_bmdma_enable_iie(struct ata_port *ap, int enable_bmdma)
+{
+	struct mv_port_priv *pp = ap->private_data;
+	u32 new, *old = &pp->cached.unknown_rsvd;
+
+	if (enable_bmdma)
+		new = *old | 1;
+	else
+		new = *old & ~1;
+	mv_write_cached_reg(mv_ap_base(ap) + EDMA_UNKNOWN_RSVD_OFS, old, new);
+}
+
 static void mv_edma_cfg(struct ata_port *ap, int want_ncq, int want_edma)
 {
 	u32 cfg;
@@ -1297,6 +1320,7 @@ static void mv_edma_cfg(struct ata_port *ap, int want_ncq, int want_edma)
 		}
 		if (hpriv->hp_flags & MV_HP_CUT_THROUGH)
 			cfg |= (1 << 17); /* enab cut-thru (dis stor&forwrd) */
+		mv_bmdma_enable_iie(ap, !want_edma);
 	}
 
 	if (want_ncq) {
@@ -1462,26 +1486,6 @@ static void mv_crqb_pack_cmd(__le16 *cmdw, u8 data, u8 addr, unsigned last)
 	u16 tmp = data | (addr << CRQB_CMD_ADDR_SHIFT) | CRQB_CMD_CS |
 		(last ? CRQB_CMD_LAST : 0);
 	*cmdw = cpu_to_le16(tmp);
-}
-
-/**
- *	mv_mode_filter - Allow ATAPI DMA only on GenII chips.
- *	@dev: device whose xfer modes are being configured.
- *
- *	Only the GenII hardware can use DMA with ATAPI drives.
- */
-static unsigned long mv_mode_filter(struct ata_device *adev,
-				    unsigned long xfer_mask)
-{
-	if (adev->class == ATA_DEV_ATAPI) {
-		struct mv_host_priv *hpriv = adev->link->ap->host->private_data;
-		if (!IS_GEN_II(hpriv)) {
-			xfer_mask &= ~(ATA_MASK_MWDMA | ATA_MASK_UDMA);
-			ata_dev_printk(adev, KERN_INFO,
-				"ATAPI DMA not supported on this chipset\n");
-		}
-	}
-	return xfer_mask;
 }
 
 /**
