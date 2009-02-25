@@ -17,7 +17,7 @@ struct ide_disk_obj {
 	ide_drive_t		*drive;
 	struct ide_driver	*driver;
 	struct gendisk		*disk;
-	struct kref		kref;
+	struct device		dev;
 	unsigned int		openers;	/* protected by BKL for now */
 
 	/* Last failed packet command */

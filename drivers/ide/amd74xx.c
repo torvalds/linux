@@ -166,7 +166,7 @@ static unsigned int init_chipset_amd74xx(struct pci_dev *dev)
 	 * Check for broken FIFO support.
 	 */
 	if (dev->vendor == PCI_VENDOR_ID_AMD &&
-	    dev->vendor == PCI_DEVICE_ID_AMD_VIPER_7411)
+	    dev->device == PCI_DEVICE_ID_AMD_VIPER_7411)
 		t &= 0x0f;
 	else
 		t |= 0xf0;
