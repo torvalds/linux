@@ -171,7 +171,7 @@ static int tx_params[MAX_UNITS] = {-1, -1, -1, -1, -1, -1, -1, -1};
 #include <asm/unaligned.h>
 #include <asm/cache.h>
 
-static char version[] __devinitdata =
+static const char version[] __devinitconst =
 KERN_INFO DRV_NAME ".c:v" DRV_VERSION " " DRV_RELDATE "  Written by Donald Becker\n"
 KERN_INFO "   Some modifications by Eric kasten <kasten@nscl.msu.edu>\n"
 KERN_INFO "   Further modifications by Keith Underwood <keithu@parl.clemson.edu>\n";
