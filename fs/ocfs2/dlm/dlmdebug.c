@@ -763,6 +763,8 @@ static int debug_state_print(struct dlm_ctxt *dlm, struct debug_buffer *db)
 	int out = 0;
 	struct dlm_reco_node_data *node;
 	char *state;
+	int cur_mles = 0, tot_mles = 0;
+	int i;
 
 	spin_lock(&dlm->spinlock);
 
@@ -804,6 +806,40 @@ static int debug_state_print(struct dlm_ctxt *dlm, struct debug_buffer *db)
 	out += stringify_nodemap(dlm->live_nodes_map, O2NM_MAX_NODES,
 				 db->buf + out, db->len - out);
 	out += snprintf(db->buf + out, db->len - out, "\n");
+
+	/* Lock Resources: xxx (xxx) */
+	out += snprintf(db->buf + out, db->len - out,
+			"Lock Resources: %d (%d)\n",
+			atomic_read(&dlm->res_cur_count),
+			atomic_read(&dlm->res_tot_count));
+
+	for (i = 0; i < DLM_MLE_NUM_TYPES; ++i)
+		tot_mles += atomic_read(&dlm->mle_tot_count[i]);
+
+	for (i = 0; i < DLM_MLE_NUM_TYPES; ++i)
+		cur_mles += atomic_read(&dlm->mle_cur_count[i]);
+
+	/* MLEs: xxx (xxx) */
+	out += snprintf(db->buf + out, db->len - out,
+			"MLEs: %d (%d)\n", cur_mles, tot_mles);
+
+	/*  Blocking: xxx (xxx) */
+	out += snprintf(db->buf + out, db->len - out,
+			"  Blocking: %d (%d)\n",
+			atomic_read(&dlm->mle_cur_count[DLM_MLE_BLOCK]),
+			atomic_read(&dlm->mle_tot_count[DLM_MLE_BLOCK]));
+
+	/*  Mastery: xxx (xxx) */
+	out += snprintf(db->buf + out, db->len - out,
+			"  Mastery: %d (%d)\n",
+			atomic_read(&dlm->mle_cur_count[DLM_MLE_MASTER]),
+			atomic_read(&dlm->mle_tot_count[DLM_MLE_MASTER]));
+
+	/*  Migration: xxx (xxx) */
+	out += snprintf(db->buf + out, db->len - out,
+			"  Migration: %d (%d)\n",
+			atomic_read(&dlm->mle_cur_count[DLM_MLE_MIGRATION]),
+			atomic_read(&dlm->mle_tot_count[DLM_MLE_MIGRATION]));
 
 	/* Lists: Dirty=Empty  Purge=InUse  PendingASTs=Empty  ... */
 	out += snprintf(db->buf + out, db->len - out,
