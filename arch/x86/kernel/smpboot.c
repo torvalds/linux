@@ -742,7 +742,8 @@ static void __cpuinit do_fork_idle(struct work_struct *work)
 /*
  * NOTE - on most systems this is a PHYSICAL apic ID, but on multiquad
  * (ie clustered apic addressing mode), this is a LOGICAL apic ID.
- * Returns zero if CPU booted OK, else error code from ->wakeup_cpu.
+ * Returns zero if CPU booted OK, else error code from
+ * ->wakeup_secondary_cpu.
  */
 static int __cpuinit do_boot_cpu(int apicid, int cpu)
 {
@@ -829,9 +830,13 @@ do_rest:
 	}
 
 	/*
-	 * Starting actual IPI sequence...
+	 * Kick the secondary CPU. Use the method in the APIC driver
+	 * if it's defined - or use an INIT boot APIC message otherwise:
 	 */
-	boot_error = apic->wakeup_cpu(apicid, start_ip);
+	if (apic->wakeup_secondary_cpu)
+		boot_error = apic->wakeup_secondary_cpu(apicid, start_ip);
+	else
+		boot_error = wakeup_secondary_cpu_via_init(apicid, start_ip);
 
 	if (!boot_error) {
 		/*

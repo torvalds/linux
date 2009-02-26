@@ -313,7 +313,7 @@ struct apic {
 	void (*send_IPI_self)(int vector);
 
 	/* wakeup_secondary_cpu */
-	int (*wakeup_cpu)(int apicid, unsigned long start_eip);
+	int (*wakeup_secondary_cpu)(int apicid, unsigned long start_eip);
 
 	int trampoline_phys_low;
 	int trampoline_phys_high;
@@ -344,13 +344,6 @@ extern struct apic *apic;
 #ifdef CONFIG_SMP
 extern atomic_t init_deasserted;
 extern int wakeup_secondary_cpu_via_nmi(int apicid, unsigned long start_eip);
-extern int wakeup_secondary_cpu_via_init(int apicid, unsigned long start_eip);
-#else
-static inline int
-wakeup_secondary_cpu_via_init(int apicid, unsigned long start_eip)
-{
-	return 0;
-}
 #endif
 
 static inline u32 apic_read(u32 reg)

@@ -538,7 +538,7 @@ struct apic apic_numaq = {
 	.send_IPI_all			= numaq_send_IPI_all,
 	.send_IPI_self			= default_send_IPI_self,
 
-	.wakeup_cpu			= wakeup_secondary_cpu_via_nmi,
+	.wakeup_secondary_cpu		= wakeup_secondary_cpu_via_nmi,
 	.trampoline_phys_low		= NUMAQ_TRAMPOLINE_PHYS_LOW,
 	.trampoline_phys_high		= NUMAQ_TRAMPOLINE_PHYS_HIGH,
 

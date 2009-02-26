@@ -741,7 +741,7 @@ struct apic apic_es7000_cluster = {
 	.send_IPI_all			= es7000_send_IPI_all,
 	.send_IPI_self			= default_send_IPI_self,
 
-	.wakeup_cpu			= wakeup_secondary_cpu_via_mip,
+	.wakeup_secondary_cpu		= wakeup_secondary_cpu_via_mip,
 
 	.trampoline_phys_low		= 0x467,
 	.trampoline_phys_high		= 0x469,
@@ -805,8 +805,6 @@ struct apic apic_es7000 = {
 	.send_IPI_allbutself		= es7000_send_IPI_allbutself,
 	.send_IPI_all			= es7000_send_IPI_all,
 	.send_IPI_self			= default_send_IPI_self,
-
-	.wakeup_cpu			= wakeup_secondary_cpu_via_init,
 
 	.trampoline_phys_low		= 0x467,
 	.trampoline_phys_high		= 0x469,

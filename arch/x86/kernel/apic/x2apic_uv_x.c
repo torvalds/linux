@@ -288,7 +288,7 @@ struct apic apic_x2apic_uv_x = {
 	.send_IPI_all			= uv_send_IPI_all,
 	.send_IPI_self			= uv_send_IPI_self,
 
-	.wakeup_cpu			= uv_wakeup_secondary,
+	.wakeup_secondary_cpu		= uv_wakeup_secondary,
 	.trampoline_phys_low		= DEFAULT_TRAMPOLINE_PHYS_LOW,
 	.trampoline_phys_high		= DEFAULT_TRAMPOLINE_PHYS_HIGH,
 	.wait_for_init_deassert		= NULL,
