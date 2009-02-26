@@ -42,7 +42,6 @@
 #ifndef _SLIC_INCLUDE_H_
 #define _SLIC_INCLUDE_H_
 
-#include "slic_os.h"
 #include "slicdbg.h"
 #include "slichw.h"
 #include "slic.h"
