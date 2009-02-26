@@ -42,8 +42,6 @@
 #ifndef _SLIC_DEBUG_H_
 #define _SLIC_DEBUG_H_
 
-#define DBG_ERROR(n, args...)	printk(KERN_EMERG n, ##args)
-
 #ifdef ASSERT
 #undef ASSERT
 #endif
@@ -53,7 +51,7 @@
 #define ASSERT(a)                                                             \
     {                                                                         \
 	if (!(a)) {                                                           \
-		DBG_ERROR("ASSERT() Failure: file %s, function %s  line %d\n",\
+		printk(KERN_ERR "ASSERT() Failure: file %s, function %s  line %d\n",\
 		__FILE__, __func__, __LINE__);                          \
 		slic_assert_fail();                                       \
 	}                                                                 \
@@ -63,7 +61,7 @@
 #define ASSERTMSG(a,msg)                                                  \
     {                                                                     \
 	if (!(a)) {                                                       \
-		DBG_ERROR("ASSERT() Failure: file %s, function %s"\
+		printk(KERN_ERR "ASSERT() Failure: file %s, function %s" \
 			"line %d: %s\n",\
 			__FILE__, __func__, __LINE__, (msg));            \
 		slic_assert_fail();                                      \

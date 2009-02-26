@@ -391,8 +391,8 @@ static int __devinit slic_entry_probe(struct pci_dev *pcidev,
 /*	memmapped_ioaddr =  (u32)ioremap_nocache(mmio_start, mmio_len);*/
 	memmapped_ioaddr = ioremap(mmio_start, mmio_len);
 	if (!memmapped_ioaddr) {
-		DBG_ERROR("%s cannot remap MMIO region %lx @ %lx\n",
-			  __func__, mmio_len, mmio_start);
+		dev_err(&pcidev->dev, "cannot remap MMIO region %lx @ %lx\n",
+			mmio_len, mmio_start);
 		goto err_out_free_netdev;
 	}
 
@@ -405,7 +405,7 @@ static int __devinit slic_entry_probe(struct pci_dev *pcidev,
 
 	status = slic_card_locate(adapter);
 	if (status) {
-		DBG_ERROR("%s cannot locate card\n", __func__);
+		dev_err(&pcidev->dev, "cannot locate card\n");
 		goto err_out_free_mmio_region;
 	}
 
@@ -422,7 +422,7 @@ static int __devinit slic_entry_probe(struct pci_dev *pcidev,
 		card->state = CARD_FAIL;
 		adapter->state = ADAPT_FAIL;
 		adapter->linkstate = LINK_DOWN;
-		DBG_ERROR("slic_card_init FAILED status[%x]\n", status);
+		dev_err(&pcidev->dev, "FAILED status[%x]\n", status);
 	} else {
 		slic_adapter_set_hwaddr(adapter);
 	}
@@ -442,7 +442,7 @@ static int __devinit slic_entry_probe(struct pci_dev *pcidev,
 	strcpy(netdev->name, "eth%d");
 	err = register_netdev(netdev);
 	if (err) {
-		DBG_ERROR("Cannot register net device, aborting.\n");
+		dev_err(&pcidev->dev, "Cannot register net device, aborting.\n");
 		goto err_out_unmap;
 	}
 
@@ -458,8 +458,6 @@ err_out_free_netdev:
 	free_netdev(netdev);
 err_out_exit_slic_probe:
 	pci_release_regions(pcidev);
-	DBG_ERROR("%s EXIT jiffies[%lx] cpu %d\n", __func__, jiffies,
-		  smp_processor_id());
 err_out_disable_pci:
 	pci_disable_device(pcidev);
 	return err;
@@ -619,8 +617,8 @@ static int slic_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 		if (copy_from_user(data, rq->ifr_data, 28))
 			return -EFAULT;
 		intagg = data[0];
-		printk(KERN_EMERG "%s: set interrupt aggregation to %d\n",
-		       __func__, intagg);
+		dev_err(&dev->dev, "%s: set interrupt aggregation to %d\n",
+			__func__, intagg);
 		slic_intagg_set(adapter, intagg);
 		return 0;
 
@@ -778,11 +776,6 @@ static int slic_xmit_start(struct sk_buff *skb, struct net_device *dev)
 
 	card = adapter->card;
 	ASSERT(card);
-/*
-    DBG_ERROR("xmit_start (%s) ENTER skb[%p] len[%d] linkstate[%x] state[%x]\n",
-	adapter->netdev->name, skb, skb->len, adapter->linkstate,
-	 adapter->state);
-*/
 	if ((adapter->linkstate != LINK_UP) ||
 	    (adapter->state != ADAPT_UP) || (card->state != CARD_UP)) {
 		status = XMIT_FAIL_LINK_STATE;
@@ -847,25 +840,25 @@ static void slic_xmit_fail(struct adapter *adapter,
 	if ((cmd == NULL) && (status <= XMIT_FAIL_HOSTCMD_FAIL)) {
 		switch (status) {
 		case XMIT_FAIL_LINK_STATE:
-			DBG_ERROR
-			    ("(%s) reject xmit skb[%p: %x] linkstate[%s] \
-			     adapter[%s:%d] card[%s:%d]\n",
-			     adapter->netdev->name, skb, skb->pkt_type,
-			     SLIC_LINKSTATE(adapter->linkstate),
-			     SLIC_ADAPTER_STATE(adapter->state), adapter->state,
-			     SLIC_CARD_STATE(adapter->card->state),
-			     adapter->card->state);
+			dev_err(&adapter->netdev->dev,
+				"reject xmit skb[%p: %x] linkstate[%s] "
+				"adapter[%s:%d] card[%s:%d]\n",
+				skb, skb->pkt_type,
+				SLIC_LINKSTATE(adapter->linkstate),
+				SLIC_ADAPTER_STATE(adapter->state),
+				adapter->state,
+				SLIC_CARD_STATE(adapter->card->state),
+				adapter->card->state);
 			break;
 		case XMIT_FAIL_ZERO_LENGTH:
-			DBG_ERROR
-			    ("xmit_start skb->len == 0 skb[%p] type[%x]!!!! \n",
-			     skb, skb->pkt_type);
+			dev_err(&adapter->netdev->dev,
+				"xmit_start skb->len == 0 skb[%p] type[%x]\n",
+				skb, skb->pkt_type);
 			break;
 		case XMIT_FAIL_HOSTCMD_FAIL:
-			DBG_ERROR
-			    ("xmit_start skb[%p] type[%x] No host commands \
-			     available !!!! \n",
-			     skb, skb->pkt_type);
+			dev_err(&adapter->netdev->dev,
+				"xmit_start skb[%p] type[%x] No host commands "
+				"available\n", skb, skb->pkt_type);
 			break;
 		default:
 			ASSERT(0);
@@ -1044,12 +1037,6 @@ static void slic_xmit_complete(struct adapter *adapter)
 		ASSERT(hcmd);
 		ASSERT(hcmd->pslic_handle ==
 		       &adapter->slic_handles[slic_handle_word.handle_index]);
-/*
-      DBG_ERROR("xmit_complete (%s)   hcmd[%p]  hosthandle[%x]\n",
-		adapter->netdev->name, hcmd, hcmd->cmd64.hosthandle);
-      DBG_ERROR("    skb[%p] len %d  hcmdtype[%x]\n", hcmd->skb,
-		hcmd->skb->len, hcmd->type);
-*/
 		if (hcmd->type == SLIC_CMD_DUMB) {
 			if (hcmd->skb)
 				dev_kfree_skb_irq(hcmd->skb);
@@ -1103,14 +1090,13 @@ static irqreturn_t slic_interrupt(int irq, void *dev_id)
 								break;
 						}
 					} else if (isr & ISR_XDROP) {
-						DBG_ERROR
-						    ("isr & ISR_ERR [%x] \
-						     ISR_XDROP \n",
-						     isr);
+						dev_err(&dev->dev,
+							"isr & ISR_ERR [%x] "
+							"ISR_XDROP \n", isr);
 					} else {
-						DBG_ERROR
-						    ("isr & ISR_ERR [%x]\n",
-						     isr);
+						dev_err(&dev->dev,
+							"isr & ISR_ERR [%x]\n",
+							isr);
 					}
 				}
 
@@ -1456,7 +1442,8 @@ static int slic_if_init(struct adapter *adapter)
 
 	/* adapter should be down at this point */
 	if (adapter->state != ADAPT_DOWN) {
-		DBG_ERROR("slic_if_init adapter->state != ADAPT_DOWN\n");
+		dev_err(&dev->dev, "%s: adapter->state != ADAPT_DOWN\n",
+			__func__);
 		return -EIO;
 	}
 	ASSERT(adapter->linkstate == LINK_DOWN);
@@ -1475,9 +1462,9 @@ static int slic_if_init(struct adapter *adapter)
 	}
 	status = slic_adapter_allocresources(adapter);
 	if (status != STATUS_SUCCESS) {
-		DBG_ERROR
-		    ("slic_if_init: slic_adapter_allocresources FAILED %x\n",
-		     status);
+		dev_err(&dev->dev,
+			"%s: slic_adapter_allocresources FAILED %x\n",
+			__func__, status);
 		slic_adapter_freeresources(adapter);
 		return status;
 	}
@@ -1578,8 +1565,9 @@ static int slic_adapter_allocresources(struct adapter *adapter)
 					slic_global.driver_lock.flags);
 
 		if (retval) {
-			DBG_ERROR("slicoss: request_irq (%s) FAILED [%x]\n",
-				  adapter->netdev->name, retval);
+			dev_err(&adapter->netdev->dev,
+				"request_irq (%s) FAILED [%x]\n",
+				adapter->netdev->name, retval);
 			return retval;
 		}
 		adapter->intrregistered = 1;
@@ -1808,7 +1796,8 @@ static int slic_card_download_gbrcv(struct adapter *adapter)
 
 	ret = request_firmware(&fw, file, &adapter->pcidev->dev);
 	if (ret) {
-		printk(KERN_ERR "SLICOSS: Failed to load firmware %s\n", file);
+		dev_err(&adapter->pcidev->dev,
+			"SLICOSS: Failed to load firmware %s\n", file);
 		return ret;
 	}
 
@@ -1883,7 +1872,8 @@ static int slic_card_download(struct adapter *adapter)
 	}
 	ret = request_firmware(&fw, file, &adapter->pcidev->dev);
 	if (ret) {
-		printk(KERN_ERR "SLICOSS: Failed to load firmware %s\n", file);
+		dev_err(&adapter->pcidev->dev,
+			"SLICOSS: Failed to load firmware %s\n", file);
 		return ret;
 	}
 	numsects = *(u32 *)(fw->data + index);
@@ -2018,9 +2008,9 @@ static int slic_card_init(struct sliccard *card, struct adapter *adapter)
 	status = slic_card_download(adapter);
 
 	if (status != STATUS_SUCCESS) {
-		DBG_ERROR("SLIC download failed bus %d slot %d\n",
-			  (uint) adapter->busnumber,
-			  (uint) adapter->slotnumber);
+		dev_err(&adapter->pcidev->dev,
+			"download failed bus %d slot %d\n",
+			adapter->busnumber, adapter->slotnumber);
 		return status;
 	}
 
@@ -2033,11 +2023,10 @@ static int slic_card_init(struct sliccard *card, struct adapter *adapter)
 		phys_configh = SLIC_GET_ADDR_HIGH(phys_config);
 
 		if (!peeprom) {
-			DBG_ERROR
-			    ("SLIC eeprom read failed to get memory bus %d \
-			    slot %d\n",
-			     (uint) adapter->busnumber,
-			     (uint) adapter->slotnumber);
+			dev_err(&adapter->pcidev->dev,
+				"eeprom read failed to get memory "
+				"bus %d slot %d\n", adapter->busnumber,
+				adapter->slotnumber);
 			return -ENOMEM;
 		} else {
 			memset(peeprom, 0, sizeof(struct slic_eeprom));
@@ -2078,9 +2067,9 @@ static int slic_card_init(struct sliccard *card, struct adapter *adapter)
 				mdelay(1);
 				i++;
 				if (i > 5000) {
-					DBG_ERROR
-					    ("SLIC: %d config data fetch timed "
-					      "out!\n", adapter->port);
+					dev_err(&adapter->pcidev->dev,
+						"%d config data fetch timed out!\n",
+						adapter->port);
 					slic_reg64_write(adapter,
 						&slic_regs->slic_isp, 0,
 						&slic_regs->slic_addr_upper,
@@ -2164,8 +2153,8 @@ static int slic_card_init(struct sliccard *card, struct adapter *adapter)
 			slic_reg64_write(adapter, &slic_regs->slic_isp, 0,
 					 &slic_regs->slic_addr_upper,
 					 0, FLUSH);
-			DBG_ERROR
-			    ("unsupported CONFIGURATION  EEPROM invalid\n");
+			dev_err(&adapter->pcidev->dev,
+				"unsupported CONFIGURATION EEPROM invalid\n");
 			return -EINVAL;
 		}
 
@@ -2173,8 +2162,8 @@ static int slic_card_init(struct sliccard *card, struct adapter *adapter)
 	}
 
 	if (slic_card_download_gbrcv(adapter)) {
-		DBG_ERROR("%s unable to download GB receive microcode\n",
-			  __func__);
+		dev_err(&adapter->pcidev->dev,
+			"unable to download GB receive microcode\n");
 		return -EINVAL;
 	}
 
@@ -2595,7 +2584,8 @@ static void slic_assert_fail(void)
 	cpuid = smp_processor_id();
 	curr_pid = current->pid;
 
-	DBG_ERROR("%s CPU # %d ---- PID # %d\n", __func__, cpuid, curr_pid);
+	printk(KERN_ERR "%s CPU # %d ---- PID # %d\n",
+	       __func__, cpuid, curr_pid);
 }
 
 static int slic_upr_queue_request(struct adapter *adapter,
@@ -2681,9 +2671,9 @@ static void slic_upr_request_complete(struct adapter *adapter, u32 isr)
 			struct slicnet_stats *stst = &adapter->slic_stats;
 
 			if (isr & ISR_UPCERR) {
-				DBG_ERROR
-				    ("SLIC_UPR_STATS command failed isr[%x]\n",
-				     isr);
+				dev_err(&adapter->netdev->dev,
+					"SLIC_UPR_STATS command failed isr[%x]\n",
+					isr);
 
 				break;
 			}
@@ -3015,12 +3005,12 @@ static int slic_rspqueue_init(struct adapter *adapter)
 	rspq->num_pages = SLIC_RSPQ_PAGES_GB;
 
 	for (i = 0; i < rspq->num_pages; i++) {
-		rspq->vaddr[i] =
-		    pci_alloc_consistent(adapter->pcidev, PAGE_SIZE,
-					 &rspq->paddr[i]);
+		rspq->vaddr[i] = pci_alloc_consistent(adapter->pcidev,
+						      PAGE_SIZE,
+						      &rspq->paddr[i]);
 		if (!rspq->vaddr[i]) {
-			DBG_ERROR
-			    ("rspqueue_init_failed  pci_alloc_consistent\n");
+			dev_err(&adapter->pcidev->dev,
+				"pci_alloc_consistent failed\n");
 			slic_rspqueue_free(adapter);
 			return STATUS_FAILURE;
 		}
@@ -3239,8 +3229,9 @@ static void slic_cmdq_reset(struct adapter *adapter)
 		hcmd = hcmd->next_all;
 	}
 	if (adapter->cmdq_free.count != adapter->cmdq_all.count) {
-		DBG_ERROR("%s free_count %d != all count %d\n", __func__,
-			  adapter->cmdq_free.count, adapter->cmdq_all.count);
+		dev_err(&adapter->netdev->dev,
+			"free_count %d != all count %d\n",
+			adapter->cmdq_free.count, adapter->cmdq_all.count);
 	}
 	spin_unlock_irqrestore(&adapter->cmdq_done.lock.lock,
 				adapter->cmdq_done.lock.flags);
@@ -3436,8 +3427,8 @@ static struct sk_buff *slic_rcvqueue_getnext(struct adapter *adapter)
 			skb = NULL;
 		}
 	} else {
-		DBG_ERROR("RcvQ Empty!! adapter[%p] rcvq[%p] count[%x]\n",
-			  adapter, rcvq, rcvq->count);
+		dev_err(&adapter->netdev->dev,
+			"RcvQ Empty!! rcvq[%p] count[%x]\n", rcvq, rcvq->count);
 		skb = NULL;
 	}
 	while (rcvq->count < SLIC_RCVQ_FILLTHRESH) {
@@ -3457,6 +3448,7 @@ static int slic_rcvqueue_fill(struct adapter *adapter)
 	u32 paddrh;
 	struct slic_rcvqueue *rcvq = &adapter->rcvqueue;
 	int i = 0;
+	struct device *dev = &adapter->netdev->dev;
 
 	while (i < SLIC_RCVQ_FILLENTRIES) {
 		struct slic_rcvbuf *rcvbuf;
@@ -3479,33 +3471,34 @@ retry_rcvqfill:
 			skb->next = NULL;
 #ifdef KLUDGE_FOR_4GB_BOUNDARY
 			if (paddrl == 0) {
-				DBG_ERROR
-				    ("%s: LOW 32bits PHYSICAL ADDRESS == 0 "
-				     "skb[%p]   PROBLEM\n"
-				     "         skbdata[%p]\n"
-				     "         skblen[%x]\n"
-				     "         paddr[%p]\n"
-				     "         paddrl[%x]\n"
-				     "         paddrh[%x]\n", __func__, skb,
-				     skb->data, skb->len, paddr, paddrl,
-				     paddrh);
-				DBG_ERROR("         rcvq->head[%p]\n"
-					  "         rcvq->tail[%p]\n"
-					  "         rcvq->count[%x]\n",
-					  rcvq->head, rcvq->tail, rcvq->count);
-				DBG_ERROR("SKIP THIS SKB!!!!!!!!\n");
+				dev_err(dev, "%s: LOW 32bits PHYSICAL ADDRESS == 0\n",
+					__func__);
+				dev_err(dev, "skb[%p] PROBLEM\n", skb);
+				dev_err(dev, "         skbdata[%p]\n", skb->data);
+				dev_err(dev, "         skblen[%x]\n", skb->len);
+				dev_err(dev, "         paddr[%p]\n", paddr);
+				dev_err(dev, "         paddrl[%x]\n", paddrl);
+				dev_err(dev, "         paddrh[%x]\n", paddrh);
+				dev_err(dev, "         rcvq->head[%p]\n", rcvq->head);
+				dev_err(dev, "         rcvq->tail[%p]\n", rcvq->tail);
+				dev_err(dev, "         rcvq->count[%x]\n", rcvq->count);
+				dev_err(dev, "SKIP THIS SKB!!!!!!!!\n");
 				goto retry_rcvqfill;
 			}
 #else
 			if (paddrl == 0) {
-				DBG_ERROR
-				    ("\n\n%s: LOW 32bits PHYSICAL ADDRESS == 0 "
-				     "skb[%p]  GIVE TO CARD ANYWAY\n"
-				     "         skbdata[%p]\n"
-				     "         paddr[%p]\n"
-				     "         paddrl[%x]\n"
-				     "         paddrh[%x]\n", __func__, skb,
-				     skb->data, paddr, paddrl, paddrh);
+				dev_err(dev, "%s: LOW 32bits PHYSICAL ADDRESS == 0\n",
+					__func__);
+				dev_err(dev, "skb[%p] PROBLEM\n", skb);
+				dev_err(dev, "         skbdata[%p]\n", skb->data);
+				dev_err(dev, "         skblen[%x]\n", skb->len);
+				dev_err(dev, "         paddr[%p]\n", paddr);
+				dev_err(dev, "         paddrl[%x]\n", paddrl);
+				dev_err(dev, "         paddrh[%x]\n", paddrh);
+				dev_err(dev, "         rcvq->head[%p]\n", rcvq->head);
+				dev_err(dev, "         rcvq->tail[%p]\n", rcvq->tail);
+				dev_err(dev, "         rcvq->count[%x]\n", rcvq->count);
+				dev_err(dev, "GIVE TO CARD ANYWAY\n");
 			}
 #endif
 			if (paddrh == 0) {
@@ -3526,10 +3519,9 @@ retry_rcvqfill:
 			rcvq->count++;
 			i++;
 		} else {
-			DBG_ERROR
-			    ("%s slic_rcvqueue_fill could only get [%d] "
-			     "skbuffs\n",
-			     adapter->netdev->name, i);
+			dev_err(&adapter->netdev->dev,
+				"slic_rcvqueue_fill could only get [%d] skbuffs\n",
+				i);
 			break;
 		}
 	}
@@ -3543,6 +3535,7 @@ static u32 slic_rcvqueue_reinsert(struct adapter *adapter, struct sk_buff *skb)
 	u32 paddrl;
 	u32 paddrh;
 	struct slic_rcvbuf *rcvbuf = (struct slic_rcvbuf *)skb->head;
+	struct device *dev;
 
 	ASSERT(skb->len == SLIC_RCVBUF_HEADSIZE);
 
@@ -3555,16 +3548,18 @@ static u32 slic_rcvqueue_reinsert(struct adapter *adapter, struct sk_buff *skb)
 	paddrh = SLIC_GET_ADDR_HIGH(paddr);
 
 	if (paddrl == 0) {
-		DBG_ERROR
-		    ("%s: LOW 32bits PHYSICAL ADDRESS == 0 skb[%p]   PROBLEM\n"
-		     "         skbdata[%p]\n" "         skblen[%x]\n"
-		     "         paddr[%p]\n" "         paddrl[%x]\n"
-		     "         paddrh[%x]\n", __func__, skb, skb->data,
-		     skb->len, paddr, paddrl, paddrh);
-		DBG_ERROR("         rcvq->head[%p]\n"
-			  "         rcvq->tail[%p]\n"
-			  "         rcvq->count[%x]\n", rcvq->head, rcvq->tail,
-			  rcvq->count);
+		dev = &adapter->netdev->dev;
+		dev_err(dev, "%s: LOW 32bits PHYSICAL ADDRESS == 0\n",
+			__func__);
+		dev_err(dev, "skb[%p] PROBLEM\n", skb);
+		dev_err(dev, "         skbdata[%p]\n", skb->data);
+		dev_err(dev, "         skblen[%x]\n", skb->len);
+		dev_err(dev, "         paddr[%p]\n", paddr);
+		dev_err(dev, "         paddrl[%x]\n", paddrl);
+		dev_err(dev, "         paddrh[%x]\n", paddrh);
+		dev_err(dev, "         rcvq->head[%p]\n", rcvq->head);
+		dev_err(dev, "         rcvq->tail[%p]\n", rcvq->tail);
+		dev_err(dev, "         rcvq->count[%x]\n", rcvq->count);
 	}
 	if (paddrh == 0) {
 		slic_reg32_write(&adapter->slic_regs->slic_hbar, (u32)paddrl,
