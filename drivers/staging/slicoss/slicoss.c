@@ -101,7 +101,74 @@
 #define SLIC_ETHTOOL_SUPPORT     1
 
 #include <linux/uaccess.h>
-#include "slicinc.h"
+#include "slicdbg.h"
+#include "slichw.h"
+#include "slic.h"
+
+#if SLIC_GET_STATS_ENABLED
+static struct net_device_stats *slic_get_stats(struct net_device *dev);
+#endif
+
+static int slic_entry_open(struct net_device *dev);
+static int slic_entry_halt(struct net_device *dev);
+static int slic_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
+static int slic_xmit_start(struct sk_buff *skb, struct net_device *dev);
+static void slic_xmit_fail(struct adapter *adapter, struct sk_buff *skb,
+			   void *cmd, u32 skbtype, u32 status);
+static void slic_config_pci(struct pci_dev *pcidev);
+static struct sk_buff *slic_rcvqueue_getnext(struct adapter *adapter);
+static int slic_mac_set_address(struct net_device *dev, void *ptr);
+static void slic_link_event_handler(struct adapter *adapter);
+static void slic_upr_request_complete(struct adapter *adapter, u32 isr);
+static int slic_rspqueue_init(struct adapter *adapter);
+static int slic_rspqueue_reset(struct adapter *adapter);
+static void slic_rspqueue_free(struct adapter *adapter);
+static struct slic_rspbuf *slic_rspqueue_getnext(struct adapter *adapter);
+static int slic_cmdq_init(struct adapter *adapter);
+static void slic_cmdq_free(struct adapter *adapter);
+static void slic_cmdq_reset(struct adapter *adapter);
+static void slic_cmdq_addcmdpage(struct adapter *adapter, u32 *page);
+static void slic_cmdq_getdone(struct adapter *adapter);
+static void slic_cmdq_putdone_irq(struct adapter *adapter,
+				  struct slic_hostcmd *cmd);
+static struct slic_hostcmd *slic_cmdq_getfree(struct adapter *adapter);
+static int slic_rcvqueue_init(struct adapter *adapter);
+static int slic_rcvqueue_reset(struct adapter *adapter);
+static int slic_rcvqueue_fill(struct adapter *adapter);
+static u32 slic_rcvqueue_reinsert(struct adapter *adapter, struct sk_buff *skb);
+static void slic_rcvqueue_free(struct adapter *adapter);
+static void slic_adapter_set_hwaddr(struct adapter *adapter);
+static int slic_card_init(struct sliccard *card, struct adapter *adapter);
+static void slic_intagg_set(struct adapter *adapter, u32 value);
+static int slic_card_download(struct adapter *adapter);
+static u32 slic_card_locate(struct adapter *adapter);
+static int slic_if_init(struct adapter *adapter);
+static int slic_adapter_allocresources(struct adapter *adapter);
+static void slic_adapter_freeresources(struct adapter *adapter);
+static void slic_link_config(struct adapter *adapter, u32 linkspeed,
+			     u32 linkduplex);
+static void slic_unmap_mmio_space(struct adapter *adapter);
+static void slic_card_cleanup(struct sliccard *card);
+static void slic_soft_reset(struct adapter *adapter);
+static bool slic_mac_filter(struct adapter *adapter,
+			    struct ether_header *ether_frame);
+static void slic_mac_address_config(struct adapter *adapter);
+static void slic_mac_config(struct adapter *adapter);
+static void slic_mcast_set_mask(struct adapter *adapter);
+static void slic_config_set(struct adapter *adapter, bool linkchange);
+static void slic_config_clear(struct adapter *adapter);
+static void slic_config_get(struct adapter *adapter, u32 config,
+			    u32 configh);
+static void slic_timer_load_check(ulong context);
+static void slic_assert_fail(void);
+static ushort slic_eeprom_cksum(char *m, int len);
+static void slic_upr_start(struct adapter *adapter);
+static void slic_link_upr_complete(struct adapter *adapter, u32 Isr);
+static int  slic_upr_request(struct adapter *adapter, u32 upr_request,
+			     u32 upr_data, u32 upr_data_h, u32 upr_buffer,
+			     u32 upr_buffer_h);
+static void slic_mcast_set_list(struct net_device *dev);
+
 
 #define SLIC_POWER_MANAGEMENT  0
 
@@ -619,7 +686,7 @@ static int slic_entry_halt(struct net_device *dev)
 	DBG_MSG("slicoss: %s (%s) actvtd[%d] alloc[%d] state[%x] adapt[%p]\n",
 		__func__, dev->name, card->adapters_activated,
 		card->adapters_allocated, card->state, adapter);
-	slic_if_stop_queue(adapter);
+	netif_stop_queue(adapter->netdev);
 	adapter->state = ADAPT_DOWN;
 	adapter->linkstate = LINK_DOWN;
 	adapter->upr_list = NULL;
@@ -942,7 +1009,7 @@ static void slic_xmit_fail(struct adapter *adapter,
 		    void *cmd, u32 skbtype, u32 status)
 {
 	if (adapter->xmitq_full)
-		slic_if_stop_queue(adapter);
+		netif_stop_queue(adapter->netdev);
 	if ((cmd == NULL) && (status <= XMIT_FAIL_HOSTCMD_FAIL)) {
 		switch (status) {
 		case XMIT_FAIL_LINK_STATE:
@@ -1582,16 +1649,6 @@ static void slic_timer_ping(ulong dev)
 
 	adapter->pingtimer.expires = jiffies + (PING_TIMER_INTERVAL * HZ);
 	add_timer(&adapter->pingtimer);
-}
-
-static void slic_if_stop_queue(struct adapter *adapter)
-{
-	netif_stop_queue(adapter->netdev);
-}
-
-static void slic_if_start_queue(struct adapter *adapter)
-{
-	netif_start_queue(adapter->netdev);
 }
 
 /*
@@ -3305,9 +3362,9 @@ static void slic_link_upr_complete(struct adapter *adapter, u32 isr)
 		DBG_MSG("%s call slic_config_set\n", __func__);
 		slic_config_set(adapter, true);
 		adapter->linkstate = LINK_UP;
-		DBG_MSG("\n(%s) Link UP: CALL slic_if_start_queue",
+		DBG_MSG("\n(%s) Link UP: CALL netif_start_queue",
 			adapter->netdev->name);
-		slic_if_start_queue(adapter);
+		netif_start_queue(adapter->netdev);
 	}
 #if 1
 	switch (linkspeed) {
