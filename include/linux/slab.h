@@ -127,6 +127,7 @@ int kmem_ptr_validate(struct kmem_cache *cachep, const void *ptr);
 void * __must_check __krealloc(const void *, size_t, gfp_t);
 void * __must_check krealloc(const void *, size_t, gfp_t);
 void kfree(const void *);
+void kzfree(const void *);
 size_t ksize(const void *);
 
 /*

@@ -74,8 +74,9 @@
 #include <asm/e820.h>
 #include <asm/mpspec.h>
 #include <asm/setup.h>
-#include <asm/arch_hooks.h>
 #include <asm/efi.h>
+#include <asm/timer.h>
+#include <asm/i8259.h>
 #include <asm/sections.h>
 #include <asm/dmi.h>
 #include <asm/io_apic.h>
@@ -668,7 +669,6 @@ void __init setup_arch(char **cmdline_p)
 #ifdef CONFIG_X86_32
 	memcpy(&boot_cpu_data, &new_cpu_data, sizeof(new_cpu_data));
 	visws_early_detect();
-	pre_setup_arch_hook();
 #else
 	printk(KERN_INFO "Command line: %s\n", boot_command_line);
 #endif
@@ -988,7 +988,7 @@ void __init setup_arch(char **cmdline_p)
 #ifdef CONFIG_X86_32
 
 /**
- * pre_intr_init_hook - initialisation prior to setting up interrupt vectors
+ * x86_quirk_pre_intr_init - initialisation prior to setting up interrupt vectors
  *
  * Description:
  *	Perform any necessary interrupt initialisation prior to setting up
@@ -996,7 +996,7 @@ void __init setup_arch(char **cmdline_p)
  *	interrupts should be initialised here if the machine emulates a PC
  *	in any way.
  **/
-void __init pre_intr_init_hook(void)
+void __init x86_quirk_pre_intr_init(void)
 {
 	if (x86_quirks->arch_pre_intr_init) {
 		if (x86_quirks->arch_pre_intr_init())
@@ -1006,7 +1006,7 @@ void __init pre_intr_init_hook(void)
 }
 
 /**
- * intr_init_hook - post gate setup interrupt initialisation
+ * x86_quirk_intr_init - post gate setup interrupt initialisation
  *
  * Description:
  *	Fill in any interrupts that may have been left out by the general
@@ -1014,7 +1014,7 @@ void __init pre_intr_init_hook(void)
  *	than the devices on the I/O bus (like APIC interrupts in intel MP
  *	systems) are started here.
  **/
-void __init intr_init_hook(void)
+void __init x86_quirk_intr_init(void)
 {
 	if (x86_quirks->arch_intr_init) {
 		if (x86_quirks->arch_intr_init())
@@ -1023,25 +1023,13 @@ void __init intr_init_hook(void)
 }
 
 /**
- * pre_setup_arch_hook - hook called prior to any setup_arch() execution
- *
- * Description:
- *	generally used to activate any machine specific identification
- *	routines that may be needed before setup_arch() runs.  On Voyager
- *	this is used to get the board revision and type.
- **/
-void __init pre_setup_arch_hook(void)
-{
-}
-
-/**
- * trap_init_hook - initialise system specific traps
+ * x86_quirk_trap_init - initialise system specific traps
  *
  * Description:
  *	Called as the final act of trap_init().  Used in VISWS to initialise
  *	the various board specific APIC traps.
  **/
-void __init trap_init_hook(void)
+void __init x86_quirk_trap_init(void)
 {
 	if (x86_quirks->arch_trap_init) {
 		if (x86_quirks->arch_trap_init())
@@ -1051,29 +1039,29 @@ void __init trap_init_hook(void)
 
 static struct irqaction irq0  = {
 	.handler = timer_interrupt,
-	.flags = IRQF_DISABLED | IRQF_NOBALANCING | IRQF_IRQPOLL,
+	.flags = IRQF_DISABLED | IRQF_NOBALANCING | IRQF_IRQPOLL | IRQF_TIMER,
 	.mask = CPU_MASK_NONE,
 	.name = "timer"
 };
 
 /**
- * pre_time_init_hook - do any specific initialisations before.
+ * x86_quirk_pre_time_init - do any specific initialisations before.
  *
  **/
-void __init pre_time_init_hook(void)
+void __init x86_quirk_pre_time_init(void)
 {
 	if (x86_quirks->arch_pre_time_init)
 		x86_quirks->arch_pre_time_init();
 }
 
 /**
- * time_init_hook - do any specific initialisations for the system timer.
+ * x86_quirk_time_init - do any specific initialisations for the system timer.
  *
  * Description:
  *	Must plug the system timer interrupt source at HZ into the IRQ listed
  *	in irq_vectors.h:TIMER_IRQ
  **/
-void __init time_init_hook(void)
+void __init x86_quirk_time_init(void)
 {
 	if (x86_quirks->arch_time_init) {
 		/*
@@ -1088,25 +1076,4 @@ void __init time_init_hook(void)
 	irq0.mask = cpumask_of_cpu(0);
 	setup_irq(0, &irq0);
 }
-
-#ifdef CONFIG_MCA
-/**
- * mca_nmi_hook - hook into MCA specific NMI chain
- *
- * Description:
- *	The MCA (Microchannel Architecture) has an NMI chain for NMI sources
- *	along the MCA bus.  Use this to hook into that chain if you will need
- *	it.
- **/
-void mca_nmi_hook(void)
-{
-	/*
-	 * If I recall correctly, there's a whole bunch of other things that
-	 * we can do to check for NMI problems, but that's all I know about
-	 * at the moment.
-	 */
-	pr_warning("NMI generated from unknown source!\n");
-}
-#endif /* CONFIG_MCA */
-
 #endif /* CONFIG_X86_32 */

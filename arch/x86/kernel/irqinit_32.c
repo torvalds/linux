@@ -18,7 +18,7 @@
 #include <asm/pgtable.h>
 #include <asm/desc.h>
 #include <asm/apic.h>
-#include <asm/arch_hooks.h>
+#include <asm/setup.h>
 #include <asm/i8259.h>
 #include <asm/traps.h>
 
@@ -181,8 +181,8 @@ void __init native_init_IRQ(void)
 {
 	int i;
 
-	/* all the set up before the call gates are initialised */
-	pre_intr_init_hook();
+	/* Execute any quirks before the call gates are initialised: */
+	x86_quirk_pre_intr_init();
 
 	apic_intr_init();
 
@@ -201,10 +201,11 @@ void __init native_init_IRQ(void)
 	if (!acpi_ioapic)
 		setup_irq(2, &irq2);
 
-	/* setup after call gates are initialised (usually add in
-	 * the architecture specific gates)
+	/*
+	 * Call quirks after call gates are initialised (usually add in
+	 * the architecture specific gates):
 	 */
-	intr_init_hook();
+	x86_quirk_intr_init();
 
 	/*
 	 * External FPU? Set up irq13 if so, for

@@ -10,7 +10,7 @@
 #include <asm/apic.h>
 #include <asm/ipi.h>
 
-static int x2apic_phys;
+int x2apic_phys;
 
 static int set_x2apic_phys_mode(char *arg)
 {
@@ -21,10 +21,10 @@ early_param("x2apic_phys", set_x2apic_phys_mode);
 
 static int x2apic_acpi_madt_oem_check(char *oem_id, char *oem_table_id)
 {
-	if (cpu_has_x2apic && x2apic_phys)
-		return 1;
-
-	return 0;
+	if (x2apic_phys)
+		return x2apic_enabled();
+	else
+		return 0;
 }
 
 /* Start with all IRQs pointing to boot CPU.  IRQ balancing will shift them. */

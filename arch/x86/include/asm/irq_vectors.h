@@ -128,7 +128,7 @@
 #ifndef __ASSEMBLY__
 static inline int invalid_vm86_irq(int irq)
 {
-	return irq < 3 || irq > 15;
+	return irq < FIRST_VM86_IRQ || irq > LAST_VM86_IRQ;
 }
 #endif
 

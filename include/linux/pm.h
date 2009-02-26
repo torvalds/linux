@@ -381,10 +381,12 @@ struct dev_pm_info {
 
 #ifdef CONFIG_PM_SLEEP
 extern void device_pm_lock(void);
+extern int sysdev_resume(void);
 extern void device_power_up(pm_message_t state);
 extern void device_resume(pm_message_t state);
 
 extern void device_pm_unlock(void);
+extern int sysdev_suspend(pm_message_t state);
 extern int device_power_down(pm_message_t state);
 extern int device_suspend(pm_message_t state);
 extern int device_prepare_suspend(pm_message_t state);

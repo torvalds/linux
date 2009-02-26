@@ -403,7 +403,6 @@ DECLARE_PER_CPU(unsigned long, stack_canary);
 #endif
 #endif	/* X86_64 */
 
-extern void print_cpu_info(struct cpuinfo_x86 *);
 extern unsigned int xstate_size;
 extern void free_thread_xstate(struct task_struct *);
 extern struct kmem_cache *task_xstate_cachep;
@@ -862,6 +861,7 @@ static inline void spin_lock_prefetch(const void *x)
  * User space process size: 3GB (default).
  */
 #define TASK_SIZE		PAGE_OFFSET
+#define TASK_SIZE_MAX		TASK_SIZE
 #define STACK_TOP		TASK_SIZE
 #define STACK_TOP_MAX		STACK_TOP
 
@@ -921,7 +921,7 @@ extern unsigned long thread_saved_pc(struct task_struct *tsk);
 /*
  * User space process size. 47bits minus one guard page.
  */
-#define TASK_SIZE64	((1UL << 47) - PAGE_SIZE)
+#define TASK_SIZE_MAX	((1UL << 47) - PAGE_SIZE)
 
 /* This decides where the kernel will search for a free chunk of vm
  * space during mmap's.
@@ -930,12 +930,12 @@ extern unsigned long thread_saved_pc(struct task_struct *tsk);
 					0xc0000000 : 0xFFFFe000)
 
 #define TASK_SIZE		(test_thread_flag(TIF_IA32) ? \
-					IA32_PAGE_OFFSET : TASK_SIZE64)
+					IA32_PAGE_OFFSET : TASK_SIZE_MAX)
 #define TASK_SIZE_OF(child)	((test_tsk_thread_flag(child, TIF_IA32)) ? \
-					IA32_PAGE_OFFSET : TASK_SIZE64)
+					IA32_PAGE_OFFSET : TASK_SIZE_MAX)
 
 #define STACK_TOP		TASK_SIZE
-#define STACK_TOP_MAX		TASK_SIZE64
+#define STACK_TOP_MAX		TASK_SIZE_MAX
 
 #define INIT_THREAD  { \
 	.sp0 = (unsigned long)&init_stack + sizeof(init_stack) \

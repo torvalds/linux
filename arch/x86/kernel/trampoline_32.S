@@ -29,7 +29,7 @@
 
 #include <linux/linkage.h>
 #include <asm/segment.h>
-#include <asm/page.h>
+#include <asm/page_types.h>
 
 /* We can free up trampoline after bootup if cpu hotplug is not supported. */
 #ifndef CONFIG_HOTPLUG_CPU

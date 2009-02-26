@@ -47,7 +47,7 @@
 #include <asm/errno.h>
 #include <asm/segment.h>
 #include <asm/smp.h>
-#include <asm/page.h>
+#include <asm/page_types.h>
 #include <asm/desc.h>
 #include <asm/percpu.h>
 #include <asm/dwarf2.h>
@@ -1359,7 +1359,7 @@ nmi_espfix_stack:
 	CFI_ADJUST_CFA_OFFSET 4
 	pushl %esp
 	CFI_ADJUST_CFA_OFFSET 4
-	addw $4, (%esp)
+	addl $4, (%esp)
 	/* copy the iret frame of 12 bytes */
 	.rept 3
 	pushl 16(%esp)

@@ -1175,7 +1175,7 @@ static void mib_counters_update(struct mv643xx_eth_private *mp)
 {
 	struct mib_counters *p = &mp->mib_counters;
 
-	spin_lock(&mp->mib_counters_lock);
+	spin_lock_bh(&mp->mib_counters_lock);
 	p->good_octets_received += mib_read(mp, 0x00);
 	p->good_octets_received += (u64)mib_read(mp, 0x04) << 32;
 	p->bad_octets_received += mib_read(mp, 0x08);
@@ -1208,7 +1208,7 @@ static void mib_counters_update(struct mv643xx_eth_private *mp)
 	p->bad_crc_event += mib_read(mp, 0x74);
 	p->collision += mib_read(mp, 0x78);
 	p->late_collision += mib_read(mp, 0x7c);
-	spin_unlock(&mp->mib_counters_lock);
+	spin_unlock_bh(&mp->mib_counters_lock);
 
 	mod_timer(&mp->mib_counters_timer, jiffies + 30 * HZ);
 }
@@ -1575,7 +1575,7 @@ oom:
 		return;
 	}
 
-	mc_spec = kmalloc(0x200, GFP_KERNEL);
+	mc_spec = kmalloc(0x200, GFP_ATOMIC);
 	if (mc_spec == NULL)
 		goto oom;
 	mc_other = mc_spec + (0x100 >> 2);
@@ -2216,8 +2216,6 @@ static int mv643xx_eth_stop(struct net_device *dev)
 	wrlp(mp, INT_MASK, 0x00000000);
 	rdlp(mp, INT_MASK);
 
-	del_timer_sync(&mp->mib_counters_timer);
-
 	napi_disable(&mp->napi);
 
 	del_timer_sync(&mp->rx_oom);
@@ -2229,6 +2227,7 @@ static int mv643xx_eth_stop(struct net_device *dev)
 	port_reset(mp);
 	mv643xx_eth_get_stats(dev);
 	mib_counters_update(mp);
+	del_timer_sync(&mp->mib_counters_timer);
 
 	skb_queue_purge(&mp->rx_recycle);
 

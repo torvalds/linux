@@ -25,14 +25,12 @@
 
 #include <linux/linkage.h>
 #include <asm/segment.h>
-#include <asm/page.h>
+#include <asm/page_types.h>
 #include <asm/boot.h>
 #include <asm/asm-offsets.h>
 
 .section ".text.head","ax",@progbits
-	.globl startup_32
-
-startup_32:
+ENTRY(startup_32)
 	cld
 	/* test KEEP_SEGMENTS flag to see if the bootloader is asking
 	 * us to not reload segments */
@@ -113,6 +111,8 @@ startup_32:
  */
 	leal relocated(%ebx), %eax
 	jmp *%eax
+ENDPROC(startup_32)
+
 .section ".text"
 relocated:
 

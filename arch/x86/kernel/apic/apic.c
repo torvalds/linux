@@ -35,7 +35,6 @@
 #include <linux/mm.h>
 
 #include <asm/perf_counter.h>
-#include <asm/arch_hooks.h>
 #include <asm/pgalloc.h>
 #include <asm/atomic.h>
 #include <asm/mpspec.h>
@@ -840,7 +839,7 @@ void clear_local_APIC(void)
 	}
 
 	/* lets not touch this if we didn't frob it */
-#if defined(CONFIG_X86_MCE_P4THERMAL) || defined(X86_MCE_INTEL)
+#if defined(CONFIG_X86_MCE_P4THERMAL) || defined(CONFIG_X86_MCE_INTEL)
 	if (maxlvt >= 5) {
 		v = apic_read(APIC_LVTTHMR);
 		apic_write(APIC_LVTTHMR, v | APIC_LVT_MASKED);
@@ -1269,14 +1268,7 @@ void __cpuinit end_local_APIC_setup(void)
 #ifdef CONFIG_X86_X2APIC
 void check_x2apic(void)
 {
-	int msr, msr2;
-
-	if (!cpu_has_x2apic)
-		return;
-
-	rdmsr(MSR_IA32_APICBASE, msr, msr2);
-
-	if (msr & X2APIC_ENABLE) {
+	if (x2apic_enabled()) {
 		pr_info("x2apic enabled by BIOS, switching to x2apic ops\n");
 		x2apic_preenabled = x2apic = 1;
 	}

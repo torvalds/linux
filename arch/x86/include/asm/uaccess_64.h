@@ -189,17 +189,28 @@ extern long __copy_user_nocache(void *dst, const void __user *src,
 				unsigned size, int zerorest);
 
 static inline int __copy_from_user_nocache(void *dst, const void __user *src,
-					   unsigned size)
+				   unsigned size, unsigned long total)
 {
 	might_sleep();
-	return __copy_user_nocache(dst, src, size, 1);
+	/*
+	 * In practice this limit means that large file write()s
+	 * which get chunked to 4K copies get handled via
+	 * non-temporal stores here. Smaller writes get handled
+	 * via regular __copy_from_user():
+	 */
+	if (likely(total >= PAGE_SIZE))
+		return __copy_user_nocache(dst, src, size, 1);
+	else
+		return __copy_from_user(dst, src, size);
 }
 
 static inline int __copy_from_user_inatomic_nocache(void *dst,
-						    const void __user *src,
-						    unsigned size)
+	    const void __user *src, unsigned size, unsigned total)
 {
-	return __copy_user_nocache(dst, src, size, 0);
+	if (likely(total >= PAGE_SIZE))
+		return __copy_user_nocache(dst, src, size, 0);
+	else
+		return __copy_from_user_inatomic(dst, src, size);
 }
 
 unsigned long

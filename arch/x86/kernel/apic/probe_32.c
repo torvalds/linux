@@ -35,7 +35,6 @@
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <asm/acpi.h>
-#include <asm/arch_hooks.h>
 #include <asm/e820.h>
 #include <asm/setup.h>
 

@@ -396,7 +396,7 @@ qla24xx_create_vhost(struct fc_vport *fc_vport)
 
 	qla2x00_start_timer(vha, qla2x00_timer, WATCH_INTERVAL);
 
-	memset(vha->req_ques, 0, sizeof(vha->req_ques) * QLA_MAX_HOST_QUES);
+	memset(vha->req_ques, 0, sizeof(vha->req_ques));
 	vha->req_ques[0] = ha->req_q_map[0]->id;
 	host->can_queue = ha->req_q_map[0]->length + 128;
 	host->this_id = 255;
@@ -471,7 +471,7 @@ qla25xx_delete_req_que(struct scsi_qla_host *vha, struct req_que *req)
 
 	if (req) {
 		req->options |= BIT_0;
-		ret = qla25xx_init_req_que(vha, req, req->options);
+		ret = qla25xx_init_req_que(vha, req);
 	}
 	if (ret == QLA_SUCCESS)
 		qla25xx_free_req_que(vha, req);
@@ -486,7 +486,7 @@ qla25xx_delete_rsp_que(struct scsi_qla_host *vha, struct rsp_que *rsp)
 
 	if (rsp) {
 		rsp->options |= BIT_0;
-		ret = qla25xx_init_rsp_que(vha, rsp, rsp->options);
+		ret = qla25xx_init_rsp_que(vha, rsp);
 	}
 	if (ret == QLA_SUCCESS)
 		qla25xx_free_rsp_que(vha, rsp);
@@ -502,7 +502,7 @@ int qla25xx_update_req_que(struct scsi_qla_host *vha, uint8_t que, uint8_t qos)
 
 	req->options |= BIT_3;
 	req->qos = qos;
-	ret = qla25xx_init_req_que(vha, req, req->options);
+	ret = qla25xx_init_req_que(vha, req);
 	if (ret != QLA_SUCCESS)
 		DEBUG2_17(printk(KERN_WARNING "%s failed\n", __func__));
 	/* restore options bit */
@@ -632,7 +632,7 @@ qla25xx_create_req_que(struct qla_hw_data *ha, uint16_t options,
 	req->max_q_depth = ha->req_q_map[0]->max_q_depth;
 	mutex_unlock(&ha->vport_lock);
 
-	ret = qla25xx_init_req_que(base_vha, req, options);
+	ret = qla25xx_init_req_que(base_vha, req);
 	if (ret != QLA_SUCCESS) {
 		qla_printk(KERN_WARNING, ha, "%s failed\n", __func__);
 		mutex_lock(&ha->vport_lock);
@@ -710,7 +710,7 @@ qla25xx_create_rsp_que(struct qla_hw_data *ha, uint16_t options,
 	if (ret)
 		goto que_failed;
 
-	ret = qla25xx_init_rsp_que(base_vha, rsp, options);
+	ret = qla25xx_init_rsp_que(base_vha, rsp);
 	if (ret != QLA_SUCCESS) {
 		qla_printk(KERN_WARNING, ha, "%s failed\n", __func__);
 		mutex_lock(&ha->vport_lock);

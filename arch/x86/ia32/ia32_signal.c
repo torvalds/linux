@@ -33,8 +33,6 @@
 #include <asm/sigframe.h>
 #include <asm/sys_ia32.h>
 
-#define DEBUG_SIG 0
-
 #define _BLOCKABLE (~(sigmask(SIGKILL) | sigmask(SIGSTOP)))
 
 #define FIX_EFLAGS	(X86_EFLAGS_AC | X86_EFLAGS_OF | \
@@ -190,41 +188,46 @@ asmlinkage long sys32_sigaltstack(const stack_ia32_t __user *uss_ptr,
 /*
  * Do a signal return; undo the signal stack.
  */
+#define loadsegment_gs(v)	load_gs_index(v)
+#define loadsegment_fs(v)	loadsegment(fs, v)
+#define loadsegment_ds(v)	loadsegment(ds, v)
+#define loadsegment_es(v)	loadsegment(es, v)
+
+#define get_user_seg(seg)	({ unsigned int v; savesegment(seg, v); v; })
+#define set_user_seg(seg, v)	loadsegment_##seg(v)
+
 #define COPY(x)			{		\
 	get_user_ex(regs->x, &sc->x);		\
 }
 
-#define COPY_SEG_CPL3(seg)	{			\
-		unsigned short tmp;			\
-		get_user_ex(tmp, &sc->seg);		\
-		regs->seg = tmp | 3;			\
-}
+#define GET_SEG(seg)		({			\
+	unsigned short tmp;				\
+	get_user_ex(tmp, &sc->seg);			\
+	tmp;						\
+})
+
+#define COPY_SEG_CPL3(seg)	do {			\
+	regs->seg = GET_SEG(seg) | 3;			\
+} while (0)
 
 #define RELOAD_SEG(seg)		{		\
-	unsigned int cur, pre;			\
-	get_user_ex(pre, &sc->seg);		\
-	savesegment(seg, cur);			\
+	unsigned int pre = GET_SEG(seg);	\
+	unsigned int cur = get_user_seg(seg);	\
 	pre |= 3;				\
 	if (pre != cur)				\
-		loadsegment(seg, pre);		\
+		set_user_seg(seg, pre);		\
 }
 
 static int ia32_restore_sigcontext(struct pt_regs *regs,
 				   struct sigcontext_ia32 __user *sc,
 				   unsigned int *pax)
 {
-	unsigned int tmpflags, gs, oldgs, err = 0;
+	unsigned int tmpflags, err = 0;
 	void __user *buf;
 	u32 tmp;
 
 	/* Always make any pending restarted system calls return -EINTR */
 	current_thread_info()->restart_block.fn = do_no_restart_syscall;
-
-#if DEBUG_SIG
-	printk(KERN_DEBUG "SIG restore_sigcontext: "
-	       "sc=%p err(%x) eip(%x) cs(%x) flg(%x)\n",
-	       sc, sc->err, sc->ip, sc->cs, sc->flags);
-#endif
 
 	get_user_try {
 		/*
@@ -233,12 +236,7 @@ static int ia32_restore_sigcontext(struct pt_regs *regs,
 		 * the handler, but does not clobber them at least in the
 		 * normal case.
 		 */
-		get_user_ex(gs, &sc->gs);
-		gs |= 3;
-		savesegment(gs, oldgs);
-		if (gs != oldgs)
-			load_gs_index(gs);
-
+		RELOAD_SEG(gs);
 		RELOAD_SEG(fs);
 		RELOAD_SEG(ds);
 		RELOAD_SEG(es);
@@ -337,17 +335,13 @@ static int ia32_setup_sigcontext(struct sigcontext_ia32 __user *sc,
 				 void __user *fpstate,
 				 struct pt_regs *regs, unsigned int mask)
 {
-	int tmp, err = 0;
+	int err = 0;
 
 	put_user_try {
-		savesegment(gs, tmp);
-		put_user_ex(tmp, (unsigned int __user *)&sc->gs);
-		savesegment(fs, tmp);
-		put_user_ex(tmp, (unsigned int __user *)&sc->fs);
-		savesegment(ds, tmp);
-		put_user_ex(tmp, (unsigned int __user *)&sc->ds);
-		savesegment(es, tmp);
-		put_user_ex(tmp, (unsigned int __user *)&sc->es);
+		put_user_ex(get_user_seg(gs), (unsigned int __user *)&sc->gs);
+		put_user_ex(get_user_seg(fs), (unsigned int __user *)&sc->fs);
+		put_user_ex(get_user_seg(ds), (unsigned int __user *)&sc->ds);
+		put_user_ex(get_user_seg(es), (unsigned int __user *)&sc->es);
 
 		put_user_ex(regs->di, &sc->di);
 		put_user_ex(regs->si, &sc->si);
@@ -488,11 +482,6 @@ int ia32_setup_frame(int sig, struct k_sigaction *ka,
 	regs->cs = __USER32_CS;
 	regs->ss = __USER32_DS;
 
-#if DEBUG_SIG
-	printk(KERN_DEBUG "SIG deliver (%s:%d): sp=%p pc=%lx ra=%u\n",
-	       current->comm, current->pid, frame, regs->ip, frame->pretcode);
-#endif
-
 	return 0;
 }
 
@@ -573,11 +562,6 @@ int ia32_setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 
 	regs->cs = __USER32_CS;
 	regs->ss = __USER32_DS;
-
-#if DEBUG_SIG
-	printk(KERN_DEBUG "SIG deliver (%s:%d): sp=%p pc=%lx ra=%u\n",
-	       current->comm, current->pid, frame, regs->ip, frame->pretcode);
-#endif
 
 	return 0;
 }

@@ -86,6 +86,14 @@ echo "%endif"
 echo 'cp System.map $RPM_BUILD_ROOT'"/boot/System.map-$KERNELRELEASE"
 
 echo 'cp .config $RPM_BUILD_ROOT'"/boot/config-$KERNELRELEASE"
+
+echo "%ifnarch ppc64"
+echo 'cp vmlinux vmlinux.orig'
+echo 'bzip2 -9 vmlinux'
+echo 'mv vmlinux.bz2 $RPM_BUILD_ROOT'"/boot/vmlinux-$KERNELRELEASE.bz2"
+echo 'mv vmlinux.orig vmlinux'
+echo "%endif"
+
 echo ""
 echo "%clean"
 echo '#echo -rf $RPM_BUILD_ROOT'

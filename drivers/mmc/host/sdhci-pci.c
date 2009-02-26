@@ -144,8 +144,7 @@ static int jmicron_probe(struct sdhci_pci_chip *chip)
 			  SDHCI_QUIRK_32BIT_DMA_SIZE |
 			  SDHCI_QUIRK_32BIT_ADMA_SIZE |
 			  SDHCI_QUIRK_RESET_AFTER_REQUEST |
-			  SDHCI_QUIRK_BROKEN_SMALL_PIO |
-			  SDHCI_QUIRK_FORCE_HIGHSPEED;
+			  SDHCI_QUIRK_BROKEN_SMALL_PIO;
 	}
 
 	/*

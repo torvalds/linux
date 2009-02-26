@@ -23,6 +23,12 @@
 #include <asm/pgtable.h>
 #include <asm/tlbflush.h>
 
+int
+reserve_io_memtype_wc(u64 base, unsigned long size, pgprot_t *prot);
+
+void
+free_io_memtype(u64 base, unsigned long size);
+
 void *
 iomap_atomic_prot_pfn(unsigned long pfn, enum km_type type, pgprot_t prot);
 

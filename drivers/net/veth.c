@@ -263,10 +263,11 @@ static void veth_dev_free(struct net_device *dev)
 }
 
 static const struct net_device_ops veth_netdev_ops = {
-	.ndo_init	= veth_dev_init,
-	.ndo_open	= veth_open,
-	.ndo_start_xmit = veth_xmit,
-	.ndo_get_stats	= veth_get_stats,
+	.ndo_init            = veth_dev_init,
+	.ndo_open            = veth_open,
+	.ndo_start_xmit      = veth_xmit,
+	.ndo_get_stats       = veth_get_stats,
+	.ndo_set_mac_address = eth_mac_addr,
 };
 
 static void veth_setup(struct net_device *dev)

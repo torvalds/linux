@@ -194,7 +194,7 @@ void *alloc_remap(int nid, unsigned long size)
 	size = ALIGN(size, L1_CACHE_BYTES);
 
 	if (!allocation || (allocation + size) >= node_remap_end_vaddr[nid])
-		return 0;
+		return NULL;
 
 	node_remap_alloc_vaddr[nid] += size;
 	memset(allocation, 0, size);

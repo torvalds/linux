@@ -28,7 +28,6 @@
 #include <asm/paravirt.h>
 #include <asm/desc.h>
 #include <asm/setup.h>
-#include <asm/arch_hooks.h>
 #include <asm/pgtable.h>
 #include <asm/time.h>
 #include <asm/pgalloc.h>

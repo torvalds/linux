@@ -252,10 +252,8 @@ cgroup file system directories.
 When a task is moved from one cgroup to another, it gets a new
 css_set pointer - if there's an already existing css_set with the
 desired collection of cgroups then that group is reused, else a new
-css_set is allocated. Note that the current implementation uses a
-linear search to locate an appropriate existing css_set, so isn't
-very efficient. A future version will use a hash table for better
-performance.
+css_set is allocated. The appropriate existing css_set is located by
+looking into a hash table.
 
 To allow access from a cgroup to the css_sets (and hence tasks)
 that comprise it, a set of cg_cgroup_link objects form a lattice;

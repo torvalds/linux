@@ -258,7 +258,7 @@ void __init config_atari(void)
 			printk("STND_SHIFTER ");
 		}
 	}
-	if (hwreg_present(&mfp.par_dt_reg)) {
+	if (hwreg_present(&st_mfp.par_dt_reg)) {
 		ATARIHW_SET(ST_MFP);
 		printk("ST_MFP ");
 	}

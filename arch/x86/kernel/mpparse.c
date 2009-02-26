@@ -710,13 +710,22 @@ static int __init smp_scan_config(unsigned long base, unsigned long length,
 				 * of physical memory; so that simply reserving
 				 * PAGE_SIZE from mpf->physptr yields BUG()
 				 * in reserve_bootmem.
+				 * also need to make sure physptr is below than
+				 * max_low_pfn
+				 * we don't need reserve the area above max_low_pfn
 				 */
 				unsigned long end = max_low_pfn * PAGE_SIZE;
-				if (mpf->physptr + size > end)
-					size = end - mpf->physptr;
-#endif
+
+				if (mpf->physptr < end) {
+					if (mpf->physptr + size > end)
+						size = end - mpf->physptr;
+					reserve_bootmem_generic(mpf->physptr, size,
+							BOOTMEM_DEFAULT);
+				}
+#else
 				reserve_bootmem_generic(mpf->physptr, size,
 						BOOTMEM_DEFAULT);
+#endif
 			}
 
 			return 1;

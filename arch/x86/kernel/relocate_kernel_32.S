@@ -7,7 +7,7 @@
  */
 
 #include <linux/linkage.h>
-#include <asm/page.h>
+#include <asm/page_types.h>
 #include <asm/kexec.h>
 #include <asm/processor-flags.h>
 
