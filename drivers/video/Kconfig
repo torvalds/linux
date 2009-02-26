@@ -2125,6 +2125,18 @@ config FB_PRE_INIT_FB
 	  Select this option if display contents should be inherited as set by
 	  the bootloader.
 
+config FB_MX3
+	tristate "MX3 Framebuffer support"
+	depends on FB && MX3_IPU
+	select FB_CFB_FILLRECT
+	select FB_CFB_COPYAREA
+	select FB_CFB_IMAGEBLIT
+	default y
+	help
+	  This is a framebuffer device for the i.MX31 LCD Controller. So
+	  far only synchronous displays are supported. If you plan to use
+	  an LCD display with your i.MX31 system, say Y here.
+
 source "drivers/video/omap/Kconfig"
 
 source "drivers/video/backlight/Kconfig"
