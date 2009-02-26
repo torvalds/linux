@@ -61,7 +61,6 @@
 #define SLIC_ASSERT_ENABLED		        1
 #define SLIC_PING_TIMER_ENABLED		    1
 #define SLIC_INTERRUPT_PROCESS_LIMIT	1
-#define LINUX_FREES_ADAPTER_RESOURCES	1
 #define SLIC_OFFLOAD_IP_CHECKSUM		1
 #define STATS_TIMER_INTERVAL			2
 #define PING_TIMER_INTERVAL			    1
@@ -1787,11 +1786,9 @@ static int slic_if_init(struct adapter *adapter)
 
 static void slic_unmap_mmio_space(struct adapter *adapter)
 {
-#if LINUX_FREES_ADAPTER_RESOURCES
 	if (adapter->slic_regs)
 		iounmap(adapter->slic_regs);
 	adapter->slic_regs = NULL;
-#endif
 }
 
 static int slic_adapter_allocresources(struct adapter *adapter)
