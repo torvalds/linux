@@ -31,7 +31,7 @@
 /*
  * Version Information
  */
-#define DRIVER_VERSION "v0.07"
+#define DRIVER_VERSION "v0.08"
 #define DRIVER_DESC "Silicon Labs CP2101/CP2102 RS232 serial adaptor driver"
 
 /*
@@ -301,6 +301,47 @@ static inline int cp2101_set_config_single(struct usb_serial_port *port,
 	return cp2101_set_config(port, request, &data, 2);
 }
 
+/*
+ * cp2101_quantise_baudrate
+ * Quantises the baud rate as per AN205 Table 1
+ */
+static unsigned int cp2101_quantise_baudrate(unsigned int baud) {
+	if      (baud <= 56)       baud = 0;
+	else if (baud <= 300)      baud = 300;
+	else if (baud <= 600)      baud = 600;
+	else if (baud <= 1200)     baud = 1200;
+	else if (baud <= 1800)     baud = 1800;
+	else if (baud <= 2400)     baud = 2400;
+	else if (baud <= 4000)     baud = 4000;
+	else if (baud <= 4803)     baud = 4800;
+	else if (baud <= 7207)     baud = 7200;
+	else if (baud <= 9612)     baud = 9600;
+	else if (baud <= 14428)    baud = 14400;
+	else if (baud <= 16062)    baud = 16000;
+	else if (baud <= 19250)    baud = 19200;
+	else if (baud <= 28912)    baud = 28800;
+	else if (baud <= 38601)    baud = 38400;
+	else if (baud <= 51558)    baud = 51200;
+	else if (baud <= 56280)    baud = 56000;
+	else if (baud <= 58053)    baud = 57600;
+	else if (baud <= 64111)    baud = 64000;
+	else if (baud <= 77608)    baud = 76800;
+	else if (baud <= 117028)   baud = 115200;
+	else if (baud <= 129347)   baud = 128000;
+	else if (baud <= 156868)   baud = 153600;
+	else if (baud <= 237832)   baud = 230400;
+	else if (baud <= 254234)   baud = 250000;
+	else if (baud <= 273066)   baud = 256000;
+	else if (baud <= 491520)   baud = 460800;
+	else if (baud <= 567138)   baud = 500000;
+	else if (baud <= 670254)   baud = 576000;
+	else if (baud <= 1053257)  baud = 921600;
+	else if (baud <= 1474560)  baud = 1228800;
+	else if (baud <= 2457600)  baud = 1843200;
+	else                       baud = 3686400;
+	return baud;
+}
+
 static int cp2101_open(struct tty_struct *tty, struct usb_serial_port *port,
 				struct file *filp)
 {
@@ -388,7 +429,7 @@ static void cp2101_get_termios (struct tty_struct *tty)
 	cp2101_get_config(port, CP2101_BAUDRATE, &baud, 2);
 	/* Convert to baudrate */
 	if (baud)
-		baud = BAUD_RATE_GEN_FREQ / baud;
+		baud = cp2101_quantise_baudrate((BAUD_RATE_GEN_FREQ + baud/2)/ baud);
 
 	dbg("%s - baud rate = %d", __func__, baud);
 
@@ -517,46 +558,17 @@ static void cp2101_set_termios(struct tty_struct *tty,
 	tty->termios->c_cflag &= ~CMSPAR;
 	cflag = tty->termios->c_cflag;
 	old_cflag = old_termios->c_cflag;
-	baud = tty_get_baud_rate(tty);
+	baud = cp2101_quantise_baudrate(tty_get_baud_rate(tty));
 
 	/* If the baud rate is to be updated*/
-	if (baud != tty_termios_baud_rate(old_termios)) {
-		switch (baud) {
-		case 0:
-		case 600:
-		case 1200:
-		case 1800:
-		case 2400:
-		case 4800:
-		case 7200:
-		case 9600:
-		case 14400:
-		case 19200:
-		case 28800:
-		case 38400:
-		case 55854:
-		case 57600:
-		case 115200:
-		case 127117:
-		case 230400:
-		case 460800:
-		case 921600:
-		case 3686400:
-			break;
-		default:
-			baud = 9600;
-			break;
-		}
-
-		if (baud) {
-			dbg("%s - Setting baud rate to %d baud", __func__,
-					baud);
-			if (cp2101_set_config_single(port, CP2101_BAUDRATE,
-						(BAUD_RATE_GEN_FREQ / baud))) {
-				dev_err(&port->dev, "Baud rate requested not "
-						"supported by device\n");
-				baud = tty_termios_baud_rate(old_termios);
-			}
+	if (baud != tty_termios_baud_rate(old_termios) && baud != 0) {
+		dbg("%s - Setting baud rate to %d baud", __func__,
+				baud);
+		if (cp2101_set_config_single(port, CP2101_BAUDRATE,
+					((BAUD_RATE_GEN_FREQ + baud/2) / baud))) {
+			dev_err(&port->dev, "Baud rate requested not "
+					"supported by device\n");
+			baud = tty_termios_baud_rate(old_termios);
 		}
 	}
 	/* Report back the resulting baud rate */
