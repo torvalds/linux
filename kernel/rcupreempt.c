@@ -1181,6 +1181,9 @@ void __synchronize_sched(void)
 {
 	struct rcu_synchronize rcu;
 
+	if (num_online_cpus() == 1)
+		return;  /* blocking is gp if only one CPU! */
+
 	init_completion(&rcu.completion);
 	/* Will wake me after RCU finished. */
 	call_rcu_sched(&rcu.head, wakeme_after_rcu);

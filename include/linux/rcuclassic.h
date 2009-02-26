@@ -181,4 +181,10 @@ extern long rcu_batches_completed_bh(void);
 #define rcu_enter_nohz()	do { } while (0)
 #define rcu_exit_nohz()		do { } while (0)
 
+/* A context switch is a grace period for rcuclassic. */
+static inline int rcu_blocking_is_gp(void)
+{
+	return num_online_cpus() == 1;
+}
+
 #endif /* __LINUX_RCUCLASSIC_H */
