@@ -53,18 +53,19 @@ END_FTR_SECTION_IFCLR(CPU_FTR_UNALIGNED_LD_STD)
 3:	std	r8,8(r3)
 	beq	3f
 	addi	r3,r3,16
-	ld	r9,8(r4)
 .Ldo_tail:
 	bf	cr7*4+1,1f
-	rotldi	r9,r9,32
+	lwz	r9,8(r4)
+	addi	r4,r4,4
 	stw	r9,0(r3)
 	addi	r3,r3,4
 1:	bf	cr7*4+2,2f
-	rotldi	r9,r9,16
+	lhz	r9,8(r4)
+	addi	r4,r4,2
 	sth	r9,0(r3)
 	addi	r3,r3,2
 2:	bf	cr7*4+3,3f
-	rotldi	r9,r9,8
+	lbz	r9,8(r4)
 	stb	r9,0(r3)
 3:	ld	r3,48(r1)	/* return dest pointer */
 	blr
@@ -133,11 +134,24 @@ END_FTR_SECTION_IFCLR(CPU_FTR_UNALIGNED_LD_STD)
 	cmpwi	cr1,r5,8
 	addi	r3,r3,32
 	sld	r9,r9,r10
-	ble	cr1,.Ldo_tail
+	ble	cr1,6f
 	ld	r0,8(r4)
 	srd	r7,r0,r11
 	or	r9,r7,r9
-	b	.Ldo_tail
+6:
+	bf	cr7*4+1,1f
+	rotldi	r9,r9,32
+	stw	r9,0(r3)
+	addi	r3,r3,4
+1:	bf	cr7*4+2,2f
+	rotldi	r9,r9,16
+	sth	r9,0(r3)
+	addi	r3,r3,2
+2:	bf	cr7*4+3,3f
+	rotldi	r9,r9,8
+	stb	r9,0(r3)
+3:	ld	r3,48(r1)	/* return dest pointer */
+	blr
 
 .Ldst_unaligned:
 	PPC_MTOCRF	0x01,r6		# put #bytes to 8B bdry into cr7
