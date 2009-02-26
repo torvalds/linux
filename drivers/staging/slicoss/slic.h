@@ -181,17 +181,6 @@ struct slic_cmdqueue {
 
 #define SLIC_MAX_CARDS              32
 #define SLIC_MAX_PORTS              4        /* Max # of ports per card   */
-#if SLIC_DUMP_ENABLED
-/*
-Dump buffer size
-
-This cannot be bigger than the max DMA size the card supports,
-given the current code structure in the host and ucode.
-Mojave supports 16K, Oasis supports 16K-1, so
-just set this at 15K, shouldnt make that much of a diff.
-*/
-#define DUMP_BUF_SIZE               0x3C00
-#endif
 
 
 struct mcast_address {
@@ -347,30 +336,6 @@ struct sliccard {
     u32             max_isr_xmits;
     u32             rcv_interrupt_yields;
     u32             tx_packets;
-#if SLIC_DUMP_ENABLED
-    u32             dumpstatus;           /* Result of dump UPR */
-    void *cmdbuffer;
-
-    ulong               cmdbuffer_phys;
-    u32             cmdbuffer_physl;
-    u32             cmdbuffer_physh;
-
-    u32             dump_count;
-    struct task_struct *dump_task_id;
-    u32             dump_wait_count;
-    uint                dumpthread_running; /* has a dump thread been init'd  */
-    uint                dump_requested;     /* 0 no, 1 = reqstd 2=curr 3=done */
-    u32             dumptime_start;
-    u32             dumptime_complete;
-    u32             dumptime_delta;
-    void *dumpbuffer;
-    ulong               dumpbuffer_phys;
-    u32             dumpbuffer_physl;
-    u32             dumpbuffer_physh;
-    wait_queue_head_t   dump_wq;
-    struct file        *dumphandle;
-    mm_segment_t        dumpfile_fs;
-#endif
     u32             debug_ix;
     ushort              reg_type[32];
     ushort              reg_offset[32];
@@ -550,25 +515,6 @@ struct adapter {
     struct net_device_stats stats;
 };
 
-#if SLIC_DUMP_ENABLED
-#define SLIC_DUMP_REQUESTED      1
-#define SLIC_DUMP_IN_PROGRESS    2
-#define SLIC_DUMP_DONE           3
-
-/****************************************************************************
- *
- * Microcode crash information structure.  This
- * structure is written out to the card's SRAM when the microcode panic's.
- *
- ****************************************************************************/
-struct slic_crash_info {
-    ushort  cpu_id;
-    ushort  crash_pc;
-};
-
-#define CRASH_INFO_OFFSET   0x155C
-
-#endif
 
 #define UPDATE_STATS(largestat, newstat, oldstat)                        \
 {                                                                        \

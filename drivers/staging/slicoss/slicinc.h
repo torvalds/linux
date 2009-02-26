@@ -145,36 +145,4 @@ static int  slic_upr_queue_request(struct adapter      *adapter,
 static void slic_mcast_set_list(struct net_device *dev);
 static void slic_mcast_init_crc32(void);
 
-#if SLIC_DUMP_ENABLED
-static int   slic_dump_thread(void *context);
-static uint  slic_init_dump_thread(struct sliccard *card);
-static unsigned char slic_get_dump_index(char *path);
-static u32 slic_dump_card(struct sliccard *card, bool resume);
-static u32 slic_dump_halt(struct sliccard *card, unsigned char proc);
-static u32 slic_dump_reg(struct sliccard *card, unsigned char proc);
-static u32 slic_dump_data(struct sliccard *card, u32 addr,
-			ushort count, unsigned char desc);
-static u32 slic_dump_queue(struct sliccard *card, u32 buf_phys,
-			u32 buf_physh, u32 queue);
-static u32 slic_dump_load_queue(struct sliccard *card, u32 data,
-				u32 queue);
-static u32 slic_dump_cam(struct sliccard *card, u32 addr,
-			u32 count, unsigned char desc);
-
-static u32 slic_dump_resume(struct sliccard *card, unsigned char proc);
-static u32 slic_dump_send_cmd(struct sliccard *card, u32 cmd_phys,
-				u32 cmd_physh, u32 buf_phys,
-				u32 buf_physh);
-
-#define create_file(x)         STATUS_SUCCESS
-#define write_file(w, x, y, z) STATUS_SUCCESS
-#define close_file(x)          STATUS_SUCCESS
-#define read_file(w, x, y, z)  STATUS_SUCCESS
-#define open_file(x)           STATUS_SUCCESS
-
-/* PAGE_SIZE * 16 */
-#define DUMP_PAGE_SIZE         0xFFFF
-#define DUMP_PAGE_SIZE_HALF    0x7FFE
-#endif
-
 #endif /* _SLIC_INCLUDE_H_ */
