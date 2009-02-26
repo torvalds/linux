@@ -57,23 +57,9 @@
 	}                                                                 \
     }
 #endif
-#ifndef ASSERTMSG
-#define ASSERTMSG(a,msg)                                                  \
-    {                                                                     \
-	if (!(a)) {                                                       \
-		printk(KERN_ERR "ASSERT() Failure: file %s, function %s" \
-			"line %d: %s\n",\
-			__FILE__, __func__, __LINE__, (msg));            \
-		slic_assert_fail();                                      \
-	}                                                                \
-    }
-#endif
 #else
 #ifndef ASSERT
 #define ASSERT(a)
-#endif
-#ifndef ASSERTMSG
-#define ASSERTMSG(a, msg)
 #endif
 #endif /* SLIC_ASSERT_ENABLED  */
 
