@@ -1584,12 +1584,15 @@ DECLARE_PCI_FIXUP_RESUME(PCI_VENDOR_ID_SERVERWORKS,   PCI_DEVICE_ID_SERVERWORKS_
  */
 #define AMD_813X_MISC			0x40
 #define AMD_813X_NOIOAMODE		(1<<0)
+#define AMD_813X_REV_B2			0x13
 
 static void quirk_disable_amd_813x_boot_interrupt(struct pci_dev *dev)
 {
 	u32 pci_config_dword;
 
 	if (noioapicquirk)
+		return;
+	if (dev->revision == AMD_813X_REV_B2)
 		return;
 
 	pci_read_config_dword(dev, AMD_813X_MISC, &pci_config_dword);
