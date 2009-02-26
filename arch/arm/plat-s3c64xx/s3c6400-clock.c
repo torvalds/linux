@@ -189,10 +189,10 @@ static struct clk_sources clkset_uart = {
 };
 
 static struct clk *clkset_uhost_list[] = {
+	&clk_48m,
 	&clk_mout_epll.clk,
 	&clk_dout_mpll,
 	&clk_fin_epll,
-	&clk_48m,
 };
 
 static struct clk_sources clkset_uhost = {
