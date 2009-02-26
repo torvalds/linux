@@ -62,11 +62,6 @@
 #endif
 
 #if SLIC_ASSERT_ENABLED
-#ifdef CONFIG_X86_64
-#define VALID_ADDRESS(p)  (1)
-#else
-#define VALID_ADDRESS(p)  (((u32)(p) & 0x80000000) || ((u32)(p) == 0))
-#endif
 #ifndef ASSERT
 #define ASSERT(a)                                                             \
     {                                                                         \

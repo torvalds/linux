@@ -3818,13 +3818,11 @@ static void slic_cmdq_addcmdpage(struct adapter *adapter, u32 *page)
 	cmdq = &adapter->cmdq_all;
 	cmdq->count += cmdcnt;	/*  SLIC_CMDQ_CMDSINPAGE;   mooktodo */
 	tail->next_all = cmdq->head;
-	ASSERT(VALID_ADDRESS(prev));
 	cmdq->head = prev;
 	cmdq = &adapter->cmdq_free;
 	spin_lock_irqsave(&cmdq->lock.lock, cmdq->lock.flags);
 	cmdq->count += cmdcnt;	/*  SLIC_CMDQ_CMDSINPAGE;   mooktodo */
 	tail->next = cmdq->head;
-	ASSERT(VALID_ADDRESS(prev));
 	cmdq->head = prev;
 	spin_unlock_irqrestore(&cmdq->lock.lock, cmdq->lock.flags);
 }
@@ -3869,7 +3867,6 @@ static void slic_cmdq_getdone(struct adapter *adapter)
 
 	ASSERT(free_cmdq->head == NULL);
 	spin_lock_irqsave(&done_cmdq->lock.lock, done_cmdq->lock.flags);
-	ASSERT(VALID_ADDRESS(done_cmdq->head));
 
 	free_cmdq->head = done_cmdq->head;
 	free_cmdq->count = done_cmdq->count;
@@ -3886,9 +3883,7 @@ static void slic_cmdq_putdone_irq(struct adapter *adapter,
 
 	spin_lock(&cmdq->lock.lock);
 	cmd->busy = 0;
-	ASSERT(VALID_ADDRESS(cmdq->head));
 	cmd->next = cmdq->head;
-	ASSERT(VALID_ADDRESS(cmd));
 	cmdq->head = cmd;
 	cmdq->count++;
 	if ((adapter->xmitq_full) && (cmdq->count > 10))
