@@ -220,10 +220,14 @@ struct dm1105dvb {
 	/* i2c */
 	struct i2c_adapter i2c_adap;
 
+	/* irq */
+	struct work_struct work;
+
 	/* dma */
 	dma_addr_t dma_addr;
 	unsigned char *ts_buf;
 	u32 wrp;
+	u32 nextwrp;
 	u32 buffer_size;
 	unsigned int	PacketErrorCount;
 	unsigned int dmarst;
@@ -415,6 +419,9 @@ static void dm1105_emit_key(unsigned long parm)
 	u8 data;
 	u16 keycode;
 
+	if (ir_debug)
+		printk(KERN_INFO "%s: received byte 0x%04x\n", __func__, ircom);
+
 	data = (ircom >> 8) & 0x7f;
 
 	input_event(ir->input_dev, EV_MSC, MSC_RAW, (0x0000f8 << 16) | data);
@@ -431,14 +438,45 @@ static void dm1105_emit_key(unsigned long parm)
 
 }
 
+/* work handler */
+static void dm1105_dmx_buffer(struct work_struct *work)
+{
+	struct dm1105dvb *dm1105dvb =
+				container_of(work, struct dm1105dvb, work);
+	unsigned int nbpackets;
+	u32 oldwrp = dm1105dvb->wrp;
+	u32 nextwrp = dm1105dvb->nextwrp;
+
+	if (!((dm1105dvb->ts_buf[oldwrp] == 0x47) &&
+			(dm1105dvb->ts_buf[oldwrp + 188] == 0x47) &&
+			(dm1105dvb->ts_buf[oldwrp + 188 * 2] == 0x47))) {
+		dm1105dvb->PacketErrorCount++;
+		/* bad packet found */
+		if ((dm1105dvb->PacketErrorCount >= 2) &&
+				(dm1105dvb->dmarst == 0)) {
+			outb(1, dm_io_mem(DM1105_RST));
+			dm1105dvb->wrp = 0;
+			dm1105dvb->PacketErrorCount = 0;
+			dm1105dvb->dmarst = 0;
+			return;
+		}
+	}
+
+	if (nextwrp < oldwrp) {
+		memcpy(dm1105dvb->ts_buf + dm1105dvb->buffer_size,
+						dm1105dvb->ts_buf, nextwrp);
+		nbpackets = ((dm1105dvb->buffer_size - oldwrp) + nextwrp) / 188;
+	} else
+		nbpackets = (nextwrp - oldwrp) / 188;
+
+	dm1105dvb->wrp = nextwrp;
+	dvb_dmx_swfilter_packets(&dm1105dvb->demux,
+					&dm1105dvb->ts_buf[oldwrp], nbpackets);
+}
+
 static irqreturn_t dm1105dvb_irq(int irq, void *dev_id)
 {
 	struct dm1105dvb *dm1105dvb = dev_id;
-	unsigned int piece;
-	unsigned int nbpackets;
-	u32 command;
-	u32 nextwrp;
-	u32 oldwrp;
 
 	/* Read-Write INSTS Ack's Interrupt for DM1105 chip 16.03.2008 */
 	unsigned int intsts = inb(dm_io_mem(DM1105_INTSTS));
@@ -447,48 +485,17 @@ static irqreturn_t dm1105dvb_irq(int irq, void *dev_id)
 	switch (intsts) {
 	case INTSTS_TSIRQ:
 	case (INTSTS_TSIRQ | INTSTS_IR):
-		nextwrp = inl(dm_io_mem(DM1105_WRP)) -
-			inl(dm_io_mem(DM1105_STADR)) ;
-		oldwrp = dm1105dvb->wrp;
-		spin_lock(&dm1105dvb->lock);
-		if (!((dm1105dvb->ts_buf[oldwrp] == 0x47) &&
-				(dm1105dvb->ts_buf[oldwrp + 188] == 0x47) &&
-				(dm1105dvb->ts_buf[oldwrp + 188 * 2] == 0x47))) {
-			dm1105dvb->PacketErrorCount++;
-			/* bad packet found */
-			if ((dm1105dvb->PacketErrorCount >= 2) &&
-					(dm1105dvb->dmarst == 0)) {
-				outb(1, dm_io_mem(DM1105_RST));
-				dm1105dvb->wrp = 0;
-				dm1105dvb->PacketErrorCount = 0;
-				dm1105dvb->dmarst = 0;
-				spin_unlock(&dm1105dvb->lock);
-				return IRQ_HANDLED;
-			}
-		}
-		if (nextwrp < oldwrp) {
-			piece = dm1105dvb->buffer_size - oldwrp;
-			memcpy(dm1105dvb->ts_buf + dm1105dvb->buffer_size, dm1105dvb->ts_buf, nextwrp);
-			nbpackets = (piece + nextwrp)/188;
-		} else	{
-			nbpackets = (nextwrp - oldwrp)/188;
-		}
-		dvb_dmx_swfilter_packets(&dm1105dvb->demux, &dm1105dvb->ts_buf[oldwrp], nbpackets);
-		dm1105dvb->wrp = nextwrp;
-		spin_unlock(&dm1105dvb->lock);
+		dm1105dvb->nextwrp = inl(dm_io_mem(DM1105_WRP)) -
+					inl(dm_io_mem(DM1105_STADR));
+		schedule_work(&dm1105dvb->work);
 		break;
 	case INTSTS_IR:
-		command = inl(dm_io_mem(DM1105_IRCODE));
-		if (ir_debug)
-			printk("dm1105: received byte 0x%04x\n", command);
-
-		dm1105dvb->ir.ir_command = command;
+		dm1105dvb->ir.ir_command = inl(dm_io_mem(DM1105_IRCODE));
 		tasklet_schedule(&dm1105dvb->ir.ir_tasklet);
 		break;
 	}
+
 	return IRQ_HANDLED;
-
-
 }
 
 /* register with input layer */
@@ -710,7 +717,7 @@ static int __devinit dm1105_probe(struct pci_dev *pdev,
 
 	dm1105dvb = kzalloc(sizeof(struct dm1105dvb), GFP_KERNEL);
 	if (!dm1105dvb)
-		goto out;
+		return -ENOMEM;
 
 	dm1105dvb->pdev = pdev;
 	dm1105dvb->buffer_size = 5 * DM1105_DMA_BYTES;
@@ -740,13 +747,9 @@ static int __devinit dm1105_probe(struct pci_dev *pdev,
 	spin_lock_init(&dm1105dvb->lock);
 	pci_set_drvdata(pdev, dm1105dvb);
 
-	ret = request_irq(pdev->irq, dm1105dvb_irq, IRQF_SHARED, DRIVER_NAME, dm1105dvb);
-	if (ret < 0)
-		goto err_pci_iounmap;
-
 	ret = dm1105dvb_hw_init(dm1105dvb);
 	if (ret < 0)
-		goto err_free_irq;
+		goto err_pci_iounmap;
 
 	/* i2c */
 	i2c_set_adapdata(&dm1105dvb->i2c_adap, dm1105dvb);
@@ -813,8 +816,15 @@ static int __devinit dm1105_probe(struct pci_dev *pdev,
 
 	dvb_net_init(dvb_adapter, &dm1105dvb->dvbnet, dmx);
 	dm1105_ir_init(dm1105dvb);
-out:
-	return ret;
+
+	INIT_WORK(&dm1105dvb->work, dm1105_dmx_buffer);
+
+	ret = request_irq(pdev->irq, dm1105dvb_irq, IRQF_SHARED,
+						DRIVER_NAME, dm1105dvb);
+	if (ret < 0)
+		goto err_free_irq;
+
+	return 0;
 
 err_disconnect_frontend:
 	dmx->disconnect_frontend(dmx);
@@ -843,7 +853,7 @@ err_pci_disable_device:
 err_kfree:
 	pci_set_drvdata(pdev, NULL);
 	kfree(dm1105dvb);
-	goto out;
+	return ret;
 }
 
 static void __devexit dm1105_remove(struct pci_dev *pdev)
