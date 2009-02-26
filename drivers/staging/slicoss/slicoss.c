@@ -58,7 +58,6 @@
 #define KLUDGE_FOR_4GB_BOUNDARY         1
 #define DEBUG_MICROCODE                 1
 #define DBG                             1
-#define SLIC_ASSERT_ENABLED		        1
 #define SLIC_INTERRUPT_PROCESS_LIMIT	1
 #define SLIC_OFFLOAD_IP_CHECKSUM		1
 #define STATS_TIMER_INTERVAL			2
@@ -95,7 +94,6 @@
 
 #include <linux/ethtool.h>
 #include <linux/uaccess.h>
-#include "slicdbg.h"
 #include "slichw.h"
 #include "slic.h"
 
@@ -207,6 +205,21 @@ static struct pci_device_id slic_pci_tbl[] __devinitdata = {
 };
 
 MODULE_DEVICE_TABLE(pci, slic_pci_tbl);
+
+#ifdef ASSERT
+#undef ASSERT
+#endif
+
+#ifndef ASSERT
+#define ASSERT(a) do {							\
+	if (!(a)) {							\
+		printk(KERN_ERR "slicoss ASSERT() Failure: function %s"	\
+			"line %d\n", __func__, __LINE__);		\
+		slic_assert_fail();					\
+	}								\
+} while (0)
+#endif
+
 
 #define SLIC_GET_SLIC_HANDLE(_adapter, _pslic_handle)                   \
 {                                                                       \
