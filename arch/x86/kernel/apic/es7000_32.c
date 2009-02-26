@@ -332,8 +332,9 @@ static int __init es7000_acpi_madt_oem_check(char *oem_id, char *oem_table_id)
 
 	return ret && !es7000_apic_is_cluster();
 }
-static int __init es7000_acpi_madt_oem_check_cluster(char *oem_id,
-						     char *oem_table_id)
+
+static int __init
+es7000_acpi_madt_oem_check_cluster(char *oem_id, char *oem_table_id)
 {
 	int ret = es7000_acpi_ret;
 
@@ -342,6 +343,12 @@ static int __init es7000_acpi_madt_oem_check_cluster(char *oem_id,
 
 #else /* !CONFIG_ACPI: */
 static int __init es7000_acpi_madt_oem_check(char *oem_id, char *oem_table_id)
+{
+	return 0;
+}
+
+static int __init
+es7000_acpi_madt_oem_check_cluster(char *oem_id, char *oem_table_id)
 {
 	return 0;
 }
