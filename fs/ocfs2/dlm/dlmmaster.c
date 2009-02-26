@@ -68,41 +68,16 @@ static int dlm_do_assert_master(struct dlm_ctxt *dlm,
 				void *nodemap, u32 flags);
 static void dlm_deref_lockres_worker(struct dlm_work_item *item, void *data);
 
-static inline void __dlm_mle_name(struct dlm_master_list_entry *mle,
-				  unsigned char **name, unsigned int *namelen,
-				  unsigned int *namehash)
-{
-	BUG_ON(mle->type != DLM_MLE_BLOCK &&
-	       mle->type != DLM_MLE_MASTER &&
-	       mle->type != DLM_MLE_MIGRATION);
-
-	if (mle->type != DLM_MLE_MASTER) {
-		*name = mle->u.mlename.name;
-		*namelen = mle->u.mlename.len;
-		if (namehash)
-			*namehash = mle->u.mlename.hash;
-	} else {
-		*name  = (unsigned char *)mle->u.mleres->lockname.name;
-		*namelen = mle->u.mleres->lockname.len;
-		if (namehash)
-			*namehash = mle->u.mleres->lockname.hash;
-	}
-}
-
 static inline int dlm_mle_equal(struct dlm_ctxt *dlm,
 				struct dlm_master_list_entry *mle,
 				const char *name,
 				unsigned int namelen)
 {
-	unsigned char *mlename;
-	unsigned int mlelen;
-
 	if (dlm != mle->dlm)
 		return 0;
 
-	__dlm_mle_name(mle, &mlename, &mlelen, NULL);
-
-	if (namelen != mlelen || memcmp(name, mlename, namelen) != 0)
+	if (namelen != mle->mnamelen ||
+	    memcmp(name, mle->mname, namelen) != 0)
 		return 0;
 
 	return 1;
@@ -317,12 +292,16 @@ static void dlm_init_mle(struct dlm_master_list_entry *mle,
 
 	if (mle->type == DLM_MLE_MASTER) {
 		BUG_ON(!res);
-		mle->u.mleres = res;
+		mle->mleres = res;
+		memcpy(mle->mname, res->lockname.name, res->lockname.len);
+		mle->mnamelen = res->lockname.len;
+		mle->mnamehash = res->lockname.hash;
 	} else {
 		BUG_ON(!name);
-		memcpy(mle->u.mlename.name, name, namelen);
-		mle->u.mlename.len = namelen;
-		mle->u.mlename.hash = dlm_lockid_hash(name, namelen);
+		mle->mleres = NULL;
+		memcpy(mle->mname, name, namelen);
+		mle->mnamelen = namelen;
+		mle->mnamehash = dlm_lockid_hash(name, namelen);
 	}
 
 	atomic_inc(&dlm->mle_tot_count[mle->type]);
@@ -350,13 +329,10 @@ void __dlm_unlink_mle(struct dlm_ctxt *dlm, struct dlm_master_list_entry *mle)
 void __dlm_insert_mle(struct dlm_ctxt *dlm, struct dlm_master_list_entry *mle)
 {
 	struct hlist_head *bucket;
-	unsigned char *mname;
-	unsigned int mlen, hash;
 
 	assert_spin_locked(&dlm->master_lock);
 
-	__dlm_mle_name(mle, &mname, &mlen, &hash);
-	bucket = dlm_master_hash(dlm, hash);
+	bucket = dlm_master_hash(dlm, mle->mnamehash);
 	hlist_add_head(&mle->master_hash_node, bucket);
 }
 
@@ -450,8 +426,6 @@ static void dlm_mle_release(struct kref *kref)
 {
 	struct dlm_master_list_entry *mle;
 	struct dlm_ctxt *dlm;
-	unsigned char *mname;
-	unsigned int mlen;
 
 	mlog_entry_void();
 
@@ -461,8 +435,8 @@ static void dlm_mle_release(struct kref *kref)
 	assert_spin_locked(&dlm->spinlock);
 	assert_spin_locked(&dlm->master_lock);
 
-	__dlm_mle_name(mle, &mname, &mlen, NULL);
-	mlog(0, "Releasing mle for %.*s, type %d\n", mlen, mname, mle->type);
+	mlog(0, "Releasing mle for %.*s, type %d\n", mle->mnamelen, mle->mname,
+	     mle->type);
 
 	/* remove from list if not already */
 	__dlm_unlink_mle(dlm, mle);
@@ -1284,7 +1258,7 @@ static int dlm_restart_lock_mastery(struct dlm_ctxt *dlm,
 						     res->lockname.len,
 						     res->lockname.name);
 						mle->type = DLM_MLE_MASTER;
-						mle->u.mleres = res;
+						mle->mleres = res;
 					}
 				}
 			}
@@ -1323,18 +1297,14 @@ static int dlm_do_master_request(struct dlm_lock_resource *res,
 	struct dlm_ctxt *dlm = mle->dlm;
 	struct dlm_master_request request;
 	int ret, response=0, resend;
-	unsigned char *mlename;
-	unsigned int mlenamelen;
 
 	memset(&request, 0, sizeof(request));
 	request.node_idx = dlm->node_num;
 
 	BUG_ON(mle->type == DLM_MLE_MIGRATION);
 
-	__dlm_mle_name(mle, &mlename, &mlenamelen, NULL);
-
-	request.namelen = (u8)mlenamelen;
-	memcpy(request.name, mlename, request.namelen);
+	request.namelen = (u8)mle->mnamelen;
+	memcpy(request.name, mle->mname, request.namelen);
 
 again:
 	ret = o2net_send_message(DLM_MASTER_REQUEST_MSG, dlm->key, &request,
@@ -3203,12 +3173,10 @@ static struct dlm_lock_resource *dlm_reset_mleres_owner(struct dlm_ctxt *dlm,
 					struct dlm_master_list_entry *mle)
 {
 	struct dlm_lock_resource *res;
-	unsigned int hash;
 
 	/* Find the lockres associated to the mle and set its owner to UNK */
-	hash = dlm_lockid_hash(mle->u.mlename.name, mle->u.mlename.len);
-	res = __dlm_lookup_lockres(dlm, mle->u.mlename.name, mle->u.mlename.len,
-				   hash);
+	res = __dlm_lookup_lockres(dlm, mle->mname, mle->mnamelen,
+				   mle->mnamehash);
 	if (res) {
 		spin_unlock(&dlm->master_lock);
 

@@ -287,17 +287,7 @@ static int stringify_nodemap(unsigned long *nodemap, int maxnodes,
 static int dump_mle(struct dlm_master_list_entry *mle, char *buf, int len)
 {
 	int out = 0;
-	unsigned int namelen;
-	unsigned char *name;
 	char *mle_type;
-
-	if (mle->type != DLM_MLE_MASTER) {
-		name = mle->u.mlename.name;
-		namelen = mle->u.mlename.len;
-	} else {
-		name  = (unsigned char *)mle->u.mleres->lockname.name;
-		namelen = mle->u.mleres->lockname.len;
-	}
 
 	if (mle->type == DLM_MLE_BLOCK)
 		mle_type = "BLK";
@@ -306,7 +296,7 @@ static int dump_mle(struct dlm_master_list_entry *mle, char *buf, int len)
 	else
 		mle_type = "MIG";
 
-	out += stringify_lockname(name, namelen, buf + out, len - out);
+	out += stringify_lockname(mle->mname, mle->mnamelen, buf + out, len - out);
 	out += snprintf(buf + out, len - out,
 			"\t%3s\tmas=%3u\tnew=%3u\tevt=%1d\tuse=%1d\tref=%3d\n",
 			mle_type, mle->master, mle->new_master,
