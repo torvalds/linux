@@ -24,12 +24,12 @@
  * The clock: sched_clock_cpu() is monotonic per cpu, and should be somewhat
  * consistent between cpus (never more than 2 jiffies difference).
  */
-#include <linux/sched.h>
-#include <linux/percpu.h>
 #include <linux/spinlock.h>
-#include <linux/ktime.h>
-#include <linux/module.h>
 #include <linux/hardirq.h>
+#include <linux/module.h>
+#include <linux/percpu.h>
+#include <linux/ktime.h>
+#include <linux/sched.h>
 
 /*
  * Scheduler clock - returns current time in nanosec units.
@@ -44,6 +44,10 @@ unsigned long long __attribute__((weak)) sched_clock(void)
 static __read_mostly int sched_clock_running;
 
 #ifdef CONFIG_HAVE_UNSTABLE_SCHED_CLOCK
+__read_mostly int sched_clock_stable;
+#else
+static const int sched_clock_stable = 1;
+#endif
 
 struct sched_clock_data {
 	/*
@@ -88,7 +92,7 @@ void sched_clock_init(void)
 }
 
 /*
- * min,max except they take wrapping into account
+ * min, max except they take wrapping into account
  */
 
 static inline u64 wrap_min(u64 x, u64 y)
@@ -117,10 +121,13 @@ static u64 __update_sched_clock(struct sched_clock_data *scd, u64 now)
 	if (unlikely(delta < 0))
 		delta = 0;
 
+	if (unlikely(!sched_clock_running))
+		return 0ull;
+
 	/*
 	 * scd->clock = clamp(scd->tick_gtod + delta,
-	 * 		      max(scd->tick_gtod, scd->clock),
-	 * 		      scd->tick_gtod + TICK_NSEC);
+	 *		      max(scd->tick_gtod, scd->clock),
+	 *		      scd->tick_gtod + TICK_NSEC);
 	 */
 
 	clock = scd->tick_gtod + delta;
@@ -149,8 +156,13 @@ static void lock_double_clock(struct sched_clock_data *data1,
 
 u64 sched_clock_cpu(int cpu)
 {
-	struct sched_clock_data *scd = cpu_sdc(cpu);
 	u64 now, clock, this_clock, remote_clock;
+	struct sched_clock_data *scd;
+
+	if (sched_clock_stable)
+		return sched_clock();
+
+	scd = cpu_sdc(cpu);
 
 	/*
 	 * Normally this is not called in NMI context - but if it is,
@@ -201,6 +213,8 @@ u64 sched_clock_cpu(int cpu)
 	return clock;
 }
 
+#ifdef CONFIG_HAVE_UNSTABLE_SCHED_CLOCK
+
 void sched_clock_tick(void)
 {
 	struct sched_clock_data *scd = this_scd();
@@ -243,22 +257,7 @@ void sched_clock_idle_wakeup_event(u64 delta_ns)
 }
 EXPORT_SYMBOL_GPL(sched_clock_idle_wakeup_event);
 
-#else /* CONFIG_HAVE_UNSTABLE_SCHED_CLOCK */
-
-void sched_clock_init(void)
-{
-	sched_clock_running = 1;
-}
-
-u64 sched_clock_cpu(int cpu)
-{
-	if (unlikely(!sched_clock_running))
-		return 0;
-
-	return sched_clock();
-}
-
-#endif
+#endif /* CONFIG_HAVE_UNSTABLE_SCHED_CLOCK */
 
 unsigned long long cpu_clock(int cpu)
 {
