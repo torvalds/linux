@@ -178,7 +178,7 @@ static int full_duplex[MAX_UNITS] = {0, };
 #define FIRMWARE_TX	"adaptec/starfire_tx.bin"
 
 /* These identify the driver base version and may not be removed. */
-static char version[] =
+static const char version[] __devinitconst =
 KERN_INFO "starfire.c:v1.03 7/26/2000  Written by Donald Becker <becker@scyld.com>\n"
 KERN_INFO " (unofficial 2.2/2.4 kernel port, version " DRV_VERSION ", " DRV_RELDATE ")\n";
 
