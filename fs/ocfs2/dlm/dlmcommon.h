@@ -151,6 +151,7 @@ struct dlm_ctxt
 	unsigned long recovery_map[BITS_TO_LONGS(O2NM_MAX_NODES)];
 	struct dlm_recovery_ctxt reco;
 	spinlock_t master_lock;
+	struct hlist_head **master_hash;
 	struct list_head master_list;
 	struct list_head mle_hb_events;
 
@@ -193,6 +194,13 @@ struct dlm_ctxt
 static inline struct hlist_head *dlm_lockres_hash(struct dlm_ctxt *dlm, unsigned i)
 {
 	return dlm->lockres_hash[(i / DLM_BUCKETS_PER_PAGE) % DLM_HASH_PAGES] + (i % DLM_BUCKETS_PER_PAGE);
+}
+
+static inline struct hlist_head *dlm_master_hash(struct dlm_ctxt *dlm,
+						 unsigned i)
+{
+	return dlm->master_hash[(i / DLM_BUCKETS_PER_PAGE) % DLM_HASH_PAGES] +
+			(i % DLM_BUCKETS_PER_PAGE);
 }
 
 /* these keventd work queue items are for less-frequently

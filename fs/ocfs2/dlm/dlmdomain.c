@@ -304,6 +304,9 @@ static void dlm_free_ctxt_mem(struct dlm_ctxt *dlm)
 	if (dlm->lockres_hash)
 		dlm_free_pagevec((void **)dlm->lockres_hash, DLM_HASH_PAGES);
 
+	if (dlm->master_hash)
+		dlm_free_pagevec((void **)dlm->master_hash, DLM_HASH_PAGES);
+
 	if (dlm->name)
 		kfree(dlm->name);
 
@@ -1534,12 +1537,27 @@ static struct dlm_ctxt *dlm_alloc_ctxt(const char *domain,
 	for (i = 0; i < DLM_HASH_BUCKETS; i++)
 		INIT_HLIST_HEAD(dlm_lockres_hash(dlm, i));
 
+	dlm->master_hash = (struct hlist_head **)
+				dlm_alloc_pagevec(DLM_HASH_PAGES);
+	if (!dlm->master_hash) {
+		mlog_errno(-ENOMEM);
+		dlm_free_pagevec((void **)dlm->lockres_hash, DLM_HASH_PAGES);
+		kfree(dlm->name);
+		kfree(dlm);
+		dlm = NULL;
+		goto leave;
+	}
+
+	for (i = 0; i < DLM_HASH_BUCKETS; i++)
+		INIT_HLIST_HEAD(dlm_master_hash(dlm, i));
+
 	strcpy(dlm->name, domain);
 	dlm->key = key;
 	dlm->node_num = o2nm_this_node();
 
 	ret = dlm_create_debugfs_subroot(dlm);
 	if (ret < 0) {
+		dlm_free_pagevec((void **)dlm->master_hash, DLM_HASH_PAGES);
 		dlm_free_pagevec((void **)dlm->lockres_hash, DLM_HASH_PAGES);
 		kfree(dlm->name);
 		kfree(dlm);
