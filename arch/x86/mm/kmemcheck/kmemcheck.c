@@ -67,16 +67,18 @@ int __init kmemcheck_init(void)
 early_initcall(kmemcheck_init);
 
 #ifdef CONFIG_KMEMCHECK_DISABLED_BY_DEFAULT
-int kmemcheck_enabled = 0;
+#  define KMEMCHECK_ENABLED 0
 #endif
 
 #ifdef CONFIG_KMEMCHECK_ENABLED_BY_DEFAULT
-int kmemcheck_enabled = 1;
+#  define KMEMCHECK_ENABLED 1
 #endif
 
 #ifdef CONFIG_KMEMCHECK_ONESHOT_BY_DEFAULT
-int kmemcheck_enabled = 2;
+#  define KMEMCHECK_ENABLED 2
 #endif
+
+int kmemcheck_enabled = KMEMCHECK_ENABLED;
 
 /*
  * We need to parse the kmemcheck= option before any memory is allocated.
