@@ -166,6 +166,18 @@ static struct axis_conversion lis3lv02d_axis_xy_swap_yz_inverted = {2, -1, -3};
 	},						\
 	.driver_data = &lis3lv02d_axis_##_axis		\
 }
+
+#define AXIS_DMI_MATCH2(_ident, _class1, _name1,	\
+				_class2, _name2,	\
+				_axis) {		\
+	.ident = _ident,				\
+	.callback = lis3lv02d_dmi_matched,		\
+	.matches = {					\
+		DMI_MATCH(DMI_##_class1, _name1),	\
+		DMI_MATCH(DMI_##_class2, _name2),	\
+	},						\
+	.driver_data = &lis3lv02d_axis_##_axis		\
+}
 static struct dmi_system_id lis3lv02d_dmi_ids[] = {
 	/* product names are truncated to match all kinds of a same model */
 	AXIS_DMI_MATCH("NC64x0", "HP Compaq nc64", x_inverted),
@@ -179,6 +191,16 @@ static struct dmi_system_id lis3lv02d_dmi_ids[] = {
 	AXIS_DMI_MATCH("NC673x", "HP Compaq 673", xy_rotated_left_usd),
 	AXIS_DMI_MATCH("NC651xx", "HP Compaq 651", xy_rotated_right),
 	AXIS_DMI_MATCH("NC671xx", "HP Compaq 671", xy_swap_yz_inverted),
+	/* Intel-based HP Pavilion dv5 */
+	AXIS_DMI_MATCH2("HPDV5_I",
+			PRODUCT_NAME, "HP Pavilion dv5",
+			BOARD_NAME, "3603",
+			x_inverted),
+	/* AMD-based HP Pavilion dv5 */
+	AXIS_DMI_MATCH2("HPDV5_A",
+			PRODUCT_NAME, "HP Pavilion dv5",
+			BOARD_NAME, "3600",
+			y_inverted),
 	{ NULL, }
 /* Laptop models without axis info (yet):
  * "NC6910" "HP Compaq 6910"
@@ -213,9 +235,49 @@ static struct delayed_led_classdev hpled_led = {
 	.set_brightness = hpled_set,
 };
 
+static acpi_status
+lis3lv02d_get_resource(struct acpi_resource *resource, void *context)
+{
+	if (resource->type == ACPI_RESOURCE_TYPE_EXTENDED_IRQ) {
+		struct acpi_resource_extended_irq *irq;
+		u32 *device_irq = context;
+
+		irq = &resource->data.extended_irq;
+		*device_irq = irq->interrupts[0];
+	}
+
+	return AE_OK;
+}
+
+static void lis3lv02d_enum_resources(struct acpi_device *device)
+{
+	acpi_status status;
+
+	status = acpi_walk_resources(device->handle, METHOD_NAME__CRS,
+					lis3lv02d_get_resource, &adev.irq);
+	if (ACPI_FAILURE(status))
+		printk(KERN_DEBUG DRIVER_NAME ": Error getting resources\n");
+}
+
+static s16 lis3lv02d_read_16(acpi_handle handle, int reg)
+{
+	u8 lo, hi;
+
+	adev.read(handle, reg - 1, &lo);
+	adev.read(handle, reg, &hi);
+	/* In "12 bit right justified" mode, bit 6, bit 7, bit 8 = bit 5 */
+	return (s16)((hi << 8) | lo);
+}
+
+static s16 lis3lv02d_read_8(acpi_handle handle, int reg)
+{
+	s8 lo;
+	adev.read(handle, reg, &lo);
+	return lo;
+}
+
 static int lis3lv02d_add(struct acpi_device *device)
 {
-	u8 val;
 	int ret;
 
 	if (!device)
@@ -229,10 +291,22 @@ static int lis3lv02d_add(struct acpi_device *device)
 	strcpy(acpi_device_class(device), ACPI_MDPS_CLASS);
 	device->driver_data = &adev;
 
-	lis3lv02d_acpi_read(device->handle, WHO_AM_I, &val);
-	if ((val != LIS3LV02DL_ID) && (val != LIS302DL_ID)) {
+	lis3lv02d_acpi_read(device->handle, WHO_AM_I, &adev.whoami);
+	switch (adev.whoami) {
+	case LIS_DOUBLE_ID:
+		printk(KERN_INFO DRIVER_NAME ": 2-byte sensor found\n");
+		adev.read_data = lis3lv02d_read_16;
+		adev.mdps_max_val = 2048;
+		break;
+	case LIS_SINGLE_ID:
+		printk(KERN_INFO DRIVER_NAME ": 1-byte sensor found\n");
+		adev.read_data = lis3lv02d_read_8;
+		adev.mdps_max_val = 128;
+		break;
+	default:
 		printk(KERN_ERR DRIVER_NAME
-				": Accelerometer chip not LIS3LV02D{L,Q}\n");
+			": unknown sensor type 0x%X\n", adev.whoami);
+		return -EINVAL;
 	}
 
 	/* If possible use a "standard" axes order */
@@ -246,6 +320,9 @@ static int lis3lv02d_add(struct acpi_device *device)
 	ret = led_classdev_register(NULL, &hpled_led.led_classdev);
 	if (ret)
 		return ret;
+
+	/* obtain IRQ number of our device from ACPI */
+	lis3lv02d_enum_resources(adev.device);
 
 	ret = lis3lv02d_init_device(&adev);
 	if (ret) {

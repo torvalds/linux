@@ -660,7 +660,7 @@ void *alloc_locked_buffer(size_t size)
 	return buffer;
 }
 
-void free_locked_buffer(void *buffer, size_t size)
+void release_locked_buffer(void *buffer, size_t size)
 {
 	unsigned long pgsz = PAGE_ALIGN(size) >> PAGE_SHIFT;
 
@@ -670,6 +670,11 @@ void free_locked_buffer(void *buffer, size_t size)
 	current->mm->locked_vm -= pgsz;
 
 	up_write(&current->mm->mmap_sem);
+}
+
+void free_locked_buffer(void *buffer, size_t size)
+{
+	release_locked_buffer(buffer, size);
 
 	kfree(buffer);
 }

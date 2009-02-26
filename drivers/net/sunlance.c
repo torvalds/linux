@@ -343,7 +343,7 @@ static void lance_init_ring_dvma(struct net_device *dev)
 	ib->phys_addr [5] = dev->dev_addr [4];
 
 	/* Setup the Tx ring entries */
-	for (i = 0; i <= TX_RING_SIZE; i++) {
+	for (i = 0; i < TX_RING_SIZE; i++) {
 		leptr = LANCE_ADDR(aib + libbuff_offset(tx_buf, i));
 		ib->btx_ring [i].tmd0      = leptr;
 		ib->btx_ring [i].tmd1_hadr = leptr >> 16;
@@ -399,7 +399,7 @@ static void lance_init_ring_pio(struct net_device *dev)
 	sbus_writeb(dev->dev_addr[4], &ib->phys_addr[5]);
 
 	/* Setup the Tx ring entries */
-	for (i = 0; i <= TX_RING_SIZE; i++) {
+	for (i = 0; i < TX_RING_SIZE; i++) {
 		leptr = libbuff_offset(tx_buf, i);
 		sbus_writew(leptr,	&ib->btx_ring [i].tmd0);
 		sbus_writeb(leptr >> 16,&ib->btx_ring [i].tmd1_hadr);

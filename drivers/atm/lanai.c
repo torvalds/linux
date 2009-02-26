@@ -901,7 +901,7 @@ static int __devinit eeprom_read(struct lanai_dev *lanai)
 		clock_l(); udelay(5);
 		for (i = 128; i != 0; i >>= 1) {   /* write command out */
 			tmp = (lanai->conf1 & ~CONFIG1_PROMDATA) |
-			    (data & i) ? CONFIG1_PROMDATA : 0;
+			    ((data & i) ? CONFIG1_PROMDATA : 0);
 			if (lanai->conf1 != tmp) {
 				set_config1(tmp);
 				udelay(5);	/* Let new data settle */

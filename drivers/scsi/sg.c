@@ -1078,7 +1078,7 @@ sg_ioctl(struct inode *inode, struct file *filp,
 	case BLKTRACESETUP:
 		return blk_trace_setup(sdp->device->request_queue,
 				       sdp->disk->disk_name,
-				       sdp->device->sdev_gendev.devt,
+				       MKDEV(SCSI_GENERIC_MAJOR, sdp->index),
 				       (char *)arg);
 	case BLKTRACESTART:
 		return blk_trace_startstop(sdp->device->request_queue, 1);

@@ -1998,6 +1998,8 @@ int iscsi_host_add(struct Scsi_Host *shost, struct device *pdev)
 	if (!shost->can_queue)
 		shost->can_queue = ISCSI_DEF_XMIT_CMDS_MAX;
 
+	if (!shost->transportt->eh_timed_out)
+		shost->transportt->eh_timed_out = iscsi_eh_cmd_timed_out;
 	return scsi_add_host(shost, pdev);
 }
 EXPORT_SYMBOL_GPL(iscsi_host_add);
@@ -2020,7 +2022,6 @@ struct Scsi_Host *iscsi_host_alloc(struct scsi_host_template *sht,
 	shost = scsi_host_alloc(sht, sizeof(struct iscsi_host) + dd_data_size);
 	if (!shost)
 		return NULL;
-	shost->transportt->eh_timed_out = iscsi_eh_cmd_timed_out;
 
 	if (qdepth > ISCSI_MAX_CMD_PER_LUN || qdepth < 1) {
 		if (qdepth != 0)

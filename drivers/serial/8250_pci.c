@@ -798,6 +798,21 @@ pci_default_setup(struct serial_private *priv,
 	return setup_port(priv, port, bar, offset, board->reg_shift);
 }
 
+static int skip_tx_en_setup(struct serial_private *priv,
+			const struct pciserial_board *board,
+			struct uart_port *port, int idx)
+{
+	port->flags |= UPF_NO_TXEN_TEST;
+	printk(KERN_DEBUG "serial8250: skipping TxEn test for device "
+			  "[%04x:%04x] subsystem [%04x:%04x]\n",
+			  priv->dev->vendor,
+			  priv->dev->device,
+			  priv->dev->subsystem_vendor,
+			  priv->dev->subsystem_device);
+
+	return pci_default_setup(priv, board, port, idx);
+}
+
 /* This should be in linux/pci_ids.h */
 #define PCI_VENDOR_ID_SBSMODULARIO	0x124B
 #define PCI_SUBVENDOR_ID_SBSMODULARIO	0x124B
@@ -863,6 +878,27 @@ static struct pci_serial_quirk pci_serial_quirks[] __refdata = {
 		.subdevice	= PCI_ANY_ID,
 		.init		= pci_inteli960ni_init,
 		.setup		= pci_default_setup,
+	},
+	{
+		.vendor		= PCI_VENDOR_ID_INTEL,
+		.device		= PCI_DEVICE_ID_INTEL_8257X_SOL,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
+		.setup		= skip_tx_en_setup,
+	},
+	{
+		.vendor		= PCI_VENDOR_ID_INTEL,
+		.device		= PCI_DEVICE_ID_INTEL_82573L_SOL,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
+		.setup		= skip_tx_en_setup,
+	},
+	{
+		.vendor		= PCI_VENDOR_ID_INTEL,
+		.device		= PCI_DEVICE_ID_INTEL_82573E_SOL,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
+		.setup		= skip_tx_en_setup,
 	},
 	/*
 	 * ITE

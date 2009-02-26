@@ -1947,16 +1947,13 @@ static int azx_suspend(struct pci_dev *pci, pm_message_t state)
 	return 0;
 }
 
-static int azx_resume_early(struct pci_dev *pci)
-{
-	return pci_restore_state(pci);
-}
-
 static int azx_resume(struct pci_dev *pci)
 {
 	struct snd_card *card = pci_get_drvdata(pci);
 	struct azx *chip = card->private_data;
 
+	pci_set_power_state(pci, PCI_D0);
+	pci_restore_state(pci);
 	if (pci_enable_device(pci) < 0) {
 		printk(KERN_ERR "hda-intel: pci_enable_device failed, "
 		       "disabling device\n");
@@ -2468,7 +2465,6 @@ static struct pci_driver driver = {
 	.remove = __devexit_p(azx_remove),
 #ifdef CONFIG_PM
 	.suspend = azx_suspend,
-	.resume_early = azx_resume_early,
 	.resume = azx_resume,
 #endif
 };
