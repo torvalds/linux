@@ -1420,6 +1420,7 @@ struct usb_device_id dib0700_usb_id_table[] = {
 	{ USB_DEVICE(USB_VID_TERRATEC,
 			USB_PID_TERRATEC_CINERGY_DT_XS_DIVERSITY_2) },
 	{ USB_DEVICE(USB_VID_SONY,	USB_PID_SONY_PLAYTV) },
+/* 45 */{ USB_DEVICE(USB_VID_YUAN,      USB_PID_YUAN_PD378S) },
 	{ 0 }		/* Terminating entry */
 };
 MODULE_DEVICE_TABLE(usb, dib0700_usb_id_table);
@@ -1619,7 +1620,7 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 			},
 		},
 
-		.num_device_descs = 9,
+		.num_device_descs = 10,
 		.devices = {
 			{   "DiBcom STK7070P reference design",
 				{ &dib0700_usb_id_table[15], NULL },
@@ -1655,6 +1656,10 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 			},
 			{   "Terratec Cinergy T USB XXS",
 				{ &dib0700_usb_id_table[33], NULL },
+				{ NULL },
+			},
+			{   "Yuan PD378S",
+				{ &dib0700_usb_id_table[45], NULL },
 				{ NULL },
 			},
 		},
