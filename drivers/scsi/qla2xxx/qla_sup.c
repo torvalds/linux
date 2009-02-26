@@ -684,7 +684,7 @@ qla2xxx_get_flt_info(scsi_qla_host_t *vha, uint32_t flt_addr)
 		    "end=0x%x size=0x%x.\n", le32_to_cpu(region->code), start,
 		    le32_to_cpu(region->end) >> 2, le32_to_cpu(region->size)));
 
-		switch (le32_to_cpu(region->code)) {
+		switch (le32_to_cpu(region->code) & 0xff) {
 		case FLT_REG_FW:
 			ha->flt_region_fw = start;
 			break;

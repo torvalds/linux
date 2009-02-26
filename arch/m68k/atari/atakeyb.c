@@ -609,10 +609,10 @@ int atari_keyb_init(void)
 				 ACIA_RHTID : 0);
 
 	/* make sure the interrupt line is up */
-	} while ((mfp.par_dt_reg & 0x10) == 0);
+	} while ((st_mfp.par_dt_reg & 0x10) == 0);
 
 	/* enable ACIA Interrupts */
-	mfp.active_edge &= ~0x10;
+	st_mfp.active_edge &= ~0x10;
 	atari_turnon_irq(IRQ_MFP_ACIA);
 
 	ikbd_self_test = 1;

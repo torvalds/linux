@@ -3,17 +3,15 @@
  *
  * Copyright (C) 2008-2009 Intel Corporation.
  * Markus Metzger <markus.t.metzger@gmail.com>, 2008-2009
- *
  */
-
-#include <linux/module.h>
-#include <linux/fs.h>
+#include <linux/spinlock.h>
+#include <linux/kallsyms.h>
 #include <linux/debugfs.h>
 #include <linux/ftrace.h>
-#include <linux/kallsyms.h>
-#include <linux/mutex.h>
+#include <linux/module.h>
 #include <linux/cpu.h>
 #include <linux/smp.h>
+#include <linux/fs.h>
 
 #include <asm/ds.h>
 
@@ -23,16 +21,17 @@
 
 #define SIZEOF_BTS (1 << 13)
 
-/* The tracer mutex protects the below per-cpu tracer array.
-   It needs to be held to:
-   - start tracing on all cpus
-   - stop tracing on all cpus
-   - start tracing on a single hotplug cpu
-   - stop tracing on a single hotplug cpu
-   - read the trace from all cpus
-   - read the trace from a single cpu
-*/
-static DEFINE_MUTEX(bts_tracer_mutex);
+/*
+ * The tracer lock protects the below per-cpu tracer array.
+ * It needs to be held to:
+ * - start tracing on all cpus
+ * - stop tracing on all cpus
+ * - start tracing on a single hotplug cpu
+ * - stop tracing on a single hotplug cpu
+ * - read the trace from all cpus
+ * - read the trace from a single cpu
+ */
+static DEFINE_SPINLOCK(bts_tracer_lock);
 static DEFINE_PER_CPU(struct bts_tracer *, tracer);
 static DEFINE_PER_CPU(unsigned char[SIZEOF_BTS], buffer);
 
@@ -47,7 +46,7 @@ static struct trace_array *hw_branch_trace __read_mostly;
  * Start tracing on the current cpu.
  * The argument is ignored.
  *
- * pre: bts_tracer_mutex must be locked.
+ * pre: bts_tracer_lock must be locked.
  */
 static void bts_trace_start_cpu(void *arg)
 {
@@ -66,19 +65,19 @@ static void bts_trace_start_cpu(void *arg)
 
 static void bts_trace_start(struct trace_array *tr)
 {
-	mutex_lock(&bts_tracer_mutex);
+	spin_lock(&bts_tracer_lock);
 
 	on_each_cpu(bts_trace_start_cpu, NULL, 1);
 	trace_hw_branches_enabled = 1;
 
-	mutex_unlock(&bts_tracer_mutex);
+	spin_unlock(&bts_tracer_lock);
 }
 
 /*
  * Stop tracing on the current cpu.
  * The argument is ignored.
  *
- * pre: bts_tracer_mutex must be locked.
+ * pre: bts_tracer_lock must be locked.
  */
 static void bts_trace_stop_cpu(void *arg)
 {
@@ -90,12 +89,12 @@ static void bts_trace_stop_cpu(void *arg)
 
 static void bts_trace_stop(struct trace_array *tr)
 {
-	mutex_lock(&bts_tracer_mutex);
+	spin_lock(&bts_tracer_lock);
 
 	trace_hw_branches_enabled = 0;
 	on_each_cpu(bts_trace_stop_cpu, NULL, 1);
 
-	mutex_unlock(&bts_tracer_mutex);
+	spin_unlock(&bts_tracer_lock);
 }
 
 static int __cpuinit bts_hotcpu_handler(struct notifier_block *nfb,
@@ -103,7 +102,7 @@ static int __cpuinit bts_hotcpu_handler(struct notifier_block *nfb,
 {
 	unsigned int cpu = (unsigned long)hcpu;
 
-	mutex_lock(&bts_tracer_mutex);
+	spin_lock(&bts_tracer_lock);
 
 	if (!trace_hw_branches_enabled)
 		goto out;
@@ -119,7 +118,7 @@ static int __cpuinit bts_hotcpu_handler(struct notifier_block *nfb,
 	}
 
  out:
-	mutex_unlock(&bts_tracer_mutex);
+	spin_unlock(&bts_tracer_lock);
 	return NOTIFY_DONE;
 }
 
@@ -127,20 +126,18 @@ static struct notifier_block bts_hotcpu_notifier __cpuinitdata = {
 	.notifier_call = bts_hotcpu_handler
 };
 
-static int __cpuinit bts_trace_init(struct trace_array *tr)
+static int bts_trace_init(struct trace_array *tr)
 {
 	hw_branch_trace = tr;
 
-	register_hotcpu_notifier(&bts_hotcpu_notifier);
 	bts_trace_start(tr);
 
 	return 0;
 }
 
-static void __cpuinit bts_trace_reset(struct trace_array *tr)
+static void bts_trace_reset(struct trace_array *tr)
 {
 	bts_trace_stop(tr);
-	unregister_hotcpu_notifier(&bts_hotcpu_notifier);
 }
 
 static void bts_trace_print_header(struct seq_file *m)
@@ -227,7 +224,7 @@ static void trace_bts_at(const struct bts_trace *trace, void *at)
 /*
  * Collect the trace on the current cpu and write it into the ftrace buffer.
  *
- * pre: bts_tracer_mutex must be locked
+ * pre: bts_tracer_lock must be locked
  */
 static void trace_bts_cpu(void *arg)
 {
@@ -263,11 +260,11 @@ out:
 
 static void trace_bts_prepare(struct trace_iterator *iter)
 {
-	mutex_lock(&bts_tracer_mutex);
+	spin_lock(&bts_tracer_lock);
 
 	on_each_cpu(trace_bts_cpu, iter->tr, 1);
 
-	mutex_unlock(&bts_tracer_mutex);
+	spin_unlock(&bts_tracer_lock);
 }
 
 static void trace_bts_close(struct trace_iterator *iter)
@@ -277,11 +274,11 @@ static void trace_bts_close(struct trace_iterator *iter)
 
 void trace_hw_branch_oops(void)
 {
-	mutex_lock(&bts_tracer_mutex);
+	spin_lock(&bts_tracer_lock);
 
 	trace_bts_cpu(hw_branch_trace);
 
-	mutex_unlock(&bts_tracer_mutex);
+	spin_unlock(&bts_tracer_lock);
 }
 
 struct tracer bts_tracer __read_mostly =
@@ -299,6 +296,7 @@ struct tracer bts_tracer __read_mostly =
 
 __init static int init_bts_trace(void)
 {
+	register_hotcpu_notifier(&bts_hotcpu_notifier);
 	return register_tracer(&bts_tracer);
 }
 device_initcall(init_bts_trace);
