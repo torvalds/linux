@@ -44,8 +44,6 @@
 
 #define WRITE_REG(reg, value, flush) \
 	slic_reg32_write((&reg), (value), (flush))
-#define WRITE_REG64(a, reg, value, regh, valh, flush) \
-	slic_reg64_write((a), (&reg), (value), (&regh), (valh), (flush))
 
 #endif  /* _SLIC_OS_SPECIFIC_H_  */
 

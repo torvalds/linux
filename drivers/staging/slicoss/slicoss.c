@@ -202,10 +202,9 @@ static inline void slic_reg32_write(void __iomem *reg, u32 value, uint flush)
 		mb();
 }
 
-static inline void slic_reg64_write(struct adapter *adapter,
-			       void __iomem *reg,
-			       u32 value,
-			       void __iomem *regh, u32 paddrh, uint flush)
+static inline void slic_reg64_write(struct adapter *adapter, void __iomem *reg,
+				    u32 value, void __iomem *regh, u32 paddrh,
+				    bool flush)
 {
 	spin_lock_irqsave(&adapter->bit64reglock.lock,
 				adapter->bit64reglock.flags);
@@ -1004,11 +1003,10 @@ static int slic_xmit_start(struct sk_buff *skb, struct net_device *dev)
 		WRITE_REG(adapter->slic_regs->slic_cbar,
 			  (hcmd->paddrl | hcmd->cmdsize), DONT_FLUSH);
 	} else {
-		WRITE_REG64(adapter,
-			    adapter->slic_regs->slic_cbar64,
-			    (hcmd->paddrl | hcmd->cmdsize),
-			    adapter->slic_regs->slic_addr_upper,
-			    hcmd->paddrh, DONT_FLUSH);
+		slic_reg64_write(adapter, &adapter->slic_regs->slic_cbar64,
+				 (hcmd->paddrl | hcmd->cmdsize),
+				 &adapter->slic_regs->slic_addr_upper,
+				 hcmd->paddrh, DONT_FLUSH);
 	}
 xmit_done:
 	return 0;
@@ -2481,11 +2479,10 @@ static int slic_card_init(struct sliccard *card, struct adapter *adapter)
 
 				if (adapter->pshmem->isr & ISR_UPC) {
 					adapter->pshmem->isr = 0;
-					WRITE_REG64(adapter,
-						    slic_regs->slic_isp,
-						    0,
-						    slic_regs->slic_addr_upper,
-						    0, FLUSH);
+					slic_reg64_write(adapter,
+						&slic_regs->slic_isp, 0,
+						&slic_regs->slic_addr_upper,
+						0, FLUSH);
 					WRITE_REG(slic_regs->slic_isr, 0,
 						  FLUSH);
 
@@ -2506,10 +2503,10 @@ static int slic_card_init(struct sliccard *card, struct adapter *adapter)
 					DBG_MSG("%s shmem[%p] shmem->isr[%x]\n",
 						__func__, adapter->pshmem,
 						adapter->pshmem->isr);
-					WRITE_REG64(adapter,
-						    slic_regs->slic_isp, 0,
-						    slic_regs->slic_addr_upper,
-						    0, FLUSH);
+					slic_reg64_write(adapter,
+						&slic_regs->slic_isp, 0,
+						&slic_regs->slic_addr_upper,
+						0, FLUSH);
 					return -EINVAL;
 				}
 			}
@@ -2594,9 +2591,9 @@ static int slic_card_init(struct sliccard *card, struct adapter *adapter)
 
 		if ((!card->config.EepromValid) &&
 		    (adapter->reg_params.fail_on_bad_eeprom)) {
-			WRITE_REG64(adapter,
-				    slic_regs->slic_isp,
-				    0, slic_regs->slic_addr_upper, 0, FLUSH);
+			slic_reg64_write(adapter, &slic_regs->slic_isp, 0,
+					 &slic_regs->slic_addr_upper,
+					 0, FLUSH);
 			DBG_ERROR
 			    ("unsupported CONFIGURATION  EEPROM invalid\n");
 			return -EINVAL;
@@ -3418,24 +3415,22 @@ static void slic_upr_start(struct adapter *adapter)
 		if (upr->upr_data_h == 0) {
 			WRITE_REG(slic_regs->slic_stats, upr->upr_data, FLUSH);
 		} else {
-			WRITE_REG64(adapter,
-				    slic_regs->slic_stats64,
-				    upr->upr_data,
-				    slic_regs->slic_addr_upper,
-				    upr->upr_data_h, FLUSH);
+			slic_reg64_write(adapter, &slic_regs->slic_stats64,
+					 upr->upr_data,
+					 &slic_regs->slic_addr_upper,
+					 upr->upr_data_h, FLUSH);
 		}
 		break;
 
 	case SLIC_UPR_RLSR:
-		WRITE_REG64(adapter,
-			    slic_regs->slic_rlsr,
-			    upr->upr_data,
-			    slic_regs->slic_addr_upper, upr->upr_data_h, FLUSH);
+		slic_reg64_write(adapter, &slic_regs->slic_rlsr, upr->upr_data,
+				 &slic_regs->slic_addr_upper, upr->upr_data_h,
+				 FLUSH);
 		break;
 
 	case SLIC_UPR_RCONFIG:
 		DBG_MSG("%s SLIC_UPR_RCONFIG!!!!\n", __func__);
-		DBG_MSG("WRITE_REG64 adapter[%p]\n"
+		DBG_MSG("slic_reg64_write adapter[%p]\n"
 			"    a->slic_regs[%p] slic_regs[%p]\n"
 			"    &slic_rconfig[%p] &slic_addr_upper[%p]\n"
 			"    upr[%p]\n"
@@ -3443,43 +3438,21 @@ static void slic_upr_start(struct adapter *adapter)
 			adapter, adapter->slic_regs, slic_regs,
 			&slic_regs->slic_rconfig, &slic_regs->slic_addr_upper,
 			upr, upr->upr_data, upr->upr_data_h);
-		WRITE_REG64(adapter,
-			    slic_regs->slic_rconfig,
-			    upr->upr_data,
-			    slic_regs->slic_addr_upper, upr->upr_data_h, FLUSH);
+		slic_reg64_write(adapter, &slic_regs->slic_rconfig,
+				 upr->upr_data, &slic_regs->slic_addr_upper,
+				 upr->upr_data_h, FLUSH);
 		break;
 #if SLIC_DUMP_ENABLED
 	case SLIC_UPR_DUMP:
-#if 0
-		DBG_MSG("%s SLIC_UPR_DUMP!!!!\n", __func__);
-		DBG_MSG("WRITE_REG64 adapter[%p]\n"
-			 "    upr_buffer[%x]   upr_bufferh[%x]\n"
-			 "    upr_data[%x]     upr_datah[%x]\n"
-			 "    cmdbuff[%p] cmdbuffP[%p]\n"
-			 "    dumpbuff[%p] dumpbuffP[%p]\n",
-			 adapter, upr->upr_buffer, upr->upr_buffer_h,
-			 upr->upr_data, upr->upr_data_h,
-			 adapter->card->cmdbuffer,
-			 (void *)adapter->card->cmdbuffer_phys,
-			 adapter->card->dumpbuffer, (
-			 void *)adapter->card->dumpbuffer_phys);
-
-		ptr1 = (char *)slic_regs;
-		ptr2 = (char *)(&slic_regs->slic_dump_cmd);
-		cmdoffset = ptr2 - ptr1;
-		DBG_MSG("slic_dump_cmd register offset [%x]\n", cmdoffset);
-#endif
 		if (upr->upr_buffer || upr->upr_buffer_h) {
-			WRITE_REG64(adapter,
-				    slic_regs->slic_dump_data,
-				    upr->upr_buffer,
-				    slic_regs->slic_addr_upper,
-				    upr->upr_buffer_h, FLUSH);
+			slic_reg64_write(adapter, &slic_regs->slic_dump_data,
+					 upr->upr_buffer,
+					 &slic_regs->slic_addr_upper,
+					 upr->upr_buffer_h, FLUSH);
 		}
-		WRITE_REG64(adapter,
-			    slic_regs->slic_dump_cmd,
-			    upr->upr_data,
-			    slic_regs->slic_addr_upper, upr->upr_data_h, FLUSH);
+		slic_reg64_write(adapter, &slic_regs->slic_dump_cmd,
+				 upr->upr_data, slic_regs->slic_addr_upper,
+				 upr->upr_data_h, FLUSH);
 		break;
 #endif
 	case SLIC_UPR_PING:
@@ -3749,11 +3722,10 @@ static int slic_rspqueue_init(struct adapter *adapter)
 				  (rspq->paddr[i] | SLIC_RSPQ_BUFSINPAGE),
 				  DONT_FLUSH);
 		} else {
-			WRITE_REG64(adapter,
-				    slic_regs->slic_rbar64,
-				    (rspq->paddr[i] | SLIC_RSPQ_BUFSINPAGE),
-				    slic_regs->slic_addr_upper,
-				    paddrh, DONT_FLUSH);
+			slic_reg64_write(adapter, &slic_regs->slic_rbar64,
+				(rspq->paddr[i] | SLIC_RSPQ_BUFSINPAGE),
+				&slic_regs->slic_addr_upper,
+				paddrh, DONT_FLUSH);
 		}
 	}
 	rspq->offset = 0;
@@ -3829,11 +3801,9 @@ static struct slic_rspbuf *slic_rspqueue_getnext(struct adapter *adapter)
 #endif
 	} else {
 		ASSERT(rspq->offset == SLIC_RSPQ_BUFSINPAGE);
-		WRITE_REG64(adapter,
-			    adapter->slic_regs->slic_rbar64,
-			    (rspq->
-			     paddr[rspq->pageindex] | SLIC_RSPQ_BUFSINPAGE),
-			    adapter->slic_regs->slic_addr_upper, 0, DONT_FLUSH);
+		slic_reg64_write(adapter, &adapter->slic_regs->slic_rbar64,
+			(rspq->paddr[rspq->pageindex] | SLIC_RSPQ_BUFSINPAGE),
+			&adapter->slic_regs->slic_addr_upper, 0, DONT_FLUSH);
 		rspq->pageindex = (++rspq->pageindex) % rspq->num_pages;
 		rspq->offset = 0;
 		rspq->rspbuf = (struct slic_rspbuf *)
@@ -4295,11 +4265,11 @@ retry_rcvqfill:
 				WRITE_REG(adapter->slic_regs->slic_hbar,
 					  (u32) paddrl, DONT_FLUSH);
 			} else {
-				WRITE_REG64(adapter,
-					    adapter->slic_regs->slic_hbar64,
-					    (u32) paddrl,
-					    adapter->slic_regs->slic_addr_upper,
-					    (u32) paddrh, DONT_FLUSH);
+				slic_reg64_write(adapter,
+					&adapter->slic_regs->slic_hbar64,
+					paddrl,
+					&adapter->slic_regs->slic_addr_upper,
+					paddrh, DONT_FLUSH);
 			}
 			if (rcvq->head)
 				rcvq->tail->next = skb;
@@ -4353,11 +4323,9 @@ static u32 slic_rcvqueue_reinsert(struct adapter *adapter, struct sk_buff *skb)
 		WRITE_REG(adapter->slic_regs->slic_hbar, (u32) paddrl,
 			  DONT_FLUSH);
 	} else {
-		WRITE_REG64(adapter,
-			    adapter->slic_regs->slic_hbar64,
-			    paddrl,
-			    adapter->slic_regs->slic_addr_upper,
-			    paddrh, DONT_FLUSH);
+		slic_reg64_write(adapter, &adapter->slic_regs->slic_hbar64,
+				 paddrl, &adapter->slic_regs->slic_addr_upper,
+				 paddrh, DONT_FLUSH);
 	}
 	if (rcvq->head)
 		rcvq->tail->next = skb;

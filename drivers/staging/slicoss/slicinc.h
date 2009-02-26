@@ -65,8 +65,6 @@ static void slic_config_pci(struct pci_dev *pcidev);
 static struct sk_buff *slic_rcvqueue_getnext(struct adapter *adapter);
 
 static inline void slic_reg32_write(void __iomem *reg, u32 value, uint flush);
-static inline void slic_reg64_write(struct adapter *adapter, void __iomem *reg,
-	u32 value, void __iomem *regh, u32 paddrh, uint flush);
 
 #if SLIC_GET_STATS_ENABLED
 static struct net_device_stats *slic_get_stats(struct net_device *dev);
