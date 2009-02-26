@@ -68,27 +68,38 @@ static int dlm_do_assert_master(struct dlm_ctxt *dlm,
 				void *nodemap, u32 flags);
 static void dlm_deref_lockres_worker(struct dlm_work_item *item, void *data);
 
+static inline void __dlm_mle_name(struct dlm_master_list_entry *mle,
+				  unsigned char **name, unsigned int *namelen)
+{
+	BUG_ON(mle->type != DLM_MLE_BLOCK &&
+	       mle->type != DLM_MLE_MASTER &&
+	       mle->type != DLM_MLE_MIGRATION);
+
+	if (mle->type != DLM_MLE_MASTER) {
+		*name = mle->u.mlename.name;
+		*namelen = mle->u.mlename.len;
+	} else {
+		*name  = (unsigned char *)mle->u.mleres->lockname.name;
+		*namelen = mle->u.mleres->lockname.len;
+	}
+}
+
 static inline int dlm_mle_equal(struct dlm_ctxt *dlm,
 				struct dlm_master_list_entry *mle,
 				const char *name,
 				unsigned int namelen)
 {
-	struct dlm_lock_resource *res;
+	unsigned char *mlename;
+	unsigned int mlelen;
 
 	if (dlm != mle->dlm)
 		return 0;
 
-	if (mle->type == DLM_MLE_BLOCK ||
-	    mle->type == DLM_MLE_MIGRATION) {
-		if (namelen != mle->u.name.len ||
-    	    	    memcmp(name, mle->u.name.name, namelen)!=0)
-			return 0;
-	} else {
-		res = mle->u.res;
-		if (namelen != res->lockname.len ||
-		    memcmp(res->lockname.name, name, namelen) != 0)
-			return 0;
-	}
+	__dlm_mle_name(mle, &mlename, &mlelen);
+
+	if (namelen != mlelen || memcmp(name, mlename, namelen) != 0)
+		return 0;
+
 	return 1;
 }
 
@@ -295,17 +306,17 @@ static void dlm_init_mle(struct dlm_master_list_entry *mle,
 	mle->new_master = O2NM_MAX_NODES;
 	mle->inuse = 0;
 
+	BUG_ON(mle->type != DLM_MLE_BLOCK &&
+	       mle->type != DLM_MLE_MASTER &&
+	       mle->type != DLM_MLE_MIGRATION);
+
 	if (mle->type == DLM_MLE_MASTER) {
 		BUG_ON(!res);
-		mle->u.res = res;
-	} else if (mle->type == DLM_MLE_BLOCK) {
+		mle->u.mleres = res;
+	} else {
 		BUG_ON(!name);
-		memcpy(mle->u.name.name, name, namelen);
-		mle->u.name.len = namelen;
-	} else /* DLM_MLE_MIGRATION */ {
-		BUG_ON(!name);
-		memcpy(mle->u.name.name, name, namelen);
-		mle->u.name.len = namelen;
+		memcpy(mle->u.mlename.name, name, namelen);
+		mle->u.mlename.len = namelen;
 	}
 
 	/* copy off the node_map and register hb callbacks on our copy */
@@ -425,11 +436,11 @@ static void dlm_mle_release(struct kref *kref)
 
 	if (mle->type != DLM_MLE_MASTER) {
 		mlog(0, "calling mle_release for %.*s, type %d\n",
-		     mle->u.name.len, mle->u.name.name, mle->type);
+		     mle->u.mlename.len, mle->u.mlename.name, mle->type);
 	} else {
 		mlog(0, "calling mle_release for %.*s, type %d\n",
-		     mle->u.res->lockname.len,
-		     mle->u.res->lockname.name, mle->type);
+		     mle->u.mleres->lockname.len,
+		     mle->u.mleres->lockname.name, mle->type);
 	}
 	assert_spin_locked(&dlm->spinlock);
 	assert_spin_locked(&dlm->master_lock);
@@ -1284,7 +1295,7 @@ static int dlm_restart_lock_mastery(struct dlm_ctxt *dlm,
 						     res->lockname.len,
 						     res->lockname.name);
 						mle->type = DLM_MLE_MASTER;
-						mle->u.res = res;
+						mle->u.mleres = res;
 					}
 				}
 			}
@@ -1323,20 +1334,18 @@ static int dlm_do_master_request(struct dlm_lock_resource *res,
 	struct dlm_ctxt *dlm = mle->dlm;
 	struct dlm_master_request request;
 	int ret, response=0, resend;
+	unsigned char *mlename;
+	unsigned int mlenamelen;
 
 	memset(&request, 0, sizeof(request));
 	request.node_idx = dlm->node_num;
 
 	BUG_ON(mle->type == DLM_MLE_MIGRATION);
 
-	if (mle->type != DLM_MLE_MASTER) {
-		request.namelen = mle->u.name.len;
-		memcpy(request.name, mle->u.name.name, request.namelen);
-	} else {
-		request.namelen = mle->u.res->lockname.len;
-		memcpy(request.name, mle->u.res->lockname.name,
-			request.namelen);
-	}
+	__dlm_mle_name(mle, &mlename, &mlenamelen);
+
+	request.namelen = (u8)mlenamelen;
+	memcpy(request.name, mlename, request.namelen);
 
 again:
 	ret = o2net_send_message(DLM_MASTER_REQUEST_MSG, dlm->key, &request,
@@ -3286,9 +3295,9 @@ top:
 		     mle->master, mle->new_master);
 		/* if there is a lockres associated with this
 	 	 * mle, find it and set its owner to UNKNOWN */
-		hash = dlm_lockid_hash(mle->u.name.name, mle->u.name.len);
-		res = __dlm_lookup_lockres(dlm, mle->u.name.name,
-					   mle->u.name.len, hash);
+		hash = dlm_lockid_hash(mle->u.mlename.name, mle->u.mlename.len);
+		res = __dlm_lookup_lockres(dlm, mle->u.mlename.name,
+					   mle->u.mlename.len, hash);
 		if (res) {
 			/* unfortunately if we hit this rare case, our
 		 	 * lock ordering is messed.  we need to drop

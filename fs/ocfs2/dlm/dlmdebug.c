@@ -288,15 +288,15 @@ static int dump_mle(struct dlm_master_list_entry *mle, char *buf, int len)
 {
 	int out = 0;
 	unsigned int namelen;
-	const char *name;
+	unsigned char *name;
 	char *mle_type;
 
 	if (mle->type != DLM_MLE_MASTER) {
-		namelen = mle->u.name.len;
-		name = mle->u.name.name;
+		name = mle->u.mlename.name;
+		namelen = mle->u.mlename.len;
 	} else {
-		namelen = mle->u.res->lockname.len;
-		name = mle->u.res->lockname.name;
+		name  = (unsigned char *)mle->u.mleres->lockname.name;
+		namelen = mle->u.mleres->lockname.len;
 	}
 
 	if (mle->type == DLM_MLE_BLOCK)

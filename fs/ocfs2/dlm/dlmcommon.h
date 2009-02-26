@@ -56,8 +56,8 @@ enum dlm_mle_type {
 };
 
 struct dlm_lock_name {
-	u8 len;
-	u8 name[DLM_LOCKID_NAME_MAX];
+	unsigned int len;
+	unsigned char name[DLM_LOCKID_NAME_MAX];
 };
 
 struct dlm_master_list_entry {
@@ -79,8 +79,8 @@ struct dlm_master_list_entry {
 	struct o2hb_callback_func mle_hb_up;
 	struct o2hb_callback_func mle_hb_down;
 	union {
-		struct dlm_lock_resource *res;
-		struct dlm_lock_name name;
+		struct dlm_lock_resource *mleres;
+		struct dlm_lock_name mlename;
 	} u;
 };
 
