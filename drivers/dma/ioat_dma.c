@@ -189,11 +189,13 @@ static int ioat_dma_enumerate_channels(struct ioatdma_device *device)
 		ioat_chan->xfercap = xfercap;
 		ioat_chan->desccount = 0;
 		INIT_DELAYED_WORK(&ioat_chan->work, ioat_dma_chan_reset_part2);
-		if (ioat_chan->device->version != IOAT_VER_1_2) {
-			writel(IOAT_DCACTRL_CMPL_WRITE_ENABLE
-					| IOAT_DMA_DCA_ANY_CPU,
-				ioat_chan->reg_base + IOAT_DCACTRL_OFFSET);
-		}
+		if (ioat_chan->device->version == IOAT_VER_2_0)
+			writel(IOAT_DCACTRL_CMPL_WRITE_ENABLE |
+			       IOAT_DMA_DCA_ANY_CPU,
+			       ioat_chan->reg_base + IOAT_DCACTRL_OFFSET);
+		else if (ioat_chan->device->version == IOAT_VER_3_0)
+			writel(IOAT_DMA_DCA_ANY_CPU,
+			       ioat_chan->reg_base + IOAT_DCACTRL_OFFSET);
 		spin_lock_init(&ioat_chan->cleanup_lock);
 		spin_lock_init(&ioat_chan->desc_lock);
 		INIT_LIST_HEAD(&ioat_chan->free_desc);
