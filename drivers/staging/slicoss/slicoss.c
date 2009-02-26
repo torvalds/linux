@@ -245,21 +245,6 @@ static void slic_dbg_macaddrs(struct adapter *adapter)
 	return;
 }
 
-#ifdef DEBUG_REGISTER_TRACE
-static void slic_dbg_register_trace(struct adapter *adapter,
-					struct sliccard *card)
-{
-	uint i;
-
-	DBG_ERROR("Dump Register Write Trace: curr_ix == %d\n", card->debug_ix);
-	for (i = 0; i < 32; i++) {
-		DBG_ERROR("%2d %d %4x %x %x\n",
-			  i, card->reg_type[i], card->reg_offset[i],
-			  card->reg_value[i], card->reg_valueh[i]);
-	}
-}
-#endif
-
 static void slic_init_adapter(struct net_device *netdev,
 			      struct pci_dev *pcidev,
 			      const struct pci_device_id *pci_tbl_entry,
