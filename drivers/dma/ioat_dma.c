@@ -1659,6 +1659,13 @@ struct ioatdma_device *ioat_dma_probe(struct pci_dev *pdev,
 		" %d channels, device version 0x%02x, driver version %s\n",
 		device->common.chancnt, device->version, IOAT_DMA_VERSION);
 
+	if (!device->common.chancnt) {
+		dev_err(&device->pdev->dev,
+			"Intel(R) I/OAT DMA Engine problem found: "
+			"zero channels detected\n");
+		goto err_setup_interrupts;
+	}
+
 	err = ioat_dma_setup_interrupts(device);
 	if (err)
 		goto err_setup_interrupts;
