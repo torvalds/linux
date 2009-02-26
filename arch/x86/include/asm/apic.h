@@ -331,10 +331,27 @@ struct apic {
 	u32 (*safe_wait_icr_idle)(void);
 };
 
+/*
+ * Pointer to the local APIC driver in use on this system (there's
+ * always just one such driver in use - the kernel decides via an
+ * early probing process which one it picks - and then sticks to it):
+ */
 extern struct apic *apic;
+
+/*
+ * APIC functionality to boot other CPUs - only used on SMP:
+ */
+#ifdef CONFIG_SMP
 extern atomic_t init_deasserted;
 extern int wakeup_secondary_cpu_via_nmi(int apicid, unsigned long start_eip);
 extern int wakeup_secondary_cpu_via_init(int apicid, unsigned long start_eip);
+#else
+static inline int
+wakeup_secondary_cpu_via_init(int apicid, unsigned long start_eip)
+{
+	return 0;
+}
+#endif
 
 static inline u32 apic_read(u32 reg)
 {
