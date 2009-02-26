@@ -124,43 +124,75 @@ exit:
 	ql_write32(qdev, CSR, CSR_CMD_CLR_R2PCI_INT);
 }
 
+/* Process an async event and clear it unless it's an
+ * error condition.
+ *  This can get called iteratively from the mpi_work thread
+ *  when events arrive via an interrupt.
+ *  It also gets called when a mailbox command is polling for
+ *  it's completion. */
+static int ql_mpi_handler(struct ql_adapter *qdev, struct mbox_params *mbcp)
+{
+	int status;
+
+	/* Just get mailbox zero for now. */
+	mbcp->out_count = 1;
+	status = ql_get_mb_sts(qdev, mbcp);
+	if (status) {
+		QPRINTK(qdev, DRV, ERR,
+			"Could not read MPI, resetting ASIC!\n");
+		ql_queue_asic_error(qdev);
+		goto end;
+	}
+
+	switch (mbcp->mbox_out[0]) {
+
+	case AEN_LINK_UP:
+		ql_link_up(qdev, mbcp);
+		break;
+
+	case AEN_LINK_DOWN:
+		ql_link_down(qdev, mbcp);
+		break;
+
+	case AEN_FW_INIT_DONE:
+		ql_init_fw_done(qdev, mbcp);
+		break;
+
+	case MB_CMD_STS_GOOD:
+		break;
+
+	case AEN_FW_INIT_FAIL:
+	case AEN_SYS_ERR:
+	case MB_CMD_STS_ERR:
+		ql_queue_fw_error(qdev);
+		break;
+
+	default:
+		QPRINTK(qdev, DRV, ERR,
+			"Unsupported AE %.08x.\n", mbcp->mbox_out[0]);
+		/* Clear the MPI firmware status. */
+	}
+end:
+	ql_write32(qdev, CSR, CSR_CMD_CLR_R2PCI_INT);
+	return status;
+}
+
 void ql_mpi_work(struct work_struct *work)
 {
 	struct ql_adapter *qdev =
 	    container_of(work, struct ql_adapter, mpi_work.work);
 	struct mbox_params mbc;
 	struct mbox_params *mbcp = &mbc;
-	mbcp->out_count = 1;
+
+	mutex_lock(&qdev->mpi_mutex);
 
 	while (ql_read32(qdev, STS) & STS_PI) {
-		if (ql_get_mb_sts(qdev, mbcp)) {
-			QPRINTK(qdev, DRV, ERR,
-				"Could not read MPI, resetting ASIC!\n");
-			ql_queue_asic_error(qdev);
-		}
-
-		switch (mbcp->mbox_out[0]) {
-		case AEN_LINK_UP:
-			ql_link_up(qdev, mbcp);
-			break;
-		case AEN_LINK_DOWN:
-			ql_link_down(qdev, mbcp);
-			break;
-		case AEN_FW_INIT_DONE:
-			ql_init_fw_done(qdev, mbcp);
-			break;
-		case MB_CMD_STS_GOOD:
-			break;
-		case AEN_FW_INIT_FAIL:
-		case AEN_SYS_ERR:
-		case MB_CMD_STS_ERR:
-			ql_queue_fw_error(qdev);
-		default:
-			/* Clear the MPI firmware status. */
-			ql_write32(qdev, CSR, CSR_CMD_CLR_R2PCI_INT);
-			break;
-		}
+		memset(mbcp, 0, sizeof(struct mbox_params));
+		mbcp->out_count = 1;
+		ql_mpi_handler(qdev, mbcp);
 	}
+
+	mutex_unlock(&qdev->mpi_mutex);
 	ql_enable_completion_interrupt(qdev, 0);
 }
 
