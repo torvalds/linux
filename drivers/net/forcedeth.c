@@ -940,7 +940,7 @@ static int reg_delay(struct net_device *dev, int offset, u32 mask, u32 target,
 		delaymax -= delay;
 		if (delaymax < 0) {
 			if (msg)
-				printk(msg);
+				printk("%s", msg);
 			return 1;
 		}
 	} while ((readl(base + offset) & mask) != target);
