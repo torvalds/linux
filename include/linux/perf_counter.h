@@ -13,20 +13,8 @@
 #ifndef _LINUX_PERF_COUNTER_H
 #define _LINUX_PERF_COUNTER_H
 
-#include <asm/atomic.h>
-#include <asm/ioctl.h>
-
-#ifdef CONFIG_PERF_COUNTERS
-# include <asm/perf_counter.h>
-#endif
-
-#include <linux/list.h>
-#include <linux/mutex.h>
-#include <linux/rculist.h>
-#include <linux/rcupdate.h>
-#include <linux/spinlock.h>
-
-struct task_struct;
+#include <linux/types.h>
+#include <linux/ioctl.h>
 
 /*
  * User-space ABI bits:
@@ -78,12 +66,12 @@ enum perf_counter_record_type {
  * Hardware event to monitor via a performance monitoring counter:
  */
 struct perf_counter_hw_event {
-	s64			type;
+	__s64			type;
 
-	u64			irq_period;
-	u32			record_type;
+	__u64			irq_period;
+	__u32			record_type;
 
-	u32			disabled       :  1, /* off by default        */
+	__u32			disabled       :  1, /* off by default        */
 				nmi	       :  1, /* NMI sampling          */
 				raw	       :  1, /* raw event type        */
 				inherit	       :  1, /* children inherit it   */
@@ -95,7 +83,7 @@ struct perf_counter_hw_event {
 
 				__reserved_1 : 23;
 
-	u64			__reserved_2;
+	__u64			__reserved_2;
 };
 
 /*
@@ -104,9 +92,23 @@ struct perf_counter_hw_event {
 #define PERF_COUNTER_IOC_ENABLE		_IO('$', 0)
 #define PERF_COUNTER_IOC_DISABLE	_IO('$', 1)
 
+#ifdef __KERNEL__
 /*
- * Kernel-internal data types:
+ * Kernel-internal data types and definitions:
  */
+
+#ifdef CONFIG_PERF_COUNTERS
+# include <asm/perf_counter.h>
+#endif
+
+#include <linux/list.h>
+#include <linux/mutex.h>
+#include <linux/rculist.h>
+#include <linux/rcupdate.h>
+#include <linux/spinlock.h>
+#include <asm/atomic.h>
+
+struct task_struct;
 
 /**
  * struct hw_perf_counter - performance counter hardware details:
@@ -293,4 +295,5 @@ static inline int perf_counter_task_disable(void)	{ return -EINVAL; }
 static inline int perf_counter_task_enable(void)	{ return -EINVAL; }
 #endif
 
+#endif /* __KERNEL__ */
 #endif /* _LINUX_PERF_COUNTER_H */

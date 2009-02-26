@@ -696,10 +696,7 @@ asmlinkage long sys_pipe(int __user *);
 int kernel_execve(const char *filename, char *const argv[], char *const envp[]);
 
 
-asmlinkage int sys_perf_counter_open(
-
-	struct perf_counter_hw_event	*hw_event_uptr		__user,
-	pid_t				pid,
-	int				cpu,
-	int				group_fd);
+asmlinkage long sys_perf_counter_open(
+		const struct perf_counter_hw_event __user *hw_event_uptr,
+		pid_t pid, int cpu, int group_fd);
 #endif
