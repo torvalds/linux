@@ -1,5 +1,5 @@
 /*
- * Copyright(c) 2004 - 2007 Intel Corporation. All rights reserved.
+ * Copyright(c) 2004 - 2009 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the Free
@@ -29,7 +29,7 @@
 #include <linux/pci_ids.h>
 #include <net/tcp.h>
 
-#define IOAT_DMA_VERSION  "3.30"
+#define IOAT_DMA_VERSION  "3.64"
 
 enum ioat_interrupt {
 	none = 0,
