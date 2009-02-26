@@ -280,6 +280,7 @@ STAC9200
   gateway-m4	Gateway laptops with EAPD control
   gateway-m4-2	Gateway laptops with EAPD control
   panasonic	Panasonic CF-74
+  auto		BIOS setup (default)
 
 STAC9205/9254
 =============
@@ -288,6 +289,7 @@ STAC9205/9254
   dell-m43	Dell Precision
   dell-m44	Dell Inspiron
   eapd		Keep EAPD on (e.g. Gateway T1616)
+  auto		BIOS setup (default)
 
 STAC9220/9221
 =============
@@ -311,6 +313,7 @@ STAC9220/9221
   dell-d82	Dell (unknown)
   dell-m81	Dell (unknown)
   dell-m82	Dell XPS M1210
+  auto		BIOS setup (default)
 
 STAC9202/9250/9251
 ==================
@@ -322,6 +325,7 @@ STAC9202/9250/9251
   m3		Some Gateway MX series laptops
   m5		Some Gateway MX series laptops (MP6954)
   m6		Some Gateway NX series laptops
+  auto		BIOS setup (default)
 
 STAC9227/9228/9229/927x
 =======================
@@ -331,6 +335,7 @@ STAC9227/9228/9229/927x
   5stack	D965 5stack + SPDIF
   dell-3stack	Dell Dimension E520
   dell-bios	Fixes with Dell BIOS setup
+  auto		BIOS setup (default)
 
 STAC92HD71B*
 ============
@@ -339,6 +344,7 @@ STAC92HD71B*
   dell-m4-2	Dell desktops
   dell-m4-3	Dell desktops
   hp-m4		HP dv laptops
+  auto		BIOS setup (default)
 
 STAC92HD73*
 ===========
@@ -348,11 +354,13 @@ STAC92HD73*
   dell-m6-dmic	Dell desktops/laptops with digital mics
   dell-m6	Dell desktops/laptops with both type of mics
   dell-eq	Dell desktops/laptops
+  auto		BIOS setup (default)
 
 STAC92HD83*
 ===========
   ref		Reference board
   mic-ref	Reference board with power managment for ports
+  auto		BIOS setup (default)
 
 STAC9872
 ========

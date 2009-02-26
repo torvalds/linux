@@ -43,6 +43,7 @@ enum {
 };
 
 enum {
+	STAC_AUTO,
 	STAC_REF,
 	STAC_9200_OQO,
 	STAC_9200_DELL_D21,
@@ -62,6 +63,7 @@ enum {
 };
 
 enum {
+	STAC_9205_AUTO,
 	STAC_9205_REF,
 	STAC_9205_DELL_M42,
 	STAC_9205_DELL_M43,
@@ -71,6 +73,7 @@ enum {
 };
 
 enum {
+	STAC_92HD73XX_AUTO,
 	STAC_92HD73XX_NO_JD, /* no jack-detection */
 	STAC_92HD73XX_REF,
 	STAC_DELL_M6_AMIC,
@@ -81,6 +84,7 @@ enum {
 };
 
 enum {
+	STAC_92HD83XXX_AUTO,
 	STAC_92HD83XXX_REF,
 	STAC_92HD83XXX_PWR_REF,
 	STAC_DELL_S14,
@@ -88,6 +92,7 @@ enum {
 };
 
 enum {
+	STAC_92HD71BXX_AUTO,
 	STAC_92HD71BXX_REF,
 	STAC_DELL_M4_1,
 	STAC_DELL_M4_2,
@@ -98,6 +103,7 @@ enum {
 };
 
 enum {
+	STAC_925x_AUTO,
 	STAC_925x_REF,
 	STAC_M1,
 	STAC_M1_2,
@@ -110,6 +116,7 @@ enum {
 };
 
 enum {
+	STAC_922X_AUTO,
 	STAC_D945_REF,
 	STAC_D945GTP3,
 	STAC_D945GTP5,
@@ -137,6 +144,7 @@ enum {
 };
 
 enum {
+	STAC_927X_AUTO,
 	STAC_D965_REF_NO_JD, /* no jack-detection */
 	STAC_D965_REF,
 	STAC_D965_3ST,
@@ -1488,6 +1496,7 @@ static unsigned int *stac9200_brd_tbl[STAC_9200_MODELS] = {
 };
 
 static const char *stac9200_models[STAC_9200_MODELS] = {
+	[STAC_AUTO] = "auto",
 	[STAC_REF] = "ref",
 	[STAC_9200_OQO] = "oqo",
 	[STAC_9200_DELL_D21] = "dell-d21",
@@ -1633,6 +1642,7 @@ static unsigned int *stac925x_brd_tbl[STAC_925x_MODELS] = {
 };
 
 static const char *stac925x_models[STAC_925x_MODELS] = {
+	[STAC_925x_AUTO] = "auto",
 	[STAC_REF] = "ref",
 	[STAC_M1] = "m1",
 	[STAC_M1_2] = "m1-2",
@@ -1692,6 +1702,7 @@ static unsigned int *stac92hd73xx_brd_tbl[STAC_92HD73XX_MODELS] = {
 };
 
 static const char *stac92hd73xx_models[STAC_92HD73XX_MODELS] = {
+	[STAC_92HD73XX_AUTO] = "auto",
 	[STAC_92HD73XX_NO_JD] = "no-jd",
 	[STAC_92HD73XX_REF] = "ref",
 	[STAC_DELL_M6_AMIC] = "dell-m6-amic",
@@ -1748,6 +1759,7 @@ static unsigned int *stac92hd83xxx_brd_tbl[STAC_92HD83XXX_MODELS] = {
 };
 
 static const char *stac92hd83xxx_models[STAC_92HD83XXX_MODELS] = {
+	[STAC_92HD83XXX_AUTO] = "auto",
 	[STAC_92HD83XXX_REF] = "ref",
 	[STAC_92HD83XXX_PWR_REF] = "mic-ref",
 	[STAC_DELL_S14] = "dell-s14",
@@ -1802,6 +1814,7 @@ static unsigned int *stac92hd71bxx_brd_tbl[STAC_92HD71BXX_MODELS] = {
 };
 
 static const char *stac92hd71bxx_models[STAC_92HD71BXX_MODELS] = {
+	[STAC_92HD71BXX_AUTO] = "auto",
 	[STAC_92HD71BXX_REF] = "ref",
 	[STAC_DELL_M4_1] = "dell-m4-1",
 	[STAC_DELL_M4_2] = "dell-m4-2",
@@ -1973,6 +1986,7 @@ static unsigned int *stac922x_brd_tbl[STAC_922X_MODELS] = {
 };
 
 static const char *stac922x_models[STAC_922X_MODELS] = {
+	[STAC_922X_AUTO] = "auto",
 	[STAC_D945_REF]	= "ref",
 	[STAC_D945GTP5]	= "5stack",
 	[STAC_D945GTP3]	= "3stack",
@@ -2125,6 +2139,7 @@ static unsigned int *stac927x_brd_tbl[STAC_927X_MODELS] = {
 };
 
 static const char *stac927x_models[STAC_927X_MODELS] = {
+	[STAC_927X_AUTO]	= "auto",
 	[STAC_D965_REF_NO_JD]	= "ref-no-jd",
 	[STAC_D965_REF]		= "ref",
 	[STAC_D965_3ST]		= "3stack",
@@ -2222,6 +2237,7 @@ static unsigned int *stac9205_brd_tbl[STAC_9205_MODELS] = {
 };
 
 static const char *stac9205_models[STAC_9205_MODELS] = {
+	[STAC_9205_AUTO] = "auto",
 	[STAC_9205_REF] = "ref",
 	[STAC_9205_DELL_M42] = "dell-m42",
 	[STAC_9205_DELL_M43] = "dell-m43",
