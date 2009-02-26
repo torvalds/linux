@@ -156,46 +156,12 @@ MODULE_PARM_DESC(ir_debug, "enable debugging information for IR decoding");
 
 DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 
-static u16 ir_codes_dm1105_nec[128] = {
-	[0x0a] = KEY_Q,		/*power*/
-	[0x0c] = KEY_M,		/*mute*/
-	[0x11] = KEY_1,
-	[0x12] = KEY_2,
-	[0x13] = KEY_3,
-	[0x14] = KEY_4,
-	[0x15] = KEY_5,
-	[0x16] = KEY_6,
-	[0x17] = KEY_7,
-	[0x18] = KEY_8,
-	[0x19] = KEY_9,
-	[0x10] = KEY_0,
-	[0x1c] = KEY_PAGEUP,	/*ch+*/
-	[0x0f] = KEY_PAGEDOWN,	/*ch-*/
-	[0x1a] = KEY_O,		/*vol+*/
-	[0x0e] = KEY_Z,		/*vol-*/
-	[0x04] = KEY_R,		/*rec*/
-	[0x09] = KEY_D,		/*fav*/
-	[0x08] = KEY_BACKSPACE,	/*rewind*/
-	[0x07] = KEY_A,		/*fast*/
-	[0x0b] = KEY_P,		/*pause*/
-	[0x02] = KEY_ESC,	/*cancel*/
-	[0x03] = KEY_G,		/*tab*/
-	[0x00] = KEY_UP,	/*up*/
-	[0x1f] = KEY_ENTER,	/*ok*/
-	[0x01] = KEY_DOWN,	/*down*/
-	[0x05] = KEY_C,		/*cap*/
-	[0x06] = KEY_S,		/*stop*/
-	[0x40] = KEY_F,		/*full*/
-	[0x1e] = KEY_W,		/*tvmode*/
-	[0x1b] = KEY_B,		/*recall*/
-};
-
 /* infrared remote control */
 struct infrared {
-	u16	key_map[128];
 	struct input_dev	*input_dev;
+	struct ir_input_state	ir;
 	char			input_phys[32];
-	struct tasklet_struct	ir_tasklet;
+	struct work_struct	work;
 	u32			ir_command;
 };
 
@@ -236,8 +202,6 @@ struct dm1105dvb {
 };
 
 #define dm_io_mem(reg)	((unsigned long)(&dm1105dvb->io_mem[reg]))
-
-static struct dm1105dvb *dm1105dvb_local;
 
 static int dm1105_i2c_xfer(struct i2c_adapter *i2c_adap,
 			    struct i2c_msg *msgs, int num)
@@ -411,31 +375,20 @@ static int dm1105dvb_stop_feed(struct dvb_demux_feed *f)
 	return 0;
 }
 
-/* ir tasklet */
-static void dm1105_emit_key(unsigned long parm)
+/* ir work handler */
+static void dm1105_emit_key(struct work_struct *work)
 {
-	struct infrared *ir = (struct infrared *) parm;
+	struct infrared *ir = container_of(work, struct infrared, work);
 	u32 ircom = ir->ir_command;
 	u8 data;
-	u16 keycode;
 
 	if (ir_debug)
 		printk(KERN_INFO "%s: received byte 0x%04x\n", __func__, ircom);
 
 	data = (ircom >> 8) & 0x7f;
 
-	input_event(ir->input_dev, EV_MSC, MSC_RAW, (0x0000f8 << 16) | data);
-	input_event(ir->input_dev, EV_MSC, MSC_SCAN, data);
-	keycode = ir->key_map[data];
-
-	if (!keycode)
-		return;
-
-	input_event(ir->input_dev, EV_KEY, keycode, 1);
-	input_sync(ir->input_dev);
-	input_event(ir->input_dev, EV_KEY, keycode, 0);
-	input_sync(ir->input_dev);
-
+	ir_input_keydown(ir->input_dev, &ir->ir, data, data);
+	ir_input_nokey(ir->input_dev, &ir->ir);
 }
 
 /* work handler */
@@ -491,34 +444,19 @@ static irqreturn_t dm1105dvb_irq(int irq, void *dev_id)
 		break;
 	case INTSTS_IR:
 		dm1105dvb->ir.ir_command = inl(dm_io_mem(DM1105_IRCODE));
-		tasklet_schedule(&dm1105dvb->ir.ir_tasklet);
+		schedule_work(&dm1105dvb->ir.work);
 		break;
 	}
 
 	return IRQ_HANDLED;
 }
 
-/* register with input layer */
-static void input_register_keys(struct infrared *ir)
-{
-	int i;
-
-	memset(ir->input_dev->keybit, 0, sizeof(ir->input_dev->keybit));
-
-	for (i = 0; i < ARRAY_SIZE(ir->key_map); i++)
-			set_bit(ir->key_map[i], ir->input_dev->keybit);
-
-	ir->input_dev->keycode = ir->key_map;
-	ir->input_dev->keycodesize = sizeof(ir->key_map[0]);
-	ir->input_dev->keycodemax = ARRAY_SIZE(ir->key_map);
-}
-
 int __devinit dm1105_ir_init(struct dm1105dvb *dm1105)
 {
 	struct input_dev *input_dev;
-	int err;
-
-	dm1105dvb_local = dm1105;
+	IR_KEYTAB_TYPE *ir_codes = ir_codes_dm1105_nec;
+	int ir_type = IR_TYPE_OTHER;
+	int err = -ENOMEM;
 
 	input_dev = input_allocate_device();
 	if (!input_dev)
@@ -528,12 +466,11 @@ int __devinit dm1105_ir_init(struct dm1105dvb *dm1105)
 	snprintf(dm1105->ir.input_phys, sizeof(dm1105->ir.input_phys),
 		"pci-%s/ir0", pci_name(dm1105->pdev));
 
-	input_dev->evbit[0] = BIT(EV_KEY);
+	ir_input_init(input_dev, &dm1105->ir.ir, ir_type, ir_codes);
 	input_dev->name = "DVB on-card IR receiver";
-
 	input_dev->phys = dm1105->ir.input_phys;
 	input_dev->id.bustype = BUS_PCI;
-	input_dev->id.version = 2;
+	input_dev->id.version = 1;
 	if (dm1105->pdev->subsystem_vendor) {
 		input_dev->id.vendor = dm1105->pdev->subsystem_vendor;
 		input_dev->id.product = dm1105->pdev->subsystem_device;
@@ -541,25 +478,22 @@ int __devinit dm1105_ir_init(struct dm1105dvb *dm1105)
 		input_dev->id.vendor = dm1105->pdev->vendor;
 		input_dev->id.product = dm1105->pdev->device;
 	}
+
 	input_dev->dev.parent = &dm1105->pdev->dev;
-	/* initial keymap */
-	memcpy(dm1105->ir.key_map, ir_codes_dm1105_nec, sizeof dm1105->ir.key_map);
-	input_register_keys(&dm1105->ir);
+
+	INIT_WORK(&dm1105->ir.work, dm1105_emit_key);
+
 	err = input_register_device(input_dev);
 	if (err) {
 		input_free_device(input_dev);
 		return err;
 	}
 
-	tasklet_init(&dm1105->ir.ir_tasklet, dm1105_emit_key, (unsigned long) &dm1105->ir);
-
 	return 0;
 }
 
-
 void __devexit dm1105_ir_exit(struct dm1105dvb *dm1105)
 {
-	tasklet_kill(&dm1105->ir.ir_tasklet);
 	input_unregister_device(dm1105->ir.input_dev);
 
 }

@@ -2712,3 +2712,41 @@ IR_KEYTAB_TYPE ir_codes_ati_tv_wonder_hd_600[IR_KEYTAB_SIZE] = {
 };
 
 EXPORT_SYMBOL_GPL(ir_codes_ati_tv_wonder_hd_600);
+
+/* DVBWorld remotes
+   Igor M. Liplianin <liplianin@me.by>
+ */
+IR_KEYTAB_TYPE ir_codes_dm1105_nec[IR_KEYTAB_SIZE] = {
+	[0x0a] = KEY_Q,		/*power*/
+	[0x0c] = KEY_M,		/*mute*/
+	[0x11] = KEY_1,
+	[0x12] = KEY_2,
+	[0x13] = KEY_3,
+	[0x14] = KEY_4,
+	[0x15] = KEY_5,
+	[0x16] = KEY_6,
+	[0x17] = KEY_7,
+	[0x18] = KEY_8,
+	[0x19] = KEY_9,
+	[0x10] = KEY_0,
+	[0x1c] = KEY_PAGEUP,	/*ch+*/
+	[0x0f] = KEY_PAGEDOWN,	/*ch-*/
+	[0x1a] = KEY_O,		/*vol+*/
+	[0x0e] = KEY_Z,		/*vol-*/
+	[0x04] = KEY_R,		/*rec*/
+	[0x09] = KEY_D,		/*fav*/
+	[0x08] = KEY_BACKSPACE,	/*rewind*/
+	[0x07] = KEY_A,		/*fast*/
+	[0x0b] = KEY_P,		/*pause*/
+	[0x02] = KEY_ESC,	/*cancel*/
+	[0x03] = KEY_G,		/*tab*/
+	[0x00] = KEY_UP,	/*up*/
+	[0x1f] = KEY_ENTER,	/*ok*/
+	[0x01] = KEY_DOWN,	/*down*/
+	[0x05] = KEY_C,		/*cap*/
+	[0x06] = KEY_S,		/*stop*/
+	[0x40] = KEY_F,		/*full*/
+	[0x1e] = KEY_W,		/*tvmode*/
+	[0x1b] = KEY_B,		/*recall*/
+};
+EXPORT_SYMBOL_GPL(ir_codes_dm1105_nec);
