@@ -1689,18 +1689,12 @@ static void r600_cp_init_ring_buffer(struct drm_device *dev,
 	} else
 #endif
 	{
-		struct drm_sg_mem *entry = dev->sg;
-		unsigned long tmp_ofs, page_ofs;
+		RADEON_WRITE(R600_CP_RB_RPTR_ADDR,
+			     dev_priv->ring_rptr->offset
+			     - ((unsigned long) dev->sg->virtual)
+			     + dev_priv->gart_vm_start);
 
-		tmp_ofs = dev_priv->ring_rptr->offset -
-			  (unsigned long)dev->sg->virtual;
-		page_ofs = tmp_ofs >> PAGE_SHIFT;
-
-		RADEON_WRITE(R600_CP_RB_RPTR_ADDR, entry->busaddr[page_ofs] >> 8);
 		RADEON_WRITE(R600_CP_RB_RPTR_ADDR_HI, 0);
-		DRM_DEBUG("ring rptr: offset=0x%08lx handle=0x%08lx\n",
-			  (unsigned long)entry->busaddr[page_ofs],
-			  entry->handle + tmp_ofs);
 	}
 
 #ifdef __BIG_ENDIAN
