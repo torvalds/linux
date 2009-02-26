@@ -517,15 +517,6 @@ static void dlm_set_lockres_owner(struct dlm_ctxt *dlm,
 {
 	assert_spin_locked(&res->spinlock);
 
-	mlog_entry("%.*s, %u\n", res->lockname.len, res->lockname.name, owner);
-
-	if (owner == dlm->node_num)
-		atomic_inc(&dlm->local_resources);
-	else if (owner == DLM_LOCK_RES_OWNER_UNKNOWN)
-		atomic_inc(&dlm->unknown_resources);
-	else
-		atomic_inc(&dlm->remote_resources);
-
 	res->owner = owner;
 }
 
@@ -534,17 +525,8 @@ void dlm_change_lockres_owner(struct dlm_ctxt *dlm,
 {
 	assert_spin_locked(&res->spinlock);
 
-	if (owner == res->owner)
-		return;
-
-	if (res->owner == dlm->node_num)
-		atomic_dec(&dlm->local_resources);
-	else if (res->owner == DLM_LOCK_RES_OWNER_UNKNOWN)
-		atomic_dec(&dlm->unknown_resources);
-	else
-		atomic_dec(&dlm->remote_resources);
-
-	dlm_set_lockres_owner(dlm, res, owner);
+	if (owner != res->owner)
+		dlm_set_lockres_owner(dlm, res, owner);
 }
 
 
@@ -572,6 +554,8 @@ static void dlm_lockres_release(struct kref *kref)
 		dlm_print_one_lock_resource(res);
 	}
 	spin_unlock(&dlm->track_lock);
+
+	atomic_dec(&dlm->res_cur_count);
 
 	dlm_put(dlm);
 
@@ -652,6 +636,9 @@ static void dlm_init_lockres(struct dlm_ctxt *dlm,
 	res->dlm = dlm;
 
 	kref_init(&res->refs);
+
+	atomic_inc(&dlm->res_tot_count);
+	atomic_inc(&dlm->res_cur_count);
 
 	/* just for consistency */
 	spin_lock(&res->spinlock);

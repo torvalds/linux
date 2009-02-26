@@ -763,12 +763,6 @@ static int debug_state_print(struct dlm_ctxt *dlm, struct debug_buffer *db)
 	int out = 0;
 	struct dlm_reco_node_data *node;
 	char *state;
-	int lres, rres, ures, tres;
-
-	lres = atomic_read(&dlm->local_resources);
-	rres = atomic_read(&dlm->remote_resources);
-	ures = atomic_read(&dlm->unknown_resources);
-	tres = lres + rres + ures;
 
 	spin_lock(&dlm->spinlock);
 
@@ -810,12 +804,6 @@ static int debug_state_print(struct dlm_ctxt *dlm, struct debug_buffer *db)
 	out += stringify_nodemap(dlm->live_nodes_map, O2NM_MAX_NODES,
 				 db->buf + out, db->len - out);
 	out += snprintf(db->buf + out, db->len - out, "\n");
-
-	/* Mastered Resources Total: xxx  Locally: xxx  Remotely: ... */
-	out += snprintf(db->buf + out, db->len - out,
-			"Mastered Resources Total: %d  Locally: %d  "
-			"Remotely: %d  Unknown: %d\n",
-			tres, lres, rres, ures);
 
 	/* Lists: Dirty=Empty  Purge=InUse  PendingASTs=Empty  ... */
 	out += snprintf(db->buf + out, db->len - out,

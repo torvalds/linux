@@ -159,9 +159,8 @@ struct dlm_ctxt
 	/* these give a really vague idea of the system load */
 	atomic_t mle_tot_count[DLM_MLE_NUM_TYPES];
 	atomic_t mle_cur_count[DLM_MLE_NUM_TYPES];
-	atomic_t local_resources;
-	atomic_t remote_resources;
-	atomic_t unknown_resources;
+	atomic_t res_tot_count;
+	atomic_t res_cur_count;
 
 	struct dlm_debug_ctxt *dlm_debug_ctxt;
 	struct dentry *dlm_debugfs_subroot;
