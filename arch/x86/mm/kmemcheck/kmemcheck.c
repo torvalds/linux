@@ -611,7 +611,6 @@ bool kmemcheck_fault(struct pt_regs *regs, unsigned long address,
 	unsigned long error_code)
 {
 	pte_t *pte;
-	unsigned int level;
 
 	/*
 	 * XXX: Is it safe to assume that memory accesses from virtual 86
@@ -624,12 +623,8 @@ bool kmemcheck_fault(struct pt_regs *regs, unsigned long address,
 	if (regs->cs != __KERNEL_CS)
 		return false;
 
-	pte = lookup_address(address, &level);
+	pte = kmemcheck_pte_lookup(address);
 	if (!pte)
-		return false;
-	if (level != PG_LEVEL_4K)
-		return false;
-	if (!pte_hidden(*pte))
 		return false;
 
 	if (error_code & 2)
