@@ -91,7 +91,7 @@ static void uv_vector_allocation_domain(int cpu, struct cpumask *retmask)
 	cpumask_set_cpu(cpu, retmask);
 }
 
-int uv_wakeup_secondary(int phys_apicid, unsigned int start_rip)
+static int uv_wakeup_secondary(int phys_apicid, unsigned long start_rip)
 {
 	unsigned long val;
 	int pnode;
@@ -99,16 +99,19 @@ int uv_wakeup_secondary(int phys_apicid, unsigned int start_rip)
 	pnode = uv_apicid_to_pnode(phys_apicid);
 	val = (1UL << UVH_IPI_INT_SEND_SHFT) |
 	    (phys_apicid << UVH_IPI_INT_APIC_ID_SHFT) |
-	    (((long)start_rip << UVH_IPI_INT_VECTOR_SHFT) >> 12) |
+	    ((start_rip << UVH_IPI_INT_VECTOR_SHFT) >> 12) |
 	    APIC_DM_INIT;
 	uv_write_global_mmr64(pnode, UVH_IPI_INT, val);
 	mdelay(10);
 
 	val = (1UL << UVH_IPI_INT_SEND_SHFT) |
 	    (phys_apicid << UVH_IPI_INT_APIC_ID_SHFT) |
-	    (((long)start_rip << UVH_IPI_INT_VECTOR_SHFT) >> 12) |
+	    ((start_rip << UVH_IPI_INT_VECTOR_SHFT) >> 12) |
 	    APIC_DM_STARTUP;
 	uv_write_global_mmr64(pnode, UVH_IPI_INT, val);
+
+	atomic_set(&init_deasserted, 1);
+
 	return 0;
 }
 
@@ -285,7 +288,7 @@ struct apic apic_x2apic_uv_x = {
 	.send_IPI_all			= uv_send_IPI_all,
 	.send_IPI_self			= uv_send_IPI_self,
 
-	.wakeup_cpu			= NULL,
+	.wakeup_cpu			= uv_wakeup_secondary,
 	.trampoline_phys_low		= DEFAULT_TRAMPOLINE_PHYS_LOW,
 	.trampoline_phys_high		= DEFAULT_TRAMPOLINE_PHYS_HIGH,
 	.wait_for_init_deassert		= NULL,

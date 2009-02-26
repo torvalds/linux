@@ -325,6 +325,9 @@ struct apic {
 };
 
 extern struct apic *apic;
+extern atomic_t init_deasserted;
+extern int wakeup_secondary_cpu_via_nmi(int apicid, unsigned long start_eip);
+extern int wakeup_secondary_cpu_via_init(int apicid, unsigned long start_eip);
 
 static inline u32 apic_read(u32 reg)
 {
@@ -384,9 +387,7 @@ static inline unsigned default_get_apic_id(unsigned long x)
 #define DEFAULT_TRAMPOLINE_PHYS_LOW		0x467
 #define DEFAULT_TRAMPOLINE_PHYS_HIGH		0x469
 
-#ifdef CONFIG_X86_32
-extern void es7000_update_apic_to_cluster(void);
-#else
+#ifdef CONFIG_X86_64
 extern struct apic apic_flat;
 extern struct apic apic_physflat;
 extern struct apic apic_x2apic_cluster;

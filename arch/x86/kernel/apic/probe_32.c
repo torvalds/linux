@@ -138,7 +138,7 @@ struct apic apic_default = {
 	.send_IPI_all			= default_send_IPI_all,
 	.send_IPI_self			= default_send_IPI_self,
 
-	.wakeup_cpu			= NULL,
+	.wakeup_cpu			= wakeup_secondary_cpu_via_init,
 	.trampoline_phys_low		= DEFAULT_TRAMPOLINE_PHYS_LOW,
 	.trampoline_phys_high		= DEFAULT_TRAMPOLINE_PHYS_HIGH,
 
@@ -159,6 +159,7 @@ extern struct apic apic_numaq;
 extern struct apic apic_summit;
 extern struct apic apic_bigsmp;
 extern struct apic apic_es7000;
+extern struct apic apic_es7000_cluster;
 extern struct apic apic_default;
 
 struct apic *apic = &apic_default;
@@ -176,6 +177,7 @@ static struct apic *apic_probe[] __initdata = {
 #endif
 #ifdef CONFIG_X86_ES7000
 	&apic_es7000,
+	&apic_es7000_cluster,
 #endif
 	&apic_default,	/* must be last */
 	NULL,
@@ -197,9 +199,6 @@ static int __init parse_apic(char *arg)
 		}
 	}
 
-	if (x86_quirks->update_apic)
-		x86_quirks->update_apic();
-
 	/* Parsed again by __setup for debug/verbose */
 	return 0;
 }
@@ -218,8 +217,6 @@ void __init generic_bigsmp_probe(void)
 	if (!cmdline_apic && apic == &apic_default) {
 		if (apic_bigsmp.probe()) {
 			apic = &apic_bigsmp;
-			if (x86_quirks->update_apic)
-				x86_quirks->update_apic();
 			printk(KERN_INFO "Overriding APIC driver with %s\n",
 			       apic->name);
 		}
@@ -240,9 +237,6 @@ void __init generic_apic_probe(void)
 		/* Not visible without early console */
 		if (!apic_probe[i])
 			panic("Didn't find an APIC driver");
-
-		if (x86_quirks->update_apic)
-			x86_quirks->update_apic();
 	}
 	printk(KERN_INFO "Using APIC driver %s\n", apic->name);
 }
@@ -262,8 +256,6 @@ generic_mps_oem_check(struct mpc_table *mpc, char *oem, char *productid)
 
 		if (!cmdline_apic) {
 			apic = apic_probe[i];
-			if (x86_quirks->update_apic)
-				x86_quirks->update_apic();
 			printk(KERN_INFO "Switched to APIC driver `%s'.\n",
 			       apic->name);
 		}
@@ -284,8 +276,6 @@ int __init default_acpi_madt_oem_check(char *oem_id, char *oem_table_id)
 
 		if (!cmdline_apic) {
 			apic = apic_probe[i];
-			if (x86_quirks->update_apic)
-				x86_quirks->update_apic();
 			printk(KERN_INFO "Switched to APIC driver `%s'.\n",
 			       apic->name);
 		}

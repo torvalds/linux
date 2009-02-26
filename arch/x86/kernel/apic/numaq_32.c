@@ -256,13 +256,6 @@ static int __init numaq_setup_ioapic_ids(void)
 	return 1;
 }
 
-static int __init numaq_update_apic(void)
-{
-	apic->wakeup_cpu = wakeup_secondary_cpu_via_nmi;
-
-	return 0;
-}
-
 static struct x86_quirks numaq_x86_quirks __initdata = {
 	.arch_pre_time_init		= numaq_pre_time_init,
 	.arch_time_init			= NULL,
@@ -278,7 +271,6 @@ static struct x86_quirks numaq_x86_quirks __initdata = {
 	.mpc_oem_pci_bus		= mpc_oem_pci_bus,
 	.smp_read_mpc_oem		= smp_read_mpc_oem,
 	.setup_ioapic_ids		= numaq_setup_ioapic_ids,
-	.update_apic			= numaq_update_apic,
 };
 
 static __init void early_check_numaq(void)
@@ -546,7 +538,7 @@ struct apic apic_numaq = {
 	.send_IPI_all			= numaq_send_IPI_all,
 	.send_IPI_self			= default_send_IPI_self,
 
-	.wakeup_cpu			= NULL,
+	.wakeup_cpu			= wakeup_secondary_cpu_via_nmi,
 	.trampoline_phys_low		= NUMAQ_TRAMPOLINE_PHYS_LOW,
 	.trampoline_phys_high		= NUMAQ_TRAMPOLINE_PHYS_HIGH,
 

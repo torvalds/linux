@@ -68,9 +68,6 @@ void __init default_setup_apic_routing(void)
 			apic = &apic_physflat;
 		printk(KERN_INFO "Setting APIC routing to %s\n", apic->name);
 	}
-
-	if (x86_quirks->update_apic)
-		x86_quirks->update_apic();
 }
 
 /* Same for both flat and physical. */

@@ -112,7 +112,7 @@ EXPORT_PER_CPU_SYMBOL(cpu_core_map);
 DEFINE_PER_CPU_SHARED_ALIGNED(struct cpuinfo_x86, cpu_info);
 EXPORT_PER_CPU_SYMBOL(cpu_info);
 
-static atomic_t init_deasserted;
+atomic_t init_deasserted;
 
 
 /* Set if we find a B stepping CPU */
@@ -613,12 +613,6 @@ wakeup_secondary_cpu_via_init(int phys_apicid, unsigned long start_eip)
 {
 	unsigned long send_status, accept_status = 0;
 	int maxlvt, num_starts, j;
-
-	if (get_uv_system_type() == UV_NON_UNIQUE_APIC) {
-		send_status = uv_wakeup_secondary(phys_apicid, start_eip);
-		atomic_set(&init_deasserted, 1);
-		return send_status;
-	}
 
 	maxlvt = lapic_get_maxlvt();
 
