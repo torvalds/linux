@@ -479,7 +479,7 @@
 
 #include "de4x5.h"
 
-static const char version[] __devinitdata =
+static const char version[] __devinitconst =
 	KERN_INFO "de4x5.c:V0.546 2001/02/22 davies@maniac.ultranet.com\n";
 
 #define c_char const char
