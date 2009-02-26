@@ -1690,9 +1690,9 @@ perf_counter_alloc(struct perf_counter_hw_event *hw_event,
  * @cpu:		target cpu
  * @group_fd:		group leader counter fd
  */
-asmlinkage int
-sys_perf_counter_open(struct perf_counter_hw_event *hw_event_uptr __user,
-		      pid_t pid, int cpu, int group_fd)
+SYSCALL_DEFINE4(perf_counter_open,
+		const struct perf_counter_hw_event __user *, hw_event_uptr,
+		pid_t, pid, int, cpu, int, group_fd)
 {
 	struct perf_counter *counter, *group_leader;
 	struct perf_counter_hw_event hw_event;
