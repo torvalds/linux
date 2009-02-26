@@ -11,10 +11,6 @@
  * thanks to Karl Hiramoto karl@hiramoto.org. RTSCTS hardware flow
  * control thanks to Munir Nassar nassarmu@real-time.com
  *
- * Outstanding Issues:
- *  Buffers are not flushed when the port is opened.
- *  Multiple calls to write() may fail with "Resource temporarily unavailable"
- *
  */
 
 #include <linux/kernel.h>
@@ -225,7 +221,7 @@ static int cp2101_get_config(struct usb_serial_port *port, u8 request,
 	kfree(buf);
 
 	if (result != size) {
-		dev_err(&port->dev, "%s - Unable to send config request, "
+		dbg("%s - Unable to send config request, "
 				"request=0x%x size=%d result=%d\n",
 				__func__, request, size, result);
 		return -EPROTO;
@@ -276,7 +272,7 @@ static int cp2101_set_config(struct usb_serial_port *port, u8 request,
 	kfree(buf);
 
 	if ((size > 2 && result != size) || result < 0) {
-		dev_err(&port->dev, "%s - Unable to send request, "
+		dbg("%s - Unable to send request, "
 				"request=0x%x size=%d result=%d\n",
 				__func__, request, size, result);
 		return -EPROTO;
@@ -566,8 +562,7 @@ static void cp2101_set_termios(struct tty_struct *tty,
 				baud);
 		if (cp2101_set_config_single(port, CP2101_BAUDRATE,
 					((BAUD_RATE_GEN_FREQ + baud/2) / baud))) {
-			dev_err(&port->dev, "Baud rate requested not "
-					"supported by device\n");
+			dbg("Baud rate requested not supported by device\n");
 			baud = tty_termios_baud_rate(old_termios);
 		}
 	}
@@ -600,14 +595,14 @@ static void cp2101_set_termios(struct tty_struct *tty,
 			dbg("%s - data bits = 9", __func__);
 			break;*/
 		default:
-			dev_err(&port->dev, "cp2101 driver does not "
+			dbg("cp2101 driver does not "
 					"support the number of bits requested,"
 					" using 8 bit mode\n");
 				bits |= BITS_DATA_8;
 				break;
 		}
 		if (cp2101_set_config(port, CP2101_BITS, &bits, 2))
-			dev_err(&port->dev, "Number of data bits requested "
+			dbg("Number of data bits requested "
 					"not supported by device\n");
 	}
 
@@ -624,7 +619,7 @@ static void cp2101_set_termios(struct tty_struct *tty,
 			}
 		}
 		if (cp2101_set_config(port, CP2101_BITS, &bits, 2))
-			dev_err(&port->dev, "Parity mode not supported "
+			dbg("Parity mode not supported "
 					"by device\n");
 	}
 
@@ -639,7 +634,7 @@ static void cp2101_set_termios(struct tty_struct *tty,
 			dbg("%s - stop bits = 1", __func__);
 		}
 		if (cp2101_set_config(port, CP2101_BITS, &bits, 2))
-			dev_err(&port->dev, "Number of stop bits requested "
+			dbg("Number of stop bits requested "
 					"not supported by device\n");
 	}
 
