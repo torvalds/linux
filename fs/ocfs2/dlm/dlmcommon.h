@@ -52,7 +52,8 @@
 enum dlm_mle_type {
 	DLM_MLE_BLOCK,
 	DLM_MLE_MASTER,
-	DLM_MLE_MIGRATION
+	DLM_MLE_MIGRATION,
+	DLM_MLE_NUM_TYPES
 };
 
 struct dlm_lock_name {
@@ -156,6 +157,8 @@ struct dlm_ctxt
 	struct list_head mle_hb_events;
 
 	/* these give a really vague idea of the system load */
+	atomic_t mle_tot_count[DLM_MLE_NUM_TYPES];
+	atomic_t mle_cur_count[DLM_MLE_NUM_TYPES];
 	atomic_t local_resources;
 	atomic_t remote_resources;
 	atomic_t unknown_resources;

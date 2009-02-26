@@ -1608,6 +1608,11 @@ static struct dlm_ctxt *dlm_alloc_ctxt(const char *domain,
 	atomic_set(&dlm->remote_resources, 0);
 	atomic_set(&dlm->unknown_resources, 0);
 
+	for (i = 0; i < DLM_MLE_NUM_TYPES; ++i) {
+		atomic_set(&dlm->mle_tot_count[i], 0);
+		atomic_set(&dlm->mle_cur_count[i], 0);
+	}
+
 	spin_lock_init(&dlm->work_lock);
 	INIT_LIST_HEAD(&dlm->work_list);
 	INIT_WORK(&dlm->dispatched_work, dlm_dispatch_work);

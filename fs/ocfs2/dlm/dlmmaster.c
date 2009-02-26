@@ -325,6 +325,9 @@ static void dlm_init_mle(struct dlm_master_list_entry *mle,
 		mle->u.mlename.hash = dlm_lockid_hash(name, namelen);
 	}
 
+	atomic_inc(&dlm->mle_tot_count[mle->type]);
+	atomic_inc(&dlm->mle_cur_count[mle->type]);
+
 	/* copy off the node_map and register hb callbacks on our copy */
 	memcpy(mle->node_map, dlm->domain_map, sizeof(mle->node_map));
 	memcpy(mle->vote_map, dlm->domain_map, sizeof(mle->vote_map));
@@ -466,6 +469,8 @@ static void dlm_mle_release(struct kref *kref)
 
 	/* detach the mle from the domain node up/down events */
 	__dlm_mle_detach_hb_events(dlm, mle);
+
+	atomic_dec(&dlm->mle_cur_count[mle->type]);
 
 	/* NOTE: kfree under spinlock here.
 	 * if this is bad, we can move this to a freelist. */
