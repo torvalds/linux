@@ -17,6 +17,7 @@
 #include <linux/kernel_stat.h>
 #include <linux/rculist.h>
 #include <linux/hash.h>
+#include <trace/irq.h>
 
 #include "internals.h"
 
@@ -316,6 +317,9 @@ irqreturn_t no_action(int cpl, void *dev_id)
 	return IRQ_NONE;
 }
 
+DEFINE_TRACE(irq_handler_entry);
+DEFINE_TRACE(irq_handler_exit);
+
 /**
  * handle_IRQ_event - irq action chain handler
  * @irq:	the interrupt number
@@ -332,7 +336,9 @@ irqreturn_t handle_IRQ_event(unsigned int irq, struct irqaction *action)
 		local_irq_enable_in_hardirq();
 
 	do {
+		trace_irq_handler_entry(irq, action);
 		ret = action->handler(irq, action->dev_id);
+		trace_irq_handler_exit(irq, action, ret);
 		if (ret == IRQ_HANDLED)
 			status |= action->flags;
 		retval |= ret;
