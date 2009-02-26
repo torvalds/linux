@@ -4,6 +4,7 @@
  * Copyright (C) 2008 Steven Rostedt <srostedt@redhat.com>
  */
 #include <linux/ring_buffer.h>
+#include <linux/trace_clock.h>
 #include <linux/ftrace_irq.h>
 #include <linux/spinlock.h>
 #include <linux/debugfs.h>
@@ -12,7 +13,6 @@
 #include <linux/module.h>
 #include <linux/percpu.h>
 #include <linux/mutex.h>
-#include <linux/sched.h>	/* used for sched_clock() (for now) */
 #include <linux/init.h>
 #include <linux/hash.h>
 #include <linux/list.h>
@@ -112,14 +112,13 @@ EXPORT_SYMBOL_GPL(tracing_is_on);
 /* Up this if you want to test the TIME_EXTENTS and normalization */
 #define DEBUG_SHIFT 0
 
-/* FIXME!!! */
 u64 ring_buffer_time_stamp(int cpu)
 {
 	u64 time;
 
 	preempt_disable_notrace();
 	/* shift to debug/test normalization and TIME_EXTENTS */
-	time = sched_clock() << DEBUG_SHIFT;
+	time = trace_clock_local() << DEBUG_SHIFT;
 	preempt_enable_no_resched_notrace();
 
 	return time;
