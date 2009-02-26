@@ -996,3 +996,5 @@ config DMA_API_DEBUG
 source "samples/Kconfig"
 
 source "lib/Kconfig.kgdb"
+
+source "lib/Kconfig.kmemcheck"
