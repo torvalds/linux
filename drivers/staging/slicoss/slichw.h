@@ -221,20 +221,6 @@
 #define SLIC_HOSTID_DEFAULT   0xFFFF      /* uninitialized hostid */
 #define SLIC_NBR_MACS         4
 
-#ifndef FALSE
-#define FALSE  0
-#else
-#undef  FALSE
-#define FALSE  0
-#endif
-
-#ifndef TRUE
-#define TRUE   1
-#else
-#undef  TRUE
-#define TRUE   1
-#endif
-
 struct slic_rcvbuf {
     unsigned char     pad1[6];
     ushort    pad2;

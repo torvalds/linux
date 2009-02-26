@@ -1626,7 +1626,7 @@ static void slic_mcast_set_list(struct net_device *dev)
 		adapter->devflags_prev = dev->flags;
 		DBG_MSG("%s call slic_config_set adapter->macopts[%x]\n",
 			__func__, adapter->macopts);
-		slic_config_set(adapter, TRUE);
+		slic_config_set(adapter, true);
 	} else {
 		if (status == STATUS_SUCCESS)
 			slic_mcast_set_mask(adapter);
@@ -2561,7 +2561,7 @@ static int slic_card_init(struct sliccard *card, struct adapter *adapter)
 			break;
 		}
 
-		card->config.EepromValid = FALSE;
+		card->config.EepromValid = false;
 
 		/*  see if the EEPROM is valid by checking it's checksum */
 		if ((eecodesize <= MAX_EECODE_SIZE) &&
@@ -2580,7 +2580,7 @@ static int slic_card_init(struct sliccard *card, struct adapter *adapter)
 			    we wouldn't need this shit
 			*/
 			if (ee_chksum == calc_chksum)
-				card->config.EepromValid = TRUE;
+				card->config.EepromValid = true;
 		}
 		/*  copy in the DRAM size */
 		card->config.DramSize = dramsize;
@@ -3022,15 +3022,15 @@ static bool slic_mac_filter(struct adapter *adapter,
 	if (opts & MAC_PROMISC) {
 		DBG_MSG("slicoss: %s (%s) PROMISCUOUS. Accept frame\n",
 			__func__, adapter->netdev->name);
-		return TRUE;
+		return true;
 	}
 
 	if ((*dhost4 == 0xFFFFFFFF) && (*dhost2 == 0xFFFF)) {
 		if (opts & MAC_BCAST) {
 			adapter->rcv_broadcasts++;
-			return TRUE;
+			return true;
 		} else {
-			return FALSE;
+			return false;
 		}
 	}
 
@@ -3038,7 +3038,7 @@ static bool slic_mac_filter(struct adapter *adapter,
 		if (opts & MAC_ALLMCAST) {
 			adapter->rcv_multicasts++;
 			adapter->stats.multicast++;
-			return TRUE;
+			return true;
 		}
 		if (opts & MAC_MCAST) {
 			struct mcast_address *mcaddr = adapter->mcastaddrs;
@@ -3050,20 +3050,20 @@ static bool slic_mac_filter(struct adapter *adapter,
 				if (equaladdr) {
 					adapter->rcv_multicasts++;
 					adapter->stats.multicast++;
-					return TRUE;
+					return true;
 				}
 				mcaddr = mcaddr->next;
 			}
-			return FALSE;
+			return false;
 		} else {
-			return FALSE;
+			return false;
 		}
 	}
 	if (opts & MAC_DIRECTED) {
 		adapter->rcv_unicasts++;
-		return TRUE;
+		return true;
 	}
-	return FALSE;
+	return false;
 
 }
 
@@ -3091,7 +3091,7 @@ static int slic_mac_set_address(struct net_device *dev, void *ptr)
 		adapter->currmacaddr[3], adapter->currmacaddr[4],
 		adapter->currmacaddr[5]);
 
-	slic_config_set(adapter, TRUE);
+	slic_config_set(adapter, true);
 	return 0;
 }
 
@@ -3600,7 +3600,7 @@ static void slic_link_upr_complete(struct adapter *adapter, u32 isr)
 	if (adapter->linkstate != LINK_UP) {
 		/* setup the mac */
 		DBG_MSG("%s call slic_config_set\n", __func__);
-		slic_config_set(adapter, TRUE);
+		slic_config_set(adapter, true);
 		adapter->linkstate = LINK_UP;
 		DBG_MSG("\n(%s) Link UP: CALL slic_if_start_queue",
 			adapter->netdev->name);
@@ -4064,7 +4064,7 @@ static void slic_cmdq_addcmdpage(struct adapter *adapter, u32 *page)
 
 		cmd->pslic_handle = pslic_handle;
 		cmd->cmd64.hosthandle = pslic_handle->token.handle_token;
-		cmd->busy = FALSE;
+		cmd->busy = false;
 		cmd->paddrl = phys_addrl;
 		cmd->paddrh = phys_addrh;
 		cmd->next_all = prev;
@@ -5096,7 +5096,7 @@ static int slic_dump_thread(void *context)
 						    adapter->upr_lock.flags);
 					}
 
-					slic_dump_card(card, FALSE);
+					slic_dump_card(card, false);
 					dump_complete = 1;
 				}
 

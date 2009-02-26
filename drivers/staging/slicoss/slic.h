@@ -585,11 +585,11 @@ struct slic_crash_info {
 
 #define ETHER_EQ_ADDR(_AddrA, _AddrB, _Result)                           \
 {                                                                        \
-    _Result = TRUE;                                                      \
+    _Result = true;                                                      \
     if (*(u32 *)(_AddrA) != *(u32 *)(_AddrB))                          \
-	_Result = FALSE;                                                 \
+	_Result = false;                                                 \
     if (*(u16 *)(&((_AddrA)[4])) != *(u16 *)(&((_AddrB)[4])))        \
-	_Result = FALSE;                                                 \
+	_Result = false;                                                 \
 }
 
 #if defined(CONFIG_X86_64) || defined(CONFIG_IA64)
@@ -602,8 +602,8 @@ struct slic_crash_info {
 #define   SLIC_GET_ADDR_HIGH(_addr)  (u32)0
 #endif
 
-#define FLUSH       TRUE
-#define DONT_FLUSH  FALSE
+#define FLUSH		true
+#define DONT_FLUSH	false
 
 #define SIOCSLICDUMPCARD         (SIOCDEVPRIVATE+9)
 #define SIOCSLICSETINTAGG        (SIOCDEVPRIVATE+10)
