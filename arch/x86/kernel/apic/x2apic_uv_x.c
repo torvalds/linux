@@ -7,28 +7,28 @@
  *
  * Copyright (C) 2007-2008 Silicon Graphics, Inc. All rights reserved.
  */
-
-#include <linux/kernel.h>
-#include <linux/threads.h>
-#include <linux/cpu.h>
 #include <linux/cpumask.h>
+#include <linux/hardirq.h>
+#include <linux/proc_fs.h>
+#include <linux/threads.h>
+#include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/string.h>
 #include <linux/ctype.h>
-#include <linux/init.h>
 #include <linux/sched.h>
-#include <linux/module.h>
-#include <linux/hardirq.h>
 #include <linux/timer.h>
-#include <linux/proc_fs.h>
-#include <asm/current.h>
-#include <asm/smp.h>
-#include <asm/apic.h>
-#include <asm/ipi.h>
-#include <asm/pgtable.h>
-#include <asm/uv/uv.h>
+#include <linux/cpu.h>
+#include <linux/init.h>
+
 #include <asm/uv/uv_mmrs.h>
 #include <asm/uv/uv_hub.h>
+#include <asm/current.h>
+#include <asm/pgtable.h>
 #include <asm/uv/bios.h>
+#include <asm/uv/uv.h>
+#include <asm/apic.h>
+#include <asm/ipi.h>
+#include <asm/smp.h>
 
 DEFINE_PER_CPU(int, x2apic_extra_bits);
 
@@ -93,6 +93,7 @@ static void uv_vector_allocation_domain(int cpu, struct cpumask *retmask)
 
 static int uv_wakeup_secondary(int phys_apicid, unsigned long start_rip)
 {
+#ifdef CONFIG_SMP
 	unsigned long val;
 	int pnode;
 
@@ -111,7 +112,7 @@ static int uv_wakeup_secondary(int phys_apicid, unsigned long start_rip)
 	uv_write_global_mmr64(pnode, UVH_IPI_INT, val);
 
 	atomic_set(&init_deasserted, 1);
-
+#endif
 	return 0;
 }
 
@@ -368,7 +369,7 @@ static __init void map_high(char *id, unsigned long base, int shift,
 	paddr = base << shift;
 	bytes = (1UL << shift) * (max_pnode + 1);
 	printk(KERN_INFO "UV: Map %s_HI 0x%lx - 0x%lx\n", id, paddr,
-	       					paddr + bytes);
+						paddr + bytes);
 	if (map_type == map_uc)
 		init_extra_mapping_uc(paddr, bytes);
 	else
@@ -531,7 +532,7 @@ late_initcall(uv_init_heartbeat);
 
 /*
  * Called on each cpu to initialize the per_cpu UV data area.
- * 	ZZZ hotplug not supported yet
+ * FIXME: hotplug not supported yet
  */
 void __cpuinit uv_cpu_init(void)
 {
