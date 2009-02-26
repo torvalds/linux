@@ -493,15 +493,17 @@ static void addrconf_forward_change(struct net *net, __s32 newf)
 	read_unlock(&dev_base_lock);
 }
 
-static void addrconf_fixup_forwarding(struct ctl_table *table, int *p, int old)
+static int addrconf_fixup_forwarding(struct ctl_table *table, int *p, int old)
 {
 	struct net *net;
 
 	net = (struct net *)table->extra2;
 	if (p == &net->ipv6.devconf_dflt->forwarding)
-		return;
+		return 0;
 
-	rtnl_lock();
+	if (!rtnl_trylock())
+		return -ERESTARTSYS;
+
 	if (p == &net->ipv6.devconf_all->forwarding) {
 		__s32 newf = net->ipv6.devconf_all->forwarding;
 		net->ipv6.devconf_dflt->forwarding = newf;
@@ -512,6 +514,7 @@ static void addrconf_fixup_forwarding(struct ctl_table *table, int *p, int old)
 
 	if (*p)
 		rt6_purge_dflt_routers(net);
+	return 1;
 }
 #endif
 
@@ -3983,7 +3986,7 @@ int addrconf_sysctl_forward(ctl_table *ctl, int write, struct file * filp,
 	ret = proc_dointvec(ctl, write, filp, buffer, lenp, ppos);
 
 	if (write)
-		addrconf_fixup_forwarding(ctl, valp, val);
+		ret = addrconf_fixup_forwarding(ctl, valp, val);
 	return ret;
 }
 
@@ -4019,8 +4022,7 @@ static int addrconf_sysctl_forward_strategy(ctl_table *table,
 	}
 
 	*valp = new;
-	addrconf_fixup_forwarding(table, valp, val);
-	return 1;
+	return addrconf_fixup_forwarding(table, valp, val);
 }
 
 static struct addrconf_sysctl_table
