@@ -1171,9 +1171,8 @@ static void ioat_dma_memcpy_cleanup(struct ioat_dma_chan *ioat_chan)
 				 * up if the client is done with the descriptor
 				 */
 				if (async_tx_test_ack(&desc->async_tx)) {
-					list_del(&desc->node);
-					list_add_tail(&desc->node,
-						      &ioat_chan->free_desc);
+					list_move_tail(&desc->node,
+						       &ioat_chan->free_desc);
 				} else
 					desc->async_tx.cookie = 0;
 			} else {
