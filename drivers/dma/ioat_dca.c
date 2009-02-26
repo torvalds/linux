@@ -49,6 +49,23 @@
 
 #define DCA_TAG_MAP_MASK 0xDF
 
+/* expected tag map bytes for I/OAT ver.2 */
+#define DCA2_TAG_MAP_BYTE0 0x80
+#define DCA2_TAG_MAP_BYTE1 0x0
+#define DCA2_TAG_MAP_BYTE2 0x81
+#define DCA2_TAG_MAP_BYTE3 0x82
+#define DCA2_TAG_MAP_BYTE4 0x82
+
+/* verify if tag map matches expected values */
+static inline int dca2_tag_map_valid(u8 *tag_map)
+{
+	return ((tag_map[0] == DCA2_TAG_MAP_BYTE0) &&
+		(tag_map[1] == DCA2_TAG_MAP_BYTE1) &&
+		(tag_map[2] == DCA2_TAG_MAP_BYTE2) &&
+		(tag_map[3] == DCA2_TAG_MAP_BYTE3) &&
+		(tag_map[4] == DCA2_TAG_MAP_BYTE4));
+}
+
 /*
  * "Legacy" DCA systems do not implement the DCA register set in the
  * I/OAT device.  Software needs direct support for their tag mappings.
@@ -450,6 +467,13 @@ struct dca_provider *ioat2_dca_init(struct pci_dev *pdev, void __iomem *iobase)
 			ioatdca->tag_map[i] = bit | DCA_TAG_MAP_VALID;
 		else
 			ioatdca->tag_map[i] = 0;
+	}
+
+	if (!dca2_tag_map_valid(ioatdca->tag_map)) {
+		dev_err(&pdev->dev, "APICID_TAG_MAP set incorrectly by BIOS, "
+			"disabling DCA\n");
+		free_dca_provider(dca);
+		return NULL;
 	}
 
 	err = register_dca_provider(dca, &pdev->dev);
