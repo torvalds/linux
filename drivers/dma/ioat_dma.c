@@ -1705,6 +1705,9 @@ void ioat_dma_remove(struct ioatdma_device *device)
 	struct dma_chan *chan, *_chan;
 	struct ioat_dma_chan *ioat_chan;
 
+	if (device->version != IOAT_VER_3_0)
+		cancel_delayed_work(&device->work);
+
 	ioat_dma_remove_interrupts(device);
 
 	dma_async_device_unregister(&device->common);
@@ -1715,10 +1718,6 @@ void ioat_dma_remove(struct ioatdma_device *device)
 	iounmap(device->reg_base);
 	pci_release_regions(device->pdev);
 	pci_disable_device(device->pdev);
-
-	if (device->version != IOAT_VER_3_0) {
-		cancel_delayed_work(&device->work);
-	}
 
 	list_for_each_entry_safe(chan, _chan,
 				 &device->common.channels, device_node) {
