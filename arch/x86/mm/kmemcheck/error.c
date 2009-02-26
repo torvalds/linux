@@ -81,7 +81,74 @@ static struct kmemcheck_error *error_next_rd(void)
 	return e;
 }
 
-static void do_wakeup(unsigned long);
+void kmemcheck_error_recall(void)
+{
+	static const char *desc[] = {
+		[KMEMCHECK_SHADOW_UNALLOCATED]		= "unallocated",
+		[KMEMCHECK_SHADOW_UNINITIALIZED]	= "uninitialized",
+		[KMEMCHECK_SHADOW_INITIALIZED]		= "initialized",
+		[KMEMCHECK_SHADOW_FREED]		= "freed",
+	};
+
+	static const char short_desc[] = {
+		[KMEMCHECK_SHADOW_UNALLOCATED]		= 'a',
+		[KMEMCHECK_SHADOW_UNINITIALIZED]	= 'u',
+		[KMEMCHECK_SHADOW_INITIALIZED]		= 'i',
+		[KMEMCHECK_SHADOW_FREED]		= 'f',
+	};
+
+	struct kmemcheck_error *e;
+	unsigned int i;
+
+	e = error_next_rd();
+	if (!e)
+		return;
+
+	switch (e->type) {
+	case KMEMCHECK_ERROR_INVALID_ACCESS:
+		printk(KERN_ERR  "WARNING: kmemcheck: Caught %d-bit read "
+			"from %s memory (%p)\n",
+			8 * e->size, e->state < ARRAY_SIZE(desc) ?
+				desc[e->state] : "(invalid shadow state)",
+			(void *) e->address);
+
+		printk(KERN_INFO);
+		for (i = 0; i < SHADOW_COPY_SIZE; ++i)
+			printk("%02x", e->memory_copy[i]);
+		printk("\n");
+
+		printk(KERN_INFO);
+		for (i = 0; i < SHADOW_COPY_SIZE; ++i) {
+			if (e->shadow_copy[i] < ARRAY_SIZE(short_desc))
+				printk(" %c", short_desc[e->shadow_copy[i]]);
+			else
+				printk(" ?");
+		}
+		printk("\n");
+		printk(KERN_INFO "%*c\n", 2 + 2
+			* (int) (e->address & (SHADOW_COPY_SIZE - 1)), '^');
+		break;
+	case KMEMCHECK_ERROR_BUG:
+		printk(KERN_EMERG "ERROR: kmemcheck: Fatal error\n");
+		break;
+	}
+
+	__show_regs(&e->regs, 1);
+	print_stack_trace(&e->trace, 0);
+}
+
+static void do_wakeup(unsigned long data)
+{
+	while (error_count > 0)
+		kmemcheck_error_recall();
+
+	if (error_missed_count > 0) {
+		printk(KERN_WARNING "kmemcheck: Lost %d error reports because "
+			"the queue was too small\n", error_missed_count);
+		error_missed_count = 0;
+	}
+}
+
 static DECLARE_TASKLET(kmemcheck_tasklet, &do_wakeup, 0);
 
 /*
@@ -158,72 +225,4 @@ void kmemcheck_error_save_bug(struct pt_regs *regs)
 	save_stack_trace(&e->trace);
 
 	tasklet_hi_schedule_first(&kmemcheck_tasklet);
-}
-
-void kmemcheck_error_recall(void)
-{
-	static const char *desc[] = {
-		[KMEMCHECK_SHADOW_UNALLOCATED]		= "unallocated",
-		[KMEMCHECK_SHADOW_UNINITIALIZED]	= "uninitialized",
-		[KMEMCHECK_SHADOW_INITIALIZED]		= "initialized",
-		[KMEMCHECK_SHADOW_FREED]		= "freed",
-	};
-
-	static const char short_desc[] = {
-		[KMEMCHECK_SHADOW_UNALLOCATED]		= 'a',
-		[KMEMCHECK_SHADOW_UNINITIALIZED]	= 'u',
-		[KMEMCHECK_SHADOW_INITIALIZED]		= 'i',
-		[KMEMCHECK_SHADOW_FREED]		= 'f',
-	};
-
-	struct kmemcheck_error *e;
-	unsigned int i;
-
-	e = error_next_rd();
-	if (!e)
-		return;
-
-	switch (e->type) {
-	case KMEMCHECK_ERROR_INVALID_ACCESS:
-		printk(KERN_ERR  "WARNING: kmemcheck: Caught %d-bit read "
-			"from %s memory (%p)\n",
-			8 * e->size, e->state < ARRAY_SIZE(desc) ?
-				desc[e->state] : "(invalid shadow state)",
-			(void *) e->address);
-
-		printk(KERN_INFO);
-		for (i = 0; i < SHADOW_COPY_SIZE; ++i)
-			printk("%02x", e->memory_copy[i]);
-		printk("\n");
-
-		printk(KERN_INFO);
-		for (i = 0; i < SHADOW_COPY_SIZE; ++i) {
-			if (e->shadow_copy[i] < ARRAY_SIZE(short_desc))
-				printk(" %c", short_desc[e->shadow_copy[i]]);
-			else
-				printk(" ?");
-		}
-		printk("\n");
-		printk(KERN_INFO "%*c\n", 2 + 2
-			* (int) (e->address & (SHADOW_COPY_SIZE - 1)), '^');
-		break;
-	case KMEMCHECK_ERROR_BUG:
-		printk(KERN_EMERG "ERROR: kmemcheck: Fatal error\n");
-		break;
-	}
-
-	__show_regs(&e->regs, 1);
-	print_stack_trace(&e->trace, 0);
-}
-
-static void do_wakeup(unsigned long data)
-{
-	while (error_count > 0)
-		kmemcheck_error_recall();
-
-	if (error_missed_count > 0) {
-		printk(KERN_WARNING "kmemcheck: Lost %d error reports because "
-			"the queue was too small\n", error_missed_count);
-		error_missed_count = 0;
-	}
 }
