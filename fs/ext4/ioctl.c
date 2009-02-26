@@ -262,6 +262,20 @@ setversion_out:
 		return err;
 	}
 
+	case EXT4_IOC_ALLOC_DA_BLKS:
+	{
+		int err;
+		if (!is_owner_or_cap(inode))
+			return -EACCES;
+
+		err = mnt_want_write(filp->f_path.mnt);
+		if (err)
+			return err;
+		err = ext4_alloc_da_blocks(inode);
+		mnt_drop_write(filp->f_path.mnt);
+		return err;
+	}
+
 	default:
 		return -ENOTTY;
 	}
