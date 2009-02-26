@@ -1597,7 +1597,6 @@ static struct dlm_ctxt *dlm_alloc_ctxt(const char *domain,
 	init_waitqueue_head(&dlm->reco.event);
 	init_waitqueue_head(&dlm->ast_wq);
 	init_waitqueue_head(&dlm->migration_wq);
-	INIT_LIST_HEAD(&dlm->master_list);
 	INIT_LIST_HEAD(&dlm->mle_hb_events);
 
 	dlm->joining_node = DLM_LOCK_RES_OWNER_UNKNOWN;

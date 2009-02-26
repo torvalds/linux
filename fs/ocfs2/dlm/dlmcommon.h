@@ -56,12 +56,13 @@ enum dlm_mle_type {
 };
 
 struct dlm_lock_name {
+	unsigned int hash;
 	unsigned int len;
 	unsigned char name[DLM_LOCKID_NAME_MAX];
 };
 
 struct dlm_master_list_entry {
-	struct list_head list;
+	struct hlist_node master_hash_node;
 	struct list_head hb_events;
 	struct dlm_ctxt *dlm;
 	spinlock_t spinlock;
@@ -152,7 +153,6 @@ struct dlm_ctxt
 	struct dlm_recovery_ctxt reco;
 	spinlock_t master_lock;
 	struct hlist_head **master_hash;
-	struct list_head master_list;
 	struct list_head mle_hb_events;
 
 	/* these give a really vague idea of the system load */

@@ -501,18 +501,25 @@ static struct file_operations debug_purgelist_fops = {
 static int debug_mle_print(struct dlm_ctxt *dlm, struct debug_buffer *db)
 {
 	struct dlm_master_list_entry *mle;
-	int out = 0;
+	struct hlist_head *bucket;
+	struct hlist_node *list;
+	int i, out = 0;
 	unsigned long total = 0;
 
 	out += snprintf(db->buf + out, db->len - out,
 			"Dumping MLEs for Domain: %s\n", dlm->name);
 
 	spin_lock(&dlm->master_lock);
-	list_for_each_entry(mle, &dlm->master_list, list) {
-		++total;
-		if (db->len - out < 200)
-			continue;
-		out += dump_mle(mle, db->buf + out, db->len - out);
+	for (i = 0; i < DLM_HASH_BUCKETS; i++) {
+		bucket = dlm_master_hash(dlm, i);
+		hlist_for_each(list, bucket) {
+			mle = hlist_entry(list, struct dlm_master_list_entry,
+					  master_hash_node);
+			++total;
+			if (db->len - out < 200)
+				continue;
+			out += dump_mle(mle, db->buf + out, db->len - out);
+		}
 	}
 	spin_unlock(&dlm->master_lock);
 
@@ -813,12 +820,11 @@ static int debug_state_print(struct dlm_ctxt *dlm, struct debug_buffer *db)
 	/* Lists: Dirty=Empty  Purge=InUse  PendingASTs=Empty  ... */
 	out += snprintf(db->buf + out, db->len - out,
 			"Lists: Dirty=%s  Purge=%s  PendingASTs=%s  "
-			"PendingBASTs=%s  Master=%s\n",
+			"PendingBASTs=%s\n",
 			(list_empty(&dlm->dirty_list) ? "Empty" : "InUse"),
 			(list_empty(&dlm->purge_list) ? "Empty" : "InUse"),
 			(list_empty(&dlm->pending_asts) ? "Empty" : "InUse"),
-			(list_empty(&dlm->pending_basts) ? "Empty" : "InUse"),
-			(list_empty(&dlm->master_list) ? "Empty" : "InUse"));
+			(list_empty(&dlm->pending_basts) ? "Empty" : "InUse"));
 
 	/* Purge Count: xxx  Refs: xxx */
 	out += snprintf(db->buf + out, db->len - out,
