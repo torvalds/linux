@@ -351,7 +351,7 @@ static struct clksrc_clk clk_mmc2 = {
 
 static struct clksrc_clk clk_usbhost = {
 	.clk	= {
-		.name		= "usb-host-bus",
+		.name		= "usb-bus-host",
 		.id		= -1,
 		.ctrlbit        = S3C_CLKCON_SCLK_UHOST,
 		.enable		= s3c64xx_sclk_ctrl,
