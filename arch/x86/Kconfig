@@ -1803,7 +1803,7 @@ config DMAR
 	  remapping devices.
 
 config DMAR_DEFAULT_ON
-	def_bool n
+	def_bool y
 	prompt "Enable DMA Remapping Devices by default"
 	depends on DMAR
 	help
