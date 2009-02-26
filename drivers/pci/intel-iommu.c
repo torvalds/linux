@@ -2808,6 +2808,33 @@ static int vm_domain_add_dev_info(struct dmar_domain *domain,
 	return 0;
 }
 
+static void iommu_detach_dependent_devices(struct intel_iommu *iommu,
+					   struct pci_dev *pdev)
+{
+	struct pci_dev *tmp, *parent;
+
+	if (!iommu || !pdev)
+		return;
+
+	/* dependent device detach */
+	tmp = pci_find_upstream_pcie_bridge(pdev);
+	/* Secondary interface's bus number and devfn 0 */
+	if (tmp) {
+		parent = pdev->bus->self;
+		while (parent != tmp) {
+			iommu_detach_dev(iommu, parent->bus->number,
+				parent->devfn);
+			parent = parent->bus->self;
+		}
+		if (tmp->is_pcie) /* this is a PCIE-to-PCI bridge */
+			iommu_detach_dev(iommu,
+				tmp->subordinate->number, 0);
+		else /* this is a legacy PCI bridge */
+			iommu_detach_dev(iommu,
+				tmp->bus->number, tmp->devfn);
+	}
+}
+
 static void vm_domain_remove_one_dev_info(struct dmar_domain *domain,
 					  struct pci_dev *pdev)
 {
@@ -2833,6 +2860,7 @@ static void vm_domain_remove_one_dev_info(struct dmar_domain *domain,
 			spin_unlock_irqrestore(&device_domain_lock, flags);
 
 			iommu_detach_dev(iommu, info->bus, info->devfn);
+			iommu_detach_dependent_devices(iommu, pdev);
 			free_devinfo_mem(info);
 
 			spin_lock_irqsave(&device_domain_lock, flags);
@@ -2882,6 +2910,7 @@ static void vm_domain_remove_all_dev_info(struct dmar_domain *domain)
 
 		iommu = device_to_iommu(info->bus, info->devfn);
 		iommu_detach_dev(iommu, info->bus, info->devfn);
+		iommu_detach_dependent_devices(iommu, info->dev);
 
 		/* clear this iommu in iommu_bmp, update iommu count
 		 * and capabilities
