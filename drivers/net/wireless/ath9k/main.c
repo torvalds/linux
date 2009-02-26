@@ -648,8 +648,8 @@ static int ath_keyset(struct ath_softc *sc, u16 keyix,
 }
 
 static int ath_setkey_tkip(struct ath_softc *sc, u16 keyix, const u8 *key,
-			   struct ath9k_keyval *hk,
-			   const u8 *addr)
+			   struct ath9k_keyval *hk, const u8 *addr,
+			   bool authenticator)
 {
 	const u8 *key_rxmic;
 	const u8 *key_txmic;
@@ -659,7 +659,13 @@ static int ath_setkey_tkip(struct ath_softc *sc, u16 keyix, const u8 *key,
 
 	if (addr == NULL) {
 		/* Group key installation */
-		memcpy(hk->kv_mic, key_rxmic, sizeof(hk->kv_mic));
+		if (authenticator) {
+			memcpy(hk->kv_mic, key_txmic, sizeof(hk->kv_mic));
+			memcpy(hk->kv_txmic, key_txmic, sizeof(hk->kv_mic));
+		} else {
+			memcpy(hk->kv_mic, key_rxmic, sizeof(hk->kv_mic));
+			memcpy(hk->kv_txmic, key_rxmic, sizeof(hk->kv_mic));
+		}
 		return ath_keyset(sc, keyix, hk, addr);
 	}
 	if (!sc->splitmic) {
@@ -769,6 +775,7 @@ static int ath_reserve_key_cache_slot(struct ath_softc *sc)
 }
 
 static int ath_key_config(struct ath_softc *sc,
+			  struct ieee80211_vif *vif,
 			  struct ieee80211_sta *sta,
 			  struct ieee80211_key_conf *key)
 {
@@ -828,7 +835,8 @@ static int ath_key_config(struct ath_softc *sc,
 	}
 
 	if (key->alg == ALG_TKIP)
-		ret = ath_setkey_tkip(sc, idx, key->key, &hk, mac);
+		ret = ath_setkey_tkip(sc, idx, key->key, &hk, mac,
+				      vif->type == NL80211_IFTYPE_AP);
 	else
 		ret = ath_keyset(sc, idx, &hk, mac);
 
@@ -2481,7 +2489,7 @@ static int ath9k_set_key(struct ieee80211_hw *hw,
 
 	switch (cmd) {
 	case SET_KEY:
-		ret = ath_key_config(sc, sta, key);
+		ret = ath_key_config(sc, vif, sta, key);
 		if (ret >= 0) {
 			key->hw_key_idx = ret;
 			/* push IV and Michael MIC generation to stack */
