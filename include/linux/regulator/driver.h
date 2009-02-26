@@ -35,11 +35,8 @@ enum regulator_status {
 /**
  * struct regulator_ops - regulator operations.
  *
- * This struct describes regulator operations which can be implemented by
- * regulator chip drivers.
- *
- * @enable: Enable the regulator.
- * @disable: Disable the regulator.
+ * @enable: Configure the regulator as enabled.
+ * @disable: Configure the regulator as disabled.
  * @is_enabled: Return 1 if the regulator is enabled, 0 otherwise.
  *
  * @set_voltage: Set the voltage for the regulator within the range specified.
@@ -51,11 +48,11 @@ enum regulator_status {
  *	regulator_desc.n_voltages.  Voltages may be reported in any order.
  *
  * @set_current_limit: Configure a limit for a current-limited regulator.
- * @get_current_limit: Get the limit for a current-limited regulator.
+ * @get_current_limit: Get the configured limit for a current-limited regulator.
  *
- * @set_mode: Set the operating mode for the regulator.
- * @get_mode: Get the current operating mode for the regulator.
- * @get_status: Report the regulator status.
+ * @get_mode: Get the configured operating mode for the regulator.
+ * @get_status: Return actual (not as-configured) status of regulator, as a
+ *	REGULATOR_STATUS value (or negative errno)
  * @get_optimum_mode: Get the most efficient operating mode for the regulator
  *                    when running with the specified parameters.
  *
@@ -67,6 +64,9 @@ enum regulator_status {
  *                       suspended.
  * @set_suspend_mode: Set the operating mode for the regulator when the
  *                    system is suspended.
+ *
+ * This struct describes regulator operations which can be implemented by
+ * regulator chip drivers.
  */
 struct regulator_ops {
 
@@ -94,6 +94,7 @@ struct regulator_ops {
 	/* report regulator status ... most other accessors report
 	 * control inputs, this reports results of combining inputs
 	 * from Linux (and other sources) with the actual load.
+	 * returns REGULATOR_STATUS_* or negative errno.
 	 */
 	int (*get_status)(struct regulator_dev *);
 
