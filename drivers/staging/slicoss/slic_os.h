@@ -42,8 +42,5 @@
 #ifndef _SLIC_OS_SPECIFIC_H_
 #define _SLIC_OS_SPECIFIC_H_
 
-#define WRITE_REG(reg, value, flush) \
-	slic_reg32_write((&reg), (value), (flush))
-
 #endif  /* _SLIC_OS_SPECIFIC_H_  */
 
