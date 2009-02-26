@@ -70,7 +70,7 @@ static noinline int create_subvol(struct btrfs_root *root,
 	u64 index = 0;
 	unsigned long nr = 1;
 
-	ret = btrfs_check_free_space(root, 1, 0);
+	ret = btrfs_check_metadata_free_space(root);
 	if (ret)
 		goto fail_commit;
 
@@ -203,7 +203,7 @@ static int create_snapshot(struct btrfs_root *root, struct dentry *dentry,
 	if (!root->ref_cows)
 		return -EINVAL;
 
-	ret = btrfs_check_free_space(root, 1, 0);
+	ret = btrfs_check_metadata_free_space(root);
 	if (ret)
 		goto fail_unlock;
 
@@ -374,7 +374,7 @@ static int btrfs_defrag_file(struct file *file)
 	unsigned long i;
 	int ret;
 
-	ret = btrfs_check_free_space(root, inode->i_size, 0);
+	ret = btrfs_check_data_free_space(root, inode, inode->i_size);
 	if (ret)
 		return -ENOSPC;
 
