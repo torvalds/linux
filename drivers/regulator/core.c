@@ -692,6 +692,69 @@ static int set_machine_constraints(struct regulator_dev *rdev,
 	else
 		name = "regulator";
 
+	/* constrain machine-level voltage specs to fit
+	 * the actual range supported by this regulator.
+	 */
+	if (ops->list_voltage && rdev->desc->n_voltages) {
+		int	count = rdev->desc->n_voltages;
+		int	i;
+		int	min_uV = INT_MAX;
+		int	max_uV = INT_MIN;
+		int	cmin = constraints->min_uV;
+		int	cmax = constraints->max_uV;
+
+		/* it's safe to autoconfigure fixed-voltage supplies */
+		if (count == 1 && !cmin) {
+			cmin = INT_MIN;
+			cmax = INT_MAX;
+		}
+
+		/* else require explicit machine-level constraints */
+		else if (cmin <= 0 || cmax <= 0 || cmax < cmin) {
+			pr_err("%s: %s '%s' voltage constraints\n",
+				       __func__, "invalid", name);
+			ret = -EINVAL;
+			goto out;
+		}
+
+		/* initial: [cmin..cmax] valid, [min_uV..max_uV] not */
+		for (i = 0; i < count; i++) {
+			int	value;
+
+			value = ops->list_voltage(rdev, i);
+			if (value <= 0)
+				continue;
+
+			/* maybe adjust [min_uV..max_uV] */
+			if (value >= cmin && value < min_uV)
+				min_uV = value;
+			if (value <= cmax && value > max_uV)
+				max_uV = value;
+		}
+
+		/* final: [min_uV..max_uV] valid iff constraints valid */
+		if (max_uV < min_uV) {
+			pr_err("%s: %s '%s' voltage constraints\n",
+				       __func__, "unsupportable", name);
+			ret = -EINVAL;
+			goto out;
+		}
+
+		/* use regulator's subset of machine constraints */
+		if (constraints->min_uV < min_uV) {
+			pr_debug("%s: override '%s' %s, %d -> %d\n",
+				       __func__, name, "min_uV",
+					constraints->min_uV, min_uV);
+			constraints->min_uV = min_uV;
+		}
+		if (constraints->max_uV > max_uV) {
+			pr_debug("%s: override '%s' %s, %d -> %d\n",
+				       __func__, name, "max_uV",
+					constraints->max_uV, max_uV);
+			constraints->max_uV = max_uV;
+		}
+	}
+
 	rdev->constraints = constraints;
 
 	/* do we need to apply the constraint voltage */
@@ -1249,6 +1312,56 @@ int regulator_is_enabled(struct regulator *regulator)
 	return _regulator_is_enabled(regulator->rdev);
 }
 EXPORT_SYMBOL_GPL(regulator_is_enabled);
+
+/**
+ * regulator_count_voltages - count regulator_list_voltage() selectors
+ * @regulator: regulator source
+ *
+ * Returns number of selectors, or negative errno.  Selectors are
+ * numbered starting at zero, and typically correspond to bitfields
+ * in hardware registers.
+ */
+int regulator_count_voltages(struct regulator *regulator)
+{
+	struct regulator_dev	*rdev = regulator->rdev;
+
+	return rdev->desc->n_voltages ? : -EINVAL;
+}
+EXPORT_SYMBOL_GPL(regulator_count_voltages);
+
+/**
+ * regulator_list_voltage - enumerate supported voltages
+ * @regulator: regulator source
+ * @selector: identify voltage to list
+ * Context: can sleep
+ *
+ * Returns a voltage that can be passed to @regulator_set_voltage(),
+ * zero if this selector code can't be used on this sytem, or a
+ * negative errno.
+ */
+int regulator_list_voltage(struct regulator *regulator, unsigned selector)
+{
+	struct regulator_dev	*rdev = regulator->rdev;
+	struct regulator_ops	*ops = rdev->desc->ops;
+	int			ret;
+
+	if (!ops->list_voltage || selector >= rdev->desc->n_voltages)
+		return -EINVAL;
+
+	mutex_lock(&rdev->mutex);
+	ret = ops->list_voltage(rdev, selector);
+	mutex_unlock(&rdev->mutex);
+
+	if (ret > 0) {
+		if (ret < rdev->constraints->min_uV)
+			ret = 0;
+		else if (ret > rdev->constraints->max_uV)
+			ret = 0;
+	}
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(regulator_list_voltage);
 
 /**
  * regulator_set_voltage - set regulator output voltage

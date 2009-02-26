@@ -45,6 +45,10 @@ enum regulator_status {
  * @set_voltage: Set the voltage for the regulator within the range specified.
  *               The driver should select the voltage closest to min_uV.
  * @get_voltage: Return the currently configured voltage for the regulator.
+ * @list_voltage: Return one of the supported voltages, in microvolts; zero
+ *	if the selector indicates a voltage that is unusable on this system;
+ *	or negative errno.  Selectors range from zero to one less than
+ *	regulator_desc.n_voltages.  Voltages may be reported in any order.
  *
  * @set_current_limit: Configure a limit for a current-limited regulator.
  * @get_current_limit: Get the limit for a current-limited regulator.
@@ -65,6 +69,9 @@ enum regulator_status {
  *                    system is suspended.
  */
 struct regulator_ops {
+
+	/* enumerate supported voltages */
+	int (*list_voltage) (struct regulator_dev *, unsigned selector);
 
 	/* get/set regulator voltage */
 	int (*set_voltage) (struct regulator_dev *, int min_uV, int max_uV);
@@ -124,6 +131,7 @@ enum regulator_type {
  *
  * @name: Identifying name for the regulator.
  * @id: Numerical identifier for the regulator.
+ * @n_voltages: Number of selectors available for ops.list_voltage().
  * @ops: Regulator operations table.
  * @irq: Interrupt number for the regulator.
  * @type: Indicates if the regulator is a voltage or current regulator.
@@ -132,6 +140,7 @@ enum regulator_type {
 struct regulator_desc {
 	const char *name;
 	int id;
+	unsigned n_voltages;
 	struct regulator_ops *ops;
 	int irq;
 	enum regulator_type type;
