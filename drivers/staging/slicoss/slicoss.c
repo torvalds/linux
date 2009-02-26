@@ -59,7 +59,6 @@
 #define DEBUG_MICROCODE                 1
 #define DBG                             1
 #define SLIC_ASSERT_ENABLED		        1
-#define SLIC_PING_TIMER_ENABLED		    1
 #define SLIC_INTERRUPT_PROCESS_LIMIT	1
 #define SLIC_OFFLOAD_IP_CHECKSUM		1
 #define STATS_TIMER_INTERVAL			2
@@ -1392,13 +1391,13 @@ static void slic_init_cleanup(struct adapter *adapter)
 		adapter->pshmem = NULL;
 		adapter->phys_shmem = (dma_addr_t) NULL;
 	}
-#if SLIC_PING_TIMER_ENABLED
+
 	if (adapter->pingtimerset) {
 		DBG_MSG("pingtimer ");
 		adapter->pingtimerset = 0;
 		del_timer(&adapter->pingtimer);
 	}
-#endif
+
 	slic_rspqueue_free(adapter);
 	slic_cmdq_free(adapter);
 	slic_rcvqueue_free(adapter);
@@ -1752,7 +1751,7 @@ static int slic_if_init(struct adapter *adapter)
 
 		card->loadtimerset = 1;
 	}
-#if SLIC_PING_TIMER_ENABLED
+
 	if (!adapter->pingtimerset) {
 		DBG_MSG("slicoss: %s start card_ping_timer(slic)\n",
 			__func__);
@@ -1765,7 +1764,6 @@ static int slic_if_init(struct adapter *adapter)
 		adapter->pingtimerset = 1;
 		adapter->card->pingstatus = ISR_PINGMASK;
 	}
-#endif
 
 	/*
 	 *    clear any pending events, then enable interrupts
