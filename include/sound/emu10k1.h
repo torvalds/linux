@@ -36,7 +36,6 @@
 #include <sound/timer.h>
 #include <linux/interrupt.h>
 #include <linux/mutex.h>
-#include <linux/types.h>
 
 #include <asm/io.h>
 
