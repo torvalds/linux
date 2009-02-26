@@ -75,7 +75,7 @@ module_param(irq_type, int, MSIX_IRQ);
 MODULE_PARM_DESC(irq_type, "0 = MSI-X, 1 = MSI, 2 = Legacy.");
 
 static struct pci_device_id qlge_pci_tbl[] __devinitdata = {
-	{PCI_DEVICE(PCI_VENDOR_ID_QLOGIC, QLGE_DEVICE_ID)},
+	{PCI_DEVICE(PCI_VENDOR_ID_QLOGIC, QLGE_DEVICE_ID_8012)},
 	/* required last entry */
 	{0,}
 };
@@ -623,6 +623,28 @@ static void ql_enable_all_completion_interrupts(struct ql_adapter *qdev)
 
 }
 
+static int ql_validate_flash(struct ql_adapter *qdev, u32 size, const char *str)
+{
+	int status, i;
+	u16 csum = 0;
+	__le16 *flash = (__le16 *)&qdev->flash;
+
+	status = strncmp((char *)&qdev->flash, str, 4);
+	if (status) {
+		QPRINTK(qdev, IFUP, ERR, "Invalid flash signature.\n");
+		return	status;
+	}
+
+	for (i = 0; i < size; i++)
+		csum += le16_to_cpu(*flash++);
+
+	if (csum)
+		QPRINTK(qdev, IFUP, ERR,
+			"Invalid flash checksum, csum = 0x%.04x.\n", csum);
+
+	return csum;
+}
+
 static int ql_read_flash_word(struct ql_adapter *qdev, int offset, __le32 *data)
 {
 	int status = 0;
@@ -647,23 +669,24 @@ exit:
 	return status;
 }
 
-static int ql_get_flash_params(struct ql_adapter *qdev)
+static int ql_get_8012_flash_params(struct ql_adapter *qdev)
 {
 	int i;
 	int status;
 	__le32 *p = (__le32 *)&qdev->flash;
 	u32 offset = 0;
+	u32 size = sizeof(struct flash_params_8012) / sizeof(u32);
 
 	/* Second function's parameters follow the first
 	 * function's.
 	 */
 	if (qdev->func)
-		offset = sizeof(qdev->flash) / sizeof(u32);
+		offset = size;
 
 	if (ql_sem_spinlock(qdev, SEM_FLASH_MASK))
 		return -ETIMEDOUT;
 
-	for (i = 0; i < sizeof(qdev->flash) / sizeof(u32); i++, p++) {
+	for (i = 0; i < size; i++, p++) {
 		status = ql_read_flash_word(qdev, i+offset, p);
 		if (status) {
 			QPRINTK(qdev, IFUP, ERR, "Error reading flash.\n");
@@ -671,6 +694,25 @@ static int ql_get_flash_params(struct ql_adapter *qdev)
 		}
 
 	}
+
+	status = ql_validate_flash(qdev,
+			sizeof(struct flash_params_8012) / sizeof(u16),
+			"8012");
+	if (status) {
+		QPRINTK(qdev, IFUP, ERR, "Invalid flash.\n");
+		status = -EINVAL;
+		goto exit;
+	}
+
+	if (!is_valid_ether_addr(qdev->flash.flash_params_8012.mac_addr)) {
+		status = -EINVAL;
+		goto exit;
+	}
+
+	memcpy(qdev->ndev->dev_addr,
+		qdev->flash.flash_params_8012.mac_addr,
+		qdev->ndev->addr_len);
+
 exit:
 	ql_sem_unlock(qdev, SEM_FLASH_MASK);
 	return status;
@@ -747,7 +789,7 @@ exit:
  * This functionality may be done in the MPI firmware at a
  * later date.
  */
-static int ql_port_initialize(struct ql_adapter *qdev)
+static int ql_8012_port_initialize(struct ql_adapter *qdev)
 {
 	int status = 0;
 	u32 data;
@@ -2994,11 +3036,12 @@ static int ql_adapter_initialize(struct ql_adapter *qdev)
 		}
 	}
 
-	status = ql_port_initialize(qdev);
-	if (status) {
-		QPRINTK(qdev, IFUP, ERR, "Failed to start port.\n");
-		return status;
-	}
+	/* Initialize the port and set the max framesize. */
+	status = qdev->nic_ops->port_initialize(qdev);
+       if (status) {
+              QPRINTK(qdev, IFUP, ERR, "Failed to start port.\n");
+              return status;
+       }
 
 	/* Set up the MAC address and frame routing filter. */
 	status = ql_cam_route_initialize(qdev);
@@ -3509,6 +3552,12 @@ static void ql_asic_reset_work(struct work_struct *work)
 	ql_cycle_adapter(qdev);
 }
 
+static struct nic_operations qla8012_nic_ops = {
+	.get_flash		= ql_get_8012_flash_params,
+	.port_initialize	= ql_8012_port_initialize,
+};
+
+
 static void ql_get_board_info(struct ql_adapter *qdev)
 {
 	qdev->func =
@@ -3527,6 +3576,9 @@ static void ql_get_board_info(struct ql_adapter *qdev)
 		qdev->mailbox_out = PROC_ADDR_MPI_RISC | PROC_ADDR_FUNC0_MBO;
 	}
 	qdev->chip_rev_id = ql_read32(qdev, REV_ID);
+	qdev->device_id = qdev->pdev->device;
+	if (qdev->device_id == QLGE_DEVICE_ID_8012)
+		qdev->nic_ops = &qla8012_nic_ops;
 }
 
 static void ql_release_all(struct pci_dev *pdev)
@@ -3619,24 +3671,20 @@ static int __devinit ql_init_device(struct pci_dev *pdev,
 		goto err_out;
 	}
 
-	ql_get_board_info(qdev);
 	qdev->ndev = ndev;
 	qdev->pdev = pdev;
+	ql_get_board_info(qdev);
 	qdev->msg_enable = netif_msg_init(debug, default_msg);
 	spin_lock_init(&qdev->hw_lock);
 	spin_lock_init(&qdev->stats_lock);
 
 	/* make sure the EEPROM is good */
-	err = ql_get_flash_params(qdev);
+	err = qdev->nic_ops->get_flash(qdev);
 	if (err) {
 		dev_err(&pdev->dev, "Invalid FLASH.\n");
 		goto err_out;
 	}
 
-	if (!is_valid_ether_addr(qdev->flash.mac_addr))
-		goto err_out;
-
-	memcpy(ndev->dev_addr, qdev->flash.mac_addr, ndev->addr_len);
 	memcpy(ndev->perm_addr, ndev->dev_addr, ndev->addr_len);
 
 	/* Set up the default ring sizes. */

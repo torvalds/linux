@@ -28,7 +28,7 @@
        } while (0)
 
 #define QLGE_VENDOR_ID    0x1077
-#define QLGE_DEVICE_ID    0x8012
+#define QLGE_DEVICE_ID_8012	0x8012
 
 #define MAX_CPUS 8
 #define MAX_TX_RINGS MAX_CPUS
@@ -798,7 +798,7 @@ struct mbox_params {
 	int out_count;
 };
 
-struct flash_params {
+struct flash_params_8012 {
 	u8 dev_id_str[4];
 	__le16 size;
 	__le16 csum;
@@ -808,6 +808,9 @@ struct flash_params {
 	__le16 res;
 };
 
+union flash_params {
+	struct flash_params_8012 flash_params_8012;
+};
 
 /*
  * doorbell space for the rx ring context
@@ -1367,6 +1370,12 @@ enum {
 	CFG_DEFAULT_MAX_FRAME_SIZE = 0x00002580,
 };
 
+struct nic_operations {
+
+	int (*get_flash) (struct ql_adapter *);
+	int (*port_initialize) (struct ql_adapter *);
+};
+
 /*
  * The main Adapter structure definition.
  * This structure has all fields relevant to the hardware.
@@ -1444,7 +1453,7 @@ struct ql_adapter {
 	u32 port_init;
 	u32 link_status;
 
-	struct flash_params flash;
+	union flash_params flash;
 
 	struct net_device_stats stats;
 	struct workqueue_struct *q_workqueue;
@@ -1452,6 +1461,8 @@ struct ql_adapter {
 	struct delayed_work asic_reset_work;
 	struct delayed_work mpi_reset_work;
 	struct delayed_work mpi_work;
+	struct nic_operations *nic_ops;
+	u16 device_id;
 };
 
 /*
