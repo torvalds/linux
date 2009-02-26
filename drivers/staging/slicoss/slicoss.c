@@ -170,7 +170,7 @@ static void slic_mcast_set_list(struct net_device *dev);
 
 static uint slic_first_init = 1;
 static char *slic_banner = "Alacritech SLIC Technology(tm) Server "\
-		"and Storage Accelerator (Non-Accelerated)\n";
+		"and Storage Accelerator (Non-Accelerated)";
 
 static char *slic_proc_version = "2.0.351  2006/07/14 12:26:00";
 static char *slic_product_name = "SLIC Technology(tm) Server "\
@@ -393,8 +393,8 @@ static int __devinit slic_entry_probe(struct pci_dev *pcidev,
 		return err;
 
 	if (slic_debug > 0 && did_version++ == 0) {
-		printk(slic_banner);
-		printk(slic_proc_version);
+		printk(KERN_DEBUG "%s\n", slic_banner);
+		printk(KERN_DEBUG "%s\n", slic_proc_version);
 	}
 
 	err = pci_set_dma_mask(pcidev, DMA_64BIT_MASK);
