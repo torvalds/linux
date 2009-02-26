@@ -135,11 +135,13 @@ static inline void ioat_set_tcp_copy_break(struct ioatdma_device *dev)
 	#ifdef CONFIG_NET_DMA
 	switch (dev->version) {
 	case IOAT_VER_1_2:
-	case IOAT_VER_3_0:
 		sysctl_tcp_dma_copybreak = 4096;
 		break;
 	case IOAT_VER_2_0:
 		sysctl_tcp_dma_copybreak = 2048;
+		break;
+	case IOAT_VER_3_0:
+		sysctl_tcp_dma_copybreak = 262144;
 		break;
 	}
 	#endif
