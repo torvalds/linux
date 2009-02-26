@@ -58,8 +58,6 @@
 #define SLIC_DUMP_ENABLED               0
 #define KLUDGE_FOR_4GB_BOUNDARY         1
 #define DEBUG_MICROCODE                 1
-#define SLIC_PRODUCTION_BUILD	        1
-#define SLIC_FAILURE_RESET	            1
 #define DBG                             1
 #define SLIC_ASSERT_ENABLED		        1
 #define SLIC_GET_STATS_ENABLED			1
