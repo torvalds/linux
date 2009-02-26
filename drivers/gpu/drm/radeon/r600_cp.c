@@ -142,23 +142,25 @@ int r600_page_table_init(struct drm_device *dev)
 {
 	drm_radeon_private_t *dev_priv = dev->dev_private;
 	struct drm_ati_pcigart_info *gart_info = &dev_priv->gart_info;
+	struct drm_local_map *map = &gart_info->mapping;
 	struct drm_sg_mem *entry = dev->sg;
 	int ret = 0;
 	int i, j;
-	int max_pages, pages;
-	u64 *pci_gart, page_base;
+	int pages;
+	u64 page_base;
 	dma_addr_t entry_addr;
+	int max_ati_pages, max_real_pages, gart_idx;
 
 	/* okay page table is available - lets rock */
+	max_ati_pages = (gart_info->table_size / sizeof(u64));
+	max_real_pages = max_ati_pages / (PAGE_SIZE / ATI_PCIGART_PAGE_SIZE);
 
-	/* PTEs are 64-bits */
-	pci_gart = (u64 *)gart_info->addr;
+	pages = (entry->pages <= max_real_pages) ?
+		entry->pages : max_real_pages;
 
-	max_pages = (gart_info->table_size / sizeof(u64));
-	pages = (entry->pages <= max_pages) ? entry->pages : max_pages;
+	memset_io((void __iomem *)map->handle, 0, max_ati_pages * sizeof(u64));
 
-	memset(pci_gart, 0, max_pages * sizeof(u64));
-
+	gart_idx = 0;
 	for (i = 0; i < pages; i++) {
 		entry->busaddr[i] = pci_map_single(dev->pdev,
 						   page_address(entry->
@@ -176,12 +178,13 @@ int r600_page_table_init(struct drm_device *dev)
 			page_base |= R600_PTE_VALID | R600_PTE_SYSTEM | R600_PTE_SNOOPED;
 			page_base |= R600_PTE_READABLE | R600_PTE_WRITEABLE;
 
-			*pci_gart = page_base;
+			DRM_WRITE64(map, gart_idx * sizeof(u64), page_base);
+
+			gart_idx++;
 
 			if ((i % 128) == 0)
 				DRM_DEBUG("page entry %d: 0x%016llx\n",
 				    i, (unsigned long long)page_base);
-			pci_gart++;
 			entry_addr += ATI_PCIGART_PAGE_SIZE;
 		}
 	}
