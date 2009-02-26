@@ -42,9 +42,6 @@
 #ifndef _SLIC_OS_SPECIFIC_H_
 #define _SLIC_OS_SPECIFIC_H_
 
-#define SLIC_SECS_TO_JIFFS(x)  ((x) * HZ)
-#define SLIC_MS_TO_JIFFIES(x)  (SLIC_SECS_TO_JIFFS((x)) / 1000)
-
 #ifdef DEBUG_REGISTER_TRACE
 #define WRITE_REG(reg, value, flush)                                      \
 	{                                                           \

@@ -1713,8 +1713,7 @@ static void slic_timer_ping(ulong dev)
 			__func__, adapter->netdev->name, adapter);
 	}
 #endif
-	adapter->pingtimer.expires =
-	    jiffies + SLIC_SECS_TO_JIFFS(PING_TIMER_INTERVAL);
+	adapter->pingtimer.expires = jiffies + (PING_TIMER_INTERVAL * HZ);
 	add_timer(&adapter->pingtimer);
 }
 
@@ -1834,7 +1833,7 @@ static int slic_if_init(struct adapter *adapter)
 	if (!card->loadtimerset) {
 		init_timer(&card->loadtimer);
 		card->loadtimer.expires =
-		    jiffies + SLIC_SECS_TO_JIFFS(SLIC_LOADTIMER_PERIOD);
+		    jiffies + (SLIC_LOADTIMER_PERIOD * HZ);
 		card->loadtimer.data = (ulong) card;
 		card->loadtimer.function = &slic_timer_load_check;
 		add_timer(&card->loadtimer);
@@ -1847,7 +1846,7 @@ static int slic_if_init(struct adapter *adapter)
 			__func__);
 		init_timer(&adapter->statstimer);
 		adapter->statstimer.expires =
-		    jiffies + SLIC_SECS_TO_JIFFS(STATS_TIMER_INTERVAL);
+		    jiffies + (STATS_TIMER_INTERVAL * HZ);
 		adapter->statstimer.data = (ulong) adapter->netdev;
 		adapter->statstimer.function = &slic_timer_get_stats;
 		add_timer(&adapter->statstimer);
@@ -1861,7 +1860,7 @@ static int slic_if_init(struct adapter *adapter)
 			__func__);
 		init_timer(&adapter->pingtimer);
 		adapter->pingtimer.expires =
-		    jiffies + SLIC_SECS_TO_JIFFS(PING_TIMER_INTERVAL);
+		    jiffies + (PING_TIMER_INTERVAL * HZ);
 		adapter->pingtimer.data = (ulong) dev;
 		adapter->pingtimer.function = &slic_timer_ping;
 		add_timer(&adapter->pingtimer);
@@ -3134,8 +3133,7 @@ static void slic_timer_get_stats(ulong dev)
 /*		DBG_MSG ("slicoss: %s adapter[%p] linkstate[%x] NOT UP!\n",
 			__func__, adapter, adapter->linkstate); */
 	}
-	adapter->statstimer.expires = jiffies +
-	    SLIC_SECS_TO_JIFFS(STATS_TIMER_INTERVAL);
+	adapter->statstimer.expires = jiffies + (STATS_TIMER_INTERVAL * HZ);
 	add_timer(&adapter->statstimer);
 }
 #endif
@@ -3191,8 +3189,7 @@ static void slic_timer_load_check(ulong cardaddr)
 		}
 	}
 	card->events = 0;
-	card->loadtimer.expires =
-	    jiffies + SLIC_SECS_TO_JIFFS(SLIC_LOADTIMER_PERIOD);
+	card->loadtimer.expires = jiffies + (SLIC_LOADTIMER_PERIOD * HZ);
 	add_timer(&card->loadtimer);
 }
 
@@ -4920,7 +4917,7 @@ static int slic_dump_thread(void *context)
 	struct adapter *adapter;
 	struct adapter *dump_adapter = NULL;
 	u32 dump_complete = 0;
-	u32 delay = SLIC_SECS_TO_JIFFS(PING_TIMER_INTERVAL);
+	u32 delay = (PING_TIMER_INTERVAL * HZ);
 	struct slic_regs *pregs;
 	u32 i;
 	struct slic_upr *upr, *uprnext;
@@ -5763,9 +5760,9 @@ static u32 slic_dump_send_cmd(struct sliccard *card,
 			   u32 cmd_physh,
 			   u32 buf_physl, u32 buf_physh)
 {
-	ulong timeout = SLIC_MS_TO_JIFFIES(500);	/* 500 msec */
+	ulong timeout = msecs_to_jiffies(500);	/* 500 msec */
 	u32 attempts = 5;
-	u32 delay = SLIC_MS_TO_JIFFIES(10);	/* 10 msec */
+	u32 delay = msecs_to_jiffies(10);	/* 10 msec */
 	struct adapter *adapter = card->master;
 
 	ASSERT(adapter);
