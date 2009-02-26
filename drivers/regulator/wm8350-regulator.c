@@ -1031,18 +1031,30 @@ static unsigned int wm8350_dcdc_get_mode(struct regulator_dev *rdev)
 	int dcdc = rdev_get_id(rdev);
 	u16 mask, sleep, active, force;
 	int mode = REGULATOR_MODE_NORMAL;
+	int reg;
 
-	if (dcdc < WM8350_DCDC_1 || dcdc > WM8350_DCDC_6)
+	switch (dcdc) {
+	case WM8350_DCDC_1:
+		reg = WM8350_DCDC1_FORCE_PWM;
+		break;
+	case WM8350_DCDC_3:
+		reg = WM8350_DCDC3_FORCE_PWM;
+		break;
+	case WM8350_DCDC_4:
+		reg = WM8350_DCDC4_FORCE_PWM;
+		break;
+	case WM8350_DCDC_6:
+		reg = WM8350_DCDC6_FORCE_PWM;
+		break;
+	default:
 		return -EINVAL;
-
-	if (dcdc == WM8350_DCDC_2 || dcdc == WM8350_DCDC_5)
-		return -EINVAL;
+	}
 
 	mask = 1 << (dcdc - WM8350_DCDC_1);
 	active = wm8350_reg_read(wm8350, WM8350_DCDC_ACTIVE_OPTIONS) & mask;
+	force = wm8350_reg_read(wm8350, reg) & WM8350_DCDC1_FORCE_PWM_ENA;
 	sleep = wm8350_reg_read(wm8350, WM8350_DCDC_SLEEP_OPTIONS) & mask;
-	force = wm8350_reg_read(wm8350, WM8350_DCDC1_FORCE_PWM)
-	    & WM8350_DCDC1_FORCE_PWM_ENA;
+
 	dev_dbg(wm8350->dev, "mask %x active %x sleep %x force %x",
 		mask, active, sleep, force);
 
