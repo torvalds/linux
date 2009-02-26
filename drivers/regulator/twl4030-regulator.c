@@ -42,7 +42,6 @@ struct twlreg_info {
 
 	/* chip constraints on regulator behavior */
 	u16			min_mV;
-	u16			max_mV;
 
 	/* used by regulator core */
 	struct regulator_desc	desc;
@@ -258,6 +257,14 @@ static const u16 VDAC_VSEL_table[] = {
 };
 
 
+static int twl4030ldo_list_voltage(struct regulator_dev *rdev, unsigned index)
+{
+	struct twlreg_info	*info = rdev_get_drvdata(rdev);
+	int			mV = info->table[index];
+
+	return IS_UNSUP(mV) ? 0 : (LDO_MV(mV) * 1000);
+}
+
 static int
 twl4030ldo_set_voltage(struct regulator_dev *rdev, int min_uV, int max_uV)
 {
@@ -271,6 +278,8 @@ twl4030ldo_set_voltage(struct regulator_dev *rdev, int min_uV, int max_uV)
 		if (IS_UNSUP(mV))
 			continue;
 		uV = LDO_MV(mV) * 1000;
+
+		/* REVISIT for VAUX2, first match may not be best/lowest */
 
 		/* use the first in-range value */
 		if (min_uV <= uV && uV <= max_uV)
@@ -293,6 +302,8 @@ static int twl4030ldo_get_voltage(struct regulator_dev *rdev)
 }
 
 static struct regulator_ops twl4030ldo_ops = {
+	.list_voltage	= twl4030ldo_list_voltage,
+
 	.set_voltage	= twl4030ldo_set_voltage,
 	.get_voltage	= twl4030ldo_get_voltage,
 
@@ -310,6 +321,13 @@ static struct regulator_ops twl4030ldo_ops = {
 /*
  * Fixed voltage LDOs don't have a VSEL field to update.
  */
+static int twl4030fixed_list_voltage(struct regulator_dev *rdev, unsigned index)
+{
+	struct twlreg_info	*info = rdev_get_drvdata(rdev);
+
+	return info->min_mV * 1000;
+}
+
 static int twl4030fixed_get_voltage(struct regulator_dev *rdev)
 {
 	struct twlreg_info	*info = rdev_get_drvdata(rdev);
@@ -318,6 +336,8 @@ static int twl4030fixed_get_voltage(struct regulator_dev *rdev)
 }
 
 static struct regulator_ops twl4030fixed_ops = {
+	.list_voltage	= twl4030fixed_list_voltage,
+
 	.get_voltage	= twl4030fixed_get_voltage,
 
 	.enable		= twl4030reg_enable,
@@ -339,6 +359,7 @@ static struct regulator_ops twl4030fixed_ops = {
 	.desc = { \
 		.name = #label, \
 		.id = TWL4030_REG_##label, \
+		.n_voltages = ARRAY_SIZE(label##_VSEL_table), \
 		.ops = &twl4030ldo_ops, \
 		.type = REGULATOR_VOLTAGE, \
 		.owner = THIS_MODULE, \
@@ -349,10 +370,10 @@ static struct regulator_ops twl4030fixed_ops = {
 	.base = offset, \
 	.id = num, \
 	.min_mV = mVolts, \
-	.max_mV = mVolts, \
 	.desc = { \
 		.name = #label, \
 		.id = TWL4030_REG_##label, \
+		.n_voltages = 1, \
 		.ops = &twl4030fixed_ops, \
 		.type = REGULATOR_VOLTAGE, \
 		.owner = THIS_MODULE, \
@@ -398,14 +419,11 @@ static int twl4030reg_probe(struct platform_device *pdev)
 	struct regulator_init_data	*initdata;
 	struct regulation_constraints	*c;
 	struct regulator_dev		*rdev;
-	int				min_uV, max_uV;
 
 	for (i = 0, info = NULL; i < ARRAY_SIZE(twl4030_regs); i++) {
 		if (twl4030_regs[i].desc.id != pdev->id)
 			continue;
 		info = twl4030_regs + i;
-		min_uV = info->min_mV * 1000;
-		max_uV = info->max_mV * 1000;
 		break;
 	}
 	if (!info)
@@ -419,10 +437,6 @@ static int twl4030reg_probe(struct platform_device *pdev)
 	 * this driver and the chip itself can actually do.
 	 */
 	c = &initdata->constraints;
-	if (!c->min_uV || c->min_uV < min_uV)
-		c->min_uV = min_uV;
-	if (!c->max_uV || c->max_uV > max_uV)
-		c->max_uV = max_uV;
 	c->valid_modes_mask &= REGULATOR_MODE_NORMAL | REGULATOR_MODE_STANDBY;
 	c->valid_ops_mask &= REGULATOR_CHANGE_VOLTAGE
 				| REGULATOR_CHANGE_MODE
@@ -467,36 +481,6 @@ static struct platform_driver twl4030reg_driver = {
 
 static int __init twl4030reg_init(void)
 {
-	unsigned i, j;
-
-	/* determine min/max voltage constraints, taking into account
-	 * whether set_voltage() will use the "unsupported" settings
-	 */
-	for (i = 0; i < ARRAY_SIZE(twl4030_regs); i++) {
-		struct twlreg_info	*info = twl4030_regs + i;
-		const u16		*table;
-
-		/* fixed-voltage regulators */
-		if (!info->table_len)
-			continue;
-
-		/* LDO regulators: */
-		for (j = 0, table = info->table;
-				j < info->table_len;
-				j++, table++) {
-			u16		mV = *table;
-
-			if (IS_UNSUP(mV))
-				continue;
-			mV = LDO_MV(mV);
-
-			if (info->min_mV == 0 || info->min_mV > mV)
-				info->min_mV = mV;
-			if (info->max_mV < mV)
-				info->max_mV = mV;
-		}
-	}
-
 	return platform_driver_register(&twl4030reg_driver);
 }
 subsys_initcall(twl4030reg_init);
