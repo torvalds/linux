@@ -99,7 +99,7 @@ int drm_ati_pcigart_init(struct drm_device *dev, struct drm_ati_pcigart_info *ga
 	struct drm_sg_mem *entry = dev->sg;
 	void *address = NULL;
 	unsigned long pages;
-	u32 *pci_gart, page_base, gart_idx;
+	u32 *pci_gart = NULL, page_base, gart_idx;
 	dma_addr_t bus_address = 0;
 	int i, j, ret = 0;
 	int max_ati_pages, max_real_pages;
@@ -118,6 +118,7 @@ int drm_ati_pcigart_init(struct drm_device *dev, struct drm_ati_pcigart_info *ga
 			goto done;
 		}
 
+		pci_gart = gart_info->table_handle->vaddr;
 		address = gart_info->table_handle->vaddr;
 		bus_address = gart_info->table_handle->busaddr;
 	} else {
@@ -128,7 +129,6 @@ int drm_ati_pcigart_init(struct drm_device *dev, struct drm_ati_pcigart_info *ga
 			  (unsigned long)address);
 	}
 
-	pci_gart = (u32 *) address;
 
 	max_ati_pages = (gart_info->table_size / sizeof(u32));
 	max_real_pages = max_ati_pages / (PAGE_SIZE / ATI_PCIGART_PAGE_SIZE);
@@ -138,8 +138,7 @@ int drm_ati_pcigart_init(struct drm_device *dev, struct drm_ati_pcigart_info *ga
 	if (gart_info->gart_table_location == DRM_ATI_GART_MAIN) {
 		memset(pci_gart, 0, max_ati_pages * sizeof(u32));
 	} else {
-		for (gart_idx = 0; gart_idx < max_ati_pages; gart_idx++)
-			DRM_WRITE32(map, gart_idx * sizeof(u32), 0);
+		memset_io((void __iomem *)map->handle, 0, max_ati_pages * sizeof(u32));
 	}
 
 	gart_idx = 0;
