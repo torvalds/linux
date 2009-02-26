@@ -365,8 +365,6 @@ static inline void process_adj_status(struct timex *txc, struct timespec *ts)
 		time_state = TIME_OK;
 		time_status = STA_UNSYNC;
 	}
-	/* only set allowed bits */
-	time_status &= STA_RONLY;
 
 	/*
 	 * If we turn on PLL adjustments then reset the
@@ -375,6 +373,8 @@ static inline void process_adj_status(struct timex *txc, struct timespec *ts)
 	if (!(time_status & STA_PLL) && (txc->status & STA_PLL))
 		time_reftime = xtime.tv_sec;
 
+	/* only set allowed bits */
+	time_status &= STA_RONLY;
 	time_status |= txc->status & ~STA_RONLY;
 
 	switch (time_state) {
