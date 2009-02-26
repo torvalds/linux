@@ -233,47 +233,74 @@ unsigned long get_phys_to_machine(unsigned long pfn)
 }
 EXPORT_SYMBOL_GPL(get_phys_to_machine);
 
-static void alloc_p2m(unsigned long **pp, unsigned long *mfnp)
+/* install a  new p2m_top page */
+bool install_p2mtop_page(unsigned long pfn, unsigned long *p)
 {
-	unsigned long *p;
+	unsigned topidx = p2m_top_index(pfn);
+	unsigned long **pfnp, *mfnp;
 	unsigned i;
 
-	p = (void *)__get_free_page(GFP_KERNEL | __GFP_NOFAIL);
-	BUG_ON(p == NULL);
+	pfnp = &p2m_top[topidx];
+	mfnp = &p2m_top_mfn[topidx];
 
 	for (i = 0; i < P2M_ENTRIES_PER_PAGE; i++)
 		p[i] = INVALID_P2M_ENTRY;
 
-	if (cmpxchg(pp, p2m_missing, p) != p2m_missing)
-		free_page((unsigned long)p);
-	else
+	if (cmpxchg(pfnp, p2m_missing, p) == p2m_missing) {
 		*mfnp = virt_to_mfn(p);
+		return true;
+	}
+
+	return false;
+}
+
+static void alloc_p2m(unsigned long pfn)
+{
+	unsigned long *p;
+
+	p = (void *)__get_free_page(GFP_KERNEL | __GFP_NOFAIL);
+	BUG_ON(p == NULL);
+
+	if (!install_p2mtop_page(pfn, p))
+		free_page((unsigned long)p);
+}
+
+/* Try to install p2m mapping; fail if intermediate bits missing */
+bool __set_phys_to_machine(unsigned long pfn, unsigned long mfn)
+{
+	unsigned topidx, idx;
+
+	if (unlikely(pfn >= MAX_DOMAIN_PAGES)) {
+		BUG_ON(mfn != INVALID_P2M_ENTRY);
+		return true;
+	}
+
+	topidx = p2m_top_index(pfn);
+	if (p2m_top[topidx] == p2m_missing) {
+		if (mfn == INVALID_P2M_ENTRY)
+			return true;
+		return false;
+	}
+
+	idx = p2m_index(pfn);
+	p2m_top[topidx][idx] = mfn;
+
+	return true;
 }
 
 void set_phys_to_machine(unsigned long pfn, unsigned long mfn)
 {
-	unsigned topidx, idx;
-
 	if (unlikely(xen_feature(XENFEAT_auto_translated_physmap))) {
 		BUG_ON(pfn != mfn && mfn != INVALID_P2M_ENTRY);
 		return;
 	}
 
-	if (unlikely(pfn >= MAX_DOMAIN_PAGES)) {
-		BUG_ON(mfn != INVALID_P2M_ENTRY);
-		return;
-	}
+	if (unlikely(!__set_phys_to_machine(pfn, mfn)))  {
+		alloc_p2m(pfn);
 
-	topidx = p2m_top_index(pfn);
-	if (p2m_top[topidx] == p2m_missing) {
-		/* no need to allocate a page to store an invalid entry */
-		if (mfn == INVALID_P2M_ENTRY)
-			return;
-		alloc_p2m(&p2m_top[topidx], &p2m_top_mfn[topidx]);
+		if (!__set_phys_to_machine(pfn, mfn))
+			BUG();
 	}
-
-	idx = p2m_index(pfn);
-	p2m_top[topidx][idx] = mfn;
 }
 
 unsigned long arbitrary_virt_to_mfn(void *vaddr)
