@@ -461,8 +461,6 @@ struct adapter {
     uint                upr_busy;
     struct timer_list   pingtimer;
     u32             pingtimerset;
-    struct timer_list   statstimer;
-    u32             statstimerset;
     struct timer_list   loadtimer;
     u32             loadtimerset;
     struct dentry      *debugfs_entry;

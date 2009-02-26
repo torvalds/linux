@@ -60,7 +60,6 @@
 #define DBG                             1
 #define SLIC_ASSERT_ENABLED		        1
 #define SLIC_GET_STATS_ENABLED			1
-#define SLIC_GET_STATS_TIMER_ENABLED	0
 #define SLIC_PING_TIMER_ENABLED		    1
 #define SLIC_POWER_MANAGEMENT_ENABLED	0
 #define SLIC_INTERRUPT_PROCESS_LIMIT	1
@@ -1336,13 +1335,6 @@ static void slic_init_cleanup(struct adapter *adapter)
 		adapter->pshmem = NULL;
 		adapter->phys_shmem = (dma_addr_t) NULL;
 	}
-#if SLIC_GET_STATS_TIMER_ENABLED
-	if (adapter->statstimerset) {
-		DBG_MSG("statstimer ");
-		adapter->statstimerset = 0;
-		del_timer(&adapter->statstimer);
-	}
-#endif
 #if SLIC_PING_TIMER_ENABLED
 	if (adapter->pingtimerset) {
 		DBG_MSG("pingtimer ");
@@ -1715,19 +1707,6 @@ static int slic_if_init(struct adapter *adapter)
 
 		card->loadtimerset = 1;
 	}
-#if SLIC_GET_STATS_TIMER_ENABLED
-	if (!adapter->statstimerset) {
-		DBG_MSG("slicoss: %s start getstats_timer(slic)\n",
-			__func__);
-		init_timer(&adapter->statstimer);
-		adapter->statstimer.expires =
-		    jiffies + (STATS_TIMER_INTERVAL * HZ);
-		adapter->statstimer.data = (ulong) adapter->netdev;
-		adapter->statstimer.function = &slic_timer_get_stats;
-		add_timer(&adapter->statstimer);
-		adapter->statstimerset = 1;
-	}
-#endif
 #if SLIC_PING_TIMER_ENABLED
 	if (!adapter->pingtimerset) {
 		DBG_MSG("slicoss: %s start card_ping_timer(slic)\n",
@@ -2904,49 +2883,6 @@ static int slic_mac_set_address(struct net_device *dev, void *ptr)
 	return 0;
 }
 
-/*
- *  slic_timer_get_stats
- *
- * Timer function used to suck the statistics out of the card every
- * 50 seconds or whatever STATS_TIMER_INTERVAL is set to.
- *
- */
-#if SLIC_GET_STATS_TIMER_ENABLED
-static void slic_timer_get_stats(ulong dev)
-{
-	struct adapter *adapter;
-	struct sliccard *card;
-	struct slic_shmem *pshmem;
-
-	ASSERT(dev);
-	adapter = netdev_priv((struct net_device *)dev);
-	ASSERT(adapter);
-	card = adapter->card;
-	ASSERT(card);
-
-	if ((card->state == CARD_UP) &&
-	    (adapter->state == ADAPT_UP) && (adapter->linkstate == LINK_UP)) {
-		pshmem = (struct slic_shmem *)adapter->phys_shmem;
-#ifdef CONFIG_X86_64
-		slic_upr_request(adapter,
-				 SLIC_UPR_STATS,
-				 SLIC_GET_ADDR_LOW(&pshmem->inicstats),
-				 SLIC_GET_ADDR_HIGH(&pshmem->inicstats), 0, 0);
-#elif defined(CONFIG_X86)
-		slic_upr_request(adapter,
-				 SLIC_UPR_STATS,
-				 (u32) &pshmem->inicstats, 0, 0, 0);
-#else
-		Stop compilation;
-#endif
-	} else {
-/*		DBG_MSG ("slicoss: %s adapter[%p] linkstate[%x] NOT UP!\n",
-			__func__, adapter, adapter->linkstate); */
-	}
-	adapter->statstimer.expires = jiffies + (STATS_TIMER_INTERVAL * HZ);
-	add_timer(&adapter->statstimer);
-}
-#endif
 static void slic_timer_load_check(ulong cardaddr)
 {
 	struct sliccard *card = (struct sliccard *)cardaddr;
