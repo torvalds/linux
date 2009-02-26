@@ -64,7 +64,11 @@ extern void x86_quirk_time_init(void);
 #include <asm/bootparam.h>
 
 /* Interrupt control for vSMPowered x86_64 systems */
+#ifdef CONFIG_X86_VSMP
 void vsmp_init(void);
+#else
+static inline void vsmp_init(void) { }
+#endif
 
 void setup_bios_corruption_check(void);
 

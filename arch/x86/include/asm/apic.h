@@ -75,7 +75,14 @@ static inline void default_inquire_remote_apic(int apicid)
 #define setup_secondary_clock setup_secondary_APIC_clock
 #endif
 
+#ifdef CONFIG_X86_VSMP
 extern int is_vsmp_box(void);
+#else
+static inline int is_vsmp_box(void)
+{
+	return 0;
+}
+#endif
 extern void xapic_wait_icr_idle(void);
 extern u32 safe_xapic_wait_icr_idle(void);
 extern void xapic_icr_write(u32, u32);

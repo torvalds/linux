@@ -863,9 +863,7 @@ void __init setup_arch(char **cmdline_p)
 
 	reserve_initrd();
 
-#ifdef CONFIG_X86_64
 	vsmp_init();
-#endif
 
 	io_delay_init();
 
