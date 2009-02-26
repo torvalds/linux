@@ -1574,7 +1574,8 @@ static int wm8753_probe(struct platform_device *pdev)
 		goto pcm_err;
 	}
 
-	wm8753_add_controls(codec);
+	snd_soc_add_controls(codec, wm8753_snd_controls,
+			     ARRAY_SIZE(wm8753_snd_controls));
 	wm8753_add_widgets(codec);
 	ret = snd_soc_init_card(socdev);
 	if (ret < 0) {
