@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
 # Linux kernel version: 2.6.29-rc4
-# Thu Feb 12 12:57:57 2009
+# Tue Feb 24 15:50:58 2009
 #
 # CONFIG_64BIT is not set
 CONFIG_X86_32=y
@@ -266,7 +266,9 @@ CONFIG_PREEMPT_VOLUNTARY=y
 CONFIG_X86_LOCAL_APIC=y
 CONFIG_X86_IO_APIC=y
 CONFIG_X86_REROUTE_FOR_BROKEN_BOOT_IRQS=y
-# CONFIG_X86_MCE is not set
+CONFIG_X86_MCE=y
+CONFIG_X86_MCE_NONFATAL=y
+CONFIG_X86_MCE_P4THERMAL=y
 CONFIG_VM86=y
 # CONFIG_TOSHIBA is not set
 # CONFIG_I8K is not set

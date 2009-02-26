@@ -157,7 +157,7 @@ __copy_from_user(void *to, const void __user *from, unsigned long n)
 }
 
 static __always_inline unsigned long __copy_from_user_nocache(void *to,
-				const void __user *from, unsigned long n)
+		const void __user *from, unsigned long n, unsigned long total)
 {
 	might_fault();
 	if (__builtin_constant_p(n)) {
@@ -180,7 +180,7 @@ static __always_inline unsigned long __copy_from_user_nocache(void *to,
 
 static __always_inline unsigned long
 __copy_from_user_inatomic_nocache(void *to, const void __user *from,
-				  unsigned long n)
+				  unsigned long n, unsigned long total)
 {
        return __copy_from_user_ll_nocache_nozero(to, from, n);
 }

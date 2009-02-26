@@ -189,7 +189,7 @@ extern long __copy_user_nocache(void *dst, const void __user *src,
 				unsigned size, int zerorest);
 
 static inline int __copy_from_user_nocache(void *dst, const void __user *src,
-					   unsigned size)
+				   unsigned size, unsigned long total)
 {
 	might_sleep();
 	/*
@@ -198,17 +198,16 @@ static inline int __copy_from_user_nocache(void *dst, const void __user *src,
 	 * non-temporal stores here. Smaller writes get handled
 	 * via regular __copy_from_user():
 	 */
-	if (likely(size >= PAGE_SIZE))
+	if (likely(total >= PAGE_SIZE))
 		return __copy_user_nocache(dst, src, size, 1);
 	else
 		return __copy_from_user(dst, src, size);
 }
 
 static inline int __copy_from_user_inatomic_nocache(void *dst,
-						    const void __user *src,
-						    unsigned size)
+	    const void __user *src, unsigned size, unsigned total)
 {
-	if (likely(size >= PAGE_SIZE))
+	if (likely(total >= PAGE_SIZE))
 		return __copy_user_nocache(dst, src, size, 0);
 	else
 		return __copy_from_user_inatomic(dst, src, size);
