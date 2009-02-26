@@ -60,7 +60,6 @@
 #define DBG                             1
 #define SLIC_ASSERT_ENABLED		        1
 #define SLIC_PING_TIMER_ENABLED		    1
-#define SLIC_POWER_MANAGEMENT_ENABLED	0
 #define SLIC_INTERRUPT_PROCESS_LIMIT	1
 #define LINUX_FREES_ADAPTER_RESOURCES	1
 #define SLIC_OFFLOAD_IP_CHECKSUM		1
@@ -165,8 +164,6 @@ static int  slic_upr_request(struct adapter *adapter, u32 upr_request,
 			     u32 upr_buffer_h);
 static void slic_mcast_set_list(struct net_device *dev);
 
-
-#define SLIC_POWER_MANAGEMENT  0
 
 static uint slic_first_init = 1;
 static char *slic_banner = "Alacritech SLIC Technology(tm) Server "\
@@ -4582,11 +4579,6 @@ static struct pci_driver slic_driver = {
 	.id_table = slic_pci_tbl,
 	.probe = slic_entry_probe,
 	.remove = slic_entry_remove,
-#if SLIC_POWER_MANAGEMENT_ENABLED
-	.suspend = slicpm_suspend,
-	.resume = slicpm_resume,
-#endif
-/*    .shutdown   =     slic_shutdown,  MOOK_INVESTIGATE */
 };
 
 static int __init slic_module_init(void)
