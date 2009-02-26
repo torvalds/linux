@@ -102,8 +102,8 @@ static int vortex_debug = 1;
 #include <linux/delay.h>
 
 
-static char version[] __devinitdata =
-DRV_NAME ": Donald Becker and others.\n";
+static const char version[] __devinitconst =
+	DRV_NAME ": Donald Becker and others.\n";
 
 MODULE_AUTHOR("Donald Becker <becker@scyld.com>");
 MODULE_DESCRIPTION("3Com 3c59x/3c9xx ethernet driver ");
@@ -2908,7 +2908,7 @@ static void vortex_get_drvinfo(struct net_device *dev,
 		strcpy(info->bus_info, pci_name(VORTEX_PCI(vp)));
 	} else {
 		if (VORTEX_EISA(vp))
-			sprintf(info->bus_info, dev_name(vp->gendev));
+			strcpy(info->bus_info, dev_name(vp->gendev));
 		else
 			sprintf(info->bus_info, "EISA 0x%lx %d",
 					dev->base_addr, dev->irq);
