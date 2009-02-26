@@ -59,7 +59,6 @@
 #define DEBUG_MICROCODE                 1
 #define DBG                             1
 #define SLIC_ASSERT_ENABLED		        1
-#define SLIC_GET_STATS_ENABLED			1
 #define SLIC_PING_TIMER_ENABLED		    1
 #define SLIC_POWER_MANAGEMENT_ENABLED	0
 #define SLIC_INTERRUPT_PROCESS_LIMIT	1
@@ -105,10 +104,7 @@
 #include "slichw.h"
 #include "slic.h"
 
-#if SLIC_GET_STATS_ENABLED
 static struct net_device_stats *slic_get_stats(struct net_device *dev);
-#endif
-
 static int slic_entry_open(struct net_device *dev);
 static int slic_entry_halt(struct net_device *dev);
 static int slic_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
@@ -509,9 +505,7 @@ static int __devinit slic_entry_probe(struct pci_dev *pcidev,
 	netdev->hard_start_xmit = slic_xmit_start;
 	netdev->do_ioctl = slic_ioctl;
 	netdev->set_mac_address = slic_mac_set_address;
-#if SLIC_GET_STATS_ENABLED
 	netdev->get_stats = slic_get_stats;
-#endif
 	netdev->set_multicast_list = slic_mcast_set_list;
 
 	slic_debug_adapter_create(adapter);
@@ -1416,7 +1410,6 @@ static void slic_init_cleanup(struct adapter *adapter)
 	DBG_MSG("\n");
 }
 
-#if SLIC_GET_STATS_ENABLED
 static struct net_device_stats *slic_get_stats(struct net_device *dev)
 {
 	struct adapter *adapter = (struct adapter *)netdev_priv(dev);
@@ -1436,7 +1429,6 @@ static struct net_device_stats *slic_get_stats(struct net_device *dev)
 	stats->rx_length_errors = 0;
 	return &adapter->stats;
 }
-#endif
 
 /*
  *  Allocate a mcast_address structure to hold the multicast address.
@@ -3089,13 +3081,12 @@ static void slic_upr_request_complete(struct adapter *adapter, u32 isr)
 	switch (upr->upr_request) {
 	case SLIC_UPR_STATS:
 		{
-#if SLIC_GET_STATS_ENABLED
 			struct slic_stats *slicstats =
 			    (struct slic_stats *) &adapter->pshmem->inicstats;
 			struct slic_stats *newstats = slicstats;
 			struct slic_stats  *old = &adapter->inicstats_prev;
 			struct slicnet_stats *stst = &adapter->slic_stats;
-#endif
+
 			if (isr & ISR_UPCERR) {
 				DBG_ERROR
 				    ("SLIC_UPR_STATS command failed isr[%x]\n",
@@ -3103,7 +3094,6 @@ static void slic_upr_request_complete(struct adapter *adapter, u32 isr)
 
 				break;
 			}
-#if SLIC_GET_STATS_ENABLED
 /*			DBG_MSG ("slicoss: %s rcv %lx:%lx:%lx:%lx:%lx %lx %lx "
 				"xmt %lx:%lx:%lx:%lx:%lx %lx %lx\n",
 				 __func__,
@@ -3179,7 +3169,6 @@ static void slic_upr_request_complete(struct adapter *adapter, u32 isr)
 				     old->rcv_drops_gb);
 			}
 			memcpy(old, newstats, sizeof(struct slic_stats));
-#endif
 			break;
 		}
 	case SLIC_UPR_RLSR:
