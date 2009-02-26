@@ -2544,7 +2544,7 @@ retry:
 
 		ext4_journal_stop(handle);
 
-		if (mpd.retval == -ENOSPC) {
+		if ((mpd.retval == -ENOSPC) && sbi->s_journal) {
 			/* commit the transaction which would
 			 * free blocks released in the transaction
 			 * and try again
