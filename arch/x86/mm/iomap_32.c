@@ -68,6 +68,7 @@ out_free:
 out_err:
 	return -EINVAL;
 }
+EXPORT_SYMBOL_GPL(reserve_io_memtype_wc);
 
 void
 free_io_memtype(u64 base, unsigned long size)
@@ -75,6 +76,7 @@ free_io_memtype(u64 base, unsigned long size)
 	if (pat_enabled)
 		free_memtype(base, base + size);
 }
+EXPORT_SYMBOL_GPL(free_io_memtype);
 
 /* Map 'pfn' using fixed map 'type' and protections 'prot'
  */
