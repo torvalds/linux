@@ -761,6 +761,24 @@ static int alc_eapd_ctrl_put(struct snd_kcontrol *kcontrol,
 #endif   /* CONFIG_SND_DEBUG */
 
 /*
+ * set up the input pin config (depending on the given auto-pin type)
+ */
+static void alc_set_input_pin(struct hda_codec *codec, hda_nid_t nid,
+			      int auto_pin_type)
+{
+	unsigned int val = PIN_IN;
+
+	if (auto_pin_type <= AUTO_PIN_FRONT_MIC) {
+		unsigned int pincap;
+		pincap = snd_hda_param_read(codec, nid, AC_PAR_PIN_CAP);
+		pincap = (pincap & AC_PINCAP_VREF) >> AC_PINCAP_VREF_SHIFT;
+		if (pincap & AC_PINCAP_VREF_80)
+			val = PIN_VREF80;
+	}
+	snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_PIN_WIDGET_CONTROL, val);
+}
+
+/*
  */
 static void add_mixer(struct alc_spec *spec, struct snd_kcontrol_new *mix)
 {
@@ -4188,10 +4206,7 @@ static void alc880_auto_init_analog_input(struct hda_codec *codec)
 	for (i = 0; i < AUTO_PIN_LAST; i++) {
 		hda_nid_t nid = spec->autocfg.input_pins[i];
 		if (alc880_is_input_pin(nid)) {
-			snd_hda_codec_write(codec, nid, 0,
-					    AC_VERB_SET_PIN_WIDGET_CONTROL,
-					    i <= AUTO_PIN_FRONT_MIC ?
-					    PIN_VREF80 : PIN_IN);
+			alc_set_input_pin(codec, nid, i);
 			if (nid != ALC880_PIN_CD_NID)
 				snd_hda_codec_write(codec, nid, 0,
 						    AC_VERB_SET_AMP_GAIN_MUTE,
@@ -5657,10 +5672,7 @@ static void alc260_auto_init_analog_input(struct hda_codec *codec)
 	for (i = 0; i < AUTO_PIN_LAST; i++) {
 		hda_nid_t nid = spec->autocfg.input_pins[i];
 		if (nid >= 0x12) {
-			snd_hda_codec_write(codec, nid, 0,
-					    AC_VERB_SET_PIN_WIDGET_CONTROL,
-					    i <= AUTO_PIN_FRONT_MIC ?
-					    PIN_VREF80 : PIN_IN);
+			alc_set_input_pin(codec, nid, i);
 			if (nid != ALC260_PIN_CD_NID)
 				snd_hda_codec_write(codec, nid, 0,
 						    AC_VERB_SET_AMP_GAIN_MUTE,
@@ -7006,16 +7018,7 @@ static void alc882_auto_init_analog_input(struct hda_codec *codec)
 		unsigned int vref;
 		if (!nid)
 			continue;
-		vref = PIN_IN;
-		if (1 /*i <= AUTO_PIN_FRONT_MIC*/) {
-			unsigned int pincap;
-			pincap = snd_hda_param_read(codec, nid, AC_PAR_PIN_CAP);
-			if ((pincap >> AC_PINCAP_VREF_SHIFT) &
-			    AC_PINCAP_VREF_80)
-				vref = PIN_VREF80;
-		}
-		snd_hda_codec_write(codec, nid, 0,
-				    AC_VERB_SET_PIN_WIDGET_CONTROL, vref);
+		alc_set_input_pin(codec, nid, AUTO_PIN_FRONT_MIC /*i*/);
 		if (get_wcaps(codec, nid) & AC_WCAP_OUT_AMP)
 			snd_hda_codec_write(codec, nid, 0,
 					    AC_VERB_SET_AMP_GAIN_MUTE,
@@ -9100,10 +9103,7 @@ static void alc883_auto_init_analog_input(struct hda_codec *codec)
 	for (i = 0; i < AUTO_PIN_LAST; i++) {
 		hda_nid_t nid = spec->autocfg.input_pins[i];
 		if (alc883_is_input_pin(nid)) {
-			snd_hda_codec_write(codec, nid, 0,
-					    AC_VERB_SET_PIN_WIDGET_CONTROL,
-					    (i <= AUTO_PIN_FRONT_MIC ?
-					     PIN_VREF80 : PIN_IN));
+			alc_set_input_pin(codec, nid, i);
 			if (nid != ALC883_PIN_CD_NID)
 				snd_hda_codec_write(codec, nid, 0,
 						    AC_VERB_SET_AMP_GAIN_MUTE,
@@ -13831,12 +13831,8 @@ static void alc861_auto_init_analog_input(struct hda_codec *codec)
 
 	for (i = 0; i < AUTO_PIN_LAST; i++) {
 		hda_nid_t nid = spec->autocfg.input_pins[i];
-		if (nid >= 0x0c && nid <= 0x11) {
-			snd_hda_codec_write(codec, nid, 0,
-					    AC_VERB_SET_PIN_WIDGET_CONTROL,
-					    i <= AUTO_PIN_FRONT_MIC ?
-					    PIN_VREF80 : PIN_IN);
-		}
+		if (nid >= 0x0c && nid <= 0x11)
+			alc_set_input_pin(codec, nid, i);
 	}
 }
 
@@ -14803,10 +14799,7 @@ static void alc861vd_auto_init_analog_input(struct hda_codec *codec)
 	for (i = 0; i < AUTO_PIN_LAST; i++) {
 		hda_nid_t nid = spec->autocfg.input_pins[i];
 		if (alc861vd_is_input_pin(nid)) {
-			snd_hda_codec_write(codec, nid, 0,
-					AC_VERB_SET_PIN_WIDGET_CONTROL,
-					i <= AUTO_PIN_FRONT_MIC ?
-							PIN_VREF80 : PIN_IN);
+			alc_set_input_pin(codec, nid, i);
 			if (nid != ALC861VD_PIN_CD_NID)
 				snd_hda_codec_write(codec, nid, 0,
 						AC_VERB_SET_AMP_GAIN_MUTE,
@@ -16732,10 +16725,7 @@ static void alc662_auto_init_analog_input(struct hda_codec *codec)
 	for (i = 0; i < AUTO_PIN_LAST; i++) {
 		hda_nid_t nid = spec->autocfg.input_pins[i];
 		if (alc662_is_input_pin(nid)) {
-			snd_hda_codec_write(codec, nid, 0,
-					    AC_VERB_SET_PIN_WIDGET_CONTROL,
-					    (i <= AUTO_PIN_FRONT_MIC ?
-					     PIN_VREF80 : PIN_IN));
+			alc_set_input_pin(codec, nid, i);
 			if (nid != ALC662_PIN_CD_NID)
 				snd_hda_codec_write(codec, nid, 0,
 						    AC_VERB_SET_AMP_GAIN_MUTE,
