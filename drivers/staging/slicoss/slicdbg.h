@@ -42,12 +42,7 @@
 #ifndef _SLIC_DEBUG_H_
 #define _SLIC_DEBUG_H_
 
-#ifdef SLIC_DEFAULT_LOG_LEVEL
-#else
-#define SLICLEVEL   KERN_DEBUG
-#endif
-#define SLIC_DISPLAY              printk
-#define DBG_ERROR(n, args...)   SLIC_DISPLAY(KERN_EMERG n, ##args)
+#define DBG_ERROR(n, args...)	printk(KERN_EMERG n, ##args)
 
 #ifdef ASSERT
 #undef ASSERT

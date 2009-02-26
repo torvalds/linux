@@ -4042,7 +4042,8 @@ static int __init slic_module_init(void)
 	slic_init_driver();
 
 	if (debug >= 0 && slic_debug != debug)
-		printk(SLICLEVEL "slicoss: debug level is %d.\n", debug);
+		printk(KERN_DEBUG KBUILD_MODNAME ": debug level is %d.\n",
+		       debug);
 	if (debug >= 0)
 		slic_debug = debug;
 
