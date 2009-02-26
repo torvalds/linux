@@ -430,7 +430,7 @@ static struct notifier_block lapbeth_dev_notifier = {
 	.notifier_call = lapbeth_device_event,
 };
 
-static const char banner[] __initdata =
+static const char banner[] __initconst =
 	KERN_INFO "LAPB Ethernet driver version 0.02\n";
 
 static int __init lapbeth_init_driver(void)
