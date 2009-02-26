@@ -49,14 +49,6 @@
 #define SLIC_DISPLAY              printk
 #define DBG_ERROR(n, args...)   SLIC_DISPLAY(KERN_EMERG n, ##args)
 
-#define SLIC_DEBUG_MESSAGE 1
-#if SLIC_DEBUG_MESSAGE
-/*#define DBG_MSG(n, args...)      SLIC_DISPLAY(SLICLEVEL n, ##args)*/
-#define DBG_MSG(n, args...)
-#else
-#define DBG_MSG(n, args...)
-#endif
-
 #ifdef ASSERT
 #undef ASSERT
 #endif
