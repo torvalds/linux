@@ -94,8 +94,6 @@
 #include <asm/unaligned.h>
 
 #include <linux/ethtool.h>
-#define SLIC_ETHTOOL_SUPPORT     1
-
 #include <linux/uaccess.h>
 #include "slicdbg.h"
 #include "slichw.h"
@@ -609,35 +607,27 @@ static int slic_entry_halt(struct net_device *dev)
 
 static int slic_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 {
+	struct adapter *adapter = (struct adapter *)netdev_priv(dev);
+	struct ethtool_cmd edata;
+	struct ethtool_cmd ecmd;
+	u32 data[7];
+	u32 intagg;
+
 	ASSERT(rq);
 	switch (cmd) {
 	case SIOCSLICSETINTAGG:
-		{
-			struct adapter *adapter = (struct adapter *)
-							netdev_priv(dev);
-			u32 data[7];
-			u32 intagg;
-
-			if (copy_from_user(data, rq->ifr_data, 28)) {
-				DBG_ERROR
-				    ("copy_from_user FAILED getting initial \
-				     params\n");
-				return -EFAULT;
-			}
-			intagg = data[0];
-			printk(KERN_EMERG
-			       "%s: set interrupt aggregation to %d\n",
-			       __func__, intagg);
-			slic_intagg_set(adapter, intagg);
-			return 0;
-		}
+		if (copy_from_user(data, rq->ifr_data, 28))
+			return -EFAULT;
+		intagg = data[0];
+		printk(KERN_EMERG "%s: set interrupt aggregation to %d\n",
+		       __func__, intagg);
+		slic_intagg_set(adapter, intagg);
+		return 0;
 
 #ifdef SLIC_TRACE_DUMP_ENABLED
 	case SIOCSLICTRACEDUMP:
 		{
-			ulong data[7];
-			ulong value;
-
+			u32 value;
 			DBG_IOCTL("slic_ioctl  SIOCSLIC_TRACE_DUMP\n");
 
 			if (copy_from_user(data, rq->ifr_data, 28)) {
@@ -670,101 +660,75 @@ static int slic_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 			return 0;
 		}
 #endif
-#if SLIC_ETHTOOL_SUPPORT
 	case SIOCETHTOOL:
-		{
-			struct adapter *adapter = (struct adapter *)
-							netdev_priv(dev);
-			struct ethtool_cmd data;
-			struct ethtool_cmd ecmd;
+		ASSERT(adapter);
+		if (copy_from_user(&ecmd, rq->ifr_data, sizeof(ecmd)))
+			return -EFAULT;
 
-			ASSERT(adapter);
-			if (copy_from_user(&ecmd, rq->ifr_data, sizeof(ecmd)))
+		if (ecmd.cmd == ETHTOOL_GSET) {
+			edata.supported = (SUPPORTED_10baseT_Half |
+					   SUPPORTED_10baseT_Full |
+					   SUPPORTED_100baseT_Half |
+					   SUPPORTED_100baseT_Full |
+					   SUPPORTED_Autoneg | SUPPORTED_MII);
+			edata.port = PORT_MII;
+			edata.transceiver = XCVR_INTERNAL;
+			edata.phy_address = 0;
+			if (adapter->linkspeed == LINK_100MB)
+				edata.speed = SPEED_100;
+			else if (adapter->linkspeed == LINK_10MB)
+				edata.speed = SPEED_10;
+			else
+				edata.speed = 0;
+
+			if (adapter->linkduplex == LINK_FULLD)
+				edata.duplex = DUPLEX_FULL;
+			else
+				edata.duplex = DUPLEX_HALF;
+
+			edata.autoneg = AUTONEG_ENABLE;
+			edata.maxtxpkt = 1;
+			edata.maxrxpkt = 1;
+			if (copy_to_user(rq->ifr_data, &edata, sizeof(edata)))
 				return -EFAULT;
 
-			if (ecmd.cmd == ETHTOOL_GSET) {
-				data.supported =
-				    (SUPPORTED_10baseT_Half |
-				     SUPPORTED_10baseT_Full |
-				     SUPPORTED_100baseT_Half |
-				     SUPPORTED_100baseT_Full |
-				     SUPPORTED_Autoneg | SUPPORTED_MII);
-				data.port = PORT_MII;
-				data.transceiver = XCVR_INTERNAL;
-				data.phy_address = 0;
-				if (adapter->linkspeed == LINK_100MB)
-					data.speed = SPEED_100;
-				else if (adapter->linkspeed == LINK_10MB)
-					data.speed = SPEED_10;
+		} else if (ecmd.cmd == ETHTOOL_SSET) {
+			if (!capable(CAP_NET_ADMIN))
+				return -EPERM;
+
+			if (adapter->linkspeed == LINK_100MB)
+				edata.speed = SPEED_100;
+			else if (adapter->linkspeed == LINK_10MB)
+				edata.speed = SPEED_10;
+			else
+				edata.speed = 0;
+
+			if (adapter->linkduplex == LINK_FULLD)
+				edata.duplex = DUPLEX_FULL;
+			else
+				edata.duplex = DUPLEX_HALF;
+
+			edata.autoneg = AUTONEG_ENABLE;
+			edata.maxtxpkt = 1;
+			edata.maxrxpkt = 1;
+			if ((ecmd.speed != edata.speed) ||
+			    (ecmd.duplex != edata.duplex)) {
+				u32 speed;
+				u32 duplex;
+
+				if (ecmd.speed == SPEED_10)
+					speed = 0;
 				else
-					data.speed = 0;
-
-				if (adapter->linkduplex == LINK_FULLD)
-					data.duplex = DUPLEX_FULL;
+					speed = PCR_SPEED_100;
+				if (ecmd.duplex == DUPLEX_FULL)
+					duplex = PCR_DUPLEX_FULL;
 				else
-					data.duplex = DUPLEX_HALF;
-
-				data.autoneg = AUTONEG_ENABLE;
-				data.maxtxpkt = 1;
-				data.maxrxpkt = 1;
-				if (copy_to_user
-				    (rq->ifr_data, &data, sizeof(data)))
-					return -EFAULT;
-
-			} else if (ecmd.cmd == ETHTOOL_SSET) {
-				if (!capable(CAP_NET_ADMIN))
-					return -EPERM;
-
-				if (adapter->linkspeed == LINK_100MB)
-					data.speed = SPEED_100;
-				else if (adapter->linkspeed == LINK_10MB)
-					data.speed = SPEED_10;
-				else
-					data.speed = 0;
-
-				if (adapter->linkduplex == LINK_FULLD)
-					data.duplex = DUPLEX_FULL;
-				else
-					data.duplex = DUPLEX_HALF;
-
-				data.autoneg = AUTONEG_ENABLE;
-				data.maxtxpkt = 1;
-				data.maxrxpkt = 1;
-				if ((ecmd.speed != data.speed) ||
-				    (ecmd.duplex != data.duplex)) {
-					u32 speed;
-					u32 duplex;
-
-					if (ecmd.speed == SPEED_10) {
-						speed = 0;
-						SLIC_DISPLAY
-						    ("%s: slic ETHTOOL set \
-						     link speed==10MB",
-						     dev->name);
-					} else {
-						speed = PCR_SPEED_100;
-						SLIC_DISPLAY
-						    ("%s: slic ETHTOOL set \
-						    link speed==100MB",
-						     dev->name);
-					}
-					if (ecmd.duplex == DUPLEX_FULL) {
-						duplex = PCR_DUPLEX_FULL;
-						SLIC_DISPLAY
-						    (": duplex==FULL\n");
-					} else {
-						duplex = 0;
-						SLIC_DISPLAY
-						    (": duplex==HALF\n");
-					}
-					slic_link_config(adapter,
-							 speed, duplex);
-					slic_link_event_handler(adapter);
-				}
+					duplex = 0;
+				slic_link_config(adapter, speed, duplex);
+				slic_link_event_handler(adapter);
 			}
-			return 0;
 		}
-#endif
+		return 0;
 	default:
 		return -EOPNOTSUPP;
 	}
