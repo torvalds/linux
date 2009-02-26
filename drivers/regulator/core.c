@@ -724,6 +724,23 @@ static int set_machine_constraints(struct regulator_dev *rdev,
 		}
 	}
 
+	if (constraints->initial_mode) {
+		if (!ops->set_mode) {
+			printk(KERN_ERR "%s: no set_mode operation for %s\n",
+			       __func__, name);
+			ret = -EINVAL;
+			goto out;
+		}
+
+		ret = ops->set_mode(rdev, constraints->initial_mode);
+		if (ret < 0) {
+			printk(KERN_ERR
+			       "%s: failed to set initial mode for %s: %d\n",
+			       __func__, name, ret);
+			goto out;
+		}
+	}
+
 	/* if always_on is set then turn the regulator on if it's not
 	 * already on. */
 	if (constraints->always_on && ops->enable &&
