@@ -2356,7 +2356,7 @@ static void local_completions(struct work_struct *work)
 	struct ib_mad_local_private *local;
 	struct ib_mad_agent_private *recv_mad_agent;
 	unsigned long flags;
-	int recv = 0;
+	int free_mad;
 	struct ib_wc wc;
 	struct ib_mad_send_wc mad_send_wc;
 
@@ -2370,14 +2370,15 @@ static void local_completions(struct work_struct *work)
 				   completion_list);
 		list_del(&local->completion_list);
 		spin_unlock_irqrestore(&mad_agent_priv->lock, flags);
+		free_mad = 0;
 		if (local->mad_priv) {
 			recv_mad_agent = local->recv_mad_agent;
 			if (!recv_mad_agent) {
 				printk(KERN_ERR PFX "No receive MAD agent for local completion\n");
+				free_mad = 1;
 				goto local_send_completion;
 			}
 
-			recv = 1;
 			/*
 			 * Defined behavior is to complete response
 			 * before request
@@ -2422,7 +2423,7 @@ local_send_completion:
 
 		spin_lock_irqsave(&mad_agent_priv->lock, flags);
 		atomic_dec(&mad_agent_priv->refcount);
-		if (!recv)
+		if (free_mad)
 			kmem_cache_free(ib_mad_cache, local->mad_priv);
 		kfree(local);
 	}
