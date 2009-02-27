@@ -1435,11 +1435,9 @@ static int __init fcoe_init(void)
 	 */
 	fcoe_dev_setup();
 
-	init_timer(&fcoe_timer);
-	fcoe_timer.data = 0;
-	fcoe_timer.function = fcoe_watchdog;
-	fcoe_timer.expires = (jiffies + (10 * HZ));
-	add_timer(&fcoe_timer);
+	setup_timer(&fcoe_timer, fcoe_watchdog, 0);
+
+	mod_timer(&fcoe_timer, jiffies + (10 * HZ));
 
 	/* initiatlize the fcoe transport */
 	fcoe_transport_init();
