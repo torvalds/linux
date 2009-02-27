@@ -28,9 +28,10 @@ static struct of_device_id mpc52xx_xlb_ids[] __initdata = {
 static struct of_device_id mpc52xx_bus_ids[] __initdata = {
 	{ .compatible = "fsl,mpc5200-immr", },
 	{ .compatible = "fsl,mpc5200b-immr", },
-	{ .compatible = "fsl,lpb", },
+	{ .compatible = "simple-bus", },
 
 	/* depreciated matches; shouldn't be used in new device trees */
+	{ .compatible = "fsl,lpb", },
 	{ .type = "builtin", .compatible = "mpc5200", }, /* efika */
 	{ .type = "soc", .compatible = "mpc5200", }, /* lite5200 */
 	{}
