@@ -363,7 +363,7 @@ general_exception:
 
 	! Save registers / Switch to bank 0
 	bsr	save_regs	! needs original pr value in k3
-	 mov.l	k4, k2		! keep vector in k2
+	 mov	k4, k2		! keep vector in k2
 
 	bra	handle_exception_special
 	 nop
