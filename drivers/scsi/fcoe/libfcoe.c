@@ -633,7 +633,7 @@ int fcoe_percpu_receive_thread(void *arg)
 		 * it's solicited data, in which case, the FCP layer would
 		 * check it during the copy.
 		 */
-		if (lp->crc_offload)
+		if (lp->crc_offload && skb->ip_summed == CHECKSUM_UNNECESSARY)
 			fr_flags(fp) &= ~FCPHF_CRC_UNCHECKED;
 		else
 			fr_flags(fp) |= FCPHF_CRC_UNCHECKED;
