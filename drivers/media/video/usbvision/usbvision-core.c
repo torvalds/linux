@@ -36,7 +36,6 @@
 #include <linux/spinlock.h>
 #include <asm/io.h>
 #include <linux/videodev2.h>
-#include <linux/video_decoder.h>
 #include <linux/i2c.h>
 
 #include <media/saa7115.h>

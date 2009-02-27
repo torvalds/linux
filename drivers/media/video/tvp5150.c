@@ -8,7 +8,6 @@
 #include <linux/i2c.h>
 #include <linux/videodev2.h>
 #include <linux/delay.h>
-#include <linux/video_decoder.h>
 #include <media/v4l2-device.h>
 #include <media/tvp5150.h>
 #include <media/v4l2-i2c-drv-legacy.h>
