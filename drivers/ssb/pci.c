@@ -564,6 +564,7 @@ static int sprom_extract(struct ssb_bus *bus, struct ssb_sprom *out,
 static int ssb_pci_sprom_get(struct ssb_bus *bus,
 			     struct ssb_sprom *sprom)
 {
+	const struct ssb_sprom *fallback;
 	int err = -ENOMEM;
 	u16 *buf;
 
@@ -583,12 +584,23 @@ static int ssb_pci_sprom_get(struct ssb_bus *bus,
 		bus->sprom_size = SSB_SPROMSIZE_WORDS_R4;
 		sprom_do_read(bus, buf);
 		err = sprom_check_crc(buf, bus->sprom_size);
-		if (err)
+		if (err) {
+			/* All CRC attempts failed.
+			 * Maybe there is no SPROM on the device?
+			 * If we have a fallback, use that. */
+			fallback = ssb_get_fallback_sprom();
+			if (fallback) {
+				memcpy(sprom, fallback, sizeof(*sprom));
+				err = 0;
+				goto out_free;
+			}
 			ssb_printk(KERN_WARNING PFX "WARNING: Invalid"
 				   " SPROM CRC (corrupt SPROM)\n");
+		}
 	}
 	err = sprom_extract(bus, sprom, buf, bus->sprom_size);
 
+out_free:
 	kfree(buf);
 out:
 	return err;
