@@ -248,11 +248,8 @@ void exit_thread(void)
 		/*
 		 * Careful, clear this in the TSS too:
 		 */
-		memset(tss->io_bitmap, 0xff, tss->io_bitmap_max);
+		memset(tss->io_bitmap, 0xff, t->io_bitmap_max);
 		t->io_bitmap_max = 0;
-		tss->io_bitmap_owner = NULL;
-		tss->io_bitmap_max = 0;
-		tss->x86_tss.io_bitmap_base = INVALID_IO_BITMAP_OFFSET;
 		put_cpu();
 	}
 
@@ -458,34 +455,19 @@ __switch_to_xtra(struct task_struct *prev_p, struct task_struct *next_p,
 			hard_enable_TSC();
 	}
 
-	if (!test_tsk_thread_flag(next_p, TIF_IO_BITMAP)) {
+	if (test_tsk_thread_flag(next_p, TIF_IO_BITMAP)) {
 		/*
-		 * Disable the bitmap via an invalid offset. We still cache
-		 * the previous bitmap owner and the IO bitmap contents:
+		 * Copy the relevant range of the IO bitmap.
+		 * Normally this is 128 bytes or less:
 		 */
-		tss->x86_tss.io_bitmap_base = INVALID_IO_BITMAP_OFFSET;
-		return;
-	}
-
-	if (likely(next == tss->io_bitmap_owner)) {
+		memcpy(tss->io_bitmap, next->io_bitmap_ptr,
+		       max(prev->io_bitmap_max, next->io_bitmap_max));
+	} else if (test_tsk_thread_flag(prev_p, TIF_IO_BITMAP)) {
 		/*
-		 * Previous owner of the bitmap (hence the bitmap content)
-		 * matches the next task, we dont have to do anything but
-		 * to set a valid offset in the TSS:
+		 * Clear any possible leftover bits:
 		 */
-		tss->x86_tss.io_bitmap_base = IO_BITMAP_OFFSET;
-		return;
+		memset(tss->io_bitmap, 0xff, prev->io_bitmap_max);
 	}
-	/*
-	 * Lazy TSS's I/O bitmap copy. We set an invalid offset here
-	 * and we let the task to get a GPF in case an I/O instruction
-	 * is performed.  The handler of the GPF will verify that the
-	 * faulting task has a valid I/O bitmap and, it true, does the
-	 * real copy and restart the instruction.  This will save us
-	 * redundant copies when the currently switched task does not
-	 * perform any I/O during its timeslice.
-	 */
-	tss->x86_tss.io_bitmap_base = INVALID_IO_BITMAP_OFFSET_LAZY;
 }
 
 /*

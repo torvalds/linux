@@ -248,7 +248,6 @@ struct x86_hw_tss {
 #define IO_BITMAP_LONGS			(IO_BITMAP_BYTES/sizeof(long))
 #define IO_BITMAP_OFFSET		offsetof(struct tss_struct, io_bitmap)
 #define INVALID_IO_BITMAP_OFFSET	0x8000
-#define INVALID_IO_BITMAP_OFFSET_LAZY	0x9000
 
 struct tss_struct {
 	/*
@@ -263,11 +262,6 @@ struct tss_struct {
 	 * be within the limit.
 	 */
 	unsigned long		io_bitmap[IO_BITMAP_LONGS + 1];
-	/*
-	 * Cache the current maximum and the last task that used the bitmap:
-	 */
-	unsigned long		io_bitmap_max;
-	struct thread_struct	*io_bitmap_owner;
 
 	/*
 	 * .. and then another 0x100 bytes for the emergency kernel stack:
