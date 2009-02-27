@@ -215,7 +215,7 @@ static const struct {
  */
 static inline void __user *
 get_sigframe(struct k_sigaction *ka, struct pt_regs *regs, size_t frame_size,
-	     void **fpstate)
+	     void __user **fpstate)
 {
 	unsigned long sp;
 
@@ -243,7 +243,7 @@ get_sigframe(struct k_sigaction *ka, struct pt_regs *regs, size_t frame_size,
 
 	if (used_math()) {
 		sp = sp - sig_xstate_size;
-		*fpstate = (struct _fpstate *) sp;
+		*fpstate = (void __user *) sp;
 		if (save_i387_xstate(*fpstate) < 0)
 			return (void __user *)-1L;
 	}
