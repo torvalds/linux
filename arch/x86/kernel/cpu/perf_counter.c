@@ -3,6 +3,7 @@
  *
  *  Copyright(C) 2008 Thomas Gleixner <tglx@linutronix.de>
  *  Copyright(C) 2008 Red Hat, Inc., Ingo Molnar
+ *  Copyright(C) 2009 Jaswinder Singh Rajput
  *
  *  For licencing details see kernel-base/COPYING
  */
@@ -38,10 +39,24 @@ struct cpu_hw_counters {
 };
 
 /*
- * Intel PerfMon v3. Used on Core2 and later.
+ * struct pmc_x86_ops - performance counter x86 ops
  */
+struct pmc_x86_ops {
+	u64 (*save_disable_all)		(void);
+	void (*restore_all)		(u64 ctrl);
+	unsigned eventsel;
+	unsigned perfctr;
+	int (*event_map)		(int event);
+	int max_events;
+};
+
+static struct pmc_x86_ops *pmc_ops;
+
 static DEFINE_PER_CPU(struct cpu_hw_counters, cpu_hw_counters);
 
+/*
+ * Intel PerfMon v3. Used on Core2 and later.
+ */
 static const int intel_perfmon_event_map[] =
 {
   [PERF_COUNT_CPU_CYCLES]		= 0x003c,
@@ -53,7 +68,10 @@ static const int intel_perfmon_event_map[] =
   [PERF_COUNT_BUS_CYCLES]		= 0x013c,
 };
 
-static const int max_intel_perfmon_events = ARRAY_SIZE(intel_perfmon_event_map);
+static int pmc_intel_event_map(int event)
+{
+	return intel_perfmon_event_map[event];
+}
 
 /*
  * Propagate counter elapsed time into the generic counter.
@@ -144,38 +162,48 @@ static int __hw_perf_counter_init(struct perf_counter *counter)
 	if (hw_event->raw) {
 		hwc->config |= hw_event->type;
 	} else {
-		if (hw_event->type >= max_intel_perfmon_events)
+		if (hw_event->type >= pmc_ops->max_events)
 			return -EINVAL;
 		/*
 		 * The generic map:
 		 */
-		hwc->config |= intel_perfmon_event_map[hw_event->type];
+		hwc->config |= pmc_ops->event_map(hw_event->type);
 	}
 	counter->wakeup_pending = 0;
 
 	return 0;
 }
 
-u64 hw_perf_save_disable(void)
+static u64 pmc_intel_save_disable_all(void)
 {
 	u64 ctrl;
-
-	if (unlikely(!perf_counters_initialized))
-		return 0;
 
 	rdmsrl(MSR_CORE_PERF_GLOBAL_CTRL, ctrl);
 	wrmsrl(MSR_CORE_PERF_GLOBAL_CTRL, 0);
 
 	return ctrl;
 }
+
+u64 hw_perf_save_disable(void)
+{
+	if (unlikely(!perf_counters_initialized))
+		return 0;
+
+	return pmc_ops->save_disable_all();
+}
 EXPORT_SYMBOL_GPL(hw_perf_save_disable);
+
+static void pmc_intel_restore_all(u64 ctrl)
+{
+	wrmsrl(MSR_CORE_PERF_GLOBAL_CTRL, ctrl);
+}
 
 void hw_perf_restore(u64 ctrl)
 {
 	if (unlikely(!perf_counters_initialized))
 		return;
 
-	wrmsrl(MSR_CORE_PERF_GLOBAL_CTRL, ctrl);
+	pmc_ops->restore_all(ctrl);
 }
 EXPORT_SYMBOL_GPL(hw_perf_restore);
 
@@ -291,11 +319,11 @@ fixed_mode_idx(struct perf_counter *counter, struct hw_perf_counter *hwc)
 
 	event = hwc->config & ARCH_PERFMON_EVENT_MASK;
 
-	if (unlikely(event == intel_perfmon_event_map[PERF_COUNT_INSTRUCTIONS]))
+	if (unlikely(event == pmc_ops->event_map(PERF_COUNT_INSTRUCTIONS)))
 		return X86_PMC_IDX_FIXED_INSTRUCTIONS;
-	if (unlikely(event == intel_perfmon_event_map[PERF_COUNT_CPU_CYCLES]))
+	if (unlikely(event == pmc_ops->event_map(PERF_COUNT_CPU_CYCLES)))
 		return X86_PMC_IDX_FIXED_CPU_CYCLES;
-	if (unlikely(event == intel_perfmon_event_map[PERF_COUNT_BUS_CYCLES]))
+	if (unlikely(event == pmc_ops->event_map(PERF_COUNT_BUS_CYCLES)))
 		return X86_PMC_IDX_FIXED_BUS_CYCLES;
 
 	return -1;
@@ -339,8 +367,8 @@ try_generic:
 			set_bit(idx, cpuc->used);
 			hwc->idx = idx;
 		}
-		hwc->config_base  = MSR_ARCH_PERFMON_EVENTSEL0;
-		hwc->counter_base = MSR_ARCH_PERFMON_PERFCTR0;
+		hwc->config_base  = pmc_ops->eventsel;
+		hwc->counter_base = pmc_ops->perfctr;
 	}
 
 	perf_counters_lapic_init(hwc->nmi);
@@ -386,8 +414,8 @@ void perf_counter_print_debug(void)
 	printk(KERN_INFO "CPU#%d: used:       %016llx\n", cpu, *(u64 *)cpuc->used);
 
 	for (idx = 0; idx < nr_counters_generic; idx++) {
-		rdmsrl(MSR_ARCH_PERFMON_EVENTSEL0 + idx, pmc_ctrl);
-		rdmsrl(MSR_ARCH_PERFMON_PERFCTR0  + idx, pmc_count);
+		rdmsrl(pmc_ops->eventsel + idx, pmc_ctrl);
+		rdmsrl(pmc_ops->perfctr  + idx, pmc_count);
 
 		prev_left = per_cpu(prev_left[idx], cpu);
 
@@ -655,15 +683,21 @@ static __read_mostly struct notifier_block perf_counter_nmi_notifier = {
 	.priority		= 1
 };
 
-void __init init_hw_perf_counters(void)
+static struct pmc_x86_ops pmc_intel_ops = {
+	.save_disable_all	= pmc_intel_save_disable_all,
+	.restore_all		= pmc_intel_restore_all,
+	.eventsel		= MSR_ARCH_PERFMON_EVENTSEL0,
+	.perfctr		= MSR_ARCH_PERFMON_PERFCTR0,
+	.event_map		= pmc_intel_event_map,
+	.max_events		= ARRAY_SIZE(intel_perfmon_event_map),
+};
+
+static struct pmc_x86_ops *pmc_intel_init(void)
 {
 	union cpuid10_eax eax;
 	unsigned int ebx;
 	unsigned int unused;
 	union cpuid10_edx edx;
-
-	if (!cpu_has(&boot_cpu_data, X86_FEATURE_ARCH_PERFMON))
-		return;
 
 	/*
 	 * Check whether the Architectural PerfMon supports
@@ -671,13 +705,34 @@ void __init init_hw_perf_counters(void)
 	 */
 	cpuid(10, &eax.full, &ebx, &unused, &edx.full);
 	if (eax.split.mask_length <= ARCH_PERFMON_BRANCH_MISSES_RETIRED)
-		return;
+		return NULL;
 
 	printk(KERN_INFO "Intel Performance Monitoring support detected.\n");
-
 	printk(KERN_INFO "... version:         %d\n", eax.split.version_id);
-	printk(KERN_INFO "... num counters:    %d\n", eax.split.num_counters);
+	printk(KERN_INFO "... bit width:       %d\n", eax.split.bit_width);
+	printk(KERN_INFO "... mask length:     %d\n", eax.split.mask_length);
+
 	nr_counters_generic = eax.split.num_counters;
+	nr_counters_fixed = edx.split.num_counters_fixed;
+	counter_value_mask = (1ULL << eax.split.bit_width) - 1;
+
+	return &pmc_intel_ops;
+}
+
+void __init init_hw_perf_counters(void)
+{
+	if (!cpu_has(&boot_cpu_data, X86_FEATURE_ARCH_PERFMON))
+		return;
+
+	switch (boot_cpu_data.x86_vendor) {
+	case X86_VENDOR_INTEL:
+		pmc_ops = pmc_intel_init();
+		break;
+	}
+	if (!pmc_ops)
+		return;
+
+	printk(KERN_INFO "... num counters:    %d\n", nr_counters_generic);
 	if (nr_counters_generic > X86_PMC_MAX_GENERIC) {
 		nr_counters_generic = X86_PMC_MAX_GENERIC;
 		WARN(1, KERN_ERR "hw perf counters %d > max(%d), clipping!",
@@ -686,13 +741,8 @@ void __init init_hw_perf_counters(void)
 	perf_counter_mask = (1 << nr_counters_generic) - 1;
 	perf_max_counters = nr_counters_generic;
 
-	printk(KERN_INFO "... bit width:       %d\n", eax.split.bit_width);
-	counter_value_mask = (1ULL << eax.split.bit_width) - 1;
 	printk(KERN_INFO "... value mask:      %016Lx\n", counter_value_mask);
 
-	printk(KERN_INFO "... mask length:     %d\n", eax.split.mask_length);
-
-	nr_counters_fixed = edx.split.num_counters_fixed;
 	if (nr_counters_fixed > X86_PMC_MAX_FIXED) {
 		nr_counters_fixed = X86_PMC_MAX_FIXED;
 		WARN(1, KERN_ERR "hw perf counters fixed %d > max(%d), clipping!",
