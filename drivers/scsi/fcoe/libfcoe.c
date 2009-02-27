@@ -531,7 +531,7 @@ int fcoe_percpu_receive_thread(void *arg)
 	struct fcoe_softc *fc;
 	struct fcoe_hdr *hp;
 
-	set_user_nice(current, 19);
+	set_user_nice(current, -20);
 
 	while (!kthread_should_stop()) {
 
