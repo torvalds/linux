@@ -402,8 +402,8 @@ struct efx_blinker {
  * @major: Major rev. ('A', 'B' ...)
  * @minor: Minor rev. (0, 1, ...)
  * @init: Initialisation function
- * @init_leds: Sets up board LEDs
- * @set_fault_led: Turns the fault LED on or off
+ * @init_leds: Sets up board LEDs. May be called repeatedly.
+ * @set_id_led: Turns the identification LED on or off
  * @blink: Starts/stops blinking
  * @monitor: Board-specific health check function
  * @fini: Cleanup function
@@ -419,9 +419,9 @@ struct efx_board {
 	/* As the LEDs are typically attached to the PHY, LEDs
 	 * have a separate init callback that happens later than
 	 * board init. */
-	int (*init_leds)(struct efx_nic *efx);
+	void (*init_leds)(struct efx_nic *efx);
+	void (*set_id_led) (struct efx_nic *efx, bool state);
 	int (*monitor) (struct efx_nic *nic);
-	void (*set_fault_led) (struct efx_nic *efx, bool state);
 	void (*blink) (struct efx_nic *efx, bool start);
 	void (*fini) (struct efx_nic *nic);
 	struct efx_blinker blinker;

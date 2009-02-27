@@ -26,7 +26,7 @@ static void blink_led_timer(unsigned long context)
 {
 	struct efx_nic *efx = (struct efx_nic *)context;
 	struct efx_blinker *bl = &efx->board_info.blinker;
-	efx->board_info.set_fault_led(efx, bl->state);
+	efx->board_info.set_id_led(efx, bl->state);
 	bl->state = !bl->state;
 	if (bl->resubmit)
 		mod_timer(&bl->timer, jiffies + BLINK_INTERVAL);
@@ -48,7 +48,7 @@ static void board_blink(struct efx_nic *efx, bool blink)
 		blinker->resubmit = false;
 		if (blinker->timer.function)
 			del_timer_sync(&blinker->timer);
-		efx->board_info.set_fault_led(efx, false);
+		efx->board_info.init_leds(efx);
 	}
 }
 
@@ -185,7 +185,7 @@ static struct i2c_board_info sfe4002_hwmon_info = {
 #define SFE4002_RX_LED    (0)	/* Green */
 #define SFE4002_TX_LED    (1)	/* Amber */
 
-static int sfe4002_init_leds(struct efx_nic *efx)
+static void sfe4002_init_leds(struct efx_nic *efx)
 {
 	/* Set the TX and RX LEDs to reflect status and activity, and the
 	 * fault LED off */
@@ -194,10 +194,9 @@ static int sfe4002_init_leds(struct efx_nic *efx)
 	xfp_set_led(efx, SFE4002_RX_LED,
 		    QUAKE_LED_RXLINK | QUAKE_LED_LINK_ACTSTAT);
 	xfp_set_led(efx, SFE4002_FAULT_LED, QUAKE_LED_OFF);
-	return 0;
 }
 
-static void sfe4002_fault_led(struct efx_nic *efx, bool state)
+static void sfe4002_set_id_led(struct efx_nic *efx, bool state)
 {
 	xfp_set_led(efx, SFE4002_FAULT_LED, state ? QUAKE_LED_ON :
 			QUAKE_LED_OFF);
@@ -221,7 +220,7 @@ static int sfe4002_init(struct efx_nic *efx)
 		return rc;
 	efx->board_info.monitor = sfe4002_check_hw;
 	efx->board_info.init_leds = sfe4002_init_leds;
-	efx->board_info.set_fault_led = sfe4002_fault_led;
+	efx->board_info.set_id_led = sfe4002_set_id_led;
 	efx->board_info.blink = board_blink;
 	efx->board_info.fini = efx_fini_lm87;
 	return 0;
