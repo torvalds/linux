@@ -74,6 +74,24 @@ static int pmc_intel_event_map(int event)
 }
 
 /*
+ * AMD Performance Monitor K7 and later.
+ */
+static const int amd_perfmon_event_map[] =
+{
+  [PERF_COUNT_CPU_CYCLES]		= 0x0076,
+  [PERF_COUNT_INSTRUCTIONS]		= 0x00c0,
+  [PERF_COUNT_CACHE_REFERENCES]		= 0x0080,
+  [PERF_COUNT_CACHE_MISSES]		= 0x0081,
+  [PERF_COUNT_BRANCH_INSTRUCTIONS]	= 0x00c4,
+  [PERF_COUNT_BRANCH_MISSES]		= 0x00c5,
+};
+
+static int pmc_amd_event_map(int event)
+{
+	return amd_perfmon_event_map[event];
+}
+
+/*
  * Propagate counter elapsed time into the generic counter.
  * Can only be executed on the CPU where the counter is active.
  * Returns the delta events processed.
@@ -151,8 +169,9 @@ static int __hw_perf_counter_init(struct perf_counter *counter)
 	 * so we install an artificial 1<<31 period regardless of
 	 * the generic counter period:
 	 */
-	if ((s64)hwc->irq_period <= 0 || hwc->irq_period > 0x7FFFFFFF)
-		hwc->irq_period = 0x7FFFFFFF;
+	if (boot_cpu_data.x86_vendor == X86_VENDOR_INTEL)
+		if ((s64)hwc->irq_period <= 0 || hwc->irq_period > 0x7FFFFFFF)
+			hwc->irq_period = 0x7FFFFFFF;
 
 	atomic64_set(&hwc->period_left, hwc->irq_period);
 
@@ -184,6 +203,22 @@ static u64 pmc_intel_save_disable_all(void)
 	return ctrl;
 }
 
+static u64 pmc_amd_save_disable_all(void)
+{
+	int idx;
+	u64 val, ctrl = 0;
+
+	for (idx = 0; idx < nr_counters_generic; idx++) {
+		rdmsrl(MSR_K7_EVNTSEL0 + idx, val);
+		if (val & ARCH_PERFMON_EVENTSEL0_ENABLE)
+			ctrl |= (1 << idx);
+		val &= ~ARCH_PERFMON_EVENTSEL0_ENABLE;
+		wrmsrl(MSR_K7_EVNTSEL0 + idx, val);
+	}
+
+	return ctrl;
+}
+
 u64 hw_perf_save_disable(void)
 {
 	if (unlikely(!perf_counters_initialized))
@@ -196,6 +231,20 @@ EXPORT_SYMBOL_GPL(hw_perf_save_disable);
 static void pmc_intel_restore_all(u64 ctrl)
 {
 	wrmsrl(MSR_CORE_PERF_GLOBAL_CTRL, ctrl);
+}
+
+static void pmc_amd_restore_all(u64 ctrl)
+{
+	u64 val;
+	int idx;
+
+	for (idx = 0; idx < nr_counters_generic; idx++) {
+		if (ctrl & (1 << idx)) {
+			rdmsrl(MSR_K7_EVNTSEL0 + idx, val);
+			val |= ARCH_PERFMON_EVENTSEL0_ENABLE;
+			wrmsrl(MSR_K7_EVNTSEL0 + idx, val);
+		}
+	}
 }
 
 void hw_perf_restore(u64 ctrl)
@@ -314,6 +363,9 @@ fixed_mode_idx(struct perf_counter *counter, struct hw_perf_counter *hwc)
 {
 	unsigned int event;
 
+	if (boot_cpu_data.x86_vendor == X86_VENDOR_AMD)
+		return -1;
+
 	if (unlikely(hwc->nmi))
 		return -1;
 
@@ -401,6 +453,7 @@ void perf_counter_print_debug(void)
 	cpu = smp_processor_id();
 	cpuc = &per_cpu(cpu_hw_counters, cpu);
 
+	if (boot_cpu_data.x86_vendor == X86_VENDOR_INTEL) {
 	rdmsrl(MSR_CORE_PERF_GLOBAL_CTRL, ctrl);
 	rdmsrl(MSR_CORE_PERF_GLOBAL_STATUS, status);
 	rdmsrl(MSR_CORE_PERF_GLOBAL_OVF_CTRL, overflow);
@@ -411,6 +464,7 @@ void perf_counter_print_debug(void)
 	printk(KERN_INFO "CPU#%d: status:     %016llx\n", cpu, status);
 	printk(KERN_INFO "CPU#%d: overflow:   %016llx\n", cpu, overflow);
 	printk(KERN_INFO "CPU#%d: fixed:      %016llx\n", cpu, fixed);
+	}
 	printk(KERN_INFO "CPU#%d: used:       %016llx\n", cpu, *(u64 *)cpuc->used);
 
 	for (idx = 0; idx < nr_counters_generic; idx++) {
@@ -588,6 +642,9 @@ void perf_counter_unthrottle(void)
 	if (!cpu_has(&boot_cpu_data, X86_FEATURE_ARCH_PERFMON))
 		return;
 
+	if (boot_cpu_data.x86_vendor == X86_VENDOR_AMD)
+		return;
+
 	if (unlikely(!perf_counters_initialized))
 		return;
 
@@ -692,6 +749,15 @@ static struct pmc_x86_ops pmc_intel_ops = {
 	.max_events		= ARRAY_SIZE(intel_perfmon_event_map),
 };
 
+static struct pmc_x86_ops pmc_amd_ops = {
+	.save_disable_all	= pmc_amd_save_disable_all,
+	.restore_all		= pmc_amd_restore_all,
+	.eventsel		= MSR_K7_EVNTSEL0,
+	.perfctr		= MSR_K7_PERFCTR0,
+	.event_map		= pmc_amd_event_map,
+	.max_events		= ARRAY_SIZE(amd_perfmon_event_map),
+};
+
 static struct pmc_x86_ops *pmc_intel_init(void)
 {
 	union cpuid10_eax eax;
@@ -719,6 +785,16 @@ static struct pmc_x86_ops *pmc_intel_init(void)
 	return &pmc_intel_ops;
 }
 
+static struct pmc_x86_ops *pmc_amd_init(void)
+{
+	nr_counters_generic = 4;
+	nr_counters_fixed = 0;
+
+	printk(KERN_INFO "AMD Performance Monitoring support detected.\n");
+
+	return &pmc_amd_ops;
+}
+
 void __init init_hw_perf_counters(void)
 {
 	if (!cpu_has(&boot_cpu_data, X86_FEATURE_ARCH_PERFMON))
@@ -727,6 +803,9 @@ void __init init_hw_perf_counters(void)
 	switch (boot_cpu_data.x86_vendor) {
 	case X86_VENDOR_INTEL:
 		pmc_ops = pmc_intel_init();
+		break;
+	case X86_VENDOR_AMD:
+		pmc_ops = pmc_amd_init();
 		break;
 	}
 	if (!pmc_ops)
