@@ -489,7 +489,7 @@ static u16 fc_em_alloc_xid(struct fc_exch_mgr *mp, const struct fc_frame *fp)
 	struct fc_exch *ep = NULL;
 
 	if (mp->max_read) {
-		if (fc_frame_is_read(fp)) {
+		if (fc_fcp_is_read(fr_fsp(fp))) {
 			min = mp->min_xid;
 			max = mp->max_read;
 			plast = &mp->last_read;
@@ -1840,6 +1840,8 @@ struct fc_seq *fc_exch_seq_send(struct fc_lport *lp,
 	ep->f_ctl = ntoh24(fh->fh_f_ctl);
 	fc_exch_setup_hdr(ep, fp, ep->f_ctl);
 	sp->cnt++;
+
+	fc_fcp_ddp_setup(fr_fsp(fp), ep->xid);
 
 	if (unlikely(lp->tt.frame_send(lp, fp)))
 		goto err;
