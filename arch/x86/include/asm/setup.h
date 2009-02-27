@@ -100,6 +100,10 @@ extern struct boot_params boot_params;
  */
 #define LOWMEMSIZE()	(0x9f000)
 
+/* exceedingly early brk-like allocator */
+extern unsigned long _brk_end;
+void *extend_brk(size_t size, size_t align);
+
 #ifdef __i386__
 
 void __init i386_start_kernel(void);

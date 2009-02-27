@@ -189,7 +189,14 @@ SECTIONS
 	*(.bss)
 	. = ALIGN(4);
 	__bss_stop = .;
+
+	. = ALIGN(PAGE_SIZE);
+	__brk_base = . ;
+	. += 1024 * 1024 ;
+	__brk_limit = . ;
+
   	_end = . ;
+
 	/* This is where the kernel creates the early boot page tables */
 	. = ALIGN(PAGE_SIZE);
 	pg0 = . ;

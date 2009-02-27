@@ -247,6 +247,11 @@ SECTIONS
 	*(.bss.page_aligned)
 	*(.bss)
 	__bss_stop = .;
+
+	. = ALIGN(PAGE_SIZE);
+	__brk_base = . ;
+	. += 1024 * 1024 ;
+	__brk_limit = . ;
   }
 
   _end = . ;
