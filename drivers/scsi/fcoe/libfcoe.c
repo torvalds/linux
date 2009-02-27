@@ -460,7 +460,7 @@ int fcoe_xmit(struct fc_lport *lp, struct fc_frame *fp)
 	skb_reset_mac_header(skb);
 	skb_reset_network_header(skb);
 	skb->mac_len = elen;
-	skb->protocol = htons(ETH_P_802_3);
+	skb->protocol = htons(ETH_P_FCOE);
 	skb->dev = fc->real_dev;
 
 	/* fill up mac and fcoe headers */
