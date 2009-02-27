@@ -1584,9 +1584,9 @@ sub process {
 		}
 # TEST: allow direct testing of the attribute matcher.
 		if ($dbg_attr) {
-			if ($line =~ /^.\s*$Attribute\s*$/) {
+			if ($line =~ /^.\s*$Modifier\s*$/) {
 				ERROR("TEST: is attr\n" . $herecurr);
-			} elsif ($dbg_attr > 1 && $line =~ /^.+($Attribute)/) {
+			} elsif ($dbg_attr > 1 && $line =~ /^.+($Modifier)/) {
 				ERROR("TEST: is not attr ($1 is)\n". $herecurr);
 			}
 			next;
