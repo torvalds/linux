@@ -2268,7 +2268,7 @@ static int at76_init_new_device(struct at76_priv *priv,
 
 	printk(KERN_INFO "%s: USB %s, MAC %s, firmware %d.%d.%d-%d\n",
 	       wiphy_name(priv->hw->wiphy),
-	       interface->dev.bus_id, mac2str(priv->mac_addr),
+	       dev_name(&interface->dev), mac2str(priv->mac_addr),
 	       priv->fw_version.major, priv->fw_version.minor,
 	       priv->fw_version.patch, priv->fw_version.build);
 	printk(KERN_INFO "%s: regulatory domain 0x%02x: %s\n",
