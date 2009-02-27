@@ -1240,7 +1240,8 @@ sub process {
 			$realfile =~ s@^([^/]*)/@@;
 
 			$p1_prefix = $1;
-			if ($tree && $p1_prefix ne '' && -e "$root/$p1_prefix") {
+			if (!$file && $tree && $p1_prefix ne '' &&
+			    -e "$root/$p1_prefix") {
 				WARN("patch prefix '$p1_prefix' exists, appears to be a -p0 patch\n");
 			}
 
