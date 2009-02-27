@@ -140,9 +140,9 @@ struct ixgbe_ring {
 	int cpu;
 #endif
 	struct ixgbe_queue_stats stats;
-	u16 v_idx; /* maps directly to the index for this ring in the hardware
-	           * vector array, can also be used for finding the bit in EICR
-	           * and friends that represents the vector for this ring */
+	u64 v_idx; /* maps directly to the index for this ring in the hardware
+	            * vector array, can also be used for finding the bit in EICR
+	            * and friends that represents the vector for this ring */
 
 
 	u16 work_limit;                /* max work per interrupt */
@@ -166,8 +166,8 @@ struct ixgbe_ring_feature {
 	int mask;
 };
 
-#define MAX_RX_QUEUES 64
-#define MAX_TX_QUEUES 32
+#define MAX_RX_QUEUES 128
+#define MAX_TX_QUEUES 128
 
 #define MAX_RX_PACKET_BUFFERS ((adapter->flags & IXGBE_FLAG_DCB_ENABLED) \
                               ? 8 : 1)
@@ -211,11 +211,13 @@ struct ixgbe_q_vector {
 #define OTHER_VECTOR 1
 #define NON_Q_VECTORS (OTHER_VECTOR)
 
+#define MAX_MSIX_VECTORS_82599 64
+#define MAX_MSIX_Q_VECTORS_82599 64
 #define MAX_MSIX_VECTORS_82598 18
 #define MAX_MSIX_Q_VECTORS_82598 16
 
-#define MAX_MSIX_Q_VECTORS MAX_MSIX_Q_VECTORS_82598
-#define MAX_MSIX_COUNT MAX_MSIX_VECTORS_82598
+#define MAX_MSIX_Q_VECTORS MAX_MSIX_Q_VECTORS_82599
+#define MAX_MSIX_COUNT MAX_MSIX_VECTORS_82599
 
 #define MIN_MSIX_Q_VECTORS 2
 #define MIN_MSIX_COUNT (MIN_MSIX_Q_VECTORS + NON_Q_VECTORS)
@@ -227,7 +229,7 @@ struct ixgbe_adapter {
 	u16 bd_number;
 	struct work_struct reset_task;
 	struct ixgbe_q_vector q_vector[MAX_MSIX_Q_VECTORS];
-	char name[MAX_MSIX_COUNT][IFNAMSIZ + 5];
+	char name[MAX_MSIX_COUNT][IFNAMSIZ + 9];
 	struct ixgbe_dcb_config dcb_cfg;
 	struct ixgbe_dcb_config temp_dcb_cfg;
 	u8 dcb_set_bitmap;
@@ -252,6 +254,7 @@ struct ixgbe_adapter {
 	struct ixgbe_ring *rx_ring;	/* One per active queue */
 	int num_rx_queues;
 	u64 hw_csum_rx_error;
+	u64 hw_rx_no_dma_resources;
 	u64 hw_csum_rx_good;
 	u64 non_eop_descs;
 	int num_msix_vectors;
@@ -280,6 +283,7 @@ struct ixgbe_adapter {
 #define IXGBE_FLAG_DCA_CAPABLE                  (u32)(1 << 11)
 #define IXGBE_FLAG_IMIR_ENABLED                 (u32)(1 << 12)
 #define IXGBE_FLAG_MQ_CAPABLE                   (u32)(1 << 13)
+#define IXGBE_FLAG_DCB_ENABLED                  (u32)(1 << 14)
 #define IXGBE_FLAG_RSS_ENABLED                  (u32)(1 << 16)
 #define IXGBE_FLAG_RSS_CAPABLE                  (u32)(1 << 17)
 #define IXGBE_FLAG_VMDQ_CAPABLE                 (u32)(1 << 18)
@@ -287,7 +291,8 @@ struct ixgbe_adapter {
 #define IXGBE_FLAG_FAN_FAIL_CAPABLE             (u32)(1 << 20)
 #define IXGBE_FLAG_NEED_LINK_UPDATE             (u32)(1 << 22)
 #define IXGBE_FLAG_IN_WATCHDOG_TASK             (u32)(1 << 23)
-#define IXGBE_FLAG_DCB_ENABLED                  (u32)(1 << 24)
+#define IXGBE_FLAG_IN_SFP_LINK_TASK             (u32)(1 << 24)
+#define IXGBE_FLAG_IN_SFP_MOD_TASK              (u32)(1 << 25)
 
 /* default to trying for four seconds */
 #define IXGBE_TRY_LINK_TIMEOUT (4 * HZ)
@@ -317,7 +322,9 @@ struct ixgbe_adapter {
 	struct work_struct watchdog_task;
 	struct work_struct sfp_task;
 	struct timer_list sfp_timer;
-
+	struct work_struct multispeed_fiber_task;
+	struct work_struct sfp_config_module_task;
+	u32 wol;
 	u16 eeprom_version;
 };
 
@@ -330,9 +337,11 @@ enum ixbge_state_t {
 
 enum ixgbe_boards {
 	board_82598,
+	board_82599,
 };
 
 extern struct ixgbe_info ixgbe_82598_info;
+extern struct ixgbe_info ixgbe_82599_info;
 #ifdef CONFIG_IXGBE_DCB
 extern struct dcbnl_rtnl_ops dcbnl_ops;
 extern int ixgbe_copy_dcb_cfg(struct ixgbe_dcb_config *src_dcb_cfg,

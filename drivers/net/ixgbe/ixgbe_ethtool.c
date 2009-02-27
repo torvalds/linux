@@ -89,6 +89,7 @@ static struct ixgbe_stats ixgbe_gstrings_stats[] = {
 	{"rx_header_split", IXGBE_STAT(rx_hdr_split)},
 	{"alloc_rx_page_failed", IXGBE_STAT(alloc_rx_page_failed)},
 	{"alloc_rx_buff_failed", IXGBE_STAT(alloc_rx_buff_failed)},
+	{"rx_no_dma_resources", IXGBE_STAT(hw_rx_no_dma_resources)},
 };
 
 #define IXGBE_QUEUE_STATS_LEN \
