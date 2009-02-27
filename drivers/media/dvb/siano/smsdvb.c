@@ -50,6 +50,10 @@ struct smsdvb_client_t {
 static struct list_head g_smsdvb_clients;
 static struct mutex g_smsdvb_clientslock;
 
+static int sms_dbg;
+module_param_named(debug, sms_dbg, int, 0644);
+MODULE_PARM_DESC(debug, "set debug level (info=1, adv=2 (or-able))");
+
 static int smsdvb_onresponse(void *context, struct smscore_buffer_t *cb)
 {
 	struct smsdvb_client_t *client = (struct smsdvb_client_t *) context;
