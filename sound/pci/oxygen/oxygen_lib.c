@@ -566,7 +566,7 @@ int oxygen_pci_probe(struct pci_dev *pci, int index, char *id,
 		goto err_pci_regions;
 
 	if (chip->model.model_data_size) {
-		chip->model_data = kmalloc(chip->model.model_data_size,
+		chip->model_data = kzalloc(chip->model.model_data_size,
 					   GFP_KERNEL);
 		if (!chip->model_data) {
 			err = -ENOMEM;
