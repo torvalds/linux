@@ -1833,7 +1833,7 @@ jme_tx_vlan(struct sk_buff *skb, __le16 *vlan, u8 *flags)
 }
 
 static int
-jme_fill_first_tx_desc(struct jme_adapter *jme, struct sk_buff *skb, int idx)
+jme_fill_tx_desc(struct jme_adapter *jme, struct sk_buff *skb, int idx)
 {
 	struct jme_ring *txring = jme->txring;
 	struct txdesc *txdesc;
@@ -1863,6 +1863,7 @@ jme_fill_first_tx_desc(struct jme_adapter *jme, struct sk_buff *skb, int idx)
 	if (jme_tx_tso(skb, &txdesc->desc1.mss, &flags))
 		jme_tx_csum(jme, skb, &flags);
 	jme_tx_vlan(skb, &txdesc->desc1.vlan, &flags);
+	jme_map_tx_skb(jme, skb, idx);
 	txdesc->desc1.flags = flags;
 	/*
 	 * Set tx buffer info after telling NIC to send
@@ -1932,8 +1933,7 @@ jme_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 		return NETDEV_TX_BUSY;
 	}
 
-	jme_map_tx_skb(jme, skb, idx);
-	jme_fill_first_tx_desc(jme, skb, idx);
+	jme_fill_tx_desc(jme, skb, idx);
 
 	jwrite32(jme, JME_TXCS, jme->reg_txcs |
 				TXCS_SELECT_QUEUE0 |
