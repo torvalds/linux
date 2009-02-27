@@ -679,12 +679,10 @@ static int sft9001_run_tests(struct efx_nic *efx, int *results, unsigned flags)
 {
 	struct ethtool_cmd ecmd;
 	int phy_id = efx->mii.phy_id;
-	int rc = 0, rc2, i, res_reg;
+	int rc = 0, rc2, i, ctrl_reg, res_reg;
 
-	if (!(flags & ETH_TEST_FL_OFFLINE))
-		return 0;
-
-	efx->phy_op->get_settings(efx, &ecmd);
+	if (flags & ETH_TEST_FL_OFFLINE)
+		efx->phy_op->get_settings(efx, &ecmd);
 
 	/* Initialise cable diagnostic results to unknown failure */
 	for (i = 1; i < 9; ++i)
@@ -692,18 +690,22 @@ static int sft9001_run_tests(struct efx_nic *efx, int *results, unsigned flags)
 
 	/* Run cable diagnostics; wait up to 5 seconds for them to complete.
 	 * A cable fault is not a self-test failure, but a timeout is. */
+	ctrl_reg = ((1 << CDIAG_CTRL_IMMED_LBN) |
+		    (CDIAG_CTRL_LEN_METRES << CDIAG_CTRL_LEN_UNIT_LBN));
+	if (flags & ETH_TEST_FL_OFFLINE) {
+		/* Break the link in order to run full diagnostics.  We
+		 * must reset the PHY to resume normal service. */
+		ctrl_reg |= (1 << CDIAG_CTRL_BRK_LINK_LBN);
+	}
 	mdio_clause45_write(efx, phy_id, MDIO_MMD_PMAPMD,
-			    PMA_PMD_CDIAG_CTRL_REG,
-			    (1 << CDIAG_CTRL_IMMED_LBN) |
-			    (1 << CDIAG_CTRL_BRK_LINK_LBN) |
-			    (CDIAG_CTRL_LEN_METRES << CDIAG_CTRL_LEN_UNIT_LBN));
+			    PMA_PMD_CDIAG_CTRL_REG, ctrl_reg);
 	i = 0;
 	while (mdio_clause45_read(efx, phy_id, MDIO_MMD_PMAPMD,
 				  PMA_PMD_CDIAG_CTRL_REG) &
 	       (1 << CDIAG_CTRL_IN_PROG_LBN)) {
 		if (++i == 50) {
 			rc = -ETIMEDOUT;
-			goto reset;
+			goto out;
 		}
 		msleep(100);
 	}
@@ -728,17 +730,18 @@ static int sft9001_run_tests(struct efx_nic *efx, int *results, unsigned flags)
 			results[5 + i] = len_reg;
 	}
 
-	/* We must reset to exit cable diagnostic mode.  The BIST will
-	 * also run when we do this. */
-reset:
-	rc2 = tenxpress_special_reset(efx);
-	results[0] = rc2 ? -1 : 1;
-	if (!rc)
-		rc = rc2;
+out:
+	if (flags & ETH_TEST_FL_OFFLINE) {
+		/* Reset, running the BIST and then resuming normal service. */
+		rc2 = tenxpress_special_reset(efx);
+		results[0] = rc2 ? -1 : 1;
+		if (!rc)
+			rc = rc2;
 
-	rc2 = efx->phy_op->set_settings(efx, &ecmd);
-	if (!rc)
-		rc = rc2;
+		rc2 = efx->phy_op->set_settings(efx, &ecmd);
+		if (!rc)
+			rc = rc2;
+	}
 
 	return rc;
 }
