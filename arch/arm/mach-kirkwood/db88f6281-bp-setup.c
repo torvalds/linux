@@ -11,16 +11,12 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
-#include <linux/pci.h>
-#include <linux/irq.h>
 #include <linux/mtd/nand.h>
 #include <linux/mtd/partitions.h>
-#include <linux/timer.h>
 #include <linux/ata_platform.h>
 #include <linux/mv643xx_eth.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
-#include <asm/mach/pci.h>
 #include <mach/kirkwood.h>
 #include <plat/orion_nand.h>
 #include <plat/mvsdio.h>
