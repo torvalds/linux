@@ -32,8 +32,6 @@
 #include <scsi/libfc.h>
 #include <scsi/fc_encode.h>
 
-#define	  FC_DEF_R_A_TOV      (10 * 1000) /* resource allocation timeout */
-
 /*
  * fc_exch_debug can be set in debugger or at compile time to get more logs.
  */

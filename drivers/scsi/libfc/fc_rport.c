@@ -81,6 +81,7 @@ static void fc_rport_recv_logo_req(struct fc_rport *,
 				   struct fc_seq *, struct fc_frame *);
 static void fc_rport_timeout(struct work_struct *);
 static void fc_rport_error(struct fc_rport *, struct fc_frame *);
+static void fc_rport_error_retry(struct fc_rport *, struct fc_frame *);
 static void fc_rport_work(struct work_struct *);
 
 static const char *fc_rport_state_names[] = {
@@ -410,13 +411,9 @@ static void fc_rport_timeout(struct work_struct *work)
 }
 
 /**
- * fc_rport_error - Handler for any errors
+ * fc_rport_error - Error handler, called once retries have been exhausted
  * @rport: The fc_rport object
  * @fp: The frame pointer
- *
- * If the error was caused by a resource allocation failure
- * then wait for half a second and retry, otherwise retry
- * immediately.
  *
  * Locking Note: The rport lock is expected to be held before
  * calling this routine
@@ -424,41 +421,61 @@ static void fc_rport_timeout(struct work_struct *work)
 static void fc_rport_error(struct fc_rport *rport, struct fc_frame *fp)
 {
 	struct fc_rport_libfc_priv *rdata = rport->dd_data;
-	unsigned long delay = 0;
 
 	FC_DEBUG_RPORT("Error %ld in state %s, retries %d\n",
 		       PTR_ERR(fp), fc_rport_state(rport), rdata->retries);
 
-	if (!fp || PTR_ERR(fp) == -FC_EX_TIMEOUT) {
-		/*
-		 * Memory allocation failure, or the exchange timed out.
-		 *  Retry after delay
-		 */
-		if (rdata->retries < rdata->local_port->max_retry_count) {
-			rdata->retries++;
-			if (!fp)
-				delay = msecs_to_jiffies(500);
-			get_device(&rport->dev);
-			schedule_delayed_work(&rdata->retry_work, delay);
-		} else {
-			switch (rdata->rp_state) {
-			case RPORT_ST_PLOGI:
-			case RPORT_ST_PRLI:
-			case RPORT_ST_LOGO:
-				rdata->event = RPORT_EV_FAILED;
-				queue_work(rport_event_queue,
-					   &rdata->event_work);
-				break;
-			case RPORT_ST_RTV:
-				fc_rport_enter_ready(rport);
-				break;
-			case RPORT_ST_NONE:
-			case RPORT_ST_READY:
-			case RPORT_ST_INIT:
-				break;
-			}
-		}
+	switch (rdata->rp_state) {
+	case RPORT_ST_PLOGI:
+	case RPORT_ST_PRLI:
+	case RPORT_ST_LOGO:
+		rdata->event = RPORT_EV_FAILED;
+		queue_work(rport_event_queue,
+			   &rdata->event_work);
+		break;
+	case RPORT_ST_RTV:
+		fc_rport_enter_ready(rport);
+		break;
+	case RPORT_ST_NONE:
+	case RPORT_ST_READY:
+	case RPORT_ST_INIT:
+		break;
 	}
+}
+
+/**
+ * fc_rport_error_retry - Error handler when retries are desired
+ * @rport: The fc_rport object
+ * @fp: The frame pointer
+ *
+ * If the error was an exchange timeout retry immediately,
+ * otherwise wait for E_D_TOV.
+ *
+ * Locking Note: The rport lock is expected to be held before
+ * calling this routine
+ */
+static void fc_rport_error_retry(struct fc_rport *rport, struct fc_frame *fp)
+{
+	struct fc_rport_libfc_priv *rdata = rport->dd_data;
+	unsigned long delay = FC_DEF_E_D_TOV;
+
+	/* make sure this isn't an FC_EX_CLOSED error, never retry those */
+	if (PTR_ERR(fp) == -FC_EX_CLOSED)
+		return fc_rport_error(rport, fp);
+
+	if (rdata->retries < rdata->local_port->max_retry_count) {
+		FC_DEBUG_RPORT("Error %ld in state %s, retrying\n",
+			       PTR_ERR(fp), fc_rport_state(rport));
+		rdata->retries++;
+		/* no additional delay on exchange timeouts */
+		if (PTR_ERR(fp) == -FC_EX_TIMEOUT)
+			delay = 0;
+		get_device(&rport->dev);
+		schedule_delayed_work(&rdata->retry_work, delay);
+		return;
+	}
+
+	return fc_rport_error(rport, fp);
 }
 
 /**
@@ -495,7 +512,7 @@ static void fc_rport_plogi_resp(struct fc_seq *sp, struct fc_frame *fp,
 	}
 
 	if (IS_ERR(fp)) {
-		fc_rport_error(rport, fp);
+		fc_rport_error_retry(rport, fp);
 		goto err;
 	}
 
@@ -527,7 +544,7 @@ static void fc_rport_plogi_resp(struct fc_seq *sp, struct fc_frame *fp,
 		else
 			fc_rport_enter_prli(rport);
 	} else
-		fc_rport_error(rport, fp);
+		fc_rport_error_retry(rport, fp);
 
 out:
 	fc_frame_free(fp);
@@ -557,14 +574,14 @@ static void fc_rport_enter_plogi(struct fc_rport *rport)
 	rport->maxframe_size = FC_MIN_MAX_PAYLOAD;
 	fp = fc_frame_alloc(lport, sizeof(struct fc_els_flogi));
 	if (!fp) {
-		fc_rport_error(rport, fp);
+		fc_rport_error_retry(rport, fp);
 		return;
 	}
 	rdata->e_d_tov = lport->e_d_tov;
 
 	if (!lport->tt.elsct_send(lport, rport, fp, ELS_PLOGI,
 				  fc_rport_plogi_resp, rport, lport->e_d_tov))
-		fc_rport_error(rport, fp);
+		fc_rport_error_retry(rport, fp);
 	else
 		get_device(&rport->dev);
 }
@@ -604,7 +621,7 @@ static void fc_rport_prli_resp(struct fc_seq *sp, struct fc_frame *fp,
 	}
 
 	if (IS_ERR(fp)) {
-		fc_rport_error(rport, fp);
+		fc_rport_error_retry(rport, fp);
 		goto err;
 	}
 
@@ -662,7 +679,7 @@ static void fc_rport_logo_resp(struct fc_seq *sp, struct fc_frame *fp,
 		       rport->port_id);
 
 	if (IS_ERR(fp)) {
-		fc_rport_error(rport, fp);
+		fc_rport_error_retry(rport, fp);
 		goto err;
 	}
 
@@ -712,13 +729,13 @@ static void fc_rport_enter_prli(struct fc_rport *rport)
 
 	fp = fc_frame_alloc(lport, sizeof(*pp));
 	if (!fp) {
-		fc_rport_error(rport, fp);
+		fc_rport_error_retry(rport, fp);
 		return;
 	}
 
 	if (!lport->tt.elsct_send(lport, rport, fp, ELS_PRLI,
 				  fc_rport_prli_resp, rport, lport->e_d_tov))
-		fc_rport_error(rport, fp);
+		fc_rport_error_retry(rport, fp);
 	else
 		get_device(&rport->dev);
 }
@@ -809,13 +826,13 @@ static void fc_rport_enter_rtv(struct fc_rport *rport)
 
 	fp = fc_frame_alloc(lport, sizeof(struct fc_els_rtv));
 	if (!fp) {
-		fc_rport_error(rport, fp);
+		fc_rport_error_retry(rport, fp);
 		return;
 	}
 
 	if (!lport->tt.elsct_send(lport, rport, fp, ELS_RTV,
 				     fc_rport_rtv_resp, rport, lport->e_d_tov))
-		fc_rport_error(rport, fp);
+		fc_rport_error_retry(rport, fp);
 	else
 		get_device(&rport->dev);
 }
@@ -840,13 +857,13 @@ static void fc_rport_enter_logo(struct fc_rport *rport)
 
 	fp = fc_frame_alloc(lport, sizeof(struct fc_els_logo));
 	if (!fp) {
-		fc_rport_error(rport, fp);
+		fc_rport_error_retry(rport, fp);
 		return;
 	}
 
 	if (!lport->tt.elsct_send(lport, rport, fp, ELS_LOGO,
 				  fc_rport_logo_resp, rport, lport->e_d_tov))
-		fc_rport_error(rport, fp);
+		fc_rport_error_retry(rport, fp);
 	else
 		get_device(&rport->dev);
 }
