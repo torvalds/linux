@@ -469,7 +469,7 @@ static void ixgbe_get_regs(struct net_device *netdev,
 	regs_buff[825] = IXGBE_READ_REG(hw, IXGBE_IP6AT);
 	regs_buff[826] = IXGBE_READ_REG(hw, IXGBE_WUPL);
 	regs_buff[827] = IXGBE_READ_REG(hw, IXGBE_WUPM);
-	regs_buff[828] = IXGBE_READ_REG(hw, IXGBE_FHFT);
+	regs_buff[828] = IXGBE_READ_REG(hw, IXGBE_FHFT(0));
 
 	regs_buff[829] = IXGBE_READ_REG(hw, IXGBE_RMCS);
 	regs_buff[830] = IXGBE_READ_REG(hw, IXGBE_DPMCS);

@@ -1046,9 +1046,9 @@ out:
  *
  *  Determines physical layer capabilities of the current configuration.
  **/
-static s32 ixgbe_get_supported_physical_layer_82598(struct ixgbe_hw *hw)
+static u32 ixgbe_get_supported_physical_layer_82598(struct ixgbe_hw *hw)
 {
-	s32 physical_layer = IXGBE_PHYSICAL_LAYER_UNKNOWN;
+	u32 physical_layer = IXGBE_PHYSICAL_LAYER_UNKNOWN;
 
 	switch (hw->device_id) {
 	case IXGBE_DEV_ID_82598:
@@ -1111,8 +1111,11 @@ static struct ixgbe_mac_operations mac_ops_82598 = {
 	.clear_hw_cntrs		= &ixgbe_clear_hw_cntrs_generic,
 	.get_media_type		= &ixgbe_get_media_type_82598,
 	.get_supported_physical_layer = &ixgbe_get_supported_physical_layer_82598,
+	.enable_rx_dma          = &ixgbe_enable_rx_dma_generic,
 	.get_mac_addr		= &ixgbe_get_mac_addr_generic,
 	.stop_adapter		= &ixgbe_stop_adapter_generic,
+	.get_bus_info           = &ixgbe_get_bus_info_generic,
+	.set_lan_id             = &ixgbe_set_lan_id_multi_port_pcie,
 	.read_analog_reg8	= &ixgbe_read_analog_reg8_82598,
 	.write_analog_reg8	= &ixgbe_write_analog_reg8_82598,
 	.setup_link		= &ixgbe_setup_mac_link_82598,
