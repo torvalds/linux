@@ -246,7 +246,7 @@ static void fc_disc_recv_rscn_req(struct fc_seq *sp, struct fc_frame *fp,
 			list_del(&dp->peers);
 			rport = lport->tt.rport_lookup(lport, dp->ids.port_id);
 			if (rport) {
-				rdata = RPORT_TO_PRIV(rport);
+				rdata = rport->dd_data;
 				list_del(&rdata->peers);
 				lport->tt.rport_logoff(rport);
 			}
@@ -453,7 +453,7 @@ static int fc_disc_new_target(struct fc_disc *disc,
 static void fc_disc_del_target(struct fc_disc *disc, struct fc_rport *rport)
 {
 	struct fc_lport *lport = disc->lport;
-	struct fc_rport_libfc_priv *rdata = RPORT_TO_PRIV(rport);
+	struct fc_rport_libfc_priv *rdata = rport->dd_data;
 	list_del(&rdata->peers);
 	lport->tt.rport_logoff(rport);
 }
