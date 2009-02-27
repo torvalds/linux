@@ -11,6 +11,8 @@
 #include <linux/bitops.h>
 #include <linux/sched.h>
 
+#include <asm/ftrace.h>
+
 #ifdef CONFIG_FUNCTION_TRACER
 
 extern int ftrace_enabled;
@@ -103,8 +105,6 @@ struct ftrace_func_command {
 };
 
 #ifdef CONFIG_DYNAMIC_FTRACE
-/* asm/ftrace.h must be defined for archs supporting dynamic ftrace */
-#include <asm/ftrace.h>
 
 int ftrace_arch_code_modify_prepare(void);
 int ftrace_arch_code_modify_post_process(void);
@@ -282,24 +282,25 @@ static inline void __ftrace_enabled_restore(int enabled)
 #endif
 }
 
-#ifdef CONFIG_FRAME_POINTER
-/* TODO: need to fix this for ARM */
-# define CALLER_ADDR0 ((unsigned long)__builtin_return_address(0))
-# define CALLER_ADDR1 ((unsigned long)__builtin_return_address(1))
-# define CALLER_ADDR2 ((unsigned long)__builtin_return_address(2))
-# define CALLER_ADDR3 ((unsigned long)__builtin_return_address(3))
-# define CALLER_ADDR4 ((unsigned long)__builtin_return_address(4))
-# define CALLER_ADDR5 ((unsigned long)__builtin_return_address(5))
-# define CALLER_ADDR6 ((unsigned long)__builtin_return_address(6))
-#else
-# define CALLER_ADDR0 ((unsigned long)__builtin_return_address(0))
-# define CALLER_ADDR1 0UL
-# define CALLER_ADDR2 0UL
-# define CALLER_ADDR3 0UL
-# define CALLER_ADDR4 0UL
-# define CALLER_ADDR5 0UL
-# define CALLER_ADDR6 0UL
-#endif
+#ifndef HAVE_ARCH_CALLER_ADDR
+# ifdef CONFIG_FRAME_POINTER
+#  define CALLER_ADDR0 ((unsigned long)__builtin_return_address(0))
+#  define CALLER_ADDR1 ((unsigned long)__builtin_return_address(1))
+#  define CALLER_ADDR2 ((unsigned long)__builtin_return_address(2))
+#  define CALLER_ADDR3 ((unsigned long)__builtin_return_address(3))
+#  define CALLER_ADDR4 ((unsigned long)__builtin_return_address(4))
+#  define CALLER_ADDR5 ((unsigned long)__builtin_return_address(5))
+#  define CALLER_ADDR6 ((unsigned long)__builtin_return_address(6))
+# else
+#  define CALLER_ADDR0 ((unsigned long)__builtin_return_address(0))
+#  define CALLER_ADDR1 0UL
+#  define CALLER_ADDR2 0UL
+#  define CALLER_ADDR3 0UL
+#  define CALLER_ADDR4 0UL
+#  define CALLER_ADDR5 0UL
+#  define CALLER_ADDR6 0UL
+# endif
+#endif /* ifndef HAVE_ARCH_CALLER_ADDR */
 
 #ifdef CONFIG_IRQSOFF_TRACER
   extern void time_hardirqs_on(unsigned long a0, unsigned long a1);
