@@ -654,6 +654,7 @@ struct fc_lport {
 	u16			link_speed;
 	u16			link_supported_speeds;
 	u16			lro_xid;	/* max xid for fcoe lro */
+	unsigned int		lso_max;	/* max large send size */
 	struct fc_ns_fts	fcts;	        /* FC-4 type masks */
 	struct fc_els_rnid_gen	rnid_gen;	/* RNID information */
 

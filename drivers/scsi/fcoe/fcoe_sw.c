@@ -133,6 +133,13 @@ static int fcoe_sw_lport_config(struct fc_lport *lp)
 	/* lport fc_lport related configuration */
 	fc_lport_config(lp);
 
+	/* offload related configuration */
+	lp->crc_offload = 0;
+	lp->seq_offload = 0;
+	lp->lro_enabled = 0;
+	lp->lro_xid = 0;
+	lp->lso_max = 0;
+
 	return 0;
 }
 
@@ -186,7 +193,27 @@ static int fcoe_sw_netdev_config(struct fc_lport *lp, struct net_device *netdev)
 	if (fc->real_dev->features & NETIF_F_SG)
 		lp->sg_supp = 1;
 
-
+#ifdef NETIF_F_FCOE_CRC
+	if (netdev->features & NETIF_F_FCOE_CRC) {
+		lp->crc_offload = 1;
+		printk(KERN_DEBUG "fcoe:%s supports FCCRC offload\n",
+		       netdev->name);
+	}
+#endif
+#ifdef NETIF_F_FSO
+	if (netdev->features & NETIF_F_FSO) {
+		lp->seq_offload = 1;
+		lp->lso_max = netdev->gso_max_size;
+		printk(KERN_DEBUG "fcoe:%s supports LSO for max len 0x%x\n",
+		       netdev->name, lp->lso_max);
+	}
+#endif
+	if (netdev->fcoe_ddp_xid) {
+		lp->lro_enabled = 1;
+		lp->lro_xid = netdev->fcoe_ddp_xid;
+		printk(KERN_DEBUG "fcoe:%s supports LRO for max xid 0x%x\n",
+		       netdev->name, lp->lro_xid);
+	}
 	skb_queue_head_init(&fc->fcoe_pending_queue);
 	fc->fcoe_pending_queue_active = 0;
 
