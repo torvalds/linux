@@ -18,6 +18,10 @@ extern struct efx_phy_operations falcon_sft9001_phy_ops;
 
 extern void tenxpress_phy_blink(struct efx_nic *efx, bool blink);
 
+/* Wait for the PHY to boot. Return 0 on success, -EINVAL if the PHY failed
+ * to boot due to corrupt flash, or some other negative error code. */
+extern int sft9001_wait_boot(struct efx_nic *efx);
+
 /****************************************************************************
  * Exported functions from the driver for XFP optical PHYs
  */

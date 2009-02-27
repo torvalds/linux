@@ -158,14 +158,16 @@
 #define PCS_10GBASET_BLKLK_WIDTH 1
 
 /* Boot status register */
-#define PCS_BOOT_STATUS_REG	53248
-#define PCS_BOOT_FATAL_ERR_LBN	(0)
-#define PCS_BOOT_PROGRESS_LBN	(1)
-#define PCS_BOOT_PROGRESS_WIDTH	(2)
-#define PCS_BOOT_COMPLETE_LBN	(3)
-
-#define PCS_BOOT_MAX_DELAY	(100)
-#define PCS_BOOT_POLL_DELAY	(10)
+#define PCS_BOOT_STATUS_REG		53248
+#define PCS_BOOT_FATAL_ERROR_LBN	0
+#define PCS_BOOT_PROGRESS_LBN		1
+#define PCS_BOOT_PROGRESS_WIDTH		2
+#define PCS_BOOT_PROGRESS_INIT		0
+#define PCS_BOOT_PROGRESS_WAIT_MDIO	1
+#define PCS_BOOT_PROGRESS_CHECKSUM	2
+#define PCS_BOOT_PROGRESS_JUMP		3
+#define PCS_BOOT_DOWNLOAD_WAIT_LBN	3
+#define PCS_BOOT_CODE_STARTED_LBN	4
 
 /* 100M/1G PHY registers */
 #define GPHY_XCONTROL_REG	49152
@@ -230,40 +232,62 @@ static ssize_t set_phy_short_reach(struct device *dev,
 static DEVICE_ATTR(phy_short_reach, 0644, show_phy_short_reach,
 		   set_phy_short_reach);
 
-/* Check that the C166 has booted successfully */
-static int tenxpress_phy_check(struct efx_nic *efx)
+int sft9001_wait_boot(struct efx_nic *efx)
 {
-	int phy_id = efx->mii.phy_id;
-	int count = PCS_BOOT_MAX_DELAY / PCS_BOOT_POLL_DELAY;
+	unsigned long timeout = jiffies + HZ + 1;
 	int boot_stat;
 
-	/* Wait for the boot to complete (or not) */
-	while (count) {
-		boot_stat = mdio_clause45_read(efx, phy_id,
+	for (;;) {
+		boot_stat = mdio_clause45_read(efx, efx->mii.phy_id,
 					       MDIO_MMD_PCS,
 					       PCS_BOOT_STATUS_REG);
-		if (boot_stat & (1 << PCS_BOOT_COMPLETE_LBN))
-			break;
-		count--;
-		udelay(PCS_BOOT_POLL_DELAY);
-	}
+		if (boot_stat >= 0) {
+			EFX_LOG(efx, "PHY boot status = %#x\n", boot_stat);
+			switch (boot_stat &
+				((1 << PCS_BOOT_FATAL_ERROR_LBN) |
+				 (3 << PCS_BOOT_PROGRESS_LBN) |
+				 (1 << PCS_BOOT_DOWNLOAD_WAIT_LBN) |
+				 (1 << PCS_BOOT_CODE_STARTED_LBN))) {
+			case ((1 << PCS_BOOT_FATAL_ERROR_LBN) |
+			      (PCS_BOOT_PROGRESS_CHECKSUM <<
+			       PCS_BOOT_PROGRESS_LBN)):
+			case ((1 << PCS_BOOT_FATAL_ERROR_LBN) |
+			      (PCS_BOOT_PROGRESS_INIT <<
+			       PCS_BOOT_PROGRESS_LBN) |
+			      (1 << PCS_BOOT_DOWNLOAD_WAIT_LBN)):
+				return -EINVAL;
+			case ((PCS_BOOT_PROGRESS_WAIT_MDIO <<
+			       PCS_BOOT_PROGRESS_LBN) |
+			      (1 << PCS_BOOT_DOWNLOAD_WAIT_LBN)):
+				return (efx->phy_mode & PHY_MODE_SPECIAL) ?
+					0 : -EIO;
+			case ((PCS_BOOT_PROGRESS_JUMP <<
+			       PCS_BOOT_PROGRESS_LBN) |
+			      (1 << PCS_BOOT_CODE_STARTED_LBN)):
+			case ((PCS_BOOT_PROGRESS_JUMP <<
+			       PCS_BOOT_PROGRESS_LBN) |
+			      (1 << PCS_BOOT_DOWNLOAD_WAIT_LBN) |
+			      (1 << PCS_BOOT_CODE_STARTED_LBN)):
+				return (efx->phy_mode & PHY_MODE_SPECIAL) ?
+					-EIO : 0;
+			default:
+				if (boot_stat & (1 << PCS_BOOT_FATAL_ERROR_LBN))
+					return -EIO;
+				break;
+			}
+		}
 
-	if (!count) {
-		EFX_ERR(efx, "%s: PHY boot timed out. Last status "
-			"%x\n", __func__,
-			(boot_stat >> PCS_BOOT_PROGRESS_LBN) &
-			((1 << PCS_BOOT_PROGRESS_WIDTH) - 1));
-		return -ETIMEDOUT;
-	}
+		if (time_after_eq(jiffies, timeout))
+			return -ETIMEDOUT;
 
-	return 0;
+		msleep(50);
+	}
 }
 
 static int tenxpress_init(struct efx_nic *efx)
 {
 	int phy_id = efx->mii.phy_id;
 	int reg;
-	int rc;
 
 	if (efx->phy_type == PHY_TYPE_SFX7101) {
 		/* Enable 312.5 MHz clock */
@@ -286,10 +310,6 @@ static int tenxpress_init(struct efx_nic *efx)
 				       false);
 	}
 
-	rc = tenxpress_phy_check(efx);
-	if (rc < 0)
-		return rc;
-
 	/* Set the LEDs up as: Green = Link, Amber = Link/Act, Red = Off */
 	if (efx->phy_type == PHY_TYPE_SFX7101) {
 		mdio_clause45_set_flag(efx, phy_id, MDIO_MMD_PMAPMD,
@@ -300,7 +320,7 @@ static int tenxpress_init(struct efx_nic *efx)
 				    PMA_PMD_LED_OVERR_REG, PMA_PMD_LED_DEFAULT);
 	}
 
-	return rc;
+	return 0;
 }
 
 static int tenxpress_phy_init(struct efx_nic *efx)
