@@ -2240,6 +2240,7 @@ static void __devexit b44_remove_one(struct ssb_device *sdev)
 	struct net_device *dev = ssb_get_drvdata(sdev);
 
 	unregister_netdev(dev);
+	ssb_device_disable(sdev, 0);
 	ssb_bus_may_powerdown(sdev->bus);
 	free_netdev(dev);
 	ssb_pcihost_set_power_state(sdev, PCI_D3hot);
