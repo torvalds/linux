@@ -71,7 +71,7 @@
 		#address-cells = <2>;
 		#size-cells = <1>;
 		compatible = "fsl,mpc8641-localbus", "simple-bus";
-		reg = <0xf8005000 0x1000>;
+		reg = <0xfef05000 0x1000>;
 		interrupts = <19 2>;
 		interrupt-parent = <&mpic>;
 
