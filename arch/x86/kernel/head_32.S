@@ -167,7 +167,7 @@ num_subarch_entries = (. - subarch_entries) / 4
 /*
  * Initialize page tables.  This creates a PDE and a set of page
  * tables, which are located immediately beyond _end.  The variable
- * init_pg_tables_end is set up to point to the first "safe" location.
+ * _brk_end is set up to point to the first "safe" location.
  * Mappings are created both at virtual address 0 (identity mapping)
  * and PAGE_OFFSET for up to _end+sizeof(page tables)+INIT_MAP_BEYOND_END.
  *
@@ -190,8 +190,7 @@ default_entry:
 
 	xorl %ebx,%ebx				/* %ebx is kept at zero */
 
-	movl $pa(pg0), %edi
-	movl %edi, pa(init_pg_tables_start)
+	movl $pa(__brk_base), %edi
 	movl $pa(swapper_pg_pmd), %edx
 	movl $PTE_IDENT_ATTR, %eax
 10:
@@ -216,7 +215,8 @@ default_entry:
 	cmpl %ebp,%eax
 	jb 10b
 1:
-	movl %edi,pa(init_pg_tables_end)
+	addl $__PAGE_OFFSET, %edi
+	movl %edi, pa(_brk_end)
 	shrl $12, %eax
 	movl %eax, pa(max_pfn_mapped)
 
@@ -227,8 +227,7 @@ default_entry:
 
 page_pde_offset = (__PAGE_OFFSET >> 20);
 
-	movl $pa(pg0), %edi
-	movl %edi, pa(init_pg_tables_start)
+	movl $pa(__brk_base), %edi
 	movl $pa(swapper_pg_dir), %edx
 	movl $PTE_IDENT_ATTR, %eax
 10:
@@ -249,7 +248,8 @@ page_pde_offset = (__PAGE_OFFSET >> 20);
 	leal (INIT_MAP_BEYOND_END+PTE_IDENT_ATTR)(%edi),%ebp
 	cmpl %ebp,%eax
 	jb 10b
-	movl %edi,pa(init_pg_tables_end)
+	addl $__PAGE_OFFSET, %edi
+	movl %edi, pa(_brk_end)
 	shrl $12, %eax
 	movl %eax, pa(max_pfn_mapped)
 
