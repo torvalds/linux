@@ -216,12 +216,6 @@ unsigned long mmu_cr4_features = X86_CR4_PAE;
 int bootloader_type;
 
 /*
- * Early DMI memory
- */
-int dmi_alloc_index;
-char dmi_alloc_data[DMI_MAX_DATA];
-
-/*
  * Setup options
  */
 struct screen_info screen_info;
