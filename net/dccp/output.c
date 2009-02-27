@@ -276,7 +276,20 @@ void dccp_write_xmit(struct sock *sk, int block)
 			const int len = skb->len;
 
 			if (sk->sk_state == DCCP_PARTOPEN) {
-				/* See 8.1.5.  Handshake Completion */
+				const u32 cur_mps = dp->dccps_mss_cache - DCCP_FEATNEG_OVERHEAD;
+				/*
+				 * See 8.1.5 - Handshake Completion.
+				 *
+				 * For robustness we resend Confirm options until the client has
+				 * entered OPEN. During the initial feature negotiation, the MPS
+				 * is smaller than usual, reduced by the Change/Confirm options.
+				 */
+				if (!list_empty(&dp->dccps_featneg) && len > cur_mps) {
+					DCCP_WARN("Payload too large (%d) for featneg.\n", len);
+					dccp_send_ack(sk);
+					dccp_feat_list_purge(&dp->dccps_featneg);
+				}
+
 				inet_csk_schedule_ack(sk);
 				inet_csk_reset_xmit_timer(sk, ICSK_TIME_DACK,
 						  inet_csk(sk)->icsk_rto,
