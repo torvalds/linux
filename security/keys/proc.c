@@ -91,6 +91,28 @@ __initcall(key_proc_init);
  */
 #ifdef CONFIG_KEYS_DEBUG_PROC_KEYS
 
+static struct rb_node *__key_serial_next(struct rb_node *n)
+{
+	while (n) {
+		struct key *key = rb_entry(n, struct key, serial_node);
+		if (key->user->user_ns == current_user_ns())
+			break;
+		n = rb_next(n);
+	}
+	return n;
+}
+
+static struct rb_node *key_serial_next(struct rb_node *n)
+{
+	return __key_serial_next(rb_next(n));
+}
+
+static struct rb_node *key_serial_first(struct rb_root *r)
+{
+	struct rb_node *n = rb_first(r);
+	return __key_serial_next(n);
+}
+
 static int proc_keys_open(struct inode *inode, struct file *file)
 {
 	return seq_open(file, &proc_keys_ops);
@@ -104,10 +126,10 @@ static void *proc_keys_start(struct seq_file *p, loff_t *_pos)
 
 	spin_lock(&key_serial_lock);
 
-	_p = rb_first(&key_serial_tree);
+	_p = key_serial_first(&key_serial_tree);
 	while (pos > 0 && _p) {
 		pos--;
-		_p = rb_next(_p);
+		_p = key_serial_next(_p);
 	}
 
 	return _p;
@@ -117,7 +139,7 @@ static void *proc_keys_start(struct seq_file *p, loff_t *_pos)
 static void *proc_keys_next(struct seq_file *p, void *v, loff_t *_pos)
 {
 	(*_pos)++;
-	return rb_next((struct rb_node *) v);
+	return key_serial_next((struct rb_node *) v);
 
 }
 
@@ -203,6 +225,27 @@ static int proc_keys_show(struct seq_file *m, void *v)
 
 #endif /* CONFIG_KEYS_DEBUG_PROC_KEYS */
 
+static struct rb_node *__key_user_next(struct rb_node *n)
+{
+	while (n) {
+		struct key_user *user = rb_entry(n, struct key_user, node);
+		if (user->user_ns == current_user_ns())
+			break;
+		n = rb_next(n);
+	}
+	return n;
+}
+
+static struct rb_node *key_user_next(struct rb_node *n)
+{
+	return __key_user_next(rb_next(n));
+}
+
+static struct rb_node *key_user_first(struct rb_root *r)
+{
+	struct rb_node *n = rb_first(r);
+	return __key_user_next(n);
+}
 /*****************************************************************************/
 /*
  * implement "/proc/key-users" to provides a list of the key users
@@ -220,10 +263,10 @@ static void *proc_key_users_start(struct seq_file *p, loff_t *_pos)
 
 	spin_lock(&key_user_lock);
 
-	_p = rb_first(&key_user_tree);
+	_p = key_user_first(&key_user_tree);
 	while (pos > 0 && _p) {
 		pos--;
-		_p = rb_next(_p);
+		_p = key_user_next(_p);
 	}
 
 	return _p;
@@ -233,7 +276,7 @@ static void *proc_key_users_start(struct seq_file *p, loff_t *_pos)
 static void *proc_key_users_next(struct seq_file *p, void *v, loff_t *_pos)
 {
 	(*_pos)++;
-	return rb_next((struct rb_node *) v);
+	return key_user_next((struct rb_node *) v);
 
 }
 
