@@ -258,9 +258,6 @@ int fcoe_transport_register(struct fcoe_transport *t)
 	list_add_tail(&t->list, &fcoe_transports);
 	mutex_unlock(&fcoe_transports_lock);
 
-	mutex_init(&t->devlock);
-	INIT_LIST_HEAD(&t->devlist);
-
 	printk(KERN_DEBUG "fcoe_transport_register:%s\n", t->name);
 
 	return 0;
