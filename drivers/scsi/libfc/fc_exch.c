@@ -625,7 +625,6 @@ static struct fc_exch *fc_exch_resp(struct fc_exch_mgr *mp, struct fc_frame *fp)
 {
 	struct fc_exch *ep;
 	struct fc_frame_header *fh;
-	u16 rxid;
 
 	ep = mp->lp->tt.exch_get(mp->lp, fp);
 	if (ep) {
@@ -652,18 +651,6 @@ static struct fc_exch *fc_exch_resp(struct fc_exch_mgr *mp, struct fc_frame *fp)
 		if ((ntoh24(fh->fh_f_ctl) & FC_FC_SEQ_INIT) == 0)
 			ep->esb_stat &= ~ESB_ST_SEQ_INIT;
 
-		/*
-		 * Set the responder ID in the frame header.
-		 * The old one should've been 0xffff.
-		 * If it isn't, don't assign one.
-		 * Incoming basic link service frames may specify
-		 * a referenced RX_ID.
-		 */
-		if (fh->fh_type != FC_TYPE_BLS) {
-			rxid = ntohs(fh->fh_rx_id);
-			WARN_ON(rxid != FC_XID_UNKNOWN);
-			fh->fh_rx_id = htons(ep->rxid);
-		}
 		fc_exch_hold(ep);	/* hold for caller */
 		spin_unlock_bh(&ep->ex_lock);	/* lock from exch_get */
 	}
