@@ -2454,10 +2454,10 @@ static struct pci_device_id azx_ids[] = {
 	{ PCI_DEVICE(0x10de, 0x0ac1), .driver_data = AZX_DRIVER_NVIDIA },
 	{ PCI_DEVICE(0x10de, 0x0ac2), .driver_data = AZX_DRIVER_NVIDIA },
 	{ PCI_DEVICE(0x10de, 0x0ac3), .driver_data = AZX_DRIVER_NVIDIA },
-	{ PCI_DEVICE(0x10de, 0x0bd4), .driver_data = AZX_DRIVER_NVIDIA },
-	{ PCI_DEVICE(0x10de, 0x0bd5), .driver_data = AZX_DRIVER_NVIDIA },
-	{ PCI_DEVICE(0x10de, 0x0bd6), .driver_data = AZX_DRIVER_NVIDIA },
-	{ PCI_DEVICE(0x10de, 0x0bd7), .driver_data = AZX_DRIVER_NVIDIA },
+	{ PCI_DEVICE(0x10de, 0x0d94), .driver_data = AZX_DRIVER_NVIDIA },
+	{ PCI_DEVICE(0x10de, 0x0d95), .driver_data = AZX_DRIVER_NVIDIA },
+	{ PCI_DEVICE(0x10de, 0x0d96), .driver_data = AZX_DRIVER_NVIDIA },
+	{ PCI_DEVICE(0x10de, 0x0d97), .driver_data = AZX_DRIVER_NVIDIA },
 	/* Teradici */
 	{ PCI_DEVICE(0x6549, 0x1200), .driver_data = AZX_DRIVER_TERA },
 	/* AMD Generic, PCI class code and Vendor ID for HD Audio */
