@@ -49,6 +49,7 @@
 static int debug_fcoe;
 
 #define FCOE_MAX_QUEUE_DEPTH  256
+#define FCOE_LOW_QUEUE_DEPTH  32
 
 /* destination address mode */
 #define FCOE_GW_ADDR_MODE	    0x00
@@ -723,21 +724,12 @@ static void fcoe_recv_flogi(struct fcoe_softc *fc, struct fc_frame *fp, u8 *sa)
  */
 void fcoe_watchdog(ulong vp)
 {
-	struct fc_lport *lp;
 	struct fcoe_softc *fc;
-	int qfilled = 0;
 
 	read_lock(&fcoe_hostlist_lock);
 	list_for_each_entry(fc, &fcoe_hostlist, list) {
-		lp = fc->lp;
-		if (lp) {
-			if (fc->fcoe_pending_queue.qlen > FCOE_MAX_QUEUE_DEPTH)
-				qfilled = 1;
-			if (fcoe_check_wait_queue(lp) <	 FCOE_MAX_QUEUE_DEPTH) {
-				if (qfilled)
-					lp->qfull = 0;
-			}
-		}
+		if (fc->lp)
+			fcoe_check_wait_queue(fc->lp);
 	}
 	read_unlock(&fcoe_hostlist_lock);
 
@@ -753,8 +745,8 @@ void fcoe_watchdog(ulong vp)
  *
  * This empties the wait_queue, dequeue the head of the wait_queue queue
  * and calls fcoe_start_io() for each packet, if all skb have been
- * transmitted, return 0 if a error occurs, then restore wait_queue and
- * try again later.
+ * transmitted, return qlen or -1 if a error occurs, then restore
+ * wait_queue and  try again later.
  *
  * The wait_queue is used when the skb transmit fails. skb will go
  * in the wait_queue which will be emptied by the time function OR
@@ -764,33 +756,38 @@ void fcoe_watchdog(ulong vp)
  */
 static int fcoe_check_wait_queue(struct fc_lport *lp)
 {
-	int rc;
 	struct sk_buff *skb;
 	struct fcoe_softc *fc;
+	int rc = -1;
 
 	fc = lport_priv(lp);
 	spin_lock_bh(&fc->fcoe_pending_queue.lock);
 
-	/*
-	 * if interface pending queue full then set qfull in lport.
-	 */
-	if (fc->fcoe_pending_queue.qlen > FCOE_MAX_QUEUE_DEPTH)
-		lp->qfull = 1;
+	if (fc->fcoe_pending_queue_active)
+		goto out;
+	fc->fcoe_pending_queue_active = 1;
 	if (fc->fcoe_pending_queue.qlen) {
 		while ((skb = __skb_dequeue(&fc->fcoe_pending_queue)) != NULL) {
 			spin_unlock_bh(&fc->fcoe_pending_queue.lock);
 			rc = fcoe_start_io(skb);
-			if (rc) {
+			if (rc)
 				fcoe_insert_wait_queue_head(lp, skb);
-				return rc;
-			}
 			spin_lock_bh(&fc->fcoe_pending_queue.lock);
+			if (rc)
+				break;
 		}
-		if (fc->fcoe_pending_queue.qlen < FCOE_MAX_QUEUE_DEPTH)
+		/*
+		 * if interface pending queue is below FCOE_LOW_QUEUE_DEPTH
+		 * then clear qfull flag.
+		 */
+		if (fc->fcoe_pending_queue.qlen < FCOE_LOW_QUEUE_DEPTH)
 			lp->qfull = 0;
 	}
+	fc->fcoe_pending_queue_active = 0;
+	rc = fc->fcoe_pending_queue.qlen;
+out:
 	spin_unlock_bh(&fc->fcoe_pending_queue.lock);
-	return fc->fcoe_pending_queue.qlen;
+	return rc;
 }
 
 /**

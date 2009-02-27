@@ -188,6 +188,7 @@ static int fcoe_sw_netdev_config(struct fc_lport *lp, struct net_device *netdev)
 
 
 	skb_queue_head_init(&fc->fcoe_pending_queue);
+	fc->fcoe_pending_queue_active = 0;
 
 	/* setup Source Mac Address */
 	memcpy(fc->ctl_src_addr, fc->real_dev->dev_addr,
