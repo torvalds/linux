@@ -7015,7 +7015,6 @@ static void alc882_auto_init_analog_input(struct hda_codec *codec)
 
 	for (i = 0; i < AUTO_PIN_LAST; i++) {
 		hda_nid_t nid = spec->autocfg.input_pins[i];
-		unsigned int vref;
 		if (!nid)
 			continue;
 		alc_set_input_pin(codec, nid, AUTO_PIN_FRONT_MIC /*i*/);
