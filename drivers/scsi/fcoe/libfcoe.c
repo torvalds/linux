@@ -387,7 +387,7 @@ int fcoe_xmit(struct fc_lport *lp, struct fc_frame *fp)
 
 	WARN_ON((fr_len(fp) % sizeof(u32)) != 0);
 
-	fc = fcoe_softc(lp);
+	fc = lport_priv(lp);
 	/*
 	 * if it is a flogi then we need to learn gw-addr
 	 * and my own fcid
@@ -768,7 +768,7 @@ static int fcoe_check_wait_queue(struct fc_lport *lp)
 	struct sk_buff *skb;
 	struct fcoe_softc *fc;
 
-	fc = fcoe_softc(lp);
+	fc = lport_priv(lp);
 	spin_lock_bh(&fc->fcoe_pending_queue.lock);
 
 	/*
@@ -805,7 +805,7 @@ static void fcoe_insert_wait_queue_head(struct fc_lport *lp,
 {
 	struct fcoe_softc *fc;
 
-	fc = fcoe_softc(lp);
+	fc = lport_priv(lp);
 	spin_lock_bh(&fc->fcoe_pending_queue.lock);
 	__skb_queue_head(&fc->fcoe_pending_queue, skb);
 	spin_unlock_bh(&fc->fcoe_pending_queue.lock);
@@ -823,7 +823,7 @@ static void fcoe_insert_wait_queue(struct fc_lport *lp,
 {
 	struct fcoe_softc *fc;
 
-	fc = fcoe_softc(lp);
+	fc = lport_priv(lp);
 	spin_lock_bh(&fc->fcoe_pending_queue.lock);
 	__skb_queue_tail(&fc->fcoe_pending_queue, skb);
 	spin_unlock_bh(&fc->fcoe_pending_queue.lock);
@@ -1113,7 +1113,7 @@ MODULE_PARM_DESC(destroy, "Destroy fcoe port");
  */
 int fcoe_link_ok(struct fc_lport *lp)
 {
-	struct fcoe_softc *fc = fcoe_softc(lp);
+	struct fcoe_softc *fc = lport_priv(lp);
 	struct net_device *dev = fc->real_dev;
 	struct ethtool_cmd ecmd = { ETHTOOL_GSET };
 	int rc = 0;
@@ -1329,7 +1329,7 @@ int fcoe_hostlist_add(const struct fc_lport *lp)
 
 	fc = fcoe_hostlist_lookup_softc(fcoe_netdev(lp));
 	if (!fc) {
-		fc = fcoe_softc(lp);
+		fc = lport_priv(lp);
 		write_lock_bh(&fcoe_hostlist_lock);
 		list_add_tail(&fc->list, &fcoe_hostlist);
 		write_unlock_bh(&fcoe_hostlist_lock);

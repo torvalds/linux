@@ -297,7 +297,7 @@ static int fcoe_sw_destroy(struct net_device *netdev)
 	if (!lp)
 		return -ENODEV;
 
-	fc = fcoe_softc(lp);
+	fc = lport_priv(lp);
 
 	/* Logout of the fabric */
 	fc_fabric_logoff(lp);
