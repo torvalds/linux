@@ -3093,6 +3093,121 @@ static void tracing_init_debugfs_percpu(long cpu)
 #include "trace_selftest.c"
 #endif
 
+static ssize_t
+trace_options_core_read(struct file *filp, char __user *ubuf, size_t cnt,
+			loff_t *ppos)
+{
+	long index = (long)filp->private_data;
+	char *buf;
+
+	if (trace_flags & (1 << index))
+		buf = "1\n";
+	else
+		buf = "0\n";
+
+	return simple_read_from_buffer(ubuf, cnt, ppos, buf, 2);
+}
+
+static ssize_t
+trace_options_core_write(struct file *filp, const char __user *ubuf, size_t cnt,
+			 loff_t *ppos)
+{
+	long index = (long)filp->private_data;
+	char buf[64];
+	unsigned long val;
+	int ret;
+
+	if (cnt >= sizeof(buf))
+		return -EINVAL;
+
+	if (copy_from_user(&buf, ubuf, cnt))
+		return -EFAULT;
+
+	buf[cnt] = 0;
+
+	ret = strict_strtoul(buf, 10, &val);
+	if (ret < 0)
+		return ret;
+
+	switch (val) {
+	case 0:
+		trace_flags &= ~(1 << index);
+		break;
+	case 1:
+		trace_flags |= 1 << index;
+		break;
+
+	default:
+		return -EINVAL;
+	}
+
+	*ppos += cnt;
+
+	return cnt;
+}
+
+
+static const struct file_operations trace_options_core_fops = {
+	.open = tracing_open_generic,
+	.read = trace_options_core_read,
+	.write = trace_options_core_write,
+};
+
+static struct dentry *trace_options_init_dentry(void)
+{
+	struct dentry *d_tracer;
+	static struct dentry *t_options;
+
+	if (t_options)
+		return t_options;
+
+	d_tracer = tracing_init_dentry();
+	if (!d_tracer)
+		return NULL;
+
+	t_options = debugfs_create_dir("options", d_tracer);
+	if (!t_options) {
+		pr_warning("Could not create debugfs directory 'options'\n");
+		return NULL;
+	}
+
+	return t_options;
+}
+
+static struct dentry *
+create_trace_option_core_file(const char *option, long index)
+{
+	struct dentry *t_options;
+	struct dentry *entry;
+
+	t_options = trace_options_init_dentry();
+	if (!t_options)
+		return NULL;
+
+	entry = debugfs_create_file(option, 0644, t_options, (void *)index,
+				    &trace_options_core_fops);
+
+	return entry;
+}
+
+static __init void create_trace_options_dir(void)
+{
+	struct dentry *t_options;
+	struct dentry *entry;
+	int i;
+
+	t_options = trace_options_init_dentry();
+	if (!t_options)
+		return;
+
+	for (i = 0; trace_options[i]; i++) {
+		entry = create_trace_option_core_file(trace_options[i], i);
+		if (!entry)
+			pr_warning("Could not create debugfs %s entry\n",
+				   trace_options[i]);
+	}
+}
+
 static __init int tracer_init_debugfs(void)
 {
 	struct dentry *d_tracer;
@@ -3110,6 +3225,8 @@ static __init int tracer_init_debugfs(void)
 				    NULL, &tracing_iter_fops);
 	if (!entry)
 		pr_warning("Could not create debugfs 'trace_options' entry\n");
+
+	create_trace_options_dir();
 
 	entry = debugfs_create_file("tracing_cpumask", 0644, d_tracer,
 				    NULL, &tracing_cpumask_fops);
