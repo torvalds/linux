@@ -214,6 +214,7 @@ static void fc_rport_state_enter(struct fc_rport *rport,
 
 static void fc_rport_work(struct work_struct *work)
 {
+	u32 port_id;
 	struct fc_rport_libfc_priv *rdata =
 		container_of(work, struct fc_rport_libfc_priv, event_work);
 	enum fc_rport_event event;
@@ -279,8 +280,12 @@ static void fc_rport_work(struct work_struct *work)
 			rport_ops->event_callback(lport, rport, event);
 		if (trans_state == FC_PORTSTATE_ROGUE)
 			put_device(&rport->dev);
-		else
+		else {
+			port_id = rport->port_id;
 			fc_remote_port_delete(rport);
+			lport->tt.exch_mgr_reset(lport, 0, port_id);
+			lport->tt.exch_mgr_reset(lport, port_id, 0);
+		}
 	} else
 		mutex_unlock(&rdata->rp_mutex);
 }
