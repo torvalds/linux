@@ -429,10 +429,9 @@ jme_check_link(struct net_device *netdev, int testonly)
 
 		jme->phylink = phylink;
 
-		ghc = jme->reg_ghc & ~(GHC_SPEED_10M |
-					GHC_SPEED_100M |
-					GHC_SPEED_1000M |
-					GHC_DPX);
+		ghc = jme->reg_ghc & ~(GHC_SPEED | GHC_DPX |
+				GHC_TO_CLK_PCIE | GHC_TXMAC_CLK_PCIE |
+				GHC_TO_CLK_GPHY | GHC_TXMAC_CLK_GPHY);
 		switch (phylink & PHY_LINK_SPEED_MASK) {
 		case PHY_LINK_SPEED_10M:
 			ghc |= GHC_SPEED_10M |
