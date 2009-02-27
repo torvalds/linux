@@ -155,16 +155,16 @@
 			reg = <0x1f00 0x100>;
 		};
 
-		serial@2400 {		// PSC3
-			compatible = "fsl,mpc5200b-psc-uart","fsl,mpc5200-psc-uart";
-			reg = <0x2400 0x100>;
-			interrupts = <2 3 0>;
-		};
-
 		serial@2600 {		// PSC4
 			compatible = "fsl,mpc5200b-psc-uart","fsl,mpc5200-psc-uart";
 			reg = <0x2600 0x100>;
 			interrupts = <2 11 0>;
+		};
+
+		serial@2800 {		// PSC5
+			compatible = "fsl,mpc5200b-psc-uart","fsl,mpc5200-psc-uart";
+			reg = <0x2800 0x100>;
+			interrupts = <2 12 0>;
 		};
 
 		ethernet@3000 {
