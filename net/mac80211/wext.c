@@ -886,21 +886,6 @@ static int ieee80211_ioctl_siwauth(struct net_device *dev,
 	return ret;
 }
 
-static u8 ieee80211_get_wstats_flags(struct ieee80211_local *local)
-{
-	u8 wstats_flags = 0;
-
-	wstats_flags |= local->hw.flags & (IEEE80211_HW_SIGNAL_UNSPEC |
-					   IEEE80211_HW_SIGNAL_DBM) ?
-				IW_QUAL_QUAL_UPDATED : IW_QUAL_QUAL_INVALID;
-	wstats_flags |= local->hw.flags & IEEE80211_HW_NOISE_DBM ?
-				IW_QUAL_NOISE_UPDATED : IW_QUAL_NOISE_INVALID;
-	if (local->hw.flags & IEEE80211_HW_SIGNAL_DBM)
-		wstats_flags |= IW_QUAL_DBM;
-
-	return wstats_flags;
-}
-
 /* Get wireless statistics.  Called by /proc/net/wireless and by SIOCGIWSTATS */
 static struct iw_statistics *ieee80211_get_wireless_stats(struct net_device *dev)
 {
@@ -922,10 +907,45 @@ static struct iw_statistics *ieee80211_get_wireless_stats(struct net_device *dev
 		wstats->qual.noise = 0;
 		wstats->qual.updated = IW_QUAL_ALL_INVALID;
 	} else {
-		wstats->qual.level = sta->last_signal;
-		wstats->qual.qual = sta->last_qual;
-		wstats->qual.noise = sta->last_noise;
-		wstats->qual.updated = ieee80211_get_wstats_flags(local);
+		wstats->qual.updated = 0;
+		/*
+		 * mirror what cfg80211 does for iwrange/scan results,
+		 * otherwise userspace gets confused.
+		 */
+		if (local->hw.flags & (IEEE80211_HW_SIGNAL_UNSPEC |
+				       IEEE80211_HW_SIGNAL_DBM)) {
+			wstats->qual.updated |= IW_QUAL_LEVEL_UPDATED;
+			wstats->qual.updated |= IW_QUAL_QUAL_UPDATED;
+		} else {
+			wstats->qual.updated |= IW_QUAL_LEVEL_INVALID;
+			wstats->qual.updated |= IW_QUAL_QUAL_INVALID;
+		}
+
+		if (local->hw.flags & IEEE80211_HW_SIGNAL_UNSPEC) {
+			wstats->qual.level = sta->last_signal;
+			wstats->qual.qual = sta->last_signal;
+		} else if (local->hw.flags & IEEE80211_HW_SIGNAL_DBM) {
+			int sig = sta->last_signal;
+
+			wstats->qual.updated |= IW_QUAL_DBM;
+			wstats->qual.level = sig;
+			if (sig < -110)
+				sig = -110;
+			else if (sig > -40)
+				sig = -40;
+			wstats->qual.qual = sig + 110;
+		}
+
+		if (local->hw.flags & IEEE80211_HW_NOISE_DBM) {
+			/*
+			 * This assumes that if driver reports noise, it also
+			 * reports signal in dBm.
+			 */
+			wstats->qual.noise = sta->last_noise;
+			wstats->qual.updated |= IW_QUAL_NOISE_UPDATED;
+		} else {
+			wstats->qual.updated |= IW_QUAL_NOISE_INVALID;
+		}
 	}
 
 	rcu_read_unlock();
