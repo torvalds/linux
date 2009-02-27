@@ -73,7 +73,7 @@ static int xfp_reset_phy(struct efx_nic *efx)
 	return rc;
 
  fail:
-	EFX_ERR(efx, "XFP: reset timed out!\n");
+	EFX_ERR(efx, "PHY reset timed out\n");
 	return rc;
 }
 
@@ -88,15 +88,15 @@ static int xfp_phy_init(struct efx_nic *efx)
 		return -ENOMEM;
 	efx->phy_data = phy_data;
 
-	EFX_INFO(efx, "XFP: PHY ID reg %x (OUI %x model %x revision"
-		 " %x)\n", devid, MDIO_ID_OUI(devid), MDIO_ID_MODEL(devid),
+	EFX_INFO(efx, "PHY ID reg %x (OUI %x model %x revision %x)\n",
+		 devid, MDIO_ID_OUI(devid), MDIO_ID_MODEL(devid),
 		 MDIO_ID_REV(devid));
 
 	phy_data->phy_mode = efx->phy_mode;
 
 	rc = xfp_reset_phy(efx);
 
-	EFX_INFO(efx, "XFP: PHY init %s.\n",
+	EFX_INFO(efx, "PHY init %s.\n",
 		 rc ? "failed" : "successful");
 	if (rc < 0)
 		goto fail;
