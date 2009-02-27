@@ -301,6 +301,16 @@ struct ib_mad_agent *ib_register_mad_agent(struct ib_device *device,
 	mad_agent_priv->agent.context = context;
 	mad_agent_priv->agent.qp = port_priv->qp_info[qpn].qp;
 	mad_agent_priv->agent.port_num = port_num;
+	spin_lock_init(&mad_agent_priv->lock);
+	INIT_LIST_HEAD(&mad_agent_priv->send_list);
+	INIT_LIST_HEAD(&mad_agent_priv->wait_list);
+	INIT_LIST_HEAD(&mad_agent_priv->done_list);
+	INIT_LIST_HEAD(&mad_agent_priv->rmpp_list);
+	INIT_DELAYED_WORK(&mad_agent_priv->timed_work, timeout_sends);
+	INIT_LIST_HEAD(&mad_agent_priv->local_list);
+	INIT_WORK(&mad_agent_priv->local_work, local_completions);
+	atomic_set(&mad_agent_priv->refcount, 1);
+	init_completion(&mad_agent_priv->comp);
 
 	spin_lock_irqsave(&port_priv->reg_lock, flags);
 	mad_agent_priv->agent.hi_tid = ++ib_mad_client_id;
@@ -349,17 +359,6 @@ struct ib_mad_agent *ib_register_mad_agent(struct ib_device *device,
 	/* Add mad agent into port's agent list */
 	list_add_tail(&mad_agent_priv->agent_list, &port_priv->agent_list);
 	spin_unlock_irqrestore(&port_priv->reg_lock, flags);
-
-	spin_lock_init(&mad_agent_priv->lock);
-	INIT_LIST_HEAD(&mad_agent_priv->send_list);
-	INIT_LIST_HEAD(&mad_agent_priv->wait_list);
-	INIT_LIST_HEAD(&mad_agent_priv->done_list);
-	INIT_LIST_HEAD(&mad_agent_priv->rmpp_list);
-	INIT_DELAYED_WORK(&mad_agent_priv->timed_work, timeout_sends);
-	INIT_LIST_HEAD(&mad_agent_priv->local_list);
-	INIT_WORK(&mad_agent_priv->local_work, local_completions);
-	atomic_set(&mad_agent_priv->refcount, 1);
-	init_completion(&mad_agent_priv->comp);
 
 	return &mad_agent_priv->agent;
 
