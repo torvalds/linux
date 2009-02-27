@@ -396,7 +396,7 @@ static int fc_disc_new_target(struct fc_disc *disc,
 			      struct fc_rport_identifiers *ids)
 {
 	struct fc_lport *lport = disc->lport;
-	struct fc_rport_libfc_priv *rp;
+	struct fc_rport_libfc_priv *rdata;
 	int error = 0;
 
 	if (rport && ids->port_name) {
@@ -436,9 +436,9 @@ static int fc_disc_new_target(struct fc_disc *disc,
 				error = -ENOMEM;
 		}
 		if (rport) {
-			rp = rport->dd_data;
-			rp->ops = &fc_disc_rport_ops;
-			rp->rp_state = RPORT_ST_INIT;
+			rdata = rport->dd_data;
+			rdata->ops = &fc_disc_rport_ops;
+			rdata->rp_state = RPORT_ST_INIT;
 			lport->tt.rport_login(rport);
 		}
 	}
