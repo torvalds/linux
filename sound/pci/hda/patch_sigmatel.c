@@ -5066,7 +5066,7 @@ again:
 	case STAC_DELL_M4_3:
 		spec->num_dmics = 1;
 		spec->num_smuxes = 0;
-		spec->num_dmuxes = 0;
+		spec->num_dmuxes = 1;
 		break;
 	case STAC_HP_DV5:
 		snd_hda_codec_set_pincfg(codec, 0x0d, 0x90170010);
