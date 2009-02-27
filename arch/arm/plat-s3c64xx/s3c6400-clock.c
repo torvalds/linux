@@ -239,10 +239,12 @@ static int s3c64xx_setrate_clksrc(struct clk *clk, unsigned long rate)
 
 	rate = clk_round_rate(clk, rate);
 	div = clk_get_rate(clk->parent) / rate;
+	if (div > 16)
+		return -EINVAL;
 
 	val = __raw_readl(reg);
-	val &= ~sclk->mask;
-	val |= (rate - 1) << sclk->shift;
+	val &= ~(0xf << sclk->shift);
+	val |= (div - 1) << sclk->shift;
 	__raw_writel(val, reg);
 
 	return 0;
