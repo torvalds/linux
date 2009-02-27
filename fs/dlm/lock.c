@@ -2186,6 +2186,13 @@ static int validate_unlock_args(struct dlm_lkb *lkb, struct dlm_args *args)
 			goto out;
 		}
 
+		/* there's nothing to cancel */
+		if (lkb->lkb_status == DLM_LKSTS_GRANTED &&
+		    !lkb->lkb_wait_type) {
+			rv = -EBUSY;
+			goto out;
+		}
+
 		switch (lkb->lkb_wait_type) {
 		case DLM_MSG_LOOKUP:
 		case DLM_MSG_REQUEST:
