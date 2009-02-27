@@ -409,15 +409,13 @@ get_sigframe(struct k_sigaction *ka, struct pt_regs *regs, size_t frame_size,
 	if (used_math()) {
 		sp -= sig_xstate_size;
 		*fpstate = (void __user *)round_down(sp, 64);
+
 		if (save_i387_xstate(*fpstate) < 0)
 			return (void __user *) -1L;
-
-		sp -= frame_size;
-		return (void __user *)round_down(sp, 16) - 8;
 	}
 
 	sp -= frame_size;
-	return (void __user *)round_down(sp, 64) - 8;
+	return (void __user *)round_down(sp, 16) - 8;
 }
 
 static int __setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
