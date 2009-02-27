@@ -33,19 +33,19 @@ static LIST_HEAD(fcoe_transports);
 static DEFINE_MUTEX(fcoe_transports_lock);
 
 /**
- * fcoe_transport_default - returns ptr to the default transport fcoe_sw
- **/
+ * fcoe_transport_default() - Returns ptr to the default transport fcoe_sw
+ */
 struct fcoe_transport *fcoe_transport_default(void)
 {
 	return &fcoe_sw_transport;
 }
 
 /**
- * fcoe_transport_to_pcidev - get the pci dev from a netdev
+ * fcoe_transport_to_pcidev() - get the pci dev from a netdev
  * @netdev: the netdev that pci dev will be retrived from
  *
  * Returns: NULL or the corrsponding pci_dev
- **/
+ */
 struct pci_dev *fcoe_transport_pcidev(const struct net_device *netdev)
 {
 	if (!netdev->dev.parent)
@@ -54,16 +54,14 @@ struct pci_dev *fcoe_transport_pcidev(const struct net_device *netdev)
 }
 
 /**
- * fcoe_transport_device_lookup - find out netdev is managed by the
- * transport
- * assign a transport to a device
+ * fcoe_transport_device_lookup() - Lookup a transport
  * @netdev: the netdev the transport to be attached to
  *
  * This will look for existing offload driver, if not found, it falls back to
  * the default sw hba (fcoe_sw) as its fcoe transport.
  *
  * Returns: 0 for success
- **/
+ */
 static struct fcoe_transport_internal *fcoe_transport_device_lookup(
 	struct fcoe_transport *t, struct net_device *netdev)
 {
@@ -81,14 +79,14 @@ static struct fcoe_transport_internal *fcoe_transport_device_lookup(
 	return NULL;
 }
 /**
- * fcoe_transport_device_add - assign a transport to a device
+ * fcoe_transport_device_add() - Assign a transport to a device
  * @netdev: the netdev the transport to be attached to
  *
  * This will look for existing offload driver, if not found, it falls back to
  * the default sw hba (fcoe_sw) as its fcoe transport.
  *
  * Returns: 0 for success
- **/
+ */
 static int fcoe_transport_device_add(struct fcoe_transport *t,
 				     struct net_device *netdev)
 {
@@ -123,14 +121,14 @@ static int fcoe_transport_device_add(struct fcoe_transport *t,
 }
 
 /**
- * fcoe_transport_device_remove - remove a device from its transport
+ * fcoe_transport_device_remove() - Remove a device from its transport
  * @netdev: the netdev the transport to be attached to
  *
- * this removes the device from the transport so the given transport will
+ * This removes the device from the transport so the given transport will
  * not manage this device any more
  *
  * Returns: 0 for success
- **/
+ */
 static int fcoe_transport_device_remove(struct fcoe_transport *t,
 					struct net_device *netdev)
 {
@@ -155,13 +153,13 @@ static int fcoe_transport_device_remove(struct fcoe_transport *t,
 }
 
 /**
- * fcoe_transport_device_remove_all - remove all from transport devlist
+ * fcoe_transport_device_remove_all() - Remove all from transport devlist
  *
- * this removes the device from the transport so the given transport will
+ * This removes the device from the transport so the given transport will
  * not manage this device any more
  *
  * Returns: 0 for success
- **/
+ */
 static void fcoe_transport_device_remove_all(struct fcoe_transport *t)
 {
 	struct fcoe_transport_internal *ti, *tmp;
@@ -175,16 +173,16 @@ static void fcoe_transport_device_remove_all(struct fcoe_transport *t)
 }
 
 /**
- * fcoe_transport_match - use the bus device match function to match the hw
- * @t: the fcoe transport
- * @netdev:
+ * fcoe_transport_match() - Use the bus device match function to match the hw
+ * @t: The fcoe transport to check
+ * @netdev: The netdev to match against
  *
- * This function is used to check if the givne transport wants to manage the
+ * This function is used to check if the given transport wants to manage the
  * input netdev. if the transports implements the match function, it will be
  * called, o.w. we just compare the pci vendor and device id.
  *
  * Returns: true for match up
- **/
+ */
 static bool fcoe_transport_match(struct fcoe_transport *t,
 				struct net_device *netdev)
 {
@@ -210,15 +208,15 @@ static bool fcoe_transport_match(struct fcoe_transport *t,
 }
 
 /**
- * fcoe_transport_lookup - check if the transport is already registered
+ * fcoe_transport_lookup() - Check if the transport is already registered
  * @t: the transport to be looked up
  *
  * This compares the parent device (pci) vendor and device id
  *
  * Returns: NULL if not found
  *
- * TODO - return default sw transport if no other transport is found
- **/
+ * TODO: return default sw transport if no other transport is found
+ */
 static struct fcoe_transport *fcoe_transport_lookup(
 	struct net_device *netdev)
 {
@@ -239,11 +237,11 @@ static struct fcoe_transport *fcoe_transport_lookup(
 }
 
 /**
- * fcoe_transport_register - adds a fcoe transport to the fcoe transports list
+ * fcoe_transport_register() - Adds a fcoe transport to the fcoe transports list
  * @t: ptr to the fcoe transport to be added
  *
  * Returns: 0 for success
- **/
+ */
 int fcoe_transport_register(struct fcoe_transport *t)
 {
 	struct fcoe_transport *tt;
@@ -269,11 +267,11 @@ int fcoe_transport_register(struct fcoe_transport *t)
 EXPORT_SYMBOL_GPL(fcoe_transport_register);
 
 /**
- * fcoe_transport_unregister - remove the tranport fro the fcoe transports list
+ * fcoe_transport_unregister() - Remove the tranport fro the fcoe transports list
  * @t: ptr to the fcoe transport to be removed
  *
  * Returns: 0 for success
- **/
+ */
 int fcoe_transport_unregister(struct fcoe_transport *t)
 {
 	struct fcoe_transport *tt, *tmp;
@@ -294,8 +292,8 @@ int fcoe_transport_unregister(struct fcoe_transport *t)
 }
 EXPORT_SYMBOL_GPL(fcoe_transport_unregister);
 
-/*
- * fcoe_load_transport_driver - load an offload driver by alias name
+/**
+ * fcoe_load_transport_driver() - Load an offload driver by alias name
  * @netdev: the target net device
  *
  * Requests for an offload driver module as the fcoe transport, if fails, it
@@ -307,7 +305,7 @@ EXPORT_SYMBOL_GPL(fcoe_transport_unregister);
  * 	3. pure hw fcoe hba may not have netdev
  *
  * Returns: 0 for success
- **/
+ */
 int fcoe_load_transport_driver(struct net_device *netdev)
 {
 	struct pci_dev *pci;
@@ -335,14 +333,14 @@ int fcoe_load_transport_driver(struct net_device *netdev)
 EXPORT_SYMBOL_GPL(fcoe_load_transport_driver);
 
 /**
- * fcoe_transport_attach - load transport to fcoe
+ * fcoe_transport_attach() - Load transport to fcoe
  * @netdev: the netdev the transport to be attached to
  *
  * This will look for existing offload driver, if not found, it falls back to
  * the default sw hba (fcoe_sw) as its fcoe transport.
  *
  * Returns: 0 for success
- **/
+ */
 int fcoe_transport_attach(struct net_device *netdev)
 {
 	struct fcoe_transport *t;
@@ -373,11 +371,11 @@ int fcoe_transport_attach(struct net_device *netdev)
 EXPORT_SYMBOL_GPL(fcoe_transport_attach);
 
 /**
- * fcoe_transport_release - unload transport from fcoe
+ * fcoe_transport_release() - Unload transport from fcoe
  * @netdev: the net device on which fcoe is to be released
  *
  * Returns: 0 for success
- **/
+ */
 int fcoe_transport_release(struct net_device *netdev)
 {
 	struct fcoe_transport *t;
@@ -410,12 +408,12 @@ int fcoe_transport_release(struct net_device *netdev)
 EXPORT_SYMBOL_GPL(fcoe_transport_release);
 
 /**
- * fcoe_transport_init - initializes fcoe transport layer
+ * fcoe_transport_init() - Initializes fcoe transport layer
  *
  * This prepares for the fcoe transport layer
  *
  * Returns: none
- **/
+ */
 int __init fcoe_transport_init(void)
 {
 	INIT_LIST_HEAD(&fcoe_transports);
@@ -424,12 +422,13 @@ int __init fcoe_transport_init(void)
 }
 
 /**
- * fcoe_transport_exit - cleans up the fcoe transport layer
+ * fcoe_transport_exit() - Cleans up the fcoe transport layer
+ *
  * This cleans up the fcoe transport layer. removing any transport on the list,
  * note that the transport destroy func is not called here.
  *
  * Returns: none
- **/
+ */
 int __exit fcoe_transport_exit(void)
 {
 	struct fcoe_transport *t, *tmp;

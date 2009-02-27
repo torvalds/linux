@@ -146,7 +146,7 @@ struct fc_rport *fc_rport_rogue_create(struct fc_disc_port *dp)
 }
 
 /**
- * fc_rport_state - return a string for the state the rport is in
+ * fc_rport_state() - return a string for the state the rport is in
  * @rport: The rport whose state we want to get a string for
  */
 static const char *fc_rport_state(struct fc_rport *rport)
@@ -161,7 +161,7 @@ static const char *fc_rport_state(struct fc_rport *rport)
 }
 
 /**
- * fc_set_rport_loss_tmo - Set the remote port loss timeout in seconds.
+ * fc_set_rport_loss_tmo() - Set the remote port loss timeout in seconds.
  * @rport: Pointer to Fibre Channel remote port structure
  * @timeout: timeout in seconds
  */
@@ -175,7 +175,7 @@ void fc_set_rport_loss_tmo(struct fc_rport *rport, u32 timeout)
 EXPORT_SYMBOL(fc_set_rport_loss_tmo);
 
 /**
- * fc_plogi_get_maxframe - Get max payload from the common service parameters
+ * fc_plogi_get_maxframe() - Get max payload from the common service parameters
  * @flp: FLOGI payload structure
  * @maxval: upper limit, may be less than what is in the service parameters
  */
@@ -198,7 +198,7 @@ fc_plogi_get_maxframe(struct fc_els_flogi *flp, unsigned int maxval)
 }
 
 /**
- * fc_rport_state_enter - Change the rport's state
+ * fc_rport_state_enter() - Change the rport's state
  * @rport: The rport whose state should change
  * @new: The new state of the rport
  *
@@ -292,7 +292,7 @@ static void fc_rport_work(struct work_struct *work)
 }
 
 /**
- * fc_rport_login - Start the remote port login state machine
+ * fc_rport_login() - Start the remote port login state machine
  * @rport: Fibre Channel remote port
  *
  * Locking Note: Called without the rport lock held. This
@@ -315,7 +315,7 @@ int fc_rport_login(struct fc_rport *rport)
 }
 
 /**
- * fc_rport_logoff - Logoff and remove an rport
+ * fc_rport_logoff() - Logoff and remove an rport
  * @rport: Fibre Channel remote port to be removed
  *
  * Locking Note: Called without the rport lock held. This
@@ -353,7 +353,7 @@ int fc_rport_logoff(struct fc_rport *rport)
 }
 
 /**
- * fc_rport_enter_ready - The rport is ready
+ * fc_rport_enter_ready() - The rport is ready
  * @rport: Fibre Channel remote port that is ready
  *
  * Locking Note: The rport lock is expected to be held before calling
@@ -372,7 +372,7 @@ static void fc_rport_enter_ready(struct fc_rport *rport)
 }
 
 /**
- * fc_rport_timeout - Handler for the retry_work timer.
+ * fc_rport_timeout() - Handler for the retry_work timer.
  * @work: The work struct of the fc_rport_libfc_priv
  *
  * Locking Note: Called without the rport lock held. This
@@ -411,7 +411,7 @@ static void fc_rport_timeout(struct work_struct *work)
 }
 
 /**
- * fc_rport_error - Error handler, called once retries have been exhausted
+ * fc_rport_error() - Error handler, called once retries have been exhausted
  * @rport: The fc_rport object
  * @fp: The frame pointer
  *
@@ -444,7 +444,7 @@ static void fc_rport_error(struct fc_rport *rport, struct fc_frame *fp)
 }
 
 /**
- * fc_rport_error_retry - Error handler when retries are desired
+ * fc_rport_error_retry() - Error handler when retries are desired
  * @rport: The fc_rport object
  * @fp: The frame pointer
  *
@@ -479,7 +479,7 @@ static void fc_rport_error_retry(struct fc_rport *rport, struct fc_frame *fp)
 }
 
 /**
- * fc_rport_plogi_recv_resp - Handle incoming ELS PLOGI response
+ * fc_rport_plogi_recv_resp() - Handle incoming ELS PLOGI response
  * @sp: current sequence in the PLOGI exchange
  * @fp: response frame
  * @rp_arg: Fibre Channel remote port
@@ -554,7 +554,7 @@ err:
 }
 
 /**
- * fc_rport_enter_plogi - Send Port Login (PLOGI) request to peer
+ * fc_rport_enter_plogi() - Send Port Login (PLOGI) request to peer
  * @rport: Fibre Channel remote port to send PLOGI to
  *
  * Locking Note: The rport lock is expected to be held before calling
@@ -587,7 +587,7 @@ static void fc_rport_enter_plogi(struct fc_rport *rport)
 }
 
 /**
- * fc_rport_prli_resp - Process Login (PRLI) response handler
+ * fc_rport_prli_resp() - Process Login (PRLI) response handler
  * @sp: current sequence in the PRLI exchange
  * @fp: response frame
  * @rp_arg: Fibre Channel remote port
@@ -657,7 +657,7 @@ err:
 }
 
 /**
- * fc_rport_logo_resp - Logout (LOGO) response handler
+ * fc_rport_logo_resp() - Logout (LOGO) response handler
  * @sp: current sequence in the LOGO exchange
  * @fp: response frame
  * @rp_arg: Fibre Channel remote port
@@ -706,7 +706,7 @@ err:
 }
 
 /**
- * fc_rport_enter_prli - Send Process Login (PRLI) request to peer
+ * fc_rport_enter_prli() - Send Process Login (PRLI) request to peer
  * @rport: Fibre Channel remote port to send PRLI to
  *
  * Locking Note: The rport lock is expected to be held before calling
@@ -741,7 +741,7 @@ static void fc_rport_enter_prli(struct fc_rport *rport)
 }
 
 /**
- * fc_rport_els_rtv_resp - Request Timeout Value response handler
+ * fc_rport_els_rtv_resp() - Request Timeout Value response handler
  * @sp: current sequence in the RTV exchange
  * @fp: response frame
  * @rp_arg: Fibre Channel remote port
@@ -807,7 +807,7 @@ err:
 }
 
 /**
- * fc_rport_enter_rtv - Send Request Timeout Value (RTV) request to peer
+ * fc_rport_enter_rtv() - Send Request Timeout Value (RTV) request to peer
  * @rport: Fibre Channel remote port to send RTV to
  *
  * Locking Note: The rport lock is expected to be held before calling
@@ -838,7 +838,7 @@ static void fc_rport_enter_rtv(struct fc_rport *rport)
 }
 
 /**
- * fc_rport_enter_logo - Send Logout (LOGO) request to peer
+ * fc_rport_enter_logo() - Send Logout (LOGO) request to peer
  * @rport: Fibre Channel remote port to send LOGO to
  *
  * Locking Note: The rport lock is expected to be held before calling
@@ -870,7 +870,7 @@ static void fc_rport_enter_logo(struct fc_rport *rport)
 
 
 /**
- * fc_rport_recv_req - Receive a request from a rport
+ * fc_rport_recv_req() - Receive a request from a rport
  * @sp: current sequence in the PLOGI exchange
  * @fp: response frame
  * @rp_arg: Fibre Channel remote port
@@ -931,7 +931,7 @@ void fc_rport_recv_req(struct fc_seq *sp, struct fc_frame *fp,
 }
 
 /**
- * fc_rport_recv_plogi_req - Handle incoming Port Login (PLOGI) request
+ * fc_rport_recv_plogi_req() - Handle incoming Port Login (PLOGI) request
  * @rport: Fibre Channel remote port that initiated PLOGI
  * @sp: current sequence in the PLOGI exchange
  * @fp: PLOGI request frame
@@ -1053,7 +1053,7 @@ static void fc_rport_recv_plogi_req(struct fc_rport *rport,
 }
 
 /**
- * fc_rport_recv_prli_req - Handle incoming Process Login (PRLI) request
+ * fc_rport_recv_prli_req() - Handle incoming Process Login (PRLI) request
  * @rport: Fibre Channel remote port that initiated PRLI
  * @sp: current sequence in the PRLI exchange
  * @fp: PRLI request frame
@@ -1204,7 +1204,7 @@ static void fc_rport_recv_prli_req(struct fc_rport *rport,
 }
 
 /**
- * fc_rport_recv_prlo_req - Handle incoming Process Logout (PRLO) request
+ * fc_rport_recv_prlo_req() - Handle incoming Process Logout (PRLO) request
  * @rport: Fibre Channel remote port that initiated PRLO
  * @sp: current sequence in the PRLO exchange
  * @fp: PRLO request frame
@@ -1235,7 +1235,7 @@ static void fc_rport_recv_prlo_req(struct fc_rport *rport, struct fc_seq *sp,
 }
 
 /**
- * fc_rport_recv_logo_req - Handle incoming Logout (LOGO) request
+ * fc_rport_recv_logo_req() - Handle incoming Logout (LOGO) request
  * @rport: Fibre Channel remote port that initiated LOGO
  * @sp: current sequence in the LOGO exchange
  * @fp: LOGO request frame

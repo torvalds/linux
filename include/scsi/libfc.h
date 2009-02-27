@@ -665,7 +665,7 @@ struct fc_lport {
 	struct delayed_work	disc_work;
 };
 
-/**
+/*
  * FC_LPORT HELPER FUNCTIONS
  *****************************/
 static inline void *lport_priv(const struct fc_lport *lp)
@@ -697,7 +697,7 @@ static inline void fc_lport_state_enter(struct fc_lport *lp,
 }
 
 
-/**
+/*
  * LOCAL PORT LAYER
  *****************************/
 int fc_lport_init(struct fc_lport *lp);
@@ -747,19 +747,19 @@ int fc_lport_reset(struct fc_lport *);
 int fc_set_mfs(struct fc_lport *lp, u32 mfs);
 
 
-/**
+/*
  * REMOTE PORT LAYER
  *****************************/
 int fc_rport_init(struct fc_lport *lp);
 void fc_rport_terminate_io(struct fc_rport *rp);
 
-/**
+/*
  * DISCOVERY LAYER
  *****************************/
 int fc_disc_init(struct fc_lport *lp);
 
 
-/**
+/*
  * SCSI LAYER
  *****************************/
 /*
@@ -820,7 +820,7 @@ int fc_change_queue_type(struct scsi_device *sdev, int tag_type);
  */
 void fc_fcp_destroy(struct fc_lport *);
 
-/**
+/*
  * ELS/CT interface
  *****************************/
 /*
@@ -829,7 +829,7 @@ void fc_fcp_destroy(struct fc_lport *);
 int fc_elsct_init(struct fc_lport *lp);
 
 
-/**
+/*
  * EXCHANGE MANAGER LAYER
  *****************************/
 /*

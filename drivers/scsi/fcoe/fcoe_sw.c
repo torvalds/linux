@@ -104,13 +104,12 @@ static struct scsi_host_template fcoe_sw_shost_template = {
 	.max_sectors = 0xffff,
 };
 
-/*
- * fcoe_sw_lport_config - sets up the fc_lport
+/**
+ * fcoe_sw_lport_config() - sets up the fc_lport
  * @lp: ptr to the fc_lport
  * @shost: ptr to the parent scsi host
  *
  * Returns: 0 for success
- *
  */
 static int fcoe_sw_lport_config(struct fc_lport *lp)
 {
@@ -137,16 +136,14 @@ static int fcoe_sw_lport_config(struct fc_lport *lp)
 	return 0;
 }
 
-/*
- * fcoe_sw_netdev_config - sets up fcoe_softc for lport and network
- * related properties
+/**
+ * fcoe_sw_netdev_config() - Set up netdev for SW FCoE
  * @lp : ptr to the fc_lport
  * @netdev : ptr to the associated netdevice struct
  *
  * Must be called after fcoe_sw_lport_config() as it will use lport mutex
  *
  * Returns : 0 for success
- *
  */
 static int fcoe_sw_netdev_config(struct fc_lport *lp, struct net_device *netdev)
 {
@@ -224,16 +221,15 @@ static int fcoe_sw_netdev_config(struct fc_lport *lp, struct net_device *netdev)
 	return 0;
 }
 
-/*
- * fcoe_sw_shost_config - sets up fc_lport->host
+/**
+ * fcoe_sw_shost_config() - Sets up fc_lport->host
  * @lp : ptr to the fc_lport
  * @shost : ptr to the associated scsi host
  * @dev : device associated to scsi host
  *
- * Must be called after fcoe_sw_lport_config) and fcoe_sw_netdev_config()
+ * Must be called after fcoe_sw_lport_config() and fcoe_sw_netdev_config()
  *
  * Returns : 0 for success
- *
  */
 static int fcoe_sw_shost_config(struct fc_lport *lp, struct Scsi_Host *shost,
 				struct device *dev)
@@ -261,8 +257,8 @@ static int fcoe_sw_shost_config(struct fc_lport *lp, struct Scsi_Host *shost,
 	return 0;
 }
 
-/*
- * fcoe_sw_em_config - allocates em for this lport
+/**
+ * fcoe_sw_em_config() - allocates em for this lport
  * @lp: the port that em is to allocated for
  *
  * Returns : 0 on success
@@ -279,8 +275,8 @@ static inline int fcoe_sw_em_config(struct fc_lport *lp)
 	return 0;
 }
 
-/*
- * fcoe_sw_destroy - FCoE software HBA tear-down function
+/**
+ * fcoe_sw_destroy() - FCoE software HBA tear-down function
  * @netdev: ptr to the associated net_device
  *
  * Returns: 0 if link is OK for use by FCoE.
@@ -353,8 +349,8 @@ static struct libfc_function_template fcoe_sw_libfc_fcn_templ = {
 	.frame_send = fcoe_xmit,
 };
 
-/*
- * fcoe_sw_create - this function creates the fcoe interface
+/**
+ * fcoe_sw_create() - this function creates the fcoe interface
  * @netdev: pointer the associated netdevice
  *
  * Creates fc_lport struct and scsi_host for lport, configures lport
@@ -440,8 +436,8 @@ out_host_put:
 	return rc;
 }
 
-/*
- * fcoe_sw_match - the fcoe sw transport match function
+/**
+ * fcoe_sw_match() - The FCoE SW transport match function
  *
  * Returns : false always
  */
@@ -461,8 +457,8 @@ struct fcoe_transport fcoe_sw_transport = {
 	.device = 0xffff,
 };
 
-/*
- * fcoe_sw_init - registers fcoe_sw_transport
+/**
+ * fcoe_sw_init() - Registers fcoe_sw_transport
  *
  * Returns : 0 on success
  */
@@ -480,8 +476,8 @@ int __init fcoe_sw_init(void)
 	return 0;
 }
 
-/*
- * fcoe_sw_exit - unregisters fcoe_sw_transport
+/**
+ * fcoe_sw_exit() - Unregisters fcoe_sw_transport
  *
  * Returns : 0 on success
  */
