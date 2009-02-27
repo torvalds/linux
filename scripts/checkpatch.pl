@@ -110,7 +110,8 @@ our $Sparse	= qr{
 			__iomem|
 			__must_check|
 			__init_refok|
-			__kprobes
+			__kprobes|
+			__ref
 		}x;
 our $Attribute	= qr{
 			const|
