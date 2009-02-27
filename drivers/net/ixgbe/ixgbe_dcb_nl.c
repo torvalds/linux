@@ -35,6 +35,7 @@
 #define BIT_PG_RX	0x04
 #define BIT_PG_TX	0x08
 #define BIT_BCN         0x10
+#define BIT_LINKSPEED   0x80
 
 int ixgbe_copy_dcb_cfg(struct ixgbe_dcb_config *src_dcb_cfg,
                        struct ixgbe_dcb_config *dst_dcb_cfg, int tc_max)
@@ -88,25 +89,6 @@ int ixgbe_copy_dcb_cfg(struct ixgbe_dcb_config *src_dcb_cfg,
 		dst_dcb_cfg->tc_config[i - DCB_PFC_UP_ATTR_0].dcb_pfc =
 			src_dcb_cfg->tc_config[i - DCB_PFC_UP_ATTR_0].dcb_pfc;
 	}
-
-	for (i = DCB_BCN_ATTR_RP_0; i < DCB_BCN_ATTR_RP_ALL; i++) {
-		dst_dcb_cfg->bcn.rp_admin_mode[i - DCB_BCN_ATTR_RP_0] =
-			src_dcb_cfg->bcn.rp_admin_mode[i - DCB_BCN_ATTR_RP_0];
-	}
-	dst_dcb_cfg->bcn.bcna_option[0] = src_dcb_cfg->bcn.bcna_option[0];
-	dst_dcb_cfg->bcn.bcna_option[1] = src_dcb_cfg->bcn.bcna_option[1];
-	dst_dcb_cfg->bcn.rp_alpha = src_dcb_cfg->bcn.rp_alpha;
-	dst_dcb_cfg->bcn.rp_beta = src_dcb_cfg->bcn.rp_beta;
-	dst_dcb_cfg->bcn.rp_gd = src_dcb_cfg->bcn.rp_gd;
-	dst_dcb_cfg->bcn.rp_gi = src_dcb_cfg->bcn.rp_gi;
-	dst_dcb_cfg->bcn.rp_tmax = src_dcb_cfg->bcn.rp_tmax;
-	dst_dcb_cfg->bcn.rp_td = src_dcb_cfg->bcn.rp_td;
-	dst_dcb_cfg->bcn.rp_rmin = src_dcb_cfg->bcn.rp_rmin;
-	dst_dcb_cfg->bcn.rp_w = src_dcb_cfg->bcn.rp_w;
-	dst_dcb_cfg->bcn.rp_rd = src_dcb_cfg->bcn.rp_rd;
-	dst_dcb_cfg->bcn.rp_ru = src_dcb_cfg->bcn.rp_ru;
-	dst_dcb_cfg->bcn.rp_wrtt = src_dcb_cfg->bcn.rp_wrtt;
-	dst_dcb_cfg->bcn.rp_ri = src_dcb_cfg->bcn.rp_ri;
 
 	return 0;
 }
@@ -444,175 +426,6 @@ static void ixgbe_dcbnl_setpfcstate(struct net_device *netdev, u8 state)
 	return;
 }
 
-static void ixgbe_dcbnl_getbcnrp(struct net_device *netdev, int priority,
-				  u8 *setting)
-{
-	struct ixgbe_adapter *adapter = netdev_priv(netdev);
-
-	*setting = adapter->dcb_cfg.bcn.rp_admin_mode[priority];
-}
-
-
-static void ixgbe_dcbnl_getbcncfg(struct net_device *netdev, int enum_index,
-				  u32 *setting)
-{
-	struct ixgbe_adapter *adapter = netdev_priv(netdev);
-
-	switch (enum_index) {
-	case DCB_BCN_ATTR_BCNA_0:
-		*setting = adapter->dcb_cfg.bcn.bcna_option[0];
-		break;
-	case DCB_BCN_ATTR_BCNA_1:
-		*setting = adapter->dcb_cfg.bcn.bcna_option[1];
-		break;
-	case DCB_BCN_ATTR_ALPHA:
-		*setting = adapter->dcb_cfg.bcn.rp_alpha;
-		break;
-	case DCB_BCN_ATTR_BETA:
-		*setting = adapter->dcb_cfg.bcn.rp_beta;
-		break;
-	case DCB_BCN_ATTR_GD:
-		*setting = adapter->dcb_cfg.bcn.rp_gd;
-		break;
-	case DCB_BCN_ATTR_GI:
-		*setting = adapter->dcb_cfg.bcn.rp_gi;
-		break;
-	case DCB_BCN_ATTR_TMAX:
-		*setting = adapter->dcb_cfg.bcn.rp_tmax;
-		break;
-	case DCB_BCN_ATTR_TD:
-		*setting = adapter->dcb_cfg.bcn.rp_td;
-		break;
-	case DCB_BCN_ATTR_RMIN:
-		*setting = adapter->dcb_cfg.bcn.rp_rmin;
-		break;
-	case DCB_BCN_ATTR_W:
-		*setting = adapter->dcb_cfg.bcn.rp_w;
-		break;
-	case DCB_BCN_ATTR_RD:
-		*setting = adapter->dcb_cfg.bcn.rp_rd;
-		break;
-	case DCB_BCN_ATTR_RU:
-		*setting = adapter->dcb_cfg.bcn.rp_ru;
-		break;
-	case DCB_BCN_ATTR_WRTT:
-		*setting = adapter->dcb_cfg.bcn.rp_wrtt;
-		break;
-	case DCB_BCN_ATTR_RI:
-		*setting = adapter->dcb_cfg.bcn.rp_ri;
-		break;
-	default:
-		*setting = -1;
-	}
-}
-
-static void ixgbe_dcbnl_setbcnrp(struct net_device *netdev, int priority,
-				 u8 setting)
-{
-	struct ixgbe_adapter *adapter = netdev_priv(netdev);
-
-	adapter->temp_dcb_cfg.bcn.rp_admin_mode[priority] = setting;
-
-	if (adapter->temp_dcb_cfg.bcn.rp_admin_mode[priority] !=
-	    adapter->dcb_cfg.bcn.rp_admin_mode[priority])
-		adapter->dcb_set_bitmap |= BIT_BCN;
-}
-
-static void ixgbe_dcbnl_setbcncfg(struct net_device *netdev, int enum_index,
-				 u32 setting)
-{
-	struct ixgbe_adapter *adapter = netdev_priv(netdev);
-
-	switch (enum_index) {
-	case DCB_BCN_ATTR_BCNA_0:
-		adapter->temp_dcb_cfg.bcn.bcna_option[0] = setting;
-		if (adapter->temp_dcb_cfg.bcn.bcna_option[0] !=
-			adapter->dcb_cfg.bcn.bcna_option[0])
-			adapter->dcb_set_bitmap |= BIT_BCN;
-		break;
-	case DCB_BCN_ATTR_BCNA_1:
-		adapter->temp_dcb_cfg.bcn.bcna_option[1] = setting;
-		if (adapter->temp_dcb_cfg.bcn.bcna_option[1] !=
-			adapter->dcb_cfg.bcn.bcna_option[1])
-			adapter->dcb_set_bitmap |= BIT_BCN;
-		break;
-	case DCB_BCN_ATTR_ALPHA:
-		adapter->temp_dcb_cfg.bcn.rp_alpha = setting;
-		if (adapter->temp_dcb_cfg.bcn.rp_alpha !=
-		    adapter->dcb_cfg.bcn.rp_alpha)
-			adapter->dcb_set_bitmap |= BIT_BCN;
-		break;
-	case DCB_BCN_ATTR_BETA:
-		adapter->temp_dcb_cfg.bcn.rp_beta = setting;
-		if (adapter->temp_dcb_cfg.bcn.rp_beta !=
-		    adapter->dcb_cfg.bcn.rp_beta)
-			adapter->dcb_set_bitmap |= BIT_BCN;
-		break;
-	case DCB_BCN_ATTR_GD:
-		adapter->temp_dcb_cfg.bcn.rp_gd = setting;
-		if (adapter->temp_dcb_cfg.bcn.rp_gd !=
-		    adapter->dcb_cfg.bcn.rp_gd)
-			adapter->dcb_set_bitmap |= BIT_BCN;
-		break;
-	case DCB_BCN_ATTR_GI:
-		adapter->temp_dcb_cfg.bcn.rp_gi = setting;
-		if (adapter->temp_dcb_cfg.bcn.rp_gi !=
-		    adapter->dcb_cfg.bcn.rp_gi)
-			adapter->dcb_set_bitmap |= BIT_BCN;
-		break;
-	case DCB_BCN_ATTR_TMAX:
-		adapter->temp_dcb_cfg.bcn.rp_tmax = setting;
-		if (adapter->temp_dcb_cfg.bcn.rp_tmax !=
-		    adapter->dcb_cfg.bcn.rp_tmax)
-			adapter->dcb_set_bitmap |= BIT_BCN;
-		break;
-	case DCB_BCN_ATTR_TD:
-		adapter->temp_dcb_cfg.bcn.rp_td = setting;
-		if (adapter->temp_dcb_cfg.bcn.rp_td !=
-		    adapter->dcb_cfg.bcn.rp_td)
-			adapter->dcb_set_bitmap |= BIT_BCN;
-		break;
-	case DCB_BCN_ATTR_RMIN:
-		adapter->temp_dcb_cfg.bcn.rp_rmin = setting;
-		if (adapter->temp_dcb_cfg.bcn.rp_rmin !=
-		    adapter->dcb_cfg.bcn.rp_rmin)
-			adapter->dcb_set_bitmap |= BIT_BCN;
-		break;
-	case DCB_BCN_ATTR_W:
-		adapter->temp_dcb_cfg.bcn.rp_w = setting;
-		if (adapter->temp_dcb_cfg.bcn.rp_w !=
-		    adapter->dcb_cfg.bcn.rp_w)
-			adapter->dcb_set_bitmap |= BIT_BCN;
-		break;
-	case DCB_BCN_ATTR_RD:
-		adapter->temp_dcb_cfg.bcn.rp_rd = setting;
-		if (adapter->temp_dcb_cfg.bcn.rp_rd !=
-		    adapter->dcb_cfg.bcn.rp_rd)
-			adapter->dcb_set_bitmap |= BIT_BCN;
-		break;
-	case DCB_BCN_ATTR_RU:
-		adapter->temp_dcb_cfg.bcn.rp_ru = setting;
-		if (adapter->temp_dcb_cfg.bcn.rp_ru !=
-		    adapter->dcb_cfg.bcn.rp_ru)
-			adapter->dcb_set_bitmap |= BIT_BCN;
-		break;
-	case DCB_BCN_ATTR_WRTT:
-		adapter->temp_dcb_cfg.bcn.rp_wrtt = setting;
-		if (adapter->temp_dcb_cfg.bcn.rp_wrtt !=
-		    adapter->dcb_cfg.bcn.rp_wrtt)
-			adapter->dcb_set_bitmap |= BIT_BCN;
-		break;
-	case DCB_BCN_ATTR_RI:
-		adapter->temp_dcb_cfg.bcn.rp_ri = setting;
-		if (adapter->temp_dcb_cfg.bcn.rp_ri !=
-		    adapter->dcb_cfg.bcn.rp_ri)
-			adapter->dcb_set_bitmap |= BIT_BCN;
-		break;
-	default:
-		break;
-	}
-}
-
 struct dcbnl_rtnl_ops dcbnl_ops = {
 	.getstate	= ixgbe_dcbnl_get_state,
 	.setstate	= ixgbe_dcbnl_set_state,
@@ -633,9 +446,5 @@ struct dcbnl_rtnl_ops dcbnl_ops = {
 	.setnumtcs	= ixgbe_dcbnl_setnumtcs,
 	.getpfcstate	= ixgbe_dcbnl_getpfcstate,
 	.setpfcstate	= ixgbe_dcbnl_setpfcstate,
-	.getbcncfg      = ixgbe_dcbnl_getbcncfg,
-	.getbcnrp       = ixgbe_dcbnl_getbcnrp,
-	.setbcncfg      = ixgbe_dcbnl_setbcncfg,
-	.setbcnrp       = ixgbe_dcbnl_setbcnrp
 };
 
