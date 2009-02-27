@@ -582,6 +582,14 @@ struct net_device_ops {
 #define HAVE_NETDEV_POLL
 	void                    (*ndo_poll_controller)(struct net_device *dev);
 #endif
+#if defined(CONFIG_FCOE) || defined(CONFIG_FCOE_MODULE)
+	int			(*ndo_fcoe_ddp_setup)(struct net_device *dev,
+						      u16 xid,
+						      struct scatterlist *sgl,
+						      unsigned int sgc);
+	int			(*ndo_fcoe_ddp_done)(struct net_device *dev,
+						     u16 xid);
+#endif
 };
 
 /*
@@ -841,6 +849,11 @@ struct net_device
 #ifdef CONFIG_DCB
 	/* Data Center Bridging netlink ops */
 	struct dcbnl_rtnl_ops *dcbnl_ops;
+#endif
+
+#if defined(CONFIG_FCOE) || defined(CONFIG_FCOE_MODULE)
+	/* max exchange id for FCoE LRO by ddp */
+	unsigned int		fcoe_ddp_xid;
 #endif
 
 #ifdef CONFIG_COMPAT_NET_DEV_OPS
