@@ -472,7 +472,7 @@ struct libfc_function_template {
 	 * If s_id is non-zero, reset only exchanges originating from that FID.
 	 * If d_id is non-zero, reset only exchanges sending to that FID.
 	 */
-	void (*exch_mgr_reset)(struct fc_exch_mgr *,
+	void (*exch_mgr_reset)(struct fc_lport *,
 			       u32 s_id, u32 d_id);
 
 	void (*rport_flush_queue)(void);
@@ -916,7 +916,7 @@ struct fc_seq *fc_seq_start_next(struct fc_seq *sp);
  * If s_id is non-zero, reset only exchanges originating from that FID.
  * If d_id is non-zero, reset only exchanges sending to that FID.
  */
-void fc_exch_mgr_reset(struct fc_exch_mgr *, u32 s_id, u32 d_id);
+void fc_exch_mgr_reset(struct fc_lport *, u32 s_id, u32 d_id);
 
 /*
  * Functions for fc_functions_template

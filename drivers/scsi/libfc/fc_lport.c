@@ -663,7 +663,7 @@ int fc_lport_destroy(struct fc_lport *lport)
 {
 	lport->tt.frame_send = fc_frame_drop;
 	lport->tt.fcp_abort_io(lport);
-	lport->tt.exch_mgr_reset(lport->emp, 0, 0);
+	lport->tt.exch_mgr_reset(lport, 0, 0);
 	return 0;
 }
 EXPORT_SYMBOL(fc_lport_destroy);
@@ -973,7 +973,7 @@ static void fc_lport_enter_reset(struct fc_lport *lport)
 
 	lport->tt.disc_stop(lport);
 
-	lport->tt.exch_mgr_reset(lport->emp, 0, 0);
+	lport->tt.exch_mgr_reset(lport, 0, 0);
 	fc_host_fabric_name(lport->host) = 0;
 	fc_host_port_id(lport->host) = 0;
 

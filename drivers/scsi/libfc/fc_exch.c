@@ -1480,10 +1480,11 @@ static void fc_exch_reset(struct fc_exch *ep)
  * If sid is non-zero, reset only exchanges we source from that FID.
  * If did is non-zero, reset only exchanges destined to that FID.
  */
-void fc_exch_mgr_reset(struct fc_exch_mgr *mp, u32 sid, u32 did)
+void fc_exch_mgr_reset(struct fc_lport *lp, u32 sid, u32 did)
 {
 	struct fc_exch *ep;
 	struct fc_exch *next;
+	struct fc_exch_mgr *mp = lp->emp;
 
 	spin_lock_bh(&mp->em_lock);
 restart:

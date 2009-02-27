@@ -1285,7 +1285,7 @@ void fc_rport_terminate_io(struct fc_rport *rport)
 	struct fc_rport_libfc_priv *rdata = rport->dd_data;
 	struct fc_lport *lport = rdata->local_port;
 
-	lport->tt.exch_mgr_reset(lport->emp, 0, rport->port_id);
-	lport->tt.exch_mgr_reset(lport->emp, rport->port_id, 0);
+	lport->tt.exch_mgr_reset(lport, 0, rport->port_id);
+	lport->tt.exch_mgr_reset(lport, rport->port_id, 0);
 }
 EXPORT_SYMBOL(fc_rport_terminate_io);
