@@ -191,8 +191,7 @@ extern unsigned long get_wchan(struct task_struct *p);
 
 #define user_stack_pointer(_regs)	((_regs)->regs[15])
 
-#if defined(CONFIG_CPU_SH2A) || defined(CONFIG_CPU_SH3) || \
-    defined(CONFIG_CPU_SH4)
+#if defined(CONFIG_CPU_SH2A) || defined(CONFIG_CPU_SH4)
 #define PREFETCH_STRIDE		L1_CACHE_BYTES
 #define ARCH_HAS_PREFETCH
 #define ARCH_HAS_PREFETCHW
