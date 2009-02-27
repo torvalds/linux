@@ -1684,23 +1684,20 @@ static struct seq_operations tracer_seq_ops = {
 };
 
 static struct trace_iterator *
-__tracing_open(struct inode *inode, struct file *file, int *ret)
+__tracing_open(struct inode *inode, struct file *file)
 {
 	long cpu_file = (long) inode->i_private;
+	void *fail_ret = ERR_PTR(-ENOMEM);
 	struct trace_iterator *iter;
 	struct seq_file *m;
-	int cpu;
+	int cpu, ret;
 
-	if (tracing_disabled) {
-		*ret = -ENODEV;
-		return NULL;
-	}
+	if (tracing_disabled)
+		return ERR_PTR(-ENODEV);
 
 	iter = kzalloc(sizeof(*iter), GFP_KERNEL);
-	if (!iter) {
-		*ret = -ENOMEM;
-		goto out;
-	}
+	if (!iter)
+		return ERR_PTR(-ENOMEM);
 
 	/*
 	 * We make a copy of the current tracer to avoid concurrent
@@ -1708,10 +1705,9 @@ __tracing_open(struct inode *inode, struct file *file, int *ret)
 	 */
 	mutex_lock(&trace_types_lock);
 	iter->trace = kzalloc(sizeof(*iter->trace), GFP_KERNEL);
-	if (!iter->trace) {
-		*ret = -ENOMEM;
+	if (!iter->trace)
 		goto fail;
-	}
+
 	if (current_trace)
 		*iter->trace = *current_trace;
 
@@ -1750,9 +1746,11 @@ __tracing_open(struct inode *inode, struct file *file, int *ret)
 	}
 
 	/* TODO stop tracer */
-	*ret = seq_open(file, &tracer_seq_ops);
-	if (*ret)
+	ret = seq_open(file, &tracer_seq_ops);
+	if (ret < 0) {
+		fail_ret = ERR_PTR(ret);
 		goto fail_buffer;
+	}
 
 	m = file->private_data;
 	m->private = iter;
@@ -1762,7 +1760,6 @@ __tracing_open(struct inode *inode, struct file *file, int *ret)
 
 	mutex_unlock(&trace_types_lock);
 
- out:
 	return iter;
 
  fail_buffer:
@@ -1775,7 +1772,7 @@ __tracing_open(struct inode *inode, struct file *file, int *ret)
 	kfree(iter->trace);
 	kfree(iter);
 
-	return ERR_PTR(-ENOMEM);
+	return fail_ret;
 }
 
 int tracing_open_generic(struct inode *inode, struct file *filp)
@@ -1815,9 +1812,12 @@ static int tracing_release(struct inode *inode, struct file *file)
 
 static int tracing_open(struct inode *inode, struct file *file)
 {
-	int ret;
+	struct trace_iterator *iter;
+	int ret = 0;
 
-	__tracing_open(inode, file, &ret);
+	iter = __tracing_open(inode, file);
+	if (IS_ERR(iter))
+		ret = PTR_ERR(iter);
 
 	return ret;
 }
@@ -1825,11 +1825,13 @@ static int tracing_open(struct inode *inode, struct file *file)
 static int tracing_lt_open(struct inode *inode, struct file *file)
 {
 	struct trace_iterator *iter;
-	int ret;
+	int ret = 0;
 
-	iter = __tracing_open(inode, file, &ret);
+	iter = __tracing_open(inode, file);
 
-	if (!ret)
+	if (IS_ERR(iter))
+		ret = PTR_ERR(iter);
+	else
 		iter->iter_flags |= TRACE_FILE_LAT_FMT;
 
 	return ret;
