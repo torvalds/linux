@@ -435,3 +435,19 @@ Found in hex form in kernel source, with the following notice:
  ARISING OUT OF THE USE OR INABILITY TO USE THE PROGRAM.
 
 --------------------------------------------------------------------------
+
+Driver: TEHUTI - Tehuti Networks 10G Ethernet
+
+File: tehuti/bdx.bin
+
+Licence:
+
+ Copyright (C) 2007 Tehuti Networks Ltd.
+
+ Permission is hereby granted for the distribution of this firmware data
+ in hexadecimal or equivalent format, provided this copyright notice is
+ accompanying it.
+
+Found in hex form in kernel source.
+
+--------------------------------------------------------------------------
