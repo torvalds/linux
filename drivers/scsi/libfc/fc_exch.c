@@ -1608,7 +1608,7 @@ static void fc_exch_rrq_resp(struct fc_seq *sp, struct fc_frame *fp, void *arg)
 	if (IS_ERR(fp)) {
 		int err = PTR_ERR(fp);
 
-		if (err == -FC_EX_CLOSED)
+		if (err == -FC_EX_CLOSED || err == -FC_EX_TIMEOUT)
 			goto cleanup;
 		FC_DBG("Cannot process RRQ, because of frame error %d\n", err);
 		return;
