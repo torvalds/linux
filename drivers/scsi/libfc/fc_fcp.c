@@ -1810,12 +1810,12 @@ static void fc_io_compl(struct fc_fcp_pkt *fsp)
 		sc_cmd->result = DID_ERROR << 16;
 		break;
 	case FC_DATA_UNDRUN:
-		if (fsp->cdb_status == 0) {
+		if ((fsp->cdb_status == 0) && !(fsp->req_flags & FC_SRB_READ)) {
 			/*
 			 * scsi status is good but transport level
-			 * underrun. for read it should be an error??
+			 * underrun.
 			 */
-			sc_cmd->result = (DID_OK << 16) | fsp->cdb_status;
+			sc_cmd->result = DID_OK << 16;
 		} else {
 			/*
 			 * scsi got underrun, this is an error
