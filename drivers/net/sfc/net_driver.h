@@ -385,13 +385,11 @@ struct efx_channel {
 
 /**
  * struct efx_blinker - S/W LED blinking context
- * @led_num: LED ID (board-specific meaning)
  * @state: Current state - on or off
  * @resubmit: Timer resubmission flag
  * @timer: Control timer for blinking
  */
 struct efx_blinker {
-	int led_num;
 	bool state;
 	bool resubmit;
 	struct timer_list timer;

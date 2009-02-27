@@ -194,7 +194,6 @@ static int sfe4002_init_leds(struct efx_nic *efx)
 	xfp_set_led(efx, SFE4002_RX_LED,
 		    QUAKE_LED_RXLINK | QUAKE_LED_LINK_ACTSTAT);
 	xfp_set_led(efx, SFE4002_FAULT_LED, QUAKE_LED_OFF);
-	efx->board_info.blinker.led_num = SFE4002_FAULT_LED;
 	return 0;
 }
 
