@@ -2856,7 +2856,11 @@ jme_init_one(struct pci_dev *pdev,
 		goto err_out_free_shadow;
 	}
 
-	msg_probe(jme, "JMC250 gigabit%s ver:%x rev:%x macaddr:%pM\n",
+	msg_probe(jme, "%s%s ver:%x rev:%x macaddr:%pM\n",
+		(jme->pdev->device == PCI_DEVICE_ID_JMICRON_JMC250) ?
+			"JMC250 Gigabit Ethernet" :
+			(jme->pdev->device == PCI_DEVICE_ID_JMICRON_JMC260) ?
+				"JMC260 Fast Ethernet" : "Unknown",
 		(jme->fpgaver != 0) ? " (FPGA)" : "",
 		(jme->fpgaver != 0) ? jme->fpgaver : jme->chiprev,
 		jme->rev, netdev->dev_addr);
@@ -3002,7 +3006,7 @@ static struct pci_driver jme_driver = {
 static int __init
 jme_init_module(void)
 {
-	printk(KERN_INFO PFX "JMicron JMC250 gigabit ethernet "
+	printk(KERN_INFO PFX "JMicron JMC2XX ethernet "
 	       "driver version %s\n", DRV_VERSION);
 	return pci_register_driver(&jme_driver);
 }
