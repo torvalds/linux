@@ -17,6 +17,21 @@
 #include "boards.h"
 #include "workarounds.h"
 
+unsigned mdio_id_oui(u32 id)
+{
+	unsigned oui = 0;
+	int i;
+
+	/* The bits of the OUI are designated a..x, with a=0 and b variable.
+	 * In the id register c is the MSB but the OUI is conventionally
+	 * written as bytes h..a, p..i, x..q.  Reorder the bits accordingly. */
+	for (i = 0; i < 22; ++i)
+		if (id & (1 << (i + 10)))
+			oui |= 1 << (i ^ 7);
+
+	return oui;
+}
+
 int mdio_clause45_reset_mmd(struct efx_nic *port, int mmd,
 			    int spins, int spintime)
 {

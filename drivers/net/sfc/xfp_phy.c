@@ -88,9 +88,9 @@ static int xfp_phy_init(struct efx_nic *efx)
 		return -ENOMEM;
 	efx->phy_data = phy_data;
 
-	EFX_INFO(efx, "PHY ID reg %x (OUI %x model %x revision %x)\n",
-		 devid, MDIO_ID_OUI(devid), MDIO_ID_MODEL(devid),
-		 MDIO_ID_REV(devid));
+	EFX_INFO(efx, "PHY ID reg %x (OUI %06x model %02x revision %x)\n",
+		 devid, mdio_id_oui(devid), mdio_id_model(devid),
+		 mdio_id_rev(devid));
 
 	phy_data->phy_mode = efx->phy_mode;
 
