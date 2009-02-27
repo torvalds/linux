@@ -435,7 +435,13 @@ static int fc_fcp_send_data(struct fc_fcp_pkt *fsp, struct fc_seq *seq,
 	 * burst length (t_blen) to seq_blen, otherwise set t_blen
 	 * to max FC frame payload previously set in fsp->max_payload.
 	 */
-	t_blen = lp->seq_offload ? seq_blen : fsp->max_payload;
+	t_blen = fsp->max_payload;
+	if (lp->seq_offload) {
+		t_blen = min(seq_blen, (size_t)lp->lso_max);
+		FC_DEBUG_FCP("fsp=%p:lso:blen=%zx lso_max=0x%x t_blen=%zx\n",
+			   fsp, seq_blen, lp->lso_max, t_blen);
+	}
+
 	WARN_ON(t_blen < FC_MIN_MAX_PAYLOAD);
 	if (t_blen > 512)
 		t_blen &= ~(512 - 1);	/* round down to block size */
