@@ -463,9 +463,11 @@ tlb_miss:
 	sts	pr, k3		! save original pr value in k3
 
 handle_exception:
+	mova	exception_data, k0
+
 	! Setup stack and save DSP context (k0 contains original r15 on return)
 	bsr	prepare_stack_save_dsp
-	 nop
+	 PREF(k0)
 
 	! Save registers / Switch to bank 0
 	mov.l	5f, k2		! vector register address
@@ -556,10 +558,11 @@ ENTRY(handle_interrupt)
 11:
 #endif /* defined(CONFIG_KGDB) */
 	sts	pr, k3		! save original pr value in k3
+	mova	exception_data, k0
 
 	! Setup stack and save DSP context (k0 contains original r15 on return)
 	bsr	prepare_stack_save_dsp
-	 nop
+	 PREF(k0)
 
 	! Save registers / Switch to bank 0
 	bsr	save_regs	! needs original pr value in k3
