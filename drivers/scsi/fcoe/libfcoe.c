@@ -437,7 +437,7 @@ int fcoe_xmit(struct fc_lport *lp, struct fc_frame *fp)
 	if (skb_is_nonlinear(skb)) {
 		skb_frag_t *frag;
 		if (fcoe_get_paged_crc_eof(skb, tlen)) {
-			kfree(skb);
+			kfree_skb(skb);
 			return -ENOMEM;
 		}
 		frag = &skb_shinfo(skb)->frags[skb_shinfo(skb)->nr_frags - 1];
