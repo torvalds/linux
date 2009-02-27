@@ -191,6 +191,20 @@ setup_sigcontext(struct sigcontext __user *sc, void __user *fpstate,
 /*
  * Determine which stack to use..
  */
+static unsigned long align_sigframe(unsigned long sp)
+{
+#ifdef CONFIG_X86_32
+	/*
+	 * Align the stack pointer according to the i386 ABI,
+	 * i.e. so that on function entry ((sp + 4) & 15) == 0.
+	 */
+	sp = ((sp + 4) & -16ul) - 4;
+#else /* !CONFIG_X86_32 */
+	sp = round_down(sp, 16) - 8;
+#endif
+	return sp;
+}
+
 static inline void __user *
 get_sigframe(struct k_sigaction *ka, struct pt_regs *regs, size_t frame_size,
 	     void __user **fpstate)
@@ -236,18 +250,7 @@ get_sigframe(struct k_sigaction *ka, struct pt_regs *regs, size_t frame_size,
 			return (void __user *)-1L;
 	}
 
-	sp -= frame_size;
-#ifdef CONFIG_X86_32
-	/*
-	 * Align the stack pointer according to the i386 ABI,
-	 * i.e. so that on function entry ((sp + 4) & 15) == 0.
-	 */
-	sp = ((sp + 4) & -16ul) - 4;
-#else /* !CONFIG_X86_32 */
-	sp = round_down(sp, 16) - 8;
-#endif
-
-	return (void __user *) sp;
+	return (void __user *)align_sigframe(sp - frame_size);
 }
 
 #ifdef CONFIG_X86_32
