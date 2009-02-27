@@ -2037,7 +2037,7 @@ tracing_trace_options_read(struct file *filp, char __user *ubuf,
 	/* calculate max size */
 	for (i = 0; trace_options[i]; i++) {
 		len += strlen(trace_options[i]);
-		len += 3; /* "no" and space */
+		len += 3; /* "no" and newline */
 	}
 
 	mutex_lock(&trace_types_lock);
@@ -2050,7 +2050,7 @@ tracing_trace_options_read(struct file *filp, char __user *ubuf,
 	 */
 	for (i = 0; trace_opts[i].name; i++) {
 		len += strlen(trace_opts[i].name);
-		len += 3; /* "no" and space */
+		len += 3; /* "no" and newline */
 	}
 
 	/* +2 for \n and \0 */
@@ -2062,22 +2062,21 @@ tracing_trace_options_read(struct file *filp, char __user *ubuf,
 
 	for (i = 0; trace_options[i]; i++) {
 		if (trace_flags & (1 << i))
-			r += sprintf(buf + r, "%s ", trace_options[i]);
+			r += sprintf(buf + r, "%s\n", trace_options[i]);
 		else
-			r += sprintf(buf + r, "no%s ", trace_options[i]);
+			r += sprintf(buf + r, "no%s\n", trace_options[i]);
 	}
 
 	for (i = 0; trace_opts[i].name; i++) {
 		if (tracer_flags & trace_opts[i].bit)
-			r += sprintf(buf + r, "%s ",
+			r += sprintf(buf + r, "%s\n",
 				trace_opts[i].name);
 		else
-			r += sprintf(buf + r, "no%s ",
+			r += sprintf(buf + r, "no%s\n",
 				trace_opts[i].name);
 	}
 	mutex_unlock(&trace_types_lock);
 
-	r += sprintf(buf + r, "\n");
 	WARN_ON(r >= len + 2);
 
 	r = simple_read_from_buffer(ubuf, cnt, ppos, buf, r);
