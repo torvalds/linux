@@ -66,11 +66,15 @@ static int drr_change_class(struct Qdisc *sch, u32 classid, u32 parentid,
 {
 	struct drr_sched *q = qdisc_priv(sch);
 	struct drr_class *cl = (struct drr_class *)*arg;
+	struct nlattr *opt = tca[TCA_OPTIONS];
 	struct nlattr *tb[TCA_DRR_MAX + 1];
 	u32 quantum;
 	int err;
 
-	err = nla_parse_nested(tb, TCA_DRR_MAX, tca[TCA_OPTIONS], drr_policy);
+	if (!opt)
+		return -EINVAL;
+
+	err = nla_parse_nested(tb, TCA_DRR_MAX, opt, drr_policy);
 	if (err < 0)
 		return err;
 
