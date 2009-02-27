@@ -1621,7 +1621,7 @@ out:
 static inline int fc_fcp_lport_queue_ready(struct fc_lport *lp)
 {
 	/* lock ? */
-	return (lp->state == LPORT_ST_READY) && (lp->link_status & FC_LINK_UP);
+	return (lp->state == LPORT_ST_READY) && lp->link_up && !lp->qfull;
 }
 
 /**
@@ -1890,7 +1890,7 @@ int fc_eh_abort(struct scsi_cmnd *sc_cmd)
 	lp = shost_priv(sc_cmd->device->host);
 	if (lp->state != LPORT_ST_READY)
 		return rc;
-	else if (!(lp->link_status & FC_LINK_UP))
+	else if (!lp->link_up)
 		return rc;
 
 	spin_lock_irqsave(lp->host->host_lock, flags);

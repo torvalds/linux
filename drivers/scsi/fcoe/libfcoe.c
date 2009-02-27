@@ -504,7 +504,7 @@ int fcoe_xmit(struct fc_lport *lp, struct fc_frame *fp)
 	if (rc) {
 		fcoe_insert_wait_queue(lp, skb);
 		if (fc->fcoe_pending_queue.qlen > FCOE_MAX_QUEUE_DEPTH)
-			fc_pause(lp);
+			lp->qfull = 1;
 	}
 
 	return 0;
@@ -718,7 +718,7 @@ static void fcoe_recv_flogi(struct fcoe_softc *fc, struct fc_frame *fp, u8 *sa)
  * fcoe_watchdog - fcoe timer callback
  * @vp:
  *
- * This checks the pending queue length for fcoe and put fcoe to be paused state
+ * This checks the pending queue length for fcoe and set lport qfull
  * if the FCOE_MAX_QUEUE_DEPTH is reached. This is done for all fc_lport on the
  * fcoe_hostlist.
  *
@@ -728,17 +728,17 @@ void fcoe_watchdog(ulong vp)
 {
 	struct fc_lport *lp;
 	struct fcoe_softc *fc;
-	int paused = 0;
+	int qfilled = 0;
 
 	read_lock(&fcoe_hostlist_lock);
 	list_for_each_entry(fc, &fcoe_hostlist, list) {
 		lp = fc->lp;
 		if (lp) {
 			if (fc->fcoe_pending_queue.qlen > FCOE_MAX_QUEUE_DEPTH)
-				paused = 1;
+				qfilled = 1;
 			if (fcoe_check_wait_queue(lp) <	 FCOE_MAX_QUEUE_DEPTH) {
-				if (paused)
-					fc_unpause(lp);
+				if (qfilled)
+					lp->qfull = 0;
 			}
 		}
 	}
@@ -767,8 +767,7 @@ void fcoe_watchdog(ulong vp)
  **/
 static int fcoe_check_wait_queue(struct fc_lport *lp)
 {
-	int rc, unpause = 0;
-	int paused = 0;
+	int rc;
 	struct sk_buff *skb;
 	struct fcoe_softc *fc;
 
@@ -776,10 +775,10 @@ static int fcoe_check_wait_queue(struct fc_lport *lp)
 	spin_lock_bh(&fc->fcoe_pending_queue.lock);
 
 	/*
-	 * is this interface paused?
+	 * if interface pending queue full then set qfull in lport.
 	 */
 	if (fc->fcoe_pending_queue.qlen > FCOE_MAX_QUEUE_DEPTH)
-		paused = 1;
+		lp->qfull = 1;
 	if (fc->fcoe_pending_queue.qlen) {
 		while ((skb = __skb_dequeue(&fc->fcoe_pending_queue)) != NULL) {
 			spin_unlock_bh(&fc->fcoe_pending_queue.lock);
@@ -791,11 +790,9 @@ static int fcoe_check_wait_queue(struct fc_lport *lp)
 			spin_lock_bh(&fc->fcoe_pending_queue.lock);
 		}
 		if (fc->fcoe_pending_queue.qlen < FCOE_MAX_QUEUE_DEPTH)
-			unpause = 1;
+			lp->qfull = 0;
 	}
 	spin_unlock_bh(&fc->fcoe_pending_queue.lock);
-	if ((unpause) && (paused))
-		fc_unpause(lp);
 	return fc->fcoe_pending_queue.qlen;
 }
 
@@ -873,7 +870,7 @@ static int fcoe_device_notification(struct notifier_block *notifier,
 	struct net_device *real_dev = ptr;
 	struct fcoe_softc *fc;
 	struct fcoe_dev_stats *stats;
-	u16 new_status;
+	u32 new_link_up;
 	u32 mfs;
 	int rc = NOTIFY_OK;
 
@@ -890,17 +887,15 @@ static int fcoe_device_notification(struct notifier_block *notifier,
 		goto out;
 	}
 
-	new_status = lp->link_status;
+	new_link_up = lp->link_up;
 	switch (event) {
 	case NETDEV_DOWN:
 	case NETDEV_GOING_DOWN:
-		new_status &= ~FC_LINK_UP;
+		new_link_up = 0;
 		break;
 	case NETDEV_UP:
 	case NETDEV_CHANGE:
-		new_status &= ~FC_LINK_UP;
-		if (!fcoe_link_ok(lp))
-			new_status |= FC_LINK_UP;
+		new_link_up = !fcoe_link_ok(lp);
 		break;
 	case NETDEV_CHANGEMTU:
 		mfs = fc->real_dev->mtu -
@@ -908,17 +903,15 @@ static int fcoe_device_notification(struct notifier_block *notifier,
 			 sizeof(struct fcoe_crc_eof));
 		if (mfs >= FC_MIN_MAX_FRAME)
 			fc_set_mfs(lp, mfs);
-		new_status &= ~FC_LINK_UP;
-		if (!fcoe_link_ok(lp))
-			new_status |= FC_LINK_UP;
+		new_link_up = !fcoe_link_ok(lp);
 		break;
 	case NETDEV_REGISTER:
 		break;
 	default:
 		FC_DBG("unknown event %ld call", event);
 	}
-	if (lp->link_status != new_status) {
-		if ((new_status & FC_LINK_UP) == FC_LINK_UP)
+	if (lp->link_up != new_link_up) {
+		if (new_link_up)
 			fc_linkup(lp);
 		else {
 			stats = lp->dev_stats[smp_processor_id()];

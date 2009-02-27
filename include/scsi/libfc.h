@@ -68,9 +68,6 @@
 /*
  * FC HBA status
  */
-#define FC_PAUSE		    (1 << 1)
-#define FC_LINK_UP		    (1 << 0)
-
 enum fc_lport_state {
 	LPORT_ST_NONE = 0,
 	LPORT_ST_FLOGI,
@@ -603,7 +600,8 @@ struct fc_lport {
 
 	/* Operational Information */
 	struct libfc_function_template tt;
-	u16			link_status;
+	u8			link_up;
+	u8			qfull;
 	enum fc_lport_state	state;
 	unsigned long		boot_time;
 
@@ -702,12 +700,6 @@ void fc_linkup(struct fc_lport *);
  * Link is down for the given local port.
  */
 void fc_linkdown(struct fc_lport *);
-
-/*
- * Pause and unpause traffic.
- */
-void fc_pause(struct fc_lport *);
-void fc_unpause(struct fc_lport *);
 
 /*
  * Configure the local port.

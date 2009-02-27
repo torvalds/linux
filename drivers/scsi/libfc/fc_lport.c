@@ -250,7 +250,7 @@ void fc_get_host_port_state(struct Scsi_Host *shost)
 {
 	struct fc_lport *lp = shost_priv(shost);
 
-	if ((lp->link_status & FC_LINK_UP) == FC_LINK_UP)
+	if (lp->link_up)
 		fc_host_port_state(shost) = FC_PORTSTATE_ONLINE;
 	else
 		fc_host_port_state(shost) = FC_PORTSTATE_OFFLINE;
@@ -577,8 +577,8 @@ void fc_linkup(struct fc_lport *lport)
 		       fc_host_port_id(lport->host));
 
 	mutex_lock(&lport->lp_mutex);
-	if ((lport->link_status & FC_LINK_UP) != FC_LINK_UP) {
-		lport->link_status |= FC_LINK_UP;
+	if (!lport->link_up) {
+		lport->link_up = 1;
 
 		if (lport->state == LPORT_ST_RESET)
 			fc_lport_enter_flogi(lport);
@@ -597,38 +597,14 @@ void fc_linkdown(struct fc_lport *lport)
 	FC_DEBUG_LPORT("Link is down for port (%6x)\n",
 		       fc_host_port_id(lport->host));
 
-	if ((lport->link_status & FC_LINK_UP) == FC_LINK_UP) {
-		lport->link_status &= ~(FC_LINK_UP);
+	if (lport->link_up) {
+		lport->link_up = 0;
 		fc_lport_enter_reset(lport);
 		lport->tt.fcp_cleanup(lport);
 	}
 	mutex_unlock(&lport->lp_mutex);
 }
 EXPORT_SYMBOL(fc_linkdown);
-
-/**
- * fc_pause - Pause the flow of frames
- * @lport: The lport to be paused
- */
-void fc_pause(struct fc_lport *lport)
-{
-	mutex_lock(&lport->lp_mutex);
-	lport->link_status |= FC_PAUSE;
-	mutex_unlock(&lport->lp_mutex);
-}
-EXPORT_SYMBOL(fc_pause);
-
-/**
- * fc_unpause - Unpause the flow of frames
- * @lport: The lport to be unpaused
- */
-void fc_unpause(struct fc_lport *lport)
-{
-	mutex_lock(&lport->lp_mutex);
-	lport->link_status &= ~(FC_PAUSE);
-	mutex_unlock(&lport->lp_mutex);
-}
-EXPORT_SYMBOL(fc_unpause);
 
 /**
  * fc_fabric_logoff - Logout of the fabric
@@ -977,7 +953,7 @@ static void fc_lport_enter_reset(struct fc_lport *lport)
 	fc_host_fabric_name(lport->host) = 0;
 	fc_host_port_id(lport->host) = 0;
 
-	if ((lport->link_status & FC_LINK_UP) == FC_LINK_UP)
+	if (lport->link_up)
 		fc_lport_enter_flogi(lport);
 }
 
