@@ -184,7 +184,7 @@ static inline unsigned p2m_index(unsigned long pfn)
 }
 
 /* Build the parallel p2m_top_mfn structures */
-void xen_setup_mfn_list_list(void)
+static void __init xen_build_mfn_list_list(void)
 {
 	unsigned pfn, idx;
 
@@ -198,7 +198,10 @@ void xen_setup_mfn_list_list(void)
 		unsigned topidx = idx * P2M_ENTRIES_PER_PAGE;
 		p2m_top_mfn_list[idx] = virt_to_mfn(&p2m_top_mfn[topidx]);
 	}
+}
 
+void xen_setup_mfn_list_list(void)
+{
 	BUG_ON(HYPERVISOR_shared_info == &xen_dummy_shared_info);
 
 	HYPERVISOR_shared_info->arch.pfn_to_mfn_frame_list_list =
@@ -218,6 +221,8 @@ void __init xen_build_dynamic_phys_to_machine(void)
 
 		p2m_top[topidx] = &mfn_list[pfn];
 	}
+
+	xen_build_mfn_list_list();
 }
 
 unsigned long get_phys_to_machine(unsigned long pfn)
