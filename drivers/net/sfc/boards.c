@@ -226,6 +226,66 @@ static int sfe4002_init(struct efx_nic *efx)
 	return 0;
 }
 
+/*****************************************************************************
+ * Support for the SFN4112F
+ *
+ */
+static u8 sfn4112f_lm87_channel = 0x03; /* use AIN not FAN inputs */
+
+static const u8 sfn4112f_lm87_regs[] = {
+	LM87_IN_LIMITS(0, 0x83, 0x91),		/* 2.5V:  1.8V +/- 5% */
+	LM87_IN_LIMITS(1, 0x51, 0x5a),		/* Vccp1: 1.2V +/- 5% */
+	LM87_IN_LIMITS(2, 0xb6, 0xca),		/* 3.3V:  3.3V +/- 5% */
+	LM87_IN_LIMITS(4, 0xb0, 0xe0),		/* 12V:   11-14V */
+	LM87_IN_LIMITS(5, 0x44, 0x4b),		/* Vccp2: 1.0V +/- 5% */
+	LM87_AIN_LIMITS(1, 0x91, 0xa1),		/* AIN2:  1.5V +/- 5% */
+	LM87_TEMP_INT_LIMITS(10, 60),		/* board */
+	LM87_TEMP_EXT1_LIMITS(10, 70),		/* Falcon */
+	0
+};
+
+static struct i2c_board_info sfn4112f_hwmon_info = {
+	I2C_BOARD_INFO("lm87", 0x2e),
+	.platform_data	= &sfn4112f_lm87_channel,
+	.irq		= -1,
+};
+
+#define SFN4112F_ACT_LED	0
+#define SFN4112F_LINK_LED	1
+
+static void sfn4112f_init_leds(struct efx_nic *efx)
+{
+	xfp_set_led(efx, SFN4112F_ACT_LED,
+		    QUAKE_LED_RXLINK | QUAKE_LED_LINK_ACT);
+	xfp_set_led(efx, SFN4112F_LINK_LED,
+		    QUAKE_LED_RXLINK | QUAKE_LED_LINK_STAT);
+}
+
+static void sfn4112f_set_id_led(struct efx_nic *efx, bool state)
+{
+	xfp_set_led(efx, SFN4112F_LINK_LED,
+		    state ? QUAKE_LED_ON : QUAKE_LED_OFF);
+}
+
+static int sfn4112f_check_hw(struct efx_nic *efx)
+{
+	/* Mask out unused sensors */
+	return efx_check_lm87(efx, ~0x48);
+}
+
+static int sfn4112f_init(struct efx_nic *efx)
+{
+	int rc = efx_init_lm87(efx, &sfn4112f_hwmon_info, sfn4112f_lm87_regs);
+	if (rc)
+		return rc;
+	efx->board_info.monitor = sfn4112f_check_hw;
+	efx->board_info.init_leds = sfn4112f_init_leds;
+	efx->board_info.set_id_led = sfn4112f_set_id_led;
+	efx->board_info.blink = board_blink;
+	efx->board_info.fini = efx_fini_lm87;
+	return 0;
+}
+
 /* This will get expanded as board-specific details get moved out of the
  * PHY drivers. */
 struct efx_board_data {
@@ -241,6 +301,8 @@ static struct efx_board_data board_data[] = {
 	{ EFX_BOARD_SFE4002, "SFE4002", "XFP adapter", sfe4002_init },
 	{ EFX_BOARD_SFN4111T, "SFN4111T", "100/1000/10GBASE-T adapter",
 	  sfn4111t_init },
+	{ EFX_BOARD_SFN4112F, "SFN4112F", "SFP+ adapter",
+	  sfn4112f_init },
 };
 
 void efx_set_board_info(struct efx_nic *efx, u16 revision_info)
