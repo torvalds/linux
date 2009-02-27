@@ -36,7 +36,7 @@
  * ext_xtal_mux for want of an actual name from the manual.
 */
 
-struct clk clk_ext_xtal_mux = {
+static struct clk clk_ext_xtal_mux = {
 	.name		= "ext_xtal",
 	.id		= -1,
 };
@@ -63,7 +63,7 @@ struct clksrc_clk {
 	void __iomem		*reg_divider;
 };
 
-struct clk clk_fout_apll = {
+static struct clk clk_fout_apll = {
 	.name		= "fout_apll",
 	.id		= -1,
 };
@@ -78,7 +78,7 @@ static struct clk_sources clk_src_apll = {
 	.nr_sources	= ARRAY_SIZE(clk_src_apll_list),
 };
 
-struct clksrc_clk clk_mout_apll = {
+static struct clksrc_clk clk_mout_apll = {
 	.clk	= {
 		.name		= "mout_apll",
 		.id		= -1,
@@ -88,7 +88,7 @@ struct clksrc_clk clk_mout_apll = {
 	.sources	= &clk_src_apll,
 };
 
-struct clk clk_fout_epll = {
+static struct clk clk_fout_epll = {
 	.name		= "fout_epll",
 	.id		= -1,
 };
@@ -103,7 +103,7 @@ static struct clk_sources clk_src_epll = {
 	.nr_sources	= ARRAY_SIZE(clk_src_epll_list),
 };
 
-struct clksrc_clk clk_mout_epll = {
+static struct clksrc_clk clk_mout_epll = {
 	.clk	= {
 		.name		= "mout_epll",
 		.id		= -1,
@@ -123,7 +123,7 @@ static struct clk_sources clk_src_mpll = {
 	.nr_sources	= ARRAY_SIZE(clk_src_mpll_list),
 };
 
-struct clksrc_clk clk_mout_mpll = {
+static struct clksrc_clk clk_mout_mpll = {
 	.clk = {
 		.name		= "mout_mpll",
 		.id		= -1,
@@ -145,7 +145,7 @@ static unsigned long s3c64xx_clk_doutmpll_get_rate(struct clk *clk)
 	return rate;
 }
 
-struct clk clk_dout_mpll = {
+static struct clk clk_dout_mpll = {
 	.name		= "dout_mpll",
 	.id		= -1,
 	.parent		= &clk_mout_mpll.clk,
