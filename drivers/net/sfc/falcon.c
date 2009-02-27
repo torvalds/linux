@@ -2249,6 +2249,7 @@ static int falcon_probe_phy(struct efx_nic *efx)
 		efx->phy_op = &falcon_sft9001_phy_ops;
 		break;
 	case PHY_TYPE_QT2022C2:
+	case PHY_TYPE_QT2025C:
 		efx->phy_op = &falcon_xfp_phy_ops;
 		break;
 	default:

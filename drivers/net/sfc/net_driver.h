@@ -450,6 +450,7 @@ enum phy_type {
 	PHY_TYPE_QT2022C2 = 4,
 	PHY_TYPE_PM8358 = 6,
 	PHY_TYPE_SFT9001A = 8,
+	PHY_TYPE_QT2025C = 9,
 	PHY_TYPE_SFT9001B = 10,
 	PHY_TYPE_MAX	/* Insert any new items before this */
 };
