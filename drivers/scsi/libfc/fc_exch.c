@@ -675,8 +675,8 @@ static struct fc_exch *fc_exch_resp(struct fc_exch_mgr *mp, struct fc_frame *fp)
  * If fc_pf_rjt_reason is FC_RJT_NONE then this function will have a hold
  * on the ep that should be released by the caller.
  */
-static enum fc_pf_rjt_reason
-fc_seq_lookup_recip(struct fc_exch_mgr *mp, struct fc_frame *fp)
+static enum fc_pf_rjt_reason fc_seq_lookup_recip(struct fc_exch_mgr *mp,
+						 struct fc_frame *fp)
 {
 	struct fc_frame_header *fh = fc_frame_header_get(fp);
 	struct fc_exch *ep = NULL;
@@ -994,9 +994,9 @@ static void fc_seq_send_ack(struct fc_seq *sp, const struct fc_frame *rx_fp)
  * Send BLS Reject.
  * This is for rejecting BA_ABTS only.
  */
-static void
-fc_exch_send_ba_rjt(struct fc_frame *rx_fp, enum fc_ba_rjt_reason reason,
-		    enum fc_ba_rjt_explan explan)
+static void fc_exch_send_ba_rjt(struct fc_frame *rx_fp,
+				enum fc_ba_rjt_reason reason,
+				enum fc_ba_rjt_explan explan)
 {
 	struct fc_frame *fp;
 	struct fc_frame_header *rx_fh;

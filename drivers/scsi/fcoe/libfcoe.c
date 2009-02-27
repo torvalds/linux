@@ -949,8 +949,8 @@ static struct net_device *fcoe_if_to_netdev(const char *buffer)
  *
  * Returns: ptr to the struct module, NULL for failure
  */
-static struct module *fcoe_netdev_to_module_owner(
-	const struct net_device *netdev)
+static struct module *
+fcoe_netdev_to_module_owner(const struct net_device *netdev)
 {
 	struct device *dev;
 
@@ -1205,8 +1205,8 @@ EXPORT_SYMBOL_GPL(fcoe_clean_pending_queue);
  * Returns: ptr to Scsi_Host
  * TODO: to libfc?
  */
-static inline struct Scsi_Host *libfc_host_alloc(
-	struct scsi_host_template *sht, int priv_size)
+static inline struct Scsi_Host *
+libfc_host_alloc(struct scsi_host_template *sht, int priv_size)
 {
 	return scsi_host_alloc(sht, sizeof(struct fc_lport) + priv_size);
 }
@@ -1285,8 +1285,8 @@ EXPORT_SYMBOL_GPL(fcoe_wwn_from_mac);
  *
  * Returns: NULL or the located fcoe_softc
  */
-static struct fcoe_softc *fcoe_hostlist_lookup_softc(
-	const struct net_device *dev)
+static struct fcoe_softc *
+fcoe_hostlist_lookup_softc(const struct net_device *dev)
 {
 	struct fcoe_softc *fc;
 
@@ -1426,7 +1426,6 @@ static int __init fcoe_init(void)
 			} else {
 				fcoe_percpu[cpu] = NULL;
 				kfree(p);
-
 			}
 		}
 	}
@@ -1476,7 +1475,7 @@ static void __exit fcoe_exit(void)
 	 */
 	del_timer_sync(&fcoe_timer);
 
-	/* releases the assocaited fcoe transport for each lport */
+	/* releases the associated fcoe transport for each lport */
 	list_for_each_entry_safe(fc, tmp, &fcoe_hostlist, list)
 		fcoe_transport_release(fc->real_dev);
 

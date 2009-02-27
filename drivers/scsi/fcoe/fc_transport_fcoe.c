@@ -62,8 +62,9 @@ struct pci_dev *fcoe_transport_pcidev(const struct net_device *netdev)
  *
  * Returns: 0 for success
  */
-static struct fcoe_transport_internal *fcoe_transport_device_lookup(
-	struct fcoe_transport *t, struct net_device *netdev)
+static struct fcoe_transport_internal *
+fcoe_transport_device_lookup(struct fcoe_transport *t,
+			     struct net_device *netdev)
 {
 	struct fcoe_transport_internal *ti;
 
@@ -184,7 +185,7 @@ static void fcoe_transport_device_remove_all(struct fcoe_transport *t)
  * Returns: true for match up
  */
 static bool fcoe_transport_match(struct fcoe_transport *t,
-				struct net_device *netdev)
+				 struct net_device *netdev)
 {
 	/* match transport by vendor and device id */
 	struct pci_dev *pci;
@@ -217,8 +218,8 @@ static bool fcoe_transport_match(struct fcoe_transport *t,
  *
  * TODO: return default sw transport if no other transport is found
  */
-static struct fcoe_transport *fcoe_transport_lookup(
-	struct net_device *netdev)
+static struct fcoe_transport *
+fcoe_transport_lookup(struct net_device *netdev)
 {
 	struct fcoe_transport *t;
 

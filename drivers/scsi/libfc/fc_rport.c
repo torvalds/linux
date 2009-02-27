@@ -179,8 +179,8 @@ EXPORT_SYMBOL(fc_set_rport_loss_tmo);
  * @flp: FLOGI payload structure
  * @maxval: upper limit, may be less than what is in the service parameters
  */
-static unsigned int
-fc_plogi_get_maxframe(struct fc_els_flogi *flp, unsigned int maxval)
+static unsigned int fc_plogi_get_maxframe(struct fc_els_flogi *flp,
+					  unsigned int maxval)
 {
 	unsigned int mfs;
 
