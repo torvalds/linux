@@ -2024,12 +2024,12 @@ static ssize_t
 tracing_trace_options_read(struct file *filp, char __user *ubuf,
 		       size_t cnt, loff_t *ppos)
 {
-	int i;
+	struct tracer_opt *trace_opts;
+	u32 tracer_flags;
+	int len = 0;
 	char *buf;
 	int r = 0;
-	int len = 0;
-	u32 tracer_flags = current_trace->flags->val;
-	struct tracer_opt *trace_opts = current_trace->flags->opts;
+	int i;
 
 
 	/* calculate max size */
@@ -2037,6 +2037,10 @@ tracing_trace_options_read(struct file *filp, char __user *ubuf,
 		len += strlen(trace_options[i]);
 		len += 3; /* "no" and space */
 	}
+
+	mutex_lock(&trace_types_lock);
+	tracer_flags = current_trace->flags->val;
+	trace_opts = current_trace->flags->opts;
 
 	/*
 	 * Increase the size with names of options specific
@@ -2049,8 +2053,10 @@ tracing_trace_options_read(struct file *filp, char __user *ubuf,
 
 	/* +2 for \n and \0 */
 	buf = kmalloc(len + 2, GFP_KERNEL);
-	if (!buf)
+	if (!buf) {
+		mutex_unlock(&trace_types_lock);
 		return -ENOMEM;
+	}
 
 	for (i = 0; trace_options[i]; i++) {
 		if (trace_flags & (1 << i))
@@ -2067,6 +2073,7 @@ tracing_trace_options_read(struct file *filp, char __user *ubuf,
 			r += sprintf(buf + r, "no%s ",
 				trace_opts[i].name);
 	}
+	mutex_unlock(&trace_types_lock);
 
 	r += sprintf(buf + r, "\n");
 	WARN_ON(r >= len + 2);
@@ -2074,7 +2081,6 @@ tracing_trace_options_read(struct file *filp, char __user *ubuf,
 	r = simple_read_from_buffer(ubuf, cnt, ppos, buf, r);
 
 	kfree(buf);
-
 	return r;
 }
 
@@ -2149,7 +2155,9 @@ tracing_trace_options_write(struct file *filp, const char __user *ubuf,
 
 	/* If no option could be set, test the specific tracer options */
 	if (!trace_options[i]) {
+		mutex_lock(&trace_types_lock);
 		ret = set_tracer_option(current_trace, cmp, neg);
+		mutex_unlock(&trace_types_lock);
 		if (ret)
 			return ret;
 	}
