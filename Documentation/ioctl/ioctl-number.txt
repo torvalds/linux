@@ -125,7 +125,6 @@ Code	Seq#	Include File		Comments
 'd'	00-DF	linux/video_decoder.h	conflict!
 'd'	F0-FF	linux/digi1.h
 'e'	all	linux/digi1.h		conflict!
-'e'	00-1F	linux/video_encoder.h	conflict!
 'e'	00-1F	net/irda/irtty.h	conflict!
 'f'	00-1F	linux/ext2_fs.h
 'h'	00-7F				Charon filesystem
