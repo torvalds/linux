@@ -392,10 +392,13 @@ static int __setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
  * Determine which stack to use..
  */
 static void __user *
-get_stack(struct k_sigaction *ka, unsigned long sp, unsigned long size)
+get_sigframe(struct k_sigaction *ka, struct pt_regs *regs, size_t frame_size,
+	     void __user **fpstate)
 {
-	/* Default to using normal stack - redzone*/
-	sp -= 128;
+	unsigned long sp;
+
+	/* Default to using normal stack - redzone */
+	sp = regs->sp - 128;
 
 	/* This is the X/Open sanctioned signal stack switching.  */
 	if (ka->sa.sa_flags & SA_ONSTACK) {
@@ -403,7 +406,18 @@ get_stack(struct k_sigaction *ka, unsigned long sp, unsigned long size)
 			sp = current->sas_ss_sp + current->sas_ss_size;
 	}
 
-	return (void __user *)round_down(sp - size, 64);
+	if (used_math()) {
+		sp -= sig_xstate_size;
+		*fpstate = (void __user *)round_down(sp, 64);
+		if (save_i387_xstate(*fpstate) < 0)
+			return (void __user *) -1L;
+
+		sp -= frame_size;
+		return (void __user *)round_down(sp, 16) - 8;
+	}
+
+	sp -= frame_size;
+	return (void __user *)round_down(sp, 64) - 8;
 }
 
 static int __setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
@@ -414,15 +428,7 @@ static int __setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	int err = 0;
 	struct task_struct *me = current;
 
-	if (used_math()) {
-		fp = get_stack(ka, regs->sp, sig_xstate_size);
-		frame = (void __user *)round_down(
-			(unsigned long)fp - sizeof(struct rt_sigframe), 16) - 8;
-
-		if (save_i387_xstate(fp) < 0)
-			return -EFAULT;
-	} else
-		frame = get_stack(ka, regs->sp, sizeof(struct rt_sigframe)) - 8;
+	frame = get_sigframe(ka, regs, sizeof(struct rt_sigframe), &fp);
 
 	if (!access_ok(VERIFY_WRITE, frame, sizeof(*frame)))
 		return -EFAULT;
