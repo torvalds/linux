@@ -430,7 +430,7 @@ static int fc_disc_new_target(struct fc_disc *disc,
 				dp.ids.port_name = ids->port_name;
 				dp.ids.node_name = ids->node_name;
 				dp.ids.roles = ids->roles;
-				rport = fc_rport_rogue_create(&dp);
+				rport = lport->tt.rport_create(&dp);
 			}
 			if (!rport)
 				error = -ENOMEM;
@@ -617,7 +617,7 @@ static int fc_disc_gpn_ft_parse(struct fc_disc *disc, void *buf, size_t len)
 
 		if ((dp.ids.port_id != fc_host_port_id(lport->host)) &&
 		    (dp.ids.port_name != lport->wwpn)) {
-			rport = fc_rport_rogue_create(&dp);
+			rport = lport->tt.rport_create(&dp);
 			if (rport) {
 				rdata = rport->dd_data;
 				rdata->ops = &fc_disc_rport_ops;
@@ -769,7 +769,7 @@ static void fc_disc_single(struct fc_disc *disc, struct fc_disc_port *dp)
 	if (rport)
 		fc_disc_del_target(disc, rport);
 
-	new_rport = fc_rport_rogue_create(dp);
+	new_rport = lport->tt.rport_create(dp);
 	if (new_rport) {
 		rdata = new_rport->dd_data;
 		rdata->ops = &fc_disc_rport_ops;

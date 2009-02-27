@@ -490,6 +490,11 @@ struct libfc_function_template {
 	 */
 
 	/*
+	 * Create a remote port
+	 */
+	struct fc_rport *(*rport_create)(struct fc_disc_port *);
+
+	/*
 	 * Initiates the RP state machine. It is called from the LP module.
 	 * This function will issue the following commands to the N_Port
 	 * identified by the FC ID provided.

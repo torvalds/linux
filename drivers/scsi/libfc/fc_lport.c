@@ -232,7 +232,7 @@ static void fc_lport_ptp_setup(struct fc_lport *lport,
 		lport->ptp_rp = NULL;
 	}
 
-	lport->ptp_rp = fc_rport_rogue_create(&dp);
+	lport->ptp_rp = lport->tt.rport_create(&dp);
 
 	lport->tt.rport_login(lport->ptp_rp);
 
@@ -1282,7 +1282,7 @@ static void fc_lport_enter_dns(struct fc_lport *lport)
 
 	fc_lport_state_enter(lport, LPORT_ST_DNS);
 
-	rport = fc_rport_rogue_create(&dp);
+	rport = lport->tt.rport_create(&dp);
 	if (!rport)
 		goto err;
 

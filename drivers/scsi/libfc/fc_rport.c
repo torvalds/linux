@@ -1271,6 +1271,9 @@ static void fc_rport_flush_queue(void)
 
 int fc_rport_init(struct fc_lport *lport)
 {
+	if (!lport->tt.rport_create)
+		lport->tt.rport_create = fc_rport_rogue_create;
+
 	if (!lport->tt.rport_login)
 		lport->tt.rport_login = fc_rport_login;
 
