@@ -57,14 +57,11 @@ static void __init rd88f6192_init(void)
 
 	kirkwood_ehci_init();
 	kirkwood_ge00_init(&rd88f6192_ge00_data);
-	kirkwood_rtc_init();
 	kirkwood_sata_init(&rd88f6192_sata_data);
 	spi_register_board_info(rd88F6192_spi_slave_info,
 				ARRAY_SIZE(rd88F6192_spi_slave_info));
 	kirkwood_spi_init();
 	kirkwood_uart0_init();
-	kirkwood_xor0_init();
-	kirkwood_xor1_init();
 }
 
 static int __init rd88f6192_pci_init(void)

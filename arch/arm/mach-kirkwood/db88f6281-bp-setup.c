@@ -94,7 +94,6 @@ static void __init db88f6281_init(void)
 
 	kirkwood_ehci_init();
 	kirkwood_ge00_init(&db88f6281_ge00_data);
-	kirkwood_rtc_init();
 	kirkwood_sata_init(&db88f6281_sata_data);
 	kirkwood_uart0_init();
 	kirkwood_sdio_init(&db88f6281_mvsdio_data);

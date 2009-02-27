@@ -255,7 +255,7 @@ static struct resource kirkwood_rtc_resource = {
 	.flags	= IORESOURCE_MEM,
 };
 
-void __init kirkwood_rtc_init(void)
+static void __init kirkwood_rtc_init(void)
 {
 	platform_device_register_simple("rtc-mv", -1, &kirkwood_rtc_resource, 1);
 }
@@ -547,7 +547,7 @@ static struct platform_device kirkwood_xor01_channel = {
 	},
 };
 
-void __init kirkwood_xor0_init(void)
+static void __init kirkwood_xor0_init(void)
 {
 	platform_device_register(&kirkwood_xor0_shared);
 
@@ -645,7 +645,7 @@ static struct platform_device kirkwood_xor11_channel = {
 	},
 };
 
-void __init kirkwood_xor1_init(void)
+static void __init kirkwood_xor1_init(void)
 {
 	platform_device_register(&kirkwood_xor1_shared);
 
@@ -753,4 +753,9 @@ void __init kirkwood_init(void)
 #ifdef CONFIG_CACHE_FEROCEON_L2
 	kirkwood_l2_init();
 #endif
+
+	/* internal devices that every board has */
+	kirkwood_rtc_init();
+	kirkwood_xor0_init();
+	kirkwood_xor1_init();
 }
