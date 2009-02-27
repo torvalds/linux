@@ -35,6 +35,9 @@ int key_task_permission(const key_ref_t key_ref, const struct cred *cred,
 
 	key = key_ref_to_ptr(key_ref);
 
+	if (key->user->user_ns != cred->user->user_ns)
+		goto use_other_perms;
+
 	/* use the second 8-bits of permissions for keys the caller owns */
 	if (key->uid == cred->fsuid) {
 		kperm = key->perm >> 16;
@@ -55,6 +58,8 @@ int key_task_permission(const key_ref_t key_ref, const struct cred *cred,
 			goto use_these_perms;
 		}
 	}
+
+use_other_perms:
 
 	/* otherwise use the least-significant 8-bits */
 	kperm = key->perm;
