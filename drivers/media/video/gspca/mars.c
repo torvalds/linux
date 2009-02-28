@@ -69,10 +69,10 @@ static struct ctrl sd_ctrls[] = {
 		.id      = V4L2_CID_SATURATION,
 		.type    = V4L2_CTRL_TYPE_INTEGER,
 		.name    = "Color",
-		.minimum = 0,
-		.maximum = 220,
+		.minimum = 1,
+		.maximum = 255,
 		.step    = 1,
-#define COLOR_DEF 190
+#define COLOR_DEF 200
 		.default_value = COLOR_DEF,
 	    },
 	    .set = sd_setcolors,
@@ -191,7 +191,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	struct sd *sd = (struct sd *) gspca_dev;
 	int err_code;
 	u8 *data;
-	int i, val;
+	int i;
 
 	data = gspca_dev->usb_buf;
 
@@ -247,9 +247,11 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	data[0] = 0x5e;		/* address */
 	data[1] = 0;		/* reg 94, Y Gain (auto) */
 /*jfm: from win trace*/
-	val = sd->colors * 0x40 + 0x400;
-	data[2] = val;		/* reg 0x5f/0x60 (LE) = saturation */
-	data[3] = val >> 8;
+				/* reg 0x5f/0x60 (LE) = saturation */
+				/* h (60): xxxx x100
+				 * l (5f): xxxx x000 */
+	data[2] = sd->colors << 3;
+	data[3] = ((sd->colors >> 2) & 0xf8) | 0x04;
 	data[4] = sd->brightness; /* reg 0x61 = brightness */
 	data[5] = 0x00;
 
@@ -365,10 +367,11 @@ static int sd_setcolors(struct gspca_dev *gspca_dev, __s32 val)
 
 	sd->colors = val;
 	if (gspca_dev->streaming) {
-		val = val * 0x40 + 0x400;
+
+		/* see sd_start */
 		gspca_dev->usb_buf[0] = 0x5f;
-		gspca_dev->usb_buf[1] = val;
-		gspca_dev->usb_buf[2] = val >> 8;
+		gspca_dev->usb_buf[1] = sd->colors << 3;
+		gspca_dev->usb_buf[2] = ((sd->colors >> 2) & 0xf8) | 0x04;
 		reg_w(gspca_dev, 3);
 	}
 	return 0;
