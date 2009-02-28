@@ -292,23 +292,29 @@ void cx18_av_std_setup(struct cx18 *cx)
 		 *
 		 * vsync:     always 6 half-lines of vsync pulses
 		 * vactive:   half lines of active video
-		 * vblank656: half lines, after line 3, of blanked video
-		 * vblank:    half lines, after line 9, of blanked video
+		 * vblank656: half lines, after line 3/mid-266, of blanked video
+		 * vblank:    half lines, after line 9/272, of blanked video
 		 *
+		 * As far as I can tell:
 		 * vblank656 starts counting from the falling edge of the first
-		 * 	vsync pulse (start of line 4)
+		 * 	vsync pulse (start of line 4 or mid-266)
 		 * vblank starts counting from the after the 6 vsync pulses and
-		 * 	6 equalization pulses (start of line 10)
+		 * 	6 or 5 equalization pulses (start of line 10 or 272)
 		 *
 		 * For 525 line systems the driver will extract VBI information
-		 * from lines 10 through 21.  To avoid the EAV RP code from
-		 * toggling at the start of hblank at line 22, where sliced VBI
-		 * data from line 21 is stuffed, also treat line 22 as blanked.
+		 * from lines 10-21 and lines 273-284.
 		 */
-		vblank656 = 38; /* lines  4 through  22 */
-		vblank = 26;	/* lines 10 through  22 */
-		vactive = 481;  /* lines 23 through 262.5 */
+		vblank656 = 38; /* lines  4 -  22  &  266 - 284 */
+		vblank = 26;	/* lines 10 -  22  &  272 - 284 */
+		vactive = 481;  /* lines 23 - 263  &  285 - 525 */
 
+		/*
+		 * For a 13.5 Mpps clock and 15,734.26 Hz line rate, a line is
+		 * is 858 pixels = 720 active + 138 blanking.  The Hsync leading
+		 * edge should happen 1.2 us * 13.5 Mpps ~= 16 pixels after the
+		 * end of active video, leaving 122 pixels of hblank to ignore
+		 * before active video starts.
+		 */
 		hactive = 720;
 		hblank = 122;
 		luma_lpf = 1;

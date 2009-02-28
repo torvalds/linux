@@ -413,9 +413,8 @@ static void cx18_vbi_setup(struct cx18_stream *s)
 		 * 0x90 (Task                         HorizontalBlank)
 		 * 0xd0 (Task EvenField               HorizontalBlank)
 		 *
-		 * We have set the digitzer to consider the first active line
-		 * as part of VerticalBlank as well so we don't have to look for
-		 * these problem codes nor lose the last line of sliced data.
+		 * We have set the digitzer such that we don't have to worry
+		 * about these problem codes.
 		 */
 		data[4] = 0xB0F0B0F0;
 		/*
