@@ -1,0 +1,73 @@
+/*
+ * Line6 Linux USB driver - 0.8.0
+ *
+ * Copyright (C) 2004-2009 Markus Grabner (grabner@icg.tugraz.at)
+ *
+ *	This program is free software; you can redistribute it and/or
+ *	modify it under the terms of the GNU General Public License as
+ *	published by the Free Software Foundation, version 2.
+ *
+ */
+
+#ifndef CONFIG_H
+#define CONFIG_H
+
+
+#include <linux/version.h>
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 19)
+#include <linux/config.h>
+#endif
+
+#ifdef CONFIG_USB_DEBUG
+#define DEBUG 1
+#endif
+
+
+/**
+   Development tools.
+*/
+#define DO_DEBUG_MESSAGES    0
+#define DO_DUMP_URB_SEND     DO_DEBUG_MESSAGES
+#define DO_DUMP_URB_RECEIVE  DO_DEBUG_MESSAGES
+#define DO_DUMP_PCM_SEND     0
+#define DO_DUMP_PCM_RECEIVE  0
+#define DO_DUMP_MIDI_SEND    DO_DEBUG_MESSAGES
+#define DO_DUMP_MIDI_RECEIVE DO_DEBUG_MESSAGES
+#define DO_DUMP_ANY          (DO_DUMP_URB_SEND || DO_DUMP_URB_RECEIVE || \
+			      DO_DUMP_PCM_SEND || DO_DUMP_PCM_RECEIVE || \
+			      DO_DUMP_MIDI_SEND || DO_DUMP_MIDI_RECEIVE)
+#define CREATE_RAW_FILE      0
+
+#if DO_DEBUG_MESSAGES
+#define CHECKPOINT printk("line6usb: %s (%s:%d)\n", __FUNCTION__, __FILE__, __LINE__)
+#endif
+
+/**
+   In Linux 2.6.13 and later, the device_attribute is passed to the sysfs
+   get/set functions (see /usr/src/linux/include/linux/device.h).
+*/
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 13)
+#define DEVICE_ATTRIBUTE struct device_attribute *attr,
+#else
+#define DEVICE_ATTRIBUTE
+#endif
+
+/**
+   In Linux 2.6.20 and later, the pt_regs is no longer passed to USB callback
+   functions.
+*/
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 20)
+#define PT_REGS
+#else
+#define PT_REGS , struct pt_regs *regs
+#endif
+
+#if DO_DEBUG_MESSAGES
+#define DEBUG_MESSAGES(x) (x)
+#else
+#define DEBUG_MESSAGES(x)
+#endif
+
+
+#endif
