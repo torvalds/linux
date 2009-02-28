@@ -867,8 +867,22 @@ static int cx18_av_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *fmt)
 		Hsrc = (cx18_av_read(cx, 0x472) & 0x3f) << 4;
 		Hsrc |= (cx18_av_read(cx, 0x471) & 0xf0) >> 4;
 
-		Vlines = pix->height + (is_50Hz ? 4 : 7);
+		/*
+		 * This adjustment reflects the excess of vactive, set in
+		 * cx18_av_std_setup(), above standard values:
+		 *
+		 * 480 + 1 for 60 Hz systems
+		 * 576 + 4 for 50 Hz systems
+		 */
+		Vlines = pix->height + (is_50Hz ? 4 : 1);
 
+		/*
+		 * Invalid height and width scaling requests are:
+		 * 1. width less than 1/16 of the source width
+		 * 2. width greater than the source width
+		 * 3. height less than 1/8 of the source height
+		 * 4. height greater than the source height
+		 */
 		if ((pix->width * 16 < Hsrc) || (Hsrc < pix->width) ||
 		    (Vlines * 8 < Vsrc) || (Vsrc < Vlines)) {
 			CX18_ERR_DEV(sd, "%dx%d is not a valid size!\n",
