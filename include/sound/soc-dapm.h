@@ -192,6 +192,12 @@
 	.get = snd_soc_dapm_get_value_enum_double, \
 	.put = snd_soc_dapm_put_value_enum_double, \
 	.private_value = (unsigned long)&xenum }
+#define SOC_DAPM_PIN_SWITCH(xname) \
+{	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname " Switch", \
+	.info = snd_soc_dapm_info_pin_switch, \
+	.get = snd_soc_dapm_get_pin_switch, \
+	.put = snd_soc_dapm_put_pin_switch, \
+	.private_value = (unsigned long)xname }
 
 /* dapm stream operations */
 #define SND_SOC_DAPM_STREAM_NOP			0x0
@@ -238,6 +244,12 @@ int snd_soc_dapm_get_value_enum_double(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol);
 int snd_soc_dapm_put_value_enum_double(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol);
+int snd_soc_dapm_info_pin_switch(struct snd_kcontrol *kcontrol,
+	struct snd_ctl_elem_info *uinfo);
+int snd_soc_dapm_get_pin_switch(struct snd_kcontrol *kcontrol,
+	struct snd_ctl_elem_value *uncontrol);
+int snd_soc_dapm_put_pin_switch(struct snd_kcontrol *kcontrol,
+	struct snd_ctl_elem_value *uncontrol);
 int snd_soc_dapm_new_control(struct snd_soc_codec *codec,
 	const struct snd_soc_dapm_widget *widget);
 int snd_soc_dapm_new_controls(struct snd_soc_codec *codec,

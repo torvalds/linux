@@ -1421,6 +1421,76 @@ out:
 EXPORT_SYMBOL_GPL(snd_soc_dapm_put_value_enum_double);
 
 /**
+ * snd_soc_dapm_info_pin_switch - Info for a pin switch
+ *
+ * @kcontrol: mixer control
+ * @uinfo: control element information
+ *
+ * Callback to provide information about a pin switch control.
+ */
+int snd_soc_dapm_info_pin_switch(struct snd_kcontrol *kcontrol,
+				 struct snd_ctl_elem_info *uinfo)
+{
+	uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
+	uinfo->count = 1;
+	uinfo->value.integer.min = 0;
+	uinfo->value.integer.max = 1;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(snd_soc_dapm_info_pin_switch);
+
+/**
+ * snd_soc_dapm_get_pin_switch - Get information for a pin switch
+ *
+ * @kcontrol: mixer control
+ * @ucontrol: Value
+ */
+int snd_soc_dapm_get_pin_switch(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	const char *pin = (const char *)kcontrol->private_value;
+
+	mutex_lock(&codec->mutex);
+
+	ucontrol->value.integer.value[0] =
+		snd_soc_dapm_get_pin_status(codec, pin);
+
+	mutex_unlock(&codec->mutex);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(snd_soc_dapm_get_pin_switch);
+
+/**
+ * snd_soc_dapm_put_pin_switch - Set information for a pin switch
+ *
+ * @kcontrol: mixer control
+ * @ucontrol: Value
+ */
+int snd_soc_dapm_put_pin_switch(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	const char *pin = (const char *)kcontrol->private_value;
+
+	mutex_lock(&codec->mutex);
+
+	if (ucontrol->value.integer.value[0])
+		snd_soc_dapm_enable_pin(codec, pin);
+	else
+		snd_soc_dapm_disable_pin(codec, pin);
+
+	snd_soc_dapm_sync(codec);
+
+	mutex_unlock(&codec->mutex);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(snd_soc_dapm_put_pin_switch);
+
+/**
  * snd_soc_dapm_new_control - create new dapm control
  * @codec: audio codec
  * @widget: widget template
