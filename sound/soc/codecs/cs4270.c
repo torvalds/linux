@@ -267,10 +267,8 @@ static int cs4270_set_dai_fmt(struct snd_soc_dai *codec_dai,
 	case SND_SOC_DAIFMT_CBM_CFM:
 		cs4270->slave_mode = 0;
 		break;
-	case SND_SOC_DAIFMT_CBM_CFS:
-		/* unsupported - cs4270 can eigther be slave or master to
-		 * both the bitclk and the lrclk. */
 	default:
+		/* all other modes are unsupported by the hardware */
 		ret = -EINVAL;
 	}
 
