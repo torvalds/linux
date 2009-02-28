@@ -10,7 +10,7 @@
 #include <linux/module.h>
 #include <linux/ctype.h>
 
-#include "trace_events.h"
+#include "trace.h"
 
 #define TRACE_SYSTEM "TRACE_SYSTEM"
 

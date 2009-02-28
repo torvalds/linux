@@ -726,4 +726,23 @@ static inline void trace_branch_disable(void)
 }
 #endif /* CONFIG_BRANCH_TRACER */
 
+struct ftrace_event_call {
+	char		*name;
+	char		*system;
+	struct dentry	*dir;
+	int		enabled;
+	int		(*regfunc)(void);
+	void		(*unregfunc)(void);
+	int		id;
+	struct dentry	*raw_dir;
+	int		raw_enabled;
+	int		(*raw_init)(void);
+	int		(*raw_reg)(void);
+	void		(*raw_unreg)(void);
+};
+
+void event_trace_printk(unsigned long ip, const char *fmt, ...);
+extern struct ftrace_event_call __start_ftrace_events[];
+extern struct ftrace_event_call __stop_ftrace_events[];
+
 #endif /* _LINUX_KERNEL_TRACE_H */
