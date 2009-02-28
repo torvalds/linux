@@ -800,6 +800,7 @@ static int mxl5007t_get_chip_id(struct mxl5007t_state *state)
 		break;
 	default:
 		name = "MxL5007T";
+		printk(KERN_WARNING "%s: unknown rev (%02x)\n", __func__, id);
 		id = MxL_UNKNOWN_ID;
 	}
 	state->chip_id = id;
