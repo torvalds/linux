@@ -1767,11 +1767,9 @@ static void tcp_collapse_retrans(struct sock *sk, struct sk_buff *skb)
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct sk_buff *next_skb = tcp_write_queue_next(sk, skb);
 	int skb_size, next_skb_size;
-	u16 flags;
 
 	skb_size = skb->len;
 	next_skb_size = next_skb->len;
-	flags = TCP_SKB_CB(skb)->flags;
 
 	BUG_ON(tcp_skb_pcount(skb) != 1 || tcp_skb_pcount(next_skb) != 1);
 
@@ -1791,9 +1789,8 @@ static void tcp_collapse_retrans(struct sock *sk, struct sk_buff *skb)
 	/* Update sequence range on original skb. */
 	TCP_SKB_CB(skb)->end_seq = TCP_SKB_CB(next_skb)->end_seq;
 
-	/* Merge over control information. */
-	flags |= TCP_SKB_CB(next_skb)->flags; /* This moves PSH/FIN etc. over */
-	TCP_SKB_CB(skb)->flags = flags;
+	/* Merge over control information. This moves PSH/FIN etc. over */
+	TCP_SKB_CB(skb)->flags |= TCP_SKB_CB(next_skb)->flags;
 
 	/* All done, get rid of second SKB and account for it so
 	 * packet counting does not break.
