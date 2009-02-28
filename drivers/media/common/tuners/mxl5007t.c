@@ -67,15 +67,8 @@ MODULE_PARM_DESC(debug, "set debug level");
 
 enum mxl5007t_mode {
 	MxL_MODE_OTA_DVBT_ATSC        =    0,
-	MxL_MODE_OTA_NTSC_PAL_GH      =    1,
-	MxL_MODE_OTA_PAL_IB           =    2,
-	MxL_MODE_OTA_PAL_D_SECAM_KL   =    3,
 	MxL_MODE_OTA_ISDBT            =    4,
 	MxL_MODE_CABLE_DIGITAL        = 0x10,
-	MxL_MODE_CABLE_NTSC_PAL_GH    = 0x11,
-	MxL_MODE_CABLE_PAL_IB         = 0x12,
-	MxL_MODE_CABLE_PAL_D_SECAM_KL = 0x13,
-	MxL_MODE_CABLE_SCTE40         = 0x14,
 };
 
 enum mxl5007t_chip_version {
@@ -235,51 +228,7 @@ static void mxl5007t_set_mode_bits(struct mxl5007t_state *state,
 		set_reg_bits(state->tab_init, 0x32, 0x0f, 0x06);
 		set_reg_bits(state->tab_init, 0x35, 0xff, 0x12);
 		break;
-	case MxL_MODE_OTA_NTSC_PAL_GH:
-		set_reg_bits(state->tab_init, 0x16, 0x70, 0x00);
-		set_reg_bits(state->tab_init, 0x32, 0xff, 0x85);
-		break;
-	case MxL_MODE_OTA_PAL_IB:
-		set_reg_bits(state->tab_init, 0x16, 0x70, 0x10);
-		set_reg_bits(state->tab_init, 0x32, 0xff, 0x85);
-		break;
-	case MxL_MODE_OTA_PAL_D_SECAM_KL:
-		set_reg_bits(state->tab_init, 0x16, 0x70, 0x20);
-		set_reg_bits(state->tab_init, 0x32, 0xff, 0x85);
-		break;
 	case MxL_MODE_CABLE_DIGITAL:
-		set_reg_bits(state->tab_init_cable, 0x71, 0xff, 0x01);
-		set_reg_bits(state->tab_init_cable, 0x72, 0xff,
-			     8 - if_diff_out_level);
-		set_reg_bits(state->tab_init_cable, 0x74, 0xff, 0x17);
-		break;
-	case MxL_MODE_CABLE_NTSC_PAL_GH:
-		set_reg_bits(state->tab_init, 0x16, 0x70, 0x00);
-		set_reg_bits(state->tab_init, 0x32, 0xff, 0x85);
-		set_reg_bits(state->tab_init_cable, 0x71, 0xff, 0x01);
-		set_reg_bits(state->tab_init_cable, 0x72, 0xff,
-			     8 - if_diff_out_level);
-		set_reg_bits(state->tab_init_cable, 0x74, 0xff, 0x17);
-		break;
-	case MxL_MODE_CABLE_PAL_IB:
-		set_reg_bits(state->tab_init, 0x16, 0x70, 0x10);
-		set_reg_bits(state->tab_init, 0x32, 0xff, 0x85);
-		set_reg_bits(state->tab_init_cable, 0x71, 0xff, 0x01);
-		set_reg_bits(state->tab_init_cable, 0x72, 0xff,
-			     8 - if_diff_out_level);
-		set_reg_bits(state->tab_init_cable, 0x74, 0xff, 0x17);
-		break;
-	case MxL_MODE_CABLE_PAL_D_SECAM_KL:
-		set_reg_bits(state->tab_init, 0x16, 0x70, 0x20);
-		set_reg_bits(state->tab_init, 0x32, 0xff, 0x85);
-		set_reg_bits(state->tab_init_cable, 0x71, 0xff, 0x01);
-		set_reg_bits(state->tab_init_cable, 0x72, 0xff,
-			     8 - if_diff_out_level);
-		set_reg_bits(state->tab_init_cable, 0x74, 0xff, 0x17);
-		break;
-	case MxL_MODE_CABLE_SCTE40:
-		set_reg_bits(state->tab_init_cable, 0x36, 0xff, 0x08);
-		set_reg_bits(state->tab_init_cable, 0x68, 0xff, 0xbc);
 		set_reg_bits(state->tab_init_cable, 0x71, 0xff, 0x01);
 		set_reg_bits(state->tab_init_cable, 0x72, 0xff,
 			     8 - if_diff_out_level);
@@ -752,78 +701,6 @@ fail:
 	return ret;
 }
 
-static int mxl5007t_set_analog_params(struct dvb_frontend *fe,
-				      struct analog_parameters *params)
-{
-	struct mxl5007t_state *state = fe->tuner_priv;
-	enum mxl5007t_bw_mhz bw = 0; /* FIXME */
-	enum mxl5007t_mode cbl_mode;
-	enum mxl5007t_mode ota_mode;
-	char *mode_name;
-	int ret;
-	u32 freq = params->frequency * 62500;
-
-#define cable 1
-	if (params->std & V4L2_STD_MN) {
-		cbl_mode = MxL_MODE_CABLE_NTSC_PAL_GH;
-		ota_mode = MxL_MODE_OTA_NTSC_PAL_GH;
-		mode_name = "MN";
-	} else if (params->std & V4L2_STD_B) {
-		cbl_mode = MxL_MODE_CABLE_PAL_IB;
-		ota_mode = MxL_MODE_OTA_PAL_IB;
-		mode_name = "B";
-	} else if (params->std & V4L2_STD_GH) {
-		cbl_mode = MxL_MODE_CABLE_NTSC_PAL_GH;
-		ota_mode = MxL_MODE_OTA_NTSC_PAL_GH;
-		mode_name = "GH";
-	} else if (params->std & V4L2_STD_PAL_I) {
-		cbl_mode = MxL_MODE_CABLE_PAL_IB;
-		ota_mode = MxL_MODE_OTA_PAL_IB;
-		mode_name = "I";
-	} else if (params->std & V4L2_STD_DK) {
-		cbl_mode = MxL_MODE_CABLE_PAL_D_SECAM_KL;
-		ota_mode = MxL_MODE_OTA_PAL_D_SECAM_KL;
-		mode_name = "DK";
-	} else if (params->std & V4L2_STD_SECAM_L) {
-		cbl_mode = MxL_MODE_CABLE_PAL_D_SECAM_KL;
-		ota_mode = MxL_MODE_OTA_PAL_D_SECAM_KL;
-		mode_name = "L";
-	} else if (params->std & V4L2_STD_SECAM_LC) {
-		cbl_mode = MxL_MODE_CABLE_PAL_D_SECAM_KL;
-		ota_mode = MxL_MODE_OTA_PAL_D_SECAM_KL;
-		mode_name = "L'";
-	} else {
-		mode_name = "xx";
-		/* FIXME */
-		cbl_mode = MxL_MODE_CABLE_NTSC_PAL_GH;
-		ota_mode = MxL_MODE_OTA_NTSC_PAL_GH;
-	}
-	mxl_debug("setting mxl5007 to system %s", mode_name);
-
-	if (fe->ops.i2c_gate_ctrl)
-		fe->ops.i2c_gate_ctrl(fe, 1);
-
-	mutex_lock(&state->lock);
-
-	ret = mxl5007t_tuner_init(state, cable ? cbl_mode : ota_mode);
-	if (mxl_fail(ret))
-		goto fail;
-
-	ret = mxl5007t_tuner_rf_tune(state, freq, bw);
-	if (mxl_fail(ret))
-		goto fail;
-
-	state->frequency = freq;
-	state->bandwidth = 0;
-fail:
-	mutex_unlock(&state->lock);
-
-	if (fe->ops.i2c_gate_ctrl)
-		fe->ops.i2c_gate_ctrl(fe, 0);
-
-	return ret;
-}
-
 /* ------------------------------------------------------------------------- */
 
 static int mxl5007t_init(struct dvb_frontend *fe)
@@ -911,7 +788,6 @@ static struct dvb_tuner_ops mxl5007t_tuner_ops = {
 	.init              = mxl5007t_init,
 	.sleep             = mxl5007t_sleep,
 	.set_params        = mxl5007t_set_params,
-	.set_analog_params = mxl5007t_set_analog_params,
 	.get_status        = mxl5007t_get_status,
 	.get_frequency     = mxl5007t_get_frequency,
 	.get_bandwidth     = mxl5007t_get_bandwidth,
