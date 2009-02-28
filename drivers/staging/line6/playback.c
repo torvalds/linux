@@ -18,6 +18,7 @@
 #include "audio.h"
 #include "pcm.h"
 #include "pod.h"
+#include "playback.h"
 
 
 /*

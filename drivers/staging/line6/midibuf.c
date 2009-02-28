@@ -16,7 +16,7 @@
 #include "midibuf.h"
 
 
-int midibuf_message_length(unsigned char code)
+static int midibuf_message_length(unsigned char code)
 {
 	if(code < 0x80)
 		return -1;
@@ -59,12 +59,12 @@ void midibuf_status(struct MidiBuffer *this)
 				 this->size, this->split, this->pos_read, this->pos_write, this->full, this->command_prev);
 }
 
-int midibuf_is_empty(struct MidiBuffer *this)
+static int midibuf_is_empty(struct MidiBuffer *this)
 {
 	return (this->pos_read == this->pos_write) && !this->full;
 }
 
-int midibuf_is_full(struct MidiBuffer *this)
+static int midibuf_is_full(struct MidiBuffer *this)
 {
 	return this->full;
 }

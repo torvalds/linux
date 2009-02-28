@@ -392,7 +392,7 @@ static void variax_destruct(struct usb_interface *interface)
 /*
 	Create sysfs entries.
 */
-int variax_create_files2(struct device *dev)
+static int variax_create_files2(struct device *dev)
 {
 	int err;
 	CHECK_RETURN(device_create_file(dev, &dev_attr_model));

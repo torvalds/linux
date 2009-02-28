@@ -10,6 +10,7 @@
  */
 
 #include "driver.h"
+#include "audio.h"
 
 #include <sound/core.h>
 #include <sound/initval.h>

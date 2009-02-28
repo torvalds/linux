@@ -398,7 +398,7 @@ void pod_midi_postprocess(struct usb_line6_pod *pod, unsigned char *data, int le
 /*
 	Send channel number (i.e., switch to a different sound).
 */
-void pod_send_channel(struct usb_line6_pod *pod, int value)
+static void pod_send_channel(struct usb_line6_pod *pod, int value)
 {
 	line6_invalidate_current(&pod->dumpreq);
 
@@ -951,7 +951,7 @@ static void pod_destruct(struct usb_interface *interface)
 /*
 	Create sysfs entries.
 */
-int pod_create_files2(struct device *dev)
+static int pod_create_files2(struct device *dev)
 {
 	int err;
 
