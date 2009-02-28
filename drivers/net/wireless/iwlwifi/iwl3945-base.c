@@ -407,6 +407,8 @@ static int iwl3945_commit_rxon(struct iwl_priv *priv)
 	staging_rxon->reserved4 = 0;
 	staging_rxon->reserved5 = 0;
 
+	iwl_set_rxon_hwcrypto(priv, !priv->hw_params.sw_crypto);
+
 	/* Apply the new configuration */
 	rc = iwl_send_cmd_pdu(priv, REPLY_RXON,
 			      sizeof(struct iwl3945_rxon_cmd),
@@ -456,25 +458,24 @@ static int iwl3945_commit_rxon(struct iwl_priv *priv)
 	return 0;
 }
 
-static int iwl3945_update_sta_key_info(struct iwl_priv *priv,
+static int iwl3945_set_ccmp_dynamic_key_info(struct iwl_priv *priv,
 				   struct ieee80211_key_conf *keyconf,
 				   u8 sta_id)
 {
 	unsigned long flags;
 	__le16 key_flags = 0;
+	int ret;
 
-	switch (keyconf->alg) {
-	case ALG_CCMP:
-		key_flags |= STA_KEY_FLG_CCMP;
-		key_flags |= cpu_to_le16(
-				keyconf->keyidx << STA_KEY_FLG_KEYID_POS);
-		key_flags &= ~STA_KEY_FLG_INVALID;
-		break;
-	case ALG_TKIP:
-	case ALG_WEP:
-	default:
-		return -EINVAL;
-	}
+	key_flags |= (STA_KEY_FLG_CCMP | STA_KEY_FLG_MAP_KEY_MSK);
+	key_flags |= cpu_to_le16(keyconf->keyidx << STA_KEY_FLG_KEYID_POS);
+
+	if (sta_id == priv->hw_params.bcast_sta_id)
+		key_flags |= STA_KEY_MULTICAST_MSK;
+
+	keyconf->flags |= IEEE80211_KEY_FLAG_GENERATE_IV;
+	keyconf->hw_key_idx = keyconf->keyidx;
+	key_flags &= ~STA_KEY_FLG_INVALID;
+
 	spin_lock_irqsave(&priv->sta_lock, flags);
 	priv->stations_39[sta_id].keyinfo.alg = keyconf->alg;
 	priv->stations_39[sta_id].keyinfo.keylen = keyconf->keylen;
@@ -483,16 +484,43 @@ static int iwl3945_update_sta_key_info(struct iwl_priv *priv,
 
 	memcpy(priv->stations_39[sta_id].sta.key.key, keyconf->key,
 	       keyconf->keylen);
+
+	if ((priv->stations[sta_id].sta.key.key_flags & STA_KEY_FLG_ENCRYPT_MSK)
+			== STA_KEY_FLG_NO_ENC)
+		priv->stations[sta_id].sta.key.key_offset =
+				 iwl_get_free_ucode_key_index(priv);
+	/* else, we are overriding an existing key => no need to allocated room
+	* in uCode. */
+
+	WARN(priv->stations[sta_id].sta.key.key_offset == WEP_INVALID_OFFSET,
+		"no space for a new key");
+
 	priv->stations_39[sta_id].sta.key.key_flags = key_flags;
 	priv->stations_39[sta_id].sta.sta.modify_mask = STA_MODIFY_KEY_MASK;
 	priv->stations_39[sta_id].sta.mode = STA_CONTROL_MODIFY_MSK;
 
+	IWL_DEBUG_INFO(priv, "hwcrypto: modify ucode station key info\n");
+
+	ret = iwl_send_add_sta(priv,
+		(struct iwl_addsta_cmd *)&priv->stations_39[sta_id].sta, CMD_ASYNC);
+
 	spin_unlock_irqrestore(&priv->sta_lock, flags);
 
-	IWL_DEBUG_INFO(priv, "hwcrypto: modify ucode station key info\n");
-	iwl_send_add_sta(priv,
-		(struct iwl_addsta_cmd *)&priv->stations_39[sta_id].sta, 0);
-	return 0;
+	return ret;
+}
+
+static int iwl3945_set_tkip_dynamic_key_info(struct iwl_priv *priv,
+				  struct ieee80211_key_conf *keyconf,
+				  u8 sta_id)
+{
+	return -EOPNOTSUPP;
+}
+
+static int iwl3945_set_wep_dynamic_key_info(struct iwl_priv *priv,
+				  struct ieee80211_key_conf *keyconf,
+				  u8 sta_id)
+{
+	return -EOPNOTSUPP;
 }
 
 static int iwl3945_clear_sta_key_info(struct iwl_priv *priv, u8 sta_id)
@@ -512,6 +540,52 @@ static int iwl3945_clear_sta_key_info(struct iwl_priv *priv, u8 sta_id)
 	iwl_send_add_sta(priv,
 		(struct iwl_addsta_cmd *)&priv->stations_39[sta_id].sta, 0);
 	return 0;
+}
+
+int iwl3945_set_dynamic_key(struct iwl_priv *priv,
+			struct ieee80211_key_conf *keyconf, u8 sta_id)
+{
+	int ret = 0;
+
+	keyconf->hw_key_idx = HW_KEY_DYNAMIC;
+
+	switch (keyconf->alg) {
+	case ALG_CCMP:
+		ret = iwl3945_set_ccmp_dynamic_key_info(priv, keyconf, sta_id);
+		break;
+	case ALG_TKIP:
+		ret = iwl3945_set_tkip_dynamic_key_info(priv, keyconf, sta_id);
+		break;
+	case ALG_WEP:
+		ret = iwl3945_set_wep_dynamic_key_info(priv, keyconf, sta_id);
+		break;
+	default:
+		IWL_ERR(priv,"Unknown alg: %s alg = %d\n", __func__, keyconf->alg);
+		ret = -EINVAL;
+	}
+
+	IWL_DEBUG_WEP(priv, "Set dynamic key: alg= %d len=%d idx=%d sta=%d ret=%d\n",
+		      keyconf->alg, keyconf->keylen, keyconf->keyidx,
+		      sta_id, ret);
+
+	return ret;
+}
+
+static int iwl3945_remove_static_key(struct iwl_priv *priv)
+{
+	int ret = -EOPNOTSUPP;
+
+	return ret;
+}
+
+static int iwl3945_set_static_key(struct iwl_priv *priv,
+				struct ieee80211_key_conf *key)
+{
+	if (key->alg == ALG_WEP)
+		return -EOPNOTSUPP;
+
+	IWL_ERR(priv, "Static key invalid: alg %d\n", key->alg);
+	return -EINVAL;
 }
 
 static void iwl3945_clear_free_frames(struct iwl_priv *priv)
@@ -766,11 +840,11 @@ static void iwl3945_build_tx_cmd_hwcrypto(struct iwl_priv *priv,
 				      struct ieee80211_tx_info *info,
 				      struct iwl_cmd *cmd,
 				      struct sk_buff *skb_frag,
-				      int last_frag)
+				      int sta_id)
 {
 	struct iwl3945_tx_cmd *tx = (struct iwl3945_tx_cmd *)cmd->cmd.payload;
 	struct iwl3945_hw_key *keyinfo =
-	    &priv->stations_39[info->control.hw_key->hw_key_idx].keyinfo;
+	    &priv->stations_39[sta_id].keyinfo;
 
 	switch (keyinfo->alg) {
 	case ALG_CCMP:
@@ -780,15 +854,6 @@ static void iwl3945_build_tx_cmd_hwcrypto(struct iwl_priv *priv,
 		break;
 
 	case ALG_TKIP:
-#if 0
-		tx->sec_ctl = TX_CMD_SEC_TKIP;
-
-		if (last_frag)
-			memcpy(tx->tkip_mic.byte, skb_frag->tail - 8,
-			       8);
-		else
-			memset(tx->tkip_mic.byte, 0, 8);
-#endif
 		break;
 
 	case ALG_WEP:
@@ -1088,7 +1153,7 @@ static int iwl3945_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 						   txcmd_phys, len, 1, 0);
 
 	if (info->control.hw_key)
-		iwl3945_build_tx_cmd_hwcrypto(priv, info, out_cmd, skb, 0);
+		iwl3945_build_tx_cmd_hwcrypto(priv, info, out_cmd, skb, sta_id);
 
 	/* Set up TFD's 2nd entry to point directly to remainder of skb,
 	 * if any (802.11 null frames have no payload). */
@@ -4110,8 +4175,9 @@ static int iwl3945_mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 {
 	struct iwl_priv *priv = hw->priv;
 	const u8 *addr;
-	int ret;
-	u8 sta_id;
+	int ret = 0;
+	u8 sta_id = IWL_INVALID_STATION;
+	u8 static_key;
 
 	IWL_DEBUG_MAC80211(priv, "enter\n");
 
@@ -4121,43 +4187,41 @@ static int iwl3945_mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	}
 
 	addr = sta ? sta->addr : iwl_bcast_addr;
-	sta_id = iwl3945_hw_find_station(priv, addr);
-	if (sta_id == IWL_INVALID_STATION) {
-		IWL_DEBUG_MAC80211(priv, "leave - %pM not in station map.\n",
-				   addr);
-		return -EINVAL;
+	static_key = !iwl_is_associated(priv);
+
+	if (!static_key) {
+		sta_id = iwl3945_hw_find_station(priv, addr);
+		if (sta_id == IWL_INVALID_STATION) {
+			IWL_DEBUG_MAC80211(priv, "leave - %pMnot in station map.\n",
+					    addr);
+			return -EINVAL;
+		}
 	}
 
 	mutex_lock(&priv->mutex);
-
 	iwl_scan_cancel_timeout(priv, 100);
+	mutex_unlock(&priv->mutex);
 
 	switch (cmd) {
-	case  SET_KEY:
-		ret = iwl3945_update_sta_key_info(priv, key, sta_id);
-		if (!ret) {
-			iwl_set_rxon_hwcrypto(priv, 1);
-			iwl3945_commit_rxon(priv);
-			key->hw_key_idx = sta_id;
-			IWL_DEBUG_MAC80211(priv,
-				"set_key success, using hwcrypto\n");
-			key->flags |= IEEE80211_KEY_FLAG_GENERATE_IV;
-		}
+	case SET_KEY:
+		if (static_key)
+			ret = iwl3945_set_static_key(priv, key);
+		else
+			ret = iwl3945_set_dynamic_key(priv, key, sta_id);
+		IWL_DEBUG_MAC80211(priv, "enable hwcrypto key\n");
 		break;
 	case DISABLE_KEY:
-		ret = iwl3945_clear_sta_key_info(priv, sta_id);
-		if (!ret) {
-			iwl_set_rxon_hwcrypto(priv, 0);
-			iwl3945_commit_rxon(priv);
-			IWL_DEBUG_MAC80211(priv, "disable hwcrypto key\n");
-		}
+		if (static_key)
+			ret = iwl3945_remove_static_key(priv);
+		else
+			ret = iwl3945_clear_sta_key_info(priv, sta_id);
+		IWL_DEBUG_MAC80211(priv, "disable hwcrypto key\n");
 		break;
 	default:
 		ret = -EINVAL;
 	}
 
 	IWL_DEBUG_MAC80211(priv, "leave\n");
-	mutex_unlock(&priv->mutex);
 
 	return ret;
 }

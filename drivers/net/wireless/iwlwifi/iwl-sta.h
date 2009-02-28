@@ -54,6 +54,7 @@ void iwl_update_tkip_key(struct iwl_priv *priv,
 int iwl_rxon_add_station(struct iwl_priv *priv, const u8 *addr, int is_ap);
 int iwl_remove_station(struct iwl_priv *priv, const u8 *addr, int is_ap);
 void iwl_clear_stations_table(struct iwl_priv *priv);
+int iwl_get_free_ucode_key_index(struct iwl_priv *priv);
 int iwl_get_sta_id(struct iwl_priv *priv, struct ieee80211_hdr *hdr);
 int iwl_get_ra_sta_id(struct iwl_priv *priv, struct ieee80211_hdr *hdr);
 int iwl_send_add_sta(struct iwl_priv *priv,
