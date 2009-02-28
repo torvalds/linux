@@ -434,9 +434,8 @@ struct sock *tcp_create_openreq_child(struct sock *sk, struct request_sock *req,
 		newtp->rx_opt.saw_tstamp = 0;
 
 		newtp->rx_opt.dsack = 0;
-		newtp->rx_opt.eff_sacks = 0;
-
 		newtp->rx_opt.num_sacks = 0;
+
 		newtp->urg_data = 0;
 
 		if (sock_flag(newsk, SOCK_KEEPOPEN))

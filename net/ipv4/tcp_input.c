@@ -4099,7 +4099,6 @@ static void tcp_dsack_set(struct sock *sk, u32 seq, u32 end_seq)
 		tp->rx_opt.dsack = 1;
 		tp->duplicate_sack[0].start_seq = seq;
 		tp->duplicate_sack[0].end_seq = end_seq;
-		tp->rx_opt.eff_sacks = tp->rx_opt.num_sacks + 1;
 	}
 }
 
@@ -4154,8 +4153,6 @@ static void tcp_sack_maybe_coalesce(struct tcp_sock *tp)
 			 * Decrease num_sacks.
 			 */
 			tp->rx_opt.num_sacks--;
-			tp->rx_opt.eff_sacks = tp->rx_opt.num_sacks +
-					       tp->rx_opt.dsack;
 			for (i = this_sack; i < tp->rx_opt.num_sacks; i++)
 				sp[i] = sp[i + 1];
 			continue;
@@ -4218,7 +4215,6 @@ new_sack:
 	sp->start_seq = seq;
 	sp->end_seq = end_seq;
 	tp->rx_opt.num_sacks++;
-	tp->rx_opt.eff_sacks = tp->rx_opt.num_sacks + tp->rx_opt.dsack;
 }
 
 /* RCV.NXT advances, some SACKs should be eaten. */
@@ -4232,7 +4228,6 @@ static void tcp_sack_remove(struct tcp_sock *tp)
 	/* Empty ofo queue, hence, all the SACKs are eaten. Clear. */
 	if (skb_queue_empty(&tp->out_of_order_queue)) {
 		tp->rx_opt.num_sacks = 0;
-		tp->rx_opt.eff_sacks = tp->rx_opt.dsack;
 		return;
 	}
 
@@ -4253,11 +4248,8 @@ static void tcp_sack_remove(struct tcp_sock *tp)
 		this_sack++;
 		sp++;
 	}
-	if (num_sacks != tp->rx_opt.num_sacks) {
+	if (num_sacks != tp->rx_opt.num_sacks)
 		tp->rx_opt.num_sacks = num_sacks;
-		tp->rx_opt.eff_sacks = tp->rx_opt.num_sacks +
-				       tp->rx_opt.dsack;
-	}
 }
 
 /* This one checks to see if we can put data from the
@@ -4333,10 +4325,8 @@ static void tcp_data_queue(struct sock *sk, struct sk_buff *skb)
 
 	TCP_ECN_accept_cwr(tp, skb);
 
-	if (tp->rx_opt.dsack) {
+	if (tp->rx_opt.dsack)
 		tp->rx_opt.dsack = 0;
-		tp->rx_opt.eff_sacks = tp->rx_opt.num_sacks;
-	}
 
 	/*  Queue data for delivery to the user.
 	 *  Packets in sequence go to the receive queue.
@@ -4456,7 +4446,6 @@ drop:
 		if (tcp_is_sack(tp)) {
 			tp->rx_opt.num_sacks = 1;
 			tp->rx_opt.dsack     = 0;
-			tp->rx_opt.eff_sacks = 1;
 			tp->selective_acks[0].start_seq = TCP_SKB_CB(skb)->seq;
 			tp->selective_acks[0].end_seq =
 						TCP_SKB_CB(skb)->end_seq;

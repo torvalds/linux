@@ -441,10 +441,8 @@ static void tcp_options_write(__be32 *ptr, struct tcp_sock *tp,
 			*ptr++ = htonl(sp[this_sack].end_seq);
 		}
 
-		if (tp->rx_opt.dsack) {
+		if (tp->rx_opt.dsack)
 			tp->rx_opt.dsack = 0;
-			tp->rx_opt.eff_sacks = tp->rx_opt.num_sacks;
-		}
 	}
 }
 
@@ -550,6 +548,7 @@ static unsigned tcp_established_options(struct sock *sk, struct sk_buff *skb,
 	struct tcp_skb_cb *tcb = skb ? TCP_SKB_CB(skb) : NULL;
 	struct tcp_sock *tp = tcp_sk(sk);
 	unsigned size = 0;
+	unsigned int eff_sacks;
 
 #ifdef CONFIG_TCP_MD5SIG
 	*md5 = tp->af_specific->md5_lookup(sk, sk);
@@ -568,10 +567,11 @@ static unsigned tcp_established_options(struct sock *sk, struct sk_buff *skb,
 		size += TCPOLEN_TSTAMP_ALIGNED;
 	}
 
-	if (unlikely(tp->rx_opt.eff_sacks)) {
+	eff_sacks = tp->rx_opt.num_sacks + tp->rx_opt.dsack;
+	if (unlikely(eff_sacks)) {
 		const unsigned remaining = MAX_TCP_OPTION_SPACE - size;
 		opts->num_sack_blocks =
-			min_t(unsigned, tp->rx_opt.eff_sacks,
+			min_t(unsigned, eff_sacks,
 			      (remaining - TCPOLEN_SACK_BASE_ALIGNED) /
 			      TCPOLEN_SACK_PERBLOCK);
 		size += TCPOLEN_SACK_BASE_ALIGNED +
@@ -1418,7 +1418,7 @@ static int tcp_mtu_probe(struct sock *sk)
 	    icsk->icsk_mtup.probe_size ||
 	    inet_csk(sk)->icsk_ca_state != TCP_CA_Open ||
 	    tp->snd_cwnd < 11 ||
-	    tp->rx_opt.eff_sacks)
+	    tp->rx_opt.num_sacks || tp->rx_opt.dsack)
 		return -1;
 
 	/* Very simple search strategy: just double the MSS. */
