@@ -24,6 +24,7 @@
 #include "cx18-driver.h"
 #include "cx18-io.h"
 #include "cx18-cards.h"
+#include "cx18-audio.h"
 
 #define CX18_AUDIO_ENABLE 0xc72014
 
