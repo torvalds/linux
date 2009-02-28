@@ -18,8 +18,8 @@
 #include "usbdefs.h"
 #include "variax.h"
 
-#define DEVICE_ATTR2(_name1,_name2,_mode,_show,_store) \
-struct device_attribute dev_attr_##_name1 = __ATTR(_name2,_mode,_show,_store)
+#define DEVICE_ATTR2(_name1, _name2, _mode, _show, _store) \
+struct device_attribute dev_attr_##_name1 = __ATTR(_name2, _mode, _show, _store)
 
 #define LINE6_PARAM_R(PREFIX, prefix, type, param) \
 static ssize_t prefix ## _get_ ## param(struct device *dev, \
@@ -47,7 +47,8 @@ static ssize_t pod_get_param_int(struct device *dev, char *buf, int param)
 	struct usb_interface *interface = to_usb_interface(dev);
 	struct usb_line6_pod *pod = usb_get_intfdata(interface);
 	int retval = line6_wait_dump(&pod->dumpreq, 0);
-	if(retval < 0) return retval;
+	if (retval < 0)
+		return retval;
 	return sprintf(buf, "%d\n", pod->prog_data.control[param]);
 }
 
@@ -65,17 +66,18 @@ static ssize_t variax_get_param_int(struct device *dev, char *buf, int param)
 	struct usb_interface *interface = to_usb_interface(dev);
 	struct usb_line6_variax *variax = usb_get_intfdata(interface);
 	int retval = line6_wait_dump(&variax->dumpreq, 0);
-	if(retval < 0) return retval;
+	if (retval < 0)
+		return retval;
 	return sprintf(buf, "%d\n", variax->model_data.control[param]);
 }
 
 static ssize_t variax_get_param_float(struct device *dev, char *buf, int param)
 {
 	/*
-		We do our own floating point handling here since floats in the kernel are
-		problematic for at least two reasons:
-		- many distros are still shipped with binary kernels optimized for the
-		  ancient 80386 without FPU
+		We do our own floating point handling here since floats in the
+		kernel are problematic for at least two reasons: - many distros
+		are still shipped with binary kernels optimized for the ancient
+		80386 without FPU
 		- there isn't a printf("%f")
 		  (see http://www.kernelthread.com/publications/faq/335.html)
 	*/
@@ -90,20 +92,20 @@ static ssize_t variax_get_param_float(struct device *dev, char *buf, int param)
 	struct usb_line6_variax *variax = usb_get_intfdata(interface);
 	const unsigned char *p = variax->model_data.control + param;
 	int retval = line6_wait_dump(&variax->dumpreq, 0);
-	if(retval < 0) return retval;
+	if (retval < 0)
+		return retval;
 
-	if((p[0] == 0) && (p[1] == 0) && (p[2] == 0))
+	if ((p[0] == 0) && (p[1] == 0) && (p[2] == 0))
 		part_int = part_frac = 0;
 	else {
 		int exponent = (((p[0] & 0x7f) << 1) | (p[1] >> 7)) - BIAS;
 		unsigned mantissa = (p[1] << 8) | p[2] | 0x8000;
 		exponent -= OFFSET;
 
-		if(exponent >= 0) {
+		if (exponent >= 0) {
 			part_int = mantissa << exponent;
 			part_frac = 0;
-		}
-		else {
+		} else {
 			part_int = mantissa >> -exponent;
 			part_frac = (mantissa << (32 + exponent)) & 0xffffffff;
 		}
@@ -399,28 +401,39 @@ static DEVICE_ATTR(mix2, S_IRUGO, variax_get_mix2, line6_nop_write);
 static DEVICE_ATTR(mix1, S_IRUGO, variax_get_mix1, line6_nop_write);
 static DEVICE_ATTR(pickup_wiring, S_IRUGO, variax_get_pickup_wiring, line6_nop_write);
 
-int pod_create_files(int firmware, int type, struct device *dev) {
+int pod_create_files(int firmware, int type, struct device *dev)
+{
 	int err;
 	CHECK_RETURN(device_create_file(dev, &dev_attr_tweak));
 	CHECK_RETURN(device_create_file(dev, &dev_attr_wah_position));
-	if((type & (LINE6_BITS_PODXTALL)) != 0) CHECK_RETURN(device_create_file(dev, &dev_attr_compression_gain));
+	if ((type & (LINE6_BITS_PODXTALL)) != 0)
+		CHECK_RETURN(device_create_file(dev, &dev_attr_compression_gain));
 	CHECK_RETURN(device_create_file(dev, &dev_attr_vol_pedal_position));
 	CHECK_RETURN(device_create_file(dev, &dev_attr_compression_threshold));
 	CHECK_RETURN(device_create_file(dev, &dev_attr_pan));
 	CHECK_RETURN(device_create_file(dev, &dev_attr_amp_model_setup));
-	if(firmware >= 200) CHECK_RETURN(device_create_file(dev, &dev_attr_amp_model));
+	if (firmware >= 200)
+		CHECK_RETURN(device_create_file(dev, &dev_attr_amp_model));
 	CHECK_RETURN(device_create_file(dev, &dev_attr_drive));
 	CHECK_RETURN(device_create_file(dev, &dev_attr_bass));
-	if((type & (LINE6_BITS_PODXTALL)) != 0) CHECK_RETURN(device_create_file(dev, &dev_attr_mid));
-	if((type & (LINE6_BITS_BASSPODXTALL)) != 0) CHECK_RETURN(device_create_file(dev, &dev_attr_lowmid));
-	if((type & (LINE6_BITS_PODXTALL)) != 0) CHECK_RETURN(device_create_file(dev, &dev_attr_treble));
-	if((type & (LINE6_BITS_BASSPODXTALL)) != 0) CHECK_RETURN(device_create_file(dev, &dev_attr_highmid));
+	if ((type & (LINE6_BITS_PODXTALL)) != 0)
+		CHECK_RETURN(device_create_file(dev, &dev_attr_mid));
+	if ((type & (LINE6_BITS_BASSPODXTALL)) != 0)
+		CHECK_RETURN(device_create_file(dev, &dev_attr_lowmid));
+	if ((type & (LINE6_BITS_PODXTALL)) != 0)
+		CHECK_RETURN(device_create_file(dev, &dev_attr_treble));
+	if ((type & (LINE6_BITS_BASSPODXTALL)) != 0)
+		CHECK_RETURN(device_create_file(dev, &dev_attr_highmid));
 	CHECK_RETURN(device_create_file(dev, &dev_attr_chan_vol));
-	if((type & (LINE6_BITS_PODXTALL)) != 0) CHECK_RETURN(device_create_file(dev, &dev_attr_reverb_mix));
+	if ((type & (LINE6_BITS_PODXTALL)) != 0)
+		CHECK_RETURN(device_create_file(dev, &dev_attr_reverb_mix));
 	CHECK_RETURN(device_create_file(dev, &dev_attr_effect_setup));
-	if(firmware >= 200) CHECK_RETURN(device_create_file(dev, &dev_attr_band_1_frequency));
-	if((type & (LINE6_BITS_PODXTALL)) != 0) CHECK_RETURN(device_create_file(dev, &dev_attr_presence));
-	if((type & (LINE6_BITS_BASSPODXTALL)) != 0) CHECK_RETURN(device_create_file(dev, &dev_attr_treble__bass));
+	if (firmware >= 200)
+		CHECK_RETURN(device_create_file(dev, &dev_attr_band_1_frequency));
+	if ((type & (LINE6_BITS_PODXTALL)) != 0)
+		CHECK_RETURN(device_create_file(dev, &dev_attr_presence));
+	if ((type & (LINE6_BITS_BASSPODXTALL)) != 0)
+		CHECK_RETURN(device_create_file(dev, &dev_attr_treble__bass));
 	CHECK_RETURN(device_create_file(dev, &dev_attr_noise_gate_enable));
 	CHECK_RETURN(device_create_file(dev, &dev_attr_gate_threshold));
 	CHECK_RETURN(device_create_file(dev, &dev_attr_gate_decay_time));
@@ -431,102 +444,168 @@ int pod_create_files(int firmware, int type, struct device *dev) {
 	CHECK_RETURN(device_create_file(dev, &dev_attr_mod_param_1));
 	CHECK_RETURN(device_create_file(dev, &dev_attr_delay_param_1));
 	CHECK_RETURN(device_create_file(dev, &dev_attr_delay_param_1_note_value));
-	if((type & (LINE6_BITS_BASSPODXTALL)) != 0) if(firmware >= 200) CHECK_RETURN(device_create_file(dev, &dev_attr_band_2_frequency__bass));
+	if ((type & (LINE6_BITS_BASSPODXTALL)) != 0)
+		if (firmware >= 200)
+			CHECK_RETURN(device_create_file(dev, &dev_attr_band_2_frequency__bass));
 	CHECK_RETURN(device_create_file(dev, &dev_attr_delay_param_2));
 	CHECK_RETURN(device_create_file(dev, &dev_attr_delay_volume_mix));
 	CHECK_RETURN(device_create_file(dev, &dev_attr_delay_param_3));
-	if((type & (LINE6_BITS_PODXTALL)) != 0) CHECK_RETURN(device_create_file(dev, &dev_attr_reverb_enable));
-	if((type & (LINE6_BITS_PODXTALL)) != 0) CHECK_RETURN(device_create_file(dev, &dev_attr_reverb_type));
-	if((type & (LINE6_BITS_PODXTALL)) != 0) CHECK_RETURN(device_create_file(dev, &dev_attr_reverb_decay));
-	if((type & (LINE6_BITS_PODXTALL)) != 0) CHECK_RETURN(device_create_file(dev, &dev_attr_reverb_tone));
-	if((type & (LINE6_BITS_PODXTALL)) != 0) CHECK_RETURN(device_create_file(dev, &dev_attr_reverb_pre_delay));
-	if((type & (LINE6_BITS_PODXTALL)) != 0) CHECK_RETURN(device_create_file(dev, &dev_attr_reverb_pre_post));
-	if((type & (LINE6_BITS_PODXTALL)) != 0) if(firmware >= 200) CHECK_RETURN(device_create_file(dev, &dev_attr_band_2_frequency));
-	if((type & (LINE6_BITS_BASSPODXTALL)) != 0) if(firmware >= 200) CHECK_RETURN(device_create_file(dev, &dev_attr_band_3_frequency__bass));
+	if ((type & (LINE6_BITS_PODXTALL)) != 0)
+		CHECK_RETURN(device_create_file(dev, &dev_attr_reverb_enable));
+	if ((type & (LINE6_BITS_PODXTALL)) != 0)
+		CHECK_RETURN(device_create_file(dev, &dev_attr_reverb_type));
+	if ((type & (LINE6_BITS_PODXTALL)) != 0)
+		CHECK_RETURN(device_create_file(dev, &dev_attr_reverb_decay));
+	if ((type & (LINE6_BITS_PODXTALL)) != 0)
+		CHECK_RETURN(device_create_file(dev, &dev_attr_reverb_tone));
+	if ((type & (LINE6_BITS_PODXTALL)) != 0)
+		CHECK_RETURN(device_create_file(dev, &dev_attr_reverb_pre_delay));
+	if ((type & (LINE6_BITS_PODXTALL)) != 0)
+		CHECK_RETURN(device_create_file(dev, &dev_attr_reverb_pre_post));
+	if ((type & (LINE6_BITS_PODXTALL)) != 0)
+		if (firmware >= 200)
+			CHECK_RETURN(device_create_file(dev, &dev_attr_band_2_frequency));
+	if ((type & (LINE6_BITS_BASSPODXTALL)) != 0)
+		if (firmware >= 200)
+			CHECK_RETURN(device_create_file(dev, &dev_attr_band_3_frequency__bass));
 	CHECK_RETURN(device_create_file(dev, &dev_attr_wah_enable));
-	if((type & (LINE6_BITS_BASSPODXTALL)) != 0) CHECK_RETURN(device_create_file(dev, &dev_attr_modulation_lo_cut));
-	if((type & (LINE6_BITS_BASSPODXTALL)) != 0) CHECK_RETURN(device_create_file(dev, &dev_attr_delay_reverb_lo_cut));
-	if((type & (LINE6_BITS_PODXTALL)) != 0) if(firmware >= 200) CHECK_RETURN(device_create_file(dev, &dev_attr_volume_pedal_minimum));
-	if((type & (LINE6_BITS_BASSPODXTALL)) != 0) if(firmware >= 200) CHECK_RETURN(device_create_file(dev, &dev_attr_eq_pre_post));
+	if ((type & (LINE6_BITS_BASSPODXTALL)) != 0)
+		CHECK_RETURN(device_create_file(dev, &dev_attr_modulation_lo_cut));
+	if ((type & (LINE6_BITS_BASSPODXTALL)) != 0)
+		CHECK_RETURN(device_create_file(dev, &dev_attr_delay_reverb_lo_cut));
+	if ((type & (LINE6_BITS_PODXTALL)) != 0)
+		if (firmware >= 200)
+			CHECK_RETURN(device_create_file(dev, &dev_attr_volume_pedal_minimum));
+	if ((type & (LINE6_BITS_BASSPODXTALL)) != 0)
+		if (firmware >= 200)
+			CHECK_RETURN(device_create_file(dev, &dev_attr_eq_pre_post));
 	CHECK_RETURN(device_create_file(dev, &dev_attr_volume_pre_post));
-	if((type & (LINE6_BITS_BASSPODXTALL)) != 0) CHECK_RETURN(device_create_file(dev, &dev_attr_di_model));
-	if((type & (LINE6_BITS_BASSPODXTALL)) != 0) CHECK_RETURN(device_create_file(dev, &dev_attr_di_delay));
+	if ((type & (LINE6_BITS_BASSPODXTALL)) != 0)
+		CHECK_RETURN(device_create_file(dev, &dev_attr_di_model));
+	if ((type & (LINE6_BITS_BASSPODXTALL)) != 0)
+		CHECK_RETURN(device_create_file(dev, &dev_attr_di_delay));
 	CHECK_RETURN(device_create_file(dev, &dev_attr_mod_enable));
 	CHECK_RETURN(device_create_file(dev, &dev_attr_mod_param_1_note_value));
 	CHECK_RETURN(device_create_file(dev, &dev_attr_mod_param_2));
 	CHECK_RETURN(device_create_file(dev, &dev_attr_mod_param_3));
 	CHECK_RETURN(device_create_file(dev, &dev_attr_mod_param_4));
-	if((type & (LINE6_BITS_BASSPODXTALL)) != 0) CHECK_RETURN(device_create_file(dev, &dev_attr_mod_param_5));
+	if ((type & (LINE6_BITS_BASSPODXTALL)) != 0)
+		CHECK_RETURN(device_create_file(dev, &dev_attr_mod_param_5));
 	CHECK_RETURN(device_create_file(dev, &dev_attr_mod_volume_mix));
 	CHECK_RETURN(device_create_file(dev, &dev_attr_mod_pre_post));
 	CHECK_RETURN(device_create_file(dev, &dev_attr_modulation_model));
-	if((type & (LINE6_BITS_PODXTALL)) != 0) if(firmware >= 200) CHECK_RETURN(device_create_file(dev, &dev_attr_band_3_frequency));
-	if((type & (LINE6_BITS_BASSPODXTALL)) != 0) if(firmware >= 200) CHECK_RETURN(device_create_file(dev, &dev_attr_band_4_frequency__bass));
+	if ((type & (LINE6_BITS_PODXTALL)) != 0)
+		if (firmware >= 200)
+			CHECK_RETURN(device_create_file(dev, &dev_attr_band_3_frequency));
+	if ((type & (LINE6_BITS_BASSPODXTALL)) != 0)
+		if (firmware >= 200)
+			CHECK_RETURN(device_create_file(dev, &dev_attr_band_4_frequency__bass));
 	CHECK_RETURN(device_create_file(dev, &dev_attr_mod_param_1_double_precision));
 	CHECK_RETURN(device_create_file(dev, &dev_attr_delay_param_1_double_precision));
-	if(firmware >= 200) CHECK_RETURN(device_create_file(dev, &dev_attr_eq_enable));
+	if (firmware >= 200)
+		CHECK_RETURN(device_create_file(dev, &dev_attr_eq_enable));
 	CHECK_RETURN(device_create_file(dev, &dev_attr_tap));
 	CHECK_RETURN(device_create_file(dev, &dev_attr_volume_tweak_pedal_assign));
-	if((type & (LINE6_BITS_BASSPODXTALL)) != 0) if(firmware >= 200) CHECK_RETURN(device_create_file(dev, &dev_attr_band_5_frequency));
+	if ((type & (LINE6_BITS_BASSPODXTALL)) != 0)
+		if (firmware >= 200)
+			CHECK_RETURN(device_create_file(dev, &dev_attr_band_5_frequency));
 	CHECK_RETURN(device_create_file(dev, &dev_attr_tuner));
 	CHECK_RETURN(device_create_file(dev, &dev_attr_mic_selection));
 	CHECK_RETURN(device_create_file(dev, &dev_attr_cabinet_model));
 	CHECK_RETURN(device_create_file(dev, &dev_attr_stomp_model));
 	CHECK_RETURN(device_create_file(dev, &dev_attr_roomlevel));
-	if((type & (LINE6_BITS_PODXTALL)) != 0) if(firmware >= 200) CHECK_RETURN(device_create_file(dev, &dev_attr_band_4_frequency));
-	if((type & (LINE6_BITS_BASSPODXTALL)) != 0) if(firmware >= 200) CHECK_RETURN(device_create_file(dev, &dev_attr_band_6_frequency));
+	if ((type & (LINE6_BITS_PODXTALL)) != 0)
+		if (firmware >= 200)
+			CHECK_RETURN(device_create_file(dev, &dev_attr_band_4_frequency));
+	if ((type & (LINE6_BITS_BASSPODXTALL)) != 0)
+		if (firmware >= 200)
+			CHECK_RETURN(device_create_file(dev, &dev_attr_band_6_frequency));
 	CHECK_RETURN(device_create_file(dev, &dev_attr_stomp_param_1_note_value));
 	CHECK_RETURN(device_create_file(dev, &dev_attr_stomp_param_2));
 	CHECK_RETURN(device_create_file(dev, &dev_attr_stomp_param_3));
 	CHECK_RETURN(device_create_file(dev, &dev_attr_stomp_param_4));
 	CHECK_RETURN(device_create_file(dev, &dev_attr_stomp_param_5));
 	CHECK_RETURN(device_create_file(dev, &dev_attr_stomp_param_6));
-	if((type & (LINE6_BITS_LIVE)) != 0) CHECK_RETURN(device_create_file(dev, &dev_attr_amp_switch_select));
+	if ((type & (LINE6_BITS_LIVE)) != 0)
+		CHECK_RETURN(device_create_file(dev, &dev_attr_amp_switch_select));
 	CHECK_RETURN(device_create_file(dev, &dev_attr_delay_param_4));
 	CHECK_RETURN(device_create_file(dev, &dev_attr_delay_param_5));
 	CHECK_RETURN(device_create_file(dev, &dev_attr_delay_pre_post));
-	if((type & (LINE6_BITS_PODXTALL)) != 0) CHECK_RETURN(device_create_file(dev, &dev_attr_delay_model));
-	if((type & (LINE6_BITS_BASSPODXTALL)) != 0) CHECK_RETURN(device_create_file(dev, &dev_attr_delay_verb_model));
+	if ((type & (LINE6_BITS_PODXTALL)) != 0)
+		CHECK_RETURN(device_create_file(dev, &dev_attr_delay_model));
+	if ((type & (LINE6_BITS_BASSPODXTALL)) != 0)
+		CHECK_RETURN(device_create_file(dev, &dev_attr_delay_verb_model));
 	CHECK_RETURN(device_create_file(dev, &dev_attr_tempo_msb));
 	CHECK_RETURN(device_create_file(dev, &dev_attr_tempo_lsb));
-	if(firmware >= 300) CHECK_RETURN(device_create_file(dev, &dev_attr_wah_model));
-	if(firmware >= 214) CHECK_RETURN(device_create_file(dev, &dev_attr_bypass_volume));
-	if((type & (LINE6_BITS_PRO)) != 0) CHECK_RETURN(device_create_file(dev, &dev_attr_fx_loop_on_off));
+	if (firmware >= 300)
+		CHECK_RETURN(device_create_file(dev, &dev_attr_wah_model));
+	if (firmware >= 214)
+		CHECK_RETURN(device_create_file(dev, &dev_attr_bypass_volume));
+	if ((type & (LINE6_BITS_PRO)) != 0)
+		CHECK_RETURN(device_create_file(dev, &dev_attr_fx_loop_on_off));
 	CHECK_RETURN(device_create_file(dev, &dev_attr_tweak_param_select));
 	CHECK_RETURN(device_create_file(dev, &dev_attr_amp1_engage));
-	if(firmware >= 200) CHECK_RETURN(device_create_file(dev, &dev_attr_band_1_gain));
-	if((type & (LINE6_BITS_BASSPODXTALL)) != 0) if(firmware >= 200) CHECK_RETURN(device_create_file(dev, &dev_attr_band_2_gain__bass));
-	if((type & (LINE6_BITS_PODXTALL)) != 0) if(firmware >= 200) CHECK_RETURN(device_create_file(dev, &dev_attr_band_2_gain));
-	if((type & (LINE6_BITS_BASSPODXTALL)) != 0) if(firmware >= 200) CHECK_RETURN(device_create_file(dev, &dev_attr_band_3_gain__bass));
-	if((type & (LINE6_BITS_PODXTALL)) != 0) if(firmware >= 200) CHECK_RETURN(device_create_file(dev, &dev_attr_band_3_gain));
-	if((type & (LINE6_BITS_BASSPODXTALL)) != 0) if(firmware >= 200) CHECK_RETURN(device_create_file(dev, &dev_attr_band_4_gain__bass));
-	if((type & (LINE6_BITS_BASSPODXTALL)) != 0) if(firmware >= 200) CHECK_RETURN(device_create_file(dev, &dev_attr_band_5_gain__bass));
-	if((type & (LINE6_BITS_PODXTALL)) != 0) if(firmware >= 200) CHECK_RETURN(device_create_file(dev, &dev_attr_band_4_gain));
-	if((type & (LINE6_BITS_BASSPODXTALL)) != 0) if(firmware >= 200) CHECK_RETURN(device_create_file(dev, &dev_attr_band_6_gain__bass));
+	if (firmware >= 200)
+		CHECK_RETURN(device_create_file(dev, &dev_attr_band_1_gain));
+	if ((type & (LINE6_BITS_BASSPODXTALL)) != 0)
+		if (firmware >= 200)
+			CHECK_RETURN(device_create_file(dev, &dev_attr_band_2_gain__bass));
+	if ((type & (LINE6_BITS_PODXTALL)) != 0)
+		if (firmware >= 200)
+			CHECK_RETURN(device_create_file(dev, &dev_attr_band_2_gain));
+	if ((type & (LINE6_BITS_BASSPODXTALL)) != 0)
+		if (firmware >= 200)
+			CHECK_RETURN(device_create_file(dev, &dev_attr_band_3_gain__bass));
+	if ((type & (LINE6_BITS_PODXTALL)) != 0)
+		if (firmware >= 200)
+			CHECK_RETURN(device_create_file(dev, &dev_attr_band_3_gain));
+	if ((type & (LINE6_BITS_BASSPODXTALL)) != 0)
+		if (firmware >= 200)
+			CHECK_RETURN(device_create_file(dev, &dev_attr_band_4_gain__bass));
+	if ((type & (LINE6_BITS_BASSPODXTALL)) != 0)
+		if (firmware >= 200)
+			CHECK_RETURN(device_create_file(dev, &dev_attr_band_5_gain__bass));
+	if ((type & (LINE6_BITS_PODXTALL)) != 0)
+		if (firmware >= 200)
+			CHECK_RETURN(device_create_file(dev, &dev_attr_band_4_gain));
+	if ((type & (LINE6_BITS_BASSPODXTALL)) != 0)
+		if (firmware >= 200)
+			CHECK_RETURN(device_create_file(dev, &dev_attr_band_6_gain__bass));
   return 0;
 }
 
-void pod_remove_files(int firmware, int type, struct device *dev) {
+void pod_remove_files(int firmware, int type, struct device *dev)
+{
 	device_remove_file(dev, &dev_attr_tweak);
 	device_remove_file(dev, &dev_attr_wah_position);
-	if((type & (LINE6_BITS_PODXTALL)) != 0) device_remove_file(dev, &dev_attr_compression_gain);
+	if ((type & (LINE6_BITS_PODXTALL)) != 0)
+		device_remove_file(dev, &dev_attr_compression_gain);
 	device_remove_file(dev, &dev_attr_vol_pedal_position);
 	device_remove_file(dev, &dev_attr_compression_threshold);
 	device_remove_file(dev, &dev_attr_pan);
 	device_remove_file(dev, &dev_attr_amp_model_setup);
-	if(firmware >= 200) device_remove_file(dev, &dev_attr_amp_model);
+	if (firmware >= 200)
+		device_remove_file(dev, &dev_attr_amp_model);
 	device_remove_file(dev, &dev_attr_drive);
 	device_remove_file(dev, &dev_attr_bass);
-	if((type & (LINE6_BITS_PODXTALL)) != 0) device_remove_file(dev, &dev_attr_mid);
-	if((type & (LINE6_BITS_BASSPODXTALL)) != 0) device_remove_file(dev, &dev_attr_lowmid);
-	if((type & (LINE6_BITS_PODXTALL)) != 0) device_remove_file(dev, &dev_attr_treble);
-	if((type & (LINE6_BITS_BASSPODXTALL)) != 0) device_remove_file(dev, &dev_attr_highmid);
+	if ((type & (LINE6_BITS_PODXTALL)) != 0)
+		device_remove_file(dev, &dev_attr_mid);
+	if ((type & (LINE6_BITS_BASSPODXTALL)) != 0)
+		device_remove_file(dev, &dev_attr_lowmid);
+	if ((type & (LINE6_BITS_PODXTALL)) != 0)
+		device_remove_file(dev, &dev_attr_treble);
+	if ((type & (LINE6_BITS_BASSPODXTALL)) != 0)
+		device_remove_file(dev, &dev_attr_highmid);
 	device_remove_file(dev, &dev_attr_chan_vol);
-	if((type & (LINE6_BITS_PODXTALL)) != 0) device_remove_file(dev, &dev_attr_reverb_mix);
+	if ((type & (LINE6_BITS_PODXTALL)) != 0)
+		device_remove_file(dev, &dev_attr_reverb_mix);
 	device_remove_file(dev, &dev_attr_effect_setup);
-	if(firmware >= 200) device_remove_file(dev, &dev_attr_band_1_frequency);
-	if((type & (LINE6_BITS_PODXTALL)) != 0) device_remove_file(dev, &dev_attr_presence);
-	if((type & (LINE6_BITS_BASSPODXTALL)) != 0) device_remove_file(dev, &dev_attr_treble__bass);
+	if (firmware >= 200)
+		device_remove_file(dev, &dev_attr_band_1_frequency);
+	if ((type & (LINE6_BITS_PODXTALL)) != 0)
+		device_remove_file(dev, &dev_attr_presence);
+	if ((type & (LINE6_BITS_BASSPODXTALL)) != 0)
+		device_remove_file(dev, &dev_attr_treble__bass);
 	device_remove_file(dev, &dev_attr_noise_gate_enable);
 	device_remove_file(dev, &dev_attr_gate_threshold);
 	device_remove_file(dev, &dev_attr_gate_decay_time);
@@ -537,84 +616,140 @@ void pod_remove_files(int firmware, int type, struct device *dev) {
 	device_remove_file(dev, &dev_attr_mod_param_1);
 	device_remove_file(dev, &dev_attr_delay_param_1);
 	device_remove_file(dev, &dev_attr_delay_param_1_note_value);
-	if((type & (LINE6_BITS_BASSPODXTALL)) != 0) if(firmware >= 200) device_remove_file(dev, &dev_attr_band_2_frequency__bass);
+	if ((type & (LINE6_BITS_BASSPODXTALL)) != 0)
+		if (firmware >= 200)
+			device_remove_file(dev, &dev_attr_band_2_frequency__bass);
 	device_remove_file(dev, &dev_attr_delay_param_2);
 	device_remove_file(dev, &dev_attr_delay_volume_mix);
 	device_remove_file(dev, &dev_attr_delay_param_3);
-	if((type & (LINE6_BITS_PODXTALL)) != 0) device_remove_file(dev, &dev_attr_reverb_enable);
-	if((type & (LINE6_BITS_PODXTALL)) != 0) device_remove_file(dev, &dev_attr_reverb_type);
-	if((type & (LINE6_BITS_PODXTALL)) != 0) device_remove_file(dev, &dev_attr_reverb_decay);
-	if((type & (LINE6_BITS_PODXTALL)) != 0) device_remove_file(dev, &dev_attr_reverb_tone);
-	if((type & (LINE6_BITS_PODXTALL)) != 0) device_remove_file(dev, &dev_attr_reverb_pre_delay);
-	if((type & (LINE6_BITS_PODXTALL)) != 0) device_remove_file(dev, &dev_attr_reverb_pre_post);
-	if((type & (LINE6_BITS_PODXTALL)) != 0) if(firmware >= 200) device_remove_file(dev, &dev_attr_band_2_frequency);
-	if((type & (LINE6_BITS_BASSPODXTALL)) != 0) if(firmware >= 200) device_remove_file(dev, &dev_attr_band_3_frequency__bass);
+	if ((type & (LINE6_BITS_PODXTALL)) != 0)
+		device_remove_file(dev, &dev_attr_reverb_enable);
+	if ((type & (LINE6_BITS_PODXTALL)) != 0)
+		device_remove_file(dev, &dev_attr_reverb_type);
+	if ((type & (LINE6_BITS_PODXTALL)) != 0)
+		device_remove_file(dev, &dev_attr_reverb_decay);
+	if ((type & (LINE6_BITS_PODXTALL)) != 0)
+		device_remove_file(dev, &dev_attr_reverb_tone);
+	if ((type & (LINE6_BITS_PODXTALL)) != 0)
+		device_remove_file(dev, &dev_attr_reverb_pre_delay);
+	if ((type & (LINE6_BITS_PODXTALL)) != 0)
+		device_remove_file(dev, &dev_attr_reverb_pre_post);
+	if ((type & (LINE6_BITS_PODXTALL)) != 0)
+		if (firmware >= 200)
+			device_remove_file(dev, &dev_attr_band_2_frequency);
+	if ((type & (LINE6_BITS_BASSPODXTALL)) != 0)
+		if (firmware >= 200)
+			device_remove_file(dev, &dev_attr_band_3_frequency__bass);
 	device_remove_file(dev, &dev_attr_wah_enable);
-	if((type & (LINE6_BITS_BASSPODXTALL)) != 0) device_remove_file(dev, &dev_attr_modulation_lo_cut);
-	if((type & (LINE6_BITS_BASSPODXTALL)) != 0) device_remove_file(dev, &dev_attr_delay_reverb_lo_cut);
-	if((type & (LINE6_BITS_PODXTALL)) != 0) if(firmware >= 200) device_remove_file(dev, &dev_attr_volume_pedal_minimum);
-	if((type & (LINE6_BITS_BASSPODXTALL)) != 0) if(firmware >= 200) device_remove_file(dev, &dev_attr_eq_pre_post);
+	if ((type & (LINE6_BITS_BASSPODXTALL)) != 0)
+		device_remove_file(dev, &dev_attr_modulation_lo_cut);
+	if ((type & (LINE6_BITS_BASSPODXTALL)) != 0)
+		device_remove_file(dev, &dev_attr_delay_reverb_lo_cut);
+	if ((type & (LINE6_BITS_PODXTALL)) != 0)
+		if (firmware >= 200)
+			device_remove_file(dev, &dev_attr_volume_pedal_minimum);
+	if ((type & (LINE6_BITS_BASSPODXTALL)) != 0)
+		if (firmware >= 200)
+			device_remove_file(dev, &dev_attr_eq_pre_post);
 	device_remove_file(dev, &dev_attr_volume_pre_post);
-	if((type & (LINE6_BITS_BASSPODXTALL)) != 0) device_remove_file(dev, &dev_attr_di_model);
-	if((type & (LINE6_BITS_BASSPODXTALL)) != 0) device_remove_file(dev, &dev_attr_di_delay);
+	if ((type & (LINE6_BITS_BASSPODXTALL)) != 0)
+		device_remove_file(dev, &dev_attr_di_model);
+	if ((type & (LINE6_BITS_BASSPODXTALL)) != 0)
+		device_remove_file(dev, &dev_attr_di_delay);
 	device_remove_file(dev, &dev_attr_mod_enable);
 	device_remove_file(dev, &dev_attr_mod_param_1_note_value);
 	device_remove_file(dev, &dev_attr_mod_param_2);
 	device_remove_file(dev, &dev_attr_mod_param_3);
 	device_remove_file(dev, &dev_attr_mod_param_4);
-	if((type & (LINE6_BITS_BASSPODXTALL)) != 0) device_remove_file(dev, &dev_attr_mod_param_5);
+	if ((type & (LINE6_BITS_BASSPODXTALL)) != 0)
+		device_remove_file(dev, &dev_attr_mod_param_5);
 	device_remove_file(dev, &dev_attr_mod_volume_mix);
 	device_remove_file(dev, &dev_attr_mod_pre_post);
 	device_remove_file(dev, &dev_attr_modulation_model);
-	if((type & (LINE6_BITS_PODXTALL)) != 0) if(firmware >= 200) device_remove_file(dev, &dev_attr_band_3_frequency);
-	if((type & (LINE6_BITS_BASSPODXTALL)) != 0) if(firmware >= 200) device_remove_file(dev, &dev_attr_band_4_frequency__bass);
+	if ((type & (LINE6_BITS_PODXTALL)) != 0)
+		if (firmware >= 200)
+			device_remove_file(dev, &dev_attr_band_3_frequency);
+	if ((type & (LINE6_BITS_BASSPODXTALL)) != 0)
+		if (firmware >= 200)
+			device_remove_file(dev, &dev_attr_band_4_frequency__bass);
 	device_remove_file(dev, &dev_attr_mod_param_1_double_precision);
 	device_remove_file(dev, &dev_attr_delay_param_1_double_precision);
-	if(firmware >= 200) device_remove_file(dev, &dev_attr_eq_enable);
+	if (firmware >= 200)
+		device_remove_file(dev, &dev_attr_eq_enable);
 	device_remove_file(dev, &dev_attr_tap);
 	device_remove_file(dev, &dev_attr_volume_tweak_pedal_assign);
-	if((type & (LINE6_BITS_BASSPODXTALL)) != 0) if(firmware >= 200) device_remove_file(dev, &dev_attr_band_5_frequency);
+	if ((type & (LINE6_BITS_BASSPODXTALL)) != 0)
+		if (firmware >= 200)
+			device_remove_file(dev, &dev_attr_band_5_frequency);
 	device_remove_file(dev, &dev_attr_tuner);
 	device_remove_file(dev, &dev_attr_mic_selection);
 	device_remove_file(dev, &dev_attr_cabinet_model);
 	device_remove_file(dev, &dev_attr_stomp_model);
 	device_remove_file(dev, &dev_attr_roomlevel);
-	if((type & (LINE6_BITS_PODXTALL)) != 0) if(firmware >= 200) device_remove_file(dev, &dev_attr_band_4_frequency);
-	if((type & (LINE6_BITS_BASSPODXTALL)) != 0) if(firmware >= 200) device_remove_file(dev, &dev_attr_band_6_frequency);
+	if ((type & (LINE6_BITS_PODXTALL)) != 0)
+		if (firmware >= 200)
+			device_remove_file(dev, &dev_attr_band_4_frequency);
+	if ((type & (LINE6_BITS_BASSPODXTALL)) != 0)
+		if (firmware >= 200)
+			device_remove_file(dev, &dev_attr_band_6_frequency);
 	device_remove_file(dev, &dev_attr_stomp_param_1_note_value);
 	device_remove_file(dev, &dev_attr_stomp_param_2);
 	device_remove_file(dev, &dev_attr_stomp_param_3);
 	device_remove_file(dev, &dev_attr_stomp_param_4);
 	device_remove_file(dev, &dev_attr_stomp_param_5);
 	device_remove_file(dev, &dev_attr_stomp_param_6);
-	if((type & (LINE6_BITS_LIVE)) != 0) device_remove_file(dev, &dev_attr_amp_switch_select);
+	if ((type & (LINE6_BITS_LIVE)) != 0)
+		device_remove_file(dev, &dev_attr_amp_switch_select);
 	device_remove_file(dev, &dev_attr_delay_param_4);
 	device_remove_file(dev, &dev_attr_delay_param_5);
 	device_remove_file(dev, &dev_attr_delay_pre_post);
-	if((type & (LINE6_BITS_PODXTALL)) != 0) device_remove_file(dev, &dev_attr_delay_model);
-	if((type & (LINE6_BITS_BASSPODXTALL)) != 0) device_remove_file(dev, &dev_attr_delay_verb_model);
+	if ((type & (LINE6_BITS_PODXTALL)) != 0)
+		device_remove_file(dev, &dev_attr_delay_model);
+	if ((type & (LINE6_BITS_BASSPODXTALL)) != 0)
+		device_remove_file(dev, &dev_attr_delay_verb_model);
 	device_remove_file(dev, &dev_attr_tempo_msb);
 	device_remove_file(dev, &dev_attr_tempo_lsb);
-	if(firmware >= 300) device_remove_file(dev, &dev_attr_wah_model);
-	if(firmware >= 214) device_remove_file(dev, &dev_attr_bypass_volume);
-	if((type & (LINE6_BITS_PRO)) != 0) device_remove_file(dev, &dev_attr_fx_loop_on_off);
+	if (firmware >= 300)
+		device_remove_file(dev, &dev_attr_wah_model);
+	if (firmware >= 214)
+		device_remove_file(dev, &dev_attr_bypass_volume);
+	if ((type & (LINE6_BITS_PRO)) != 0)
+		device_remove_file(dev, &dev_attr_fx_loop_on_off);
 	device_remove_file(dev, &dev_attr_tweak_param_select);
 	device_remove_file(dev, &dev_attr_amp1_engage);
-	if(firmware >= 200) device_remove_file(dev, &dev_attr_band_1_gain);
-	if((type & (LINE6_BITS_BASSPODXTALL)) != 0) if(firmware >= 200) device_remove_file(dev, &dev_attr_band_2_gain__bass);
-	if((type & (LINE6_BITS_PODXTALL)) != 0) if(firmware >= 200) device_remove_file(dev, &dev_attr_band_2_gain);
-	if((type & (LINE6_BITS_BASSPODXTALL)) != 0) if(firmware >= 200) device_remove_file(dev, &dev_attr_band_3_gain__bass);
-	if((type & (LINE6_BITS_PODXTALL)) != 0) if(firmware >= 200) device_remove_file(dev, &dev_attr_band_3_gain);
-	if((type & (LINE6_BITS_BASSPODXTALL)) != 0) if(firmware >= 200) device_remove_file(dev, &dev_attr_band_4_gain__bass);
-	if((type & (LINE6_BITS_BASSPODXTALL)) != 0) if(firmware >= 200) device_remove_file(dev, &dev_attr_band_5_gain__bass);
-	if((type & (LINE6_BITS_PODXTALL)) != 0) if(firmware >= 200) device_remove_file(dev, &dev_attr_band_4_gain);
-	if((type & (LINE6_BITS_BASSPODXTALL)) != 0) if(firmware >= 200) device_remove_file(dev, &dev_attr_band_6_gain__bass);
+	if (firmware >= 200)
+		device_remove_file(dev, &dev_attr_band_1_gain);
+	if ((type & (LINE6_BITS_BASSPODXTALL)) != 0)
+		if (firmware >= 200)
+			device_remove_file(dev, &dev_attr_band_2_gain__bass);
+	if ((type & (LINE6_BITS_PODXTALL)) != 0)
+		if (firmware >= 200)
+			device_remove_file(dev, &dev_attr_band_2_gain);
+	if ((type & (LINE6_BITS_BASSPODXTALL)) != 0)
+		if (firmware >= 200)
+			device_remove_file(dev, &dev_attr_band_3_gain__bass);
+	if ((type & (LINE6_BITS_PODXTALL)) != 0)
+		if (firmware >= 200)
+			device_remove_file(dev, &dev_attr_band_3_gain);
+	if ((type & (LINE6_BITS_BASSPODXTALL)) != 0)
+		if (firmware >= 200)
+			device_remove_file(dev, &dev_attr_band_4_gain__bass);
+	if ((type & (LINE6_BITS_BASSPODXTALL)) != 0)
+		if (firmware >= 200)
+			device_remove_file(dev, &dev_attr_band_5_gain__bass);
+	if ((type & (LINE6_BITS_PODXTALL)) != 0)
+		if (firmware >= 200)
+			device_remove_file(dev, &dev_attr_band_4_gain);
+	if ((type & (LINE6_BITS_BASSPODXTALL)) != 0)
+		if (firmware >= 200)
+			device_remove_file(dev, &dev_attr_band_6_gain__bass);
 }
 
 EXPORT_SYMBOL(pod_create_files);
 EXPORT_SYMBOL(pod_remove_files);
 
-int variax_create_files(int firmware, int type, struct device *dev) {
+int variax_create_files(int firmware, int type, struct device *dev)
+{
 	int err;
 	CHECK_RETURN(device_create_file(dev, &dev_attr_body));
 	CHECK_RETURN(device_create_file(dev, &dev_attr_pickup1_enable));
@@ -658,7 +793,8 @@ int variax_create_files(int firmware, int type, struct device *dev) {
   return 0;
 }
 
-void variax_remove_files(int firmware, int type, struct device *dev) {
+void variax_remove_files(int firmware, int type, struct device *dev)
+{
 	device_remove_file(dev, &dev_attr_body);
 	device_remove_file(dev, &dev_attr_pickup1_enable);
 	device_remove_file(dev, &dev_attr_pickup1_type);
