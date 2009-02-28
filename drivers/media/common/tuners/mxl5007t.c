@@ -577,36 +577,12 @@ fail:
 	return ret;
 }
 
-static int mxl5007t_check_rf_input_power(struct mxl5007t_state *state,
-					 s32 *rf_input_level)
-{
-	u8 d1, d2;
-	int ret;
-
-	ret = mxl5007t_read_reg(state, 0xb7, &d1);
-	if (mxl_fail(ret))
-		goto fail;
-
-	ret = mxl5007t_read_reg(state, 0xbf, &d2);
-	if (mxl_fail(ret))
-		goto fail;
-
-	d2 = d2 >> 4;
-	if (d2 > 7)
-		d2 += 0xf0;
-
-	*rf_input_level = (s32)(d1 + d2 - 113);
-fail:
-	return ret;
-}
-
 /* ------------------------------------------------------------------------- */
 
 static int mxl5007t_get_status(struct dvb_frontend *fe, u32 *status)
 {
 	struct mxl5007t_state *state = fe->tuner_priv;
 	int rf_locked, ref_locked;
-	s32 rf_input_level = 0;
 	int ret;
 
 	if (fe->ops.i2c_gate_ctrl)
@@ -617,11 +593,6 @@ static int mxl5007t_get_status(struct dvb_frontend *fe, u32 *status)
 		goto fail;
 	mxl_debug("%s%s", rf_locked ? "rf locked " : "",
 		  ref_locked ? "ref locked" : "");
-
-	ret = mxl5007t_check_rf_input_power(state, &rf_input_level);
-	if (mxl_fail(ret))
-		goto fail;
-	mxl_debug("rf input power: %d", rf_input_level);
 fail:
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 0);
