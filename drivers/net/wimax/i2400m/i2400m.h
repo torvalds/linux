@@ -156,10 +156,6 @@ enum {
 };
 
 
-/* Firmware version we request when pulling the fw image file */
-#define I2400M_FW_VERSION "1.4"
-
-
 /**
  * i2400m_reset_type - methods to reset a device
  *
@@ -242,10 +238,14 @@ struct i2400m_reset_ctx;
  *     The caller to this function will check if the response is a
  *     barker that indicates the device going into reset mode.
  *
- * @bus_fw_name: [fill] name of the firmware image (in most cases,
- *     they are all the same for a single release, except that they
- *     have the type of the bus embedded in the name (eg:
- *     i2400m-fw-X-VERSION.sbcf, where X is the bus name).
+ * @bus_fw_names: [fill] a NULL-terminated array with the names of the
+ *     firmware images to try loading. This is made a list so we can
+ *     support backward compatibility of firmware releases (eg: if we
+ *     can't find the default v1.4, we try v1.3). In general, the name
+ *     should be i2400m-fw-X-VERSION.sbcf, where X is the bus name.
+ *     The list is tried in order and the first one that loads is
+ *     used. The fw loader will set i2400m->fw_name to point to the
+ *     active firmware image.
  *
  * @bus_bm_mac_addr_impaired: [fill] Set to true if the device's MAC
  *     address provided in boot mode is kind of broken and needs to
@@ -364,6 +364,8 @@ struct i2400m_reset_ctx;
  *     These have to be in a separate directory, a child of
  *     (wimax_dev->debugfs_dentry) so they can be removed when the
  *     module unloads, as we don't keep each dentry.
+ *
+ * @fw_name: name of the firmware image that is currently being used.
  */
 struct i2400m {
 	struct wimax_dev wimax_dev;	/* FIRST! See doc */
@@ -388,7 +390,7 @@ struct i2400m {
 				   size_t, int flags);
 	ssize_t (*bus_bm_wait_for_ack)(struct i2400m *,
 				       struct i2400m_bootrom_header *, size_t);
-	const char *bus_fw_name;
+	const char **bus_fw_names;
 	unsigned bus_bm_mac_addr_impaired:1;
 
 	spinlock_t tx_lock;		/* protect TX state */
@@ -421,6 +423,7 @@ struct i2400m {
 	struct sk_buff *wake_tx_skb;
 
 	struct dentry *debugfs_dentry;
+	const char *fw_name;		/* name of the current firmware image */
 };
 
 
