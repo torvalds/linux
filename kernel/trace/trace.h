@@ -442,6 +442,12 @@ void trace_buffer_unlock_commit(struct trace_array *tr,
 				struct ring_buffer_event *event,
 				unsigned long flags, int pc);
 
+struct ring_buffer_event *
+trace_current_buffer_lock_reserve(unsigned char type, unsigned long len,
+				  unsigned long flags, int pc);
+void trace_current_buffer_unlock_commit(struct ring_buffer_event *event,
+					unsigned long flags, int pc);
+
 struct trace_entry *tracing_get_trace_entry(struct trace_array *tr,
 						struct trace_array_cpu *data);
 
