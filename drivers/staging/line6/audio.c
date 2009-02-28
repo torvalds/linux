@@ -25,12 +25,12 @@ static char *line6_id[SNDRV_CARDS] = SNDRV_DEFAULT_STR;
 */
 int line6_init_audio(struct usb_line6 *line6)
 {
-	static int dev = 0;
+	static int dev;
 	struct snd_card *card;
 
 	card = snd_card_new(line6_index[dev], line6_id[dev], THIS_MODULE, 0);
 
-	if(card == NULL)
+	if (card == NULL)
 		return -ENOMEM;
 
 	line6->card = card;
@@ -49,7 +49,8 @@ int line6_register_audio(struct usb_line6 *line6)
 {
 	int err;
 
-	if((err = snd_card_register(line6->card)) < 0)
+	err = snd_card_register(line6->card);
+	if (err < 0)
 		return err;
 
 	return 0;
