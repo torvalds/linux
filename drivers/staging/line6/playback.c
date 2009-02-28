@@ -329,7 +329,7 @@ static int snd_line6_playback_hw_free(struct snd_pcm_substream *substream)
 
 	if(line6pcm->wrap_out) {
 		kfree(line6pcm->wrap_out);
-		line6pcm->wrap_out = 0;
+		line6pcm->wrap_out = NULL;
 	}
 
 	return snd_pcm_lib_free_pages(substream);

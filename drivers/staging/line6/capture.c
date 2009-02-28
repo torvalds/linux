@@ -279,7 +279,7 @@ static int snd_line6_capture_hw_free(struct snd_pcm_substream *substream)
 
 	if(line6pcm->buffer_in) {
 		kfree(line6pcm->buffer_in);
-		line6pcm->buffer_in = 0;
+		line6pcm->buffer_in = NULL;
 	}
 
 	return snd_pcm_lib_free_pages(substream);

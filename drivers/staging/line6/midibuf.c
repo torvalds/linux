@@ -44,7 +44,7 @@ int midibuf_init(struct MidiBuffer *this, int size, int split)
 {
 	this->buf = (unsigned char *)kmalloc(size, GFP_KERNEL);
 
-	if(this->buf == 0)
+	if (this->buf == NULL)
 		return -ENOMEM;
 
 	this->size = size;
@@ -261,8 +261,6 @@ int midibuf_skip_message(struct MidiBuffer *this, unsigned short mask)
 
 void midibuf_destroy(struct MidiBuffer *this)
 {
-	if(this->buf != 0) {
-		kfree(this->buf);
-		this->buf = 0;
-	}
+	kfree(this->buf);
+	this->buf = NULL;
 }

@@ -62,10 +62,10 @@ void line6_cleanup_audio(struct usb_line6 *line6)
 {
 	struct snd_card *card = line6->card;
 
-	if(card == 0)
+	if (card == NULL)
 		return;
 
 	snd_card_disconnect(card);
 	snd_card_free(card);
-	line6->card = 0;
+	line6->card = NULL;
 }

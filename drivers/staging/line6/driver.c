@@ -301,7 +301,7 @@ char *line6_alloc_sysex_buffer(struct usb_line6 *line6, int code1, int code2, in
 
 	if(!buffer) {
 		dev_err(line6->ifcdev, "out of memory\n");
-		return 0;
+		return NULL;
 	}
 
 	buffer[0] = LINE6_SYSEX_BEGIN;
@@ -469,7 +469,7 @@ int line6_read_data(struct usb_line6 *line6, int address, void *data, size_t dat
 	/* query the serial number: */
 	ret = usb_control_msg(usbdev, usb_sndctrlpipe(usbdev, 0), 0x67,
 												USB_TYPE_VENDOR | USB_RECIP_DEVICE | USB_DIR_OUT,
-												(datalen << 8) | 0x21, address, 0, 0, LINE6_TIMEOUT * HZ);
+												(datalen << 8) | 0x21, address, NULL, 0, LINE6_TIMEOUT * HZ);
 
 	if(ret < 0) {
 		dev_err(line6->ifcdev, "read request failed (error %d)\n", ret);
@@ -630,8 +630,8 @@ static void line6_list_devices(void)
 static int line6_probe(struct usb_interface *interface, const struct usb_device_id *id)
 {
 	int devtype;
-	struct usb_device *usbdev = 0;
-	struct usb_line6 *line6 = 0;
+	struct usb_device *usbdev = NULL;
+	struct usb_line6 *line6 = NULL;
 	const struct line6_properties *properties;
 	int devnum;
 	int interface_number, alternate = 0;
@@ -987,7 +987,7 @@ static void line6_disconnect(struct usb_interface *interface)
 
 		for(i = LINE6_MAX_DEVICES; i--;)
 			if(line6_devices[i] == line6)
-				line6_devices[i] = 0;
+				line6_devices[i] = NULL;
 	}
 
 	line6_destruct(interface);
@@ -1016,13 +1016,13 @@ static int __init line6_init(void)
 	printk("%s driver version %s%s\n", DRIVER_NAME, DRIVER_VERSION, DRIVER_REVISION);
 	line6_workqueue = create_workqueue(DRIVER_NAME);
 
-	if(line6_workqueue == 0) {
+	if (line6_workqueue == NULL) {
 		err("couldn't create workqueue");
 		return -EINVAL;
 	}
 
 	for(i = LINE6_MAX_DEVICES; i--;)
-		line6_devices[i] = 0;
+		line6_devices[i] = NULL;
 
 	retval = usb_register(&line6_driver);
 
