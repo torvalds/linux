@@ -1311,6 +1311,7 @@ int i2400m_dev_initialize(struct i2400m *i2400m)
 	struct device *dev = i2400m_dev(i2400m);
 	struct i2400m_tlv_config_idle_parameters idle_params;
 	struct i2400m_tlv_config_idle_timeout idle_timeout;
+	struct i2400m_tlv_config_d2h_data_format df;
 	const struct i2400m_tlv_hdr *args[9];
 	unsigned argc = 0;
 
@@ -1332,6 +1333,14 @@ int i2400m_dev_initialize(struct i2400m *i2400m)
 			idle_timeout.timeout = 0;
 			args[argc++] = &idle_timeout.hdr;
 		}
+	}
+	if (i2400m_ge_v1_4(i2400m)) {
+		df.hdr.type =
+			cpu_to_le16(I2400M_TLV_CONFIG_D2H_DATA_FORMAT);
+		df.hdr.length = cpu_to_le16(
+			sizeof(df) - sizeof(df.hdr));
+		df.format = 1;
+		args[argc++] = &df.hdr;
 	}
 	result = i2400m_set_init_config(i2400m, args, argc);
 	if (result < 0)

@@ -69,6 +69,22 @@
  * See tx.c for a deeper description on alignment requirements and
  * other fun facts of it.
  *
+ * DATA PACKETS
+ *
+ * In firmwares <= v1.3, data packets have no header for RX, but they
+ * do for TX (currently unused).
+ *
+ * In firmware >= 1.4, RX packets have an extended header (16
+ * bytes). This header conveys information for management of host
+ * reordering of packets (the device offloads storage of the packets
+ * for reordering to the host).
+ *
+ * Currently this information is not used as the current code doesn't
+ * enable host reordering.
+ *
+ * The header is used as dummy space to emulate an ethernet header and
+ * thus be able to act as an ethernet device without having to reallocate.
+ *
  * ROADMAP
  *
  * i2400m_rx
@@ -76,6 +92,8 @@
  *   i2400m_rx_pl_descr_check
  *   i2400m_rx_payload
  *     i2400m_net_rx
+ *     i2400m_rx_edata
+ *       i2400m_net_erx
  *     i2400m_rx_ctl
  *       i2400m_msg_size_check
  *       i2400m_report_hook_work    [in a workqueue]
@@ -264,8 +282,6 @@ error_check:
 }
 
 
-
-
 /*
  * Receive and send up a trace
  *
@@ -314,38 +330,122 @@ error_check:
 	return;
 }
 
+/*
+ * Receive and send up an extended data packet
+ *
+ * @i2400m: device descriptor
+ * @skb_rx: skb that contains the extended data packet
+ * @single_last: 1 if the payload is the only one or the last one of
+ *     the skb.
+ * @payload: pointer to the packet's data inside the skb
+ * @size: size of the payload
+ *
+ * Starting in v1.4 of the i2400m's firmware, the device can send data
+ * packets to the host in an extended format that; this incudes a 16
+ * byte header (struct i2400m_pl_edata_hdr). Using this header's space
+ * we can fake ethernet headers for ethernet device emulation without
+ * having to copy packets around.
+ *
+ * This function handles said path.
+ */
+static
+void i2400m_rx_edata(struct i2400m *i2400m, struct sk_buff *skb_rx,
+		     unsigned single_last, const void *payload, size_t size)
+{
+	struct device *dev = i2400m_dev(i2400m);
+	const struct i2400m_pl_edata_hdr *hdr = payload;
+	struct net_device *net_dev = i2400m->wimax_dev.net_dev;
+	struct sk_buff *skb;
+	enum i2400m_cs cs;
+	unsigned reorder_needed;
+
+	d_fnstart(4, dev, "(i2400m %p skb_rx %p single %u payload %p "
+		  "size %zu)\n", i2400m, skb_rx, single_last, payload, size);
+	if (size < sizeof(*hdr)) {
+		dev_err(dev, "ERX: HW BUG? message with short header (%zu "
+			"vs %zu bytes expected)\n", size, sizeof(*hdr));
+		goto error;
+	}
+	reorder_needed = le32_to_cpu(hdr->reorder & I2400M_REORDER_NEEDED);
+	cs = hdr->cs;
+	if (reorder_needed) {
+		dev_err(dev, "ERX: HW BUG? reorder needed, it was disabled\n");
+		goto error;
+	}
+	/* ok, so now decide if we want to clone or reuse the skb,
+	 * pull and trim it so the beginning is the space for the eth
+	 * header and pass it to i2400m_net_erx() for the stack */
+	if (single_last) {
+		skb = skb_get(skb_rx);
+		d_printf(3, dev, "ERX: reusing single payload skb %p\n", skb);
+	} else {
+		skb = skb_clone(skb_rx, GFP_KERNEL);
+		d_printf(3, dev, "ERX: cloning %p\n", skb);
+		if (skb == NULL) {
+			dev_err(dev, "ERX: no memory to clone skb\n");
+			net_dev->stats.rx_dropped++;
+			goto error_skb_clone;
+		}
+	}
+	/* now we have to pull and trim so that the skb points to the
+	 * beginning of the IP packet; the netdev part will add the
+	 * ethernet header as needed. */
+	BUILD_BUG_ON(ETH_HLEN > sizeof(*hdr));
+	skb_pull(skb, payload + sizeof(*hdr) - (void *) skb->data);
+	skb_trim(skb, (void *) skb_end_pointer(skb) - payload + sizeof(*hdr));
+	i2400m_net_erx(i2400m, skb, cs);
+error_skb_clone:
+error:
+	d_fnend(4, dev, "(i2400m %p skb_rx %p single %u payload %p "
+		"size %zu) = void\n", i2400m, skb_rx, single_last, payload, size);
+	return;
+}
+
+
+
 
 /*
  * Act on a received payload
  *
  * @i2400m: device instance
  * @skb_rx: skb where the transaction was received
- * @single: 1 if there is only one payload, 0 otherwise
+ * @single_last: 1 this is the only payload or the last one (so the
+ *     skb can be reused instead of cloned).
  * @pld: payload descriptor
  * @payload: payload data
  *
  * Upon reception of a payload, look at its guts in the payload
- * descriptor and decide what to do with it.
+ * descriptor and decide what to do with it. If it is a single payload
+ * skb or if the last skb is a data packet, the skb will be referenced
+ * and modified (so it doesn't have to be cloned).
  */
 static
 void i2400m_rx_payload(struct i2400m *i2400m, struct sk_buff *skb_rx,
-		       unsigned single, const struct i2400m_pld *pld,
+		       unsigned single_last, const struct i2400m_pld *pld,
 		       const void *payload)
 {
 	struct device *dev = i2400m_dev(i2400m);
 	size_t pl_size = i2400m_pld_size(pld);
 	enum i2400m_pt pl_type = i2400m_pld_type(pld);
 
+	d_printf(7, dev, "RX: received payload type %u, %zu bytes\n",
+		 pl_type, pl_size);
+	d_dump(8, dev, payload, pl_size);
+
 	switch (pl_type) {
 	case I2400M_PT_DATA:
 		d_printf(3, dev, "RX: data payload %zu bytes\n", pl_size);
-		i2400m_net_rx(i2400m, skb_rx, single, payload, pl_size);
+		i2400m_net_rx(i2400m, skb_rx, single_last, payload, pl_size);
 		break;
 	case I2400M_PT_CTRL:
 		i2400m_rx_ctl(i2400m, skb_rx, payload, pl_size);
 		break;
 	case I2400M_PT_TRACE:
 		i2400m_rx_trace(i2400m, payload, pl_size);
+		break;
+	case I2400M_PT_EDATA:
+		d_printf(3, dev, "ERX: data payload %zu bytes\n", pl_size);
+		i2400m_rx_edata(i2400m, skb_rx, single_last, payload, pl_size);
 		break;
 	default:	/* Anything else shouldn't come to the host */
 		if (printk_ratelimit())
@@ -474,7 +574,7 @@ int i2400m_rx(struct i2400m *i2400m, struct sk_buff *skb)
 	const struct i2400m_msg_hdr *msg_hdr;
 	size_t pl_itr, pl_size, skb_len;
 	unsigned long flags;
-	unsigned num_pls;
+	unsigned num_pls, single_last;
 
 	skb_len = skb->len;
 	d_fnstart(4, dev, "(i2400m %p skb %p [size %zu])\n",
@@ -503,7 +603,8 @@ int i2400m_rx(struct i2400m *i2400m, struct sk_buff *skb)
 						  pl_itr, skb->len);
 		if (result < 0)
 			goto error_pl_descr_check;
-		i2400m_rx_payload(i2400m, skb, num_pls == 1, &msg_hdr->pld[i],
+		single_last = num_pls == 1 || i == num_pls - 1;
+		i2400m_rx_payload(i2400m, skb, single_last, &msg_hdr->pld[i],
 				  skb->data + pl_itr);
 		pl_itr += ALIGN(pl_size, I2400M_PL_PAD);
 		cond_resched();		/* Don't monopolize */
