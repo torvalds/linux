@@ -1312,10 +1312,12 @@ int i2400m_dev_initialize(struct i2400m *i2400m)
 	struct i2400m_tlv_config_idle_parameters idle_params;
 	struct i2400m_tlv_config_idle_timeout idle_timeout;
 	struct i2400m_tlv_config_d2h_data_format df;
+	struct i2400m_tlv_config_dl_host_reorder dlhr;
 	const struct i2400m_tlv_hdr *args[9];
 	unsigned argc = 0;
 
 	d_fnstart(3, dev, "(i2400m %p)\n", i2400m);
+	/* Disable idle mode? (enabled by default) */
 	if (i2400m_idle_mode_disabled) {
 		if (i2400m_le_v1_3(i2400m)) {
 			idle_params.hdr.type =
@@ -1335,12 +1337,24 @@ int i2400m_dev_initialize(struct i2400m *i2400m)
 		}
 	}
 	if (i2400m_ge_v1_4(i2400m)) {
+		/* Enable extended RX data format? */
 		df.hdr.type =
 			cpu_to_le16(I2400M_TLV_CONFIG_D2H_DATA_FORMAT);
 		df.hdr.length = cpu_to_le16(
 			sizeof(df) - sizeof(df.hdr));
 		df.format = 1;
 		args[argc++] = &df.hdr;
+
+		/* Enable RX data reordering?
+		 * (switch flipped in rx.c:i2400m_rx_setup() after fw upload) */
+		if (i2400m->rx_reorder) {
+			dlhr.hdr.type =
+				cpu_to_le16(I2400M_TLV_CONFIG_DL_HOST_REORDER);
+			dlhr.hdr.length = cpu_to_le16(
+				sizeof(dlhr) - sizeof(dlhr.hdr));
+			dlhr.reorder = 1;
+			args[argc++] = &dlhr.hdr;
+		}
 	}
 	result = i2400m_set_init_config(i2400m, args, argc);
 	if (result < 0)

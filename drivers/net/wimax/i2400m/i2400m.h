@@ -174,6 +174,7 @@ enum i2400m_reset_type {
 };
 
 struct i2400m_reset_ctx;
+struct i2400m_roq;
 
 /**
  * struct i2400m - descriptor for an Intel 2400m
@@ -257,6 +258,9 @@ struct i2400m_reset_ctx;
  *     force this to be the first field so that we can get from
  *     netdev_priv() the right pointer.
  *
+ * @rx_reorder: 1 if RX reordering is enabled; this can only be
+ *     set at probe time.
+ *
  * @state: device's state (as reported by it)
  *
  * @state_wq: waitqueue that is woken up whenever the state changes
@@ -312,6 +316,12 @@ struct i2400m_reset_ctx;
  * @rx_size_min: smallest RX message received.
  *
  * @rx_size_max: buggest RX message received.
+ *
+ * @rx_roq: RX ReOrder queues. (fw >= v1.4) When packets are received
+ *     out of order, the device will ask the driver to hold certain
+ *     packets until the ones that are received out of order can be
+ *     delivered. Then the driver can release them to the host. See
+ *     drivers/net/i2400m/rx.c for details.
  *
  * @init_mutex: Mutex used for serializing the device bringup
  *     sequence; this way if the device reboots in the middle, we
@@ -377,6 +387,7 @@ struct i2400m {
 	unsigned boot_mode:1;		/* is the device in boot mode? */
 	unsigned sboot:1;		/* signed or unsigned fw boot */
 	unsigned ready:1;		/* all probing steps done */
+	unsigned rx_reorder:1;		/* RX reorder is enabled */
 	u8 trace_msg_from_user;		/* echo rx msgs to 'trace' pipe */
 					/* typed u8 so debugfs/u8 can tweak */
 	enum i2400m_system_state state;
@@ -405,10 +416,11 @@ struct i2400m {
 	unsigned tx_pl_num, tx_pl_max, tx_pl_min,
 		tx_num, tx_size_acc, tx_size_min, tx_size_max;
 
-	/* RX stats */
+	/* RX stuff */
 	spinlock_t rx_lock;		/* protect RX state */
 	unsigned rx_pl_num, rx_pl_max, rx_pl_min,
 		rx_num, rx_size_acc, rx_size_min, rx_size_max;
+	struct i2400m_roq *rx_roq;	/* not under rx_lock! */
 
 	struct mutex msg_mutex;		/* serialize command execution */
 	struct completion msg_completion;
@@ -442,6 +454,7 @@ void i2400m_init(struct i2400m *i2400m)
 	wimax_dev_init(&i2400m->wimax_dev);
 
 	i2400m->boot_mode = 1;
+	i2400m->rx_reorder = 1;
 	init_waitqueue_head(&i2400m->state_wq);
 
 	spin_lock_init(&i2400m->tx_lock);
@@ -590,6 +603,9 @@ extern void i2400m_sysfs_release(struct device_driver *);
 extern int i2400m_tx_setup(struct i2400m *);
 extern void i2400m_wake_tx_work(struct work_struct *);
 extern void i2400m_tx_release(struct i2400m *);
+
+extern int i2400m_rx_setup(struct i2400m *);
+extern void i2400m_rx_release(struct i2400m *);
 
 extern void i2400m_net_rx(struct i2400m *, struct sk_buff *, unsigned,
 			  const void *, int);
@@ -788,6 +804,7 @@ void __i2400m_msleep(unsigned ms)
 /* Module parameters */
 
 extern int i2400m_idle_mode_disabled;
+extern int i2400m_rx_reorder_disabled;
 
 
 #endif /* #ifndef __I2400M_H__ */

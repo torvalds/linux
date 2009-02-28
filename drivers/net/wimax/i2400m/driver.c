@@ -76,6 +76,11 @@ MODULE_PARM_DESC(idle_mode_disabled,
 		 "If true, the device will not enable idle mode negotiation "
 		 "with the base station (when connected) to save power.");
 
+int i2400m_rx_reorder_disabled;	/* 0 (rx reorder enabled) by default */
+module_param_named(rx_reorder_disabled, i2400m_rx_reorder_disabled, int, 0644);
+MODULE_PARM_DESC(rx_reorder_disabled,
+		 "If true, RX reordering will be disabled.");
+
 /**
  * i2400m_queue_work - schedule work on a i2400m's queue
  *
@@ -396,6 +401,9 @@ retry:
 	result = i2400m_tx_setup(i2400m);
 	if (result < 0)
 		goto error_tx_setup;
+	result = i2400m_rx_setup(i2400m);
+	if (result < 0)
+		goto error_rx_setup;
 	result = i2400m->bus_dev_start(i2400m);
 	if (result < 0)
 		goto error_bus_dev_start;
@@ -430,6 +438,8 @@ error_fw_check:
 error_create_workqueue:
 	i2400m->bus_dev_stop(i2400m);
 error_bus_dev_start:
+	i2400m_rx_release(i2400m);
+error_rx_setup:
 	i2400m_tx_release(i2400m);
 error_tx_setup:
 error_bootstrap:
@@ -477,6 +487,7 @@ void __i2400m_dev_stop(struct i2400m *i2400m)
 	i2400m->ready = 0;
 	destroy_workqueue(i2400m->work_queue);
 	i2400m->bus_dev_stop(i2400m);
+	i2400m_rx_release(i2400m);
 	i2400m_tx_release(i2400m);
 	wimax_state_change(wimax_dev, WIMAX_ST_DOWN);
 	d_fnend(3, dev, "(i2400m %p) = 0\n", i2400m);
