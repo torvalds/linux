@@ -846,6 +846,20 @@ void trace_buffer_unlock_commit(struct trace_array *tr,
 	trace_wake_up();
 }
 
+struct ring_buffer_event *
+trace_current_buffer_lock_reserve(unsigned char type, unsigned long len,
+				  unsigned long flags, int pc)
+{
+	return trace_buffer_lock_reserve(&global_trace,
+					 type, len, flags, pc);
+}
+
+void trace_current_buffer_unlock_commit(struct ring_buffer_event *event,
+					unsigned long flags, int pc)
+{
+	return trace_buffer_unlock_commit(&global_trace, event, flags, pc);
+}
+
 void
 trace_function(struct trace_array *tr,
 	       unsigned long ip, unsigned long parent_ip, unsigned long flags,

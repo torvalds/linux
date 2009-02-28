@@ -442,6 +442,12 @@ void trace_buffer_unlock_commit(struct trace_array *tr,
 				struct ring_buffer_event *event,
 				unsigned long flags, int pc);
 
+struct ring_buffer_event *
+trace_current_buffer_lock_reserve(unsigned char type, unsigned long len,
+				  unsigned long flags, int pc);
+void trace_current_buffer_unlock_commit(struct ring_buffer_event *event,
+					unsigned long flags, int pc);
+
 struct trace_entry *tracing_get_trace_entry(struct trace_array *tr,
 						struct trace_array_cpu *data);
 
@@ -719,5 +725,31 @@ static inline void trace_branch_disable(void)
 {
 }
 #endif /* CONFIG_BRANCH_TRACER */
+
+/* trace event type bit fields, not numeric */
+enum {
+	TRACE_EVENT_TYPE_PRINTF		= 1,
+	TRACE_EVENT_TYPE_RAW		= 2,
+};
+
+struct ftrace_event_call {
+	char		*name;
+	char		*system;
+	struct dentry	*dir;
+	int		enabled;
+	int		(*regfunc)(void);
+	void		(*unregfunc)(void);
+	int		id;
+	struct dentry	*raw_dir;
+	int		raw_enabled;
+	int		type;
+	int		(*raw_init)(void);
+	int		(*raw_reg)(void);
+	void		(*raw_unreg)(void);
+};
+
+void event_trace_printk(unsigned long ip, const char *fmt, ...);
+extern struct ftrace_event_call __start_ftrace_events[];
+extern struct ftrace_event_call __stop_ftrace_events[];
 
 #endif /* _LINUX_KERNEL_TRACE_H */
