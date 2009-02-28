@@ -3328,7 +3328,7 @@ create_trace_option_files(struct tracer *tracer)
 	for (cnt = 0; opts[cnt].name; cnt++)
 		;
 
-	topts = kzalloc(sizeof(*topts) * (cnt + 1), GFP_KERNEL);
+	topts = kcalloc(cnt + 1, sizeof(*topts), GFP_KERNEL);
 	if (!topts)
 		return NULL;
 
