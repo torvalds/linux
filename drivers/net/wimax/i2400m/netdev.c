@@ -402,13 +402,13 @@ void i2400m_tx_timeout(struct net_device *net_dev)
  */
 static
 void i2400m_rx_fake_eth_header(struct net_device *net_dev,
-			       void *_eth_hdr, int protocol)
+			       void *_eth_hdr, __be16 protocol)
 {
 	struct ethhdr *eth_hdr = _eth_hdr;
 
 	memcpy(eth_hdr->h_dest, net_dev->dev_addr, sizeof(eth_hdr->h_dest));
 	memset(eth_hdr->h_source, 0, sizeof(eth_hdr->h_dest));
-	eth_hdr->h_proto = cpu_to_be16(protocol);
+	eth_hdr->h_proto = protocol;
 }
 
 
@@ -474,7 +474,8 @@ void i2400m_net_rx(struct i2400m *i2400m, struct sk_buff *skb_rx,
 		memcpy(skb_put(skb, buf_len), buf, buf_len);
 	}
 	i2400m_rx_fake_eth_header(i2400m->wimax_dev.net_dev,
-				  skb->data - ETH_HLEN, ETH_P_IP);
+				  skb->data - ETH_HLEN,
+				  cpu_to_be16(ETH_P_IP));
 	skb_set_mac_header(skb, -ETH_HLEN);
 	skb->dev = i2400m->wimax_dev.net_dev;
 	skb->protocol = htons(ETH_P_IP);
@@ -526,7 +527,8 @@ void i2400m_net_erx(struct i2400m *i2400m, struct sk_buff *skb,
 	case I2400M_CS_IPV4:
 		protocol = ETH_P_IP;
 		i2400m_rx_fake_eth_header(i2400m->wimax_dev.net_dev,
-					  skb->data - ETH_HLEN, ETH_P_IP);
+					  skb->data - ETH_HLEN,
+					  cpu_to_be16(ETH_P_IP));
 		skb_set_mac_header(skb, -ETH_HLEN);
 		skb->dev = i2400m->wimax_dev.net_dev;
 		skb->protocol = htons(ETH_P_IP);
