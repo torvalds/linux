@@ -42,12 +42,12 @@ struct cpu_hw_counters {
  * struct pmc_x86_ops - performance counter x86 ops
  */
 struct pmc_x86_ops {
-	u64 (*save_disable_all)		(void);
-	void (*restore_all)		(u64 ctrl);
-	unsigned eventsel;
-	unsigned perfctr;
-	int (*event_map)		(int event);
-	int max_events;
+	u64		(*save_disable_all)(void);
+	void		(*restore_all)(u64 ctrl);
+	unsigned	eventsel;
+	unsigned	perfctr;
+	int		(*event_map)(int event);
+	int		max_events;
 };
 
 static struct pmc_x86_ops *pmc_ops;
@@ -561,7 +561,7 @@ perf_handle_group(struct perf_counter *sibling, u64 *status, u64 *overflown)
 /*
  * Maximum interrupt frequency of 100KHz per CPU
  */
-#define PERFMON_MAX_INTERRUPTS 100000/HZ
+#define PERFMON_MAX_INTERRUPTS (100000/HZ)
 
 /*
  * This handler is triggered by the local APIC, so the APIC IRQ handling
