@@ -2065,7 +2065,7 @@ begin_fwd:
 			goto begin_fwd;
 
 		} else if (!(sacked & TCPCB_LOST)) {
-			if (hole == NULL && !(sacked & TCPCB_SACKED_RETRANS))
+			if (hole == NULL && !(sacked & (TCPCB_SACKED_RETRANS|TCPCB_SACKED_ACKED)))
 				hole = skb;
 			continue;
 
