@@ -3091,7 +3091,6 @@ static int ext4_freeze(struct super_block *sb)
 
 		/* Journal blocked and flushed, clear needs_recovery flag. */
 		EXT4_CLEAR_INCOMPAT_FEATURE(sb, EXT4_FEATURE_INCOMPAT_RECOVER);
-		ext4_commit_super(sb, EXT4_SB(sb)->s_es, 1);
 		error = ext4_commit_super(sb, EXT4_SB(sb)->s_es, 1);
 		if (error)
 			goto out;
