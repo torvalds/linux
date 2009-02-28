@@ -1684,23 +1684,20 @@ static struct seq_operations tracer_seq_ops = {
 };
 
 static struct trace_iterator *
-__tracing_open(struct inode *inode, struct file *file, int *ret)
+__tracing_open(struct inode *inode, struct file *file)
 {
 	long cpu_file = (long) inode->i_private;
+	void *fail_ret = ERR_PTR(-ENOMEM);
 	struct trace_iterator *iter;
 	struct seq_file *m;
-	int cpu;
+	int cpu, ret;
 
-	if (tracing_disabled) {
-		*ret = -ENODEV;
-		return NULL;
-	}
+	if (tracing_disabled)
+		return ERR_PTR(-ENODEV);
 
 	iter = kzalloc(sizeof(*iter), GFP_KERNEL);
-	if (!iter) {
-		*ret = -ENOMEM;
-		goto out;
-	}
+	if (!iter)
+		return ERR_PTR(-ENOMEM);
 
 	/*
 	 * We make a copy of the current tracer to avoid concurrent
@@ -1708,10 +1705,9 @@ __tracing_open(struct inode *inode, struct file *file, int *ret)
 	 */
 	mutex_lock(&trace_types_lock);
 	iter->trace = kzalloc(sizeof(*iter->trace), GFP_KERNEL);
-	if (!iter->trace) {
-		*ret = -ENOMEM;
+	if (!iter->trace)
 		goto fail;
-	}
+
 	if (current_trace)
 		*iter->trace = *current_trace;
 
@@ -1750,9 +1746,11 @@ __tracing_open(struct inode *inode, struct file *file, int *ret)
 	}
 
 	/* TODO stop tracer */
-	*ret = seq_open(file, &tracer_seq_ops);
-	if (*ret)
+	ret = seq_open(file, &tracer_seq_ops);
+	if (ret < 0) {
+		fail_ret = ERR_PTR(ret);
 		goto fail_buffer;
+	}
 
 	m = file->private_data;
 	m->private = iter;
@@ -1762,7 +1760,6 @@ __tracing_open(struct inode *inode, struct file *file, int *ret)
 
 	mutex_unlock(&trace_types_lock);
 
- out:
 	return iter;
 
  fail_buffer:
@@ -1775,7 +1772,7 @@ __tracing_open(struct inode *inode, struct file *file, int *ret)
 	kfree(iter->trace);
 	kfree(iter);
 
-	return ERR_PTR(-ENOMEM);
+	return fail_ret;
 }
 
 int tracing_open_generic(struct inode *inode, struct file *filp)
@@ -1815,9 +1812,12 @@ static int tracing_release(struct inode *inode, struct file *file)
 
 static int tracing_open(struct inode *inode, struct file *file)
 {
-	int ret;
+	struct trace_iterator *iter;
+	int ret = 0;
 
-	__tracing_open(inode, file, &ret);
+	iter = __tracing_open(inode, file);
+	if (IS_ERR(iter))
+		ret = PTR_ERR(iter);
 
 	return ret;
 }
@@ -1825,11 +1825,13 @@ static int tracing_open(struct inode *inode, struct file *file)
 static int tracing_lt_open(struct inode *inode, struct file *file)
 {
 	struct trace_iterator *iter;
-	int ret;
+	int ret = 0;
 
-	iter = __tracing_open(inode, file, &ret);
+	iter = __tracing_open(inode, file);
 
-	if (!ret)
+	if (IS_ERR(iter))
+		ret = PTR_ERR(iter);
+	else
 		iter->iter_flags |= TRACE_FILE_LAT_FMT;
 
 	return ret;
@@ -2024,19 +2026,23 @@ static ssize_t
 tracing_trace_options_read(struct file *filp, char __user *ubuf,
 		       size_t cnt, loff_t *ppos)
 {
-	int i;
+	struct tracer_opt *trace_opts;
+	u32 tracer_flags;
+	int len = 0;
 	char *buf;
 	int r = 0;
-	int len = 0;
-	u32 tracer_flags = current_trace->flags->val;
-	struct tracer_opt *trace_opts = current_trace->flags->opts;
+	int i;
 
 
 	/* calculate max size */
 	for (i = 0; trace_options[i]; i++) {
 		len += strlen(trace_options[i]);
-		len += 3; /* "no" and space */
+		len += 3; /* "no" and newline */
 	}
+
+	mutex_lock(&trace_types_lock);
+	tracer_flags = current_trace->flags->val;
+	trace_opts = current_trace->flags->opts;
 
 	/*
 	 * Increase the size with names of options specific
@@ -2044,37 +2050,38 @@ tracing_trace_options_read(struct file *filp, char __user *ubuf,
 	 */
 	for (i = 0; trace_opts[i].name; i++) {
 		len += strlen(trace_opts[i].name);
-		len += 3; /* "no" and space */
+		len += 3; /* "no" and newline */
 	}
 
 	/* +2 for \n and \0 */
 	buf = kmalloc(len + 2, GFP_KERNEL);
-	if (!buf)
+	if (!buf) {
+		mutex_unlock(&trace_types_lock);
 		return -ENOMEM;
+	}
 
 	for (i = 0; trace_options[i]; i++) {
 		if (trace_flags & (1 << i))
-			r += sprintf(buf + r, "%s ", trace_options[i]);
+			r += sprintf(buf + r, "%s\n", trace_options[i]);
 		else
-			r += sprintf(buf + r, "no%s ", trace_options[i]);
+			r += sprintf(buf + r, "no%s\n", trace_options[i]);
 	}
 
 	for (i = 0; trace_opts[i].name; i++) {
 		if (tracer_flags & trace_opts[i].bit)
-			r += sprintf(buf + r, "%s ",
+			r += sprintf(buf + r, "%s\n",
 				trace_opts[i].name);
 		else
-			r += sprintf(buf + r, "no%s ",
+			r += sprintf(buf + r, "no%s\n",
 				trace_opts[i].name);
 	}
+	mutex_unlock(&trace_types_lock);
 
-	r += sprintf(buf + r, "\n");
 	WARN_ON(r >= len + 2);
 
 	r = simple_read_from_buffer(ubuf, cnt, ppos, buf, r);
 
 	kfree(buf);
-
 	return r;
 }
 
@@ -2149,7 +2156,9 @@ tracing_trace_options_write(struct file *filp, const char __user *ubuf,
 
 	/* If no option could be set, test the specific tracer options */
 	if (!trace_options[i]) {
+		mutex_lock(&trace_types_lock);
 		ret = set_tracer_option(current_trace, cmp, neg);
+		mutex_unlock(&trace_types_lock);
 		if (ret)
 			return ret;
 	}
@@ -2275,8 +2284,17 @@ int tracer_init(struct tracer *t, struct trace_array *tr)
 	return t->init(tr);
 }
 
+struct trace_option_dentry;
+
+static struct trace_option_dentry *
+create_trace_option_files(struct tracer *tracer);
+
+static void
+destroy_trace_option_files(struct trace_option_dentry *topts);
+
 static int tracing_set_tracer(const char *buf)
 {
+	static struct trace_option_dentry *topts;
 	struct trace_array *tr = &global_trace;
 	struct tracer *t;
 	int ret = 0;
@@ -2297,7 +2315,12 @@ static int tracing_set_tracer(const char *buf)
 	if (current_trace && current_trace->reset)
 		current_trace->reset(tr);
 
+	destroy_trace_option_files(topts);
+
 	current_trace = t;
+
+	topts = create_trace_option_files(current_trace);
+
 	if (t->init) {
 		ret = tracer_init(t, tr);
 		if (ret)
@@ -3093,6 +3116,279 @@ static void tracing_init_debugfs_percpu(long cpu)
 #include "trace_selftest.c"
 #endif
 
+struct trace_option_dentry {
+	struct tracer_opt		*opt;
+	struct tracer_flags		*flags;
+	struct dentry			*entry;
+};
+
+static ssize_t
+trace_options_read(struct file *filp, char __user *ubuf, size_t cnt,
+			loff_t *ppos)
+{
+	struct trace_option_dentry *topt = filp->private_data;
+	char *buf;
+
+	if (topt->flags->val & topt->opt->bit)
+		buf = "1\n";
+	else
+		buf = "0\n";
+
+	return simple_read_from_buffer(ubuf, cnt, ppos, buf, 2);
+}
+
+static ssize_t
+trace_options_write(struct file *filp, const char __user *ubuf, size_t cnt,
+			 loff_t *ppos)
+{
+	struct trace_option_dentry *topt = filp->private_data;
+	unsigned long val;
+	char buf[64];
+	int ret;
+
+	if (cnt >= sizeof(buf))
+		return -EINVAL;
+
+	if (copy_from_user(&buf, ubuf, cnt))
+		return -EFAULT;
+
+	buf[cnt] = 0;
+
+	ret = strict_strtoul(buf, 10, &val);
+	if (ret < 0)
+		return ret;
+
+	ret = 0;
+	switch (val) {
+	case 0:
+		/* do nothing if already cleared */
+		if (!(topt->flags->val & topt->opt->bit))
+			break;
+
+		mutex_lock(&trace_types_lock);
+		if (current_trace->set_flag)
+			ret = current_trace->set_flag(topt->flags->val,
+						      topt->opt->bit, 0);
+		mutex_unlock(&trace_types_lock);
+		if (ret)
+			return ret;
+		topt->flags->val &= ~topt->opt->bit;
+		break;
+	case 1:
+		/* do nothing if already set */
+		if (topt->flags->val & topt->opt->bit)
+			break;
+
+		mutex_lock(&trace_types_lock);
+		if (current_trace->set_flag)
+			ret = current_trace->set_flag(topt->flags->val,
+						      topt->opt->bit, 1);
+		mutex_unlock(&trace_types_lock);
+		if (ret)
+			return ret;
+		topt->flags->val |= topt->opt->bit;
+		break;
+
+	default:
+		return -EINVAL;
+	}
+
+	*ppos += cnt;
+
+	return cnt;
+}
+
+
+static const struct file_operations trace_options_fops = {
+	.open = tracing_open_generic,
+	.read = trace_options_read,
+	.write = trace_options_write,
+};
+
+static ssize_t
+trace_options_core_read(struct file *filp, char __user *ubuf, size_t cnt,
+			loff_t *ppos)
+{
+	long index = (long)filp->private_data;
+	char *buf;
+
+	if (trace_flags & (1 << index))
+		buf = "1\n";
+	else
+		buf = "0\n";
+
+	return simple_read_from_buffer(ubuf, cnt, ppos, buf, 2);
+}
+
+static ssize_t
+trace_options_core_write(struct file *filp, const char __user *ubuf, size_t cnt,
+			 loff_t *ppos)
+{
+	long index = (long)filp->private_data;
+	char buf[64];
+	unsigned long val;
+	int ret;
+
+	if (cnt >= sizeof(buf))
+		return -EINVAL;
+
+	if (copy_from_user(&buf, ubuf, cnt))
+		return -EFAULT;
+
+	buf[cnt] = 0;
+
+	ret = strict_strtoul(buf, 10, &val);
+	if (ret < 0)
+		return ret;
+
+	switch (val) {
+	case 0:
+		trace_flags &= ~(1 << index);
+		break;
+	case 1:
+		trace_flags |= 1 << index;
+		break;
+
+	default:
+		return -EINVAL;
+	}
+
+	*ppos += cnt;
+
+	return cnt;
+}
+
+static const struct file_operations trace_options_core_fops = {
+	.open = tracing_open_generic,
+	.read = trace_options_core_read,
+	.write = trace_options_core_write,
+};
+
+static struct dentry *trace_options_init_dentry(void)
+{
+	struct dentry *d_tracer;
+	static struct dentry *t_options;
+
+	if (t_options)
+		return t_options;
+
+	d_tracer = tracing_init_dentry();
+	if (!d_tracer)
+		return NULL;
+
+	t_options = debugfs_create_dir("options", d_tracer);
+	if (!t_options) {
+		pr_warning("Could not create debugfs directory 'options'\n");
+		return NULL;
+	}
+
+	return t_options;
+}
+
+static void
+create_trace_option_file(struct trace_option_dentry *topt,
+			 struct tracer_flags *flags,
+			 struct tracer_opt *opt)
+{
+	struct dentry *t_options;
+	struct dentry *entry;
+
+	t_options = trace_options_init_dentry();
+	if (!t_options)
+		return;
+
+	topt->flags = flags;
+	topt->opt = opt;
+
+	entry = debugfs_create_file(opt->name, 0644, t_options, topt,
+				    &trace_options_fops);
+
+	topt->entry = entry;
+
+}
+
+static struct trace_option_dentry *
+create_trace_option_files(struct tracer *tracer)
+{
+	struct trace_option_dentry *topts;
+	struct tracer_flags *flags;
+	struct tracer_opt *opts;
+	int cnt;
+
+	if (!tracer)
+		return NULL;
+
+	flags = tracer->flags;
+
+	if (!flags || !flags->opts)
+		return NULL;
+
+	opts = flags->opts;
+
+	for (cnt = 0; opts[cnt].name; cnt++)
+		;
+
+	topts = kzalloc(sizeof(*topts) * (cnt + 1), GFP_KERNEL);
+	if (!topts)
+		return NULL;
+
+	for (cnt = 0; opts[cnt].name; cnt++)
+		create_trace_option_file(&topts[cnt], flags,
+					 &opts[cnt]);
+
+	return topts;
+}
+
+static void
+destroy_trace_option_files(struct trace_option_dentry *topts)
+{
+	int cnt;
+
+	if (!topts)
+		return;
+
+	for (cnt = 0; topts[cnt].opt; cnt++) {
+		if (topts[cnt].entry)
+			debugfs_remove(topts[cnt].entry);
+	}
+
+	kfree(topts);
+}
+
+static struct dentry *
+create_trace_option_core_file(const char *option, long index)
+{
+	struct dentry *t_options;
+	struct dentry *entry;
+
+	t_options = trace_options_init_dentry();
+	if (!t_options)
+		return NULL;
+
+	entry = debugfs_create_file(option, 0644, t_options, (void *)index,
+				    &trace_options_core_fops);
+
+	return entry;
+}
+
+static __init void create_trace_options_dir(void)
+{
+	struct dentry *t_options;
+	struct dentry *entry;
+	int i;
+
+	t_options = trace_options_init_dentry();
+	if (!t_options)
+		return;
+
+	for (i = 0; trace_options[i]; i++) {
+		entry = create_trace_option_core_file(trace_options[i], i);
+		if (!entry)
+			pr_warning("Could not create debugfs %s entry\n",
+				   trace_options[i]);
+	}
+}
+
 static __init int tracer_init_debugfs(void)
 {
 	struct dentry *d_tracer;
@@ -3110,6 +3406,8 @@ static __init int tracer_init_debugfs(void)
 				    NULL, &tracing_iter_fops);
 	if (!entry)
 		pr_warning("Could not create debugfs 'trace_options' entry\n");
+
+	create_trace_options_dir();
 
 	entry = debugfs_create_file("tracing_cpumask", 0644, d_tracer,
 				    NULL, &tracing_cpumask_fops);
