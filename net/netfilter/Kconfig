@@ -314,6 +314,23 @@ config NETFILTER_XTABLES
 
 if NETFILTER_XTABLES
 
+comment "Xtables combined modules"
+
+config NETFILTER_XT_MARK
+	tristate 'nfmark target and match support'
+	default m if NETFILTER_ADVANCED=n
+	---help---
+	This option adds the "MARK" target and "mark" match.
+
+	Netfilter mark matching allows you to match packets based on the
+	"nfmark" value in the packet.
+	The target allows you to create rules in the "mangle" table which alter
+	the netfilter mark (nfmark) field associated with the packet.
+
+	Prior to routing, the nfmark can influence the routing method (see
+	"Use netfilter MARK value as routing key") and can also be used by
+	other subsystems to change their behavior.
+
 # alphabetically ordered list of targets
 
 comment "Xtables targets"
@@ -425,16 +442,12 @@ config NETFILTER_XT_TARGET_LED
 
 config NETFILTER_XT_TARGET_MARK
 	tristate '"MARK" target support'
-	default m if NETFILTER_ADVANCED=n
-	help
-	  This option adds a `MARK' target, which allows you to create rules
-	  in the `mangle' table which alter the netfilter mark (nfmark) field
-	  associated with the packet prior to routing. This can change
-	  the routing method (see `Use netfilter MARK value as routing
-	  key') and can also be used by other subsystems to change their
-	  behavior.
-
-	  To compile it as a module, choose M here.  If unsure, say N.
+	depends on NETFILTER_ADVANCED
+	select NETFILTER_XT_MARK
+	---help---
+	This is a backwards-compat option for the user's convenience
+	(e.g. when running oldconfig). It selects
+	CONFIG_NETFILTER_XT_MARK (combined mark/MARK module).
 
 config NETFILTER_XT_TARGET_NFLOG
 	tristate '"NFLOG" target support'
@@ -739,13 +752,12 @@ config NETFILTER_XT_MATCH_MAC
 
 config NETFILTER_XT_MATCH_MARK
 	tristate '"mark" match support'
-	default m if NETFILTER_ADVANCED=n
-	help
-	  Netfilter mark matching allows you to match packets based on the
-	  `nfmark' value in the packet.  This can be set by the MARK target
-	  (see below).
-
-	  To compile it as a module, choose M here.  If unsure, say N.
+	depends on NETFILTER_ADVANCED
+	select NETFILTER_XT_MARK
+	---help---
+	This is a backwards-compat option for the user's convenience
+	(e.g. when running oldconfig). It selects
+	CONFIG_NETFILTER_XT_MARK (combined mark/MARK module).
 
 config NETFILTER_XT_MATCH_MULTIPORT
 	tristate '"multiport" Multiple port match support'
