@@ -942,8 +942,8 @@ error_cmd_failed:
 /* Firmware interface versions we support */
 enum {
 	I2400M_HDIv_MAJOR = 9,
-	I2400M_HDIv_MAJOR_2 = 8,
 	I2400M_HDIv_MINOR = 1,
+	I2400M_HDIv_MINOR_2 = 2,
 };
 
 
@@ -1009,18 +1009,14 @@ int i2400m_firmware_check(struct i2400m *i2400m)
 	minor = le16_to_cpu(l4mv->minor);
 	branch = le16_to_cpu(l4mv->branch);
 	result = -EINVAL;
-	if (major != I2400M_HDIv_MAJOR
-	    && major != I2400M_HDIv_MAJOR_2) {
-		dev_err(dev, "unsupported major fw interface version "
+	if (major != I2400M_HDIv_MAJOR) {
+		dev_err(dev, "unsupported major fw version "
 			"%u.%u.%u\n", major, minor, branch);
 		goto error_bad_major;
 	}
-	if (major == I2400M_HDIv_MAJOR_2)
-		dev_err(dev, "deprecated major fw interface version "
-			"%u.%u.%u\n", major, minor, branch);
 	result = 0;
-	if (minor != I2400M_HDIv_MINOR)
-		dev_warn(dev, "untested minor fw firmware version %u.%u.%u\n",
+	if (minor < I2400M_HDIv_MINOR_2 && minor > I2400M_HDIv_MINOR)
+		dev_warn(dev, "untested minor fw version %u.%u.%u\n",
 			 major, minor, branch);
 error_bad_major:
 	dev_info(dev, "firmware interface version %u.%u.%u\n",
