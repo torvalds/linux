@@ -4305,6 +4305,7 @@ static int iwl3945_mac_beacon_update(struct ieee80211_hw *hw, struct sk_buff *sk
 {
 	struct iwl_priv *priv = hw->priv;
 	unsigned long flags;
+	__le64 timestamp;
 
 	IWL_DEBUG_MAC80211(priv, "enter\n");
 
@@ -4326,6 +4327,8 @@ static int iwl3945_mac_beacon_update(struct ieee80211_hw *hw, struct sk_buff *sk
 	priv->ibss_beacon = skb;
 
 	priv->assoc_id = 0;
+	timestamp = ((struct ieee80211_mgmt *)skb->data)->u.beacon.timestamp;
+	priv->timestamp = le64_to_cpu(timestamp);
 
 	IWL_DEBUG_MAC80211(priv, "leave\n");
 	spin_unlock_irqrestore(&priv->lock, flags);
