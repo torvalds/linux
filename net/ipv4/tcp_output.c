@@ -1356,6 +1356,10 @@ static int tcp_tso_should_defer(struct sock *sk, struct sk_buff *skb)
 	if (limit >= sk->sk_gso_max_size)
 		goto send_now;
 
+	/* Middle in queue won't get any more data, full sendable already? */
+	if ((skb != tcp_write_queue_tail(sk)) && (limit >= skb->len))
+		goto send_now;
+
 	if (sysctl_tcp_tso_win_divisor) {
 		u32 chunk = min(tp->snd_wnd, tp->snd_cwnd * tp->mss_cache);
 
