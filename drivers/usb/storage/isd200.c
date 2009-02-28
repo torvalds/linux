@@ -59,6 +59,9 @@
 #include "debug.h"
 #include "scsiglue.h"
 
+MODULE_DESCRIPTION("Driver for In-System Design, Inc. ISD200 ASIC");
+MODULE_AUTHOR("Björn Stenberg <bjorn@haxx.se>");
+MODULE_LICENSE("GPL");
 
 static int isd200_Initialization(struct us_data *us);
 

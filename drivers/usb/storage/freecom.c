@@ -35,6 +35,10 @@
 #include "protocol.h"
 #include "debug.h"
 
+MODULE_DESCRIPTION("Driver for Freecom USB/IDE adaptor");
+MODULE_AUTHOR("David Brown <usb-storage@davidb.org>");
+MODULE_LICENSE("GPL");
+
 #ifdef CONFIG_USB_STORAGE_DEBUG
 static void pdump (void *, int);
 #endif

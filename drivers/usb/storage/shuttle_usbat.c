@@ -54,6 +54,9 @@
 #include "protocol.h"
 #include "debug.h"
 
+MODULE_DESCRIPTION("Driver for SCM Microsystems (a.k.a. Shuttle) USB-ATAPI cable");
+MODULE_AUTHOR("Daniel Drake <dsd@gentoo.org>, Robert Baruch <autophile@starband.net>");
+MODULE_LICENSE("GPL");
 
 /* Supported device types */
 #define USBAT_DEV_HP8200	0x01

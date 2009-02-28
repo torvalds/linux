@@ -35,6 +35,9 @@
 #include "protocol.h"
 #include "debug.h"
 
+MODULE_DESCRIPTION("Driver for SanDisk SDDR-55 SmartMedia reader");
+MODULE_AUTHOR("Simon Munton");
+MODULE_LICENSE("GPL");
 
 /*
  * The table of devices

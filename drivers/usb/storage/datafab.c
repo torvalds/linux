@@ -60,6 +60,10 @@
 #include "protocol.h"
 #include "debug.h"
 
+MODULE_DESCRIPTION("Driver for Datafab USB Compact Flash reader");
+MODULE_AUTHOR("Jimmie Mayfield <mayfield+datafab@sackheads.org>");
+MODULE_LICENSE("GPL");
+
 struct datafab_info {
 	unsigned long   sectors;	/* total sector count */
 	unsigned long   ssize;		/* sector size in bytes */

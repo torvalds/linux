@@ -42,6 +42,10 @@
 #include "protocol.h"
 #include "debug.h"
 
+MODULE_DESCRIPTION("Driver for Alauda-based card readers");
+MODULE_AUTHOR("Daniel Drake <dsd@gentoo.org>");
+MODULE_LICENSE("GPL");
+
 /*
  * Status bytes
  */

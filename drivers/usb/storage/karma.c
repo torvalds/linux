@@ -28,6 +28,10 @@
 #include "transport.h"
 #include "debug.h"
 
+MODULE_DESCRIPTION("Driver for Rio Karma");
+MODULE_AUTHOR("Bob Copeland <me@bobcopeland.com>, Keith Bennett <keith@mcs.st-and.ac.uk>");
+MODULE_LICENSE("GPL");
+
 #define RIO_PREFIX "RIOP\x00"
 #define RIO_PREFIX_LEN 5
 #define RIO_SEND_LEN 40
