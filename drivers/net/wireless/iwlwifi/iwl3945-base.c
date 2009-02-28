@@ -689,48 +689,6 @@ static void iwl3945_unset_hw_params(struct iwl_priv *priv)
 				    priv->shared_phys);
 }
 
-/*
- * QoS  support
-*/
-static int iwl3945_send_qos_params_command(struct iwl_priv *priv,
-				       struct iwl_qosparam_cmd *qos)
-{
-
-	return iwl_send_cmd_pdu(priv, REPLY_QOS_PARAM,
-				sizeof(struct iwl_qosparam_cmd), qos);
-}
-
-static void iwl3945_activate_qos(struct iwl_priv *priv, u8 force)
-{
-	unsigned long flags;
-
-	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
-		return;
-
-	spin_lock_irqsave(&priv->lock, flags);
-	priv->qos_data.def_qos_parm.qos_flags = 0;
-
-	if (priv->qos_data.qos_cap.q_AP.queue_request &&
-	    !priv->qos_data.qos_cap.q_AP.txop_request)
-		priv->qos_data.def_qos_parm.qos_flags |=
-			QOS_PARAM_FLG_TXOP_TYPE_MSK;
-
-	if (priv->qos_data.qos_active)
-		priv->qos_data.def_qos_parm.qos_flags |=
-			QOS_PARAM_FLG_UPDATE_EDCA_MSK;
-
-	spin_unlock_irqrestore(&priv->lock, flags);
-
-	if (force || iwl_is_associated(priv)) {
-		IWL_DEBUG_QOS(priv, "send QoS cmd with QoS active %d \n",
-			      priv->qos_data.qos_active);
-
-		iwl3945_send_qos_params_command(priv,
-				&(priv->qos_data.def_qos_parm));
-	}
-}
-
-
 #define MAX_UCODE_BEACON_INTERVAL	1024
 #define INTEL_CONN_LISTEN_INTERVAL	cpu_to_le16(0xA)
 
@@ -3663,7 +3621,7 @@ static void iwl3945_post_associate(struct iwl_priv *priv)
 		break;
 	}
 
-	iwl3945_activate_qos(priv, 0);
+	iwl_activate_qos(priv, 0);
 
 	/* we have just associated, don't start scan too early */
 	priv->next_scan_jiffies = jiffies + IWL_DELAY_NEXT_SCAN;
@@ -4262,9 +4220,9 @@ static int iwl3945_mac_conf_tx(struct ieee80211_hw *hw, u16 queue,
 
 	mutex_lock(&priv->mutex);
 	if (priv->iw_mode == NL80211_IFTYPE_AP)
-		iwl3945_activate_qos(priv, 1);
+		iwl_activate_qos(priv, 1);
 	else if (priv->assoc_id && iwl_is_associated(priv))
-		iwl3945_activate_qos(priv, 0);
+		iwl_activate_qos(priv, 0);
 
 	mutex_unlock(&priv->mutex);
 
