@@ -2727,7 +2727,7 @@ i915_gem_object_pin(struct drm_gem_object *obj, uint32_t alignment)
 		ret = i915_gem_object_bind_to_gtt(obj, alignment);
 		if (ret != 0) {
 			if (ret != -EBUSY && ret != -ERESTARTSYS)
-				DRM_ERROR("Failure to bind: %d", ret);
+				DRM_ERROR("Failure to bind: %d\n", ret);
 			return ret;
 		}
 		/*
