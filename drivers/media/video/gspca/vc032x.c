@@ -2277,7 +2277,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 		break;
 	case SENSOR_MI1310_SOC:
 		GammaT = mi1320_gamma;
-		MatrixT = mi0360_matrix;
+		MatrixT = mi1320_matrix;
 		switch (mode) {
 		case 1:
 			init = mi1310_socinitQVGA_JPG;	/* 320x240 */
