@@ -42,13 +42,15 @@ void line6_dump_finished(struct line6_dump_request *l6dr)
 /*
 	Send an asynchronous channel dump request.
 */
-int line6_dump_request_async(struct line6_dump_request *l6dr, struct usb_line6 *line6, int num)
+int line6_dump_request_async(struct line6_dump_request *l6dr,
+			     struct usb_line6 *line6, int num)
 {
 	int ret;
 	line6_invalidate_current(l6dr);
-	ret = line6_send_raw_message_async(line6, l6dr->reqbufs[num].buffer, l6dr->reqbufs[num].length);
+	ret = line6_send_raw_message_async(line6, l6dr->reqbufs[num].buffer,
+					   l6dr->reqbufs[num].length);
 
-	if(ret < 0)
+	if (ret < 0)
 		line6_dump_finished(l6dr);
 
 	return ret;
@@ -58,7 +60,7 @@ int line6_dump_request_async(struct line6_dump_request *l6dr, struct usb_line6 *
 	Send an asynchronous dump request after a given interval.
 */
 void line6_startup_delayed(struct line6_dump_request *l6dr, int seconds,
-													 void (*function)(unsigned long), void *data)
+			   void (*function)(unsigned long), void *data)
 {
 	l6dr->timer.expires = jiffies + seconds * HZ;
 	l6dr->timer.function = function;
@@ -76,17 +78,16 @@ int line6_wait_dump(struct line6_dump_request *l6dr, int nonblock)
 	add_wait_queue(&l6dr->wait, &wait);
 	current->state = TASK_INTERRUPTIBLE;
 
-	while(l6dr->in_progress) {
-		if(nonblock) {
+	while (l6dr->in_progress) {
+		if (nonblock) {
 			retval = -EAGAIN;
 			break;
 		}
 
-		if(signal_pending(current)) {
+		if (signal_pending(current)) {
 			retval = -ERESTARTSYS;
 			break;
-		}
-		else
+		} else
 			schedule();
 	}
 
@@ -98,10 +99,12 @@ int line6_wait_dump(struct line6_dump_request *l6dr, int nonblock)
 /*
 	Initialize dump request buffer.
 */
-int line6_dumpreq_initbuf(struct line6_dump_request *l6dr, const void *buf, size_t len, int num)
+int line6_dumpreq_initbuf(struct line6_dump_request *l6dr, const void *buf,
+			  size_t len, int num)
 {
 	l6dr->reqbufs[num].buffer = kmalloc(len, GFP_KERNEL);
-	if(l6dr->reqbufs[num].buffer == NULL) return -ENOMEM;
+	if (l6dr->reqbufs[num].buffer == NULL)
+		return -ENOMEM;
 	memcpy(l6dr->reqbufs[num].buffer, buf, len);
 	l6dr->reqbufs[num].length = len;
 	return 0;
@@ -110,11 +113,13 @@ int line6_dumpreq_initbuf(struct line6_dump_request *l6dr, const void *buf, size
 /*
 	Initialize dump request data structure (including one buffer).
 */
-int line6_dumpreq_init(struct line6_dump_request *l6dr, const void *buf, size_t len)
+int line6_dumpreq_init(struct line6_dump_request *l6dr, const void *buf,
+		       size_t len)
 {
 	int ret;
 	ret = line6_dumpreq_initbuf(l6dr, buf, len, 0);
-	if(ret < 0) return ret;
+	if (ret < 0)
+		return ret;
 	init_waitqueue_head(&l6dr->wait);
 	init_timer(&l6dr->timer);
 	return 0;
@@ -125,8 +130,10 @@ int line6_dumpreq_init(struct line6_dump_request *l6dr, const void *buf, size_t 
 */
 void line6_dumpreq_destructbuf(struct line6_dump_request *l6dr, int num)
 {
-	if(l6dr == NULL) return;
-	if(l6dr->reqbufs[num].buffer == NULL) return;
+	if (l6dr == NULL)
+		return;
+	if (l6dr->reqbufs[num].buffer == NULL)
+		return;
 	kfree(l6dr->reqbufs[num].buffer);
 	l6dr->reqbufs[num].buffer = NULL;
 }
@@ -136,7 +143,8 @@ void line6_dumpreq_destructbuf(struct line6_dump_request *l6dr, int num)
 */
 void line6_dumpreq_destruct(struct line6_dump_request *l6dr)
 {
-	if(l6dr->reqbufs[0].buffer == NULL) return;
+	if (l6dr->reqbufs[0].buffer == NULL)
+		return;
 	line6_dumpreq_destructbuf(l6dr, 0);
 	l6dr->ok = 1;
 	del_timer_sync(&l6dr->timer);
