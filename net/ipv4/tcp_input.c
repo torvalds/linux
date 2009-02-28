@@ -1178,10 +1178,18 @@ static void tcp_mark_lost_retrans(struct sock *sk)
 		if (!(TCP_SKB_CB(skb)->sacked & TCPCB_SACKED_RETRANS))
 			continue;
 
-		if (after(received_upto, ack_seq) &&
-		    (tcp_is_fack(tp) ||
-		     !before(received_upto,
-			     ack_seq + tp->reordering * tp->mss_cache))) {
+		/* TODO: We would like to get rid of tcp_is_fack(tp) only
+		 * constraint here (see above) but figuring out that at
+		 * least tp->reordering SACK blocks reside between ack_seq
+		 * and received_upto is not easy task to do cheaply with
+		 * the available datastructures.
+		 *
+		 * Whether FACK should check here for tp->reordering segs
+		 * in-between one could argue for either way (it would be
+		 * rather simple to implement as we could count fack_count
+		 * during the walk and do tp->fackets_out - fack_count).
+		 */
+		if (after(received_upto, ack_seq)) {
 			TCP_SKB_CB(skb)->sacked &= ~TCPCB_SACKED_RETRANS;
 			tp->retrans_out -= tcp_skb_pcount(skb);
 
