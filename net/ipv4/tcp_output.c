@@ -1921,6 +1921,8 @@ int tcp_retransmit_skb(struct sock *sk, struct sk_buff *skb)
 	if (skb->len > cur_mss) {
 		if (tcp_fragment(sk, skb, cur_mss, cur_mss))
 			return -ENOMEM; /* We'll try again later. */
+	} else {
+		tcp_init_tso_segs(sk, skb, cur_mss);
 	}
 
 	tcp_retrans_try_collapse(sk, skb, cur_mss);
