@@ -136,7 +136,7 @@ void unlink_wait_clear_audio_in_urbs(struct snd_line6_pcm *line6pcm)
 /*
 	Callback for completed capture URB.
 */
-static void audio_in_callback(struct urb *urb PT_REGS)
+static void audio_in_callback(struct urb *urb)
 {
 	int i, index, length = 0, shutdown = 0;
 	int frames;

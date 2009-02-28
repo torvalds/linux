@@ -94,7 +94,7 @@ struct message
 /*
 	Forward declarations.
 */
-static void line6_data_received(struct urb *urb PT_REGS);
+static void line6_data_received(struct urb *urb);
 static int line6_send_raw_message_async_part(struct message *msg, struct urb *urb);
 
 
@@ -202,7 +202,7 @@ int line6_send_raw_message(struct usb_line6 *line6, const char *buffer, int size
 /*
 	Notification of completion of asynchronous request transmission.
 */
-static void line6_async_request_sent(struct urb *urb PT_REGS)
+static void line6_async_request_sent(struct urb *urb)
 {
 	struct message *msg = (struct message *)urb->context;
 
@@ -315,7 +315,7 @@ char *line6_alloc_sysex_buffer(struct usb_line6 *line6, int code1, int code2, in
 /*
 	Notification of data received from the Line6 device.
 */
-static void line6_data_received(struct urb *urb PT_REGS)
+static void line6_data_received(struct urb *urb)
 {
 	struct usb_line6 *line6 = (struct usb_line6 *)urb->context;
 	struct MidiBuffer *mb = &line6->line6midi->midibuf_in;

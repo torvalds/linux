@@ -43,16 +43,6 @@
 #define CHECKPOINT printk("line6usb: %s (%s:%d)\n", __FUNCTION__, __FILE__, __LINE__)
 #endif
 
-/**
-   In Linux 2.6.20 and later, the pt_regs is no longer passed to USB callback
-   functions.
-*/
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 20)
-#define PT_REGS
-#else
-#define PT_REGS , struct pt_regs *regs
-#endif
-
 #if DO_DEBUG_MESSAGES
 #define DEBUG_MESSAGES(x) (x)
 #else

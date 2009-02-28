@@ -87,7 +87,7 @@ static void line6_midi_transmit(struct snd_rawmidi_substream *substream)
 /*
 	Notification of completion of MIDI transmission.
 */
-static void midi_sent(struct urb *urb PT_REGS)
+static void midi_sent(struct urb *urb)
 {
 	unsigned long flags;
 	int status;
