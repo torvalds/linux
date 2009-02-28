@@ -48,6 +48,7 @@
  *       i2400m_dev_bootstrap()
  *       i2400m_tx_setup()
  *       i2400m->bus_dev_start()
+ *       i2400m_firmware_check()
  *       i2400m_check_mac_addr()
  *   wimax_dev_add()
  *
@@ -404,6 +405,9 @@ retry:
 		dev_err(dev, "cannot create workqueue\n");
 		goto error_create_workqueue;
 	}
+	result = i2400m_firmware_check(i2400m);	/* fw versions ok? */
+	if (result < 0)
+		goto error_fw_check;
 	/* At this point is ok to send commands to the device */
 	result = i2400m_check_mac_addr(i2400m);
 	if (result < 0)
@@ -421,6 +425,7 @@ retry:
 
 error_dev_initialize:
 error_check_mac_addr:
+error_fw_check:
 	destroy_workqueue(i2400m->work_queue);
 error_create_workqueue:
 	i2400m->bus_dev_stop(i2400m);

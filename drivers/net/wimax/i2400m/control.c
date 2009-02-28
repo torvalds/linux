@@ -52,7 +52,6 @@
  *
  * i2400m_dev_initalize()       Called by i2400m_dev_start()
  *   i2400m_set_init_config()
- *   i2400m_firmware_check()
  *   i2400m_cmd_get_state()
  * i2400m_dev_shutdown()        Called by i2400m_dev_stop()
  *   i2400m->bus_reset()
@@ -959,6 +958,10 @@ enum {
  * Long function, but quite simple; first chunk launches the command
  * and double checks the reply for the right TLV. Then we process the
  * TLV (where the meat is).
+ *
+ * Once we process the TLV that gives us the firmware's interface
+ * version, we encode it and save it in i2400m->fw_version for future
+ * reference.
  */
 int i2400m_firmware_check(struct i2400m *i2400m)
 {
@@ -1018,9 +1021,11 @@ int i2400m_firmware_check(struct i2400m *i2400m)
 	if (minor < I2400M_HDIv_MINOR_2 && minor > I2400M_HDIv_MINOR)
 		dev_warn(dev, "untested minor fw version %u.%u.%u\n",
 			 major, minor, branch);
-error_bad_major:
+	/* Yes, we ignore the branch -- we don't have to track it */
+	i2400m->fw_version = major << 16 | minor;
 	dev_info(dev, "firmware interface version %u.%u.%u\n",
 		 major, minor, branch);
+error_bad_major:
 error_no_tlv:
 error_cmd_failed:
 	kfree_skb(ack_skb);
@@ -1249,9 +1254,6 @@ int i2400m_dev_initialize(struct i2400m *i2400m)
 		args[argc++] = &idle_params.hdr;
 	}
 	result = i2400m_set_init_config(i2400m, args, argc);
-	if (result < 0)
-		goto error;
-	result = i2400m_firmware_check(i2400m);	/* fw versions ok? */
 	if (result < 0)
 		goto error;
 	/*

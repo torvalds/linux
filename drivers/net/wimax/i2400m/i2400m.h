@@ -366,6 +366,9 @@ struct i2400m_reset_ctx;
  *     module unloads, as we don't keep each dentry.
  *
  * @fw_name: name of the firmware image that is currently being used.
+ *
+ * @fw_version: version of the firmware interface, Major.minor,
+ *     encoded in the high word and low word (major << 16 | minor).
  */
 struct i2400m {
 	struct wimax_dev wimax_dev;	/* FIRST! See doc */
@@ -424,6 +427,7 @@ struct i2400m {
 
 	struct dentry *debugfs_dentry;
 	const char *fw_name;		/* name of the current firmware image */
+	unsigned long fw_version;	/* version of the firmware interface */
 };
 
 
