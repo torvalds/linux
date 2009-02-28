@@ -38,7 +38,8 @@ struct usb_line6_toneport {
 
 
 extern void toneport_disconnect(struct usb_interface *interface);
-extern int toneport_init(struct usb_interface *interface, struct usb_line6_toneport *toneport);
+extern int toneport_init(struct usb_interface *interface,
+			 struct usb_line6_toneport *toneport);
 
 
 #endif

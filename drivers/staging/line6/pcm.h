@@ -23,16 +23,24 @@
 #include "usbdefs.h"
 
 
-#define LINE6_ISO_BUFFERS 8  /* number of URBs */
-#define LINE6_ISO_PACKETS 2  /* number of USB frames per URB */
-#define LINE6_ISO_INTERVAL 1  /* in a "full speed" device (such as the PODxt Pro) this means 1ms */
-#define LINE6_ISO_PACKET_SIZE_MAX 252  /* this should be queried dynamically from the USB interface! */
+/* number of URBs */
+#define LINE6_ISO_BUFFERS	8
+
+/* number of USB frames per URB */
+#define LINE6_ISO_PACKETS	2
+
+/* in a "full speed" device (such as the PODxt Pro) this means 1ms */
+#define LINE6_ISO_INTERVAL	1
+
+/* this should be queried dynamically from the USB interface! */
+#define LINE6_ISO_PACKET_SIZE_MAX	252
 
 
 /*
 	Extract the messaging device from the substream instance
 */
-#define s2m(s) (((struct snd_line6_pcm *)snd_pcm_substream_chip(s))->line6->ifcdev)
+#define s2m(s)	(((struct snd_line6_pcm *) \
+		   snd_pcm_substream_chip(s))->line6->ifcdev)
 
 
 enum {
@@ -48,8 +56,7 @@ struct line6_pcm_properties {
 	int bytes_per_frame;
 };
 
-struct snd_line6_pcm
-{
+struct snd_line6_pcm {
 	/**
 		 Pointer back to the Line6 driver data structure.
 	*/
@@ -82,8 +89,8 @@ struct snd_line6_pcm
 
 	/**
 		 Temporary buffer for capture.
-		 Since the packet size is not known in advance, this buffer is large enough
-		 to store maximum size packets.
+		 Since the packet size is not known in advance, this buffer is
+		 large enough to store maximum size packets.
 	*/
 	unsigned char *buffer_in;
 
@@ -94,7 +101,8 @@ struct snd_line6_pcm
 
 	/**
 		 Count processed bytes for playback.
-		 This is modulo period size (to determine when a period is finished).
+		 This is modulo period size (to determine when a period is
+		 finished).
 	*/
 	unsigned bytes_out;
 
@@ -110,14 +118,16 @@ struct snd_line6_pcm
 
 	/**
 		 Processed frame position in the playback buffer.
-		 The contents of the output ring buffer have been consumed by the USB
-		 subsystem (i.e., sent to the USB device) up to this position.
+		 The contents of the output ring buffer have been consumed by
+		 the USB subsystem (i.e., sent to the USB device) up to this
+		 position.
 	*/
 	snd_pcm_uframes_t pos_out_done;
 
 	/**
 		 Count processed bytes for capture.
-		 This is modulo period size (to determine when a period is finished).
+		 This is modulo period size (to determine when a period is
+		 finished).
 	*/
 	unsigned bytes_in;
 
@@ -133,8 +143,9 @@ struct snd_line6_pcm
 
 	/**
 		 Processed frame position in the capture buffer.
-		 The contents of the output ring buffer have been consumed by the USB
-		 subsystem (i.e., sent to the USB device) up to this position.
+		 The contents of the output ring buffer have been consumed by
+		 the USB subsystem (i.e., sent to the USB device) up to this
+		 position.
 	*/
 	snd_pcm_uframes_t pos_in_done;
 
@@ -202,7 +213,8 @@ struct snd_line6_pcm
 };
 
 
-extern int line6_init_pcm(struct usb_line6 *line6, struct line6_pcm_properties *properties);
+extern int line6_init_pcm(struct usb_line6 *line6,
+			  struct line6_pcm_properties *properties);
 extern int snd_line6_trigger(struct snd_pcm_substream *substream, int cmd);
 extern int snd_line6_prepare(struct snd_pcm_substream *substream);
 

@@ -13,8 +13,7 @@
 #define MIDIBUF_H
 
 
-struct MidiBuffer
-{
+struct MidiBuffer {
 	unsigned char *buf;
 	int size;
 	int split;
@@ -33,7 +32,8 @@ extern int midibuf_read(struct MidiBuffer *mb, unsigned char *data, int length);
 extern void midibuf_reset(struct MidiBuffer *mb);
 extern int midibuf_skip_message(struct MidiBuffer *mb, unsigned short mask);
 extern void midibuf_status(struct MidiBuffer *mb);
-extern int midibuf_write(struct MidiBuffer *mb, unsigned char *data, int length);
+extern int midibuf_write(struct MidiBuffer *mb, unsigned char *data,
+			 int length);
 
 
 #endif

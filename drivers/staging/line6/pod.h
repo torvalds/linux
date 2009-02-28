@@ -49,8 +49,7 @@
 	 Data structure for values that need to be requested explicitly.
 	 This is the case for system and tuner settings.
 */
-struct ValueWait
-{
+struct ValueWait {
 	unsigned short value;
 	wait_queue_head_t wait;
 };
@@ -194,10 +193,12 @@ struct usb_line6_pod {
 
 extern void pod_disconnect(struct usb_interface *interface);
 extern int pod_init(struct usb_interface *interface, struct usb_line6_pod *pod);
-extern void pod_midi_postprocess(struct usb_line6_pod *pod, unsigned char *data, int length);
+extern void pod_midi_postprocess(struct usb_line6_pod *pod,
+				 unsigned char *data, int length);
 extern void pod_process_message(struct usb_line6_pod *pod);
 extern void pod_receive_parameter(struct usb_line6_pod *pod, int param);
-extern void pod_transmit_parameter(struct usb_line6_pod *pod, int param, int value);
+extern void pod_transmit_parameter(struct usb_line6_pod *pod, int param,
+				   int value);
 
 
 #endif
