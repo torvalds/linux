@@ -44,6 +44,36 @@ static void ftrace_clear_events(void)
 	}
 }
 
+static void ftrace_event_enable_disable(struct ftrace_event_call *call,
+					int enable)
+{
+
+	switch (enable) {
+	case 0:
+		if (call->enabled) {
+			call->enabled = 0;
+			call->unregfunc();
+		}
+		if (call->raw_enabled) {
+			call->raw_enabled = 0;
+			call->raw_unreg();
+		}
+		break;
+	case 1:
+		if (!call->enabled &&
+		    (call->type & TRACE_EVENT_TYPE_PRINTF)) {
+			call->enabled = 1;
+			call->regfunc();
+		}
+		if (!call->raw_enabled &&
+		    (call->type & TRACE_EVENT_TYPE_RAW)) {
+			call->raw_enabled = 1;
+			call->raw_reg();
+		}
+		break;
+	}
+}
+
 static int ftrace_set_clr_event(char *buf, int set)
 {
 	struct ftrace_event_call *call = __start_ftrace_events;
@@ -90,19 +120,8 @@ static int ftrace_set_clr_event(char *buf, int set)
 		if (event && strcmp(event, call->name) != 0)
 			continue;
 
-		if (set) {
-			/* Already set? */
-			if (call->enabled)
-				return 0;
-			call->enabled = 1;
-			call->regfunc();
-		} else {
-			/* Already cleared? */
-			if (!call->enabled)
-				return 0;
-			call->enabled = 0;
-			call->unregfunc();
-		}
+		ftrace_event_enable_disable(call, set);
+
 		ret = 0;
 	}
 	return ret;
@@ -273,7 +292,7 @@ event_enable_read(struct file *filp, char __user *ubuf, size_t cnt,
 	struct ftrace_event_call *call = filp->private_data;
 	char *buf;
 
-	if (call->enabled)
+	if (call->enabled || call->raw_enabled)
 		buf = "1\n";
 	else
 		buf = "0\n";
@@ -304,18 +323,8 @@ event_enable_write(struct file *filp, const char __user *ubuf, size_t cnt,
 
 	switch (val) {
 	case 0:
-		if (!call->enabled)
-			break;
-
-		call->enabled = 0;
-		call->unregfunc();
-		break;
 	case 1:
-		if (call->enabled)
-			break;
-
-		call->enabled = 1;
-		call->regfunc();
+		ftrace_event_enable_disable(call, val);
 		break;
 
 	default:
@@ -325,6 +334,107 @@ event_enable_write(struct file *filp, const char __user *ubuf, size_t cnt,
 	*ppos += cnt;
 
 	return cnt;
+}
+
+static ssize_t
+event_type_read(struct file *filp, char __user *ubuf, size_t cnt,
+		loff_t *ppos)
+{
+	struct ftrace_event_call *call = filp->private_data;
+	char buf[16];
+	int r = 0;
+
+	if (call->type & TRACE_EVENT_TYPE_PRINTF)
+		r += sprintf(buf, "printf\n");
+
+	if (call->type & TRACE_EVENT_TYPE_RAW)
+		r += sprintf(buf+r, "raw\n");
+
+	return simple_read_from_buffer(ubuf, cnt, ppos, buf, r);
+}
+
+static ssize_t
+event_type_write(struct file *filp, const char __user *ubuf, size_t cnt,
+		 loff_t *ppos)
+{
+	struct ftrace_event_call *call = filp->private_data;
+	char buf[64];
+
+	/*
+	 * If there's only one type, we can't change it.
+	 * And currently we always have printf type, and we
+	 * may or may not have raw type.
+	 *
+	 * This is a redundant check, the file should be read
+	 * only if this is the case anyway.
+	 */
+
+	if (!call->raw_init)
+		return -EPERM;
+
+	if (cnt >= sizeof(buf))
+		return -EINVAL;
+
+	if (copy_from_user(&buf, ubuf, cnt))
+		return -EFAULT;
+
+	buf[cnt] = 0;
+
+	if (!strncmp(buf, "printf", 6) &&
+	    (!buf[6] || isspace(buf[6]))) {
+
+		call->type = TRACE_EVENT_TYPE_PRINTF;
+
+		/*
+		 * If raw enabled, the disable it and enable
+		 * printf type.
+		 */
+		if (call->raw_enabled) {
+			call->raw_enabled = 0;
+			call->raw_unreg();
+
+			call->enabled = 1;
+			call->regfunc();
+		}
+
+	} else if (!strncmp(buf, "raw", 3) &&
+	    (!buf[3] || isspace(buf[3]))) {
+
+		call->type = TRACE_EVENT_TYPE_RAW;
+
+		/*
+		 * If printf enabled, the disable it and enable
+		 * raw type.
+		 */
+		if (call->enabled) {
+			call->enabled = 0;
+			call->unregfunc();
+
+			call->raw_enabled = 1;
+			call->raw_reg();
+		}
+	} else
+		return -EINVAL;
+
+	*ppos += cnt;
+
+	return cnt;
+}
+
+static ssize_t
+event_available_types_read(struct file *filp, char __user *ubuf, size_t cnt,
+			   loff_t *ppos)
+{
+	struct ftrace_event_call *call = filp->private_data;
+	char buf[16];
+	int r = 0;
+
+	r += sprintf(buf, "printf\n");
+
+	if (call->raw_init)
+		r += sprintf(buf+r, "raw\n");
+
+	return simple_read_from_buffer(ubuf, cnt, ppos, buf, r);
 }
 
 static const struct seq_operations show_event_seq_ops = {
@@ -360,6 +470,17 @@ static const struct file_operations ftrace_enable_fops = {
 	.open = tracing_open_generic,
 	.read = event_enable_read,
 	.write = event_enable_write,
+};
+
+static const struct file_operations ftrace_type_fops = {
+	.open = tracing_open_generic,
+	.read = event_type_read,
+	.write = event_type_write,
+};
+
+static const struct file_operations ftrace_available_types_fops = {
+	.open = tracing_open_generic,
+	.read = event_available_types_read,
 };
 
 static struct dentry *event_trace_events_dir(void)
@@ -427,6 +548,7 @@ static int
 event_create_dir(struct ftrace_event_call *call, struct dentry *d_events)
 {
 	struct dentry *entry;
+	int ret;
 
 	/*
 	 * If the trace point header did not define TRACE_SYSTEM
@@ -434,6 +556,18 @@ event_create_dir(struct ftrace_event_call *call, struct dentry *d_events)
 	 */
 	if (strcmp(call->system, "TRACE_SYSTEM") != 0)
 		d_events = event_subsystem_dir(call->system, d_events);
+
+	if (call->raw_init) {
+		ret = call->raw_init();
+		if (ret < 0) {
+			pr_warning("Could not initialize trace point"
+				   " events/%s\n", call->name);
+			return ret;
+		}
+	}
+
+	/* default the output to printf */
+	call->type = TRACE_EVENT_TYPE_PRINTF;
 
 	call->dir = debugfs_create_dir(call->name, d_events);
 	if (!call->dir) {
@@ -447,6 +581,21 @@ event_create_dir(struct ftrace_event_call *call, struct dentry *d_events)
 	if (!entry)
 		pr_warning("Could not create debugfs "
 			   "'%s/enable' entry\n", call->name);
+
+	/* Only let type be writable, if we can change it */
+	entry = debugfs_create_file("type",
+				    call->raw_init ? 0644 : 0444,
+				    call->dir, call,
+				    &ftrace_type_fops);
+	if (!entry)
+		pr_warning("Could not create debugfs "
+			   "'%s/type' entry\n", call->name);
+
+	entry = debugfs_create_file("available_types", 0444, call->dir, call,
+				    &ftrace_available_types_fops);
+	if (!entry)
+		pr_warning("Could not create debugfs "
+			   "'%s/type' available_types\n", call->name);
 
 	return 0;
 }

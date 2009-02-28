@@ -726,6 +726,12 @@ static inline void trace_branch_disable(void)
 }
 #endif /* CONFIG_BRANCH_TRACER */
 
+/* trace event type bit fields, not numeric */
+enum {
+	TRACE_EVENT_TYPE_PRINTF		= 1,
+	TRACE_EVENT_TYPE_RAW		= 2,
+};
+
 struct ftrace_event_call {
 	char		*name;
 	char		*system;
@@ -736,6 +742,7 @@ struct ftrace_event_call {
 	int		id;
 	struct dentry	*raw_dir;
 	int		raw_enabled;
+	int		type;
 	int		(*raw_init)(void);
 	int		(*raw_reg)(void);
 	void		(*raw_unreg)(void);
