@@ -4,7 +4,7 @@
  * (c) 2006 Wolfson Microelectronics PLC.
  * Graeme Gregory graeme.gregory@wolfsonmicro.com or linux@wolfsonmicro.com
  *
- * (c) 2004-2005 Simtec Electronics
+ * Copyright 2004-2005 Simtec Electronics
  *	http://armlinux.simtec.co.uk/
  *	Ben Dooks <ben@simtec.co.uk>
  *
