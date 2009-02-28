@@ -3273,18 +3273,15 @@ static int tcp_clean_rtx_queue(struct sock *sk, int prior_fackets,
 		if (tcp_is_reno(tp)) {
 			tcp_remove_reno_sacks(sk, pkts_acked);
 		} else {
+			int delta;
+
 			/* Non-retransmitted hole got filled? That's reordering */
 			if (reord < prior_fackets)
 				tcp_update_reordering(sk, tp->fackets_out - reord, 0);
 
-			/* No need to care for underflows here because
-			 * the lost_skb_hint gets NULLed if we're past it
-			 * (or something non-trivial happened)
-			 */
-			if (tcp_is_fack(tp))
-				tp->lost_cnt_hint -= pkts_acked;
-			else
-				tp->lost_cnt_hint -= prior_sacked - tp->sacked_out;
+			delta = tcp_is_fack(tp) ? pkts_acked :
+						  prior_sacked - tp->sacked_out;
+			tp->lost_cnt_hint -= min(tp->lost_cnt_hint, delta);
 		}
 
 		tp->fackets_out -= min(pkts_acked, tp->fackets_out);
