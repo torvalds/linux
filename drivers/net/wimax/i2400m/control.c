@@ -1222,6 +1222,77 @@ EXPORT_SYMBOL_GPL(i2400m_set_init_config);
 
 
 /**
+ * i2400m_set_idle_timeout - Set the device's idle mode timeout
+ *
+ * @i2400m: i2400m device descriptor
+ *
+ * @msecs: milliseconds for the timeout to enter idle mode. Between
+ *     100 to 300000 (5m); 0 to disable. In increments of 100.
+ *
+ * After this @msecs of the link being idle (no data being sent or
+ * received), the device will negotiate with the basestation entering
+ * idle mode for saving power. The connection is maintained, but
+ * getting out of it (done in tx.c) will require some negotiation,
+ * possible crypto re-handshake and a possible DHCP re-lease.
+ *
+ * Only available if fw_version >= 0x00090002.
+ *
+ * Returns: 0 if ok, < 0 errno code on error.
+ */
+int i2400m_set_idle_timeout(struct i2400m *i2400m, unsigned msecs)
+{
+	int result;
+	struct device *dev = i2400m_dev(i2400m);
+	struct sk_buff *ack_skb;
+	struct {
+		struct i2400m_l3l4_hdr hdr;
+		struct i2400m_tlv_config_idle_timeout cit;
+	} *cmd;
+	const struct i2400m_l3l4_hdr *ack;
+	size_t ack_len;
+	char strerr[32];
+
+	result = -ENOSYS;
+	if (i2400m_le_v1_3(i2400m))
+		goto error_alloc;
+	result = -ENOMEM;
+	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
+	if (cmd == NULL)
+		goto error_alloc;
+	cmd->hdr.type = cpu_to_le16(I2400M_MT_GET_STATE);
+	cmd->hdr.length = cpu_to_le16(sizeof(*cmd) - sizeof(cmd->hdr));
+	cmd->hdr.version = cpu_to_le16(I2400M_L3L4_VERSION);
+
+	cmd->cit.hdr.type =
+		cpu_to_le16(I2400M_TLV_CONFIG_IDLE_TIMEOUT);
+	cmd->cit.hdr.length = cpu_to_le16(sizeof(cmd->cit.timeout));
+	cmd->cit.timeout = cpu_to_le32(msecs);
+
+	ack_skb = i2400m_msg_to_dev(i2400m, cmd, sizeof(*cmd));
+	if (IS_ERR(ack_skb)) {
+		dev_err(dev, "Failed to issue 'set idle timeout' command: "
+			"%ld\n", PTR_ERR(ack_skb));
+		result = PTR_ERR(ack_skb);
+		goto error_msg_to_dev;
+	}
+	ack = wimax_msg_data_len(ack_skb, &ack_len);
+	result = i2400m_msg_check_status(ack, strerr, sizeof(strerr));
+	if (result < 0) {
+		dev_err(dev, "'set idle timeout' (0x%04x) command failed: "
+			"%d - %s\n", I2400M_MT_GET_STATE, result, strerr);
+		goto error_cmd_failed;
+	}
+	result = 0;
+	kfree_skb(ack_skb);
+error_cmd_failed:
+error_msg_to_dev:
+	kfree(cmd);
+error_alloc:
+	return result;
+}
+
+
+/**
  * i2400m_dev_initialize - Initialize the device once communications are ready
  *
  * @i2400m: device descriptor
@@ -1239,19 +1310,28 @@ int i2400m_dev_initialize(struct i2400m *i2400m)
 	int result;
 	struct device *dev = i2400m_dev(i2400m);
 	struct i2400m_tlv_config_idle_parameters idle_params;
+	struct i2400m_tlv_config_idle_timeout idle_timeout;
 	const struct i2400m_tlv_hdr *args[9];
 	unsigned argc = 0;
 
 	d_fnstart(3, dev, "(i2400m %p)\n", i2400m);
-	/* Useless for now...might change */
 	if (i2400m_idle_mode_disabled) {
-		idle_params.hdr.type =
-			cpu_to_le16(I2400M_TLV_CONFIG_IDLE_PARAMETERS);
-		idle_params.hdr.length = cpu_to_le16(
-			sizeof(idle_params) - sizeof(idle_params.hdr));
-		idle_params.idle_timeout = 0;
-		idle_params.idle_paging_interval = 0;
-		args[argc++] = &idle_params.hdr;
+		if (i2400m_le_v1_3(i2400m)) {
+			idle_params.hdr.type =
+				cpu_to_le16(I2400M_TLV_CONFIG_IDLE_PARAMETERS);
+			idle_params.hdr.length = cpu_to_le16(
+				sizeof(idle_params) - sizeof(idle_params.hdr));
+			idle_params.idle_timeout = 0;
+			idle_params.idle_paging_interval = 0;
+			args[argc++] = &idle_params.hdr;
+		} else {
+			idle_timeout.hdr.type =
+				cpu_to_le16(I2400M_TLV_CONFIG_IDLE_TIMEOUT);
+			idle_timeout.hdr.length = cpu_to_le16(
+				sizeof(idle_timeout) - sizeof(idle_timeout.hdr));
+			idle_timeout.timeout = 0;
+			args[argc++] = &idle_timeout.hdr;
+		}
 	}
 	result = i2400m_set_init_config(i2400m, args, argc);
 	if (result < 0)
@@ -1264,6 +1344,8 @@ int i2400m_dev_initialize(struct i2400m *i2400m)
 	 */
 	result = i2400m_cmd_get_state(i2400m);
 error:
+	if (result < 0)
+		dev_err(dev, "failed to initialize the device: %d\n", result);
 	d_fnend(3, dev, "(i2400m %p) = %d\n", i2400m, result);
 	return result;
 }

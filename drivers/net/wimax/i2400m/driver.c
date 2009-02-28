@@ -662,6 +662,11 @@ int i2400m_setup(struct i2400m *i2400m, enum i2400m_bri bm_flags)
 	wimax_state_change(wimax_dev, WIMAX_ST_UNINITIALIZED);
 
 	/* Now setup all that requires a registered net and wimax device. */
+	result = sysfs_create_group(&net_dev->dev.kobj, &i2400m_dev_attr_group);
+	if (result < 0) {
+		dev_err(dev, "cannot setup i2400m's sysfs: %d\n", result);
+		goto error_sysfs_setup;
+	}
 	result = i2400m_debugfs_add(i2400m);
 	if (result < 0) {
 		dev_err(dev, "cannot setup i2400m's debugfs: %d\n", result);
@@ -671,6 +676,9 @@ int i2400m_setup(struct i2400m *i2400m, enum i2400m_bri bm_flags)
 	return result;
 
 error_debugfs_setup:
+	sysfs_remove_group(&i2400m->wimax_dev.net_dev->dev.kobj,
+			   &i2400m_dev_attr_group);
+error_sysfs_setup:
 	wimax_dev_rm(&i2400m->wimax_dev);
 error_wimax_dev_add:
 	i2400m_dev_stop(i2400m);
@@ -702,6 +710,8 @@ void i2400m_release(struct i2400m *i2400m)
 	netif_stop_queue(i2400m->wimax_dev.net_dev);
 
 	i2400m_debugfs_rm(i2400m);
+	sysfs_remove_group(&i2400m->wimax_dev.net_dev->dev.kobj,
+			   &i2400m_dev_attr_group);
 	wimax_dev_rm(&i2400m->wimax_dev);
 	i2400m_dev_stop(i2400m);
 	unregister_netdev(i2400m->wimax_dev.net_dev);

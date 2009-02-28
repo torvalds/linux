@@ -585,6 +585,8 @@ unsigned i2400m_brh_get_signature(const struct i2400m_bootrom_header *hdr)
  * Driver / device setup and internal functions
  */
 extern void i2400m_netdev_setup(struct net_device *net_dev);
+extern int i2400m_sysfs_setup(struct device_driver *);
+extern void i2400m_sysfs_release(struct device_driver *);
 extern int i2400m_tx_setup(struct i2400m *);
 extern void i2400m_wake_tx_work(struct work_struct *);
 extern void i2400m_tx_release(struct i2400m *);
@@ -728,6 +730,7 @@ extern struct sk_buff *i2400m_get_device_info(struct i2400m *);
 extern int i2400m_firmware_check(struct i2400m *);
 extern int i2400m_set_init_config(struct i2400m *,
 				  const struct i2400m_tlv_hdr **, size_t);
+extern int i2400m_set_idle_timeout(struct i2400m *, unsigned);
 
 static inline
 struct usb_endpoint_descriptor *usb_get_epd(struct usb_interface *iface, int ep)
@@ -739,6 +742,32 @@ extern int i2400m_op_rfkill_sw_toggle(struct wimax_dev *,
 				      enum wimax_rf_state);
 extern void i2400m_report_tlv_rf_switches_status(
 	struct i2400m *, const struct i2400m_tlv_rf_switches_status *);
+
+/*
+ * Helpers for firmware backwards compability
+ *
+ * As we aim to support at least the firmware version that was
+ * released with the previous kernel/driver release, some code will be
+ * conditionally executed depending on the firmware version. On each
+ * release, the code to support fw releases past the last two ones
+ * will be purged.
+ *
+ * By making it depend on this macros, it is easier to keep it a tab
+ * on what has to go and what not.
+ */
+static inline
+unsigned i2400m_le_v1_3(struct i2400m *i2400m)
+{
+	/* running fw is lower or v1.3 */
+	return i2400m->fw_version <= 0x00090001;
+}
+
+static inline
+unsigned i2400m_ge_v1_4(struct i2400m *i2400m)
+{
+	/* running fw is higher or v1.4 */
+	return i2400m->fw_version >= 0x00090002;
+}
 
 
 /*

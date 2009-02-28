@@ -381,6 +381,7 @@ enum i2400m_tlv {
 	I2400M_TLV_RF_STATUS = 163,
 	I2400M_TLV_DEVICE_RESET_TYPE = 132,
 	I2400M_TLV_CONFIG_IDLE_PARAMETERS = 601,
+	I2400M_TLV_CONFIG_IDLE_TIMEOUT = 611,
 };
 
 
@@ -508,5 +509,14 @@ struct i2400m_tlv_media_status {
 	struct i2400m_tlv_hdr hdr;
 	__le32 media_status;
 } __attribute__((packed));
+
+
+/* New in v1.4 */
+struct i2400m_tlv_config_idle_timeout {
+	struct i2400m_tlv_hdr hdr;
+	__le32 timeout;	/* 100 to 300000 ms [5min], 100 increments
+			 * 0 disabled */
+} __attribute__((packed));
+
 
 #endif /* #ifndef __LINUX__WIMAX__I2400M_H__ */
