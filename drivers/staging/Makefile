@@ -38,3 +38,4 @@ obj-$(CONFIG_B3DFG)		+= b3dfg/
 obj-$(CONFIG_IDE_PHISON)	+= phison/
 obj-$(CONFIG_PLAN9AUTH)		+= p9auth/
 obj-$(CONFIG_HECI)		+= heci/
+obj-$(CONFIG_LINE6_USB)		+= line6/
