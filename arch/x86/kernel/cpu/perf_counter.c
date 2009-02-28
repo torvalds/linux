@@ -454,18 +454,18 @@ void perf_counter_print_debug(void)
 	cpuc = &per_cpu(cpu_hw_counters, cpu);
 
 	if (boot_cpu_data.x86_vendor == X86_VENDOR_INTEL) {
-	rdmsrl(MSR_CORE_PERF_GLOBAL_CTRL, ctrl);
-	rdmsrl(MSR_CORE_PERF_GLOBAL_STATUS, status);
-	rdmsrl(MSR_CORE_PERF_GLOBAL_OVF_CTRL, overflow);
-	rdmsrl(MSR_ARCH_PERFMON_FIXED_CTR_CTRL, fixed);
+		rdmsrl(MSR_CORE_PERF_GLOBAL_CTRL, ctrl);
+		rdmsrl(MSR_CORE_PERF_GLOBAL_STATUS, status);
+		rdmsrl(MSR_CORE_PERF_GLOBAL_OVF_CTRL, overflow);
+		rdmsrl(MSR_ARCH_PERFMON_FIXED_CTR_CTRL, fixed);
 
-	printk(KERN_INFO "\n");
-	printk(KERN_INFO "CPU#%d: ctrl:       %016llx\n", cpu, ctrl);
-	printk(KERN_INFO "CPU#%d: status:     %016llx\n", cpu, status);
-	printk(KERN_INFO "CPU#%d: overflow:   %016llx\n", cpu, overflow);
-	printk(KERN_INFO "CPU#%d: fixed:      %016llx\n", cpu, fixed);
+		pr_info("\n");
+		pr_info("CPU#%d: ctrl:       %016llx\n", cpu, ctrl);
+		pr_info("CPU#%d: status:     %016llx\n", cpu, status);
+		pr_info("CPU#%d: overflow:   %016llx\n", cpu, overflow);
+		pr_info("CPU#%d: fixed:      %016llx\n", cpu, fixed);
 	}
-	printk(KERN_INFO "CPU#%d: used:       %016llx\n", cpu, *(u64 *)cpuc->used);
+	pr_info("CPU#%d: used:       %016llx\n", cpu, *(u64 *)cpuc->used);
 
 	for (idx = 0; idx < nr_counters_generic; idx++) {
 		rdmsrl(pmc_ops->eventsel + idx, pmc_ctrl);
@@ -473,17 +473,17 @@ void perf_counter_print_debug(void)
 
 		prev_left = per_cpu(prev_left[idx], cpu);
 
-		printk(KERN_INFO "CPU#%d:   gen-PMC%d ctrl:  %016llx\n",
+		pr_info("CPU#%d:   gen-PMC%d ctrl:  %016llx\n",
 			cpu, idx, pmc_ctrl);
-		printk(KERN_INFO "CPU#%d:   gen-PMC%d count: %016llx\n",
+		pr_info("CPU#%d:   gen-PMC%d count: %016llx\n",
 			cpu, idx, pmc_count);
-		printk(KERN_INFO "CPU#%d:   gen-PMC%d left:  %016llx\n",
+		pr_info("CPU#%d:   gen-PMC%d left:  %016llx\n",
 			cpu, idx, prev_left);
 	}
 	for (idx = 0; idx < nr_counters_fixed; idx++) {
 		rdmsrl(MSR_ARCH_PERFMON_FIXED_CTR0 + idx, pmc_count);
 
-		printk(KERN_INFO "CPU#%d: fixed-PMC%d count: %016llx\n",
+		pr_info("CPU#%d: fixed-PMC%d count: %016llx\n",
 			cpu, idx, pmc_count);
 	}
 	local_irq_enable();
@@ -773,10 +773,10 @@ static struct pmc_x86_ops *pmc_intel_init(void)
 	if (eax.split.mask_length <= ARCH_PERFMON_BRANCH_MISSES_RETIRED)
 		return NULL;
 
-	printk(KERN_INFO "Intel Performance Monitoring support detected.\n");
-	printk(KERN_INFO "... version:         %d\n", eax.split.version_id);
-	printk(KERN_INFO "... bit width:       %d\n", eax.split.bit_width);
-	printk(KERN_INFO "... mask length:     %d\n", eax.split.mask_length);
+	pr_info("Intel Performance Monitoring support detected.\n");
+	pr_info("... version:         %d\n", eax.split.version_id);
+	pr_info("... bit width:       %d\n", eax.split.bit_width);
+	pr_info("... mask length:     %d\n", eax.split.mask_length);
 
 	nr_counters_generic = eax.split.num_counters;
 	nr_counters_fixed = edx.split.num_counters_fixed;
@@ -790,7 +790,7 @@ static struct pmc_x86_ops *pmc_amd_init(void)
 	nr_counters_generic = 4;
 	nr_counters_fixed = 0;
 
-	printk(KERN_INFO "AMD Performance Monitoring support detected.\n");
+	pr_info("AMD Performance Monitoring support detected.\n");
 
 	return &pmc_amd_ops;
 }
@@ -811,7 +811,7 @@ void __init init_hw_perf_counters(void)
 	if (!pmc_ops)
 		return;
 
-	printk(KERN_INFO "... num counters:    %d\n", nr_counters_generic);
+	pr_info("... num counters:    %d\n", nr_counters_generic);
 	if (nr_counters_generic > X86_PMC_MAX_GENERIC) {
 		nr_counters_generic = X86_PMC_MAX_GENERIC;
 		WARN(1, KERN_ERR "hw perf counters %d > max(%d), clipping!",
@@ -820,18 +820,18 @@ void __init init_hw_perf_counters(void)
 	perf_counter_mask = (1 << nr_counters_generic) - 1;
 	perf_max_counters = nr_counters_generic;
 
-	printk(KERN_INFO "... value mask:      %016Lx\n", counter_value_mask);
+	pr_info("... value mask:      %016Lx\n", counter_value_mask);
 
 	if (nr_counters_fixed > X86_PMC_MAX_FIXED) {
 		nr_counters_fixed = X86_PMC_MAX_FIXED;
 		WARN(1, KERN_ERR "hw perf counters fixed %d > max(%d), clipping!",
 			nr_counters_fixed, X86_PMC_MAX_FIXED);
 	}
-	printk(KERN_INFO "... fixed counters:  %d\n", nr_counters_fixed);
+	pr_info("... fixed counters:  %d\n", nr_counters_fixed);
 
 	perf_counter_mask |= ((1LL << nr_counters_fixed)-1) << X86_PMC_IDX_FIXED;
 
-	printk(KERN_INFO "... counter mask:    %016Lx\n", perf_counter_mask);
+	pr_info("... counter mask:    %016Lx\n", perf_counter_mask);
 	perf_counters_initialized = true;
 
 	perf_counters_lapic_init(0);
