@@ -582,8 +582,9 @@ fail:
 static int mxl5007t_get_status(struct dvb_frontend *fe, u32 *status)
 {
 	struct mxl5007t_state *state = fe->tuner_priv;
-	int rf_locked, ref_locked;
-	int ret;
+	int rf_locked, ref_locked, ret;
+
+	*status = 0;
 
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 1);
@@ -593,6 +594,9 @@ static int mxl5007t_get_status(struct dvb_frontend *fe, u32 *status)
 		goto fail;
 	mxl_debug("%s%s", rf_locked ? "rf locked " : "",
 		  ref_locked ? "ref locked" : "");
+
+	if ((rf_locked) || (ref_locked))
+		*status |= TUNER_STATUS_LOCKED;
 fail:
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 0);
