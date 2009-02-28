@@ -345,10 +345,58 @@ static struct dentry *event_trace_events_dir(void)
 	return d_events;
 }
 
+struct event_subsystem {
+	struct list_head	list;
+	const char		*name;
+	struct dentry		*entry;
+};
+
+static LIST_HEAD(event_subsystems);
+
+static struct dentry *
+event_subsystem_dir(const char *name, struct dentry *d_events)
+{
+	struct event_subsystem *system;
+
+	/* First see if we did not already create this dir */
+	list_for_each_entry(system, &event_subsystems, list) {
+		if (strcmp(system->name, name) == 0)
+			return system->entry;
+	}
+
+	/* need to create new entry */
+	system = kmalloc(sizeof(*system), GFP_KERNEL);
+	if (!system) {
+		pr_warning("No memory to create event subsystem %s\n",
+			   name);
+		return d_events;
+	}
+
+	system->entry = debugfs_create_dir(name, d_events);
+	if (!system->entry) {
+		pr_warning("Could not create event subsystem %s\n",
+			   name);
+		kfree(system);
+		return d_events;
+	}
+
+	system->name = name;
+	list_add(&system->list, &event_subsystems);
+
+	return system->entry;
+}
+
 static int
 event_create_dir(struct ftrace_event_call *call, struct dentry *d_events)
 {
 	struct dentry *entry;
+
+	/*
+	 * If the trace point header did not define TRACE_SYSTEM
+	 * then the system would be called "TRACE_SYSTEM".
+	 */
+	if (strcmp(call->system, "TRACE_SYSTEM") != 0)
+		d_events = event_subsystem_dir(call->system, d_events);
 
 	call->dir = debugfs_create_dir(call->name, d_events);
 	if (!call->dir) {

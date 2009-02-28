@@ -7,6 +7,7 @@
 
 struct ftrace_event_call {
 	char		*name;
+	char		*system;
 	struct dentry	*dir;
 	int		enabled;
 	int		(*regfunc)(void);
@@ -44,6 +45,7 @@ static struct ftrace_event_call __used					\
 __attribute__((__aligned__(4)))						\
 __attribute__((section("_ftrace_events"))) event_##call = {		\
 	.name 			= #call,				\
+	.system			= STR(TRACE_SYSTEM),			\
 	.regfunc		= ftrace_reg_event_##call,		\
 	.unregfunc		= ftrace_unreg_event_##call,		\
 }
