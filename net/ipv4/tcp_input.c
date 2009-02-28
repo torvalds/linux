@@ -2461,6 +2461,44 @@ static int tcp_time_to_recover(struct sock *sk)
 	return 0;
 }
 
+/* New heuristics: it is possible only after we switched to restart timer
+ * each time when something is ACKed. Hence, we can detect timed out packets
+ * during fast retransmit without falling to slow start.
+ *
+ * Usefulness of this as is very questionable, since we should know which of
+ * the segments is the next to timeout which is relatively expensive to find
+ * in general case unless we add some data structure just for that. The
+ * current approach certainly won't find the right one too often and when it
+ * finally does find _something_ it usually marks large part of the window
+ * right away (because a retransmission with a larger timestamp blocks the
+ * loop from advancing). -ij
+ */
+static void tcp_timeout_skbs(struct sock *sk)
+{
+	struct tcp_sock *tp = tcp_sk(sk);
+	struct sk_buff *skb;
+
+	if (!tcp_is_fack(tp) || !tcp_head_timedout(sk))
+		return;
+
+	skb = tp->scoreboard_skb_hint;
+	if (tp->scoreboard_skb_hint == NULL)
+		skb = tcp_write_queue_head(sk);
+
+	tcp_for_write_queue_from(skb, sk) {
+		if (skb == tcp_send_head(sk))
+			break;
+		if (!tcp_skb_timedout(sk, skb))
+			break;
+
+		tcp_skb_mark_lost(tp, skb);
+	}
+
+	tp->scoreboard_skb_hint = skb;
+
+	tcp_verify_left_out(tp);
+}
+
 /* Mark head of queue up as lost. With RFC3517 SACK, the packets is
  * is against sacked "cnt", otherwise it's against facked "cnt"
  */
@@ -2533,30 +2571,7 @@ static void tcp_update_scoreboard(struct sock *sk, int fast_rexmit)
 		tcp_mark_head_lost(sk, sacked_upto);
 	}
 
-	/* New heuristics: it is possible only after we switched
-	 * to restart timer each time when something is ACKed.
-	 * Hence, we can detect timed out packets during fast
-	 * retransmit without falling to slow start.
-	 */
-	if (tcp_is_fack(tp) && tcp_head_timedout(sk)) {
-		struct sk_buff *skb;
-
-		skb = tp->scoreboard_skb_hint ? tp->scoreboard_skb_hint
-			: tcp_write_queue_head(sk);
-
-		tcp_for_write_queue_from(skb, sk) {
-			if (skb == tcp_send_head(sk))
-				break;
-			if (!tcp_skb_timedout(sk, skb))
-				break;
-
-			tcp_skb_mark_lost(tp, skb);
-		}
-
-		tp->scoreboard_skb_hint = skb;
-
-		tcp_verify_left_out(tp);
-	}
+	tcp_timeout_skbs(sk);
 }
 
 /* CWND moderation, preventing bursts due to too big ACKs
