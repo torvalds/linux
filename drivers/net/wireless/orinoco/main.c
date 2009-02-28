@@ -2580,8 +2580,10 @@ struct net_device
 	netif_carrier_off(dev);
 	priv->last_linkstatus = 0xffff;
 
+#if defined(CONFIG_HERMES_CACHE_FW_ON_INIT) || defined(CONFIG_PM_SLEEP)
 	priv->cached_pri_fw = NULL;
 	priv->cached_fw = NULL;
+#endif
 
 	/* Register PM notifiers */
 	orinoco_register_pm_notifier(priv);

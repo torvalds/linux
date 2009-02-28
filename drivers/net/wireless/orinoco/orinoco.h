@@ -159,9 +159,11 @@ struct orinoco_private {
 	unsigned int tkip_cm_active:1;
 	unsigned int key_mgmt:3;
 
+#if defined(CONFIG_HERMES_CACHE_FW_ON_INIT) || defined(CONFIG_PM_SLEEP)
 	/* Cached in memory firmware to use during ->resume. */
 	const struct firmware *cached_pri_fw;
 	const struct firmware *cached_fw;
+#endif
 
 	struct notifier_block pm_notifier;
 };
