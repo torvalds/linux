@@ -685,6 +685,7 @@ extern void tcp_get_allowed_congestion_control(char *buf, size_t len);
 extern int tcp_set_allowed_congestion_control(char *allowed);
 extern int tcp_set_congestion_control(struct sock *sk, const char *name);
 extern void tcp_slow_start(struct tcp_sock *tp);
+extern void tcp_cong_avoid_ai(struct tcp_sock *tp, u32 w);
 
 extern struct tcp_congestion_ops tcp_init_congestion_ops;
 extern u32 tcp_reno_ssthresh(struct sock *sk);
