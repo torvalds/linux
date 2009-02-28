@@ -31,6 +31,7 @@
 #include <media/v4l2-common.h>
 #include <media/tveeprom.h>
 #include "tea5767.h"
+#include "tda18271.h"
 
 /* commly used strings */
 static char name_mute[]    = "mute";
@@ -3291,6 +3292,66 @@ struct saa7134_board saa7134_boards[] = {
 			.gpio = 0x0200100,
 		},
 	},
+	[SAA7134_BOARD_HAUPPAUGE_HVR1150] = {
+		.name           = "Hauppauge WinTV-HVR1150",
+		.audio_clock    = 0x00187de7,
+		.tuner_type     = TUNER_PHILIPS_TDA8290,
+		.radio_type     = UNSET,
+		.tuner_addr     = ADDR_UNSET,
+		.radio_addr     = ADDR_UNSET,
+		.tuner_config   = 3,
+		.gpiomask       = 0x0800100, /* GPIO 21 is an INPUT */
+		.inputs         = {{
+			.name = name_tv,
+			.vmux = 1,
+			.amux = TV,
+			.tv   = 1,
+			.gpio = 0x0000100,
+		}, {
+			.name = name_comp1,
+			.vmux = 3,
+			.amux = LINE1,
+		}, {
+			.name = name_svideo,
+			.vmux = 8,
+			.amux = LINE1,
+		} },
+		.radio = {
+			.name = name_radio,
+			.amux = TV,
+			.gpio = 0x0800100, /* GPIO 23 HI for FM */
+		},
+	},
+	[SAA7134_BOARD_HAUPPAUGE_HVR1110R3] = {
+		.name           = "Hauppauge WinTV-HVR1110r3",
+		.audio_clock    = 0x00187de7,
+		.tuner_type     = TUNER_PHILIPS_TDA8290,
+		.radio_type     = UNSET,
+		.tuner_addr     = ADDR_UNSET,
+		.radio_addr     = ADDR_UNSET,
+		.tuner_config   = 3,
+		.gpiomask       = 0x0800100, /* GPIO 21 is an INPUT */
+		.inputs         = {{
+			.name = name_tv,
+			.vmux = 1,
+			.amux = TV,
+			.tv   = 1,
+			.gpio = 0x0000100,
+		}, {
+			.name = name_comp1,
+			.vmux = 3,
+			.amux = LINE1,
+		}, {
+			.name = name_svideo,
+			.vmux = 8,
+			.amux = LINE1,
+		} },
+		.radio = {
+			.name = name_radio,
+			.amux = TV,
+			.gpio = 0x0800100, /* GPIO 23 HI for FM */
+		},
+	},
 	[SAA7134_BOARD_CINERGY_HT_PCMCIA] = {
 		.name           = "Terratec Cinergy HT PCMCIA",
 		.audio_clock    = 0x00187de7,
@@ -5403,6 +5464,36 @@ struct pci_device_id saa7134_pci_tbl[] = {
 	},{
 		.vendor       = PCI_VENDOR_ID_PHILIPS,
 		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
+		.subvendor    = 0x0070,
+		.subdevice    = 0x6706,
+		.driver_data  = SAA7134_BOARD_HAUPPAUGE_HVR1150,
+	},{
+		.vendor       = PCI_VENDOR_ID_PHILIPS,
+		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
+		.subvendor    = 0x0070,
+		.subdevice    = 0x6707,
+		.driver_data  = SAA7134_BOARD_HAUPPAUGE_HVR1110R3,
+	},{
+		.vendor       = PCI_VENDOR_ID_PHILIPS,
+		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
+		.subvendor    = 0x0070,
+		.subdevice    = 0x6708,
+		.driver_data  = SAA7134_BOARD_HAUPPAUGE_HVR1150,
+	},{
+		.vendor       = PCI_VENDOR_ID_PHILIPS,
+		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
+		.subvendor    = 0x0070,
+		.subdevice    = 0x6709,
+		.driver_data  = SAA7134_BOARD_HAUPPAUGE_HVR1110R3,
+	},{
+		.vendor       = PCI_VENDOR_ID_PHILIPS,
+		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
+		.subvendor    = 0x0070,
+		.subdevice    = 0x670a,
+		.driver_data  = SAA7134_BOARD_HAUPPAUGE_HVR1110R3,
+	},{
+		.vendor       = PCI_VENDOR_ID_PHILIPS,
+		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
 		.subvendor    = 0x153b,
 		.subdevice    = 0x1172,
 		.driver_data  = SAA7134_BOARD_CINERGY_HT_PCMCIA,
@@ -5819,8 +5910,8 @@ static int saa7134_xc2028_callback(struct saa7134_dev *dev,
 }
 
 
-static int saa7134_tda8290_callback(struct saa7134_dev *dev,
-				    int command, int arg)
+static int saa7134_tda8290_827x_callback(struct saa7134_dev *dev,
+					 int command, int arg)
 {
 	u8 sync_control;
 
@@ -5844,6 +5935,65 @@ static int saa7134_tda8290_callback(struct saa7134_dev *dev,
 	}
 
 	return 0;
+}
+
+static inline int saa7134_tda18271_hvr11x0_toggle_agc(struct saa7134_dev *dev,
+						      enum tda18271_mode mode)
+{
+	/* toggle AGC switch through GPIO 26 */
+	switch (mode) {
+	case TDA18271_ANALOG:
+		saa7134_set_gpio(dev, 26, 0);
+		break;
+	case TDA18271_DIGITAL:
+		saa7134_set_gpio(dev, 26, 1);
+		break;
+	default:
+		return -EINVAL;
+	}
+	return 0;
+}
+
+static int saa7134_tda8290_18271_callback(struct saa7134_dev *dev,
+					  int command, int arg)
+{
+	int ret = 0;
+
+	switch (command) {
+	case TDA18271_CALLBACK_CMD_AGC_ENABLE: /* 0 */
+		switch (dev->board) {
+		case SAA7134_BOARD_HAUPPAUGE_HVR1150:
+		case SAA7134_BOARD_HAUPPAUGE_HVR1110R3:
+			ret = saa7134_tda18271_hvr11x0_toggle_agc(dev, arg);
+			break;
+		default:
+			break;
+		}
+		break;
+	default:
+		ret = -EINVAL;
+		break;
+	}
+	return ret;
+}
+
+static int saa7134_tda8290_callback(struct saa7134_dev *dev,
+				    int command, int arg)
+{
+	int ret;
+
+	switch (dev->board) {
+	case SAA7134_BOARD_HAUPPAUGE_HVR1150:
+	case SAA7134_BOARD_HAUPPAUGE_HVR1110R3:
+		/* tda8290 + tda18271 */
+		ret = saa7134_tda8290_18271_callback(dev, command, arg);
+		break;
+	default:
+		/* tda8290 + tda827x */
+		ret = saa7134_tda8290_827x_callback(dev, command, arg);
+		break;
+	}
+	return ret;
 }
 
 int saa7134_tuner_callback(void *priv, int component, int command, int arg)
@@ -5876,11 +6026,16 @@ static void hauppauge_eeprom(struct saa7134_dev *dev, u8 *eeprom_data)
 	switch (tv.model) {
 	case 67019: /* WinTV-HVR1110 (Retail, IR Blaster, hybrid, FM, SVid/Comp, 3.5mm audio in) */
 	case 67109: /* WinTV-HVR1000 (Retail, IR Receive, analog, no FM, SVid/Comp, 3.5mm audio in) */
+	case 67201: /* WinTV-HVR1150 (Retail, IR Receive, hybrid, FM, SVid/Comp, 3.5mm audio in) */
+	case 67301: /* WinTV-HVR1000 (Retail, IR Receive, analog, no FM, SVid/Comp, 3.5mm audio in) */
+	case 67209: /* WinTV-HVR1110 (Retail, IR Receive, hybrid, FM, SVid/Comp, 3.5mm audio in) */
 	case 67559: /* WinTV-HVR1110 (OEM, no IR, hybrid, FM, SVid/Comp, RCA aud) */
 	case 67569: /* WinTV-HVR1110 (OEM, no IR, hybrid, FM) */
 	case 67579: /* WinTV-HVR1110 (OEM, no IR, hybrid, no FM) */
 	case 67589: /* WinTV-HVR1110 (OEM, no IR, hybrid, no FM, SVid/Comp, RCA aud) */
 	case 67599: /* WinTV-HVR1110 (OEM, no IR, hybrid, no FM, SVid/Comp, RCA aud) */
+	case 67651: /* WinTV-HVR1150 (OEM, no IR, hybrid, FM, SVid/Comp, RCA aud) */
+	case 67659: /* WinTV-HVR1110 (OEM, no IR, hybrid, FM, SVid/Comp, RCA aud) */
 		break;
 	default:
 		printk(KERN_WARNING "%s: warning: "
@@ -6056,6 +6211,16 @@ int saa7134_board_init1(struct saa7134_dev *dev)
 		 */
 
 		saa_writeb (SAA7134_PRODUCTION_TEST_MODE, 0x00);
+		break;
+	case SAA7134_BOARD_HAUPPAUGE_HVR1150:
+	case SAA7134_BOARD_HAUPPAUGE_HVR1110R3:
+		/* GPIO 26 high for digital, low for analog */
+		saa7134_set_gpio(dev, 26, 0);
+		msleep(1);
+
+		saa7134_set_gpio(dev, 22, 0);
+		msleep(10);
+		saa7134_set_gpio(dev, 22, 1);
 		break;
 	/* i2c remotes */
 	case SAA7134_BOARD_PINNACLE_PCTV_110i:
@@ -6309,6 +6474,10 @@ int saa7134_board_init2(struct saa7134_dev *dev)
 		       dev->name, saa7134_boards[dev->board].name);
 	       }
 	       break;
+	case SAA7134_BOARD_HAUPPAUGE_HVR1150:
+	case SAA7134_BOARD_HAUPPAUGE_HVR1110R3:
+		hauppauge_eeprom(dev, dev->eedata+0x80);
+		break;
 	case SAA7134_BOARD_HAUPPAUGE_HVR1110:
 		hauppauge_eeprom(dev, dev->eedata+0x80);
 		/* break intentionally omitted */
