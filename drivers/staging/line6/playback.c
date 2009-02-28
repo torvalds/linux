@@ -24,30 +24,31 @@
 /*
 	Software stereo volume control.
 */
-static void change_volume(struct urb *urb_out, int volume[], int bytes_per_frame)
+static void change_volume(struct urb *urb_out, int volume[],
+			  int bytes_per_frame)
 {
 	int chn = 0;
 
-	if(volume[0] == 256 && volume[1] == 256)
+	if (volume[0] == 256 && volume[1] == 256)
 		return;  /* maximum volume - no change */
 
-	if(bytes_per_frame == 4) {
+	if (bytes_per_frame == 4) {
 		short *p, *buf_end;
 		p = (short *)urb_out->transfer_buffer;
 		buf_end = p + urb_out->transfer_buffer_length / sizeof(*p);
 
-		for(; p < buf_end; ++p) {
+		for (; p < buf_end; ++p) {
 			*p = (*p * volume[chn & 1]) >> 8;
 			++chn;
 		}
-	}
-	else if(bytes_per_frame == 6) {
+	} else if (bytes_per_frame == 6) {
 		unsigned char *p, *buf_end;
 		p = (unsigned char *)urb_out->transfer_buffer;
 		buf_end = p + urb_out->transfer_buffer_length;
 
-		for(; p < buf_end; p += 3) {
-			int val = p[0] + (p[1] << 8) + ((signed char)p[2] << 16);
+		for (; p < buf_end; p += 3) {
+			int val;
+			val = p[0] + (p[1] << 8) + ((signed char)p[2] << 16);
 			val = (val * volume[chn & 1]) >> 8;
 			p[0] = val;
 			p[1] = val >> 8;
@@ -75,7 +76,7 @@ static int submit_audio_out_urb(struct snd_pcm_substream *substream)
 	spin_lock_irqsave(&line6pcm->lock_audio_out, flags);
 	index = find_first_zero_bit(&line6pcm->active_urb_out, LINE6_ISO_BUFFERS);
 
-	if(index < 0 || index >= LINE6_ISO_BUFFERS) {
+	if (index < 0 || index >= LINE6_ISO_BUFFERS) {
 		spin_unlock_irqrestore(&line6pcm->lock_audio_out, flags);
 		dev_err(s2m(substream), "no free URB found\n");
 		return -EINVAL;
@@ -84,7 +85,7 @@ static int submit_audio_out_urb(struct snd_pcm_substream *substream)
 	urb_out = line6pcm->urb_audio_out[index];
 	urb_size = 0;
 
-	for(i = 0; i < LINE6_ISO_PACKETS; ++i) {
+	for (i = 0; i < LINE6_ISO_PACKETS; ++i) {
 		/* compute frame size for given sampling rate */
 		int n, fs;
 		struct usb_iso_packet_descriptor *fout = &urb_out->iso_frame_desc[i];
@@ -99,12 +100,11 @@ static int submit_audio_out_urb(struct snd_pcm_substream *substream)
 
 	urb_frames = urb_size / bytes_per_frame;
 
-	if(test_bit(BIT_PAUSE_PLAYBACK, &line6pcm->flags)) {
+	if (test_bit(BIT_PAUSE_PLAYBACK, &line6pcm->flags)) {
 		urb_out->transfer_buffer = line6pcm->wrap_out;
 		memset(line6pcm->wrap_out, 0, urb_size);
-	}
-	else {
-		if(line6pcm->pos_out + urb_frames > runtime->buffer_size) {
+	} else {
+		if (line6pcm->pos_out + urb_frames > runtime->buffer_size) {
 			/*
 				The transferred area goes over buffer boundary,
 				copy the data to the temp buffer.
@@ -113,20 +113,18 @@ static int submit_audio_out_urb(struct snd_pcm_substream *substream)
 			len = runtime->buffer_size - line6pcm->pos_out;
 			urb_out->transfer_buffer = line6pcm->wrap_out;
 
-			if(len > 0) {
+			if (len > 0) {
 				memcpy(line6pcm->wrap_out, runtime->dma_area + line6pcm->pos_out * bytes_per_frame, len * bytes_per_frame);
 				memcpy(line6pcm->wrap_out + len * bytes_per_frame, runtime->dma_area, (urb_frames - len) * bytes_per_frame);
-			}
-			else
+			} else
 				dev_err(s2m(substream), "driver bug: len = %d\n", len);  /* this is somewhat paranoid */
-		}
-		else {
+		} else {
 			/* set the buffer pointer */
 			urb_out->transfer_buffer = runtime->dma_area + line6pcm->pos_out * bytes_per_frame;
 		}
 	}
 
-	if((line6pcm->pos_out += urb_frames) >= runtime->buffer_size)
+	if ((line6pcm->pos_out += urb_frames) >= runtime->buffer_size)
 		line6pcm->pos_out -= runtime->buffer_size;
 
 	urb_out->transfer_buffer_length = urb_size;
@@ -134,13 +132,13 @@ static int submit_audio_out_urb(struct snd_pcm_substream *substream)
 	change_volume(urb_out, line6pcm->volume, bytes_per_frame);
 
 #if DO_DUMP_PCM_SEND
-	for(i = 0; i < LINE6_ISO_PACKETS; ++i) {
+	for (i = 0; i < LINE6_ISO_PACKETS; ++i) {
 		struct usb_iso_packet_descriptor *fout = &urb_out->iso_frame_desc[i];
 		line6_write_hexdump(line6pcm->line6, 'P', urb_out->transfer_buffer + fout->offset, fout->length);
 	}
 #endif
 
-	if(usb_submit_urb(urb_out, GFP_ATOMIC) == 0)
+	if (usb_submit_urb(urb_out, GFP_ATOMIC) == 0)
 		set_bit(index, &line6pcm->active_urb_out);
 	else
 		dev_err(s2m(substream), "URB out #%d submission failed\n", index);
@@ -156,9 +154,11 @@ static int submit_audio_out_all_urbs(struct snd_pcm_substream *substream)
 {
 	int ret, i;
 
-	for(i = 0; i < LINE6_ISO_BUFFERS; ++i)
-		if((ret = submit_audio_out_urb(substream)) < 0)
+	for (i = 0; i < LINE6_ISO_BUFFERS; ++i) {
+		ret = submit_audio_out_urb(substream);
+		if (ret < 0)
 			return ret;
+	}
 
 	return 0;
 }
@@ -170,9 +170,9 @@ static void unlink_audio_out_urbs(struct snd_line6_pcm *line6pcm)
 {
 	unsigned int i;
 
-	for(i = LINE6_ISO_BUFFERS; i--;) {
-		if(test_bit(i, &line6pcm->active_urb_out)) {
-			if(!test_and_set_bit(i, &line6pcm->unlink_urb_out)) {
+	for (i = LINE6_ISO_BUFFERS; i--;) {
+		if (test_bit(i, &line6pcm->active_urb_out)) {
+			if (!test_and_set_bit(i, &line6pcm->unlink_urb_out)) {
 				struct urb *u = line6pcm->urb_audio_out[i];
 				usb_unlink_urb(u);
 			}
@@ -195,7 +195,7 @@ static void wait_clear_audio_out_urbs(struct snd_line6_pcm *line6pcm)
 			if (test_bit(i, &line6pcm->active_urb_out))
 				alive++;
 		}
-		if (! alive)
+		if (!alive)
 			break;
 		set_current_state(TASK_UNINTERRUPTIBLE);
 		schedule_timeout(1);
@@ -229,39 +229,39 @@ static void audio_out_callback(struct urb *urb)
 	struct snd_pcm_runtime *runtime = substream->runtime;
 
 	/* find index of URB */
-	for(index = LINE6_ISO_BUFFERS; index--;)
-		if(urb == line6pcm->urb_audio_out[index])
+	for (index = LINE6_ISO_BUFFERS; index--;)
+		if (urb == line6pcm->urb_audio_out[index])
 			break;
 
-	if(index < 0)
+	if (index < 0)
 		return;  /* URB has been unlinked asynchronously */
 
-	for(i = LINE6_ISO_PACKETS; i--;)
+	for (i = LINE6_ISO_PACKETS; i--;)
 		length += urb->iso_frame_desc[i].length;
 
 	spin_lock_irqsave(&line6pcm->lock_audio_out, flags);
 	line6pcm->pos_out_done += length / line6pcm->properties->bytes_per_frame;
 
-	if(line6pcm->pos_out_done >= runtime->buffer_size)
+	if (line6pcm->pos_out_done >= runtime->buffer_size)
 		line6pcm->pos_out_done -= runtime->buffer_size;
 
 	clear_bit(index, &line6pcm->active_urb_out);
 
-	for(i = LINE6_ISO_PACKETS; i--;)
-		if(urb->iso_frame_desc[i].status == -ESHUTDOWN) {
+	for (i = LINE6_ISO_PACKETS; i--;)
+		if (urb->iso_frame_desc[i].status == -ESHUTDOWN) {
 			shutdown = 1;
 			break;
 		}
 
-	if(test_bit(index, &line6pcm->unlink_urb_out))
+	if (test_bit(index, &line6pcm->unlink_urb_out))
 		shutdown = 1;
 
 	spin_unlock_irqrestore(&line6pcm->lock_audio_out, flags);
 
-	if(!shutdown) {
+	if (!shutdown) {
 		submit_audio_out_urb(substream);
 
-		if((line6pcm->bytes_out += length) >= line6pcm->period_out) {
+		if ((line6pcm->bytes_out += length) >= line6pcm->period_out) {
 			line6pcm->bytes_out -= line6pcm->period_out;
 			snd_pcm_period_elapsed(substream);
 		}
@@ -275,8 +275,9 @@ static int snd_line6_playback_open(struct snd_pcm_substream *substream)
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct snd_line6_pcm *line6pcm = snd_pcm_substream_chip(substream);
 
-	if((err = snd_pcm_hw_constraint_ratdens(runtime, 0, SNDRV_PCM_HW_PARAM_RATE,
-																					(&line6pcm->properties->snd_line6_rates))) < 0)
+	err = snd_pcm_hw_constraint_ratdens(runtime, 0, SNDRV_PCM_HW_PARAM_RATE,
+					    (&line6pcm->properties->snd_line6_rates));
+	if (err < 0)
 		return err;
 
 	runtime->hw = line6pcm->properties->snd_line6_playback_hw;
@@ -297,23 +298,25 @@ static int snd_line6_playback_hw_params(struct snd_pcm_substream *substream, str
 
 	/* -- Florian Demski [FD] */
 	/* don't ask me why, but this fixes the bug on my machine */
-	if ( line6pcm == NULL ) {
-		if ( substream->pcm == NULL )
+	if (line6pcm == NULL) {
+		if (substream->pcm == NULL)
 			return -ENOMEM;
-		if ( substream->pcm->private_data == NULL )
+		if (substream->pcm->private_data == NULL)
 			return -ENOMEM;
 		substream->private_data = substream->pcm->private_data;
-		line6pcm = snd_pcm_substream_chip( substream );
+		line6pcm = snd_pcm_substream_chip(substream);
 	}
 	/* -- [FD] end */
 
-	if((ret = snd_pcm_lib_malloc_pages(substream, params_buffer_bytes(hw_params))) < 0)
+	ret = snd_pcm_lib_malloc_pages(substream,
+				       params_buffer_bytes(hw_params));
+	if (ret < 0)
 		return ret;
 
 	line6pcm->period_out = params_period_bytes(hw_params);
 	line6pcm->wrap_out = kmalloc(2 * LINE6_ISO_PACKET_SIZE_MAX, GFP_KERNEL);
 
-	if(!line6pcm->wrap_out) {
+	if (!line6pcm->wrap_out) {
 		dev_err(s2m(substream), "cannot malloc wrap_out\n");
 		return -ENOMEM;
 	}
@@ -327,10 +330,8 @@ static int snd_line6_playback_hw_free(struct snd_pcm_substream *substream)
 	struct snd_line6_pcm *line6pcm = snd_pcm_substream_chip(substream);
 	unlink_wait_clear_audio_out_urbs(line6pcm);
 
-	if(line6pcm->wrap_out) {
-		kfree(line6pcm->wrap_out);
-		line6pcm->wrap_out = NULL;
-	}
+	kfree(line6pcm->wrap_out);
+	line6pcm->wrap_out = NULL;
 
 	return snd_pcm_lib_free_pages(substream);
 }
@@ -342,12 +343,12 @@ int snd_line6_playback_trigger(struct snd_pcm_substream *substream, int cmd)
 	int err;
 	line6pcm->count_out = 0;
 
-	switch(cmd) {
+	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
-		if(!test_and_set_bit(BIT_RUNNING_PLAYBACK, &line6pcm->flags)) {
+		if (!test_and_set_bit(BIT_RUNNING_PLAYBACK, &line6pcm->flags)) {
 			err = submit_audio_out_all_urbs(substream);
 
-			if(err < 0) {
+			if (err < 0) {
 				clear_bit(BIT_RUNNING_PLAYBACK, &line6pcm->flags);
 				return err;
 			}
@@ -356,7 +357,7 @@ int snd_line6_playback_trigger(struct snd_pcm_substream *substream, int cmd)
 		break;
 
 	case SNDRV_PCM_TRIGGER_STOP:
-		if(test_and_clear_bit(BIT_RUNNING_PLAYBACK, &line6pcm->flags))
+		if (test_and_clear_bit(BIT_RUNNING_PLAYBACK, &line6pcm->flags))
 			unlink_audio_out_urbs(line6pcm);
 
 		break;
@@ -401,13 +402,13 @@ int create_audio_out_urbs(struct snd_line6_pcm *line6pcm)
 	int i;
 
 	/* create audio URBs and fill in constant values: */
-	for(i = 0; i < LINE6_ISO_BUFFERS; ++i) {
+	for (i = 0; i < LINE6_ISO_BUFFERS; ++i) {
 		struct urb *urb;
 
 		/* URB for audio out: */
 		urb = line6pcm->urb_audio_out[i] = usb_alloc_urb(LINE6_ISO_PACKETS, GFP_KERNEL);
 
-		if(urb == NULL) {
+		if (urb == NULL) {
 			dev_err(line6pcm->line6->ifcdev, "Out of memory\n");
 			return -ENOMEM;
 		}
