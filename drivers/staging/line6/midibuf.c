@@ -18,18 +18,19 @@
 
 static int midibuf_message_length(unsigned char code)
 {
-	if(code < 0x80)
+	if (code < 0x80)
 		return -1;
-	else if(code < 0xf0) {
+	else if (code < 0xf0) {
 		static const int length[] = { 3, 3, 3, 3, 2, 2, 3 };
 		return length[(code >> 4) - 8];
-	}
-	else {
+	} else {
 		/*
-			Note that according to the MIDI specification 0xf2 is the "Song Position
-			Pointer", but this is used by Line6 to send sysex messages to the host.
+			Note that according to the MIDI specification 0xf2 is
+			the "Song Position Pointer", but this is used by Line6
+			to send sysex messages to the host.
 		*/
-		static const int length[] = { -1, 2, -1, 2, -1, -1, 1, 1, 1, 1, 1, 1, 1, -1, 1, 1 };
+		static const int length[] = { -1, 2, -1, 2, -1, -1, 1, 1, 1, 1,
+					       1, 1, 1, -1, 1, 1 };
 		return length[code & 0x0f];
 	}
 }
@@ -42,7 +43,7 @@ void midibuf_reset(struct MidiBuffer *this)
 
 int midibuf_init(struct MidiBuffer *this, int size, int split)
 {
-	this->buf = (unsigned char *)kmalloc(size, GFP_KERNEL);
+	this->buf = kmalloc(size, GFP_KERNEL);
 
 	if (this->buf == NULL)
 		return -ENOMEM;
@@ -55,8 +56,9 @@ int midibuf_init(struct MidiBuffer *this, int size, int split)
 
 void midibuf_status(struct MidiBuffer *this)
 {
-	printk("midibuf size=%d split=%d pos_read=%d pos_write=%d full=%d command_prev=%02x\n",
-				 this->size, this->split, this->pos_read, this->pos_write, this->full, this->command_prev);
+	printk(KERN_DEBUG "midibuf size=%d split=%d pos_read=%d pos_write=%d "
+	       "full=%d command_prev=%02x\n", this->size, this->split,
+	       this->pos_read, this->pos_write, this->full, this->command_prev);
 }
 
 static int midibuf_is_empty(struct MidiBuffer *this)
@@ -91,29 +93,28 @@ int midibuf_write(struct MidiBuffer *this, unsigned char *data, int length)
 	int length1, length2;
 	int skip_active_sense = 0;
 
-	if(midibuf_is_full(this) || (length <= 0))
+	if (midibuf_is_full(this) || (length <= 0))
 		return 0;
 
 	/* skip trailing active sense */
-	if(data[length - 1] == 0xfe) {
+	if (data[length - 1] == 0xfe) {
 		--length;
 		skip_active_sense = 1;
 	}
 
 	bytes_free = midibuf_bytes_free(this);
 
-	if(length > bytes_free)
+	if (length > bytes_free)
 		length = bytes_free;
 
-	if(length > 0) {
+	if (length > 0) {
 		length1 = this->size - this->pos_write;
 
-		if(length < length1) {
+		if (length < length1) {
 			/* no buffer wraparound */
 			memcpy(this->buf + this->pos_write, data, length);
 			this->pos_write += length;
-		}
-		else {
+		} else {
 			/* buffer wraparound */
 			length2 = length - length1;
 			memcpy(this->buf + this->pos_write, data, length1);
@@ -121,7 +122,7 @@ int midibuf_write(struct MidiBuffer *this, unsigned char *data, int length)
 			this->pos_write = length2;
 		}
 
-		if(this->pos_write == this->pos_read)
+		if (this->pos_write == this->pos_read)
 			this->full = 1;
 	}
 
@@ -137,15 +138,16 @@ int midibuf_read(struct MidiBuffer *this, unsigned char *data, int length)
 	int repeat = 0;
 	int i;
 
-	if(length < 3)
-		return -EINVAL;  /* we need to be able to store at least a 3 byte MIDI message */
+	/* we need to be able to store at least a 3 byte MIDI message */
+	if (length < 3)
+		return -EINVAL;
 
-	if(midibuf_is_empty(this))
+	if (midibuf_is_empty(this))
 		return 0;
 
 	bytes_used = midibuf_bytes_used(this);
 
-	if(length > bytes_used)
+	if (length > bytes_used)
 		length = bytes_used;
 
 	length1 = this->size - this->pos_read;
@@ -153,75 +155,69 @@ int midibuf_read(struct MidiBuffer *this, unsigned char *data, int length)
 	/* check MIDI command length */
 	command = this->buf[this->pos_read];
 
-	if(command & 0x80) {
+	if (command & 0x80) {
 		midi_length = midibuf_message_length(command);
 		this->command_prev = command;
-	}
-	else {
-		if(this->command_prev > 0) {
+	} else {
+		if (this->command_prev > 0) {
 			int midi_length_prev = midibuf_message_length(this->command_prev);
 
-			if(midi_length_prev > 0) {
+			if (midi_length_prev > 0) {
 				midi_length = midi_length_prev - 1;
 				repeat = 1;
-			}
-			else
+			} else
 				midi_length = -1;
-		}
-		else
+		} else
 			midi_length = -1;
 	}
 
-	if(midi_length < 0) {
+	if (midi_length < 0) {
 		/* search for end of message */
-		if(length < length1) {
+		if (length < length1) {
 			/* no buffer wraparound */
-			for(i = 1; i < length; ++i)
-				if(this->buf[this->pos_read + i] & 0x80)
+			for (i = 1; i < length; ++i)
+				if (this->buf[this->pos_read + i] & 0x80)
 					break;
 
 			midi_length = i;
-		}
-		else {
+		} else {
 			/* buffer wraparound */
 			length2 = length - length1;
 
-			for(i = 1; i < length1; ++i)
-				if(this->buf[this->pos_read + i] & 0x80)
+			for (i = 1; i < length1; ++i)
+				if (this->buf[this->pos_read + i] & 0x80)
 					break;
 
-			if(i < length1)
+			if (i < length1)
 				midi_length = i;
 			else {
-				for(i = 0; i < length2; ++i)
-					if(this->buf[i] & 0x80)
+				for (i = 0; i < length2; ++i)
+					if (this->buf[i] & 0x80)
 						break;
 
 				midi_length = length1 + i;
 			}
 		}
 
-		if(midi_length == length)
+		if (midi_length == length)
 			midi_length = -1;  /* end of message not found */
 	}
 
-	if(midi_length < 0) {
-		if(!this->split)
+	if (midi_length < 0) {
+		if (!this->split)
 			return 0;  /* command is not yet complete */
-	}
-	else {
-		if(length < midi_length)
+	} else {
+		if (length < midi_length)
 			return 0;  /* command is not yet complete */
 
 		length = midi_length;
 	}
 
-	if(length < length1) {
+	if (length < length1) {
 		/* no buffer wraparound */
 		memcpy(data + repeat, this->buf + this->pos_read, length);
 		this->pos_read += length;
-	}
-	else {
+	} else {
 		/* buffer wraparound */
 		length2 = length - length1;
 		memcpy(data + repeat, this->buf + this->pos_read, length1);
@@ -229,7 +225,7 @@ int midibuf_read(struct MidiBuffer *this, unsigned char *data, int length)
 		this->pos_read = length2;
 	}
 
-	if(repeat)
+	if (repeat)
 		data[0] = this->command_prev;
 
 	this->full = 0;
@@ -240,7 +236,7 @@ int midibuf_ignore(struct MidiBuffer *this, int length)
 {
 	int bytes_used = midibuf_bytes_used(this);
 
-	if(length > bytes_used)
+	if (length > bytes_used)
 		length = bytes_used;
 
 	this->pos_read = (this->pos_read + length) % this->size;
@@ -252,8 +248,8 @@ int midibuf_skip_message(struct MidiBuffer *this, unsigned short mask)
 {
 	int cmd = this->command_prev;
 
-	if((cmd >= 0x80) && (cmd < 0xf0))
-		if((mask & (1 << (cmd & 0x0f))) == 0)
+	if ((cmd >= 0x80) && (cmd < 0xf0))
+		if ((mask & (1 << (cmd & 0x0f))) == 0)
 			return 1;
 
 	return 0;
