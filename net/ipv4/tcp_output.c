@@ -767,7 +767,7 @@ int tcp_fragment(struct sock *sk, struct sk_buff *skb, u32 len,
 	struct sk_buff *buff;
 	int nsize, old_factor;
 	int nlen;
-	u16 flags;
+	u8 flags;
 
 	BUG_ON(len > skb->len);
 
@@ -1282,7 +1282,7 @@ static int tso_fragment(struct sock *sk, struct sk_buff *skb, unsigned int len,
 {
 	struct sk_buff *buff;
 	int nlen = skb->len - len;
-	u16 flags;
+	u8 flags;
 
 	/* All of a TSO frame must be composed of paged data.  */
 	if (skb->len != skb->data_len)
