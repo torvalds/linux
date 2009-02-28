@@ -47,6 +47,18 @@ static int flexcop_i2c_read4(struct flexcop_i2c_adapter *i2c,
 	int len = r100.tw_sm_c_100.total_bytes, /* remember total_bytes is buflen-1 */
 		ret;
 
+	/* work-around to have CableStar2 and SkyStar2 rev 2.7 work
+	 * correctly:
+	 *
+	 * the ITD1000 is behind an i2c-gate which closes automatically
+	 * after an i2c-transaction the STV0297 needs 2 consecutive reads
+	 * one with no_base_addr = 0 and one with 1
+	 *
+	 * those two work-arounds are conflictin: we check for the card
+	 * type, it is set when probing the ITD1000 */
+	if (i2c->fc->dev_type == FC_SKY_REV27)
+		r100.tw_sm_c_100.no_base_addr_ack_error = i2c->no_base_addr;
+
 	ret = flexcop_i2c_operation(i2c->fc, &r100);
 	if (ret != 0) {
 		deb_i2c("Retrying operation\n");
