@@ -88,9 +88,6 @@ static void unlink_audio_in_urbs(struct snd_line6_pcm *line6pcm)
 		if(test_bit(i, &line6pcm->active_urb_in)) {
 			if(!test_and_set_bit(i, &line6pcm->unlink_urb_in)) {
 				struct urb *u = line6pcm->urb_audio_in[i];
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 14)
-				u->transfer_flags |= URB_ASYNC_UNLINK;
-#endif
 				usb_unlink_urb(u);
 			}
 		}

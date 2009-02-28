@@ -26,9 +26,6 @@
 int snd_line6_trigger(struct snd_pcm_substream *substream, int cmd)
 {
 	struct snd_line6_pcm *line6pcm = snd_pcm_substream_chip(substream);
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 22)
-	struct list_head *pos;
-#endif
 	struct snd_pcm_substream *s;
 	int err;
 	unsigned long flags;
@@ -36,12 +33,7 @@ int snd_line6_trigger(struct snd_pcm_substream *substream, int cmd)
 	spin_lock_irqsave(&line6pcm->lock_trigger, flags);
 	clear_bit(BIT_PREPARED, &line6pcm->flags);
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 22)
-	snd_pcm_group_for_each(pos, substream) {
-		s = snd_pcm_group_substream_entry(pos);
-#else
 	snd_pcm_group_for_each_entry(s, substream) {
-#endif
 		switch(s->stream) {
 		case SNDRV_PCM_STREAM_PLAYBACK:
 			err = snd_line6_playback_trigger(s, cmd);

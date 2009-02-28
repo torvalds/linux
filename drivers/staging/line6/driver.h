@@ -18,15 +18,9 @@
 #include <linux/spinlock.h>
 #include <linux/usb.h>
 #include <linux/wait.h>
-
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 25)
-#include <sound/driver.h>
-#endif
-
 #include <sound/core.h>
 
 #include "midi.h"
-
 
 #define DRIVER_NAME "line6usb"
 

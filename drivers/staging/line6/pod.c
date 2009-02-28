@@ -135,15 +135,9 @@ static int pod_version_request_async(struct usb_line6_pod *pod)
 	return line6_send_raw_message_async(&pod->line6, pod->buffer_versionreq, sizeof(pod_request_version));
 }
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 20)
 static void pod_create_files_work(struct work_struct *work)
 {
 	struct usb_line6_pod *pod = container_of(work, struct usb_line6_pod, create_files_work);
-#else
-static void pod_create_files_work(void *work)
-{
-	struct usb_line6_pod *pod = (struct usb_line6_pod *)work;
-#endif
 
 	pod_create_files(pod->firmware_version, pod->line6.properties->device_bit, pod->line6.ifcdev);
 }
@@ -351,11 +345,7 @@ void pod_process_message(struct usb_line6_pod *pod)
 
 				/* Now we know the firmware version, so we schedule a bottom half
 					 handler to create the special files: */
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 20)
 				INIT_WORK(&pod->create_files_work, pod_create_files_work);
-#else
-				INIT_WORK(&pod->create_files_work, pod_create_files_work, pod);
-#endif
 				queue_work(line6_workqueue, &pod->create_files_work);
 			}
 			else

@@ -13,9 +13,6 @@
 #define USBDEFS_H
 
 
-#include <linux/version.h>
-
-
 #define LINE6_VENDOR_ID  0x0e41
 
 #define USB_INTERVALS_PER_SECOND 1000
@@ -64,12 +61,5 @@
 
 #define LINE6_FALLBACK_INTERVAL 10
 #define LINE6_FALLBACK_MAXPACKETSIZE 16
-
-
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 18)
-#define usb_interrupt_msg(usb_dev, pipe, data, len, actual_length, timeout) \
-usb_bulk_msg(usb_dev, pipe, data, len, actual_length, timeout)
-#endif
-
 
 #endif

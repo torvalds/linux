@@ -13,12 +13,6 @@
 #define CONFIG_H
 
 
-#include <linux/version.h>
-
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 19)
-#include <linux/config.h>
-#endif
-
 #ifdef CONFIG_USB_DEBUG
 #define DEBUG 1
 #endif

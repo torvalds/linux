@@ -1000,9 +1000,6 @@ static void line6_disconnect(struct usb_interface *interface)
 }
 
 static struct usb_driver line6_driver = {
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 16)
-	.owner = THIS_MODULE,
-#endif
 	.name = DRIVER_NAME,
 	.probe = line6_probe,
 	.disconnect = line6_disconnect,
