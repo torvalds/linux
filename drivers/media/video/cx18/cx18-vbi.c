@@ -169,7 +169,7 @@ void cx18_process_vbi_data(struct cx18 *cx, struct cx18_buffer *buf,
 			   int streamtype)
 {
 	u8 *p = (u8 *) buf->buf;
-	u32 *q = (u32 *) buf->buf;
+	__be32 *q = (__be32 *) buf->buf;
 	u32 size = buf->bytesused;
 	u32 pts;
 	int lines;
@@ -178,8 +178,9 @@ void cx18_process_vbi_data(struct cx18 *cx, struct cx18_buffer *buf,
 		return;
 
 	/*
-	 * The CX23418 sends us data that is 32 bit LE swapped, but we want
-	 * the raw VBI bytes in the order they were in the raster line
+	 * The CX23418 sends us data that is 32 bit little-endian swapped,
+	 * but we want the raw VBI bytes in the order they were in the raster
+	 * line.  This has a side effect of making the 12 byte header big endian
 	 */
 	cx18_buf_swap(buf);
 
@@ -218,7 +219,7 @@ void cx18_process_vbi_data(struct cx18 *cx, struct cx18_buffer *buf,
 
 	/* Sliced VBI data with data insertion */
 
-	pts = (be32_to_cpu(q[0] == 0x3fffffff)) ? be32_to_cpu(q[2]) : 0;
+	pts = (be32_to_cpu(q[0]) == 0x3fffffff) ? be32_to_cpu(q[2]) : 0;
 
 	/*
 	 * For calls to compress_sliced_buf(), ensure there are an integral
