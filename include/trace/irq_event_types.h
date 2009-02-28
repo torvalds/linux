@@ -5,6 +5,9 @@
 # error Unless you know what you are doing.
 #endif
 
+#undef TRACE_SYSTEM
+#define TRACE_SYSTEM irq
+
 TRACE_FORMAT(irq_handler_entry,
 	TPPROTO(int irq, struct irqaction *action),
 	TPARGS(irq, action),
@@ -15,3 +18,5 @@ TRACE_FORMAT(irq_handler_exit,
 	TPARGS(irq, action, ret),
 	TPFMT("irq=%d handler=%s return=%s",
 		irq, action->name, ret ? "handled" : "unhandled"));
+
+#undef TRACE_SYSTEM
