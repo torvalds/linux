@@ -5,6 +5,9 @@
 # error Unless you know what you are doing.
 #endif
 
+#undef TRACE_SYSTEM
+#define TRACE_SYSTEM sched
+
 TRACE_FORMAT(sched_kthread_stop,
 	TPPROTO(struct task_struct *t),
 	TPARGS(t),
@@ -70,3 +73,5 @@ TRACE_FORMAT(sched_signal_send,
 	TPPROTO(int sig, struct task_struct *p),
 	TPARGS(sig, p),
 	TPFMT("sig: %d   task %s:%d", sig, p->comm, p->pid));
+
+#undef TRACE_SYSTEM
