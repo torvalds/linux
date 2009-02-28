@@ -287,7 +287,9 @@ static int snd_line6_new_midi(struct snd_line6_midi *line6midi)
 /*
 	"read" request on "midi_mask_transmit" special file.
 */
-static ssize_t midi_get_midi_mask_transmit(struct device *dev, DEVICE_ATTRIBUTE char *buf)
+static ssize_t midi_get_midi_mask_transmit(struct device *dev,
+					   struct device_attribute *attr,
+					   char *buf)
 {
 	struct usb_interface *interface = to_usb_interface(dev);
 	struct usb_line6 *line6 = usb_get_intfdata(interface);
@@ -297,7 +299,9 @@ static ssize_t midi_get_midi_mask_transmit(struct device *dev, DEVICE_ATTRIBUTE 
 /*
 	"write" request on "midi_mask" special file.
 */
-static ssize_t midi_set_midi_mask_transmit(struct device *dev, DEVICE_ATTRIBUTE const char *buf, size_t count)
+static ssize_t midi_set_midi_mask_transmit(struct device *dev,
+					   struct device_attribute *attr,
+					   const char *buf, size_t count)
 {
 	struct usb_interface *interface = to_usb_interface(dev);
 	struct usb_line6 *line6 = usb_get_intfdata(interface);
@@ -309,7 +313,9 @@ static ssize_t midi_set_midi_mask_transmit(struct device *dev, DEVICE_ATTRIBUTE 
 /*
 	"read" request on "midi_mask_receive" special file.
 */
-static ssize_t midi_get_midi_mask_receive(struct device *dev, DEVICE_ATTRIBUTE char *buf)
+static ssize_t midi_get_midi_mask_receive(struct device *dev,
+					  struct device_attribute *attr,
+					  char *buf)
 {
 	struct usb_interface *interface = to_usb_interface(dev);
 	struct usb_line6 *line6 = usb_get_intfdata(interface);
@@ -319,7 +325,9 @@ static ssize_t midi_get_midi_mask_receive(struct device *dev, DEVICE_ATTRIBUTE c
 /*
 	"write" request on "midi_mask" special file.
 */
-static ssize_t midi_set_midi_mask_receive(struct device *dev, DEVICE_ATTRIBUTE const char *buf, size_t count)
+static ssize_t midi_set_midi_mask_receive(struct device *dev,
+					  struct device_attribute *attr,
+					  const char *buf, size_t count)
 {
 	struct usb_interface *interface = to_usb_interface(dev);
 	struct usb_line6 *line6 = usb_get_intfdata(interface);

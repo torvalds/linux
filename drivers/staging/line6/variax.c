@@ -162,7 +162,8 @@ void variax_process_message(struct usb_line6_variax *variax)
 /*
 	"read" request on "volume" special file.
 */
-static ssize_t variax_get_volume(struct device *dev, DEVICE_ATTRIBUTE char *buf)
+static ssize_t variax_get_volume(struct device *dev,
+				 struct device_attribute *attr, char *buf)
 {
 	struct usb_line6_variax *variax = usb_get_intfdata(to_usb_interface(dev));
 	return sprintf(buf, "%d\n", variax->volume);
@@ -171,7 +172,9 @@ static ssize_t variax_get_volume(struct device *dev, DEVICE_ATTRIBUTE char *buf)
 /*
 	"write" request on "volume" special file.
 */
-static ssize_t variax_set_volume(struct device *dev, DEVICE_ATTRIBUTE const char *buf, size_t count)
+static ssize_t variax_set_volume(struct device *dev,
+				 struct device_attribute *attr,
+				 const char *buf, size_t count)
 {
 	struct usb_line6_variax *variax = usb_get_intfdata(to_usb_interface(dev));
 	int value = simple_strtoul(buf, NULL, 10);
@@ -185,7 +188,8 @@ static ssize_t variax_set_volume(struct device *dev, DEVICE_ATTRIBUTE const char
 /*
 	"read" request on "model" special file.
 */
-static ssize_t variax_get_model(struct device *dev, DEVICE_ATTRIBUTE char *buf)
+static ssize_t variax_get_model(struct device *dev,
+				struct device_attribute *attr, char *buf)
 {
 	struct usb_line6_variax *variax = usb_get_intfdata(to_usb_interface(dev));
 	return sprintf(buf, "%d\n", variax->model);
@@ -194,7 +198,9 @@ static ssize_t variax_get_model(struct device *dev, DEVICE_ATTRIBUTE char *buf)
 /*
 	"write" request on "model" special file.
 */
-static ssize_t variax_set_model(struct device *dev, DEVICE_ATTRIBUTE const char *buf, size_t count)
+static ssize_t variax_set_model(struct device *dev,
+				struct device_attribute *attr,
+				const char *buf, size_t count)
 {
 	struct usb_line6_variax *variax = usb_get_intfdata( to_usb_interface(dev));
 	int value = simple_strtoul(buf, NULL, 10);
@@ -208,7 +214,8 @@ static ssize_t variax_set_model(struct device *dev, DEVICE_ATTRIBUTE const char 
 /*
 	"read" request on "active" special file.
 */
-static ssize_t variax_get_active(struct device *dev, DEVICE_ATTRIBUTE char *buf)
+static ssize_t variax_get_active(struct device *dev,
+				 struct device_attribute *attr, char *buf)
 {
 	struct usb_line6_variax *variax = usb_get_intfdata(to_usb_interface(dev));
 	return sprintf(buf, "%d\n", variax->buffer_activate[VARIAX_OFFSET_ACTIVATE]);
@@ -217,7 +224,9 @@ static ssize_t variax_get_active(struct device *dev, DEVICE_ATTRIBUTE char *buf)
 /*
 	"write" request on "active" special file.
 */
-static ssize_t variax_set_active(struct device *dev, DEVICE_ATTRIBUTE const char *buf, size_t count)
+static ssize_t variax_set_active(struct device *dev,
+				 struct device_attribute *attr,
+				 const char *buf, size_t count)
 {
 	struct usb_line6_variax *variax = usb_get_intfdata(to_usb_interface(dev));
 	int value = simple_strtoul(buf, NULL, 10) ? 1 : 0;
@@ -229,7 +238,8 @@ static ssize_t variax_set_active(struct device *dev, DEVICE_ATTRIBUTE const char
 /*
 	"read" request on "tone" special file.
 */
-static ssize_t variax_get_tone(struct device *dev, DEVICE_ATTRIBUTE char *buf)
+static ssize_t variax_get_tone(struct device *dev,
+			       struct device_attribute *attr, char *buf)
 {
 	struct usb_line6_variax *variax = usb_get_intfdata(to_usb_interface(dev));
 	return sprintf(buf, "%d\n", variax->tone);
@@ -238,7 +248,9 @@ static ssize_t variax_get_tone(struct device *dev, DEVICE_ATTRIBUTE char *buf)
 /*
 	"write" request on "tone" special file.
 */
-static ssize_t variax_set_tone(struct device *dev, DEVICE_ATTRIBUTE const char *buf, size_t count)
+static ssize_t variax_set_tone(struct device *dev,
+			       struct device_attribute *attr,
+			       const char *buf, size_t count)
 {
 	struct usb_line6_variax *variax = usb_get_intfdata(to_usb_interface(dev));
 	int value = simple_strtoul(buf, NULL, 10);
@@ -268,7 +280,8 @@ static ssize_t get_string(char *buf, const char *data, int length)
 /*
 	"read" request on "name" special file.
 */
-static ssize_t variax_get_name(struct device *dev, DEVICE_ATTRIBUTE char *buf)
+static ssize_t variax_get_name(struct device *dev,
+			       struct device_attribute *attr, char *buf)
 {
 	struct usb_line6_variax *variax = usb_get_intfdata(to_usb_interface(dev));
 	line6_wait_dump(&variax->dumpreq, 0);
@@ -278,7 +291,8 @@ static ssize_t variax_get_name(struct device *dev, DEVICE_ATTRIBUTE char *buf)
 /*
 	"read" request on "bank" special file.
 */
-static ssize_t variax_get_bank(struct device *dev, DEVICE_ATTRIBUTE char *buf)
+static ssize_t variax_get_bank(struct device *dev,
+			       struct device_attribute *attr, char *buf)
 {
 	struct usb_line6_variax *variax = usb_get_intfdata(to_usb_interface(dev));
 	line6_wait_dump(&variax->dumpreq, 0);
@@ -288,7 +302,8 @@ static ssize_t variax_get_bank(struct device *dev, DEVICE_ATTRIBUTE char *buf)
 /*
 	"read" request on "dump" special file.
 */
-static ssize_t variax_get_dump(struct device *dev, DEVICE_ATTRIBUTE char *buf)
+static ssize_t variax_get_dump(struct device *dev,
+			       struct device_attribute *attr, char *buf)
 {
 	struct usb_line6_variax *variax = usb_get_intfdata(to_usb_interface(dev));
 	int retval;
@@ -303,7 +318,9 @@ static ssize_t variax_get_dump(struct device *dev, DEVICE_ATTRIBUTE char *buf)
 /*
 	"write" request on "raw" special file.
 */
-static ssize_t variax_set_raw2(struct device *dev, DEVICE_ATTRIBUTE const char *buf, size_t count)
+static ssize_t variax_set_raw2(struct device *dev,
+			       struct device_attribute *attr,
+			       const char *buf, size_t count)
 {
 	struct usb_line6_variax *variax = usb_get_intfdata(to_usb_interface(dev));
 	int size;

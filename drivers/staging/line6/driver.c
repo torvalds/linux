@@ -556,7 +556,8 @@ int line6_read_serial_number(struct usb_line6 *line6, int *serial_number)
 /*
 	No operation (i.e., unsupported).
 */
-ssize_t line6_nop_read(struct device *dev, DEVICE_ATTRIBUTE char *buf)
+ssize_t line6_nop_read(struct device *dev, struct device_attribute *attr,
+		       char *buf)
 {
 	return 0;
 }
@@ -564,7 +565,8 @@ ssize_t line6_nop_read(struct device *dev, DEVICE_ATTRIBUTE char *buf)
 /*
 	No operation (i.e., unsupported).
 */
-ssize_t line6_nop_write(struct device *dev, DEVICE_ATTRIBUTE const char *buf, size_t count)
+ssize_t line6_nop_write(struct device *dev, struct device_attribute *attr,
+			const char *buf, size_t count)
 {
 	return count;
 }
@@ -573,7 +575,8 @@ ssize_t line6_nop_write(struct device *dev, DEVICE_ATTRIBUTE const char *buf, si
 	"write" request on "raw" special file.
 */
 #if CREATE_RAW_FILE
-ssize_t line6_set_raw(struct device *dev, DEVICE_ATTRIBUTE const char *buf, size_t count)
+ssize_t line6_set_raw(struct device *dev, struct device_attribute *attr,
+		      const char *buf, size_t count)
 {
 	struct usb_interface *interface = to_usb_interface(dev);
 	struct usb_line6 *line6 = usb_get_intfdata(interface);

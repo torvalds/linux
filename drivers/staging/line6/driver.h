@@ -173,15 +173,15 @@ struct usb_line6 {
 
 
 extern char *line6_alloc_sysex_buffer(struct usb_line6 *line6, int code1, int code2, int size);
-extern ssize_t line6_nop_read(struct device *dev, DEVICE_ATTRIBUTE char *buf);
-extern ssize_t line6_nop_write(struct device *dev, DEVICE_ATTRIBUTE const char *buf, size_t count);
+extern ssize_t line6_nop_read(struct device *dev, struct device_attribute *attr, char *buf);
+extern ssize_t line6_nop_write(struct device *dev, struct device_attribute *attr, const char *buf, size_t count);
 extern int line6_read_data(struct usb_line6 *line6, int address, void *data, size_t datalen);
 extern int line6_read_serial_number(struct usb_line6 *line6, int *serial_number);
 extern int line6_send_program(struct usb_line6 *line6, int value);
 extern int line6_send_raw_message(struct usb_line6 *line6, const char *buffer, int size);
 extern int line6_send_raw_message_async(struct usb_line6 *line6, const char *buffer, int size);
 extern int line6_send_sysex_message(struct usb_line6 *line6, const char *buffer, int size);
-extern ssize_t line6_set_raw(struct device *dev, DEVICE_ATTRIBUTE const char *buf, size_t count);
+extern ssize_t line6_set_raw(struct device *dev, struct device_attribute *attr, const char *buf, size_t count);
 extern int line6_transmit_parameter(struct usb_line6 *line6, int param, int value);
 extern int line6_write_data(struct usb_line6 *line6, int address, void *data, size_t datalen);
 extern void line6_write_hexdump(struct usb_line6 *line6, char dir, const unsigned char *buffer, int size);

@@ -515,7 +515,8 @@ static ssize_t get_name_generic(struct usb_line6_pod *pod, const char *str, char
 /*
 	"read" request on "channel" special file.
 */
-static ssize_t pod_get_channel(struct device *dev, DEVICE_ATTRIBUTE char *buf)
+static ssize_t pod_get_channel(struct device *dev,
+			       struct device_attribute *attr, char *buf)
 {
 	struct usb_interface *interface = to_usb_interface(dev);
 	struct usb_line6_pod *pod = usb_get_intfdata(interface);
@@ -525,7 +526,9 @@ static ssize_t pod_get_channel(struct device *dev, DEVICE_ATTRIBUTE char *buf)
 /*
 	"write" request on "channel" special file.
 */
-static ssize_t pod_set_channel(struct device *dev, DEVICE_ATTRIBUTE const char *buf, size_t count)
+static ssize_t pod_set_channel(struct device *dev,
+			       struct device_attribute *attr,
+			       const char *buf, size_t count)
 {
 	struct usb_interface *interface = to_usb_interface(dev);
 	struct usb_line6_pod *pod = usb_get_intfdata(interface);
@@ -537,7 +540,8 @@ static ssize_t pod_set_channel(struct device *dev, DEVICE_ATTRIBUTE const char *
 /*
 	"read" request on "name" special file.
 */
-static ssize_t pod_get_name(struct device *dev, DEVICE_ATTRIBUTE char *buf)
+static ssize_t pod_get_name(struct device *dev, struct device_attribute *attr,
+			    char *buf)
 {
 	struct usb_interface *interface = to_usb_interface(dev);
 	struct usb_line6_pod *pod = usb_get_intfdata(interface);
@@ -547,7 +551,8 @@ static ssize_t pod_get_name(struct device *dev, DEVICE_ATTRIBUTE char *buf)
 /*
 	"read" request on "name" special file.
 */
-static ssize_t pod_get_name_buf(struct device *dev, DEVICE_ATTRIBUTE char *buf)
+static ssize_t pod_get_name_buf(struct device *dev,
+				struct device_attribute *attr, char *buf)
 {
 	struct usb_interface *interface = to_usb_interface(dev);
 	struct usb_line6_pod *pod = usb_get_intfdata(interface);
@@ -557,7 +562,8 @@ static ssize_t pod_get_name_buf(struct device *dev, DEVICE_ATTRIBUTE char *buf)
 /*
 	"read" request on "dump" special file.
 */
-static ssize_t pod_get_dump(struct device *dev, DEVICE_ATTRIBUTE char *buf)
+static ssize_t pod_get_dump(struct device *dev, struct device_attribute *attr,
+			    char *buf)
 {
 	struct usb_interface *interface = to_usb_interface(dev);
 	struct usb_line6_pod *pod = usb_get_intfdata(interface);
@@ -570,7 +576,8 @@ static ssize_t pod_get_dump(struct device *dev, DEVICE_ATTRIBUTE char *buf)
 /*
 	"write" request on "dump" special file.
 */
-static ssize_t pod_set_dump(struct device *dev, DEVICE_ATTRIBUTE const char *buf, size_t count)
+static ssize_t pod_set_dump(struct device *dev, struct device_attribute *attr,
+			    const char *buf, size_t count)
 {
 	struct usb_interface *interface = to_usb_interface(dev);
 	struct usb_line6_pod *pod = usb_get_intfdata(interface);
@@ -662,7 +669,8 @@ static ssize_t pod_set_system_param(struct usb_line6_pod *pod, const char *buf, 
 /*
 	"read" request on "dump_buf" special file.
 */
-static ssize_t pod_get_dump_buf(struct device *dev, DEVICE_ATTRIBUTE char *buf)
+static ssize_t pod_get_dump_buf(struct device *dev,
+				struct device_attribute *attr, char *buf)
 {
 	struct usb_interface *interface = to_usb_interface(dev);
 	struct usb_line6_pod *pod = usb_get_intfdata(interface);
@@ -675,7 +683,9 @@ static ssize_t pod_get_dump_buf(struct device *dev, DEVICE_ATTRIBUTE char *buf)
 /*
 	"write" request on "dump_buf" special file.
 */
-static ssize_t pod_set_dump_buf(struct device *dev, DEVICE_ATTRIBUTE const char *buf, size_t count)
+static ssize_t pod_set_dump_buf(struct device *dev,
+				struct device_attribute *attr,
+				const char *buf, size_t count)
 {
 	struct usb_interface *interface = to_usb_interface(dev);
 	struct usb_line6_pod *pod = usb_get_intfdata(interface);
@@ -694,7 +704,9 @@ static ssize_t pod_set_dump_buf(struct device *dev, DEVICE_ATTRIBUTE const char 
 /*
 	"write" request on "finish" special file.
 */
-static ssize_t pod_set_finish(struct device *dev, DEVICE_ATTRIBUTE const char *buf, size_t count)
+static ssize_t pod_set_finish(struct device *dev,
+			      struct device_attribute *attr,
+			      const char *buf, size_t count)
 {
 	struct usb_interface *interface = to_usb_interface(dev);
 	struct usb_line6_pod *pod = usb_get_intfdata(interface);
@@ -709,7 +721,9 @@ static ssize_t pod_set_finish(struct device *dev, DEVICE_ATTRIBUTE const char *b
 /*
 	"write" request on "store_channel" special file.
 */
-static ssize_t pod_set_store_channel(struct device *dev, DEVICE_ATTRIBUTE const char *buf, size_t count)
+static ssize_t pod_set_store_channel(struct device *dev,
+				     struct device_attribute *attr,
+				     const char *buf, size_t count)
 {
 	return pod_send_store_command(dev, buf, count, 0x0000, 0x00c0);
 }
@@ -717,7 +731,9 @@ static ssize_t pod_set_store_channel(struct device *dev, DEVICE_ATTRIBUTE const 
 /*
 	"write" request on "store_effects_setup" special file.
 */
-static ssize_t pod_set_store_effects_setup(struct device *dev, DEVICE_ATTRIBUTE const char *buf, size_t count)
+static ssize_t pod_set_store_effects_setup(struct device *dev,
+					   struct device_attribute *attr,
+					   const char *buf, size_t count)
 {
 	return pod_send_store_command(dev, buf, count, 0x0080, 0x0080);
 }
@@ -725,7 +741,9 @@ static ssize_t pod_set_store_effects_setup(struct device *dev, DEVICE_ATTRIBUTE 
 /*
 	"write" request on "store_amp_setup" special file.
 */
-static ssize_t pod_set_store_amp_setup(struct device *dev, DEVICE_ATTRIBUTE const char *buf, size_t count)
+static ssize_t pod_set_store_amp_setup(struct device *dev,
+				       struct device_attribute *attr,
+				       const char *buf, size_t count)
 {
 	return pod_send_store_command(dev, buf, count, 0x0040, 0x0100);
 }
@@ -733,7 +751,9 @@ static ssize_t pod_set_store_amp_setup(struct device *dev, DEVICE_ATTRIBUTE cons
 /*
 	"write" request on "retrieve_channel" special file.
 */
-static ssize_t pod_set_retrieve_channel(struct device *dev, DEVICE_ATTRIBUTE const char *buf, size_t count)
+static ssize_t pod_set_retrieve_channel(struct device *dev,
+					struct device_attribute *attr,
+					const char *buf, size_t count)
 {
 	return pod_send_retrieve_command(dev, buf, count, 0x0000, 0x00c0);
 }
@@ -741,7 +761,9 @@ static ssize_t pod_set_retrieve_channel(struct device *dev, DEVICE_ATTRIBUTE con
 /*
 	"write" request on "retrieve_effects_setup" special file.
 */
-static ssize_t pod_set_retrieve_effects_setup(struct device *dev, DEVICE_ATTRIBUTE const char *buf, size_t count)
+static ssize_t pod_set_retrieve_effects_setup(struct device *dev,
+					      struct device_attribute *attr,
+					      const char *buf, size_t count)
 {
 	return pod_send_retrieve_command(dev, buf, count, 0x0080, 0x0080);
 }
@@ -749,7 +771,9 @@ static ssize_t pod_set_retrieve_effects_setup(struct device *dev, DEVICE_ATTRIBU
 /*
 	"write" request on "retrieve_amp_setup" special file.
 */
-static ssize_t pod_set_retrieve_amp_setup(struct device *dev, DEVICE_ATTRIBUTE const char *buf, size_t count)
+static ssize_t pod_set_retrieve_amp_setup(struct device *dev,
+					  struct device_attribute *attr,
+					  const char *buf, size_t count)
 {
 	return pod_send_retrieve_command(dev, buf, count, 0x0040, 0x0100);
 }
@@ -757,7 +781,8 @@ static ssize_t pod_set_retrieve_amp_setup(struct device *dev, DEVICE_ATTRIBUTE c
 /*
 	"read" request on "dirty" special file.
 */
-static ssize_t pod_get_dirty(struct device *dev, DEVICE_ATTRIBUTE char *buf)
+static ssize_t pod_get_dirty(struct device *dev, struct device_attribute *attr,
+			     char *buf)
 {
 	struct usb_interface *interface = to_usb_interface(dev);
 	struct usb_line6_pod *pod = usb_get_intfdata(interface);
@@ -769,7 +794,9 @@ static ssize_t pod_get_dirty(struct device *dev, DEVICE_ATTRIBUTE char *buf)
 /*
 	"read" request on "midi_postprocess" special file.
 */
-static ssize_t pod_get_midi_postprocess(struct device *dev, DEVICE_ATTRIBUTE char *buf)
+static ssize_t pod_get_midi_postprocess(struct device *dev,
+					struct device_attribute *attr,
+					char *buf)
 {
 	struct usb_interface *interface = to_usb_interface(dev);
 	struct usb_line6_pod *pod = usb_get_intfdata(interface);
@@ -779,7 +806,9 @@ static ssize_t pod_get_midi_postprocess(struct device *dev, DEVICE_ATTRIBUTE cha
 /*
 	"write" request on "midi_postprocess" special file.
 */
-static ssize_t pod_set_midi_postprocess(struct device *dev, DEVICE_ATTRIBUTE const char *buf, size_t count)
+static ssize_t pod_set_midi_postprocess(struct device *dev,
+					struct device_attribute *attr,
+					const char *buf, size_t count)
 {
 	struct usb_interface *interface = to_usb_interface(dev);
 	struct usb_line6_pod *pod = usb_get_intfdata(interface);
@@ -791,7 +820,8 @@ static ssize_t pod_set_midi_postprocess(struct device *dev, DEVICE_ATTRIBUTE con
 /*
 	"read" request on "serial_number" special file.
 */
-static ssize_t pod_get_serial_number(struct device *dev, DEVICE_ATTRIBUTE char *buf)
+static ssize_t pod_get_serial_number(struct device *dev,
+				     struct device_attribute *attr, char *buf)
 {
 	struct usb_interface *interface = to_usb_interface(dev);
 	struct usb_line6_pod *pod = usb_get_intfdata(interface);
@@ -801,7 +831,9 @@ static ssize_t pod_get_serial_number(struct device *dev, DEVICE_ATTRIBUTE char *
 /*
 	"read" request on "firmware_version" special file.
 */
-static ssize_t pod_get_firmware_version(struct device *dev, DEVICE_ATTRIBUTE char *buf)
+static ssize_t pod_get_firmware_version(struct device *dev,
+					struct device_attribute *attr,
+					char *buf)
 {
 	struct usb_interface *interface = to_usb_interface(dev);
 	struct usb_line6_pod *pod = usb_get_intfdata(interface);
@@ -811,7 +843,8 @@ static ssize_t pod_get_firmware_version(struct device *dev, DEVICE_ATTRIBUTE cha
 /*
 	"read" request on "device_id" special file.
 */
-static ssize_t pod_get_device_id(struct device *dev, DEVICE_ATTRIBUTE char *buf)
+static ssize_t pod_get_device_id(struct device *dev,
+				 struct device_attribute *attr, char *buf)
 {
 	struct usb_interface *interface = to_usb_interface(dev);
 	struct usb_line6_pod *pod = usb_get_intfdata(interface);
@@ -821,7 +854,8 @@ static ssize_t pod_get_device_id(struct device *dev, DEVICE_ATTRIBUTE char *buf)
 /*
 	"read" request on "clip" special file.
 */
-static ssize_t pod_wait_for_clip(struct device *dev, DEVICE_ATTRIBUTE char *buf)
+static ssize_t pod_wait_for_clip(struct device *dev,
+				 struct device_attribute *attr, char *buf)
 {
 	struct usb_interface *interface = to_usb_interface(dev);
 	struct usb_line6_pod *pod = usb_get_intfdata(interface);
@@ -846,7 +880,8 @@ static ssize_t pod_wait_for_clip(struct device *dev, DEVICE_ATTRIBUTE char *buf)
 }
 
 #define POD_GET_SYSTEM_PARAM(code, tuner, sign) \
-static ssize_t pod_get_ ## code(struct device *dev, DEVICE_ATTRIBUTE char *buf) \
+static ssize_t pod_get_ ## code(struct device *dev, \
+				struct device_attribute *attr, char *buf) \
 { \
 	struct usb_interface *interface = to_usb_interface(dev); \
 	struct usb_line6_pod *pod = usb_get_intfdata(interface); \
@@ -855,7 +890,9 @@ static ssize_t pod_get_ ## code(struct device *dev, DEVICE_ATTRIBUTE char *buf) 
 
 #define POD_GET_SET_SYSTEM_PARAM(code, mask, tuner, sign) \
 POD_GET_SYSTEM_PARAM(code, tuner, sign) \
-static ssize_t pod_set_ ## code(struct device *dev, DEVICE_ATTRIBUTE const char *buf, size_t count) \
+static ssize_t pod_set_ ## code(struct device *dev, \
+				struct device_attribute *attr, const char *buf, \
+				size_t count) \
 { \
 	struct usb_interface *interface = to_usb_interface(dev); \
 	struct usb_line6_pod *pod = usb_get_intfdata(interface); \

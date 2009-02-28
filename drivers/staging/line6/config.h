@@ -44,16 +44,6 @@
 #endif
 
 /**
-   In Linux 2.6.13 and later, the device_attribute is passed to the sysfs
-   get/set functions (see /usr/src/linux/include/linux/device.h).
-*/
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 13)
-#define DEVICE_ATTRIBUTE struct device_attribute *attr,
-#else
-#define DEVICE_ATTRIBUTE
-#endif
-
-/**
    In Linux 2.6.20 and later, the pt_regs is no longer passed to USB callback
    functions.
 */

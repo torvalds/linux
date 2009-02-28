@@ -91,13 +91,17 @@ static void toneport_update_led(struct device *dev)  {
 		(line6 = &tp->line6))
 			toneport_send_cmd(line6->usbdev, (led_red<<8)|0x0002, led_green);	// for setting the LED on Guitarport
 }
-static ssize_t toneport_set_led_red(struct device *dev, DEVICE_ATTRIBUTE const char *buf, size_t count)  {
+static ssize_t toneport_set_led_red(struct device *dev,
+				    struct device_attribute *attr,
+				    const char *buf, size_t count)  {
 	char* c;
 	led_red = simple_strtol(buf, &c, 10);
 	toneport_update_led(dev);
 	return count;
 }
-static ssize_t toneport_set_led_green(struct device *dev, DEVICE_ATTRIBUTE const char *buf, size_t count)  {
+static ssize_t toneport_set_led_green(struct device *dev,
+				      struct device_attribute *attr,
+				      const char *buf, size_t count)  {
 	char* c;
 	led_green = simple_strtol(buf, &c, 10);
 	toneport_update_led(dev);

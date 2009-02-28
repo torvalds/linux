@@ -22,14 +22,16 @@
 struct device_attribute dev_attr_##_name1 = __ATTR(_name2,_mode,_show,_store)
 
 #define LINE6_PARAM_R(PREFIX, prefix, type, param) \
-static ssize_t prefix ## _get_ ## param(struct device *dev, DEVICE_ATTRIBUTE char *buf) \
+static ssize_t prefix ## _get_ ## param(struct device *dev, \
+			struct device_attribute *attr, char *buf) \
 { \
 	return prefix ## _get_param_ ## type(dev, buf, PREFIX ## _ ## param); \
 }
 
 #define LINE6_PARAM_RW(PREFIX, prefix, type, param) \
 LINE6_PARAM_R(PREFIX, prefix, type, param); \
-static ssize_t prefix ## _set_ ## param(struct device *dev, DEVICE_ATTRIBUTE const char *buf, size_t count) \
+static ssize_t prefix ## _set_ ## param(struct device *dev, \
+		struct device_attribute *attr, const char *buf, size_t count) \
 { \
 	return prefix ## _set_param_ ## type(dev, buf, count, PREFIX ## _ ## param); \
 }
