@@ -12,6 +12,8 @@
 
 #include "trace_events.h"
 
+#define TRACE_SYSTEM "TRACE_SYSTEM"
+
 #define events_for_each(event)						\
 	for (event = __start_ftrace_events;				\
 	     (unsigned long)event < (unsigned long)__stop_ftrace_events; \
@@ -45,14 +47,47 @@ static void ftrace_clear_events(void)
 static int ftrace_set_clr_event(char *buf, int set)
 {
 	struct ftrace_event_call *call = __start_ftrace_events;
+	char *event = NULL, *sub = NULL, *match;
+	int ret = -EINVAL;
 
+	/*
+	 * The buf format can be <subsystem>:<event-name>
+	 *  *:<event-name> means any event by that name.
+	 *  :<event-name> is the same.
+	 *
+	 *  <subsystem>:* means all events in that subsystem
+	 *  <subsystem>: means the same.
+	 *
+	 *  <name> (no ':') means all events in a subsystem with
+	 *  the name <name> or any event that matches <name>
+	 */
+
+	match = strsep(&buf, ":");
+	if (buf) {
+		sub = match;
+		event = buf;
+		match = NULL;
+
+		if (!strlen(sub) || strcmp(sub, "*") == 0)
+			sub = NULL;
+		if (!strlen(event) || strcmp(event, "*") == 0)
+			event = NULL;
+	}
 
 	events_for_each(call) {
 
 		if (!call->name)
 			continue;
 
-		if (strcmp(buf, call->name) != 0)
+		if (match &&
+		    strcmp(match, call->name) != 0 &&
+		    strcmp(match, call->system) != 0)
+			continue;
+
+		if (sub && strcmp(sub, call->system) != 0)
+			continue;
+
+		if (event && strcmp(event, call->name) != 0)
 			continue;
 
 		if (set) {
@@ -68,9 +103,9 @@ static int ftrace_set_clr_event(char *buf, int set)
 			call->enabled = 0;
 			call->unregfunc();
 		}
-		return 0;
+		ret = 0;
 	}
-	return -EINVAL;
+	return ret;
 }
 
 /* 128 should be much more than enough */
@@ -200,6 +235,8 @@ static int t_show(struct seq_file *m, void *v)
 {
 	struct ftrace_event_call *call = v;
 
+	if (strcmp(call->system, TRACE_SYSTEM) != 0)
+		seq_printf(m, "%s:", call->system);
 	seq_printf(m, "%s\n", call->name);
 
 	return 0;
