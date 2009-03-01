@@ -639,7 +639,7 @@ static int pcpu_populate_chunk(struct pcpu_chunk *chunk, int off, int size)
 	int page_start = PFN_DOWN(off);
 	int page_end = PFN_UP(off + size);
 	int map_start = -1;
-	int map_end;
+	int uninitialized_var(map_end);
 	unsigned int cpu;
 	int i;
 
