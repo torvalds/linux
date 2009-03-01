@@ -1,5 +1,5 @@
-How to set up the Technisat devices
-===================================
+How to set up the Technisat/B2C2 Flexcop devices
+================================================
 
 1) Find out what device you have
 ================================
@@ -16,54 +16,60 @@ DVB: registering frontend 0 (Conexant CX24123/CX24109)...
 
 If the Technisat is the only TV device in your box get rid of unnecessary modules and check this one:
 "Multimedia devices" => "Customise analog and hybrid tuner modules to build"
-In this directory uncheck every driver which is activated there.
+In this directory uncheck every driver which is activated there (except "Simple tuner support" for case 9 only).
 
 Then please activate:
 2a) Main module part:
 
 a.)"Multimedia devices" => "DVB/ATSC adapters" => "Technisat/B2C2 FlexcopII(b) and FlexCopIII adapters"
-b.)"Multimedia devices" => "DVB/ATSC adapters" => "Technisat/B2C2 FlexcopII(b) and FlexCopIII adapters" => "Technisat/B2C2 Air/Sky/Cable2PC PCI" in case of a PCI card OR
+b.)"Multimedia devices" => "DVB/ATSC adapters" => "Technisat/B2C2 FlexcopII(b) and FlexCopIII adapters" => "Technisat/B2C2 Air/Sky/Cable2PC PCI" in case of a PCI card
+OR
 c.)"Multimedia devices" => "DVB/ATSC adapters" => "Technisat/B2C2 FlexcopII(b) and FlexCopIII adapters" => "Technisat/B2C2 Air/Sky/Cable2PC USB" in case of an USB 1.1 adapter
 d.)"Multimedia devices" => "DVB/ATSC adapters" => "Technisat/B2C2 FlexcopII(b) and FlexCopIII adapters" => "Enable debug for the B2C2 FlexCop drivers"
 Notice: d.) is helpful for troubleshooting
 
 2b) Frontend module part:
 
-1.) Revision 2.3:
+1.) SkyStar DVB-S Revision 2.3:
 a.)"Multimedia devices" => "Customise DVB frontends" => "Customise the frontend modules to build"
 b.)"Multimedia devices" => "Customise DVB frontends" => "Zarlink VP310/MT312/ZL10313 based"
 
-2.) Revision 2.6:
+2.) SkyStar DVB-S Revision 2.6:
 a.)"Multimedia devices" => "Customise DVB frontends" => "Customise the frontend modules to build"
 b.)"Multimedia devices" => "Customise DVB frontends" => "ST STV0299 based"
 
-3.) Revision 2.7:
+3.) SkyStar DVB-S Revision 2.7:
 a.)"Multimedia devices" => "Customise DVB frontends" => "Customise the frontend modules to build"
 b.)"Multimedia devices" => "Customise DVB frontends" => "Samsung S5H1420 based"
 c.)"Multimedia devices" => "Customise DVB frontends" => "Integrant ITD1000 Zero IF tuner for DVB-S/DSS"
 d.)"Multimedia devices" => "Customise DVB frontends" => "ISL6421 SEC controller"
 
-4.) Revision 2.8:
+4.) SkyStar DVB-S Revision 2.8:
 a.)"Multimedia devices" => "Customise DVB frontends" => "Customise the frontend modules to build"
 b.)"Multimedia devices" => "Customise DVB frontends" => "Conexant CX24113/CX24128 tuner for DVB-S/DSS"
 c.)"Multimedia devices" => "Customise DVB frontends" => "Conexant CX24123 based"
 d.)"Multimedia devices" => "Customise DVB frontends" => "ISL6421 SEC controller"
 
-5.) DVB-T card:
+5.) AirStar DVB-T card:
 a.)"Multimedia devices" => "Customise DVB frontends" => "Customise the frontend modules to build"
 b.)"Multimedia devices" => "Customise DVB frontends" => "Zarlink MT352 based"
 
-6.) DVB-C card:
+6.) CableStar DVB-C card:
 a.)"Multimedia devices" => "Customise DVB frontends" => "Customise the frontend modules to build"
 b.)"Multimedia devices" => "Customise DVB frontends" => "ST STV0297 based"
 
-7.) ATSC card 1st generation:
+7.) AirStar ATSC card 1st generation:
 a.)"Multimedia devices" => "Customise DVB frontends" => "Customise the frontend modules to build"
 b.)"Multimedia devices" => "Customise DVB frontends" => "Broadcom BCM3510"
 
-8.) ATSC card 2nd generation:
+8.) AirStar ATSC card 2nd generation:
 a.)"Multimedia devices" => "Customise DVB frontends" => "Customise the frontend modules to build"
 b.)"Multimedia devices" => "Customise DVB frontends" => "NxtWave Communications NXT2002/NXT2004 based"
-c.)"Multimedia devices" => "Customise DVB frontends" => "LG Electronics LGDT3302/LGDT3303 based"
+c.)"Multimedia devices" => "Customise DVB frontends" => "Generic I2C PLL based tuners"
 
-Author: Uwe Bugla <uwe.bugla@gmx.de> December 2008
+9.) AirStar ATSC card 3rd generation:
+a.)"Multimedia devices" => "Customise DVB frontends" => "Customise the frontend modules to build"
+b.)"Multimedia devices" => "Customise DVB frontends" => "LG Electronics LGDT3302/LGDT3303 based"
+c.)"Multimedia devices" => "Customise analog and hybrid tuner modules to build" => "Simple tuner support"
+
+Author: Uwe Bugla <uwe.bugla@gmx.de> February 2009
