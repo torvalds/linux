@@ -827,7 +827,7 @@ struct dvb_frontend *mxl5007t_attach(struct dvb_frontend *fe,
 	mutex_lock(&mxl5007t_list_mutex);
 	instance = hybrid_tuner_request_state(struct mxl5007t_state, state,
 					      hybrid_tuner_instance_list,
-					      i2c, addr, "mxl5007");
+					      i2c, addr, "mxl5007t");
 	switch (instance) {
 	case 0:
 		goto fail;
