@@ -107,12 +107,29 @@ static struct kmmio_fault_page *get_kmmio_fault_page(unsigned long page)
 	return NULL;
 }
 
+static void set_pmd_presence(pmd_t *pmd, bool present, bool *old)
+{
+	pmdval_t v = pmd_val(*pmd);
+	*old = !!(v & _PAGE_PRESENT);
+	v &= ~_PAGE_PRESENT;
+	if (present)
+		v |= _PAGE_PRESENT;
+	set_pmd(pmd, __pmd(v));
+}
+
+static void set_pte_presence(pte_t *pte, bool present, bool *old)
+{
+	pteval_t v = pte_val(*pte);
+	*old = !!(v & _PAGE_PRESENT);
+	v &= ~_PAGE_PRESENT;
+	if (present)
+		v |= _PAGE_PRESENT;
+	set_pte_atomic(pte, __pte(v));
+}
+
 static int set_page_presence(unsigned long addr, bool present, bool *old)
 {
-	pteval_t pteval;
-	pmdval_t pmdval;
 	unsigned int level;
-	pmd_t *pmd;
 	pte_t *pte = lookup_address(addr, &level);
 
 	if (!pte) {
@@ -122,31 +139,17 @@ static int set_page_presence(unsigned long addr, bool present, bool *old)
 
 	switch (level) {
 	case PG_LEVEL_2M:
-		pmd = (pmd_t *)pte;
-		pmdval = pmd_val(*pmd);
-		*old = !!(pmdval & _PAGE_PRESENT);
-		pmdval &= ~_PAGE_PRESENT;
-		if (present)
-			pmdval |= _PAGE_PRESENT;
-		set_pmd(pmd, __pmd(pmdval));
+		set_pmd_presence((pmd_t *)pte, present, old);
 		break;
-
 	case PG_LEVEL_4K:
-		pteval = pte_val(*pte);
-		*old = !!(pteval & _PAGE_PRESENT);
-		pteval &= ~_PAGE_PRESENT;
-		if (present)
-			pteval |= _PAGE_PRESENT;
-		set_pte_atomic(pte, __pte(pteval));
+		set_pte_presence(pte, present, old);
 		break;
-
 	default:
 		pr_err("kmmio: unexpected page level 0x%x.\n", level);
 		return -1;
 	}
 
 	__flush_tlb_one(addr);
-
 	return 0;
 }
 
