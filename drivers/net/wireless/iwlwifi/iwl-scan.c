@@ -440,6 +440,74 @@ int iwl_scan_initiate(struct iwl_priv *priv)
 }
 EXPORT_SYMBOL(iwl_scan_initiate);
 
+#define IWL_DELAY_NEXT_SCAN (HZ*2)
+
+int iwl_mac_hw_scan(struct ieee80211_hw *hw,
+		     struct cfg80211_scan_request *req)
+{
+	unsigned long flags;
+	struct iwl_priv *priv = hw->priv;
+	int ret;
+	u8 *ssid = NULL;
+	size_t ssid_len = 0;
+
+	if (req->n_ssids) {
+		ssid = req->ssids[0].ssid;
+		ssid_len = req->ssids[0].ssid_len;
+	}
+
+	IWL_DEBUG_MAC80211(priv, "enter\n");
+
+	mutex_lock(&priv->mutex);
+	spin_lock_irqsave(&priv->lock, flags);
+
+	if (!iwl_is_ready_rf(priv)) {
+		ret = -EIO;
+		IWL_DEBUG_MAC80211(priv, "leave - not ready or exit pending\n");
+		goto out_unlock;
+	}
+
+	/* We don't schedule scan within next_scan_jiffies period.
+	 * Avoid scanning during possible EAPOL exchange, return
+	 * success immediately.
+	 */
+	if (priv->next_scan_jiffies &&
+	    time_after(priv->next_scan_jiffies, jiffies)) {
+		IWL_DEBUG_SCAN(priv, "scan rejected: within next scan period\n");
+		queue_work(priv->workqueue, &priv->scan_completed);
+		ret = 0;
+		goto out_unlock;
+	}
+
+	/* if we just finished scan ask for delay */
+	if (iwl_is_associated(priv) && priv->last_scan_jiffies &&
+	    time_after(priv->last_scan_jiffies + IWL_DELAY_NEXT_SCAN, jiffies)) {
+		IWL_DEBUG_SCAN(priv, "scan rejected: within previous scan period\n");
+		queue_work(priv->workqueue, &priv->scan_completed);
+		ret = 0;
+		goto out_unlock;
+	}
+
+	if (ssid_len) {
+		priv->one_direct_scan = 1;
+		priv->direct_ssid_len =  ssid_len;
+		memcpy(priv->direct_ssid, ssid, priv->direct_ssid_len);
+	} else {
+		priv->one_direct_scan = 0;
+	}
+
+	ret = iwl_scan_initiate(priv);
+
+	IWL_DEBUG_MAC80211(priv, "leave\n");
+
+out_unlock:
+	spin_unlock_irqrestore(&priv->lock, flags);
+	mutex_unlock(&priv->mutex);
+
+	return ret;
+}
+EXPORT_SYMBOL(iwl_mac_hw_scan);
+
 #define IWL_SCAN_CHECK_WATCHDOG (7 * HZ)
 
 void iwl_bg_scan_check(struct work_struct *data)

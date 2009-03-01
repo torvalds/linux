@@ -753,6 +753,9 @@ void ath_beacon_config(struct ath_softc *sc, int if_id)
 		if (bs.bs_sleepduration > bs.bs_dtimperiod)
 			bs.bs_sleepduration = bs.bs_dtimperiod;
 
+		/* TSF out of range threshold fixed at 1 second */
+		bs.bs_tsfoor_threshold = ATH9K_TSFOOR_THRESHOLD;
+
 		DPRINTF(sc, ATH_DBG_BEACON,
 			"tsf %llu "
 			"tsf:tu %u "
@@ -787,8 +790,6 @@ void ath_beacon_config(struct ath_softc *sc, int if_id)
 		u64 tsf;
 		u32 tsftu;
 		ath9k_hw_set_interrupts(ah, 0);
-		if (nexttbtt == intval)
-			intval |= ATH9K_BEACON_RESET_TSF;
 		if (sc->sc_ah->opmode == NL80211_IFTYPE_ADHOC) {
 			/*
 			 * Pull nexttbtt forward to reflect the current
@@ -822,6 +823,9 @@ void ath_beacon_config(struct ath_softc *sc, int if_id)
 				sc->imask |= ATH9K_INT_SWBA;
 			ath_beaconq_config(sc);
 		} else if (sc->sc_ah->opmode == NL80211_IFTYPE_AP) {
+			if (nexttbtt == intval)
+				intval |= ATH9K_BEACON_RESET_TSF;
+
 			/*
 			 * In AP mode we enable the beacon timers and
 			 * SWBA interrupts to prepare beacon frames.

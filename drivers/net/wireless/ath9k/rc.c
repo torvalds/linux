@@ -1267,7 +1267,8 @@ static void ath_rc_update_ht(struct ath_softc *sc,
 		ath_rc_priv->per_down_time = now_msec;
 	}
 
-	ath_debug_stat_retries(sc, tx_rate, xretries, retries);
+	ath_debug_stat_retries(sc, tx_rate, xretries, retries,
+			       ath_rc_priv->state[tx_rate].per);
 
 #undef CHK_RSSI
 }
@@ -1392,6 +1393,7 @@ static void ath_rc_init(struct ath_softc *sc,
 	struct ath_rateset *rateset = &ath_rc_priv->neg_rates;
 	u8 *ht_mcs = (u8 *)&ath_rc_priv->neg_ht_rates;
 	u8 i, j, k, hi = 0, hthi = 0;
+	struct ath_hw *ah = sc->sc_ah;
 
 	/* FIXME: Adhoc */
 	if ((sc->sc_ah->opmode == NL80211_IFTYPE_STATION) ||
@@ -1412,7 +1414,8 @@ static void ath_rc_init(struct ath_softc *sc,
 
 	if (sta->ht_cap.ht_supported) {
 		ath_rc_priv->ht_cap = WLAN_RC_HT_FLAG;
-		if (sc->sc_ah->caps.tx_chainmask != 1)
+		if (sc->sc_ah->caps.tx_chainmask != 1 &&
+			ath9k_hw_getcapability(ah, ATH9K_CAP_DS, 0, NULL))
 			ath_rc_priv->ht_cap |= WLAN_RC_DS_FLAG;
 		if (sta->ht_cap.cap & IEEE80211_HT_CAP_SUP_WIDTH_20_40)
 			ath_rc_priv->ht_cap |= WLAN_RC_40_FLAG;
@@ -1533,7 +1536,8 @@ static void ath_tx_status(void *priv, struct ieee80211_supported_band *sband,
 			 tx_info_priv->tx.ts_longretry);
 
 	/* Check if aggregation has to be enabled for this tid */
-	if (conf_is_ht(&sc->hw->conf)) {
+	if (conf_is_ht(&sc->hw->conf) &&
+	    !(skb->protocol == cpu_to_be16(ETH_P_PAE))) {
 		if (ieee80211_is_data_qos(fc)) {
 			u8 *qc, tid;
 			struct ath_node *an;

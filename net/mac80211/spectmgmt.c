@@ -88,16 +88,16 @@ void ieee80211_process_measurement_req(struct ieee80211_sub_if_data *sdata,
 void ieee80211_chswitch_work(struct work_struct *work)
 {
 	struct ieee80211_sub_if_data *sdata =
-		container_of(work, struct ieee80211_sub_if_data, u.sta.chswitch_work);
+		container_of(work, struct ieee80211_sub_if_data, u.mgd.chswitch_work);
 	struct ieee80211_bss *bss;
-	struct ieee80211_if_sta *ifsta = &sdata->u.sta;
+	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
 
 	if (!netif_running(sdata->dev))
 		return;
 
-	bss = ieee80211_rx_bss_get(sdata->local, ifsta->bssid,
+	bss = ieee80211_rx_bss_get(sdata->local, ifmgd->bssid,
 				   sdata->local->hw.conf.channel->center_freq,
-				   ifsta->ssid, ifsta->ssid_len);
+				   ifmgd->ssid, ifmgd->ssid_len);
 	if (!bss)
 		goto exit;
 
@@ -108,7 +108,7 @@ void ieee80211_chswitch_work(struct work_struct *work)
 
 	ieee80211_rx_bss_put(sdata->local, bss);
 exit:
-	ifsta->flags &= ~IEEE80211_STA_CSA_RECEIVED;
+	ifmgd->flags &= ~IEEE80211_STA_CSA_RECEIVED;
 	ieee80211_wake_queues_by_reason(&sdata->local->hw,
 					IEEE80211_QUEUE_STOP_REASON_CSA);
 }
@@ -117,9 +117,9 @@ void ieee80211_chswitch_timer(unsigned long data)
 {
 	struct ieee80211_sub_if_data *sdata =
 		(struct ieee80211_sub_if_data *) data;
-	struct ieee80211_if_sta *ifsta = &sdata->u.sta;
+	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
 
-	queue_work(sdata->local->hw.workqueue, &ifsta->chswitch_work);
+	queue_work(sdata->local->hw.workqueue, &ifmgd->chswitch_work);
 }
 
 void ieee80211_process_chanswitch(struct ieee80211_sub_if_data *sdata,
@@ -127,14 +127,14 @@ void ieee80211_process_chanswitch(struct ieee80211_sub_if_data *sdata,
 				  struct ieee80211_bss *bss)
 {
 	struct ieee80211_channel *new_ch;
-	struct ieee80211_if_sta *ifsta = &sdata->u.sta;
+	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
 	int new_freq = ieee80211_channel_to_frequency(sw_elem->new_ch_num);
 
 	/* FIXME: Handle ADHOC later */
 	if (sdata->vif.type != NL80211_IFTYPE_STATION)
 		return;
 
-	if (ifsta->state != IEEE80211_STA_MLME_ASSOCIATED)
+	if (ifmgd->state != IEEE80211_STA_MLME_ASSOCIATED)
 		return;
 
 	if (sdata->local->sw_scanning || sdata->local->hw_scanning)
@@ -143,7 +143,7 @@ void ieee80211_process_chanswitch(struct ieee80211_sub_if_data *sdata,
 	/* Disregard subsequent beacons if we are already running a timer
 	   processing a CSA */
 
-	if (ifsta->flags & IEEE80211_STA_CSA_RECEIVED)
+	if (ifmgd->flags & IEEE80211_STA_CSA_RECEIVED)
 		return;
 
 	new_ch = ieee80211_get_channel(sdata->local->hw.wiphy, new_freq);
@@ -153,12 +153,12 @@ void ieee80211_process_chanswitch(struct ieee80211_sub_if_data *sdata,
 	sdata->local->csa_channel = new_ch;
 
 	if (sw_elem->count <= 1) {
-		queue_work(sdata->local->hw.workqueue, &ifsta->chswitch_work);
+		queue_work(sdata->local->hw.workqueue, &ifmgd->chswitch_work);
 	} else {
 		ieee80211_stop_queues_by_reason(&sdata->local->hw,
 						IEEE80211_QUEUE_STOP_REASON_CSA);
-		ifsta->flags |= IEEE80211_STA_CSA_RECEIVED;
-		mod_timer(&ifsta->chswitch_timer,
+		ifmgd->flags |= IEEE80211_STA_CSA_RECEIVED;
+		mod_timer(&ifmgd->chswitch_timer,
 			  jiffies +
 			  msecs_to_jiffies(sw_elem->count *
 					   bss->cbss.beacon_interval));

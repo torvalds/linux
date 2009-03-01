@@ -308,23 +308,23 @@ static int ath_set_channel(struct ath_softc *sc, struct ath9k_channel *hchan)
  */
 static void ath_ani_calibrate(unsigned long data)
 {
-	struct ath_softc *sc;
-	struct ath_hw *ah;
+	struct ath_softc *sc = (struct ath_softc *)data;
+	struct ath_hw *ah = sc->sc_ah;
 	bool longcal = false;
 	bool shortcal = false;
 	bool aniflag = false;
 	unsigned int timestamp = jiffies_to_msecs(jiffies);
-	u32 cal_interval;
+	u32 cal_interval, short_cal_interval;
 
-	sc = (struct ath_softc *)data;
-	ah = sc->sc_ah;
+	short_cal_interval = (ah->opmode == NL80211_IFTYPE_AP) ?
+		ATH_AP_SHORT_CALINTERVAL : ATH_STA_SHORT_CALINTERVAL;
 
 	/*
 	* don't calibrate when we're scanning.
 	* we are most likely not on our home channel.
 	*/
 	if (sc->rx.rxfilter & FIF_BCN_PRBRESP_PROMISC)
-		return;
+		goto set_timer;
 
 	/* Long calibration runs independently of short calibration. */
 	if ((timestamp - sc->ani.longcal_timer) >= ATH_LONG_CALINTERVAL) {
@@ -335,8 +335,7 @@ static void ath_ani_calibrate(unsigned long data)
 
 	/* Short calibration applies only while caldone is false */
 	if (!sc->ani.caldone) {
-		if ((timestamp - sc->ani.shortcal_timer) >=
-		    ATH_SHORT_CALINTERVAL) {
+		if ((timestamp - sc->ani.shortcal_timer) >= short_cal_interval) {
 			shortcal = true;
 			DPRINTF(sc, ATH_DBG_ANI, "shortcal @%lu\n", jiffies);
 			sc->ani.shortcal_timer = timestamp;
@@ -352,8 +351,7 @@ static void ath_ani_calibrate(unsigned long data)
 	}
 
 	/* Verify whether we must check ANI */
-	if ((timestamp - sc->ani.checkani_timer) >=
-	   ATH_ANI_POLLINTERVAL) {
+	if ((timestamp - sc->ani.checkani_timer) >= ATH_ANI_POLLINTERVAL) {
 		aniflag = true;
 		sc->ani.checkani_timer = timestamp;
 	}
@@ -362,8 +360,7 @@ static void ath_ani_calibrate(unsigned long data)
 	if (longcal || shortcal || aniflag) {
 		/* Call ANI routine if necessary */
 		if (aniflag)
-			ath9k_hw_ani_monitor(ah, &sc->nodestats,
-					     ah->curchan);
+			ath9k_hw_ani_monitor(ah, &sc->nodestats, ah->curchan);
 
 		/* Perform calibration if necessary */
 		if (longcal || shortcal) {
@@ -392,6 +389,7 @@ static void ath_ani_calibrate(unsigned long data)
 		}
 	}
 
+set_timer:
 	/*
 	* Set timer interval based on previous results.
 	* The interval must be the shortest necessary to satisfy ANI,
@@ -401,7 +399,7 @@ static void ath_ani_calibrate(unsigned long data)
 	if (sc->sc_ah->config.enable_ani)
 		cal_interval = min(cal_interval, (u32)ATH_ANI_POLLINTERVAL);
 	if (!sc->ani.caldone)
-		cal_interval = min(cal_interval, (u32)ATH_SHORT_CALINTERVAL);
+		cal_interval = min(cal_interval, (u32)short_cal_interval);
 
 	mod_timer(&sc->ani.timer, jiffies + msecs_to_jiffies(cal_interval));
 }
@@ -573,6 +571,10 @@ irqreturn_t ath_isr(int irq, void *dev)
 					sched = true;
 					sc->sc_flags |= SC_OP_WAIT_FOR_BEACON;
 				}
+			}
+			if (status & ATH9K_INT_TSFOOR) {
+				/* FIXME: Handle this interrupt for power save */
+				sched = true;
 			}
 		}
 	} while (0);
@@ -920,8 +922,7 @@ static void ath9k_bss_assoc_info(struct ath_softc *sc,
 
 		/* Start ANI */
 		mod_timer(&sc->ani.timer,
-			jiffies + msecs_to_jiffies(ATH_ANI_POLLINTERVAL));
-
+			  jiffies + msecs_to_jiffies(ATH_ANI_POLLINTERVAL));
 	} else {
 		DPRINTF(sc, ATH_DBG_CONFIG, "Bss Info DISSOC\n");
 		sc->curaid = 0;
@@ -1566,6 +1567,7 @@ bad:
 int ath_attach(u16 devid, struct ath_softc *sc)
 {
 	struct ieee80211_hw *hw = sc->hw;
+	const struct ieee80211_regdomain *regd;
 	int error = 0, i;
 
 	DPRINTF(sc, ATH_DBG_CONFIG, "Attach ATH hw\n");
@@ -1598,6 +1600,7 @@ int ath_attach(u16 devid, struct ath_softc *sc)
 
 	hw->queues = 4;
 	hw->max_rates = 4;
+	hw->channel_change_time = 5000;
 	hw->max_rate_tries = ATH_11N_TXMAXTRY;
 	hw->sta_data_size = sizeof(struct ath_node);
 	hw->vif_data_size = sizeof(struct ath_vif);
@@ -1636,30 +1639,29 @@ int ath_attach(u16 devid, struct ath_softc *sc)
 #endif
 
 	if (ath9k_is_world_regd(sc->sc_ah)) {
-		/* Anything applied here (prior to wiphy registratoin) gets
+		/* Anything applied here (prior to wiphy registration) gets
 		 * saved on the wiphy orig_* parameters */
-		const struct ieee80211_regdomain *regd =
-			ath9k_world_regdomain(sc->sc_ah);
+		regd = ath9k_world_regdomain(sc->sc_ah);
 		hw->wiphy->custom_regulatory = true;
 		hw->wiphy->strict_regulatory = false;
-		wiphy_apply_custom_regulatory(sc->hw->wiphy, regd);
-		ath9k_reg_apply_radar_flags(hw->wiphy);
-		ath9k_reg_apply_world_flags(hw->wiphy, REGDOM_SET_BY_INIT);
 	} else {
 		/* This gets applied in the case of the absense of CRDA,
-		 * its our own custom world regulatory domain, similar to
+		 * it's our own custom world regulatory domain, similar to
 		 * cfg80211's but we enable passive scanning */
-		const struct ieee80211_regdomain *regd =
-			ath9k_default_world_regdomain();
-		wiphy_apply_custom_regulatory(sc->hw->wiphy, regd);
-		ath9k_reg_apply_radar_flags(hw->wiphy);
-		ath9k_reg_apply_world_flags(hw->wiphy, REGDOM_SET_BY_INIT);
+		regd = ath9k_default_world_regdomain();
 	}
+	wiphy_apply_custom_regulatory(hw->wiphy, regd);
+	ath9k_reg_apply_radar_flags(hw->wiphy);
+	ath9k_reg_apply_world_flags(hw->wiphy, REGDOM_SET_BY_INIT);
 
 	error = ieee80211_register_hw(hw);
 
-	if (!ath9k_is_world_regd(sc->sc_ah))
-		regulatory_hint(hw->wiphy, sc->sc_ah->regulatory.alpha2);
+	if (!ath9k_is_world_regd(sc->sc_ah)) {
+		error = regulatory_hint(hw->wiphy,
+			sc->sc_ah->regulatory.alpha2);
+		if (error)
+			goto error_attach;
+	}
 
 	/* Initialize LED control */
 	ath_init_leds(sc);
@@ -2143,6 +2145,7 @@ static int ath9k_add_interface(struct ieee80211_hw *hw,
 	default:
 		DPRINTF(sc, ATH_DBG_FATAL,
 			"Interface type %d not yet supported\n", conf->type);
+		mutex_unlock(&sc->mutex);
 		return -EOPNOTSUPP;
 	}
 
@@ -2165,10 +2168,13 @@ static int ath9k_add_interface(struct ieee80211_hw *hw,
 	 * Enable MIB interrupts when there are hardware phy counters.
 	 * Note we only do this (at the moment) for station mode.
 	 */
-	if (ath9k_hw_phycounters(sc->sc_ah) &&
-	    ((conf->type == NL80211_IFTYPE_STATION) ||
-	     (conf->type == NL80211_IFTYPE_ADHOC)))
-		sc->imask |= ATH9K_INT_MIB;
+	if ((conf->type == NL80211_IFTYPE_STATION) ||
+	    (conf->type == NL80211_IFTYPE_ADHOC)) {
+		if (ath9k_hw_phycounters(sc->sc_ah))
+			sc->imask |= ATH9K_INT_MIB;
+		sc->imask |= ATH9K_INT_TSFOOR;
+	}
+
 	/*
 	 * Some hardware processes the TIM IE and fires an
 	 * interrupt when the TIM bit is set.  For hardware

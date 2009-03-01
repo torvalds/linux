@@ -52,8 +52,8 @@ static void ath_pci_cleanup(struct ath_softc *sc)
 	struct pci_dev *pdev = to_pci_dev(sc->dev);
 
 	pci_iounmap(pdev, sc->mem);
-	pci_release_region(pdev, 0);
 	pci_disable_device(pdev);
+	pci_release_region(pdev, 0);
 }
 
 static bool ath_pci_eeprom_read(struct ath_hw *ah, u32 off, u16 *data)
@@ -63,7 +63,8 @@ static bool ath_pci_eeprom_read(struct ath_hw *ah, u32 off, u16 *data)
 	if (!ath9k_hw_wait(ah,
 			   AR_EEPROM_STATUS_DATA,
 			   AR_EEPROM_STATUS_DATA_BUSY |
-			   AR_EEPROM_STATUS_DATA_PROT_ACCESS, 0)) {
+			   AR_EEPROM_STATUS_DATA_PROT_ACCESS, 0,
+			   AH_WAIT_TIMEOUT)) {
 		return false;
 	}
 
@@ -292,7 +293,7 @@ static struct pci_driver ath_pci_driver = {
 #endif /* CONFIG_PM */
 };
 
-int __init ath_pci_init(void)
+int ath_pci_init(void)
 {
 	return pci_register_driver(&ath_pci_driver);
 }

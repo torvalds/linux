@@ -63,20 +63,15 @@ ieee80211_bss_info_update(struct ieee80211_local *local,
 {
 	struct ieee80211_bss *bss;
 	int clen;
-	enum cfg80211_signal_type sigtype = CFG80211_SIGNAL_TYPE_NONE;
 	s32 signal = 0;
 
-	if (local->hw.flags & IEEE80211_HW_SIGNAL_DBM) {
-		sigtype = CFG80211_SIGNAL_TYPE_MBM;
+	if (local->hw.flags & IEEE80211_HW_SIGNAL_DBM)
 		signal = rx_status->signal * 100;
-	} else if (local->hw.flags & IEEE80211_HW_SIGNAL_UNSPEC) {
-		sigtype = CFG80211_SIGNAL_TYPE_UNSPEC;
+	else if (local->hw.flags & IEEE80211_HW_SIGNAL_UNSPEC)
 		signal = (rx_status->signal * 100) / local->hw.max_signal;
-	}
 
 	bss = (void *)cfg80211_inform_bss_frame(local->hw.wiphy, channel,
-						mgmt, len, signal, sigtype,
-						GFP_ATOMIC);
+						mgmt, len, signal, GFP_ATOMIC);
 
 	if (!bss)
 		return NULL;
@@ -207,36 +202,6 @@ ieee80211_scan_rx(struct ieee80211_sub_if_data *sdata, struct sk_buff *skb,
 	return RX_QUEUED;
 }
 
-void ieee80211_send_nullfunc(struct ieee80211_local *local,
-				    struct ieee80211_sub_if_data *sdata,
-				    int powersave)
-{
-	struct sk_buff *skb;
-	struct ieee80211_hdr *nullfunc;
-	__le16 fc;
-
-	skb = dev_alloc_skb(local->hw.extra_tx_headroom + 24);
-	if (!skb) {
-		printk(KERN_DEBUG "%s: failed to allocate buffer for nullfunc "
-		       "frame\n", sdata->dev->name);
-		return;
-	}
-	skb_reserve(skb, local->hw.extra_tx_headroom);
-
-	nullfunc = (struct ieee80211_hdr *) skb_put(skb, 24);
-	memset(nullfunc, 0, 24);
-	fc = cpu_to_le16(IEEE80211_FTYPE_DATA | IEEE80211_STYPE_NULLFUNC |
-			 IEEE80211_FCTL_TODS);
-	if (powersave)
-		fc |= cpu_to_le16(IEEE80211_FCTL_PM);
-	nullfunc->frame_control = fc;
-	memcpy(nullfunc->addr1, sdata->u.sta.bssid, ETH_ALEN);
-	memcpy(nullfunc->addr2, sdata->dev->dev_addr, ETH_ALEN);
-	memcpy(nullfunc->addr3, sdata->u.sta.bssid, ETH_ALEN);
-
-	ieee80211_tx_skb(sdata, skb, 0);
-}
-
 void ieee80211_scan_completed(struct ieee80211_hw *hw, bool aborted)
 {
 	struct ieee80211_local *local = hw_to_local(hw);
@@ -280,6 +245,9 @@ void ieee80211_scan_completed(struct ieee80211_hw *hw, bool aborted)
 	netif_addr_unlock(local->mdev);
 	netif_tx_unlock_bh(local->mdev);
 
+	if (local->ops->sw_scan_complete)
+		local->ops->sw_scan_complete(local_to_hw(local));
+
 	mutex_lock(&local->iflist_mtx);
 	list_for_each_entry(sdata, &local->interfaces, list) {
 		if (!netif_running(sdata->dev))
@@ -287,7 +255,7 @@ void ieee80211_scan_completed(struct ieee80211_hw *hw, bool aborted)
 
 		/* Tell AP we're back */
 		if (sdata->vif.type == NL80211_IFTYPE_STATION) {
-			if (sdata->u.sta.flags & IEEE80211_STA_ASSOCIATED) {
+			if (sdata->u.mgd.flags & IEEE80211_STA_ASSOCIATED) {
 				ieee80211_send_nullfunc(local, sdata, 0);
 				netif_tx_wake_all_queues(sdata->dev);
 			}
@@ -305,6 +273,7 @@ void ieee80211_scan_completed(struct ieee80211_hw *hw, bool aborted)
 
  done:
 	ieee80211_mlme_notify_scan_completed(local);
+	ieee80211_ibss_notify_scan_completed(local);
 	ieee80211_mesh_notify_scan_completed(local);
 }
 EXPORT_SYMBOL(ieee80211_scan_completed);
@@ -367,7 +336,8 @@ void ieee80211_scan_work(struct work_struct *work)
 			ieee80211_send_probe_req(
 				sdata, NULL,
 				local->scan_req->ssids[i].ssid,
-				local->scan_req->ssids[i].ssid_len);
+				local->scan_req->ssids[i].ssid_len,
+				local->scan_req->ie, local->scan_req->ie_len);
 		next_delay = IEEE80211_CHANNEL_TIME;
 		break;
 	}
@@ -428,6 +398,8 @@ int ieee80211_start_scan(struct ieee80211_sub_if_data *scan_sdata,
 	}
 
 	local->sw_scanning = true;
+	if (local->ops->sw_scan_start)
+		local->ops->sw_scan_start(local_to_hw(local));
 
 	mutex_lock(&local->iflist_mtx);
 	list_for_each_entry(sdata, &local->interfaces, list) {
@@ -442,7 +414,7 @@ int ieee80211_start_scan(struct ieee80211_sub_if_data *scan_sdata,
 					    IEEE80211_IFCC_BEACON_ENABLED);
 
 		if (sdata->vif.type == NL80211_IFTYPE_STATION) {
-			if (sdata->u.sta.flags & IEEE80211_STA_ASSOCIATED) {
+			if (sdata->u.mgd.flags & IEEE80211_STA_ASSOCIATED) {
 				netif_tx_stop_all_queues(sdata->dev);
 				ieee80211_send_nullfunc(local, sdata, 1);
 			}
@@ -477,7 +449,7 @@ int ieee80211_request_scan(struct ieee80211_sub_if_data *sdata,
 			   struct cfg80211_scan_request *req)
 {
 	struct ieee80211_local *local = sdata->local;
-	struct ieee80211_if_sta *ifsta;
+	struct ieee80211_if_managed *ifmgd;
 
 	if (!req)
 		return -EINVAL;
@@ -502,9 +474,9 @@ int ieee80211_request_scan(struct ieee80211_sub_if_data *sdata,
 		return -EBUSY;
 	}
 
-	ifsta = &sdata->u.sta;
-	set_bit(IEEE80211_STA_REQ_SCAN, &ifsta->request);
-	queue_work(local->hw.workqueue, &ifsta->work);
+	ifmgd = &sdata->u.mgd;
+	set_bit(IEEE80211_STA_REQ_SCAN, &ifmgd->request);
+	queue_work(local->hw.workqueue, &ifmgd->work);
 
 	return 0;
 }

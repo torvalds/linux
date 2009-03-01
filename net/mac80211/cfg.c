@@ -341,11 +341,15 @@ static void sta_set_sinfo(struct sta_info *sta, struct station_info *sinfo)
 	sinfo->filled = STATION_INFO_INACTIVE_TIME |
 			STATION_INFO_RX_BYTES |
 			STATION_INFO_TX_BYTES |
+			STATION_INFO_RX_PACKETS |
+			STATION_INFO_TX_PACKETS |
 			STATION_INFO_TX_BITRATE;
 
 	sinfo->inactive_time = jiffies_to_msecs(jiffies - sta->last_rx);
 	sinfo->rx_bytes = sta->rx_bytes;
 	sinfo->tx_bytes = sta->tx_bytes;
+	sinfo->rx_packets = sta->rx_packets;
+	sinfo->tx_packets = sta->tx_packets;
 
 	if (sta->local->hw.flags & IEEE80211_HW_SIGNAL_DBM) {
 		sinfo->filled |= STATION_INFO_SIGNAL;
@@ -1180,45 +1184,45 @@ static int set_mgmt_extra_ie_sta(struct ieee80211_sub_if_data *sdata,
 				 u8 subtype, u8 *ies, size_t ies_len)
 {
 	struct ieee80211_local *local = sdata->local;
-	struct ieee80211_if_sta *ifsta = &sdata->u.sta;
+	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
 
 	switch (subtype) {
 	case IEEE80211_STYPE_PROBE_REQ >> 4:
 		if (local->ops->hw_scan)
 			break;
-		kfree(ifsta->ie_probereq);
-		ifsta->ie_probereq = ies;
-		ifsta->ie_probereq_len = ies_len;
+		kfree(ifmgd->ie_probereq);
+		ifmgd->ie_probereq = ies;
+		ifmgd->ie_probereq_len = ies_len;
 		return 0;
 	case IEEE80211_STYPE_PROBE_RESP >> 4:
-		kfree(ifsta->ie_proberesp);
-		ifsta->ie_proberesp = ies;
-		ifsta->ie_proberesp_len = ies_len;
+		kfree(ifmgd->ie_proberesp);
+		ifmgd->ie_proberesp = ies;
+		ifmgd->ie_proberesp_len = ies_len;
 		return 0;
 	case IEEE80211_STYPE_AUTH >> 4:
-		kfree(ifsta->ie_auth);
-		ifsta->ie_auth = ies;
-		ifsta->ie_auth_len = ies_len;
+		kfree(ifmgd->ie_auth);
+		ifmgd->ie_auth = ies;
+		ifmgd->ie_auth_len = ies_len;
 		return 0;
 	case IEEE80211_STYPE_ASSOC_REQ >> 4:
-		kfree(ifsta->ie_assocreq);
-		ifsta->ie_assocreq = ies;
-		ifsta->ie_assocreq_len = ies_len;
+		kfree(ifmgd->ie_assocreq);
+		ifmgd->ie_assocreq = ies;
+		ifmgd->ie_assocreq_len = ies_len;
 		return 0;
 	case IEEE80211_STYPE_REASSOC_REQ >> 4:
-		kfree(ifsta->ie_reassocreq);
-		ifsta->ie_reassocreq = ies;
-		ifsta->ie_reassocreq_len = ies_len;
+		kfree(ifmgd->ie_reassocreq);
+		ifmgd->ie_reassocreq = ies;
+		ifmgd->ie_reassocreq_len = ies_len;
 		return 0;
 	case IEEE80211_STYPE_DEAUTH >> 4:
-		kfree(ifsta->ie_deauth);
-		ifsta->ie_deauth = ies;
-		ifsta->ie_deauth_len = ies_len;
+		kfree(ifmgd->ie_deauth);
+		ifmgd->ie_deauth = ies;
+		ifmgd->ie_deauth_len = ies_len;
 		return 0;
 	case IEEE80211_STYPE_DISASSOC >> 4:
-		kfree(ifsta->ie_disassoc);
-		ifsta->ie_disassoc = ies;
-		ifsta->ie_disassoc_len = ies_len;
+		kfree(ifmgd->ie_disassoc);
+		ifmgd->ie_disassoc = ies;
+		ifmgd->ie_disassoc_len = ies_len;
 		return 0;
 	}
 
@@ -1248,7 +1252,6 @@ static int ieee80211_set_mgmt_extra_ie(struct wiphy *wiphy,
 
 	switch (sdata->vif.type) {
 	case NL80211_IFTYPE_STATION:
-	case NL80211_IFTYPE_ADHOC:
 		ret = set_mgmt_extra_ie_sta(sdata, params->subtype,
 					    ies, ies_len);
 		break;

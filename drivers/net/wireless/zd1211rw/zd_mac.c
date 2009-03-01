@@ -170,10 +170,10 @@ int zd_mac_init_hw(struct ieee80211_hw *hw)
 		goto disable_int;
 
 	r = zd_reg2alpha2(mac->regdomain, alpha2);
-	if (!r)
-		regulatory_hint(hw->wiphy, alpha2);
+	if (r)
+		goto disable_int;
 
-	r = 0;
+	r = regulatory_hint(hw->wiphy, alpha2);
 disable_int:
 	zd_chip_disable_int(chip);
 out:

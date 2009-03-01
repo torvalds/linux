@@ -178,6 +178,8 @@ struct station_parameters {
  * @STATION_INFO_SIGNAL: @signal filled
  * @STATION_INFO_TX_BITRATE: @tx_bitrate fields are filled
  *  (tx_bitrate, tx_bitrate_flags and tx_bitrate_mcs)
+ * @STATION_INFO_RX_PACKETS: @rx_packets filled
+ * @STATION_INFO_TX_PACKETS: @tx_packets filled
  */
 enum station_info_flags {
 	STATION_INFO_INACTIVE_TIME	= 1<<0,
@@ -188,6 +190,8 @@ enum station_info_flags {
 	STATION_INFO_PLINK_STATE	= 1<<5,
 	STATION_INFO_SIGNAL		= 1<<6,
 	STATION_INFO_TX_BITRATE		= 1<<7,
+	STATION_INFO_RX_PACKETS		= 1<<8,
+	STATION_INFO_TX_PACKETS		= 1<<9,
 };
 
 /**
@@ -235,6 +239,8 @@ struct rate_info {
  * @plink_state: mesh peer link state
  * @signal: signal strength of last received packet in dBm
  * @txrate: current unicast bitrate to this station
+ * @rx_packets: packets received from this station
+ * @tx_packets: packets transmitted to this station
  */
 struct station_info {
 	u32 filled;
@@ -246,6 +252,8 @@ struct station_info {
 	u8 plink_state;
 	s8 signal;
 	struct rate_info txrate;
+	u32 rx_packets;
+	u32 tx_packets;
 };
 
 /**
@@ -375,9 +383,9 @@ enum environment_cap {
 };
 
 /**
- * struct regulatory_request - receipt of last regulatory request
+ * struct regulatory_request - used to keep track of regulatory requests
  *
- * @wiphy: this is set if this request's initiator is
+ * @wiphy_idx: this is set if this request's initiator is
  * 	%REGDOM_SET_BY_COUNTRY_IE or %REGDOM_SET_BY_DRIVER. This
  * 	can be used by the wireless core to deal with conflicts
  * 	and potentially inform users of which devices specifically
@@ -396,14 +404,16 @@ enum environment_cap {
  * 	country IE
  * @country_ie_env: lets us know if the AP is telling us we are outdoor,
  * 	indoor, or if it doesn't matter
+ * @list: used to insert into the reg_requests_list linked list
  */
 struct regulatory_request {
-	struct wiphy *wiphy;
+	int wiphy_idx;
 	enum reg_set_by initiator;
 	char alpha2[2];
 	bool intersect;
 	u32 country_ie_checksum;
 	enum environment_cap country_ie_env;
+	struct list_head list;
 };
 
 struct ieee80211_freq_range {
@@ -525,6 +535,8 @@ struct cfg80211_ssid {
  * @n_ssids: number of SSIDs
  * @channels: channels to scan on.
  * @n_channels: number of channels for each band
+ * @ie: optional information element(s) to add into Probe Request or %NULL
+ * @ie_len: length of ie in octets
  * @wiphy: the wiphy this was for
  * @ifidx: the interface index
  */
@@ -533,6 +545,8 @@ struct cfg80211_scan_request {
 	int n_ssids;
 	struct ieee80211_channel **channels;
 	u32 n_channels;
+	u8 *ie;
+	size_t ie_len;
 
 	/* internal */
 	struct wiphy *wiphy;
@@ -565,8 +579,7 @@ enum cfg80211_signal_type {
  * @information_elements: the information elements (Note that there
  *	is no guarantee that these are well-formed!)
  * @len_information_elements: total length of the information elements
- * @signal: signal strength value
- * @signal_type: signal type
+ * @signal: signal strength value (type depends on the wiphy's signal_type)
  * @free_priv: function pointer to free private data
  * @priv: private area for driver use, has at least wiphy->bss_priv_size bytes
  */
@@ -581,7 +594,6 @@ struct cfg80211_bss {
 	size_t len_information_elements;
 
 	s32 signal;
-	enum cfg80211_signal_type signal_type;
 
 	void (*free_priv)(struct cfg80211_bss *bss);
 	u8 priv[0] __attribute__((__aligned__(sizeof(void *))));
@@ -755,6 +767,9 @@ int cfg80211_wext_siwscan(struct net_device *dev,
 int cfg80211_wext_giwscan(struct net_device *dev,
 			  struct iw_request_info *info,
 			  struct iw_point *data, char *extra);
+int cfg80211_wext_giwrange(struct net_device *dev,
+			   struct iw_request_info *info,
+			   struct iw_point *data, char *extra);
 
 /**
  * cfg80211_scan_done - notify that scan finished
@@ -770,6 +785,7 @@ void cfg80211_scan_done(struct cfg80211_scan_request *request, bool aborted);
  *
  * @wiphy: the wiphy reporting the BSS
  * @bss: the found BSS
+ * @signal: the signal strength, type depends on the wiphy's signal_type
  * @gfp: context flags
  *
  * This informs cfg80211 that BSS information was found and
@@ -779,8 +795,7 @@ struct cfg80211_bss*
 cfg80211_inform_bss_frame(struct wiphy *wiphy,
 			  struct ieee80211_channel *channel,
 			  struct ieee80211_mgmt *mgmt, size_t len,
-			  s32 signal, enum cfg80211_signal_type sigtype,
-			  gfp_t gfp);
+			  s32 signal, gfp_t gfp);
 
 struct cfg80211_bss *cfg80211_get_bss(struct wiphy *wiphy,
 				      struct ieee80211_channel *channel,

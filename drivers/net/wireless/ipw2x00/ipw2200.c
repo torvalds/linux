@@ -301,88 +301,102 @@ static inline void ipw_write_reg32(struct ipw_priv *a, u32 b, u32 c)
 }
 
 /* 8-bit direct write (low 4K) */
-#define _ipw_write8(ipw, ofs, val) writeb((val), (ipw)->hw_base + (ofs))
+static inline void _ipw_write8(struct ipw_priv *ipw, unsigned long ofs,
+		u8 val)
+{
+	writeb(val, ipw->hw_base + ofs);
+}
 
 /* 8-bit direct write (for low 4K of SRAM/regs), with debug wrapper */
 #define ipw_write8(ipw, ofs, val) do { \
- IPW_DEBUG_IO("%s %d: write_direct8(0x%08X, 0x%08X)\n", __FILE__, __LINE__, (u32)(ofs), (u32)(val)); \
- _ipw_write8(ipw, ofs, val); \
- } while (0)
+	IPW_DEBUG_IO("%s %d: write_direct8(0x%08X, 0x%08X)\n", __FILE__, \
+			__LINE__, (u32)(ofs), (u32)(val)); \
+	_ipw_write8(ipw, ofs, val); \
+} while (0)
 
 /* 16-bit direct write (low 4K) */
-#define _ipw_write16(ipw, ofs, val) writew((val), (ipw)->hw_base + (ofs))
+static inline void _ipw_write16(struct ipw_priv *ipw, unsigned long ofs,
+		u16 val)
+{
+	writew(val, ipw->hw_base + ofs);
+}
 
 /* 16-bit direct write (for low 4K of SRAM/regs), with debug wrapper */
-#define ipw_write16(ipw, ofs, val) \
- IPW_DEBUG_IO("%s %d: write_direct16(0x%08X, 0x%08X)\n", __FILE__, __LINE__, (u32)(ofs), (u32)(val)); \
- _ipw_write16(ipw, ofs, val)
+#define ipw_write16(ipw, ofs, val) do { \
+	IPW_DEBUG_IO("%s %d: write_direct16(0x%08X, 0x%08X)\n", __FILE__, \
+			__LINE__, (u32)(ofs), (u32)(val)); \
+	_ipw_write16(ipw, ofs, val); \
+} while (0)
 
 /* 32-bit direct write (low 4K) */
-#define _ipw_write32(ipw, ofs, val) writel((val), (ipw)->hw_base + (ofs))
+static inline void _ipw_write32(struct ipw_priv *ipw, unsigned long ofs,
+		u32 val)
+{
+	writel(val, ipw->hw_base + ofs);
+}
 
 /* 32-bit direct write (for low 4K of SRAM/regs), with debug wrapper */
-#define ipw_write32(ipw, ofs, val) \
- IPW_DEBUG_IO("%s %d: write_direct32(0x%08X, 0x%08X)\n", __FILE__, __LINE__, (u32)(ofs), (u32)(val)); \
- _ipw_write32(ipw, ofs, val)
+#define ipw_write32(ipw, ofs, val) do { \
+	IPW_DEBUG_IO("%s %d: write_direct32(0x%08X, 0x%08X)\n", __FILE__, \
+			__LINE__, (u32)(ofs), (u32)(val)); \
+	_ipw_write32(ipw, ofs, val); \
+} while (0)
 
 /* 8-bit direct read (low 4K) */
-#define _ipw_read8(ipw, ofs) readb((ipw)->hw_base + (ofs))
-
-/* 8-bit direct read (low 4K), with debug wrapper */
-static inline u8 __ipw_read8(char *f, u32 l, struct ipw_priv *ipw, u32 ofs)
+static inline u8 _ipw_read8(struct ipw_priv *ipw, unsigned long ofs)
 {
-	IPW_DEBUG_IO("%s %d: read_direct8(0x%08X)\n", f, l, (u32) (ofs));
-	return _ipw_read8(ipw, ofs);
+	return readb(ipw->hw_base + ofs);
 }
 
 /* alias to 8-bit direct read (low 4K of SRAM/regs), with debug wrapper */
-#define ipw_read8(ipw, ofs) __ipw_read8(__FILE__, __LINE__, ipw, ofs)
+#define ipw_read8(ipw, ofs) ({ \
+	IPW_DEBUG_IO("%s %d: read_direct8(0x%08X)\n", __FILE__, __LINE__, \
+			(u32)(ofs)); \
+	_ipw_read8(ipw, ofs); \
+})
 
 /* 16-bit direct read (low 4K) */
-#define _ipw_read16(ipw, ofs) readw((ipw)->hw_base + (ofs))
-
-/* 16-bit direct read (low 4K), with debug wrapper */
-static inline u16 __ipw_read16(char *f, u32 l, struct ipw_priv *ipw, u32 ofs)
+static inline u16 _ipw_read16(struct ipw_priv *ipw, unsigned long ofs)
 {
-	IPW_DEBUG_IO("%s %d: read_direct16(0x%08X)\n", f, l, (u32) (ofs));
-	return _ipw_read16(ipw, ofs);
+	return readw(ipw->hw_base + ofs);
 }
 
 /* alias to 16-bit direct read (low 4K of SRAM/regs), with debug wrapper */
-#define ipw_read16(ipw, ofs) __ipw_read16(__FILE__, __LINE__, ipw, ofs)
+#define ipw_read16(ipw, ofs) ({ \
+	IPW_DEBUG_IO("%s %d: read_direct16(0x%08X)\n", __FILE__, __LINE__, \
+			(u32)(ofs)); \
+	_ipw_read16(ipw, ofs); \
+})
 
 /* 32-bit direct read (low 4K) */
-#define _ipw_read32(ipw, ofs) readl((ipw)->hw_base + (ofs))
-
-/* 32-bit direct read (low 4K), with debug wrapper */
-static inline u32 __ipw_read32(char *f, u32 l, struct ipw_priv *ipw, u32 ofs)
+static inline u32 _ipw_read32(struct ipw_priv *ipw, unsigned long ofs)
 {
-	IPW_DEBUG_IO("%s %d: read_direct32(0x%08X)\n", f, l, (u32) (ofs));
-	return _ipw_read32(ipw, ofs);
+	return readl(ipw->hw_base + ofs);
 }
 
 /* alias to 32-bit direct read (low 4K of SRAM/regs), with debug wrapper */
-#define ipw_read32(ipw, ofs) __ipw_read32(__FILE__, __LINE__, ipw, ofs)
+#define ipw_read32(ipw, ofs) ({ \
+	IPW_DEBUG_IO("%s %d: read_direct32(0x%08X)\n", __FILE__, __LINE__, \
+			(u32)(ofs)); \
+	_ipw_read32(ipw, ofs); \
+})
 
-/* multi-byte read (above 4K), with debug wrapper */
 static void _ipw_read_indirect(struct ipw_priv *, u32, u8 *, int);
-static inline void __ipw_read_indirect(const char *f, int l,
-				       struct ipw_priv *a, u32 b, u8 * c, int d)
-{
-	IPW_DEBUG_IO("%s %d: read_indirect(0x%08X) %d bytes\n", f, l, (u32) (b),
-		     d);
-	_ipw_read_indirect(a, b, c, d);
-}
-
 /* alias to multi-byte read (SRAM/regs above 4K), with debug wrapper */
-#define ipw_read_indirect(a, b, c, d) __ipw_read_indirect(__FILE__, __LINE__, a, b, c, d)
+#define ipw_read_indirect(a, b, c, d) ({ \
+	IPW_DEBUG_IO("%s %d: read_indirect(0x%08X) %u bytes\n", __FILE__, \
+			__LINE__, (u32)(b), (u32)(d)); \
+	_ipw_read_indirect(a, b, c, d); \
+})
 
 /* alias to multi-byte read (SRAM/regs above 4K), with debug wrapper */
 static void _ipw_write_indirect(struct ipw_priv *priv, u32 addr, u8 * data,
 				int num);
-#define ipw_write_indirect(a, b, c, d) \
-	IPW_DEBUG_IO("%s %d: write_indirect(0x%08X) %d bytes\n", __FILE__, __LINE__, (u32)(b), d); \
-	_ipw_write_indirect(a, b, c, d)
+#define ipw_write_indirect(a, b, c, d) do { \
+	IPW_DEBUG_IO("%s %d: write_indirect(0x%08X) %u bytes\n", __FILE__, \
+			__LINE__, (u32)(b), (u32)(d)); \
+	_ipw_write_indirect(a, b, c, d); \
+} while (0)
 
 /* 32-bit indirect write (above 4K) */
 static void _ipw_write_reg32(struct ipw_priv *priv, u32 reg, u32 value)
@@ -11224,6 +11238,12 @@ static int ipw_up(struct ipw_priv *priv)
 {
 	int rc, i, j;
 
+	/* Age scan list entries found before suspend */
+	if (priv->suspend_time) {
+		ieee80211_networks_age(priv->ieee, priv->suspend_time);
+		priv->suspend_time = 0;
+	}
+
 	if (priv->status & STATUS_EXIT_PENDING)
 		return -EIO;
 
@@ -11824,6 +11844,8 @@ static int ipw_pci_suspend(struct pci_dev *pdev, pm_message_t state)
 	pci_disable_device(pdev);
 	pci_set_power_state(pdev, pci_choose_state(pdev, state));
 
+	priv->suspend_at = get_seconds();
+
 	return 0;
 }
 
@@ -11858,6 +11880,8 @@ static int ipw_pci_resume(struct pci_dev *pdev)
 	/* Set the device back into the PRESENT state; this will also wake
 	 * the queue of needed */
 	netif_device_attach(dev);
+
+	priv->suspend_time = get_seconds() - priv->suspend_at;
 
 	/* Bring the device back up */
 	queue_work(priv->workqueue, &priv->up);

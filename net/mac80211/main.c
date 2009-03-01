@@ -169,9 +169,10 @@ int ieee80211_if_config(struct ieee80211_sub_if_data *sdata, u32 changed)
 
 	memset(&conf, 0, sizeof(conf));
 
-	if (sdata->vif.type == NL80211_IFTYPE_STATION ||
-	    sdata->vif.type == NL80211_IFTYPE_ADHOC)
-		conf.bssid = sdata->u.sta.bssid;
+	if (sdata->vif.type == NL80211_IFTYPE_STATION)
+		conf.bssid = sdata->u.mgd.bssid;
+	else if (sdata->vif.type == NL80211_IFTYPE_ADHOC)
+		conf.bssid = sdata->u.ibss.bssid;
 	else if (sdata->vif.type == NL80211_IFTYPE_AP)
 		conf.bssid = sdata->dev->dev_addr;
 	else if (ieee80211_vif_is_mesh(&sdata->vif)) {
@@ -210,7 +211,7 @@ int ieee80211_if_config(struct ieee80211_sub_if_data *sdata, u32 changed)
 					!!rcu_dereference(sdata->u.ap.beacon);
 				break;
 			case NL80211_IFTYPE_ADHOC:
-				conf.enable_beacon = !!sdata->u.sta.probe_resp;
+				conf.enable_beacon = !!sdata->u.ibss.probe_resp;
 				break;
 			case NL80211_IFTYPE_MESH_POINT:
 				conf.enable_beacon = true;
@@ -705,7 +706,7 @@ struct ieee80211_hw *ieee80211_alloc_hw(size_t priv_data_len,
 					const struct ieee80211_ops *ops)
 {
 	struct ieee80211_local *local;
-	int priv_size;
+	int priv_size, i;
 	struct wiphy *wiphy;
 
 	/* Ensure 32-byte alignment of our private data and hw private data.
@@ -778,6 +779,11 @@ struct ieee80211_hw *ieee80211_alloc_hw(size_t priv_data_len,
 		  ieee80211_dynamic_ps_disable_work);
 	setup_timer(&local->dynamic_ps_timer,
 		    ieee80211_dynamic_ps_timer, (unsigned long) local);
+
+	for (i = 0; i < IEEE80211_MAX_AMPDU_QUEUES; i++)
+		local->ampdu_ac_queue[i] = -1;
+	/* using an s8 won't work with more than that */
+	BUILD_BUG_ON(IEEE80211_MAX_AMPDU_QUEUES > 127);
 
 	sta_info_init(local);
 
@@ -855,6 +861,11 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 	/* mac80211 always supports monitor */
 	local->hw.wiphy->interface_modes |= BIT(NL80211_IFTYPE_MONITOR);
 
+	if (local->hw.flags & IEEE80211_HW_SIGNAL_DBM)
+		local->hw.wiphy->signal_type = CFG80211_SIGNAL_TYPE_MBM;
+	else if (local->hw.flags & IEEE80211_HW_SIGNAL_UNSPEC)
+		local->hw.wiphy->signal_type = CFG80211_SIGNAL_TYPE_UNSPEC;
+
 	result = wiphy_register(local->hw.wiphy);
 	if (result < 0)
 		goto fail_wiphy_register;
@@ -872,7 +883,7 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 
 	mdev = alloc_netdev_mq(sizeof(struct ieee80211_master_priv),
 			       "wmaster%d", ieee80211_master_setup,
-			       ieee80211_num_queues(hw));
+			       hw->queues);
 	if (!mdev)
 		goto fail_mdev_alloc;
 
@@ -916,6 +927,7 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 
 	memcpy(local->mdev->dev_addr, local->hw.wiphy->perm_addr, ETH_ALEN);
 	SET_NETDEV_DEV(local->mdev, wiphy_dev(local->hw.wiphy));
+	local->mdev->features |= NETIF_F_NETNS_LOCAL;
 
 	result = register_netdevice(local->mdev);
 	if (result < 0)

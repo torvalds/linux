@@ -726,38 +726,6 @@ static void iwl3945_setup_rxon_timing(struct iwl_priv *priv)
 		le16_to_cpu(priv->rxon_timing.atim_window));
 }
 
-static int iwl3945_scan_initiate(struct iwl_priv *priv)
-{
-	if (!iwl_is_ready_rf(priv)) {
-		IWL_DEBUG_SCAN(priv, "Aborting scan due to not ready.\n");
-		return -EIO;
-	}
-
-	if (test_bit(STATUS_SCANNING, &priv->status)) {
-		IWL_DEBUG_SCAN(priv, "Scan already in progress.\n");
-		return -EAGAIN;
-	}
-
-	if (test_bit(STATUS_SCAN_ABORTING, &priv->status)) {
-		IWL_DEBUG_SCAN(priv, "Scan request while abort pending.  "
-			       "Queuing.\n");
-		return -EAGAIN;
-	}
-
-	IWL_DEBUG_INFO(priv, "Starting scan...\n");
-	if (priv->cfg->sku & IWL_SKU_G)
-		priv->scan_bands |= BIT(IEEE80211_BAND_2GHZ);
-	if (priv->cfg->sku & IWL_SKU_A)
-		priv->scan_bands |= BIT(IEEE80211_BAND_5GHZ);
-	set_bit(STATUS_SCANNING, &priv->status);
-	priv->scan_start = jiffies;
-	priv->scan_pass_start = priv->scan_start;
-
-	queue_work(priv->workqueue, &priv->request_scan);
-
-	return 0;
-}
-
 static int iwl3945_set_mode(struct iwl_priv *priv, int mode)
 {
 	if (mode == NL80211_IFTYPE_ADHOC) {
@@ -1188,56 +1156,6 @@ drop:
 	return -1;
 }
 
-static void iwl3945_radio_kill_sw(struct iwl_priv *priv, int disable_radio)
-{
-	unsigned long flags;
-
-	if (!!disable_radio == test_bit(STATUS_RF_KILL_SW, &priv->status))
-		return;
-
-	IWL_DEBUG_RF_KILL(priv, "Manual SW RF KILL set to: RADIO %s\n",
-			  disable_radio ? "OFF" : "ON");
-
-	if (disable_radio) {
-		iwl_scan_cancel(priv);
-		/* FIXME: This is a workaround for AP */
-		if (priv->iw_mode != NL80211_IFTYPE_AP) {
-			spin_lock_irqsave(&priv->lock, flags);
-			iwl_write32(priv, CSR_UCODE_DRV_GP1_SET,
-				    CSR_UCODE_SW_BIT_RFKILL);
-			spin_unlock_irqrestore(&priv->lock, flags);
-			iwl_send_card_state(priv, CARD_STATE_CMD_DISABLE, 0);
-			set_bit(STATUS_RF_KILL_SW, &priv->status);
-		}
-		return;
-	}
-
-	spin_lock_irqsave(&priv->lock, flags);
-	iwl_write32(priv, CSR_UCODE_DRV_GP1_CLR, CSR_UCODE_SW_BIT_RFKILL);
-
-	clear_bit(STATUS_RF_KILL_SW, &priv->status);
-	spin_unlock_irqrestore(&priv->lock, flags);
-
-	/* wake up ucode */
-	msleep(10);
-
-	spin_lock_irqsave(&priv->lock, flags);
-	iwl_read32(priv, CSR_UCODE_DRV_GP1);
-	if (!iwl_grab_nic_access(priv))
-		iwl_release_nic_access(priv);
-	spin_unlock_irqrestore(&priv->lock, flags);
-
-	if (test_bit(STATUS_RF_KILL_HW, &priv->status)) {
-		IWL_DEBUG_RF_KILL(priv, "Can not turn radio back on - "
-				  "disabled by HW switch\n");
-		return;
-	}
-
-	if (priv->is_open)
-		queue_work(priv->workqueue, &priv->restart);
-	return;
-}
-
 #ifdef CONFIG_IWL3945_SPECTRUM_MEASUREMENT
 
 #include "iwl-spectrum.h"
@@ -1417,60 +1335,6 @@ static void iwl3945_rx_reply_add_sta(struct iwl_priv *priv,
 	return;
 }
 
-static void iwl3945_rx_reply_error(struct iwl_priv *priv,
-			       struct iwl_rx_mem_buffer *rxb)
-{
-	struct iwl_rx_packet *pkt = (void *)rxb->skb->data;
-
-	IWL_ERR(priv, "Error Reply type 0x%08X cmd %s (0x%02X) "
-		"seq 0x%04X ser 0x%08X\n",
-		le32_to_cpu(pkt->u.err_resp.error_type),
-		get_cmd_string(pkt->u.err_resp.cmd_id),
-		pkt->u.err_resp.cmd_id,
-		le16_to_cpu(pkt->u.err_resp.bad_cmd_seq_num),
-		le32_to_cpu(pkt->u.err_resp.error_info));
-}
-
-static void iwl3945_rx_spectrum_measure_notif(struct iwl_priv *priv,
-					  struct iwl_rx_mem_buffer *rxb)
-{
-#ifdef CONFIG_IWL3945_SPECTRUM_MEASUREMENT
-	struct iwl_rx_packet *pkt = (void *)rxb->skb->data;
-	struct iwl_spectrum_notification *report = &(pkt->u.spectrum_notif);
-
-	if (!report->state) {
-		IWL_DEBUG(priv, IWL_DL_11H | IWL_DL_INFO,
-			  "Spectrum Measure Notification: Start\n");
-		return;
-	}
-
-	memcpy(&priv->measure_report, report, sizeof(*report));
-	priv->measurement_status |= MEASUREMENT_READY;
-#endif
-}
-
-static void iwl3945_rx_pm_sleep_notif(struct iwl_priv *priv,
-				  struct iwl_rx_mem_buffer *rxb)
-{
-#ifdef CONFIG_IWLWIFI_DEBUG
-	struct iwl_rx_packet *pkt = (void *)rxb->skb->data;
-	struct iwl_sleep_notification *sleep = &(pkt->u.sleep_notif);
-	IWL_DEBUG_RX(priv, "sleep mode: %d, src: %d\n",
-		     sleep->pm_sleep_mode, sleep->pm_wakeup_src);
-#endif
-}
-
-static void iwl3945_rx_pm_debug_statistics_notif(struct iwl_priv *priv,
-					     struct iwl_rx_mem_buffer *rxb)
-{
-	struct iwl_rx_packet *pkt = (void *)rxb->skb->data;
-	IWL_DEBUG_RADIO(priv, "Dumping %d bytes of unhandled "
-			"notification for %s:\n",
-			le32_to_cpu(pkt->len), get_cmd_string(pkt->hdr.cmd));
-	iwl_print_hex_dump(priv, IWL_DL_RADIO, pkt->u.raw,
-			   le32_to_cpu(pkt->len));
-}
-
 static void iwl3945_bg_beacon_update(struct work_struct *work)
 {
 	struct iwl_priv *priv =
@@ -1516,127 +1380,6 @@ static void iwl3945_rx_beacon_notif(struct iwl_priv *priv,
 	if ((priv->iw_mode == NL80211_IFTYPE_AP) &&
 	    (!test_bit(STATUS_EXIT_PENDING, &priv->status)))
 		queue_work(priv->workqueue, &priv->beacon_update);
-}
-
-/* Service response to REPLY_SCAN_CMD (0x80) */
-static void iwl3945_rx_reply_scan(struct iwl_priv *priv,
-			      struct iwl_rx_mem_buffer *rxb)
-{
-#ifdef CONFIG_IWLWIFI_DEBUG
-	struct iwl_rx_packet *pkt = (void *)rxb->skb->data;
-	struct iwl_scanreq_notification *notif =
-	    (struct iwl_scanreq_notification *)pkt->u.raw;
-
-	IWL_DEBUG_RX(priv, "Scan request status = 0x%x\n", notif->status);
-#endif
-}
-
-/* Service SCAN_START_NOTIFICATION (0x82) */
-static void iwl3945_rx_scan_start_notif(struct iwl_priv *priv,
-				    struct iwl_rx_mem_buffer *rxb)
-{
-	struct iwl_rx_packet *pkt = (void *)rxb->skb->data;
-	struct iwl_scanstart_notification *notif =
-	    (struct iwl_scanstart_notification *)pkt->u.raw;
-	priv->scan_start_tsf = le32_to_cpu(notif->tsf_low);
-	IWL_DEBUG_SCAN(priv, "Scan start: "
-		       "%d [802.11%s] "
-		       "(TSF: 0x%08X:%08X) - %d (beacon timer %u)\n",
-		       notif->channel,
-		       notif->band ? "bg" : "a",
-		       notif->tsf_high,
-		       notif->tsf_low, notif->status, notif->beacon_timer);
-}
-
-/* Service SCAN_RESULTS_NOTIFICATION (0x83) */
-static void iwl3945_rx_scan_results_notif(struct iwl_priv *priv,
-				      struct iwl_rx_mem_buffer *rxb)
-{
-#ifdef CONFIG_IWLWIFI_DEBUG
-	struct iwl_rx_packet *pkt = (void *)rxb->skb->data;
-	struct iwl_scanresults_notification *notif =
-	    (struct iwl_scanresults_notification *)pkt->u.raw;
-#endif
-
-	IWL_DEBUG_SCAN(priv, "Scan ch.res: "
-		       "%d [802.11%s] "
-		       "(TSF: 0x%08X:%08X) - %d "
-		       "elapsed=%lu usec (%dms since last)\n",
-		       notif->channel,
-		       notif->band ? "bg" : "a",
-		       le32_to_cpu(notif->tsf_high),
-		       le32_to_cpu(notif->tsf_low),
-		       le32_to_cpu(notif->statistics[0]),
-		       le32_to_cpu(notif->tsf_low) - priv->scan_start_tsf,
-		       jiffies_to_msecs(elapsed_jiffies
-					(priv->last_scan_jiffies, jiffies)));
-
-	priv->last_scan_jiffies = jiffies;
-	priv->next_scan_jiffies = 0;
-}
-
-/* Service SCAN_COMPLETE_NOTIFICATION (0x84) */
-static void iwl3945_rx_scan_complete_notif(struct iwl_priv *priv,
-				       struct iwl_rx_mem_buffer *rxb)
-{
-#ifdef CONFIG_IWLWIFI_DEBUG
-	struct iwl_rx_packet *pkt = (void *)rxb->skb->data;
-	struct iwl_scancomplete_notification *scan_notif = (void *)pkt->u.raw;
-#endif
-
-	IWL_DEBUG_SCAN(priv, "Scan complete: %d channels (TSF 0x%08X:%08X) - %d\n",
-		       scan_notif->scanned_channels,
-		       scan_notif->tsf_low,
-		       scan_notif->tsf_high, scan_notif->status);
-
-	/* The HW is no longer scanning */
-	clear_bit(STATUS_SCAN_HW, &priv->status);
-
-	/* The scan completion notification came in, so kill that timer... */
-	cancel_delayed_work(&priv->scan_check);
-
-	IWL_DEBUG_INFO(priv, "Scan pass on %sGHz took %dms\n",
-		       (priv->scan_bands & BIT(IEEE80211_BAND_2GHZ)) ?
-							"2.4" : "5.2",
-		       jiffies_to_msecs(elapsed_jiffies
-					(priv->scan_pass_start, jiffies)));
-
-	/* Remove this scanned band from the list of pending
-	 * bands to scan, band G precedes A in order of scanning
-	 * as seen in iwl3945_bg_request_scan */
-	if (priv->scan_bands & BIT(IEEE80211_BAND_2GHZ))
-		priv->scan_bands &= ~BIT(IEEE80211_BAND_2GHZ);
-	else if (priv->scan_bands &  BIT(IEEE80211_BAND_5GHZ))
-		priv->scan_bands &= ~BIT(IEEE80211_BAND_5GHZ);
-
-	/* If a request to abort was given, or the scan did not succeed
-	 * then we reset the scan state machine and terminate,
-	 * re-queuing another scan if one has been requested */
-	if (test_bit(STATUS_SCAN_ABORTING, &priv->status)) {
-		IWL_DEBUG_INFO(priv, "Aborted scan completed.\n");
-		clear_bit(STATUS_SCAN_ABORTING, &priv->status);
-	} else {
-		/* If there are more bands on this scan pass reschedule */
-		if (priv->scan_bands > 0)
-			goto reschedule;
-	}
-
-	priv->last_scan_jiffies = jiffies;
-	priv->next_scan_jiffies = 0;
-	IWL_DEBUG_INFO(priv, "Setting scan to off\n");
-
-	clear_bit(STATUS_SCANNING, &priv->status);
-
-	IWL_DEBUG_INFO(priv, "Scan took %dms\n",
-		jiffies_to_msecs(elapsed_jiffies(priv->scan_start, jiffies)));
-
-	queue_work(priv->workqueue, &priv->scan_completed);
-
-	return;
-
-reschedule:
-	priv->scan_pass_start = jiffies;
-	queue_work(priv->workqueue, &priv->request_scan);
 }
 
 /* Handle notification from uCode that card's power state is changing
@@ -1690,13 +1433,11 @@ static void iwl3945_setup_rx_handlers(struct iwl_priv *priv)
 {
 	priv->rx_handlers[REPLY_ALIVE] = iwl3945_rx_reply_alive;
 	priv->rx_handlers[REPLY_ADD_STA] = iwl3945_rx_reply_add_sta;
-	priv->rx_handlers[REPLY_ERROR] = iwl3945_rx_reply_error;
+	priv->rx_handlers[REPLY_ERROR] = iwl_rx_reply_error;
 	priv->rx_handlers[CHANNEL_SWITCH_NOTIFICATION] = iwl_rx_csa;
-	priv->rx_handlers[SPECTRUM_MEASURE_NOTIFICATION] =
-	    iwl3945_rx_spectrum_measure_notif;
-	priv->rx_handlers[PM_SLEEP_NOTIFICATION] = iwl3945_rx_pm_sleep_notif;
+	priv->rx_handlers[PM_SLEEP_NOTIFICATION] = iwl_rx_pm_sleep_notif;
 	priv->rx_handlers[PM_DEBUG_STATISTIC_NOTIFIC] =
-	    iwl3945_rx_pm_debug_statistics_notif;
+	    iwl_rx_pm_debug_statistics_notif;
 	priv->rx_handlers[BEACON_NOTIFICATION] = iwl3945_rx_beacon_notif;
 
 	/*
@@ -1707,12 +1448,8 @@ static void iwl3945_setup_rx_handlers(struct iwl_priv *priv)
 	priv->rx_handlers[REPLY_STATISTICS_CMD] = iwl3945_hw_rx_statistics;
 	priv->rx_handlers[STATISTICS_NOTIFICATION] = iwl3945_hw_rx_statistics;
 
-	priv->rx_handlers[REPLY_SCAN_CMD] = iwl3945_rx_reply_scan;
-	priv->rx_handlers[SCAN_START_NOTIFICATION] = iwl3945_rx_scan_start_notif;
-	priv->rx_handlers[SCAN_RESULTS_NOTIFICATION] =
-	    iwl3945_rx_scan_results_notif;
-	priv->rx_handlers[SCAN_COMPLETE_NOTIFICATION] =
-	    iwl3945_rx_scan_complete_notif;
+	iwl_setup_spectrum_handlers(priv);
+	iwl_setup_rx_scan_handlers(priv);
 	priv->rx_handlers[CARD_STATE_NOTIFICATION] = iwl3945_rx_card_state_notif;
 
 	/* Set up hardware specific Rx handlers */
@@ -2195,35 +1932,12 @@ static void iwl3945_rx_handle(struct iwl_priv *priv)
 	iwl3945_rx_queue_restock(priv);
 }
 
-static void iwl3945_enable_interrupts(struct iwl_priv *priv)
-{
-	IWL_DEBUG_ISR(priv, "Enabling interrupts\n");
-	set_bit(STATUS_INT_ENABLED, &priv->status);
-	iwl_write32(priv, CSR_INT_MASK, CSR_INI_SET_MASK);
-}
-
-
 /* call this function to flush any scheduled tasklet */
 static inline void iwl_synchronize_irq(struct iwl_priv *priv)
 {
 	/* wait to make sure we flush pending tasklet*/
 	synchronize_irq(priv->pci_dev->irq);
 	tasklet_kill(&priv->irq_tasklet);
-}
-
-
-static inline void iwl3945_disable_interrupts(struct iwl_priv *priv)
-{
-	clear_bit(STATUS_INT_ENABLED, &priv->status);
-
-	/* disable interrupts from uCode/NIC to host */
-	iwl_write32(priv, CSR_INT_MASK, 0x00000000);
-
-	/* acknowledge/clear/reset any interrupts still pending
-	 * from uCode or flow handler (Rx/Tx DMA) */
-	iwl_write32(priv, CSR_INT, 0xffffffff);
-	iwl_write32(priv, CSR_FH_INT_STATUS, 0xffffffff);
-	IWL_DEBUG_ISR(priv, "Disabled interrupts\n");
 }
 
 static const char *desc_lookup(int i)
@@ -2467,7 +2181,7 @@ static void iwl3945_irq_tasklet(struct iwl_priv *priv)
 		IWL_ERR(priv, "Microcode HW error detected.  Restarting.\n");
 
 		/* Tell the device to stop sending interrupts */
-		iwl3945_disable_interrupts(priv);
+		iwl_disable_interrupts(priv);
 
 		iwl_irq_handle_error(priv);
 
@@ -2547,7 +2261,7 @@ static void iwl3945_irq_tasklet(struct iwl_priv *priv)
 	/* Re-enable all interrupts */
 	/* only Re-enable if disabled by irq */
 	if (test_bit(STATUS_INT_ENABLED, &priv->status))
-		iwl3945_enable_interrupts(priv);
+		iwl_enable_interrupts(priv);
 
 #ifdef CONFIG_IWLWIFI_DEBUG
 	if (priv->debug_level & (IWL_DL_ISR)) {
@@ -2559,63 +2273,6 @@ static void iwl3945_irq_tasklet(struct iwl_priv *priv)
 	}
 #endif
 	spin_unlock_irqrestore(&priv->lock, flags);
-}
-
-static irqreturn_t iwl3945_isr(int irq, void *data)
-{
-	struct iwl_priv *priv = data;
-	u32 inta, inta_mask;
-	u32 inta_fh;
-	if (!priv)
-		return IRQ_NONE;
-
-	spin_lock(&priv->lock);
-
-	/* Disable (but don't clear!) interrupts here to avoid
-	 *    back-to-back ISRs and sporadic interrupts from our NIC.
-	 * If we have something to service, the tasklet will re-enable ints.
-	 * If we *don't* have something, we'll re-enable before leaving here. */
-	inta_mask = iwl_read32(priv, CSR_INT_MASK);  /* just for debug */
-	iwl_write32(priv, CSR_INT_MASK, 0x00000000);
-
-	/* Discover which interrupts are active/pending */
-	inta = iwl_read32(priv, CSR_INT);
-	inta_fh = iwl_read32(priv, CSR_FH_INT_STATUS);
-
-	/* Ignore interrupt if there's nothing in NIC to service.
-	 * This may be due to IRQ shared with another device,
-	 * or due to sporadic interrupts thrown from our NIC. */
-	if (!inta && !inta_fh) {
-		IWL_DEBUG_ISR(priv, "Ignore interrupt, inta == 0, inta_fh == 0\n");
-		goto none;
-	}
-
-	if ((inta == 0xFFFFFFFF) || ((inta & 0xFFFFFFF0) == 0xa5a5a5a0)) {
-		/* Hardware disappeared */
-		IWL_WARN(priv, "HARDWARE GONE?? INTA == 0x%08x\n", inta);
-		goto unplugged;
-	}
-
-	IWL_DEBUG_ISR(priv, "ISR inta 0x%08x, enabled 0x%08x, fh 0x%08x\n",
-		      inta, inta_mask, inta_fh);
-
-	inta &= ~CSR_INT_BIT_SCD;
-
-	/* iwl3945_irq_tasklet() will service interrupts and re-enable them */
-	if (likely(inta || inta_fh))
-		tasklet_schedule(&priv->irq_tasklet);
-unplugged:
-	spin_unlock(&priv->lock);
-
-	return IRQ_HANDLED;
-
- none:
-	/* re-enable interrupts here since we don't have anything to service. */
-	/* only Re-enable if disabled by irq */
-	if (test_bit(STATUS_INT_ENABLED, &priv->status))
-		iwl3945_enable_interrupts(priv);
-	spin_unlock(&priv->lock);
-	return IRQ_NONE;
 }
 
 static int iwl3945_get_channels_for_scan(struct iwl_priv *priv,
@@ -3387,7 +3044,7 @@ static void __iwl3945_down(struct iwl_priv *priv)
 
 	/* tell the device to stop sending interrupts */
 	spin_lock_irqsave(&priv->lock, flags);
-	iwl3945_disable_interrupts(priv);
+	iwl_disable_interrupts(priv);
 	spin_unlock_irqrestore(&priv->lock, flags);
 	iwl_synchronize_irq(priv);
 
@@ -3517,7 +3174,7 @@ static int __iwl3945_up(struct iwl_priv *priv)
 
 	/* clear (again), then enable host interrupts */
 	iwl_write32(priv, CSR_INT, 0xFFFFFFFF);
-	iwl3945_enable_interrupts(priv);
+	iwl_enable_interrupts(priv);
 
 	/* really make sure rfkill handshake bits are cleared */
 	iwl_write32(priv, CSR_UCODE_DRV_GP1_CLR, CSR_UCODE_SW_BIT_RFKILL);
@@ -4172,9 +3829,13 @@ static int iwl3945_mac_config(struct ieee80211_hw *hw, u32 changed)
 	}
 #endif
 
-	iwl3945_radio_kill_sw(priv, !conf->radio_enabled);
+	if (conf->radio_enabled && iwl_radio_kill_sw_enable_radio(priv)) {
+		IWL_DEBUG_MAC80211(priv, "leave - RF-KILL - waiting for uCode\n");
+		goto out;
+	}
 
 	if (!conf->radio_enabled) {
+		iwl_radio_kill_sw_disable_radio(priv);
 		IWL_DEBUG_MAC80211(priv, "leave - radio disabled\n");
 		goto out;
 	}
@@ -4440,66 +4101,6 @@ static void iwl3945_bss_info_changed(struct ieee80211_hw *hw,
 			iwl3945_send_rxon_assoc(priv);
 	}
 
-}
-
-static int iwl3945_mac_hw_scan(struct ieee80211_hw *hw,
-			       struct cfg80211_scan_request *req)
-{
-	int rc = 0;
-	unsigned long flags;
-	struct iwl_priv *priv = hw->priv;
-	size_t len = 0;
-	u8 *ssid = NULL;
-	DECLARE_SSID_BUF(ssid_buf);
-
-	IWL_DEBUG_MAC80211(priv, "enter\n");
-
-	if (req->n_ssids) {
-		ssid = req->ssids[0].ssid;
-		len = req->ssids[0].ssid_len;
-	}
-
-	mutex_lock(&priv->mutex);
-	spin_lock_irqsave(&priv->lock, flags);
-
-	if (!iwl_is_ready_rf(priv)) {
-		rc = -EIO;
-		IWL_DEBUG_MAC80211(priv, "leave - not ready or exit pending\n");
-		goto out_unlock;
-	}
-
-	/* we don't schedule scan within next_scan_jiffies period */
-	if (priv->next_scan_jiffies &&
-			time_after(priv->next_scan_jiffies, jiffies)) {
-		rc = -EAGAIN;
-		goto out_unlock;
-	}
-	/* if we just finished scan ask for delay for a broadcast scan */
-	if ((len == 0) && priv->last_scan_jiffies &&
-	    time_after(priv->last_scan_jiffies + IWL_DELAY_NEXT_SCAN,
-		       jiffies)) {
-		rc = -EAGAIN;
-		goto out_unlock;
-	}
-	if (len) {
-		IWL_DEBUG_SCAN(priv, "direct scan for %s [%zd]\n ",
-			       print_ssid(ssid_buf, ssid, len), len);
-
-		priv->one_direct_scan = 1;
-		priv->direct_ssid_len = len;
-		memcpy(priv->direct_ssid, ssid, len);
-	} else
-		priv->one_direct_scan = 0;
-
-	rc = iwl3945_scan_initiate(priv);
-
-	IWL_DEBUG_MAC80211(priv, "leave\n");
-
-out_unlock:
-	spin_unlock_irqrestore(&priv->lock, flags);
-	mutex_unlock(&priv->mutex);
-
-	return rc;
 }
 
 static int iwl3945_mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
@@ -5201,7 +4802,7 @@ static DEVICE_ATTR(dump_events, S_IWUSR, NULL, dump_event_log);
 
 static void iwl3945_setup_deferred_work(struct iwl_priv *priv)
 {
-	priv->workqueue = create_workqueue(DRV_NAME);
+	priv->workqueue = create_singlethread_workqueue(DRV_NAME);
 
 	init_waitqueue_head(&priv->wait_command_queue);
 
@@ -5275,7 +4876,7 @@ static struct ieee80211_ops iwl3945_hw_ops = {
 	.conf_tx = iwl3945_mac_conf_tx,
 	.reset_tsf = iwl3945_mac_reset_tsf,
 	.bss_info_changed = iwl3945_bss_info_changed,
-	.hw_scan = iwl3945_mac_hw_scan
+	.hw_scan = iwl_mac_hw_scan
 };
 
 static int iwl3945_init_drv(struct iwl_priv *priv)
@@ -5526,12 +5127,12 @@ static int iwl3945_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 	 * ********************/
 
 	spin_lock_irqsave(&priv->lock, flags);
-	iwl3945_disable_interrupts(priv);
+	iwl_disable_interrupts(priv);
 	spin_unlock_irqrestore(&priv->lock, flags);
 
 	pci_enable_msi(priv->pci_dev);
 
-	err = request_irq(priv->pci_dev->irq, iwl3945_isr, IRQF_SHARED,
+	err = request_irq(priv->pci_dev->irq, iwl_isr, IRQF_SHARED,
 			  DRV_NAME, priv);
 	if (err) {
 		IWL_ERR(priv, "Error allocating IRQ %d\n", priv->pci_dev->irq);
@@ -5621,7 +5222,7 @@ static void __devexit iwl3945_pci_remove(struct pci_dev *pdev)
 	 * tasklet for the driver
 	 */
 	spin_lock_irqsave(&priv->lock, flags);
-	iwl3945_disable_interrupts(priv);
+	iwl_disable_interrupts(priv);
 	spin_unlock_irqrestore(&priv->lock, flags);
 
 	iwl_synchronize_irq(priv);

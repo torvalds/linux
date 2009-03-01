@@ -72,7 +72,7 @@
 #define VD
 #endif
 
-#ifdef CONFIG_IWLAGN_SPECTRUM_MEASUREMENT
+#ifdef CONFIG_IWLWIFI_SPECTRUM_MEASUREMENT
 #define VS "s"
 #else
 #define VS
@@ -444,7 +444,7 @@ void iwl_hw_txq_free_tfd(struct iwl_priv *priv, struct iwl_tx_queue *txq)
 		pci_unmap_single(dev,
 				pci_unmap_addr(&txq->cmd[index]->meta, mapping),
 				pci_unmap_len(&txq->cmd[index]->meta, len),
-				PCI_DMA_TODEVICE);
+				PCI_DMA_BIDIRECTIONAL);
 
 	/* Unmap chunks, if any. */
 	for (i = 1; i < num_tbs; i++) {
@@ -644,6 +644,9 @@ static u16 iwl_adjust_beacon_interval(u16 beacon_val)
 					/ MAX_UCODE_BEACON_INTERVAL;
 	new_val = beacon_val / beacon_factor;
 
+	if (!new_val)
+		new_val = MAX_UCODE_BEACON_INTERVAL;
+
 	return new_val;
 }
 
@@ -749,41 +752,6 @@ static void iwl_rx_reply_alive(struct iwl_priv *priv,
 				   msecs_to_jiffies(5));
 	else
 		IWL_WARN(priv, "uCode did not respond OK.\n");
-}
-
-static void iwl_rx_reply_error(struct iwl_priv *priv,
-				   struct iwl_rx_mem_buffer *rxb)
-{
-	struct iwl_rx_packet *pkt = (struct iwl_rx_packet *)rxb->skb->data;
-
-	IWL_ERR(priv, "Error Reply type 0x%08X cmd %s (0x%02X) "
-		"seq 0x%04X ser 0x%08X\n",
-		le32_to_cpu(pkt->u.err_resp.error_type),
-		get_cmd_string(pkt->u.err_resp.cmd_id),
-		pkt->u.err_resp.cmd_id,
-		le16_to_cpu(pkt->u.err_resp.bad_cmd_seq_num),
-		le32_to_cpu(pkt->u.err_resp.error_info));
-}
-
-static void iwl_rx_pm_sleep_notif(struct iwl_priv *priv,
-				      struct iwl_rx_mem_buffer *rxb)
-{
-#ifdef CONFIG_IWLWIFI_DEBUG
-	struct iwl_rx_packet *pkt = (struct iwl_rx_packet *)rxb->skb->data;
-	struct iwl_sleep_notification *sleep = &(pkt->u.sleep_notif);
-	IWL_DEBUG_RX(priv, "sleep mode: %d, src: %d\n",
-		     sleep->pm_sleep_mode, sleep->pm_wakeup_src);
-#endif
-}
-
-static void iwl_rx_pm_debug_statistics_notif(struct iwl_priv *priv,
-					     struct iwl_rx_mem_buffer *rxb)
-{
-	struct iwl_rx_packet *pkt = (struct iwl_rx_packet *)rxb->skb->data;
-	IWL_DEBUG_RADIO(priv, "Dumping %d bytes of unhandled "
-			"notification for %s:\n",
-			le32_to_cpu(pkt->len), get_cmd_string(pkt->hdr.cmd));
-	iwl_print_hex_dump(priv, IWL_DL_RADIO, pkt->u.raw, le32_to_cpu(pkt->len));
 }
 
 static void iwl_bg_beacon_update(struct work_struct *work)
@@ -1310,64 +1278,6 @@ static void iwl_irq_tasklet(struct iwl_priv *priv)
 	}
 #endif
 	spin_unlock_irqrestore(&priv->lock, flags);
-}
-
-static irqreturn_t iwl_isr(int irq, void *data)
-{
-	struct iwl_priv *priv = data;
-	u32 inta, inta_mask;
-	u32 inta_fh;
-	if (!priv)
-		return IRQ_NONE;
-
-	spin_lock(&priv->lock);
-
-	/* Disable (but don't clear!) interrupts here to avoid
-	 *    back-to-back ISRs and sporadic interrupts from our NIC.
-	 * If we have something to service, the tasklet will re-enable ints.
-	 * If we *don't* have something, we'll re-enable before leaving here. */
-	inta_mask = iwl_read32(priv, CSR_INT_MASK);  /* just for debug */
-	iwl_write32(priv, CSR_INT_MASK, 0x00000000);
-
-	/* Discover which interrupts are active/pending */
-	inta = iwl_read32(priv, CSR_INT);
-	inta_fh = iwl_read32(priv, CSR_FH_INT_STATUS);
-
-	/* Ignore interrupt if there's nothing in NIC to service.
-	 * This may be due to IRQ shared with another device,
-	 * or due to sporadic interrupts thrown from our NIC. */
-	if (!inta && !inta_fh) {
-		IWL_DEBUG_ISR(priv, "Ignore interrupt, inta == 0, inta_fh == 0\n");
-		goto none;
-	}
-
-	if ((inta == 0xFFFFFFFF) || ((inta & 0xFFFFFFF0) == 0xa5a5a5a0)) {
-		/* Hardware disappeared. It might have already raised
-		 * an interrupt */
-		IWL_WARN(priv, "HARDWARE GONE?? INTA == 0x%08x\n", inta);
-		goto unplugged;
-	}
-
-	IWL_DEBUG_ISR(priv, "ISR inta 0x%08x, enabled 0x%08x, fh 0x%08x\n",
-		      inta, inta_mask, inta_fh);
-
-	inta &= ~CSR_INT_BIT_SCD;
-
-	/* iwl_irq_tasklet() will service interrupts and re-enable them */
-	if (likely(inta || inta_fh))
-		tasklet_schedule(&priv->irq_tasklet);
-
- unplugged:
-	spin_unlock(&priv->lock);
-	return IRQ_HANDLED;
-
- none:
-	/* re-enable interrupts here since we don't have anything to service. */
-	/* only Re-enable if diabled by irq */
-	if (test_bit(STATUS_INT_ENABLED, &priv->status))
-		iwl_enable_interrupts(priv);
-	spin_unlock(&priv->lock);
-	return IRQ_NONE;
 }
 
 /******************************************************************************
@@ -2674,71 +2584,6 @@ static void iwl_bss_info_changed(struct ieee80211_hw *hw,
 
 }
 
-static int iwl_mac_hw_scan(struct ieee80211_hw *hw,
-			   struct cfg80211_scan_request *req)
-{
-	unsigned long flags;
-	struct iwl_priv *priv = hw->priv;
-	int ret;
-	u8 *ssid = NULL;
-	size_t ssid_len = 0;
-
-	if (req->n_ssids) {
-		ssid = req->ssids[0].ssid;
-		ssid_len = req->ssids[0].ssid_len;
-	}
-
-	IWL_DEBUG_MAC80211(priv, "enter\n");
-
-	mutex_lock(&priv->mutex);
-	spin_lock_irqsave(&priv->lock, flags);
-
-	if (!iwl_is_ready_rf(priv)) {
-		ret = -EIO;
-		IWL_DEBUG_MAC80211(priv, "leave - not ready or exit pending\n");
-		goto out_unlock;
-	}
-
-	/* We don't schedule scan within next_scan_jiffies period.
-	 * Avoid scanning during possible EAPOL exchange, return
-	 * success immediately.
-	 */
-	if (priv->next_scan_jiffies &&
-	    time_after(priv->next_scan_jiffies, jiffies)) {
-		IWL_DEBUG_SCAN(priv, "scan rejected: within next scan period\n");
-		queue_work(priv->workqueue, &priv->scan_completed);
-		ret = 0;
-		goto out_unlock;
-	}
-
-	/* if we just finished scan ask for delay */
-	if (iwl_is_associated(priv) && priv->last_scan_jiffies &&
-	    time_after(priv->last_scan_jiffies + IWL_DELAY_NEXT_SCAN, jiffies)) {
-		IWL_DEBUG_SCAN(priv, "scan rejected: within previous scan period\n");
-		queue_work(priv->workqueue, &priv->scan_completed);
-		ret = 0;
-		goto out_unlock;
-	}
-
-	if (ssid_len) {
-		priv->one_direct_scan = 1;
-		priv->direct_ssid_len = ssid_len;
-		memcpy(priv->direct_ssid, ssid, priv->direct_ssid_len);
-	} else {
-		priv->one_direct_scan = 0;
-	}
-
-	ret = iwl_scan_initiate(priv);
-
-	IWL_DEBUG_MAC80211(priv, "leave\n");
-
-out_unlock:
-	spin_unlock_irqrestore(&priv->lock, flags);
-	mutex_unlock(&priv->mutex);
-
-	return ret;
-}
-
 static void iwl_mac_update_tkip_key(struct ieee80211_hw *hw,
 			struct ieee80211_key_conf *keyconf, const u8 *addr,
 			u32 iv32, u16 *phase1key)
@@ -3370,7 +3215,7 @@ static DEVICE_ATTR(statistics, S_IRUGO, show_statistics, NULL);
 
 static void iwl_setup_deferred_work(struct iwl_priv *priv)
 {
-	priv->workqueue = create_workqueue(DRV_NAME);
+	priv->workqueue = create_singlethread_workqueue(DRV_NAME);
 
 	init_waitqueue_head(&priv->wait_command_queue);
 
@@ -3612,7 +3457,7 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	err = sysfs_create_group(&pdev->dev.kobj, &iwl_attribute_group);
 	if (err) {
 		IWL_ERR(priv, "failed to create sysfs device attributes\n");
-		goto out_uninit_drv;
+		goto out_free_irq;
 	}
 
 	iwl_setup_deferred_work(priv);
@@ -3657,10 +3502,10 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
  out_remove_sysfs:
 	sysfs_remove_group(&pdev->dev.kobj, &iwl_attribute_group);
+ out_free_irq:
+	free_irq(priv->pci_dev->irq, priv);
  out_disable_msi:
 	pci_disable_msi(priv->pci_dev);
-	pci_disable_device(priv->pci_dev);
- out_uninit_drv:
 	iwl_uninit_drv(priv);
  out_free_eeprom:
 	iwl_eeprom_free(priv);

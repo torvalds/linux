@@ -132,20 +132,27 @@ ath9k_hw_ar9280_set_channel(struct ath_hw *ah,
 		bMode = 0;
 		fracMode = 0;
 
-		if ((freq % 20) == 0) {
-			aModeRefSel = 3;
-		} else if ((freq % 10) == 0) {
-			aModeRefSel = 2;
-		} else {
+		switch(ah->eep_ops->get_eeprom(ah, EEP_FRAC_N_5G)) {
+		case 0:
+			if ((freq % 20) == 0) {
+				aModeRefSel = 3;
+			} else if ((freq % 10) == 0) {
+				aModeRefSel = 2;
+			}
+			if (aModeRefSel)
+				break;
+		case 1:
+		default:
 			aModeRefSel = 0;
-
 			fracMode = 1;
 			refDivA = 1;
 			channelSel = (freq * 0x8000) / 15;
 
 			REG_RMW_FIELD(ah, AR_AN_SYNTH9,
 				      AR_AN_SYNTH9_REFDIVA, refDivA);
+
 		}
+
 		if (!fracMode) {
 			ndiv = (freq * (refDivA >> aModeRefSel)) / 60;
 			channelSel = ndiv & 0x1ff;

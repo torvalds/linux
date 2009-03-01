@@ -236,7 +236,10 @@ static int ieee80211_open(struct net_device *dev)
 		break;
 	case NL80211_IFTYPE_STATION:
 	case NL80211_IFTYPE_ADHOC:
-		sdata->u.sta.flags &= ~IEEE80211_STA_PREV_BSSID_SET;
+		if (sdata->vif.type == NL80211_IFTYPE_STATION)
+			sdata->u.mgd.flags &= ~IEEE80211_STA_PREV_BSSID_SET;
+		else
+			sdata->u.ibss.flags &= ~IEEE80211_IBSS_PREV_BSSID_SET;
 		/* fall through */
 	default:
 		conf.vif = &sdata->vif;
@@ -321,11 +324,10 @@ static int ieee80211_open(struct net_device *dev)
 	 * yet be effective. Trigger execution of ieee80211_sta_work
 	 * to fix this.
 	 */
-	if (sdata->vif.type == NL80211_IFTYPE_STATION ||
-	    sdata->vif.type == NL80211_IFTYPE_ADHOC) {
-		struct ieee80211_if_sta *ifsta = &sdata->u.sta;
-		queue_work(local->hw.workqueue, &ifsta->work);
-	}
+	if (sdata->vif.type == NL80211_IFTYPE_STATION)
+		queue_work(local->hw.workqueue, &sdata->u.mgd.work);
+	else if (sdata->vif.type == NL80211_IFTYPE_ADHOC)
+		queue_work(local->hw.workqueue, &sdata->u.ibss.work);
 
 	netif_tx_start_all_queues(dev);
 
@@ -452,15 +454,13 @@ static int ieee80211_stop(struct net_device *dev)
 		netif_addr_unlock_bh(local->mdev);
 		break;
 	case NL80211_IFTYPE_STATION:
-	case NL80211_IFTYPE_ADHOC:
 		/* Announce that we are leaving the network. */
-		if (sdata->u.sta.state != IEEE80211_STA_MLME_DISABLED)
+		if (sdata->u.mgd.state != IEEE80211_STA_MLME_DISABLED)
 			ieee80211_sta_deauthenticate(sdata,
 						WLAN_REASON_DEAUTH_LEAVING);
-
-		memset(sdata->u.sta.bssid, 0, ETH_ALEN);
-		del_timer_sync(&sdata->u.sta.chswitch_timer);
-		del_timer_sync(&sdata->u.sta.timer);
+		memset(sdata->u.mgd.bssid, 0, ETH_ALEN);
+		del_timer_sync(&sdata->u.mgd.chswitch_timer);
+		del_timer_sync(&sdata->u.mgd.timer);
 		/*
 		 * If the timer fired while we waited for it, it will have
 		 * requeued the work. Now the work will be running again
@@ -468,8 +468,8 @@ static int ieee80211_stop(struct net_device *dev)
 		 * whether the interface is running, which, at this point,
 		 * it no longer is.
 		 */
-		cancel_work_sync(&sdata->u.sta.work);
-		cancel_work_sync(&sdata->u.sta.chswitch_work);
+		cancel_work_sync(&sdata->u.mgd.work);
+		cancel_work_sync(&sdata->u.mgd.chswitch_work);
 		/*
 		 * When we get here, the interface is marked down.
 		 * Call synchronize_rcu() to wait for the RX path
@@ -477,13 +477,22 @@ static int ieee80211_stop(struct net_device *dev)
 		 * frames at this very time on another CPU.
 		 */
 		synchronize_rcu();
-		skb_queue_purge(&sdata->u.sta.skb_queue);
+		skb_queue_purge(&sdata->u.mgd.skb_queue);
 
-		sdata->u.sta.flags &= ~(IEEE80211_STA_PRIVACY_INVOKED |
+		sdata->u.mgd.flags &= ~(IEEE80211_STA_PRIVACY_INVOKED |
 					IEEE80211_STA_TKIP_WEP_USED);
-		kfree(sdata->u.sta.extra_ie);
-		sdata->u.sta.extra_ie = NULL;
-		sdata->u.sta.extra_ie_len = 0;
+		kfree(sdata->u.mgd.extra_ie);
+		sdata->u.mgd.extra_ie = NULL;
+		sdata->u.mgd.extra_ie_len = 0;
+		/* fall through */
+	case NL80211_IFTYPE_ADHOC:
+		if (sdata->vif.type == NL80211_IFTYPE_ADHOC) {
+			memset(sdata->u.ibss.bssid, 0, ETH_ALEN);
+			del_timer_sync(&sdata->u.ibss.timer);
+			cancel_work_sync(&sdata->u.ibss.work);
+			synchronize_rcu();
+			skb_queue_purge(&sdata->u.ibss.skb_queue);
+		}
 		/* fall through */
 	case NL80211_IFTYPE_MESH_POINT:
 		if (ieee80211_vif_is_mesh(&sdata->vif)) {
@@ -629,19 +638,20 @@ static void ieee80211_teardown_sdata(struct net_device *dev)
 		if (ieee80211_vif_is_mesh(&sdata->vif))
 			mesh_rmc_free(sdata);
 		break;
-	case NL80211_IFTYPE_STATION:
 	case NL80211_IFTYPE_ADHOC:
-		kfree(sdata->u.sta.extra_ie);
-		kfree(sdata->u.sta.assocreq_ies);
-		kfree(sdata->u.sta.assocresp_ies);
-		kfree_skb(sdata->u.sta.probe_resp);
-		kfree(sdata->u.sta.ie_probereq);
-		kfree(sdata->u.sta.ie_proberesp);
-		kfree(sdata->u.sta.ie_auth);
-		kfree(sdata->u.sta.ie_assocreq);
-		kfree(sdata->u.sta.ie_reassocreq);
-		kfree(sdata->u.sta.ie_deauth);
-		kfree(sdata->u.sta.ie_disassoc);
+		kfree_skb(sdata->u.ibss.probe_resp);
+		break;
+	case NL80211_IFTYPE_STATION:
+		kfree(sdata->u.mgd.extra_ie);
+		kfree(sdata->u.mgd.assocreq_ies);
+		kfree(sdata->u.mgd.assocresp_ies);
+		kfree(sdata->u.mgd.ie_probereq);
+		kfree(sdata->u.mgd.ie_proberesp);
+		kfree(sdata->u.mgd.ie_auth);
+		kfree(sdata->u.mgd.ie_assocreq);
+		kfree(sdata->u.mgd.ie_reassocreq);
+		kfree(sdata->u.mgd.ie_deauth);
+		kfree(sdata->u.mgd.ie_disassoc);
 		break;
 	case NL80211_IFTYPE_WDS:
 	case NL80211_IFTYPE_AP_VLAN:
@@ -708,8 +718,10 @@ static void ieee80211_setup_sdata(struct ieee80211_sub_if_data *sdata,
 		INIT_LIST_HEAD(&sdata->u.ap.vlans);
 		break;
 	case NL80211_IFTYPE_STATION:
-	case NL80211_IFTYPE_ADHOC:
 		ieee80211_sta_setup_sdata(sdata);
+		break;
+	case NL80211_IFTYPE_ADHOC:
+		ieee80211_ibss_setup_sdata(sdata);
 		break;
 	case NL80211_IFTYPE_MESH_POINT:
 		if (ieee80211_vif_is_mesh(&sdata->vif))
@@ -798,6 +810,7 @@ int ieee80211_if_add(struct ieee80211_local *local, const char *name,
 
 	memcpy(ndev->dev_addr, local->hw.wiphy->perm_addr, ETH_ALEN);
 	SET_NETDEV_DEV(ndev, wiphy_dev(local->hw.wiphy));
+	ndev->features |= NETIF_F_NETNS_LOCAL;
 
 	/* don't use IEEE80211_DEV_TO_SUB_IF because it checks too much */
 	sdata = netdev_priv(ndev);

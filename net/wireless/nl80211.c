@@ -7,7 +7,6 @@
 #include <linux/if.h>
 #include <linux/module.h>
 #include <linux/err.h>
-#include <linux/mutex.h>
 #include <linux/list.h>
 #include <linux/if_ether.h>
 #include <linux/ieee80211.h>
@@ -142,7 +141,7 @@ static int nl80211_send_wiphy(struct sk_buff *msg, u32 pid, u32 seq, int flags,
 	if (!hdr)
 		return -1;
 
-	NLA_PUT_U32(msg, NL80211_ATTR_WIPHY, dev->idx);
+	NLA_PUT_U32(msg, NL80211_ATTR_WIPHY, dev->wiphy_idx);
 	NLA_PUT_STRING(msg, NL80211_ATTR_WIPHY_NAME, wiphy_name(&dev->wiphy));
 	NLA_PUT_U8(msg, NL80211_ATTR_MAX_NUM_SCAN_SSIDS,
 		   dev->wiphy.max_scan_ssids);
@@ -256,7 +255,7 @@ static int nl80211_dump_wiphy(struct sk_buff *skb, struct netlink_callback *cb)
 	int start = cb->args[0];
 	struct cfg80211_registered_device *dev;
 
-	mutex_lock(&cfg80211_drv_mutex);
+	mutex_lock(&cfg80211_mutex);
 	list_for_each_entry(dev, &cfg80211_drv_list, list) {
 		if (++idx <= start)
 			continue;
@@ -267,7 +266,7 @@ static int nl80211_dump_wiphy(struct sk_buff *skb, struct netlink_callback *cb)
 			break;
 		}
 	}
-	mutex_unlock(&cfg80211_drv_mutex);
+	mutex_unlock(&cfg80211_mutex);
 
 	cb->args[0] = idx;
 
@@ -470,7 +469,7 @@ static int nl80211_dump_interface(struct sk_buff *skb, struct netlink_callback *
 	struct cfg80211_registered_device *dev;
 	struct wireless_dev *wdev;
 
-	mutex_lock(&cfg80211_drv_mutex);
+	mutex_lock(&cfg80211_mutex);
 	list_for_each_entry(dev, &cfg80211_drv_list, list) {
 		if (wp_idx < wp_start) {
 			wp_idx++;
@@ -497,7 +496,7 @@ static int nl80211_dump_interface(struct sk_buff *skb, struct netlink_callback *
 		wp_idx++;
 	}
  out:
-	mutex_unlock(&cfg80211_drv_mutex);
+	mutex_unlock(&cfg80211_mutex);
 
 	cb->args[0] = wp_idx;
 	cb->args[1] = if_idx;
@@ -1206,6 +1205,12 @@ static int nl80211_send_station(struct sk_buff *msg, u32 pid, u32 seq,
 
 		nla_nest_end(msg, txrate);
 	}
+	if (sinfo->filled & STATION_INFO_RX_PACKETS)
+		NLA_PUT_U32(msg, NL80211_STA_INFO_RX_PACKETS,
+			    sinfo->rx_packets);
+	if (sinfo->filled & STATION_INFO_TX_PACKETS)
+		NLA_PUT_U32(msg, NL80211_STA_INFO_TX_PACKETS,
+			    sinfo->tx_packets);
 	nla_nest_end(msg, sinfoattr);
 
 	return genlmsg_end(msg, hdr);
@@ -1900,6 +1905,19 @@ static int nl80211_req_set_reg(struct sk_buff *skb, struct genl_info *info)
 	int r;
 	char *data = NULL;
 
+	/*
+	 * You should only get this when cfg80211 hasn't yet initialized
+	 * completely when built-in to the kernel right between the time
+	 * window between nl80211_init() and regulatory_init(), if that is
+	 * even possible.
+	 */
+	mutex_lock(&cfg80211_mutex);
+	if (unlikely(!cfg80211_regdomain)) {
+		mutex_unlock(&cfg80211_mutex);
+		return -EINPROGRESS;
+	}
+	mutex_unlock(&cfg80211_mutex);
+
 	if (!info->attrs[NL80211_ATTR_REG_ALPHA2])
 		return -EINVAL;
 
@@ -1910,14 +1928,9 @@ static int nl80211_req_set_reg(struct sk_buff *skb, struct genl_info *info)
 	if (is_world_regdom(data))
 		return -EINVAL;
 #endif
-	mutex_lock(&cfg80211_drv_mutex);
-	r = __regulatory_hint(NULL, REGDOM_SET_BY_USER, data, 0, ENVIRON_ANY);
-	mutex_unlock(&cfg80211_drv_mutex);
-	/* This means the regulatory domain was already set, however
-	 * we don't want to confuse userspace with a "successful error"
-	 * message so lets just treat it as a success */
-	if (r == -EALREADY)
-		r = 0;
+
+	r = regulatory_hint_user(data);
+
 	return r;
 }
 
@@ -2106,7 +2119,7 @@ static int nl80211_get_reg(struct sk_buff *skb, struct genl_info *info)
 	unsigned int i;
 	int err = -EINVAL;
 
-	mutex_lock(&cfg80211_drv_mutex);
+	mutex_lock(&cfg80211_mutex);
 
 	if (!cfg80211_regdomain)
 		goto out;
@@ -2169,7 +2182,7 @@ nla_put_failure:
 	genlmsg_cancel(msg, hdr);
 	err = -EMSGSIZE;
 out:
-	mutex_unlock(&cfg80211_drv_mutex);
+	mutex_unlock(&cfg80211_mutex);
 	return err;
 }
 
@@ -2228,9 +2241,9 @@ static int nl80211_set_reg(struct sk_buff *skb, struct genl_info *info)
 
 	BUG_ON(rule_idx != num_rules);
 
-	mutex_lock(&cfg80211_drv_mutex);
+	mutex_lock(&cfg80211_mutex);
 	r = set_regdom(rd);
-	mutex_unlock(&cfg80211_drv_mutex);
+	mutex_unlock(&cfg80211_mutex);
 	return r;
 
  bad_reg:
@@ -2286,6 +2299,7 @@ static int nl80211_trigger_scan(struct sk_buff *skb, struct genl_info *info)
 	struct wiphy *wiphy;
 	int err, tmp, n_ssids = 0, n_channels = 0, i;
 	enum ieee80211_band band;
+	size_t ie_len;
 
 	err = get_drv_dev_by_info_ifindex(info->attrs, &drv, &dev);
 	if (err)
@@ -2327,9 +2341,15 @@ static int nl80211_trigger_scan(struct sk_buff *skb, struct genl_info *info)
 		goto out_unlock;
 	}
 
+	if (info->attrs[NL80211_ATTR_IE])
+		ie_len = nla_len(info->attrs[NL80211_ATTR_IE]);
+	else
+		ie_len = 0;
+
 	request = kzalloc(sizeof(*request)
 			+ sizeof(*ssid) * n_ssids
-			+ sizeof(channel) * n_channels, GFP_KERNEL);
+			+ sizeof(channel) * n_channels
+			+ ie_len, GFP_KERNEL);
 	if (!request) {
 		err = -ENOMEM;
 		goto out_unlock;
@@ -2340,6 +2360,12 @@ static int nl80211_trigger_scan(struct sk_buff *skb, struct genl_info *info)
 	if (n_ssids)
 		request->ssids = (void *)(request->channels + n_channels);
 	request->n_ssids = n_ssids;
+	if (ie_len) {
+		if (request->ssids)
+			request->ie = (void *)(request->ssids + n_ssids);
+		else
+			request->ie = (void *)(request->channels + n_channels);
+	}
 
 	if (info->attrs[NL80211_ATTR_SCAN_FREQUENCIES]) {
 		/* user specified, bail out if channel not found */
@@ -2378,6 +2404,12 @@ static int nl80211_trigger_scan(struct sk_buff *skb, struct genl_info *info)
 			request->ssids[i].ssid_len = nla_len(attr);
 			i++;
 		}
+	}
+
+	if (info->attrs[NL80211_ATTR_IE]) {
+		request->ie_len = nla_len(info->attrs[NL80211_ATTR_IE]);
+		memcpy(request->ie, nla_data(info->attrs[NL80211_ATTR_IE]),
+		       request->ie_len);
 	}
 
 	request->ifidx = dev->ifindex;
@@ -2432,7 +2464,7 @@ static int nl80211_send_bss(struct sk_buff *msg, u32 pid, u32 seq, int flags,
 	NLA_PUT_U16(msg, NL80211_BSS_CAPABILITY, res->capability);
 	NLA_PUT_U32(msg, NL80211_BSS_FREQUENCY, res->channel->center_freq);
 
-	switch (res->signal_type) {
+	switch (rdev->wiphy.signal_type) {
 	case CFG80211_SIGNAL_TYPE_MBM:
 		NLA_PUT_U32(msg, NL80211_BSS_SIGNAL_MBM, res->signal);
 		break;
@@ -2601,7 +2633,6 @@ static struct genl_ops nl80211_ops[] = {
 		.doit = nl80211_get_station,
 		.dumpit = nl80211_dump_station,
 		.policy = nl80211_policy,
-		.flags = GENL_ADMIN_PERM,
 	},
 	{
 		.cmd = NL80211_CMD_SET_STATION,
@@ -2739,7 +2770,7 @@ static int nl80211_send_scan_donemsg(struct sk_buff *msg,
 	if (!hdr)
 		return -1;
 
-	NLA_PUT_U32(msg, NL80211_ATTR_WIPHY, rdev->idx);
+	NLA_PUT_U32(msg, NL80211_ATTR_WIPHY, rdev->wiphy_idx);
 	NLA_PUT_U32(msg, NL80211_ATTR_IFINDEX, netdev->ifindex);
 
 	/* XXX: we should probably bounce back the request? */

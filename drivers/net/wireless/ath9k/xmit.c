@@ -772,24 +772,6 @@ bool ath_tx_aggr_check(struct ath_softc *sc, struct ath_node *an, u8 tidno)
 /* Queue Management */
 /********************/
 
-static u32 ath_txq_depth(struct ath_softc *sc, int qnum)
-{
-	return sc->tx.txq[qnum].axq_depth;
-}
-
-static void ath_get_beaconconfig(struct ath_softc *sc, int if_id,
-				 struct ath_beacon_config *conf)
-{
-	struct ieee80211_hw *hw = sc->hw;
-
-	/* fill in beacon config data */
-
-	conf->beacon_interval = hw->conf.beacon_int;
-	conf->listen_interval = 100;
-	conf->dtim_count = 1;
-	conf->bmiss_timeout = ATH_DEFAULT_BMISS_LIMIT * conf->listen_interval;
-}
-
 static void ath_txq_drain_pending_buffers(struct ath_softc *sc,
 					  struct ath_txq *txq)
 {
@@ -964,7 +946,6 @@ int ath_cabq_update(struct ath_softc *sc)
 {
 	struct ath9k_tx_queue_info qi;
 	int qnum = sc->beacon.cabq->axq_qnum;
-	struct ath_beacon_config conf;
 
 	ath9k_hw_get_txq_props(sc->sc_ah, qnum, &qi);
 	/*
@@ -975,9 +956,8 @@ int ath_cabq_update(struct ath_softc *sc)
 	else if (sc->config.cabqReadytime > ATH9K_READY_TIME_HI_BOUND)
 		sc->config.cabqReadytime = ATH9K_READY_TIME_HI_BOUND;
 
-	ath_get_beaconconfig(sc, ATH_IF_ID_ANY, &conf);
-	qi.tqi_readyTime =
-		(conf.beacon_interval * sc->config.cabqReadytime) / 100;
+	qi.tqi_readyTime = (sc->hw->conf.beacon_int *
+			    sc->config.cabqReadytime) / 100;
 	ath_txq_update(sc, qnum, &qi);
 
 	return 0;
@@ -1657,7 +1637,7 @@ int ath_tx_start(struct ath_softc *sc, struct sk_buff *skb,
 		 * we will at least have to run TX completionon one buffer
 		 * on the queue */
 		spin_lock_bh(&txq->axq_lock);
-		if (ath_txq_depth(sc, txq->axq_qnum) > 1) {
+		if (sc->tx.txq[txq->axq_qnum].axq_depth > 1) {
 			ieee80211_stop_queue(sc->hw,
 				skb_get_queue_mapping(skb));
 			txq->stopped = 1;
@@ -1867,7 +1847,7 @@ static void ath_wake_mac80211_queue(struct ath_softc *sc, struct ath_txq *txq)
 
 	spin_lock_bh(&txq->axq_lock);
 	if (txq->stopped &&
-	    ath_txq_depth(sc, txq->axq_qnum) <= (ATH_TXBUF - 20)) {
+	    sc->tx.txq[txq->axq_qnum].axq_depth <= (ATH_TXBUF - 20)) {
 		qnum = ath_get_mac80211_qnum(txq->axq_qnum, sc);
 		if (qnum != -1) {
 			ieee80211_wake_queue(sc->hw, qnum);

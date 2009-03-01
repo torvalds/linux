@@ -84,11 +84,13 @@ static u32 ath9k_hw_mac_to_clks(struct ath_hw *ah, u32 usecs)
 		return ath9k_hw_mac_clks(ah, usecs);
 }
 
-bool ath9k_hw_wait(struct ath_hw *ah, u32 reg, u32 mask, u32 val)
+bool ath9k_hw_wait(struct ath_hw *ah, u32 reg, u32 mask, u32 val, u32 timeout)
 {
 	int i;
 
-	for (i = 0; i < (AH_TIMEOUT / AH_TIME_QUANTUM); i++) {
+	BUG_ON(timeout < AH_TIME_QUANTUM);
+
+	for (i = 0; i < (timeout / AH_TIME_QUANTUM); i++) {
 		if ((REG_READ(ah, reg) & mask) == val)
 			return true;
 
@@ -96,8 +98,8 @@ bool ath9k_hw_wait(struct ath_hw *ah, u32 reg, u32 mask, u32 val)
 	}
 
 	DPRINTF(ah->ah_sc, ATH_DBG_REG_IO,
-		"timeout on reg 0x%x: 0x%08x & 0x%08x != 0x%08x\n",
-		reg, REG_READ(ah, reg), mask, val);
+		"timeout (%d us) on reg 0x%x: 0x%08x & 0x%08x != 0x%08x\n",
+		timeout, reg, REG_READ(ah, reg), mask, val);
 
 	return false;
 }
@@ -823,7 +825,16 @@ static struct ath_hw *ath9k_hw_do_attach(u16 devid, struct ath_softc *sc,
 	if (AR_SREV_9280_20(ah))
 		ath9k_hw_init_txgain_ini(ah);
 
-	if (ah->hw_version.devid == AR9280_DEVID_PCI) {
+	if (!ath9k_hw_fill_cap_info(ah)) {
+		DPRINTF(sc, ATH_DBG_RESET, "failed ath9k_hw_fill_cap_info\n");
+		ecode = -EINVAL;
+		goto bad;
+	}
+
+	if ((ah->hw_version.devid == AR9280_DEVID_PCI) &&
+	    test_bit(ATH9K_MODE_11A, ah->caps.wireless_modes)) {
+
+		/* EEPROM Fixup */
 		for (i = 0; i < ah->iniModes.ia_rows; i++) {
 			u32 reg = INI_RA(&ah->iniModes, i, 0);
 
@@ -836,13 +847,6 @@ static struct ath_hw *ath9k_hw_do_attach(u16 devid, struct ath_softc *sc,
 							   reg, val);
 			}
 		}
-	}
-
-	if (!ath9k_hw_fill_cap_info(ah)) {
-		DPRINTF(sc, ATH_DBG_RESET,
-			"failed ath9k_hw_fill_cap_info\n");
-		ecode = -EINVAL;
-		goto bad;
 	}
 
 	ecode = ath9k_hw_init_macaddr(ah);
@@ -1200,6 +1204,17 @@ static u32 ath9k_hw_ini_fixup(struct ath_hw *ah,
 		return ath9k_hw_def_ini_fixup(ah, pEepData, reg, value);
 }
 
+static void ath9k_olc_init(struct ath_hw *ah)
+{
+	u32 i;
+
+	for (i = 0; i < AR9280_TX_GAIN_TABLE_SIZE; i++)
+		ah->originalGain[i] =
+			MS(REG_READ(ah, AR_PHY_TX_GAIN_TBL1 + i * 4),
+					AR_PHY_TX_GAIN);
+	ah->PDADCdelta = 0;
+}
+
 static int ath9k_hw_process_ini(struct ath_hw *ah,
 				struct ath9k_channel *chan,
 				enum ath9k_ht_macmode macmode)
@@ -1305,6 +1320,9 @@ static int ath9k_hw_process_ini(struct ath_hw *ah,
 	ath9k_hw_override_ini(ah, chan);
 	ath9k_hw_set_regs(ah, chan, macmode);
 	ath9k_hw_init_chain_masks(ah);
+
+	if (OLC_FOR_AR9280_20_LATER)
+		ath9k_olc_init(ah);
 
 	status = ah->eep_ops->set_txpower(ah, chan,
 				  ath9k_regd_get_ctl(ah, chan),
@@ -1464,6 +1482,14 @@ static bool ath9k_hw_set_reset(struct ath_hw *ah, int type)
 	u32 rst_flags;
 	u32 tmpReg;
 
+	if (AR_SREV_9100(ah)) {
+		u32 val = REG_READ(ah, AR_RTC_DERIVED_CLK);
+		val &= ~AR_RTC_DERIVED_CLK_PERIOD;
+		val |= SM(1, AR_RTC_DERIVED_CLK_PERIOD);
+		REG_WRITE(ah, AR_RTC_DERIVED_CLK, val);
+		(void)REG_READ(ah, AR_RTC_DERIVED_CLK);
+	}
+
 	REG_WRITE(ah, AR_RTC_FORCE_WAKE, AR_RTC_FORCE_WAKE_EN |
 		  AR_RTC_FORCE_WAKE_ON_INT);
 
@@ -1490,7 +1516,7 @@ static bool ath9k_hw_set_reset(struct ath_hw *ah, int type)
 	udelay(50);
 
 	REG_WRITE(ah, AR_RTC_RC, 0);
-	if (!ath9k_hw_wait(ah, AR_RTC_RC, AR_RTC_RC_M, 0)) {
+	if (!ath9k_hw_wait(ah, AR_RTC_RC, AR_RTC_RC_M, 0, AH_WAIT_TIMEOUT)) {
 		DPRINTF(ah->ah_sc, ATH_DBG_RESET,
 			"RTC stuck in MAC reset\n");
 		return false;
@@ -1513,12 +1539,14 @@ static bool ath9k_hw_set_reset_power_on(struct ath_hw *ah)
 		  AR_RTC_FORCE_WAKE_ON_INT);
 
 	REG_WRITE(ah, AR_RTC_RESET, 0);
+	udelay(2);
 	REG_WRITE(ah, AR_RTC_RESET, 1);
 
 	if (!ath9k_hw_wait(ah,
 			   AR_RTC_STATUS,
 			   AR_RTC_STATUS_M,
-			   AR_RTC_STATUS_ON)) {
+			   AR_RTC_STATUS_ON,
+			   AH_WAIT_TIMEOUT)) {
 		DPRINTF(ah->ah_sc, ATH_DBG_RESET, "RTC not waking up\n");
 		return false;
 	}
@@ -1580,7 +1608,10 @@ static void ath9k_hw_set_regs(struct ath_hw *ah, struct ath9k_channel *chan,
 static bool ath9k_hw_chip_reset(struct ath_hw *ah,
 				struct ath9k_channel *chan)
 {
-	if (!ath9k_hw_set_reset_reg(ah, ATH9K_RESET_WARM))
+	if (OLC_FOR_AR9280_20_LATER) {
+		if (!ath9k_hw_set_reset_reg(ah, ATH9K_RESET_POWER_ON))
+			return false;
+	} else if (!ath9k_hw_set_reset_reg(ah, ATH9K_RESET_WARM))
 		return false;
 
 	if (!ath9k_hw_setpower(ah, ATH9K_PM_AWAKE))
@@ -1610,7 +1641,7 @@ static bool ath9k_hw_channel_change(struct ath_hw *ah,
 
 	REG_WRITE(ah, AR_PHY_RFBUS_REQ, AR_PHY_RFBUS_REQ_EN);
 	if (!ath9k_hw_wait(ah, AR_PHY_RFBUS_GRANT, AR_PHY_RFBUS_GRANT_EN,
-			   AR_PHY_RFBUS_GRANT_EN)) {
+			   AR_PHY_RFBUS_GRANT_EN, AH_WAIT_TIMEOUT)) {
 		DPRINTF(ah->ah_sc, ATH_DBG_REG_IO,
 			"Could not kill baseband RX\n");
 		return false;
@@ -2801,6 +2832,8 @@ bool ath9k_hw_getisr(struct ath_hw *ah, enum ath9k_int *masked)
 				mask2 |= ATH9K_INT_GTT;
 			if (isr2 & AR_ISR_S2_CST)
 				mask2 |= ATH9K_INT_CST;
+			if (isr2 & AR_ISR_S2_TSFOOR)
+				mask2 |= ATH9K_INT_TSFOOR;
 		}
 
 		isr = REG_READ(ah, AR_ISR_RAC);
@@ -2946,7 +2979,9 @@ enum ath9k_int ath9k_hw_set_interrupts(struct ath_hw *ah, enum ath9k_int ints)
 		if (ints & ATH9K_INT_DTIMSYNC)
 			mask2 |= AR_IMR_S2_DTIMSYNC;
 		if (ints & ATH9K_INT_CABEND)
-			mask2 |= (AR_IMR_S2_CABEND);
+			mask2 |= AR_IMR_S2_CABEND;
+		if (ints & ATH9K_INT_TSFOOR)
+			mask2 |= AR_IMR_S2_TSFOOR;
 	}
 
 	if (ints & (ATH9K_INT_GTT | ATH9K_INT_CST)) {
@@ -3116,6 +3151,8 @@ void ath9k_hw_set_sta_beacon_timers(struct ath_hw *ah,
 		    AR_TBTT_TIMER_EN | AR_TIM_TIMER_EN |
 		    AR_DTIM_TIMER_EN);
 
+	/* TSF Out of Range Threshold */
+	REG_WRITE(ah, AR_TSFOOR_THRESHOLD, bs->bs_tsfoor_threshold);
 }
 
 /*******************/
@@ -3128,10 +3165,11 @@ bool ath9k_hw_fill_cap_info(struct ath_hw *ah)
 	u16 capField = 0, eeval;
 
 	eeval = ah->eep_ops->get_eeprom(ah, EEP_REG_0);
-
 	ah->regulatory.current_rd = eeval;
 
 	eeval = ah->eep_ops->get_eeprom(ah, EEP_REG_1);
+	if (AR_SREV_9285_10_OR_LATER(ah))
+		eeval |= AR9285_RDEXT_DEFAULT;
 	ah->regulatory.current_rd_ext = eeval;
 
 	capField = ah->eep_ops->get_eeprom(ah, EEP_OP_CAP);
@@ -3182,14 +3220,11 @@ bool ath9k_hw_fill_cap_info(struct ath_hw *ah)
 	}
 
 	pCap->tx_chainmask = ah->eep_ops->get_eeprom(ah, EEP_TX_MASK);
-	if ((ah->is_pciexpress)
-	    || (eeval & AR5416_OPFLAGS_11A)) {
-		pCap->rx_chainmask =
-			ah->eep_ops->get_eeprom(ah, EEP_RX_MASK);
-	} else {
-		pCap->rx_chainmask =
-			(ath9k_hw_gpio_get(ah, 0)) ? 0x5 : 0x7;
-	}
+	if ((ah->hw_version.devid == AR5416_DEVID_PCI) &&
+	    !(eeval & AR5416_OPFLAGS_11A))
+		pCap->rx_chainmask = ath9k_hw_gpio_get(ah, 0) ? 0x5 : 0x7;
+	else
+		pCap->rx_chainmask = ah->eep_ops->get_eeprom(ah, EEP_RX_MASK);
 
 	if (!(AR_SREV_9280(ah) && (ah->hw_version.macRev == 0)))
 		ah->misc_mode |= AR_PCU_MIC_NEW_LOC_ENA;
@@ -3317,8 +3352,6 @@ bool ath9k_hw_fill_cap_info(struct ath_hw *ah)
 bool ath9k_hw_getcapability(struct ath_hw *ah, enum ath9k_capability_type type,
 			    u32 capability, u32 *result)
 {
-	const struct ath9k_hw_capabilities *pCap = &ah->caps;
-
 	switch (type) {
 	case ATH9K_CAP_CIPHER:
 		switch (capability) {
@@ -3344,16 +3377,10 @@ bool ath9k_hw_getcapability(struct ath_hw *ah, enum ath9k_capability_type type,
 	case ATH9K_CAP_TKIP_SPLIT:
 		return (ah->misc_mode & AR_PCU_MIC_NEW_LOC_ENA) ?
 			false : true;
-	case ATH9K_CAP_WME_TKIPMIC:
-		return 0;
-	case ATH9K_CAP_PHYCOUNTERS:
-		return ah->has_hw_phycounters ? 0 : -ENXIO;
 	case ATH9K_CAP_DIVERSITY:
 		return (REG_READ(ah, AR_PHY_CCK_DETECT) &
 			AR_PHY_CCK_DETECT_BB_ENABLE_ANT_FAST_DIV) ?
 			true : false;
-	case ATH9K_CAP_PHYDIAG:
-		return true;
 	case ATH9K_CAP_MCAST_KEYSRCH:
 		switch (capability) {
 		case 0:
@@ -3368,18 +3395,6 @@ bool ath9k_hw_getcapability(struct ath_hw *ah, enum ath9k_capability_type type,
 			}
 		}
 		return false;
-	case ATH9K_CAP_TSF_ADJUST:
-		return (ah->misc_mode & AR_PCU_TX_ADD_TSF) ?
-			true : false;
-	case ATH9K_CAP_RFSILENT:
-		if (capability == 3)
-			return false;
-	case ATH9K_CAP_ANT_CFG_2GHZ:
-		*result = pCap->num_antcfg_2ghz;
-		return true;
-	case ATH9K_CAP_ANT_CFG_5GHZ:
-		*result = pCap->num_antcfg_5ghz;
-		return true;
 	case ATH9K_CAP_TXPOW:
 		switch (capability) {
 		case 0:
@@ -3395,6 +3410,10 @@ bool ath9k_hw_getcapability(struct ath_hw *ah, enum ath9k_capability_type type,
 			return 0;
 		}
 		return false;
+	case ATH9K_CAP_DS:
+		return (AR_SREV_9280_20_OR_LATER(ah) &&
+			(ah->eep_ops->get_eeprom(ah, EEP_RC_CHAIN_MASK) == 1))
+			? false : true;
 	default:
 		return false;
 	}
@@ -3427,12 +3446,6 @@ bool ath9k_hw_setcapability(struct ath_hw *ah, enum ath9k_capability_type type,
 			ah->sta_id1_defaults |= AR_STA_ID1_MCAST_KSRCH;
 		else
 			ah->sta_id1_defaults &= ~AR_STA_ID1_MCAST_KSRCH;
-		return true;
-	case ATH9K_CAP_TSF_ADJUST:
-		if (setting)
-			ah->misc_mode |= AR_PCU_TX_ADD_TSF;
-		else
-			ah->misc_mode &= ~AR_PCU_TX_ADD_TSF;
 		return true;
 	default:
 		return false;

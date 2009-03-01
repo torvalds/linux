@@ -1073,7 +1073,7 @@ static int iwl3945_apm_init(struct iwl_priv *priv)
 	* D0U* --> D0A* state */
 	iwl_set_bit(priv, CSR_GP_CNTRL, CSR_GP_CNTRL_REG_FLAG_INIT_DONE);
 
-	iwl_poll_direct_bit(priv, CSR_GP_CNTRL,
+	ret = iwl_poll_direct_bit(priv, CSR_GP_CNTRL,
 			    CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY, 25000);
 	if (ret < 0) {
 		IWL_DEBUG_INFO(priv, "Failed to init the card\n");
@@ -2747,6 +2747,7 @@ static struct iwl_lib_ops iwl3945_lib = {
 		.query_addr = iwlcore_eeprom_query_addr,
 	},
 	.send_tx_power	= iwl3945_send_tx_power,
+	.is_valid_rtc_data_addr = iwl3945_hw_valid_rtc_data_addr,
 };
 
 static struct iwl_hcmd_utils_ops iwl3945_hcmd_utils = {

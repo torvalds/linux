@@ -718,6 +718,33 @@ s16 ath9k_hw_getchan_noise(struct ath_hw *ah, struct ath9k_channel *chan)
 	return nf;
 }
 
+static void ath9k_olc_temp_compensation(struct ath_hw *ah)
+{
+	u32 rddata, i;
+	int delta, currPDADC, regval;
+
+	rddata = REG_READ(ah, AR_PHY_TX_PWRCTRL4);
+
+	currPDADC = MS(rddata, AR_PHY_TX_PWRCTRL_PD_AVG_OUT);
+
+	if (ah->eep_ops->get_eeprom(ah, EEP_DAC_HPWR_5G))
+		delta = (currPDADC - ah->initPDADC + 4) / 8;
+	else
+		delta = (currPDADC - ah->initPDADC + 5) / 10;
+
+	if (delta != ah->PDADCdelta) {
+		ah->PDADCdelta = delta;
+		for (i = 1; i < AR9280_TX_GAIN_TABLE_SIZE; i++) {
+			regval = ah->originalGain[i] - delta;
+			if (regval < 0)
+				regval = 0;
+
+			REG_RMW_FIELD(ah, AR_PHY_TX_GAIN_TBL1 + i * 4,
+					AR_PHY_TX_GAIN, regval);
+		}
+	}
+}
+
 bool ath9k_hw_calibrate(struct ath_hw *ah, struct ath9k_channel *chan,
 			u8 rxchainmask, bool longcal,
 			bool *isCalDone)
@@ -742,6 +769,8 @@ bool ath9k_hw_calibrate(struct ath_hw *ah, struct ath9k_channel *chan,
 	}
 
 	if (longcal) {
+		if (OLC_FOR_AR9280_20_LATER)
+			ath9k_olc_temp_compensation(ah);
 		ath9k_hw_getnf(ah, chan);
 		ath9k_hw_loadnf(ah, ah->curchan);
 		ath9k_hw_start_nfcal(ah);
@@ -851,20 +880,53 @@ static inline void ath9k_hw_9285_pa_cal(struct ath_hw *ah)
 bool ath9k_hw_init_cal(struct ath_hw *ah,
 		       struct ath9k_channel *chan)
 {
+	if (AR_SREV_9280_10_OR_LATER(ah)) {
+		REG_CLR_BIT(ah, AR_PHY_ADC_CTL, AR_PHY_ADC_CTL_OFF_PWDADC);
+		REG_SET_BIT(ah, AR_PHY_AGC_CONTROL, AR_PHY_AGC_CONTROL_FLTR_CAL);
+		REG_CLR_BIT(ah, AR_PHY_CL_CAL_CTL, AR_PHY_CL_CAL_ENABLE);
+
+		/* Kick off the cal */
+		REG_WRITE(ah, AR_PHY_AGC_CONTROL,
+			  REG_READ(ah, AR_PHY_AGC_CONTROL) |
+			  AR_PHY_AGC_CONTROL_CAL);
+
+		if (!ath9k_hw_wait(ah, AR_PHY_AGC_CONTROL,
+				   AR_PHY_AGC_CONTROL_CAL, 0,
+				   AH_WAIT_TIMEOUT)) {
+			DPRINTF(ah->ah_sc, ATH_DBG_CALIBRATE,
+				"offset calibration failed to complete in 1ms; "
+				"noisy environment?\n");
+			return false;
+		}
+
+		REG_CLR_BIT(ah, AR_PHY_ADC_CTL, AR_PHY_ADC_CTL_OFF_PWDADC);
+		REG_SET_BIT(ah, AR_PHY_AGC_CONTROL, AR_PHY_AGC_CONTROL_FLTR_CAL);
+		REG_SET_BIT(ah, AR_PHY_CL_CAL_CTL, AR_PHY_CL_CAL_ENABLE);
+	}
+
+	/* Calibrate the AGC */
 	REG_WRITE(ah, AR_PHY_AGC_CONTROL,
 		  REG_READ(ah, AR_PHY_AGC_CONTROL) |
 		  AR_PHY_AGC_CONTROL_CAL);
 
-	if (!ath9k_hw_wait(ah, AR_PHY_AGC_CONTROL, AR_PHY_AGC_CONTROL_CAL, 0)) {
+	if (!ath9k_hw_wait(ah, AR_PHY_AGC_CONTROL, AR_PHY_AGC_CONTROL_CAL,
+			   0, AH_WAIT_TIMEOUT)) {
 		DPRINTF(ah->ah_sc, ATH_DBG_CALIBRATE,
 			"offset calibration failed to complete in 1ms; "
 			"noisy environment?\n");
 		return false;
 	}
 
+	if (AR_SREV_9280_10_OR_LATER(ah)) {
+		REG_SET_BIT(ah, AR_PHY_ADC_CTL, AR_PHY_ADC_CTL_OFF_PWDADC);
+		REG_CLR_BIT(ah, AR_PHY_AGC_CONTROL, AR_PHY_AGC_CONTROL_FLTR_CAL);
+	}
+
+	/* Do PA Calibration */
 	if (AR_SREV_9285(ah) && AR_SREV_9285_11_OR_LATER(ah))
 		ath9k_hw_9285_pa_cal(ah);
 
+	/* Do NF Calibration */
 	REG_WRITE(ah, AR_PHY_AGC_CONTROL,
 		  REG_READ(ah, AR_PHY_AGC_CONTROL) |
 		  AR_PHY_AGC_CONTROL_NF);

@@ -1022,11 +1022,6 @@ static inline int ieee80211_num_regular_queues(struct ieee80211_hw *hw)
 	return hw->queues;
 }
 
-static inline int ieee80211_num_queues(struct ieee80211_hw *hw)
-{
-	return hw->queues + hw->ampdu_queues;
-}
-
 static inline struct ieee80211_rate *
 ieee80211_get_tx_rate(const struct ieee80211_hw *hw,
 		      const struct ieee80211_tx_info *c)
@@ -1329,6 +1324,12 @@ enum ieee80211_ampdu_mlme_action {
  *	because the hardware is turned off! Anything else is a bug!
  *	Returns a negative error code which will be seen in userspace.
  *
+ * @sw_scan_start: Notifier function that is called just before a software scan
+ *	is started. Can be NULL, if the driver doesn't need this notification.
+ *
+ * @sw_scan_complete: Notifier function that is called just after a software scan
+ *	finished. Can be NULL, if the driver doesn't need this notification.
+ *
  * @get_stats: Return low-level statistics.
  * 	Returns zero if statistics are available.
  *
@@ -1408,6 +1409,8 @@ struct ieee80211_ops {
 			u32 iv32, u16 *phase1key);
 	int (*hw_scan)(struct ieee80211_hw *hw,
 		       struct cfg80211_scan_request *req);
+	void (*sw_scan_start)(struct ieee80211_hw *hw);
+	void (*sw_scan_complete)(struct ieee80211_hw *hw);
 	int (*get_stats)(struct ieee80211_hw *hw,
 			 struct ieee80211_low_level_stats *stats);
 	void (*get_tkip_seq)(struct ieee80211_hw *hw, u8 hw_key_idx,
@@ -1980,6 +1983,16 @@ struct ieee80211_sta *ieee80211_find_sta(struct ieee80211_hw *hw,
 /* Rate control API */
 
 /**
+ * enum rate_control_changed - flags to indicate which parameter changed
+ *
+ * @IEEE80211_RC_HT_CHANGED: The HT parameters of the operating channel have
+ *	changed, rate control algorithm can update its internal state if needed.
+ */
+enum rate_control_changed {
+	IEEE80211_RC_HT_CHANGED = BIT(0)
+};
+
+/**
  * struct ieee80211_tx_rate_control - rate control information for/from RC algo
  *
  * @hw: The hardware the algorithm is invoked for.
@@ -2015,6 +2028,9 @@ struct rate_control_ops {
 	void *(*alloc_sta)(void *priv, struct ieee80211_sta *sta, gfp_t gfp);
 	void (*rate_init)(void *priv, struct ieee80211_supported_band *sband,
 			  struct ieee80211_sta *sta, void *priv_sta);
+	void (*rate_update)(void *priv, struct ieee80211_supported_band *sband,
+			    struct ieee80211_sta *sta,
+			    void *priv_sta, u32 changed);
 	void (*free_sta)(void *priv, struct ieee80211_sta *sta,
 			 void *priv_sta);
 

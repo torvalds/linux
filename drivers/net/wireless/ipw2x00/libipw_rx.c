@@ -33,7 +33,8 @@
 #include <linux/ctype.h>
 
 #include <net/lib80211.h>
-#include <net/ieee80211.h>
+
+#include "ieee80211.h"
 
 static void ieee80211_monitor_rx(struct ieee80211_device *ieee,
 					struct sk_buff *skb,
@@ -1615,7 +1616,7 @@ static void ieee80211_process_probe_response(struct ieee80211_device
 			break;
 
 		if ((oldest == NULL) ||
-		    (target->last_scanned < oldest->last_scanned))
+		    time_before(target->last_scanned, oldest->last_scanned))
 			oldest = target;
 	}
 

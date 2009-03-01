@@ -2,6 +2,7 @@
 
 #include <linux/types.h>
 #include <linux/ethtool.h>
+#include <linux/if_arp.h>
 #include <net/lib80211.h>
 
 #include "hostap_wlan.h"

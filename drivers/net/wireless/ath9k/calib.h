@@ -27,7 +27,7 @@ extern const struct hal_percal_data adc_init_dc_cal;
 
 #define AR_PHY_CCA_MAX_GOOD_VALUE      		-85
 #define AR_PHY_CCA_MAX_HIGH_VALUE      		-62
-#define AR_PHY_CCA_MIN_BAD_VALUE       		-121
+#define AR_PHY_CCA_MIN_BAD_VALUE       		-140
 #define AR_PHY_CCA_FILTERWINDOW_LENGTH_INIT     3
 #define AR_PHY_CCA_FILTERWINDOW_LENGTH          5
 

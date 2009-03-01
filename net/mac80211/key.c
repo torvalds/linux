@@ -400,7 +400,7 @@ void ieee80211_key_link(struct ieee80211_key *key,
 			 */
 
 			/* same here, the AP could be using QoS */
-			ap = sta_info_get(key->local, key->sdata->u.sta.bssid);
+			ap = sta_info_get(key->local, key->sdata->u.mgd.bssid);
 			if (ap) {
 				if (test_sta_flags(ap, WLAN_STA_WME))
 					key->conf.flags |=

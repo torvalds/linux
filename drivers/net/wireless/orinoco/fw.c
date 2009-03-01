@@ -43,6 +43,33 @@ struct orinoco_fw_header {
 	char signature[0];      /* FW signature length headersize-20 */
 } __attribute__ ((packed));
 
+/* Check the range of various header entries. Return a pointer to a
+ * description of the problem, or NULL if everything checks out. */
+static const char *validate_fw(const struct orinoco_fw_header *hdr, size_t len)
+{
+	u16 hdrsize;
+
+	if (len < sizeof(*hdr))
+		return "image too small";
+	if (memcmp(hdr->hdr_vers, "HFW", 3) != 0)
+		return "format not recognised";
+
+	hdrsize = le16_to_cpu(hdr->headersize);
+	if (hdrsize > len)
+		return "bad headersize";
+	if ((hdrsize + le32_to_cpu(hdr->block_offset)) > len)
+		return "bad block offset";
+	if ((hdrsize + le32_to_cpu(hdr->pdr_offset)) > len)
+		return "bad PDR offset";
+	if ((hdrsize + le32_to_cpu(hdr->pri_offset)) > len)
+		return "bad PRI offset";
+	if ((hdrsize + le32_to_cpu(hdr->compat_offset)) > len)
+		return "bad compat offset";
+
+	/* TODO: consider adding a checksum or CRC to the firmware format */
+	return NULL;
+}
+
 /* Download either STA or AP firmware into the card. */
 static int
 orinoco_dl_firmware(struct orinoco_private *priv,
@@ -56,8 +83,9 @@ orinoco_dl_firmware(struct orinoco_private *priv,
 	const struct firmware *fw_entry;
 	const struct orinoco_fw_header *hdr;
 	const unsigned char *first_block;
-	const unsigned char *end;
+	const void *end;
 	const char *firmware;
+	const char *fw_err;
 	struct net_device *dev = priv->ndev;
 	int err = 0;
 
@@ -93,6 +121,15 @@ orinoco_dl_firmware(struct orinoco_private *priv,
 
 	hdr = (const struct orinoco_fw_header *) fw_entry->data;
 
+	fw_err = validate_fw(hdr, fw_entry->size);
+	if (fw_err) {
+		printk(KERN_WARNING "%s: Invalid firmware image detected (%s). "
+		       "Aborting download\n",
+		       dev->name, fw_err);
+		err = -EINVAL;
+		goto abort;
+	}
+
 	/* Enable aux port to allow programming */
 	err = hermesi_program_init(hw, le32_to_cpu(hdr->entry_point));
 	printk(KERN_DEBUG "%s: Program init returned %d\n", dev->name, err);
@@ -115,7 +152,8 @@ orinoco_dl_firmware(struct orinoco_private *priv,
 		       le16_to_cpu(hdr->headersize) +
 		       le32_to_cpu(hdr->pdr_offset));
 
-	err = hermes_apply_pda_with_defaults(hw, first_block, pda);
+	err = hermes_apply_pda_with_defaults(hw, first_block, end, pda,
+					     &pda[fw->pda_size / sizeof(*pda)]);
 	printk(KERN_DEBUG "%s: Apply PDA returned %d\n", dev->name, err);
 	if (err)
 		goto abort;
@@ -147,7 +185,7 @@ free:
  */
 static int
 symbol_dl_image(struct orinoco_private *priv, const struct fw_info *fw,
-		const unsigned char *image, const unsigned char *end,
+		const unsigned char *image, const void *end,
 		int secondary)
 {
 	hermes_t *hw = &priv->hw;
@@ -188,9 +226,10 @@ symbol_dl_image(struct orinoco_private *priv, const struct fw_info *fw,
 
 	/* Write the PDA to the adapter */
 	if (secondary) {
-		size_t len = hermes_blocks_length(first_block);
+		size_t len = hermes_blocks_length(first_block, end);
 		ptr = first_block + len;
-		ret = hermes_apply_pda(hw, ptr, pda);
+		ret = hermes_apply_pda(hw, ptr, end, pda,
+				       &pda[fw->pda_size / sizeof(*pda)]);
 		kfree(pda);
 		if (ret)
 			return ret;

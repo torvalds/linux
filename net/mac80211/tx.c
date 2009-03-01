@@ -876,7 +876,6 @@ ieee80211_tx_h_stats(struct ieee80211_tx_data *tx)
 	return TX_CONTINUE;
 }
 
-
 /* actual transmit path */
 
 /*
@@ -1016,12 +1015,20 @@ __ieee80211_tx_prepare(struct ieee80211_tx_data *tx,
 	tx->sta = sta_info_get(local, hdr->addr1);
 
 	if (tx->sta && ieee80211_is_data_qos(hdr->frame_control)) {
+		unsigned long flags;
 		qc = ieee80211_get_qos_ctl(hdr);
 		tid = *qc & IEEE80211_QOS_CTL_TID_MASK;
 
+		spin_lock_irqsave(&tx->sta->lock, flags);
 		state = &tx->sta->ampdu_mlme.tid_state_tx[tid];
-		if (*state == HT_AGG_STATE_OPERATIONAL)
+		if (*state == HT_AGG_STATE_OPERATIONAL) {
 			info->flags |= IEEE80211_TX_CTL_AMPDU;
+			if (local->hw.ampdu_queues)
+				skb_set_queue_mapping(
+					skb, tx->local->hw.queues +
+					     tx->sta->tid_to_tx_q[tid]);
+		}
+		spin_unlock_irqrestore(&tx->sta->lock, flags);
 	}
 
 	if (is_multicast_ether_addr(hdr->addr1)) {
@@ -1085,7 +1092,8 @@ static int __ieee80211_tx(struct ieee80211_local *local, struct sk_buff *skb,
 	int ret, i;
 
 	if (skb) {
-		if (netif_subqueue_stopped(local->mdev, skb))
+		if (ieee80211_queue_stopped(&local->hw,
+					    skb_get_queue_mapping(skb)))
 			return IEEE80211_TX_PENDING;
 
 		ret = local->ops->tx(local_to_hw(local), skb);
@@ -1101,8 +1109,8 @@ static int __ieee80211_tx(struct ieee80211_local *local, struct sk_buff *skb,
 			info = IEEE80211_SKB_CB(tx->extra_frag[i]);
 			info->flags &= ~(IEEE80211_TX_CTL_CLEAR_PS_FILT |
 					 IEEE80211_TX_CTL_FIRST_FRAGMENT);
-			if (netif_subqueue_stopped(local->mdev,
-						   tx->extra_frag[i]))
+			if (ieee80211_queue_stopped(&local->hw,
+					skb_get_queue_mapping(tx->extra_frag[i])))
 				return IEEE80211_TX_FRAG_AGAIN;
 
 			ret = local->ops->tx(local_to_hw(local),
@@ -1625,7 +1633,7 @@ int ieee80211_subif_start_xmit(struct sk_buff *skb,
 	case NL80211_IFTYPE_STATION:
 		fc |= cpu_to_le16(IEEE80211_FCTL_TODS);
 		/* BSSID SA DA */
-		memcpy(hdr.addr1, sdata->u.sta.bssid, ETH_ALEN);
+		memcpy(hdr.addr1, sdata->u.mgd.bssid, ETH_ALEN);
 		memcpy(hdr.addr2, skb->data + ETH_ALEN, ETH_ALEN);
 		memcpy(hdr.addr3, skb->data, ETH_ALEN);
 		hdrlen = 24;
@@ -1634,7 +1642,7 @@ int ieee80211_subif_start_xmit(struct sk_buff *skb,
 		/* DA SA BSSID */
 		memcpy(hdr.addr1, skb->data, ETH_ALEN);
 		memcpy(hdr.addr2, skb->data + ETH_ALEN, ETH_ALEN);
-		memcpy(hdr.addr3, sdata->u.sta.bssid, ETH_ALEN);
+		memcpy(hdr.addr3, sdata->u.ibss.bssid, ETH_ALEN);
 		hdrlen = 24;
 		break;
 	default:
@@ -1920,7 +1928,6 @@ struct sk_buff *ieee80211_beacon_get(struct ieee80211_hw *hw,
 	struct ieee80211_tx_info *info;
 	struct ieee80211_sub_if_data *sdata = NULL;
 	struct ieee80211_if_ap *ap = NULL;
-	struct ieee80211_if_sta *ifsta = NULL;
 	struct beacon_data *beacon;
 	struct ieee80211_supported_band *sband;
 	enum ieee80211_band band = local->hw.conf.channel->band;
@@ -1972,13 +1979,13 @@ struct sk_buff *ieee80211_beacon_get(struct ieee80211_hw *hw,
 		} else
 			goto out;
 	} else if (sdata->vif.type == NL80211_IFTYPE_ADHOC) {
+		struct ieee80211_if_ibss *ifibss = &sdata->u.ibss;
 		struct ieee80211_hdr *hdr;
-		ifsta = &sdata->u.sta;
 
-		if (!ifsta->probe_resp)
+		if (!ifibss->probe_resp)
 			goto out;
 
-		skb = skb_copy(ifsta->probe_resp, GFP_ATOMIC);
+		skb = skb_copy(ifibss->probe_resp, GFP_ATOMIC);
 		if (!skb)
 			goto out;
 

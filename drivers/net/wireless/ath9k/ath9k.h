@@ -464,13 +464,11 @@ void ath_beacon_sync(struct ath_softc *sc, int if_id);
 /* ANI */
 /*******/
 
-/* ANI values for STA only.
-   FIXME: Add appropriate values for AP later */
-
-#define ATH_ANI_POLLINTERVAL    100     /* 100 milliseconds between ANI poll */
-#define ATH_SHORT_CALINTERVAL   1000    /* 1 second between calibrations */
-#define ATH_LONG_CALINTERVAL    30000   /* 30 seconds between calibrations */
-#define ATH_RESTART_CALINTERVAL 1200000 /* 20 minutes between calibrations */
+#define ATH_STA_SHORT_CALINTERVAL 1000    /* 1 second */
+#define ATH_AP_SHORT_CALINTERVAL  100     /* 100 ms */
+#define ATH_ANI_POLLINTERVAL      100     /* 100 ms */
+#define ATH_LONG_CALINTERVAL      30000   /* 30 seconds */
+#define ATH_RESTART_CALINTERVAL   1200000 /* 20 minutes */
 
 struct ath_ani {
 	bool caldone;

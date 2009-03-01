@@ -265,6 +265,7 @@ static inline void lbs_deb_hex(unsigned int grp, const char *prompt, u8 *buf, in
 
 #define	CMD_F_HOSTCMD		(1 << 0)
 #define FW_CAPINFO_WPA  	(1 << 0)
+#define FW_CAPINFO_PS  		(1 << 1)
 #define FW_CAPINFO_FIRMWARE_UPGRADE	(1 << 13)
 #define FW_CAPINFO_BOOT2_UPGRADE	(1<<14)
 #define FW_CAPINFO_PERSISTENT_CONFIG	(1<<15)

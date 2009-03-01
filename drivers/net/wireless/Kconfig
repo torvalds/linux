@@ -228,6 +228,14 @@ config PCMCIA_ATMEL
 	  Enable support for PCMCIA cards containing the
 	  Atmel at76c502 and at76c504 chips.
 
+config AT76C50X_USB
+        tristate "Atmel at76c503/at76c505/at76c505a USB cards"
+        depends on MAC80211 && WLAN_80211 && USB
+        select FW_LOADER
+        ---help---
+          Enable support for USB Wireless devices using Atmel at76c503,
+          at76c505 or at76c505a chips.
+
 config AIRO_CS
 	tristate "Cisco/Aironet 34X/35X/4500/4800 PCMCIA cards"
 	depends on PCMCIA && (BROKEN || !M32R) && WLAN_80211

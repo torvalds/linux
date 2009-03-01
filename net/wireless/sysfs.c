@@ -31,7 +31,7 @@ static ssize_t name ## _show(struct device *dev,			\
 	return sprintf(buf, fmt "\n", dev_to_rdev(dev)->member);	\
 }
 
-SHOW_FMT(index, "%d", idx);
+SHOW_FMT(index, "%d", wiphy_idx);
 SHOW_FMT(macaddress, "%pM", wiphy.perm_addr);
 
 static struct device_attribute ieee80211_dev_attrs[] = {
@@ -60,6 +60,8 @@ static int wiphy_suspend(struct device *dev, pm_message_t state)
 	struct cfg80211_registered_device *rdev = dev_to_rdev(dev);
 	int ret = 0;
 
+	rdev->suspend_at = get_seconds();
+
 	if (rdev->ops->suspend) {
 		rtnl_lock();
 		ret = rdev->ops->suspend(&rdev->wiphy);
@@ -73,6 +75,11 @@ static int wiphy_resume(struct device *dev)
 {
 	struct cfg80211_registered_device *rdev = dev_to_rdev(dev);
 	int ret = 0;
+
+	/* Age scan results with time spent in suspend */
+	spin_lock_bh(&rdev->bss_lock);
+	cfg80211_bss_age(rdev, get_seconds() - rdev->suspend_at);
+	spin_unlock_bh(&rdev->bss_lock);
 
 	if (rdev->ops->resume) {
 		rtnl_lock();

@@ -50,7 +50,7 @@
 #include <net/net_namespace.h>
 #include <net/arp.h>
 
-#include <net/ieee80211.h>
+#include "ieee80211.h"
 
 #define DRV_DESCRIPTION "802.11 data/management/control stack"
 #define DRV_NAME        "ieee80211"
@@ -104,6 +104,21 @@ static inline void ieee80211_networks_free(struct ieee80211_device *ieee)
 	kfree(ieee->networks);
 	ieee->networks = NULL;
 }
+
+void ieee80211_networks_age(struct ieee80211_device *ieee,
+                            unsigned long age_secs)
+{
+	struct ieee80211_network *network = NULL;
+	unsigned long flags;
+	unsigned long age_jiffies = msecs_to_jiffies(age_secs * MSEC_PER_SEC);
+
+	spin_lock_irqsave(&ieee->lock, flags);
+	list_for_each_entry(network, &ieee->network_list, list) {
+		network->last_scanned -= age_jiffies;
+	}
+	spin_unlock_irqrestore(&ieee->lock, flags);
+}
+EXPORT_SYMBOL(ieee80211_networks_age);
 
 static void ieee80211_networks_initialize(struct ieee80211_device *ieee)
 {
