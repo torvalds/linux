@@ -1,5 +1,5 @@
 /*
- * Written by Pekka Paalanen, 2008 <pq@iki.fi>
+ * Written by Pekka Paalanen, 2008-2009 <pq@iki.fi>
  */
 #include <linux/module.h>
 #include <linux/io.h>
@@ -11,28 +11,51 @@ static unsigned long mmio_address;
 module_param(mmio_address, ulong, 0);
 MODULE_PARM_DESC(mmio_address, "Start address of the mapping of 16 kB.");
 
+static unsigned v16(unsigned i)
+{
+	return i * 12 + 7;
+}
+
+static unsigned v32(unsigned i)
+{
+	return i * 212371 + 13;
+}
+
 static void do_write_test(void __iomem *p)
 {
 	unsigned int i;
 	mmiotrace_printk("Write test.\n");
+
 	for (i = 0; i < 256; i++)
 		iowrite8(i, p + i);
+
 	for (i = 1024; i < (5 * 1024); i += 2)
-		iowrite16(i * 12 + 7, p + i);
+		iowrite16(v16(i), p + i);
+
 	for (i = (5 * 1024); i < (16 * 1024); i += 4)
-		iowrite32(i * 212371 + 13, p + i);
+		iowrite32(v32(i), p + i);
 }
 
 static void do_read_test(void __iomem *p)
 {
 	unsigned int i;
+	unsigned errs[3] = { 0 };
 	mmiotrace_printk("Read test.\n");
+
 	for (i = 0; i < 256; i++)
-		ioread8(p + i);
+		if (ioread8(p + i) != i)
+			++errs[0];
+
 	for (i = 1024; i < (5 * 1024); i += 2)
-		ioread16(p + i);
+		if (ioread16(p + i) != v16(i))
+			++errs[1];
+
 	for (i = (5 * 1024); i < (16 * 1024); i += 4)
-		ioread32(p + i);
+		if (ioread32(p + i) != v32(i))
+			++errs[2];
+
+	mmiotrace_printk("Read errors: 8-bit %d, 16-bit %d, 32-bit %d.\n",
+						errs[0], errs[1], errs[2]);
 }
 
 static void do_test(void)
