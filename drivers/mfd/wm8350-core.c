@@ -1111,7 +1111,7 @@ int wm8350_read_auxadc(struct wm8350 *wm8350, int channel, int scale, int vref)
 	do {
 		schedule_timeout_interruptible(1);
 		reg = wm8350_reg_read(wm8350, WM8350_DIGITISER_CONTROL_1);
-	} while (--tries && (reg & WM8350_AUXADC_POLL));
+	} while ((reg & WM8350_AUXADC_POLL) && --tries);
 
 	if (!tries)
 		dev_err(wm8350->dev, "adc chn %d read timeout\n", channel);
