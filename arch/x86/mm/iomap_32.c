@@ -21,13 +21,13 @@
 #include <linux/module.h>
 
 #ifdef CONFIG_X86_PAE
-static int
+int
 is_io_mapping_possible(resource_size_t base, unsigned long size)
 {
 	return 1;
 }
 #else
-static int
+int
 is_io_mapping_possible(resource_size_t base, unsigned long size)
 {
 	/* There is no way to map greater than 1 << 32 address without PAE */
@@ -37,46 +37,6 @@ is_io_mapping_possible(resource_size_t base, unsigned long size)
 	return 1;
 }
 #endif
-
-int
-reserve_io_memtype_wc(u64 base, unsigned long size, pgprot_t *prot)
-{
-	unsigned long ret_flag;
-
-	if (!is_io_mapping_possible(base, size))
-		goto out_err;
-
-	if (!pat_enabled) {
-		*prot = pgprot_noncached(PAGE_KERNEL);
-		return 0;
-	}
-
-	if (reserve_memtype(base, base + size, _PAGE_CACHE_WC, &ret_flag))
-		goto out_err;
-
-	if (ret_flag == _PAGE_CACHE_WB)
-		goto out_free;
-
-	if (kernel_map_sync_memtype(base, size, ret_flag))
-		goto out_free;
-
-	*prot = __pgprot(__PAGE_KERNEL | ret_flag);
-	return 0;
-
-out_free:
-	free_memtype(base, base + size);
-out_err:
-	return -EINVAL;
-}
-EXPORT_SYMBOL_GPL(reserve_io_memtype_wc);
-
-void
-free_io_memtype(u64 base, unsigned long size)
-{
-	if (pat_enabled)
-		free_memtype(base, base + size);
-}
-EXPORT_SYMBOL_GPL(free_io_memtype);
 
 /* Map 'pfn' using fixed map 'type' and protections 'prot'
  */
