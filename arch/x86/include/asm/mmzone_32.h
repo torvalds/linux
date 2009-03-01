@@ -92,12 +92,8 @@ static inline int pfn_valid(int pfn)
 
 #ifdef CONFIG_NEED_MULTIPLE_NODES
 /* always use node 0 for bootmem on this numa platform */
-#define alloc_bootmem_core(__bdata, size, align, goal, limit)		\
-({									\
-	bootmem_data_t __maybe_unused *	__abm_bdata_dummy = (__bdata);	\
-	__alloc_bootmem_core(NODE_DATA(0)->bdata,			\
-			     (size), (align), (goal), (limit));		\
-})
+#define bootmem_arch_preferred_node(__bdata, size, align, goal, limit)	\
+	(NODE_DATA(0)->bdata)
 #endif /* CONFIG_NEED_MULTIPLE_NODES */
 
 #endif /* _ASM_X86_MMZONE_32_H */
