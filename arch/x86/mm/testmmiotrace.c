@@ -9,7 +9,13 @@
 
 static unsigned long mmio_address;
 module_param(mmio_address, ulong, 0);
-MODULE_PARM_DESC(mmio_address, "Start address of the mapping of 16 kB.");
+MODULE_PARM_DESC(mmio_address, " Start address of the mapping of 16 kB "
+				"(or 8 MB if read_far is non-zero).");
+
+static unsigned long read_far = 0x400100;
+module_param(read_far, ulong, 0);
+MODULE_PARM_DESC(read_far, " Offset of a 32-bit read within 8 MB "
+				"(default: 0x400100).");
 
 static unsigned v16(unsigned i)
 {
@@ -24,6 +30,7 @@ static unsigned v32(unsigned i)
 static void do_write_test(void __iomem *p)
 {
 	unsigned int i;
+	pr_info(MODULE_NAME ": write test.\n");
 	mmiotrace_printk("Write test.\n");
 
 	for (i = 0; i < 256; i++)
@@ -40,6 +47,7 @@ static void do_read_test(void __iomem *p)
 {
 	unsigned int i;
 	unsigned errs[3] = { 0 };
+	pr_info(MODULE_NAME ": read test.\n");
 	mmiotrace_printk("Read test.\n");
 
 	for (i = 0; i < 256; i++)
@@ -58,9 +66,17 @@ static void do_read_test(void __iomem *p)
 						errs[0], errs[1], errs[2]);
 }
 
-static void do_test(void)
+static void do_read_far_test(void __iomem *p)
 {
-	void __iomem *p = ioremap_nocache(mmio_address, 0x4000);
+	pr_info(MODULE_NAME ": read far test.\n");
+	mmiotrace_printk("Read far test.\n");
+
+	ioread32(p + read_far);
+}
+
+static void do_test(unsigned long size)
+{
+	void __iomem *p = ioremap_nocache(mmio_address, size);
 	if (!p) {
 		pr_err(MODULE_NAME ": could not ioremap, aborting.\n");
 		return;
@@ -68,11 +84,15 @@ static void do_test(void)
 	mmiotrace_printk("ioremap returned %p.\n", p);
 	do_write_test(p);
 	do_read_test(p);
+	if (read_far && read_far < size - 4)
+		do_read_far_test(p);
 	iounmap(p);
 }
 
 static int __init init(void)
 {
+	unsigned long size = (read_far) ? (8 << 20) : (16 << 10);
+
 	if (mmio_address == 0) {
 		pr_err(MODULE_NAME ": you have to use the module argument "
 							"mmio_address.\n");
@@ -81,10 +101,11 @@ static int __init init(void)
 		return -ENXIO;
 	}
 
-	pr_warning(MODULE_NAME ": WARNING: mapping 16 kB @ 0x%08lx "
-					"in PCI address space, and writing "
-					"rubbish in there.\n", mmio_address);
-	do_test();
+	pr_warning(MODULE_NAME ": WARNING: mapping %lu kB @ 0x%08lx in PCI "
+		"address space, and writing 16 kB of rubbish in there.\n",
+		 size >> 10, mmio_address);
+	do_test(size);
+	pr_info(MODULE_NAME ": All done.\n");
 	return 0;
 }
 
