@@ -136,8 +136,6 @@ static int dev_uevent_filter(struct kset *kset, struct kobject *kobj)
 
 	if (ktype == &device_ktype) {
 		struct device *dev = to_dev(kobj);
-		if (dev->uevent_suppress)
-			return 0;
 		if (dev->bus)
 			return 1;
 		if (dev->class)

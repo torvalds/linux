@@ -981,7 +981,7 @@ io_subchannel_register(struct work_struct *work)
 	 * Now we know this subchannel will stay, we can throw
 	 * our delayed uevent.
 	 */
-	sch->dev.uevent_suppress = 0;
+	dev_set_uevent_suppress(&sch->dev, 0);
 	kobject_uevent(&sch->dev.kobj, KOBJ_ADD);
 	/* make it known to the system */
 	ret = ccw_device_register(cdev);
@@ -1243,7 +1243,7 @@ static int io_subchannel_probe(struct subchannel *sch)
 		 * the ccw_device and exit. This happens for all early
 		 * devices, e.g. the console.
 		 */
-		sch->dev.uevent_suppress = 0;
+		dev_set_uevent_suppress(&sch->dev, 0);
 		kobject_uevent(&sch->dev.kobj, KOBJ_ADD);
 		cdev->dev.groups = ccwdev_attr_groups;
 		device_initialize(&cdev->dev);
