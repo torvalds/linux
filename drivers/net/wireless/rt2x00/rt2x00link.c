@@ -302,11 +302,6 @@ static void rt2x00link_precalculate_signal(struct rt2x00_dev *rt2x00dev)
 	    PERCENTAGE(qual->rx_success, qual->rx_failed + qual->rx_success);
 	link->tx_percentage =
 	    PERCENTAGE(qual->tx_success, qual->tx_failed + qual->tx_success);
-
-	qual->rx_success = 0;
-	qual->rx_failed = 0;
-	qual->tx_success = 0;
-	qual->tx_failed = 0;
 }
 
 int rt2x00link_calculate_signal(struct rt2x00_dev *rt2x00dev, int rssi)
@@ -392,6 +387,16 @@ void rt2x00link_reset_tuner(struct rt2x00_dev *rt2x00dev, bool antenna)
 		rt2x00link_antenna_reset(rt2x00dev);
 }
 
+void rt2x00link_reset_qual(struct rt2x00_dev *rt2x00dev)
+{
+	struct link_qual *qual = &rt2x00dev->link.qual;
+
+	qual->rx_success = 0;
+	qual->rx_failed = 0;
+	qual->tx_success = 0;
+	qual->tx_failed = 0;
+}
+
 static void rt2x00link_tuner(struct work_struct *work)
 {
 	struct rt2x00_dev *rt2x00dev =
@@ -446,6 +451,11 @@ static void rt2x00link_tuner(struct work_struct *work)
 	 * possibly reset some statistics.
 	 */
 	rt2x00lib_antenna_diversity(rt2x00dev);
+
+	/*
+	 * Reset the quality counters which recounted during each period.
+	 */
+	rt2x00link_reset_qual(rt2x00dev);
 
 	/*
 	 * Increase tuner counter, and reschedule the next link tuner run.
