@@ -142,6 +142,10 @@ struct ext4_sb_info {
 	/* locality groups */
 	struct ext4_locality_group *s_locality_groups;
 
+	/* for write statistics */
+	unsigned long s_sectors_written_start;
+	u64 s_kbytes_written;
+
 	unsigned int s_log_groups_per_flex;
 	struct flex_groups *s_flex_groups;
 };

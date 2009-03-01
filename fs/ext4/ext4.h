@@ -683,7 +683,8 @@ struct ext4_super_block {
 	__u8	s_log_groups_per_flex;  /* FLEX_BG group size */
 	__u8	s_reserved_char_pad2;
 	__le16  s_reserved_pad;
-	__u32   s_reserved[162];        /* Padding to the end of the block */
+	__le64	s_kbytes_written;	/* nr of lifetime kilobytes written */
+	__u32   s_reserved[160];        /* Padding to the end of the block */
 };
 
 #ifdef __KERNEL__
