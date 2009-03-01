@@ -2520,11 +2520,16 @@ static ssize_t rs_sta_dbgfs_scale_table_write(struct file *file,
 static ssize_t rs_sta_dbgfs_scale_table_read(struct file *file,
 			char __user *user_buf, size_t count, loff_t *ppos)
 {
-	char buff[1024];
+	char *buff;
 	int desc = 0;
 	int i = 0;
+	ssize_t ret;
 
 	struct iwl_lq_sta *lq_sta = file->private_data;
+
+	buff = kmalloc(1024, GFP_KERNEL);
+	if (!buff)
+		return -ENOMEM;
 
 	desc += sprintf(buff+desc, "sta_id %d\n", lq_sta->lq.sta_id);
 	desc += sprintf(buff+desc, "failed=%d success=%d rate=0%X\n",
@@ -2557,7 +2562,9 @@ static ssize_t rs_sta_dbgfs_scale_table_read(struct file *file,
 		desc += sprintf(buff+desc, " rate[%d] 0x%X\n",
 			i, le32_to_cpu(lq_sta->lq.rs_table[i].rate_n_flags));
 
-	return simple_read_from_buffer(user_buf, count, ppos, buff, desc);
+	ret = simple_read_from_buffer(user_buf, count, ppos, buff, desc);
+	kfree(buff);
+	return ret;
 }
 
 static const struct file_operations rs_sta_dbgfs_scale_table_ops = {
@@ -2568,11 +2575,17 @@ static const struct file_operations rs_sta_dbgfs_scale_table_ops = {
 static ssize_t rs_sta_dbgfs_stats_table_read(struct file *file,
 			char __user *user_buf, size_t count, loff_t *ppos)
 {
-	char buff[1024];
+	char *buff;
 	int desc = 0;
 	int i, j;
+	ssize_t ret;
 
 	struct iwl_lq_sta *lq_sta = file->private_data;
+
+	buff = kmalloc(1024, GFP_KERNEL);
+	if (!buff)
+		return -ENOMEM;
+
 	for (i = 0; i < LQ_SIZE; i++) {
 		desc += sprintf(buff+desc, "%s type=%d SGI=%d FAT=%d DUP=%d\n"
 				"rate=0x%X\n",
@@ -2590,7 +2603,9 @@ static ssize_t rs_sta_dbgfs_stats_table_read(struct file *file,
 				lq_sta->lq_info[i].win[j].success_ratio);
 		}
 	}
-	return simple_read_from_buffer(user_buf, count, ppos, buff, desc);
+	ret = simple_read_from_buffer(user_buf, count, ppos, buff, desc);
+	kfree(buff);
+	return ret;
 }
 
 static const struct file_operations rs_sta_dbgfs_stats_table_ops = {

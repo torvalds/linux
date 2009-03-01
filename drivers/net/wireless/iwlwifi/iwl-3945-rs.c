@@ -846,10 +846,15 @@ static ssize_t iwl3945_sta_dbgfs_stats_table_read(struct file *file,
 						  char __user *user_buf,
 						  size_t count, loff_t *ppos)
 {
-	char buff[1024];
+	char *buff;
 	int desc = 0;
 	int j;
+	ssize_t ret;
 	struct iwl3945_rs_sta *lq_sta = file->private_data;
+
+	buff = kmalloc(1024, GFP_KERNEL);
+	if (!buff)
+		return -ENOMEM;
 
 	desc += sprintf(buff + desc, "tx packets=%d last rate index=%d\n"
 			"rate=0x%X flush time %d\n",
@@ -863,7 +868,9 @@ static ssize_t iwl3945_sta_dbgfs_stats_table_read(struct file *file,
 				lq_sta->win[j].success_counter,
 				lq_sta->win[j].success_ratio);
 	}
-	return simple_read_from_buffer(user_buf, count, ppos, buff, desc);
+	ret = simple_read_from_buffer(user_buf, count, ppos, buff, desc);
+	kfree(buff);
+	return ret;
 }
 
 static const struct file_operations rs_sta_dbgfs_stats_table_ops = {
