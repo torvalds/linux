@@ -142,7 +142,7 @@ int cx18_av_vbi(struct cx18 *cx, unsigned int cmd, void *arg)
 			0, V4L2_SLICED_TELETEXT_B, 0,	/* 1 */
 			0, V4L2_SLICED_WSS_625, 0,	/* 4 */
 			V4L2_SLICED_CAPTION_525,	/* 6 */
-			V4L2_SLICED_VPS, 0, 0, 0, 0,	/* 7 - unlike cx25840 */
+			0, 0, V4L2_SLICED_VPS, 0, 0,	/* 9 */
 			0, 0, 0, 0
 		};
 		int is_pal = !(state->std & V4L2_STD_525_60);
@@ -243,7 +243,7 @@ int cx18_av_vbi(struct cx18 *cx, unsigned int cmd, void *arg)
 					lcr[i] |= 6 << (4 * x);
 					break;
 				case V4L2_SLICED_VPS:
-					lcr[i] |= 7 << (4 * x); /*'840 differs*/
+					lcr[i] |= 9 << (4 * x);
 					break;
 				}
 			}
@@ -301,7 +301,7 @@ int cx18_av_vbi(struct cx18 *cx, unsigned int cmd, void *arg)
 			sdid = V4L2_SLICED_CAPTION_525;
 			err = !odd_parity(p[0]) || !odd_parity(p[1]);
 			break;
-		case 7: /* Differs from cx25840 */
+		case 9:
 			sdid = V4L2_SLICED_VPS;
 			if (decode_vps(p, p) != 0)
 				err = 1;
