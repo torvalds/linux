@@ -202,7 +202,7 @@ callback_init(void * kernel_end)
 		console_remap_vm.size = nr_pages << PAGE_SHIFT;
 		vm_area_register_early(&console_remap_vm, PAGE_SIZE);
 
-		vaddr = (unsigned long)consle_remap_vm.addr;
+		vaddr = (unsigned long)console_remap_vm.addr;
 
 		/* Set up the third level PTEs and update the virtual
 		   addresses of the CRB entries.  */
