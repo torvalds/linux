@@ -523,6 +523,137 @@ int dapm_reg_event(struct snd_soc_dapm_widget *w,
 EXPORT_SYMBOL_GPL(dapm_reg_event);
 
 /*
+ * Scan a single DAPM widget for a complete audio path and update the
+ * power status appropriately.
+ */
+static int dapm_power_widget(struct snd_soc_codec *codec, int event,
+			     struct snd_soc_dapm_widget *w)
+{
+	int in, out, power_change, power, ret;
+
+	/* vmid - no action */
+	if (w->id == snd_soc_dapm_vmid)
+		return 0;
+
+	/* active ADC */
+	if (w->id == snd_soc_dapm_adc && w->active) {
+		in = is_connected_input_ep(w);
+		dapm_clear_walk(w->codec);
+		w->power = (in != 0) ? 1 : 0;
+		dapm_update_bits(w);
+		return 0;
+	}
+
+	/* active DAC */
+	if (w->id == snd_soc_dapm_dac && w->active) {
+		out = is_connected_output_ep(w);
+		dapm_clear_walk(w->codec);
+		w->power = (out != 0) ? 1 : 0;
+		dapm_update_bits(w);
+		return 0;
+	}
+
+	/* pre and post event widgets */
+	if (w->id == snd_soc_dapm_pre) {
+		if (!w->event)
+			return 0;
+
+		if (event == SND_SOC_DAPM_STREAM_START) {
+			ret = w->event(w,
+				       NULL, SND_SOC_DAPM_PRE_PMU);
+			if (ret < 0)
+				return ret;
+		} else if (event == SND_SOC_DAPM_STREAM_STOP) {
+			ret = w->event(w,
+				       NULL, SND_SOC_DAPM_PRE_PMD);
+			if (ret < 0)
+				return ret;
+		}
+		return 0;
+	}
+	if (w->id == snd_soc_dapm_post) {
+		if (!w->event)
+			return 0;
+
+		if (event == SND_SOC_DAPM_STREAM_START) {
+			ret = w->event(w,
+				       NULL, SND_SOC_DAPM_POST_PMU);
+			if (ret < 0)
+				return ret;
+		} else if (event == SND_SOC_DAPM_STREAM_STOP) {
+			ret = w->event(w,
+				       NULL, SND_SOC_DAPM_POST_PMD);
+			if (ret < 0)
+				return ret;
+		}
+		return 0;
+	}
+
+	/* all other widgets */
+	in = is_connected_input_ep(w);
+	dapm_clear_walk(w->codec);
+	out = is_connected_output_ep(w);
+	dapm_clear_walk(w->codec);
+	power = (out != 0 && in != 0) ? 1 : 0;
+	power_change = (w->power == power) ? 0 : 1;
+	w->power = power;
+
+	if (!power_change)
+		return 0;
+
+	/* call any power change event handlers */
+	if (w->event)
+		pr_debug("power %s event for %s flags %x\n",
+			 w->power ? "on" : "off",
+			 w->name, w->event_flags);
+
+	/* power up pre event */
+	if (power && w->event &&
+	    (w->event_flags & SND_SOC_DAPM_PRE_PMU)) {
+		ret = w->event(w, NULL, SND_SOC_DAPM_PRE_PMU);
+		if (ret < 0)
+			return ret;
+	}
+
+	/* power down pre event */
+	if (!power && w->event &&
+	    (w->event_flags & SND_SOC_DAPM_PRE_PMD)) {
+		ret = w->event(w, NULL, SND_SOC_DAPM_PRE_PMD);
+		if (ret < 0)
+			return ret;
+	}
+
+	/* Lower PGA volume to reduce pops */
+	if (w->id == snd_soc_dapm_pga && !power)
+		dapm_set_pga(w, power);
+
+	dapm_update_bits(w);
+
+	/* Raise PGA volume to reduce pops */
+	if (w->id == snd_soc_dapm_pga && power)
+		dapm_set_pga(w, power);
+
+	/* power up post event */
+	if (power && w->event &&
+	    (w->event_flags & SND_SOC_DAPM_POST_PMU)) {
+		ret = w->event(w,
+			       NULL, SND_SOC_DAPM_POST_PMU);
+		if (ret < 0)
+			return ret;
+	}
+
+	/* power down post event */
+	if (!power && w->event &&
+	    (w->event_flags & SND_SOC_DAPM_POST_PMD)) {
+		ret = w->event(w, NULL, SND_SOC_DAPM_POST_PMD);
+		if (ret < 0)
+			return ret;
+	}
+
+	return 0;
+}
+
+/*
  * Scan each dapm widget for complete audio path.
  * A complete path is a route that has valid endpoints i.e.:-
  *
@@ -534,7 +665,7 @@ EXPORT_SYMBOL_GPL(dapm_reg_event);
 static int dapm_power_widgets(struct snd_soc_codec *codec, int event)
 {
 	struct snd_soc_dapm_widget *w;
-	int in, out, i, c = 1, *seq = NULL, ret = 0, power_change, power;
+	int i, c = 1, *seq = NULL, ret = 0;
 
 	/* do we have a sequenced stream event */
 	if (event == SND_SOC_DAPM_STREAM_START) {
@@ -545,135 +676,20 @@ static int dapm_power_widgets(struct snd_soc_codec *codec, int event)
 		seq = dapm_down_seq;
 	}
 
-	for(i = 0; i < c; i++) {
+	for (i = 0; i < c; i++) {
 		list_for_each_entry(w, &codec->dapm_widgets, list) {
 
 			/* is widget in stream order */
 			if (seq && seq[i] && w->id != seq[i])
 				continue;
 
-			/* vmid - no action */
-			if (w->id == snd_soc_dapm_vmid)
-				continue;
-
-			/* active ADC */
-			if (w->id == snd_soc_dapm_adc && w->active) {
-				in = is_connected_input_ep(w);
-				dapm_clear_walk(w->codec);
-				w->power = (in != 0) ? 1 : 0;
-				dapm_update_bits(w);
-				continue;
-			}
-
-			/* active DAC */
-			if (w->id == snd_soc_dapm_dac && w->active) {
-				out = is_connected_output_ep(w);
-				dapm_clear_walk(w->codec);
-				w->power = (out != 0) ? 1 : 0;
-				dapm_update_bits(w);
-				continue;
-			}
-
-			/* pre and post event widgets */
-			if (w->id == snd_soc_dapm_pre) {
-				if (!w->event)
-					continue;
-
-				if (event == SND_SOC_DAPM_STREAM_START) {
-					ret = w->event(w,
-						NULL, SND_SOC_DAPM_PRE_PMU);
-					if (ret < 0)
-						return ret;
-				} else if (event == SND_SOC_DAPM_STREAM_STOP) {
-					ret = w->event(w,
-						NULL, SND_SOC_DAPM_PRE_PMD);
-					if (ret < 0)
-						return ret;
-				}
-				continue;
-			}
-			if (w->id == snd_soc_dapm_post) {
-				if (!w->event)
-					continue;
-
-				if (event == SND_SOC_DAPM_STREAM_START) {
-					ret = w->event(w,
-						NULL, SND_SOC_DAPM_POST_PMU);
-					if (ret < 0)
-						return ret;
-				} else if (event == SND_SOC_DAPM_STREAM_STOP) {
-					ret = w->event(w,
-						NULL, SND_SOC_DAPM_POST_PMD);
-					if (ret < 0)
-						return ret;
-				}
-				continue;
-			}
-
-			/* all other widgets */
-			in = is_connected_input_ep(w);
-			dapm_clear_walk(w->codec);
-			out = is_connected_output_ep(w);
-			dapm_clear_walk(w->codec);
-			power = (out != 0 && in != 0) ? 1 : 0;
-			power_change = (w->power == power) ? 0: 1;
-			w->power = power;
-
-			if (!power_change)
-				continue;
-
-			/* call any power change event handlers */
-			if (w->event)
-				pr_debug("power %s event for %s flags %x\n",
-					 w->power ? "on" : "off",
-					 w->name, w->event_flags);
-
-			/* power up pre event */
-			if (power && w->event &&
-			    (w->event_flags & SND_SOC_DAPM_PRE_PMU)) {
-				ret = w->event(w, NULL, SND_SOC_DAPM_PRE_PMU);
-				if (ret < 0)
-					return ret;
-			}
-
-			/* power down pre event */
-			if (!power && w->event &&
-			    (w->event_flags & SND_SOC_DAPM_PRE_PMD)) {
-				ret = w->event(w, NULL, SND_SOC_DAPM_PRE_PMD);
-				if (ret < 0)
-					return ret;
-			}
-
-			/* Lower PGA volume to reduce pops */
-			if (w->id == snd_soc_dapm_pga && !power)
-				dapm_set_pga(w, power);
-
-			dapm_update_bits(w);
-
-			/* Raise PGA volume to reduce pops */
-			if (w->id == snd_soc_dapm_pga && power)
-				dapm_set_pga(w, power);
-
-			/* power up post event */
-			if (power && w->event &&
-			    (w->event_flags & SND_SOC_DAPM_POST_PMU)) {
-				ret = w->event(w,
-					       NULL, SND_SOC_DAPM_POST_PMU);
-				if (ret < 0)
-					return ret;
-			}
-
-			/* power down post event */
-			if (!power && w->event &&
-			    (w->event_flags & SND_SOC_DAPM_POST_PMD)) {
-				ret = w->event(w, NULL, SND_SOC_DAPM_POST_PMD);
-				if (ret < 0)
-					return ret;
-			}
+			ret = dapm_power_widget(codec, event, w);
+			if (ret != 0)
+				return ret;
 		}
 	}
 
-	return ret;
+	return 0;
 }
 
 #ifdef DEBUG
