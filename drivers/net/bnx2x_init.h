@@ -22,12 +22,15 @@
 #define INIT_ASIC			0x4
 #define INIT_HARDWARE			0x7
 
-#define STORM_INTMEM_SIZE_E1		(0x5800 / 4)
-#define STORM_INTMEM_SIZE_E1H		(0x10000 / 4)
-#define TSTORM_INTMEM_ADDR		0x1a0000
-#define CSTORM_INTMEM_ADDR		0x220000
-#define XSTORM_INTMEM_ADDR		0x2a0000
-#define USTORM_INTMEM_ADDR		0x320000
+#define TSTORM_INTMEM_ADDR		TSEM_REG_FAST_MEMORY
+#define CSTORM_INTMEM_ADDR		CSEM_REG_FAST_MEMORY
+#define XSTORM_INTMEM_ADDR		XSEM_REG_FAST_MEMORY
+#define USTORM_INTMEM_ADDR		USEM_REG_FAST_MEMORY
+/* RAM0 size in bytes */
+#define STORM_INTMEM_SIZE_E1		0x5800
+#define STORM_INTMEM_SIZE_E1H		0x10000
+#define STORM_INTMEM_SIZE(bp)	((CHIP_IS_E1H(bp) ? STORM_INTMEM_SIZE_E1H : \
+						    STORM_INTMEM_SIZE_E1) / 4)
 
 
 /* Init operation types and structures */
@@ -150,7 +153,6 @@ static void bnx2x_init_ind_wr(struct bnx2x *bp, u32 addr, const u32 *data,
 
 static void bnx2x_write_big_buf(struct bnx2x *bp, u32 addr, u32 len)
 {
-#ifdef USE_DMAE
 	int offset = 0;
 
 	if (bp->dmae_ready) {
@@ -164,21 +166,21 @@ static void bnx2x_write_big_buf(struct bnx2x *bp, u32 addr, u32 len)
 				 addr + offset, len);
 	} else
 		bnx2x_init_str_wr(bp, addr, bp->gunzip_buf, len);
-#else
-	bnx2x_init_str_wr(bp, addr, bp->gunzip_buf, len);
-#endif
 }
 
 static void bnx2x_init_fill(struct bnx2x *bp, u32 addr, int fill, u32 len)
 {
-	if ((len * 4) > FW_BUF_SIZE) {
-		BNX2X_ERR("LARGE DMAE OPERATION ! addr 0x%x  len 0x%x\n",
-			  addr, len*4);
-		return;
-	}
-	memset(bp->gunzip_buf, fill, len * 4);
+	u32 buf_len = (((len * 4) > FW_BUF_SIZE) ? FW_BUF_SIZE : (len * 4));
+	u32 buf_len32 = buf_len / 4;
+	int i;
 
-	bnx2x_write_big_buf(bp, addr, len);
+	memset(bp->gunzip_buf, fill, buf_len);
+
+	for (i = 0; i < len; i += buf_len32) {
+		u32 cur_len = min(buf_len32, len - i);
+
+		bnx2x_write_big_buf(bp, addr + i * 4, cur_len);
+	}
 }
 
 static void bnx2x_init_wr_64(struct bnx2x *bp, u32 addr, const u32 *data,
