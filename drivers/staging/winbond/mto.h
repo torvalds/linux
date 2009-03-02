@@ -140,7 +140,6 @@ typedef struct _MTO_PARAMETERS
 #define MTO_TXPOWER_FROM_EEPROM		(adapter->sHwData.PowerIndexFromEEPROM)
 #define LOCAL_ANTENNA_NO()			(adapter->sLocalPara.bAntennaNo)
 #define LOCAL_IS_CONNECTED()		(adapter->sLocalPara.wConnectedSTAindex != 0)
-#define LOCAL_IS_IBSS_MODE()		(adapter->asBSSDescriptElement[adapter->sLocalPara.wConnectedSTAindex].bBssType == IBSS_NET)
 #define MTO_INITTXRATE_MODE			(adapter->sHwData.SoftwareSet&0x2)	//bit 1
 // 20040510 Turbo add
 #define MTO_TMR_CNT()               MTO_DATA().TmrCnt

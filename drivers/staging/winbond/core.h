@@ -3,7 +3,7 @@
 
 #include <linux/wireless.h>
 
-#include "bssdscpt.h"
+#include "mlme_s.h"
 #include "wbhal_s.h"
 #include "mto.h"
 
@@ -15,7 +15,6 @@ struct wbsoft_priv {
 	u32 adapterIndex;	// 20060703.4 Add for using padapterContext global adapter point
 
 	WB_LOCALDESCRIPT sLocalPara;	// Myself connected parameters
-	PWB_BSSDESCRIPTION asBSSDescriptElement;
 
 	MLME_FRAME sMlmeFrame;	// connect to peerSTA parameters
 
