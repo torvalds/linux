@@ -98,8 +98,12 @@ static void zfcp_wka_port_offline(struct work_struct *work)
 	struct zfcp_wka_port *wka_port =
 			container_of(dw, struct zfcp_wka_port, work);
 
-	wait_event(wka_port->completion_wq,
-			atomic_read(&wka_port->refcount) == 0);
+	/* Don't wait forvever. If the wka_port is too busy take it offline
+	   through a new call later */
+	if (!wait_event_timeout(wka_port->completion_wq,
+				atomic_read(&wka_port->refcount) == 0,
+				HZ >> 1))
+		return;
 
 	mutex_lock(&wka_port->mutex);
 	if ((atomic_read(&wka_port->refcount) != 0) ||

@@ -524,7 +524,6 @@ int zfcp_adapter_enqueue(struct ccw_device *ccw_device)
 		goto sysfs_failed;
 
 	atomic_clear_mask(ZFCP_STATUS_COMMON_REMOVE, &adapter->status);
-	zfcp_fc_nameserver_init(adapter);
 
 	if (!zfcp_adapter_scsi_register(adapter))
 		return 0;
