@@ -433,6 +433,23 @@ static inline int snd_hda_hwdep_add_sysfs(struct hda_codec *codec)
 }
 #endif
 
+#ifdef CONFIG_SND_HDA_RECONFIG
+const char *snd_hda_get_hint(struct hda_codec *codec, const char *key);
+int snd_hda_get_bool_hint(struct hda_codec *codec, const char *key);
+#else
+static inline
+const char *snd_hda_get_hint(struct hda_codec *codec, const char *key)
+{
+	return NULL;
+}
+
+static inline
+int snd_hda_get_bool_hint(struct hda_codec *codec, const char *key)
+{
+	return -ENOENT;
+}
+#endif
+
 /*
  * power-management
  */

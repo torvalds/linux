@@ -30,6 +30,12 @@
 #include <sound/hda_hwdep.h>
 #include <sound/minors.h>
 
+/* hint string pair */
+struct hda_hint {
+	const char *key;
+	const char *val;	/* contained in the same alloc as key */
+};
+
 /*
  * write/read an out-of-bound verb
  */
@@ -99,15 +105,15 @@ static int hda_hwdep_open(struct snd_hwdep *hw, struct file *file)
 
 static void clear_hwdep_elements(struct hda_codec *codec)
 {
-	char **head;
 	int i;
 
 	/* clear init verbs */
 	snd_array_free(&codec->init_verbs);
 	/* clear hints */
-	head = codec->hints.list;
-	for (i = 0; i < codec->hints.used; i++, head++)
-		kfree(*head);
+	for (i = 0; i < codec->hints.used; i++) {
+		struct hda_hint *hint = snd_array_elem(&codec->hints, i);
+		kfree(hint->key); /* we don't need to free hint->val */
+	}
 	snd_array_free(&codec->hints);
 	snd_array_free(&codec->user_pins);
 }
@@ -141,7 +147,7 @@ int /*__devinit*/ snd_hda_create_hwdep(struct hda_codec *codec)
 #endif
 
 	snd_array_init(&codec->init_verbs, sizeof(struct hda_verb), 32);
-	snd_array_init(&codec->hints, sizeof(char *), 32);
+	snd_array_init(&codec->hints, sizeof(struct hda_hint), 32);
 	snd_array_init(&codec->user_pins, sizeof(struct hda_pincfg), 16);
 
 	return 0;
@@ -306,26 +312,81 @@ static ssize_t init_verbs_store(struct device *dev,
 	return count;
 }
 
+static struct hda_hint *get_hint(struct hda_codec *codec, const char *key)
+{
+	int i;
+
+	for (i = 0; i < codec->hints.used; i++) {
+		struct hda_hint *hint = snd_array_elem(&codec->hints, i);
+		if (!strcmp(hint->key, key))
+			return hint;
+	}
+	return NULL;
+}
+
+static void remove_trail_spaces(char *str)
+{
+	char *p;
+	if (!*str)
+		return;
+	p = str + strlen(str) - 1;
+	for (; isspace(*p); p--) {
+		*p = 0;
+		if (p == str)
+			return;
+	}
+}
+
+#define MAX_HINTS	1024
+
 static ssize_t hints_store(struct device *dev,
 			   struct device_attribute *attr,
 			   const char *buf, size_t count)
 {
 	struct snd_hwdep *hwdep = dev_get_drvdata(dev);
 	struct hda_codec *codec = hwdep->private_data;
-	char *p;
-	char **hint;
+	char *key, *val;
+	struct hda_hint *hint;
 
-	if (!*buf || isspace(*buf) || *buf == '#' || *buf == '\n')
+	while (isspace(*buf))
+		buf++;
+	if (!*buf || *buf == '#' || *buf == '\n')
 		return count;
-	p = kstrndup_noeol(buf, 1024);
-	if (!p)
+	if (*buf == '=')
+		return -EINVAL;
+	key = kstrndup_noeol(buf, 1024);
+	if (!key)
 		return -ENOMEM;
-	hint = snd_array_new(&codec->hints);
+	/* extract key and val */
+	val = strchr(key, '=');
+	if (!val) {
+		kfree(key);
+		return -EINVAL;
+	}
+	*val++ = 0;
+	while (isspace(*val))
+		val++;
+	remove_trail_spaces(key);
+	remove_trail_spaces(val);
+	hint = get_hint(codec, key);
+	if (hint) {
+		/* replace */
+		kfree(hint->key);
+		hint->key = key;
+		hint->val = val;
+		return count;
+	}
+	/* allocate a new hint entry */
+	if (codec->hints.used >= MAX_HINTS)
+		hint = NULL;
+	else
+		hint = snd_array_new(&codec->hints);
 	if (!hint) {
-		kfree(p);
+		kfree(key);
 		return -ENOMEM;
 	}
-	*hint = p;
+	hint->key = key;
+	hint->val = val;
 	return count;
 }
 
@@ -427,5 +488,30 @@ int snd_hda_hwdep_add_sysfs(struct hda_codec *codec)
 					  hwdep->device, &codec_attrs[i]);
 	return 0;
 }
+
+/*
+ * Look for hint string
+ */
+const char *snd_hda_get_hint(struct hda_codec *codec, const char *key)
+{
+	struct hda_hint *hint = get_hint(codec, key);
+	return hint ? hint->val : NULL;
+}
+EXPORT_SYMBOL_HDA(snd_hda_get_hint);
+
+int snd_hda_get_bool_hint(struct hda_codec *codec, const char *key)
+{
+	const char *p = snd_hda_get_hint(codec, key);
+	if (!p || !*p)
+		return -ENOENT;
+	switch (toupper(*p)) {
+	case 'T': /* true */
+	case 'Y': /* yes */
+	case '1':
+		return 1;
+	}
+	return 0;
+}
+EXPORT_SYMBOL_HDA(snd_hda_get_bool_hint);
 
 #endif /* CONFIG_SND_HDA_RECONFIG */
