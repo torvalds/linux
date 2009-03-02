@@ -28,7 +28,6 @@ static void zfcp_scsi_slave_destroy(struct scsi_device *sdpnt)
 {
 	struct zfcp_unit *unit = (struct zfcp_unit *) sdpnt->hostdata;
 	unit->device = NULL;
-	zfcp_erp_unit_failed(unit, "scslvd1", NULL);
 	zfcp_unit_put(unit);
 }
 
