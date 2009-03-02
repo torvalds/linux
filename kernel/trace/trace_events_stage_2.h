@@ -122,6 +122,8 @@ ftrace_format_##call(struct trace_seq *s)				\
 									\
 	tstruct;							\
 									\
+	trace_seq_printf(s, "\nprint fmt: \"%s\"\n", tpfmt);		\
+									\
 	return ret;							\
 }
 
