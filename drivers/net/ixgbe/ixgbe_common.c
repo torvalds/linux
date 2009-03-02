@@ -661,7 +661,7 @@ static s32 ixgbe_poll_eeprom_eerd_done(struct ixgbe_hw *hw)
 static s32 ixgbe_acquire_eeprom(struct ixgbe_hw *hw)
 {
 	s32 status = 0;
-	u32 eec;
+	u32 eec = 0;
 	u32 i;
 
 	if (ixgbe_acquire_swfw_sync(hw, IXGBE_GSSR_EEP_SM) != 0)

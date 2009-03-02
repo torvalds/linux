@@ -457,8 +457,6 @@ s32 ixgbe_dcb_config_82599(struct ixgbe_hw *hw)
 s32 ixgbe_dcb_hw_config_82599(struct ixgbe_hw *hw,
                               struct ixgbe_dcb_config *dcb_config)
 {
-	u32  pap = 0;
-
 	ixgbe_dcb_config_packet_buffers_82599(hw, dcb_config);
 	ixgbe_dcb_config_82599(hw);
 	ixgbe_dcb_config_rx_arbiter_82599(hw, dcb_config);
