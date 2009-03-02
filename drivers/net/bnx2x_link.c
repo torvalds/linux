@@ -3033,10 +3033,9 @@ static u8 bnx2x_ext_phy_init(struct link_params *params, struct link_vars *vars)
 				       MDIO_WIS_DEVAD,
 				       MDIO_WIS_REG_LASI_CNTL, 0x1);
 
-			bnx2x_save_bcm_spirom_ver(bp, params->port,
-						ext_phy_type,
-						ext_phy_addr,
-						params->shmem_base);
+			/* BCM8705 doesn't have microcode, hence the 0 */
+			bnx2x_save_spirom_version(bp, params->port,
+						params->shmem_base, 0);
 			break;
 
 		case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8706:
