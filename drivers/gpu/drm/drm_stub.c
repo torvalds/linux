@@ -151,7 +151,7 @@ static void drm_master_destroy(struct kref *kref)
 			dev->sigdata.lock = NULL;
 		master->lock.hw_lock = NULL;
 		master->lock.file_priv = NULL;
-		wake_up_interruptible(&master->lock.lock_queue);
+		wake_up_interruptible_all(&master->lock.lock_queue);
 	}
 
 	drm_free(master, sizeof(*master), DRM_MEM_DRIVER);
