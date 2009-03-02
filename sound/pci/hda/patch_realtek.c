@@ -11915,7 +11915,7 @@ static int alc268_parse_auto_config(struct hda_codec *codec)
 	if (spec->kctls.list)
 		add_mixer(spec, spec->kctls.list);
 
-	if (spec->autocfg.speaker_pins[0] != 0x1d)
+	if (!spec->no_analog && spec->autocfg.speaker_pins[0] != 0x1d)
 		add_mixer(spec, alc268_beep_mixer);
 
 	add_verb(spec, alc268_volume_init_verbs);
