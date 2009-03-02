@@ -69,7 +69,7 @@ struct mpc_trans {
 /* x86_quirks member */
 static int				mpc_record;
 
-static __cpuinitdata struct mpc_trans	*translation_table[MAX_MPC_ENTRY];
+static struct mpc_trans			*translation_table[MAX_MPC_ENTRY];
 
 int					mp_bus_id_to_node[MAX_MP_BUSSES];
 int					mp_bus_id_to_local[MAX_MP_BUSSES];
