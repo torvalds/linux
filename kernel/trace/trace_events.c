@@ -487,7 +487,11 @@ event_format_read(struct file *filp, char __user *ubuf, size_t cnt,
 	if (*ppos)
 		return 0;
 
-	/* If this fails, so will the show_format. */
+	/* If any of the first writes fail, so will the show_format. */
+
+	trace_seq_printf(s, "name: %s\n", call->name);
+	trace_seq_printf(s, "ID: %d\n", call->id);
+	trace_seq_printf(s, "format:\n");
 	trace_write_header(s);
 
 	r = call->show_format(s);
