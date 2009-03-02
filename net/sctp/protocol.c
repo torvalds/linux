@@ -1322,9 +1322,8 @@ SCTP_STATIC __init int sctp_init(void)
 out:
 	return status;
 err_v6_add_protocol:
-	sctp_v6_del_protocol();
-err_add_protocol:
 	sctp_v4_del_protocol();
+err_add_protocol:
 	inet_ctl_sock_destroy(sctp_ctl_sock);
 err_ctl_sock_init:
 	sctp_v6_protosw_exit();
@@ -1335,7 +1334,6 @@ err_protosw_init:
 	sctp_v4_pf_exit();
 	sctp_v6_pf_exit();
 	sctp_sysctl_unregister();
-	list_del(&sctp_af_inet.list);
 	free_pages((unsigned long)sctp_port_hashtable,
 		   get_order(sctp_port_hashsize *
 			     sizeof(struct sctp_bind_hashbucket)));
@@ -1383,7 +1381,6 @@ SCTP_STATIC __exit void sctp_exit(void)
 	sctp_v4_pf_exit();
 
 	sctp_sysctl_unregister();
-	list_del(&sctp_af_inet.list);
 
 	free_pages((unsigned long)sctp_assoc_hashtable,
 		   get_order(sctp_assoc_hashsize *
