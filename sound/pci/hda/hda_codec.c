@@ -2833,8 +2833,16 @@ int snd_hda_codec_build_pcms(struct hda_codec *codec)
 		if (!codec->patch_ops.build_pcms)
 			return 0;
 		err = codec->patch_ops.build_pcms(codec);
-		if (err < 0)
-			return err;
+		if (err < 0) {
+			printk(KERN_ERR "hda_codec: cannot build PCMs"
+			       "for #%d (error %d)\n", codec->addr, err); 
+			err = snd_hda_codec_reset(codec);
+			if (err < 0) {
+				printk(KERN_ERR
+				       "hda_codec: cannot revert codec\n");
+				return err;
+			}
+		}
 	}
 	for (pcm = 0; pcm < codec->num_pcms; pcm++) {
 		struct hda_pcm *cpcm = &codec->pcm_info[pcm];
@@ -2846,11 +2854,15 @@ int snd_hda_codec_build_pcms(struct hda_codec *codec)
 		if (!cpcm->pcm) {
 			dev = get_empty_pcm_device(codec->bus, cpcm->pcm_type);
 			if (dev < 0)
-				return 0;
+				continue; /* no fatal error */
 			cpcm->device = dev;
 			err = snd_hda_attach_pcm(codec, cpcm);
-			if (err < 0)
-				return err;
+			if (err < 0) {
+				printk(KERN_ERR "hda_codec: cannot attach "
+				       "PCM stream %d for codec #%d\n",
+				       dev, codec->addr);
+				continue; /* no fatal error */
+			}
 		}
 	}
 	return 0;
