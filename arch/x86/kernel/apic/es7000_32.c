@@ -163,7 +163,7 @@ static int wakeup_secondary_cpu_via_mip(int cpu, unsigned long eip)
 	return 0;
 }
 
-static int __init es7000_apic_is_cluster(void)
+static int es7000_apic_is_cluster(void)
 {
 	/* MPENTIUMIII */
 	if (boot_cpu_data.x86 == 6 &&
@@ -173,7 +173,7 @@ static int __init es7000_apic_is_cluster(void)
 	return 0;
 }
 
-static void __init setup_unisys(void)
+static void setup_unisys(void)
 {
 	/*
 	 * Determine the generation of the ES7000 currently running.
@@ -192,7 +192,7 @@ static void __init setup_unisys(void)
 /*
  * Parse the OEM Table:
  */
-static int __init parse_unisys_oem(char *oemptr)
+static int parse_unisys_oem(char *oemptr)
 {
 	int			i;
 	int 			success = 0;
@@ -254,7 +254,7 @@ static int __init parse_unisys_oem(char *oemptr)
 }
 
 #ifdef CONFIG_ACPI
-static int __init find_unisys_acpi_oem_table(unsigned long *oem_addr)
+static int find_unisys_acpi_oem_table(unsigned long *oem_addr)
 {
 	struct acpi_table_header *header = NULL;
 	struct es7000_oem_table *table;
@@ -285,7 +285,7 @@ static int __init find_unisys_acpi_oem_table(unsigned long *oem_addr)
 	return 0;
 }
 
-static void __init unmap_unisys_acpi_oem_table(unsigned long oem_addr)
+static void unmap_unisys_acpi_oem_table(unsigned long oem_addr)
 {
 	if (!oem_addr)
 		return;
@@ -303,10 +303,10 @@ static int es7000_check_dsdt(void)
 	return 0;
 }
 
-static int __initdata es7000_acpi_ret;
+static int es7000_acpi_ret;
 
 /* Hook from generic ACPI tables.c */
-static int __init es7000_acpi_madt_oem_check(char *oem_id, char *oem_table_id)
+static int es7000_acpi_madt_oem_check(char *oem_id, char *oem_table_id)
 {
 	unsigned long oem_addr = 0;
 	int check_dsdt;
@@ -333,8 +333,7 @@ static int __init es7000_acpi_madt_oem_check(char *oem_id, char *oem_table_id)
 	return ret && !es7000_apic_is_cluster();
 }
 
-static int __init
-es7000_acpi_madt_oem_check_cluster(char *oem_id, char *oem_table_id)
+static int es7000_acpi_madt_oem_check_cluster(char *oem_id, char *oem_table_id)
 {
 	int ret = es7000_acpi_ret;
 
@@ -342,13 +341,12 @@ es7000_acpi_madt_oem_check_cluster(char *oem_id, char *oem_table_id)
 }
 
 #else /* !CONFIG_ACPI: */
-static int __init es7000_acpi_madt_oem_check(char *oem_id, char *oem_table_id)
+static int es7000_acpi_madt_oem_check(char *oem_id, char *oem_table_id)
 {
 	return 0;
 }
 
-static int __init
-es7000_acpi_madt_oem_check_cluster(char *oem_id, char *oem_table_id)
+static int es7000_acpi_madt_oem_check_cluster(char *oem_id, char *oem_table_id)
 {
 	return 0;
 }
@@ -362,8 +360,7 @@ static void es7000_spin(int n)
 		rep_nop();
 }
 
-static int __init
-es7000_mip_write(struct mip_reg *mip_reg)
+static int es7000_mip_write(struct mip_reg *mip_reg)
 {
 	int status = 0;
 	int spin;
@@ -396,7 +393,7 @@ es7000_mip_write(struct mip_reg *mip_reg)
 	return status;
 }
 
-static void __init es7000_enable_apic_mode(void)
+static void es7000_enable_apic_mode(void)
 {
 	struct mip_reg es7000_mip_reg;
 	int mip_status;
@@ -627,9 +624,9 @@ static int probe_es7000(void)
 	return 0;
 }
 
-static int __initdata es7000_mps_ret;
-static __init int
-es7000_mps_oem_check(struct mpc_table *mpc, char *oem, char *productid)
+static int es7000_mps_ret;
+static int es7000_mps_oem_check(struct mpc_table *mpc, char *oem,
+		char *productid)
 {
 	int ret = 0;
 
@@ -646,8 +643,8 @@ es7000_mps_oem_check(struct mpc_table *mpc, char *oem, char *productid)
 	return ret && !es7000_apic_is_cluster();
 }
 
-static __init int
-es7000_mps_oem_check_cluster(struct mpc_table *mpc, char *oem, char *productid)
+static int es7000_mps_oem_check_cluster(struct mpc_table *mpc, char *oem,
+		char *productid)
 {
 	int ret = es7000_mps_ret;
 
