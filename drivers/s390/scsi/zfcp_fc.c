@@ -3,7 +3,7 @@
  *
  * Fibre Channel related functions for the zfcp device driver.
  *
- * Copyright IBM Corporation 2008
+ * Copyright IBM Corporation 2008, 2009
  */
 
 #define KMSG_COMPONENT "zfcp"
@@ -376,10 +376,14 @@ static void zfcp_fc_adisc_handler(unsigned long data)
 		port->wwnn = ls_adisc->wwnn;
 
 	if ((port->wwpn != ls_adisc->wwpn) ||
-	    !(atomic_read(&port->status) & ZFCP_STATUS_COMMON_OPEN))
+	    !(atomic_read(&port->status) & ZFCP_STATUS_COMMON_OPEN)) {
 		zfcp_erp_port_reopen(port, ZFCP_STATUS_COMMON_ERP_FAILED,
 				     "fcadh_2", NULL);
+		goto out;
+	}
 
+	/* port is good, unblock rport without going through erp */
+	zfcp_scsi_schedule_rport_register(port);
  out:
 	zfcp_port_put(port);
 	kfree(adisc);
@@ -423,14 +427,23 @@ void zfcp_fc_link_test_work(struct work_struct *work)
 		container_of(work, struct zfcp_port, test_link_work);
 	int retval;
 
+	if (!(atomic_read(&port->status) & ZFCP_STATUS_COMMON_UNBLOCKED)) {
+		zfcp_port_put(port);
+		return; /* port erp is running and will update rport status */
+	}
+
+	zfcp_port_get(port);
+	port->rport_task = RPORT_DEL;
+	zfcp_scsi_rport_work(&port->rport_work);
+
 	retval = zfcp_fc_adisc(port);
 	if (retval == 0)
 		return;
 
 	/* send of ADISC was not possible */
+	zfcp_erp_port_forced_reopen(port, 0, "fcltwk1", NULL);
+
 	zfcp_port_put(port);
-	if (retval != -EBUSY)
-		zfcp_erp_port_forced_reopen(port, 0, "fcltwk1", NULL);
 }
 
 /**

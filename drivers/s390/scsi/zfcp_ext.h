@@ -3,7 +3,7 @@
  *
  * External function declarations.
  *
- * Copyright IBM Corporation 2002, 2008
+ * Copyright IBM Corporation 2002, 2009
  */
 
 #ifndef ZFCP_EXT_H
@@ -154,6 +154,10 @@ extern int zfcp_adapter_scsi_register(struct zfcp_adapter *);
 extern void zfcp_adapter_scsi_unregister(struct zfcp_adapter *);
 extern char *zfcp_get_fcp_sns_info_ptr(struct fcp_rsp_iu *);
 extern struct fc_function_template zfcp_transport_functions;
+extern void zfcp_scsi_rport_work(struct work_struct *);
+extern void zfcp_scsi_schedule_rport_register(struct zfcp_port *);
+extern void zfcp_scsi_schedule_rport_block(struct zfcp_port *);
+extern void zfcp_scsi_schedule_rports_block(struct zfcp_adapter *);
 
 /* zfcp_sysfs.c */
 extern struct attribute_group zfcp_sysfs_unit_attrs;

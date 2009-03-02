@@ -3,7 +3,7 @@
  *
  * Implementation of FSF commands.
  *
- * Copyright IBM Corporation 2002, 2008
+ * Copyright IBM Corporation 2002, 2009
  */
 
 #define KMSG_COMPONENT "zfcp"
@@ -177,6 +177,7 @@ static void zfcp_fsf_link_down_info_eval(struct zfcp_fsf_req *req, char *id,
 		return;
 
 	atomic_set_mask(ZFCP_STATUS_ADAPTER_LINK_UNPLUGGED, &adapter->status);
+	zfcp_scsi_schedule_rports_block(adapter);
 
 	if (!link_down)
 		goto out;

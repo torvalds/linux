@@ -3,7 +3,7 @@
  *
  * Global definitions for the zfcp device driver.
  *
- * Copyright IBM Corporation 2002, 2008
+ * Copyright IBM Corporation 2002, 2009
  */
 
 #ifndef ZFCP_DEF_H
@@ -512,6 +512,8 @@ struct zfcp_port {
 	u32                    supported_classes;
 	struct work_struct     gid_pn_work;
 	struct work_struct     test_link_work;
+	struct work_struct     rport_work;
+	enum { RPORT_NONE, RPORT_ADD, RPORT_DEL }  rport_task;
 };
 
 struct zfcp_unit {

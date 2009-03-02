@@ -3,7 +3,7 @@
  *
  * Error Recovery Procedures (ERP).
  *
- * Copyright IBM Corporation 2002, 2008
+ * Copyright IBM Corporation 2002, 2009
  */
 
 #define KMSG_COMPONENT "zfcp"
@@ -240,6 +240,7 @@ static int _zfcp_erp_adapter_reopen(struct zfcp_adapter *adapter,
 				    int clear_mask, char *id, void *ref)
 {
 	zfcp_erp_adapter_block(adapter, clear_mask);
+	zfcp_scsi_schedule_rports_block(adapter);
 
 	/* ensure propagation of failed status to new devices */
 	if (atomic_read(&adapter->status) & ZFCP_STATUS_COMMON_ERP_FAILED) {
@@ -322,6 +323,7 @@ static void _zfcp_erp_port_forced_reopen(struct zfcp_port *port,
 					 int clear, char *id, void *ref)
 {
 	zfcp_erp_port_block(port, clear);
+	zfcp_scsi_schedule_rport_block(port);
 
 	if (atomic_read(&port->status) & ZFCP_STATUS_COMMON_ERP_FAILED)
 		return;
@@ -353,6 +355,7 @@ static int _zfcp_erp_port_reopen(struct zfcp_port *port, int clear, char *id,
 				 void *ref)
 {
 	zfcp_erp_port_block(port, clear);
+	zfcp_scsi_schedule_rport_block(port);
 
 	if (atomic_read(&port->status) & ZFCP_STATUS_COMMON_ERP_FAILED) {
 		/* ensure propagation of failed status to new devices */
@@ -1211,37 +1214,6 @@ static void zfcp_erp_schedule_work(struct zfcp_unit *unit)
 	queue_work(zfcp_data.work_queue, &p->work);
 }
 
-static void zfcp_erp_rport_register(struct zfcp_port *port)
-{
-	struct fc_rport_identifiers ids;
-	ids.node_name = port->wwnn;
-	ids.port_name = port->wwpn;
-	ids.port_id = port->d_id;
-	ids.roles = FC_RPORT_ROLE_FCP_TARGET;
-	port->rport = fc_remote_port_add(port->adapter->scsi_host, 0, &ids);
-	if (!port->rport) {
-		dev_err(&port->adapter->ccw_device->dev,
-			"Registering port 0x%016Lx failed\n",
-			(unsigned long long)port->wwpn);
-		return;
-	}
-
-	scsi_target_unblock(&port->rport->dev);
-	port->rport->maxframe_size = port->maxframe_size;
-	port->rport->supported_classes = port->supported_classes;
-}
-
-static void zfcp_erp_rports_del(struct zfcp_adapter *adapter)
-{
-	struct zfcp_port *port;
-	list_for_each_entry(port, &adapter->port_list_head, list) {
-		if (!port->rport)
-			continue;
-		fc_remote_port_delete(port->rport);
-		port->rport = NULL;
-	}
-}
-
 static void zfcp_erp_action_cleanup(struct zfcp_erp_action *act, int result)
 {
 	struct zfcp_adapter *adapter = act->adapter;
@@ -1250,8 +1222,8 @@ static void zfcp_erp_action_cleanup(struct zfcp_erp_action *act, int result)
 
 	switch (act->action) {
 	case ZFCP_ERP_ACTION_REOPEN_UNIT:
-		if ((result == ZFCP_ERP_SUCCEEDED) &&
-		    !unit->device && port->rport) {
+		flush_work(&port->rport_work);
+		if ((result == ZFCP_ERP_SUCCEEDED) && !unit->device) {
 			if (!(atomic_read(&unit->status) &
 			      ZFCP_STATUS_UNIT_SCSI_WORK_PENDING))
 				zfcp_erp_schedule_work(unit);
@@ -1261,23 +1233,17 @@ static void zfcp_erp_action_cleanup(struct zfcp_erp_action *act, int result)
 
 	case ZFCP_ERP_ACTION_REOPEN_PORT_FORCED:
 	case ZFCP_ERP_ACTION_REOPEN_PORT:
-		if ((result == ZFCP_ERP_SUCCEEDED) && !port->rport)
-			zfcp_erp_rport_register(port);
-		if ((result != ZFCP_ERP_SUCCEEDED) && port->rport) {
-			fc_remote_port_delete(port->rport);
-			port->rport = NULL;
-		}
+		if (result == ZFCP_ERP_SUCCEEDED)
+			zfcp_scsi_schedule_rport_register(port);
 		zfcp_port_put(port);
 		break;
 
 	case ZFCP_ERP_ACTION_REOPEN_ADAPTER:
-		if (result != ZFCP_ERP_SUCCEEDED) {
-			unregister_service_level(&adapter->service_level);
-			zfcp_erp_rports_del(adapter);
-		} else {
+		if (result == ZFCP_ERP_SUCCEEDED) {
 			register_service_level(&adapter->service_level);
 			schedule_work(&adapter->scan_work);
-		}
+		} else
+			unregister_service_level(&adapter->service_level);
 		zfcp_adapter_put(adapter);
 		break;
 	}

@@ -3,7 +3,7 @@
  *
  * Module interface and handling of zfcp data structures.
  *
- * Copyright IBM Corporation 2002, 2008
+ * Copyright IBM Corporation 2002, 2009
  */
 
 /*
@@ -606,10 +606,12 @@ struct zfcp_port *zfcp_port_enqueue(struct zfcp_adapter *adapter, u64 wwpn,
 	INIT_LIST_HEAD(&port->unit_list_head);
 	INIT_WORK(&port->gid_pn_work, zfcp_erp_port_strategy_open_lookup);
 	INIT_WORK(&port->test_link_work, zfcp_fc_link_test_work);
+	INIT_WORK(&port->rport_work, zfcp_scsi_rport_work);
 
 	port->adapter = adapter;
 	port->d_id = d_id;
 	port->wwpn = wwpn;
+	port->rport_task = RPORT_NONE;
 
 	/* mark port unusable as long as sysfs registration is not complete */
 	atomic_set_mask(status | ZFCP_STATUS_COMMON_REMOVE, &port->status);

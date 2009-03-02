@@ -3,7 +3,7 @@
  *
  * Interface to Linux SCSI midlayer.
  *
- * Copyright IBM Corporation 2002, 2008
+ * Copyright IBM Corporation 2002, 2009
  */
 
 #define KMSG_COMPONENT "zfcp"
@@ -57,8 +57,8 @@ static int zfcp_scsi_queuecommand(struct scsi_cmnd *scpnt,
 {
 	struct zfcp_unit *unit;
 	struct zfcp_adapter *adapter;
-	int    status;
-	int    ret;
+	int    status, scsi_result, ret;
+	struct fc_rport *rport = starget_to_rport(scsi_target(scpnt->device));
 
 	/* reset the status for this request */
 	scpnt->result = 0;
@@ -77,6 +77,14 @@ static int zfcp_scsi_queuecommand(struct scsi_cmnd *scpnt,
 
 	if (unlikely(!unit)) {
 		zfcp_scsi_command_fail(scpnt, DID_NO_CONNECT);
+		return 0;
+	}
+
+	scsi_result = fc_remote_port_chkready(rport);
+	if (unlikely(scsi_result)) {
+		scpnt->result = scsi_result;
+		zfcp_scsi_dbf_event_result("fail", 4, adapter, scpnt, NULL);
+		scpnt->scsi_done(scpnt);
 		return 0;
 	}
 
@@ -473,6 +481,109 @@ static void zfcp_set_rport_dev_loss_tmo(struct fc_rport *rport, u32 timeout)
 	rport->dev_loss_tmo = timeout;
 }
 
+/**
+ * zfcp_scsi_dev_loss_tmo_callbk - Free any reference to rport
+ * @rport: The rport that is about to be deleted.
+ */
+static void zfcp_scsi_dev_loss_tmo_callbk(struct fc_rport *rport)
+{
+	struct zfcp_port *port = rport->dd_data;
+
+	write_lock_irq(&zfcp_data.config_lock);
+	port->rport = NULL;
+	write_unlock_irq(&zfcp_data.config_lock);
+}
+
+/**
+ * zfcp_scsi_terminate_rport_io - Terminate all I/O on a rport
+ * @rport: The FC rport where to teminate I/O
+ *
+ * Abort all pending SCSI commands for a port by closing the
+ * port. Using a reopen for avoids a conflict with a shutdown
+ * overwriting a reopen.
+ */
+static void zfcp_scsi_terminate_rport_io(struct fc_rport *rport)
+{
+	struct zfcp_port *port = rport->dd_data;
+
+	zfcp_erp_port_reopen(port, 0, "sctrpi1", NULL);
+}
+
+static void zfcp_scsi_rport_register(struct zfcp_port *port)
+{
+	struct fc_rport_identifiers ids;
+	struct fc_rport *rport;
+
+	ids.node_name = port->wwnn;
+	ids.port_name = port->wwpn;
+	ids.port_id = port->d_id;
+	ids.roles = FC_RPORT_ROLE_FCP_TARGET;
+
+	rport = fc_remote_port_add(port->adapter->scsi_host, 0, &ids);
+	if (!rport) {
+		dev_err(&port->adapter->ccw_device->dev,
+			"Registering port 0x%016Lx failed\n",
+			(unsigned long long)port->wwpn);
+		return;
+	}
+
+	rport->dd_data = port;
+	rport->maxframe_size = port->maxframe_size;
+	rport->supported_classes = port->supported_classes;
+	port->rport = rport;
+}
+
+static void zfcp_scsi_rport_block(struct zfcp_port *port)
+{
+	if (port->rport)
+		fc_remote_port_delete(port->rport);
+}
+
+void zfcp_scsi_schedule_rport_register(struct zfcp_port *port)
+{
+	zfcp_port_get(port);
+	port->rport_task = RPORT_ADD;
+
+	if (!queue_work(zfcp_data.work_queue, &port->rport_work))
+		zfcp_port_put(port);
+}
+
+void zfcp_scsi_schedule_rport_block(struct zfcp_port *port)
+{
+	zfcp_port_get(port);
+	port->rport_task = RPORT_DEL;
+
+	if (!queue_work(zfcp_data.work_queue, &port->rport_work))
+		zfcp_port_put(port);
+}
+
+void zfcp_scsi_schedule_rports_block(struct zfcp_adapter *adapter)
+{
+	struct zfcp_port *port;
+
+	list_for_each_entry(port, &adapter->port_list_head, list)
+		zfcp_scsi_schedule_rport_block(port);
+}
+
+void zfcp_scsi_rport_work(struct work_struct *work)
+{
+	struct zfcp_port *port = container_of(work, struct zfcp_port,
+					      rport_work);
+
+	while (port->rport_task) {
+		if (port->rport_task == RPORT_ADD) {
+			port->rport_task = RPORT_NONE;
+			zfcp_scsi_rport_register(port);
+		} else {
+			port->rport_task = RPORT_NONE;
+			zfcp_scsi_rport_block(port);
+		}
+	}
+
+	zfcp_port_put(port);
+}
+
+
 struct fc_function_template zfcp_transport_functions = {
 	.show_starget_port_id = 1,
 	.show_starget_port_name = 1,
@@ -491,6 +602,8 @@ struct fc_function_template zfcp_transport_functions = {
 	.reset_fc_host_stats = zfcp_reset_fc_host_stats,
 	.set_rport_dev_loss_tmo = zfcp_set_rport_dev_loss_tmo,
 	.get_host_port_state = zfcp_get_host_port_state,
+	.dev_loss_tmo_callbk = zfcp_scsi_dev_loss_tmo_callbk,
+	.terminate_rport_io = zfcp_scsi_terminate_rport_io,
 	.show_host_port_state = 1,
 	/* no functions registered for following dynamic attributes but
 	   directly set by LLDD */
