@@ -3069,9 +3069,6 @@ static int sctp_setsockopt_maxburst(struct sock *sk,
 	int val;
 	int assoc_id = 0;
 
-	if (optlen < sizeof(int))
-		return -EINVAL;
-
 	if (optlen == sizeof(int)) {
 		printk(KERN_WARNING
 		   "SCTP: Use of int in max_burst socket option deprecated\n");
@@ -5282,9 +5279,6 @@ static int sctp_getsockopt_maxburst(struct sock *sk, int len,
 	struct sctp_assoc_value params;
 	struct sctp_sock *sp;
 	struct sctp_association *asoc;
-
-	if (len < sizeof(int))
-		return -EINVAL;
 
 	if (len == sizeof(int)) {
 		printk(KERN_WARNING
