@@ -91,6 +91,7 @@
 #define CRB_RX_LRO_START_NUM        NETXEN_NIC_REG(0xc0)
 #define CRB_MPORT_MODE              NETXEN_NIC_REG(0xc4)	/* Multiport Mode */
 #define CRB_CMD_RING_SIZE           NETXEN_NIC_REG(0xc8)
+#define CRB_DMA_SHIFT               NETXEN_NIC_REG(0xcc)
 #define CRB_INT_VECTOR              NETXEN_NIC_REG(0xd4)
 #define CRB_CTX_RESET               NETXEN_NIC_REG(0xd8)
 #define CRB_HOST_STS_PROD           NETXEN_NIC_REG(0xdc)

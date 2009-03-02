@@ -1256,8 +1256,6 @@ struct netxen_adapter {
 	u32 crb_win;
 	rwlock_t adapter_lock;
 
-	uint64_t dma_mask;
-
 	u32 cmd_producer;
 	__le32 *cmd_consumer;
 	u32 last_cmd_consumer;
