@@ -1069,6 +1069,16 @@ netxen_validate_firmware(struct netxen_adapter *adapter, const char *fwname,
 		return -EINVAL;
 	}
 
+	/* check if flashed firmware is newer */
+	if (netxen_rom_fast_read(adapter,
+			NX_FW_VERSION_OFFSET, (int *)&val))
+		return -EIO;
+	major = (__force u32)val & 0xff;
+	minor = ((__force u32)val >> 8) & 0xff;
+	build = (__force u32)val >> 16;
+	if (NETXEN_VERSION_CODE(major, minor, build) > ver)
+		return -EINVAL;
+
 	netxen_nic_reg_write(adapter, NETXEN_CAM_RAM(0x1fc),
 			NETXEN_BDINFO_MAGIC);
 	return 0;
@@ -1087,6 +1097,12 @@ int netxen_load_firmware(struct netxen_adapter *adapter)
 		goto request_fw;
 	}
 
+	if (NX_IS_REVISION_P3(adapter->ahw.revision_id)) {
+		fw_name = NX_P3_CT_ROMIMAGE;
+		goto request_fw;
+	}
+
+request_mn:
 	capability = 0;
 
 	netxen_rom_fast_read(adapter,
@@ -1100,15 +1116,12 @@ int netxen_load_firmware(struct netxen_adapter *adapter)
 		}
 	}
 
-request_ct:
-	fw_name = NX_P3_CT_ROMIMAGE;
-
 request_fw:
 	rc = request_firmware(&fw, fw_name, &pdev->dev);
 	if (rc != 0) {
-		if (fw_name == NX_P3_MN_ROMIMAGE) {
+		if (fw_name == NX_P3_CT_ROMIMAGE) {
 			msleep(1);
-			goto request_ct;
+			goto request_mn;
 		}
 
 		fw = NULL;
@@ -1119,9 +1132,9 @@ request_fw:
 	if (rc != 0) {
 		release_firmware(fw);
 
-		if (fw_name == NX_P3_MN_ROMIMAGE) {
+		if (fw_name == NX_P3_CT_ROMIMAGE) {
 			msleep(1);
-			goto request_ct;
+			goto request_mn;
 		}
 
 		fw = NULL;

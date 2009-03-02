@@ -676,16 +676,17 @@ netxen_start_firmware(struct netxen_adapter *adapter)
 		return err;
 	}
 
-	if (NX_IS_REVISION_P3(adapter->ahw.revision_id))
-		netxen_set_port_mode(adapter);
-
 	if (first_boot != 0x55555555) {
 		adapter->pci_write_normalize(adapter,
 					CRB_CMDPEG_STATE, 0);
 		netxen_pinit_from_rom(adapter, 0);
 		msleep(1);
 	}
+
 	netxen_nic_reg_write(adapter, CRB_DMA_SHIFT, 0x55555555);
+	if (NX_IS_REVISION_P3(adapter->ahw.revision_id))
+		netxen_set_port_mode(adapter);
+
 	netxen_load_firmware(adapter);
 
 	if (NX_IS_REVISION_P2(adapter->ahw.revision_id)) {
