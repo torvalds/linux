@@ -76,6 +76,7 @@ MODULE_PARM_DESC(irq_type, "0 = MSI-X, 1 = MSI, 2 = Legacy.");
 
 static struct pci_device_id qlge_pci_tbl[] __devinitdata = {
 	{PCI_DEVICE(PCI_VENDOR_ID_QLOGIC, QLGE_DEVICE_ID_8012)},
+	{PCI_DEVICE(PCI_VENDOR_ID_QLOGIC, QLGE_DEVICE_ID_8000)},
 	/* required last entry */
 	{0,}
 };
@@ -669,6 +670,57 @@ exit:
 	return status;
 }
 
+static int ql_get_8000_flash_params(struct ql_adapter *qdev)
+{
+	u32 i, size;
+	int status;
+	__le32 *p = (__le32 *)&qdev->flash;
+	u32 offset;
+
+	/* Get flash offset for function and adjust
+	 * for dword access.
+	 */
+	if (!qdev->func)
+		offset = FUNC0_FLASH_OFFSET / sizeof(u32);
+	else
+		offset = FUNC1_FLASH_OFFSET / sizeof(u32);
+
+	if (ql_sem_spinlock(qdev, SEM_FLASH_MASK))
+		return -ETIMEDOUT;
+
+	size = sizeof(struct flash_params_8000) / sizeof(u32);
+	for (i = 0; i < size; i++, p++) {
+		status = ql_read_flash_word(qdev, i+offset, p);
+		if (status) {
+			QPRINTK(qdev, IFUP, ERR, "Error reading flash.\n");
+			goto exit;
+		}
+	}
+
+	status = ql_validate_flash(qdev,
+			sizeof(struct flash_params_8000) / sizeof(u16),
+			"8000");
+	if (status) {
+		QPRINTK(qdev, IFUP, ERR, "Invalid flash.\n");
+		status = -EINVAL;
+		goto exit;
+	}
+
+	if (!is_valid_ether_addr(qdev->flash.flash_params_8000.mac_addr)) {
+		QPRINTK(qdev, IFUP, ERR, "Invalid MAC address.\n");
+		status = -EINVAL;
+		goto exit;
+	}
+
+	memcpy(qdev->ndev->dev_addr,
+		qdev->flash.flash_params_8000.mac_addr,
+		qdev->ndev->addr_len);
+
+exit:
+	ql_sem_unlock(qdev, SEM_FLASH_MASK);
+	return status;
+}
+
 static int ql_get_8012_flash_params(struct ql_adapter *qdev)
 {
 	int i;
@@ -781,6 +833,11 @@ int ql_read_xgmac_reg64(struct ql_adapter *qdev, u32 reg, u64 *data)
 
 exit:
 	return status;
+}
+
+static int ql_8000_port_initialize(struct ql_adapter *qdev)
+{
+	return ql_mb_get_fw_state(qdev);
 }
 
 /* Take the MAC Core out of reset.
@@ -3557,6 +3614,11 @@ static struct nic_operations qla8012_nic_ops = {
 	.port_initialize	= ql_8012_port_initialize,
 };
 
+static struct nic_operations qla8000_nic_ops = {
+	.get_flash		= ql_get_8000_flash_params,
+	.port_initialize	= ql_8000_port_initialize,
+};
+
 
 static void ql_get_board_info(struct ql_adapter *qdev)
 {
@@ -3579,6 +3641,8 @@ static void ql_get_board_info(struct ql_adapter *qdev)
 	qdev->device_id = qdev->pdev->device;
 	if (qdev->device_id == QLGE_DEVICE_ID_8012)
 		qdev->nic_ops = &qla8012_nic_ops;
+	else if (qdev->device_id == QLGE_DEVICE_ID_8000)
+		qdev->nic_ops = &qla8000_nic_ops;
 }
 
 static void ql_release_all(struct pci_dev *pdev)

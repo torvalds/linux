@@ -29,7 +29,7 @@
 
 #define QLGE_VENDOR_ID    0x1077
 #define QLGE_DEVICE_ID_8012	0x8012
-
+#define QLGE_DEVICE_ID_8000	0x8000
 #define MAX_CPUS 8
 #define MAX_TX_RINGS MAX_CPUS
 #define MAX_RX_RINGS ((MAX_CPUS * 2) + 1)
@@ -808,8 +808,42 @@ struct flash_params_8012 {
 	__le16 res;
 };
 
+/* 8000 device's flash is a different structure
+ * at a different offset in flash.
+ */
+#define FUNC0_FLASH_OFFSET 0x140200
+#define FUNC1_FLASH_OFFSET 0x140600
+
+/* Flash related data structures. */
+struct flash_params_8000 {
+	u8 dev_id_str[4];	/* "8000" */
+	__le16 ver;
+	__le16 size;
+	__le16 csum;
+	__le16 reserved0;
+	__le16 total_size;
+	__le16 entry_count;
+	u8 data_type0;
+	u8 data_size0;
+	u8 mac_addr[6];
+	u8 data_type1;
+	u8 data_size1;
+	u8 mac_addr1[6];
+	u8 data_type2;
+	u8 data_size2;
+	__le16 vlan_id;
+	u8 data_type3;
+	u8 data_size3;
+	__le16 last;
+	u8 reserved1[464];
+	__le16	subsys_ven_id;
+	__le16	subsys_dev_id;
+	u8 reserved2[4];
+};
+
 union flash_params {
 	struct flash_params_8012 flash_params_8012;
+	struct flash_params_8000 flash_params_8000;
 };
 
 /*
@@ -1535,6 +1569,7 @@ void ql_queue_asic_error(struct ql_adapter *qdev);
 u32 ql_enable_completion_interrupt(struct ql_adapter *qdev, u32 intr);
 void ql_set_ethtool_ops(struct net_device *ndev);
 int ql_read_xgmac_reg64(struct ql_adapter *qdev, u32 reg, u64 *data);
+int ql_mb_get_fw_state(struct ql_adapter *qdev);
 
 #if 1
 #define QL_ALL_DUMP
