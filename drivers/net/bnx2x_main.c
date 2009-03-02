@@ -10068,14 +10068,27 @@ static int bnx2x_poll(struct napi_struct *napi, int budget)
 	if (bnx2x_has_tx_work(fp))
 		bnx2x_tx_int(fp);
 
-	if (bnx2x_has_rx_work(fp))
+	if (bnx2x_has_rx_work(fp)) {
 		work_done = bnx2x_rx_int(fp, budget);
 
-	rmb(); /* BNX2X_HAS_WORK() reads the status block */
+		/* must not complete if we consumed full budget */
+		if (work_done >= budget)
+			goto poll_again;
+	}
 
-	/* must not complete if we consumed full budget */
-	if ((work_done < budget) && !BNX2X_HAS_WORK(fp)) {
+	/* BNX2X_HAS_WORK() reads the status block, thus we need to
+	 * ensure that status block indices have been actually read
+	 * (bnx2x_update_fpsb_idx) prior to this check (BNX2X_HAS_WORK)
+	 * so that we won't write the "newer" value of the status block to IGU
+	 * (if there was a DMA right after BNX2X_HAS_WORK and
+	 * if there is no rmb, the memory reading (bnx2x_update_fpsb_idx)
+	 * may be postponed to right before bnx2x_ack_sb). In this case
+	 * there will never be another interrupt until there is another update
+	 * of the status block, while there is still unhandled work.
+	 */
+	rmb();
 
+	if (!BNX2X_HAS_WORK(fp)) {
 #ifdef BNX2X_STOP_ON_ERROR
 poll_panic:
 #endif
@@ -10087,6 +10100,7 @@ poll_panic:
 			     le16_to_cpu(fp->fp_c_idx), IGU_INT_ENABLE, 1);
 	}
 
+poll_again:
 	return work_done;
 }
 
