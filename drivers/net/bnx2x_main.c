@@ -5154,6 +5154,10 @@ static void bnx2x_nic_init(struct bnx2x *bp, u32 load_code)
 		bnx2x_update_fpsb_idx(fp);
 	}
 
+	/* ensure status block indices were read */
+	rmb();
+
+
 	bnx2x_init_def_sb(bp, bp->def_status_blk, bp->def_status_blk_mapping,
 			  DEF_SB_ID);
 	bnx2x_update_dsb_idx(bp);
