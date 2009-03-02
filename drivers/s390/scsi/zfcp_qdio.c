@@ -58,7 +58,7 @@ void zfcp_qdio_free(struct zfcp_adapter *adapter)
 	}
 }
 
-static void zfcp_qdio_handler_error(struct zfcp_adapter *adapter, u8 id)
+static void zfcp_qdio_handler_error(struct zfcp_adapter *adapter, char *id)
 {
 	dev_warn(&adapter->ccw_device->dev, "A QDIO problem occurred\n");
 
@@ -103,7 +103,7 @@ static void zfcp_qdio_int_req(struct ccw_device *cdev, unsigned int qdio_err,
 
 	if (unlikely(qdio_err)) {
 		zfcp_hba_dbf_event_qdio(adapter, qdio_err, first, count);
-		zfcp_qdio_handler_error(adapter, 140);
+		zfcp_qdio_handler_error(adapter, "qdireq1");
 		return;
 	}
 
@@ -172,7 +172,7 @@ static void zfcp_qdio_int_resp(struct ccw_device *cdev, unsigned int qdio_err,
 
 	if (unlikely(qdio_err)) {
 		zfcp_hba_dbf_event_qdio(adapter, qdio_err, first, count);
-		zfcp_qdio_handler_error(adapter, 147);
+		zfcp_qdio_handler_error(adapter, "qdires1");
 		return;
 	}
 

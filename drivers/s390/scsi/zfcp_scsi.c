@@ -28,7 +28,7 @@ static void zfcp_scsi_slave_destroy(struct scsi_device *sdpnt)
 {
 	struct zfcp_unit *unit = (struct zfcp_unit *) sdpnt->hostdata;
 	unit->device = NULL;
-	zfcp_erp_unit_failed(unit, 12, NULL);
+	zfcp_erp_unit_failed(unit, "scslvd1", NULL);
 	zfcp_unit_put(unit);
 }
 
@@ -257,7 +257,7 @@ static int zfcp_scsi_eh_host_reset_handler(struct scsi_cmnd *scpnt)
 	struct zfcp_unit *unit = scpnt->device->hostdata;
 	struct zfcp_adapter *adapter = unit->port->adapter;
 
-	zfcp_erp_adapter_reopen(adapter, 0, 141, scpnt);
+	zfcp_erp_adapter_reopen(adapter, 0, "schrh_1", scpnt);
 	zfcp_erp_wait(adapter);
 
 	return SUCCESS;

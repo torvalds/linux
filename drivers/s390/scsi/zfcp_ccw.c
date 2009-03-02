@@ -109,10 +109,10 @@ static int zfcp_ccw_set_online(struct ccw_device *ccw_device)
 	BUG_ON(!zfcp_reqlist_isempty(adapter));
 	adapter->req_no = 0;
 
-	zfcp_erp_modify_adapter_status(adapter, 10, NULL,
+	zfcp_erp_modify_adapter_status(adapter, "ccsonl1", NULL,
 				       ZFCP_STATUS_COMMON_RUNNING, ZFCP_SET);
-	zfcp_erp_adapter_reopen(adapter, ZFCP_STATUS_COMMON_ERP_FAILED, 85,
-				NULL);
+	zfcp_erp_adapter_reopen(adapter, ZFCP_STATUS_COMMON_ERP_FAILED,
+				"ccsonl2", NULL);
 	zfcp_erp_wait(adapter);
 	up(&zfcp_data.config_sema);
 	flush_work(&adapter->scan_work);
@@ -136,7 +136,7 @@ static int zfcp_ccw_set_offline(struct ccw_device *ccw_device)
 
 	down(&zfcp_data.config_sema);
 	adapter = dev_get_drvdata(&ccw_device->dev);
-	zfcp_erp_adapter_shutdown(adapter, 0, 86, NULL);
+	zfcp_erp_adapter_shutdown(adapter, 0, "ccsoff1", NULL);
 	zfcp_erp_wait(adapter);
 	zfcp_erp_thread_kill(adapter);
 	up(&zfcp_data.config_sema);
@@ -159,21 +159,21 @@ static int zfcp_ccw_notify(struct ccw_device *ccw_device, int event)
 	case CIO_GONE:
 		dev_warn(&adapter->ccw_device->dev,
 			 "The FCP device has been detached\n");
-		zfcp_erp_adapter_shutdown(adapter, 0, 87, NULL);
+		zfcp_erp_adapter_shutdown(adapter, 0, "ccnoti1", NULL);
 		break;
 	case CIO_NO_PATH:
 		dev_warn(&adapter->ccw_device->dev,
 			 "The CHPID for the FCP device is offline\n");
-		zfcp_erp_adapter_shutdown(adapter, 0, 88, NULL);
+		zfcp_erp_adapter_shutdown(adapter, 0, "ccnoti2", NULL);
 		break;
 	case CIO_OPER:
 		dev_info(&adapter->ccw_device->dev,
 			 "The FCP device is operational again\n");
-		zfcp_erp_modify_adapter_status(adapter, 11, NULL,
+		zfcp_erp_modify_adapter_status(adapter, "ccnoti3", NULL,
 					       ZFCP_STATUS_COMMON_RUNNING,
 					       ZFCP_SET);
 		zfcp_erp_adapter_reopen(adapter, ZFCP_STATUS_COMMON_ERP_FAILED,
-					89, NULL);
+					"ccnoti4", NULL);
 		break;
 	}
 	return 1;
@@ -189,7 +189,7 @@ static void zfcp_ccw_shutdown(struct ccw_device *cdev)
 
 	down(&zfcp_data.config_sema);
 	adapter = dev_get_drvdata(&cdev->dev);
-	zfcp_erp_adapter_shutdown(adapter, 0, 90, NULL);
+	zfcp_erp_adapter_shutdown(adapter, 0, "ccshut1", NULL);
 	zfcp_erp_wait(adapter);
 	up(&zfcp_data.config_sema);
 }

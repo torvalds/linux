@@ -150,7 +150,7 @@ static void _zfcp_fc_incoming_rscn(struct zfcp_fsf_req *fsf_req, u32 range,
 			/* Try to connect to unused ports anyway. */
 			zfcp_erp_port_reopen(port,
 					     ZFCP_STATUS_COMMON_ERP_FAILED,
-					     82, fsf_req);
+					     "fcirsc1", fsf_req);
 		else if ((port->d_id & range) == (elem->nport_did & range))
 			/* Check connection status for connected ports */
 			zfcp_test_link(port);
@@ -196,7 +196,7 @@ static void zfcp_fc_incoming_wwpn(struct zfcp_fsf_req *req, u64 wwpn)
 	read_unlock_irqrestore(&zfcp_data.config_lock, flags);
 
 	if (port && (port->wwpn == wwpn))
-		zfcp_erp_port_forced_reopen(port, 0, 83, req);
+		zfcp_erp_port_forced_reopen(port, 0, "fciwwp1", req);
 }
 
 static void zfcp_fc_incoming_plogi(struct zfcp_fsf_req *req)
@@ -374,7 +374,7 @@ static void zfcp_fc_adisc_handler(unsigned long data)
 
 	if (adisc->els.status) {
 		/* request rejected or timed out */
-		zfcp_erp_port_forced_reopen(port, 0, 63, NULL);
+		zfcp_erp_port_forced_reopen(port, 0, "fcadh_1", NULL);
 		goto out;
 	}
 
@@ -382,7 +382,7 @@ static void zfcp_fc_adisc_handler(unsigned long data)
 		port->wwnn = ls_adisc->wwnn;
 
 	if (port->wwpn != ls_adisc->wwpn)
-		zfcp_erp_port_reopen(port, 0, 64, NULL);
+		zfcp_erp_port_reopen(port, 0, "fcadh_2", NULL);
 
  out:
 	zfcp_port_put(port);
@@ -434,7 +434,7 @@ void zfcp_fc_link_test_work(struct work_struct *work)
 	/* send of ADISC was not possible */
 	zfcp_port_put(port);
 	if (retval != -EBUSY)
-		zfcp_erp_port_forced_reopen(port, 0, 65, NULL);
+		zfcp_erp_port_forced_reopen(port, 0, "fcltwk1", NULL);
 }
 
 /**
@@ -536,7 +536,7 @@ static void zfcp_validate_port(struct zfcp_port *port)
 		zfcp_port_put(port);
 		return;
 	}
-	zfcp_erp_port_shutdown(port, 0, 151, NULL);
+	zfcp_erp_port_shutdown(port, 0, "fcpval1", NULL);
 	zfcp_erp_wait(adapter);
 	zfcp_port_put(port);
 	zfcp_port_dequeue(port);
@@ -599,7 +599,7 @@ static int zfcp_scan_eval_gpn_ft(struct zfcp_gpn_ft *gpn_ft, int max_entries)
 		if (IS_ERR(port))
 			ret = PTR_ERR(port);
 		else
-			zfcp_erp_port_reopen(port, 0, 149, NULL);
+			zfcp_erp_port_reopen(port, 0, "fcegpf1", NULL);
 	}
 
 	zfcp_erp_wait(adapter);
