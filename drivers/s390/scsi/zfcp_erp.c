@@ -705,32 +705,10 @@ static int zfcp_erp_adapter_strategy_open_fsf(struct zfcp_erp_action *act)
 	return ZFCP_ERP_SUCCEEDED;
 }
 
-static int zfcp_erp_adapter_strategy_generic(struct zfcp_erp_action *act,
-					     int close)
+static void zfcp_erp_adapter_strategy_close(struct zfcp_erp_action *act)
 {
-	int retval = ZFCP_ERP_SUCCEEDED;
 	struct zfcp_adapter *adapter = act->adapter;
 
-	if (close)
-		goto close_only;
-
-	retval = zfcp_erp_adapter_strategy_open_qdio(act);
-	if (retval != ZFCP_ERP_SUCCEEDED)
-		goto failed_qdio;
-
-	retval = zfcp_erp_adapter_strategy_open_fsf(act);
-	if (retval != ZFCP_ERP_SUCCEEDED)
-		goto failed_openfcp;
-
-	atomic_set_mask(ZFCP_STATUS_COMMON_OPEN, &act->adapter->status);
-
-	return ZFCP_ERP_SUCCEEDED;
-
- close_only:
-	atomic_clear_mask(ZFCP_STATUS_COMMON_OPEN,
-			  &act->adapter->status);
-
- failed_openfcp:
 	/* close queues to ensure that buffers are not accessed by adapter */
 	zfcp_qdio_close(adapter);
 	zfcp_fsf_req_dismiss_all(adapter);
@@ -738,27 +716,48 @@ static int zfcp_erp_adapter_strategy_generic(struct zfcp_erp_action *act,
 	/* all ports and units are closed */
 	zfcp_erp_modify_adapter_status(adapter, 24, NULL,
 				       ZFCP_STATUS_COMMON_OPEN, ZFCP_CLEAR);
- failed_qdio:
+
 	atomic_clear_mask(ZFCP_STATUS_ADAPTER_XCONFIG_OK |
-			  ZFCP_STATUS_ADAPTER_LINK_UNPLUGGED,
-			  &act->adapter->status);
-	return retval;
+			  ZFCP_STATUS_ADAPTER_LINK_UNPLUGGED, &adapter->status);
+}
+
+static int zfcp_erp_adapter_strategy_open(struct zfcp_erp_action *act)
+{
+	struct zfcp_adapter *adapter = act->adapter;
+
+	if (zfcp_erp_adapter_strategy_open_qdio(act)) {
+		atomic_clear_mask(ZFCP_STATUS_ADAPTER_XCONFIG_OK |
+				  ZFCP_STATUS_ADAPTER_LINK_UNPLUGGED,
+				  &adapter->status);
+		return ZFCP_ERP_FAILED;
+	}
+
+	if (zfcp_erp_adapter_strategy_open_fsf(act)) {
+		zfcp_erp_adapter_strategy_close(act);
+		return ZFCP_ERP_FAILED;
+	}
+
+	atomic_set_mask(ZFCP_STATUS_COMMON_OPEN, &adapter->status);
+
+	return ZFCP_ERP_SUCCEEDED;
 }
 
 static int zfcp_erp_adapter_strategy(struct zfcp_erp_action *act)
 {
-	int retval;
+	struct zfcp_adapter *adapter = act->adapter;
 
-	zfcp_erp_adapter_strategy_generic(act, 1); /* close */
-	if (act->status & ZFCP_STATUS_ERP_CLOSE_ONLY)
-		return ZFCP_ERP_EXIT;
+	if (atomic_read(&adapter->status) & ZFCP_STATUS_COMMON_OPEN) {
+		zfcp_erp_adapter_strategy_close(act);
+		if (act->status & ZFCP_STATUS_ERP_CLOSE_ONLY)
+			return ZFCP_ERP_EXIT;
+	}
 
-	retval = zfcp_erp_adapter_strategy_generic(act, 0); /* open */
-
-	if (retval == ZFCP_ERP_FAILED)
+	if (zfcp_erp_adapter_strategy_open(act)) {
 		ssleep(8);
+		return ZFCP_ERP_FAILED;
+	}
 
-	return retval;
+	return ZFCP_ERP_SUCCEEDED;
 }
 
 static int zfcp_erp_port_forced_strategy_close(struct zfcp_erp_action *act)
