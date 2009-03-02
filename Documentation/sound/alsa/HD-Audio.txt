@@ -365,10 +365,13 @@ modelname::
   to this file.
 init_verbs::
   The extra verbs to execute at initialization.  You can add a verb by
-  writing to this file.  Pass three numbers: nid, verb and parameter.
+  writing to this file.  Pass three numbers: nid, verb and parameter
+  (separated with a space).
 hints::
-  Shows hint strings for codec parsers for any use.  Right now it's
-  not used.
+  Shows / stores hint strings for codec parsers for any use.
+  Its format is `key = value`.  For example, passing `hp_detect = yes`
+  to IDT/STAC codec parser will result in the disablement of the
+  headphone detection.
 init_pin_configs::
   Shows the initial pin default config values set by BIOS.
 driver_pin_configs::
