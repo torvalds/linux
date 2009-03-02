@@ -290,6 +290,22 @@ static ssize_t type##_store(struct device *dev,			\
 CODEC_ACTION_STORE(reconfig);
 CODEC_ACTION_STORE(clear);
 
+static ssize_t init_verbs_show(struct device *dev,
+			       struct device_attribute *attr,
+			       char *buf)
+{
+	struct snd_hwdep *hwdep = dev_get_drvdata(dev);
+	struct hda_codec *codec = hwdep->private_data;
+	int i, len = 0;
+	for (i = 0; i < codec->init_verbs.used; i++) {
+		struct hda_verb *v = snd_array_elem(&codec->init_verbs, i);
+		len += snprintf(buf + len, PAGE_SIZE - len,
+				"0x%02x 0x%03x 0x%04x\n",
+				v->nid, v->verb, v->param);
+	}
+	return len;
+}
+
 static ssize_t init_verbs_store(struct device *dev,
 				struct device_attribute *attr,
 				const char *buf, size_t count)
@@ -310,6 +326,21 @@ static ssize_t init_verbs_store(struct device *dev,
 	v->verb = verb;
 	v->param = param;
 	return count;
+}
+
+static ssize_t hints_show(struct device *dev,
+			  struct device_attribute *attr,
+			  char *buf)
+{
+	struct snd_hwdep *hwdep = dev_get_drvdata(dev);
+	struct hda_codec *codec = hwdep->private_data;
+	int i, len = 0;
+	for (i = 0; i < codec->hints.used; i++) {
+		struct hda_hint *hint = snd_array_elem(&codec->hints, i);
+		len += snprintf(buf + len, PAGE_SIZE - len,
+				"%s = %s\n", hint->key, hint->val);
+	}
+	return len;
 }
 
 static struct hda_hint *get_hint(struct hda_codec *codec, const char *key)
@@ -466,8 +497,8 @@ static struct device_attribute codec_attrs[] = {
 	CODEC_ATTR_RO(mfg),
 	CODEC_ATTR_RW(name),
 	CODEC_ATTR_RW(modelname),
-	CODEC_ATTR_WO(init_verbs),
-	CODEC_ATTR_WO(hints),
+	CODEC_ATTR_RW(init_verbs),
+	CODEC_ATTR_RW(hints),
 	CODEC_ATTR_RO(init_pin_configs),
 	CODEC_ATTR_RW(user_pin_configs),
 	CODEC_ATTR_RO(driver_pin_configs),
