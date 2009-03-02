@@ -72,6 +72,7 @@ MODULE_VERSION(DRV_MODULE_VERSION);
 
 static int multi_mode = 1;
 module_param(multi_mode, int, 0);
+MODULE_PARM_DESC(multi_mode, " Use per-CPU queues");
 
 static int disable_tpa;
 module_param(disable_tpa, int, 0);
