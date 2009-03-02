@@ -16,17 +16,17 @@
 #include <asm/apic.h>
 #include <asm/ipi.h>
 
-static inline unsigned bigsmp_get_apic_id(unsigned long x)
+static unsigned bigsmp_get_apic_id(unsigned long x)
 {
 	return (x >> 24) & 0xFF;
 }
 
-static inline int bigsmp_apic_id_registered(void)
+static int bigsmp_apic_id_registered(void)
 {
 	return 1;
 }
 
-static inline const cpumask_t *bigsmp_target_cpus(void)
+static const cpumask_t *bigsmp_target_cpus(void)
 {
 #ifdef CONFIG_SMP
 	return &cpu_online_map;
@@ -35,13 +35,12 @@ static inline const cpumask_t *bigsmp_target_cpus(void)
 #endif
 }
 
-static inline unsigned long
-bigsmp_check_apicid_used(physid_mask_t bitmap, int apicid)
+static unsigned long bigsmp_check_apicid_used(physid_mask_t bitmap, int apicid)
 {
 	return 0;
 }
 
-static inline unsigned long bigsmp_check_apicid_present(int bit)
+static unsigned long bigsmp_check_apicid_present(int bit)
 {
 	return 1;
 }
@@ -64,7 +63,7 @@ static inline unsigned long calculate_ldr(int cpu)
  * an APIC.  See e.g. "AP-388 82489DX User's Manual" (Intel
  * document number 292116).  So here it goes...
  */
-static inline void bigsmp_init_apic_ldr(void)
+static void bigsmp_init_apic_ldr(void)
 {
 	unsigned long val;
 	int cpu = smp_processor_id();
@@ -74,19 +73,19 @@ static inline void bigsmp_init_apic_ldr(void)
 	apic_write(APIC_LDR, val);
 }
 
-static inline void bigsmp_setup_apic_routing(void)
+static void bigsmp_setup_apic_routing(void)
 {
 	printk(KERN_INFO
 		"Enabling APIC mode:  Physflat.  Using %d I/O APICs\n",
 		nr_ioapics);
 }
 
-static inline int bigsmp_apicid_to_node(int logical_apicid)
+static int bigsmp_apicid_to_node(int logical_apicid)
 {
 	return apicid_2_node[hard_smp_processor_id()];
 }
 
-static inline int bigsmp_cpu_present_to_apicid(int mps_cpu)
+static int bigsmp_cpu_present_to_apicid(int mps_cpu)
 {
 	if (mps_cpu < nr_cpu_ids)
 		return (int) per_cpu(x86_bios_cpu_apicid, mps_cpu);
@@ -94,7 +93,7 @@ static inline int bigsmp_cpu_present_to_apicid(int mps_cpu)
 	return BAD_APICID;
 }
 
-static inline physid_mask_t bigsmp_apicid_to_cpu_present(int phys_apicid)
+static physid_mask_t bigsmp_apicid_to_cpu_present(int phys_apicid)
 {
 	return physid_mask_of_physid(phys_apicid);
 }
@@ -107,29 +106,24 @@ static inline int bigsmp_cpu_to_logical_apicid(int cpu)
 	return cpu_physical_id(cpu);
 }
 
-static inline physid_mask_t bigsmp_ioapic_phys_id_map(physid_mask_t phys_map)
+static physid_mask_t bigsmp_ioapic_phys_id_map(physid_mask_t phys_map)
 {
 	/* For clustered we don't have a good way to do this yet - hack */
 	return physids_promote(0xFFL);
 }
 
-static inline void bigsmp_setup_portio_remap(void)
-{
-}
-
-static inline int bigsmp_check_phys_apicid_present(int boot_cpu_physical_apicid)
+static int bigsmp_check_phys_apicid_present(int boot_cpu_physical_apicid)
 {
 	return 1;
 }
 
 /* As we are using single CPU as destination, pick only one CPU here */
-static inline unsigned int bigsmp_cpu_mask_to_apicid(const cpumask_t *cpumask)
+static unsigned int bigsmp_cpu_mask_to_apicid(const cpumask_t *cpumask)
 {
 	return bigsmp_cpu_to_logical_apicid(first_cpu(*cpumask));
 }
 
-static inline unsigned int
-bigsmp_cpu_mask_to_apicid_and(const struct cpumask *cpumask,
+static unsigned int bigsmp_cpu_mask_to_apicid_and(const struct cpumask *cpumask,
 			      const struct cpumask *andmask)
 {
 	int cpu;
@@ -148,7 +142,7 @@ bigsmp_cpu_mask_to_apicid_and(const struct cpumask *cpumask,
 	return BAD_APICID;
 }
 
-static inline int bigsmp_phys_pkg_id(int cpuid_apic, int index_msb)
+static int bigsmp_phys_pkg_id(int cpuid_apic, int index_msb)
 {
 	return cpuid_apic >> index_msb;
 }
@@ -158,12 +152,12 @@ static inline void bigsmp_send_IPI_mask(const struct cpumask *mask, int vector)
 	default_send_IPI_mask_sequence_phys(mask, vector);
 }
 
-static inline void bigsmp_send_IPI_allbutself(int vector)
+static void bigsmp_send_IPI_allbutself(int vector)
 {
 	default_send_IPI_mask_allbutself_phys(cpu_online_mask, vector);
 }
 
-static inline void bigsmp_send_IPI_all(int vector)
+static void bigsmp_send_IPI_all(int vector)
 {
 	bigsmp_send_IPI_mask(cpu_online_mask, vector);
 }
