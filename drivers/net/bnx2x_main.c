@@ -7210,7 +7210,6 @@ static int bnx2x_nic_unload(struct bnx2x *bp, int unload_mode)
 		struct bnx2x_fastpath *fp = &bp->fp[i];
 
 		cnt = 1000;
-		smp_mb();
 		while (bnx2x_has_tx_work_unload(fp)) {
 
 			bnx2x_tx_int(fp, 1000);
@@ -7226,7 +7225,6 @@ static int bnx2x_nic_unload(struct bnx2x *bp, int unload_mode)
 			}
 			cnt--;
 			msleep(1);
-			smp_mb();
 		}
 	}
 	/* Give HW time to discard old tx messages */
