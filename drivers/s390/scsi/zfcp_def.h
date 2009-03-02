@@ -586,9 +586,6 @@ struct zfcp_fsf_req_qtcb {
 
 /********************** ZFCP SPECIFIC DEFINES ********************************/
 
-#define ZFCP_REQ_AUTO_CLEANUP	0x00000002
-#define ZFCP_REQ_NO_QTCB	0x00000008
-
 #define ZFCP_SET                0x00000100
 #define ZFCP_CLEAR              0x00000200
 

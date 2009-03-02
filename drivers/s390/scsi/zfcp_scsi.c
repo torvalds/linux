@@ -87,8 +87,7 @@ static int zfcp_scsi_queuecommand(struct scsi_cmnd *scpnt,
 		return 0;;
 	}
 
-	ret = zfcp_fsf_send_fcp_command_task(adapter, unit, scpnt, 0,
-					     ZFCP_REQ_AUTO_CLEANUP);
+	ret = zfcp_fsf_send_fcp_command_task(unit, scpnt);
 	if (unlikely(ret == -EBUSY))
 		return SCSI_MLQUEUE_DEVICE_BUSY;
 	else if (unlikely(ret < 0))
@@ -145,79 +144,91 @@ out:
 
 static int zfcp_scsi_eh_abort_handler(struct scsi_cmnd *scpnt)
 {
- 	struct Scsi_Host *scsi_host;
- 	struct zfcp_adapter *adapter;
-	struct zfcp_unit *unit;
-	struct zfcp_fsf_req *fsf_req;
+	struct Scsi_Host *scsi_host = scpnt->device->host;
+	struct zfcp_adapter *adapter =
+		(struct zfcp_adapter *) scsi_host->hostdata[0];
+	struct zfcp_unit *unit = scpnt->device->hostdata;
+	struct zfcp_fsf_req *old_req, *abrt_req;
 	unsigned long flags;
 	unsigned long old_req_id = (unsigned long) scpnt->host_scribble;
 	int retval = SUCCESS;
-
-	scsi_host = scpnt->device->host;
-	adapter = (struct zfcp_adapter *) scsi_host->hostdata[0];
-	unit = scpnt->device->hostdata;
+	int retry = 3;
 
 	/* avoid race condition between late normal completion and abort */
 	write_lock_irqsave(&adapter->abort_lock, flags);
 
-	/* Check whether corresponding fsf_req is still pending */
 	spin_lock(&adapter->req_list_lock);
-	fsf_req = zfcp_reqlist_find(adapter, old_req_id);
+	old_req = zfcp_reqlist_find(adapter, old_req_id);
 	spin_unlock(&adapter->req_list_lock);
-	if (!fsf_req) {
+	if (!old_req) {
 		write_unlock_irqrestore(&adapter->abort_lock, flags);
-		zfcp_scsi_dbf_event_abort("lte1", adapter, scpnt, NULL, 0);
-		return retval;
+		zfcp_scsi_dbf_event_abort("lte1", adapter, scpnt, NULL,
+					  old_req_id);
+		return SUCCESS;
 	}
-	fsf_req->data = NULL;
+	old_req->data = NULL;
 
 	/* don't access old fsf_req after releasing the abort_lock */
 	write_unlock_irqrestore(&adapter->abort_lock, flags);
 
-	fsf_req = zfcp_fsf_abort_fcp_command(old_req_id, adapter, unit, 0);
-	if (!fsf_req) {
-		zfcp_scsi_dbf_event_abort("nres", adapter, scpnt, NULL,
-					  old_req_id);
-		retval = FAILED;
-		return retval;
+	while (retry--) {
+		abrt_req = zfcp_fsf_abort_fcp_command(old_req_id, unit);
+		if (abrt_req)
+			break;
+
+		zfcp_erp_wait(adapter);
+		if (!(atomic_read(&adapter->status) &
+		      ZFCP_STATUS_COMMON_RUNNING)) {
+			zfcp_scsi_dbf_event_abort("nres", adapter, scpnt, NULL,
+						  old_req_id);
+			return SUCCESS;
+		}
 	}
+	if (!abrt_req)
+		return FAILED;
 
-	__wait_event(fsf_req->completion_wq,
-		     fsf_req->status & ZFCP_STATUS_FSFREQ_COMPLETED);
+	wait_event(abrt_req->completion_wq,
+		   abrt_req->status & ZFCP_STATUS_FSFREQ_COMPLETED);
 
-	if (fsf_req->status & ZFCP_STATUS_FSFREQ_ABORTSUCCEEDED) {
-		zfcp_scsi_dbf_event_abort("okay", adapter, scpnt, fsf_req, 0);
-	} else if (fsf_req->status & ZFCP_STATUS_FSFREQ_ABORTNOTNEEDED) {
-		zfcp_scsi_dbf_event_abort("lte2", adapter, scpnt, fsf_req, 0);
-	} else {
-		zfcp_scsi_dbf_event_abort("fail", adapter, scpnt, fsf_req, 0);
+	if (abrt_req->status & ZFCP_STATUS_FSFREQ_ABORTSUCCEEDED)
+		zfcp_scsi_dbf_event_abort("okay", adapter, scpnt, abrt_req, 0);
+	else if (abrt_req->status & ZFCP_STATUS_FSFREQ_ABORTNOTNEEDED)
+		zfcp_scsi_dbf_event_abort("lte2", adapter, scpnt, abrt_req, 0);
+	else {
+		zfcp_scsi_dbf_event_abort("fail", adapter, scpnt, abrt_req, 0);
 		retval = FAILED;
 	}
-	zfcp_fsf_req_free(fsf_req);
-
+	zfcp_fsf_req_free(abrt_req);
 	return retval;
 }
 
-static int zfcp_task_mgmt_function(struct zfcp_unit *unit, u8 tm_flags,
-					 struct scsi_cmnd *scpnt)
+static int zfcp_task_mgmt_function(struct scsi_cmnd *scpnt, u8 tm_flags)
 {
+	struct zfcp_unit *unit = scpnt->device->hostdata;
 	struct zfcp_adapter *adapter = unit->port->adapter;
 	struct zfcp_fsf_req *fsf_req;
 	int retval = SUCCESS;
+	int retry = 3;
 
-	/* issue task management function */
-	fsf_req = zfcp_fsf_send_fcp_ctm(adapter, unit, tm_flags, 0);
-	if (!fsf_req) {
-		zfcp_scsi_dbf_event_devreset("nres", tm_flags, unit, scpnt);
-		return FAILED;
+	while (retry--) {
+		fsf_req = zfcp_fsf_send_fcp_ctm(unit, tm_flags);
+		if (fsf_req)
+			break;
+
+		zfcp_erp_wait(adapter);
+		if (!(atomic_read(&adapter->status) &
+		      ZFCP_STATUS_COMMON_RUNNING)) {
+			zfcp_scsi_dbf_event_devreset("nres", tm_flags, unit,
+						     scpnt);
+			return SUCCESS;
+		}
 	}
+	if (!fsf_req)
+		return FAILED;
 
-	__wait_event(fsf_req->completion_wq,
-		     fsf_req->status & ZFCP_STATUS_FSFREQ_COMPLETED);
+	wait_event(fsf_req->completion_wq,
+		   fsf_req->status & ZFCP_STATUS_FSFREQ_COMPLETED);
 
-	/*
-	 * check completion status of task management function
-	 */
 	if (fsf_req->status & ZFCP_STATUS_FSFREQ_TMFUNCFAILED) {
 		zfcp_scsi_dbf_event_devreset("fail", tm_flags, unit, scpnt);
 		retval = FAILED;
@@ -228,39 +239,24 @@ static int zfcp_task_mgmt_function(struct zfcp_unit *unit, u8 tm_flags,
 		zfcp_scsi_dbf_event_devreset("okay", tm_flags, unit, scpnt);
 
 	zfcp_fsf_req_free(fsf_req);
-
 	return retval;
 }
 
 static int zfcp_scsi_eh_device_reset_handler(struct scsi_cmnd *scpnt)
 {
-	struct zfcp_unit *unit = scpnt->device->hostdata;
-
-	if (!unit) {
-		WARN_ON(1);
-		return SUCCESS;
-	}
-	return zfcp_task_mgmt_function(unit, FCP_LOGICAL_UNIT_RESET, scpnt);
+	return zfcp_task_mgmt_function(scpnt, FCP_LOGICAL_UNIT_RESET);
 }
 
 static int zfcp_scsi_eh_target_reset_handler(struct scsi_cmnd *scpnt)
 {
-	struct zfcp_unit *unit = scpnt->device->hostdata;
-
-	if (!unit) {
-		WARN_ON(1);
-		return SUCCESS;
-	}
-	return zfcp_task_mgmt_function(unit, FCP_TARGET_RESET, scpnt);
+	return zfcp_task_mgmt_function(scpnt, FCP_TARGET_RESET);
 }
 
 static int zfcp_scsi_eh_host_reset_handler(struct scsi_cmnd *scpnt)
 {
-	struct zfcp_unit *unit;
-	struct zfcp_adapter *adapter;
+	struct zfcp_unit *unit = scpnt->device->hostdata;
+	struct zfcp_adapter *adapter = unit->port->adapter;
 
-	unit = scpnt->device->hostdata;
-	adapter = unit->port->adapter;
 	zfcp_erp_adapter_reopen(adapter, 0, 141, scpnt);
 	zfcp_erp_wait(adapter);
 

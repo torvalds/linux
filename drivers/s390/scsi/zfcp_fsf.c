@@ -12,6 +12,9 @@
 #include <linux/blktrace_api.h>
 #include "zfcp_ext.h"
 
+#define ZFCP_REQ_AUTO_CLEANUP	0x00000002
+#define ZFCP_REQ_NO_QTCB	0x00000008
+
 static void zfcp_fsf_request_timeout_handler(unsigned long data)
 {
 	struct zfcp_adapter *adapter = (struct zfcp_adapter *) data;
@@ -913,27 +916,22 @@ static void zfcp_fsf_abort_fcp_command_handler(struct zfcp_fsf_req *req)
 /**
  * zfcp_fsf_abort_fcp_command - abort running SCSI command
  * @old_req_id: unsigned long
- * @adapter: pointer to struct zfcp_adapter
  * @unit: pointer to struct zfcp_unit
- * @req_flags: integer specifying the request flags
  * Returns: pointer to struct zfcp_fsf_req
- *
- * FIXME(design): should be watched by a timeout !!!
  */
 
 struct zfcp_fsf_req *zfcp_fsf_abort_fcp_command(unsigned long old_req_id,
-						struct zfcp_adapter *adapter,
-						struct zfcp_unit *unit,
-						int req_flags)
+						struct zfcp_unit *unit)
 {
 	struct qdio_buffer_element *sbale;
 	struct zfcp_fsf_req *req = NULL;
+	struct zfcp_adapter *adapter = unit->port->adapter;
 
 	spin_lock_bh(&adapter->req_q_lock);
 	if (zfcp_fsf_req_sbal_get(adapter))
 		goto out;
 	req = zfcp_fsf_req_create(adapter, FSF_QTCB_ABORT_FCP_CMND,
-				  req_flags, adapter->pool.fsf_req_abort);
+				  0, adapter->pool.fsf_req_abort);
 	if (IS_ERR(req)) {
 		req = NULL;
 		goto out;
@@ -2309,21 +2307,17 @@ static void zfcp_set_fcp_dl(struct fcp_cmnd_iu *fcp_cmd, u32 fcp_dl)
 
 /**
  * zfcp_fsf_send_fcp_command_task - initiate an FCP command (for a SCSI command)
- * @adapter: adapter where scsi command is issued
  * @unit: unit where command is sent to
  * @scsi_cmnd: scsi command to be sent
- * @timer: timer to be started when request is initiated
- * @req_flags: flags for fsf_request
  */
-int zfcp_fsf_send_fcp_command_task(struct zfcp_adapter *adapter,
-				   struct zfcp_unit *unit,
-				   struct scsi_cmnd *scsi_cmnd,
-				   int use_timer, int req_flags)
+int zfcp_fsf_send_fcp_command_task(struct zfcp_unit *unit,
+				   struct scsi_cmnd *scsi_cmnd)
 {
 	struct zfcp_fsf_req *req;
 	struct fcp_cmnd_iu *fcp_cmnd_iu;
 	unsigned int sbtype;
 	int real_bytes, retval = -EIO;
+	struct zfcp_adapter *adapter = unit->port->adapter;
 
 	if (unlikely(!(atomic_read(&unit->status) &
 		       ZFCP_STATUS_COMMON_UNBLOCKED)))
@@ -2332,7 +2326,8 @@ int zfcp_fsf_send_fcp_command_task(struct zfcp_adapter *adapter,
 	spin_lock(&adapter->req_q_lock);
 	if (!zfcp_fsf_sbal_available(adapter))
 		goto out;
-	req = zfcp_fsf_req_create(adapter, FSF_QTCB_FCP_CMND, req_flags,
+	req = zfcp_fsf_req_create(adapter, FSF_QTCB_FCP_CMND,
+				  ZFCP_REQ_AUTO_CLEANUP,
 				  adapter->pool.fsf_req_scsi);
 	if (IS_ERR(req)) {
 		retval = PTR_ERR(req);
@@ -2414,9 +2409,6 @@ int zfcp_fsf_send_fcp_command_task(struct zfcp_adapter *adapter,
 
 	zfcp_set_fcp_dl(fcp_cmnd_iu, real_bytes);
 
-	if (use_timer)
-		zfcp_fsf_start_timer(req, ZFCP_FSF_REQUEST_TIMEOUT);
-
 	retval = zfcp_fsf_req_send(req);
 	if (unlikely(retval))
 		goto failed_scsi_cmnd;
@@ -2434,19 +2426,16 @@ out:
 
 /**
  * zfcp_fsf_send_fcp_ctm - send SCSI task management command
- * @adapter: pointer to struct zfcp-adapter
  * @unit: pointer to struct zfcp_unit
  * @tm_flags: unsigned byte for task management flags
- * @req_flags: int request flags
  * Returns: on success pointer to struct fsf_req, NULL otherwise
  */
-struct zfcp_fsf_req *zfcp_fsf_send_fcp_ctm(struct zfcp_adapter *adapter,
-					   struct zfcp_unit *unit,
-					   u8 tm_flags, int req_flags)
+struct zfcp_fsf_req *zfcp_fsf_send_fcp_ctm(struct zfcp_unit *unit, u8 tm_flags)
 {
 	struct qdio_buffer_element *sbale;
 	struct zfcp_fsf_req *req = NULL;
 	struct fcp_cmnd_iu *fcp_cmnd_iu;
+	struct zfcp_adapter *adapter = unit->port->adapter;
 
 	if (unlikely(!(atomic_read(&unit->status) &
 		       ZFCP_STATUS_COMMON_UNBLOCKED)))
@@ -2455,7 +2444,7 @@ struct zfcp_fsf_req *zfcp_fsf_send_fcp_ctm(struct zfcp_adapter *adapter,
 	spin_lock_bh(&adapter->req_q_lock);
 	if (zfcp_fsf_req_sbal_get(adapter))
 		goto out;
-	req = zfcp_fsf_req_create(adapter, FSF_QTCB_FCP_CMND, req_flags,
+	req = zfcp_fsf_req_create(adapter, FSF_QTCB_FCP_CMND, 0,
 				  adapter->pool.fsf_req_scsi);
 	if (IS_ERR(req)) {
 		req = NULL;
