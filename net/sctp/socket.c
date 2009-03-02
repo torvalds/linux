@@ -5286,7 +5286,8 @@ static int sctp_getsockopt_maxburst(struct sock *sk, int len,
 		printk(KERN_WARNING
 		   "SCTP: Use struct sctp_assoc_value instead\n");
 		params.assoc_id = 0;
-	} else if (len == sizeof (struct sctp_assoc_value)) {
+	} else if (len >= sizeof(struct sctp_assoc_value)) {
+		len = sizeof(struct sctp_assoc_value);
 		if (copy_from_user(&params, optval, len))
 			return -EFAULT;
 	} else
