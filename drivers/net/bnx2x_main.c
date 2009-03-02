@@ -53,6 +53,7 @@
 
 #include "bnx2x.h"
 #include "bnx2x_init.h"
+#include "bnx2x_dump.h"
 
 #define DRV_MODULE_VERSION	"1.48.102"
 #define DRV_MODULE_RELDATE	"2009/02/12"
@@ -8471,6 +8472,84 @@ static void bnx2x_get_drvinfo(struct net_device *dev,
 	info->regdump_len = 0;
 }
 
+#define IS_E1_ONLINE(info)	(((info) & RI_E1_ONLINE) == RI_E1_ONLINE)
+#define IS_E1H_ONLINE(info)	(((info) & RI_E1H_ONLINE) == RI_E1H_ONLINE)
+
+static int bnx2x_get_regs_len(struct net_device *dev)
+{
+	static u32 regdump_len;
+	struct bnx2x *bp = netdev_priv(dev);
+	int i;
+
+	if (regdump_len)
+		return regdump_len;
+
+	if (CHIP_IS_E1(bp)) {
+		for (i = 0; i < REGS_COUNT; i++)
+			if (IS_E1_ONLINE(reg_addrs[i].info))
+				regdump_len += reg_addrs[i].size;
+
+		for (i = 0; i < WREGS_COUNT_E1; i++)
+			if (IS_E1_ONLINE(wreg_addrs_e1[i].info))
+				regdump_len += wreg_addrs_e1[i].size *
+					(1 + wreg_addrs_e1[i].read_regs_count);
+
+	} else { /* E1H */
+		for (i = 0; i < REGS_COUNT; i++)
+			if (IS_E1H_ONLINE(reg_addrs[i].info))
+				regdump_len += reg_addrs[i].size;
+
+		for (i = 0; i < WREGS_COUNT_E1H; i++)
+			if (IS_E1H_ONLINE(wreg_addrs_e1h[i].info))
+				regdump_len += wreg_addrs_e1h[i].size *
+					(1 + wreg_addrs_e1h[i].read_regs_count);
+	}
+	regdump_len *= 4;
+	regdump_len += sizeof(struct dump_hdr);
+
+	return regdump_len;
+}
+
+static void bnx2x_get_regs(struct net_device *dev,
+			   struct ethtool_regs *regs, void *_p)
+{
+	u32 *p = _p, i, j;
+	struct bnx2x *bp = netdev_priv(dev);
+	struct dump_hdr dump_hdr = {0};
+
+	regs->version = 0;
+	memset(p, 0, regs->len);
+
+	if (!netif_running(bp->dev))
+		return;
+
+	dump_hdr.hdr_size = (sizeof(struct dump_hdr) / 4) - 1;
+	dump_hdr.dump_sign = dump_sign_all;
+	dump_hdr.xstorm_waitp = REG_RD(bp, XSTORM_WAITP_ADDR);
+	dump_hdr.tstorm_waitp = REG_RD(bp, TSTORM_WAITP_ADDR);
+	dump_hdr.ustorm_waitp = REG_RD(bp, USTORM_WAITP_ADDR);
+	dump_hdr.cstorm_waitp = REG_RD(bp, CSTORM_WAITP_ADDR);
+	dump_hdr.info = CHIP_IS_E1(bp) ? RI_E1_ONLINE : RI_E1H_ONLINE;
+
+	memcpy(p, &dump_hdr, sizeof(struct dump_hdr));
+	p += dump_hdr.hdr_size + 1;
+
+	if (CHIP_IS_E1(bp)) {
+		for (i = 0; i < REGS_COUNT; i++)
+			if (IS_E1_ONLINE(reg_addrs[i].info))
+				for (j = 0; j < reg_addrs[i].size; j++)
+					*p++ = REG_RD(bp,
+						      reg_addrs[i].addr + j*4);
+
+	} else { /* E1H */
+		for (i = 0; i < REGS_COUNT; i++)
+			if (IS_E1H_ONLINE(reg_addrs[i].info))
+				for (j = 0; j < reg_addrs[i].size; j++)
+					*p++ = REG_RD(bp,
+						      reg_addrs[i].addr + j*4);
+	}
+}
+
 static void bnx2x_get_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 {
 	struct bnx2x *bp = netdev_priv(dev);
@@ -9926,6 +10005,8 @@ static struct ethtool_ops bnx2x_ethtool_ops = {
 	.get_settings		= bnx2x_get_settings,
 	.set_settings		= bnx2x_set_settings,
 	.get_drvinfo		= bnx2x_get_drvinfo,
+	.get_regs_len		= bnx2x_get_regs_len,
+	.get_regs		= bnx2x_get_regs,
 	.get_wol		= bnx2x_get_wol,
 	.set_wol		= bnx2x_set_wol,
 	.get_msglevel		= bnx2x_get_msglevel,
