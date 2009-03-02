@@ -1,4 +1,3 @@
-#include "ds_tkip.h"
 #include "gl_80211.h"
 #include "mds_f.h"
 #include "mlmetxrx_f.h"
@@ -425,7 +424,7 @@ Mds_Tx(struct wbsoft_priv * adapter)
 	u8		*XmitBufAddress;
 	u16		XmitBufSize, PacketSize, stmp, CurrentSize, FragmentThreshold;
 	u8		FillIndex, TxDesIndex, FragmentCount, FillCount;
-	unsigned char	BufferFilled = false, MICAdd = 0;
+	unsigned char	BufferFilled = false;
 
 
 	if (pMds->TxPause)
@@ -498,12 +497,6 @@ Mds_Tx(struct wbsoft_priv * adapter)
 
 			// Set RTS/CTS and Normal duration field into buffer
 			Mds_DurationSet(adapter, pTxDes, XmitBufAddress);
-
-			//
-			// Calculation MIC from buffer which maybe fragment, then fill into temporary address 8 byte
-			// 931130.5.e
-			if (MICAdd)
-				Mds_MicFill( adapter, pTxDes, XmitBufAddress );
 
 			//Shift to the next address
 			XmitBufSize += CurrentSize;
