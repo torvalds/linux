@@ -145,16 +145,10 @@ static void _zfcp_fc_incoming_rscn(struct zfcp_fsf_req *fsf_req, u32 range,
 	struct zfcp_port *port;
 
 	read_lock_irqsave(&zfcp_data.config_lock, flags);
-	list_for_each_entry(port, &fsf_req->adapter->port_list_head, list) {
-		if (!(atomic_read(&port->status) & ZFCP_STATUS_PORT_PHYS_OPEN))
-			/* Try to connect to unused ports anyway. */
-			zfcp_erp_port_reopen(port,
-					     ZFCP_STATUS_COMMON_ERP_FAILED,
-					     "fcirsc1", fsf_req);
-		else if ((port->d_id & range) == (elem->nport_did & range))
-			/* Check connection status for connected ports */
+	list_for_each_entry(port, &fsf_req->adapter->port_list_head, list)
+		if ((port->d_id & range) == (elem->nport_did & range))
 			zfcp_test_link(port);
-	}
+
 	read_unlock_irqrestore(&zfcp_data.config_lock, flags);
 }
 
@@ -381,8 +375,10 @@ static void zfcp_fc_adisc_handler(unsigned long data)
 	if (!port->wwnn)
 		port->wwnn = ls_adisc->wwnn;
 
-	if (port->wwpn != ls_adisc->wwpn)
-		zfcp_erp_port_reopen(port, 0, "fcadh_2", NULL);
+	if ((port->wwpn != ls_adisc->wwpn) ||
+	    !(atomic_read(&port->status) & ZFCP_STATUS_COMMON_OPEN))
+		zfcp_erp_port_reopen(port, ZFCP_STATUS_COMMON_ERP_FAILED,
+				     "fcadh_2", NULL);
 
  out:
 	zfcp_port_put(port);

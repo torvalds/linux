@@ -1161,10 +1161,6 @@ int zfcp_fsf_send_els(struct zfcp_send_els *els)
 	struct fsf_qtcb_bottom_support *bottom;
 	int ret = -EIO;
 
-	if (unlikely(!(atomic_read(&els->port->status) &
-		       ZFCP_STATUS_COMMON_UNBLOCKED)))
-		return -EBUSY;
-
 	spin_lock_bh(&adapter->req_q_lock);
 	if (zfcp_fsf_req_sbal_get(adapter))
 		goto out;
