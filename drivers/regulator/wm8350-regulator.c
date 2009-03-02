@@ -24,6 +24,9 @@
 #include <linux/regulator/driver.h>
 #include <linux/regulator/machine.h>
 
+/* Maximum value possible for VSEL */
+#define WM8350_DCDC_MAX_VSEL 0x66
+
 /* Microamps */
 static const int isink_cur[] = {
 	4,
@@ -383,6 +386,14 @@ static int wm8350_dcdc_get_voltage(struct regulator_dev *rdev)
 	/* all DCDCs have same mV bits */
 	val = wm8350_reg_read(wm8350, volt_reg) & WM8350_DC1_VSEL_MASK;
 	return wm8350_dcdc_val_to_mvolts(val) * 1000;
+}
+
+static int wm8350_dcdc_list_voltage(struct regulator_dev *rdev,
+				    unsigned selector)
+{
+	if (selector > WM8350_DCDC_MAX_VSEL)
+		return -EINVAL;
+	return wm8350_dcdc_val_to_mvolts(selector) * 1000;
 }
 
 static int wm8350_dcdc_set_suspend_voltage(struct regulator_dev *rdev, int uV)
@@ -775,6 +786,14 @@ static int wm8350_ldo_get_voltage(struct regulator_dev *rdev)
 	return wm8350_ldo_val_to_mvolts(val) * 1000;
 }
 
+static int wm8350_ldo_list_voltage(struct regulator_dev *rdev,
+				    unsigned selector)
+{
+	if (selector > WM8350_LDO1_VSEL_MASK)
+		return -EINVAL;
+	return wm8350_ldo_val_to_mvolts(selector) * 1000;
+}
+
 int wm8350_dcdc_set_slot(struct wm8350 *wm8350, int dcdc, u16 start,
 			 u16 stop, u16 fault)
 {
@@ -1162,6 +1181,7 @@ static int wm8350_ldo_is_enabled(struct regulator_dev *rdev)
 static struct regulator_ops wm8350_dcdc_ops = {
 	.set_voltage = wm8350_dcdc_set_voltage,
 	.get_voltage = wm8350_dcdc_get_voltage,
+	.list_voltage = wm8350_dcdc_list_voltage,
 	.enable = wm8350_dcdc_enable,
 	.disable = wm8350_dcdc_disable,
 	.get_mode = wm8350_dcdc_get_mode,
@@ -1185,6 +1205,7 @@ static struct regulator_ops wm8350_dcdc2_5_ops = {
 static struct regulator_ops wm8350_ldo_ops = {
 	.set_voltage = wm8350_ldo_set_voltage,
 	.get_voltage = wm8350_ldo_get_voltage,
+	.list_voltage = wm8350_ldo_list_voltage,
 	.enable = wm8350_ldo_enable,
 	.disable = wm8350_ldo_disable,
 	.is_enabled = wm8350_ldo_is_enabled,
@@ -1209,6 +1230,7 @@ static struct regulator_desc wm8350_reg[NUM_WM8350_REGULATORS] = {
 		.ops = &wm8350_dcdc_ops,
 		.irq = WM8350_IRQ_UV_DC1,
 		.type = REGULATOR_VOLTAGE,
+		.n_voltages = WM8350_DCDC_MAX_VSEL + 1,
 		.owner = THIS_MODULE,
 	},
 	{
@@ -1225,6 +1247,7 @@ static struct regulator_desc wm8350_reg[NUM_WM8350_REGULATORS] = {
 		.ops = &wm8350_dcdc_ops,
 		.irq = WM8350_IRQ_UV_DC3,
 		.type = REGULATOR_VOLTAGE,
+		.n_voltages = WM8350_DCDC_MAX_VSEL + 1,
 		.owner = THIS_MODULE,
 	},
 	{
@@ -1233,6 +1256,7 @@ static struct regulator_desc wm8350_reg[NUM_WM8350_REGULATORS] = {
 		.ops = &wm8350_dcdc_ops,
 		.irq = WM8350_IRQ_UV_DC4,
 		.type = REGULATOR_VOLTAGE,
+		.n_voltages = WM8350_DCDC_MAX_VSEL + 1,
 		.owner = THIS_MODULE,
 	},
 	{
@@ -1249,6 +1273,7 @@ static struct regulator_desc wm8350_reg[NUM_WM8350_REGULATORS] = {
 		.ops = &wm8350_dcdc_ops,
 		.irq = WM8350_IRQ_UV_DC6,
 		.type = REGULATOR_VOLTAGE,
+		.n_voltages = WM8350_DCDC_MAX_VSEL + 1,
 		.owner = THIS_MODULE,
 	},
 	{
@@ -1257,6 +1282,7 @@ static struct regulator_desc wm8350_reg[NUM_WM8350_REGULATORS] = {
 		.ops = &wm8350_ldo_ops,
 		.irq = WM8350_IRQ_UV_LDO1,
 		.type = REGULATOR_VOLTAGE,
+		.n_voltages = WM8350_LDO1_VSEL_MASK + 1,
 		.owner = THIS_MODULE,
 	},
 	{
@@ -1265,6 +1291,7 @@ static struct regulator_desc wm8350_reg[NUM_WM8350_REGULATORS] = {
 		.ops = &wm8350_ldo_ops,
 		.irq = WM8350_IRQ_UV_LDO2,
 		.type = REGULATOR_VOLTAGE,
+		.n_voltages = WM8350_LDO2_VSEL_MASK + 1,
 		.owner = THIS_MODULE,
 	},
 	{
@@ -1273,6 +1300,7 @@ static struct regulator_desc wm8350_reg[NUM_WM8350_REGULATORS] = {
 		.ops = &wm8350_ldo_ops,
 		.irq = WM8350_IRQ_UV_LDO3,
 		.type = REGULATOR_VOLTAGE,
+		.n_voltages = WM8350_LDO3_VSEL_MASK + 1,
 		.owner = THIS_MODULE,
 	},
 	{
@@ -1281,6 +1309,7 @@ static struct regulator_desc wm8350_reg[NUM_WM8350_REGULATORS] = {
 		.ops = &wm8350_ldo_ops,
 		.irq = WM8350_IRQ_UV_LDO4,
 		.type = REGULATOR_VOLTAGE,
+		.n_voltages = WM8350_LDO4_VSEL_MASK + 1,
 		.owner = THIS_MODULE,
 	},
 	{
