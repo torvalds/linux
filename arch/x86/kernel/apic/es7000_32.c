@@ -577,32 +577,22 @@ static int es7000_check_phys_apicid_present(int cpu_physical_apicid)
 
 static unsigned int es7000_cpu_mask_to_apicid(const cpumask_t *cpumask)
 {
-	unsigned int cpu, num_bits_set, cpus_found = 0;
-	int apicid;
+	unsigned int round = 0;
+	int cpu, uninitialized_var(apicid);
 
-	num_bits_set = cpumask_weight(cpumask);
-	/* Return id to all */
-	if (num_bits_set == nr_cpu_ids)
-		return es7000_cpu_to_logical_apicid(0);
 	/*
-	 * The cpus in the mask must all be on the apic cluster.  If are not
-	 * on the same apicid cluster return default value of target_cpus():
+	 * The cpus in the mask must all be on the apic cluster.
 	 */
-	cpu = cpumask_first(cpumask);
-	apicid = es7000_cpu_to_logical_apicid(cpu);
-	while (cpus_found < num_bits_set) {
-		if (cpumask_test_cpu(cpu, cpumask)) {
-			int new_apicid = es7000_cpu_to_logical_apicid(cpu);
+	for_each_cpu(cpu, cpumask) {
+		int new_apicid = es7000_cpu_to_logical_apicid(cpu);
 
-			if (APIC_CLUSTER(apicid) != APIC_CLUSTER(new_apicid)) {
-				WARN(1, "Not a valid mask!");
+		if (round && APIC_CLUSTER(apicid) != APIC_CLUSTER(new_apicid)) {
+			WARN(1, "Not a valid mask!");
 
-				return es7000_cpu_to_logical_apicid(0);
-			}
-			apicid = new_apicid;
-			cpus_found++;
+			return BAD_APICID;
 		}
-		cpu++;
+		apicid = new_apicid;
+		round++;
 	}
 	return apicid;
 }
