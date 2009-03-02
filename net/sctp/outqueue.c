@@ -428,7 +428,8 @@ void sctp_retransmit_mark(struct sctp_outq *q,
 			 * retransmitting due to T3 timeout.
 			 */
 			if (reason == SCTP_RTXR_T3_RTX &&
-			    (jiffies - chunk->sent_at) < transport->last_rto)
+			    time_before(jiffies, chunk->sent_at +
+						 transport->last_rto))
 				continue;
 
 			/* RFC 2960 6.2.1 Processing a Received SACK
