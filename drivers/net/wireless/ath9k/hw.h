@@ -584,7 +584,7 @@ bool ath9k_hw_keyreset(struct ath_hw *ah, u16 entry);
 bool ath9k_hw_keysetmac(struct ath_hw *ah, u16 entry, const u8 *mac);
 bool ath9k_hw_set_keycache_entry(struct ath_hw *ah, u16 entry,
 				 const struct ath9k_keyval *k,
-				 const u8 *mac, int xorKey);
+				 const u8 *mac);
 bool ath9k_hw_keyisvalid(struct ath_hw *ah, u16 entry);
 
 /* GPIO / RFKILL / Antennae */

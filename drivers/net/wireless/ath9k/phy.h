@@ -559,8 +559,6 @@ bool ath9k_hw_init_rf(struct ath_hw *ah,
 		}							\
 	} while (0)
 
-#define ATH9K_KEY_XOR                 0xaa
-
 #define ATH9K_IS_MIC_ENABLED(ah)					\
 	((ah)->sta_id1_defaults & AR_STA_ID1_CRPT_MIC_ENABLE)
 

@@ -642,7 +642,7 @@ static int ath_keyset(struct ath_softc *sc, u16 keyix,
 	bool status;
 
 	status = ath9k_hw_set_keycache_entry(sc->sc_ah,
-		keyix, hk, mac, false);
+		keyix, hk, mac);
 
 	return status != false;
 }

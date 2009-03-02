@@ -2415,14 +2415,11 @@ bool ath9k_hw_keysetmac(struct ath_hw *ah, u16 entry, const u8 *mac)
 
 bool ath9k_hw_set_keycache_entry(struct ath_hw *ah, u16 entry,
 				 const struct ath9k_keyval *k,
-				 const u8 *mac, int xorKey)
+				 const u8 *mac)
 {
 	const struct ath9k_hw_capabilities *pCap = &ah->caps;
 	u32 key0, key1, key2, key3, key4;
 	u32 keyType;
-	u32 xorMask = xorKey ?
-		(ATH9K_KEY_XOR << 24 | ATH9K_KEY_XOR << 16 | ATH9K_KEY_XOR << 8
-		 | ATH9K_KEY_XOR) : 0;
 
 	if (entry >= pCap->keycache_size) {
 		DPRINTF(ah->ah_sc, ATH_DBG_KEYCACHE,
@@ -2474,11 +2471,11 @@ bool ath9k_hw_set_keycache_entry(struct ath_hw *ah, u16 entry,
 		return false;
 	}
 
-	key0 = get_unaligned_le32(k->kv_val + 0) ^ xorMask;
-	key1 = (get_unaligned_le16(k->kv_val + 4) ^ xorMask) & 0xffff;
-	key2 = get_unaligned_le32(k->kv_val + 6) ^ xorMask;
-	key3 = (get_unaligned_le16(k->kv_val + 10) ^ xorMask) & 0xffff;
-	key4 = get_unaligned_le32(k->kv_val + 12) ^ xorMask;
+	key0 = get_unaligned_le32(k->kv_val + 0);
+	key1 = get_unaligned_le16(k->kv_val + 4);
+	key2 = get_unaligned_le32(k->kv_val + 6);
+	key3 = get_unaligned_le16(k->kv_val + 10);
+	key4 = get_unaligned_le32(k->kv_val + 12);
 	if (k->kv_len <= LEN_WEP104)
 		key4 &= 0xff;
 
