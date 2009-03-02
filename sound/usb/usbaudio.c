@@ -1095,9 +1095,8 @@ static int init_substream_urbs(struct snd_usb_substream *subs, unsigned int peri
 			total_packs = 2 * packs_per_ms;
 		} else {
 			/* and we don't want too long a queue either */
-			maxpacks = max((unsigned int)MAX_QUEUE, urb_packs * 2);
-			if (total_packs > maxpacks * packs_per_ms)
-				total_packs = maxpacks * packs_per_ms;
+			maxpacks = max(MAX_QUEUE * packs_per_ms, urb_packs * 2);
+			total_packs = min(total_packs, maxpacks);
 		}
 	} else {
 		total_packs = MAX_URBS * urb_packs;
