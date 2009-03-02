@@ -6573,10 +6573,8 @@ static void bnx2x_netif_stop(struct bnx2x *bp, int disable_hw)
 {
 	bnx2x_int_disable_sync(bp, disable_hw);
 	bnx2x_napi_disable(bp);
-	if (netif_running(bp->dev)) {
-		netif_tx_disable(bp->dev);
-		bp->dev->trans_start = jiffies;	/* prevent tx timeout */
-	}
+	netif_tx_disable(bp->dev);
+	bp->dev->trans_start = jiffies;	/* prevent tx timeout */
 }
 
 /*
