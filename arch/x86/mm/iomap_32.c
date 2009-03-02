@@ -17,7 +17,26 @@
  */
 
 #include <asm/iomap.h>
+#include <asm/pat.h>
 #include <linux/module.h>
+
+#ifdef CONFIG_X86_PAE
+int
+is_io_mapping_possible(resource_size_t base, unsigned long size)
+{
+	return 1;
+}
+#else
+int
+is_io_mapping_possible(resource_size_t base, unsigned long size)
+{
+	/* There is no way to map greater than 1 << 32 address without PAE */
+	if (base + size > 0x100000000ULL)
+		return 0;
+
+	return 1;
+}
+#endif
 
 /* Map 'pfn' using fixed map 'type' and protections 'prot'
  */
@@ -28,6 +47,15 @@ iomap_atomic_prot_pfn(unsigned long pfn, enum km_type type, pgprot_t prot)
 	unsigned long vaddr;
 
 	pagefault_disable();
+
+	/*
+	 * For non-PAT systems, promote PAGE_KERNEL_WC to PAGE_KERNEL_UC_MINUS.
+	 * PAGE_KERNEL_WC maps to PWT, which translates to uncached if the
+	 * MTRR is UC or WC.  UC_MINUS gets the real intention, of the
+	 * user, which is "WC if the MTRR is WC, UC if you can't do that."
+	 */
+	if (!pat_enabled && pgprot_val(prot) == pgprot_val(PAGE_KERNEL_WC))
+		prot = PAGE_KERNEL_UC_MINUS;
 
 	idx = type + KM_TYPE_NR*smp_processor_id();
 	vaddr = __fix_to_virt(FIX_KMAP_BEGIN + idx);

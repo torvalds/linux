@@ -75,7 +75,7 @@ static long ps3_hpte_insert(unsigned long hpte_group, unsigned long va,
 
 	if (result) {
 		/* all entries bolted !*/
-		pr_info("%s:result=%d va=%lx pa=%lx ix=%lx v=%lx r=%lx\n",
+		pr_info("%s:result=%d va=%lx pa=%lx ix=%lx v=%llx r=%llx\n",
 			__func__, result, va, pa, hpte_group, hpte_v, hpte_r);
 		BUG();
 	}

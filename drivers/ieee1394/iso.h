@@ -13,6 +13,7 @@
 #define IEEE1394_ISO_H
 
 #include <linux/spinlock_types.h>
+#include <linux/wait.h>
 #include <asm/atomic.h>
 #include <asm/types.h>
 

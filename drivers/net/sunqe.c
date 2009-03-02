@@ -227,7 +227,7 @@ static int qe_init(struct sunqe *qep, int from_irq)
 	if (!(sbus_readb(mregs + MREGS_PHYCONFIG) & MREGS_PHYCONFIG_LTESTDIS)) {
 		int tries = 50;
 
-		while (tries--) {
+		while (--tries) {
 			u8 tmp;
 
 			mdelay(5);

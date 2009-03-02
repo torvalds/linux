@@ -933,7 +933,7 @@ sys_execve:
 osf_sigprocmask:
 	.prologue 0
 	mov	$sp, $18
-	jmp	$31, do_osf_sigprocmask
+	jmp	$31, sys_osf_sigprocmask
 .end osf_sigprocmask
 
 	.align	4

@@ -1302,7 +1302,7 @@ static void velocity_free_rd_ring(struct velocity_info *vptr)
 static int velocity_init_td_ring(struct velocity_info *vptr)
 {
 	dma_addr_t curr;
-	unsigned int j;
+	int j;
 
 	/* Init the TD ring entries */
 	for (j = 0; j < vptr->tx.numq; j++) {

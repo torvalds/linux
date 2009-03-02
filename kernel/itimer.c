@@ -62,7 +62,7 @@ int do_getitimer(int which, struct itimerval *value)
 			struct task_cputime cputime;
 			cputime_t utime;
 
-			thread_group_cputime(tsk, &cputime);
+			thread_group_cputimer(tsk, &cputime);
 			utime = cputime.utime;
 			if (cputime_le(cval, utime)) { /* about to fire */
 				cval = jiffies_to_cputime(1);
@@ -82,7 +82,7 @@ int do_getitimer(int which, struct itimerval *value)
 			struct task_cputime times;
 			cputime_t ptime;
 
-			thread_group_cputime(tsk, &times);
+			thread_group_cputimer(tsk, &times);
 			ptime = cputime_add(times.utime, times.stime);
 			if (cputime_le(cval, ptime)) { /* about to fire */
 				cval = jiffies_to_cputime(1);

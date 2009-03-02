@@ -349,6 +349,7 @@ STAC92HD73*
 STAC92HD83*
 ===========
   ref		Reference board
+  mic-ref	Reference board with power managment for ports
 
 STAC9872
 ========

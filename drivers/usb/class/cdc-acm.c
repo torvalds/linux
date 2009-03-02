@@ -1349,6 +1349,9 @@ static struct usb_device_id acm_ids[] = {
 	{ USB_DEVICE(0x0e8d, 0x0003), /* FIREFLY, MediaTek Inc; andrey.arapov@gmail.com */
 	.driver_info = NO_UNION_NORMAL, /* has no union descriptor */
 	},
+	{ USB_DEVICE(0x0e8d, 0x3329), /* MediaTek Inc GPS */
+	.driver_info = NO_UNION_NORMAL, /* has no union descriptor */
+	},
 	{ USB_DEVICE(0x0482, 0x0203), /* KYOCERA AH-K3001V */
 	.driver_info = NO_UNION_NORMAL, /* has no union descriptor */
 	},
@@ -1369,6 +1372,18 @@ static struct usb_device_id acm_ids[] = {
 	},
 	{ USB_DEVICE(0x0572, 0x1321), /* Conexant USB MODEM CX93010 */
 	.driver_info = NO_UNION_NORMAL, /* has no union descriptor */
+	},
+	{ USB_DEVICE(0x0572, 0x1324), /* Conexant USB MODEM RD02-D400 */
+	.driver_info = NO_UNION_NORMAL, /* has no union descriptor */
+	},
+	{ USB_DEVICE(0x22b8, 0x6425), /* Motorola MOTOMAGX phones */
+	},
+	{ USB_DEVICE(0x0572, 0x1329), /* Hummingbird huc56s (Conexant) */
+	.driver_info = NO_UNION_NORMAL, /* union descriptor misplaced on
+					   data interface instead of
+					   communications interface.
+					   Maybe we should define a new
+					   quirk for this. */
 	},
 
 	/* control interfaces with various AT-command sets */

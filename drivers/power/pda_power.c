@@ -20,7 +20,7 @@
 
 static inline unsigned int get_irq_flags(struct resource *res)
 {
-	unsigned int flags = IRQF_DISABLED | IRQF_SHARED;
+	unsigned int flags = IRQF_SAMPLE_RANDOM | IRQF_SHARED;
 
 	flags |= res->flags & IRQF_TRIGGER_MASK;
 

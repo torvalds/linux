@@ -3,7 +3,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (c) 2008 Silicon Graphics, Inc.  All Rights Reserved.
+ * Copyright (c) 2008-2009 Silicon Graphics, Inc.  All Rights Reserved.
  */
 
 /*
@@ -1010,8 +1010,8 @@ xpc_allocate_recv_msg_slot_uv(struct xpc_channel *ch)
 			continue;
 
 		for (entry = 0; entry < nentries; entry++) {
-			msg_slot = ch_uv->recv_msg_slots + entry *
-			    ch->entry_size;
+			msg_slot = ch_uv->recv_msg_slots +
+			    entry * ch->entry_size;
 
 			msg_slot->hdr.msg_slot_number = entry;
 		}
@@ -1308,9 +1308,8 @@ xpc_handle_notify_mq_msg_uv(struct xpc_partition *part,
 	/* we're dealing with a normal message sent via the notify_mq */
 	ch_uv = &ch->sn.uv;
 
-	msg_slot = (struct xpc_notify_mq_msg_uv *)((u64)ch_uv->recv_msg_slots +
-		    (msg->hdr.msg_slot_number % ch->remote_nentries) *
-		    ch->entry_size);
+	msg_slot = ch_uv->recv_msg_slots +
+	    (msg->hdr.msg_slot_number % ch->remote_nentries) * ch->entry_size;
 
 	BUG_ON(msg->hdr.msg_slot_number != msg_slot->hdr.msg_slot_number);
 	BUG_ON(msg_slot->hdr.size != 0);
@@ -1423,7 +1422,7 @@ xpc_send_payload_uv(struct xpc_channel *ch, u32 flags, void *payload,
 		atomic_inc(&ch->n_to_notify);
 
 		msg_slot->key = key;
-		wmb(); /* a non-NULL func must hit memory after the key */
+		smp_wmb(); /* a non-NULL func must hit memory after the key */
 		msg_slot->func = func;
 
 		if (ch->flags & XPC_C_DISCONNECTING) {

@@ -1767,3 +1767,41 @@ sys_dup3_wrapper:
 sys_epoll_create1_wrapper:
 	lgfr	%r2,%r2			# int
 	jg	sys_epoll_create1	# branch to system call
+
+	.globl	sys32_readahead_wrapper
+sys32_readahead_wrapper:
+	lgfr	%r2,%r2			# int
+	llgfr	%r3,%r3			# u32
+	llgfr	%r4,%r4			# u32
+	lgfr	%r5,%r5			# s32
+	jg	sys32_readahead		# branch to system call
+
+	.globl	sys32_sendfile64_wrapper
+sys32_sendfile64_wrapper:
+	lgfr	%r2,%r2			# int
+	lgfr	%r3,%r3			# int
+	llgtr	%r4,%r4			# compat_loff_t *
+	lgfr	%r5,%r5			# s32
+	jg	sys32_sendfile64	# branch to system call
+
+	.globl	sys_tkill_wrapper
+sys_tkill_wrapper:
+	lgfr	%r2,%r2			# pid_t
+	lgfr	%r3,%r3			# int
+	jg	sys_tkill		# branch to system call
+
+	.globl	sys_tgkill_wrapper
+sys_tgkill_wrapper:
+	lgfr	%r2,%r2			# pid_t
+	lgfr	%r3,%r3			# pid_t
+	lgfr	%r4,%r4			# int
+	jg	sys_tgkill		# branch to system call
+
+	.globl	compat_sys_keyctl_wrapper
+compat_sys_keyctl_wrapper:
+	llgfr	%r2,%r2			# u32
+	llgfr	%r3,%r3			# u32
+	llgfr	%r4,%r4			# u32
+	llgfr	%r5,%r5			# u32
+	llgfr	%r6,%r6			# u32
+	jg	compat_sys_keyctl	# branch to system call

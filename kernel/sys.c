@@ -1525,22 +1525,14 @@ SYSCALL_DEFINE2(setrlimit, unsigned int, resource, struct rlimit __user *, rlim)
 		return -EINVAL;
 	if (copy_from_user(&new_rlim, rlim, sizeof(*rlim)))
 		return -EFAULT;
+	if (new_rlim.rlim_cur > new_rlim.rlim_max)
+		return -EINVAL;
 	old_rlim = current->signal->rlim + resource;
 	if ((new_rlim.rlim_max > old_rlim->rlim_max) &&
 	    !capable(CAP_SYS_RESOURCE))
 		return -EPERM;
-
-	if (resource == RLIMIT_NOFILE) {
-		if (new_rlim.rlim_max == RLIM_INFINITY)
-			new_rlim.rlim_max = sysctl_nr_open;
-		if (new_rlim.rlim_cur == RLIM_INFINITY)
-			new_rlim.rlim_cur = sysctl_nr_open;
-		if (new_rlim.rlim_max > sysctl_nr_open)
-			return -EPERM;
-	}
-
-	if (new_rlim.rlim_cur > new_rlim.rlim_max)
-		return -EINVAL;
+	if (resource == RLIMIT_NOFILE && new_rlim.rlim_max > sysctl_nr_open)
+		return -EPERM;
 
 	retval = security_task_setrlimit(resource, &new_rlim);
 	if (retval)

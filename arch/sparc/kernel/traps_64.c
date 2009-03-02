@@ -1,6 +1,6 @@
 /* arch/sparc64/kernel/traps.c
  *
- * Copyright (C) 1995,1997,2008 David S. Miller (davem@davemloft.net)
+ * Copyright (C) 1995,1997,2008,2009 David S. Miller (davem@davemloft.net)
  * Copyright (C) 1997,1999,2000 Jakub Jelinek (jakub@redhat.com)
  */
 
@@ -314,6 +314,21 @@ void sun4v_data_access_exception(struct pt_regs *regs, unsigned long addr, unsig
 		return;
 
 	if (regs->tstate & TSTATE_PRIV) {
+		/* Test if this comes from uaccess places. */
+		const struct exception_table_entry *entry;
+
+		entry = search_exception_tables(regs->tpc);
+		if (entry) {
+			/* Ouch, somebody is trying VM hole tricks on us... */
+#ifdef DEBUG_EXCEPTIONS
+			printk("Exception: PC<%016lx> faddr<UNKNOWN>\n", regs->tpc);
+			printk("EX_TABLE: insn<%016lx> fixup<%016lx>\n",
+			       regs->tpc, entry->fixup);
+#endif
+			regs->tpc = entry->fixup;
+			regs->tnpc = regs->tpc + 4;
+			return;
+		}
 		printk("sun4v_data_access_exception: ADDR[%016lx] "
 		       "CTX[%04x] TYPE[%04x], going.\n",
 		       addr, ctx, type);

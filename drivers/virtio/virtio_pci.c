@@ -192,7 +192,7 @@ static irqreturn_t vp_interrupt(int irq, void *opaque)
 		drv = container_of(vp_dev->vdev.dev.driver,
 				   struct virtio_driver, driver);
 
-		if (drv->config_changed)
+		if (drv && drv->config_changed)
 			drv->config_changed(&vp_dev->vdev);
 	}
 

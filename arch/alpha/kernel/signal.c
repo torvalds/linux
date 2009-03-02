@@ -19,6 +19,7 @@
 #include <linux/tty.h>
 #include <linux/binfmts.h>
 #include <linux/bitops.h>
+#include <linux/syscalls.h>
 
 #include <asm/uaccess.h>
 #include <asm/sigcontext.h>
@@ -51,8 +52,8 @@ static void do_signal(struct pt_regs *, struct switch_stack *,
  * Note that we don't need to acquire the kernel lock for SMP
  * operation, as all of this is local to this thread.
  */
-asmlinkage unsigned long
-do_osf_sigprocmask(int how, unsigned long newmask, struct pt_regs *regs)
+SYSCALL_DEFINE3(osf_sigprocmask, int, how, unsigned long, newmask,
+		struct pt_regs *, regs)
 {
 	unsigned long oldmask = -EINVAL;
 
@@ -81,9 +82,9 @@ do_osf_sigprocmask(int how, unsigned long newmask, struct pt_regs *regs)
 	return oldmask;
 }
 
-asmlinkage int 
-osf_sigaction(int sig, const struct osf_sigaction __user *act,
-	      struct osf_sigaction __user *oact)
+SYSCALL_DEFINE3(osf_sigaction, int, sig,
+		const struct osf_sigaction __user *, act,
+		struct osf_sigaction __user *, oact)
 {
 	struct k_sigaction new_ka, old_ka;
 	int ret;
@@ -112,10 +113,9 @@ osf_sigaction(int sig, const struct osf_sigaction __user *act,
 	return ret;
 }
 
-asmlinkage long
-sys_rt_sigaction(int sig, const struct sigaction __user *act,
-		 struct sigaction __user *oact,
-		 size_t sigsetsize, void __user *restorer)
+SYSCALL_DEFINE5(rt_sigaction, int, sig, const struct sigaction __user *, act,
+		struct sigaction __user *, oact,
+		size_t, sigsetsize, void __user *, restorer)
 {
 	struct k_sigaction new_ka, old_ka;
 	int ret;

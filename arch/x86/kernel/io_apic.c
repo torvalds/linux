@@ -2528,14 +2528,15 @@ static void irq_complete_move(struct irq_desc **descp)
 
 	vector = ~get_irq_regs()->orig_ax;
 	me = smp_processor_id();
+
+	if (vector == cfg->vector && cpumask_test_cpu(me, cfg->domain)) {
 #ifdef CONFIG_NUMA_MIGRATE_IRQ_DESC
 		*descp = desc = move_irq_desc(desc, me);
 		/* get the new one */
 		cfg = desc->chip_data;
 #endif
-
-	if (vector == cfg->vector && cpumask_test_cpu(me, cfg->domain))
 		send_cleanup_vector(cfg);
+	}
 }
 #else
 static inline void irq_complete_move(struct irq_desc **descp) {}
@@ -3840,14 +3841,24 @@ int __init io_apic_get_redir_entries (int ioapic)
 
 void __init probe_nr_irqs_gsi(void)
 {
-	int idx;
 	int nr = 0;
 
-	for (idx = 0; idx < nr_ioapics; idx++)
-		nr += io_apic_get_redir_entries(idx) + 1;
-
-	if (nr > nr_irqs_gsi)
+	nr = acpi_probe_gsi();
+	if (nr > nr_irqs_gsi) {
 		nr_irqs_gsi = nr;
+	} else {
+		/* for acpi=off or acpi is not compiled in */
+		int idx;
+
+		nr = 0;
+		for (idx = 0; idx < nr_ioapics; idx++)
+			nr += io_apic_get_redir_entries(idx) + 1;
+
+		if (nr > nr_irqs_gsi)
+			nr_irqs_gsi = nr;
+	}
+
+	printk(KERN_DEBUG "nr_irqs_gsi: %d\n", nr_irqs_gsi);
 }
 
 /* --------------------------------------------------------------------------

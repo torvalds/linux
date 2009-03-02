@@ -2764,6 +2764,7 @@ struct tg3 {
 	struct ethtool_coalesce		coal;
 
 	/* firmware info */
+	const char			*fw_needed;
 	const struct firmware		*fw;
 	u32				fw_len; /* includes BSS */
 };

@@ -65,8 +65,6 @@ MODULE_PARM_DESC(ql2xextended_error_logging,
 
 static void qla2x00_free_device(scsi_qla_host_t *);
 
-static void qla2x00_config_dma_addressing(scsi_qla_host_t *ha);
-
 int ql2xfdmienable=1;
 module_param(ql2xfdmienable, int, S_IRUGO|S_IRUSR);
 MODULE_PARM_DESC(ql2xfdmienable,
@@ -800,6 +798,7 @@ qla2xxx_eh_abort(struct scsi_cmnd *cmd)
 		if (ha->isp_ops->abort_command(vha, sp, req)) {
 			DEBUG2(printk("%s(%ld): abort_command "
 			"mbx failed.\n", __func__, vha->host_no));
+			ret = FAILED;
 		} else {
 			DEBUG3(printk("%s(%ld): abort_command "
 			"mbx success.\n", __func__, vha->host_no));
@@ -1158,8 +1157,8 @@ qla2x00_abort_all_cmds(scsi_qla_host_t *vha, int res)
 	struct req_que *req;
 
 	spin_lock_irqsave(&ha->hardware_lock, flags);
-	for (que = 0; que < QLA_MAX_HOST_QUES; que++) {
-		req = ha->req_q_map[vha->req_ques[que]];
+	for (que = 0; que < ha->max_queues; que++) {
+		req = ha->req_q_map[que];
 		if (!req)
 			continue;
 		for (cnt = 1; cnt < MAX_OUTSTANDING_COMMANDS; cnt++) {
@@ -1193,7 +1192,7 @@ qla2xxx_slave_configure(struct scsi_device *sdev)
 	scsi_qla_host_t *vha = shost_priv(sdev->host);
 	struct qla_hw_data *ha = vha->hw;
 	struct fc_rport *rport = starget_to_rport(sdev->sdev_target);
-	struct req_que *req = ha->req_q_map[0];
+	struct req_que *req = ha->req_q_map[vha->req_ques[0]];
 
 	if (sdev->tagged_supported)
 		scsi_activate_tcq(sdev, req->max_q_depth);
@@ -1241,9 +1240,8 @@ qla2x00_change_queue_type(struct scsi_device *sdev, int tag_type)
  * supported addressing method.
  */
 static void
-qla2x00_config_dma_addressing(scsi_qla_host_t *vha)
+qla2x00_config_dma_addressing(struct qla_hw_data *ha)
 {
-	struct qla_hw_data *ha = vha->hw;
 	/* Assume a 32bit DMA mask. */
 	ha->flags.enable_64bit_addressing = 0;
 
@@ -1480,7 +1478,7 @@ static struct isp_operations qla81xx_isp_ops = {
 	.reset_adapter		= qla24xx_reset_adapter,
 	.nvram_config		= qla81xx_nvram_config,
 	.update_fw_options	= qla81xx_update_fw_options,
-	.load_risc		= qla24xx_load_risc,
+	.load_risc		= qla81xx_load_risc,
 	.pci_info_str		= qla24xx_pci_info_str,
 	.fw_version_str		= qla24xx_fw_version_str,
 	.intr_handler		= qla24xx_intr_handler,
@@ -1869,6 +1867,7 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	set_bit(0, (unsigned long *) ha->vp_idx_map);
 
+	qla2x00_config_dma_addressing(ha);
 	ret = qla2x00_mem_alloc(ha, req_length, rsp_length, &req, &rsp);
 	if (!ret) {
 		qla_printk(KERN_WARNING, ha,
@@ -1888,12 +1887,12 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 		    "[ERROR] Failed to allocate memory for scsi_host\n");
 
 		ret = -ENOMEM;
+		qla2x00_mem_free(ha);
+		qla2x00_free_que(ha, req, rsp);
 		goto probe_hw_failed;
 	}
 
 	pci_set_drvdata(pdev, base_vha);
-
-	qla2x00_config_dma_addressing(base_vha);
 
 	host = base_vha->host;
 	base_vha->req_ques[0] = req->id;
@@ -1917,14 +1916,13 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	/* Set up the irqs */
 	ret = qla2x00_request_irqs(ha, rsp);
 	if (ret)
-		goto probe_failed;
-
+		goto probe_init_failed;
 	/* Alloc arrays of request and response ring ptrs */
 	if (!qla2x00_alloc_queues(ha)) {
 		qla_printk(KERN_WARNING, ha,
 		"[ERROR] Failed to allocate memory for queue"
 		" pointers\n");
-		goto probe_failed;
+		goto probe_init_failed;
 	}
 	ha->rsp_q_map[0] = rsp;
 	ha->req_q_map[0] = req;
@@ -1997,8 +1995,11 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	return 0;
 
-probe_failed:
+probe_init_failed:
 	qla2x00_free_que(ha, req, rsp);
+	ha->max_queues = 0;
+
+probe_failed:
 	qla2x00_free_device(base_vha);
 
 	scsi_host_put(base_vha->host);
@@ -2521,6 +2522,19 @@ qla2x00_post_aen_work(struct scsi_qla_host *vha, enum fc_host_event_code code,
 	return qla2x00_post_work(vha, e, 1);
 }
 
+int
+qla2x00_post_idc_ack_work(struct scsi_qla_host *vha, uint16_t *mb)
+{
+	struct qla_work_evt *e;
+
+	e = qla2x00_alloc_work(vha, QLA_EVT_IDC_ACK, 1);
+	if (!e)
+		return QLA_FUNCTION_FAILED;
+
+	memcpy(e->u.idc_ack.mb, mb, QLA_IDC_ACK_REGS * sizeof(uint16_t));
+	return qla2x00_post_work(vha, e, 1);
+}
+
 static void
 qla2x00_do_work(struct scsi_qla_host *vha)
 {
@@ -2537,6 +2551,9 @@ qla2x00_do_work(struct scsi_qla_host *vha)
 		case QLA_EVT_AEN:
 			fc_host_post_event(vha->host, fc_get_event_number(),
 			    e->u.aen.code, e->u.aen.data);
+			break;
+		case QLA_EVT_IDC_ACK:
+			qla81xx_idc_ack(vha, e->u.idc_ack.mb);
 			break;
 		}
 		if (e->flags & QLA_EVT_FLAG_FREE)

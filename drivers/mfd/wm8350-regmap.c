@@ -3188,7 +3188,7 @@ const struct wm8350_reg_access wm8350_reg_io_map[] = {
 	{ 0x7CFF, 0x0C00, 0x7FFF }, /* R1   - ID */
 	{ 0x0000, 0x0000, 0x0000 }, /* R2 */
 	{ 0xBE3B, 0xBE3B, 0x8000 }, /* R3   - System Control 1 */
-	{ 0xFCF7, 0xFCF7, 0xF800 }, /* R4   - System Control 2 */
+	{ 0xFEF7, 0xFEF7, 0xF800 }, /* R4   - System Control 2 */
 	{ 0x80FF, 0x80FF, 0x8000 }, /* R5   - System Hibernate */
 	{ 0xFB0E, 0xFB0E, 0x0000 }, /* R6   - Interface Control */
 	{ 0x0000, 0x0000, 0x0000 }, /* R7 */

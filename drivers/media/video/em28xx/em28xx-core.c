@@ -438,6 +438,10 @@ int em28xx_audio_analog_set(struct em28xx *dev)
 	if (dev->audio_mode.ac97 != EM28XX_NO_AC97) {
 		int vol;
 
+		em28xx_write_ac97(dev, AC97_POWER_DOWN_CTRL, 0x4200);
+		em28xx_write_ac97(dev, AC97_EXT_AUD_CTRL, 0x0031);
+		em28xx_write_ac97(dev, AC97_PCM_IN_SRATE, 0xbb80);
+
 		/* LSB: left channel - both channels with the same level */
 		vol = (0x1f - dev->volume) | ((0x1f - dev->volume) << 8);
 
@@ -453,6 +457,15 @@ int em28xx_audio_analog_set(struct em28xx *dev)
 			if (ret < 0)
 				em28xx_warn("couldn't setup AC97 register %d\n",
 				     outputs[i].reg);
+		}
+
+		if (dev->ctl_aoutput & EM28XX_AOUT_PCM_IN) {
+			int sel = ac97_return_record_select(dev->ctl_aoutput);
+
+			/* Use the same input for both left and right channels */
+			sel |= (sel << 8);
+
+			em28xx_write_ac97(dev, AC97_RECORD_SELECT, sel);
 		}
 	}
 
@@ -847,8 +860,11 @@ void em28xx_uninit_isoc(struct em28xx *dev)
 	for (i = 0; i < dev->isoc_ctl.num_bufs; i++) {
 		urb = dev->isoc_ctl.urb[i];
 		if (urb) {
-			usb_kill_urb(urb);
-			usb_unlink_urb(urb);
+			if (!irqs_disabled())
+				usb_kill_urb(urb);
+			else
+				usb_unlink_urb(urb);
+
 			if (dev->isoc_ctl.transfer_buffer[i]) {
 				usb_buffer_free(dev->udev,
 					urb->transfer_buffer_length,
