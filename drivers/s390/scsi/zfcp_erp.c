@@ -777,10 +777,7 @@ static int zfcp_erp_port_forced_strategy_close(struct zfcp_erp_action *act)
 
 static void zfcp_erp_port_strategy_clearstati(struct zfcp_port *port)
 {
-	atomic_clear_mask(ZFCP_STATUS_COMMON_ACCESS_DENIED |
-			  ZFCP_STATUS_PORT_PHYS_CLOSING |
-			  ZFCP_STATUS_PORT_INVALID_WWPN,
-			  &port->status);
+	atomic_clear_mask(ZFCP_STATUS_COMMON_ACCESS_DENIED, &port->status);
 }
 
 static int zfcp_erp_port_forced_strategy(struct zfcp_erp_action *erp_action)
@@ -875,13 +872,8 @@ static int zfcp_erp_port_strategy_open_common(struct zfcp_erp_action *act)
 			return ZFCP_ERP_CONTINUES;
 		}
 	case ZFCP_ERP_STEP_NAMESERVER_LOOKUP:
-		if (!port->d_id) {
-			if (p_status & (ZFCP_STATUS_PORT_INVALID_WWPN)) {
-				zfcp_erp_port_failed(port, 26, NULL);
-				return ZFCP_ERP_EXIT;
-			}
+		if (!port->d_id)
 			return ZFCP_ERP_FAILED;
-		}
 		return zfcp_erp_port_strategy_open_port(act);
 
 	case ZFCP_ERP_STEP_PORT_OPENING:
@@ -1269,10 +1261,6 @@ static void zfcp_erp_action_cleanup(struct zfcp_erp_action *act, int result)
 
 	case ZFCP_ERP_ACTION_REOPEN_PORT_FORCED:
 	case ZFCP_ERP_ACTION_REOPEN_PORT:
-		if (atomic_read(&port->status) & ZFCP_STATUS_PORT_NO_WWPN) {
-			zfcp_port_put(port);
-			return;
-		}
 		if ((result == ZFCP_ERP_SUCCEEDED) && !port->rport)
 			zfcp_erp_rport_register(port);
 		if ((result != ZFCP_ERP_SUCCEEDED) && port->rport) {

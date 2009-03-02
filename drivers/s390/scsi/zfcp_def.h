@@ -243,9 +243,6 @@ struct zfcp_ls_adisc {
 
 /* remote port status */
 #define ZFCP_STATUS_PORT_PHYS_OPEN		0x00000001
-#define ZFCP_STATUS_PORT_PHYS_CLOSING		0x00000004
-#define ZFCP_STATUS_PORT_NO_WWPN		0x00000008
-#define ZFCP_STATUS_PORT_INVALID_WWPN		0x00000020
 
 /* well known address (WKA) port status*/
 enum zfcp_wka_status {

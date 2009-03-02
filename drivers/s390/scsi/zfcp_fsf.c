@@ -1712,7 +1712,7 @@ static void zfcp_fsf_close_physical_port_handler(struct zfcp_fsf_req *req)
 	struct zfcp_unit *unit;
 
 	if (req->status & ZFCP_STATUS_FSFREQ_ERROR)
-		goto skip_fsfstatus;
+		return;
 
 	switch (header->fsf_status) {
 	case FSF_PORT_HANDLE_NOT_VALID:
@@ -1752,8 +1752,6 @@ static void zfcp_fsf_close_physical_port_handler(struct zfcp_fsf_req *req)
 					  &unit->status);
 		break;
 	}
-skip_fsfstatus:
-	atomic_clear_mask(ZFCP_STATUS_PORT_PHYS_CLOSING, &port->status);
 }
 
 /**
@@ -1789,8 +1787,6 @@ int zfcp_fsf_close_physical_port(struct zfcp_erp_action *erp_action)
 	req->erp_action = erp_action;
 	req->handler = zfcp_fsf_close_physical_port_handler;
 	erp_action->fsf_req = req;
-	atomic_set_mask(ZFCP_STATUS_PORT_PHYS_CLOSING,
-			&erp_action->port->status);
 
 	zfcp_fsf_start_erp_timer(req);
 	retval = zfcp_fsf_req_send(req);

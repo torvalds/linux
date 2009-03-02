@@ -259,10 +259,9 @@ static void zfcp_fc_ns_gid_pn_eval(unsigned long data)
 
 	if (ct->status)
 		return;
-	if (ct_iu_resp->header.cmd_rsp_code != ZFCP_CT_ACCEPT) {
-		atomic_set_mask(ZFCP_STATUS_PORT_INVALID_WWPN, &port->status);
+	if (ct_iu_resp->header.cmd_rsp_code != ZFCP_CT_ACCEPT)
 		return;
-	}
+
 	/* paranoia */
 	if (ct_iu_req->wwpn != port->wwpn)
 		return;

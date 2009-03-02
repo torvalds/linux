@@ -249,8 +249,8 @@ struct zfcp_port *zfcp_get_port_by_wwpn(struct zfcp_adapter *adapter,
 	struct zfcp_port *port;
 
 	list_for_each_entry(port, &adapter->port_list_head, list)
-		if ((port->wwpn == wwpn) && !(atomic_read(&port->status) &
-		      (ZFCP_STATUS_PORT_NO_WWPN | ZFCP_STATUS_COMMON_REMOVE)))
+		if ((port->wwpn == wwpn) &&
+		    !(atomic_read(&port->status) & ZFCP_STATUS_COMMON_REMOVE))
 			return port;
 	return NULL;
 }
@@ -620,11 +620,10 @@ struct zfcp_port *zfcp_port_enqueue(struct zfcp_adapter *adapter, u64 wwpn,
 	dev_set_drvdata(&port->sysfs_device, port);
 
 	read_lock_irq(&zfcp_data.config_lock);
-	if (!(status & ZFCP_STATUS_PORT_NO_WWPN))
-		if (zfcp_get_port_by_wwpn(adapter, wwpn)) {
-			read_unlock_irq(&zfcp_data.config_lock);
-			goto err_out_free;
-		}
+	if (zfcp_get_port_by_wwpn(adapter, wwpn)) {
+		read_unlock_irq(&zfcp_data.config_lock);
+		goto err_out_free;
+	}
 	read_unlock_irq(&zfcp_data.config_lock);
 
 	if (device_register(&port->sysfs_device))
