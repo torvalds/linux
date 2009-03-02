@@ -138,6 +138,27 @@ end:
 	return status;
 }
 
+/* Process an inter-device event completion.
+ * If good, signal the caller's completion.
+ */
+static int ql_idc_cmplt_aen(struct ql_adapter *qdev)
+{
+	int status;
+	struct mbox_params *mbcp = &qdev->idc_mbc;
+	mbcp->out_count = 4;
+	status = ql_get_mb_sts(qdev, mbcp);
+	if (status) {
+		QPRINTK(qdev, DRV, ERR,
+			"Could not read MPI, resetting RISC!\n");
+		ql_queue_fw_error(qdev);
+	} else
+		/* Wake up the sleeping mpi_idc_work thread that is
+		 * waiting for this event.
+		 */
+		complete(&qdev->ide_completion);
+
+	return status;
+}
 static void ql_link_up(struct ql_adapter *qdev, struct mbox_params *mbcp)
 {
 	mbcp->out_count = 2;
@@ -240,6 +261,16 @@ static int ql_mpi_handler(struct ql_adapter *qdev, struct mbox_params *mbcp)
 		mbcp->out_count = orig_count;
 		status = ql_get_mb_sts(qdev, mbcp);
 		return status;
+
+	/* Process and inbound IDC event.
+	 * This will happen when we're trying to
+	 * change tx/rx max frame size, change pause
+	 * paramters or loopback mode.
+	 */
+	case AEN_IDC_CMPLT:
+	case AEN_IDC_EXT:
+		status = ql_idc_cmplt_aen(qdev);
+		break;
 
 	case AEN_LINK_UP:
 		ql_link_up(qdev, mbcp);
@@ -391,6 +422,182 @@ int ql_mb_get_fw_state(struct ql_adapter *qdev)
 	return status;
 }
 
+/* Get link settings and maximum frame size settings
+ * for the current port.
+ * Most likely will block.
+ */
+static int ql_mb_set_port_cfg(struct ql_adapter *qdev)
+{
+	struct mbox_params mbc;
+	struct mbox_params *mbcp = &mbc;
+	int status = 0;
+
+	memset(mbcp, 0, sizeof(struct mbox_params));
+
+	mbcp->in_count = 3;
+	mbcp->out_count = 1;
+
+	mbcp->mbox_in[0] = MB_CMD_SET_PORT_CFG;
+	mbcp->mbox_in[1] = qdev->link_config;
+	mbcp->mbox_in[2] = qdev->max_frame_size;
+
+
+	status = ql_mailbox_command(qdev, mbcp);
+	if (status)
+		return status;
+
+	if (mbcp->mbox_out[0] == MB_CMD_STS_INTRMDT) {
+		QPRINTK(qdev, DRV, ERR,
+			"Port Config sent, wait for IDC.\n");
+	} else	if (mbcp->mbox_out[0] != MB_CMD_STS_GOOD) {
+		QPRINTK(qdev, DRV, ERR,
+			"Failed Set Port Configuration.\n");
+		status = -EIO;
+	}
+	return status;
+}
+
+/* Get link settings and maximum frame size settings
+ * for the current port.
+ * Most likely will block.
+ */
+static int ql_mb_get_port_cfg(struct ql_adapter *qdev)
+{
+	struct mbox_params mbc;
+	struct mbox_params *mbcp = &mbc;
+	int status = 0;
+
+	memset(mbcp, 0, sizeof(struct mbox_params));
+
+	mbcp->in_count = 1;
+	mbcp->out_count = 3;
+
+	mbcp->mbox_in[0] = MB_CMD_GET_PORT_CFG;
+
+	status = ql_mailbox_command(qdev, mbcp);
+	if (status)
+		return status;
+
+	if (mbcp->mbox_out[0] != MB_CMD_STS_GOOD) {
+		QPRINTK(qdev, DRV, ERR,
+			"Failed Get Port Configuration.\n");
+		status = -EIO;
+	} else	{
+		QPRINTK(qdev, DRV, DEBUG,
+			"Passed Get Port Configuration.\n");
+		qdev->link_config = mbcp->mbox_out[1];
+		qdev->max_frame_size = mbcp->mbox_out[2];
+	}
+	return status;
+}
+
+/* IDC - Inter Device Communication...
+ * Some firmware commands require consent of adjacent FCOE
+ * function.  This function waits for the OK, or a
+ * counter-request for a little more time.i
+ * The firmware will complete the request if the other
+ * function doesn't respond.
+ */
+static int ql_idc_wait(struct ql_adapter *qdev)
+{
+	int status = -ETIMEDOUT;
+	long wait_time = 1 * HZ;
+	struct mbox_params *mbcp = &qdev->idc_mbc;
+	do {
+		/* Wait here for the command to complete
+		 * via the IDC process.
+		 */
+		wait_time =
+			wait_for_completion_timeout(&qdev->ide_completion,
+							wait_time);
+		if (!wait_time) {
+			QPRINTK(qdev, DRV, ERR,
+				"IDC Timeout.\n");
+			break;
+		}
+		/* Now examine the response from the IDC process.
+		 * We might have a good completion or a request for
+		 * more wait time.
+		 */
+		if (mbcp->mbox_out[0] == AEN_IDC_EXT) {
+			QPRINTK(qdev, DRV, ERR,
+				"IDC Time Extension from function.\n");
+			wait_time += (mbcp->mbox_out[1] >> 8) & 0x0000000f;
+		} else if (mbcp->mbox_out[0] == AEN_IDC_CMPLT) {
+			QPRINTK(qdev, DRV, ERR,
+				"IDC Success.\n");
+			status = 0;
+			break;
+		} else {
+			QPRINTK(qdev, DRV, ERR,
+				"IDC: Invalid State 0x%.04x.\n",
+				mbcp->mbox_out[0]);
+			status = -EIO;
+			break;
+		}
+	} while (wait_time);
+
+	return status;
+}
+
+/* API called in work thread context to set new TX/RX
+ * maximum frame size values to match MTU.
+ */
+static int ql_set_port_cfg(struct ql_adapter *qdev)
+{
+	int status;
+	status = ql_mb_set_port_cfg(qdev);
+	if (status)
+		return status;
+	status = ql_idc_wait(qdev);
+	return status;
+}
+
+/* The following routines are worker threads that process
+ * events that may sleep waiting for completion.
+ */
+
+/* This thread gets the maximum TX and RX frame size values
+ * from the firmware and, if necessary, changes them to match
+ * the MTU setting.
+ */
+void ql_mpi_port_cfg_work(struct work_struct *work)
+{
+	struct ql_adapter *qdev =
+	    container_of(work, struct ql_adapter, mpi_port_cfg_work.work);
+	struct net_device *ndev = qdev->ndev;
+	int status;
+
+	status = ql_mb_get_port_cfg(qdev);
+	if (status) {
+		QPRINTK(qdev, DRV, ERR,
+			"Bug: Failed to get port config data.\n");
+		goto err;
+	}
+
+	if (ndev->mtu <= 2500)
+		goto end;
+	else if (qdev->link_config & CFG_JUMBO_FRAME_SIZE &&
+			qdev->max_frame_size ==
+			CFG_DEFAULT_MAX_FRAME_SIZE)
+		goto end;
+
+	qdev->link_config |=	CFG_JUMBO_FRAME_SIZE;
+	qdev->max_frame_size = CFG_DEFAULT_MAX_FRAME_SIZE;
+	status = ql_set_port_cfg(qdev);
+	if (status) {
+		QPRINTK(qdev, DRV, ERR,
+			"Bug: Failed to set port config data.\n");
+		goto err;
+	}
+end:
+	clear_bit(QL_PORT_CFG, &qdev->flags);
+	return;
+err:
+	ql_queue_fw_error(qdev);
+	goto end;
+}
+
 void ql_mpi_work(struct work_struct *work)
 {
 	struct ql_adapter *qdev =
@@ -414,5 +621,7 @@ void ql_mpi_reset_work(struct work_struct *work)
 {
 	struct ql_adapter *qdev =
 	    container_of(work, struct ql_adapter, mpi_reset_work.work);
+	cancel_delayed_work_sync(&qdev->mpi_work);
+	cancel_delayed_work_sync(&qdev->mpi_port_cfg_work);
 	ql_soft_reset_mpi_risc(qdev);
 }

@@ -837,7 +837,14 @@ exit:
 
 static int ql_8000_port_initialize(struct ql_adapter *qdev)
 {
-	return ql_mb_get_fw_state(qdev);
+	int status;
+	status = ql_mb_get_fw_state(qdev);
+	if (status)
+		goto exit;
+	/* Wake up a worker to get/set the TX/RX frame sizes. */
+	queue_delayed_work(qdev->workqueue, &qdev->mpi_port_cfg_work, 0);
+exit:
+	return status;
 }
 
 /* Take the MAC Core out of reset.
@@ -3188,6 +3195,7 @@ static int ql_adapter_down(struct ql_adapter *qdev)
 		cancel_delayed_work_sync(&qdev->asic_reset_work);
 	cancel_delayed_work_sync(&qdev->mpi_reset_work);
 	cancel_delayed_work_sync(&qdev->mpi_work);
+	cancel_delayed_work_sync(&qdev->mpi_port_cfg_work);
 
 	/* The default queue at index 0 is always processed in
 	 * a workqueue.
@@ -3462,6 +3470,8 @@ static int qlge_change_mtu(struct net_device *ndev, int new_mtu)
 
 	if (ndev->mtu == 1500 && new_mtu == 9000) {
 		QPRINTK(qdev, IFUP, ERR, "Changing to jumbo MTU.\n");
+		queue_delayed_work(qdev->workqueue,
+				&qdev->mpi_port_cfg_work, 0);
 	} else if (ndev->mtu == 9000 && new_mtu == 1500) {
 		QPRINTK(qdev, IFUP, ERR, "Changing to normal MTU.\n");
 	} else if ((ndev->mtu == 1500 && new_mtu == 1500) ||
@@ -3771,7 +3781,9 @@ static int __devinit ql_init_device(struct pci_dev *pdev,
 	INIT_DELAYED_WORK(&qdev->asic_reset_work, ql_asic_reset_work);
 	INIT_DELAYED_WORK(&qdev->mpi_reset_work, ql_mpi_reset_work);
 	INIT_DELAYED_WORK(&qdev->mpi_work, ql_mpi_work);
+	INIT_DELAYED_WORK(&qdev->mpi_port_cfg_work, ql_mpi_port_cfg_work);
 	mutex_init(&qdev->mpi_mutex);
+	init_completion(&qdev->ide_completion);
 
 	if (!cards_found) {
 		dev_info(&pdev->dev, "%s\n", DRV_STRING);

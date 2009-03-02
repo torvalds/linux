@@ -1450,6 +1450,7 @@ struct ql_adapter {
 
 	u32 mailbox_in;
 	u32 mailbox_out;
+	struct mbox_params idc_mbc;
 	struct mutex	mpi_mutex;
 
 	int tx_ring_size;
@@ -1486,6 +1487,8 @@ struct ql_adapter {
 	u32 port_link_up;
 	u32 port_init;
 	u32 link_status;
+	u32 link_config;
+	u32 max_frame_size;
 
 	union flash_params flash;
 
@@ -1495,6 +1498,8 @@ struct ql_adapter {
 	struct delayed_work asic_reset_work;
 	struct delayed_work mpi_reset_work;
 	struct delayed_work mpi_work;
+	struct delayed_work mpi_port_cfg_work;
+	struct completion ide_completion;
 	struct nic_operations *nic_ops;
 	u16 device_id;
 };
@@ -1569,6 +1574,7 @@ void ql_queue_asic_error(struct ql_adapter *qdev);
 u32 ql_enable_completion_interrupt(struct ql_adapter *qdev, u32 intr);
 void ql_set_ethtool_ops(struct net_device *ndev);
 int ql_read_xgmac_reg64(struct ql_adapter *qdev, u32 reg, u64 *data);
+void ql_mpi_port_cfg_work(struct work_struct *work);
 int ql_mb_get_fw_state(struct ql_adapter *qdev);
 
 #if 1
