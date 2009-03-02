@@ -1363,6 +1363,7 @@ static int ioat_dma_self_test(struct ioatdma_device *device)
 	dma_cookie_t cookie;
 	int err = 0;
 	struct completion cmp;
+	unsigned long tmo;
 
 	src = kzalloc(sizeof(u8) * IOAT_TEST_SIZE, GFP_KERNEL);
 	if (!src)
@@ -1414,9 +1415,10 @@ static int ioat_dma_self_test(struct ioatdma_device *device)
 	}
 	device->common.device_issue_pending(dma_chan);
 
-	wait_for_completion_timeout(&cmp, msecs_to_jiffies(3000));
+	tmo = wait_for_completion_timeout(&cmp, msecs_to_jiffies(3000));
 
-	if (device->common.device_is_tx_complete(dma_chan, cookie, NULL, NULL)
+	if (tmo == 0 ||
+	    device->common.device_is_tx_complete(dma_chan, cookie, NULL, NULL)
 					!= DMA_SUCCESS) {
 		dev_err(&device->pdev->dev,
 			"Self-test copy timed out, disabling\n");
