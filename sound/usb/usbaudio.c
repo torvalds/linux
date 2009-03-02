@@ -1783,7 +1783,7 @@ static int check_hw_params_convention(struct snd_usb_substream *subs)
 			if (rates[f->format] && rates[f->format] != f->rates)
 				goto __out;
 		}
-		channels[f->format] |= (1 << f->channels);
+		channels[f->format] |= 1 << (f->channels - 1);
 		rates[f->format] |= f->rates;
 		/* needs knot? */
 		if (f->rates & SNDRV_PCM_RATE_KNOT)
@@ -1810,7 +1810,7 @@ static int check_hw_params_convention(struct snd_usb_substream *subs)
 			continue;
 		for (i = 0; i < 32; i++) {
 			if (f->rates & (1 << i))
-				channels[i] |= (1 << f->channels);
+				channels[i] |= 1 << (f->channels - 1);
 		}
 	}
 	cmaster = 0;
