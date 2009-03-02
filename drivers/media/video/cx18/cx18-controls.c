@@ -166,15 +166,26 @@ static int cx18_g_ctrl(struct cx18 *cx, struct v4l2_control *vctrl)
 	return 0;
 }
 
-static int cx18_setup_vbi_fmt(struct cx18 *cx, enum v4l2_mpeg_stream_vbi_fmt fmt)
+static int cx18_setup_vbi_fmt(struct cx18 *cx,
+			      enum v4l2_mpeg_stream_vbi_fmt fmt,
+			      enum v4l2_mpeg_stream_type type)
 {
 	if (!(cx->v4l2_cap & V4L2_CAP_SLICED_VBI_CAPTURE))
 		return -EINVAL;
 	if (atomic_read(&cx->ana_capturing) > 0)
 		return -EBUSY;
 
-	/* First try to allocate sliced VBI buffers if needed. */
-	if (fmt && cx->vbi.sliced_mpeg_data[0] == NULL) {
+	if (fmt != V4L2_MPEG_STREAM_VBI_FMT_IVTV ||
+	    type != V4L2_MPEG_STREAM_TYPE_MPEG2_PS) {
+		/* We don't do VBI insertion aside from IVTV format in a PS */
+		cx->vbi.insert_mpeg = V4L2_MPEG_STREAM_VBI_FMT_NONE;
+		CX18_DEBUG_INFO("disabled insertion of sliced VBI data into "
+				"the MPEG stream\n");
+		return 0;
+	}
+
+	/* Allocate sliced VBI buffers if needed. */
+	if (cx->vbi.sliced_mpeg_data[0] == NULL) {
 		int i;
 
 		for (i = 0; i < CX18_VBI_FRAMES; i++) {
@@ -185,19 +196,27 @@ static int cx18_setup_vbi_fmt(struct cx18 *cx, enum v4l2_mpeg_stream_vbi_fmt fmt
 					kfree(cx->vbi.sliced_mpeg_data[i]);
 					cx->vbi.sliced_mpeg_data[i] = NULL;
 				}
+				cx->vbi.insert_mpeg =
+						  V4L2_MPEG_STREAM_VBI_FMT_NONE;
+				CX18_WARN("Unable to allocate buffers for "
+					  "sliced VBI data insertion\n");
 				return -ENOMEM;
 			}
 		}
 	}
 
 	cx->vbi.insert_mpeg = fmt;
+	CX18_DEBUG_INFO("enabled insertion of sliced VBI data into the MPEG PS,"
+			"when sliced VBI is enabled\n");
 
-	if (cx->vbi.insert_mpeg == 0)
-		return 0;
-	/* Need sliced data for mpeg insertion */
+	/*
+	 * If our current settings have no lines set for capture, store a valid,
+	 * default set of service lines to capture, in our current settings.
+	 */
 	if (cx18_get_service_set(cx->vbi.sliced_in) == 0) {
 		if (cx->is_60hz)
-			cx->vbi.sliced_in->service_set = V4L2_SLICED_CAPTION_525;
+			cx->vbi.sliced_in->service_set =
+							V4L2_SLICED_CAPTION_525;
 		else
 			cx->vbi.sliced_in->service_set = V4L2_SLICED_WSS_625;
 		cx18_expand_service_set(cx->vbi.sliced_in, cx->is_50hz);
@@ -284,8 +303,11 @@ int cx18_s_ext_ctrls(struct file *file, void *fh, struct v4l2_ext_controls *c)
 		priv.cx = cx;
 		priv.s = &cx->streams[id->type];
 		err = cx2341x_update(&priv, cx18_api_func, &cx->params, &p);
-		if (!err && cx->params.stream_vbi_fmt != p.stream_vbi_fmt)
-			err = cx18_setup_vbi_fmt(cx, p.stream_vbi_fmt);
+		if (!err &&
+		    (cx->params.stream_vbi_fmt != p.stream_vbi_fmt ||
+		     cx->params.stream_type != p.stream_type))
+			err = cx18_setup_vbi_fmt(cx, p.stream_vbi_fmt,
+						 p.stream_type);
 		cx->params = p;
 		cx->dualwatch_stereo_mode = p.audio_properties & 0x0300;
 		idx = p.audio_properties & 0x03;
