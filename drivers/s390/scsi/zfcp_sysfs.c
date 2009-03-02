@@ -487,7 +487,8 @@ static ssize_t zfcp_sysfs_adapter_q_full_show(struct device *dev,
 	struct zfcp_adapter *adapter =
 		(struct zfcp_adapter *) scsi_host->hostdata[0];
 
-	return sprintf(buf, "%d\n", atomic_read(&adapter->qdio_outb_full));
+	return sprintf(buf, "%d %llu\n", atomic_read(&adapter->qdio_outb_full),
+		       (unsigned long long)adapter->req_q_util);
 }
 static DEVICE_ATTR(queue_full, S_IRUGO, zfcp_sysfs_adapter_q_full_show, NULL);
 

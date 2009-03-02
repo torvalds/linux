@@ -77,6 +77,23 @@ static void zfcp_qdio_zero_sbals(struct qdio_buffer *sbal[], int first, int cnt)
 	}
 }
 
+/* this needs to be called prior to updating the queue fill level */
+static void zfcp_qdio_account(struct zfcp_adapter *adapter)
+{
+	ktime_t now;
+	s64 span;
+	int free, used;
+
+	spin_lock(&adapter->qdio_stat_lock);
+	now = ktime_get();
+	span = ktime_us_delta(now, adapter->req_q_time);
+	free = max(0, atomic_read(&adapter->req_q.count));
+	used = QDIO_MAX_BUFFERS_PER_Q - free;
+	adapter->req_q_util += used * span;
+	adapter->req_q_time = now;
+	spin_unlock(&adapter->qdio_stat_lock);
+}
+
 static void zfcp_qdio_int_req(struct ccw_device *cdev, unsigned int qdio_err,
 			      int queue_no, int first, int count,
 			      unsigned long parm)
@@ -93,6 +110,7 @@ static void zfcp_qdio_int_req(struct ccw_device *cdev, unsigned int qdio_err,
 	/* cleanup all SBALs being program-owned now */
 	zfcp_qdio_zero_sbals(queue->sbal, first, count);
 
+	zfcp_qdio_account(adapter);
 	atomic_add(count, &queue->count);
 	wake_up(&adapter->request_wq);
 }
@@ -358,6 +376,8 @@ int zfcp_qdio_send(struct zfcp_fsf_req *fsf_req)
 		sbale = zfcp_qdio_sbale(req_q, pci, 0);
 		sbale->flags |= SBAL_FLAGS0_PCI;
 	}
+
+	zfcp_qdio_account(adapter);
 
 	retval = do_QDIO(adapter->ccw_device, QDIO_FLAG_SYNC_OUTPUT, 0, first,
 			 count);

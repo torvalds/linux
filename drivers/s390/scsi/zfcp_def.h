@@ -445,6 +445,9 @@ struct zfcp_adapter {
 	spinlock_t		req_q_lock;	   /* for operations on queue */
 	int			req_q_pci_batch;   /* SBALs since PCI indication
 						      was last set */
+	ktime_t			req_q_time; /* time of last fill level change */
+	u64			req_q_util; /* for accounting */
+	spinlock_t		qdio_stat_lock;
 	u32			fsf_req_seq_no;	   /* FSF cmnd seq number */
 	wait_queue_head_t	request_wq;	   /* can be used to wait for
 						      more avaliable SBALs */
