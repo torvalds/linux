@@ -735,7 +735,7 @@ static struct zfcp_fsf_req *zfcp_fsf_req_create(struct zfcp_adapter *adapter,
 
 	req->adapter = adapter;
 	req->fsf_command = fsf_cmd;
-	req->req_id = adapter->req_no++;
+	req->req_id = adapter->req_no;
 	req->sbal_number = 1;
 	req->sbal_first = req_q->first;
 	req->sbal_last = req_q->first;
@@ -798,6 +798,7 @@ static int zfcp_fsf_req_send(struct zfcp_fsf_req *req)
 	/* Don't increase for unsolicited status */
 	if (req->qtcb)
 		adapter->fsf_req_seq_no++;
+	adapter->req_no++;
 
 	return 0;
 }
