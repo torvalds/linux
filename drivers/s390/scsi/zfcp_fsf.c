@@ -617,9 +617,10 @@ static void zfcp_fsf_exchange_port_evaluate(struct zfcp_fsf_req *req)
 	if (req->data)
 		memcpy(req->data, bottom, sizeof(*bottom));
 
-	if (adapter->connection_features & FSF_FEATURE_NPIV_MODE)
+	if (adapter->connection_features & FSF_FEATURE_NPIV_MODE) {
 		fc_host_permanent_port_name(shost) = bottom->wwpn;
-	else
+		fc_host_port_type(shost) = FC_PORTTYPE_NPIV;
+	} else
 		fc_host_permanent_port_name(shost) = fc_host_port_name(shost);
 	fc_host_maxframe_size(shost) = bottom->maximum_frame_size;
 	fc_host_supported_speeds(shost) = bottom->supported_speed;
