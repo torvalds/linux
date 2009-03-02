@@ -575,50 +575,12 @@ static int es7000_check_phys_apicid_present(int cpu_physical_apicid)
 	return 1;
 }
 
-static unsigned int
-es7000_cpu_mask_to_apicid_cluster(const struct cpumask *cpumask)
-{
-	int cpus_found = 0;
-	int num_bits_set;
-	int apicid;
-	int cpu;
-
-	num_bits_set = cpumask_weight(cpumask);
-	/* Return id to all */
-	if (num_bits_set == nr_cpu_ids)
-		return 0xFF;
-	/*
-	 * The cpus in the mask must all be on the apic cluster.  If are not
-	 * on the same apicid cluster return default value of target_cpus():
-	 */
-	cpu = cpumask_first(cpumask);
-	apicid = es7000_cpu_to_logical_apicid(cpu);
-
-	while (cpus_found < num_bits_set) {
-		if (cpumask_test_cpu(cpu, cpumask)) {
-			int new_apicid = es7000_cpu_to_logical_apicid(cpu);
-
-			if (APIC_CLUSTER(apicid) != APIC_CLUSTER(new_apicid)) {
-				WARN(1, "Not a valid mask!");
-
-				return 0xFF;
-			}
-			apicid = new_apicid;
-			cpus_found++;
-		}
-		cpu++;
-	}
-	return apicid;
-}
-
 static unsigned int es7000_cpu_mask_to_apicid(const cpumask_t *cpumask)
 {
-	int cpus_found = 0;
-	int num_bits_set;
+	unsigned int cpu, num_bits_set, cpus_found = 0;
 	int apicid;
-	int cpu;
 
-	num_bits_set = cpus_weight(*cpumask);
+	num_bits_set = cpumask_weight(cpumask);
 	/* Return id to all */
 	if (num_bits_set == nr_cpu_ids)
 		return es7000_cpu_to_logical_apicid(0);
@@ -626,14 +588,14 @@ static unsigned int es7000_cpu_mask_to_apicid(const cpumask_t *cpumask)
 	 * The cpus in the mask must all be on the apic cluster.  If are not
 	 * on the same apicid cluster return default value of target_cpus():
 	 */
-	cpu = first_cpu(*cpumask);
+	cpu = cpumask_first(cpumask);
 	apicid = es7000_cpu_to_logical_apicid(cpu);
 	while (cpus_found < num_bits_set) {
-		if (cpu_isset(cpu, *cpumask)) {
+		if (cpumask_test_cpu(cpu, cpumask)) {
 			int new_apicid = es7000_cpu_to_logical_apicid(cpu);
 
 			if (APIC_CLUSTER(apicid) != APIC_CLUSTER(new_apicid)) {
-				printk("%s: Not a valid mask!\n", __func__);
+				WARN(1, "Not a valid mask!");
 
 				return es7000_cpu_to_logical_apicid(0);
 			}
@@ -739,7 +701,7 @@ struct apic apic_es7000_cluster = {
 	.set_apic_id			= NULL,
 	.apic_id_mask			= 0xFF << 24,
 
-	.cpu_mask_to_apicid		= es7000_cpu_mask_to_apicid_cluster,
+	.cpu_mask_to_apicid		= es7000_cpu_mask_to_apicid,
 	.cpu_mask_to_apicid_and		= es7000_cpu_mask_to_apicid_and,
 
 	.send_IPI_mask			= es7000_send_IPI_mask,
