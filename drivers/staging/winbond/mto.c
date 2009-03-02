@@ -24,7 +24,6 @@
 // LA20040210_DTO kevin
 #include "sysdef.h"
 #include "sme_api.h"
-#include "gl_80211.h"
 #include "wbhal_f.h"
 
 // Declare SQ3 to rate and fragmentation threshold table

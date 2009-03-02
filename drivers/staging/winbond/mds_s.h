@@ -9,6 +9,12 @@
 #include "mac_structures.h"
 #include "scan_s.h"
 
+/* Preamble_Type, see <SFS-802.11G-MIB-203> */
+enum {
+	WLAN_PREAMBLE_TYPE_SHORT,
+	WLAN_PREAMBLE_TYPE_LONG,
+};
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////
 #define MAX_USB_TX_DESCRIPTOR		15		// IS89C35 ability
 #define MAX_USB_TX_BUFFER_NUMBER	4		// Virtual pre-buffer number of MAX_USB_TX_BUFFER
