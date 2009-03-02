@@ -554,6 +554,7 @@ void zfcp_adapter_dequeue(struct zfcp_adapter *adapter)
 
 	cancel_work_sync(&adapter->scan_work);
 	cancel_work_sync(&adapter->stat_work);
+	cancel_delayed_work_sync(&adapter->nsp.work);
 	zfcp_adapter_scsi_unregister(adapter);
 	sysfs_remove_group(&adapter->ccw_device->dev.kobj,
 			   &zfcp_sysfs_adapter_attrs);
