@@ -4624,13 +4624,13 @@ static u8 bnx2x_link_initialize(struct link_params *params,
 
 	/* init ext phy and enable link state int */
 	non_ext_phy = ((ext_phy_type == PORT_HW_CFG_XGXS_EXT_PHY_TYPE_DIRECT) ||
-		       (params->loopback_mode == LOOPBACK_XGXS_10) ||
-		       (params->loopback_mode == LOOPBACK_EXT_PHY));
+		       (params->loopback_mode == LOOPBACK_XGXS_10));
 
 	if (non_ext_phy ||
 	    (ext_phy_type == PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8705) ||
 	    (ext_phy_type == PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8726) ||
-	    (ext_phy_type == PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8481)) {
+	    (ext_phy_type == PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8481) ||
+	    (params->loopback_mode == LOOPBACK_EXT_PHY)) {
 		if (params->req_line_speed == SPEED_AUTO_NEG)
 			bnx2x_set_parallel_detection(params, vars->phy_flags);
 		bnx2x_init_internal_phy(params, vars);
