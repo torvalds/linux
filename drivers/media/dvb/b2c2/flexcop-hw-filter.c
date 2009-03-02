@@ -192,6 +192,7 @@ int flexcop_pid_feed_control(struct flexcop_device *fc, struct dvb_demux_feed *d
 
 	return 0;
 }
+EXPORT_SYMBOL(flexcop_pid_feed_control);
 
 void flexcop_hw_filter_init(struct flexcop_device *fc)
 {

@@ -404,7 +404,10 @@ static void struct_ep_qh_setup(struct fsl_udc *udc, unsigned char ep_num,
 	}
 	if (zlt)
 		tmp |= EP_QUEUE_HEAD_ZLT_SEL;
+
 	p_QH->max_pkt_length = cpu_to_le32(tmp);
+	p_QH->next_dtd_ptr = 1;
+	p_QH->size_ioc_int_sts = 0;
 
 	return;
 }
