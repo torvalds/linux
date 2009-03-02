@@ -1816,14 +1816,14 @@ EXPORT_SYMBOL(file_remove_suid);
 static size_t __iovec_copy_from_user_inatomic(char *vaddr,
 			const struct iovec *iov, size_t base, size_t bytes)
 {
-	size_t copied = 0, left = 0, total = bytes;
+	size_t copied = 0, left = 0;
 
 	while (bytes) {
 		char __user *buf = iov->iov_base + base;
 		int copy = min(bytes, iov->iov_len - base);
 
 		base = 0;
-		left = __copy_from_user_inatomic_nocache(vaddr, buf, copy, total);
+		left = __copy_from_user_inatomic(vaddr, buf, copy);
 		copied += copy;
 		bytes -= copy;
 		vaddr += copy;
@@ -1851,9 +1851,7 @@ size_t iov_iter_copy_from_user_atomic(struct page *page,
 	if (likely(i->nr_segs == 1)) {
 		int left;
 		char __user *buf = i->iov->iov_base + i->iov_offset;
-
-		left = __copy_from_user_inatomic_nocache(kaddr + offset,
-							buf, bytes, bytes);
+		left = __copy_from_user_inatomic(kaddr + offset, buf, bytes);
 		copied = bytes - left;
 	} else {
 		copied = __iovec_copy_from_user_inatomic(kaddr + offset,
@@ -1881,8 +1879,7 @@ size_t iov_iter_copy_from_user(struct page *page,
 	if (likely(i->nr_segs == 1)) {
 		int left;
 		char __user *buf = i->iov->iov_base + i->iov_offset;
-
-		left = __copy_from_user_nocache(kaddr + offset, buf, bytes, bytes);
+		left = __copy_from_user(kaddr + offset, buf, bytes);
 		copied = bytes - left;
 	} else {
 		copied = __iovec_copy_from_user_inatomic(kaddr + offset,

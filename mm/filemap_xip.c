@@ -354,7 +354,7 @@ __xip_file_write(struct file *filp, const char __user *buf,
 			break;
 
 		copied = bytes -
-			__copy_from_user_nocache(xip_mem + offset, buf, bytes, bytes);
+			__copy_from_user_nocache(xip_mem + offset, buf, bytes);
 
 		if (likely(copied > 0)) {
 			status = copied;

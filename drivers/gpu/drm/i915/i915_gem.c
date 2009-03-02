@@ -215,7 +215,7 @@ fast_user_write(struct io_mapping *mapping,
 
 	vaddr_atomic = io_mapping_map_atomic_wc(mapping, page_base);
 	unwritten = __copy_from_user_inatomic_nocache(vaddr_atomic + page_offset,
-						      user_data, length, length);
+						      user_data, length);
 	io_mapping_unmap_atomic(vaddr_atomic);
 	if (unwritten)
 		return -EFAULT;
