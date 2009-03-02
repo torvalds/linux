@@ -434,7 +434,8 @@ sctp_timer_event_t *sctp_timer_events[SCTP_NUM_TIMEOUT_TYPES] = {
  *
  */
 static void sctp_do_8_2_transport_strike(struct sctp_association *asoc,
-					 struct sctp_transport *transport)
+					 struct sctp_transport *transport,
+					 int is_hb)
 {
 	/* The check for association's overall error counter exceeding the
 	 * threshold is done in the state function.
@@ -466,7 +467,7 @@ static void sctp_do_8_2_transport_strike(struct sctp_association *asoc,
 	 * The first unacknowleged HB triggers it.  We do this with a flag
 	 * that indicates that we have an outstanding HB.
 	 */
-	if (transport->hb_sent) {
+	if (!is_hb || transport->hb_sent) {
 		transport->last_rto = transport->rto;
 		transport->rto = min((transport->rto * 2), transport->asoc->rto_max);
 	}
@@ -657,20 +658,6 @@ static void sctp_cmd_transport_on(sctp_cmd_seq_t *cmds,
 		sctp_transport_hold(t);
 }
 
-/* Helper function to do a transport reset at the expiry of the hearbeat
- * timer.
- */
-static void sctp_cmd_transport_reset(sctp_cmd_seq_t *cmds,
-				     struct sctp_association *asoc,
-				     struct sctp_transport *t)
-{
-	sctp_transport_lower_cwnd(t, SCTP_LOWER_CWND_INACTIVE);
-
-	/* Mark one strike against a transport.  */
-	sctp_do_8_2_transport_strike(asoc, t);
-
-	t->hb_sent = 1;
-}
 
 /* Helper function to process the process SACK command.  */
 static int sctp_cmd_process_sack(sctp_cmd_seq_t *cmds,
@@ -1459,12 +1446,19 @@ static int sctp_cmd_interpreter(sctp_event_t event_type,
 
 		case SCTP_CMD_STRIKE:
 			/* Mark one strike against a transport.  */
-			sctp_do_8_2_transport_strike(asoc, cmd->obj.transport);
+			sctp_do_8_2_transport_strike(asoc, cmd->obj.transport,
+						    0);
 			break;
 
-		case SCTP_CMD_TRANSPORT_RESET:
+		case SCTP_CMD_TRANSPORT_IDLE:
 			t = cmd->obj.transport;
-			sctp_cmd_transport_reset(commands, asoc, t);
+			sctp_transport_lower_cwnd(t, SCTP_LOWER_CWND_INACTIVE);
+			break;
+
+		case SCTP_CMD_TRANSPORT_HB_SENT:
+			t = cmd->obj.transport;
+			sctp_do_8_2_transport_strike(asoc, t, 1);
+			t->hb_sent = 1;
 			break;
 
 		case SCTP_CMD_TRANSPORT_ON:
