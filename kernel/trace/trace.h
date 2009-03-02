@@ -395,6 +395,14 @@ struct trace_seq {
 	unsigned int		readpos;
 };
 
+static inline void
+trace_seq_init(struct trace_seq *s)
+{
+	s->len = 0;
+	s->readpos = 0;
+}
+
+
 #define TRACE_PIPE_ALL_CPU	-1
 
 /*
@@ -746,6 +754,7 @@ struct ftrace_event_call {
 	int		(*raw_init)(void);
 	int		(*raw_reg)(void);
 	void		(*raw_unreg)(void);
+	int		(*show_format)(struct trace_seq *s);
 };
 
 void event_trace_printk(unsigned long ip, const char *fmt, ...);

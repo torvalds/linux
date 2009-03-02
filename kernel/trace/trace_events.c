@@ -3,6 +3,9 @@
  *
  * Copyright (C) 2008 Red Hat Inc, Steven Rostedt <srostedt@redhat.com>
  *
+ *  - Added format output of fields of the trace point.
+ *    This was based off of work by Tom Zanussi <tzanussi@gmail.com>.
+ *
  */
 
 #include <linux/debugfs.h>
@@ -10,9 +13,11 @@
 #include <linux/module.h>
 #include <linux/ctype.h>
 
-#include "trace.h"
+#include "trace_output.h"
 
 #define TRACE_SYSTEM "TRACE_SYSTEM"
+
+static DEFINE_MUTEX(event_mutex);
 
 #define events_for_each(event)						\
 	for (event = __start_ftrace_events;				\
@@ -104,6 +109,7 @@ static int ftrace_set_clr_event(char *buf, int set)
 			event = NULL;
 	}
 
+	mutex_lock(&event_mutex);
 	events_for_each(call) {
 
 		if (!call->name)
@@ -124,6 +130,8 @@ static int ftrace_set_clr_event(char *buf, int set)
 
 		ret = 0;
 	}
+	mutex_unlock(&event_mutex);
+
 	return ret;
 }
 
@@ -324,7 +332,9 @@ event_enable_write(struct file *filp, const char __user *ubuf, size_t cnt,
 	switch (val) {
 	case 0:
 	case 1:
+		mutex_lock(&event_mutex);
 		ftrace_event_enable_disable(call, val);
+		mutex_unlock(&event_mutex);
 		break;
 
 	default:
@@ -437,6 +447,71 @@ event_available_types_read(struct file *filp, char __user *ubuf, size_t cnt,
 	return simple_read_from_buffer(ubuf, cnt, ppos, buf, r);
 }
 
+#undef FIELD
+#define FIELD(type, name) \
+	#type, #name, offsetof(typeof(field), name), sizeof(field.name)
+
+static int trace_write_header(struct trace_seq *s)
+{
+	struct trace_entry field;
+
+	/* struct trace_entry */
+	return trace_seq_printf(s,
+				"\tfield:%s %s;\toffset:%lu;\tsize:%lu;\n"
+				"\tfield:%s %s;\toffset:%lu;\tsize:%lu;\n"
+				"\tfield:%s %s;\toffset:%lu;\tsize:%lu;\n"
+				"\tfield:%s %s;\toffset:%lu;\tsize:%lu;\n"
+				"\tfield:%s %s;\toffset:%lu;\tsize:%lu;\n"
+				"\n",
+				FIELD(unsigned char, type),
+				FIELD(unsigned char, flags),
+				FIELD(unsigned char, preempt_count),
+				FIELD(int, pid),
+				FIELD(int, tgid));
+}
+static ssize_t
+event_format_read(struct file *filp, char __user *ubuf, size_t cnt,
+		  loff_t *ppos)
+{
+	struct ftrace_event_call *call = filp->private_data;
+	struct trace_seq *s;
+	char *buf;
+	int r;
+
+	s = kmalloc(sizeof(*s), GFP_KERNEL);
+	if (!s)
+		return -ENOMEM;
+
+	trace_seq_init(s);
+
+	if (*ppos)
+		return 0;
+
+	/* If any of the first writes fail, so will the show_format. */
+
+	trace_seq_printf(s, "name: %s\n", call->name);
+	trace_seq_printf(s, "ID: %d\n", call->id);
+	trace_seq_printf(s, "format:\n");
+	trace_write_header(s);
+
+	r = call->show_format(s);
+	if (!r) {
+		/*
+		 * ug!  The format output is bigger than a PAGE!!
+		 */
+		buf = "FORMAT TOO BIG\n";
+		r = simple_read_from_buffer(ubuf, cnt, ppos,
+					      buf, strlen(buf));
+		goto out;
+	}
+
+	r = simple_read_from_buffer(ubuf, cnt, ppos,
+				    s->buffer, s->len);
+ out:
+	kfree(s);
+	return r;
+}
+
 static const struct seq_operations show_event_seq_ops = {
 	.start = t_start,
 	.next = t_next,
@@ -481,6 +556,11 @@ static const struct file_operations ftrace_type_fops = {
 static const struct file_operations ftrace_available_types_fops = {
 	.open = tracing_open_generic,
 	.read = event_available_types_read,
+};
+
+static const struct file_operations ftrace_event_format_fops = {
+	.open = tracing_open_generic,
+	.read = event_format_read,
 };
 
 static struct dentry *event_trace_events_dir(void)
@@ -595,7 +675,17 @@ event_create_dir(struct ftrace_event_call *call, struct dentry *d_events)
 				    &ftrace_available_types_fops);
 	if (!entry)
 		pr_warning("Could not create debugfs "
-			   "'%s/type' available_types\n", call->name);
+			   "'%s/available_types' entry\n", call->name);
+
+	/* A trace may not want to export its format */
+	if (!call->show_format)
+		return 0;
+
+	entry = debugfs_create_file("format", 0444, call->dir, call,
+				    &ftrace_event_format_fops);
+	if (!entry)
+		pr_warning("Could not create debugfs "
+			   "'%s/format' entry\n", call->name);
 
 	return 0;
 }

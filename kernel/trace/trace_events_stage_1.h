@@ -30,5 +30,7 @@
 
 #define TRACE_FIELD(type, item, assign) \
 	type item;
+#define TRACE_FIELD_SPECIAL(type_item, item, cmd) \
+	type_item;
 
 #include <trace/trace_event_types.h>

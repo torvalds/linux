@@ -71,10 +71,15 @@ TRACE_EVENT_FORMAT(sched_switch,
 	TRACE_STRUCT(
 		TRACE_FIELD(pid_t, prev_pid, prev->pid)
 		TRACE_FIELD(int, prev_prio, prev->prio)
+		TRACE_FIELD_SPECIAL(char next_comm[TASK_COMM_LEN],
+				    next_comm,
+				    TPCMD(memcpy(TRACE_ENTRY->next_comm,
+						 next->comm,
+						 TASK_COMM_LEN)))
 		TRACE_FIELD(pid_t, next_pid, next->pid)
 		TRACE_FIELD(int, next_prio, next->prio)
 	),
-	TPRAWFMT("prev %d:%d ==> next %d:%d")
+	TPRAWFMT("prev %d:%d ==> next %s:%d:%d")
 	);
 
 TRACE_EVENT_FORMAT(sched_migrate_task,

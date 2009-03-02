@@ -101,6 +101,7 @@
  * 	.raw_init		= ftrace_raw_init_event_<call>,
  * 	.raw_reg		= ftrace_raw_reg_event_<call>,
  * 	.raw_unreg		= ftrace_raw_unreg_event_<call>,
+ *	.show_format		= ftrace_format_<call>,
  * }
  *
  */
@@ -146,6 +147,20 @@ __attribute__((section("_ftrace_events"))) event_##call = {		\
 #undef TRACE_FIELD
 #define TRACE_FIELD(type, item, assign)\
 	entry->item = assign;
+
+#undef TRACE_FIELD
+#define TRACE_FIELD(type, item, assign)\
+	entry->item = assign;
+
+#undef TPCMD
+#define TPCMD(cmd...)	cmd
+
+#undef TRACE_ENTRY
+#define TRACE_ENTRY	entry
+
+#undef TRACE_FIELD_SPECIAL
+#define TRACE_FIELD_SPECIAL(type_item, item, cmd) \
+	cmd;
 
 #undef TRACE_EVENT_FORMAT
 #define TRACE_EVENT_FORMAT(call, proto, args, fmt, tstruct, tpfmt)	\
@@ -216,4 +231,5 @@ __attribute__((section("_ftrace_events"))) event_##call = {		\
 	.raw_init		= ftrace_raw_init_event_##call,		\
 	.raw_reg		= ftrace_raw_reg_event_##call,		\
 	.raw_unreg		= ftrace_raw_unreg_event_##call,	\
+	.show_format		= ftrace_format_##call,			\
 }
