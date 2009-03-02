@@ -516,6 +516,7 @@ irqreturn_t ath_isr(int irq, void *dev)
 			return IRQ_NONE;
 
 		sc->intrstatus = status;
+		ath9k_ps_wakeup(sc);
 
 		if (status & ATH9K_INT_FATAL) {
 			/* need a chip reset */
@@ -581,6 +582,7 @@ irqreturn_t ath_isr(int irq, void *dev)
 				sched = true;
 			}
 		}
+		ath9k_ps_restore(sc);
 	} while (0);
 
 	ath_debug_stat_interrupt(sc, status);
