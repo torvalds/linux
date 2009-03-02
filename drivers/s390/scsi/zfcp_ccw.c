@@ -72,8 +72,7 @@ static void zfcp_ccw_remove(struct ccw_device *ccw_device)
 
 	list_for_each_entry_safe(port, p, &port_remove_lh, list) {
 		list_for_each_entry_safe(unit, u, &unit_remove_lh, list) {
-			if (atomic_read(&unit->status) &
-			    ZFCP_STATUS_UNIT_REGISTERED)
+			if (unit->device)
 				scsi_remove_device(unit->device);
 			zfcp_unit_dequeue(unit);
 		}

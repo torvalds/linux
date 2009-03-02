@@ -1250,8 +1250,6 @@ static void zfcp_erp_action_cleanup(struct zfcp_erp_action *act, int result)
 	case ZFCP_ERP_ACTION_REOPEN_UNIT:
 		if ((result == ZFCP_ERP_SUCCEEDED) &&
 		    !unit->device && port->rport) {
-			atomic_set_mask(ZFCP_STATUS_UNIT_REGISTERED,
-					&unit->status);
 			if (!(atomic_read(&unit->status) &
 			      ZFCP_STATUS_UNIT_SCSI_WORK_PENDING))
 				zfcp_erp_schedule_work(unit);

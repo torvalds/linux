@@ -255,7 +255,6 @@ enum zfcp_wka_status {
 /* logical unit status */
 #define ZFCP_STATUS_UNIT_SHARED			0x00000004
 #define ZFCP_STATUS_UNIT_READONLY		0x00000008
-#define ZFCP_STATUS_UNIT_REGISTERED		0x00000010
 #define ZFCP_STATUS_UNIT_SCSI_WORK_PENDING	0x00000020
 
 /* FSF request status (this does not have a common part) */
