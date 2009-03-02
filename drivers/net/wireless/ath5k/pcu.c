@@ -657,9 +657,8 @@ void ath5k_hw_set_tsf64(struct ath5k_hw *ah, u64 tsf64)
 {
 	ATH5K_TRACE(ah->ah_sc);
 
-	ath5k_hw_reg_write(ah, 0x00000000, AR5K_TSF_L32);
-	ath5k_hw_reg_write(ah, (tsf64 >> 32) & 0xffffffff, AR5K_TSF_U32);
 	ath5k_hw_reg_write(ah, tsf64 & 0xffffffff, AR5K_TSF_L32);
+	ath5k_hw_reg_write(ah, (tsf64 >> 32) & 0xffffffff, AR5K_TSF_U32);
 }
 
 /**
