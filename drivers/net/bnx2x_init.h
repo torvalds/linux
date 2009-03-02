@@ -186,8 +186,8 @@ static void bnx2x_init_fill(struct bnx2x *bp, u32 addr, int fill, u32 len)
 static void bnx2x_init_wr_64(struct bnx2x *bp, u32 addr, const u32 *data,
 			     u32 len64)
 {
-	u32 buf_len32 = FW_BUF_SIZE/4;
-	u32 len = len64*2;
+	u32 buf_len32 = FW_BUF_SIZE / 4;
+	u32 len = len64 * 2;
 	u64 data64 = 0;
 	int i;
 
