@@ -21,12 +21,6 @@ config DEBUG_STACK_USAGE
 config HAVE_ARCH_KGDB
 	def_bool y
 
-config KGDB_TESTCASE
-	tristate "KGDB: for test case in expect"
-	default n
-	help
-	  This is a kgdb test case for automated testing.
-
 config DEBUG_VERBOSE
 	bool "Verbose fault messages"
 	default y
