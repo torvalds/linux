@@ -147,6 +147,20 @@ __attribute__((section("_ftrace_events"))) event_##call = {		\
 #define TRACE_FIELD(type, item, assign)\
 	entry->item = assign;
 
+#undef TRACE_FIELD
+#define TRACE_FIELD(type, item, assign)\
+	entry->item = assign;
+
+#undef TPCMD
+#define TPCMD(cmd...)	cmd
+
+#undef TRACE_ENTRY
+#define TRACE_ENTRY	entry
+
+#undef TRACE_FIELD_SPECIAL
+#define TRACE_FIELD_SPECIAL(type_item, item, cmd) \
+	cmd;
+
 #undef TRACE_EVENT_FORMAT
 #define TRACE_EVENT_FORMAT(call, proto, args, fmt, tstruct, tpfmt)	\
 _TRACE_FORMAT(call, PARAMS(proto), PARAMS(args), PARAMS(fmt))		\

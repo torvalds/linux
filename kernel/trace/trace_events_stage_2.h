@@ -39,6 +39,10 @@
 #define TRACE_FIELD(type, item, assign) \
 	field->item,
 
+#undef TRACE_FIELD_SPECIAL
+#define TRACE_FIELD_SPECIAL(type_item, item, cmd) \
+	field->item,
+
 
 #undef TPRAWFMT
 #define TPRAWFMT(args...)	args
