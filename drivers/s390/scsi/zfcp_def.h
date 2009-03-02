@@ -443,8 +443,6 @@ struct zfcp_adapter {
 	spinlock_t		req_list_lock;	   /* request list lock */
 	struct zfcp_qdio_queue	req_q;		   /* request queue */
 	spinlock_t		req_q_lock;	   /* for operations on queue */
-	int			req_q_pci_batch;   /* SBALs since PCI indication
-						      was last set */
 	ktime_t			req_q_time; /* time of last fill level change */
 	u64			req_q_util; /* for accounting */
 	spinlock_t		qdio_stat_lock;

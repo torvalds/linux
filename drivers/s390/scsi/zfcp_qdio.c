@@ -11,9 +11,6 @@
 
 #include "zfcp_ext.h"
 
-/* FIXME(tune): free space should be one max. SBAL chain plus what? */
-#define ZFCP_QDIO_PCI_INTERVAL	(QDIO_MAX_BUFFERS_PER_Q \
-				- (FSF_MAX_SBALS_PER_REQ + 4))
 #define QBUFF_PER_PAGE		(PAGE_SIZE / sizeof(struct qdio_buffer))
 
 static int zfcp_qdio_buffers_enqueue(struct qdio_buffer **sbal)
@@ -364,23 +361,12 @@ int zfcp_qdio_send(struct zfcp_fsf_req *fsf_req)
 	struct zfcp_qdio_queue *req_q = &adapter->req_q;
 	int first = fsf_req->sbal_first;
 	int count = fsf_req->sbal_number;
-	int retval, pci, pci_batch;
-	struct qdio_buffer_element *sbale;
-
-	/* acknowledgements for transferred buffers */
-	pci_batch = adapter->req_q_pci_batch + count;
-	if (unlikely(pci_batch >= ZFCP_QDIO_PCI_INTERVAL)) {
-		pci_batch %= ZFCP_QDIO_PCI_INTERVAL;
-		pci = first + count - (pci_batch + 1);
-		pci %= QDIO_MAX_BUFFERS_PER_Q;
-		sbale = zfcp_qdio_sbale(req_q, pci, 0);
-		sbale->flags |= SBAL_FLAGS0_PCI;
-	}
+	int retval;
+	unsigned int qdio_flags = QDIO_FLAG_SYNC_OUTPUT;
 
 	zfcp_qdio_account(adapter);
 
-	retval = do_QDIO(adapter->ccw_device, QDIO_FLAG_SYNC_OUTPUT, 0, first,
-			 count);
+	retval = do_QDIO(adapter->ccw_device, qdio_flags, 0, first, count);
 	if (unlikely(retval)) {
 		zfcp_qdio_zero_sbals(req_q->sbal, first, count);
 		return retval;
@@ -390,7 +376,6 @@ int zfcp_qdio_send(struct zfcp_fsf_req *fsf_req)
 	atomic_sub(count, &req_q->count);
 	req_q->first += count;
 	req_q->first %= QDIO_MAX_BUFFERS_PER_Q;
-	adapter->req_q_pci_batch = pci_batch;
 	return 0;
 }
 
@@ -461,7 +446,6 @@ void zfcp_qdio_close(struct zfcp_adapter *adapter)
 	}
 	req_q->first = 0;
 	atomic_set(&req_q->count, 0);
-	adapter->req_q_pci_batch = 0;
 	adapter->resp_q.first = 0;
 	atomic_set(&adapter->resp_q.count, 0);
 }
@@ -499,7 +483,6 @@ int zfcp_qdio_open(struct zfcp_adapter *adapter)
 	/* set index of first avalable SBALS / number of available SBALS */
 	adapter->req_q.first = 0;
 	atomic_set(&adapter->req_q.count, QDIO_MAX_BUFFERS_PER_Q);
-	adapter->req_q_pci_batch = 0;
 
 	return 0;
 
