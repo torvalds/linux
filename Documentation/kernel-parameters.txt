@@ -114,7 +114,7 @@ In addition, the following text indicates that the option:
 Parameters denoted with BOOT are actually interpreted by the boot
 loader, and have no meaning to the kernel directly.
 Do not modify the syntax of boot loader parameters without extreme
-need or coordination with <Documentation/x86/i386/boot.txt>.
+need or coordination with <Documentation/x86/boot.txt>.
 
 There are also arch-specific kernel-parameters not documented here.
 See for example <Documentation/x86/x86_64/boot-options.txt>.
@@ -868,8 +868,10 @@ and is between 256 and 4096 characters. It is defined in the file
 	icn=		[HW,ISDN]
 			Format: <io>[,<membase>[,<icn_id>[,<icn_id2>]]]
 
-	ide=		[HW] (E)IDE subsystem
-			Format: ide=nodma or ide=doubler
+	ide-core.nodma=	[HW] (E)IDE subsystem
+			Format: =0.0 to prevent dma on hda, =0.1 hdb =1.0 hdc
+			.vlb_clock .pci_clock .noflush .noprobe .nowerr .cdrom
+			.chs .ignore_cable are additional options
 			See Documentation/ide/ide.txt.
 
 	idebus=		[HW] (E)IDE subsystem - VLB/PCI bus speed
@@ -2449,7 +2451,7 @@ and is between 256 and 4096 characters. It is defined in the file
 			See Documentation/fb/modedb.txt.
 
 	vga=		[BOOT,X86-32] Select a particular video mode
-			See Documentation/x86/i386/boot.txt and
+			See Documentation/x86/boot.txt and
 			Documentation/svga.txt.
 			Use vga=ask for menu.
 			This is actually a boot loader parameter; the value is

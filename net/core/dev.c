@@ -2487,6 +2487,9 @@ int napi_skb_finish(int ret, struct sk_buff *skb)
 {
 	int err = NET_RX_SUCCESS;
 
+	if (netpoll_receive_skb(skb))
+		return NET_RX_DROP;
+
 	switch (ret) {
 	case GRO_NORMAL:
 		return netif_receive_skb(skb);
@@ -2583,6 +2586,9 @@ EXPORT_SYMBOL(napi_fraginfo_skb);
 int napi_frags_finish(struct napi_struct *napi, struct sk_buff *skb, int ret)
 {
 	int err = NET_RX_SUCCESS;
+
+	if (netpoll_receive_skb(skb))
+		return NET_RX_DROP;
 
 	switch (ret) {
 	case GRO_NORMAL:
