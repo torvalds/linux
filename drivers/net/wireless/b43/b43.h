@@ -550,9 +550,6 @@ struct b43_noise_calculation {
 
 struct b43_stats {
 	u8 link_noise;
-	/* Store the last TX/RX times here for updating the leds. */
-	unsigned long last_tx;
-	unsigned long last_rx;
 };
 
 struct b43_key {

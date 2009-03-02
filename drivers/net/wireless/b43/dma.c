@@ -1425,7 +1425,6 @@ void b43_dma_handle_txstatus(struct b43_wldev *dev,
 			break;
 		slot = next_slot(ring, slot);
 	}
-	dev->stats.last_tx = jiffies;
 	if (ring->stopped) {
 		B43_WARN_ON(free_slots(ring) < TX_SLOTS_PER_FRAME);
 		ieee80211_wake_queue(dev->wl->hw, ring->queue_prio);
