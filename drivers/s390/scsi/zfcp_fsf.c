@@ -162,14 +162,7 @@ static void zfcp_fsf_status_read_port_closed(struct zfcp_fsf_req *req)
 	list_for_each_entry(port, &adapter->port_list_head, list)
 		if (port->d_id == d_id) {
 			read_unlock_irqrestore(&zfcp_data.config_lock, flags);
-			switch (sr_buf->status_subtype) {
-			case FSF_STATUS_READ_SUB_CLOSE_PHYS_PORT:
-				zfcp_erp_port_reopen(port, 0, 101, req);
-				break;
-			case FSF_STATUS_READ_SUB_ERROR_PORT:
-				zfcp_erp_port_shutdown(port, 0, 122, req);
-				break;
-			}
+			zfcp_erp_port_reopen(port, 0, 101, req);
 			return;
 		}
 	read_unlock_irqrestore(&zfcp_data.config_lock, flags);
