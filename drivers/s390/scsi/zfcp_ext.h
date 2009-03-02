@@ -101,6 +101,7 @@ extern void zfcp_fc_incoming_els(struct zfcp_fsf_req *);
 extern int zfcp_fc_ns_gid_pn(struct zfcp_erp_action *);
 extern void zfcp_fc_plogi_evaluate(struct zfcp_port *, struct fsf_plogi *);
 extern void zfcp_test_link(struct zfcp_port *);
+extern void zfcp_fc_link_test_work(struct work_struct *);
 extern void zfcp_fc_nameserver_init(struct zfcp_adapter *);
 
 /* zfcp_fsf.c */

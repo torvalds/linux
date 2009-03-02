@@ -647,14 +647,6 @@ static void zfcp_fsf_exchange_port_data_handler(struct zfcp_fsf_req *req)
 	}
 }
 
-static int zfcp_fsf_sbal_available(struct zfcp_adapter *adapter)
-{
-	if (atomic_read(&adapter->req_q.count) > 0)
-		return 1;
-	atomic_inc(&adapter->qdio_outb_full);
-	return 0;
-}
-
 static int zfcp_fsf_req_sbal_get(struct zfcp_adapter *adapter)
 	__releases(&adapter->req_q_lock)
 	__acquires(&adapter->req_q_lock)
@@ -1177,8 +1169,8 @@ int zfcp_fsf_send_els(struct zfcp_send_els *els)
 		       ZFCP_STATUS_COMMON_UNBLOCKED)))
 		return -EBUSY;
 
-	spin_lock(&adapter->req_q_lock);
-	if (!zfcp_fsf_sbal_available(adapter))
+	spin_lock_bh(&adapter->req_q_lock);
+	if (zfcp_fsf_req_sbal_get(adapter))
 		goto out;
 	req = zfcp_fsf_req_create(adapter, FSF_QTCB_SEND_ELS,
 				  ZFCP_REQ_AUTO_CLEANUP, NULL);
@@ -1211,7 +1203,7 @@ int zfcp_fsf_send_els(struct zfcp_send_els *els)
 failed_send:
 	zfcp_fsf_req_free(req);
 out:
-	spin_unlock(&adapter->req_q_lock);
+	spin_unlock_bh(&adapter->req_q_lock);
 	return ret;
 }
 
@@ -2324,8 +2316,10 @@ int zfcp_fsf_send_fcp_command_task(struct zfcp_unit *unit,
 		return -EBUSY;
 
 	spin_lock(&adapter->req_q_lock);
-	if (!zfcp_fsf_sbal_available(adapter))
+	if (atomic_read(&adapter->req_q.count) <= 0) {
+		atomic_inc(&adapter->qdio_outb_full);
 		goto out;
+	}
 	req = zfcp_fsf_req_create(adapter, FSF_QTCB_FCP_CMND,
 				  ZFCP_REQ_AUTO_CLEANUP,
 				  adapter->pool.fsf_req_scsi);

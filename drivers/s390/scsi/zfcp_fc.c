@@ -421,6 +421,22 @@ static int zfcp_fc_adisc(struct zfcp_port *port)
 	return zfcp_fsf_send_els(&adisc->els);
 }
 
+void zfcp_fc_link_test_work(struct work_struct *work)
+{
+	struct zfcp_port *port =
+		container_of(work, struct zfcp_port, test_link_work);
+	int retval;
+
+	retval = zfcp_fc_adisc(port);
+	if (retval == 0)
+		return;
+
+	/* send of ADISC was not possible */
+	zfcp_port_put(port);
+	if (retval != -EBUSY)
+		zfcp_erp_port_forced_reopen(port, 0, 65, NULL);
+}
+
 /**
  * zfcp_test_link - lightweight link test procedure
  * @port: port to be tested
@@ -431,17 +447,9 @@ static int zfcp_fc_adisc(struct zfcp_port *port)
  */
 void zfcp_test_link(struct zfcp_port *port)
 {
-	int retval;
-
 	zfcp_port_get(port);
-	retval = zfcp_fc_adisc(port);
-	if (retval == 0)
-		return;
-
-	/* send of ADISC was not possible */
-	zfcp_port_put(port);
-	if (retval != -EBUSY)
-		zfcp_erp_port_forced_reopen(port, 0, 65, NULL);
+	if (!queue_work(zfcp_data.work_queue, &port->test_link_work))
+		zfcp_port_put(port);
 }
 
 static void zfcp_free_sg_env(struct zfcp_gpn_ft *gpn_ft, int buf_num)
