@@ -929,8 +929,8 @@ struct zfcp_fsf_req *zfcp_fsf_abort_fcp_command(unsigned long old_req_id,
 	struct qdio_buffer_element *sbale;
 	struct zfcp_fsf_req *req = NULL;
 
-	spin_lock(&adapter->req_q_lock);
-	if (!zfcp_fsf_sbal_available(adapter))
+	spin_lock_bh(&adapter->req_q_lock);
+	if (zfcp_fsf_req_sbal_get(adapter))
 		goto out;
 	req = zfcp_fsf_req_create(adapter, FSF_QTCB_ABORT_FCP_CMND,
 				  req_flags, adapter->pool.fsf_req_abort);
@@ -961,7 +961,7 @@ out_error_free:
 	zfcp_fsf_req_free(req);
 	req = NULL;
 out:
-	spin_unlock(&adapter->req_q_lock);
+	spin_unlock_bh(&adapter->req_q_lock);
 	return req;
 }
 
@@ -1225,7 +1225,7 @@ int zfcp_fsf_exchange_config_data(struct zfcp_erp_action *erp_action)
 	int retval = -EIO;
 
 	spin_lock_bh(&adapter->req_q_lock);
-	if (!zfcp_fsf_sbal_available(adapter))
+	if (zfcp_fsf_req_sbal_get(adapter))
 		goto out;
 	req = zfcp_fsf_req_create(adapter,
 				  FSF_QTCB_EXCHANGE_CONFIG_DATA,
@@ -1321,7 +1321,7 @@ int zfcp_fsf_exchange_port_data(struct zfcp_erp_action *erp_action)
 		return -EOPNOTSUPP;
 
 	spin_lock_bh(&adapter->req_q_lock);
-	if (!zfcp_fsf_sbal_available(adapter))
+	if (zfcp_fsf_req_sbal_get(adapter))
 		goto out;
 	req = zfcp_fsf_req_create(adapter, FSF_QTCB_EXCHANGE_PORT_DATA,
 				  ZFCP_REQ_AUTO_CLEANUP,
@@ -1367,7 +1367,7 @@ int zfcp_fsf_exchange_port_data_sync(struct zfcp_adapter *adapter,
 		return -EOPNOTSUPP;
 
 	spin_lock_bh(&adapter->req_q_lock);
-	if (!zfcp_fsf_sbal_available(adapter))
+	if (zfcp_fsf_req_sbal_get(adapter))
 		goto out;
 
 	req = zfcp_fsf_req_create(adapter, FSF_QTCB_EXCHANGE_PORT_DATA, 0,
@@ -2452,8 +2452,8 @@ struct zfcp_fsf_req *zfcp_fsf_send_fcp_ctm(struct zfcp_adapter *adapter,
 		       ZFCP_STATUS_COMMON_UNBLOCKED)))
 		return NULL;
 
-	spin_lock(&adapter->req_q_lock);
-	if (!zfcp_fsf_sbal_available(adapter))
+	spin_lock_bh(&adapter->req_q_lock);
+	if (zfcp_fsf_req_sbal_get(adapter))
 		goto out;
 	req = zfcp_fsf_req_create(adapter, FSF_QTCB_FCP_CMND, req_flags,
 				  adapter->pool.fsf_req_scsi);
@@ -2487,7 +2487,7 @@ struct zfcp_fsf_req *zfcp_fsf_send_fcp_ctm(struct zfcp_adapter *adapter,
 	zfcp_fsf_req_free(req);
 	req = NULL;
 out:
-	spin_unlock(&adapter->req_q_lock);
+	spin_unlock_bh(&adapter->req_q_lock);
 	return req;
 }
 
