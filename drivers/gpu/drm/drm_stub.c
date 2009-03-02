@@ -402,14 +402,14 @@ int drm_get_dev(struct pci_dev *pdev, const struct pci_device_id *ent,
 	if (dev->driver->load) {
 		ret = dev->driver->load(dev, ent->driver_data);
 		if (ret)
-			goto err_g3;
+			goto err_g4;
 	}
 
         /* setup the grouping for the legacy output */
 	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
 		ret = drm_mode_group_init_legacy_group(dev, &dev->primary->mode_group);
 		if (ret)
-			goto err_g3;
+			goto err_g4;
 	}
 
 	list_add_tail(&dev->driver_item, &driver->device_list);
@@ -420,8 +420,11 @@ int drm_get_dev(struct pci_dev *pdev, const struct pci_device_id *ent,
 
 	return 0;
 
-err_g3:
+err_g4:
 	drm_put_minor(&dev->primary);
+err_g3:
+	if (drm_core_check_feature(dev, DRIVER_MODESET))
+		drm_put_minor(&dev->control);
 err_g2:
 	pci_disable_device(pdev);
 err_g1:
