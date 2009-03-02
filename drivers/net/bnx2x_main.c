@@ -916,17 +916,18 @@ static void bnx2x_tx_int(struct bnx2x_fastpath *fp, int work)
 	fp->tx_pkt_cons = sw_cons;
 	fp->tx_bd_cons = bd_cons;
 
-	/* Need to make the tx_bd_cons update visible to start_xmit()
-	 * before checking for netif_tx_queue_stopped().  Without the
-	 * memory barrier, there is a small possibility that start_xmit()
-	 * will miss it and cause the queue to be stopped forever.
-	 */
-	smp_mb();
-
 	/* TBD need a thresh? */
 	if (unlikely(netif_tx_queue_stopped(txq))) {
 
 		__netif_tx_lock(txq, smp_processor_id());
+
+		/* Need to make the tx_bd_cons update visible to start_xmit()
+		 * before checking for netif_tx_queue_stopped().  Without the
+		 * memory barrier, there is a small possibility that
+		 * start_xmit() will miss it and cause the queue to be stopped
+		 * forever.
+		 */
+		smp_mb();
 
 		if ((netif_tx_queue_stopped(txq)) &&
 		    (bp->state == BNX2X_STATE_OPEN) &&
