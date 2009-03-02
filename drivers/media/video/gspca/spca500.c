@@ -39,6 +39,9 @@ struct sd {
 	unsigned char contrast;
 	unsigned char colors;
 	u8 quality;
+#define QUALITY_MIN 70
+#define QUALITY_MAX 95
+#define QUALITY_DEF 85
 
 	char subtype;
 #define AgfaCl20 0
@@ -642,7 +645,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	sd->brightness = BRIGHTNESS_DEF;
 	sd->contrast = CONTRAST_DEF;
 	sd->colors = COLOR_DEF;
-	sd->quality = 85;
+	sd->quality = QUALITY_DEF;
 	return 0;
 }
 
@@ -1021,6 +1024,34 @@ static int sd_getcolors(struct gspca_dev *gspca_dev, __s32 *val)
 	return 0;
 }
 
+static int sd_set_jcomp(struct gspca_dev *gspca_dev,
+			struct v4l2_jpegcompression *jcomp)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	if (jcomp->quality < QUALITY_MIN)
+		sd->quality = QUALITY_MIN;
+	else if (jcomp->quality > QUALITY_MAX)
+		sd->quality = QUALITY_MAX;
+	else
+		sd->quality = jcomp->quality;
+	if (gspca_dev->streaming)
+		jpeg_set_qual(sd->jpeg_hdr, sd->quality);
+	return 0;
+}
+
+static int sd_get_jcomp(struct gspca_dev *gspca_dev,
+			struct v4l2_jpegcompression *jcomp)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	memset(jcomp, 0, sizeof *jcomp);
+	jcomp->quality = sd->quality;
+	jcomp->jpeg_markers = V4L2_JPEG_MARKER_DHT
+			| V4L2_JPEG_MARKER_DQT;
+	return 0;
+}
+
 /* sub-driver description */
 static struct sd_desc sd_desc = {
 	.name = MODULE_NAME,
@@ -1032,6 +1063,8 @@ static struct sd_desc sd_desc = {
 	.stopN = sd_stopN,
 	.stop0 = sd_stop0,
 	.pkt_scan = sd_pkt_scan,
+	.get_jcomp = sd_get_jcomp,
+	.set_jcomp = sd_set_jcomp,
 };
 
 /* -- module initialisation -- */

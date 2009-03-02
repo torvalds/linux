@@ -46,6 +46,9 @@ struct sd {
 	__u8 lightfreq;
 	__u8 sharpness;
 	u8 quality;			/* image quality */
+#define QUALITY_MIN 40
+#define QUALITY_MAX 60
+#define QUALITY_DEF 50
 
 	signed char sensor;		/* Type of image sensor chip */
 /* !! values used in different tables */
@@ -7180,7 +7183,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	sd->gamma = gamma[(int) sd->sensor];
 	sd->autogain = sd_ctrls[SD_AUTOGAIN].qctrl.default_value;
 	sd->lightfreq = sd_ctrls[SD_FREQ].qctrl.default_value;
-	sd->quality = 50;
+	sd->quality = QUALITY_DEF;
 
 	switch (sd->sensor) {
 	case SENSOR_GC0305:
@@ -7536,6 +7539,34 @@ static int sd_querymenu(struct gspca_dev *gspca_dev,
 	return -EINVAL;
 }
 
+static int sd_set_jcomp(struct gspca_dev *gspca_dev,
+			struct v4l2_jpegcompression *jcomp)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	if (jcomp->quality < QUALITY_MIN)
+		sd->quality = QUALITY_MIN;
+	else if (jcomp->quality > QUALITY_MAX)
+		sd->quality = QUALITY_MAX;
+	else
+		sd->quality = jcomp->quality;
+	if (gspca_dev->streaming)
+		jpeg_set_qual(sd->jpeg_hdr, sd->quality);
+	return 0;
+}
+
+static int sd_get_jcomp(struct gspca_dev *gspca_dev,
+			struct v4l2_jpegcompression *jcomp)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	memset(jcomp, 0, sizeof *jcomp);
+	jcomp->quality = sd->quality;
+	jcomp->jpeg_markers = V4L2_JPEG_MARKER_DHT
+			| V4L2_JPEG_MARKER_DQT;
+	return 0;
+}
+
 static const struct sd_desc sd_desc = {
 	.name = MODULE_NAME,
 	.ctrls = sd_ctrls,
@@ -7546,6 +7577,8 @@ static const struct sd_desc sd_desc = {
 	.stop0 = sd_stop0,
 	.pkt_scan = sd_pkt_scan,
 	.querymenu = sd_querymenu,
+	.get_jcomp = sd_get_jcomp,
+	.set_jcomp = sd_set_jcomp,
 };
 
 static const __devinitdata struct usb_device_id device_table[] = {

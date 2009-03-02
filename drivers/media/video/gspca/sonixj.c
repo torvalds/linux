@@ -47,6 +47,9 @@ struct sd {
 	u8 vflip;			/* ov7630/ov7648 only */
 	u8 infrared;			/* mt9v111 only */
 	u8 quality;			/* image quality */
+#define QUALITY_MIN 60
+#define QUALITY_MAX 95
+#define QUALITY_DEF 80
 	u8 jpegqual;			/* webcam quality */
 
 	u8 reg18;
@@ -1295,7 +1298,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	else
 		sd->vflip = 1;
 	sd->infrared = INFRARED_DEF;
-	sd->quality = 80;
+	sd->quality = QUALITY_DEF;
 	sd->jpegqual = 80;
 
 	gspca_dev->ctrl_dis = ctrl_dis[sd->sensor];
@@ -2130,6 +2133,34 @@ static int sd_getinfrared(struct gspca_dev *gspca_dev, __s32 *val)
 	return 0;
 }
 
+static int sd_set_jcomp(struct gspca_dev *gspca_dev,
+			struct v4l2_jpegcompression *jcomp)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	if (jcomp->quality < QUALITY_MIN)
+		sd->quality = QUALITY_MIN;
+	else if (jcomp->quality > QUALITY_MAX)
+		sd->quality = QUALITY_MAX;
+	else
+		sd->quality = jcomp->quality;
+	if (gspca_dev->streaming)
+		jpeg_set_qual(sd->jpeg_hdr, sd->quality);
+	return 0;
+}
+
+static int sd_get_jcomp(struct gspca_dev *gspca_dev,
+			struct v4l2_jpegcompression *jcomp)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	memset(jcomp, 0, sizeof *jcomp);
+	jcomp->quality = sd->quality;
+	jcomp->jpeg_markers = V4L2_JPEG_MARKER_DHT
+			| V4L2_JPEG_MARKER_DQT;
+	return 0;
+}
+
 /* sub-driver description */
 static const struct sd_desc sd_desc = {
 	.name = MODULE_NAME,
@@ -2142,6 +2173,8 @@ static const struct sd_desc sd_desc = {
 	.stop0 = sd_stop0,
 	.pkt_scan = sd_pkt_scan,
 	.dq_callback = do_autogain,
+	.get_jcomp = sd_get_jcomp,
+	.set_jcomp = sd_set_jcomp,
 };
 
 /* -- module initialisation -- */
