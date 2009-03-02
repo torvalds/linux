@@ -13,7 +13,7 @@
 #include <linux/module.h>
 #include <linux/ctype.h>
 
-#include "trace.h"
+#include "trace_output.h"
 
 #define TRACE_SYSTEM "TRACE_SYSTEM"
 
@@ -447,6 +447,28 @@ event_available_types_read(struct file *filp, char __user *ubuf, size_t cnt,
 	return simple_read_from_buffer(ubuf, cnt, ppos, buf, r);
 }
 
+#undef FIELD
+#define FIELD(type, name) \
+	#type, #name, offsetof(typeof(field), name), sizeof(field.name)
+
+static int trace_write_header(struct trace_seq *s)
+{
+	struct trace_entry field;
+
+	/* struct trace_entry */
+	return trace_seq_printf(s,
+				"\tfield:%s %s;\toffset:%lu;\tsize:%lu;\n"
+				"\tfield:%s %s;\toffset:%lu;\tsize:%lu;\n"
+				"\tfield:%s %s;\toffset:%lu;\tsize:%lu;\n"
+				"\tfield:%s %s;\toffset:%lu;\tsize:%lu;\n"
+				"\tfield:%s %s;\toffset:%lu;\tsize:%lu;\n"
+				"\n",
+				FIELD(unsigned char, type),
+				FIELD(unsigned char, flags),
+				FIELD(unsigned char, preempt_count),
+				FIELD(int, pid),
+				FIELD(int, tgid));
+}
 static ssize_t
 event_format_read(struct file *filp, char __user *ubuf, size_t cnt,
 		  loff_t *ppos)
@@ -464,6 +486,9 @@ event_format_read(struct file *filp, char __user *ubuf, size_t cnt,
 
 	if (*ppos)
 		return 0;
+
+	/* If this fails, so will the show_format. */
+	trace_write_header(s);
 
 	r = call->show_format(s);
 	if (!r) {
