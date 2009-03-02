@@ -190,6 +190,7 @@ struct sigmatel_spec {
 	unsigned int stream_delay;
 
 	/* analog loopback */
+	struct snd_kcontrol_new *aloopback_ctl;
 	unsigned char aloopback_mask;
 	unsigned char aloopback_shift;
 
@@ -1013,8 +1014,6 @@ static struct snd_kcontrol_new stac92hd73xx_6ch_mixer[] = {
 	HDA_CODEC_VOLUME("DAC Mixer Capture Volume", 0x1d, 0x3, HDA_INPUT),
 	HDA_CODEC_MUTE("DAC Mixer Capture Switch", 0x1d, 0x3, HDA_INPUT),
 
-	STAC_ANALOG_LOOPBACK(0xFA0, 0x7A1, 3),
-
 	HDA_CODEC_VOLUME_IDX("Capture Volume", 0x0, 0x20, 0x0, HDA_OUTPUT),
 	HDA_CODEC_MUTE_IDX("Capture Switch", 0x0, 0x20, 0x0, HDA_OUTPUT),
 
@@ -1024,9 +1023,22 @@ static struct snd_kcontrol_new stac92hd73xx_6ch_mixer[] = {
 	{ } /* end */
 };
 
-static struct snd_kcontrol_new stac92hd73xx_8ch_mixer[] = {
-	STAC_ANALOG_LOOPBACK(0xFA0, 0x7A1, 4),
+static struct snd_kcontrol_new stac92hd73xx_6ch_loopback[] = {
+	STAC_ANALOG_LOOPBACK(0xFA0, 0x7A1, 3),
+	{}
+};
 
+static struct snd_kcontrol_new stac92hd73xx_8ch_loopback[] = {
+	STAC_ANALOG_LOOPBACK(0xFA0, 0x7A1, 4),
+	{}
+};
+
+static struct snd_kcontrol_new stac92hd73xx_10ch_loopback[] = {
+	STAC_ANALOG_LOOPBACK(0xFA0, 0x7A1, 5),
+	{}
+};
+
+static struct snd_kcontrol_new stac92hd73xx_8ch_mixer[] = {
 	HDA_CODEC_VOLUME_IDX("Capture Volume", 0x0, 0x20, 0x0, HDA_OUTPUT),
 	HDA_CODEC_MUTE_IDX("Capture Switch", 0x0, 0x20, 0x0, HDA_OUTPUT),
 
@@ -1051,8 +1063,6 @@ static struct snd_kcontrol_new stac92hd73xx_8ch_mixer[] = {
 };
 
 static struct snd_kcontrol_new stac92hd73xx_10ch_mixer[] = {
-	STAC_ANALOG_LOOPBACK(0xFA0, 0x7A1, 5),
-
 	HDA_CODEC_VOLUME_IDX("Capture Volume", 0x0, 0x20, 0x0, HDA_OUTPUT),
 	HDA_CODEC_MUTE_IDX("Capture Switch", 0x0, 0x20, 0x0, HDA_OUTPUT),
 
@@ -1104,8 +1114,6 @@ static struct snd_kcontrol_new stac92hd83xxx_mixer[] = {
 };
 
 static struct snd_kcontrol_new stac92hd71bxx_analog_mixer[] = {
-	STAC_ANALOG_LOOPBACK(0xFA0, 0x7A0, 2),
-
 	HDA_CODEC_VOLUME_IDX("Capture Volume", 0x0, 0x1c, 0x0, HDA_OUTPUT),
 	HDA_CODEC_MUTE_IDX("Capture Switch", 0x0, 0x1c, 0x0, HDA_OUTPUT),
 
@@ -1131,9 +1139,11 @@ static struct snd_kcontrol_new stac92hd71bxx_analog_mixer[] = {
 	{ } /* end */
 };
 
-static struct snd_kcontrol_new stac92hd71bxx_mixer[] = {
-	STAC_ANALOG_LOOPBACK(0xFA0, 0x7A0, 2),
+static struct snd_kcontrol_new stac92hd71bxx_loopback[] = {
+	STAC_ANALOG_LOOPBACK(0xFA0, 0x7A0, 2)
+};
 
+static struct snd_kcontrol_new stac92hd71bxx_mixer[] = {
 	HDA_CODEC_VOLUME_IDX("Capture Volume", 0x0, 0x1c, 0x0, HDA_OUTPUT),
 	HDA_CODEC_MUTE_IDX("Capture Switch", 0x0, 0x1c, 0x0, HDA_OUTPUT),
 
@@ -1151,14 +1161,17 @@ static struct snd_kcontrol_new stac925x_mixer[] = {
 };
 
 static struct snd_kcontrol_new stac9205_mixer[] = {
-	STAC_ANALOG_LOOPBACK(0xFE0, 0x7E0, 1),
-
 	HDA_CODEC_VOLUME_IDX("Capture Volume", 0x0, 0x1b, 0x0, HDA_INPUT),
 	HDA_CODEC_MUTE_IDX("Capture Switch", 0x0, 0x1d, 0x0, HDA_OUTPUT),
 
 	HDA_CODEC_VOLUME_IDX("Capture Volume", 0x1, 0x1c, 0x0, HDA_INPUT),
 	HDA_CODEC_MUTE_IDX("Capture Switch", 0x1, 0x1e, 0x0, HDA_OUTPUT),
 	{ } /* end */
+};
+
+static struct snd_kcontrol_new stac9205_loopback[] = {
+	STAC_ANALOG_LOOPBACK(0xFE0, 0x7E0, 1),
+	{}
 };
 
 /* This needs to be generated dynamically based on sequence */
@@ -1173,8 +1186,6 @@ static struct snd_kcontrol_new stac922x_mixer[] = {
 
 
 static struct snd_kcontrol_new stac927x_mixer[] = {
-	STAC_ANALOG_LOOPBACK(0xFEB, 0x7EB, 1),
-
 	HDA_CODEC_VOLUME_IDX("Capture Volume", 0x0, 0x18, 0x0, HDA_INPUT),
 	HDA_CODEC_MUTE_IDX("Capture Switch", 0x0, 0x1b, 0x0, HDA_OUTPUT),
 
@@ -1184,6 +1195,11 @@ static struct snd_kcontrol_new stac927x_mixer[] = {
 	HDA_CODEC_VOLUME_IDX("Capture Volume", 0x2, 0x1A, 0x0, HDA_INPUT),
 	HDA_CODEC_MUTE_IDX("Capture Switch", 0x2, 0x1d, 0x0, HDA_OUTPUT),
 	{ } /* end */
+};
+
+static struct snd_kcontrol_new stac927x_loopback[] = {
+	STAC_ANALOG_LOOPBACK(0xFEB, 0x7EB, 1),
+	{}
 };
 
 static struct snd_kcontrol_new stac_dmux_mixer = {
@@ -1308,6 +1324,13 @@ static int stac92xx_build_controls(struct hda_codec *codec)
 	if (!snd_hda_find_mixer_ctl(codec, "Master Playback Switch")) {
 		err = snd_hda_add_vmaster(codec, "Master Playback Switch",
 					  NULL, slave_sws);
+		if (err < 0)
+			return err;
+	}
+
+	if (spec->aloopback_ctl &&
+	    snd_hda_get_bool_hint(codec, "loopback") == 1) {
+		err = snd_hda_add_new_ctls(codec, spec->aloopback_ctl);
 		if (err < 0)
 			return err;
 	}
@@ -4618,14 +4641,18 @@ again:
 	case 0x3: /* 6 Channel */
 		spec->mixer = stac92hd73xx_6ch_mixer;
 		spec->init = stac92hd73xx_6ch_core_init;
+		spec->aloopback_ctl = stac92hd73xx_6ch_loopback;
 		break;
 	case 0x4: /* 8 Channel */
 		spec->mixer = stac92hd73xx_8ch_mixer;
 		spec->init = stac92hd73xx_8ch_core_init;
+		spec->aloopback_ctl = stac92hd73xx_8ch_loopback;
 		break;
 	case 0x5: /* 10 Channel */
 		spec->mixer = stac92hd73xx_10ch_mixer;
 		spec->init = stac92hd73xx_10ch_core_init;
+		spec->aloopback_ctl = stac92hd73xx_10ch_loopback;
+		break;
 	}
 	spec->multiout.dac_nids = spec->dac_nids;
 
@@ -5036,6 +5063,7 @@ again:
 	if (get_wcaps(codec, 0xa) & AC_WCAP_IN_AMP)
 		snd_hda_sequence_write_cache(codec, unmute_init);
 
+	spec->aloopback_ctl = stac92hd71bxx_loopback;
 	spec->aloopback_mask = 0x50;
 	spec->aloopback_shift = 0;
 
@@ -5285,6 +5313,7 @@ static int patch_stac927x(struct hda_codec *codec)
 	}
 
 	spec->num_pwrs = 0;
+	spec->aloopback_ctl = stac927x_loopback;
 	spec->aloopback_mask = 0x40;
 	spec->aloopback_shift = 0;
 	spec->eapd_switch = 1;
@@ -5364,6 +5393,7 @@ static int patch_stac9205(struct hda_codec *codec)
 
 	spec->init = stac9205_core_init;
 	spec->mixer = stac9205_mixer;
+	spec->aloopback_ctl = stac9205_loopback;
 
 	spec->aloopback_mask = 0x40;
 	spec->aloopback_shift = 0;
