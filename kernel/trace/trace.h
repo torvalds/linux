@@ -754,6 +754,7 @@ struct ftrace_event_call {
 	int		(*raw_init)(void);
 	int		(*raw_reg)(void);
 	void		(*raw_unreg)(void);
+	int		(*show_format)(struct trace_seq *s);
 };
 
 void event_trace_printk(unsigned long ip, const char *fmt, ...);
