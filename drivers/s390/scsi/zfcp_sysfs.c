@@ -318,10 +318,9 @@ zfcp_sysfs_unit_##_name##_latency_show(struct device *dev,		\
 	struct zfcp_unit *unit = sdev->hostdata;			\
 	struct zfcp_latencies *lat = &unit->latencies;			\
 	struct zfcp_adapter *adapter = unit->port->adapter;		\
-	unsigned long flags;						\
 	unsigned long long fsum, fmin, fmax, csum, cmin, cmax, cc;	\
 									\
-	spin_lock_irqsave(&lat->lock, flags);				\
+	spin_lock_bh(&lat->lock);					\
 	fsum = lat->_name.fabric.sum * adapter->timer_ticks;		\
 	fmin = lat->_name.fabric.min * adapter->timer_ticks;		\
 	fmax = lat->_name.fabric.max * adapter->timer_ticks;		\
@@ -329,7 +328,7 @@ zfcp_sysfs_unit_##_name##_latency_show(struct device *dev,		\
 	cmin = lat->_name.channel.min * adapter->timer_ticks;		\
 	cmax = lat->_name.channel.max * adapter->timer_ticks;		\
 	cc  = lat->_name.counter;					\
-	spin_unlock_irqrestore(&lat->lock, flags);			\
+	spin_unlock_bh(&lat->lock);					\
 									\
 	do_div(fsum, 1000);						\
 	do_div(fmin, 1000);						\

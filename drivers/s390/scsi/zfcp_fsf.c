@@ -2069,7 +2069,6 @@ static void zfcp_fsf_req_latency(struct zfcp_fsf_req *req)
 	struct fsf_qual_latency_info *lat_inf;
 	struct latency_cont *lat;
 	struct zfcp_unit *unit = req->unit;
-	unsigned long flags;
 
 	lat_inf = &req->qtcb->prefix.prot_status_qual.latency_info;
 
@@ -2087,11 +2086,11 @@ static void zfcp_fsf_req_latency(struct zfcp_fsf_req *req)
 		return;
 	}
 
-	spin_lock_irqsave(&unit->latencies.lock, flags);
+	spin_lock(&unit->latencies.lock);
 	zfcp_fsf_update_lat(&lat->channel, lat_inf->channel_lat);
 	zfcp_fsf_update_lat(&lat->fabric, lat_inf->fabric_lat);
 	lat->counter++;
-	spin_unlock_irqrestore(&unit->latencies.lock, flags);
+	spin_unlock(&unit->latencies.lock);
 }
 
 #ifdef CONFIG_BLK_DEV_IO_TRACE
