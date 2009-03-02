@@ -3949,6 +3949,36 @@ static void stac92xx_power_down(struct hda_codec *codec)
 static void stac_toggle_power_map(struct hda_codec *codec, hda_nid_t nid,
 				  int enable);
 
+/* override some hints from the hwdep entry */
+static void stac_store_hints(struct hda_codec *codec)
+{
+	struct sigmatel_spec *spec = codec->spec;
+	const char *p;
+	int val;
+
+	val = snd_hda_get_bool_hint(codec, "hp_detect");
+	if (val >= 0)
+		spec->hp_detect = val;
+	p = snd_hda_get_hint(codec, "gpio_mask");
+	if (p) {
+		spec->gpio_mask = simple_strtoul(p, NULL, 0);
+		spec->eapd_mask = spec->gpio_dir = spec->gpio_data =
+			spec->gpio_mask;
+	}
+	p = snd_hda_get_hint(codec, "gpio_dir");
+	if (p)
+		spec->gpio_dir = simple_strtoul(p, NULL, 0) & spec->gpio_mask;
+	p = snd_hda_get_hint(codec, "gpio_data");
+	if (p)
+		spec->gpio_data = simple_strtoul(p, NULL, 0) & spec->gpio_mask;
+	p = snd_hda_get_hint(codec, "eapd_mask");
+	if (p)
+		spec->eapd_mask = simple_strtoul(p, NULL, 0) & spec->gpio_mask;
+	val = snd_hda_get_bool_hint(codec, "eapd_switch");
+	if (val >= 0)
+		spec->eapd_switch = val;
+}
+
 static int stac92xx_init(struct hda_codec *codec)
 {
 	struct sigmatel_spec *spec = codec->spec;
@@ -3964,6 +3994,9 @@ static int stac92xx_init(struct hda_codec *codec)
 			snd_hda_codec_write(codec,
 				spec->adc_nids[i], 0,
 				AC_VERB_SET_POWER_STATE, AC_PWRST_D3);
+
+	/* override some hints */
+	stac_store_hints(codec);
 
 	/* set up GPIO */
 	gpio = spec->gpio_data;
