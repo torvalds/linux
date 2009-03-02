@@ -1377,6 +1377,7 @@ typhoon_request_firmware(struct typhoon *tp)
 		err = -ENOMEM;
 		goto out_err;
 	}
+	memcpy(typhoon_fw_image, typhoon_fw->data, typhoon_fw->size);
 
 	return 0;
 
