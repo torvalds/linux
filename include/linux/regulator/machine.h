@@ -73,7 +73,9 @@ struct regulator_state {
  *
  * @always_on: Set if the regulator should never be disabled.
  * @boot_on: Set if the regulator is enabled when the system is initially
- *           started.
+ *           started.  If the regulator is not enabled by the hardware or
+ *           bootloader then it will be enabled when the constraints are
+ *           applied.
  * @apply_uV: Apply the voltage constraint when initialising.
  *
  * @input_uV: Input voltage for regulator when supplied by another regulator.
