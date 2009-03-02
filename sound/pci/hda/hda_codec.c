@@ -1434,7 +1434,6 @@ int snd_hda_ctl_add(struct hda_codec *codec, struct snd_kcontrol *kctl)
 }
 EXPORT_SYMBOL_HDA(snd_hda_ctl_add);
 
-#ifdef CONFIG_SND_HDA_RECONFIG
 /* Clear all controls assigned to the given codec */
 void snd_hda_ctls_clear(struct hda_codec *codec)
 {
@@ -1529,7 +1528,6 @@ int snd_hda_codec_reset(struct hda_codec *codec)
 	hda_unlock_devices(card);
 	return 0;
 }
-#endif /* CONFIG_SND_HDA_RECONFIG */
 
 /* create a virtual master control and add slaves */
 int snd_hda_add_vmaster(struct hda_codec *codec, char *name,
@@ -2392,8 +2390,16 @@ int /*__devinit*/ snd_hda_build_controls(struct hda_bus *bus)
 
 	list_for_each_entry(codec, &bus->codec_list, list) {
 		int err = snd_hda_codec_build_controls(codec);
-		if (err < 0)
-			return err;
+		if (err < 0) {
+			printk(KERN_ERR "hda_codec: cannot build controls"
+			       "for #%d (error %d)\n", codec->addr, err); 
+			err = snd_hda_codec_reset(codec);
+			if (err < 0) {
+				printk(KERN_ERR
+				       "hda_codec: cannot revert codec\n");
+				return err;
+			}
+		}
 	}
 	return 0;
 }
