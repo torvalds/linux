@@ -811,7 +811,7 @@ static int i915_set_status_page(struct drm_device *dev, void *data,
 	dev_priv->hws_map.flags = 0;
 	dev_priv->hws_map.mtrr = 0;
 
-	drm_core_ioremap(&dev_priv->hws_map, dev);
+	drm_core_ioremap_wc(&dev_priv->hws_map, dev);
 	if (dev_priv->hws_map.handle == NULL) {
 		i915_dma_cleanup(dev);
 		dev_priv->status_gfx_addr = 0;
@@ -1090,6 +1090,11 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
         dev_priv->mm.gtt_mapping =
 		io_mapping_create_wc(dev->agp->base,
 				     dev->agp->agp_info.aper_size * 1024*1024);
+	if (dev_priv->mm.gtt_mapping == NULL) {
+		ret = -EIO;
+		goto out_rmmap;
+	}
+
 	/* Set up a WC MTRR for non-PAT systems.  This is more common than
 	 * one would think, because the kernel disables PAT on first
 	 * generation Core chips because WC PAT gets overridden by a UC
@@ -1122,7 +1127,7 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	if (!I915_NEED_GFX_HWS(dev)) {
 		ret = i915_init_phys_hws(dev);
 		if (ret != 0)
-			goto out_rmmap;
+			goto out_iomapfree;
 	}
 
 	/* On the 945G/GM, the chipset reports the MSI capability on the
@@ -1161,6 +1166,8 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 
 	return 0;
 
+out_iomapfree:
+	io_mapping_free(dev_priv->mm.gtt_mapping);
 out_rmmap:
 	iounmap(dev_priv->regs);
 free_priv:
