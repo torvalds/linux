@@ -135,8 +135,7 @@ struct skb_frag_struct {
 #define HAVE_HW_TIME_STAMP
 
 /**
- * skb_shared_hwtstamps - hardware time stamps
- *
+ * struct skb_shared_hwtstamps - hardware time stamps
  * @hwtstamp:	hardware time stamp transformed into duration
  *		since arbitrary point in time
  * @syststamp:	hwtstamp transformed to system time base
@@ -164,8 +163,7 @@ struct skb_shared_hwtstamps {
 };
 
 /**
- * skb_shared_tx - instructions for time stamping of outgoing packets
- *
+ * struct skb_shared_tx - instructions for time stamping of outgoing packets
  * @hardware:		generate hardware time stamp
  * @software:		generate software time stamp
  * @in_progress:	device driver is going to provide
