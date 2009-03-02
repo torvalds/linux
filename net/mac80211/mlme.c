@@ -1458,8 +1458,7 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_sub_if_data *sdata,
 	ieee80211_sta_wmm_params(local, ifmgd, elems.wmm_param,
 				 elems.wmm_param_len);
 
-	if (local->hw.flags & IEEE80211_HW_PS_NULLFUNC_STACK &&
-	    local->hw.conf.flags & IEEE80211_CONF_PS) {
+	if (local->hw.flags & IEEE80211_HW_PS_NULLFUNC_STACK) {
 		directed_tim = ieee80211_check_tim(&elems, ifmgd->aid);
 
 		if (directed_tim) {
