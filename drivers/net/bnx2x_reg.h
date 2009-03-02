@@ -5843,6 +5843,7 @@ Theotherbitsarereservedandshouldbezero*/
 #define MDIO_PMA_REG_ROM_VER2		0xca1a
 #define MDIO_PMA_REG_EDC_FFE_MAIN	0xca1b
 #define MDIO_PMA_REG_PLL_BANDWIDTH	0xca1d
+#define MDIO_PMA_REG_GEN_CTRL2		0xca1e
 #define MDIO_PMA_REG_MISC_CTRL0 	0xca23
 #define MDIO_PMA_REG_LRM_MODE		0xca3f
 #define MDIO_PMA_REG_CDR_BANDWIDTH	0xca46

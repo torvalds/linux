@@ -2258,6 +2258,11 @@ static void bnx2x_bcm8726_external_rom_boot(struct link_params *params)
 		       MDIO_PMA_REG_GEN_CTRL,
 		       MDIO_PMA_REG_GEN_CTRL_ROM_MICRO_RESET);
 
+	bnx2x_cl45_write(bp, port, ext_phy_type, ext_phy_addr,
+		       MDIO_PMA_DEVAD,
+		       MDIO_PMA_REG_GEN_CTRL2,
+		       0x73A0);
+
 	/* Clear soft reset.
 	Will automatically reset micro-controller re-boot */
 	bnx2x_cl45_write(bp, port, ext_phy_type, ext_phy_addr,
@@ -2265,8 +2270,8 @@ static void bnx2x_bcm8726_external_rom_boot(struct link_params *params)
 		       MDIO_PMA_REG_GEN_CTRL,
 		       MDIO_PMA_REG_GEN_CTRL_ROM_RESET_INTERNAL_MP);
 
-	/* wait for 100ms for microcode load */
-	msleep(100);
+	/* wait for 150ms for microcode load */
+	msleep(150);
 
 	/* Disable serial boot control, tristates pins SS_N, SCK, MOSI, MISO */
 	bnx2x_cl45_write(bp, port, ext_phy_type, ext_phy_addr,
@@ -2524,7 +2529,7 @@ static u8 bnx2x_bcm8726_set_limiting_mode(struct link_params *params,
 	u8 ext_phy_addr = ((params->ext_phy_config &
 			    PORT_HW_CFG_XGXS_EXT_PHY_ADDR_MASK) >>
 			   PORT_HW_CFG_XGXS_EXT_PHY_ADDR_SHIFT);
-
+	u16 cur_limiting_mode;
 	if (bnx2x_read_sfp_module_eeprom(params,
 				       SFP_EEPROM_OPTIONS_ADDR,
 				       SFP_EEPROM_OPTIONS_SIZE,
@@ -2535,6 +2540,16 @@ static u8 bnx2x_bcm8726_set_limiting_mode(struct link_params *params,
 	}
 	limiting_mode = !(options[0] &
 			  SFP_EEPROM_OPTIONS_LINEAR_RX_OUT_MASK);
+
+	bnx2x_cl45_read(bp, port,
+		      PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8726,
+		      ext_phy_addr,
+		      MDIO_PMA_DEVAD,
+		      MDIO_PMA_REG_ROM_VER2,
+		      &cur_limiting_mode);
+	DP(NETIF_MSG_LINK, "Current Limiting mode is 0x%x\n",
+		 cur_limiting_mode);
+
 	if (limiting_mode &&
 	    (module_type != SFP_MODULE_TYPE_PASSIVE_COPPER_CABLE)) {
 		DP(NETIF_MSG_LINK,
@@ -2547,16 +2562,9 @@ static u8 bnx2x_bcm8726_set_limiting_mode(struct link_params *params,
 			       MDIO_PMA_REG_ROM_VER2,
 			       SFP_LIMITING_MODE_VALUE);
 	} else { /* LRM mode ( default )*/
-		u16 cur_limiting_mode;
+
 		DP(NETIF_MSG_LINK, "Module options = 0x%x.Setting LRM MODE\n",
 			 options[0]);
-
-		bnx2x_cl45_read(bp, port,
-			       PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8726,
-			       ext_phy_addr,
-			       MDIO_PMA_DEVAD,
-			       MDIO_PMA_REG_ROM_VER2,
-			       &cur_limiting_mode);
 
 		/* Changing to LRM mode takes quite few seconds.
 		So do it only if current mode is limiting
