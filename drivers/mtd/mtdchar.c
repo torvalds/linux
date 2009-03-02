@@ -825,3 +825,4 @@ module_exit(cleanup_mtdchar);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("David Woodhouse <dwmw2@infradead.org>");
 MODULE_DESCRIPTION("Direct character-device access to MTD devices");
+MODULE_ALIAS_CHARDEV_MAJOR(MTD_CHAR_MAJOR);
