@@ -395,6 +395,14 @@ struct trace_seq {
 	unsigned int		readpos;
 };
 
+static inline void
+trace_seq_init(struct trace_seq *s)
+{
+	s->len = 0;
+	s->readpos = 0;
+}
+
+
 #define TRACE_PIPE_ALL_CPU	-1
 
 /*

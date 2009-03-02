@@ -342,13 +342,6 @@ __update_max_tr(struct trace_array *tr, struct task_struct *tsk, int cpu)
 	tracing_record_cmdline(tsk);
 }
 
-static void
-trace_seq_reset(struct trace_seq *s)
-{
-	s->len = 0;
-	s->readpos = 0;
-}
-
 ssize_t trace_seq_to_user(struct trace_seq *s, char __user *ubuf, size_t cnt)
 {
 	int len;
@@ -395,7 +388,7 @@ trace_print_seq(struct seq_file *m, struct trace_seq *s)
 	s->buffer[len] = 0;
 	seq_puts(m, s->buffer);
 
-	trace_seq_reset(s);
+	trace_seq_init(s);
 }
 
 /**
@@ -2620,7 +2613,7 @@ tracing_read_pipe(struct file *filp, char __user *ubuf,
 	if (sret != -EBUSY)
 		return sret;
 
-	trace_seq_reset(&iter->seq);
+	trace_seq_init(&iter->seq);
 
 	/* copy the tracer to avoid using a global lock all around */
 	mutex_lock(&trace_types_lock);
@@ -2682,7 +2675,7 @@ waitagain:
 	/* Now copy what we have to the user */
 	sret = trace_seq_to_user(&iter->seq, ubuf, cnt);
 	if (iter->seq.readpos >= iter->seq.len)
-		trace_seq_reset(&iter->seq);
+		trace_seq_init(&iter->seq);
 
 	/*
 	 * If there was nothing to send to user, inspite of consuming trace
@@ -2819,7 +2812,7 @@ static ssize_t tracing_splice_read_pipe(struct file *filp,
 		partial[i].offset = 0;
 		partial[i].len = iter->seq.len;
 
-		trace_seq_reset(&iter->seq);
+		trace_seq_init(&iter->seq);
 	}
 
 	mutex_unlock(&iter->mutex);
@@ -3631,7 +3624,7 @@ trace_printk_seq(struct trace_seq *s)
 
 	printk(KERN_TRACE "%s", s->buffer);
 
-	trace_seq_reset(s);
+	trace_seq_init(s);
 }
 
 void ftrace_dump(void)
