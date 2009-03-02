@@ -502,11 +502,11 @@ void drm_put_dev(struct drm_device *dev)
 		dev->agp = NULL;
 	}
 
-	drm_ht_remove(&dev->map_hash);
-	drm_ctxbitmap_cleanup(dev);
-
 	list_for_each_entry_safe(r_list, list_temp, &dev->maplist, head)
 		drm_rmmap(dev, r_list->map);
+	drm_ht_remove(&dev->map_hash);
+
+	drm_ctxbitmap_cleanup(dev);
 
 	if (drm_core_check_feature(dev, DRIVER_MODESET))
 		drm_put_minor(&dev->control);
