@@ -14,6 +14,8 @@
 
 #define TRACE_SYSTEM "TRACE_SYSTEM"
 
+static DEFINE_MUTEX(event_mutex);
+
 #define events_for_each(event)						\
 	for (event = __start_ftrace_events;				\
 	     (unsigned long)event < (unsigned long)__stop_ftrace_events; \
@@ -104,6 +106,7 @@ static int ftrace_set_clr_event(char *buf, int set)
 			event = NULL;
 	}
 
+	mutex_lock(&event_mutex);
 	events_for_each(call) {
 
 		if (!call->name)
@@ -124,6 +127,8 @@ static int ftrace_set_clr_event(char *buf, int set)
 
 		ret = 0;
 	}
+	mutex_unlock(&event_mutex);
+
 	return ret;
 }
 
@@ -324,7 +329,9 @@ event_enable_write(struct file *filp, const char __user *ubuf, size_t cnt,
 	switch (val) {
 	case 0:
 	case 1:
+		mutex_lock(&event_mutex);
 		ftrace_event_enable_disable(call, val);
+		mutex_unlock(&event_mutex);
 		break;
 
 	default:
