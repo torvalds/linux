@@ -2668,11 +2668,7 @@ static u8 bnx2x_sfp_module_detection(struct link_params *params)
 			  params->port);
 
 	/* Check and set limiting mode / LRM mode */
-	if (bnx2x_bcm8726_set_limiting_mode(params, module_type)
-	     != 0) {
-		DP(NETIF_MSG_LINK, "Setting limiting mode failed!!\n");
-		return -EINVAL;
-	}
+	bnx2x_bcm8726_set_limiting_mode(params, module_type);
 
 	/* Enable transmit for this module */
 	bnx2x_bcm8726_set_transmitter(bp, params->port,
