@@ -114,7 +114,7 @@ static inline void zero_trun_node_unused(struct ubifs_trun_node *trun)
  */
 static int reserve_space(struct ubifs_info *c, int jhead, int len)
 {
-	int err = 0, err1, retries = 0, avail, lnum, offs, free, squeeze;
+	int err = 0, err1, retries = 0, avail, lnum, offs, squeeze;
 	struct ubifs_wbuf *wbuf = &c->jheads[jhead].wbuf;
 
 	/*
@@ -139,10 +139,9 @@ again:
 	 * Write buffer wasn't seek'ed or there is no enough space - look for an
 	 * LEB with some empty space.
 	 */
-	lnum = ubifs_find_free_space(c, len, &free, squeeze);
+	lnum = ubifs_find_free_space(c, len, &offs, squeeze);
 	if (lnum >= 0) {
 		/* Found an LEB, add it to the journal head */
-		offs = c->leb_size - free;
 		err = ubifs_add_bud_to_log(c, jhead, lnum, offs);
 		if (err)
 			goto out_return;

@@ -1500,7 +1500,7 @@ long long ubifs_reported_space(const struct ubifs_info *c, long long free);
 long long ubifs_calc_available(const struct ubifs_info *c, int min_idx_lebs);
 
 /* find.c */
-int ubifs_find_free_space(struct ubifs_info *c, int min_space, int *free,
+int ubifs_find_free_space(struct ubifs_info *c, int min_space, int *offs,
 			  int squeeze);
 int ubifs_find_free_leb_for_idx(struct ubifs_info *c);
 int ubifs_find_dirty_leb(struct ubifs_info *c, struct ubifs_lprops *ret_lp,
