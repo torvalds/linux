@@ -70,6 +70,7 @@
 #define CX23885_BOARD_TBS_6920                 14
 #define CX23885_BOARD_TEVII_S470               15
 #define CX23885_BOARD_DVBWORLD_2005            16
+#define CX23885_BOARD_NETUP_DUAL_DVBS2_CI      17
 
 /* Currently unsupported by the driver: PAL/H, NTSC/Kr, SECAM B/G/H/LC */
 #define CX23885_NORMS (\
@@ -187,6 +188,7 @@ struct cx23885_board {
 	 */
 	u32			clk_freq;
 	struct cx23885_input    input[MAX_CX23885_INPUT];
+	int			cimax; /* for NetUP */
 };
 
 struct cx23885_subid {
@@ -269,6 +271,7 @@ struct cx23885_tsport {
 
 	/* Allow a single tsport to have multiple frontends */
 	u32                        num_frontends;
+	void                       *port_priv;
 };
 
 struct cx23885_dev {

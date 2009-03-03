@@ -30,6 +30,7 @@
 #include "cx23885.h"
 #include <media/v4l2-common.h>
 
+#include "dvb_ca_en50221.h"
 #include "s5h1409.h"
 #include "s5h1411.h"
 #include "mt2131.h"
@@ -43,7 +44,13 @@
 #include "dib7000p.h"
 #include "dibx000_common.h"
 #include "zl10353.h"
+#include "stv0900.h"
+#include "stv6110.h"
+#include "lnbh24.h"
 #include "cx24116.h"
+#include "cimax2.h"
+#include "netup-eeprom.h"
+#include "netup-init.h"
 
 static unsigned int debug;
 
@@ -309,6 +316,31 @@ static struct zl10353_config dvico_fusionhdtv_xc3028 = {
 	.no_tuner      = 1,
 };
 
+static struct stv0900_config netup_stv0900_config = {
+	.demod_address = 0x68,
+	.xtal = 27000000,
+	.clkmode = 3,/* 0-CLKI, 2-XTALI, else AUTO */
+	.diseqc_mode = 2,/* 2/3 PWM */
+	.path1_mode = 2,/*Serial continues clock */
+	.path2_mode = 2,/*Serial continues clock */
+	.tun1_maddress = 0,/* 0x60 */
+	.tun2_maddress = 3,/* 0x63 */
+	.tun1_adc = 1,/* 1 Vpp */
+	.tun2_adc = 1,/* 1 Vpp */
+};
+
+static struct stv6110_config netup_stv6110_tunerconfig_a = {
+	.i2c_address = 0x60,
+	.mclk = 27000000,
+	.iq_wiring = 0,
+};
+
+static struct stv6110_config netup_stv6110_tunerconfig_b = {
+	.i2c_address = 0x63,
+	.mclk = 27000000,
+	.iq_wiring = 1,
+};
+
 static int tbs_set_voltage(struct dvb_frontend *fe, fe_sec_voltage_t voltage)
 {
 	struct cx23885_tsport *port = fe->dvb->priv;
@@ -340,6 +372,7 @@ static int dvb_register(struct cx23885_tsport *port)
 	struct cx23885_dev *dev = port->dev;
 	struct cx23885_i2c *i2c_bus = NULL;
 	struct videobuf_dvb_frontend *fe0;
+	int ret;
 
 	/* Get the first frontend */
 	fe0 = videobuf_dvb_get_frontend(&port->frontends, 1);
@@ -580,6 +613,51 @@ static int dvb_register(struct cx23885_tsport *port)
 			&dvbworld_cx24116_config,
 			&i2c_bus->i2c_adap);
 		break;
+	case CX23885_BOARD_NETUP_DUAL_DVBS2_CI:
+		i2c_bus = &dev->i2c_bus[0];
+		switch (port->nr) {
+		/* port B */
+		case 1:
+			fe0->dvb.frontend = dvb_attach(stv0900_attach,
+							&netup_stv0900_config,
+							&i2c_bus->i2c_adap, 0);
+			if (fe0->dvb.frontend != NULL) {
+				if (dvb_attach(stv6110_attach,
+						fe0->dvb.frontend,
+						&netup_stv6110_tunerconfig_a,
+						&i2c_bus->i2c_adap)) {
+					if (!dvb_attach(lnbh24_attach,
+							fe0->dvb.frontend,
+							&i2c_bus->i2c_adap,
+							LNBH24_PCL, 0, 0x09))
+						printk(KERN_ERR
+							"No LNBH24 found!\n");
+
+				}
+			}
+			break;
+		/* port C */
+		case 2:
+			fe0->dvb.frontend = dvb_attach(stv0900_attach,
+							&netup_stv0900_config,
+							&i2c_bus->i2c_adap, 1);
+			if (fe0->dvb.frontend != NULL) {
+				if (dvb_attach(stv6110_attach,
+						fe0->dvb.frontend,
+						&netup_stv6110_tunerconfig_b,
+						&i2c_bus->i2c_adap)) {
+					if (!dvb_attach(lnbh24_attach,
+							fe0->dvb.frontend,
+							&i2c_bus->i2c_adap,
+							LNBH24_PCL, 0, 0x0a))
+						printk(KERN_ERR
+							"No LNBH24 found!\n");
+
+				}
+			}
+			break;
+		}
+		break;
 	default:
 		printk(KERN_INFO "%s: The frontend of your DVB/ATSC card "
 			" isn't supported yet\n",
@@ -601,9 +679,33 @@ static int dvb_register(struct cx23885_tsport *port)
 		fe0->dvb.frontend->ops.analog_ops.standby(fe0->dvb.frontend);
 
 	/* register everything */
-	return videobuf_dvb_register_bus(&port->frontends, THIS_MODULE, port,
+	ret = videobuf_dvb_register_bus(&port->frontends, THIS_MODULE, port,
 		&dev->pci->dev, adapter_nr, 0);
 
+	/* init CI & MAC */
+	switch (dev->board) {
+	case CX23885_BOARD_NETUP_DUAL_DVBS2_CI: {
+		static struct netup_card_info cinfo;
+
+		netup_get_card_info(&dev->i2c_bus[0].i2c_adap, &cinfo);
+		memcpy(port->frontends.adapter.proposed_mac,
+				cinfo.port[port->nr - 1].mac, 6);
+		printk(KERN_INFO "NetUP Dual DVB-S2 CI card port%d MAC="
+			"%02X:%02X:%02X:%02X:%02X:%02X\n",
+			port->nr,
+			port->frontends.adapter.proposed_mac[0],
+			port->frontends.adapter.proposed_mac[1],
+			port->frontends.adapter.proposed_mac[2],
+			port->frontends.adapter.proposed_mac[3],
+			port->frontends.adapter.proposed_mac[4],
+			port->frontends.adapter.proposed_mac[5]);
+
+		netup_ci_init(port);
+		break;
+		}
+	}
+
+	return ret;
 }
 
 int cx23885_dvb_register(struct cx23885_tsport *port)
@@ -675,6 +777,8 @@ int cx23885_dvb_unregister(struct cx23885_tsport *port)
 	fe0 = videobuf_dvb_get_frontend(&port->frontends, 1);
 	if (fe0->dvb.frontend)
 		videobuf_dvb_unregister_bus(&port->frontends);
+
+	netup_ci_exit(port);
 
 	return 0;
 }

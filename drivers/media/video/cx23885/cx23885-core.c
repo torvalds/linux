@@ -31,6 +31,7 @@
 #include <asm/div64.h>
 
 #include "cx23885.h"
+#include "cimax2.h"
 
 MODULE_DESCRIPTION("Driver for cx23885 based TV cards");
 MODULE_AUTHOR("Steven Toth <stoth@linuxtv.org>");
@@ -791,6 +792,8 @@ static int cx23885_dev_setup(struct cx23885_dev *dev)
 	dev->pci_bus  = dev->pci->bus->number;
 	dev->pci_slot = PCI_SLOT(dev->pci->devfn);
 	dev->pci_irqmask = 0x001f00;
+	if (cx23885_boards[dev->board].cimax > 0)
+		dev->pci_irqmask |= 0x01800000; /* for CiMaxes */
 
 	/* External Master 1 Bus */
 	dev->i2c_bus[0].nr = 0;
@@ -1643,7 +1646,9 @@ static irqreturn_t cx23885_irq(int irq, void *dev_id)
 	    (pci_status & PCI_MSK_VID_B) ||
 	    (pci_status & PCI_MSK_VID_A) ||
 	    (pci_status & PCI_MSK_AUD_INT) ||
-	    (pci_status & PCI_MSK_AUD_EXT)) {
+	    (pci_status & PCI_MSK_AUD_EXT) ||
+	    (pci_status & PCI_MSK_GPIO0) ||
+	    (pci_status & PCI_MSK_GPIO1)) {
 
 		if (pci_status & PCI_MSK_RISC_RD)
 			dprintk(7, " (PCI_MSK_RISC_RD   0x%08x)\n",
@@ -1685,7 +1690,18 @@ static irqreturn_t cx23885_irq(int irq, void *dev_id)
 			dprintk(7, " (PCI_MSK_AUD_EXT   0x%08x)\n",
 				PCI_MSK_AUD_EXT);
 
+		if (pci_status & PCI_MSK_GPIO0)
+			dprintk(7, " (PCI_MSK_GPIO0     0x%08x)\n",
+				PCI_MSK_GPIO0);
+
+		if (pci_status & PCI_MSK_GPIO1)
+			dprintk(7, " (PCI_MSK_GPIO1     0x%08x)\n",
+				PCI_MSK_GPIO1);
 	}
+
+	if ((pci_status & PCI_MSK_GPIO0) || (pci_status & PCI_MSK_GPIO1))
+		/* handled += cx23885_irq_gpio(dev, pci_status); */
+		handled += netup_ci_slot_status(dev, pci_status);
 
 	if (ts1_status) {
 		if (cx23885_boards[dev->board].portb == CX23885_MPEG_DVB)
@@ -1759,6 +1775,8 @@ static int __devinit cx23885_initdev(struct pci_dev *pci_dev,
 	}
 
 	pci_set_drvdata(pci_dev, dev);
+	cx_set(PCI_INT_MSK, 0x01800000); /* for NetUP */
+
 	return 0;
 
 fail_irq:
