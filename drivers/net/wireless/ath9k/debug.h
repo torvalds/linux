@@ -107,6 +107,7 @@ struct ath9k_debug {
 	struct dentry *debugfs_dma;
 	struct dentry *debugfs_interrupt;
 	struct dentry *debugfs_rcstat;
+	struct dentry *debugfs_wiphy;
 	struct ath_stats stats;
 };
 
