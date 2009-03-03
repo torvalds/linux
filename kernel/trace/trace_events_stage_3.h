@@ -120,9 +120,9 @@ static int ftrace_reg_event_##call(void)				\
 	int ret;							\
 									\
 	ret = register_trace_##call(ftrace_event_##call);		\
-	if (!ret)							\
+	if (ret)							\
 		pr_info("event trace: Could not activate trace point "	\
-			"probe to " #call);				\
+			"probe to " #call "\n");			\
 	return ret;							\
 }									\
 									\
@@ -195,9 +195,9 @@ static int ftrace_raw_reg_event_##call(void)				\
 	int ret;							\
 									\
 	ret = register_trace_##call(ftrace_raw_event_##call);		\
-	if (!ret)							\
+	if (ret)							\
 		pr_info("event trace: Could not activate trace point "	\
-			"probe to " #call);				\
+			"probe to " #call "\n");			\
 	return ret;							\
 }									\
 									\
