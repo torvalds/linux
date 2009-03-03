@@ -2343,7 +2343,13 @@ static int ath9k_config(struct ieee80211_hw *hw, u32 changed)
 		aphy->chan_is_ht = conf_is_ht(conf);
 
 		/* TODO: do not change operation channel immediately if there
-		 * are other virtual wiphys that use another channel */
+		 * are other virtual wiphys that use another channel. For now,
+		 * we do the change immediately to allow mac80211-operated scan
+		 * to work. Once the scan operation is moved into ath9k, we can
+		 * just move the current aphy in PAUSED state if the channel is
+		 * changed into something different from the current operation
+		 * channel. */
+		ath9k_wiphy_pause_all_forced(sc, aphy);
 
 		DPRINTF(sc, ATH_DBG_CONFIG, "Set channel: %d MHz\n",
 			curchan->center_freq);

@@ -496,3 +496,27 @@ bool ath9k_wiphy_started(struct ath_softc *sc)
 	spin_unlock_bh(&sc->wiphy_lock);
 	return false;
 }
+
+static void ath9k_wiphy_pause_chan(struct ath_wiphy *aphy,
+				   struct ath_wiphy *selected)
+{
+	if (aphy->chan_idx == selected->chan_idx)
+		return;
+	aphy->state = ATH_WIPHY_PAUSED;
+	ieee80211_stop_queues(aphy->hw);
+}
+
+void ath9k_wiphy_pause_all_forced(struct ath_softc *sc,
+				  struct ath_wiphy *selected)
+{
+	int i;
+	spin_lock_bh(&sc->wiphy_lock);
+	if (sc->pri_wiphy->state == ATH_WIPHY_ACTIVE)
+		ath9k_wiphy_pause_chan(sc->pri_wiphy, selected);
+	for (i = 0; i < sc->num_sec_wiphy; i++) {
+		if (sc->sec_wiphy[i] &&
+		    sc->sec_wiphy[i]->state == ATH_WIPHY_ACTIVE)
+			ath9k_wiphy_pause_chan(sc->sec_wiphy[i], selected);
+	}
+	spin_unlock_bh(&sc->wiphy_lock);
+}
