@@ -2077,7 +2077,7 @@ static int ath9k_tx(struct ieee80211_hw *hw,
 	struct ath_tx_control txctl;
 	int hdrlen, padsize;
 
-	if (aphy->state != ATH_WIPHY_ACTIVE) {
+	if (aphy->state != ATH_WIPHY_ACTIVE && aphy->state != ATH_WIPHY_SCAN) {
 		printk(KERN_DEBUG "ath9k: %s: TX in unexpected wiphy state "
 		       "%d\n", wiphy_name(hw->wiphy), aphy->state);
 		goto exit;
@@ -2348,14 +2348,16 @@ static int ath9k_config(struct ieee80211_hw *hw, u32 changed)
 		aphy->chan_idx = pos;
 		aphy->chan_is_ht = conf_is_ht(conf);
 
-		/* TODO: do not change operation channel immediately if there
-		 * are other virtual wiphys that use another channel. For now,
-		 * we do the change immediately to allow mac80211-operated scan
-		 * to work. Once the scan operation is moved into ath9k, we can
-		 * just move the current aphy in PAUSED state if the channel is
-		 * changed into something different from the current operation
-		 * channel. */
-		ath9k_wiphy_pause_all_forced(sc, aphy);
+		if (aphy->state == ATH_WIPHY_SCAN ||
+		    aphy->state == ATH_WIPHY_ACTIVE)
+			ath9k_wiphy_pause_all_forced(sc, aphy);
+		else {
+			/*
+			 * Do not change operational channel based on a paused
+			 * wiphy changes.
+			 */
+			goto skip_chan_change;
+		}
 
 		DPRINTF(sc, ATH_DBG_CONFIG, "Set channel: %d MHz\n",
 			curchan->center_freq);
@@ -2372,6 +2374,7 @@ static int ath9k_config(struct ieee80211_hw *hw, u32 changed)
 		}
 	}
 
+skip_chan_change:
 	if (changed & IEEE80211_CONF_CHANGE_POWER)
 		sc->config.txpowlimit = 2 * conf->power_level;
 
@@ -2731,6 +2734,19 @@ static void ath9k_sw_scan_start(struct ieee80211_hw *hw)
 	struct ath_wiphy *aphy = hw->priv;
 	struct ath_softc *sc = aphy->sc;
 
+	if (ath9k_wiphy_scanning(sc)) {
+		printk(KERN_DEBUG "ath9k: Two wiphys trying to scan at the "
+		       "same time\n");
+		/*
+		 * Do not allow the concurrent scanning state for now. This
+		 * could be improved with scanning control moved into ath9k.
+		 */
+		return;
+	}
+
+	aphy->state = ATH_WIPHY_SCAN;
+	ath9k_wiphy_pause_all_forced(sc, aphy);
+
 	mutex_lock(&sc->mutex);
 	sc->sc_flags |= SC_OP_SCANNING;
 	mutex_unlock(&sc->mutex);
@@ -2742,6 +2758,7 @@ static void ath9k_sw_scan_complete(struct ieee80211_hw *hw)
 	struct ath_softc *sc = aphy->sc;
 
 	mutex_lock(&sc->mutex);
+	aphy->state = ATH_WIPHY_ACTIVE;
 	sc->sc_flags &= ~SC_OP_SCANNING;
 	mutex_unlock(&sc->mutex);
 }

@@ -244,6 +244,28 @@ static bool ath9k_wiphy_pausing(struct ath_softc *sc)
 	return ret;
 }
 
+static bool __ath9k_wiphy_scanning(struct ath_softc *sc)
+{
+	int i;
+	if (sc->pri_wiphy->state == ATH_WIPHY_SCAN)
+		return true;
+	for (i = 0; i < sc->num_sec_wiphy; i++) {
+		if (sc->sec_wiphy[i] &&
+		    sc->sec_wiphy[i]->state == ATH_WIPHY_SCAN)
+			return true;
+	}
+	return false;
+}
+
+bool ath9k_wiphy_scanning(struct ath_softc *sc)
+{
+	bool ret;
+	spin_lock_bh(&sc->wiphy_lock);
+	ret = __ath9k_wiphy_scanning(sc);
+	spin_unlock_bh(&sc->wiphy_lock);
+	return ret;
+}
+
 static int __ath9k_wiphy_unpause(struct ath_wiphy *aphy);
 
 /* caller must hold wiphy_lock */
@@ -463,6 +485,16 @@ int ath9k_wiphy_select(struct ath_wiphy *aphy)
 	bool now;
 
 	spin_lock_bh(&sc->wiphy_lock);
+	if (__ath9k_wiphy_scanning(sc)) {
+		/*
+		 * For now, we are using mac80211 sw scan and it expects to
+		 * have full control over channel changes, so avoid wiphy
+		 * scheduling during a scan. This could be optimized if the
+		 * scanning control were moved into the driver.
+		 */
+		spin_unlock_bh(&sc->wiphy_lock);
+		return -EBUSY;
+	}
 	if (__ath9k_wiphy_pausing(sc)) {
 		if (sc->wiphy_select_failures == 0)
 			sc->wiphy_select_first_fail = jiffies;
@@ -537,7 +569,14 @@ bool ath9k_wiphy_started(struct ath_softc *sc)
 static void ath9k_wiphy_pause_chan(struct ath_wiphy *aphy,
 				   struct ath_wiphy *selected)
 {
-	if (aphy->chan_idx == selected->chan_idx)
+	if (selected->state == ATH_WIPHY_SCAN) {
+		if (aphy == selected)
+			return;
+		/*
+		 * Pause all other wiphys for the duration of the scan even if
+		 * they are on the current channel now.
+		 */
+	} else if (aphy->chan_idx == selected->chan_idx)
 		return;
 	aphy->state = ATH_WIPHY_PAUSED;
 	ieee80211_stop_queues(aphy->hw);

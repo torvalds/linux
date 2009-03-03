@@ -633,6 +633,7 @@ struct ath_wiphy {
 		ATH_WIPHY_ACTIVE,
 		ATH_WIPHY_PAUSING,
 		ATH_WIPHY_PAUSED,
+		ATH_WIPHY_SCAN,
 	} state;
 	int chan_idx;
 	int chan_is_ht;
@@ -716,5 +717,6 @@ void ath9k_wiphy_chan_work(struct work_struct *work);
 bool ath9k_wiphy_started(struct ath_softc *sc);
 void ath9k_wiphy_pause_all_forced(struct ath_softc *sc,
 				  struct ath_wiphy *selected);
+bool ath9k_wiphy_scanning(struct ath_softc *sc);
 
 #endif /* ATH9K_H */
