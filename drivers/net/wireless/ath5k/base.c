@@ -1088,9 +1088,18 @@ ath5k_mode_setup(struct ath5k_softc *sc)
 static inline int
 ath5k_hw_to_driver_rix(struct ath5k_softc *sc, int hw_rix)
 {
-	WARN(hw_rix < 0 || hw_rix >= AR5K_MAX_RATES,
-			"hw_rix out of bounds: %x\n", hw_rix);
-	return sc->rate_idx[sc->curband->band][hw_rix];
+	int rix;
+
+	/* return base rate on errors */
+	if (WARN(hw_rix < 0 || hw_rix >= AR5K_MAX_RATES,
+			"hw_rix out of bounds: %x\n", hw_rix))
+		return 0;
+
+	rix = sc->rate_idx[sc->curband->band][hw_rix];
+	if (WARN(rix < 0, "invalid hw_rix: %x\n", hw_rix))
+		rix = 0;
+
+	return rix;
 }
 
 /***************\
