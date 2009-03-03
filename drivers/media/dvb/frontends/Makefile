@@ -64,4 +64,5 @@ obj-$(CONFIG_DVB_SI21XX) += si21xx.o
 obj-$(CONFIG_DVB_STV0288) += stv0288.o
 obj-$(CONFIG_DVB_STB6000) += stb6000.o
 obj-$(CONFIG_DVB_S921) += s921.o
+obj-$(CONFIG_DVB_STV6110) += stv6110.o
 
