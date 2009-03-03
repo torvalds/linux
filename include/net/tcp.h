@@ -825,12 +825,12 @@ static inline void tcp_push_pending_frames(struct sock *sk)
 	__tcp_push_pending_frames(sk, tcp_current_mss(sk, 1), tp->nonagle);
 }
 
-static inline void tcp_init_wl(struct tcp_sock *tp, u32 ack, u32 seq)
+static inline void tcp_init_wl(struct tcp_sock *tp, u32 seq)
 {
 	tp->snd_wl1 = seq;
 }
 
-static inline void tcp_update_wl(struct tcp_sock *tp, u32 ack, u32 seq)
+static inline void tcp_update_wl(struct tcp_sock *tp, u32 seq)
 {
 	tp->snd_wl1 = seq;
 }
