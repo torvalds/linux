@@ -236,11 +236,11 @@ static void ath_setup_rates(struct ath_softc *sc, enum ieee80211_band band)
  * by reseting the chip.  To accomplish this we must first cleanup any pending
  * DMA, then restart stuff.
 */
-static int ath_set_channel(struct ath_softc *sc, struct ath9k_channel *hchan)
+int ath_set_channel(struct ath_softc *sc, struct ieee80211_hw *hw,
+		    struct ath9k_channel *hchan)
 {
 	struct ath_hw *ah = sc->sc_ah;
 	bool fastcc = true, stopped;
-	struct ieee80211_hw *hw = sc->hw;
 	struct ieee80211_channel *channel = hw->conf.channel;
 	int r;
 
@@ -414,7 +414,7 @@ set_timer:
  * the chainmask configuration, for bt coexistence, use
  * the chainmask configuration even in legacy mode.
  */
-static void ath_update_chainmask(struct ath_softc *sc, int is_ht)
+void ath_update_chainmask(struct ath_softc *sc, int is_ht)
 {
 	sc->sc_flags |= SC_OP_CHAINMASK_UPDATE;
 	if (is_ht ||
@@ -1324,6 +1324,7 @@ void ath_detach(struct ath_softc *sc)
 	ath_deinit_rfkill(sc);
 #endif
 	ath_deinit_leds(sc);
+	cancel_work_sync(&sc->chan_work);
 
 	for (i = 0; i < sc->num_sec_wiphy; i++) {
 		struct ath_wiphy *aphy = sc->sec_wiphy[i];
@@ -1669,6 +1670,8 @@ int ath_attach(u16 devid, struct ath_softc *sc)
 	ath9k_reg_apply_radar_flags(hw->wiphy);
 	ath9k_reg_apply_world_flags(hw->wiphy, REGDOM_SET_BY_INIT);
 
+	INIT_WORK(&sc->chan_work, ath9k_wiphy_chan_work);
+
 	error = ieee80211_register_hw(hw);
 
 	if (!ath9k_is_world_regd(sc->sc_ah)) {
@@ -1917,10 +1920,9 @@ int ath_get_mac80211_qnum(u32 queue, struct ath_softc *sc)
 
 /* XXX: Remove me once we don't depend on ath9k_channel for all
  * this redundant data */
-static void ath9k_update_ichannel(struct ath_softc *sc,
-			  struct ath9k_channel *ichan)
+void ath9k_update_ichannel(struct ath_softc *sc, struct ieee80211_hw *hw,
+			   struct ath9k_channel *ichan)
 {
-	struct ieee80211_hw *hw = sc->hw;
 	struct ieee80211_channel *chan = hw->conf.channel;
 	struct ieee80211_conf *conf = &hw->conf;
 
@@ -1967,8 +1969,9 @@ static int ath9k_start(struct ieee80211_hw *hw)
 
 	pos = curchan->hw_value;
 
+	sc->chan_idx = pos;
 	init_channel = &sc->sc_ah->channels[pos];
-	ath9k_update_ichannel(sc, init_channel);
+	ath9k_update_ichannel(sc, hw, init_channel);
 
 	/* Reset SERDES registers */
 	ath9k_hw_configpcipowersave(sc->sc_ah, 0);
@@ -2307,15 +2310,21 @@ static int ath9k_config(struct ieee80211_hw *hw, u32 changed)
 		struct ieee80211_channel *curchan = hw->conf.channel;
 		int pos = curchan->hw_value;
 
+		aphy->chan_idx = pos;
+		aphy->chan_is_ht = conf_is_ht(conf);
+
+		/* TODO: do not change operation channel immediately if there
+		 * are other virtual wiphys that use another channel */
+
 		DPRINTF(sc, ATH_DBG_CONFIG, "Set channel: %d MHz\n",
 			curchan->center_freq);
 
 		/* XXX: remove me eventualy */
-		ath9k_update_ichannel(sc, &sc->sc_ah->channels[pos]);
+		ath9k_update_ichannel(sc, hw, &sc->sc_ah->channels[pos]);
 
 		ath_update_chainmask(sc, conf_is_ht(conf));
 
-		if (ath_set_channel(sc, &sc->sc_ah->channels[pos]) < 0) {
+		if (ath_set_channel(sc, hw, &sc->sc_ah->channels[pos]) < 0) {
 			DPRINTF(sc, ATH_DBG_FATAL, "Unable to set channel\n");
 			mutex_unlock(&sc->mutex);
 			return -EINVAL;

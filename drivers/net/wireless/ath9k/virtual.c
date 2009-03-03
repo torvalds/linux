@@ -222,6 +222,81 @@ exit:
 	return -1;
 }
 
+static bool __ath9k_wiphy_pausing(struct ath_softc *sc)
+{
+	int i;
+	if (sc->pri_wiphy->state == ATH_WIPHY_PAUSING)
+		return true;
+	for (i = 0; i < sc->num_sec_wiphy; i++) {
+		if (sc->sec_wiphy[i] &&
+		    sc->sec_wiphy[i]->state == ATH_WIPHY_PAUSING)
+			return true;
+	}
+	return false;
+}
+
+static bool ath9k_wiphy_pausing(struct ath_softc *sc)
+{
+	bool ret;
+	spin_lock_bh(&sc->wiphy_lock);
+	ret = __ath9k_wiphy_pausing(sc);
+	spin_unlock_bh(&sc->wiphy_lock);
+	return ret;
+}
+
+static int __ath9k_wiphy_unpause(struct ath_wiphy *aphy);
+
+/* caller must hold wiphy_lock */
+static void __ath9k_wiphy_unpause_ch(struct ath_wiphy *aphy)
+{
+	if (aphy == NULL)
+		return;
+	if (aphy->chan_idx != aphy->sc->chan_idx)
+		return; /* wiphy not on the selected channel */
+	__ath9k_wiphy_unpause(aphy);
+}
+
+static void ath9k_wiphy_unpause_channel(struct ath_softc *sc)
+{
+	int i;
+	spin_lock_bh(&sc->wiphy_lock);
+	__ath9k_wiphy_unpause_ch(sc->pri_wiphy);
+	for (i = 0; i < sc->num_sec_wiphy; i++)
+		__ath9k_wiphy_unpause_ch(sc->sec_wiphy[i]);
+	spin_unlock_bh(&sc->wiphy_lock);
+}
+
+void ath9k_wiphy_chan_work(struct work_struct *work)
+{
+	struct ath_softc *sc = container_of(work, struct ath_softc, chan_work);
+	struct ath_wiphy *aphy = sc->next_wiphy;
+
+	if (aphy == NULL)
+		return;
+
+	/*
+	 * All pending interfaces paused; ready to change
+	 * channels.
+	 */
+
+	/* Change channels */
+	mutex_lock(&sc->mutex);
+	/* XXX: remove me eventually */
+	ath9k_update_ichannel(sc, aphy->hw,
+			      &sc->sc_ah->channels[sc->chan_idx]);
+	ath_update_chainmask(sc, sc->chan_is_ht);
+	if (ath_set_channel(sc, aphy->hw,
+			    &sc->sc_ah->channels[sc->chan_idx]) < 0) {
+		printk(KERN_DEBUG "ath9k: Failed to set channel for new "
+		       "virtual wiphy\n");
+		mutex_unlock(&sc->mutex);
+		return;
+	}
+	mutex_unlock(&sc->mutex);
+
+	ath9k_wiphy_unpause_channel(sc);
+}
+
 /*
  * ath9k version of ieee80211_tx_status() for TX frames that are generated
  * internally in the driver.
@@ -244,12 +319,28 @@ void ath9k_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
 			 */
 		}
 		aphy->state = ATH_WIPHY_PAUSED;
+		if (!ath9k_wiphy_pausing(aphy->sc)) {
+			/*
+			 * Drop from tasklet to work to allow mutex for channel
+			 * change.
+			 */
+			queue_work(aphy->sc->hw->workqueue,
+				   &aphy->sc->chan_work);
+		}
 	}
 
 	kfree(tx_info_priv);
 	tx_info->rate_driver_data[0] = NULL;
 
 	dev_kfree_skb(skb);
+}
+
+static void ath9k_mark_paused(struct ath_wiphy *aphy)
+{
+	struct ath_softc *sc = aphy->sc;
+	aphy->state = ATH_WIPHY_PAUSED;
+	if (!__ath9k_wiphy_pausing(sc))
+		queue_work(sc->hw->workqueue, &sc->chan_work);
 }
 
 static void ath9k_pause_iter(void *data, u8 *mac, struct ieee80211_vif *vif)
@@ -260,15 +351,19 @@ static void ath9k_pause_iter(void *data, u8 *mac, struct ieee80211_vif *vif)
 	switch (vif->type) {
 	case NL80211_IFTYPE_STATION:
 		if (!vif->bss_conf.assoc) {
-			aphy->state = ATH_WIPHY_PAUSED;
+			ath9k_mark_paused(aphy);
 			break;
 		}
 		/* TODO: could avoid this if already in PS mode */
-		ath9k_send_nullfunc(aphy, vif, avp->bssid, 1);
+		if (ath9k_send_nullfunc(aphy, vif, avp->bssid, 1)) {
+			printk(KERN_DEBUG "%s: failed to send PS nullfunc\n",
+			       __func__);
+			ath9k_mark_paused(aphy);
+		}
 		break;
 	case NL80211_IFTYPE_AP:
 		/* Beacon transmission is paused by aphy->state change */
-		aphy->state = ATH_WIPHY_PAUSED;
+		ath9k_mark_paused(aphy);
 		break;
 	default:
 		break;
@@ -335,4 +430,50 @@ int ath9k_wiphy_unpause(struct ath_wiphy *aphy)
 	ret = __ath9k_wiphy_unpause(aphy);
 	spin_unlock_bh(&aphy->sc->wiphy_lock);
 	return ret;
+}
+
+/* caller must hold wiphy_lock */
+static void __ath9k_wiphy_pause_all(struct ath_softc *sc)
+{
+	int i;
+	if (sc->pri_wiphy->state == ATH_WIPHY_ACTIVE)
+		__ath9k_wiphy_pause(sc->pri_wiphy);
+	for (i = 0; i < sc->num_sec_wiphy; i++) {
+		if (sc->sec_wiphy[i] &&
+		    sc->sec_wiphy[i]->state == ATH_WIPHY_ACTIVE)
+			__ath9k_wiphy_pause(sc->sec_wiphy[i]);
+	}
+}
+
+int ath9k_wiphy_select(struct ath_wiphy *aphy)
+{
+	struct ath_softc *sc = aphy->sc;
+	bool now;
+
+	spin_lock_bh(&sc->wiphy_lock);
+	if (__ath9k_wiphy_pausing(sc)) {
+		spin_unlock_bh(&sc->wiphy_lock);
+		return -EBUSY; /* previous select still in progress */
+	}
+
+	/* Store the new channel */
+	sc->chan_idx = aphy->chan_idx;
+	sc->chan_is_ht = aphy->chan_is_ht;
+	sc->next_wiphy = aphy;
+
+	__ath9k_wiphy_pause_all(sc);
+	now = !__ath9k_wiphy_pausing(aphy->sc);
+	spin_unlock_bh(&sc->wiphy_lock);
+
+	if (now) {
+		/* Ready to request channel change immediately */
+		queue_work(aphy->sc->hw->workqueue, &aphy->sc->chan_work);
+	}
+
+	/*
+	 * wiphys will be unpaused in ath9k_tx_status() once channel has been
+	 * changed if any wiphy needs time to become paused.
+	 */
+
+	return 0;
 }
