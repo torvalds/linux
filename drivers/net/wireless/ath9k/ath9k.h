@@ -453,7 +453,7 @@ struct ath_beacon {
 	struct list_head bbuf;
 };
 
-void ath9k_beacon_tasklet(unsigned long data);
+void ath_beacon_tasklet(unsigned long data);
 void ath_beacon_config(struct ath_softc *sc, int if_id);
 int ath_beaconq_setup(struct ath_hw *ah);
 int ath_beacon_alloc(struct ath_softc *sc, int if_id);
