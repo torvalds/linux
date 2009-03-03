@@ -2,9 +2,9 @@
   handle cx231xx IR remotes via linux kernel input layer.
 
   Copyright (C) 2008 <srinivasa.deevi at conexant dot com>
-        Based on em28xx driver
+	Based on em28xx driver
 
-        < This is a place holder for IR now.>
+	< This is a place holder for IR now.>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -29,7 +29,6 @@
 #include <linux/usb.h>
 
 #include "cx231xx.h"
-
 
 static unsigned int ir_debug;
 module_param(ir_debug, int, 0644);
@@ -71,10 +70,8 @@ struct cx231xx_IR {
 	unsigned int last_readcount;
 	unsigned int repeat_interval;
 
-	int  (*get_key)(struct cx231xx_IR *, struct cx231xx_ir_poll_result *);
+	int (*get_key) (struct cx231xx_IR *, struct cx231xx_ir_poll_result *);
 };
-
-
 
 /**********************************************************
  Polling code for cx231xx
@@ -187,17 +184,16 @@ int cx231xx_ir_init(struct cx231xx *dev)
 
 	/* Setup the proper handler based on the chip */
 	switch (dev->chip_id) {
-	    default:
-		    printk("Unrecognized cx231xx chip id: IR not supported\n");
-		    goto err_out_free;
+	default:
+		printk("Unrecognized cx231xx chip id: IR not supported\n");
+		goto err_out_free;
 	}
 
 	/* This is how often we ask the chip for IR information */
-	ir->polling = 100; /* ms */
+	ir->polling = 100;	/* ms */
 
 	/* init input device */
-	snprintf(ir->name, sizeof(ir->name), "cx231xx IR (%s)",
-						dev->name);
+	snprintf(ir->name, sizeof(ir->name), "cx231xx IR (%s)", dev->name);
 
 	usb_make_path(dev->udev, ir->phys, sizeof(ir->phys));
 	strlcat(ir->phys, "/input0", sizeof(ir->phys));
@@ -223,10 +219,10 @@ int cx231xx_ir_init(struct cx231xx *dev)
 		goto err_out_stop;
 
 	return 0;
- err_out_stop:
+      err_out_stop:
 	cx231xx_ir_stop(ir);
 	dev->ir = NULL;
- err_out_free:
+      err_out_free:
 	input_free_device(input_dev);
 	kfree(ir);
 	return err;

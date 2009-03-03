@@ -2,7 +2,7 @@
    cx231xx-cards.c - driver for Conexant Cx23100/101/102 USB video capture devices
 
    Copyright (C) 2008 <srinivasa.deevi at conexant dot com>
-        Based on em28xx driver
+	Based on em28xx driver
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -50,13 +50,11 @@ static unsigned long cx231xx_devused;
  */
 
 static struct cx231xx_reg_seq RDE250_XCV_TUNER[] = {
-    { 0x03, 0x01, 10 },
-    { 0x03, 0x00, 30 },
-    { 0x03, 0x01, 10 },
-    {   -1,   -1, -1 },
+	{0x03, 0x01, 10},
+	{0x03, 0x00, 30},
+	{0x03, 0x01, 10},
+	{-1, -1, -1},
 };
-
-
 
 /*
  *  Board definitions
@@ -64,117 +62,139 @@ static struct cx231xx_reg_seq RDE250_XCV_TUNER[] = {
 struct cx231xx_board cx231xx_boards[] = {
 
 	[CX231XX_BOARD_UNKNOWN] = {
-		.name          = "Unknown CX231xx video grabber",
-		.tuner_type    = TUNER_ABSENT,
-        .input        = { {
-			.type     = CX231XX_VMUX_TELEVISION,
-			.vmux     = CX231XX_VIN_3_1,
-			.amux     = CX231XX_AMUX_VIDEO,
-			.gpio     = 0,
-		}, {
-			.type     = CX231XX_VMUX_COMPOSITE1,
-			.vmux     = CX231XX_VIN_2_1,
-			.amux     = CX231XX_AMUX_LINE_IN,
-			.gpio     = 0,
-		}, {
-			.type     = CX231XX_VMUX_SVIDEO,
-			.vmux     = CX231XX_VIN_1_1 | (CX231XX_VIN_1_2 << 8 ) |
-					    CX25840_SVIDEO_ON,
-			.amux     = CX231XX_AMUX_LINE_IN,
-			.gpio     = 0,
-		} },
-	},
+				   .name = "Unknown CX231xx video grabber",
+				   .tuner_type = TUNER_ABSENT,
+				   .input = {{
+					      .type = CX231XX_VMUX_TELEVISION,
+					      .vmux = CX231XX_VIN_3_1,
+					      .amux = CX231XX_AMUX_VIDEO,
+					      .gpio = 0,
+					      }, {
+						  .type =
+						  CX231XX_VMUX_COMPOSITE1,
+						  .vmux = CX231XX_VIN_2_1,
+						  .amux = CX231XX_AMUX_LINE_IN,
+						  .gpio = 0,
+						  }, {
+						      .type =
+						      CX231XX_VMUX_SVIDEO,
+						      .vmux =
+						      CX231XX_VIN_1_1 |
+						      (CX231XX_VIN_1_2 << 8) |
+						      CX25840_SVIDEO_ON,
+						      .amux =
+						      CX231XX_AMUX_LINE_IN,
+						      .gpio = 0,
+						      }},
+				   },
 
 	[CX231XX_BOARD_CNXT_RDE_250] = {
-		.name         = "Conexant Hybrid TV - RDE250",
-		.valid        = CX231XX_BOARD_VALIDATED,
-		.tuner_type   = TUNER_XC5000,
-        .tuner_addr   = 0x61,
-		.tuner_gpio   = RDE250_XCV_TUNER,
-        .tuner_sif_gpio = 0x05,
-		.tuner_scl_gpio = 0x1a,
-        .tuner_sda_gpio = 0x1b,
-        .decoder      = CX231XX_AVDECODER,
-        .demod_xfer_mode                = 0,
-        .ctl_pin_status_mask            = 0xFFFFFFC4,
-        .agc_analog_digital_select_gpio = 0x0c,
-        .gpio_pin_status_mask           = 0x4001000,
-        .tuner_i2c_master               = 1,
-        .demod_i2c_master               = 2,
-		.has_dvb      = 1,
-        .demod_addr   = 0x02,
-        .norm         = V4L2_STD_PAL,
+					.name = "Conexant Hybrid TV - RDE250",
+					.valid = CX231XX_BOARD_VALIDATED,
+					.tuner_type = TUNER_XC5000,
+					.tuner_addr = 0x61,
+					.tuner_gpio = RDE250_XCV_TUNER,
+					.tuner_sif_gpio = 0x05,
+					.tuner_scl_gpio = 0x1a,
+					.tuner_sda_gpio = 0x1b,
+					.decoder = CX231XX_AVDECODER,
+					.demod_xfer_mode = 0,
+					.ctl_pin_status_mask = 0xFFFFFFC4,
+					.agc_analog_digital_select_gpio = 0x0c,
+					.gpio_pin_status_mask = 0x4001000,
+					.tuner_i2c_master = 1,
+					.demod_i2c_master = 2,
+					.has_dvb = 1,
+					.demod_addr = 0x02,
+					.norm = V4L2_STD_PAL,
 
-		.input        = { {
-			.type     = CX231XX_VMUX_TELEVISION,
-			.vmux     = CX231XX_VIN_3_1,
-			.amux     = CX231XX_AMUX_VIDEO,
-			.gpio     = 0,
-		}, {
-			.type     = CX231XX_VMUX_COMPOSITE1,
-			.vmux     = CX231XX_VIN_2_1,
-			.amux     = CX231XX_AMUX_LINE_IN,
-			.gpio     = 0,
-		}, {
-			.type     = CX231XX_VMUX_SVIDEO,
-			.vmux     = CX231XX_VIN_1_1 | (CX231XX_VIN_1_2 << 8 ) |
-					    CX25840_SVIDEO_ON,
-			.amux     = CX231XX_AMUX_LINE_IN,
-			.gpio     = 0,
-		} },
-	},
+					.input = {{
+						   .type =
+						   CX231XX_VMUX_TELEVISION,
+						   .vmux = CX231XX_VIN_3_1,
+						   .amux = CX231XX_AMUX_VIDEO,
+						   .gpio = 0,
+						   }, {
+						       .type =
+						       CX231XX_VMUX_COMPOSITE1,
+						       .vmux = CX231XX_VIN_2_1,
+						       .amux =
+						       CX231XX_AMUX_LINE_IN,
+						       .gpio = 0,
+						       }, {
+							   .type =
+							   CX231XX_VMUX_SVIDEO,
+							   .vmux =
+							   CX231XX_VIN_1_1 |
+							   (CX231XX_VIN_1_2 <<
+							    8) |
+							   CX25840_SVIDEO_ON,
+							   .amux =
+							   CX231XX_AMUX_LINE_IN,
+							   .gpio = 0,
+							   }},
+					},
 
-    [CX231XX_BOARD_CNXT_RDU_250] = {
-		.name         = "Conexant Hybrid TV - RDU250",
-		.valid        = CX231XX_BOARD_VALIDATED,
-		.tuner_type   = TUNER_XC5000,
-        .tuner_addr   = 0x61,
-		.tuner_gpio   = RDE250_XCV_TUNER,
-        .tuner_sif_gpio = 0x05,
-		.tuner_scl_gpio = 0x1a,
-        .tuner_sda_gpio = 0x1b,
-        .decoder      = CX231XX_AVDECODER,
-        .demod_xfer_mode                = 0,
-        .ctl_pin_status_mask            = 0xFFFFFFC4,
-        .agc_analog_digital_select_gpio = 0x0c,
-        .gpio_pin_status_mask           = 0x4001000,
-        .tuner_i2c_master               = 1,
-        .demod_i2c_master               = 2,
-		.has_dvb      = 1,
-        .demod_addr   = 0x32,
-        .norm         = V4L2_STD_NTSC,
+	[CX231XX_BOARD_CNXT_RDU_250] = {
+					.name = "Conexant Hybrid TV - RDU250",
+					.valid = CX231XX_BOARD_VALIDATED,
+					.tuner_type = TUNER_XC5000,
+					.tuner_addr = 0x61,
+					.tuner_gpio = RDE250_XCV_TUNER,
+					.tuner_sif_gpio = 0x05,
+					.tuner_scl_gpio = 0x1a,
+					.tuner_sda_gpio = 0x1b,
+					.decoder = CX231XX_AVDECODER,
+					.demod_xfer_mode = 0,
+					.ctl_pin_status_mask = 0xFFFFFFC4,
+					.agc_analog_digital_select_gpio = 0x0c,
+					.gpio_pin_status_mask = 0x4001000,
+					.tuner_i2c_master = 1,
+					.demod_i2c_master = 2,
+					.has_dvb = 1,
+					.demod_addr = 0x32,
+					.norm = V4L2_STD_NTSC,
 
-		.input        = { {
-			.type     = CX231XX_VMUX_TELEVISION,
-			.vmux     = CX231XX_VIN_3_1,
-			.amux     = CX231XX_AMUX_VIDEO,
-			.gpio     = 0,
-		}, {
-			.type     = CX231XX_VMUX_COMPOSITE1,
-			.vmux     = CX231XX_VIN_2_1,
-			.amux     = CX231XX_AMUX_LINE_IN,
-			.gpio     = 0,
-		}, {
-			.type     = CX231XX_VMUX_SVIDEO,
-			.vmux     = CX231XX_VIN_1_1 | (CX231XX_VIN_1_2 << 8 ) |
-					    CX25840_SVIDEO_ON,
-			.amux     = CX231XX_AMUX_LINE_IN,
-			.gpio     = 0,
-		} },
-	},
+					.input = {{
+						   .type =
+						   CX231XX_VMUX_TELEVISION,
+						   .vmux = CX231XX_VIN_3_1,
+						   .amux = CX231XX_AMUX_VIDEO,
+						   .gpio = 0,
+						   }, {
+						       .type =
+						       CX231XX_VMUX_COMPOSITE1,
+						       .vmux = CX231XX_VIN_2_1,
+						       .amux =
+						       CX231XX_AMUX_LINE_IN,
+						       .gpio = 0,
+						       }, {
+							   .type =
+							   CX231XX_VMUX_SVIDEO,
+							   .vmux =
+							   CX231XX_VIN_1_1 |
+							   (CX231XX_VIN_1_2 <<
+							    8) |
+							   CX25840_SVIDEO_ON,
+							   .amux =
+							   CX231XX_AMUX_LINE_IN,
+							   .gpio = 0,
+							   }},
+					},
 };
 const unsigned int cx231xx_bcount = ARRAY_SIZE(cx231xx_boards);
 
 /* table of devices that work with this driver */
-struct usb_device_id cx231xx_id_table [] = {
-	{ USB_DEVICE(0x0572, 0x58A0),
-			.driver_info = CX231XX_BOARD_UNKNOWN },
-	{ USB_DEVICE(0x0572, 0x58A2),
-			.driver_info = CX231XX_BOARD_CNXT_RDE_250 },
-    { USB_DEVICE(0x0572, 0x5A3C),
-			.driver_info = CX231XX_BOARD_CNXT_RDU_250 },
-	{ },
+struct usb_device_id cx231xx_id_table[] = {
+	{USB_DEVICE(0x0572, 0x58A0),
+	 .driver_info = CX231XX_BOARD_UNKNOWN},
+	{USB_DEVICE(0x0572, 0x58A2),
+	 .driver_info = CX231XX_BOARD_CNXT_RDE_250},
+	{USB_DEVICE(0x0572, 0x5A3C),
+	 .driver_info = CX231XX_BOARD_CNXT_RDU_250},
+	{},
 };
+
 MODULE_DEVICE_TABLE(usb, cx231xx_id_table);
 
 /* cx231xx_tuner_callback
@@ -186,21 +206,26 @@ int cx231xx_tuner_callback(void *ptr, int component, int command, int arg)
 	int rc = 0;
 	struct cx231xx *dev = ptr;
 
-    if (dev->tuner_type == TUNER_XC5000) {
-        if (command == XC5000_TUNER_RESET) {
-            cx231xx_info("Tuner Call back : RESET : command %d : tuner type %d \n",
-                command, dev->tuner_type);
+	if (dev->tuner_type == TUNER_XC5000) {
+		if (command == XC5000_TUNER_RESET) {
+			cx231xx_info
+			    ("Tuner Call back : RESET : command %d : tuner type %d \n",
+			     command, dev->tuner_type);
 
-            cx231xx_set_gpio_value(dev, dev->board.tuner_gpio->bit,1);
-            msleep(10);
-            cx231xx_set_gpio_value(dev, dev->board.tuner_gpio->bit,0);
-            msleep(330);
-            cx231xx_set_gpio_value(dev, dev->board.tuner_gpio->bit,1);
-            msleep(10);
-        }
-    }
+			cx231xx_set_gpio_value(dev, dev->board.tuner_gpio->bit,
+					       1);
+			msleep(10);
+			cx231xx_set_gpio_value(dev, dev->board.tuner_gpio->bit,
+					       0);
+			msleep(330);
+			cx231xx_set_gpio_value(dev, dev->board.tuner_gpio->bit,
+					       1);
+			msleep(10);
+		}
+	}
 	return rc;
 }
+
 EXPORT_SYMBOL_GPL(cx231xx_tuner_callback);
 
 static void inline cx231xx_set_model(struct cx231xx *dev)
@@ -217,34 +242,34 @@ void cx231xx_pre_card_setup(struct cx231xx *dev)
 	cx231xx_set_model(dev);
 
 	cx231xx_info("Identified as %s (card=%d)\n",
-		    dev->board.name, dev->model);
+		     dev->board.name, dev->model);
 
 	/* Do card specific if any */
 	switch (dev->model) {
-        case CX231XX_BOARD_CNXT_RDE_250:
-            /* do card specific GPIO settings if required */
-            cx231xx_info("Precard: Board is Conexnat RDE 250\n");
-            /* set the direction for GPIO pins */
-            cx231xx_set_gpio_direction(dev, dev->board.tuner_gpio->bit,1);
-            cx231xx_set_gpio_value(dev, dev->board.tuner_gpio->bit,1);
-            cx231xx_set_gpio_direction(dev, dev->board.tuner_sif_gpio,1);
-            break;
-        case CX231XX_BOARD_CNXT_RDU_250:
-            /* do card specific GPIO settings if required */
-            cx231xx_info("Precard: Board is Conexnat RDU 250\n");
-            /* set the direction for GPIO pins */
-            cx231xx_set_gpio_direction(dev, dev->board.tuner_gpio->bit,1);
-            cx231xx_set_gpio_value(dev, dev->board.tuner_gpio->bit,1);
-            cx231xx_set_gpio_direction(dev, dev->board.tuner_sif_gpio,1);
-            break;
+	case CX231XX_BOARD_CNXT_RDE_250:
+		/* do card specific GPIO settings if required */
+		cx231xx_info("Precard: Board is Conexnat RDE 250\n");
+		/* set the direction for GPIO pins */
+		cx231xx_set_gpio_direction(dev, dev->board.tuner_gpio->bit, 1);
+		cx231xx_set_gpio_value(dev, dev->board.tuner_gpio->bit, 1);
+		cx231xx_set_gpio_direction(dev, dev->board.tuner_sif_gpio, 1);
+		break;
+	case CX231XX_BOARD_CNXT_RDU_250:
+		/* do card specific GPIO settings if required */
+		cx231xx_info("Precard: Board is Conexnat RDU 250\n");
+		/* set the direction for GPIO pins */
+		cx231xx_set_gpio_direction(dev, dev->board.tuner_gpio->bit, 1);
+		cx231xx_set_gpio_value(dev, dev->board.tuner_gpio->bit, 1);
+		cx231xx_set_gpio_direction(dev, dev->board.tuner_sif_gpio, 1);
+		break;
 	}
 
 	/* request some modules if any required */
 
-    /* reset the Tuner */
+	/* reset the Tuner */
 	cx231xx_gpio_set(dev, dev->board.tuner_gpio);
 
-    /* set the mode to Analog mode initially */
+	/* set the mode to Analog mode initially */
 	cx231xx_set_mode(dev, CX231XX_ANALOG_MODE);
 
 	/* Unlock device */
@@ -256,8 +281,8 @@ void cx231xx_pre_card_setup(struct cx231xx *dev)
 
 static void cx231xx_config_tuner(struct cx231xx *dev)
 {
-	struct tuner_setup           tun_setup;
-	struct v4l2_frequency        f;
+	struct tuner_setup tun_setup;
+	struct v4l2_frequency f;
 
 	if (dev->tuner_type == TUNER_ABSENT)
 		return;
@@ -267,26 +292,28 @@ static void cx231xx_config_tuner(struct cx231xx *dev)
 	tun_setup.addr = dev->tuner_addr;
 	tun_setup.tuner_callback = cx231xx_tuner_callback;
 
-	cx231xx_i2c_call_clients(&dev->i2c_bus[1], TUNER_SET_TYPE_ADDR, &tun_setup);
+	cx231xx_i2c_call_clients(&dev->i2c_bus[1], TUNER_SET_TYPE_ADDR,
+				 &tun_setup);
 #if 0
-    if (tun_setup.type == TUNER_XC5000) {
+	if (tun_setup.type == TUNER_XC5000) {
 		static struct xc2028_ctrl ctrl = {
 			.fname = XC5000_DEFAULT_FIRMWARE,
 			.max_len = 64,
-            .demod = 0;
+			.demod = 0;
 		};
 		struct v4l2_priv_tun_config cfg = {
 			.tuner = dev->tuner_type,
 			.priv = &ctrl,
 		};
-		cx231xx_i2c_call_clients(&dev->i2c_bus[1], TUNER_SET_CONFIG, &cfg);
+		cx231xx_i2c_call_clients(&dev->i2c_bus[1], TUNER_SET_CONFIG,
+					 &cfg);
 	}
 #endif
 
 	/* configure tuner */
 	f.tuner = 0;
 	f.type = V4L2_TUNER_ANALOG_TV;
-	f.frequency = 9076;     /* just a magic number */
+	f.frequency = 9076;	/* just a magic number */
 	dev->ctl_freq = f.frequency;
 	cx231xx_i2c_call_clients(&dev->i2c_bus[1], VIDIOC_S_FREQUENCY, &f);
 }
@@ -298,18 +325,18 @@ void cx231xx_set_ir(struct cx231xx *dev, struct IR_i2c *ir)
 {
 	if (disable_ir) {
 		ir->get_key = NULL;
-		return ;
+		return;
 	}
 
 	/* detect & configure */
 	switch (dev->model) {
 
-        case CX231XX_BOARD_CNXT_RDE_250:
-            break;
-        case CX231XX_BOARD_CNXT_RDU_250:
-            break;
-        default:
-		    break;
+	case CX231XX_BOARD_CNXT_RDE_250:
+		break;
+	case CX231XX_BOARD_CNXT_RDU_250:
+		break;
+	default:
+		break;
 	}
 }
 
@@ -321,50 +348,47 @@ void cx231xx_card_setup(struct cx231xx *dev)
 	if (cx231xx_boards[dev->model].tuner_addr)
 		dev->tuner_addr = cx231xx_boards[dev->model].tuner_addr;
 
-    cx231xx_info(": tuner type %d, tuner address %d \n",
-        dev->tuner_type, dev->tuner_addr);
+	cx231xx_info(": tuner type %d, tuner address %d \n",
+		     dev->tuner_type, dev->tuner_addr);
 
 	/* Do card specific if any */
 	switch (dev->model) {
-        case CX231XX_BOARD_CNXT_RDE_250:
-            /* do card specific GPIO settings if required */
-            cx231xx_info("Board is Conexnat RDE 250\n");
-            break;
-        case CX231XX_BOARD_CNXT_RDU_250:
-            /* do card specific GPIO settings if required */
-            cx231xx_info("Board is Conexnat RDU 250\n");
-            break;
+	case CX231XX_BOARD_CNXT_RDE_250:
+		/* do card specific GPIO settings if required */
+		cx231xx_info("Board is Conexnat RDE 250\n");
+		break;
+	case CX231XX_BOARD_CNXT_RDU_250:
+		/* do card specific GPIO settings if required */
+		cx231xx_info("Board is Conexnat RDU 250\n");
+		break;
 	}
 
 	if (dev->board.valid == CX231XX_BOARD_NOT_VALIDATED) {
 		cx231xx_errdev("\n\n");
 		cx231xx_errdev("The support for this board weren't "
-			      "valid yet.\n");
+			       "valid yet.\n");
 		cx231xx_errdev("Please send a report of having this working\n");
 		cx231xx_errdev("not to V4L mailing list (and/or to other "
-				"addresses)\n\n");
+			       "addresses)\n\n");
 	}
 
-
 	/* request some modules */
-    if (dev->board.decoder == CX231XX_AVDECODER) {
-        cx231xx_info(": Requesting cx25840 module\n");
+	if (dev->board.decoder == CX231XX_AVDECODER) {
+		cx231xx_info(": Requesting cx25840 module\n");
 		request_module("cx25840");
-    }
+	}
 #if 0
-    if (dev->board.tuner_type != TUNER_ABSENT) {
-        cx231xx_info(": Requesting Tuner module\n");
+	if (dev->board.tuner_type != TUNER_ABSENT) {
+		cx231xx_info(": Requesting Tuner module\n");
 		request_module("tuner");
-    }
+	}
 
 	cx231xx_config_tuner(dev);
 
-    /* TBD  IR will be added later */
+	/* TBD  IR will be added later */
 	cx231xx_ir_init(dev);
 #endif
 }
-
-
 
 /*
  * cx231xx_config()
@@ -372,7 +396,7 @@ void cx231xx_card_setup(struct cx231xx *dev)
  */
 int cx231xx_config(struct cx231xx *dev)
 {
-    /* TBD need to add cx231xx specific code */
+	/* TBD need to add cx231xx specific code */
 	dev->mute = 1;		/* maybe not the right place... */
 	dev->volume = 0x1f;
 
@@ -401,30 +425,29 @@ void cx231xx_config_i2c(struct cx231xx *dev)
 void cx231xx_release_resources(struct cx231xx *dev)
 {
 
-#if 0 /* TBD IR related  */
+#if 0		/* TBD IR related  */
 	if (dev->ir)
 		cx231xx_ir_fini(dev);
 #endif
 
 	cx231xx_release_analog_resources(dev);
 
-    cx231xx_remove_from_devlist(dev);
+	cx231xx_remove_from_devlist(dev);
 
-    cx231xx_dev_uninit(dev);
+	cx231xx_dev_uninit(dev);
 
 	usb_put_dev(dev->udev);
 
 	/* Mark device as unused */
-	cx231xx_devused &= ~(1<<dev->devno);
+	cx231xx_devused &= ~(1 << dev->devno);
 }
-
 
 /*
  * cx231xx_init_dev()
  * allocates and inits the device structs, registers i2c bus and v4l device
  */
 static int cx231xx_init_dev(struct cx231xx **devhandle, struct usb_device *udev,
-			   int minor)
+			    int minor)
 {
 	struct cx231xx *dev = *devhandle;
 	int retval = -ENOMEM;
@@ -434,26 +457,26 @@ static int cx231xx_init_dev(struct cx231xx **devhandle, struct usb_device *udev,
 	dev->udev = udev;
 	mutex_init(&dev->lock);
 	mutex_init(&dev->ctrl_urb_lock);
-    mutex_init(&dev->gpio_i2c_lock);
+	mutex_init(&dev->gpio_i2c_lock);
 
-    spin_lock_init(&dev->video_mode.slock);
-    spin_lock_init(&dev->vbi_mode.slock);
-    spin_lock_init(&dev->sliced_cc_mode.slock);
+	spin_lock_init(&dev->video_mode.slock);
+	spin_lock_init(&dev->vbi_mode.slock);
+	spin_lock_init(&dev->sliced_cc_mode.slock);
 
 	init_waitqueue_head(&dev->open);
 	init_waitqueue_head(&dev->wait_frame);
 	init_waitqueue_head(&dev->wait_stream);
 
-    dev->cx231xx_read_ctrl_reg = cx231xx_read_ctrl_reg;
-    dev->cx231xx_write_ctrl_reg = cx231xx_write_ctrl_reg;
-    dev->cx231xx_send_usb_command = cx231xx_send_usb_command;
-    dev->cx231xx_gpio_i2c_read = cx231xx_gpio_i2c_read;
-    dev->cx231xx_gpio_i2c_write = cx231xx_gpio_i2c_write;
+	dev->cx231xx_read_ctrl_reg = cx231xx_read_ctrl_reg;
+	dev->cx231xx_write_ctrl_reg = cx231xx_write_ctrl_reg;
+	dev->cx231xx_send_usb_command = cx231xx_send_usb_command;
+	dev->cx231xx_gpio_i2c_read = cx231xx_gpio_i2c_read;
+	dev->cx231xx_gpio_i2c_write = cx231xx_gpio_i2c_write;
 
-    /* Query cx231xx to find what pcb config it is related to */
-    initialize_cx231xx(dev);
+	/* Query cx231xx to find what pcb config it is related to */
+	initialize_cx231xx(dev);
 
-    /* Cx231xx pre card setup */
+	/* Cx231xx pre card setup */
 	cx231xx_pre_card_setup(dev);
 
 	errCode = cx231xx_config(dev);
@@ -462,14 +485,14 @@ static int cx231xx_init_dev(struct cx231xx **devhandle, struct usb_device *udev,
 		return -ENOMEM;
 	}
 
-    /* set default norm */
+	/* set default norm */
 	dev->norm = dev->board.norm;
 
 	/* register i2c bus */
 	errCode = cx231xx_dev_init(dev);
 	if (errCode < 0) {
 		cx231xx_errdev("%s: cx231xx_i2c_register - errCode [%d]!\n",
-			__func__, errCode);
+			       __func__, errCode);
 		return errCode;
 	}
 
@@ -493,7 +516,7 @@ static int cx231xx_init_dev(struct cx231xx **devhandle, struct usb_device *udev,
 	errCode = cx231xx_config(dev);
 	if (errCode < 0) {
 		cx231xx_errdev("%s: cx231xx_config - errCode [%d]!\n",
-			__func__, errCode);
+			       __func__, errCode);
 		return errCode;
 	}
 
@@ -501,13 +524,13 @@ static int cx231xx_init_dev(struct cx231xx **devhandle, struct usb_device *udev,
 	INIT_LIST_HEAD(&dev->video_mode.vidq.active);
 	INIT_LIST_HEAD(&dev->video_mode.vidq.queued);
 
-    /* init vbi dma queues */
+	/* init vbi dma queues */
 	INIT_LIST_HEAD(&dev->vbi_mode.vidq.active);
 	INIT_LIST_HEAD(&dev->vbi_mode.vidq.queued);
 
 	/* Reset other chips required if they are tied up with GPIO pins */
 
-    cx231xx_add_into_devlist(dev);
+	cx231xx_add_into_devlist(dev);
 
 	retval = cx231xx_register_analog_devices(dev);
 	if (retval < 0) {
@@ -519,7 +542,7 @@ static int cx231xx_init_dev(struct cx231xx **devhandle, struct usb_device *udev,
 
 	return 0;
 
-fail_reg_devices:
+      fail_reg_devices:
 	mutex_unlock(&dev->lock);
 	return retval;
 }
@@ -528,8 +551,7 @@ fail_reg_devices:
 static void request_module_async(struct work_struct *work)
 {
 	struct cx231xx *dev = container_of(work,
-			     struct cx231xx, request_module_wk);
-
+					   struct cx231xx, request_module_wk);
 
 	if (dev->has_alsa_audio)
 		request_module("cx231xx-alsa");
@@ -548,130 +570,130 @@ static void request_modules(struct cx231xx *dev)
 #define request_modules(dev)
 #endif /* CONFIG_MODULES */
 
-
-
 /*
  * cx231xx_usb_probe()
  * checks for supported devices
  */
 static int cx231xx_usb_probe(struct usb_interface *interface,
-			    const struct usb_device_id *id)
+			     const struct usb_device_id *id)
 {
 	struct usb_device *udev;
 	struct usb_interface *uif;
 	struct cx231xx *dev = NULL;
 	int retval = -ENODEV;
-    int nr, ifnum;
+	int nr, ifnum;
 	int i, isoc_pipe = 0;
 	char *speed;
 	char descr[255] = "";
-    struct usb_interface *lif = NULL;
-    int skip_interface = 0;
-    struct usb_interface_assoc_descriptor *assoc_desc;
+	struct usb_interface *lif = NULL;
+	int skip_interface = 0;
+	struct usb_interface_assoc_descriptor *assoc_desc;
 
 	udev = usb_get_dev(interface_to_usbdev(interface));
 	ifnum = interface->altsetting[0].desc.bInterfaceNumber;
 
-    cx231xx_info(": Interface Number %d\n", ifnum);
+	cx231xx_info(": Interface Number %d\n", ifnum);
 
-    /* Interface number 0 - IR interface */
-    if(ifnum == 0 ){
-        /* Check to see next free device and mark as used */
-	    nr = find_first_zero_bit(&cx231xx_devused, CX231XX_MAXBOARDS);
-	    cx231xx_devused |= 1<<nr;
+	/* Interface number 0 - IR interface */
+	if (ifnum == 0) {
+		/* Check to see next free device and mark as used */
+		nr = find_first_zero_bit(&cx231xx_devused, CX231XX_MAXBOARDS);
+		cx231xx_devused |= 1 << nr;
 
-        if (nr >= CX231XX_MAXBOARDS) {
-		    cx231xx_info(": Supports only %i cx231xx boards.\n",
-				    CX231XX_MAXBOARDS);
-		    cx231xx_devused &= ~(1<<nr);
-		    return -ENOMEM;
-	    }
+		if (nr >= CX231XX_MAXBOARDS) {
+			cx231xx_info(": Supports only %i cx231xx boards.\n",
+				     CX231XX_MAXBOARDS);
+			cx231xx_devused &= ~(1 << nr);
+			return -ENOMEM;
+		}
 
-        /* allocate memory for our device state and initialize it */
-	    dev = kzalloc(sizeof(*dev), GFP_KERNEL);
-	    if (dev == NULL) {
-		    cx231xx_err(DRIVER_NAME ": out of memory!\n");
-		    cx231xx_devused &= ~(1<<nr);
-		    return -ENOMEM;
-	    }
+		/* allocate memory for our device state and initialize it */
+		dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+		if (dev == NULL) {
+			cx231xx_err(DRIVER_NAME ": out of memory!\n");
+			cx231xx_devused &= ~(1 << nr);
+			return -ENOMEM;
+		}
 
-	    snprintf(dev->name, 29, "cx231xx #%d", nr);
-	    dev->devno = nr;
-	    dev->model = id->driver_info;
-	    dev->video_mode.alt   = -1;
-        dev->interface_count++;
+		snprintf(dev->name, 29, "cx231xx #%d", nr);
+		dev->devno = nr;
+		dev->model = id->driver_info;
+		dev->video_mode.alt = -1;
+		dev->interface_count++;
 
-        /* reset gpio dir and value */
-        dev->gpio_dir = 0;
-        dev->gpio_val = 0;
-        dev->xc_fw_load_done = 0;
+		/* reset gpio dir and value */
+		dev->gpio_dir = 0;
+		dev->gpio_val = 0;
+		dev->xc_fw_load_done = 0;
 		dev->has_alsa_audio = 1;
-        dev->power_mode = -1;
+		dev->power_mode = -1;
 
-        dev->vbi_or_sliced_cc_mode = 0; /* 0 - vbi ; 1 -sliced cc mode */
+		dev->vbi_or_sliced_cc_mode = 0;	/* 0 - vbi ; 1 -sliced cc mode */
 
-        /* get maximum no.of IAD interfaces */
-        assoc_desc = udev->actconfig->intf_assoc[0];
-        dev->max_iad_interface_count  = assoc_desc->bInterfaceCount;
-        cx231xx_info(": Found IAD interface count %d\n", dev->max_iad_interface_count);
+		/* get maximum no.of IAD interfaces */
+		assoc_desc = udev->actconfig->intf_assoc[0];
+		dev->max_iad_interface_count = assoc_desc->bInterfaceCount;
+		cx231xx_info(": Found IAD interface count %d\n",
+			     dev->max_iad_interface_count);
 
-        /* init CIR module TBD */
+		/* init CIR module TBD */
 
-        /* store the current interface */
-        lif = interface;
+		/* store the current interface */
+		lif = interface;
 
-    }
-    else if(ifnum == 1 ){
+	} else if (ifnum == 1) {
 
-        /* Get dev structure first */
-        dev = usb_get_intfdata(udev->actconfig->interface[0]);
-        if(dev == NULL){
-		    cx231xx_err(DRIVER_NAME ": out of first interface!\n");
-		    return -ENODEV;
-	    }
+		/* Get dev structure first */
+		dev = usb_get_intfdata(udev->actconfig->interface[0]);
+		if (dev == NULL) {
+			cx231xx_err(DRIVER_NAME ": out of first interface!\n");
+			return -ENODEV;
+		}
 
-        /* store the interface 0 back */
-        lif = udev->actconfig->interface[0];
+		/* store the interface 0 back */
+		lif = udev->actconfig->interface[0];
 
-        /* increment interface count */
-        dev->interface_count++;
+		/* increment interface count */
+		dev->interface_count++;
 
-        /* get device number */
-        nr = dev->devno;
+		/* get device number */
+		nr = dev->devno;
 
-        assoc_desc = udev->actconfig->intf_assoc[0];
-        if(assoc_desc->bFirstInterface == ifnum){
-            cx231xx_info(": Found IAD interface match: AV Descriptor Start!! \n");
-        } else {
-            cx231xx_err(DRIVER_NAME " Not found matching interface\n");
-            return -ENODEV;
-        }
+		assoc_desc = udev->actconfig->intf_assoc[0];
+		if (assoc_desc->bFirstInterface == ifnum) {
+			cx231xx_info
+			    (": Found IAD interface match: AV Descriptor Start!! \n");
+		} else {
+			cx231xx_err(DRIVER_NAME
+				    " Not found matching interface\n");
+			return -ENODEV;
+		}
 
-    }
-    else if(ifnum >= 2) {
-        /* Get dev structure first */
-        dev = usb_get_intfdata(udev->actconfig->interface[0]);
-        if(dev == NULL){
-		    cx231xx_err(DRIVER_NAME ": out of first interface!\n");
-		    return -ENODEV;
-	    }
+	} else if (ifnum >= 2) {
+		/* Get dev structure first */
+		dev = usb_get_intfdata(udev->actconfig->interface[0]);
+		if (dev == NULL) {
+			cx231xx_err(DRIVER_NAME ": out of first interface!\n");
+			return -ENODEV;
+		}
 
-        /* store the interface 0 back */
-        lif = udev->actconfig->interface[0];
+		/* store the interface 0 back */
+		lif = udev->actconfig->interface[0];
 
-        /* increment interface count */
-        dev->interface_count++;
+		/* increment interface count */
+		dev->interface_count++;
 
-        /* get device number */
-        nr = dev->devno;
+		/* get device number */
+		nr = dev->devno;
 
-        /* set skip interface */
-        if((dev->interface_count -1) != dev->max_iad_interface_count )
-            skip_interface = 1; /* set skipping */
-        else{
-            cx231xx_info(": Found IAD interface number match with AV Device number!! \n");
-        }
-    }
+		/* set skip interface */
+		if ((dev->interface_count - 1) != dev->max_iad_interface_count)
+			skip_interface = 1;	/* set skipping */
+		else {
+			cx231xx_info
+			    (": Found IAD interface number match with AV Device number!! \n");
+		}
+	}
 
 	switch (udev->speed) {
 	case USB_SPEED_LOW:
@@ -700,153 +722,184 @@ static int cx231xx_usb_probe(struct usb_interface *interface,
 		strlcat(descr, " ", sizeof(descr));
 
 	cx231xx_info("New device %s@ %s Mbps "
-		"(%04x:%04x, interface %d, class %d)\n",
-		descr,
-		speed,
-		le16_to_cpu(udev->descriptor.idVendor),
-		le16_to_cpu(udev->descriptor.idProduct),
-		ifnum,
-		interface->altsetting->desc.bInterfaceNumber);
+		     "(%04x:%04x, interface %d, class %d)\n",
+		     descr,
+		     speed,
+		     le16_to_cpu(udev->descriptor.idVendor),
+		     le16_to_cpu(udev->descriptor.idProduct),
+		     ifnum, interface->altsetting->desc.bInterfaceNumber);
 
-    /* AV device initialization */
-    if((dev->interface_count -1) == dev->max_iad_interface_count ) {
-        cx231xx_info(" Calling init_dev\n");
-	    /* allocate device struct */
-	    retval = cx231xx_init_dev(&dev, udev, nr);
-	    if (retval) {
-		    cx231xx_devused &= ~(1<<dev->devno);
-		    kfree(dev);
+	/* AV device initialization */
+	if ((dev->interface_count - 1) == dev->max_iad_interface_count) {
+		cx231xx_info(" Calling init_dev\n");
+		/* allocate device struct */
+		retval = cx231xx_init_dev(&dev, udev, nr);
+		if (retval) {
+			cx231xx_devused &= ~(1 << dev->devno);
+			kfree(dev);
 
-		    return retval;
-	    }
+			return retval;
+		}
 
-        /* compute alternate max packet sizes for video */
-        uif = udev->actconfig->interface[dev->current_pcb_config.hs_config_info[0].interface_info.video_index+1];
+		/* compute alternate max packet sizes for video */
+		uif =
+		    udev->actconfig->interface[dev->current_pcb_config.
+					       hs_config_info[0].interface_info.
+					       video_index + 1];
 
-        dev->video_mode.end_point_addr = le16_to_cpu(uif->altsetting[0].endpoint[isoc_pipe].desc.bEndpointAddress);
+		dev->video_mode.end_point_addr =
+		    le16_to_cpu(uif->altsetting[0].endpoint[isoc_pipe].desc.
+				bEndpointAddress);
 
-        dev->video_mode.num_alt = uif->num_altsetting;
-        cx231xx_info(": EndPoint Addr 0x%x, Alternate settings: %i\n", dev->video_mode.end_point_addr,
-                                    dev->video_mode.num_alt);
-        dev->video_mode.alt_max_pkt_size = kmalloc(32 * dev->video_mode.num_alt, GFP_KERNEL);
+		dev->video_mode.num_alt = uif->num_altsetting;
+		cx231xx_info(": EndPoint Addr 0x%x, Alternate settings: %i\n",
+			     dev->video_mode.end_point_addr,
+			     dev->video_mode.num_alt);
+		dev->video_mode.alt_max_pkt_size =
+		    kmalloc(32 * dev->video_mode.num_alt, GFP_KERNEL);
 
-        if (dev->video_mode.alt_max_pkt_size == NULL) {
-	        cx231xx_errdev("out of memory!\n");
-	        cx231xx_devused &= ~(1<<nr);
-	        kfree(dev);
-	        return -ENOMEM;
-        }
+		if (dev->video_mode.alt_max_pkt_size == NULL) {
+			cx231xx_errdev("out of memory!\n");
+			cx231xx_devused &= ~(1 << nr);
+			kfree(dev);
+			return -ENOMEM;
+		}
 
-        for (i = 0; i < dev->video_mode.num_alt ; i++) {
-	        u16 tmp = le16_to_cpu(uif->altsetting[i].endpoint[isoc_pipe].desc.
-						        wMaxPacketSize);
-	        dev->video_mode.alt_max_pkt_size[i] =
-	            (tmp & 0x07ff) * (((tmp & 0x1800) >> 11) + 1);
-            cx231xx_info("Alternate setting %i, max size= %i\n", i,
-					        dev->video_mode.alt_max_pkt_size[i]);
-        }
+		for (i = 0; i < dev->video_mode.num_alt; i++) {
+			u16 tmp =
+			    le16_to_cpu(uif->altsetting[i].endpoint[isoc_pipe].
+					desc.wMaxPacketSize);
+			dev->video_mode.alt_max_pkt_size[i] =
+			    (tmp & 0x07ff) * (((tmp & 0x1800) >> 11) + 1);
+			cx231xx_info("Alternate setting %i, max size= %i\n", i,
+				     dev->video_mode.alt_max_pkt_size[i]);
+		}
 
+		/* compute alternate max packet sizes for vbi */
+		uif =
+		    udev->actconfig->interface[dev->current_pcb_config.
+					       hs_config_info[0].interface_info.
+					       vanc_index + 1];
 
-        /* compute alternate max packet sizes for vbi */
-        uif = udev->actconfig->interface[dev->current_pcb_config.hs_config_info[0].interface_info.vanc_index+1];
+		dev->vbi_mode.end_point_addr =
+		    le16_to_cpu(uif->altsetting[0].endpoint[isoc_pipe].desc.
+				bEndpointAddress);
 
-        dev->vbi_mode.end_point_addr =
-            le16_to_cpu(uif->altsetting[0].endpoint[isoc_pipe].desc.bEndpointAddress);
+		dev->vbi_mode.num_alt = uif->num_altsetting;
+		cx231xx_info(": EndPoint Addr 0x%x, Alternate settings: %i\n",
+			     dev->vbi_mode.end_point_addr,
+			     dev->vbi_mode.num_alt);
+		dev->vbi_mode.alt_max_pkt_size =
+		    kmalloc(32 * dev->vbi_mode.num_alt, GFP_KERNEL);
 
-        dev->vbi_mode.num_alt = uif->num_altsetting;
-        cx231xx_info(": EndPoint Addr 0x%x, Alternate settings: %i\n", dev->vbi_mode.end_point_addr,
-                                    dev->vbi_mode.num_alt);
-        dev->vbi_mode.alt_max_pkt_size = kmalloc(32 * dev->vbi_mode.num_alt, GFP_KERNEL);
+		if (dev->vbi_mode.alt_max_pkt_size == NULL) {
+			cx231xx_errdev("out of memory!\n");
+			cx231xx_devused &= ~(1 << nr);
+			kfree(dev);
+			return -ENOMEM;
+		}
 
-        if (dev->vbi_mode.alt_max_pkt_size == NULL) {
-	        cx231xx_errdev("out of memory!\n");
-	        cx231xx_devused &= ~(1<<nr);
-	        kfree(dev);
-	        return -ENOMEM;
-        }
+		for (i = 0; i < dev->vbi_mode.num_alt; i++) {
+			u16 tmp =
+			    le16_to_cpu(uif->altsetting[i].endpoint[isoc_pipe].
+					desc.wMaxPacketSize);
+			dev->vbi_mode.alt_max_pkt_size[i] =
+			    (tmp & 0x07ff) * (((tmp & 0x1800) >> 11) + 1);
+			cx231xx_info("Alternate setting %i, max size= %i\n", i,
+				     dev->vbi_mode.alt_max_pkt_size[i]);
+		}
 
-        for (i = 0; i < dev->vbi_mode.num_alt ; i++) {
-	        u16 tmp = le16_to_cpu(uif->altsetting[i].endpoint[isoc_pipe].desc.
-						        wMaxPacketSize);
-	        dev->vbi_mode.alt_max_pkt_size[i] =
-	            (tmp & 0x07ff) * (((tmp & 0x1800) >> 11) + 1);
-            cx231xx_info("Alternate setting %i, max size= %i\n", i,
-					        dev->vbi_mode.alt_max_pkt_size[i]);
-        }
+		/* compute alternate max packet sizes for sliced CC */
+		uif =
+		    udev->actconfig->interface[dev->current_pcb_config.
+					       hs_config_info[0].interface_info.
+					       hanc_index + 1];
 
-        /* compute alternate max packet sizes for sliced CC */
-        uif = udev->actconfig->interface[dev->current_pcb_config.hs_config_info[0].interface_info.hanc_index+1];
+		dev->sliced_cc_mode.end_point_addr =
+		    le16_to_cpu(uif->altsetting[0].endpoint[isoc_pipe].desc.
+				bEndpointAddress);
 
-        dev->sliced_cc_mode.end_point_addr =
-            le16_to_cpu(uif->altsetting[0].endpoint[isoc_pipe].desc.bEndpointAddress);
+		dev->sliced_cc_mode.num_alt = uif->num_altsetting;
+		cx231xx_info(": EndPoint Addr 0x%x, Alternate settings: %i\n",
+			     dev->sliced_cc_mode.end_point_addr,
+			     dev->sliced_cc_mode.num_alt);
+		dev->sliced_cc_mode.alt_max_pkt_size =
+		    kmalloc(32 * dev->sliced_cc_mode.num_alt, GFP_KERNEL);
 
-        dev->sliced_cc_mode.num_alt = uif->num_altsetting;
-        cx231xx_info(": EndPoint Addr 0x%x, Alternate settings: %i\n", dev->sliced_cc_mode.end_point_addr,
-                                    dev->sliced_cc_mode.num_alt);
-        dev->sliced_cc_mode.alt_max_pkt_size = kmalloc(32 * dev->sliced_cc_mode.num_alt, GFP_KERNEL);
+		if (dev->sliced_cc_mode.alt_max_pkt_size == NULL) {
+			cx231xx_errdev("out of memory!\n");
+			cx231xx_devused &= ~(1 << nr);
+			kfree(dev);
+			return -ENOMEM;
+		}
 
-        if (dev->sliced_cc_mode.alt_max_pkt_size == NULL) {
-	        cx231xx_errdev("out of memory!\n");
-	        cx231xx_devused &= ~(1<<nr);
-	        kfree(dev);
-	        return -ENOMEM;
-        }
+		for (i = 0; i < dev->sliced_cc_mode.num_alt; i++) {
+			u16 tmp =
+			    le16_to_cpu(uif->altsetting[i].endpoint[isoc_pipe].
+					desc.wMaxPacketSize);
+			dev->sliced_cc_mode.alt_max_pkt_size[i] =
+			    (tmp & 0x07ff) * (((tmp & 0x1800) >> 11) + 1);
+			cx231xx_info("Alternate setting %i, max size= %i\n", i,
+				     dev->sliced_cc_mode.alt_max_pkt_size[i]);
+		}
 
-        for (i = 0; i < dev->sliced_cc_mode.num_alt ; i++) {
-	        u16 tmp = le16_to_cpu(uif->altsetting[i].endpoint[isoc_pipe].desc.
-						        wMaxPacketSize);
-	        dev->sliced_cc_mode.alt_max_pkt_size[i] =
-	            (tmp & 0x07ff) * (((tmp & 0x1800) >> 11) + 1);
-            cx231xx_info("Alternate setting %i, max size= %i\n", i,
-					        dev->sliced_cc_mode.alt_max_pkt_size[i]);
-        }
+		if (dev->current_pcb_config.ts1_source != 0xff) {
 
-        if(dev->current_pcb_config.ts1_source != 0xff ) {
+			/* compute alternate max packet sizes for TS1 */
+			uif =
+			    udev->actconfig->interface[dev->current_pcb_config.
+						       hs_config_info[0].
+						       interface_info.
+						       ts1_index + 1];
 
-            /* compute alternate max packet sizes for TS1 */
-            uif = udev->actconfig->interface[dev->current_pcb_config.hs_config_info[0].interface_info.ts1_index+1];
+			dev->ts1_mode.end_point_addr =
+			    le16_to_cpu(uif->altsetting[0].endpoint[isoc_pipe].
+					desc.bEndpointAddress);
 
-            dev->ts1_mode.end_point_addr =
-                le16_to_cpu(uif->altsetting[0].endpoint[isoc_pipe].desc.bEndpointAddress);
+			dev->ts1_mode.num_alt = uif->num_altsetting;
+			cx231xx_info
+			    (": EndPoint Addr 0x%x, Alternate settings: %i\n",
+			     dev->ts1_mode.end_point_addr,
+			     dev->ts1_mode.num_alt);
+			dev->ts1_mode.alt_max_pkt_size =
+			    kmalloc(32 * dev->ts1_mode.num_alt, GFP_KERNEL);
 
-            dev->ts1_mode.num_alt = uif->num_altsetting;
-            cx231xx_info(": EndPoint Addr 0x%x, Alternate settings: %i\n", dev->ts1_mode.end_point_addr,
-                                        dev->ts1_mode.num_alt);
-            dev->ts1_mode.alt_max_pkt_size = kmalloc(32 * dev->ts1_mode.num_alt, GFP_KERNEL);
+			if (dev->ts1_mode.alt_max_pkt_size == NULL) {
+				cx231xx_errdev("out of memory!\n");
+				cx231xx_devused &= ~(1 << nr);
+				kfree(dev);
+				return -ENOMEM;
+			}
 
-            if (dev->ts1_mode.alt_max_pkt_size == NULL) {
-	            cx231xx_errdev("out of memory!\n");
-	            cx231xx_devused &= ~(1<<nr);
-	            kfree(dev);
-	            return -ENOMEM;
-            }
+			for (i = 0; i < dev->ts1_mode.num_alt; i++) {
+				u16 tmp =
+				    le16_to_cpu(uif->altsetting[i].
+						endpoint[isoc_pipe].desc.
+						wMaxPacketSize);
+				dev->ts1_mode.alt_max_pkt_size[i] =
+				    (tmp & 0x07ff) * (((tmp & 0x1800) >> 11) +
+						      1);
+				cx231xx_info
+				    ("Alternate setting %i, max size= %i\n", i,
+				     dev->ts1_mode.alt_max_pkt_size[i]);
+			}
+		}
 
-            for (i = 0; i < dev->ts1_mode.num_alt ; i++) {
-	            u16 tmp = le16_to_cpu(uif->altsetting[i].endpoint[isoc_pipe].desc.
-						            wMaxPacketSize);
-	            dev->ts1_mode.alt_max_pkt_size[i] =
-	                (tmp & 0x07ff) * (((tmp & 0x1800) >> 11) + 1);
-                cx231xx_info("Alternate setting %i, max size= %i\n", i,
-					            dev->ts1_mode.alt_max_pkt_size[i]);
-            }
-        }
-
-    }
+	}
 
 	/* save our data pointer in this interface device */
 	usb_set_intfdata(lif, dev);
 
-    /* load other modules required */
-    if((dev->interface_count -1) == dev->max_iad_interface_count )
-    {
-        cx231xx_info("Calling request modules\n");
-        request_modules(dev);
-    }
+	/* load other modules required */
+	if ((dev->interface_count - 1) == dev->max_iad_interface_count) {
+		cx231xx_info("Calling request modules\n");
+		request_modules(dev);
+	}
 
-    if(skip_interface ) {
-        cx231xx_info("Skipping the interface\n");
-        return -ENODEV;
-    }
+	if (skip_interface) {
+		cx231xx_info("Skipping the interface\n");
+		return -ENODEV;
+	}
 
 	return 0;
 }
@@ -860,7 +913,7 @@ static void cx231xx_usb_disconnect(struct usb_interface *interface)
 {
 	struct cx231xx *dev;
 
-    dev = usb_get_intfdata(interface);
+	dev = usb_get_intfdata(interface);
 	usb_set_intfdata(interface, NULL);
 
 	if (!dev)
@@ -875,8 +928,7 @@ static void cx231xx_usb_disconnect(struct usb_interface *interface)
 	if (dev->users) {
 		cx231xx_warn
 		    ("device /dev/video%d is open! Deregistration and memory "
-		     "deallocation are deferred on close.\n",
-				dev->vdev->num);
+		     "deallocation are deferred on close.\n", dev->vdev->num);
 
 		dev->state |= DEV_MISCONFIGURED;
 		cx231xx_uninit_isoc(dev);
@@ -888,15 +940,15 @@ static void cx231xx_usb_disconnect(struct usb_interface *interface)
 		cx231xx_release_resources(dev);
 	}
 
-    cx231xx_close_extension(dev);
+	cx231xx_close_extension(dev);
 
 	mutex_unlock(&dev->lock);
 
 	if (!dev->users) {
 		kfree(dev->video_mode.alt_max_pkt_size);
-        kfree(dev->vbi_mode.alt_max_pkt_size);
-        kfree(dev->sliced_cc_mode.alt_max_pkt_size);
-        kfree(dev->ts1_mode.alt_max_pkt_size);
+		kfree(dev->vbi_mode.alt_max_pkt_size);
+		kfree(dev->sliced_cc_mode.alt_max_pkt_size);
+		kfree(dev->ts1_mode.alt_max_pkt_size);
 		kfree(dev);
 	}
 }
@@ -920,7 +972,7 @@ static int __init cx231xx_module_init(void)
 	result = usb_register(&cx231xx_usb_driver);
 	if (result)
 		cx231xx_err(DRIVER_NAME
-			   " usb_register failed. Error number %d.\n", result);
+			    " usb_register failed. Error number %d.\n", result);
 
 	return result;
 }

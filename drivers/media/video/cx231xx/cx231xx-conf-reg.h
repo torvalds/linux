@@ -1,6 +1,6 @@
 /*
    cx231xx_conf-reg.h - driver for Conexant Cx23100/101/102 USB
-                        video capture devices
+			video capture devices
 
    Copyright (C) 2008 <srinivasa.deevi at conexant dot com>
 
@@ -18,7 +18,6 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
-
 
 #ifndef _POLARIS_REG_H_
 #define _POLARIS_REG_H_
@@ -43,30 +42,30 @@
 #define PWR_CTL_EN              0x74
 
 /* Polaris Endpoints capture mask for register EP_MODE_SET */
-#define ENABLE_EP1              0x01    /* Bit[0]=1 */
-#define ENABLE_EP2              0x02    /* Bit[1]=1 */
-#define ENABLE_EP3              0x04    /* Bit[2]=1 */
-#define ENABLE_EP4              0x08    /* Bit[3]=1 */
-#define ENABLE_EP5              0x10    /* Bit[4]=1 */
-#define ENABLE_EP6              0x20    /* Bit[5]=1 */
+#define ENABLE_EP1              0x01	/* Bit[0]=1 */
+#define ENABLE_EP2              0x02	/* Bit[1]=1 */
+#define ENABLE_EP3              0x04	/* Bit[2]=1 */
+#define ENABLE_EP4              0x08	/* Bit[3]=1 */
+#define ENABLE_EP5              0x10	/* Bit[4]=1 */
+#define ENABLE_EP6              0x20	/* Bit[5]=1 */
 
 /* Bit definition for register PWR_CTL_EN */
 #define PWR_MODE_MASK           0x17f
-#define PWR_AV_EN               0x08    /* bit3 */
-#define PWR_ISO_EN              0x40    /* bit6 */
-#define PWR_AV_MODE             0x30    /* bit4,5  */
-#define PWR_TUNER_EN            0x04    /* bit2 */
-#define PWR_DEMOD_EN            0x02    /* bit1 */
-#define I2C_DEMOD_EN            0x01    /* bit0 */
-#define PWR_RESETOUT_EN         0x100   /* bit8 */
+#define PWR_AV_EN               0x08	/* bit3 */
+#define PWR_ISO_EN              0x40	/* bit6 */
+#define PWR_AV_MODE             0x30	/* bit4,5  */
+#define PWR_TUNER_EN            0x04	/* bit2 */
+#define PWR_DEMOD_EN            0x02	/* bit1 */
+#define I2C_DEMOD_EN            0x01	/* bit0 */
+#define PWR_RESETOUT_EN         0x100	/* bit8 */
 
-typedef enum{
-     POLARIS_AVMODE_DEFAULT         = 0,
-     POLARIS_AVMODE_DIGITAL         = 0x10,
-     POLARIS_AVMODE_ANALOGT_TV      = 0x20,
-     POLARIS_AVMODE_ENXTERNAL_AV    = 0x30,
+typedef enum {
+	POLARIS_AVMODE_DEFAULT = 0,
+	POLARIS_AVMODE_DIGITAL = 0x10,
+	POLARIS_AVMODE_ANALOGT_TV = 0x20,
+	POLARIS_AVMODE_ENXTERNAL_AV = 0x30,
 
-}AV_MODE;
+} AV_MODE;
 
 /* Colibri Registers */
 
@@ -74,8 +73,6 @@ typedef enum{
 #define LOW_IF                  0x4
 #define EU_IF                   0x9
 #define US_IF                   0xa
-
-
 
 #define SUP_BLK_TUNE1           0x00
 #define SUP_BLK_TUNE2           0x01
@@ -129,7 +126,7 @@ typedef enum{
 #define ADC_INPUT_CH1           0x28
 #define ADC_INPUT_CH2           0x48
 #define ADC_INPUT_CH3           0x68
-#define INPUT_SEL_MASK          0x30    /* [5:4] in_sel */
+#define INPUT_SEL_MASK          0x30	/* [5:4] in_sel */
 
 #define ADC_NTF_PRECLMP_EN_CH1  0x29
 #define ADC_NTF_PRECLMP_EN_CH2  0x49
@@ -148,12 +145,12 @@ typedef enum{
 #define TESTBUS_CTRL_CH3        0x72
 
 /******************************************************************************
-                            * DIF registers *
+			    * DIF registers *
  ******************************************************************************/
 #define      DIRECT_IF_REVB_BASE  0x00300
 
 /*****************************************************************************/
-#define      DIF_PLL_FREQ_WORD        (DIRECT_IF_REVB_BASE + 0x00000000)  /* Reg Size 32 */
+#define      DIF_PLL_FREQ_WORD        (DIRECT_IF_REVB_BASE + 0x00000000)	/* Reg Size 32 */
 /*****************************************************************************/
 #define      FLD_DIF_PLL_LOCK                           0x80000000
 /*  Reserved                                [30:29] */
@@ -161,7 +158,7 @@ typedef enum{
 #define      FLD_DIF_PLL_FREQ                           0x0FFFFFFF
 
 /*****************************************************************************/
-#define      DIF_PLL_CTRL             (DIRECT_IF_REVB_BASE + 0x00000004)  /* Reg Size 32 */
+#define      DIF_PLL_CTRL             (DIRECT_IF_REVB_BASE + 0x00000004)	/* Reg Size 32 */
 /*****************************************************************************/
 #define      FLD_DIF_KD_PD                              0xFF000000
 /*  Reserved                             [23:20] */
@@ -171,7 +168,7 @@ typedef enum{
 #define      FLD_DIF_KIS_PD                             0x0000000F
 
 /*****************************************************************************/
-#define      DIF_PLL_CTRL1            (DIRECT_IF_REVB_BASE + 0x00000008)  /* Reg Size 32 */
+#define      DIF_PLL_CTRL1            (DIRECT_IF_REVB_BASE + 0x00000008)	/* Reg Size 32 */
 /*****************************************************************************/
 #define      FLD_DIF_KD_FD                              0xFF000000
 /*  Reserved                             [23:20] */
@@ -181,7 +178,7 @@ typedef enum{
 #define      FLD_DIF_KIS_FD                             0x0000000F
 
 /*****************************************************************************/
-#define      DIF_PLL_CTRL2            (DIRECT_IF_REVB_BASE + 0x0000000C)  /* Reg Size 32 */
+#define      DIF_PLL_CTRL2            (DIRECT_IF_REVB_BASE + 0x0000000C)	/* Reg Size 32 */
 /*****************************************************************************/
 #define      FLD_DIF_PLL_AGC_REF                        0xFFF00000
 #define      FLD_DIF_PLL_AGC_KI                         0x000F0000
@@ -191,7 +188,7 @@ typedef enum{
 #define      FLD_DIF_DOWNSMPL_FD                        0x000000FF
 
 /*****************************************************************************/
-#define      DIF_PLL_CTRL3            (DIRECT_IF_REVB_BASE + 0x00000010)  /* Reg Size 32 */
+#define      DIF_PLL_CTRL3            (DIRECT_IF_REVB_BASE + 0x00000010)	/* Reg Size 32 */
 /*****************************************************************************/
 /*  Reserved                             [31:16] */
 #define      FLD_DIF_PLL_AGC_EN                         0x00008000
@@ -199,7 +196,7 @@ typedef enum{
 #define      FLD_DIF_PLL_MAN_GAIN                       0x00000FFF
 
 /*****************************************************************************/
-#define      DIF_AGC_IF_REF           (DIRECT_IF_REVB_BASE + 0x00000014)  /* Reg Size 32 */
+#define      DIF_AGC_IF_REF           (DIRECT_IF_REVB_BASE + 0x00000014)	/* Reg Size 32 */
 /*****************************************************************************/
 #define      FLD_DIF_K_AGC_RF                           0xF0000000
 #define      FLD_DIF_K_AGC_IF                           0x0F000000
@@ -208,40 +205,40 @@ typedef enum{
 #define      FLD_DIF_IF_REF                             0x00000FFF
 
 /*****************************************************************************/
-#define      DIF_AGC_CTRL_IF          (DIRECT_IF_REVB_BASE + 0x00000018)  /* Reg Size 32 */
+#define      DIF_AGC_CTRL_IF          (DIRECT_IF_REVB_BASE + 0x00000018)	/* Reg Size 32 */
 /*****************************************************************************/
 #define      FLD_DIF_IF_MAX                             0xFF000000
 #define      FLD_DIF_IF_MIN                             0x00FF0000
 #define      FLD_DIF_IF_AGC                             0x0000FFFF
 
 /*****************************************************************************/
-#define      DIF_AGC_CTRL_INT         (DIRECT_IF_REVB_BASE + 0x0000001C)  /* Reg Size 32 */
+#define      DIF_AGC_CTRL_INT         (DIRECT_IF_REVB_BASE + 0x0000001C)	/* Reg Size 32 */
 /*****************************************************************************/
 #define      FLD_DIF_INT_MAX                            0xFF000000
 #define      FLD_DIF_INT_MIN                            0x00FF0000
 #define      FLD_DIF_INT_AGC                            0x0000FFFF
 
 /*****************************************************************************/
-#define      DIF_AGC_CTRL_RF          (DIRECT_IF_REVB_BASE + 0x00000020)  /* Reg Size 32 */
+#define      DIF_AGC_CTRL_RF          (DIRECT_IF_REVB_BASE + 0x00000020)	/* Reg Size 32 */
 /*****************************************************************************/
 #define      FLD_DIF_RF_MAX                             0xFF000000
 #define      FLD_DIF_RF_MIN                             0x00FF0000
 #define      FLD_DIF_RF_AGC                             0x0000FFFF
 
 /*****************************************************************************/
-#define      DIF_AGC_IF_INT_CURRENT   (DIRECT_IF_REVB_BASE + 0x00000024)  /* Reg Size 32 */
+#define      DIF_AGC_IF_INT_CURRENT   (DIRECT_IF_REVB_BASE + 0x00000024)	/* Reg Size 32 */
 /*****************************************************************************/
 #define      FLD_DIF_IF_AGC_IN                          0xFFFF0000
 #define      FLD_DIF_INT_AGC_IN                         0x0000FFFF
 
 /*****************************************************************************/
-#define      DIF_AGC_RF_CURRENT       (DIRECT_IF_REVB_BASE + 0x00000028)  /* Reg Size 32 */
+#define      DIF_AGC_RF_CURRENT       (DIRECT_IF_REVB_BASE + 0x00000028)	/* Reg Size 32 */
 /*****************************************************************************/
 /*  Reserved                            [31:16] */
 #define      FLD_DIF_RF_AGC_IN                          0x0000FFFF
 
 /*****************************************************************************/
-#define      DIF_VIDEO_AGC_CTRL       (DIRECT_IF_REVB_BASE + 0x0000002C)  /* Reg Size 32 */
+#define      DIF_VIDEO_AGC_CTRL       (DIRECT_IF_REVB_BASE + 0x0000002C)	/* Reg Size 32 */
 /*****************************************************************************/
 #define      FLD_DIF_AFD                                0xC0000000
 #define      FLD_DIF_K_VID_AGC                          0x30000000
@@ -249,7 +246,7 @@ typedef enum{
 #define      FLD_DIF_AGC_GAIN                           0x0000FFFF
 
 /*****************************************************************************/
-#define      DIF_VID_AUD_OVERRIDE     (DIRECT_IF_REVB_BASE + 0x00000030)  /* Reg Size 32 */
+#define      DIF_VID_AUD_OVERRIDE     (DIRECT_IF_REVB_BASE + 0x00000030)	/* Reg Size 32 */
 /*****************************************************************************/
 #define      FLD_DIF_AUDIO_AGC_OVERRIDE                 0x80000000
 /*  Reserved                             [30:30] */
@@ -259,14 +256,14 @@ typedef enum{
 #define      FLD_DIF_VID_MAN_GAIN                       0x0000FFFF
 
 /*****************************************************************************/
-#define      DIF_AV_SEP_CTRL          (DIRECT_IF_REVB_BASE + 0x00000034)  /* Reg Size 32 */
+#define      DIF_AV_SEP_CTRL          (DIRECT_IF_REVB_BASE + 0x00000034)	/* Reg Size 32 */
 /*****************************************************************************/
 #define      FLD_DIF_LPF_FREQ                           0xC0000000
 #define      FLD_DIF_AV_PHASE_INC                       0x3F000000
 #define      FLD_DIF_AUDIO_FREQ                         0x00FFFFFF
 
 /*****************************************************************************/
-#define      DIF_COMP_FLT_CTRL        (DIRECT_IF_REVB_BASE + 0x00000038)  /* Reg Size 32 */
+#define      DIF_COMP_FLT_CTRL        (DIRECT_IF_REVB_BASE + 0x00000038)	/* Reg Size 32 */
 /*****************************************************************************/
 /*  Reserved                            [31:24] */
 #define      FLD_DIF_IIR23_R2                           0x00FF0000
@@ -274,7 +271,7 @@ typedef enum{
 #define      FLD_DIF_IIR1_R1                            0x000000FF
 
 /*****************************************************************************/
-#define      DIF_MISC_CTRL            (DIRECT_IF_REVB_BASE + 0x0000003C)  /* Reg Size 32 */
+#define      DIF_MISC_CTRL            (DIRECT_IF_REVB_BASE + 0x0000003C)	/* Reg Size 32 */
 /*****************************************************************************/
 #define      FLD_DIF_DIF_BYPASS                         0x80000000
 #define      FLD_DIF_FM_NYQ_GAIN                        0x40000000
@@ -299,20 +296,20 @@ typedef enum{
 #define      FLD_DIF_RF_IF_LOCK                         0x00000001
 
 /*****************************************************************************/
-#define      DIF_SRC_PHASE_INC        (DIRECT_IF_REVB_BASE + 0x00000040)  /* Reg Size 32 */
+#define      DIF_SRC_PHASE_INC        (DIRECT_IF_REVB_BASE + 0x00000040)	/* Reg Size 32 */
 /*****************************************************************************/
 /*  Reserved                             [31:29] */
 #define      FLD_DIF_PHASE_INC                          0x1FFFFFFF
 
 /*****************************************************************************/
-#define      DIF_SRC_GAIN_CONTROL     (DIRECT_IF_REVB_BASE + 0x00000044)  /* Reg Size 32 */
+#define      DIF_SRC_GAIN_CONTROL     (DIRECT_IF_REVB_BASE + 0x00000044)	/* Reg Size 32 */
 /*****************************************************************************/
 /*  Reserved                             [31:16] */
 #define      FLD_DIF_SRC_KI                             0x0000FF00
 #define      FLD_DIF_SRC_KD                             0x000000FF
 
 /*****************************************************************************/
-#define      DIF_BPF_COEFF01          (DIRECT_IF_REVB_BASE + 0x00000048)  /* Reg Size 32 */
+#define      DIF_BPF_COEFF01          (DIRECT_IF_REVB_BASE + 0x00000048)	/* Reg Size 32 */
 /*****************************************************************************/
 /*  Reserved                             [31:19] */
 #define      FLD_DIF_BPF_COEFF_0                        0x00070000
@@ -320,7 +317,7 @@ typedef enum{
 #define      FLD_DIF_BPF_COEFF_1                        0x0000000F
 
 /*****************************************************************************/
-#define      DIF_BPF_COEFF23          (DIRECT_IF_REVB_BASE + 0x0000004c)  /* Reg Size 32 */
+#define      DIF_BPF_COEFF23          (DIRECT_IF_REVB_BASE + 0x0000004c)	/* Reg Size 32 */
 /*****************************************************************************/
 /*  Reserved                             [31:22] */
 #define      FLD_DIF_BPF_COEFF_2                        0x003F0000
@@ -328,7 +325,7 @@ typedef enum{
 #define      FLD_DIF_BPF_COEFF_3                        0x0000007F
 
 /*****************************************************************************/
-#define      DIF_BPF_COEFF45          (DIRECT_IF_REVB_BASE + 0x00000050)  /* Reg Size 32 */
+#define      DIF_BPF_COEFF45          (DIRECT_IF_REVB_BASE + 0x00000050)	/* Reg Size 32 */
 /*****************************************************************************/
 /*  Reserved                             [31:24] */
 #define      FLD_DIF_BPF_COEFF_4                        0x00FF0000
@@ -336,7 +333,7 @@ typedef enum{
 #define      FLD_DIF_BPF_COEFF_5                        0x000000FF
 
 /*****************************************************************************/
-#define      DIF_BPF_COEFF67          (DIRECT_IF_REVB_BASE + 0x00000054)  /* Reg Size 32 */
+#define      DIF_BPF_COEFF67          (DIRECT_IF_REVB_BASE + 0x00000054)	/* Reg Size 32 */
 /*****************************************************************************/
 /*  Reserved                             [31:25] */
 #define      FLD_DIF_BPF_COEFF_6                        0x01FF0000
@@ -344,7 +341,7 @@ typedef enum{
 #define      FLD_DIF_BPF_COEFF_7                        0x000001FF
 
 /*****************************************************************************/
-#define      DIF_BPF_COEFF89          (DIRECT_IF_REVB_BASE + 0x00000058)  /* Reg Size 32 */
+#define      DIF_BPF_COEFF89          (DIRECT_IF_REVB_BASE + 0x00000058)	/* Reg Size 32 */
 /*****************************************************************************/
 /*  Reserved                             [31:26] */
 #define      FLD_DIF_BPF_COEFF_8                        0x03FF0000
@@ -352,7 +349,7 @@ typedef enum{
 #define      FLD_DIF_BPF_COEFF_9                        0x000003FF
 
 /*****************************************************************************/
-#define      DIF_BPF_COEFF1011        (DIRECT_IF_REVB_BASE + 0x0000005C)  /* Reg Size 32 */
+#define      DIF_BPF_COEFF1011        (DIRECT_IF_REVB_BASE + 0x0000005C)	/* Reg Size 32 */
 /*****************************************************************************/
 /*  Reserved                             [31:27] */
 #define      FLD_DIF_BPF_COEFF_10                       0x07FF0000
@@ -360,7 +357,7 @@ typedef enum{
 #define      FLD_DIF_BPF_COEFF_11                       0x000007FF
 
 /*****************************************************************************/
-#define      DIF_BPF_COEFF1213        (DIRECT_IF_REVB_BASE + 0x00000060)  /* Reg Size 32 */
+#define      DIF_BPF_COEFF1213        (DIRECT_IF_REVB_BASE + 0x00000060)	/* Reg Size 32 */
 /*****************************************************************************/
 /*  Reserved                             [31:27] */
 #define      FLD_DIF_BPF_COEFF_12                       0x07FF0000
@@ -368,7 +365,7 @@ typedef enum{
 #define      FLD_DIF_BPF_COEFF_13                       0x00000FFF
 
 /*****************************************************************************/
-#define      DIF_BPF_COEFF1415        (DIRECT_IF_REVB_BASE + 0x00000064)  /* Reg Size 32 */
+#define      DIF_BPF_COEFF1415        (DIRECT_IF_REVB_BASE + 0x00000064)	/* Reg Size 32 */
 /*****************************************************************************/
 /*  Reserved                             [31:28] */
 #define      FLD_DIF_BPF_COEFF_14                       0x0FFF0000
@@ -376,7 +373,7 @@ typedef enum{
 #define      FLD_DIF_BPF_COEFF_15                       0x00000FFF
 
 /*****************************************************************************/
-#define      DIF_BPF_COEFF1617        (DIRECT_IF_REVB_BASE + 0x00000068)  /* Reg Size 32 */
+#define      DIF_BPF_COEFF1617        (DIRECT_IF_REVB_BASE + 0x00000068)	/* Reg Size 32 */
 /*****************************************************************************/
 /*  Reserved                             [31:29] */
 #define      FLD_DIF_BPF_COEFF_16                       0x1FFF0000
@@ -384,7 +381,7 @@ typedef enum{
 #define      FLD_DIF_BPF_COEFF_17                       0x00001FFF
 
 /*****************************************************************************/
-#define      DIF_BPF_COEFF1819        (DIRECT_IF_REVB_BASE + 0x0000006C)  /* Reg Size 32 */
+#define      DIF_BPF_COEFF1819        (DIRECT_IF_REVB_BASE + 0x0000006C)	/* Reg Size 32 */
 /*****************************************************************************/
 /*  Reserved                             [31:29] */
 #define      FLD_DIF_BPF_COEFF_18                       0x1FFF0000
@@ -392,7 +389,7 @@ typedef enum{
 #define      FLD_DIF_BPF_COEFF_19                       0x00001FFF
 
 /*****************************************************************************/
-#define      DIF_BPF_COEFF2021        (DIRECT_IF_REVB_BASE + 0x00000070)  /* Reg Size 32 */
+#define      DIF_BPF_COEFF2021        (DIRECT_IF_REVB_BASE + 0x00000070)	/* Reg Size 32 */
 /*****************************************************************************/
 /*  Reserved                             [31:29] */
 #define      FLD_DIF_BPF_COEFF_20                       0x1FFF0000
@@ -400,7 +397,7 @@ typedef enum{
 #define      FLD_DIF_BPF_COEFF_21                       0x00003FFF
 
 /*****************************************************************************/
-#define      DIF_BPF_COEFF2223        (DIRECT_IF_REVB_BASE + 0x00000074)  /* Reg Size 32 */
+#define      DIF_BPF_COEFF2223        (DIRECT_IF_REVB_BASE + 0x00000074)	/* Reg Size 32 */
 /*****************************************************************************/
 /*  Reserved                             [31:30] */
 #define      FLD_DIF_BPF_COEFF_22                       0x3FFF0000
@@ -408,7 +405,7 @@ typedef enum{
 #define      FLD_DIF_BPF_COEFF_23                       0x00003FFF
 
 /*****************************************************************************/
-#define      DIF_BPF_COEFF2425        (DIRECT_IF_REVB_BASE + 0x00000078)  /* Reg Size 32 */
+#define      DIF_BPF_COEFF2425        (DIRECT_IF_REVB_BASE + 0x00000078)	/* Reg Size 32 */
 /*****************************************************************************/
 /*  Reserved                             [31:30] */
 #define      FLD_DIF_BPF_COEFF_24                       0x3FFF0000
@@ -416,7 +413,7 @@ typedef enum{
 #define      FLD_DIF_BPF_COEFF_25                       0x00003FFF
 
 /*****************************************************************************/
-#define      DIF_BPF_COEFF2627        (DIRECT_IF_REVB_BASE + 0x0000007C)  /* Reg Size 32 */
+#define      DIF_BPF_COEFF2627        (DIRECT_IF_REVB_BASE + 0x0000007C)	/* Reg Size 32 */
 /*****************************************************************************/
 /*  Reserved                             [31:30] */
 #define      FLD_DIF_BPF_COEFF_26                       0x3FFF0000
@@ -424,7 +421,7 @@ typedef enum{
 #define      FLD_DIF_BPF_COEFF_27                       0x00003FFF
 
 /*****************************************************************************/
-#define      DIF_BPF_COEFF2829        (DIRECT_IF_REVB_BASE + 0x00000080)  /* Reg Size 32 */
+#define      DIF_BPF_COEFF2829        (DIRECT_IF_REVB_BASE + 0x00000080)	/* Reg Size 32 */
 /*****************************************************************************/
 /*  Reserved                             [31:30] */
 #define      FLD_DIF_BPF_COEFF_28                       0x3FFF0000
@@ -432,7 +429,7 @@ typedef enum{
 #define      FLD_DIF_BPF_COEFF_29                       0x00003FFF
 
 /*****************************************************************************/
-#define      DIF_BPF_COEFF3031        (DIRECT_IF_REVB_BASE + 0x00000084)  /* Reg Size 32 */
+#define      DIF_BPF_COEFF3031        (DIRECT_IF_REVB_BASE + 0x00000084)	/* Reg Size 32 */
 /*****************************************************************************/
 /*  Reserved                             [31:30] */
 #define      FLD_DIF_BPF_COEFF_30                       0x3FFF0000
@@ -440,7 +437,7 @@ typedef enum{
 #define      FLD_DIF_BPF_COEFF_31                       0x00003FFF
 
 /*****************************************************************************/
-#define      DIF_BPF_COEFF3233        (DIRECT_IF_REVB_BASE + 0x00000088)  /* Reg Size 32 */
+#define      DIF_BPF_COEFF3233        (DIRECT_IF_REVB_BASE + 0x00000088)	/* Reg Size 32 */
 /*****************************************************************************/
 /*  Reserved                             [31:30] */
 #define      FLD_DIF_BPF_COEFF_32                       0x3FFF0000
@@ -448,7 +445,7 @@ typedef enum{
 #define      FLD_DIF_BPF_COEFF_33                       0x00003FFF
 
 /*****************************************************************************/
-#define      DIF_BPF_COEFF3435        (DIRECT_IF_REVB_BASE + 0x0000008C)  /* Reg Size 32 */
+#define      DIF_BPF_COEFF3435        (DIRECT_IF_REVB_BASE + 0x0000008C)	/* Reg Size 32 */
 /*****************************************************************************/
 /*  Reserved                             [31:30] */
 #define      FLD_DIF_BPF_COEFF_34                       0x3FFF0000
@@ -456,20 +453,20 @@ typedef enum{
 #define      FLD_DIF_BPF_COEFF_35                       0x00003FFF
 
 /*****************************************************************************/
-#define      DIF_BPF_COEFF36          (DIRECT_IF_REVB_BASE + 0x00000090)  /* Reg Size 32 */
+#define      DIF_BPF_COEFF36          (DIRECT_IF_REVB_BASE + 0x00000090)	/* Reg Size 32 */
 /*****************************************************************************/
 /*  Reserved                             [31:30] */
 #define      FLD_DIF_BPF_COEFF_36                       0x3FFF0000
 /*  Reserved                             [15:0] */
 
 /*****************************************************************************/
-#define      DIF_RPT_VARIANCE         (DIRECT_IF_REVB_BASE + 0x00000094)  /* Reg Size 32 */
+#define      DIF_RPT_VARIANCE         (DIRECT_IF_REVB_BASE + 0x00000094)	/* Reg Size 32 */
 /*****************************************************************************/
 /*  Reserved                             [31:20] */
 #define      FLD_DIF_RPT_VARIANCE                       0x000FFFFF
 
 /*****************************************************************************/
-#define      DIF_SOFT_RST_CTRL_REVB       (DIRECT_IF_REVB_BASE + 0x00000098)  /* Reg Size 32 */
+#define      DIF_SOFT_RST_CTRL_REVB       (DIRECT_IF_REVB_BASE + 0x00000098)	/* Reg Size 32 */
 /*****************************************************************************/
 /*  Reserved                             [31:8] */
 #define      FLD_DIF_DIF_SOFT_RST                       0x00000080
@@ -482,10 +479,9 @@ typedef enum{
 #define      FLD_DIF_PLL_RST_MSK                        0x00000001
 
 /*****************************************************************************/
-#define      DIF_PLL_FREQ_ERR         (DIRECT_IF_REVB_BASE + 0x0000009C)  /* Reg Size 32 */
+#define      DIF_PLL_FREQ_ERR         (DIRECT_IF_REVB_BASE + 0x0000009C)	/* Reg Size 32 */
 /*****************************************************************************/
 /*  Reserved                             [31:25] */
 #define      FLD_DIF_CTL_IP                             0x01FFFFFF
-
 
 #endif

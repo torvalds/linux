@@ -22,7 +22,7 @@
 #define _CX231XX_REG_H
 
 /*****************************************************************************
-                    * VBI codes *
+		    * VBI codes *
 *****************************************************************************/
 
 #define SAV_ACTIVE_VIDEO_FIELD1	      0x80
@@ -37,16 +37,16 @@
 #define SAV_VBLANK_FIELD2		      0xE0
 #define EAV_VBLANK_FIELD2		      0xF0
 
-#define SAV_VBI_FIELD1	              0x20
-#define EAV_VBI_FIELD1	              0x30
+#define SAV_VBI_FIELD1		      0x20
+#define EAV_VBI_FIELD1		      0x30
 
-#define SAV_VBI_FIELD2	              0x60
-#define EAV_VBI_FIELD2	              0x70
+#define SAV_VBI_FIELD2		      0x60
+#define EAV_VBI_FIELD2		      0x70
 
 /*****************************************************************************/
 /* Audio ADC Registers */
-#define CH_PWR_CTRL1	              0x0000000E
-#define CH_PWR_CTRL2	              0x0000000F
+#define CH_PWR_CTRL1		      0x0000000E
+#define CH_PWR_CTRL2		      0x0000000F
 /*****************************************************************************/
 
 #define      HOST_REG1                0x000
@@ -59,7 +59,6 @@
 
 /*****************************************************************************/
 #define      HOST_REG2                0x001
-
 
 /*****************************************************************************/
 #define      HOST_REG3                0x002
@@ -231,7 +230,6 @@
 /* Reserved [3:1] */
 #define      FLD_CIR_TEST_DIS           0x00000001
 
-
 /*****************************************************************************/
 #define      TEST_CTRL2               0x148
 #define      FLD_TSXCLK_POL_CTL       0x80000000
@@ -257,7 +255,6 @@
 #define      FLD_FLTRN_BIST_TST_DONE  0x00000008
 #define      FLD_VID_BIST_TST_DONE    0x00000007
 
-
 /*****************************************************************************/
 /* DirectIF registers definition have been moved to DIF_reg.h                */
 /*****************************************************************************/
@@ -268,7 +265,7 @@
 #define      FLD_AFD_FORCE_PAL        0x04000000
 #define      FLD_AFD_PALM_SEL         0x03000000
 #define      FLD_CKILL_MODE           0x00300000
-#define      FLD_COMB_NOTCH_MODE      0x00c00000       /* bit[19:18] */
+#define      FLD_COMB_NOTCH_MODE      0x00c00000	/* bit[19:18] */
 #define      FLD_CLR_LOCK_STAT        0x00020000
 #define      FLD_FAST_LOCK_MD         0x00010000
 #define      FLD_WCEN                 0x00008000
@@ -662,7 +659,6 @@
 #define      FLD_PLL_KI               0x00FF0000
 #define      FLD_PLL_MAX_OFFSET       0x0000FFFF
 
-
 /*****************************************************************************/
 #define      HTL_CTRL                 0x498
 /* Reserved [31:24] */
@@ -771,13 +767,12 @@
 #define      FLD_FIELD_PHASE_LIMIT    0x000000F0
 #define      FLD_HEAD_SW_DET_LIMIT    0x0000000F
 
-
 /*****************************************************************************/
 #define      DL_CTL                   0x800
-#define      DL_CTL_ADDRESS_LOW       0x800    /* Byte 1 in DL_CTL */
-#define      DL_CTL_ADDRESS_HIGH      0x801    /* Byte 2 in DL_CTL */
-#define      DL_CTL_DATA              0x802    /* Byte 3 in DL_CTL */
-#define      DL_CTL_CONTROL           0x803    /* Byte 4 in DL_CTL */
+#define      DL_CTL_ADDRESS_LOW       0x800	/* Byte 1 in DL_CTL */
+#define      DL_CTL_ADDRESS_HIGH      0x801	/* Byte 2 in DL_CTL */
+#define      DL_CTL_DATA              0x802	/* Byte 3 in DL_CTL */
+#define      DL_CTL_CONTROL           0x803	/* Byte 4 in DL_CTL */
 /* Reserved [31:5] */
 #define      FLD_START_8051           0x10000000
 #define      FLD_DL_ENABLE            0x08000000
@@ -795,8 +790,8 @@
 #define      AUD_BUILD_NUM            0x806
 #define      AUD_VER_NUM              0x807
 #define      STD_DET_CTL              0x808
-#define      STD_DET_CTL_AUD_CTL      0x808  /* Byte 1 in STD_DET_CTL */
-#define      STD_DET_CTL_PREF_MODE    0x809  /* Byte 2 in STD_DET_CTL */
+#define      STD_DET_CTL_AUD_CTL      0x808	/* Byte 1 in STD_DET_CTL */
+#define      STD_DET_CTL_PREF_MODE    0x809	/* Byte 2 in STD_DET_CTL */
 #define      FLD_SPARE_CTL0           0xFF000000
 #define      FLD_DIS_DBX              0x00800000
 #define      FLD_DIS_BTSC             0x00400000
@@ -1424,7 +1419,6 @@
 #define      FLD_I2S_OUT_WS_SEL       0x00000020
 #define      FLD_I2S_OUT_BCN_DEL      0x0000001F
 
-
 /*****************************************************************************/
 #define      AC97_CTL                 0x91C
 /* Reserved [31:26] */
@@ -1437,7 +1431,6 @@
 /* Reserved [7:1] */
 #define      FLD_AC97_SHUTDOWN        0x00000001
 
-
 /* Cx231xx redefine */
 #define      QPSK_IAGC_CTL1  0x94c
 #define      QPSK_IAGC_CTL2  0x950
@@ -1449,7 +1442,6 @@
 #define      QPSK_MF_FAGC_CTL  0x968
 #define      QPSK_EQ_CTL  0x96c
 #define      QPSK_LOCK_CTL  0x970
-
 
 /*****************************************************************************/
 #define      FM1_DFT_CTL              0x9A8
@@ -1494,8 +1486,6 @@
 /* Reserved [15:6] */
 #define      FLD_AFE_VGA_OUT          0x0000003F
 
-
-
 /*****************************************************************************/
 #define      MTS_GAIN_STATUS          0x9BC
 /* Reserved [31:14] */
@@ -1538,19 +1528,18 @@
 #define      VID_FMT_SECAM             12
 #define      VID_FMT_SECAM_60          13
 
-#define      INPUT_MODE_CVBS_0         0   /* INPUT_MODE_VALUE(0) */
-#define      INPUT_MODE_YC_1           1   /* INPUT_MODE_VALUE(1) */
-#define      INPUT_MODE_YC2_2          2   /* INPUT_MODE_VALUE(2) */
-#define      INPUT_MODE_YUV_3          3   /* INPUT_MODE_VALUE(3) */
+#define      INPUT_MODE_CVBS_0         0	/* INPUT_MODE_VALUE(0) */
+#define      INPUT_MODE_YC_1           1	/* INPUT_MODE_VALUE(1) */
+#define      INPUT_MODE_YC2_2          2	/* INPUT_MODE_VALUE(2) */
+#define      INPUT_MODE_YUV_3          3	/* INPUT_MODE_VALUE(3) */
 
+#define      LUMA_LPF_LOW_BANDPASS     0	/* 0.6Mhz lowpass filter bandwidth */
+#define      LUMA_LPF_MEDIUM_BANDPASS  1	/* 1.0Mhz lowpass filter bandwidth */
+#define      LUMA_LPF_HIGH_BANDPASS    2	/* 1.5Mhz lowpass filter bandwidth */
 
-#define      LUMA_LPF_LOW_BANDPASS     0   /* 0.6Mhz lowpass filter bandwidth */
-#define      LUMA_LPF_MEDIUM_BANDPASS  1   /* 1.0Mhz lowpass filter bandwidth */
-#define      LUMA_LPF_HIGH_BANDPASS    2   /* 1.5Mhz lowpass filter bandwidth */
-
-#define      UV_LPF_LOW_BANDPASS       0   /* 0.6Mhz lowpass filter bandwidth */
-#define      UV_LPF_MEDIUM_BANDPASS    1   /* 1.0Mhz lowpass filter bandwidth */
-#define      UV_LPF_HIGH_BANDPASS      2   /* 1.5Mhz lowpass filter bandwidth */
+#define      UV_LPF_LOW_BANDPASS       0	/* 0.6Mhz lowpass filter bandwidth */
+#define      UV_LPF_MEDIUM_BANDPASS    1	/* 1.0Mhz lowpass filter bandwidth */
+#define      UV_LPF_HIGH_BANDPASS      2	/* 1.5Mhz lowpass filter bandwidth */
 
 #define      TWO_TAP_FILT              0
 #define      THREE_TAP_FILT            1
