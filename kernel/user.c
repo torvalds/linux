@@ -362,6 +362,24 @@ static void free_user(struct user_struct *up, unsigned long flags)
 
 #endif
 
+#if defined(CONFIG_RT_GROUP_SCHED) && defined(CONFIG_USER_SCHED)
+/*
+ * We need to check if a setuid can take place. This function should be called
+ * before successfully completing the setuid.
+ */
+int task_can_switch_user(struct user_struct *up, struct task_struct *tsk)
+{
+
+	return sched_rt_can_attach(up->tg, tsk);
+
+}
+#else
+int task_can_switch_user(struct user_struct *up, struct task_struct *tsk)
+{
+	return 1;
+}
+#endif
+
 /*
  * Locate the user_struct for the passed UID.  If found, take a ref on it.  The
  * caller must undo that ref with free_uid().
