@@ -739,10 +739,10 @@ static int xc5000_set_analog_params(struct dvb_frontend *fe,
 	dprintk(1, "%s() frequency=%d (in units of 62.5khz)\n",
 		__func__, params->frequency);
 
-	priv->rf_mode = params->mode;// XC_RF_MODE_CABLE; /* Fix me: it could be air. */
-    if(params->mode > XC_RF_MODE_CABLE)
-	priv->rf_mode = XC_RF_MODE_CABLE;
-
+	/* Fix me: it could be air. */
+	priv->rf_mode = params->mode;
+	if (params->mode > XC_RF_MODE_CABLE)
+		priv->rf_mode = XC_RF_MODE_CABLE;
 
 	/* params->frequency is in units of 62.5khz */
 	priv->freq_hz = params->frequency * 62500;
