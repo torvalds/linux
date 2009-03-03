@@ -155,3 +155,5 @@
 154 -> PHYTEC VD-012-X1 (bt878)
 155 -> PHYTEC VD-012-X2 (bt878)
 156 -> IVCE-8784                                           [0000:f050,0001:f050,0002:f050,0003:f050]
+157 -> Geovision GV-800(S) (master)                        [800a:763d]
+158 -> Geovision GV-800(S) (slave)                         [800b:763d,800c:763d,800d:763d]
