@@ -14,6 +14,7 @@
 #include <linux/serial_8250.h>
 #include <linux/mbus.h>
 #include <linux/mv643xx_eth.h>
+#include <linux/mv643xx_i2c.h>
 #include <linux/ata_platform.h>
 #include <linux/ethtool.h>
 #include <asm/mach/map.h>
@@ -518,6 +519,81 @@ void __init mv78xx0_ge11_init(struct mv643xx_eth_platform_data *eth_data)
 	platform_device_register(&mv78xx0_ge11);
 }
 
+/*****************************************************************************
+ * I2C bus 0
+ ****************************************************************************/
+
+static struct mv64xxx_i2c_pdata mv78xx0_i2c_0_pdata = {
+	.freq_m		= 8, /* assumes 166 MHz TCLK */
+	.freq_n		= 3,
+	.timeout	= 1000, /* Default timeout of 1 second */
+};
+
+static struct resource mv78xx0_i2c_0_resources[] = {
+	{
+		.name   = "i2c 0 base",
+		.start  = I2C_0_PHYS_BASE,
+		.end    = I2C_0_PHYS_BASE + 0x1f,
+		.flags  = IORESOURCE_MEM,
+	}, {
+		.name   = "i2c 0 irq",
+		.start  = IRQ_MV78XX0_I2C_0,
+		.end    = IRQ_MV78XX0_I2C_0,
+		.flags  = IORESOURCE_IRQ,
+	},
+};
+
+
+static struct platform_device mv78xx0_i2c_0 = {
+	.name		= MV64XXX_I2C_CTLR_NAME,
+	.id		= 0,
+	.num_resources	= ARRAY_SIZE(mv78xx0_i2c_0_resources),
+	.resource	= mv78xx0_i2c_0_resources,
+	.dev		= {
+		.platform_data	= &mv78xx0_i2c_0_pdata,
+	},
+};
+
+/*****************************************************************************
+ * I2C bus 1
+ ****************************************************************************/
+
+static struct mv64xxx_i2c_pdata mv78xx0_i2c_1_pdata = {
+	.freq_m		= 8, /* assumes 166 MHz TCLK */
+	.freq_n		= 3,
+	.timeout	= 1000, /* Default timeout of 1 second */
+};
+
+static struct resource mv78xx0_i2c_1_resources[] = {
+	{
+		.name   = "i2c 1 base",
+		.start  = I2C_1_PHYS_BASE,
+		.end    = I2C_1_PHYS_BASE + 0x1f,
+		.flags  = IORESOURCE_MEM,
+	}, {
+		.name   = "i2c 1 irq",
+		.start  = IRQ_MV78XX0_I2C_1,
+		.end    = IRQ_MV78XX0_I2C_1,
+		.flags  = IORESOURCE_IRQ,
+	},
+};
+
+
+static struct platform_device mv78xx0_i2c_1 = {
+	.name		= MV64XXX_I2C_CTLR_NAME,
+	.id		= 1,
+	.num_resources	= ARRAY_SIZE(mv78xx0_i2c_1_resources),
+	.resource	= mv78xx0_i2c_1_resources,
+	.dev		= {
+		.platform_data	= &mv78xx0_i2c_1_pdata,
+	},
+};
+
+void __init mv78xx0_i2c_init(void)
+{
+	platform_device_register(&mv78xx0_i2c_0);
+	platform_device_register(&mv78xx0_i2c_1);
+}
 
 /*****************************************************************************
  * SATA
