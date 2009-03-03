@@ -14,12 +14,14 @@
 #include <linux/mtd/nand.h>
 #include <linux/mtd/partitions.h>
 #include <linux/mv643xx_eth.h>
+#include <linux/gpio.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <mach/kirkwood.h>
 #include <plat/mvsdio.h>
 #include <plat/orion_nand.h>
 #include "common.h"
+#include "mpp.h"
 
 static struct mtd_partition sheevaplug_nand_parts[] = {
 	{
@@ -71,15 +73,26 @@ static struct mvsdio_platform_data sheevaplug_mvsdio_data = {
 	// unfortunately the CD signal has not been connected */
 };
 
+static unsigned int sheevaplug_mpp_config[] __initdata = {
+	MPP29_GPIO,	/* USB Power Enable */
+	0
+};
+
 static void __init sheevaplug_init(void)
 {
 	/*
 	 * Basic setup. Needs to be called early.
 	 */
 	kirkwood_init();
+	kirkwood_mpp_conf(sheevaplug_mpp_config);
 
 	kirkwood_uart0_init();
+
+	if (gpio_request(29, "USB Power Enable") != 0 ||
+	    gpio_direction_output(29, 1) != 0)
+		printk(KERN_ERR "can't set up GPIO 29 (USB Power Enable)\n");
 	kirkwood_ehci_init();
+
 	kirkwood_ge00_init(&sheevaplug_ge00_data);
 	kirkwood_sdio_init(&sheevaplug_mvsdio_data);
 
