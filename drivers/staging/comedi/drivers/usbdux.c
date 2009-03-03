@@ -2910,17 +2910,6 @@ static comedi_driver driver_usbdux = {
       .detach =		usbdux_detach,
 };
 
-static void init_usb_devices(void)
-{
-	int index;
-
-	/* all devices entries are invalid to begin with */
-	/* they will become valid by the probe function */
-	/* and then finally by the attach-function */
-	for (index = 0; index < NUMUSBDUX; index++)
-		init_MUTEX(&(usbduxsub[index].sem));
-}
-
 /* Table with the USB-devices: just now only testing IDs */
 static struct usb_device_id usbduxsub_table[] = {
 	{USB_DEVICE(0x13d8, 0x0001) },
@@ -2945,7 +2934,6 @@ static int init_usbdux(void)
 {
 	printk(KERN_INFO KBUILD_MODNAME ": "
 	       DRIVER_VERSION ":" DRIVER_DESC "\n");
-	init_usb_devices();
 	usb_register(&usbduxsub_driver);
 	comedi_driver_register(&driver_usbdux);
 	return 0;
