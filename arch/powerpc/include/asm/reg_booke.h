@@ -10,6 +10,7 @@
 #define __ASM_POWERPC_REG_BOOKE_H__
 
 /* Machine State Register (MSR) Fields */
+#define MSR_GS		(1<<28) /* Guest state */
 #define MSR_UCLE	(1<<26)	/* User-mode cache lock enable */
 #define MSR_SPE		(1<<25)	/* Enable SPE */
 #define MSR_DWE		(1<<10)	/* Debug Wait Enable */
