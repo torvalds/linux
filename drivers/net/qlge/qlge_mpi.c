@@ -395,7 +395,25 @@ static int ql_mpi_handler(struct ql_adapter *qdev, struct mbox_params *mbcp)
 		ql_sfp_out(qdev, mbcp);
 		break;
 
+	/* This event can arrive at boot time or after an
+	 * MPI reset if the firmware failed to initialize.
+	 */
 	case AEN_FW_INIT_FAIL:
+		/* If we're in process on executing the firmware,
+		 * then convert the status to normal mailbox status.
+		 */
+		if (mbcp->mbox_in[0] == MB_CMD_EX_FW) {
+			mbcp->out_count = orig_count;
+			status = ql_get_mb_sts(qdev, mbcp);
+			mbcp->mbox_out[0] = MB_CMD_STS_ERR;
+			return status;
+		}
+		QPRINTK(qdev, DRV, ERR,
+			"Firmware initialization failed.\n");
+		status = -EIO;
+		ql_queue_fw_error(qdev);
+		break;
+
 	case AEN_SYS_ERR:
 		ql_queue_fw_error(qdev);
 		break;
