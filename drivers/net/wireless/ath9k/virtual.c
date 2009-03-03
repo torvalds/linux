@@ -57,8 +57,16 @@ void ath9k_set_bssid_mask(struct ieee80211_hw *hw)
 		iter_data.count = 0;
 
 	/* Get list of all active MAC addresses */
-	ieee80211_iterate_active_interfaces_atomic(hw, ath9k_vif_iter,
+	spin_lock_bh(&sc->wiphy_lock);
+	ieee80211_iterate_active_interfaces_atomic(sc->hw, ath9k_vif_iter,
 						   &iter_data);
+	for (i = 0; i < sc->num_sec_wiphy; i++) {
+		if (sc->sec_wiphy[i] == NULL)
+			continue;
+		ieee80211_iterate_active_interfaces_atomic(
+			sc->sec_wiphy[i]->hw, ath9k_vif_iter, &iter_data);
+	}
+	spin_unlock_bh(&sc->wiphy_lock);
 
 	/* Generate an address mask to cover all active addresses */
 	memset(mask, 0, ETH_ALEN);
@@ -86,4 +94,84 @@ void ath9k_set_bssid_mask(struct ieee80211_hw *hw)
 	sc->bssidmask[5] = ~mask[5];
 
 	ath9k_hw_setbssidmask(sc);
+}
+
+int ath9k_wiphy_add(struct ath_softc *sc)
+{
+	int i, error;
+	struct ath_wiphy *aphy;
+	struct ieee80211_hw *hw;
+	u8 addr[ETH_ALEN];
+
+	hw = ieee80211_alloc_hw(sizeof(struct ath_wiphy), &ath9k_ops);
+	if (hw == NULL)
+		return -ENOMEM;
+
+	spin_lock_bh(&sc->wiphy_lock);
+	for (i = 0; i < sc->num_sec_wiphy; i++) {
+		if (sc->sec_wiphy[i] == NULL)
+			break;
+	}
+
+	if (i == sc->num_sec_wiphy) {
+		/* No empty slot available; increase array length */
+		struct ath_wiphy **n;
+		n = krealloc(sc->sec_wiphy,
+			     (sc->num_sec_wiphy + 1) *
+			     sizeof(struct ath_wiphy *),
+			     GFP_ATOMIC);
+		if (n == NULL) {
+			spin_unlock_bh(&sc->wiphy_lock);
+			ieee80211_free_hw(hw);
+			return -ENOMEM;
+		}
+		n[i] = NULL;
+		sc->sec_wiphy = n;
+		sc->num_sec_wiphy++;
+	}
+
+	SET_IEEE80211_DEV(hw, sc->dev);
+
+	aphy = hw->priv;
+	aphy->sc = sc;
+	aphy->hw = hw;
+	sc->sec_wiphy[i] = aphy;
+	spin_unlock_bh(&sc->wiphy_lock);
+
+	memcpy(addr, sc->sc_ah->macaddr, ETH_ALEN);
+	addr[0] |= 0x02; /* Locally managed address */
+	/*
+	 * XOR virtual wiphy index into the least significant bits to generate
+	 * a different MAC address for each virtual wiphy.
+	 */
+	addr[5] ^= i & 0xff;
+	addr[4] ^= (i & 0xff00) >> 8;
+	addr[3] ^= (i & 0xff0000) >> 16;
+
+	SET_IEEE80211_PERM_ADDR(hw, addr);
+
+	ath_set_hw_capab(sc, hw);
+
+	error = ieee80211_register_hw(hw);
+
+	return error;
+}
+
+int ath9k_wiphy_del(struct ath_wiphy *aphy)
+{
+	struct ath_softc *sc = aphy->sc;
+	int i;
+
+	spin_lock_bh(&sc->wiphy_lock);
+	for (i = 0; i < sc->num_sec_wiphy; i++) {
+		if (aphy == sc->sec_wiphy[i]) {
+			sc->sec_wiphy[i] = NULL;
+			spin_unlock_bh(&sc->wiphy_lock);
+			ieee80211_unregister_hw(aphy->hw);
+			ieee80211_free_hw(aphy->hw);
+			return 0;
+		}
+	}
+	spin_unlock_bh(&sc->wiphy_lock);
+	return -ENOENT;
 }

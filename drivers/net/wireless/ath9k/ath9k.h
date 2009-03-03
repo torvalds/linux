@@ -373,10 +373,10 @@ int ath_tx_cleanup(struct ath_softc *sc);
 struct ath_txq *ath_test_get_txq(struct ath_softc *sc, struct sk_buff *skb);
 int ath_txq_update(struct ath_softc *sc, int qnum,
 		   struct ath9k_tx_queue_info *q);
-int ath_tx_start(struct ath_softc *sc, struct sk_buff *skb,
+int ath_tx_start(struct ieee80211_hw *hw, struct sk_buff *skb,
 		 struct ath_tx_control *txctl);
 void ath_tx_tasklet(struct ath_softc *sc);
-void ath_tx_cabq(struct ath_softc *sc, struct sk_buff *skb);
+void ath_tx_cabq(struct ieee80211_hw *hw, struct sk_buff *skb);
 bool ath_tx_aggr_check(struct ath_softc *sc, struct ath_node *an, u8 tidno);
 int ath_tx_aggr_start(struct ath_softc *sc, struct ieee80211_sta *sta,
 		      u16 tid, u16 *ssn);
@@ -429,6 +429,7 @@ struct ath_beacon {
 	u32 ast_be_xmit;
 	u64 bc_tstamp;
 	struct ieee80211_vif *bslot[ATH_BCBUF];
+	struct ath_wiphy *bslot_aphy[ATH_BCBUF];
 	int slottime;
 	int slotupdate;
 	struct ath9k_tx_queue_info beacon_qi;
@@ -440,7 +441,7 @@ struct ath_beacon {
 void ath_beacon_tasklet(unsigned long data);
 void ath_beacon_config(struct ath_softc *sc, struct ieee80211_vif *vif);
 int ath_beaconq_setup(struct ath_hw *ah);
-int ath_beacon_alloc(struct ath_softc *sc, struct ieee80211_vif *vif);
+int ath_beacon_alloc(struct ath_wiphy *aphy, struct ieee80211_vif *vif);
 void ath_beacon_return(struct ath_softc *sc, struct ath_vif *avp);
 
 /*******/
@@ -554,7 +555,12 @@ struct ath_wiphy;
 struct ath_softc {
 	struct ieee80211_hw *hw;
 	struct device *dev;
+
+	spinlock_t wiphy_lock; /* spinlock to protect ath_wiphy data */
 	struct ath_wiphy *pri_wiphy;
+	struct ath_wiphy **sec_wiphy; /* secondary wiphys (virtual radios); may
+				       * have NULL entries */
+	int num_sec_wiphy; /* number of sec_wiphy pointers in the array */
 	struct tasklet_struct intr_tq;
 	struct tasklet_struct bcon_tasklet;
 	struct ath_hw *sc_ah;
@@ -638,6 +644,7 @@ int ath_attach(u16 devid, struct ath_softc *sc);
 void ath_detach(struct ath_softc *sc);
 const char *ath_mac_bb_name(u32 mac_bb_version);
 const char *ath_rf_name(u16 rf_version);
+void ath_set_hw_capab(struct ath_softc *sc, struct ieee80211_hw *hw);
 
 #ifdef CONFIG_PCI
 int ath_pci_init(void);
@@ -675,5 +682,7 @@ static inline void ath9k_ps_restore(struct ath_softc *sc)
 
 
 void ath9k_set_bssid_mask(struct ieee80211_hw *hw);
+int ath9k_wiphy_add(struct ath_softc *sc);
+int ath9k_wiphy_del(struct ath_wiphy *aphy);
 
 #endif /* ATH9K_H */

@@ -195,6 +195,7 @@ struct ath_rate_priv {
 };
 
 struct ath_tx_info_priv {
+	struct ath_wiphy *aphy;
 	struct ath_tx_status tx;
 	int n_frames;
 	int n_bad_frames;

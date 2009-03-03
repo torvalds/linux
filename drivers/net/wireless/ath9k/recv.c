@@ -19,7 +19,22 @@
 static struct ieee80211_hw * ath_get_virt_hw(struct ath_softc *sc,
 					     struct ieee80211_hdr *hdr)
 {
-	return sc->pri_wiphy->hw;
+	struct ieee80211_hw *hw = sc->pri_wiphy->hw;
+	int i;
+
+	spin_lock_bh(&sc->wiphy_lock);
+	for (i = 0; i < sc->num_sec_wiphy; i++) {
+		struct ath_wiphy *aphy = sc->sec_wiphy[i];
+		if (aphy == NULL)
+			continue;
+		if (compare_ether_addr(hdr->addr1, aphy->hw->wiphy->perm_addr)
+		    == 0) {
+			hw = aphy->hw;
+			break;
+		}
+	}
+	spin_unlock_bh(&sc->wiphy_lock);
+	return hw;
 }
 
 /*
@@ -611,7 +626,29 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush)
 		}
 
 		/* Send the frame to mac80211 */
-		__ieee80211_rx(ath_get_virt_hw(sc, hdr), skb, &rx_status);
+		if (hdr->addr1[5] & 0x01) {
+			int i;
+			/*
+			 * Deliver broadcast/multicast frames to all suitable
+			 * virtual wiphys.
+			 */
+			/* TODO: filter based on channel configuration */
+			for (i = 0; i < sc->num_sec_wiphy; i++) {
+				struct ath_wiphy *aphy = sc->sec_wiphy[i];
+				struct sk_buff *nskb;
+				if (aphy == NULL)
+					continue;
+				nskb = skb_copy(skb, GFP_ATOMIC);
+				if (nskb)
+					__ieee80211_rx(aphy->hw, nskb,
+						       &rx_status);
+			}
+			__ieee80211_rx(sc->hw, skb, &rx_status);
+		} else {
+			/* Deliver unicast frames based on receiver address */
+			__ieee80211_rx(ath_get_virt_hw(sc, hdr), skb,
+				       &rx_status);
+		}
 
 		/* We will now give hardware our shiny new allocated skb */
 		bf->bf_mpdu = requeue_skb;

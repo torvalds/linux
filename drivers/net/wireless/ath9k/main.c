@@ -1307,6 +1307,7 @@ void ath_cleanup(struct ath_softc *sc)
 	ath_detach(sc);
 	free_irq(sc->irq, sc);
 	ath_bus_cleanup(sc);
+	kfree(sc->sec_wiphy);
 	ieee80211_free_hw(sc->hw);
 }
 
@@ -1324,6 +1325,14 @@ void ath_detach(struct ath_softc *sc)
 #endif
 	ath_deinit_leds(sc);
 
+	for (i = 0; i < sc->num_sec_wiphy; i++) {
+		struct ath_wiphy *aphy = sc->sec_wiphy[i];
+		if (aphy == NULL)
+			continue;
+		sc->sec_wiphy[i] = NULL;
+		ieee80211_unregister_hw(aphy->hw);
+		ieee80211_free_hw(aphy->hw);
+	}
 	ieee80211_unregister_hw(hw);
 	ath_rx_cleanup(sc);
 	ath_tx_cleanup(sc);
@@ -1357,6 +1366,7 @@ static int ath_init(u16 devid, struct ath_softc *sc)
 	if (ath9k_init_debug(sc) < 0)
 		printk(KERN_ERR "Unable to create debugfs files\n");
 
+	spin_lock_init(&sc->wiphy_lock);
 	spin_lock_init(&sc->sc_resetlock);
 	mutex_init(&sc->mutex);
 	tasklet_init(&sc->intr_tq, ath9k_tasklet, (unsigned long)sc);
@@ -1520,8 +1530,10 @@ static int ath_init(u16 devid, struct ath_softc *sc)
 	sc->beacon.slottime = ATH9K_SLOT_TIME_9;	/* default to short slot time */
 
 	/* initialize beacon slots */
-	for (i = 0; i < ARRAY_SIZE(sc->beacon.bslot); i++)
+	for (i = 0; i < ARRAY_SIZE(sc->beacon.bslot); i++) {
 		sc->beacon.bslot[i] = NULL;
+		sc->beacon.bslot_aphy[i] = NULL;
+	}
 
 	/* save MISC configurations */
 	sc->config.swBeaconProcess = 1;
@@ -1561,22 +1573,8 @@ bad:
 	return error;
 }
 
-int ath_attach(u16 devid, struct ath_softc *sc)
+void ath_set_hw_capab(struct ath_softc *sc, struct ieee80211_hw *hw)
 {
-	struct ieee80211_hw *hw = sc->hw;
-	const struct ieee80211_regdomain *regd;
-	int error = 0, i;
-
-	DPRINTF(sc, ATH_DBG_CONFIG, "Attach ATH hw\n");
-
-	error = ath_init(devid, sc);
-	if (error != 0)
-		return error;
-
-	/* get mac address from hardware and set in mac80211 */
-
-	SET_IEEE80211_PERM_ADDR(hw, sc->sc_ah->macaddr);
-
 	hw->flags = IEEE80211_HW_RX_INCLUDES_FCS |
 		IEEE80211_HW_HOST_BROADCAST_PS_BUFFERING |
 		IEEE80211_HW_SIGNAL_DBM |
@@ -1604,16 +1602,36 @@ int ath_attach(u16 devid, struct ath_softc *sc)
 
 	hw->rate_control_algorithm = "ath9k_rate_control";
 
+	hw->wiphy->bands[IEEE80211_BAND_2GHZ] =
+		&sc->sbands[IEEE80211_BAND_2GHZ];
+	if (test_bit(ATH9K_MODE_11A, sc->sc_ah->caps.wireless_modes))
+		hw->wiphy->bands[IEEE80211_BAND_5GHZ] =
+			&sc->sbands[IEEE80211_BAND_5GHZ];
+}
+
+int ath_attach(u16 devid, struct ath_softc *sc)
+{
+	struct ieee80211_hw *hw = sc->hw;
+	const struct ieee80211_regdomain *regd;
+	int error = 0, i;
+
+	DPRINTF(sc, ATH_DBG_CONFIG, "Attach ATH hw\n");
+
+	error = ath_init(devid, sc);
+	if (error != 0)
+		return error;
+
+	/* get mac address from hardware and set in mac80211 */
+
+	SET_IEEE80211_PERM_ADDR(hw, sc->sc_ah->macaddr);
+
+	ath_set_hw_capab(sc, hw);
+
 	if (sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_HT) {
 		setup_ht_cap(sc, &sc->sbands[IEEE80211_BAND_2GHZ].ht_cap);
 		if (test_bit(ATH9K_MODE_11A, sc->sc_ah->caps.wireless_modes))
 			setup_ht_cap(sc, &sc->sbands[IEEE80211_BAND_5GHZ].ht_cap);
 	}
-
-	hw->wiphy->bands[IEEE80211_BAND_2GHZ] =	&sc->sbands[IEEE80211_BAND_2GHZ];
-	if (test_bit(ATH9K_MODE_11A, sc->sc_ah->caps.wireless_modes))
-		hw->wiphy->bands[IEEE80211_BAND_5GHZ] =
-			&sc->sbands[IEEE80211_BAND_5GHZ];
 
 	/* initialize tx/rx engine */
 	error = ath_tx_init(sc, ATH_TXBUF);
@@ -2067,7 +2085,7 @@ static int ath9k_tx(struct ieee80211_hw *hw,
 
 	DPRINTF(sc, ATH_DBG_XMIT, "transmitting packet, skb: %p\n", skb);
 
-	if (ath_tx_start(sc, skb, &txctl) != 0) {
+	if (ath_tx_start(hw, skb, &txctl) != 0) {
 		DPRINTF(sc, ATH_DBG_XMIT, "TX failed\n");
 		goto exit;
 	}
@@ -2247,6 +2265,7 @@ static void ath9k_remove_interface(struct ieee80211_hw *hw,
 			printk(KERN_DEBUG "%s: vif had allocated beacon "
 			       "slot\n", __func__);
 			sc->beacon.bslot[i] = NULL;
+			sc->beacon.bslot_aphy[i] = NULL;
 		}
 	}
 
@@ -2388,7 +2407,7 @@ static int ath9k_config_interface(struct ieee80211_hw *hw,
 			 */
 			ath9k_hw_stoptxdma(sc->sc_ah, sc->beacon.beaconq);
 
-			error = ath_beacon_alloc(sc, vif);
+			error = ath_beacon_alloc(aphy, vif);
 			if (error != 0) {
 				mutex_unlock(&sc->mutex);
 				return error;

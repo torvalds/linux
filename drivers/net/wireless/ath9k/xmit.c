@@ -1497,10 +1497,12 @@ static void ath_buf_set_rate(struct ath_softc *sc, struct ath_buf *bf)
 		ath9k_hw_set11n_burstduration(sc->sc_ah, bf->bf_desc, 8192);
 }
 
-static int ath_tx_setup_buffer(struct ath_softc *sc, struct ath_buf *bf,
+static int ath_tx_setup_buffer(struct ieee80211_hw *hw, struct ath_buf *bf,
 				struct sk_buff *skb,
 				struct ath_tx_control *txctl)
 {
+	struct ath_wiphy *aphy = hw->priv;
+	struct ath_softc *sc = aphy->sc;
 	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(skb);
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	struct ath_tx_info_priv *tx_info_priv;
@@ -1511,6 +1513,7 @@ static int ath_tx_setup_buffer(struct ath_softc *sc, struct ath_buf *bf,
 	if (unlikely(!tx_info_priv))
 		return -ENOMEM;
 	tx_info->rate_driver_data[0] = tx_info_priv;
+	tx_info_priv->aphy = aphy;
 	hdrlen = ieee80211_get_hdrlen_from_skb(skb);
 	fc = hdr->frame_control;
 
@@ -1614,9 +1617,11 @@ static void ath_tx_start_dma(struct ath_softc *sc, struct ath_buf *bf,
 }
 
 /* Upon failure caller should free skb */
-int ath_tx_start(struct ath_softc *sc, struct sk_buff *skb,
+int ath_tx_start(struct ieee80211_hw *hw, struct sk_buff *skb,
 		 struct ath_tx_control *txctl)
 {
+	struct ath_wiphy *aphy = hw->priv;
+	struct ath_softc *sc = aphy->sc;
 	struct ath_buf *bf;
 	int r;
 
@@ -1626,7 +1631,7 @@ int ath_tx_start(struct ath_softc *sc, struct sk_buff *skb,
 		return -1;
 	}
 
-	r = ath_tx_setup_buffer(sc, bf, skb, txctl);
+	r = ath_tx_setup_buffer(hw, bf, skb, txctl);
 	if (unlikely(r)) {
 		struct ath_txq *txq = txctl->txq;
 
@@ -1656,8 +1661,10 @@ int ath_tx_start(struct ath_softc *sc, struct sk_buff *skb,
 	return 0;
 }
 
-void ath_tx_cabq(struct ath_softc *sc, struct sk_buff *skb)
+void ath_tx_cabq(struct ieee80211_hw *hw, struct sk_buff *skb)
 {
+	struct ath_wiphy *aphy = hw->priv;
+	struct ath_softc *sc = aphy->sc;
 	int hdrlen, padsize;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct ath_tx_control txctl;
@@ -1694,7 +1701,7 @@ void ath_tx_cabq(struct ath_softc *sc, struct sk_buff *skb)
 
 	DPRINTF(sc, ATH_DBG_XMIT, "transmitting CABQ packet, skb: %p\n", skb);
 
-	if (ath_tx_start(sc, skb, &txctl) != 0) {
+	if (ath_tx_start(hw, skb, &txctl) != 0) {
 		DPRINTF(sc, ATH_DBG_XMIT, "CABQ TX failed\n");
 		goto exit;
 	}
@@ -1717,6 +1724,9 @@ static void ath_tx_complete(struct ath_softc *sc, struct sk_buff *skb,
 	int hdrlen, padsize;
 
 	DPRINTF(sc, ATH_DBG_XMIT, "TX complete: skb: %p\n", skb);
+
+	if (tx_info_priv)
+		hw = tx_info_priv->aphy->hw;
 
 	if (tx_info->flags & IEEE80211_TX_CTL_NO_ACK ||
 	    tx_info->flags & IEEE80211_TX_STAT_TX_FILTERED) {

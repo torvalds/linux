@@ -113,9 +113,11 @@ static void ath_beacon_setup(struct ath_softc *sc, struct ath_vif *avp,
 				     series, 4, 0);
 }
 
-static struct ath_buf *ath_beacon_generate(struct ath_softc *sc,
+static struct ath_buf *ath_beacon_generate(struct ieee80211_hw *hw,
 					   struct ieee80211_vif *vif)
 {
+	struct ath_wiphy *aphy = hw->priv;
+	struct ath_softc *sc = aphy->sc;
 	struct ath_buf *bf;
 	struct ath_vif *avp;
 	struct sk_buff *skb;
@@ -144,7 +146,7 @@ static struct ath_buf *ath_beacon_generate(struct ath_softc *sc,
 
 	/* Get a new beacon from mac80211 */
 
-	skb = ieee80211_beacon_get(sc->hw, vif);
+	skb = ieee80211_beacon_get(hw, vif);
 	bf->bf_mpdu = skb;
 	if (skb == NULL)
 		return NULL;
@@ -171,7 +173,7 @@ static struct ath_buf *ath_beacon_generate(struct ath_softc *sc,
 		return NULL;
 	}
 
-	skb = ieee80211_get_buffered_bc(sc->hw, vif);
+	skb = ieee80211_get_buffered_bc(hw, vif);
 
 	/*
 	 * if the CABQ traffic from previous DTIM is pending and the current
@@ -196,8 +198,8 @@ static struct ath_buf *ath_beacon_generate(struct ath_softc *sc,
 	ath_beacon_setup(sc, avp, bf);
 
 	while (skb) {
-		ath_tx_cabq(sc, skb);
-		skb = ieee80211_get_buffered_bc(sc->hw, vif);
+		ath_tx_cabq(hw, skb);
+		skb = ieee80211_get_buffered_bc(hw, vif);
 	}
 
 	return bf;
@@ -244,8 +246,9 @@ int ath_beaconq_setup(struct ath_hw *ah)
 	return ath9k_hw_setuptxqueue(ah, ATH9K_TX_QUEUE_BEACON, &qi);
 }
 
-int ath_beacon_alloc(struct ath_softc *sc, struct ieee80211_vif *vif)
+int ath_beacon_alloc(struct ath_wiphy *aphy, struct ieee80211_vif *vif)
 {
+	struct ath_softc *sc = aphy->sc;
 	struct ath_vif *avp;
 	struct ieee80211_hdr *hdr;
 	struct ath_buf *bf;
@@ -286,6 +289,7 @@ int ath_beacon_alloc(struct ath_softc *sc, struct ieee80211_vif *vif)
 				}
 			BUG_ON(sc->beacon.bslot[avp->av_bslot] != NULL);
 			sc->beacon.bslot[avp->av_bslot] = vif;
+			sc->beacon.bslot_aphy[avp->av_bslot] = aphy;
 			sc->nbcnvifs++;
 		}
 	}
@@ -368,6 +372,7 @@ void ath_beacon_return(struct ath_softc *sc, struct ath_vif *avp)
 
 		if (avp->av_bslot != -1) {
 			sc->beacon.bslot[avp->av_bslot] = NULL;
+			sc->beacon.bslot_aphy[avp->av_bslot] = NULL;
 			sc->nbcnvifs--;
 		}
 
@@ -391,6 +396,7 @@ void ath_beacon_tasklet(unsigned long data)
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_buf *bf = NULL;
 	struct ieee80211_vif *vif;
+	struct ath_wiphy *aphy;
 	int slot;
 	u32 bfaddr, bc = 0, tsftu;
 	u64 tsf;
@@ -439,6 +445,7 @@ void ath_beacon_tasklet(unsigned long data)
 	tsftu = TSF_TO_TU(tsf>>32, tsf);
 	slot = ((tsftu % intval) * ATH_BCBUF) / intval;
 	vif = sc->beacon.bslot[(slot + 1) % ATH_BCBUF];
+	aphy = sc->beacon.bslot_aphy[(slot + 1) % ATH_BCBUF];
 
 	DPRINTF(sc, ATH_DBG_BEACON,
 		"slot %d [tsf %llu tsftu %u intval %u] vif %p\n",
@@ -446,7 +453,7 @@ void ath_beacon_tasklet(unsigned long data)
 
 	bfaddr = 0;
 	if (vif) {
-		bf = ath_beacon_generate(sc, vif);
+		bf = ath_beacon_generate(aphy->hw, vif);
 		if (bf != NULL) {
 			bfaddr = bf->bf_daddr;
 			bc = 1;
