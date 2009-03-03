@@ -568,9 +568,10 @@ spufs_regs_write(struct file *file, const char __user *buffer,
 	struct spu_lscsa *lscsa = ctx->csa.lscsa;
 	int ret;
 
-	size = min_t(ssize_t, sizeof lscsa->gprs - *pos, size);
-	if (size <= 0)
+	if (*pos >= sizeof(lscsa->gprs))
 		return -EFBIG;
+
+	size = min_t(ssize_t, sizeof(lscsa->gprs) - *pos, size);
 	*pos += size;
 
 	ret = spu_acquire_saved(ctx);
@@ -623,9 +624,10 @@ spufs_fpcr_write(struct file *file, const char __user * buffer,
 	struct spu_lscsa *lscsa = ctx->csa.lscsa;
 	int ret;
 
-	size = min_t(ssize_t, sizeof(lscsa->fpcr) - *pos, size);
-	if (size <= 0)
+	if (*pos >= sizeof(lscsa->fpcr))
 		return -EFBIG;
+
+	size = min_t(ssize_t, sizeof(lscsa->fpcr) - *pos, size);
 
 	ret = spu_acquire_saved(ctx);
 	if (ret)
