@@ -1139,16 +1139,10 @@ static int stk_vidioc_reqbufs(struct file *filp,
 static int stk_vidioc_querybuf(struct file *filp,
 		void *priv, struct v4l2_buffer *buf)
 {
-	int index;
 	struct stk_camera *dev = priv;
 	struct stk_sio_buffer *sbuf;
 
-	if (buf->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
-		return -EINVAL;
-
-	index = buf->index;
-
-	if (index < 0 || index >= dev->n_sbufs)
+	if (buf->index < 0 || buf->index >= dev->n_sbufs)
 		return -EINVAL;
 	sbuf = dev->sio_bufs + buf->index;
 	*buf = sbuf->v4lbuf;

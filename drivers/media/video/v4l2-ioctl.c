@@ -969,6 +969,11 @@ static long __video_do_ioctl(struct file *file,
 		if (ret)
 			break;
 
+		/* Zero out all fields starting with bytesysed, which is
+		 * everything but index and type.  */
+		memset(0, &p->bytesused,
+		       sizeof(*p) - offsetof(typeof(*p), bytesused));
+
 		ret = ops->vidioc_querybuf(file, fh, p);
 		if (!ret)
 			dbgbuf(cmd, vfd, p);

@@ -788,9 +788,6 @@ static int vidioc_querybuf (struct file *file,
 
 	/* FIXME : must control
 	   that buffers are mapped (VIDIOC_REQBUFS has been called) */
-	if(vb->type != V4L2_CAP_VIDEO_CAPTURE) {
-		return -EINVAL;
-	}
 	if(vb->index>=usbvision->num_frames)  {
 		return -EINVAL;
 	}

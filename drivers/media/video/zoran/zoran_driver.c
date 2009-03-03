@@ -2498,12 +2498,7 @@ static int zoran_querybuf(struct file *file, void *__fh, struct v4l2_buffer *buf
 {
 	struct zoran_fh *fh = __fh;
 	struct zoran *zr = fh->zr;
-	__u32 type = buf->type;
-	int index = buf->index, res;
-
-	memset(buf, 0, sizeof(*buf));
-	buf->type = type;
-	buf->index = index;
+	int res;
 
 	mutex_lock(&zr->resource_lock);
 	res = zoran_v4l2_buffer_status(file, buf, buf->index);

@@ -1446,10 +1446,6 @@ static int vidioc_querybuf(struct file *file, void *fh, struct v4l2_buffer *buf)
 	if (index < 0 || index >= gbuffers)
 		return -EINVAL;
 
-	memset(buf, 0, sizeof(*buf));
-
-	buf->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-	buf->index = index;
 	buf->bytesused = meye.grab_buffer[index].size;
 	buf->flags = V4L2_BUF_FLAG_MAPPED;
 
