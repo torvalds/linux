@@ -569,6 +569,9 @@ struct ath_softc {
 	struct work_struct chan_work;
 	int wiphy_select_failures;
 	unsigned long wiphy_select_first_fail;
+	struct delayed_work wiphy_work;
+	unsigned long wiphy_scheduler_int;
+	int wiphy_scheduler_index;
 
 	struct tasklet_struct intr_tq;
 	struct tasklet_struct bcon_tasklet;
@@ -713,10 +716,12 @@ void ath9k_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb);
 int ath9k_wiphy_pause(struct ath_wiphy *aphy);
 int ath9k_wiphy_unpause(struct ath_wiphy *aphy);
 int ath9k_wiphy_select(struct ath_wiphy *aphy);
+void ath9k_wiphy_set_scheduler(struct ath_softc *sc, unsigned int msec_int);
 void ath9k_wiphy_chan_work(struct work_struct *work);
 bool ath9k_wiphy_started(struct ath_softc *sc);
 void ath9k_wiphy_pause_all_forced(struct ath_softc *sc,
 				  struct ath_wiphy *selected);
 bool ath9k_wiphy_scanning(struct ath_softc *sc);
+void ath9k_wiphy_work(struct work_struct *work);
 
 #endif /* ATH9K_H */

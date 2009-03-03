@@ -154,6 +154,11 @@ int ath9k_wiphy_add(struct ath_softc *sc)
 
 	error = ieee80211_register_hw(hw);
 
+	if (error == 0) {
+		/* Make sure wiphy scheduler is started (if enabled) */
+		ath9k_wiphy_set_scheduler(sc, sc->wiphy_scheduler_int);
+	}
+
 	return error;
 }
 
@@ -595,4 +600,63 @@ void ath9k_wiphy_pause_all_forced(struct ath_softc *sc,
 			ath9k_wiphy_pause_chan(sc->sec_wiphy[i], selected);
 	}
 	spin_unlock_bh(&sc->wiphy_lock);
+}
+
+void ath9k_wiphy_work(struct work_struct *work)
+{
+	struct ath_softc *sc = container_of(work, struct ath_softc,
+					    wiphy_work.work);
+	struct ath_wiphy *aphy = NULL;
+	bool first = true;
+
+	spin_lock_bh(&sc->wiphy_lock);
+
+	if (sc->wiphy_scheduler_int == 0) {
+		/* wiphy scheduler is disabled */
+		spin_unlock_bh(&sc->wiphy_lock);
+		return;
+	}
+
+try_again:
+	sc->wiphy_scheduler_index++;
+	while (sc->wiphy_scheduler_index <= sc->num_sec_wiphy) {
+		aphy = sc->sec_wiphy[sc->wiphy_scheduler_index - 1];
+		if (aphy && aphy->state != ATH_WIPHY_INACTIVE)
+			break;
+
+		sc->wiphy_scheduler_index++;
+		aphy = NULL;
+	}
+	if (aphy == NULL) {
+		sc->wiphy_scheduler_index = 0;
+		if (sc->pri_wiphy->state == ATH_WIPHY_INACTIVE) {
+			if (first) {
+				first = false;
+				goto try_again;
+			}
+			/* No wiphy is ready to be scheduled */
+		} else
+			aphy = sc->pri_wiphy;
+	}
+
+	spin_unlock_bh(&sc->wiphy_lock);
+
+	if (aphy &&
+	    aphy->state != ATH_WIPHY_ACTIVE && aphy->state != ATH_WIPHY_SCAN &&
+	    ath9k_wiphy_select(aphy)) {
+		printk(KERN_DEBUG "ath9k: Failed to schedule virtual wiphy "
+		       "change\n");
+	}
+
+	queue_delayed_work(sc->hw->workqueue, &sc->wiphy_work,
+			   sc->wiphy_scheduler_int);
+}
+
+void ath9k_wiphy_set_scheduler(struct ath_softc *sc, unsigned int msec_int)
+{
+	cancel_delayed_work_sync(&sc->wiphy_work);
+	sc->wiphy_scheduler_int = msecs_to_jiffies(msec_int);
+	if (sc->wiphy_scheduler_int)
+		queue_delayed_work(sc->hw->workqueue, &sc->wiphy_work,
+				   sc->wiphy_scheduler_int);
 }

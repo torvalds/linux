@@ -1325,6 +1325,7 @@ void ath_detach(struct ath_softc *sc)
 #endif
 	ath_deinit_leds(sc);
 	cancel_work_sync(&sc->chan_work);
+	cancel_delayed_work_sync(&sc->wiphy_work);
 
 	for (i = 0; i < sc->num_sec_wiphy; i++) {
 		struct ath_wiphy *aphy = sc->sec_wiphy[i];
@@ -1672,6 +1673,8 @@ int ath_attach(u16 devid, struct ath_softc *sc)
 	ath9k_reg_apply_world_flags(hw->wiphy, REGDOM_SET_BY_INIT);
 
 	INIT_WORK(&sc->chan_work, ath9k_wiphy_chan_work);
+	INIT_DELAYED_WORK(&sc->wiphy_work, ath9k_wiphy_work);
+	sc->wiphy_scheduler_int = msecs_to_jiffies(500);
 
 	error = ieee80211_register_hw(hw);
 
