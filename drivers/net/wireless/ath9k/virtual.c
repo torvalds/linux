@@ -477,3 +477,22 @@ int ath9k_wiphy_select(struct ath_wiphy *aphy)
 
 	return 0;
 }
+
+bool ath9k_wiphy_started(struct ath_softc *sc)
+{
+	int i;
+	spin_lock_bh(&sc->wiphy_lock);
+	if (sc->pri_wiphy->state != ATH_WIPHY_INACTIVE) {
+		spin_unlock_bh(&sc->wiphy_lock);
+		return true;
+	}
+	for (i = 0; i < sc->num_sec_wiphy; i++) {
+		if (sc->sec_wiphy[i] &&
+		    sc->sec_wiphy[i]->state != ATH_WIPHY_INACTIVE) {
+			spin_unlock_bh(&sc->wiphy_lock);
+			return true;
+		}
+	}
+	spin_unlock_bh(&sc->wiphy_lock);
+	return false;
+}

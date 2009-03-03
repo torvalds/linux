@@ -1965,6 +1965,27 @@ static int ath9k_start(struct ieee80211_hw *hw)
 
 	mutex_lock(&sc->mutex);
 
+	if (ath9k_wiphy_started(sc)) {
+		if (sc->chan_idx == curchan->hw_value) {
+			/*
+			 * Already on the operational channel, the new wiphy
+			 * can be marked active.
+			 */
+			aphy->state = ATH_WIPHY_ACTIVE;
+			ieee80211_wake_queues(hw);
+		} else {
+			/*
+			 * Another wiphy is on another channel, start the new
+			 * wiphy in paused state.
+			 */
+			aphy->state = ATH_WIPHY_PAUSED;
+			ieee80211_stop_queues(hw);
+		}
+		mutex_unlock(&sc->mutex);
+		return 0;
+	}
+	aphy->state = ATH_WIPHY_ACTIVE;
+
 	/* setup initial channel */
 
 	pos = curchan->hw_value;
@@ -2104,6 +2125,8 @@ static void ath9k_stop(struct ieee80211_hw *hw)
 	struct ath_wiphy *aphy = hw->priv;
 	struct ath_softc *sc = aphy->sc;
 
+	aphy->state = ATH_WIPHY_INACTIVE;
+
 	if (sc->sc_flags & SC_OP_INVALID) {
 		DPRINTF(sc, ATH_DBG_ANY, "Device not present\n");
 		return;
@@ -2112,6 +2135,11 @@ static void ath9k_stop(struct ieee80211_hw *hw)
 	mutex_lock(&sc->mutex);
 
 	ieee80211_stop_queues(hw);
+
+	if (ath9k_wiphy_started(sc)) {
+		mutex_unlock(&sc->mutex);
+		return; /* another wiphy still in use */
+	}
 
 	/* make sure h/w will not generate any interrupt
 	 * before setting the invalid flag. */
