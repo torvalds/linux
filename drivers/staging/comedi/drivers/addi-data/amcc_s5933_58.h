@@ -251,11 +251,7 @@ void v_pci_card_list_init(unsigned short pci_vendor, char display)
 	amcc_devices = NULL;
 	last = NULL;
 
-#if LINUX_VERSION_CODE < 0x020300
-	for (pcidev = pci_devices; pcidev; pcidev = pcidev->next) {
-#else
 	pci_for_each_dev(pcidev) {
-#endif
 		if (pcidev->vendor == pci_vendor) {
 			amcc = kmalloc(sizeof(*amcc), GFP_KERNEL);
 			memset(amcc, 0, sizeof(*amcc));
@@ -268,18 +264,6 @@ void v_pci_card_list_init(unsigned short pci_vendor, char display)
 			}
 			last = amcc;
 
-#if LINUX_VERSION_CODE < 0x020300
-			amcc->vendor = pcidev->vendor;
-			amcc->device = pcidev->device;
-			amcc->master = pcidev->master;
-			amcc->pci_bus = pcidev->bus->number;
-			amcc->pci_slot = PCI_SLOT(pcidev->devfn);
-			amcc->pci_func = PCI_FUNC(pcidev->devfn);
-			for (i = 0; i < 5; i++)
-				amcc->io_addr[i] =
-				    pcidev->base_address[i] & ~3UL;
-			amcc->irq = pcidev->irq;
-#else
 			amcc->vendor = pcidev->vendor;
 			amcc->device = pcidev->device;
 #if 0
@@ -292,8 +276,6 @@ void v_pci_card_list_init(unsigned short pci_vendor, char display)
 				amcc->io_addr[i] =
 				    pcidev->resource[i].start & ~3UL;
 			amcc->irq = pcidev->irq;
-#endif
-
 		}
 	}
 
