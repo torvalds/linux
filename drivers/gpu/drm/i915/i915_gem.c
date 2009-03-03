@@ -2469,6 +2469,7 @@ i915_gem_execbuffer(struct drm_device *dev, void *data,
 	struct drm_i915_gem_exec_object *exec_list = NULL;
 	struct drm_gem_object **object_list = NULL;
 	struct drm_gem_object *batch_obj;
+	struct drm_i915_gem_object *obj_priv;
 	int ret, i, pinned = 0;
 	uint64_t exec_offset;
 	uint32_t seqno, flush_domains;
@@ -2533,6 +2534,15 @@ i915_gem_execbuffer(struct drm_device *dev, void *data,
 			ret = -EBADF;
 			goto err;
 		}
+
+		obj_priv = object_list[i]->driver_private;
+		if (obj_priv->in_execbuffer) {
+			DRM_ERROR("Object %p appears more than once in object list\n",
+				   object_list[i]);
+			ret = -EBADF;
+			goto err;
+		}
+		obj_priv->in_execbuffer = true;
 	}
 
 	/* Pin and relocate */
@@ -2674,8 +2684,13 @@ err:
 	for (i = 0; i < pinned; i++)
 		i915_gem_object_unpin(object_list[i]);
 
-	for (i = 0; i < args->buffer_count; i++)
+	for (i = 0; i < args->buffer_count; i++) {
+		if (object_list[i]) {
+			obj_priv = object_list[i]->driver_private;
+			obj_priv->in_execbuffer = false;
+		}
 		drm_gem_object_unreference(object_list[i]);
+	}
 
 	mutex_unlock(&dev->struct_mutex);
 
