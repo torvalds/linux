@@ -2776,13 +2776,10 @@ static int get_empty_pcm_device(struct hda_bus *bus, int type)
 		for (i = 0; i < ARRAY_SIZE(audio_idx); i++) {
 			dev = audio_idx[i];
 			if (!test_bit(dev, bus->pcm_dev_bits))
-				break;
+				goto ok;
 		}
-		if (i >= ARRAY_SIZE(audio_idx)) {
-			snd_printk(KERN_WARNING "Too many audio devices\n");
-			return -EAGAIN;
-		}
-		break;
+		snd_printk(KERN_WARNING "Too many audio devices\n");
+		return -EAGAIN;
 	case HDA_PCM_TYPE_SPDIF:
 	case HDA_PCM_TYPE_HDMI:
 	case HDA_PCM_TYPE_MODEM:
@@ -2797,6 +2794,7 @@ static int get_empty_pcm_device(struct hda_bus *bus, int type)
 		snd_printk(KERN_WARNING "Invalid PCM type %d\n", type);
 		return -EINVAL;
 	}
+ ok:
 	set_bit(dev, bus->pcm_dev_bits);
 	return dev;
 }
