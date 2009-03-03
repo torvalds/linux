@@ -146,20 +146,39 @@ static bool intel_crt_detect_hotplug(struct drm_connector *connector)
 {
 	struct drm_device *dev = connector->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	u32 temp;
+	u32 hotplug_en;
+	int i, tries = 0;
+	/*
+	 * On 4 series desktop, CRT detect sequence need to be done twice
+	 * to get a reliable result.
+	 */
 
-	unsigned long timeout = jiffies + msecs_to_jiffies(1000);
+	if (IS_G4X(dev) && !IS_GM45(dev))
+		tries = 2;
+	else
+		tries = 1;
+	hotplug_en = I915_READ(PORT_HOTPLUG_EN);
+	hotplug_en &= ~(CRT_HOTPLUG_MASK);
+	hotplug_en |= CRT_HOTPLUG_FORCE_DETECT;
 
-	temp = I915_READ(PORT_HOTPLUG_EN);
+	if (IS_GM45(dev))
+		hotplug_en |= CRT_HOTPLUG_ACTIVATION_PERIOD_64;
 
-	I915_WRITE(PORT_HOTPLUG_EN,
-		   temp | CRT_HOTPLUG_FORCE_DETECT | (1 << 5));
+	hotplug_en |= CRT_HOTPLUG_VOLTAGE_COMPARE_50;
 
-	do {
-		if (!(I915_READ(PORT_HOTPLUG_EN) & CRT_HOTPLUG_FORCE_DETECT))
-			break;
-		msleep(1);
-	} while (time_after(timeout, jiffies));
+	for (i = 0; i < tries ; i++) {
+		unsigned long timeout;
+		/* turn on the FORCE_DETECT */
+		I915_WRITE(PORT_HOTPLUG_EN, hotplug_en);
+		timeout = jiffies + msecs_to_jiffies(1000);
+		/* wait for FORCE_DETECT to go off */
+		do {
+			if (!(I915_READ(PORT_HOTPLUG_EN) &
+					CRT_HOTPLUG_FORCE_DETECT))
+				break;
+			msleep(1);
+		} while (time_after(timeout, jiffies));
+	}
 
 	if ((I915_READ(PORT_HOTPLUG_STAT) & CRT_HOTPLUG_MONITOR_MASK) ==
 	    CRT_HOTPLUG_MONITOR_COLOR)
