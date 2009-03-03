@@ -140,8 +140,7 @@ struct cx231xx_usb_isoc_ctl {
 	int nfields;
 
 	/* isoc urb callback */
-	int (*isoc_copy) (struct cx231xx * dev, struct urb * urb);
-
+	int (*isoc_copy) (struct cx231xx *dev, struct urb *urb);
 };
 
 struct cx231xx_fmt {
@@ -497,20 +496,19 @@ struct cx231xx {
 	char urb_buf[URB_MAX_CTRL_SIZE];	/* urb control msg buffer */
 
 	/* helper funcs that call usb_control_msg */
-	int (*cx231xx_read_ctrl_reg) (struct cx231xx * dev, u8 req, u16 reg,
+	int (*cx231xx_read_ctrl_reg) (struct cx231xx *dev, u8 req, u16 reg,
 				      char *buf, int len);
-	int (*cx231xx_write_ctrl_reg) (struct cx231xx * dev, u8 req, u16 reg,
+	int (*cx231xx_write_ctrl_reg) (struct cx231xx *dev, u8 req, u16 reg,
 				       char *buf, int len);
-	int (*cx231xx_send_usb_command) (struct cx231xx_i2c * i2c_bus,
-					 struct cx231xx_i2c_xfer_data *
-					 req_data);
-	int (*cx231xx_gpio_i2c_read) (struct cx231xx * dev, u8 dev_addr,
-				      u8 * buf, u8 len);
-	int (*cx231xx_gpio_i2c_write) (struct cx231xx * dev, u8 dev_addr,
-				       u8 * buf, u8 len);
+	int (*cx231xx_send_usb_command) (struct cx231xx_i2c *i2c_bus,
+					 struct cx231xx_i2c_xfer_data *req_data);
+	int (*cx231xx_gpio_i2c_read) (struct cx231xx *dev, u8 dev_addr,
+				      u8 *buf, u8 len);
+	int (*cx231xx_gpio_i2c_write) (struct cx231xx *dev, u8 dev_addr,
+				       u8 *buf, u8 len);
 
-	int (*cx231xx_set_analog_freq) (struct cx231xx * dev, u32 freq);
-	int (*cx231xx_reset_analog_tuner) (struct cx231xx * dev);
+	int (*cx231xx_set_analog_freq) (struct cx231xx *dev, u32 freq);
+	int (*cx231xx_reset_analog_tuner) (struct cx231xx *dev);
 
 	enum cx231xx_mode mode;
 
@@ -562,7 +560,7 @@ int cx231xx_i2c_unregister(struct cx231xx_i2c *bus);
 
 /* Internal block control functions */
 int cx231xx_read_i2c_data(struct cx231xx *dev, u8 dev_addr,
-			  u16 saddr, u8 saddr_len, u32 * data, u8 data_len);
+			  u16 saddr, u8 saddr_len, u32 *data, u8 data_len);
 int cx231xx_write_i2c_data(struct cx231xx *dev, u8 dev_addr,
 			   u16 saddr, u8 saddr_len, u32 data, u8 data_len);
 int cx231xx_reg_mask_write(struct cx231xx *dev, u8 dev_addr, u8 size,
@@ -594,20 +592,20 @@ int cx231xx_tuner_pre_channel_change(struct cx231xx *dev);
 int cx231xx_tuner_post_channel_change(struct cx231xx *dev);
 
 /* video parser functions */
-u8 cx231xx_find_next_SAV_EAV(u8 * p_buffer, u32 buffer_size,
-			     u32 * p_bytes_used);
-u8 cx231xx_find_boundary_SAV_EAV(u8 * p_buffer, u8 * partial_buf,
-				 u32 * p_bytes_used);
+u8 cx231xx_find_next_SAV_EAV(u8 *p_buffer, u32 buffer_size,
+			     u32 *p_bytes_used);
+u8 cx231xx_find_boundary_SAV_EAV(u8 *p_buffer, u8 *partial_buf,
+				 u32 *p_bytes_used);
 int cx231xx_do_copy(struct cx231xx *dev, struct cx231xx_dmaqueue *dma_q,
-		    u8 * p_buffer, u32 bytes_to_copy);
+		    u8 *p_buffer, u32 bytes_to_copy);
 void cx231xx_reset_video_buffer(struct cx231xx *dev,
 				struct cx231xx_dmaqueue *dma_q);
 u8 cx231xx_is_buffer_done(struct cx231xx *dev, struct cx231xx_dmaqueue *dma_q);
 u32 cx231xx_copy_video_line(struct cx231xx *dev, struct cx231xx_dmaqueue *dma_q,
-			    u8 * p_line, u32 length, int field_number);
+			    u8 *p_line, u32 length, int field_number);
 u32 cx231xx_get_video_line(struct cx231xx *dev, struct cx231xx_dmaqueue *dma_q,
-			   u8 sav_eav, u8 * p_buffer, u32 buffer_size);
-void cx231xx_swab(u16 * from, u16 * to, u16 len);
+			   u8 sav_eav, u8 *p_buffer, u32 buffer_size);
+void cx231xx_swab(u16 *from, u16 *to, u16 len);
 
 /* Provided by cx231xx-core.c */
 
@@ -624,15 +622,15 @@ int cx231xx_write_ctrl_reg(struct cx231xx *dev, u8 req, u16 reg,
 			   char *buf, int len);
 int cx231xx_mode_register(struct cx231xx *dev, u16 address, u32 mode);
 
-int cx231xx_send_vendor_cmd(struct cx231xx *dev, VENDOR_REQUEST_IN * ven_req);
+int cx231xx_send_vendor_cmd(struct cx231xx *dev, VENDOR_REQUEST_IN *ven_req);
 int cx231xx_send_usb_command(struct cx231xx_i2c *i2c_bus,
 			     struct cx231xx_i2c_xfer_data *req_data);
 
 /* Gpio related functions */
-int cx231xx_send_gpio_cmd(struct cx231xx *dev, u32 gpio_bit, u8 * gpio_val,
+int cx231xx_send_gpio_cmd(struct cx231xx *dev, u32 gpio_bit, u8 *gpio_val,
 			  u8 len, u8 request, u8 direction);
-int cx231xx_set_gpio_bit(struct cx231xx *dev, u32 gpio_bit, u8 * gpio_val);
-int cx231xx_get_gpio_bit(struct cx231xx *dev, u32 gpio_bit, u8 * gpio_val);
+int cx231xx_set_gpio_bit(struct cx231xx *dev, u32 gpio_bit, u8 *gpio_val);
+int cx231xx_get_gpio_bit(struct cx231xx *dev, u32 gpio_bit, u8 *gpio_val);
 int cx231xx_set_gpio_value(struct cx231xx *dev, int pin_number, int pin_value);
 int cx231xx_set_gpio_direction(struct cx231xx *dev, int pin_number,
 			       int pin_value);
@@ -640,13 +638,13 @@ int cx231xx_set_gpio_direction(struct cx231xx *dev, int pin_number,
 int cx231xx_gpio_i2c_start(struct cx231xx *dev);
 int cx231xx_gpio_i2c_end(struct cx231xx *dev);
 int cx231xx_gpio_i2c_write_byte(struct cx231xx *dev, u8 data);
-int cx231xx_gpio_i2c_read_byte(struct cx231xx *dev, u8 * buf);
+int cx231xx_gpio_i2c_read_byte(struct cx231xx *dev, u8 *buf);
 int cx231xx_gpio_i2c_read_ack(struct cx231xx *dev);
 int cx231xx_gpio_i2c_write_ack(struct cx231xx *dev);
 int cx231xx_gpio_i2c_write_nak(struct cx231xx *dev);
 
-int cx231xx_gpio_i2c_read(struct cx231xx *dev, u8 dev_addr, u8 * buf, u8 len);
-int cx231xx_gpio_i2c_write(struct cx231xx *dev, u8 dev_addr, u8 * buf, u8 len);
+int cx231xx_gpio_i2c_read(struct cx231xx *dev, u8 dev_addr, u8 *buf, u8 len);
+int cx231xx_gpio_i2c_write(struct cx231xx *dev, u8 dev_addr, u8 *buf, u8 len);
 
 /* audio related functions */
 int cx231xx_set_audio_decoder_input(struct cx231xx *dev,
@@ -658,8 +656,8 @@ int cx231xx_set_video_alternate(struct cx231xx *dev);
 int cx231xx_set_alt_setting(struct cx231xx *dev, u8 index, u8 alt);
 int cx231xx_init_isoc(struct cx231xx *dev, int max_packets,
 		      int num_bufs, int max_pkt_size,
-		      int (*isoc_copy) (struct cx231xx * dev,
-					struct urb * urb));
+		      int (*isoc_copy) (struct cx231xx *dev,
+					struct urb *urb));
 void cx231xx_uninit_isoc(struct cx231xx *dev);
 int cx231xx_set_mode(struct cx231xx *dev, enum cx231xx_mode set_mode);
 int cx231xx_gpio_set(struct cx231xx *dev, struct cx231xx_reg_seq *gpio);

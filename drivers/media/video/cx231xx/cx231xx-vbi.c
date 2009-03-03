@@ -109,27 +109,29 @@ static inline int cx231xx_isoc_vbi_copy(struct cx231xx *dev, struct urb *urb)
 	buffer_size = urb->actual_length;
 
 	if (buffer_size > 0) {
-
 		bytes_parsed = 0;
 
 		if (dma_q->is_partial_line) {
-			/* Handle the case where we were working on a partial line */
+			/* Handle the case where we were working on a partial
+			   line */
 			sav_eav = dma_q->last_sav;
 		} else {
-			/* Check for a SAV/EAV overlapping the buffer boundary */
-			sav_eav =
-			    cx231xx_find_boundary_SAV_EAV(p_buffer,
+			/* Check for a SAV/EAV overlapping the
+			   buffer boundary */
+
+			sav_eav = cx231xx_find_boundary_SAV_EAV(p_buffer,
 							  dma_q->partial_buf,
 							  &bytes_parsed);
 		}
 
 		sav_eav &= 0xF0;
-		/* Get the first line if we have some portion of an SAV/EAV from the last buffer
-		   or a partial line */
+		/* Get the first line if we have some portion of an SAV/EAV from
+		   the last buffer or a partial line */
 		if (sav_eav) {
-			bytes_parsed += cx231xx_get_vbi_line(dev, dma_q, sav_eav,	/* SAV/EAV */
-							     p_buffer + bytes_parsed,	/* p_buffer */
-							     buffer_size - bytes_parsed);	/* buffer size */
+			bytes_parsed += cx231xx_get_vbi_line(dev, dma_q,
+				sav_eav,		       /* SAV/EAV */
+				p_buffer + bytes_parsed,       /* p_buffer */
+				buffer_size - bytes_parsed);   /* buffer size */
 		}
 
 		/* Now parse data that is completely in this buffer */
@@ -139,16 +141,17 @@ static inline int cx231xx_isoc_vbi_copy(struct cx231xx *dev, struct urb *urb)
 			u32 bytes_used = 0;
 
 			sav_eav = cx231xx_find_next_SAV_EAV(p_buffer + bytes_parsed,	/* p_buffer */
-							    buffer_size - bytes_parsed,	/* buffer size */
-							    &bytes_used);	/* Receives bytes used to get SAV/EAV */
+				buffer_size - bytes_parsed,   /* buffer size */
+				&bytes_used);	/* Receives bytes used to get SAV/EAV */
 
 			bytes_parsed += bytes_used;
 
 			sav_eav &= 0xF0;
 			if (sav_eav && (bytes_parsed < buffer_size)) {
-				bytes_parsed += cx231xx_get_vbi_line(dev, dma_q, sav_eav,	/* SAV/EAV */
-								     p_buffer + bytes_parsed,	/* p_buffer */
-								     buffer_size - bytes_parsed);	/* buffer size */
+				bytes_parsed += cx231xx_get_vbi_line(dev,
+						dma_q, sav_eav,	/* SAV/EAV */
+						p_buffer + bytes_parsed,	/* p_buffer */
+						buffer_size - bytes_parsed);	/* buffer size */
 			}
 		}
 
@@ -261,7 +264,7 @@ vbi_buffer_prepare(struct videobuf_queue *vq, struct videobuf_buffer *vb,
 	buf->vb.state = VIDEOBUF_PREPARED;
 	return 0;
 
-      fail:
+fail:
 	free_buffer(vq, buf);
 	return rc;
 }
@@ -285,20 +288,15 @@ static void vbi_buffer_release(struct videobuf_queue *vq,
 {
 	struct cx231xx_buffer *buf =
 	    container_of(vb, struct cx231xx_buffer, vb);
-	/*
-	   struct cx231xx_fh       *fh   = vq->priv_data;
-	   struct cx231xx          *dev  = (struct cx231xx *)fh->dev;
 
-	   cx231xx_info(DRIVER_NAME "cx231xx: called vbi_buffer_release\n");
-	 */
 
 	free_buffer(vq, buf);
 }
 
 struct videobuf_queue_ops cx231xx_vbi_qops = {
-	.buf_setup = vbi_buffer_setup,
+	.buf_setup   = vbi_buffer_setup,
 	.buf_prepare = vbi_buffer_prepare,
-	.buf_queue = vbi_buffer_queue,
+	.buf_queue   = vbi_buffer_queue,
 	.buf_release = vbi_buffer_release,
 };
 
@@ -387,7 +385,6 @@ void cx231xx_uninit_vbi_isoc(struct cx231xx *dev)
 
 	cx231xx_capture_start(dev, 0, Vbi);
 }
-
 EXPORT_SYMBOL_GPL(cx231xx_uninit_vbi_isoc);
 
 /*
@@ -395,8 +392,8 @@ EXPORT_SYMBOL_GPL(cx231xx_uninit_vbi_isoc);
  */
 int cx231xx_init_vbi_isoc(struct cx231xx *dev, int max_packets,
 			  int num_bufs, int max_pkt_size,
-			  int (*isoc_copy) (struct cx231xx * dev,
-					    struct urb * urb))
+			  int (*isoc_copy) (struct cx231xx *dev,
+					    struct urb *urb))
 {
 	struct cx231xx_dmaqueue *dma_q = &dev->vbi_mode.vidq;
 	int i;
@@ -427,8 +424,8 @@ int cx231xx_init_vbi_isoc(struct cx231xx *dev, int max_packets,
 	for (i = 0; i < 8; i++)
 		dma_q->partial_buf[i] = 0;
 
-	dev->vbi_mode.isoc_ctl.urb =
-	    kzalloc(sizeof(void *) * num_bufs, GFP_KERNEL);
+	dev->vbi_mode.isoc_ctl.urb = kzalloc(sizeof(void *) * num_bufs,
+					     GFP_KERNEL);
 	if (!dev->vbi_mode.isoc_ctl.urb) {
 		cx231xx_errdev("cannot alloc memory for usb buffers\n");
 		return -ENOMEM;
@@ -466,7 +463,7 @@ int cx231xx_init_vbi_isoc(struct cx231xx *dev, int max_packets,
 			cx231xx_err(DRIVER_NAME
 				    ": unable to allocate %i bytes for transfer"
 				    " buffer %i%s\n", sb_size, i,
-				    in_interrupt()? " while in int" : "");
+				    in_interrupt() ? " while in int" : "");
 			cx231xx_uninit_vbi_isoc(dev);
 			return -ENOMEM;
 		}
@@ -495,11 +492,10 @@ int cx231xx_init_vbi_isoc(struct cx231xx *dev, int max_packets,
 
 	return 0;
 }
-
 EXPORT_SYMBOL_GPL(cx231xx_init_vbi_isoc);
 
-u32 cx231xx_get_vbi_line(struct cx231xx * dev, struct cx231xx_dmaqueue * dma_q,
-			 u8 sav_eav, u8 * p_buffer, u32 buffer_size)
+u32 cx231xx_get_vbi_line(struct cx231xx *dev, struct cx231xx_dmaqueue *dma_q,
+			 u8 sav_eav, u8 *p_buffer, u32 buffer_size)
 {
 	u32 bytes_copied = 0;
 	int current_field = -1;
@@ -550,15 +546,14 @@ static inline void vbi_buffer_filled(struct cx231xx *dev,
 }
 
 u32 cx231xx_copy_vbi_line(struct cx231xx *dev, struct cx231xx_dmaqueue *dma_q,
-			  u8 * p_line, u32 length, int field_number)
+			  u8 *p_line, u32 length, int field_number)
 {
 	u32 bytes_to_copy;
 	struct cx231xx_buffer *buf;
 	u32 _line_size = dev->width * 2;
 
-	if (dma_q->current_field != field_number) {
+	if (dma_q->current_field != field_number)
 		cx231xx_reset_vbi_buffer(dev, dma_q);
-	}
 
 	/* get the buffer pointer */
 	buf = dev->vbi_mode.isoc_ctl.buf;
@@ -651,7 +646,6 @@ void cx231xx_reset_vbi_buffer(struct cx231xx *dev,
 	buf = dev->vbi_mode.isoc_ctl.buf;
 
 	if (buf == NULL) {
-
 		/* first try to get the buffer */
 		get_next_vbi_buf(dma_q, &buf);
 
@@ -664,7 +658,7 @@ void cx231xx_reset_vbi_buffer(struct cx231xx *dev,
 }
 
 int cx231xx_do_vbi_copy(struct cx231xx *dev, struct cx231xx_dmaqueue *dma_q,
-			u8 * p_buffer, u32 bytes_to_copy)
+			u8 *p_buffer, u32 bytes_to_copy)
 {
 	u8 *p_out_buffer = NULL;
 	u32 current_line_bytes_copied = 0;
@@ -675,9 +669,8 @@ int cx231xx_do_vbi_copy(struct cx231xx *dev, struct cx231xx_dmaqueue *dma_q,
 
 	buf = dev->vbi_mode.isoc_ctl.buf;
 
-	if (buf == NULL) {
-		return -1;
-	}
+	if (buf == NULL)
+		return -EINVAL;
 
 	p_out_buffer = videobuf_to_vmalloc(&buf->vb);
 
@@ -686,23 +679,22 @@ int cx231xx_do_vbi_copy(struct cx231xx *dev, struct cx231xx_dmaqueue *dma_q,
 		    _line_size - dma_q->bytes_left_in_line;
 	}
 
-	offset =
-	    (dma_q->lines_completed * _line_size) + current_line_bytes_copied;
+	offset = (dma_q->lines_completed * _line_size) +
+		 current_line_bytes_copied;
 
 	/* prepare destination address */
 	startwrite = p_out_buffer + offset;
 
-	lencopy =
-	    dma_q->bytes_left_in_line >
-	    bytes_to_copy ? bytes_to_copy : dma_q->bytes_left_in_line;
+	lencopy = dma_q->bytes_left_in_line > bytes_to_copy ?
+		  bytes_to_copy : dma_q->bytes_left_in_line;
 
 	memcpy(startwrite, p_buffer, lencopy);
 
 	return 0;
 }
 
-u8 cx231xx_is_vbi_buffer_done(struct cx231xx * dev,
-			      struct cx231xx_dmaqueue * dma_q)
+u8 cx231xx_is_vbi_buffer_done(struct cx231xx *dev,
+			      struct cx231xx_dmaqueue *dma_q)
 {
 	u32 height = 0;
 

@@ -70,7 +70,6 @@ static int cx231xx_isoc_audio_deinit(struct cx231xx *dev)
 
 			kfree(dev->adev.transfer_buffer[i]);
 			dev->adev.transfer_buffer[i] = NULL;
-
 		}
 	}
 
@@ -108,18 +107,19 @@ static void cx231xx_audio_isocirq(struct urb *urb)
 		stride = runtime->frame_bits >> 3;
 
 		for (i = 0; i < urb->number_of_packets; i++) {
-			int length =
-			    urb->iso_frame_desc[i].actual_length / stride;
+			int length = urb->iso_frame_desc[i].actual_length /
+				     stride;
 			cp = (unsigned char *)urb->transfer_buffer +
-			    urb->iso_frame_desc[i].offset;
+					      urb->iso_frame_desc[i].offset;
 
 			if (!length)
 				continue;
 
 			oldptr = dev->adev.hwptr_done_capture;
 			if (oldptr + length >= runtime->buffer_size) {
-				unsigned int cnt =
-				    runtime->buffer_size - oldptr;
+				unsigned int cnt;
+
+				cnt = runtime->buffer_size - oldptr;
 				memcpy(runtime->dma_area + oldptr * stride, cp,
 				       cnt * stride);
 				memcpy(runtime->dma_area, cp + cnt * stride,
@@ -132,16 +132,12 @@ static void cx231xx_audio_isocirq(struct urb *urb)
 			snd_pcm_stream_lock(substream);
 
 			dev->adev.hwptr_done_capture += length;
-			if (dev->adev.hwptr_done_capture >=
-			    runtime->buffer_size)
-				dev->adev.hwptr_done_capture -=
-				    runtime->buffer_size;
+			if (dev->adev.hwptr_done_capture >= runtime->buffer_size)
+				dev->adev.hwptr_done_capture -= runtime->buffer_size;
 
 			dev->adev.capture_transfer_done += length;
-			if (dev->adev.capture_transfer_done >=
-			    runtime->period_size) {
-				dev->adev.capture_transfer_done -=
-				    runtime->period_size;
+			if (dev->adev.capture_transfer_done >= runtime->period_size) {
+				dev->adev.capture_transfer_done -= runtime->period_size;
 				period_elapsed = 1;
 			}
 			snd_pcm_stream_unlock(substream);
@@ -189,8 +185,7 @@ static int cx231xx_init_audio_isoc(struct cx231xx *dev)
 
 		urb->dev = dev->udev;
 		urb->context = dev;
-		urb->pipe =
-		    usb_rcvisocpipe(dev->udev, dev->adev.end_point_addr);
+		urb->pipe = usb_rcvisocpipe(dev->udev, dev->adev.end_point_addr);
 		urb->transfer_flags = URB_ISO_ASAP;
 		urb->transfer_buffer = dev->adev.transfer_buffer[i];
 		urb->interval = 1;
@@ -198,8 +193,7 @@ static int cx231xx_init_audio_isoc(struct cx231xx *dev)
 		urb->number_of_packets = CX231XX_NUM_AUDIO_PACKETS;
 		urb->transfer_buffer_length = sb_size;
 
-		for (j = k = 0; j < CX231XX_NUM_AUDIO_PACKETS;
-		     j++, k += dev->adev.max_pkt_size) {
+		for (j = k = 0; j < CX231XX_NUM_AUDIO_PACKETS; j++, k += dev->adev.max_pkt_size) {
 			urb->iso_frame_desc[j].offset = k;
 			urb->iso_frame_desc[j].length = dev->adev.max_pkt_size;
 		}
@@ -275,10 +269,10 @@ static struct snd_pcm_hardware snd_cx231xx_hw_capture = {
 	.channels_min = 2,
 	.channels_max = 2,
 	.buffer_bytes_max = 62720 * 8,	/* just about the value in usbaudio.c */
-	.period_bytes_min = 64,	/* 12544/2, */
+	.period_bytes_min = 64,		/* 12544/2, */
 	.period_bytes_max = 12544,
 	.periods_min = 2,
-	.periods_max = 98,	/* 12544, */
+	.periods_max = 98,		/* 12544, */
 };
 
 static int snd_cx231xx_capture_open(struct snd_pcm_substream *substream)
@@ -477,9 +471,8 @@ static int cx231xx_audio_init(struct cx231xx *dev)
 		     "non standard usbaudio\n");
 
 	card = snd_card_new(index[devnr], "Cx231xx Audio", THIS_MODULE, 0);
-	if (card == NULL) {
+	if (card == NULL)
 		return -ENOMEM;
-	}
 
 	spin_lock_init(&adev->slock);
 	err = snd_pcm_new(card, "Cx231xx Audio", 0, 0, 1, &pcm);

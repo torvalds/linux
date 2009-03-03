@@ -1,5 +1,6 @@
 /*
-   cx231xx-video.c - driver for Conexant Cx23100/101/102 USB video capture devices
+   cx231xx-video.c - driver for Conexant Cx23100/101/102
+		     USB video capture devices
 
    Copyright (C) 2008 <srinivasa.deevi at conexant dot com>
 	Based on em28xx driver
@@ -109,91 +110,91 @@ static const struct v4l2_queryctrl no_ctl = {
 static struct cx231xx_ctrl cx231xx_ctls[] = {
 	/* --- video --- */
 	{
-	 .v = {
-	       .id = V4L2_CID_BRIGHTNESS,
-	       .name = "Brightness",
-	       .minimum = 0x00,
-	       .maximum = 0xff,
-	       .step = 1,
-	       .default_value = 0x7f,
-	       .type = V4L2_CTRL_TYPE_INTEGER,
-	       },
-	 .off = 128,
-	 .reg = LUMA_CTRL,
-	 .mask = 0x00ff,
-	 .shift = 0,
-	 }, {
-	     .v = {
-		   .id = V4L2_CID_CONTRAST,
-		   .name = "Contrast",
-		   .minimum = 0,
-		   .maximum = 0xff,
-		   .step = 1,
-		   .default_value = 0x3f,
-		   .type = V4L2_CTRL_TYPE_INTEGER,
-		   },
-	     .off = 0,
-	     .reg = LUMA_CTRL,
-	     .mask = 0xff00,
-	     .shift = 8,
-	     }, {
-		 .v = {
-		       .id = V4L2_CID_HUE,
-		       .name = "Hue",
-		       .minimum = 0,
-		       .maximum = 0xff,
-		       .step = 1,
-		       .default_value = 0x7f,
-		       .type = V4L2_CTRL_TYPE_INTEGER,
-		       },
-		 .off = 128,
-		 .reg = CHROMA_CTRL,
-		 .mask = 0xff0000,
-		 .shift = 16,
-		 }, {
-		     /* strictly, this only describes only U saturation.
-		      * V saturation is handled specially through code.
-		      */
-		     .v = {
-			   .id = V4L2_CID_SATURATION,
-			   .name = "Saturation",
-			   .minimum = 0,
-			   .maximum = 0xff,
-			   .step = 1,
-			   .default_value = 0x7f,
-			   .type = V4L2_CTRL_TYPE_INTEGER,
-			   },
-		     .off = 0,
-		     .reg = CHROMA_CTRL,
-		     .mask = 0x00ff,
-		     .shift = 0,
-		     }, {
-			 /* --- audio --- */
-			 .v = {
-			       .id = V4L2_CID_AUDIO_MUTE,
-			       .name = "Mute",
-			       .minimum = 0,
-			       .maximum = 1,
-			       .default_value = 1,
-			       .type = V4L2_CTRL_TYPE_BOOLEAN,
-			       },
-			 .reg = PATH1_CTL1,
-			 .mask = (0x1f << 24),
-			 .shift = 24,
-			 }, {
-			     .v = {
-				   .id = V4L2_CID_AUDIO_VOLUME,
-				   .name = "Volume",
-				   .minimum = 0,
-				   .maximum = 0x3f,
-				   .step = 1,
-				   .default_value = 0x3f,
-				   .type = V4L2_CTRL_TYPE_INTEGER,
-				   },
-			     .reg = PATH1_VOL_CTL,
-			     .mask = 0xff,
-			     .shift = 0,
-			     }
+		.v = {
+			.id = V4L2_CID_BRIGHTNESS,
+			.name = "Brightness",
+			.minimum = 0x00,
+			.maximum = 0xff,
+			.step = 1,
+			.default_value = 0x7f,
+			.type = V4L2_CTRL_TYPE_INTEGER,
+		},
+		.off = 128,
+		.reg = LUMA_CTRL,
+		.mask = 0x00ff,
+		.shift = 0,
+	}, {
+		.v = {
+			.id = V4L2_CID_CONTRAST,
+			.name = "Contrast",
+			.minimum = 0,
+			.maximum = 0xff,
+			.step = 1,
+			.default_value = 0x3f,
+			.type = V4L2_CTRL_TYPE_INTEGER,
+		},
+		.off = 0,
+		.reg = LUMA_CTRL,
+		.mask = 0xff00,
+		.shift = 8,
+	}, {
+		.v = {
+			.id = V4L2_CID_HUE,
+			.name = "Hue",
+			.minimum = 0,
+			.maximum = 0xff,
+			.step = 1,
+			.default_value = 0x7f,
+			.type = V4L2_CTRL_TYPE_INTEGER,
+		},
+		.off = 128,
+		.reg = CHROMA_CTRL,
+		.mask = 0xff0000,
+		.shift = 16,
+	}, {
+	/* strictly, this only describes only U saturation.
+	* V saturation is handled specially through code.
+	*/
+		.v = {
+			.id = V4L2_CID_SATURATION,
+			.name = "Saturation",
+			.minimum = 0,
+			.maximum = 0xff,
+			.step = 1,
+			.default_value = 0x7f,
+			.type = V4L2_CTRL_TYPE_INTEGER,
+		},
+		.off = 0,
+		.reg = CHROMA_CTRL,
+		.mask = 0x00ff,
+		.shift = 0,
+	}, {
+		/* --- audio --- */
+		.v = {
+			.id = V4L2_CID_AUDIO_MUTE,
+			.name = "Mute",
+			.minimum = 0,
+			.maximum = 1,
+			.default_value = 1,
+			.type = V4L2_CTRL_TYPE_BOOLEAN,
+		},
+		.reg = PATH1_CTL1,
+		.mask = (0x1f << 24),
+		.shift = 24,
+	}, {
+		.v = {
+			.id = V4L2_CID_AUDIO_VOLUME,
+			.name = "Volume",
+			.minimum = 0,
+			.maximum = 0x3f,
+			.step = 1,
+			.default_value = 0x3f,
+			.type = V4L2_CTRL_TYPE_INTEGER,
+		},
+		.reg = PATH1_VOL_CTL,
+		.mask = 0xff,
+		.shift = 0,
+	}
 };
 static const int CX231XX_CTLS = ARRAY_SIZE(cx231xx_ctls);
 
@@ -373,12 +374,13 @@ static inline int cx231xx_isoc_copy(struct cx231xx *dev, struct urb *urb)
 		}
 
 		sav_eav &= 0xF0;
-		/* Get the first line if we have some portion of an SAV/EAV from the last buffer
-		   or a partial line  */
+		/* Get the first line if we have some portion of an SAV/EAV from
+		   the last buffer or a partial line  */
 		if (sav_eav) {
-			bytes_parsed += cx231xx_get_video_line(dev, dma_q, sav_eav,	/* SAV/EAV */
-							       p_buffer + bytes_parsed,	/* p_buffer */
-							       buffer_size - bytes_parsed);	/* buffer size */
+			bytes_parsed += cx231xx_get_video_line(dev, dma_q,
+						sav_eav,	/* SAV/EAV */
+						p_buffer + bytes_parsed,	/* p_buffer */
+						buffer_size - bytes_parsed);	/* buffer size */
 		}
 
 		/* Now parse data that is completely in this buffer */
@@ -388,21 +390,22 @@ static inline int cx231xx_isoc_copy(struct cx231xx *dev, struct urb *urb)
 			u32 bytes_used = 0;
 
 			sav_eav = cx231xx_find_next_SAV_EAV(p_buffer + bytes_parsed,	/* p_buffer */
-							    buffer_size - bytes_parsed,	/* buffer size */
-							    &bytes_used);	/* Receives bytes used to get SAV/EAV */
+						buffer_size - bytes_parsed,	/* buffer size */
+						&bytes_used);	/* Receives bytes used to get SAV/EAV */
 
 			bytes_parsed += bytes_used;
 
 			sav_eav &= 0xF0;
 			if (sav_eav && (bytes_parsed < buffer_size)) {
-				bytes_parsed += cx231xx_get_video_line(dev, dma_q, sav_eav,	/* SAV/EAV */
-								       p_buffer + bytes_parsed,	/* p_buffer */
-								       buffer_size - bytes_parsed);	/* buffer size */
+				bytes_parsed += cx231xx_get_video_line(dev,
+						dma_q, sav_eav,	/* SAV/EAV */
+						p_buffer + bytes_parsed,	/* p_buffer */
+						buffer_size - bytes_parsed);	/* buffer size */
 			}
 		}
 
-		/* Save the last four bytes of the buffer so we can check the buffer boundary
-		   condition next time */
+		/* Save the last four bytes of the buffer so we can check the
+		   buffer boundary condition next time */
 		memcpy(dma_q->partial_buf, p_buffer + buffer_size - 4, 4);
 		bytes_parsed = 0;
 
@@ -410,8 +413,8 @@ static inline int cx231xx_isoc_copy(struct cx231xx *dev, struct urb *urb)
 	return rc;
 }
 
-u8 cx231xx_find_boundary_SAV_EAV(u8 * p_buffer, u8 * partial_buf,
-				 u32 * p_bytes_used)
+u8 cx231xx_find_boundary_SAV_EAV(u8 *p_buffer, u8 *partial_buf,
+				 u32 *p_bytes_used)
 {
 	u32 bytes_used;
 	u8 boundary_bytes[8];
@@ -426,8 +429,8 @@ u8 cx231xx_find_boundary_SAV_EAV(u8 * p_buffer, u8 * partial_buf,
 	memcpy(boundary_bytes + 4, p_buffer, 4);
 
 	/* Check for the SAV/EAV in the boundary buffer */
-	sav_eav =
-	    cx231xx_find_next_SAV_EAV((u8 *) & boundary_bytes, 8, &bytes_used);
+	sav_eav = cx231xx_find_next_SAV_EAV((u8 *)&boundary_bytes, 8,
+					    &bytes_used);
 
 	if (sav_eav) {
 		/* found a boundary SAV/EAV.  Updates the bytes used to reflect
@@ -438,13 +441,16 @@ u8 cx231xx_find_boundary_SAV_EAV(u8 * p_buffer, u8 * partial_buf,
 	return sav_eav;
 }
 
-u8 cx231xx_find_next_SAV_EAV(u8 * p_buffer, u32 buffer_size, u32 * p_bytes_used)
+u8 cx231xx_find_next_SAV_EAV(u8 *p_buffer, u32 buffer_size, u32 *p_bytes_used)
 {
 	u32 i;
 	u8 sav_eav = 0;
 
-	/* Don't search if the buffer size is less than 4.  It causes a page fault since
-	   buffer_size - 4 evaluates to a large number in that case. */
+	/*
+	 * Don't search if the buffer size is less than 4.  It causes a page
+	 * fault since buffer_size - 4 evaluates to a large number in that
+	 * case.
+	 */
 	if (buffer_size < 4) {
 		*p_bytes_used = buffer_size;
 		return 0;
@@ -465,69 +471,61 @@ u8 cx231xx_find_next_SAV_EAV(u8 * p_buffer, u32 buffer_size, u32 * p_bytes_used)
 	return 0;
 }
 
-u32 cx231xx_get_video_line(struct cx231xx * dev,
-			   struct cx231xx_dmaqueue * dma_q, u8 sav_eav,
-			   u8 * p_buffer, u32 buffer_size)
+u32 cx231xx_get_video_line(struct cx231xx *dev,
+			   struct cx231xx_dmaqueue *dma_q, u8 sav_eav,
+			   u8 *p_buffer, u32 buffer_size)
 {
 	u32 bytes_copied = 0;
 	int current_field = -1;
 
 	switch (sav_eav) {
 	case SAV_ACTIVE_VIDEO_FIELD1:
-		/* looking for skipped line which occurred in PAL 720x480 mode. In this case,
-		   there will be no active data contained between the SAV and EAV */
-		if ((buffer_size > 3) &&
-		    (p_buffer[0] == 0xFF) && (p_buffer[1] == 0x00)
-		    && (p_buffer[2] == 0x00)
-		    && ((p_buffer[3] == EAV_ACTIVE_VIDEO_FIELD1)
-			|| (p_buffer[3] == EAV_ACTIVE_VIDEO_FIELD2)
-			|| (p_buffer[3] == EAV_VBLANK_FIELD1)
-			|| (p_buffer[3] == EAV_VBLANK_FIELD2)
-		    )
-		    ) {
+		/* looking for skipped line which occurred in PAL 720x480 mode.
+		   In this case, there will be no active data contained
+		   between the SAV and EAV */
+		if ((buffer_size > 3) && (p_buffer[0] == 0xFF) &&
+		    (p_buffer[1] == 0x00) && (p_buffer[2] == 0x00) &&
+		    ((p_buffer[3] == EAV_ACTIVE_VIDEO_FIELD1) ||
+		     (p_buffer[3] == EAV_ACTIVE_VIDEO_FIELD2) ||
+		     (p_buffer[3] == EAV_VBLANK_FIELD1) ||
+		     (p_buffer[3] == EAV_VBLANK_FIELD2)))
 			return bytes_copied;
-		}
 		current_field = 1;
 		break;
 
 	case SAV_ACTIVE_VIDEO_FIELD2:
-		/* looking for skipped line which occurred in PAL 720x480 mode. In this case,
-		   there will be no active data contained between the SAV and EAV */
-		if ((buffer_size > 3) &&
-		    (p_buffer[0] == 0xFF) && (p_buffer[1] == 0x00)
-		    && (p_buffer[2] == 0x00)
-		    && ((p_buffer[3] == EAV_ACTIVE_VIDEO_FIELD1)
-			|| (p_buffer[3] == EAV_ACTIVE_VIDEO_FIELD2)
-			|| (p_buffer[3] == EAV_VBLANK_FIELD1)
-			|| (p_buffer[3] == EAV_VBLANK_FIELD2)
-		    )
-		    ) {
+		/* looking for skipped line which occurred in PAL 720x480 mode.
+		   In this case, there will be no active data contained between
+		   the SAV and EAV */
+		if ((buffer_size > 3) && (p_buffer[0] == 0xFF) &&
+		    (p_buffer[1] == 0x00) && (p_buffer[2] == 0x00) &&
+		    ((p_buffer[3] == EAV_ACTIVE_VIDEO_FIELD1) ||
+		     (p_buffer[3] == EAV_ACTIVE_VIDEO_FIELD2) ||
+		     (p_buffer[3] == EAV_VBLANK_FIELD1)       ||
+		     (p_buffer[3] == EAV_VBLANK_FIELD2)))
 			return bytes_copied;
-		}
 		current_field = 2;
 		break;
 	}
 
 	dma_q->last_sav = sav_eav;
 
-	bytes_copied =
-	    cx231xx_copy_video_line(dev, dma_q, p_buffer, buffer_size,
-				    current_field);
+	bytes_copied = cx231xx_copy_video_line(dev, dma_q, p_buffer,
+					       buffer_size, current_field);
 
 	return bytes_copied;
 }
 
-u32 cx231xx_copy_video_line(struct cx231xx * dev,
-			    struct cx231xx_dmaqueue * dma_q, u8 * p_line,
+u32 cx231xx_copy_video_line(struct cx231xx *dev,
+			    struct cx231xx_dmaqueue *dma_q, u8 *p_line,
 			    u32 length, int field_number)
 {
 	u32 bytes_to_copy;
 	struct cx231xx_buffer *buf;
 	u32 _line_size = dev->width * 2;
 
-	if (dma_q->current_field != field_number) {
+	if (dma_q->current_field != field_number)
 		cx231xx_reset_video_buffer(dev, dma_q);
-	}
 
 	/* get the buffer pointer */
 	buf = dev->video_mode.isoc_ctl.buf;
@@ -541,8 +539,8 @@ u32 cx231xx_copy_video_line(struct cx231xx * dev,
 
 	if (dma_q->lines_completed >= dma_q->lines_per_field) {
 		dma_q->bytes_left_in_line -= bytes_to_copy;
-		dma_q->is_partial_line =
-		    (dma_q->bytes_left_in_line == 0) ? 0 : 1;
+		dma_q->is_partial_line = (dma_q->bytes_left_in_line == 0) ?
+					  0 : 1;
 		return 0;
 	}
 
@@ -552,8 +550,8 @@ u32 cx231xx_copy_video_line(struct cx231xx * dev,
 	   have copied if we had a buffer. */
 	if (!buf) {
 		dma_q->bytes_left_in_line -= bytes_to_copy;
-		dma_q->is_partial_line =
-		    (dma_q->bytes_left_in_line == 0) ? 0 : 1;
+		dma_q->is_partial_line = (dma_q->bytes_left_in_line == 0)
+					 ? 0 : 1;
 		return bytes_to_copy;
 	}
 
@@ -564,13 +562,11 @@ u32 cx231xx_copy_video_line(struct cx231xx * dev,
 	dma_q->bytes_left_in_line -= bytes_to_copy;
 
 	if (dma_q->bytes_left_in_line == 0) {
-
 		dma_q->bytes_left_in_line = _line_size;
 		dma_q->lines_completed++;
 		dma_q->is_partial_line = 0;
 
 		if (cx231xx_is_buffer_done(dev, dma_q) && buf) {
-
 			buffer_filled(dev, dma_q, buf);
 
 			dma_q->pos = 0;
@@ -589,11 +585,10 @@ void cx231xx_reset_video_buffer(struct cx231xx *dev,
 
 	/* handle the switch from field 1 to field 2 */
 	if (dma_q->current_field == 1) {
-		if (dma_q->lines_completed >= dma_q->lines_per_field) {
+		if (dma_q->lines_completed >= dma_q->lines_per_field)
 			dma_q->field1_done = 1;
-		} else {
+		else
 			dma_q->field1_done = 0;
-		}
 	}
 
 	buf = dev->video_mode.isoc_ctl.buf;
@@ -617,7 +612,7 @@ void cx231xx_reset_video_buffer(struct cx231xx *dev,
 }
 
 int cx231xx_do_copy(struct cx231xx *dev, struct cx231xx_dmaqueue *dma_q,
-		    u8 * p_buffer, u32 bytes_to_copy)
+		    u8 *p_buffer, u32 bytes_to_copy)
 {
 	u8 *p_out_buffer = NULL;
 	u32 current_line_bytes_copied = 0;
@@ -647,14 +642,11 @@ int cx231xx_do_copy(struct cx231xx *dev, struct cx231xx_dmaqueue *dma_q,
 	/* bytes already completed in the current line */
 	startwrite += current_line_bytes_copied;
 
-	lencopy =
-	    dma_q->bytes_left_in_line >
-	    bytes_to_copy ? bytes_to_copy : dma_q->bytes_left_in_line;
+	lencopy = dma_q->bytes_left_in_line > bytes_to_copy ?
+		  bytes_to_copy : dma_q->bytes_left_in_line;
 
-	if ((u8 *) (startwrite + lencopy) >
-	    (u8 *) (p_out_buffer + buf->vb.size)) {
+	if ((u8 *)(startwrite + lencopy) > (u8 *)(p_out_buffer + buf->vb.size))
 		return 0;
-	}
 
 	/* The below copies the UYVY data straight into video buffer */
 	cx231xx_swab((u16 *) p_buffer, (u16 *) startwrite, (u16) lencopy);
@@ -662,16 +654,15 @@ int cx231xx_do_copy(struct cx231xx *dev, struct cx231xx_dmaqueue *dma_q,
 	return 0;
 }
 
-void cx231xx_swab(u16 * from, u16 * to, u16 len)
+void cx231xx_swab(u16 *from, u16 *to, u16 len)
 {
 	u16 i;
 
 	if (len <= 0)
 		return;
 
-	for (i = 0; i < len / 2; i++) {
+	for (i = 0; i < len / 2; i++)
 		to[i] = (from[i] << 8) | (from[i] >> 8);
-	}
 }
 
 u8 cx231xx_is_buffer_done(struct cx231xx *dev, struct cx231xx_dmaqueue *dma_q)
@@ -679,10 +670,9 @@ u8 cx231xx_is_buffer_done(struct cx231xx *dev, struct cx231xx_dmaqueue *dma_q)
 	u8 buffer_complete = 0;
 
 	/* Dual field stream */
-	buffer_complete =
-	    ((dma_q->current_field == 2) &&
-	     (dma_q->lines_completed >= dma_q->lines_per_field) &&
-	     dma_q->field1_done);
+	buffer_complete = ((dma_q->current_field == 2) &&
+			   (dma_q->lines_completed >= dma_q->lines_per_field) &&
+			    dma_q->field1_done);
 
 	return buffer_complete;
 }
@@ -698,8 +688,7 @@ buffer_setup(struct videobuf_queue *vq, unsigned int *count, unsigned int *size)
 	struct cx231xx *dev = fh->dev;
 	struct v4l2_frequency f;
 
-	*size =
-	    (fh->dev->width * fh->dev->height * dev->format->depth + 7) >> 3;
+	*size = (fh->dev->width * fh->dev->height * dev->format->depth + 7)>>3;
 	if (0 == *count)
 		*count = CX231XX_DEF_BUF;
 
@@ -722,6 +711,7 @@ static void free_buffer(struct videobuf_queue *vq, struct cx231xx_buffer *buf)
 	struct cx231xx_fh *fh = vq->priv_data;
 	struct cx231xx *dev = fh->dev;
 	unsigned long flags = 0;
+
 	if (in_interrupt())
 		BUG();
 
@@ -754,9 +744,8 @@ buffer_prepare(struct videobuf_queue *vq, struct videobuf_buffer *vb,
 	int rc = 0, urb_init = 0;
 
 	/* The only currently supported format is 16 bits/pixel */
-	buf->vb.size =
-	    (fh->dev->width * fh->dev->height * dev->format->depth + 7) >> 3;
-
+	buf->vb.size = (fh->dev->width * fh->dev->height * dev->format->depth
+			+ 7) >> 3;
 	if (0 != buf->vb.baddr && buf->vb.bsize < buf->vb.size)
 		return -EINVAL;
 
@@ -785,7 +774,7 @@ buffer_prepare(struct videobuf_queue *vq, struct videobuf_buffer *vb,
 	buf->vb.state = VIDEOBUF_PREPARED;
 	return 0;
 
-      fail:
+fail:
 	free_buffer(vq, buf);
 	return rc;
 }
@@ -876,7 +865,7 @@ static int res_get(struct cx231xx_fh *fh)
 
 static int res_check(struct cx231xx_fh *fh)
 {
-	return (fh->stream_on);
+	return fh->stream_on;
 }
 
 static void res_free(struct cx231xx_fh *fh)
@@ -948,6 +937,7 @@ static int vidioc_g_fmt_vid_cap(struct file *file, void *priv,
 	f->fmt.pix.field = V4L2_FIELD_INTERLACED;
 
 	mutex_unlock(&dev->lock);
+
 	return 0;
 }
 
@@ -1056,7 +1046,7 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 	/* Set the correct alternate setting for this resolution */
 	cx231xx_resolution_set(dev);
 
-      out:
+out:
 	mutex_unlock(&dev->lock);
 	return rc;
 }
@@ -1110,11 +1100,11 @@ static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id * norm)
 
 static const char *iname[] = {
 	[CX231XX_VMUX_COMPOSITE1] = "Composite1",
-	[CX231XX_VMUX_SVIDEO] = "S-Video",
+	[CX231XX_VMUX_SVIDEO]     = "S-Video",
 	[CX231XX_VMUX_TELEVISION] = "Television",
-	[CX231XX_VMUX_CABLE] = "Cable TV",
-	[CX231XX_VMUX_DVB] = "DVB",
-	[CX231XX_VMUX_DEBUG] = "for debug only",
+	[CX231XX_VMUX_CABLE]      = "Cable TV",
+	[CX231XX_VMUX_DVB]        = "DVB",
+	[CX231XX_VMUX_DEBUG]      = "for debug only",
 };
 
 static int vidioc_enum_input(struct file *file, void *priv,
@@ -1386,12 +1376,11 @@ static int vidioc_s_frequency(struct file *file, void *priv,
 	dev->ctl_freq = f->frequency;
 
 	if (dev->tuner_type == TUNER_XC5000) {
-		if (dev->cx231xx_set_analog_freq != NULL) {
+		if (dev->cx231xx_set_analog_freq != NULL)
 			dev->cx231xx_set_analog_freq(dev, f->frequency);
-		}
 	} else {
-		cx231xx_i2c_call_clients(&dev->i2c_bus[1], VIDIOC_S_FREQUENCY,
-					 f);
+		cx231xx_i2c_call_clients(&dev->i2c_bus[1],
+					 VIDIOC_S_FREQUENCY, f);
 	}
 
 	mutex_unlock(&dev->lock);
@@ -1430,47 +1419,42 @@ static int vidioc_g_register(struct file *file, void *priv,
 	case V4L2_CHIP_MATCH_HOST:
 		switch (reg->match.addr) {
 		case 0:	/* Cx231xx - internal registers */
-			ret =
-			    cx231xx_read_ctrl_reg(dev, VRT_GET_REGISTER,
-						  (u16) reg->reg, value, 4);
-			reg->val =
-			    value[0] | value[1] << 8 | value[2] << 16 | value[3]
-			    << 24;
+			ret = cx231xx_read_ctrl_reg(dev, VRT_GET_REGISTER,
+						  (u16)reg->reg, value, 4);
+			reg->val = value[0] | value[1] << 8 |
+				   value[2] << 16 | value[3] << 24;
 			break;
 		case 1:	/* Colibri - read byte */
-			ret =
-			    cx231xx_read_i2c_data(dev, Colibri_DEVICE_ADDRESS,
-						  (u16) reg->reg, 2, &data, 1);
+			ret = cx231xx_read_i2c_data(dev, Colibri_DEVICE_ADDRESS,
+						  (u16)reg->reg, 2, &data, 1);
 			reg->val = le32_to_cpu(data & 0xff);
 			break;
 		case 14:	/* Colibri - read dword */
-			ret =
-			    cx231xx_read_i2c_data(dev, Colibri_DEVICE_ADDRESS,
-						  (u16) reg->reg, 2, &data, 4);
+			ret = cx231xx_read_i2c_data(dev, Colibri_DEVICE_ADDRESS,
+						  (u16)reg->reg, 2, &data, 4);
 			reg->val = le32_to_cpu(data);
 			break;
 		case 2:	/* Hammerhead - read byte */
-			ret =
-			    cx231xx_read_i2c_data(dev, HAMMERHEAD_I2C_ADDRESS,
-						  (u16) reg->reg, 2, &data, 1);
+			ret = cx231xx_read_i2c_data(dev, HAMMERHEAD_I2C_ADDRESS,
+						  (u16)reg->reg, 2, &data, 1);
 			reg->val = le32_to_cpu(data & 0xff);
 			break;
 		case 24:	/* Hammerhead - read dword */
-			ret =
-			    cx231xx_read_i2c_data(dev, HAMMERHEAD_I2C_ADDRESS,
-						  (u16) reg->reg, 2, &data, 4);
+			ret = cx231xx_read_i2c_data(dev, HAMMERHEAD_I2C_ADDRESS,
+						  (u16)reg->reg, 2, &data, 4);
 			reg->val = le32_to_cpu(data);
 			break;
 		case 3:	/* flatiron - read byte */
-			ret =
-			    cx231xx_read_i2c_data(dev, Flatrion_DEVICE_ADDRESS,
-						  (u16) reg->reg, 1, &data, 1);
+			ret = cx231xx_read_i2c_data(dev,
+						    Flatrion_DEVICE_ADDRESS,
+						    (u16)reg->reg, 1,
+						    &data, 1);
 			reg->val = le32_to_cpu(data & 0xff);
 			break;
 		case 34:	/* flatiron - read dword */
 			ret =
 			    cx231xx_read_i2c_data(dev, Flatrion_DEVICE_ADDRESS,
-						  (u16) reg->reg, 1, &data, 4);
+						  (u16)reg->reg, 1, &data, 4);
 			reg->val = le32_to_cpu(data);
 			break;
 		}
@@ -1489,9 +1473,7 @@ static int vidioc_g_register(struct file *file, void *priv,
 	}
 
 	mutex_lock(&dev->lock);
-
 	cx231xx_i2c_call_clients(&dev->i2c_bus[0], VIDIOC_DBG_G_REGISTER, reg);
-
 	mutex_unlock(&dev->lock);
 
 	return ret;
@@ -1520,53 +1502,50 @@ static int vidioc_s_register(struct file *file, void *priv,
 				data[1] = (u8) (value >> 8);
 				data[2] = (u8) (value >> 16);
 				data[3] = (u8) (value >> 24);
-				ret =
-				    cx231xx_write_ctrl_reg(dev,
+				ret = cx231xx_write_ctrl_reg(dev,
 							   VRT_SET_REGISTER,
-							   (u16) reg->reg, data,
+							   (u16)reg->reg, data,
 							   4);
 				break;
 			case 1:	/* Colibri - read byte */
-				ret =
-				    cx231xx_write_i2c_data(dev,
-							   Colibri_DEVICE_ADDRESS,
-							   (u16) reg->reg, 2,
-							   value, 1);
+				ret = cx231xx_write_i2c_data(dev,
+							Colibri_DEVICE_ADDRESS,
+							(u16)reg->reg, 2,
+							value, 1);
 				break;
 			case 14:	/* Colibri - read dword */
-				ret =
-				    cx231xx_write_i2c_data(dev,
-							   Colibri_DEVICE_ADDRESS,
-							   (u16) reg->reg, 2,
-							   value, 4);
+				ret = cx231xx_write_i2c_data(dev,
+							Colibri_DEVICE_ADDRESS,
+							(u16)reg->reg, 2,
+							value, 4);
 				break;
 			case 2:	/* Hammerhead - read byte */
 				ret =
 				    cx231xx_write_i2c_data(dev,
-							   HAMMERHEAD_I2C_ADDRESS,
-							   (u16) reg->reg, 2,
-							   value, 1);
+							HAMMERHEAD_I2C_ADDRESS,
+							(u16)reg->reg, 2,
+							value, 1);
 				break;
 			case 24:	/* Hammerhead - read dword */
 				ret =
 				    cx231xx_write_i2c_data(dev,
-							   HAMMERHEAD_I2C_ADDRESS,
-							   (u16) reg->reg, 2,
-							   value, 4);
+							HAMMERHEAD_I2C_ADDRESS,
+							(u16)reg->reg, 2,
+							value, 4);
 				break;
 			case 3:	/* flatiron - read byte */
 				ret =
 				    cx231xx_write_i2c_data(dev,
-							   Flatrion_DEVICE_ADDRESS,
-							   (u16) reg->reg, 1,
-							   value, 1);
+							Flatrion_DEVICE_ADDRESS,
+							(u16)reg->reg, 1,
+							value, 1);
 				break;
 			case 34:	/* flatiron - read dword */
 				ret =
 				    cx231xx_write_i2c_data(dev,
-							   Flatrion_DEVICE_ADDRESS,
-							   (u16) reg->reg, 1,
-							   value, 4);
+							Flatrion_DEVICE_ADDRESS,
+							(u16)reg->reg, 1,
+							value, 4);
 				break;
 			}
 		}
@@ -1805,7 +1784,7 @@ static int vidioc_reqbufs(struct file *file, void *priv,
 	if (rc < 0)
 		return rc;
 
-	return (videobuf_reqbufs(&fh->vb_vidq, rb));
+	return videobuf_reqbufs(&fh->vb_vidq, rb);
 }
 
 static int vidioc_querybuf(struct file *file, void *priv, struct v4l2_buffer *b)
@@ -1818,7 +1797,7 @@ static int vidioc_querybuf(struct file *file, void *priv, struct v4l2_buffer *b)
 	if (rc < 0)
 		return rc;
 
-	return (videobuf_querybuf(&fh->vb_vidq, b));
+	return videobuf_querybuf(&fh->vb_vidq, b);
 }
 
 static int vidioc_qbuf(struct file *file, void *priv, struct v4l2_buffer *b)
@@ -1831,7 +1810,7 @@ static int vidioc_qbuf(struct file *file, void *priv, struct v4l2_buffer *b)
 	if (rc < 0)
 		return rc;
 
-	return (videobuf_qbuf(&fh->vb_vidq, b));
+	return videobuf_qbuf(&fh->vb_vidq, b);
 }
 
 static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *b)
@@ -1844,7 +1823,7 @@ static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *b)
 	if (rc < 0)
 		return rc;
 
-	return (videobuf_dqbuf(&fh->vb_vidq, b, file->f_flags & O_NONBLOCK));
+	return videobuf_dqbuf(&fh->vb_vidq, b, file->f_flags & O_NONBLOCK);
 }
 
 #ifdef CONFIG_VIDEO_V4L1_COMPAT
@@ -2030,17 +2009,19 @@ static int cx231xx_v4l2_open(struct file *filp)
 
 	dev->users++;
 
-	if (fh->type == V4L2_BUF_TYPE_VIDEO_CAPTURE) {
-		videobuf_queue_vmalloc_init(&fh->vb_vidq, &cx231xx_video_qops, NULL, &dev->video_mode.slock, fh->type, V4L2_FIELD_INTERLACED,	/* V4L2_FIELD_SEQ_TB, */
+	if (fh->type == V4L2_BUF_TYPE_VIDEO_CAPTURE)
+		videobuf_queue_vmalloc_init(&fh->vb_vidq, &cx231xx_video_qops,
+					    NULL, &dev->video_mode.slock,
+					    fh->type, V4L2_FIELD_INTERLACED,
 					    sizeof(struct cx231xx_buffer), fh);
-	}
-
 	if (fh->type == V4L2_BUF_TYPE_VBI_CAPTURE) {
-
-		/* Set the required alternate setting  VBI interface works in Bulk mode only */
+		/* Set the required alternate setting  VBI interface works in
+		   Bulk mode only */
 		cx231xx_set_alt_setting(dev, INDEX_VANC, 0);
 
-		videobuf_queue_vmalloc_init(&fh->vb_vidq, &cx231xx_vbi_qops, NULL, &dev->vbi_mode.slock, fh->type, V4L2_FIELD_SEQ_TB,	/* V4L2_FIELD_INTERLACED,  */
+		videobuf_queue_vmalloc_init(&fh->vb_vidq, &cx231xx_vbi_qops,
+					    NULL, &dev->vbi_mode.slock,
+					    fh->type, V4L2_FIELD_SEQ_TB,
 					    sizeof(struct cx231xx_buffer), fh);
 	}
 
@@ -2120,11 +2101,10 @@ static int cx231xx_v4l2_close(struct file *filp)
 		cx231xx_uninit_vbi_isoc(dev);
 
 		/* set alternate 0 */
-		if (!dev->vbi_or_sliced_cc_mode) {
+		if (!dev->vbi_or_sliced_cc_mode)
 			cx231xx_set_alt_setting(dev, INDEX_VANC, 0);
-		} else {
+		else
 			cx231xx_set_alt_setting(dev, INDEX_HANC, 0);
-		}
 
 		kfree(fh);
 		dev->users--;
@@ -2169,8 +2149,8 @@ static int cx231xx_v4l2_close(struct file *filp)
  * will allocate buffers when called for the first time
  */
 static ssize_t
-cx231xx_v4l2_read(struct file *filp, char __user * buf, size_t count,
-		  loff_t * pos)
+cx231xx_v4l2_read(struct file *filp, char __user *buf, size_t count,
+		  loff_t *pos)
 {
 	struct cx231xx_fh *fh = filp->private_data;
 	struct cx231xx *dev = fh->dev;
@@ -2254,98 +2234,98 @@ static int cx231xx_v4l2_mmap(struct file *filp, struct vm_area_struct *vma)
 }
 
 static const struct v4l2_file_operations cx231xx_v4l_fops = {
-	.owner = THIS_MODULE,
-	.open = cx231xx_v4l2_open,
+	.owner   = THIS_MODULE,
+	.open    = cx231xx_v4l2_open,
 	.release = cx231xx_v4l2_close,
-	.read = cx231xx_v4l2_read,
-	.poll = cx231xx_v4l2_poll,
-	.mmap = cx231xx_v4l2_mmap,
-	.ioctl = video_ioctl2,
+	.read    = cx231xx_v4l2_read,
+	.poll    = cx231xx_v4l2_poll,
+	.mmap    = cx231xx_v4l2_mmap,
+	.ioctl   = video_ioctl2,
 };
 
 static const struct v4l2_ioctl_ops video_ioctl_ops = {
-	.vidioc_querycap = vidioc_querycap,
-	.vidioc_enum_fmt_vid_cap = vidioc_enum_fmt_vid_cap,
-	.vidioc_g_fmt_vid_cap = vidioc_g_fmt_vid_cap,
-	.vidioc_try_fmt_vid_cap = vidioc_try_fmt_vid_cap,
-	.vidioc_s_fmt_vid_cap = vidioc_s_fmt_vid_cap,
-	.vidioc_g_fmt_vbi_cap = vidioc_g_fmt_vbi_cap,
-	.vidioc_try_fmt_vbi_cap = vidioc_try_fmt_vbi_cap,
-	.vidioc_s_fmt_vbi_cap = vidioc_try_fmt_vbi_cap,
-	.vidioc_g_audio = vidioc_g_audio,
-	.vidioc_s_audio = vidioc_s_audio,
-	.vidioc_cropcap = vidioc_cropcap,
-	.vidioc_g_fmt_sliced_vbi_cap = vidioc_g_fmt_sliced_vbi_cap,
+	.vidioc_querycap               = vidioc_querycap,
+	.vidioc_enum_fmt_vid_cap       = vidioc_enum_fmt_vid_cap,
+	.vidioc_g_fmt_vid_cap          = vidioc_g_fmt_vid_cap,
+	.vidioc_try_fmt_vid_cap        = vidioc_try_fmt_vid_cap,
+	.vidioc_s_fmt_vid_cap          = vidioc_s_fmt_vid_cap,
+	.vidioc_g_fmt_vbi_cap          = vidioc_g_fmt_vbi_cap,
+	.vidioc_try_fmt_vbi_cap        = vidioc_try_fmt_vbi_cap,
+	.vidioc_s_fmt_vbi_cap          = vidioc_try_fmt_vbi_cap,
+	.vidioc_g_audio                =  vidioc_g_audio,
+	.vidioc_s_audio                = vidioc_s_audio,
+	.vidioc_cropcap                = vidioc_cropcap,
+	.vidioc_g_fmt_sliced_vbi_cap   = vidioc_g_fmt_sliced_vbi_cap,
 	.vidioc_try_fmt_sliced_vbi_cap = vidioc_try_set_sliced_vbi_cap,
-	.vidioc_reqbufs = vidioc_reqbufs,
-	.vidioc_querybuf = vidioc_querybuf,
-	.vidioc_qbuf = vidioc_qbuf,
-	.vidioc_dqbuf = vidioc_dqbuf,
-	.vidioc_s_std = vidioc_s_std,
-	.vidioc_g_std = vidioc_g_std,
-	.vidioc_enum_input = vidioc_enum_input,
-	.vidioc_g_input = vidioc_g_input,
-	.vidioc_s_input = vidioc_s_input,
-	.vidioc_queryctrl = vidioc_queryctrl,
-	.vidioc_g_ctrl = vidioc_g_ctrl,
-	.vidioc_s_ctrl = vidioc_s_ctrl,
-	.vidioc_streamon = vidioc_streamon,
-	.vidioc_streamoff = vidioc_streamoff,
-	.vidioc_g_tuner = vidioc_g_tuner,
-	.vidioc_s_tuner = vidioc_s_tuner,
-	.vidioc_g_frequency = vidioc_g_frequency,
-	.vidioc_s_frequency = vidioc_s_frequency,
+	.vidioc_reqbufs                = vidioc_reqbufs,
+	.vidioc_querybuf               = vidioc_querybuf,
+	.vidioc_qbuf                   = vidioc_qbuf,
+	.vidioc_dqbuf                  = vidioc_dqbuf,
+	.vidioc_s_std                  = vidioc_s_std,
+	.vidioc_g_std                  = vidioc_g_std,
+	.vidioc_enum_input             = vidioc_enum_input,
+	.vidioc_g_input                = vidioc_g_input,
+	.vidioc_s_input                = vidioc_s_input,
+	.vidioc_queryctrl              = vidioc_queryctrl,
+	.vidioc_g_ctrl                 = vidioc_g_ctrl,
+	.vidioc_s_ctrl                 = vidioc_s_ctrl,
+	.vidioc_streamon               = vidioc_streamon,
+	.vidioc_streamoff              = vidioc_streamoff,
+	.vidioc_g_tuner                = vidioc_g_tuner,
+	.vidioc_s_tuner                = vidioc_s_tuner,
+	.vidioc_g_frequency            = vidioc_g_frequency,
+	.vidioc_s_frequency            = vidioc_s_frequency,
 #ifdef CONFIG_VIDEO_ADV_DEBUG
-	.vidioc_g_register = vidioc_g_register,
-	.vidioc_s_register = vidioc_s_register,
+	.vidioc_g_register             = vidioc_g_register,
+	.vidioc_s_register             = vidioc_s_register,
 #endif
 #ifdef CONFIG_VIDEO_V4L1_COMPAT
-	.vidiocgmbuf = vidiocgmbuf,
+	.vidiocgmbuf                   = vidiocgmbuf,
 #endif
 };
 
 static struct video_device cx231xx_vbi_template;
 
 static const struct video_device cx231xx_video_template = {
-	.fops = &cx231xx_v4l_fops,
-	.release = video_device_release,
-	.ioctl_ops = &video_ioctl_ops,
-	.minor = -1,
-	.tvnorms = V4L2_STD_ALL,
+	.fops         = &cx231xx_v4l_fops,
+	.release      = video_device_release,
+	.ioctl_ops    = &video_ioctl_ops,
+	.minor        = -1,
+	.tvnorms      = V4L2_STD_ALL,
 	.current_norm = V4L2_STD_PAL,
 };
 
 static const struct v4l2_file_operations radio_fops = {
-	.owner = THIS_MODULE,
-	.open = cx231xx_v4l2_open,
+	.owner   = THIS_MODULE,
+	.open   = cx231xx_v4l2_open,
 	.release = cx231xx_v4l2_close,
-	.ioctl = video_ioctl2,
+	.ioctl   = video_ioctl2,
 };
 
 static const struct v4l2_ioctl_ops radio_ioctl_ops = {
-	.vidioc_querycap = radio_querycap,
-	.vidioc_g_tuner = radio_g_tuner,
-	.vidioc_enum_input = radio_enum_input,
-	.vidioc_g_audio = radio_g_audio,
-	.vidioc_s_tuner = radio_s_tuner,
-	.vidioc_s_audio = radio_s_audio,
-	.vidioc_s_input = radio_s_input,
-	.vidioc_queryctrl = radio_queryctrl,
-	.vidioc_g_ctrl = vidioc_g_ctrl,
-	.vidioc_s_ctrl = vidioc_s_ctrl,
+	.vidioc_querycap    = radio_querycap,
+	.vidioc_g_tuner     = radio_g_tuner,
+	.vidioc_enum_input  = radio_enum_input,
+	.vidioc_g_audio     = radio_g_audio,
+	.vidioc_s_tuner     = radio_s_tuner,
+	.vidioc_s_audio     = radio_s_audio,
+	.vidioc_s_input     = radio_s_input,
+	.vidioc_queryctrl   = radio_queryctrl,
+	.vidioc_g_ctrl      = vidioc_g_ctrl,
+	.vidioc_s_ctrl      = vidioc_s_ctrl,
 	.vidioc_g_frequency = vidioc_g_frequency,
 	.vidioc_s_frequency = vidioc_s_frequency,
 #ifdef CONFIG_VIDEO_ADV_DEBUG
-	.vidioc_g_register = vidioc_g_register,
-	.vidioc_s_register = vidioc_s_register,
+	.vidioc_g_register  = vidioc_g_register,
+	.vidioc_s_register  = vidioc_s_register,
 #endif
 };
 
 static struct video_device cx231xx_radio_template = {
-	.name = "cx231xx-radio",
-	.fops = &radio_fops,
+	.name      = "cx231xx-radio",
+	.fops      = &radio_fops,
 	.ioctl_ops = &radio_ioctl_ops,
-	.minor = -1,
+	.minor     = -1,
 };
 
 /******************************** usb interface ******************************/
@@ -2358,6 +2338,7 @@ static struct video_device *cx231xx_vdev_init(struct cx231xx *dev, const struct 
 	vfd = video_device_alloc();
 	if (NULL == vfd)
 		return NULL;
+
 	*vfd = *template;
 	vfd->minor = -1;
 	vfd->parent = &dev->udev->dev;
@@ -2439,8 +2420,8 @@ int cx231xx_register_analog_devices(struct cx231xx *dev)
 		     dev->name, dev->vbi_dev->num);
 
 	if (cx231xx_boards[dev->model].radio.type == CX231XX_RADIO) {
-		dev->radio_dev =
-		    cx231xx_vdev_init(dev, &cx231xx_radio_template, "radio");
+		dev->radio_dev = cx231xx_vdev_init(dev, &cx231xx_radio_template,
+						   "radio");
 		if (!dev->radio_dev) {
 			cx231xx_errdev("cannot allocate video_device.\n");
 			return -ENODEV;
