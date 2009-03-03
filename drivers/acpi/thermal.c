@@ -41,6 +41,7 @@
 #include <linux/kmod.h>
 #include <linux/seq_file.h>
 #include <linux/reboot.h>
+#include <linux/device.h>
 #include <asm/uaccess.h>
 #include <linux/thermal.h>
 #include <acpi/acpi_bus.h>
@@ -765,7 +766,7 @@ static int thermal_notify(struct thermal_zone_device *thermal, int trip,
 
 	acpi_bus_generate_proc_event(tz->device, type, 1);
 	acpi_bus_generate_netlink_event(tz->device->pnp.device_class,
-					tz->device->dev.bus_id, type, 1);
+					dev_name(&tz->device->dev), type, 1);
 
 	if (trip_type == THERMAL_TRIP_CRITICAL && nocrt)
 		return 1;
