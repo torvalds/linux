@@ -168,7 +168,7 @@ static __ref void *spp_getpage(void)
 	return ptr;
 }
 
-static pud_t * __init fill_pud(pgd_t *pgd, unsigned long vaddr)
+static pud_t *fill_pud(pgd_t *pgd, unsigned long vaddr)
 {
 	if (pgd_none(*pgd)) {
 		pud_t *pud = (pud_t *)spp_getpage();
@@ -180,7 +180,7 @@ static pud_t * __init fill_pud(pgd_t *pgd, unsigned long vaddr)
 	return pud_offset(pgd, vaddr);
 }
 
-static pmd_t * __init fill_pmd(pud_t *pud, unsigned long vaddr)
+static pmd_t *fill_pmd(pud_t *pud, unsigned long vaddr)
 {
 	if (pud_none(*pud)) {
 		pmd_t *pmd = (pmd_t *) spp_getpage();
@@ -192,7 +192,7 @@ static pmd_t * __init fill_pmd(pud_t *pud, unsigned long vaddr)
 	return pmd_offset(pud, vaddr);
 }
 
-static pte_t * __init fill_pte(pmd_t *pmd, unsigned long vaddr)
+static pte_t *fill_pte(pmd_t *pmd, unsigned long vaddr)
 {
 	if (pmd_none(*pmd)) {
 		pte_t *pte = (pte_t *) spp_getpage();
