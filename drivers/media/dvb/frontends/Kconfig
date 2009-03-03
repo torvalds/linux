@@ -453,11 +453,11 @@ comment "SEC control devices for DVB-S"
 	depends on DVB_CORE
 
 config DVB_LNBP21
-	tristate "LNBP21 SEC controller"
+	tristate "LNBP21/LNBH24 SEC controllers"
 	depends on DVB_CORE && I2C
 	default m if DVB_FE_CUSTOMISE
 	help
-	  An SEC control chip.
+	  An SEC control chips.
 
 config DVB_ISL6405
 	tristate "ISL6405 SEC controller"
