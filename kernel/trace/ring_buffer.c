@@ -132,7 +132,7 @@ void ring_buffer_normalize_time_stamp(int cpu, u64 *ts)
 }
 EXPORT_SYMBOL_GPL(ring_buffer_normalize_time_stamp);
 
-#define RB_EVNT_HDR_SIZE (sizeof(struct ring_buffer_event))
+#define RB_EVNT_HDR_SIZE (offsetof(struct ring_buffer_event, array))
 #define RB_ALIGNMENT		4U
 #define RB_MAX_SMALL_DATA	28
 
