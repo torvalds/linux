@@ -311,7 +311,8 @@ void ath9k_reg_apply_radar_flags(struct wiphy *wiphy)
 void ath9k_reg_apply_world_flags(struct wiphy *wiphy, enum reg_set_by setby)
 {
 	struct ieee80211_hw *hw = wiphy_to_ieee80211_hw(wiphy);
-	struct ath_softc *sc = hw->priv;
+	struct ath_wiphy *aphy = hw->priv;
+	struct ath_softc *sc = aphy->sc;
 	struct ath_hw *ah = sc->sc_ah;
 
 	switch (ah->regulatory.regpair->regDmnEnum) {
@@ -332,7 +333,8 @@ void ath9k_reg_apply_world_flags(struct wiphy *wiphy, enum reg_set_by setby)
 int ath9k_reg_notifier(struct wiphy *wiphy, struct regulatory_request *request)
 {
 	struct ieee80211_hw *hw = wiphy_to_ieee80211_hw(wiphy);
-	struct ath_softc *sc = hw->priv;
+	struct ath_wiphy *aphy = hw->priv;
+	struct ath_softc *sc = aphy->sc;
 
 	/* We always apply this */
 	ath9k_reg_apply_radar_flags(wiphy);

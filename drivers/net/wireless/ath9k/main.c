@@ -1934,7 +1934,8 @@ static void ath9k_update_ichannel(struct ath_softc *sc,
 
 static int ath9k_start(struct ieee80211_hw *hw)
 {
-	struct ath_softc *sc = hw->priv;
+	struct ath_wiphy *aphy = hw->priv;
+	struct ath_softc *sc = aphy->sc;
 	struct ieee80211_channel *curchan = hw->conf.channel;
 	struct ath9k_channel *init_channel;
 	int r, pos;
@@ -2012,7 +2013,7 @@ static int ath9k_start(struct ieee80211_hw *hw)
 	sc->imask &= ~(ATH9K_INT_SWBA | ATH9K_INT_BMISS);
 	ath9k_hw_set_interrupts(sc->sc_ah, sc->imask);
 
-	ieee80211_wake_queues(sc->hw);
+	ieee80211_wake_queues(hw);
 
 #if defined(CONFIG_RFKILL) || defined(CONFIG_RFKILL_MODULE)
 	r = ath_start_rfkill_poll(sc);
@@ -2028,7 +2029,8 @@ static int ath9k_tx(struct ieee80211_hw *hw,
 		    struct sk_buff *skb)
 {
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
-	struct ath_softc *sc = hw->priv;
+	struct ath_wiphy *aphy = hw->priv;
+	struct ath_softc *sc = aphy->sc;
 	struct ath_tx_control txctl;
 	int hdrlen, padsize;
 
@@ -2078,7 +2080,8 @@ exit:
 
 static void ath9k_stop(struct ieee80211_hw *hw)
 {
-	struct ath_softc *sc = hw->priv;
+	struct ath_wiphy *aphy = hw->priv;
+	struct ath_softc *sc = aphy->sc;
 
 	if (sc->sc_flags & SC_OP_INVALID) {
 		DPRINTF(sc, ATH_DBG_ANY, "Device not present\n");
@@ -2087,7 +2090,7 @@ static void ath9k_stop(struct ieee80211_hw *hw)
 
 	mutex_lock(&sc->mutex);
 
-	ieee80211_stop_queues(sc->hw);
+	ieee80211_stop_queues(hw);
 
 	/* make sure h/w will not generate any interrupt
 	 * before setting the invalid flag. */
@@ -2118,7 +2121,8 @@ static void ath9k_stop(struct ieee80211_hw *hw)
 static int ath9k_add_interface(struct ieee80211_hw *hw,
 			       struct ieee80211_if_init_conf *conf)
 {
-	struct ath_softc *sc = hw->priv;
+	struct ath_wiphy *aphy = hw->priv;
+	struct ath_softc *sc = aphy->sc;
 	struct ath_vif *avp = (void *)conf->vif->drv_priv;
 	enum nl80211_iftype ic_opmode = NL80211_IFTYPE_UNSPECIFIED;
 	int ret = 0;
@@ -2217,7 +2221,8 @@ out:
 static void ath9k_remove_interface(struct ieee80211_hw *hw,
 				   struct ieee80211_if_init_conf *conf)
 {
-	struct ath_softc *sc = hw->priv;
+	struct ath_wiphy *aphy = hw->priv;
+	struct ath_softc *sc = aphy->sc;
 	struct ath_vif *avp = (void *)conf->vif->drv_priv;
 	int i;
 
@@ -2252,7 +2257,8 @@ static void ath9k_remove_interface(struct ieee80211_hw *hw,
 
 static int ath9k_config(struct ieee80211_hw *hw, u32 changed)
 {
-	struct ath_softc *sc = hw->priv;
+	struct ath_wiphy *aphy = hw->priv;
+	struct ath_softc *sc = aphy->sc;
 	struct ieee80211_conf *conf = &hw->conf;
 
 	mutex_lock(&sc->mutex);
@@ -2319,7 +2325,8 @@ static int ath9k_config_interface(struct ieee80211_hw *hw,
 				  struct ieee80211_vif *vif,
 				  struct ieee80211_if_conf *conf)
 {
-	struct ath_softc *sc = hw->priv;
+	struct ath_wiphy *aphy = hw->priv;
+	struct ath_softc *sc = aphy->sc;
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_vif *avp = (void *)vif->drv_priv;
 	u32 rfilt = 0;
@@ -2424,7 +2431,8 @@ static void ath9k_configure_filter(struct ieee80211_hw *hw,
 				   int mc_count,
 				   struct dev_mc_list *mclist)
 {
-	struct ath_softc *sc = hw->priv;
+	struct ath_wiphy *aphy = hw->priv;
+	struct ath_softc *sc = aphy->sc;
 	u32 rfilt;
 
 	changed_flags &= SUPPORTED_FILTERS;
@@ -2442,7 +2450,8 @@ static void ath9k_sta_notify(struct ieee80211_hw *hw,
 			     enum sta_notify_cmd cmd,
 			     struct ieee80211_sta *sta)
 {
-	struct ath_softc *sc = hw->priv;
+	struct ath_wiphy *aphy = hw->priv;
+	struct ath_softc *sc = aphy->sc;
 
 	switch (cmd) {
 	case STA_NOTIFY_ADD:
@@ -2459,7 +2468,8 @@ static void ath9k_sta_notify(struct ieee80211_hw *hw,
 static int ath9k_conf_tx(struct ieee80211_hw *hw, u16 queue,
 			 const struct ieee80211_tx_queue_params *params)
 {
-	struct ath_softc *sc = hw->priv;
+	struct ath_wiphy *aphy = hw->priv;
+	struct ath_softc *sc = aphy->sc;
 	struct ath9k_tx_queue_info qi;
 	int ret = 0, qnum;
 
@@ -2495,7 +2505,8 @@ static int ath9k_set_key(struct ieee80211_hw *hw,
 			 struct ieee80211_sta *sta,
 			 struct ieee80211_key_conf *key)
 {
-	struct ath_softc *sc = hw->priv;
+	struct ath_wiphy *aphy = hw->priv;
+	struct ath_softc *sc = aphy->sc;
 	int ret = 0;
 
 	if (modparam_nohwcrypt)
@@ -2537,7 +2548,8 @@ static void ath9k_bss_info_changed(struct ieee80211_hw *hw,
 				   struct ieee80211_bss_conf *bss_conf,
 				   u32 changed)
 {
-	struct ath_softc *sc = hw->priv;
+	struct ath_wiphy *aphy = hw->priv;
+	struct ath_softc *sc = aphy->sc;
 
 	mutex_lock(&sc->mutex);
 
@@ -2572,7 +2584,8 @@ static void ath9k_bss_info_changed(struct ieee80211_hw *hw,
 static u64 ath9k_get_tsf(struct ieee80211_hw *hw)
 {
 	u64 tsf;
-	struct ath_softc *sc = hw->priv;
+	struct ath_wiphy *aphy = hw->priv;
+	struct ath_softc *sc = aphy->sc;
 
 	mutex_lock(&sc->mutex);
 	tsf = ath9k_hw_gettsf64(sc->sc_ah);
@@ -2583,7 +2596,8 @@ static u64 ath9k_get_tsf(struct ieee80211_hw *hw)
 
 static void ath9k_set_tsf(struct ieee80211_hw *hw, u64 tsf)
 {
-	struct ath_softc *sc = hw->priv;
+	struct ath_wiphy *aphy = hw->priv;
+	struct ath_softc *sc = aphy->sc;
 
 	mutex_lock(&sc->mutex);
 	ath9k_hw_settsf64(sc->sc_ah, tsf);
@@ -2592,7 +2606,8 @@ static void ath9k_set_tsf(struct ieee80211_hw *hw, u64 tsf)
 
 static void ath9k_reset_tsf(struct ieee80211_hw *hw)
 {
-	struct ath_softc *sc = hw->priv;
+	struct ath_wiphy *aphy = hw->priv;
+	struct ath_softc *sc = aphy->sc;
 
 	mutex_lock(&sc->mutex);
 	ath9k_hw_reset_tsf(sc->sc_ah);
@@ -2604,7 +2619,8 @@ static int ath9k_ampdu_action(struct ieee80211_hw *hw,
 			      struct ieee80211_sta *sta,
 			      u16 tid, u16 *ssn)
 {
-	struct ath_softc *sc = hw->priv;
+	struct ath_wiphy *aphy = hw->priv;
+	struct ath_softc *sc = aphy->sc;
 	int ret = 0;
 
 	switch (action) {
@@ -2642,7 +2658,8 @@ static int ath9k_ampdu_action(struct ieee80211_hw *hw,
 
 static void ath9k_sw_scan_start(struct ieee80211_hw *hw)
 {
-	struct ath_softc *sc = hw->priv;
+	struct ath_wiphy *aphy = hw->priv;
+	struct ath_softc *sc = aphy->sc;
 
 	mutex_lock(&sc->mutex);
 	sc->sc_flags |= SC_OP_SCANNING;
@@ -2651,7 +2668,8 @@ static void ath9k_sw_scan_start(struct ieee80211_hw *hw)
 
 static void ath9k_sw_scan_complete(struct ieee80211_hw *hw)
 {
-	struct ath_softc *sc = hw->priv;
+	struct ath_wiphy *aphy = hw->priv;
+	struct ath_softc *sc = aphy->sc;
 
 	mutex_lock(&sc->mutex);
 	sc->sc_flags &= ~SC_OP_SCANNING;

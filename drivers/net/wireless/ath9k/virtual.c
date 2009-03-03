@@ -38,7 +38,8 @@ static void ath9k_vif_iter(void *data, u8 *mac, struct ieee80211_vif *vif)
 
 void ath9k_set_bssid_mask(struct ieee80211_hw *hw)
 {
-	struct ath_softc *sc = hw->priv;
+	struct ath_wiphy *aphy = hw->priv;
+	struct ath_softc *sc = aphy->sc;
 	struct ath9k_vif_iter_data iter_data;
 	int i, j;
 	u8 mask[ETH_ALEN];

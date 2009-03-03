@@ -96,7 +96,8 @@ static int ath_ahb_probe(struct platform_device *pdev)
 
 	irq = res->start;
 
-	hw = ieee80211_alloc_hw(sizeof(struct ath_softc), &ath9k_ops);
+	hw = ieee80211_alloc_hw(sizeof(struct ath_wiphy) +
+				sizeof(struct ath_softc), &ath9k_ops);
 	if (hw == NULL) {
 		dev_err(&pdev->dev, "no memory for ieee80211_hw\n");
 		ret = -ENOMEM;
@@ -106,7 +107,11 @@ static int ath_ahb_probe(struct platform_device *pdev)
 	SET_IEEE80211_DEV(hw, &pdev->dev);
 	platform_set_drvdata(pdev, hw);
 
-	sc = hw->priv;
+	aphy = hw->priv;
+	sc = (struct ath_softc *) (aphy + 1);
+	aphy->sc = sc;
+	aphy->hw = hw;
+	sc->pri_wiphy = aphy;
 	sc->hw = hw;
 	sc->dev = &pdev->dev;
 	sc->mem = mem;
@@ -156,7 +161,8 @@ static int ath_ahb_remove(struct platform_device *pdev)
 	struct ieee80211_hw *hw = platform_get_drvdata(pdev);
 
 	if (hw) {
-		struct ath_softc *sc = hw->priv;
+		struct ath_wiphy *aphy = hw->priv;
+		struct ath_softc *sc = aphy->sc;
 
 		ath_cleanup(sc);
 		platform_set_drvdata(pdev, NULL);

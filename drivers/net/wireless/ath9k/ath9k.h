@@ -549,9 +549,12 @@ struct ath_bus_ops {
 	bool		(*eeprom_read)(struct ath_hw *ah, u32 off, u16 *data);
 };
 
+struct ath_wiphy;
+
 struct ath_softc {
 	struct ieee80211_hw *hw;
 	struct device *dev;
+	struct ath_wiphy *pri_wiphy;
 	struct tasklet_struct intr_tq;
 	struct tasklet_struct bcon_tasklet;
 	struct ath_hw *sc_ah;
@@ -605,6 +608,11 @@ struct ath_softc {
 	struct ath9k_debug debug;
 #endif
 	struct ath_bus_ops *bus_ops;
+};
+
+struct ath_wiphy {
+	struct ath_softc *sc; /* shared for all virtual wiphys */
+	struct ieee80211_hw *hw;
 };
 
 int ath_reset(struct ath_softc *sc, bool retry_tx);
