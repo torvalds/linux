@@ -2492,6 +2492,7 @@ int ring_buffer_read_page(struct ring_buffer *buffer,
 		rb_init_page(bpage);
 		bpage = cpu_buffer->reader_page->page;
 		cpu_buffer->reader_page->page = *data_page;
+		local_set(&cpu_buffer->reader_page->write, 0);
 		cpu_buffer->reader_page->read = 0;
 		*data_page = bpage;
 	}
