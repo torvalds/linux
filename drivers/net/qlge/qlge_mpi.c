@@ -181,23 +181,15 @@ exit:
 
 static void ql_link_down(struct ql_adapter *qdev, struct mbox_params *mbcp)
 {
+	int status;
+
 	mbcp->out_count = 3;
 
-	if (ql_get_mb_sts(qdev, mbcp)) {
-		QPRINTK(qdev, DRV, ERR, "Firmware did not initialize!\n");
-		goto exit;
-	}
+	status = ql_get_mb_sts(qdev, mbcp);
+	if (status)
+		QPRINTK(qdev, DRV, ERR, "Link down AEN broken!\n");
 
-	if (netif_carrier_ok(qdev->ndev)) {
-		QPRINTK(qdev, LINK, INFO, "Link is Down.\n");
-		netif_carrier_off(qdev->ndev);
-		netif_stop_queue(qdev->ndev);
-	}
-	QPRINTK(qdev, DRV, ERR, "Link Down.\n");
-	QPRINTK(qdev, DRV, ERR, "Link Status = 0x%.08x.\n", mbcp->mbox_out[1]);
-exit:
-	/* Clear the MPI firmware status. */
-	ql_write32(qdev, CSR, CSR_CMD_CLR_R2PCI_INT);
+	netif_carrier_off(qdev->ndev);
 }
 
 static int ql_sfp_in(struct ql_adapter *qdev, struct mbox_params *mbcp)
