@@ -1332,6 +1332,15 @@ static int wm8990_set_bias_level(struct snd_soc_codec *codec,
  * 1. ADC/DAC on Primary Interface
  * 2. ADC on Primary Interface/DAC on secondary
  */
+static struct snd_soc_dai_ops wm8990_dai_ops = {
+	.hw_params	= wm8990_hw_params,
+	.digital_mute	= wm8990_mute,
+	.set_fmt	= wm8990_set_dai_fmt,
+	.set_clkdiv	= wm8990_set_dai_clkdiv,
+	.set_pll	= wm8990_set_dai_pll,
+	.set_sysclk	= wm8990_set_dai_sysclk,
+};
+
 struct snd_soc_dai wm8990_dai = {
 /* ADC/DAC on primary */
 	.name = "WM8990 ADC/DAC Primary",
@@ -1348,14 +1357,7 @@ struct snd_soc_dai wm8990_dai = {
 		.channels_max = 2,
 		.rates = WM8990_RATES,
 		.formats = WM8990_FORMATS,},
-	.ops = {
-		.hw_params = wm8990_hw_params,
-		.digital_mute = wm8990_mute,
-		.set_fmt = wm8990_set_dai_fmt,
-		.set_clkdiv = wm8990_set_dai_clkdiv,
-		.set_pll = wm8990_set_dai_pll,
-		.set_sysclk = wm8990_set_dai_sysclk,
-	},
+	.ops = &wm8990_dai_ops,
 };
 EXPORT_SYMBOL_GPL(wm8990_dai);
 

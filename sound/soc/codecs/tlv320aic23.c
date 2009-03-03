@@ -580,6 +580,15 @@ static int tlv320aic23_set_bias_level(struct snd_soc_codec *codec,
 #define AIC23_FORMATS	(SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE | \
 			 SNDRV_PCM_FMTBIT_S24_3LE | SNDRV_PCM_FMTBIT_S32_LE)
 
+static struct snd_soc_dai_ops tlv320aic23_dai_ops = {
+	.prepare	= tlv320aic23_pcm_prepare,
+	.hw_params	= tlv320aic23_hw_params,
+	.shutdown	= tlv320aic23_shutdown,
+	.digital_mute	= tlv320aic23_mute,
+	.set_fmt	= tlv320aic23_set_dai_fmt,
+	.set_sysclk	= tlv320aic23_set_dai_sysclk,
+};
+
 struct snd_soc_dai tlv320aic23_dai = {
 	.name = "tlv320aic23",
 	.playback = {
@@ -594,14 +603,7 @@ struct snd_soc_dai tlv320aic23_dai = {
 		    .channels_max = 2,
 		    .rates = AIC23_RATES,
 		    .formats = AIC23_FORMATS,},
-	.ops = {
-		.prepare = tlv320aic23_pcm_prepare,
-		.hw_params = tlv320aic23_hw_params,
-		.shutdown = tlv320aic23_shutdown,
-		.digital_mute = tlv320aic23_mute,
-		.set_fmt = tlv320aic23_set_dai_fmt,
-		.set_sysclk = tlv320aic23_set_dai_sysclk,
-	}
+	.ops = &tlv320aic23_dai_ops,
 };
 EXPORT_SYMBOL_GPL(tlv320aic23_dai);
 

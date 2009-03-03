@@ -583,6 +583,29 @@ static int uda1380_set_bias_level(struct snd_soc_codec *codec,
 		       SNDRV_PCM_RATE_16000 | SNDRV_PCM_RATE_22050 |\
 		       SNDRV_PCM_RATE_44100 | SNDRV_PCM_RATE_48000)
 
+static struct snd_soc_dai_ops uda1380_dai_ops = {
+	.hw_params	= uda1380_pcm_hw_params,
+	.shutdown	= uda1380_pcm_shutdown,
+	.prepare	= uda1380_pcm_prepare,
+	.digital_mute	= uda1380_mute,
+	.set_fmt	= uda1380_set_dai_fmt_both,
+};
+
+static struct snd_soc_dai_ops uda1380_dai_ops_playback = {
+	.hw_params	= uda1380_pcm_hw_params,
+	.shutdown	= uda1380_pcm_shutdown,
+	.prepare	= uda1380_pcm_prepare,
+	.digital_mute	= uda1380_mute,
+	.set_fmt	= uda1380_set_dai_fmt_playback,
+};
+
+static struct snd_soc_dai_ops uda1380_dai_ops_capture = {
+	.hw_params	= uda1380_pcm_hw_params,
+	.shutdown	= uda1380_pcm_shutdown,
+	.prepare	= uda1380_pcm_prepare,
+	.set_fmt	= uda1380_set_dai_fmt_capture,
+};
+
 struct snd_soc_dai uda1380_dai[] = {
 {
 	.name = "UDA1380",
@@ -598,13 +621,7 @@ struct snd_soc_dai uda1380_dai[] = {
 		.channels_max = 2,
 		.rates = UDA1380_RATES,
 		.formats = SNDRV_PCM_FMTBIT_S16_LE,},
-	.ops = {
-		.hw_params = uda1380_pcm_hw_params,
-		.shutdown = uda1380_pcm_shutdown,
-		.prepare = uda1380_pcm_prepare,
-		.digital_mute = uda1380_mute,
-		.set_fmt = uda1380_set_dai_fmt_both,
-	},
+	.ops = &uda1380_dai_ops,
 },
 { /* playback only - dual interface */
 	.name = "UDA1380",
@@ -615,13 +632,7 @@ struct snd_soc_dai uda1380_dai[] = {
 		.rates = UDA1380_RATES,
 		.formats = SNDRV_PCM_FMTBIT_S16_LE,
 	},
-	.ops = {
-		.hw_params = uda1380_pcm_hw_params,
-		.shutdown = uda1380_pcm_shutdown,
-		.prepare = uda1380_pcm_prepare,
-		.digital_mute = uda1380_mute,
-		.set_fmt = uda1380_set_dai_fmt_playback,
-	},
+	.ops = &uda1380_dai_ops_playback,
 },
 { /* capture only - dual interface*/
 	.name = "UDA1380",
@@ -632,12 +643,7 @@ struct snd_soc_dai uda1380_dai[] = {
 		.rates = UDA1380_RATES,
 		.formats = SNDRV_PCM_FMTBIT_S16_LE,
 	},
-	.ops = {
-		.hw_params = uda1380_pcm_hw_params,
-		.shutdown = uda1380_pcm_shutdown,
-		.prepare = uda1380_pcm_prepare,
-		.set_fmt = uda1380_set_dai_fmt_capture,
-	},
+	.ops = &uda1380_dai_ops_capture,
 },
 };
 EXPORT_SYMBOL_GPL(uda1380_dai);

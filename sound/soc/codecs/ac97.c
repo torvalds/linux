@@ -41,6 +41,10 @@ static int ac97_prepare(struct snd_pcm_substream *substream,
 		SNDRV_PCM_RATE_22050 | SNDRV_PCM_RATE_44100 |\
 		SNDRV_PCM_RATE_48000)
 
+static struct snd_soc_dai_ops ac97_dai_ops = {
+	.prepare	= ac97_prepare,
+};
+
 struct snd_soc_dai ac97_dai = {
 	.name = "AC97 HiFi",
 	.ac97_control = 1,
@@ -56,8 +60,7 @@ struct snd_soc_dai ac97_dai = {
 		.channels_max = 2,
 		.rates = STD_AC97_RATES,
 		.formats = SNDRV_PCM_FMTBIT_S16_LE,},
-	.ops = {
-		.prepare = ac97_prepare,},
+	.ops = &ac97_dai_ops,
 };
 EXPORT_SYMBOL_GPL(ac97_dai);
 

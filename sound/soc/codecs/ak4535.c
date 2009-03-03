@@ -421,6 +421,13 @@ static int ak4535_set_bias_level(struct snd_soc_codec *codec,
 		SNDRV_PCM_RATE_16000 | SNDRV_PCM_RATE_22050 |\
 		SNDRV_PCM_RATE_44100 | SNDRV_PCM_RATE_48000)
 
+static struct snd_soc_dai_ops ak4535_dai_ops = {
+	.hw_params	= ak4535_hw_params,
+	.set_fmt	= ak4535_set_dai_fmt,
+	.digital_mute	= ak4535_mute,
+	.set_sysclk	= ak4535_set_dai_sysclk,
+};
+
 struct snd_soc_dai ak4535_dai = {
 	.name = "AK4535",
 	.playback = {
@@ -435,12 +442,7 @@ struct snd_soc_dai ak4535_dai = {
 		.channels_max = 2,
 		.rates = AK4535_RATES,
 		.formats = SNDRV_PCM_FMTBIT_S16_LE,},
-	.ops = {
-		.hw_params = ak4535_hw_params,
-		.set_fmt = ak4535_set_dai_fmt,
-		.digital_mute = ak4535_mute,
-		.set_sysclk = ak4535_set_dai_sysclk,
-	},
+	.ops = &ak4535_dai_ops,
 };
 EXPORT_SYMBOL_GPL(ak4535_dai);
 

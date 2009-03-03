@@ -244,6 +244,12 @@ static int wm8728_set_bias_level(struct snd_soc_codec *codec,
 #define WM8728_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE |\
 	SNDRV_PCM_FMTBIT_S24_LE)
 
+static struct snd_soc_dai_ops wm8728_dai_ops = {
+	.hw_params	= wm8728_hw_params,
+	.digital_mute	= wm8728_mute,
+	.set_fmt	= wm8728_set_dai_fmt,
+};
+
 struct snd_soc_dai wm8728_dai = {
 	.name = "WM8728",
 	.playback = {
@@ -253,11 +259,7 @@ struct snd_soc_dai wm8728_dai = {
 		.rates = WM8728_RATES,
 		.formats = WM8728_FORMATS,
 	},
-	.ops = {
-		 .hw_params = wm8728_hw_params,
-		 .digital_mute = wm8728_mute,
-		 .set_fmt = wm8728_set_dai_fmt,
-	}
+	.ops = &wm8728_dai_ops,
 };
 EXPORT_SYMBOL_GPL(wm8728_dai);
 

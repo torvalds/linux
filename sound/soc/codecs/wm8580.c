@@ -771,6 +771,21 @@ static int wm8580_set_bias_level(struct snd_soc_codec *codec,
 #define WM8580_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE |\
 			SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_S32_LE)
 
+static struct snd_soc_dai_ops wm8580_dai_ops_playback = {
+	.hw_params	= wm8580_paif_hw_params,
+	.set_fmt	= wm8580_set_paif_dai_fmt,
+	.set_clkdiv	= wm8580_set_dai_clkdiv,
+	.set_pll	= wm8580_set_dai_pll,
+	.digital_mute	= wm8580_digital_mute,
+};
+
+static struct snd_soc_dai_ops wm8580_dai_ops_capture = {
+	.hw_params	= wm8580_paif_hw_params,
+	.set_fmt	= wm8580_set_paif_dai_fmt,
+	.set_clkdiv	= wm8580_set_dai_clkdiv,
+	.set_pll	= wm8580_set_dai_pll,
+};
+
 struct snd_soc_dai wm8580_dai[] = {
 	{
 		.name = "WM8580 PAIFRX",
@@ -782,13 +797,7 @@ struct snd_soc_dai wm8580_dai[] = {
 			.rates = SNDRV_PCM_RATE_8000_192000,
 			.formats = WM8580_FORMATS,
 		},
-		.ops = {
-			 .hw_params = wm8580_paif_hw_params,
-			 .set_fmt = wm8580_set_paif_dai_fmt,
-			 .set_clkdiv = wm8580_set_dai_clkdiv,
-			 .set_pll = wm8580_set_dai_pll,
-			 .digital_mute = wm8580_digital_mute,
-		 },
+		.ops = &wm8580_dai_ops_playback,
 	},
 	{
 		.name = "WM8580 PAIFTX",
@@ -800,12 +809,7 @@ struct snd_soc_dai wm8580_dai[] = {
 			.rates = SNDRV_PCM_RATE_8000_192000,
 			.formats = WM8580_FORMATS,
 		},
-		.ops = {
-			 .hw_params = wm8580_paif_hw_params,
-			 .set_fmt = wm8580_set_paif_dai_fmt,
-			 .set_clkdiv = wm8580_set_dai_clkdiv,
-			 .set_pll = wm8580_set_dai_pll,
-		 },
+		.ops = &wm8580_dai_ops_capture,
 	},
 };
 EXPORT_SYMBOL_GPL(wm8580_dai);

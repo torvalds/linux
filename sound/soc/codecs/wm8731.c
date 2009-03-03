@@ -433,6 +433,15 @@ static int wm8731_set_bias_level(struct snd_soc_codec *codec,
 #define WM8731_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE |\
 	SNDRV_PCM_FMTBIT_S24_LE)
 
+static struct snd_soc_dai_ops wm8731_dai_ops = {
+	.prepare	= wm8731_pcm_prepare,
+	.hw_params	= wm8731_hw_params,
+	.shutdown	= wm8731_shutdown,
+	.digital_mute	= wm8731_mute,
+	.set_sysclk	= wm8731_set_dai_sysclk,
+	.set_fmt	= wm8731_set_dai_fmt,
+};
+
 struct snd_soc_dai wm8731_dai = {
 	.name = "WM8731",
 	.playback = {
@@ -447,14 +456,7 @@ struct snd_soc_dai wm8731_dai = {
 		.channels_max = 2,
 		.rates = WM8731_RATES,
 		.formats = WM8731_FORMATS,},
-	.ops = {
-		.prepare = wm8731_pcm_prepare,
-		.hw_params = wm8731_hw_params,
-		.shutdown = wm8731_shutdown,
-		.digital_mute = wm8731_mute,
-		.set_sysclk = wm8731_set_dai_sysclk,
-		.set_fmt = wm8731_set_dai_fmt,
-	}
+	.ops = &wm8731_dai_ops,
 };
 EXPORT_SYMBOL_GPL(wm8731_dai);
 

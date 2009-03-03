@@ -784,6 +784,19 @@ static void pxa_ssp_remove(struct platform_device *pdev,
 			    SNDRV_PCM_FMTBIT_S24_LE |	\
 			    SNDRV_PCM_FMTBIT_S32_LE)
 
+static struct snd_soc_dai_ops pxa_ssp_dai_ops = {
+	.startup	= pxa_ssp_startup,
+	.shutdown	= pxa_ssp_shutdown,
+	.trigger	= pxa_ssp_trigger,
+	.hw_params	= pxa_ssp_hw_params,
+	.set_sysclk	= pxa_ssp_set_dai_sysclk,
+	.set_clkdiv	= pxa_ssp_set_dai_clkdiv,
+	.set_pll	= pxa_ssp_set_dai_pll,
+	.set_fmt	= pxa_ssp_set_dai_fmt,
+	.set_tdm_slot	= pxa_ssp_set_dai_tdm_slot,
+	.set_tristate	= pxa_ssp_set_dai_tristate,
+};
+
 struct snd_soc_dai pxa_ssp_dai[] = {
 	{
 		.name = "pxa2xx-ssp1",
@@ -804,18 +817,7 @@ struct snd_soc_dai pxa_ssp_dai[] = {
 			.rates = PXA_SSP_RATES,
 			.formats = PXA_SSP_FORMATS,
 		 },
-		.ops = {
-			.startup = pxa_ssp_startup,
-			.shutdown = pxa_ssp_shutdown,
-			.trigger = pxa_ssp_trigger,
-			.hw_params = pxa_ssp_hw_params,
-			.set_sysclk = pxa_ssp_set_dai_sysclk,
-			.set_clkdiv = pxa_ssp_set_dai_clkdiv,
-			.set_pll = pxa_ssp_set_dai_pll,
-			.set_fmt = pxa_ssp_set_dai_fmt,
-			.set_tdm_slot = pxa_ssp_set_dai_tdm_slot,
-			.set_tristate = pxa_ssp_set_dai_tristate,
-		},
+		.ops = &pxa_ssp_dai_ops,
 	},
 	{	.name = "pxa2xx-ssp2",
 		.id = 1,
@@ -835,18 +837,7 @@ struct snd_soc_dai pxa_ssp_dai[] = {
 			.rates = PXA_SSP_RATES,
 			.formats = PXA_SSP_FORMATS,
 		 },
-		.ops = {
-			.startup = pxa_ssp_startup,
-			.shutdown = pxa_ssp_shutdown,
-			.trigger = pxa_ssp_trigger,
-			.hw_params = pxa_ssp_hw_params,
-			.set_sysclk = pxa_ssp_set_dai_sysclk,
-			.set_clkdiv = pxa_ssp_set_dai_clkdiv,
-			.set_pll = pxa_ssp_set_dai_pll,
-			.set_fmt = pxa_ssp_set_dai_fmt,
-			.set_tdm_slot = pxa_ssp_set_dai_tdm_slot,
-			.set_tristate = pxa_ssp_set_dai_tristate,
-		},
+		.ops = &pxa_ssp_dai_ops,
 	},
 	{
 		.name = "pxa2xx-ssp3",
@@ -867,18 +858,7 @@ struct snd_soc_dai pxa_ssp_dai[] = {
 			.rates = PXA_SSP_RATES,
 			.formats = PXA_SSP_FORMATS,
 		 },
-		.ops = {
-			.startup = pxa_ssp_startup,
-			.shutdown = pxa_ssp_shutdown,
-			.trigger = pxa_ssp_trigger,
-			.hw_params = pxa_ssp_hw_params,
-			.set_sysclk = pxa_ssp_set_dai_sysclk,
-			.set_clkdiv = pxa_ssp_set_dai_clkdiv,
-			.set_pll = pxa_ssp_set_dai_pll,
-			.set_fmt = pxa_ssp_set_dai_fmt,
-			.set_tdm_slot = pxa_ssp_set_dai_tdm_slot,
-			.set_tristate = pxa_ssp_set_dai_tristate,
-		},
+		.ops = &pxa_ssp_dai_ops,
 	},
 	{
 		.name = "pxa2xx-ssp4",
@@ -899,18 +879,7 @@ struct snd_soc_dai pxa_ssp_dai[] = {
 			.rates = PXA_SSP_RATES,
 			.formats = PXA_SSP_FORMATS,
 		 },
-		.ops = {
-			.startup = pxa_ssp_startup,
-			.shutdown = pxa_ssp_shutdown,
-			.trigger = pxa_ssp_trigger,
-			.hw_params = pxa_ssp_hw_params,
-			.set_sysclk = pxa_ssp_set_dai_sysclk,
-			.set_clkdiv = pxa_ssp_set_dai_clkdiv,
-			.set_pll = pxa_ssp_set_dai_pll,
-			.set_fmt = pxa_ssp_set_dai_fmt,
-			.set_tdm_slot = pxa_ssp_set_dai_tdm_slot,
-			.set_tristate = pxa_ssp_set_dai_tristate,
-		},
+		.ops = &pxa_ssp_dai_ops,
 	},
 };
 EXPORT_SYMBOL_GPL(pxa_ssp_dai);

@@ -304,6 +304,15 @@ static int pxa2xx_i2s_resume(struct snd_soc_dai *dai)
 		SNDRV_PCM_RATE_16000 | SNDRV_PCM_RATE_22050 | SNDRV_PCM_RATE_44100 | \
 		SNDRV_PCM_RATE_48000 | SNDRV_PCM_RATE_96000)
 
+static struct snd_soc_dai_ops pxa_i2s_dai_ops = {
+	.startup	= pxa2xx_i2s_startup,
+	.shutdown	= pxa2xx_i2s_shutdown,
+	.trigger	= pxa2xx_i2s_trigger,
+	.hw_params	= pxa2xx_i2s_hw_params,
+	.set_fmt	= pxa2xx_i2s_set_dai_fmt,
+	.set_sysclk	= pxa2xx_i2s_set_dai_sysclk,
+};
+
 struct snd_soc_dai pxa_i2s_dai = {
 	.name = "pxa2xx-i2s",
 	.id = 0,
@@ -319,14 +328,7 @@ struct snd_soc_dai pxa_i2s_dai = {
 		.channels_max = 2,
 		.rates = PXA2XX_I2S_RATES,
 		.formats = SNDRV_PCM_FMTBIT_S16_LE,},
-	.ops = {
-		.startup = pxa2xx_i2s_startup,
-		.shutdown = pxa2xx_i2s_shutdown,
-		.trigger = pxa2xx_i2s_trigger,
-		.hw_params = pxa2xx_i2s_hw_params,
-		.set_fmt = pxa2xx_i2s_set_dai_fmt,
-		.set_sysclk = pxa2xx_i2s_set_dai_sysclk,
-	},
+	.ops = &pxa_i2s_dai_ops,
 };
 
 EXPORT_SYMBOL_GPL(pxa_i2s_dai);

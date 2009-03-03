@@ -708,6 +708,14 @@ static int s3c2412_i2s_resume(struct snd_soc_dai *dai)
 	SNDRV_PCM_RATE_22050 | SNDRV_PCM_RATE_32000 | SNDRV_PCM_RATE_44100 | \
 	SNDRV_PCM_RATE_48000 | SNDRV_PCM_RATE_88200 | SNDRV_PCM_RATE_96000)
 
+static struct snd_soc_dai_ops s3c2412_i2s_dai_ops = {
+	.trigger	= s3c2412_i2s_trigger,
+	.hw_params	= s3c2412_i2s_hw_params,
+	.set_fmt	= s3c2412_i2s_set_fmt,
+	.set_clkdiv	= s3c2412_i2s_set_clkdiv,
+	.set_sysclk	= s3c2412_i2s_set_sysclk,
+};
+
 struct snd_soc_dai s3c2412_i2s_dai = {
 	.name	= "s3c2412-i2s",
 	.id	= 0,
@@ -726,13 +734,7 @@ struct snd_soc_dai s3c2412_i2s_dai = {
 		.rates		= S3C2412_I2S_RATES,
 		.formats	= SNDRV_PCM_FMTBIT_S8 | SNDRV_PCM_FMTBIT_S16_LE,
 	},
-	.ops = {
-		.trigger	= s3c2412_i2s_trigger,
-		.hw_params	= s3c2412_i2s_hw_params,
-		.set_fmt	= s3c2412_i2s_set_fmt,
-		.set_clkdiv	= s3c2412_i2s_set_clkdiv,
-		.set_sysclk	= s3c2412_i2s_set_sysclk,
-	},
+	.ops = &s3c2412_i2s_dai_ops,
 };
 EXPORT_SYMBOL_GPL(s3c2412_i2s_dai);
 
