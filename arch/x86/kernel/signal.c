@@ -240,11 +240,10 @@ get_sigframe(struct k_sigaction *ka, struct pt_regs *regs, size_t frame_size,
 
 	if (used_math()) {
 		sp -= sig_xstate_size;
-#ifdef CONFIG_X86_32
-		*fpstate = (void __user *) sp;
-#else /* !CONFIG_X86_32 */
-		*fpstate = (void __user *)round_down(sp, 64);
-#endif /* CONFIG_X86_32 */
+#ifdef CONFIG_X86_64
+		sp = round_down(sp, 64);
+#endif /* CONFIG_X86_64 */
+		*fpstate = (void __user *)sp;
 
 		if (save_i387_xstate(*fpstate) < 0)
 			return (void __user *)-1L;
