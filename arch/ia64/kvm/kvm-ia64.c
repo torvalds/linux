@@ -1837,7 +1837,7 @@ int kvm_apic_match_logical_addr(struct kvm_lapic *apic, u8 mda)
 }
 
 struct kvm_vcpu *kvm_get_lowest_prio_vcpu(struct kvm *kvm, u8 vector,
-				       unsigned long bitmap)
+				       unsigned long *bitmap)
 {
 	struct kvm_vcpu *lvcpu = kvm->vcpus[0];
 	int i;
