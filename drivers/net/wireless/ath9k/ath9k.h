@@ -458,7 +458,6 @@ void ath_beacon_config(struct ath_softc *sc, int if_id);
 int ath_beaconq_setup(struct ath_hw *ah);
 int ath_beacon_alloc(struct ath_softc *sc, int if_id);
 void ath_beacon_return(struct ath_softc *sc, struct ath_vif *avp);
-void ath_beacon_sync(struct ath_softc *sc, int if_id);
 
 /*******/
 /* ANI */

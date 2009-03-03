@@ -926,7 +926,6 @@ static void ath9k_bss_assoc_info(struct ath_softc *sc,
 
 		/* Configure the beacon */
 		ath_beacon_config(sc, 0);
-		sc->sc_flags |= SC_OP_BEACONS;
 
 		/* Reset rssi stats */
 		sc->nodestats.ns_avgbrssi = ATH_RSSI_DUMMY_MARKER;
@@ -2365,7 +2364,7 @@ static int ath9k_config_interface(struct ieee80211_hw *hw,
 			if (error != 0)
 				return error;
 
-			ath_beacon_sync(sc, 0);
+			ath_beacon_config(sc, 0);
 		}
 	}
 
