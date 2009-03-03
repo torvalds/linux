@@ -16,6 +16,8 @@
 #include <linux/platform_device.h>
 #include <linux/types.h>
 #include <linux/workqueue.h>
+#include <linux/interrupt.h>
+#include <linux/kernel.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/control.h>
@@ -168,6 +170,9 @@ struct soc_enum;
 struct snd_soc_ac97_ops;
 struct snd_soc_jack;
 struct snd_soc_jack_pin;
+#ifdef CONFIG_GPIOLIB
+struct snd_soc_jack_gpio;
+#endif
 
 typedef int (*hw_write_t)(void *,const char* ,int);
 typedef int (*hw_read_t)(void *,char* ,int);
@@ -194,6 +199,12 @@ int snd_soc_jack_new(struct snd_soc_card *card, const char *id, int type,
 void snd_soc_jack_report(struct snd_soc_jack *jack, int status, int mask);
 int snd_soc_jack_add_pins(struct snd_soc_jack *jack, int count,
 			  struct snd_soc_jack_pin *pins);
+#ifdef CONFIG_GPIOLIB
+int snd_soc_jack_add_gpios(struct snd_soc_jack *jack, int count,
+			struct snd_soc_jack_gpio *gpios);
+void snd_soc_jack_free_gpios(struct snd_soc_jack *jack, int count,
+			struct snd_soc_jack_gpio *gpios);
+#endif
 
 /* codec IO */
 #define snd_soc_read(codec, reg) codec->read(codec, reg)
@@ -263,6 +274,27 @@ struct snd_soc_jack_pin {
 	int mask;
 	bool invert;
 };
+
+/**
+ * struct snd_soc_jack_gpio - Describes a gpio pin for jack detection
+ *
+ * @gpio:         gpio number
+ * @name:         gpio name
+ * @report:       value to report when jack detected
+ * @invert:       report presence in low state
+ * @debouce_time: debouce time in ms
+ */
+#ifdef CONFIG_GPIOLIB
+struct snd_soc_jack_gpio {
+	unsigned int gpio;
+	const char *name;
+	int report;
+	int invert;
+	int debounce_time;
+	struct snd_soc_jack *jack;
+	struct work_struct work;
+};
+#endif
 
 struct snd_soc_jack {
 	struct snd_jack *jack;
