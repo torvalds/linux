@@ -302,7 +302,6 @@ struct cx88_dmaqueue {
 	struct btcx_riscmem    stopper;
 	u32                    count;
 };
-struct cx88_core;
 
 struct cx88_core {
 	struct list_head           devlist;
