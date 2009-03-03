@@ -407,6 +407,14 @@ u32 ath_calcrxfilter(struct ath_softc *sc)
 	if (sc->sc_ah->opmode == NL80211_IFTYPE_AP)
 		rfilt |= ATH9K_RX_FILTER_PSPOLL;
 
+	if (sc->sec_wiphy) {
+		/* TODO: only needed if more than one BSSID is in use in
+		 * station/adhoc mode */
+		/* TODO: for older chips, may need to add ATH9K_RX_FILTER_PROM
+		 */
+		rfilt |= ATH9K_RX_FILTER_MCAST_BCAST_ALL;
+	}
+
 	return rfilt;
 
 #undef RX_FILTER_PRESERVE
