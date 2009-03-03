@@ -1763,6 +1763,12 @@ M:	viro@zeniv.linux.org.uk
 L:	linux-fsdevel@vger.kernel.org
 S:	Maintained
 
+FINTEK F75375S HARDWARE MONITOR AND FAN CONTROLLER DRIVER
+P:	Riku Voipio
+M:	riku.vipio@iki.fi
+L:	lm-sensors@lm-sensors.org
+S:	Maintained
+
 FIREWIRE SUBSYSTEM (drivers/firewire, <linux/firewire*.h>)
 P:	Kristian Hoegsberg, Stefan Richter
 M:	krh@redhat.com, stefanr@s5r6.in-berlin.de
@@ -3410,6 +3416,11 @@ S:	Maintained
 PC8736x GPIO DRIVER
 P:	Jim Cromie
 M:	jim.cromie@gmail.com
+S:	Maintained
+
+PCA9532 LED DRIVER
+P:	Riku Voipio
+M:	riku.voipio@iki.fi
 S:	Maintained
 
 PCI ERROR RECOVERY
