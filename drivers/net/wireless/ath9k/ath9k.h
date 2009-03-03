@@ -387,17 +387,6 @@ void ath_tx_aggr_resume(struct ath_softc *sc, struct ieee80211_sta *sta, u16 tid
 /* VIFs */
 /********/
 
-/*
- * Define the scheme that we select MAC address for multiple
- * BSS on the same radio. The very first VIF will just use the MAC
- * address from the EEPROM. For the next 3 VIFs, we set the
- * U/L bit (bit 1) in MAC address, and use the next two bits as the
- * index of the VIF.
- */
-
-#define ATH_SET_VIF_BSSID_MASK(bssid_mask) \
-	((bssid_mask)[0] &= ~(((ATH_BCBUF-1)<<2)|0x02))
-
 struct ath_vif {
 	int av_bslot;
 	enum nl80211_iftype av_opmode;
@@ -675,5 +664,8 @@ static inline void ath9k_ps_restore(struct ath_softc *sc)
 			ath9k_hw_setpower(sc->sc_ah,
 					  sc->sc_ah->restore_mode);
 }
+
+
+void ath9k_set_bssid_mask(struct ieee80211_hw *hw);
 
 #endif /* ATH9K_H */
