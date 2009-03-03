@@ -3014,7 +3014,7 @@ exit:
 	return status;
 }
 
-static int ql_cam_route_initialize(struct ql_adapter *qdev)
+int ql_cam_route_initialize(struct ql_adapter *qdev)
 {
 	int status;
 
@@ -3195,6 +3195,7 @@ static int ql_adapter_down(struct ql_adapter *qdev)
 		cancel_delayed_work_sync(&qdev->asic_reset_work);
 	cancel_delayed_work_sync(&qdev->mpi_reset_work);
 	cancel_delayed_work_sync(&qdev->mpi_work);
+	cancel_delayed_work_sync(&qdev->mpi_idc_work);
 	cancel_delayed_work_sync(&qdev->mpi_port_cfg_work);
 
 	/* The default queue at index 0 is always processed in
@@ -3782,6 +3783,7 @@ static int __devinit ql_init_device(struct pci_dev *pdev,
 	INIT_DELAYED_WORK(&qdev->mpi_reset_work, ql_mpi_reset_work);
 	INIT_DELAYED_WORK(&qdev->mpi_work, ql_mpi_work);
 	INIT_DELAYED_WORK(&qdev->mpi_port_cfg_work, ql_mpi_port_cfg_work);
+	INIT_DELAYED_WORK(&qdev->mpi_idc_work, ql_mpi_idc_work);
 	mutex_init(&qdev->mpi_mutex);
 	init_completion(&qdev->ide_completion);
 

@@ -138,6 +138,40 @@ end:
 	return status;
 }
 
+/* We are being asked by firmware to accept
+ * a change to the port.  This is only
+ * a change to max frame sizes (Tx/Rx), pause
+ * paramters, or loopback mode. We wake up a worker
+ * to handler processing this since a mailbox command
+ * will need to be sent to ACK the request.
+ */
+static int ql_idc_req_aen(struct ql_adapter *qdev)
+{
+	int status;
+	struct mbox_params *mbcp = &qdev->idc_mbc;
+
+	QPRINTK(qdev, DRV, ERR, "Enter!\n");
+	/* Get the status data and start up a thread to
+	 * handle the request.
+	 */
+	mbcp = &qdev->idc_mbc;
+	mbcp->out_count = 4;
+	status = ql_get_mb_sts(qdev, mbcp);
+	if (status) {
+		QPRINTK(qdev, DRV, ERR,
+			"Could not read MPI, resetting ASIC!\n");
+		ql_queue_asic_error(qdev);
+	} else	{
+		/* Begin polled mode early so
+		 * we don't get another interrupt
+		 * when we leave mpi_worker.
+		 */
+		ql_write32(qdev, INTR_MASK, (INTR_MASK_PI << 16));
+		queue_delayed_work(qdev->workqueue, &qdev->mpi_idc_work, 0);
+	}
+	return status;
+}
+
 /* Process an inter-device event completion.
  * If good, signal the caller's completion.
  */
@@ -174,6 +208,35 @@ static void ql_link_up(struct ql_adapter *qdev, struct mbox_params *mbcp)
 
 	qdev->link_status = mbcp->mbox_out[1];
 	QPRINTK(qdev, DRV, ERR, "Link Up.\n");
+
+	/* If we're coming back from an IDC event
+	 * then set up the CAM and frame routing.
+	 */
+	if (test_bit(QL_CAM_RT_SET, &qdev->flags)) {
+		status = ql_cam_route_initialize(qdev);
+		if (status) {
+			QPRINTK(qdev, IFUP, ERR,
+			"Failed to init CAM/Routing tables.\n");
+			return;
+		} else
+			clear_bit(QL_CAM_RT_SET, &qdev->flags);
+	}
+
+	/* Queue up a worker to check the frame
+	 * size information, and fix it if it's not
+	 * to our liking.
+	 */
+	if (!test_bit(QL_PORT_CFG, &qdev->flags)) {
+		QPRINTK(qdev, DRV, ERR, "Queue Port Config Worker!\n");
+		set_bit(QL_PORT_CFG, &qdev->flags);
+		/* Begin polled mode early so
+		 * we don't get another interrupt
+		 * when we leave mpi_worker dpc.
+		 */
+		ql_write32(qdev, INTR_MASK, (INTR_MASK_PI << 16));
+		queue_delayed_work(qdev->workqueue,
+				&qdev->mpi_port_cfg_work, 0);
+	}
 
 	netif_carrier_on(qdev->ndev);
 }
@@ -282,6 +345,15 @@ static int ql_mpi_handler(struct ql_adapter *qdev, struct mbox_params *mbcp)
 		mbcp->out_count = orig_count;
 		status = ql_get_mb_sts(qdev, mbcp);
 		return status;
+
+	/* We are being asked by firmware to accept
+	 * a change to the port.  This is only
+	 * a change to max frame sizes (Tx/Rx), pause
+	 * paramters, or loopback mode.
+	 */
+	case AEN_IDC_REQ:
+		status = ql_idc_req_aen(qdev);
+		break;
 
 	/* Process and inbound IDC event.
 	 * This will happen when we're trying to
@@ -448,6 +520,38 @@ int ql_mb_get_fw_state(struct ql_adapter *qdev)
 		status = -EIO;
 	}
 
+	return status;
+}
+
+/* Send and ACK mailbox command to the firmware to
+ * let it continue with the change.
+ */
+int ql_mb_idc_ack(struct ql_adapter *qdev)
+{
+	struct mbox_params mbc;
+	struct mbox_params *mbcp = &mbc;
+	int status = 0;
+
+	memset(mbcp, 0, sizeof(struct mbox_params));
+
+	mbcp->in_count = 5;
+	mbcp->out_count = 1;
+
+	mbcp->mbox_in[0] = MB_CMD_IDC_ACK;
+	mbcp->mbox_in[1] = qdev->idc_mbc.mbox_out[1];
+	mbcp->mbox_in[2] = qdev->idc_mbc.mbox_out[2];
+	mbcp->mbox_in[3] = qdev->idc_mbc.mbox_out[3];
+	mbcp->mbox_in[4] = qdev->idc_mbc.mbox_out[4];
+
+	status = ql_mailbox_command(qdev, mbcp);
+	if (status)
+		return status;
+
+	if (mbcp->mbox_out[0] != MB_CMD_STS_GOOD) {
+		QPRINTK(qdev, DRV, ERR,
+			"Failed IDC ACK send.\n");
+		status = -EIO;
+	}
 	return status;
 }
 
@@ -627,6 +731,44 @@ err:
 	goto end;
 }
 
+/* Process an inter-device request.  This is issues by
+ * the firmware in response to another function requesting
+ * a change to the port. We set a flag to indicate a change
+ * has been made and then send a mailbox command ACKing
+ * the change request.
+ */
+void ql_mpi_idc_work(struct work_struct *work)
+{
+	struct ql_adapter *qdev =
+	    container_of(work, struct ql_adapter, mpi_idc_work.work);
+	int status;
+	struct mbox_params *mbcp = &qdev->idc_mbc;
+	u32 aen;
+
+	aen = mbcp->mbox_out[1] >> 16;
+
+	switch (aen) {
+	default:
+		QPRINTK(qdev, DRV, ERR,
+			"Bug: Unhandled IDC action.\n");
+		break;
+	case MB_CMD_PORT_RESET:
+	case MB_CMD_SET_PORT_CFG:
+	case MB_CMD_STOP_FW:
+		netif_carrier_off(qdev->ndev);
+		/* Signal the resulting link up AEN
+		 * that the frame routing and mac addr
+		 * needs to be set.
+		 * */
+		set_bit(QL_CAM_RT_SET, &qdev->flags);
+		status = ql_mb_idc_ack(qdev);
+		if (status) {
+			QPRINTK(qdev, DRV, ERR,
+			"Bug: No pending IDC!\n");
+		}
+	}
+}
+
 void ql_mpi_work(struct work_struct *work)
 {
 	struct ql_adapter *qdev =
@@ -652,5 +794,6 @@ void ql_mpi_reset_work(struct work_struct *work)
 	    container_of(work, struct ql_adapter, mpi_reset_work.work);
 	cancel_delayed_work_sync(&qdev->mpi_work);
 	cancel_delayed_work_sync(&qdev->mpi_port_cfg_work);
+	cancel_delayed_work_sync(&qdev->mpi_idc_work);
 	ql_soft_reset_mpi_risc(qdev);
 }
