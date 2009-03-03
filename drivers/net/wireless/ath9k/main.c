@@ -2168,8 +2168,10 @@ static int ath9k_add_interface(struct ieee80211_hw *hw,
 	avp->av_opmode = ic_opmode;
 	avp->av_bslot = -1;
 
-	if (ic_opmode == NL80211_IFTYPE_AP)
+	if (ic_opmode == NL80211_IFTYPE_AP) {
 		ath9k_hw_set_tsfadjust(sc->sc_ah, 1);
+		sc->sc_flags |= SC_OP_TSF_RESET;
+	}
 
 	sc->vifs[0] = conf->vif;
 	sc->nvifs++;
@@ -2290,6 +2292,16 @@ static int ath9k_config(struct ieee80211_hw *hw, u32 changed)
 
 	if (changed & IEEE80211_CONF_CHANGE_POWER)
 		sc->config.txpowlimit = 2 * conf->power_level;
+
+	/*
+	 * The HW TSF has to be reset when the beacon interval changes.
+	 * We set the flag here, and ath_beacon_config_ap() would take this
+	 * into account when it gets called through the subsequent
+	 * config_interface() call - with IFCC_BEACON in the changed field.
+	 */
+
+	if (changed & IEEE80211_CONF_CHANGE_BEACON_INTERVAL)
+		sc->sc_flags |= SC_OP_TSF_RESET;
 
 	mutex_unlock(&sc->mutex);
 
