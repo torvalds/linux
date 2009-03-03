@@ -175,3 +175,164 @@ int ath9k_wiphy_del(struct ath_wiphy *aphy)
 	spin_unlock_bh(&sc->wiphy_lock);
 	return -ENOENT;
 }
+
+static int ath9k_send_nullfunc(struct ath_wiphy *aphy,
+			       struct ieee80211_vif *vif, const u8 *bssid,
+			       int ps)
+{
+	struct ath_softc *sc = aphy->sc;
+	struct ath_tx_control txctl;
+	struct sk_buff *skb;
+	struct ieee80211_hdr *hdr;
+	__le16 fc;
+	struct ieee80211_tx_info *info;
+
+	skb = dev_alloc_skb(24);
+	if (skb == NULL)
+		return -ENOMEM;
+	hdr = (struct ieee80211_hdr *) skb_put(skb, 24);
+	memset(hdr, 0, 24);
+	fc = cpu_to_le16(IEEE80211_FTYPE_DATA | IEEE80211_STYPE_NULLFUNC |
+			 IEEE80211_FCTL_TODS);
+	if (ps)
+		fc |= cpu_to_le16(IEEE80211_FCTL_PM);
+	hdr->frame_control = fc;
+	memcpy(hdr->addr1, bssid, ETH_ALEN);
+	memcpy(hdr->addr2, aphy->hw->wiphy->perm_addr, ETH_ALEN);
+	memcpy(hdr->addr3, bssid, ETH_ALEN);
+
+	info = IEEE80211_SKB_CB(skb);
+	memset(info, 0, sizeof(*info));
+	info->flags = IEEE80211_TX_CTL_REQ_TX_STATUS;
+	info->control.vif = vif;
+	info->control.rates[0].idx = 0;
+	info->control.rates[0].count = 4;
+	info->control.rates[1].idx = -1;
+
+	memset(&txctl, 0, sizeof(struct ath_tx_control));
+	txctl.txq = &sc->tx.txq[sc->tx.hwq_map[ATH9K_WME_AC_VO]];
+	txctl.frame_type = ps ? ATH9K_INT_PAUSE : ATH9K_INT_UNPAUSE;
+
+	if (ath_tx_start(aphy->hw, skb, &txctl) != 0)
+		goto exit;
+
+	return 0;
+exit:
+	dev_kfree_skb_any(skb);
+	return -1;
+}
+
+/*
+ * ath9k version of ieee80211_tx_status() for TX frames that are generated
+ * internally in the driver.
+ */
+void ath9k_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
+{
+	struct ath_wiphy *aphy = hw->priv;
+	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
+	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(skb);
+	struct ath_tx_info_priv *tx_info_priv = ATH_TX_INFO_PRIV(tx_info);
+
+	if (tx_info_priv && tx_info_priv->frame_type == ATH9K_INT_PAUSE &&
+	    aphy->state == ATH_WIPHY_PAUSING) {
+		if (!(info->flags & IEEE80211_TX_STAT_ACK)) {
+			printk(KERN_DEBUG "ath9k: %s: no ACK for pause "
+			       "frame\n", wiphy_name(hw->wiphy));
+			/*
+			 * The AP did not reply; ignore this to allow us to
+			 * continue.
+			 */
+		}
+		aphy->state = ATH_WIPHY_PAUSED;
+	}
+
+	kfree(tx_info_priv);
+	tx_info->rate_driver_data[0] = NULL;
+
+	dev_kfree_skb(skb);
+}
+
+static void ath9k_pause_iter(void *data, u8 *mac, struct ieee80211_vif *vif)
+{
+	struct ath_wiphy *aphy = data;
+	struct ath_vif *avp = (void *) vif->drv_priv;
+
+	switch (vif->type) {
+	case NL80211_IFTYPE_STATION:
+		if (!vif->bss_conf.assoc) {
+			aphy->state = ATH_WIPHY_PAUSED;
+			break;
+		}
+		/* TODO: could avoid this if already in PS mode */
+		ath9k_send_nullfunc(aphy, vif, avp->bssid, 1);
+		break;
+	case NL80211_IFTYPE_AP:
+		/* Beacon transmission is paused by aphy->state change */
+		aphy->state = ATH_WIPHY_PAUSED;
+		break;
+	default:
+		break;
+	}
+}
+
+/* caller must hold wiphy_lock */
+static int __ath9k_wiphy_pause(struct ath_wiphy *aphy)
+{
+	ieee80211_stop_queues(aphy->hw);
+	aphy->state = ATH_WIPHY_PAUSING;
+	/*
+	 * TODO: handle PAUSING->PAUSED for the case where there are multiple
+	 * active vifs (now we do it on the first vif getting ready; should be
+	 * on the last)
+	 */
+	ieee80211_iterate_active_interfaces_atomic(aphy->hw, ath9k_pause_iter,
+						   aphy);
+	return 0;
+}
+
+int ath9k_wiphy_pause(struct ath_wiphy *aphy)
+{
+	int ret;
+	spin_lock_bh(&aphy->sc->wiphy_lock);
+	ret = __ath9k_wiphy_pause(aphy);
+	spin_unlock_bh(&aphy->sc->wiphy_lock);
+	return ret;
+}
+
+static void ath9k_unpause_iter(void *data, u8 *mac, struct ieee80211_vif *vif)
+{
+	struct ath_wiphy *aphy = data;
+	struct ath_vif *avp = (void *) vif->drv_priv;
+
+	switch (vif->type) {
+	case NL80211_IFTYPE_STATION:
+		if (!vif->bss_conf.assoc)
+			break;
+		ath9k_send_nullfunc(aphy, vif, avp->bssid, 0);
+		break;
+	case NL80211_IFTYPE_AP:
+		/* Beacon transmission is re-enabled by aphy->state change */
+		break;
+	default:
+		break;
+	}
+}
+
+/* caller must hold wiphy_lock */
+static int __ath9k_wiphy_unpause(struct ath_wiphy *aphy)
+{
+	ieee80211_iterate_active_interfaces_atomic(aphy->hw,
+						   ath9k_unpause_iter, aphy);
+	aphy->state = ATH_WIPHY_ACTIVE;
+	ieee80211_wake_queues(aphy->hw);
+	return 0;
+}
+
+int ath9k_wiphy_unpause(struct ath_wiphy *aphy)
+{
+	int ret;
+	spin_lock_bh(&aphy->sc->wiphy_lock);
+	ret = __ath9k_wiphy_unpause(aphy);
+	spin_unlock_bh(&aphy->sc->wiphy_lock);
+	return ret;
+}

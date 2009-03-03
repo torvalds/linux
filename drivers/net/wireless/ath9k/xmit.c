@@ -1514,6 +1514,7 @@ static int ath_tx_setup_buffer(struct ieee80211_hw *hw, struct ath_buf *bf,
 		return -ENOMEM;
 	tx_info->rate_driver_data[0] = tx_info_priv;
 	tx_info_priv->aphy = aphy;
+	tx_info_priv->frame_type = txctl->frame_type;
 	hdrlen = ieee80211_get_hdrlen_from_skb(skb);
 	fc = hdr->frame_control;
 
@@ -1722,11 +1723,14 @@ static void ath_tx_complete(struct ath_softc *sc, struct sk_buff *skb,
 	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(skb);
 	struct ath_tx_info_priv *tx_info_priv = ATH_TX_INFO_PRIV(tx_info);
 	int hdrlen, padsize;
+	int frame_type = ATH9K_NOT_INTERNAL;
 
 	DPRINTF(sc, ATH_DBG_XMIT, "TX complete: skb: %p\n", skb);
 
-	if (tx_info_priv)
+	if (tx_info_priv) {
 		hw = tx_info_priv->aphy->hw;
+		frame_type = tx_info_priv->frame_type;
+	}
 
 	if (tx_info->flags & IEEE80211_TX_CTL_NO_ACK ||
 	    tx_info->flags & IEEE80211_TX_STAT_TX_FILTERED) {
@@ -1757,7 +1761,10 @@ static void ath_tx_complete(struct ath_softc *sc, struct sk_buff *skb,
 		skb_pull(skb, padsize);
 	}
 
-	ieee80211_tx_status(hw, skb);
+	if (frame_type == ATH9K_NOT_INTERNAL)
+		ieee80211_tx_status(hw, skb);
+	else
+		ath9k_tx_status(hw, skb);
 }
 
 static void ath_tx_complete_buf(struct ath_softc *sc, struct ath_buf *bf,

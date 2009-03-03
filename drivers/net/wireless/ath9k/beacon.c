@@ -125,6 +125,9 @@ static struct ath_buf *ath_beacon_generate(struct ieee80211_hw *hw,
 	struct ieee80211_tx_info *info;
 	int cabq_depth;
 
+	if (aphy->state != ATH_WIPHY_ACTIVE)
+		return NULL;
+
 	avp = (void *)vif->drv_priv;
 	cabq = sc->beacon.cabq;
 
