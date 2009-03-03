@@ -439,7 +439,7 @@ struct ath_beacon {
 	u32 bmisscnt;
 	u32 ast_be_xmit;
 	u64 bc_tstamp;
-	int bslot[ATH_BCBUF];
+	struct ieee80211_vif *bslot[ATH_BCBUF];
 	int slottime;
 	int slotupdate;
 	struct ath9k_tx_queue_info beacon_qi;
@@ -449,9 +449,9 @@ struct ath_beacon {
 };
 
 void ath_beacon_tasklet(unsigned long data);
-void ath_beacon_config(struct ath_softc *sc, int if_id);
+void ath_beacon_config(struct ath_softc *sc, struct ieee80211_vif *vif);
 int ath_beaconq_setup(struct ath_hw *ah);
-int ath_beacon_alloc(struct ath_softc *sc, int if_id);
+int ath_beacon_alloc(struct ath_softc *sc, struct ieee80211_vif *vif);
 void ath_beacon_return(struct ath_softc *sc, struct ath_vif *avp);
 
 /*******/
@@ -532,7 +532,6 @@ struct ath_rfkill {
  */
 #define	ATH_KEYMAX	        128     /* max key cache size we handle */
 
-#define ATH_IF_ID_ANY   	0xff
 #define ATH_TXPOWER_MAX         100     /* .5 dBm units */
 #define ATH_RSSI_DUMMY_MARKER   0x127
 #define ATH_RATE_DUMMY_MARKER   0
@@ -595,7 +594,6 @@ struct ath_softc {
 	struct ath_rx rx;
 	struct ath_tx tx;
 	struct ath_beacon beacon;
-	struct ieee80211_vif *vifs[ATH_BCBUF];
 	struct ieee80211_rate rates[IEEE80211_NUM_BANDS][ATH_RATE_MAX];
 	struct ath_rate_table *hw_rate_table[ATH9K_MODE_MAX];
 	struct ath_rate_table *cur_rate_table;

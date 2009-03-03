@@ -800,13 +800,10 @@ static int ath_key_config(struct ath_softc *sc,
 		 * need to change with virtual interfaces. */
 		idx = key->keyidx;
 	} else if (key->keyidx) {
-		struct ieee80211_vif *vif;
-
 		if (WARN_ON(!sta))
 			return -EOPNOTSUPP;
 		mac = sta->addr;
 
-		vif = sc->vifs[0];
 		if (vif->type != NL80211_IFTYPE_AP) {
 			/* Only keyidx 0 should be used with unicast key, but
 			 * allow this for client mode for now. */
@@ -915,7 +912,7 @@ static void ath9k_bss_assoc_info(struct ath_softc *sc,
 		}
 
 		/* Configure the beacon */
-		ath_beacon_config(sc, 0);
+		ath_beacon_config(sc, vif);
 
 		/* Reset rssi stats */
 		sc->nodestats.ns_avgbrssi = ATH_RSSI_DUMMY_MARKER;
@@ -1120,7 +1117,7 @@ static void ath_radio_enable(struct ath_softc *sc)
 	}
 
 	if (sc->sc_flags & SC_OP_BEACONS)
-		ath_beacon_config(sc, ATH_IF_ID_ANY);	/* restart beacons */
+		ath_beacon_config(sc, NULL);	/* restart beacons */
 
 	/* Re-Enable  interrupts */
 	ath9k_hw_set_interrupts(ah, sc->imask);
@@ -1527,7 +1524,7 @@ static int ath_init(u16 devid, struct ath_softc *sc)
 
 	/* initialize beacon slots */
 	for (i = 0; i < ARRAY_SIZE(sc->beacon.bslot); i++)
-		sc->beacon.bslot[i] = ATH_IF_ID_ANY;
+		sc->beacon.bslot[i] = NULL;
 
 	/* save MISC configurations */
 	sc->config.swBeaconProcess = 1;
@@ -1715,7 +1712,7 @@ int ath_reset(struct ath_softc *sc, bool retry_tx)
 	ath_update_txpow(sc);
 
 	if (sc->sc_flags & SC_OP_BEACONS)
-		ath_beacon_config(sc, ATH_IF_ID_ANY);	/* restart beacons */
+		ath_beacon_config(sc, NULL);	/* restart beacons */
 
 	ath9k_hw_set_interrupts(ah, sc->imask);
 
@@ -2127,11 +2124,7 @@ static int ath9k_add_interface(struct ieee80211_hw *hw,
 	struct ath_softc *sc = hw->priv;
 	struct ath_vif *avp = (void *)conf->vif->drv_priv;
 	enum nl80211_iftype ic_opmode = NL80211_IFTYPE_UNSPECIFIED;
-
-	/* Support only vif for now */
-
-	if (sc->nvifs)
-		return -ENOBUFS;
+	int ret = 0;
 
 	mutex_lock(&sc->mutex);
 
@@ -2140,16 +2133,24 @@ static int ath9k_add_interface(struct ieee80211_hw *hw,
 		ic_opmode = NL80211_IFTYPE_STATION;
 		break;
 	case NL80211_IFTYPE_ADHOC:
+		if (sc->nbcnvifs >= ATH_BCBUF) {
+			ret = -ENOBUFS;
+			goto out;
+		}
 		ic_opmode = NL80211_IFTYPE_ADHOC;
 		break;
 	case NL80211_IFTYPE_AP:
+		if (sc->nbcnvifs >= ATH_BCBUF) {
+			ret = -ENOBUFS;
+			goto out;
+		}
 		ic_opmode = NL80211_IFTYPE_AP;
 		break;
 	default:
 		DPRINTF(sc, ATH_DBG_FATAL,
 			"Interface type %d not yet supported\n", conf->type);
-		mutex_unlock(&sc->mutex);
-		return -EOPNOTSUPP;
+		ret = -EOPNOTSUPP;
+		goto out;
 	}
 
 	DPRINTF(sc, ATH_DBG_CONFIG, "Attach a VIF of type: %d\n", ic_opmode);
@@ -2158,13 +2159,14 @@ static int ath9k_add_interface(struct ieee80211_hw *hw,
 	avp->av_opmode = ic_opmode;
 	avp->av_bslot = -1;
 
+	sc->nvifs++;
+	if (sc->nvifs > 1)
+		goto out; /* skip global settings for secondary vif */
+
 	if (ic_opmode == NL80211_IFTYPE_AP) {
 		ath9k_hw_set_tsfadjust(sc->sc_ah, 1);
 		sc->sc_flags |= SC_OP_TSF_RESET;
 	}
-
-	sc->vifs[0] = conf->vif;
-	sc->nvifs++;
 
 	/* Set the device opmode */
 	sc->sc_ah->opmode = ic_opmode;
@@ -2200,9 +2202,9 @@ static int ath9k_add_interface(struct ieee80211_hw *hw,
 			  jiffies + msecs_to_jiffies(ATH_ANI_POLLINTERVAL));
 	}
 
+out:
 	mutex_unlock(&sc->mutex);
-
-	return 0;
+	return ret;
 }
 
 static void ath9k_remove_interface(struct ieee80211_hw *hw,
@@ -2210,6 +2212,7 @@ static void ath9k_remove_interface(struct ieee80211_hw *hw,
 {
 	struct ath_softc *sc = hw->priv;
 	struct ath_vif *avp = (void *)conf->vif->drv_priv;
+	int i;
 
 	DPRINTF(sc, ATH_DBG_CONFIG, "Detach Interface\n");
 
@@ -2227,7 +2230,14 @@ static void ath9k_remove_interface(struct ieee80211_hw *hw,
 
 	sc->sc_flags &= ~SC_OP_BEACONS;
 
-	sc->vifs[0] = NULL;
+	for (i = 0; i < ARRAY_SIZE(sc->beacon.bslot); i++) {
+		if (sc->beacon.bslot[i] == conf->vif) {
+			printk(KERN_DEBUG "%s: vif had allocated beacon "
+			       "slot\n", __func__);
+			sc->beacon.bslot[i] = NULL;
+		}
+	}
+
 	sc->nvifs--;
 
 	mutex_unlock(&sc->mutex);
@@ -2364,13 +2374,13 @@ static int ath9k_config_interface(struct ieee80211_hw *hw,
 			 */
 			ath9k_hw_stoptxdma(sc->sc_ah, sc->beacon.beaconq);
 
-			error = ath_beacon_alloc(sc, 0);
+			error = ath_beacon_alloc(sc, vif);
 			if (error != 0) {
 				mutex_unlock(&sc->mutex);
 				return error;
 			}
 
-			ath_beacon_config(sc, 0);
+			ath_beacon_config(sc, vif);
 		}
 	}
 
