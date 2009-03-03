@@ -327,7 +327,7 @@ static void ath_ani_calibrate(unsigned long data)
 	* don't calibrate when we're scanning.
 	* we are most likely not on our home channel.
 	*/
-	if (sc->rx.rxfilter & FIF_BCN_PRBRESP_PROMISC)
+	if (sc->sc_flags & SC_OP_SCANNING)
 		goto set_timer;
 
 	/* Long calibration runs independently of short calibration. */
@@ -2616,6 +2616,24 @@ static int ath9k_ampdu_action(struct ieee80211_hw *hw,
 	return ret;
 }
 
+static void ath9k_sw_scan_start(struct ieee80211_hw *hw)
+{
+	struct ath_softc *sc = hw->priv;
+
+	mutex_lock(&sc->mutex);
+	sc->sc_flags |= SC_OP_SCANNING;
+	mutex_unlock(&sc->mutex);
+}
+
+static void ath9k_sw_scan_complete(struct ieee80211_hw *hw)
+{
+	struct ath_softc *sc = hw->priv;
+
+	mutex_lock(&sc->mutex);
+	sc->sc_flags &= ~SC_OP_SCANNING;
+	mutex_unlock(&sc->mutex);
+}
+
 struct ieee80211_ops ath9k_ops = {
 	.tx 		    = ath9k_tx,
 	.start 		    = ath9k_start,
@@ -2633,6 +2651,8 @@ struct ieee80211_ops ath9k_ops = {
 	.set_tsf 	    = ath9k_set_tsf,
 	.reset_tsf 	    = ath9k_reset_tsf,
 	.ampdu_action       = ath9k_ampdu_action,
+	.sw_scan_start      = ath9k_sw_scan_start,
+	.sw_scan_complete   = ath9k_sw_scan_complete,
 };
 
 static struct {

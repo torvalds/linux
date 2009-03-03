@@ -559,6 +559,7 @@ struct ath_rfkill {
 #define SC_OP_RFKILL_HW_BLOCKED	BIT(13)
 #define SC_OP_WAIT_FOR_BEACON	BIT(14)
 #define SC_OP_LED_ON		BIT(15)
+#define SC_OP_SCANNING		BIT(16)
 
 struct ath_bus_ops {
 	void		(*read_cachesize)(struct ath_softc *sc, int *csz);
@@ -682,4 +683,5 @@ static inline void ath9k_ps_restore(struct ath_softc *sc)
 			ath9k_hw_setpower(sc->sc_ah,
 					  sc->sc_ah->restore_mode);
 }
+
 #endif /* ATH9K_H */
