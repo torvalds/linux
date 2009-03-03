@@ -345,6 +345,81 @@ static void cx23885_initialize(struct i2c_client *client)
 
 /* ----------------------------------------------------------------------- */
 
+static void cx231xx_initialize(struct i2c_client *client)
+{
+	DEFINE_WAIT(wait);
+	struct cx25840_state *state = to_state(i2c_get_clientdata(client));
+	struct workqueue_struct *q;
+
+	/* Internal Reset */
+	cx25840_and_or(client, 0x102, ~0x01, 0x01);
+	cx25840_and_or(client, 0x102, ~0x01, 0x00);
+
+	/* Stop microcontroller */
+	cx25840_and_or(client, 0x803, ~0x10, 0x00);
+
+	/* DIF in reset? */
+	cx25840_write(client, 0x398, 0);
+
+	/* Trust the default xtal, no division */
+	/* This changes for the cx23888 products */
+	cx25840_write(client, 0x2, 0x76);
+
+	/* Bring down the regulator for AUX clk */
+	cx25840_write(client, 0x1, 0x40);
+
+	/* Disable DIF bypass */
+	cx25840_write4(client, 0x33c, 0x00000001);
+
+	/* DIF Src phase inc */
+	cx25840_write4(client, 0x340, 0x0df7df83);
+
+
+	/* Luma */
+	cx25840_write4(client, 0x414, 0x00107d12);
+
+	/* Chroma */
+	cx25840_write4(client, 0x420, 0x3d008282);
+
+
+
+	/* ADC2 input select */
+	cx25840_write(client, 0x102, 0x10);
+
+	/* VIN1 & VIN5 */
+	cx25840_write(client, 0x103, 0x11);
+
+	/* Enable format auto detect */
+	cx25840_write(client, 0x400, 0);
+	/* Fast subchroma lock */
+	/* White crush, Chroma AGC & Chroma Killer enabled */
+	cx25840_write(client, 0x401, 0xe8);
+
+
+	/* Do the firmware load in a work handler to prevent.
+	   Otherwise the kernel is blocked waiting for the
+	   bit-banging i2c interface to finish uploading the
+	   firmware. */
+	INIT_WORK(&state->fw_work, cx25840_work_handler);
+	init_waitqueue_head(&state->fw_wait);
+	q = create_singlethread_workqueue("cx25840_fw");
+	prepare_to_wait(&state->fw_wait, &wait, TASK_UNINTERRUPTIBLE);
+	queue_work(q, &state->fw_work);
+	schedule();
+	finish_wait(&state->fw_wait, &wait);
+	destroy_workqueue(q);
+
+	cx25840_std_setup(client);
+
+	/* (re)set input */
+	set_input(client, state->vid_input, state->aud_input);
+
+	/* start microcontroller */
+	cx25840_and_or(client, 0x803, ~0x10, 0x10);
+}
+
+/* ----------------------------------------------------------------------- */
+
 void cx25840_std_setup(struct i2c_client *client)
 {
 	struct cx25840_state *state = to_state(i2c_get_clientdata(client));
@@ -414,6 +489,7 @@ void cx25840_std_setup(struct i2c_client *client)
 	}
 
 	/* DEBUG: Displays configured PLL frequency */
+    if (!state->is_cx231xx) {
 	pll_int = cx25840_read(client, 0x108);
 	pll_frac = cx25840_read4(client, 0x10c) & 0x1ffffff;
 	pll_post = cx25840_read(client, 0x109);
@@ -448,6 +524,7 @@ void cx25840_std_setup(struct i2c_client *client)
 			hblank, hactive, vblank, vactive, vblank656,
 			src_decimation, burst, luma_lpf, uv_lpf, comb, sc);
 	}
+    }
 
 	/* Sets horizontal blanking delay and active lines */
 	cx25840_write(client, 0x470, hblank);
@@ -596,7 +673,7 @@ static int set_input(struct i2c_client *client, enum cx25840_video_input vid_inp
 	 * configuration in reg (for the cx23885) so we have no
 	 * need to attempt to flip bits for earlier av decoders.
 	 */
-	if (!state->is_cx23885) {
+	if (!state->is_cx23885 && !state->is_cx231xx) {
 		switch (aud_input) {
 		case CX25840_AUDIO_SERIAL:
 			/* do nothing, use serial audio input */
@@ -619,7 +696,7 @@ static int set_input(struct i2c_client *client, enum cx25840_video_input vid_inp
 	/* Set INPUT_MODE to Composite (0) or S-Video (1) */
 	cx25840_and_or(client, 0x401, ~0x6, is_composite ? 0 : 0x02);
 
-	if (!state->is_cx23885) {
+	if (!state->is_cx23885 && !state->is_cx231xx) {
 		/* Set CH_SEL_ADC2 to 1 if input comes from CH3 */
 		cx25840_and_or(client, 0x102, ~0x2, (reg & 0x80) == 0 ? 2 : 0);
 		/* Set DUAL_MODE_ADC2 to 1 if input comes from both CH2&CH3 */
@@ -649,6 +726,19 @@ static int set_input(struct i2c_client *client, enum cx25840_video_input vid_inp
 
 		/* Select AFE clock pad output source */
 		cx25840_write(client, 0x144, 0x05);
+
+		/* I2S_IN_CTL: I2S_IN_SONY_MODE, LEFT SAMPLE on WS=1 */
+		cx25840_write(client, 0x914, 0xa0);
+
+		/* I2S_OUT_CTL:
+		 * I2S_IN_SONY_MODE, LEFT SAMPLE on WS=1
+		 * I2S_OUT_MASTER_MODE = Master
+		 */
+		cx25840_write(client, 0x918, 0xa0);
+		cx25840_write(client, 0x919, 0x01);
+	} else if (state->is_cx231xx) {
+		/* Audio channel 1 src : Parallel 1 */
+		cx25840_write(client, 0x124, 0x03);
 
 		/* I2S_IN_CTL: I2S_IN_SONY_MODE, LEFT SAMPLE on WS=1 */
 		cx25840_write(client, 0x914, 0xa0);
@@ -719,7 +809,7 @@ static int set_v4lstd(struct i2c_client *client)
 
 static int cx25840_s_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 {
-	struct cx25840_state *state = to_state(sd);
+    struct cx25840_state *state = to_state(sd);
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 
 	switch (ctrl->id) {
@@ -786,7 +876,7 @@ static int cx25840_s_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 
 static int cx25840_g_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 {
-	struct cx25840_state *state = to_state(sd);
+    struct cx25840_state *state = to_state(sd);
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 
 	switch (ctrl->id) {
@@ -1118,6 +1208,8 @@ static int cx25840_init(struct v4l2_subdev *sd, u32 val)
 			cx25836_initialize(client);
 		else if (state->is_cx23885)
 			cx23885_initialize(client);
+	else if (state->is_cx231xx)
+			cx231xx_initialize(client);
 		else
 			cx25840_initialize(client);
 	}
@@ -1159,7 +1251,7 @@ static int cx25840_s_stream(struct v4l2_subdev *sd, int enable)
 	v4l_dbg(1, cx25840_debug, client, "%s output\n",
 			enable ? "enable" : "disable");
 	if (enable) {
-		if (state->is_cx23885) {
+		if (state->is_cx23885 || state->is_cx231xx) {
 			u8 v = (cx25840_read(client, 0x421) | 0x0b);
 			cx25840_write(client, 0x421, v);
 		} else {
@@ -1169,7 +1261,7 @@ static int cx25840_s_stream(struct v4l2_subdev *sd, int enable)
 					state->is_cx25836 ? 0x04 : 0x07);
 		}
 	} else {
-		if (state->is_cx23885) {
+		if (state->is_cx23885 || state->is_cx231xx) {
 			u8 v = cx25840_read(client, 0x421) & ~(0x0b);
 			cx25840_write(client, 0x421, v);
 		} else {
@@ -1350,6 +1442,8 @@ static int cx25840_reset(struct v4l2_subdev *sd, u32 val)
 		cx25836_initialize(client);
 	else if (state->is_cx23885)
 		cx23885_initialize(client);
+	else if (state->is_cx231xx)
+		cx231xx_initialize(client);
 	else
 		cx25840_initialize(client);
 	return 0;
@@ -1445,10 +1539,12 @@ static int cx25840_probe(struct i2c_client *client,
 	}
 	else if ((device_id & 0xff00) == 0x8400) {
 		id = V4L2_IDENT_CX25840 + ((device_id >> 4) & 0xf);
-	} else if (device_id == 0x0000) {
+	} /* else if (device_id == 0x0000) {
 		id = V4L2_IDENT_CX25836 + ((device_id >> 4) & 0xf) - 6;
-	} else if (device_id == 0x1313) {
+	} */ else if (device_id == 0x1313) {
 		id = V4L2_IDENT_CX25836 + ((device_id >> 4) & 0xf) - 6;
+	} else if ((device_id & 0xfff0) == 0x5A30) {
+		id = V4L2_IDENT_CX25840 + ((device_id >> 4) & 0xf);
 	}
 	else {
 		v4l_dbg(1, cx25840_debug, client, "cx25840 not found\n");
@@ -1471,6 +1567,7 @@ static int cx25840_probe(struct i2c_client *client,
 	state->c = client;
 	state->is_cx25836 = ((device_id & 0xff00) == 0x8300);
 	state->is_cx23885 = (device_id == 0x0000) || (device_id == 0x1313);
+    state->is_cx231xx = (device_id == 0x5A3E);
 	state->vid_input = CX25840_COMPOSITE7;
 	state->aud_input = CX25840_AUDIO8;
 	state->audclk_freq = 48000;
