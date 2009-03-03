@@ -49,13 +49,6 @@ static int ath_beaconq_config(struct ath_softc *sc)
 	}
 }
 
-static void ath_bstuck_process(struct ath_softc *sc)
-{
-	DPRINTF(sc, ATH_DBG_BEACON, "stuck beacon; resetting (bmiss count %u)\n",
-		sc->beacon.bmisscnt);
-	ath_reset(sc, false);
-}
-
 /*
  *  Associates the beacon frame buffer with a transmit descriptor.  Will set
  *  up all required antenna switch parameters, rate codes, and channel flags.
@@ -401,15 +394,9 @@ void ath_beacon_tasklet(unsigned long data)
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_buf *bf = NULL;
 	int slot, if_id;
-	u32 bfaddr, show_cycles = 0, bc = 0, tsftu;
-	u32 rx_clear = 0, rx_frame = 0, tx_frame = 0;
+	u32 bfaddr, bc = 0, tsftu;
 	u64 tsf;
 	u16 intval;
-
-	if (sc->sc_flags & SC_OP_NO_RESET) {
-		show_cycles = ath9k_hw_GetMibCycleCountsPct(ah,
-					    &rx_clear, &rx_frame, &tx_frame);
-	}
 
 	/*
 	 * Check if the previous beacon has gone out.  If
@@ -417,67 +404,27 @@ void ath_beacon_tasklet(unsigned long data)
 	 * and wait for the next.  Missed beacons indicate
 	 * a problem and should not occur.  If we miss too
 	 * many consecutive beacons reset the device.
-	 *
-	 * FIXME: Clean up this mess !!
 	 */
 	if (ath9k_hw_numtxpending(ah, sc->beacon.beaconq) != 0) {
 		sc->beacon.bmisscnt++;
-		/* XXX: doth needs the chanchange IE countdown decremented.
-		 *      We should consider adding a mac80211 call to indicate
-		 *      a beacon miss so appropriate action could be taken
-		 *      (in that layer).
-		 */
+
 		if (sc->beacon.bmisscnt < BSTUCK_THRESH) {
-			if (sc->sc_flags & SC_OP_NO_RESET) {
-				DPRINTF(sc, ATH_DBG_BEACON,
-					"missed %u consecutive beacons\n",
-					sc->beacon.bmisscnt);
-				if (show_cycles) {
-					/*
-					 * Display cycle counter stats from HW
-					 * to aide in debug of stickiness.
-					 */
-					DPRINTF(sc, ATH_DBG_BEACON,
-						"busy times: rx_clear=%d, "
-						"rx_frame=%d, tx_frame=%d\n",
-						rx_clear, rx_frame,
-						tx_frame);
-				} else {
-					DPRINTF(sc, ATH_DBG_BEACON,
-						"unable to obtain "
-						"busy times\n");
-				}
-			} else {
-				DPRINTF(sc, ATH_DBG_BEACON,
-					"missed %u consecutive beacons\n",
-					sc->beacon.bmisscnt);
-			}
+			DPRINTF(sc, ATH_DBG_BEACON,
+				"missed %u consecutive beacons\n",
+				sc->beacon.bmisscnt);
 		} else if (sc->beacon.bmisscnt >= BSTUCK_THRESH) {
-			if (sc->sc_flags & SC_OP_NO_RESET) {
-				if (sc->beacon.bmisscnt == BSTUCK_THRESH) {
-					DPRINTF(sc, ATH_DBG_BEACON,
-						"beacon is officially "
-						"stuck\n");
-				}
-			} else {
-				DPRINTF(sc, ATH_DBG_BEACON,
-					"beacon is officially stuck\n");
-				ath_bstuck_process(sc);
-			}
+			DPRINTF(sc, ATH_DBG_BEACON,
+				"beacon is officially stuck\n");
+			ath_reset(sc, false);
 		}
+
 		return;
 	}
 
 	if (sc->beacon.bmisscnt != 0) {
-		if (sc->sc_flags & SC_OP_NO_RESET) {
-			DPRINTF(sc, ATH_DBG_BEACON,
-				"resume beacon xmit after %u misses\n",
-				sc->beacon.bmisscnt);
-		} else {
-			DPRINTF(sc, ATH_DBG_BEACON,
-				"resume beacon xmit after %u misses\n",
-				sc->beacon.bmisscnt);
-		}
+		DPRINTF(sc, ATH_DBG_BEACON,
+			"resume beacon xmit after %u misses\n",
+			sc->beacon.bmisscnt);
 		sc->beacon.bmisscnt = 0;
 	}
 
@@ -497,8 +444,7 @@ void ath_beacon_tasklet(unsigned long data)
 
 	DPRINTF(sc, ATH_DBG_BEACON,
 		"slot %d [tsf %llu tsftu %u intval %u] if_id %d\n",
-		slot, (unsigned long long)tsf, tsftu,
-		intval, if_id);
+		slot, tsf, tsftu, intval, if_id);
 
 	bfaddr = 0;
 	if (if_id != ATH_IF_ID_ANY) {
@@ -508,6 +454,7 @@ void ath_beacon_tasklet(unsigned long data)
 			bc = 1;
 		}
 	}
+
 	/*
 	 * Handle slot time change when a non-ERP station joins/leaves
 	 * an 11g network.  The 802.11 layer notifies us via callback,
@@ -524,7 +471,6 @@ void ath_beacon_tasklet(unsigned long data)
 	 *     interval has passed.  When bursting slot is always left
 	 *     set to ATH_BCBUF so this check is a noop.
 	 */
-	/* XXX locking */
 	if (sc->beacon.updateslot == UPDATE) {
 		sc->beacon.updateslot = COMMIT; /* commit next beacon */
 		sc->beacon.slotupdate = slot;
@@ -541,7 +487,6 @@ void ath_beacon_tasklet(unsigned long data)
 		if (!ath9k_hw_stoptxdma(ah, sc->beacon.beaconq)) {
 			DPRINTF(sc, ATH_DBG_FATAL,
 				"beacon queue %u did not stop?\n", sc->beacon.beaconq);
-			/* NB: the HAL still stops DMA, so proceed */
 		}
 
 		/* NB: cabq traffic should already be queued and primed */
