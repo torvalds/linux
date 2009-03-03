@@ -21,8 +21,6 @@
 
 #include <linux/interrupt.h>
 
-#include <linux/version.h>
-
 #ifndef IRQ_NONE
 typedef void irqreturn_t;
 #define IRQ_NONE

@@ -43,7 +43,6 @@ the PCMCIA interface.
 #include "../comedidev.h"
 
 #include <linux/ioport.h>
-#include <linux/version.h>
 
 #include "8255.h"
 

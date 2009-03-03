@@ -44,7 +44,6 @@ IRQ is assigned but not used.
 #include "../comedidev.h"
 
 #include <linux/ioport.h>
-#include <linux/version.h>
 
 #include <pcmcia/cs_types.h>
 #include <pcmcia/cs.h>

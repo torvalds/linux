@@ -43,7 +43,6 @@ Command support does not exist, but could be added for this board.
 
 #include <linux/delay.h>
 #include <linux/pci.h>
-#include <linux/version.h>
 
 #include "das08.h"
 

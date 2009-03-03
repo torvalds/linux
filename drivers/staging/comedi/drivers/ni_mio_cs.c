@@ -44,7 +44,6 @@ See the notes in the ni_atmio.o driver.
 #include "../comedidev.h"
 
 #include <linux/delay.h>
-#include <linux/version.h>
 
 #include "ni_stc.h"
 #include "8255.h"

@@ -28,7 +28,6 @@
 #error comedi_rt.h should only be included by comedidev.h
 #endif
 
-#include <linux/version.h>
 #include <linux/kdev_t.h>
 #include <linux/slab.h>
 #include <linux/errno.h>
