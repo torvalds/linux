@@ -399,8 +399,9 @@ static int uda1380_set_dai_fmt_both(struct snd_soc_dai *codec_dai,
 		iface |= R01_SFORI_MSB | R01_SFORO_MSB;
 	}
 
-	if ((fmt & SND_SOC_DAIFMT_MASTER_MASK) == SND_SOC_DAIFMT_CBM_CFM)
-		iface |= R01_SIM;
+	/* DATAI is slave only, so in single-link mode, this has to be slave */
+	if ((fmt & SND_SOC_DAIFMT_MASTER_MASK) != SND_SOC_DAIFMT_CBS_CFS)
+		return -EINVAL;
 
 	uda1380_write(codec, UDA1380_IFACE, iface);
 
@@ -427,6 +428,10 @@ static int uda1380_set_dai_fmt_playback(struct snd_soc_dai *codec_dai,
 	case SND_SOC_DAIFMT_MSB:
 		iface |= R01_SFORI_MSB;
 	}
+
+	/* DATAI is slave only, so this has to be slave */
+	if ((fmt & SND_SOC_DAIFMT_MASTER_MASK) != SND_SOC_DAIFMT_CBS_CFS)
+		return -EINVAL;
 
 	uda1380_write(codec, UDA1380_IFACE, iface);
 
