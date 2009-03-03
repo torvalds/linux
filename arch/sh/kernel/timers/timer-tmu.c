@@ -244,6 +244,7 @@ static int tmu_timer_init(void)
     !defined(CONFIG_CPU_SUBTYPE_SH7721) && \
     !defined(CONFIG_CPU_SUBTYPE_SH7760) && \
     !defined(CONFIG_CPU_SUBTYPE_SH7785) && \
+    !defined(CONFIG_CPU_SUBTYPE_SH7786) && \
     !defined(CONFIG_CPU_SUBTYPE_SHX3)
 	ctrl_outb(TMU_TOCR_INIT, TMU_TOCR);
 #endif

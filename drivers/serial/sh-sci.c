@@ -263,6 +263,7 @@ static inline void sci_init_pins(struct uart_port *port, unsigned int cflag)
 #elif defined(CONFIG_CPU_SUBTYPE_SH7763) || \
       defined(CONFIG_CPU_SUBTYPE_SH7780) || \
       defined(CONFIG_CPU_SUBTYPE_SH7785) || \
+      defined(CONFIG_CPU_SUBTYPE_SH7786) || \
       defined(CONFIG_CPU_SUBTYPE_SHX3)
 static inline void sci_init_pins(struct uart_port *port, unsigned int cflag)
 {
@@ -284,7 +285,8 @@ static inline void sci_init_pins(struct uart_port *port, unsigned int cflag)
 
 #if defined(CONFIG_CPU_SUBTYPE_SH7760) || \
     defined(CONFIG_CPU_SUBTYPE_SH7780) || \
-    defined(CONFIG_CPU_SUBTYPE_SH7785)
+    defined(CONFIG_CPU_SUBTYPE_SH7785) || \
+    defined(CONFIG_CPU_SUBTYPE_SH7786)
 static inline int scif_txroom(struct uart_port *port)
 {
 	return SCIF_TXROOM_MAX - (sci_in(port, SCTFDR) & 0xff);
