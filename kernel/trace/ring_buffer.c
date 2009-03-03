@@ -234,6 +234,11 @@ static void rb_init_page(struct buffer_data_page *bpage)
 	local_set(&bpage->commit, 0);
 }
 
+size_t ring_buffer_page_len(void *page)
+{
+	return local_read(&((struct buffer_data_page *)page)->commit);
+}
+
 /*
  * Also stolen from mm/slob.c. Thanks to Mathieu Desnoyers for pointing
  * this issue out.
@@ -2378,14 +2383,16 @@ static void rb_remove_entries(struct ring_buffer_per_cpu *cpu_buffer,
  */
 void *ring_buffer_alloc_read_page(struct ring_buffer *buffer)
 {
-	unsigned long addr;
 	struct buffer_data_page *bpage;
+	unsigned long addr;
 
 	addr = __get_free_page(GFP_KERNEL);
 	if (!addr)
 		return NULL;
 
 	bpage = (void *)addr;
+
+	rb_init_page(bpage);
 
 	return bpage;
 }
@@ -2406,6 +2413,7 @@ void ring_buffer_free_read_page(struct ring_buffer *buffer, void *data)
  * ring_buffer_read_page - extract a page from the ring buffer
  * @buffer: buffer to extract from
  * @data_page: the page to use allocated from ring_buffer_alloc_read_page
+ * @len: amount to extract
  * @cpu: the cpu of the buffer to extract
  * @full: should the extraction only happen when the page is full.
  *
@@ -2418,7 +2426,7 @@ void ring_buffer_free_read_page(struct ring_buffer *buffer, void *data)
  *	rpage = ring_buffer_alloc_read_page(buffer);
  *	if (!rpage)
  *		return error;
- *	ret = ring_buffer_read_page(buffer, &rpage, cpu, 0);
+ *	ret = ring_buffer_read_page(buffer, &rpage, len, cpu, 0);
  *	if (ret >= 0)
  *		process_page(rpage, ret);
  *
@@ -2435,71 +2443,89 @@ void ring_buffer_free_read_page(struct ring_buffer *buffer, void *data)
  *  <0 if no data has been transferred.
  */
 int ring_buffer_read_page(struct ring_buffer *buffer,
-			    void **data_page, int cpu, int full)
+			  void **data_page, size_t len, int cpu, int full)
 {
 	struct ring_buffer_per_cpu *cpu_buffer = buffer->buffers[cpu];
 	struct ring_buffer_event *event;
 	struct buffer_data_page *bpage;
+	struct buffer_page *reader;
 	unsigned long flags;
+	unsigned int commit;
 	unsigned int read;
 	int ret = -1;
 
 	if (!data_page)
-		return 0;
+		return -1;
 
 	bpage = *data_page;
 	if (!bpage)
-		return 0;
+		return -1;
 
 	spin_lock_irqsave(&cpu_buffer->reader_lock, flags);
 
-	/*
-	 * rb_buffer_peek will get the next ring buffer if
-	 * the current reader page is empty.
-	 */
-	event = rb_buffer_peek(buffer, cpu, NULL);
-	if (!event)
+	reader = rb_get_reader_page(cpu_buffer);
+	if (!reader)
 		goto out;
 
-	/* check for data */
-	if (!local_read(&cpu_buffer->reader_page->page->commit))
-		goto out;
+	event = rb_reader_event(cpu_buffer);
 
-	read = cpu_buffer->reader_page->read;
+	read = reader->read;
+	commit = rb_page_commit(reader);
+
 	/*
-	 * If the writer is already off of the read page, then simply
-	 * switch the read page with the given page. Otherwise
-	 * we need to copy the data from the reader to the writer.
+	 * If len > what's left on the page, and the writer is also off of
+	 * the read page, then simply switch the read page with the given
+	 * page. Otherwise we need to copy the data from the reader to the
+	 * writer.
 	 */
-	if (cpu_buffer->reader_page == cpu_buffer->commit_page) {
-		unsigned int commit = rb_page_commit(cpu_buffer->reader_page);
+	if ((len < (commit - read)) ||
+	    cpu_buffer->reader_page == cpu_buffer->commit_page) {
 		struct buffer_data_page *rpage = cpu_buffer->reader_page->page;
+		unsigned int pos = read;
+		unsigned int size;
 
 		if (full)
 			goto out;
-		/* The writer is still on the reader page, we must copy */
-		memcpy(bpage->data + read, rpage->data + read, commit - read);
 
-		/* consume what was read */
-		cpu_buffer->reader_page->read = commit;
+		if (len > (commit - read))
+			len = (commit - read);
+
+		size = rb_event_length(event);
+
+		if (len < size)
+			goto out;
+
+		/* Need to copy one event at a time */
+		do {
+			memcpy(bpage->data + pos, rpage->data + pos, size);
+
+			len -= size;
+
+			rb_advance_reader(cpu_buffer);
+			pos = reader->read;
+
+			event = rb_reader_event(cpu_buffer);
+			size = rb_event_length(event);
+		} while (len > size);
 
 		/* update bpage */
-		local_set(&bpage->commit, commit);
-		if (!read)
-			bpage->time_stamp = rpage->time_stamp;
+		local_set(&bpage->commit, pos);
+		bpage->time_stamp = rpage->time_stamp;
+
 	} else {
 		/* swap the pages */
 		rb_init_page(bpage);
-		bpage = cpu_buffer->reader_page->page;
-		cpu_buffer->reader_page->page = *data_page;
-		local_set(&cpu_buffer->reader_page->write, 0);
-		cpu_buffer->reader_page->read = 0;
+		bpage = reader->page;
+		reader->page = *data_page;
+		local_set(&reader->write, 0);
+		reader->read = 0;
 		*data_page = bpage;
+
+		/* update the entry counter */
+		rb_remove_entries(cpu_buffer, bpage, read);
 	}
 	ret = read;
 
-	/* update the entry counter */
-	rb_remove_entries(cpu_buffer, bpage, read);
  out:
 	spin_unlock_irqrestore(&cpu_buffer->reader_lock, flags);
 
