@@ -742,9 +742,7 @@ static int handle_outgoing_dr_smp(struct ib_mad_agent_private *mad_agent_priv,
 		break;
 	case IB_MAD_RESULT_SUCCESS | IB_MAD_RESULT_CONSUMED:
 		kmem_cache_free(ib_mad_cache, mad_priv);
-		kfree(local);
-		ret = 1;
-		goto out;
+		break;
 	case IB_MAD_RESULT_SUCCESS:
 		/* Treat like an incoming receive MAD */
 		port_priv = ib_get_mad_port(mad_agent_priv->agent.device,
@@ -755,10 +753,12 @@ static int handle_outgoing_dr_smp(struct ib_mad_agent_private *mad_agent_priv,
 						        &mad_priv->mad.mad);
 		}
 		if (!port_priv || !recv_mad_agent) {
+			/*
+			 * No receiving agent so drop packet and
+			 * generate send completion.
+			 */
 			kmem_cache_free(ib_mad_cache, mad_priv);
-			kfree(local);
-			ret = 0;
-			goto out;
+			break;
 		}
 		local->mad_priv = mad_priv;
 		local->recv_mad_agent = recv_mad_agent;
