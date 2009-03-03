@@ -1090,7 +1090,7 @@ fail:
 /*	Rfkill	   */
 /*******************/
 
-static void ath_radio_enable(struct ath_softc *sc)
+void ath_radio_enable(struct ath_softc *sc)
 {
 	struct ath_hw *ah = sc->sc_ah;
 	struct ieee80211_channel *channel = sc->hw->conf.channel;
@@ -1131,7 +1131,7 @@ static void ath_radio_enable(struct ath_softc *sc)
 	ath9k_ps_restore(sc);
 }
 
-static void ath_radio_disable(struct ath_softc *sc)
+void ath_radio_disable(struct ath_softc *sc)
 {
 	struct ath_hw *ah = sc->sc_ah;
 	struct ieee80211_channel *channel = sc->hw->conf.channel;

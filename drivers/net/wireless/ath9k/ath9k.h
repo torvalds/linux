@@ -567,6 +567,8 @@ struct ath_softc {
 	int chan_is_ht;
 	struct ath_wiphy *next_wiphy;
 	struct work_struct chan_work;
+	int wiphy_select_failures;
+	unsigned long wiphy_select_first_fail;
 
 	struct tasklet_struct intr_tq;
 	struct tasklet_struct bcon_tasklet;
@@ -665,6 +667,8 @@ void ath9k_update_ichannel(struct ath_softc *sc, struct ieee80211_hw *hw,
 void ath_update_chainmask(struct ath_softc *sc, int is_ht);
 int ath_set_channel(struct ath_softc *sc, struct ieee80211_hw *hw,
 		    struct ath9k_channel *hchan);
+void ath_radio_enable(struct ath_softc *sc);
+void ath_radio_disable(struct ath_softc *sc);
 
 #ifdef CONFIG_PCI
 int ath_pci_init(void);
