@@ -15,6 +15,7 @@
 #include <linux/mtd/partitions.h>
 #include <linux/mv643xx_eth.h>
 #include <linux/gpio.h>
+#include <linux/leds.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <mach/kirkwood.h>
@@ -73,8 +74,31 @@ static struct mvsdio_platform_data sheevaplug_mvsdio_data = {
 	// unfortunately the CD signal has not been connected */
 };
 
+static struct gpio_led sheevaplug_led_pins[] = {
+	{
+		.name			= "plug:green:health",
+		.default_trigger	= "default-on",
+		.gpio			= 49,
+		.active_low		= 1,
+	},
+};
+
+static struct gpio_led_platform_data sheevaplug_led_data = {
+	.leds		= sheevaplug_led_pins,
+	.num_leds	= ARRAY_SIZE(sheevaplug_led_pins),
+};
+
+static struct platform_device sheevaplug_leds = {
+	.name	= "leds-gpio",
+	.id	= -1,
+	.dev	= {
+		.platform_data	= &sheevaplug_led_data,
+	}
+};
+
 static unsigned int sheevaplug_mpp_config[] __initdata = {
 	MPP29_GPIO,	/* USB Power Enable */
+	MPP49_GPIO,	/* LED */
 	0
 };
 
@@ -97,6 +121,7 @@ static void __init sheevaplug_init(void)
 	kirkwood_sdio_init(&sheevaplug_mvsdio_data);
 
 	platform_device_register(&sheevaplug_nand_flash);
+	platform_device_register(&sheevaplug_leds);
 }
 
 MACHINE_START(SHEEVAPLUG, "Marvell SheevaPlug Reference Board")
