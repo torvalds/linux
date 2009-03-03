@@ -1875,11 +1875,8 @@ static void __init init_usb_devices(void)
 	 * they will become valid by the probe function
 	 * and then finally by the attach-function
 	 */
-	for (index = 0; index < NUMUSBDUXFAST; index++) {
-		memset(&(usbduxfastsub[index]), 0x00,
-			sizeof(usbduxfastsub[index]));
+	for (index = 0; index < NUMUSBDUXFAST; index++)
 		init_MUTEX(&(usbduxfastsub[index].sem));
-	}
 }
 
 /*
