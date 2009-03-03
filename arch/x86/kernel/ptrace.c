@@ -1388,7 +1388,7 @@ void send_sigtrap(struct task_struct *tsk, struct pt_regs *regs,
 #ifdef CONFIG_X86_32
 # define IS_IA32	1
 #elif defined CONFIG_IA32_EMULATION
-# define IS_IA32	test_thread_flag(TIF_IA32)
+# define IS_IA32	is_compat_task()
 #else
 # define IS_IA32	0
 #endif

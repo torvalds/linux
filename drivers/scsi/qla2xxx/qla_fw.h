@@ -1402,6 +1402,8 @@ struct access_chip_rsp_84xx {
 #define MBA_IDC_NOTIFY		0x8101
 #define MBA_IDC_TIME_EXT	0x8102
 
+#define MBC_IDC_ACK		0x101
+
 struct nvram_81xx {
 	/* NVRAM header. */
 	uint8_t id[4];
