@@ -21,8 +21,6 @@
 #define MODULE_NAME "stk014"
 
 #include "gspca.h"
-#define QUANT_VAL 7		/* quantization table */
-				/* <= 4 KO - 7: good (enough!) */
 #include "jpeg.h"
 
 MODULE_AUTHOR("Jean-Francois Moine <http://moinejf.free.fr>");
@@ -37,6 +35,9 @@ struct sd {
 	unsigned char contrast;
 	unsigned char colors;
 	unsigned char lightfreq;
+	u8 quality;
+
+	u8 *jpeg_hdr;
 };
 
 /* V4L2 controls supported by the driver */
@@ -300,6 +301,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	sd->contrast = CONTRAST_DEF;
 	sd->colors = COLOR_DEF;
 	sd->lightfreq = FREQ_DEF;
+	sd->quality = 80;
 	return 0;
 }
 
@@ -323,7 +325,14 @@ static int sd_init(struct gspca_dev *gspca_dev)
 /* -- start the camera -- */
 static int sd_start(struct gspca_dev *gspca_dev)
 {
+	struct sd *sd = (struct sd *) gspca_dev;
 	int ret, value;
+
+	/* create the JPEG header */
+	sd->jpeg_hdr = kmalloc(JPEG_HDR_SZ, GFP_KERNEL);
+	jpeg_define(sd->jpeg_hdr, gspca_dev->height, gspca_dev->width,
+			0x22);		/* JPEG 411 */
+	jpeg_set_qual(sd->jpeg_hdr, sd->quality);
 
 	/* work on alternate 1 */
 	usb_set_interface(gspca_dev->dev, gspca_dev->iface, 1);
@@ -396,11 +405,19 @@ static void sd_stopN(struct gspca_dev *gspca_dev)
 	PDEBUG(D_STREAM, "camera stopped");
 }
 
+static void sd_stop0(struct gspca_dev *gspca_dev)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	kfree(sd->jpeg_hdr);
+}
+
 static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 			struct gspca_frame *frame,	/* target */
 			__u8 *data,			/* isoc packet */
 			int len)			/* iso packet length */
 {
+	struct sd *sd = (struct sd *) gspca_dev;
 	static unsigned char ffd9[] = {0xff, 0xd9};
 
 	/* a frame starts with:
@@ -417,7 +434,8 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 					ffd9, 2);
 
 		/* put the JPEG 411 header */
-		jpeg_put_header(gspca_dev, frame, 0x22);
+		gspca_frame_add(gspca_dev, FIRST_PACKET, frame,
+			sd->jpeg_hdr, JPEG_HDR_SZ);
 
 		/* beginning of the frame */
 #define STKHDRSZ 12
@@ -526,6 +544,7 @@ static const struct sd_desc sd_desc = {
 	.init = sd_init,
 	.start = sd_start,
 	.stopN = sd_stopN,
+	.stop0 = sd_stop0,
 	.pkt_scan = sd_pkt_scan,
 	.querymenu = sd_querymenu,
 };

@@ -22,7 +22,6 @@
 #define MODULE_NAME "spca500"
 
 #include "gspca.h"
-#define QUANT_VAL 5		/* quantization table */
 #include "jpeg.h"
 
 MODULE_AUTHOR("Michel Xhaard <mxhaard@users.sourceforge.net>");
@@ -39,6 +38,7 @@ struct sd {
 	unsigned char brightness;
 	unsigned char contrast;
 	unsigned char colors;
+	u8 quality;
 
 	char subtype;
 #define AgfaCl20 0
@@ -56,6 +56,8 @@ struct sd {
 #define Optimedia 12
 #define PalmPixDC85 13
 #define ToptroIndus 14
+
+	u8 *jpeg_hdr;
 };
 
 /* V4L2 controls supported by the driver */
@@ -640,6 +642,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	sd->brightness = BRIGHTNESS_DEF;
 	sd->contrast = CONTRAST_DEF;
 	sd->colors = COLOR_DEF;
+	sd->quality = 85;
 	return 0;
 }
 
@@ -664,6 +667,12 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	int err;
 	__u8 Data;
 	__u8 xmult, ymult;
+
+	/* create the JPEG header */
+	sd->jpeg_hdr = kmalloc(JPEG_HDR_SZ, GFP_KERNEL);
+	jpeg_define(sd->jpeg_hdr, gspca_dev->height, gspca_dev->width,
+			0x22);		/* JPEG 411 */
+	jpeg_set_qual(sd->jpeg_hdr, sd->quality);
 
 	if (sd->subtype == LogitechClickSmart310) {
 		xmult = 0x16;
@@ -880,6 +889,13 @@ static void sd_stopN(struct gspca_dev *gspca_dev)
 		gspca_dev->usb_buf[0]);
 }
 
+static void sd_stop0(struct gspca_dev *gspca_dev)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	kfree(sd->jpeg_hdr);
+}
+
 static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 			struct gspca_frame *frame,	/* target */
 			__u8 *data,			/* isoc packet */
@@ -900,7 +916,8 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 					ffd9, 2);
 
 		/* put the JPEG header in the new frame */
-		jpeg_put_header(gspca_dev, frame, 0x22);
+		gspca_frame_add(gspca_dev, FIRST_PACKET, frame,
+			sd->jpeg_hdr, JPEG_HDR_SZ);
 
 		data += SPCA500_OFFSET_DATA;
 		len -= SPCA500_OFFSET_DATA;
@@ -1013,6 +1030,7 @@ static struct sd_desc sd_desc = {
 	.init = sd_init,
 	.start = sd_start,
 	.stopN = sd_stopN,
+	.stop0 = sd_stop0,
 	.pkt_scan = sd_pkt_scan,
 };
 

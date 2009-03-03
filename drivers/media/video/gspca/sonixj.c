@@ -22,7 +22,6 @@
 #define MODULE_NAME "sonixj"
 
 #include "gspca.h"
-#define QUANT_VAL 4		/* quantization table */
 #include "jpeg.h"
 
 #define V4L2_CID_INFRARED (V4L2_CID_PRIVATE_BASE + 0)
@@ -47,6 +46,10 @@ struct sd {
 	u8 gamma;
 	u8 vflip;			/* ov7630/ov7648 only */
 	u8 infrared;			/* mt9v111 only */
+	u8 quality;			/* image quality */
+	u8 jpegqual;			/* webcam quality */
+
+	u8 reg18;
 
 	s8 ag_cnt;
 #define AG_CNT_START 13
@@ -68,6 +71,8 @@ struct sd {
 #define SENSOR_OV7660 7
 #define SENSOR_SP80708 8
 	u8 i2c_base;
+
+	u8 *jpeg_hdr;
 };
 
 /* V4L2 controls supported by the driver */
@@ -859,25 +864,6 @@ static const u8 sp80708_sensor_init[][8] = {
 	{}
 };
 
-static const u8 qtable4[] = {
-	0x06, 0x04, 0x04, 0x06, 0x04, 0x04, 0x06, 0x06,
-	0x06, 0x06, 0x08, 0x06, 0x06, 0x08, 0x0a, 0x11,
-	0x0a, 0x0a, 0x08, 0x08, 0x0a, 0x15, 0x0f, 0x0f,
-	0x0c, 0x11, 0x19, 0x15, 0x19, 0x19, 0x17, 0x15,
-	0x17, 0x17, 0x1b, 0x1d, 0x25, 0x21, 0x1b, 0x1d,
-	0x23, 0x1d, 0x17, 0x17, 0x21, 0x2e, 0x21, 0x23,
-	0x27, 0x29, 0x2c, 0x2c, 0x2c, 0x19, 0x1f, 0x30,
-	0x32, 0x2e, 0x29, 0x32, 0x25, 0x29, 0x2c, 0x29,
-	0x06, 0x08, 0x08, 0x0a, 0x08, 0x0a, 0x13, 0x0a,
-	0x0a, 0x13, 0x29, 0x1b, 0x17, 0x1b, 0x29, 0x29,
-	0x29, 0x29, 0x29, 0x29, 0x29, 0x29, 0x29, 0x29,
-	0x29, 0x29, 0x29, 0x29, 0x29, 0x29, 0x29, 0x29,
-	0x29, 0x29, 0x29, 0x29, 0x29, 0x29, 0x29, 0x29,
-	0x29, 0x29, 0x29, 0x29, 0x29, 0x29, 0x29, 0x29,
-	0x29, 0x29, 0x29, 0x29, 0x29, 0x29, 0x29, 0x29,
-	0x29, 0x29, 0x29, 0x29, 0x29, 0x29, 0x29, 0x29
-};
-
 /* read <len> bytes to gspca_dev->usb_buf */
 static void reg_r(struct gspca_dev *gspca_dev,
 		  u16 value, int len)
@@ -1309,6 +1295,8 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	else
 		sd->vflip = 1;
 	sd->infrared = INFRARED_DEF;
+	sd->quality = 80;
+	sd->jpegqual = 80;
 
 	gspca_dev->ctrl_dis = ctrl_dis[sd->sensor];
 	return 0;
@@ -1610,12 +1598,49 @@ static void setinfrared(struct sd *sd)
 		sd->infrared ? 0x66 : 0x64);
 }
 
+static void setjpegqual(struct gspca_dev *gspca_dev)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+	int i, sc;
+
+	if (sd->jpegqual < 50)
+		sc = 5000 / sd->jpegqual;
+	else
+		sc = 200 - sd->jpegqual * 2;
+#if USB_BUF_SZ < 64
+#error "No room enough in usb_buf for quantization table"
+#endif
+	for (i = 0; i < 64; i++)
+		gspca_dev->usb_buf[i] =
+			(jpeg_head[JPEG_QT0_OFFSET + i] * sc + 50) / 100;
+	usb_control_msg(gspca_dev->dev,
+			usb_sndctrlpipe(gspca_dev->dev, 0),
+			0x08,
+			USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_INTERFACE,
+			0x0100, 0,
+			gspca_dev->usb_buf, 64,
+			500);
+	for (i = 0; i < 64; i++)
+		gspca_dev->usb_buf[i] =
+			(jpeg_head[JPEG_QT1_OFFSET + i] * sc + 50) / 100;
+	usb_control_msg(gspca_dev->dev,
+			usb_sndctrlpipe(gspca_dev->dev, 0),
+			0x08,
+			USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_INTERFACE,
+			0x0140, 0,
+			gspca_dev->usb_buf, 64,
+			500);
+
+	sd->reg18 ^= 0x40;
+	reg_w1(gspca_dev, 0x18, sd->reg18);
+}
+
 /* -- start the camera -- */
 static int sd_start(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	int i;
-	u8 reg1, reg17, reg18;
+	u8 reg1, reg17;
 	const u8 *sn9c1xx;
 	int mode;
 	static const u8 C0[] = { 0x2d, 0x2d, 0x3a, 0x05, 0x04, 0x3f };
@@ -1623,6 +1648,12 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	static const u8 CE[] = { 0x32, 0xdd, 0x2d, 0xdd };	/* MI0360 */
 	static const u8 CE_ov76xx[] =
 				{ 0x32, 0xdd, 0x32, 0xdd };
+
+	/* create the JPEG header */
+	sd->jpeg_hdr = kmalloc(JPEG_HDR_SZ, GFP_KERNEL);
+	jpeg_define(sd->jpeg_hdr, gspca_dev->height, gspca_dev->width,
+			0x21);		/* JPEG 422 */
+	jpeg_set_qual(sd->jpeg_hdr, sd->quality);
 
 	sn9c1xx = sn_tb[(int) sd->sensor];
 	configure_gpio(gspca_dev, sn9c1xx);
@@ -1782,13 +1813,9 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	}
 
 	/* here change size mode 0 -> VGA; 1 -> CIF */
-	reg18 = sn9c1xx[0x18] | (mode << 4);
-	reg_w1(gspca_dev, 0x18, reg18 | 0x40);
-
-	reg_w(gspca_dev, 0x0100, qtable4, 0x40);
-	reg_w(gspca_dev, 0x0140, qtable4 + 0x40, 0x40);
-
-	reg_w1(gspca_dev, 0x18, reg18);
+	sd->reg18 = sn9c1xx[0x18] | (mode << 4) | 0x40;
+	reg_w1(gspca_dev, 0x18, sd->reg18);
+	setjpegqual(gspca_dev);
 
 	reg_w1(gspca_dev, 0x17, reg17);
 	reg_w1(gspca_dev, 0x01, reg1);
@@ -1843,6 +1870,13 @@ static void sd_stopN(struct gspca_dev *gspca_dev)
 	reg_w1(gspca_dev, 0x01, sn9c1xx[1]);
 	reg_w1(gspca_dev, 0x01, data);
 	reg_w1(gspca_dev, 0xf1, 0x00);
+}
+
+static void sd_stop0(struct gspca_dev *gspca_dev)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	kfree(sd->jpeg_hdr);
 }
 
 static void do_autogain(struct gspca_dev *gspca_dev)
@@ -1928,7 +1962,8 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 	if (gspca_dev->last_packet_type == LAST_PACKET) {
 
 		/* put the JPEG 422 header */
-		jpeg_put_header(gspca_dev, frame, 0x21);
+		gspca_frame_add(gspca_dev, FIRST_PACKET, frame,
+			sd->jpeg_hdr, JPEG_HDR_SZ);
 	}
 	gspca_frame_add(gspca_dev, INTER_PACKET, frame, data, len);
 }
@@ -2104,6 +2139,7 @@ static const struct sd_desc sd_desc = {
 	.init = sd_init,
 	.start = sd_start,
 	.stopN = sd_stopN,
+	.stop0 = sd_stop0,
 	.pkt_scan = sd_pkt_scan,
 	.dq_callback = do_autogain,
 };

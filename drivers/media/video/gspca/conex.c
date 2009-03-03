@@ -23,7 +23,6 @@
 
 #include "gspca.h"
 #define CONEX_CAM 1		/* special JPEG header */
-#define QUANT_VAL 0		/* quantization table */
 #include "jpeg.h"
 
 MODULE_AUTHOR("Michel Xhaard <mxhaard@users.sourceforge.net>");
@@ -37,6 +36,9 @@ struct sd {
 	unsigned char brightness;
 	unsigned char contrast;
 	unsigned char colors;
+	u8 quality;
+
+	u8 *jpeg_hdr;
 };
 
 /* V4L2 controls supported by the driver */
@@ -820,6 +822,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	sd->brightness = BRIGHTNESS_DEF;
 	sd->contrast = CONTRAST_DEF;
 	sd->colors = COLOR_DEF;
+	sd->quality = 40;
 	return 0;
 }
 
@@ -836,6 +839,14 @@ static int sd_init(struct gspca_dev *gspca_dev)
 
 static int sd_start(struct gspca_dev *gspca_dev)
 {
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	/* create the JPEG header */
+	sd->jpeg_hdr = kmalloc(JPEG_HDR_SZ, GFP_KERNEL);
+	jpeg_define(sd->jpeg_hdr, gspca_dev->height, gspca_dev->width,
+			0x22);		/* JPEG 411 */
+	jpeg_set_qual(sd->jpeg_hdr, sd->quality);
+
 	cx11646_initsize(gspca_dev);
 	cx11646_fw(gspca_dev);
 	cx_sensor(gspca_dev);
@@ -846,7 +857,10 @@ static int sd_start(struct gspca_dev *gspca_dev)
 /* called on streamoff with alt 0 and on disconnect */
 static void sd_stop0(struct gspca_dev *gspca_dev)
 {
+	struct sd *sd = (struct sd *) gspca_dev;
 	int retry = 50;
+
+	kfree(sd->jpeg_hdr);
 
 	if (!gspca_dev->present)
 		return;
@@ -873,6 +887,8 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 			__u8 *data,			/* isoc packet */
 			int len)			/* iso packet length */
 {
+	struct sd *sd = (struct sd *) gspca_dev;
+
 	if (data[0] == 0xff && data[1] == 0xd8) {
 
 		/* start of frame */
@@ -880,7 +896,8 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 					data, 0);
 
 		/* put the JPEG header in the new frame */
-		jpeg_put_header(gspca_dev, frame, 0x22);
+		gspca_frame_add(gspca_dev, FIRST_PACKET, frame,
+			sd->jpeg_hdr, JPEG_HDR_SZ);
 		data += 2;
 		len -= 2;
 	}

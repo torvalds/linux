@@ -22,7 +22,6 @@
 #define MODULE_NAME "sunplus"
 
 #include "gspca.h"
-#define QUANT_VAL 5		/* quantization table */
 #include "jpeg.h"
 
 MODULE_AUTHOR("Michel Xhaard <mxhaard@users.sourceforge.net>");
@@ -40,6 +39,7 @@ struct sd {
 	unsigned char contrast;
 	unsigned char colors;
 	unsigned char autogain;
+	u8 quality;
 
 	char bridge;
 #define BRIDGE_SPCA504 0
@@ -52,6 +52,8 @@ struct sd {
 #define LogitechClickSmart420 2
 #define LogitechClickSmart820 3
 #define MegapixV4 4
+
+	u8 *jpeg_hdr;
 };
 
 /* V4L2 controls supported by the driver */
@@ -852,6 +854,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	sd->brightness = sd_ctrls[SD_BRIGHTNESS].qctrl.default_value;
 	sd->contrast = sd_ctrls[SD_CONTRAST].qctrl.default_value;
 	sd->colors = sd_ctrls[SD_COLOR].qctrl.default_value;
+	sd->quality = 85;
 	return 0;
 }
 
@@ -968,6 +971,12 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	__u8 i;
 	__u8 info[6];
 
+	/* create the JPEG header */
+	sd->jpeg_hdr = kmalloc(JPEG_HDR_SZ, GFP_KERNEL);
+	jpeg_define(sd->jpeg_hdr, gspca_dev->height, gspca_dev->width,
+			0x22);		/* JPEG 411 */
+	jpeg_set_qual(sd->jpeg_hdr, sd->quality);
+
 	if (sd->bridge == BRIDGE_SPCA504B)
 		spca504B_setQtable(gspca_dev);
 	spca504B_SetSizeType(gspca_dev);
@@ -1077,6 +1086,13 @@ static void sd_stopN(struct gspca_dev *gspca_dev)
 	}
 }
 
+static void sd_stop0(struct gspca_dev *gspca_dev)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	kfree(sd->jpeg_hdr);
+}
+
 static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 			struct gspca_frame *frame,	/* target */
 			__u8 *data,			/* isoc packet */
@@ -1153,7 +1169,8 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 					ffd9, 2);
 
 		/* put the JPEG header in the new frame */
-		jpeg_put_header(gspca_dev, frame, 0x22);
+		gspca_frame_add(gspca_dev, FIRST_PACKET, frame,
+			sd->jpeg_hdr, JPEG_HDR_SZ);
 	}
 
 	/* add 0x00 after 0xff */
@@ -1311,6 +1328,7 @@ static const struct sd_desc sd_desc = {
 	.init = sd_init,
 	.start = sd_start,
 	.stopN = sd_stopN,
+	.stop0 = sd_stop0,
 	.pkt_scan = sd_pkt_scan,
 };
 

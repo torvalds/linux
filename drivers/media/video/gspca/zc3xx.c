@@ -23,6 +23,7 @@
 #define MODULE_NAME "zc3xx"
 
 #include "gspca.h"
+#include "jpeg.h"
 
 MODULE_AUTHOR("Michel Xhaard <mxhaard@users.sourceforge.net>, "
 		"Serge A. Suchkov <Serge.A.S@tochka.ru>");
@@ -32,7 +33,6 @@ MODULE_LICENSE("GPL");
 static int force_sensor = -1;
 
 #define QUANT_VAL 1		/* quantization table */
-#include "jpeg.h"
 #include "zc3xx-reg.h"
 
 /* specific webcam descriptor */
@@ -45,6 +45,7 @@ struct sd {
 	__u8 autogain;
 	__u8 lightfreq;
 	__u8 sharpness;
+	u8 quality;			/* image quality */
 
 	signed char sensor;		/* Type of image sensor chip */
 /* !! values used in different tables */
@@ -69,6 +70,8 @@ struct sd {
 #define SENSOR_TAS5130C_VF0250 17
 #define SENSOR_MAX 18
 	unsigned short chip_revision;
+
+	u8 *jpeg_hdr;
 };
 
 /* V4L2 controls supported by the driver */
@@ -7177,6 +7180,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	sd->gamma = gamma[(int) sd->sensor];
 	sd->autogain = sd_ctrls[SD_AUTOGAIN].qctrl.default_value;
 	sd->lightfreq = sd_ctrls[SD_FREQ].qctrl.default_value;
+	sd->quality = 50;
 
 	switch (sd->sensor) {
 	case SENSOR_GC0305:
@@ -7231,6 +7235,12 @@ static int sd_start(struct gspca_dev *gspca_dev)
 		{tas5130c_vf0250_InitialScale, tas5130c_vf0250_Initial},
 								/* 17 */
 	};
+
+	/* create the JPEG header */
+	sd->jpeg_hdr = kmalloc(JPEG_HDR_SZ, GFP_KERNEL);
+	jpeg_define(sd->jpeg_hdr, gspca_dev->height, gspca_dev->width,
+			0x21);		/* JPEG 422 */
+	jpeg_set_qual(sd->jpeg_hdr, sd->quality);
 
 	mode = gspca_dev->cam.cam_mode[(int) gspca_dev->curr_mode].priv;
 	zc3_init = init_tb[(int) sd->sensor][mode];
@@ -7365,6 +7375,7 @@ static void sd_stop0(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
+	kfree(sd->jpeg_hdr);
 	if (!gspca_dev->present)
 		return;
 	send_unknown(gspca_dev->dev, sd->sensor);
@@ -7375,12 +7386,15 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 			__u8 *data,
 			int len)
 {
+	struct sd *sd = (struct sd *) gspca_dev;
 
 	if (data[0] == 0xff && data[1] == 0xd8) {	/* start of frame */
 		frame = gspca_frame_add(gspca_dev, LAST_PACKET, frame,
 					data, 0);
 		/* put the JPEG header in the new frame */
-		jpeg_put_header(gspca_dev, frame, 0x21);
+		gspca_frame_add(gspca_dev, FIRST_PACKET, frame,
+			sd->jpeg_hdr, JPEG_HDR_SZ);
+
 		/* remove the webcam's header:
 		 * ff d8 ff fe 00 0e 00 00 ss ss 00 01 ww ww hh hh pp pp
 		 *	- 'ss ss' is the frame sequence number (BE)

@@ -22,7 +22,6 @@
 #define MODULE_NAME "mars"
 
 #include "gspca.h"
-#define QUANT_VAL 1		/* quantization table */
 #include "jpeg.h"
 
 MODULE_AUTHOR("Michel Xhaard <mxhaard@users.sourceforge.net>");
@@ -37,6 +36,9 @@ struct sd {
 	u8 colors;
 	u8 gamma;
 	u8 sharpness;
+	u8 quality;
+
+	u8 *jpeg_hdr;
 };
 
 /* V4L2 controls supported by the driver */
@@ -176,6 +178,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	sd->colors = COLOR_DEF;
 	sd->gamma = GAMMA_DEF;
 	sd->sharpness = SHARPNESS_DEF;
+	sd->quality = 50;
 	gspca_dev->nbalt = 9;		/* use the altsetting 08 */
 	return 0;
 }
@@ -192,6 +195,12 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	int err_code;
 	u8 *data;
 	int i;
+
+	/* create the JPEG header */
+	sd->jpeg_hdr = kmalloc(JPEG_HDR_SZ, GFP_KERNEL);
+	jpeg_define(sd->jpeg_hdr, gspca_dev->height, gspca_dev->width,
+			0x21);		/* JPEG 422 */
+	jpeg_set_qual(sd->jpeg_hdr, sd->quality);
 
 	data = gspca_dev->usb_buf;
 
@@ -303,11 +312,19 @@ static void sd_stopN(struct gspca_dev *gspca_dev)
 		PDEBUG(D_ERR, "Camera Stop failed");
 }
 
+static void sd_stop0(struct gspca_dev *gspca_dev)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	kfree(sd->jpeg_hdr);
+}
+
 static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 			struct gspca_frame *frame,	/* target */
 			__u8 *data,			/* isoc packet */
 			int len)			/* iso packet length */
 {
+	struct sd *sd = (struct sd *) gspca_dev;
 	int p;
 
 	if (len < 6) {
@@ -330,7 +347,8 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 							frame, data, p);
 
 				/* put the JPEG header */
-				jpeg_put_header(gspca_dev, frame, 0x21);
+				gspca_frame_add(gspca_dev, FIRST_PACKET, frame,
+					sd->jpeg_hdr, JPEG_HDR_SZ);
 				data += p + 16;
 				len -= p + 16;
 				break;
@@ -436,6 +454,7 @@ static const struct sd_desc sd_desc = {
 	.init = sd_init,
 	.start = sd_start,
 	.stopN = sd_stopN,
+	.stop0 = sd_stop0,
 	.pkt_scan = sd_pkt_scan,
 };
 
