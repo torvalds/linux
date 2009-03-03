@@ -3258,14 +3258,6 @@ static int igb_xmit_frame_ring_adv(struct sk_buff *skb,
 	if (unlikely(shtx->hardware)) {
 		shtx->in_progress = 1;
 		tx_flags |= IGB_TX_FLAGS_TSTAMP;
-	} else if (likely(!shtx->software)) {
-		/*
-		 * TODO: can this be solved in dev.c:dev_hard_start_xmit()?
-		 * There are probably unmodified driver which do something
-		 * like this and thus don't work in combination with
-		 * SOF_TIMESTAMPING_TX_SOFTWARE.
-		 */
-		skb_orphan(skb);
 	}
 
 	if (adapter->vlgrp && vlan_tx_tag_present(skb)) {
@@ -4253,9 +4245,6 @@ static void igb_tx_hwtstamp(struct igb_adapter *adapter, struct sk_buff *skb)
 				timecompare_transform(&adapter->compare, ns);
 			skb_tstamp_tx(skb, &shhwtstamps);
 		}
-
-		/* delayed orphaning: skb_tstamp_tx() needs the socket */
-		skb_orphan(skb);
 	}
 }
 
