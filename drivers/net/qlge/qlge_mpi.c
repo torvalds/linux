@@ -286,20 +286,21 @@ static int ql_sfp_out(struct ql_adapter *qdev, struct mbox_params *mbcp)
 
 static void ql_init_fw_done(struct ql_adapter *qdev, struct mbox_params *mbcp)
 {
+	int status;
+
 	mbcp->out_count = 2;
 
-	if (ql_get_mb_sts(qdev, mbcp)) {
+	status = ql_get_mb_sts(qdev, mbcp);
+	if (status) {
 		QPRINTK(qdev, DRV, ERR, "Firmware did not initialize!\n");
-		goto exit;
+	} else {
+		QPRINTK(qdev, DRV, ERR, "Firmware Revision  = 0x%.08x.\n",
+			mbcp->mbox_out[1]);
+		status = ql_cam_route_initialize(qdev);
+		if (status)
+			QPRINTK(qdev, IFUP, ERR,
+				"Failed to init CAM/Routing tables.\n");
 	}
-	QPRINTK(qdev, DRV, ERR, "Firmware initialized!\n");
-	QPRINTK(qdev, DRV, ERR, "Firmware status = 0x%.08x.\n",
-		mbcp->mbox_out[0]);
-	QPRINTK(qdev, DRV, ERR, "Firmware Revision  = 0x%.08x.\n",
-		mbcp->mbox_out[1]);
-exit:
-	/* Clear the MPI firmware status. */
-	ql_write32(qdev, CSR, CSR_CMD_CLR_R2PCI_INT);
 }
 
 /* Process an async event and clear it unless it's an
@@ -374,6 +375,15 @@ static int ql_mpi_handler(struct ql_adapter *qdev, struct mbox_params *mbcp)
 		break;
 
 	case AEN_FW_INIT_DONE:
+		/* If we're in process on executing the firmware,
+		 * then convert the status to normal mailbox status.
+		 */
+		if (mbcp->mbox_in[0] == MB_CMD_EX_FW) {
+			mbcp->out_count = orig_count;
+			status = ql_get_mb_sts(qdev, mbcp);
+			mbcp->mbox_out[0] = MB_CMD_STS_GOOD;
+			return status;
+		}
 		ql_init_fw_done(qdev, mbcp);
 		break;
 
