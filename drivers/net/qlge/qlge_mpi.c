@@ -200,6 +200,36 @@ exit:
 	ql_write32(qdev, CSR, CSR_CMD_CLR_R2PCI_INT);
 }
 
+static int ql_sfp_in(struct ql_adapter *qdev, struct mbox_params *mbcp)
+{
+	int status;
+
+	mbcp->out_count = 5;
+
+	status = ql_get_mb_sts(qdev, mbcp);
+	if (status)
+		QPRINTK(qdev, DRV, ERR, "SFP in AEN broken!\n");
+	else
+		QPRINTK(qdev, DRV, ERR, "SFP insertion detected.\n");
+
+	return status;
+}
+
+static int ql_sfp_out(struct ql_adapter *qdev, struct mbox_params *mbcp)
+{
+	int status;
+
+	mbcp->out_count = 1;
+
+	status = ql_get_mb_sts(qdev, mbcp);
+	if (status)
+		QPRINTK(qdev, DRV, ERR, "SFP out AEN broken!\n");
+	else
+		QPRINTK(qdev, DRV, ERR, "SFP removal detected.\n");
+
+	return status;
+}
+
 static void ql_init_fw_done(struct ql_adapter *qdev, struct mbox_params *mbcp)
 {
 	mbcp->out_count = 2;
@@ -282,6 +312,14 @@ static int ql_mpi_handler(struct ql_adapter *qdev, struct mbox_params *mbcp)
 
 	case AEN_FW_INIT_DONE:
 		ql_init_fw_done(qdev, mbcp);
+		break;
+
+	case AEN_AEN_SFP_IN:
+		ql_sfp_in(qdev, mbcp);
+		break;
+
+	case AEN_AEN_SFP_OUT:
+		ql_sfp_out(qdev, mbcp);
 		break;
 
 	case AEN_FW_INIT_FAIL:
