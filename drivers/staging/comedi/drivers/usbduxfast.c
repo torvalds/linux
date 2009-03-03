@@ -1766,6 +1766,7 @@ static int usbduxfast_attach(comedi_device *dev, comedi_devconfig *it)
 	if (ret < 0) {
 		printk(KERN_ERR "comedi%d: usbduxfast: error alloc space for "
 		       "subdev\n", dev->minor);
+		up(&(usbduxfastsub[index].sem));
 		up(&start_stop_sem);
 		return ret;
 	}
