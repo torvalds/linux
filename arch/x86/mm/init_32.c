@@ -845,10 +845,10 @@ static void __init find_early_table_space(unsigned long end, int use_pse)
 	unsigned long puds, pmds, ptes, tables, start;
 
 	puds = (end + PUD_SIZE - 1) >> PUD_SHIFT;
-	tables = PAGE_ALIGN(puds * sizeof(pud_t));
+	tables = roundup(puds * sizeof(pud_t), PAGE_SIZE);
 
 	pmds = (end + PMD_SIZE - 1) >> PMD_SHIFT;
-	tables += PAGE_ALIGN(pmds * sizeof(pmd_t));
+	tables += roundup(pmds * sizeof(pmd_t), PAGE_SIZE);
 
 	if (use_pse) {
 		unsigned long extra;
@@ -859,10 +859,10 @@ static void __init find_early_table_space(unsigned long end, int use_pse)
 	} else
 		ptes = (end + PAGE_SIZE - 1) >> PAGE_SHIFT;
 
-	tables += PAGE_ALIGN(ptes * sizeof(pte_t));
+	tables += roundup(ptes * sizeof(pte_t), PAGE_SIZE);
 
 	/* for fixmap */
-	tables += PAGE_ALIGN(__end_of_fixed_addresses * sizeof(pte_t));
+	tables += roundup(__end_of_fixed_addresses * sizeof(pte_t), PAGE_SIZE);
 
 	/*
 	 * RED-PEN putting page tables only on node 0 could
