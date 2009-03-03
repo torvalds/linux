@@ -97,17 +97,17 @@ int cx25840_loadfw(struct i2c_client *client)
 	u8 buffer[FWSEND];
 	const u8 *ptr;
 	int size, retval;
-    int MAX_BUF_SIZE = FWSEND;
+	int MAX_BUF_SIZE = FWSEND;
 
 	if (state->is_cx23885)
 		firmware = FWFILE_CX23885;
-    else if ( state->is_cx231xx)
-	firmware = FWFILE_CX231XX;
+	else if (state->is_cx231xx)
+		firmware = FWFILE_CX231XX;
 
-    if( (state->is_cx231xx) && MAX_BUF_SIZE > 16) {
-	 printk(" Firmware download size changed to 16 bytes max length\n");
-	 MAX_BUF_SIZE = 16;  /* cx231xx cannot accept more than 16 bytes at a time */
-    }
+	if ((state->is_cx231xx) && MAX_BUF_SIZE > 16) {
+		v4l_err(client, " Firmware download size changed to 16 bytes max length\n");
+		MAX_BUF_SIZE = 16;  /* cx231xx cannot accept more than 16 bytes at a time */
+	}
 
 	if (request_firmware(&fw, firmware, FWDEV(client)) != 0) {
 		v4l_err(client, "unable to open firmware %s\n", firmware);

@@ -45,12 +45,11 @@ static int set_audclk_freq(struct i2c_client *client, u32 freq)
 			}
 
 			if (!state->is_cx231xx) {
+				/* VID_PLL and AUX_PLL */
+				cx25840_write4(client, 0x108, 0x1006040f);
 
-			       /* VID_PLL and AUX_PLL */
-			       cx25840_write4(client, 0x108, 0x1006040f);
-
-			       /* AUX_PLL_FRAC */
-			       cx25840_write4(client, 0x110, 0x01bb39ee);
+				/* AUX_PLL_FRAC */
+				cx25840_write4(client, 0x110, 0x01bb39ee);
 			}
 
 			if (state->is_cx25836)
@@ -70,7 +69,6 @@ static int set_audclk_freq(struct i2c_client *client, u32 freq)
 			}
 
 			if (!state->is_cx231xx) {
-
 				/* VID_PLL and AUX_PLL */
 				cx25840_write4(client, 0x108, 0x1009040f);
 
@@ -95,12 +93,11 @@ static int set_audclk_freq(struct i2c_client *client, u32 freq)
 			}
 
 			if (!state->is_cx231xx) {
+				/* VID_PLL and AUX_PLL */
+				cx25840_write4(client, 0x108, 0x100a040f);
 
-			/* VID_PLL and AUX_PLL */
-			cx25840_write4(client, 0x108, 0x100a040f);
-
-			/* AUX_PLL_FRAC */
-			cx25840_write4(client, 0x110, 0x0098d6e5);
+				/* AUX_PLL_FRAC */
+				cx25840_write4(client, 0x110, 0x0098d6e5);
 			}
 
 			if (state->is_cx25836)
@@ -122,12 +119,11 @@ static int set_audclk_freq(struct i2c_client *client, u32 freq)
 			}
 
 			if (!state->is_cx231xx) {
+				/* VID_PLL and AUX_PLL */
+				cx25840_write4(client, 0x108, 0x1e08040f);
 
-			/* VID_PLL and AUX_PLL */
-			cx25840_write4(client, 0x108, 0x1e08040f);
-
-			/* AUX_PLL_FRAC */
-			cx25840_write4(client, 0x110, 0x012a0869);
+				/* AUX_PLL_FRAC */
+				cx25840_write4(client, 0x110, 0x012a0869);
 			}
 
 			if (state->is_cx25836)
@@ -154,12 +150,11 @@ static int set_audclk_freq(struct i2c_client *client, u32 freq)
 
 
 			if (!state->is_cx231xx) {
+				/* VID_PLL and AUX_PLL */
+				cx25840_write4(client, 0x108, 0x1809040f);
 
-			/* VID_PLL and AUX_PLL */
-			cx25840_write4(client, 0x108, 0x1809040f);
-
-			/* AUX_PLL_FRAC */
-			cx25840_write4(client, 0x110, 0x00ec6bd6);
+				/* AUX_PLL_FRAC */
+				cx25840_write4(client, 0x110, 0x00ec6bd6);
 			}
 
 			if (state->is_cx25836)
@@ -247,10 +242,9 @@ void cx25840_audio_set_path(struct i2c_client *client)
 	/* deassert soft reset */
 	cx25840_and_or(client, 0x810, ~0x1, 0x00);
 
-	if (state->is_cx23885 || state->is_cx231xx) {
-		/* Ensure the controller is running when we exit */
+	/* Ensure the controller is running when we exit */
+	if (state->is_cx23885 || state->is_cx231xx)
 		cx25840_and_or(client, 0x803, ~0x10, 0x10);
-	}
 }
 
 static int get_volume(struct i2c_client *client)

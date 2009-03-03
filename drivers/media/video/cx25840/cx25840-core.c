@@ -374,14 +374,11 @@ static void cx231xx_initialize(struct i2c_client *client)
 	/* DIF Src phase inc */
 	cx25840_write4(client, 0x340, 0x0df7df83);
 
-
 	/* Luma */
 	cx25840_write4(client, 0x414, 0x00107d12);
 
 	/* Chroma */
 	cx25840_write4(client, 0x420, 0x3d008282);
-
-
 
 	/* ADC2 input select */
 	cx25840_write(client, 0x102, 0x10);
@@ -394,7 +391,6 @@ static void cx231xx_initialize(struct i2c_client *client)
 	/* Fast subchroma lock */
 	/* White crush, Chroma AGC & Chroma Killer enabled */
 	cx25840_write(client, 0x401, 0xe8);
-
 
 	/* Do the firmware load in a work handler to prevent.
 	   Otherwise the kernel is blocked waiting for the
@@ -489,42 +485,42 @@ void cx25840_std_setup(struct i2c_client *client)
 	}
 
 	/* DEBUG: Displays configured PLL frequency */
-    if (!state->is_cx231xx) {
-	pll_int = cx25840_read(client, 0x108);
-	pll_frac = cx25840_read4(client, 0x10c) & 0x1ffffff;
-	pll_post = cx25840_read(client, 0x109);
-	v4l_dbg(1, cx25840_debug, client,
-				"PLL regs = int: %u, frac: %u, post: %u\n",
-				pll_int, pll_frac, pll_post);
-
-	if (pll_post) {
-		int fin, fsc;
-		int pll = (28636363L * ((((u64)pll_int) << 25L) + pll_frac)) >> 25L;
-
-		pll /= pll_post;
-		v4l_dbg(1, cx25840_debug, client, "PLL = %d.%06d MHz\n",
-				pll / 1000000, pll % 1000000);
-		v4l_dbg(1, cx25840_debug, client, "PLL/8 = %d.%06d MHz\n",
-				pll / 8000000, (pll / 8) % 1000000);
-
-		fin = ((u64)src_decimation * pll) >> 12;
+	if (!state->is_cx231xx) {
+		pll_int = cx25840_read(client, 0x108);
+		pll_frac = cx25840_read4(client, 0x10c) & 0x1ffffff;
+		pll_post = cx25840_read(client, 0x109);
 		v4l_dbg(1, cx25840_debug, client,
-				"ADC Sampling freq = %d.%06d MHz\n",
-				fin / 1000000, fin % 1000000);
+			"PLL regs = int: %u, frac: %u, post: %u\n",
+			pll_int, pll_frac, pll_post);
 
-		fsc = (((u64)sc) * pll) >> 24L;
-		v4l_dbg(1, cx25840_debug, client,
-				"Chroma sub-carrier freq = %d.%06d MHz\n",
-				fsc / 1000000, fsc % 1000000);
+		if (pll_post) {
+			int fin, fsc;
+			int pll = (28636363L * ((((u64)pll_int) << 25L) + pll_frac)) >> 25L;
 
-		v4l_dbg(1, cx25840_debug, client, "hblank %i, hactive %i, "
-			"vblank %i, vactive %i, vblank656 %i, src_dec %i, "
-			"burst 0x%02x, luma_lpf %i, uv_lpf %i, comb 0x%02x, "
-			"sc 0x%06x\n",
-			hblank, hactive, vblank, vactive, vblank656,
-			src_decimation, burst, luma_lpf, uv_lpf, comb, sc);
+			pll /= pll_post;
+			v4l_dbg(1, cx25840_debug, client, "PLL = %d.%06d MHz\n",
+					pll / 1000000, pll % 1000000);
+			v4l_dbg(1, cx25840_debug, client, "PLL/8 = %d.%06d MHz\n",
+					pll / 8000000, (pll / 8) % 1000000);
+
+			fin = ((u64)src_decimation * pll) >> 12;
+			v4l_dbg(1, cx25840_debug, client,
+					"ADC Sampling freq = %d.%06d MHz\n",
+					fin / 1000000, fin % 1000000);
+
+			fsc = (((u64)sc) * pll) >> 24L;
+			v4l_dbg(1, cx25840_debug, client,
+					"Chroma sub-carrier freq = %d.%06d MHz\n",
+					fsc / 1000000, fsc % 1000000);
+
+			v4l_dbg(1, cx25840_debug, client, "hblank %i, hactive %i, "
+				"vblank %i, vactive %i, vblank656 %i, src_dec %i, "
+				"burst 0x%02x, luma_lpf %i, uv_lpf %i, comb 0x%02x, "
+				"sc 0x%06x\n",
+				hblank, hactive, vblank, vactive, vblank656,
+				src_decimation, burst, luma_lpf, uv_lpf, comb, sc);
+		}
 	}
-    }
 
 	/* Sets horizontal blanking delay and active lines */
 	cx25840_write(client, 0x470, hblank);
@@ -809,7 +805,7 @@ static int set_v4lstd(struct i2c_client *client)
 
 static int cx25840_s_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 {
-    struct cx25840_state *state = to_state(sd);
+	struct cx25840_state *state = to_state(sd);
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 
 	switch (ctrl->id) {
@@ -876,7 +872,7 @@ static int cx25840_s_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 
 static int cx25840_g_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 {
-    struct cx25840_state *state = to_state(sd);
+	struct cx25840_state *state = to_state(sd);
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 
 	switch (ctrl->id) {
@@ -1208,7 +1204,7 @@ static int cx25840_init(struct v4l2_subdev *sd, u32 val)
 			cx25836_initialize(client);
 		else if (state->is_cx23885)
 			cx23885_initialize(client);
-	else if (state->is_cx231xx)
+		else if (state->is_cx231xx)
 			cx231xx_initialize(client);
 		else
 			cx25840_initialize(client);
@@ -1567,7 +1563,7 @@ static int cx25840_probe(struct i2c_client *client,
 	state->c = client;
 	state->is_cx25836 = ((device_id & 0xff00) == 0x8300);
 	state->is_cx23885 = (device_id == 0x0000) || (device_id == 0x1313);
-    state->is_cx231xx = (device_id == 0x5A3E);
+	state->is_cx231xx = (device_id == 0x5a3e);
 	state->vid_input = CX25840_COMPOSITE7;
 	state->aud_input = CX25840_AUDIO8;
 	state->audclk_freq = 48000;
