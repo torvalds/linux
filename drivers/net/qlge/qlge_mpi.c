@@ -284,6 +284,27 @@ static int ql_sfp_out(struct ql_adapter *qdev, struct mbox_params *mbcp)
 	return status;
 }
 
+static int ql_aen_lost(struct ql_adapter *qdev, struct mbox_params *mbcp)
+{
+	int status;
+
+	mbcp->out_count = 6;
+
+	status = ql_get_mb_sts(qdev, mbcp);
+	if (status)
+		QPRINTK(qdev, DRV, ERR, "Lost AEN broken!\n");
+	else {
+		int i;
+		QPRINTK(qdev, DRV, ERR, "Lost AEN detected.\n");
+		for (i = 0; i < mbcp->out_count; i++)
+			QPRINTK(qdev, DRV, ERR, "mbox_out[%d] = 0x%.08x.\n",
+					i, mbcp->mbox_out[i]);
+
+	}
+
+	return status;
+}
+
 static void ql_init_fw_done(struct ql_adapter *qdev, struct mbox_params *mbcp)
 {
 	int status;
@@ -419,6 +440,10 @@ static int ql_mpi_handler(struct ql_adapter *qdev, struct mbox_params *mbcp)
 			"System Error.\n");
 		ql_queue_fw_error(qdev);
 		status = -EIO;
+		break;
+
+	case AEN_AEN_LOST:
+		ql_aen_lost(qdev, mbcp);
 		break;
 
 	default:
