@@ -183,7 +183,7 @@ void __init set_highmem_pages_init(void)
 	totalram_pages += totalhigh_pages;
 }
 #else
-static void __init set_highmem_pages_init(void)
+void __init set_highmem_pages_init(void)
 {
 	add_highpages_with_active_regions(0, highstart_pfn, highend_pfn);
 
