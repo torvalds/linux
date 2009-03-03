@@ -2611,9 +2611,6 @@ static int addrconf_ifdown(struct net_device *dev, int how)
 
 	ASSERT_RTNL();
 
-	if ((dev->flags & IFF_LOOPBACK) && how == 1)
-		how = 0;
-
 	rt6_ifdown(net, dev);
 	neigh_ifdown(&nd_tbl, dev);
 
@@ -4448,25 +4445,6 @@ int unregister_inet6addr_notifier(struct notifier_block *nb)
 
 EXPORT_SYMBOL(unregister_inet6addr_notifier);
 
-static void addrconf_net_exit(struct net *net)
-{
-	struct net_device *dev;
-
-	rtnl_lock();
-	/* clean dev list */
-	for_each_netdev(net, dev) {
-		if (__in6_dev_get(dev) == NULL)
-			continue;
-		addrconf_ifdown(dev, 1);
-	}
-	addrconf_ifdown(net->loopback_dev, 2);
-	rtnl_unlock();
-}
-
-static struct pernet_operations addrconf_net_ops = {
-	.exit = addrconf_net_exit,
-};
-
 /*
  *	Init / cleanup code
  */
@@ -4508,10 +4486,6 @@ int __init addrconf_init(void)
 	if (err)
 		goto errlo;
 
-	err = register_pernet_device(&addrconf_net_ops);
-	if (err)
-		return err;
-
 	register_netdevice_notifier(&ipv6_dev_notf);
 
 	addrconf_verify(0);
@@ -4541,14 +4515,21 @@ errlo:
 void addrconf_cleanup(void)
 {
 	struct inet6_ifaddr *ifa;
+	struct net_device *dev;
 	int i;
 
 	unregister_netdevice_notifier(&ipv6_dev_notf);
-	unregister_pernet_device(&addrconf_net_ops);
-
 	unregister_pernet_subsys(&addrconf_ops);
 
 	rtnl_lock();
+
+	/* clean dev list */
+	for_each_netdev(&init_net, dev) {
+		if (__in6_dev_get(dev) == NULL)
+			continue;
+		addrconf_ifdown(dev, 1);
+	}
+	addrconf_ifdown(init_net.loopback_dev, 2);
 
 	/*
 	 *	Check hash table.
@@ -4570,6 +4551,4 @@ void addrconf_cleanup(void)
 
 	del_timer(&addr_chk_timer);
 	rtnl_unlock();
-
-	unregister_pernet_subsys(&addrconf_net_ops);
 }
