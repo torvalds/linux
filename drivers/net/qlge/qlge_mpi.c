@@ -415,7 +415,10 @@ static int ql_mpi_handler(struct ql_adapter *qdev, struct mbox_params *mbcp)
 		break;
 
 	case AEN_SYS_ERR:
+		QPRINTK(qdev, DRV, ERR,
+			"System Error.\n");
 		ql_queue_fw_error(qdev);
+		status = -EIO;
 		break;
 
 	default:
