@@ -366,12 +366,11 @@ int video_register_device_index(struct video_device *vdev, int type, int nr,
 
 	/* A minor value of -1 marks this video device as never
 	   having been registered */
-	if (vdev)
-		vdev->minor = -1;
+	vdev->minor = -1;
 
 	/* the release callback MUST be present */
-	WARN_ON(!vdev || !vdev->release);
-	if (!vdev || !vdev->release)
+	WARN_ON(!vdev->release);
+	if (!vdev->release)
 		return -EINVAL;
 
 	/* Part 1: check device type */
