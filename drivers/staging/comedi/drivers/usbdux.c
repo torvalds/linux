@@ -2930,7 +2930,7 @@ static struct usb_driver usbduxsub_driver = {
 /* Can't use the nice macro as I have also to initialise the USB */
 /* subsystem: */
 /* registering the usb-system _and_ the comedi-driver */
-static int init_usbdux(void)
+static int __init init_usbdux(void)
 {
 	printk(KERN_INFO KBUILD_MODNAME ": "
 	       DRIVER_VERSION ":" DRIVER_DESC "\n");
@@ -2940,7 +2940,7 @@ static int init_usbdux(void)
 }
 
 /* deregistering the comedi driver and the usb-subsystem */
-static void exit_usbdux(void)
+static void __exit exit_usbdux(void)
 {
 	comedi_driver_unregister(&driver_usbdux);
 	usb_deregister(&usbduxsub_driver);
