@@ -159,24 +159,23 @@ static int ql_idc_cmplt_aen(struct ql_adapter *qdev)
 
 	return status;
 }
+
 static void ql_link_up(struct ql_adapter *qdev, struct mbox_params *mbcp)
 {
+	int status;
 	mbcp->out_count = 2;
 
-	if (ql_get_mb_sts(qdev, mbcp))
-		goto exit;
+	status = ql_get_mb_sts(qdev, mbcp);
+	if (status) {
+		QPRINTK(qdev, DRV, ERR,
+			"%s: Could not get mailbox status.\n", __func__);
+		return;
+	}
 
 	qdev->link_status = mbcp->mbox_out[1];
 	QPRINTK(qdev, DRV, ERR, "Link Up.\n");
-	QPRINTK(qdev, DRV, INFO, "Link Status = 0x%.08x.\n", mbcp->mbox_out[1]);
-	if (!netif_carrier_ok(qdev->ndev)) {
-		QPRINTK(qdev, LINK, INFO, "Link is Up.\n");
-		netif_carrier_on(qdev->ndev);
-		netif_wake_queue(qdev->ndev);
-	}
-exit:
-	/* Clear the MPI firmware status. */
-	ql_write32(qdev, CSR, CSR_CMD_CLR_R2PCI_INT);
+
+	netif_carrier_on(qdev->ndev);
 }
 
 static void ql_link_down(struct ql_adapter *qdev, struct mbox_params *mbcp)
