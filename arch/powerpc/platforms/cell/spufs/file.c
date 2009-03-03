@@ -578,7 +578,7 @@ spufs_regs_write(struct file *file, const char __user *buffer,
 	if (ret)
 		return ret;
 
-	ret = copy_from_user(lscsa->gprs + *pos - size,
+	ret = copy_from_user((char *)lscsa->gprs + *pos - size,
 			     buffer, size) ? -EFAULT : size;
 
 	spu_release_saved(ctx);
