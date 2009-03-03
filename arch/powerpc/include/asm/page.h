@@ -19,12 +19,14 @@
 #include <asm/kdump.h>
 
 /*
- * On regular PPC32 page size is 4K (but we support 4K/16K/64K pages
+ * On regular PPC32 page size is 4K (but we support 4K/16K/64K/256K pages
  * on PPC44x). For PPC64 we support either 4K or 64K software
  * page size. When using 64K pages however, whether we are really supporting
  * 64K pages in HW or not is irrelevant to those definitions.
  */
-#if defined(CONFIG_PPC_64K_PAGES)
+#if defined(CONFIG_PPC_256K_PAGES)
+#define PAGE_SHIFT		18
+#elif defined(CONFIG_PPC_64K_PAGES)
 #define PAGE_SHIFT		16
 #elif defined(CONFIG_PPC_16K_PAGES)
 #define PAGE_SHIFT		14

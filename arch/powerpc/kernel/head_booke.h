@@ -10,6 +10,15 @@
 		mtspr	SPRN_IVOR##vector_number,r26;	\
 		sync
 
+#if (THREAD_SHIFT < 15)
+#define ALLOC_STACK_FRAME(reg, val)			\
+	addi reg,reg,val
+#else
+#define ALLOC_STACK_FRAME(reg, val)			\
+	addis	reg,reg,val@ha;				\
+	addi	reg,reg,val@l
+#endif
+
 #define NORMAL_EXCEPTION_PROLOG						     \
 	mtspr	SPRN_SPRG0,r10;		/* save two registers to work with */\
 	mtspr	SPRN_SPRG1,r11;						     \
@@ -20,7 +29,7 @@
 	beq	1f;							     \
 	mfspr	r1,SPRN_SPRG3;		/* if from user, start at top of   */\
 	lwz	r1,THREAD_INFO-THREAD(r1); /* this thread's kernel stack   */\
-	addi	r1,r1,THREAD_SIZE;					     \
+	ALLOC_STACK_FRAME(r1, THREAD_SIZE);				     \
 1:	subi	r1,r1,INT_FRAME_SIZE;	/* Allocate an exception frame     */\
 	mr	r11,r1;							     \
 	stw	r10,_CCR(r11);          /* save various registers	   */\
