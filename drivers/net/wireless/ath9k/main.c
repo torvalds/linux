@@ -2318,6 +2318,8 @@ static int ath9k_config_interface(struct ieee80211_hw *hw,
 	u32 rfilt = 0;
 	int error, i;
 
+	mutex_lock(&sc->mutex);
+
 	/* TODO: Need to decide which hw opmode to use for multi-interface
 	 * cases */
 	if (vif->type == NL80211_IFTYPE_AP &&
@@ -2373,8 +2375,10 @@ static int ath9k_config_interface(struct ieee80211_hw *hw,
 			ath9k_hw_stoptxdma(sc->sc_ah, sc->beacon.beaconq);
 
 			error = ath_beacon_alloc(sc, 0);
-			if (error != 0)
+			if (error != 0) {
+				mutex_unlock(&sc->mutex);
 				return error;
+			}
 
 			ath_beacon_config(sc, 0);
 		}
@@ -2392,6 +2396,8 @@ static int ath9k_config_interface(struct ieee80211_hw *hw,
 	/* Only legacy IBSS for now */
 	if (vif->type == NL80211_IFTYPE_ADHOC)
 		ath_update_chainmask(sc, 0);
+
+	mutex_unlock(&sc->mutex);
 
 	return 0;
 }
