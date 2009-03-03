@@ -426,11 +426,6 @@ struct ath_beacon_config {
 	u16 dtim_period;
 	u16 bmiss_timeout;
 	u8 dtim_count;
-	u8 tim_offset;
-	union {
-		u64 last_tsf;
-		u8 last_tstamp[8];
-	} u; /* last received beacon/probe response timestamp of this BSS. */
 };
 
 struct ath_beacon {
