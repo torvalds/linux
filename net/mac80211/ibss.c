@@ -64,7 +64,7 @@ static int __ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 				     const int freq,
 				     const size_t supp_rates_len,
 				     const u8 *supp_rates,
-				     const u16 capability)
+				     const u16 capability, u64 tsf)
 {
 	struct ieee80211_if_ibss *ifibss = &sdata->u.ibss;
 	struct ieee80211_local *local = sdata->local;
@@ -127,6 +127,7 @@ static int __ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 	memcpy(mgmt->bssid, ifibss->bssid, ETH_ALEN);
 	mgmt->u.beacon.beacon_int =
 		cpu_to_le16(local->hw.conf.beacon_int);
+	mgmt->u.beacon.timestamp = cpu_to_le64(tsf);
 	mgmt->u.beacon.capab_info = cpu_to_le16(capability);
 
 	pos = skb_put(skb, 2 + ifibss->ssid_len);
@@ -199,7 +200,8 @@ static int ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 					 bss->cbss.beacon_interval,
 					 bss->cbss.channel->center_freq,
 					 bss->supp_rates_len, bss->supp_rates,
-					 bss->cbss.capability);
+					 bss->cbss.capability,
+					 bss->cbss.tsf);
 }
 
 static void ieee80211_rx_bss_info(struct ieee80211_sub_if_data *sdata,
@@ -502,7 +504,7 @@ static int ieee80211_sta_create_ibss(struct ieee80211_sub_if_data *sdata)
 					 bssid, local->hw.conf.beacon_int,
 					 local->hw.conf.channel->center_freq,
 					 sband->n_bitrates, supp_rates,
-					 capability);
+					 capability, 0);
 }
 
 static int ieee80211_sta_find_ibss(struct ieee80211_sub_if_data *sdata)
