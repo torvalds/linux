@@ -67,7 +67,7 @@
 #define AR_DMASIZE_512B      0x00000007
 
 #define AR_TXCFG             0x0030
-#define AR_TXCFG_DMASZ_MASK  0x00000003
+#define AR_TXCFG_DMASZ_MASK  0x00000007
 #define AR_TXCFG_DMASZ_4B    0
 #define AR_TXCFG_DMASZ_8B    1
 #define AR_TXCFG_DMASZ_16B   2
