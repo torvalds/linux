@@ -1862,23 +1862,6 @@ static comedi_driver driver_usbduxfast = {
 	.detach		= usbduxfast_detach
 };
 
-static void __init init_usb_devices(void)
-{
-	int index;
-
-#ifdef CONFIG_COMEDI_DEBUG
-	printk(KERN_DEBUG "comedi_: usbduxfast: setting all possible devs to "
-	       "invalid\n");
-#endif
-	/*
-	 * all devices entries are invalid to begin with
-	 * they will become valid by the probe function
-	 * and then finally by the attach-function
-	 */
-	for (index = 0; index < NUMUSBDUXFAST; index++)
-		init_MUTEX(&(usbduxfastsub[index].sem));
-}
-
 /*
  * Table with the USB-devices: just now only testing IDs
  */
@@ -1912,7 +1895,6 @@ static int __init init_usbduxfast(void)
 {
 	printk(KERN_INFO
 	       KBUILD_MODNAME ": " DRIVER_VERSION ":" DRIVER_DESC "\n");
-	init_usb_devices();
 	usb_register(&usbduxfastsub_driver);
 	comedi_driver_register(&driver_usbduxfast);
 	return 0;
