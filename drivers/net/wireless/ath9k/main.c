@@ -2077,6 +2077,12 @@ static int ath9k_tx(struct ieee80211_hw *hw,
 	struct ath_tx_control txctl;
 	int hdrlen, padsize;
 
+	if (aphy->state != ATH_WIPHY_ACTIVE) {
+		printk(KERN_DEBUG "ath9k: %s: TX in unexpected wiphy state "
+		       "%d\n", wiphy_name(hw->wiphy), aphy->state);
+		goto exit;
+	}
+
 	memset(&txctl, 0, sizeof(struct ath_tx_control));
 
 	/*
