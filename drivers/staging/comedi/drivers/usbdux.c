@@ -2917,10 +2917,8 @@ static void init_usb_devices(void)
 	/* all devices entries are invalid to begin with */
 	/* they will become valid by the probe function */
 	/* and then finally by the attach-function */
-	for (index = 0; index < NUMUSBDUX; index++) {
-		memset(&(usbduxsub[index]), 0x00, sizeof(usbduxsub[index]));
+	for (index = 0; index < NUMUSBDUX; index++)
 		init_MUTEX(&(usbduxsub[index].sem));
-	}
 }
 
 /* Table with the USB-devices: just now only testing IDs */
