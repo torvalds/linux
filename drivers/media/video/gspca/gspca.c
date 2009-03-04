@@ -1099,7 +1099,6 @@ static int vidioc_s_audio(struct file *file, void *priv,
 static int vidioc_g_audio(struct file *file, void *priv,
 			 struct v4l2_audio *audio)
 {
-	memset(audio, 0, sizeof *audio);
 	strcpy(audio->name, "Microphone");
 	return 0;
 }
@@ -1133,7 +1132,6 @@ static int vidioc_enum_input(struct file *file, void *priv,
 
 	if (input->index != 0)
 		return -EINVAL;
-	memset(input, 0, sizeof *input);
 	input->type = V4L2_INPUT_TYPE_CAMERA;
 	strncpy(input->name, gspca_dev->sd_desc->name,
 		sizeof input->name);
@@ -1341,7 +1339,6 @@ static int vidioc_g_parm(struct file *filp, void *priv,
 {
 	struct gspca_dev *gspca_dev = priv;
 
-	memset(parm, 0, sizeof *parm);
 	parm->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 	parm->parm.capture.readbuffers = gspca_dev->nbufread;
 
@@ -1411,7 +1408,6 @@ static int vidiocgmbuf(struct file *file, void *priv,
 		{
 			struct v4l2_format fmt;
 
-			memset(&fmt, 0, sizeof fmt);
 			fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 			i = gspca_dev->cam.nmodes - 1;	/* highest mode */
 			fmt.fmt.pix.width = gspca_dev->cam.cam_mode[i].width;
