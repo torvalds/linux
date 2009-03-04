@@ -933,8 +933,6 @@ static int stk_vidioc_s_ctrl(struct file *filp,
 static int stk_vidioc_enum_fmt_vid_cap(struct file *filp,
 		void *priv, struct v4l2_fmtdesc *fmtd)
 {
-	fmtd->flags = 0;
-
 	switch (fmtd->index) {
 	case 0:
 		fmtd->pixelformat = V4L2_PIX_FMT_RGB565;
@@ -992,7 +990,6 @@ static int stk_vidioc_g_fmt_vid_cap(struct file *filp,
 	pix_format->height = stk_sizes[i].h;
 	pix_format->field = V4L2_FIELD_NONE;
 	pix_format->colorspace = V4L2_COLORSPACE_SRGB;
-	pix_format->priv = 0;
 	pix_format->pixelformat = dev->vsettings.palette;
 	if (dev->vsettings.palette == V4L2_PIX_FMT_SBGGR8)
 		pix_format->bytesperline = pix_format->width;
@@ -1246,13 +1243,10 @@ static int stk_vidioc_g_parm(struct file *filp,
 	if (sp->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
 
-	sp->parm.capture.capability = 0;
-	sp->parm.capture.capturemode = 0;
 	/*FIXME This is not correct */
 	sp->parm.capture.timeperframe.numerator = 1;
 	sp->parm.capture.timeperframe.denominator = 30;
 	sp->parm.capture.readbuffers = 2;
-	sp->parm.capture.extendedmode = 0;
 	return 0;
 }
 
