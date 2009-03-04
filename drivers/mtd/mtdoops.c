@@ -361,8 +361,10 @@ mtdoops_console_write(struct console *co, const char *s, unsigned int count)
 	spin_lock_irqsave(&cxt->writecount_lock, flags);
 
 	/* Check ready status didn't change whilst waiting for the lock */
-	if (!cxt->ready)
+	if (!cxt->ready) {
+		spin_unlock_irqrestore(&cxt->writecount_lock, flags);
 		return;
+	}
 
 	if (cxt->writecount == 0) {
 		u32 *stamp = cxt->oops_buf;
@@ -420,6 +422,7 @@ static int __init mtdoops_console_init(void)
 
 	cxt->mtd_index = -1;
 	cxt->oops_buf = vmalloc(OOPS_PAGE_SIZE);
+	spin_lock_init(&cxt->writecount_lock);
 
 	if (!cxt->oops_buf) {
 		printk(KERN_ERR "Failed to allocate mtdoops buffer workspace\n");
