@@ -1,9 +1,13 @@
-/* Common corrected MCE threshold handler code */
-#include <linux/kernel.h>
+/*
+ * Common corrected MCE threshold handler code:
+ */
 #include <linux/interrupt.h>
-#include <asm/mce.h>
+#include <linux/kernel.h>
+
 #include <asm/irq_vectors.h>
+#include <asm/apic.h>
 #include <asm/idle.h>
+#include <asm/mce.h>
 
 static void default_threshold_interrupt(void)
 {
