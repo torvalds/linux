@@ -69,9 +69,10 @@ struct perf_counter_hw_event {
 	__s64			type;
 
 	__u64			irq_period;
-	__u32			record_type;
+	__u64			record_type;
+	__u64			read_format;
 
-	__u32			disabled       :  1, /* off by default        */
+	__u64			disabled       :  1, /* off by default        */
 				nmi	       :  1, /* NMI sampling          */
 				raw	       :  1, /* raw event type        */
 				inherit	       :  1, /* children inherit it   */
@@ -80,10 +81,15 @@ struct perf_counter_hw_event {
 				exclude_user   :  1, /* don't count user      */
 				exclude_kernel :  1, /* ditto kernel          */
 				exclude_hv     :  1, /* ditto hypervisor      */
+				exclude_idle   :  1, /* don't count when idle */
 
-				__reserved_1 : 23;
+				__reserved_1 : 55;
+
+	__u32			extra_config_len;
+	__u32			__reserved_4;
 
 	__u64			__reserved_2;
+	__u64			__reserved_3;
 };
 
 /*
