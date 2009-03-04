@@ -9,8 +9,12 @@ config SND_S3C24XX_SOC
 config SND_S3C24XX_SOC_I2S
 	tristate
 
+config SND_S3C_I2SV2_SOC
+	tristate
+
 config SND_S3C2412_SOC_I2S
 	tristate
+	select SND_S3C_I2SV2_SOC
 
 config SND_S3C2443_SOC_AC97
 	tristate

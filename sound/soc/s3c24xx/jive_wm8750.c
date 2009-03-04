@@ -65,7 +65,7 @@ static int jive_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_dai *codec_dai = rtd->dai->codec_dai;
 	struct snd_soc_dai *cpu_dai = rtd->dai->cpu_dai;
-	struct s3c2412_rate_calc div;
+	struct s3c_i2sv2_rate_calc div;
 	unsigned int clk = 0;
 	int ret = 0;
 
@@ -83,8 +83,8 @@ static int jive_hw_params(struct snd_pcm_substream *substream,
 		break;
 	}
 
-	s3c2412_iis_calc_rate(&div, NULL, params_rate(params),
-			      s3c2412_get_iisclk());
+	s3c_i2sv2_calc_rate(&div, NULL, params_rate(params),
+			    s3c2412_get_iisclk());
 
 	/* set codec DAI configuration */
 	ret = snd_soc_dai_set_fmt(codec_dai, SND_SOC_DAIFMT_I2S |
