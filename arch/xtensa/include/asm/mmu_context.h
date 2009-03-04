@@ -16,12 +16,12 @@
 #include <linux/stringify.h>
 #include <linux/sched.h>
 
+#include <variant/core.h>
+
 #include <asm/pgtable.h>
 #include <asm/cacheflush.h>
 #include <asm/tlbflush.h>
 #include <asm-generic/mm_hooks.h>
-
-#define XCHAL_MMU_ASID_BITS	8
 
 #if (XCHAL_HAVE_TLBS != 1)
 # error "Linux must have an MMU!"
