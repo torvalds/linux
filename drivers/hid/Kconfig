@@ -150,6 +150,13 @@ config HID_GYRATION
 	---help---
 	Support for Gyration remote control.
 
+config HID_KENSINGTON
+	tristate "Kensington" if EMBEDDED
+	depends on USB_HID
+	default !EMBEDDED
+	---help---
+	Support for Kensington Slimblade Trackball.
+
 config HID_LOGITECH
 	tristate "Logitech" if EMBEDDED
 	depends on USB_HID
