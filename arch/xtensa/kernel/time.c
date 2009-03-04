@@ -37,15 +37,6 @@ unsigned long nsec_per_ccount;		/* nsec per ccount increment */
 
 static long last_rtc_update = 0;
 
-/*
- * Scheduler clock - returns current tim in nanosec units.
- */
-
-unsigned long long sched_clock(void)
-{
-	return (unsigned long long)jiffies * (1000000000 / HZ);
-}
-
 static irqreturn_t timer_interrupt(int irq, void *dev_id);
 static struct irqaction timer_irqaction = {
 	.handler =	timer_interrupt,
