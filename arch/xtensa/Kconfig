@@ -32,6 +32,9 @@ config GENERIC_HWEIGHT
 config GENERIC_HARDIRQS
 	def_bool y
 
+config GENERIC_GPIO
+	def_bool y
+
 config ARCH_HAS_ILOG2_U32
 	def_bool n
 
@@ -69,6 +72,11 @@ config XTENSA_VARIANT_DC232B
 	select MMU
 	help
 	  This variant refers to Tensilica's Diamond 232L Standard core Rev.B (LE).
+
+config XTENSA_VARIANT_S6000
+	bool "s6000 - Stretch software configurable processor"
+	select VARIANT_IRQ_SWITCH
+	select ARCH_REQUIRE_GPIOLIB
 endchoice
 
 config XTENSA_UNALIGNED_USER
