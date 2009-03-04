@@ -333,6 +333,10 @@ static void __init rbtx4939_device_init(void)
 	    platform_device_add_data(pdev, &smc_pdata, sizeof(smc_pdata)) ||
 	    platform_device_add(pdev))
 		platform_device_put(pdev);
+	/* TC58DVM82A1FT: tDH=10ns, tWP=tRP=tREADID=35ns */
+	tx4939_ndfmc_init(10, 35,
+			  (1 << 1) | (1 << 2),
+			  (1 << 2)); /* ch1:8bit, ch2:16bit */
 	rbtx4939_led_setup();
 	tx4939_wdt_init();
 	tx4939_ata_init();

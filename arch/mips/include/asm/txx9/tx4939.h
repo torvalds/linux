@@ -542,5 +542,7 @@ int tx4939_irq(void);
 void tx4939_mtd_init(int ch);
 void tx4939_ata_init(void);
 void tx4939_rtc_init(void);
+void tx4939_ndfmc_init(unsigned int hold, unsigned int spw,
+		       unsigned char ch_mask, unsigned char wide_mask);
 
 #endif /* __ASM_TXX9_TX4939_H */

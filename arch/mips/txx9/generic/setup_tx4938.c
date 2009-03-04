@@ -23,6 +23,7 @@
 #include <asm/txx9tmr.h>
 #include <asm/txx9pio.h>
 #include <asm/txx9/generic.h>
+#include <asm/txx9/ndfmc.h>
 #include <asm/txx9/tx4938.h>
 
 static void __init tx4938_wdr_init(void)
@@ -380,6 +381,26 @@ void __init tx4938_ata_init(unsigned int irq, unsigned int shift, int tune)
 	    platform_device_add_data(pdev, &pdata, sizeof(pdata)) ||
 	    platform_device_add(pdev))
 		platform_device_put(pdev);
+}
+
+void __init tx4938_ndfmc_init(unsigned int hold, unsigned int spw)
+{
+	struct txx9ndfmc_platform_data plat_data = {
+		.shift = 1,
+		.gbus_clock = txx9_gbus_clock,
+		.hold = hold,
+		.spw = spw,
+		.ch_mask = 1,
+	};
+	unsigned long baseaddr = TX4938_NDFMC_REG & 0xfffffffffULL;
+
+#ifdef __BIG_ENDIAN
+	baseaddr += 4;
+#endif
+	if ((__raw_readq(&tx4938_ccfgptr->pcfg) &
+	     (TX4938_PCFG_ATA_SEL|TX4938_PCFG_ISA_SEL|TX4938_PCFG_NDF_SEL)) ==
+	    TX4938_PCFG_NDF_SEL)
+		txx9_ndfmc_init(baseaddr, &plat_data);
 }
 
 static void __init tx4938_stop_unused_modules(void)
