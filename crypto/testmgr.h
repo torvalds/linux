@@ -15,6 +15,8 @@
 #ifndef _CRYPTO_TESTMGR_H
 #define _CRYPTO_TESTMGR_H
 
+#include <crypto/compress.h>
+
 #define MAX_DIGEST_SIZE		64
 #define MAX_TAP			8
 
@@ -8342,6 +8344,14 @@ static struct cipher_testvec cts_mode_dec_tv_template[] = {
 #define COMP_BUF_SIZE           512
 
 struct comp_testvec {
+	int inlen, outlen;
+	char input[COMP_BUF_SIZE];
+	char output[COMP_BUF_SIZE];
+};
+
+struct pcomp_testvec {
+	void *params;
+	unsigned int paramsize;
 	int inlen, outlen;
 	char input[COMP_BUF_SIZE];
 	char output[COMP_BUF_SIZE];
