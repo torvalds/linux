@@ -118,6 +118,12 @@ void paravirt_cpu_asm_init(const struct pv_cpu_asm_switch *cpu_asm_switch);
 
 #endif /* CONFIG_PARAVIRT */
 
+#if defined(CONFIG_PARAVIRT) && defined(ASM_SUPPORTED)
+#define paravirt_dv_serialize_data()	ia64_dv_serialize_data()
+#else
+#define paravirt_dv_serialize_data()	/* nothing */
+#endif
+
 /* these routines utilize privilege-sensitive or performance-sensitive
  * privileged instructions so the code must be replaced with
  * paravirtualized versions */
