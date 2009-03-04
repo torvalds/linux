@@ -39,11 +39,16 @@
  * @next_buffer_table: First available buffer table id
  * @pci_dev2: The secondary PCI device if present
  * @i2c_data: Operations and state for I2C bit-bashing algorithm
+ * @int_error_count: Number of internal errors seen recently
+ * @int_error_expire: Time at which error count will be expired
  */
 struct falcon_nic_data {
 	unsigned next_buffer_table;
 	struct pci_dev *pci_dev2;
 	struct i2c_algo_bit_data i2c_data;
+
+	unsigned int_error_count;
+	unsigned long int_error_expire;
 };
 
 /**************************************************************************
@@ -119,8 +124,12 @@ MODULE_PARM_DESC(rx_xon_thresh_bytes, "RX fifo XON threshold");
 #define FALCON_EVQ_SIZE 4096
 #define FALCON_EVQ_MASK (FALCON_EVQ_SIZE - 1)
 
-/* Max number of internal errors. After this resets will not be performed */
-#define FALCON_MAX_INT_ERRORS 4
+/* If FALCON_MAX_INT_ERRORS internal errors occur within
+ * FALCON_INT_ERROR_EXPIRE seconds, we consider the NIC broken and
+ * disable it.
+ */
+#define FALCON_INT_ERROR_EXPIRE 3600
+#define FALCON_MAX_INT_ERRORS 5
 
 /* We poll for events every FLUSH_INTERVAL ms, and check FLUSH_POLL_COUNT times
  */
@@ -1374,7 +1383,6 @@ static irqreturn_t falcon_fatal_interrupt(struct efx_nic *efx)
 	efx_oword_t *int_ker = efx->irq_status.addr;
 	efx_oword_t fatal_intr;
 	int error, mem_perr;
-	static int n_int_errors;
 
 	falcon_read(efx, &fatal_intr, FATAL_INTR_REG_KER);
 	error = EFX_OWORD_FIELD(fatal_intr, INT_KER_ERROR);
@@ -1401,7 +1409,14 @@ static irqreturn_t falcon_fatal_interrupt(struct efx_nic *efx)
 		pci_clear_master(nic_data->pci_dev2);
 	falcon_disable_interrupts(efx);
 
-	if (++n_int_errors < FALCON_MAX_INT_ERRORS) {
+	/* Count errors and reset or disable the NIC accordingly */
+	if (nic_data->int_error_count == 0 ||
+	    time_after(jiffies, nic_data->int_error_expire)) {
+		nic_data->int_error_count = 0;
+		nic_data->int_error_expire =
+			jiffies + FALCON_INT_ERROR_EXPIRE * HZ;
+	}
+	if (++nic_data->int_error_count < FALCON_MAX_INT_ERRORS) {
 		EFX_ERR(efx, "SYSTEM ERROR - reset scheduled\n");
 		efx_schedule_reset(efx, RESET_TYPE_INT_ERROR);
 	} else {
