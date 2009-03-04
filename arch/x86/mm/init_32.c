@@ -1275,13 +1275,6 @@ void mark_rodata_ro(void)
 }
 #endif
 
-#ifdef CONFIG_BLK_DEV_INITRD
-void free_initrd_mem(unsigned long start, unsigned long end)
-{
-	free_init_pages("initrd memory", start, end);
-}
-#endif
-
 int __init reserve_bootmem_generic(unsigned long phys, unsigned long len,
 				   int flags)
 {

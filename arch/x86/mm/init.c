@@ -71,3 +71,10 @@ void free_initmem(void)
 			(unsigned long)(&__init_begin),
 			(unsigned long)(&__init_end));
 }
+
+#ifdef CONFIG_BLK_DEV_INITRD
+void free_initrd_mem(unsigned long start, unsigned long end)
+{
+	free_init_pages("initrd memory", start, end);
+}
+#endif
