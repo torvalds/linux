@@ -1129,6 +1129,7 @@ endchoice
 
 config PM_WAKEUP_BY_GPIO
 	bool "Allow Wakeup from Standby by GPIO"
+	depends on PM && !BF54x
 
 config PM_WAKEUP_GPIO_NUMBER
 	int "GPIO number"
