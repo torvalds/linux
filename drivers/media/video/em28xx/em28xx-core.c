@@ -378,6 +378,11 @@ static int em28xx_set_audio_source(struct em28xx *dev)
 		}
 	}
 
+	if (dev->board.mute_gpio && dev->mute)
+		em28xx_gpio_set(dev, dev->board.mute_gpio);
+	else
+		em28xx_gpio_set(dev, INPUT(dev->ctl_input)->gpio);
+
 	ret = em28xx_write_reg_bits(dev, EM28XX_R0E_AUDIOSRC, input, 0xc0);
 	if (ret < 0)
 		return ret;

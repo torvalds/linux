@@ -510,12 +510,17 @@ static int attach_inform(struct i2c_client *client)
 		dprintk1(1, "attach_inform: tvp5150 detected.\n");
 		break;
 
+	case 0xb0:
+		dprintk1(1, "attach_inform: tda9874 detected\n");
+		break;
+
 	default:
 		if (!dev->tuner_addr)
 			dev->tuner_addr = client->addr;
 
 		dprintk1(1, "attach inform: detected I2C address %x\n",
 				client->addr << 1);
+		dprintk1(1, "driver id %d\n", client->driver->id);
 
 	}
 
@@ -554,6 +559,7 @@ static char *i2c_devs[128] = {
 	[0x80 >> 1] = "msp34xx",
 	[0x88 >> 1] = "msp34xx",
 	[0xa0 >> 1] = "eeprom",
+	[0xb0 >> 1] = "tda9874",
 	[0xb8 >> 1] = "tvp5150a",
 	[0xba >> 1] = "tvp5150a",
 	[0xc0 >> 1] = "tuner (analog)",

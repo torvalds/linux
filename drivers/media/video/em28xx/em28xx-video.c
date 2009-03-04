@@ -540,6 +540,13 @@ static void video_mux(struct em28xx *dev, int index)
 			&route);
 	}
 
+	if (dev->board.adecoder != EM28XX_NOADECODER) {
+		route.input = dev->ctl_ainput;
+		route.output = dev->ctl_aoutput;
+		em28xx_i2c_call_clients(dev, VIDIOC_INT_S_AUDIO_ROUTING,
+			&route);
+	}
+
 	em28xx_audio_analog_set(dev);
 }
 

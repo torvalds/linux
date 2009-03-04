@@ -374,6 +374,7 @@ struct em28xx_board {
 	struct em28xx_reg_seq *dvb_gpio;
 	struct em28xx_reg_seq *suspend_gpio;
 	struct em28xx_reg_seq *tuner_gpio;
+	struct em28xx_reg_seq *mute_gpio;
 
 	unsigned int is_em2800:1;
 	unsigned int has_msp34xx:1;

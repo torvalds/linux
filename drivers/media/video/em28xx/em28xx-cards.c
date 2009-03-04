@@ -122,6 +122,22 @@ static struct em28xx_reg_seq default_tuner_gpio[] = {
 	{  -1,			-1,		-1,		-1},
 };
 
+/* Mute/unmute */
+static struct em28xx_reg_seq compro_unmute_tv_gpio[] = {
+	{EM28XX_R08_GPIO,	5,		7,		10},
+	{  -1,			-1,		-1,		-1},
+};
+
+static struct em28xx_reg_seq compro_unmute_svid_gpio[] = {
+	{EM28XX_R08_GPIO,	4,		7,		10},
+	{  -1,			-1,		-1,		-1},
+};
+
+static struct em28xx_reg_seq compro_mute_gpio[] = {
+	{EM28XX_R08_GPIO,	6,		7,		10},
+	{  -1,			-1,		-1,		-1},
+};
+
 /*
  *  Board definitions
  */
@@ -1225,14 +1241,17 @@ struct em28xx_board em28xx_boards[] = {
 		.tda9887_conf = TDA9887_PRESENT,
 		.decoder      = EM28XX_TVP5150,
 		.adecoder     = EM28XX_TVAUDIO,
+		.mute_gpio    = compro_mute_gpio,
 		.input        = { {
 			.type     = EM28XX_VMUX_TELEVISION,
 			.vmux     = TVP5150_COMPOSITE0,
-			.amux     = EM28XX_AMUX_LINE_IN,
+			.amux     = EM28XX_AMUX_VIDEO,
+			.gpio     = compro_unmute_tv_gpio,
 		}, {
 			.type     = EM28XX_VMUX_SVIDEO,
 			.vmux     = TVP5150_SVIDEO,
 			.amux     = EM28XX_AMUX_LINE_IN,
+			.gpio     = compro_unmute_svid_gpio,
 		} },
 	},
 	[EM2860_BOARD_KAIOMY_TVNPC_U2] = {
