@@ -434,4 +434,10 @@ config MTD_NAND_DAVINCI
 	  Enable the driver for NAND flash chips on Texas Instruments
 	  DaVinci processors.
 
+config MTD_NAND_TXX9NDFMC
+	tristate "NAND Flash support for TXx9 SoC"
+	depends on SOC_TX4938 || SOC_TX4939
+	help
+	  This enables the NAND flash controller on the TXx9 SoCs.
+
 endif # MTD_NAND
