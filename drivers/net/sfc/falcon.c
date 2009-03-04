@@ -3114,8 +3114,10 @@ void falcon_remove_nic(struct efx_nic *efx)
 	struct falcon_nic_data *nic_data = efx->nic_data;
 	int rc;
 
+	/* Remove I2C adapter and clear it in preparation for a retry */
 	rc = i2c_del_adapter(&efx->i2c_adap);
 	BUG_ON(rc);
+	memset(&efx->i2c_adap, 0, sizeof(efx->i2c_adap));
 
 	falcon_remove_spi_devices(efx);
 	falcon_free_buffer(efx, &efx->irq_status);
