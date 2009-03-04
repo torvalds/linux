@@ -47,7 +47,7 @@
 #define SSCR0_TUM	(1 << 23)	/* Transmit FIFO underrun interrupt mask */
 #define SSCR0_FRDC	(0x07000000)	/* Frame rate divider control (mask) */
 #define SSCR0_SlotsPerFrm(x) (((x) - 1) << 24)	/* Time slots per frame [1..8] */
-#define SSCR0_ADC	(1 << 30)	/* Audio clock select */
+#define SSCR0_ACS	(1 << 30)	/* Audio clock select */
 #define SSCR0_MOD	(1 << 31)	/* Mode (normal or network) */
 #endif
 
