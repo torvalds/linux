@@ -58,3 +58,59 @@ BRANCH_PROC(switch_to, r22, b7)
 BRANCH_PROC_UNWINFO(leave_syscall, r22, b7)
 BRANCH_PROC(work_processed_syscall, r2, b7)
 BRANCH_PROC_UNWINFO(leave_kernel, r22, b7)
+
+
+#ifdef CONFIG_MODULES
+#define __INIT_OR_MODULE	.text
+#define __INITDATA_OR_MODULE	.data
+#else
+#define __INIT_OR_MODULE	__INIT
+#define __INITDATA_OR_MODULE	__INITDATA
+#endif /* CONFIG_MODULES */
+
+	__INIT_OR_MODULE
+	GLOBAL_ENTRY(paravirt_fc_i)
+	fc.i r32
+	br.ret.sptk.many rp
+	END(paravirt_fc_i)
+	__FINIT
+
+	__INIT_OR_MODULE
+	.align 32
+	GLOBAL_ENTRY(paravirt_nop_b_inst_bundle)
+	{
+		nop.b 0
+		nop.b 0
+		nop.b 0
+	}
+	END(paravirt_nop_b_inst_bundle)
+	__FINIT
+
+	/* NOTE: nop.[mfi] has same format */
+	__INIT_OR_MODULE
+	GLOBAL_ENTRY(paravirt_nop_mfi_inst_bundle)
+	{
+		nop.m 0
+		nop.f 0
+		nop.i 0
+	}
+	END(paravirt_nop_mfi_inst_bundle)
+	__FINIT
+
+	__INIT_OR_MODULE
+	GLOBAL_ENTRY(paravirt_nop_bundle)
+paravirt_nop_bundle_start:
+	{
+		nop 0
+		nop 0
+		nop 0
+	}
+paravirt_nop_bundle_end:
+	END(paravirt_nop_bundle)
+	__FINIT
+
+	__INITDATA_OR_MODULE
+	.align 8
+	.global paravirt_nop_bundle_size
+paravirt_nop_bundle_size:
+	data8	paravirt_nop_bundle_end - paravirt_nop_bundle_start
