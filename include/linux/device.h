@@ -494,7 +494,8 @@ extern int device_for_each_child(struct device *dev, void *data,
 extern struct device *device_find_child(struct device *dev, void *data,
 				int (*match)(struct device *dev, void *data));
 extern int device_rename(struct device *dev, char *new_name);
-extern int device_move(struct device *dev, struct device *new_parent);
+extern int device_move(struct device *dev, struct device *new_parent,
+		       enum dpm_order dpm_order);
 
 /*
  * Root device objects for grouping under /sys/devices

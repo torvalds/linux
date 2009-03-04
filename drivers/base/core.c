@@ -1561,8 +1561,10 @@ out:
  * device_move - moves a device to a new parent
  * @dev: the pointer to the struct device to be moved
  * @new_parent: the new parent of the device (can by NULL)
+ * @dpm_order: how to reorder the dpm_list
  */
-int device_move(struct device *dev, struct device *new_parent)
+int device_move(struct device *dev, struct device *new_parent,
+		enum dpm_order dpm_order)
 {
 	int error;
 	struct device *old_parent;
@@ -1572,6 +1574,7 @@ int device_move(struct device *dev, struct device *new_parent)
 	if (!dev)
 		return -EINVAL;
 
+	device_pm_lock();
 	new_parent = get_device(new_parent);
 	new_parent_kobj = get_device_parent(dev, new_parent);
 
@@ -1613,9 +1616,23 @@ int device_move(struct device *dev, struct device *new_parent)
 		put_device(new_parent);
 		goto out;
 	}
+	switch (dpm_order) {
+	case DPM_ORDER_NONE:
+		break;
+	case DPM_ORDER_DEV_AFTER_PARENT:
+		device_pm_move_after(dev, new_parent);
+		break;
+	case DPM_ORDER_PARENT_BEFORE_DEV:
+		device_pm_move_before(new_parent, dev);
+		break;
+	case DPM_ORDER_DEV_LAST:
+		device_pm_move_last(dev);
+		break;
+	}
 out_put:
 	put_device(old_parent);
 out:
+	device_pm_unlock();
 	put_device(dev);
 	return error;
 }
