@@ -308,6 +308,19 @@ config TOUCHSCREEN_WM97XX_MAINSTONE
 	  To compile this driver as a module, choose M here: the
 	  module will be called mainstone-wm97xx.
 
+config TOUCHSCREEN_WM97XX_ZYLONITE
+	tristate "Zylonite accelerated touch"
+	depends on TOUCHSCREEN_WM97XX && MACH_ZYLONITE
+	select TOUCHSCREEN_WM9713
+	help
+	  Say Y here for support for streaming mode with the touchscreen
+	  on Zylonite systems.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called zylonite-wm97xx.
+
 config TOUCHSCREEN_USB_COMPOSITE
 	tristate "USB Touchscreen Driver"
 	depends on USB_ARCH_HAS_HCD
