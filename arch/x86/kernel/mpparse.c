@@ -716,10 +716,10 @@ static int __init smp_scan_config(unsigned long base, unsigned long length,
 
 			if (!reserve)
 				return 1;
-			reserve_bootmem_generic(virt_to_phys(mpf), PAGE_SIZE,
+			reserve_bootmem_generic(virt_to_phys(mpf), sizeof(*mpf),
 					BOOTMEM_DEFAULT);
 			if (mpf->physptr) {
-				unsigned long size = PAGE_SIZE;
+				unsigned long size = get_mpc_size(mpf->physptr);
 #ifdef CONFIG_X86_32
 				/*
 				 * We cannot access to MPC table to compute
