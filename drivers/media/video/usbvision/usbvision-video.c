@@ -697,7 +697,6 @@ static int vidioc_g_audio (struct file *file, void *priv, struct v4l2_audio *a)
 {
 	struct usb_usbvision *usbvision = video_drvdata(file);
 
-	memset(a,0,sizeof(*a));
 	if(usbvision->radio) {
 		strcpy(a->name,"Radio");
 	} else {
@@ -721,10 +720,6 @@ static int vidioc_queryctrl (struct file *file, void *priv,
 			    struct v4l2_queryctrl *ctrl)
 {
 	struct usb_usbvision *usbvision = video_drvdata(file);
-	int id=ctrl->id;
-
-	memset(ctrl,0,sizeof(*ctrl));
-	ctrl->id=id;
 
 	call_all(usbvision, core, queryctrl, ctrl);
 
@@ -926,11 +921,9 @@ static int vidioc_enum_fmt_vid_cap (struct file *file, void  *priv,
 	if(vfd->index>=USBVISION_SUPPORTED_PALETTES-1) {
 		return -EINVAL;
 	}
-	vfd->flags = 0;
 	vfd->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 	strcpy(vfd->description,usbvision_v4l2_format[vfd->index].desc);
 	vfd->pixelformat = usbvision_v4l2_format[vfd->index].format;
-	memset(vfd->reserved, 0, sizeof(vfd->reserved));
 	return 0;
 }
 
