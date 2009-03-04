@@ -623,7 +623,7 @@ static unsigned map_pid_to_cmdline[PID_MAX_DEFAULT+1];
 static unsigned map_cmdline_to_pid[SAVED_CMDLINES];
 static char saved_cmdlines[SAVED_CMDLINES][TASK_COMM_LEN];
 static int cmdline_idx;
-static DEFINE_SPINLOCK(trace_cmdline_lock);
+static raw_spinlock_t trace_cmdline_lock = __RAW_SPIN_LOCK_UNLOCKED;
 
 /* temporary disable recording */
 static atomic_t trace_record_cmdline_disabled __read_mostly;
@@ -735,7 +735,7 @@ static void trace_save_cmdline(struct task_struct *tsk)
 	 * nor do we want to disable interrupts,
 	 * so if we miss here, then better luck next time.
 	 */
-	if (!spin_trylock(&trace_cmdline_lock))
+	if (!__raw_spin_trylock(&trace_cmdline_lock))
 		return;
 
 	idx = map_pid_to_cmdline[tsk->pid];
@@ -753,7 +753,7 @@ static void trace_save_cmdline(struct task_struct *tsk)
 
 	memcpy(&saved_cmdlines[idx], tsk->comm, TASK_COMM_LEN);
 
-	spin_unlock(&trace_cmdline_lock);
+	__raw_spin_unlock(&trace_cmdline_lock);
 }
 
 char *trace_find_cmdline(int pid)
@@ -3751,7 +3751,7 @@ static __init int tracer_init_debugfs(void)
 
 int trace_vprintk(unsigned long ip, int depth, const char *fmt, va_list args)
 {
-	static DEFINE_SPINLOCK(trace_buf_lock);
+	static raw_spinlock_t trace_buf_lock = __RAW_SPIN_LOCK_UNLOCKED;
 	static char trace_buf[TRACE_BUF_SIZE];
 
 	struct ring_buffer_event *event;
@@ -3773,7 +3773,8 @@ int trace_vprintk(unsigned long ip, int depth, const char *fmt, va_list args)
 		goto out;
 
 	pause_graph_tracing();
-	spin_lock_irqsave(&trace_buf_lock, irq_flags);
+	raw_local_irq_save(irq_flags);
+	__raw_spin_lock(&trace_buf_lock);
 	len = vsnprintf(trace_buf, TRACE_BUF_SIZE, fmt, args);
 
 	len = min(len, TRACE_BUF_SIZE-1);
@@ -3792,7 +3793,8 @@ int trace_vprintk(unsigned long ip, int depth, const char *fmt, va_list args)
 	ring_buffer_unlock_commit(tr->buffer, event);
 
  out_unlock:
-	spin_unlock_irqrestore(&trace_buf_lock, irq_flags);
+	__raw_spin_unlock(&trace_buf_lock);
+	raw_local_irq_restore(irq_flags);
 	unpause_graph_tracing();
  out:
 	preempt_enable_notrace();

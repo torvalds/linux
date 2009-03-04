@@ -42,6 +42,7 @@
 #include <linux/hash.h>
 #include <linux/ftrace.h>
 #include <linux/stringify.h>
+#include <trace/lockdep.h>
 
 #include <asm/sections.h>
 
@@ -2913,6 +2914,8 @@ void lock_set_class(struct lockdep_map *lock, const char *name,
 }
 EXPORT_SYMBOL_GPL(lock_set_class);
 
+DEFINE_TRACE(lock_acquire);
+
 /*
  * We are not always called with irqs disabled - do that here,
  * and also avoid lockdep recursion:
@@ -2922,6 +2925,8 @@ void lock_acquire(struct lockdep_map *lock, unsigned int subclass,
 			  struct lockdep_map *nest_lock, unsigned long ip)
 {
 	unsigned long flags;
+
+	trace_lock_acquire(lock, subclass, trylock, read, check, nest_lock, ip);
 
 	if (unlikely(current->lockdep_recursion))
 		return;
@@ -2937,10 +2942,14 @@ void lock_acquire(struct lockdep_map *lock, unsigned int subclass,
 }
 EXPORT_SYMBOL_GPL(lock_acquire);
 
+DEFINE_TRACE(lock_release);
+
 void lock_release(struct lockdep_map *lock, int nested,
 			  unsigned long ip)
 {
 	unsigned long flags;
+
+	trace_lock_release(lock, nested, ip);
 
 	if (unlikely(current->lockdep_recursion))
 		return;
@@ -3090,9 +3099,13 @@ found_it:
 	lock->ip = ip;
 }
 
+DEFINE_TRACE(lock_contended);
+
 void lock_contended(struct lockdep_map *lock, unsigned long ip)
 {
 	unsigned long flags;
+
+	trace_lock_contended(lock, ip);
 
 	if (unlikely(!lock_stat))
 		return;
@@ -3109,9 +3122,13 @@ void lock_contended(struct lockdep_map *lock, unsigned long ip)
 }
 EXPORT_SYMBOL_GPL(lock_contended);
 
+DEFINE_TRACE(lock_acquired);
+
 void lock_acquired(struct lockdep_map *lock, unsigned long ip)
 {
 	unsigned long flags;
+
+	trace_lock_acquired(lock, ip);
 
 	if (unlikely(!lock_stat))
 		return;
