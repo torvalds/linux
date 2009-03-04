@@ -2461,6 +2461,7 @@ int ring_buffer_read_page(struct ring_buffer *buffer,
 	unsigned long flags;
 	unsigned int commit;
 	unsigned int read;
+	u64 save_timestamp;
 	int ret = -1;
 
 	/*
@@ -2515,6 +2516,9 @@ int ring_buffer_read_page(struct ring_buffer *buffer,
 		if (len < size)
 			goto out;
 
+		/* save the current timestamp, since the user will need it */
+		save_timestamp = cpu_buffer->read_stamp;
+
 		/* Need to copy one event at a time */
 		do {
 			memcpy(bpage->data + pos, rpage->data + rpos, size);
@@ -2531,7 +2535,7 @@ int ring_buffer_read_page(struct ring_buffer *buffer,
 
 		/* update bpage */
 		local_set(&bpage->commit, pos);
-		bpage->time_stamp = rpage->time_stamp;
+		bpage->time_stamp = save_timestamp;
 
 		/* we copied everything to the beginning */
 		read = 0;
