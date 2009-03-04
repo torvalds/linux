@@ -30,6 +30,26 @@ struct comp_request {
 	unsigned int avail_out;		/* bytes available at next_out */
 };
 
+enum zlib_comp_params {
+	ZLIB_COMP_LEVEL = 1,		/* e.g. Z_DEFAULT_COMPRESSION */
+	ZLIB_COMP_METHOD,		/* e.g. Z_DEFLATED */
+	ZLIB_COMP_WINDOWBITS,		/* e.g. MAX_WBITS */
+	ZLIB_COMP_MEMLEVEL,		/* e.g. DEF_MEM_LEVEL */
+	ZLIB_COMP_STRATEGY,		/* e.g. Z_DEFAULT_STRATEGY */
+	__ZLIB_COMP_MAX,
+};
+
+#define ZLIB_COMP_MAX	(__ZLIB_COMP_MAX - 1)
+
+
+enum zlib_decomp_params {
+	ZLIB_DECOMP_WINDOWBITS = 1,	/* e.g. DEF_WBITS */
+	__ZLIB_DECOMP_MAX,
+};
+
+#define ZLIB_DECOMP_MAX	(__ZLIB_DECOMP_MAX - 1)
+
+
 struct crypto_pcomp {
 	struct crypto_tfm base;
 };

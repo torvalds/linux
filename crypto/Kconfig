@@ -748,6 +748,15 @@ config CRYPTO_DEFLATE
 
 	  You will most probably want this if using IPSec.
 
+config CRYPTO_ZLIB
+	tristate "Zlib compression algorithm"
+	select CRYPTO_PCOMP
+	select ZLIB_INFLATE
+	select ZLIB_DEFLATE
+	select NLATTR
+	help
+	  This is the zlib algorithm.
+
 config CRYPTO_LZO
 	tristate "LZO compression algorithm"
 	select CRYPTO_ALGAPI
