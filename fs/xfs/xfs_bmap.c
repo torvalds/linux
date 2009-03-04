@@ -6204,7 +6204,7 @@ xfs_bmap_get_bp(
 	return(bp);
 }
 
-void
+STATIC void
 xfs_check_block(
 	struct xfs_btree_block	*block,
 	xfs_mount_t		*mp,

@@ -633,7 +633,7 @@ xfs_max_file_offset(
 	return (((__uint64_t)pagefactor) << bitshift) - 1;
 }
 
-int
+STATIC int
 xfs_blkdev_get(
 	xfs_mount_t		*mp,
 	const char		*name,
@@ -650,7 +650,7 @@ xfs_blkdev_get(
 	return -error;
 }
 
-void
+STATIC void
 xfs_blkdev_put(
 	struct block_device	*bdev)
 {
@@ -871,7 +871,7 @@ xfsaild_wakeup(
 	wake_up_process(ailp->xa_task);
 }
 
-int
+STATIC int
 xfsaild(
 	void	*data)
 {
