@@ -399,7 +399,7 @@ einval:	li	v0, -ENOSYS
 	sys	sys_swapon		2
 	sys	sys_reboot		3
 	sys	sys_old_readdir		3
-	sys	old_mmap		6	/* 4090 */
+	sys	sys_mips_mmap		6	/* 4090 */
 	sys	sys_munmap		2
 	sys	sys_truncate		2
 	sys	sys_ftruncate		2
@@ -519,7 +519,7 @@ einval:	li	v0, -ENOSYS
 	sys	sys_sendfile		4
 	sys	sys_ni_syscall		0
 	sys	sys_ni_syscall		0
-	sys	sys_mmap2		6	/* 4210 */
+	sys	sys_mips_mmap2		6	/* 4210 */
 	sys	sys_truncate64		4
 	sys	sys_ftruncate64		4
 	sys	sys_stat64		2

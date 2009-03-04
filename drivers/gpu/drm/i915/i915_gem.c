@@ -211,7 +211,7 @@ fast_user_write(struct io_mapping *mapping,
 
 	vaddr_atomic = io_mapping_map_atomic_wc(mapping, page_base);
 	unwritten = __copy_from_user_inatomic_nocache(vaddr_atomic + page_offset,
-						      user_data, length);
+						      user_data, length, length);
 	io_mapping_unmap_atomic(vaddr_atomic);
 	if (unwritten)
 		return -EFAULT;
@@ -1050,6 +1050,9 @@ i915_gem_retire_requests(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	uint32_t seqno;
+
+	if (!dev_priv->hw_status_page)
+		return;
 
 	seqno = i915_get_gem_seqno(dev);
 
@@ -3545,7 +3548,7 @@ i915_gem_phys_pwrite(struct drm_device *dev, struct drm_gem_object *obj,
 	user_data = (char __user *) (uintptr_t) args->data_ptr;
 	obj_addr = obj_priv->phys_obj->handle->vaddr + args->offset;
 
-	DRM_ERROR("obj_addr %p, %lld\n", obj_addr, args->size);
+	DRM_DEBUG("obj_addr %p, %lld\n", obj_addr, args->size);
 	ret = copy_from_user(obj_addr, user_data, args->size);
 	if (ret)
 		return -EFAULT;

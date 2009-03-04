@@ -485,8 +485,10 @@ struct inode *proc_get_inode(struct super_block *sb, unsigned int ino,
 			}
 		}
 		unlock_new_inode(inode);
-	} else
+	} else {
 	       module_put(de->owner);
+	       de_put(de);
+	}
 	return inode;
 
 out_ino:

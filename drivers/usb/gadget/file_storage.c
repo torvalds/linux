@@ -3879,7 +3879,11 @@ static int __init check_parameters(struct fsg_dev *fsg)
 	mod_data.protocol_type = USB_SC_SCSI;
 	mod_data.protocol_name = "Transparent SCSI";
 
-	if (gadget_is_sh(fsg->gadget))
+	/* Some peripheral controllers are known not to be able to
+	 * halt bulk endpoints correctly.  If one of them is present,
+	 * disable stalls.
+	 */
+	if (gadget_is_sh(fsg->gadget) || gadget_is_at91(fsg->gadget))
 		mod_data.can_stall = 0;
 
 	if (mod_data.release == 0xffff) {	// Parameter wasn't set
