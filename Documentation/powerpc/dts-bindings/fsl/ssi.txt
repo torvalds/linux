@@ -30,6 +30,8 @@ Required properties:
 - fsl,capture-dma:  phandle to a node for the DMA channel to use for
                     capture (recording) of audio.  This is typically dictated
                     by SOC design.  See the notes below.
+- fsl,fifo-depth:   the number of elements in the transmit and receive FIFOs.
+                    This number is the maximum allowed value for SFCSR[TFWM0].
 
 Optional properties:
 - codec-handle	  : phandle to a 'codec' node that defines an audio
