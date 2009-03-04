@@ -145,8 +145,9 @@ void __init bootmem_init(void)
 	/* Reserve the bootmem bitmap area */
 
 	mem_reserve(bootmap_start, bootmap_start + bootmap_size, 1);
-	bootmap_size = init_bootmem_node(NODE_DATA(0), min_low_pfn,
+	bootmap_size = init_bootmem_node(NODE_DATA(0),
 					 bootmap_start >> PAGE_SHIFT,
+					 min_low_pfn,
 					 max_low_pfn);
 
 	/* Add all remaining memory pieces into the bootmem map */
