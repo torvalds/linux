@@ -1277,15 +1277,12 @@ int cx88_enum_input (struct cx88_core  *core,struct v4l2_input *i)
 		[ CX88_VMUX_DVB        ] = "DVB",
 		[ CX88_VMUX_DEBUG      ] = "for debug only",
 	};
-	unsigned int n;
+	unsigned int n = i->index;
 
-	n = i->index;
 	if (n >= 4)
 		return -EINVAL;
 	if (0 == INPUT(n).type)
 		return -EINVAL;
-	memset(i,0,sizeof(*i));
-	i->index = n;
 	i->type  = V4L2_INPUT_TYPE_CAMERA;
 	strcpy(i->name,iname[INPUT(n).type]);
 	if ((CX88_VMUX_TELEVISION == INPUT(n).type) ||
@@ -1521,7 +1518,6 @@ static int radio_g_audio (struct file *file, void *priv, struct v4l2_audio *a)
 	if (unlikely(a->index))
 		return -EINVAL;
 
-	memset(a,0,sizeof(*a));
 	strcpy(a->name,"Radio");
 	return 0;
 }
