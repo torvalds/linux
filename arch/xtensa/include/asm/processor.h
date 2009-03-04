@@ -25,6 +25,8 @@
 # error Linux requires the Xtensa Windowed Registers Option.
 #endif
 
+#define ARCH_SLAB_MINALIGN	XCHAL_DATA_WIDTH
+
 /*
  * User space process size: 1 GB.
  * Windowed call ABI requires caller and callee to be located within the same
