@@ -8,6 +8,7 @@ config SND_S3C24XX_SOC
 
 config SND_S3C24XX_SOC_I2S
 	tristate
+	select S3C2410_DMA
 
 config SND_S3C_I2SV2_SOC
 	tristate
@@ -15,13 +16,16 @@ config SND_S3C_I2SV2_SOC
 config SND_S3C2412_SOC_I2S
 	tristate
 	select SND_S3C_I2SV2_SOC
+	select S3C2410_DMA
 
 config SND_S3C64XX_SOC_I2S
 	tristate
 	select SND_S3C_I2SV2_SOC
+	select S3C64XX_DMA
 
 config SND_S3C2443_SOC_AC97
 	tristate
+	select S3C2410_DMA
 	select AC97_BUS
 	select SND_SOC_AC97_BUS
 	
