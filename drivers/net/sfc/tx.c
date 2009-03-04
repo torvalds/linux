@@ -376,6 +376,9 @@ int efx_hard_start_xmit(struct sk_buff *skb, struct net_device *net_dev)
 	struct efx_nic *efx = netdev_priv(net_dev);
 	struct efx_tx_queue *tx_queue;
 
+	if (unlikely(efx->port_inhibited))
+		return NETDEV_TX_BUSY;
+
 	if (likely(skb->ip_summed == CHECKSUM_PARTIAL))
 		tx_queue = &efx->tx_queue[EFX_TX_QUEUE_OFFLOAD_CSUM];
 	else
