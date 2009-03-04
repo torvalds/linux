@@ -101,25 +101,27 @@ const char *v4l2_norm_to_name(v4l2_std_id id)
 }
 EXPORT_SYMBOL(v4l2_norm_to_name);
 
+/* Returns frame period for the given standard */
+void v4l2_video_std_frame_period(int id, struct v4l2_fract *frameperiod)
+{
+	if (id & V4L2_STD_525_60) {
+		frameperiod->numerator = 1001;
+		frameperiod->denominator = 30000;
+	} else {
+		frameperiod->numerator = 1;
+		frameperiod->denominator = 25;
+	}
+}
+EXPORT_SYMBOL(v4l2_video_std_frame_period);
+
 /* Fill in the fields of a v4l2_standard structure according to the
    'id' and 'transmission' parameters.  Returns negative on error.  */
 int v4l2_video_std_construct(struct v4l2_standard *vs,
 			     int id, const char *name)
 {
-	u32 index = vs->index;
-
-	memset(vs, 0, sizeof(struct v4l2_standard));
-	vs->index = index;
-	vs->id    = id;
-	if (id & V4L2_STD_525_60) {
-		vs->frameperiod.numerator = 1001;
-		vs->frameperiod.denominator = 30000;
-		vs->framelines = 525;
-	} else {
-		vs->frameperiod.numerator = 1;
-		vs->frameperiod.denominator = 25;
-		vs->framelines = 625;
-	}
+	vs->id = id;
+	v4l2_video_std_frame_period(id, &vs->frameperiod);
+	vs->framelines = (id & V4L2_STD_525_60) ? 525 : 625;
 	strlcpy(vs->name, name, sizeof(vs->name));
 	return 0;
 }
@@ -1076,7 +1078,6 @@ static long __video_do_ioctl(struct file *file,
 			return -EINVAL;
 
 		v4l2_video_std_construct(p, curr_id, descr);
-		p->index = index;
 
 		dbgarg(cmd, "index=%d, id=0x%Lx, name=%s, fps=%d/%d, "
 				"framelines=%d\n", p->index,
@@ -1565,15 +1566,11 @@ static long __video_do_ioctl(struct file *file,
 		if (ops->vidioc_g_parm) {
 			ret = ops->vidioc_g_parm(file, fh, p);
 		} else {
-			struct v4l2_standard s;
-
 			if (p->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 				return -EINVAL;
 
-			v4l2_video_std_construct(&s, vfd->current_norm,
-						 v4l2_norm_to_name(vfd->current_norm));
-
-			p->parm.capture.timeperframe = s.frameperiod;
+			v4l2_video_std_frame_period(vfd->current_norm,
+						    &p->parm.capture.timeperframe);
 			ret = 0;
 		}
 

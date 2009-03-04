@@ -2932,13 +2932,11 @@ static int bttv_g_parm(struct file *file, void *f,
 {
 	struct bttv_fh *fh = f;
 	struct bttv *btv = fh->btv;
-	struct v4l2_standard s;
 
 	if (parm->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
-	v4l2_video_std_construct(&s, bttv_tvnorms[btv->tvnorm].v4l2_id,
-				 bttv_tvnorms[btv->tvnorm].name);
-	parm->parm.capture.timeperframe = s.frameperiod;
+	v4l2_video_std_frame_period(bttv_tvnorms[btv->tvnorm].v4l2_id,
+				    &parm->parm.capture.timeperframe);
 	return 0;
 }
 
