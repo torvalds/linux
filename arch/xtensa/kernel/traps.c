@@ -372,11 +372,10 @@ void show_trace(struct task_struct *task, unsigned long *sp)
 	unsigned long a0, a1, pc;
 	unsigned long sp_start, sp_end;
 
-	a1 = (unsigned long)sp;
-
-	if (a1 == 0)
-		__asm__ __volatile__ ("mov %0, a1\n" : "=a"(a1));
-
+	if (sp)
+		a1 = (unsigned long)sp;
+	else
+		a1 = task->thread.sp;
 
 	sp_start = a1 & ~(THREAD_SIZE-1);
 	sp_end = sp_start + THREAD_SIZE;
@@ -418,9 +417,8 @@ void show_stack(struct task_struct *task, unsigned long *sp)
 	int i = 0;
 	unsigned long *stack;
 
-	if (sp == 0)
-		__asm__ __volatile__ ("mov %0, a1\n" : "=a"(sp));
-
+	if (!sp)
+		sp = (unsigned long *)task->thread.sp;
  	stack = sp;
 
 	printk("\nStack: ");
