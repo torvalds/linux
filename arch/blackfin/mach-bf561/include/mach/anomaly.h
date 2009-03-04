@@ -2,7 +2,7 @@
  * File: include/asm-blackfin/mach-bf561/anomaly.h
  * Bugs: Enter bugs at http://blackfin.uclinux.org/
  *
- * Copyright (C) 2004-2008 Analog Devices Inc.
+ * Copyright (C) 2004-2009 Analog Devices Inc.
  * Licensed under the GPL-2 or later.
  */
 
@@ -224,7 +224,7 @@
 #define ANOMALY_05000301 (1)
 /* SSYNCs After Writes To DMA MMR Registers May Not Be Handled Correctly */
 #define ANOMALY_05000302 (1)
-/* New Feature: Additional Hysteresis on SPORT Input Pins (Not Available On Older Silicon) */
+/* SPORT_HYS Bit in PLL_CTL Register Is Not Functional */
 #define ANOMALY_05000305 (__SILICON_REVISION__ < 5)
 /* SCKELOW Bit Does Not Maintain State Through Hibernate */
 #define ANOMALY_05000307 (__SILICON_REVISION__ < 5)
