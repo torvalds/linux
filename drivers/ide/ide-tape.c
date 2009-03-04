@@ -169,7 +169,7 @@ typedef struct ide_tape_obj {
 	ide_drive_t		*drive;
 	struct ide_driver	*driver;
 	struct gendisk		*disk;
-	struct kref		kref;
+	struct device		dev;
 
 	/*
 	 *	failed_pc points to the last failed packet command, or contains
@@ -267,7 +267,7 @@ static DEFINE_MUTEX(idetape_ref_mutex);
 
 static struct class *idetape_sysfs_class;
 
-static void ide_tape_release(struct kref *);
+static void ide_tape_release(struct device *);
 
 static struct ide_tape_obj *ide_tape_get(struct gendisk *disk)
 {
@@ -279,7 +279,7 @@ static struct ide_tape_obj *ide_tape_get(struct gendisk *disk)
 		if (ide_device_get(tape->drive))
 			tape = NULL;
 		else
-			kref_get(&tape->kref);
+			get_device(&tape->dev);
 	}
 	mutex_unlock(&idetape_ref_mutex);
 	return tape;
@@ -290,7 +290,7 @@ static void ide_tape_put(struct ide_tape_obj *tape)
 	ide_drive_t *drive = tape->drive;
 
 	mutex_lock(&idetape_ref_mutex);
-	kref_put(&tape->kref, ide_tape_release);
+	put_device(&tape->dev);
 	ide_device_put(drive);
 	mutex_unlock(&idetape_ref_mutex);
 }
@@ -308,7 +308,7 @@ static struct ide_tape_obj *ide_tape_chrdev_get(unsigned int i)
 	mutex_lock(&idetape_ref_mutex);
 	tape = idetape_devs[i];
 	if (tape)
-		kref_get(&tape->kref);
+		get_device(&tape->dev);
 	mutex_unlock(&idetape_ref_mutex);
 	return tape;
 }
@@ -2256,15 +2256,17 @@ static void ide_tape_remove(ide_drive_t *drive)
 	idetape_tape_t *tape = drive->driver_data;
 
 	ide_proc_unregister_driver(drive, tape->driver);
-
+	device_del(&tape->dev);
 	ide_unregister_region(tape->disk);
 
-	ide_tape_put(tape);
+	mutex_lock(&idetape_ref_mutex);
+	put_device(&tape->dev);
+	mutex_unlock(&idetape_ref_mutex);
 }
 
-static void ide_tape_release(struct kref *kref)
+static void ide_tape_release(struct device *dev)
 {
-	struct ide_tape_obj *tape = to_ide_drv(kref, ide_tape_obj);
+	struct ide_tape_obj *tape = to_ide_drv(dev, ide_tape_obj);
 	ide_drive_t *drive = tape->drive;
 	struct gendisk *g = tape->disk;
 
@@ -2407,7 +2409,12 @@ static int ide_tape_probe(ide_drive_t *drive)
 
 	ide_init_disk(g, drive);
 
-	kref_init(&tape->kref);
+	tape->dev.parent = &drive->gendev;
+	tape->dev.release = ide_tape_release;
+	dev_set_name(&tape->dev, dev_name(&drive->gendev));
+
+	if (device_register(&tape->dev))
+		goto out_free_disk;
 
 	tape->drive = drive;
 	tape->driver = &idetape_driver;
@@ -2436,6 +2443,8 @@ static int ide_tape_probe(ide_drive_t *drive)
 
 	return 0;
 
+out_free_disk:
+	put_disk(g);
 out_free_tape:
 	kfree(tape);
 failed:

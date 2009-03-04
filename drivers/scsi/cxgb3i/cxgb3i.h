@@ -20,6 +20,7 @@
 #include <linux/list.h>
 #include <linux/netdevice.h>
 #include <linux/scatterlist.h>
+#include <linux/skbuff.h>
 #include <scsi/libiscsi_tcp.h>
 
 /* from cxgb3 LLD */
@@ -111,6 +112,26 @@ struct cxgb3i_endpoint {
 	struct s3_conn *c3cn;
 	struct cxgb3i_hba *hba;
 	struct cxgb3i_conn *cconn;
+};
+
+/**
+ * struct cxgb3i_task_data - private iscsi task data
+ *
+ * @nr_frags:	# of coalesced page frags (from scsi sgl)
+ * @frags:	coalesced page frags (from scsi sgl)
+ * @skb:	tx pdu skb
+ * @offset:	data offset for the next pdu
+ * @count:	max. possible pdu payload
+ * @sgoffset:	offset to the first sg entry for a given offset
+ */
+#define MAX_PDU_FRAGS	((ULP2_MAX_PDU_PAYLOAD + 512 - 1) / 512)
+struct cxgb3i_task_data {
+	unsigned short nr_frags;
+	skb_frag_t frags[MAX_PDU_FRAGS];
+	struct sk_buff *skb;
+	unsigned int offset;
+	unsigned int count;
+	unsigned int sgoffset;
 };
 
 int cxgb3i_iscsi_init(void);

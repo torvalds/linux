@@ -93,8 +93,11 @@ io_mapping_unmap_atomic(void *vaddr)
 static inline void *
 io_mapping_map_wc(struct io_mapping *mapping, unsigned long offset)
 {
+	resource_size_t phys_addr;
+
 	BUG_ON(offset >= mapping->size);
-	resource_size_t phys_addr = mapping->base + offset;
+	phys_addr = mapping->base + offset;
+
 	return ioremap_wc(phys_addr, PAGE_SIZE);
 }
 

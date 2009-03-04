@@ -194,6 +194,7 @@ static inline void dmar_writeq(void __iomem *addr, u64 val)
 /* FSTS_REG */
 #define DMA_FSTS_PPF ((u32)2)
 #define DMA_FSTS_PFO ((u32)1)
+#define DMA_FSTS_IQE (1 << 4)
 #define dma_fsts_fault_record_index(s) (((s) >> 8) & 0xff)
 
 /* FRCD_REG, 32 bits access */
@@ -328,7 +329,7 @@ extern int qi_flush_iotlb(struct intel_iommu *iommu, u16 did, u64 addr,
 			  unsigned int size_order, u64 type,
 			  int non_present_entry_flush);
 
-extern void qi_submit_sync(struct qi_desc *desc, struct intel_iommu *iommu);
+extern int qi_submit_sync(struct qi_desc *desc, struct intel_iommu *iommu);
 
 extern void *intel_alloc_coherent(struct device *, size_t, dma_addr_t *, gfp_t);
 extern void intel_free_coherent(struct device *, size_t, void *, dma_addr_t);
