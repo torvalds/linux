@@ -260,7 +260,7 @@ xen_intrin_local_irq_restore(unsigned long mask)
 		xen_rsm_i();
 }
 
-static const struct pv_cpu_ops xen_cpu_ops __initdata = {
+static const struct pv_cpu_ops xen_cpu_ops __initconst = {
 	.fc		= xen_fc,
 	.thash		= xen_thash,
 	.get_cpuid	= xen_get_cpuid,
