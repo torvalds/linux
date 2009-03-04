@@ -1005,7 +1005,7 @@ nfsd4_decode_noop(struct nfsd4_compoundargs *argp, void *p)
 static __be32
 nfsd4_decode_notsupp(struct nfsd4_compoundargs *argp, void *p)
 {
-	return nfserr_opnotsupp;
+	return nfserr_notsupp;
 }
 
 typedef __be32(*nfsd4_dec)(struct nfsd4_compoundargs *argp, void *);
