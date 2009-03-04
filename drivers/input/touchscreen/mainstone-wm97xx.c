@@ -245,7 +245,7 @@ static void wm97xx_irq_enable(struct wm97xx *wm, int enable)
 	if (enable)
 		enable_irq(wm->pen_irq);
 	else
-		disable_irq(wm->pen_irq);
+		disable_irq_nosync(wm->pen_irq);
 }
 
 static struct wm97xx_mach_ops mainstone_mach_ops = {
