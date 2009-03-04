@@ -13,6 +13,7 @@ include $(srctree)/arch/ia64/kernel/Makefile.gate
 
 # tell compiled for xen
 CPPFLAGS_gate.lds += -D__IA64_GATE_PARAVIRTUALIZED_XEN
+AFLAGS_gate.o += -D__IA64_ASM_PARAVIRTUALIZED_XEN -D__IA64_GATE_PARAVIRTUALIZED_XEN
 
 # use same file of native.
 $(obj)/gate.o: $(src)/../kernel/gate.S FORCE

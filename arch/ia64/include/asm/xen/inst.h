@@ -386,6 +386,10 @@
 #define RSM_PSR_DT		\
 	XEN_HYPER_RSM_PSR_DT
 
+#define RSM_PSR_BE_I(clob0, clob1)	\
+	RSM_PSR_I(p0, clob0, clob1);	\
+	rum psr.be
+
 #define SSM_PSR_DT_AND_SRLZ_I	\
 	XEN_HYPER_SSM_PSR_DT
 
