@@ -1187,31 +1187,29 @@ static void falcon_poll_flush_events(struct efx_nic *efx)
 	struct efx_channel *channel = &efx->channel[0];
 	struct efx_tx_queue *tx_queue;
 	struct efx_rx_queue *rx_queue;
-	unsigned int read_ptr, i;
+	unsigned int read_ptr = channel->eventq_read_ptr;
+	unsigned int end_ptr = (read_ptr - 1) & FALCON_EVQ_MASK;
 
-	read_ptr = channel->eventq_read_ptr;
-	for (i = 0; i < FALCON_EVQ_SIZE; ++i) {
+	do {
 		efx_qword_t *event = falcon_event(channel, read_ptr);
 		int ev_code, ev_sub_code, ev_queue;
 		bool ev_failed;
+
 		if (!falcon_event_present(event))
 			break;
 
 		ev_code = EFX_QWORD_FIELD(*event, EV_CODE);
-		if (ev_code != DRIVER_EV_DECODE)
-			continue;
-
 		ev_sub_code = EFX_QWORD_FIELD(*event, DRIVER_EV_SUB_CODE);
-		switch (ev_sub_code) {
-		case TX_DESCQ_FLS_DONE_EV_DECODE:
+		if (ev_code == DRIVER_EV_DECODE &&
+		    ev_sub_code == TX_DESCQ_FLS_DONE_EV_DECODE) {
 			ev_queue = EFX_QWORD_FIELD(*event,
 						   DRIVER_EV_TX_DESCQ_ID);
 			if (ev_queue < EFX_TX_QUEUE_COUNT) {
 				tx_queue = efx->tx_queue + ev_queue;
 				tx_queue->flushed = true;
 			}
-			break;
-		case RX_DESCQ_FLS_DONE_EV_DECODE:
+		} else if (ev_code == DRIVER_EV_DECODE &&
+			   ev_sub_code == RX_DESCQ_FLS_DONE_EV_DECODE) {
 			ev_queue = EFX_QWORD_FIELD(*event,
 						   DRIVER_EV_RX_DESCQ_ID);
 			ev_failed = EFX_QWORD_FIELD(*event,
@@ -1225,11 +1223,10 @@ static void falcon_poll_flush_events(struct efx_nic *efx)
 				else
 					rx_queue->flushed = true;
 			}
-			break;
 		}
 
 		read_ptr = (read_ptr + 1) & FALCON_EVQ_MASK;
-	}
+	} while (read_ptr != end_ptr);
 }
 
 /* Handle tx and rx flushes at the same time, since they run in
