@@ -61,6 +61,8 @@ enum {
 
 static unsigned long ring_buffer_flags __read_mostly = RB_BUFFERS_ON;
 
+#define BUF_PAGE_HDR_SIZE offsetof(struct buffer_data_page, data)
+
 /**
  * tracing_on - enable all tracing buffers
  *
@@ -234,9 +236,16 @@ static void rb_init_page(struct buffer_data_page *bpage)
 	local_set(&bpage->commit, 0);
 }
 
+/**
+ * ring_buffer_page_len - the size of data on the page.
+ * @page: The page to read
+ *
+ * Returns the amount of data on the page, including buffer page header.
+ */
 size_t ring_buffer_page_len(void *page)
 {
-	return local_read(&((struct buffer_data_page *)page)->commit);
+	return local_read(&((struct buffer_data_page *)page)->commit)
+		+ BUF_PAGE_HDR_SIZE;
 }
 
 /*
@@ -259,7 +268,7 @@ static inline int test_time_stamp(u64 delta)
 	return 0;
 }
 
-#define BUF_PAGE_SIZE (PAGE_SIZE - offsetof(struct buffer_data_page, data))
+#define BUF_PAGE_SIZE (PAGE_SIZE - BUF_PAGE_HDR_SIZE)
 
 /*
  * head_page == tail_page && head == tail then buffer is empty.
@@ -2454,6 +2463,15 @@ int ring_buffer_read_page(struct ring_buffer *buffer,
 	unsigned int read;
 	int ret = -1;
 
+	/*
+	 * If len is not big enough to hold the page header, then
+	 * we can not copy anything.
+	 */
+	if (len <= BUF_PAGE_HDR_SIZE)
+		return -1;
+
+	len -= BUF_PAGE_HDR_SIZE;
+
 	if (!data_page)
 		return -1;
 
@@ -2473,15 +2491,17 @@ int ring_buffer_read_page(struct ring_buffer *buffer,
 	commit = rb_page_commit(reader);
 
 	/*
-	 * If len > what's left on the page, and the writer is also off of
-	 * the read page, then simply switch the read page with the given
-	 * page. Otherwise we need to copy the data from the reader to the
-	 * writer.
+	 * If this page has been partially read or
+	 * if len is not big enough to read the rest of the page or
+	 * a writer is still on the page, then
+	 * we must copy the data from the page to the buffer.
+	 * Otherwise, we can simply swap the page with the one passed in.
 	 */
-	if ((len < (commit - read)) ||
+	if (read || (len < (commit - read)) ||
 	    cpu_buffer->reader_page == cpu_buffer->commit_page) {
 		struct buffer_data_page *rpage = cpu_buffer->reader_page->page;
-		unsigned int pos = read;
+		unsigned int rpos = read;
+		unsigned int pos = 0;
 		unsigned int size;
 
 		if (full)
@@ -2497,12 +2517,13 @@ int ring_buffer_read_page(struct ring_buffer *buffer,
 
 		/* Need to copy one event at a time */
 		do {
-			memcpy(bpage->data + pos, rpage->data + pos, size);
+			memcpy(bpage->data + pos, rpage->data + rpos, size);
 
 			len -= size;
 
 			rb_advance_reader(cpu_buffer);
-			pos = reader->read;
+			rpos = reader->read;
+			pos += size;
 
 			event = rb_reader_event(cpu_buffer);
 			size = rb_event_length(event);
@@ -2512,6 +2533,8 @@ int ring_buffer_read_page(struct ring_buffer *buffer,
 		local_set(&bpage->commit, pos);
 		bpage->time_stamp = rpage->time_stamp;
 
+		/* we copied everything to the beginning */
+		read = 0;
 	} else {
 		/* swap the pages */
 		rb_init_page(bpage);
