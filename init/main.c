@@ -98,7 +98,7 @@ static inline void mark_rodata_ro(void) { }
 extern void tc_init(void);
 #endif
 
-enum system_states system_state;
+enum system_states system_state __read_mostly;
 EXPORT_SYMBOL(system_state);
 
 /*
@@ -464,6 +464,7 @@ static noinline void __init_refok rest_init(void)
 	 * at least once to get things moving:
 	 */
 	init_idle_bootup_task(current);
+	rcu_scheduler_starting();
 	preempt_enable_no_resched();
 	schedule();
 	preempt_disable();

@@ -386,11 +386,12 @@ int selinux_netlbl_inode_permission(struct inode *inode, int mask)
 	if (!S_ISSOCK(inode->i_mode) ||
 	    ((mask & (MAY_WRITE | MAY_APPEND)) == 0))
 		return 0;
-
 	sock = SOCKET_I(inode);
 	sk = sock->sk;
+	if (sk == NULL)
+		return 0;
 	sksec = sk->sk_security;
-	if (sksec->nlbl_state != NLBL_REQUIRE)
+	if (sksec == NULL || sksec->nlbl_state != NLBL_REQUIRE)
 		return 0;
 
 	local_bh_disable();

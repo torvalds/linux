@@ -1,6 +1,5 @@
 #ifndef __ASM_SECCOMP_H
 
-#include <linux/thread_info.h>
 #include <linux/unistd.h>
 
 #define __NR_seccomp_read __NR_read
