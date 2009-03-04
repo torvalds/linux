@@ -138,7 +138,7 @@ static struct dvb_frontend *lnbx2x_attach(struct dvb_frontend *fe,
 	return fe;
 }
 
-struct dvb_frontend *lnbp24_attach(struct dvb_frontend *fe,
+struct dvb_frontend *lnbh24_attach(struct dvb_frontend *fe,
 				struct i2c_adapter *i2c, u8 override_set,
 				u8 override_clear, u8 i2c_addr)
 {
