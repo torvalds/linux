@@ -1071,7 +1071,8 @@ static int cgroup_get_sb(struct file_system_type *fs_type,
 		mutex_unlock(&cgroup_mutex);
 	}
 
-	return simple_set_mnt(mnt, sb);
+	simple_set_mnt(mnt, sb);
+	return 0;
 
  free_cg_links:
 	free_cg_links(&tmp_cg_links);

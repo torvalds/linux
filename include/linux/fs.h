@@ -1719,7 +1719,7 @@ struct super_block *sget(struct file_system_type *type,
 extern int get_sb_pseudo(struct file_system_type *, char *,
 	const struct super_operations *ops, unsigned long,
 	struct vfsmount *mnt);
-extern int simple_set_mnt(struct vfsmount *mnt, struct super_block *sb);
+extern void simple_set_mnt(struct vfsmount *mnt, struct super_block *sb);
 int __put_super_and_need_restart(struct super_block *sb);
 
 /* Alas, no aliases. Too much hassle with bringing module.h everywhere */
