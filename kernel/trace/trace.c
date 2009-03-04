@@ -3918,8 +3918,10 @@ void ftrace_dump(void)
 
 	printk(KERN_TRACE "Dumping ftrace buffer:\n");
 
+	/* Simulate the iterator */
 	iter.tr = &global_trace;
 	iter.trace = current_trace;
+	iter.cpu_file = TRACE_PIPE_ALL_CPU;
 
 	/*
 	 * We need to stop all tracing on all CPUS to read the
