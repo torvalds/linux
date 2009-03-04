@@ -262,6 +262,7 @@ Conexant 5051
 =============
   laptop	Basic Laptop config (default)
   hp		HP Spartan laptop
+  hp-dv6736	HP dv6736
   lenovo-x200	Lenovo X200 laptop
 
 STAC9200
