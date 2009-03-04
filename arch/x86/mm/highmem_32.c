@@ -158,7 +158,6 @@ EXPORT_SYMBOL(kunmap);
 EXPORT_SYMBOL(kmap_atomic);
 EXPORT_SYMBOL(kunmap_atomic);
 
-#ifdef CONFIG_NUMA
 void __init set_highmem_pages_init(void)
 {
 	struct zone *zone;
@@ -182,11 +181,3 @@ void __init set_highmem_pages_init(void)
 	}
 	totalram_pages += totalhigh_pages;
 }
-#else
-void __init set_highmem_pages_init(void)
-{
-	add_highpages_with_active_regions(0, highstart_pfn, highend_pfn);
-
-	totalram_pages += totalhigh_pages;
-}
-#endif /* CONFIG_NUMA */
