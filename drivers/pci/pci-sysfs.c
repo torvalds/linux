@@ -241,6 +241,17 @@ struct device_attribute pci_dev_attrs[] = {
 };
 
 static ssize_t
+boot_vga_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct pci_dev *pdev = to_pci_dev(dev);
+
+	return sprintf(buf, "%u\n",
+		!!(pdev->resource[PCI_ROM_RESOURCE].flags &
+		   IORESOURCE_ROM_SHADOW));
+}
+struct device_attribute vga_attr = __ATTR_RO(boot_vga);
+
+static ssize_t
 pci_read_config(struct kobject *kobj, struct bin_attribute *bin_attr,
 		char *buf, loff_t off, size_t count)
 {
@@ -899,18 +910,27 @@ int __must_check pci_create_sysfs_dev_files (struct pci_dev *pdev)
 		pdev->rom_attr = attr;
 	}
 
+	if ((pdev->class >> 8) == PCI_CLASS_DISPLAY_VGA) {
+		retval = device_create_file(&pdev->dev, &vga_attr);
+		if (retval)
+			goto err_rom_file;
+	}
+
 	/* add platform-specific attributes */
 	retval = pcibios_add_platform_entries(pdev);
 	if (retval)
-		goto err_rom_file;
+		goto err_vga_file;
 
 	/* add sysfs entries for various capabilities */
 	retval = pci_create_capabilities_sysfs(pdev);
 	if (retval)
-		goto err_rom_file;
+		goto err_vga_file;
 
 	return 0;
 
+err_vga_file:
+	if ((pdev->class >> 8) == PCI_CLASS_DISPLAY_VGA)
+		device_remove_file(&pdev->dev, &vga_attr);
 err_rom_file:
 	if (rom_size) {
 		sysfs_remove_bin_file(&pdev->dev.kobj, pdev->rom_attr);
