@@ -1406,6 +1406,7 @@ intel_tv_detect_type (struct drm_crtc *crtc, struct intel_output *intel_output)
 		tv_dac = I915_READ(TV_DAC);
 		I915_WRITE(TV_DAC, save_tv_dac);
 		I915_WRITE(TV_CTL, save_tv_ctl);
+		intel_wait_for_vblank(dev);
 	}
 	/*
 	 *  A B C
@@ -1456,7 +1457,7 @@ intel_tv_detect(struct drm_connector *connector)
 	mode = reported_modes[0];
 	drm_mode_set_crtcinfo(&mode, CRTC_INTERLACE_HALVE_V);
 
-	if (encoder->crtc) {
+	if (encoder->crtc && encoder->crtc->enabled) {
 		type = intel_tv_detect_type(encoder->crtc, intel_output);
 	} else {
 		crtc = intel_get_load_detect_pipe(intel_output, &mode, &dpms_mode);
@@ -1466,6 +1467,8 @@ intel_tv_detect(struct drm_connector *connector)
 		} else
 			type = -1;
 	}
+
+	tv_priv->type = type;
 
 	if (type < 0)
 		return connector_status_disconnected;
