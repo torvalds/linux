@@ -20,8 +20,11 @@
  *
  */
 
+#include <linux/init.h>
 #include <asm/asmmacro.h>
 #include <asm/asm-offsets.h>
+#include <asm/paravirt_privop.h>
+#include <asm/paravirt_patch.h>
 #include "entry.h"
 
 #define DATA8(sym, init_value)			\
@@ -32,32 +35,34 @@
 	data8 init_value ;			\
 	.popsection
 
-#define BRANCH(targ, reg, breg)		\
-	movl reg=targ ;			\
-	;;				\
-	ld8 reg=[reg] ;			\
-	;;				\
-	mov breg=reg ;			\
+#define BRANCH(targ, reg, breg, type)					\
+	PARAVIRT_PATCH_SITE_BR(PARAVIRT_PATCH_TYPE_BR_ ## type) ;	\
+	;;								\
+	movl reg=targ ;							\
+	;;								\
+	ld8 reg=[reg] ;							\
+	;;								\
+	mov breg=reg ;							\
 	br.cond.sptk.many breg
 
-#define BRANCH_PROC(sym, reg, breg)				\
-	DATA8(paravirt_ ## sym ## _targ, ia64_native_ ## sym) ; \
-	GLOBAL_ENTRY(paravirt_ ## sym) ;			\
-		BRANCH(paravirt_ ## sym ## _targ, reg, breg) ;	\
+#define BRANCH_PROC(sym, reg, breg, type)				\
+	DATA8(paravirt_ ## sym ## _targ, ia64_native_ ## sym) ;		\
+	GLOBAL_ENTRY(paravirt_ ## sym) ;				\
+		BRANCH(paravirt_ ## sym ## _targ, reg, breg, type) ;	\
 	END(paravirt_ ## sym)
 
-#define BRANCH_PROC_UNWINFO(sym, reg, breg)			\
-	DATA8(paravirt_ ## sym ## _targ, ia64_native_ ## sym) ; \
-	GLOBAL_ENTRY(paravirt_ ## sym) ;			\
-		PT_REGS_UNWIND_INFO(0) ;			\
-		BRANCH(paravirt_ ## sym ## _targ, reg, breg) ;	\
+#define BRANCH_PROC_UNWINFO(sym, reg, breg, type)			\
+	DATA8(paravirt_ ## sym ## _targ, ia64_native_ ## sym) ;		\
+	GLOBAL_ENTRY(paravirt_ ## sym) ;				\
+		PT_REGS_UNWIND_INFO(0) ;				\
+		BRANCH(paravirt_ ## sym ## _targ, reg, breg, type) ;	\
 	END(paravirt_ ## sym)
 
 
-BRANCH_PROC(switch_to, r22, b7)
-BRANCH_PROC_UNWINFO(leave_syscall, r22, b7)
-BRANCH_PROC(work_processed_syscall, r2, b7)
-BRANCH_PROC_UNWINFO(leave_kernel, r22, b7)
+BRANCH_PROC(switch_to, r22, b7, SWITCH_TO)
+BRANCH_PROC_UNWINFO(leave_syscall, r22, b7, LEAVE_SYSCALL)
+BRANCH_PROC(work_processed_syscall, r2, b7, WORK_PROCESSED_SYSCALL)
+BRANCH_PROC_UNWINFO(leave_kernel, r22, b7, LEAVE_KERNEL)
 
 
 #ifdef CONFIG_MODULES

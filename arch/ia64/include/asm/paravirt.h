@@ -118,6 +118,14 @@ struct pv_init_ops {
 	int (*arch_setup_nomca)(void);
 
 	void (*post_smp_prepare_boot_cpu)(void);
+
+#ifdef ASM_SUPPORTED
+	unsigned long (*patch_bundle)(void *sbundle, void *ebundle,
+				      unsigned long type);
+	unsigned long (*patch_inst)(unsigned long stag, unsigned long etag,
+				    unsigned long type);
+#endif
+	void (*patch_branch)(unsigned long tag, unsigned long type);
 };
 
 extern struct pv_init_ops pv_init_ops;
