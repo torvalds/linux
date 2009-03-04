@@ -34,7 +34,7 @@
 #include <plat/regs-s3c2412-iis.h>
 
 #include <mach/regs-gpio.h>
-#include <mach/audio.h>
+#include <plat/audio.h>
 #include <mach/dma.h>
 
 #include "s3c24xx-pcm.h"
