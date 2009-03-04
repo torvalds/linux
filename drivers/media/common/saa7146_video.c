@@ -576,11 +576,6 @@ static int vidioc_enum_fmt_vid_cap(struct file *file, void *fh, struct v4l2_fmtd
 	return 0;
 }
 
-static int vidioc_enum_fmt_vid_overlay(struct file *file, void *fh, struct v4l2_fmtdesc *f)
-{
-	return vidioc_enum_fmt_vid_cap(file, fh, f);
-}
-
 static int vidioc_queryctrl(struct file *file, void *fh, struct v4l2_queryctrl *c)
 {
 	const struct v4l2_queryctrl *ctrl;
@@ -725,12 +720,14 @@ static int vidioc_s_ctrl(struct file *file, void *fh, struct v4l2_control *c)
 static int vidioc_g_parm(struct file *file, void *fh,
 		struct v4l2_streamparm *parm)
 {
+	struct saa7146_dev *dev = ((struct saa7146_fh *)fh)->dev;
+	struct saa7146_vv *vv = dev->vv_data;
+
 	if (parm->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
 	parm->parm.capture.readbuffers = 1;
-	/* fixme: only for PAL! */
-	parm->parm.capture.timeperframe.numerator = 1;
-	parm->parm.capture.timeperframe.denominator = 25;
+	v4l2_video_std_frame_period(vv->standard->id,
+				    &parm->parm.capture.timeperframe);
 	return 0;
 }
 
@@ -1164,7 +1161,7 @@ static int vidiocgmbuf(struct file *file, void *__fh, struct video_mbuf *mbuf)
 const struct v4l2_ioctl_ops saa7146_video_ioctl_ops = {
 	.vidioc_querycap             = vidioc_querycap,
 	.vidioc_enum_fmt_vid_cap     = vidioc_enum_fmt_vid_cap,
-	.vidioc_enum_fmt_vid_overlay = vidioc_enum_fmt_vid_overlay,
+	.vidioc_enum_fmt_vid_overlay = vidioc_enum_fmt_vid_cap,
 	.vidioc_g_fmt_vid_cap        = vidioc_g_fmt_vid_cap,
 	.vidioc_try_fmt_vid_cap      = vidioc_try_fmt_vid_cap,
 	.vidioc_s_fmt_vid_cap        = vidioc_s_fmt_vid_cap,
