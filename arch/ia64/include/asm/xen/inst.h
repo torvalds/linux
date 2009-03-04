@@ -113,6 +113,27 @@
 .endm
 #define MOV_FROM_PSR(pred, reg, clob)	__MOV_FROM_PSR pred, reg, clob
 
+/* assuming ar.itc is read with interrupt disabled. */
+#define MOV_FROM_ITC(pred, pred_clob, reg, clob)		\
+(pred)	movl clob = XSI_ITC_OFFSET;				\
+	;;							\
+(pred)	ld8 clob = [clob];					\
+(pred)	mov reg = ar.itc;					\
+	;;							\
+(pred)	add reg = reg, clob;					\
+	;;							\
+(pred)	movl clob = XSI_ITC_LAST;				\
+	;;							\
+(pred)	ld8 clob = [clob];					\
+	;;							\
+(pred)	cmp.geu.unc pred_clob, p0 = clob, reg;			\
+	;;							\
+(pred_clob)	add reg = 1, clob;				\
+	;;							\
+(pred)	movl clob = XSI_ITC_LAST;				\
+	;;							\
+(pred)	st8 [clob] = reg
+
 
 #define MOV_TO_IFA(reg, clob)	\
 	movl clob = XSI_IFA;	\

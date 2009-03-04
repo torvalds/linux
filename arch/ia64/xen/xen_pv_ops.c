@@ -183,6 +183,75 @@ struct pv_fsys_data xen_fsys_data __initdata = {
  * intrinsics hooks.
  */
 
+static void
+xen_set_itm_with_offset(unsigned long val)
+{
+	/* ia64_cpu_local_tick() calls this with interrupt enabled. */
+	/* WARN_ON(!irqs_disabled()); */
+	xen_set_itm(val - XEN_MAPPEDREGS->itc_offset);
+}
+
+static unsigned long
+xen_get_itm_with_offset(void)
+{
+	/* unused at this moment */
+	printk(KERN_DEBUG "%s is called.\n", __func__);
+
+	WARN_ON(!irqs_disabled());
+	return ia64_native_getreg(_IA64_REG_CR_ITM) +
+		XEN_MAPPEDREGS->itc_offset;
+}
+
+/* ia64_set_itc() is only called by
+ * cpu_init() with ia64_set_itc(0) and ia64_sync_itc().
+ * So XEN_MAPPEDRESG->itc_offset cal be considered as almost constant.
+ */
+static void
+xen_set_itc(unsigned long val)
+{
+	unsigned long mitc;
+
+	WARN_ON(!irqs_disabled());
+	mitc = ia64_native_getreg(_IA64_REG_AR_ITC);
+	XEN_MAPPEDREGS->itc_offset = val - mitc;
+	XEN_MAPPEDREGS->itc_last = val;
+}
+
+static unsigned long
+xen_get_itc(void)
+{
+	unsigned long res;
+	unsigned long itc_offset;
+	unsigned long itc_last;
+	unsigned long ret_itc_last;
+
+	itc_offset = XEN_MAPPEDREGS->itc_offset;
+	do {
+		itc_last = XEN_MAPPEDREGS->itc_last;
+		res = ia64_native_getreg(_IA64_REG_AR_ITC);
+		res += itc_offset;
+		if (itc_last >= res)
+			res = itc_last + 1;
+		ret_itc_last = cmpxchg(&XEN_MAPPEDREGS->itc_last,
+				       itc_last, res);
+	} while (unlikely(ret_itc_last != itc_last));
+	return res;
+
+#if 0
+	/* ia64_itc_udelay() calls ia64_get_itc() with interrupt enabled.
+	   Should it be paravirtualized instead? */
+	WARN_ON(!irqs_disabled());
+	itc_offset = XEN_MAPPEDREGS->itc_offset;
+	itc_last = XEN_MAPPEDREGS->itc_last;
+	res = ia64_native_getreg(_IA64_REG_AR_ITC);
+	res += itc_offset;
+	if (itc_last >= res)
+		res = itc_last + 1;
+	XEN_MAPPEDREGS->itc_last = res;
+	return res;
+#endif
+}
+
 static void xen_setreg(int regnum, unsigned long val)
 {
 	switch (regnum) {
@@ -194,11 +263,14 @@ static void xen_setreg(int regnum, unsigned long val)
 		xen_set_eflag(val);
 		break;
 #endif
+	case _IA64_REG_AR_ITC:
+		xen_set_itc(val);
+		break;
 	case _IA64_REG_CR_TPR:
 		xen_set_tpr(val);
 		break;
 	case _IA64_REG_CR_ITM:
-		xen_set_itm(val);
+		xen_set_itm_with_offset(val);
 		break;
 	case _IA64_REG_CR_EOI:
 		xen_eoi(val);
@@ -222,6 +294,12 @@ static unsigned long xen_getreg(int regnum)
 		res = xen_get_eflag();
 		break;
 #endif
+	case _IA64_REG_AR_ITC:
+		res = xen_get_itc();
+		break;
+	case _IA64_REG_CR_ITM:
+		res = xen_get_itm_with_offset();
+		break;
 	case _IA64_REG_CR_IVR:
 		res = xen_get_ivr();
 		break;
