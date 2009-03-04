@@ -11,6 +11,8 @@ to better ensure that we wait for server to write all of the data to
 server disk (not just write it over the network).  Add new mount
 parameter to allow user to disable sending the (slow) SMB flush on
 fsync if desired (fsync still flushes all cached write data to the server).
+Posix file open support added (turned off after one attempt if server
+fails to support it properly, as with Samba server versions prior to 3.3.2)
 
 Version 1.56
 ------------

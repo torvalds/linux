@@ -328,7 +328,8 @@ int cifs_open(struct inode *inode, struct file *file)
 	else
 		oplock = 0;
 
-	if (tcon->unix_ext && (tcon->ses->capabilities & CAP_UNIX) &&
+	if (!tcon->broken_posix_open && tcon->unix_ext &&
+	    (tcon->ses->capabilities & CAP_UNIX) &&
 	    (CIFS_UNIX_POSIX_PATH_OPS_CAP &
 			le64_to_cpu(tcon->fsUnixInfo.Capability))) {
 		int oflags = (int) cifs_posix_convert_flags(file->f_flags);
@@ -344,11 +345,20 @@ int cifs_open(struct inode *inode, struct file *file)
 			cifs_posix_open_inode_helper(inode, file, pCifsInode,
 						     pCifsFile, oplock, netfid);
 			goto out;
+		} else if ((rc == -EINVAL) || (rc == -EOPNOTSUPP)) {
+			if (tcon->ses->serverNOS)
+				cERROR(1, ("server %s of type %s returned"
+					   " unexpected error on SMB posix open"
+					   ", disabling posix open support."
+					   " Check if server update available.",
+					   tcon->ses->serverName,
+					   tcon->ses->serverNOS));
+			tcon->broken_posix_open = true;
 		} else if ((rc != -EIO) && (rc != -EREMOTE) &&
 			 (rc != -EOPNOTSUPP)) /* path not found or net err */
 			goto out;
-		/* fallthrough to retry open the old way on operation
-		   not supported or DFS errors */
+		/* else fallthrough to retry open the old way on network i/o
+		   or DFS errors */
 	}
 
 	desiredAccess = cifs_convert_flags(file->f_flags);
