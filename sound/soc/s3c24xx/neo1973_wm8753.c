@@ -33,7 +33,7 @@
 #include <linux/io.h>
 #include <mach/spi-gpio.h>
 
-#include <asm/plat-s3c24xx/regs-iis.h>
+#include <plat/regs-iis.h>
 
 #include "../codecs/wm8753.h"
 #include "lm4857.h"

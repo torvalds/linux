@@ -22,6 +22,7 @@
 #include <linux/delay.h>
 #include <linux/clk.h>
 #include <linux/kernel.h>
+#include <linux/io.h>
 
 #include <sound/core.h>
 #include <sound/pcm.h>
@@ -30,10 +31,7 @@
 #include <sound/soc.h>
 #include <mach/hardware.h>
 
-#include <linux/io.h>
-#include <asm/dma.h>
-
-#include <asm/plat-s3c24xx/regs-s3c2412-iis.h>
+#include <plat/regs-s3c2412-iis.h>
 
 #include <mach/regs-gpio.h>
 #include <mach/audio.h>
