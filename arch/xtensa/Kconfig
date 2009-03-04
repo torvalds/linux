@@ -51,6 +51,9 @@ source "kernel/Kconfig.freezer"
 config MMU
 	def_bool n
 
+config VARIANT_IRQ_SWITCH
+	def_bool n
+
 menu "Processor type and features"
 
 choice
