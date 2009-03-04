@@ -235,8 +235,9 @@ should_never_return:
  */
 	
 .section ".bss.page_aligned", "w"
+#ifdef CONFIG_MMU
 ENTRY(swapper_pg_dir)
 	.fill	PAGE_SIZE, 1, 0
+#endif
 ENTRY(empty_zero_page)
 	.fill	PAGE_SIZE, 1, 0
-

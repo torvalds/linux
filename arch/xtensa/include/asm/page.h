@@ -33,8 +33,14 @@
 #define PAGE_SIZE		(__XTENSA_UL_CONST(1) << PAGE_SHIFT)
 #define PAGE_MASK		(~(PAGE_SIZE-1))
 
+#ifdef CONFIG_MMU
 #define PAGE_OFFSET		XCHAL_KSEG_CACHED_VADDR
 #define MAX_MEM_PFN		XCHAL_KSEG_SIZE
+#else
+#define PAGE_OFFSET		0
+#define MAX_MEM_PFN		(PLATFORM_DEFAULT_MEM_START + PLATFORM_DEFAULT_MEM_SIZE)
+#endif
+
 #define PGTABLE_START		0x80000000
 
 /*
@@ -165,8 +171,9 @@ extern void copy_user_page(void*, void*, unsigned long, struct page*);
 #define virt_addr_valid(kaddr)	pfn_valid(__pa(kaddr) >> PAGE_SHIFT)
 #define page_to_phys(page)	(page_to_pfn(page) << PAGE_SHIFT)
 
+#ifdef CONFIG_MMU
 #define WANT_PAGE_VIRTUAL
-
+#endif
 
 #endif /* __ASSEMBLY__ */
 

@@ -13,6 +13,10 @@
 #ifndef _XTENSA_MMU_CONTEXT_H
 #define _XTENSA_MMU_CONTEXT_H
 
+#ifndef CONFIG_MMU
+#include <asm/nommu_context.h>
+#else
+
 #include <linux/stringify.h>
 #include <linux/sched.h>
 
@@ -133,4 +137,5 @@ static inline void enter_lazy_tlb(struct mm_struct *mm, struct task_struct *tsk)
 
 }
 
+#endif /* CONFIG_MMU */
 #endif /* _XTENSA_MMU_CONTEXT_H */

@@ -104,6 +104,7 @@ static dispatch_init_table_t __initdata dispatch_init_table[] = {
 #endif
 { EXCCAUSE_UNALIGNED,		KRNL,	   fast_unaligned },
 #endif
+#ifdef CONFIG_MMU
 { EXCCAUSE_ITLB_MISS,		0,	   do_page_fault },
 { EXCCAUSE_ITLB_MISS,		USER|KRNL, fast_second_level_miss},
 { EXCCAUSE_ITLB_MULTIHIT,		0,	   do_multihit },
@@ -118,6 +119,7 @@ static dispatch_init_table_t __initdata dispatch_init_table[] = {
 { EXCCAUSE_STORE_CACHE_ATTRIBUTE,	USER|KRNL, fast_store_prohibited },
 { EXCCAUSE_STORE_CACHE_ATTRIBUTE,	0,	   do_page_fault },
 { EXCCAUSE_LOAD_CACHE_ATTRIBUTE,	0,	   do_page_fault },
+#endif /* CONFIG_MMU */
 /* XCCHAL_EXCCAUSE_FLOATING_POINT unhandled */
 #if XTENSA_HAVE_COPROCESSOR(0)
 COPROCESSOR(0),
