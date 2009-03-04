@@ -22,6 +22,21 @@
 #ifndef __ASM_PARAVIRT_H
 #define __ASM_PARAVIRT_H
 
+#ifndef __ASSEMBLY__
+/******************************************************************************
+ * fsys related addresses
+ */
+struct pv_fsys_data {
+	unsigned long *fsyscall_table;
+	void *fsys_bubble_down;
+};
+
+extern struct pv_fsys_data pv_fsys_data;
+
+unsigned long *paravirt_get_fsyscall_table(void);
+char *paravirt_get_fsys_bubble_down(void);
+#endif
+
 #ifdef CONFIG_PARAVIRT_GUEST
 
 #define PARAVIRT_HYPERVISOR_TYPE_DEFAULT	0

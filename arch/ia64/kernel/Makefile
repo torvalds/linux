@@ -111,9 +111,9 @@ include/asm-ia64/nr-irqs.h: arch/$(SRCARCH)/kernel/nr-irqs.s
 clean-files += $(objtree)/include/asm-ia64/nr-irqs.h
 
 #
-# native ivt.S and entry.S
+# native ivt.S, entry.S and fsys.S
 #
-ASM_PARAVIRT_OBJS = ivt.o entry.o
+ASM_PARAVIRT_OBJS = ivt.o entry.o fsys.o
 define paravirtualized_native
 AFLAGS_$(1) += -D__IA64_ASM_PARAVIRTUALIZED_NATIVE
 AFLAGS_pvchk-sed-$(1) += -D__IA64_ASM_PARAVIRTUALIZED_PVCHECK

@@ -25,6 +25,7 @@
 #include <asm/unistd.h>
 
 #include "entry.h"
+#include "paravirt_inst.h"
 
 /*
  * See Documentation/ia64/fsys.txt for details on fsyscalls.
@@ -602,7 +603,7 @@ ENTRY(fsys_fallback_syscall)
 	mov r26=ar.pfs
 END(fsys_fallback_syscall)
 	/* FALL THROUGH */
-GLOBAL_ENTRY(fsys_bubble_down)
+GLOBAL_ENTRY(paravirt_fsys_bubble_down)
 	.prologue
 	.altrp b6
 	.body
@@ -640,7 +641,7 @@ GLOBAL_ENTRY(fsys_bubble_down)
 	 *
 	 * PSR.BE : already is turned off in __kernel_syscall_via_epc()
 	 * PSR.AC : don't care (kernel normally turns PSR.AC on)
-	 * PSR.I  : already turned off by the time fsys_bubble_down gets
+	 * PSR.I  : already turned off by the time paravirt_fsys_bubble_down gets
 	 *	    invoked
 	 * PSR.DFL: always 0 (kernel never turns it on)
 	 * PSR.DFH: don't care --- kernel never touches f32-f127 on its own
@@ -650,7 +651,7 @@ GLOBAL_ENTRY(fsys_bubble_down)
 	 * PSR.DB : don't care --- kernel never enables kernel-level
 	 *	    breakpoints
 	 * PSR.TB : must be 0 already; if it wasn't zero on entry to
-	 *          __kernel_syscall_via_epc, the branch to fsys_bubble_down
+	 *          __kernel_syscall_via_epc, the branch to paravirt_fsys_bubble_down
 	 *          will trigger a taken branch; the taken-trap-handler then
 	 *          converts the syscall into a break-based system-call.
 	 */
@@ -741,14 +742,14 @@ GLOBAL_ENTRY(fsys_bubble_down)
 	nop.m 0
 (p8)	br.call.sptk.many b6=b6			// B    (ignore return address)
 	br.cond.spnt ia64_trace_syscall		// B
-END(fsys_bubble_down)
+END(paravirt_fsys_bubble_down)
 
 	.rodata
 	.align 8
-	.globl fsyscall_table
+	.globl paravirt_fsyscall_table
 
-	data8 fsys_bubble_down
-fsyscall_table:
+	data8 paravirt_fsys_bubble_down
+paravirt_fsyscall_table:
 	data8 fsys_ni_syscall
 	data8 0				// exit			// 1025
 	data8 0				// read
@@ -1033,4 +1034,4 @@ fsyscall_table:
 
 	// fill in zeros for the remaining entries
 	.zero:
-	.space fsyscall_table + 8*NR_syscalls - .zero, 0
+	.space paravirt_fsyscall_table + 8*NR_syscalls - .zero, 0

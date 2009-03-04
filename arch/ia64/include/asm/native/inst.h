@@ -30,6 +30,9 @@
 #define __paravirt_work_processed_syscall_target \
 						ia64_work_processed_syscall
 
+#define paravirt_fsyscall_table			ia64_native_fsyscall_table
+#define paravirt_fsys_bubble_down		ia64_native_fsys_bubble_down
+
 #ifdef CONFIG_PARAVIRT_GUEST_ASM_CLOBBER_CHECK
 # define PARAVIRT_POISON	0xdeadbeefbaadf00d
 # define CLOBBER(clob)				\
