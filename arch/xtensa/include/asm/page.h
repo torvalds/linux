@@ -14,6 +14,7 @@
 #include <asm/processor.h>
 #include <asm/types.h>
 #include <asm/cache.h>
+#include <platform/hardware.h>
 
 /*
  * Fixed TLB translations in the processor.
@@ -150,9 +151,11 @@ extern void copy_user_page(void*, void*, unsigned long, struct page*);
  * addresses.
  */
 
+#define ARCH_PFN_OFFSET		(PLATFORM_DEFAULT_MEM_START >> PAGE_SHIFT)
+
 #define __pa(x)			((unsigned long) (x) - PAGE_OFFSET)
 #define __va(x)			((void *)((unsigned long) (x) + PAGE_OFFSET))
-#define pfn_valid(pfn)		((unsigned long)pfn < max_mapnr)
+#define pfn_valid(pfn)		((pfn) >= ARCH_PFN_OFFSET && ((pfn) - ARCH_PFN_OFFSET) < max_mapnr)
 #ifdef CONFIG_DISCONTIGMEM
 # error CONFIG_DISCONTIGMEM not supported
 #endif

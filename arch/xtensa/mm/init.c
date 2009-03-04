@@ -167,7 +167,7 @@ void __init paging_init(void)
 
 	/* All pages are DMA-able, so we put them all in the DMA zone. */
 
-	zones_size[ZONE_DMA] = max_low_pfn;
+	zones_size[ZONE_DMA] = max_low_pfn - ARCH_PFN_OFFSET;
 	for (i = 1; i < MAX_NR_ZONES; i++)
 		zones_size[i] = 0;
 
@@ -179,7 +179,7 @@ void __init paging_init(void)
 
 	memset(swapper_pg_dir, 0, PAGE_SIZE);
 
-	free_area_init(zones_size);
+	free_area_init_node(0, zones_size, ARCH_PFN_OFFSET, NULL);
 }
 
 /*
@@ -220,8 +220,8 @@ void __init mem_init(void)
 	unsigned long codesize, reservedpages, datasize, initsize;
 	unsigned long highmemsize, tmp, ram;
 
-	max_mapnr = num_physpages = max_low_pfn;
-	high_memory = (void *) __va(max_mapnr << PAGE_SHIFT);
+	max_mapnr = num_physpages = max_low_pfn - ARCH_PFN_OFFSET;
+	high_memory = (void *) __va(max_low_pfn << PAGE_SHIFT);
 	highmemsize = 0;
 
 #ifdef CONFIG_HIGHMEM
@@ -231,7 +231,7 @@ void __init mem_init(void)
 	totalram_pages += free_all_bootmem();
 
 	reservedpages = ram = 0;
-	for (tmp = 0; tmp < max_low_pfn; tmp++) {
+	for (tmp = 0; tmp < max_mapnr; tmp++) {
 		ram++;
 		if (PageReserved(mem_map+tmp))
 			reservedpages++;
