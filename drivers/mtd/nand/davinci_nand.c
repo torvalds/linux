@@ -33,7 +33,6 @@
 #include <linux/mtd/nand.h>
 #include <linux/mtd/partitions.h>
 
-#include <mach/cpu.h>
 #include <mach/nand.h>
 
 #include <asm/mach-types.h>
@@ -392,8 +391,6 @@ static int __init nand_davinci_probe(struct platform_device *pdev)
 	/* use board-specific ECC config; else, the best available */
 	if (pdata)
 		ecc_mode = pdata->ecc_mode;
-	else if (cpu_is_davinci_dm355())
-		ecc_mode = NAND_ECC_HW_SYNDROME;
 	else
 		ecc_mode = NAND_ECC_HW;
 
