@@ -1437,7 +1437,7 @@ restart:
 					}
 					if (urb->transfer_buffer_length > 1)
 						buf [1] = 0;
-					urb->actual_length = min (2,
+					urb->actual_length = min_t(u32, 2,
 						urb->transfer_buffer_length);
 					value = 0;
 					status = 0;

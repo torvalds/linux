@@ -1394,7 +1394,7 @@ static void packet_write(struct r8a66597 *r8a66597, u16 pipenum)
 			   (int)urb->iso_frame_desc[td->iso_cnt].length);
 	} else {
 		buf = (u16 *)(urb->transfer_buffer + urb->actual_length);
-		size = min((int)bufsize,
+		size = min_t(u32, bufsize,
 			   urb->transfer_buffer_length - urb->actual_length);
 	}
 
