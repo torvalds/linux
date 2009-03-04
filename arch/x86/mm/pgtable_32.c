@@ -20,6 +20,8 @@
 #include <asm/tlb.h>
 #include <asm/tlbflush.h>
 
+unsigned int __VMALLOC_RESERVE = 128 << 20;
+
 /*
  * Associate a virtual page frame with a given physical page frame 
  * and protection flags for that frame.
@@ -96,22 +98,6 @@ void set_pmd_pfn(unsigned long vaddr, unsigned long pfn, pgprot_t flags)
 
 unsigned long __FIXADDR_TOP = 0xfffff000;
 EXPORT_SYMBOL(__FIXADDR_TOP);
-
-/**
- * reserve_top_address - reserves a hole in the top of kernel address space
- * @reserve - size of hole to reserve
- *
- * Can be used to relocate the fixmap area and poke a hole in the top
- * of kernel address space to make room for a hypervisor.
- */
-void __init reserve_top_address(unsigned long reserve)
-{
-	BUG_ON(fixmaps_set > 0);
-	printk(KERN_INFO "Reserving virtual address space above 0x%08x\n",
-	       (int)-reserve);
-	__FIXADDR_TOP = -reserve - PAGE_SIZE;
-	__VMALLOC_RESERVE += reserve;
-}
 
 /*
  * vmalloc=size forces the vmalloc area to be exactly 'size'

@@ -423,32 +423,6 @@ void __init initmem_init(unsigned long start_pfn,
 	setup_bootmem_allocator();
 }
 
-void __init set_highmem_pages_init(void)
-{
-#ifdef CONFIG_HIGHMEM
-	struct zone *zone;
-	int nid;
-
-	for_each_zone(zone) {
-		unsigned long zone_start_pfn, zone_end_pfn;
-
-		if (!is_highmem(zone))
-			continue;
-
-		zone_start_pfn = zone->zone_start_pfn;
-		zone_end_pfn = zone_start_pfn + zone->spanned_pages;
-
-		nid = zone_to_nid(zone);
-		printk(KERN_INFO "Initializing %s for node %d (%08lx:%08lx)\n",
-				zone->name, nid, zone_start_pfn, zone_end_pfn);
-
-		add_highpages_with_active_regions(nid, zone_start_pfn,
-				 zone_end_pfn);
-	}
-	totalram_pages += totalhigh_pages;
-#endif
-}
-
 #ifdef CONFIG_MEMORY_HOTPLUG
 static int paddr_to_nid(u64 addr)
 {

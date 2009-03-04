@@ -50,8 +50,6 @@
 #include <asm/setup.h>
 #include <asm/cacheflush.h>
 
-unsigned int __VMALLOC_RESERVE = 128 << 20;
-
 unsigned long max_low_pfn_mapped;
 unsigned long max_pfn_mapped;
 
@@ -469,20 +467,8 @@ void __init add_highpages_with_active_regions(int nid, unsigned long start_pfn,
 	work_with_active_regions(nid, add_highpages_work_fn, &data);
 }
 
-#ifndef CONFIG_NUMA
-static void __init set_highmem_pages_init(void)
-{
-	add_highpages_with_active_regions(0, highstart_pfn, highend_pfn);
-
-	totalram_pages += totalhigh_pages;
-}
-#endif /* !CONFIG_NUMA */
-
 #else
 static inline void permanent_kmaps_init(pgd_t *pgd_base)
-{
-}
-static inline void set_highmem_pages_init(void)
 {
 }
 #endif /* CONFIG_HIGHMEM */
@@ -847,10 +833,10 @@ static void __init find_early_table_space(unsigned long end, int use_pse)
 	unsigned long puds, pmds, ptes, tables, start;
 
 	puds = (end + PUD_SIZE - 1) >> PUD_SHIFT;
-	tables = PAGE_ALIGN(puds * sizeof(pud_t));
+	tables = roundup(puds * sizeof(pud_t), PAGE_SIZE);
 
 	pmds = (end + PMD_SIZE - 1) >> PMD_SHIFT;
-	tables += PAGE_ALIGN(pmds * sizeof(pmd_t));
+	tables += roundup(pmds * sizeof(pmd_t), PAGE_SIZE);
 
 	if (use_pse) {
 		unsigned long extra;
@@ -861,10 +847,10 @@ static void __init find_early_table_space(unsigned long end, int use_pse)
 	} else
 		ptes = (end + PAGE_SIZE - 1) >> PAGE_SHIFT;
 
-	tables += PAGE_ALIGN(ptes * sizeof(pte_t));
+	tables += roundup(ptes * sizeof(pte_t), PAGE_SIZE);
 
 	/* for fixmap */
-	tables += PAGE_ALIGN(__end_of_fixed_addresses * sizeof(pte_t));
+	tables += roundup(__end_of_fixed_addresses * sizeof(pte_t), PAGE_SIZE);
 
 	/*
 	 * RED-PEN putting page tables only on node 0 could
@@ -1213,45 +1199,6 @@ void mark_rodata_ro(void)
 #endif
 }
 #endif
-
-void free_init_pages(char *what, unsigned long begin, unsigned long end)
-{
-#ifdef CONFIG_DEBUG_PAGEALLOC
-	/*
-	 * If debugging page accesses then do not free this memory but
-	 * mark them not present - any buggy init-section access will
-	 * create a kernel page fault:
-	 */
-	printk(KERN_INFO "debug: unmapping init memory %08lx..%08lx\n",
-		begin, PAGE_ALIGN(end));
-	set_memory_np(begin, (end - begin) >> PAGE_SHIFT);
-#else
-	unsigned long addr;
-
-	/*
-	 * We just marked the kernel text read only above, now that
-	 * we are going to free part of that, we need to make that
-	 * writeable first.
-	 */
-	set_memory_rw(begin, (end - begin) >> PAGE_SHIFT);
-
-	for (addr = begin; addr < end; addr += PAGE_SIZE) {
-		ClearPageReserved(virt_to_page(addr));
-		init_page_count(virt_to_page(addr));
-		memset((void *)addr, POISON_FREE_INITMEM, PAGE_SIZE);
-		free_page(addr);
-		totalram_pages++;
-	}
-	printk(KERN_INFO "Freeing %s: %luk freed\n", what, (end - begin) >> 10);
-#endif
-}
-
-void free_initmem(void)
-{
-	free_init_pages("unused kernel memory",
-			(unsigned long)(&__init_begin),
-			(unsigned long)(&__init_end));
-}
 
 #ifdef CONFIG_BLK_DEV_INITRD
 void free_initrd_mem(unsigned long start, unsigned long end)

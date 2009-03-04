@@ -187,6 +187,71 @@ setup_sigcontext(struct sigcontext __user *sc, void __user *fpstate,
 /*
  * Set up a signal frame.
  */
+
+/*
+ * Determine which stack to use..
+ */
+static unsigned long align_sigframe(unsigned long sp)
+{
+#ifdef CONFIG_X86_32
+	/*
+	 * Align the stack pointer according to the i386 ABI,
+	 * i.e. so that on function entry ((sp + 4) & 15) == 0.
+	 */
+	sp = ((sp + 4) & -16ul) - 4;
+#else /* !CONFIG_X86_32 */
+	sp = round_down(sp, 16) - 8;
+#endif
+	return sp;
+}
+
+static inline void __user *
+get_sigframe(struct k_sigaction *ka, struct pt_regs *regs, size_t frame_size,
+	     void __user **fpstate)
+{
+	/* Default to using normal stack */
+	unsigned long sp = regs->sp;
+
+#ifdef CONFIG_X86_64
+	/* redzone */
+	sp -= 128;
+#endif /* CONFIG_X86_64 */
+
+	/*
+	 * If we are on the alternate signal stack and would overflow it, don't.
+	 * Return an always-bogus address instead so we will die with SIGSEGV.
+	 */
+	if (on_sig_stack(sp) && !likely(on_sig_stack(sp - frame_size)))
+		return (void __user *) -1L;
+
+	/* This is the X/Open sanctioned signal stack switching.  */
+	if (ka->sa.sa_flags & SA_ONSTACK) {
+		if (sas_ss_flags(sp) == 0)
+			sp = current->sas_ss_sp + current->sas_ss_size;
+	} else {
+#ifdef CONFIG_X86_32
+		/* This is the legacy signal stack switching. */
+		if ((regs->ss & 0xffff) != __USER_DS &&
+			!(ka->sa.sa_flags & SA_RESTORER) &&
+				ka->sa.sa_restorer)
+			sp = (unsigned long) ka->sa.sa_restorer;
+#endif /* CONFIG_X86_32 */
+	}
+
+	if (used_math()) {
+		sp -= sig_xstate_size;
+#ifdef CONFIG_X86_64
+		sp = round_down(sp, 64);
+#endif /* CONFIG_X86_64 */
+		*fpstate = (void __user *)sp;
+
+		if (save_i387_xstate(*fpstate) < 0)
+			return (void __user *)-1L;
+	}
+
+	return (void __user *)align_sigframe(sp - frame_size);
+}
+
 #ifdef CONFIG_X86_32
 static const struct {
 	u16 poplmovl;
@@ -209,54 +274,6 @@ static const struct {
 	0x80cd,		/* int $0x80 */
 	0
 };
-
-/*
- * Determine which stack to use..
- */
-static inline void __user *
-get_sigframe(struct k_sigaction *ka, struct pt_regs *regs, size_t frame_size,
-	     void **fpstate)
-{
-	unsigned long sp;
-
-	/* Default to using normal stack */
-	sp = regs->sp;
-
-	/*
-	 * If we are on the alternate signal stack and would overflow it, don't.
-	 * Return an always-bogus address instead so we will die with SIGSEGV.
-	 */
-	if (on_sig_stack(sp) && !likely(on_sig_stack(sp - frame_size)))
-		return (void __user *) -1L;
-
-	/* This is the X/Open sanctioned signal stack switching.  */
-	if (ka->sa.sa_flags & SA_ONSTACK) {
-		if (sas_ss_flags(sp) == 0)
-			sp = current->sas_ss_sp + current->sas_ss_size;
-	} else {
-		/* This is the legacy signal stack switching. */
-		if ((regs->ss & 0xffff) != __USER_DS &&
-			!(ka->sa.sa_flags & SA_RESTORER) &&
-				ka->sa.sa_restorer)
-			sp = (unsigned long) ka->sa.sa_restorer;
-	}
-
-	if (used_math()) {
-		sp = sp - sig_xstate_size;
-		*fpstate = (struct _fpstate *) sp;
-		if (save_i387_xstate(*fpstate) < 0)
-			return (void __user *)-1L;
-	}
-
-	sp -= frame_size;
-	/*
-	 * Align the stack pointer according to the i386 ABI,
-	 * i.e. so that on function entry ((sp + 4) & 15) == 0.
-	 */
-	sp = ((sp + 4) & -16ul) - 4;
-
-	return (void __user *) sp;
-}
 
 static int
 __setup_frame(int sig, struct k_sigaction *ka, sigset_t *set,
@@ -388,24 +405,6 @@ static int __setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	return 0;
 }
 #else /* !CONFIG_X86_32 */
-/*
- * Determine which stack to use..
- */
-static void __user *
-get_stack(struct k_sigaction *ka, unsigned long sp, unsigned long size)
-{
-	/* Default to using normal stack - redzone*/
-	sp -= 128;
-
-	/* This is the X/Open sanctioned signal stack switching.  */
-	if (ka->sa.sa_flags & SA_ONSTACK) {
-		if (sas_ss_flags(sp) == 0)
-			sp = current->sas_ss_sp + current->sas_ss_size;
-	}
-
-	return (void __user *)round_down(sp - size, 64);
-}
-
 static int __setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 			    sigset_t *set, struct pt_regs *regs)
 {
@@ -414,15 +413,7 @@ static int __setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	int err = 0;
 	struct task_struct *me = current;
 
-	if (used_math()) {
-		fp = get_stack(ka, regs->sp, sig_xstate_size);
-		frame = (void __user *)round_down(
-			(unsigned long)fp - sizeof(struct rt_sigframe), 16) - 8;
-
-		if (save_i387_xstate(fp) < 0)
-			return -EFAULT;
-	} else
-		frame = get_stack(ka, regs->sp, sizeof(struct rt_sigframe)) - 8;
+	frame = get_sigframe(ka, regs, sizeof(struct rt_sigframe), &fp);
 
 	if (!access_ok(VERIFY_WRITE, frame, sizeof(*frame)))
 		return -EFAULT;

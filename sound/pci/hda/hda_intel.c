@@ -2095,6 +2095,8 @@ static struct snd_pci_quirk probe_mask_list[] __devinitdata = {
 	SND_PCI_QUIRK(0x1028, 0x20ac, "Dell Studio Desktop", 0x01),
 	/* including bogus ALC268 in slot#2 that conflicts with ALC888 */
 	SND_PCI_QUIRK(0x17c0, 0x4085, "Medion MD96630", 0x01),
+	/* conflict of ALC268 in slot#3 (digital I/O); a temporary fix */
+	SND_PCI_QUIRK(0x1179, 0xff00, "Toshiba laptop", 0x03),
 	{}
 };
 
