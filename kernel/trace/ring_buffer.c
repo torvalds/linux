@@ -61,6 +61,8 @@ enum {
 
 static unsigned long ring_buffer_flags __read_mostly = RB_BUFFERS_ON;
 
+#define BUF_PAGE_HDR_SIZE offsetof(struct buffer_data_page, data)
+
 /**
  * tracing_on - enable all tracing buffers
  *
@@ -132,7 +134,7 @@ void ring_buffer_normalize_time_stamp(int cpu, u64 *ts)
 }
 EXPORT_SYMBOL_GPL(ring_buffer_normalize_time_stamp);
 
-#define RB_EVNT_HDR_SIZE (sizeof(struct ring_buffer_event))
+#define RB_EVNT_HDR_SIZE (offsetof(struct ring_buffer_event, array))
 #define RB_ALIGNMENT		4U
 #define RB_MAX_SMALL_DATA	28
 
@@ -234,6 +236,18 @@ static void rb_init_page(struct buffer_data_page *bpage)
 	local_set(&bpage->commit, 0);
 }
 
+/**
+ * ring_buffer_page_len - the size of data on the page.
+ * @page: The page to read
+ *
+ * Returns the amount of data on the page, including buffer page header.
+ */
+size_t ring_buffer_page_len(void *page)
+{
+	return local_read(&((struct buffer_data_page *)page)->commit)
+		+ BUF_PAGE_HDR_SIZE;
+}
+
 /*
  * Also stolen from mm/slob.c. Thanks to Mathieu Desnoyers for pointing
  * this issue out.
@@ -254,7 +268,7 @@ static inline int test_time_stamp(u64 delta)
 	return 0;
 }
 
-#define BUF_PAGE_SIZE (PAGE_SIZE - offsetof(struct buffer_data_page, data))
+#define BUF_PAGE_SIZE (PAGE_SIZE - BUF_PAGE_HDR_SIZE)
 
 /*
  * head_page == tail_page && head == tail then buffer is empty.
@@ -2378,14 +2392,16 @@ static void rb_remove_entries(struct ring_buffer_per_cpu *cpu_buffer,
  */
 void *ring_buffer_alloc_read_page(struct ring_buffer *buffer)
 {
-	unsigned long addr;
 	struct buffer_data_page *bpage;
+	unsigned long addr;
 
 	addr = __get_free_page(GFP_KERNEL);
 	if (!addr)
 		return NULL;
 
 	bpage = (void *)addr;
+
+	rb_init_page(bpage);
 
 	return bpage;
 }
@@ -2406,6 +2422,7 @@ void ring_buffer_free_read_page(struct ring_buffer *buffer, void *data)
  * ring_buffer_read_page - extract a page from the ring buffer
  * @buffer: buffer to extract from
  * @data_page: the page to use allocated from ring_buffer_alloc_read_page
+ * @len: amount to extract
  * @cpu: the cpu of the buffer to extract
  * @full: should the extraction only happen when the page is full.
  *
@@ -2418,7 +2435,7 @@ void ring_buffer_free_read_page(struct ring_buffer *buffer, void *data)
  *	rpage = ring_buffer_alloc_read_page(buffer);
  *	if (!rpage)
  *		return error;
- *	ret = ring_buffer_read_page(buffer, &rpage, cpu, 0);
+ *	ret = ring_buffer_read_page(buffer, &rpage, len, cpu, 0);
  *	if (ret >= 0)
  *		process_page(rpage, ret);
  *
@@ -2435,70 +2452,103 @@ void ring_buffer_free_read_page(struct ring_buffer *buffer, void *data)
  *  <0 if no data has been transferred.
  */
 int ring_buffer_read_page(struct ring_buffer *buffer,
-			    void **data_page, int cpu, int full)
+			  void **data_page, size_t len, int cpu, int full)
 {
 	struct ring_buffer_per_cpu *cpu_buffer = buffer->buffers[cpu];
 	struct ring_buffer_event *event;
 	struct buffer_data_page *bpage;
+	struct buffer_page *reader;
 	unsigned long flags;
+	unsigned int commit;
 	unsigned int read;
 	int ret = -1;
 
+	/*
+	 * If len is not big enough to hold the page header, then
+	 * we can not copy anything.
+	 */
+	if (len <= BUF_PAGE_HDR_SIZE)
+		return -1;
+
+	len -= BUF_PAGE_HDR_SIZE;
+
 	if (!data_page)
-		return 0;
+		return -1;
 
 	bpage = *data_page;
 	if (!bpage)
-		return 0;
+		return -1;
 
 	spin_lock_irqsave(&cpu_buffer->reader_lock, flags);
 
-	/*
-	 * rb_buffer_peek will get the next ring buffer if
-	 * the current reader page is empty.
-	 */
-	event = rb_buffer_peek(buffer, cpu, NULL);
-	if (!event)
+	reader = rb_get_reader_page(cpu_buffer);
+	if (!reader)
 		goto out;
 
-	/* check for data */
-	if (!local_read(&cpu_buffer->reader_page->page->commit))
-		goto out;
+	event = rb_reader_event(cpu_buffer);
 
-	read = cpu_buffer->reader_page->read;
+	read = reader->read;
+	commit = rb_page_commit(reader);
+
 	/*
-	 * If the writer is already off of the read page, then simply
-	 * switch the read page with the given page. Otherwise
-	 * we need to copy the data from the reader to the writer.
+	 * If this page has been partially read or
+	 * if len is not big enough to read the rest of the page or
+	 * a writer is still on the page, then
+	 * we must copy the data from the page to the buffer.
+	 * Otherwise, we can simply swap the page with the one passed in.
 	 */
-	if (cpu_buffer->reader_page == cpu_buffer->commit_page) {
-		unsigned int commit = rb_page_commit(cpu_buffer->reader_page);
+	if (read || (len < (commit - read)) ||
+	    cpu_buffer->reader_page == cpu_buffer->commit_page) {
 		struct buffer_data_page *rpage = cpu_buffer->reader_page->page;
+		unsigned int rpos = read;
+		unsigned int pos = 0;
+		unsigned int size;
 
 		if (full)
 			goto out;
-		/* The writer is still on the reader page, we must copy */
-		memcpy(bpage->data + read, rpage->data + read, commit - read);
 
-		/* consume what was read */
-		cpu_buffer->reader_page->read = commit;
+		if (len > (commit - read))
+			len = (commit - read);
+
+		size = rb_event_length(event);
+
+		if (len < size)
+			goto out;
+
+		/* Need to copy one event at a time */
+		do {
+			memcpy(bpage->data + pos, rpage->data + rpos, size);
+
+			len -= size;
+
+			rb_advance_reader(cpu_buffer);
+			rpos = reader->read;
+			pos += size;
+
+			event = rb_reader_event(cpu_buffer);
+			size = rb_event_length(event);
+		} while (len > size);
 
 		/* update bpage */
-		local_set(&bpage->commit, commit);
-		if (!read)
-			bpage->time_stamp = rpage->time_stamp;
+		local_set(&bpage->commit, pos);
+		bpage->time_stamp = rpage->time_stamp;
+
+		/* we copied everything to the beginning */
+		read = 0;
 	} else {
 		/* swap the pages */
 		rb_init_page(bpage);
-		bpage = cpu_buffer->reader_page->page;
-		cpu_buffer->reader_page->page = *data_page;
-		cpu_buffer->reader_page->read = 0;
+		bpage = reader->page;
+		reader->page = *data_page;
+		local_set(&reader->write, 0);
+		reader->read = 0;
 		*data_page = bpage;
+
+		/* update the entry counter */
+		rb_remove_entries(cpu_buffer, bpage, read);
 	}
 	ret = read;
 
-	/* update the entry counter */
-	rb_remove_entries(cpu_buffer, bpage, read);
  out:
 	spin_unlock_irqrestore(&cpu_buffer->reader_lock, flags);
 

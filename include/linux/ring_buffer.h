@@ -121,6 +121,9 @@ unsigned long ring_buffer_overrun_cpu(struct ring_buffer *buffer, int cpu);
 u64 ring_buffer_time_stamp(int cpu);
 void ring_buffer_normalize_time_stamp(int cpu, u64 *ts);
 
+size_t ring_buffer_page_len(void *page);
+
+
 /*
  * The below functions are fine to use outside the tracing facility.
  */
@@ -138,8 +141,8 @@ static inline int tracing_is_on(void) { return 0; }
 
 void *ring_buffer_alloc_read_page(struct ring_buffer *buffer);
 void ring_buffer_free_read_page(struct ring_buffer *buffer, void *data);
-int ring_buffer_read_page(struct ring_buffer *buffer,
-			  void **data_page, int cpu, int full);
+int ring_buffer_read_page(struct ring_buffer *buffer, void **data_page,
+			  size_t len, int cpu, int full);
 
 enum ring_buffer_flags {
 	RB_FL_OVERWRITE		= 1 << 0,
