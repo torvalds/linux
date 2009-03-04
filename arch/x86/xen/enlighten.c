@@ -284,21 +284,17 @@ static void xen_set_ldt(const void *addr, unsigned entries)
 
 static void xen_load_gdt(const struct desc_ptr *dtr)
 {
-	unsigned long *frames;
 	unsigned long va = dtr->address;
 	unsigned int size = dtr->size + 1;
 	unsigned pages = (size + PAGE_SIZE - 1) / PAGE_SIZE;
+	unsigned long frames[pages];
 	int f;
-	struct multicall_space mcs;
 
 	/* A GDT can be up to 64k in size, which corresponds to 8192
 	   8-byte entries, or 16 4k pages.. */
 
 	BUG_ON(size > 65536);
 	BUG_ON(va & ~PAGE_MASK);
-
-	mcs = xen_mc_entry(sizeof(*frames) * pages);
-	frames = mcs.args;
 
 	for (f = 0; va < dtr->address + size; va += PAGE_SIZE, f++) {
 		int level;
@@ -314,13 +310,15 @@ static void xen_load_gdt(const struct desc_ptr *dtr)
 
 		frames[f] = mfn;
 
+		printk("xen_load_gdt: %d va=%p mfn=%lx pfn=%lx va'=%p\n",
+		       f, (void *)va, mfn, pfn, virt);
+
 		make_lowmem_page_readonly((void *)va);
 		make_lowmem_page_readonly(virt);
 	}
 
-	MULTI_set_gdt(mcs.mc, frames, size / sizeof(struct desc_struct));
-
-	xen_mc_issue(PARAVIRT_LAZY_CPU);
+	if (HYPERVISOR_set_gdt(frames, size / sizeof(struct desc_struct)))
+		BUG();
 }
 
 static void load_TLS_descriptor(struct thread_struct *t,
