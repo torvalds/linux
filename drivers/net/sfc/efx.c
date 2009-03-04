@@ -557,6 +557,8 @@ static void efx_link_status_changed(struct efx_nic *efx)
 
 }
 
+static void efx_fini_port(struct efx_nic *efx);
+
 /* This call reinitialises the MAC to pick up new PHY settings. The
  * caller must hold the mac_lock */
 void __efx_reconfigure_port(struct efx_nic *efx)
@@ -592,8 +594,8 @@ void __efx_reconfigure_port(struct efx_nic *efx)
 
 fail:
 	EFX_ERR(efx, "failed to reconfigure MAC\n");
-	efx->phy_op->fini(efx);
-	efx->port_initialized = false;
+	efx->port_enabled = false;
+	efx_fini_port(efx);
 }
 
 /* Reinitialise the MAC to pick up new PHY settings, even if the port is
@@ -1667,7 +1669,8 @@ int efx_reset_up(struct efx_nic *efx, enum reset_type method,
 			rc = efx->phy_op->init(efx);
 			if (rc)
 				ok = false;
-		} else
+		}
+		if (!ok)
 			efx->port_initialized = false;
 	}
 
