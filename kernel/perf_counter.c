@@ -1683,16 +1683,16 @@ perf_counter_alloc(struct perf_counter_hw_event *hw_event,
 }
 
 /**
- * sys_perf_task_open - open a performance counter, associate it to a task/cpu
+ * sys_perf_counter_open - open a performance counter, associate it to a task/cpu
  *
  * @hw_event_uptr:	event type attributes for monitoring/sampling
  * @pid:		target pid
  * @cpu:		target cpu
  * @group_fd:		group leader counter fd
  */
-SYSCALL_DEFINE4(perf_counter_open,
+SYSCALL_DEFINE5(perf_counter_open,
 		const struct perf_counter_hw_event __user *, hw_event_uptr,
-		pid_t, pid, int, cpu, int, group_fd)
+		pid_t, pid, int, cpu, int, group_fd, unsigned long, flags)
 {
 	struct perf_counter *counter, *group_leader;
 	struct perf_counter_hw_event hw_event;
@@ -1702,6 +1702,10 @@ SYSCALL_DEFINE4(perf_counter_open,
 	int fput_needed = 0;
 	int fput_needed2 = 0;
 	int ret;
+
+	/* for future expandability... */
+	if (flags)
+		return -EINVAL;
 
 	if (copy_from_user(&hw_event, hw_event_uptr, sizeof(hw_event)) != 0)
 		return -EFAULT;
