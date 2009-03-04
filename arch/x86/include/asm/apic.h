@@ -75,7 +75,14 @@ static inline void default_inquire_remote_apic(int apicid)
 #define setup_secondary_clock setup_secondary_APIC_clock
 #endif
 
+#ifdef CONFIG_X86_VSMP
 extern int is_vsmp_box(void);
+#else
+static inline int is_vsmp_box(void)
+{
+	return 0;
+}
+#endif
 extern void xapic_wait_icr_idle(void);
 extern u32 safe_xapic_wait_icr_idle(void);
 extern void xapic_icr_write(u32, u32);
@@ -306,7 +313,7 @@ struct apic {
 	void (*send_IPI_self)(int vector);
 
 	/* wakeup_secondary_cpu */
-	int (*wakeup_cpu)(int apicid, unsigned long start_eip);
+	int (*wakeup_secondary_cpu)(int apicid, unsigned long start_eip);
 
 	int trampoline_phys_low;
 	int trampoline_phys_high;
@@ -324,7 +331,20 @@ struct apic {
 	u32 (*safe_wait_icr_idle)(void);
 };
 
+/*
+ * Pointer to the local APIC driver in use on this system (there's
+ * always just one such driver in use - the kernel decides via an
+ * early probing process which one it picks - and then sticks to it):
+ */
 extern struct apic *apic;
+
+/*
+ * APIC functionality to boot other CPUs - only used on SMP:
+ */
+#ifdef CONFIG_SMP
+extern atomic_t init_deasserted;
+extern int wakeup_secondary_cpu_via_nmi(int apicid, unsigned long start_eip);
+#endif
 
 static inline u32 apic_read(u32 reg)
 {
@@ -384,9 +404,7 @@ static inline unsigned default_get_apic_id(unsigned long x)
 #define DEFAULT_TRAMPOLINE_PHYS_LOW		0x467
 #define DEFAULT_TRAMPOLINE_PHYS_HIGH		0x469
 
-#ifdef CONFIG_X86_32
-extern void es7000_update_apic_to_cluster(void);
-#else
+#ifdef CONFIG_X86_64
 extern struct apic apic_flat;
 extern struct apic apic_physflat;
 extern struct apic apic_x2apic_cluster;

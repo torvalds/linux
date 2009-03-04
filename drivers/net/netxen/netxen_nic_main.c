@@ -588,7 +588,12 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		adapter->pci_mem_read = netxen_nic_pci_mem_read_2M;
 		adapter->pci_mem_write = netxen_nic_pci_mem_write_2M;
 
-		mem_ptr0 = ioremap(mem_base, mem_len);
+		mem_ptr0 = pci_ioremap_bar(pdev, 0);
+		if (mem_ptr0 == NULL) {
+			dev_err(&pdev->dev, "failed to map PCI bar 0\n");
+			return -EIO;
+		}
+
 		pci_len0 = mem_len;
 		first_page_group_start = 0;
 		first_page_group_end   = 0;
@@ -795,9 +800,12 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	 * See if the firmware gave us a virtual-physical port mapping.
 	 */
 	adapter->physical_port = adapter->portnum;
-	i = adapter->pci_read_normalize(adapter, CRB_V2P(adapter->portnum));
-	if (i != 0x55555555)
-		adapter->physical_port = i;
+	if (adapter->fw_major < 4) {
+		i = adapter->pci_read_normalize(adapter,
+				CRB_V2P(adapter->portnum));
+		if (i != 0x55555555)
+			adapter->physical_port = i;
+	}
 
 	adapter->flags &= ~(NETXEN_NIC_MSI_ENABLED | NETXEN_NIC_MSIX_ENABLED);
 

@@ -333,6 +333,7 @@ static struct vmap_area *alloc_vmap_area(unsigned long size,
 	unsigned long addr;
 	int purged = 0;
 
+	BUG_ON(!size);
 	BUG_ON(size & ~PAGE_MASK);
 
 	va = kmalloc_node(sizeof(struct vmap_area),
@@ -344,6 +345,9 @@ retry:
 	addr = ALIGN(vstart, align);
 
 	spin_lock(&vmap_area_lock);
+	if (addr + size - 1 < addr)
+		goto overflow;
+
 	/* XXX: could have a last_hole cache */
 	n = vmap_area_root.rb_node;
 	if (n) {
@@ -375,6 +379,8 @@ retry:
 
 		while (addr + size > first->va_start && addr + size <= vend) {
 			addr = ALIGN(first->va_end + PAGE_SIZE, align);
+			if (addr + size - 1 < addr)
+				goto overflow;
 
 			n = rb_next(&first->rb_node);
 			if (n)
@@ -385,6 +391,7 @@ retry:
 	}
 found:
 	if (addr + size > vend) {
+overflow:
 		spin_unlock(&vmap_area_lock);
 		if (!purged) {
 			purge_vmap_area_lazy();
@@ -508,6 +515,7 @@ static void __purge_vmap_area_lazy(unsigned long *start, unsigned long *end,
 	static DEFINE_SPINLOCK(purge_lock);
 	LIST_HEAD(valist);
 	struct vmap_area *va;
+	struct vmap_area *n_va;
 	int nr = 0;
 
 	/*
@@ -547,7 +555,7 @@ static void __purge_vmap_area_lazy(unsigned long *start, unsigned long *end,
 
 	if (nr) {
 		spin_lock(&vmap_area_lock);
-		list_for_each_entry(va, &valist, purge_list)
+		list_for_each_entry_safe(va, n_va, &valist, purge_list)
 			__free_vmap_area(va);
 		spin_unlock(&vmap_area_lock);
 	}
@@ -1347,6 +1355,7 @@ EXPORT_SYMBOL(vfree);
 void vunmap(const void *addr)
 {
 	BUG_ON(in_interrupt());
+	might_sleep();
 	__vunmap(addr, 0);
 }
 EXPORT_SYMBOL(vunmap);
@@ -1365,6 +1374,8 @@ void *vmap(struct page **pages, unsigned int count,
 		unsigned long flags, pgprot_t prot)
 {
 	struct vm_struct *area;
+
+	might_sleep();
 
 	if (count > num_physpages)
 		return NULL;

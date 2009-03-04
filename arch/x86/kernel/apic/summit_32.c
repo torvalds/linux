@@ -48,7 +48,7 @@
 #include <linux/gfp.h>
 #include <linux/smp.h>
 
-static inline unsigned summit_get_apic_id(unsigned long x)
+static unsigned summit_get_apic_id(unsigned long x)
 {
 	return (x >> 24) & 0xFF;
 }
@@ -58,7 +58,7 @@ static inline void summit_send_IPI_mask(const cpumask_t *mask, int vector)
 	default_send_IPI_mask_sequence_logical(mask, vector);
 }
 
-static inline void summit_send_IPI_allbutself(int vector)
+static void summit_send_IPI_allbutself(int vector)
 {
 	cpumask_t mask = cpu_online_map;
 	cpu_clear(smp_processor_id(), mask);
@@ -67,7 +67,7 @@ static inline void summit_send_IPI_allbutself(int vector)
 		summit_send_IPI_mask(&mask, vector);
 }
 
-static inline void summit_send_IPI_all(int vector)
+static void summit_send_IPI_all(int vector)
 {
 	summit_send_IPI_mask(&cpu_online_map, vector);
 }
@@ -77,13 +77,13 @@ static inline void summit_send_IPI_all(int vector)
 extern int use_cyclone;
 
 #ifdef CONFIG_X86_SUMMIT_NUMA
-extern void setup_summit(void);
+static void setup_summit(void);
 #else
-#define setup_summit()	{}
+static inline void setup_summit(void) {}
 #endif
 
-static inline int
-summit_mps_oem_check(struct mpc_table *mpc, char *oem, char *productid)
+static int summit_mps_oem_check(struct mpc_table *mpc, char *oem,
+		char *productid)
 {
 	if (!strncmp(oem, "IBM ENSW", 8) &&
 			(!strncmp(productid, "VIGIL SMP", 9)
@@ -98,7 +98,7 @@ summit_mps_oem_check(struct mpc_table *mpc, char *oem, char *productid)
 }
 
 /* Hook from generic ACPI tables.c */
-static inline int summit_acpi_madt_oem_check(char *oem_id, char *oem_table_id)
+static int summit_acpi_madt_oem_check(char *oem_id, char *oem_table_id)
 {
 	if (!strncmp(oem_id, "IBM", 3) &&
 	    (!strncmp(oem_table_id, "SERVIGIL", 8)
@@ -186,7 +186,7 @@ static inline int is_WPEG(struct rio_detail *rio){
 
 #define SUMMIT_APIC_DFR_VALUE	(APIC_DFR_CLUSTER)
 
-static inline const cpumask_t *summit_target_cpus(void)
+static const cpumask_t *summit_target_cpus(void)
 {
 	/* CPU_MASK_ALL (0xff) has undefined behaviour with
 	 * dest_LowestPrio mode logical clustered apic interrupt routing
@@ -195,19 +195,18 @@ static inline const cpumask_t *summit_target_cpus(void)
 	return &cpumask_of_cpu(0);
 }
 
-static inline unsigned long
-summit_check_apicid_used(physid_mask_t bitmap, int apicid)
+static unsigned long summit_check_apicid_used(physid_mask_t bitmap, int apicid)
 {
 	return 0;
 }
 
 /* we don't use the phys_cpu_present_map to indicate apicid presence */
-static inline unsigned long summit_check_apicid_present(int bit)
+static unsigned long summit_check_apicid_present(int bit)
 {
 	return 1;
 }
 
-static inline void summit_init_apic_ldr(void)
+static void summit_init_apic_ldr(void)
 {
 	unsigned long val, id;
 	int count = 0;
@@ -234,18 +233,18 @@ static inline void summit_init_apic_ldr(void)
 	apic_write(APIC_LDR, val);
 }
 
-static inline int summit_apic_id_registered(void)
+static int summit_apic_id_registered(void)
 {
 	return 1;
 }
 
-static inline void summit_setup_apic_routing(void)
+static void summit_setup_apic_routing(void)
 {
 	printk("Enabling APIC mode:  Summit.  Using %d I/O APICs\n",
 						nr_ioapics);
 }
 
-static inline int summit_apicid_to_node(int logical_apicid)
+static int summit_apicid_to_node(int logical_apicid)
 {
 #ifdef CONFIG_SMP
 	return apicid_2_node[hard_smp_processor_id()];
@@ -266,7 +265,7 @@ static inline int summit_cpu_to_logical_apicid(int cpu)
 #endif
 }
 
-static inline int summit_cpu_present_to_apicid(int mps_cpu)
+static int summit_cpu_present_to_apicid(int mps_cpu)
 {
 	if (mps_cpu < nr_cpu_ids)
 		return (int)per_cpu(x86_bios_cpu_apicid, mps_cpu);
@@ -274,64 +273,44 @@ static inline int summit_cpu_present_to_apicid(int mps_cpu)
 		return BAD_APICID;
 }
 
-static inline physid_mask_t
-summit_ioapic_phys_id_map(physid_mask_t phys_id_map)
+static physid_mask_t summit_ioapic_phys_id_map(physid_mask_t phys_id_map)
 {
 	/* For clustered we don't have a good way to do this yet - hack */
 	return physids_promote(0x0F);
 }
 
-static inline physid_mask_t summit_apicid_to_cpu_present(int apicid)
+static physid_mask_t summit_apicid_to_cpu_present(int apicid)
 {
 	return physid_mask_of_physid(0);
 }
 
-static inline void summit_setup_portio_remap(void)
-{
-}
-
-static inline int summit_check_phys_apicid_present(int boot_cpu_physical_apicid)
+static int summit_check_phys_apicid_present(int boot_cpu_physical_apicid)
 {
 	return 1;
 }
 
-static inline unsigned int summit_cpu_mask_to_apicid(const cpumask_t *cpumask)
+static unsigned int summit_cpu_mask_to_apicid(const cpumask_t *cpumask)
 {
-	int cpus_found = 0;
-	int num_bits_set;
-	int apicid;
-	int cpu;
+	unsigned int round = 0;
+	int cpu, apicid = 0;
 
-	num_bits_set = cpus_weight(*cpumask);
-	/* Return id to all */
-	if (num_bits_set >= nr_cpu_ids)
-		return 0xFF;
 	/*
-	 * The cpus in the mask must all be on the apic cluster.  If are not
-	 * on the same apicid cluster return default value of target_cpus():
+	 * The cpus in the mask must all be on the apic cluster.
 	 */
-	cpu = first_cpu(*cpumask);
-	apicid = summit_cpu_to_logical_apicid(cpu);
+	for_each_cpu(cpu, cpumask) {
+		int new_apicid = summit_cpu_to_logical_apicid(cpu);
 
-	while (cpus_found < num_bits_set) {
-		if (cpu_isset(cpu, *cpumask)) {
-			int new_apicid = summit_cpu_to_logical_apicid(cpu);
-
-			if (APIC_CLUSTER(apicid) != APIC_CLUSTER(new_apicid)) {
-				printk ("%s: Not a valid mask!\n", __func__);
-
-				return 0xFF;
-			}
-			apicid = apicid | new_apicid;
-			cpus_found++;
+		if (round && APIC_CLUSTER(apicid) != APIC_CLUSTER(new_apicid)) {
+			printk("%s: Not a valid mask!\n", __func__);
+			return BAD_APICID;
 		}
-		cpu++;
+		apicid |= new_apicid;
+		round++;
 	}
 	return apicid;
 }
 
-static inline unsigned int
-summit_cpu_mask_to_apicid_and(const struct cpumask *inmask,
+static unsigned int summit_cpu_mask_to_apicid_and(const struct cpumask *inmask,
 			      const struct cpumask *andmask)
 {
 	int apicid = summit_cpu_to_logical_apicid(0);
@@ -356,7 +335,7 @@ summit_cpu_mask_to_apicid_and(const struct cpumask *inmask,
  *
  * See Intel's IA-32 SW Dev's Manual Vol2 under CPUID.
  */
-static inline int summit_phys_pkg_id(int cpuid_apic, int index_msb)
+static int summit_phys_pkg_id(int cpuid_apic, int index_msb)
 {
 	return hard_smp_processor_id() >> index_msb;
 }
@@ -381,15 +360,15 @@ static void summit_vector_allocation_domain(int cpu, cpumask_t *retmask)
 }
 
 #ifdef CONFIG_X86_SUMMIT_NUMA
-static struct rio_table_hdr *rio_table_hdr __initdata;
-static struct scal_detail   *scal_devs[MAX_NUMNODES] __initdata;
-static struct rio_detail    *rio_devs[MAX_NUMNODES*4] __initdata;
+static struct rio_table_hdr *rio_table_hdr;
+static struct scal_detail   *scal_devs[MAX_NUMNODES];
+static struct rio_detail    *rio_devs[MAX_NUMNODES*4];
 
 #ifndef CONFIG_X86_NUMAQ
-static int mp_bus_id_to_node[MAX_MP_BUSSES] __initdata;
+static int mp_bus_id_to_node[MAX_MP_BUSSES];
 #endif
 
-static int __init setup_pci_node_map_for_wpeg(int wpeg_num, int last_bus)
+static int setup_pci_node_map_for_wpeg(int wpeg_num, int last_bus)
 {
 	int twister = 0, node = 0;
 	int i, bus, num_buses;
@@ -451,7 +430,7 @@ static int __init setup_pci_node_map_for_wpeg(int wpeg_num, int last_bus)
 	return bus;
 }
 
-static int __init build_detail_arrays(void)
+static int build_detail_arrays(void)
 {
 	unsigned long ptr;
 	int i, scal_detail_size, rio_detail_size;
@@ -485,7 +464,7 @@ static int __init build_detail_arrays(void)
 	return 1;
 }
 
-void __init setup_summit(void)
+void setup_summit(void)
 {
 	unsigned long		ptr;
 	unsigned short		offset;
@@ -583,7 +562,6 @@ struct apic apic_summit = {
 	.send_IPI_all			= summit_send_IPI_all,
 	.send_IPI_self			= default_send_IPI_self,
 
-	.wakeup_cpu			= NULL,
 	.trampoline_phys_low		= DEFAULT_TRAMPOLINE_PHYS_LOW,
 	.trampoline_phys_high		= DEFAULT_TRAMPOLINE_PHYS_HIGH,
 

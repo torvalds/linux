@@ -112,7 +112,7 @@ EXPORT_PER_CPU_SYMBOL(cpu_core_map);
 DEFINE_PER_CPU_SHARED_ALIGNED(struct cpuinfo_x86, cpu_info);
 EXPORT_PER_CPU_SYMBOL(cpu_info);
 
-static atomic_t init_deasserted;
+atomic_t init_deasserted;
 
 
 /* Set if we find a B stepping CPU */
@@ -614,12 +614,6 @@ wakeup_secondary_cpu_via_init(int phys_apicid, unsigned long start_eip)
 	unsigned long send_status, accept_status = 0;
 	int maxlvt, num_starts, j;
 
-	if (get_uv_system_type() == UV_NON_UNIQUE_APIC) {
-		send_status = uv_wakeup_secondary(phys_apicid, start_eip);
-		atomic_set(&init_deasserted, 1);
-		return send_status;
-	}
-
 	maxlvt = lapic_get_maxlvt();
 
 	/*
@@ -748,7 +742,8 @@ static void __cpuinit do_fork_idle(struct work_struct *work)
 /*
  * NOTE - on most systems this is a PHYSICAL apic ID, but on multiquad
  * (ie clustered apic addressing mode), this is a LOGICAL apic ID.
- * Returns zero if CPU booted OK, else error code from ->wakeup_cpu.
+ * Returns zero if CPU booted OK, else error code from
+ * ->wakeup_secondary_cpu.
  */
 static int __cpuinit do_boot_cpu(int apicid, int cpu)
 {
@@ -835,9 +830,13 @@ do_rest:
 	}
 
 	/*
-	 * Starting actual IPI sequence...
+	 * Kick the secondary CPU. Use the method in the APIC driver
+	 * if it's defined - or use an INIT boot APIC message otherwise:
 	 */
-	boot_error = apic->wakeup_cpu(apicid, start_ip);
+	if (apic->wakeup_secondary_cpu)
+		boot_error = apic->wakeup_secondary_cpu(apicid, start_ip);
+	else
+		boot_error = wakeup_secondary_cpu_via_init(apicid, start_ip);
 
 	if (!boot_error) {
 		/*

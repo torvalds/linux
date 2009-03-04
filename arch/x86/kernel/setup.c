@@ -600,19 +600,7 @@ static int __init setup_elfcorehdr(char *arg)
 early_param("elfcorehdr", setup_elfcorehdr);
 #endif
 
-static int __init default_update_apic(void)
-{
-#ifdef CONFIG_SMP
-	if (!apic->wakeup_cpu)
-		apic->wakeup_cpu = wakeup_secondary_cpu_via_init;
-#endif
-
-	return 0;
-}
-
-static struct x86_quirks default_x86_quirks __initdata = {
-	.update_apic         = default_update_apic,
-};
+static struct x86_quirks default_x86_quirks __initdata;
 
 struct x86_quirks *x86_quirks __initdata = &default_x86_quirks;
 
@@ -875,9 +863,7 @@ void __init setup_arch(char **cmdline_p)
 
 	reserve_initrd();
 
-#ifdef CONFIG_X86_64
 	vsmp_init();
-#endif
 
 	io_delay_init();
 
