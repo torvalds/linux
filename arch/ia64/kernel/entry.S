@@ -735,7 +735,7 @@ GLOBAL_ENTRY(__paravirt_leave_syscall)
 __paravirt_work_processed_syscall:
 #ifdef CONFIG_VIRT_CPU_ACCOUNTING
 	adds r2=PT(LOADRS)+16,r12
-(pUStk)	mov.m r22=ar.itc			// fetch time at leave
+	MOV_FROM_ITC(pUStk, p9, r22, r19)	// fetch time at leave
 	adds r18=TI_FLAGS+IA64_TASK_SIZE,r13
 	;;
 (p6)	ld4 r31=[r18]				// load current_thread_info()->flags
@@ -984,7 +984,7 @@ GLOBAL_ENTRY(__paravirt_leave_kernel)
 #ifdef CONFIG_VIRT_CPU_ACCOUNTING
 	.pred.rel.mutex pUStk,pKStk
 	MOV_FROM_PSR(pKStk, r22, r29)	// M2 read PSR now that interrupts are disabled
-(pUStk)	mov.m r22=ar.itc	// M  fetch time at leave
+	MOV_FROM_ITC(pUStk, p9, r22, r29)	// M  fetch time at leave
 	nop.i 0
 	;;
 #else

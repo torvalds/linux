@@ -77,6 +77,11 @@
 (pred)	mov reg = psr			\
 	CLOBBER(clob)
 
+#define MOV_FROM_ITC(pred, pred_clob, reg, clob)	\
+(pred)	mov reg = ar.itc				\
+	CLOBBER(clob)					\
+	CLOBBER_PRED(pred_clob)
+
 #define MOV_TO_IFA(reg, clob)	\
 	mov cr.ifa = reg	\
 	CLOBBER(clob)

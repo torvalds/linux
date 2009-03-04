@@ -804,7 +804,7 @@ ENTRY(break_fault)
 ///////////////////////////////////////////////////////////////////////
 	st1 [r16]=r0				// M2|3 clear current->thread.on_ustack flag
 #ifdef CONFIG_VIRT_CPU_ACCOUNTING
-	mov.m r30=ar.itc			// M    get cycle for accounting
+	MOV_FROM_ITC(p0, p14, r30, r18)		// M    get cycle for accounting
 #else
 	mov b6=r30				// I0   setup syscall handler branch reg early
 #endif
