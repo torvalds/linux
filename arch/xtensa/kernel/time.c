@@ -14,7 +14,6 @@
 
 #include <linux/errno.h>
 #include <linux/time.h>
-#include <linux/timex.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/init.h>
@@ -25,17 +24,10 @@
 #include <asm/timex.h>
 #include <asm/platform.h>
 
-
-DEFINE_SPINLOCK(rtc_lock);
-EXPORT_SYMBOL(rtc_lock);
-
-
 #ifdef CONFIG_XTENSA_CALIBRATE_CCOUNT
 unsigned long ccount_per_jiffy;		/* per 1/HZ */
 unsigned long nsec_per_ccount;		/* nsec per ccount increment */
 #endif
-
-static long last_rtc_update = 0;
 
 static irqreturn_t timer_interrupt(int irq, void *dev_id);
 static struct irqaction timer_irqaction = {
@@ -46,8 +38,6 @@ static struct irqaction timer_irqaction = {
 
 void __init time_init(void)
 {
-	time_t sec_o, sec_n = 0;
-
 	/* The platform must provide a function to calibrate the processor
 	 * speed for the CALIBRATE.
 	 */
@@ -59,15 +49,8 @@ void __init time_init(void)
 			(int)(ccount_per_jiffy/(10000/HZ))%100);
 #endif
 
-	/* Set time from RTC (if provided) */
-
-	if (platform_get_rtc_time(&sec_o) == 0)
-		while (platform_get_rtc_time(&sec_n))
-			if (sec_o != sec_n)
-				break;
-
 	xtime.tv_nsec = 0;
-	last_rtc_update = xtime.tv_sec = sec_n;
+	xtime.tv_sec = read_persistent_clock();
 
 	set_normalized_timespec(&wall_to_monotonic,
 		-xtime.tv_sec, -xtime.tv_nsec);
@@ -169,16 +152,6 @@ again:
 		next += CCOUNT_PER_JIFFY;
 		set_linux_timer(next);
 
-		if (ntp_synced() &&
-		    xtime.tv_sec - last_rtc_update >= 659 &&
-		    abs((xtime.tv_nsec/1000)-(1000000-1000000/HZ))<5000000/HZ) {
-
-			if (platform_set_rtc_time(xtime.tv_sec+1) == 0)
-				last_rtc_update = xtime.tv_sec+1;
-			else
-				/* Do it again in 60 s */
-				last_rtc_update += 60;
-		}
 		write_sequnlock(&xtime_lock);
 	}
 
