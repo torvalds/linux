@@ -4179,9 +4179,11 @@ static int b43_wireless_core_init(struct b43_wldev *dev)
 	}
 	if (sprom->boardflags_lo & B43_BFL_XTAL_NOSLOW)
 		hf |= B43_HF_DSCRQ; /* Disable slowclock requests from ucode. */
+#ifdef CONFIG_SSB_DRIVER_PCICORE
 	if ((bus->bustype == SSB_BUSTYPE_PCI) &&
 	    (bus->pcicore.dev->id.revision <= 10))
 		hf |= B43_HF_PCISCW; /* PCI slow clock workaround. */
+#endif
 	hf &= ~B43_HF_SKCFPUP;
 	b43_hf_write(dev, hf);
 
