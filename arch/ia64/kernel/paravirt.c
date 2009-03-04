@@ -366,4 +366,5 @@ ia64_native_do_steal_accounting(unsigned long *new_itm)
 
 struct pv_time_ops pv_time_ops = {
 	.do_steal_accounting = ia64_native_do_steal_accounting,
+	.sched_clock = ia64_native_sched_clock,
 };

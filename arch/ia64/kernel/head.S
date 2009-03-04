@@ -1050,7 +1050,7 @@ END(ia64_delay_loop)
  * except that the multiplication and the shift are done with 128-bit
  * intermediate precision so that we can produce a full 64-bit result.
  */
-GLOBAL_ENTRY(sched_clock)
+GLOBAL_ENTRY(ia64_native_sched_clock)
 	addl r8=THIS_CPU(cpu_info) + IA64_CPUINFO_NSEC_PER_CYC_OFFSET,r0
 	mov.m r9=ar.itc		// fetch cycle-counter				(35 cyc)
 	;;
@@ -1066,7 +1066,13 @@ GLOBAL_ENTRY(sched_clock)
 	;;
 	shrp r8=r9,r8,IA64_NSEC_PER_CYC_SHIFT
 	br.ret.sptk.many rp
-END(sched_clock)
+END(ia64_native_sched_clock)
+#ifndef CONFIG_PARAVIRT
+	//unsigned long long
+	//sched_clock(void) __attribute__((alias("ia64_native_sched_clock")));
+	.global sched_clock
+sched_clock = ia64_native_sched_clock
+#endif
 
 #ifdef CONFIG_VIRT_CPU_ACCOUNTING
 GLOBAL_ENTRY(cycle_to_cputime)

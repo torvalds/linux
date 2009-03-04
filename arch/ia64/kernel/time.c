@@ -50,6 +50,15 @@ EXPORT_SYMBOL(last_cli_ip);
 #endif
 
 #ifdef CONFIG_PARAVIRT
+/* We need to define a real function for sched_clock, to override the
+   weak default version */
+unsigned long long sched_clock(void)
+{
+        return paravirt_sched_clock();
+}
+#endif
+
+#ifdef CONFIG_PARAVIRT
 static void
 paravirt_clocksource_resume(void)
 {

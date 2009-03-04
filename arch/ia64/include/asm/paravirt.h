@@ -225,6 +225,8 @@ struct pv_time_ops {
 	int (*do_steal_accounting)(unsigned long *new_itm);
 
 	void (*clocksource_resume)(void);
+
+	unsigned long long (*sched_clock)(void);
 };
 
 extern struct pv_time_ops pv_time_ops;
@@ -240,6 +242,11 @@ static inline int
 paravirt_do_steal_accounting(unsigned long *new_itm)
 {
 	return pv_time_ops.do_steal_accounting(new_itm);
+}
+
+static inline unsigned long long paravirt_sched_clock(void)
+{
+	return pv_time_ops.sched_clock();
 }
 
 #endif /* !__ASSEMBLY__ */
