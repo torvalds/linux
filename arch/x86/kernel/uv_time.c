@@ -24,6 +24,8 @@
 #include <asm/uv/uv_hub.h>
 #include <asm/uv/bios.h>
 #include <asm/uv/uv.h>
+#include <asm/apic.h>
+#include <asm/cpu.h>
 
 #define RTC_NAME		"sgi_rtc"
 
@@ -84,7 +86,7 @@ static void uv_rtc_send_IPI(int cpu)
 	unsigned long apicid, val;
 	int pnode;
 
-	apicid = per_cpu(x86_cpu_to_apicid, cpu);
+	apicid = cpu_physical_id(cpu);
 	pnode = uv_apicid_to_pnode(apicid);
 	val = (1UL << UVH_IPI_INT_SEND_SHFT) |
 	      (apicid << UVH_IPI_INT_APIC_ID_SHFT) |
