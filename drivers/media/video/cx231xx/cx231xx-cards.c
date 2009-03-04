@@ -1,8 +1,9 @@
 /*
-   cx231xx-cards.c - driver for Conexant Cx23100/101/102 USB video capture devices
+   cx231xx-cards.c - driver for Conexant Cx23100/101/102
+				USB video capture devices
 
    Copyright (C) 2008 <srinivasa.deevi at conexant dot com>
-	Based on em28xx driver
+				Based on em28xx driver
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -85,7 +86,7 @@ struct cx231xx_board cx231xx_boards[] = {
 						      .amux =
 						      CX231XX_AMUX_LINE_IN,
 						      .gpio = 0,
-						      }},
+						      } },
 				   },
 
 	[CX231XX_BOARD_CNXT_RDE_250] = {
@@ -132,7 +133,7 @@ struct cx231xx_board cx231xx_boards[] = {
 							   .amux =
 							   CX231XX_AMUX_LINE_IN,
 							   .gpio = 0,
-							   }},
+							   } },
 					},
 
 	[CX231XX_BOARD_CNXT_RDU_250] = {
@@ -179,7 +180,7 @@ struct cx231xx_board cx231xx_boards[] = {
 							   .amux =
 							   CX231XX_AMUX_LINE_IN,
 							   .gpio = 0,
-							   }},
+							   } },
 					},
 };
 const unsigned int cx231xx_bcount = ARRAY_SIZE(cx231xx_boards);
@@ -209,9 +210,8 @@ int cx231xx_tuner_callback(void *ptr, int component, int command, int arg)
 	if (dev->tuner_type == TUNER_XC5000) {
 		if (command == XC5000_TUNER_RESET) {
 			cx231xx_info
-			    ("Tuner Call back : RESET : command %d : tuner type %d \n",
-			     command, dev->tuner_type);
-
+				("Tuner CB: RESET: cmd %d : tuner type %d \n",
+				 command, dev->tuner_type);
 			cx231xx_set_gpio_value(dev, dev->board.tuner_gpio->bit,
 					       1);
 			msleep(10);
@@ -225,10 +225,9 @@ int cx231xx_tuner_callback(void *ptr, int component, int command, int arg)
 	}
 	return rc;
 }
-
 EXPORT_SYMBOL_GPL(cx231xx_tuner_callback);
 
-static void inline cx231xx_set_model(struct cx231xx *dev)
+static inline void cx231xx_set_model(struct cx231xx *dev)
 {
 	memcpy(&dev->board, &cx231xx_boards[dev->model], sizeof(dev->board));
 }
@@ -542,7 +541,7 @@ static int cx231xx_init_dev(struct cx231xx **devhandle, struct usb_device *udev,
 
 	return 0;
 
-      fail_reg_devices:
+fail_reg_devices:
 	mutex_unlock(&dev->lock);
 	return retval;
 }
@@ -628,12 +627,13 @@ static int cx231xx_usb_probe(struct usb_interface *interface,
 		dev->has_alsa_audio = 1;
 		dev->power_mode = -1;
 
-		dev->vbi_or_sliced_cc_mode = 0;	/* 0 - vbi ; 1 -sliced cc mode */
+		/* 0 - vbi ; 1 -sliced cc mode */
+		dev->vbi_or_sliced_cc_mode = 0;
 
 		/* get maximum no.of IAD interfaces */
 		assoc_desc = udev->actconfig->intf_assoc[0];
 		dev->max_iad_interface_count = assoc_desc->bInterfaceCount;
-		cx231xx_info(": Found IAD interface count %d\n",
+		cx231xx_info("Found IAD interface count %d\n",
 			     dev->max_iad_interface_count);
 
 		/* init CIR module TBD */
@@ -662,10 +662,9 @@ static int cx231xx_usb_probe(struct usb_interface *interface,
 		assoc_desc = udev->actconfig->intf_assoc[0];
 		if (assoc_desc->bFirstInterface == ifnum) {
 			cx231xx_info
-			    (": Found IAD interface match: AV Descriptor Start!! \n");
+			("Found IAD interface match: AV Desc Start!! \n");
 		} else {
-			cx231xx_err(DRIVER_NAME
-				    " Not found matching interface\n");
+			cx231xx_err(" Not found matching interface\n");
 			return -ENODEV;
 		}
 
@@ -691,7 +690,7 @@ static int cx231xx_usb_probe(struct usb_interface *interface,
 			skip_interface = 1;	/* set skipping */
 		else {
 			cx231xx_info
-			    (": Found IAD interface number match with AV Device number!! \n");
+			("Found IAD interface no. match with AV Device no.!\n");
 		}
 	}
 

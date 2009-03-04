@@ -2,7 +2,7 @@
  DVB device driver for cx231xx
 
  Copyright (C) 2008 <srinivasa.deevi at conexant dot com>
-	Based on em28xx driver
+		Based on em28xx driver
 
  This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -395,20 +395,20 @@ static int register_dvb(struct cx231xx_dvb *dvb,
 	dvb_net_init(&dvb->adapter, &dvb->net, &dvb->demux.dmx);
 	return 0;
 
-      fail_fe_conn:
+fail_fe_conn:
 	dvb->demux.dmx.remove_frontend(&dvb->demux.dmx, &dvb->fe_mem);
-      fail_fe_mem:
+fail_fe_mem:
 	dvb->demux.dmx.remove_frontend(&dvb->demux.dmx, &dvb->fe_hw);
-      fail_fe_hw:
+fail_fe_hw:
 	dvb_dmxdev_release(&dvb->dmxdev);
-      fail_dmxdev:
+fail_dmxdev:
 	dvb_dmx_release(&dvb->demux);
-      fail_dmx:
+fail_dmx:
 	dvb_unregister_frontend(dvb->frontend);
-      fail_frontend:
+fail_frontend:
 	dvb_frontend_detach(dvb->frontend);
 	dvb_unregister_adapter(&dvb->adapter);
-      fail_adapter:
+fail_adapter:
 	return result;
 }
 
@@ -516,7 +516,7 @@ static int dvb_init(struct cx231xx *dev)
 	printk(KERN_INFO "Successfully loaded cx231xx-dvb\n");
 	return 0;
 
-      out_free:
+out_free:
 	cx231xx_set_mode(dev, CX231XX_SUSPEND);
 	kfree(dvb);
 	dev->dvb = NULL;

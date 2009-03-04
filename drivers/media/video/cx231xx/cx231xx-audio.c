@@ -132,12 +132,16 @@ static void cx231xx_audio_isocirq(struct urb *urb)
 			snd_pcm_stream_lock(substream);
 
 			dev->adev.hwptr_done_capture += length;
-			if (dev->adev.hwptr_done_capture >= runtime->buffer_size)
-				dev->adev.hwptr_done_capture -= runtime->buffer_size;
+			if (dev->adev.hwptr_done_capture >=
+						runtime->buffer_size)
+				dev->adev.hwptr_done_capture -=
+						runtime->buffer_size;
 
 			dev->adev.capture_transfer_done += length;
-			if (dev->adev.capture_transfer_done >= runtime->period_size) {
-				dev->adev.capture_transfer_done -= runtime->period_size;
+			if (dev->adev.capture_transfer_done >=
+				runtime->period_size) {
+				dev->adev.capture_transfer_done -=
+						runtime->period_size;
 				period_elapsed = 1;
 			}
 			snd_pcm_stream_unlock(substream);
@@ -185,7 +189,8 @@ static int cx231xx_init_audio_isoc(struct cx231xx *dev)
 
 		urb->dev = dev->udev;
 		urb->context = dev;
-		urb->pipe = usb_rcvisocpipe(dev->udev, dev->adev.end_point_addr);
+		urb->pipe = usb_rcvisocpipe(dev->udev,
+						dev->adev.end_point_addr);
 		urb->transfer_flags = URB_ISO_ASAP;
 		urb->transfer_buffer = dev->adev.transfer_buffer[i];
 		urb->interval = 1;
@@ -193,7 +198,8 @@ static int cx231xx_init_audio_isoc(struct cx231xx *dev)
 		urb->number_of_packets = CX231XX_NUM_AUDIO_PACKETS;
 		urb->transfer_buffer_length = sb_size;
 
-		for (j = k = 0; j < CX231XX_NUM_AUDIO_PACKETS; j++, k += dev->adev.max_pkt_size) {
+		for (j = k = 0; j < CX231XX_NUM_AUDIO_PACKETS;
+			j++, k += dev->adev.max_pkt_size) {
 			urb->iso_frame_desc[j].offset = k;
 			urb->iso_frame_desc[j].length = dev->adev.max_pkt_size;
 		}
@@ -293,7 +299,8 @@ static int snd_cx231xx_capture_open(struct snd_pcm_substream *substream)
 	dev->mute = 0;
 
 	/* set alternate setting for audio interface */
-	ret = cx231xx_set_alt_setting(dev, INDEX_AUDIO, 1);	/* 1 - 48000 samples per sec */
+	/* 1 - 48000 samples per sec */
+	ret = cx231xx_set_alt_setting(dev, INDEX_AUDIO, 1);
 	if (ret < 0) {
 		cx231xx_errdev("failed to set alternate setting !\n");
 
@@ -324,7 +331,8 @@ static int snd_cx231xx_pcm_close(struct snd_pcm_substream *substream)
 	dprintk("closing device\n");
 
 	/* set alternate setting for audio interface */
-	ret = cx231xx_set_alt_setting(dev, INDEX_AUDIO, 0);	/* 1 - 48000 samples per sec */
+	/* 1 - 48000 samples per sec */
+	ret = cx231xx_set_alt_setting(dev, INDEX_AUDIO, 0);
 	if (ret < 0) {
 		cx231xx_errdev("failed to set alternate setting !\n");
 

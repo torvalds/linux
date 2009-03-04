@@ -140,23 +140,24 @@ static inline int cx231xx_isoc_vbi_copy(struct cx231xx *dev, struct urb *urb)
 		while (bytes_parsed < buffer_size) {
 			u32 bytes_used = 0;
 
-			sav_eav = cx231xx_find_next_SAV_EAV(p_buffer + bytes_parsed,	/* p_buffer */
-				buffer_size - bytes_parsed,   /* buffer size */
-				&bytes_used);	/* Receives bytes used to get SAV/EAV */
+			sav_eav = cx231xx_find_next_SAV_EAV(
+				p_buffer + bytes_parsed,	/* p_buffer */
+				buffer_size - bytes_parsed, /* buffer size */
+				&bytes_used);	/* bytes used to get SAV/EAV */
 
 			bytes_parsed += bytes_used;
 
 			sav_eav &= 0xF0;
 			if (sav_eav && (bytes_parsed < buffer_size)) {
 				bytes_parsed += cx231xx_get_vbi_line(dev,
-						dma_q, sav_eav,	/* SAV/EAV */
-						p_buffer + bytes_parsed,	/* p_buffer */
-						buffer_size - bytes_parsed);	/* buffer size */
+					dma_q, sav_eav,	/* SAV/EAV */
+					p_buffer+bytes_parsed, /* p_buffer */
+					buffer_size-bytes_parsed);/*buf size*/
 			}
 		}
 
-		/* Save the last four bytes of the buffer so we can check the buffer boundary
-		   condition next time */
+		/* Save the last four bytes of the buffer so we can
+		check the buffer boundary condition next time */
 		memcpy(dma_q->partial_buf, p_buffer + buffer_size - 4, 4);
 		bytes_parsed = 0;
 	}

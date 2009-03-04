@@ -29,7 +29,8 @@
 #include <linux/i2c-algo-bit.h>
 #include <linux/mutex.h>
 #include <media/ir-kbd-i2c.h>
-#if defined(CONFIG_VIDEO_CX231XX_DVB) || defined(CONFIG_VIDEO_CX231XX_DVB_MODULE)
+#if defined(CONFIG_VIDEO_CX231XX_DVB) || \
+	defined(CONFIG_VIDEO_CX231XX_DVB_MODULE)
 #include <media/videobuf-dvb.h>
 #endif
 
@@ -87,7 +88,8 @@
 #define CX231XX_INTERLACED_DEFAULT      1
 
 /* time to wait when stopping the isoc transfer */
-#define CX231XX_URB_TIMEOUT             msecs_to_jiffies(CX231XX_NUM_BUFS * CX231XX_NUM_PACKETS)
+#define CX231XX_URB_TIMEOUT		\
+		msecs_to_jiffies(CX231XX_NUM_BUFS * CX231XX_NUM_PACKETS)
 
 enum cx231xx_mode {
 	CX231XX_SUSPEND,
@@ -231,12 +233,12 @@ enum cx231xx_decoder {
 	CX231XX_AVDECODER
 };
 
-typedef enum _I2C_MASTER_PORT {
+enum CX231XX_I2C_MASTER_PORT {
 	I2C_0 = 0,
 	I2C_1 = 1,
 	I2C_2 = 2,
 	I2C_3 = 3
-} CX231XX_I2C_MASTER_PORT;
+};
 
 struct cx231xx_board {
 	char *name;
@@ -346,16 +348,20 @@ struct cx231xx_fh {
 	enum v4l2_buf_type type;
 };
 
-/**********************************************************************************/
+/*****************************************************************/
 /* set/get i2c */
-#define I2C_SPEED_1M            0x0	/* 00--1Mb/s, 01-400kb/s, 10--100kb/s, 11--5Mb/s */
-#define I2C_SPEED_400K          0x1	/* 00--1Mb/s, 01-400kb/s, 10--100kb/s, 11--5Mb/s */
-#define I2C_SPEED_100K          0x2	/* 00--1Mb/s, 01-400kb/s, 10--100kb/s, 11--5Mb/s */
-#define I2C_SPEED_5M            0x3	/* 00--1Mb/s, 01-400kb/s, 10--100kb/s, 11--5Mb/s */
+/* 00--1Mb/s, 01-400kb/s, 10--100kb/s, 11--5Mb/s */
+#define I2C_SPEED_1M            0x0
+#define I2C_SPEED_400K          0x1
+#define I2C_SPEED_100K          0x2
+#define I2C_SPEED_5M            0x3
 
-#define I2C_STOP                0x0	/* 0-- STOP transaction */
-#define I2C_NOSTOP              0x1	/* 1-- do not transmit STOP at end of transaction */
-#define I2C_SYNC                0x1	/* 1--alllow slave to insert clock wait states */
+/* 0-- STOP transaction */
+#define I2C_STOP                0x0
+/* 1-- do not transmit STOP at end of transaction */
+#define I2C_NOSTOP              0x1
+/* 1--alllow slave to insert clock wait states */
+#define I2C_SYNC                0x1
 
 struct cx231xx_i2c {
 	struct cx231xx *dev;
@@ -383,7 +389,7 @@ struct cx231xx_i2c_xfer_data {
 	u8 *p_buffer;		/* pointer to the buffer */
 };
 
-typedef struct _VENDOR_REQUEST_IN {
+struct VENDOR_REQUEST_IN{
 	u8 bRequest;
 	u16 wValue;
 	u16 wIndex;
@@ -391,7 +397,7 @@ typedef struct _VENDOR_REQUEST_IN {
 	u8 direction;
 	u8 bData;
 	u8 *pBuff;
-} VENDOR_REQUEST_IN, *PVENDOR_REQUEST_IN;
+};
 
 struct cx231xx_ctrl {
 	struct v4l2_queryctrl v;
@@ -401,7 +407,7 @@ struct cx231xx_ctrl {
 	u32 shift;
 };
 
-typedef enum {
+enum TRANSFER_TYPE{
 	Raw_Video = 0,
 	Audio,
 	Vbi,			/* VANC */
@@ -409,7 +415,7 @@ typedef enum {
 	TS1_serial_mode,
 	TS2,
 	TS1_parallel_mode
-} TRANSFER_TYPE;
+} ;
 
 struct cx231xx_video_mode {
 	/* Isoc control struct */
@@ -500,7 +506,7 @@ struct cx231xx {
 	int (*cx231xx_write_ctrl_reg) (struct cx231xx *dev, u8 req, u16 reg,
 				       char *buf, int len);
 	int (*cx231xx_send_usb_command) (struct cx231xx_i2c *i2c_bus,
-					 struct cx231xx_i2c_xfer_data *req_data);
+				struct cx231xx_i2c_xfer_data *req_data);
 	int (*cx231xx_gpio_i2c_read) (struct cx231xx *dev, u8 dev_addr,
 				      u8 *buf, u8 len);
 	int (*cx231xx_gpio_i2c_write) (struct cx231xx *dev, u8 dev_addr,
@@ -621,9 +627,10 @@ int cx231xx_write_ctrl_reg(struct cx231xx *dev, u8 req, u16 reg,
 			   char *buf, int len);
 int cx231xx_mode_register(struct cx231xx *dev, u16 address, u32 mode);
 
-int cx231xx_send_vendor_cmd(struct cx231xx *dev, VENDOR_REQUEST_IN *ven_req);
+int cx231xx_send_vendor_cmd(struct cx231xx *dev,
+				struct VENDOR_REQUEST_IN *ven_req);
 int cx231xx_send_usb_command(struct cx231xx_i2c *i2c_bus,
-			     struct cx231xx_i2c_xfer_data *req_data);
+				struct cx231xx_i2c_xfer_data *req_data);
 
 /* Gpio related functions */
 int cx231xx_send_gpio_cmd(struct cx231xx *dev, u32 gpio_bit, u8 *gpio_val,

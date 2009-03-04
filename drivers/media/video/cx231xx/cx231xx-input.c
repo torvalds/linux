@@ -2,9 +2,9 @@
   handle cx231xx IR remotes via linux kernel input layer.
 
   Copyright (C) 2008 <srinivasa.deevi at conexant dot com>
-	Based on em28xx driver
+		Based on em28xx driver
 
-	< This is a place holder for IR now.>
+		< This is a place holder for IR now.>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -219,10 +219,10 @@ int cx231xx_ir_init(struct cx231xx *dev)
 		goto err_out_stop;
 
 	return 0;
-      err_out_stop:
+err_out_stop:
 	cx231xx_ir_stop(ir);
 	dev->ir = NULL;
-      err_out_free:
+err_out_free:
 	input_free_device(input_dev);
 	kfree(ir);
 	return err;

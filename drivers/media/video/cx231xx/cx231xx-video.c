@@ -365,10 +365,11 @@ static inline int cx231xx_isoc_copy(struct cx231xx *dev, struct urb *urb)
 		bytes_parsed = 0;
 
 		if (dma_q->is_partial_line) {
-			/* Handle the case where we were working on a partial line */
+			/* Handle the case of a partial line */
 			sav_eav = dma_q->last_sav;
 		} else {
-			/* Check for a SAV/EAV overlapping the buffer boundary */
+			/* Check for a SAV/EAV overlapping
+				the buffer boundary */
 			sav_eav =
 			    cx231xx_find_boundary_SAV_EAV(p_buffer,
 							  dma_q->partial_buf,
@@ -380,9 +381,9 @@ static inline int cx231xx_isoc_copy(struct cx231xx *dev, struct urb *urb)
 		   the last buffer or a partial line  */
 		if (sav_eav) {
 			bytes_parsed += cx231xx_get_video_line(dev, dma_q,
-						sav_eav,	/* SAV/EAV */
-						p_buffer + bytes_parsed,	/* p_buffer */
-						buffer_size - bytes_parsed);	/* buffer size */
+				sav_eav,	/* SAV/EAV */
+				p_buffer + bytes_parsed,	/* p_buffer */
+				buffer_size - bytes_parsed);/* buf size */
 		}
 
 		/* Now parse data that is completely in this buffer */
@@ -391,18 +392,19 @@ static inline int cx231xx_isoc_copy(struct cx231xx *dev, struct urb *urb)
 		while (bytes_parsed < buffer_size) {
 			u32 bytes_used = 0;
 
-			sav_eav = cx231xx_find_next_SAV_EAV(p_buffer + bytes_parsed,	/* p_buffer */
-						buffer_size - bytes_parsed,	/* buffer size */
-						&bytes_used);	/* Receives bytes used to get SAV/EAV */
+			sav_eav = cx231xx_find_next_SAV_EAV(
+				p_buffer + bytes_parsed,	/* p_buffer */
+				buffer_size - bytes_parsed,	/* buf size */
+				&bytes_used);/* bytes used to get SAV/EAV */
 
 			bytes_parsed += bytes_used;
 
 			sav_eav &= 0xF0;
 			if (sav_eav && (bytes_parsed < buffer_size)) {
 				bytes_parsed += cx231xx_get_video_line(dev,
-						dma_q, sav_eav,	/* SAV/EAV */
-						p_buffer + bytes_parsed,	/* p_buffer */
-						buffer_size - bytes_parsed);	/* buffer size */
+					dma_q, sav_eav,	/* SAV/EAV */
+					p_buffer + bytes_parsed,/* p_buffer */
+					buffer_size - bytes_parsed);/*buf size*/
 			}
 		}
 
@@ -1398,9 +1400,11 @@ static int vidioc_s_frequency(struct file *file, void *priv,
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 
 /*
-  -R, --list-registers=type=<host/i2cdrv/i2caddr>,chip=<chip>[,min=<addr>,max=<addr>]
+  -R, --list-registers=type=<host/i2cdrv/i2caddr>,
+				chip=<chip>[,min=<addr>,max=<addr>]
 		     dump registers from <min> to <max> [VIDIOC_DBG_G_REGISTER]
-  -r, --set-register=type=<host/i2cdrv/i2caddr>,chip=<chip>,reg=<addr>,val=<val>
+  -r, --set-register=type=<host/i2cdrv/i2caddr>,
+				chip=<chip>,reg=<addr>,val=<val>
 		     set the register [VIDIOC_DBG_S_REGISTER]
 
   if type == host, then <chip> is the hosts chip ID (default 0)
@@ -2332,8 +2336,9 @@ static struct video_device cx231xx_radio_template = {
 
 /******************************** usb interface ******************************/
 
-static struct video_device *cx231xx_vdev_init(struct cx231xx *dev, const struct video_device
-					      *template, const char *type_name)
+static struct video_device *cx231xx_vdev_init(struct cx231xx *dev,
+		const struct video_device
+		*template, const char *type_name)
 {
 	struct video_device *vfd;
 

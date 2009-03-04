@@ -1,5 +1,6 @@
 /*
-   cx231xx-reg.h - driver for Conexant Cx23100/101/102 USB video capture devices
+   cx231xx-reg.h - driver for Conexant Cx23100/101/102
+		USB video capture devices
 
    Copyright (C) 2008 <srinivasa.deevi at conexant dot com>
 
@@ -22,7 +23,7 @@
 #define _CX231XX_REG_H
 
 /*****************************************************************************
-		    * VBI codes *
+								* VBI codes *
 *****************************************************************************/
 
 #define SAV_ACTIVE_VIDEO_FIELD1	      0x80
@@ -1533,13 +1534,13 @@
 #define      INPUT_MODE_YC2_2          2	/* INPUT_MODE_VALUE(2) */
 #define      INPUT_MODE_YUV_3          3	/* INPUT_MODE_VALUE(3) */
 
-#define      LUMA_LPF_LOW_BANDPASS     0	/* 0.6Mhz lowpass filter bandwidth */
-#define      LUMA_LPF_MEDIUM_BANDPASS  1	/* 1.0Mhz lowpass filter bandwidth */
-#define      LUMA_LPF_HIGH_BANDPASS    2	/* 1.5Mhz lowpass filter bandwidth */
+#define      LUMA_LPF_LOW_BANDPASS     0	/* 0.6Mhz LPF BW */
+#define      LUMA_LPF_MEDIUM_BANDPASS  1	/* 1.0Mhz LPF BW */
+#define      LUMA_LPF_HIGH_BANDPASS    2	/* 1.5Mhz LPF BW */
 
-#define      UV_LPF_LOW_BANDPASS       0	/* 0.6Mhz lowpass filter bandwidth */
-#define      UV_LPF_MEDIUM_BANDPASS    1	/* 1.0Mhz lowpass filter bandwidth */
-#define      UV_LPF_HIGH_BANDPASS      2	/* 1.5Mhz lowpass filter bandwidth */
+#define      UV_LPF_LOW_BANDPASS       0	/* 0.6Mhz LPF BW */
+#define      UV_LPF_MEDIUM_BANDPASS    1	/* 1.0Mhz LPF BW */
+#define      UV_LPF_HIGH_BANDPASS      2	/* 1.5Mhz LPF BW */
 
 #define      TWO_TAP_FILT              0
 #define      THREE_TAP_FILT            1

@@ -2,8 +2,8 @@
    cx231xx-i2c.c - driver for Conexant Cx23100/101/102 USB video capture devices
 
    Copyright (C) 2008 <srinivasa.deevi at conexant dot com>
-	Based on em28xx driver
-	Based on Cx23885 driver
+		Based on em28xx driver
+		Based on Cx23885 driver
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -42,8 +42,8 @@ MODULE_PARM_DESC(i2c_debug, "enable debug messages [i2c]");
 #define dprintk1(lvl, fmt, args...)			\
 do {							\
 	if (i2c_debug >= lvl) {				\
-	printk(fmt, ##args);				\
-      }							\
+		printk(fmt, ##args);				\
+		}							\
 } while (0)
 
 #define dprintk2(lvl, fmt, args...)			\
@@ -78,8 +78,8 @@ int cx231xx_i2c_send_bytes(struct i2c_adapter *i2c_adap,
 
 		if (size == 2) {	/* register write sub addr */
 
-			/* Just writing sub address will cause problem to XC5000
-			   So ignore the request */
+		/* Just writing sub address will cause problem to XC5000
+		So ignore the request */
 			return 0;
 
 		} else if (size == 4) {	/* register write with sub addr */
@@ -92,7 +92,8 @@ int cx231xx_i2c_send_bytes(struct i2c_adapter *i2c_adap,
 			switch (saddr) {
 			case 0x0000:	/* start tuner calibration mode */
 				need_gpio = 1;
-				dev->xc_fw_load_done = 1;	/* FW Loading is done */
+				/* FW Loading is done */
+				dev->xc_fw_load_done = 1;
 				break;
 			case 0x000D:	/* Set signal source */
 			case 0x0001:	/* Set TV standard - Video */
@@ -108,8 +109,8 @@ int cx231xx_i2c_send_bytes(struct i2c_adapter *i2c_adap,
 
 			if (need_gpio) {
 				dprintk1(1,
-					 " GPIO W R I T E : addr 0x%x, len %d, saddr 0x%x\n",
-					 msg->addr, msg->len, saddr);
+				"GPIO WRITE: addr 0x%x, len %d, saddr 0x%x\n",
+				msg->addr, msg->len, saddr);
 
 				return dev->cx231xx_gpio_i2c_write(dev,
 								   msg->addr,
@@ -196,8 +197,8 @@ static int cx231xx_i2c_recv_bytes(struct i2c_adapter *i2c_adap,
 			switch (saddr) {
 			case 0x0009:	/* BUSY check */
 				dprintk1(1,
-					 " GPIO R E A D : Special case BUSY check \n");
-				/* Try to read BUSY register, just set it to zero */
+				"GPIO R E A D: Special case BUSY check \n");
+				/*Try read BUSY register, just set it to zero*/
 				msg->buf[0] = 0;
 				if (msg->len == 2)
 					msg->buf[1] = 0;
@@ -209,12 +210,14 @@ static int cx231xx_i2c_recv_bytes(struct i2c_adapter *i2c_adap,
 			}
 
 			if (need_gpio) {
-				/* this is a special case to handle Xceive tuner clock stretch issue
-				   with gpio based I2C interface */
+				/* this is a special case to handle Xceive tuner
+				clock stretch issue with gpio based I2C */
+
 				dprintk1(1,
-					 " GPIO R E A D : addr 0x%x, len %d, saddr 0x%x\n",
-					 msg->addr, msg->len,
-					 msg->buf[0] << 8 | msg->buf[1]);
+				"GPIO R E A D: addr 0x%x, len %d, saddr 0x%x\n",
+				msg->addr, msg->len,
+				msg->buf[0] << 8 | msg->buf[1]);
+
 				status =
 				    dev->cx231xx_gpio_i2c_write(dev, msg->addr,
 								msg->buf,
@@ -281,8 +284,8 @@ static int cx231xx_i2c_recv_bytes_with_saddr(struct i2c_adapter *i2c_adap,
 		if ((msg2->len < 16)) {
 
 			dprintk1(1,
-				 " i2c_read : addr 0x%x, len %d, subaddr 0x%x, leng %d\n",
-				 msg2->addr, msg2->len, saddr, msg1->len);
+			"i2c_read: addr 0x%x, len %d, saddr 0x%x, len %d\n",
+			msg2->addr, msg2->len, saddr, msg1->len);
 
 			switch (saddr) {
 			case 0x0008:	/* read FW load status */
@@ -368,7 +371,8 @@ static int cx231xx_i2c_xfer(struct i2c_adapter *i2c_adap,
 		dprintk2(2, "%s %s addr=%x len=%d:",
 			 (msgs[i].flags & I2C_M_RD) ? "read" : "write",
 			 i == num - 1 ? "stop" : "nonstop", addr, msgs[i].len);
-		if (!msgs[i].len) {	/* no len: check only for device presence */
+		if (!msgs[i].len) {
+			/* no len: check only for device presence */
 			rc = cx231xx_i2c_check_for_device(i2c_adap, &msgs[i]);
 			if (rc < 0) {
 				dprintk2(2, " no device\n");
@@ -409,7 +413,7 @@ static int cx231xx_i2c_xfer(struct i2c_adapter *i2c_adap,
 	}
 
 	return num;
-      err:
+err:
 	dprintk2(2, " ERROR: %i\n", rc);
 	return rc;
 }

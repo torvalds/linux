@@ -1,8 +1,9 @@
 /*
-   cx231xx-core.c - driver for Conexant Cx23100/101/102 USB video capture devices
+   cx231xx-core.c - driver for Conexant Cx23100/101/102
+				USB video capture devices
 
    Copyright (C) 2008 <srinivasa.deevi at conexant dot com>
-	Based on em28xx driver
+				Based on em28xx driver
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -59,9 +60,9 @@ MODULE_PARM_DESC(alt, "alternate setting to use for video endpoint");
 		printk(KERN_INFO "%s %s :"fmt, \
 			 dev->name, __func__ , ##arg); } while (0)
 
-/************************************************************************************
-*                              Device control list functions                        *
-*************************************************************************************/
+/*****************************************************************
+*             Device control list functions     				 *
+******************************************************************/
 
 static LIST_HEAD(cx231xx_devlist);
 static DEFINE_MUTEX(cx231xx_devlist_mutex);
@@ -130,7 +131,6 @@ int cx231xx_register_extension(struct cx231xx_ops *ops)
 	mutex_unlock(&cx231xx_devlist_mutex);
 	return 0;
 }
-
 EXPORT_SYMBOL(cx231xx_register_extension);
 
 void cx231xx_unregister_extension(struct cx231xx_ops *ops)
@@ -149,7 +149,6 @@ void cx231xx_unregister_extension(struct cx231xx_ops *ops)
 	mutex_unlock(&cx231xx_extension_devlist_lock);
 	mutex_unlock(&cx231xx_devlist_mutex);
 }
-
 EXPORT_SYMBOL(cx231xx_unregister_extension);
 
 void cx231xx_init_extension(struct cx231xx *dev)
@@ -180,15 +179,15 @@ void cx231xx_close_extension(struct cx231xx *dev)
 	mutex_unlock(&cx231xx_extension_devlist_lock);
 }
 
-/************************************************************************************
-*                              U S B related functions                              *
-*************************************************************************************/
+/****************************************************************
+*               U S B related functions                         *
+*****************************************************************/
 int cx231xx_send_usb_command(struct cx231xx_i2c *i2c_bus,
 			     struct cx231xx_i2c_xfer_data *req_data)
 {
 	int status = 0;
 	struct cx231xx *dev = i2c_bus->dev;
-	VENDOR_REQUEST_IN ven_req;
+	struct VENDOR_REQUEST_IN ven_req;
 
 	u8 saddr_len = 0;
 	u8 _i2c_period = 0;
@@ -215,10 +214,10 @@ int cx231xx_send_usb_command(struct cx231xx_i2c *i2c_bus,
 		    _i2c_nostop << 1 | I2C_SYNC | _i2c_reserve << 6;
 
 	/* set channel number */
-	if (req_data->direction & I2C_M_RD)
-		ven_req.bRequest = i2c_bus->nr + 4;	/* channel number, for read,
-							   spec required channel_num +4 */
-	else
+	if (req_data->direction & I2C_M_RD) {
+		/* channel number, for read,spec required channel_num +4 */
+		ven_req.bRequest = i2c_bus->nr + 4;
+	} else
 		ven_req.bRequest = i2c_bus->nr;	/* channel number,  */
 
 	/* set index value */
@@ -255,14 +254,14 @@ int cx231xx_send_usb_command(struct cx231xx_i2c *i2c_bus,
 	status = cx231xx_send_vendor_cmd(dev, &ven_req);
 	if (status < 0) {
 		cx231xx_info
-		    ("UsbInterface::sendCommand, output buffer failed with status -%d\n",
+		    ("UsbInterface::sendCommand, failed with status -%d\n",
 		     status);
 	}
 
 	return status;
 }
-
 EXPORT_SYMBOL_GPL(cx231xx_send_usb_command);
+
 /*
  * cx231xx_read_ctrl_reg()
  * reads data from the usb device specifying bRequest and wValue
@@ -336,7 +335,8 @@ int cx231xx_read_ctrl_reg(struct cx231xx *dev, u8 req, u16 reg,
 	return ret;
 }
 
-int cx231xx_send_vendor_cmd(struct cx231xx *dev, VENDOR_REQUEST_IN * ven_req)
+int cx231xx_send_vendor_cmd(struct cx231xx *dev,
+				struct VENDOR_REQUEST_IN *ven_req)
 {
 	int ret;
 	int pipe = 0;
@@ -421,11 +421,11 @@ int cx231xx_write_ctrl_reg(struct cx231xx *dev, u8 req, u16 reg, char *buf,
 		int byte;
 
 		cx231xx_isocdbg("(pipe 0x%08x): "
-				"OUT: %02x %02x %02x %02x %02x %02x %02x %02x >>>",
-				pipe,
-				USB_DIR_OUT | USB_TYPE_VENDOR |
-				USB_RECIP_DEVICE, req, 0, val, reg & 0xff,
-				reg >> 8, len & 0xff, len >> 8);
+			"OUT: %02x %02x %02x %02x %02x %02x %02x %02x >>>",
+			pipe,
+			USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
+			req, 0, val, reg & 0xff,
+			reg >> 8, len & 0xff, len >> 8);
 
 		for (byte = 0; byte < len; byte++)
 			cx231xx_isocdbg(" %02x", (unsigned char)buf[byte]);
@@ -442,9 +442,9 @@ int cx231xx_write_ctrl_reg(struct cx231xx *dev, u8 req, u16 reg, char *buf,
 	return ret;
 }
 
-/************************************************************************************
-*                         USB Alternate Setting functions                           *
-*************************************************************************************/
+/****************************************************************
+*           USB Alternate Setting functions                     *
+*****************************************************************/
 
 int cx231xx_set_video_alternate(struct cx231xx *dev)
 {
@@ -487,7 +487,7 @@ int cx231xx_set_video_alternate(struct cx231xx *dev)
 				dev->video_mode.alt,
 				dev->video_mode.max_pkt_size);
 		cx231xx_info
-		    (" setting alternate %d with wMaxPacketSize=%u , Interface = %d\n",
+		    (" setting alt %d with wMaxPktSize=%u , Interface = %d\n",
 		     dev->video_mode.alt, dev->video_mode.max_pkt_size,
 		     usb_interface_index);
 		errCode =
@@ -495,7 +495,7 @@ int cx231xx_set_video_alternate(struct cx231xx *dev)
 				      dev->video_mode.alt);
 		if (errCode < 0) {
 			cx231xx_errdev
-			    ("cannot change alternate number to %d (error=%i)\n",
+			    ("cannot change alt number to %d (error=%i)\n",
 			     dev->video_mode.alt, errCode);
 			return errCode;
 		}
@@ -569,8 +569,8 @@ int cx231xx_set_alt_setting(struct cx231xx *dev, u8 index, u8 alt)
 
 	if (alt > 0 && max_pkt_size == 0) {
 		cx231xx_errdev
-		    ("cannot change interface %d alternate number to %d : Max. Pkt size is ZERO\n",
-		     usb_interface_index, alt);
+		("can't change interface %d alt no. to %d: Max. Pkt size = 0\n",
+		usb_interface_index, alt);
 		return -1;
 	}
 
@@ -582,15 +582,14 @@ int cx231xx_set_alt_setting(struct cx231xx *dev, u8 index, u8 alt)
 		status = usb_set_interface(dev->udev, usb_interface_index, alt);
 		if (status < 0) {
 			cx231xx_errdev
-			    ("cannot change interface %d alternate number to %d (error=%i)\n",
-			     usb_interface_index, alt, status);
+			("can't change interface %d alt no. to %d (err=%i)\n",
+			usb_interface_index, alt, status);
 			return status;
 		}
 	}
 
 	return status;
 }
-
 EXPORT_SYMBOL_GPL(cx231xx_set_alt_setting);
 
 int cx231xx_gpio_set(struct cx231xx *dev, struct cx231xx_reg_seq *gpio)
@@ -630,19 +629,18 @@ int cx231xx_set_mode(struct cx231xx *dev, enum cx231xx_mode set_mode)
 
 	dev->mode = set_mode;
 
-	if (dev->mode == CX231XX_DIGITAL_MODE) {
-		/* Set Digital power mode */
-	} else {
-		/* Set Analog Power mode */
-	}
+	if (dev->mode == CX231XX_DIGITAL_MODE)
+		;/* Set Digital power mode */
+	else
+		;/* Set Analog Power mode */
+
 	return 0;
 }
-
 EXPORT_SYMBOL_GPL(cx231xx_set_mode);
 
-/************************************************************************************
-*                               URB Streaming functions                             *
-*************************************************************************************/
+/*****************************************************************
+*                URB Streaming functions                         *
+******************************************************************/
 
 /*
  * IRQ callback, called by URB callback
@@ -728,7 +726,6 @@ void cx231xx_uninit_isoc(struct cx231xx *dev)
 
 	cx231xx_capture_start(dev, 0, Raw_Video);
 }
-
 EXPORT_SYMBOL_GPL(cx231xx_uninit_isoc);
 
 /*
@@ -736,7 +733,7 @@ EXPORT_SYMBOL_GPL(cx231xx_uninit_isoc);
  */
 int cx231xx_init_isoc(struct cx231xx *dev, int max_packets,
 		      int num_bufs, int max_pkt_size,
-		      int (*isoc_copy) (struct cx231xx * dev, struct urb * urb))
+		      int (*isoc_copy) (struct cx231xx *dev, struct urb *urb))
 {
 	struct cx231xx_dmaqueue *dma_q = &dev->video_mode.vidq;
 	int i;
@@ -805,7 +802,7 @@ int cx231xx_init_isoc(struct cx231xx *dev, int max_packets,
 			cx231xx_err("unable to allocate %i bytes for transfer"
 				    " buffer %i%s\n",
 				    sb_size, i,
-				    in_interrupt()? " while in int" : "");
+				    in_interrupt() ? " while in int" : "");
 			cx231xx_uninit_isoc(dev);
 			return -ENOMEM;
 		}
@@ -848,12 +845,11 @@ int cx231xx_init_isoc(struct cx231xx *dev, int max_packets,
 
 	return 0;
 }
-
 EXPORT_SYMBOL_GPL(cx231xx_init_isoc);
 
-/************************************************************************************
-*                          Device Init/UnInit functions                             *
-*************************************************************************************/
+/*****************************************************************
+*             Device Init/UnInit functions                       *
+******************************************************************/
 int cx231xx_dev_init(struct cx231xx *dev)
 {
 	int errCode = 0;
@@ -887,11 +883,12 @@ int cx231xx_dev_init(struct cx231xx *dev)
 	cx231xx_i2c_register(&dev->i2c_bus[2]);
 
 	/* init hardware */
-	/* Note : with out calling set power mode function, colibri can not be set up correctly */
+	/* Note : with out calling set power mode function,
+	colibri can not be set up correctly */
 	errCode = cx231xx_set_power_mode(dev, POLARIS_AVMODE_ANALOGT_TV);
 	if (errCode < 0) {
 		cx231xx_errdev
-		    ("%s: cx231xx_set_power_mode : Failed to set Power - errCode [%d]!\n",
+		    ("%s: Failed to set Power - errCode [%d]!\n",
 		     __func__, errCode);
 		return errCode;
 	}
@@ -959,7 +956,6 @@ int cx231xx_dev_init(struct cx231xx *dev)
 
 	return errCode;
 }
-
 EXPORT_SYMBOL_GPL(cx231xx_dev_init);
 
 void cx231xx_dev_uninit(struct cx231xx *dev)
@@ -969,17 +965,16 @@ void cx231xx_dev_uninit(struct cx231xx *dev)
 	cx231xx_i2c_unregister(&dev->i2c_bus[1]);
 	cx231xx_i2c_unregister(&dev->i2c_bus[0]);
 }
-
 EXPORT_SYMBOL_GPL(cx231xx_dev_uninit);
 
-/************************************************************************************
-*                              G P I O related functions                            *
-*************************************************************************************/
+/*****************************************************************
+*              G P I O related functions                         *
+******************************************************************/
 int cx231xx_send_gpio_cmd(struct cx231xx *dev, u32 gpio_bit, u8 * gpio_val,
 			  u8 len, u8 request, u8 direction)
 {
 	int status = 0;
-	VENDOR_REQUEST_IN ven_req;
+	struct VENDOR_REQUEST_IN ven_req;
 
 	/* Set wValue */
 	ven_req.wValue = (u16) (gpio_bit >> 16 & 0xffff);
@@ -1021,18 +1016,17 @@ int cx231xx_send_gpio_cmd(struct cx231xx *dev, u32 gpio_bit, u8 * gpio_val,
 	status = cx231xx_send_vendor_cmd(dev, &ven_req);
 	if (status < 0) {
 		cx231xx_info
-		    ("UsbInterface::sendCommand, output buffer failed with status -%d\n",
+		    ("UsbInterface::sendCommand, failed with status -%d\n",
 		     status);
 	}
 
 	return status;
 }
-
 EXPORT_SYMBOL_GPL(cx231xx_send_gpio_cmd);
 
-/*************************************************************************************
- *               C O N T R O L - Register R E A D / W R I T E functions              *
- *************************************************************************************/
+/*****************************************************************
+ *    C O N T R O L - Register R E A D / W R I T E functions     *
+ *****************************************************************/
 int cx231xx_mode_register(struct cx231xx *dev, u16 address, u32 mode)
 {
 	u8 value[4] = { 0x0, 0x0, 0x0, 0x0 };
@@ -1058,11 +1052,11 @@ int cx231xx_mode_register(struct cx231xx *dev, u16 address, u32 mode)
 	return status;
 }
 
-/*************************************************************************************
- *                      I 2 C Internal C O N T R O L   functions                     *
- *************************************************************************************/
+/*****************************************************************
+ *            I 2 C Internal C O N T R O L   functions           *
+ *****************************************************************/
 int cx231xx_read_i2c_data(struct cx231xx *dev, u8 dev_addr, u16 saddr,
-			  u8 saddr_len, u32 * data, u8 data_len)
+			  u8 saddr_len, u32 *data, u8 data_len)
 {
 	int status = 0;
 	struct cx231xx_i2c_xfer_data req_data;
@@ -1137,9 +1131,8 @@ int cx231xx_reg_mask_write(struct cx231xx *dev, u8 dev_addr, u8 size,
 	u32 mask = 0;
 	int i;
 
-	if (bit_start > (size - 1) || bit_end > (size - 1)) {
+	if (bit_start > (size - 1) || bit_end > (size - 1))
 		return -1;
-	}
 
 	if (size == 8) {
 		status =
@@ -1151,14 +1144,12 @@ int cx231xx_reg_mask_write(struct cx231xx *dev, u8 dev_addr, u8 size,
 					  &tmp, 4);
 	}
 
-	if (status < 0) {
+	if (status < 0)
 		return status;
-	}
 
 	mask = 1 << bit_end;
-	for (i = bit_end; i > bit_start && i > 0; i--) {
+	for (i = bit_end; i > bit_start && i > 0; i--)
 		mask = mask + (1 << (i - 1));
-	}
 
 	value <<= bit_start;
 
@@ -1203,9 +1194,8 @@ u32 cx231xx_set_field(u32 field_mask, u32 data)
 {
 	u32 temp;
 
-	for (temp = field_mask; (temp & 1) == 0; temp >>= 1) {
+	for (temp = field_mask; (temp & 1) == 0; temp >>= 1)
 		data <<= 1;
-	}
 
 	return data;
 }

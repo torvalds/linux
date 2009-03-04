@@ -74,12 +74,14 @@ int cx231xx_colibri_init_super_block(struct cx231xx *dev, u32 ref_count)
 					       &colibri_power_status, 1);
 		colibri_power_status &= 0xff;
 		if (status < 0) {
-			cx231xx_info(": Init Super Block failed in sending/receiving cmds\n");
+			cx231xx_info(
+			": Init Super Block failed in send/receive cmds\n");
 			break;
 		}
 		i++;
 		if (i == 10) {
-			cx231xx_info(": Init Super Block force break in loop !!!!\n");
+			cx231xx_info(
+			": Init Super Block force break in loop !!!!\n");
 			status = -1;
 			break;
 		}
@@ -258,7 +260,8 @@ int cx231xx_colibri_set_mode(struct cx231xx *dev, enum AFE_MODE mode)
 		break;
 	}
 
-	if ((mode != dev->colibri_mode) && (dev->video_input == CX231XX_VMUX_TELEVISION))
+	if ((mode != dev->colibri_mode) &&
+		(dev->video_input == CX231XX_VMUX_TELEVISION))
 		status = cx231xx_colibri_adjust_ref_count(dev,
 						     CX231XX_VMUX_TELEVISION);
 
@@ -511,8 +514,9 @@ int cx231xx_set_video_input_mux(struct cx231xx *dev, u8 input)
 			status = cx231xx_set_power_mode(dev,
 					POLARIS_AVMODE_ENXTERNAL_AV);
 			if (status < 0) {
-				cx231xx_errdev("%s: cx231xx_set_power_mode : Failed to set Power - errCode [%d]!\n",
-				     __func__, status);
+				cx231xx_errdev("%s: set_power_mode : Failed to"
+						" set Power - errCode [%d]!\n",
+						__func__, status);
 				return status;
 			}
 		}
@@ -528,8 +532,9 @@ int cx231xx_set_video_input_mux(struct cx231xx *dev, u8 input)
 			status = cx231xx_set_power_mode(dev,
 						POLARIS_AVMODE_ANALOGT_TV);
 			if (status < 0) {
-				cx231xx_errdev("%s: cx231xx_set_power_mode : Failed to set Power - errCode [%d]!\n",
-				     __func__, status);
+				cx231xx_errdev("%s: set_power_mode:Failed"
+					" to set Power - errCode [%d]!\n",
+					__func__, status);
 				return status;
 			}
 		}
@@ -538,7 +543,7 @@ int cx231xx_set_video_input_mux(struct cx231xx *dev, u8 input)
 							INPUT(input)->vmux);
 		break;
 	default:
-		cx231xx_errdev("%s: cx231xx_set_power_mode : Unknown Input %d !\n",
+		cx231xx_errdev("%s: set_power_mode : Unknown Input %d !\n",
 		     __func__, INPUT(input)->type);
 		break;
 	}
@@ -549,7 +554,8 @@ int cx231xx_set_video_input_mux(struct cx231xx *dev, u8 input)
 	return status;
 }
 
-int cx231xx_set_decoder_video_input(struct cx231xx *dev, u8 pin_type, u8 input)
+int cx231xx_set_decoder_video_input(struct cx231xx *dev,
+				u8 pin_type, u8 input)
 {
 	int status = 0;
 	u32 value = 0;
@@ -557,8 +563,9 @@ int cx231xx_set_decoder_video_input(struct cx231xx *dev, u8 pin_type, u8 input)
 	if (pin_type != dev->video_input) {
 		status = cx231xx_colibri_adjust_ref_count(dev, pin_type);
 		if (status < 0) {
-			cx231xx_errdev("%s: cx231xx_colibri_adjust_ref_count :Failed to set Colibri input mux - errCode [%d]!\n",
-			     __func__, status);
+			cx231xx_errdev("%s: adjust_ref_count :Failed to set"
+				"Colibri input mux - errCode [%d]!\n",
+				__func__, status);
 			return status;
 		}
 	}
@@ -566,8 +573,9 @@ int cx231xx_set_decoder_video_input(struct cx231xx *dev, u8 pin_type, u8 input)
 	/* call colibri block to set video inputs */
 	status = cx231xx_colibri_set_input_mux(dev, input);
 	if (status < 0) {
-		cx231xx_errdev("%s: cx231xx_colibri_set_input_mux :Failed to set Colibri input mux - errCode [%d]!\n",
-		     __func__, status);
+		cx231xx_errdev("%s: set_input_mux :Failed to set"
+				" Colibri input mux - errCode [%d]!\n",
+				__func__, status);
 		return status;
 	}
 
@@ -579,8 +587,10 @@ int cx231xx_set_decoder_video_input(struct cx231xx *dev, u8 pin_type, u8 input)
 		value |= (0 << 13) | (1 << 4);
 		value &= ~(1 << 5);
 
-		value &= (~(0x1ff8000));	/* set [24:23] [22:15] to 0  */
-		value |= 0x1000000;	/* set FUNC_MODE[24:23] = 2 IF_MOD[22:15] = 0  */
+		/* set [24:23] [22:15] to 0  */
+		value &= (~(0x1ff8000));
+		/* set FUNC_MODE[24:23] = 2 IF_MOD[22:15] = 0  */
+		value |= 0x1000000;
 		status = cx231xx_write_i2c_data(dev, HAMMERHEAD_I2C_ADDRESS,
 						AFE_CTRL, 2, value, 4);
 
@@ -600,7 +610,8 @@ int cx231xx_set_decoder_video_input(struct cx231xx *dev, u8 pin_type, u8 input)
 		/* Tell DIF object to go to baseband mode  */
 		status = cx231xx_dif_set_standard(dev, DIF_USE_BASEBAND);
 		if (status < 0) {
-			cx231xx_errdev("%s: cx231xx_dif set to By pass mode - errCode [%d]!\n",
+			cx231xx_errdev("%s: cx231xx_dif set to By pass"
+						   " mode- errCode [%d]!\n",
 				__func__, status);
 			return status;
 		}
@@ -637,9 +648,11 @@ int cx231xx_set_decoder_video_input(struct cx231xx *dev, u8 pin_type, u8 input)
 		status = cx231xx_read_i2c_data(dev, HAMMERHEAD_I2C_ADDRESS,
 					       AFE_CTRL, 2, &value, 4);
 
-		value &= (~(0x1ff8000));	/* set [24:23] [22:15] to 0 */
-		value |= 0x1000010;	/* set FUNC_MODE[24:23] = 2
-						IF_MOD[22:15] = 0 DCR_BYP_CH2[4:4] = 1; */
+		/* set [24:23] [22:15] to 0 */
+		value &= (~(0x1ff8000));
+		/* set FUNC_MODE[24:23] = 2
+		IF_MOD[22:15] = 0 DCR_BYP_CH2[4:4] = 1; */
+		value |= 0x1000010;
 		status = cx231xx_write_i2c_data(dev,
 						HAMMERHEAD_I2C_ADDRESS,
 						AFE_CTRL, 2, value, 4);
@@ -647,7 +660,8 @@ int cx231xx_set_decoder_video_input(struct cx231xx *dev, u8 pin_type, u8 input)
 		/* Tell DIF object to go to baseband mode */
 		status = cx231xx_dif_set_standard(dev, DIF_USE_BASEBAND);
 		if (status < 0) {
-			cx231xx_errdev("%s: cx231xx_dif set to By pass mode - errCode [%d]!\n",
+			cx231xx_errdev("%s: cx231xx_dif set to By pass"
+						   " mode- errCode [%d]!\n",
 				__func__, status);
 			return status;
 		}
@@ -713,8 +727,10 @@ int cx231xx_set_decoder_video_input(struct cx231xx *dev, u8 pin_type, u8 input)
 			value |= (0 << 13) | (1 << 4);
 			value &= ~(1 << 5);
 
-			value &= (~(0x1FF8000));	/* set [24:23] [22:15] to 0 */
-			value |= 0x1000000;	/* set FUNC_MODE[24:23] = 2 IF_MOD[22:15] = 0 */
+			/* set [24:23] [22:15] to 0 */
+			value &= (~(0x1FF8000));
+			/* set FUNC_MODE[24:23] = 2 IF_MOD[22:15] = 0 */
+			value |= 0x1000000;
 			status = cx231xx_write_i2c_data(dev,
 							HAMMERHEAD_I2C_ADDRESS,
 							AFE_CTRL, 2,
@@ -740,8 +756,9 @@ int cx231xx_set_decoder_video_input(struct cx231xx *dev, u8 pin_type, u8 input)
 			status = cx231xx_dif_set_standard(dev,
 							  DIF_USE_BASEBAND);
 			if (status < 0) {
-				cx231xx_errdev("%s: cx231xx_dif set to By pass mode - errCode [%d]!\n",
-					__func__, status);
+				cx231xx_errdev("%s: cx231xx_dif set to By pass"
+						" mode- errCode [%d]!\n",
+						__func__, status);
 				return status;
 			}
 
@@ -773,7 +790,8 @@ int cx231xx_set_decoder_video_input(struct cx231xx *dev, u8 pin_type, u8 input)
 			status = cx231xx_read_modify_write_i2c_dword(dev,
 				HAMMERHEAD_I2C_ADDRESS,
 				MODE_CTRL, FLD_INPUT_MODE,
-				cx231xx_set_field(FLD_INPUT_MODE, INPUT_MODE_CVBS_0));
+				cx231xx_set_field(FLD_INPUT_MODE,
+						INPUT_MODE_CVBS_0));
 			break;
 		default:
 			/* Enable the DIF for the tuner */
@@ -781,8 +799,9 @@ int cx231xx_set_decoder_video_input(struct cx231xx *dev, u8 pin_type, u8 input)
 			/* Reinitialize the DIF */
 			status = cx231xx_dif_set_standard(dev, dev->norm);
 			if (status < 0) {
-				cx231xx_errdev("%s: cx231xx_dif set to By pass mode - errCode [%d]!\n",
-					__func__, status);
+				cx231xx_errdev("%s: cx231xx_dif set to By pass"
+						" mode- errCode [%d]!\n",
+						__func__, status);
 				return status;
 			}
 
@@ -861,9 +880,11 @@ int cx231xx_set_decoder_video_input(struct cx231xx *dev, u8 pin_type, u8 input)
 			status = cx231xx_read_modify_write_i2c_dword(dev,
 				HAMMERHEAD_I2C_ADDRESS,
 				MODE_CTRL, FLD_INPUT_MODE,
-				cx231xx_set_field(FLD_INPUT_MODE, INPUT_MODE_CVBS_0));
+				cx231xx_set_field(FLD_INPUT_MODE,
+						INPUT_MODE_CVBS_0));
 
-			/* Set some bits in AFE_CTRL so that channel 2 or 3 is ready to receive audio */
+			/* Set some bits in AFE_CTRL so that channel 2 or 3
+			 * is ready to receive audio */
 			/* Clear clamp for channels 2 and 3      (bit 16-17) */
 			/* Clear droop comp                      (bit 19-20) */
 			/* Set VGA_SEL (for audio control)       (bit 7-8) */
@@ -903,8 +924,9 @@ int cx231xx_set_decoder_video_input(struct cx231xx *dev, u8 pin_type, u8 input)
 }
 
 /*
- * Handle any video-mode specific overrides that are different on a per video standards
- * basis after touching the MODE_CTRL register which resets many values for autodetect
+ * Handle any video-mode specific overrides that are different
+ * on a per video standards basis after touching the MODE_CTRL
+ * register which resets many values for autodetect
  */
 int cx231xx_do_mode_ctrl_overrides(struct cx231xx *dev)
 {
@@ -918,7 +940,8 @@ int cx231xx_do_mode_ctrl_overrides(struct cx231xx *dev)
 					DFE_CTRL3, 2,
 					0xCD3F0280, 4);
 
-	if (dev->norm & (V4L2_STD_NTSC_M | V4L2_STD_NTSC_M_JP | V4L2_STD_PAL_M)) {
+	if (dev->norm & (V4L2_STD_NTSC_M | V4L2_STD_NTSC_M_JP |
+					 V4L2_STD_PAL_M)) {
 		cx231xx_info("do_mode_ctrl_overrides NTSC\n");
 
 		/* Move the close caption lines out of active video,
@@ -1237,55 +1260,72 @@ int cx231xx_dif_configure_C2HH_for_low_IF(struct cx231xx *dev, u32 mode,
 
 	if (mode == V4L2_TUNER_RADIO) {
 		/* C2HH */
-		status = cx231xx_reg_mask_write(dev, HAMMERHEAD_I2C_ADDRESS, 32,
-				AFE_CTRL_C2HH_SRC_CTRL, 30, 31, 0x1);	/* lo if big signal */
-		status = cx231xx_reg_mask_write(dev, HAMMERHEAD_I2C_ADDRESS, 32,
-				AFE_CTRL_C2HH_SRC_CTRL, 23, 24, function_mode);	/* FUNC_MODE = DIF */
-		status = cx231xx_reg_mask_write(dev, HAMMERHEAD_I2C_ADDRESS, 32,
-				AFE_CTRL_C2HH_SRC_CTRL, 15, 22, 0xFF);	/* IF_MODE */
-		status = cx231xx_reg_mask_write(dev, HAMMERHEAD_I2C_ADDRESS, 32,
-				AFE_CTRL_C2HH_SRC_CTRL, 9, 9, 0x1);	/* no inv */
+		/* lo if big signal */
+		status = cx231xx_reg_mask_write(dev,
+				HAMMERHEAD_I2C_ADDRESS, 32,
+				AFE_CTRL_C2HH_SRC_CTRL, 30, 31, 0x1);
+		/* FUNC_MODE = DIF */
+		status = cx231xx_reg_mask_write(dev,
+				HAMMERHEAD_I2C_ADDRESS, 32,
+				AFE_CTRL_C2HH_SRC_CTRL, 23, 24, function_mode);
+		/* IF_MODE */
+		status = cx231xx_reg_mask_write(dev,
+				HAMMERHEAD_I2C_ADDRESS, 32,
+				AFE_CTRL_C2HH_SRC_CTRL, 15, 22, 0xFF);
+		/* no inv */
+		status = cx231xx_reg_mask_write(dev,
+				HAMMERHEAD_I2C_ADDRESS, 32,
+				AFE_CTRL_C2HH_SRC_CTRL, 9, 9, 0x1);
 	} else {
 		switch (standard) {
 		case V4L2_STD_NTSC_M:	/* 75 IRE Setup */
-		case V4L2_STD_NTSC_M_JP:	/* Japan,  0 IRE Setup */
+		case V4L2_STD_NTSC_M_JP:/* Japan,  0 IRE Setup */
 		case V4L2_STD_PAL_M:
 		case V4L2_STD_PAL_N:
 		case V4L2_STD_PAL_Nc:
+			/* lo if big signal */
 			status = cx231xx_reg_mask_write(dev,
 					HAMMERHEAD_I2C_ADDRESS, 32,
-					AFE_CTRL_C2HH_SRC_CTRL, 30, 31, 0x1);	/* lo if big signal */
+					AFE_CTRL_C2HH_SRC_CTRL, 30, 31, 0x1);
+			/* FUNC_MODE = DIF */
 			status = cx231xx_reg_mask_write(dev,
 					HAMMERHEAD_I2C_ADDRESS, 32,
 					AFE_CTRL_C2HH_SRC_CTRL, 23, 24,
-					function_mode);	/* FUNC_MODE = DIF */
+					function_mode);
+			/* IF_MODE */
 			status = cx231xx_reg_mask_write(dev,
 					HAMMERHEAD_I2C_ADDRESS, 32,
-					AFE_CTRL_C2HH_SRC_CTRL, 15, 22, 0xb);	/* IF_MODE */
+					AFE_CTRL_C2HH_SRC_CTRL, 15, 22, 0xb);
+			/* no inv */
 			status = cx231xx_reg_mask_write(dev,
 					HAMMERHEAD_I2C_ADDRESS, 32,
-					AFE_CTRL_C2HH_SRC_CTRL, 9, 9, 0x1);	/* no inv */
+					AFE_CTRL_C2HH_SRC_CTRL, 9, 9, 0x1);
+			/* 0x124, AUD_CHAN1_SRC = 0x3 */
 			status = cx231xx_reg_mask_write(dev,
 					HAMMERHEAD_I2C_ADDRESS, 32,
-					AUD_IO_CTRL, 0, 31, 0x00000003);	/* 0x124, AUD_CHAN1_SRC = 0x3 */
+					AUD_IO_CTRL, 0, 31, 0x00000003);
 			break;
 
 		case V4L2_STD_PAL_B:
 		case V4L2_STD_PAL_G:
 			/* C2HH setup */
+			/* lo if big signal */
 			status = cx231xx_reg_mask_write(dev,
 					HAMMERHEAD_I2C_ADDRESS, 32,
-					AFE_CTRL_C2HH_SRC_CTRL, 30, 31, 0x1);	/* lo if big signal */
+					AFE_CTRL_C2HH_SRC_CTRL, 30, 31, 0x1);
+			/* FUNC_MODE = DIF */
 			status = cx231xx_reg_mask_write(dev,
 					HAMMERHEAD_I2C_ADDRESS, 32,
 					AFE_CTRL_C2HH_SRC_CTRL, 23, 24,
-					function_mode);	/* FUNC_MODE = DIF */
+					function_mode);
+			/* IF_MODE */
 			status = cx231xx_reg_mask_write(dev,
 					HAMMERHEAD_I2C_ADDRESS, 32,
-					AFE_CTRL_C2HH_SRC_CTRL, 15, 22, 0xE);	/* IF_MODE */
+					AFE_CTRL_C2HH_SRC_CTRL, 15, 22, 0xE);
+			/* no inv */
 			status = cx231xx_reg_mask_write(dev,
 					HAMMERHEAD_I2C_ADDRESS, 32,
-					AFE_CTRL_C2HH_SRC_CTRL, 9, 9, 0x1);	/* no inv */
+					AFE_CTRL_C2HH_SRC_CTRL, 9, 9, 0x1);
 			break;
 
 		case V4L2_STD_PAL_D:
@@ -1298,19 +1338,23 @@ int cx231xx_dif_configure_C2HH_for_low_IF(struct cx231xx *dev, u32 mode,
 		case V4L2_STD_SECAM_K:
 		case V4L2_STD_SECAM_K1:
 			/* C2HH setup */
+			/* lo if big signal */
 			status = cx231xx_reg_mask_write(dev,
 					HAMMERHEAD_I2C_ADDRESS, 32,
-					AFE_CTRL_C2HH_SRC_CTRL, 30, 31, 0x1);	/* lo if big signal */
+					AFE_CTRL_C2HH_SRC_CTRL, 30, 31, 0x1);
+			/* FUNC_MODE = DIF */
 			status = cx231xx_reg_mask_write(dev,
 					HAMMERHEAD_I2C_ADDRESS, 32,
 					AFE_CTRL_C2HH_SRC_CTRL, 23, 24,
-					function_mode);	/* FUNC_MODE = DIF */
+					function_mode);
+			/* IF_MODE */
 			status = cx231xx_reg_mask_write(dev,
 					HAMMERHEAD_I2C_ADDRESS, 32,
-					AFE_CTRL_C2HH_SRC_CTRL, 15, 22, 0xF);	/* IF_MODE */
+					AFE_CTRL_C2HH_SRC_CTRL, 15, 22, 0xF);
+			/* no inv */
 			status = cx231xx_reg_mask_write(dev,
 					HAMMERHEAD_I2C_ADDRESS, 32,
-					AFE_CTRL_C2HH_SRC_CTRL, 9, 9, 0x1);	/* no inv */
+					AFE_CTRL_C2HH_SRC_CTRL, 9, 9, 0x1);
 			break;
 
 		case DIF_USE_BASEBAND:
@@ -1919,7 +1963,8 @@ int cx231xx_set_power_mode(struct cx231xx *dev, AV_MODE mode)
 		status = cx231xx_write_ctrl_reg(dev, VRT_SET_REGISTER,
 						PWR_CTL_EN, value, 4);
 
-		dev->xc_fw_load_done = 0;	/* reset state of xceive tuner */
+		/* reset state of xceive tuner */
+		dev->xc_fw_load_done = 0;
 		break;
 
 	case POLARIS_AVMODE_ANALOGT_TV:
@@ -2076,7 +2121,8 @@ int cx231xx_set_power_mode(struct cx231xx *dev, AV_MODE mode)
 
 	status = cx231xx_read_ctrl_reg(dev, VRT_GET_REGISTER, PWR_CTL_EN, value,
 				       4);
-	cx231xx_info(" The data of PWR_CTL_EN register 0x74=0x%0x,0x%0x,0x%0x,0x%0x\n",
+	cx231xx_info(" The data of PWR_CTL_EN register 0x74"
+				 "=0x%0x,0x%0x,0x%0x,0x%0x\n",
 		     value[0], value[1], value[2], value[3]);
 
 	return status;
@@ -2210,10 +2256,10 @@ int cx231xx_capture_start(struct cx231xx *dev, int start, u8 media_type)
 {
 	int rc;
 	u32 ep_mask = -1;
-	PPCB_CONFIG pcb_config;
+	struct pcb_config *pcb_config;
 
 	/* get EP for media type */
-	pcb_config = &dev->current_pcb_config;
+	pcb_config = (struct pcb_config *)&dev->current_pcb_config;
 
 	if (pcb_config->config_num == 1) {
 		switch (media_type) {
@@ -2278,6 +2324,10 @@ int cx231xx_capture_start(struct cx231xx *dev, int start, u8 media_type)
 			rc = cx231xx_stop_stream(dev, ep_mask);
 	}
 
+	if (dev->mode == CX231XX_ANALOG_MODE)
+		;/* do any in Analog mode */
+	else
+		;/* do any in digital mode */
 
 	return rc;
 }
@@ -2564,10 +2614,12 @@ int cx231xx_gpio_i2c_read_ack(struct cx231xx *dev)
 		status = cx231xx_get_gpio_bit(dev, dev->gpio_dir,
 					      (u8 *)&dev->gpio_val);
 		nCnt--;
-	} while (((dev->gpio_val & (1 << dev->board.tuner_scl_gpio)) == 0) && (nCnt > 0));
+	} while (((dev->gpio_val &
+			  (1 << dev->board.tuner_scl_gpio)) == 0) &&
+			 (nCnt > 0));
 
 	if (nCnt == 0)
-		cx231xx_info("No ACK after %d msec for clock stretch. GPIO I2C operation failed!",
+		cx231xx_info("No ACK after %d msec -GPIO I2C failed!",
 			     nInit * 10);
 
 	/* readAck
