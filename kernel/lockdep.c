@@ -2015,7 +2015,8 @@ typedef int (*check_usage_f)(struct task_struct *, struct held_lock *,
 			     enum lock_usage_bit bit, const char *name);
 
 static int
-mark_lock_irq(struct task_struct *curr, struct held_lock *this, int new_bit)
+mark_lock_irq(struct task_struct *curr, struct held_lock *this,
+		enum lock_usage_bit new_bit)
 {
 	int excl_bit = exclusive_bit(new_bit);
 	int read = new_bit & 1;
@@ -2043,7 +2044,7 @@ mark_lock_irq(struct task_struct *curr, struct held_lock *this, int new_bit)
 	 * states.
 	 */
 	if ((!read || !dir || STRICT_READ_CHECKS) &&
-			!usage(curr, this, excl_bit, state_name(new_bit)))
+			!usage(curr, this, excl_bit, state_name(new_bit & ~1)))
 		return 0;
 
 	/*
