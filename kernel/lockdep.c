@@ -1900,9 +1900,9 @@ print_irq_inversion_bug(struct task_struct *curr, struct lock_class *other,
 		curr->comm, task_pid_nr(curr));
 	print_lock(this);
 	if (forwards)
-		printk("but this lock took another, %s-irq-unsafe lock in the past:\n", irqclass);
+		printk("but this lock took another, %s-unsafe lock in the past:\n", irqclass);
 	else
-		printk("but this lock was taken by another, %s-irq-safe lock in the past:\n", irqclass);
+		printk("but this lock was taken by another, %s-safe lock in the past:\n", irqclass);
 	print_lock_name(other);
 	printk("\n\nand interrupts could create inverse lock ordering between them.\n\n");
 
