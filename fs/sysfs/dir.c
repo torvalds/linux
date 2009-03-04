@@ -609,6 +609,7 @@ void sysfs_addrm_finish(struct sysfs_addrm_cxt *acxt)
 
 		sysfs_drop_dentry(sd);
 		sysfs_deactivate(sd);
+		unmap_bin_file(sd);
 		sysfs_put(sd);
 	}
 }

@@ -28,6 +28,7 @@ struct sysfs_elem_attr {
 
 struct sysfs_elem_bin_attr {
 	struct bin_attribute	*bin_attr;
+	struct hlist_head	buffers;
 };
 
 /*
@@ -164,6 +165,7 @@ int sysfs_add_file_mode(struct sysfs_dirent *dir_sd,
  * bin.c
  */
 extern const struct file_operations bin_fops;
+void unmap_bin_file(struct sysfs_dirent *attr_sd);
 
 /*
  * symlink.c
