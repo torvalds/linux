@@ -336,7 +336,7 @@ static int wm8510_set_dai_pll(struct snd_soc_dai *codec_dai,
 		return 0;
 	}
 
-	pll_factors(freq_out*8, freq_in);
+	pll_factors(freq_out*4, freq_in);
 
 	wm8510_write(codec, WM8510_PLLN, (pll_div.pre_div << 4) | pll_div.n);
 	wm8510_write(codec, WM8510_PLLK1, pll_div.k >> 18);
@@ -367,7 +367,7 @@ static int wm8510_set_dai_clkdiv(struct snd_soc_dai *codec_dai,
 		wm8510_write(codec, WM8510_GPIO, reg | div);
 		break;
 	case WM8510_MCLKDIV:
-		reg = wm8510_read_reg_cache(codec, WM8510_CLOCK) & 0x1f;
+		reg = wm8510_read_reg_cache(codec, WM8510_CLOCK) & 0x11f;
 		wm8510_write(codec, WM8510_CLOCK, reg | div);
 		break;
 	case WM8510_ADCCLK:
