@@ -166,6 +166,11 @@
 #define RSM_PSR_DT		\
 	rsm psr.dt
 
+#define RSM_PSR_BE_I(clob0, clob1)	\
+	rsm psr.be | psr.i		\
+	CLOBBER(clob0)			\
+	CLOBBER(clob1)
+
 #define SSM_PSR_DT_AND_SRLZ_I	\
 	ssm psr.dt		\
 	;;			\

@@ -251,6 +251,9 @@
 	IS_RREG_CLOB(clob2)
 #define RSM_PSR_DT				\
 	nop 0
+#define RSM_PSR_BE_I(clob0, clob1)		\
+	IS_RREG_CLOB(clob0)			\
+	IS_RREG_CLOB(clob1)
 #define SSM_PSR_DT_AND_SRLZ_I			\
 	nop 0
 #define BSW_0(clob0, clob1, clob2)		\

@@ -13,6 +13,7 @@
 #include <asm/sigcontext.h>
 #include <asm/system.h>
 #include <asm/unistd.h>
+#include "paravirt_inst.h"
 
 /*
  * We can't easily refer to symbols inside the kernel.  To avoid full runtime relocation,
@@ -323,7 +324,7 @@ GLOBAL_ENTRY(__kernel_syscall_via_epc)
 	epc					// B	causes split-issue
 }
 	;;
-	rsm psr.be | psr.i			// M2 (5 cyc to srlz.d)
+	RSM_PSR_BE_I(r20, r22)			// M2 (5 cyc to srlz.d)
 	LOAD_FSYSCALL_TABLE(r14)		// X
 	;;
 	mov r16=IA64_KR(CURRENT)		// M2 (12 cyc)
@@ -331,7 +332,7 @@ GLOBAL_ENTRY(__kernel_syscall_via_epc)
 	mov r19=NR_syscalls-1			// A
 	;;
 	lfetch [r18]				// M0|1
-	mov r29=psr				// M2 (12 cyc)
+	MOV_FROM_PSR(p0, r29, r8)		// M2 (12 cyc)
 	// If r17 is a NaT, p6 will be zero
 	cmp.geu p6,p7=r19,r17			// A    (sysnr > 0 && sysnr < 1024+NR_syscalls)?
 	;;
@@ -347,7 +348,7 @@ GLOBAL_ENTRY(__kernel_syscall_via_epc)
 (p6)	tbit.z.unc p8,p0=r18,0			// I0 (dual-issues with "mov b7=r18"!)
 	nop.i 0
 	;;
-(p8)	ssm psr.i
+	SSM_PSR_I(p8, p14, r25)
 (p6)	mov b7=r18				// I0
 (p8)	br.dptk.many b7				// B
 
@@ -368,9 +369,17 @@ GLOBAL_ENTRY(__kernel_syscall_via_epc)
 #else
 	BRL_COND_FSYS_BUBBLE_DOWN(p6)
 #endif
-	ssm psr.i
+	SSM_PSR_I(p0, p14, r10)
 	mov r10=-1
 (p10)	mov r8=EINVAL
 (p9)	mov r8=ENOSYS
 	FSYS_RETURN
+
+#ifdef CONFIG_PARAVIRT
+	/*
+	 * padd to make the size of this symbol constant
+	 * independent of paravirtualization.
+	 */
+	.align PAGE_SIZE / 8
+#endif
 END(__kernel_syscall_via_epc)
