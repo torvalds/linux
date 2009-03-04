@@ -76,6 +76,10 @@ config CRYPTO_RNG2
 	tristate
 	select CRYPTO_ALGAPI2
 
+config CRYPTO_PCOMP
+	tristate
+	select CRYPTO_ALGAPI2
+
 config CRYPTO_MANAGER
 	tristate "Cryptographic algorithm manager"
 	select CRYPTO_MANAGER2
