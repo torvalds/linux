@@ -260,6 +260,7 @@ put_kernel_page (struct page *page, unsigned long address, pgprot_t pgprot)
 static void __init
 setup_gate (void)
 {
+	void *gate_section;
 	struct page *page;
 
 	/*
@@ -267,10 +268,11 @@ setup_gate (void)
 	 * headers etc. and once execute-only page to enable
 	 * privilege-promotion via "epc":
 	 */
-	page = virt_to_page(ia64_imva(__start_gate_section));
+	gate_section = paravirt_get_gate_section();
+	page = virt_to_page(ia64_imva(gate_section));
 	put_kernel_page(page, GATE_ADDR, PAGE_READONLY);
 #ifdef HAVE_BUGGY_SEGREL
-	page = virt_to_page(ia64_imva(__start_gate_section + PAGE_SIZE));
+	page = virt_to_page(ia64_imva(gate_section + PAGE_SIZE));
 	put_kernel_page(page, GATE_ADDR + PAGE_SIZE, PAGE_GATE);
 #else
 	put_kernel_page(page, GATE_ADDR + PERCPU_PAGE_SIZE, PAGE_GATE);

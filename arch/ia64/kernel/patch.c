@@ -227,13 +227,13 @@ patch_brl_fsys_bubble_down (unsigned long start, unsigned long end)
 void __init
 ia64_patch_gate (void)
 {
-#	define START(name)	((unsigned long) __start_gate_##name##_patchlist)
-#	define END(name)	((unsigned long)__end_gate_##name##_patchlist)
+#	define START(name)	paravirt_get_gate_patchlist(PV_GATE_START_##name)
+#	define END(name)	paravirt_get_gate_patchlist(PV_GATE_END_##name)
 
-	patch_fsyscall_table(START(fsyscall), END(fsyscall));
-	patch_brl_fsys_bubble_down(START(brl_fsys_bubble_down), END(brl_fsys_bubble_down));
-	ia64_patch_vtop(START(vtop), END(vtop));
-	ia64_patch_mckinley_e9(START(mckinley_e9), END(mckinley_e9));
+	patch_fsyscall_table(START(FSYSCALL), END(FSYSCALL));
+	patch_brl_fsys_bubble_down(START(BRL_FSYS_BUBBLE_DOWN), END(BRL_FSYS_BUBBLE_DOWN));
+	ia64_patch_vtop(START(VTOP), END(VTOP));
+	ia64_patch_mckinley_e9(START(MCKINLEY_E9), END(MCKINLEY_E9));
 }
 
 void ia64_patch_phys_stack_reg(unsigned long val)

@@ -5,7 +5,7 @@
 extra-y	:= head.o init_task.o vmlinux.lds
 
 obj-y := acpi.o entry.o efi.o efi_stub.o gate-data.o fsys.o ia64_ksyms.o irq.o irq_ia64.o	\
-	 irq_lsapic.o ivt.o machvec.o pal.o patch.o process.o perfmon.o ptrace.o sal.o		\
+	 irq_lsapic.o ivt.o machvec.o pal.o paravirt_patchlist.o patch.o process.o perfmon.o ptrace.o sal.o		\
 	 salinfo.o setup.o signal.o sys_ia64.o time.o traps.o unaligned.o \
 	 unwind.o mca.o mca_asm.o topology.o
 
@@ -47,35 +47,13 @@ ifeq ($(CONFIG_DMAR), y)
 obj-$(CONFIG_SWIOTLB)		+= pci-swiotlb.o
 endif
 
-# The gate DSO image is built using a special linker script.
-targets += gate.so gate-syms.o
-
-extra-y += gate.so gate-syms.o gate.lds gate.o
-
 # fp_emulate() expects f2-f5,f16-f31 to contain the user-level state.
 CFLAGS_traps.o  += -mfixed-range=f2-f5,f16-f31
 
-CPPFLAGS_gate.lds := -P -C -U$(ARCH)
-
-quiet_cmd_gate = GATE $@
-      cmd_gate = $(CC) -nostdlib $(GATECFLAGS_$(@F)) -Wl,-T,$(filter-out FORCE,$^) -o $@
-
-GATECFLAGS_gate.so = -shared -s -Wl,-soname=linux-gate.so.1 \
-		     $(call ld-option, -Wl$(comma)--hash-style=sysv)
-$(obj)/gate.so: $(obj)/gate.lds $(obj)/gate.o FORCE
-	$(call if_changed,gate)
-
-$(obj)/built-in.o: $(obj)/gate-syms.o
-$(obj)/built-in.o: ld_flags += -R $(obj)/gate-syms.o
-
-GATECFLAGS_gate-syms.o = -r
-$(obj)/gate-syms.o: $(obj)/gate.lds $(obj)/gate.o FORCE
-	$(call if_changed,gate)
-
-# gate-data.o contains the gate DSO image as data in section .data.gate.
-# We must build gate.so before we can assemble it.
-# Note: kbuild does not track this dependency due to usage of .incbin
-$(obj)/gate-data.o: $(obj)/gate.so
+# The gate DSO image is built using a special linker script.
+include $(srctree)/arch/ia64/kernel/Makefile.gate
+# tell compiled for native
+CPPFLAGS_gate.lds += -D__IA64_GATE_PARAVIRTUALIZED_NATIVE
 
 # Calculate NR_IRQ = max(IA64_NATIVE_NR_IRQS, XEN_NR_IRQS, ...) based on config
 define sed-y
