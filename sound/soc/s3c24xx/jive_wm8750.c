@@ -45,20 +45,6 @@ static const struct snd_soc_dapm_widget wm8750_dapm_widgets[] = {
 	SND_SOC_DAPM_LINE("Line In", NULL),
 };
 
-static int jive_startup(struct snd_pcm_substream *substream)
-{
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_codec *codec = rtd->socdev->codec;
-
-	snd_soc_dapm_enable_pin(codec, "Headphone Jack");
-	snd_soc_dapm_enable_pin(codec, "Internal Speaker");
-	snd_soc_dapm_enable_pin(codec, "Line In");
-
-	snd_soc_dapm_sync(codec);
-
-	return 0;
-}
-
 static int jive_hw_params(struct snd_pcm_substream *substream,
 			  struct snd_pcm_hw_params *params)
 {
@@ -119,7 +105,6 @@ static int jive_hw_params(struct snd_pcm_substream *substream,
 }
 
 static struct snd_soc_ops jive_ops = {
-	.startup	= jive_startup,
 	.hw_params	= jive_hw_params,
 };
 
@@ -128,12 +113,12 @@ static int jive_wm8750_init(struct snd_soc_codec *codec)
 	int err;
 
 	/* These endpoints are not being used. */
-	snd_soc_dapm_disable_pin(codec, "LINPUT2");
-	snd_soc_dapm_disable_pin(codec, "RINPUT2");
-	snd_soc_dapm_disable_pin(codec, "LINPUT3");
-	snd_soc_dapm_disable_pin(codec, "RINPUT3");
-	snd_soc_dapm_disable_pin(codec, "OUT3");
-	snd_soc_dapm_disable_pin(codec, "MONO");
+	snd_soc_dapm_nc_pin(codec, "LINPUT2");
+	snd_soc_dapm_nc_pin(codec, "RINPUT2");
+	snd_soc_dapm_nc_pin(codec, "LINPUT3");
+	snd_soc_dapm_nc_pin(codec, "RINPUT3");
+	snd_soc_dapm_nc_pin(codec, "OUT3");
+	snd_soc_dapm_nc_pin(codec, "MONO");
 
 	/* Add jive specific widgets */
 	err = snd_soc_dapm_new_controls(codec, wm8750_dapm_widgets,
