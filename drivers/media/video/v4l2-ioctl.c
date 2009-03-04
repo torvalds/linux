@@ -655,8 +655,6 @@ static long __video_do_ioctl(struct file *file,
 	if (cmd == VIDIOCGMBUF) {
 		struct video_mbuf *p = arg;
 
-		memset(p, 0, sizeof(*p));
-
 		if (!ops->vidiocgmbuf)
 			return ret;
 		ret = ops->vidiocgmbuf(file, fh, p);
@@ -683,7 +681,6 @@ static long __video_do_ioctl(struct file *file,
 	case VIDIOC_QUERYCAP:
 	{
 		struct v4l2_capability *cap = (struct v4l2_capability *)arg;
-		memset(cap, 0, sizeof(*cap));
 
 		if (!ops->vidioc_querycap)
 			break;
@@ -1367,7 +1364,6 @@ static long __video_do_ioctl(struct file *file,
 		if (!ops->vidioc_g_audio)
 			break;
 
-		memset(p, 0, sizeof(*p));
 		ret = ops->vidioc_g_audio(file, fh, p);
 		if (!ret)
 			dbgarg(cmd, "index=%d, name=%s, capability=0x%x, "
@@ -1409,7 +1405,7 @@ static long __video_do_ioctl(struct file *file,
 
 		if (!ops->vidioc_g_audout)
 			break;
-		dbgarg(cmd, "Enum for index=%d\n", p->index);
+
 		ret = ops->vidioc_g_audout(file, fh, p);
 		if (!ret)
 			dbgarg2("index=%d, name=%s, capability=%d, "
@@ -1505,8 +1501,6 @@ static long __video_do_ioctl(struct file *file,
 
 		if (!ops->vidioc_g_jpegcomp)
 			break;
-
-		memset(p, 0, sizeof(*p));
 
 		ret = ops->vidioc_g_jpegcomp(file, fh, p);
 		if (!ret)
@@ -1873,13 +1867,7 @@ long video_ioctl2(struct file *file,
 		       cmd == VIDIOC_TRY_EXT_CTRLS);
 
 	/*  Copy arguments into temp kernel buffer  */
-	switch (_IOC_DIR(cmd)) {
-	case _IOC_NONE:
-		parg = NULL;
-		break;
-	case _IOC_READ:
-	case _IOC_WRITE:
-	case (_IOC_WRITE | _IOC_READ):
+	if (_IOC_DIR(cmd) != _IOC_NONE) {
 		if (_IOC_SIZE(cmd) <= sizeof(sbuf)) {
 			parg = sbuf;
 		} else {
@@ -1900,8 +1888,10 @@ long video_ioctl2(struct file *file,
 			/* zero out anything we don't copy from userspace */
 			if (n < _IOC_SIZE(cmd))
 				memset((u8 *)parg + n, 0, _IOC_SIZE(cmd) - n);
+		} else {
+			/* read-only ioctl */
+			memset(parg, 0, _IOC_SIZE(cmd));
 		}
-		break;
 	}
 
 	if (is_ext_ctrl) {
