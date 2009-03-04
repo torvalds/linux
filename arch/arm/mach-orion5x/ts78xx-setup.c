@@ -282,7 +282,8 @@ static void ts78xx_fpga_supports(void)
 {
 	/* TODO: put this 'table' into ts78xx-fpga.h */
 	switch (ts78xx_fpga.id) {
-	case TS7800_REV_B:
+	case TS7800_REV_B2:
+	case TS7800_REV_B3:
 		ts78xx_fpga.supports.ts_rtc.present = 1;
 		ts78xx_fpga.supports.ts_nand.present = 1;
 		break;

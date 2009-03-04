@@ -6,7 +6,8 @@
  */
 enum fpga_ids {
 	/* Technologic Systems */
-	TS7800_REV_B = FPGAID(0x00b480, 0x03),
+	TS7800_REV_B2 = FPGAID(0x00b480, 0x02),
+	TS7800_REV_B3 = FPGAID(0x00b480, 0x03),
 };
 
 struct fpga_device {
