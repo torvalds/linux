@@ -1654,7 +1654,11 @@ static int neigh_add(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 				flags &= ~NEIGH_UPDATE_F_OVERRIDE;
 		}
 
-		err = neigh_update(neigh, lladdr, ndm->ndm_state, flags);
+		if (ndm->ndm_flags & NTF_USE) {
+			neigh_event_send(neigh, NULL);
+			err = 0;
+		} else
+			err = neigh_update(neigh, lladdr, ndm->ndm_state, flags);
 		neigh_release(neigh);
 		goto out_dev_put;
 	}
