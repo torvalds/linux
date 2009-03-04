@@ -449,28 +449,40 @@ static int mode_select_handle_sense(struct scsi_device *sdev,
 				    unsigned char *sensebuf)
 {
 	struct scsi_sense_hdr sense_hdr;
-	int sense, err = SCSI_DH_IO, ret;
+	int err = SCSI_DH_IO, ret;
 
 	ret = scsi_normalize_sense(sensebuf, SCSI_SENSE_BUFFERSIZE, &sense_hdr);
 	if (!ret)
 		goto done;
 
 	err = SCSI_DH_OK;
-	sense = (sense_hdr.sense_key << 16) | (sense_hdr.asc << 8) |
-			sense_hdr.ascq;
-	/* If it is retryable failure, submit the c9 inquiry again */
-	if (sense == 0x59136 || sense == 0x68b02 || sense == 0xb8b02 ||
-			    sense == 0x62900) {
-		/* 0x59136    - Command lock contention
-		 * 0x[6b]8b02 - Quiesense in progress or achieved
-		 * 0x62900    - Power On, Reset, or Bus Device Reset
-		 */
+
+	switch (sense_hdr.sense_key) {
+	case NO_SENSE:
+	case ABORTED_COMMAND:
+	case UNIT_ATTENTION:
 		err = SCSI_DH_RETRY;
+		break;
+	case NOT_READY:
+		if (sense_hdr.asc == 0x04 && sense_hdr.ascq == 0x01)
+			/* LUN Not Ready and is in the Process of Becoming
+			 * Ready
+			 */
+			err = SCSI_DH_RETRY;
+		break;
+	case ILLEGAL_REQUEST:
+		if (sense_hdr.asc == 0x91 && sense_hdr.ascq == 0x36)
+			/*
+			 * Command Lock contention
+			 */
+			err = SCSI_DH_RETRY;
+		break;
+	default:
+		sdev_printk(KERN_INFO, sdev,
+			    "MODE_SELECT failed with sense %02x/%02x/%02x.\n",
+			    sense_hdr.sense_key, sense_hdr.asc, sense_hdr.ascq);
 	}
 
-	if (sense)
-		sdev_printk(KERN_INFO, sdev,
-			"MODE_SELECT failed with sense 0x%x.\n", sense);
 done:
 	return err;
 }
