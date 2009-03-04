@@ -1894,16 +1894,11 @@ static int bttv_enum_input(struct file *file, void *priv,
 {
 	struct bttv_fh *fh = priv;
 	struct bttv *btv = fh->btv;
-	unsigned int n;
+	int n;
 
-	n = i->index;
-
-	if (n >= bttv_tvcards[btv->c.type].video_inputs)
+	if (i->index >= bttv_tvcards[btv->c.type].video_inputs)
 		return -EINVAL;
 
-	memset(i, 0, sizeof(*i));
-
-	i->index    = n;
 	i->type     = V4L2_INPUT_TYPE_CAMERA;
 	i->audioset = 1;
 
@@ -2952,7 +2947,6 @@ static int bttv_g_tuner(struct file *file, void *priv,
 		return -EINVAL;
 
 	mutex_lock(&btv->lock);
-	memset(t, 0, sizeof(*t));
 	t->rxsubchans = V4L2_TUNER_SUB_MONO;
 	bttv_call_i2c_clients(btv, VIDIOC_G_TUNER, t);
 	strcpy(t->name, "Television");
@@ -3495,7 +3489,6 @@ static int radio_g_tuner(struct file *file, void *priv, struct v4l2_tuner *t)
 	if (0 != t->index)
 		return -EINVAL;
 	mutex_lock(&btv->lock);
-	memset(t, 0, sizeof(*t));
 	strcpy(t->name, "Radio");
 	t->type = V4L2_TUNER_RADIO;
 
