@@ -2018,6 +2018,21 @@ static const struct alg_test_desc alg_test_descs[] = {
 				}
 			}
 		}
+	}, {
+		.alg = "zlib",
+		.test = alg_test_pcomp,
+		.suite = {
+			.pcomp = {
+				.comp = {
+					.vecs = zlib_comp_tv_template,
+					.count = ZLIB_COMP_TEST_VECTORS
+				},
+				.decomp = {
+					.vecs = zlib_decomp_tv_template,
+					.count = ZLIB_DECOMP_TEST_VECTORS
+				}
+			}
+		}
 	}
 };
 
