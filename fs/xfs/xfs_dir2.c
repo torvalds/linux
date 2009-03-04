@@ -46,8 +46,6 @@
 
 struct xfs_name xfs_name_dotdot = {"..", 2};
 
-extern const struct xfs_nameops xfs_default_nameops;
-
 /*
  * ASCII case-insensitive (ie. A-Z) support for directories that was
  * used in IRIX.
