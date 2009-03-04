@@ -102,7 +102,7 @@
 #define USB_REQ_LOOPBACK_DATA_READ	0x16
 #define USB_REQ_SET_INTERFACE_DS	0x17
 
-/* The Link Power Mangement (LPM) ECN defines USB_REQ_TEST_AND_SET command,
+/* The Link Power Management (LPM) ECN defines USB_REQ_TEST_AND_SET command,
  * used by hubs to put ports into a new L1 suspend state, except that it
  * forgot to define its number ...
  */
