@@ -179,6 +179,37 @@ struct pv_fsys_data xen_fsys_data __initdata = {
 };
 
 /***************************************************************************
+ * pv_patchdata
+ * patchdata addresses
+ */
+
+#define DECLARE(name)							\
+	extern unsigned long __xen_start_gate_##name##_patchlist[];	\
+	extern unsigned long __xen_end_gate_##name##_patchlist[]
+
+DECLARE(fsyscall);
+DECLARE(brl_fsys_bubble_down);
+DECLARE(vtop);
+DECLARE(mckinley_e9);
+
+extern unsigned long __xen_start_gate_section[];
+
+#define ASSIGN(name)							\
+	.start_##name##_patchlist =					\
+		(unsigned long)__xen_start_gate_##name##_patchlist,	\
+	.end_##name##_patchlist =					\
+		(unsigned long)__xen_end_gate_##name##_patchlist
+
+static struct pv_patchdata xen_patchdata __initdata = {
+	ASSIGN(fsyscall),
+	ASSIGN(brl_fsys_bubble_down),
+	ASSIGN(vtop),
+	ASSIGN(mckinley_e9),
+
+	.gate_section = (void*)__xen_start_gate_section,
+};
+
+/***************************************************************************
  * pv_cpu_ops
  * intrinsics hooks.
  */
@@ -447,6 +478,7 @@ xen_setup_pv_ops(void)
 	pv_info = xen_info;
 	pv_init_ops = xen_init_ops;
 	pv_fsys_data = xen_fsys_data;
+	pv_patchdata = xen_patchdata;
 	pv_cpu_ops = xen_cpu_ops;
 	pv_iosapic_ops = xen_iosapic_ops;
 	pv_irq_ops = xen_irq_ops;
