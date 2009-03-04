@@ -1135,7 +1135,8 @@ intel_tv_mode_set(struct drm_encoder *encoder, struct drm_display_mode *mode,
 	if (!tv_mode)
 		return;	/* can't happen (mode_prepare prevents this) */
 
-	tv_ctl = 0;
+	tv_ctl = I915_READ(TV_CTL);
+	tv_ctl &= TV_CTL_SAVE;
 
 	switch (tv_priv->type) {
 	default:
@@ -1215,7 +1216,6 @@ intel_tv_mode_set(struct drm_encoder *encoder, struct drm_display_mode *mode,
 	/* dda1 implies valid video levels */
 	if (tv_mode->dda1_inc) {
 		scctl1 |= TV_SC_DDA1_EN;
-		scctl1 |= video_levels->burst << TV_BURST_LEVEL_SHIFT;
 	}
 
 	if (tv_mode->dda2_inc)
@@ -1225,6 +1225,7 @@ intel_tv_mode_set(struct drm_encoder *encoder, struct drm_display_mode *mode,
 		scctl1 |= TV_SC_DDA3_EN;
 
 	scctl1 |= tv_mode->sc_reset;
+	scctl1 |= video_levels->burst << TV_BURST_LEVEL_SHIFT;
 	scctl1 |= tv_mode->dda1_inc << TV_SCDDA1_INC_SHIFT;
 
 	scctl2 = tv_mode->dda2_size << TV_SCDDA2_SIZE_SHIFT |
@@ -1266,7 +1267,11 @@ intel_tv_mode_set(struct drm_encoder *encoder, struct drm_display_mode *mode,
 			   color_conversion->av);
 	}
 
-	I915_WRITE(TV_CLR_KNOBS, 0x00606000);
+	if (IS_I965G(dev))
+		I915_WRITE(TV_CLR_KNOBS, 0x00404000);
+	else
+		I915_WRITE(TV_CLR_KNOBS, 0x00606000);
+
 	if (video_levels)
 		I915_WRITE(TV_CLR_LEVEL,
 			   ((video_levels->black << TV_BLACK_LEVEL_SHIFT) |
