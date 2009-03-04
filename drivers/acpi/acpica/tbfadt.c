@@ -618,12 +618,14 @@ static void acpi_tb_setup_fadt_registers(void)
 		    ACPI_ADD_PTR(struct acpi_generic_address, &acpi_gbl_FADT,
 				 fadt_pm_info_table[i].source);
 
-		acpi_tb_init_generic_address(fadt_pm_info_table[i].target,
-					     source64->space_id,
-					     pm1_register_byte_width,
-					     source64->address +
-					     (fadt_pm_info_table[i].
-					      register_num *
-					      pm1_register_byte_width));
+		if (source64->address) {
+			acpi_tb_init_generic_address(fadt_pm_info_table[i].
+						     target, source64->space_id,
+						     pm1_register_byte_width,
+						     source64->address +
+						     (fadt_pm_info_table[i].
+						      register_num *
+						      pm1_register_byte_width));
+		}
 	}
 }
