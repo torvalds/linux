@@ -529,7 +529,14 @@ static int efx_ethtool_nway_reset(struct net_device *net_dev)
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
 
-	return mii_nway_restart(&efx->mii);
+	if (efx->phy_op->mmds & DEV_PRESENT_BIT(MDIO_MMD_AN)) {
+		mdio_clause45_set_flag(efx, efx->mii.phy_id, MDIO_MMD_AN,
+				       MDIO_MMDREG_CTRL1,
+				       __ffs(BMCR_ANRESTART), true);
+		return 0;
+	}
+
+	return -EOPNOTSUPP;
 }
 
 static u32 efx_ethtool_get_link(struct net_device *net_dev)
