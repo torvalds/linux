@@ -1162,8 +1162,8 @@ static int smsc911x_open(struct net_device *dev)
 
 	/* Make sure EEPROM has finished loading before setting GPIO_CFG */
 	timeout = 50;
-	while ((timeout--) &&
-	       (smsc911x_reg_read(pdata, E2P_CMD) & E2P_CMD_EPC_BUSY_)) {
+	while ((smsc911x_reg_read(pdata, E2P_CMD) & E2P_CMD_EPC_BUSY_) &&
+	       --timeout) {
 		udelay(10);
 	}
 
