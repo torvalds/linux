@@ -161,45 +161,6 @@ static void ioapic_inj_nmi(struct kvm_vcpu *vcpu)
 	kvm_vcpu_kick(vcpu);
 }
 
-void kvm_ioapic_get_delivery_bitmask(struct kvm_ioapic *ioapic, u8 dest,
-				     u8 dest_mode, unsigned long *mask)
-{
-	int i;
-	struct kvm *kvm = ioapic->kvm;
-	struct kvm_vcpu *vcpu;
-
-	ioapic_debug("dest %d dest_mode %d\n", dest, dest_mode);
-
-	*mask = 0;
-	if (dest_mode == 0) {	/* Physical mode. */
-		if (dest == 0xFF) {	/* Broadcast. */
-			for (i = 0; i < KVM_MAX_VCPUS; ++i)
-				if (kvm->vcpus[i] && kvm->vcpus[i]->arch.apic)
-					*mask |= 1 << i;
-			return;
-		}
-		for (i = 0; i < KVM_MAX_VCPUS; ++i) {
-			vcpu = kvm->vcpus[i];
-			if (!vcpu)
-				continue;
-			if (kvm_apic_match_physical_addr(vcpu->arch.apic, dest)) {
-				if (vcpu->arch.apic)
-					*mask = 1 << i;
-				break;
-			}
-		}
-	} else if (dest != 0)	/* Logical mode, MDA non-zero. */
-		for (i = 0; i < KVM_MAX_VCPUS; ++i) {
-			vcpu = kvm->vcpus[i];
-			if (!vcpu)
-				continue;
-			if (vcpu->arch.apic &&
-			    kvm_apic_match_logical_addr(vcpu->arch.apic, dest))
-				*mask |= 1 << vcpu->vcpu_id;
-		}
-	ioapic_debug("mask %x\n", *mask);
-}
-
 static int ioapic_deliver(struct kvm_ioapic *ioapic, int irq)
 {
 	union kvm_ioapic_redirect_entry entry = ioapic->redirtbl[irq];
@@ -213,13 +174,12 @@ static int ioapic_deliver(struct kvm_ioapic *ioapic, int irq)
 		     entry.fields.delivery_mode, entry.fields.vector,
 		     entry.fields.trig_mode);
 
-	bitmap_zero(deliver_bitmask, KVM_MAX_VCPUS);
-
 	/* Always delivery PIT interrupt to vcpu 0 */
 #ifdef CONFIG_X86
-	if (irq == 0)
+	if (irq == 0) {
+                bitmap_zero(deliver_bitmask, KVM_MAX_VCPUS);
 		__set_bit(0, deliver_bitmask);
-	else
+        } else
 #endif
 		kvm_get_intr_delivery_bitmask(ioapic, &entry, deliver_bitmask);
 
