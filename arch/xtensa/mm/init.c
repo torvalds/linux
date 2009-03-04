@@ -130,7 +130,8 @@ void __init bootmem_init(void)
 
 	/* Find an area to use for the bootmem bitmap. */
 
-	bootmap_size = bootmem_bootmap_pages(max_low_pfn) << PAGE_SHIFT;
+	bootmap_size = bootmem_bootmap_pages(max_low_pfn - min_low_pfn);
+	bootmap_size <<= PAGE_SHIFT;
 	bootmap_start = ~0;
 
 	for (i=0; i<sysmem.nr_banks; i++)
