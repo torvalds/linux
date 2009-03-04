@@ -33,6 +33,9 @@
 #define __paravirt_work_processed_syscall_target \
 						xen_work_processed_syscall
 
+#define paravirt_fsyscall_table			xen_fsyscall_table
+#define paravirt_fsys_bubble_down		xen_fsys_bubble_down
+
 #define MOV_FROM_IFA(reg)	\
 	movl reg = XSI_IFA;	\
 	;;			\

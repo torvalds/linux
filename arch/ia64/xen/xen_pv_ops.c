@@ -24,6 +24,7 @@
 #include <linux/irq.h>
 #include <linux/kernel.h>
 #include <linux/pm.h>
+#include <linux/unistd.h>
 
 #include <asm/xen/hypervisor.h>
 #include <asm/xen/xencomm.h>
@@ -163,6 +164,18 @@ static const struct pv_init_ops xen_init_ops __initconst = {
 	.arch_setup_nomca = xen_arch_setup_nomca,
 
 	.post_smp_prepare_boot_cpu = xen_post_smp_prepare_boot_cpu,
+};
+
+/***************************************************************************
+ * pv_fsys_data
+ * addresses for fsys
+ */
+
+extern unsigned long xen_fsyscall_table[NR_syscalls];
+extern char xen_fsys_bubble_down[];
+struct pv_fsys_data xen_fsys_data __initdata = {
+	.fsyscall_table = (unsigned long *)xen_fsyscall_table,
+	.fsys_bubble_down = (void *)xen_fsys_bubble_down,
 };
 
 /***************************************************************************
@@ -355,6 +368,7 @@ xen_setup_pv_ops(void)
 	xen_info_init();
 	pv_info = xen_info;
 	pv_init_ops = xen_init_ops;
+	pv_fsys_data = xen_fsys_data;
 	pv_cpu_ops = xen_cpu_ops;
 	pv_iosapic_ops = xen_iosapic_ops;
 	pv_irq_ops = xen_irq_ops;
