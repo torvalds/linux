@@ -1082,7 +1082,7 @@ intel_tv_mode_valid(struct drm_connector *connector, struct drm_display_mode *mo
 	const struct tv_mode *tv_mode = intel_tv_mode_find(intel_output);
 
 	/* Ensure TV refresh is close to desired refresh */
-	if (tv_mode && abs(tv_mode->refresh - drm_mode_vrefresh(mode)) < 1)
+	if (tv_mode && abs(tv_mode->refresh - drm_mode_vrefresh(mode)) < 10)
 		return MODE_OK;
 	return MODE_CLOCK_RANGE;
 }
@@ -1495,7 +1495,8 @@ intel_tv_get_modes(struct drm_connector *connector)
 	struct drm_display_mode *mode_ptr;
 	struct intel_output *intel_output = to_intel_output(connector);
 	const struct tv_mode *tv_mode = intel_tv_mode_find(intel_output);
-	int j;
+	int j, count = 0;
+	u64 tmp;
 
 	for (j = 0; j < sizeof(input_res_table) / sizeof(input_res_table[0]);
 	     j++) {
@@ -1510,8 +1511,9 @@ intel_tv_get_modes(struct drm_connector *connector)
 					&& !tv_mode->component_only))
 			continue;
 
-		mode_ptr = drm_calloc(1, sizeof(struct drm_display_mode),
-				      DRM_MEM_DRIVER);
+		mode_ptr = drm_mode_create(connector->dev);
+		if (!mode_ptr)
+			continue;
 		strncpy(mode_ptr->name, input->name, DRM_DISPLAY_MODE_LEN);
 
 		mode_ptr->hdisplay = hactive_s;
@@ -1528,15 +1530,17 @@ intel_tv_get_modes(struct drm_connector *connector)
 			mode_ptr->vsync_end = mode_ptr->vsync_start  + 1;
 		mode_ptr->vtotal = vactive_s + 33;
 
-		mode_ptr->clock = (int) (tv_mode->refresh *
-					 mode_ptr->vtotal *
-					 mode_ptr->htotal / 1000) / 1000;
+		tmp = (u64) tv_mode->refresh * mode_ptr->vtotal;
+		tmp *= mode_ptr->htotal;
+		tmp = div_u64(tmp, 1000000);
+		mode_ptr->clock = (int) tmp;
 
 		mode_ptr->type = DRM_MODE_TYPE_DRIVER;
 		drm_mode_probed_add(connector, mode_ptr);
+		count++;
 	}
 
-	return 0;
+	return count;
 }
 
 static void
