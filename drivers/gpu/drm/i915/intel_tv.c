@@ -217,8 +217,8 @@ static const u32 filter_table[] = {
  */
 static const struct color_conversion ntsc_m_csc_composite = {
 	.ry = 0x0332, .gy = 0x012d, .by = 0x07d3, .ay = 0x0104,
-	.ru = 0x0733, .gu = 0x052d, .bu = 0x05c7, .au = 0x0f00,
-	.rv = 0x0340, .gv = 0x030c, .bv = 0x06d0, .av = 0x0f00,
+	.ru = 0x0733, .gu = 0x052d, .bu = 0x05c7, .au = 0x0200,
+	.rv = 0x0340, .gv = 0x030c, .bv = 0x06d0, .av = 0x0200,
 };
 
 static const struct video_levels ntsc_m_levels_composite = {
@@ -226,9 +226,9 @@ static const struct video_levels ntsc_m_levels_composite = {
 };
 
 static const struct color_conversion ntsc_m_csc_svideo = {
-	.ry = 0x0332, .gy = 0x012d, .by = 0x07d3, .ay = 0x0134,
-	.ru = 0x076a, .gu = 0x0564, .bu = 0x030d, .au = 0x0f00,
-	.rv = 0x037a, .gv = 0x033d, .bv = 0x06f6, .av = 0x0f00,
+	.ry = 0x0332, .gy = 0x012d, .by = 0x07d3, .ay = 0x0133,
+	.ru = 0x076a, .gu = 0x0564, .bu = 0x030d, .au = 0x0200,
+	.rv = 0x037a, .gv = 0x033d, .bv = 0x06f6, .av = 0x0200,
 };
 
 static const struct video_levels ntsc_m_levels_svideo = {
@@ -237,8 +237,8 @@ static const struct video_levels ntsc_m_levels_svideo = {
 
 static const struct color_conversion ntsc_j_csc_composite = {
 	.ry = 0x0332, .gy = 0x012d, .by = 0x07d3, .ay = 0x0119,
-	.ru = 0x074c, .gu = 0x0546, .bu = 0x05ec, .au = 0x0f00,
-	.rv = 0x035a, .gv = 0x0322, .bv = 0x06e1, .av = 0x0f00,
+	.ru = 0x074c, .gu = 0x0546, .bu = 0x05ec, .au = 0x0200,
+	.rv = 0x035a, .gv = 0x0322, .bv = 0x06e1, .av = 0x0200,
 };
 
 static const struct video_levels ntsc_j_levels_composite = {
@@ -247,8 +247,8 @@ static const struct video_levels ntsc_j_levels_composite = {
 
 static const struct color_conversion ntsc_j_csc_svideo = {
 	.ry = 0x0332, .gy = 0x012d, .by = 0x07d3, .ay = 0x014c,
-	.ru = 0x0788, .gu = 0x0581, .bu = 0x0322, .au = 0x0f00,
-	.rv = 0x0399, .gv = 0x0356, .bv = 0x070a, .av = 0x0f00,
+	.ru = 0x0788, .gu = 0x0581, .bu = 0x0322, .au = 0x0200,
+	.rv = 0x0399, .gv = 0x0356, .bv = 0x070a, .av = 0x0200,
 };
 
 static const struct video_levels ntsc_j_levels_svideo = {
@@ -257,8 +257,8 @@ static const struct video_levels ntsc_j_levels_svideo = {
 
 static const struct color_conversion pal_csc_composite = {
 	.ry = 0x0332, .gy = 0x012d, .by = 0x07d3, .ay = 0x0113,
-	.ru = 0x0745, .gu = 0x053f, .bu = 0x05e1, .au = 0x0f00,
-	.rv = 0x0353, .gv = 0x031c, .bv = 0x06dc, .av = 0x0f00,
+	.ru = 0x0745, .gu = 0x053f, .bu = 0x05e1, .au = 0x0200,
+	.rv = 0x0353, .gv = 0x031c, .bv = 0x06dc, .av = 0x0200,
 };
 
 static const struct video_levels pal_levels_composite = {
@@ -267,8 +267,8 @@ static const struct video_levels pal_levels_composite = {
 
 static const struct color_conversion pal_csc_svideo = {
 	.ry = 0x0332, .gy = 0x012d, .by = 0x07d3, .ay = 0x0145,
-	.ru = 0x0780, .gu = 0x0579, .bu = 0x031c, .au = 0x0f00,
-	.rv = 0x0390, .gv = 0x034f, .bv = 0x0705, .av = 0x0f00,
+	.ru = 0x0780, .gu = 0x0579, .bu = 0x031c, .au = 0x0200,
+	.rv = 0x0390, .gv = 0x034f, .bv = 0x0705, .av = 0x0200,
 };
 
 static const struct video_levels pal_levels_svideo = {
@@ -277,8 +277,8 @@ static const struct video_levels pal_levels_svideo = {
 
 static const struct color_conversion pal_m_csc_composite = {
 	.ry = 0x0332, .gy = 0x012d, .by = 0x07d3, .ay = 0x0104,
-	.ru = 0x0733, .gu = 0x052d, .bu = 0x05c7, .au = 0x0f00,
-	.rv = 0x0340, .gv = 0x030c, .bv = 0x06d0, .av = 0x0f00,
+	.ru = 0x0733, .gu = 0x052d, .bu = 0x05c7, .au = 0x0200,
+	.rv = 0x0340, .gv = 0x030c, .bv = 0x06d0, .av = 0x0200,
 };
 
 static const struct video_levels pal_m_levels_composite = {
@@ -286,9 +286,9 @@ static const struct video_levels pal_m_levels_composite = {
 };
 
 static const struct color_conversion pal_m_csc_svideo = {
-	.ry = 0x0332, .gy = 0x012d, .by = 0x07d3, .ay = 0x0134,
-	.ru = 0x076a, .gu = 0x0564, .bu = 0x030d, .au = 0x0f00,
-	.rv = 0x037a, .gv = 0x033d, .bv = 0x06f6, .av = 0x0f00,
+	.ry = 0x0332, .gy = 0x012d, .by = 0x07d3, .ay = 0x0133,
+	.ru = 0x076a, .gu = 0x0564, .bu = 0x030d, .au = 0x0200,
+	.rv = 0x037a, .gv = 0x033d, .bv = 0x06f6, .av = 0x0200,
 };
 
 static const struct video_levels pal_m_levels_svideo = {
@@ -297,8 +297,8 @@ static const struct video_levels pal_m_levels_svideo = {
 
 static const struct color_conversion pal_n_csc_composite = {
 	.ry = 0x0332, .gy = 0x012d, .by = 0x07d3, .ay = 0x0104,
-	.ru = 0x0733, .gu = 0x052d, .bu = 0x05c7, .au = 0x0f00,
-	.rv = 0x0340, .gv = 0x030c, .bv = 0x06d0, .av = 0x0f00,
+	.ru = 0x0733, .gu = 0x052d, .bu = 0x05c7, .au = 0x0200,
+	.rv = 0x0340, .gv = 0x030c, .bv = 0x06d0, .av = 0x0200,
 };
 
 static const struct video_levels pal_n_levels_composite = {
@@ -306,9 +306,9 @@ static const struct video_levels pal_n_levels_composite = {
 };
 
 static const struct color_conversion pal_n_csc_svideo = {
-	.ry = 0x0332, .gy = 0x012d, .by = 0x07d3, .ay = 0x0134,
-	.ru = 0x076a, .gu = 0x0564, .bu = 0x030d, .au = 0x0f00,
-	.rv = 0x037a, .gv = 0x033d, .bv = 0x06f6, .av = 0x0f00,
+	.ry = 0x0332, .gy = 0x012d, .by = 0x07d3, .ay = 0x0133,
+	.ru = 0x076a, .gu = 0x0564, .bu = 0x030d, .au = 0x0200,
+	.rv = 0x037a, .gv = 0x033d, .bv = 0x06f6, .av = 0x0200,
 };
 
 static const struct video_levels pal_n_levels_svideo = {
@@ -319,9 +319,9 @@ static const struct video_levels pal_n_levels_svideo = {
  * Component connections
  */
 static const struct color_conversion sdtv_csc_yprpb = {
-	.ry = 0x0332, .gy = 0x012d, .by = 0x07d3, .ay = 0x0146,
-	.ru = 0x0559, .gu = 0x0353, .bu = 0x0100, .au = 0x0f00,
-	.rv = 0x0100, .gv = 0x03ad, .bv = 0x074d, .av = 0x0f00,
+	.ry = 0x0332, .gy = 0x012d, .by = 0x07d3, .ay = 0x0145,
+	.ru = 0x0559, .gu = 0x0353, .bu = 0x0100, .au = 0x0200,
+	.rv = 0x0100, .gv = 0x03ad, .bv = 0x074d, .av = 0x0200,
 };
 
 static const struct color_conversion sdtv_csc_rgb = {
@@ -331,9 +331,9 @@ static const struct color_conversion sdtv_csc_rgb = {
 };
 
 static const struct color_conversion hdtv_csc_yprpb = {
-	.ry = 0x05b3, .gy = 0x016e, .by = 0x0728, .ay = 0x0146,
-	.ru = 0x07d5, .gu = 0x038b, .bu = 0x0100, .au = 0x0f00,
-	.rv = 0x0100, .gv = 0x03d1, .bv = 0x06bc, .av = 0x0f00,
+	.ry = 0x05b3, .gy = 0x016e, .by = 0x0728, .ay = 0x0145,
+	.ru = 0x07d5, .gu = 0x038b, .bu = 0x0100, .au = 0x0200,
+	.rv = 0x0100, .gv = 0x03d1, .bv = 0x06bc, .av = 0x0200,
 };
 
 static const struct color_conversion hdtv_csc_rgb = {
@@ -414,7 +414,7 @@ struct tv_mode {
 static const struct tv_mode tv_modes[] = {
 	{
 		.name		= "NTSC-M",
-		.clock		= 107520,
+		.clock		= 108000,
 		.refresh	= 29970,
 		.oversample	= TV_OVERSAMPLE_8X,
 		.component_only = 0,
@@ -442,8 +442,8 @@ static const struct tv_mode tv_modes[] = {
 		.vburst_start_f4 = 10,		    .vburst_end_f4	= 240,
 
 		/* desired 3.5800000 actual 3.5800000 clock 107.52 */
-		.dda1_inc	=    136,
-		.dda2_inc	=   7624,	    .dda2_size		=  20013,
+		.dda1_inc	=    135,
+		.dda2_inc	=  20800,	    .dda2_size		=  27456,
 		.dda3_inc	=      0,	    .dda3_size		=      0,
 		.sc_reset	= TV_SC_RESET_EVERY_4,
 		.pal_burst	= false,
@@ -457,7 +457,7 @@ static const struct tv_mode tv_modes[] = {
 	},
 	{
 		.name		= "NTSC-443",
-		.clock		= 107520,
+		.clock		= 108000,
 		.refresh	= 29970,
 		.oversample	= TV_OVERSAMPLE_8X,
 		.component_only = 0,
@@ -485,10 +485,10 @@ static const struct tv_mode tv_modes[] = {
 
 		/* desired 4.4336180 actual 4.4336180 clock 107.52 */
 		.dda1_inc       =    168,
-		.dda2_inc       =  18557,       .dda2_size      =  20625,
-		.dda3_inc       =      0,       .dda3_size      =      0,
-		.sc_reset   = TV_SC_RESET_EVERY_8,
-		.pal_burst  = true,
+		.dda2_inc       =   4093,       .dda2_size      =  27456,
+		.dda3_inc       =    310,       .dda3_size      =    525,
+		.sc_reset   = TV_SC_RESET_NEVER,
+		.pal_burst  = false,
 
 		.composite_levels = &ntsc_m_levels_composite,
 		.composite_color = &ntsc_m_csc_composite,
@@ -499,7 +499,7 @@ static const struct tv_mode tv_modes[] = {
 	},
 	{
 		.name		= "NTSC-J",
-		.clock		= 107520,
+		.clock		= 108000,
 		.refresh	= 29970,
 		.oversample	= TV_OVERSAMPLE_8X,
 		.component_only = 0,
@@ -527,8 +527,8 @@ static const struct tv_mode tv_modes[] = {
 		.vburst_start_f4 = 10,		    .vburst_end_f4	= 240,
 
 		/* desired 3.5800000 actual 3.5800000 clock 107.52 */
-		.dda1_inc	=    136,
-		.dda2_inc	=   7624,	    .dda2_size		=  20013,
+		.dda1_inc	=    135,
+		.dda2_inc	=  20800,	    .dda2_size		=  27456,
 		.dda3_inc	=      0,	    .dda3_size		=      0,
 		.sc_reset	= TV_SC_RESET_EVERY_4,
 		.pal_burst	= false,
@@ -542,7 +542,7 @@ static const struct tv_mode tv_modes[] = {
 	},
 	{
 		.name		= "PAL-M",
-		.clock		= 107520,
+		.clock		= 108000,
 		.refresh	= 29970,
 		.oversample	= TV_OVERSAMPLE_8X,
 		.component_only = 0,
@@ -570,11 +570,11 @@ static const struct tv_mode tv_modes[] = {
 		.vburst_start_f4 = 10,		    .vburst_end_f4	= 240,
 
 		/* desired 3.5800000 actual 3.5800000 clock 107.52 */
-		.dda1_inc	=    136,
-		.dda2_inc	=    7624,	    .dda2_size		=  20013,
+		.dda1_inc	=    135,
+		.dda2_inc	=  16704,	    .dda2_size		=  27456,
 		.dda3_inc	=      0,	    .dda3_size		=      0,
-		.sc_reset	= TV_SC_RESET_EVERY_4,
-		.pal_burst  = false,
+		.sc_reset	= TV_SC_RESET_EVERY_8,
+		.pal_burst  = true,
 
 		.composite_levels = &pal_m_levels_composite,
 		.composite_color = &pal_m_csc_composite,
@@ -586,7 +586,7 @@ static const struct tv_mode tv_modes[] = {
 	{
 		/* 625 Lines, 50 Fields, 15.625KHz line, Sub-Carrier 4.434MHz */
 		.name	    = "PAL-N",
-		.clock		= 107520,
+		.clock		= 108000,
 		.refresh	= 25000,
 		.oversample	= TV_OVERSAMPLE_8X,
 		.component_only = 0,
@@ -615,9 +615,9 @@ static const struct tv_mode tv_modes[] = {
 
 
 		/* desired 4.4336180 actual 4.4336180 clock 107.52 */
-		.dda1_inc       =    168,
-		.dda2_inc       =  18557,       .dda2_size      =  20625,
-		.dda3_inc       =      0,       .dda3_size      =      0,
+		.dda1_inc       =    135,
+		.dda2_inc       =  23578,       .dda2_size      =  27648,
+		.dda3_inc       =    134,       .dda3_size      =    625,
 		.sc_reset   = TV_SC_RESET_EVERY_8,
 		.pal_burst  = true,
 
@@ -631,12 +631,12 @@ static const struct tv_mode tv_modes[] = {
 	{
 		/* 625 Lines, 50 Fields, 15.625KHz line, Sub-Carrier 4.434MHz */
 		.name	    = "PAL",
-		.clock		= 107520,
+		.clock		= 108000,
 		.refresh	= 25000,
 		.oversample	= TV_OVERSAMPLE_8X,
 		.component_only = 0,
 
-		.hsync_end	= 64,		    .hblank_end		= 128,
+		.hsync_end	= 64,		    .hblank_end		= 142,
 		.hblank_start	= 844,	    .htotal		= 863,
 
 		.progressive	= false,    .trilevel_sync = false,
@@ -659,8 +659,8 @@ static const struct tv_mode tv_modes[] = {
 
 		/* desired 4.4336180 actual 4.4336180 clock 107.52 */
 		.dda1_inc       =    168,
-		.dda2_inc       =  18557,       .dda2_size      =  20625,
-		.dda3_inc       =      0,       .dda3_size      =      0,
+		.dda2_inc       =   4122,       .dda2_size      =  27648,
+		.dda3_inc       =     67,       .dda3_size      =    625,
 		.sc_reset   = TV_SC_RESET_EVERY_8,
 		.pal_burst  = true,
 
@@ -689,7 +689,7 @@ static const struct tv_mode tv_modes[] = {
 		.veq_ena        = false,
 
 		.vi_end_f1      = 44,               .vi_end_f2          = 44,
-		.nbr_end        = 496,
+		.nbr_end        = 479,
 
 		.burst_ena      = false,
 
@@ -713,7 +713,7 @@ static const struct tv_mode tv_modes[] = {
 		.veq_ena        = false,
 
 		.vi_end_f1      = 44,               .vi_end_f2          = 44,
-		.nbr_end        = 496,
+		.nbr_end        = 479,
 
 		.burst_ena      = false,
 
@@ -876,7 +876,7 @@ static const struct tv_mode tv_modes[] = {
 		.component_only = 1,
 
 		.hsync_end      = 88,               .hblank_end         = 235,
-		.hblank_start   = 2155,             .htotal             = 2200,
+		.hblank_start   = 2155,             .htotal             = 2201,
 
 		.progressive    = false, 	    .trilevel_sync = true,
 
