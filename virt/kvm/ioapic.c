@@ -142,12 +142,40 @@ static void ioapic_write_indirect(struct kvm_ioapic *ioapic, u32 val)
 	}
 }
 
+int ioapic_deliver_entry(struct kvm *kvm, union kvm_ioapic_redirect_entry *e)
+{
+	DECLARE_BITMAP(deliver_bitmask, KVM_MAX_VCPUS);
+	int i, r = -1;
+
+	kvm_get_intr_delivery_bitmask(kvm, e, deliver_bitmask);
+
+	if (find_first_bit(deliver_bitmask, KVM_MAX_VCPUS) >= KVM_MAX_VCPUS) {
+		ioapic_debug("no target on destination\n");
+		return r;
+	}
+
+	while ((i = find_first_bit(deliver_bitmask, KVM_MAX_VCPUS))
+			< KVM_MAX_VCPUS) {
+		struct kvm_vcpu *vcpu = kvm->vcpus[i];
+		__clear_bit(i, deliver_bitmask);
+		if (vcpu) {
+			if (r < 0)
+				r = 0;
+			r += kvm_apic_set_irq(vcpu, e->fields.vector,
+					e->fields.delivery_mode,
+					e->fields.trig_mode);
+		} else
+			ioapic_debug("null destination vcpu: "
+				     "mask=%x vector=%x delivery_mode=%x\n",
+				     e->fields.deliver_bitmask,
+				     e->fields.vector, e->fields.delivery_mode);
+	}
+	return r;
+}
+
 static int ioapic_deliver(struct kvm_ioapic *ioapic, int irq)
 {
 	union kvm_ioapic_redirect_entry entry = ioapic->redirtbl[irq];
-	DECLARE_BITMAP(deliver_bitmask, KVM_MAX_VCPUS);
-	struct kvm_vcpu *vcpu;
-	int vcpu_id, r = -1;
 
 	ioapic_debug("dest=%x dest_mode=%x delivery_mode=%x "
 		     "vector=%x trig_mode=%x\n",
@@ -155,39 +183,14 @@ static int ioapic_deliver(struct kvm_ioapic *ioapic, int irq)
 		     entry.fields.delivery_mode, entry.fields.vector,
 		     entry.fields.trig_mode);
 
-	/* Always delivery PIT interrupt to vcpu 0 */
 #ifdef CONFIG_X86
+	/* Always delivery PIT interrupt to vcpu 0 */
 	if (irq == 0) {
-                bitmap_zero(deliver_bitmask, KVM_MAX_VCPUS);
-		__set_bit(0, deliver_bitmask);
-        } else
+		entry.fields.dest_mode = 0; /* Physical mode. */
+		entry.fields.dest_id = ioapic->kvm->vcpus[0]->vcpu_id;
+	}
 #endif
-		kvm_get_intr_delivery_bitmask(ioapic, &entry, deliver_bitmask);
-
-	if (find_first_bit(deliver_bitmask, KVM_MAX_VCPUS) >= KVM_MAX_VCPUS) {
-		ioapic_debug("no target on destination\n");
-		return 0;
-	}
-
-	while ((vcpu_id = find_first_bit(deliver_bitmask, KVM_MAX_VCPUS))
-			< KVM_MAX_VCPUS) {
-		__clear_bit(vcpu_id, deliver_bitmask);
-		vcpu = ioapic->kvm->vcpus[vcpu_id];
-		if (vcpu) {
-			if (r < 0)
-				r = 0;
-			r += kvm_apic_set_irq(vcpu,
-					entry.fields.vector,
-					entry.fields.trig_mode,
-					entry.fields.delivery_mode);
-		} else
-			ioapic_debug("null destination vcpu: "
-				     "mask=%x vector=%x delivery_mode=%x\n",
-				     entry.fields.deliver_bitmask,
-				     entry.fields.vector,
-				     entry.fields.delivery_mode);
-	}
-	return r;
+	return ioapic_deliver_entry(ioapic->kvm, &entry);
 }
 
 int kvm_ioapic_set_irq(struct kvm_ioapic *ioapic, int irq, int level)

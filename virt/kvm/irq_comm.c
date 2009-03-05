@@ -43,12 +43,11 @@ static int kvm_set_ioapic_irq(struct kvm_kernel_irq_routing_entry *e,
 	return kvm_ioapic_set_irq(kvm->arch.vioapic, e->irqchip.pin, level);
 }
 
-void kvm_get_intr_delivery_bitmask(struct kvm_ioapic *ioapic,
+void kvm_get_intr_delivery_bitmask(struct kvm *kvm,
 				   union kvm_ioapic_redirect_entry *entry,
 				   unsigned long *deliver_bitmask)
 {
 	int i;
-	struct kvm *kvm = ioapic->kvm;
 	struct kvm_vcpu *vcpu;
 
 	bitmap_zero(deliver_bitmask, KVM_MAX_VCPUS);
@@ -90,7 +89,7 @@ void kvm_get_intr_delivery_bitmask(struct kvm_ioapic *ioapic,
 	switch (entry->fields.delivery_mode) {
 	case IOAPIC_LOWEST_PRIORITY:
 		/* Select one in deliver_bitmask */
-		vcpu = kvm_get_lowest_prio_vcpu(ioapic->kvm,
+		vcpu = kvm_get_lowest_prio_vcpu(kvm,
 				entry->fields.vector, deliver_bitmask);
 		bitmap_zero(deliver_bitmask, KVM_MAX_VCPUS);
 		if (!vcpu)
@@ -111,13 +110,7 @@ void kvm_get_intr_delivery_bitmask(struct kvm_ioapic *ioapic,
 static int kvm_set_msi(struct kvm_kernel_irq_routing_entry *e,
 		       struct kvm *kvm, int level)
 {
-	int vcpu_id, r = -1;
-	struct kvm_vcpu *vcpu;
-	struct kvm_ioapic *ioapic = ioapic_irqchip(kvm);
 	union kvm_ioapic_redirect_entry entry;
-	DECLARE_BITMAP(deliver_bitmask, KVM_MAX_VCPUS);
-
-	BUG_ON(!ioapic);
 
 	entry.bits = 0;
 	entry.fields.dest_id = (e->msi.address_lo &
@@ -133,26 +126,7 @@ static int kvm_set_msi(struct kvm_kernel_irq_routing_entry *e,
 			(unsigned long *)&e->msi.data);
 
 	/* TODO Deal with RH bit of MSI message address */
-
-	kvm_get_intr_delivery_bitmask(ioapic, &entry, deliver_bitmask);
-
-	if (find_first_bit(deliver_bitmask, KVM_MAX_VCPUS) >= KVM_MAX_VCPUS) {
-		printk(KERN_WARNING "kvm: no destination for MSI delivery!");
-		return -1;
-	}
-	while ((vcpu_id = find_first_bit(deliver_bitmask,
-					KVM_MAX_VCPUS)) < KVM_MAX_VCPUS) {
-		__clear_bit(vcpu_id, deliver_bitmask);
-		vcpu = ioapic->kvm->vcpus[vcpu_id];
-		if (vcpu) {
-			if (r < 0)
-				r = 0;
-			r += kvm_apic_set_irq(vcpu, entry.fields.vector,
-					      entry.fields.dest_mode,
-					      entry.fields.trig_mode);
-		}
-	}
-	return r;
+	return ioapic_deliver_entry(kvm, &entry);
 }
 
 /* This should be called with the kvm->lock mutex held
