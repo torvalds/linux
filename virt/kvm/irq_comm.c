@@ -148,6 +148,7 @@ static int kvm_set_msi(struct kvm_kernel_irq_routing_entry *e,
 			if (r < 0)
 				r = 0;
 			r += kvm_apic_set_irq(vcpu, entry.fields.vector,
+					      entry.fields.dest_mode,
 					      entry.fields.trig_mode);
 		}
 	}

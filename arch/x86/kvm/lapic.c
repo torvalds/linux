@@ -196,20 +196,30 @@ int kvm_lapic_find_highest_irr(struct kvm_vcpu *vcpu)
 }
 EXPORT_SYMBOL_GPL(kvm_lapic_find_highest_irr);
 
-int kvm_apic_set_irq(struct kvm_vcpu *vcpu, u8 vec, u8 trig)
+static int __apic_accept_irq(struct kvm_lapic *apic, int delivery_mode,
+			     int vector, int level, int trig_mode);
+
+int kvm_apic_set_irq(struct kvm_vcpu *vcpu, u8 vec, u8 dmode, u8 trig)
 {
 	struct kvm_lapic *apic = vcpu->arch.apic;
+	int lapic_dmode;
 
-	if (!apic_test_and_set_irr(vec, apic)) {
-		/* a new pending irq is set in IRR */
-		if (trig)
-			apic_set_vector(vec, apic->regs + APIC_TMR);
-		else
-			apic_clear_vector(vec, apic->regs + APIC_TMR);
-		kvm_vcpu_kick(apic->vcpu);
-		return 1;
+	switch (dmode) {
+	case IOAPIC_LOWEST_PRIORITY:
+		lapic_dmode = APIC_DM_LOWEST;
+		break;
+	case IOAPIC_FIXED:
+		lapic_dmode = APIC_DM_FIXED;
+		break;
+	case IOAPIC_NMI:
+		lapic_dmode = APIC_DM_NMI;
+		break;
+	default:
+		printk(KERN_DEBUG"Ignoring delivery mode %d\n", dmode);
+		return 0;
+		break;
 	}
-	return 0;
+	return __apic_accept_irq(apic, lapic_dmode, vec, 1, trig);
 }
 
 static inline int apic_find_highest_isr(struct kvm_lapic *apic)
@@ -327,7 +337,7 @@ static int apic_match_dest(struct kvm_vcpu *vcpu, struct kvm_lapic *source,
 static int __apic_accept_irq(struct kvm_lapic *apic, int delivery_mode,
 			     int vector, int level, int trig_mode)
 {
-	int orig_irr, result = 0;
+	int result = 0;
 	struct kvm_vcpu *vcpu = apic->vcpu;
 
 	switch (delivery_mode) {
@@ -337,10 +347,11 @@ static int __apic_accept_irq(struct kvm_lapic *apic, int delivery_mode,
 		if (unlikely(!apic_enabled(apic)))
 			break;
 
-		orig_irr = apic_test_and_set_irr(vector, apic);
-		if (orig_irr && trig_mode) {
-			apic_debug("level trig mode repeatedly for vector %d",
-				   vector);
+		result = !apic_test_and_set_irr(vector, apic);
+		if (!result) {
+			if (trig_mode)
+				apic_debug("level trig mode repeatedly for "
+						"vector %d", vector);
 			break;
 		}
 
@@ -349,10 +360,7 @@ static int __apic_accept_irq(struct kvm_lapic *apic, int delivery_mode,
 			apic_set_vector(vector, apic->regs + APIC_TMR);
 		} else
 			apic_clear_vector(vector, apic->regs + APIC_TMR);
-
 		kvm_vcpu_kick(vcpu);
-
-		result = (orig_irr == 0);
 		break;
 
 	case APIC_DM_REMRD:
@@ -364,12 +372,14 @@ static int __apic_accept_irq(struct kvm_lapic *apic, int delivery_mode,
 		break;
 
 	case APIC_DM_NMI:
+		result = 1;
 		kvm_inject_nmi(vcpu);
 		kvm_vcpu_kick(vcpu);
 		break;
 
 	case APIC_DM_INIT:
 		if (level) {
+			result = 1;
 			if (vcpu->arch.mp_state == KVM_MP_STATE_RUNNABLE)
 				printk(KERN_DEBUG
 				       "INIT on a runnable vcpu %d\n",
@@ -386,6 +396,7 @@ static int __apic_accept_irq(struct kvm_lapic *apic, int delivery_mode,
 		apic_debug("SIPI to vcpu %d vector 0x%02x\n",
 			   vcpu->vcpu_id, vector);
 		if (vcpu->arch.mp_state == KVM_MP_STATE_INIT_RECEIVED) {
+			result = 1;
 			vcpu->arch.sipi_vector = vector;
 			vcpu->arch.mp_state = KVM_MP_STATE_SIPI_RECEIVED;
 			kvm_vcpu_kick(vcpu);

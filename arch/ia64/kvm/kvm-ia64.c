@@ -292,13 +292,13 @@ static void vcpu_deliver_ipi(struct kvm_vcpu *vcpu, uint64_t dm,
 {
 	switch (dm) {
 	case SAPIC_FIXED:
-		kvm_apic_set_irq(vcpu, vector, 0);
+		kvm_apic_set_irq(vcpu, vector, dm, 0);
 		break;
 	case SAPIC_NMI:
-		kvm_apic_set_irq(vcpu, 2, 0);
+		kvm_apic_set_irq(vcpu, 2, dm, 0);
 		break;
 	case SAPIC_EXTINT:
-		kvm_apic_set_irq(vcpu, 0, 0);
+		kvm_apic_set_irq(vcpu, 0, dm, 0);
 		break;
 	case SAPIC_INIT:
 	case SAPIC_PMI:
@@ -1813,7 +1813,7 @@ void kvm_vcpu_kick(struct kvm_vcpu *vcpu)
 	put_cpu();
 }
 
-int kvm_apic_set_irq(struct kvm_vcpu *vcpu, u8 vec, u8 trig)
+int kvm_apic_set_irq(struct kvm_vcpu *vcpu, u8 vec, u8 dmode, u8 trig)
 {
 
 	struct vpd *vpd = to_host(vcpu->kvm, vcpu->arch.vpd);

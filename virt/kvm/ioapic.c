@@ -142,25 +142,6 @@ static void ioapic_write_indirect(struct kvm_ioapic *ioapic, u32 val)
 	}
 }
 
-static int ioapic_inj_irq(struct kvm_ioapic *ioapic,
-			   struct kvm_vcpu *vcpu,
-			   u8 vector, u8 trig_mode, u8 delivery_mode)
-{
-	ioapic_debug("irq %d trig %d deliv %d\n", vector, trig_mode,
-		     delivery_mode);
-
-	ASSERT((delivery_mode == IOAPIC_FIXED) ||
-	       (delivery_mode == IOAPIC_LOWEST_PRIORITY));
-
-	return kvm_apic_set_irq(vcpu, vector, trig_mode);
-}
-
-static void ioapic_inj_nmi(struct kvm_vcpu *vcpu)
-{
-	kvm_inject_nmi(vcpu);
-	kvm_vcpu_kick(vcpu);
-}
-
 static int ioapic_deliver(struct kvm_ioapic *ioapic, int irq)
 {
 	union kvm_ioapic_redirect_entry entry = ioapic->redirtbl[irq];
@@ -193,21 +174,12 @@ static int ioapic_deliver(struct kvm_ioapic *ioapic, int irq)
 		__clear_bit(vcpu_id, deliver_bitmask);
 		vcpu = ioapic->kvm->vcpus[vcpu_id];
 		if (vcpu) {
-			if (entry.fields.delivery_mode ==
-					IOAPIC_LOWEST_PRIORITY ||
-			    entry.fields.delivery_mode == IOAPIC_FIXED) {
-				if (r < 0)
-					r = 0;
-				r += ioapic_inj_irq(ioapic, vcpu,
-						    entry.fields.vector,
-						    entry.fields.trig_mode,
-						    entry.fields.delivery_mode);
-			} else if (entry.fields.delivery_mode == IOAPIC_NMI) {
-				r = 1;
-				ioapic_inj_nmi(vcpu);
-			} else
-				ioapic_debug("unsupported delivery mode %x!\n",
-					     entry.fields.delivery_mode);
+			if (r < 0)
+				r = 0;
+			r += kvm_apic_set_irq(vcpu,
+					entry.fields.vector,
+					entry.fields.trig_mode,
+					entry.fields.delivery_mode);
 		} else
 			ioapic_debug("null destination vcpu: "
 				     "mask=%x vector=%x delivery_mode=%x\n",
