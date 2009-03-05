@@ -67,3 +67,9 @@
 #if ((0xffffffff - L1_CODE_START + 1) + CONFIG_BOOT_LOAD) > 0x1000000
 # error "The kernel load address is too high; keep it below 10meg for safety"
 #endif
+
+#ifdef ANOMALY_05000448
+# if ANOMALY_05000448
+#  error You are using a part with anomaly 05000448, this issue causes random memory read/write failures - that means random crashes.
+# endif
+#endif
