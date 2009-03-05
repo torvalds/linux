@@ -65,13 +65,15 @@ static inline struct kvm_ioapic *ioapic_irqchip(struct kvm *kvm)
 }
 
 struct kvm_vcpu *kvm_get_lowest_prio_vcpu(struct kvm *kvm, u8 vector,
-				       unsigned long *bitmap);
+		unsigned long *bitmap);
+int kvm_apic_match_dest(struct kvm_vcpu *vcpu, struct kvm_lapic *source,
+		int short_hand, int dest, int dest_mode);
 void kvm_ioapic_update_eoi(struct kvm *kvm, int vector, int trigger_mode);
 int kvm_ioapic_init(struct kvm *kvm);
 int kvm_ioapic_set_irq(struct kvm_ioapic *ioapic, int irq, int level);
 void kvm_ioapic_reset(struct kvm_ioapic *ioapic);
-void kvm_get_intr_delivery_bitmask(struct kvm *kvm,
-				   union kvm_ioapic_redirect_entry *entry,
-				   unsigned long *deliver_bitmask);
+void kvm_get_intr_delivery_bitmask(struct kvm *kvm, struct kvm_lapic *src,
+		int dest_id, int dest_mode, bool low_prio, int short_hand,
+		unsigned long *deliver_bitmask);
 int ioapic_deliver_entry(struct kvm *kvm, union kvm_ioapic_redirect_entry *e);
 #endif

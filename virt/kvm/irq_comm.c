@@ -43,67 +43,35 @@ static int kvm_set_ioapic_irq(struct kvm_kernel_irq_routing_entry *e,
 	return kvm_ioapic_set_irq(kvm->arch.vioapic, e->irqchip.pin, level);
 }
 
-void kvm_get_intr_delivery_bitmask(struct kvm *kvm,
-				   union kvm_ioapic_redirect_entry *entry,
-				   unsigned long *deliver_bitmask)
+void kvm_get_intr_delivery_bitmask(struct kvm *kvm, struct kvm_lapic *src,
+		int dest_id, int dest_mode, bool low_prio, int short_hand,
+		unsigned long *deliver_bitmask)
 {
 	int i;
 	struct kvm_vcpu *vcpu;
 
+	if (dest_mode == 0 && dest_id == 0xff && low_prio)
+		printk(KERN_INFO "kvm: apic: phys broadcast and lowest prio\n");
+
 	bitmap_zero(deliver_bitmask, KVM_MAX_VCPUS);
+	for (i = 0; i < KVM_MAX_VCPUS; i++) {
+		vcpu = kvm->vcpus[i];
 
-	if (entry->fields.dest_mode == 0) {	/* Physical mode. */
-		if (entry->fields.dest_id == 0xFF) {	/* Broadcast. */
-			for (i = 0; i < KVM_MAX_VCPUS; ++i)
-				if (kvm->vcpus[i] && kvm->vcpus[i]->arch.apic)
-					__set_bit(i, deliver_bitmask);
-			/* Lowest priority shouldn't combine with broadcast */
-			if (entry->fields.delivery_mode ==
-			    IOAPIC_LOWEST_PRIORITY && printk_ratelimit())
-				printk(KERN_INFO "kvm: apic: phys broadcast "
-						  "and lowest prio\n");
-			return;
-		}
-		for (i = 0; i < KVM_MAX_VCPUS; ++i) {
-			vcpu = kvm->vcpus[i];
-			if (!vcpu)
-				continue;
-			if (kvm_apic_match_physical_addr(vcpu->arch.apic,
-					entry->fields.dest_id)) {
-				if (vcpu->arch.apic)
-					__set_bit(i, deliver_bitmask);
-				break;
-			}
-		}
-	} else if (entry->fields.dest_id != 0) /* Logical mode, MDA non-zero. */
-		for (i = 0; i < KVM_MAX_VCPUS; ++i) {
-			vcpu = kvm->vcpus[i];
-			if (!vcpu)
-				continue;
-			if (vcpu->arch.apic &&
-			    kvm_apic_match_logical_addr(vcpu->arch.apic,
-					entry->fields.dest_id))
-				__set_bit(i, deliver_bitmask);
-		}
+		if (!vcpu || !kvm_apic_present(vcpu))
+			continue;
 
-	switch (entry->fields.delivery_mode) {
-	case IOAPIC_LOWEST_PRIORITY:
-		/* Select one in deliver_bitmask */
-		vcpu = kvm_get_lowest_prio_vcpu(kvm,
-				entry->fields.vector, deliver_bitmask);
+		if (!kvm_apic_match_dest(vcpu, src, short_hand, dest_id,
+					dest_mode))
+			continue;
+
+		__set_bit(i, deliver_bitmask);
+	}
+
+	if (low_prio) {
+		vcpu = kvm_get_lowest_prio_vcpu(kvm, 0, deliver_bitmask);
 		bitmap_zero(deliver_bitmask, KVM_MAX_VCPUS);
-		if (!vcpu)
-			return;
-		__set_bit(vcpu->vcpu_id, deliver_bitmask);
-		break;
-	case IOAPIC_FIXED:
-	case IOAPIC_NMI:
-		break;
-	default:
-		if (printk_ratelimit())
-			printk(KERN_INFO "kvm: unsupported delivery mode %d\n",
-				entry->fields.delivery_mode);
-		bitmap_zero(deliver_bitmask, KVM_MAX_VCPUS);
+		if (vcpu)
+			__set_bit(vcpu->vcpu_id, deliver_bitmask);
 	}
 }
 

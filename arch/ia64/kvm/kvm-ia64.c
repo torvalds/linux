@@ -1852,6 +1852,14 @@ struct kvm_vcpu *kvm_get_lowest_prio_vcpu(struct kvm *kvm, u8 vector,
 	return lvcpu;
 }
 
+int kvm_apic_match_dest(struct kvm_vcpu *vcpu, struct kvm_lapic *source,
+		int short_hand, int dest, int dest_mode)
+{
+	return (dest_mode == 0) ?
+		kvm_apic_match_physical_addr(target, dest) :
+		kvm_apic_match_logical_addr(target, dest);
+}
+
 static int find_highest_bits(int *dat)
 {
 	u32  bits, bitnum;

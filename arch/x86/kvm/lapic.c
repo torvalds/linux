@@ -260,7 +260,7 @@ static void apic_set_tpr(struct kvm_lapic *apic, u32 tpr)
 
 int kvm_apic_match_physical_addr(struct kvm_lapic *apic, u16 dest)
 {
-	return kvm_apic_id(apic) == dest;
+	return dest == 0xff || kvm_apic_id(apic) == dest;
 }
 
 int kvm_apic_match_logical_addr(struct kvm_lapic *apic, u8 mda)
@@ -289,37 +289,34 @@ int kvm_apic_match_logical_addr(struct kvm_lapic *apic, u8 mda)
 	return result;
 }
 
-static int apic_match_dest(struct kvm_vcpu *vcpu, struct kvm_lapic *source,
+int kvm_apic_match_dest(struct kvm_vcpu *vcpu, struct kvm_lapic *source,
 			   int short_hand, int dest, int dest_mode)
 {
 	int result = 0;
 	struct kvm_lapic *target = vcpu->arch.apic;
 
 	apic_debug("target %p, source %p, dest 0x%x, "
-		   "dest_mode 0x%x, short_hand 0x%x",
+		   "dest_mode 0x%x, short_hand 0x%x\n",
 		   target, source, dest, dest_mode, short_hand);
 
 	ASSERT(!target);
 	switch (short_hand) {
 	case APIC_DEST_NOSHORT:
-		if (dest_mode == 0) {
+		if (dest_mode == 0)
 			/* Physical mode. */
-			if ((dest == 0xFF) || (dest == kvm_apic_id(target)))
-				result = 1;
-		} else
+			result = kvm_apic_match_physical_addr(target, dest);
+		else
 			/* Logical mode. */
 			result = kvm_apic_match_logical_addr(target, dest);
 		break;
 	case APIC_DEST_SELF:
-		if (target == source)
-			result = 1;
+		result = (target == source);
 		break;
 	case APIC_DEST_ALLINC:
 		result = 1;
 		break;
 	case APIC_DEST_ALLBUT:
-		if (target != source)
-			result = 1;
+		result = (target != source);
 		break;
 	default:
 		printk(KERN_WARNING "Bad dest shorthand value %x\n",
@@ -492,38 +489,26 @@ static void apic_send_ipi(struct kvm_lapic *apic)
 	unsigned int delivery_mode = icr_low & APIC_MODE_MASK;
 	unsigned int vector = icr_low & APIC_VECTOR_MASK;
 
-	struct kvm_vcpu *target;
-	struct kvm_vcpu *vcpu;
-	DECLARE_BITMAP(lpr_map, KVM_MAX_VCPUS);
+	DECLARE_BITMAP(deliver_bitmask, KVM_MAX_VCPUS);
 	int i;
 
-	bitmap_zero(lpr_map, KVM_MAX_VCPUS);
 	apic_debug("icr_high 0x%x, icr_low 0x%x, "
 		   "short_hand 0x%x, dest 0x%x, trig_mode 0x%x, level 0x%x, "
 		   "dest_mode 0x%x, delivery_mode 0x%x, vector 0x%x\n",
 		   icr_high, icr_low, short_hand, dest,
 		   trig_mode, level, dest_mode, delivery_mode, vector);
 
-	for (i = 0; i < KVM_MAX_VCPUS; i++) {
-		vcpu = apic->vcpu->kvm->vcpus[i];
-		if (!vcpu)
-			continue;
+	kvm_get_intr_delivery_bitmask(apic->vcpu->kvm, apic, dest, dest_mode,
+			delivery_mode == APIC_DM_LOWEST, short_hand,
+			deliver_bitmask);
 
-		if (vcpu->arch.apic &&
-		    apic_match_dest(vcpu, apic, short_hand, dest, dest_mode)) {
-			if (delivery_mode == APIC_DM_LOWEST)
-				__set_bit(vcpu->vcpu_id, lpr_map);
-			else
-				__apic_accept_irq(vcpu->arch.apic, delivery_mode,
-						  vector, level, trig_mode);
-		}
-	}
-
-	if (delivery_mode == APIC_DM_LOWEST) {
-		target = kvm_get_lowest_prio_vcpu(vcpu->kvm, vector, lpr_map);
-		if (target != NULL)
-			__apic_accept_irq(target->arch.apic, delivery_mode,
-					  vector, level, trig_mode);
+	while ((i = find_first_bit(deliver_bitmask, KVM_MAX_VCPUS))
+			< KVM_MAX_VCPUS) {
+		struct kvm_vcpu *vcpu = apic->vcpu->kvm->vcpus[i];
+		__clear_bit(i, deliver_bitmask);
+		if (vcpu)
+			__apic_accept_irq(vcpu->arch.apic, delivery_mode,
+					vector, level, trig_mode);
 	}
 }
 
@@ -930,16 +915,14 @@ void kvm_lapic_reset(struct kvm_vcpu *vcpu)
 }
 EXPORT_SYMBOL_GPL(kvm_lapic_reset);
 
+bool kvm_apic_present(struct kvm_vcpu *vcpu)
+{
+	return vcpu->arch.apic && apic_hw_enabled(vcpu->arch.apic);
+}
+
 int kvm_lapic_enabled(struct kvm_vcpu *vcpu)
 {
-	struct kvm_lapic *apic = vcpu->arch.apic;
-	int ret = 0;
-
-	if (!apic)
-		return 0;
-	ret = apic_enabled(apic);
-
-	return ret;
+	return kvm_apic_present(vcpu) && apic_sw_enabled(vcpu->arch.apic);
 }
 EXPORT_SYMBOL_GPL(kvm_lapic_enabled);
 

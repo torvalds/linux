@@ -147,7 +147,10 @@ int ioapic_deliver_entry(struct kvm *kvm, union kvm_ioapic_redirect_entry *e)
 	DECLARE_BITMAP(deliver_bitmask, KVM_MAX_VCPUS);
 	int i, r = -1;
 
-	kvm_get_intr_delivery_bitmask(kvm, e, deliver_bitmask);
+	kvm_get_intr_delivery_bitmask(kvm, NULL, e->fields.dest_id,
+			e->fields.dest_mode,
+			e->fields.delivery_mode == IOAPIC_LOWEST_PRIORITY,
+			0, deliver_bitmask);
 
 	if (find_first_bit(deliver_bitmask, KVM_MAX_VCPUS) >= KVM_MAX_VCPUS) {
 		ioapic_debug("no target on destination\n");

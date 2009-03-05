@@ -20,6 +20,9 @@ void kvm_free_lapic(struct kvm_vcpu *vcpu);
 
 int kvm_apic_match_physical_addr(struct kvm_lapic *apic, u16 dest);
 int kvm_apic_match_logical_addr(struct kvm_lapic *apic, u8 mda);
+int kvm_apic_match_dest(struct kvm_vcpu *vcpu, struct kvm_lapic *source,
+		int short_hand, int dest, int dest_mode);
+bool kvm_apic_present(struct kvm_vcpu *vcpu);
 int kvm_apic_set_irq(struct kvm_vcpu *vcpu, u8 vec, u8 dmode, u8 trig);
 
 #endif
