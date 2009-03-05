@@ -346,6 +346,9 @@ ssize_t trace_seq_to_user(struct trace_seq *s, char __user *ubuf, size_t cnt)
 	int len;
 	int ret;
 
+	if (!cnt)
+		return 0;
+
 	if (s->len <= s->readpos)
 		return -EBUSY;
 
@@ -353,8 +356,10 @@ ssize_t trace_seq_to_user(struct trace_seq *s, char __user *ubuf, size_t cnt)
 	if (cnt > len)
 		cnt = len;
 	ret = copy_to_user(ubuf, s->buffer + s->readpos, cnt);
-	if (ret)
+	if (ret == cnt)
 		return -EFAULT;
+
+	cnt -= ret;
 
 	s->readpos += len;
 	return cnt;
@@ -3049,6 +3054,9 @@ tracing_buffers_read(struct file *filp, char __user *ubuf,
 	ssize_t ret;
 	size_t size;
 
+	if (!count)
+		return 0;
+
 	/* Do we have previous read data to read? */
 	if (info->read < PAGE_SIZE)
 		goto read;
@@ -3073,8 +3081,10 @@ read:
 		size = count;
 
 	ret = copy_to_user(ubuf, info->spare + info->read, size);
-	if (ret)
+	if (ret == size)
 		return -EFAULT;
+	size -= ret;
+
 	*ppos += size;
 	info->read += size;
 
