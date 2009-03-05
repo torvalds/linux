@@ -43,6 +43,11 @@ config PPC_CELL_QPACE
 	depends on PPC_MULTIPLATFORM && PPC64
 	select PPC_CELL_COMMON
 
+config AXON_MSI
+	bool
+	depends on PPC_IBM_CELL_BLADE && PCI_MSI
+	default y
+
 menu "Cell Broadband Engine options"
 	depends on PPC_CELL
 
