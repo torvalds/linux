@@ -120,10 +120,6 @@ enum {
 #define NVREG_IRQ_RX_ALL		(NVREG_IRQ_RX_ERROR|NVREG_IRQ_RX|NVREG_IRQ_RX_NOBUF|NVREG_IRQ_RX_FORCED)
 #define NVREG_IRQ_OTHER			(NVREG_IRQ_TIMER|NVREG_IRQ_LINK|NVREG_IRQ_RECOVER_ERROR)
 
-#define NVREG_IRQ_UNKNOWN	(~(NVREG_IRQ_RX_ERROR|NVREG_IRQ_RX|NVREG_IRQ_RX_NOBUF|NVREG_IRQ_TX_ERR| \
-					NVREG_IRQ_TX_OK|NVREG_IRQ_TIMER|NVREG_IRQ_LINK|NVREG_IRQ_RX_FORCED| \
-					NVREG_IRQ_TX_FORCED|NVREG_IRQ_RECOVER_ERROR))
-
 	NvRegUnknownSetupReg6 = 0x008,
 #define NVREG_UNKSETUP6_VAL		3
 
@@ -3424,10 +3420,10 @@ static irqreturn_t nv_nic_irq(int foo, void *data)
 
 	for (i=0; ; i++) {
 		if (!(np->msi_flags & NV_MSI_X_ENABLED)) {
-			np->events = readl(base + NvRegIrqStatus) & NVREG_IRQSTAT_MASK;
+			np->events = readl(base + NvRegIrqStatus);
 			writel(NVREG_IRQSTAT_MASK, base + NvRegIrqStatus);
 		} else {
-			np->events = readl(base + NvRegMSIXIrqStatus) & NVREG_IRQSTAT_MASK;
+			np->events = readl(base + NvRegMSIXIrqStatus);
 			writel(NVREG_IRQSTAT_MASK, base + NvRegMSIXIrqStatus);
 		}
 		dprintk(KERN_DEBUG "%s: irq: %08x\n", dev->name, np->events);
@@ -3474,14 +3470,6 @@ static irqreturn_t nv_nic_irq(int foo, void *data)
 			nv_linkchange(dev);
 			spin_unlock(&np->lock);
 			np->link_timeout = jiffies + LINK_TIMEOUT;
-		}
-		if (unlikely(np->events & (NVREG_IRQ_TX_ERR))) {
-			dprintk(KERN_DEBUG "%s: received irq with events 0x%x. Probably TX fail.\n",
-						dev->name, np->events);
-		}
-		if (unlikely(np->events & (NVREG_IRQ_UNKNOWN))) {
-			printk(KERN_DEBUG "%s: received irq with unknown events 0x%x. Please report\n",
-						dev->name, np->events);
 		}
 		if (unlikely(np->events & NVREG_IRQ_RECOVER_ERROR)) {
 			spin_lock(&np->lock);
@@ -3540,10 +3528,10 @@ static irqreturn_t nv_nic_irq_optimized(int foo, void *data)
 
 	for (i=0; ; i++) {
 		if (!(np->msi_flags & NV_MSI_X_ENABLED)) {
-			np->events = readl(base + NvRegIrqStatus) & NVREG_IRQSTAT_MASK;
+			np->events = readl(base + NvRegIrqStatus);
 			writel(NVREG_IRQSTAT_MASK, base + NvRegIrqStatus);
 		} else {
-			np->events = readl(base + NvRegMSIXIrqStatus) & NVREG_IRQSTAT_MASK;
+			np->events = readl(base + NvRegMSIXIrqStatus);
 			writel(NVREG_IRQSTAT_MASK, base + NvRegMSIXIrqStatus);
 		}
 		dprintk(KERN_DEBUG "%s: irq: %08x\n", dev->name, np->events);
@@ -3590,14 +3578,6 @@ static irqreturn_t nv_nic_irq_optimized(int foo, void *data)
 			nv_linkchange(dev);
 			spin_unlock(&np->lock);
 			np->link_timeout = jiffies + LINK_TIMEOUT;
-		}
-		if (unlikely(np->events & (NVREG_IRQ_TX_ERR))) {
-			dprintk(KERN_DEBUG "%s: received irq with events 0x%x. Probably TX fail.\n",
-						dev->name, np->events);
-		}
-		if (unlikely(np->events & (NVREG_IRQ_UNKNOWN))) {
-			printk(KERN_DEBUG "%s: received irq with unknown events 0x%x. Please report\n",
-						dev->name, np->events);
 		}
 		if (unlikely(np->events & NVREG_IRQ_RECOVER_ERROR)) {
 			spin_lock(&np->lock);
@@ -3663,10 +3643,6 @@ static irqreturn_t nv_nic_irq_tx(int foo, void *data)
 		nv_tx_done_optimized(dev, TX_WORK_PER_LOOP);
 		spin_unlock_irqrestore(&np->lock, flags);
 
-		if (unlikely(events & (NVREG_IRQ_TX_ERR))) {
-			dprintk(KERN_DEBUG "%s: received irq with events 0x%x. Probably TX fail.\n",
-						dev->name, events);
-		}
 		if (unlikely(i > max_interrupt_work)) {
 			spin_lock_irqsave(&np->lock, flags);
 			/* disable interrupts on the nic */
@@ -3824,10 +3800,6 @@ static irqreturn_t nv_nic_irq_other(int foo, void *data)
 			}
 			spin_unlock_irq(&np->lock);
 			break;
-		}
-		if (events & (NVREG_IRQ_UNKNOWN)) {
-			printk(KERN_DEBUG "%s: received irq with unknown events 0x%x. Please report\n",
-						dev->name, events);
 		}
 		if (unlikely(i > max_interrupt_work)) {
 			spin_lock_irqsave(&np->lock, flags);
