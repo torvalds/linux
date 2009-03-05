@@ -113,7 +113,6 @@ static struct platform_device bfin_mac_device = {
 	.name = "bfin_mac",
 	.dev.platform_data = &bfin_mii_bus,
 };
-#endif
 
 #if defined(CONFIG_NET_DSA_KSZ8893M) || defined(CONFIG_NET_DSA_KSZ8893M_MODULE)
 static struct dsa_platform_data ksz8893m_switch_data = {
@@ -131,6 +130,7 @@ static struct platform_device ksz8893m_switch_device = {
 	.num_resources	= 0,
 	.dev.platform_data = &ksz8893m_switch_data,
 };
+#endif
 #endif
 
 #if defined(CONFIG_MTD_M25P80) \
@@ -171,6 +171,7 @@ static struct bfin5xx_spi_chip spi_adc_chip_info = {
 };
 #endif
 
+#if defined(CONFIG_BFIN_MAC) || defined(CONFIG_BFIN_MAC_MODULE)
 #if defined(CONFIG_NET_DSA_KSZ8893M) \
 	|| defined(CONFIG_NET_DSA_KSZ8893M_MODULE)
 /* SPI SWITCH CHIP */
@@ -178,6 +179,7 @@ static struct bfin5xx_spi_chip spi_switch_info = {
 	.enable_dma = 0,
 	.bits_per_word = 8,
 };
+#endif
 #endif
 
 #if defined(CONFIG_SPI_MMC) || defined(CONFIG_SPI_MMC_MODULE)
@@ -259,6 +261,7 @@ static struct spi_board_info bfin_spi_board_info[] __initdata = {
 	},
 #endif
 
+#if defined(CONFIG_BFIN_MAC) || defined(CONFIG_BFIN_MAC_MODULE)
 #if defined(CONFIG_NET_DSA_KSZ8893M) \
 	|| defined(CONFIG_NET_DSA_KSZ8893M_MODULE)
 	{
@@ -270,6 +273,7 @@ static struct spi_board_info bfin_spi_board_info[] __initdata = {
 		.controller_data = &spi_switch_info,
 		.mode = SPI_MODE_3,
 	},
+#endif
 #endif
 
 #if defined(CONFIG_SPI_MMC) || defined(CONFIG_SPI_MMC_MODULE)
@@ -630,10 +634,9 @@ static struct platform_device *stamp_devices[] __initdata = {
 #if defined(CONFIG_BFIN_MAC) || defined(CONFIG_BFIN_MAC_MODULE)
 	&bfin_mii_bus,
 	&bfin_mac_device,
-#endif
-
 #if defined(CONFIG_NET_DSA_KSZ8893M) || defined(CONFIG_NET_DSA_KSZ8893M_MODULE)
 	&ksz8893m_switch_device,
+#endif
 #endif
 
 #if defined(CONFIG_SPI_BFIN) || defined(CONFIG_SPI_BFIN_MODULE)
