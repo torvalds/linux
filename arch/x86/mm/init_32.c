@@ -227,11 +227,11 @@ static inline int is_kernel_text(unsigned long addr)
  * of max_low_pfn pages, by creating page tables starting from address
  * PAGE_OFFSET:
  */
-static void __init kernel_physical_mapping_init(pgd_t *pgd_base,
-						unsigned long start_pfn,
+static void __init kernel_physical_mapping_init(unsigned long start_pfn,
 						unsigned long end_pfn,
 						int use_pse)
 {
+	pgd_t *pgd_base = swapper_pg_dir;
 	int pgd_idx, pmd_idx, pte_ofs;
 	unsigned long pfn;
 	pgd_t *pgd;
@@ -509,8 +509,9 @@ void __init native_pagetable_setup_done(pgd_t *base)
  * be partially populated, and so it avoids stomping on any existing
  * mappings.
  */
-static void __init early_ioremap_page_table_range_init(pgd_t *pgd_base)
+static void __init early_ioremap_page_table_range_init(void)
 {
+	pgd_t *pgd_base = swapper_pg_dir;
 	unsigned long vaddr, end;
 
 	/*
@@ -925,7 +926,6 @@ static int save_mr(struct map_range *mr, int nr_range,
 unsigned long __init_refok init_memory_mapping(unsigned long start,
 					       unsigned long end)
 {
-	pgd_t *pgd_base = swapper_pg_dir;
 	unsigned long page_size_mask = 0;
 	unsigned long start_pfn, end_pfn;
 	unsigned long pos;
@@ -1040,12 +1040,12 @@ unsigned long __init_refok init_memory_mapping(unsigned long start,
 		find_early_table_space(end, use_pse, use_gbpages);
 
 	for (i = 0; i < nr_range; i++)
-		kernel_physical_mapping_init(pgd_base,
+		kernel_physical_mapping_init(
 				mr[i].start >> PAGE_SHIFT,
 				mr[i].end >> PAGE_SHIFT,
 				mr[i].page_size_mask == (1<<PG_LEVEL_2M));
 
-	early_ioremap_page_table_range_init(pgd_base);
+	early_ioremap_page_table_range_init();
 
 	load_cr3(swapper_pg_dir);
 
