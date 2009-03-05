@@ -2858,12 +2858,20 @@ static int __init ath9k_init(void)
 		goto err_out;
 	}
 
+	error = ath9k_debug_create_root();
+	if (error) {
+		printk(KERN_ERR
+			"ath9k: Unable to create debugfs root: %d\n",
+			error);
+		goto err_rate_unregister;
+	}
+
 	error = ath_pci_init();
 	if (error < 0) {
 		printk(KERN_ERR
 			"ath9k: No PCI devices found, driver not installed.\n");
 		error = -ENODEV;
-		goto err_rate_unregister;
+		goto err_remove_root;
 	}
 
 	error = ath_ahb_init();
@@ -2877,6 +2885,8 @@ static int __init ath9k_init(void)
  err_pci_exit:
 	ath_pci_exit();
 
+ err_remove_root:
+	ath9k_debug_remove_root();
  err_rate_unregister:
 	ath_rate_control_unregister();
  err_out:
@@ -2888,6 +2898,7 @@ static void __exit ath9k_exit(void)
 {
 	ath_ahb_exit();
 	ath_pci_exit();
+	ath9k_debug_remove_root();
 	ath_rate_control_unregister();
 	printk(KERN_INFO "%s: Driver unloaded\n", dev_info);
 }
