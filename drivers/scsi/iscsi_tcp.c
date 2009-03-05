@@ -166,7 +166,7 @@ static void iscsi_sw_tcp_write_space(struct sock *sk)
 
 	tcp_sw_conn->old_write_space(sk);
 	ISCSI_SW_TCP_DBG(conn, "iscsi_write_space\n");
-	scsi_queue_work(conn->session->host, &conn->xmitwork);
+	iscsi_conn_queue_work(conn);
 }
 
 static void iscsi_sw_tcp_conn_set_callbacks(struct iscsi_conn *conn)
@@ -777,7 +777,7 @@ iscsi_sw_tcp_session_create(struct iscsi_endpoint *ep, uint16_t cmds_max,
 		return NULL;
 	}
 
-	shost = iscsi_host_alloc(&iscsi_sw_tcp_sht, 0, qdepth);
+	shost = iscsi_host_alloc(&iscsi_sw_tcp_sht, 0, qdepth, 1);
 	if (!shost)
 		return NULL;
 	shost->transportt = iscsi_sw_tcp_scsi_transport;

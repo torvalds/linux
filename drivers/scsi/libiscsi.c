@@ -76,6 +76,15 @@ static int iscsi_sna_lte(u32 n1, u32 n2)
 			    (n1 > n2 && (n2 - n1 < SNA32_CHECK)));
 }
 
+inline void iscsi_conn_queue_work(struct iscsi_conn *conn)
+{
+	struct Scsi_Host *shost = conn->session->host;
+	struct iscsi_host *ihost = shost_priv(shost);
+
+	queue_work(ihost->workq, &conn->xmitwork);
+}
+EXPORT_SYMBOL_GPL(iscsi_conn_queue_work);
+
 void
 iscsi_update_cmdsn(struct iscsi_session *session, struct iscsi_nopin *hdr)
 {
@@ -103,8 +112,7 @@ iscsi_update_cmdsn(struct iscsi_session *session, struct iscsi_nopin *hdr)
 		if (!list_empty(&session->leadconn->xmitqueue) ||
 		    !list_empty(&session->leadconn->mgmtqueue)) {
 			if (!(session->tt->caps & CAP_DATA_PATH_OFFLOAD))
-				scsi_queue_work(session->host,
-						&session->leadconn->xmitwork);
+				iscsi_conn_queue_work(session->leadconn);
 		}
 	}
 }
@@ -586,7 +594,7 @@ __iscsi_conn_send_pdu(struct iscsi_conn *conn, struct iscsi_hdr *hdr,
 			goto free_task;
 
 	} else
-		scsi_queue_work(conn->session->host, &conn->xmitwork);
+		iscsi_conn_queue_work(conn);
 
 	return task;
 
@@ -1160,7 +1168,7 @@ void iscsi_requeue_task(struct iscsi_task *task)
 	struct iscsi_conn *conn = task->conn;
 
 	list_move_tail(&task->running, &conn->requeue);
-	scsi_queue_work(conn->session->host, &conn->xmitwork);
+	iscsi_conn_queue_work(conn);
 }
 EXPORT_SYMBOL_GPL(iscsi_requeue_task);
 
@@ -1413,7 +1421,7 @@ int iscsi_queuecommand(struct scsi_cmnd *sc, void (*done)(struct scsi_cmnd *))
 			goto prepd_reject;
 		}
 	} else
-		scsi_queue_work(session->host, &conn->xmitwork);
+		iscsi_conn_queue_work(conn);
 
 	session->queued_cmdsn++;
 	spin_unlock(&session->lock);
@@ -1631,9 +1639,12 @@ static void fail_all_commands(struct iscsi_conn *conn, unsigned lun,
 
 void iscsi_suspend_tx(struct iscsi_conn *conn)
 {
+	struct Scsi_Host *shost = conn->session->host;
+	struct iscsi_host *ihost = shost_priv(shost);
+
 	set_bit(ISCSI_SUSPEND_BIT, &conn->suspend_tx);
 	if (!(conn->session->tt->caps & CAP_DATA_PATH_OFFLOAD))
-		scsi_flush_work(conn->session->host);
+		flush_workqueue(ihost->workq);
 }
 EXPORT_SYMBOL_GPL(iscsi_suspend_tx);
 
@@ -1641,7 +1652,7 @@ static void iscsi_start_tx(struct iscsi_conn *conn)
 {
 	clear_bit(ISCSI_SUSPEND_BIT, &conn->suspend_tx);
 	if (!(conn->session->tt->caps & CAP_DATA_PATH_OFFLOAD))
-		scsi_queue_work(conn->session->host, &conn->xmitwork);
+		iscsi_conn_queue_work(conn);
 }
 
 static enum blk_eh_timer_return iscsi_eh_cmd_timed_out(struct scsi_cmnd *scmd)
@@ -2046,12 +2057,14 @@ EXPORT_SYMBOL_GPL(iscsi_host_add);
  * @sht: scsi host template
  * @dd_data_size: driver host data size
  * @qdepth: default device queue depth
+ * @xmit_can_sleep: bool indicating if LLD will queue IO from a work queue
  *
  * This should be called by partial offload and software iscsi drivers.
  * To access the driver specific memory use the iscsi_host_priv() macro.
  */
 struct Scsi_Host *iscsi_host_alloc(struct scsi_host_template *sht,
-				   int dd_data_size, uint16_t qdepth)
+				   int dd_data_size, uint16_t qdepth,
+				   bool xmit_can_sleep)
 {
 	struct Scsi_Host *shost;
 	struct iscsi_host *ihost;
@@ -2063,13 +2076,25 @@ struct Scsi_Host *iscsi_host_alloc(struct scsi_host_template *sht,
 	if (qdepth == 0)
 		qdepth = ISCSI_DEF_CMD_PER_LUN;
 	shost->cmd_per_lun = qdepth;
-
 	ihost = shost_priv(shost);
+
+	if (xmit_can_sleep) {
+		snprintf(ihost->workq_name, sizeof(ihost->workq_name),
+			"iscsi_q_%d", shost->host_no);
+		ihost->workq = create_singlethread_workqueue(ihost->workq_name);
+		if (!ihost->workq)
+			goto free_host;
+	}
+
 	spin_lock_init(&ihost->lock);
 	ihost->state = ISCSI_HOST_SETUP;
 	ihost->num_sessions = 0;
 	init_waitqueue_head(&ihost->session_removal_wq);
 	return shost;
+
+free_host:
+	scsi_host_put(shost);
+	return NULL;
 }
 EXPORT_SYMBOL_GPL(iscsi_host_alloc);
 
@@ -2101,6 +2126,8 @@ void iscsi_host_remove(struct Scsi_Host *shost)
 		flush_signals(current);
 
 	scsi_remove_host(shost);
+	if (ihost->workq)
+		destroy_workqueue(ihost->workq);
 }
 EXPORT_SYMBOL_GPL(iscsi_host_remove);
 

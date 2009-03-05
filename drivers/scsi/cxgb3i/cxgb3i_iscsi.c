@@ -171,7 +171,7 @@ struct cxgb3i_hba *cxgb3i_hba_host_add(struct cxgb3i_adapter *snic,
 
 	shost = iscsi_host_alloc(&cxgb3i_host_template,
 				 sizeof(struct cxgb3i_hba),
-				 CXGB3I_SCSI_QDEPTH_DFLT);
+				 CXGB3I_SCSI_QDEPTH_DFLT, 1);
 	if (!shost) {
 		cxgb3i_log_info("iscsi_host_alloc failed.\n");
 		return NULL;
