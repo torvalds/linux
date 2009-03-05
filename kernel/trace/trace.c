@@ -299,6 +299,7 @@ static const char *trace_options[] = {
 	"sym-userobj",
 	"printk-msg-only",
 	"context-info",
+	"latency-format",
 	NULL
 };
 
@@ -1829,25 +1830,11 @@ static int tracing_open(struct inode *inode, struct file *file)
 	iter = __tracing_open(inode, file);
 	if (IS_ERR(iter))
 		ret = PTR_ERR(iter);
-
-	return ret;
-}
-
-static int tracing_lt_open(struct inode *inode, struct file *file)
-{
-	struct trace_iterator *iter;
-	int ret = 0;
-
-	iter = __tracing_open(inode, file);
-
-	if (IS_ERR(iter))
-		ret = PTR_ERR(iter);
-	else
+	else if (trace_flags & TRACE_ITER_LATENCY_FMT)
 		iter->iter_flags |= TRACE_FILE_LAT_FMT;
 
 	return ret;
 }
-
 
 static void *
 t_next(struct seq_file *m, void *v, loff_t *pos)
@@ -1922,13 +1909,6 @@ static int show_traces_open(struct inode *inode, struct file *file)
 
 static struct file_operations tracing_fops = {
 	.open		= tracing_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= tracing_release,
-};
-
-static struct file_operations tracing_lt_fops = {
-	.open		= tracing_lt_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
 	.release	= tracing_release,

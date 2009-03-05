@@ -651,7 +651,8 @@ enum trace_iterator_flags {
 	TRACE_ITER_USERSTACKTRACE       = 0x4000,
 	TRACE_ITER_SYM_USEROBJ          = 0x8000,
 	TRACE_ITER_PRINTK_MSGONLY	= 0x10000,
-	TRACE_ITER_CONTEXT_INFO		= 0x20000 /* Print pid/cpu/time */
+	TRACE_ITER_CONTEXT_INFO		= 0x20000, /* Print pid/cpu/time */
+	TRACE_ITER_LATENCY_FMT		= 0x40000,
 };
 
 /*
