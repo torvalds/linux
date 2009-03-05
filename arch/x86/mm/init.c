@@ -23,9 +23,9 @@ kernel_physical_mapping_init(unsigned long start,
 			     unsigned long page_size_mask);
 #endif
 
-unsigned long __initdata table_start;
-unsigned long __meminitdata table_end;
-unsigned long __meminitdata table_top;
+unsigned long __initdata e820_table_start;
+unsigned long __meminitdata e820_table_end;
+unsigned long __meminitdata e820_table_top;
 
 int after_bootmem;
 
@@ -78,21 +78,21 @@ static void __init find_early_table_space(unsigned long end, int use_pse,
 	 */
 #ifdef CONFIG_X86_32
 	start = 0x7000;
-	table_start = find_e820_area(start, max_pfn_mapped<<PAGE_SHIFT,
+	e820_table_start = find_e820_area(start, max_pfn_mapped<<PAGE_SHIFT,
 					tables, PAGE_SIZE);
 #else /* CONFIG_X86_64 */
 	start = 0x8000;
-	table_start = find_e820_area(start, end, tables, PAGE_SIZE);
+	e820_table_start = find_e820_area(start, end, tables, PAGE_SIZE);
 #endif
-	if (table_start == -1UL)
+	if (e820_table_start == -1UL)
 		panic("Cannot find space for the kernel page tables");
 
-	table_start >>= PAGE_SHIFT;
-	table_end = table_start;
-	table_top = table_start + (tables >> PAGE_SHIFT);
+	e820_table_start >>= PAGE_SHIFT;
+	e820_table_end = e820_table_start;
+	e820_table_top = e820_table_start + (tables >> PAGE_SHIFT);
 
 	printk(KERN_DEBUG "kernel direct mapping tables up to %lx @ %lx-%lx\n",
-		end, table_start << PAGE_SHIFT, table_top << PAGE_SHIFT);
+		end, e820_table_start << PAGE_SHIFT, e820_table_top << PAGE_SHIFT);
 }
 
 struct map_range {
@@ -324,9 +324,9 @@ unsigned long __init_refok init_memory_mapping(unsigned long start,
 #endif
 	__flush_tlb_all();
 
-	if (!after_bootmem && table_end > table_start)
-		reserve_early(table_start << PAGE_SHIFT,
-				 table_end << PAGE_SHIFT, "PGTABLE");
+	if (!after_bootmem && e820_table_end > e820_table_start)
+		reserve_early(e820_table_start << PAGE_SHIFT,
+				 e820_table_end << PAGE_SHIFT, "PGTABLE");
 
 	if (!after_bootmem)
 		early_memtest(start, end);

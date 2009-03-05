@@ -59,16 +59,16 @@ unsigned long highstart_pfn, highend_pfn;
 static noinline int do_test_wp_bit(void);
 
 
-extern unsigned long __initdata table_start;
-extern unsigned long __meminitdata table_end;
-extern unsigned long __meminitdata table_top;
+extern unsigned long __initdata e820_table_start;
+extern unsigned long __meminitdata e820_table_end;
+extern unsigned long __meminitdata e820_table_top;
 
 static __init void *alloc_low_page(void)
 {
-	unsigned long pfn = table_end++;
+	unsigned long pfn = e820_table_end++;
 	void *adr;
 
-	if (pfn >= table_top)
+	if (pfn >= e820_table_top)
 		panic("alloc_low_page: ran out of memory");
 
 	adr = __va(pfn * PAGE_SIZE);
@@ -149,8 +149,8 @@ static pte_t *__init page_table_kmap_check(pte_t *pte, pmd_t *pmd,
 	if (pmd_idx_kmap_begin != pmd_idx_kmap_end
 	    && (vaddr >> PMD_SHIFT) >= pmd_idx_kmap_begin
 	    && (vaddr >> PMD_SHIFT) <= pmd_idx_kmap_end
-	    && ((__pa(pte) >> PAGE_SHIFT) < table_start
-		|| (__pa(pte) >> PAGE_SHIFT) >= table_end)) {
+	    && ((__pa(pte) >> PAGE_SHIFT) < e820_table_start
+		|| (__pa(pte) >> PAGE_SHIFT) >= e820_table_end)) {
 		pte_t *newpte;
 		int i;
 
