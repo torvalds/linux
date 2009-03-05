@@ -1197,14 +1197,15 @@ iscsi_if_create_session(struct iscsi_internal *priv, struct iscsi_endpoint *ep,
 {
 	struct iscsi_transport *transport = priv->iscsi_transport;
 	struct iscsi_cls_session *session;
-	uint32_t host_no;
+	struct Scsi_Host *shost;
 
 	session = transport->create_session(ep, cmds_max, queue_depth,
-					    initial_cmdsn, &host_no);
+					    initial_cmdsn);
 	if (!session)
 		return -ENOMEM;
 
-	ev->r.c_session_ret.host_no = host_no;
+	shost = iscsi_session_to_shost(session);
+	ev->r.c_session_ret.host_no = shost->host_no;
 	ev->r.c_session_ret.sid = session->sid;
 	return 0;
 }

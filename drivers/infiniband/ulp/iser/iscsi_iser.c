@@ -397,7 +397,7 @@ static void iscsi_iser_session_destroy(struct iscsi_cls_session *cls_session)
 static struct iscsi_cls_session *
 iscsi_iser_session_create(struct iscsi_endpoint *ep,
 			  uint16_t cmds_max, uint16_t qdepth,
-			  uint32_t initial_cmdsn, uint32_t *hostno)
+			  uint32_t initial_cmdsn)
 {
 	struct iscsi_cls_session *cls_session;
 	struct iscsi_session *session;
@@ -423,7 +423,6 @@ iscsi_iser_session_create(struct iscsi_endpoint *ep,
 	if (iscsi_host_add(shost,
 			   ep ? ib_conn->device->ib_device->dma_device : NULL))
 		goto free_host;
-	*hostno = shost->host_no;
 
 	/*
 	 * we do not support setting can_queue cmd_per_lun from userspace yet

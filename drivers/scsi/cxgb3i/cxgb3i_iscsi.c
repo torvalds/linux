@@ -334,13 +334,12 @@ static void cxgb3i_ep_disconnect(struct iscsi_endpoint *ep)
  * @cmds_max:		max # of commands
  * @qdepth:		scsi queue depth
  * @initial_cmdsn:	initial iscsi CMDSN for this session
- * @host_no:		pointer to return host no
  *
  * Creates a new iSCSI session
  */
 static struct iscsi_cls_session *
 cxgb3i_session_create(struct iscsi_endpoint *ep, u16 cmds_max, u16 qdepth,
-		      u32 initial_cmdsn, u32 *host_no)
+		      u32 initial_cmdsn)
 {
 	struct cxgb3i_endpoint *cep;
 	struct cxgb3i_hba *hba;
@@ -358,8 +357,6 @@ cxgb3i_session_create(struct iscsi_endpoint *ep, u16 cmds_max, u16 qdepth,
 	shost = hba->shost;
 	cxgb3i_api_debug("ep 0x%p, cep 0x%p, hba 0x%p.\n", ep, cep, hba);
 	BUG_ON(hba != iscsi_host_priv(shost));
-
-	*host_no = shost->host_no;
 
 	cls_session = iscsi_session_setup(&cxgb3i_iscsi_transport, shost,
 					  cmds_max,

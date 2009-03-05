@@ -765,8 +765,7 @@ iscsi_sw_tcp_conn_get_stats(struct iscsi_cls_conn *cls_conn,
 
 static struct iscsi_cls_session *
 iscsi_sw_tcp_session_create(struct iscsi_endpoint *ep, uint16_t cmds_max,
-			    uint16_t qdepth, uint32_t initial_cmdsn,
-			    uint32_t *hostno)
+			    uint16_t qdepth, uint32_t initial_cmdsn)
 {
 	struct iscsi_cls_session *cls_session;
 	struct iscsi_session *session;
@@ -789,7 +788,6 @@ iscsi_sw_tcp_session_create(struct iscsi_endpoint *ep, uint16_t cmds_max,
 
 	if (iscsi_host_add(shost, NULL))
 		goto free_host;
-	*hostno = shost->host_no;
 
 	cls_session = iscsi_session_setup(&iscsi_sw_tcp_transport, shost,
 					  cmds_max,
