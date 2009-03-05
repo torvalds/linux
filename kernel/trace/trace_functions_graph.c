@@ -112,7 +112,7 @@ unsigned long ftrace_return_to_handler(void)
 	unsigned long ret;
 
 	ftrace_pop_return_trace(&trace, &ret);
-	trace.rettime = cpu_clock(raw_smp_processor_id());
+	trace.rettime = trace_clock_local();
 	ftrace_graph_return(&trace);
 
 	if (unlikely(!ret)) {
