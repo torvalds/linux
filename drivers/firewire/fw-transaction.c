@@ -317,15 +317,15 @@ static void transaction_callback(struct fw_card *card, int rcode,
  */
 int fw_run_transaction(struct fw_card *card, int tcode, int destination_id,
 		       int generation, int speed, unsigned long long offset,
-		       void *data, size_t length)
+		       void *payload, size_t length)
 {
 	struct transaction_callback_data d;
 	struct fw_transaction t;
 
 	init_completion(&d.done);
-	d.payload = data;
+	d.payload = payload;
 	fw_send_request(card, &t, tcode, destination_id, generation, speed,
-			offset, data, length, transaction_callback, &d);
+			offset, payload, length, transaction_callback, &d);
 	wait_for_completion(&d.done);
 
 	return d.rcode;
