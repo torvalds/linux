@@ -982,7 +982,7 @@ static void alc888_coef_init(struct hda_codec *codec)
 	snd_hda_codec_write(codec, 0x20, 0, AC_VERB_SET_COEF_INDEX, 0);
 	tmp = snd_hda_codec_read(codec, 0x20, 0, AC_VERB_GET_PROC_COEF, 0);
 	snd_hda_codec_write(codec, 0x20, 0, AC_VERB_SET_COEF_INDEX, 7);
-	if ((tmp & 0xf0) == 2)
+	if ((tmp & 0xf0) == 0x20)
 		/* alc888S-VC */
 		snd_hda_codec_read(codec, 0x20, 0,
 				   AC_VERB_SET_PROC_COEF, 0x830);
