@@ -1377,11 +1377,10 @@ setup_overlay (struct file *file,
 
 	/* get the status of a buffer in the clients buffer queue */
 static int
-zoran_v4l2_buffer_status (struct file        *file,
+zoran_v4l2_buffer_status (struct zoran_fh    *fh,
 			  struct v4l2_buffer *buf,
 			  int                 num)
 {
-	struct zoran_fh *fh = file->private_data;
 	struct zoran *zr = fh->zr;
 
 	buf->flags = V4L2_BUF_FLAG_MAPPED;
@@ -2501,7 +2500,7 @@ static int zoran_querybuf(struct file *file, void *__fh, struct v4l2_buffer *buf
 	int res;
 
 	mutex_lock(&zr->resource_lock);
-	res = zoran_v4l2_buffer_status(file, buf, buf->index);
+	res = zoran_v4l2_buffer_status(fh, buf, buf->index);
 	mutex_unlock(&zr->resource_lock);
 
 	return res;
@@ -2602,7 +2601,7 @@ static int zoran_dqbuf(struct file *file, void *__fh, struct v4l2_buffer *buf)
 		if (res)
 			goto dqbuf_unlock_and_return;
 		zr->v4l_sync_tail++;
-		res = zoran_v4l2_buffer_status(file, buf, num);
+		res = zoran_v4l2_buffer_status(fh, buf, num);
 		break;
 
 	case ZORAN_MAP_MODE_JPG_REC:
@@ -2633,7 +2632,7 @@ static int zoran_dqbuf(struct file *file, void *__fh, struct v4l2_buffer *buf)
 		res = jpg_sync(file, &bs);
 		if (res)
 			goto dqbuf_unlock_and_return;
-		res = zoran_v4l2_buffer_status(file, buf, bs.frame);
+		res = zoran_v4l2_buffer_status(fh, buf, bs.frame);
 		break;
 	}
 
