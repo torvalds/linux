@@ -1008,8 +1008,7 @@ unsigned long __init_refok init_memory_mapping(unsigned long start,
 	/* tail is not big page (2M) alignment */
 	start_pfn = pos>>PAGE_SHIFT;
 	end_pfn = end>>PAGE_SHIFT;
-	if (start_pfn < end_pfn)
-		nr_range = save_mr(mr, nr_range, start_pfn, end_pfn, 0);
+	nr_range = save_mr(mr, nr_range, start_pfn, end_pfn, 0);
 
 	/* try to merge same page size and continuous */
 	for (i = 0; nr_range > 1 && i < nr_range - 1; i++) {
