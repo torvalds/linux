@@ -558,6 +558,19 @@ static inline void __init construct_default_ISA_mptable(int mpc_default_type)
 
 static struct mpf_intel *mpf_found;
 
+static unsigned long __init get_mpc_size(unsigned long physptr)
+{
+	struct mpc_table *mpc;
+	unsigned long size;
+
+	mpc = early_ioremap(physptr, PAGE_SIZE);
+	size = mpc->length;
+	early_iounmap(mpc, PAGE_SIZE);
+	apic_printk(APIC_VERBOSE, "  mpc: %lx-%lx\n", physptr, physptr + size);
+
+	return size;
+}
+
 /*
  * Scan the memory blocks for an SMP configuration block.
  */
@@ -611,12 +624,16 @@ static void __init __get_smp_config(unsigned int early)
 		construct_default_ISA_mptable(mpf->feature1);
 
 	} else if (mpf->physptr) {
+		struct mpc_table *mpc;
+		unsigned long size;
 
+		size = get_mpc_size(mpf->physptr);
+		mpc = early_ioremap(mpf->physptr, size);
 		/*
 		 * Read the physical hardware table.  Anything here will
 		 * override the defaults.
 		 */
-		if (!smp_read_mpc(phys_to_virt(mpf->physptr), early)) {
+		if (!smp_read_mpc(mpc, early)) {
 #ifdef CONFIG_X86_LOCAL_APIC
 			smp_found_config = 0;
 #endif
@@ -624,8 +641,10 @@ static void __init __get_smp_config(unsigned int early)
 			       "BIOS bug, MP table errors detected!...\n");
 			printk(KERN_ERR "... disabling SMP support. "
 			       "(tell your hw vendor)\n");
+			early_iounmap(mpc, size);
 			return;
 		}
+		early_iounmap(mpc, size);
 
 		if (early)
 			return;
@@ -697,10 +716,10 @@ static int __init smp_scan_config(unsigned long base, unsigned long length,
 
 			if (!reserve)
 				return 1;
-			reserve_bootmem_generic(virt_to_phys(mpf), PAGE_SIZE,
+			reserve_bootmem_generic(virt_to_phys(mpf), sizeof(*mpf),
 					BOOTMEM_DEFAULT);
 			if (mpf->physptr) {
-				unsigned long size = PAGE_SIZE;
+				unsigned long size = get_mpc_size(mpf->physptr);
 #ifdef CONFIG_X86_32
 				/*
 				 * We cannot access to MPC table to compute
