@@ -358,6 +358,11 @@ static struct rpc_program cb_program = {
 		.pipe_dir_name  = "/nfsd4_cb",
 };
 
+static int max_cb_time(void)
+{
+	return max(NFSD_LEASE_TIME/10, (time_t)1) * HZ;
+}
+
 /* Reference counting, callback cleanup, etc., all look racy as heck.
  * And why is cb_set an atomic? */
 
@@ -366,10 +371,8 @@ static struct rpc_clnt *setup_callback_client(struct nfs4_client *clp)
 	struct sockaddr_in	addr;
 	struct nfs4_callback    *cb = &clp->cl_callback;
 	struct rpc_timeout	timeparms = {
-		.to_initval	= (NFSD_LEASE_TIME/4) * HZ,
-		.to_retries	= 5,
-		.to_maxval	= (NFSD_LEASE_TIME/2) * HZ,
-		.to_exponential	= 1,
+		.to_initval	= max_cb_time(),
+		.to_retries	= 0,
 	};
 	struct rpc_create_args args = {
 		.protocol	= IPPROTO_TCP,
