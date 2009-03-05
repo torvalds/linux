@@ -223,10 +223,13 @@ static inline int is_kernel_text(unsigned long addr)
  * of max_low_pfn pages, by creating page tables starting from address
  * PAGE_OFFSET:
  */
-void __init kernel_physical_mapping_init(unsigned long start_pfn,
-					 unsigned long end_pfn,
-					 int use_pse)
+unsigned long __init
+kernel_physical_mapping_init(unsigned long start,
+			     unsigned long end,
+			     unsigned long page_size_mask)
 {
+	int use_pse = page_size_mask == (1<<PG_LEVEL_2M);
+	unsigned long start_pfn, end_pfn;
 	pgd_t *pgd_base = swapper_pg_dir;
 	int pgd_idx, pmd_idx, pte_ofs;
 	unsigned long pfn;
@@ -235,6 +238,9 @@ void __init kernel_physical_mapping_init(unsigned long start_pfn,
 	pte_t *pte;
 	unsigned pages_2m, pages_4k;
 	int mapping_iter;
+
+	start_pfn = start >> PAGE_SHIFT;
+	end_pfn = end >> PAGE_SHIFT;
 
 	/*
 	 * First iteration will setup identity mapping using large/small pages
@@ -350,6 +356,7 @@ repeat:
 		mapping_iter = 2;
 		goto repeat;
 	}
+	return 0;
 }
 
 pte_t *kmap_pte;

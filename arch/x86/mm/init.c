@@ -11,17 +11,12 @@
 
 #ifdef CONFIG_X86_32
 extern void __init early_ioremap_page_table_range_init(void);
-extern void __init kernel_physical_mapping_init(unsigned long start_pfn,
-						unsigned long end_pfn,
-						int use_pse);
 #endif
 
-#ifdef CONFIG_X86_64
-extern unsigned long __meminit
+extern unsigned long __init
 kernel_physical_mapping_init(unsigned long start,
 			     unsigned long end,
 			     unsigned long page_size_mask);
-#endif
 
 unsigned long __initdata e820_table_start;
 unsigned long __meminitdata e820_table_end;
@@ -301,10 +296,8 @@ unsigned long __init_refok init_memory_mapping(unsigned long start,
 
 #ifdef CONFIG_X86_32
 	for (i = 0; i < nr_range; i++)
-		kernel_physical_mapping_init(
-				mr[i].start >> PAGE_SHIFT,
-				mr[i].end >> PAGE_SHIFT,
-				mr[i].page_size_mask == (1<<PG_LEVEL_2M));
+		kernel_physical_mapping_init(mr[i].start, mr[i].end,
+					     mr[i].page_size_mask);
 	ret = end;
 #else /* CONFIG_X86_64 */
 	for (i = 0; i < nr_range; i++)
