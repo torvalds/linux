@@ -929,6 +929,7 @@ unsigned long __init_refok init_memory_mapping(unsigned long start,
 	unsigned long page_size_mask = 0;
 	unsigned long start_pfn, end_pfn;
 	unsigned long pos;
+	unsigned long ret;
 
 	struct map_range mr[NR_RANGE_MR];
 	int nr_range, i;
@@ -1040,11 +1041,18 @@ unsigned long __init_refok init_memory_mapping(unsigned long start,
 	if (!after_bootmem)
 		find_early_table_space(end, use_pse, use_gbpages);
 
+#ifdef CONFIG_X86_32
 	for (i = 0; i < nr_range; i++)
 		kernel_physical_mapping_init(
 				mr[i].start >> PAGE_SHIFT,
 				mr[i].end >> PAGE_SHIFT,
 				mr[i].page_size_mask == (1<<PG_LEVEL_2M));
+	ret = end;
+#else /* CONFIG_X86_64 */
+	for (i = 0; i < nr_range; i++)
+		ret = kernel_physical_mapping_init(mr[i].start, mr[i].end,
+						   mr[i].page_size_mask);
+#endif
 
 	early_ioremap_page_table_range_init();
 
@@ -1059,7 +1067,7 @@ unsigned long __init_refok init_memory_mapping(unsigned long start,
 	if (!after_bootmem)
 		early_memtest(start, end);
 
-	return end >> PAGE_SHIFT;
+	return ret >> PAGE_SHIFT;
 }
 
 

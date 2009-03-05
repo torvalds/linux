@@ -686,10 +686,10 @@ static int save_mr(struct map_range *mr, int nr_range,
 unsigned long __init_refok init_memory_mapping(unsigned long start,
 					       unsigned long end)
 {
-	unsigned long last_map_addr = 0;
 	unsigned long page_size_mask = 0;
 	unsigned long start_pfn, end_pfn;
 	unsigned long pos;
+	unsigned long ret;
 
 	struct map_range mr[NR_RANGE_MR];
 	int nr_range, i;
@@ -819,10 +819,18 @@ unsigned long __init_refok init_memory_mapping(unsigned long start,
 	if (!after_bootmem)
 		find_early_table_space(end, use_pse, use_gbpages);
 
+#ifdef CONFIG_X86_32
 	for (i = 0; i < nr_range; i++)
-		last_map_addr = kernel_physical_mapping_init(
-					mr[i].start, mr[i].end,
-					mr[i].page_size_mask);
+		kernel_physical_mapping_init(
+				mr[i].start >> PAGE_SHIFT,
+				mr[i].end >> PAGE_SHIFT,
+				mr[i].page_size_mask == (1<<PG_LEVEL_2M));
+	ret = end;
+#else /* CONFIG_X86_64 */
+	for (i = 0; i < nr_range; i++)
+		ret = kernel_physical_mapping_init(mr[i].start, mr[i].end,
+						   mr[i].page_size_mask);
+#endif
 
 	if (!after_bootmem)
 		mmu_cr4_features = read_cr4();
@@ -832,13 +840,10 @@ unsigned long __init_refok init_memory_mapping(unsigned long start,
 		reserve_early(table_start << PAGE_SHIFT,
 				 table_end << PAGE_SHIFT, "PGTABLE");
 
-	printk(KERN_INFO "last_map_addr: %lx end: %lx\n",
-			 last_map_addr, end);
-
 	if (!after_bootmem)
 		early_memtest(start, end);
 
-	return last_map_addr >> PAGE_SHIFT;
+	return ret >> PAGE_SHIFT;
 }
 
 #ifndef CONFIG_NUMA
