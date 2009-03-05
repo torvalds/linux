@@ -295,5 +295,4 @@ static int __init xenbus_probe_backend_init(void)
 
 	return 0;
 }
-
-module_init(xenbus_probe_backend_init);
+subsys_initcall(xenbus_probe_backend_init);
