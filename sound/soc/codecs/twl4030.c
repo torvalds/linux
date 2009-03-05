@@ -584,12 +584,11 @@ static int headsetl_event(struct snd_soc_dapm_widget *w,
 
 	/* Save the current volume */
 	hs_gain = twl4030_read_reg_cache(w->codec, TWL4030_REG_HS_GAIN_SET);
+	hs_pop = twl4030_read_reg_cache(w->codec, TWL4030_REG_HS_POPN_SET);
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
 		/* Do the anti-pop/bias ramp enable according to the TRM */
-		hs_pop = TWL4030_RAMP_DELAY_645MS;
-		twl4030_write(w->codec, TWL4030_REG_HS_POPN_SET, hs_pop);
 		hs_pop |= TWL4030_VMID_EN;
 		twl4030_write(w->codec, TWL4030_REG_HS_POPN_SET, hs_pop);
 		/* Is this needed? Can we just use whatever gain here? */
@@ -603,8 +602,6 @@ static int headsetl_event(struct snd_soc_dapm_widget *w,
 		break;
 	case SND_SOC_DAPM_POST_PMD:
 		/* Do the anti-pop/bias ramp disable according to the TRM */
-		hs_pop = twl4030_read_reg_cache(w->codec,
-						TWL4030_REG_HS_POPN_SET);
 		hs_pop &= ~TWL4030_RAMP_EN;
 		twl4030_write(w->codec, TWL4030_REG_HS_POPN_SET, hs_pop);
 		/* Bypass the reg_cache to mute the headset */
@@ -847,6 +844,17 @@ static DECLARE_TLV_DB_SCALE(digital_capture_tlv, 0, 100, 0);
  */
 static DECLARE_TLV_DB_SCALE(input_gain_tlv, 0, 600, 0);
 
+static const char *twl4030_rampdelay_texts[] = {
+	"27/20/14 ms", "55/40/27 ms", "109/81/55 ms", "218/161/109 ms",
+	"437/323/218 ms", "874/645/437 ms", "1748/1291/874 ms",
+	"3495/2581/1748 ms"
+};
+
+static const struct soc_enum twl4030_rampdelay_enum =
+	SOC_ENUM_SINGLE(TWL4030_REG_HS_POPN_SET, 2,
+			ARRAY_SIZE(twl4030_rampdelay_texts),
+			twl4030_rampdelay_texts);
+
 static const struct snd_kcontrol_new twl4030_snd_controls[] = {
 	/* Common playback gain controls */
 	SOC_DOUBLE_R_TLV("DAC1 Digital Fine Playback Volume",
@@ -901,6 +909,8 @@ static const struct snd_kcontrol_new twl4030_snd_controls[] = {
 
 	SOC_DOUBLE_TLV("Analog Capture Volume", TWL4030_REG_ANAMIC_GAIN,
 		0, 3, 5, 0, input_gain_tlv),
+
+	SOC_ENUM("HS ramp delay", twl4030_rampdelay_enum),
 };
 
 static const struct snd_soc_dapm_widget twl4030_dapm_widgets[] = {
