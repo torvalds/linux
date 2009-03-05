@@ -899,8 +899,6 @@ static int uhci_submit_control(struct uhci_hcd *uhci, struct urb *urb,
 	}
 	if (qh->state != QH_STATE_ACTIVE)
 		qh->skel = skel;
-
-	urb->actual_length = -8;	/* Account for the SETUP packet */
 	return 0;
 
 nomem:
@@ -1494,11 +1492,10 @@ __acquires(uhci->lock)
 
 	if (qh->type == USB_ENDPOINT_XFER_CONTROL) {
 
-		/* urb->actual_length < 0 means the setup transaction didn't
-		 * complete successfully.  Either it failed or the URB was
-		 * unlinked first.  Regardless, don't confuse people with a
-		 * negative length. */
-		urb->actual_length = max(urb->actual_length, 0);
+		/* Subtract off the length of the SETUP packet from
+		 * urb->actual_length.
+		 */
+		urb->actual_length -= min_t(u32, 8, urb->actual_length);
 	}
 
 	/* When giving back the first URB in an Isochronous queue,
