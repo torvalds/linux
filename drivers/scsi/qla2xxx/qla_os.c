@@ -2222,10 +2222,6 @@ qla2x00_mem_alloc(struct qla_hw_data *ha, uint16_t req_len, uint16_t rsp_len,
 {
 	char	name[16];
 
-	ha->init_cb_size = sizeof(init_cb_t);
-	if (IS_QLA2XXX_MIDTYPE(ha))
-		ha->init_cb_size = sizeof(struct mid_init_cb_24xx);
-
 	ha->init_cb = dma_alloc_coherent(&ha->pdev->dev, ha->init_cb_size,
 		&ha->init_cb_dma, GFP_KERNEL);
 	if (!ha->init_cb)
