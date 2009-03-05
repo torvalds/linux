@@ -72,6 +72,7 @@
  * @dev: struct device pointer
  * @playback: the number of playback streams opened
  * @capture: the number of capture streams opened
+ * @asynchronous: 0=synchronous mode, 1=asynchronous mode
  * @cpu_dai: the CPU DAI for this device
  * @dev_attr: the sysfs device attribute structure
  * @stats: SSI statistics
@@ -86,6 +87,7 @@ struct fsl_ssi_private {
 	struct device *dev;
 	unsigned int playback;
 	unsigned int capture;
+	int asynchronous;
 	struct snd_soc_dai cpu_dai;
 	struct device_attribute dev_attr;
 
@@ -301,9 +303,10 @@ static int fsl_ssi_startup(struct snd_pcm_substream *substream,
 		 *
 		 * FIXME: Little-endian samples require a different shift dir
 		 */
-		clrsetbits_be32(&ssi->scr, CCSR_SSI_SCR_I2S_MODE_MASK,
-			CCSR_SSI_SCR_TFR_CLK_DIS |
-			CCSR_SSI_SCR_I2S_MODE_SLAVE | CCSR_SSI_SCR_SYN);
+		clrsetbits_be32(&ssi->scr,
+			CCSR_SSI_SCR_I2S_MODE_MASK | CCSR_SSI_SCR_SYN,
+			CCSR_SSI_SCR_TFR_CLK_DIS | CCSR_SSI_SCR_I2S_MODE_SLAVE
+			| (ssi_private->asynchronous ? 0 : CCSR_SSI_SCR_SYN));
 
 		out_be32(&ssi->stcr,
 			 CCSR_SSI_STCR_TXBIT0 | CCSR_SSI_STCR_TFEN0 |
@@ -382,10 +385,15 @@ static int fsl_ssi_startup(struct snd_pcm_substream *substream,
 			SNDRV_PCM_HW_PARAM_RATE,
 			first_runtime->rate, first_runtime->rate);
 
-		snd_pcm_hw_constraint_minmax(substream->runtime,
-			SNDRV_PCM_HW_PARAM_SAMPLE_BITS,
-			first_runtime->sample_bits,
-			first_runtime->sample_bits);
+		/* If we're in synchronous mode, then we need to constrain
+		 * the sample size as well.  We don't support independent sample
+		 * rates in asynchronous mode.
+		 */
+		if (!ssi_private->asynchronous)
+			snd_pcm_hw_constraint_minmax(substream->runtime,
+				SNDRV_PCM_HW_PARAM_SAMPLE_BITS,
+				first_runtime->sample_bits,
+				first_runtime->sample_bits);
 
 		ssi_private->second_stream = substream;
 	}
@@ -421,13 +429,18 @@ static int fsl_ssi_hw_params(struct snd_pcm_substream *substream,
 		struct ccsr_ssi __iomem *ssi = ssi_private->ssi;
 		unsigned int sample_size =
 			snd_pcm_format_width(params_format(hw_params));
-		u32 wl;
+		u32 wl = CCSR_SSI_SxCCR_WL(sample_size);
 
 		/* The SSI should always be disabled at this points (SSIEN=0) */
-		wl = CCSR_SSI_SxCCR_WL(sample_size);
 
 		/* In synchronous mode, the SSI uses STCCR for capture */
-		clrsetbits_be32(&ssi->stccr, CCSR_SSI_SxCCR_WL_MASK, wl);
+		if ((substream->stream == SNDRV_PCM_STREAM_PLAYBACK) ||
+		    !ssi_private->asynchronous)
+			clrsetbits_be32(&ssi->stccr,
+					CCSR_SSI_SxCCR_WL_MASK, wl);
+		else
+			clrsetbits_be32(&ssi->srccr,
+					CCSR_SSI_SxCCR_WL_MASK, wl);
 	}
 
 	return 0;
@@ -653,6 +666,7 @@ struct snd_soc_dai *fsl_ssi_create_dai(struct fsl_ssi_info *ssi_info)
 	ssi_private->ssi_phys = ssi_info->ssi_phys;
 	ssi_private->irq = ssi_info->irq;
 	ssi_private->dev = ssi_info->dev;
+	ssi_private->asynchronous = ssi_info->asynchronous;
 
 	ssi_private->dev->driver_data = fsl_ssi_dai;
 
@@ -702,6 +716,14 @@ void fsl_ssi_destroy_dai(struct snd_soc_dai *fsl_ssi_dai)
 	kfree(ssi_private);
 }
 EXPORT_SYMBOL_GPL(fsl_ssi_destroy_dai);
+
+static int __init fsl_ssi_init(void)
+{
+	printk(KERN_INFO "Freescale Synchronous Serial Interface (SSI) ASoC Driver\n");
+
+	return 0;
+}
+module_init(fsl_ssi_init);
 
 MODULE_AUTHOR("Timur Tabi <timur@freescale.com>");
 MODULE_DESCRIPTION("Freescale Synchronous Serial Interface (SSI) ASoC Driver");
