@@ -738,10 +738,7 @@ static int p54_rx_data(struct ieee80211_hw *dev, struct sk_buff *skb)
 		return 0;
 
 	if (!(hdr->flags & cpu_to_le16(P54_HDR_FLAG_DATA_IN_FCS_GOOD))) {
-		if (priv->filter_flags & FIF_FCSFAIL)
-			rx_status.flag |= RX_FLAG_FAILED_FCS_CRC;
-		else
-			return 0;
+		return 0;
 	}
 
 	if (hdr->decrypt_status == P54_DECRYPT_OK)
@@ -2220,9 +2217,7 @@ static void p54_configure_filter(struct ieee80211_hw *dev,
 	struct p54_common *priv = dev->priv;
 
 	*total_flags &= FIF_PROMISC_IN_BSS |
-			FIF_OTHER_BSS |
-			(*total_flags & FIF_PROMISC_IN_BSS ?
-				FIF_FCSFAIL : 0);
+			FIF_OTHER_BSS;
 
 	priv->filter_flags = *total_flags;
 
