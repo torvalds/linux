@@ -1451,8 +1451,6 @@ EXPORT_SYMBOL_GPL(iscsi_queuecommand);
 
 int iscsi_change_queue_depth(struct scsi_device *sdev, int depth)
 {
-	if (depth > ISCSI_MAX_CMD_PER_LUN)
-		depth = ISCSI_MAX_CMD_PER_LUN;
 	scsi_adjust_queue_depth(sdev, scsi_get_tag_type(sdev), depth);
 	return sdev->queue_depth;
 }
@@ -2062,13 +2060,8 @@ struct Scsi_Host *iscsi_host_alloc(struct scsi_host_template *sht,
 	if (!shost)
 		return NULL;
 
-	if (qdepth > ISCSI_MAX_CMD_PER_LUN || qdepth < 1) {
-		if (qdepth != 0)
-			printk(KERN_ERR "iscsi: invalid queue depth of %d. "
-			       "Queue depth must be between 1 and %d.\n",
-			       qdepth, ISCSI_MAX_CMD_PER_LUN);
+	if (qdepth == 0)
 		qdepth = ISCSI_DEF_CMD_PER_LUN;
-	}
 	shost->cmd_per_lun = qdepth;
 
 	ihost = shost_priv(shost);

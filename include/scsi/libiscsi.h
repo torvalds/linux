@@ -48,8 +48,7 @@ struct device;
 #define ISCSI_DEF_XMIT_CMDS_MAX	128	/* must be power of 2 */
 #define ISCSI_MGMT_CMDS_MAX	15
 
-#define ISCSI_DEF_CMD_PER_LUN		32
-#define ISCSI_MAX_CMD_PER_LUN		128
+#define ISCSI_DEF_CMD_PER_LUN	32
 
 /* Task Mgmt states */
 enum {

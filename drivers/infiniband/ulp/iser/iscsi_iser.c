@@ -404,7 +404,7 @@ iscsi_iser_session_create(struct iscsi_endpoint *ep,
 	struct Scsi_Host *shost;
 	struct iser_conn *ib_conn;
 
-	shost = iscsi_host_alloc(&iscsi_iser_sht, 0, ISCSI_MAX_CMD_PER_LUN);
+	shost = iscsi_host_alloc(&iscsi_iser_sht, 0, ISER_DEF_CMD_PER_LUN);
 	if (!shost)
 		return NULL;
 	shost->transportt = iscsi_iser_scsi_transport;
@@ -596,7 +596,7 @@ static struct scsi_host_template iscsi_iser_sht = {
 	.change_queue_depth	= iscsi_change_queue_depth,
 	.sg_tablesize           = ISCSI_ISER_SG_TABLESIZE,
 	.max_sectors		= 1024,
-	.cmd_per_lun            = ISCSI_MAX_CMD_PER_LUN,
+	.cmd_per_lun            = ISER_DEF_CMD_PER_LUN,
 	.eh_abort_handler       = iscsi_eh_abort,
 	.eh_device_reset_handler= iscsi_eh_device_reset,
 	.eh_target_reset_handler= iscsi_eh_target_reset,
