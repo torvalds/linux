@@ -17,6 +17,7 @@
  */
 #include <xfs.h>
 #include "debug.h"
+#include "xfs_error.h"
 
 /* xfs_mount.h drags a lot of crap in, sorry.. */
 #include "xfs_sb.h"
