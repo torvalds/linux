@@ -1162,6 +1162,7 @@ out_early:
 
 	return irq_ret;
 }
+EXPORT_SYMBOL_GPL(ide_intr);
 
 /**
  *	ide_do_drive_cmd	-	issue IDE special command
