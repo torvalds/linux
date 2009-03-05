@@ -28,6 +28,7 @@
 #include <sound/pcm.h>
 #include <sound/soc.h>
 #include <sound/soc-dapm.h>
+#include <sound/jack.h>
 
 #include <asm/mach-types.h>
 #include <mach/hardware.h>
@@ -122,7 +123,7 @@ static int sdp3430_twl4030_init(struct snd_soc_codec *codec)
 	/* SDP3430 connected pins */
 	snd_soc_dapm_enable_pin(codec, "Ext Mic");
 	snd_soc_dapm_enable_pin(codec, "Ext Spk");
-	snd_soc_dapm_enable_pin(codec, "Headset Jack");
+	snd_soc_dapm_disable_pin(codec, "Headset Jack");
 
 	/* TWL4030 not connected pins */
 	snd_soc_dapm_nc_pin(codec, "AUXL");
@@ -143,6 +144,27 @@ static int sdp3430_twl4030_init(struct snd_soc_codec *codec)
 
 	return ret;
 }
+
+/* Headset jack */
+static struct snd_soc_jack hs_jack;
+
+/* Headset jack detection DAPM pins */
+static struct snd_soc_jack_pin hs_jack_pins[] = {
+	{
+		.pin = "Headset Jack",
+		.mask = SND_JACK_HEADSET,
+	},
+};
+
+/* Headset jack detection gpios */
+static struct snd_soc_jack_gpio hs_jack_gpios[] = {
+	{
+		.gpio = (OMAP_MAX_GPIO_LINES + 2),
+		.name = "hsdet-gpio",
+		.report = SND_JACK_HEADSET,
+		.debounce_time = 200,
+	},
+};
 
 /* Digital audio interface glue - connects codec <--> CPU */
 static struct snd_soc_dai_link sdp3430_dai = {
@@ -194,7 +216,21 @@ static int __init sdp3430_soc_init(void)
 	if (ret)
 		goto err1;
 
-	return 0;
+	/* Headset jack detection */
+	ret = snd_soc_jack_new(&snd_soc_sdp3430, "SDP3430 headset jack",
+				SND_JACK_HEADSET, &hs_jack);
+	if (ret)
+		return ret;
+
+	ret = snd_soc_jack_add_pins(&hs_jack, ARRAY_SIZE(hs_jack_pins),
+				hs_jack_pins);
+	if (ret)
+		return ret;
+
+	ret = snd_soc_jack_add_gpios(&hs_jack, ARRAY_SIZE(hs_jack_gpios),
+				hs_jack_gpios);
+
+	return ret;
 
 err1:
 	printk(KERN_ERR "Unable to add platform device\n");
@@ -206,6 +242,9 @@ module_init(sdp3430_soc_init);
 
 static void __exit sdp3430_soc_exit(void)
 {
+	snd_soc_jack_free_gpios(&hs_jack, ARRAY_SIZE(hs_jack_gpios),
+				hs_jack_gpios);
+
 	platform_device_unregister(sdp3430_snd_device);
 }
 module_exit(sdp3430_soc_exit);
