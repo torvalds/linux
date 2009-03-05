@@ -1069,10 +1069,9 @@ struct iscsi_task *iscsi_itt_to_ctask(struct iscsi_conn *conn, itt_t itt)
 }
 EXPORT_SYMBOL_GPL(iscsi_itt_to_ctask);
 
-void iscsi_session_failure(struct iscsi_cls_session *cls_session,
+void iscsi_session_failure(struct iscsi_session *session,
 			   enum iscsi_err err)
 {
-	struct iscsi_session *session = cls_session->dd_data;
 	struct iscsi_conn *conn;
 	struct device *dev;
 	unsigned long flags;
@@ -2097,7 +2096,7 @@ EXPORT_SYMBOL_GPL(iscsi_host_alloc);
 
 static void iscsi_notify_host_removed(struct iscsi_cls_session *cls_session)
 {
-	iscsi_session_failure(cls_session, ISCSI_ERR_INVALID_HOST);
+	iscsi_session_failure(cls_session->dd_data, ISCSI_ERR_INVALID_HOST);
 }
 
 /**
