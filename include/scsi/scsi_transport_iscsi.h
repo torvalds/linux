@@ -206,8 +206,6 @@ struct iscsi_cls_session {
 struct iscsi_cls_host {
 	atomic_t nr_scans;
 	struct mutex mutex;
-	struct workqueue_struct *scan_workq;
-	char scan_workq_name[20];
 };
 
 extern void iscsi_host_for_each_session(struct Scsi_Host *shost,
