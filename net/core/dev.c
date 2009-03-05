@@ -4339,6 +4339,7 @@ int register_netdevice(struct net_device *dev)
 		dev->do_ioctl = ops->ndo_do_ioctl;
 		dev->set_config = ops->ndo_set_config;
 		dev->change_mtu = ops->ndo_change_mtu;
+		dev->neigh_setup = ops->ndo_neigh_setup;
 		dev->tx_timeout = ops->ndo_tx_timeout;
 		dev->get_stats = ops->ndo_get_stats;
 		dev->vlan_rx_register = ops->ndo_vlan_rx_register;
