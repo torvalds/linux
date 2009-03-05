@@ -605,7 +605,7 @@ static int __init noexec_setup(char *str)
 }
 early_param("noexec", noexec_setup);
 
-static void __init set_nx(void)
+void __init set_nx(void)
 {
 	unsigned int v[4], l, h;
 
