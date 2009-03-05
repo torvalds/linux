@@ -679,8 +679,8 @@ int rcu_needs_cpu(int cpu)
 void rcu_check_callbacks(int cpu, int user)
 {
 	if (user ||
-	    (idle_cpu(cpu) && !in_softirq() &&
-				hardirq_count() <= (1 << HARDIRQ_SHIFT))) {
+	    (idle_cpu(cpu) && rcu_scheduler_active &&
+	     !in_softirq() && hardirq_count() <= (1 << HARDIRQ_SHIFT))) {
 
 		/*
 		 * Get here if this CPU took its interrupt from user

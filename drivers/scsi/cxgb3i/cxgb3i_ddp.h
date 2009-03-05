@@ -13,6 +13,8 @@
 #ifndef __CXGB3I_ULP2_DDP_H__
 #define __CXGB3I_ULP2_DDP_H__
 
+#include <linux/vmalloc.h>
+
 /**
  * struct cxgb3i_tag_format - cxgb3i ulp tag format for an iscsi entity
  *
@@ -85,8 +87,9 @@ struct cxgb3i_ddp_info {
 	struct sk_buff **gl_skb;
 };
 
+#define ISCSI_PDU_NONPAYLOAD_LEN	312 /* bhs(48) + ahs(256) + digest(8) */
 #define ULP2_MAX_PKT_SIZE	16224
-#define ULP2_MAX_PDU_PAYLOAD	(ULP2_MAX_PKT_SIZE - ISCSI_PDU_NONPAYLOAD_MAX)
+#define ULP2_MAX_PDU_PAYLOAD	(ULP2_MAX_PKT_SIZE - ISCSI_PDU_NONPAYLOAD_LEN)
 #define PPOD_PAGES_MAX		4
 #define PPOD_PAGES_SHIFT	2	/* 4 pages per pod */
 

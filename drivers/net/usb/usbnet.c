@@ -723,8 +723,8 @@ u32 usbnet_get_link (struct net_device *net)
 	if (dev->mii.mdio_read)
 		return mii_link_ok(&dev->mii);
 
-	/* Otherwise, say we're up (to avoid breaking scripts) */
-	return 1;
+	/* Otherwise, dtrt for drivers calling netif_carrier_{on,off} */
+	return ethtool_op_get_link(net);
 }
 EXPORT_SYMBOL_GPL(usbnet_get_link);
 
