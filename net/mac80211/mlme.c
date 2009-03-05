@@ -417,9 +417,6 @@ static void ieee80211_sta_wmm_params(struct ieee80211_local *local,
 
 	memset(&params, 0, sizeof(params));
 
-	if (!local->ops->conf_tx)
-		return;
-
 	local->wmm_acm = 0;
 	for (; left >= 4; left -= 4, pos += 4) {
 		int aci = (pos[0] >> 5) & 0x03;
@@ -427,26 +424,26 @@ static void ieee80211_sta_wmm_params(struct ieee80211_local *local,
 		int queue;
 
 		switch (aci) {
-		case 1:
+		case 1: /* AC_BK */
 			queue = 3;
 			if (acm)
-				local->wmm_acm |= BIT(0) | BIT(3);
+				local->wmm_acm |= BIT(1) | BIT(2); /* BK/- */
 			break;
-		case 2:
+		case 2: /* AC_VI */
 			queue = 1;
 			if (acm)
-				local->wmm_acm |= BIT(4) | BIT(5);
+				local->wmm_acm |= BIT(4) | BIT(5); /* CL/VI */
 			break;
-		case 3:
+		case 3: /* AC_VO */
 			queue = 0;
 			if (acm)
-				local->wmm_acm |= BIT(6) | BIT(7);
+				local->wmm_acm |= BIT(6) | BIT(7); /* VO/NC */
 			break;
-		case 0:
+		case 0: /* AC_BE */
 		default:
 			queue = 2;
 			if (acm)
-				local->wmm_acm |= BIT(1) | BIT(2);
+				local->wmm_acm |= BIT(0) | BIT(3); /* BE/EE */
 			break;
 		}
 
@@ -460,9 +457,8 @@ static void ieee80211_sta_wmm_params(struct ieee80211_local *local,
 		       local->mdev->name, queue, aci, acm, params.aifs, params.cw_min,
 		       params.cw_max, params.txop);
 #endif
-		/* TODO: handle ACM (block TX, fallback to next lowest allowed
-		 * AC for now) */
-		if (local->ops->conf_tx(local_to_hw(local), queue, &params)) {
+		if (local->ops->conf_tx &&
+		    local->ops->conf_tx(local_to_hw(local), queue, &params)) {
 			printk(KERN_DEBUG "%s: failed to set TX queue "
 			       "parameters for queue %d\n", local->mdev->name, queue);
 		}
