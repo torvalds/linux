@@ -202,7 +202,9 @@ struct ist_info ist_info;
 #endif
 
 #else
-struct cpuinfo_x86 boot_cpu_data __read_mostly;
+struct cpuinfo_x86 boot_cpu_data __read_mostly = {
+	.x86_phys_bits = MAX_PHYSMEM_BITS,
+};
 EXPORT_SYMBOL(boot_cpu_data);
 #endif
 

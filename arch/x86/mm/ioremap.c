@@ -38,8 +38,7 @@ unsigned long __phys_addr(unsigned long x)
 	} else {
 		VIRTUAL_BUG_ON(x < PAGE_OFFSET);
 		x -= PAGE_OFFSET;
-		VIRTUAL_BUG_ON(system_state == SYSTEM_BOOTING ? x > MAXMEM :
-					!phys_addr_valid(x));
+		VIRTUAL_BUG_ON(!phys_addr_valid(x));
 	}
 	return x;
 }
@@ -56,10 +55,8 @@ bool __virt_addr_valid(unsigned long x)
 		if (x < PAGE_OFFSET)
 			return false;
 		x -= PAGE_OFFSET;
-		if (system_state == SYSTEM_BOOTING ?
-				x > MAXMEM : !phys_addr_valid(x)) {
+		if (!phys_addr_valid(x))
 			return false;
-		}
 	}
 
 	return pfn_valid(x >> PAGE_SHIFT);
