@@ -832,8 +832,16 @@ unsigned long __init_refok init_memory_mapping(unsigned long start,
 						   mr[i].page_size_mask);
 #endif
 
+#ifdef CONFIG_X86_32
+	early_ioremap_page_table_range_init();
+
+	load_cr3(swapper_pg_dir);
+#endif
+
+#ifdef CONFIG_X86_64
 	if (!after_bootmem)
 		mmu_cr4_features = read_cr4();
+#endif
 	__flush_tlb_all();
 
 	if (!after_bootmem && table_end > table_start)
