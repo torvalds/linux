@@ -1634,6 +1634,8 @@ static int ext4_fill_flex_info(struct super_block *sb)
 			   ext4_free_inodes_count(sb, gdp));
 		atomic_set(&sbi->s_flex_groups[flex_group].free_blocks,
 			   ext4_free_blks_count(sb, gdp));
+		atomic_set(&sbi->s_flex_groups[flex_group].used_dirs,
+			   ext4_used_dirs_count(sb, gdp));
 	}
 
 	return 1;

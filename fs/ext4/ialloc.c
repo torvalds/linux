@@ -267,6 +267,13 @@ void ext4_free_inode(handle_t *handle, struct inode *inode)
 			if (is_directory) {
 				count = ext4_used_dirs_count(sb, gdp) - 1;
 				ext4_used_dirs_set(sb, gdp, count);
+				if (sbi->s_log_groups_per_flex) {
+					ext4_group_t f;
+
+					f = ext4_flex_group(sbi, block_group);
+					atomic_dec(&sbi->s_flex_groups[f].free_inodes);
+				}
+
 			}
 			gdp->bg_checksum = ext4_group_desc_csum(sbi,
 							block_group, gdp);
@@ -424,25 +431,24 @@ void get_orlov_stats(struct super_block *sb, ext4_group_t g,
 		       int flex_size, struct orlov_stats *stats)
 {
 	struct ext4_group_desc *desc;
-	ext4_group_t		ngroups = EXT4_SB(sb)->s_groups_count;
-	int			i;
+	struct flex_groups *flex_group = EXT4_SB(sb)->s_flex_groups;
 
-	stats->free_inodes = 0;
-	stats->free_blocks = 0;
-	stats->used_dirs = 0;
+	if (flex_size > 1) {
+		stats->free_inodes = atomic_read(&flex_group[g].free_inodes);
+		stats->free_blocks = atomic_read(&flex_group[g].free_blocks);
+		stats->used_dirs = atomic_read(&flex_group[g].used_dirs);
+		return;
+	}
 
-	g *= flex_size;
-
-	for (i = 0; i < flex_size; i++) {
-		if (g >= ngroups)
-			break;
-		desc = ext4_get_group_desc(sb, g++, NULL);
-		if (!desc)
-			continue;
-
-		stats->free_inodes += ext4_free_inodes_count(sb, desc);
-		stats->free_blocks += ext4_free_blks_count(sb, desc);
-		stats->used_dirs += ext4_used_dirs_count(sb, desc);
+	desc = ext4_get_group_desc(sb, g, NULL);
+	if (desc) {
+		stats->free_inodes = ext4_free_inodes_count(sb, desc);
+		stats->free_blocks = ext4_free_blks_count(sb, desc);
+		stats->used_dirs = ext4_used_dirs_count(sb, desc);
+	} else {
+		stats->free_inodes = 0;
+		stats->free_blocks = 0;
+		stats->used_dirs = 0;
 	}
 }
 
@@ -765,6 +771,11 @@ static int ext4_claim_inode(struct super_block *sb,
 	if (S_ISDIR(mode)) {
 		count = ext4_used_dirs_count(sb, gdp) + 1;
 		ext4_used_dirs_set(sb, gdp, count);
+		if (sbi->s_log_groups_per_flex) {
+			ext4_group_t f = ext4_flex_group(sbi, group);
+
+			atomic_inc(&sbi->s_flex_groups[f].free_inodes);
+		}
 	}
 	gdp->bg_checksum = ext4_group_desc_csum(sbi, group, gdp);
 err_ret:
