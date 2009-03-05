@@ -1838,6 +1838,8 @@ static inline u32 open_file_to_av(struct file *file)
 			av |= FIFO_FILE__OPEN;
 		else if (S_ISDIR(mode))
 			av |= DIR__OPEN;
+		else if (S_ISSOCK(mode))
+			av |= SOCK_FILE__OPEN;
 		else
 			printk(KERN_ERR "SELinux: WARNING: inside %s with "
 				"unknown mode:%o\n", __func__, mode);
