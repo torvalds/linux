@@ -11,6 +11,7 @@
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/fb.h>
+#include <linux/smc91x.h>
 #include <linux/mtd/physmap.h>
 #include <linux/delay.h>
 #include <linux/gpio.h>
@@ -40,6 +41,32 @@ static struct platform_device heartbeat_device = {
 	},
 	.num_resources	= ARRAY_SIZE(heartbeat_resources),
 	.resource	= heartbeat_resources,
+};
+
+static struct smc91x_platdata smc91x_info = {
+	.flags = SMC91X_USE_16BIT | SMC91X_NOWAIT,
+};
+
+static struct resource smc91x_eth_resources[] = {
+	[0] = {
+		.name   = "SMC91C111" ,
+		.start  = 0x05800300,
+		.end    = 0x0580030f,
+		.flags  = IORESOURCE_MEM,
+	},
+	[1] = {
+		.start  = 11,
+		.flags  = IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device smc91x_eth_device = {
+	.name           = "smc91x",
+	.num_resources  = ARRAY_SIZE(smc91x_eth_resources),
+	.resource       = smc91x_eth_resources,
+	.dev	= {
+		.platform_data	= &smc91x_info,
+	},
 };
 
 static struct mtd_partition nor_flash_partitions[] = {
@@ -92,6 +119,7 @@ static struct platform_device nor_flash_device = {
 
 static struct platform_device *urquell_devices[] __initdata = {
 	&heartbeat_device,
+	&smc91x_eth_device,
 	&nor_flash_device,
 };
 
@@ -111,6 +139,11 @@ static void urquell_power_off(void)
 	__raw_writew(0xa5a5, UBOARDREG(SRSTR));
 }
 
+static void __init urquell_init_irq(void)
+{
+	plat_irq_setup_pins(IRQ_MODE_IRL3210_MASK);
+}
+
 /* Initialize the board */
 static void __init urquell_setup(char **cmdline_p)
 {
@@ -125,4 +158,5 @@ static void __init urquell_setup(char **cmdline_p)
 static struct sh_machine_vector mv_urquell __initmv = {
 	.mv_name	= "Urquell",
 	.mv_setup	= urquell_setup,
+	.mv_init_irq	= urquell_init_irq,
 };
