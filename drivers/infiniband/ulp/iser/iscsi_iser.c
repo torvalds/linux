@@ -168,7 +168,7 @@ iscsi_iser_mtask_xmit(struct iscsi_conn *conn, struct iscsi_task *task)
 {
 	int error = 0;
 
-	debug_scsi("task deq [cid %d itt 0x%x]\n", conn->id, task->itt);
+	iser_dbg("task deq [cid %d itt 0x%x]\n", conn->id, task->itt);
 
 	error = iser_send_control(conn, task);
 
@@ -195,7 +195,7 @@ iscsi_iser_task_xmit_unsol_data(struct iscsi_conn *conn,
 	/* Send data-out PDUs while there's still unsolicited data to send */
 	while (iscsi_task_has_unsol_data(task)) {
 		iscsi_prep_data_out_pdu(task, r2t, &hdr);
-		debug_scsi("Sending data-out: itt 0x%x, data count %d\n",
+		iser_dbg("Sending data-out: itt 0x%x, data count %d\n",
 			   hdr.itt, r2t->data_count);
 
 		/* the buffer description has been passed with the command */
@@ -206,7 +206,7 @@ iscsi_iser_task_xmit_unsol_data(struct iscsi_conn *conn,
 			goto iscsi_iser_task_xmit_unsol_data_exit;
 		}
 		r2t->sent += r2t->data_count;
-		debug_scsi("Need to send %d more as data-out PDUs\n",
+		iser_dbg("Need to send %d more as data-out PDUs\n",
 			   r2t->data_length - r2t->sent);
 	}
 
@@ -227,12 +227,12 @@ iscsi_iser_task_xmit(struct iscsi_task *task)
 	if (task->sc->sc_data_direction == DMA_TO_DEVICE) {
 		BUG_ON(scsi_bufflen(task->sc) == 0);
 
-		debug_scsi("cmd [itt %x total %d imm %d unsol_data %d\n",
+		iser_dbg("cmd [itt %x total %d imm %d unsol_data %d\n",
 			   task->itt, scsi_bufflen(task->sc),
 			   task->imm_count, task->unsol_r2t.data_length);
 	}
 
-	debug_scsi("task deq [cid %d itt 0x%x]\n",
+	iser_dbg("task deq [cid %d itt 0x%x]\n",
 		   conn->id, task->itt);
 
 	/* Send the cmd PDU */
