@@ -1024,6 +1024,7 @@ static struct usb_driver p54u_driver = {
 	.disconnect = p54u_disconnect,
 	.pre_reset = p54u_pre_reset,
 	.post_reset = p54u_post_reset,
+	.soft_unbind = 1,
 };
 
 static int __init p54u_init(void)
