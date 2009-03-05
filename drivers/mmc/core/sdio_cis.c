@@ -223,6 +223,10 @@ static int sdio_read_cis(struct mmc_card *card, struct sdio_func *func)
 		if (tpl_code == 0xff)
 			break;
 
+		/* null entries have no link field or data */
+		if (tpl_code == 0x00)
+			continue;
+
 		ret = mmc_io_rw_direct(card, 0, 0, ptr++, 0, &tpl_link);
 		if (ret)
 			break;
