@@ -87,8 +87,8 @@
 #define DEV_HAS_MSI_X              0x000080  /* device supports MSI-X */
 #define DEV_HAS_POWER_CNTRL        0x000100  /* device supports power savings */
 #define DEV_HAS_STATISTICS_V1      0x000200  /* device supports hw statistics version 1 */
-#define DEV_HAS_STATISTICS_V2      0x000400  /* device supports hw statistics version 2 */
-#define DEV_HAS_STATISTICS_V3      0x000800  /* device supports hw statistics version 3 */
+#define DEV_HAS_STATISTICS_V2      0x000600  /* device supports hw statistics version 2 */
+#define DEV_HAS_STATISTICS_V3      0x000e00  /* device supports hw statistics version 3 */
 #define DEV_HAS_TEST_EXTENDED      0x001000  /* device supports extended diagnostic test */
 #define DEV_HAS_MGMT_UNIT          0x002000  /* device supports management unit */
 #define DEV_HAS_CORRECT_MACADDR    0x004000  /* device supports correct mac address order */
@@ -4796,12 +4796,12 @@ static int nv_get_sset_count(struct net_device *dev, int sset)
 		else
 			return NV_TEST_COUNT_BASE;
 	case ETH_SS_STATS:
-		if (np->driver_data & DEV_HAS_STATISTICS_V1)
-			return NV_DEV_STATISTICS_V1_COUNT;
+		if (np->driver_data & DEV_HAS_STATISTICS_V3)
+			return NV_DEV_STATISTICS_V3_COUNT;
 		else if (np->driver_data & DEV_HAS_STATISTICS_V2)
 			return NV_DEV_STATISTICS_V2_COUNT;
-		else if (np->driver_data & DEV_HAS_STATISTICS_V3)
-			return NV_DEV_STATISTICS_V3_COUNT;
+		else if (np->driver_data & DEV_HAS_STATISTICS_V1)
+			return NV_DEV_STATISTICS_V1_COUNT;
 		else
 			return 0;
 	default:
