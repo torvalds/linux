@@ -1680,7 +1680,7 @@ static int p54_setup_mac(struct ieee80211_hw *dev)
 			mode = P54_FILTER_TYPE_PROMISCUOUS;
 			break;
 		default:
-			mode = P54_FILTER_TYPE_NONE;
+			mode = P54_FILTER_TYPE_HIBERNATE;
 			break;
 		}
 
@@ -1693,7 +1693,7 @@ static int p54_setup_mac(struct ieee80211_hw *dev)
 		    (mode != P54_FILTER_TYPE_PROMISCUOUS))
 			mode |= P54_FILTER_TYPE_TRANSPARENT;
 	} else
-		mode = P54_FILTER_TYPE_RX_DISABLED;
+		mode = P54_FILTER_TYPE_HIBERNATE;
 
 	setup->mac_mode = cpu_to_le16(mode);
 	memcpy(setup->mac_addr, priv->mac_addr, ETH_ALEN);
