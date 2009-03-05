@@ -1308,8 +1308,12 @@ qla2x00_init_rings(scsi_qla_host_t *vha)
 
 	DEBUG(printk("scsi(%ld): Issue init firmware.\n", vha->host_no));
 
-	if (ha->flags.npiv_supported)
+	if (ha->flags.npiv_supported) {
+		if (ha->operating_mode == LOOP)
+			ha->max_npiv_vports = MIN_MULTI_ID_FABRIC - 1;
 		mid_init_cb->count = cpu_to_le16(ha->max_npiv_vports);
+	}
+
 
 	mid_init_cb->options = __constant_cpu_to_le16(BIT_1);
 
