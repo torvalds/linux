@@ -900,7 +900,11 @@ struct map_range {
 	unsigned page_size_mask;
 };
 
+#ifdef CONFIG_X86_32
 #define NR_RANGE_MR 3
+#else /* CONFIG_X86_64 */
+#define NR_RANGE_MR 5
+#endif
 
 static int save_mr(struct map_range *mr, int nr_range,
 		   unsigned long start_pfn, unsigned long end_pfn,
