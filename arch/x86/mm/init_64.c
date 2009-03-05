@@ -741,8 +741,22 @@ unsigned long __init_refok init_memory_mapping(unsigned long start,
 	/* head if not big page alignment ? */
 	start_pfn = start >> PAGE_SHIFT;
 	pos = start_pfn << PAGE_SHIFT;
+#ifdef CONFIG_X86_32
+	/*
+	 * Don't use a large page for the first 2/4MB of memory
+	 * because there are often fixed size MTRRs in there
+	 * and overlapping MTRRs into large pages can cause
+	 * slowdowns.
+	 */
+	if (pos == 0)
+		end_pfn = 1<<(PMD_SHIFT - PAGE_SHIFT);
+	else
+		end_pfn = ((pos + (PMD_SIZE - 1))>>PMD_SHIFT)
+				 << (PMD_SHIFT - PAGE_SHIFT);
+#else /* CONFIG_X86_64 */
 	end_pfn = ((pos + (PMD_SIZE - 1)) >> PMD_SHIFT)
 			<< (PMD_SHIFT - PAGE_SHIFT);
+#endif
 	if (end_pfn > (end >> PAGE_SHIFT))
 		end_pfn = end >> PAGE_SHIFT;
 	if (start_pfn < end_pfn) {
@@ -753,16 +767,22 @@ unsigned long __init_refok init_memory_mapping(unsigned long start,
 	/* big page (2M) range */
 	start_pfn = ((pos + (PMD_SIZE - 1))>>PMD_SHIFT)
 			 << (PMD_SHIFT - PAGE_SHIFT);
+#ifdef CONFIG_X86_32
+	end_pfn = (end>>PMD_SHIFT) << (PMD_SHIFT - PAGE_SHIFT);
+#else /* CONFIG_X86_64 */
 	end_pfn = ((pos + (PUD_SIZE - 1))>>PUD_SHIFT)
 			 << (PUD_SHIFT - PAGE_SHIFT);
 	if (end_pfn > ((end>>PMD_SHIFT)<<(PMD_SHIFT - PAGE_SHIFT)))
 		end_pfn = ((end>>PMD_SHIFT)<<(PMD_SHIFT - PAGE_SHIFT));
+#endif
+
 	if (start_pfn < end_pfn) {
 		nr_range = save_mr(mr, nr_range, start_pfn, end_pfn,
 				page_size_mask & (1<<PG_LEVEL_2M));
 		pos = end_pfn << PAGE_SHIFT;
 	}
 
+#ifdef CONFIG_X86_64
 	/* big page (1G) range */
 	start_pfn = ((pos + (PUD_SIZE - 1))>>PUD_SHIFT)
 			 << (PUD_SHIFT - PAGE_SHIFT);
@@ -783,6 +803,7 @@ unsigned long __init_refok init_memory_mapping(unsigned long start,
 				page_size_mask & (1<<PG_LEVEL_2M));
 		pos = end_pfn << PAGE_SHIFT;
 	}
+#endif
 
 	/* tail is not big page (2M) alignment */
 	start_pfn = pos>>PAGE_SHIFT;
