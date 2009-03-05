@@ -2464,7 +2464,7 @@ S:	Maintained
 
 ISDN SUBSYSTEM
 P:	Karsten Keil
-M:	kkeil@suse.de
+M:	isdn@linux-pingi.de
 L:	isdn4linux@listserv.isdn4linux.de (subscribers-only)
 W:	http://www.isdn4linux.de
 T:	git kernel.org:/pub/scm/linux/kernel/kkeil/isdn-2.6.git

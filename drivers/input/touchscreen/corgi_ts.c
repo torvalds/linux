@@ -268,7 +268,7 @@ static int corgits_resume(struct platform_device *dev)
 #define corgits_resume		NULL
 #endif
 
-static int __init corgits_probe(struct platform_device *pdev)
+static int __devinit corgits_probe(struct platform_device *pdev)
 {
 	struct corgi_ts *corgi_ts;
 	struct input_dev *input_dev;
@@ -343,7 +343,7 @@ static int __init corgits_probe(struct platform_device *pdev)
 	return err;
 }
 
-static int corgits_remove(struct platform_device *pdev)
+static int __devexit corgits_remove(struct platform_device *pdev)
 {
 	struct corgi_ts *corgi_ts = platform_get_drvdata(pdev);
 
@@ -352,12 +352,13 @@ static int corgits_remove(struct platform_device *pdev)
 	corgi_ts->machinfo->put_hsync();
 	input_unregister_device(corgi_ts->input);
 	kfree(corgi_ts);
+
 	return 0;
 }
 
 static struct platform_driver corgits_driver = {
 	.probe		= corgits_probe,
-	.remove		= corgits_remove,
+	.remove		= __devexit_p(corgits_remove),
 	.suspend	= corgits_suspend,
 	.resume		= corgits_resume,
 	.driver		= {
@@ -366,7 +367,7 @@ static struct platform_driver corgits_driver = {
 	},
 };
 
-static int __devinit corgits_init(void)
+static int __init corgits_init(void)
 {
 	return platform_driver_register(&corgits_driver);
 }
