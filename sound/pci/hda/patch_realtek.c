@@ -12845,6 +12845,27 @@ static int alc269_auto_create_analog_input_ctls(struct alc_spec *spec,
 #define alc269_pcm_digital_playback	alc880_pcm_digital_playback
 #define alc269_pcm_digital_capture	alc880_pcm_digital_capture
 
+static struct hda_pcm_stream alc269_44k_pcm_analog_playback = {
+	.substreams = 1,
+	.channels_min = 2,
+	.channels_max = 8,
+	.rates = SNDRV_PCM_RATE_44100, /* fixed rate */
+	/* NID is set in alc_build_pcms */
+	.ops = {
+		.open = alc880_playback_pcm_open,
+		.prepare = alc880_playback_pcm_prepare,
+		.cleanup = alc880_playback_pcm_cleanup
+	},
+};
+
+static struct hda_pcm_stream alc269_44k_pcm_analog_capture = {
+	.substreams = 1,
+	.channels_min = 2,
+	.channels_max = 2,
+	.rates = SNDRV_PCM_RATE_44100, /* fixed rate */
+	/* NID is set in alc_build_pcms */
+};
+
 /*
  * BIOS auto configuration
  */
@@ -13060,9 +13081,16 @@ static int patch_alc269(struct hda_codec *codec)
 		setup_preset(spec, &alc269_presets[board_config]);
 
 	spec->stream_name_analog = "ALC269 Analog";
-	spec->stream_analog_playback = &alc269_pcm_analog_playback;
-	spec->stream_analog_capture = &alc269_pcm_analog_capture;
-
+	if (codec->subsystem_id == 0x17aa3bf8) {
+		/* Due to a hardware problem on Lenovo Ideadpad, we need to
+		 * fix the sample rate of analog I/O to 44.1kHz
+		 */
+		spec->stream_analog_playback = &alc269_44k_pcm_analog_playback;
+		spec->stream_analog_capture = &alc269_44k_pcm_analog_capture;
+	} else {
+		spec->stream_analog_playback = &alc269_pcm_analog_playback;
+		spec->stream_analog_capture = &alc269_pcm_analog_capture;
+	}
 	spec->stream_name_digital = "ALC269 Digital";
 	spec->stream_digital_playback = &alc269_pcm_digital_playback;
 	spec->stream_digital_capture = &alc269_pcm_digital_capture;
