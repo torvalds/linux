@@ -1965,6 +1965,8 @@ static int kswapd(void *p)
 	};
 	node_to_cpumask_ptr(cpumask, pgdat->node_id);
 
+	lockdep_set_current_reclaim_state(GFP_KERNEL);
+
 	if (!cpumask_empty(cpumask))
 		set_cpus_allowed_ptr(tsk, cpumask);
 	current->reclaim_state = &reclaim_state;

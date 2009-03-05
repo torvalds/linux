@@ -11,31 +11,30 @@
  *  Copyright (C) 2004-2006 Ingo Molnar
  *  Copyright (C) 2004 William Lee Irwin III
  */
+#include <linux/ring_buffer.h>
 #include <linux/utsrelease.h>
+#include <linux/stacktrace.h>
+#include <linux/writeback.h>
 #include <linux/kallsyms.h>
 #include <linux/seq_file.h>
 #include <linux/notifier.h>
+#include <linux/irqflags.h>
 #include <linux/debugfs.h>
 #include <linux/pagemap.h>
 #include <linux/hardirq.h>
 #include <linux/linkage.h>
 #include <linux/uaccess.h>
+#include <linux/kprobes.h>
 #include <linux/ftrace.h>
 #include <linux/module.h>
 #include <linux/percpu.h>
+#include <linux/splice.h>
 #include <linux/kdebug.h>
 #include <linux/ctype.h>
 #include <linux/init.h>
 #include <linux/poll.h>
 #include <linux/gfp.h>
 #include <linux/fs.h>
-#include <linux/kprobes.h>
-#include <linux/writeback.h>
-#include <linux/splice.h>
-
-#include <linux/stacktrace.h>
-#include <linux/ring_buffer.h>
-#include <linux/irqflags.h>
 
 #include "trace.h"
 #include "trace_output.h"
@@ -624,7 +623,7 @@ static unsigned map_pid_to_cmdline[PID_MAX_DEFAULT+1];
 static unsigned map_cmdline_to_pid[SAVED_CMDLINES];
 static char saved_cmdlines[SAVED_CMDLINES][TASK_COMM_LEN];
 static int cmdline_idx;
-static DEFINE_SPINLOCK(trace_cmdline_lock);
+static raw_spinlock_t trace_cmdline_lock = __RAW_SPIN_LOCK_UNLOCKED;
 
 /* temporary disable recording */
 static atomic_t trace_record_cmdline_disabled __read_mostly;
@@ -736,7 +735,7 @@ static void trace_save_cmdline(struct task_struct *tsk)
 	 * nor do we want to disable interrupts,
 	 * so if we miss here, then better luck next time.
 	 */
-	if (!spin_trylock(&trace_cmdline_lock))
+	if (!__raw_spin_trylock(&trace_cmdline_lock))
 		return;
 
 	idx = map_pid_to_cmdline[tsk->pid];
@@ -754,7 +753,7 @@ static void trace_save_cmdline(struct task_struct *tsk)
 
 	memcpy(&saved_cmdlines[idx], tsk->comm, TASK_COMM_LEN);
 
-	spin_unlock(&trace_cmdline_lock);
+	__raw_spin_unlock(&trace_cmdline_lock);
 }
 
 char *trace_find_cmdline(int pid)
@@ -3005,6 +3004,246 @@ static struct file_operations tracing_mark_fops = {
 	.write		= tracing_mark_write,
 };
 
+struct ftrace_buffer_info {
+	struct trace_array	*tr;
+	void			*spare;
+	int			cpu;
+	unsigned int		read;
+};
+
+static int tracing_buffers_open(struct inode *inode, struct file *filp)
+{
+	int cpu = (int)(long)inode->i_private;
+	struct ftrace_buffer_info *info;
+
+	if (tracing_disabled)
+		return -ENODEV;
+
+	info = kzalloc(sizeof(*info), GFP_KERNEL);
+	if (!info)
+		return -ENOMEM;
+
+	info->tr	= &global_trace;
+	info->cpu	= cpu;
+	info->spare	= ring_buffer_alloc_read_page(info->tr->buffer);
+	/* Force reading ring buffer for first read */
+	info->read	= (unsigned int)-1;
+	if (!info->spare)
+		goto out;
+
+	filp->private_data = info;
+
+	return 0;
+
+ out:
+	kfree(info);
+	return -ENOMEM;
+}
+
+static ssize_t
+tracing_buffers_read(struct file *filp, char __user *ubuf,
+		     size_t count, loff_t *ppos)
+{
+	struct ftrace_buffer_info *info = filp->private_data;
+	unsigned int pos;
+	ssize_t ret;
+	size_t size;
+
+	/* Do we have previous read data to read? */
+	if (info->read < PAGE_SIZE)
+		goto read;
+
+	info->read = 0;
+
+	ret = ring_buffer_read_page(info->tr->buffer,
+				    &info->spare,
+				    count,
+				    info->cpu, 0);
+	if (ret < 0)
+		return 0;
+
+	pos = ring_buffer_page_len(info->spare);
+
+	if (pos < PAGE_SIZE)
+		memset(info->spare + pos, 0, PAGE_SIZE - pos);
+
+read:
+	size = PAGE_SIZE - info->read;
+	if (size > count)
+		size = count;
+
+	ret = copy_to_user(ubuf, info->spare + info->read, size);
+	if (ret)
+		return -EFAULT;
+	*ppos += size;
+	info->read += size;
+
+	return size;
+}
+
+static int tracing_buffers_release(struct inode *inode, struct file *file)
+{
+	struct ftrace_buffer_info *info = file->private_data;
+
+	ring_buffer_free_read_page(info->tr->buffer, info->spare);
+	kfree(info);
+
+	return 0;
+}
+
+struct buffer_ref {
+	struct ring_buffer	*buffer;
+	void			*page;
+	int			ref;
+};
+
+static void buffer_pipe_buf_release(struct pipe_inode_info *pipe,
+				    struct pipe_buffer *buf)
+{
+	struct buffer_ref *ref = (struct buffer_ref *)buf->private;
+
+	if (--ref->ref)
+		return;
+
+	ring_buffer_free_read_page(ref->buffer, ref->page);
+	kfree(ref);
+	buf->private = 0;
+}
+
+static int buffer_pipe_buf_steal(struct pipe_inode_info *pipe,
+				 struct pipe_buffer *buf)
+{
+	return 1;
+}
+
+static void buffer_pipe_buf_get(struct pipe_inode_info *pipe,
+				struct pipe_buffer *buf)
+{
+	struct buffer_ref *ref = (struct buffer_ref *)buf->private;
+
+	ref->ref++;
+}
+
+/* Pipe buffer operations for a buffer. */
+static struct pipe_buf_operations buffer_pipe_buf_ops = {
+	.can_merge		= 0,
+	.map			= generic_pipe_buf_map,
+	.unmap			= generic_pipe_buf_unmap,
+	.confirm		= generic_pipe_buf_confirm,
+	.release		= buffer_pipe_buf_release,
+	.steal			= buffer_pipe_buf_steal,
+	.get			= buffer_pipe_buf_get,
+};
+
+/*
+ * Callback from splice_to_pipe(), if we need to release some pages
+ * at the end of the spd in case we error'ed out in filling the pipe.
+ */
+static void buffer_spd_release(struct splice_pipe_desc *spd, unsigned int i)
+{
+	struct buffer_ref *ref =
+		(struct buffer_ref *)spd->partial[i].private;
+
+	if (--ref->ref)
+		return;
+
+	ring_buffer_free_read_page(ref->buffer, ref->page);
+	kfree(ref);
+	spd->partial[i].private = 0;
+}
+
+static ssize_t
+tracing_buffers_splice_read(struct file *file, loff_t *ppos,
+			    struct pipe_inode_info *pipe, size_t len,
+			    unsigned int flags)
+{
+	struct ftrace_buffer_info *info = file->private_data;
+	struct partial_page partial[PIPE_BUFFERS];
+	struct page *pages[PIPE_BUFFERS];
+	struct splice_pipe_desc spd = {
+		.pages		= pages,
+		.partial	= partial,
+		.flags		= flags,
+		.ops		= &buffer_pipe_buf_ops,
+		.spd_release	= buffer_spd_release,
+	};
+	struct buffer_ref *ref;
+	int size, i;
+	size_t ret;
+
+	/*
+	 * We can't seek on a buffer input
+	 */
+	if (unlikely(*ppos))
+		return -ESPIPE;
+
+
+	for (i = 0; i < PIPE_BUFFERS && len; i++, len -= size) {
+		struct page *page;
+		int r;
+
+		ref = kzalloc(sizeof(*ref), GFP_KERNEL);
+		if (!ref)
+			break;
+
+		ref->buffer = info->tr->buffer;
+		ref->page = ring_buffer_alloc_read_page(ref->buffer);
+		if (!ref->page) {
+			kfree(ref);
+			break;
+		}
+
+		r = ring_buffer_read_page(ref->buffer, &ref->page,
+					  len, info->cpu, 0);
+		if (r < 0) {
+			ring_buffer_free_read_page(ref->buffer,
+						   ref->page);
+			kfree(ref);
+			break;
+		}
+
+		/*
+		 * zero out any left over data, this is going to
+		 * user land.
+		 */
+		size = ring_buffer_page_len(ref->page);
+		if (size < PAGE_SIZE)
+			memset(ref->page + size, 0, PAGE_SIZE - size);
+
+		page = virt_to_page(ref->page);
+
+		spd.pages[i] = page;
+		spd.partial[i].len = PAGE_SIZE;
+		spd.partial[i].offset = 0;
+		spd.partial[i].private = (unsigned long)ref;
+		spd.nr_pages++;
+	}
+
+	spd.nr_pages = i;
+
+	/* did we read anything? */
+	if (!spd.nr_pages) {
+		if (flags & SPLICE_F_NONBLOCK)
+			ret = -EAGAIN;
+		else
+			ret = 0;
+		/* TODO: block */
+		return ret;
+	}
+
+	ret = splice_to_pipe(pipe, &spd);
+
+	return ret;
+}
+
+static const struct file_operations tracing_buffers_fops = {
+	.open		= tracing_buffers_open,
+	.read		= tracing_buffers_read,
+	.release	= tracing_buffers_release,
+	.splice_read	= tracing_buffers_splice_read,
+	.llseek		= no_llseek,
+};
+
 #ifdef CONFIG_DYNAMIC_FTRACE
 
 int __weak ftrace_arch_read_dyn_info(char *buf, int size)
@@ -3399,6 +3638,7 @@ static __init void create_trace_options_dir(void)
 static __init int tracer_init_debugfs(void)
 {
 	struct dentry *d_tracer;
+	struct dentry *buffers;
 	struct dentry *entry;
 	int cpu;
 
@@ -3471,6 +3711,26 @@ static __init int tracer_init_debugfs(void)
 		pr_warning("Could not create debugfs "
 			   "'trace_marker' entry\n");
 
+	buffers = debugfs_create_dir("binary_buffers", d_tracer);
+
+	if (!buffers)
+		pr_warning("Could not create buffers directory\n");
+	else {
+		int cpu;
+		char buf[64];
+
+		for_each_tracing_cpu(cpu) {
+			sprintf(buf, "%d", cpu);
+
+			entry = debugfs_create_file(buf, 0444, buffers,
+						    (void *)(long)cpu,
+						    &tracing_buffers_fops);
+			if (!entry)
+				pr_warning("Could not create debugfs buffers "
+					   "'%s' entry\n", buf);
+		}
+	}
+
 #ifdef CONFIG_DYNAMIC_FTRACE
 	entry = debugfs_create_file("dyn_ftrace_total_info", 0444, d_tracer,
 				    &ftrace_update_tot_cnt,
@@ -3491,7 +3751,7 @@ static __init int tracer_init_debugfs(void)
 
 int trace_vprintk(unsigned long ip, int depth, const char *fmt, va_list args)
 {
-	static DEFINE_SPINLOCK(trace_buf_lock);
+	static raw_spinlock_t trace_buf_lock = __RAW_SPIN_LOCK_UNLOCKED;
 	static char trace_buf[TRACE_BUF_SIZE];
 
 	struct ring_buffer_event *event;
@@ -3513,7 +3773,8 @@ int trace_vprintk(unsigned long ip, int depth, const char *fmt, va_list args)
 		goto out;
 
 	pause_graph_tracing();
-	spin_lock_irqsave(&trace_buf_lock, irq_flags);
+	raw_local_irq_save(irq_flags);
+	__raw_spin_lock(&trace_buf_lock);
 	len = vsnprintf(trace_buf, TRACE_BUF_SIZE, fmt, args);
 
 	len = min(len, TRACE_BUF_SIZE-1);
@@ -3532,7 +3793,8 @@ int trace_vprintk(unsigned long ip, int depth, const char *fmt, va_list args)
 	ring_buffer_unlock_commit(tr->buffer, event);
 
  out_unlock:
-	spin_unlock_irqrestore(&trace_buf_lock, irq_flags);
+	__raw_spin_unlock(&trace_buf_lock);
+	raw_local_irq_restore(irq_flags);
 	unpause_graph_tracing();
  out:
 	preempt_enable_notrace();

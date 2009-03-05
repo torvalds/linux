@@ -5,7 +5,7 @@
  *
  * static void ftrace_event_<call>(proto)
  * {
- * 	event_trace_printk(_RET_IP_, "(<call>) " <fmt>);
+ * 	event_trace_printk(_RET_IP_, "<call>: " <fmt>);
  * }
  *
  * static int ftrace_reg_event_<call>(void)
@@ -112,7 +112,7 @@
 #define _TRACE_FORMAT(call, proto, args, fmt)				\
 static void ftrace_event_##call(proto)					\
 {									\
-	event_trace_printk(_RET_IP_, "(" #call ") " fmt);		\
+	event_trace_printk(_RET_IP_, #call ": " fmt);			\
 }									\
 									\
 static int ftrace_reg_event_##call(void)				\

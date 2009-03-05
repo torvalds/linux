@@ -217,6 +217,7 @@ enum trace_flag_type {
  */
 struct trace_array_cpu {
 	atomic_t		disabled;
+	void			*buffer_page;	/* ring buffer spare */
 
 	/* these fields get copied into max-trace: */
 	unsigned long		trace_idx;
