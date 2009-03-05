@@ -32,6 +32,8 @@ enum {
 
 static int trace_type __read_mostly;
 
+static int save_lat_flag;
+
 #ifdef CONFIG_PREEMPT_TRACER
 static inline int
 preempt_trace(void)
@@ -370,6 +372,9 @@ static void stop_irqsoff_tracer(struct trace_array *tr)
 
 static void __irqsoff_tracer_init(struct trace_array *tr)
 {
+	save_lat_flag = trace_flags & TRACE_ITER_LATENCY_FMT;
+	trace_flags |= TRACE_ITER_LATENCY_FMT;
+
 	tracing_max_latency = 0;
 	irqsoff_trace = tr;
 	/* make sure that the tracer is visible */
@@ -380,6 +385,9 @@ static void __irqsoff_tracer_init(struct trace_array *tr)
 static void irqsoff_tracer_reset(struct trace_array *tr)
 {
 	stop_irqsoff_tracer(tr);
+
+	if (!save_lat_flag)
+		trace_flags &= ~TRACE_ITER_LATENCY_FMT;
 }
 
 static void irqsoff_tracer_start(struct trace_array *tr)
