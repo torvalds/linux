@@ -246,6 +246,7 @@ union fw_cdev_event {
 #define FW_CDEV_IOC_DEALLOCATE_ISO_RESOURCE_ONCE _IOW('#', 0x10, struct fw_cdev_allocate_iso_resource)
 #define FW_CDEV_IOC_GET_SPEED                    _IOR('#', 0x11, struct fw_cdev_get_speed)
 #define FW_CDEV_IOC_SEND_BROADCAST_REQUEST       _IOW('#', 0x12, struct fw_cdev_send_request)
+#define FW_CDEV_IOC_SEND_STREAM_PACKET           _IOW('#', 0x13, struct fw_cdev_send_stream_packet)
 
 /*
  * FW_CDEV_VERSION History
@@ -607,6 +608,32 @@ struct fw_cdev_allocate_iso_resource {
  */
 struct fw_cdev_get_speed {
 	__u32 max_speed;
+};
+
+/**
+ * struct fw_cdev_send_stream_packet - send an asynchronous stream packet
+ * @generation:   Bus generation where the packet is valid
+ * @speed:	  Speed code to send the packet at
+ * @channel:	  Channel to send the packet on
+ * @sy:		  Four-bit sy code for the packet
+ * @tag:	  Two-bit tag field to use for the packet
+ * @size:	  Size of the packet's data payload
+ * @data:	  Userspace pointer to the payload
+ *
+ * The %FW_CDEV_IOC_SEND_STREAM_PACKET ioctl sends an asynchronous stream packet
+ * to every device (that is listening to the specified channel) on the
+ * firewire bus.  It is the applications's job to ensure
+ * that the intended device(s) will be able to receive the packet at the chosen
+ * transmit speed.
+ */
+struct fw_cdev_send_stream_packet {
+	__u32 generation;
+	__u32 speed;
+	__u32 channel;
+	__u32 sy;
+	__u32 tag;
+	__u32 size;
+	__u64 data;
 };
 
 #endif /* _LINUX_FIREWIRE_CDEV_H */

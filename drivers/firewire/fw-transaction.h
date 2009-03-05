@@ -407,6 +407,10 @@ void fw_send_request(struct fw_card *card, struct fw_transaction *t,
 		int tcode, int destination_id, int generation, int speed,
 		unsigned long long offset, void *payload, size_t length,
 		fw_transaction_callback_t callback, void *callback_data);
+void fw_send_stream_packet(struct fw_card *card, struct fw_packet *p,
+		int generation, int speed, int channel, int sy, int tag,
+		void *payload, size_t length, fw_packet_callback_t callback);
+
 int fw_cancel_transaction(struct fw_card *card,
 			  struct fw_transaction *transaction);
 void fw_flush_transactions(struct fw_card *card);

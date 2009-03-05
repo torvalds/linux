@@ -936,7 +936,9 @@ static int at_context_queue_packet(struct context *ctx,
 	 */
 
 	header = (__le32 *) &d[1];
-	if (packet->header_length > 8) {
+	switch (packet->header_length) {
+	case 16:
+	case 12:
 		header[0] = cpu_to_le32((packet->header[0] & 0xffff) |
 					(packet->speed << 16));
 		header[1] = cpu_to_le32((packet->header[1] & 0xffff) |
@@ -950,12 +952,27 @@ static int at_context_queue_packet(struct context *ctx,
 			header[3] = (__force __le32) packet->header[3];
 
 		d[0].req_count = cpu_to_le16(packet->header_length);
-	} else {
+		break;
+
+	case 8:
 		header[0] = cpu_to_le32((OHCI1394_phy_tcode << 4) |
 					(packet->speed << 16));
 		header[1] = cpu_to_le32(packet->header[0]);
 		header[2] = cpu_to_le32(packet->header[1]);
 		d[0].req_count = cpu_to_le16(12);
+		break;
+
+	case 4:
+		header[0] = cpu_to_le32((packet->header[0] & 0xffff) |
+					(packet->speed << 16));
+		header[1] = cpu_to_le32(packet->header[0] & 0xffff0000);
+		d[0].req_count = cpu_to_le16(8);
+		break;
+
+	default:
+		/* BUG(); */
+		packet->ack = RCODE_SEND_ERROR;
+		return -1;
 	}
 
 	driver_data = (struct driver_data *) &d[3];

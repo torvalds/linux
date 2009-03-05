@@ -37,6 +37,10 @@
 #include "fw-topology.h"
 #include "fw-device.h"
 
+#define HEADER_TAG(tag)			((tag) << 14)
+#define HEADER_CHANNEL(ch)		((ch) << 8)
+#define HEADER_SY(sy)			((sy) << 0)
+
 #define HEADER_PRI(pri)			((pri) << 0)
 #define HEADER_TCODE(tcode)		((tcode) << 4)
 #define HEADER_RETRY(retry)		((retry) << 8)
@@ -292,6 +296,27 @@ void fw_send_request(struct fw_card *card, struct fw_transaction *t, int tcode,
 	card->driver->send_request(card, &t->packet);
 }
 EXPORT_SYMBOL(fw_send_request);
+
+void fw_send_stream_packet(struct fw_card *card, struct fw_packet *p,
+		int generation, int speed, int channel, int sy, int tag,
+		void *payload, size_t length, fw_packet_callback_t callback)
+{
+	p->callback = callback;
+	p->header[0] =
+		  HEADER_DATA_LENGTH(length)
+		| HEADER_TAG(tag)
+		| HEADER_CHANNEL(channel)
+		| HEADER_TCODE(TCODE_STREAM_DATA)
+		| HEADER_SY(sy);
+	p->header_length = 4;
+	p->payload = payload;
+	p->payload_length = length;
+	p->speed = speed;
+	p->generation = generation;
+	p->ack = 0;
+
+	card->driver->send_request(card, p);
+}
 
 struct transaction_callback_data {
 	struct completion done;

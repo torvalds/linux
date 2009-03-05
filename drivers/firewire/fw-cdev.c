@@ -1242,6 +1242,38 @@ static int ioctl_send_broadcast_request(struct client *client, void *buffer)
 	return init_request(client, request, LOCAL_BUS | 0x3f, SCODE_100);
 }
 
+struct stream_packet {
+	struct fw_packet packet;
+	u8 data[0];
+};
+
+static void send_stream_packet_done(struct fw_packet *packet,
+				    struct fw_card *card, int status)
+{
+	kfree(container_of(packet, struct stream_packet, packet));
+}
+
+static int ioctl_send_stream_packet(struct client *client, void *buffer)
+{
+	struct fw_cdev_send_stream_packet *request = buffer;
+	struct stream_packet *p;
+
+	p = kmalloc(sizeof(*p) + request->size, GFP_KERNEL);
+	if (p == NULL)
+		return -ENOMEM;
+
+	if (request->data &&
+	    copy_from_user(p->data, u64_to_uptr(request->data), request->size)) {
+		kfree(p);
+		return -EFAULT;
+	}
+	fw_send_stream_packet(client->device->card, &p->packet,
+			      request->generation, request->speed,
+			      request->channel, request->sy, request->tag,
+			      p->data, request->size, send_stream_packet_done);
+	return 0;
+}
+
 static int (* const ioctl_handlers[])(struct client *client, void *buffer) = {
 	ioctl_get_info,
 	ioctl_send_request,
@@ -1262,6 +1294,7 @@ static int (* const ioctl_handlers[])(struct client *client, void *buffer) = {
 	ioctl_deallocate_iso_resource_once,
 	ioctl_get_speed,
 	ioctl_send_broadcast_request,
+	ioctl_send_stream_packet,
 };
 
 static int dispatch_ioctl(struct client *client,
