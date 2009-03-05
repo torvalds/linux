@@ -115,7 +115,7 @@ static const char *debug_fcp_ctype(unsigned int ctype)
 }
 
 static const char *debug_fcp_opcode(unsigned int opcode,
-				    const u8 *data, size_t length)
+				    const u8 *data, int length)
 {
 	switch (opcode) {
 	case AVC_OPCODE_VENDOR:			break;
@@ -141,7 +141,7 @@ static const char *debug_fcp_opcode(unsigned int opcode,
 	return "Vendor";
 }
 
-static void debug_fcp(const u8 *data, size_t length)
+static void debug_fcp(const u8 *data, int length)
 {
 	unsigned int subunit_type, subunit_id, op;
 	const char *prefix = data[0] > 7 ? "FCP <- " : "FCP -> ";
