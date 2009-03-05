@@ -1302,8 +1302,8 @@ static void xen_flush_tlb_others(const struct cpumask *cpus,
 	} *args;
 	struct multicall_space mcs;
 
-	BUG_ON(cpumask_empty(cpus));
-	BUG_ON(!mm);
+	if (cpumask_empty(cpus))
+		return;		/* nothing to do */
 
 	mcs = xen_mc_entry(sizeof(*args));
 	args = mcs.args;
