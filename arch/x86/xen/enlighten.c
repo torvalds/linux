@@ -310,9 +310,6 @@ static void xen_load_gdt(const struct desc_ptr *dtr)
 
 		frames[f] = mfn;
 
-		printk("xen_load_gdt: %d va=%p mfn=%lx pfn=%lx va'=%p\n",
-		       f, (void *)va, mfn, pfn, virt);
-
 		make_lowmem_page_readonly((void *)va);
 		make_lowmem_page_readonly(virt);
 	}
