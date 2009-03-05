@@ -338,8 +338,9 @@ static int __apic_accept_irq(struct kvm_lapic *apic, int delivery_mode,
 	struct kvm_vcpu *vcpu = apic->vcpu;
 
 	switch (delivery_mode) {
-	case APIC_DM_FIXED:
 	case APIC_DM_LOWEST:
+		vcpu->arch.apic_arb_prio++;
+	case APIC_DM_FIXED:
 		/* FIXME add logic for vcpu on reset */
 		if (unlikely(!apic_enabled(apic)))
 			break;
@@ -416,43 +417,9 @@ static int __apic_accept_irq(struct kvm_lapic *apic, int delivery_mode,
 	return result;
 }
 
-static struct kvm_lapic *kvm_apic_round_robin(struct kvm *kvm, u8 vector,
-				       unsigned long *bitmap)
+int kvm_apic_compare_prio(struct kvm_vcpu *vcpu1, struct kvm_vcpu *vcpu2)
 {
-	int last;
-	int next;
-	struct kvm_lapic *apic = NULL;
-
-	last = kvm->arch.round_robin_prev_vcpu;
-	next = last;
-
-	do {
-		if (++next == KVM_MAX_VCPUS)
-			next = 0;
-		if (kvm->vcpus[next] == NULL || !test_bit(next, bitmap))
-			continue;
-		apic = kvm->vcpus[next]->arch.apic;
-		if (apic && apic_enabled(apic))
-			break;
-		apic = NULL;
-	} while (next != last);
-	kvm->arch.round_robin_prev_vcpu = next;
-
-	if (!apic)
-		printk(KERN_DEBUG "vcpu not ready for apic_round_robin\n");
-
-	return apic;
-}
-
-struct kvm_vcpu *kvm_get_lowest_prio_vcpu(struct kvm *kvm, u8 vector,
-		unsigned long *bitmap)
-{
-	struct kvm_lapic *apic;
-
-	apic = kvm_apic_round_robin(kvm, vector, bitmap);
-	if (apic)
-		return apic->vcpu;
-	return NULL;
+	return vcpu1->arch.apic_arb_prio - vcpu2->arch.apic_arb_prio;
 }
 
 static void apic_set_eoi(struct kvm_lapic *apic)
@@ -907,6 +874,8 @@ void kvm_lapic_reset(struct kvm_vcpu *vcpu)
 	if (vcpu->vcpu_id == 0)
 		vcpu->arch.apic_base |= MSR_IA32_APICBASE_BSP;
 	apic_update_ppr(apic);
+
+	vcpu->arch.apic_arb_prio = 0;
 
 	apic_debug(KERN_INFO "%s: vcpu=%p, id=%d, base_msr="
 		   "0x%016" PRIx64 ", base_address=0x%0lx.\n", __func__,

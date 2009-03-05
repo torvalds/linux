@@ -47,7 +47,7 @@ void kvm_get_intr_delivery_bitmask(struct kvm *kvm, struct kvm_lapic *src,
 		int dest_id, int dest_mode, bool low_prio, int short_hand,
 		unsigned long *deliver_bitmask)
 {
-	int i;
+	int i, lowest = -1;
 	struct kvm_vcpu *vcpu;
 
 	if (dest_mode == 0 && dest_id == 0xff && low_prio)
@@ -64,15 +64,18 @@ void kvm_get_intr_delivery_bitmask(struct kvm *kvm, struct kvm_lapic *src,
 					dest_mode))
 			continue;
 
-		__set_bit(i, deliver_bitmask);
+		if (!low_prio) {
+			__set_bit(i, deliver_bitmask);
+		} else {
+			if (lowest < 0)
+				lowest = i;
+			if (kvm_apic_compare_prio(vcpu, kvm->vcpus[lowest]) < 0)
+				lowest = i;
+		}
 	}
 
-	if (low_prio) {
-		vcpu = kvm_get_lowest_prio_vcpu(kvm, 0, deliver_bitmask);
-		bitmap_zero(deliver_bitmask, KVM_MAX_VCPUS);
-		if (vcpu)
-			__set_bit(vcpu->vcpu_id, deliver_bitmask);
-	}
+	if (lowest != -1)
+		__set_bit(lowest, deliver_bitmask);
 }
 
 static int kvm_set_msi(struct kvm_kernel_irq_routing_entry *e,

@@ -1836,20 +1836,9 @@ int kvm_apic_match_logical_addr(struct kvm_lapic *apic, u8 mda)
 	return 0;
 }
 
-struct kvm_vcpu *kvm_get_lowest_prio_vcpu(struct kvm *kvm, u8 vector,
-				       unsigned long *bitmap)
+int kvm_apic_compare_prio(struct kvm_vcpu *vcpu1, struct kvm_vcpu *vcpu2)
 {
-	struct kvm_vcpu *lvcpu = kvm->vcpus[0];
-	int i;
-
-	for (i = 1; i < kvm->arch.online_vcpus; i++) {
-		if (!kvm->vcpus[i])
-			continue;
-		if (lvcpu->arch.xtp > kvm->vcpus[i]->arch.xtp)
-			lvcpu = kvm->vcpus[i];
-	}
-
-	return lvcpu;
+	return vcpu1->arch.xtp - vcpu2->arch.xtp;
 }
 
 int kvm_apic_match_dest(struct kvm_vcpu *vcpu, struct kvm_lapic *source,

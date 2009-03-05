@@ -286,6 +286,7 @@ struct kvm_vcpu_arch {
 	u64 shadow_efer;
 	u64 apic_base;
 	struct kvm_lapic *apic;    /* kernel irqchip context */
+	int32_t apic_arb_prio;
 	int mp_state;
 	int sipi_vector;
 	u64 ia32_misc_enable_msr;
@@ -400,7 +401,6 @@ struct kvm_arch{
 	struct hlist_head irq_ack_notifier_list;
 	int vapics_in_nmi_mode;
 
-	int round_robin_prev_vcpu;
 	unsigned int tss_addr;
 	struct page *apic_access_page;
 
