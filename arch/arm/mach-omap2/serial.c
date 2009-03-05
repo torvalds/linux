@@ -435,6 +435,20 @@ static void omap_uart_idle_init(struct omap_uart_state *uart)
 	WARN_ON(ret);
 }
 
+void omap_uart_enable_irqs(int enable)
+{
+	int ret;
+	struct omap_uart_state *uart;
+
+	list_for_each_entry(uart, &uart_list, node) {
+		if (enable)
+			ret = request_irq(uart->p->irq, omap_uart_interrupt,
+				IRQF_SHARED, "serial idle", (void *)uart);
+		else
+			free_irq(uart->p->irq, (void *)uart);
+	}
+}
+
 static ssize_t sleep_timeout_show(struct kobject *kobj,
 				  struct kobj_attribute *attr,
 				  char *buf)
