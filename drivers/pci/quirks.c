@@ -2166,6 +2166,10 @@ static void __devinit nv_msi_ht_cap_quirk(struct pci_dev *dev)
 	int pos;
 	int found;
 
+	/* Enabling HT MSI mapping on this device breaks MCP51 */
+	if (dev->device == 0x270)
+		return;
+
 	/* check if there is HT MSI cap or enabled on this device */
 	found = ht_check_msi_mapping(dev);
 
