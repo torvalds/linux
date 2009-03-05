@@ -278,8 +278,7 @@ static int __init xenbus_probe_frontend_init(void)
 
 	return 0;
 }
-
-module_init(xenbus_probe_frontend_init);
+subsys_initcall(xenbus_probe_frontend_init);
 
 #ifndef MODULE
 static int __init boot_wait_for_devices(void)
