@@ -27,6 +27,12 @@
 #include <plat/devs.h>
 #include <plat/clock.h>
 
+struct clk clk_h2 = {
+	.name		= "hclk2",
+	.id		= -1,
+	.rate		= 0,
+};
+
 struct clk clk_27m = {
 	.name		= "clk_27m",
 	.id		= -1,
@@ -246,6 +252,7 @@ static struct clk *clks[] __initdata = {
 	&clk_epll,
 	&clk_27m,
 	&clk_48m,
+	&clk_h2,
 };
 
 void __init s3c64xx_register_clocks(void)

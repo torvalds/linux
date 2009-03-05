@@ -50,6 +50,7 @@ extern struct clk clk_xtal;
 extern struct clk clk_ext;
 
 /* S3C64XX specific clocks */
+extern struct clk clk_h2;
 extern struct clk clk_27m;
 extern struct clk clk_48m;
 

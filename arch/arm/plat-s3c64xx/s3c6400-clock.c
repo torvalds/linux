@@ -636,6 +636,7 @@ void __init_or_cpufreq s3c6400_setup_clocks(void)
 	clk_fout_epll.rate = epll;
 	clk_fout_apll.rate = apll;
 
+	clk_h2.rate = hclk2;
 	clk_h.rate = hclk;
 	clk_p.rate = pclk;
 	clk_f.rate = fclk;
