@@ -1145,12 +1145,12 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 		icache_size = 0;
 
 	seq_printf(m, "cache size\t: %d KB(L1 icache) "
-		"%d KB(L1 dcache-%s) %d KB(L2 cache)\n",
+		"%d KB(L1 dcache%s) %d KB(L2 cache)\n",
 		icache_size, dcache_size,
 #if defined CONFIG_BFIN_WB
-		"wb"
+		"-wb"
 #elif defined CONFIG_BFIN_WT
-		"wt"
+		"-wt"
 #endif
 		"", 0);
 
