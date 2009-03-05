@@ -3740,6 +3740,9 @@ static irqreturn_t snd_hdsp_interrupt(int irq, void *dev_id)
 	midi0status = hdsp_read (hdsp, HDSP_midiStatusIn0) & 0xff;
 	midi1status = hdsp_read (hdsp, HDSP_midiStatusIn1) & 0xff;
 
+	if (!(hdsp->state & HDSP_InitializationComplete))
+		return IRQ_HANDLED;
+
 	if (audio) {
 		if (hdsp->capture_substream)
 			snd_pcm_period_elapsed(hdsp->pcm->streams[SNDRV_PCM_STREAM_CAPTURE].substream);
