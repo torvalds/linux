@@ -595,7 +595,7 @@ CONFIG_SCSI=y
 CONFIG_SCSI_DMA=y
 # CONFIG_SCSI_TGT is not set
 # CONFIG_SCSI_NETLINK is not set
-CONFIG_SCSI_PROC_FS=y
+# CONFIG_SCSI_PROC_FS is not set
 
 #
 # SCSI support type (disk, tape, CD-ROM)
