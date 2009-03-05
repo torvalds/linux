@@ -25,6 +25,11 @@
  * area for the same reason. ;)
  */
 #define VMALLOC_OFFSET	(8 * 1024 * 1024)
+
+#ifndef __ASSEMBLER__
+extern bool __vmalloc_start_set; /* set once high_memory is set */
+#endif
+
 #define VMALLOC_START	((unsigned long)high_memory + VMALLOC_OFFSET)
 #ifdef CONFIG_X86_PAE
 #define LAST_PKMAP 512

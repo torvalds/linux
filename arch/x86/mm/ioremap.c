@@ -76,10 +76,9 @@ static inline int phys_addr_valid(unsigned long addr)
 #ifdef CONFIG_DEBUG_VIRTUAL
 unsigned long __phys_addr(unsigned long x)
 {
-	/* VMALLOC_* aren't constants; not available at the boot time */
+	/* VMALLOC_* aren't constants  */
 	VIRTUAL_BUG_ON(x < PAGE_OFFSET);
-	VIRTUAL_BUG_ON(system_state != SYSTEM_BOOTING &&
-		is_vmalloc_addr((void *) x));
+	VIRTUAL_BUG_ON(__vmalloc_start_set && is_vmalloc_addr((void *) x));
 	return x - PAGE_OFFSET;
 }
 EXPORT_SYMBOL(__phys_addr);
@@ -89,7 +88,7 @@ bool __virt_addr_valid(unsigned long x)
 {
 	if (x < PAGE_OFFSET)
 		return false;
-	if (system_state != SYSTEM_BOOTING && is_vmalloc_addr((void *) x))
+	if (__vmalloc_start_set && is_vmalloc_addr((void *) x))
 		return false;
 	return pfn_valid((x - PAGE_OFFSET) >> PAGE_SHIFT);
 }

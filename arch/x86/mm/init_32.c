@@ -59,6 +59,8 @@ unsigned long highstart_pfn, highend_pfn;
 
 static noinline int do_test_wp_bit(void);
 
+bool __read_mostly __vmalloc_start_set = false;
+
 static __init void *alloc_low_page(void)
 {
 	unsigned long pfn = e820_table_end++;
@@ -757,6 +759,8 @@ void __init initmem_init(unsigned long start_pfn,
 #ifdef CONFIG_FLATMEM
 	max_mapnr = num_physpages;
 #endif
+	__vmalloc_start_set = true;
+
 	printk(KERN_NOTICE "%ldMB LOWMEM available.\n",
 			pages_to_mb(max_low_pfn));
 
