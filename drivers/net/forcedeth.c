@@ -39,7 +39,7 @@
  * DEV_NEED_TIMERIRQ will not harm you on sane hardware, only generating a few
  * superfluous timer interrupts from the nic.
  */
-#define FORCEDETH_VERSION		"0.63"
+#define FORCEDETH_VERSION		"0.64"
 #define DRV_NAME			"forcedeth"
 
 #include <linux/module.h>
