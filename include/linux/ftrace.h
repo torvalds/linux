@@ -329,11 +329,11 @@ extern void
 ftrace_special(unsigned long arg1, unsigned long arg2, unsigned long arg3);
 
 /**
- * ftrace_printk - printf formatting in the ftrace buffer
+ * trace_printk - printf formatting in the ftrace buffer
  * @fmt: the printf format for printing
  *
- * Note: __ftrace_printk is an internal function for ftrace_printk and
- *       the @ip is passed in via the ftrace_printk macro.
+ * Note: __trace_printk is an internal function for trace_printk and
+ *       the @ip is passed in via the trace_printk macro.
  *
  * This function allows a kernel developer to debug fast path sections
  * that printk is not appropriate for. By scattering in various
@@ -341,14 +341,14 @@ ftrace_special(unsigned long arg1, unsigned long arg2, unsigned long arg3);
  * where problems are occurring.
  *
  * This is intended as a debugging tool for the developer only.
- * Please refrain from leaving ftrace_printks scattered around in
+ * Please refrain from leaving trace_printks scattered around in
  * your code.
  */
-# define ftrace_printk(fmt...) __ftrace_printk(_THIS_IP_, fmt)
+# define trace_printk(fmt...) __trace_printk(_THIS_IP_, fmt)
 extern int
-__ftrace_printk(unsigned long ip, const char *fmt, ...)
+__trace_printk(unsigned long ip, const char *fmt, ...)
 	__attribute__ ((format (printf, 2, 3)));
-# define ftrace_vprintk(fmt, ap) __ftrace_printk(_THIS_IP_, fmt, ap)
+# define ftrace_vprintk(fmt, ap) __trace_printk(_THIS_IP_, fmt, ap)
 extern int
 __ftrace_vprintk(unsigned long ip, const char *fmt, va_list ap);
 extern void ftrace_dump(void);
@@ -356,13 +356,13 @@ extern void ftrace_dump(void);
 static inline void
 ftrace_special(unsigned long arg1, unsigned long arg2, unsigned long arg3) { }
 static inline int
-ftrace_printk(const char *fmt, ...) __attribute__ ((format (printf, 1, 2)));
+trace_printk(const char *fmt, ...) __attribute__ ((format (printf, 1, 2)));
 
 static inline void tracing_start(void) { }
 static inline void tracing_stop(void) { }
 static inline void ftrace_off_permanent(void) { }
 static inline int
-ftrace_printk(const char *fmt, ...)
+trace_printk(const char *fmt, ...)
 {
 	return 0;
 }

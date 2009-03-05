@@ -1466,11 +1466,11 @@ want, depending on your needs.
 
 
 You can put some comments on specific functions by using
-ftrace_printk() For example, if you want to put a comment inside
+trace_printk() For example, if you want to put a comment inside
 the __might_sleep() function, you just have to include
-<linux/ftrace.h> and call ftrace_printk() inside __might_sleep()
+<linux/ftrace.h> and call trace_printk() inside __might_sleep()
 
-ftrace_printk("I'm a comment!\n")
+trace_printk("I'm a comment!\n")
 
 will produce:
 

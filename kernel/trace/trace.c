@@ -48,7 +48,7 @@ unsigned long __read_mostly	tracing_thresh;
  * We need to change this state when a selftest is running.
  * A selftest will lurk into the ring-buffer to count the
  * entries inserted during the selftest although some concurrent
- * insertions into the ring-buffer such as ftrace_printk could occurred
+ * insertions into the ring-buffer such as trace_printk could occurred
  * at the same time, giving false positive or negative results.
  */
 static bool __read_mostly tracing_selftest_running;
@@ -291,7 +291,7 @@ static const char *trace_options[] = {
 	"block",
 	"stacktrace",
 	"sched-tree",
-	"ftrace_printk",
+	"trace_printk",
 	"ftrace_preempt",
 	"branch",
 	"annotate",
@@ -3768,7 +3768,7 @@ int trace_vprintk(unsigned long ip, int depth, const char *fmt, va_list args)
 }
 EXPORT_SYMBOL_GPL(trace_vprintk);
 
-int __ftrace_printk(unsigned long ip, const char *fmt, ...)
+int __trace_printk(unsigned long ip, const char *fmt, ...)
 {
 	int ret;
 	va_list ap;
@@ -3781,7 +3781,7 @@ int __ftrace_printk(unsigned long ip, const char *fmt, ...)
 	va_end(ap);
 	return ret;
 }
-EXPORT_SYMBOL_GPL(__ftrace_printk);
+EXPORT_SYMBOL_GPL(__trace_printk);
 
 int __ftrace_vprintk(unsigned long ip, const char *fmt, va_list ap)
 {

@@ -115,7 +115,7 @@ struct userstack_entry {
 };
 
 /*
- * ftrace_printk entry:
+ * trace_printk entry:
  */
 struct print_entry {
 	struct trace_entry	ent;
