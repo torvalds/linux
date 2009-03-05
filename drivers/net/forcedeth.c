@@ -3423,99 +3423,78 @@ static irqreturn_t nv_nic_irq(int foo, void *data)
 	struct net_device *dev = (struct net_device *) data;
 	struct fe_priv *np = netdev_priv(dev);
 	u8 __iomem *base = get_hwbase(dev);
-	int i;
 
 	dprintk(KERN_DEBUG "%s: nv_nic_irq\n", dev->name);
 
-	for (i=0; ; i++) {
-		if (!(np->msi_flags & NV_MSI_X_ENABLED)) {
-			np->events = readl(base + NvRegIrqStatus);
-			writel(NVREG_IRQSTAT_MASK, base + NvRegIrqStatus);
-		} else {
-			np->events = readl(base + NvRegMSIXIrqStatus);
-			writel(NVREG_IRQSTAT_MASK, base + NvRegMSIXIrqStatus);
-		}
-		dprintk(KERN_DEBUG "%s: irq: %08x\n", dev->name, np->events);
-		if (!(np->events & np->irqmask))
-			break;
+	if (!(np->msi_flags & NV_MSI_X_ENABLED)) {
+		np->events = readl(base + NvRegIrqStatus);
+		writel(NVREG_IRQSTAT_MASK, base + NvRegIrqStatus);
+	} else {
+		np->events = readl(base + NvRegMSIXIrqStatus);
+		writel(NVREG_IRQSTAT_MASK, base + NvRegMSIXIrqStatus);
+	}
+	dprintk(KERN_DEBUG "%s: irq: %08x\n", dev->name, np->events);
+	if (!(np->events & np->irqmask))
+		return IRQ_NONE;
 
-		nv_msi_workaround(np);
+	nv_msi_workaround(np);
 
 #ifdef CONFIG_FORCEDETH_NAPI
-		spin_lock(&np->lock);
-		napi_schedule(&np->napi);
+	spin_lock(&np->lock);
+	napi_schedule(&np->napi);
 
-		/* Disable furthur irq's
-		   (msix not enabled with napi) */
-		writel(0, base + NvRegIrqMask);
+	/* Disable furthur irq's
+	   (msix not enabled with napi) */
+	writel(0, base + NvRegIrqMask);
 
-		spin_unlock(&np->lock);
+	spin_unlock(&np->lock);
 
-		return IRQ_HANDLED;
+	return IRQ_HANDLED;
 #else
-		spin_lock(&np->lock);
-		nv_tx_done(dev, np->tx_ring_size);
-		spin_unlock(&np->lock);
+	spin_lock(&np->lock);
+	nv_tx_done(dev, np->tx_ring_size);
+	spin_unlock(&np->lock);
 
-		if (nv_rx_process(dev, RX_WORK_PER_LOOP)) {
-			if (unlikely(nv_alloc_rx(dev))) {
-				spin_lock(&np->lock);
-				if (!np->in_shutdown)
-					mod_timer(&np->oom_kick, jiffies + OOM_REFILL);
-				spin_unlock(&np->lock);
-			}
-		}
-
-		if (unlikely(np->events & NVREG_IRQ_LINK)) {
+	if (nv_rx_process(dev, RX_WORK_PER_LOOP)) {
+		if (unlikely(nv_alloc_rx(dev))) {
 			spin_lock(&np->lock);
-			nv_link_irq(dev);
+			if (!np->in_shutdown)
+				mod_timer(&np->oom_kick, jiffies + OOM_REFILL);
 			spin_unlock(&np->lock);
 		}
-		if (unlikely(np->need_linktimer && time_after(jiffies, np->link_timeout))) {
-			spin_lock(&np->lock);
-			nv_linkchange(dev);
-			spin_unlock(&np->lock);
-			np->link_timeout = jiffies + LINK_TIMEOUT;
-		}
-		if (unlikely(np->events & NVREG_IRQ_RECOVER_ERROR)) {
-			spin_lock(&np->lock);
-			/* disable interrupts on the nic */
-			if (!(np->msi_flags & NV_MSI_X_ENABLED))
-				writel(0, base + NvRegIrqMask);
-			else
-				writel(np->irqmask, base + NvRegIrqMask);
-			pci_push(base);
-
-			if (!np->in_shutdown) {
-				np->nic_poll_irq = np->irqmask;
-				np->recover_error = 1;
-				mod_timer(&np->nic_poll, jiffies + POLL_WAIT);
-			}
-			spin_unlock(&np->lock);
-			break;
-		}
-		if (unlikely(i > max_interrupt_work)) {
-			spin_lock(&np->lock);
-			/* disable interrupts on the nic */
-			if (!(np->msi_flags & NV_MSI_X_ENABLED))
-				writel(0, base + NvRegIrqMask);
-			else
-				writel(np->irqmask, base + NvRegIrqMask);
-			pci_push(base);
-
-			if (!np->in_shutdown) {
-				np->nic_poll_irq = np->irqmask;
-				mod_timer(&np->nic_poll, jiffies + POLL_WAIT);
-			}
-			spin_unlock(&np->lock);
-			printk(KERN_DEBUG "%s: too many iterations (%d) in nv_nic_irq.\n", dev->name, i);
-			break;
-		}
-#endif
 	}
+
+	if (unlikely(np->events & NVREG_IRQ_LINK)) {
+		spin_lock(&np->lock);
+		nv_link_irq(dev);
+		spin_unlock(&np->lock);
+	}
+	if (unlikely(np->need_linktimer && time_after(jiffies, np->link_timeout))) {
+		spin_lock(&np->lock);
+		nv_linkchange(dev);
+		spin_unlock(&np->lock);
+		np->link_timeout = jiffies + LINK_TIMEOUT;
+	}
+	if (unlikely(np->events & NVREG_IRQ_RECOVER_ERROR)) {
+		spin_lock(&np->lock);
+		/* disable interrupts on the nic */
+		if (!(np->msi_flags & NV_MSI_X_ENABLED))
+			writel(0, base + NvRegIrqMask);
+		else
+			writel(np->irqmask, base + NvRegIrqMask);
+		pci_push(base);
+
+		if (!np->in_shutdown) {
+			np->nic_poll_irq = np->irqmask;
+			np->recover_error = 1;
+			mod_timer(&np->nic_poll, jiffies + POLL_WAIT);
+		}
+		spin_unlock(&np->lock);
+	}
+#endif
 	dprintk(KERN_DEBUG "%s: nv_nic_irq completed\n", dev->name);
 
-	return IRQ_RETVAL(i);
+	return IRQ_HANDLED;
 }
 
 /**
@@ -3528,100 +3507,79 @@ static irqreturn_t nv_nic_irq_optimized(int foo, void *data)
 	struct net_device *dev = (struct net_device *) data;
 	struct fe_priv *np = netdev_priv(dev);
 	u8 __iomem *base = get_hwbase(dev);
-	int i;
 
 	dprintk(KERN_DEBUG "%s: nv_nic_irq_optimized\n", dev->name);
 
-	for (i=0; ; i++) {
-		if (!(np->msi_flags & NV_MSI_X_ENABLED)) {
-			np->events = readl(base + NvRegIrqStatus);
-			writel(NVREG_IRQSTAT_MASK, base + NvRegIrqStatus);
-		} else {
-			np->events = readl(base + NvRegMSIXIrqStatus);
-			writel(NVREG_IRQSTAT_MASK, base + NvRegMSIXIrqStatus);
-		}
-		dprintk(KERN_DEBUG "%s: irq: %08x\n", dev->name, np->events);
-		if (!(np->events & np->irqmask))
-			break;
+	if (!(np->msi_flags & NV_MSI_X_ENABLED)) {
+		np->events = readl(base + NvRegIrqStatus);
+		writel(NVREG_IRQSTAT_MASK, base + NvRegIrqStatus);
+	} else {
+		np->events = readl(base + NvRegMSIXIrqStatus);
+		writel(NVREG_IRQSTAT_MASK, base + NvRegMSIXIrqStatus);
+	}
+	dprintk(KERN_DEBUG "%s: irq: %08x\n", dev->name, np->events);
+	if (!(np->events & np->irqmask))
+		return IRQ_NONE;
 
-		nv_msi_workaround(np);
+	nv_msi_workaround(np);
 
 #ifdef CONFIG_FORCEDETH_NAPI
-		spin_lock(&np->lock);
-		napi_schedule(&np->napi);
+	spin_lock(&np->lock);
+	napi_schedule(&np->napi);
 
-		/* Disable furthur irq's
-		   (msix not enabled with napi) */
-		writel(0, base + NvRegIrqMask);
+	/* Disable furthur irq's
+	   (msix not enabled with napi) */
+	writel(0, base + NvRegIrqMask);
 
-		spin_unlock(&np->lock);
+	spin_unlock(&np->lock);
 
-		return IRQ_HANDLED;
+	return IRQ_HANDLED;
 #else
-		spin_lock(&np->lock);
-		nv_tx_done_optimized(dev, TX_WORK_PER_LOOP);
-		spin_unlock(&np->lock);
+	spin_lock(&np->lock);
+	nv_tx_done_optimized(dev, TX_WORK_PER_LOOP);
+	spin_unlock(&np->lock);
 
-		if (nv_rx_process_optimized(dev, RX_WORK_PER_LOOP)) {
-			if (unlikely(nv_alloc_rx_optimized(dev))) {
-				spin_lock(&np->lock);
-				if (!np->in_shutdown)
-					mod_timer(&np->oom_kick, jiffies + OOM_REFILL);
-				spin_unlock(&np->lock);
-			}
-		}
-
-		if (unlikely(np->events & NVREG_IRQ_LINK)) {
+	if (nv_rx_process_optimized(dev, RX_WORK_PER_LOOP)) {
+		if (unlikely(nv_alloc_rx_optimized(dev))) {
 			spin_lock(&np->lock);
-			nv_link_irq(dev);
+			if (!np->in_shutdown)
+				mod_timer(&np->oom_kick, jiffies + OOM_REFILL);
 			spin_unlock(&np->lock);
 		}
-		if (unlikely(np->need_linktimer && time_after(jiffies, np->link_timeout))) {
-			spin_lock(&np->lock);
-			nv_linkchange(dev);
-			spin_unlock(&np->lock);
-			np->link_timeout = jiffies + LINK_TIMEOUT;
-		}
-		if (unlikely(np->events & NVREG_IRQ_RECOVER_ERROR)) {
-			spin_lock(&np->lock);
-			/* disable interrupts on the nic */
-			if (!(np->msi_flags & NV_MSI_X_ENABLED))
-				writel(0, base + NvRegIrqMask);
-			else
-				writel(np->irqmask, base + NvRegIrqMask);
-			pci_push(base);
-
-			if (!np->in_shutdown) {
-				np->nic_poll_irq = np->irqmask;
-				np->recover_error = 1;
-				mod_timer(&np->nic_poll, jiffies + POLL_WAIT);
-			}
-			spin_unlock(&np->lock);
-			break;
-		}
-
-		if (unlikely(i > max_interrupt_work)) {
-			spin_lock(&np->lock);
-			/* disable interrupts on the nic */
-			if (!(np->msi_flags & NV_MSI_X_ENABLED))
-				writel(0, base + NvRegIrqMask);
-			else
-				writel(np->irqmask, base + NvRegIrqMask);
-			pci_push(base);
-
-			if (!np->in_shutdown) {
-				np->nic_poll_irq = np->irqmask;
-				mod_timer(&np->nic_poll, jiffies + POLL_WAIT);
-			}
-			spin_unlock(&np->lock);
-			printk(KERN_DEBUG "%s: too many iterations (%d) in nv_nic_irq.\n", dev->name, i);
-			break;
-		}
-#endif
 	}
+
+	if (unlikely(np->events & NVREG_IRQ_LINK)) {
+		spin_lock(&np->lock);
+		nv_link_irq(dev);
+		spin_unlock(&np->lock);
+	}
+	if (unlikely(np->need_linktimer && time_after(jiffies, np->link_timeout))) {
+		spin_lock(&np->lock);
+		nv_linkchange(dev);
+		spin_unlock(&np->lock);
+		np->link_timeout = jiffies + LINK_TIMEOUT;
+	}
+	if (unlikely(np->events & NVREG_IRQ_RECOVER_ERROR)) {
+		spin_lock(&np->lock);
+		/* disable interrupts on the nic */
+		if (!(np->msi_flags & NV_MSI_X_ENABLED))
+			writel(0, base + NvRegIrqMask);
+		else
+			writel(np->irqmask, base + NvRegIrqMask);
+		pci_push(base);
+
+		if (!np->in_shutdown) {
+			np->nic_poll_irq = np->irqmask;
+			np->recover_error = 1;
+			mod_timer(&np->nic_poll, jiffies + POLL_WAIT);
+		}
+		spin_unlock(&np->lock);
+	}
+
+#endif
 	dprintk(KERN_DEBUG "%s: nv_nic_irq_optimized completed\n", dev->name);
 
-	return IRQ_RETVAL(i);
+	return IRQ_HANDLED;
 }
 
 static irqreturn_t nv_nic_irq_tx(int foo, void *data)
