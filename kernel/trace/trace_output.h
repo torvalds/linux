@@ -10,7 +10,6 @@ struct trace_event {
 	struct hlist_node	node;
 	int			type;
 	trace_print_func	trace;
-	trace_print_func	latency_trace;
 	trace_print_func	raw;
 	trace_print_func	hex;
 	trace_print_func	binary;

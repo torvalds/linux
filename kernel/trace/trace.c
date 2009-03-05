@@ -1485,7 +1485,7 @@ static enum print_line_t print_lat_fmt(struct trace_iterator *iter)
 	}
 
 	if (event)
-		return event->latency_trace(iter, sym_flags);
+		return event->trace(iter, sym_flags);
 
 	if (!trace_seq_printf(s, "Unknown type %d\n", entry->type))
 		goto partial;
