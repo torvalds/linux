@@ -759,6 +759,7 @@ struct fe_priv {
 	dma_addr_t ring_addr;
 	struct pci_dev *pci_dev;
 	u32 orig_mac[2];
+	u32 events;
 	u32 irqmask;
 	u32 desc_ver;
 	u32 txrxctl_bits;
@@ -3417,21 +3418,20 @@ static irqreturn_t nv_nic_irq(int foo, void *data)
 	struct net_device *dev = (struct net_device *) data;
 	struct fe_priv *np = netdev_priv(dev);
 	u8 __iomem *base = get_hwbase(dev);
-	u32 events;
 	int i;
 
 	dprintk(KERN_DEBUG "%s: nv_nic_irq\n", dev->name);
 
 	for (i=0; ; i++) {
 		if (!(np->msi_flags & NV_MSI_X_ENABLED)) {
-			events = readl(base + NvRegIrqStatus) & NVREG_IRQSTAT_MASK;
+			np->events = readl(base + NvRegIrqStatus) & NVREG_IRQSTAT_MASK;
 			writel(NVREG_IRQSTAT_MASK, base + NvRegIrqStatus);
 		} else {
-			events = readl(base + NvRegMSIXIrqStatus) & NVREG_IRQSTAT_MASK;
+			np->events = readl(base + NvRegMSIXIrqStatus) & NVREG_IRQSTAT_MASK;
 			writel(NVREG_IRQSTAT_MASK, base + NvRegMSIXIrqStatus);
 		}
-		dprintk(KERN_DEBUG "%s: irq: %08x\n", dev->name, events);
-		if (!(events & np->irqmask))
+		dprintk(KERN_DEBUG "%s: irq: %08x\n", dev->name, np->events);
+		if (!(np->events & np->irqmask))
 			break;
 
 		nv_msi_workaround(np);
@@ -3441,7 +3441,7 @@ static irqreturn_t nv_nic_irq(int foo, void *data)
 		spin_unlock(&np->lock);
 
 #ifdef CONFIG_FORCEDETH_NAPI
-		if (events & NVREG_IRQ_RX_ALL) {
+		if (np->events & NVREG_IRQ_RX_ALL) {
 			spin_lock(&np->lock);
 			napi_schedule(&np->napi);
 
@@ -3464,7 +3464,7 @@ static irqreturn_t nv_nic_irq(int foo, void *data)
 			}
 		}
 #endif
-		if (unlikely(events & NVREG_IRQ_LINK)) {
+		if (unlikely(np->events & NVREG_IRQ_LINK)) {
 			spin_lock(&np->lock);
 			nv_link_irq(dev);
 			spin_unlock(&np->lock);
@@ -3475,15 +3475,15 @@ static irqreturn_t nv_nic_irq(int foo, void *data)
 			spin_unlock(&np->lock);
 			np->link_timeout = jiffies + LINK_TIMEOUT;
 		}
-		if (unlikely(events & (NVREG_IRQ_TX_ERR))) {
+		if (unlikely(np->events & (NVREG_IRQ_TX_ERR))) {
 			dprintk(KERN_DEBUG "%s: received irq with events 0x%x. Probably TX fail.\n",
-						dev->name, events);
+						dev->name, np->events);
 		}
-		if (unlikely(events & (NVREG_IRQ_UNKNOWN))) {
+		if (unlikely(np->events & (NVREG_IRQ_UNKNOWN))) {
 			printk(KERN_DEBUG "%s: received irq with unknown events 0x%x. Please report\n",
-						dev->name, events);
+						dev->name, np->events);
 		}
-		if (unlikely(events & NVREG_IRQ_RECOVER_ERROR)) {
+		if (unlikely(np->events & NVREG_IRQ_RECOVER_ERROR)) {
 			spin_lock(&np->lock);
 			/* disable interrupts on the nic */
 			if (!(np->msi_flags & NV_MSI_X_ENABLED))
@@ -3534,21 +3534,20 @@ static irqreturn_t nv_nic_irq_optimized(int foo, void *data)
 	struct net_device *dev = (struct net_device *) data;
 	struct fe_priv *np = netdev_priv(dev);
 	u8 __iomem *base = get_hwbase(dev);
-	u32 events;
 	int i;
 
 	dprintk(KERN_DEBUG "%s: nv_nic_irq_optimized\n", dev->name);
 
 	for (i=0; ; i++) {
 		if (!(np->msi_flags & NV_MSI_X_ENABLED)) {
-			events = readl(base + NvRegIrqStatus) & NVREG_IRQSTAT_MASK;
+			np->events = readl(base + NvRegIrqStatus) & NVREG_IRQSTAT_MASK;
 			writel(NVREG_IRQSTAT_MASK, base + NvRegIrqStatus);
 		} else {
-			events = readl(base + NvRegMSIXIrqStatus) & NVREG_IRQSTAT_MASK;
+			np->events = readl(base + NvRegMSIXIrqStatus) & NVREG_IRQSTAT_MASK;
 			writel(NVREG_IRQSTAT_MASK, base + NvRegMSIXIrqStatus);
 		}
-		dprintk(KERN_DEBUG "%s: irq: %08x\n", dev->name, events);
-		if (!(events & np->irqmask))
+		dprintk(KERN_DEBUG "%s: irq: %08x\n", dev->name, np->events);
+		if (!(np->events & np->irqmask))
 			break;
 
 		nv_msi_workaround(np);
@@ -3558,7 +3557,7 @@ static irqreturn_t nv_nic_irq_optimized(int foo, void *data)
 		spin_unlock(&np->lock);
 
 #ifdef CONFIG_FORCEDETH_NAPI
-		if (events & NVREG_IRQ_RX_ALL) {
+		if (np->events & NVREG_IRQ_RX_ALL) {
 			spin_lock(&np->lock);
 			napi_schedule(&np->napi);
 
@@ -3581,7 +3580,7 @@ static irqreturn_t nv_nic_irq_optimized(int foo, void *data)
 			}
 		}
 #endif
-		if (unlikely(events & NVREG_IRQ_LINK)) {
+		if (unlikely(np->events & NVREG_IRQ_LINK)) {
 			spin_lock(&np->lock);
 			nv_link_irq(dev);
 			spin_unlock(&np->lock);
@@ -3592,15 +3591,15 @@ static irqreturn_t nv_nic_irq_optimized(int foo, void *data)
 			spin_unlock(&np->lock);
 			np->link_timeout = jiffies + LINK_TIMEOUT;
 		}
-		if (unlikely(events & (NVREG_IRQ_TX_ERR))) {
+		if (unlikely(np->events & (NVREG_IRQ_TX_ERR))) {
 			dprintk(KERN_DEBUG "%s: received irq with events 0x%x. Probably TX fail.\n",
-						dev->name, events);
+						dev->name, np->events);
 		}
-		if (unlikely(events & (NVREG_IRQ_UNKNOWN))) {
+		if (unlikely(np->events & (NVREG_IRQ_UNKNOWN))) {
 			printk(KERN_DEBUG "%s: received irq with unknown events 0x%x. Please report\n",
-						dev->name, events);
+						dev->name, np->events);
 		}
-		if (unlikely(events & NVREG_IRQ_RECOVER_ERROR)) {
+		if (unlikely(np->events & NVREG_IRQ_RECOVER_ERROR)) {
 			spin_lock(&np->lock);
 			/* disable interrupts on the nic */
 			if (!(np->msi_flags & NV_MSI_X_ENABLED))
