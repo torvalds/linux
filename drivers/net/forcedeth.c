@@ -128,7 +128,7 @@ enum {
  * NVREG_POLL_DEFAULT=97 would result in an interval length of 1 ms
  */
 	NvRegPollingInterval = 0x00c,
-#define NVREG_POLL_DEFAULT_THROUGHPUT	970 /* backup tx cleanup if loop max reached */
+#define NVREG_POLL_DEFAULT_THROUGHPUT	65535 /* backup tx cleanup if loop max reached */
 #define NVREG_POLL_DEFAULT_CPU	13
 	NvRegMSIMap0 = 0x020,
 	NvRegMSIMap1 = 0x024,
@@ -463,7 +463,7 @@ union ring_type {
 /* General driver defaults */
 #define NV_WATCHDOG_TIMEO	(5*HZ)
 
-#define RX_RING_DEFAULT		128
+#define RX_RING_DEFAULT		512
 #define TX_RING_DEFAULT		256
 #define RX_RING_MIN		128
 #define TX_RING_MIN		64
