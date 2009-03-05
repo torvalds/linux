@@ -922,6 +922,10 @@ static int save_mr(struct map_range *mr, int nr_range,
 	return nr_range;
 }
 
+static inline void init_gbpages(void)
+{
+}
+
 /*
  * Setup the direct mapping of the physical memory at PAGE_OFFSET.
  * This runs before bootmem is initialized and gets pages directly from
@@ -940,6 +944,9 @@ unsigned long __init_refok init_memory_mapping(unsigned long start,
 	int use_pse, use_gbpages;
 
 	printk(KERN_INFO "init_memory_mapping: %016lx-%016lx\n", start, end);
+
+	if (!after_bootmem)
+		init_gbpages();
 
 #ifdef CONFIG_DEBUG_PAGEALLOC
 	/*
