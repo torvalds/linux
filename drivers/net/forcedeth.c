@@ -2397,14 +2397,16 @@ static inline void nv_tx_flip_ownership(struct net_device *dev)
  *
  * Caller must own np->lock.
  */
-static void nv_tx_done(struct net_device *dev)
+static int nv_tx_done(struct net_device *dev, int limit)
 {
 	struct fe_priv *np = netdev_priv(dev);
 	u32 flags;
+	int tx_work = 0;
 	struct ring_desc* orig_get_tx = np->get_tx.orig;
 
 	while ((np->get_tx.orig != np->put_tx.orig) &&
-	       !((flags = le32_to_cpu(np->get_tx.orig->flaglen)) & NV_TX_VALID)) {
+	       !((flags = le32_to_cpu(np->get_tx.orig->flaglen)) & NV_TX_VALID) &&
+	       (tx_work < limit)) {
 
 		dprintk(KERN_DEBUG "%s: nv_tx_done: flags 0x%x.\n",
 					dev->name, flags);
@@ -2430,6 +2432,7 @@ static void nv_tx_done(struct net_device *dev)
 				}
 				dev_kfree_skb_any(np->get_tx_ctx->skb);
 				np->get_tx_ctx->skb = NULL;
+				tx_work++;
 			}
 		} else {
 			if (flags & NV_TX2_LASTPACKET) {
@@ -2447,6 +2450,7 @@ static void nv_tx_done(struct net_device *dev)
 				}
 				dev_kfree_skb_any(np->get_tx_ctx->skb);
 				np->get_tx_ctx->skb = NULL;
+				tx_work++;
 			}
 		}
 		if (unlikely(np->get_tx.orig++ == np->last_tx.orig))
@@ -2458,17 +2462,19 @@ static void nv_tx_done(struct net_device *dev)
 		np->tx_stop = 0;
 		netif_wake_queue(dev);
 	}
+	return tx_work;
 }
 
-static void nv_tx_done_optimized(struct net_device *dev, int limit)
+static int nv_tx_done_optimized(struct net_device *dev, int limit)
 {
 	struct fe_priv *np = netdev_priv(dev);
 	u32 flags;
+	int tx_work = 0;
 	struct ring_desc_ex* orig_get_tx = np->get_tx.ex;
 
 	while ((np->get_tx.ex != np->put_tx.ex) &&
 	       !((flags = le32_to_cpu(np->get_tx.ex->flaglen)) & NV_TX_VALID) &&
-	       (limit-- > 0)) {
+	       (tx_work < limit)) {
 
 		dprintk(KERN_DEBUG "%s: nv_tx_done_optimized: flags 0x%x.\n",
 					dev->name, flags);
@@ -2492,6 +2498,7 @@ static void nv_tx_done_optimized(struct net_device *dev, int limit)
 
 			dev_kfree_skb_any(np->get_tx_ctx->skb);
 			np->get_tx_ctx->skb = NULL;
+			tx_work++;
 
 			if (np->tx_limit) {
 				nv_tx_flip_ownership(dev);
@@ -2506,6 +2513,7 @@ static void nv_tx_done_optimized(struct net_device *dev, int limit)
 		np->tx_stop = 0;
 		netif_wake_queue(dev);
 	}
+	return tx_work;
 }
 
 /*
@@ -2578,7 +2586,7 @@ static void nv_tx_timeout(struct net_device *dev)
 
 	/* 2) check that the packets were not sent already: */
 	if (!nv_optimized(np))
-		nv_tx_done(dev);
+		nv_tx_done(dev, np->tx_ring_size);
 	else
 		nv_tx_done_optimized(dev, np->tx_ring_size);
 
@@ -3433,7 +3441,7 @@ static irqreturn_t nv_nic_irq(int foo, void *data)
 		nv_msi_workaround(np);
 
 		spin_lock(&np->lock);
-		nv_tx_done(dev);
+		nv_tx_done(dev, np->tx_ring_size);
 		spin_unlock(&np->lock);
 
 #ifdef CONFIG_FORCEDETH_NAPI
