@@ -1986,7 +1986,7 @@ static int alloc_surface(drm_radeon_surface_alloc_t *new,
 
 	/* find a virtual surface */
 	for (i = 0; i < 2 * RADEON_MAX_SURFACES; i++)
-		if (dev_priv->virt_surfaces[i].file_priv == 0)
+		if (dev_priv->virt_surfaces[i].file_priv == NULL)
 			break;
 	if (i == 2 * RADEON_MAX_SURFACES) {
 		return -1;
