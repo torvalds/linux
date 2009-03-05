@@ -189,7 +189,6 @@ void ext4_free_inode(handle_t *handle, struct inode *inode)
 	struct ext4_super_block *es;
 	struct ext4_sb_info *sbi;
 	int fatal = 0, err, count, cleared;
-	ext4_group_t flex_group;
 
 	if (atomic_read(&inode->i_count) > 1) {
 		printk(KERN_ERR "ext4_free_inode: inode has count=%d\n",
@@ -277,10 +276,10 @@ void ext4_free_inode(handle_t *handle, struct inode *inode)
 				percpu_counter_dec(&sbi->s_dirs_counter);
 
 			if (sbi->s_log_groups_per_flex) {
-				flex_group = ext4_flex_group(sbi, block_group);
-				spin_lock(sb_bgl_lock(sbi, flex_group));
-				sbi->s_flex_groups[flex_group].free_inodes++;
-				spin_unlock(sb_bgl_lock(sbi, flex_group));
+				ext4_group_t f;
+
+				f = ext4_flex_group(sbi, block_group);
+				atomic_inc(&sbi->s_flex_groups[f].free_inodes);
 			}
 		}
 		BUFFER_TRACE(bh2, "call ext4_handle_dirty_metadata");
@@ -360,9 +359,9 @@ static int find_group_flex(struct super_block *sb, struct inode *parent,
 		sbi->s_log_groups_per_flex;
 
 find_close_to_parent:
-	flexbg_free_blocks = flex_group[best_flex].free_blocks;
+	flexbg_free_blocks = atomic_read(&flex_group[best_flex].free_blocks);
 	flex_freeb_ratio = flexbg_free_blocks * 100 / blocks_per_flex;
-	if (flex_group[best_flex].free_inodes &&
+	if (atomic_read(&flex_group[best_flex].free_inodes) &&
 	    flex_freeb_ratio > free_block_ratio)
 		goto found_flexbg;
 
@@ -375,24 +374,24 @@ find_close_to_parent:
 		if (i == parent_fbg_group || i == parent_fbg_group - 1)
 			continue;
 
-		flexbg_free_blocks = flex_group[i].free_blocks;
+		flexbg_free_blocks = atomic_read(&flex_group[i].free_blocks);
 		flex_freeb_ratio = flexbg_free_blocks * 100 / blocks_per_flex;
 
 		if (flex_freeb_ratio > free_block_ratio &&
-		    flex_group[i].free_inodes) {
+		    (atomic_read(&flex_group[i].free_inodes))) {
 			best_flex = i;
 			goto found_flexbg;
 		}
 
-		if (flex_group[best_flex].free_inodes == 0 ||
-		    (flex_group[i].free_blocks >
-		     flex_group[best_flex].free_blocks &&
-		     flex_group[i].free_inodes))
+		if ((atomic_read(&flex_group[best_flex].free_inodes) == 0) ||
+		    ((atomic_read(&flex_group[i].free_blocks) >
+		      atomic_read(&flex_group[best_flex].free_blocks)) &&
+		     atomic_read(&flex_group[i].free_inodes)))
 			best_flex = i;
 	}
 
-	if (!flex_group[best_flex].free_inodes ||
-	    !flex_group[best_flex].free_blocks)
+	if (!atomic_read(&flex_group[best_flex].free_inodes) ||
+	    !atomic_read(&flex_group[best_flex].free_blocks))
 		return -1;
 
 found_flexbg:
@@ -960,9 +959,7 @@ got:
 
 	if (sbi->s_log_groups_per_flex) {
 		flex_group = ext4_flex_group(sbi, group);
-		spin_lock(sb_bgl_lock(sbi, flex_group));
-		sbi->s_flex_groups[flex_group].free_inodes--;
-		spin_unlock(sb_bgl_lock(sbi, flex_group));
+		atomic_dec(&sbi->s_flex_groups[flex_group].free_inodes);
 	}
 
 	inode->i_uid = current_fsuid();

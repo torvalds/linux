@@ -1630,10 +1630,10 @@ static int ext4_fill_flex_info(struct super_block *sb)
 		gdp = ext4_get_group_desc(sb, i, &bh);
 
 		flex_group = ext4_flex_group(sbi, i);
-		sbi->s_flex_groups[flex_group].free_inodes +=
-			ext4_free_inodes_count(sb, gdp);
-		sbi->s_flex_groups[flex_group].free_blocks +=
-			ext4_free_blks_count(sb, gdp);
+		atomic_set(&sbi->s_flex_groups[flex_group].free_inodes,
+			   ext4_free_inodes_count(sb, gdp));
+		atomic_set(&sbi->s_flex_groups[flex_group].free_blocks,
+			   ext4_free_blks_count(sb, gdp));
 	}
 
 	return 1;
