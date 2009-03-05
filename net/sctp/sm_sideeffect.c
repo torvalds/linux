@@ -787,36 +787,48 @@ static void sctp_cmd_process_operr(sctp_cmd_seq_t *cmds,
 				   struct sctp_association *asoc,
 				   struct sctp_chunk *chunk)
 {
-	struct sctp_operr_chunk *operr_chunk;
 	struct sctp_errhdr *err_hdr;
+	struct sctp_ulpevent *ev;
 
-	operr_chunk = (struct sctp_operr_chunk *)chunk->chunk_hdr;
-	err_hdr = &operr_chunk->err_hdr;
+	while (chunk->chunk_end > chunk->skb->data) {
+		err_hdr = (struct sctp_errhdr *)(chunk->skb->data);
 
-	switch (err_hdr->cause) {
-	case SCTP_ERROR_UNKNOWN_CHUNK:
-	{
-		struct sctp_chunkhdr *unk_chunk_hdr;
+		ev = sctp_ulpevent_make_remote_error(asoc, chunk, 0,
+						     GFP_ATOMIC);
+		if (!ev)
+			return;
 
-		unk_chunk_hdr = (struct sctp_chunkhdr *)err_hdr->variable;
-		switch (unk_chunk_hdr->type) {
-		/* ADDIP 4.1 A9) If the peer responds to an ASCONF with an
-		 * ERROR chunk reporting that it did not recognized the ASCONF
-		 * chunk type, the sender of the ASCONF MUST NOT send any
-		 * further ASCONF chunks and MUST stop its T-4 timer.
-		 */
-		case SCTP_CID_ASCONF:
-			asoc->peer.asconf_capable = 0;
-			sctp_add_cmd_sf(cmds, SCTP_CMD_TIMER_STOP,
+		sctp_ulpq_tail_event(&asoc->ulpq, ev);
+
+		switch (err_hdr->cause) {
+		case SCTP_ERROR_UNKNOWN_CHUNK:
+		{
+			sctp_chunkhdr_t *unk_chunk_hdr;
+
+			unk_chunk_hdr = (sctp_chunkhdr_t *)err_hdr->variable;
+			switch (unk_chunk_hdr->type) {
+			/* ADDIP 4.1 A9) If the peer responds to an ASCONF with
+			 * an ERROR chunk reporting that it did not recognized
+			 * the ASCONF chunk type, the sender of the ASCONF MUST
+			 * NOT send any further ASCONF chunks and MUST stop its
+			 * T-4 timer.
+			 */
+			case SCTP_CID_ASCONF:
+				if (asoc->peer.asconf_capable == 0)
+					break;
+
+				asoc->peer.asconf_capable = 0;
+				sctp_add_cmd_sf(cmds, SCTP_CMD_TIMER_STOP,
 					SCTP_TO(SCTP_EVENT_TIMEOUT_T4_RTO));
+				break;
+			default:
+				break;
+			}
 			break;
+		}
 		default:
 			break;
 		}
-		break;
-	}
-	default:
-		break;
 	}
 }
 

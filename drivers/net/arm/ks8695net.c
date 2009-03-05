@@ -560,7 +560,7 @@ ks8695_reset(struct ks8695_priv *ksp)
 		msleep(1);
 	}
 
-	if (reset_timeout == 0) {
+	if (reset_timeout < 0) {
 		dev_crit(ksp->dev,
 			 "Timeout waiting for DMA engines to reset\n");
 		/* And blithely carry on */

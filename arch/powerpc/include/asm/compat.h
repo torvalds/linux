@@ -210,5 +210,10 @@ struct compat_shmid64_ds {
 	compat_ulong_t __unused6;
 };
 
+static inline int is_compat_task(void)
+{
+	return test_thread_flag(TIF_32BIT);
+}
+
 #endif /* __KERNEL__ */
 #endif /* _ASM_POWERPC_COMPAT_H */

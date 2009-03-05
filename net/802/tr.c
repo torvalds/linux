@@ -670,3 +670,5 @@ module_init(rif_init);
 
 EXPORT_SYMBOL(tr_type_trans);
 EXPORT_SYMBOL(alloc_trdev);
+
+MODULE_LICENSE("GPL");

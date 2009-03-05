@@ -1229,7 +1229,7 @@ static void gem_reset(struct gem *gp)
 			break;
 	} while (val & (GREG_SWRST_TXRST | GREG_SWRST_RXRST));
 
-	if (limit <= 0)
+	if (limit < 0)
 		printk(KERN_ERR "%s: SW reset is ghetto.\n", gp->dev->name);
 
 	if (gp->phy_type == phy_serialink || gp->phy_type == phy_serdes)
