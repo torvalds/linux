@@ -1603,8 +1603,11 @@ static void fail_all_commands(struct iscsi_conn *conn, unsigned lun,
 {
 	struct iscsi_task *task, *tmp;
 
-	if (conn->task && (conn->task->sc->device->lun == lun || lun == -1))
-		conn->task = NULL;
+	if (conn->task) {
+		if (lun == -1 ||
+		    (conn->task->sc && conn->task->sc->device->lun == lun))
+			conn->task = NULL;
+	}
 
 	/* flush pending */
 	list_for_each_entry_safe(task, tmp, &conn->xmitqueue, running) {
