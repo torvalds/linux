@@ -85,7 +85,7 @@ early_param("gbpages", parse_direct_gbpages_on);
 pteval_t __supported_pte_mask __read_mostly = ~_PAGE_IOMAP;
 EXPORT_SYMBOL_GPL(__supported_pte_mask);
 
-static int do_not_nx __cpuinitdata;
+static int disable_nx __cpuinitdata;
 
 /*
  * noexec=on|off
@@ -100,9 +100,9 @@ static int __init nonx_setup(char *str)
 		return -EINVAL;
 	if (!strncmp(str, "on", 2)) {
 		__supported_pte_mask |= _PAGE_NX;
-		do_not_nx = 0;
+		disable_nx = 0;
 	} else if (!strncmp(str, "off", 3)) {
-		do_not_nx = 1;
+		disable_nx = 1;
 		__supported_pte_mask &= ~_PAGE_NX;
 	}
 	return 0;
@@ -114,7 +114,7 @@ void __cpuinit check_efer(void)
 	unsigned long efer;
 
 	rdmsrl(MSR_EFER, efer);
-	if (!(efer & EFER_NX) || do_not_nx)
+	if (!(efer & EFER_NX) || disable_nx)
 		__supported_pte_mask &= ~_PAGE_NX;
 }
 
