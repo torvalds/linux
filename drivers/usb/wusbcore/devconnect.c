@@ -386,6 +386,7 @@ static void __wusbhc_dev_disconnect(struct wusbhc *wusbhc,
 			  | USB_PORT_STAT_LOW_SPEED | USB_PORT_STAT_HIGH_SPEED);
 	port->change |= USB_PORT_STAT_C_CONNECTION | USB_PORT_STAT_C_ENABLE;
 	if (wusb_dev) {
+		dev_dbg(wusbhc->dev, "disconnecting device from port %d\n", wusb_dev->port_idx);
 		if (!list_empty(&wusb_dev->cack_node))
 			list_del_init(&wusb_dev->cack_node);
 		/* For the one in cack_add() */

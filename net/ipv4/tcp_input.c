@@ -1374,7 +1374,8 @@ static u8 tcp_sacktag_one(struct sk_buff *skb, struct sock *sk,
 
 static int tcp_shifted_skb(struct sock *sk, struct sk_buff *skb,
 			   struct tcp_sacktag_state *state,
-			   unsigned int pcount, int shifted, int mss)
+			   unsigned int pcount, int shifted, int mss,
+			   int dup_sack)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct sk_buff *prev = tcp_write_queue_prev(sk, skb);
@@ -1410,7 +1411,7 @@ static int tcp_shifted_skb(struct sock *sk, struct sk_buff *skb,
 	}
 
 	/* We discard results */
-	tcp_sacktag_one(skb, sk, state, 0, pcount);
+	tcp_sacktag_one(skb, sk, state, dup_sack, pcount);
 
 	/* Difference in this won't matter, both ACKed by the same cumul. ACK */
 	TCP_SKB_CB(prev)->sacked |= (TCP_SKB_CB(skb)->sacked & TCPCB_EVER_RETRANS);
@@ -1561,7 +1562,7 @@ static struct sk_buff *tcp_shift_skb_data(struct sock *sk, struct sk_buff *skb,
 
 	if (!skb_shift(prev, skb, len))
 		goto fallback;
-	if (!tcp_shifted_skb(sk, skb, state, pcount, len, mss))
+	if (!tcp_shifted_skb(sk, skb, state, pcount, len, mss, dup_sack))
 		goto out;
 
 	/* Hole filled allows collapsing with the next as well, this is very
@@ -1580,7 +1581,7 @@ static struct sk_buff *tcp_shift_skb_data(struct sock *sk, struct sk_buff *skb,
 	len = skb->len;
 	if (skb_shift(prev, skb, len)) {
 		pcount += tcp_skb_pcount(skb);
-		tcp_shifted_skb(sk, skb, state, tcp_skb_pcount(skb), len, mss);
+		tcp_shifted_skb(sk, skb, state, tcp_skb_pcount(skb), len, mss, 0);
 	}
 
 out:

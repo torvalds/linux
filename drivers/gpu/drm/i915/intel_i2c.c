@@ -137,10 +137,6 @@ struct intel_i2c_chan *intel_i2c_create(struct drm_device *dev, const u32 reg,
 	chan->reg = reg;
 	snprintf(chan->adapter.name, I2C_NAME_SIZE, "intel drm %s", name);
 	chan->adapter.owner = THIS_MODULE;
-#ifndef I2C_HW_B_INTELFB
-#define I2C_HW_B_INTELFB I2C_HW_B_I810
-#endif
-	chan->adapter.id = I2C_HW_B_INTELFB;
 	chan->adapter.algo_data	= &chan->algo;
 	chan->adapter.dev.parent = &dev->pdev->dev;
 	chan->algo.setsda = set_data;

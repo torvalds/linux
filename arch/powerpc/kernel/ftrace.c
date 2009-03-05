@@ -195,8 +195,9 @@ __ftrace_make_nop(struct module *mod,
 		return -EINVAL;
 	}
 
-	offset = (unsigned)((unsigned short)jmp[0]) << 16 |
-		(unsigned)((unsigned short)jmp[1]);
+	/* The bottom half is signed extended */
+	offset = ((unsigned)((unsigned short)jmp[0]) << 16) +
+		(int)((short)jmp[1]);
 
 	DEBUGP(" %x ", offset);
 

@@ -1,12 +1,6 @@
 #ifndef _ASM_X86_SECCOMP_32_H
 #define _ASM_X86_SECCOMP_32_H
 
-#include <linux/thread_info.h>
-
-#ifdef TIF_32BIT
-#error "unexpected TIF_32BIT on i386"
-#endif
-
 #include <linux/unistd.h>
 
 #define __NR_seccomp_read __NR_read

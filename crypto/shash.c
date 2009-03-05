@@ -388,10 +388,15 @@ static int crypto_init_shash_ops_compat(struct crypto_tfm *tfm)
 	struct shash_desc *desc = crypto_tfm_ctx(tfm);
 	struct crypto_shash *shash;
 
+	if (!crypto_mod_get(calg))
+		return -EAGAIN;
+
 	shash = __crypto_shash_cast(crypto_create_tfm(
 		calg, &crypto_shash_type));
-	if (IS_ERR(shash))
+	if (IS_ERR(shash)) {
+		crypto_mod_put(calg);
 		return PTR_ERR(shash);
+	}
 
 	desc->tfm = shash;
 	tfm->exit = crypto_exit_shash_ops_compat;

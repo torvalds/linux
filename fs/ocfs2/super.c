@@ -1537,6 +1537,13 @@ static int ocfs2_get_sector(struct super_block *sb,
 	unlock_buffer(*bh);
 	ll_rw_block(READ, 1, bh);
 	wait_on_buffer(*bh);
+	if (!buffer_uptodate(*bh)) {
+		mlog_errno(-EIO);
+		brelse(*bh);
+		*bh = NULL;
+		return -EIO;
+	}
+
 	return 0;
 }
 
@@ -1747,6 +1754,7 @@ static int ocfs2_initialize_super(struct super_block *sb,
 	INIT_LIST_HEAD(&osb->blocked_lock_list);
 	osb->blocked_lock_count = 0;
 	spin_lock_init(&osb->osb_lock);
+	spin_lock_init(&osb->osb_xattr_lock);
 	ocfs2_init_inode_steal_slot(osb);
 
 	atomic_set(&osb->alloc_stats.moves, 0);
@@ -1886,6 +1894,9 @@ static int ocfs2_initialize_super(struct super_block *sb,
 	INIT_LIST_HEAD(&journal->j_la_cleanups);
 	INIT_WORK(&journal->j_recovery_work, ocfs2_complete_recovery);
 	journal->j_state = OCFS2_JOURNAL_FREE;
+
+	INIT_WORK(&osb->dentry_lock_work, ocfs2_drop_dl_inodes);
+	osb->dentry_lock_list = NULL;
 
 	/* get some pseudo constants for clustersize bits */
 	osb->s_clustersize_bits =

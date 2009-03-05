@@ -309,24 +309,24 @@ static struct kobj_type integrity_ktype = {
 /**
  * blk_integrity_register - Register a gendisk as being integrity-capable
  * @disk:	struct gendisk pointer to make integrity-aware
- * @template:	integrity profile
+ * @template:	optional integrity profile to register
  *
  * Description: When a device needs to advertise itself as being able
  * to send/receive integrity metadata it must use this function to
  * register the capability with the block layer.  The template is a
  * blk_integrity struct with values appropriate for the underlying
- * hardware.  See Documentation/block/data-integrity.txt.
+ * hardware.  If template is NULL the new profile is allocated but
+ * not filled out. See Documentation/block/data-integrity.txt.
  */
 int blk_integrity_register(struct gendisk *disk, struct blk_integrity *template)
 {
 	struct blk_integrity *bi;
 
 	BUG_ON(disk == NULL);
-	BUG_ON(template == NULL);
 
 	if (disk->integrity == NULL) {
 		bi = kmem_cache_alloc(integrity_cachep,
-						GFP_KERNEL | __GFP_ZERO);
+				      GFP_KERNEL | __GFP_ZERO);
 		if (!bi)
 			return -1;
 
@@ -346,13 +346,16 @@ int blk_integrity_register(struct gendisk *disk, struct blk_integrity *template)
 		bi = disk->integrity;
 
 	/* Use the provided profile as template */
-	bi->name = template->name;
-	bi->generate_fn = template->generate_fn;
-	bi->verify_fn = template->verify_fn;
-	bi->tuple_size = template->tuple_size;
-	bi->set_tag_fn = template->set_tag_fn;
-	bi->get_tag_fn = template->get_tag_fn;
-	bi->tag_size = template->tag_size;
+	if (template != NULL) {
+		bi->name = template->name;
+		bi->generate_fn = template->generate_fn;
+		bi->verify_fn = template->verify_fn;
+		bi->tuple_size = template->tuple_size;
+		bi->set_tag_fn = template->set_tag_fn;
+		bi->get_tag_fn = template->get_tag_fn;
+		bi->tag_size = template->tag_size;
+	} else
+		bi->name = "unsupported";
 
 	return 0;
 }

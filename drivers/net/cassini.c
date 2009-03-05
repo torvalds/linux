@@ -806,7 +806,7 @@ static int cas_reset_mii_phy(struct cas *cp)
 
 	cas_phy_write(cp, MII_BMCR, BMCR_RESET);
 	udelay(100);
-	while (limit--) {
+	while (--limit) {
 		val = cas_phy_read(cp, MII_BMCR);
 		if ((val & BMCR_RESET) == 0)
 			break;
@@ -979,7 +979,7 @@ static void cas_phy_init(struct cas *cp)
 		writel(val, cp->regs + REG_PCS_MII_CTRL);
 
 		limit = STOP_TRIES;
-		while (limit-- > 0) {
+		while (--limit > 0) {
 			udelay(10);
 			if ((readl(cp->regs + REG_PCS_MII_CTRL) &
 			     PCS_MII_RESET) == 0)

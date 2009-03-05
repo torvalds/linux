@@ -639,10 +639,11 @@ static int ddp_init(struct t3cdev *tdev)
 	write_unlock(&cxgb3i_ddp_rwlock);
 
 	ddp_log_info("nppods %u (0x%x ~ 0x%x), bits %u, mask 0x%x,0x%x "
-			"pkt %u,%u.\n",
+			"pkt %u/%u, %u/%u.\n",
 			ppmax, ddp->llimit, ddp->ulimit, ddp->idx_bits,
 			ddp->idx_mask, ddp->rsvd_tag_mask,
-			ddp->max_txsz, ddp->max_rxsz);
+			ddp->max_txsz, uinfo.max_txsz,
+			ddp->max_rxsz, uinfo.max_rxsz);
 	return 0;
 
 free_ddp_map:
@@ -654,8 +655,8 @@ free_ddp_map:
  * cxgb3i_adapter_ddp_init - initialize the adapter's ddp resource
  * @tdev: t3cdev adapter
  * @tformat: tag format
- * @txsz: max tx pkt size, filled in by this func.
- * @rxsz: max rx pkt size, filled in by this func.
+ * @txsz: max tx pdu payload size, filled in by this func.
+ * @rxsz: max rx pdu payload size, filled in by this func.
  * initialize the ddp pagepod manager for a given adapter if needed and
  * setup the tag format for a given iscsi entity
  */
@@ -685,10 +686,12 @@ int cxgb3i_adapter_ddp_init(struct t3cdev *tdev,
 		      tformat->sw_bits, tformat->rsvd_bits,
 		      tformat->rsvd_shift, tformat->rsvd_mask);
 
-	*txsz = ddp->max_txsz;
-	*rxsz = ddp->max_rxsz;
-	ddp_log_info("ddp max pkt size: %u, %u.\n",
-		     ddp->max_txsz, ddp->max_rxsz);
+	*txsz = min_t(unsigned int, ULP2_MAX_PDU_PAYLOAD,
+			ddp->max_txsz - ISCSI_PDU_NONPAYLOAD_LEN);
+	*rxsz = min_t(unsigned int, ULP2_MAX_PDU_PAYLOAD,
+			ddp->max_rxsz - ISCSI_PDU_NONPAYLOAD_LEN);
+	ddp_log_info("max payload size: %u/%u, %u/%u.\n",
+		     *txsz, ddp->max_txsz, *rxsz, ddp->max_rxsz);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(cxgb3i_adapter_ddp_init);

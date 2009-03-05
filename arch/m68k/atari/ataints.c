@@ -187,8 +187,8 @@ __asm__ (__ALIGN_STR "\n"						   \
 "	jbra	ret_from_interrupt\n"					   \
 	 : : "i" (&kstat_cpu(0).irqs[n+8]), "i" (&irq_handler[n+8]),	   \
 	     "n" (PT_OFF_SR), "n" (n),					   \
-	     "i" (n & 8 ? (n & 16 ? &tt_mfp.int_mk_a : &mfp.int_mk_a)	   \
-		        : (n & 16 ? &tt_mfp.int_mk_b : &mfp.int_mk_b)),	   \
+	     "i" (n & 8 ? (n & 16 ? &tt_mfp.int_mk_a : &st_mfp.int_mk_a)   \
+		        : (n & 16 ? &tt_mfp.int_mk_b : &st_mfp.int_mk_b)), \
 	     "m" (preempt_count()), "di" (HARDIRQ_OFFSET)		   \
 );									   \
 	for (;;);			/* fake noreturn */		   \
@@ -366,14 +366,14 @@ void __init atari_init_IRQ(void)
 	/* Initialize the MFP(s) */
 
 #ifdef ATARI_USE_SOFTWARE_EOI
-	mfp.vec_adr  = 0x48;	/* Software EOI-Mode */
+	st_mfp.vec_adr  = 0x48;	/* Software EOI-Mode */
 #else
-	mfp.vec_adr  = 0x40;	/* Automatic EOI-Mode */
+	st_mfp.vec_adr  = 0x40;	/* Automatic EOI-Mode */
 #endif
-	mfp.int_en_a = 0x00;	/* turn off MFP-Ints */
-	mfp.int_en_b = 0x00;
-	mfp.int_mk_a = 0xff;	/* no Masking */
-	mfp.int_mk_b = 0xff;
+	st_mfp.int_en_a = 0x00;	/* turn off MFP-Ints */
+	st_mfp.int_en_b = 0x00;
+	st_mfp.int_mk_a = 0xff;	/* no Masking */
+	st_mfp.int_mk_b = 0xff;
 
 	if (ATARIHW_PRESENT(TT_MFP)) {
 #ifdef ATARI_USE_SOFTWARE_EOI

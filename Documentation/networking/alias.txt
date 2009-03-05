@@ -2,13 +2,13 @@
 IP-Aliasing:
 ============
 
-IP-aliases are additional IP-addresses/masks hooked up to a base 
-interface by adding a colon and a string when running ifconfig. 
+IP-aliases are an obsolete way to manage multiple IP-addresses/masks
+per interface. Newer tools such as iproute2 support multiple
+address/prefixes per interface, but aliases are still supported
+for backwards compatibility.
+
+An alias is formed by adding a colon and a string when running ifconfig.
 This string is usually numeric, but this is not a must.
-
-IP-Aliases are avail if CONFIG_INET (`standard' IPv4 networking) 
-is configured in the kernel.
-
 
 o Alias creation.
   Alias creation is done by 'magic' interface naming: eg. to create a
@@ -38,16 +38,3 @@ o Relationship with main device
 
   If the base device is shut down the added aliases will be deleted 
   too.
-
-
-Contact
--------
-Please finger or e-mail me:
-   Juan Jose Ciarlante <jjciarla@raiz.uncu.edu.ar>
-
-Updated by Erik Schoenfelder <schoenfr@gaertner.DE>
-
-; local variables:
-; mode: indented-text
-; mode: auto-fill
-; end:

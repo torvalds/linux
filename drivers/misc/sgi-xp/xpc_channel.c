@@ -49,9 +49,6 @@ xpc_process_connect(struct xpc_channel *ch, unsigned long *irq_flags)
 
 		if (ch->flags & (XPC_C_CONNECTED | XPC_C_DISCONNECTING))
 			return;
-
-		DBUG_ON(ch->local_msgqueue == NULL);
-		DBUG_ON(ch->remote_msgqueue == NULL);
 	}
 
 	if (!(ch->flags & XPC_C_OPENREPLY)) {

@@ -451,8 +451,8 @@ static int p54_parse_eeprom(struct ieee80211_hw *dev, void *eeprom, int len)
 			}
 			if (err)
 				goto err;
-
-		}
+			}
+			break;
 		case PDR_PRISM_ZIF_TX_IQ_CALIBRATION:
 			priv->iq_autocal = kmalloc(data_len, GFP_KERNEL);
 			if (!priv->iq_autocal) {
@@ -745,7 +745,7 @@ static void p54_rx_frame_sent(struct ieee80211_hw *dev, struct sk_buff *skb)
 		struct ieee80211_tx_info *info = IEEE80211_SKB_CB(entry);
 		struct p54_hdr *entry_hdr;
 		struct p54_tx_data *entry_data;
-		int pad = 0;
+		unsigned int pad = 0, frame_len;
 
 		range = (void *)info->rate_driver_data;
 		if (range->start_addr != addr) {
@@ -768,6 +768,7 @@ static void p54_rx_frame_sent(struct ieee80211_hw *dev, struct sk_buff *skb)
 		__skb_unlink(entry, &priv->tx_queue);
 		spin_unlock_irqrestore(&priv->tx_queue.lock, flags);
 
+		frame_len = entry->len;
 		entry_hdr = (struct p54_hdr *) entry->data;
 		entry_data = (struct p54_tx_data *) entry_hdr->data;
 		priv->tx_stats[entry_data->hw_queue].len--;
@@ -814,15 +815,28 @@ static void p54_rx_frame_sent(struct ieee80211_hw *dev, struct sk_buff *skb)
 		info->status.ack_signal = p54_rssi_to_dbm(dev,
 				(int)payload->ack_rssi);
 
-		if (entry_data->key_type == P54_CRYPTO_TKIPMICHAEL) {
+		/* Undo all changes to the frame. */
+		switch (entry_data->key_type) {
+		case P54_CRYPTO_TKIPMICHAEL: {
 			u8 *iv = (u8 *)(entry_data->align + pad +
-				        entry_data->crypt_offset);
+					entry_data->crypt_offset);
 
 			/* Restore the original TKIP IV. */
 			iv[2] = iv[0];
 			iv[0] = iv[1];
 			iv[1] = (iv[0] | 0x20) & 0x7f;	/* WEPSeed - 8.3.2.2 */
+
+			frame_len -= 12; /* remove TKIP_MMIC + TKIP_ICV */
+			break;
+			}
+		case P54_CRYPTO_AESCCMP:
+			frame_len -= 8; /* remove CCMP_MIC */
+			break;
+		case P54_CRYPTO_WEP:
+			frame_len -= 4; /* remove WEP_ICV */
+			break;
 		}
+		skb_trim(entry, frame_len);
 		skb_pull(entry, sizeof(*hdr) + pad + sizeof(*entry_data));
 		ieee80211_tx_status_irqsafe(dev, entry);
 		goto out;
@@ -1147,7 +1161,7 @@ static int p54_set_tim(struct ieee80211_hw *dev, struct ieee80211_sta *sta,
 
 	skb = p54_alloc_skb(dev, P54_HDR_FLAG_CONTROL_OPSET,
 		      sizeof(struct p54_hdr) + sizeof(*tim),
-		      P54_CONTROL_TYPE_TIM, GFP_KERNEL);
+		      P54_CONTROL_TYPE_TIM, GFP_ATOMIC);
 	if (!skb)
 		return -ENOMEM;
 
@@ -1610,7 +1624,7 @@ static int p54_scan(struct ieee80211_hw *dev, u16 mode, u16 dwell)
 
  err:
 	printk(KERN_ERR "%s: frequency change failed\n", wiphy_name(dev->wiphy));
-	kfree_skb(skb);
+	p54_free_skb(dev, skb);
 	return -EINVAL;
 }
 
@@ -2077,7 +2091,7 @@ static int p54_set_key(struct ieee80211_hw *dev, enum set_key_cmd cmd,
 			algo = P54_CRYPTO_AESCCMP;
 			break;
 		default:
-			return -EINVAL;
+			return -EOPNOTSUPP;
 		}
 	}
 

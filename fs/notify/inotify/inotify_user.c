@@ -427,10 +427,61 @@ static unsigned int inotify_poll(struct file *file, poll_table *wait)
 	return ret;
 }
 
+/*
+ * Get an inotify_kernel_event if one exists and is small
+ * enough to fit in "count". Return an error pointer if
+ * not large enough.
+ *
+ * Called with the device ev_mutex held.
+ */
+static struct inotify_kernel_event *get_one_event(struct inotify_device *dev,
+						  size_t count)
+{
+	size_t event_size = sizeof(struct inotify_event);
+	struct inotify_kernel_event *kevent;
+
+	if (list_empty(&dev->events))
+		return NULL;
+
+	kevent = inotify_dev_get_event(dev);
+	if (kevent->name)
+		event_size += kevent->event.len;
+
+	if (event_size > count)
+		return ERR_PTR(-EINVAL);
+
+	remove_kevent(dev, kevent);
+	return kevent;
+}
+
+/*
+ * Copy an event to user space, returning how much we copied.
+ *
+ * We already checked that the event size is smaller than the
+ * buffer we had in "get_one_event()" above.
+ */
+static ssize_t copy_event_to_user(struct inotify_kernel_event *kevent,
+				  char __user *buf)
+{
+	size_t event_size = sizeof(struct inotify_event);
+
+	if (copy_to_user(buf, &kevent->event, event_size))
+		return -EFAULT;
+
+	if (kevent->name) {
+		buf += event_size;
+
+		if (copy_to_user(buf, kevent->name, kevent->event.len))
+			return -EFAULT;
+
+		event_size += kevent->event.len;
+	}
+	return event_size;
+}
+
 static ssize_t inotify_read(struct file *file, char __user *buf,
 			    size_t count, loff_t *pos)
 {
-	size_t event_size = sizeof (struct inotify_event);
 	struct inotify_device *dev;
 	char __user *start;
 	int ret;
@@ -440,81 +491,43 @@ static ssize_t inotify_read(struct file *file, char __user *buf,
 	dev = file->private_data;
 
 	while (1) {
+		struct inotify_kernel_event *kevent;
 
 		prepare_to_wait(&dev->wq, &wait, TASK_INTERRUPTIBLE);
 
 		mutex_lock(&dev->ev_mutex);
-		if (!list_empty(&dev->events)) {
-			ret = 0;
-			break;
-		}
+		kevent = get_one_event(dev, count);
 		mutex_unlock(&dev->ev_mutex);
 
-		if (file->f_flags & O_NONBLOCK) {
-			ret = -EAGAIN;
-			break;
+		if (kevent) {
+			ret = PTR_ERR(kevent);
+			if (IS_ERR(kevent))
+				break;
+			ret = copy_event_to_user(kevent, buf);
+			free_kevent(kevent);
+			if (ret < 0)
+				break;
+			buf += ret;
+			count -= ret;
+			continue;
 		}
 
-		if (signal_pending(current)) {
-			ret = -EINTR;
+		ret = -EAGAIN;
+		if (file->f_flags & O_NONBLOCK)
 			break;
-		}
+		ret = -EINTR;
+		if (signal_pending(current))
+			break;
+
+		if (start != buf)
+			break;
 
 		schedule();
 	}
 
 	finish_wait(&dev->wq, &wait);
-	if (ret)
-		return ret;
-
-	while (1) {
-		struct inotify_kernel_event *kevent;
-
+	if (start != buf && ret != -EFAULT)
 		ret = buf - start;
-		if (list_empty(&dev->events))
-			break;
-
-		kevent = inotify_dev_get_event(dev);
-		if (event_size + kevent->event.len > count) {
-			if (ret == 0 && count > 0) {
-				/*
-				 * could not get a single event because we
-				 * didn't have enough buffer space.
-				 */
-				ret = -EINVAL;
-			}
-			break;
-		}
-		remove_kevent(dev, kevent);
-
-		/*
-		 * Must perform the copy_to_user outside the mutex in order
-		 * to avoid a lock order reversal with mmap_sem.
-		 */
-		mutex_unlock(&dev->ev_mutex);
-
-		if (copy_to_user(buf, &kevent->event, event_size)) {
-			ret = -EFAULT;
-			break;
-		}
-		buf += event_size;
-		count -= event_size;
-
-		if (kevent->name) {
-			if (copy_to_user(buf, kevent->name, kevent->event.len)){
-				ret = -EFAULT;
-				break;
-			}
-			buf += kevent->event.len;
-			count -= kevent->event.len;
-		}
-
-		free_kevent(kevent);
-
-		mutex_lock(&dev->ev_mutex);
-	}
-	mutex_unlock(&dev->ev_mutex);
-
 	return ret;
 }
 

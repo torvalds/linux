@@ -224,7 +224,7 @@ int iwl_send_cmd_sync(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 		IWL_ERROR("Error: Response NULL in '%s'\n",
 			  get_cmd_string(cmd->id));
 		ret = -EIO;
-		goto out;
+		goto cancel;
 	}
 
 	ret = 0;

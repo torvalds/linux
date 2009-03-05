@@ -151,13 +151,6 @@ ENTRY(_ex_syscall)
 	jump.s _bfin_return_from_exception;
 ENDPROC(_ex_syscall)
 
-ENTRY(_ex_soft_bp)
-	r7 = retx;
-	r7 += -2;
-	retx = r7;
-	jump.s _ex_trap_c;
-ENDPROC(_ex_soft_bp)
-
 ENTRY(_ex_single_step)
 	/* If we just returned from an interrupt, the single step event is
 	   for the RTI instruction.  */
@@ -1087,7 +1080,7 @@ ENTRY(_ex_table)
 	 * EXCPT instruction can provide 4 bits of EXCAUSE, allowing 16 to be user defined
 	 */
 	.long _ex_syscall       /* 0x00 - User Defined - Linux Syscall */
-	.long _ex_soft_bp       /* 0x01 - User Defined - Software breakpoint */
+	.long _ex_trap_c        /* 0x01 - User Defined - Software breakpoint */
 #ifdef	CONFIG_KGDB
 	.long _ex_trap_c	/* 0x02 - User Defined - KGDB initial connection
 							 and break signal trap */

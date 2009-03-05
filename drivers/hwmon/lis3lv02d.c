@@ -3,7 +3,7 @@
  *
  *  Copyright (C) 2007-2008 Yan Burman
  *  Copyright (C) 2008 Eric Piel
- *  Copyright (C) 2008 Pavel Machek
+ *  Copyright (C) 2008-2009 Pavel Machek
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -35,6 +35,7 @@
 #include <linux/poll.h>
 #include <linux/freezer.h>
 #include <linux/uaccess.h>
+#include <linux/miscdevice.h>
 #include <acpi/acpi_drivers.h>
 #include <asm/atomic.h>
 #include "lis3lv02d.h"
@@ -52,23 +53,13 @@
  * joystick.
  */
 
-/* Maximum value our axis may get for the input device (signed 12 bits) */
-#define MDPS_MAX_VAL 2048
+struct acpi_lis3lv02d adev = {
+	.misc_wait   = __WAIT_QUEUE_HEAD_INITIALIZER(adev.misc_wait),
+};
 
-struct acpi_lis3lv02d adev;
 EXPORT_SYMBOL_GPL(adev);
 
 static int lis3lv02d_add_fs(struct acpi_device *device);
-
-static s16 lis3lv02d_read_16(acpi_handle handle, int reg)
-{
-	u8 lo, hi;
-
-	adev.read(handle, reg, &lo);
-	adev.read(handle, reg + 1, &hi);
-	/* In "12 bit right justified" mode, bit 6, bit 7, bit 8 = bit 5 */
-	return (s16)((hi << 8) | lo);
-}
 
 /**
  * lis3lv02d_get_axis - For the given axis, give the value converted
@@ -98,9 +89,9 @@ static void lis3lv02d_get_xyz(acpi_handle handle, int *x, int *y, int *z)
 {
 	int position[3];
 
-	position[0] = lis3lv02d_read_16(handle, OUTX_L);
-	position[1] = lis3lv02d_read_16(handle, OUTY_L);
-	position[2] = lis3lv02d_read_16(handle, OUTZ_L);
+	position[0] = adev.read_data(handle, OUTX);
+	position[1] = adev.read_data(handle, OUTY);
+	position[2] = adev.read_data(handle, OUTZ);
 
 	*x = lis3lv02d_get_axis(adev.ac.x, position);
 	*y = lis3lv02d_get_axis(adev.ac.y, position);
@@ -110,26 +101,13 @@ static void lis3lv02d_get_xyz(acpi_handle handle, int *x, int *y, int *z)
 void lis3lv02d_poweroff(acpi_handle handle)
 {
 	adev.is_on = 0;
-	/* disable X,Y,Z axis and power down */
-	adev.write(handle, CTRL_REG1, 0x00);
 }
 EXPORT_SYMBOL_GPL(lis3lv02d_poweroff);
 
 void lis3lv02d_poweron(acpi_handle handle)
 {
-	u8 val;
-
 	adev.is_on = 1;
 	adev.init(handle);
-	adev.write(handle, FF_WU_CFG, 0);
-	/*
-	 * BDU: LSB and MSB values are not updated until both have been read.
-	 *      So the value read will always be correct.
-	 * IEN: Interrupt for free-fall and DD, not for data-ready.
-	 */
-	adev.read(handle, CTRL_REG2, &val);
-	val |= CTRL2_BDU | CTRL2_IEN;
-	adev.write(handle, CTRL_REG2, val);
 }
 EXPORT_SYMBOL_GPL(lis3lv02d_poweron);
 
@@ -161,6 +139,140 @@ static void lis3lv02d_decrease_use(struct acpi_lis3lv02d *dev)
 		lis3lv02d_poweroff(dev->device->handle);
 	mutex_unlock(&dev->lock);
 }
+
+static irqreturn_t lis302dl_interrupt(int irq, void *dummy)
+{
+	/*
+	 * Be careful: on some HP laptops the bios force DD when on battery and
+	 * the lid is closed. This leads to interrupts as soon as a little move
+	 * is done.
+	 */
+	atomic_inc(&adev.count);
+
+	wake_up_interruptible(&adev.misc_wait);
+	kill_fasync(&adev.async_queue, SIGIO, POLL_IN);
+	return IRQ_HANDLED;
+}
+
+static int lis3lv02d_misc_open(struct inode *inode, struct file *file)
+{
+	int ret;
+
+	if (test_and_set_bit(0, &adev.misc_opened))
+		return -EBUSY; /* already open */
+
+	atomic_set(&adev.count, 0);
+
+	/*
+	 * The sensor can generate interrupts for free-fall and direction
+	 * detection (distinguishable with FF_WU_SRC and DD_SRC) but to keep
+	 * the things simple and _fast_ we activate it only for free-fall, so
+	 * no need to read register (very slow with ACPI). For the same reason,
+	 * we forbid shared interrupts.
+	 *
+	 * IRQF_TRIGGER_RISING seems pointless on HP laptops because the
+	 * io-apic is not configurable (and generates a warning) but I keep it
+	 * in case of support for other hardware.
+	 */
+	ret = request_irq(adev.irq, lis302dl_interrupt, IRQF_TRIGGER_RISING,
+			  DRIVER_NAME, &adev);
+
+	if (ret) {
+		clear_bit(0, &adev.misc_opened);
+		printk(KERN_ERR DRIVER_NAME ": IRQ%d allocation failed\n", adev.irq);
+		return -EBUSY;
+	}
+	lis3lv02d_increase_use(&adev);
+	printk("lis3: registered interrupt %d\n", adev.irq);
+	return 0;
+}
+
+static int lis3lv02d_misc_release(struct inode *inode, struct file *file)
+{
+	fasync_helper(-1, file, 0, &adev.async_queue);
+	lis3lv02d_decrease_use(&adev);
+	free_irq(adev.irq, &adev);
+	clear_bit(0, &adev.misc_opened); /* release the device */
+	return 0;
+}
+
+static ssize_t lis3lv02d_misc_read(struct file *file, char __user *buf,
+				size_t count, loff_t *pos)
+{
+	DECLARE_WAITQUEUE(wait, current);
+	u32 data;
+	unsigned char byte_data;
+	ssize_t retval = 1;
+
+	if (count < 1)
+		return -EINVAL;
+
+	add_wait_queue(&adev.misc_wait, &wait);
+	while (true) {
+		set_current_state(TASK_INTERRUPTIBLE);
+		data = atomic_xchg(&adev.count, 0);
+		if (data)
+			break;
+
+		if (file->f_flags & O_NONBLOCK) {
+			retval = -EAGAIN;
+			goto out;
+		}
+
+		if (signal_pending(current)) {
+			retval = -ERESTARTSYS;
+			goto out;
+		}
+
+		schedule();
+	}
+
+	if (data < 255)
+		byte_data = data;
+	else
+		byte_data = 255;
+
+	/* make sure we are not going into copy_to_user() with
+	 * TASK_INTERRUPTIBLE state */
+	set_current_state(TASK_RUNNING);
+	if (copy_to_user(buf, &byte_data, sizeof(byte_data)))
+		retval = -EFAULT;
+
+out:
+	__set_current_state(TASK_RUNNING);
+	remove_wait_queue(&adev.misc_wait, &wait);
+
+	return retval;
+}
+
+static unsigned int lis3lv02d_misc_poll(struct file *file, poll_table *wait)
+{
+	poll_wait(file, &adev.misc_wait, wait);
+	if (atomic_read(&adev.count))
+		return POLLIN | POLLRDNORM;
+	return 0;
+}
+
+static int lis3lv02d_misc_fasync(int fd, struct file *file, int on)
+{
+	return fasync_helper(fd, file, on, &adev.async_queue);
+}
+
+static const struct file_operations lis3lv02d_misc_fops = {
+	.owner   = THIS_MODULE,
+	.llseek  = no_llseek,
+	.read    = lis3lv02d_misc_read,
+	.open    = lis3lv02d_misc_open,
+	.release = lis3lv02d_misc_release,
+	.poll    = lis3lv02d_misc_poll,
+	.fasync  = lis3lv02d_misc_fasync,
+};
+
+static struct miscdevice lis3lv02d_misc_device = {
+	.minor   = MISC_DYNAMIC_MINOR,
+	.name    = "freefall",
+	.fops    = &lis3lv02d_misc_fops,
+};
 
 /**
  * lis3lv02d_joystick_kthread - Kthread polling function
@@ -203,7 +315,6 @@ static void lis3lv02d_joystick_close(struct input_dev *input)
 	lis3lv02d_decrease_use(&adev);
 }
 
-
 static inline void lis3lv02d_calibrate_joystick(void)
 {
 	lis3lv02d_get_xyz(adev.device->handle, &adev.xcalib, &adev.ycalib, &adev.zcalib);
@@ -231,9 +342,9 @@ int lis3lv02d_joystick_enable(void)
 	adev.idev->close      = lis3lv02d_joystick_close;
 
 	set_bit(EV_ABS, adev.idev->evbit);
-	input_set_abs_params(adev.idev, ABS_X, -MDPS_MAX_VAL, MDPS_MAX_VAL, 3, 3);
-	input_set_abs_params(adev.idev, ABS_Y, -MDPS_MAX_VAL, MDPS_MAX_VAL, 3, 3);
-	input_set_abs_params(adev.idev, ABS_Z, -MDPS_MAX_VAL, MDPS_MAX_VAL, 3, 3);
+	input_set_abs_params(adev.idev, ABS_X, -adev.mdps_max_val, adev.mdps_max_val, 3, 3);
+	input_set_abs_params(adev.idev, ABS_Y, -adev.mdps_max_val, adev.mdps_max_val, 3, 3);
+	input_set_abs_params(adev.idev, ABS_Z, -adev.mdps_max_val, adev.mdps_max_val, 3, 3);
 
 	err = input_register_device(adev.idev);
 	if (err) {
@@ -250,6 +361,7 @@ void lis3lv02d_joystick_disable(void)
 	if (!adev.idev)
 		return;
 
+	misc_deregister(&lis3lv02d_misc_device);
 	input_unregister_device(adev.idev);
 	adev.idev = NULL;
 }
@@ -268,6 +380,19 @@ int lis3lv02d_init_device(struct acpi_lis3lv02d *dev)
 	if (lis3lv02d_joystick_enable())
 		printk(KERN_ERR DRIVER_NAME ": joystick initialization failed\n");
 
+	printk("lis3_init_device: irq %d\n", dev->irq);
+
+	/* if we did not get an IRQ from ACPI - we have nothing more to do */
+	if (!dev->irq) {
+		printk(KERN_ERR DRIVER_NAME
+			": No IRQ in ACPI. Disabling /dev/freefall\n");
+		goto out;
+	}
+
+	printk("lis3: registering device\n");
+	if (misc_register(&lis3lv02d_misc_device))
+		printk(KERN_ERR DRIVER_NAME ": misc_register failed\n");
+out:
 	lis3lv02d_decrease_use(dev);
 	return 0;
 }
@@ -351,6 +476,6 @@ int lis3lv02d_remove_fs(void)
 EXPORT_SYMBOL_GPL(lis3lv02d_remove_fs);
 
 MODULE_DESCRIPTION("ST LIS3LV02Dx three-axis digital accelerometer driver");
-MODULE_AUTHOR("Yan Burman and Eric Piel");
+MODULE_AUTHOR("Yan Burman, Eric Piel, Pavel Machek");
 MODULE_LICENSE("GPL");
 

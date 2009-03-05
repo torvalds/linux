@@ -131,7 +131,7 @@ u_char emulating = 0;
 static int valid_prefix(u_char *Byte, u_char __user ** fpu_eip,
 			overrides * override);
 
-asmlinkage void math_emulate(long arg)
+void math_emulate(struct math_emu_info *info)
 {
 	u_char FPU_modrm, byte1;
 	unsigned short code;
@@ -161,7 +161,7 @@ asmlinkage void math_emulate(long arg)
 	RE_ENTRANT_CHECK_ON;
 #endif /* RE_ENTRANT_CHECKING */
 
-	SETUP_DATA_AREA(arg);
+	FPU_info = info;
 
 	FPU_ORIG_EIP = FPU_EIP;
 
@@ -659,7 +659,7 @@ static int valid_prefix(u_char *Byte, u_char __user **fpu_eip,
 	}
 }
 
-void math_abort(struct info *info, unsigned int signal)
+void math_abort(struct math_emu_info *info, unsigned int signal)
 {
 	FPU_EIP = FPU_ORIG_EIP;
 	current->thread.trap_no = 16;

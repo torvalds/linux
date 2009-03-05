@@ -81,9 +81,9 @@ static const int multicast_filter_limit = 32;
 #define RTL8169_TX_TIMEOUT	(6*HZ)
 #define RTL8169_PHY_TIMEOUT	(10*HZ)
 
-#define RTL_EEPROM_SIG		cpu_to_le32(0x8129)
-#define RTL_EEPROM_SIG_MASK	cpu_to_le32(0xffff)
+#define RTL_EEPROM_SIG		0x8129
 #define RTL_EEPROM_SIG_ADDR	0x0000
+#define RTL_EEPROM_MAC_ADDR	0x0007
 
 /* write/read MMIO register */
 #define RTL_W8(reg, val8)	writeb ((val8), ioaddr + (reg))
@@ -293,6 +293,11 @@ enum rtl_register_content {
 	/* Cfg9346Bits */
 	Cfg9346_Lock	= 0x00,
 	Cfg9346_Unlock	= 0xc0,
+	Cfg9346_Program	= 0x80,		/* Programming mode */
+	Cfg9346_EECS	= 0x08,		/* Chip select */
+	Cfg9346_EESK	= 0x04,		/* Serial data clock */
+	Cfg9346_EEDI	= 0x02,		/* Data input */
+	Cfg9346_EEDO	= 0x01,		/* Data output */
 
 	/* rx_mode_bits */
 	AcceptErr	= 0x20,
@@ -305,6 +310,7 @@ enum rtl_register_content {
 	/* RxConfigBits */
 	RxCfgFIFOShift	= 13,
 	RxCfgDMAShift	=  8,
+	RxCfg9356SEL	=  6, 		/* EEPROM type: 0 = 9346, 1 = 9356 */
 
 	/* TxConfigBits */
 	TxInterFrameGapShift = 24,
@@ -437,6 +443,22 @@ enum features {
 	RTL_FEATURE_GMII	= (1 << 2),
 };
 
+struct rtl8169_counters {
+	__le64	tx_packets;
+	__le64	rx_packets;
+	__le64	tx_errors;
+	__le32	rx_errors;
+	__le16	rx_missed;
+	__le16	align_errors;
+	__le32	tx_one_collision;
+	__le32	tx_multi_collision;
+	__le64	rx_unicast;
+	__le64	rx_broadcast;
+	__le32	rx_multicast;
+	__le16	tx_aborted;
+	__le16	tx_underun;
+};
+
 struct rtl8169_private {
 	void __iomem *mmio_addr;	/* memory map physical address */
 	struct pci_dev *pci_dev;	/* Index of PCI device */
@@ -480,6 +502,7 @@ struct rtl8169_private {
 	unsigned features;
 
 	struct mii_if_info mii;
+	struct rtl8169_counters counters;
 };
 
 MODULE_AUTHOR("Realtek and the Linux r8169 crew <netdev@vger.kernel.org>");
@@ -1100,22 +1123,6 @@ static const char rtl8169_gstrings[][ETH_GSTRING_LEN] = {
 	"tx_underrun",
 };
 
-struct rtl8169_counters {
-	__le64	tx_packets;
-	__le64	rx_packets;
-	__le64	tx_errors;
-	__le32	rx_errors;
-	__le16	rx_missed;
-	__le16	align_errors;
-	__le32	tx_one_collision;
-	__le32	tx_multi_collision;
-	__le64	rx_unicast;
-	__le64	rx_broadcast;
-	__le32	rx_multicast;
-	__le16	tx_aborted;
-	__le16	tx_underun;
-};
-
 static int rtl8169_get_sset_count(struct net_device *dev, int sset)
 {
 	switch (sset) {
@@ -1126,16 +1133,21 @@ static int rtl8169_get_sset_count(struct net_device *dev, int sset)
 	}
 }
 
-static void rtl8169_get_ethtool_stats(struct net_device *dev,
-				      struct ethtool_stats *stats, u64 *data)
+static void rtl8169_update_counters(struct net_device *dev)
 {
 	struct rtl8169_private *tp = netdev_priv(dev);
 	void __iomem *ioaddr = tp->mmio_addr;
 	struct rtl8169_counters *counters;
 	dma_addr_t paddr;
 	u32 cmd;
+	int wait = 1000;
 
-	ASSERT_RTNL();
+	/*
+	 * Some chips are unable to dump tally counters when the receiver
+	 * is disabled.
+	 */
+	if ((RTL_R8(ChipCmd) & CmdRxEnb) == 0)
+		return;
 
 	counters = pci_alloc_consistent(tp->pci_dev, sizeof(*counters), &paddr);
 	if (!counters)
@@ -1146,29 +1158,43 @@ static void rtl8169_get_ethtool_stats(struct net_device *dev,
 	RTL_W32(CounterAddrLow, cmd);
 	RTL_W32(CounterAddrLow, cmd | CounterDump);
 
-	while (RTL_R32(CounterAddrLow) & CounterDump) {
-		if (msleep_interruptible(1))
+	while (wait--) {
+		if ((RTL_R32(CounterAddrLow) & CounterDump) == 0) {
+			/* copy updated counters */
+			memcpy(&tp->counters, counters, sizeof(*counters));
 			break;
+		}
+		udelay(10);
 	}
 
 	RTL_W32(CounterAddrLow, 0);
 	RTL_W32(CounterAddrHigh, 0);
 
-	data[0] = le64_to_cpu(counters->tx_packets);
-	data[1] = le64_to_cpu(counters->rx_packets);
-	data[2] = le64_to_cpu(counters->tx_errors);
-	data[3] = le32_to_cpu(counters->rx_errors);
-	data[4] = le16_to_cpu(counters->rx_missed);
-	data[5] = le16_to_cpu(counters->align_errors);
-	data[6] = le32_to_cpu(counters->tx_one_collision);
-	data[7] = le32_to_cpu(counters->tx_multi_collision);
-	data[8] = le64_to_cpu(counters->rx_unicast);
-	data[9] = le64_to_cpu(counters->rx_broadcast);
-	data[10] = le32_to_cpu(counters->rx_multicast);
-	data[11] = le16_to_cpu(counters->tx_aborted);
-	data[12] = le16_to_cpu(counters->tx_underun);
-
 	pci_free_consistent(tp->pci_dev, sizeof(*counters), counters, paddr);
+}
+
+static void rtl8169_get_ethtool_stats(struct net_device *dev,
+				      struct ethtool_stats *stats, u64 *data)
+{
+	struct rtl8169_private *tp = netdev_priv(dev);
+
+	ASSERT_RTNL();
+
+	rtl8169_update_counters(dev);
+
+	data[0] = le64_to_cpu(tp->counters.tx_packets);
+	data[1] = le64_to_cpu(tp->counters.rx_packets);
+	data[2] = le64_to_cpu(tp->counters.tx_errors);
+	data[3] = le32_to_cpu(tp->counters.rx_errors);
+	data[4] = le16_to_cpu(tp->counters.rx_missed);
+	data[5] = le16_to_cpu(tp->counters.align_errors);
+	data[6] = le32_to_cpu(tp->counters.tx_one_collision);
+	data[7] = le32_to_cpu(tp->counters.tx_multi_collision);
+	data[8] = le64_to_cpu(tp->counters.rx_unicast);
+	data[9] = le64_to_cpu(tp->counters.rx_broadcast);
+	data[10] = le32_to_cpu(tp->counters.rx_multicast);
+	data[11] = le16_to_cpu(tp->counters.tx_aborted);
+	data[12] = le16_to_cpu(tp->counters.tx_underun);
 }
 
 static void rtl8169_get_strings(struct net_device *dev, u32 stringset, u8 *data)
@@ -1943,6 +1969,108 @@ static const struct net_device_ops rtl8169_netdev_ops = {
 
 };
 
+/* Delay between EEPROM clock transitions. Force out buffered PCI writes. */
+#define RTL_EEPROM_DELAY()	RTL_R8(Cfg9346)
+#define RTL_EEPROM_READ_CMD	6
+
+/* read 16bit word stored in EEPROM. EEPROM is addressed by words. */
+static u16 rtl_eeprom_read(void __iomem *ioaddr, int addr)
+{
+	u16 result = 0;
+	int cmd, cmd_len, i;
+
+	/* check for EEPROM address size (in bits) */
+	if (RTL_R32(RxConfig) & (1 << RxCfg9356SEL)) {
+		/* EEPROM is 93C56 */
+		cmd_len = 3 + 8; /* 3 bits for command id and 8 for address */
+		cmd = (RTL_EEPROM_READ_CMD << 8) | (addr & 0xff);
+	} else {
+		/* EEPROM is 93C46 */
+		cmd_len = 3 + 6; /* 3 bits for command id and 6 for address */
+		cmd = (RTL_EEPROM_READ_CMD << 6) | (addr & 0x3f);
+	}
+
+	/* enter programming mode */
+	RTL_W8(Cfg9346, Cfg9346_Program | Cfg9346_EECS);
+	RTL_EEPROM_DELAY();
+
+	/* write command and requested address */
+	while (cmd_len--) {
+		u8 x = Cfg9346_Program | Cfg9346_EECS;
+
+		x |= (cmd & (1 << cmd_len)) ? Cfg9346_EEDI : 0;
+
+		/* write a bit */
+		RTL_W8(Cfg9346, x);
+		RTL_EEPROM_DELAY();
+
+		/* raise clock */
+		RTL_W8(Cfg9346, x | Cfg9346_EESK);
+		RTL_EEPROM_DELAY();
+	}
+
+	/* lower clock */
+	RTL_W8(Cfg9346, Cfg9346_Program | Cfg9346_EECS);
+	RTL_EEPROM_DELAY();
+
+	/* read back 16bit value */
+	for (i = 16; i > 0; i--) {
+		/* raise clock */
+		RTL_W8(Cfg9346, Cfg9346_Program | Cfg9346_EECS | Cfg9346_EESK);
+		RTL_EEPROM_DELAY();
+
+		result <<= 1;
+		result |= (RTL_R8(Cfg9346) & Cfg9346_EEDO) ? 1 : 0;
+
+		/* lower clock */
+		RTL_W8(Cfg9346, Cfg9346_Program | Cfg9346_EECS);
+		RTL_EEPROM_DELAY();
+	}
+
+	RTL_W8(Cfg9346, Cfg9346_Program);
+	/* leave programming mode */
+	RTL_W8(Cfg9346, Cfg9346_Lock);
+
+	return result;
+}
+
+static void rtl_init_mac_address(struct rtl8169_private *tp,
+				 void __iomem *ioaddr)
+{
+	struct pci_dev *pdev = tp->pci_dev;
+	u16 x;
+	u8 mac[8];
+
+	/* read EEPROM signature */
+	x = rtl_eeprom_read(ioaddr, RTL_EEPROM_SIG_ADDR);
+
+	if (x != RTL_EEPROM_SIG) {
+		dev_info(&pdev->dev, "Missing EEPROM signature: %04x\n", x);
+		return;
+	}
+
+	/* read MAC address */
+	x = rtl_eeprom_read(ioaddr, RTL_EEPROM_MAC_ADDR);
+	mac[0] = x & 0xff;
+	mac[1] = x >> 8;
+	x = rtl_eeprom_read(ioaddr, RTL_EEPROM_MAC_ADDR + 1);
+	mac[2] = x & 0xff;
+	mac[3] = x >> 8;
+	x = rtl_eeprom_read(ioaddr, RTL_EEPROM_MAC_ADDR + 2);
+	mac[4] = x & 0xff;
+	mac[5] = x >> 8;
+
+	if (netif_msg_probe(tp)) {
+		DECLARE_MAC_BUF(buf);
+
+		dev_info(&pdev->dev, "MAC address found in EEPROM: %s\n",
+			 print_mac(buf, mac));
+	}
+
+	if (is_valid_ether_addr(mac))
+		rtl_rar_set(tp, mac);
+}
+
 static int __devinit
 rtl8169_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
@@ -2120,6 +2248,8 @@ rtl8169_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	spin_lock_init(&tp->lock);
 
 	tp->mmio_addr = ioaddr;
+
+	rtl_init_mac_address(tp, ioaddr);
 
 	/* Get MAC address */
 	for (i = 0; i < MAC_ADDR_LEN; i++)
@@ -3681,6 +3811,9 @@ static int rtl8169_close(struct net_device *dev)
 {
 	struct rtl8169_private *tp = netdev_priv(dev);
 	struct pci_dev *pdev = tp->pci_dev;
+
+	/* update counters before going down */
+	rtl8169_update_counters(dev);
 
 	rtl8169_down(dev);
 

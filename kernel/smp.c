@@ -18,6 +18,7 @@ __cacheline_aligned_in_smp DEFINE_SPINLOCK(call_function_lock);
 enum {
 	CSD_FLAG_WAIT		= 0x01,
 	CSD_FLAG_ALLOC		= 0x02,
+	CSD_FLAG_LOCK		= 0x04,
 };
 
 struct call_function_data {
@@ -186,6 +187,9 @@ void generic_smp_call_function_single_interrupt(void)
 			if (data_flags & CSD_FLAG_WAIT) {
 				smp_wmb();
 				data->flags &= ~CSD_FLAG_WAIT;
+			} else if (data_flags & CSD_FLAG_LOCK) {
+				smp_wmb();
+				data->flags &= ~CSD_FLAG_LOCK;
 			} else if (data_flags & CSD_FLAG_ALLOC)
 				kfree(data);
 		}
@@ -195,6 +199,8 @@ void generic_smp_call_function_single_interrupt(void)
 		smp_read_barrier_depends();
 	}
 }
+
+static DEFINE_PER_CPU(struct call_single_data, csd_data);
 
 /*
  * smp_call_function_single - Run a function on a specific CPU
@@ -224,14 +230,38 @@ int smp_call_function_single(int cpu, void (*func) (void *info), void *info,
 		func(info);
 		local_irq_restore(flags);
 	} else if ((unsigned)cpu < nr_cpu_ids && cpu_online(cpu)) {
-		struct call_single_data *data = NULL;
+		struct call_single_data *data;
 
 		if (!wait) {
+			/*
+			 * We are calling a function on a single CPU
+			 * and we are not going to wait for it to finish.
+			 * We first try to allocate the data, but if we
+			 * fail, we fall back to use a per cpu data to pass
+			 * the information to that CPU. Since all callers
+			 * of this code will use the same data, we must
+			 * synchronize the callers to prevent a new caller
+			 * from corrupting the data before the callee
+			 * can access it.
+			 *
+			 * The CSD_FLAG_LOCK is used to let us know when
+			 * the IPI handler is done with the data.
+			 * The first caller will set it, and the callee
+			 * will clear it. The next caller must wait for
+			 * it to clear before we set it again. This
+			 * will make sure the callee is done with the
+			 * data before a new caller will use it.
+			 */
 			data = kmalloc(sizeof(*data), GFP_ATOMIC);
 			if (data)
 				data->flags = CSD_FLAG_ALLOC;
-		}
-		if (!data) {
+			else {
+				data = &per_cpu(csd_data, me);
+				while (data->flags & CSD_FLAG_LOCK)
+					cpu_relax();
+				data->flags = CSD_FLAG_LOCK;
+			}
+		} else {
 			data = &d;
 			data->flags = CSD_FLAG_WAIT;
 		}

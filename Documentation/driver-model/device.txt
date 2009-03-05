@@ -127,9 +127,11 @@ void unlock_device(struct device * dev);
 Attributes
 ~~~~~~~~~~
 struct device_attribute {
-        struct attribute        attr;
-        ssize_t (*show)(struct device * dev, char * buf, size_t count, loff_t off);
-        ssize_t (*store)(struct device * dev, const char * buf, size_t count, loff_t off);
+	struct attribute	attr;
+	ssize_t (*show)(struct device *dev, struct device_attribute *attr,
+			char *buf);
+	ssize_t (*store)(struct device *dev, struct device_attribute *attr,
+			 const char *buf, size_t count);
 };
 
 Attributes of devices can be exported via drivers using a simple

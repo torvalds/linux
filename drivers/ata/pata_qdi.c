@@ -12,7 +12,7 @@
  *
  * Probe code based on drivers/ide/legacy/qd65xx.c
  * Rewritten from the work of Colten Edwards <pje120@cs.usask.ca> by
- * Samuel Thibault <samuel.thibault@fnac.net>
+ * Samuel Thibault <samuel.thibault@ens-lyon.org>
  */
 
 #include <linux/kernel.h>
