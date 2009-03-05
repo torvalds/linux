@@ -356,6 +356,27 @@ static int rtas_msi_check_device(struct pci_dev *pdev, int nvec, int type)
 	return 0;
 }
 
+static int check_msix_entries(struct pci_dev *pdev)
+{
+	struct msi_desc *entry;
+	int expected;
+
+	/* There's no way for us to express to firmware that we want
+	 * a discontiguous, or non-zero based, range of MSI-X entries.
+	 * So we must reject such requests. */
+
+	expected = 0;
+	list_for_each_entry(entry, &pdev->msi_list, list) {
+		if (entry->msi_attrib.entry_nr != expected) {
+			pr_debug("rtas_msi: bad MSI-X entries.\n");
+			return -EINVAL;
+		}
+		expected++;
+	}
+
+	return 0;
+}
+
 static int rtas_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type)
 {
 	struct pci_dn *pdn;
@@ -366,6 +387,9 @@ static int rtas_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type)
 	pdn = get_pdn(pdev);
 	if (!pdn)
 		return -ENODEV;
+
+	if (type == PCI_CAP_ID_MSIX && check_msix_entries(pdev))
+		return -EINVAL;
 
 	/*
 	 * Try the new more explicit firmware interface, if that fails fall
