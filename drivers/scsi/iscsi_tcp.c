@@ -813,6 +813,12 @@ static void iscsi_sw_tcp_session_destroy(struct iscsi_cls_session *cls_session)
 	iscsi_host_free(shost);
 }
 
+static int iscsi_sw_tcp_slave_alloc(struct scsi_device *sdev)
+{
+	set_bit(QUEUE_FLAG_BIDI, &sdev->request_queue->queue_flags);
+	return 0;
+}
+
 static int iscsi_sw_tcp_slave_configure(struct scsi_device *sdev)
 {
 	blk_queue_bounce_limit(sdev->request_queue, BLK_BOUNCE_ANY);
@@ -833,6 +839,7 @@ static struct scsi_host_template iscsi_sw_tcp_sht = {
 	.eh_device_reset_handler= iscsi_eh_device_reset,
 	.eh_target_reset_handler= iscsi_eh_target_reset,
 	.use_clustering         = DISABLE_CLUSTERING,
+	.slave_alloc            = iscsi_sw_tcp_slave_alloc,
 	.slave_configure        = iscsi_sw_tcp_slave_configure,
 	.proc_name		= "iscsi_tcp",
 	.this_id		= -1,
