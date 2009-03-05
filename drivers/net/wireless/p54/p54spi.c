@@ -694,15 +694,10 @@ static int __devinit p54spi_probe(struct spi_device *spi)
 	if (ret)
 		goto err_free_common;
 
-	ret = ieee80211_register_hw(hw);
-	if (ret) {
-		dev_err(&priv->spi->dev, "unable to register "
-					 "mac80211 hw: %d", ret);
+	ret = p54_register_common(hw, &priv->spi->dev);
+	if (ret)
 		goto err_free_common;
-	}
 
-	dev_info(&priv->spi->dev, "device is bound to %s\n",
-		 wiphy_name(hw->wiphy));
 	return 0;
 
 err_free_common:

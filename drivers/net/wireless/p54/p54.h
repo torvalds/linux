@@ -165,6 +165,7 @@ int p54_parse_firmware(struct ieee80211_hw *dev, const struct firmware *fw);
 int p54_parse_eeprom(struct ieee80211_hw *dev, void *eeprom, int len);
 int p54_read_eeprom(struct ieee80211_hw *dev);
 struct ieee80211_hw *p54_init_common(size_t priv_data_len);
+int p54_register_common(struct ieee80211_hw *dev, struct device *pdev);
 void p54_free_common(struct ieee80211_hw *dev);
 
 #endif /* P54_H */

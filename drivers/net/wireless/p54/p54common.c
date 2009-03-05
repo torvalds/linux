@@ -2489,6 +2489,21 @@ struct ieee80211_hw *p54_init_common(size_t priv_data_len)
 }
 EXPORT_SYMBOL_GPL(p54_init_common);
 
+int p54_register_common(struct ieee80211_hw *dev, struct device *pdev)
+{
+	int err;
+
+	err = ieee80211_register_hw(dev);
+	if (err) {
+		dev_err(pdev, "Cannot register device (%d).\n", err);
+		return err;
+	}
+
+	dev_info(pdev, "is registered as '%s'\n", wiphy_name(dev->wiphy));
+	return 0;
+}
+EXPORT_SYMBOL_GPL(p54_register_common);
+
 void p54_free_common(struct ieee80211_hw *dev)
 {
 	struct p54_common *priv = dev->priv;

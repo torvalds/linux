@@ -565,12 +565,9 @@ static int __devinit p54p_probe(struct pci_dev *pdev,
 	if (err)
 		goto err_free_common;
 
-	err = ieee80211_register_hw(dev);
-	if (err) {
-		printk(KERN_ERR "%s (p54pci): Cannot register netdevice\n",
-		       pci_name(pdev));
+	err = p54_register_common(dev, &pdev->dev);
+	if (err)
 		goto err_free_common;
-	}
 
 	return 0;
 
