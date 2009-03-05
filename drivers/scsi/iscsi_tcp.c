@@ -777,10 +777,11 @@ iscsi_sw_tcp_session_create(struct iscsi_endpoint *ep, uint16_t cmds_max,
 		return NULL;
 	}
 
-	shost = iscsi_host_alloc(&iscsi_sw_tcp_sht, 0, qdepth, 1);
+	shost = iscsi_host_alloc(&iscsi_sw_tcp_sht, 0, 1);
 	if (!shost)
 		return NULL;
 	shost->transportt = iscsi_sw_tcp_scsi_transport;
+	shost->cmd_per_lun = qdepth;
 	shost->max_lun = iscsi_max_lun;
 	shost->max_id = 0;
 	shost->max_channel = 0;

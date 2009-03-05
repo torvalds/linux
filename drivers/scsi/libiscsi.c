@@ -2046,6 +2046,9 @@ int iscsi_host_add(struct Scsi_Host *shost, struct device *pdev)
 	if (!shost->can_queue)
 		shost->can_queue = ISCSI_DEF_XMIT_CMDS_MAX;
 
+	if (!shost->cmd_per_lun)
+		shost->cmd_per_lun = ISCSI_DEF_CMD_PER_LUN;
+
 	if (!shost->transportt->eh_timed_out)
 		shost->transportt->eh_timed_out = iscsi_eh_cmd_timed_out;
 	return scsi_add_host(shost, pdev);
@@ -2056,15 +2059,13 @@ EXPORT_SYMBOL_GPL(iscsi_host_add);
  * iscsi_host_alloc - allocate a host and driver data
  * @sht: scsi host template
  * @dd_data_size: driver host data size
- * @qdepth: default device queue depth
  * @xmit_can_sleep: bool indicating if LLD will queue IO from a work queue
  *
  * This should be called by partial offload and software iscsi drivers.
  * To access the driver specific memory use the iscsi_host_priv() macro.
  */
 struct Scsi_Host *iscsi_host_alloc(struct scsi_host_template *sht,
-				   int dd_data_size, uint16_t qdepth,
-				   bool xmit_can_sleep)
+				   int dd_data_size, bool xmit_can_sleep)
 {
 	struct Scsi_Host *shost;
 	struct iscsi_host *ihost;
@@ -2072,10 +2073,6 @@ struct Scsi_Host *iscsi_host_alloc(struct scsi_host_template *sht,
 	shost = scsi_host_alloc(sht, sizeof(struct iscsi_host) + dd_data_size);
 	if (!shost)
 		return NULL;
-
-	if (qdepth == 0)
-		qdepth = ISCSI_DEF_CMD_PER_LUN;
-	shost->cmd_per_lun = qdepth;
 	ihost = shost_priv(shost);
 
 	if (xmit_can_sleep) {

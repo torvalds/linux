@@ -170,8 +170,7 @@ struct cxgb3i_hba *cxgb3i_hba_host_add(struct cxgb3i_adapter *snic,
 	int err;
 
 	shost = iscsi_host_alloc(&cxgb3i_host_template,
-				 sizeof(struct cxgb3i_hba),
-				 CXGB3I_SCSI_QDEPTH_DFLT, 1);
+				 sizeof(struct cxgb3i_hba), 1);
 	if (!shost) {
 		cxgb3i_log_info("iscsi_host_alloc failed.\n");
 		return NULL;
@@ -843,7 +842,7 @@ static struct scsi_host_template cxgb3i_host_template = {
 	.can_queue		= CXGB3I_SCSI_QDEPTH_DFLT - 1,
 	.sg_tablesize		= SG_ALL,
 	.max_sectors		= 0xFFFF,
-	.cmd_per_lun		= ISCSI_DEF_CMD_PER_LUN,
+	.cmd_per_lun		= CXGB3I_SCSI_QDEPTH_DFLT,
 	.eh_abort_handler	= iscsi_eh_abort,
 	.eh_device_reset_handler = iscsi_eh_device_reset,
 	.eh_target_reset_handler = iscsi_eh_target_reset,

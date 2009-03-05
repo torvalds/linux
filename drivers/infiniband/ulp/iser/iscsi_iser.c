@@ -404,7 +404,7 @@ iscsi_iser_session_create(struct iscsi_endpoint *ep,
 	struct Scsi_Host *shost;
 	struct iser_conn *ib_conn;
 
-	shost = iscsi_host_alloc(&iscsi_iser_sht, 0, ISER_DEF_CMD_PER_LUN, 1);
+	shost = iscsi_host_alloc(&iscsi_iser_sht, 0, 1);
 	if (!shost)
 		return NULL;
 	shost->transportt = iscsi_iser_scsi_transport;
