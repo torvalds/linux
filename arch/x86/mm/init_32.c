@@ -855,24 +855,33 @@ static void __init find_early_table_space(unsigned long end, int use_pse,
 		unsigned long extra;
 
 		extra = end - ((end>>PMD_SHIFT) << PMD_SHIFT);
+#ifdef CONFIG_X86_32
 		extra += PMD_SIZE;
+#endif
 		ptes = (extra + PAGE_SIZE - 1) >> PAGE_SHIFT;
 	} else
 		ptes = (end + PAGE_SIZE - 1) >> PAGE_SHIFT;
 
 	tables += roundup(ptes * sizeof(pte_t), PAGE_SIZE);
 
+#ifdef CONFIG_X86_32
 	/* for fixmap */
 	tables += roundup(__end_of_fixed_addresses * sizeof(pte_t), PAGE_SIZE);
+#endif
 
 	/*
 	 * RED-PEN putting page tables only on node 0 could
 	 * cause a hotspot and fill up ZONE_DMA. The page tables
 	 * need roughly 0.5KB per GB.
 	 */
+#ifdef CONFIG_X86_32
 	start = 0x7000;
 	table_start = find_e820_area(start, max_pfn_mapped<<PAGE_SHIFT,
 					tables, PAGE_SIZE);
+#else /* CONFIG_X86_64 */
+	start = 0x8000;
+	table_start = find_e820_area(start, end, tables, PAGE_SIZE);
+#endif
 	if (table_start == -1UL)
 		panic("Cannot find space for the kernel page tables");
 
