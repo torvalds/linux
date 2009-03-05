@@ -3464,10 +3464,10 @@ static irqreturn_t nv_nic_irq(int foo, void *data)
 
 	if (!(np->msi_flags & NV_MSI_X_ENABLED)) {
 		np->events = readl(base + NvRegIrqStatus);
-		writel(NVREG_IRQSTAT_MASK, base + NvRegIrqStatus);
+		writel(np->events, base + NvRegIrqStatus);
 	} else {
 		np->events = readl(base + NvRegMSIXIrqStatus);
-		writel(NVREG_IRQSTAT_MASK, base + NvRegMSIXIrqStatus);
+		writel(np->events, base + NvRegMSIXIrqStatus);
 	}
 	dprintk(KERN_DEBUG "%s: irq: %08x\n", dev->name, np->events);
 	if (!(np->events & np->irqmask))
@@ -3476,14 +3476,11 @@ static irqreturn_t nv_nic_irq(int foo, void *data)
 	nv_msi_workaround(np);
 
 #ifdef CONFIG_FORCEDETH_NAPI
-	spin_lock(&np->lock);
 	napi_schedule(&np->napi);
 
 	/* Disable furthur irq's
 	   (msix not enabled with napi) */
 	writel(0, base + NvRegIrqMask);
-
-	spin_unlock(&np->lock);
 
 #else
 	do
@@ -3568,10 +3565,10 @@ static irqreturn_t nv_nic_irq_optimized(int foo, void *data)
 
 	if (!(np->msi_flags & NV_MSI_X_ENABLED)) {
 		np->events = readl(base + NvRegIrqStatus);
-		writel(NVREG_IRQSTAT_MASK, base + NvRegIrqStatus);
+		writel(np->events, base + NvRegIrqStatus);
 	} else {
 		np->events = readl(base + NvRegMSIXIrqStatus);
-		writel(NVREG_IRQSTAT_MASK, base + NvRegMSIXIrqStatus);
+		writel(np->events, base + NvRegMSIXIrqStatus);
 	}
 	dprintk(KERN_DEBUG "%s: irq: %08x\n", dev->name, np->events);
 	if (!(np->events & np->irqmask))
@@ -3580,14 +3577,11 @@ static irqreturn_t nv_nic_irq_optimized(int foo, void *data)
 	nv_msi_workaround(np);
 
 #ifdef CONFIG_FORCEDETH_NAPI
-	spin_lock(&np->lock);
 	napi_schedule(&np->napi);
 
 	/* Disable furthur irq's
 	   (msix not enabled with napi) */
 	writel(0, base + NvRegIrqMask);
-
-	spin_unlock(&np->lock);
 
 #else
 	do
@@ -3758,13 +3752,9 @@ static int nv_napi_poll(struct napi_struct *napi, int budget)
 	if (rx_work < budget) {
 		/* re-enable interrupts
 		   (msix not enabled in napi) */
-		spin_lock_irqsave(&np->lock, flags);
-
 		__napi_complete(napi);
 
 		writel(np->irqmask, base + NvRegIrqMask);
-
-		spin_unlock_irqrestore(&np->lock, flags);
 	}
 	return rx_work;
 }
