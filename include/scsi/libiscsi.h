@@ -45,13 +45,6 @@ struct iscsi_session;
 struct iscsi_nopin;
 struct device;
 
-/* #define DEBUG_SCSI */
-#ifdef DEBUG_SCSI
-#define debug_scsi(fmt...) printk(KERN_INFO "iscsi: " fmt)
-#else
-#define debug_scsi(fmt...)
-#endif
-
 #define ISCSI_DEF_XMIT_CMDS_MAX	128	/* must be power of 2 */
 #define ISCSI_MGMT_CMDS_MAX	15
 
