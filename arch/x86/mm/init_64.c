@@ -48,6 +48,7 @@
 #include <asm/kdebug.h>
 #include <asm/numa.h>
 #include <asm/cacheflush.h>
+#include <asm/init.h>
 
 /*
  * end_pfn only includes RAM, while max_pfn_mapped includes all e820 entries.
@@ -282,10 +283,6 @@ void __init cleanup_highmap(void)
 			set_pmd(pmd, __pmd(0));
 	}
 }
-
-extern unsigned long __initdata e820_table_start;
-extern unsigned long __meminitdata e820_table_end;
-extern unsigned long __meminitdata e820_table_top;
 
 static __ref void *alloc_low_page(unsigned long *phys)
 {

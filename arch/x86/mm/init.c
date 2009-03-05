@@ -3,20 +3,12 @@
 
 #include <asm/cacheflush.h>
 #include <asm/e820.h>
+#include <asm/init.h>
 #include <asm/page.h>
 #include <asm/page_types.h>
 #include <asm/sections.h>
 #include <asm/system.h>
 #include <asm/tlbflush.h>
-
-#ifdef CONFIG_X86_32
-extern void __init early_ioremap_page_table_range_init(void);
-#endif
-
-extern unsigned long __init
-kernel_physical_mapping_init(unsigned long start,
-			     unsigned long end,
-			     unsigned long page_size_mask);
 
 unsigned long __initdata e820_table_start;
 unsigned long __meminitdata e820_table_end;

@@ -49,6 +49,7 @@
 #include <asm/paravirt.h>
 #include <asm/setup.h>
 #include <asm/cacheflush.h>
+#include <asm/init.h>
 
 unsigned long max_low_pfn_mapped;
 unsigned long max_pfn_mapped;
@@ -57,11 +58,6 @@ DEFINE_PER_CPU(struct mmu_gather, mmu_gathers);
 unsigned long highstart_pfn, highend_pfn;
 
 static noinline int do_test_wp_bit(void);
-
-
-extern unsigned long __initdata e820_table_start;
-extern unsigned long __meminitdata e820_table_end;
-extern unsigned long __meminitdata e820_table_top;
 
 static __init void *alloc_low_page(void)
 {
