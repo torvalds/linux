@@ -111,6 +111,12 @@ parse_panel_data(struct drm_i915_private *dev_priv, struct bdb_header *bdb)
 	panel_fixed_mode->clock = dvo_timing->clock * 10;
 	panel_fixed_mode->type = DRM_MODE_TYPE_PREFERRED;
 
+	/* Some VBTs have bogus h/vtotal values */
+	if (panel_fixed_mode->hsync_end > panel_fixed_mode->htotal)
+		panel_fixed_mode->htotal = panel_fixed_mode->hsync_end + 1;
+	if (panel_fixed_mode->vsync_end > panel_fixed_mode->vtotal)
+		panel_fixed_mode->vtotal = panel_fixed_mode->vsync_end + 1;
+
 	drm_mode_set_name(panel_fixed_mode);
 
 	dev_priv->vbt_mode = panel_fixed_mode;
@@ -135,6 +141,14 @@ parse_general_features(struct drm_i915_private *dev_priv,
 	if (general) {
 		dev_priv->int_tv_support = general->int_tv_support;
 		dev_priv->int_crt_support = general->int_crt_support;
+		dev_priv->lvds_use_ssc = general->enable_ssc;
+
+		if (dev_priv->lvds_use_ssc) {
+		  if (IS_I855(dev_priv->dev))
+		    dev_priv->lvds_ssc_freq = general->ssc_freq ? 66 : 48;
+		  else
+		    dev_priv->lvds_ssc_freq = general->ssc_freq ? 100 : 96;
+		}
 	}
 }
 

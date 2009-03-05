@@ -493,21 +493,27 @@ static bool receive_pcb(struct net_device *dev, pcb_struct * pcb)
 	}
 	/* read the data */
 	spin_lock_irqsave(&adapter->lock, flags);
-	i = 0;
-	do {
-		j = 0;
-		while (((stat = get_status(dev->base_addr)) & ACRF) == 0 && j++ < 20000);
-		pcb->data.raw[i++] = inb_command(dev->base_addr);
-		if (i > MAX_PCB_DATA)
-			INVALID_PCB_MSG(i);
-	} while ((stat & ASF_PCB_MASK) != ASF_PCB_END && j < 20000);
+	for (i = 0; i < MAX_PCB_DATA; i++) {
+		for (j = 0; j < 20000; j++) {
+			stat = get_status(dev->base_addr);
+			if (stat & ACRF)
+				break;
+		}
+		pcb->data.raw[i] = inb_command(dev->base_addr);
+		if ((stat & ASF_PCB_MASK) == ASF_PCB_END || j >= 20000)
+			break;
+	}
 	spin_unlock_irqrestore(&adapter->lock, flags);
+	if (i >= MAX_PCB_DATA) {
+		INVALID_PCB_MSG(i);
+		return false;
+	}
 	if (j >= 20000) {
 		TIMEOUT_MSG(__LINE__);
 		return false;
 	}
-	/* woops, the last "data" byte was really the length! */
-	total_length = pcb->data.raw[--i];
+	/* the last "data" byte was really the length! */
+	total_length = pcb->data.raw[i];
 
 	/* safety check total length vs data length */
 	if (total_length != (pcb->length + 2)) {

@@ -53,7 +53,7 @@ struct cpl_rx_data_ddp_norss {
 #define ULP2_FLAG_DCRC_ERROR		0x20
 #define ULP2_FLAG_PAD_ERROR		0x40
 
-void cxgb3i_conn_closing(struct s3_conn *);
+void cxgb3i_conn_closing(struct s3_conn *c3cn);
 void cxgb3i_conn_pdu_ready(struct s3_conn *c3cn);
 void cxgb3i_conn_tx_open(struct s3_conn *c3cn);
 #endif

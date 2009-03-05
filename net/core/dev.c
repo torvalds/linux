@@ -1090,7 +1090,7 @@ int dev_open(struct net_device *dev)
 		/*
 		 *	Enable NET_DMA
 		 */
-		dmaengine_get();
+		net_dmaengine_get();
 
 		/*
 		 *	Initialize multicasting status
@@ -1172,7 +1172,7 @@ int dev_close(struct net_device *dev)
 	/*
 	 *	Shutdown NET_DMA
 	 */
-	dmaengine_put();
+	net_dmaengine_put();
 
 	return 0;
 }
@@ -2488,6 +2488,9 @@ static int __napi_gro_receive(struct napi_struct *napi, struct sk_buff *skb)
 
 int napi_gro_receive(struct napi_struct *napi, struct sk_buff *skb)
 {
+	if (netpoll_receive_skb(skb))
+		return NET_RX_DROP;
+
 	switch (__napi_gro_receive(napi, skb)) {
 	case -1:
 		return netif_receive_skb(skb);
@@ -2556,6 +2559,9 @@ int napi_gro_frags(struct napi_struct *napi, struct napi_gro_fraginfo *info)
 	int err = NET_RX_DROP;
 
 	if (!skb)
+		goto out;
+
+	if (netpoll_receive_skb(skb))
 		goto out;
 
 	err = NET_RX_SUCCESS;

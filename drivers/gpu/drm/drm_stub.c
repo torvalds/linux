@@ -146,14 +146,6 @@ static void drm_master_destroy(struct kref *kref)
 
 	drm_ht_remove(&master->magiclist);
 
-	if (master->lock.hw_lock) {
-		if (dev->sigdata.lock == master->lock.hw_lock)
-			dev->sigdata.lock = NULL;
-		master->lock.hw_lock = NULL;
-		master->lock.file_priv = NULL;
-		wake_up_interruptible(&master->lock.lock_queue);
-	}
-
 	drm_free(master, sizeof(*master), DRM_MEM_DRIVER);
 }
 

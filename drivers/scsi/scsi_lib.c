@@ -1040,12 +1040,11 @@ void scsi_io_completion(struct scsi_cmnd *cmd, unsigned int good_bytes)
 				action = ACTION_FAIL;
 			break;
 		case ABORTED_COMMAND:
+			action = ACTION_FAIL;
 			if (sshdr.asc == 0x10) { /* DIF */
 				description = "Target Data Integrity Failure";
-				action = ACTION_FAIL;
 				error = -EILSEQ;
-			} else
-				action = ACTION_RETRY;
+			}
 			break;
 		case NOT_READY:
 			/* If the device is in the process of becoming

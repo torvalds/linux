@@ -411,7 +411,7 @@ struct tv_mode {
  * These values account for -1s required.
  */
 
-const static struct tv_mode tv_modes[] = {
+static const struct tv_mode tv_modes[] = {
 	{
 		.name		= "NTSC-M",
 		.clock		= 107520,

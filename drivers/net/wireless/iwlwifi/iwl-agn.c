@@ -4042,7 +4042,19 @@ static int iwl_pci_suspend(struct pci_dev *pdev, pm_message_t state)
 		priv->is_open = 1;
 	}
 
-	pci_save_state(pdev);
+	/* pci driver assumes state will be saved in this function.
+	 * pci state is saved and device disabled when interface is
+	 * stopped, so at this time pci device will always be disabled -
+	 * whether interface was started or not. saving pci state now will
+	 * cause saved state be that of a disabled device, which will cause
+	 * problems during resume in that we will end up with a disabled device.
+	 *
+	 * indicate that the current saved state (from when interface was
+	 * stopped) is valid. if interface was never up at time of suspend
+	 * then the saved state will still be valid as it was saved during
+	 * .probe. */
+	pdev->state_saved = true;
+
 	pci_set_power_state(pdev, PCI_D3hot);
 
 	return 0;
@@ -4053,7 +4065,6 @@ static int iwl_pci_resume(struct pci_dev *pdev)
 	struct iwl_priv *priv = pci_get_drvdata(pdev);
 
 	pci_set_power_state(pdev, PCI_D0);
-	pci_restore_state(pdev);
 
 	if (priv->is_open)
 		iwl_mac_start(priv->hw);

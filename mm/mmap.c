@@ -918,7 +918,6 @@ unsigned long do_mmap_pgoff(struct file *file, unsigned long addr,
 	struct inode *inode;
 	unsigned int vm_flags;
 	int error;
-	int accountable = 1;
 	unsigned long reqprot = prot;
 
 	/*
@@ -1019,8 +1018,6 @@ unsigned long do_mmap_pgoff(struct file *file, unsigned long addr,
 					return -EPERM;
 				vm_flags &= ~VM_MAYEXEC;
 			}
-			if (is_file_hugepages(file))
-				accountable = 0;
 
 			if (!file->f_op || !file->f_op->mmap)
 				return -ENODEV;
@@ -1053,8 +1050,7 @@ unsigned long do_mmap_pgoff(struct file *file, unsigned long addr,
 	if (error)
 		return error;
 
-	return mmap_region(file, addr, len, flags, vm_flags, pgoff,
-			   accountable);
+	return mmap_region(file, addr, len, flags, vm_flags, pgoff);
 }
 EXPORT_SYMBOL(do_mmap_pgoff);
 
@@ -1092,17 +1088,23 @@ int vma_wants_writenotify(struct vm_area_struct *vma)
 
 /*
  * We account for memory if it's a private writeable mapping,
- * and VM_NORESERVE wasn't set.
+ * not hugepages and VM_NORESERVE wasn't set.
  */
-static inline int accountable_mapping(unsigned int vm_flags)
+static inline int accountable_mapping(struct file *file, unsigned int vm_flags)
 {
+	/*
+	 * hugetlb has its own accounting separate from the core VM
+	 * VM_HUGETLB may not be set yet so we cannot check for that flag.
+	 */
+	if (file && is_file_hugepages(file))
+		return 0;
+
 	return (vm_flags & (VM_NORESERVE | VM_SHARED | VM_WRITE)) == VM_WRITE;
 }
 
 unsigned long mmap_region(struct file *file, unsigned long addr,
 			  unsigned long len, unsigned long flags,
-			  unsigned int vm_flags, unsigned long pgoff,
-			  int accountable)
+			  unsigned int vm_flags, unsigned long pgoff)
 {
 	struct mm_struct *mm = current->mm;
 	struct vm_area_struct *vma, *prev;
@@ -1128,18 +1130,22 @@ munmap_back:
 
 	/*
 	 * Set 'VM_NORESERVE' if we should not account for the
-	 * memory use of this mapping. We only honor MAP_NORESERVE
-	 * if we're allowed to overcommit memory.
+	 * memory use of this mapping.
 	 */
-	if ((flags & MAP_NORESERVE) && sysctl_overcommit_memory != OVERCOMMIT_NEVER)
-		vm_flags |= VM_NORESERVE;
-	if (!accountable)
-		vm_flags |= VM_NORESERVE;
+	if ((flags & MAP_NORESERVE)) {
+		/* We honor MAP_NORESERVE if allowed to overcommit */
+		if (sysctl_overcommit_memory != OVERCOMMIT_NEVER)
+			vm_flags |= VM_NORESERVE;
+
+		/* hugetlb applies strict overcommit unless MAP_NORESERVE */
+		if (file && is_file_hugepages(file))
+			vm_flags |= VM_NORESERVE;
+	}
 
 	/*
 	 * Private writable mapping: check memory availability
 	 */
-	if (accountable_mapping(vm_flags)) {
+	if (accountable_mapping(file, vm_flags)) {
 		charged = len >> PAGE_SHIFT;
 		if (security_vm_enough_memory(charged))
 			return -ENOMEM;
@@ -2078,11 +2084,7 @@ void exit_mmap(struct mm_struct *mm)
 	unsigned long end;
 
 	/* mm's last user has gone, and its about to be pulled down */
-	arch_exit_mmap(mm);
 	mmu_notifier_release(mm);
-
-	if (!mm->mmap)	/* Can happen if dup_mmap() received an OOM */
-		return;
 
 	if (mm->locked_vm) {
 		vma = mm->mmap;
@@ -2092,7 +2094,13 @@ void exit_mmap(struct mm_struct *mm)
 			vma = vma->vm_next;
 		}
 	}
+
+	arch_exit_mmap(mm);
+
 	vma = mm->mmap;
+	if (!vma)	/* Can happen if dup_mmap() received an OOM */
+		return;
+
 	lru_add_drain();
 	flush_cache_mm(mm);
 	tlb = tlb_gather_mmu(mm, 1);

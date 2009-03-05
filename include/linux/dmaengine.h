@@ -121,6 +121,7 @@ struct dma_chan_percpu {
  * @local: per-cpu pointer to a struct dma_chan_percpu
  * @client-count: how many clients are using this channel
  * @table_count: number of appearances in the mem-to-mem allocation table
+ * @private: private data for certain client-channel associations
  */
 struct dma_chan {
 	struct dma_device *device;
@@ -134,6 +135,7 @@ struct dma_chan {
 	struct dma_chan_percpu *local;
 	int client_count;
 	int table_count;
+	void *private;
 };
 
 /**
@@ -278,6 +280,18 @@ static inline void dmaengine_get(void)
 {
 }
 static inline void dmaengine_put(void)
+{
+}
+#endif
+
+#ifdef CONFIG_NET_DMA
+#define net_dmaengine_get()	dmaengine_get()
+#define net_dmaengine_put()	dmaengine_put()
+#else
+static inline void net_dmaengine_get(void)
+{
+}
+static inline void net_dmaengine_put(void)
 {
 }
 #endif

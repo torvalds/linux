@@ -142,7 +142,7 @@ static void __blk_add_trace(struct blk_trace *bt, sector_t sector, int bytes,
 
 	what |= ddir_act[rw & WRITE];
 	what |= MASK_TC_BIT(rw, BARRIER);
-	what |= MASK_TC_BIT(rw, SYNC);
+	what |= MASK_TC_BIT(rw, SYNCIO);
 	what |= MASK_TC_BIT(rw, AHEAD);
 	what |= MASK_TC_BIT(rw, META);
 	what |= MASK_TC_BIT(rw, DISCARD);

@@ -898,6 +898,7 @@ static void ql_update_lbq(struct ql_adapter *qdev, struct rx_ring *rx_ring)
 					lbq_desc->index);
 				lbq_desc->p.lbq_page = alloc_page(GFP_ATOMIC);
 				if (lbq_desc->p.lbq_page == NULL) {
+					rx_ring->lbq_clean_idx = clean_idx;
 					QPRINTK(qdev, RX_STATUS, ERR,
 						"Couldn't get a page.\n");
 					return;
@@ -907,6 +908,9 @@ static void ql_update_lbq(struct ql_adapter *qdev, struct rx_ring *rx_ring)
 						   0, PAGE_SIZE,
 						   PCI_DMA_FROMDEVICE);
 				if (pci_dma_mapping_error(qdev->pdev, map)) {
+					rx_ring->lbq_clean_idx = clean_idx;
+					put_page(lbq_desc->p.lbq_page);
+					lbq_desc->p.lbq_page = NULL;
 					QPRINTK(qdev, RX_STATUS, ERR,
 						"PCI mapping failed.\n");
 					return;
@@ -968,6 +972,8 @@ static void ql_update_sbq(struct ql_adapter *qdev, struct rx_ring *rx_ring)
 				if (pci_dma_mapping_error(qdev->pdev, map)) {
 					QPRINTK(qdev, IFUP, ERR, "PCI mapping failed.\n");
 					rx_ring->sbq_clean_idx = clean_idx;
+					dev_kfree_skb_any(sbq_desc->p.skb);
+					sbq_desc->p.skb = NULL;
 					return;
 				}
 				pci_unmap_addr_set(sbq_desc, mapaddr, map);
@@ -1449,12 +1455,12 @@ static void ql_process_mac_rx_intr(struct ql_adapter *qdev,
 	if (qdev->vlgrp && (ib_mac_rsp->flags2 & IB_MAC_IOCB_RSP_V)) {
 		QPRINTK(qdev, RX_STATUS, DEBUG,
 			"Passing a VLAN packet upstream.\n");
-		vlan_hwaccel_rx(skb, qdev->vlgrp,
+		vlan_hwaccel_receive_skb(skb, qdev->vlgrp,
 				le16_to_cpu(ib_mac_rsp->vlan_id));
 	} else {
 		QPRINTK(qdev, RX_STATUS, DEBUG,
 			"Passing a normal packet upstream.\n");
-		netif_rx(skb);
+		netif_receive_skb(skb);
 	}
 }
 
@@ -1511,6 +1517,11 @@ void ql_queue_asic_error(struct ql_adapter *qdev)
 	netif_stop_queue(qdev->ndev);
 	netif_carrier_off(qdev->ndev);
 	ql_disable_interrupts(qdev);
+	/* Clear adapter up bit to signal the recovery
+	 * process that it shouldn't kill the reset worker
+	 * thread
+	 */
+	clear_bit(QL_ADAPTER_UP, &qdev->flags);
 	queue_delayed_work(qdev->workqueue, &qdev->asic_reset_work, 0);
 }
 
@@ -1927,10 +1938,6 @@ static int qlge_send(struct sk_buff *skb, struct net_device *ndev)
 	tx_ring_desc = &tx_ring->q[tx_ring->prod_idx];
 	mac_iocb_ptr = tx_ring_desc->queue_entry;
 	memset((void *)mac_iocb_ptr, 0, sizeof(mac_iocb_ptr));
-	if (ql_map_send(qdev, mac_iocb_ptr, skb, tx_ring_desc) != NETDEV_TX_OK) {
-		QPRINTK(qdev, TX_QUEUED, ERR, "Could not map the segments.\n");
-		return NETDEV_TX_BUSY;
-	}
 
 	mac_iocb_ptr->opcode = OPCODE_OB_MAC_IOCB;
 	mac_iocb_ptr->tid = tx_ring_desc->index;
@@ -1955,6 +1962,12 @@ static int qlge_send(struct sk_buff *skb, struct net_device *ndev)
 	} else if (unlikely(!tso) && (skb->ip_summed == CHECKSUM_PARTIAL)) {
 		ql_hw_csum_setup(skb,
 				 (struct ob_mac_tso_iocb_req *)mac_iocb_ptr);
+	}
+	if (ql_map_send(qdev, mac_iocb_ptr, skb, tx_ring_desc) !=
+			NETDEV_TX_OK) {
+		QPRINTK(qdev, TX_QUEUED, ERR,
+				"Could not map the segments.\n");
+		return NETDEV_TX_BUSY;
 	}
 	QL_DUMP_OB_MAC_IOCB(mac_iocb_ptr);
 	tx_ring->prod_idx++;
@@ -2873,8 +2886,8 @@ static int ql_start_rss(struct ql_adapter *qdev)
 	/*
 	 * Fill out the Indirection Table.
 	 */
-	for (i = 0; i < 32; i++)
-		hash_id[i] = i & 1;
+	for (i = 0; i < 256; i++)
+		hash_id[i] = i & (qdev->rss_ring_count - 1);
 
 	/*
 	 * Random values for the IPv6 and IPv4 Hash Keys.
@@ -3100,7 +3113,11 @@ static int ql_adapter_down(struct ql_adapter *qdev)
 	netif_stop_queue(ndev);
 	netif_carrier_off(ndev);
 
-	cancel_delayed_work_sync(&qdev->asic_reset_work);
+	/* Don't kill the reset worker thread if we
+	 * are in the process of recovery.
+	 */
+	if (test_bit(QL_ADAPTER_UP, &qdev->flags))
+		cancel_delayed_work_sync(&qdev->asic_reset_work);
 	cancel_delayed_work_sync(&qdev->mpi_reset_work);
 	cancel_delayed_work_sync(&qdev->mpi_work);
 
@@ -3501,7 +3518,7 @@ static int qlge_set_mac_address(struct net_device *ndev, void *p)
 static void qlge_tx_timeout(struct net_device *ndev)
 {
 	struct ql_adapter *qdev = (struct ql_adapter *)netdev_priv(ndev);
-	queue_delayed_work(qdev->workqueue, &qdev->asic_reset_work, 0);
+	ql_queue_asic_error(qdev);
 }
 
 static void ql_asic_reset_work(struct work_struct *work)

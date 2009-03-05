@@ -210,6 +210,7 @@ static void do_usb_table(void *symval, unsigned long size,
 static int do_hid_entry(const char *filename,
 			     struct hid_device_id *id, char *alias)
 {
+	id->bus = TO_NATIVE(id->bus);
 	id->vendor = TO_NATIVE(id->vendor);
 	id->product = TO_NATIVE(id->product);
 

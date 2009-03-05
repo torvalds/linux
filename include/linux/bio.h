@@ -171,8 +171,6 @@ struct bio {
 #define BIO_RW_FAILFAST_TRANSPORT	8
 #define BIO_RW_FAILFAST_DRIVER		9
 
-#define BIO_RW_SYNC	(BIO_RW_SYNCIO | BIO_RW_UNPLUG)
-
 #define bio_rw_flagged(bio, flag)	((bio)->bi_rw & (1 << (flag)))
 
 /*
