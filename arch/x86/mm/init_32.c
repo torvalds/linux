@@ -806,11 +806,6 @@ static unsigned long __init setup_node_bootmem(int nodeid,
 {
 	unsigned long bootmap_size;
 
-	if (start_pfn > max_low_pfn)
-		return bootmap;
-	if (end_pfn > max_low_pfn)
-		end_pfn = max_low_pfn;
-
 	/* don't touch min_low_pfn */
 	bootmap_size = init_bootmem_node(NODE_DATA(nodeid),
 					 bootmap >> PAGE_SHIFT,
@@ -843,13 +838,23 @@ void __init setup_bootmem_allocator(void)
 		 max_pfn_mapped<<PAGE_SHIFT);
 	printk(KERN_INFO "  low ram: 0 - %08lx\n", max_low_pfn<<PAGE_SHIFT);
 
+	for_each_online_node(nodeid) {
+		 unsigned long start_pfn, end_pfn;
+
 #ifdef CONFIG_NEED_MULTIPLE_NODES
-	for_each_online_node(nodeid)
-		bootmap = setup_node_bootmem(nodeid, node_start_pfn[nodeid],
-					node_end_pfn[nodeid], bootmap);
+		start_pfn = node_start_pfn[nodeid];
+		end_pfn = node_end_pfn[nodeid];
+		if (start_pfn > max_low_pfn)
+			continue;
+		if (end_pfn > max_low_pfn)
+			end_pfn = max_low_pfn;
 #else
-	bootmap = setup_node_bootmem(0, 0, max_low_pfn, bootmap);
+		start_pfn = 0;
+		end_pfn = max_low_pfn;
 #endif
+		bootmap = setup_node_bootmem(nodeid, start_pfn, end_pfn,
+						 bootmap);
+	}
 
 	after_bootmem = 1;
 }
