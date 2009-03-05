@@ -1029,5 +1029,4 @@ void ds_copy_thread(struct task_struct *tsk, struct task_struct *father)
 
 void ds_exit_thread(struct task_struct *tsk)
 {
-	WARN_ON(tsk->thread.ds_ctx);
 }
