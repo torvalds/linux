@@ -3731,26 +3731,6 @@ static int nv_napi_poll(struct napi_struct *napi, int budget)
 }
 #endif
 
-#ifdef CONFIG_FORCEDETH_NAPI
-static irqreturn_t nv_nic_irq_rx(int foo, void *data)
-{
-	struct net_device *dev = (struct net_device *) data;
-	struct fe_priv *np = netdev_priv(dev);
-	u8 __iomem *base = get_hwbase(dev);
-	u32 events;
-
-	events = readl(base + NvRegMSIXIrqStatus) & NVREG_IRQ_RX_ALL;
-
-	if (events) {
-		/* disable receive interrupts on the nic */
-		writel(NVREG_IRQ_RX_ALL, base + NvRegIrqMask);
-		pci_push(base);
-		writel(NVREG_IRQ_RX_ALL, base + NvRegMSIXIrqStatus);
-		napi_schedule(&np->napi);
-	}
-	return IRQ_HANDLED;
-}
-#else
 static irqreturn_t nv_nic_irq_rx(int foo, void *data)
 {
 	struct net_device *dev = (struct net_device *) data;
@@ -3797,7 +3777,6 @@ static irqreturn_t nv_nic_irq_rx(int foo, void *data)
 
 	return IRQ_RETVAL(i);
 }
-#endif
 
 static irqreturn_t nv_nic_irq_other(int foo, void *data)
 {
@@ -5670,7 +5649,12 @@ static int __devinit nv_probe(struct pci_dev *pci_dev, const struct pci_device_i
 		np->msi_flags |= NV_MSI_CAPABLE;
 	}
 	if ((id->driver_data & DEV_HAS_MSI_X) && msix) {
+		/* msix has had reported issues when modifying irqmask
+		   as in the case of napi, therefore, disable for now
+		*/
+#ifndef CONFIG_FORCEDETH_NAPI
 		np->msi_flags |= NV_MSI_X_CAPABLE;
+#endif
 	}
 
 	np->pause_flags = NV_PAUSEFRAME_RX_CAPABLE | NV_PAUSEFRAME_RX_REQ | NV_PAUSEFRAME_AUTONEG;
