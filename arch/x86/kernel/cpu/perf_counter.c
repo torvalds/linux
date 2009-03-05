@@ -959,20 +959,8 @@ static struct pmc_x86_ops *pmc_amd_init(void)
 
 	nr_counters_generic = 4;
 	nr_counters_fixed = 0;
-	counter_value_mask = ~0ULL;
-
-	rdmsrl(MSR_K7_PERFCTR0, old);
-	wrmsrl(MSR_K7_PERFCTR0, counter_value_mask);
-	/*
-	 * read the truncated mask
-	 */
-	rdmsrl(MSR_K7_PERFCTR0, counter_value_mask);
-	wrmsrl(MSR_K7_PERFCTR0, old);
-
-	bits = 32 + fls(counter_value_mask >> 32);
-	if (bits == 32)
-		bits = fls((u32)counter_value_mask);
-	counter_value_bits = bits;
+	counter_value_mask = 0x0000FFFFFFFFFFFFULL;
+	counter_value_bits = 48;
 
 	pr_info("AMD Performance Monitoring support detected.\n");
 
