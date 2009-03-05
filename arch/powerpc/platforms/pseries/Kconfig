@@ -25,6 +25,11 @@ config EEH
 	depends on PPC_PSERIES && PCI
 	default y if !EMBEDDED
 
+config PSERIES_MSI
+       bool
+       depends on PCI_MSI && EEH
+       default y
+
 config SCANLOG
 	tristate "Scanlog dump interface"
 	depends on RTAS_PROC && PPC_PSERIES
