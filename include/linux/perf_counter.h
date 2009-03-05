@@ -83,7 +83,7 @@ struct perf_counter_hw_event {
 				exclude_hv     :  1, /* ditto hypervisor      */
 				exclude_idle   :  1, /* don't count when idle */
 
-				__reserved_1 : 55;
+				__reserved_1   : 54;
 
 	__u32			extra_config_len;
 	__u32			__reserved_4;
