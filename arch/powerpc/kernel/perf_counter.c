@@ -633,6 +633,7 @@ hw_perf_counter_init(struct perf_counter *counter)
 			return NULL;
 	}
 	events[n] = ev;
+	ctrs[n] = counter;
 	if (check_excludes(ctrs, n, 1))
 		return NULL;
 	if (power_check_constraints(events, n + 1))
