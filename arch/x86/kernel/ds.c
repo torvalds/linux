@@ -729,7 +729,7 @@ struct pebs_tracer *ds_request_pebs(struct task_struct *task,
 
 	spin_unlock_irqrestore(&ds_lock, irq);
 
-	ds_write_config(tracer->ds.context, &tracer->trace.ds, ds_bts);
+	ds_write_config(tracer->ds.context, &tracer->trace.ds, ds_pebs);
 	ds_resume_pebs(tracer);
 
 	return tracer;
