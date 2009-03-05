@@ -868,11 +868,10 @@ static void __init find_early_table_space(unsigned long end, int use_pse)
 
 	table_start >>= PAGE_SHIFT;
 	table_end = table_start;
-	table_top = table_start + (tables>>PAGE_SHIFT);
+	table_top = table_start + (tables >> PAGE_SHIFT);
 
 	printk(KERN_DEBUG "kernel direct mapping tables up to %lx @ %lx-%lx\n",
-		end, table_start << PAGE_SHIFT,
-		(table_start << PAGE_SHIFT) + tables);
+		end, table_start << PAGE_SHIFT, table_top << PAGE_SHIFT);
 }
 
 struct map_range {
@@ -899,8 +898,13 @@ static int save_mr(struct map_range *mr, int nr_range,
 	return nr_range;
 }
 
+/*
+ * Setup the direct mapping of the physical memory at PAGE_OFFSET.
+ * This runs before bootmem is initialized and gets pages directly from
+ * the physical memory. To access them they are temporarily mapped.
+ */
 unsigned long __init_refok init_memory_mapping(unsigned long start,
-						unsigned long end)
+					       unsigned long end)
 {
 	pgd_t *pgd_base = swapper_pg_dir;
 	unsigned long page_size_mask = 0;
@@ -911,7 +915,7 @@ unsigned long __init_refok init_memory_mapping(unsigned long start,
 	int nr_range, i;
 	int use_pse;
 
-	printk(KERN_INFO "init_memory_mapping: %08lx-%08lx\n", start, end);
+	printk(KERN_INFO "init_memory_mapping: %016lx-%016lx\n", start, end);
 
 #ifdef CONFIG_DEBUG_PAGEALLOC
 	/*
@@ -940,11 +944,11 @@ unsigned long __init_refok init_memory_mapping(unsigned long start,
 		__supported_pte_mask |= _PAGE_GLOBAL;
 	}
 
-	memset(mr, 0, sizeof(mr));
-	nr_range = 0;
-
 	if (use_pse)
 		page_size_mask |= 1 << PG_LEVEL_2M;
+
+	memset(mr, 0, sizeof(mr));
+	nr_range = 0;
 
 	/*
 	 * Don't use a large page for the first 2/4MB of memory
@@ -952,7 +956,7 @@ unsigned long __init_refok init_memory_mapping(unsigned long start,
 	 * and overlapping MTRRs into large pages can cause
 	 * slowdowns.
 	 */
-	/* head could not be big page alignment ? */
+	/* head if not big page alignment ? */
 	start_pfn = start >> PAGE_SHIFT;
 	pos = start_pfn << PAGE_SHIFT;
 	if (pos == 0)
@@ -960,14 +964,14 @@ unsigned long __init_refok init_memory_mapping(unsigned long start,
 	else
 		end_pfn = ((pos + (PMD_SIZE - 1))>>PMD_SHIFT)
 				 << (PMD_SHIFT - PAGE_SHIFT);
-	if (end_pfn > (end>>PAGE_SHIFT))
-		end_pfn = end>>PAGE_SHIFT;
+	if (end_pfn > (end >> PAGE_SHIFT))
+		end_pfn = end >> PAGE_SHIFT;
 	if (start_pfn < end_pfn) {
 		nr_range = save_mr(mr, nr_range, start_pfn, end_pfn, 0);
 		pos = end_pfn << PAGE_SHIFT;
 	}
 
-	/* big page range */
+	/* big page (2M) range */
 	start_pfn = ((pos + (PMD_SIZE - 1))>>PMD_SHIFT)
 			 << (PMD_SHIFT - PAGE_SHIFT);
 	end_pfn = (end>>PMD_SHIFT) << (PMD_SHIFT - PAGE_SHIFT);
@@ -977,7 +981,7 @@ unsigned long __init_refok init_memory_mapping(unsigned long start,
 		pos = end_pfn << PAGE_SHIFT;
 	}
 
-	/* tail is not big page alignment ? */
+	/* tail is not big page (2M) alignment */
 	start_pfn = pos>>PAGE_SHIFT;
 	end_pfn = end>>PAGE_SHIFT;
 	if (start_pfn < end_pfn)
@@ -998,13 +1002,17 @@ unsigned long __init_refok init_memory_mapping(unsigned long start,
 	}
 
 	for (i = 0; i < nr_range; i++)
-		printk(KERN_DEBUG " %08lx - %08lx page %s\n",
-			mr[i].start, mr[i].end,
-			(mr[i].page_size_mask & (1<<PG_LEVEL_2M)) ?
-				  "big page" : "4k");
+		printk(KERN_DEBUG " %010lx - %010lx page %s\n",
+				mr[i].start, mr[i].end,
+			(mr[i].page_size_mask & (1<<PG_LEVEL_1G))?"1G":(
+			 (mr[i].page_size_mask & (1<<PG_LEVEL_2M))?"2M":"4k"));
 
 	/*
 	 * Find space for the kernel direct mapping tables.
+	 *
+	 * Later we should allocate these tables in the local node of the
+	 * memory mapped. Unfortunately this is done currently before the
+	 * nodes are discovered.
 	 */
 	if (!after_init_bootmem)
 		find_early_table_space(end, use_pse);

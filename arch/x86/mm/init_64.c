@@ -554,20 +554,25 @@ static void __init find_early_table_space(unsigned long end, int use_pse,
 
 	puds = (end + PUD_SIZE - 1) >> PUD_SHIFT;
 	tables = roundup(puds * sizeof(pud_t), PAGE_SIZE);
+
 	if (use_gbpages) {
 		unsigned long extra;
+
 		extra = end - ((end>>PUD_SHIFT) << PUD_SHIFT);
 		pmds = (extra + PMD_SIZE - 1) >> PMD_SHIFT;
 	} else
 		pmds = (end + PMD_SIZE - 1) >> PMD_SHIFT;
+
 	tables += roundup(pmds * sizeof(pmd_t), PAGE_SIZE);
 
 	if (use_pse) {
 		unsigned long extra;
+
 		extra = end - ((end>>PMD_SHIFT) << PMD_SHIFT);
 		ptes = (extra + PAGE_SIZE - 1) >> PAGE_SHIFT;
 	} else
 		ptes = (end + PAGE_SIZE - 1) >> PAGE_SHIFT;
+
 	tables += roundup(ptes * sizeof(pte_t), PAGE_SIZE);
 
 	/*
@@ -647,7 +652,6 @@ static int save_mr(struct map_range *mr, int nr_range,
 		   unsigned long start_pfn, unsigned long end_pfn,
 		   unsigned long page_size_mask)
 {
-
 	if (start_pfn < end_pfn) {
 		if (nr_range >= NR_RANGE_MR)
 			panic("run out of range for init_memory_mapping\n");
@@ -679,13 +683,6 @@ unsigned long __init_refok init_memory_mapping(unsigned long start,
 
 	printk(KERN_INFO "init_memory_mapping: %016lx-%016lx\n", start, end);
 
-	/*
-	 * Find space for the kernel direct mapping tables.
-	 *
-	 * Later we should allocate these tables in the local node of the
-	 * memory mapped. Unfortunately this is done currently before the
-	 * nodes are discovered.
-	 */
 	if (!after_bootmem)
 		init_gbpages();
 
@@ -709,7 +706,7 @@ unsigned long __init_refok init_memory_mapping(unsigned long start,
 	memset(mr, 0, sizeof(mr));
 	nr_range = 0;
 
-	/* head if not big page alignment ?*/
+	/* head if not big page alignment ? */
 	start_pfn = start >> PAGE_SHIFT;
 	pos = start_pfn << PAGE_SHIFT;
 	end_pfn = ((pos + (PMD_SIZE - 1)) >> PMD_SHIFT)
@@ -721,7 +718,7 @@ unsigned long __init_refok init_memory_mapping(unsigned long start,
 		pos = end_pfn << PAGE_SHIFT;
 	}
 
-	/* big page (2M) range*/
+	/* big page (2M) range */
 	start_pfn = ((pos + (PMD_SIZE - 1))>>PMD_SHIFT)
 			 << (PMD_SHIFT - PAGE_SHIFT);
 	end_pfn = ((pos + (PUD_SIZE - 1))>>PUD_SHIFT)
@@ -769,7 +766,7 @@ unsigned long __init_refok init_memory_mapping(unsigned long start,
 		/* move it */
 		old_start = mr[i].start;
 		memmove(&mr[i], &mr[i+1],
-			 (nr_range - 1 - i) * sizeof (struct map_range));
+			(nr_range - 1 - i) * sizeof(struct map_range));
 		mr[i--].start = old_start;
 		nr_range--;
 	}
@@ -780,6 +777,13 @@ unsigned long __init_refok init_memory_mapping(unsigned long start,
 			(mr[i].page_size_mask & (1<<PG_LEVEL_1G))?"1G":(
 			 (mr[i].page_size_mask & (1<<PG_LEVEL_2M))?"2M":"4k"));
 
+	/*
+	 * Find space for the kernel direct mapping tables.
+	 *
+	 * Later we should allocate these tables in the local node of the
+	 * memory mapped. Unfortunately this is done currently before the
+	 * nodes are discovered.
+	 */
 	if (!after_bootmem)
 		find_early_table_space(end, use_pse, use_gbpages);
 
