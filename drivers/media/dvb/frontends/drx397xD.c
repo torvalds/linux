@@ -74,7 +74,7 @@ static struct {
 } fw[] = {
 #define _FW_ENTRY(a, b, c)	{					\
 			.name	= a,					\
-			.file	= 0,					\
+			.file	= NULL,					\
 			.lock	= __RW_LOCK_UNLOCKED(fw[c].lock),	\
 			.refcnt = 0,					\
 			.data	= { }		}
