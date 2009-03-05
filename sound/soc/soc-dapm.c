@@ -332,7 +332,7 @@ static int dapm_new_mixer(struct snd_soc_codec *codec,
 			 * kcontrol name.
 			 */
 			name_len = strlen(w->kcontrols[i].name) + 1;
-			if (w->id == snd_soc_dapm_mixer)
+			if (w->id != snd_soc_dapm_mixer_named_ctl)
 				name_len += 1 + strlen(w->name);
 
 			path->long_name = kmalloc(name_len, GFP_KERNEL);
@@ -341,15 +341,14 @@ static int dapm_new_mixer(struct snd_soc_codec *codec,
 				return -ENOMEM;
 
 			switch (w->id) {
-			case snd_soc_dapm_mixer:
 			default:
 				snprintf(path->long_name, name_len, "%s %s",
 					 w->name, w->kcontrols[i].name);
-			break;
+				break;
 			case snd_soc_dapm_mixer_named_ctl:
 				snprintf(path->long_name, name_len, "%s",
 					 w->kcontrols[i].name);
-			break;
+				break;
 			}
 
 			path->long_name[name_len - 1] = '\0';
