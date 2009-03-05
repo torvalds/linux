@@ -63,7 +63,7 @@ static unsigned long __initdata table_start;
 static unsigned long __meminitdata table_end;
 static unsigned long __meminitdata table_top;
 
-static int __initdata after_init_bootmem;
+int after_bootmem;
 
 int direct_gbpages;
 
@@ -92,7 +92,7 @@ static pmd_t * __init one_md_table_init(pgd_t *pgd)
 
 #ifdef CONFIG_X86_PAE
 	if (!(pgd_val(*pgd) & _PAGE_PRESENT)) {
-		if (after_init_bootmem)
+		if (after_bootmem)
 			pmd_table = (pmd_t *)alloc_bootmem_low_pages(PAGE_SIZE);
 		else
 			pmd_table = (pmd_t *)alloc_low_page();
@@ -119,7 +119,7 @@ static pte_t * __init one_page_table_init(pmd_t *pmd)
 	if (!(pmd_val(*pmd) & _PAGE_PRESENT)) {
 		pte_t *page_table = NULL;
 
-		if (after_init_bootmem) {
+		if (after_bootmem) {
 #ifdef CONFIG_DEBUG_PAGEALLOC
 			page_table = (pte_t *) alloc_bootmem_pages(PAGE_SIZE);
 #endif
@@ -158,7 +158,7 @@ static pte_t *__init page_table_kmap_check(pte_t *pte, pmd_t *pmd,
 		pte_t *newpte;
 		int i;
 
-		BUG_ON(after_init_bootmem);
+		BUG_ON(after_bootmem);
 		newpte = alloc_low_page();
 		for (i = 0; i < PTRS_PER_PTE; i++)
 			set_pte(newpte + i, pte[i]);
@@ -831,7 +831,7 @@ void __init setup_bootmem_allocator(void)
 	bootmap = setup_node_bootmem(0, 0, max_low_pfn, bootmap);
 #endif
 
-	after_init_bootmem = 1;
+	after_bootmem = 1;
 }
 
 static void __init find_early_table_space(unsigned long end, int use_pse,
@@ -1037,7 +1037,7 @@ unsigned long __init_refok init_memory_mapping(unsigned long start,
 	 * memory mapped. Unfortunately this is done currently before the
 	 * nodes are discovered.
 	 */
-	if (!after_init_bootmem)
+	if (!after_bootmem)
 		find_early_table_space(end, use_pse, use_gbpages);
 
 	for (i = 0; i < nr_range; i++)
@@ -1052,11 +1052,11 @@ unsigned long __init_refok init_memory_mapping(unsigned long start,
 
 	__flush_tlb_all();
 
-	if (!after_init_bootmem)
+	if (!after_bootmem)
 		reserve_early(table_start << PAGE_SHIFT,
 				 table_end << PAGE_SHIFT, "PGTABLE");
 
-	if (!after_init_bootmem)
+	if (!after_bootmem)
 		early_memtest(start, end);
 
 	return end >> PAGE_SHIFT;
