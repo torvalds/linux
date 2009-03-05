@@ -57,4 +57,14 @@ union kvm_ioapic_redirect_entry {
 	} fields;
 };
 
+struct kvm_lapic_irq {
+	u32 vector;
+	u32 delivery_mode;
+	u32 dest_mode;
+	u32 level;
+	u32 trig_mode;
+	u32 shorthand;
+	u32 dest_id;
+};
+
 #endif /* __KVM_TYPES_H__ */

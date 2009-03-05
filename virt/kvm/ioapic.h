@@ -71,8 +71,6 @@ void kvm_ioapic_update_eoi(struct kvm *kvm, int vector, int trigger_mode);
 int kvm_ioapic_init(struct kvm *kvm);
 int kvm_ioapic_set_irq(struct kvm_ioapic *ioapic, int irq, int level);
 void kvm_ioapic_reset(struct kvm_ioapic *ioapic);
-void kvm_get_intr_delivery_bitmask(struct kvm *kvm, struct kvm_lapic *src,
-		int dest_id, int dest_mode, bool low_prio, int short_hand,
-		unsigned long *deliver_bitmask);
-int ioapic_deliver_entry(struct kvm *kvm, union kvm_ioapic_redirect_entry *e);
+int kvm_irq_delivery_to_apic(struct kvm *kvm, struct kvm_lapic *src,
+		struct kvm_lapic_irq *irq);
 #endif

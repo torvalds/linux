@@ -22,6 +22,9 @@
 #include <linux/kvm_host.h>
 
 #include <asm/msidef.h>
+#ifdef CONFIG_IA64
+#include <asm/iosapic.h>
+#endif
 
 #include "irq.h"
 
@@ -43,61 +46,71 @@ static int kvm_set_ioapic_irq(struct kvm_kernel_irq_routing_entry *e,
 	return kvm_ioapic_set_irq(kvm->arch.vioapic, e->irqchip.pin, level);
 }
 
-void kvm_get_intr_delivery_bitmask(struct kvm *kvm, struct kvm_lapic *src,
-		int dest_id, int dest_mode, bool low_prio, int short_hand,
-		unsigned long *deliver_bitmask)
+inline static bool kvm_is_dm_lowest_prio(struct kvm_lapic_irq *irq)
 {
-	int i, lowest = -1;
-	struct kvm_vcpu *vcpu;
+#ifdef CONFIG_IA64
+	return irq->delivery_mode ==
+		(IOSAPIC_LOWEST_PRIORITY << IOSAPIC_DELIVERY_SHIFT);
+#else
+	return irq->delivery_mode == APIC_DM_LOWEST;
+#endif
+}
 
-	if (dest_mode == 0 && dest_id == 0xff && low_prio)
+int kvm_irq_delivery_to_apic(struct kvm *kvm, struct kvm_lapic *src,
+		struct kvm_lapic_irq *irq)
+{
+	int i, r = -1;
+	struct kvm_vcpu *vcpu, *lowest = NULL;
+
+	if (irq->dest_mode == 0 && irq->dest_id == 0xff &&
+			kvm_is_dm_lowest_prio(irq))
 		printk(KERN_INFO "kvm: apic: phys broadcast and lowest prio\n");
 
-	bitmap_zero(deliver_bitmask, KVM_MAX_VCPUS);
 	for (i = 0; i < KVM_MAX_VCPUS; i++) {
 		vcpu = kvm->vcpus[i];
 
 		if (!vcpu || !kvm_apic_present(vcpu))
 			continue;
 
-		if (!kvm_apic_match_dest(vcpu, src, short_hand, dest_id,
-					dest_mode))
+		if (!kvm_apic_match_dest(vcpu, src, irq->shorthand,
+					irq->dest_id, irq->dest_mode))
 			continue;
 
-		if (!low_prio) {
-			__set_bit(i, deliver_bitmask);
+		if (!kvm_is_dm_lowest_prio(irq)) {
+			if (r < 0)
+				r = 0;
+			r += kvm_apic_set_irq(vcpu, irq);
 		} else {
-			if (lowest < 0)
-				lowest = i;
-			if (kvm_apic_compare_prio(vcpu, kvm->vcpus[lowest]) < 0)
-				lowest = i;
+			if (!lowest)
+				lowest = vcpu;
+			else if (kvm_apic_compare_prio(vcpu, lowest) < 0)
+				lowest = vcpu;
 		}
 	}
 
-	if (lowest != -1)
-		__set_bit(lowest, deliver_bitmask);
+	if (lowest)
+		r = kvm_apic_set_irq(lowest, irq);
+
+	return r;
 }
 
 static int kvm_set_msi(struct kvm_kernel_irq_routing_entry *e,
 		       struct kvm *kvm, int level)
 {
-	union kvm_ioapic_redirect_entry entry;
+	struct kvm_lapic_irq irq;
 
-	entry.bits = 0;
-	entry.fields.dest_id = (e->msi.address_lo &
+	irq.dest_id = (e->msi.address_lo &
 			MSI_ADDR_DEST_ID_MASK) >> MSI_ADDR_DEST_ID_SHIFT;
-	entry.fields.vector = (e->msi.data &
+	irq.vector = (e->msi.data &
 			MSI_DATA_VECTOR_MASK) >> MSI_DATA_VECTOR_SHIFT;
-	entry.fields.dest_mode = test_bit(MSI_ADDR_DEST_MODE_SHIFT,
-			(unsigned long *)&e->msi.address_lo);
-	entry.fields.trig_mode = test_bit(MSI_DATA_TRIGGER_SHIFT,
-			(unsigned long *)&e->msi.data);
-	entry.fields.delivery_mode = test_bit(
-			MSI_DATA_DELIVERY_MODE_SHIFT,
-			(unsigned long *)&e->msi.data);
+	irq.dest_mode = (1 << MSI_ADDR_DEST_MODE_SHIFT) & e->msi.address_lo;
+	irq.trig_mode = (1 << MSI_DATA_TRIGGER_SHIFT) & e->msi.data;
+	irq.delivery_mode = e->msi.data & 0x700;
+	irq.level = 1;
+	irq.shorthand = 0;
 
 	/* TODO Deal with RH bit of MSI message address */
-	return ioapic_deliver_entry(kvm, &entry);
+	return kvm_irq_delivery_to_apic(kvm, NULL, &irq);
 }
 
 /* This should be called with the kvm->lock mutex held

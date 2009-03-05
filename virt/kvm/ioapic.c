@@ -142,58 +142,33 @@ static void ioapic_write_indirect(struct kvm_ioapic *ioapic, u32 val)
 	}
 }
 
-int ioapic_deliver_entry(struct kvm *kvm, union kvm_ioapic_redirect_entry *e)
-{
-	DECLARE_BITMAP(deliver_bitmask, KVM_MAX_VCPUS);
-	int i, r = -1;
-
-	kvm_get_intr_delivery_bitmask(kvm, NULL, e->fields.dest_id,
-			e->fields.dest_mode,
-			e->fields.delivery_mode == IOAPIC_LOWEST_PRIORITY,
-			0, deliver_bitmask);
-
-	if (find_first_bit(deliver_bitmask, KVM_MAX_VCPUS) >= KVM_MAX_VCPUS) {
-		ioapic_debug("no target on destination\n");
-		return r;
-	}
-
-	while ((i = find_first_bit(deliver_bitmask, KVM_MAX_VCPUS))
-			< KVM_MAX_VCPUS) {
-		struct kvm_vcpu *vcpu = kvm->vcpus[i];
-		__clear_bit(i, deliver_bitmask);
-		if (vcpu) {
-			if (r < 0)
-				r = 0;
-			r += kvm_apic_set_irq(vcpu, e->fields.vector,
-					e->fields.delivery_mode,
-					e->fields.trig_mode);
-		} else
-			ioapic_debug("null destination vcpu: "
-				     "mask=%x vector=%x delivery_mode=%x\n",
-				     e->fields.deliver_bitmask,
-				     e->fields.vector, e->fields.delivery_mode);
-	}
-	return r;
-}
-
 static int ioapic_deliver(struct kvm_ioapic *ioapic, int irq)
 {
-	union kvm_ioapic_redirect_entry entry = ioapic->redirtbl[irq];
+	union kvm_ioapic_redirect_entry *entry = &ioapic->redirtbl[irq];
+	struct kvm_lapic_irq irqe;
 
 	ioapic_debug("dest=%x dest_mode=%x delivery_mode=%x "
 		     "vector=%x trig_mode=%x\n",
-		     entry.fields.dest, entry.fields.dest_mode,
-		     entry.fields.delivery_mode, entry.fields.vector,
-		     entry.fields.trig_mode);
+		     entry->fields.dest, entry->fields.dest_mode,
+		     entry->fields.delivery_mode, entry->fields.vector,
+		     entry->fields.trig_mode);
+
+	irqe.dest_id = entry->fields.dest_id;
+	irqe.vector = entry->fields.vector;
+	irqe.dest_mode = entry->fields.dest_mode;
+	irqe.trig_mode = entry->fields.trig_mode;
+	irqe.delivery_mode = entry->fields.delivery_mode << 8;
+	irqe.level = 1;
+	irqe.shorthand = 0;
 
 #ifdef CONFIG_X86
 	/* Always delivery PIT interrupt to vcpu 0 */
 	if (irq == 0) {
-		entry.fields.dest_mode = 0; /* Physical mode. */
-		entry.fields.dest_id = ioapic->kvm->vcpus[0]->vcpu_id;
+		irqe.dest_mode = 0; /* Physical mode. */
+		irqe.dest_id = ioapic->kvm->vcpus[0]->vcpu_id;
 	}
 #endif
-	return ioapic_deliver_entry(ioapic->kvm, &entry);
+	return kvm_irq_delivery_to_apic(ioapic->kvm, NULL, &irqe);
 }
 
 int kvm_ioapic_set_irq(struct kvm_ioapic *ioapic, int irq, int level)

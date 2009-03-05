@@ -199,27 +199,12 @@ EXPORT_SYMBOL_GPL(kvm_lapic_find_highest_irr);
 static int __apic_accept_irq(struct kvm_lapic *apic, int delivery_mode,
 			     int vector, int level, int trig_mode);
 
-int kvm_apic_set_irq(struct kvm_vcpu *vcpu, u8 vec, u8 dmode, u8 trig)
+int kvm_apic_set_irq(struct kvm_vcpu *vcpu, struct kvm_lapic_irq *irq)
 {
 	struct kvm_lapic *apic = vcpu->arch.apic;
-	int lapic_dmode;
 
-	switch (dmode) {
-	case IOAPIC_LOWEST_PRIORITY:
-		lapic_dmode = APIC_DM_LOWEST;
-		break;
-	case IOAPIC_FIXED:
-		lapic_dmode = APIC_DM_FIXED;
-		break;
-	case IOAPIC_NMI:
-		lapic_dmode = APIC_DM_NMI;
-		break;
-	default:
-		printk(KERN_DEBUG"Ignoring delivery mode %d\n", dmode);
-		return 0;
-		break;
-	}
-	return __apic_accept_irq(apic, lapic_dmode, vec, 1, trig);
+	return __apic_accept_irq(apic, irq->delivery_mode, irq->vector,
+			irq->level, irq->trig_mode);
 }
 
 static inline int apic_find_highest_isr(struct kvm_lapic *apic)
@@ -447,36 +432,24 @@ static void apic_send_ipi(struct kvm_lapic *apic)
 {
 	u32 icr_low = apic_get_reg(apic, APIC_ICR);
 	u32 icr_high = apic_get_reg(apic, APIC_ICR2);
+	struct kvm_lapic_irq irq;
 
-	unsigned int dest = GET_APIC_DEST_FIELD(icr_high);
-	unsigned int short_hand = icr_low & APIC_SHORT_MASK;
-	unsigned int trig_mode = icr_low & APIC_INT_LEVELTRIG;
-	unsigned int level = icr_low & APIC_INT_ASSERT;
-	unsigned int dest_mode = icr_low & APIC_DEST_MASK;
-	unsigned int delivery_mode = icr_low & APIC_MODE_MASK;
-	unsigned int vector = icr_low & APIC_VECTOR_MASK;
-
-	DECLARE_BITMAP(deliver_bitmask, KVM_MAX_VCPUS);
-	int i;
+	irq.vector = icr_low & APIC_VECTOR_MASK;
+	irq.delivery_mode = icr_low & APIC_MODE_MASK;
+	irq.dest_mode = icr_low & APIC_DEST_MASK;
+	irq.level = icr_low & APIC_INT_ASSERT;
+	irq.trig_mode = icr_low & APIC_INT_LEVELTRIG;
+	irq.shorthand = icr_low & APIC_SHORT_MASK;
+	irq.dest_id = GET_APIC_DEST_FIELD(icr_high);
 
 	apic_debug("icr_high 0x%x, icr_low 0x%x, "
 		   "short_hand 0x%x, dest 0x%x, trig_mode 0x%x, level 0x%x, "
 		   "dest_mode 0x%x, delivery_mode 0x%x, vector 0x%x\n",
-		   icr_high, icr_low, short_hand, dest,
-		   trig_mode, level, dest_mode, delivery_mode, vector);
+		   icr_high, icr_low, irq.shorthand, irq.dest,
+		   irq.trig_mode, irq.level, irq.dest_mode, irq.delivery_mode,
+		   irq.vector);
 
-	kvm_get_intr_delivery_bitmask(apic->vcpu->kvm, apic, dest, dest_mode,
-			delivery_mode == APIC_DM_LOWEST, short_hand,
-			deliver_bitmask);
-
-	while ((i = find_first_bit(deliver_bitmask, KVM_MAX_VCPUS))
-			< KVM_MAX_VCPUS) {
-		struct kvm_vcpu *vcpu = apic->vcpu->kvm->vcpus[i];
-		__clear_bit(i, deliver_bitmask);
-		if (vcpu)
-			__apic_accept_irq(vcpu->arch.apic, delivery_mode,
-					vector, level, trig_mode);
-	}
+	kvm_irq_delivery_to_apic(apic->vcpu->kvm, apic, &irq);
 }
 
 static u32 apic_get_tmcct(struct kvm_lapic *apic)
