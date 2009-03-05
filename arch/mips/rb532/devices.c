@@ -200,26 +200,9 @@ static struct platform_device rb532_led = {
 	.id = -1,
 };
 
-static struct gpio_keys_button rb532_gpio_btn[] = {
-	{
-		.gpio = 1,
-		.code = BTN_0,
-		.desc = "S1",
-		.active_low = 1,
-	}
-};
-
-static struct gpio_keys_platform_data rb532_gpio_btn_data = {
-	.buttons = rb532_gpio_btn,
-	.nbuttons = ARRAY_SIZE(rb532_gpio_btn),
-};
-
 static struct platform_device rb532_button = {
-	.name 	= "gpio-keys",
+	.name	= "rb532-button",
 	.id	= -1,
-	.dev	= {
-		.platform_data = &rb532_gpio_btn_data,
-	}
 };
 
 static struct resource rb532_wdt_res[] = {
