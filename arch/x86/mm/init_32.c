@@ -65,6 +65,8 @@ static unsigned long __meminitdata table_top;
 
 static int __initdata after_init_bootmem;
 
+int direct_gbpages;
+
 static __init void *alloc_low_page(void)
 {
 	unsigned long pfn = table_end++;
@@ -831,14 +833,22 @@ void __init setup_bootmem_allocator(void)
 	after_init_bootmem = 1;
 }
 
-static void __init find_early_table_space(unsigned long end, int use_pse)
+static void __init find_early_table_space(unsigned long end, int use_pse,
+					  int use_gbpages)
 {
 	unsigned long puds, pmds, ptes, tables, start;
 
 	puds = (end + PUD_SIZE - 1) >> PUD_SHIFT;
 	tables = roundup(puds * sizeof(pud_t), PAGE_SIZE);
 
-	pmds = (end + PMD_SIZE - 1) >> PMD_SHIFT;
+	if (use_gbpages) {
+		unsigned long extra;
+
+		extra = end - ((end>>PUD_SHIFT) << PUD_SHIFT);
+		pmds = (extra + PMD_SIZE - 1) >> PMD_SHIFT;
+	} else
+		pmds = (end + PMD_SIZE - 1) >> PMD_SHIFT;
+
 	tables += roundup(pmds * sizeof(pmd_t), PAGE_SIZE);
 
 	if (use_pse) {
@@ -913,7 +923,7 @@ unsigned long __init_refok init_memory_mapping(unsigned long start,
 
 	struct map_range mr[NR_RANGE_MR];
 	int nr_range, i;
-	int use_pse;
+	int use_pse, use_gbpages;
 
 	printk(KERN_INFO "init_memory_mapping: %016lx-%016lx\n", start, end);
 
@@ -923,9 +933,10 @@ unsigned long __init_refok init_memory_mapping(unsigned long start,
 	 * This will simplify cpa(), which otherwise needs to support splitting
 	 * large pages into small in interrupt context, etc.
 	 */
-	use_pse = 0;
+	use_pse = use_gbpages = 0;
 #else
 	use_pse = cpu_has_pse;
+	use_gbpages = direct_gbpages;
 #endif
 
 #ifdef CONFIG_X86_PAE
@@ -944,6 +955,8 @@ unsigned long __init_refok init_memory_mapping(unsigned long start,
 		__supported_pte_mask |= _PAGE_GLOBAL;
 	}
 
+	if (use_gbpages)
+		page_size_mask |= 1 << PG_LEVEL_1G;
 	if (use_pse)
 		page_size_mask |= 1 << PG_LEVEL_2M;
 
@@ -1015,7 +1028,7 @@ unsigned long __init_refok init_memory_mapping(unsigned long start,
 	 * nodes are discovered.
 	 */
 	if (!after_init_bootmem)
-		find_early_table_space(end, use_pse);
+		find_early_table_space(end, use_pse, use_gbpages);
 
 	for (i = 0; i < nr_range; i++)
 		kernel_physical_mapping_init(pgd_base,
