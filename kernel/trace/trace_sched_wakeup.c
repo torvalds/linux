@@ -32,6 +32,8 @@ static raw_spinlock_t wakeup_lock =
 
 static void __wakeup_reset(struct trace_array *tr);
 
+static int save_lat_flag;
+
 #ifdef CONFIG_FUNCTION_TRACER
 /*
  * irqsoff uses its own tracer function to keep the overhead down:
@@ -324,6 +326,9 @@ static void stop_wakeup_tracer(struct trace_array *tr)
 
 static int __wakeup_tracer_init(struct trace_array *tr)
 {
+	save_lat_flag = trace_flags & TRACE_ITER_LATENCY_FMT;
+	trace_flags |= TRACE_ITER_LATENCY_FMT;
+
 	tracing_max_latency = 0;
 	wakeup_trace = tr;
 	start_wakeup_tracer(tr);
@@ -347,6 +352,9 @@ static void wakeup_tracer_reset(struct trace_array *tr)
 	stop_wakeup_tracer(tr);
 	/* make sure we put back any tasks we are tracing */
 	wakeup_reset(tr);
+
+	if (!save_lat_flag)
+		trace_flags &= ~TRACE_ITER_LATENCY_FMT;
 }
 
 static void wakeup_tracer_start(struct trace_array *tr)

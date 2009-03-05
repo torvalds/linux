@@ -299,6 +299,7 @@ static const char *trace_options[] = {
 	"sym-userobj",
 	"printk-msg-only",
 	"context-info",
+	"latency-format",
 	NULL
 };
 
@@ -346,6 +347,9 @@ ssize_t trace_seq_to_user(struct trace_seq *s, char __user *ubuf, size_t cnt)
 	int len;
 	int ret;
 
+	if (!cnt)
+		return 0;
+
 	if (s->len <= s->readpos)
 		return -EBUSY;
 
@@ -353,10 +357,12 @@ ssize_t trace_seq_to_user(struct trace_seq *s, char __user *ubuf, size_t cnt)
 	if (cnt > len)
 		cnt = len;
 	ret = copy_to_user(ubuf, s->buffer + s->readpos, cnt);
-	if (ret)
+	if (ret == cnt)
 		return -EFAULT;
 
-	s->readpos += len;
+	cnt -= ret;
+
+	s->readpos += cnt;
 	return cnt;
 }
 
@@ -375,7 +381,7 @@ ssize_t trace_seq_to_buffer(struct trace_seq *s, void *buf, size_t cnt)
 	if (!ret)
 		return -EFAULT;
 
-	s->readpos += len;
+	s->readpos += cnt;
 	return cnt;
 }
 
@@ -1462,33 +1468,6 @@ static void test_cpu_buff_start(struct trace_iterator *iter)
 	trace_seq_printf(s, "##### CPU %u buffer started ####\n", iter->cpu);
 }
 
-static enum print_line_t print_lat_fmt(struct trace_iterator *iter)
-{
-	struct trace_seq *s = &iter->seq;
-	unsigned long sym_flags = (trace_flags & TRACE_ITER_SYM_MASK);
-	struct trace_event *event;
-	struct trace_entry *entry = iter->ent;
-
-	test_cpu_buff_start(iter);
-
-	event = ftrace_find_event(entry->type);
-
-	if (trace_flags & TRACE_ITER_CONTEXT_INFO) {
-		if (!trace_print_lat_context(iter))
-			goto partial;
-	}
-
-	if (event)
-		return event->latency_trace(iter, sym_flags);
-
-	if (!trace_seq_printf(s, "Unknown type %d\n", entry->type))
-		goto partial;
-
-	return TRACE_TYPE_HANDLED;
-partial:
-	return TRACE_TYPE_PARTIAL_LINE;
-}
-
 static enum print_line_t print_trace_fmt(struct trace_iterator *iter)
 {
 	struct trace_seq *s = &iter->seq;
@@ -1503,8 +1482,13 @@ static enum print_line_t print_trace_fmt(struct trace_iterator *iter)
 	event = ftrace_find_event(entry->type);
 
 	if (trace_flags & TRACE_ITER_CONTEXT_INFO) {
-		if (!trace_print_context(iter))
-			goto partial;
+		if (iter->iter_flags & TRACE_FILE_LAT_FMT) {
+			if (!trace_print_lat_context(iter))
+				goto partial;
+		} else {
+			if (!trace_print_context(iter))
+				goto partial;
+		}
 	}
 
 	if (event)
@@ -1645,9 +1629,6 @@ static enum print_line_t print_trace_line(struct trace_iterator *iter)
 
 	if (trace_flags & TRACE_ITER_RAW)
 		return print_raw_fmt(iter);
-
-	if (iter->iter_flags & TRACE_FILE_LAT_FMT)
-		return print_lat_fmt(iter);
 
 	return print_trace_fmt(iter);
 }
@@ -1824,25 +1805,11 @@ static int tracing_open(struct inode *inode, struct file *file)
 	iter = __tracing_open(inode, file);
 	if (IS_ERR(iter))
 		ret = PTR_ERR(iter);
-
-	return ret;
-}
-
-static int tracing_lt_open(struct inode *inode, struct file *file)
-{
-	struct trace_iterator *iter;
-	int ret = 0;
-
-	iter = __tracing_open(inode, file);
-
-	if (IS_ERR(iter))
-		ret = PTR_ERR(iter);
-	else
+	else if (trace_flags & TRACE_ITER_LATENCY_FMT)
 		iter->iter_flags |= TRACE_FILE_LAT_FMT;
 
 	return ret;
 }
-
 
 static void *
 t_next(struct seq_file *m, void *v, loff_t *pos)
@@ -1917,13 +1884,6 @@ static int show_traces_open(struct inode *inode, struct file *file)
 
 static struct file_operations tracing_fops = {
 	.open		= tracing_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= tracing_release,
-};
-
-static struct file_operations tracing_lt_fops = {
-	.open		= tracing_lt_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
 	.release	= tracing_release,
@@ -3049,6 +3009,9 @@ tracing_buffers_read(struct file *filp, char __user *ubuf,
 	ssize_t ret;
 	size_t size;
 
+	if (!count)
+		return 0;
+
 	/* Do we have previous read data to read? */
 	if (info->read < PAGE_SIZE)
 		goto read;
@@ -3073,8 +3036,10 @@ read:
 		size = count;
 
 	ret = copy_to_user(ubuf, info->spare + info->read, size);
-	if (ret)
+	if (ret == size)
 		return -EFAULT;
+	size -= ret;
+
 	*ppos += size;
 	info->read += size;
 
@@ -3918,8 +3883,10 @@ void ftrace_dump(void)
 
 	printk(KERN_TRACE "Dumping ftrace buffer:\n");
 
+	/* Simulate the iterator */
 	iter.tr = &global_trace;
 	iter.trace = current_trace;
+	iter.cpu_file = TRACE_PIPE_ALL_CPU;
 
 	/*
 	 * We need to stop all tracing on all CPUS to read the

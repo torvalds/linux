@@ -1231,7 +1231,6 @@ static struct tracer blk_tracer __read_mostly = {
 static struct trace_event trace_blk_event = {
 	.type	 	= TRACE_BLK,
 	.trace		= blk_trace_event_print,
-	.latency_trace	= blk_trace_event_print,
 	.binary		= blk_trace_event_print_binary,
 };
 

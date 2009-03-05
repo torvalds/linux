@@ -437,8 +437,6 @@ int register_ftrace_event(struct trace_event *event)
 
 	if (event->trace == NULL)
 		event->trace = trace_nop_print;
-	if (event->latency_trace == NULL)
-		event->latency_trace = trace_nop_print;
 	if (event->raw == NULL)
 		event->raw = trace_nop_print;
 	if (event->hex == NULL)
@@ -480,29 +478,6 @@ enum print_line_t trace_nop_print(struct trace_iterator *iter, int flags)
 }
 
 /* TRACE_FN */
-static enum print_line_t trace_fn_latency(struct trace_iterator *iter,
-					  int flags)
-{
-	struct ftrace_entry *field;
-	struct trace_seq *s = &iter->seq;
-
-	trace_assign_type(field, iter->ent);
-
-	if (!seq_print_ip_sym(s, field->ip, flags))
-		goto partial;
-	if (!trace_seq_puts(s, " ("))
-		goto partial;
-	if (!seq_print_ip_sym(s, field->parent_ip, flags))
-		goto partial;
-	if (!trace_seq_puts(s, ")\n"))
-		goto partial;
-
-	return TRACE_TYPE_HANDLED;
-
- partial:
-	return TRACE_TYPE_PARTIAL_LINE;
-}
-
 static enum print_line_t trace_fn_trace(struct trace_iterator *iter, int flags)
 {
 	struct ftrace_entry *field;
@@ -573,7 +548,6 @@ static enum print_line_t trace_fn_bin(struct trace_iterator *iter, int flags)
 static struct trace_event trace_fn_event = {
 	.type	 	= TRACE_FN,
 	.trace		= trace_fn_trace,
-	.latency_trace	= trace_fn_latency,
 	.raw		= trace_fn_raw,
 	.hex		= trace_fn_hex,
 	.binary		= trace_fn_bin,
@@ -705,7 +679,6 @@ static enum print_line_t trace_ctxwake_bin(struct trace_iterator *iter,
 static struct trace_event trace_ctx_event = {
 	.type	 	= TRACE_CTX,
 	.trace		= trace_ctx_print,
-	.latency_trace	= trace_ctx_print,
 	.raw		= trace_ctx_raw,
 	.hex		= trace_ctx_hex,
 	.binary		= trace_ctxwake_bin,
@@ -714,7 +687,6 @@ static struct trace_event trace_ctx_event = {
 static struct trace_event trace_wake_event = {
 	.type	 	= TRACE_WAKE,
 	.trace		= trace_wake_print,
-	.latency_trace	= trace_wake_print,
 	.raw		= trace_wake_raw,
 	.hex		= trace_wake_hex,
 	.binary		= trace_ctxwake_bin,
@@ -770,7 +742,6 @@ static enum print_line_t trace_special_bin(struct trace_iterator *iter,
 static struct trace_event trace_special_event = {
 	.type	 	= TRACE_SPECIAL,
 	.trace		= trace_special_print,
-	.latency_trace	= trace_special_print,
 	.raw		= trace_special_print,
 	.hex		= trace_special_hex,
 	.binary		= trace_special_bin,
@@ -808,7 +779,6 @@ static enum print_line_t trace_stack_print(struct trace_iterator *iter,
 static struct trace_event trace_stack_event = {
 	.type	 	= TRACE_STACK,
 	.trace		= trace_stack_print,
-	.latency_trace	= trace_stack_print,
 	.raw		= trace_special_print,
 	.hex		= trace_special_hex,
 	.binary		= trace_special_bin,
@@ -838,7 +808,6 @@ static enum print_line_t trace_user_stack_print(struct trace_iterator *iter,
 static struct trace_event trace_user_stack_event = {
 	.type	 	= TRACE_USER_STACK,
 	.trace		= trace_user_stack_print,
-	.latency_trace	= trace_user_stack_print,
 	.raw		= trace_special_print,
 	.hex		= trace_special_hex,
 	.binary		= trace_special_bin,
@@ -883,7 +852,6 @@ static enum print_line_t trace_print_raw(struct trace_iterator *iter, int flags)
 static struct trace_event trace_print_event = {
 	.type	 	= TRACE_PRINT,
 	.trace		= trace_print_print,
-	.latency_trace	= trace_print_print,
 	.raw		= trace_print_raw,
 };
 

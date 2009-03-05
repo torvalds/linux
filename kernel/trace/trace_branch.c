@@ -159,7 +159,6 @@ static enum print_line_t trace_branch_print(struct trace_iterator *iter,
 static struct trace_event trace_branch_event = {
 	.type	 	= TRACE_BRANCH,
 	.trace		= trace_branch_print,
-	.latency_trace	= trace_branch_print,
 };
 
 static struct tracer branch_trace __read_mostly =
