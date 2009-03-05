@@ -1468,33 +1468,6 @@ static void test_cpu_buff_start(struct trace_iterator *iter)
 	trace_seq_printf(s, "##### CPU %u buffer started ####\n", iter->cpu);
 }
 
-static enum print_line_t print_lat_fmt(struct trace_iterator *iter)
-{
-	struct trace_seq *s = &iter->seq;
-	unsigned long sym_flags = (trace_flags & TRACE_ITER_SYM_MASK);
-	struct trace_event *event;
-	struct trace_entry *entry = iter->ent;
-
-	test_cpu_buff_start(iter);
-
-	event = ftrace_find_event(entry->type);
-
-	if (trace_flags & TRACE_ITER_CONTEXT_INFO) {
-		if (!trace_print_lat_context(iter))
-			goto partial;
-	}
-
-	if (event)
-		return event->trace(iter, sym_flags);
-
-	if (!trace_seq_printf(s, "Unknown type %d\n", entry->type))
-		goto partial;
-
-	return TRACE_TYPE_HANDLED;
-partial:
-	return TRACE_TYPE_PARTIAL_LINE;
-}
-
 static enum print_line_t print_trace_fmt(struct trace_iterator *iter)
 {
 	struct trace_seq *s = &iter->seq;
@@ -1509,8 +1482,13 @@ static enum print_line_t print_trace_fmt(struct trace_iterator *iter)
 	event = ftrace_find_event(entry->type);
 
 	if (trace_flags & TRACE_ITER_CONTEXT_INFO) {
-		if (!trace_print_context(iter))
-			goto partial;
+		if (iter->iter_flags & TRACE_FILE_LAT_FMT) {
+			if (!trace_print_lat_context(iter))
+				goto partial;
+		} else {
+			if (!trace_print_context(iter))
+				goto partial;
+		}
 	}
 
 	if (event)
@@ -1651,9 +1629,6 @@ static enum print_line_t print_trace_line(struct trace_iterator *iter)
 
 	if (trace_flags & TRACE_ITER_RAW)
 		return print_raw_fmt(iter);
-
-	if (iter->iter_flags & TRACE_FILE_LAT_FMT)
-		return print_lat_fmt(iter);
 
 	return print_trace_fmt(iter);
 }
