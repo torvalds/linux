@@ -361,7 +361,7 @@ ssize_t trace_seq_to_user(struct trace_seq *s, char __user *ubuf, size_t cnt)
 
 	cnt -= ret;
 
-	s->readpos += len;
+	s->readpos += cnt;
 	return cnt;
 }
 
@@ -380,7 +380,7 @@ ssize_t trace_seq_to_buffer(struct trace_seq *s, void *buf, size_t cnt)
 	if (!ret)
 		return -EFAULT;
 
-	s->readpos += len;
+	s->readpos += cnt;
 	return cnt;
 }
 
