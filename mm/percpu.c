@@ -63,6 +63,7 @@
 #include <linux/rbtree.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
+#include <linux/workqueue.h>
 
 #include <asm/cacheflush.h>
 #include <asm/tlbflush.h>
@@ -117,6 +118,10 @@ static DEFINE_MUTEX(pcpu_mutex);
 
 static struct list_head *pcpu_slot __read_mostly; /* chunk list slots */
 static struct rb_root pcpu_addr_root = RB_ROOT;	/* chunks by address */
+
+/* reclaim work to release fully free chunks, scheduled from free path */
+static void pcpu_reclaim(struct work_struct *work);
+static DECLARE_WORK(pcpu_reclaim_work, pcpu_reclaim);
 
 static int __pcpu_size_to_slot(int size)
 {
@@ -846,13 +851,37 @@ void *__alloc_reserved_percpu(size_t size, size_t align)
 	return pcpu_alloc(size, align, true);
 }
 
-static void pcpu_kill_chunk(struct pcpu_chunk *chunk)
+/**
+ * pcpu_reclaim - reclaim fully free chunks, workqueue function
+ * @work: unused
+ *
+ * Reclaim all fully free chunks except for the first one.
+ */
+static void pcpu_reclaim(struct work_struct *work)
 {
-	WARN_ON(chunk->immutable);
-	pcpu_depopulate_chunk(chunk, 0, pcpu_unit_size, false);
-	list_del(&chunk->list);
-	rb_erase(&chunk->rb_node, &pcpu_addr_root);
-	free_pcpu_chunk(chunk);
+	LIST_HEAD(todo);
+	struct list_head *head = &pcpu_slot[pcpu_nr_slots - 1];
+	struct pcpu_chunk *chunk, *next;
+
+	mutex_lock(&pcpu_mutex);
+
+	list_for_each_entry_safe(chunk, next, head, list) {
+		WARN_ON(chunk->immutable);
+
+		/* spare the first one */
+		if (chunk == list_first_entry(head, struct pcpu_chunk, list))
+			continue;
+
+		rb_erase(&chunk->rb_node, &pcpu_addr_root);
+		list_move(&chunk->list, &todo);
+	}
+
+	mutex_unlock(&pcpu_mutex);
+
+	list_for_each_entry_safe(chunk, next, &todo, list) {
+		pcpu_depopulate_chunk(chunk, 0, pcpu_unit_size, false);
+		free_pcpu_chunk(chunk);
+	}
 }
 
 /**
@@ -877,14 +906,13 @@ void free_percpu(void *ptr)
 
 	pcpu_free_area(chunk, off);
 
-	/* the chunk became fully free, kill one if there are other free ones */
+	/* if there are more than one fully free chunks, wake up grim reaper */
 	if (chunk->free_size == pcpu_unit_size) {
 		struct pcpu_chunk *pos;
 
-		list_for_each_entry(pos,
-				    &pcpu_slot[pcpu_chunk_slot(chunk)], list)
+		list_for_each_entry(pos, &pcpu_slot[pcpu_nr_slots - 1], list)
 			if (pos != chunk) {
-				pcpu_kill_chunk(pos);
+				schedule_work(&pcpu_reclaim_work);
 				break;
 			}
 	}
