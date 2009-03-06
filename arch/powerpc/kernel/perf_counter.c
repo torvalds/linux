@@ -824,6 +824,7 @@ void hw_perf_counter_setup(int cpu)
 	cpuhw->mmcr[0] = MMCR0_FC;
 }
 
+extern struct power_pmu power4_pmu;
 extern struct power_pmu ppc970_pmu;
 extern struct power_pmu power5_pmu;
 extern struct power_pmu power5p_pmu;
@@ -841,6 +842,10 @@ static int init_perf_counters(void)
 	/* XXX should get this from cputable */
 	pvr = mfspr(SPRN_PVR);
 	switch (PVR_VER(pvr)) {
+	case PV_POWER4:
+	case PV_POWER4p:
+		ppmu = &power4_pmu;
+		break;
 	case PV_970:
 	case PV_970FX:
 	case PV_970MP:
