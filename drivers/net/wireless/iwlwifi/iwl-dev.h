@@ -62,7 +62,7 @@ extern struct iwl_cfg iwl6000_2agn_cfg;
 extern struct iwl_cfg iwl6000_3agn_cfg;
 extern struct iwl_cfg iwl6050_2agn_cfg;
 extern struct iwl_cfg iwl6050_3agn_cfg;
-extern struct iwl_cfg iwl100_bgn_cfg;
+extern struct iwl_cfg iwl1000_bgn_cfg;
 
 /* shared structures from iwl-5000.c */
 extern struct iwl_mod_params iwl50_mod_params;

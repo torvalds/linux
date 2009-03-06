@@ -211,7 +211,7 @@
 #define CSR_HW_REV_TYPE_5350           (0x0000030)
 #define CSR_HW_REV_TYPE_5100           (0x0000050)
 #define CSR_HW_REV_TYPE_5150           (0x0000040)
-#define CSR_HW_REV_TYPE_100            (0x0000060)
+#define CSR_HW_REV_TYPE_1000           (0x0000060)
 #define CSR_HW_REV_TYPE_6x00           (0x0000070)
 #define CSR_HW_REV_TYPE_6x50           (0x0000080)
 #define CSR_HW_REV_TYPE_NONE           (0x00000F0)

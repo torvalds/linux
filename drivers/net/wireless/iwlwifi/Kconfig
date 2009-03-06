@@ -87,7 +87,7 @@ config IWL4965
 	  This option enables support for Intel Wireless WiFi Link 4965AGN
 
 config IWL5000
-	bool "Intel Wireless WiFi 5000AGN; Intel WiFi Link 100, 6000, and 6050 Series"
+	bool "Intel Wireless WiFi 5000AGN; Intel WiFi Link 1000, 6000, and 6050 Series"
 	depends on IWLAGN
 	---help---
 	  This option enables support for Intel Wireless WiFi Link 5000AGN Family
