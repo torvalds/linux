@@ -1,15 +1,16 @@
 #ifndef _LINUX_FTRACE_H
 #define _LINUX_FTRACE_H
 
-#include <linux/linkage.h>
-#include <linux/fs.h>
-#include <linux/ktime.h>
-#include <linux/init.h>
-#include <linux/types.h>
-#include <linux/module.h>
+#include <linux/trace_clock.h>
 #include <linux/kallsyms.h>
+#include <linux/linkage.h>
 #include <linux/bitops.h>
+#include <linux/module.h>
+#include <linux/ktime.h>
 #include <linux/sched.h>
+#include <linux/types.h>
+#include <linux/init.h>
+#include <linux/fs.h>
 
 #include <asm/ftrace.h>
 
