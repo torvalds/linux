@@ -78,6 +78,13 @@ static int __devinit create_gpio_led(const struct gpio_led *template,
 {
 	int ret;
 
+	/* skip leds that aren't available */
+	if (!gpio_is_valid(template->gpio)) {
+		printk(KERN_INFO "Skipping unavilable LED gpio %d (%s)\n", 
+				template->gpio, template->name);
+		return;
+	}
+
 	ret = gpio_request(template->gpio, template->name);
 	if (ret < 0)
 		return ret;
@@ -114,6 +121,8 @@ err:
 
 static void delete_gpio_led(struct gpio_led_data *led)
 {
+	if (!gpio_is_valid(led->gpio))
+		return;
 	led_classdev_unregister(&led->cdev);
 	cancel_work_sync(&led->work);
 	gpio_free(led->gpio);
