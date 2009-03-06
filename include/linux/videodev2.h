@@ -1412,14 +1412,6 @@ struct v4l2_dbg_chip_ident {
 	__u32 revision;    /* chip revision, chip specific */
 } __attribute__ ((packed));
 
-/* VIDIOC_G_CHIP_IDENT_OLD: Deprecated, do not use */
-struct v4l2_chip_ident_old {
-	__u32 match_type;  /* Match type */
-	__u32 match_chip;  /* Match this chip, meaning determined by match_type */
-	__u32 ident;       /* chip identifier as specified in <media/v4l2-chip-ident.h> */
-	__u32 revision;    /* chip revision, chip specific */
-};
-
 /*
  *	I O C T L   C O D E S   F O R   V I D E O   D E V I C E S
  *
@@ -1497,8 +1489,6 @@ struct v4l2_chip_ident_old {
 /* Experimental, meant for debugging, testing and internal use.
    Never use this ioctl in applications! */
 #define VIDIOC_DBG_G_CHIP_IDENT _IOWR('V', 81, struct v4l2_dbg_chip_ident)
-/* This is deprecated and will go away in 2.6.30 */
-#define VIDIOC_G_CHIP_IDENT_OLD _IOWR('V', 81, struct v4l2_chip_ident_old)
 #endif
 
 #define VIDIOC_S_HW_FREQ_SEEK	 _IOW('V', 82, struct v4l2_hw_freq_seek)

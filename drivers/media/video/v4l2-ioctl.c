@@ -1692,11 +1692,6 @@ static long __video_do_ioctl(struct file *file,
 			dbgarg(cmd, "chip_ident=%u, revision=0x%x\n", p->ident, p->revision);
 		break;
 	}
-	case VIDIOC_G_CHIP_IDENT_OLD:
-		printk(KERN_ERR "VIDIOC_G_CHIP_IDENT has been deprecated and will disappear in 2.6.30.\n");
-		printk(KERN_ERR "It is a debugging ioctl and must not be used in applications!\n");
-		return -EINVAL;
-
 	case VIDIOC_S_HW_FREQ_SEEK:
 	{
 		struct v4l2_hw_freq_seek *p = arg;
