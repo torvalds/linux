@@ -5,6 +5,7 @@
 #include <linux/slab.h> /* For kmalloc() */
 #include <linux/smp.h>
 #include <linux/cpumask.h>
+#include <linux/pfn.h>
 
 #include <asm/percpu.h>
 
@@ -52,17 +53,18 @@
 #define EXPORT_PER_CPU_SYMBOL(var) EXPORT_SYMBOL(per_cpu__##var)
 #define EXPORT_PER_CPU_SYMBOL_GPL(var) EXPORT_SYMBOL_GPL(per_cpu__##var)
 
-/* Enough to cover all DEFINE_PER_CPUs in kernel, including modules. */
-#ifndef PERCPU_ENOUGH_ROOM
+/* enough to cover all DEFINE_PER_CPUs in modules */
 #ifdef CONFIG_MODULES
-#define PERCPU_MODULE_RESERVE	8192
+#define PERCPU_MODULE_RESERVE		(8 << 10)
 #else
-#define PERCPU_MODULE_RESERVE	0
+#define PERCPU_MODULE_RESERVE		0
 #endif
 
+#ifndef PERCPU_ENOUGH_ROOM
 #define PERCPU_ENOUGH_ROOM						\
-	(__per_cpu_end - __per_cpu_start + PERCPU_MODULE_RESERVE)
-#endif	/* PERCPU_ENOUGH_ROOM */
+	(ALIGN(__per_cpu_end - __per_cpu_start, SMP_CACHE_BYTES) +	\
+	 PERCPU_MODULE_RESERVE)
+#endif
 
 /*
  * Must be an lvalue. Since @var must be a simple identifier,
@@ -79,7 +81,7 @@
 #ifdef CONFIG_HAVE_DYNAMIC_PER_CPU_AREA
 
 /* minimum unit size, also is the maximum supported allocation size */
-#define PCPU_MIN_UNIT_SIZE		(16UL << PAGE_SHIFT)
+#define PCPU_MIN_UNIT_SIZE		PFN_ALIGN(64 << 10)
 
 /*
  * PERCPU_DYNAMIC_RESERVE indicates the amount of free area to piggy
@@ -96,15 +98,15 @@
 #ifndef PERCPU_DYNAMIC_RESERVE
 #  if BITS_PER_LONG > 32
 #    ifdef CONFIG_MODULES
-#      define PERCPU_DYNAMIC_RESERVE	(6 << PAGE_SHIFT)
+#      define PERCPU_DYNAMIC_RESERVE	(24 << 10)
 #    else
-#      define PERCPU_DYNAMIC_RESERVE	(4 << PAGE_SHIFT)
+#      define PERCPU_DYNAMIC_RESERVE	(16 << 10)
 #    endif
 #  else
 #    ifdef CONFIG_MODULES
-#      define PERCPU_DYNAMIC_RESERVE	(4 << PAGE_SHIFT)
+#      define PERCPU_DYNAMIC_RESERVE	(16 << 10)
 #    else
-#      define PERCPU_DYNAMIC_RESERVE	(2 << PAGE_SHIFT)
+#      define PERCPU_DYNAMIC_RESERVE	(8 << 10)
 #    endif
 #  endif
 #endif	/* PERCPU_DYNAMIC_RESERVE */
