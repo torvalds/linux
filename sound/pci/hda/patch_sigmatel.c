@@ -2871,6 +2871,16 @@ static hda_nid_t get_unassigned_dac(struct hda_codec *codec, hda_nid_t nid)
 			return conn[j];
 		}
 	}
+	/* if all DACs are already assigned, connect to the primary DAC */
+	if (conn_len > 1) {
+		for (j = 0; j < conn_len; j++) {
+			if (conn[j] == spec->multiout.dac_nids[0]) {
+				snd_hda_codec_write_cache(codec, nid, 0,
+						  AC_VERB_SET_CONNECT_SEL, j);
+				break;
+			}
+		}
+	}
 	return 0;
 }
 
