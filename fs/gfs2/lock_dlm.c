@@ -46,11 +46,11 @@ static void gdlm_ast(void *arg)
 		BUG();
 	}
 
-	ret = gl->gl_target;
+	ret = gl->gl_req;
 	if (gl->gl_lksb.sb_flags & DLM_SBF_ALTMODE) {
-		if (gl->gl_target == LM_ST_SHARED)
+		if (gl->gl_req == LM_ST_SHARED)
 			ret = LM_ST_DEFERRED;
-		else if (gl->gl_target == LM_ST_DEFERRED)
+		else if (gl->gl_req == LM_ST_DEFERRED)
 			ret = LM_ST_SHARED;
 		else
 			BUG();
@@ -147,6 +147,7 @@ static unsigned int gdlm_lock(struct gfs2_glock *gl,
 	int req;
 	u32 lkf;
 
+	gl->gl_req = req_state;
 	req = make_mode(req_state);
 	lkf = make_flags(gl->gl_lksb.sb_lkid, flags, req);
 

@@ -203,6 +203,7 @@ struct gfs2_glock {
 	unsigned int gl_target;
 	unsigned int gl_reply;
 	unsigned int gl_hash;
+	unsigned int gl_req;
 	unsigned int gl_demote_state; /* state requested by remote node */
 	unsigned long gl_demote_time; /* time of first demote request */
 	struct list_head gl_holders;
