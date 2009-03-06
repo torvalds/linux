@@ -778,14 +778,14 @@
 #define AR_SREV_9285_10_OR_LATER(_ah) \
 	(((_ah)->hw_version.macVersion >= AR_SREV_VERSION_9285))
 #define AR_SREV_9285_11(_ah) \
-	(AR_SREV_9280(ah) && \
+	(AR_SREV_9285(ah) && \
 	 ((_ah)->hw_version.macRev == AR_SREV_REVISION_9285_11))
 #define AR_SREV_9285_11_OR_LATER(_ah) \
 	(((_ah)->hw_version.macVersion > AR_SREV_VERSION_9285) || \
 	 (AR_SREV_9285(ah) && ((_ah)->hw_version.macRev >= \
 			       AR_SREV_REVISION_9285_11)))
 #define AR_SREV_9285_12(_ah) \
-	(AR_SREV_9280(ah) && \
+	(AR_SREV_9285(ah) && \
 	 ((_ah)->hw_version.macRev == AR_SREV_REVISION_9285_12))
 #define AR_SREV_9285_12_OR_LATER(_ah) \
 	(((_ah)->hw_version.macVersion > AR_SREV_VERSION_9285) || \
