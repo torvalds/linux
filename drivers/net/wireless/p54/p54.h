@@ -14,6 +14,10 @@
  * published by the Free Software Foundation.
  */
 
+#ifdef CONFIG_MAC80211_LEDS
+#include <linux/leds.h>
+#endif /* CONFIG_MAC80211_LEDS */
+
 enum p54_control_frame_types {
 	P54_CONTROL_TYPE_SETUP = 0,
 	P54_CONTROL_TYPE_SCAN,
@@ -112,6 +116,21 @@ enum fw_state {
 	FW_STATE_RESETTING,
 };
 
+#ifdef CONFIG_MAC80211_LEDS
+
+#define P54_LED_MAX_NAME_LEN 31
+
+struct p54_led_dev {
+	struct ieee80211_hw *hw_dev;
+	struct led_classdev led_dev;
+	char name[P54_LED_MAX_NAME_LEN + 1];
+
+	unsigned int index;
+	unsigned int registered;
+};
+
+#endif /* CONFIG_MAC80211_LEDS */
+
 struct p54_common {
 	struct ieee80211_hw *hw;
 	u32 rx_start;
@@ -157,6 +176,12 @@ struct p54_common {
 	struct completion eeprom_comp;
 	u8 privacy_caps;
 	u8 rx_keycache_size;
+	/* LED management */
+	#ifdef CONFIG_MAC80211_LEDS
+	struct p54_led_dev assoc_led;
+	struct p54_led_dev tx_led;
+	#endif /* CONFIG_MAC80211_LEDS */
+	u16 softled_state;		/* bit field of glowing LEDs */
 };
 
 int p54_rx(struct ieee80211_hw *dev, struct sk_buff *skb);

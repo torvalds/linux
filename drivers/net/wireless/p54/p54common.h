@@ -515,10 +515,9 @@ struct p54_scan_tail_rate {
 } __attribute__ ((packed));
 
 struct p54_led {
-	__le16 mode;
-	__le16 led_temporary;
-	__le16 led_permanent;
-	__le16 duration;
+	__le16 flags;
+	__le16 mask[2];
+	__le16 delay[2];
 } __attribute__ ((packed));
 
 struct p54_edcf {
