@@ -8,6 +8,12 @@
  *
  * Based on the previous version of the driver for 2.4 kernels by:
  * Copyright (C) 2003 Ladislav Michl <ladis@linux-mips.org>
+ *
+ * v4l2_device/v4l2_subdev conversion by:
+ * Copyright (C) 2009 Hans Verkuil <hverkuil@xs4all.nl>
+ *
+ * Note: this conversion is untested! Please contact the linux-media
+ * mailinglist if you can test this, together with the test results.
  */
 
 /*
