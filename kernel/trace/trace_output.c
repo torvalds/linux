@@ -53,6 +53,26 @@ trace_seq_printf(struct trace_seq *s, const char *fmt, ...)
 	return len;
 }
 
+static int
+trace_seq_bprintf(struct trace_seq *s, const char *fmt, const u32 *binary)
+{
+	int len = (PAGE_SIZE - 1) - s->len;
+	int ret;
+
+	if (!len)
+		return 0;
+
+	ret = bstr_printf(s->buffer + s->len, len, fmt, binary);
+
+	/* If we can't write it all, don't bother writing anything */
+	if (ret >= len)
+		return 0;
+
+	s->len += ret;
+
+	return len;
+}
+
 /**
  * trace_seq_puts - trace sequence printing of simple string
  * @s: trace sequence descriptor
@@ -855,6 +875,60 @@ static struct trace_event trace_print_event = {
 	.raw		= trace_print_raw,
 };
 
+/* TRACE_BPRINTK */
+static enum print_line_t
+trace_bprintk_print(struct trace_iterator *iter, int flags)
+{
+	struct trace_entry *entry = iter->ent;
+	struct trace_seq *s = &iter->seq;
+	struct bprintk_entry *field;
+
+	trace_assign_type(field, entry);
+
+	if (!seq_print_ip_sym(s, field->ip, flags))
+		goto partial;
+
+	if (!trace_seq_puts(s, ": "))
+		goto partial;
+
+	if (!trace_seq_bprintf(s, field->fmt, field->buf))
+		goto partial;
+
+	return TRACE_TYPE_HANDLED;
+
+ partial:
+	return TRACE_TYPE_PARTIAL_LINE;
+}
+
+static enum print_line_t
+trace_bprintk_raw(struct trace_iterator *iter, int flags)
+{
+	struct trace_entry *entry = iter->ent;
+	struct trace_seq *s = &iter->seq;
+	struct bprintk_entry *field;
+
+	trace_assign_type(field, entry);
+
+	if (!trace_seq_printf(s, ": %lx : ", field->ip))
+		goto partial;
+
+	if (!trace_seq_bprintf(s, field->fmt, field->buf))
+		goto partial;
+
+	return TRACE_TYPE_HANDLED;
+
+ partial:
+	return TRACE_TYPE_PARTIAL_LINE;
+}
+
+static struct trace_event trace_bprintk_event = {
+	.type	 	= TRACE_BPRINTK,
+	.trace		= trace_bprintk_print,
+	.raw		= trace_bprintk_raw,
+	.hex		= trace_nop_print,
+	.binary		= trace_nop_print,
+};
+
 static struct trace_event *events[] __initdata = {
 	&trace_fn_event,
 	&trace_ctx_event,
@@ -863,6 +937,7 @@ static struct trace_event *events[] __initdata = {
 	&trace_stack_event,
 	&trace_user_stack_event,
 	&trace_print_event,
+	&trace_bprintk_event,
 	NULL
 };
 

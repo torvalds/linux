@@ -223,6 +223,9 @@ extern int ftrace_make_nop(struct module *mod,
  */
 extern int ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr);
 
+#ifdef CONFIG_TRACE_BPRINTK
+extern int trace_vbprintk(unsigned long ip, const char *fmt, va_list args);
+#endif
 
 /* May be defined in arch */
 extern int ftrace_arch_read_dyn_info(char *buf, int size);

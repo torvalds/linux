@@ -20,6 +20,7 @@ enum trace_type {
 	TRACE_WAKE,
 	TRACE_STACK,
 	TRACE_PRINT,
+	TRACE_BPRINTK,
 	TRACE_SPECIAL,
 	TRACE_MMIO_RW,
 	TRACE_MMIO_MAP,
@@ -123,6 +124,16 @@ struct print_entry {
 	int			depth;
 	char			buf[];
 };
+
+struct bprintk_entry {
+	struct trace_entry ent;
+	unsigned long ip;
+	const char *fmt;
+	u32 buf[];
+};
+#ifdef CONFIG_TRACE_BPRINTK
+extern int trace_bprintk_enable;
+#endif
 
 #define TRACE_OLD_SIZE		88
 
@@ -285,6 +296,7 @@ extern void __ftrace_bad_type(void);
 		IF_ASSIGN(var, ent, struct stack_entry, TRACE_STACK);	\
 		IF_ASSIGN(var, ent, struct userstack_entry, TRACE_USER_STACK);\
 		IF_ASSIGN(var, ent, struct print_entry, TRACE_PRINT);	\
+		IF_ASSIGN(var, ent, struct bprintk_entry, TRACE_BPRINTK);\
 		IF_ASSIGN(var, ent, struct special_entry, 0);		\
 		IF_ASSIGN(var, ent, struct trace_mmiotrace_rw,		\
 			  TRACE_MMIO_RW);				\
