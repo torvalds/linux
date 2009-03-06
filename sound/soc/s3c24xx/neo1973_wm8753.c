@@ -29,11 +29,11 @@
 #include <mach/regs-clock.h>
 #include <mach/regs-gpio.h>
 #include <mach/hardware.h>
-#include <mach/audio.h>
+#include <plat/audio.h>
 #include <linux/io.h>
 #include <mach/spi-gpio.h>
 
-#include <asm/plat-s3c24xx/regs-iis.h>
+#include <plat/regs-iis.h>
 
 #include "../codecs/wm8753.h"
 #include "lm4857.h"

@@ -30,11 +30,11 @@
 #include <mach/hardware.h>
 #include <mach/regs-gpio.h>
 #include <mach/regs-clock.h>
-#include <mach/audio.h>
+#include <plat/audio.h>
 #include <asm/dma.h>
 #include <mach/dma.h>
 
-#include <asm/plat-s3c24xx/regs-iis.h>
+#include <plat/regs-iis.h>
 
 #include "s3c24xx-pcm.h"
 #include "s3c24xx-i2s.h"
