@@ -490,7 +490,7 @@ static void mmci_check_status(unsigned long data)
 	mod_timer(&host->timer, jiffies + HZ);
 }
 
-static int mmci_probe(struct amba_device *dev, void *id)
+static int __devinit mmci_probe(struct amba_device *dev, void *id)
 {
 	struct mmc_platform_data *plat = dev->dev.platform_data;
 	struct mmci_host *host;
@@ -633,7 +633,7 @@ static int mmci_probe(struct amba_device *dev, void *id)
 	return ret;
 }
 
-static int mmci_remove(struct amba_device *dev)
+static int __devexit mmci_remove(struct amba_device *dev)
 {
 	struct mmc_host *mmc = amba_get_drvdata(dev);
 
@@ -730,7 +730,7 @@ static struct amba_driver mmci_driver = {
 		.name	= DRIVER_NAME,
 	},
 	.probe		= mmci_probe,
-	.remove		= mmci_remove,
+	.remove		= __devexit_p(mmci_remove),
 	.suspend	= mmci_suspend,
 	.resume		= mmci_resume,
 	.id_table	= mmci_ids,
