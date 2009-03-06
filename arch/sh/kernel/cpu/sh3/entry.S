@@ -216,7 +216,7 @@ ENTRY(sh_bios_handler)
 ! r9 trashed
 ! BL=0 on entry, on exit BL=1 (depending on r8).
 
-restore_regs:
+ENTRY(restore_regs)
 	mov.l	@r15+, r0
 	mov.l	@r15+, r1
 	mov.l	@r15+, r2
@@ -362,8 +362,10 @@ general_exception:
 	 nop
 
 	! Save registers / Switch to bank 0
+	mov.l	k4, k2		! keep vector in k2
+	mov.l	1f, k4		! SR bits to clear in k4
 	bsr	save_regs	! needs original pr value in k3
-	 mov	k4, k2		! keep vector in k2
+	 nop
 
 	bra	handle_exception_special
 	 nop
@@ -471,6 +473,7 @@ handle_exception:
 
 	! Save registers / Switch to bank 0
 	mov.l	5f, k2		! vector register address
+	mov.l	1f, k4		! SR bits to clear in k4
 	bsr	save_regs	! needs original pr value in k3
 	 mov.l	@k2, k2		! read out vector and keep in k2
 
@@ -495,10 +498,10 @@ handle_exception_special:
 ! k0 contains original stack pointer*
 ! k1 trashed
 ! k3 passes original pr*
-! k4 trashed
+! k4 passes SR bitmask
 ! BL=1 on entry, on exit BL=0.
 
-save_regs:
+ENTRY(save_regs)
 	mov	#-1, r1
 	mov.l	k1, @-r15	! set TRA (default: -1)
 	sts.l	macl, @-r15
@@ -518,8 +521,16 @@ save_regs:
 	mov.l	r8, @-r15
 
 	mov.l	0f, k3		! SR bits to set in k3
-	mov.l	1f, k4		! SR bits to clear in k4
 
+	! fall-through
+
+! save_low_regs()
+! - modify SR for bank switch
+! - save r7, r6, r5, r4, r3, r2, r1, r0 on the stack
+! k3 passes bits to set in SR
+! k4 passes bits to clear in SR
+
+ENTRY(save_low_regs)
 	stc	sr, r8
 	or	k3, r8
 	and	k4, r8
@@ -565,6 +576,7 @@ ENTRY(handle_interrupt)
 	 PREF(k0)
 
 	! Save registers / Switch to bank 0
+	mov.l	1f, k4		! SR bits to clear in k4
 	bsr	save_regs	! needs original pr value in k3
 	 mov	#-1, k2		! default vector kept in k2
 
