@@ -59,20 +59,10 @@ static struct stv0900_inode *find_inode(struct i2c_adapter *i2c_adap,
 		 find it by i2c adapter and i2c address */
 		while ((temp_chip != NULL) &&
 			((temp_chip->internal->i2c_adap != i2c_adap) ||
-			(temp_chip->internal->i2c_addr != i2c_addr))) {
+			(temp_chip->internal->i2c_addr != i2c_addr)))
 
 			temp_chip = temp_chip->next_inode;
-			dprintk(KERN_INFO "%s: store.adap %x\n", __func__,
-				(int)&(*temp_chip->internal->i2c_adap));
-			dprintk(KERN_INFO "%s: init.adap %x\n", __func__,
-				(int)&(*i2c_adap));
-		}
-		if (temp_chip != NULL) {/* find by i2c adapter & address */
-			dprintk(KERN_INFO "%s: store.adap %x\n", __func__,
-				(int)temp_chip->internal->i2c_adap);
-			dprintk(KERN_INFO "%s: init.adap %x\n", __func__,
-				(int)i2c_adap);
-		}
+
 	}
 
 	return temp_chip;
@@ -1492,7 +1482,7 @@ static enum dvbfe_search stv0900_search(struct dvb_frontend *fe,
 
 	enum fe_stv0900_error error = STV0900_NO_ERROR;
 
-	dprintk(KERN_INFO "%s: Internal = %x\n", __func__, (u32)i_params);
+	dprintk(KERN_INFO "%s: ", __func__);
 
 	p_result.locked = FALSE;
 	p_search.path = state->demod;
@@ -1607,7 +1597,7 @@ static int stv0900_read_status(struct dvb_frontend *fe, enum fe_status *status)
 {
 	struct stv0900_state *state = fe->demodulator_priv;
 
-	dprintk("%s: Internal = %x\n", __func__, (unsigned int)state->internal);
+	dprintk("%s: ", __func__);
 
 	if ((stv0900_status(state->internal, state->demod)) == TRUE) {
 		dprintk("DEMOD LOCK OK\n");
@@ -1920,8 +1910,6 @@ struct dvb_frontend *stv0900_attach(const struct stv0900_config *config,
 		if (err_stv0900)
 			goto error;
 
-		dprintk(KERN_INFO "%s: Init Result = %d, handle_stv0900 = %x\n",
-			__func__, err_stv0900, (unsigned int)state->internal);
 		break;
 	default:
 		goto error;
