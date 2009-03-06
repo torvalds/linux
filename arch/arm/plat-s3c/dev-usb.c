@@ -23,8 +23,8 @@
 
 static struct resource s3c_usb_resource[] = {
 	[0] = {
-		.start = S3C24XX_PA_USBHOST,
-		.end   = S3C24XX_PA_USBHOST + S3C24XX_SZ_USBHOST - 1,
+		.start = S3C_PA_USBHOST,
+		.end   = S3C_PA_USBHOST + 0x100 - 1,
 		.flags = IORESOURCE_MEM,
 	},
 	[1] = {
