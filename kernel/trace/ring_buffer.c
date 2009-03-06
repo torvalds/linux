@@ -2606,7 +2606,7 @@ rb_simple_write(struct file *filp, const char __user *ubuf,
 	return cnt;
 }
 
-static struct file_operations rb_simple_fops = {
+static const struct file_operations rb_simple_fops = {
 	.open		= tracing_open_generic,
 	.read		= rb_simple_read,
 	.write		= rb_simple_write,

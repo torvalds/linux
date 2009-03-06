@@ -1882,14 +1882,14 @@ static int show_traces_open(struct inode *inode, struct file *file)
 	return ret;
 }
 
-static struct file_operations tracing_fops = {
+static const struct file_operations tracing_fops = {
 	.open		= tracing_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
 	.release	= tracing_release,
 };
 
-static struct file_operations show_traces_fops = {
+static const struct file_operations show_traces_fops = {
 	.open		= show_traces_open,
 	.read		= seq_read,
 	.release	= seq_release,
@@ -1982,7 +1982,7 @@ err_unlock:
 	return err;
 }
 
-static struct file_operations tracing_cpumask_fops = {
+static const struct file_operations tracing_cpumask_fops = {
 	.open		= tracing_open_generic,
 	.read		= tracing_cpumask_read,
 	.write		= tracing_cpumask_write,
@@ -2134,7 +2134,7 @@ tracing_trace_options_write(struct file *filp, const char __user *ubuf,
 	return cnt;
 }
 
-static struct file_operations tracing_iter_fops = {
+static const struct file_operations tracing_iter_fops = {
 	.open		= tracing_open_generic,
 	.read		= tracing_trace_options_read,
 	.write		= tracing_trace_options_write,
@@ -2167,7 +2167,7 @@ tracing_readme_read(struct file *filp, char __user *ubuf,
 					readme_msg, strlen(readme_msg));
 }
 
-static struct file_operations tracing_readme_fops = {
+static const struct file_operations tracing_readme_fops = {
 	.open		= tracing_open_generic,
 	.read		= tracing_readme_read,
 };
@@ -2927,25 +2927,25 @@ tracing_mark_write(struct file *filp, const char __user *ubuf,
 	return cnt;
 }
 
-static struct file_operations tracing_max_lat_fops = {
+static const struct file_operations tracing_max_lat_fops = {
 	.open		= tracing_open_generic,
 	.read		= tracing_max_lat_read,
 	.write		= tracing_max_lat_write,
 };
 
-static struct file_operations tracing_ctrl_fops = {
+static const struct file_operations tracing_ctrl_fops = {
 	.open		= tracing_open_generic,
 	.read		= tracing_ctrl_read,
 	.write		= tracing_ctrl_write,
 };
 
-static struct file_operations set_tracer_fops = {
+static const struct file_operations set_tracer_fops = {
 	.open		= tracing_open_generic,
 	.read		= tracing_set_trace_read,
 	.write		= tracing_set_trace_write,
 };
 
-static struct file_operations tracing_pipe_fops = {
+static const struct file_operations tracing_pipe_fops = {
 	.open		= tracing_open_pipe,
 	.poll		= tracing_poll_pipe,
 	.read		= tracing_read_pipe,
@@ -2953,13 +2953,13 @@ static struct file_operations tracing_pipe_fops = {
 	.release	= tracing_release_pipe,
 };
 
-static struct file_operations tracing_entries_fops = {
+static const struct file_operations tracing_entries_fops = {
 	.open		= tracing_open_generic,
 	.read		= tracing_entries_read,
 	.write		= tracing_entries_write,
 };
 
-static struct file_operations tracing_mark_fops = {
+static const struct file_operations tracing_mark_fops = {
 	.open		= tracing_open_generic,
 	.write		= tracing_mark_write,
 };
@@ -3240,7 +3240,7 @@ tracing_read_dyn_info(struct file *filp, char __user *ubuf,
 	return r;
 }
 
-static struct file_operations tracing_dyn_info_fops = {
+static const struct file_operations tracing_dyn_info_fops = {
 	.open		= tracing_open_generic,
 	.read		= tracing_read_dyn_info,
 };

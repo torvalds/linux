@@ -1869,21 +1869,21 @@ ftrace_notrace_release(struct inode *inode, struct file *file)
 	return ftrace_regex_release(inode, file, 0);
 }
 
-static struct file_operations ftrace_avail_fops = {
+static const struct file_operations ftrace_avail_fops = {
 	.open = ftrace_avail_open,
 	.read = seq_read,
 	.llseek = seq_lseek,
 	.release = ftrace_avail_release,
 };
 
-static struct file_operations ftrace_failures_fops = {
+static const struct file_operations ftrace_failures_fops = {
 	.open = ftrace_failures_open,
 	.read = seq_read,
 	.llseek = seq_lseek,
 	.release = ftrace_avail_release,
 };
 
-static struct file_operations ftrace_filter_fops = {
+static const struct file_operations ftrace_filter_fops = {
 	.open = ftrace_filter_open,
 	.read = ftrace_regex_read,
 	.write = ftrace_filter_write,
@@ -1891,7 +1891,7 @@ static struct file_operations ftrace_filter_fops = {
 	.release = ftrace_filter_release,
 };
 
-static struct file_operations ftrace_notrace_fops = {
+static const struct file_operations ftrace_notrace_fops = {
 	.open = ftrace_notrace_open,
 	.read = ftrace_regex_read,
 	.write = ftrace_notrace_write,
@@ -2423,7 +2423,7 @@ ftrace_pid_write(struct file *filp, const char __user *ubuf,
 	return cnt;
 }
 
-static struct file_operations ftrace_pid_fops = {
+static const struct file_operations ftrace_pid_fops = {
 	.read = ftrace_pid_read,
 	.write = ftrace_pid_write,
 };

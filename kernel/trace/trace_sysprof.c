@@ -314,7 +314,7 @@ sysprof_sample_write(struct file *filp, const char __user *ubuf,
 	return cnt;
 }
 
-static struct file_operations sysprof_sample_fops = {
+static const struct file_operations sysprof_sample_fops = {
 	.read		= sysprof_sample_read,
 	.write		= sysprof_sample_write,
 };
