@@ -28,7 +28,7 @@
 #include <asm/rtc.h>
 
 #define DRV_NAME	"sh-rtc"
-#define DRV_VERSION	"0.2.0"
+#define DRV_VERSION	"0.2.1"
 
 #define RTC_REG(r)	((r) * rtc_reg_size)
 
