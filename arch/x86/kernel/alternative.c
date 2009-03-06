@@ -5,6 +5,7 @@
 #include <linux/kprobes.h>
 #include <linux/mm.h>
 #include <linux/vmalloc.h>
+#include <linux/memory.h>
 #include <asm/alternative.h>
 #include <asm/sections.h>
 #include <asm/pgtable.h>
@@ -226,6 +227,7 @@ static void alternatives_smp_lock(u8 **start, u8 **end, u8 *text, u8 *text_end)
 {
 	u8 **ptr;
 
+	mutex_lock(&text_mutex);
 	for (ptr = start; ptr < end; ptr++) {
 		if (*ptr < text)
 			continue;
@@ -234,6 +236,7 @@ static void alternatives_smp_lock(u8 **start, u8 **end, u8 *text, u8 *text_end)
 		/* turn DS segment override prefix into lock prefix */
 		text_poke(*ptr, ((unsigned char []){0xf0}), 1);
 	};
+	mutex_unlock(&text_mutex);
 }
 
 static void alternatives_smp_unlock(u8 **start, u8 **end, u8 *text, u8 *text_end)
@@ -243,6 +246,7 @@ static void alternatives_smp_unlock(u8 **start, u8 **end, u8 *text, u8 *text_end
 	if (noreplace_smp)
 		return;
 
+	mutex_lock(&text_mutex);
 	for (ptr = start; ptr < end; ptr++) {
 		if (*ptr < text)
 			continue;
@@ -251,6 +255,7 @@ static void alternatives_smp_unlock(u8 **start, u8 **end, u8 *text, u8 *text_end
 		/* turn lock prefix into DS segment override prefix */
 		text_poke(*ptr, ((unsigned char []){0x3E}), 1);
 	};
+	mutex_unlock(&text_mutex);
 }
 
 struct smp_alt_module {
