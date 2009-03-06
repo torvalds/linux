@@ -328,6 +328,8 @@ static int iwl3945_commit_rxon(struct iwl_priv *priv)
 	struct iwl3945_rxon_cmd *active_rxon = (void *)&priv->active_rxon;
 	struct iwl3945_rxon_cmd *staging_rxon = (void *)&priv->staging_rxon;
 	int rc = 0;
+	bool new_assoc =
+		!!(priv->staging_rxon.filter_flags & RXON_FILTER_ASSOC_MSK);
 
 	if (!iwl_is_alive(priv))
 		return -1;
@@ -366,8 +368,7 @@ static int iwl3945_commit_rxon(struct iwl_priv *priv)
 	 * an RXON_ASSOC and the new config wants the associated mask enabled,
 	 * we must clear the associated from the active configuration
 	 * before we apply the new config */
-	if (iwl_is_associated(priv) &&
-	    (staging_rxon->filter_flags & RXON_FILTER_ASSOC_MSK)) {
+	if (iwl_is_associated(priv) && new_assoc) {
 		IWL_DEBUG_INFO(priv, "Toggling associated bit on current RXON\n");
 		active_rxon->filter_flags &= ~RXON_FILTER_ASSOC_MSK;
 
@@ -395,8 +396,7 @@ static int iwl3945_commit_rxon(struct iwl_priv *priv)
 		       "* with%s RXON_FILTER_ASSOC_MSK\n"
 		       "* channel = %d\n"
 		       "* bssid = %pM\n",
-		       ((priv->staging_rxon.filter_flags &
-			 RXON_FILTER_ASSOC_MSK) ? "" : "out"),
+		       (new_assoc ? "" : "out"),
 		       le16_to_cpu(staging_rxon->channel),
 		       staging_rxon->bssid_addr);
 
