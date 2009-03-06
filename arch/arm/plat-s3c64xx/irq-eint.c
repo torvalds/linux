@@ -14,12 +14,15 @@
 
 #include <linux/kernel.h>
 #include <linux/interrupt.h>
+#include <linux/gpio.h>
 #include <linux/irq.h>
 #include <linux/io.h>
 
 #include <asm/hardware/vic.h>
 
 #include <plat/regs-irqtype.h>
+#include <plat/regs-gpio.h>
+#include <plat/gpio-cfg.h>
 
 #include <mach/map.h>
 #include <plat/cpu.h>
@@ -74,6 +77,7 @@ static void s3c_irq_eint_maskack(unsigned int irq)
 static int s3c_irq_eint_set_type(unsigned int irq, unsigned int type)
 {
 	int offs = eint_offset(irq);
+	int pin;
 	int shift;
 	u32 ctrl, mask;
 	u32 newvalue = 0;
@@ -124,6 +128,15 @@ static int s3c_irq_eint_set_type(unsigned int irq, unsigned int type)
 	ctrl &= ~mask;
 	ctrl |= newvalue << shift;
 	__raw_writel(ctrl, reg);
+
+	/* set the GPIO pin appropriately */
+
+	if (offs < 23)
+		pin = S3C64XX_GPN(offs);
+	else
+		pin = S3C64XX_GPM(offs - 23);
+
+	s3c_gpio_cfgpin(pin, S3C_GPIO_SFN(2));
 
 	return 0;
 }
@@ -181,7 +194,7 @@ static void s3c_irq_demux_eint20_27(unsigned int irq, struct irq_desc *desc)
 	s3c_irq_demux_eint(20, 27);
 }
 
-int __init s3c64xx_init_irq_eint(void)
+static int __init s3c64xx_init_irq_eint(void)
 {
 	int irq;
 
