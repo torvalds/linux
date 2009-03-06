@@ -2164,19 +2164,20 @@ static void __exit panel_cleanup_module(void)
 	if (scan_timer.function != NULL)
 		del_timer(&scan_timer);
 
-	if (keypad_enabled)
-		misc_deregister(&keypad_dev);
+	if (pprt != NULL) {
+		if (keypad_enabled)
+			misc_deregister(&keypad_dev);
 
-	if (lcd_enabled) {
-		panel_lcd_print("\x0cLCD driver " PANEL_VERSION
-				"\nunloaded.\x1b[Lc\x1b[Lb\x1b[L-");
-		misc_deregister(&lcd_dev);
+		if (lcd_enabled) {
+			panel_lcd_print("\x0cLCD driver " PANEL_VERSION
+					"\nunloaded.\x1b[Lc\x1b[Lb\x1b[L-");
+			misc_deregister(&lcd_dev);
+		}
+
+		/* TODO: free all input signals */
+		parport_release(pprt);
+		parport_unregister_device(pprt);
 	}
-
-	/* TODO: free all input signals */
-
-	parport_release(pprt);
-	parport_unregister_device(pprt);
 	parport_unregister_driver(&panel_driver);
 }
 

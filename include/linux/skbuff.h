@@ -416,15 +416,6 @@ extern void	      skb_over_panic(struct sk_buff *skb, int len,
 				     void *here);
 extern void	      skb_under_panic(struct sk_buff *skb, int len,
 				      void *here);
-extern void	      skb_truesize_bug(struct sk_buff *skb);
-
-static inline void skb_truesize_check(struct sk_buff *skb)
-{
-	int len = sizeof(struct sk_buff) + skb->len;
-
-	if (unlikely((int)skb->truesize < len))
-		skb_truesize_bug(skb);
-}
 
 extern int skb_append_datato_frags(struct sock *sk, struct sk_buff *skb,
 			int getfrag(void *from, char *to, int offset,
