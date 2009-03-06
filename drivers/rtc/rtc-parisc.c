@@ -13,9 +13,7 @@
 
 static int parisc_get_time(struct device *dev, struct rtc_time *tm)
 {
-	unsigned long ret;
-
-	ret = get_rtc_time(tm);
+	unsigned int ret = get_rtc_time(tm);
 
 	if (ret & RTC_BATT_BAD)
 		return -EOPNOTSUPP;
