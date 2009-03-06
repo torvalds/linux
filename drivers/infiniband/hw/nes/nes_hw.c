@@ -1644,7 +1644,6 @@ int nes_init_nic_qp(struct nes_device *nesdev, struct net_device *netdev)
 	nesvnic->post_cqp_request = nes_post_cqp_request;
 	nesvnic->mcrq_mcast_filter = NULL;
 
-	spin_lock_init(&nesvnic->nic.sq_lock);
 	spin_lock_init(&nesvnic->nic.rq_lock);
 
 	/* setup the RQ */
@@ -2632,9 +2631,9 @@ void nes_nic_ce_handler(struct nes_device *nesdev, struct nes_hw_nic_cq *cq)
 						} else
 							break;
 					}
-					if (skb)
-						dev_kfree_skb_any(skb);
 				}
+				if (skb)
+					dev_kfree_skb_any(skb);
 				nesnic->sq_tail++;
 				nesnic->sq_tail &= nesnic->sq_size-1;
 				if (sq_cqes > 128) {

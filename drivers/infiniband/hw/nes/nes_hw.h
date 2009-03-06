@@ -876,7 +876,6 @@ struct nes_hw_nic {
 	u8 replenishing_rq;
 	u8 reserved;
 
-	spinlock_t sq_lock;
 	spinlock_t rq_lock;
 };
 
@@ -1148,7 +1147,6 @@ struct nes_ib_device;
 struct nes_vnic {
 	struct nes_ib_device *nesibdev;
 	u64 sq_full;
-	u64 sq_locked;
 	u64 tso_requests;
 	u64 segmented_tso_requests;
 	u64 linearized_skbs;
