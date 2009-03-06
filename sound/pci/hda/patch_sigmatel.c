@@ -2921,6 +2921,26 @@ static int stac92xx_auto_fill_dac_nids(struct hda_codec *codec)
 		add_spec_dacs(spec, dac);
 	}
 
+	for (i = 0; i < cfg->hp_outs; i++) {
+		nid = cfg->hp_pins[i];
+		dac = get_unassigned_dac(codec, nid);
+		if (dac) {
+			if (!spec->multiout.hp_nid)
+				spec->multiout.hp_nid = dac;
+			else
+				add_spec_extra_dacs(spec, dac);
+		}
+		spec->hp_dacs[i] = dac;
+	}
+
+	for (i = 0; i < cfg->speaker_outs; i++) {
+		nid = cfg->speaker_pins[i];
+		dac = get_unassigned_dac(codec, nid);
+		if (dac)
+			add_spec_extra_dacs(spec, dac);
+		spec->speaker_dacs[i] = dac;
+	}
+
 	/* add line-in as output */
 	nid = check_line_out_switch(codec);
 	if (nid) {
@@ -2946,26 +2966,6 @@ static int stac92xx_auto_fill_dac_nids(struct hda_codec *codec)
 			spec->mic_switch = nid;
 			add_spec_dacs(spec, dac);
 		}
-	}
-
-	for (i = 0; i < cfg->hp_outs; i++) {
-		nid = cfg->hp_pins[i];
-		dac = get_unassigned_dac(codec, nid);
-		if (dac) {
-			if (!spec->multiout.hp_nid)
-				spec->multiout.hp_nid = dac;
-			else
-				add_spec_extra_dacs(spec, dac);
-		}
-		spec->hp_dacs[i] = dac;
-	}
-
-	for (i = 0; i < cfg->speaker_outs; i++) {
-		nid = cfg->speaker_pins[i];
-		dac = get_unassigned_dac(codec, nid);
-		if (dac)
-			add_spec_extra_dacs(spec, dac);
-		spec->speaker_dacs[i] = dac;
 	}
 
 	snd_printd("stac92xx: dac_nids=%d (0x%x/0x%x/0x%x/0x%x/0x%x)\n",
