@@ -551,6 +551,7 @@ static int nes_dealloc_fmr(struct ib_fmr *ibfmr)
 	struct nes_device *nesdev = nesvnic->nesdev;
 	struct nes_adapter *nesadapter = nesdev->nesadapter;
 	int i = 0;
+	int rc;
 
 	/* free the resources */
 	if (nesfmr->leaf_pbl_cnt == 0) {
@@ -572,7 +573,9 @@ static int nes_dealloc_fmr(struct ib_fmr *ibfmr)
 	nesmr->ibmw.rkey = ibfmr->rkey;
 	nesmr->ibmw.uobject = NULL;
 
-	if (nesfmr->nesmr.pbls_used != 0) {
+	rc = nes_dealloc_mw(&nesmr->ibmw);
+
+	if ((rc == 0) && (nesfmr->nesmr.pbls_used != 0)) {
 		spin_lock_irqsave(&nesadapter->pbl_lock, flags);
 		if (nesfmr->nesmr.pbl_4k) {
 			nesadapter->free_4kpbl += nesfmr->nesmr.pbls_used;
@@ -584,7 +587,7 @@ static int nes_dealloc_fmr(struct ib_fmr *ibfmr)
 		spin_unlock_irqrestore(&nesadapter->pbl_lock, flags);
 	}
 
-	return nes_dealloc_mw(&nesmr->ibmw);
+	return rc;
 }
 
 
@@ -1993,7 +1996,16 @@ static int nes_reg_mr(struct nes_device *nesdev, struct nes_pd *nespd,
 			stag, ret, cqp_request->major_code, cqp_request->minor_code);
 	major_code = cqp_request->major_code;
 	nes_put_cqp_request(nesdev, cqp_request);
-
+	if ((!ret || major_code) && pbl_count != 0) {
+		spin_lock_irqsave(&nesadapter->pbl_lock, flags);
+		if (pbl_count > 1)
+			nesadapter->free_4kpbl += pbl_count+1;
+		else if (residual_page_count > 32)
+			nesadapter->free_4kpbl += pbl_count;
+		else
+			nesadapter->free_256pbl += pbl_count;
+		spin_unlock_irqrestore(&nesadapter->pbl_lock, flags);
+	}
 	if (!ret)
 		return -ETIME;
 	else if (major_code)
@@ -2607,24 +2619,6 @@ static int nes_dereg_mr(struct ib_mr *ib_mr)
 	cqp_request->waiting = 1;
 	cqp_wqe = &cqp_request->cqp_wqe;
 
-	spin_lock_irqsave(&nesadapter->pbl_lock, flags);
-	if (nesmr->pbls_used != 0) {
-		if (nesmr->pbl_4k) {
-			nesadapter->free_4kpbl += nesmr->pbls_used;
-			if (nesadapter->free_4kpbl > nesadapter->max_4kpbl) {
-				printk(KERN_ERR PFX "free 4KB PBLs(%u) has exceeded the max(%u)\n",
-						nesadapter->free_4kpbl, nesadapter->max_4kpbl);
-			}
-		} else {
-			nesadapter->free_256pbl += nesmr->pbls_used;
-			if (nesadapter->free_256pbl > nesadapter->max_256pbl) {
-				printk(KERN_ERR PFX "free 256B PBLs(%u) has exceeded the max(%u)\n",
-						nesadapter->free_256pbl, nesadapter->max_256pbl);
-			}
-		}
-	}
-
-	spin_unlock_irqrestore(&nesadapter->pbl_lock, flags);
 	nes_fill_init_cqp_wqe(cqp_wqe, nesdev);
 	set_wqe_32bit_value(cqp_wqe->wqe_words, NES_CQP_WQE_OPCODE_IDX,
 			NES_CQP_DEALLOCATE_STAG | NES_CQP_STAG_VA_TO |
@@ -2642,11 +2636,6 @@ static int nes_dereg_mr(struct ib_mr *ib_mr)
 			" CQP Major:Minor codes = 0x%04X:0x%04X\n",
 			ib_mr->rkey, ret, cqp_request->major_code, cqp_request->minor_code);
 
-	nes_free_resource(nesadapter, nesadapter->allocated_mrs,
-			(ib_mr->rkey & 0x0fffff00) >> 8);
-
-	kfree(nesmr);
-
 	major_code = cqp_request->major_code;
 	minor_code = cqp_request->minor_code;
 
@@ -2662,8 +2651,33 @@ static int nes_dereg_mr(struct ib_mr *ib_mr)
 				" to destroy STag, ib_mr=%p, rkey = 0x%08X\n",
 				major_code, minor_code, ib_mr, ib_mr->rkey);
 		return -EIO;
-	} else
-		return 0;
+	}
+
+	if (nesmr->pbls_used != 0) {
+		spin_lock_irqsave(&nesadapter->pbl_lock, flags);
+		if (nesmr->pbl_4k) {
+			nesadapter->free_4kpbl += nesmr->pbls_used;
+			if (nesadapter->free_4kpbl > nesadapter->max_4kpbl)
+				printk(KERN_ERR PFX "free 4KB PBLs(%u) has "
+					"exceeded the max(%u)\n",
+					nesadapter->free_4kpbl,
+					nesadapter->max_4kpbl);
+		} else {
+			nesadapter->free_256pbl += nesmr->pbls_used;
+			if (nesadapter->free_256pbl > nesadapter->max_256pbl)
+				printk(KERN_ERR PFX "free 256B PBLs(%u) has "
+					"exceeded the max(%u)\n",
+					nesadapter->free_256pbl,
+					nesadapter->max_256pbl);
+		}
+		spin_unlock_irqrestore(&nesadapter->pbl_lock, flags);
+	}
+	nes_free_resource(nesadapter, nesadapter->allocated_mrs,
+			(ib_mr->rkey & 0x0fffff00) >> 8);
+
+	kfree(nesmr);
+
+	return 0;
 }
 
 
