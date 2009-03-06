@@ -754,7 +754,7 @@
 #define AR_SREV_9100(ah) \
 	((ah->hw_version.macVersion) == AR_SREV_VERSION_9100)
 #define AR_SREV_9100_OR_LATER(_ah) \
-	(((_ah)->hw_version.macVersion >= AR_SREV_VERSION_5416_PCIE))
+	(((_ah)->hw_version.macVersion >= AR_SREV_VERSION_9100))
 
 #define AR_SREV_9160(_ah) \
 	(((_ah)->hw_version.macVersion == AR_SREV_VERSION_9160))
