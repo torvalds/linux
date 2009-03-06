@@ -2158,12 +2158,6 @@ static noinline struct module *load_module(void __user *umod,
 					&mod->num_tracepoints);
 #endif
 
-#ifdef CONFIG_TRACE_BPRINTK
-	mod->trace_bprintk_fmt_start = section_objs(hdr, sechdrs, secstrings,
-			"__trace_bprintk_fmt", sizeof(char *),
-			&mod->num_trace_bprintk_fmt);
-#endif
-
 #ifdef CONFIG_MODVERSIONS
 	if ((mod->num_syms && !mod->crcs)
 	    || (mod->num_gpl_syms && !mod->gpl_crcs)

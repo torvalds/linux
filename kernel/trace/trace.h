@@ -119,14 +119,11 @@ struct userstack_entry {
  */
 struct print_entry {
 	struct trace_entry	ent;
-	unsigned long 		ip;
+	unsigned long		ip;
 	int			depth;
 	const char		*fmt;
-	u32 			buf[];
+	u32			buf[];
 };
-#ifdef CONFIG_TRACE_BPRINTK
-extern int trace_bprintk_enable;
-#endif
 
 #define TRACE_OLD_SIZE		88
 
@@ -199,7 +196,7 @@ struct kmemtrace_free_entry {
  * trace_flag_type is an enumeration that holds different
  * states when a trace occurs. These are:
  *  IRQS_OFF		- interrupts were disabled
- *  IRQS_NOSUPPORT 	- arch does not support irqs_disabled_flags
+ *  IRQS_NOSUPPORT	- arch does not support irqs_disabled_flags
  *  NEED_RESCED		- reschedule is requested
  *  HARDIRQ		- inside an interrupt handler
  *  SOFTIRQ		- inside a softirq handler
@@ -302,7 +299,7 @@ extern void __ftrace_bad_type(void);
 		IF_ASSIGN(var, ent, struct ftrace_graph_ret_entry,	\
 			  TRACE_GRAPH_RET);		\
 		IF_ASSIGN(var, ent, struct hw_branch_entry, TRACE_HW_BRANCHES);\
- 		IF_ASSIGN(var, ent, struct trace_power, TRACE_POWER); \
+		IF_ASSIGN(var, ent, struct trace_power, TRACE_POWER); \
 		IF_ASSIGN(var, ent, struct kmemtrace_alloc_entry,	\
 			  TRACE_KMEM_ALLOC);	\
 		IF_ASSIGN(var, ent, struct kmemtrace_free_entry,	\
@@ -325,8 +322,8 @@ enum print_line_t {
  * flags value in struct tracer_flags.
  */
 struct tracer_opt {
-	const char 	*name; /* Will appear on the trace_options file */
-	u32 		bit; /* Mask assigned in val field in tracer_flags */
+	const char	*name; /* Will appear on the trace_options file */
+	u32		bit; /* Mask assigned in val field in tracer_flags */
 };
 
 /*
@@ -335,7 +332,7 @@ struct tracer_opt {
  */
 struct tracer_flags {
 	u32			val;
-	struct tracer_opt 	*opts;
+	struct tracer_opt	*opts;
 };
 
 /* Makes more easy to define a tracer opt */
@@ -390,7 +387,7 @@ struct tracer {
 	int			(*set_flag)(u32 old_flags, u32 bit, int set);
 	struct tracer		*next;
 	int			print_max;
-	struct tracer_flags 	*flags;
+	struct tracer_flags	*flags;
 	struct tracer_stat	*stats;
 };
 
