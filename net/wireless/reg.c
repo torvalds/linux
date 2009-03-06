@@ -86,15 +86,26 @@ struct reg_beacon {
 
 /* We keep a static world regulatory domain in case of the absence of CRDA */
 static const struct ieee80211_regdomain world_regdom = {
-	.n_reg_rules = 3,
+	.n_reg_rules = 5,
 	.alpha2 =  "00",
 	.reg_rules = {
 		/* IEEE 802.11b/g, channels 1..11 */
 		REG_RULE(2412-10, 2462+10, 40, 6, 20, 0),
-		/* IEEE 802.11a, channel 36..48 */
-		REG_RULE(5180-10, 5240+10, 40, 6, 23,
+		/* IEEE 802.11b/g, channels 12..13. No HT40
+		 * channel fits here. */
+		REG_RULE(2467-10, 2472+10, 20, 6, 20,
 			NL80211_RRF_PASSIVE_SCAN |
 			NL80211_RRF_NO_IBSS),
+		/* IEEE 802.11 channel 14 - Only JP enables
+		 * this and for 802.11b only */
+		REG_RULE(2484-10, 2484+10, 20, 6, 20,
+			NL80211_RRF_PASSIVE_SCAN |
+			NL80211_RRF_NO_IBSS |
+			NL80211_RRF_NO_OFDM),
+		/* IEEE 802.11a, channel 36..48 */
+		REG_RULE(5180-10, 5240+10, 40, 6, 23,
+                        NL80211_RRF_PASSIVE_SCAN |
+                        NL80211_RRF_NO_IBSS),
 
 		/* NB: 5260 MHz - 5700 MHz requies DFS */
 
