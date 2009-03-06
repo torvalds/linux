@@ -1,16 +1,20 @@
-menu "Customise DVB Frontends"
-	depends on DVB_CORE
-
 config DVB_FE_CUSTOMISE
 	bool "Customise the frontend modules to build"
+	depends on DVB_CORE
 	default N
 	help
-	  This allows the user to deselect frontend drivers unnecessary
-	  for their hardware from the build. Use this option with care
-	  as deselecting frontends which are in fact necessary will result
-	  in DVB devices which cannot be tuned due to lack of driver support.
+	  This allows the user to select/deselect frontend drivers for their
+	  hardware from the build.
+
+	  Use this option with care as deselecting frontends which are in fact
+	  necessary will result in DVB devices which cannot be tuned due to lack
+	  of driver support.
 
 	  If unsure say N.
+
+if DVB_FE_CUSTOMISE
+
+menu "Customise DVB Frontends"
 
 comment "Multistandard (satellite) frontends"
 	depends on DVB_CORE
@@ -507,3 +511,5 @@ config DVB_AF9013
 	help
 	  Say Y when you want to support this frontend.
 endmenu
+
+endif
