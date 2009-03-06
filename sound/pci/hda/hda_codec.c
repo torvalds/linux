@@ -1552,15 +1552,20 @@ int snd_hda_add_vmaster(struct hda_codec *codec, char *name,
 	
 	for (s = slaves; *s; s++) {
 		struct snd_kcontrol *sctl;
-
-		sctl = snd_hda_find_mixer_ctl(codec, *s);
-		if (!sctl) {
-			snd_printdd("Cannot find slave %s, skipped\n", *s);
-			continue;
+		int i = 0;
+		for (;;) {
+			sctl = _snd_hda_find_mixer_ctl(codec, *s, i);
+			if (!sctl) {
+				if (!i)
+					snd_printdd("Cannot find slave %s, "
+						    "skipped\n", *s);
+				break;
+			}
+			err = snd_ctl_add_slave(kctl, sctl);
+			if (err < 0)
+				return err;
+			i++;
 		}
-		err = snd_ctl_add_slave(kctl, sctl);
-		if (err < 0)
-			return err;
 	}
 	return 0;
 }
