@@ -3516,6 +3516,7 @@ static int stac92xx_parse_auto_config(struct hda_codec *codec, hda_nid_t dig_out
 	if (! spec->autocfg.line_outs)
 		return 0; /* can't find valid pin config */
 
+#if 0 /* FIXME: temporarily disabled */
 	/* If we have no real line-out pin and multiple hp-outs, HPs should
 	 * be set up as multi-channel outputs.
 	 */
@@ -3535,6 +3536,7 @@ static int stac92xx_parse_auto_config(struct hda_codec *codec, hda_nid_t dig_out
 		spec->autocfg.line_out_type = AUTO_PIN_HP_OUT;
 		spec->autocfg.hp_outs = 0;
 	}
+#endif /* FIXME: temporarily disabled */
 	if (spec->autocfg.mono_out_pin) {
 		int dir = get_wcaps(codec, spec->autocfg.mono_out_pin) &
 			(AC_WCAP_OUT_AMP | AC_WCAP_IN_AMP);
