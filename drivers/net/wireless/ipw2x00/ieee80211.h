@@ -164,23 +164,6 @@ struct ieee80211_snap_hdr {
 #define WLAN_GET_SEQ_FRAG(seq) ((seq) & IEEE80211_SCTL_FRAG)
 #define WLAN_GET_SEQ_SEQ(seq)  (((seq) & IEEE80211_SCTL_SEQ) >> 4)
 
-/* Action categories - 802.11h */
-enum ieee80211_actioncategories {
-	WLAN_ACTION_SPECTRUM_MGMT = 0,
-	/* Reserved 1-127  */
-	/* Error    128-255 */
-};
-
-/* Action details - 802.11h */
-enum ieee80211_actiondetails {
-	WLAN_ACTION_CATEGORY_MEASURE_REQUEST = 0,
-	WLAN_ACTION_CATEGORY_MEASURE_REPORT = 1,
-	WLAN_ACTION_CATEGORY_TPC_REQUEST = 2,
-	WLAN_ACTION_CATEGORY_TPC_REPORT = 3,
-	WLAN_ACTION_CATEGORY_CHANNEL_SWITCH = 4,
-	/* 5 - 255 Reserved */
-};
-
 #define IEEE80211_STATMASK_SIGNAL (1<<0)
 #define IEEE80211_STATMASK_RSSI (1<<1)
 #define IEEE80211_STATMASK_NOISE (1<<2)
