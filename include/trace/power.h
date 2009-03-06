@@ -11,12 +11,10 @@ enum {
 };
 
 struct power_trace {
-#ifdef CONFIG_POWER_TRACER
 	ktime_t			stamp;
 	ktime_t			end;
 	int			type;
 	int			state;
-#endif
 };
 
 DECLARE_TRACE(power_start,
