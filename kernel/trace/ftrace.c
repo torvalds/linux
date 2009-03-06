@@ -218,10 +218,8 @@ static void ftrace_update_pid_func(void)
 {
 	ftrace_func_t func;
 
-	mutex_lock(&ftrace_lock);
-
 	if (ftrace_trace_function == ftrace_stub)
-		goto out;
+		return;
 
 	func = ftrace_trace_function;
 
@@ -238,9 +236,6 @@ static void ftrace_update_pid_func(void)
 #else
 	__ftrace_trace_function = func;
 #endif
-
- out:
-	mutex_unlock(&ftrace_lock);
 }
 
 /* set when tracing only a pid */
