@@ -80,7 +80,8 @@ struct pcpu_chunk {
 	int			map_alloc;	/* # of map entries allocated */
 	int			*map;		/* allocation map */
 	bool			immutable;	/* no [de]population allowed */
-	struct page		*page[];	/* #cpus * UNIT_PAGES */
+	struct page		**page;		/* points to page array */
+	struct page		*page_ar[];	/* #cpus * UNIT_PAGES */
 };
 
 static int pcpu_unit_pages __read_mostly;
@@ -696,6 +697,7 @@ static struct pcpu_chunk *alloc_pcpu_chunk(void)
 				  PCPU_DFL_MAP_ALLOC * sizeof(chunk->map[0]));
 	chunk->map_alloc = PCPU_DFL_MAP_ALLOC;
 	chunk->map[chunk->map_used++] = pcpu_unit_size;
+	chunk->page = chunk->page_ar;
 
 	chunk->vm = get_vm_area(pcpu_chunk_size, GFP_KERNEL);
 	if (!chunk->vm) {
@@ -918,6 +920,7 @@ size_t __init pcpu_setup_first_chunk(pcpu_get_page_fn_t get_page_fn,
 	schunk->vm = &first_vm;
 	schunk->map = smap;
 	schunk->map_alloc = ARRAY_SIZE(smap);
+	schunk->page = schunk->page_ar;
 	schunk->free_size = dyn_size;
 	schunk->contig_hint = schunk->free_size;
 
