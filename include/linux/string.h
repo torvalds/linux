@@ -10,6 +10,7 @@
 #include <linux/compiler.h>	/* for inline */
 #include <linux/types.h>	/* for size_t */
 #include <linux/stddef.h>	/* for NULL */
+#include <stdarg.h>
 
 extern char *strndup_user(const char __user *, long);
 
@@ -110,6 +111,12 @@ extern char **argv_split(gfp_t gfp, const char *str, int *argcp);
 extern void argv_free(char **argv);
 
 extern bool sysfs_streq(const char *s1, const char *s2);
+
+#ifdef CONFIG_BINARY_PRINTF
+int vbin_printf(u32 *bin_buf, size_t size, const char *fmt, va_list args);
+int bstr_printf(char *buf, size_t size, const char *fmt, const u32 *bin_buf);
+int bprintf(u32 *bin_buf, size_t size, const char *fmt, ...) __printf(3, 4);
+#endif
 
 extern ssize_t memory_read_from_buffer(void *to, size_t count, loff_t *ppos,
 			const void *from, size_t available);
