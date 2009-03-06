@@ -41,7 +41,6 @@
 int i915_wait_ring(struct drm_device * dev, int n, const char *caller)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
-	struct drm_i915_master_private *master_priv = dev->primary->master->driver_priv;
 	drm_i915_ring_buffer_t *ring = &(dev_priv->ring);
 	u32 acthd_reg = IS_I965G(dev) ? ACTHD_I965 : ACTHD;
 	u32 last_acthd = I915_READ(acthd_reg);
@@ -58,8 +57,12 @@ int i915_wait_ring(struct drm_device * dev, int n, const char *caller)
 		if (ring->space >= n)
 			return 0;
 
-		if (master_priv->sarea_priv)
-			master_priv->sarea_priv->perf_boxes |= I915_BOX_WAIT;
+		if (dev->primary->master) {
+			struct drm_i915_master_private *master_priv = dev->primary->master->driver_priv;
+			if (master_priv->sarea_priv)
+				master_priv->sarea_priv->perf_boxes |= I915_BOX_WAIT;
+		}
+
 
 		if (ring->head != last_head)
 			i = 0;
