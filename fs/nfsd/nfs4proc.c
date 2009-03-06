@@ -682,6 +682,7 @@ nfsd4_write(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	struct file *filp = NULL;
 	u32 *p;
 	__be32 status = nfs_ok;
+	unsigned long cnt;
 
 	/* no need to check permission - this will be done in nfsd_write() */
 
@@ -700,7 +701,7 @@ nfsd4_write(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 		return status;
 	}
 
-	write->wr_bytes_written = write->wr_buflen;
+	cnt = write->wr_buflen;
 	write->wr_how_written = write->wr_stable_how;
 	p = (u32 *)write->wr_verifier.data;
 	*p++ = nfssvc_boot.tv_sec;
@@ -708,9 +709,11 @@ nfsd4_write(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 
 	status =  nfsd_write(rqstp, &cstate->current_fh, filp,
 			     write->wr_offset, rqstp->rq_vec, write->wr_vlen,
-			     write->wr_buflen, &write->wr_how_written);
+			     &cnt, &write->wr_how_written);
 	if (filp)
 		fput(filp);
+
+	write->wr_bytes_written = cnt;
 
 	if (status == nfserr_symlink)
 		status = nfserr_inval;
