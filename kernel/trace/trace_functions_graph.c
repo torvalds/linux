@@ -742,7 +742,11 @@ print_graph_comment(struct print_entry *trace, struct trace_seq *s,
 		}
 
 	/* The comment */
-	ret = trace_seq_printf(s, "/* %s", trace->buf);
+	ret = trace_seq_printf(s, "/* ");
+	if (!ret)
+		return TRACE_TYPE_PARTIAL_LINE;
+
+	ret = trace_seq_bprintf(s, trace->fmt, trace->buf);
 	if (!ret)
 		return TRACE_TYPE_PARTIAL_LINE;
 

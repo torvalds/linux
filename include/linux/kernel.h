@@ -423,6 +423,16 @@ extern void ftrace_off_permanent(void);
 extern void
 ftrace_special(unsigned long arg1, unsigned long arg2, unsigned long arg3);
 
+static inline void __attribute__ ((format (printf, 1, 2)))
+____trace_printk_check_format(const char *fmt, ...)
+{
+}
+#define __trace_printk_check_format(fmt, args...)			\
+do {									\
+	if (0)								\
+		____trace_printk_check_format(fmt, ##args);		\
+} while (0)
+
 /**
  * trace_printk - printf formatting in the ftrace buffer
  * @fmt: the printf format for printing
@@ -439,13 +449,31 @@ ftrace_special(unsigned long arg1, unsigned long arg2, unsigned long arg3);
  * Please refrain from leaving trace_printks scattered around in
  * your code.
  */
-# define trace_printk(fmt...) __trace_printk(_THIS_IP_, fmt)
+
+#define trace_printk(fmt, args...)					\
+do {									\
+	static const char *trace_printk_fmt				\
+	__attribute__((section("__trace_printk_fmt")));			\
+	trace_printk_fmt = fmt;					\
+	__trace_printk_check_format(fmt, ##args);			\
+	__trace_printk(_THIS_IP_, trace_printk_fmt, ##args);		\
+} while (0)
+
 extern int
 __trace_printk(unsigned long ip, const char *fmt, ...)
 	__attribute__ ((format (printf, 2, 3)));
-# define ftrace_vprintk(fmt, ap) __trace_printk(_THIS_IP_, fmt, ap)
+
+#define ftrace_vprintk(fmt, vargs)					\
+do {									\
+	static const char *trace_printk_fmt				\
+	__attribute__((section("__trace_printk_fmt")));			\
+	trace_printk_fmt = fmt;					\
+	__ftrace_vprintk(_THIS_IP_, trace_printk_fmt, vargs);		\
+} while (0)
+
 extern int
 __ftrace_vprintk(unsigned long ip, const char *fmt, va_list ap);
+
 extern void ftrace_dump(void);
 #else
 static inline void
@@ -467,7 +495,7 @@ ftrace_vprintk(const char *fmt, va_list ap)
 	return 0;
 }
 static inline void ftrace_dump(void) { }
-#endif
+#endif /* CONFIG_TRACING */
 
 /*
  *      Display an IP address in readable format.

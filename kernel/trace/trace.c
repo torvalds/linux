@@ -1169,6 +1169,67 @@ void trace_graph_return(struct ftrace_graph_ret *trace)
 }
 #endif /* CONFIG_FUNCTION_GRAPH_TRACER */
 
+
+/**
+ * trace_vprintk - write binary msg to tracing buffer
+ *
+ */
+int trace_vprintk(unsigned long ip, int depth, const char *fmt, va_list args)
+{
+	static DEFINE_SPINLOCK(trace_buf_lock);
+	static u32 trace_buf[TRACE_BUF_SIZE];
+
+	struct ring_buffer_event *event;
+	struct trace_array *tr = &global_trace;
+	struct trace_array_cpu *data;
+	struct print_entry *entry;
+	unsigned long flags;
+	int resched;
+	int cpu, len = 0, size, pc;
+
+	if (unlikely(tracing_selftest_running || tracing_disabled))
+		return 0;
+
+	/* Don't pollute graph traces with trace_vprintk internals */
+	pause_graph_tracing();
+
+	pc = preempt_count();
+	resched = ftrace_preempt_disable();
+	cpu = raw_smp_processor_id();
+	data = tr->data[cpu];
+
+	if (unlikely(atomic_read(&data->disabled)))
+		goto out;
+
+	spin_lock_irqsave(&trace_buf_lock, flags);
+	len = vbin_printf(trace_buf, TRACE_BUF_SIZE, fmt, args);
+
+	if (len > TRACE_BUF_SIZE || len < 0)
+		goto out_unlock;
+
+	size = sizeof(*entry) + sizeof(u32) * len;
+	event = trace_buffer_lock_reserve(tr, TRACE_PRINT, size, flags, pc);
+	if (!event)
+		goto out_unlock;
+	entry = ring_buffer_event_data(event);
+	entry->ip			= ip;
+	entry->depth			= depth;
+	entry->fmt			= fmt;
+
+	memcpy(entry->buf, trace_buf, sizeof(u32) * len);
+	ring_buffer_unlock_commit(tr->buffer, event);
+
+out_unlock:
+	spin_unlock_irqrestore(&trace_buf_lock, flags);
+
+out:
+	ftrace_preempt_enable(resched);
+	unpause_graph_tracing();
+
+	return len;
+}
+EXPORT_SYMBOL_GPL(trace_vprintk);
+
 enum trace_file_type {
 	TRACE_FILE_LAT_FMT	= 1,
 	TRACE_FILE_ANNOTATE	= 2,
@@ -1564,7 +1625,7 @@ static enum print_line_t print_printk_msg_only(struct trace_iterator *iter)
 
 	trace_assign_type(field, entry);
 
-	ret = trace_seq_printf(s, "%s", field->buf);
+	ret = trace_seq_bprintf(s, field->fmt, field->buf);
 	if (!ret)
 		return TRACE_TYPE_PARTIAL_LINE;
 
@@ -3713,155 +3774,6 @@ static __init int tracer_init_debugfs(void)
 
 	return 0;
 }
-
-int trace_vprintk(unsigned long ip, int depth, const char *fmt, va_list args)
-{
-	static raw_spinlock_t trace_buf_lock = __RAW_SPIN_LOCK_UNLOCKED;
-	static char trace_buf[TRACE_BUF_SIZE];
-
-	struct ring_buffer_event *event;
-	struct trace_array *tr = &global_trace;
-	struct trace_array_cpu *data;
-	int cpu, len = 0, size, pc;
-	struct print_entry *entry;
-	unsigned long irq_flags;
-
-	if (tracing_disabled || tracing_selftest_running)
-		return 0;
-
-	pc = preempt_count();
-	preempt_disable_notrace();
-	cpu = raw_smp_processor_id();
-	data = tr->data[cpu];
-
-	if (unlikely(atomic_read(&data->disabled)))
-		goto out;
-
-	pause_graph_tracing();
-	raw_local_irq_save(irq_flags);
-	__raw_spin_lock(&trace_buf_lock);
-	len = vsnprintf(trace_buf, TRACE_BUF_SIZE, fmt, args);
-
-	len = min(len, TRACE_BUF_SIZE-1);
-	trace_buf[len] = 0;
-
-	size = sizeof(*entry) + len + 1;
-	event = trace_buffer_lock_reserve(tr, TRACE_PRINT, size, irq_flags, pc);
-	if (!event)
-		goto out_unlock;
-	entry = ring_buffer_event_data(event);
-	entry->ip			= ip;
-	entry->depth			= depth;
-
-	memcpy(&entry->buf, trace_buf, len);
-	entry->buf[len] = 0;
-	ring_buffer_unlock_commit(tr->buffer, event);
-
- out_unlock:
-	__raw_spin_unlock(&trace_buf_lock);
-	raw_local_irq_restore(irq_flags);
-	unpause_graph_tracing();
- out:
-	preempt_enable_notrace();
-
-	return len;
-}
-EXPORT_SYMBOL_GPL(trace_vprintk);
-
-int __trace_printk(unsigned long ip, const char *fmt, ...)
-{
-	int ret;
-	va_list ap;
-
-	if (!(trace_flags & TRACE_ITER_PRINTK))
-		return 0;
-
-	va_start(ap, fmt);
-	ret = trace_vprintk(ip, task_curr_ret_stack(current), fmt, ap);
-	va_end(ap);
-	return ret;
-}
-EXPORT_SYMBOL_GPL(__trace_printk);
-
-int __ftrace_vprintk(unsigned long ip, const char *fmt, va_list ap)
-{
-	if (!(trace_flags & TRACE_ITER_PRINTK))
-		return 0;
-
-	return trace_vprintk(ip, task_curr_ret_stack(current), fmt, ap);
-}
-EXPORT_SYMBOL_GPL(__ftrace_vprintk);
-
-/**
- * trace_vbprintk - write binary msg to tracing buffer
- *
- * Caller must insure @fmt are valid when msg is in tracing buffer.
- */
-int trace_vbprintk(unsigned long ip, const char *fmt, va_list args)
-{
-	static DEFINE_SPINLOCK(trace_buf_lock);
-	static u32 trace_buf[TRACE_BUF_SIZE];
-
-	struct ring_buffer_event *event;
-	struct trace_array *tr = &global_trace;
-	struct trace_array_cpu *data;
-	struct bprintk_entry *entry;
-	unsigned long flags;
-	int resched;
-	int cpu, len = 0, size, pc;
-
-	if (tracing_disabled || !trace_bprintk_enable)
-		return 0;
-
-	pc = preempt_count();
-	resched = ftrace_preempt_disable();
-	cpu = raw_smp_processor_id();
-	data = tr->data[cpu];
-
-	if (unlikely(atomic_read(&data->disabled)))
-		goto out;
-
-	spin_lock_irqsave(&trace_buf_lock, flags);
-	len = vbin_printf(trace_buf, TRACE_BUF_SIZE, fmt, args);
-
-	if (len > TRACE_BUF_SIZE || len < 0)
-		goto out_unlock;
-
-	size = sizeof(*entry) + sizeof(u32) * len;
-	event = trace_buffer_lock_reserve(tr, TRACE_BPRINTK, size, flags, pc);
-	if (!event)
-		goto out_unlock;
-	entry = ring_buffer_event_data(event);
-	entry->ip			= ip;
-	entry->fmt			= fmt;
-
-	memcpy(entry->buf, trace_buf, sizeof(u32) * len);
-	ring_buffer_unlock_commit(tr->buffer, event);
-
-out_unlock:
-	spin_unlock_irqrestore(&trace_buf_lock, flags);
-
-out:
-	ftrace_preempt_enable(resched);
-
-	return len;
-}
-EXPORT_SYMBOL_GPL(trace_vbprintk);
-
-int __trace_bprintk(unsigned long ip, const char *fmt, ...)
-{
-	int ret;
-	va_list ap;
-
-	if (!fmt)
-		return 0;
-
-	va_start(ap, fmt);
-	ret = trace_vbprintk(ip, fmt, ap);
-	va_end(ap);
-	return ret;
-}
-EXPORT_SYMBOL_GPL(__trace_bprintk);
 
 static int trace_panic_handler(struct notifier_block *this,
 			       unsigned long event, void *unused)

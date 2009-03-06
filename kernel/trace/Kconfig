@@ -52,6 +52,7 @@ config TRACING
 	select STACKTRACE if STACKTRACE_SUPPORT
 	select TRACEPOINTS
 	select NOP_TRACER
+	select BINARY_PRINTF
 
 #
 # Minimum requirements an architecture has to meet for us to
@@ -96,12 +97,6 @@ config FUNCTION_GRAPH_TRACER
 	  the return value.
 	  This is done by setting the current return address on the current
 	  task structure into a stack of calls.
-
-config TRACE_BPRINTK
-	bool "Binary printk for tracing"
-	default y
-	depends on TRACING
-	select BINARY_PRINTF
 
 config IRQSOFF_TRACER
 	bool "Interrupts-off Latency Tracer"

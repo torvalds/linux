@@ -329,7 +329,7 @@ struct module
 	unsigned int num_tracepoints;
 #endif
 
-#ifdef CONFIG_TRACE_BPRINTK
+#ifdef CONFIG_TRACING
 	const char **trace_bprintk_fmt_start;
 	unsigned int num_trace_bprintk_fmt;
 #endif

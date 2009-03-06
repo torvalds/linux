@@ -21,30 +21,19 @@
 
 #ifdef CONFIG_MODULES
 
-/* binary printk basic */
-static DEFINE_MUTEX(btrace_mutex);
 /*
- * modules trace_bprintk()'s formats are autosaved in struct trace_bprintk_fmt
+ * modules trace_printk()'s formats are autosaved in struct trace_bprintk_fmt
  * which are queued on trace_bprintk_fmt_list.
  */
 static LIST_HEAD(trace_bprintk_fmt_list);
+
+/* serialize accesses to trace_bprintk_fmt_list */
+static DEFINE_MUTEX(btrace_mutex);
 
 struct trace_bprintk_fmt {
 	struct list_head list;
 	char fmt[0];
 };
-
-
-static inline void lock_btrace(void)
-{
-	mutex_lock(&btrace_mutex);
-}
-
-static inline void unlock_btrace(void)
-{
-	mutex_unlock(&btrace_mutex);
-}
-
 
 static inline struct trace_bprintk_fmt *lookup_format(const char *fmt)
 {
@@ -60,7 +49,8 @@ static
 void hold_module_trace_bprintk_format(const char **start, const char **end)
 {
 	const char **iter;
-	lock_btrace();
+
+	mutex_lock(&btrace_mutex);
 	for (iter = start; iter < end; iter++) {
 		struct trace_bprintk_fmt *tb_fmt = lookup_format(*iter);
 		if (tb_fmt) {
@@ -77,7 +67,7 @@ void hold_module_trace_bprintk_format(const char **start, const char **end)
 		} else
 			*iter = NULL;
 	}
-	unlock_btrace();
+	mutex_unlock(&btrace_mutex);
 }
 
 static int module_trace_bprintk_format_notify(struct notifier_block *self,
@@ -109,46 +99,40 @@ struct notifier_block module_trace_bprintk_format_nb = {
 	.notifier_call = module_trace_bprintk_format_notify,
 };
 
-/* events tracer */
-int trace_bprintk_enable;
+int __trace_printk(unsigned long ip, const char *fmt, ...)
+ {
+	int ret;
+	va_list ap;
 
-static void start_bprintk_trace(struct trace_array *tr)
-{
-	tracing_reset_online_cpus(tr);
-	trace_bprintk_enable = 1;
-}
+	if (unlikely(!fmt))
+		return 0;
 
-static void stop_bprintk_trace(struct trace_array *tr)
-{
-	trace_bprintk_enable = 0;
-	tracing_reset_online_cpus(tr);
-}
+	if (!(trace_flags & TRACE_ITER_PRINTK))
+		return 0;
 
-static int init_bprintk_trace(struct trace_array *tr)
-{
-	start_bprintk_trace(tr);
-	return 0;
-}
-
-static struct tracer bprintk_trace __read_mostly =
-{
-	.name	     = "events",
-	.init	     = init_bprintk_trace,
-	.reset	     = stop_bprintk_trace,
-	.start	     = start_bprintk_trace,
-	.stop	     = stop_bprintk_trace,
-};
-
-static __init int init_bprintk(void)
-{
-	int ret = register_module_notifier(&module_trace_bprintk_format_nb);
-	if (ret)
-		return ret;
-
-	ret = register_tracer(&bprintk_trace);
-	if (ret)
-		unregister_module_notifier(&module_trace_bprintk_format_nb);
+	va_start(ap, fmt);
+	ret = trace_vprintk(ip, task_curr_ret_stack(current), fmt, ap);
+	va_end(ap);
 	return ret;
 }
+EXPORT_SYMBOL_GPL(__trace_printk);
 
-device_initcall(init_bprintk);
+int __ftrace_vprintk(unsigned long ip, const char *fmt, va_list ap)
+ {
+	if (unlikely(!fmt))
+		return 0;
+
+	if (!(trace_flags & TRACE_ITER_PRINTK))
+		return 0;
+
+	return trace_vprintk(ip, task_curr_ret_stack(current), fmt, ap);
+}
+EXPORT_SYMBOL_GPL(__ftrace_vprintk);
+
+
+static __init int init_trace_printk(void)
+{
+	return register_module_notifier(&module_trace_bprintk_format_nb);
+}
+
+early_initcall(init_trace_printk);
