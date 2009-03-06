@@ -2312,6 +2312,12 @@ static int ocfs2_check_volume(struct ocfs2_super *osb)
 	 * lock, and it's marked as dirty, set the bit in the recover
 	 * map and launch a recovery thread for it. */
 	status = ocfs2_mark_dead_nodes(osb);
+	if (status < 0) {
+		mlog_errno(status);
+		goto finally;
+	}
+
+	status = ocfs2_compute_replay_slots(osb);
 	if (status < 0)
 		mlog_errno(status);
 
