@@ -42,6 +42,19 @@ unsigned long __per_cpu_offset[NR_CPUS] __read_mostly = {
 };
 EXPORT_SYMBOL(__per_cpu_offset);
 
+/*
+ * On x86_64 symbols referenced from code should be reachable using
+ * 32bit relocations.  Reserve space for static percpu variables in
+ * modules so that they are always served from the first chunk which
+ * is located at the percpu segment base.  On x86_32, anything can
+ * address anywhere.  No need to reserve space in the first chunk.
+ */
+#ifdef CONFIG_X86_64
+#define PERCPU_FIRST_CHUNK_RESERVE	PERCPU_MODULE_RESERVE
+#else
+#define PERCPU_FIRST_CHUNK_RESERVE	0
+#endif
+
 /**
  * pcpu_need_numa - determine percpu allocation needs to consider NUMA
  *
@@ -141,7 +154,7 @@ static ssize_t __init setup_pcpu_remap(size_t static_size)
 {
 	static struct vm_struct vm;
 	pg_data_t *last;
-	size_t ptrs_size;
+	size_t ptrs_size, dyn_size;
 	unsigned int cpu;
 	ssize_t ret;
 
@@ -169,12 +182,14 @@ proceed:
 	 * Currently supports only single page.  Supporting multiple
 	 * pages won't be too difficult if it ever becomes necessary.
 	 */
-	pcpur_size = PFN_ALIGN(static_size + PERCPU_DYNAMIC_RESERVE);
+	pcpur_size = PFN_ALIGN(static_size + PERCPU_MODULE_RESERVE +
+			       PERCPU_DYNAMIC_RESERVE);
 	if (pcpur_size > PMD_SIZE) {
 		pr_warning("PERCPU: static data is larger than large page, "
 			   "can't use large page\n");
 		return -EINVAL;
 	}
+	dyn_size = pcpur_size - static_size - PERCPU_FIRST_CHUNK_RESERVE;
 
 	/* allocate pointer array and alloc large pages */
 	ptrs_size = PFN_ALIGN(num_possible_cpus() * sizeof(pcpur_ptrs[0]));
@@ -217,8 +232,9 @@ proceed:
 	pr_info("PERCPU: Remapped at %p with large pages, static data "
 		"%zu bytes\n", vm.addr, static_size);
 
-	ret = pcpu_setup_first_chunk(pcpur_get_page, static_size, 0, PMD_SIZE,
-				     pcpur_size - static_size, vm.addr, NULL);
+	ret = pcpu_setup_first_chunk(pcpur_get_page, static_size,
+				     PERCPU_FIRST_CHUNK_RESERVE,
+				     PMD_SIZE, dyn_size, vm.addr, NULL);
 	goto out_free_ar;
 
 enomem:
@@ -276,9 +292,10 @@ static ssize_t __init setup_pcpu_embed(size_t static_size)
 		return -EINVAL;
 
 	/* allocate and copy */
-	pcpue_size = PFN_ALIGN(static_size + PERCPU_DYNAMIC_RESERVE);
+	pcpue_size = PFN_ALIGN(static_size + PERCPU_MODULE_RESERVE +
+			       PERCPU_DYNAMIC_RESERVE);
 	pcpue_unit_size = max_t(size_t, pcpue_size, PCPU_MIN_UNIT_SIZE);
-	dyn_size = pcpue_size - static_size;
+	dyn_size = pcpue_size - static_size - PERCPU_FIRST_CHUNK_RESERVE;
 
 	pcpue_ptr = pcpu_alloc_bootmem(0, num_possible_cpus() * pcpue_unit_size,
 				       PAGE_SIZE);
@@ -297,7 +314,8 @@ static ssize_t __init setup_pcpu_embed(size_t static_size)
 	pr_info("PERCPU: Embedded %zu pages at %p, static data %zu bytes\n",
 		pcpue_size >> PAGE_SHIFT, pcpue_ptr, static_size);
 
-	return pcpu_setup_first_chunk(pcpue_get_page, static_size, 0,
+	return pcpu_setup_first_chunk(pcpue_get_page, static_size,
+				      PERCPU_FIRST_CHUNK_RESERVE,
 				      pcpue_unit_size, dyn_size,
 				      pcpue_ptr, NULL);
 }
@@ -356,8 +374,9 @@ static ssize_t __init setup_pcpu_4k(size_t static_size)
 	pr_info("PERCPU: Allocated %d 4k pages, static data %zu bytes\n",
 		pcpu4k_nr_static_pages, static_size);
 
-	ret = pcpu_setup_first_chunk(pcpu4k_get_page, static_size, 0, -1, -1,
-				     NULL, pcpu4k_populate_pte);
+	ret = pcpu_setup_first_chunk(pcpu4k_get_page, static_size,
+				     PERCPU_FIRST_CHUNK_RESERVE, -1, -1, NULL,
+				     pcpu4k_populate_pte);
 	goto out_free_ar;
 
 enomem:

@@ -85,31 +85,20 @@
 
 /*
  * PERCPU_DYNAMIC_RESERVE indicates the amount of free area to piggy
- * back on the first chunk if arch is manually allocating and mapping
- * it for faster access (as a part of large page mapping for example).
- * Note that dynamic percpu allocator covers both static and dynamic
- * areas, so these values are bigger than PERCPU_MODULE_RESERVE.
+ * back on the first chunk for dynamic percpu allocation if arch is
+ * manually allocating and mapping it for faster access (as a part of
+ * large page mapping for example).
  *
- * On typical configuration with modules, the following values leave
- * about 8k of free space on the first chunk after boot on both x86_32
- * and 64 when module support is enabled.  When module support is
- * disabled, it's much tighter.
+ * The following values give between one and two pages of free space
+ * after typical minimal boot (2-way SMP, single disk and NIC) with
+ * both defconfig and a distro config on x86_64 and 32.  More
+ * intelligent way to determine this would be nice.
  */
-#ifndef PERCPU_DYNAMIC_RESERVE
-#  if BITS_PER_LONG > 32
-#    ifdef CONFIG_MODULES
-#      define PERCPU_DYNAMIC_RESERVE	(24 << 10)
-#    else
-#      define PERCPU_DYNAMIC_RESERVE	(16 << 10)
-#    endif
-#  else
-#    ifdef CONFIG_MODULES
-#      define PERCPU_DYNAMIC_RESERVE	(16 << 10)
-#    else
-#      define PERCPU_DYNAMIC_RESERVE	(8 << 10)
-#    endif
-#  endif
-#endif	/* PERCPU_DYNAMIC_RESERVE */
+#if BITS_PER_LONG > 32
+#define PERCPU_DYNAMIC_RESERVE		(20 << 10)
+#else
+#define PERCPU_DYNAMIC_RESERVE		(12 << 10)
+#endif
 
 extern void *pcpu_base_addr;
 
