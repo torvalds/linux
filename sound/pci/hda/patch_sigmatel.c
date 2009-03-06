@@ -3039,35 +3039,33 @@ static int add_spec_extra_dacs(struct sigmatel_spec *spec, hda_nid_t nid)
 	return 1;
 }
 
-static int is_unique_dac(struct sigmatel_spec *spec, hda_nid_t nid)
-{
-	int i;
-
-	if (spec->autocfg.line_outs != 1)
-		return 0;
-	if (spec->multiout.hp_nid == nid)
-		return 0;
-	for (i = 0; i < ARRAY_SIZE(spec->multiout.extra_out_nid); i++)
-		if (spec->multiout.extra_out_nid[i] == nid)
-			return 0;
-	return 1;
-}
-
-/* add playback controls from the parsed DAC table */
-static int stac92xx_auto_create_multi_out_ctls(struct hda_codec *codec,
-					       const struct auto_pin_cfg *cfg)
+/* Create output controls
+ * The mixer elements are named depending on the given type (AUTO_PIN_XXX_OUT)
+ */
+static int create_multi_out_ctls(struct hda_codec *codec, int num_outs,
+				 const hda_nid_t *pins,
+				 const hda_nid_t *dac_nids,
+				 int type)
 {
 	struct sigmatel_spec *spec = codec->spec;
 	static const char *chname[4] = {
 		"Front", "Surround", NULL /*CLFE*/, "Side"
 	};
-	hda_nid_t nid = 0;
+	static const char *hp_pfxs[] = {
+		"Headphone", "Headphone2", "Headphone3", "Headphone4"
+	};
+	static const char *speaker_pfxs[] = {
+		"Speaker", "External Speaker", "Speaker2", "Speaker3"
+	};
+	hda_nid_t nid;
 	int i, err;
 	unsigned int wid_caps;
 
-	for (i = 0; i < cfg->line_outs && spec->multiout.dac_nids[i]; i++) {
-		nid = spec->multiout.dac_nids[i];
-		if (i == 2) {
+	for (i = 0; i < num_outs && i < ARRAY_SIZE(chname); i++) {
+		nid = dac_nids[i];
+		if (!nid)
+			continue;
+		if (type != AUTO_PIN_HP_OUT && i == 2) {
 			/* Center/LFE */
 			err = create_controls(codec, "Center", nid, 1);
 			if (err < 0)
@@ -3088,23 +3086,43 @@ static int stac92xx_auto_create_multi_out_ctls(struct hda_codec *codec,
 			}
 
 		} else {
-			const char *name = chname[i];
-			/* if it's a single DAC, assign a better name */
-			if (!i && is_unique_dac(spec, nid)) {
-				switch (cfg->line_out_type) {
-				case AUTO_PIN_HP_OUT:
-					name = "Headphone";
-					break;
-				case AUTO_PIN_SPEAKER_OUT:
-					name = "Speaker";
-					break;
-				}
+			const char *name;
+			switch (type) {
+			case AUTO_PIN_HP_OUT:
+				name = hp_pfxs[i];
+				break;
+			case AUTO_PIN_SPEAKER_OUT:
+				name = speaker_pfxs[i];
+				break;
+			default:
+				name = chname[i];
+				break;
 			}
 			err = create_controls(codec, name, nid, 3);
 			if (err < 0)
 				return err;
+			if (type == AUTO_PIN_HP_OUT && !spec->hp_detect) {
+				wid_caps = get_wcaps(codec, pins[i]);
+				if (wid_caps & AC_WCAP_UNSOL_CAP)
+					spec->hp_detect = 1;
+			}
 		}
 	}
+	return 0;
+}
+
+/* add playback controls from the parsed DAC table */
+static int stac92xx_auto_create_multi_out_ctls(struct hda_codec *codec,
+					       const struct auto_pin_cfg *cfg)
+{
+	struct sigmatel_spec *spec = codec->spec;
+	int err;
+
+	err = create_multi_out_ctls(codec, cfg->line_outs, cfg->line_out_pins,
+				    spec->multiout.dac_nids,
+				    cfg->line_out_type);
+	if (err < 0)
+		return err;
 
 	if (cfg->hp_outs > 1 && cfg->line_out_type == AUTO_PIN_LINE_OUT) {
 		err = stac92xx_add_control(spec,
@@ -3139,40 +3157,18 @@ static int stac92xx_auto_create_hp_ctls(struct hda_codec *codec,
 					struct auto_pin_cfg *cfg)
 {
 	struct sigmatel_spec *spec = codec->spec;
-	hda_nid_t nid;
-	int i, err, nums;
+	int err;
 
-	nums = 0;
-	for (i = 0; i < cfg->hp_outs; i++) {
-		static const char *pfxs[] = {
-			"Headphone", "Headphone2", "Headphone3",
-		};
-		unsigned int wid_caps = get_wcaps(codec, cfg->hp_pins[i]);
-		if (wid_caps & AC_WCAP_UNSOL_CAP)
-			spec->hp_detect = 1;
-		if (nums >= ARRAY_SIZE(pfxs))
-			continue;
-		nid = spec->hp_dacs[i];
-		if (!nid)
-			continue;
-		err = create_controls(codec, pfxs[nums++], nid, 3);
-		if (err < 0)
-			return err;
-	}
-	nums = 0;
-	for (i = 0; i < cfg->speaker_outs; i++) {
-		static const char *pfxs[] = {
-			"Speaker", "External Speaker", "Speaker2",
-		};
-		if (nums >= ARRAY_SIZE(pfxs))
-			continue;
-		nid = spec->speaker_dacs[i];
-		if (!nid)
-			continue;
-		err = create_controls(codec, pfxs[nums++], nid, 3);
-		if (err < 0)
-			return err;
-	}
+	err = create_multi_out_ctls(codec, cfg->hp_outs, cfg->hp_pins,
+				    spec->hp_dacs, AUTO_PIN_HP_OUT);
+	if (err < 0)
+		return err;
+
+	err = create_multi_out_ctls(codec, cfg->speaker_outs, cfg->speaker_pins,
+				    spec->speaker_dacs, AUTO_PIN_SPEAKER_OUT);
+	if (err < 0)
+		return err;
+
 	return 0;
 }
 
@@ -3505,6 +3501,7 @@ static void stac92xx_auto_init_hp_out(struct hda_codec *codec)
 static int stac92xx_parse_auto_config(struct hda_codec *codec, hda_nid_t dig_out, hda_nid_t dig_in)
 {
 	struct sigmatel_spec *spec = codec->spec;
+	int hp_swap = 0;
 	int err;
 
 	if ((err = snd_hda_parse_pin_def_config(codec,
@@ -3514,7 +3511,6 @@ static int stac92xx_parse_auto_config(struct hda_codec *codec, hda_nid_t dig_out
 	if (! spec->autocfg.line_outs)
 		return 0; /* can't find valid pin config */
 
-#if 0 /* FIXME: temporarily disabled */
 	/* If we have no real line-out pin and multiple hp-outs, HPs should
 	 * be set up as multi-channel outputs.
 	 */
@@ -3533,8 +3529,8 @@ static int stac92xx_parse_auto_config(struct hda_codec *codec, hda_nid_t dig_out
 		spec->autocfg.line_outs = spec->autocfg.hp_outs;
 		spec->autocfg.line_out_type = AUTO_PIN_HP_OUT;
 		spec->autocfg.hp_outs = 0;
+		hp_swap = 1;
 	}
-#endif /* FIXME: temporarily disabled */
 	if (spec->autocfg.mono_out_pin) {
 		int dir = get_wcaps(codec, spec->autocfg.mono_out_pin) &
 			(AC_WCAP_OUT_AMP | AC_WCAP_IN_AMP);
@@ -3627,12 +3623,19 @@ static int stac92xx_parse_auto_config(struct hda_codec *codec, hda_nid_t dig_out
 #endif
 
 	err = stac92xx_auto_create_hp_ctls(codec, &spec->autocfg);
-
 	if (err < 0)
 		return err;
 
-	err = stac92xx_auto_create_analog_input_ctls(codec, &spec->autocfg);
+	/* All output parsing done, now restore the swapped hp pins */
+	if (hp_swap) {
+		memcpy(spec->autocfg.hp_pins, spec->autocfg.line_out_pins,
+		       sizeof(spec->autocfg.hp_pins));
+		spec->autocfg.hp_outs = spec->autocfg.line_outs;
+		spec->autocfg.line_out_type = AUTO_PIN_HP_OUT;
+		spec->autocfg.line_outs = 0;
+	}
 
+	err = stac92xx_auto_create_analog_input_ctls(codec, &spec->autocfg);
 	if (err < 0)
 		return err;
 
