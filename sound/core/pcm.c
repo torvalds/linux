@@ -667,7 +667,6 @@ int snd_pcm_new_stream(struct snd_pcm *pcm, int stream, int substream_count)
 		spin_lock_init(&substream->self_group.lock);
 		INIT_LIST_HEAD(&substream->self_group.substreams);
 		list_add_tail(&substream->link_list, &substream->self_group.substreams);
-		spin_lock_init(&substream->timer_lock);
 		atomic_set(&substream->mmap_count, 0);
 		prev = substream;
 	}
