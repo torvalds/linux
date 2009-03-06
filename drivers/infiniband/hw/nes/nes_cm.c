@@ -778,13 +778,9 @@ static struct nes_cm_node *find_node(struct nes_cm_core *cm_core,
 	unsigned long flags;
 	struct list_head *hte;
 	struct nes_cm_node *cm_node;
-	__be32 tmp_addr = cpu_to_be32(loc_addr);
 
 	/* get a handle on the hte */
 	hte = &cm_core->connected_nodes;
-
-	nes_debug(NES_DBG_CM, "Searching for an owner node: %pI4:%x from core %p->%p\n",
-		  &tmp_addr, loc_port, cm_core, hte);
 
 	/* walk list and find cm_node associated with this session ID */
 	spin_lock_irqsave(&cm_core->ht_lock, flags);
