@@ -62,8 +62,7 @@ static struct platform_driver parisc_rtc_driver = {
 		.name = "rtc-parisc",
 		.owner = THIS_MODULE,
 	},
-	.probe = parisc_rtc_probe,
-	.remove = __devexit_p(parisc_rtc_remove),
+	.remove = __exit_p(parisc_rtc_remove),
 };
 
 static int __init parisc_rtc_init(void)
