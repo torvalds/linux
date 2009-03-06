@@ -745,43 +745,6 @@ static void ath9k_olc_temp_compensation(struct ath_hw *ah)
 	}
 }
 
-bool ath9k_hw_calibrate(struct ath_hw *ah, struct ath9k_channel *chan,
-			u8 rxchainmask, bool longcal,
-			bool *isCalDone)
-{
-	struct hal_cal_list *currCal = ah->cal_list_curr;
-
-	*isCalDone = true;
-
-	if (currCal &&
-	    (currCal->calState == CAL_RUNNING ||
-	     currCal->calState == CAL_WAITING)) {
-		ath9k_hw_per_calibration(ah, chan, rxchainmask, currCal,
-					 isCalDone);
-		if (*isCalDone) {
-			ah->cal_list_curr = currCal = currCal->calNext;
-
-			if (currCal->calState == CAL_WAITING) {
-				*isCalDone = false;
-				ath9k_hw_reset_calibration(ah, currCal);
-			}
-		}
-	}
-
-	if (longcal) {
-		if (OLC_FOR_AR9280_20_LATER)
-			ath9k_olc_temp_compensation(ah);
-		ath9k_hw_getnf(ah, chan);
-		ath9k_hw_loadnf(ah, ah->curchan);
-		ath9k_hw_start_nfcal(ah);
-
-		if (chan->channelFlags & CHANNEL_CW_INT)
-			chan->channelFlags &= ~CHANNEL_CW_INT;
-	}
-
-	return true;
-}
-
 static inline void ath9k_hw_9285_pa_cal(struct ath_hw *ah)
 {
 
@@ -877,22 +840,104 @@ static inline void ath9k_hw_9285_pa_cal(struct ath_hw *ah)
 
 }
 
+bool ath9k_hw_calibrate(struct ath_hw *ah, struct ath9k_channel *chan,
+			u8 rxchainmask, bool longcal,
+			bool *isCalDone)
+{
+	struct hal_cal_list *currCal = ah->cal_list_curr;
+
+	*isCalDone = true;
+
+	if (currCal &&
+	    (currCal->calState == CAL_RUNNING ||
+	     currCal->calState == CAL_WAITING)) {
+		ath9k_hw_per_calibration(ah, chan, rxchainmask, currCal,
+					 isCalDone);
+		if (*isCalDone) {
+			ah->cal_list_curr = currCal = currCal->calNext;
+
+			if (currCal->calState == CAL_WAITING) {
+				*isCalDone = false;
+				ath9k_hw_reset_calibration(ah, currCal);
+			}
+		}
+	}
+
+	if (longcal) {
+		if (AR_SREV_9285(ah) && AR_SREV_9285_11_OR_LATER(ah))
+			ath9k_hw_9285_pa_cal(ah);
+
+		if (OLC_FOR_AR9280_20_LATER)
+			ath9k_olc_temp_compensation(ah);
+		ath9k_hw_getnf(ah, chan);
+		ath9k_hw_loadnf(ah, ah->curchan);
+		ath9k_hw_start_nfcal(ah);
+
+		if (chan->channelFlags & CHANNEL_CW_INT)
+			chan->channelFlags &= ~CHANNEL_CW_INT;
+	}
+
+	return true;
+}
+
+bool ar9285_clc(struct ath_hw *ah, struct ath9k_channel *chan)
+{
+	REG_SET_BIT(ah, AR_PHY_CL_CAL_CTL, AR_PHY_CL_CAL_ENABLE);
+	if (chan->channelFlags & CHANNEL_HT20) {
+		REG_SET_BIT(ah, AR_PHY_CL_CAL_CTL, AR_PHY_PARALLEL_CAL_ENABLE);
+		REG_SET_BIT(ah, AR_PHY_TURBO, AR_PHY_FC_DYN2040_EN);
+		REG_CLR_BIT(ah, AR_PHY_AGC_CONTROL,
+			    AR_PHY_AGC_CONTROL_FLTR_CAL);
+		REG_CLR_BIT(ah, AR_PHY_TPCRG1, AR_PHY_TPCRG1_PD_CAL_ENABLE);
+		REG_SET_BIT(ah, AR_PHY_AGC_CONTROL, AR_PHY_AGC_CONTROL_CAL);
+		if (!ath9k_hw_wait(ah, AR_PHY_AGC_CONTROL,
+				  AR_PHY_AGC_CONTROL_CAL, 0, AH_WAIT_TIMEOUT)) {
+			DPRINTF(ah->ah_sc, ATH_DBG_CALIBRATE, "offset "
+				"calibration failed to complete in "
+				"1ms; noisy ??\n");
+			return false;
+		}
+		REG_CLR_BIT(ah, AR_PHY_TURBO, AR_PHY_FC_DYN2040_EN);
+		REG_CLR_BIT(ah, AR_PHY_CL_CAL_CTL, AR_PHY_PARALLEL_CAL_ENABLE);
+		REG_CLR_BIT(ah, AR_PHY_CL_CAL_CTL, AR_PHY_CL_CAL_ENABLE);
+	}
+	REG_CLR_BIT(ah, AR_PHY_ADC_CTL, AR_PHY_ADC_CTL_OFF_PWDADC);
+	REG_SET_BIT(ah, AR_PHY_AGC_CONTROL, AR_PHY_AGC_CONTROL_FLTR_CAL);
+	REG_SET_BIT(ah, AR_PHY_TPCRG1, AR_PHY_TPCRG1_PD_CAL_ENABLE);
+	REG_SET_BIT(ah, AR_PHY_AGC_CONTROL, AR_PHY_AGC_CONTROL_CAL);
+	if (!ath9k_hw_wait(ah, AR_PHY_AGC_CONTROL, AR_PHY_AGC_CONTROL_CAL,
+			  0, AH_WAIT_TIMEOUT)) {
+		DPRINTF(ah->ah_sc, ATH_DBG_CALIBRATE, "offset calibration "
+				"failed to complete in 1ms; noisy ??\n");
+		return false;
+	}
+
+	REG_SET_BIT(ah, AR_PHY_ADC_CTL, AR_PHY_ADC_CTL_OFF_PWDADC);
+	REG_CLR_BIT(ah, AR_PHY_CL_CAL_CTL, AR_PHY_CL_CAL_ENABLE);
+	REG_CLR_BIT(ah, AR_PHY_AGC_CONTROL, AR_PHY_AGC_CONTROL_FLTR_CAL);
+
+	return true;
+}
+
 bool ath9k_hw_init_cal(struct ath_hw *ah,
 		       struct ath9k_channel *chan)
 {
-	if (AR_SREV_9280_10_OR_LATER(ah)) {
+	if (AR_SREV_9285(ah) && AR_SREV_9285_12_OR_LATER(ah)) {
+		if (!ar9285_clc(ah, chan))
+			return false;
+	} else if (AR_SREV_9280_10_OR_LATER(ah)) {
 		REG_CLR_BIT(ah, AR_PHY_ADC_CTL, AR_PHY_ADC_CTL_OFF_PWDADC);
 		REG_SET_BIT(ah, AR_PHY_AGC_CONTROL, AR_PHY_AGC_CONTROL_FLTR_CAL);
 		REG_CLR_BIT(ah, AR_PHY_CL_CAL_CTL, AR_PHY_CL_CAL_ENABLE);
 
 		/* Kick off the cal */
 		REG_WRITE(ah, AR_PHY_AGC_CONTROL,
-			  REG_READ(ah, AR_PHY_AGC_CONTROL) |
-			  AR_PHY_AGC_CONTROL_CAL);
+				REG_READ(ah, AR_PHY_AGC_CONTROL) |
+				AR_PHY_AGC_CONTROL_CAL);
 
 		if (!ath9k_hw_wait(ah, AR_PHY_AGC_CONTROL,
-				   AR_PHY_AGC_CONTROL_CAL, 0,
-				   AH_WAIT_TIMEOUT)) {
+					AR_PHY_AGC_CONTROL_CAL, 0,
+					AH_WAIT_TIMEOUT)) {
 			DPRINTF(ah->ah_sc, ATH_DBG_CALIBRATE,
 				"offset calibration failed to complete in 1ms; "
 				"noisy environment?\n");
@@ -906,11 +951,11 @@ bool ath9k_hw_init_cal(struct ath_hw *ah,
 
 	/* Calibrate the AGC */
 	REG_WRITE(ah, AR_PHY_AGC_CONTROL,
-		  REG_READ(ah, AR_PHY_AGC_CONTROL) |
-		  AR_PHY_AGC_CONTROL_CAL);
+			REG_READ(ah, AR_PHY_AGC_CONTROL) |
+			AR_PHY_AGC_CONTROL_CAL);
 
 	if (!ath9k_hw_wait(ah, AR_PHY_AGC_CONTROL, AR_PHY_AGC_CONTROL_CAL,
-			   0, AH_WAIT_TIMEOUT)) {
+				0, AH_WAIT_TIMEOUT)) {
 		DPRINTF(ah->ah_sc, ATH_DBG_CALIBRATE,
 			"offset calibration failed to complete in 1ms; "
 			"noisy environment?\n");
@@ -928,8 +973,8 @@ bool ath9k_hw_init_cal(struct ath_hw *ah,
 
 	/* Do NF Calibration */
 	REG_WRITE(ah, AR_PHY_AGC_CONTROL,
-		  REG_READ(ah, AR_PHY_AGC_CONTROL) |
-		  AR_PHY_AGC_CONTROL_NF);
+			REG_READ(ah, AR_PHY_AGC_CONTROL) |
+			AR_PHY_AGC_CONTROL_NF);
 
 	ah->cal_list = ah->cal_list_last = ah->cal_list_curr = NULL;
 
@@ -938,19 +983,19 @@ bool ath9k_hw_init_cal(struct ath_hw *ah,
 			INIT_CAL(&ah->adcgain_caldata);
 			INSERT_CAL(ah, &ah->adcgain_caldata);
 			DPRINTF(ah->ah_sc, ATH_DBG_CALIBRATE,
-				"enabling ADC Gain Calibration.\n");
+					"enabling ADC Gain Calibration.\n");
 		}
 		if (ath9k_hw_iscal_supported(ah, ADC_DC_CAL)) {
 			INIT_CAL(&ah->adcdc_caldata);
 			INSERT_CAL(ah, &ah->adcdc_caldata);
 			DPRINTF(ah->ah_sc, ATH_DBG_CALIBRATE,
-				"enabling ADC DC Calibration.\n");
+					"enabling ADC DC Calibration.\n");
 		}
 		if (ath9k_hw_iscal_supported(ah, IQ_MISMATCH_CAL)) {
 			INIT_CAL(&ah->iq_caldata);
 			INSERT_CAL(ah, &ah->iq_caldata);
 			DPRINTF(ah->ah_sc, ATH_DBG_CALIBRATE,
-				"enabling IQ Calibration.\n");
+					"enabling IQ Calibration.\n");
 		}
 
 		ah->cal_list_curr = ah->cal_list;
