@@ -33,6 +33,7 @@ config MACH_ANUBIS
 	select PM_SIMTEC if PM
 	select HAVE_PATA_PLATFORM
 	select S3C24XX_GPIO_EXTRA64
+	select S3C_DEV_USB_HOST
 	help
 	  Say Y here if you are using the Simtec Electronics ANUBIS
 	  development system
@@ -43,6 +44,7 @@ config MACH_OSIRIS
 	select S3C24XX_DCLK
 	select PM_SIMTEC if PM
 	select S3C24XX_GPIO_EXTRA128
+	select S3C_DEV_USB_HOST
 	help
 	  Say Y here if you are using the Simtec IM2440D20 module, also
 	  known as the Osiris.
@@ -58,12 +60,14 @@ config ARCH_S3C2440
 	bool "SMDK2440"
 	select CPU_S3C2440
 	select MACH_SMDK
+	select S3C_DEV_USB_HOST
 	help
 	  Say Y here if you are using the SMDK2440.
 
 config MACH_NEXCODER_2440
  	bool "NexVision NEXCODER 2440 Light Board"
  	select CPU_S3C2440
+	select S3C_DEV_USB_HOST
 	help
  	  Say Y here if you are using the Nex Vision NEXCODER 2440 Light Board
 
@@ -76,6 +80,7 @@ config SMDK2440_CPU2440
 config MACH_AT2440EVB
 	bool "Avantech AT2440EVB development board"
 	select CPU_S3C2440
+	select S3C_DEV_USB_HOST
 	help
 	  Say Y here if you are using the AT2440EVB development board
 

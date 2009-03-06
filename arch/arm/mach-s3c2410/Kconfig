@@ -59,6 +59,7 @@ config ARCH_H1940
 	bool "IPAQ H1940"
 	select CPU_S3C2410
 	select PM_H1940 if PM
+	select S3C_DEV_USB_HOST
 	help
 	  Say Y here if you are using the HP IPAQ H1940
 
@@ -70,6 +71,7 @@ config PM_H1940
 config MACH_N30
 	bool "Acer N30 family"
 	select CPU_S3C2410
+	select S3C_DEV_USB_HOST
 	help
 	  Say Y here if you want suppt for the Acer N30, Acer N35,
 	  Navman PiN570, Yakumo AlphaX or Airis NC05 PDAs.
@@ -82,6 +84,7 @@ config ARCH_BAST
 	select MACH_BAST_IDE
 	select S3C24XX_DCLK
 	select ISA
+	select S3C_DEV_USB_HOST
 	help
 	  Say Y here if you are using the Simtec Electronics EB2410ITX
 	  development board (also known as BAST)
@@ -89,6 +92,7 @@ config ARCH_BAST
 config MACH_OTOM
  	bool "NexVision OTOM Board"
  	select CPU_S3C2410
+	select S3C_DEV_USB_HOST
 	help
  	  Say Y here if you are using the Nex Vision OTOM board
 
@@ -96,6 +100,7 @@ config MACH_AML_M5900
 	bool "AML M5900 Series"
 	select CPU_S3C2410
 	select PM_SIMTEC if PM
+	select S3C_DEV_USB_HOST
 	help
 	   Say Y here if you are using the American Microsystems M5900 Series
            <http://www.amltd.com>
@@ -111,6 +116,7 @@ config BAST_PC104_IRQ
 config MACH_TCT_HAMMER
 	bool "TCT Hammer Board"
 	select CPU_S3C2410
+	select S3C_DEV_USB_HOST
 	help
 	   Say Y here if you are using the TinCanTools Hammer Board
            <http://www.tincantools.com>
@@ -122,12 +128,14 @@ config MACH_VR1000
 	select SIMTEC_NOR
 	select MACH_BAST_IDE
 	select CPU_S3C2410
+	select S3C_DEV_USB_HOST
 	help
 	  Say Y here if you are using the Thorcom VR1000 board.
 
 config MACH_QT2410
 	bool "QT2410"
 	select CPU_S3C2410
+	select S3C_DEV_USB_HOST
 	help
 	   Say Y here if you are using the Armzone QT2410
 
