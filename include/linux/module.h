@@ -329,6 +329,11 @@ struct module
 	unsigned int num_tracepoints;
 #endif
 
+#ifdef CONFIG_TRACE_BPRINTK
+	const char **trace_bprintk_fmt_start;
+	unsigned int num_trace_bprintk_fmt;
+#endif
+
 #ifdef CONFIG_MODULE_UNLOAD
 	/* What modules depend on me? */
 	struct list_head modules_which_use_me;

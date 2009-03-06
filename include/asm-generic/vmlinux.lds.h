@@ -69,6 +69,14 @@
 #define FTRACE_EVENTS()
 #endif
 
+#ifdef CONFIG_TRACING
+#define TRACE_PRINTKS() VMLINUX_SYMBOL(__start___trace_bprintk_fmt) = .;      \
+			 *(__trace_printk_fmt) /* Trace_printk fmt' pointer */ \
+			 VMLINUX_SYMBOL(__stop___trace_bprintk_fmt) = .;
+#else
+#define TRACE_PRINTKS()
+#endif
+
 /* .data section */
 #define DATA_DATA							\
 	*(.data)							\
@@ -100,6 +108,7 @@
 		*(__vermagic)		/* Kernel version magic */	\
 		*(__markers_strings)	/* Markers: strings */		\
 		*(__tracepoints_strings)/* Tracepoints: strings */	\
+		TRACE_PRINTKS()					\
 	}								\
 									\
 	.rodata1          : AT(ADDR(.rodata1) - LOAD_OFFSET) {		\

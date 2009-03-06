@@ -3848,6 +3848,21 @@ out:
 }
 EXPORT_SYMBOL_GPL(trace_vbprintk);
 
+int __trace_bprintk(unsigned long ip, const char *fmt, ...)
+{
+	int ret;
+	va_list ap;
+
+	if (!fmt)
+		return 0;
+
+	va_start(ap, fmt);
+	ret = trace_vbprintk(ip, fmt, ap);
+	va_end(ap);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(__trace_bprintk);
+
 static int trace_panic_handler(struct notifier_block *this,
 			       unsigned long event, void *unused)
 {

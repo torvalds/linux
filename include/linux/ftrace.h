@@ -225,6 +225,27 @@ extern int ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr);
 
 #ifdef CONFIG_TRACE_BPRINTK
 extern int trace_vbprintk(unsigned long ip, const char *fmt, va_list args);
+extern int __trace_bprintk(unsigned long ip, const char *fmt, ...)
+		__attribute__ ((format (printf, 2, 3)));
+
+static inline void  ____trace_bprintk_check_format(const char *fmt, ...)
+		__attribute__ ((format (printf, 1, 2)));
+static inline void ____trace_bprintk_check_format(const char *fmt, ...) {}
+#define __trace_bprintk_check_format(fmt, args...)			\
+do {									\
+	if (0)								\
+		____trace_bprintk_check_format(fmt, ##args);		\
+} while (0)
+
+#define trace_bprintk(fmt, args...)					\
+do {									\
+	static char *__attribute__((section("__trace_bprintk_fmt")))	\
+			trace_bprintk_fmt = fmt;			\
+	__trace_bprintk_check_format(fmt, ##args);			\
+	__trace_bprintk(_THIS_IP_, trace_bprintk_fmt, ##args);	\
+} while (0)
+#else
+#define trace_bprintk trace_printk
 #endif
 
 /* May be defined in arch */
