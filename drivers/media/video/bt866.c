@@ -91,7 +91,7 @@ static int bt866_write(struct bt866 *encoder, u8 subaddr, u8 data)
 
 static int bt866_s_std_output(struct v4l2_subdev *sd, v4l2_std_id std)
 {
-	v4l2_dbg(1, debug, sd, "set norm %llx\n", std);
+	v4l2_dbg(1, debug, sd, "set norm %llx\n", (unsigned long long)std);
 
 	/* Only PAL supported by this driver at the moment! */
 	if (!(std & V4L2_STD_NTSC))

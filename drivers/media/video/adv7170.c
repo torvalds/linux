@@ -195,7 +195,7 @@ static int adv7170_s_std_output(struct v4l2_subdev *sd, v4l2_std_id std)
 {
 	struct adv7170 *encoder = to_adv7170(sd);
 
-	v4l2_dbg(1, debug, sd, "set norm %llx\n", std);
+	v4l2_dbg(1, debug, sd, "set norm %llx\n", (unsigned long long)std);
 
 	if (std & V4L2_STD_NTSC) {
 		adv7170_write_block(sd, init_NTSC, sizeof(init_NTSC));
@@ -210,10 +210,11 @@ static int adv7170_s_std_output(struct v4l2_subdev *sd, v4l2_std_id std)
 		adv7170_write(sd, 0x07, TR0MODE | TR0RST);
 		adv7170_write(sd, 0x07, TR0MODE);
 	} else {
-		v4l2_dbg(1, debug, sd, "illegal norm: %llx\n", std);
+		v4l2_dbg(1, debug, sd, "illegal norm: %llx\n",
+				(unsigned long long)std);
 		return -EINVAL;
 	}
-	v4l2_dbg(1, debug, sd, "switched to %llx\n", std);
+	v4l2_dbg(1, debug, sd, "switched to %llx\n", (unsigned long long)std);
 	encoder->norm = std;
 	return 0;
 }

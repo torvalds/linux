@@ -248,7 +248,7 @@ static int bt819_s_std(struct v4l2_subdev *sd, v4l2_std_id std)
 	struct bt819 *decoder = to_bt819(sd);
 	struct timing *timing = NULL;
 
-	v4l2_dbg(1, debug, sd, "set norm %llx\n", std);
+	v4l2_dbg(1, debug, sd, "set norm %llx\n", (unsigned long long)std);
 
 	if (std & V4L2_STD_NTSC) {
 		bt819_setbit(decoder, 0x01, 0, 1);
@@ -267,7 +267,8 @@ static int bt819_s_std(struct v4l2_subdev *sd, v4l2_std_id std)
 		/* bt819_setbit(decoder, 0x1a,  5, 0); */
 		timing = &timing_data[0];
 	} else {
-		v4l2_dbg(1, debug, sd, "unsupported norm %llx\n", std);
+		v4l2_dbg(1, debug, sd, "unsupported norm %llx\n",
+				(unsigned long long)std);
 		return -EINVAL;
 	}
 	bt819_write(decoder, 0x03,

@@ -228,10 +228,11 @@ static int adv7175_s_std_output(struct v4l2_subdev *sd, v4l2_std_id std)
 		adv7175_write(sd, 0x07, TR0MODE | TR0RST);
 		adv7175_write(sd, 0x07, TR0MODE);
 	} else {
-		v4l2_dbg(1, debug, sd, "illegal norm: %llx\n", std);
+		v4l2_dbg(1, debug, sd, "illegal norm: %llx\n",
+				(unsigned long long)std);
 		return -EINVAL;
 	}
-	v4l2_dbg(1, debug, sd, "switched to %llx\n", std);
+	v4l2_dbg(1, debug, sd, "switched to %llx\n", (unsigned long long)std);
 	encoder->norm = std;
 	return 0;
 }

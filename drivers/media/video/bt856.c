@@ -125,7 +125,7 @@ static int bt856_s_std_output(struct v4l2_subdev *sd, v4l2_std_id std)
 {
 	struct bt856 *encoder = to_bt856(sd);
 
-	v4l2_dbg(1, debug, sd, "set norm %llx\n", std);
+	v4l2_dbg(1, debug, sd, "set norm %llx\n", (unsigned long long)std);
 
 	if (std & V4L2_STD_NTSC) {
 		bt856_setbit(encoder, 0xdc, 2, 0);

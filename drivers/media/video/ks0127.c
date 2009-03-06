@@ -579,8 +579,8 @@ static int ks0127_s_std(struct v4l2_subdev *sd, v4l2_std_id std)
 			/* force to secam mode */
 			ks0127_and_or(sd, KS_DEMOD, 0xf0, 0x0f);
 	} else {
-		v4l2_dbg(1, debug, sd,
-			"VIDIOC_S_STD: Unknown norm %llx\n", std);
+		v4l2_dbg(1, debug, sd, "VIDIOC_S_STD: Unknown norm %llx\n",
+			       (unsigned long long)std);
 	}
 	return 0;
 }

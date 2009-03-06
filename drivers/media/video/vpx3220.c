@@ -354,7 +354,7 @@ static int vpx3220_s_std(struct v4l2_subdev *sd, v4l2_std_id std)
 	   choosen video norm */
 	temp_input = vpx3220_fp_read(sd, 0xf2);
 
-	v4l2_dbg(1, debug, sd, "VIDIOC_S_STD %llx\n", std);
+	v4l2_dbg(1, debug, sd, "VIDIOC_S_STD %llx\n", (unsigned long long)std);
 	if (std & V4L2_STD_NTSC) {
 		vpx3220_write_fp_block(sd, init_ntsc, sizeof(init_ntsc) >> 1);
 		v4l2_dbg(1, debug, sd, "norm switched to NTSC\n");

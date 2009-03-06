@@ -251,7 +251,7 @@ static int saa7110_g_input_status(struct v4l2_subdev *sd, u32 *pstatus)
 	int status = saa7110_read(sd);
 
 	v4l2_dbg(1, debug, sd, "status=0x%02x norm=%llx\n",
-		       status, decoder->norm);
+		       status, (unsigned long long)decoder->norm);
 	if (!(status & 0x40))
 		res = 0;
 	if (!(status & 0x03))
