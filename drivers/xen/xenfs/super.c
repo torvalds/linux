@@ -26,9 +26,7 @@ MODULE_LICENSE("GPL");
 
 static int xenfs_set_page_dirty(struct page *page)
 {
-	if (!PageDirty(page))
-		SetPageDirty(page);
-	return 0;
+	return !TestSetPageDirty(page);
 }
 
 static const struct address_space_operations xenfs_aops = {
