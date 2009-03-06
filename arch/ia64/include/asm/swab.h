@@ -6,7 +6,7 @@
  *	David Mosberger-Tang <davidm@hpl.hp.com>, Hewlett-Packard Co.
  */
 
-#include <asm/types.h>
+#include <linux/types.h>
 #include <asm/intrinsics.h>
 #include <linux/compiler.h>
 

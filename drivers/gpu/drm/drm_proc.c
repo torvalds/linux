@@ -678,9 +678,9 @@ static int drm__vma_info(char *buf, char **start, off_t offset, int request,
 	*start = &buf[offset];
 	*eof = 0;
 
-	DRM_PROC_PRINT("vma use count: %d, high_memory = %p, 0x%08lx\n",
+	DRM_PROC_PRINT("vma use count: %d, high_memory = %p, 0x%llx\n",
 		       atomic_read(&dev->vma_count),
-		       high_memory, virt_to_phys(high_memory));
+		       high_memory, (u64)virt_to_phys(high_memory));
 	list_for_each_entry(pt, &dev->vmalist, head) {
 		if (!(vma = pt->vma))
 			continue;

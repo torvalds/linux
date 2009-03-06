@@ -14,6 +14,7 @@
 #include <asm/reboot.h>
 #include <asm/pci_x86.h>
 #include <asm/virtext.h>
+#include <asm/cpu.h>
 
 #ifdef CONFIG_X86_32
 # include <linux/dmi.h>
@@ -22,8 +23,6 @@
 #else
 # include <asm/iommu.h>
 #endif
-
-#include <mach_ipi.h>
 
 /*
  * Power off function, if any
@@ -215,6 +214,14 @@ static struct dmi_system_id __initdata reboot_dmi_table[] = {
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Hewlett-Packard"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "HP Compaq"),
+		},
+	},
+	{	/* Handle problems with rebooting on Dell XPS710 */
+		.callback = set_bios_reboot,
+		.ident = "Dell XPS710",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Dell XPS710"),
 		},
 	},
 	{ }
@@ -650,7 +657,7 @@ static int crash_nmi_callback(struct notifier_block *self,
 
 static void smp_send_nmi_allbutself(void)
 {
-	send_IPI_allbutself(NMI_VECTOR);
+	apic->send_IPI_allbutself(NMI_VECTOR);
 }
 
 static struct notifier_block crash_nmi_nb = {

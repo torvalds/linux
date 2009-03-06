@@ -74,14 +74,15 @@
 #include <asm/e820.h>
 #include <asm/mpspec.h>
 #include <asm/setup.h>
-#include <asm/arch_hooks.h>
 #include <asm/efi.h>
+#include <asm/timer.h>
+#include <asm/i8259.h>
 #include <asm/sections.h>
 #include <asm/dmi.h>
 #include <asm/io_apic.h>
 #include <asm/ist.h>
 #include <asm/vmi.h>
-#include <setup_arch.h>
+#include <asm/setup_arch.h>
 #include <asm/bios_ebda.h>
 #include <asm/cacheflush.h>
 #include <asm/processor.h>
@@ -89,7 +90,7 @@
 
 #include <asm/system.h>
 #include <asm/vsyscall.h>
-#include <asm/smp.h>
+#include <asm/cpu.h>
 #include <asm/desc.h>
 #include <asm/dma.h>
 #include <asm/iommu.h>
@@ -97,7 +98,6 @@
 #include <asm/mmu_context.h>
 #include <asm/proto.h>
 
-#include <mach_apic.h>
 #include <asm/paravirt.h>
 #include <asm/hypervisor.h>
 
@@ -110,6 +110,20 @@
 
 #ifndef ARCH_SETUP
 #define ARCH_SETUP
+#endif
+
+unsigned int boot_cpu_id __read_mostly;
+
+#ifdef CONFIG_X86_64
+int default_cpu_present_to_apicid(int mps_cpu)
+{
+	return __default_cpu_present_to_apicid(mps_cpu);
+}
+
+int default_check_phys_apicid_present(int boot_cpu_physical_apicid)
+{
+	return __default_check_phys_apicid_present(boot_cpu_physical_apicid);
+}
 #endif
 
 #ifndef CONFIG_DEBUG_BOOT_PARAMS
@@ -188,7 +202,9 @@ struct ist_info ist_info;
 #endif
 
 #else
-struct cpuinfo_x86 boot_cpu_data __read_mostly;
+struct cpuinfo_x86 boot_cpu_data __read_mostly = {
+	.x86_phys_bits = MAX_PHYSMEM_BITS,
+};
 EXPORT_SYMBOL(boot_cpu_data);
 #endif
 
@@ -586,20 +602,7 @@ static int __init setup_elfcorehdr(char *arg)
 early_param("elfcorehdr", setup_elfcorehdr);
 #endif
 
-static int __init default_update_genapic(void)
-{
-#ifdef CONFIG_X86_SMP
-# if defined(CONFIG_X86_GENERICARCH) || defined(CONFIG_X86_64)
-	genapic->wakeup_cpu = wakeup_secondary_cpu_via_init;
-# endif
-#endif
-
-	return 0;
-}
-
-static struct x86_quirks default_x86_quirks __initdata = {
-	.update_genapic         = default_update_genapic,
-};
+static struct x86_quirks default_x86_quirks __initdata;
 
 struct x86_quirks *x86_quirks __initdata = &default_x86_quirks;
 
@@ -656,7 +659,6 @@ void __init setup_arch(char **cmdline_p)
 #ifdef CONFIG_X86_32
 	memcpy(&boot_cpu_data, &new_cpu_data, sizeof(new_cpu_data));
 	visws_early_detect();
-	pre_setup_arch_hook();
 #else
 	printk(KERN_INFO "Command line: %s\n", boot_command_line);
 #endif
@@ -770,6 +772,9 @@ void __init setup_arch(char **cmdline_p)
 
 	finish_e820_parsing();
 
+	if (efi_enabled)
+		efi_init();
+
 	dmi_scan_machine();
 
 	dmi_check_system(bad_bios_dmi_table);
@@ -789,8 +794,6 @@ void __init setup_arch(char **cmdline_p)
 	insert_resource(&iomem_resource, &data_resource);
 	insert_resource(&iomem_resource, &bss_resource);
 
-	if (efi_enabled)
-		efi_init();
 
 #ifdef CONFIG_X86_32
 	if (ppro_with_ram_bug()) {
@@ -823,8 +826,7 @@ void __init setup_arch(char **cmdline_p)
 #else
 	num_physpages = max_pfn;
 
- 	if (cpu_has_x2apic)
- 		check_x2apic();
+	check_x2apic();
 
 	/* How many end-of-memory variables you have, grandma! */
 	/* need this before calling reserve_initrd */
@@ -864,9 +866,7 @@ void __init setup_arch(char **cmdline_p)
 
 	reserve_initrd();
 
-#ifdef CONFIG_X86_64
 	vsmp_init();
-#endif
 
 	io_delay_init();
 
@@ -892,12 +892,11 @@ void __init setup_arch(char **cmdline_p)
 	 */
 	acpi_reserve_bootmem();
 #endif
-#ifdef CONFIG_X86_FIND_SMP_CONFIG
 	/*
 	 * Find and reserve possible boot-time SMP configuration:
 	 */
 	find_smp_config();
-#endif
+
 	reserve_crashkernel();
 
 #ifdef CONFIG_X86_64
@@ -924,9 +923,7 @@ void __init setup_arch(char **cmdline_p)
 	map_vsyscall();
 #endif
 
-#ifdef CONFIG_X86_GENERICARCH
 	generic_apic_probe();
-#endif
 
 	early_quirks();
 
@@ -977,4 +974,95 @@ void __init setup_arch(char **cmdline_p)
 #endif
 }
 
+#ifdef CONFIG_X86_32
 
+/**
+ * x86_quirk_pre_intr_init - initialisation prior to setting up interrupt vectors
+ *
+ * Description:
+ *	Perform any necessary interrupt initialisation prior to setting up
+ *	the "ordinary" interrupt call gates.  For legacy reasons, the ISA
+ *	interrupts should be initialised here if the machine emulates a PC
+ *	in any way.
+ **/
+void __init x86_quirk_pre_intr_init(void)
+{
+	if (x86_quirks->arch_pre_intr_init) {
+		if (x86_quirks->arch_pre_intr_init())
+			return;
+	}
+	init_ISA_irqs();
+}
+
+/**
+ * x86_quirk_intr_init - post gate setup interrupt initialisation
+ *
+ * Description:
+ *	Fill in any interrupts that may have been left out by the general
+ *	init_IRQ() routine.  interrupts having to do with the machine rather
+ *	than the devices on the I/O bus (like APIC interrupts in intel MP
+ *	systems) are started here.
+ **/
+void __init x86_quirk_intr_init(void)
+{
+	if (x86_quirks->arch_intr_init) {
+		if (x86_quirks->arch_intr_init())
+			return;
+	}
+}
+
+/**
+ * x86_quirk_trap_init - initialise system specific traps
+ *
+ * Description:
+ *	Called as the final act of trap_init().  Used in VISWS to initialise
+ *	the various board specific APIC traps.
+ **/
+void __init x86_quirk_trap_init(void)
+{
+	if (x86_quirks->arch_trap_init) {
+		if (x86_quirks->arch_trap_init())
+			return;
+	}
+}
+
+static struct irqaction irq0  = {
+	.handler = timer_interrupt,
+	.flags = IRQF_DISABLED | IRQF_NOBALANCING | IRQF_IRQPOLL | IRQF_TIMER,
+	.mask = CPU_MASK_NONE,
+	.name = "timer"
+};
+
+/**
+ * x86_quirk_pre_time_init - do any specific initialisations before.
+ *
+ **/
+void __init x86_quirk_pre_time_init(void)
+{
+	if (x86_quirks->arch_pre_time_init)
+		x86_quirks->arch_pre_time_init();
+}
+
+/**
+ * x86_quirk_time_init - do any specific initialisations for the system timer.
+ *
+ * Description:
+ *	Must plug the system timer interrupt source at HZ into the IRQ listed
+ *	in irq_vectors.h:TIMER_IRQ
+ **/
+void __init x86_quirk_time_init(void)
+{
+	if (x86_quirks->arch_time_init) {
+		/*
+		 * A nonzero return code does not mean failure, it means
+		 * that the architecture quirk does not want any
+		 * generic (timer) setup to be performed after this:
+		 */
+		if (x86_quirks->arch_time_init())
+			return;
+	}
+
+	irq0.mask = cpumask_of_cpu(0);
+	setup_irq(0, &irq0);
+}
+#endif /* CONFIG_X86_32 */
