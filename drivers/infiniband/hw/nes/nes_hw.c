@@ -254,6 +254,7 @@ struct nes_adapter *nes_init_adapter(struct nes_device *nesdev, u8 hw_rev) {
 	u32 adapter_size;
 	u32 arp_table_size;
 	u16 vendor_id;
+	u16 device_id;
 	u8  OneG_Mode;
 	u8  func_index;
 
@@ -355,6 +356,13 @@ struct nes_adapter *nes_init_adapter(struct nes_device *nesdev, u8 hw_rev) {
 		kfree(nesadapter);
 		return NULL;
 	}
+
+	nesadapter->vendor_id = (((u32) nesadapter->mac_addr_high) << 8) |
+				(nesadapter->mac_addr_low >> 24);
+
+	pci_bus_read_config_word(nesdev->pcidev->bus, nesdev->pcidev->devfn,
+				 PCI_DEVICE_ID, &device_id);
+	nesadapter->vendor_part_id = device_id;
 
 	if (nes_init_serdes(nesdev, hw_rev, port_count, nesadapter,
 							OneG_Mode)) {
