@@ -374,14 +374,8 @@ static struct track *get_track(struct kmem_cache *s, void *object,
 static void set_track(struct kmem_cache *s, void *object,
 			enum track_item alloc, unsigned long addr)
 {
-	struct track *p;
+	struct track *p = get_track(s, object, alloc);
 
-	if (s->offset)
-		p = object + s->offset + sizeof(void *);
-	else
-		p = object + s->inuse;
-
-	p += alloc;
 	if (addr) {
 		p->addr = addr;
 		p->cpu = smp_processor_id();
