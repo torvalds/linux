@@ -193,6 +193,9 @@ static int twl4030reg_set_mode(struct regulator_dev *rdev, unsigned mode)
  *
  * VSEL values documented as "TI cannot support these values" are flagged
  * in these tables as UNSUP() values; we normally won't assign them.
+ *
+ * VAUX3 at 3V is incorrectly listed in some TI manuals as unsupported.
+ * TI are revising the twl5030/tps659x0 specs to support that 3.0V setting.
  */
 #ifdef CONFIG_TWL4030_ALLOW_UNSUPPORTED
 #define UNSUP_MASK	0x0000
@@ -223,7 +226,7 @@ static const u16 VAUX2_VSEL_table[] = {
 };
 static const u16 VAUX3_VSEL_table[] = {
 	1500, 1800, 2500, 2800,
-	UNSUP(3000), UNSUP(3000), UNSUP(3000), UNSUP(3000),
+	3000, 3000, 3000, 3000,
 };
 static const u16 VAUX4_VSEL_table[] = {
 	700, 1000, 1200, UNSUP(1300),
