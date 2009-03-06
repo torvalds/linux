@@ -344,7 +344,7 @@ static ssize_t __init setup_pcpu_4k(size_t static_size)
 	pr_info("PERCPU: Allocated %d 4k pages, static data %zu bytes\n",
 		pcpu4k_nr_static_pages, static_size);
 
-	ret = pcpu_setup_first_chunk(pcpu4k_get_page, static_size, 0, 0, NULL,
+	ret = pcpu_setup_first_chunk(pcpu4k_get_page, static_size, -1, -1, NULL,
 				     pcpu4k_populate_pte);
 	goto out_free_ar;
 

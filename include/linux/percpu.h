@@ -117,8 +117,9 @@ typedef struct page * (*pcpu_get_page_fn_t)(unsigned int cpu, int pageno);
 typedef void (*pcpu_populate_pte_fn_t)(unsigned long addr);
 
 extern size_t __init pcpu_setup_first_chunk(pcpu_get_page_fn_t get_page_fn,
-					size_t static_size, size_t unit_size,
-					size_t dyn_size, void *base_addr,
+					size_t static_size,
+					ssize_t unit_size, ssize_t dyn_size,
+					void *base_addr,
 					pcpu_populate_pte_fn_t populate_pte_fn);
 
 /*
