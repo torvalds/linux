@@ -357,8 +357,8 @@ sport_config_err:
 sport_err:
 #ifdef CONFIG_SND_BF5XX_HAVE_COLD_RESET
 	gpio_free(CONFIG_SND_BF5XX_RESET_GPIO_NUM);
-#endif
 gpio_err:
+#endif
 	peripheral_free_list(sport_req[sport_num]);
 peripheral_err:
 	free_page((unsigned long)cmd_count);
