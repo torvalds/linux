@@ -22,9 +22,9 @@
 #undef TRACE_FIELD
 #define TRACE_FIELD(type, item, assign)					\
 	ret = trace_seq_printf(s, "\tfield:" #type " " #item ";\t"	\
-			       "offset:%lu;\tsize:%lu;\n",		\
-			       offsetof(typeof(field), item),		\
-			       sizeof(field.item));			\
+			       "offset:%u;\tsize:%u;\n",		\
+			       (unsigned int)offsetof(typeof(field), item), \
+			       (unsigned int)sizeof(field.item));	\
 	if (!ret)							\
 		return 0;
 
@@ -32,9 +32,9 @@
 #undef TRACE_FIELD_SPECIAL
 #define TRACE_FIELD_SPECIAL(type_item, item, cmd)			\
 	ret = trace_seq_printf(s, "\tfield special:" #type_item ";\t"	\
-			       "offset:%lu;\tsize:%lu;\n",		\
-			       offsetof(typeof(field), item),		\
-			       sizeof(field.item));			\
+			       "offset:%u;\tsize:%u;\n",		\
+			       (unsigned int)offsetof(typeof(field), item), \
+			       (unsigned int)sizeof(field.item));	\
 	if (!ret)							\
 		return 0;
 

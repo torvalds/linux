@@ -18,11 +18,11 @@
 #include "trace_format.h"
 
 #undef TRACE_FIELD_ZERO_CHAR
-#define TRACE_FIELD_ZERO_CHAR(item)				\
-	ret = trace_seq_printf(s, "\tfield: char " #item ";\t"	\
-			       "offset:%lu;\tsize:0;\n",	\
-			       offsetof(typeof(field), item));	\
-	if (!ret)						\
+#define TRACE_FIELD_ZERO_CHAR(item)					\
+	ret = trace_seq_printf(s, "\tfield: char " #item ";\t"		\
+			       "offset:%u;\tsize:0;\n",			\
+			       (unsigned int)offsetof(typeof(field), item)); \
+	if (!ret)							\
 		return 0;
 
 
