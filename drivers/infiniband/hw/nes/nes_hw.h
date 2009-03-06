@@ -61,6 +61,7 @@ enum pci_regs {
 	NES_CQ_ACK = 0x0034,
 	NES_WQE_ALLOC = 0x0040,
 	NES_CQE_ALLOC = 0x0044,
+	NES_AEQ_ALLOC = 0x0048
 };
 
 enum indexed_regs {

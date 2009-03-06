@@ -2269,6 +2269,8 @@ static void nes_process_aeq(struct nes_device *nesdev, struct nes_hw_aeq *aeq)
 
 		if (++head >= aeq_size)
 			head = 0;
+
+		nes_write32(nesdev->regs + NES_AEQ_ALLOC, 1 << 16);
 	}
 	while (1);
 	aeq->aeq_head = head;
