@@ -217,7 +217,7 @@ proceed:
 	pr_info("PERCPU: Remapped at %p with large pages, static data "
 		"%zu bytes\n", vm.addr, static_size);
 
-	ret = pcpu_setup_first_chunk(pcpur_get_page, static_size, PMD_SIZE,
+	ret = pcpu_setup_first_chunk(pcpur_get_page, static_size, 0, PMD_SIZE,
 				     pcpur_size - static_size, vm.addr, NULL);
 	goto out_free_ar;
 
@@ -297,7 +297,7 @@ static ssize_t __init setup_pcpu_embed(size_t static_size)
 	pr_info("PERCPU: Embedded %zu pages at %p, static data %zu bytes\n",
 		pcpue_size >> PAGE_SHIFT, pcpue_ptr, static_size);
 
-	return pcpu_setup_first_chunk(pcpue_get_page, static_size,
+	return pcpu_setup_first_chunk(pcpue_get_page, static_size, 0,
 				      pcpue_unit_size, dyn_size,
 				      pcpue_ptr, NULL);
 }
@@ -356,8 +356,8 @@ static ssize_t __init setup_pcpu_4k(size_t static_size)
 	pr_info("PERCPU: Allocated %d 4k pages, static data %zu bytes\n",
 		pcpu4k_nr_static_pages, static_size);
 
-	ret = pcpu_setup_first_chunk(pcpu4k_get_page, static_size, -1, -1, NULL,
-				     pcpu4k_populate_pte);
+	ret = pcpu_setup_first_chunk(pcpu4k_get_page, static_size, 0, -1, -1,
+				     NULL, pcpu4k_populate_pte);
 	goto out_free_ar;
 
 enomem:

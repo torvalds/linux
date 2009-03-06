@@ -94,6 +94,11 @@ static size_t pcpu_chunk_struct_size __read_mostly;
 void *pcpu_base_addr __read_mostly;
 EXPORT_SYMBOL_GPL(pcpu_base_addr);
 
+/* optional reserved chunk, only accessible for reserved allocations */
+static struct pcpu_chunk *pcpu_reserved_chunk;
+/* offset limit of the reserved chunk */
+static int pcpu_reserved_chunk_limit;
+
 /*
  * One mutex to rule them all.
  *
@@ -201,13 +206,14 @@ static void *pcpu_realloc(void *p, size_t size, size_t new_size)
  *
  * This function is called after an allocation or free changed @chunk.
  * New slot according to the changed state is determined and @chunk is
- * moved to the slot.
+ * moved to the slot.  Note that the reserved chunk is never put on
+ * chunk slots.
  */
 static void pcpu_chunk_relocate(struct pcpu_chunk *chunk, int oslot)
 {
 	int nslot = pcpu_chunk_slot(chunk);
 
-	if (oslot != nslot) {
+	if (chunk != pcpu_reserved_chunk && oslot != nslot) {
 		if (oslot < nslot)
 			list_move(&chunk->list, &pcpu_slot[nslot]);
 		else
@@ -255,6 +261,15 @@ static struct pcpu_chunk *pcpu_chunk_addr_search(void *addr)
 	struct rb_node *n, *parent;
 	struct pcpu_chunk *chunk;
 
+	/* is it in the reserved chunk? */
+	if (pcpu_reserved_chunk) {
+		void *start = pcpu_reserved_chunk->vm->addr;
+
+		if (addr >= start && addr < start + pcpu_reserved_chunk_limit)
+			return pcpu_reserved_chunk;
+	}
+
+	/* nah... search the regular ones */
 	n = *pcpu_chunk_rb_search(addr, &parent);
 	if (!n) {
 		/* no exactly matching chunk, the parent is the closest */
@@ -713,9 +728,10 @@ static struct pcpu_chunk *alloc_pcpu_chunk(void)
 }
 
 /**
- * __alloc_percpu - allocate percpu area
+ * pcpu_alloc - the percpu allocator
  * @size: size of area to allocate in bytes
  * @align: alignment of area (max PAGE_SIZE)
+ * @reserved: allocate from the reserved chunk if available
  *
  * Allocate percpu area of @size bytes aligned at @align.  Might
  * sleep.  Might trigger writeouts.
@@ -723,7 +739,7 @@ static struct pcpu_chunk *alloc_pcpu_chunk(void)
  * RETURNS:
  * Percpu pointer to the allocated area on success, NULL on failure.
  */
-void *__alloc_percpu(size_t size, size_t align)
+static void *pcpu_alloc(size_t size, size_t align, bool reserved)
 {
 	void *ptr = NULL;
 	struct pcpu_chunk *chunk;
@@ -737,7 +753,18 @@ void *__alloc_percpu(size_t size, size_t align)
 
 	mutex_lock(&pcpu_mutex);
 
-	/* allocate area */
+	/* serve reserved allocations from the reserved chunk if available */
+	if (reserved && pcpu_reserved_chunk) {
+		chunk = pcpu_reserved_chunk;
+		if (size > chunk->contig_hint)
+			goto out_unlock;
+		off = pcpu_alloc_area(chunk, size, align);
+		if (off >= 0)
+			goto area_found;
+		goto out_unlock;
+	}
+
+	/* search through normal chunks */
 	for (slot = pcpu_size_to_slot(size); slot < pcpu_nr_slots; slot++) {
 		list_for_each_entry(chunk, &pcpu_slot[slot], list) {
 			if (size > chunk->contig_hint)
@@ -773,7 +800,40 @@ out_unlock:
 	mutex_unlock(&pcpu_mutex);
 	return ptr;
 }
+
+/**
+ * __alloc_percpu - allocate dynamic percpu area
+ * @size: size of area to allocate in bytes
+ * @align: alignment of area (max PAGE_SIZE)
+ *
+ * Allocate percpu area of @size bytes aligned at @align.  Might
+ * sleep.  Might trigger writeouts.
+ *
+ * RETURNS:
+ * Percpu pointer to the allocated area on success, NULL on failure.
+ */
+void *__alloc_percpu(size_t size, size_t align)
+{
+	return pcpu_alloc(size, align, false);
+}
 EXPORT_SYMBOL_GPL(__alloc_percpu);
+
+/**
+ * __alloc_reserved_percpu - allocate reserved percpu area
+ * @size: size of area to allocate in bytes
+ * @align: alignment of area (max PAGE_SIZE)
+ *
+ * Allocate percpu area of @size bytes aligned at @align from reserved
+ * percpu area if arch has set it up; otherwise, allocation is served
+ * from the same dynamic area.  Might sleep.  Might trigger writeouts.
+ *
+ * RETURNS:
+ * Percpu pointer to the allocated area on success, NULL on failure.
+ */
+void *__alloc_reserved_percpu(size_t size, size_t align)
+{
+	return pcpu_alloc(size, align, true);
+}
 
 static void pcpu_kill_chunk(struct pcpu_chunk *chunk)
 {
@@ -826,6 +886,7 @@ EXPORT_SYMBOL_GPL(free_percpu);
  * pcpu_setup_first_chunk - initialize the first percpu chunk
  * @get_page_fn: callback to fetch page pointer
  * @static_size: the size of static percpu area in bytes
+ * @reserved_size: the size of reserved percpu area in bytes
  * @unit_size: unit size in bytes, must be multiple of PAGE_SIZE, -1 for auto
  * @dyn_size: free size for dynamic allocation in bytes, -1 for auto
  * @base_addr: mapped address, NULL for auto
@@ -844,14 +905,22 @@ EXPORT_SYMBOL_GPL(free_percpu);
  * indicates end of pages for the cpu.  Note that @get_page_fn() must
  * return the same number of pages for all cpus.
  *
+ * @reserved_size, if non-zero, specifies the amount of bytes to
+ * reserve after the static area in the first chunk.  This reserves
+ * the first chunk such that it's available only through reserved
+ * percpu allocation.  This is primarily used to serve module percpu
+ * static areas on architectures where the addressing model has
+ * limited offset range for symbol relocations to guarantee module
+ * percpu symbols fall inside the relocatable range.
+ *
  * @unit_size, if non-negative, specifies unit size and must be
  * aligned to PAGE_SIZE and equal to or larger than @static_size +
- * @dyn_size.
+ * @reserved_size + @dyn_size.
  *
  * @dyn_size, if non-negative, limits the number of bytes available
  * for dynamic allocation in the first chunk.  Specifying non-negative
  * value make percpu leave alone the area beyond @static_size +
- * @dyn_size.
+ * @reserved_size + @dyn_size.
  *
  * Non-null @base_addr means that the caller already allocated virtual
  * region for the first chunk and mapped it.  percpu must not mess
@@ -861,28 +930,36 @@ EXPORT_SYMBOL_GPL(free_percpu);
  * @populate_pte_fn is used to populate the pagetable.  NULL means the
  * caller already populated the pagetable.
  *
+ * If the first chunk ends up with both reserved and dynamic areas, it
+ * is served by two chunks - one to serve the core static and reserved
+ * areas and the other for the dynamic area.  They share the same vm
+ * and page map but uses different area allocation map to stay away
+ * from each other.  The latter chunk is circulated in the chunk slots
+ * and available for dynamic allocation like any other chunks.
+ *
  * RETURNS:
  * The determined pcpu_unit_size which can be used to initialize
  * percpu access.
  */
 size_t __init pcpu_setup_first_chunk(pcpu_get_page_fn_t get_page_fn,
-				     size_t static_size,
+				     size_t static_size, size_t reserved_size,
 				     ssize_t unit_size, ssize_t dyn_size,
 				     void *base_addr,
 				     pcpu_populate_pte_fn_t populate_pte_fn)
 {
 	static struct vm_struct first_vm;
-	static int smap[2];
-	struct pcpu_chunk *schunk;
+	static int smap[2], dmap[2];
+	struct pcpu_chunk *schunk, *dchunk = NULL;
 	unsigned int cpu;
 	int nr_pages;
 	int err, i;
 
 	/* santiy checks */
-	BUILD_BUG_ON(ARRAY_SIZE(smap) >= PCPU_DFL_MAP_ALLOC);
+	BUILD_BUG_ON(ARRAY_SIZE(smap) >= PCPU_DFL_MAP_ALLOC ||
+		     ARRAY_SIZE(dmap) >= PCPU_DFL_MAP_ALLOC);
 	BUG_ON(!static_size);
 	if (unit_size >= 0) {
-		BUG_ON(unit_size < static_size +
+		BUG_ON(unit_size < static_size + reserved_size +
 				   (dyn_size >= 0 ? dyn_size : 0));
 		BUG_ON(unit_size & ~PAGE_MASK);
 	} else {
@@ -895,7 +972,7 @@ size_t __init pcpu_setup_first_chunk(pcpu_get_page_fn_t get_page_fn,
 		pcpu_unit_pages = unit_size >> PAGE_SHIFT;
 	else
 		pcpu_unit_pages = max_t(int, PCPU_MIN_UNIT_SIZE >> PAGE_SHIFT,
-					PFN_UP(static_size));
+					PFN_UP(static_size + reserved_size));
 
 	pcpu_unit_size = pcpu_unit_pages << PAGE_SHIFT;
 	pcpu_chunk_size = num_possible_cpus() * pcpu_unit_size;
@@ -903,7 +980,7 @@ size_t __init pcpu_setup_first_chunk(pcpu_get_page_fn_t get_page_fn,
 		+ num_possible_cpus() * pcpu_unit_pages * sizeof(struct page *);
 
 	if (dyn_size < 0)
-		dyn_size = pcpu_unit_size - static_size;
+		dyn_size = pcpu_unit_size - static_size - reserved_size;
 
 	/*
 	 * Allocate chunk slots.  The additional last slot is for
@@ -914,19 +991,48 @@ size_t __init pcpu_setup_first_chunk(pcpu_get_page_fn_t get_page_fn,
 	for (i = 0; i < pcpu_nr_slots; i++)
 		INIT_LIST_HEAD(&pcpu_slot[i]);
 
-	/* init static chunk */
+	/*
+	 * Initialize static chunk.  If reserved_size is zero, the
+	 * static chunk covers static area + dynamic allocation area
+	 * in the first chunk.  If reserved_size is not zero, it
+	 * covers static area + reserved area (mostly used for module
+	 * static percpu allocation).
+	 */
 	schunk = alloc_bootmem(pcpu_chunk_struct_size);
 	INIT_LIST_HEAD(&schunk->list);
 	schunk->vm = &first_vm;
 	schunk->map = smap;
 	schunk->map_alloc = ARRAY_SIZE(smap);
 	schunk->page = schunk->page_ar;
-	schunk->free_size = dyn_size;
+
+	if (reserved_size) {
+		schunk->free_size = reserved_size;
+		pcpu_reserved_chunk = schunk;	/* not for dynamic alloc */
+	} else {
+		schunk->free_size = dyn_size;
+		dyn_size = 0;			/* dynamic area covered */
+	}
 	schunk->contig_hint = schunk->free_size;
 
 	schunk->map[schunk->map_used++] = -static_size;
 	if (schunk->free_size)
 		schunk->map[schunk->map_used++] = schunk->free_size;
+
+	pcpu_reserved_chunk_limit = static_size + schunk->free_size;
+
+	/* init dynamic chunk if necessary */
+	if (dyn_size) {
+		dchunk = alloc_bootmem(sizeof(struct pcpu_chunk));
+		INIT_LIST_HEAD(&dchunk->list);
+		dchunk->vm = &first_vm;
+		dchunk->map = dmap;
+		dchunk->map_alloc = ARRAY_SIZE(dmap);
+		dchunk->page = schunk->page_ar;	/* share page map with schunk */
+
+		dchunk->contig_hint = dchunk->free_size = dyn_size;
+		dchunk->map[dchunk->map_used++] = -pcpu_reserved_chunk_limit;
+		dchunk->map[dchunk->map_used++] = dchunk->free_size;
+	}
 
 	/* allocate vm address */
 	first_vm.flags = VM_ALLOC;
@@ -937,12 +1043,14 @@ size_t __init pcpu_setup_first_chunk(pcpu_get_page_fn_t get_page_fn,
 	else {
 		/*
 		 * Pages already mapped.  No need to remap into
-		 * vmalloc area.  In this case the static chunk can't
-		 * be mapped or unmapped by percpu and is marked
+		 * vmalloc area.  In this case the first chunks can't
+		 * be mapped or unmapped by percpu and are marked
 		 * immutable.
 		 */
 		first_vm.addr = base_addr;
 		schunk->immutable = true;
+		if (dchunk)
+			dchunk->immutable = true;
 	}
 
 	/* assign pages */
@@ -978,8 +1086,13 @@ size_t __init pcpu_setup_first_chunk(pcpu_get_page_fn_t get_page_fn,
 	}
 
 	/* link the first chunk in */
-	pcpu_chunk_relocate(schunk, -1);
-	pcpu_chunk_addr_insert(schunk);
+	if (!dchunk) {
+		pcpu_chunk_relocate(schunk, -1);
+		pcpu_chunk_addr_insert(schunk);
+	} else {
+		pcpu_chunk_relocate(dchunk, -1);
+		pcpu_chunk_addr_insert(dchunk);
+	}
 
 	/* we're done */
 	pcpu_base_addr = (void *)pcpu_chunk_addr(schunk, 0, 0);

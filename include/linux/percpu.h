@@ -117,10 +117,10 @@ typedef struct page * (*pcpu_get_page_fn_t)(unsigned int cpu, int pageno);
 typedef void (*pcpu_populate_pte_fn_t)(unsigned long addr);
 
 extern size_t __init pcpu_setup_first_chunk(pcpu_get_page_fn_t get_page_fn,
-					size_t static_size,
-					ssize_t unit_size, ssize_t dyn_size,
-					void *base_addr,
-					pcpu_populate_pte_fn_t populate_pte_fn);
+				size_t static_size, size_t reserved_size,
+				ssize_t unit_size, ssize_t dyn_size,
+				void *base_addr,
+				pcpu_populate_pte_fn_t populate_pte_fn);
 
 /*
  * Use this to get to a cpu's version of the per-cpu object
@@ -128,6 +128,8 @@ extern size_t __init pcpu_setup_first_chunk(pcpu_get_page_fn_t get_page_fn,
  * version should probably be combined with get_cpu()/put_cpu().
  */
 #define per_cpu_ptr(ptr, cpu)	SHIFT_PERCPU_PTR((ptr), per_cpu_offset((cpu)))
+
+extern void *__alloc_reserved_percpu(size_t size, size_t align);
 
 #else /* CONFIG_HAVE_DYNAMIC_PER_CPU_AREA */
 
