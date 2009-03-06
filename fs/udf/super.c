@@ -439,6 +439,7 @@ static int udf_parse_options(char *options, struct udf_options *uopt,
 		switch (token) {
 		case Opt_novrs:
 			uopt->novrs = 1;
+			break;
 		case Opt_bs:
 			if (match_int(&args[0], &option))
 				return 0;
