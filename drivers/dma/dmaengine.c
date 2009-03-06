@@ -507,6 +507,7 @@ struct dma_chan *__dma_request_channel(dma_cap_mask_t *mask, dma_filter_fn fn, v
 			 * published in the general-purpose allocator
 			 */
 			dma_cap_set(DMA_PRIVATE, device->cap_mask);
+			device->privatecnt++;
 			err = dma_chan_get(chan);
 
 			if (err == -ENODEV) {
@@ -518,6 +519,8 @@ struct dma_chan *__dma_request_channel(dma_cap_mask_t *mask, dma_filter_fn fn, v
 				       dma_chan_name(chan), err);
 			else
 				break;
+			if (--device->privatecnt == 0)
+				dma_cap_clear(DMA_PRIVATE, device->cap_mask);
 			chan->private = NULL;
 			chan = NULL;
 		}
@@ -537,6 +540,9 @@ void dma_release_channel(struct dma_chan *chan)
 	WARN_ONCE(chan->client_count != 1,
 		  "chan reference count %d != 1\n", chan->client_count);
 	dma_chan_put(chan);
+	/* drop PRIVATE cap enabled by __dma_request_channel() */
+	if (--chan->device->privatecnt == 0)
+		dma_cap_clear(DMA_PRIVATE, chan->device->cap_mask);
 	chan->private = NULL;
 	mutex_unlock(&dma_list_mutex);
 }
@@ -719,6 +725,8 @@ int dma_async_device_register(struct dma_device *device)
 			}
 		}
 	list_add_tail_rcu(&device->global_node, &dma_device_list);
+	if (dma_has_cap(DMA_PRIVATE, device->cap_mask))
+		device->privatecnt++;	/* Always private */
 	dma_channel_rebalance();
 	mutex_unlock(&dma_list_mutex);
 

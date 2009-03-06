@@ -202,6 +202,7 @@ struct dma_async_tx_descriptor {
 /**
  * struct dma_device - info on the entity supplying DMA services
  * @chancnt: how many DMA channels are supported
+ * @privatecnt: how many DMA channels are requested by dma_request_channel
  * @channels: the list of struct dma_chan
  * @global_node: list_head for global dma_device_list
  * @cap_mask: one or more dma_capability flags
@@ -224,6 +225,7 @@ struct dma_async_tx_descriptor {
 struct dma_device {
 
 	unsigned int chancnt;
+	unsigned int privatecnt;
 	struct list_head channels;
 	struct list_head global_node;
 	dma_cap_mask_t  cap_mask;
@@ -350,6 +352,13 @@ static inline void
 __dma_cap_set(enum dma_transaction_type tx_type, dma_cap_mask_t *dstp)
 {
 	set_bit(tx_type, dstp->bits);
+}
+
+#define dma_cap_clear(tx, mask) __dma_cap_clear((tx), &(mask))
+static inline void
+__dma_cap_clear(enum dma_transaction_type tx_type, dma_cap_mask_t *dstp)
+{
+	clear_bit(tx_type, dstp->bits);
 }
 
 #define dma_cap_zero(mask) __dma_cap_zero(&(mask))
