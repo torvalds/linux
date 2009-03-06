@@ -14,6 +14,8 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+#include <asm/unaligned.h>
+
 #include "ath9k.h"
 
 static unsigned int ath9k_debug = DBG_DEFAULT;
