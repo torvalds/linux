@@ -369,8 +369,35 @@ static inline char *pack_hex_byte(char *buf, u8 byte)
 
 /*
  * General tracing related utility functions - trace_printk(),
- * tracing_start()/tracing_stop:
+ * tracing_on/tracing_off and tracing_start()/tracing_stop
+ *
+ * Use tracing_on/tracing_off when you want to quickly turn on or off
+ * tracing. It simply enables or disables the recording of the trace events.
+ * This also corresponds to the user space debugfs/tracing/tracing_on
+ * file, which gives a means for the kernel and userspace to interact.
+ * Place a tracing_off() in the kernel where you want tracing to end.
+ * From user space, examine the trace, and then echo 1 > tracing_on
+ * to continue tracing.
+ *
+ * tracing_stop/tracing_start has slightly more overhead. It is used
+ * by things like suspend to ram where disabling the recording of the
+ * trace is not enough, but tracing must actually stop because things
+ * like calling smp_processor_id() may crash the system.
+ *
+ * Most likely, you want to use tracing_on/tracing_off.
  */
+#ifdef CONFIG_RING_BUFFER
+void tracing_on(void);
+void tracing_off(void);
+/* trace_off_permanent stops recording with no way to bring it back */
+void tracing_off_permanent(void);
+int tracing_is_on(void);
+#else
+static inline void tracing_on(void) { }
+static inline void tracing_off(void) { }
+static inline void tracing_off_permanent(void) { }
+static inline int tracing_is_on(void) { return 0; }
+#endif
 #ifdef CONFIG_TRACING
 extern void tracing_start(void);
 extern void tracing_stop(void);
