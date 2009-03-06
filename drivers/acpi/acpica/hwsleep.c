@@ -250,7 +250,8 @@ acpi_status asmlinkage acpi_enter_sleep_state(u8 sleep_state)
 
 	/* Clear wake status */
 
-	status = acpi_write_bit_register(ACPI_BITREG_WAKE_STATUS, 1);
+	status =
+	    acpi_write_bit_register(ACPI_BITREG_WAKE_STATUS, ACPI_CLEAR_STATUS);
 	if (ACPI_FAILURE(status)) {
 		return_ACPI_STATUS(status);
 	}
@@ -399,7 +400,10 @@ acpi_status asmlinkage acpi_enter_sleep_state_s4bios(void)
 
 	ACPI_FUNCTION_TRACE(acpi_enter_sleep_state_s4bios);
 
-	status = acpi_write_bit_register(ACPI_BITREG_WAKE_STATUS, 1);
+	/* Clear the wake status bit (PM1) */
+
+	status =
+	    acpi_write_bit_register(ACPI_BITREG_WAKE_STATUS, ACPI_CLEAR_STATUS);
 	if (ACPI_FAILURE(status)) {
 		return_ACPI_STATUS(status);
 	}
@@ -601,11 +605,13 @@ acpi_status acpi_leave_sleep_state(u8 sleep_state)
 
 	(void)
 	    acpi_write_bit_register(acpi_gbl_fixed_event_info
-			      [ACPI_EVENT_POWER_BUTTON].enable_register_id, 1);
+			      [ACPI_EVENT_POWER_BUTTON].
+			      enable_register_id, ACPI_ENABLE_EVENT);
 
 	(void)
 	    acpi_write_bit_register(acpi_gbl_fixed_event_info
-			      [ACPI_EVENT_POWER_BUTTON].status_register_id, 1);
+			      [ACPI_EVENT_POWER_BUTTON].
+			      status_register_id, ACPI_CLEAR_STATUS);
 
 	arg.integer.value = ACPI_SST_WORKING;
 	status = acpi_evaluate_object(NULL, METHOD_NAME__SST, &arg_list, NULL);
