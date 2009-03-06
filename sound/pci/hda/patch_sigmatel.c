@@ -1227,10 +1227,7 @@ static const char *slave_vols[] = {
 	"LFE Playback Volume",
 	"Side Playback Volume",
 	"Headphone Playback Volume",
-	"Headphone2 Playback Volume",
 	"Speaker Playback Volume",
-	"External Speaker Playback Volume",
-	"Speaker2 Playback Volume",
 	NULL
 };
 
@@ -1241,10 +1238,7 @@ static const char *slave_sws[] = {
 	"LFE Playback Switch",
 	"Side Playback Switch",
 	"Headphone Playback Switch",
-	"Headphone2 Playback Switch",
 	"Speaker Playback Switch",
-	"External Speaker Playback Switch",
-	"Speaker2 Playback Switch",
 	"IEC958 Playback Switch",
 	NULL
 };
@@ -2976,8 +2970,8 @@ static int stac92xx_auto_fill_dac_nids(struct hda_codec *codec)
 }
 
 /* create volume control/switch for the given prefx type */
-static int create_controls(struct hda_codec *codec, const char *pfx,
-			   hda_nid_t nid, int chs)
+static int create_controls_idx(struct hda_codec *codec, const char *pfx,
+			       int idx, hda_nid_t nid, int chs)
 {
 	struct sigmatel_spec *spec = codec->spec;
 	char name[32];
@@ -3001,18 +2995,21 @@ static int create_controls(struct hda_codec *codec, const char *pfx,
 	}
 
 	sprintf(name, "%s Playback Volume", pfx);
-	err = stac92xx_add_control(spec, STAC_CTL_WIDGET_VOL, name,
+	err = stac92xx_add_control_idx(spec, STAC_CTL_WIDGET_VOL, idx, name,
 		HDA_COMPOSE_AMP_VAL_OFS(nid, chs, 0, HDA_OUTPUT,
 					spec->volume_offset));
 	if (err < 0)
 		return err;
 	sprintf(name, "%s Playback Switch", pfx);
-	err = stac92xx_add_control(spec, STAC_CTL_WIDGET_MUTE, name,
+	err = stac92xx_add_control_idx(spec, STAC_CTL_WIDGET_MUTE, idx, name,
 				   HDA_COMPOSE_AMP_VAL(nid, chs, 0, HDA_OUTPUT));
 	if (err < 0)
 		return err;
 	return 0;
 }
+
+#define create_controls(codec, pfx, nid, chs) \
+	create_controls_idx(codec, pfx, 0, nid, chs)
 
 static int add_spec_dacs(struct sigmatel_spec *spec, hda_nid_t nid)
 {
@@ -3051,12 +3048,6 @@ static int create_multi_out_ctls(struct hda_codec *codec, int num_outs,
 	static const char *chname[4] = {
 		"Front", "Surround", NULL /*CLFE*/, "Side"
 	};
-	static const char *hp_pfxs[] = {
-		"Headphone", "Headphone2", "Headphone3", "Headphone4"
-	};
-	static const char *speaker_pfxs[] = {
-		"Speaker", "External Speaker", "Speaker2", "Speaker3"
-	};
 	hda_nid_t nid;
 	int i, err;
 	unsigned int wid_caps;
@@ -3087,18 +3078,22 @@ static int create_multi_out_ctls(struct hda_codec *codec, int num_outs,
 
 		} else {
 			const char *name;
+			int idx;
 			switch (type) {
 			case AUTO_PIN_HP_OUT:
-				name = hp_pfxs[i];
+				name = "Headphone";
+				idx = i;
 				break;
 			case AUTO_PIN_SPEAKER_OUT:
-				name = speaker_pfxs[i];
+				name = "Speaker";
+				idx = i;
 				break;
 			default:
 				name = chname[i];
+				idx = 0;
 				break;
 			}
-			err = create_controls(codec, name, nid, 3);
+			err = create_controls_idx(codec, name, idx, nid, 3);
 			if (err < 0)
 				return err;
 			if (type == AUTO_PIN_HP_OUT && !spec->hp_detect) {
