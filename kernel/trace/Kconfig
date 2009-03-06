@@ -61,6 +61,7 @@ config TRACING_SUPPORT
 	bool
 	depends on TRACE_IRQFLAGS_SUPPORT
 	depends on STACKTRACE_SUPPORT
+	default y
 
 if TRACING_SUPPORT
 
