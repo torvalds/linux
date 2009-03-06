@@ -494,7 +494,8 @@ acpi_get_sleep_type_data(u8 sleep_state, u8 *sleep_type_a, u8 *sleep_type_b)
 		 ((info->return_object->package.elements[1])->common.type
 		  != ACPI_TYPE_INTEGER)) {
 		ACPI_ERROR((AE_INFO,
-			    "Sleep State return package elements are not both Integers (%s, %s)",
+			    "Sleep State return package elements are not both Integers "
+			    "(%s, %s)",
 			    acpi_ut_get_object_type_name(info->return_object->
 							 package.elements[0]),
 			    acpi_ut_get_object_type_name(info->return_object->

@@ -86,7 +86,8 @@ acpi_status acpi_hw_set_mode(u32 mode)
 	 */
 	if (!acpi_gbl_FADT.acpi_enable && !acpi_gbl_FADT.acpi_disable) {
 		ACPI_ERROR((AE_INFO,
-			    "No ACPI mode transition supported in this system (enable/disable both zero)"));
+			    "No ACPI mode transition supported in this system "
+			    "(enable/disable both zero)"));
 		return_ACPI_STATUS(AE_OK);
 	}
 

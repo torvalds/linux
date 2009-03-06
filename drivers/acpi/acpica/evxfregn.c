@@ -193,7 +193,8 @@ acpi_remove_address_space_handler(acpi_handle device,
 			/* Matched space_id, first dereference this in the Regions */
 
 			ACPI_DEBUG_PRINT((ACPI_DB_OPREGION,
-					  "Removing address handler %p(%p) for region %s on Device %p(%p)\n",
+					  "Removing address handler %p(%p) for region %s "
+					  "on Device %p(%p)\n",
 					  handler_obj, handler,
 					  acpi_ut_get_region_name(space_id),
 					  node, obj_desc));

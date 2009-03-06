@@ -302,7 +302,8 @@ acpi_ns_check_parameter_count(char *pathname,
 		if ((user_param_count != required_params_current) &&
 		    (user_param_count != required_params_old)) {
 			ACPI_WARNING((AE_INFO,
-				      "%s: Parameter count mismatch - caller passed %d, ACPI requires %d",
+				      "%s: Parameter count mismatch - "
+				      "caller passed %d, ACPI requires %d",
 				      pathname, user_param_count,
 				      required_params_current));
 		}
@@ -974,7 +975,8 @@ acpi_ns_check_reference(char *pathname,
 	}
 
 	ACPI_WARNING((AE_INFO,
-		      "%s: Return type mismatch - unexpected reference object type [%s] %2.2X",
+		      "%s: Return type mismatch - "
+		      "unexpected reference object type [%s] %2.2X",
 		      pathname, acpi_ut_get_reference_name(return_object),
 		      return_object->reference.class));
 

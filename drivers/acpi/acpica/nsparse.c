@@ -176,9 +176,8 @@ acpi_ns_parse_table(u32 table_index, struct acpi_namespace_node *start_node)
 	 * performs another complete parse of the AML.
 	 */
 	ACPI_DEBUG_PRINT((ACPI_DB_PARSE, "**** Start pass 1\n"));
-	status =
-	    acpi_ns_one_complete_parse(ACPI_IMODE_LOAD_PASS1, table_index,
-				       start_node);
+	status = acpi_ns_one_complete_parse(ACPI_IMODE_LOAD_PASS1,
+					    table_index, start_node);
 	if (ACPI_FAILURE(status)) {
 		return_ACPI_STATUS(status);
 	}
@@ -193,9 +192,8 @@ acpi_ns_parse_table(u32 table_index, struct acpi_namespace_node *start_node)
 	 * parse objects are all cached.
 	 */
 	ACPI_DEBUG_PRINT((ACPI_DB_PARSE, "**** Start pass 2\n"));
-	status =
-	    acpi_ns_one_complete_parse(ACPI_IMODE_LOAD_PASS2, table_index,
-				       start_node);
+	status = acpi_ns_one_complete_parse(ACPI_IMODE_LOAD_PASS2,
+					    table_index, start_node);
 	if (ACPI_FAILURE(status)) {
 		return_ACPI_STATUS(status);
 	}

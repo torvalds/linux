@@ -349,8 +349,8 @@ acpi_status asmlinkage acpi_enter_sleep_state(u8 sleep_state)
 		 * Wait ten seconds, then try again. This is to get S4/S5 to work on
 		 * all machines.
 		 *
-		 * We wait so long to allow chipsets that poll this reg very slowly to
-		 * still read the right value. Ideally, this block would go
+		 * We wait so long to allow chipsets that poll this reg very slowly
+		 * to still read the right value. Ideally, this block would go
 		 * away entirely.
 		 */
 		acpi_os_stall(10000000);
@@ -501,12 +501,10 @@ acpi_status acpi_leave_sleep_state_prep(u8 sleep_state)
 
 			/* Insert the SLP_TYP bits */
 
-			pm1a_control |=
-			    (acpi_gbl_sleep_type_a << sleep_type_reg_info->
-			     bit_position);
-			pm1b_control |=
-			    (acpi_gbl_sleep_type_b << sleep_type_reg_info->
-			     bit_position);
+			pm1a_control |= (acpi_gbl_sleep_type_a <<
+					 sleep_type_reg_info->bit_position);
+			pm1b_control |= (acpi_gbl_sleep_type_b <<
+					 sleep_type_reg_info->bit_position);
 
 			/* Write the control registers and ignore any errors */
 
