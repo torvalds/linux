@@ -60,6 +60,7 @@ static struct ath_bus_ops ath_ahb_bus_ops  = {
 static int ath_ahb_probe(struct platform_device *pdev)
 {
 	void __iomem *mem;
+	struct ath_wiphy *aphy;
 	struct ath_softc *sc;
 	struct ieee80211_hw *hw;
 	struct resource *res;
