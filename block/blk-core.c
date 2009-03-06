@@ -603,13 +603,10 @@ blk_init_queue_node(request_fn_proc *rfn, spinlock_t *lock, int node_id)
 	q->queue_flags		= QUEUE_FLAG_DEFAULT;
 	q->queue_lock		= lock;
 
-	blk_queue_segment_boundary(q, BLK_SEG_BOUNDARY_MASK);
-
+	/*
+	 * This also sets hw/phys segments, boundary and size
+	 */
 	blk_queue_make_request(q, __make_request);
-	blk_queue_max_segment_size(q, MAX_SEGMENT_SIZE);
-
-	blk_queue_max_hw_segments(q, MAX_HW_SEGMENTS);
-	blk_queue_max_phys_segments(q, MAX_PHYS_SEGMENTS);
 
 	q->sg_reserved_size = INT_MAX;
 
