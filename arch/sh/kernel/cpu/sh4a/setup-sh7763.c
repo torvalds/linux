@@ -23,6 +23,7 @@ static struct resource rtc_resources[] = {
 	},
 	[1] = {
 		/* Shared Period/Carry/Alarm IRQ */
+		.start  = 20,
 		.flags	= IORESOURCE_IRQ,
 	},
 };
