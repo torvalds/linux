@@ -656,11 +656,13 @@ event_create_dir(struct ftrace_event_call *call, struct dentry *d_events)
 		return -1;
 	}
 
-	entry = debugfs_create_file("enable", 0644, call->dir, call,
-				    &ftrace_enable_fops);
-	if (!entry)
-		pr_warning("Could not create debugfs "
-			   "'%s/enable' entry\n", call->name);
+	if (call->regfunc) {
+		entry = debugfs_create_file("enable", 0644, call->dir, call,
+					    &ftrace_enable_fops);
+		if (!entry)
+			pr_warning("Could not create debugfs "
+				   "'%s/enable' entry\n", call->name);
+	}
 
 	/* Only let type be writable, if we can change it */
 	entry = debugfs_create_file("type",

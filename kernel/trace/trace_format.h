@@ -40,7 +40,7 @@
 
 #undef TRACE_EVENT_FORMAT
 #define TRACE_EVENT_FORMAT(call, proto, args, fmt, tstruct, tpfmt)	\
-int									\
+static int								\
 ftrace_format_##call(struct trace_seq *s)				\
 {									\
 	struct ftrace_raw_##call field;					\
