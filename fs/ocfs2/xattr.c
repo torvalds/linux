@@ -547,8 +547,12 @@ int ocfs2_calc_xattr_init(struct inode *dir,
 	 * when blocksize = 512, may reserve one more cluser for
 	 * xattr bucket, otherwise reserve one metadata block
 	 * for them is ok.
+	 * If this is a new directory with inline data,
+	 * we choose to reserve the entire inline area for
+	 * directory contents and force an external xattr block.
 	 */
 	if (dir->i_sb->s_blocksize == OCFS2_MIN_BLOCKSIZE ||
+	    (S_ISDIR(mode) && ocfs2_supports_inline_data(osb)) ||
 	    (s_size + a_size) > OCFS2_XATTR_FREE_IN_IBODY) {
 		ret = ocfs2_reserve_new_metadata_blocks(osb, 1, xattr_ac);
 		if (ret) {
