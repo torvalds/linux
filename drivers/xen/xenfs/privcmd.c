@@ -403,6 +403,10 @@ static long privcmd_ioctl(struct file *file,
 #ifndef HAVE_ARCH_PRIVCMD_MMAP
 static int privcmd_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 {
+	printk(KERN_DEBUG "privcmd_fault: vma=%p %lx-%lx, pgoff=%lx, uv=%p\n",
+	       vma, vma->vm_start, vma->vm_end,
+	       vmf->pgoff, vmf->virtual_address);
+
 	return VM_FAULT_SIGBUS;
 }
 
