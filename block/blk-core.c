@@ -732,7 +732,6 @@ static void freed_request(struct request_queue *q, int rw, int priv)
 		__freed_request(q, rw ^ 1);
 }
 
-#define blkdev_free_rq(list) list_entry((list)->next, struct request, queuelist)
 /*
  * Get a free request, queue_lock must be held.
  * Returns NULL on failure, with queue_lock held.
