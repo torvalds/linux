@@ -553,7 +553,7 @@ int s3c_i2sv2_probe(struct platform_device *pdev,
 
 	i2s->iis_pclk = clk_get(dev, "iis");
 	if (i2s->iis_pclk == NULL) {
-		pr_debug("failed to get iis_clock\n");
+		dev_err(dev, "failed to get iis_clock\n");
 		iounmap(i2s->regs);
 		return -ENOENT;
 	}
