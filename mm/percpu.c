@@ -831,7 +831,7 @@ EXPORT_SYMBOL_GPL(free_percpu);
  * @get_page_fn: callback to fetch page pointer
  * @static_size: the size of static percpu area in bytes
  * @unit_size: unit size in bytes, must be multiple of PAGE_SIZE, 0 for auto
- * @free_size: free size in bytes, 0 for auto
+ * @dyn_size: free size for dynamic allocation in bytes, 0 for auto
  * @base_addr: mapped address, NULL for auto
  * @populate_pte_fn: callback to allocate pagetable, NULL if unnecessary
  *
@@ -849,12 +849,12 @@ EXPORT_SYMBOL_GPL(free_percpu);
  * return the same number of pages for all cpus.
  *
  * @unit_size, if non-zero, determines unit size and must be aligned
- * to PAGE_SIZE and equal to or larger than @static_size + @free_size.
+ * to PAGE_SIZE and equal to or larger than @static_size + @dyn_size.
  *
- * @free_size determines the number of free bytes after the static
+ * @dyn_size determines the number of free bytes after the static
  * area in the first chunk.  If zero, whatever left is available.
  * Specifying non-zero value make percpu leave the area after
- * @static_size + @free_size alone.
+ * @static_size + @dyn_size alone.
  *
  * Non-null @base_addr means that the caller already allocated virtual
  * region for the first chunk and mapped it.  percpu must not mess
@@ -870,19 +870,19 @@ EXPORT_SYMBOL_GPL(free_percpu);
  */
 size_t __init pcpu_setup_first_chunk(pcpu_get_page_fn_t get_page_fn,
 				     size_t static_size, size_t unit_size,
-				     size_t free_size, void *base_addr,
+				     size_t dyn_size, void *base_addr,
 				     pcpu_populate_pte_fn_t populate_pte_fn)
 {
-	static struct vm_struct static_vm;
-	struct pcpu_chunk *static_chunk;
+	static struct vm_struct first_vm;
+	struct pcpu_chunk *schunk;
 	unsigned int cpu;
 	int nr_pages;
 	int err, i;
 
 	/* santiy checks */
 	BUG_ON(!static_size);
-	BUG_ON(!unit_size && free_size);
-	BUG_ON(unit_size && unit_size < static_size + free_size);
+	BUG_ON(!unit_size && dyn_size);
+	BUG_ON(unit_size && unit_size < static_size + dyn_size);
 	BUG_ON(unit_size & ~PAGE_MASK);
 	BUG_ON(base_addr && !unit_size);
 	BUG_ON(base_addr && populate_pte_fn);
@@ -908,24 +908,24 @@ size_t __init pcpu_setup_first_chunk(pcpu_get_page_fn_t get_page_fn,
 	for (i = 0; i < pcpu_nr_slots; i++)
 		INIT_LIST_HEAD(&pcpu_slot[i]);
 
-	/* init static_chunk */
-	static_chunk = alloc_bootmem(pcpu_chunk_struct_size);
-	INIT_LIST_HEAD(&static_chunk->list);
-	static_chunk->vm = &static_vm;
+	/* init static chunk */
+	schunk = alloc_bootmem(pcpu_chunk_struct_size);
+	INIT_LIST_HEAD(&schunk->list);
+	schunk->vm = &first_vm;
 
-	if (free_size)
-		static_chunk->free_size = free_size;
+	if (dyn_size)
+		schunk->free_size = dyn_size;
 	else
-		static_chunk->free_size = pcpu_unit_size - pcpu_static_size;
+		schunk->free_size = pcpu_unit_size - pcpu_static_size;
 
-	static_chunk->contig_hint = static_chunk->free_size;
+	schunk->contig_hint = schunk->free_size;
 
 	/* allocate vm address */
-	static_vm.flags = VM_ALLOC;
-	static_vm.size = pcpu_chunk_size;
+	first_vm.flags = VM_ALLOC;
+	first_vm.size = pcpu_chunk_size;
 
 	if (!base_addr)
-		vm_area_register_early(&static_vm, PAGE_SIZE);
+		vm_area_register_early(&first_vm, PAGE_SIZE);
 	else {
 		/*
 		 * Pages already mapped.  No need to remap into
@@ -933,8 +933,8 @@ size_t __init pcpu_setup_first_chunk(pcpu_get_page_fn_t get_page_fn,
 		 * be mapped or unmapped by percpu and is marked
 		 * immutable.
 		 */
-		static_vm.addr = base_addr;
-		static_chunk->immutable = true;
+		first_vm.addr = base_addr;
+		schunk->immutable = true;
 	}
 
 	/* assign pages */
@@ -945,7 +945,7 @@ size_t __init pcpu_setup_first_chunk(pcpu_get_page_fn_t get_page_fn,
 
 			if (!page)
 				break;
-			*pcpu_chunk_pagep(static_chunk, cpu, i) = page;
+			*pcpu_chunk_pagep(schunk, cpu, i) = page;
 		}
 
 		BUG_ON(i < PFN_UP(pcpu_static_size));
@@ -960,20 +960,20 @@ size_t __init pcpu_setup_first_chunk(pcpu_get_page_fn_t get_page_fn,
 	if (populate_pte_fn) {
 		for_each_possible_cpu(cpu)
 			for (i = 0; i < nr_pages; i++)
-				populate_pte_fn(pcpu_chunk_addr(static_chunk,
+				populate_pte_fn(pcpu_chunk_addr(schunk,
 								cpu, i));
 
-		err = pcpu_map(static_chunk, 0, nr_pages);
+		err = pcpu_map(schunk, 0, nr_pages);
 		if (err)
 			panic("failed to setup static percpu area, err=%d\n",
 			      err);
 	}
 
-	/* link static_chunk in */
-	pcpu_chunk_relocate(static_chunk, -1);
-	pcpu_chunk_addr_insert(static_chunk);
+	/* link the first chunk in */
+	pcpu_chunk_relocate(schunk, -1);
+	pcpu_chunk_addr_insert(schunk);
 
 	/* we're done */
-	pcpu_base_addr = (void *)pcpu_chunk_addr(static_chunk, 0, 0);
+	pcpu_base_addr = (void *)pcpu_chunk_addr(schunk, 0, 0);
 	return pcpu_unit_size;
 }
