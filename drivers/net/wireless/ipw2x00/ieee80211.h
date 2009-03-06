@@ -112,7 +112,7 @@
 
 /* debug macros */
 
-#ifdef CONFIG_IEEE80211_DEBUG
+#ifdef CONFIG_LIBIPW_DEBUG
 extern u32 ieee80211_debug_level;
 #define IEEE80211_DEBUG(level, fmt, args...) \
 do { if (ieee80211_debug_level & (level)) \
@@ -128,7 +128,7 @@ static inline bool ieee80211_ratelimit_debug(u32 level)
 {
 	return false;
 }
-#endif				/* CONFIG_IEEE80211_DEBUG */
+#endif				/* CONFIG_LIBIPW_DEBUG */
 
 /*
  * To use the debug system:
@@ -152,7 +152,7 @@ static inline bool ieee80211_ratelimit_debug(u32 level)
  * you simply need to add your entry to the ieee80211_debug_level array.
  *
  * If you do not see debug_level in /proc/net/ieee80211 then you do not have
- * CONFIG_IEEE80211_DEBUG defined in your kernel configuration
+ * CONFIG_LIBIPW_DEBUG defined in your kernel configuration
  *
  */
 
