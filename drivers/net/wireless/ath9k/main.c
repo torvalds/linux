@@ -1804,7 +1804,7 @@ int ath_descdma_setup(struct ath_softc *sc, struct ath_descdma *dd,
 
 	/* allocate descriptors */
 	dd->dd_desc = dma_alloc_coherent(sc->dev, dd->dd_desc_len,
-					 &dd->dd_desc_paddr, GFP_ATOMIC);
+					 &dd->dd_desc_paddr, GFP_KERNEL);
 	if (dd->dd_desc == NULL) {
 		error = -ENOMEM;
 		goto fail;
@@ -1816,12 +1816,11 @@ int ath_descdma_setup(struct ath_softc *sc, struct ath_descdma *dd,
 
 	/* allocate buffers */
 	bsize = sizeof(struct ath_buf) * nbuf;
-	bf = kmalloc(bsize, GFP_KERNEL);
+	bf = kzalloc(bsize, GFP_KERNEL);
 	if (bf == NULL) {
 		error = -ENOMEM;
 		goto fail2;
 	}
-	memset(bf, 0, bsize);
 	dd->dd_bufptr = bf;
 
 	INIT_LIST_HEAD(head);
