@@ -569,8 +569,8 @@ static void __init intc_register_irq(struct intc_desc *desc,
 		primary = 1;
 
 	if (!data[0] && !data[1])
-		pr_warning("intc: missing unique irq mask for 0x%04x\n",
-			   irq2evt(irq));
+		pr_warning("intc: missing unique irq mask for "
+			   "irq %d (vect 0x%04x)\n", irq, irq2evt(irq));
 
 	data[0] = data[0] ? data[0] : intc_mask_data(desc, d, enum_id, 1);
 	data[1] = data[1] ? data[1] : intc_prio_data(desc, d, enum_id, 1);
