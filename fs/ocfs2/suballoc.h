@@ -188,4 +188,6 @@ int ocfs2_lock_allocators(struct inode *inode, struct ocfs2_extent_tree *et,
 			  u32 clusters_to_add, u32 extents_to_split,
 			  struct ocfs2_alloc_context **data_ac,
 			  struct ocfs2_alloc_context **meta_ac);
+
+int ocfs2_test_inode_bit(struct ocfs2_super *osb, u64 blkno, int *res);
 #endif /* _CHAINALLOC_H_ */
