@@ -143,7 +143,7 @@ EXPORT_SYMBOL_GPL(snd_soc_jack_add_pins);
 
 #ifdef CONFIG_GPIOLIB
 /* gpio detect */
-void snd_soc_jack_gpio_detect(struct snd_soc_jack_gpio *gpio)
+static void snd_soc_jack_gpio_detect(struct snd_soc_jack_gpio *gpio)
 {
 	struct snd_soc_jack *jack = gpio->jack;
 	int enable;
