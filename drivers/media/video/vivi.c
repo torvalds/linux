@@ -1406,7 +1406,7 @@ free_dev:
  */
 static int __init vivi_init(void)
 {
-	int ret, i;
+	int ret = 0, i;
 
 	if (n_devs <= 0)
 		n_devs = 1;
