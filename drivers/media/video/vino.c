@@ -33,7 +33,6 @@
 #include <linux/kmod.h>
 
 #include <linux/i2c.h>
-#include <linux/i2c-algo-sgi.h>
 
 #include <linux/videodev2.h>
 #include <media/v4l2-device.h>
@@ -140,6 +139,20 @@ MODULE_LICENSE("GPL");
 #define VINO_DATA_NORM_D1		3
 
 #define VINO_DATA_NORM_COUNT		4
+
+/* I2C controller flags */
+#define SGI_I2C_FORCE_IDLE		(0 << 0)
+#define SGI_I2C_NOT_IDLE		(1 << 0)
+#define SGI_I2C_WRITE			(0 << 1)
+#define SGI_I2C_READ			(1 << 1)
+#define SGI_I2C_RELEASE_BUS		(0 << 2)
+#define SGI_I2C_HOLD_BUS		(1 << 2)
+#define SGI_I2C_XFER_DONE		(0 << 4)
+#define SGI_I2C_XFER_BUSY		(1 << 4)
+#define SGI_I2C_ACK			(0 << 5)
+#define SGI_I2C_NACK			(1 << 5)
+#define SGI_I2C_BUS_OK			(0 << 7)
+#define SGI_I2C_BUS_ERR			(1 << 7)
 
 /* Internal data structure definitions */
 
@@ -639,56 +652,6 @@ struct v4l2_queryctrl vino_saa7191_v4l2_controls[] = {
 		.default_value = SAA7191_VNR_DEFAULT,
 	}
 };
-
-/* VINO I2C bus functions */
-
-unsigned i2c_vino_getctrl(void *data)
-{
-	return vino->i2c_control;
-}
-
-void i2c_vino_setctrl(void *data, unsigned val)
-{
-	vino->i2c_control = val;
-}
-
-unsigned i2c_vino_rdata(void *data)
-{
-	return vino->i2c_data;
-}
-
-void i2c_vino_wdata(void *data, unsigned val)
-{
-	vino->i2c_data = val;
-}
-
-static struct i2c_algo_sgi_data i2c_sgi_vino_data =
-{
-	.getctrl = &i2c_vino_getctrl,
-	.setctrl = &i2c_vino_setctrl,
-	.rdata   = &i2c_vino_rdata,
-	.wdata   = &i2c_vino_wdata,
-	.xfer_timeout = 200,
-	.ack_timeout  = 1000,
-};
-
-static struct i2c_adapter vino_i2c_adapter =
-{
-	.name			= "VINO I2C bus",
-	.id			= I2C_HW_SGI_VINO,
-	.algo_data		= &i2c_sgi_vino_data,
-	.owner 			= THIS_MODULE,
-};
-
-static int vino_i2c_add_bus(void)
-{
-	return i2c_sgi_add_bus(&vino_i2c_adapter);
-}
-
-static int vino_i2c_del_bus(void)
-{
-	return i2c_del_adapter(&vino_i2c_adapter);
-}
 
 /* VINO framebuffer/DMA descriptor management */
 
@@ -1634,6 +1597,184 @@ static inline void vino_set_default_framerate(struct
 {
 	vino_set_framerate(vcs, vino_data_norms[vcs->data_norm].fps_max);
 }
+
+/* VINO I2C bus functions */
+
+struct i2c_algo_sgi_data {
+	void *data;	/* private data for lowlevel routines */
+	unsigned (*getctrl)(void *data);
+	void (*setctrl)(void *data, unsigned val);
+	unsigned (*rdata)(void *data);
+	void (*wdata)(void *data, unsigned val);
+
+	int xfer_timeout;
+	int ack_timeout;
+};
+
+static int wait_xfer_done(struct i2c_algo_sgi_data *adap)
+{
+	int i;
+
+	for (i = 0; i < adap->xfer_timeout; i++) {
+		if ((adap->getctrl(adap->data) & SGI_I2C_XFER_BUSY) == 0)
+			return 0;
+		udelay(1);
+	}
+
+	return -ETIMEDOUT;
+}
+
+static int wait_ack(struct i2c_algo_sgi_data *adap)
+{
+	int i;
+
+	if (wait_xfer_done(adap))
+		return -ETIMEDOUT;
+	for (i = 0; i < adap->ack_timeout; i++) {
+		if ((adap->getctrl(adap->data) & SGI_I2C_NACK) == 0)
+			return 0;
+		udelay(1);
+	}
+
+	return -ETIMEDOUT;
+}
+
+static int force_idle(struct i2c_algo_sgi_data *adap)
+{
+	int i;
+
+	adap->setctrl(adap->data, SGI_I2C_FORCE_IDLE);
+	for (i = 0; i < adap->xfer_timeout; i++) {
+		if ((adap->getctrl(adap->data) & SGI_I2C_NOT_IDLE) == 0)
+			goto out;
+		udelay(1);
+	}
+	return -ETIMEDOUT;
+out:
+	if (adap->getctrl(adap->data) & SGI_I2C_BUS_ERR)
+		return -EIO;
+	return 0;
+}
+
+static int do_address(struct i2c_algo_sgi_data *adap, unsigned int addr,
+		      int rd)
+{
+	if (rd)
+		adap->setctrl(adap->data, SGI_I2C_NOT_IDLE);
+	/* Check if bus is idle, eventually force it to do so */
+	if (adap->getctrl(adap->data) & SGI_I2C_NOT_IDLE)
+		if (force_idle(adap))
+			return -EIO;
+	/* Write out the i2c chip address and specify operation */
+	adap->setctrl(adap->data,
+		      SGI_I2C_HOLD_BUS | SGI_I2C_WRITE | SGI_I2C_NOT_IDLE);
+	if (rd)
+		addr |= 1;
+	adap->wdata(adap->data, addr);
+	if (wait_ack(adap))
+		return -EIO;
+	return 0;
+}
+
+static int i2c_read(struct i2c_algo_sgi_data *adap, unsigned char *buf,
+		    unsigned int len)
+{
+	int i;
+
+	adap->setctrl(adap->data,
+		      SGI_I2C_HOLD_BUS | SGI_I2C_READ | SGI_I2C_NOT_IDLE);
+	for (i = 0; i < len; i++) {
+		if (wait_xfer_done(adap))
+			return -EIO;
+		buf[i] = adap->rdata(adap->data);
+	}
+	adap->setctrl(adap->data, SGI_I2C_RELEASE_BUS | SGI_I2C_FORCE_IDLE);
+
+	return 0;
+
+}
+
+static int i2c_write(struct i2c_algo_sgi_data *adap, unsigned char *buf,
+		     unsigned int len)
+{
+	int i;
+
+	/* We are already in write state */
+	for (i = 0; i < len; i++) {
+		adap->wdata(adap->data, buf[i]);
+		if (wait_ack(adap))
+			return -EIO;
+	}
+	return 0;
+}
+
+static int sgi_xfer(struct i2c_adapter *i2c_adap, struct i2c_msg *msgs,
+		    int num)
+{
+	struct i2c_algo_sgi_data *adap = i2c_adap->algo_data;
+	struct i2c_msg *p;
+	int i, err = 0;
+
+	for (i = 0; !err && i < num; i++) {
+		p = &msgs[i];
+		err = do_address(adap, p->addr, p->flags & I2C_M_RD);
+		if (err || !p->len)
+			continue;
+		if (p->flags & I2C_M_RD)
+			err = i2c_read(adap, p->buf, p->len);
+		else
+			err = i2c_write(adap, p->buf, p->len);
+	}
+
+	return (err < 0) ? err : i;
+}
+
+static u32 sgi_func(struct i2c_adapter *adap)
+{
+	return I2C_FUNC_SMBUS_EMUL;
+}
+
+static const struct i2c_algorithm sgi_algo = {
+	.master_xfer	= sgi_xfer,
+	.functionality	= sgi_func,
+};
+
+static unsigned i2c_vino_getctrl(void *data)
+{
+	return vino->i2c_control;
+}
+
+static void i2c_vino_setctrl(void *data, unsigned val)
+{
+	vino->i2c_control = val;
+}
+
+static unsigned i2c_vino_rdata(void *data)
+{
+	return vino->i2c_data;
+}
+
+static void i2c_vino_wdata(void *data, unsigned val)
+{
+	vino->i2c_data = val;
+}
+
+static struct i2c_algo_sgi_data i2c_sgi_vino_data = {
+	.getctrl = &i2c_vino_getctrl,
+	.setctrl = &i2c_vino_setctrl,
+	.rdata   = &i2c_vino_rdata,
+	.wdata   = &i2c_vino_wdata,
+	.xfer_timeout = 200,
+	.ack_timeout  = 1000,
+};
+
+static struct i2c_adapter vino_i2c_adapter = {
+	.name			= "VINO I2C bus",
+	.id			= I2C_HW_SGI_VINO,
+	.algo			= &sgi_algo,
+	.algo_data		= &i2c_sgi_vino_data,
+	.owner 			= THIS_MODULE,
+};
 
 /*
  * Prepare VINO for DMA transfer...
@@ -3999,7 +4140,7 @@ static void vino_module_cleanup(int stage)
 		video_unregister_device(vino_drvdata->a.vdev);
 		vino_drvdata->a.vdev = NULL;
 	case 9:
-		vino_i2c_del_bus();
+		i2c_del_adapter(&vino_i2c_adapter);
 	case 8:
 		free_irq(SGI_VINO_IRQ, NULL);
 	case 7:
@@ -4222,7 +4363,7 @@ static int __init vino_module_init(void)
 	}
 	vino_init_stage++;
 
-	ret = vino_i2c_add_bus();
+	ret = i2c_add_adapter(&vino_i2c_adapter);
 	if (ret) {
 		printk(KERN_ERR "VINO I2C bus registration failed\n");
 		vino_module_cleanup(vino_init_stage);
