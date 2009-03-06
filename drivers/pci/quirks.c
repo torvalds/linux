@@ -2122,7 +2122,7 @@ static void __devinit ht_disable_msi_mapping(struct pci_dev *dev)
 
 		if (pci_read_config_byte(dev, pos + HT_MSI_FLAGS,
 					 &flags) == 0) {
-			dev_info(&dev->dev, "Enabling HT MSI Mapping\n");
+			dev_info(&dev->dev, "Disabling HT MSI Mapping\n");
 
 			pci_write_config_byte(dev, pos + HT_MSI_FLAGS,
 					      flags & ~HT_MSI_FLAGS_ENABLE);
