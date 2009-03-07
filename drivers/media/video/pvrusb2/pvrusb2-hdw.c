@@ -105,6 +105,20 @@ MODULE_PARM_DESC(radio_freq, "specify initial radio frequency");
 /* size of a firmware chunk */
 #define FIRMWARE_CHUNK_SIZE 0x2000
 
+static const char *module_names[] = {
+	[PVR2_CLIENT_ID_MSP3400] = "msp3400",
+	[PVR2_CLIENT_ID_CX25840] = "cx25840",
+	[PVR2_CLIENT_ID_SAA7115] = "saa7115",
+	[PVR2_CLIENT_ID_TUNER] = "tuner",
+	[PVR2_CLIENT_ID_CS53132A] = "cs53132a",
+};
+
+
+static const unsigned char *module_i2c_addresses[] = {
+	[PVR2_CLIENT_ID_TUNER] = "\x60\x61\x62\x63",
+};
+
+
 /* Define the list of additional controls we'll dynamically construct based
    on query of the cx2341x module. */
 struct pvr2_mpeg_ids {
@@ -1934,6 +1948,105 @@ static void pvr2_hdw_setup_std(struct pvr2_hdw *hdw)
 }
 
 
+static unsigned int pvr2_copy_i2c_addr_list(
+	unsigned short *dst, const unsigned char *src,
+	unsigned int dst_max)
+{
+	unsigned int cnt;
+	if (!src) return 0;
+	while (src[cnt] && (cnt + 1) < dst_max) {
+		dst[cnt] = src[cnt];
+		cnt++;
+	}
+	dst[cnt] = I2C_CLIENT_END;
+	return cnt;
+}
+
+
+static void pvr2_hdw_load_subdev(struct pvr2_hdw *hdw,
+				 const struct pvr2_device_client_desc *cd)
+{
+	const char *fname;
+	unsigned char mid;
+	struct v4l2_subdev *sd;
+	unsigned int i2ccnt;
+	const unsigned char *p;
+	/* Arbitrary count - max # i2c addresses we will probe */
+	unsigned short i2caddr[25];
+
+	mid = cd->module_id;
+	fname = (mid < ARRAY_SIZE(module_names)) ? module_names[mid] : NULL;
+	if (!fname) {
+		pvr2_trace(PVR2_TRACE_ERROR_LEGS,
+			   "Module ID %u for device %s is unknown"
+			   " (this is probably a bad thing...)",
+			   mid,
+			   hdw->hdw_desc->description);
+		return;
+	}
+
+	i2ccnt = pvr2_copy_i2c_addr_list(i2caddr, cd->i2c_address_list,
+					 ARRAY_SIZE(i2caddr));
+	if (!i2ccnt && ((p = (mid < ARRAY_SIZE(module_i2c_addresses)) ?
+			 module_i2c_addresses[mid] : NULL) != NULL)) {
+		/* Second chance: Try default i2c address list */
+		i2ccnt = pvr2_copy_i2c_addr_list(i2caddr, p,
+						 ARRAY_SIZE(i2caddr));
+	}
+
+	if (!i2ccnt) {
+		pvr2_trace(PVR2_TRACE_ERROR_LEGS,
+			   "Module ID %u for device %s:"
+			   " No i2c addresses"
+			   " (this is probably a bad thing...)",
+			   mid, hdw->hdw_desc->description);
+		return;
+	}
+
+	/* Note how the 2nd and 3rd arguments are the same for both
+	 * v4l2_i2c_new_subdev() and v4l2_i2c_new_probed_subdev().  Why?
+	 * Well the 2nd argument is the module name to load, while the 3rd
+	 * argument is documented in the framework as being the "chipid" -
+	 * and every other place where I can find examples of this, the
+	 * "chipid" appears to just be the module name again.  So here we
+	 * just do the same thing. */
+	if (i2ccnt == 1) {
+		sd = v4l2_i2c_new_subdev(&hdw->i2c_adap,
+					 fname, fname,
+					 i2caddr[0]);
+	} else {
+		sd = v4l2_i2c_new_probed_subdev(&hdw->i2c_adap,
+						fname, fname,
+						i2caddr);
+	}
+
+	// ?????
+	/* Based on module ID, we should remember subdev pointers
+	   so that we can send certain custom commands where
+	   needed. */
+	// ?????
+
+}
+
+
+static void pvr2_hdw_load_modules(struct pvr2_hdw *hdw)
+{
+	unsigned int idx;
+	const struct pvr2_string_table *cm;
+	const struct pvr2_device_client_table *ct;
+
+	cm = &hdw->hdw_desc->client_modules;
+	for (idx = 0; idx < cm->cnt; idx++) {
+		request_module(cm->lst[idx]);
+	}
+
+	ct = &hdw->hdw_desc->client_table;
+	for (idx = 0; idx < ct->cnt; idx++) {
+		pvr2_hdw_load_subdev(hdw,&ct->lst[idx]);
+	}
+}
+
+
 static void pvr2_hdw_setup_low(struct pvr2_hdw *hdw)
 {
 	int ret;
@@ -1973,10 +2086,6 @@ static void pvr2_hdw_setup_low(struct pvr2_hdw *hdw)
 
 	if (!pvr2_hdw_dev_ok(hdw)) return;
 
-	for (idx = 0; idx < hdw->hdw_desc->client_modules.cnt; idx++) {
-		request_module(hdw->hdw_desc->client_modules.lst[idx]);
-	}
-
 	if (!hdw->hdw_desc->flag_no_powerup) {
 		pvr2_hdw_cmd_powerup(hdw);
 		if (!pvr2_hdw_dev_ok(hdw)) return;
@@ -1994,6 +2103,8 @@ static void pvr2_hdw_setup_low(struct pvr2_hdw *hdw)
 	pvr2_i2c_track_init(hdw);
 	pvr2_i2c_core_init(hdw);
 	if (!pvr2_hdw_dev_ok(hdw)) return;
+
+	pvr2_hdw_load_modules(hdw);
 
 	for (idx = 0; idx < CTRLDEF_COUNT; idx++) {
 		cptr = hdw->controls + idx;

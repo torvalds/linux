@@ -608,6 +608,7 @@ void pvr2_i2c_core_init(struct pvr2_hdw *hdw)
 	hdw->i2c_adap.algo = &hdw->i2c_algo;
 	hdw->i2c_adap.algo_data = hdw;
 	hdw->i2c_linked = !0;
+	i2c_set_adapdata(&hdw->i2c_adap, &hdw->v4l2_dev);
 	i2c_add_adapter(&hdw->i2c_adap);
 	if (hdw->i2c_func[0x18] == i2c_24xxx_ir) {
 		/* Probe for a different type of IR receiver on this

@@ -33,6 +33,31 @@
 */
 
 
+#define PVR2_CLIENT_ID_MSP3400 1
+#define PVR2_CLIENT_ID_CX25840 2
+#define PVR2_CLIENT_ID_SAA7115 3
+#define PVR2_CLIENT_ID_TUNER 4
+#define PVR2_CLIENT_ID_CS53132A 5
+
+struct pvr2_device_client_desc {
+	/* One ovr PVR2_CLIENT_ID_xxxx */
+	unsigned char module_id;
+
+	/* Null-terminated array of I2C addresses to try in order
+	   initialize the module.  It's safe to make this null terminated
+	   since we're never going to encounter an i2c device with an
+	   address of zero.  If this is a null pointer or zero-length,
+	   then no I2C addresses have been specified, in which case we'll
+	   try some compiled in defaults for now. */
+	unsigned char *i2c_address_list;
+};
+
+struct pvr2_device_client_table {
+	const struct pvr2_device_client_desc *lst;
+	unsigned char cnt;
+};
+
+
 struct pvr2_string_table {
 	const char **lst;
 	unsigned int cnt;
@@ -65,6 +90,9 @@ struct pvr2_device_desc {
 
 	/* List of additional client modules we need to load */
 	struct pvr2_string_table client_modules;
+
+	/* List of defined client modules we need to load */
+	struct pvr2_device_client_table client_table;
 
 	/* List of FX2 firmware file names we should search; if empty then
 	   FX2 firmware check / load is skipped and we assume the device
