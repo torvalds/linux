@@ -121,6 +121,9 @@ void r600_page_table_cleanup(struct drm_device *dev, struct drm_ati_pcigart_info
 	int pages;
 	int i;
 
+	if (!entry)
+		return;
+
 	if (gart_info->bus_addr) {
 		max_pages = (gart_info->table_size / sizeof(u32));
 		pages = (entry->pages <= max_pages)
