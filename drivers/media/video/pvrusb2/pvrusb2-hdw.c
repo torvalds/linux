@@ -2839,6 +2839,14 @@ static const char *get_ctrl_typename(enum pvr2_ctl_type tp)
 }
 
 
+/* Execute whatever commands are required to update the state of all the
+   sub-devices so that it matches our current control values. */
+static void pvr2_subdev_update(struct pvr2_hdw *hdw)
+{
+	/* ????? */
+}
+
+
 /* Figure out if we need to commit control changes.  If so, mark internal
    state flags to indicate this fact and return true.  Otherwise do nothing
    else and return false. */
@@ -3009,12 +3017,6 @@ static int pvr2_hdw_commit_execute(struct pvr2_hdw *hdw)
 	   the client drivers in order to keep everything in sync */
 	pvr2_i2c_core_check_stale(hdw);
 
-	for (idx = 0; idx < hdw->control_cnt; idx++) {
-		cptr = hdw->controls + idx;
-		if (!cptr->info->clear_dirty) continue;
-		cptr->info->clear_dirty(cptr);
-	}
-
 	if (hdw->active_stream_type != hdw->desired_stream_type) {
 		/* Handle any side effects of stream config here */
 		hdw->active_stream_type = hdw->desired_stream_type;
@@ -3033,6 +3035,15 @@ static int pvr2_hdw_commit_execute(struct pvr2_hdw *hdw)
 			pvr2_hdw_gpio_chg_out(hdw,(1 << 11),0);
 		}
 	}
+
+	for (idx = 0; idx < hdw->control_cnt; idx++) {
+		cptr = hdw->controls + idx;
+		if (!cptr->info->clear_dirty) continue;
+		cptr->info->clear_dirty(cptr);
+	}
+
+	/* Check and update state for all sub-devices. */
+	pvr2_subdev_update(hdw);
 
 	/* Now execute i2c core update */
 	pvr2_i2c_core_sync(hdw);
@@ -3190,8 +3201,8 @@ void pvr2_hdw_trigger_module_log(struct pvr2_hdw *hdw)
 {
 	int nr = pvr2_hdw_get_unit_number(hdw);
 	LOCK_TAKE(hdw->big_lock); do {
-		hdw->log_requested = !0;
 		printk(KERN_INFO "pvrusb2: =================  START STATUS CARD #%d  =================\n", nr);
+		hdw->log_requested = !0;
 		pvr2_i2c_core_check_stale(hdw);
 		pvr2_i2c_core_sync(hdw);
 		hdw->log_requested = 0;
