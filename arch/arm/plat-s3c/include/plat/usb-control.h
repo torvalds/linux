@@ -1,9 +1,9 @@
-/* arch/arm/mach-s3c2410/include/mach/usb-control.h
+/* arch/arm/plat-s3c/include/plat/usb-control.h
  *
  * Copyright (c) 2004 Simtec Electronics
  *	Ben Dooks <ben@simtec.co.uk>
  *
- * S3C2410 - usb port information
+ * S3C - USB host port information
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -11,7 +11,7 @@
 */
 
 #ifndef __ASM_ARCH_USBCONTROL_H
-#define __ASM_ARCH_USBCONTROL_H "arch/arm/mach-s3c2410/include/mach/usb-control.h"
+#define __ASM_ARCH_USBCONTROL_H
 
 #define S3C_HCDFLG_USED	(1)
 
