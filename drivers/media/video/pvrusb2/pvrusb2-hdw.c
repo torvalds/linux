@@ -1655,19 +1655,29 @@ static const char *pvr2_get_state_name(unsigned int st)
 
 static int pvr2_decoder_enable(struct pvr2_hdw *hdw,int enablefl)
 {
-	if (!hdw->decoder_ctrl) {
-		if (!hdw->flag_decoder_missed) {
-			pvr2_trace(PVR2_TRACE_ERROR_LEGS,
-				   "WARNING: No decoder present");
-			hdw->flag_decoder_missed = !0;
-			trace_stbit("flag_decoder_missed",
-				    hdw->flag_decoder_missed);
-		}
-		return -EIO;
+	if (hdw->decoder_ctrl) {
+		hdw->decoder_ctrl->enable(hdw->decoder_ctrl->ctxt, enablefl);
+		return 0;
 	}
-	hdw->decoder_ctrl->enable(hdw->decoder_ctrl->ctxt,enablefl);
-	// ?????
-	return 0;
+	/* Even though we really only care about the video decoder chip at
+	   this point, we'll broadcast stream on/off to all sub-devices
+	   anyway, just in case somebody else wants to hear the
+	   command... */
+	v4l2_device_call_all(&hdw->v4l2_dev, 0, video, s_stream, enablefl);
+	if (hdw->decoder_client_id) {
+		/* We get here if the encoder has been noticed.  Otherwise
+		   we'll issue a warning to the user (which should
+		   normally never happen). */
+		return 0;
+	}
+	if (!hdw->flag_decoder_missed) {
+		pvr2_trace(PVR2_TRACE_ERROR_LEGS,
+			   "WARNING: No decoder present");
+		hdw->flag_decoder_missed = !0;
+		trace_stbit("flag_decoder_missed",
+			    hdw->flag_decoder_missed);
+	}
+	return -EIO;
 }
 
 
@@ -4009,23 +4019,26 @@ int pvr2_hdw_cmd_powerdown(struct pvr2_hdw *hdw)
 
 int pvr2_hdw_cmd_decoder_reset(struct pvr2_hdw *hdw)
 {
-	if (!hdw->decoder_ctrl) {
-		pvr2_trace(PVR2_TRACE_INIT,
-			   "Unable to reset decoder: nothing attached");
-		return -ENOTTY;
-	}
-
-	if (!hdw->decoder_ctrl->force_reset) {
-		pvr2_trace(PVR2_TRACE_INIT,
-			   "Unable to reset decoder: not implemented");
-		return -ENOTTY;
-	}
-
 	pvr2_trace(PVR2_TRACE_INIT,
 		   "Requesting decoder reset");
-	hdw->decoder_ctrl->force_reset(hdw->decoder_ctrl->ctxt);
-	// ?????
-	return 0;
+	if (hdw->decoder_ctrl) {
+		if (!hdw->decoder_ctrl->force_reset) {
+			pvr2_trace(PVR2_TRACE_INIT,
+				   "Unable to reset decoder: not implemented");
+			return -ENOTTY;
+		}
+		hdw->decoder_ctrl->force_reset(hdw->decoder_ctrl->ctxt);
+		return 0;
+	} else {
+	}
+	if (hdw->decoder_client_id) {
+		v4l2_device_call_all(&hdw->v4l2_dev, hdw->decoder_client_id,
+				     core, reset, 0);
+		return 0;
+	}
+	pvr2_trace(PVR2_TRACE_INIT,
+		   "Unable to reset decoder: nothing attached");
+	return -ENOTTY;
 }
 
 
