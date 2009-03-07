@@ -19,7 +19,7 @@
  */
 
 #include <linux/kernel.h>
-#include "pvrusb2-i2c-core.h"
+#include "pvrusb2-i2c-track.h"
 #include "pvrusb2-hdw-internal.h"
 #include "pvrusb2-debug.h"
 #include "pvrusb2-i2c-cmd-v4l2.h"

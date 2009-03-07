@@ -29,6 +29,7 @@
 #include "pvrusb2-util.h"
 #include "pvrusb2-hdw.h"
 #include "pvrusb2-i2c-core.h"
+#include "pvrusb2-i2c-track.h"
 #include "pvrusb2-tuner.h"
 #include "pvrusb2-eeprom.h"
 #include "pvrusb2-hdw-internal.h"
@@ -1990,6 +1991,7 @@ static void pvr2_hdw_setup_low(struct pvr2_hdw *hdw)
 	}
 
 	// This step MUST happen after the earlier powerup step.
+	pvr2_i2c_track_init(hdw);
 	pvr2_i2c_core_init(hdw);
 	if (!pvr2_hdw_dev_ok(hdw)) return;
 
@@ -2501,6 +2503,7 @@ void pvr2_hdw_destroy(struct pvr2_hdw *hdw)
 		hdw->decoder_ctrl->detach(hdw->decoder_ctrl->ctxt);
 	}
 	pvr2_i2c_core_done(hdw);
+	pvr2_i2c_track_done(hdw);
 	pvr2_hdw_remove_usb_stuff(hdw);
 	mutex_lock(&pvr2_unit_mtx); do {
 		if ((hdw->unit_number >= 0) &&

@@ -22,7 +22,7 @@
 #ifndef __PVRUSB2_CMD_V4L2_H
 #define __PVRUSB2_CMD_V4L2_H
 
-#include "pvrusb2-i2c-core.h"
+#include "pvrusb2-i2c-track.h"
 
 extern const struct pvr2_i2c_op pvr2_i2c_op_v4l2_init;
 extern const struct pvr2_i2c_op pvr2_i2c_op_v4l2_standard;

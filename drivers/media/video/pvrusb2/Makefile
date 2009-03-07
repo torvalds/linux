@@ -3,6 +3,7 @@ obj-pvrusb2-debugifc-$(CONFIG_VIDEO_PVRUSB2_DEBUGIFC) := pvrusb2-debugifc.o
 obj-pvrusb2-dvb-$(CONFIG_VIDEO_PVRUSB2_DVB) := pvrusb2-dvb.o
 
 pvrusb2-objs	:= pvrusb2-i2c-core.o pvrusb2-i2c-cmd-v4l2.o \
+		   pvrusb2-i2c-track.o \
 		   pvrusb2-audio.o pvrusb2-i2c-chips-v4l2.o \
 		   pvrusb2-encoder.o pvrusb2-video-v4l.o \
 		   pvrusb2-eeprom.o pvrusb2-tuner.o \

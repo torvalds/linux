@@ -23,7 +23,7 @@
 #include "pvrusb2-debugifc.h"
 #include "pvrusb2-hdw.h"
 #include "pvrusb2-debug.h"
-#include "pvrusb2-i2c-core.h"
+#include "pvrusb2-i2c-track.h"
 
 struct debugifc_mask_item {
 	const char *name;
