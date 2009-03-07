@@ -3032,7 +3032,7 @@ static void pvr2_subdev_update(struct pvr2_hdw *hdw)
 		fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 		fmt.fmt.pix.width = hdw->res_hor_val;
 		fmt.fmt.pix.height = hdw->res_ver_val;
-		pvr2_trace(PVR2_TRACE_CHIPS,"subdev v4l2 set_size(%dx%d)",
+		pvr2_trace(PVR2_TRACE_CHIPS, "subdev v4l2 set_size(%dx%d)",
 			   fmt.fmt.pix.width, fmt.fmt.pix.height);
 		v4l2_device_call_all(&hdw->v4l2_dev, 0, video, s_fmt, &fmt);
 	}
