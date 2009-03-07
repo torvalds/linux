@@ -53,7 +53,7 @@ struct apple_key_translation {
 	u8 flags;
 };
 
-static struct apple_key_translation apple_fn_keys[] = {
+static const struct apple_key_translation apple_fn_keys[] = {
 	{ KEY_BACKSPACE, KEY_DELETE },
 	{ KEY_ENTER,	KEY_INSERT },
 	{ KEY_F1,	KEY_BRIGHTNESSDOWN, APPLE_FLAG_FKEY },
@@ -75,7 +75,7 @@ static struct apple_key_translation apple_fn_keys[] = {
 	{ }
 };
 
-static struct apple_key_translation powerbook_fn_keys[] = {
+static const struct apple_key_translation powerbook_fn_keys[] = {
 	{ KEY_BACKSPACE, KEY_DELETE },
 	{ KEY_F1,	KEY_BRIGHTNESSDOWN,     APPLE_FLAG_FKEY },
 	{ KEY_F2,	KEY_BRIGHTNESSUP,       APPLE_FLAG_FKEY },
@@ -94,7 +94,7 @@ static struct apple_key_translation powerbook_fn_keys[] = {
 	{ }
 };
 
-static struct apple_key_translation powerbook_numlock_keys[] = {
+static const struct apple_key_translation powerbook_numlock_keys[] = {
 	{ KEY_J,	KEY_KP1 },
 	{ KEY_K,	KEY_KP2 },
 	{ KEY_L,	KEY_KP3 },
@@ -117,16 +117,16 @@ static struct apple_key_translation powerbook_numlock_keys[] = {
 	{ }
 };
 
-static struct apple_key_translation apple_iso_keyboard[] = {
+static const struct apple_key_translation apple_iso_keyboard[] = {
 	{ KEY_GRAVE,	KEY_102ND },
 	{ KEY_102ND,	KEY_GRAVE },
 	{ }
 };
 
-static struct apple_key_translation *apple_find_translation(
-		struct apple_key_translation *table, u16 from)
+static const struct apple_key_translation *apple_find_translation(
+		const struct apple_key_translation *table, u16 from)
 {
-	struct apple_key_translation *trans;
+	const struct apple_key_translation *trans;
 
 	/* Look for the translation */
 	for (trans = table; trans->from; trans++)
@@ -140,7 +140,7 @@ static int hidinput_apple_event(struct hid_device *hid, struct input_dev *input,
 		struct hid_usage *usage, __s32 value)
 {
 	struct apple_sc *asc = hid_get_drvdata(hid);
-	struct apple_key_translation *trans;
+	const struct apple_key_translation *trans;
 
 	if (usage->code == KEY_FN) {
 		asc->fn_on = !!value;
@@ -253,7 +253,7 @@ static void apple_report_fixup(struct hid_device *hdev, __u8 *rdesc,
 
 static void apple_setup_input(struct input_dev *input)
 {
-	struct apple_key_translation *trans;
+	const struct apple_key_translation *trans;
 
 	set_bit(KEY_NUMLOCK, input->keybit);
 
