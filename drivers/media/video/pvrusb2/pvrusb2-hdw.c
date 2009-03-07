@@ -36,6 +36,7 @@
 #include "pvrusb2-encoder.h"
 #include "pvrusb2-debug.h"
 #include "pvrusb2-fx2-cmd.h"
+#include "pvrusb2-wm8775.h"
 
 #define TV_MIN_FREQ     55250000L
 #define TV_MAX_FREQ    850000000L
@@ -109,7 +110,7 @@ typedef void (*pvr2_subdev_update_func)(struct pvr2_hdw *,
 					struct v4l2_subdev *);
 
 static const pvr2_subdev_update_func pvr2_module_update_functions[] = {
-	/* ????? */
+	[PVR2_CLIENT_ID_WM8775] = pvr2_wm8775_update,
 };
 
 static const char *module_names[] = {
@@ -118,6 +119,7 @@ static const char *module_names[] = {
 	[PVR2_CLIENT_ID_SAA7115] = "saa7115",
 	[PVR2_CLIENT_ID_TUNER] = "tuner",
 	[PVR2_CLIENT_ID_CS53132A] = "cs53132a",
+	[PVR2_CLIENT_ID_WM8775] = "wm8775",
 };
 
 

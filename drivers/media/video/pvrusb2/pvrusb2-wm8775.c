@@ -37,6 +37,8 @@
 #include <linux/errno.h>
 #include <linux/slab.h>
 
+
+
 struct pvr2_v4l_wm8775 {
 	struct pvr2_i2c_handler handler;
 	struct pvr2_i2c_client *client;
@@ -157,6 +159,30 @@ int pvr2_i2c_wm8775_setup(struct pvr2_hdw *hdw,struct pvr2_i2c_client *cp)
 	return !0;
 }
 
+
+void pvr2_wm8775_update(struct pvr2_hdw *hdw, struct v4l2_subdev *sd)
+{
+	if (hdw->input_dirty) {
+		struct v4l2_routing route;
+
+		memset(&route, 0, sizeof(route));
+
+		switch (hdw->input_val) {
+		case PVR2_CVAL_INPUT_RADIO:
+			route.input = 1;
+			break;
+		default:
+			/* All other cases just use the second input */
+			route.input = 2;
+			break;
+		}
+		pvr2_trace(PVR2_TRACE_CHIPS, "subdev wm8775"
+			   " set_input(val=%d route=0x%x)",
+			   hdw->input_val, route.input);
+
+		sd->ops->audio->s_routing(sd, &route);
+	}
+}
 
 
 
