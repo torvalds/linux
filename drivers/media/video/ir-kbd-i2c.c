@@ -279,15 +279,9 @@ static void ir_key_poll(struct IR_i2c *ir)
 	}
 }
 
-static void ir_timer(unsigned long data)
-{
-	struct IR_i2c *ir = (struct IR_i2c*)data;
-	schedule_work(&ir->work);
-}
-
 static void ir_work(struct work_struct *work)
 {
-	struct IR_i2c *ir = container_of(work, struct IR_i2c, work);
+	struct IR_i2c *ir = container_of(work, struct IR_i2c, work.work);
 	int polling_interval = 100;
 
 	/* MSI TV@nywhere Plus requires more frequent polling
@@ -296,7 +290,7 @@ static void ir_work(struct work_struct *work)
 		polling_interval = 50;
 
 	ir_key_poll(ir);
-	mod_timer(&ir->timer, jiffies + msecs_to_jiffies(polling_interval));
+	schedule_delayed_work(&ir->work, msecs_to_jiffies(polling_interval));
 }
 
 /* ----------------------------------------------------------------------- */
@@ -452,11 +446,8 @@ static int ir_attach(struct i2c_adapter *adap, int addr,
 	       ir->input->name, ir->input->phys, adap->name);
 
 	/* start polling via eventd */
-	INIT_WORK(&ir->work, ir_work);
-	init_timer(&ir->timer);
-	ir->timer.function = ir_timer;
-	ir->timer.data     = (unsigned long)ir;
-	schedule_work(&ir->work);
+	INIT_DELAYED_WORK(&ir->work, ir_work);
+	schedule_delayed_work(&ir->work, 0);
 
 	return 0;
 
@@ -473,8 +464,7 @@ static int ir_detach(struct i2c_client *client)
 	struct IR_i2c *ir = i2c_get_clientdata(client);
 
 	/* kill outstanding polls */
-	del_timer_sync(&ir->timer);
-	flush_scheduled_work();
+	cancel_delayed_work_sync(&ir->work);
 
 	/* unregister devices */
 	input_unregister_device(ir->input);
