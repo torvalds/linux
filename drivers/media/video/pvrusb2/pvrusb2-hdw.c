@@ -2945,7 +2945,7 @@ static void pvr2_subdev_update(struct pvr2_hdw *hdw)
 	pvr2_subdev_update_func fp;
 
 	if (hdw->input_dirty || hdw->std_dirty) {
-		pvr2_trace(PVR2_TRACE_CHIPS,"subdev v4l2 set_standard");
+		pvr2_trace(PVR2_TRACE_CHIPS, "subdev v4l2 set_standard");
 		if (hdw->input_val == PVR2_CVAL_INPUT_RADIO) {
 			v4l2_device_call_all(&hdw->v4l2_dev, 0,
 					     tuner, s_radio);
