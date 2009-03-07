@@ -100,7 +100,7 @@ of ftrace. Here is a list of some of the key files:
 	that is displayed in one of the above output
 	files.
 
-  trace_max_latency:
+  tracing_max_latency:
 
 	Some of the tracers record the max latency.
 	For example, the time interrupts are disabled.
