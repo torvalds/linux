@@ -58,8 +58,6 @@
 #define LOCK_TAKE(x) do { mutex_lock(&x##_mutex); x##_held = !0; } while (0)
 #define LOCK_GIVE(x) do { x##_held = 0; mutex_unlock(&x##_mutex); } while (0)
 
-struct pvr2_decoder;
-
 typedef int (*pvr2_ctlf_is_dirty)(struct pvr2_ctrl *);
 typedef void (*pvr2_ctlf_clear_dirty)(struct pvr2_ctrl *);
 typedef int (*pvr2_ctlf_check_value)(struct pvr2_ctrl *,int);

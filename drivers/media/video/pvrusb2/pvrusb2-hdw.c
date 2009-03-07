@@ -1666,6 +1666,7 @@ static int pvr2_decoder_enable(struct pvr2_hdw *hdw,int enablefl)
 		return -EIO;
 	}
 	hdw->decoder_ctrl->enable(hdw->decoder_ctrl->ctxt,enablefl);
+	// ?????
 	return 0;
 }
 
@@ -4023,6 +4024,7 @@ int pvr2_hdw_cmd_decoder_reset(struct pvr2_hdw *hdw)
 	pvr2_trace(PVR2_TRACE_INIT,
 		   "Requesting decoder reset");
 	hdw->decoder_ctrl->force_reset(hdw->decoder_ctrl->ctxt);
+	// ?????
 	return 0;
 }
 
