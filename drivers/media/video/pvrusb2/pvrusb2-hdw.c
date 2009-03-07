@@ -2045,6 +2045,7 @@ static int pvr2_hdw_load_subdev(struct pvr2_hdw *hdw,
 	 * and every other place where I can find examples of this, the
 	 * "chipid" appears to just be the module name again.  So here we
 	 * just do the same thing. */
+	hdw->i2c_adap.class = 0;
 	if (i2ccnt == 1) {
 		pvr2_trace(PVR2_TRACE_INIT,
 			   "Module ID %u:"
@@ -2062,6 +2063,7 @@ static int pvr2_hdw_load_subdev(struct pvr2_hdw *hdw,
 						fname, fname,
 						i2caddr);
 	}
+	hdw->i2c_adap.class = I2C_CLASS_TV_ANALOG;
 
 	if (!sd) {
 		pvr2_trace(PVR2_TRACE_ERROR_LEGS,
