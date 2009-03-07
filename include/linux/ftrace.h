@@ -503,4 +503,25 @@ static inline void trace_hw_branch_oops(void) {}
 
 #endif /* CONFIG_HW_BRANCH_TRACER */
 
+/*
+ * A syscall entry in the ftrace syscalls array.
+ *
+ * @syscall_nr: syscall number
+ */
+struct syscall_trace_entry {
+	int		syscall_nr;
+};
+
+#ifdef CONFIG_FTRACE_SYSCALLS
+extern void start_ftrace_syscalls(void);
+extern void stop_ftrace_syscalls(void);
+extern void ftrace_syscall_enter(struct pt_regs *regs);
+extern void ftrace_syscall_exit(struct pt_regs *regs);
+#else
+static inline void start_ftrace_syscalls(void) { }
+static inline void stop_ftrace_syscalls(void) { }
+static inline void ftrace_syscall_enter(struct pt_regs *regs) { }
+static inline void ftrace_syscall_exit(struct pt_regs *regs) { }
+#endif
+
 #endif /* _LINUX_FTRACE_H */
