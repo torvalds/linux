@@ -2839,11 +2839,102 @@ static const char *get_ctrl_typename(enum pvr2_ctl_type tp)
 }
 
 
+static void pvr2_subdev_set_control(struct pvr2_hdw *hdw, int id,
+				    const char *name, int val)
+{
+	struct v4l2_control ctrl;
+	pvr2_trace(PVR2_TRACE_CHIPS, "subdev v4l2 %s=%d", name, val);
+	memset(&ctrl, 0, sizeof(ctrl));
+	ctrl.id = id;
+	ctrl.value = val;
+	v4l2_device_call_all(&hdw->v4l2_dev, 0, core, s_ctrl, &ctrl);
+}
+
+#define PVR2_SUBDEV_SET_CONTROL(hdw, id, lab) \
+	if ((hdw)->lab##_dirty) { \
+		pvr2_subdev_set_control(hdw, id, #lab, (hdw)->lab##_val); \
+	}
+
 /* Execute whatever commands are required to update the state of all the
-   sub-devices so that it matches our current control values. */
+   sub-devices so that they match our current control values. */
 static void pvr2_subdev_update(struct pvr2_hdw *hdw)
 {
-	/* ????? */
+	if (hdw->input_dirty || hdw->std_dirty) {
+		pvr2_trace(PVR2_TRACE_CHIPS,"subdev v4l2 set_standard");
+		if (hdw->input_val == PVR2_CVAL_INPUT_RADIO) {
+			v4l2_device_call_all(&hdw->v4l2_dev, 0,
+					     tuner, s_radio);
+		} else {
+			v4l2_std_id vs;
+			vs = hdw->std_mask_cur;
+			v4l2_device_call_all(&hdw->v4l2_dev, 0,
+					     tuner, s_std, vs);
+		}
+		hdw->tuner_signal_stale = !0;
+		hdw->cropcap_stale = !0;
+	}
+
+	PVR2_SUBDEV_SET_CONTROL(hdw, V4L2_CID_BRIGHTNESS, brightness);
+	PVR2_SUBDEV_SET_CONTROL(hdw, V4L2_CID_CONTRAST, contrast);
+	PVR2_SUBDEV_SET_CONTROL(hdw, V4L2_CID_SATURATION, saturation);
+	PVR2_SUBDEV_SET_CONTROL(hdw, V4L2_CID_HUE, hue);
+	PVR2_SUBDEV_SET_CONTROL(hdw, V4L2_CID_AUDIO_MUTE, mute);
+	PVR2_SUBDEV_SET_CONTROL(hdw, V4L2_CID_AUDIO_VOLUME, volume);
+	PVR2_SUBDEV_SET_CONTROL(hdw, V4L2_CID_AUDIO_BALANCE, balance);
+	PVR2_SUBDEV_SET_CONTROL(hdw, V4L2_CID_AUDIO_BASS, bass);
+	PVR2_SUBDEV_SET_CONTROL(hdw, V4L2_CID_AUDIO_TREBLE, treble);
+
+	if (hdw->input_dirty || hdw->audiomode_dirty) {
+		struct v4l2_tuner vt;
+		memset(&vt, 0, sizeof(vt));
+		vt.audmode = hdw->audiomode_val;
+		v4l2_device_call_all(&hdw->v4l2_dev, 0, tuner, s_tuner, &vt);
+	}
+
+	if (hdw->freqDirty) {
+		unsigned long fv;
+		struct v4l2_frequency freq;
+		fv = pvr2_hdw_get_cur_freq(hdw);
+		pvr2_trace(PVR2_TRACE_CHIPS, "subdev v4l2 set_freq(%lu)", fv);
+		if (hdw->tuner_signal_stale) pvr2_hdw_status_poll(hdw);
+		memset(&freq, 0, sizeof(freq));
+		if (hdw->tuner_signal_info.capability & V4L2_TUNER_CAP_LOW) {
+			/* ((fv * 1000) / 62500) */
+			freq.frequency = (fv * 2) / 125;
+		} else {
+			freq.frequency = fv / 62500;
+		}
+		/* tuner-core currently doesn't seem to care about this, but
+		   let's set it anyway for completeness. */
+		if (hdw->input_val == PVR2_CVAL_INPUT_RADIO) {
+			freq.type = V4L2_TUNER_RADIO;
+		} else {
+			freq.type = V4L2_TUNER_ANALOG_TV;
+		}
+		freq.tuner = 0;
+		v4l2_device_call_all(&hdw->v4l2_dev, 0, tuner,
+				     s_frequency, &freq);
+	}
+
+	if (hdw->res_hor_dirty || hdw->res_ver_dirty) {
+		struct v4l2_format fmt;
+		memset(&fmt, 0, sizeof(fmt));
+		fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+		fmt.fmt.pix.width = hdw->res_hor_val;
+		fmt.fmt.pix.height = hdw->res_ver_val;
+		pvr2_trace(PVR2_TRACE_CHIPS,"subdev v4l2 set_size(%dx%d)",
+			   fmt.fmt.pix.width, fmt.fmt.pix.height);
+		v4l2_device_call_all(&hdw->v4l2_dev, 0, video, s_fmt, &fmt);
+	}
+
+	/* Unable to set crop parameters; there is apparently no equivalent
+	   for VIDIOC_S_CROP */
+
+	/* ????? Cover special cases for specific sub-devices. */
+
+	if (hdw->tuner_signal_stale && hdw->cropcap_stale) {
+		pvr2_hdw_status_poll(hdw);
+	}
 }
 
 
@@ -4818,6 +4909,7 @@ void pvr2_hdw_status_poll(struct pvr2_hdw *hdw)
 {
 	struct v4l2_tuner *vtp = &hdw->tuner_signal_info;
 	memset(vtp, 0, sizeof(*vtp));
+	hdw->tuner_signal_stale = 0;
 	pvr2_i2c_core_status_poll(hdw);
 	/* Note: There apparently is no replacement for VIDIOC_CROPCAP
 	   using v4l2-subdev - therefore we can't support that AT ALL right
@@ -4825,12 +4917,16 @@ void pvr2_hdw_status_poll(struct pvr2_hdw *hdw)
 	   But now it's a a chicken and egg problem...) */
 	v4l2_device_call_all(&hdw->v4l2_dev, 0, tuner, g_tuner,
 			     &hdw->tuner_signal_info);
-	pvr2_trace(PVR2_TRACE_CHIPS, "client status poll"
+	pvr2_trace(PVR2_TRACE_CHIPS, "subdev status poll"
 		   " type=%u strength=%u audio=0x%x cap=0x%x"
 		   " low=%u hi=%u",
 		   vtp->type,
 		   vtp->signal, vtp->rxsubchans, vtp->capability,
 		   vtp->rangelow, vtp->rangehigh);
+
+	/* We have to do this to avoid getting into constant polling if
+	   there's nobody to answer a poll of cropcap info. */
+	hdw->cropcap_stale = 0;
 }
 
 

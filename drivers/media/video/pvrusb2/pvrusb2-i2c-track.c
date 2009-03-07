@@ -117,7 +117,6 @@ void pvr2_i2c_core_status_poll(struct pvr2_hdw *hdw)
 			if (!cp->status_poll) continue;
 			cp->status_poll(cp);
 		}
-		hdw->tuner_signal_stale = 0;
 	} while (0); mutex_unlock(&hdw->i2c_list_lock);
 }
 
