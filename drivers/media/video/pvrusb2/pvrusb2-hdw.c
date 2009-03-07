@@ -2983,6 +2983,26 @@ static void pvr2_subdev_update(struct pvr2_hdw *hdw)
 		v4l2_device_call_all(&hdw->v4l2_dev, 0, video, s_fmt, &fmt);
 	}
 
+	if (hdw->srate_dirty) {
+		u32 val;
+		pvr2_trace(PVR2_TRACE_CHIPS, "subdev v4l2 set_audio %d",
+			   hdw->srate_val);
+		switch (hdw->srate_val) {
+		default:
+		case V4L2_MPEG_AUDIO_SAMPLING_FREQ_48000:
+			val = 48000;
+			break;
+		case V4L2_MPEG_AUDIO_SAMPLING_FREQ_44100:
+			val = 44100;
+			break;
+		case V4L2_MPEG_AUDIO_SAMPLING_FREQ_32000:
+			val = 32000;
+			break;
+		}
+		v4l2_device_call_all(&hdw->v4l2_dev, 0,
+				     audio, s_clock_freq, val);
+	}
+
 	/* Unable to set crop parameters; there is apparently no equivalent
 	   for VIDIOC_S_CROP */
 

@@ -249,24 +249,6 @@ int pvr2_i2c_decoder_v4l_setup(struct pvr2_hdw *hdw,
 
 void pvr2_saa7115_subdev_update(struct pvr2_hdw *hdw, struct v4l2_subdev *sd)
 {
-	if (hdw->srate_dirty) {
-		u32 val;
-		pvr2_trace(PVR2_TRACE_CHIPS, "subdev v4l2 set_audio %d",
-			   hdw->srate_val);
-		switch (hdw->srate_val) {
-		default:
-		case V4L2_MPEG_AUDIO_SAMPLING_FREQ_48000:
-			val = 48000;
-			break;
-		case V4L2_MPEG_AUDIO_SAMPLING_FREQ_44100:
-			val = 44100;
-			break;
-		case V4L2_MPEG_AUDIO_SAMPLING_FREQ_32000:
-			val = 32000;
-			break;
-		}
-		sd->ops->audio->s_clock_freq(sd, val);
-	}
 	if (hdw->input_dirty) {
 		struct v4l2_routing route;
 		const struct routing_scheme *sp;
