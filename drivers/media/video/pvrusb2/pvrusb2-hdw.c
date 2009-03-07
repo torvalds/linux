@@ -1681,6 +1681,8 @@ static int pvr2_decoder_enable(struct pvr2_hdw *hdw,int enablefl)
 	   this point, we'll broadcast stream on/off to all sub-devices
 	   anyway, just in case somebody else wants to hear the
 	   command... */
+	pvr2_trace(PVR2_TRACE_CHIPS, "subdev v4l2 stream=%s",
+		   (enablefl ? "on" : "off"));
 	v4l2_device_call_all(&hdw->v4l2_dev, 0, video, s_stream, enablefl);
 	if (hdw->decoder_client_id) {
 		/* We get here if the encoder has been noticed.  Otherwise
