@@ -421,39 +421,69 @@ void pvr2_i2c_track_attach_inform(struct i2c_client *client)
 	if (fl) queue_work(hdw->workqueue,&hdw->worki2csync);
 }
 
+static void pvr2_i2c_client_disconnect(struct pvr2_i2c_client *cp)
+{
+	if (cp->handler && cp->handler->func_table->detach) {
+		cp->handler->func_table->detach(cp->handler->func_data);
+	}
+	list_del(&cp->list);
+	kfree(cp);
+}
+
 void pvr2_i2c_track_detach_inform(struct i2c_client *client)
 {
 	struct pvr2_hdw *hdw = (struct pvr2_hdw *)(client->adapter->algo_data);
 	struct pvr2_i2c_client *cp, *ncp;
 	unsigned long amask = 0;
 	int foundfl = 0;
-	mutex_lock(&hdw->i2c_list_lock); do {
-		hdw->cropcap_stale = !0;
-		list_for_each_entry_safe(cp, ncp, &hdw->i2c_clients, list) {
-			if (cp->client == client) {
-				trace_i2c("pvr2_i2c_detach"
-					  " [client=%s @ 0x%x ctxt=%p]",
-					  client->name,
-					  client->addr,cp);
-				if (cp->handler &&
-				    cp->handler->func_table->detach) {
-					cp->handler->func_table->detach(
-						cp->handler->func_data);
-				}
-				list_del(&cp->list);
-				kfree(cp);
-				foundfl = !0;
-				continue;
-			}
-			amask |= cp->ctl_mask;
+	mutex_lock(&hdw->i2c_list_lock);
+	hdw->cropcap_stale = !0;
+	list_for_each_entry_safe(cp, ncp, &hdw->i2c_clients, list) {
+		if (cp->client == client) {
+			trace_i2c("pvr2_i2c_detach"
+				  " [client=%s @ 0x%x ctxt=%p]",
+				  client->name,
+				  client->addr, cp);
+			pvr2_i2c_client_disconnect(cp);
+			foundfl = !0;
+			continue;
 		}
-		hdw->i2c_active_mask = amask;
-	} while (0); mutex_unlock(&hdw->i2c_list_lock);
+		amask |= cp->ctl_mask;
+	}
+	hdw->i2c_active_mask = amask;
+	mutex_unlock(&hdw->i2c_list_lock);
 	if (!foundfl) {
 		trace_i2c("pvr2_i2c_detach [client=%s @ 0x%x ctxt=<unknown>]",
-			  client->name,
-			  client->addr);
+			  client->name, client->addr);
 	}
+}
+
+/* This function is used to remove an i2c client from our tracking
+   structure if the client happens to be the specified v4l2 sub-device.
+   The idea here is to ensure that sub-devices are not also tracked with
+   the old tracking mechanism - it's one or the other not both.  This is
+   only for debugging.  In a "real" environment, only one of these two
+   mechanisms should even be compiled in.  But by enabling both we can
+   incrementally test control of each sub-device. */
+void pvr2_i2c_untrack_subdev(struct pvr2_hdw *hdw, struct v4l2_subdev *sd)
+{
+	struct i2c_client *client;
+	struct pvr2_i2c_client *cp, *ncp;
+	unsigned long amask = 0;
+	mutex_lock(&hdw->i2c_list_lock);
+	list_for_each_entry_safe(cp, ncp, &hdw->i2c_clients, list) {
+		client = cp->client;
+		if (i2c_get_clientdata(client) == sd) {
+			trace_i2c("pvr2_i2c_detach (subdev active)"
+				  " [client=%s @ 0x%x ctxt=%p]",
+				  client->name, client->addr, cp);
+			pvr2_i2c_client_disconnect(cp);
+			continue;
+		}
+		amask |= cp->ctl_mask;
+	}
+	hdw->i2c_active_mask = amask;
+	mutex_unlock(&hdw->i2c_list_lock);
 }
 
 void pvr2_i2c_track_init(struct pvr2_hdw *hdw)

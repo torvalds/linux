@@ -2020,6 +2020,12 @@ static void pvr2_hdw_load_subdev(struct pvr2_hdw *hdw,
 						i2caddr);
 	}
 
+	/* If we have both old and new i2c layers enabled, make sure that
+	   old layer isn't also tracking this module.  This is a debugging
+	   aid, in normal situations there's no reason for both mechanisms
+	   to be enabled. */
+	pvr2_i2c_untrack_subdev(hdw, sd);
+
 	// ?????
 	/* Based on module ID, we should remember subdev pointers
 	   so that we can send certain custom commands where

@@ -22,6 +22,8 @@
 
 #include <linux/list.h>
 #include <linux/i2c.h>
+#include <media/v4l2-device.h>
+
 
 struct pvr2_hdw;
 struct pvr2_i2c_client;
@@ -82,6 +84,9 @@ unsigned int pvr2_i2c_report(struct pvr2_hdw *,char *buf,unsigned int maxlen);
 
 void pvr2_i2c_probe(struct pvr2_hdw *,struct pvr2_i2c_client *);
 const struct pvr2_i2c_op *pvr2_i2c_get_op(unsigned int idx);
+
+void pvr2_i2c_untrack_subdev(struct pvr2_hdw *, struct v4l2_subdev *sd);
+
 
 #endif /* __PVRUSB2_I2C_CORE_H */
 
