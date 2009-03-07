@@ -26,13 +26,13 @@
 #include <media/msp3400.h>
 #include <media/v4l2-common.h>
 
+
 struct pvr2_msp3400_handler {
 	struct pvr2_hdw *hdw;
 	struct pvr2_i2c_client *client;
 	struct pvr2_i2c_handler i2c_handler;
 	unsigned long stale_mask;
 };
-
 
 
 
