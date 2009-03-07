@@ -1418,13 +1418,10 @@ ath5k_eeprom_init(struct ath5k_hw *ah)
  */
 int ath5k_eeprom_read_mac(struct ath5k_hw *ah, u8 *mac)
 {
-	u8 mac_d[ETH_ALEN];
+	u8 mac_d[ETH_ALEN] = {};
 	u32 total, offset;
 	u16 data;
 	int octet, ret;
-
-	memset(mac, 0, ETH_ALEN);
-	memset(mac_d, 0, ETH_ALEN);
 
 	ret = ath5k_hw_eeprom_read(ah, 0x20, &data);
 	if (ret)
@@ -1441,10 +1438,10 @@ int ath5k_eeprom_read_mac(struct ath5k_hw *ah, u8 *mac)
 		octet += 2;
 	}
 
-	memcpy(mac, mac_d, ETH_ALEN);
-
 	if (!total || total == 3 * 0xffff)
 		return -EINVAL;
+
+	memcpy(mac, mac_d, ETH_ALEN);
 
 	return 0;
 }
