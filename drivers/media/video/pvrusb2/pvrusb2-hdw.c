@@ -111,7 +111,7 @@ typedef void (*pvr2_subdev_update_func)(struct pvr2_hdw *,
 					struct v4l2_subdev *);
 
 static const pvr2_subdev_update_func pvr2_module_update_functions[] = {
-	[PVR2_CLIENT_ID_WM8775] = pvr2_wm8775_update,
+	[PVR2_CLIENT_ID_WM8775] = pvr2_wm8775_subdev_update,
 	[PVR2_CLIENT_ID_SAA7115] = pvr2_saa7115_subdev_update,
 };
 

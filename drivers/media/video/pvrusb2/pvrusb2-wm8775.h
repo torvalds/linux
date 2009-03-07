@@ -39,7 +39,7 @@
 int pvr2_i2c_wm8775_setup(struct pvr2_hdw *,struct pvr2_i2c_client *);
 #include "pvrusb2-hdw-internal.h"
 
-void pvr2_wm8775_update(struct pvr2_hdw *, struct v4l2_subdev *sd);
+void pvr2_wm8775_subdev_update(struct pvr2_hdw *, struct v4l2_subdev *sd);
 
 
 #endif /* __PVRUSB2_WM8775_H */
