@@ -4855,7 +4855,7 @@ static unsigned int pvr2_hdw_report_unlocked(struct pvr2_hdw *hdw,int which,
 		unsigned int id;
 		ccnt = scnprintf(buf,
 				 acnt,
-				 "Associted v4l2_subdev drivers:");
+				 "Associated v4l2_subdev drivers:");
 		tcnt += ccnt;
 		v4l2_device_for_each_subdev(sd, &hdw->v4l2_dev) {
 			id = sd->grp_id;
@@ -4863,10 +4863,16 @@ static unsigned int pvr2_hdw_report_unlocked(struct pvr2_hdw *hdw,int which,
 			if (id < ARRAY_SIZE(module_names)) {
 				p = module_names[id];
 			}
-			if (!p) p = "(unknown)";
-			ccnt = scnprintf(buf + tcnt,
-					 acnt - tcnt,
-					 " %s (%u)", p, id);
+			if (p) {
+				ccnt = scnprintf(buf + tcnt,
+						 acnt - tcnt,
+						 " %s", p);
+			} else {
+				ccnt = scnprintf(buf + tcnt,
+						 acnt - tcnt,
+						 " (unknown id=%u)", id);
+			}
+			tcnt += ccnt;
 		}
 		return tcnt;
 	}
