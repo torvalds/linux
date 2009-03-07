@@ -27,15 +27,6 @@
 #include <media/v4l2-common.h>
 
 
-struct pvr2_msp3400_handler {
-	struct pvr2_hdw *hdw;
-	struct pvr2_i2c_client *client;
-	struct pvr2_i2c_handler i2c_handler;
-	unsigned long stale_mask;
-};
-
-
-
 struct routing_scheme {
 	const int *def;
 	unsigned int cnt;
@@ -63,6 +54,17 @@ static const struct routing_scheme routing_schemes[] = {
 		.cnt = ARRAY_SIZE(routing_scheme0),
 	},
 };
+
+
+struct pvr2_msp3400_handler {
+	struct pvr2_hdw *hdw;
+	struct pvr2_i2c_client *client;
+	struct pvr2_i2c_handler i2c_handler;
+	unsigned long stale_mask;
+};
+
+
+
 
 /* This function selects the correct audio input source */
 static void set_stereo(struct pvr2_msp3400_handler *ctxt)
@@ -180,7 +182,32 @@ int pvr2_i2c_msp3400_setup(struct pvr2_hdw *hdw,struct pvr2_i2c_client *cp)
 	return !0;
 }
 
+void pvr2_msp3400_subdev_update(struct pvr2_hdw *hdw, struct v4l2_subdev *sd)
+{
+	if (hdw->input_dirty) {
+		struct v4l2_routing route;
+		const struct routing_scheme *sp;
+		unsigned int sid = hdw->hdw_desc->signal_routing_scheme;
 
+		pvr2_trace(PVR2_TRACE_CHIPS, "subdev msp3400 v4l2 set_stereo");
+
+		if ((sid < ARRAY_SIZE(routing_schemes)) &&
+		    ((sp = routing_schemes + sid) != NULL) &&
+		    (hdw->input_val >= 0) &&
+		    (hdw->input_val < sp->cnt)) {
+			route.input = sp->def[hdw->input_val];
+		} else {
+			pvr2_trace(PVR2_TRACE_ERROR_LEGS,
+				   "*** WARNING *** subdev msp3400 set_input:"
+				   " Invalid routing scheme (%u)"
+				   " and/or input (%d)",
+				   sid, hdw->input_val);
+			return;
+		}
+		route.output = MSP_OUTPUT(MSP_SC_IN_DSP_SCART1);
+		sd->ops->audio->s_routing(sd, &route);
+	}
+}
 
 /*
   Stuff for Emacs to see, in order to encourage consistent editing style:

@@ -38,6 +38,7 @@
 #include "pvrusb2-fx2-cmd.h"
 #include "pvrusb2-wm8775.h"
 #include "pvrusb2-video-v4l.h"
+#include "pvrusb2-audio.h"
 
 #define TV_MIN_FREQ     55250000L
 #define TV_MAX_FREQ    850000000L
@@ -113,6 +114,7 @@ typedef void (*pvr2_subdev_update_func)(struct pvr2_hdw *,
 static const pvr2_subdev_update_func pvr2_module_update_functions[] = {
 	[PVR2_CLIENT_ID_WM8775] = pvr2_wm8775_subdev_update,
 	[PVR2_CLIENT_ID_SAA7115] = pvr2_saa7115_subdev_update,
+	[PVR2_CLIENT_ID_MSP3400] = pvr2_msp3400_subdev_update,
 };
 
 static const char *module_names[] = {
