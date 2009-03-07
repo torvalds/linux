@@ -2020,17 +2020,26 @@ static void pvr2_hdw_load_subdev(struct pvr2_hdw *hdw,
 						i2caddr);
 	}
 
+	if (!sd) {
+		pvr2_trace(PVR2_TRACE_ERROR_LEGS,
+			   "Module ID %u for device %s failed to load"
+			   " (this is probably a bad thing...)",
+			   mid, hdw->hdw_desc->description);
+		return;
+	}
+
+	/* Tag this sub-device instance with the module ID we know about.
+	   In other places we'll use that tag to determine if the instance
+	   requires special handling. */
+	sd->grp_id = mid;
+
 	/* If we have both old and new i2c layers enabled, make sure that
 	   old layer isn't also tracking this module.  This is a debugging
 	   aid, in normal situations there's no reason for both mechanisms
 	   to be enabled. */
 	pvr2_i2c_untrack_subdev(hdw, sd);
+	pvr2_trace(PVR2_TRACE_INIT, "Attached sub-driver %s", fname);
 
-	// ?????
-	/* Based on module ID, we should remember subdev pointers
-	   so that we can send certain custom commands where
-	   needed. */
-	// ?????
 
 }
 
