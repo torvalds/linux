@@ -136,6 +136,7 @@ static const unsigned char *module_i2c_addresses[] = {
 	[PVR2_CLIENT_ID_SAA7115] = "\x21",
 	[PVR2_CLIENT_ID_WM8775] = "\x1b",
 	[PVR2_CLIENT_ID_CX25840] = "\x44",
+	[PVR2_CLIENT_ID_CS53L32A] = "\x11",
 };
 
 
