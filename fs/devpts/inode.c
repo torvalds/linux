@@ -322,85 +322,38 @@ static int compare_init_pts_sb(struct super_block *s, void *p)
 }
 
 /*
- * Mount a new (private) instance of devpts.  PTYs created in this
- * instance are independent of the PTYs in other devpts instances.
- */
-static int new_pts_mount(struct file_system_type *fs_type, int flags,
-		void *data, struct pts_mount_opts *opts, struct vfsmount *mnt)
-{
-	int err;
-	struct pts_fs_info *fsi;
-
-	err = get_sb_nodev(fs_type, flags, data, devpts_fill_super, mnt);
-	if (err)
-		return err;
-
-	fsi = DEVPTS_SB(mnt->mnt_sb);
-	memcpy(&fsi->mount_opts, opts, sizeof(opts));
-
-	return 0;
-}
-
-/*
- * init_pts_mount()
+ * devpts_get_sb()
  *
- *     Mount or remount the initial kernel mount of devpts. This type of
- *     mount maintains the legacy, single-instance semantics, while the
- *     kernel still allows multiple-instances.
+ *     If the '-o newinstance' mount option was specified, mount a new
+ *     (private) instance of devpts.  PTYs created in this instance are
+ *     independent of the PTYs in other devpts instances.
  *
- *     This interface is needed to support multiple namespace semantics in
- *     devpts while preserving backward compatibility of the current 'single-
- *     namespace' semantics. i.e all mounts of devpts without the 'newinstance'
- *     mount option should bind to the initial kernel mount, like
- *     get_sb_single().
+ *     If the '-o newinstance' option was not specified, mount/remount the
+ *     initial kernel mount of devpts.  This type of mount gives the
+ *     legacy, single-instance semantics.
  *
- *     Mounts with 'newinstance' option create a new private namespace.
+ *     The 'newinstance' option is needed to support multiple namespace
+ *     semantics in devpts while preserving backward compatibility of the
+ *     current 'single-namespace' semantics. i.e all mounts of devpts
+ *     without the 'newinstance' mount option should bind to the initial
+ *     kernel mount, like get_sb_single().
  *
- *     But for single-mount semantics, devpts cannot use get_sb_single(),
+ *     Mounts with 'newinstance' option create a new, private namespace.
+ *
+ *     NOTE:
+ *
+ *     For single-mount semantics, devpts cannot use get_sb_single(),
  *     because get_sb_single()/sget() find and use the super-block from
  *     the most recent mount of devpts. But that recent mount may be a
  *     'newinstance' mount and get_sb_single() would pick the newinstance
  *     super-block instead of the initial super-block.
- *
- *     This interface is identical to get_sb_single() except that it
- *     consistently selects the 'single-namespace' superblock even in the
- *     presence of the private namespace (i.e 'newinstance') super-blocks.
  */
-static int init_pts_mount(struct file_system_type *fs_type, int flags,
-		void *data, struct pts_mount_opts *opts, struct vfsmount *mnt)
-{
-	struct super_block *s;
-	struct pts_fs_info *fsi;
-	int error;
-
-	s = sget(fs_type, compare_init_pts_sb, set_anon_super, NULL);
-	if (IS_ERR(s))
-		return PTR_ERR(s);
-
-	if (!s->s_root) {
-		s->s_flags = flags;
-		error = devpts_fill_super(s, data, flags & MS_SILENT ? 1 : 0);
-		if (error) {
-			up_write(&s->s_umount);
-			deactivate_super(s);
-			return error;
-		}
-		s->s_flags |= MS_ACTIVE;
-	}
-
-	simple_set_mnt(mnt, s);
-
-	fsi = DEVPTS_SB(mnt->mnt_sb);
-	memcpy(&fsi->mount_opts, opts, sizeof(opts));
-
-	return 0;
-}
-
 static int devpts_get_sb(struct file_system_type *fs_type,
 	int flags, const char *dev_name, void *data, struct vfsmount *mnt)
 {
 	int error;
 	struct pts_mount_opts opts;
+	struct super_block *s;
 
 	memset(&opts, 0, sizeof(opts));
 	if (data) {
@@ -410,23 +363,37 @@ static int devpts_get_sb(struct file_system_type *fs_type,
 	}
 
 	if (opts.newinstance)
-		error = new_pts_mount(fs_type, flags, data, &opts, mnt);
+		s = sget(fs_type, NULL, set_anon_super, NULL);
 	else
-		error = init_pts_mount(fs_type, flags, data, &opts, mnt);
+		s = sget(fs_type, compare_init_pts_sb, set_anon_super, NULL);
 
-	if (error)
-		return error;
+	if (IS_ERR(s))
+		return PTR_ERR(s);
 
-	error = mknod_ptmx(mnt->mnt_sb);
+	if (!s->s_root) {
+		s->s_flags = flags;
+		error = devpts_fill_super(s, data, flags & MS_SILENT ? 1 : 0);
+		if (error)
+			goto out_undo_sget;
+		s->s_flags |= MS_ACTIVE;
+	}
+
+	simple_set_mnt(mnt, s);
+
+	memcpy(&(DEVPTS_SB(s))->mount_opts, &opts, sizeof(opts));
+
+	error = mknod_ptmx(s);
 	if (error)
 		goto out_dput;
 
 	return 0;
 
 out_dput:
-	dput(mnt->mnt_sb->s_root);
-	up_write(&mnt->mnt_sb->s_umount);
-	deactivate_super(mnt->mnt_sb);
+	dput(s->s_root);
+
+out_undo_sget:
+	up_write(&s->s_umount);
+	deactivate_super(s);
 	return error;
 }
 
