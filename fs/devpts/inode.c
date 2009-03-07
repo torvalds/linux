@@ -322,60 +322,21 @@ static int compare_init_pts_sb(struct super_block *s, void *p)
 }
 
 /*
- * Safely parse the mount options in @data and update @opts.
- *
- * devpts ends up parsing options two times during mount, due to the
- * two modes of operation it supports. The first parse occurs in
- * devpts_get_sb() when determining the mode (single-instance or
- * multi-instance mode). The second parse happens in devpts_remount()
- * or new_pts_mount() depending on the mode.
- *
- * Parsing of options modifies the @data making subsequent parsing
- * incorrect. So make a local copy of @data and parse it.
- *
- * Return: 0 On success, -errno on error
- */
-static int safe_parse_mount_options(void *data, struct pts_mount_opts *opts)
-{
-	int rc;
-	void *datacp;
-
-	if (!data)
-		return 0;
-
-	/* Use kstrdup() ?  */
-	datacp = kmalloc(PAGE_SIZE, GFP_KERNEL);
-	if (!datacp)
-		return -ENOMEM;
-
-	memcpy(datacp, data, PAGE_SIZE);
-	rc = parse_mount_options((char *)datacp, PARSE_MOUNT, opts);
-	kfree(datacp);
-
-	return rc;
-}
-
-/*
  * Mount a new (private) instance of devpts.  PTYs created in this
  * instance are independent of the PTYs in other devpts instances.
  */
 static int new_pts_mount(struct file_system_type *fs_type, int flags,
-		void *data, struct vfsmount *mnt)
+		void *data, struct pts_mount_opts *opts, struct vfsmount *mnt)
 {
 	int err;
 	struct pts_fs_info *fsi;
-	struct pts_mount_opts *opts;
 
 	err = get_sb_nodev(fs_type, flags, data, devpts_fill_super, mnt);
 	if (err)
 		return err;
 
 	fsi = DEVPTS_SB(mnt->mnt_sb);
-	opts = &fsi->mount_opts;
-
-	err = parse_mount_options(data, PARSE_MOUNT, opts);
-	if (err)
-		goto fail;
+	memcpy(&fsi->mount_opts, opts, sizeof(opts));
 
 	err = mknod_ptmx(mnt->mnt_sb);
 	if (err)
@@ -388,28 +349,6 @@ fail:
 	up_write(&mnt->mnt_sb->s_umount);
 	deactivate_super(mnt->mnt_sb);
 	return err;
-}
-
-/*
- * Check if 'newinstance' mount option was specified in @data.
- *
- * Return: -errno  	on error (eg: invalid mount options specified)
- * 	 : 1 		if 'newinstance' mount option was specified
- * 	 : 0 		if 'newinstance' mount option was NOT specified
- */
-static int is_new_instance_mount(void *data)
-{
-	int rc;
-	struct pts_mount_opts opts;
-
-	if (!data)
-		return 0;
-
-	rc = safe_parse_mount_options(data, &opts);
-	if (!rc)
-		rc = opts.newinstance;
-
-	return rc;
 }
 
 /*
@@ -434,10 +373,9 @@ static int is_new_instance_mount(void *data)
  *     presence of the private namespace (i.e 'newinstance') super-blocks.
  */
 static int get_init_pts_sb(struct file_system_type *fs_type, int flags,
-		void *data, struct vfsmount *mnt)
+		void *data, struct pts_mount_opts *opts, struct vfsmount *mnt)
 {
 	struct super_block *s;
-	struct pts_mount_opts *opts;
 	struct pts_fs_info *fsi;
 	int error;
 
@@ -455,11 +393,12 @@ static int get_init_pts_sb(struct file_system_type *fs_type, int flags,
 		}
 		s->s_flags |= MS_ACTIVE;
 	}
-	fsi = DEVPTS_SB(s);
-	opts = &fsi->mount_opts;
-	parse_mount_options(data, PARSE_REMOUNT, opts);
 
 	simple_set_mnt(mnt, s);
+
+	fsi = DEVPTS_SB(mnt->mnt_sb);
+	memcpy(&fsi->mount_opts, opts, sizeof(opts));
+
 	return 0;
 }
 
@@ -469,11 +408,11 @@ static int get_init_pts_sb(struct file_system_type *fs_type, int flags,
  * kernel still allows multiple-instances.
  */
 static int init_pts_mount(struct file_system_type *fs_type, int flags,
-		void *data, struct vfsmount *mnt)
+		void *data, struct pts_mount_opts *opts, struct vfsmount *mnt)
 {
 	int err;
 
-	err = get_init_pts_sb(fs_type, flags, data, mnt);
+	err = get_init_pts_sb(fs_type, flags, data, opts, mnt);
 	if (err)
 		return err;
 
@@ -490,17 +429,22 @@ static int init_pts_mount(struct file_system_type *fs_type, int flags,
 static int devpts_get_sb(struct file_system_type *fs_type,
 	int flags, const char *dev_name, void *data, struct vfsmount *mnt)
 {
-	int new;
+	int error;
+	struct pts_mount_opts opts;
 
-	new = is_new_instance_mount(data);
-	if (new < 0)
-		return new;
+	memset(&opts, 0, sizeof(opts));
+	if (data) {
+		error = parse_mount_options(data, PARSE_MOUNT, &opts);
+		if (error)
+			return error;
+	}
 
-	if (new)
-		return new_pts_mount(fs_type, flags, data, mnt);
-
-	return init_pts_mount(fs_type, flags, data, mnt);
+	if (opts.newinstance)
+		return new_pts_mount(fs_type, flags, data, &opts, mnt);
+	else
+		return init_pts_mount(fs_type, flags, data, &opts, mnt);
 }
+
 #else
 /*
  * This supports only the legacy single-instance semantics (no
