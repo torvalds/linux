@@ -4925,7 +4925,10 @@ int pvr2_hdw_register_access(struct pvr2_hdw *hdw,
 	req.match = *match;
 	req.reg = reg_id;
 	if (setFl) req.val = *val_ptr;
-	mutex_lock(&hdw->i2c_list_lock); do {
+	/* It would be nice to know if a sub-device answered the request */
+	v4l2_device_call_all(&hdw->v4l2_dev, 0, core, g_register, &req);
+	if (!setFl) *val_ptr = req.val;
+	if (!okFl) mutex_lock(&hdw->i2c_list_lock); do {
 		list_for_each_entry(cp, &hdw->i2c_clients, list) {
 			if (!v4l2_chip_match_i2c_client(
 				    cp->client,
