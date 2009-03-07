@@ -540,7 +540,7 @@ static struct i2c_algorithm pvr2_i2c_algo_template = {
 
 static struct i2c_adapter pvr2_i2c_adap_template = {
 	.owner         = THIS_MODULE,
-	.class	   = I2C_CLASS_TV_ANALOG,
+	.class	       = 0,
 	.id            = I2C_HW_B_BT848,
 	.client_register = pvr2_i2c_attach_inform,
 	.client_unregister = pvr2_i2c_detach_inform,
@@ -607,6 +607,7 @@ void pvr2_i2c_core_init(struct pvr2_hdw *hdw)
 	hdw->i2c_adap.dev.parent = &hdw->usb_dev->dev;
 	hdw->i2c_adap.algo = &hdw->i2c_algo;
 	hdw->i2c_adap.algo_data = hdw;
+	hdw->i2c_adap.class = I2C_CLASS_TV_ANALOG;
 	hdw->i2c_linked = !0;
 	i2c_set_adapdata(&hdw->i2c_adap, &hdw->v4l2_dev);
 	i2c_add_adapter(&hdw->i2c_adap);
