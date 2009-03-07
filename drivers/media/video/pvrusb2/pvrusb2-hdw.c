@@ -105,6 +105,13 @@ MODULE_PARM_DESC(radio_freq, "specify initial radio frequency");
 /* size of a firmware chunk */
 #define FIRMWARE_CHUNK_SIZE 0x2000
 
+typedef void (*pvr2_subdev_update_func)(struct pvr2_hdw *,
+					struct v4l2_subdev *);
+
+static const pvr2_subdev_update_func pvr2_module_update_functions[] = {
+	/* ????? */
+};
+
 static const char *module_names[] = {
 	[PVR2_CLIENT_ID_MSP3400] = "msp3400",
 	[PVR2_CLIENT_ID_CX25840] = "cx25840",
@@ -2900,6 +2907,10 @@ static void pvr2_subdev_set_control(struct pvr2_hdw *hdw, int id,
    sub-devices so that they match our current control values. */
 static void pvr2_subdev_update(struct pvr2_hdw *hdw)
 {
+	struct v4l2_subdev *sd;
+	unsigned int id;
+	pvr2_subdev_update_func fp;
+
 	if (hdw->input_dirty || hdw->std_dirty) {
 		pvr2_trace(PVR2_TRACE_CHIPS,"subdev v4l2 set_standard");
 		if (hdw->input_val == PVR2_CVAL_INPUT_RADIO) {
@@ -2971,7 +2982,13 @@ static void pvr2_subdev_update(struct pvr2_hdw *hdw)
 	/* Unable to set crop parameters; there is apparently no equivalent
 	   for VIDIOC_S_CROP */
 
-	/* ????? Cover special cases for specific sub-devices. */
+	v4l2_device_for_each_subdev(sd, &hdw->v4l2_dev) {
+		id = sd->grp_id;
+		if (id >= ARRAY_SIZE(pvr2_module_update_functions)) continue;
+		fp = pvr2_module_update_functions[id];
+		if (!fp) continue;
+		(*fp)(hdw, sd);
+	}
 
 	if (hdw->tuner_signal_stale && hdw->cropcap_stale) {
 		pvr2_hdw_status_poll(hdw);
