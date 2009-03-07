@@ -38,6 +38,7 @@
 #include <linux/mutex.h>
 #include "pvrusb2-hdw.h"
 #include "pvrusb2-io.h"
+#include <media/v4l2-device.h>
 #include <media/cx2341x.h>
 #include "pvrusb2-devattr.h"
 
@@ -179,6 +180,8 @@ struct pvr2_hdw {
 	struct usb_device *usb_dev;
 	struct usb_interface *usb_intf;
 
+	/* Our handle into the v4l2 sub-device architecture */
+	struct v4l2_device v4l2_dev;
 	/* Device description, anything that must adjust behavior based on
 	   device specific info will use information held here. */
 	const struct pvr2_device_desc *hdw_desc;

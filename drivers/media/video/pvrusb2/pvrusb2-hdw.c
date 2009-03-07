@@ -2192,10 +2192,13 @@ struct pvr2_hdw *pvr2_hdw_create(struct usb_interface *intf,
 	struct pvr2_hdw *hdw = NULL;
 	int valid_std_mask;
 	struct pvr2_ctrl *cptr;
+	struct usb_device *usb_dev;
 	const struct pvr2_device_desc *hdw_desc;
 	__u8 ifnum;
 	struct v4l2_queryctrl qctrl;
 	struct pvr2_ctl_info *ciptr;
+
+	usb_dev = interface_to_usbdev(intf);
 
 	hdw_desc = (const struct pvr2_device_desc *)(devid->driver_info);
 
@@ -2381,6 +2384,11 @@ struct pvr2_hdw *pvr2_hdw_create(struct usb_interface *intf,
 	hdw->ctl_read_urb = usb_alloc_urb(0,GFP_KERNEL);
 	if (!hdw->ctl_read_urb) goto fail;
 
+	if (v4l2_device_register(&usb_dev->dev, &hdw->v4l2_dev) != 0) {
+		pvr2_trace(PVR2_TRACE_ERROR_LEGS,
+			   "Error registering with v4l core, giving up");
+		goto fail;
+	}
 	mutex_lock(&pvr2_unit_mtx); do {
 		for (idx = 0; idx < PVR_NUM; idx++) {
 			if (unit_pointers[idx]) continue;
@@ -2412,7 +2420,7 @@ struct pvr2_hdw *pvr2_hdw_create(struct usb_interface *intf,
 	hdw->flag_ok = !0;
 
 	hdw->usb_intf = intf;
-	hdw->usb_dev = interface_to_usbdev(intf);
+	hdw->usb_dev = usb_dev;
 
 	usb_make_path(hdw->usb_dev, hdw->bus_info, sizeof(hdw->bus_info));
 
@@ -2472,6 +2480,13 @@ static void pvr2_hdw_remove_usb_stuff(struct pvr2_hdw *hdw)
 		hdw->ctl_write_buffer = NULL;
 	}
 	hdw->flag_disconnected = !0;
+	/* If we don't do this, then there will be a dangling struct device
+	   reference to our disappearing device persisting inside the V4L
+	   core... */
+	if (hdw->v4l2_dev.dev) {
+		dev_set_drvdata(hdw->v4l2_dev.dev, NULL);
+		hdw->v4l2_dev.dev = NULL;
+	}
 	hdw->usb_dev = NULL;
 	hdw->usb_intf = NULL;
 	pvr2_hdw_render_useless(hdw);
@@ -2504,6 +2519,7 @@ void pvr2_hdw_destroy(struct pvr2_hdw *hdw)
 	}
 	pvr2_i2c_core_done(hdw);
 	pvr2_i2c_track_done(hdw);
+	v4l2_device_unregister(&hdw->v4l2_dev);
 	pvr2_hdw_remove_usb_stuff(hdw);
 	mutex_lock(&pvr2_unit_mtx); do {
 		if ((hdw->unit_number >= 0) &&
