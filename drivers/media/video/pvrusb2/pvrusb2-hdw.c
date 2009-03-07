@@ -2041,6 +2041,34 @@ static void pvr2_hdw_load_subdev(struct pvr2_hdw *hdw,
 	pvr2_trace(PVR2_TRACE_INIT, "Attached sub-driver %s", fname);
 
 
+	/* client-specific setup... */
+	switch (mid) {
+	case PVR2_CLIENT_ID_CX25840:
+		hdw->decoder_client_id = mid;
+		{
+			/*
+			  Mike Isely <isely@pobox.com> 19-Nov-2006 - This
+			  bit of nuttiness for cx25840 causes that module
+			  to correctly set up its video scaling.  This is
+			  really a problem in the cx25840 module itself,
+			  but we work around it here.  The problem has not
+			  been seen in ivtv because there VBI is supported
+			  and set up.  We don't do VBI here (at least not
+			  yet) and thus we never attempted to even set it
+			  up.
+			*/
+			struct v4l2_format fmt;
+			memset(&fmt, 0, sizeof(fmt));
+			fmt.type = V4L2_BUF_TYPE_SLICED_VBI_CAPTURE;
+			v4l2_device_call_all(&hdw->v4l2_dev, mid,
+					     video, s_fmt, &fmt);
+		}
+		break;
+	case PVR2_CLIENT_ID_SAA7115:
+		hdw->decoder_client_id = mid;
+		break;
+	default: break;
+	}
 }
 
 

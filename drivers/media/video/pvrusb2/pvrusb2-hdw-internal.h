@@ -299,6 +299,7 @@ struct pvr2_hdw {
 	int flag_tripped;       /* Indicates overall failure to start */
 
 	struct pvr2_decoder_ctrl *decoder_ctrl;
+	unsigned int decoder_client_id;
 
 	// CPU firmware info (used to help find / save firmware data)
 	char *fw_buffer;
