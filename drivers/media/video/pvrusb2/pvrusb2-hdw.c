@@ -4779,6 +4779,29 @@ static unsigned int pvr2_hdw_report_unlocked(struct pvr2_hdw *hdw,int which,
 			stats.buffers_processed,
 			stats.buffers_failed);
 	}
+	case 6: {
+		struct v4l2_subdev *sd;
+		unsigned int tcnt = 0;
+		unsigned int ccnt;
+		const char *p;
+		unsigned int id;
+		ccnt = scnprintf(buf,
+				 acnt,
+				 "Associted v4l2_subdev drivers:");
+		tcnt += ccnt;
+		v4l2_device_for_each_subdev(sd, &hdw->v4l2_dev) {
+			id = sd->grp_id;
+			p = NULL;
+			if (id < ARRAY_SIZE(module_names)) {
+				p = module_names[id];
+			}
+			if (!p) p = "(unknown)";
+			ccnt = scnprintf(buf + tcnt,
+					 acnt - tcnt,
+					 " %s (%u)", p, id);
+		}
+		return tcnt;
+	}
 	default: break;
 	}
 	return 0;
