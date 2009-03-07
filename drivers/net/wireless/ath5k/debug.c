@@ -82,14 +82,14 @@ static int ath5k_debugfs_open(struct inode *inode, struct file *file)
 /* debugfs: registers */
 
 struct reg {
-	char *name;
+	const char *name;
 	int addr;
 };
 
 #define REG_STRUCT_INIT(r) { #r, r }
 
 /* just a few random registers, might want to add more */
-static struct reg regs[] = {
+static const struct reg regs[] = {
 	REG_STRUCT_INIT(AR5K_CR),
 	REG_STRUCT_INIT(AR5K_RXDP),
 	REG_STRUCT_INIT(AR5K_CFG),
@@ -142,7 +142,7 @@ static struct reg regs[] = {
 
 static void *reg_start(struct seq_file *seq, loff_t *pos)
 {
-	return *pos < ARRAY_SIZE(regs) ? &regs[*pos] : NULL;
+	return *pos < ARRAY_SIZE(regs) ? (void *)&regs[*pos] : NULL;
 }
 
 static void reg_stop(struct seq_file *seq, void *p)
@@ -153,7 +153,7 @@ static void reg_stop(struct seq_file *seq, void *p)
 static void *reg_next(struct seq_file *seq, void *p, loff_t *pos)
 {
 	++*pos;
-	return *pos < ARRAY_SIZE(regs) ? &regs[*pos] : NULL;
+	return *pos < ARRAY_SIZE(regs) ? (void *)&regs[*pos] : NULL;
 }
 
 static int reg_show(struct seq_file *seq, void *p)
@@ -290,7 +290,7 @@ static const struct file_operations fops_reset = {
 
 /* debugfs: debug level */
 
-static struct {
+static const struct {
 	enum ath5k_debug_level level;
 	const char *name;
 	const char *desc;

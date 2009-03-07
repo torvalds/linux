@@ -79,7 +79,7 @@ MODULE_VERSION("0.6.0 (EXPERIMENTAL)");
 
 
 /* Known PCI ids */
-static struct pci_device_id ath5k_pci_id_table[] __devinitdata = {
+static const struct pci_device_id ath5k_pci_id_table[] = {
 	{ PCI_VDEVICE(ATHEROS, 0x0207), .driver_data = AR5K_AR5210 }, /* 5210 early */
 	{ PCI_VDEVICE(ATHEROS, 0x0007), .driver_data = AR5K_AR5210 }, /* 5210 */
 	{ PCI_VDEVICE(ATHEROS, 0x0011), .driver_data = AR5K_AR5211 }, /* 5311 - this is on AHB bus !*/
@@ -103,7 +103,7 @@ static struct pci_device_id ath5k_pci_id_table[] __devinitdata = {
 MODULE_DEVICE_TABLE(pci, ath5k_pci_id_table);
 
 /* Known SREVs */
-static struct ath5k_srev_name srev_names[] = {
+static const struct ath5k_srev_name srev_names[] = {
 	{ "5210",	AR5K_VERSION_MAC,	AR5K_SREV_AR5210 },
 	{ "5311",	AR5K_VERSION_MAC,	AR5K_SREV_AR5311 },
 	{ "5311A",	AR5K_VERSION_MAC,	AR5K_SREV_AR5311A },
@@ -142,7 +142,7 @@ static struct ath5k_srev_name srev_names[] = {
 	{ "xxxxx",	AR5K_VERSION_RAD,	AR5K_SREV_UNKNOWN },
 };
 
-static struct ieee80211_rate ath5k_rates[] = {
+static const struct ieee80211_rate ath5k_rates[] = {
 	{ .bitrate = 10,
 	  .hw_value = ATH5K_RATE_CODE_1M, },
 	{ .bitrate = 20,
@@ -248,7 +248,7 @@ static void ath5k_bss_info_changed(struct ieee80211_hw *hw,
 		struct ieee80211_bss_conf *bss_conf,
 		u32 changes);
 
-static struct ieee80211_ops ath5k_hw_ops = {
+static const struct ieee80211_ops ath5k_hw_ops = {
 	.tx 		= ath5k_tx,
 	.start 		= ath5k_start,
 	.stop 		= ath5k_stop,
