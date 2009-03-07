@@ -162,7 +162,7 @@ int pvr2_i2c_wm8775_setup(struct pvr2_hdw *hdw,struct pvr2_i2c_client *cp)
 
 void pvr2_wm8775_subdev_update(struct pvr2_hdw *hdw, struct v4l2_subdev *sd)
 {
-	if (hdw->input_dirty) {
+	if (hdw->input_dirty || hdw->force_dirty) {
 		struct v4l2_routing route;
 
 		memset(&route, 0, sizeof(route));

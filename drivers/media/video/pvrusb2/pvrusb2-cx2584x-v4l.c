@@ -325,7 +325,7 @@ int pvr2_i2c_cx2584x_v4l_setup(struct pvr2_hdw *hdw,
 void pvr2_cx25840_subdev_update(struct pvr2_hdw *hdw, struct v4l2_subdev *sd)
 {
 	pvr2_trace(PVR2_TRACE_CHIPS, "subdev cx2584x update...");
-	if (hdw->input_dirty) {
+	if (hdw->input_dirty || hdw->force_dirty) {
 		struct v4l2_routing route;
 		enum cx25840_video_input vid_input;
 		enum cx25840_audio_input aud_input;

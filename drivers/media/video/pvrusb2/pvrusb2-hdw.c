@@ -2185,6 +2185,8 @@ static void pvr2_hdw_setup_low(struct pvr2_hdw *hdw)
 
 	if (!pvr2_hdw_dev_ok(hdw)) return;
 
+	hdw->force_dirty = !0;
+
 	if (!hdw->hdw_desc->flag_no_powerup) {
 		pvr2_hdw_cmd_powerup(hdw);
 		if (!pvr2_hdw_dev_ok(hdw)) return;
@@ -2935,7 +2937,7 @@ static void pvr2_subdev_set_control(struct pvr2_hdw *hdw, int id,
 }
 
 #define PVR2_SUBDEV_SET_CONTROL(hdw, id, lab) \
-	if ((hdw)->lab##_dirty) { \
+	if ((hdw)->lab##_dirty || (hdw)->force_dirty) {		\
 		pvr2_subdev_set_control(hdw, id, #lab, (hdw)->lab##_val); \
 	}
 
@@ -2949,7 +2951,7 @@ static void pvr2_subdev_update(struct pvr2_hdw *hdw)
 
 	pvr2_trace(PVR2_TRACE_CHIPS, "subdev update...");
 
-	if (hdw->tuner_updated) {
+	if (hdw->tuner_updated || hdw->force_dirty) {
 		struct tuner_setup setup;
 		pvr2_trace(PVR2_TRACE_CHIPS, "subdev tuner set_type(%d)",
 			   hdw->tuner_type);
@@ -2962,7 +2964,7 @@ static void pvr2_subdev_update(struct pvr2_hdw *hdw)
 		}
 	}
 
-	if (hdw->input_dirty || hdw->std_dirty) {
+	if (hdw->input_dirty || hdw->std_dirty || hdw->force_dirty) {
 		pvr2_trace(PVR2_TRACE_CHIPS, "subdev v4l2 set_standard");
 		if (hdw->input_val == PVR2_CVAL_INPUT_RADIO) {
 			v4l2_device_call_all(&hdw->v4l2_dev, 0,
@@ -2987,14 +2989,14 @@ static void pvr2_subdev_update(struct pvr2_hdw *hdw)
 	PVR2_SUBDEV_SET_CONTROL(hdw, V4L2_CID_AUDIO_BASS, bass);
 	PVR2_SUBDEV_SET_CONTROL(hdw, V4L2_CID_AUDIO_TREBLE, treble);
 
-	if (hdw->input_dirty || hdw->audiomode_dirty) {
+	if (hdw->input_dirty || hdw->audiomode_dirty || hdw->force_dirty) {
 		struct v4l2_tuner vt;
 		memset(&vt, 0, sizeof(vt));
 		vt.audmode = hdw->audiomode_val;
 		v4l2_device_call_all(&hdw->v4l2_dev, 0, tuner, s_tuner, &vt);
 	}
 
-	if (hdw->freqDirty) {
+	if (hdw->freqDirty || hdw->force_dirty) {
 		unsigned long fv;
 		struct v4l2_frequency freq;
 		fv = pvr2_hdw_get_cur_freq(hdw);
@@ -3019,7 +3021,7 @@ static void pvr2_subdev_update(struct pvr2_hdw *hdw)
 				     s_frequency, &freq);
 	}
 
-	if (hdw->res_hor_dirty || hdw->res_ver_dirty) {
+	if (hdw->res_hor_dirty || hdw->res_ver_dirty || hdw->force_dirty) {
 		struct v4l2_format fmt;
 		memset(&fmt, 0, sizeof(fmt));
 		fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
@@ -3030,7 +3032,7 @@ static void pvr2_subdev_update(struct pvr2_hdw *hdw)
 		v4l2_device_call_all(&hdw->v4l2_dev, 0, video, s_fmt, &fmt);
 	}
 
-	if (hdw->srate_dirty) {
+	if (hdw->srate_dirty || hdw->force_dirty) {
 		u32 val;
 		pvr2_trace(PVR2_TRACE_CHIPS, "subdev v4l2 set_audio %d",
 			   hdw->srate_val);
@@ -3061,7 +3063,7 @@ static void pvr2_subdev_update(struct pvr2_hdw *hdw)
 		(*fp)(hdw, sd);
 	}
 
-	if (hdw->tuner_signal_stale && hdw->cropcap_stale) {
+	if (hdw->tuner_signal_stale || hdw->cropcap_stale) {
 		pvr2_hdw_status_poll(hdw);
 	}
 }
@@ -3075,7 +3077,7 @@ static int pvr2_hdw_commit_setup(struct pvr2_hdw *hdw)
 	unsigned int idx;
 	struct pvr2_ctrl *cptr;
 	int value;
-	int commit_flag = 0;
+	int commit_flag = hdw->force_dirty;
 	char buf[100];
 	unsigned int bcnt,ccnt;
 
@@ -3260,6 +3262,7 @@ static int pvr2_hdw_commit_execute(struct pvr2_hdw *hdw)
 	pvr2_subdev_update(hdw);
 
 	hdw->tuner_updated = 0;
+	hdw->force_dirty = 0;
 	for (idx = 0; idx < hdw->control_cnt; idx++) {
 		cptr = hdw->controls + idx;
 		if (!cptr->info->clear_dirty) continue;

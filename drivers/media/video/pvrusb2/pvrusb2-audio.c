@@ -184,7 +184,7 @@ int pvr2_i2c_msp3400_setup(struct pvr2_hdw *hdw,struct pvr2_i2c_client *cp)
 
 void pvr2_msp3400_subdev_update(struct pvr2_hdw *hdw, struct v4l2_subdev *sd)
 {
-	if (hdw->input_dirty) {
+	if (hdw->input_dirty || hdw->force_dirty) {
 		struct v4l2_routing route;
 		const struct routing_scheme *sp;
 		unsigned int sid = hdw->hdw_desc->signal_routing_scheme;
