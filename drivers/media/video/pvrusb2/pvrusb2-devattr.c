@@ -181,7 +181,7 @@ static int pvr2_lgh06xf_attach(struct pvr2_dvb_adapter *adap)
 	return 0;
 }
 
-static struct pvr2_dvb_props pvr2_onair_creator_fe_props = {
+static const struct pvr2_dvb_props pvr2_onair_creator_fe_props = {
 	.frontend_attach = pvr2_lgdt3303_attach,
 	.tuner_attach    = pvr2_lgh06xf_attach,
 };
@@ -241,7 +241,7 @@ static int pvr2_fcv1236d_attach(struct pvr2_dvb_adapter *adap)
 	return 0;
 }
 
-static struct pvr2_dvb_props pvr2_onair_usb2_fe_props = {
+static const struct pvr2_dvb_props pvr2_onair_usb2_fe_props = {
 	.frontend_attach = pvr2_lgdt3302_attach,
 	.tuner_attach    = pvr2_fcv1236d_attach,
 };
@@ -314,7 +314,7 @@ static int pvr2_73xxx_tda18271_8295_attach(struct pvr2_dvb_adapter *adap)
 	return 0;
 }
 
-static struct pvr2_dvb_props pvr2_73xxx_dvb_props = {
+static const struct pvr2_dvb_props pvr2_73xxx_dvb_props = {
 	.frontend_attach = pvr2_tda10048_attach,
 	.tuner_attach    = pvr2_73xxx_tda18271_8295_attach,
 };
@@ -419,12 +419,12 @@ static int pvr2_tda18271_8295_attach(struct pvr2_dvb_adapter *adap)
 	return 0;
 }
 
-static struct pvr2_dvb_props pvr2_750xx_dvb_props = {
+static const struct pvr2_dvb_props pvr2_750xx_dvb_props = {
 	.frontend_attach = pvr2_s5h1409_attach,
 	.tuner_attach    = pvr2_tda18271_8295_attach,
 };
 
-static struct pvr2_dvb_props pvr2_751xx_dvb_props = {
+static const struct pvr2_dvb_props pvr2_751xx_dvb_props = {
 	.frontend_attach = pvr2_s5h1411_attach,
 	.tuner_attach    = pvr2_tda18271_8295_attach,
 };
