@@ -76,8 +76,7 @@ MODULE_LICENSE("GPL");
 
 struct saa6588 {
 	struct v4l2_subdev sd;
-	struct work_struct work;
-	struct timer_list timer;
+	struct delayed_work work;
 	spinlock_t lock;
 	unsigned char *buffer;
 	unsigned int buf_size;
@@ -322,19 +321,12 @@ static void saa6588_i2c_poll(struct saa6588 *s)
 	wake_up_interruptible(&s->read_queue);
 }
 
-static void saa6588_timer(unsigned long data)
-{
-	struct saa6588 *s = (struct saa6588 *)data;
-
-	schedule_work(&s->work);
-}
-
 static void saa6588_work(struct work_struct *work)
 {
-	struct saa6588 *s = container_of(work, struct saa6588, work);
+	struct saa6588 *s = container_of(work, struct saa6588, work.work);
 
 	saa6588_i2c_poll(s);
-	mod_timer(&s->timer, jiffies + msecs_to_jiffies(20));
+	schedule_delayed_work(&s->work, msecs_to_jiffies(20));
 }
 
 static int saa6588_configure(struct saa6588 *s)
@@ -490,11 +482,8 @@ static int saa6588_probe(struct i2c_client *client,
 	saa6588_configure(s);
 
 	/* start polling via eventd */
-	INIT_WORK(&s->work, saa6588_work);
-	init_timer(&s->timer);
-	s->timer.function = saa6588_timer;
-	s->timer.data = (unsigned long)s;
-	schedule_work(&s->work);
+	INIT_DELAYED_WORK(&s->work, saa6588_work);
+	schedule_delayed_work(&s->work, 0);
 	return 0;
 }
 
@@ -505,8 +494,7 @@ static int saa6588_remove(struct i2c_client *client)
 
 	v4l2_device_unregister_subdev(sd);
 
-	del_timer_sync(&s->timer);
-	flush_scheduled_work();
+	cancel_delayed_work_sync(&s->work);
 
 	kfree(s->buffer);
 	kfree(s);
