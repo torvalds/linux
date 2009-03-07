@@ -1974,8 +1974,8 @@ static unsigned int pvr2_copy_i2c_addr_list(
 }
 
 
-static void pvr2_hdw_load_subdev(struct pvr2_hdw *hdw,
-				 const struct pvr2_device_client_desc *cd)
+static int pvr2_hdw_load_subdev(struct pvr2_hdw *hdw,
+				const struct pvr2_device_client_desc *cd)
 {
 	const char *fname;
 	unsigned char mid;
@@ -1989,11 +1989,10 @@ static void pvr2_hdw_load_subdev(struct pvr2_hdw *hdw,
 	fname = (mid < ARRAY_SIZE(module_names)) ? module_names[mid] : NULL;
 	if (!fname) {
 		pvr2_trace(PVR2_TRACE_ERROR_LEGS,
-			   "Module ID %u for device %s is unknown"
-			   " (this is probably a bad thing...)",
+			   "Module ID %u for device %s has no name",
 			   mid,
 			   hdw->hdw_desc->description);
-		return;
+		return -EINVAL;
 	}
 
 	i2ccnt = pvr2_copy_i2c_addr_list(i2caddr, cd->i2c_address_list,
@@ -2007,11 +2006,10 @@ static void pvr2_hdw_load_subdev(struct pvr2_hdw *hdw,
 
 	if (!i2ccnt) {
 		pvr2_trace(PVR2_TRACE_ERROR_LEGS,
-			   "Module ID %u for device %s:"
-			   " No i2c addresses"
-			   " (this is probably a bad thing...)",
-			   mid, hdw->hdw_desc->description);
-		return;
+			   "Module ID %u (%s) for device %s:"
+			   " No i2c addresses",
+			   mid, fname, hdw->hdw_desc->description);
+		return -EINVAL;
 	}
 
 	/* Note how the 2nd and 3rd arguments are the same for both
@@ -2033,10 +2031,9 @@ static void pvr2_hdw_load_subdev(struct pvr2_hdw *hdw,
 
 	if (!sd) {
 		pvr2_trace(PVR2_TRACE_ERROR_LEGS,
-			   "Module ID %u for device %s failed to load"
-			   " (this is probably a bad thing...)",
-			   mid, hdw->hdw_desc->description);
-		return;
+			   "Module ID %u (%s) for device %s failed to load",
+			   mid, fname, hdw->hdw_desc->description);
+		return -EIO;
 	}
 
 	/* Tag this sub-device instance with the module ID we know about.
@@ -2080,6 +2077,8 @@ static void pvr2_hdw_load_subdev(struct pvr2_hdw *hdw,
 		break;
 	default: break;
 	}
+
+	return 0;
 }
 
 
@@ -2088,6 +2087,7 @@ static void pvr2_hdw_load_modules(struct pvr2_hdw *hdw)
 	unsigned int idx;
 	const struct pvr2_string_table *cm;
 	const struct pvr2_device_client_table *ct;
+	int okFl = !0;
 
 	cm = &hdw->hdw_desc->client_modules;
 	for (idx = 0; idx < cm->cnt; idx++) {
@@ -2096,8 +2096,9 @@ static void pvr2_hdw_load_modules(struct pvr2_hdw *hdw)
 
 	ct = &hdw->hdw_desc->client_table;
 	for (idx = 0; idx < ct->cnt; idx++) {
-		pvr2_hdw_load_subdev(hdw,&ct->lst[idx]);
+		if (!pvr2_hdw_load_subdev(hdw, &ct->lst[idx])) okFl = 0;
 	}
+	if (!okFl) pvr2_hdw_render_useless(hdw);
 }
 
 
@@ -2159,6 +2160,7 @@ static void pvr2_hdw_setup_low(struct pvr2_hdw *hdw)
 	if (!pvr2_hdw_dev_ok(hdw)) return;
 
 	pvr2_hdw_load_modules(hdw);
+	if (!pvr2_hdw_dev_ok(hdw)) return;
 
 	for (idx = 0; idx < CTRLDEF_COUNT; idx++) {
 		cptr = hdw->controls + idx;
