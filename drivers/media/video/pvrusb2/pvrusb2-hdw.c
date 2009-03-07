@@ -3238,14 +3238,14 @@ static int pvr2_hdw_commit_execute(struct pvr2_hdw *hdw)
 		}
 	}
 
+	/* Check and update state for all sub-devices. */
+	pvr2_subdev_update(hdw);
+
 	for (idx = 0; idx < hdw->control_cnt; idx++) {
 		cptr = hdw->controls + idx;
 		if (!cptr->info->clear_dirty) continue;
 		cptr->info->clear_dirty(cptr);
 	}
-
-	/* Check and update state for all sub-devices. */
-	pvr2_subdev_update(hdw);
 
 	/* Now execute i2c core update */
 	pvr2_i2c_core_sync(hdw);
