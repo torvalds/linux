@@ -3206,6 +3206,7 @@ void pvr2_hdw_trigger_module_log(struct pvr2_hdw *hdw)
 		pvr2_i2c_core_check_stale(hdw);
 		pvr2_i2c_core_sync(hdw);
 		hdw->log_requested = 0;
+		v4l2_device_call_all(&hdw->v4l2_dev, 0, core, log_status);
 		pvr2_trace(PVR2_TRACE_INFO,"cx2341x config:");
 		cx2341x_log_status(&hdw->enc_ctl_state, "pvrusb2");
 		pvr2_hdw_state_log_state(hdw);
