@@ -38,7 +38,7 @@
 #define PVR2_CLIENT_ID_CX25840 2
 #define PVR2_CLIENT_ID_SAA7115 3
 #define PVR2_CLIENT_ID_TUNER 4
-#define PVR2_CLIENT_ID_CS53132A 5
+#define PVR2_CLIENT_ID_CS53L32A 5
 #define PVR2_CLIENT_ID_WM8775 6
 
 struct pvr2_device_client_desc {

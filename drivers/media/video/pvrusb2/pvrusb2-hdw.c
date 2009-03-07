@@ -125,7 +125,7 @@ static const char *module_names[] = {
 	[PVR2_CLIENT_ID_CX25840] = "cx25840",
 	[PVR2_CLIENT_ID_SAA7115] = "saa7115",
 	[PVR2_CLIENT_ID_TUNER] = "tuner",
-	[PVR2_CLIENT_ID_CS53132A] = "cs53132a",
+	[PVR2_CLIENT_ID_CS53L32A] = "cs53l32a",
 	[PVR2_CLIENT_ID_WM8775] = "wm8775",
 };
 
