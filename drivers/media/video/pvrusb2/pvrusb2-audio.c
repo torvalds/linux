@@ -35,6 +35,7 @@ struct pvr2_msp3400_handler {
 
 
 
+
 struct routing_scheme {
 	const int *def;
 	unsigned int cnt;
@@ -178,6 +179,7 @@ int pvr2_i2c_msp3400_setup(struct pvr2_hdw *hdw,struct pvr2_i2c_client *cp)
 		   cp->client->addr);
 	return !0;
 }
+
 
 
 /*

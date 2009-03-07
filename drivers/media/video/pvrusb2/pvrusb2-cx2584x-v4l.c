@@ -323,6 +323,7 @@ int pvr2_i2c_cx2584x_v4l_setup(struct pvr2_hdw *hdw,
 
 
 
+
 /*
   Stuff for Emacs to see, in order to encourage consistent editing style:
   *** Local Variables: ***

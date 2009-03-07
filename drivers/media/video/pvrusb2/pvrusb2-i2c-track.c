@@ -26,6 +26,7 @@
 
 #define trace_i2c(...) pvr2_trace(PVR2_TRACE_I2C,__VA_ARGS__)
 
+
 /*
 
   This module implements the foundation of a rather large architecture for
@@ -468,6 +469,7 @@ void pvr2_i2c_track_done(struct pvr2_hdw *hdw)
 {
 	/* Empty for now */
 }
+
 
 /*
   Stuff for Emacs to see, in order to encourage consistent editing style:

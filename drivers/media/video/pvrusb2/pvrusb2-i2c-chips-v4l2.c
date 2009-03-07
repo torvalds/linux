@@ -29,6 +29,7 @@
 #include "pvrusb2-cx2584x-v4l.h"
 #include "pvrusb2-wm8775.h"
 
+
 #define trace_i2c(...) pvr2_trace(PVR2_TRACE_I2C,__VA_ARGS__)
 
 #define OP_INIT 0 /* MUST come first so it is run first */
@@ -103,6 +104,7 @@ const struct pvr2_i2c_op *pvr2_i2c_get_op(unsigned int idx)
 		return NULL;
 	return ops[idx];
 }
+
 
 
 /*
