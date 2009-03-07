@@ -2009,6 +2009,10 @@ static int pvr2_hdw_load_subdev(struct pvr2_hdw *hdw,
 			   hdw->hdw_desc->description);
 		return -EINVAL;
 	}
+	pvr2_trace(PVR2_TRACE_INIT,
+		   "Module ID %u (%s) for device %s being loaded...",
+		   mid, fname,
+		   hdw->hdw_desc->description);
 
 	i2ccnt = pvr2_copy_i2c_addr_list(i2caddr, cd->i2c_address_list,
 					 ARRAY_SIZE(i2caddr));
@@ -2017,6 +2021,12 @@ static int pvr2_hdw_load_subdev(struct pvr2_hdw *hdw,
 		/* Second chance: Try default i2c address list */
 		i2ccnt = pvr2_copy_i2c_addr_list(i2caddr, p,
 						 ARRAY_SIZE(i2caddr));
+		if (i2ccnt) {
+			pvr2_trace(PVR2_TRACE_INIT,
+				   "Module ID %u:"
+				   " Using default i2c address list",
+				   mid);
+		}
 	}
 
 	if (!i2ccnt) {
@@ -2035,10 +2045,18 @@ static int pvr2_hdw_load_subdev(struct pvr2_hdw *hdw,
 	 * "chipid" appears to just be the module name again.  So here we
 	 * just do the same thing. */
 	if (i2ccnt == 1) {
+		pvr2_trace(PVR2_TRACE_INIT,
+			   "Module ID %u:"
+			   " Setting up with specified i2c address 0x%x",
+			   mid, i2caddr[0]);
 		sd = v4l2_i2c_new_subdev(&hdw->i2c_adap,
 					 fname, fname,
 					 i2caddr[0]);
 	} else {
+		pvr2_trace(PVR2_TRACE_INIT,
+			   "Module ID %u:"
+			   " Setting up with address probe list",
+			   mid);
 		sd = v4l2_i2c_new_probed_subdev(&hdw->i2c_adap,
 						fname, fname,
 						i2caddr);
@@ -2061,7 +2079,7 @@ static int pvr2_hdw_load_subdev(struct pvr2_hdw *hdw,
 	   aid, in normal situations there's no reason for both mechanisms
 	   to be enabled. */
 	pvr2_i2c_untrack_subdev(hdw, sd);
-	pvr2_trace(PVR2_TRACE_INIT, "Attached sub-driver %s", fname);
+	pvr2_trace(PVR2_TRACE_INFO, "Attached sub-driver %s", fname);
 
 
 	/* client-specific setup... */
@@ -2081,6 +2099,10 @@ static int pvr2_hdw_load_subdev(struct pvr2_hdw *hdw,
 			  up.
 			*/
 			struct v4l2_format fmt;
+			pvr2_trace(PVR2_TRACE_INIT,
+				   "Module ID %u:"
+				   " Executing cx25840 VBI hack",
+				   mid);
 			memset(&fmt, 0, sizeof(fmt));
 			fmt.type = V4L2_BUF_TYPE_SLICED_VBI_CAPTURE;
 			v4l2_device_call_all(&hdw->v4l2_dev, mid,
@@ -2111,7 +2133,7 @@ static void pvr2_hdw_load_modules(struct pvr2_hdw *hdw)
 
 	ct = &hdw->hdw_desc->client_table;
 	for (idx = 0; idx < ct->cnt; idx++) {
-		if (!pvr2_hdw_load_subdev(hdw, &ct->lst[idx])) okFl = 0;
+		if (pvr2_hdw_load_subdev(hdw, &ct->lst[idx]) < 0) okFl = 0;
 	}
 	if (!okFl) pvr2_hdw_render_useless(hdw);
 }
