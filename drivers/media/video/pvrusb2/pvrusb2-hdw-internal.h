@@ -408,6 +408,8 @@ struct pvr2_hdw {
 unsigned long pvr2_hdw_get_cur_freq(struct pvr2_hdw *);
 void pvr2_hdw_set_decoder(struct pvr2_hdw *,struct pvr2_decoder_ctrl *);
 
+void pvr2_hdw_status_poll(struct pvr2_hdw *);
+
 #endif /* __PVRUSB2_HDW_INTERNAL_H */
 
 /*

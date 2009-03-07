@@ -643,7 +643,7 @@ static int ctrl_freq_max_get(struct pvr2_ctrl *cptr, int *vp)
 	unsigned long fv;
 	struct pvr2_hdw *hdw = cptr->hdw;
 	if (hdw->tuner_signal_stale) {
-		pvr2_i2c_core_status_poll(hdw);
+		pvr2_hdw_status_poll(hdw);
 	}
 	fv = hdw->tuner_signal_info.rangehigh;
 	if (!fv) {
@@ -665,7 +665,7 @@ static int ctrl_freq_min_get(struct pvr2_ctrl *cptr, int *vp)
 	unsigned long fv;
 	struct pvr2_hdw *hdw = cptr->hdw;
 	if (hdw->tuner_signal_stale) {
-		pvr2_i2c_core_status_poll(hdw);
+		pvr2_hdw_status_poll(hdw);
 	}
 	fv = hdw->tuner_signal_info.rangelow;
 	if (!fv) {
@@ -859,7 +859,7 @@ static void ctrl_stdcur_clear_dirty(struct pvr2_ctrl *cptr)
 static int ctrl_signal_get(struct pvr2_ctrl *cptr,int *vp)
 {
 	struct pvr2_hdw *hdw = cptr->hdw;
-	pvr2_i2c_core_status_poll(hdw);
+	pvr2_hdw_status_poll(hdw);
 	*vp = hdw->tuner_signal_info.signal;
 	return 0;
 }
@@ -869,7 +869,7 @@ static int ctrl_audio_modes_present_get(struct pvr2_ctrl *cptr,int *vp)
 	int val = 0;
 	unsigned int subchan;
 	struct pvr2_hdw *hdw = cptr->hdw;
-	pvr2_i2c_core_status_poll(hdw);
+	pvr2_hdw_status_poll(hdw);
 	subchan = hdw->tuner_signal_info.rxsubchans;
 	if (subchan & V4L2_TUNER_SUB_MONO) {
 		val |= (1 << V4L2_TUNER_MODE_MONO);
@@ -3008,7 +3008,7 @@ int pvr2_hdw_is_hsm(struct pvr2_hdw *hdw)
 void pvr2_hdw_execute_tuner_poll(struct pvr2_hdw *hdw)
 {
 	LOCK_TAKE(hdw->big_lock); do {
-		pvr2_i2c_core_status_poll(hdw);
+		pvr2_hdw_status_poll(hdw);
 	} while (0); LOCK_GIVE(hdw->big_lock);
 }
 
@@ -3018,7 +3018,7 @@ static int pvr2_hdw_check_cropcap(struct pvr2_hdw *hdw)
 	if (!hdw->cropcap_stale) {
 		return 0;
 	}
-	pvr2_i2c_core_status_poll(hdw);
+	pvr2_hdw_status_poll(hdw);
 	if (hdw->cropcap_stale) {
 		return -EIO;
 	}
@@ -3045,7 +3045,7 @@ int pvr2_hdw_get_tuner_status(struct pvr2_hdw *hdw,struct v4l2_tuner *vtp)
 {
 	LOCK_TAKE(hdw->big_lock); do {
 		if (hdw->tuner_signal_stale) {
-			pvr2_i2c_core_status_poll(hdw);
+			pvr2_hdw_status_poll(hdw);
 		}
 		memcpy(vtp,&hdw->tuner_signal_info,sizeof(struct v4l2_tuner));
 	} while (0); LOCK_GIVE(hdw->big_lock);
@@ -3067,8 +3067,8 @@ void pvr2_hdw_trigger_module_log(struct pvr2_hdw *hdw)
 		hdw->log_requested = !0;
 		printk(KERN_INFO "pvrusb2: =================  START STATUS CARD #%d  =================\n", nr);
 		pvr2_i2c_core_check_stale(hdw);
-		hdw->log_requested = 0;
 		pvr2_i2c_core_sync(hdw);
+		hdw->log_requested = 0;
 		pvr2_trace(PVR2_TRACE_INFO,"cx2341x config:");
 		cx2341x_log_status(&hdw->enc_ctl_state, "pvrusb2");
 		pvr2_hdw_state_log_state(hdw);
@@ -4673,6 +4673,12 @@ int pvr2_hdw_gpio_chg_out(struct pvr2_hdw *hdw,u32 msk,u32 val)
 			   "GPIO output changing to 0x%x",nval);
 	}
 	return pvr2_write_register(hdw,PVR2_GPIO_OUT,nval);
+}
+
+
+void pvr2_hdw_status_poll(struct pvr2_hdw *hdw)
+{
+	pvr2_i2c_core_status_poll(hdw);
 }
 
 

@@ -25,6 +25,7 @@
 #include <linux/videodev2.h>
 #include <media/v4l2-common.h>
 
+
 static void execute_init(struct pvr2_hdw *hdw)
 {
 	u32 dummy = 0;
@@ -184,7 +185,7 @@ static void set_frequency(struct pvr2_hdw *hdw)
 	fv = pvr2_hdw_get_cur_freq(hdw);
 	pvr2_trace(PVR2_TRACE_CHIPS,"i2c v4l2 set_freq(%lu)",fv);
 	if (hdw->tuner_signal_stale) {
-		pvr2_i2c_core_status_poll(hdw);
+		pvr2_hdw_status_poll(hdw);
 	}
 	memset(&freq,0,sizeof(freq));
 	if (hdw->tuner_signal_info.capability & V4L2_TUNER_CAP_LOW) {
@@ -323,6 +324,7 @@ void pvr2_v4l2_cmd_status_poll(struct pvr2_i2c_client *cp)
 	}
 	pvr2_i2c_client_cmd(cp, VIDIOC_G_TUNER, &hdw->tuner_signal_info);
 }
+
 
 
 /*
