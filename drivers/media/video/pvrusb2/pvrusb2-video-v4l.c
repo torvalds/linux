@@ -28,8 +28,9 @@
 */
 
 #include "pvrusb2-video-v4l.h"
-#include "pvrusb2-i2c-cmd-v4l2.h"
 
+
+#include "pvrusb2-i2c-cmd-v4l2.h"
 
 #include "pvrusb2-hdw-internal.h"
 #include "pvrusb2-debug.h"
@@ -38,15 +39,6 @@
 #include <media/saa7115.h>
 #include <linux/errno.h>
 #include <linux/slab.h>
-
-struct pvr2_v4l_decoder {
-	struct pvr2_i2c_handler handler;
-	struct pvr2_decoder_ctrl ctrl;
-	struct pvr2_i2c_client *client;
-	struct pvr2_hdw *hdw;
-	unsigned long stale_mask;
-};
-
 
 struct routing_scheme {
 	const int *def;
@@ -69,6 +61,16 @@ static const struct routing_scheme routing_schemes[] = {
 		.cnt = ARRAY_SIZE(routing_scheme0),
 	},
 };
+
+struct pvr2_v4l_decoder {
+	struct pvr2_i2c_handler handler;
+	struct pvr2_decoder_ctrl ctrl;
+	struct pvr2_i2c_client *client;
+	struct pvr2_hdw *hdw;
+	unsigned long stale_mask;
+};
+
+
 
 static void set_input(struct pvr2_v4l_decoder *ctxt)
 {
@@ -245,6 +247,48 @@ int pvr2_i2c_decoder_v4l_setup(struct pvr2_hdw *hdw,
 }
 
 
+void pvr2_saa7115_subdev_update(struct pvr2_hdw *hdw, struct v4l2_subdev *sd)
+{
+	if (hdw->srate_dirty) {
+		u32 val;
+		pvr2_trace(PVR2_TRACE_CHIPS, "subdev v4l2 set_audio %d",
+			   hdw->srate_val);
+		switch (hdw->srate_val) {
+		default:
+		case V4L2_MPEG_AUDIO_SAMPLING_FREQ_48000:
+			val = 48000;
+			break;
+		case V4L2_MPEG_AUDIO_SAMPLING_FREQ_44100:
+			val = 44100;
+			break;
+		case V4L2_MPEG_AUDIO_SAMPLING_FREQ_32000:
+			val = 32000;
+			break;
+		}
+		sd->ops->audio->s_clock_freq(sd, val);
+	}
+	if (hdw->input_dirty) {
+		struct v4l2_routing route;
+		const struct routing_scheme *sp;
+		unsigned int sid = hdw->hdw_desc->signal_routing_scheme;
+		pvr2_trace(PVR2_TRACE_CHIPS, "subdev v4l2 set_input(%d)",
+			   hdw->input_val);
+		if ((sid < ARRAY_SIZE(routing_schemes)) &&
+		    ((sp = routing_schemes + sid) != NULL) &&
+		    (hdw->input_val >= 0) &&
+		    (hdw->input_val < sp->cnt)) {
+			route.input = sp->def[hdw->input_val];
+		} else {
+			pvr2_trace(PVR2_TRACE_ERROR_LEGS,
+				   "*** WARNING *** subdev v4l2 set_input:"
+				   " Invalid routing scheme (%u) and/or input (%d)",
+				   sid, hdw->input_val);
+			return;
+		}
+		route.output = 0;
+		sd->ops->video->s_routing(sd, &route);
+	}
+}
 
 
 /*
