@@ -338,17 +338,7 @@ static int new_pts_mount(struct file_system_type *fs_type, int flags,
 	fsi = DEVPTS_SB(mnt->mnt_sb);
 	memcpy(&fsi->mount_opts, opts, sizeof(opts));
 
-	err = mknod_ptmx(mnt->mnt_sb);
-	if (err)
-		goto fail;
-
 	return 0;
-
-fail:
-	dput(mnt->mnt_sb->s_root);
-	up_write(&mnt->mnt_sb->s_umount);
-	deactivate_super(mnt->mnt_sb);
-	return err;
 }
 
 /*
@@ -416,13 +406,6 @@ static int init_pts_mount(struct file_system_type *fs_type, int flags,
 	if (err)
 		return err;
 
-	err = mknod_ptmx(mnt->mnt_sb);
-	if (err) {
-		dput(mnt->mnt_sb->s_root);
-		up_write(&mnt->mnt_sb->s_umount);
-		deactivate_super(mnt->mnt_sb);
-	}
-
 	return err;
 }
 
@@ -440,9 +423,24 @@ static int devpts_get_sb(struct file_system_type *fs_type,
 	}
 
 	if (opts.newinstance)
-		return new_pts_mount(fs_type, flags, data, &opts, mnt);
+		error = new_pts_mount(fs_type, flags, data, &opts, mnt);
 	else
-		return init_pts_mount(fs_type, flags, data, &opts, mnt);
+		error = init_pts_mount(fs_type, flags, data, &opts, mnt);
+
+	if (error)
+		return error;
+
+	error = mknod_ptmx(mnt->mnt_sb);
+	if (error)
+		goto out_dput;
+
+	return 0;
+
+out_dput:
+	dput(mnt->mnt_sb->s_root);
+	up_write(&mnt->mnt_sb->s_umount);
+	deactivate_super(mnt->mnt_sb);
+	return error;
 }
 
 #else
