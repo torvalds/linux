@@ -1947,7 +1947,7 @@ static void ftdi_process_read(struct work_struct *work)
 			priv->prev_status = new_status;
 		}
 
-		length = min(PKTSZ, urb->actual_length-packet_offset)-2;
+		length = min_t(u32, PKTSZ, urb->actual_length-packet_offset)-2;
 		if (length < 0) {
 			dev_err(&port->dev, "%s - bad packet length: %d\n",
 				__func__, length+2);
