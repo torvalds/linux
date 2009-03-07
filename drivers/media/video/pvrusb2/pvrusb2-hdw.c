@@ -24,6 +24,7 @@
 #include <linux/firmware.h>
 #include <linux/videodev2.h>
 #include <media/v4l2-common.h>
+#include <media/tuner.h>
 #include "pvrusb2.h"
 #include "pvrusb2-std.h"
 #include "pvrusb2-util.h"
@@ -2261,7 +2262,6 @@ static void pvr2_hdw_setup_low(struct pvr2_hdw *hdw)
 	}
 
 	pvr2_i2c_core_check_stale(hdw);
-	hdw->tuner_updated = 0;
 
 	if (!pvr2_hdw_dev_ok(hdw)) return;
 
@@ -2944,6 +2944,21 @@ static void pvr2_subdev_update(struct pvr2_hdw *hdw)
 	unsigned int id;
 	pvr2_subdev_update_func fp;
 
+	pvr2_trace(PVR2_TRACE_CHIPS, "subdev update...");
+
+	if (hdw->tuner_updated) {
+		struct tuner_setup setup;
+		pvr2_trace(PVR2_TRACE_CHIPS, "subdev tuner set_type(%d)",
+			   hdw->tuner_type);
+		if (((int)(hdw->tuner_type)) >= 0) {
+			setup.addr = ADDR_UNSET;
+			setup.type = hdw->tuner_type;
+			setup.mode_mask = T_RADIO | T_ANALOG_TV;
+			v4l2_device_call_all(&hdw->v4l2_dev, 0,
+					     tuner, s_type_addr, &setup);
+		}
+	}
+
 	if (hdw->input_dirty || hdw->std_dirty) {
 		pvr2_trace(PVR2_TRACE_CHIPS, "subdev v4l2 set_standard");
 		if (hdw->input_val == PVR2_CVAL_INPUT_RADIO) {
@@ -3241,6 +3256,7 @@ static int pvr2_hdw_commit_execute(struct pvr2_hdw *hdw)
 	/* Check and update state for all sub-devices. */
 	pvr2_subdev_update(hdw);
 
+	hdw->tuner_updated = 0;
 	for (idx = 0; idx < hdw->control_cnt; idx++) {
 		cptr = hdw->controls + idx;
 		if (!cptr->info->clear_dirty) continue;
