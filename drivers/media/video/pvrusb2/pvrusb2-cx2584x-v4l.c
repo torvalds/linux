@@ -39,14 +39,6 @@
 #include <linux/errno.h>
 #include <linux/slab.h>
 
-struct pvr2_v4l_cx2584x {
-	struct pvr2_i2c_handler handler;
-	struct pvr2_decoder_ctrl ctrl;
-	struct pvr2_i2c_client *client;
-	struct pvr2_hdw *hdw;
-	unsigned long stale_mask;
-};
-
 
 struct routing_scheme_item {
 	int vid;
@@ -109,6 +101,15 @@ static const struct routing_scheme routing_schemes[] = {
 		.cnt = ARRAY_SIZE(routing_schemegv),
 	},
 };
+
+struct pvr2_v4l_cx2584x {
+	struct pvr2_i2c_handler handler;
+	struct pvr2_decoder_ctrl ctrl;
+	struct pvr2_i2c_client *client;
+	struct pvr2_hdw *hdw;
+	unsigned long stale_mask;
+};
+
 
 static void set_input(struct pvr2_v4l_cx2584x *ctxt)
 {
@@ -321,6 +322,41 @@ int pvr2_i2c_cx2584x_v4l_setup(struct pvr2_hdw *hdw,
 }
 
 
+void pvr2_cx25840_subdev_update(struct pvr2_hdw *hdw, struct v4l2_subdev *sd)
+{
+	if (hdw->input_dirty) {
+		struct v4l2_routing route;
+		enum cx25840_video_input vid_input;
+		enum cx25840_audio_input aud_input;
+		const struct routing_scheme *sp;
+		unsigned int sid = hdw->hdw_desc->signal_routing_scheme;
+
+		memset(&route, 0, sizeof(route));
+
+		if ((sid < ARRAY_SIZE(routing_schemes)) &&
+		    ((sp = routing_schemes + sid) != NULL) &&
+		    (hdw->input_val >= 0) &&
+		    (hdw->input_val < sp->cnt)) {
+			vid_input = sp->def[hdw->input_val].vid;
+			aud_input = sp->def[hdw->input_val].aud;
+		} else {
+			pvr2_trace(PVR2_TRACE_ERROR_LEGS,
+				   "*** WARNING *** subdev cx2584x set_input:"
+				   " Invalid routing scheme (%u)"
+				   " and/or input (%d)",
+				   sid, hdw->input_val);
+			return;
+		}
+
+		pvr2_trace(PVR2_TRACE_CHIPS,
+			   "i2c cx2584x set_input vid=0x%x aud=0x%x",
+			   vid_input, aud_input);
+		route.input = (u32)vid_input;
+		sd->ops->video->s_routing(sd, &route);
+		route.input = (u32)aud_input;
+		sd->ops->audio->s_routing(sd, &route);
+	}
+}
 
 
 
