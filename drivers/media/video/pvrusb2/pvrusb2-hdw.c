@@ -2208,6 +2208,8 @@ static void pvr2_hdw_setup_low(struct pvr2_hdw *hdw)
 	pvr2_hdw_load_modules(hdw);
 	if (!pvr2_hdw_dev_ok(hdw)) return;
 
+	v4l2_device_call_all(&hdw->v4l2_dev, 0, core, init, 0);
+
 	for (idx = 0; idx < CTRLDEF_COUNT; idx++) {
 		cptr = hdw->controls + idx;
 		if (cptr->info->skip_init) continue;
