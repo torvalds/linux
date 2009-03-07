@@ -324,6 +324,7 @@ int pvr2_i2c_cx2584x_v4l_setup(struct pvr2_hdw *hdw,
 
 void pvr2_cx25840_subdev_update(struct pvr2_hdw *hdw, struct v4l2_subdev *sd)
 {
+	pvr2_trace(PVR2_TRACE_CHIPS, "subdev cx2584x update...");
 	if (hdw->input_dirty) {
 		struct v4l2_routing route;
 		enum cx25840_video_input vid_input;
@@ -349,7 +350,7 @@ void pvr2_cx25840_subdev_update(struct pvr2_hdw *hdw, struct v4l2_subdev *sd)
 		}
 
 		pvr2_trace(PVR2_TRACE_CHIPS,
-			   "i2c cx2584x set_input vid=0x%x aud=0x%x",
+			   "subdev cx2584x set_input vid=0x%x aud=0x%x",
 			   vid_input, aud_input);
 		route.input = (u32)vid_input;
 		sd->ops->video->s_routing(sd, &route);
