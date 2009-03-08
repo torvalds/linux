@@ -1812,6 +1812,9 @@ static void xen_set_fixmap(unsigned idx, unsigned long phys, pgprot_t prot)
 #ifdef CONFIG_X86_LOCAL_APIC
 	case FIX_APIC_BASE:	/* maps dummy local APIC */
 #endif
+	case FIX_TEXT_POKE0:
+	case FIX_TEXT_POKE1:
+		/* All local page mappings */
 		pte = pfn_pte(phys, prot);
 		break;
 
