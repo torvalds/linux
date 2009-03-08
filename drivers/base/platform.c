@@ -217,6 +217,7 @@ int platform_device_add_data(struct platform_device *pdev, const void *data,
 	if (d) {
 		memcpy(d, data, size);
 		pdev->dev.platform_data = d;
+		pdev->platform_data = d;
 	}
 	return d ? 0 : -ENOMEM;
 }
@@ -245,6 +246,8 @@ int platform_device_add(struct platform_device *pdev)
 		dev_set_name(&pdev->dev, "%s.%d", pdev->name,  pdev->id);
 	else
 		dev_set_name(&pdev->dev, pdev->name);
+
+	pdev->platform_data = pdev->dev.platform_data;
 
 	for (i = 0; i < pdev->num_resources; i++) {
 		struct resource *p, *r = &pdev->resource[i];
