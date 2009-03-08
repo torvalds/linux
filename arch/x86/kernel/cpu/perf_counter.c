@@ -37,7 +37,7 @@ struct cpu_hw_counters {
 	unsigned long		used[BITS_TO_LONGS(X86_PMC_IDX_MAX)];
 	unsigned long		interrupts;
 	u64			throttle_ctrl;
-	u64			active_mask;
+	unsigned long		active_mask[BITS_TO_LONGS(X86_PMC_IDX_MAX)];
 	int			enabled;
 };
 
@@ -291,7 +291,7 @@ static void pmc_amd_restore_all(u64 ctrl)
 		return;
 
 	for (idx = 0; idx < nr_counters_generic; idx++) {
-		if (test_bit(idx, (unsigned long *)&cpuc->active_mask)) {
+		if (test_bit(idx, cpuc->active_mask)) {
 			u64 val;
 
 			rdmsrl(MSR_K7_EVNTSEL0 + idx, val);
@@ -377,7 +377,7 @@ static void pmc_amd_enable(int idx, u64 config)
 {
 	struct cpu_hw_counters *cpuc = &__get_cpu_var(cpu_hw_counters);
 
-	set_bit(idx, (unsigned long *)&cpuc->active_mask);
+	set_bit(idx, cpuc->active_mask);
 	if (cpuc->enabled)
 		config |= ARCH_PERFMON_EVENTSEL0_ENABLE;
 
@@ -401,7 +401,7 @@ static void pmc_amd_disable(int idx, u64 config)
 {
 	struct cpu_hw_counters *cpuc = &__get_cpu_var(cpu_hw_counters);
 
-	clear_bit(idx, (unsigned long *)&cpuc->active_mask);
+	clear_bit(idx, cpuc->active_mask);
 	wrmsrl(MSR_K7_EVNTSEL0 + idx, config);
 
 }
