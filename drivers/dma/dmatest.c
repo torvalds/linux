@@ -430,13 +430,15 @@ late_initcall(dmatest_init);
 static void __exit dmatest_exit(void)
 {
 	struct dmatest_chan *dtc, *_dtc;
+	struct dma_chan *chan;
 
 	list_for_each_entry_safe(dtc, _dtc, &dmatest_channels, node) {
 		list_del(&dtc->node);
+		chan = dtc->chan;
 		dmatest_cleanup_channel(dtc);
 		pr_debug("dmatest: dropped channel %s\n",
-			 dma_chan_name(dtc->chan));
-		dma_release_channel(dtc->chan);
+			 dma_chan_name(chan));
+		dma_release_channel(chan);
 	}
 }
 module_exit(dmatest_exit);
