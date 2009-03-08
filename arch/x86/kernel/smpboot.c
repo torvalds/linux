@@ -114,10 +114,6 @@ EXPORT_PER_CPU_SYMBOL(cpu_info);
 
 atomic_t init_deasserted;
 
-
-/* Set if we find a B stepping CPU */
-static int __cpuinitdata smp_b_stepping;
-
 #if defined(CONFIG_NUMA) && defined(CONFIG_X86_32)
 
 /* which logical CPUs are on which nodes */
@@ -271,8 +267,6 @@ static void __cpuinit smp_callin(void)
 	cpumask_set_cpu(cpuid, cpu_callin_mask);
 }
 
-static int __cpuinitdata unsafe_smp;
-
 /*
  * Activate a secondary processor.
  */
@@ -340,76 +334,6 @@ notrace static void __cpuinit start_secondary(void *unused)
 	cpu_idle();
 }
 
-static void __cpuinit smp_apply_quirks(struct cpuinfo_x86 *c)
-{
-	/*
-	 * Mask B, Pentium, but not Pentium MMX
-	 */
-	if (c->x86_vendor == X86_VENDOR_INTEL &&
-	    c->x86 == 5 &&
-	    c->x86_mask >= 1 && c->x86_mask <= 4 &&
-	    c->x86_model <= 3)
-		/*
-		 * Remember we have B step Pentia with bugs
-		 */
-		smp_b_stepping = 1;
-
-	/*
-	 * Certain Athlons might work (for various values of 'work') in SMP
-	 * but they are not certified as MP capable.
-	 */
-	if ((c->x86_vendor == X86_VENDOR_AMD) && (c->x86 == 6)) {
-
-		if (num_possible_cpus() == 1)
-			goto valid_k7;
-
-		/* Athlon 660/661 is valid. */
-		if ((c->x86_model == 6) && ((c->x86_mask == 0) ||
-		    (c->x86_mask == 1)))
-			goto valid_k7;
-
-		/* Duron 670 is valid */
-		if ((c->x86_model == 7) && (c->x86_mask == 0))
-			goto valid_k7;
-
-		/*
-		 * Athlon 662, Duron 671, and Athlon >model 7 have capability
-		 * bit. It's worth noting that the A5 stepping (662) of some
-		 * Athlon XP's have the MP bit set.
-		 * See http://www.heise.de/newsticker/data/jow-18.10.01-000 for
-		 * more.
-		 */
-		if (((c->x86_model == 6) && (c->x86_mask >= 2)) ||
-		    ((c->x86_model == 7) && (c->x86_mask >= 1)) ||
-		     (c->x86_model > 7))
-			if (cpu_has_mp)
-				goto valid_k7;
-
-		/* If we get here, not a certified SMP capable AMD system. */
-		unsafe_smp = 1;
-	}
-
-valid_k7:
-	;
-}
-
-static void __cpuinit smp_checks(void)
-{
-	if (smp_b_stepping)
-		printk(KERN_WARNING "WARNING: SMP operation may be unreliable"
-				    "with B stepping processors.\n");
-
-	/*
-	 * Don't taint if we are running SMP kernel on a single non-MP
-	 * approved Athlon
-	 */
-	if (unsafe_smp && num_online_cpus() > 1) {
-		printk(KERN_INFO "WARNING: This combination of AMD"
-			"processors is not suitable for SMP.\n");
-		add_taint(TAINT_UNSAFE_SMP);
-	}
-}
-
 /*
  * The bootstrap kernel entry code has set these up. Save them for
  * a given CPU
@@ -423,7 +347,6 @@ void __cpuinit smp_store_cpu_info(int id)
 	c->cpu_index = id;
 	if (id != 0)
 		identify_secondary_cpu(c);
-	smp_apply_quirks(c);
 }
 
 
@@ -1193,7 +1116,6 @@ void __init native_smp_cpus_done(unsigned int max_cpus)
 	pr_debug("Boot done.\n");
 
 	impress_friends();
-	smp_checks();
 #ifdef CONFIG_X86_IO_APIC
 	setup_ioapic_dest();
 #endif
