@@ -6,12 +6,17 @@
 #include <linux/kernel_stat.h>
 #include <linux/seq_file.h>
 #include <linux/smp.h>
+#include <linux/ftrace.h>
 
 #include <asm/apic.h>
 #include <asm/io_apic.h>
 #include <asm/irq.h>
+#include <asm/idle.h>
 
 atomic_t irq_err_count;
+
+/* Function pointer for generic interrupt vector handling */
+void (*generic_interrupt_extension)(void) = NULL;
 
 /*
  * 'what should we do if we get a hw irq event on an illegal vector'.
@@ -36,11 +41,7 @@ void ack_bad_irq(unsigned int irq)
 #endif
 }
 
-#ifdef CONFIG_X86_32
-# define irq_stats(x)		(&per_cpu(irq_stat, x))
-#else
-# define irq_stats(x)		cpu_pda(x)
-#endif
+#define irq_stats(x)		(&per_cpu(irq_stat, x))
 /*
  * /proc/interrupts printing:
  */
@@ -58,6 +59,12 @@ static int show_other_interrupts(struct seq_file *p)
 		seq_printf(p, "%10u ", irq_stats(j)->apic_timer_irqs);
 	seq_printf(p, "  Local timer interrupts\n");
 #endif
+	if (generic_interrupt_extension) {
+		seq_printf(p, "PLT: ");
+		for_each_online_cpu(j)
+			seq_printf(p, "%10u ", irq_stats(j)->generic_irqs);
+		seq_printf(p, "  Platform interrupts\n");
+	}
 #ifdef CONFIG_SMP
 	seq_printf(p, "RES: ");
 	for_each_online_cpu(j)
@@ -165,6 +172,8 @@ u64 arch_irq_stat_cpu(unsigned int cpu)
 #ifdef CONFIG_X86_LOCAL_APIC
 	sum += irq_stats(cpu)->apic_timer_irqs;
 #endif
+	if (generic_interrupt_extension)
+		sum += irq_stats(cpu)->generic_irqs;
 #ifdef CONFIG_SMP
 	sum += irq_stats(cpu)->irq_resched_count;
 	sum += irq_stats(cpu)->irq_call_count;
@@ -190,6 +199,65 @@ u64 arch_irq_stat(void)
 	sum += atomic_read(&irq_mis_count);
 #endif
 	return sum;
+}
+
+
+/*
+ * do_IRQ handles all normal device IRQ's (the special
+ * SMP cross-CPU interrupts have their own specific
+ * handlers).
+ */
+unsigned int __irq_entry do_IRQ(struct pt_regs *regs)
+{
+	struct pt_regs *old_regs = set_irq_regs(regs);
+
+	/* high bit used in ret_from_ code  */
+	unsigned vector = ~regs->orig_ax;
+	unsigned irq;
+
+	exit_idle();
+	irq_enter();
+
+	irq = __get_cpu_var(vector_irq)[vector];
+
+	if (!handle_irq(irq, regs)) {
+#ifdef CONFIG_X86_64
+		if (!disable_apic)
+			ack_APIC_irq();
+#endif
+
+		if (printk_ratelimit())
+			printk(KERN_EMERG "%s: %d.%d No irq handler for vector (irq %d)\n",
+			       __func__, smp_processor_id(), vector, irq);
+	}
+
+	irq_exit();
+
+	set_irq_regs(old_regs);
+	return 1;
+}
+
+/*
+ * Handler for GENERIC_INTERRUPT_VECTOR.
+ */
+void smp_generic_interrupt(struct pt_regs *regs)
+{
+	struct pt_regs *old_regs = set_irq_regs(regs);
+
+	ack_APIC_irq();
+
+	exit_idle();
+
+	irq_enter();
+
+	inc_irq_stat(generic_irqs);
+
+	if (generic_interrupt_extension)
+		generic_interrupt_extension();
+
+	irq_exit();
+
+	set_irq_regs(old_regs);
 }
 
 EXPORT_SYMBOL_GPL(vector_used_by_percpu_irq);

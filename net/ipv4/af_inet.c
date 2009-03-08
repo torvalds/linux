@@ -1375,10 +1375,10 @@ EXPORT_SYMBOL_GPL(snmp_fold_field);
 int snmp_mib_init(void *ptr[2], size_t mibsize)
 {
 	BUG_ON(ptr == NULL);
-	ptr[0] = __alloc_percpu(mibsize);
+	ptr[0] = __alloc_percpu(mibsize, __alignof__(unsigned long long));
 	if (!ptr[0])
 		goto err0;
-	ptr[1] = __alloc_percpu(mibsize);
+	ptr[1] = __alloc_percpu(mibsize, __alignof__(unsigned long long));
 	if (!ptr[1])
 		goto err1;
 	return 0;

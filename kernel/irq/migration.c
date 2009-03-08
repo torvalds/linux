@@ -18,7 +18,7 @@ void move_masked_irq(int irq)
 
 	desc->status &= ~IRQ_MOVE_PENDING;
 
-	if (unlikely(cpumask_empty(&desc->pending_mask)))
+	if (unlikely(cpumask_empty(desc->pending_mask)))
 		return;
 
 	if (!desc->chip->set_affinity)
@@ -38,13 +38,13 @@ void move_masked_irq(int irq)
 	 * For correct operation this depends on the caller
 	 * masking the irqs.
 	 */
-	if (likely(cpumask_any_and(&desc->pending_mask, cpu_online_mask)
+	if (likely(cpumask_any_and(desc->pending_mask, cpu_online_mask)
 		   < nr_cpu_ids)) {
-		cpumask_and(&desc->affinity,
-			    &desc->pending_mask, cpu_online_mask);
-		desc->chip->set_affinity(irq, &desc->affinity);
+		cpumask_and(desc->affinity,
+			    desc->pending_mask, cpu_online_mask);
+		desc->chip->set_affinity(irq, desc->affinity);
 	}
-	cpumask_clear(&desc->pending_mask);
+	cpumask_clear(desc->pending_mask);
 }
 
 void move_native_irq(int irq)
