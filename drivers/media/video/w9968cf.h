@@ -43,7 +43,6 @@
  * Default values                                                           *
  ****************************************************************************/
 
-#define W9968CF_OVMOD_LOAD      1  /* automatic 'ovcamchip' module loading */
 #define W9968CF_VPPMOD_LOAD     1  /* automatic 'w9968cf-vpp' module loading */
 
 /* Comment/uncomment the following line to enable/disable debugging messages */
@@ -265,7 +264,7 @@ struct w9968cf_device {
 
 	/* I2C interface to kernel */
 	struct i2c_adapter i2c_adapter;
-	struct i2c_client* sensor_client;
+	struct v4l2_subdev *sensor_sd;
 
 	/* Locks */
 	struct mutex dev_mutex,    /* for probe, disconnect,open and close */
@@ -276,6 +275,11 @@ struct w9968cf_device {
 
 	char command[16]; /* name of the program holding the device */
 };
+
+static inline struct w9968cf_device *to_cam(struct v4l2_device *v4l2_dev)
+{
+	return container_of(v4l2_dev, struct w9968cf_device, v4l2_dev);
+}
 
 
 /****************************************************************************
