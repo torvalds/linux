@@ -63,7 +63,8 @@ tl0_irq6:	TRAP_IRQ(smp_call_function_single_client, 6)
 #else
 tl0_irq6:	BTRAP(0x46)
 #endif
-tl0_irq7:	BTRAP(0x47) BTRAP(0x48) BTRAP(0x49)
+tl0_irq7:	TRAP_IRQ(deferred_pcr_work_irq, 7)
+tl0_irq8:	BTRAP(0x48) BTRAP(0x49)
 tl0_irq10:	BTRAP(0x4a) BTRAP(0x4b) BTRAP(0x4c) BTRAP(0x4d)
 tl0_irq14:	TRAP_IRQ(timer_interrupt, 14)
 tl0_irq15:	TRAP_NMI_IRQ(perfctr_irq, 15)

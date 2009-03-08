@@ -160,7 +160,7 @@ int c0_compare_int_usable(void)
 
 #ifndef CONFIG_MIPS_MT_SMTC
 
-int __cpuinit mips_clockevent_init(void)
+int __cpuinit r4k_clockevent_init(void)
 {
 	uint64_t mips_freq = mips_hpt_frequency;
 	unsigned int cpu = smp_processor_id();

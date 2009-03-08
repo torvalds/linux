@@ -72,6 +72,18 @@ enum pipe {
 #define WATCH_INACTIVE	0
 #define WATCH_PWRITE	0
 
+#define I915_GEM_PHYS_CURSOR_0 1
+#define I915_GEM_PHYS_CURSOR_1 2
+#define I915_GEM_PHYS_OVERLAY_REGS 3
+#define I915_MAX_PHYS_OBJECT (I915_GEM_PHYS_OVERLAY_REGS)
+
+struct drm_i915_gem_phys_object {
+	int id;
+	struct page **page_list;
+	drm_dma_handle_t *handle;
+	struct drm_gem_object *cur_obj;
+};
+
 typedef struct _drm_i915_ring_buffer {
 	int tail_mask;
 	unsigned long Size;
@@ -172,6 +184,8 @@ typedef struct drm_i915_private {
 	unsigned int lvds_dither:1;
 	unsigned int lvds_vbt:1;
 	unsigned int int_crt_support:1;
+	unsigned int lvds_use_ssc:1;
+	int lvds_ssc_freq;
 
 	struct drm_i915_fence_reg fence_regs[16]; /* assume 965 */
 	int fence_reg_start; /* 4 if userland hasn't ioctl'd us yet */
@@ -272,6 +286,7 @@ typedef struct drm_i915_private {
 		struct drm_mm gtt_space;
 
 		struct io_mapping *gtt_mapping;
+		int gtt_mtrr;
 
 		/**
 		 * List of objects currently involved in rendering from the
@@ -358,6 +373,9 @@ typedef struct drm_i915_private {
 		uint32_t bit_6_swizzle_x;
 		/** Bit 6 swizzling required for Y tiling */
 		uint32_t bit_6_swizzle_y;
+
+		/* storage for physical objects */
+		struct drm_i915_gem_phys_object *phys_objs[I915_MAX_PHYS_OBJECT];
 	} mm;
 } drm_i915_private_t;
 
@@ -436,6 +454,9 @@ struct drm_i915_gem_object {
 	/** User space pin count and filp owning the pin */
 	uint32_t user_pin_count;
 	struct drm_file *pin_filp;
+
+	/** for phy allocated objects */
+	struct drm_i915_gem_phys_object *phys_obj;
 };
 
 /**
@@ -516,6 +537,7 @@ extern int i915_vblank_pipe_get(struct drm_device *dev, void *data,
 extern int i915_enable_vblank(struct drm_device *dev, int crtc);
 extern void i915_disable_vblank(struct drm_device *dev, int crtc);
 extern u32 i915_get_vblank_counter(struct drm_device *dev, int crtc);
+extern u32 gm45_get_vblank_counter(struct drm_device *dev, int crtc);
 extern int i915_vblank_swap(struct drm_device *dev, void *data,
 			    struct drm_file *file_priv);
 extern void i915_enable_irq(drm_i915_private_t *dev_priv, u32 mask);
@@ -583,6 +605,7 @@ int i915_gem_init_object(struct drm_gem_object *obj);
 void i915_gem_free_object(struct drm_gem_object *obj);
 int i915_gem_object_pin(struct drm_gem_object *obj, uint32_t alignment);
 void i915_gem_object_unpin(struct drm_gem_object *obj);
+int i915_gem_object_unbind(struct drm_gem_object *obj);
 void i915_gem_lastclose(struct drm_device *dev);
 uint32_t i915_get_gem_seqno(struct drm_device *dev);
 void i915_gem_retire_requests(struct drm_device *dev);
@@ -595,9 +618,15 @@ int i915_gem_init_ringbuffer(struct drm_device *dev);
 void i915_gem_cleanup_ringbuffer(struct drm_device *dev);
 int i915_gem_do_init(struct drm_device *dev, unsigned long start,
 		     unsigned long end);
+int i915_gem_idle(struct drm_device *dev);
 int i915_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf);
 int i915_gem_object_set_to_gtt_domain(struct drm_gem_object *obj,
 				      int write);
+int i915_gem_attach_phys_object(struct drm_device *dev,
+				struct drm_gem_object *obj, int id);
+void i915_gem_detach_phys_object(struct drm_device *dev,
+				 struct drm_gem_object *obj);
+void i915_gem_free_all_phys_object(struct drm_device *dev);
 
 /* i915_gem_tiling.c */
 void i915_gem_detect_bit_6_swizzle(struct drm_device *dev);
@@ -761,6 +790,11 @@ extern int i915_wait_ring(struct drm_device * dev, int n, const char *caller);
 			IS_I945GM(dev) || IS_I965GM(dev) || IS_GM45(dev))
 
 #define I915_NEED_GFX_HWS(dev) (IS_G33(dev) || IS_GM45(dev) || IS_G4X(dev))
+/* With the 945 and later, Y tiling got adjusted so that it was 32 128-byte
+ * rows, which changed the alignment requirements and fence programming.
+ */
+#define HAS_128_BYTE_Y_TILING(dev) (IS_I9XX(dev) && !(IS_I915G(dev) || \
+						      IS_I915GM(dev)))
 #define SUPPORTS_INTEGRATED_HDMI(dev)	(IS_G4X(dev))
 
 #define PRIMARY_RINGBUFFER_SIZE         (128*1024)

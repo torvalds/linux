@@ -613,7 +613,9 @@ static int __devinit mal_probe(struct of_device *ofdev,
 	INIT_LIST_HEAD(&mal->list);
 	spin_lock_init(&mal->lock);
 
-	netif_napi_add(NULL, &mal->napi, mal_poll,
+	init_dummy_netdev(&mal->dummy_dev);
+
+	netif_napi_add(&mal->dummy_dev, &mal->napi, mal_poll,
 		       CONFIG_IBM_NEW_EMAC_POLL_WEIGHT);
 
 	/* Load power-on reset defaults */

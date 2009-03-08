@@ -101,7 +101,6 @@ static struct i2c_algo_pca_data pca_isa_data = {
 
 static struct i2c_adapter pca_isa_ops = {
 	.owner          = THIS_MODULE,
-	.id		= I2C_HW_A_ISA,
 	.algo_data	= &pca_isa_data,
 	.name		= "PCA9564 ISA Adapter",
 	.timeout	= 100,

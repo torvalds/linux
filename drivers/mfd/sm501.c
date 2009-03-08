@@ -41,6 +41,7 @@ struct sm501_gpio_chip {
 	struct gpio_chip	gpio;
 	struct sm501_gpio	*ourgpio;	/* to get back to parent. */
 	void __iomem		*regbase;
+	void __iomem		*control;	/* address of control reg. */
 };
 
 struct sm501_gpio {
@@ -908,6 +909,25 @@ static int sm501_gpio_get(struct gpio_chip *chip, unsigned offset)
 	return result & 1UL;
 }
 
+static void sm501_gpio_ensure_gpio(struct sm501_gpio_chip *smchip,
+				   unsigned long bit)
+{
+	unsigned long ctrl;
+
+	/* check and modify if this pin is not set as gpio. */
+
+	if (readl(smchip->control) & bit) {
+		dev_info(sm501_gpio_to_dev(smchip->ourgpio)->dev,
+			 "changing mode of gpio, bit %08lx\n", bit);
+
+		ctrl = readl(smchip->control);
+		ctrl &= ~bit;
+		writel(ctrl, smchip->control);
+
+		sm501_sync_regs(sm501_gpio_to_dev(smchip->ourgpio));
+	}
+}
+
 static void sm501_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 
 {
@@ -929,6 +949,8 @@ static void sm501_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 	writel(val, regs);
 
 	sm501_sync_regs(sm501_gpio_to_dev(smgpio));
+	sm501_gpio_ensure_gpio(smchip, bit);
+
 	spin_unlock_irqrestore(&smgpio->lock, save);
 }
 
@@ -941,8 +963,8 @@ static int sm501_gpio_input(struct gpio_chip *chip, unsigned offset)
 	unsigned long save;
 	unsigned long ddr;
 
-	dev_info(sm501_gpio_to_dev(smgpio)->dev, "%s(%p,%d)\n",
-		 __func__, chip, offset);
+	dev_dbg(sm501_gpio_to_dev(smgpio)->dev, "%s(%p,%d)\n",
+		__func__, chip, offset);
 
 	spin_lock_irqsave(&smgpio->lock, save);
 
@@ -950,6 +972,8 @@ static int sm501_gpio_input(struct gpio_chip *chip, unsigned offset)
 	writel(ddr & ~bit, regs + SM501_GPIO_DDR_LOW);
 
 	sm501_sync_regs(sm501_gpio_to_dev(smgpio));
+	sm501_gpio_ensure_gpio(smchip, bit);
+
 	spin_unlock_irqrestore(&smgpio->lock, save);
 
 	return 0;
@@ -1012,9 +1036,11 @@ static int __devinit sm501_gpio_register_chip(struct sm501_devdata *sm,
 		if (base > 0)
 			base += 32;
 		chip->regbase = gpio->regs + SM501_GPIO_DATA_HIGH;
+		chip->control = sm->regs + SM501_GPIO63_32_CONTROL;
 		gchip->label  = "SM501-HIGH";
 	} else {
 		chip->regbase = gpio->regs + SM501_GPIO_DATA_LOW;
+		chip->control = sm->regs + SM501_GPIO31_0_CONTROL;
 		gchip->label  = "SM501-LOW";
 	}
 
@@ -1024,7 +1050,7 @@ static int __devinit sm501_gpio_register_chip(struct sm501_devdata *sm,
 	return gpiochip_add(gchip);
 }
 
-static int sm501_register_gpio(struct sm501_devdata *sm)
+static int __devinit sm501_register_gpio(struct sm501_devdata *sm)
 {
 	struct sm501_gpio *gpio = &sm->gpio;
 	resource_size_t iobase = sm->io_res->start + SM501_GPIO;
@@ -1295,7 +1321,7 @@ static unsigned int sm501_mem_local[] = {
  * Common init code for an SM501
 */
 
-static int sm501_init_dev(struct sm501_devdata *sm)
+static int __devinit sm501_init_dev(struct sm501_devdata *sm)
 {
 	struct sm501_initdata *idata;
 	struct sm501_platdata *pdata;
@@ -1371,7 +1397,7 @@ static int sm501_init_dev(struct sm501_devdata *sm)
 	return 0;
 }
 
-static int sm501_plat_probe(struct platform_device *dev)
+static int __devinit sm501_plat_probe(struct platform_device *dev)
 {
 	struct sm501_devdata *sm;
 	int ret;
@@ -1560,8 +1586,8 @@ static struct sm501_platdata sm501_pci_platdata = {
 	.gpio_base	= -1,
 };
 
-static int sm501_pci_probe(struct pci_dev *dev,
-			   const struct pci_device_id *id)
+static int __devinit sm501_pci_probe(struct pci_dev *dev,
+				     const struct pci_device_id *id)
 {
 	struct sm501_devdata *sm;
 	int err;
@@ -1667,7 +1693,7 @@ static void sm501_dev_remove(struct sm501_devdata *sm)
 	sm501_gpio_remove(sm);
 }
 
-static void sm501_pci_remove(struct pci_dev *dev)
+static void __devexit sm501_pci_remove(struct pci_dev *dev)
 {
 	struct sm501_devdata *sm = pci_get_drvdata(dev);
 
@@ -1701,16 +1727,16 @@ static struct pci_device_id sm501_pci_tbl[] = {
 
 MODULE_DEVICE_TABLE(pci, sm501_pci_tbl);
 
-static struct pci_driver sm501_pci_drv = {
+static struct pci_driver sm501_pci_driver = {
 	.name		= "sm501",
 	.id_table	= sm501_pci_tbl,
 	.probe		= sm501_pci_probe,
-	.remove		= sm501_pci_remove,
+	.remove		= __devexit_p(sm501_pci_remove),
 };
 
 MODULE_ALIAS("platform:sm501");
 
-static struct platform_driver sm501_plat_drv = {
+static struct platform_driver sm501_plat_driver = {
 	.driver		= {
 		.name	= "sm501",
 		.owner	= THIS_MODULE,
@@ -1723,14 +1749,14 @@ static struct platform_driver sm501_plat_drv = {
 
 static int __init sm501_base_init(void)
 {
-	platform_driver_register(&sm501_plat_drv);
-	return pci_register_driver(&sm501_pci_drv);
+	platform_driver_register(&sm501_plat_driver);
+	return pci_register_driver(&sm501_pci_driver);
 }
 
 static void __exit sm501_base_exit(void)
 {
-	platform_driver_unregister(&sm501_plat_drv);
-	pci_unregister_driver(&sm501_pci_drv);
+	platform_driver_unregister(&sm501_plat_driver);
+	pci_unregister_driver(&sm501_pci_driver);
 }
 
 module_init(sm501_base_init);

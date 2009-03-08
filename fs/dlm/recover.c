@@ -726,7 +726,7 @@ int dlm_create_root_list(struct dlm_ls *ls)
 	}
 
 	for (i = 0; i < ls->ls_rsbtbl_size; i++) {
-		read_lock(&ls->ls_rsbtbl[i].lock);
+		spin_lock(&ls->ls_rsbtbl[i].lock);
 		list_for_each_entry(r, &ls->ls_rsbtbl[i].list, res_hashchain) {
 			list_add(&r->res_root_list, &ls->ls_root_list);
 			dlm_hold_rsb(r);
@@ -737,7 +737,7 @@ int dlm_create_root_list(struct dlm_ls *ls)
 		   but no other recovery steps should do anything with them. */
 
 		if (dlm_no_directory(ls)) {
-			read_unlock(&ls->ls_rsbtbl[i].lock);
+			spin_unlock(&ls->ls_rsbtbl[i].lock);
 			continue;
 		}
 
@@ -745,7 +745,7 @@ int dlm_create_root_list(struct dlm_ls *ls)
 			list_add(&r->res_root_list, &ls->ls_root_list);
 			dlm_hold_rsb(r);
 		}
-		read_unlock(&ls->ls_rsbtbl[i].lock);
+		spin_unlock(&ls->ls_rsbtbl[i].lock);
 	}
  out:
 	up_write(&ls->ls_root_sem);
@@ -775,7 +775,7 @@ void dlm_clear_toss_list(struct dlm_ls *ls)
 	int i;
 
 	for (i = 0; i < ls->ls_rsbtbl_size; i++) {
-		write_lock(&ls->ls_rsbtbl[i].lock);
+		spin_lock(&ls->ls_rsbtbl[i].lock);
 		list_for_each_entry_safe(r, safe, &ls->ls_rsbtbl[i].toss,
 					 res_hashchain) {
 			if (dlm_no_directory(ls) || !is_master(r)) {
@@ -783,7 +783,7 @@ void dlm_clear_toss_list(struct dlm_ls *ls)
 				dlm_free_rsb(r);
 			}
 		}
-		write_unlock(&ls->ls_rsbtbl[i].lock);
+		spin_unlock(&ls->ls_rsbtbl[i].lock);
 	}
 }
 

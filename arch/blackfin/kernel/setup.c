@@ -60,7 +60,7 @@ void __initdata *init_retx, *init_saved_retx, *init_saved_seqstat,
 #define BFIN_MEMMAP_MAX		128 /* number of entries in bfin_memmap */
 #define BFIN_MEMMAP_RAM		1
 #define BFIN_MEMMAP_RESERVED	2
-struct bfin_memmap {
+static struct bfin_memmap {
 	int nr_map;
 	struct bfin_memmap_entry {
 		unsigned long long addr; /* start of memory segment */
@@ -824,7 +824,15 @@ void __init setup_arch(char **cmdline_p)
 	flash_probe();
 #endif
 
+	printk(KERN_INFO "Boot Mode: %i\n", bfin_read_SYSCR() & 0xF);
+
+	/* Newer parts mirror SWRST bits in SYSCR */
+#if defined(CONFIG_BF53x) || defined(CONFIG_BF561) || \
+    defined(CONFIG_BF538) || defined(CONFIG_BF539)
 	_bfin_swrst = bfin_read_SWRST();
+#else
+	_bfin_swrst = bfin_read_SYSCR();
+#endif
 
 #ifdef CONFIG_DEBUG_DOUBLEFAULT_PRINT
 	bfin_write_SWRST(_bfin_swrst & ~DOUBLE_FAULT);
@@ -853,7 +861,7 @@ void __init setup_arch(char **cmdline_p)
 	else if (_bfin_swrst & RESET_SOFTWARE)
 		printk(KERN_NOTICE "Reset caused by Software reset\n");
 
-	printk(KERN_INFO "Blackfin support (C) 2004-2008 Analog Devices, Inc.\n");
+	printk(KERN_INFO "Blackfin support (C) 2004-2009 Analog Devices, Inc.\n");
 	if (bfin_compiled_revid() == 0xffff)
 		printk(KERN_INFO "Compiled for ADSP-%s Rev any\n", CPU);
 	else if (bfin_compiled_revid() == -1)

@@ -745,7 +745,7 @@ static int iwl3945_send_cmd_sync(struct iwl3945_priv *priv, struct iwl3945_host_
 		IWL_ERROR("Error: Response NULL in '%s'\n",
 			  get_cmd_string(cmd->id));
 		ret = -EIO;
-		goto out;
+		goto cancel;
 	}
 
 	ret = 0;
@@ -6538,7 +6538,7 @@ static int iwl3945_mac_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 		dev_kfree_skb_any(skb);
 
 	IWL_DEBUG_MAC80211("leave\n");
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 static int iwl3945_mac_add_interface(struct ieee80211_hw *hw,
@@ -8142,6 +8142,19 @@ static int iwl3945_pci_suspend(struct pci_dev *pdev, pm_message_t state)
 		iwl3945_mac_stop(priv->hw);
 		priv->is_open = 1;
 	}
+
+	/* pci driver assumes state will be saved in this function.
+	 * pci state is saved and device disabled when interface is
+	 * stopped, so at this time pci device will always be disabled -
+	 * whether interface was started or not. saving pci state now will
+	 * cause saved state be that of a disabled device, which will cause
+	 * problems during resume in that we will end up with a disabled device.
+	 *
+	 * indicate that the current saved state (from when interface was
+	 * stopped) is valid. if interface was never up at time of suspend
+	 * then the saved state will still be valid as it was saved during
+	 * .probe. */
+	pdev->state_saved = true;
 
 	pci_set_power_state(pdev, PCI_D3hot);
 

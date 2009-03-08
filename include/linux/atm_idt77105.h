@@ -7,7 +7,7 @@
 #ifndef LINUX_ATM_IDT77105_H
 #define LINUX_ATM_IDT77105_H
 
-#include <asm/types.h>
+#include <linux/types.h>
 #include <linux/atmioc.h>
 #include <linux/atmdev.h>
 

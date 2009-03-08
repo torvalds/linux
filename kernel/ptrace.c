@@ -574,7 +574,7 @@ struct task_struct *ptrace_get_task_struct(pid_t pid)
 #define arch_ptrace_attach(child)	do { } while (0)
 #endif
 
-asmlinkage long sys_ptrace(long request, long pid, long addr, long data)
+SYSCALL_DEFINE4(ptrace, long, request, long, pid, long, addr, long, data)
 {
 	struct task_struct *child;
 	long ret;

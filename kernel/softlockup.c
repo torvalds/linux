@@ -16,6 +16,7 @@
 #include <linux/lockdep.h>
 #include <linux/notifier.h>
 #include <linux/module.h>
+#include <linux/sysctl.h>
 
 #include <asm/irq_regs.h>
 
@@ -87,6 +88,14 @@ void touch_all_softlockup_watchdogs(void)
 		per_cpu(touch_timestamp, cpu) = 0;
 }
 EXPORT_SYMBOL(touch_all_softlockup_watchdogs);
+
+int proc_dosoftlockup_thresh(struct ctl_table *table, int write,
+			     struct file *filp, void __user *buffer,
+			     size_t *lenp, loff_t *ppos)
+{
+	touch_all_softlockup_watchdogs();
+	return proc_dointvec_minmax(table, write, filp, buffer, lenp, ppos);
+}
 
 /*
  * This callback runs from the timer interrupt, and checks

@@ -84,7 +84,11 @@
 
 #define __OLD_NSIG	32
 #define __NEW_NSIG      64
+#ifdef __arch64__
 #define _NSIG_BPW       64
+#else
+#define _NSIG_BPW       32
+#endif
 #define _NSIG_WORDS     (__NEW_NSIG / _NSIG_BPW)
 
 #define SIGRTMIN       32

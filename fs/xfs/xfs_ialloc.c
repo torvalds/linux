@@ -357,7 +357,7 @@ xfs_ialloc_ag_alloc(
 			int	ioffset = i << args.mp->m_sb.sb_inodelog;
 			uint	isize = sizeof(struct xfs_dinode);
 
-			free = XFS_MAKE_IPTR(args.mp, fbuf, i);
+			free = xfs_make_iptr(args.mp, fbuf, i);
 			free->di_magic = cpu_to_be16(XFS_DINODE_MAGIC);
 			free->di_version = version;
 			free->di_gen = cpu_to_be32(gen);
@@ -937,7 +937,7 @@ nextag:
 			}
 		}
 	}
-	offset = XFS_IALLOC_FIND_FREE(&rec.ir_free);
+	offset = xfs_ialloc_find_free(&rec.ir_free);
 	ASSERT(offset >= 0);
 	ASSERT(offset < XFS_INODES_PER_CHUNK);
 	ASSERT((XFS_AGINO_TO_OFFSET(mp, rec.ir_startino) %
@@ -1279,7 +1279,7 @@ xfs_imap(
 		offset = XFS_INO_TO_OFFSET(mp, ino);
 		ASSERT(offset < mp->m_sb.sb_inopblock);
 
-		cluster_agbno = XFS_DADDR_TO_AGBNO(mp, imap->im_blkno);
+		cluster_agbno = xfs_daddr_to_agbno(mp, imap->im_blkno);
 		offset += (agbno - cluster_agbno) * mp->m_sb.sb_inopblock;
 
 		imap->im_len = XFS_FSB_TO_BB(mp, blks_per_cluster);

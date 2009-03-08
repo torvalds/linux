@@ -156,7 +156,7 @@ static int uec_mdio_probe(struct of_device *ofdev, const struct of_device_id *ma
 	if (err)
 		goto reg_map_fail;
 
-	snprintf(new_bus->id, MII_BUS_ID_SIZE, "%x", res.start);
+	uec_mdio_bus_name(new_bus->id, np);
 
 	new_bus->irq = kmalloc(32 * sizeof(int), GFP_KERNEL);
 
@@ -283,3 +283,13 @@ void uec_mdio_exit(void)
 {
 	of_unregister_platform_driver(&uec_mdio_driver);
 }
+
+void uec_mdio_bus_name(char *name, struct device_node *np)
+{
+        const u32 *reg;
+
+        reg = of_get_property(np, "reg", NULL);
+
+        snprintf(name, MII_BUS_ID_SIZE, "%s@%x", np->name, reg ? *reg : 0);
+}
+

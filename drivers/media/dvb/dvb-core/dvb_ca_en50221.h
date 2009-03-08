@@ -45,8 +45,10 @@ struct dvb_ca_en50221 {
 	/* the module owning this structure */
 	struct module* owner;
 
-	/* NOTE: the read_*, write_* and poll_slot_status functions must use locks as
-	 * they may be called from several threads at once */
+	/* NOTE: the read_*, write_* and poll_slot_status functions will be
+	 * called for different slots concurrently and need to use locks where
+	 * and if appropriate. There will be no concurrent access to one slot.
+	 */
 
 	/* functions for accessing attribute memory on the CAM */
 	int (*read_attribute_mem)(struct dvb_ca_en50221* ca, int slot, int address);

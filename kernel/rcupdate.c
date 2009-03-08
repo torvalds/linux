@@ -44,6 +44,7 @@
 #include <linux/cpu.h>
 #include <linux/mutex.h>
 #include <linux/module.h>
+#include <linux/kernel_stat.h>
 
 enum rcu_barrier {
 	RCU_BARRIER_STD,
@@ -55,6 +56,7 @@ static DEFINE_PER_CPU(struct rcu_head, rcu_barrier_head) = {NULL};
 static atomic_t rcu_barrier_cpu_count;
 static DEFINE_MUTEX(rcu_barrier_mutex);
 static struct completion rcu_barrier_completion;
+int rcu_scheduler_active __read_mostly;
 
 /*
  * Awaken the corresponding synchronize_rcu() instance now that a
@@ -80,6 +82,10 @@ void wakeme_after_rcu(struct rcu_head  *head)
 void synchronize_rcu(void)
 {
 	struct rcu_synchronize rcu;
+
+	if (rcu_blocking_is_gp())
+		return;
+
 	init_completion(&rcu.completion);
 	/* Will wake me after RCU finished. */
 	call_rcu(&rcu.head, wakeme_after_rcu);
@@ -175,3 +181,9 @@ void __init rcu_init(void)
 	__rcu_init();
 }
 
+void rcu_scheduler_starting(void)
+{
+	WARN_ON(num_online_cpus() != 1);
+	WARN_ON(nr_context_switches() > 0);
+	rcu_scheduler_active = 1;
+}

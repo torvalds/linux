@@ -171,13 +171,10 @@ static int gxfb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 
 static int gxfb_set_par(struct fb_info *info)
 {
-	if (info->var.bits_per_pixel > 8) {
+	if (info->var.bits_per_pixel > 8)
 		info->fix.visual = FB_VISUAL_TRUECOLOR;
-		fb_dealloc_cmap(&info->cmap);
-	} else {
+	else
 		info->fix.visual = FB_VISUAL_PSEUDOCOLOR;
-		fb_alloc_cmap(&info->cmap, 1<<info->var.bits_per_pixel, 0);
-	}
 
 	info->fix.line_length = gx_line_delta(info->var.xres, info->var.bits_per_pixel);
 
@@ -331,6 +328,11 @@ static struct fb_info * __init gxfb_init_fbinfo(struct device *dev)
 
 	info->var.grayscale	= 0;
 
+	if (fb_alloc_cmap(&info->cmap, 256, 0) < 0) {
+		framebuffer_release(info);
+		return NULL;
+	}
+
 	return info;
 }
 
@@ -443,8 +445,10 @@ static int __init gxfb_probe(struct pci_dev *pdev, const struct pci_device_id *i
 		pci_release_region(pdev, 1);
 	}
 
-	if (info)
+	if (info) {
+		fb_dealloc_cmap(&info->cmap);
 		framebuffer_release(info);
+	}
 	return ret;
 }
 
@@ -467,6 +471,7 @@ static void gxfb_remove(struct pci_dev *pdev)
 	iounmap(par->gp_regs);
 	pci_release_region(pdev, 1);
 
+	fb_dealloc_cmap(&info->cmap);
 	pci_set_drvdata(pdev, NULL);
 
 	framebuffer_release(info);

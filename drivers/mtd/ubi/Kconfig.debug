@@ -33,16 +33,6 @@ config MTD_UBI_DEBUG_DISABLE_BGT
 	  This option switches the background thread off by default. The thread
 	  may be also be enabled/disabled via UBI sysfs.
 
-config MTD_UBI_DEBUG_USERSPACE_IO
-	bool "Direct user-space write/erase support"
-	default n
-	depends on MTD_UBI_DEBUG
-	help
-	  By default, users cannot directly write and erase individual
-	  eraseblocks of dynamic volumes, and have to use update operation
-	  instead. This option enables this capability - it is very useful for
-	  debugging and testing.
-
 config MTD_UBI_DEBUG_EMULATE_BITFLIPS
 	bool "Emulate flash bit-flips"
 	depends on MTD_UBI_DEBUG

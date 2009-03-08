@@ -822,7 +822,7 @@ static int generate_flush_cqes(struct ehca_qp *my_qp, struct ib_cq *cq,
 		offset = qmap->next_wqe_idx * ipz_queue->qe_size;
 		wqe = (struct ehca_wqe *)ipz_qeit_calc(ipz_queue, offset);
 		if (!wqe) {
-			ehca_err(cq->device, "Invalid wqe offset=%#lx on "
+			ehca_err(cq->device, "Invalid wqe offset=%#llx on "
 				 "qp_num=%#x", offset, my_qp->real_qp_num);
 			return nr;
 		}

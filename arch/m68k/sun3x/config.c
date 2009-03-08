@@ -23,7 +23,6 @@
 #include "time.h"
 
 volatile char *clock_va;
-extern volatile unsigned char *sun3_intreg;
 
 extern void sun3_get_model(char *model);
 

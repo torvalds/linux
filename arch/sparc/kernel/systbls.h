@@ -16,9 +16,6 @@ extern asmlinkage long sys_ipc(unsigned int call, int first,
 			       void __user *ptr, long fifth);
 extern asmlinkage long sparc64_newuname(struct new_utsname __user *name);
 extern asmlinkage long sparc64_personality(unsigned long personality);
-extern asmlinkage unsigned long sys_mmap(unsigned long addr, unsigned long len,
-					 unsigned long prot, unsigned long flags,
-					 unsigned long fd, unsigned long off);
 extern asmlinkage long sys64_munmap(unsigned long addr, size_t len);
 extern asmlinkage unsigned long sys64_mremap(unsigned long addr,
 					     unsigned long old_len,

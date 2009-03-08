@@ -76,13 +76,12 @@ static struct i2c_algo_bit_data scx200_i2c_data = {
 	.getsda		= scx200_i2c_getsda,
 	.getscl		= scx200_i2c_getscl,
 	.udelay		= 10,
-	.timeout	= 100,
+	.timeout	= HZ,
 };
 
 static struct i2c_adapter scx200_i2c_ops = {
 	.owner		   = THIS_MODULE,
 	.class             = I2C_CLASS_HWMON | I2C_CLASS_SPD,
-	.id		   = I2C_HW_B_SCX200,
 	.algo_data	   = &scx200_i2c_data,
 	.name	= "NatSemi SCx200 I2C",
 };

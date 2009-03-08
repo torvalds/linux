@@ -167,9 +167,9 @@ config MK7
 config MK8
 	bool "Opteron/Athlon64/Hammer/K8"
 	help
-	  Select this for an AMD Opteron or Athlon64 Hammer-family processor.  Enables
-	  use of some extended instructions, and passes appropriate optimization
-	  flags to GCC.
+	  Select this for an AMD Opteron or Athlon64 Hammer-family processor.
+	  Enables use of some extended instructions, and passes appropriate
+	  optimization flags to GCC.
 
 config MCRUSOE
 	bool "Crusoe"
@@ -256,9 +256,11 @@ config MPSC
 config MCORE2
 	bool "Core 2/newer Xeon"
 	help
-	  Select this for Intel Core 2 and newer Core 2 Xeons (Xeon 51xx and 53xx)
-	  CPUs. You can distinguish newer from older Xeons by the CPU family
-	  in /proc/cpuinfo. Newer ones have 6 and older ones 15 (not a typo)
+
+	  Select this for Intel Core 2 and newer Core 2 Xeons (Xeon 51xx and
+	  53xx) CPUs. You can distinguish newer from older Xeons by the CPU
+	  family in /proc/cpuinfo. Newer ones have 6 and older ones 15
+	  (not a typo)
 
 config GENERIC_CPU
 	bool "Generic-x86-64"
@@ -320,14 +322,14 @@ config X86_PPRO_FENCE
 	bool "PentiumPro memory ordering errata workaround"
 	depends on M686 || M586MMX || M586TSC || M586 || M486 || M386 || MGEODEGX1
 	help
-	  Old PentiumPro multiprocessor systems had errata that could cause memory
-	  operations to violate the x86 ordering standard in rare cases. Enabling this
-	  option will attempt to work around some (but not all) occurances of
-	  this problem, at the cost of much heavier spinlock and memory barrier
-	  operations.
+	  Old PentiumPro multiprocessor systems had errata that could cause
+	  memory operations to violate the x86 ordering standard in rare cases.
+	  Enabling this option will attempt to work around some (but not all)
+	  occurances of this problem, at the cost of much heavier spinlock and
+	  memory barrier operations.
 
-	  If unsure, say n here. Even distro kernels should think twice before enabling
-	  this: there are few systems, and an unlikely bug.
+	  If unsure, say n here. Even distro kernels should think twice before
+	  enabling this: there are few systems, and an unlikely bug.
 
 config X86_F00F_BUG
 	def_bool y

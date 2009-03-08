@@ -13,6 +13,7 @@
 #include <linux/errno.h>
 #include <linux/fs.h>
 #include <linux/init.h>
+#include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/miscdevice.h>
 #include <linux/module.h>
@@ -106,10 +107,10 @@ static int at91_wdt_close(struct inode *inode, struct file *file)
 static int at91_wdt_settimeout(int new_time)
 {
 	/*
-	 * All counting occurs at SLOW_CLOCK / 128 = 0.256 Hz
+	 * All counting occurs at SLOW_CLOCK / 128 = 256 Hz
 	 *
 	 * Since WDV is a 16-bit counter, the maximum period is
-	 * 65536 / 0.256 = 256 seconds.
+	 * 65536 / 256 = 256 seconds.
 	 */
 	if ((new_time <= 0) || (new_time > WDT_MAX_TIME))
 		return -EINVAL;

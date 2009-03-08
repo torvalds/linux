@@ -24,7 +24,6 @@ static const struct fp_ext fp_one =
 
 extern struct fp_ext *fp_fadd(struct fp_ext *dest, const struct fp_ext *src);
 extern struct fp_ext *fp_fdiv(struct fp_ext *dest, const struct fp_ext *src);
-extern struct fp_ext *fp_fmul(struct fp_ext *dest, const struct fp_ext *src);
 
 struct fp_ext *
 fp_fsqrt(struct fp_ext *dest, struct fp_ext *src)

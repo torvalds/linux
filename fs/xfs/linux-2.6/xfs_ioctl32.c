@@ -17,6 +17,7 @@
  */
 #include <linux/compat.h>
 #include <linux/ioctl.h>
+#include <linux/mount.h>
 #include <asm/uaccess.h>
 #include "xfs.h"
 #include "xfs_fs.h"
@@ -340,96 +341,24 @@ xfs_compat_handlereq_copyin(
 	return 0;
 }
 
-/*
- * Convert userspace handle data into inode.
- *
- * We use the fact that all the fsop_handlereq ioctl calls have a data
- * structure argument whose first component is always a xfs_fsop_handlereq_t,
- * so we can pass that sub structure into this handy, shared routine.
- *
- * If no error, caller must always iput the returned inode.
- */
-STATIC int
-xfs_vget_fsop_handlereq_compat(
-	xfs_mount_t		*mp,
-	struct inode		*parinode,	/* parent inode pointer    */
-	compat_xfs_fsop_handlereq_t	*hreq,
-	struct inode		**inode)
+STATIC struct dentry *
+xfs_compat_handlereq_to_dentry(
+	struct file		*parfilp,
+	compat_xfs_fsop_handlereq_t *hreq)
 {
-	void			__user *hanp;
-	size_t			hlen;
-	xfs_fid_t		*xfid;
-	xfs_handle_t		*handlep;
-	xfs_handle_t		handle;
-	xfs_inode_t		*ip;
-	xfs_ino_t		ino;
-	__u32			igen;
-	int			error;
-
-	/*
-	 * Only allow handle opens under a directory.
-	 */
-	if (!S_ISDIR(parinode->i_mode))
-		return XFS_ERROR(ENOTDIR);
-
-	hanp = compat_ptr(hreq->ihandle);
-	hlen = hreq->ihandlen;
-	handlep = &handle;
-
-	if (hlen < sizeof(handlep->ha_fsid) || hlen > sizeof(*handlep))
-		return XFS_ERROR(EINVAL);
-	if (copy_from_user(handlep, hanp, hlen))
-		return XFS_ERROR(EFAULT);
-	if (hlen < sizeof(*handlep))
-		memset(((char *)handlep) + hlen, 0, sizeof(*handlep) - hlen);
-	if (hlen > sizeof(handlep->ha_fsid)) {
-		if (handlep->ha_fid.fid_len !=
-		    (hlen - sizeof(handlep->ha_fsid) -
-			    sizeof(handlep->ha_fid.fid_len)) ||
-		    handlep->ha_fid.fid_pad)
-			return XFS_ERROR(EINVAL);
-	}
-
-	/*
-	 * Crack the handle, obtain the inode # & generation #
-	 */
-	xfid = (struct xfs_fid *)&handlep->ha_fid;
-	if (xfid->fid_len == sizeof(*xfid) - sizeof(xfid->fid_len)) {
-		ino  = xfid->fid_ino;
-		igen = xfid->fid_gen;
-	} else {
-		return XFS_ERROR(EINVAL);
-	}
-
-	/*
-	 * Get the XFS inode, building a Linux inode to go with it.
-	 */
-	error = xfs_iget(mp, NULL, ino, 0, XFS_ILOCK_SHARED, &ip, 0);
-	if (error)
-		return error;
-	if (ip == NULL)
-		return XFS_ERROR(EIO);
-	if (ip->i_d.di_gen != igen) {
-		xfs_iput_new(ip, XFS_ILOCK_SHARED);
-		return XFS_ERROR(ENOENT);
-	}
-
-	xfs_iunlock(ip, XFS_ILOCK_SHARED);
-
-	*inode = VFS_I(ip);
-	return 0;
+	return xfs_handle_to_dentry(parfilp,
+			compat_ptr(hreq->ihandle), hreq->ihandlen);
 }
 
 STATIC int
 xfs_compat_attrlist_by_handle(
-	xfs_mount_t		*mp,
-	void			__user *arg,
-	struct inode		*parinode)
+	struct file		*parfilp,
+	void			__user *arg)
 {
 	int			error;
 	attrlist_cursor_kern_t	*cursor;
 	compat_xfs_fsop_attrlist_handlereq_t al_hreq;
-	struct inode		*inode;
+	struct dentry		*dentry;
 	char			*kbuf;
 
 	if (!capable(CAP_SYS_ADMIN))
@@ -446,17 +375,17 @@ xfs_compat_attrlist_by_handle(
 	if (al_hreq.flags & ~(ATTR_ROOT | ATTR_SECURE))
 		return -XFS_ERROR(EINVAL);
 
-	error = xfs_vget_fsop_handlereq_compat(mp, parinode, &al_hreq.hreq,
-					       &inode);
-	if (error)
-		goto out;
+	dentry = xfs_compat_handlereq_to_dentry(parfilp, &al_hreq.hreq);
+	if (IS_ERR(dentry))
+		return PTR_ERR(dentry);
 
+	error = -ENOMEM;
 	kbuf = kmalloc(al_hreq.buflen, GFP_KERNEL);
 	if (!kbuf)
-		goto out_vn_rele;
+		goto out_dput;
 
 	cursor = (attrlist_cursor_kern_t *)&al_hreq.pos;
-	error = xfs_attr_list(XFS_I(inode), kbuf, al_hreq.buflen,
+	error = -xfs_attr_list(XFS_I(dentry->d_inode), kbuf, al_hreq.buflen,
 					al_hreq.flags, cursor);
 	if (error)
 		goto out_kfree;
@@ -466,22 +395,20 @@ xfs_compat_attrlist_by_handle(
 
  out_kfree:
 	kfree(kbuf);
- out_vn_rele:
-	iput(inode);
- out:
-	return -error;
+ out_dput:
+	dput(dentry);
+	return error;
 }
 
 STATIC int
 xfs_compat_attrmulti_by_handle(
-	xfs_mount_t				*mp,
-	void					__user *arg,
-	struct inode				*parinode)
+	struct file				*parfilp,
+	void					__user *arg)
 {
 	int					error;
 	compat_xfs_attr_multiop_t		*ops;
 	compat_xfs_fsop_attrmulti_handlereq_t	am_hreq;
-	struct inode				*inode;
+	struct dentry				*dentry;
 	unsigned int				i, size;
 	char					*attr_name;
 
@@ -491,20 +418,19 @@ xfs_compat_attrmulti_by_handle(
 			   sizeof(compat_xfs_fsop_attrmulti_handlereq_t)))
 		return -XFS_ERROR(EFAULT);
 
-	error = xfs_vget_fsop_handlereq_compat(mp, parinode, &am_hreq.hreq,
-					       &inode);
-	if (error)
-		goto out;
+	dentry = xfs_compat_handlereq_to_dentry(parfilp, &am_hreq.hreq);
+	if (IS_ERR(dentry))
+		return PTR_ERR(dentry);
 
 	error = E2BIG;
 	size = am_hreq.opcount * sizeof(compat_xfs_attr_multiop_t);
 	if (!size || size > 16 * PAGE_SIZE)
-		goto out_vn_rele;
+		goto out_dput;
 
 	error = ENOMEM;
 	ops = kmalloc(size, GFP_KERNEL);
 	if (!ops)
-		goto out_vn_rele;
+		goto out_dput;
 
 	error = EFAULT;
 	if (copy_from_user(ops, compat_ptr(am_hreq.ops), size))
@@ -527,20 +453,29 @@ xfs_compat_attrmulti_by_handle(
 
 		switch (ops[i].am_opcode) {
 		case ATTR_OP_GET:
-			ops[i].am_error = xfs_attrmulti_attr_get(inode,
-					attr_name,
+			ops[i].am_error = xfs_attrmulti_attr_get(
+					dentry->d_inode, attr_name,
 					compat_ptr(ops[i].am_attrvalue),
 					&ops[i].am_length, ops[i].am_flags);
 			break;
 		case ATTR_OP_SET:
-			ops[i].am_error = xfs_attrmulti_attr_set(inode,
-					attr_name,
+			ops[i].am_error = mnt_want_write(parfilp->f_path.mnt);
+			if (ops[i].am_error)
+				break;
+			ops[i].am_error = xfs_attrmulti_attr_set(
+					dentry->d_inode, attr_name,
 					compat_ptr(ops[i].am_attrvalue),
 					ops[i].am_length, ops[i].am_flags);
+			mnt_drop_write(parfilp->f_path.mnt);
 			break;
 		case ATTR_OP_REMOVE:
-			ops[i].am_error = xfs_attrmulti_attr_remove(inode,
-					attr_name, ops[i].am_flags);
+			ops[i].am_error = mnt_want_write(parfilp->f_path.mnt);
+			if (ops[i].am_error)
+				break;
+			ops[i].am_error = xfs_attrmulti_attr_remove(
+					dentry->d_inode, attr_name,
+					ops[i].am_flags);
+			mnt_drop_write(parfilp->f_path.mnt);
 			break;
 		default:
 			ops[i].am_error = EINVAL;
@@ -553,22 +488,20 @@ xfs_compat_attrmulti_by_handle(
 	kfree(attr_name);
  out_kfree_ops:
 	kfree(ops);
- out_vn_rele:
-	iput(inode);
- out:
+ out_dput:
+	dput(dentry);
 	return -error;
 }
 
 STATIC int
 xfs_compat_fssetdm_by_handle(
-	xfs_mount_t		*mp,
-	void			__user *arg,
-	struct inode		*parinode)
+	struct file		*parfilp,
+	void			__user *arg)
 {
 	int			error;
 	struct fsdmidata	fsd;
 	compat_xfs_fsop_setdm_handlereq_t dmhreq;
-	struct inode		*inode;
+	struct dentry		*dentry;
 
 	if (!capable(CAP_MKNOD))
 		return -XFS_ERROR(EPERM);
@@ -576,12 +509,11 @@ xfs_compat_fssetdm_by_handle(
 			   sizeof(compat_xfs_fsop_setdm_handlereq_t)))
 		return -XFS_ERROR(EFAULT);
 
-	error = xfs_vget_fsop_handlereq_compat(mp, parinode, &dmhreq.hreq,
-					       &inode);
-	if (error)
-		return -error;
+	dentry = xfs_compat_handlereq_to_dentry(parfilp, &dmhreq.hreq);
+	if (IS_ERR(dentry))
+		return PTR_ERR(dentry);
 
-	if (IS_IMMUTABLE(inode) || IS_APPEND(inode)) {
+	if (IS_IMMUTABLE(dentry->d_inode) || IS_APPEND(dentry->d_inode)) {
 		error = -XFS_ERROR(EPERM);
 		goto out;
 	}
@@ -591,11 +523,11 @@ xfs_compat_fssetdm_by_handle(
 		goto out;
 	}
 
-	error = -xfs_set_dmattrs(XFS_I(inode), fsd.fsd_dmevmask,
+	error = -xfs_set_dmattrs(XFS_I(dentry->d_inode), fsd.fsd_dmevmask,
 				 fsd.fsd_dmstate);
 
 out:
-	iput(inode);
+	dput(dentry);
 	return error;
 }
 
@@ -722,21 +654,21 @@ xfs_file_compat_ioctl(
 
 		if (xfs_compat_handlereq_copyin(&hreq, arg))
 			return -XFS_ERROR(EFAULT);
-		return xfs_open_by_handle(mp, &hreq, filp, inode);
+		return xfs_open_by_handle(filp, &hreq);
 	}
 	case XFS_IOC_READLINK_BY_HANDLE_32: {
 		struct xfs_fsop_handlereq	hreq;
 
 		if (xfs_compat_handlereq_copyin(&hreq, arg))
 			return -XFS_ERROR(EFAULT);
-		return xfs_readlink_by_handle(mp, &hreq, inode);
+		return xfs_readlink_by_handle(filp, &hreq);
 	}
 	case XFS_IOC_ATTRLIST_BY_HANDLE_32:
-		return xfs_compat_attrlist_by_handle(mp, arg, inode);
+		return xfs_compat_attrlist_by_handle(filp, arg);
 	case XFS_IOC_ATTRMULTI_BY_HANDLE_32:
-		return xfs_compat_attrmulti_by_handle(mp, arg, inode);
+		return xfs_compat_attrmulti_by_handle(filp, arg);
 	case XFS_IOC_FSSETDM_BY_HANDLE_32:
-		return xfs_compat_fssetdm_by_handle(mp, arg, inode);
+		return xfs_compat_fssetdm_by_handle(filp, arg);
 	default:
 		return -XFS_ERROR(ENOIOCTLCMD);
 	}

@@ -24,6 +24,9 @@ struct call_single_data {
 /* total number of cpus in this system (may exceed NR_CPUS) */
 extern unsigned int total_cpus;
 
+int smp_call_function_single(int cpuid, void (*func) (void *info), void *info,
+				int wait);
+
 #ifdef CONFIG_SMP
 
 #include <linux/preempt.h>
@@ -79,8 +82,6 @@ smp_call_function_mask(cpumask_t mask, void(*func)(void *info), void *info,
 	return 0;
 }
 
-int smp_call_function_single(int cpuid, void (*func) (void *info), void *info,
-				int wait);
 void __smp_call_function_single(int cpuid, struct call_single_data *data);
 
 /*
@@ -140,14 +141,6 @@ static inline int up_smp_call_function(void (*func)(void *), void *info)
 static inline void smp_send_reschedule(int cpu) { }
 #define num_booting_cpus()			1
 #define smp_prepare_boot_cpu()			do {} while (0)
-#define smp_call_function_single(cpuid, func, info, wait) \
-({ \
-	WARN_ON(cpuid != 0);	\
-	local_irq_disable();	\
-	(func)(info);		\
-	local_irq_enable();	\
-	0;			\
-})
 #define smp_call_function_mask(mask, func, info, wait) \
 			(up_smp_call_function(func, info))
 #define smp_call_function_many(mask, func, info, wait) \

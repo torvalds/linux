@@ -210,6 +210,7 @@ static void do_usb_table(void *symval, unsigned long size,
 static int do_hid_entry(const char *filename,
 			     struct hid_device_id *id, char *alias)
 {
+	id->bus = TO_NATIVE(id->bus);
 	id->vendor = TO_NATIVE(id->vendor);
 	id->product = TO_NATIVE(id->product);
 
@@ -366,11 +367,17 @@ static void do_pnp_device_entry(void *symval, unsigned long size,
 
 	for (i = 0; i < count; i++) {
 		const char *id = (char *)devs[i].id;
+		char acpi_id[sizeof(devs[0].id)];
+		int j;
 
 		buf_printf(&mod->dev_table_buf,
 			   "MODULE_ALIAS(\"pnp:d%s*\");\n", id);
+
+		/* fix broken pnp bus lowercasing */
+		for (j = 0; j < sizeof(acpi_id); j++)
+			acpi_id[j] = toupper(id[j]);
 		buf_printf(&mod->dev_table_buf,
-			   "MODULE_ALIAS(\"acpi*:%s:*\");\n", id);
+			   "MODULE_ALIAS(\"acpi*:%s:*\");\n", acpi_id);
 	}
 }
 
@@ -416,10 +423,17 @@ static void do_pnp_card_entries(void *symval, unsigned long size,
 
 			/* add an individual alias for every device entry */
 			if (!dup) {
+				char acpi_id[sizeof(card->devs[0].id)];
+				int k;
+
 				buf_printf(&mod->dev_table_buf,
 					   "MODULE_ALIAS(\"pnp:d%s*\");\n", id);
+
+				/* fix broken pnp bus lowercasing */
+				for (k = 0; k < sizeof(acpi_id); k++)
+					acpi_id[k] = toupper(id[k]);
 				buf_printf(&mod->dev_table_buf,
-					   "MODULE_ALIAS(\"acpi*:%s:*\");\n", id);
+					   "MODULE_ALIAS(\"acpi*:%s:*\");\n", acpi_id);
 			}
 		}
 	}

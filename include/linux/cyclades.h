@@ -150,8 +150,6 @@ struct CYZ_BOOT_CTRL {
  *	architectures and compilers.
  */
 
-#include <asm/types.h>
-
 typedef __u64  ucdouble;		/* 64 bits, unsigned */
 typedef __u32  uclong;			/* 32 bits, unsigned */
 typedef __u16  ucshort;		/* 16 bits, unsigned */

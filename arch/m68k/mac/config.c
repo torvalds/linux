@@ -47,13 +47,6 @@
 
 struct mac_booter_data mac_bi_data;
 
-/* New m68k bootinfo stuff and videobase */
-
-extern int m68k_num_memory;
-extern struct mem_info m68k_memory[NUM_MEMINFO];
-
-extern struct mem_info m68k_ramdisk;
-
 /* The phys. video addr. - might be bogus on some machines */
 static unsigned long mac_orig_videoaddr;
 
@@ -61,7 +54,6 @@ static unsigned long mac_orig_videoaddr;
 extern unsigned long mac_gettimeoffset(void);
 extern int mac_hwclk(int, struct rtc_time *);
 extern int mac_set_clock_mmss(unsigned long);
-extern int show_mac_interrupts(struct seq_file *, void *);
 extern void iop_preinit(void);
 extern void iop_init(void);
 extern void via_init(void);
@@ -805,10 +797,6 @@ static void __init mac_identify(void)
 		mac_bi_data.boottime, mac_bi_data.gmtbias);
 	printk(KERN_DEBUG " Machine ID: %ld CPUid: 0x%lx memory size: 0x%lx \n",
 		mac_bi_data.id, mac_bi_data.cpuid, mac_bi_data.memsize);
-#if 0
-	printk("Ramdisk: addr 0x%lx size 0x%lx\n",
-		m68k_ramdisk.addr, m68k_ramdisk.size);
-#endif
 
 	iop_init();
 	via_init();

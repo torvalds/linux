@@ -62,6 +62,7 @@ typedef dma_addr_t ia64_mv_dma_map_single_attrs (struct device *, void *, size_t
 typedef void ia64_mv_dma_unmap_single_attrs (struct device *, dma_addr_t, size_t, int, struct dma_attrs *);
 typedef int ia64_mv_dma_map_sg_attrs (struct device *, struct scatterlist *, int, int, struct dma_attrs *);
 typedef void ia64_mv_dma_unmap_sg_attrs (struct device *, struct scatterlist *, int, int, struct dma_attrs *);
+typedef u64 ia64_mv_dma_get_required_mask (struct device *);
 
 /*
  * WARNING: The legacy I/O space is _architected_.  Platforms are
@@ -159,6 +160,7 @@ extern void machvec_tlb_migrate_finish (struct mm_struct *);
 #  define platform_dma_sync_sg_for_device ia64_mv.dma_sync_sg_for_device
 #  define platform_dma_mapping_error		ia64_mv.dma_mapping_error
 #  define platform_dma_supported	ia64_mv.dma_supported
+#  define platform_dma_get_required_mask ia64_mv.dma_get_required_mask
 #  define platform_irq_to_vector	ia64_mv.irq_to_vector
 #  define platform_local_vector_to_irq	ia64_mv.local_vector_to_irq
 #  define platform_pci_get_legacy_mem	ia64_mv.pci_get_legacy_mem
@@ -213,6 +215,7 @@ struct ia64_machine_vector {
 	ia64_mv_dma_sync_sg_for_device *dma_sync_sg_for_device;
 	ia64_mv_dma_mapping_error *dma_mapping_error;
 	ia64_mv_dma_supported *dma_supported;
+	ia64_mv_dma_get_required_mask *dma_get_required_mask;
 	ia64_mv_irq_to_vector *irq_to_vector;
 	ia64_mv_local_vector_to_irq *local_vector_to_irq;
 	ia64_mv_pci_get_legacy_mem_t *pci_get_legacy_mem;
@@ -263,6 +266,7 @@ struct ia64_machine_vector {
 	platform_dma_sync_sg_for_device,	\
 	platform_dma_mapping_error,			\
 	platform_dma_supported,			\
+	platform_dma_get_required_mask,		\
 	platform_irq_to_vector,			\
 	platform_local_vector_to_irq,		\
 	platform_pci_get_legacy_mem,		\
@@ -365,6 +369,9 @@ extern void machvec_init_from_cmdline(const char *cmdline);
 #endif
 #ifndef platform_dma_supported
 # define  platform_dma_supported	swiotlb_dma_supported
+#endif
+#ifndef platform_dma_get_required_mask
+# define  platform_dma_get_required_mask	ia64_dma_get_required_mask
 #endif
 #ifndef platform_irq_to_vector
 # define platform_irq_to_vector		__ia64_irq_to_vector

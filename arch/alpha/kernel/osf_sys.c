@@ -54,8 +54,7 @@ extern int do_pipe(int *);
  * identical to OSF as we don't return 0 on success, but doing otherwise
  * would require changes to libc.  Hopefully this is good enough.
  */
-asmlinkage unsigned long
-osf_brk(unsigned long brk)
+SYSCALL_DEFINE1(osf_brk, unsigned long, brk)
 {
 	unsigned long retval = sys_brk(brk);
 	if (brk && brk != retval)
@@ -66,9 +65,9 @@ osf_brk(unsigned long brk)
 /*
  * This is pure guess-work..
  */
-asmlinkage int
-osf_set_program_attributes(unsigned long text_start, unsigned long text_len,
-			   unsigned long bss_start, unsigned long bss_len)
+SYSCALL_DEFINE4(osf_set_program_attributes, unsigned long, text_start,
+		unsigned long, text_len, unsigned long, bss_start,
+		unsigned long, bss_len)
 {
 	struct mm_struct *mm;
 
@@ -146,9 +145,9 @@ Efault:
 	return -EFAULT;
 }
 
-asmlinkage int
-osf_getdirentries(unsigned int fd, struct osf_dirent __user *dirent,
-		  unsigned int count, long __user *basep)
+SYSCALL_DEFINE4(osf_getdirentries, unsigned int, fd,
+		struct osf_dirent __user *, dirent, unsigned int, count,
+		long __user *, basep)
 {
 	int error;
 	struct file *file;
@@ -177,9 +176,9 @@ osf_getdirentries(unsigned int fd, struct osf_dirent __user *dirent,
 
 #undef NAME_OFFSET
 
-asmlinkage unsigned long
-osf_mmap(unsigned long addr, unsigned long len, unsigned long prot,
-	 unsigned long flags, unsigned long fd, unsigned long off)
+SYSCALL_DEFINE6(osf_mmap, unsigned long, addr, unsigned long, len,
+		unsigned long, prot, unsigned long, flags, unsigned long, fd,
+		unsigned long, off)
 {
 	struct file *file = NULL;
 	unsigned long ret = -EBADF;
@@ -254,8 +253,8 @@ do_osf_statfs(struct dentry * dentry, struct osf_statfs __user *buffer,
 	return error;	
 }
 
-asmlinkage int
-osf_statfs(char __user *pathname, struct osf_statfs __user *buffer, unsigned long bufsiz)
+SYSCALL_DEFINE3(osf_statfs, char __user *, pathname,
+		struct osf_statfs __user *, buffer, unsigned long, bufsiz)
 {
 	struct path path;
 	int retval;
@@ -268,8 +267,8 @@ osf_statfs(char __user *pathname, struct osf_statfs __user *buffer, unsigned lon
 	return retval;
 }
 
-asmlinkage int
-osf_fstatfs(unsigned long fd, struct osf_statfs __user *buffer, unsigned long bufsiz)
+SYSCALL_DEFINE3(osf_fstatfs, unsigned long, fd,
+		struct osf_statfs __user *, buffer, unsigned long, bufsiz)
 {
 	struct file *file;
 	int retval;
@@ -368,8 +367,8 @@ osf_procfs_mount(char *dirname, struct procfs_args __user *args, int flags)
 	return do_mount("", dirname, "proc", flags, NULL);
 }
 
-asmlinkage int
-osf_mount(unsigned long typenr, char __user *path, int flag, void __user *data)
+SYSCALL_DEFINE4(osf_mount, unsigned long, typenr, char __user *, path,
+		int, flag, void __user *, data)
 {
 	int retval = -EINVAL;
 	char *name;
@@ -399,8 +398,7 @@ osf_mount(unsigned long typenr, char __user *path, int flag, void __user *data)
 	return retval;
 }
 
-asmlinkage int
-osf_utsname(char __user *name)
+SYSCALL_DEFINE1(osf_utsname, char __user *, name)
 {
 	int error;
 
@@ -423,14 +421,12 @@ osf_utsname(char __user *name)
 	return error;
 }
 
-asmlinkage unsigned long
-sys_getpagesize(void)
+SYSCALL_DEFINE0(getpagesize)
 {
 	return PAGE_SIZE;
 }
 
-asmlinkage unsigned long
-sys_getdtablesize(void)
+SYSCALL_DEFINE0(getdtablesize)
 {
 	return sysctl_nr_open;
 }
@@ -438,8 +434,7 @@ sys_getdtablesize(void)
 /*
  * For compatibility with OSF/1 only.  Use utsname(2) instead.
  */
-asmlinkage int
-osf_getdomainname(char __user *name, int namelen)
+SYSCALL_DEFINE2(osf_getdomainname, char __user *, name, int, namelen)
 {
 	unsigned len;
 	int i;
@@ -527,8 +522,8 @@ enum pl_code {
 	PL_DEL = 5, PL_FDEL = 6
 };
 
-asmlinkage long
-osf_proplist_syscall(enum pl_code code, union pl_args __user *args)
+SYSCALL_DEFINE2(osf_proplist_syscall, enum pl_code, code,
+		union pl_args __user *, args)
 {
 	long error;
 	int __user *min_buf_size_ptr;
@@ -567,8 +562,8 @@ osf_proplist_syscall(enum pl_code code, union pl_args __user *args)
 	return error;
 }
 
-asmlinkage int
-osf_sigstack(struct sigstack __user *uss, struct sigstack __user *uoss)
+SYSCALL_DEFINE2(osf_sigstack, struct sigstack __user *, uss,
+		struct sigstack __user *, uoss)
 {
 	unsigned long usp = rdusp();
 	unsigned long oss_sp = current->sas_ss_sp + current->sas_ss_size;
@@ -608,8 +603,7 @@ osf_sigstack(struct sigstack __user *uss, struct sigstack __user *uoss)
 	return error;
 }
 
-asmlinkage long
-osf_sysinfo(int command, char __user *buf, long count)
+SYSCALL_DEFINE3(osf_sysinfo, int, command, char __user *, buf, long, count)
 {
 	char *sysinfo_table[] = {
 		utsname()->sysname,
@@ -647,9 +641,8 @@ osf_sysinfo(int command, char __user *buf, long count)
 	return err;
 }
 
-asmlinkage unsigned long
-osf_getsysinfo(unsigned long op, void __user *buffer, unsigned long nbytes,
-	       int __user *start, void __user *arg)
+SYSCALL_DEFINE5(osf_getsysinfo, unsigned long, op, void __user *, buffer,
+		unsigned long, nbytes, int __user *, start, void __user *, arg)
 {
 	unsigned long w;
 	struct percpu_struct *cpu;
@@ -705,9 +698,8 @@ osf_getsysinfo(unsigned long op, void __user *buffer, unsigned long nbytes,
 	return -EOPNOTSUPP;
 }
 
-asmlinkage unsigned long
-osf_setsysinfo(unsigned long op, void __user *buffer, unsigned long nbytes,
-	       int __user *start, void __user *arg)
+SYSCALL_DEFINE5(osf_setsysinfo, unsigned long, op, void __user *, buffer,
+		unsigned long, nbytes, int __user *, start, void __user *, arg)
 {
 	switch (op) {
 	case SSI_IEEE_FP_CONTROL: {
@@ -880,8 +872,8 @@ jiffies_to_timeval32(unsigned long jiffies, struct timeval32 *value)
 	value->tv_sec = jiffies / HZ;
 }
 
-asmlinkage int
-osf_gettimeofday(struct timeval32 __user *tv, struct timezone __user *tz)
+SYSCALL_DEFINE2(osf_gettimeofday, struct timeval32 __user *, tv,
+		struct timezone __user *, tz)
 {
 	if (tv) {
 		struct timeval ktv;
@@ -896,8 +888,8 @@ osf_gettimeofday(struct timeval32 __user *tv, struct timezone __user *tz)
 	return 0;
 }
 
-asmlinkage int
-osf_settimeofday(struct timeval32 __user *tv, struct timezone __user *tz)
+SYSCALL_DEFINE2(osf_settimeofday, struct timeval32 __user *, tv,
+		struct timezone __user *, tz)
 {
 	struct timespec kts;
 	struct timezone ktz;
@@ -916,8 +908,7 @@ osf_settimeofday(struct timeval32 __user *tv, struct timezone __user *tz)
 	return do_sys_settimeofday(tv ? &kts : NULL, tz ? &ktz : NULL);
 }
 
-asmlinkage int
-osf_getitimer(int which, struct itimerval32 __user *it)
+SYSCALL_DEFINE2(osf_getitimer, int, which, struct itimerval32 __user *, it)
 {
 	struct itimerval kit;
 	int error;
@@ -929,8 +920,8 @@ osf_getitimer(int which, struct itimerval32 __user *it)
 	return error;
 }
 
-asmlinkage int
-osf_setitimer(int which, struct itimerval32 __user *in, struct itimerval32 __user *out)
+SYSCALL_DEFINE3(osf_setitimer, int, which, struct itimerval32 __user *, in,
+		struct itimerval32 __user *, out)
 {
 	struct itimerval kin, kout;
 	int error;
@@ -952,8 +943,8 @@ osf_setitimer(int which, struct itimerval32 __user *in, struct itimerval32 __use
 
 }
 
-asmlinkage int
-osf_utimes(char __user *filename, struct timeval32 __user *tvs)
+SYSCALL_DEFINE2(osf_utimes, char __user *, filename,
+		struct timeval32 __user *, tvs)
 {
 	struct timespec tv[2];
 
@@ -979,9 +970,8 @@ osf_utimes(char __user *filename, struct timeval32 __user *tvs)
 #define MAX_SELECT_SECONDS \
 	((unsigned long) (MAX_SCHEDULE_TIMEOUT / HZ)-1)
 
-asmlinkage int
-osf_select(int n, fd_set __user *inp, fd_set __user *outp, fd_set __user *exp,
-	   struct timeval32 __user *tvp)
+SYSCALL_DEFINE5(osf_select, int, n, fd_set __user *, inp, fd_set __user *, outp,
+		fd_set __user *, exp, struct timeval32 __user *, tvp)
 {
 	struct timespec end_time, *to = NULL;
 	if (tvp) {
@@ -1026,8 +1016,7 @@ struct rusage32 {
 	long	ru_nivcsw;		/* involuntary " */
 };
 
-asmlinkage int
-osf_getrusage(int who, struct rusage32 __user *ru)
+SYSCALL_DEFINE2(osf_getrusage, int, who, struct rusage32 __user *, ru)
 {
 	struct rusage32 r;
 
@@ -1053,9 +1042,8 @@ osf_getrusage(int who, struct rusage32 __user *ru)
 	return copy_to_user(ru, &r, sizeof(r)) ? -EFAULT : 0;
 }
 
-asmlinkage long
-osf_wait4(pid_t pid, int __user *ustatus, int options,
-	  struct rusage32 __user *ur)
+SYSCALL_DEFINE4(osf_wait4, pid_t, pid, int __user *, ustatus, int, options,
+		struct rusage32 __user *, ur)
 {
 	struct rusage r;
 	long ret, err;
@@ -1101,8 +1089,8 @@ osf_wait4(pid_t pid, int __user *ustatus, int options,
  * seems to be a timeval pointer, and I suspect the second
  * one is the time remaining.. Ho humm.. No documentation.
  */
-asmlinkage int
-osf_usleep_thread(struct timeval32 __user *sleep, struct timeval32 __user *remain)
+SYSCALL_DEFINE2(osf_usleep_thread, struct timeval32 __user *, sleep,
+		struct timeval32 __user *, remain)
 {
 	struct timeval tmp;
 	unsigned long ticks;
@@ -1155,8 +1143,7 @@ struct timex32 {
 	int  :32; int  :32; int  :32; int  :32;
 };
 
-asmlinkage int
-sys_old_adjtimex(struct timex32 __user *txc_p)
+SYSCALL_DEFINE1(old_adjtimex, struct timex32 __user *, txc_p)
 {
         struct timex txc;
 	int ret;
@@ -1267,8 +1254,8 @@ osf_fix_iov_len(const struct iovec __user *iov, unsigned long count)
 	return 0;
 }
 
-asmlinkage ssize_t
-osf_readv(unsigned long fd, const struct iovec __user * vector, unsigned long count)
+SYSCALL_DEFINE3(osf_readv, unsigned long, fd,
+		const struct iovec __user *, vector, unsigned long, count)
 {
 	if (unlikely(personality(current->personality) == PER_OSF4))
 		if (osf_fix_iov_len(vector, count))
@@ -1276,8 +1263,8 @@ osf_readv(unsigned long fd, const struct iovec __user * vector, unsigned long co
 	return sys_readv(fd, vector, count);
 }
 
-asmlinkage ssize_t
-osf_writev(unsigned long fd, const struct iovec __user * vector, unsigned long count)
+SYSCALL_DEFINE3(osf_writev, unsigned long, fd,
+		const struct iovec __user *, vector, unsigned long, count)
 {
 	if (unlikely(personality(current->personality) == PER_OSF4))
 		if (osf_fix_iov_len(vector, count))

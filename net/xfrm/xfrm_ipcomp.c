@@ -63,7 +63,6 @@ static int ipcomp_decompress(struct xfrm_state *x, struct sk_buff *skb)
 	if (len > skb_tailroom(skb))
 		len = skb_tailroom(skb);
 
-	skb->truesize += len;
 	__skb_put(skb, len);
 
 	len += plen;

@@ -432,6 +432,7 @@ static int map_sg_data(struct scsi_cmnd *cmd,
 				sdev_printk(KERN_ERR, cmd->device,
 				            "Can't allocate memory "
 				            "for indirect table\n");
+			scsi_dma_unmap(cmd);
 			return 0;
 		}
 	}
@@ -1061,7 +1062,7 @@ static int ibmvscsi_eh_abort_handler(struct scsi_cmnd *cmd)
 	}
 
 	sdev_printk(KERN_INFO, cmd->device,
-                    "aborting command. lun 0x%lx, tag 0x%lx\n",
+                    "aborting command. lun 0x%llx, tag 0x%llx\n",
 		    (((u64) lun) << 48), (u64) found_evt);
 
 	wait_for_completion(&evt->comp);
@@ -1082,7 +1083,7 @@ static int ibmvscsi_eh_abort_handler(struct scsi_cmnd *cmd)
 	if (rsp_rc) {
 		if (printk_ratelimit())
 			sdev_printk(KERN_WARNING, cmd->device,
-				    "abort code %d for task tag 0x%lx\n",
+				    "abort code %d for task tag 0x%llx\n",
 				    rsp_rc, tsk_mgmt->task_tag);
 		return FAILED;
 	}
@@ -1102,12 +1103,12 @@ static int ibmvscsi_eh_abort_handler(struct scsi_cmnd *cmd)
 
 	if (found_evt == NULL) {
 		spin_unlock_irqrestore(hostdata->host->host_lock, flags);
-		sdev_printk(KERN_INFO, cmd->device, "aborted task tag 0x%lx completed\n",
+		sdev_printk(KERN_INFO, cmd->device, "aborted task tag 0x%llx completed\n",
 			    tsk_mgmt->task_tag);
 		return SUCCESS;
 	}
 
-	sdev_printk(KERN_INFO, cmd->device, "successfully aborted task tag 0x%lx\n",
+	sdev_printk(KERN_INFO, cmd->device, "successfully aborted task tag 0x%llx\n",
 		    tsk_mgmt->task_tag);
 
 	cmd->result = (DID_ABORT << 16);
@@ -1182,7 +1183,7 @@ static int ibmvscsi_eh_device_reset_handler(struct scsi_cmnd *cmd)
 		return FAILED;
 	}
 
-	sdev_printk(KERN_INFO, cmd->device, "resetting device. lun 0x%lx\n",
+	sdev_printk(KERN_INFO, cmd->device, "resetting device. lun 0x%llx\n",
 		    (((u64) lun) << 48));
 
 	wait_for_completion(&evt->comp);
@@ -1203,7 +1204,7 @@ static int ibmvscsi_eh_device_reset_handler(struct scsi_cmnd *cmd)
 	if (rsp_rc) {
 		if (printk_ratelimit())
 			sdev_printk(KERN_WARNING, cmd->device,
-				    "reset code %d for task tag 0x%lx\n",
+				    "reset code %d for task tag 0x%llx\n",
 				    rsp_rc, tsk_mgmt->task_tag);
 		return FAILED;
 	}

@@ -27,7 +27,6 @@
 #include <asm/macints.h>
 
 extern unsigned long mac_videobase;
-extern unsigned long mac_videodepth;
 extern unsigned long mac_rowbytes;
 
 extern void mac_serial_print(const char *);

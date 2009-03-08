@@ -577,9 +577,6 @@ static void neo_parse_modem(struct jsm_channel *ch, u8 signals)
 	jsm_printk(MSIGS, INFO, &ch->ch_bd->pci_dev,
 			"neo_parse_modem: port: %d msignals: %x\n", ch->ch_portnum, msignals);
 
-	if (!ch)
-		return;
-
 	/* Scrub off lower bits. They signify delta's, which I don't care about */
 	/* Keep DDCD and DDSR though */
 	msignals &= 0xf8;

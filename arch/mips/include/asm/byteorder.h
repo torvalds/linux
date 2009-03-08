@@ -8,8 +8,6 @@
 #ifndef _ASM_BYTEORDER_H
 #define _ASM_BYTEORDER_H
 
-#include <asm/swab.h>
-
 #if defined(__MIPSEB__)
 #include <linux/byteorder/big_endian.h>
 #elif defined(__MIPSEL__)

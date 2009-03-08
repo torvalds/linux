@@ -31,6 +31,26 @@
  * to be reused. Garbage collection will cause the number of dirty index nodes
  * to grow, however sufficient space is reserved for the index to ensure the
  * commit will never run out of space.
+ *
+ * Notes about dead watermark. At current UBIFS implementation we assume that
+ * LEBs which have less than @c->dead_wm bytes of free + dirty space are full
+ * and not worth garbage-collecting. The dead watermark is one min. I/O unit
+ * size, or min. UBIFS node size, depending on what is greater. Indeed, UBIFS
+ * Garbage Collector has to synchronize the GC head's write buffer before
+ * returning, so this is about wasting one min. I/O unit. However, UBIFS GC can
+ * actually reclaim even very small pieces of dirty space by garbage collecting
+ * enough dirty LEBs, but we do not bother doing this at this implementation.
+ *
+ * Notes about dark watermark. The results of GC work depends on how big are
+ * the UBIFS nodes GC deals with. Large nodes make GC waste more space. Indeed,
+ * if GC move data from LEB A to LEB B and nodes in LEB A are large, GC would
+ * have to waste large pieces of free space at the end of LEB B, because nodes
+ * from LEB A would not fit. And the worst situation is when all nodes are of
+ * maximum size. So dark watermark is the amount of free + dirty space in LEB
+ * which are guaranteed to be reclaimable. If LEB has less space, the GC migh
+ * be unable to reclaim it. So, LEBs with free + dirty greater than dark
+ * watermark are "good" LEBs from GC's point of few. The other LEBs are not so
+ * good, and GC takes extra care when moving them.
  */
 
 #include <linux/pagemap.h>
@@ -381,7 +401,7 @@ int ubifs_garbage_collect_leb(struct ubifs_info *c, struct ubifs_lprops *lp)
 
 		/*
 		 * Don't release the LEB until after the next commit, because
-		 * it may contain date which is needed for recovery. So
+		 * it may contain data which is needed for recovery. So
 		 * although we freed this LEB, it will become usable only after
 		 * the commit.
 		 */
@@ -810,8 +830,9 @@ out:
  * ubifs_destroy_idx_gc - destroy idx_gc list.
  * @c: UBIFS file-system description object
  *
- * This function destroys the idx_gc list. It is called when unmounting or
- * remounting read-only so locks are not needed.
+ * This function destroys the @c->idx_gc list. It is called when unmounting
+ * so locks are not needed. Returns zero in case of success and a negative
+ * error code in case of failure.
  */
 void ubifs_destroy_idx_gc(struct ubifs_info *c)
 {
@@ -824,7 +845,6 @@ void ubifs_destroy_idx_gc(struct ubifs_info *c)
 		list_del(&idx_gc->list);
 		kfree(idx_gc);
 	}
-
 }
 
 /**
