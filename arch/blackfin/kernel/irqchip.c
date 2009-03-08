@@ -144,11 +144,15 @@ asmlinkage void asm_do_IRQ(unsigned int irq, struct pt_regs *regs)
 #endif
 	generic_handle_irq(irq);
 
-#ifndef CONFIG_IPIPE	/* Useless and bugous over the I-pipe: IRQs are threaded. */
-	/* If we're the only interrupt running (ignoring IRQ15 which is for
-	   syscalls), lower our priority to IRQ14 so that softirqs run at
-	   that level.  If there's another, lower-level interrupt, irq_exit
-	   will defer softirqs to that.  */
+#ifndef CONFIG_IPIPE
+	/*
+	 * If we're the only interrupt running (ignoring IRQ15 which
+	 * is for syscalls), lower our priority to IRQ14 so that
+	 * softirqs run at that level.  If there's another,
+	 * lower-level interrupt, irq_exit will defer softirqs to
+	 * that. If the interrupt pipeline is enabled, we are already
+	 * running at IRQ14 priority, so we don't need this code.
+	 */
 	CSYNC();
 	pending = bfin_read_IPEND() & ~0x8000;
 	other_ints = pending & (pending - 1);
