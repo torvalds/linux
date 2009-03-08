@@ -51,11 +51,6 @@
 
 #include "wm8753.h"
 
-#ifdef CONFIG_SPI_MASTER
-static struct spi_driver wm8753_spi_driver;
-static int wm8753_spi_write(struct spi_device *spi, const char *data, int len);
-#endif
-
 static int caps_charge = 2000;
 module_param(caps_charge, int, 0);
 MODULE_PARM_DESC(caps_charge, "WM8753 cap charge time (msecs)");
