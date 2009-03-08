@@ -40,6 +40,8 @@ config VIDEO_SAA7134_DVB
 	select MEDIA_TUNER_SIMPLE if !MEDIA_TUNER_CUSTOMIZE
 	select DVB_ZL10036 if !DVB_FE_CUSTOMISE
 	select DVB_MT312 if !DVB_FE_CUSTOMISE
+	select DVB_LNBP21 if !DVB_FE_CUSTOMISE
+	select DVB_ZL10353 if !DVB_FE_CUSTOMISE
 	---help---
 	  This adds support for DVB cards based on the
 	  Philips saa7134 chip.

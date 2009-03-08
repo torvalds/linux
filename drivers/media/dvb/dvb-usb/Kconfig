@@ -96,6 +96,7 @@ config DVB_USB_UMT_010
 	select DVB_PLL if !DVB_FE_CUSTOMISE
 	select DVB_DIB3000MC
 	select MEDIA_TUNER_MT2060 if !MEDIA_TUNER_CUSTOMIZE
+	select DVB_MT352 if !DVB_FE_CUSTOMISE
 	help
 	  Say Y here to support the HanfTek UMT-010 USB2.0 stick-sized DVB-T receiver.
 
