@@ -473,6 +473,7 @@ void pcie_port_device_remove(struct pci_dev *dev)
 	struct pcie_port_data *port_data = pci_get_drvdata(dev);
 
 	device_for_each_child(&dev->dev, NULL, remove_iter);
+	pci_disable_device(dev);
 
 	switch (port_data->port_irq_mode) {
 	case PCIE_PORT_MSIX_MODE:
