@@ -1584,8 +1584,8 @@ zoran_init_hardware (struct zoran *zr)
 	route.input = zr->card.input[zr->input].muxsel;
 
 	decoder_call(zr, core, init, 0);
-	decoder_s_std(zr, zr->norm);
-	decoder_s_routing(zr, &route);
+	decoder_call(zr, tuner, s_std, zr->norm);
+	decoder_call(zr, video, s_routing, &route);
 
 	encoder_call(zr, core, init, 0);
 	encoder_call(zr, video, s_std_output, zr->norm);
@@ -1649,36 +1649,4 @@ zr36057_init_vfe (struct zoran *zr)
 	else
 		reg |= ZR36057_VDCR_Triton;
 	btwrite(reg, ZR36057_VDCR);
-}
-
-/*
- * Interface to decoder and encoder chips using i2c bus
- */
-
-int decoder_s_std(struct zoran *zr, v4l2_std_id std)
-{
-	int res;
-
-	/* Bt819 needs to reset its FIFO buffer using #FRST pin and
-	   LML33 card uses GPIO(7) for that. */
-	if (zr->card.type == LML33)
-		GPIO(zr, 7, 0);
-	res = decoder_call(zr, tuner, s_std, std);
-	if (zr->card.type == LML33)
-		GPIO(zr, 7, 1); /* Pull #FRST high. */
-	return res;
-}
-
-int decoder_s_routing(struct zoran *zr, struct v4l2_routing *route)
-{
-	int res;
-
-	/* Bt819 needs to reset its FIFO buffer using #FRST pin and
-	   LML33 card uses GPIO(7) for that. */
-	if (zr->card.type == LML33)
-		GPIO(zr, 7, 0);
-	res = decoder_call(zr, video, s_routing, route);
-	if (zr->card.type == LML33)
-		GPIO(zr, 7, 1); /* Pull #FRST high. */
-	return res;
 }

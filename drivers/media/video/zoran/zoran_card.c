@@ -39,7 +39,6 @@
 #include <linux/i2c.h>
 #include <linux/i2c-algo-bit.h>
 #include <linux/videodev2.h>
-#include <media/v4l2-common.h>
 #include <linux/spinlock.h>
 #include <linux/sem.h>
 #include <linux/kmod.h>
@@ -48,8 +47,9 @@
 #include <linux/pci.h>
 #include <linux/interrupt.h>
 #include <linux/mutex.h>
-
-#include <asm/io.h>
+#include <linux/io.h>
+#include <media/v4l2-common.h>
+#include <media/bt819.h>
 
 #include "videocodec.h"
 #include "zoran.h"
@@ -1196,6 +1196,19 @@ zoran_setup_videocodec (struct zoran *zr,
 	return m;
 }
 
+static int zoran_subdev_notify(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
+{
+	struct zoran *zr = to_zoran(sd->v4l2_dev);
+
+	/* Bt819 needs to reset its FIFO buffer using #FRST pin and
+	   LML33 card uses GPIO(7) for that. */
+	if (cmd == BT819_FIFO_RESET_LOW)
+		GPIO(zr, 7, 0);
+	else if (cmd == BT819_FIFO_RESET_HIGH)
+		GPIO(zr, 7, 1);
+	return 0;
+}
+
 /*
  *   Scan for a Buz card (actually for the PCI controller ZR36057),
  *   request the irq and map the io memory
@@ -1226,6 +1239,7 @@ static int __devinit zoran_probe(struct pci_dev *pdev,
 			ZORAN_NAME, __func__);
 		return -ENOMEM;
 	}
+	zr->v4l2_dev.notify = zoran_subdev_notify;
 	if (v4l2_device_register(&pdev->dev, &zr->v4l2_dev))
 		goto zr_free_mem;
 	zr->pci_dev = pdev;
