@@ -34,11 +34,6 @@
 
 
 
-#include "pvrusb2-i2c-track.h"
-
-int pvr2_i2c_cx2584x_v4l_setup(struct pvr2_hdw *,struct pvr2_i2c_client *);
-
-
 #include "pvrusb2-hdw-internal.h"
 
 void pvr2_cx25840_subdev_update(struct pvr2_hdw *, struct v4l2_subdev *sd);

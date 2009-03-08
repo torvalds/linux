@@ -20,7 +20,6 @@
 
 #include <linux/i2c.h>
 #include "pvrusb2-i2c-core.h"
-#include "pvrusb2-i2c-track.h"
 #include "pvrusb2-hdw-internal.h"
 #include "pvrusb2-debug.h"
 #include "pvrusb2-fx2-cmd.h"
@@ -523,13 +522,11 @@ static u32 pvr2_i2c_functionality(struct i2c_adapter *adap)
 
 static int pvr2_i2c_attach_inform(struct i2c_client *client)
 {
-	pvr2_i2c_track_attach_inform(client);
 	return 0;
 }
 
 static int pvr2_i2c_detach_inform(struct i2c_client *client)
 {
-	pvr2_i2c_track_detach_inform(client);
 	return 0;
 }
 
@@ -607,7 +604,6 @@ void pvr2_i2c_core_init(struct pvr2_hdw *hdw)
 	hdw->i2c_adap.dev.parent = &hdw->usb_dev->dev;
 	hdw->i2c_adap.algo = &hdw->i2c_algo;
 	hdw->i2c_adap.algo_data = hdw;
-	hdw->i2c_adap.class = I2C_CLASS_TV_ANALOG;
 	hdw->i2c_linked = !0;
 	i2c_set_adapdata(&hdw->i2c_adap, &hdw->v4l2_dev);
 	i2c_add_adapter(&hdw->i2c_adap);

@@ -30,8 +30,6 @@
 #include "pvrusb2-util.h"
 #include "pvrusb2-hdw.h"
 #include "pvrusb2-i2c-core.h"
-#include "pvrusb2-i2c-track.h"
-#include "pvrusb2-tuner.h"
 #include "pvrusb2-eeprom.h"
 #include "pvrusb2-hdw-internal.h"
 #include "pvrusb2-encoder.h"
@@ -313,7 +311,6 @@ static int pvr2_hdw_set_input(struct pvr2_hdw *hdw,int v);
 static void pvr2_hdw_state_sched(struct pvr2_hdw *);
 static int pvr2_hdw_state_eval(struct pvr2_hdw *);
 static void pvr2_hdw_set_cur_freq(struct pvr2_hdw *,unsigned long);
-static void pvr2_hdw_worker_i2c(struct work_struct *work);
 static void pvr2_hdw_worker_poll(struct work_struct *work);
 static int pvr2_hdw_wait(struct pvr2_hdw *,int state);
 static int pvr2_hdw_untrip_unlocked(struct pvr2_hdw *);
@@ -1676,10 +1673,6 @@ static const char *pvr2_get_state_name(unsigned int st)
 
 static int pvr2_decoder_enable(struct pvr2_hdw *hdw,int enablefl)
 {
-	if (hdw->decoder_ctrl) {
-		hdw->decoder_ctrl->enable(hdw->decoder_ctrl->ctxt, enablefl);
-		return 0;
-	}
 	/* Even though we really only care about the video decoder chip at
 	   this point, we'll broadcast stream on/off to all sub-devices
 	   anyway, just in case somebody else wants to hear the
@@ -1701,21 +1694,6 @@ static int pvr2_decoder_enable(struct pvr2_hdw *hdw,int enablefl)
 			    hdw->flag_decoder_missed);
 	}
 	return -EIO;
-}
-
-
-void pvr2_hdw_set_decoder(struct pvr2_hdw *hdw,struct pvr2_decoder_ctrl *ptr)
-{
-	if (hdw->decoder_ctrl == ptr) return;
-	hdw->decoder_ctrl = ptr;
-	if (hdw->decoder_ctrl && hdw->flag_decoder_missed) {
-		hdw->flag_decoder_missed = 0;
-		trace_stbit("flag_decoder_missed",
-			    hdw->flag_decoder_missed);
-		pvr2_trace(PVR2_TRACE_ERROR_LEGS,
-			   "Decoder has appeared");
-		pvr2_hdw_state_sched(hdw);
-	}
 }
 
 
@@ -2052,7 +2030,6 @@ static int pvr2_hdw_load_subdev(struct pvr2_hdw *hdw,
 	 * and every other place where I can find examples of this, the
 	 * "chipid" appears to just be the module name again.  So here we
 	 * just do the same thing. */
-	hdw->i2c_adap.class = 0;
 	if (i2ccnt == 1) {
 		pvr2_trace(PVR2_TRACE_INIT,
 			   "Module ID %u:"
@@ -2070,7 +2047,6 @@ static int pvr2_hdw_load_subdev(struct pvr2_hdw *hdw,
 						fname, fname,
 						i2caddr);
 	}
-	hdw->i2c_adap.class = I2C_CLASS_TV_ANALOG;
 
 	if (!sd) {
 		pvr2_trace(PVR2_TRACE_ERROR_LEGS,
@@ -2084,11 +2060,6 @@ static int pvr2_hdw_load_subdev(struct pvr2_hdw *hdw,
 	   requires special handling. */
 	sd->grp_id = mid;
 
-	/* If we have both old and new i2c layers enabled, make sure that
-	   old layer isn't also tracking this module.  This is a debugging
-	   aid, in normal situations there's no reason for both mechanisms
-	   to be enabled. */
-	pvr2_i2c_untrack_subdev(hdw, sd);
 	pvr2_trace(PVR2_TRACE_INFO, "Attached sub-driver %s", fname);
 
 
@@ -2204,7 +2175,6 @@ static void pvr2_hdw_setup_low(struct pvr2_hdw *hdw)
 	}
 
 	// This step MUST happen after the earlier powerup step.
-	pvr2_i2c_track_init(hdw);
 	pvr2_i2c_core_init(hdw);
 	if (!pvr2_hdw_dev_ok(hdw)) return;
 
@@ -2271,7 +2241,6 @@ static void pvr2_hdw_setup_low(struct pvr2_hdw *hdw)
 			   hdw->tuner_type);
 	}
 
-	pvr2_i2c_core_check_stale(hdw);
 
 	if (!pvr2_hdw_dev_ok(hdw)) return;
 
@@ -2628,7 +2597,6 @@ struct pvr2_hdw *pvr2_hdw_create(struct usb_interface *intf,
 
 	hdw->workqueue = create_singlethread_workqueue(hdw->name);
 	INIT_WORK(&hdw->workpoll,pvr2_hdw_worker_poll);
-	INIT_WORK(&hdw->worki2csync,pvr2_hdw_worker_i2c);
 
 	pvr2_trace(PVR2_TRACE_INIT,"Driver unit number is %d, name is %s",
 		   hdw->unit_number,hdw->name);
@@ -2731,11 +2699,7 @@ void pvr2_hdw_destroy(struct pvr2_hdw *hdw)
 		pvr2_stream_destroy(hdw->vid_stream);
 		hdw->vid_stream = NULL;
 	}
-	if (hdw->decoder_ctrl) {
-		hdw->decoder_ctrl->detach(hdw->decoder_ctrl->ctxt);
-	}
 	pvr2_i2c_core_done(hdw);
-	pvr2_i2c_track_done(hdw);
 	v4l2_device_unregister(&hdw->v4l2_dev);
 	pvr2_hdw_remove_usb_stuff(hdw);
 	mutex_lock(&pvr2_unit_mtx); do {
@@ -3238,12 +3202,6 @@ static int pvr2_hdw_commit_execute(struct pvr2_hdw *hdw)
 		cx2341x_ext_ctrls(&hdw->enc_ctl_state, 0, &cs,VIDIOC_S_EXT_CTRLS);
 	}
 
-	/* Scan i2c core at this point - before we clear all the dirty
-	   bits.  Various parts of the i2c core will notice dirty bits as
-	   appropriate and arrange to broadcast or directly send updates to
-	   the client drivers in order to keep everything in sync */
-	pvr2_i2c_core_check_stale(hdw);
-
 	if (hdw->active_stream_type != hdw->desired_stream_type) {
 		/* Handle any side effects of stream config here */
 		hdw->active_stream_type = hdw->desired_stream_type;
@@ -3274,9 +3232,6 @@ static int pvr2_hdw_commit_execute(struct pvr2_hdw *hdw)
 		cptr->info->clear_dirty(cptr);
 	}
 
-	/* Now execute i2c core update */
-	pvr2_i2c_core_sync(hdw);
-
 	if ((hdw->pathway_state == PVR2_PATHWAY_ANALOG) &&
 	    hdw->state_encoder_run) {
 		/* If encoder isn't running or it can't be touched, then
@@ -3302,15 +3257,6 @@ int pvr2_hdw_commit_ctl(struct pvr2_hdw *hdw)
 	LOCK_GIVE(hdw->big_lock);
 	if (!fl) return 0;
 	return pvr2_hdw_wait(hdw,0);
-}
-
-
-static void pvr2_hdw_worker_i2c(struct work_struct *work)
-{
-	struct pvr2_hdw *hdw = container_of(work,struct pvr2_hdw,worki2csync);
-	LOCK_TAKE(hdw->big_lock); do {
-		pvr2_i2c_core_sync(hdw);
-	} while (0); LOCK_GIVE(hdw->big_lock);
 }
 
 
@@ -3431,10 +3377,6 @@ void pvr2_hdw_trigger_module_log(struct pvr2_hdw *hdw)
 	int nr = pvr2_hdw_get_unit_number(hdw);
 	LOCK_TAKE(hdw->big_lock); do {
 		printk(KERN_INFO "pvrusb2: =================  START STATUS CARD #%d  =================\n", nr);
-		hdw->log_requested = !0;
-		pvr2_i2c_core_check_stale(hdw);
-		pvr2_i2c_core_sync(hdw);
-		hdw->log_requested = 0;
 		v4l2_device_call_all(&hdw->v4l2_dev, 0, core, log_status);
 		pvr2_trace(PVR2_TRACE_INFO,"cx2341x config:");
 		cx2341x_log_status(&hdw->enc_ctl_state, "pvrusb2");
@@ -4120,16 +4062,6 @@ int pvr2_hdw_cmd_decoder_reset(struct pvr2_hdw *hdw)
 {
 	pvr2_trace(PVR2_TRACE_INIT,
 		   "Requesting decoder reset");
-	if (hdw->decoder_ctrl) {
-		if (!hdw->decoder_ctrl->force_reset) {
-			pvr2_trace(PVR2_TRACE_INIT,
-				   "Unable to reset decoder: not implemented");
-			return -ENOTTY;
-		}
-		hdw->decoder_ctrl->force_reset(hdw->decoder_ctrl->ctxt);
-		return 0;
-	} else {
-	}
 	if (hdw->decoder_client_id) {
 		v4l2_device_call_all(&hdw->v4l2_dev, hdw->decoder_client_id,
 				     core, reset, 0);
@@ -5138,7 +5070,6 @@ void pvr2_hdw_status_poll(struct pvr2_hdw *hdw)
 	struct v4l2_tuner *vtp = &hdw->tuner_signal_info;
 	memset(vtp, 0, sizeof(*vtp));
 	hdw->tuner_signal_stale = 0;
-	pvr2_i2c_core_status_poll(hdw);
 	/* Note: There apparently is no replacement for VIDIOC_CROPCAP
 	   using v4l2-subdev - therefore we can't support that AT ALL right
 	   now.  (Of course, no sub-drivers seem to implement it either.
@@ -5253,7 +5184,6 @@ int pvr2_hdw_register_access(struct pvr2_hdw *hdw,
 			     int setFl, u64 *val_ptr)
 {
 #ifdef CONFIG_VIDEO_ADV_DEBUG
-	struct pvr2_i2c_client *cp;
 	struct v4l2_dbg_register req;
 	int stat = 0;
 	int okFl = 0;
@@ -5266,21 +5196,6 @@ int pvr2_hdw_register_access(struct pvr2_hdw *hdw,
 	/* It would be nice to know if a sub-device answered the request */
 	v4l2_device_call_all(&hdw->v4l2_dev, 0, core, g_register, &req);
 	if (!setFl) *val_ptr = req.val;
-	if (!okFl) mutex_lock(&hdw->i2c_list_lock); do {
-		list_for_each_entry(cp, &hdw->i2c_clients, list) {
-			if (!v4l2_chip_match_i2c_client(
-				    cp->client,
-				    &req.match)) {
-				continue;
-			}
-			stat = pvr2_i2c_client_cmd(
-				cp,(setFl ? VIDIOC_DBG_S_REGISTER :
-				    VIDIOC_DBG_G_REGISTER),&req);
-			if (!setFl) *val_ptr = req.val;
-			okFl = !0;
-			break;
-		}
-	} while (0); mutex_unlock(&hdw->i2c_list_lock);
 	if (okFl) {
 		return stat;
 	}

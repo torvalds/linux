@@ -138,22 +138,6 @@ struct pvr2_ctrl {
 };
 
 
-struct pvr2_decoder_ctrl {
-	void *ctxt;
-	void (*detach)(void *);
-	void (*enable)(void *,int);
-	void (*force_reset)(void *);
-};
-
-#define PVR2_I2C_PEND_DETECT  0x01  /* Need to detect a client type */
-#define PVR2_I2C_PEND_CLIENT  0x02  /* Client needs a specific update */
-#define PVR2_I2C_PEND_REFRESH 0x04  /* Client has specific pending bits */
-#define PVR2_I2C_PEND_STALE   0x08  /* Broadcast pending bits */
-
-#define PVR2_I2C_PEND_ALL (PVR2_I2C_PEND_DETECT |\
-			   PVR2_I2C_PEND_CLIENT |\
-			   PVR2_I2C_PEND_REFRESH |\
-			   PVR2_I2C_PEND_STALE)
 
 /* Disposition of firmware1 loading situation */
 #define FW1_STATE_UNKNOWN 0
@@ -187,7 +171,6 @@ struct pvr2_hdw {
 	/* Kernel worker thread handling */
 	struct workqueue_struct *workqueue;
 	struct work_struct workpoll;     /* Update driver state */
-	struct work_struct worki2csync;  /* Update i2c clients */
 
 	/* Video spigot */
 	struct pvr2_stream *vid_stream;
@@ -216,12 +199,6 @@ struct pvr2_hdw {
 	pvr2_i2c_func i2c_func[PVR2_I2C_FUNC_CNT];
 	int i2c_cx25840_hack_state;
 	int i2c_linked;
-	unsigned int i2c_pend_types;    /* Which types of update are needed */
-	unsigned long i2c_pend_mask;    /* Change bits we need to scan */
-	unsigned long i2c_stale_mask;   /* Pending broadcast change bits */
-	unsigned long i2c_active_mask;  /* All change bits currently in use */
-	struct list_head i2c_clients;
-	struct mutex i2c_list_lock;
 
 	/* Frequency table */
 	unsigned int freqTable[FREQTABLE_SIZE];
@@ -297,17 +274,12 @@ struct pvr2_hdw {
 	int flag_decoder_missed;/* We've noticed missing decoder */
 	int flag_tripped;       /* Indicates overall failure to start */
 
-	struct pvr2_decoder_ctrl *decoder_ctrl;
 	unsigned int decoder_client_id;
 
 	// CPU firmware info (used to help find / save firmware data)
 	char *fw_buffer;
 	unsigned int fw_size;
 	int fw_cpu_flag; /* True if we are dealing with the CPU */
-
-	// True if there is a request to trigger logging of state in each
-	// module.
-	int log_requested;
 
 	/* Tuner / frequency control stuff */
 	unsigned int tuner_type;
@@ -406,7 +378,6 @@ struct pvr2_hdw {
 
 /* This function gets the current frequency */
 unsigned long pvr2_hdw_get_cur_freq(struct pvr2_hdw *);
-void pvr2_hdw_set_decoder(struct pvr2_hdw *,struct pvr2_decoder_ctrl *);
 
 void pvr2_hdw_status_poll(struct pvr2_hdw *);
 
