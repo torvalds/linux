@@ -952,10 +952,6 @@ static long pvr2_v4l2_ioctl(struct file *file,
 			   unsigned int cmd, unsigned long arg)
 {
 
-/* Temporary hack : use ivtv api until a v4l2 one is available. */
-#define IVTV_IOC_G_CODEC        0xFFEE7703
-#define IVTV_IOC_S_CODEC        0xFFEE7704
-	if (cmd == IVTV_IOC_G_CODEC || cmd == IVTV_IOC_S_CODEC) return 0;
 	return video_usercopy(file, cmd, arg, pvr2_v4l2_do_ioctl);
 }
 
