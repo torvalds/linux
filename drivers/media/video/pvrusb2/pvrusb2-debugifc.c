@@ -147,7 +147,7 @@ int pvr2_debugifc_print_info(struct pvr2_hdw *hdw,char *buf,unsigned int acnt)
 	bcnt += ccnt; acnt -= ccnt; buf += ccnt;
 	ccnt = pvr2_hdw_state_report(hdw,buf,acnt);
 	bcnt += ccnt; acnt -= ccnt; buf += ccnt;
-	ccnt = scnprintf(buf,acnt,"Attached I2C modules:\n");
+	ccnt = scnprintf(buf, acnt, "Attached old-style I2C modules:\n");
 	bcnt += ccnt; acnt -= ccnt; buf += ccnt;
 	ccnt = pvr2_i2c_report(hdw,buf,acnt);
 	bcnt += ccnt; acnt -= ccnt; buf += ccnt;
