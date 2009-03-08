@@ -1796,11 +1796,12 @@ static long __video_do_ioctl(struct file *file,
 static unsigned long cmd_input_size(unsigned int cmd)
 {
 	/* Size of structure up to and including 'field' */
-#define CMDINSIZE(cmd, type, field) case _IOC_NR(VIDIOC_##cmd): return \
-		offsetof(struct v4l2_##type, field) + \
-		sizeof(((struct v4l2_##type *)0)->field);
+#define CMDINSIZE(cmd, type, field) 				\
+	case VIDIOC_##cmd: 					\
+		return offsetof(struct v4l2_##type, field) + 	\
+			sizeof(((struct v4l2_##type *)0)->field);
 
-	switch (_IOC_NR(cmd)) {
+	switch (cmd) {
 		CMDINSIZE(ENUM_FMT,		fmtdesc,	type);
 		CMDINSIZE(G_FMT,		format,		type);
 		CMDINSIZE(QUERYBUF,		buffer,		type);
