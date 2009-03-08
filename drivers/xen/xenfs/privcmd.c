@@ -310,6 +310,8 @@ static int mmap_return_errors(void *data, void *state)
 	return 0;
 }
 
+static struct vm_operations_struct privcmd_vm_ops;
+
 static long privcmd_ioctl_mmap_batch(void __user *udata)
 {
 	int ret;
@@ -341,6 +343,7 @@ static long privcmd_ioctl_mmap_batch(void __user *udata)
 	vma = find_vma(mm, m.addr);
 	ret = -EINVAL;
 	if (!vma ||
+	    vma->vm_ops != &privcmd_vm_ops ||
 	    (m.addr != vma->vm_start) ||
 	    ((m.addr + (nr_pages << PAGE_SHIFT)) != vma->vm_end) ||
 	    !privcmd_enforce_singleshot_mapping(vma)) {
