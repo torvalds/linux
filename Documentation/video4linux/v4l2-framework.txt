@@ -94,6 +94,11 @@ usb_device or platform_device. It is rare for dev to be NULL, but it happens
 with ISA devices or when one device creates multiple PCI devices, thus making
 it impossible to associate v4l2_dev with a particular parent.
 
+You can also supply a notify() callback that can be called by sub-devices to
+notify you of events. Whether you need to set this depends on the sub-device.
+Any notifications a sub-device supports must be defined in a header in
+include/media/<subdevice>.h.
+
 You unregister with:
 
 	v4l2_device_unregister(struct v4l2_device *v4l2_dev);
@@ -280,6 +285,11 @@ user want to change the volume. You can set the group ID for that subdev to
 e.g. AUDIO_CONTROLLER and specify that as the group ID value when calling
 v4l2_device_call_all(). That ensures that it will only go to the subdev
 that needs it.
+
+If the sub-device needs to notify its v4l2_device parent of an event, then
+it can call v4l2_subdev_notify(sd, notification, arg). This macro checks
+whether there is a notify() callback defined and returns -ENODEV if not.
+Otherwise the result of the notify() call is returned.
 
 The advantage of using v4l2_subdev is that it is a generic struct and does
 not contain any knowledge about the underlying hardware. So a driver might

@@ -191,4 +191,9 @@ static inline void v4l2_subdev_init(struct v4l2_subdev *sd,
 	(!(sd) ? -ENODEV : (((sd) && (sd)->ops->o && (sd)->ops->o->f) ?	\
 		(sd)->ops->o->f((sd) , ##args) : -ENOIOCTLCMD))
 
+/* Send a notification to v4l2_device. */
+#define v4l2_subdev_notify(sd, notification, arg)			   \
+	((!(sd) || !(sd)->v4l2_dev || !(sd)->v4l2_dev->notify) ? -ENODEV : \
+	 (sd)->v4l2_dev->notify((sd), (notification), (arg)))
+
 #endif

@@ -44,6 +44,9 @@ struct v4l2_device {
 	spinlock_t lock;
 	/* unique device name, by default the driver name + bus ID */
 	char name[V4L2_DEVICE_NAME_SIZE];
+	/* notify callback called by some sub-devices. */
+	void (*notify)(struct v4l2_subdev *sd,
+			unsigned int notification, void *arg);
 };
 
 /* Initialize v4l2_dev and make dev->driver_data point to v4l2_dev.
