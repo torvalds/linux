@@ -3495,12 +3495,14 @@ w9968cf_usb_probe(struct usb_interface* intf, const struct usb_device_id* id)
 	if (!cam)
 		return -ENOMEM;
 
+	err = v4l2_device_register(&udev->dev, &cam->v4l2_dev);
+	if (err)
+		goto fail0;
+
 	mutex_init(&cam->dev_mutex);
 	mutex_lock(&cam->dev_mutex);
 
 	cam->usbdev = udev;
-	/* NOTE: a local copy is used to avoid possible race conditions */
-	memcpy(&cam->dev, &udev->dev, sizeof(struct device));
 
 	DBG(2, "%s detected", symbolic(camlist, mod_id))
 
@@ -3549,7 +3551,7 @@ w9968cf_usb_probe(struct usb_interface* intf, const struct usb_device_id* id)
 	cam->v4ldev->minor = video_nr[dev_nr];
 	cam->v4ldev->release = video_device_release;
 	video_set_drvdata(cam->v4ldev, cam);
-	cam->v4ldev->parent = &cam->dev;
+	cam->v4ldev->v4l2_dev = &cam->v4l2_dev;
 
 	err = video_register_device(cam->v4ldev, VFL_TYPE_GRABBER,
 				    video_nr[dev_nr]);
@@ -3579,6 +3581,9 @@ w9968cf_usb_probe(struct usb_interface* intf, const struct usb_device_id* id)
 
 	usb_set_intfdata(intf, cam);
 	mutex_unlock(&cam->dev_mutex);
+
+	if (ovmod_load)
+		request_module("ovcamchip");
 	return 0;
 
 fail: /* Free unused memory */
@@ -3587,6 +3592,8 @@ fail: /* Free unused memory */
 	if (cam->v4ldev)
 		video_device_release(cam->v4ldev);
 	mutex_unlock(&cam->dev_mutex);
+	v4l2_device_unregister(&cam->v4l2_dev);
+fail0:
 	kfree(cam);
 	return err;
 }
@@ -3622,8 +3629,10 @@ static void w9968cf_usb_disconnect(struct usb_interface* intf)
 
 		mutex_unlock(&cam->dev_mutex);
 
-		if (!cam->users)
+		if (!cam->users) {
+			v4l2_device_unregister(&cam->v4l2_dev);
 			kfree(cam);
+		}
 	}
 
 	up_write(&w9968cf_disconnect);
@@ -3649,9 +3658,6 @@ static int __init w9968cf_module_init(void)
 
 	KDBG(2, W9968CF_MODULE_NAME" "W9968CF_MODULE_VERSION)
 	KDBG(3, W9968CF_MODULE_AUTHOR)
-
-	if (ovmod_load)
-		request_module("ovcamchip");
 
 	if ((err = usb_register(&w9968cf_usb_driver)))
 		return err;

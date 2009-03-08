@@ -33,6 +33,7 @@
 #include <linux/rwsem.h>
 #include <linux/mutex.h>
 
+#include <media/v4l2-device.h>
 #include <media/ovcamchip.h>
 
 #include "w9968cf_vpp.h"
@@ -195,10 +196,9 @@ enum w9968cf_vpp_flag {
 
 /* Main device driver structure */
 struct w9968cf_device {
-	struct device dev; /* device structure */
-
 	enum w9968cf_model_id id;   /* private device identifier */
 
+	struct v4l2_device v4l2_dev;
 	struct video_device* v4ldev; /* -> V4L structure */
 	struct list_head v4llist;    /* entry of the list of V4L cameras */
 
@@ -291,14 +291,14 @@ struct w9968cf_device {
 	if ( ((specific_debug) && (debug == (level))) ||                      \
 	     ((!specific_debug) && (debug >= (level))) ) {                    \
 		if ((level) == 1)                                             \
-			dev_err(&cam->dev, fmt "\n", ## args);                \
+			v4l2_err(&cam->v4l2_dev, fmt "\n", ## args);          \
 		else if ((level) == 2 || (level) == 3)                        \
-			dev_info(&cam->dev, fmt "\n", ## args);               \
+			v4l2_info(&cam->v4l2_dev, fmt "\n", ## args);         \
 		else if ((level) == 4)                                        \
-			dev_warn(&cam->dev, fmt "\n", ## args);               \
+			v4l2_warn(&cam->v4l2_dev, fmt "\n", ## args);         \
 		else if ((level) >= 5)                                        \
-			dev_info(&cam->dev, "[%s:%d] " fmt "\n",              \
-				 __func__, __LINE__ , ## args);           \
+			v4l2_info(&cam->v4l2_dev, "[%s:%d] " fmt "\n",        \
+				 __func__, __LINE__ , ## args);               \
 	}                                                                     \
 }
 /* For generic kernel (not device specific) messages */
@@ -321,7 +321,7 @@ struct w9968cf_device {
 
 #undef PDBG
 #define PDBG(fmt, args...)                                                    \
-dev_info(&cam->dev, "[%s:%d] " fmt "\n", __func__, __LINE__ , ## args);
+v4l2_info(&cam->v4l2_dev, "[%s:%d] " fmt "\n", __func__, __LINE__ , ## args);
 
 #undef PDBGG
 #define PDBGG(fmt, args...) do {;} while(0); /* nothing: it's a placeholder */
