@@ -17,7 +17,6 @@
 #include <linux/kdebug.h>
 #include <linux/sched.h>
 
-#include <asm/perf_counter.h>
 #include <asm/apic.h>
 
 static bool perf_counters_initialized __read_mostly;
@@ -954,9 +953,6 @@ static struct pmc_x86_ops *pmc_intel_init(void)
 
 static struct pmc_x86_ops *pmc_amd_init(void)
 {
-	u64 old;
-	int bits;
-
 	nr_counters_generic = 4;
 	nr_counters_fixed = 0;
 	counter_value_mask = 0x0000FFFFFFFFFFFFULL;
