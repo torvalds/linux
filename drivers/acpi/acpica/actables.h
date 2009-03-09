@@ -79,7 +79,7 @@ void acpi_tb_delete_table(struct acpi_table_desc *table_desc);
 
 void acpi_tb_terminate(void);
 
-void acpi_tb_delete_namespace_by_owner(u32 table_index);
+acpi_status acpi_tb_delete_namespace_by_owner(u32 table_index);
 
 acpi_status acpi_tb_allocate_owner_id(u32 table_index);
 

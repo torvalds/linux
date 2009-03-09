@@ -520,13 +520,14 @@ acpi_status acpi_ex_unload_table(union acpi_operand_object *ddb_handle)
 		}
 	}
 
-	/*
-	 * Delete the entire namespace under this table Node
-	 * (Offset contains the table_id)
-	 */
-	acpi_tb_delete_namespace_by_owner(table_index);
-	(void)acpi_tb_release_owner_id(table_index);
+	/* Delete the portion of the namespace owned by this table */
 
+	status = acpi_tb_delete_namespace_by_owner(table_index);
+	if (ACPI_FAILURE(status)) {
+		return_ACPI_STATUS(status);
+	}
+
+	(void)acpi_tb_release_owner_id(table_index);
 	acpi_tb_set_table_loaded_flag(table_index, FALSE);
 
 	/* Table unloaded, remove a reference to the ddb_handle object */

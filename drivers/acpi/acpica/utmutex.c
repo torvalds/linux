@@ -60,7 +60,8 @@ static acpi_status acpi_ut_delete_mutex(acpi_mutex_handle mutex_id);
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Create the system mutex objects.
+ * DESCRIPTION: Create the system mutex objects. This includes mutexes,
+ *              spin locks, and reader/writer locks.
  *
  ******************************************************************************/
 
@@ -71,9 +72,8 @@ acpi_status acpi_ut_mutex_initialize(void)
 
 	ACPI_FUNCTION_TRACE(ut_mutex_initialize);
 
-	/*
-	 * Create each of the predefined mutex objects
-	 */
+	/* Create each of the predefined mutex objects */
+
 	for (i = 0; i < ACPI_NUM_MUTEX; i++) {
 		status = acpi_ut_create_mutex(i);
 		if (ACPI_FAILURE(status)) {
@@ -86,6 +86,9 @@ acpi_status acpi_ut_mutex_initialize(void)
 	spin_lock_init(acpi_gbl_gpe_lock);
 	spin_lock_init(acpi_gbl_hardware_lock);
 
+	/* Create the reader/writer lock for namespace access */
+
+	status = acpi_ut_create_rw_lock(&acpi_gbl_namespace_rw_lock);
 	return_ACPI_STATUS(status);
 }
 
@@ -97,7 +100,8 @@ acpi_status acpi_ut_mutex_initialize(void)
  *
  * RETURN:      None.
  *
- * DESCRIPTION: Delete all of the system mutex objects.
+ * DESCRIPTION: Delete all of the system mutex objects. This includes mutexes,
+ *              spin locks, and reader/writer locks.
  *
  ******************************************************************************/
 
@@ -107,9 +111,8 @@ void acpi_ut_mutex_terminate(void)
 
 	ACPI_FUNCTION_TRACE(ut_mutex_terminate);
 
-	/*
-	 * Delete each predefined mutex object
-	 */
+	/* Delete each predefined mutex object */
+
 	for (i = 0; i < ACPI_NUM_MUTEX; i++) {
 		(void)acpi_ut_delete_mutex(i);
 	}
@@ -118,6 +121,10 @@ void acpi_ut_mutex_terminate(void)
 
 	acpi_os_delete_lock(acpi_gbl_gpe_lock);
 	acpi_os_delete_lock(acpi_gbl_hardware_lock);
+
+	/* Delete the reader/writer lock */
+
+	acpi_ut_delete_rw_lock(&acpi_gbl_namespace_rw_lock);
 	return_VOID;
 }
 

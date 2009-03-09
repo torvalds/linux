@@ -434,27 +434,56 @@ void acpi_tb_terminate(void)
  *
  * PARAMETERS:  table_index         - Table index
  *
- * RETURN:      None
+ * RETURN:      Status
  *
  * DESCRIPTION: Delete all namespace objects created when this table was loaded.
  *
  ******************************************************************************/
 
-void acpi_tb_delete_namespace_by_owner(u32 table_index)
+acpi_status acpi_tb_delete_namespace_by_owner(u32 table_index)
 {
 	acpi_owner_id owner_id;
+	acpi_status status;
 
-	(void)acpi_ut_acquire_mutex(ACPI_MTX_TABLES);
-	if (table_index < acpi_gbl_root_table_list.count) {
-		owner_id =
-		    acpi_gbl_root_table_list.tables[table_index].owner_id;
-	} else {
-		(void)acpi_ut_release_mutex(ACPI_MTX_TABLES);
-		return;
+	ACPI_FUNCTION_TRACE(tb_delete_namespace_by_owner);
+
+	status = acpi_ut_acquire_mutex(ACPI_MTX_TABLES);
+	if (ACPI_FAILURE(status)) {
+		return_ACPI_STATUS(status);
 	}
 
+	if (table_index >= acpi_gbl_root_table_list.count) {
+
+		/* The table index does not exist */
+
+		(void)acpi_ut_release_mutex(ACPI_MTX_TABLES);
+		return_ACPI_STATUS(AE_NOT_EXIST);
+	}
+
+	/* Get the owner ID for this table, used to delete namespace nodes */
+
+	owner_id = acpi_gbl_root_table_list.tables[table_index].owner_id;
 	(void)acpi_ut_release_mutex(ACPI_MTX_TABLES);
+
+	/*
+	 * Need to acquire the namespace writer lock to prevent interference
+	 * with any concurrent namespace walks. The interpreter must be
+	 * released during the deletion since the acquisition of the deletion
+	 * lock may block, and also since the execution of a namespace walk
+	 * must be allowed to use the interpreter.
+	 */
+	acpi_ut_release_mutex(ACPI_MTX_INTERPRETER);
+	status = acpi_ut_acquire_write_lock(&acpi_gbl_namespace_rw_lock);
+
 	acpi_ns_delete_namespace_by_owner(owner_id);
+	if (ACPI_FAILURE(status)) {
+		return_ACPI_STATUS(status);
+	}
+
+	acpi_ut_release_write_lock(&acpi_gbl_namespace_rw_lock);
+
+	status = acpi_ut_acquire_mutex(ACPI_MTX_INTERPRETER);
+	return_ACPI_STATUS(status);
 }
 
 /*******************************************************************************

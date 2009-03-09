@@ -108,6 +108,14 @@ static char *acpi_gbl_mutex_names[ACPI_NUM_MUTEX] = {
 #endif
 #endif
 
+/* Lock structure for reader/writer interfaces */
+
+struct acpi_rw_lock {
+	acpi_mutex writer_mutex;
+	acpi_mutex reader_mutex;
+	u32 num_readers;
+};
+
 /*
  * Predefined handles for spinlocks used within the subsystem.
  * These spinlocks are created by acpi_ut_mutex_initialize
