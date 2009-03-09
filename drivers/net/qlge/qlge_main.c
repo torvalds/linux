@@ -3129,36 +3129,23 @@ static int ql_adapter_initialize(struct ql_adapter *qdev)
 static int ql_adapter_reset(struct ql_adapter *qdev)
 {
 	u32 value;
-	int max_wait_time;
 	int status = 0;
-	int resetCnt = 0;
+	unsigned long end_jiffies = jiffies +
+		max((unsigned long)1, usecs_to_jiffies(30));
 
-#define MAX_RESET_CNT   1
-issueReset:
-	resetCnt++;
-	QPRINTK(qdev, IFDOWN, DEBUG, "Issue soft reset to chip.\n");
 	ql_write32(qdev, RST_FO, (RST_FO_FR << 16) | RST_FO_FR);
-	/* Wait for reset to complete. */
-	max_wait_time = 3;
-	QPRINTK(qdev, IFDOWN, DEBUG, "Wait %d seconds for reset to complete.\n",
-		max_wait_time);
+
 	do {
 		value = ql_read32(qdev, RST_FO);
 		if ((value & RST_FO_FR) == 0)
 			break;
+		cpu_relax();
+	} while (time_before(jiffies, end_jiffies));
 
-		ssleep(1);
-	} while ((--max_wait_time));
 	if (value & RST_FO_FR) {
 		QPRINTK(qdev, IFDOWN, ERR,
-			"Stuck in SoftReset:  FSC_SR:0x%08x\n", value);
-		if (resetCnt < MAX_RESET_CNT)
-			goto issueReset;
-	}
-	if (max_wait_time == 0) {
-		status = -ETIMEDOUT;
-		QPRINTK(qdev, IFDOWN, ERR,
 			"ETIMEOUT!!! errored out of resetting the chip!\n");
+		status = -ETIMEDOUT;
 	}
 
 	return status;
