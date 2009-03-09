@@ -3263,28 +3263,6 @@ err_init:
 	return err;
 }
 
-static int ql_cycle_adapter(struct ql_adapter *qdev)
-{
-	int status;
-
-	status = ql_adapter_down(qdev);
-	if (status)
-		goto error;
-
-	status = ql_adapter_up(qdev);
-	if (status)
-		goto error;
-
-	return status;
-error:
-	QPRINTK(qdev, IFUP, ALERT,
-		"Driver up/down cycle failed, closing device\n");
-	rtnl_lock();
-	dev_close(qdev->ndev);
-	rtnl_unlock();
-	return status;
-}
-
 static void ql_release_adapter_resources(struct ql_adapter *qdev)
 {
 	ql_free_mem_resources(qdev);
@@ -3617,7 +3595,24 @@ static void ql_asic_reset_work(struct work_struct *work)
 {
 	struct ql_adapter *qdev =
 	    container_of(work, struct ql_adapter, asic_reset_work.work);
-	ql_cycle_adapter(qdev);
+	int status;
+
+	status = ql_adapter_down(qdev);
+	if (status)
+		goto error;
+
+	status = ql_adapter_up(qdev);
+	if (status)
+		goto error;
+
+	return;
+error:
+	QPRINTK(qdev, IFUP, ALERT,
+		"Driver up/down cycle failed, closing device\n");
+	rtnl_lock();
+	set_bit(QL_ADAPTER_UP, &qdev->flags);
+	dev_close(qdev->ndev);
+	rtnl_unlock();
 }
 
 static struct nic_operations qla8012_nic_ops = {
