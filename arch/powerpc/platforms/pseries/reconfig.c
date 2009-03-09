@@ -468,9 +468,13 @@ static int do_update_property(char *buf, size_t bufsize)
 
 		rc = blocking_notifier_call_chain(&pSeries_reconfig_chain,
 						  action, value);
+		if (rc == NOTIFY_BAD) {
+			rc = prom_update_property(np, oldprop, newprop);
+			return -ENOMEM;
+		}
 	}
 
-	return rc;
+	return 0;
 }
 
 /**
