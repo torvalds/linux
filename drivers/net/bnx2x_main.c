@@ -4518,7 +4518,8 @@ static void bnx2x_init_context(struct bnx2x *bp)
 				(USTORM_ETH_ST_CONTEXT_CONFIG_ENABLE_TPA |
 				 USTORM_ETH_ST_CONTEXT_CONFIG_ENABLE_SGE_RING);
 			context->ustorm_st_context.common.sge_buff_size =
-					(u16)(BCM_PAGE_SIZE*PAGES_PER_SGE);
+				(u16)min((u32)SGE_PAGE_SIZE*PAGES_PER_SGE,
+					 (u32)0xffff);
 			context->ustorm_st_context.common.sge_page_base_hi =
 						U64_HI(fp->rx_sge_mapping);
 			context->ustorm_st_context.common.sge_page_base_lo =
