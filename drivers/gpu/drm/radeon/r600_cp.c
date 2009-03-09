@@ -1630,6 +1630,7 @@ static void r600_cp_init_ring_buffer(struct drm_device *dev,
 {
 	struct drm_radeon_master_private *master_priv;
 	u32 ring_start;
+	u64 rptr_addr;
 
 	if (((dev_priv->flags & RADEON_FAMILY_MASK) >= CHIP_RV770))
 		r700_gfx_init(dev, dev_priv);
@@ -1684,21 +1685,20 @@ static void r600_cp_init_ring_buffer(struct drm_device *dev,
 
 #if __OS_HAS_AGP
 	if (dev_priv->flags & RADEON_IS_AGP) {
-		/* XXX */
-		RADEON_WRITE(R600_CP_RB_RPTR_ADDR,
-			     (dev_priv->ring_rptr->offset
-			     - dev->agp->base + dev_priv->gart_vm_start) >> 8);
-		RADEON_WRITE(R600_CP_RB_RPTR_ADDR_HI, 0);
+		rptr_addr = dev_priv->ring_rptr->offset
+			- dev->agp->base +
+			dev_priv->gart_vm_start;
 	} else
 #endif
 	{
-		RADEON_WRITE(R600_CP_RB_RPTR_ADDR,
-			     dev_priv->ring_rptr->offset
-			     - ((unsigned long) dev->sg->virtual)
-			     + dev_priv->gart_vm_start);
-
-		RADEON_WRITE(R600_CP_RB_RPTR_ADDR_HI, 0);
+		rptr_addr = dev_priv->ring_rptr->offset
+			- ((unsigned long) dev->sg->virtual)
+			+ dev_priv->gart_vm_start;
 	}
+	RADEON_WRITE(R600_CP_RB_RPTR_ADDR,
+		     rptr_addr & 0xffffffff);
+	RADEON_WRITE(R600_CP_RB_RPTR_ADDR_HI,
+		     upper_32_bits(rptr_addr));
 
 #ifdef __BIG_ENDIAN
 	RADEON_WRITE(R600_CP_RB_CNTL,
@@ -1747,8 +1747,17 @@ static void r600_cp_init_ring_buffer(struct drm_device *dev,
 	 * We simply put this behind the ring read pointer, this works
 	 * with PCI GART as well as (whatever kind of) AGP GART
 	 */
-	RADEON_WRITE(R600_SCRATCH_ADDR, ((RADEON_READ(R600_CP_RB_RPTR_ADDR) << 8)
-					 + R600_SCRATCH_REG_OFFSET) >> 8);
+	{
+		u64 scratch_addr;
+
+		scratch_addr = RADEON_READ(R600_CP_RB_RPTR_ADDR);
+		scratch_addr |= ((u64)RADEON_READ(R600_CP_RB_RPTR_ADDR_HI)) << 32;
+		scratch_addr += R600_SCRATCH_REG_OFFSET;
+		scratch_addr >>= 8;
+		scratch_addr &= 0xffffffff;
+
+		RADEON_WRITE(R600_SCRATCH_ADDR, (uint32_t)scratch_addr);
+	}
 
 	RADEON_WRITE(R600_SCRATCH_UMSK, 0x7);
 
