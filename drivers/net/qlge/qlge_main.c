@@ -3236,6 +3236,11 @@ static int ql_adapter_down(struct ql_adapter *qdev)
 
 	ql_tx_ring_clean(qdev);
 
+	/* Call netif_napi_del() from common point.
+	 */
+	for (i = qdev->rss_ring_first_cq_id; i < qdev->rx_ring_count; i++)
+		netif_napi_del(&qdev->rx_ring[i].napi);
+
 	ql_free_rx_buffers(qdev);
 	spin_lock(&qdev->hw_lock);
 	status = ql_adapter_reset(qdev);
@@ -3964,7 +3969,7 @@ static int qlge_suspend(struct pci_dev *pdev, pm_message_t state)
 {
 	struct net_device *ndev = pci_get_drvdata(pdev);
 	struct ql_adapter *qdev = netdev_priv(ndev);
-	int err, i;
+	int err;
 
 	netif_device_detach(ndev);
 
@@ -3973,9 +3978,6 @@ static int qlge_suspend(struct pci_dev *pdev, pm_message_t state)
 		if (!err)
 			return err;
 	}
-
-	for (i = qdev->rss_ring_first_cq_id; i < qdev->rx_ring_count; i++)
-		netif_napi_del(&qdev->rx_ring[i].napi);
 
 	err = pci_save_state(pdev);
 	if (err)
