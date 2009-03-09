@@ -15,7 +15,7 @@
 
 #include "internals.h"
 
-#if defined(CONFIG_SMP) && defined(CONFIG_GENERIC_HARDIRQS)
+#ifdef CONFIG_SMP
 cpumask_var_t irq_default_affinity;
 
 /**
