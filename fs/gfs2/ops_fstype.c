@@ -296,15 +296,15 @@ static int gfs2_read_super(struct gfs2_sbd *sdp, sector_t sector)
 	__free_page(page);
 	return 0;
 }
+
 /**
  * gfs2_read_sb - Read super block
  * @sdp: The GFS2 superblock
- * @gl: the glock for the superblock (assumed to be held)
  * @silent: Don't print message if mount fails
  *
  */
 
-static int gfs2_read_sb(struct gfs2_sbd *sdp, struct gfs2_glock *gl, int silent)
+static int gfs2_read_sb(struct gfs2_sbd *sdp, int silent)
 {
 	u32 hash_blocks, ind_blocks, leaf_blocks;
 	u32 tmp_blocks;
@@ -524,7 +524,7 @@ static int init_sb(struct gfs2_sbd *sdp, int silent)
 		return ret;
 	}
 
-	ret = gfs2_read_sb(sdp, sb_gh.gh_gl, silent);
+	ret = gfs2_read_sb(sdp, silent);
 	if (ret) {
 		fs_err(sdp, "can't read superblock: %d\n", ret);
 		goto out;

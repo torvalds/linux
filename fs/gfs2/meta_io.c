@@ -89,27 +89,6 @@ void gfs2_aspace_put(struct inode *aspace)
 }
 
 /**
- * gfs2_meta_inval - Invalidate all buffers associated with a glock
- * @gl: the glock
- *
- */
-
-void gfs2_meta_inval(struct gfs2_glock *gl)
-{
-	struct gfs2_sbd *sdp = gl->gl_sbd;
-	struct inode *aspace = gl->gl_aspace;
-	struct address_space *mapping = gl->gl_aspace->i_mapping;
-
-	gfs2_assert_withdraw(sdp, !atomic_read(&gl->gl_ail_count));
-
-	atomic_inc(&aspace->i_writecount);
-	truncate_inode_pages(mapping, 0);
-	atomic_dec(&aspace->i_writecount);
-
-	gfs2_assert_withdraw(sdp, !mapping->nrpages);
-}
-
-/**
  * gfs2_meta_sync - Sync all buffers associated with a glock
  * @gl: The glock
  *
