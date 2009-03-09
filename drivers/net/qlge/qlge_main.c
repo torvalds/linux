@@ -2142,6 +2142,7 @@ static int ql_alloc_shadow_space(struct ql_adapter *qdev)
 			"Allocation of RX shadow space failed.\n");
 		return -ENOMEM;
 	}
+	memset(qdev->rx_ring_shadow_reg_area, 0, PAGE_SIZE);
 	qdev->tx_ring_shadow_reg_area =
 	    pci_alloc_consistent(qdev->pdev, PAGE_SIZE,
 				 &qdev->tx_ring_shadow_reg_dma);
@@ -2150,6 +2151,7 @@ static int ql_alloc_shadow_space(struct ql_adapter *qdev)
 			"Allocation of TX shadow space failed.\n");
 		goto err_wqp_sh_area;
 	}
+	memset(qdev->tx_ring_shadow_reg_area, 0, PAGE_SIZE);
 	return 0;
 
 err_wqp_sh_area:
