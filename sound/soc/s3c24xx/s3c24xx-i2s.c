@@ -39,13 +39,6 @@
 #include "s3c24xx-pcm.h"
 #include "s3c24xx-i2s.h"
 
-#define S3C24XX_I2S_DEBUG 0
-#if S3C24XX_I2S_DEBUG
-#define DBG(x...) printk(KERN_DEBUG "s3c24xx-i2s: " x)
-#else
-#define DBG(x...)
-#endif
-
 static struct s3c2410_dma_client s3c24xx_dma_client_out = {
 	.name = "I2S PCM Stereo out"
 };
@@ -84,13 +77,13 @@ static void s3c24xx_snd_txctrl(int on)
 	u32 iiscon;
 	u32 iismod;
 
-	DBG("Entered %s\n", __func__);
+	pr_debug("Entered %s\n", __func__);
 
 	iisfcon = readl(s3c24xx_i2s.regs + S3C2410_IISFCON);
 	iiscon  = readl(s3c24xx_i2s.regs + S3C2410_IISCON);
 	iismod  = readl(s3c24xx_i2s.regs + S3C2410_IISMOD);
 
-	DBG("r: IISCON: %lx IISMOD: %lx IISFCON: %lx\n", iiscon, iismod, iisfcon);
+	pr_debug("r: IISCON: %lx IISMOD: %lx IISFCON: %lx\n", iiscon, iismod, iisfcon);
 
 	if (on) {
 		iisfcon |= S3C2410_IISFCON_TXDMA | S3C2410_IISFCON_TXENABLE;
@@ -120,7 +113,7 @@ static void s3c24xx_snd_txctrl(int on)
 		writel(iismod,  s3c24xx_i2s.regs + S3C2410_IISMOD);
 	}
 
-	DBG("w: IISCON: %lx IISMOD: %lx IISFCON: %lx\n", iiscon, iismod, iisfcon);
+	pr_debug("w: IISCON: %lx IISMOD: %lx IISFCON: %lx\n", iiscon, iismod, iisfcon);
 }
 
 static void s3c24xx_snd_rxctrl(int on)
@@ -129,13 +122,13 @@ static void s3c24xx_snd_rxctrl(int on)
 	u32 iiscon;
 	u32 iismod;
 
-	DBG("Entered %s\n", __func__);
+	pr_debug("Entered %s\n", __func__);
 
 	iisfcon = readl(s3c24xx_i2s.regs + S3C2410_IISFCON);
 	iiscon  = readl(s3c24xx_i2s.regs + S3C2410_IISCON);
 	iismod  = readl(s3c24xx_i2s.regs + S3C2410_IISMOD);
 
-	DBG("r: IISCON: %lx IISMOD: %lx IISFCON: %lx\n", iiscon, iismod, iisfcon);
+	pr_debug("r: IISCON: %lx IISMOD: %lx IISFCON: %lx\n", iiscon, iismod, iisfcon);
 
 	if (on) {
 		iisfcon |= S3C2410_IISFCON_RXDMA | S3C2410_IISFCON_RXENABLE;
@@ -165,7 +158,7 @@ static void s3c24xx_snd_rxctrl(int on)
 		writel(iismod,  s3c24xx_i2s.regs + S3C2410_IISMOD);
 	}
 
-	DBG("w: IISCON: %lx IISMOD: %lx IISFCON: %lx\n", iiscon, iismod, iisfcon);
+	pr_debug("w: IISCON: %lx IISMOD: %lx IISFCON: %lx\n", iiscon, iismod, iisfcon);
 }
 
 /*
@@ -177,7 +170,7 @@ static int s3c24xx_snd_lrsync(void)
 	u32 iiscon;
 	int timeout = 50; /* 5ms */
 
-	DBG("Entered %s\n", __func__);
+	pr_debug("Entered %s\n", __func__);
 
 	while (1) {
 		iiscon = readl(s3c24xx_i2s.regs + S3C2410_IISCON);
@@ -197,7 +190,7 @@ static int s3c24xx_snd_lrsync(void)
  */
 static inline int s3c24xx_snd_is_clkmaster(void)
 {
-	DBG("Entered %s\n", __func__);
+	pr_debug("Entered %s\n", __func__);
 
 	return (readl(s3c24xx_i2s.regs + S3C2410_IISMOD) & S3C2410_IISMOD_SLAVE) ? 0:1;
 }
@@ -210,10 +203,10 @@ static int s3c24xx_i2s_set_fmt(struct snd_soc_dai *cpu_dai,
 {
 	u32 iismod;
 
-	DBG("Entered %s\n", __func__);
+	pr_debug("Entered %s\n", __func__);
 
 	iismod = readl(s3c24xx_i2s.regs + S3C2410_IISMOD);
-	DBG("hw_params r: IISMOD: %lx \n", iismod);
+	pr_debug("hw_params r: IISMOD: %lx \n", iismod);
 
 	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
 	case SND_SOC_DAIFMT_CBM_CFM:
@@ -238,7 +231,7 @@ static int s3c24xx_i2s_set_fmt(struct snd_soc_dai *cpu_dai,
 	}
 
 	writel(iismod, s3c24xx_i2s.regs + S3C2410_IISMOD);
-	DBG("hw_params w: IISMOD: %lx \n", iismod);
+	pr_debug("hw_params w: IISMOD: %lx \n", iismod);
 	return 0;
 }
 
@@ -249,7 +242,7 @@ static int s3c24xx_i2s_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	u32 iismod;
 
-	DBG("Entered %s\n", __func__);
+	pr_debug("Entered %s\n", __func__);
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
 		rtd->dai->cpu_dai->dma_data = &s3c24xx_i2s_pcm_stereo_out;
@@ -258,7 +251,7 @@ static int s3c24xx_i2s_hw_params(struct snd_pcm_substream *substream,
 
 	/* Working copies of register */
 	iismod = readl(s3c24xx_i2s.regs + S3C2410_IISMOD);
-	DBG("hw_params r: IISMOD: %lx\n", iismod);
+	pr_debug("hw_params r: IISMOD: %lx\n", iismod);
 
 	switch (params_format(params)) {
 	case SNDRV_PCM_FORMAT_S8:
@@ -276,7 +269,7 @@ static int s3c24xx_i2s_hw_params(struct snd_pcm_substream *substream,
 	}
 
 	writel(iismod, s3c24xx_i2s.regs + S3C2410_IISMOD);
-	DBG("hw_params w: IISMOD: %lx\n", iismod);
+	pr_debug("hw_params w: IISMOD: %lx\n", iismod);
 	return 0;
 }
 
@@ -285,7 +278,7 @@ static int s3c24xx_i2s_trigger(struct snd_pcm_substream *substream, int cmd,
 {
 	int ret = 0;
 
-	DBG("Entered %s\n", __func__);
+	pr_debug("Entered %s\n", __func__);
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
@@ -327,7 +320,7 @@ static int s3c24xx_i2s_set_sysclk(struct snd_soc_dai *cpu_dai,
 {
 	u32 iismod = readl(s3c24xx_i2s.regs + S3C2410_IISMOD);
 
-	DBG("Entered %s\n", __func__);
+	pr_debug("Entered %s\n", __func__);
 
 	iismod &= ~S3C2440_IISMOD_MPLL;
 
@@ -353,7 +346,7 @@ static int s3c24xx_i2s_set_clkdiv(struct snd_soc_dai *cpu_dai,
 {
 	u32 reg;
 
-	DBG("Entered %s\n", __func__);
+	pr_debug("Entered %s\n", __func__);
 
 	switch (div_id) {
 	case S3C24XX_DIV_BCLK:
@@ -389,7 +382,7 @@ EXPORT_SYMBOL_GPL(s3c24xx_i2s_get_clockrate);
 static int s3c24xx_i2s_probe(struct platform_device *pdev,
 			     struct snd_soc_dai *dai)
 {
-	DBG("Entered %s\n", __func__);
+	pr_debug("Entered %s\n", __func__);
 
 	s3c24xx_i2s.regs = ioremap(S3C2410_PA_IIS, 0x100);
 	if (s3c24xx_i2s.regs == NULL)
@@ -397,7 +390,7 @@ static int s3c24xx_i2s_probe(struct platform_device *pdev,
 
 	s3c24xx_i2s.iis_clk = clk_get(&pdev->dev, "iis");
 	if (s3c24xx_i2s.iis_clk == NULL) {
-		DBG("failed to get iis_clock\n");
+		pr_err("failed to get iis_clock\n");
 		iounmap(s3c24xx_i2s.regs);
 		return -ENODEV;
 	}
@@ -421,7 +414,7 @@ static int s3c24xx_i2s_probe(struct platform_device *pdev,
 #ifdef CONFIG_PM
 static int s3c24xx_i2s_suspend(struct snd_soc_dai *cpu_dai)
 {
-	DBG("Entered %s\n", __func__);
+	pr_debug("Entered %s\n", __func__);
 
 	s3c24xx_i2s.iiscon = readl(s3c24xx_i2s.regs + S3C2410_IISCON);
 	s3c24xx_i2s.iismod = readl(s3c24xx_i2s.regs + S3C2410_IISMOD);
@@ -435,7 +428,7 @@ static int s3c24xx_i2s_suspend(struct snd_soc_dai *cpu_dai)
 
 static int s3c24xx_i2s_resume(struct snd_soc_dai *cpu_dai)
 {
-	DBG("Entered %s\n", __func__);
+	pr_debug("Entered %s\n", __func__);
 	clk_enable(s3c24xx_i2s.iis_clk);
 
 	writel(s3c24xx_i2s.iiscon, s3c24xx_i2s.regs + S3C2410_IISCON);

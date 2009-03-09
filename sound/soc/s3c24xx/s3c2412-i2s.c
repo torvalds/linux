@@ -42,12 +42,6 @@
 
 #define S3C2412_I2S_DEBUG 0
 
-#if S3C2412_I2S_DEBUG
-#define DBG(x...) printk(KERN_INFO x)
-#else
-#define DBG(x...) do { } while (0)
-#endif
-
 static struct s3c2410_dma_client s3c2412_dma_client_out = {
 	.name		= "I2S PCM Stereo out"
 };
@@ -80,7 +74,7 @@ static int s3c2412_i2s_set_sysclk(struct snd_soc_dai *cpu_dai,
 {
 	u32 iismod = readl(s3c2412_i2s.regs + S3C2412_IISMOD);
 
-	DBG("%s(%p, %d, %u, %d)\n", __func__, cpu_dai, clk_id,
+	pr_debug("%s(%p, %d, %u, %d)\n", __func__, cpu_dai, clk_id,
 	    freq, dir);
 
 	switch (clk_id) {
@@ -115,7 +109,7 @@ static int s3c2412_i2s_probe(struct platform_device *pdev,
 {
 	int ret;
 
-	DBG("Entered %s\n", __func__);
+	pr_debug("Entered %s\n", __func__);
 
 	ret = s3c_i2sv2_probe(pdev, dai, &s3c2412_i2s, S3C2410_PA_IIS);
 	if (ret)
@@ -126,7 +120,7 @@ static int s3c2412_i2s_probe(struct platform_device *pdev,
 
 	s3c2412_i2s.iis_cclk = clk_get(&pdev->dev, "i2sclk");
 	if (s3c2412_i2s.iis_cclk == NULL) {
-		DBG("failed to get i2sclk clock\n");
+		pr_debug("failed to get i2sclk clock\n");
 		iounmap(s3c2412_i2s.regs);
 		return -ENODEV;
 	}

@@ -12,14 +12,13 @@
  *
  * Current features/limitations:
  *
- * 1) Software mode is supported.  Stand-alone mode is not supported.
- * 2) Only I2C is supported, not SPI
- * 3) Only Master mode is supported, not Slave.
- * 4) The machine driver's 'startup' function must call
- *    cs4270_set_dai_sysclk() with the value of MCLK.
- * 5) Only I2S and left-justified modes are supported
- * 6) Power management is not supported
- * 7) The only supported control is volume and hardware mute (if enabled)
+ * - Software mode is supported.  Stand-alone mode is not supported.
+ * - Only I2C is supported, not SPI
+ * - Support for master and slave mode
+ * - The machine driver's 'startup' function must call
+ *   cs4270_set_dai_sysclk() with the value of MCLK.
+ * - Only I2S and left-justified modes are supported
+ * - Power management is not supported
  */
 
 #include <linux/module.h>

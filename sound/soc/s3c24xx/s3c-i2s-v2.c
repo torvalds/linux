@@ -38,13 +38,6 @@
 #include "s3c-i2s-v2.h"
 
 #define S3C2412_I2S_DEBUG_CON 0
-#define S3C2412_I2S_DEBUG 0
-
-#if S3C2412_I2S_DEBUG
-#define DBG(x...) printk(KERN_INFO x)
-#else
-#define DBG(x...) do { } while (0)
-#endif
 
 static inline struct s3c_i2sv2_info *to_info(struct snd_soc_dai *cpu_dai)
 {
@@ -87,13 +80,13 @@ void s3c2412_snd_txctrl(struct s3c_i2sv2_info *i2s, int on)
 	void __iomem *regs = i2s->regs;
 	u32 fic, con, mod;
 
-	DBG("%s(%d)\n", __func__, on);
+	pr_debug("%s(%d)\n", __func__, on);
 
 	fic = readl(regs + S3C2412_IISFIC);
 	con = readl(regs + S3C2412_IISCON);
 	mod = readl(regs + S3C2412_IISMOD);
 
-	DBG("%s: IIS: CON=%x MOD=%x FIC=%x\n", __func__, con, mod, fic);
+	pr_debug("%s: IIS: CON=%x MOD=%x FIC=%x\n", __func__, con, mod, fic);
 
 	if (on) {
 		con |= S3C2412_IISCON_TXDMA_ACTIVE | S3C2412_IISCON_IIS_ACTIVE;
@@ -148,7 +141,7 @@ void s3c2412_snd_txctrl(struct s3c_i2sv2_info *i2s, int on)
 
 	fic = readl(regs + S3C2412_IISFIC);
 	dbg_showcon(__func__, con);
-	DBG("%s: IIS: CON=%x MOD=%x FIC=%x\n", __func__, con, mod, fic);
+	pr_debug("%s: IIS: CON=%x MOD=%x FIC=%x\n", __func__, con, mod, fic);
 }
 EXPORT_SYMBOL_GPL(s3c2412_snd_txctrl);
 
@@ -157,13 +150,13 @@ void s3c2412_snd_rxctrl(struct s3c_i2sv2_info *i2s, int on)
 	void __iomem *regs = i2s->regs;
 	u32 fic, con, mod;
 
-	DBG("%s(%d)\n", __func__, on);
+	pr_debug("%s(%d)\n", __func__, on);
 
 	fic = readl(regs + S3C2412_IISFIC);
 	con = readl(regs + S3C2412_IISCON);
 	mod = readl(regs + S3C2412_IISMOD);
 
-	DBG("%s: IIS: CON=%x MOD=%x FIC=%x\n", __func__, con, mod, fic);
+	pr_debug("%s: IIS: CON=%x MOD=%x FIC=%x\n", __func__, con, mod, fic);
 
 	if (on) {
 		con |= S3C2412_IISCON_RXDMA_ACTIVE | S3C2412_IISCON_IIS_ACTIVE;
@@ -214,7 +207,7 @@ void s3c2412_snd_rxctrl(struct s3c_i2sv2_info *i2s, int on)
 	}
 
 	fic = readl(regs + S3C2412_IISFIC);
-	DBG("%s: IIS: CON=%x MOD=%x FIC=%x\n", __func__, con, mod, fic);
+	pr_debug("%s: IIS: CON=%x MOD=%x FIC=%x\n", __func__, con, mod, fic);
 }
 EXPORT_SYMBOL_GPL(s3c2412_snd_rxctrl);
 
@@ -227,7 +220,7 @@ static int s3c2412_snd_lrsync(struct s3c_i2sv2_info *i2s)
 	u32 iiscon;
 	unsigned long timeout = jiffies + msecs_to_jiffies(5);
 
-	DBG("Entered %s\n", __func__);
+	pr_debug("Entered %s\n", __func__);
 
 	while (1) {
 		iiscon = readl(i2s->regs + S3C2412_IISCON);
@@ -252,10 +245,10 @@ static int s3c2412_i2s_set_fmt(struct snd_soc_dai *cpu_dai,
 	struct s3c_i2sv2_info *i2s = to_info(cpu_dai);
 	u32 iismod;
 
-	DBG("Entered %s\n", __func__);
+	pr_debug("Entered %s\n", __func__);
 
 	iismod = readl(i2s->regs + S3C2412_IISMOD);
-	DBG("hw_params r: IISMOD: %x \n", iismod);
+	pr_debug("hw_params r: IISMOD: %x \n", iismod);
 
 #if defined(CONFIG_CPU_S3C2412) || defined(CONFIG_CPU_S3C2413)
 #define IISMOD_MASTER_MASK S3C2412_IISMOD_MASTER_MASK
@@ -288,7 +281,7 @@ static int s3c2412_i2s_set_fmt(struct snd_soc_dai *cpu_dai,
 		iismod |= IISMOD_MASTER;
 		break;
 	default:
-		DBG("unknwon master/slave format\n");
+		pr_debug("unknwon master/slave format\n");
 		return -EINVAL;
 	}
 
@@ -305,12 +298,12 @@ static int s3c2412_i2s_set_fmt(struct snd_soc_dai *cpu_dai,
 		iismod |= S3C2412_IISMOD_SDF_IIS;
 		break;
 	default:
-		DBG("Unknown data format\n");
+		pr_debug("Unknown data format\n");
 		return -EINVAL;
 	}
 
 	writel(iismod, i2s->regs + S3C2412_IISMOD);
-	DBG("hw_params w: IISMOD: %x \n", iismod);
+	pr_debug("hw_params w: IISMOD: %x \n", iismod);
 	return 0;
 }
 
@@ -323,7 +316,7 @@ static int s3c2412_i2s_hw_params(struct snd_pcm_substream *substream,
 	struct s3c_i2sv2_info *i2s = to_info(dai->cpu_dai);
 	u32 iismod;
 
-	DBG("Entered %s\n", __func__);
+	pr_debug("Entered %s\n", __func__);
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
 		dai->cpu_dai->dma_data = i2s->dma_playback;
@@ -332,7 +325,7 @@ static int s3c2412_i2s_hw_params(struct snd_pcm_substream *substream,
 
 	/* Working copies of register */
 	iismod = readl(i2s->regs + S3C2412_IISMOD);
-	DBG("%s: r: IISMOD: %x\n", __func__, iismod);
+	pr_debug("%s: r: IISMOD: %x\n", __func__, iismod);
 
 	switch (params_format(params)) {
 	case SNDRV_PCM_FORMAT_S8:
@@ -344,7 +337,7 @@ static int s3c2412_i2s_hw_params(struct snd_pcm_substream *substream,
 	}
 
 	writel(iismod, i2s->regs + S3C2412_IISMOD);
-	DBG("%s: w: IISMOD: %x\n", __func__, iismod);
+	pr_debug("%s: w: IISMOD: %x\n", __func__, iismod);
 	return 0;
 }
 
@@ -357,7 +350,7 @@ static int s3c2412_i2s_trigger(struct snd_pcm_substream *substream, int cmd,
 	unsigned long irqs;
 	int ret = 0;
 
-	DBG("Entered %s\n", __func__);
+	pr_debug("Entered %s\n", __func__);
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
@@ -417,7 +410,7 @@ static int s3c2412_i2s_set_clkdiv(struct snd_soc_dai *cpu_dai,
 	struct s3c_i2sv2_info *i2s = to_info(cpu_dai);
 	u32 reg;
 
-	DBG("%s(%p, %d, %d)\n", __func__, cpu_dai, div_id, div);
+	pr_debug("%s(%p, %d, %d)\n", __func__, cpu_dai, div_id, div);
 
 	switch (div_id) {
 	case S3C_I2SV2_DIV_BCLK:
@@ -425,7 +418,7 @@ static int s3c2412_i2s_set_clkdiv(struct snd_soc_dai *cpu_dai,
 		reg &= ~S3C2412_IISMOD_BCLK_MASK;
 		writel(reg | div, i2s->regs + S3C2412_IISMOD);
 
-		DBG("%s: MOD=%08x\n", __func__, readl(i2s->regs + S3C2412_IISMOD));
+		pr_debug("%s: MOD=%08x\n", __func__, readl(i2s->regs + S3C2412_IISMOD));
 		break;
 
 	case S3C_I2SV2_DIV_RCLK:
@@ -457,7 +450,7 @@ static int s3c2412_i2s_set_clkdiv(struct snd_soc_dai *cpu_dai,
 		reg = readl(i2s->regs + S3C2412_IISMOD);
 		reg &= ~S3C2412_IISMOD_RCLK_MASK;
 		writel(reg | div, i2s->regs + S3C2412_IISMOD);
-		DBG("%s: MOD=%08x\n", __func__, readl(i2s->regs + S3C2412_IISMOD));
+		pr_debug("%s: MOD=%08x\n", __func__, readl(i2s->regs + S3C2412_IISMOD));
 		break;
 
 	case S3C_I2SV2_DIV_PRESCALER:
@@ -467,7 +460,7 @@ static int s3c2412_i2s_set_clkdiv(struct snd_soc_dai *cpu_dai,
 		} else {
 			writel(0x0, i2s->regs + S3C2412_IISPSR);
 		}
-		DBG("%s: PSR=%08x\n", __func__, readl(i2s->regs + S3C2412_IISPSR));
+		pr_debug("%s: PSR=%08x\n", __func__, readl(i2s->regs + S3C2412_IISPSR));
 		break;
 
 	default:
@@ -560,7 +553,7 @@ int s3c_i2sv2_probe(struct platform_device *pdev,
 
 	i2s->iis_pclk = clk_get(dev, "iis");
 	if (i2s->iis_pclk == NULL) {
-		DBG("failed to get iis_clock\n");
+		dev_err(dev, "failed to get iis_clock\n");
 		iounmap(i2s->regs);
 		return -ENOENT;
 	}
