@@ -1263,9 +1263,15 @@ static int inode_doinit_with_dentry(struct inode *inode, struct dentry *opt_dent
 			dentry = d_find_alias(inode);
 		}
 		if (!dentry) {
-			printk(KERN_WARNING "SELinux: %s:  no dentry for dev=%s "
-			       "ino=%ld\n", __func__, inode->i_sb->s_id,
-			       inode->i_ino);
+			/*
+			 * this is can be hit on boot when a file is accessed
+			 * before the policy is loaded.  When we load policy we
+			 * may find inodes that have no dentry on the
+			 * sbsec->isec_head list.  No reason to complain as these
+			 * will get fixed up the next time we go through
+			 * inode_doinit with a dentry, before these inodes could
+			 * be used again by userspace.
+			 */
 			goto out_unlock;
 		}
 
