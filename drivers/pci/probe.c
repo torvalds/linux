@@ -847,6 +847,11 @@ int pci_cfg_space_size(struct pci_dev *dev)
 {
 	int pos;
 	u32 status;
+	u16 class;
+
+	class = dev->class >> 8;
+	if (class == PCI_CLASS_BRIDGE_HOST)
+		return pci_cfg_space_size_ext(dev);
 
 	pos = pci_find_capability(dev, PCI_CAP_ID_EXP);
 	if (!pos) {
@@ -936,7 +941,6 @@ static struct pci_dev *pci_scan_device(struct pci_bus *bus, int devfn)
 	dev->multifunction = !!(hdr_type & 0x80);
 	dev->vendor = l & 0xffff;
 	dev->device = (l >> 16) & 0xffff;
-	dev->cfg_size = pci_cfg_space_size(dev);
 	dev->error_state = pci_channel_io_normal;
 	set_pcie_port_type(dev);
 
@@ -951,6 +955,9 @@ static struct pci_dev *pci_scan_device(struct pci_bus *bus, int devfn)
 		kfree(dev);
 		return NULL;
 	}
+
+	/* need to have dev->class ready */
+	dev->cfg_size = pci_cfg_space_size(dev);
 
 	return dev;
 }
