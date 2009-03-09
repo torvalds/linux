@@ -1702,7 +1702,7 @@ void radeon_do_release(struct drm_device * dev)
 	if (dev_priv) {
 		if (dev_priv->cp_running) {
 			/* Stop the cp */
-			if ((dev_priv->flags & RADEON_FAMILY_MASK) < CHIP_R600) {
+			if ((dev_priv->flags & RADEON_FAMILY_MASK) >= CHIP_R600) {
 				while ((ret = r600_do_cp_idle(dev_priv)) != 0) {
 					DRM_DEBUG("radeon_do_cp_idle %d\n", ret);
 #ifdef __linux__
