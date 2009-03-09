@@ -136,6 +136,33 @@ i915_gem_create_ioctl(struct drm_device *dev, void *data,
 	return 0;
 }
 
+static inline int
+slow_shmem_copy(struct page *dst_page,
+		int dst_offset,
+		struct page *src_page,
+		int src_offset,
+		int length)
+{
+	char *dst_vaddr, *src_vaddr;
+
+	dst_vaddr = kmap_atomic(dst_page, KM_USER0);
+	if (dst_vaddr == NULL)
+		return -ENOMEM;
+
+	src_vaddr = kmap_atomic(src_page, KM_USER1);
+	if (src_vaddr == NULL) {
+		kunmap_atomic(dst_vaddr, KM_USER0);
+		return -ENOMEM;
+	}
+
+	memcpy(dst_vaddr + dst_offset, src_vaddr + src_offset, length);
+
+	kunmap_atomic(src_vaddr, KM_USER1);
+	kunmap_atomic(dst_vaddr, KM_USER0);
+
+	return 0;
+}
+
 /**
  * Reads data from the object referenced by handle.
  *
@@ -240,6 +267,23 @@ slow_kernel_write(struct io_mapping *mapping,
 	io_mapping_unmap_atomic(dst_vaddr);
 	if (unwritten)
 		return -EFAULT;
+	return 0;
+}
+
+static inline int
+fast_shmem_write(struct page **pages,
+		 loff_t page_base, int page_offset,
+		 char __user *data,
+		 int length)
+{
+	char __iomem *vaddr;
+
+	vaddr = kmap_atomic(pages[page_base >> PAGE_SHIFT], KM_USER0);
+	if (vaddr == NULL)
+		return -ENOMEM;
+	__copy_from_user_inatomic(vaddr + page_offset, data, length);
+	kunmap_atomic(vaddr, KM_USER0);
+
 	return 0;
 }
 
@@ -423,39 +467,175 @@ out_unpin_pages:
 	return ret;
 }
 
+/**
+ * This is the fast shmem pwrite path, which attempts to directly
+ * copy_from_user into the kmapped pages backing the object.
+ */
 static int
-i915_gem_shmem_pwrite(struct drm_device *dev, struct drm_gem_object *obj,
-		      struct drm_i915_gem_pwrite *args,
-		      struct drm_file *file_priv)
+i915_gem_shmem_pwrite_fast(struct drm_device *dev, struct drm_gem_object *obj,
+			   struct drm_i915_gem_pwrite *args,
+			   struct drm_file *file_priv)
 {
+	struct drm_i915_gem_object *obj_priv = obj->driver_private;
+	ssize_t remain;
+	loff_t offset, page_base;
+	char __user *user_data;
+	int page_offset, page_length;
 	int ret;
-	loff_t offset;
-	ssize_t written;
+
+	user_data = (char __user *) (uintptr_t) args->data_ptr;
+	remain = args->size;
 
 	mutex_lock(&dev->struct_mutex);
 
+	ret = i915_gem_object_get_pages(obj);
+	if (ret != 0)
+		goto fail_unlock;
+
 	ret = i915_gem_object_set_to_cpu_domain(obj, 1);
-	if (ret) {
-		mutex_unlock(&dev->struct_mutex);
-		return ret;
-	}
+	if (ret != 0)
+		goto fail_put_pages;
 
+	obj_priv = obj->driver_private;
 	offset = args->offset;
+	obj_priv->dirty = 1;
 
-	written = vfs_write(obj->filp,
-			    (char __user *)(uintptr_t) args->data_ptr,
-			    args->size, &offset);
-	if (written != args->size) {
-		mutex_unlock(&dev->struct_mutex);
-		if (written < 0)
-			return written;
-		else
-			return -EINVAL;
+	while (remain > 0) {
+		/* Operation in this page
+		 *
+		 * page_base = page offset within aperture
+		 * page_offset = offset within page
+		 * page_length = bytes to copy for this page
+		 */
+		page_base = (offset & ~(PAGE_SIZE-1));
+		page_offset = offset & (PAGE_SIZE-1);
+		page_length = remain;
+		if ((page_offset + remain) > PAGE_SIZE)
+			page_length = PAGE_SIZE - page_offset;
+
+		ret = fast_shmem_write(obj_priv->pages,
+				       page_base, page_offset,
+				       user_data, page_length);
+		if (ret)
+			goto fail_put_pages;
+
+		remain -= page_length;
+		user_data += page_length;
+		offset += page_length;
 	}
 
+fail_put_pages:
+	i915_gem_object_put_pages(obj);
+fail_unlock:
 	mutex_unlock(&dev->struct_mutex);
 
-	return 0;
+	return ret;
+}
+
+/**
+ * This is the fallback shmem pwrite path, which uses get_user_pages to pin
+ * the memory and maps it using kmap_atomic for copying.
+ *
+ * This avoids taking mmap_sem for faulting on the user's address while the
+ * struct_mutex is held.
+ */
+static int
+i915_gem_shmem_pwrite_slow(struct drm_device *dev, struct drm_gem_object *obj,
+			   struct drm_i915_gem_pwrite *args,
+			   struct drm_file *file_priv)
+{
+	struct drm_i915_gem_object *obj_priv = obj->driver_private;
+	struct mm_struct *mm = current->mm;
+	struct page **user_pages;
+	ssize_t remain;
+	loff_t offset, pinned_pages, i;
+	loff_t first_data_page, last_data_page, num_pages;
+	int shmem_page_index, shmem_page_offset;
+	int data_page_index,  data_page_offset;
+	int page_length;
+	int ret;
+	uint64_t data_ptr = args->data_ptr;
+
+	remain = args->size;
+
+	/* Pin the user pages containing the data.  We can't fault while
+	 * holding the struct mutex, and all of the pwrite implementations
+	 * want to hold it while dereferencing the user data.
+	 */
+	first_data_page = data_ptr / PAGE_SIZE;
+	last_data_page = (data_ptr + args->size - 1) / PAGE_SIZE;
+	num_pages = last_data_page - first_data_page + 1;
+
+	user_pages = kcalloc(num_pages, sizeof(struct page *), GFP_KERNEL);
+	if (user_pages == NULL)
+		return -ENOMEM;
+
+	down_read(&mm->mmap_sem);
+	pinned_pages = get_user_pages(current, mm, (uintptr_t)args->data_ptr,
+				      num_pages, 0, 0, user_pages, NULL);
+	up_read(&mm->mmap_sem);
+	if (pinned_pages < num_pages) {
+		ret = -EFAULT;
+		goto fail_put_user_pages;
+	}
+
+	mutex_lock(&dev->struct_mutex);
+
+	ret = i915_gem_object_get_pages(obj);
+	if (ret != 0)
+		goto fail_unlock;
+
+	ret = i915_gem_object_set_to_cpu_domain(obj, 1);
+	if (ret != 0)
+		goto fail_put_pages;
+
+	obj_priv = obj->driver_private;
+	offset = args->offset;
+	obj_priv->dirty = 1;
+
+	while (remain > 0) {
+		/* Operation in this page
+		 *
+		 * shmem_page_index = page number within shmem file
+		 * shmem_page_offset = offset within page in shmem file
+		 * data_page_index = page number in get_user_pages return
+		 * data_page_offset = offset with data_page_index page.
+		 * page_length = bytes to copy for this page
+		 */
+		shmem_page_index = offset / PAGE_SIZE;
+		shmem_page_offset = offset & ~PAGE_MASK;
+		data_page_index = data_ptr / PAGE_SIZE - first_data_page;
+		data_page_offset = data_ptr & ~PAGE_MASK;
+
+		page_length = remain;
+		if ((shmem_page_offset + page_length) > PAGE_SIZE)
+			page_length = PAGE_SIZE - shmem_page_offset;
+		if ((data_page_offset + page_length) > PAGE_SIZE)
+			page_length = PAGE_SIZE - data_page_offset;
+
+		ret = slow_shmem_copy(obj_priv->pages[shmem_page_index],
+				      shmem_page_offset,
+				      user_pages[data_page_index],
+				      data_page_offset,
+				      page_length);
+		if (ret)
+			goto fail_put_pages;
+
+		remain -= page_length;
+		data_ptr += page_length;
+		offset += page_length;
+	}
+
+fail_put_pages:
+	i915_gem_object_put_pages(obj);
+fail_unlock:
+	mutex_unlock(&dev->struct_mutex);
+fail_put_user_pages:
+	for (i = 0; i < pinned_pages; i++)
+		page_cache_release(user_pages[i]);
+	kfree(user_pages);
+
+	return ret;
 }
 
 /**
@@ -502,8 +682,13 @@ i915_gem_pwrite_ioctl(struct drm_device *dev, void *data,
 			ret = i915_gem_gtt_pwrite_slow(dev, obj, args,
 						       file_priv);
 		}
-	} else
-		ret = i915_gem_shmem_pwrite(dev, obj, args, file_priv);
+	} else {
+		ret = i915_gem_shmem_pwrite_fast(dev, obj, args, file_priv);
+		if (ret == -EFAULT) {
+			ret = i915_gem_shmem_pwrite_slow(dev, obj, args,
+							 file_priv);
+		}
+	}
 
 #if WATCH_PWRITE
 	if (ret)
