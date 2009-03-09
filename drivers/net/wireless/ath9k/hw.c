@@ -662,16 +662,9 @@ static struct ath_hw *ath9k_hw_do_attach(u16 devid, struct ath_softc *sc,
 		ah->supp_cals = ADC_GAIN_CAL | ADC_DC_CAL | IQ_MISMATCH_CAL;
 	}
 
-	if (AR_SREV_9160(ah)) {
-		ah->config.enable_ani = 1;
-		ah->ani_function = (ATH9K_ANI_SPUR_IMMUNITY_LEVEL |
-					ATH9K_ANI_FIRSTEP_LEVEL);
-	} else {
-		ah->ani_function = ATH9K_ANI_ALL;
-		if (AR_SREV_9280_10_OR_LATER(ah)) {
-			ah->ani_function &=	~ATH9K_ANI_NOISE_IMMUNITY_LEVEL;
-		}
-	}
+	ah->ani_function = ATH9K_ANI_ALL;
+	if (AR_SREV_9280_10_OR_LATER(ah))
+		ah->ani_function &= ~ATH9K_ANI_NOISE_IMMUNITY_LEVEL;
 
 	DPRINTF(sc, ATH_DBG_RESET,
 		"This Mac Chip Rev 0x%02x.%x is \n",
