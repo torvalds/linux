@@ -104,7 +104,7 @@ MODULE_PARM_DESC(usbfs_snoop, "true to log all usbfs traffic");
 
 #define	MAX_USBFS_BUFFER_SIZE	16384
 
-static inline int connected(struct dev_state *ps)
+static int connected(struct dev_state *ps)
 {
 	return (!list_empty(&ps->list) &&
 			ps->dev->state != USB_STATE_NOTATTACHED);
@@ -248,7 +248,7 @@ static void free_async(struct async *as)
 	kfree(as);
 }
 
-static inline void async_newpending(struct async *as)
+static void async_newpending(struct async *as)
 {
 	struct dev_state *ps = as->ps;
 	unsigned long flags;
@@ -258,7 +258,7 @@ static inline void async_newpending(struct async *as)
 	spin_unlock_irqrestore(&ps->lock, flags);
 }
 
-static inline void async_removepending(struct async *as)
+static void async_removepending(struct async *as)
 {
 	struct dev_state *ps = as->ps;
 	unsigned long flags;
@@ -268,7 +268,7 @@ static inline void async_removepending(struct async *as)
 	spin_unlock_irqrestore(&ps->lock, flags);
 }
 
-static inline struct async *async_getcompleted(struct dev_state *ps)
+static struct async *async_getcompleted(struct dev_state *ps)
 {
 	unsigned long flags;
 	struct async *as = NULL;
@@ -283,7 +283,7 @@ static inline struct async *async_getcompleted(struct dev_state *ps)
 	return as;
 }
 
-static inline struct async *async_getpending(struct dev_state *ps,
+static struct async *async_getpending(struct dev_state *ps,
 					     void __user *userurb)
 {
 	unsigned long flags;
@@ -376,7 +376,7 @@ static void destroy_async_on_interface(struct dev_state *ps,
 	destroy_async(ps, &hitlist);
 }
 
-static inline void destroy_all_async(struct dev_state *ps)
+static void destroy_all_async(struct dev_state *ps)
 {
 	destroy_async(ps, &ps->async_pending);
 }
