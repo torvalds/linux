@@ -1045,7 +1045,7 @@ static struct nfsd4_operation nfsd4_ops[OP_RELEASE_LOCKOWNER+1] = {
 		.op_name = "OP_PUTFH",
 	},
 	[OP_PUTPUBFH] = {
-		/* unsupported, just for future reference: */
+		.op_func = (nfsd4op_func)nfsd4_putrootfh,
 		.op_flags = ALLOWED_WITHOUT_FH | ALLOWED_ON_ABSENT_FS,
 		.op_name = "OP_PUTPUBFH",
 	},
