@@ -1212,7 +1212,16 @@ netxen_clean_tx_dma_mapping(struct pci_dev *pdev,
 	}
 }
 
-static int netxen_nic_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
+static inline void
+netxen_clear_cmddesc(u64 *desc)
+{
+	int i;
+	for (i = 0; i < 8; i++)
+		desc[i] = 0ULL;
+}
+
+static int
+netxen_nic_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 {
 	struct netxen_adapter *adapter = netdev_priv(netdev);
 	struct netxen_hardware_context *hw = &adapter->ahw;
@@ -1245,7 +1254,7 @@ static int netxen_nic_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 
 	/* Copy the descriptors into the hardware    */
 	hwdesc = &hw->cmd_desc_head[producer];
-	memset(hwdesc, 0, sizeof(struct cmd_desc_type0));
+	netxen_clear_cmddesc((u64 *)hwdesc);
 	/* Take skb->data itself */
 	pbuf = &adapter->cmd_buf_arr[producer];
 
@@ -1264,7 +1273,7 @@ static int netxen_nic_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 	netxen_set_tx_frags_len(hwdesc, frag_count, skb->len);
 	netxen_set_tx_port(hwdesc, adapter->portnum);
 
-	hwdesc->buffer1_length = cpu_to_le16(first_seg_len);
+	hwdesc->buffer_length[0] = cpu_to_le16(first_seg_len);
 	hwdesc->addr_buffer1 = cpu_to_le64(buffrag->dma);
 
 	for (i = 1, k = 1; i < frag_count; i++, k++) {
@@ -1277,7 +1286,7 @@ static int netxen_nic_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 			k = 0;
 			producer = get_next_index(producer, num_txd);
 			hwdesc = &hw->cmd_desc_head[producer];
-			memset(hwdesc, 0, sizeof(struct cmd_desc_type0));
+			netxen_clear_cmddesc((u64 *)hwdesc);
 			pbuf = &adapter->cmd_buf_arr[producer];
 			pbuf->skb = NULL;
 		}
@@ -1297,21 +1306,18 @@ static int netxen_nic_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 		buffrag->dma = temp_dma;
 		buffrag->length = temp_len;
 
+		hwdesc->buffer_length[k] = cpu_to_le16(temp_len);
 		switch (k) {
 		case 0:
-			hwdesc->buffer1_length = cpu_to_le16(temp_len);
 			hwdesc->addr_buffer1 = cpu_to_le64(temp_dma);
 			break;
 		case 1:
-			hwdesc->buffer2_length = cpu_to_le16(temp_len);
 			hwdesc->addr_buffer2 = cpu_to_le64(temp_dma);
 			break;
 		case 2:
-			hwdesc->buffer3_length = cpu_to_le16(temp_len);
 			hwdesc->addr_buffer3 = cpu_to_le64(temp_dma);
 			break;
 		case 3:
-			hwdesc->buffer4_length = cpu_to_le16(temp_len);
 			hwdesc->addr_buffer4 = cpu_to_le64(temp_dma);
 			break;
 		}

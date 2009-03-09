@@ -358,10 +358,7 @@ struct cmd_desc_type0 {
 		__le64 addr_buffer1;
 	};
 
-	__le16 buffer1_length;
-	__le16 buffer2_length;
-	__le16 buffer3_length;
-	__le16 buffer4_length;
+	__le16 buffer_length[4];
 
 	union {
 		struct {

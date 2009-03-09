@@ -955,6 +955,7 @@ int netxen_process_cmd_ring(struct netxen_adapter *adapter)
 	int done = 0;
 
 	last_consumer = adapter->last_cmd_consumer;
+	barrier(); /* cmd_consumer can change underneath */
 	consumer = le32_to_cpu(*(adapter->cmd_consumer));
 
 	while (last_consumer != consumer) {
@@ -1005,6 +1006,7 @@ int netxen_process_cmd_ring(struct netxen_adapter *adapter)
 	 * There is still a possible race condition and the host could miss an
 	 * interrupt. The card has to take care of this.
 	 */
+	barrier(); /* cmd_consumer can change underneath */
 	consumer = le32_to_cpu(*(adapter->cmd_consumer));
 	done = (last_consumer == consumer);
 
