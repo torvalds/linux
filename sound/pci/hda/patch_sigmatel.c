@@ -4489,13 +4489,9 @@ static int stac92xx_resume(struct hda_codec *codec)
  */
 
 #ifdef CONFIG_SND_HDA_POWER_SAVE
-static int stac92xx_check_power_status (struct hda_codec * codec, hda_nid_t nid)
+static int stac92xx_hp_hdx_check_power_status (struct hda_codec * codec, hda_nid_t nid)
 {
 	struct sigmatel_spec *spec = codec->spec;
-	
-	/* only handle on HP HDX */
-	if (spec->board_config != STAC_HP_HDX)
-		return 0;
 	
 	if (nid == 0x10)
 	{
@@ -4534,9 +4530,6 @@ static struct hda_codec_ops stac92xx_patch_ops = {
 #ifdef SND_HDA_NEEDS_RESUME
 	.suspend = stac92xx_suspend,
 	.resume = stac92xx_resume,
-#endif
-#ifdef CONFIG_SND_HDA_POWER_SAVE
-	.check_power_status = stac92xx_check_power_status,
 #endif
 };
 
@@ -5134,13 +5127,6 @@ again:
 		/* no output amps */
 		spec->num_pwrs = 0;
 		/* fallthru */
-	case 0x111d76b2: /* Codec of HP HDX16/HDX18 */
-
-		/* orange/white mute led on GPIO3, orange=0, white=1 */
-		spec->gpio_mask |= 0x08;
-		spec->gpio_dir  |= 0x08;
-		spec->gpio_data |= 0x08;  /* set to white */
-		/* fallthru */
 	default:
 		memcpy(&spec->private_dimux, &stac92hd71bxx_dmux_amixer,
 		       sizeof(stac92hd71bxx_dmux_amixer));
@@ -5199,6 +5185,20 @@ again:
 		spec->num_dmics = 1;
 		spec->num_dmuxes = 1;
 		spec->num_smuxes = 1;
+		/* 
+		 * For controlling MUTE LED on HP HDX16/HDX18 notebooks,
+		 * the CONFIG_SND_HDA_POWER_SAVE is needed to be set.
+		 */
+#ifdef CONFIG_SND_HDA_POWER_SAVE
+		/* orange/white mute led on GPIO3, orange=0, white=1 */
+		spec->gpio_mask |= 0x08;
+		spec->gpio_dir  |= 0x08;
+		spec->gpio_data |= 0x08;  /* set to white */
+
+		/* register check_power_status callback. */
+		codec->patch_ops.check_power_status = 
+		    stac92xx_hp_hdx_check_power_status;
+#endif	
 		break;
 	};
 
