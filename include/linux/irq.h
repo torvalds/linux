@@ -226,7 +226,6 @@ irq_remap_to_desc(unsigned int irq, struct irq_desc *desc)
  * Migration helpers for obsolete names, they will go away:
  */
 #define hw_interrupt_type	irq_chip
-typedef struct irq_chip		hw_irq_controller;
 #define no_irq_type		no_irq_chip
 typedef struct irq_desc		irq_desc_t;
 
