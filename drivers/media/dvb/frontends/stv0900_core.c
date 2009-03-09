@@ -34,8 +34,8 @@
 #include "stv0900_priv.h"
 #include "stv0900_init.h"
 
-int debug = 1;
-module_param(debug, int, 0644);
+static int stvdebug = 1;
+module_param_named(debug, stvdebug, int, 0644);
 
 /* internal params node */
 struct stv0900_inode {

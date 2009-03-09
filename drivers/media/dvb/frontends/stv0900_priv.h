@@ -62,11 +62,11 @@
 
 #define dmd_choose(a, b)	(demod = STV0900_DEMOD_2 ? b : a))
 
-extern int debug;
+static int stvdebug;
 
 #define dprintk(args...) \
 	do { \
-		if (debug) \
+		if (stvdebug) \
 			printk(KERN_DEBUG args); \
 	} while (0)
 
