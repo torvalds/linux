@@ -322,6 +322,9 @@ static ssize_t read_file_rcstat(struct file *file, char __user *user_buf,
 {
 	struct ath_softc *sc = file->private_data;
 
+	if (sc->cur_rate_table == NULL)
+		return 0;
+
 	if (conf_is_ht(&sc->hw->conf))
 		return ath_read_file_stat_11n_rc(file, user_buf, count, ppos);
 	else
