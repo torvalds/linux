@@ -2267,12 +2267,6 @@ int netif_receive_skb(struct sk_buff *skb)
 
 	rcu_read_lock();
 
-	/* Don't receive packets in an exiting network namespace */
-	if (!net_alive(dev_net(skb->dev))) {
-		kfree_skb(skb);
-		goto out;
-	}
-
 #ifdef CONFIG_NET_CLS_ACT
 	if (skb->tc_verd & TC_NCLS) {
 		skb->tc_verd = CLR_TC_NCLS(skb->tc_verd);
@@ -4288,6 +4282,39 @@ unsigned long netdev_fix_features(unsigned long features, const char *name)
 }
 EXPORT_SYMBOL(netdev_fix_features);
 
+/* Some devices need to (re-)set their netdev_ops inside
+ * ->init() or similar.  If that happens, we have to setup
+ * the compat pointers again.
+ */
+void netdev_resync_ops(struct net_device *dev)
+{
+#ifdef CONFIG_COMPAT_NET_DEV_OPS
+	const struct net_device_ops *ops = dev->netdev_ops;
+
+	dev->init = ops->ndo_init;
+	dev->uninit = ops->ndo_uninit;
+	dev->open = ops->ndo_open;
+	dev->change_rx_flags = ops->ndo_change_rx_flags;
+	dev->set_rx_mode = ops->ndo_set_rx_mode;
+	dev->set_multicast_list = ops->ndo_set_multicast_list;
+	dev->set_mac_address = ops->ndo_set_mac_address;
+	dev->validate_addr = ops->ndo_validate_addr;
+	dev->do_ioctl = ops->ndo_do_ioctl;
+	dev->set_config = ops->ndo_set_config;
+	dev->change_mtu = ops->ndo_change_mtu;
+	dev->neigh_setup = ops->ndo_neigh_setup;
+	dev->tx_timeout = ops->ndo_tx_timeout;
+	dev->get_stats = ops->ndo_get_stats;
+	dev->vlan_rx_register = ops->ndo_vlan_rx_register;
+	dev->vlan_rx_add_vid = ops->ndo_vlan_rx_add_vid;
+	dev->vlan_rx_kill_vid = ops->ndo_vlan_rx_kill_vid;
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	dev->poll_controller = ops->ndo_poll_controller;
+#endif
+#endif
+}
+EXPORT_SYMBOL(netdev_resync_ops);
+
 /**
  *	register_netdevice	- register a network device
  *	@dev: device to register
@@ -4332,27 +4359,7 @@ int register_netdevice(struct net_device *dev)
 	 * This is temporary until all network devices are converted.
 	 */
 	if (dev->netdev_ops) {
-		const struct net_device_ops *ops = dev->netdev_ops;
-
-		dev->init = ops->ndo_init;
-		dev->uninit = ops->ndo_uninit;
-		dev->open = ops->ndo_open;
-		dev->change_rx_flags = ops->ndo_change_rx_flags;
-		dev->set_rx_mode = ops->ndo_set_rx_mode;
-		dev->set_multicast_list = ops->ndo_set_multicast_list;
-		dev->set_mac_address = ops->ndo_set_mac_address;
-		dev->validate_addr = ops->ndo_validate_addr;
-		dev->do_ioctl = ops->ndo_do_ioctl;
-		dev->set_config = ops->ndo_set_config;
-		dev->change_mtu = ops->ndo_change_mtu;
-		dev->tx_timeout = ops->ndo_tx_timeout;
-		dev->get_stats = ops->ndo_get_stats;
-		dev->vlan_rx_register = ops->ndo_vlan_rx_register;
-		dev->vlan_rx_add_vid = ops->ndo_vlan_rx_add_vid;
-		dev->vlan_rx_kill_vid = ops->ndo_vlan_rx_kill_vid;
-#ifdef CONFIG_NET_POLL_CONTROLLER
-		dev->poll_controller = ops->ndo_poll_controller;
-#endif
+		netdev_resync_ops(dev);
 	} else {
 		char drivername[64];
 		pr_info("%s (%s): not using net_device_ops yet\n",
