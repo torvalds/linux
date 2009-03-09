@@ -144,27 +144,15 @@ __attribute__((section("_ftrace_events"))) event_##call = {		\
 	.unregfunc		= ftrace_unreg_event_##call,		\
 }
 
-#undef TRACE_FIELD
-#define TRACE_FIELD(type, item, assign)\
-	entry->item = assign;
-
-#undef TRACE_FIELD
-#define TRACE_FIELD(type, item, assign)\
-	entry->item = assign;
-
-#undef TP_CMD
-#define TP_CMD(cmd...)	cmd
-
-#undef TRACE_ENTRY
-#define TRACE_ENTRY	entry
-
-#undef TRACE_FIELD_SPECIAL
-#define TRACE_FIELD_SPECIAL(type_item, item, cmd) \
-	cmd;
-
 #undef TRACE_EVENT_FORMAT
-#define TRACE_EVENT_FORMAT(call, proto, args, fmt, tstruct, tpfmt)	\
-_TRACE_FORMAT(call, PARAMS(proto), PARAMS(args), PARAMS(fmt))		\
+#define TRACE_EVENT_FORMAT(call, proto, args, fmt, tstruct, raw)	\
+	TRACE_FORMAT(call, PARAMS(proto), PARAMS(args), PARAMS(fmt))
+
+#undef __entry
+#define __entry entry
+
+#undef TRACE_EVENT
+#define TRACE_EVENT(call, proto, args, tstruct, print, assign)		\
 									\
 static struct ftrace_event_call event_##call;				\
 									\
@@ -185,7 +173,7 @@ static void ftrace_raw_event_##call(proto)				\
 		return;							\
 	entry	= ring_buffer_event_data(event);			\
 									\
-	tstruct;							\
+	assign;								\
 									\
 	trace_current_buffer_unlock_commit(event, irq_flags, pc);	\
 }									\
@@ -226,10 +214,8 @@ __attribute__((__aligned__(4)))						\
 __attribute__((section("_ftrace_events"))) event_##call = {		\
 	.name 			= #call,				\
 	.system			= __stringify(TRACE_SYSTEM),		\
-	.regfunc		= ftrace_reg_event_##call,		\
-	.unregfunc		= ftrace_unreg_event_##call,		\
 	.raw_init		= ftrace_raw_init_event_##call,		\
-	.raw_reg		= ftrace_raw_reg_event_##call,		\
-	.raw_unreg		= ftrace_raw_unreg_event_##call,	\
+	.regfunc		= ftrace_raw_reg_event_##call,		\
+	.unregfunc		= ftrace_raw_unreg_event_##call,	\
 	.show_format		= ftrace_format_##call,			\
 }

@@ -62,25 +62,41 @@ TRACE_EVENT_FORMAT(sched_wakeup_new,
 	TP_RAW_FMT("task %d success=%d")
 	);
 
-TRACE_EVENT_FORMAT(sched_switch,
+/*
+ * Tracepoint for task switches, performed by the scheduler:
+ *
+ * (NOTE: the 'rq' argument is not used by generic trace events,
+ *        but used by the latency tracer plugin. )
+ */
+TRACE_EVENT(sched_switch,
+
 	TP_PROTO(struct rq *rq, struct task_struct *prev,
-		struct task_struct *next),
+		 struct task_struct *next),
+
 	TP_ARGS(rq, prev, next),
-	TP_FMT("task %s:%d ==> %s:%d",
-	      prev->comm, prev->pid, next->comm, next->pid),
-	TRACE_STRUCT(
-		TRACE_FIELD(pid_t, prev_pid, prev->pid)
-		TRACE_FIELD(int, prev_prio, prev->prio)
-		TRACE_FIELD_SPECIAL(char next_comm[TASK_COMM_LEN],
-				    next_comm,
-				    TP_CMD(memcpy(TRACE_ENTRY->next_comm,
-						 next->comm,
-						 TASK_COMM_LEN)))
-		TRACE_FIELD(pid_t, next_pid, next->pid)
-		TRACE_FIELD(int, next_prio, next->prio)
+
+	TP_STRUCT__entry(
+		__array(	char,	prev_comm,	TASK_COMM_LEN	)
+		__field(	pid_t,	prev_pid			)
+		__field(	int,	prev_prio			)
+		__array(	char,	next_comm,	TASK_COMM_LEN	)
+		__field(	pid_t,	next_pid			)
+		__field(	int,	next_prio			)
 	),
-	TP_RAW_FMT("prev %d:%d ==> next %s:%d:%d")
-	);
+
+	TP_printk("task %s:%d [%d] ==> %s:%d [%d]",
+		__entry->prev_comm, __entry->prev_pid, __entry->prev_prio,
+		__entry->next_comm, __entry->next_pid, __entry->next_prio),
+
+	TP_fast_assign(
+		memcpy(__entry->next_comm, next->comm, TASK_COMM_LEN);
+		__entry->prev_pid	= prev->pid;
+		__entry->prev_prio	= prev->prio;
+		memcpy(__entry->prev_comm, prev->comm, TASK_COMM_LEN);
+		__entry->next_pid	= next->pid;
+		__entry->next_prio	= next->prio;
+	)
+);
 
 TRACE_EVENT_FORMAT(sched_migrate_task,
 	TP_PROTO(struct task_struct *p, int orig_cpu, int dest_cpu),

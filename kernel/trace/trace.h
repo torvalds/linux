@@ -751,12 +751,7 @@ struct ftrace_event_call {
 	int		(*regfunc)(void);
 	void		(*unregfunc)(void);
 	int		id;
-	struct dentry	*raw_dir;
-	int		raw_enabled;
-	int		type;
 	int		(*raw_init)(void);
-	int		(*raw_reg)(void);
-	void		(*raw_unreg)(void);
 	int		(*show_format)(struct trace_seq *s);
 };
 
