@@ -1280,7 +1280,7 @@ struct netxen_adapter {
 	 * Receive instances. These can be either one per port,
 	 * or one per peg, etc.
 	 */
-	struct netxen_recv_context recv_ctx[MAX_RCV_CTX];
+	struct netxen_recv_context recv_ctx;
 
 	int is_up;
 	struct netxen_dummy_dma dummy_dma;
@@ -1464,10 +1464,9 @@ void netxen_initialize_adapter_ops(struct netxen_adapter *adapter);
 int netxen_init_firmware(struct netxen_adapter *adapter);
 void netxen_nic_clear_stats(struct netxen_adapter *adapter);
 void netxen_watchdog_task(struct work_struct *work);
-void netxen_post_rx_buffers(struct netxen_adapter *adapter, u32 ctx,
-			    u32 ringid);
+void netxen_post_rx_buffers(struct netxen_adapter *adapter, u32 ringid);
 int netxen_process_cmd_ring(struct netxen_adapter *adapter);
-u32 netxen_process_rcv_ring(struct netxen_adapter *adapter, int ctx, int max);
+int netxen_process_rcv_ring(struct netxen_adapter *adapter, int max);
 void netxen_p2_nic_set_multi(struct net_device *netdev);
 void netxen_p3_nic_set_multi(struct net_device *netdev);
 void netxen_p3_free_mac_list(struct netxen_adapter *adapter);

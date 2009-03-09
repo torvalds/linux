@@ -474,16 +474,13 @@ static void
 netxen_nic_get_ringparam(struct net_device *dev, struct ethtool_ringparam *ring)
 {
 	struct netxen_adapter *adapter = netdev_priv(dev);
-	int i;
 
 	ring->rx_pending = 0;
 	ring->rx_jumbo_pending = 0;
-	for (i = 0; i < MAX_RCV_CTX; ++i) {
-		ring->rx_pending += adapter->recv_ctx[i].
-		    rds_rings[RCV_DESC_NORMAL_CTXID].max_rx_desc_count;
-		ring->rx_jumbo_pending += adapter->recv_ctx[i].
-		    rds_rings[RCV_DESC_JUMBO_CTXID].max_rx_desc_count;
-	}
+	ring->rx_pending += adapter->recv_ctx.
+		rds_rings[RCV_DESC_NORMAL_CTXID].max_rx_desc_count;
+	ring->rx_jumbo_pending += adapter->recv_ctx.
+		rds_rings[RCV_DESC_JUMBO_CTXID].max_rx_desc_count;
 	ring->tx_pending = adapter->max_tx_desc_count;
 
 	if (adapter->ahw.board_type == NETXEN_NIC_GBE)

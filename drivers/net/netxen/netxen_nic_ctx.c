@@ -141,7 +141,7 @@ int
 nx_fw_cmd_set_mtu(struct netxen_adapter *adapter, int mtu)
 {
 	u32 rcode = NX_RCODE_SUCCESS;
-	struct netxen_recv_context *recv_ctx = &adapter->recv_ctx[0];
+	struct netxen_recv_context *recv_ctx = &adapter->recv_ctx;
 
 	if (recv_ctx->state == NX_HOST_CTX_STATE_ACTIVE)
 		rcode = netxen_issue_cmd(adapter,
@@ -179,7 +179,7 @@ nx_fw_cmd_create_rx_ctx(struct netxen_adapter *adapter)
 
 	int err;
 
-	struct netxen_recv_context *recv_ctx = &adapter->recv_ctx[0];
+	struct netxen_recv_context *recv_ctx = &adapter->recv_ctx;
 
 	/* only one sds ring for now */
 	nrds_rings = adapter->max_rds_rings;
@@ -292,7 +292,7 @@ out_free_rq:
 static void
 nx_fw_cmd_destroy_rx_ctx(struct netxen_adapter *adapter)
 {
-	struct netxen_recv_context *recv_ctx = &adapter->recv_ctx[0];
+	struct netxen_recv_context *recv_ctx = &adapter->recv_ctx;
 
 	if (netxen_issue_cmd(adapter,
 			adapter->ahw.pci_func,
@@ -488,7 +488,7 @@ netxen_init_old_ctx(struct netxen_adapter *adapter)
 {
 	struct netxen_recv_context *recv_ctx;
 	struct nx_host_rds_ring *rds_ring;
-	int ctx, ring;
+	int ring;
 	int func_id = adapter->portnum;
 
 	adapter->ctx_desc->cmd_ring_addr =
@@ -496,22 +496,20 @@ netxen_init_old_ctx(struct netxen_adapter *adapter)
 	adapter->ctx_desc->cmd_ring_size =
 		cpu_to_le32(adapter->max_tx_desc_count);
 
-	for (ctx = 0; ctx < MAX_RCV_CTX; ++ctx) {
-		recv_ctx = &adapter->recv_ctx[ctx];
+	recv_ctx = &adapter->recv_ctx;
 
-		for (ring = 0; ring < adapter->max_rds_rings; ring++) {
-			rds_ring = &recv_ctx->rds_rings[ring];
+	for (ring = 0; ring < adapter->max_rds_rings; ring++) {
+		rds_ring = &recv_ctx->rds_rings[ring];
 
-			adapter->ctx_desc->rcv_ctx[ring].rcv_ring_addr =
-				cpu_to_le64(rds_ring->phys_addr);
-			adapter->ctx_desc->rcv_ctx[ring].rcv_ring_size =
-				cpu_to_le32(rds_ring->max_rx_desc_count);
-		}
-		adapter->ctx_desc->sts_ring_addr =
-			cpu_to_le64(recv_ctx->rcv_status_desc_phys_addr);
-		adapter->ctx_desc->sts_ring_size =
-			cpu_to_le32(adapter->max_rx_desc_count);
+		adapter->ctx_desc->rcv_ctx[ring].rcv_ring_addr =
+			cpu_to_le64(rds_ring->phys_addr);
+		adapter->ctx_desc->rcv_ctx[ring].rcv_ring_size =
+			cpu_to_le32(rds_ring->max_rx_desc_count);
 	}
+	adapter->ctx_desc->sts_ring_addr =
+		cpu_to_le64(recv_ctx->rcv_status_desc_phys_addr);
+	adapter->ctx_desc->sts_ring_size =
+		cpu_to_le32(adapter->max_rx_desc_count);
 
 	adapter->pci_write_normalize(adapter, CRB_CTX_ADDR_REG_LO(func_id),
 			lower32(adapter->ctx_desc_phys_addr));
@@ -533,7 +531,7 @@ int netxen_alloc_hw_resources(struct netxen_adapter *adapter)
 	u32 state = 0;
 	void *addr;
 	int err = 0;
-	int ctx, ring;
+	int ring;
 	struct netxen_recv_context *recv_ctx;
 	struct nx_host_rds_ring *rds_ring;
 
@@ -575,47 +573,45 @@ int netxen_alloc_hw_resources(struct netxen_adapter *adapter)
 
 	hw->cmd_desc_head = (struct cmd_desc_type0 *)addr;
 
-	for (ctx = 0; ctx < MAX_RCV_CTX; ++ctx) {
-		recv_ctx = &adapter->recv_ctx[ctx];
+	recv_ctx = &adapter->recv_ctx;
 
-		for (ring = 0; ring < adapter->max_rds_rings; ring++) {
-			/* rx desc ring */
-			rds_ring = &recv_ctx->rds_rings[ring];
-			addr = pci_alloc_consistent(adapter->pdev,
-					RCV_DESC_RINGSIZE,
-					&rds_ring->phys_addr);
-			if (addr == NULL) {
-				printk(KERN_ERR "%s failed to allocate rx "
-					"desc ring[%d]\n",
-					netxen_nic_driver_name, ring);
-				err = -ENOMEM;
-				goto err_out_free;
-			}
-			rds_ring->desc_head = (struct rcv_desc *)addr;
-
-			if (adapter->fw_major < 4)
-				rds_ring->crb_rcv_producer =
-					recv_crb_registers[adapter->portnum].
-					crb_rcv_producer[ring];
-		}
-
-		/* status desc ring */
+	for (ring = 0; ring < adapter->max_rds_rings; ring++) {
+		/* rx desc ring */
+		rds_ring = &recv_ctx->rds_rings[ring];
 		addr = pci_alloc_consistent(adapter->pdev,
-				STATUS_DESC_RINGSIZE,
-				&recv_ctx->rcv_status_desc_phys_addr);
+				RCV_DESC_RINGSIZE,
+				&rds_ring->phys_addr);
 		if (addr == NULL) {
-			printk(KERN_ERR "%s failed to allocate sts desc ring\n",
-					netxen_nic_driver_name);
+			printk(KERN_ERR "%s failed to allocate rx "
+				"desc ring[%d]\n",
+				netxen_nic_driver_name, ring);
 			err = -ENOMEM;
 			goto err_out_free;
 		}
-		recv_ctx->rcv_status_desc_head = (struct status_desc *)addr;
+		rds_ring->desc_head = (struct rcv_desc *)addr;
 
 		if (adapter->fw_major < 4)
-			recv_ctx->crb_sts_consumer =
+			rds_ring->crb_rcv_producer =
 				recv_crb_registers[adapter->portnum].
-				crb_sts_consumer;
+				crb_rcv_producer[ring];
 	}
+
+	/* status desc ring */
+	addr = pci_alloc_consistent(adapter->pdev,
+			STATUS_DESC_RINGSIZE,
+			&recv_ctx->rcv_status_desc_phys_addr);
+	if (addr == NULL) {
+		printk(KERN_ERR "%s failed to allocate sts desc ring\n",
+				netxen_nic_driver_name);
+		err = -ENOMEM;
+		goto err_out_free;
+	}
+	recv_ctx->rcv_status_desc_head = (struct status_desc *)addr;
+
+	if (adapter->fw_major < 4)
+		recv_ctx->crb_sts_consumer =
+			recv_crb_registers[adapter->portnum].
+			crb_sts_consumer;
 
 	if (adapter->fw_major >= 4) {
 		adapter->intr_scheme = INTR_SCHEME_PERPORT;
@@ -654,7 +650,7 @@ void netxen_free_hw_resources(struct netxen_adapter *adapter)
 {
 	struct netxen_recv_context *recv_ctx;
 	struct nx_host_rds_ring *rds_ring;
-	int ctx, ring;
+	int ring;
 
 	if (adapter->fw_major >= 4) {
 		nx_fw_cmd_destroy_tx_ctx(adapter);
@@ -679,27 +675,25 @@ void netxen_free_hw_resources(struct netxen_adapter *adapter)
 		adapter->ahw.cmd_desc_head = NULL;
 	}
 
-	for (ctx = 0; ctx < MAX_RCV_CTX; ++ctx) {
-		recv_ctx = &adapter->recv_ctx[ctx];
-		for (ring = 0; ring < adapter->max_rds_rings; ring++) {
-			rds_ring = &recv_ctx->rds_rings[ring];
+	recv_ctx = &adapter->recv_ctx;
+	for (ring = 0; ring < adapter->max_rds_rings; ring++) {
+		rds_ring = &recv_ctx->rds_rings[ring];
 
-			if (rds_ring->desc_head != NULL) {
-				pci_free_consistent(adapter->pdev,
-						RCV_DESC_RINGSIZE,
-						rds_ring->desc_head,
-						rds_ring->phys_addr);
-				rds_ring->desc_head = NULL;
-			}
-		}
-
-		if (recv_ctx->rcv_status_desc_head != NULL) {
+		if (rds_ring->desc_head != NULL) {
 			pci_free_consistent(adapter->pdev,
-					STATUS_DESC_RINGSIZE,
-					recv_ctx->rcv_status_desc_head,
-					recv_ctx->rcv_status_desc_phys_addr);
-			recv_ctx->rcv_status_desc_head = NULL;
+					RCV_DESC_RINGSIZE,
+					rds_ring->desc_head,
+					rds_ring->phys_addr);
+			rds_ring->desc_head = NULL;
 		}
+	}
+
+	if (recv_ctx->rcv_status_desc_head != NULL) {
+		pci_free_consistent(adapter->pdev,
+				STATUS_DESC_RINGSIZE,
+				recv_ctx->rcv_status_desc_head,
+				recv_ctx->rcv_status_desc_phys_addr);
+		recv_ctx->rcv_status_desc_head = NULL;
 	}
 }
 

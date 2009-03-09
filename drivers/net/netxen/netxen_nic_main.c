@@ -790,7 +790,7 @@ netxen_nic_attach(struct netxen_adapter *adapter)
 {
 	struct net_device *netdev = adapter->netdev;
 	struct pci_dev *pdev = adapter->pdev;
-	int err, ctx, ring;
+	int err, ring;
 
 	err = netxen_init_firmware(adapter);
 	if (err != 0) {
@@ -829,10 +829,8 @@ netxen_nic_attach(struct netxen_adapter *adapter)
 		netxen_nic_update_cmd_consumer(adapter, 0);
 	}
 
-	for (ctx = 0; ctx < MAX_RCV_CTX; ++ctx) {
-		for (ring = 0; ring < adapter->max_rds_rings; ring++)
-			netxen_post_rx_buffers(adapter, ctx, ring);
-	}
+	for (ring = 0; ring < adapter->max_rds_rings; ring++)
+		netxen_post_rx_buffers(adapter, ring);
 
 	err = netxen_nic_request_irq(adapter);
 	if (err) {
@@ -1640,30 +1638,14 @@ static irqreturn_t netxen_msix_intr(int irq, void *data)
 
 static int netxen_nic_poll(struct napi_struct *napi, int budget)
 {
-	struct netxen_adapter *adapter = container_of(napi, struct netxen_adapter, napi);
+	struct netxen_adapter *adapter =
+		container_of(napi, struct netxen_adapter, napi);
 	int tx_complete;
-	int ctx;
 	int work_done;
 
 	tx_complete = netxen_process_cmd_ring(adapter);
 
-	work_done = 0;
-	for (ctx = 0; ctx < MAX_RCV_CTX; ++ctx) {
-		/*
-		 * Fairness issue. This will give undue weight to the
-		 * receive context 0.
-		 */
-
-		/*
-		 * To avoid starvation, we give each of our receivers,
-		 * a fraction of the quota. Sometimes, it might happen that we
-		 * have enough quota to process every packet, but since all the
-		 * packets are on one context, it gets only half of the quota,
-		 * and ends up not processing it.
-		 */
-		work_done += netxen_process_rcv_ring(adapter, ctx,
-						     budget / MAX_RCV_CTX);
-	}
+	work_done = netxen_process_rcv_ring(adapter, budget);
 
 	if ((work_done < budget) && tx_complete) {
 		napi_complete(&adapter->napi);
