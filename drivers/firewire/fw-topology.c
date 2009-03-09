@@ -518,6 +518,18 @@ fw_core_handle_bus_reset(struct fw_card *card,
 	struct fw_node *local_node;
 	unsigned long flags;
 
+	/*
+	 * If the selfID buffer is not the immediate successor of the
+	 * previously processed one, we cannot reliably compare the
+	 * old and new topologies.
+	 */
+	if (!is_next_generation(generation, card->generation) &&
+	    card->local_node != NULL) {
+		fw_notify("skipped bus generations, destroying all nodes\n");
+		fw_destroy_nodes(card);
+		card->bm_retries = 0;
+	}
+
 	spin_lock_irqsave(&card->lock, flags);
 
 	card->node_id = node_id;

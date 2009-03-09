@@ -1999,7 +1999,7 @@ gotten:
 	 * Don't let another task, with possibly unlocked vma,
 	 * keep the mlocked page.
 	 */
-	if (vma->vm_flags & VM_LOCKED) {
+	if ((vma->vm_flags & VM_LOCKED) && old_page) {
 		lock_page(old_page);	/* for LRU manipulation */
 		clear_page_mlock(old_page);
 		unlock_page(old_page);

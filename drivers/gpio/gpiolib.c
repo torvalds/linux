@@ -789,6 +789,7 @@ int gpio_request(unsigned gpio, const char *label)
 	} else {
 		status = -EBUSY;
 		module_put(chip->owner);
+		goto done;
 	}
 
 	if (chip->request) {

@@ -113,7 +113,7 @@ struct imx_dma_channel {
 	void (*err_handler) (int, void *, int errcode);
 	void (*prog_handler) (int, void *, struct scatterlist *);
 	void *data;
-	unsigned int  dma_mode;
+	unsigned int dma_mode;
 	struct scatterlist *sg;
 	unsigned int resbytes;
 	int dma_num;

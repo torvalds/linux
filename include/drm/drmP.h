@@ -545,13 +545,6 @@ struct drm_ctx_list {
 	struct drm_file *tag;		/**< associated fd private data */
 };
 
-struct drm_vbl_sig {
-	struct list_head head;
-	unsigned int sequence;
-	struct siginfo info;
-	struct task_struct *task;
-};
-
 /* location of GART table */
 #define DRM_ATI_GART_MAIN 1
 #define DRM_ATI_GART_FB   2
@@ -903,8 +896,6 @@ struct drm_device {
 	wait_queue_head_t *vbl_queue;   /**< VBLANK wait queue */
 	atomic_t *_vblank_count;        /**< number of VBLANK interrupts (driver must alloc the right number of counters) */
 	spinlock_t vbl_lock;
-	struct list_head *vbl_sigs;	/**< signal list to send on VBLANK */
-	atomic_t vbl_signal_pending;    /* number of signals pending on all crtcs*/
 	atomic_t *vblank_refcount;      /* number of users of vblank interruptsper crtc */
 	u32 *last_vblank;               /* protected by dev->vbl_lock, used */
 					/* for wraparound handling */

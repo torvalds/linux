@@ -97,4 +97,5 @@ has detected a cable insertion; driven low otherwise. */
 
 /* for expansion boards that can't be programatically detected */
 extern int am200_init(void);
+extern int am300_init(void);
 

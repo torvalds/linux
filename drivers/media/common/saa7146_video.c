@@ -576,6 +576,7 @@ static int set_control(struct saa7146_fh *fh, struct v4l2_control *c)
 		vv->vflip = c->value;
 		break;
 	default: {
+		mutex_unlock(&dev->lock);
 		return -EINVAL;
 	}
 	}

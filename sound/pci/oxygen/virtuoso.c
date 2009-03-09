@@ -683,7 +683,7 @@ static void xonar_hdav_uart_input(struct oxygen *chip)
 	if (chip->uart_input_count >= 2 &&
 	    chip->uart_input[chip->uart_input_count - 2] == 'O' &&
 	    chip->uart_input[chip->uart_input_count - 1] == 'K') {
-		printk(KERN_DEBUG "message from Xonar HDAV HDMI chip received:");
+		printk(KERN_DEBUG "message from Xonar HDAV HDMI chip received:\n");
 		print_hex_dump_bytes("", DUMP_PREFIX_OFFSET,
 				     chip->uart_input, chip->uart_input_count);
 		chip->uart_input_count = 0;
@@ -908,6 +908,7 @@ static const struct oxygen_model model_xonar_hdav = {
 	.dac_channels = 8,
 	.dac_volume_min = 0x0f,
 	.dac_volume_max = 0xff,
+	.misc_flags = OXYGEN_MISC_MIDI,
 	.function_flags = OXYGEN_FUNCTION_2WIRE,
 	.dac_i2s_format = OXYGEN_I2S_FORMAT_LJUST,
 	.adc_i2s_format = OXYGEN_I2S_FORMAT_LJUST,

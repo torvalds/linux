@@ -1,4 +1,4 @@
-/* Copyright 2008 Broadcom Corporation
+/* Copyright 2008-2009 Broadcom Corporation
  *
  * Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -316,6 +316,9 @@ static u8 bnx2x_emac_enable(struct link_params *params,
 	else
 		val &= ~0x810;
 	EMAC_WR(bp, EMAC_REG_EMAC_MODE, val);
+
+	/* enable emac */
+	REG_WR(bp, NIG_REG_NIG_EMAC0_EN + port*4, 1);
 
 	/* enable emac for jumbo packets */
 	EMAC_WR(bp, EMAC_REG_EMAC_RX_MTU_SIZE,
@@ -1609,7 +1612,7 @@ static u8 bnx2x_link_settings_status(struct link_params *params,
 				      u32 gp_status)
 {
 	struct bnx2x *bp = params->bp;
-
+	u16 new_line_speed;
 	u8 rc = 0;
 	vars->link_status = 0;
 
@@ -1629,7 +1632,7 @@ static u8 bnx2x_link_settings_status(struct link_params *params,
 
 		switch (gp_status & GP_STATUS_SPEED_MASK) {
 		case GP_STATUS_10M:
-			vars->line_speed = SPEED_10;
+			new_line_speed = SPEED_10;
 			if (vars->duplex == DUPLEX_FULL)
 				vars->link_status |= LINK_10TFD;
 			else
@@ -1637,7 +1640,7 @@ static u8 bnx2x_link_settings_status(struct link_params *params,
 			break;
 
 		case GP_STATUS_100M:
-			vars->line_speed = SPEED_100;
+			new_line_speed = SPEED_100;
 			if (vars->duplex == DUPLEX_FULL)
 				vars->link_status |= LINK_100TXFD;
 			else
@@ -1646,7 +1649,7 @@ static u8 bnx2x_link_settings_status(struct link_params *params,
 
 		case GP_STATUS_1G:
 		case GP_STATUS_1G_KX:
-			vars->line_speed = SPEED_1000;
+			new_line_speed = SPEED_1000;
 			if (vars->duplex == DUPLEX_FULL)
 				vars->link_status |= LINK_1000TFD;
 			else
@@ -1654,7 +1657,7 @@ static u8 bnx2x_link_settings_status(struct link_params *params,
 			break;
 
 		case GP_STATUS_2_5G:
-			vars->line_speed = SPEED_2500;
+			new_line_speed = SPEED_2500;
 			if (vars->duplex == DUPLEX_FULL)
 				vars->link_status |= LINK_2500TFD;
 			else
@@ -1671,32 +1674,32 @@ static u8 bnx2x_link_settings_status(struct link_params *params,
 		case GP_STATUS_10G_KX4:
 		case GP_STATUS_10G_HIG:
 		case GP_STATUS_10G_CX4:
-			vars->line_speed = SPEED_10000;
+			new_line_speed = SPEED_10000;
 			vars->link_status |= LINK_10GTFD;
 			break;
 
 		case GP_STATUS_12G_HIG:
-			vars->line_speed = SPEED_12000;
+			new_line_speed = SPEED_12000;
 			vars->link_status |= LINK_12GTFD;
 			break;
 
 		case GP_STATUS_12_5G:
-			vars->line_speed = SPEED_12500;
+			new_line_speed = SPEED_12500;
 			vars->link_status |= LINK_12_5GTFD;
 			break;
 
 		case GP_STATUS_13G:
-			vars->line_speed = SPEED_13000;
+			new_line_speed = SPEED_13000;
 			vars->link_status |= LINK_13GTFD;
 			break;
 
 		case GP_STATUS_15G:
-			vars->line_speed = SPEED_15000;
+			new_line_speed = SPEED_15000;
 			vars->link_status |= LINK_15GTFD;
 			break;
 
 		case GP_STATUS_16G:
-			vars->line_speed = SPEED_16000;
+			new_line_speed = SPEED_16000;
 			vars->link_status |= LINK_16GTFD;
 			break;
 
@@ -1708,6 +1711,15 @@ static u8 bnx2x_link_settings_status(struct link_params *params,
 			break;
 		}
 
+		/* Upon link speed change set the NIG into drain mode.
+		Comes to deals with possible FIFO glitch due to clk change
+		when speed is decreased without link down indicator */
+		if (new_line_speed != vars->line_speed) {
+			REG_WR(bp, NIG_REG_EGRESS_DRAIN0_MODE
+				    + params->port*4, 0);
+			msleep(1);
+		}
+		vars->line_speed = new_line_speed;
 		vars->link_status |= LINK_STATUS_SERDES_LINK;
 
 		if ((params->req_line_speed == SPEED_AUTO_NEG) &&
@@ -3571,7 +3583,7 @@ static void bnx2x_set_xgxs_loopback(struct link_params *params,
 			       (MDIO_REG_BANK_CL73_IEEEB0 +
 				(MDIO_CL73_IEEEB0_CL73_AN_CONTROL & 0xf)),
 			       0x6041);
-
+		msleep(200);
 		/* set aer mmd back */
 		bnx2x_set_aer_mmd(params, vars);
 
@@ -3870,9 +3882,15 @@ static u8 bnx2x_link_initialize(struct link_params *params,
 	}
 
 	if (vars->phy_flags & PHY_XGXS_FLAG) {
-		if (params->req_line_speed &&
+		if ((params->req_line_speed &&
 		    ((params->req_line_speed == SPEED_100) ||
-		     (params->req_line_speed == SPEED_10))) {
+		     (params->req_line_speed == SPEED_10))) ||
+		    (!params->req_line_speed &&
+		     (params->speed_cap_mask >=
+		       PORT_HW_CFG_SPEED_CAPABILITY_D0_10M_FULL) &&
+		     (params->speed_cap_mask <
+		       PORT_HW_CFG_SPEED_CAPABILITY_D0_1G)
+		     ))  {
 			vars->phy_flags |= PHY_SGMII_FLAG;
 		} else {
 			vars->phy_flags &= ~PHY_SGMII_FLAG;
@@ -4194,6 +4212,11 @@ static u8 bnx2x_update_link_down(struct link_params *params,
 	/* activate nig drain */
 	REG_WR(bp, NIG_REG_EGRESS_DRAIN0_MODE + port*4, 1);
 
+	/* disable emac */
+	REG_WR(bp, NIG_REG_NIG_EMAC0_EN + port*4, 0);
+
+	msleep(10);
+
 	/* reset BigMac */
 	bnx2x_bmac_rx_disable(bp, params->port);
 	REG_WR(bp, GRCBASE_MISC +
@@ -4238,6 +4261,7 @@ static u8 bnx2x_update_link_up(struct link_params *params,
 
 	/* update shared memory */
 	bnx2x_update_mng(params, vars->link_status);
+	msleep(20);
 	return rc;
 }
 /* This function should called upon link interrupt */
@@ -4275,6 +4299,9 @@ u8 bnx2x_link_update(struct link_params *params, struct link_vars *vars)
 	DP(NETIF_MSG_LINK, " 10G %x, XGXS_LINK %x\n",
 	  REG_RD(bp, NIG_REG_XGXS0_STATUS_LINK10G + port*0x68),
 	  REG_RD(bp, NIG_REG_XGXS0_STATUS_LINK_STATUS + port*0x68));
+
+	/* disable emac */
+	REG_WR(bp, NIG_REG_NIG_EMAC0_EN + port*4, 0);
 
 	ext_phy_type = XGXS_EXT_PHY_TYPE(params->ext_phy_config);
 
@@ -4377,10 +4404,11 @@ static u8 bnx2x_8073_common_init_phy(struct bnx2x *bp, u32 shmem_base)
 			      ext_phy_addr[port],
 			      MDIO_PMA_DEVAD,
 			      MDIO_PMA_REG_ROM_VER1, &fw_ver1);
-		if (fw_ver1 == 0) {
+		if (fw_ver1 == 0 || fw_ver1 == 0x4321) {
 			DP(NETIF_MSG_LINK,
-				 "bnx2x_8073_common_init_phy port %x "
-				 "fw Download failed\n", port);
+				 "bnx2x_8073_common_init_phy port %x:"
+				 "Download failed. fw version = 0x%x\n",
+				 port, fw_ver1);
 			return -EINVAL;
 		}
 

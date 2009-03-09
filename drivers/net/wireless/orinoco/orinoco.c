@@ -1673,7 +1673,7 @@ static void print_linkstatus(struct net_device *dev, u16 status)
 		s = "UNKNOWN";
 	}
 	
-	printk(KERN_INFO "%s: New link status: %s (%04x)\n",
+	printk(KERN_DEBUG "%s: New link status: %s (%04x)\n",
 	       dev->name, s, status);
 }
 
@@ -5068,32 +5068,29 @@ static int orinoco_ioctl_set_genie(struct net_device *dev,
 	struct orinoco_private *priv = netdev_priv(dev);
 	u8 *buf;
 	unsigned long flags;
-	int err = 0;
 
 	/* cut off at IEEE80211_MAX_DATA_LEN */
 	if ((wrqu->data.length > IEEE80211_MAX_DATA_LEN) ||
 	    (wrqu->data.length && (extra == NULL)))
 		return -EINVAL;
 
-	if (orinoco_lock(priv, &flags) != 0)
-		return -EBUSY;
-
 	if (wrqu->data.length) {
 		buf = kmalloc(wrqu->data.length, GFP_KERNEL);
-		if (buf == NULL) {
-			err = -ENOMEM;
-			goto out;
-		}
+		if (buf == NULL)
+			return -ENOMEM;
 
 		memcpy(buf, extra, wrqu->data.length);
-		kfree(priv->wpa_ie);
-		priv->wpa_ie = buf;
-		priv->wpa_ie_len = wrqu->data.length;
-	} else {
-		kfree(priv->wpa_ie);
-		priv->wpa_ie = NULL;
-		priv->wpa_ie_len = 0;
+	} else
+		buf = NULL;
+
+	if (orinoco_lock(priv, &flags) != 0) {
+		kfree(buf);
+		return -EBUSY;
 	}
+
+	kfree(priv->wpa_ie);
+	priv->wpa_ie = buf;
+	priv->wpa_ie_len = wrqu->data.length;
 
 	if (priv->wpa_ie) {
 		/* Looks like wl_lkm wants to check the auth alg, and
@@ -5103,9 +5100,8 @@ static int orinoco_ioctl_set_genie(struct net_device *dev,
 		 */
 	}
 
-out:
 	orinoco_unlock(priv, &flags);
-	return err;
+	return 0;
 }
 
 static int orinoco_ioctl_get_genie(struct net_device *dev,

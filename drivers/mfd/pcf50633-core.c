@@ -626,7 +626,6 @@ static int __devinit pcf50633_probe(struct i2c_client *client,
 	}
 
 	if (client->irq) {
-		set_irq_handler(client->irq, handle_level_irq);
 		ret = request_irq(client->irq, pcf50633_irq,
 				IRQF_TRIGGER_LOW, "pcf50633", pcf);
 

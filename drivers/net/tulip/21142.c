@@ -9,6 +9,11 @@
 
 	Please refer to Documentation/DocBook/tulip-user.{pdf,ps,html}
 	for more information on this driver.
+
+	DC21143 manual "21143 PCI/CardBus 10/100Mb/s Ethernet LAN Controller
+	Hardware Reference Manual" is currently available at :
+	http://developer.intel.com/design/network/manuals/278074.htm
+
 	Please submit bugs to http://bugzilla.kernel.org/ .
 */
 
@@ -32,7 +37,11 @@ void t21142_media_task(struct work_struct *work)
 	int csr12 = ioread32(ioaddr + CSR12);
 	int next_tick = 60*HZ;
 	int new_csr6 = 0;
+	int csr14 = ioread32(ioaddr + CSR14);
 
+	/* CSR12[LS10,LS100] are not reliable during autonegotiation */
+	if ((csr14 & 0x80) && (csr12 & 0x7000) != 0x5000)
+		csr12 |= 6;
 	if (tulip_debug > 2)
 		printk(KERN_INFO"%s: 21143 negotiation status %8.8x, %s.\n",
 			   dev->name, csr12, medianame[dev->if_port]);
@@ -76,7 +85,7 @@ void t21142_media_task(struct work_struct *work)
 			new_csr6 = 0x83860000;
 			dev->if_port = 3;
 			iowrite32(0, ioaddr + CSR13);
-			iowrite32(0x0003FF7F, ioaddr + CSR14);
+			iowrite32(0x0003FFFF, ioaddr + CSR14);
 			iowrite16(8, ioaddr + CSR15);
 			iowrite32(1, ioaddr + CSR13);
 		}
@@ -132,10 +141,14 @@ void t21142_lnk_change(struct net_device *dev, int csr5)
 	struct tulip_private *tp = netdev_priv(dev);
 	void __iomem *ioaddr = tp->base_addr;
 	int csr12 = ioread32(ioaddr + CSR12);
+	int csr14 = ioread32(ioaddr + CSR14);
 
+	/* CSR12[LS10,LS100] are not reliable during autonegotiation */
+	if ((csr14 & 0x80) && (csr12 & 0x7000) != 0x5000)
+		csr12 |= 6;
 	if (tulip_debug > 1)
 		printk(KERN_INFO"%s: 21143 link status interrupt %8.8x, CSR5 %x, "
-			   "%8.8x.\n", dev->name, csr12, csr5, ioread32(ioaddr + CSR14));
+			   "%8.8x.\n", dev->name, csr12, csr5, csr14);
 
 	/* If NWay finished and we have a negotiated partner capability. */
 	if (tp->nway  &&  !tp->nwayset  &&  (csr12 & 0x7000) == 0x5000) {
@@ -143,7 +156,9 @@ void t21142_lnk_change(struct net_device *dev, int csr5)
 		int negotiated = tp->sym_advertise & (csr12 >> 16);
 		tp->lpar = csr12 >> 16;
 		tp->nwayset = 1;
-		if (negotiated & 0x0100)		dev->if_port = 5;
+		/* If partner cannot negotiate, it is 10Mbps Half Duplex */
+		if (!(csr12 & 0x8000))		dev->if_port = 0;
+		else if (negotiated & 0x0100)	dev->if_port = 5;
 		else if (negotiated & 0x0080)	dev->if_port = 3;
 		else if (negotiated & 0x0040)	dev->if_port = 4;
 		else if (negotiated & 0x0020)	dev->if_port = 0;
@@ -214,7 +229,7 @@ void t21142_lnk_change(struct net_device *dev, int csr5)
 			tp->timer.expires = RUN_AT(3*HZ);
 			add_timer(&tp->timer);
 		} else if (dev->if_port == 5)
-			iowrite32(ioread32(ioaddr + CSR14) & ~0x080, ioaddr + CSR14);
+			iowrite32(csr14 & ~0x080, ioaddr + CSR14);
 	} else if (dev->if_port == 0  ||  dev->if_port == 4) {
 		if ((csr12 & 4) == 0)
 			printk(KERN_INFO"%s: 21143 10baseT link beat good.\n",

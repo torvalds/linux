@@ -1354,7 +1354,7 @@ cifs_parse_mount_options(char *options, const char *devname,
 }
 
 static struct TCP_Server_Info *
-cifs_find_tcp_session(struct sockaddr *addr)
+cifs_find_tcp_session(struct sockaddr_storage *addr)
 {
 	struct list_head *tmp;
 	struct TCP_Server_Info *server;
@@ -1374,11 +1374,11 @@ cifs_find_tcp_session(struct sockaddr *addr)
 		if (server->tcpStatus == CifsNew)
 			continue;
 
-		if (addr->sa_family == AF_INET &&
+		if (addr->ss_family == AF_INET &&
 		    (addr4->sin_addr.s_addr !=
 		     server->addr.sockAddr.sin_addr.s_addr))
 			continue;
-		else if (addr->sa_family == AF_INET6 &&
+		else if (addr->ss_family == AF_INET6 &&
 			 memcmp(&server->addr.sockAddr6.sin6_addr,
 				&addr6->sin6_addr, sizeof(addr6->sin6_addr)))
 			continue;
@@ -1419,12 +1419,12 @@ static struct TCP_Server_Info *
 cifs_get_tcp_session(struct smb_vol *volume_info)
 {
 	struct TCP_Server_Info *tcp_ses = NULL;
-	struct sockaddr addr;
+	struct sockaddr_storage addr;
 	struct sockaddr_in *sin_server = (struct sockaddr_in *) &addr;
 	struct sockaddr_in6 *sin_server6 = (struct sockaddr_in6 *) &addr;
 	int rc;
 
-	memset(&addr, 0, sizeof(struct sockaddr));
+	memset(&addr, 0, sizeof(struct sockaddr_storage));
 
 	if (volume_info->UNCip && volume_info->UNC) {
 		rc = cifs_inet_pton(AF_INET, volume_info->UNCip,
@@ -1435,9 +1435,9 @@ cifs_get_tcp_session(struct smb_vol *volume_info)
 			rc = cifs_inet_pton(AF_INET6, volume_info->UNCip,
 					    &sin_server6->sin6_addr.in6_u);
 			if (rc > 0)
-				addr.sa_family = AF_INET6;
+				addr.ss_family = AF_INET6;
 		} else {
-			addr.sa_family = AF_INET;
+			addr.ss_family = AF_INET;
 		}
 
 		if (rc <= 0) {
@@ -1502,7 +1502,7 @@ cifs_get_tcp_session(struct smb_vol *volume_info)
 	tcp_ses->tcpStatus = CifsNew;
 	++tcp_ses->srv_count;
 
-	if (addr.sa_family == AF_INET6) {
+	if (addr.ss_family == AF_INET6) {
 		cFYI(1, ("attempting ipv6 connect"));
 		/* BB should we allow ipv6 on port 139? */
 		/* other OS never observed in Wild doing 139 with v6 */
@@ -1802,7 +1802,7 @@ ipv4_connect(struct TCP_Server_Info *server)
 	 *  user space buffer
 	 */
 	socket->sk->sk_rcvtimeo = 7 * HZ;
-	socket->sk->sk_sndtimeo = 3 * HZ;
+	socket->sk->sk_sndtimeo = 5 * HZ;
 
 	/* make the bufsizes depend on wsize/rsize and max requests */
 	if (server->noautotune) {
@@ -1860,9 +1860,7 @@ ipv4_connect(struct TCP_Server_Info *server)
 			smb_buf = (struct smb_hdr *)ses_init_buf;
 			/* sizeof RFC1002_SESSION_REQUEST with no scope */
 			smb_buf->smb_buf_length = 0x81000044;
-			rc = smb_send(socket, smb_buf, 0x44,
-				(struct sockaddr *) &server->addr.sockAddr,
-				server->noblocksnd);
+			rc = smb_send(server, smb_buf, 0x44);
 			kfree(ses_init_buf);
 			msleep(1); /* RFC1001 layer in at least one server
 				      requires very short break before negprot
@@ -1955,7 +1953,7 @@ ipv6_connect(struct TCP_Server_Info *server)
 	 * user space buffer
 	 */
 	socket->sk->sk_rcvtimeo = 7 * HZ;
-	socket->sk->sk_sndtimeo = 3 * HZ;
+	socket->sk->sk_sndtimeo = 5 * HZ;
 	server->ssocket = socket;
 
 	return rc;

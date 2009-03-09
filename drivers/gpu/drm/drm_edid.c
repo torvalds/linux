@@ -660,7 +660,7 @@ struct edid *drm_get_edid(struct drm_connector *connector,
 
 	edid = (struct edid *)drm_ddc_read(adapter);
 	if (!edid) {
-		dev_warn(&connector->dev->pdev->dev, "%s: no EDID data\n",
+		dev_info(&connector->dev->pdev->dev, "%s: no EDID data\n",
 			 drm_get_connector_name(connector));
 		return NULL;
 	}

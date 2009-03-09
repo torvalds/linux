@@ -152,11 +152,7 @@ static void __exit bq24022_exit(void)
 	platform_driver_unregister(&bq24022_driver);
 }
 
-/*
- * make sure this is probed before gpio_vbus and pda_power,
- * but after asic3 or other GPIO expander drivers.
- */
-subsys_initcall(bq24022_init);
+module_init(bq24022_init);
 module_exit(bq24022_exit);
 
 MODULE_AUTHOR("Philipp Zabel");

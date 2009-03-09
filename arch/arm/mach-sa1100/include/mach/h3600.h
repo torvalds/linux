@@ -29,7 +29,7 @@ typedef int __bitwise pm_request_t;
 #define PM_RESUME	((__force pm_request_t) 2)	/* enter D0 */
 
 /* generalized support for H3xxx series Compaq Pocket PC's */
-#define machine_is_h3xxx() (machine_is_h3100() || machine_is_h3600() || machine_is_h3800())
+#define machine_is_h3xxx() (machine_is_h3100() || machine_is_h3600())
 
 /* Physical memory regions corresponding to chip selects */
 #define H3600_EGPIO_PHYS	(SA1100_CS5_PHYS + 0x01000000)

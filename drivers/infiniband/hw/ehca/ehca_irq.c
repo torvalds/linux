@@ -99,7 +99,7 @@ static void print_error_data(struct ehca_shca *shca, void *data,
 			return;
 
 		ehca_err(&shca->ib_device,
-			 "QP 0x%x (resource=%lx) has errors.",
+			 "QP 0x%x (resource=%llx) has errors.",
 			 qp->ib_qp.qp_num, resource);
 		break;
 	}
@@ -108,21 +108,21 @@ static void print_error_data(struct ehca_shca *shca, void *data,
 		struct ehca_cq *cq = (struct ehca_cq *)data;
 
 		ehca_err(&shca->ib_device,
-			 "CQ 0x%x (resource=%lx) has errors.",
+			 "CQ 0x%x (resource=%llx) has errors.",
 			 cq->cq_number, resource);
 		break;
 	}
 	default:
 		ehca_err(&shca->ib_device,
-			 "Unknown error type: %lx on %s.",
+			 "Unknown error type: %llx on %s.",
 			 type, shca->ib_device.name);
 		break;
 	}
 
-	ehca_err(&shca->ib_device, "Error data is available: %lx.", resource);
+	ehca_err(&shca->ib_device, "Error data is available: %llx.", resource);
 	ehca_err(&shca->ib_device, "EHCA ----- error data begin "
 		 "---------------------------------------------------");
-	ehca_dmp(rblock, length, "resource=%lx", resource);
+	ehca_dmp(rblock, length, "resource=%llx", resource);
 	ehca_err(&shca->ib_device, "EHCA ----- error data end "
 		 "----------------------------------------------------");
 
@@ -152,7 +152,7 @@ int ehca_error_data(struct ehca_shca *shca, void *data,
 
 	if (ret == H_R_STATE)
 		ehca_err(&shca->ib_device,
-			 "No error data is available: %lx.", resource);
+			 "No error data is available: %llx.", resource);
 	else if (ret == H_SUCCESS) {
 		int length;
 
@@ -164,7 +164,7 @@ int ehca_error_data(struct ehca_shca *shca, void *data,
 		print_error_data(shca, data, rblock, length);
 	} else
 		ehca_err(&shca->ib_device,
-			 "Error data could not be fetched: %lx", resource);
+			 "Error data could not be fetched: %llx", resource);
 
 	ehca_free_fw_ctrlblock(rblock);
 
@@ -514,7 +514,7 @@ static inline void process_eqe(struct ehca_shca *shca, struct ehca_eqe *eqe)
 	struct ehca_cq *cq;
 
 	eqe_value = eqe->entry;
-	ehca_dbg(&shca->ib_device, "eqe_value=%lx", eqe_value);
+	ehca_dbg(&shca->ib_device, "eqe_value=%llx", eqe_value);
 	if (EHCA_BMASK_GET(EQE_COMPLETION_EVENT, eqe_value)) {
 		ehca_dbg(&shca->ib_device, "Got completion event");
 		token = EHCA_BMASK_GET(EQE_CQ_TOKEN, eqe_value);
@@ -603,7 +603,7 @@ void ehca_process_eq(struct ehca_shca *shca, int is_irq)
 		ret = hipz_h_eoi(eq->ist);
 		if (ret != H_SUCCESS)
 			ehca_err(&shca->ib_device,
-				 "bad return code EOI -rc = %ld\n", ret);
+				 "bad return code EOI -rc = %lld\n", ret);
 		ehca_dbg(&shca->ib_device, "deadman found %x eqe", eqe_cnt);
 	}
 	if (unlikely(eqe_cnt == EHCA_EQE_CACHE_SIZE))

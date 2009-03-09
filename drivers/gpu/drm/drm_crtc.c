@@ -194,7 +194,6 @@ char *drm_get_connector_status_name(enum drm_connector_status status)
  * @type: object type
  *
  * LOCKING:
- * Caller must hold DRM mode_config lock.
  *
  * Create a unique identifier based on @ptr in @dev's identifier space.  Used
  * for tracking modes, CRTCs and connectors.
@@ -209,15 +208,15 @@ static int drm_mode_object_get(struct drm_device *dev,
 	int new_id = 0;
 	int ret;
 
-	WARN(!mutex_is_locked(&dev->mode_config.mutex),
-	     "%s called w/o mode_config lock\n", __func__);
 again:
 	if (idr_pre_get(&dev->mode_config.crtc_idr, GFP_KERNEL) == 0) {
 		DRM_ERROR("Ran out memory getting a mode number\n");
 		return -EINVAL;
 	}
 
+	mutex_lock(&dev->mode_config.idr_mutex);
 	ret = idr_get_new_above(&dev->mode_config.crtc_idr, obj, 1, &new_id);
+	mutex_unlock(&dev->mode_config.idr_mutex);
 	if (ret == -EAGAIN)
 		goto again;
 
@@ -239,16 +238,20 @@ again:
 static void drm_mode_object_put(struct drm_device *dev,
 				struct drm_mode_object *object)
 {
+	mutex_lock(&dev->mode_config.idr_mutex);
 	idr_remove(&dev->mode_config.crtc_idr, object->id);
+	mutex_unlock(&dev->mode_config.idr_mutex);
 }
 
 void *drm_mode_object_find(struct drm_device *dev, uint32_t id, uint32_t type)
 {
-	struct drm_mode_object *obj;
+	struct drm_mode_object *obj = NULL;
 
+	mutex_lock(&dev->mode_config.idr_mutex);
 	obj = idr_find(&dev->mode_config.crtc_idr, id);
 	if (!obj || (obj->type != type) || (obj->id != id))
-		return NULL;
+		obj = NULL;
+	mutex_unlock(&dev->mode_config.idr_mutex);
 
 	return obj;
 }
@@ -786,6 +789,7 @@ EXPORT_SYMBOL(drm_mode_create_dithering_property);
 void drm_mode_config_init(struct drm_device *dev)
 {
 	mutex_init(&dev->mode_config.mutex);
+	mutex_init(&dev->mode_config.idr_mutex);
 	INIT_LIST_HEAD(&dev->mode_config.fb_list);
 	INIT_LIST_HEAD(&dev->mode_config.fb_kernel_list);
 	INIT_LIST_HEAD(&dev->mode_config.crtc_list);

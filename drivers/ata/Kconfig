@@ -112,11 +112,11 @@ config ATA_PIIX
 	  If unsure, say N.
 
 config SATA_MV
-	tristate "Marvell SATA support (HIGHLY EXPERIMENTAL)"
-	depends on EXPERIMENTAL
+	tristate "Marvell SATA support"
 	help
 	  This option enables support for the Marvell Serial ATA family.
-	  Currently supports 88SX[56]0[48][01] chips.
+	  Currently supports 88SX[56]0[48][01] PCI(-X) chips,
+	  as well as the newer [67]042 PCI-X/PCIe and SOC devices.
 
 	  If unsure, say N.
 

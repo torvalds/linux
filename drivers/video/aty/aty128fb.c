@@ -1475,7 +1475,7 @@ static int aty128fb_set_par(struct fb_info *info)
 	aty128_set_pll(&par->pll, par);
 	aty128_set_fifo(&par->fifo_reg, par);
 
-	config = aty_ld_le32(CONFIG_CNTL) & ~3;
+	config = aty_ld_le32(CNFG_CNTL) & ~3;
 
 #if defined(__BIG_ENDIAN)
 	if (par->crtc.bpp == 32)
@@ -1484,7 +1484,7 @@ static int aty128fb_set_par(struct fb_info *info)
 		config |= 1;	/* make aperture do 16 bit swapping */
 #endif
 
-	aty_st_le32(CONFIG_CNTL, config);
+	aty_st_le32(CNFG_CNTL, config);
 	aty_st_8(CRTC_EXT_CNTL + 1, 0);	/* turn the video back on */
 
 	info->fix.line_length = (par->crtc.vxres * par->crtc.bpp) >> 3;
@@ -1875,7 +1875,7 @@ static int __devinit aty128_init(struct pci_dev *pdev, const struct pci_device_i
 	u32 dac;
 
 	/* Get the chip revision */
-	chip_rev = (aty_ld_le32(CONFIG_CNTL) >> 16) & 0x1F;
+	chip_rev = (aty_ld_le32(CNFG_CNTL) >> 16) & 0x1F;
 
 	strcpy(video_card, "Rage128 XX ");
 	video_card[8] = ent->device >> 8;
@@ -2057,7 +2057,7 @@ static int __devinit aty128_probe(struct pci_dev *pdev, const struct pci_device_
 
 	/* Grab memory size from the card */
 	// How does this relate to the resource length from the PCI hardware?
-	par->vram_size = aty_ld_le32(CONFIG_MEMSIZE) & 0x03FFFFFF;
+	par->vram_size = aty_ld_le32(CNFG_MEMSIZE) & 0x03FFFFFF;
 
 	/* Virtualize the framebuffer */
 	info->screen_base = ioremap(fb_addr, par->vram_size);

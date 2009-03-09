@@ -230,7 +230,7 @@ static int ehci_pci_setup(struct usb_hcd *hcd)
 		pci_read_config_word(pdev, 0x62, &port_wake);
 		if (port_wake & 0x0001) {
 			dev_warn(&pdev->dev, "Enabling legacy PCI PM\n");
-			device_init_wakeup(&pdev->dev, 1);
+			device_set_wakeup_capable(&pdev->dev, 1);
 		}
 	}
 
@@ -432,7 +432,6 @@ static struct pci_driver ehci_pci_driver = {
 
 #ifdef	CONFIG_PM
 	.suspend =	usb_hcd_pci_suspend,
-	.suspend_late =	usb_hcd_pci_suspend_late,
 	.resume_early =	usb_hcd_pci_resume_early,
 	.resume =	usb_hcd_pci_resume,
 #endif

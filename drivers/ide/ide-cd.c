@@ -787,6 +787,9 @@ static ide_startstop_t cdrom_newpc_intr(ide_drive_t *drive)
 		if (blk_fs_request(rq)) {
 			ide_end_request(drive, 1, rq->nr_sectors);
 			return ide_stopped;
+		} else if (rq->cmd_type == REQ_TYPE_ATA_PC && !rq->bio) {
+			ide_end_request(drive, 1, 1);
+			return ide_stopped;
 		}
 		goto end_request;
 	}

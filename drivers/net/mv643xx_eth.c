@@ -136,21 +136,23 @@ static char mv643xx_eth_driver_version[] = "1.4";
 /*
  * SDMA configuration register.
  */
+#define RX_BURST_SIZE_4_64BIT		(2 << 1)
 #define RX_BURST_SIZE_16_64BIT		(4 << 1)
 #define BLM_RX_NO_SWAP			(1 << 4)
 #define BLM_TX_NO_SWAP			(1 << 5)
+#define TX_BURST_SIZE_4_64BIT		(2 << 22)
 #define TX_BURST_SIZE_16_64BIT		(4 << 22)
 
 #if defined(__BIG_ENDIAN)
 #define PORT_SDMA_CONFIG_DEFAULT_VALUE		\
-		(RX_BURST_SIZE_16_64BIT	|	\
-		TX_BURST_SIZE_16_64BIT)
+		(RX_BURST_SIZE_4_64BIT	|	\
+		 TX_BURST_SIZE_4_64BIT)
 #elif defined(__LITTLE_ENDIAN)
 #define PORT_SDMA_CONFIG_DEFAULT_VALUE		\
-		(RX_BURST_SIZE_16_64BIT	|	\
-		BLM_RX_NO_SWAP		|	\
-		BLM_TX_NO_SWAP		|	\
-		TX_BURST_SIZE_16_64BIT)
+		(RX_BURST_SIZE_4_64BIT	|	\
+		 BLM_RX_NO_SWAP		|	\
+		 BLM_TX_NO_SWAP		|	\
+		 TX_BURST_SIZE_4_64BIT)
 #else
 #error One of __BIG_ENDIAN or __LITTLE_ENDIAN must be defined
 #endif
@@ -1594,7 +1596,7 @@ oom:
 			entry = addr_crc(a);
 		}
 
-		table[entry >> 2] |= 1 << (entry & 3);
+		table[entry >> 2] |= 1 << (8 * (entry & 3));
 	}
 
 	for (i = 0; i < 0x100; i += 4) {
@@ -2210,6 +2212,7 @@ static int mv643xx_eth_stop(struct net_device *dev)
 	struct mv643xx_eth_private *mp = netdev_priv(dev);
 	int i;
 
+	wrlp(mp, INT_MASK_EXT, 0x00000000);
 	wrlp(mp, INT_MASK, 0x00000000);
 	rdlp(mp, INT_MASK);
 

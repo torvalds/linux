@@ -20,7 +20,7 @@
 #include <linux/irq.h>
 #include <linux/io.h>
 
-#include <asm/dma.h>
+#include <mach/dma.h>
 
 #include <mach/regs-sdi.h>
 #include <mach/regs-gpio.h>

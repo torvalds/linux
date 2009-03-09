@@ -351,6 +351,9 @@ static int gfar_probe(struct of_device *ofdev,
 	/* Reset MAC layer */
 	gfar_write(&priv->regs->maccfg1, MACCFG1_SOFT_RESET);
 
+	/* We need to delay at least 3 TX clocks */
+	udelay(2);
+
 	tempval = (MACCFG1_TX_FLOW | MACCFG1_RX_FLOW);
 	gfar_write(&priv->regs->maccfg1, tempval);
 
@@ -1423,15 +1426,11 @@ static void gfar_vlan_rx_register(struct net_device *dev,
 {
 	struct gfar_private *priv = netdev_priv(dev);
 	unsigned long flags;
-	struct vlan_group *old_grp;
 	u32 tempval;
 
 	spin_lock_irqsave(&priv->rxlock, flags);
 
-	old_grp = priv->vlgrp;
-
-	if (old_grp == grp)
-		return;
+	priv->vlgrp = grp;
 
 	if (grp) {
 		/* Enable VLAN tag insertion */

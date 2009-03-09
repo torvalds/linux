@@ -72,7 +72,6 @@ static int radeon_setup_i2c_bus(struct radeon_i2c_chan *chan, const char *name)
 	snprintf(chan->adapter.name, sizeof(chan->adapter.name),
 		 "radeonfb %s", name);
 	chan->adapter.owner		= THIS_MODULE;
-	chan->adapter.id		= I2C_HW_B_RADEON;
 	chan->adapter.algo_data		= &chan->algo;
 	chan->adapter.dev.parent	= &chan->rinfo->pdev->dev;
 	chan->algo.setsda		= radeon_gpio_setsda;

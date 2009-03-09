@@ -40,6 +40,9 @@ choice
 config GUMSTIX_AM200EPD
 	bool "Enable AM200EPD board support"
 
+config GUMSTIX_AM300EPD
+	bool "Enable AM300EPD board support"
+
 endchoice
 
 config MACH_INTELMOTE2
@@ -301,6 +304,11 @@ config MACH_MAGICIAN
 	select IWMMXT
 	select HAVE_PWM
 	select PXA_HAVE_BOARD_IRQS
+
+config MACH_HIMALAYA
+	bool "HTC Himalaya Support"
+	select CPU_PXA26x
+	select FB_W100
 
 config MACH_MIOA701
 	bool "Mitac Mio A701 Support"

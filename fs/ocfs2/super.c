@@ -1887,6 +1887,9 @@ static int ocfs2_initialize_super(struct super_block *sb,
 	INIT_WORK(&journal->j_recovery_work, ocfs2_complete_recovery);
 	journal->j_state = OCFS2_JOURNAL_FREE;
 
+	INIT_WORK(&osb->dentry_lock_work, ocfs2_drop_dl_inodes);
+	osb->dentry_lock_list = NULL;
+
 	/* get some pseudo constants for clustersize bits */
 	osb->s_clustersize_bits =
 		le32_to_cpu(di->id2.i_super.s_clustersize_bits);

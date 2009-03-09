@@ -487,7 +487,6 @@ int /*__devinit*/ snd_hda_bus_new(struct snd_card *card,
 {
 	struct hda_bus *bus;
 	int err;
-	char qname[8];
 	static struct snd_device_ops dev_ops = {
 		.dev_register = snd_hda_bus_dev_register,
 		.dev_free = snd_hda_bus_dev_free,
@@ -517,10 +516,12 @@ int /*__devinit*/ snd_hda_bus_new(struct snd_card *card,
 	mutex_init(&bus->cmd_mutex);
 	INIT_LIST_HEAD(&bus->codec_list);
 
-	snprintf(qname, sizeof(qname), "hda%d", card->number);
-	bus->workq = create_workqueue(qname);
+	snprintf(bus->workq_name, sizeof(bus->workq_name),
+		 "hd-audio%d", card->number);
+	bus->workq = create_singlethread_workqueue(bus->workq_name);
 	if (!bus->workq) {
-		snd_printk(KERN_ERR "cannot create workqueue %s\n", qname);
+		snd_printk(KERN_ERR "cannot create workqueue %s\n",
+			   bus->workq_name);
 		kfree(bus);
 		return -ENOMEM;
 	}

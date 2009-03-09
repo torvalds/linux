@@ -1206,8 +1206,11 @@ static inline void ext4_r_blocks_count_set(struct ext4_super_block *es,
 
 static inline loff_t ext4_isize(struct ext4_inode *raw_inode)
 {
-	return ((loff_t)le32_to_cpu(raw_inode->i_size_high) << 32) |
-		le32_to_cpu(raw_inode->i_size_lo);
+	if (S_ISREG(le16_to_cpu(raw_inode->i_mode)))
+		return ((loff_t)le32_to_cpu(raw_inode->i_size_high) << 32) |
+			le32_to_cpu(raw_inode->i_size_lo);
+	else
+		return (loff_t) le32_to_cpu(raw_inode->i_size_lo);
 }
 
 static inline void ext4_isize_set(struct ext4_inode *raw_inode, loff_t i_size)

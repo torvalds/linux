@@ -2266,6 +2266,16 @@ static int try_to_wake_up(struct task_struct *p, unsigned int state, int sync)
 	if (!sched_feat(SYNC_WAKEUPS))
 		sync = 0;
 
+	if (!sync) {
+		if (current->se.avg_overlap < sysctl_sched_migration_cost &&
+			  p->se.avg_overlap < sysctl_sched_migration_cost)
+			sync = 1;
+	} else {
+		if (current->se.avg_overlap >= sysctl_sched_migration_cost ||
+			  p->se.avg_overlap >= sysctl_sched_migration_cost)
+			sync = 0;
+	}
+
 #ifdef CONFIG_SMP
 	if (sched_feat(LB_WAKEUP_UPDATE)) {
 		struct sched_domain *sd;
@@ -4687,8 +4697,8 @@ EXPORT_SYMBOL(default_wake_function);
  * started to run but is not in state TASK_RUNNING. try_to_wake_up() returns
  * zero in this (rare) case, and we handle it by continuing to scan the queue.
  */
-static void __wake_up_common(wait_queue_head_t *q, unsigned int mode,
-			     int nr_exclusive, int sync, void *key)
+void __wake_up_common(wait_queue_head_t *q, unsigned int mode,
+			int nr_exclusive, int sync, void *key)
 {
 	wait_queue_t *curr, *next;
 

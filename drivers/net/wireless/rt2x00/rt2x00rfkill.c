@@ -162,7 +162,7 @@ void rt2x00rfkill_allocate(struct rt2x00_dev *rt2x00dev)
 
 void rt2x00rfkill_free(struct rt2x00_dev *rt2x00dev)
 {
-	if (!test_bit(RFKILL_STATE_ALLOCATED, &rt2x00dev->flags))
+	if (!test_bit(RFKILL_STATE_ALLOCATED, &rt2x00dev->rfkill_state))
 		return;
 
 	cancel_delayed_work_sync(&rt2x00dev->rfkill_work);

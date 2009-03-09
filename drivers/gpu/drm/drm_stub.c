@@ -118,11 +118,19 @@ static void drm_master_destroy(struct kref *kref)
 	struct drm_master *master = container_of(kref, struct drm_master, refcount);
 	struct drm_magic_entry *pt, *next;
 	struct drm_device *dev = master->minor->dev;
+	struct drm_map_list *r_list, *list_temp;
 
 	list_del(&master->head);
 
 	if (dev->driver->master_destroy)
 		dev->driver->master_destroy(dev, master);
+
+	list_for_each_entry_safe(r_list, list_temp, &dev->maplist, head) {
+		if (r_list->master == master) {
+			drm_rmmap_locked(dev, r_list->map);
+			r_list = NULL;
+		}
+	}
 
 	if (master->unique) {
 		drm_free(master->unique, master->unique_size, DRM_MEM_DRIVER);

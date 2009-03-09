@@ -35,8 +35,8 @@ extern struct smb_hdr *cifs_buf_get(void);
 extern void cifs_buf_release(void *);
 extern struct smb_hdr *cifs_small_buf_get(void);
 extern void cifs_small_buf_release(void *);
-extern int smb_send(struct socket *, struct smb_hdr *,
-			unsigned int /* length */ , struct sockaddr *, bool);
+extern int smb_send(struct TCP_Server_Info *, struct smb_hdr *,
+			unsigned int /* length */);
 extern unsigned int _GetXid(void);
 extern void _FreeXid(unsigned int);
 #define GetXid() (int)_GetXid(); cFYI(1,("CIFS VFS: in %s as Xid: %d with uid: %d",__func__, xid,current_fsuid()));

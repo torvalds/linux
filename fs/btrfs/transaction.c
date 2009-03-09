@@ -852,11 +852,9 @@ static noinline int create_pending_snapshots(struct btrfs_trans_handle *trans,
 {
 	struct btrfs_pending_snapshot *pending;
 	struct list_head *head = &trans->transaction->pending_snapshots;
-	struct list_head *cur;
 	int ret;
 
-	list_for_each(cur, head) {
-		pending = list_entry(cur, struct btrfs_pending_snapshot, list);
+	list_for_each_entry(pending, head, list) {
 		ret = create_pending_snapshot(trans, fs_info, pending);
 		BUG_ON(ret);
 	}

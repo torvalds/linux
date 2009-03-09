@@ -641,7 +641,7 @@ static void ql_enable_all_completion_interrupts(struct ql_adapter *qdev)
 
 }
 
-static int ql_read_flash_word(struct ql_adapter *qdev, int offset, u32 *data)
+static int ql_read_flash_word(struct ql_adapter *qdev, int offset, __le32 *data)
 {
 	int status = 0;
 	/* wait for reg to come ready */
@@ -656,8 +656,11 @@ static int ql_read_flash_word(struct ql_adapter *qdev, int offset, u32 *data)
 			FLASH_ADDR, FLASH_ADDR_RDY, FLASH_ADDR_ERR);
 	if (status)
 		goto exit;
-	/* get the data */
-	*data = ql_read32(qdev, FLASH_DATA);
+	 /* This data is stored on flash as an array of
+	 * __le32.  Since ql_read32() returns cpu endian
+	 * we need to swap it back.
+	 */
+	*data = cpu_to_le32(ql_read32(qdev, FLASH_DATA));
 exit:
 	return status;
 }
@@ -666,13 +669,20 @@ static int ql_get_flash_params(struct ql_adapter *qdev)
 {
 	int i;
 	int status;
-	u32 *p = (u32 *)&qdev->flash;
+	__le32 *p = (__le32 *)&qdev->flash;
+	u32 offset = 0;
+
+	/* Second function's parameters follow the first
+	 * function's.
+	 */
+	if (qdev->func)
+		offset = sizeof(qdev->flash) / sizeof(u32);
 
 	if (ql_sem_spinlock(qdev, SEM_FLASH_MASK))
 		return -ETIMEDOUT;
 
 	for (i = 0; i < sizeof(qdev->flash) / sizeof(u32); i++, p++) {
-		status = ql_read_flash_word(qdev, i, p);
+		status = ql_read_flash_word(qdev, i+offset, p);
 		if (status) {
 			QPRINTK(qdev, IFUP, ERR, "Error reading flash.\n");
 			goto exit;
@@ -3826,7 +3836,7 @@ static int qlge_suspend(struct pci_dev *pdev, pm_message_t state)
 {
 	struct net_device *ndev = pci_get_drvdata(pdev);
 	struct ql_adapter *qdev = netdev_priv(ndev);
-	int err;
+	int err, i;
 
 	netif_device_detach(ndev);
 
@@ -3835,6 +3845,9 @@ static int qlge_suspend(struct pci_dev *pdev, pm_message_t state)
 		if (!err)
 			return err;
 	}
+
+	for (i = qdev->rss_ring_first_cq_id; i < qdev->rx_ring_count; i++)
+		netif_napi_del(&qdev->rx_ring[i].napi);
 
 	err = pci_save_state(pdev);
 	if (err)

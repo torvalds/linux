@@ -2860,6 +2860,10 @@ static void ocfs2_unlock_ast(void *opaque, int error)
 	case OCFS2_UNLOCK_CANCEL_CONVERT:
 		mlog(0, "Cancel convert success for %s\n", lockres->l_name);
 		lockres->l_action = OCFS2_AST_INVALID;
+		/* Downconvert thread may have requeued this lock, we
+		 * need to wake it. */
+		if (lockres->l_flags & OCFS2_LOCK_BLOCKED)
+			ocfs2_wake_downconvert_thread(ocfs2_get_lockres_osb(lockres));
 		break;
 	case OCFS2_UNLOCK_DROP_LOCK:
 		lockres->l_level = DLM_LOCK_IV;

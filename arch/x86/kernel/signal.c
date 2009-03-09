@@ -632,9 +632,16 @@ badframe:
 }
 
 #ifdef CONFIG_X86_32
-asmlinkage int sys_rt_sigreturn(struct pt_regs regs)
+/*
+ * Note: do not pass in pt_regs directly as with tail-call optimization
+ * GCC will incorrectly stomp on the caller's frame and corrupt user-space
+ * register state:
+ */
+asmlinkage int sys_rt_sigreturn(unsigned long __unused)
 {
-	return do_rt_sigreturn(&regs);
+	struct pt_regs *regs = (struct pt_regs *)&__unused;
+
+	return do_rt_sigreturn(regs);
 }
 #else /* !CONFIG_X86_32 */
 asmlinkage long sys_rt_sigreturn(struct pt_regs *regs)

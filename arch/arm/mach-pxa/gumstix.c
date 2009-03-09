@@ -191,6 +191,11 @@ int __attribute__((weak)) am200_init(void)
 	return 0;
 }
 
+int __attribute__((weak)) am300_init(void)
+{
+	return 0;
+}
+
 static void __init carrier_board_init(void)
 {
 	/*
@@ -198,6 +203,7 @@ static void __init carrier_board_init(void)
 	 * they cannot be detected programatically
 	 */
 	am200_init();
+	am300_init();
 }
 
 static void __init gumstix_init(void)

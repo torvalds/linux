@@ -16,8 +16,6 @@
  * 2 of the License, or (at your option) any later version.
  */
 
-#define DEBUG
-
 #include <linux/kernel.h>
 #include <linux/pci.h>
 #include <linux/string.h>
@@ -258,7 +256,8 @@ int pci_read_irq_line(struct pci_dev *pci_dev)
 	} else {
 		pr_debug(" Got one, spec %d cells (0x%08x 0x%08x...) on %s\n",
 			 oirq.size, oirq.specifier[0], oirq.specifier[1],
-		    oirq.controller->full_name);
+			 oirq.controller ? oirq.controller->full_name :
+			 "<default>");
 
 		virq = irq_create_of_mapping(oirq.controller, oirq.specifier,
 					     oirq.size);

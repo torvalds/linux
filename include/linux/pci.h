@@ -117,6 +117,10 @@ typedef int __bitwise pci_power_t;
 #define PCI_UNKNOWN	((pci_power_t __force) 5)
 #define PCI_POWER_ERROR	((pci_power_t __force) -1)
 
+#define PCI_PM_D2_DELAY	200
+#define PCI_PM_D3_WAIT	10
+#define PCI_PM_BUS_WAIT	50
+
 /** The pci_channel state describes connectivity between the CPU and
  *  the pci device.  If some PCI bus between here and the pci device
  *  has crashed or locked up, this info is reflected here.
@@ -252,6 +256,7 @@ struct pci_dev {
 	unsigned int	ari_enabled:1;	/* ARI forwarding */
 	unsigned int	is_managed:1;
 	unsigned int	is_pcie:1;
+	unsigned int	state_saved:1;
 	pci_dev_flags_t dev_flags;
 	atomic_t	enable_cnt;	/* pci_enable_device has been called */
 

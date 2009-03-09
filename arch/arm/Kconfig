@@ -241,6 +241,7 @@ config ARCH_VERSATILE
 config ARCH_AT91
 	bool "Atmel AT91"
 	select GENERIC_GPIO
+	select ARCH_REQUIRE_GPIOLIB
 	select HAVE_CLK
 	help
 	  This enables support for systems based on the Atmel AT91RM9200,
@@ -1092,7 +1093,7 @@ source "drivers/cpufreq/Kconfig"
 
 config CPU_FREQ_SA1100
 	bool
-	depends on CPU_FREQ && (SA1100_H3100 || SA1100_H3600 || SA1100_H3800 || SA1100_LART || SA1100_PLEB || SA1100_BADGE4 || SA1100_HACKKIT)
+	depends on CPU_FREQ && (SA1100_H3100 || SA1100_H3600 || SA1100_LART || SA1100_PLEB || SA1100_BADGE4 || SA1100_HACKKIT)
 	default y
 
 config CPU_FREQ_SA1110

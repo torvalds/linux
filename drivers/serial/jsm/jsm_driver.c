@@ -180,7 +180,7 @@ static int jsm_probe_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	return rc;
 }
 
-static void jsm_remove_one(struct pci_dev *pdev)
+static void __devexit jsm_remove_one(struct pci_dev *pdev)
 {
 	struct jsm_board *brd = pci_get_drvdata(pdev);
 	int i = 0;

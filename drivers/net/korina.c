@@ -416,6 +416,9 @@ static int korina_rx(struct net_device *dev, int limit)
 			if (devcs & ETH_RX_MP)
 				dev->stats.multicast++;
 
+			/* 16 bit align */
+			skb_reserve(skb_new, 2);
+
 			lp->rx_skb[lp->rx_next_done] = skb_new;
 		}
 
@@ -740,6 +743,7 @@ static struct ethtool_ops netdev_ethtool_ops = {
 static void korina_alloc_ring(struct net_device *dev)
 {
 	struct korina_private *lp = netdev_priv(dev);
+	struct sk_buff *skb;
 	int i;
 
 	/* Initialize the transmit descriptors */
@@ -755,8 +759,6 @@ static void korina_alloc_ring(struct net_device *dev)
 
 	/* Initialize the receive descriptors */
 	for (i = 0; i < KORINA_NUM_RDS; i++) {
-		struct sk_buff *skb = lp->rx_skb[i];
-
 		skb = dev_alloc_skb(KORINA_RBSIZE + 2);
 		if (!skb)
 			break;
@@ -769,11 +771,12 @@ static void korina_alloc_ring(struct net_device *dev)
 		lp->rd_ring[i].link = CPHYSADDR(&lp->rd_ring[i+1]);
 	}
 
-	/* loop back */
-	lp->rd_ring[i].link = CPHYSADDR(&lp->rd_ring[0]);
-	lp->rx_next_done  = 0;
+	/* loop back receive descriptors, so the last
+	 * descriptor points to the first one */
+	lp->rd_ring[i - 1].link = CPHYSADDR(&lp->rd_ring[0]);
+	lp->rd_ring[i - 1].control |= DMA_DESC_COD;
 
-	lp->rd_ring[i].control |= DMA_DESC_COD;
+	lp->rx_next_done  = 0;
 	lp->rx_chain_head = 0;
 	lp->rx_chain_tail = 0;
 	lp->rx_chain_status = desc_empty;

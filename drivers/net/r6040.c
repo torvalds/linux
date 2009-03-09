@@ -438,7 +438,6 @@ static void r6040_down(struct net_device *dev)
 {
 	struct r6040_private *lp = netdev_priv(dev);
 	void __iomem *ioaddr = lp->base;
-	struct pci_dev *pdev = lp->pdev;
 	int limit = 2048;
 	u16 *adrp;
 	u16 cmd;

@@ -538,6 +538,7 @@ static int dev_ifsioc(unsigned int fd, unsigned int cmd, unsigned long arg)
 		 * cannot be fixed without breaking all existing apps.
 		 */
 		case TUNSETIFF:
+		case TUNGETIFF:
 		case SIOCGIFFLAGS:
 		case SIOCGIFMETRIC:
 		case SIOCGIFMTU:
@@ -784,7 +785,7 @@ static int sg_ioctl_trans(unsigned int fd, unsigned int cmd, unsigned long arg)
 
 	if (copy_in_user(&sgio->status, &sgio32->status,
 			 (4 * sizeof(unsigned char)) +
-			 (2 * sizeof(unsigned (short))) +
+			 (2 * sizeof(unsigned short)) +
 			 (3 * sizeof(int))))
 		return -EFAULT;
 
@@ -1982,6 +1983,11 @@ COMPATIBLE_IOCTL(TUNSETNOCSUM)
 COMPATIBLE_IOCTL(TUNSETDEBUG)
 COMPATIBLE_IOCTL(TUNSETPERSIST)
 COMPATIBLE_IOCTL(TUNSETOWNER)
+COMPATIBLE_IOCTL(TUNSETLINK)
+COMPATIBLE_IOCTL(TUNSETGROUP)
+COMPATIBLE_IOCTL(TUNGETFEATURES)
+COMPATIBLE_IOCTL(TUNSETOFFLOAD)
+COMPATIBLE_IOCTL(TUNSETTXFILTER)
 /* Big V */
 COMPATIBLE_IOCTL(VT_SETMODE)
 COMPATIBLE_IOCTL(VT_GETMODE)
@@ -2573,6 +2579,7 @@ HANDLE_IOCTL(SIOCGIFPFLAGS, dev_ifsioc)
 HANDLE_IOCTL(SIOCGIFTXQLEN, dev_ifsioc)
 HANDLE_IOCTL(SIOCSIFTXQLEN, dev_ifsioc)
 HANDLE_IOCTL(TUNSETIFF, dev_ifsioc)
+HANDLE_IOCTL(TUNGETIFF, dev_ifsioc)
 HANDLE_IOCTL(SIOCETHTOOL, ethtool_ioctl)
 HANDLE_IOCTL(SIOCBONDENSLAVE, bond_ioctl)
 HANDLE_IOCTL(SIOCBONDRELEASE, bond_ioctl)

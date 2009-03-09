@@ -911,7 +911,7 @@ S:	Maintained
 BLACKFIN ARCHITECTURE
 P:	Bryan Wu
 M:	cooloney@kernel.org
-L:	uclinux-dist-devel@blackfin.uclinux.org (subscribers-only)
+L:	uclinux-dist-devel@blackfin.uclinux.org
 W:	http://blackfin.uclinux.org
 S:	Supported
 
@@ -1019,6 +1019,14 @@ BT8XXGPIO DRIVER
 P:	Michael Buesch
 M:	mb@bu3sch.de
 W:	http://bu3sch.de/btgpio.php
+S:	Maintained
+
+BTRFS FILE SYSTEM
+P:	Chris Mason
+M:	chris.mason@oracle.com
+L:	linux-btrfs@vger.kernel.org
+W:	http://btrfs.wiki.kernel.org/
+T:	git kernel.org:/pub/scm/linux/kernel/git/mason/btrfs-unstable.git
 S:	Maintained
 
 BTTV VIDEO4LINUX DRIVER
@@ -2102,7 +2110,8 @@ M:	khali@linux-fr.org
 P:	Ben Dooks (embedded platforms)
 M:	ben-linux@fluff.org
 L:	linux-i2c@vger.kernel.org
-T:	quilt http://khali.linux-fr.org/devel/linux-2.6/jdelvare-i2c/
+W:	http://i2c.wiki.kernel.org/
+T:	quilt kernel.org/pub/linux/kernel/people/jdelvare/linux-2.6/jdelvare-i2c/
 S:	Maintained
 
 I2C-TINY-USB DRIVER
@@ -2211,7 +2220,7 @@ P:	Sean Hefty
 M:	sean.hefty@intel.com
 P:	Hal Rosenstock
 M:	hal.rosenstock@gmail.com
-L:	general@lists.openfabrics.org
+L:	general@lists.openfabrics.org (moderated for non-subscribers)
 W:	http://www.openib.org/
 T:	git kernel.org:/pub/scm/linux/kernel/git/roland/infiniband.git
 S:	Supported
@@ -2835,8 +2844,6 @@ S:	Maintained
 MAC80211
 P:	Johannes Berg
 M:	johannes@sipsolutions.net
-P:	Michael Wu
-M:	flamingice@sourmilk.net
 L:	linux-wireless@vger.kernel.org
 W:	http://linuxwireless.org/
 T:	git kernel.org:/pub/scm/linux/kernel/git/linville/wireless-2.6.git
@@ -4842,6 +4849,7 @@ P:	Ingo Molnar
 M:	mingo@redhat.com
 P:	H. Peter Anvin
 M:	hpa@zytor.com
+M:	x86@kernel.org
 L:	linux-kernel@vger.kernel.org
 T:	git://git.kernel.org/pub/scm/linux/kernel/git/x86/linux-2.6-x86.git
 S:	Maintained

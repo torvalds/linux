@@ -38,7 +38,6 @@
 #include <linux/compat.h>
 #include <linux/bit_spinlock.h>
 #include <linux/security.h>
-#include <linux/version.h>
 #include <linux/xattr.h>
 #include <linux/vmalloc.h>
 #include "compat.h"

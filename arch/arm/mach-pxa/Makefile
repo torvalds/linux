@@ -28,6 +28,7 @@ obj-$(CONFIG_CPU_PXA930)	+= pxa930.o
 # Specific board support
 obj-$(CONFIG_ARCH_GUMSTIX)	+= gumstix.o
 obj-$(CONFIG_GUMSTIX_AM200EPD)	+= am200epd.o
+obj-$(CONFIG_GUMSTIX_AM300EPD)	+= am300epd.o
 obj-$(CONFIG_ARCH_LUBBOCK)	+= lubbock.o
 obj-$(CONFIG_MACH_LOGICPD_PXA270) += lpd270.o
 obj-$(CONFIG_MACH_MAINSTONE)	+= mainstone.o
@@ -45,6 +46,7 @@ obj-$(CONFIG_MACH_PCM990_BASEBOARD)	+= pcm990-baseboard.o
 obj-$(CONFIG_MACH_TOSA)		+= tosa.o
 obj-$(CONFIG_MACH_EM_X270)	+= em-x270.o
 obj-$(CONFIG_MACH_MAGICIAN)	+= magician.o
+obj-$(CONFIG_MACH_HIMALAYA)	+= himalaya.o
 obj-$(CONFIG_MACH_MIOA701)	+= mioa701.o mioa701_bootresume.o
 obj-$(CONFIG_ARCH_PXA_ESERIES)	+= eseries.o
 obj-$(CONFIG_MACH_E330)		+= e330.o

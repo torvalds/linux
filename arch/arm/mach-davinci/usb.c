@@ -12,6 +12,7 @@
 
 #include <mach/common.h>
 #include <mach/hardware.h>
+#include <mach/irqs.h>
 
 #if defined(CONFIG_USB_MUSB_HDRC) || defined(CONFIG_USB_MUSB_HDRC_MODULE)
 static struct musb_hdrc_eps_bits musb_eps[] = {
@@ -75,29 +76,6 @@ static struct platform_device usb_dev = {
 	.resource       = usb_resources,
 	.num_resources  = ARRAY_SIZE(usb_resources),
 };
-
-#ifdef CONFIG_USB_MUSB_OTG
-
-static struct otg_transceiver *xceiv;
-
-struct otg_transceiver *otg_get_transceiver(void)
-{
-	if (xceiv)
-		get_device(xceiv->dev);
-	return xceiv;
-}
-EXPORT_SYMBOL(otg_get_transceiver);
-
-int otg_set_transceiver(struct otg_transceiver *x)
-{
-	if (xceiv && x)
-		return -EBUSY;
-	xceiv = x;
-	return 0;
-}
-EXPORT_SYMBOL(otg_set_transceiver);
-
-#endif
 
 void __init setup_usb(unsigned mA, unsigned potpgt_msec)
 {
