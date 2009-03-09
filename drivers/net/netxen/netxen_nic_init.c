@@ -316,7 +316,7 @@ err_out:
 
 void netxen_initialize_adapter_ops(struct netxen_adapter *adapter)
 {
-	switch (adapter->ahw.board_type) {
+	switch (adapter->ahw.port_type) {
 	case NETXEN_NIC_GBE:
 		adapter->enable_phy_interrupts =
 		    netxen_niu_gbe_enable_phy_interrupts;

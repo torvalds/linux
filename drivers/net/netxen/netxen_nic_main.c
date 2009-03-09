@@ -212,7 +212,7 @@ nx_update_dma_mask(struct netxen_adapter *adapter)
 
 static void netxen_check_options(struct netxen_adapter *adapter)
 {
-	switch (adapter->ahw.boardcfg.board_type) {
+	switch (adapter->ahw.board_type) {
 	case NETXEN_BRDTYPE_P3_HMEZ:
 	case NETXEN_BRDTYPE_P3_XG_LOM:
 	case NETXEN_BRDTYPE_P3_10G_CX4:
@@ -250,7 +250,7 @@ static void netxen_check_options(struct netxen_adapter *adapter)
 
 	case NETXEN_BRDTYPE_P3_10G_TP:
 		adapter->msix_supported = !!use_msi_x;
-		if (adapter->ahw.board_type == NETXEN_NIC_XGBE)
+		if (adapter->ahw.port_type == NETXEN_NIC_XGBE)
 			adapter->max_rx_desc_count = MAX_RCV_DESCRIPTORS_10G;
 		else
 			adapter->max_rx_desc_count = MAX_RCV_DESCRIPTORS_1G;
@@ -261,7 +261,7 @@ static void netxen_check_options(struct netxen_adapter *adapter)
 		adapter->max_rx_desc_count = MAX_RCV_DESCRIPTORS_1G;
 
 		printk(KERN_WARNING "Unknown board type(0x%x)\n",
-				adapter->ahw.boardcfg.board_type);
+				adapter->ahw.board_type);
 		break;
 	}
 
@@ -330,7 +330,7 @@ static void netxen_set_port_mode(struct netxen_adapter *adapter)
 {
 	u32 val, data;
 
-	val = adapter->ahw.boardcfg.board_type;
+	val = adapter->ahw.board_type;
 	if ((val == NETXEN_BRDTYPE_P3_HMEZ) ||
 		(val == NETXEN_BRDTYPE_P3_XG_LOM)) {
 		if (port_mode == NETXEN_PORT_MODE_802_3_AP) {
@@ -523,8 +523,6 @@ netxen_setup_pci_map(struct netxen_adapter *adapter)
 	void __iomem *mem_ptr2 = NULL;
 	void __iomem *db_ptr = NULL;
 
-	unsigned long first_page_group_end;
-	unsigned long first_page_group_start;
 	unsigned long mem_base, mem_len, db_base, db_len = 0, pci_len0 = 0;
 
 	struct pci_dev *pdev = adapter->pdev;
@@ -562,14 +560,10 @@ netxen_setup_pci_map(struct netxen_adapter *adapter)
 				SECOND_PAGE_GROUP_SIZE);
 		mem_ptr2 = ioremap(mem_base + THIRD_PAGE_GROUP_START,
 				THIRD_PAGE_GROUP_SIZE);
-		first_page_group_start = FIRST_PAGE_GROUP_START;
-		first_page_group_end   = FIRST_PAGE_GROUP_END;
 	} else if (mem_len == NETXEN_PCI_32MB_SIZE) {
 		mem_ptr1 = ioremap(mem_base, SECOND_PAGE_GROUP_SIZE);
 		mem_ptr2 = ioremap(mem_base + THIRD_PAGE_GROUP_START -
 			SECOND_PAGE_GROUP_START, THIRD_PAGE_GROUP_SIZE);
-		first_page_group_start = 0;
-		first_page_group_end   = 0;
 	} else if (mem_len == NETXEN_PCI_2MB_SIZE) {
 		adapter->hw_write_wx = netxen_nic_hw_write_wx_2M;
 		adapter->hw_read_wx = netxen_nic_hw_read_wx_2M;
@@ -589,8 +583,6 @@ netxen_setup_pci_map(struct netxen_adapter *adapter)
 			return -EIO;
 		}
 		pci_len0 = mem_len;
-		first_page_group_start = 0;
-		first_page_group_end   = 0;
 
 		adapter->ahw.ddr_mn_window = 0;
 		adapter->ahw.qdr_sn_window = 0;
@@ -611,8 +603,6 @@ netxen_setup_pci_map(struct netxen_adapter *adapter)
 
 	adapter->ahw.pci_base0 = mem_ptr0;
 	adapter->ahw.pci_len0 = pci_len0;
-	adapter->ahw.first_page_group_start = first_page_group_start;
-	adapter->ahw.first_page_group_end   = first_page_group_end;
 	adapter->ahw.pci_base1 = mem_ptr1;
 	adapter->ahw.pci_base2 = mem_ptr2;
 
@@ -679,7 +669,7 @@ netxen_start_firmware(struct netxen_adapter *adapter)
 
 		/* Initialize multicast addr pool owners */
 		val = 0x7654;
-		if (adapter->ahw.board_type == NETXEN_NIC_XGBE)
+		if (adapter->ahw.port_type == NETXEN_NIC_XGBE)
 			val |= 0x0f000000;
 		netxen_crb_writelit_adapter(adapter,
 				NETXEN_MAC_ADDR_CNTL_REG, val);
@@ -870,7 +860,6 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct netxen_adapter *adapter = NULL;
 	int i = 0, err;
 	int first_driver;
-	u32 val;
 	int pci_func_id = PCI_FUNC(pdev->devfn);
 	uint8_t revision_id;
 
@@ -936,7 +925,6 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	/* This will be reset for mezz cards  */
 	adapter->portnum = pci_func_id;
-	adapter->status   &= ~NETXEN_NETDEV_STATUS;
 	adapter->rx_csum = 1;
 	adapter->mc_enabled = 0;
 	if (NX_IS_REVISION_P3(revision_id))
@@ -974,7 +962,7 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	netxen_initialize_adapter_ops(adapter);
 
 	/* Mezz cards have PCI function 0,2,3 enabled */
-	switch (adapter->ahw.boardcfg.board_type) {
+	switch (adapter->ahw.board_type) {
 	case NETXEN_BRDTYPE_P2_SB31_10G_IMEZ:
 	case NETXEN_BRDTYPE_P2_SB31_10G_HMEZ:
 		if (pci_func_id >= 2)
@@ -1007,15 +995,7 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	nx_update_dma_mask(adapter);
 
-	netxen_nic_flash_print(adapter);
-
-	if (NX_IS_REVISION_P3(revision_id)) {
-		adapter->hw_read_wx(adapter,
-				NETXEN_MIU_MN_CONTROL, &val, 4);
-		adapter->ahw.cut_through = (val & 0x4) ? 1 : 0;
-		dev_info(&pdev->dev, "firmware running in %s mode\n",
-		adapter->ahw.cut_through ? "cut through" : "legacy");
-	}
+	netxen_nic_get_firmware_info(adapter);
 
 	/*
 	 * See if the firmware gave us a virtual-physical port mapping.
@@ -1066,7 +1046,7 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	pci_set_drvdata(pdev, adapter);
 
-	switch (adapter->ahw.board_type) {
+	switch (adapter->ahw.port_type) {
 	case NETXEN_NIC_GBE:
 		dev_info(&adapter->pdev->dev, "%s: GbE port initialized\n",
 				adapter->netdev->name);
@@ -1460,7 +1440,7 @@ static void netxen_nic_handle_phy_intr(struct netxen_adapter *adapter)
 		linkup = (val == XG_LINK_UP_P3);
 	} else {
 		val = adapter->pci_read_normalize(adapter, CRB_XG_STATE);
-		if (adapter->ahw.board_type == NETXEN_NIC_GBE)
+		if (adapter->ahw.port_type == NETXEN_NIC_GBE)
 			linkup = (val >> port) & 1;
 		else {
 			val = (val >> port*8) & 0xff;

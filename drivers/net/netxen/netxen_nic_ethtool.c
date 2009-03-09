@@ -115,10 +115,9 @@ static int
 netxen_nic_get_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 {
 	struct netxen_adapter *adapter = netdev_priv(dev);
-	struct netxen_board_info *boardinfo = &adapter->ahw.boardcfg;
 
 	/* read which mode */
-	if (adapter->ahw.board_type == NETXEN_NIC_GBE) {
+	if (adapter->ahw.port_type == NETXEN_NIC_GBE) {
 		ecmd->supported = (SUPPORTED_10baseT_Half |
 				   SUPPORTED_10baseT_Full |
 				   SUPPORTED_100baseT_Half |
@@ -137,7 +136,7 @@ netxen_nic_get_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 		ecmd->duplex = adapter->link_duplex;
 		ecmd->autoneg = adapter->link_autoneg;
 
-	} else if (adapter->ahw.board_type == NETXEN_NIC_XGBE) {
+	} else if (adapter->ahw.port_type == NETXEN_NIC_XGBE) {
 		u32 val;
 
 		adapter->hw_read_wx(adapter, NETXEN_PORT_MODE_ADDR, &val, 4);
@@ -169,7 +168,7 @@ netxen_nic_get_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 	ecmd->phy_address = adapter->physical_port;
 	ecmd->transceiver = XCVR_EXTERNAL;
 
-	switch ((netxen_brdtype_t) boardinfo->board_type) {
+	switch ((netxen_brdtype_t)adapter->ahw.board_type) {
 	case NETXEN_BRDTYPE_P2_SB35_4G:
 	case NETXEN_BRDTYPE_P2_SB31_2G:
 	case NETXEN_BRDTYPE_P3_REF_QG:
@@ -185,7 +184,7 @@ netxen_nic_get_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 		ecmd->supported |= SUPPORTED_TP;
 		ecmd->advertising |= ADVERTISED_TP;
 		ecmd->port = PORT_TP;
-		ecmd->autoneg = (boardinfo->board_type ==
+		ecmd->autoneg = (adapter->ahw.board_type ==
 				 NETXEN_BRDTYPE_P2_SB31_10G_CX4) ?
 		    (AUTONEG_DISABLE) : (adapter->link_autoneg);
 		break;
@@ -212,7 +211,7 @@ netxen_nic_get_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 		ecmd->autoneg = AUTONEG_DISABLE;
 		break;
 	case NETXEN_BRDTYPE_P3_10G_TP:
-		if (adapter->ahw.board_type == NETXEN_NIC_XGBE) {
+		if (adapter->ahw.port_type == NETXEN_NIC_XGBE) {
 			ecmd->autoneg = AUTONEG_DISABLE;
 			ecmd->supported |= (SUPPORTED_FIBRE | SUPPORTED_TP);
 			ecmd->advertising |=
@@ -228,7 +227,7 @@ netxen_nic_get_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 		break;
 	default:
 		printk(KERN_ERR "netxen-nic: Unsupported board model %d\n",
-		       (netxen_brdtype_t) boardinfo->board_type);
+		       (netxen_brdtype_t)adapter->ahw.board_type);
 		return -EIO;
 	}
 
@@ -242,7 +241,7 @@ netxen_nic_set_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 	__u32 status;
 
 	/* read which mode */
-	if (adapter->ahw.board_type == NETXEN_NIC_GBE) {
+	if (adapter->ahw.port_type == NETXEN_NIC_GBE) {
 		/* autonegotiation */
 		if (adapter->phy_write
 		    && adapter->phy_write(adapter,
@@ -430,7 +429,7 @@ static u32 netxen_nic_test_link(struct net_device *dev)
 	int val;
 
 	/* read which mode */
-	if (adapter->ahw.board_type == NETXEN_NIC_GBE) {
+	if (adapter->ahw.port_type == NETXEN_NIC_GBE) {
 		if (adapter->phy_read
 		    && adapter->phy_read(adapter,
 					 NETXEN_NIU_GB_MII_MGMT_ADDR_PHY_STATUS,
@@ -440,7 +439,7 @@ static u32 netxen_nic_test_link(struct net_device *dev)
 			val = netxen_get_phy_link(status);
 			return !val;
 		}
-	} else if (adapter->ahw.board_type == NETXEN_NIC_XGBE) {
+	} else if (adapter->ahw.port_type == NETXEN_NIC_XGBE) {
 		val = adapter->pci_read_normalize(adapter, CRB_XG_STATE);
 		return (val == XG_LINK_UP) ? 0 : 1;
 	}
@@ -483,7 +482,7 @@ netxen_nic_get_ringparam(struct net_device *dev, struct ethtool_ringparam *ring)
 		rds_rings[RCV_DESC_JUMBO_CTXID].max_rx_desc_count;
 	ring->tx_pending = adapter->max_tx_desc_count;
 
-	if (adapter->ahw.board_type == NETXEN_NIC_GBE)
+	if (adapter->ahw.port_type == NETXEN_NIC_GBE)
 		ring->rx_max_pending = MAX_RCV_DESCRIPTORS_1G;
 	else
 		ring->rx_max_pending = MAX_RCV_DESCRIPTORS_10G;
@@ -501,7 +500,7 @@ netxen_nic_get_pauseparam(struct net_device *dev,
 	__u32 val;
 	int port = adapter->physical_port;
 
-	if (adapter->ahw.board_type == NETXEN_NIC_GBE) {
+	if (adapter->ahw.port_type == NETXEN_NIC_GBE) {
 		if ((port < 0) || (port > NETXEN_NIU_MAX_GBE_PORTS))
 			return;
 		/* get flow control settings */
@@ -524,7 +523,7 @@ netxen_nic_get_pauseparam(struct net_device *dev,
 				pause->tx_pause = !(netxen_gb_get_gb3_mask(val));
 				break;
 		}
-	} else if (adapter->ahw.board_type == NETXEN_NIC_XGBE) {
+	} else if (adapter->ahw.port_type == NETXEN_NIC_XGBE) {
 		if ((port < 0) || (port > NETXEN_NIU_MAX_XG_PORTS))
 			return;
 		pause->rx_pause = 1;
@@ -535,7 +534,7 @@ netxen_nic_get_pauseparam(struct net_device *dev,
 			pause->tx_pause = !(netxen_xg_get_xg1_mask(val));
 	} else {
 		printk(KERN_ERR"%s: Unknown board type: %x\n",
-				netxen_nic_driver_name, adapter->ahw.board_type);
+				netxen_nic_driver_name, adapter->ahw.port_type);
 	}
 }
 
@@ -547,7 +546,7 @@ netxen_nic_set_pauseparam(struct net_device *dev,
 	__u32 val;
 	int port = adapter->physical_port;
 	/* read mode */
-	if (adapter->ahw.board_type == NETXEN_NIC_GBE) {
+	if (adapter->ahw.port_type == NETXEN_NIC_GBE) {
 		if ((port < 0) || (port > NETXEN_NIU_MAX_GBE_PORTS))
 			return -EIO;
 		/* set flow control */
@@ -591,7 +590,7 @@ netxen_nic_set_pauseparam(struct net_device *dev,
 				break;
 		}
 		netxen_nic_write_w0(adapter, NETXEN_NIU_GB_PAUSE_CTL, val);
-	} else if (adapter->ahw.board_type == NETXEN_NIC_XGBE) {
+	} else if (adapter->ahw.port_type == NETXEN_NIC_XGBE) {
 		if ((port < 0) || (port > NETXEN_NIU_MAX_XG_PORTS))
 			return -EIO;
 		netxen_nic_read_w0(adapter, NETXEN_NIU_XG_PAUSE_CTL, &val);
@@ -610,7 +609,7 @@ netxen_nic_set_pauseparam(struct net_device *dev,
 	} else {
 		printk(KERN_ERR "%s: Unknown board type: %x\n",
 				netxen_nic_driver_name,
-				adapter->ahw.board_type);
+				adapter->ahw.port_type);
 	}
 	return 0;
 }

@@ -57,7 +57,6 @@ struct netxen_adapter;
 
 struct netxen_port;
 void netxen_nic_set_link_parameters(struct netxen_adapter *adapter);
-void netxen_nic_flash_print(struct netxen_adapter *adapter);
 
 typedef u8 netxen_ethernet_macaddr_t[6];
 

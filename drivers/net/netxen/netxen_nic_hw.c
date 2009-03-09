@@ -728,9 +728,8 @@ int netxen_is_flash_supported(struct netxen_adapter *adapter)
 static int netxen_get_flash_block(struct netxen_adapter *adapter, int base,
 				  int size, __le32 * buf)
 {
-	int i, addr;
+	int i, v, addr;
 	__le32 *ptr32;
-	u32 v;
 
 	addr = base;
 	ptr32 = buf;
@@ -2089,47 +2088,44 @@ u32 netxen_nic_pci_read_normalize_2M(struct netxen_adapter *adapter, u64 off)
 
 int netxen_nic_get_board_info(struct netxen_adapter *adapter)
 {
-	int rv = 0;
-	int addr = NETXEN_BRDCFG_START;
-	struct netxen_board_info *boardinfo;
-	int index;
-	int *ptr32;
+	int offset, board_type, magic, header_version;
+	struct pci_dev *pdev = adapter->pdev;
 
-	boardinfo = &adapter->ahw.boardcfg;
-	ptr32 = (int *) boardinfo;
+	offset = NETXEN_BRDCFG_START +
+		offsetof(struct netxen_board_info, magic);
+	if (netxen_rom_fast_read(adapter, offset, &magic))
+		return -EIO;
 
-	for (index = 0; index < sizeof(struct netxen_board_info) / sizeof(u32);
-	     index++) {
-		if (netxen_rom_fast_read(adapter, addr, ptr32) == -1) {
-			return -EIO;
-		}
-		ptr32++;
-		addr += sizeof(u32);
-	}
-	if (boardinfo->magic != NETXEN_BDINFO_MAGIC) {
-		printk("%s: ERROR reading %s board config."
-		       " Read %x, expected %x\n", netxen_nic_driver_name,
-		       netxen_nic_driver_name,
-		       boardinfo->magic, NETXEN_BDINFO_MAGIC);
-		rv = -1;
-	}
-	if (boardinfo->header_version != NETXEN_BDINFO_VERSION) {
-		printk("%s: Unknown board config version."
-		       " Read %x, expected %x\n", netxen_nic_driver_name,
-		       boardinfo->header_version, NETXEN_BDINFO_VERSION);
-		rv = -1;
+	offset = NETXEN_BRDCFG_START +
+		offsetof(struct netxen_board_info, header_version);
+	if (netxen_rom_fast_read(adapter, offset, &header_version))
+		return -EIO;
+
+	if (magic != NETXEN_BDINFO_MAGIC ||
+			header_version != NETXEN_BDINFO_VERSION) {
+		dev_err(&pdev->dev,
+			"invalid board config, magic=%08x, version=%08x\n",
+			magic, header_version);
+		return -EIO;
 	}
 
-	if (boardinfo->board_type == NETXEN_BRDTYPE_P3_4_GB_MM) {
+	offset = NETXEN_BRDCFG_START +
+		offsetof(struct netxen_board_info, board_type);
+	if (netxen_rom_fast_read(adapter, offset, &board_type))
+		return -EIO;
+
+	adapter->ahw.board_type = board_type;
+
+	if (board_type == NETXEN_BRDTYPE_P3_4_GB_MM) {
 		u32 gpio = netxen_nic_reg_read(adapter,
 				NETXEN_ROMUSB_GLB_PAD_GPIO_I);
 		if ((gpio & 0x8000) == 0)
-			boardinfo->board_type = NETXEN_BRDTYPE_P3_10G_TP;
+			board_type = NETXEN_BRDTYPE_P3_10G_TP;
 	}
 
-	switch ((netxen_brdtype_t) boardinfo->board_type) {
+	switch ((netxen_brdtype_t)board_type) {
 	case NETXEN_BRDTYPE_P2_SB35_4G:
-		adapter->ahw.board_type = NETXEN_NIC_GBE;
+		adapter->ahw.port_type = NETXEN_NIC_GBE;
 		break;
 	case NETXEN_BRDTYPE_P2_SB31_10G:
 	case NETXEN_BRDTYPE_P2_SB31_10G_IMEZ:
@@ -2145,7 +2141,7 @@ int netxen_nic_get_board_info(struct netxen_adapter *adapter)
 	case NETXEN_BRDTYPE_P3_10G_SFP_QT:
 	case NETXEN_BRDTYPE_P3_10G_XFP:
 	case NETXEN_BRDTYPE_P3_10000_BASE_T:
-		adapter->ahw.board_type = NETXEN_NIC_XGBE;
+		adapter->ahw.port_type = NETXEN_NIC_XGBE;
 		break;
 	case NETXEN_BRDTYPE_P1_BD:
 	case NETXEN_BRDTYPE_P1_SB:
@@ -2154,20 +2150,19 @@ int netxen_nic_get_board_info(struct netxen_adapter *adapter)
 	case NETXEN_BRDTYPE_P3_REF_QG:
 	case NETXEN_BRDTYPE_P3_4_GB:
 	case NETXEN_BRDTYPE_P3_4_GB_MM:
-		adapter->ahw.board_type = NETXEN_NIC_GBE;
+		adapter->ahw.port_type = NETXEN_NIC_GBE;
 		break;
 	case NETXEN_BRDTYPE_P3_10G_TP:
-		adapter->ahw.board_type = (adapter->portnum < 2) ?
+		adapter->ahw.port_type = (adapter->portnum < 2) ?
 			NETXEN_NIC_XGBE : NETXEN_NIC_GBE;
 		break;
 	default:
-		printk("%s: Unknown(%x)\n", netxen_nic_driver_name,
-		       boardinfo->board_type);
-		rv = -ENODEV;
+		dev_err(&pdev->dev, "unknown board type %x\n", board_type);
+		adapter->ahw.port_type = NETXEN_NIC_XGBE;
 		break;
 	}
 
-	return rv;
+	return 0;
 }
 
 /* NIU access sections */
@@ -2213,7 +2208,7 @@ void netxen_nic_set_link_parameters(struct netxen_adapter *adapter)
 		return;
 	}
 
-	if (adapter->ahw.board_type == NETXEN_NIC_GBE) {
+	if (adapter->ahw.port_type == NETXEN_NIC_GBE) {
 		adapter->hw_read_wx(adapter,
 				NETXEN_PORT_MODE_ADDR, &port_mode, 4);
 		if (port_mode == NETXEN_PORT_MODE_802_3_AP) {
@@ -2268,17 +2263,14 @@ void netxen_nic_set_link_parameters(struct netxen_adapter *adapter)
 	}
 }
 
-void netxen_nic_flash_print(struct netxen_adapter *adapter)
+void netxen_nic_get_firmware_info(struct netxen_adapter *adapter)
 {
-	u32 fw_major = 0;
-	u32 fw_minor = 0;
-	u32 fw_build = 0;
+	u32 fw_major, fw_minor, fw_build;
 	char brd_name[NETXEN_MAX_SHORT_NAME];
 	char serial_num[32];
 	int i, addr;
 	int *ptr32;
-
-	struct netxen_board_info *board_info = &(adapter->ahw.boardcfg);
+	struct pci_dev *pdev = adapter->pdev;
 
 	adapter->driver_mismatch = 0;
 
@@ -2302,23 +2294,31 @@ void netxen_nic_flash_print(struct netxen_adapter *adapter)
 	adapter->hw_read_wx(adapter, NETXEN_FW_VERSION_SUB, &fw_build, 4);
 
 	adapter->fw_major = fw_major;
+	adapter->fw_version = NETXEN_VERSION_CODE(fw_major, fw_minor, fw_build);
 
 	if (adapter->portnum == 0) {
-		get_brd_name_by_type(board_info->board_type, brd_name);
+		get_brd_name_by_type(adapter->ahw.board_type, brd_name);
 
 		printk(KERN_INFO "NetXen %s Board S/N %s  Chip rev 0x%x\n",
 				brd_name, serial_num, adapter->ahw.revision_id);
-		printk(KERN_INFO "NetXen Firmware version %d.%d.%d\n",
-				fw_major, fw_minor, fw_build);
 	}
 
-	if (NETXEN_VERSION_CODE(fw_major, fw_minor, fw_build) <
-			NETXEN_VERSION_CODE(3, 4, 216)) {
+	if (adapter->fw_version < NETXEN_VERSION_CODE(3, 4, 216)) {
 		adapter->driver_mismatch = 1;
-		printk(KERN_ERR "%s: firmware version %d.%d.%d unsupported\n",
-				netxen_nic_driver_name,
+		dev_warn(&pdev->dev, "firmware version %d.%d.%d unsupported\n",
 				fw_major, fw_minor, fw_build);
 		return;
+	}
+
+	dev_info(&pdev->dev, "firmware version %d.%d.%d\n",
+			fw_major, fw_minor, fw_build);
+
+	if (NX_IS_REVISION_P3(adapter->ahw.revision_id)) {
+		adapter->hw_read_wx(adapter,
+				NETXEN_MIU_MN_CONTROL, &i, 4);
+		adapter->ahw.cut_through = (i & 0x4) ? 1 : 0;
+		dev_info(&pdev->dev, "firmware running in %s mode\n",
+		adapter->ahw.cut_through ? "cut-through" : "legacy");
 	}
 }
 

@@ -90,7 +90,6 @@
 	(sizeof(struct netxen_rx_buffer) * rds_ring->max_rx_desc_count)
 #define find_diff_among(a,b,range) ((a)<(b)?((b)-(a)):((b)+(range)-(a)))
 
-#define NETXEN_NETDEV_STATUS		0x1
 #define NETXEN_RCV_PRODUCER_OFFSET	0
 #define NETXEN_RCV_PEG_DB_ID		2
 #define NETXEN_HOST_DUMMY_DMA_SIZE 1024
@@ -795,21 +794,19 @@ struct netxen_hardware_context {
 	void __iomem *pci_base0;
 	void __iomem *pci_base1;
 	void __iomem *pci_base2;
-	unsigned long first_page_group_end;
-	unsigned long first_page_group_start;
 	void __iomem *db_base;
 	unsigned long db_len;
 	unsigned long pci_len0;
 
-	u8 cut_through;
 	int qdr_sn_window;
 	int ddr_mn_window;
 	unsigned long mn_win_crb;
 	unsigned long ms_win_crb;
 
+	u8 cut_through;
 	u8 revision_id;
-	u16 board_type;
-	struct netxen_board_info boardcfg;
+	u16 port_type;
+	int board_type;
 	u32 linkup;
 	/* Address of cmd ring in Phantom */
 	struct cmd_desc_type0 *cmd_desc_head;
@@ -1260,6 +1257,7 @@ struct netxen_adapter {
 	u32 temp;
 
 	u32 fw_major;
+	u32 fw_version;
 
 	u8 msix_supported;
 	u8 max_possible_rss_rings;
@@ -1272,7 +1270,6 @@ struct netxen_adapter {
 	u16 state;
 	u16 link_autoneg;
 	int rx_csum;
-	int status;
 
 	struct netxen_cmd_buffer *cmd_buf_arr;	/* Command buffers for xmit */
 
@@ -1391,6 +1388,7 @@ void netxen_nic_write_w1(struct netxen_adapter *adapter, u32 index, u32 value);
 void netxen_nic_read_w1(struct netxen_adapter *adapter, u32 index, u32 *value);
 
 int netxen_nic_get_board_info(struct netxen_adapter *adapter);
+void netxen_nic_get_firmware_info(struct netxen_adapter *adapter);
 
 int netxen_nic_hw_read_wx_128M(struct netxen_adapter *adapter,
 		ulong off, void *data, int len);
