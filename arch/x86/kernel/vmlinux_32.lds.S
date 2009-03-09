@@ -210,6 +210,12 @@ SECTIONS
   DWARF_DEBUG
 }
 
+/*
+ * Build-time check on the image size:
+ */
+ASSERT((_end - LOAD_OFFSET <= KERNEL_IMAGE_SIZE),
+	"kernel image bigger than KERNEL_IMAGE_SIZE")
+
 #ifdef CONFIG_KEXEC
 /* Link time checks */
 #include <asm/kexec.h>
