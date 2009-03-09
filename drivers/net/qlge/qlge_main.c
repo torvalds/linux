@@ -587,7 +587,6 @@ u32 ql_enable_completion_interrupt(struct ql_adapter *qdev, u32 intr)
 static u32 ql_disable_completion_interrupt(struct ql_adapter *qdev, u32 intr)
 {
 	u32 var = 0;
-	unsigned long hw_flags;
 	struct intr_context *ctx;
 
 	/* HW disables for us if we're MSIX multi interrupts and
@@ -597,14 +596,14 @@ static u32 ql_disable_completion_interrupt(struct ql_adapter *qdev, u32 intr)
 		return 0;
 
 	ctx = qdev->intr_context + intr;
-	spin_lock_irqsave(&qdev->hw_lock, hw_flags);
+	spin_lock(&qdev->hw_lock);
 	if (!atomic_read(&ctx->irq_cnt)) {
 		ql_write32(qdev, INTR_EN,
 		ctx->intr_dis_mask);
 		var = ql_read32(qdev, STS);
 	}
 	atomic_inc(&ctx->irq_cnt);
-	spin_unlock_irqrestore(&qdev->hw_lock, hw_flags);
+	spin_unlock(&qdev->hw_lock);
 	return var;
 }
 
