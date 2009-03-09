@@ -99,8 +99,6 @@ static void probe_workqueue_creation(struct task_struct *wq_thread, int cpu)
 		pr_warning("trace_workqueue: not enough memory\n");
 		return;
 	}
-	tracing_record_cmdline(wq_thread);
-
 	INIT_LIST_HEAD(&cws->list);
 	cws->cpu = cpu;
 
@@ -195,11 +193,12 @@ static int workqueue_stat_show(struct seq_file *s, void *p)
 	struct cpu_workqueue_stats *cws = p;
 	unsigned long flags;
 	int cpu = cws->cpu;
+	struct task_struct *tsk = find_task_by_vpid(cws->pid);
 
 	seq_printf(s, "%3d %6d     %6u       %s\n", cws->cpu,
 		   atomic_read(&cws->inserted),
 		   cws->executed,
-		   trace_find_cmdline(cws->pid));
+		   tsk ? tsk->comm : "<...>");
 
 	spin_lock_irqsave(&workqueue_cpu_stat(cpu)->lock, flags);
 	if (&cws->list == workqueue_cpu_stat(cpu)->list.next)
