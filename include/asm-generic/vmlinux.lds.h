@@ -98,6 +98,7 @@
 	VMLINUX_SYMBOL(__stop___tracepoints) = .;			\
 	LIKELY_PROFILE()		       				\
 	BRANCH_PROFILE()						\
+	TRACE_PRINTKS()							\
 	FTRACE_EVENTS()
 
 #define RO_DATA(align)							\
@@ -108,7 +109,6 @@
 		*(__vermagic)		/* Kernel version magic */	\
 		*(__markers_strings)	/* Markers: strings */		\
 		*(__tracepoints_strings)/* Tracepoints: strings */	\
-		TRACE_PRINTKS()					\
 	}								\
 									\
 	.rodata1          : AT(ADDR(.rodata1) - LOAD_OFFSET) {		\
