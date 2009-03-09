@@ -1125,6 +1125,7 @@ static int pwc_video_open(struct file *file)
 	}
 
 	mutex_lock(&pdev->modlock);
+	pwc_construct(pdev); /* set min/max sizes correct */
 	if (!pdev->usb_init) {
 		PWC_DEBUG_OPEN("Doing first time initialization.\n");
 		pdev->usb_init = 1;
@@ -1149,7 +1150,6 @@ static int pwc_video_open(struct file *file)
 	if (pwc_set_leds(pdev, led_on, led_off) < 0)
 		PWC_DEBUG_OPEN("Failed to set LED on/off time.\n");
 
-	pwc_construct(pdev); /* set min/max sizes correct */
 
 	/* So far, so good. Allocate memory. */
 	i = pwc_allocate_buffers(pdev);
