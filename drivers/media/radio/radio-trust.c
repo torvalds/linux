@@ -383,7 +383,7 @@ static int __init trust_init(void)
 	mutex_init(&tr->lock);
 
 	if (tr->io == -1) {
-		v4l2_err(v4l2_dev, "You must set an I/O address with io=0x???\n");
+		v4l2_err(v4l2_dev, "You must set an I/O address with io=0x0x350 or 0x358\n");
 		return -EINVAL;
 	}
 	if (!request_region(tr->io, 2, "Trust FM Radio")) {

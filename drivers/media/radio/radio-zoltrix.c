@@ -413,7 +413,7 @@ static int __init zoltrix_init(void)
 	strlcpy(v4l2_dev->name, "zoltrix", sizeof(v4l2_dev->name));
 	zol->io = io;
 	if (zol->io == -1) {
-		v4l2_err(v4l2_dev, "You must set an I/O address with io=0x???\n");
+		v4l2_err(v4l2_dev, "You must set an I/O address with io=0x20c or 0x30c\n");
 		return -EINVAL;
 	}
 	if (zol->io != 0x20c && zol->io != 0x30c) {

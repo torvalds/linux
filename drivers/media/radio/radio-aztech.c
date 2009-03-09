@@ -361,7 +361,7 @@ static int __init aztech_init(void)
 	az->io = io;
 
 	if (az->io == -1) {
-		v4l2_err(v4l2_dev, "you must set an I/O address with io=0x???\n");
+		v4l2_err(v4l2_dev, "you must set an I/O address with io=0x350 or 0x358\n");
 		return -EINVAL;
 	}
 

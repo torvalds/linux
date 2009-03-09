@@ -398,7 +398,7 @@ static int __init rtrack_init(void)
 	rt->io = io;
 
 	if (rt->io == -1) {
-		v4l2_err(v4l2_dev, "you must set an I/O address with io=0x???\n");
+		v4l2_err(v4l2_dev, "you must set an I/O address with io=0x20f or 0x30f\n");
 		return -EINVAL;
 	}
 

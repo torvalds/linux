@@ -375,7 +375,7 @@ static int __init terratec_init(void)
 	strlcpy(v4l2_dev->name, "terratec", sizeof(v4l2_dev->name));
 	tt->io = io;
 	if (tt->io == -1) {
-		v4l2_err(v4l2_dev, "you must set an I/O address with io=0x???\n");
+		v4l2_err(v4l2_dev, "you must set an I/O address with io=0x590 or 0x591\n");
 		return -EINVAL;
 	}
 	if (!request_region(tt->io, 2, "terratec")) {
