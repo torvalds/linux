@@ -1531,22 +1531,37 @@ static void ql_process_mac_rx_intr(struct ql_adapter *qdev,
 	if (ib_mac_rsp->flags2 & IB_MAC_IOCB_RSP_P) {
 		QPRINTK(qdev, RX_STATUS, DEBUG, "Promiscuous Packet.\n");
 	}
-	if (ib_mac_rsp->flags1 & (IB_MAC_IOCB_RSP_IE | IB_MAC_IOCB_RSP_TE)) {
-		QPRINTK(qdev, RX_STATUS, ERR,
-			"Bad checksum for this %s packet.\n",
-			((ib_mac_rsp->
-			  flags2 & IB_MAC_IOCB_RSP_T) ? "TCP" : "UDP"));
-		skb->ip_summed = CHECKSUM_NONE;
-	} else if (qdev->rx_csum &&
-		   ((ib_mac_rsp->flags2 & IB_MAC_IOCB_RSP_T) ||
-		    ((ib_mac_rsp->flags2 & IB_MAC_IOCB_RSP_U) &&
-		     !(ib_mac_rsp->flags1 & IB_MAC_IOCB_RSP_NU)))) {
-		QPRINTK(qdev, RX_STATUS, DEBUG, "RX checksum done!\n");
-		skb->ip_summed = CHECKSUM_UNNECESSARY;
+
+
+	skb->protocol = eth_type_trans(skb, ndev);
+	skb->ip_summed = CHECKSUM_NONE;
+
+	/* If rx checksum is on, and there are no
+	 * csum or frame errors.
+	 */
+	if (qdev->rx_csum &&
+		!(ib_mac_rsp->flags2 & IB_MAC_IOCB_RSP_ERR_MASK) &&
+		!(ib_mac_rsp->flags1 & IB_MAC_CSUM_ERR_MASK)) {
+		/* TCP frame. */
+		if (ib_mac_rsp->flags2 & IB_MAC_IOCB_RSP_T) {
+			QPRINTK(qdev, RX_STATUS, DEBUG,
+					"TCP checksum done!\n");
+			skb->ip_summed = CHECKSUM_UNNECESSARY;
+		} else if ((ib_mac_rsp->flags2 & IB_MAC_IOCB_RSP_U) &&
+				(ib_mac_rsp->flags3 & IB_MAC_IOCB_RSP_V4)) {
+		/* Unfragmented ipv4 UDP frame. */
+			struct iphdr *iph = (struct iphdr *) skb->data;
+			if (!(iph->frag_off &
+				cpu_to_be16(IP_MF|IP_OFFSET))) {
+				skb->ip_summed = CHECKSUM_UNNECESSARY;
+				QPRINTK(qdev, RX_STATUS, DEBUG,
+						"TCP checksum done!\n");
+			}
+		}
 	}
+
 	qdev->stats.rx_packets++;
 	qdev->stats.rx_bytes += skb->len;
-	skb->protocol = eth_type_trans(skb, ndev);
 	skb_record_rx_queue(skb, rx_ring - &qdev->rx_ring[0]);
 	if (qdev->vlgrp && (ib_mac_rsp->flags2 & IB_MAC_IOCB_RSP_V)) {
 		QPRINTK(qdev, RX_STATUS, DEBUG,
