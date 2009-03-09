@@ -392,11 +392,8 @@ struct rcv_desc {
 #define STATUS_CKSUM_OK		(2)
 
 /* owner bits of status_desc */
-#define STATUS_OWNER_HOST	(0x1)
-#define STATUS_OWNER_PHANTOM	(0x2)
-
-#define NETXEN_PROT_IP		(1)
-#define NETXEN_PROT_UNKNOWN	(0)
+#define STATUS_OWNER_HOST	(0x1ULL << 56)
+#define STATUS_OWNER_PHANTOM	(0x2ULL << 56)
 
 /* Note: sizeof(status_desc) should always be a mutliple of 2 */
 
@@ -421,15 +418,6 @@ struct rcv_desc {
 	(((sts_data) >> 48) & 0x1F)
 #define netxen_get_sts_opcode(sts_data)	\
 	(((sts_data) >> 58) & 0x03F)
-
-#define netxen_get_sts_owner(status_desc)	\
-	((le64_to_cpu((status_desc)->status_desc_data) >> 56) & 0x03)
-#define netxen_set_sts_owner(status_desc, val)	{ \
-	(status_desc)->status_desc_data = \
-		((status_desc)->status_desc_data & \
-		~cpu_to_le64(0x3ULL << 56)) | \
-		cpu_to_le64((u64)((val) & 0x3) << 56); \
-}
 
 struct status_desc {
 	/* Bit pattern: 0-3 port, 4-7 status, 8-11 type, 12-27 total_length

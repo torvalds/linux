@@ -838,13 +838,8 @@ no_skb:
 	return skb;
 }
 
-/*
- * netxen_process_rcv() send the received packet to the protocol stack.
- * and if the number of receives exceeds RX_BUFFERS_REFILL, then we
- * invoke the routine to send more rx buffers to the Phantom...
- */
 static void netxen_process_rcv(struct netxen_adapter *adapter, int ctxid,
-		struct status_desc *desc, struct status_desc *frag_desc)
+		struct status_desc *desc)
 {
 	struct net_device *netdev = adapter->netdev;
 	u64 sts_data = le64_to_cpu(desc->status_desc_data);
@@ -859,15 +854,11 @@ static void netxen_process_rcv(struct netxen_adapter *adapter, int ctxid,
 
 	desc_ctx = netxen_get_sts_type(sts_data);
 	if (unlikely(desc_ctx >= NUM_RCV_DESC_RINGS)) {
-		printk("%s: %s Bad Rcv descriptor ring\n",
-		       netxen_nic_driver_name, netdev->name);
 		return;
 	}
 
 	rds_ring = &recv_ctx->rds_rings[desc_ctx];
 	if (unlikely(index > rds_ring->max_rx_desc_count)) {
-		DPRINTK(ERR, "Got a buffer index:%x Max is %x\n",
-			index, rds_ring->max_rx_desc_count);
 		return;
 	}
 	buffer = &rds_ring->rx_buf_arr[index];
@@ -879,14 +870,6 @@ static void netxen_process_rcv(struct netxen_adapter *adapter, int ctxid,
 			buffer->lro_length = length;
 		}
 		if (buffer->lro_current_frags != buffer->lro_expected_frags) {
-			if (buffer->lro_expected_frags != 0) {
-				printk("LRO: (refhandle:%x) recv frag. "
-				       "wait for last. flags: %x expected:%d "
-				       "have:%d\n", index,
-				       netxen_get_sts_desc_lro_last_frag(desc),
-				       buffer->lro_expected_frags,
-				       buffer->lro_current_frags);
-			}
 			return;
 		}
 	}
@@ -913,28 +896,10 @@ static void netxen_process_rcv(struct netxen_adapter *adapter, int ctxid,
 
 	skb->protocol = eth_type_trans(skb, netdev);
 
-	/*
-	 * rx buffer chaining is disabled, walk and free
-	 * any spurious rx buffer chain.
-	 */
-	if (frag_desc) {
-		u16 i, nr_frags = desc->nr_frags;
+	netif_receive_skb(skb);
 
-		dev_kfree_skb_any(skb);
-		for (i = 0; i < nr_frags; i++) {
-			index = le16_to_cpu(frag_desc->frag_handles[i]);
-			skb = netxen_process_rxbuf(adapter,
-					rds_ring, index, cksum);
-			if (skb)
-				dev_kfree_skb_any(skb);
-		}
-		adapter->stats.rxdropped++;
-	} else {
-		netif_receive_skb(skb);
-
-		adapter->stats.no_rcv++;
-		adapter->stats.rxbytes += length;
-	}
+	adapter->stats.no_rcv++;
+	adapter->stats.rxbytes += length;
 }
 
 /* Process Receive status ring */
@@ -942,7 +907,7 @@ u32 netxen_process_rcv_ring(struct netxen_adapter *adapter, int ctxid, int max)
 {
 	struct netxen_recv_context *recv_ctx = &(adapter->recv_ctx[ctxid]);
 	struct status_desc *desc_head = recv_ctx->rcv_status_desc_head;
-	struct status_desc *desc, *frag_desc;
+	struct status_desc *desc;
 	u32 consumer = recv_ctx->status_rx_consumer;
 	int count = 0, ring;
 	u64 sts_data;
@@ -950,41 +915,27 @@ u32 netxen_process_rcv_ring(struct netxen_adapter *adapter, int ctxid, int max)
 
 	while (count < max) {
 		desc = &desc_head[consumer];
-		if (!(netxen_get_sts_owner(desc) & STATUS_OWNER_HOST)) {
-			DPRINTK(ERR, "desc %p ownedby %x\n", desc,
-				netxen_get_sts_owner(desc));
-			break;
-		}
-
 		sts_data = le64_to_cpu(desc->status_desc_data);
+
+		if (!(sts_data & STATUS_OWNER_HOST))
+			break;
+
 		opcode = netxen_get_sts_opcode(sts_data);
-		frag_desc = NULL;
-		if (opcode == NETXEN_NIC_RXPKT_DESC) {
-			if (desc->nr_frags) {
-				consumer = get_next_index(consumer,
-						adapter->max_rx_desc_count);
-				frag_desc = &desc_head[consumer];
-				netxen_set_sts_owner(frag_desc,
-						STATUS_OWNER_PHANTOM);
-			}
-		}
 
-		netxen_process_rcv(adapter, ctxid, desc, frag_desc);
+		netxen_process_rcv(adapter, ctxid, desc);
 
-		netxen_set_sts_owner(desc, STATUS_OWNER_PHANTOM);
+		desc->status_desc_data = cpu_to_le64(STATUS_OWNER_PHANTOM);
 
 		consumer = get_next_index(consumer,
 				adapter->max_rx_desc_count);
 		count++;
 	}
+
 	for (ring = 0; ring < adapter->max_rds_rings; ring++)
 		netxen_post_rx_buffers_nodb(adapter, ctxid, ring);
 
-	/* update the consumer index in phantom */
 	if (count) {
 		recv_ctx->status_rx_consumer = consumer;
-
-		/* Window = 1 */
 		adapter->pci_write_normalize(adapter,
 				recv_ctx->crb_sts_consumer, consumer);
 	}
