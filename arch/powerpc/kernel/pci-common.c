@@ -1482,7 +1482,7 @@ void __init pcibios_resource_survey(void)
 	 * we proceed to assigning things that were left unassigned
 	 */
 	if (!(ppc_pci_flags & PPC_PCI_PROBE_ONLY)) {
-		pr_debug("PCI: Assigning unassigned resouces...\n");
+		pr_debug("PCI: Assigning unassigned resources...\n");
 		pci_assign_unassigned_resources();
 	}
 
