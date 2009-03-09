@@ -15,6 +15,7 @@
 #include <linux/init.h>
 
 extern void (*udbg_putc)(char c);
+extern void (*udbg_flush)(void);
 extern int (*udbg_getc)(void);
 extern int (*udbg_getc_poll)(void);
 
