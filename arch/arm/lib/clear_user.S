@@ -18,7 +18,8 @@
  *          : sz   - number of bytes to clear
  * Returns  : number of bytes NOT cleared
  */
-ENTRY(__clear_user)
+ENTRY(__clear_user_std)
+WEAK(__clear_user)
 		stmfd	sp!, {r1, lr}
 		mov	r2, #0
 		cmp	r1, #4
