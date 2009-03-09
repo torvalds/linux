@@ -132,8 +132,8 @@ void r600_page_table_cleanup(struct drm_device *dev, struct drm_ati_pcigart_info
 		for (i = 0; i < pages; i++) {
 			if (!entry->busaddr[i])
 				break;
-			pci_unmap_single(dev->pdev, entry->busaddr[i],
-					 PAGE_SIZE, PCI_DMA_TODEVICE);
+			pci_unmap_page(dev->pdev, entry->busaddr[i],
+				       PAGE_SIZE, PCI_DMA_BIDIRECTIONAL);
 		}
 		if (gart_info->gart_table_location == DRM_ATI_GART_MAIN)
 			gart_info->bus_addr = 0;
@@ -165,10 +165,10 @@ int r600_page_table_init(struct drm_device *dev)
 
 	gart_idx = 0;
 	for (i = 0; i < pages; i++) {
-		entry->busaddr[i] = pci_map_single(dev->pdev,
-						   page_address(entry->
-								pagelist[i]),
-						   PAGE_SIZE, PCI_DMA_TODEVICE);
+		entry->busaddr[i] = pci_map_page(dev->pdev,
+						 entry->pagelist[i], 0,
+						 PAGE_SIZE,
+						 PCI_DMA_BIDIRECTIONAL);
 		if (entry->busaddr[i] == 0) {
 			DRM_ERROR("unable to map PCIGART pages!\n");
 			r600_page_table_cleanup(dev, gart_info);
