@@ -343,6 +343,11 @@ static void lguest_cpuid(unsigned int *ax, unsigned int *bx,
 		 * flush_tlb_user() for both user and kernel mappings unless
 		 * the Page Global Enable (PGE) feature bit is set. */
 		*dx |= 0x00002000;
+		/* We also lie, and say we're family id 5.  6 or greater
+		 * leads to a rdmsr in early_init_intel which we can't handle.
+		 * Family ID is returned as bits 8-12 in ax. */
+		*ax &= 0xFFFFF0FF;
+		*ax |= 0x00000500;
 		break;
 	case 0x80000000:
 		/* Futureproof this a little: if they ask how much extended
