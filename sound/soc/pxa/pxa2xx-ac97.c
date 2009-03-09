@@ -106,13 +106,13 @@ static int pxa2xx_ac97_resume(struct snd_soc_dai *dai)
 static int pxa2xx_ac97_probe(struct platform_device *pdev,
 			     struct snd_soc_dai *dai)
 {
-	return pxa2xx_ac97_hw_probe(pdev);
+	return pxa2xx_ac97_hw_probe(to_platform_device(dai->dev));
 }
 
 static void pxa2xx_ac97_remove(struct platform_device *pdev,
 			       struct snd_soc_dai *dai)
 {
-	pxa2xx_ac97_hw_remove(pdev);
+	pxa2xx_ac97_hw_remove(to_platform_device(dai->dev));
 }
 
 static int pxa2xx_ac97_hw_params(struct snd_pcm_substream *substream,
@@ -229,15 +229,45 @@ struct snd_soc_dai pxa_ac97_dai[] = {
 EXPORT_SYMBOL_GPL(pxa_ac97_dai);
 EXPORT_SYMBOL_GPL(soc_ac97_ops);
 
+static int __devinit pxa2xx_ac97_dev_probe(struct platform_device *pdev)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(pxa_ac97_dai); i++)
+		pxa_ac97_dai[i].dev = &pdev->dev;
+
+	/* Punt most of the init to the SoC probe; we may need the machine
+	 * driver to do interesting things with the clocking to get us up
+	 * and running.
+	 */
+	return snd_soc_register_dais(pxa_ac97_dai, ARRAY_SIZE(pxa_ac97_dai));
+}
+
+static int __devexit pxa2xx_ac97_dev_remove(struct platform_device *pdev)
+{
+	snd_soc_unregister_dais(pxa_ac97_dai, ARRAY_SIZE(pxa_ac97_dai));
+
+	return 0;
+}
+
+static struct platform_driver pxa2xx_ac97_driver = {
+	.probe		= pxa2xx_ac97_dev_probe,
+	.remove		= __devexit_p(pxa2xx_ac97_dev_remove),
+	.driver		= {
+		.name	= "pxa2xx-ac97",
+		.owner	= THIS_MODULE,
+	},
+};
+
 static int __init pxa_ac97_init(void)
 {
-	return snd_soc_register_dais(pxa_ac97_dai, ARRAY_SIZE(pxa_ac97_dai));
+	return platform_driver_register(&pxa2xx_ac97_driver);
 }
 module_init(pxa_ac97_init);
 
 static void __exit pxa_ac97_exit(void)
 {
-	snd_soc_unregister_dais(pxa_ac97_dai, ARRAY_SIZE(pxa_ac97_dai));
+	platform_driver_unregister(&pxa2xx_ac97_driver);
 }
 module_exit(pxa_ac97_exit);
 
