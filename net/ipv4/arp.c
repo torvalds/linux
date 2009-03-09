@@ -1225,7 +1225,7 @@ void arp_ifdown(struct net_device *dev)
  *	Called once on startup.
  */
 
-static struct packet_type arp_packet_type = {
+static struct packet_type arp_packet_type __read_mostly = {
 	.type =	cpu_to_be16(ETH_P_ARP),
 	.func =	arp_rcv,
 };

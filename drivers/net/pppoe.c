@@ -513,17 +513,17 @@ out:
 	return NET_RX_SUCCESS; /* Lies... :-) */
 }
 
-static struct packet_type pppoes_ptype = {
+static struct packet_type pppoes_ptype __read_mostly = {
 	.type	= cpu_to_be16(ETH_P_PPP_SES),
 	.func	= pppoe_rcv,
 };
 
-static struct packet_type pppoed_ptype = {
+static struct packet_type pppoed_ptype __read_mostly = {
 	.type	= cpu_to_be16(ETH_P_PPP_DISC),
 	.func	= pppoe_disc_rcv,
 };
 
-static struct proto pppoe_sk_proto = {
+static struct proto pppoe_sk_proto __read_mostly = {
 	.name	  = "PPPOE",
 	.owner	  = THIS_MODULE,
 	.obj_size = sizeof(struct pppox_sock),

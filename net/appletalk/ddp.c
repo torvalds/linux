@@ -1860,12 +1860,12 @@ static struct notifier_block ddp_notifier = {
 	.notifier_call	= ddp_device_event,
 };
 
-static struct packet_type ltalk_packet_type = {
+static struct packet_type ltalk_packet_type __read_mostly = {
 	.type		= cpu_to_be16(ETH_P_LOCALTALK),
 	.func		= ltalk_rcv,
 };
 
-static struct packet_type ppptalk_packet_type = {
+static struct packet_type ppptalk_packet_type __read_mostly = {
 	.type		= cpu_to_be16(ETH_P_PPPTALK),
 	.func		= atalk_rcv,
 };

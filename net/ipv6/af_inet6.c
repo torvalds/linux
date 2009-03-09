@@ -893,7 +893,7 @@ out_unlock:
 	return err;
 }
 
-static struct packet_type ipv6_packet_type = {
+static struct packet_type ipv6_packet_type __read_mostly = {
 	.type = cpu_to_be16(ETH_P_IPV6),
 	.func = ipv6_rcv,
 	.gso_send_check = ipv6_gso_send_check,

@@ -2112,9 +2112,8 @@ static struct notifier_block dn_dev_notifier = {
 
 extern int dn_route_rcv(struct sk_buff *, struct net_device *, struct packet_type *, struct net_device *);
 
-static struct packet_type dn_dix_packet_type = {
+static struct packet_type dn_dix_packet_type __read_mostly = {
 	.type =		cpu_to_be16(ETH_P_DNA_RT),
-	.dev =		NULL,		/* All devices */
 	.func =		dn_route_rcv,
 };
 

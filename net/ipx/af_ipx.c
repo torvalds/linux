@@ -1958,12 +1958,12 @@ static const struct proto_ops SOCKOPS_WRAPPED(ipx_dgram_ops) = {
 
 SOCKOPS_WRAP(ipx_dgram, PF_IPX);
 
-static struct packet_type ipx_8023_packet_type = {
+static struct packet_type ipx_8023_packet_type __read_mostly = {
 	.type		= cpu_to_be16(ETH_P_802_3),
 	.func		= ipx_rcv,
 };
 
-static struct packet_type ipx_dix_packet_type = {
+static struct packet_type ipx_dix_packet_type __read_mostly = {
 	.type		= cpu_to_be16(ETH_P_IPX),
 	.func		= ipx_rcv,
 };

@@ -97,7 +97,7 @@ static char bpq_eth_addr[6];
 static int bpq_rcv(struct sk_buff *, struct net_device *, struct packet_type *, struct net_device *);
 static int bpq_device_event(struct notifier_block *, unsigned long, void *);
 
-static struct packet_type bpq_packet_type = {
+static struct packet_type bpq_packet_type __read_mostly = {
 	.type	= cpu_to_be16(ETH_P_BPQ),
 	.func	= bpq_rcv,
 };
