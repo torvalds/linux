@@ -1720,7 +1720,10 @@ static int ieee80211_sta_config_auth(struct ieee80211_sub_if_data *sdata)
 				local->int_scan_req.ssids[0].ssid_len = 0;
 			else
 				local->int_scan_req.ssids[0].ssid_len = ifmgd->ssid_len;
-			ieee80211_start_scan(sdata, &local->int_scan_req);
+
+			if (ieee80211_start_scan(sdata, &local->int_scan_req))
+				ieee80211_scan_failed(local);
+
 			ifmgd->state = IEEE80211_STA_MLME_AUTHENTICATE;
 			set_bit(IEEE80211_STA_REQ_AUTH, &ifmgd->request);
 		} else {
@@ -1757,7 +1760,14 @@ static void ieee80211_sta_work(struct work_struct *work)
 	    ifmgd->state != IEEE80211_STA_MLME_AUTHENTICATE &&
 	    ifmgd->state != IEEE80211_STA_MLME_ASSOCIATE &&
 	    test_and_clear_bit(IEEE80211_STA_REQ_SCAN, &ifmgd->request)) {
-		ieee80211_start_scan(sdata, local->scan_req);
+		/*
+		 * The call to ieee80211_start_scan can fail but ieee80211_request_scan
+		 * (which queued ieee80211_sta_work) did not return an error. Thus, call
+		 * ieee80211_scan_failed here if ieee80211_start_scan fails in order to
+		 * notify the scan requester.
+		 */
+		if (ieee80211_start_scan(sdata, local->scan_req))
+			ieee80211_scan_failed(local);
 		return;
 	}
 

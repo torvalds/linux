@@ -202,6 +202,18 @@ ieee80211_scan_rx(struct ieee80211_sub_if_data *sdata, struct sk_buff *skb,
 	return RX_QUEUED;
 }
 
+void ieee80211_scan_failed(struct ieee80211_local *local)
+{
+	if (WARN_ON(!local->scan_req))
+		return;
+
+	/* notify cfg80211 about the failed scan */
+	if (local->scan_req != &local->int_scan_req)
+		cfg80211_scan_done(local->scan_req, true);
+
+	local->scan_req = NULL;
+}
+
 void ieee80211_scan_completed(struct ieee80211_hw *hw, bool aborted)
 {
 	struct ieee80211_local *local = hw_to_local(hw);
