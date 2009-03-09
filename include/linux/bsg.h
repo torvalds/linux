@@ -1,6 +1,8 @@
 #ifndef BSG_H
 #define BSG_H
 
+#include <linux/types.h>
+
 #define BSG_PROTOCOL_SCSI		0
 
 #define BSG_SUB_PROTOCOL_SCSI_CMD	0
