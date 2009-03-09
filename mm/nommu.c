@@ -10,7 +10,7 @@
  *  Copyright (c) 2000-2003 David McCullough <davidm@snapgear.com>
  *  Copyright (c) 2000-2001 D Jeff Dionne <jeff@uClinux.org>
  *  Copyright (c) 2002      Greg Ungerer <gerg@snapgear.com>
- *  Copyright (c) 2007-2008 Paul Mundt <lethal@linux-sh.org>
+ *  Copyright (c) 2007-2009 Paul Mundt <lethal@linux-sh.org>
  */
 
 #include <linux/module.h>
@@ -394,6 +394,24 @@ void vunmap(const void *addr)
 }
 EXPORT_SYMBOL(vunmap);
 
+void *vm_map_ram(struct page **pages, unsigned int count, int node, pgprot_t prot)
+{
+	BUG();
+	return NULL;
+}
+EXPORT_SYMBOL(vm_map_ram);
+
+void vm_unmap_ram(const void *mem, unsigned int count)
+{
+	BUG();
+}
+EXPORT_SYMBOL(vm_unmap_ram);
+
+void vm_unmap_aliases(void)
+{
+}
+EXPORT_SYMBOL_GPL(vm_unmap_aliases);
+
 /*
  * Implement a stub for vmalloc_sync_all() if the architecture chose not to
  * have one.
@@ -416,7 +434,7 @@ EXPORT_SYMBOL(vm_insert_page);
  *  to a regular file.  in this case, the unmapping will need
  *  to invoke file system routines that need the global lock.
  */
-asmlinkage unsigned long sys_brk(unsigned long brk)
+SYSCALL_DEFINE1(brk, unsigned long, brk)
 {
 	struct mm_struct *mm = current->mm;
 
@@ -1143,8 +1161,8 @@ error_free:
 	return ret;
 
 enomem:
-	printk("Allocation of length %lu from process %d failed\n",
-	       len, current->pid);
+	printk("Allocation of length %lu from process %d (%s) failed\n",
+	       len, current->pid, current->comm);
 	show_free_areas();
 	return -ENOMEM;
 }
@@ -1573,7 +1591,7 @@ erase_whole_vma:
 }
 EXPORT_SYMBOL(do_munmap);
 
-asmlinkage long sys_munmap(unsigned long addr, size_t len)
+SYSCALL_DEFINE2(munmap, unsigned long, addr, size_t, len)
 {
 	int ret;
 	struct mm_struct *mm = current->mm;
@@ -1657,10 +1675,9 @@ unsigned long do_mremap(unsigned long addr,
 }
 EXPORT_SYMBOL(do_mremap);
 
-asmlinkage
-unsigned long sys_mremap(unsigned long addr,
-			 unsigned long old_len, unsigned long new_len,
-			 unsigned long flags, unsigned long new_addr)
+SYSCALL_DEFINE5(mremap, unsigned long, addr, unsigned long, old_len,
+		unsigned long, new_len, unsigned long, flags,
+		unsigned long, new_addr)
 {
 	unsigned long ret;
 

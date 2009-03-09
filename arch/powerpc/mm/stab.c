@@ -251,8 +251,8 @@ void __init stabs_alloc(void)
 
 		paca[cpu].stab_addr = newstab;
 		paca[cpu].stab_real = virt_to_abs(newstab);
-		printk(KERN_INFO "Segment table for CPU %d at 0x%lx "
-		       "virtual, 0x%lx absolute\n",
+		printk(KERN_INFO "Segment table for CPU %d at 0x%llx "
+		       "virtual, 0x%llx absolute\n",
 		       cpu, paca[cpu].stab_addr, paca[cpu].stab_real);
 	}
 }

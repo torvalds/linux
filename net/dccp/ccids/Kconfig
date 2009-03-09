@@ -29,7 +29,7 @@ config IP_DCCP_CCID3
 	  http://www.ietf.org/rfc/rfc4342.txt
 
 	  The TFRC congestion control algorithms were initially described in
-	  RFC 5448.
+	  RFC 5348.
 
 	  This text was extracted from RFC 4340 (sec. 10.2),
 	  http://www.ietf.org/rfc/rfc4340.txt

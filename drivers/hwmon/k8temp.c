@@ -31,6 +31,7 @@
 #include <linux/hwmon-sysfs.h>
 #include <linux/err.h>
 #include <linux/mutex.h>
+#include <asm/processor.h>
 
 #define TEMP_FROM_REG(val)	(((((val) >> 16) & 0xff) - 49) * 1000)
 #define REG_TEMP	0xe4
@@ -47,6 +48,8 @@ struct k8temp_data {
 	/* registers values */
 	u8 sensorsp;		/* sensor presence bits - SEL_CORE & SEL_PLACE */
 	u32 temp[2][2];		/* core, place */
+	u8 swap_core_select;    /* meaning of SEL_CORE is inverted */
+	u32 temp_offset;
 };
 
 static struct k8temp_data *k8temp_update_device(struct device *dev)
@@ -114,10 +117,15 @@ static ssize_t show_temp(struct device *dev,
 	    to_sensor_dev_attr_2(devattr);
 	int core = attr->nr;
 	int place = attr->index;
+	int temp;
 	struct k8temp_data *data = k8temp_update_device(dev);
 
-	return sprintf(buf, "%d\n",
-		       TEMP_FROM_REG(data->temp[core][place]));
+	if (data->swap_core_select)
+		core = core ? 0 : 1;
+
+	temp = TEMP_FROM_REG(data->temp[core][place]) + data->temp_offset;
+
+	return sprintf(buf, "%d\n", temp);
 }
 
 /* core, place */
@@ -141,18 +149,47 @@ static int __devinit k8temp_probe(struct pci_dev *pdev,
 	int err;
 	u8 scfg;
 	u32 temp;
+	u8 model, stepping;
 	struct k8temp_data *data;
-	u32 cpuid = cpuid_eax(1);
-
-	/* this feature should be available since SH-C0 core */
-	if ((cpuid == 0xf40) || (cpuid == 0xf50) || (cpuid == 0xf51)) {
-		err = -ENODEV;
-		goto exit;
-	}
 
 	if (!(data = kzalloc(sizeof(struct k8temp_data), GFP_KERNEL))) {
 		err = -ENOMEM;
 		goto exit;
+	}
+
+	model = boot_cpu_data.x86_model;
+	stepping = boot_cpu_data.x86_mask;
+
+	switch (boot_cpu_data.x86) {
+	case 0xf:
+		/* feature available since SH-C0, exclude older revisions */
+		if (((model == 4) && (stepping == 0)) ||
+		    ((model == 5) && (stepping <= 1))) {
+			err = -ENODEV;
+			goto exit_free;
+		}
+
+		/*
+		 * AMD NPT family 0fh, i.e. RevF and RevG:
+		 * meaning of SEL_CORE bit is inverted
+		 */
+		if (model >= 0x40) {
+			data->swap_core_select = 1;
+			dev_warn(&pdev->dev, "Temperature readouts might be "
+				 "wrong - check erratum #141\n");
+		}
+
+		if ((model >= 0x69) &&
+		    !(model == 0xc1 || model == 0x6c || model == 0x7c)) {
+			/*
+			 * RevG desktop CPUs (i.e. no socket S1G1 parts)
+			 * need additional offset, otherwise reported
+			 * temperature is below ambient temperature
+			 */
+			data->temp_offset = 21000;
+		}
+
+		break;
 	}
 
 	pci_read_config_byte(pdev, REG_TEMP, &scfg);

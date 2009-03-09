@@ -3109,6 +3109,8 @@ static void acpi_set_WOL(struct net_device *dev)
 	struct vortex_private *vp = netdev_priv(dev);
 	void __iomem *ioaddr = vp->ioaddr;
 
+	device_set_wakeup_enable(vp->gendev, vp->enable_wol);
+
 	if (vp->enable_wol) {
 		/* Power up on: 1==Downloaded Filter, 2==Magic Packets, 4==Link Status. */
 		EL3WINDOW(7);

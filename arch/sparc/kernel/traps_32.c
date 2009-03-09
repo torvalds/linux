@@ -424,6 +424,7 @@ void do_BUG(const char *file, int line)
         // bust_spinlocks(1);   XXX Not in our original BUG()
         printk("kernel BUG at %s:%d!\n", file, line);
 }
+EXPORT_SYMBOL(do_BUG);
 #endif
 
 /* Since we have our mappings set up, on multiprocessors we can spin them

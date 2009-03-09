@@ -3,7 +3,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (C) 1999-2008 Silicon Graphics, Inc. All rights reserved.
+ * Copyright (C) 1999-2009 Silicon Graphics, Inc. All rights reserved.
  */
 
 /*
@@ -551,6 +551,7 @@ xpnet_init(void)
 
 	netif_carrier_off(xpnet_device);
 
+	xpnet_device->netdev_ops = &xpnet_netdev_ops;
 	xpnet_device->mtu = XPNET_DEF_MTU;
 
 	/*

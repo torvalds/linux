@@ -277,7 +277,7 @@ static int acct_on(char *name)
  * should be written. If the filename is NULL, accounting will be
  * shutdown.
  */
-asmlinkage long sys_acct(const char __user *name)
+SYSCALL_DEFINE1(acct, const char __user *, name)
 {
 	int error;
 

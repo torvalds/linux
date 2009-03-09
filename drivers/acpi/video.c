@@ -1020,7 +1020,7 @@ acpi_video_device_brightness_seq_show(struct seq_file *seq, void *offset)
 	}
 
 	seq_printf(seq, "levels: ");
-	for (i = 0; i < dev->brightness->count; i++)
+	for (i = 2; i < dev->brightness->count; i++)
 		seq_printf(seq, " %d", dev->brightness->levels[i]);
 	seq_printf(seq, "\ncurrent: %d\n", dev->brightness->curr);
 
@@ -1059,7 +1059,7 @@ acpi_video_device_write_brightness(struct file *file,
 		return -EFAULT;
 
 	/* validate through the list of available levels */
-	for (i = 0; i < dev->brightness->count; i++)
+	for (i = 2; i < dev->brightness->count; i++)
 		if (level == dev->brightness->levels[i]) {
 			if (ACPI_SUCCESS
 			    (acpi_video_device_lcd_set_level(dev, level)))
@@ -1260,7 +1260,7 @@ static int acpi_video_bus_POST_info_seq_show(struct seq_file *seq, void *offset)
 			printk(KERN_WARNING PREFIX
 			       "This indicates a BIOS bug. Please contact the manufacturer.\n");
 		}
-		printk("%llx\n", options);
+		printk(KERN_WARNING "%llx\n", options);
 		seq_printf(seq, "can POST: <integrated video>");
 		if (options & 2)
 			seq_printf(seq, " <PCI video>");
@@ -1712,7 +1712,7 @@ acpi_video_get_next_level(struct acpi_video_device *device,
 	max = max_below = 0;
 	min = min_above = 255;
 	/* Find closest level to level_current */
-	for (i = 0; i < device->brightness->count; i++) {
+	for (i = 2; i < device->brightness->count; i++) {
 		l = device->brightness->levels[i];
 		if (abs(l - level_current) < abs(delta)) {
 			delta = l - level_current;
@@ -1722,7 +1722,7 @@ acpi_video_get_next_level(struct acpi_video_device *device,
 	}
 	/* Ajust level_current to closest available level */
 	level_current += delta;
-	for (i = 0; i < device->brightness->count; i++) {
+	for (i = 2; i < device->brightness->count; i++) {
 		l = device->brightness->levels[i];
 		if (l < min)
 			min = l;
@@ -2005,6 +2005,12 @@ static int acpi_video_bus_add(struct acpi_device *device)
 		if (instance)
 			device->pnp.bus_id[3] = '0' + instance;
 		instance ++;
+	}
+	/* a hack to fix the duplicate name "VGA" problem on Pa 3553 */
+	if (!strcmp(device->pnp.bus_id, "VGA")) {
+		if (instance)
+			device->pnp.bus_id[3] = '0' + instance;
+		instance++;
 	}
 
 	video->device = device;

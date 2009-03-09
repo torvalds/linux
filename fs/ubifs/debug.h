@@ -41,15 +41,17 @@
  * @chk_lpt_wastage: used by LPT tree size checker
  * @chk_lpt_lebs: used by LPT tree size checker
  * @new_nhead_offs: used by LPT tree size checker
- * @new_ihead_lnum: used by debugging to check ihead_lnum
- * @new_ihead_offs: used by debugging to check ihead_offs
+ * @new_ihead_lnum: used by debugging to check @c->ihead_lnum
+ * @new_ihead_offs: used by debugging to check @c->ihead_offs
  *
- * debugfs_dir_name: name of debugfs directory containing this file-system's
- *                   files
- * debugfs_dir: direntry object of the file-system debugfs directory
- * dump_lprops: "dump lprops" debugfs knob
- * dump_budg: "dump budgeting information" debugfs knob
- * dump_tnc: "dump TNC" debugfs knob
+ * @saved_lst: saved lprops statistics (used by 'dbg_save_space_info()')
+ * @saved_free: saved free space (used by 'dbg_save_space_info()')
+ *
+ * dfs_dir_name: name of debugfs directory containing this file-system's files
+ * dfs_dir: direntry object of the file-system debugfs directory
+ * dfs_dump_lprops: "dump lprops" debugfs knob
+ * dfs_dump_budg: "dump budgeting information" debugfs knob
+ * dfs_dump_tnc: "dump TNC" debugfs knob
  */
 struct ubifs_debug_info {
 	void *buf;
@@ -69,11 +71,14 @@ struct ubifs_debug_info {
 	int new_ihead_lnum;
 	int new_ihead_offs;
 
-	char debugfs_dir_name[100];
-	struct dentry *debugfs_dir;
-	struct dentry *dump_lprops;
-	struct dentry *dump_budg;
-	struct dentry *dump_tnc;
+	struct ubifs_lp_stats saved_lst;
+	long long saved_free;
+
+	char dfs_dir_name[100];
+	struct dentry *dfs_dir;
+	struct dentry *dfs_dump_lprops;
+	struct dentry *dfs_dump_budg;
+	struct dentry *dfs_dump_tnc;
 };
 
 #define ubifs_assert(expr) do {                                                \
@@ -297,7 +302,8 @@ int dbg_walk_index(struct ubifs_info *c, dbg_leaf_callback leaf_cb,
 		   dbg_znode_callback znode_cb, void *priv);
 
 /* Checking functions */
-
+void dbg_save_space_info(struct ubifs_info *c);
+int dbg_check_space_info(struct ubifs_info *c);
 int dbg_check_lprops(struct ubifs_info *c);
 int dbg_old_index_check_init(struct ubifs_info *c, struct ubifs_zbranch *zroot);
 int dbg_check_old_index(struct ubifs_info *c, struct ubifs_zbranch *zroot);
@@ -439,6 +445,8 @@ void dbg_debugfs_exit_fs(struct ubifs_info *c);
 
 #define dbg_walk_index(c, leaf_cb, znode_cb, priv) 0
 #define dbg_old_index_check_init(c, zroot)         0
+#define dbg_save_space_info(c)                     ({})
+#define dbg_check_space_info(c)                    0
 #define dbg_check_old_index(c, zroot)              0
 #define dbg_check_cats(c)                          0
 #define dbg_check_ltab(c)                          0

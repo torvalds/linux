@@ -66,7 +66,7 @@ static int tce_build_iSeries(struct iommu_table *tbl, long index, long npages,
 
 		rc = HvCallXm_setTce((u64)tbl->it_index, (u64)index, tce);
 		if (rc)
-			panic("PCI_DMA: HvCallXm_setTce failed, Rc: 0x%lx\n",
+			panic("PCI_DMA: HvCallXm_setTce failed, Rc: 0x%llx\n",
 					rc);
 		index++;
 		uaddr += TCE_PAGE_SIZE;
@@ -81,7 +81,7 @@ static void tce_free_iSeries(struct iommu_table *tbl, long index, long npages)
 	while (npages--) {
 		rc = HvCallXm_setTce((u64)tbl->it_index, (u64)index, 0);
 		if (rc)
-			panic("PCI_DMA: HvCallXm_setTce failed, Rc: 0x%lx\n",
+			panic("PCI_DMA: HvCallXm_setTce failed, Rc: 0x%llx\n",
 					rc);
 		index++;
 	}

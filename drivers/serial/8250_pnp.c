@@ -270,6 +270,8 @@ static const struct pnp_device_id pnp_dev_table[] = {
 	{       "RSS0250",              0       },
 	/* SupraExpress 28.8 Data/Fax PnP modem */
 	{	"SUP1310",		0	},
+	/* SupraExpress 336i PnP Voice Modem */
+	{	"SUP1381",		0	},
 	/* SupraExpress 33.6 Data/Fax PnP modem */
 	{	"SUP1421",		0	},
 	/* SupraExpress 33.6 Data/Fax PnP modem */

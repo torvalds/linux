@@ -33,7 +33,6 @@
 #include <asm/atari_joystick.h>
 #include <asm/irq.h>
 
-extern unsigned int keymap_count;
 
 /* Hook for MIDI serial driver */
 void (*atari_MIDI_interrupt_hook) (void);
@@ -567,14 +566,19 @@ static int atari_keyb_done = 0;
 
 int atari_keyb_init(void)
 {
+	int error;
+
 	if (atari_keyb_done)
 		return 0;
 
 	kb_state.state = KEYBOARD;
 	kb_state.len = 0;
 
-	request_irq(IRQ_MFP_ACIA, atari_keyboard_interrupt, IRQ_TYPE_SLOW,
-		    "keyboard/mouse/MIDI", atari_keyboard_interrupt);
+	error = request_irq(IRQ_MFP_ACIA, atari_keyboard_interrupt,
+			    IRQ_TYPE_SLOW, "keyboard/mouse/MIDI",
+			    atari_keyboard_interrupt);
+	if (error)
+		return error;
 
 	atari_turnoff_irq(IRQ_MFP_ACIA);
 	do {
@@ -605,10 +609,10 @@ int atari_keyb_init(void)
 				 ACIA_RHTID : 0);
 
 	/* make sure the interrupt line is up */
-	} while ((mfp.par_dt_reg & 0x10) == 0);
+	} while ((st_mfp.par_dt_reg & 0x10) == 0);
 
 	/* enable ACIA Interrupts */
-	mfp.active_edge &= ~0x10;
+	st_mfp.active_edge &= ~0x10;
 	atari_turnon_irq(IRQ_MFP_ACIA);
 
 	ikbd_self_test = 1;

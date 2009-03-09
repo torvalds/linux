@@ -151,7 +151,7 @@ static inline void spu_load_slb(struct spu *spu, int slbe, struct spu_slb *slb)
 {
 	struct spu_priv2 __iomem *priv2 = spu->priv2;
 
-	pr_debug("%s: adding SLB[%d] 0x%016lx 0x%016lx\n",
+	pr_debug("%s: adding SLB[%d] 0x%016llx 0x%016llx\n",
 			__func__, slbe, slb->vsid, slb->esid);
 
 	out_be64(&priv2->slb_index_W, slbe);
@@ -221,7 +221,7 @@ static int __spu_trap_data_map(struct spu *spu, unsigned long ea, u64 dsisr)
 {
 	int ret;
 
-	pr_debug("%s, %lx, %lx\n", __func__, dsisr, ea);
+	pr_debug("%s, %llx, %lx\n", __func__, dsisr, ea);
 
 	/*
 	 * Handle kernel space hash faults immediately. User hash

@@ -638,11 +638,15 @@ static void rs_get_rate(void *priv_r, struct ieee80211_sta *sta,
 	s8 scale_action = 0;
 	unsigned long flags;
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
-	u16 fc, rate_mask;
+	u16 fc;
+	u16 rate_mask = 0;
 	struct iwl3945_priv *priv = (struct iwl3945_priv *)priv_r;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 
 	IWL_DEBUG_RATE("enter\n");
+
+	if (sta)
+		rate_mask = sta->supp_rates[sband->band];
 
 	/* Send management frames and broadcast/multicast data using lowest
 	 * rate. */
@@ -651,11 +655,15 @@ static void rs_get_rate(void *priv_r, struct ieee80211_sta *sta,
 	    is_multicast_ether_addr(hdr->addr1) ||
 	    !sta || !priv_sta) {
 		IWL_DEBUG_RATE("leave: No STA priv data to update!\n");
-		info->control.rates[0].idx = rate_lowest_index(sband, sta);
+		if (!rate_mask)
+			info->control.rates[0].idx =
+					rate_lowest_index(sband, NULL);
+		else
+			info->control.rates[0].idx =
+					rate_lowest_index(sband, sta);
 		return;
 	}
 
-	rate_mask = sta->supp_rates[sband->band];
 	index = min(rs_sta->last_txrate_idx & 0xffff, IWL_RATE_COUNT - 1);
 
 	if (sband->band == IEEE80211_BAND_5GHZ)

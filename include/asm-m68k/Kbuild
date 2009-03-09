@@ -1,3 +1,0 @@
-include include/asm-generic/Kbuild.asm
-header-y += cachectl.h
-unifdef-y += swab.h

@@ -49,8 +49,8 @@
 #include <asm/processor.h>
 
 #define DRV_NAME	"r6040"
-#define DRV_VERSION	"0.20"
-#define DRV_RELDATE	"07Jan2009"
+#define DRV_VERSION	"0.21"
+#define DRV_RELDATE	"09Jan2009"
 
 /* PHY CHIP Address */
 #define PHY1_ADDR	1	/* For MAC1 */
@@ -438,7 +438,6 @@ static void r6040_down(struct net_device *dev)
 {
 	struct r6040_private *lp = netdev_priv(dev);
 	void __iomem *ioaddr = lp->base;
-	struct pci_dev *pdev = lp->pdev;
 	int limit = 2048;
 	u16 *adrp;
 	u16 cmd;
@@ -457,22 +456,12 @@ static void r6040_down(struct net_device *dev)
 	iowrite16(adrp[0], ioaddr + MID_0L);
 	iowrite16(adrp[1], ioaddr + MID_0M);
 	iowrite16(adrp[2], ioaddr + MID_0H);
-	free_irq(dev->irq, dev);
-
-	/* Free RX buffer */
-	r6040_free_rxbufs(dev);
-
-	/* Free TX buffer */
-	r6040_free_txbufs(dev);
-
-	/* Free Descriptor memory */
-	pci_free_consistent(pdev, RX_DESC_SIZE, lp->rx_ring, lp->rx_ring_dma);
-	pci_free_consistent(pdev, TX_DESC_SIZE, lp->tx_ring, lp->tx_ring_dma);
 }
 
 static int r6040_close(struct net_device *dev)
 {
 	struct r6040_private *lp = netdev_priv(dev);
+	struct pci_dev *pdev = lp->pdev;
 
 	/* deleted timer */
 	del_timer_sync(&lp->timer);
@@ -481,7 +470,27 @@ static int r6040_close(struct net_device *dev)
 	napi_disable(&lp->napi);
 	netif_stop_queue(dev);
 	r6040_down(dev);
+
+	free_irq(dev->irq, dev);
+
+	/* Free RX buffer */
+	r6040_free_rxbufs(dev);
+
+	/* Free TX buffer */
+	r6040_free_txbufs(dev);
+
 	spin_unlock_irq(&lp->lock);
+
+	/* Free Descriptor memory */
+	if (lp->rx_ring) {
+		pci_free_consistent(pdev, RX_DESC_SIZE, lp->rx_ring, lp->rx_ring_dma);
+		lp->rx_ring = 0;
+	}
+
+	if (lp->tx_ring) {
+		pci_free_consistent(pdev, TX_DESC_SIZE, lp->tx_ring, lp->tx_ring_dma);
+		lp->tx_ring = 0;
+	}
 
 	return 0;
 }
@@ -1049,6 +1058,7 @@ static const struct net_device_ops r6040_netdev_ops = {
 	.ndo_set_multicast_list = r6040_multicast_list,
 	.ndo_change_mtu		= eth_change_mtu,
 	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_set_mac_address 	= eth_mac_addr,
 	.ndo_do_ioctl		= r6040_ioctl,
 	.ndo_tx_timeout		= r6040_tx_timeout,
 #ifdef CONFIG_NET_POLL_CONTROLLER
@@ -1143,8 +1153,10 @@ static int __devinit r6040_init_one(struct pci_dev *pdev,
 
 	/* Some bootloader/BIOSes do not initialize
 	 * MAC address, warn about that */
-	if (!(adrp[0] || adrp[1] || adrp[2]))
-		printk(KERN_WARNING DRV_NAME ": MAC address not initialized\n");
+	if (!(adrp[0] || adrp[1] || adrp[2])) {
+		printk(KERN_WARNING DRV_NAME ": MAC address not initialized, generating random\n");
+		random_ether_addr(dev->dev_addr);
+	}
 
 	/* Link new device into r6040_root_dev */
 	lp->pdev = pdev;

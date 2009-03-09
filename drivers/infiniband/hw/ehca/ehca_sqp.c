@@ -85,7 +85,7 @@ u64 ehca_define_sqp(struct ehca_shca *shca,
 
 		if (ret != H_SUCCESS) {
 			ehca_err(&shca->ib_device,
-				 "Can't define AQP1 for port %x. h_ret=%li",
+				 "Can't define AQP1 for port %x. h_ret=%lli",
 				 port, ret);
 			return ret;
 		}

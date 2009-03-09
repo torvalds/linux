@@ -224,7 +224,7 @@ int run_guest(struct lg_cpu *cpu, unsigned long __user *user)
 			break;
 
 		/* If the Guest asked to be stopped, we sleep.  The Guest's
-		 * clock timer or LHCALL_BREAK from the Waker will wake us. */
+		 * clock timer or LHREQ_BREAK from the Waker will wake us. */
 		if (cpu->halted) {
 			set_current_state(TASK_INTERRUPTIBLE);
 			schedule();

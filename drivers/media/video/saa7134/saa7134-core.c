@@ -660,6 +660,10 @@ static int saa7134_hwinit1(struct saa7134_dev *dev)
 
 	saa_writel(SAA7134_IRQ1, 0);
 	saa_writel(SAA7134_IRQ2, 0);
+
+	/* Clear any stale IRQ reports */
+	saa_writel(SAA7134_IRQ_REPORT, saa_readl(SAA7134_IRQ_REPORT));
+
 	mutex_init(&dev->lock);
 	spin_lock_init(&dev->slock);
 

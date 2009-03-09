@@ -420,7 +420,7 @@ int drm_rmmap_locked(struct drm_device *dev, drm_local_map_t *map)
 				dev->sigdata.lock = NULL;
 			master->lock.hw_lock = NULL;   /* SHM removed */
 			master->lock.file_priv = NULL;
-			wake_up_interruptible(&master->lock.lock_queue);
+			wake_up_interruptible_all(&master->lock.lock_queue);
 		}
 		break;
 	case _DRM_AGP:

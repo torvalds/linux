@@ -1,0 +1,10 @@
+config 9P_FS
+	tristate "Plan 9 Resource Sharing Support (9P2000) (Experimental)"
+	depends on INET && NET_9P && EXPERIMENTAL
+	help
+	  If you say Y here, you will get experimental support for
+	  Plan 9 resource sharing via the 9P2000 protocol.
+
+	  See <http://v9fs.sf.net> for more information.
+
+	  If unsure, say N.

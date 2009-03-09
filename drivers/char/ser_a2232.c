@@ -718,6 +718,7 @@ static int __init a2232board_init(void)
 	u_char *from;
 	volatile u_char *to;
 	volatile struct a2232memory *mem;
+	int error, i;
 
 #ifdef CONFIG_SMP
 	return -ENODEV;	/* This driver is not SMP aware. Is there an SMP ZorroII-bus-machine? */
@@ -797,8 +798,15 @@ static int __init a2232board_init(void)
 	*/
 	if (a2232_init_drivers()) return -ENODEV; // maybe we should use a different -Exxx?
 
-	request_irq(IRQ_AMIGA_VERTB, a2232_vbl_inter, 0, "A2232 serial VBL", a2232_driver_ID);
-	return 0;
+	error = request_irq(IRQ_AMIGA_VERTB, a2232_vbl_inter, 0,
+			    "A2232 serial VBL", a2232_driver_ID);
+	if (error) {
+		for (i = 0; i < nr_a2232; i++)
+			zorro_release_device(zd_a2232[i]);
+		tty_unregister_driver(a2232_driver);
+		put_tty_driver(a2232_driver);
+	}
+	return error;
 }
 
 static void __exit a2232board_exit(void)

@@ -144,6 +144,7 @@ static inline u32 smsc911x_reg_read(struct smsc911x_data *pdata, u32 reg)
 	}
 
 	BUG();
+	return 0;
 }
 
 static inline void smsc911x_reg_write(struct smsc911x_data *pdata, u32 reg,
@@ -952,7 +953,7 @@ smsc911x_rx_fastforward(struct smsc911x_data *pdata, unsigned int pktbytes)
 		do {
 			udelay(1);
 			val = smsc911x_reg_read(pdata, RX_DP_CTRL);
-		} while (timeout-- && (val & RX_DP_CTRL_RX_FFWD_));
+		} while (--timeout && (val & RX_DP_CTRL_RX_FFWD_));
 
 		if (unlikely(timeout == 0))
 			SMSC_WARNING(HW, "Timed out waiting for "
@@ -1623,7 +1624,7 @@ static int smsc911x_eeprom_send_cmd(struct smsc911x_data *pdata, u32 op)
 	do {
 		msleep(1);
 		e2cmd = smsc911x_reg_read(pdata, E2P_CMD);
-	} while ((e2cmd & E2P_CMD_EPC_BUSY_) && (timeout--));
+	} while ((e2cmd & E2P_CMD_EPC_BUSY_) && (--timeout));
 
 	if (!timeout) {
 		SMSC_TRACE(DRV, "TIMED OUT");
@@ -1740,6 +1741,7 @@ static const struct net_device_ops smsc911x_netdev_ops = {
 	.ndo_set_multicast_list	= smsc911x_set_multicast_list,
 	.ndo_do_ioctl		= smsc911x_do_ioctl,
 	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_set_mac_address 	= eth_mac_addr,
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller	= smsc911x_poll_controller,
 #endif
@@ -1967,7 +1969,7 @@ static int __devinit smsc911x_drv_probe(struct platform_device *pdev)
 	smsc911x_reg_write(pdata, INT_STS, 0xFFFFFFFF);
 
 	retval = request_irq(dev->irq, smsc911x_irqhandler, IRQF_DISABLED,
-			     SMSC_CHIPNAME, dev);
+			     dev->name, dev);
 	if (retval) {
 		SMSC_WARNING(PROBE,
 			"Unable to claim requested irq: %d", dev->irq);

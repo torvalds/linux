@@ -421,6 +421,7 @@ void __init omap2_init_mmc(struct omap_mmc_platform_data **mmc_data,
 			int nr_controllers)
 {
 	int i;
+	char *name;
 
 	for (i = 0; i < nr_controllers; i++) {
 		unsigned long base, size;
@@ -450,12 +451,14 @@ void __init omap2_init_mmc(struct omap_mmc_platform_data **mmc_data,
 			continue;
 		}
 
-		if (cpu_is_omap2420())
+		if (cpu_is_omap2420()) {
 			size = OMAP2420_MMC_SIZE;
-		else
+			name = "mmci-omap";
+		} else {
 			size = HSMMC_SIZE;
-
-		omap_mmc_add(i, base, size, irq, mmc_data[i]);
+			name = "mmci-omap-hs";
+		}
+		omap_mmc_add(name, i, base, size, irq, mmc_data[i]);
 	};
 }
 

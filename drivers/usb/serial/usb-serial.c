@@ -511,9 +511,6 @@ static void usb_serial_port_work(struct work_struct *work)
 
 	dbg("%s - port %d", __func__, port->number);
 
-	if (!port)
-		return;
-
 	tty = tty_port_tty_get(&port->port);
 	if (!tty)
 		return;

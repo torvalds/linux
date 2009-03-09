@@ -1654,7 +1654,7 @@ out:
 
 static int spufs_check_valid_dma(struct mfc_dma_command *cmd)
 {
-	pr_debug("queueing DMA %x %lx %x %x %x\n", cmd->lsa,
+	pr_debug("queueing DMA %x %llx %x %x %x\n", cmd->lsa,
 		 cmd->ea, cmd->size, cmd->tag, cmd->cmd);
 
 	switch (cmd->cmd) {
@@ -1671,7 +1671,7 @@ static int spufs_check_valid_dma(struct mfc_dma_command *cmd)
 	}
 
 	if ((cmd->lsa & 0xf) != (cmd->ea &0xf)) {
-		pr_debug("invalid DMA alignment, ea %lx lsa %x\n",
+		pr_debug("invalid DMA alignment, ea %llx lsa %x\n",
 				cmd->ea, cmd->lsa);
 		return -EIO;
 	}
@@ -2633,7 +2633,7 @@ static int spufs_show_ctx(struct seq_file *s, void *private)
 	}
 
 	seq_printf(s, "%c flgs(%lx) sflgs(%lx) pri(%d) ts(%d) spu(%02d)"
-		" %c %lx %lx %lx %lx %x %x\n",
+		" %c %llx %llx %llx %llx %x %x\n",
 		ctx->state == SPU_STATE_SAVED ? 'S' : 'R',
 		ctx->flags,
 		ctx->sched_flags,

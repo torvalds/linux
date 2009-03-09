@@ -729,7 +729,7 @@ static int sata_pmp_eh_recover_pmp(struct ata_port *ap,
 		if (tries) {
 			/* consecutive revalidation failures? speed down */
 			if (reval_failed)
-				sata_down_spd_limit(link);
+				sata_down_spd_limit(link, 0);
 			else
 				reval_failed = 1;
 

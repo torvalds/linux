@@ -58,6 +58,7 @@
  * operations in asm/ns87303.h
  */
 DEFINE_SPINLOCK(ns87303_lock);
+EXPORT_SYMBOL(ns87303_lock);
 
 struct screen_info screen_info = {
 	0, 0,			/* orig-x, orig-y */
@@ -353,6 +354,7 @@ static int show_cpuinfo(struct seq_file *m, void *__unused)
 	seq_printf(m, 
 		   "cpu\t\t: %s\n"
 		   "fpu\t\t: %s\n"
+		   "pmu\t\t: %s\n"
 		   "prom\t\t: %s\n"
 		   "type\t\t: %s\n"
 		   "ncpus probed\t: %d\n"
@@ -365,6 +367,7 @@ static int show_cpuinfo(struct seq_file *m, void *__unused)
 		   ,
 		   sparc_cpu_type,
 		   sparc_fpu_type,
+		   sparc_pmu_type,
 		   prom_version,
 		   ((tlb_type == hypervisor) ?
 		    "sun4v" :
@@ -425,5 +428,7 @@ void sun_do_break(void)
 
 	prom_cmdline();
 }
+EXPORT_SYMBOL(sun_do_break);
 
 int stop_a_enabled = 1;
+EXPORT_SYMBOL(stop_a_enabled);

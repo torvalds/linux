@@ -663,14 +663,10 @@ static int tcp_transmit_skb(struct sock *sk, struct sk_buff *skb, int clone_it,
 	th->urg_ptr		= 0;
 
 	/* The urg_mode check is necessary during a below snd_una win probe */
-	if (unlikely(tcp_urg_mode(tp))) {
-		if (between(tp->snd_up, tcb->seq + 1, tcb->seq + 0xFFFF)) {
-			th->urg_ptr = htons(tp->snd_up - tcb->seq);
-			th->urg = 1;
-		} else if (after(tcb->seq + 0xFFFF, tp->snd_nxt)) {
-			th->urg_ptr = 0xFFFF;
-			th->urg = 1;
-		}
+	if (unlikely(tcp_urg_mode(tp) &&
+		     between(tp->snd_up, tcb->seq + 1, tcb->seq + 0xFFFF))) {
+		th->urg_ptr		= htons(tp->snd_up - tcb->seq);
+		th->urg			= 1;
 	}
 
 	tcp_options_write((__be32 *)(th + 1), tp, &opts, &md5_hash_location);
@@ -2027,7 +2023,6 @@ void tcp_xmit_retransmit_queue(struct sock *sk)
 		last_lost = tp->snd_una;
 	}
 
-	/* First pass: retransmit lost packets. */
 	tcp_for_write_queue_from(skb, sk) {
 		__u8 sacked = TCP_SKB_CB(skb)->sacked;
 

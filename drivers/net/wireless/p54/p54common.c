@@ -138,6 +138,7 @@ int p54_parse_firmware(struct ieee80211_hw *dev, const struct firmware *fw)
 	u8 *fw_version = NULL;
 	size_t len;
 	int i;
+	int maxlen;
 
 	if (priv->rx_start)
 		return 0;
@@ -195,6 +196,16 @@ int p54_parse_firmware(struct ieee80211_hw *dev, const struct firmware *fw)
 			else
 				priv->rx_mtu = (size_t)
 					0x620 - priv->tx_hdr_len;
+			maxlen = priv->tx_hdr_len + /* USB devices */
+				 sizeof(struct p54_rx_data) +
+				 4 + /* rx alignment */
+				 IEEE80211_MAX_FRAG_THRESHOLD;
+			if (priv->rx_mtu > maxlen && PAGE_SIZE == 4096) {
+				printk(KERN_INFO "p54: rx_mtu reduced from %d "
+					         "to %d\n", priv->rx_mtu,
+						 maxlen);
+				priv->rx_mtu = maxlen;
+			}
 			break;
 			}
 		case BR_CODE_EXPOSED_IF:
@@ -440,8 +451,8 @@ static int p54_parse_eeprom(struct ieee80211_hw *dev, void *eeprom, int len)
 			}
 			if (err)
 				goto err;
-
-		}
+			}
+			break;
 		case PDR_PRISM_ZIF_TX_IQ_CALIBRATION:
 			priv->iq_autocal = kmalloc(data_len, GFP_KERNEL);
 			if (!priv->iq_autocal) {
@@ -575,6 +586,7 @@ static int p54_rx_data(struct ieee80211_hw *dev, struct sk_buff *skb)
 	u16 freq = le16_to_cpu(hdr->freq);
 	size_t header_len = sizeof(*hdr);
 	u32 tsf32;
+	u8 rate = hdr->rate & 0xf;
 
 	/*
 	 * If the device is in a unspecified state we have to
@@ -603,8 +615,11 @@ static int p54_rx_data(struct ieee80211_hw *dev, struct sk_buff *skb)
 	rx_status.qual = (100 * hdr->rssi) / 127;
 	if (hdr->rate & 0x10)
 		rx_status.flag |= RX_FLAG_SHORTPRE;
-	rx_status.rate_idx = (dev->conf.channel->band == IEEE80211_BAND_2GHZ ?
-			hdr->rate : (hdr->rate - 4)) & 0xf;
+	if (dev->conf.channel->band == IEEE80211_BAND_5GHZ)
+		rx_status.rate_idx = (rate < 4) ? 0 : rate - 4;
+	else
+		rx_status.rate_idx = rate;
+
 	rx_status.freq = freq;
 	rx_status.band =  dev->conf.channel->band;
 	rx_status.antenna = hdr->antenna;
@@ -730,7 +745,7 @@ static void p54_rx_frame_sent(struct ieee80211_hw *dev, struct sk_buff *skb)
 		struct ieee80211_tx_info *info = IEEE80211_SKB_CB(entry);
 		struct p54_hdr *entry_hdr;
 		struct p54_tx_data *entry_data;
-		int pad = 0;
+		unsigned int pad = 0, frame_len;
 
 		range = (void *)info->rate_driver_data;
 		if (range->start_addr != addr) {
@@ -753,6 +768,7 @@ static void p54_rx_frame_sent(struct ieee80211_hw *dev, struct sk_buff *skb)
 		__skb_unlink(entry, &priv->tx_queue);
 		spin_unlock_irqrestore(&priv->tx_queue.lock, flags);
 
+		frame_len = entry->len;
 		entry_hdr = (struct p54_hdr *) entry->data;
 		entry_data = (struct p54_tx_data *) entry_hdr->data;
 		priv->tx_stats[entry_data->hw_queue].len--;
@@ -798,6 +814,29 @@ static void p54_rx_frame_sent(struct ieee80211_hw *dev, struct sk_buff *skb)
 			info->flags |= IEEE80211_TX_STAT_TX_FILTERED;
 		info->status.ack_signal = p54_rssi_to_dbm(dev,
 				(int)payload->ack_rssi);
+
+		/* Undo all changes to the frame. */
+		switch (entry_data->key_type) {
+		case P54_CRYPTO_TKIPMICHAEL: {
+			u8 *iv = (u8 *)(entry_data->align + pad +
+					entry_data->crypt_offset);
+
+			/* Restore the original TKIP IV. */
+			iv[2] = iv[0];
+			iv[0] = iv[1];
+			iv[1] = (iv[0] | 0x20) & 0x7f;	/* WEPSeed - 8.3.2.2 */
+
+			frame_len -= 12; /* remove TKIP_MMIC + TKIP_ICV */
+			break;
+			}
+		case P54_CRYPTO_AESCCMP:
+			frame_len -= 8; /* remove CCMP_MIC */
+			break;
+		case P54_CRYPTO_WEP:
+			frame_len -= 4; /* remove WEP_ICV */
+			break;
+		}
+		skb_trim(entry, frame_len);
 		skb_pull(entry, sizeof(*hdr) + pad + sizeof(*entry_data));
 		ieee80211_tx_status_irqsafe(dev, entry);
 		goto out;
@@ -1122,7 +1161,7 @@ static int p54_set_tim(struct ieee80211_hw *dev, struct ieee80211_sta *sta,
 
 	skb = p54_alloc_skb(dev, P54_HDR_FLAG_CONTROL_OPSET,
 		      sizeof(struct p54_hdr) + sizeof(*tim),
-		      P54_CONTROL_TYPE_TIM, GFP_KERNEL);
+		      P54_CONTROL_TYPE_TIM, GFP_ATOMIC);
 	if (!skb)
 		return -ENOMEM;
 
@@ -1383,7 +1422,6 @@ static int p54_tx(struct ieee80211_hw *dev, struct sk_buff *skb)
 	hdr->tries = ridx;
 	txhdr->rts_rate_idx = 0;
 	if (info->control.hw_key) {
-		crypt_offset += info->control.hw_key->iv_len;
 		txhdr->key_type = p54_convert_algo(info->control.hw_key->alg);
 		txhdr->key_len = min((u8)16, info->control.hw_key->keylen);
 		memcpy(txhdr->key, info->control.hw_key->key, txhdr->key_len);
@@ -1397,6 +1435,8 @@ static int p54_tx(struct ieee80211_hw *dev, struct sk_buff *skb)
 		}
 		/* reserve some space for ICV */
 		len += info->control.hw_key->icv_len;
+		memset(skb_put(skb, info->control.hw_key->icv_len), 0,
+		       info->control.hw_key->icv_len);
 	} else {
 		txhdr->key_type = 0;
 		txhdr->key_len = 0;
@@ -1584,7 +1624,7 @@ static int p54_scan(struct ieee80211_hw *dev, u16 mode, u16 dwell)
 
  err:
 	printk(KERN_ERR "%s: frequency change failed\n", wiphy_name(dev->wiphy));
-	kfree_skb(skb);
+	p54_free_skb(dev, skb);
 	return -EINVAL;
 }
 
@@ -1824,7 +1864,7 @@ static void p54_remove_interface(struct ieee80211_hw *dev,
 
 static int p54_config(struct ieee80211_hw *dev, u32 changed)
 {
-	int ret;
+	int ret = 0;
 	struct p54_common *priv = dev->priv;
 	struct ieee80211_conf *conf = &dev->conf;
 
@@ -2051,7 +2091,7 @@ static int p54_set_key(struct ieee80211_hw *dev, enum set_key_cmd cmd,
 			algo = P54_CRYPTO_AESCCMP;
 			break;
 		default:
-			return -EINVAL;
+			return -EOPNOTSUPP;
 		}
 	}
 

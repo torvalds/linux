@@ -613,7 +613,6 @@ int btrfs_find_ordered_sum(struct inode *inode, u64 offset, u64 disk_bytenr,
 	struct btrfs_sector_sum *sector_sums;
 	struct btrfs_ordered_extent *ordered;
 	struct btrfs_ordered_inode_tree *tree = &BTRFS_I(inode)->ordered_tree;
-	struct list_head *cur;
 	unsigned long num_sectors;
 	unsigned long i;
 	u32 sectorsize = BTRFS_I(inode)->root->sectorsize;
@@ -624,8 +623,7 @@ int btrfs_find_ordered_sum(struct inode *inode, u64 offset, u64 disk_bytenr,
 		return 1;
 
 	mutex_lock(&tree->mutex);
-	list_for_each_prev(cur, &ordered->list) {
-		ordered_sum = list_entry(cur, struct btrfs_ordered_sum, list);
+	list_for_each_entry_reverse(ordered_sum, &ordered->list, list) {
 		if (disk_bytenr >= ordered_sum->bytenr) {
 			num_sectors = ordered_sum->len / sectorsize;
 			sector_sums = ordered_sum->sums;

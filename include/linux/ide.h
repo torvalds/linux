@@ -663,7 +663,7 @@ typedef struct ide_drive_s ide_drive_t;
 #define to_ide_device(dev)		container_of(dev, ide_drive_t, gendev)
 
 #define to_ide_drv(obj, cont_type)	\
-	container_of(obj, struct cont_type, kref)
+	container_of(obj, struct cont_type, dev)
 
 #define ide_drv_g(disk, cont_type)	\
 	container_of((disk)->private_data, struct cont_type, driver)
@@ -871,7 +871,7 @@ struct ide_host {
 	ide_hwif_t	*cur_port;	/* for hosts requiring serialization */
 
 	/* used for hosts requiring serialization */
-	volatile long	host_busy;
+	volatile unsigned long	host_busy;
 };
 
 #define IDE_HOST_BUSY 0

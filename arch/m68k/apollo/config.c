@@ -31,10 +31,6 @@ extern unsigned long dn_gettimeoffset(void);
 extern int dn_dummy_hwclk(int, struct rtc_time *);
 extern int dn_dummy_set_clock_mmss(unsigned long);
 extern void dn_dummy_reset(void);
-extern void dn_dummy_waitbut(void);
-extern struct fb_info *dn_fb_init(long *);
-extern void dn_dummy_debug_init(void);
-extern irqreturn_t dn_process_int(int irq, struct pt_regs *fp);
 #ifdef CONFIG_HEARTBEAT
 static void dn_heartbeat(int on);
 #endif
@@ -204,7 +200,8 @@ void dn_sched_init(irq_handler_t timer_routine)
 	printk("*(0x10803) %02x\n",*(volatile unsigned char *)(timer+0x3));
 #endif
 
-	request_irq(IRQ_APOLLO, dn_timer_int, 0, "time", timer_routine);
+	if (request_irq(IRQ_APOLLO, dn_timer_int, 0, "time", timer_routine))
+		pr_err("Couldn't register timer interrupt\n");
 }
 
 unsigned long dn_gettimeoffset(void) {

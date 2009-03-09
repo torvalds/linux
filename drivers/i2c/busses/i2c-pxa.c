@@ -644,7 +644,7 @@ static int i2c_pxa_do_pio_xfer(struct pxa_i2c *i2c,
 
 	i2c_pxa_start_message(i2c);
 
-	while (timeout-- && i2c->msg_num > 0) {
+	while (i2c->msg_num > 0 && --timeout) {
 		i2c_pxa_handler(0, i2c);
 		udelay(10);
 	}

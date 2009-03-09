@@ -186,7 +186,7 @@ early_param("ps3flash", early_parse_ps3flash);
 #define prealloc_ps3flash_bounce_buffer()	do { } while (0)
 #endif
 
-static int ps3_set_dabr(u64 dabr)
+static int ps3_set_dabr(unsigned long dabr)
 {
 	enum {DABR_USER = 1, DABR_KERNEL = 2,};
 

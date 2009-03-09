@@ -1,3 +1,0 @@
-include include/asm-generic/Kbuild.asm
-
-unifdef-y += swab.h

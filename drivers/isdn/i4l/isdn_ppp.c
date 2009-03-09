@@ -431,6 +431,7 @@ set_arg(void __user *b, void *val,int len)
 	return 0;
 }
 
+#ifdef CONFIG_IPPP_FILTER
 static int get_filter(void __user *arg, struct sock_filter **p)
 {
 	struct sock_fprog uprog;
@@ -465,6 +466,7 @@ static int get_filter(void __user *arg, struct sock_filter **p)
 	*p = code;
 	return uprog.len;
 }
+#endif /* CONFIG_IPPP_FILTER */
 
 /*
  * ippp device ioctl

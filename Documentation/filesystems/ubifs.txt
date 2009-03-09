@@ -79,13 +79,6 @@ Mount options
 
 (*) == default.
 
-norm_unmount (*)	commit on unmount; the journal is committed
-			when the file-system is unmounted so that the
-			next mount does not have to replay the journal
-			and it becomes very fast;
-fast_unmount		do not commit on unmount; this option makes
-			unmount faster, but the next mount slower
-			because of the need to replay the journal.
 bulk_read		read more in one go to take advantage of flash
 			media that read faster sequentially
 no_bulk_read (*)	do not bulk-read

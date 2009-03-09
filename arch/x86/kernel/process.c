@@ -180,6 +180,9 @@ void mwait_idle_with_hints(unsigned long ax, unsigned long cx)
 
 	trace_power_start(&it, POWER_CSTATE, (ax>>4)+1);
 	if (!need_resched()) {
+		if (cpu_has(&current_cpu_data, X86_FEATURE_CLFLUSH_MONITOR))
+			clflush((void *)&current_thread_info()->flags);
+
 		__monitor((void *)&current_thread_info()->flags, 0, 0);
 		smp_mb();
 		if (!need_resched())
@@ -194,6 +197,9 @@ static void mwait_idle(void)
 	struct power_trace it;
 	if (!need_resched()) {
 		trace_power_start(&it, POWER_CSTATE, 1);
+		if (cpu_has(&current_cpu_data, X86_FEATURE_CLFLUSH_MONITOR))
+			clflush((void *)&current_thread_info()->flags);
+
 		__monitor((void *)&current_thread_info()->flags, 0, 0);
 		smp_mb();
 		if (!need_resched())

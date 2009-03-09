@@ -146,6 +146,7 @@ static void __init read_obp_memory(const char *property,
 }
 
 unsigned long *sparc64_valid_addr_bitmap __read_mostly;
+EXPORT_SYMBOL(sparc64_valid_addr_bitmap);
 
 /* Kernel physical address base and size in bytes.  */
 unsigned long kern_base __read_mostly;
@@ -369,6 +370,7 @@ void flush_dcache_page(struct page *page)
 out:
 	put_cpu();
 }
+EXPORT_SYMBOL(flush_dcache_page);
 
 void __kprobes flush_icache_range(unsigned long start, unsigned long end)
 {
@@ -396,6 +398,7 @@ void __kprobes flush_icache_range(unsigned long start, unsigned long end)
 		}
 	}
 }
+EXPORT_SYMBOL(flush_icache_range);
 
 void mmu_info(struct seq_file *m)
 {
@@ -599,6 +602,7 @@ void __flush_dcache_range(unsigned long start, unsigned long end)
 					       "i" (ASI_DCACHE_INVALIDATE));
 	}
 }
+EXPORT_SYMBOL(__flush_dcache_range);
 
 /* get_new_mmu_context() uses "cache + 1".  */
 DEFINE_SPINLOCK(ctx_alloc_lock);

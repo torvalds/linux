@@ -117,11 +117,7 @@ static inline cputime64_t get_cpu_idle_time_jiffy(unsigned int cpu,
 	busy_time = cputime64_add(busy_time, kstat_cpu(cpu).cpustat.irq);
 	busy_time = cputime64_add(busy_time, kstat_cpu(cpu).cpustat.softirq);
 	busy_time = cputime64_add(busy_time, kstat_cpu(cpu).cpustat.steal);
-
-	if (!dbs_tuners_ins.ignore_nice) {
-		busy_time = cputime64_add(busy_time,
-				kstat_cpu(cpu).cpustat.nice);
-	}
+	busy_time = cputime64_add(busy_time, kstat_cpu(cpu).cpustat.nice);
 
 	idle_time = cputime64_sub(cur_wall_time, busy_time);
 	if (wall)
@@ -137,23 +133,6 @@ static inline cputime64_t get_cpu_idle_time(unsigned int cpu, cputime64_t *wall)
 	if (idle_time == -1ULL)
 		return get_cpu_idle_time_jiffy(cpu, wall);
 
-	if (dbs_tuners_ins.ignore_nice) {
-		cputime64_t cur_nice;
-		unsigned long cur_nice_jiffies;
-		struct cpu_dbs_info_s *dbs_info;
-
-		dbs_info = &per_cpu(cpu_dbs_info, cpu);
-		cur_nice = cputime64_sub(kstat_cpu(cpu).cpustat.nice,
-					 dbs_info->prev_cpu_nice);
-		/*
-		 * Assumption: nice time between sampling periods will be
-		 * less than 2^32 jiffies for 32 bit sys
-		 */
-		cur_nice_jiffies = (unsigned long)
-					cputime64_to_jiffies64(cur_nice);
-		dbs_info->prev_cpu_nice = kstat_cpu(cpu).cpustat.nice;
-		return idle_time + jiffies_to_usecs(cur_nice_jiffies);
-	}
 	return idle_time;
 }
 
@@ -319,6 +298,9 @@ static ssize_t store_ignore_nice_load(struct cpufreq_policy *policy,
 		dbs_info = &per_cpu(cpu_dbs_info, j);
 		dbs_info->prev_cpu_idle = get_cpu_idle_time(j,
 						&dbs_info->prev_cpu_wall);
+		if (dbs_tuners_ins.ignore_nice)
+			dbs_info->prev_cpu_nice = kstat_cpu(j).cpustat.nice;
+
 	}
 	mutex_unlock(&dbs_mutex);
 
@@ -418,6 +400,23 @@ static void dbs_check_cpu(struct cpu_dbs_info_s *this_dbs_info)
 		idle_time = (unsigned int) cputime64_sub(cur_idle_time,
 				j_dbs_info->prev_cpu_idle);
 		j_dbs_info->prev_cpu_idle = cur_idle_time;
+
+		if (dbs_tuners_ins.ignore_nice) {
+			cputime64_t cur_nice;
+			unsigned long cur_nice_jiffies;
+
+			cur_nice = cputime64_sub(kstat_cpu(j).cpustat.nice,
+					 j_dbs_info->prev_cpu_nice);
+			/*
+			 * Assumption: nice time between sampling periods will
+			 * be less than 2^32 jiffies for 32 bit sys
+			 */
+			cur_nice_jiffies = (unsigned long)
+					cputime64_to_jiffies64(cur_nice);
+
+			j_dbs_info->prev_cpu_nice = kstat_cpu(j).cpustat.nice;
+			idle_time += jiffies_to_usecs(cur_nice_jiffies);
+		}
 
 		if (unlikely(!wall_time || wall_time < idle_time))
 			continue;
@@ -575,6 +574,10 @@ static int cpufreq_governor_dbs(struct cpufreq_policy *policy,
 
 			j_dbs_info->prev_cpu_idle = get_cpu_idle_time(j,
 						&j_dbs_info->prev_cpu_wall);
+			if (dbs_tuners_ins.ignore_nice) {
+				j_dbs_info->prev_cpu_nice =
+						kstat_cpu(j).cpustat.nice;
+			}
 		}
 		this_dbs_info->cpu = cpu;
 		/*

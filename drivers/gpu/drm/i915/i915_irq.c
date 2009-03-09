@@ -174,6 +174,19 @@ u32 i915_get_vblank_counter(struct drm_device *dev, int pipe)
 	return count;
 }
 
+u32 gm45_get_vblank_counter(struct drm_device *dev, int pipe)
+{
+	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
+	int reg = pipe ? PIPEB_FRMCOUNT_GM45 : PIPEA_FRMCOUNT_GM45;
+
+	if (!i915_pipe_enabled(dev, pipe)) {
+		DRM_ERROR("trying to get vblank count for disabled pipe %d\n", pipe);
+		return 0;
+	}
+
+	return I915_READ(reg);
+}
+
 irqreturn_t i915_driver_irq_handler(DRM_IRQ_ARGS)
 {
 	struct drm_device *dev = (struct drm_device *) arg;
@@ -370,12 +383,13 @@ int i915_irq_emit(struct drm_device *dev, void *data,
 	drm_i915_irq_emit_t *emit = data;
 	int result;
 
-	RING_LOCK_TEST_WITH_RETURN(dev, file_priv);
-
 	if (!dev_priv) {
 		DRM_ERROR("called with no initialization\n");
 		return -EINVAL;
 	}
+
+	RING_LOCK_TEST_WITH_RETURN(dev, file_priv);
+
 	mutex_lock(&dev->struct_mutex);
 	result = i915_emit_irq(dev);
 	mutex_unlock(&dev->struct_mutex);
@@ -411,6 +425,12 @@ int i915_enable_vblank(struct drm_device *dev, int pipe)
 {
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
 	unsigned long irqflags;
+	int pipeconf_reg = (pipe == 0) ? PIPEACONF : PIPEBCONF;
+	u32 pipeconf;
+
+	pipeconf = I915_READ(pipeconf_reg);
+	if (!(pipeconf & PIPEACONF_ENABLE))
+		return -EINVAL;
 
 	spin_lock_irqsave(&dev_priv->user_irq_lock, irqflags);
 	if (IS_I965G(dev))

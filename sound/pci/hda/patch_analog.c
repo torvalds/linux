@@ -275,6 +275,14 @@ static int ad198x_dig_playback_pcm_prepare(struct hda_pcm_stream *hinfo,
 					     format, substream);
 }
 
+static int ad198x_dig_playback_pcm_cleanup(struct hda_pcm_stream *hinfo,
+					   struct hda_codec *codec,
+					   struct snd_pcm_substream *substream)
+{
+	struct ad198x_spec *spec = codec->spec;
+	return snd_hda_multi_out_dig_cleanup(codec, &spec->multiout);
+}
+
 /*
  * Analog capture
  */
@@ -333,7 +341,8 @@ static struct hda_pcm_stream ad198x_pcm_digital_playback = {
 	.ops = {
 		.open = ad198x_dig_playback_pcm_open,
 		.close = ad198x_dig_playback_pcm_close,
-		.prepare = ad198x_dig_playback_pcm_prepare
+		.prepare = ad198x_dig_playback_pcm_prepare,
+		.cleanup = ad198x_dig_playback_pcm_cleanup
 	},
 };
 
@@ -1885,8 +1894,8 @@ static hda_nid_t ad1988_capsrc_nids[3] = {
 #define AD1988_SPDIF_OUT_HDMI	0x0b
 #define AD1988_SPDIF_IN		0x07
 
-static hda_nid_t ad1989b_slave_dig_outs[2] = {
-	AD1988_SPDIF_OUT, AD1988_SPDIF_OUT_HDMI
+static hda_nid_t ad1989b_slave_dig_outs[] = {
+	AD1988_SPDIF_OUT, AD1988_SPDIF_OUT_HDMI, 0
 };
 
 static struct hda_input_mux ad1988_6stack_capture_source = {
@@ -3900,6 +3909,7 @@ static const char *ad1884a_models[AD1884A_MODELS] = {
 
 static struct snd_pci_quirk ad1884a_cfg_tbl[] = {
 	SND_PCI_QUIRK(0x103c, 0x3030, "HP", AD1884A_MOBILE),
+	SND_PCI_QUIRK(0x103c, 0x3037, "HP 2230s", AD1884A_LAPTOP),
 	SND_PCI_QUIRK(0x103c, 0x3056, "HP", AD1884A_MOBILE),
 	SND_PCI_QUIRK(0x103c, 0x30e6, "HP 6730b", AD1884A_LAPTOP),
 	SND_PCI_QUIRK(0x103c, 0x30e7, "HP EliteBook 8530p", AD1884A_LAPTOP),
@@ -4262,13 +4272,13 @@ static int patch_ad1882(struct hda_codec *codec)
 	spec->num_adc_nids = ARRAY_SIZE(ad1882_adc_nids);
 	spec->adc_nids = ad1882_adc_nids;
 	spec->capsrc_nids = ad1882_capsrc_nids;
-	if (codec->vendor_id == 0x11d1882)
+	if (codec->vendor_id == 0x11d41882)
 		spec->input_mux = &ad1882_capture_source;
 	else
 		spec->input_mux = &ad1882a_capture_source;
 	spec->num_mixers = 2;
 	spec->mixers[0] = ad1882_base_mixers;
-	if (codec->vendor_id == 0x11d1882)
+	if (codec->vendor_id == 0x11d41882)
 		spec->mixers[1] = ad1882_loopback_mixers;
 	else
 		spec->mixers[1] = ad1882a_loopback_mixers;

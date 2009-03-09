@@ -22,7 +22,7 @@
  * sys_pipe() is the normal C calling standard for creating
  * a pipe. It's not the way Unix traditionally does this, though.
  */
-asmlinkage int sys_pipe(unsigned long r4, unsigned long r5,
+asmlinkage int sys_sh_pipe(unsigned long r4, unsigned long r5,
 	unsigned long r6, unsigned long r7,
 	struct pt_regs __regs)
 {

@@ -1089,7 +1089,11 @@ static int saa7134_alsa_init(void)
 
 	list_for_each(list,&saa7134_devlist) {
 		dev = list_entry(list, struct saa7134_dev, devlist);
-		alsa_device_init(dev);
+		if (dev->pci->device == PCI_DEVICE_ID_PHILIPS_SAA7130)
+			printk(KERN_INFO "%s/alsa: %s doesn't support digital audio\n",
+				dev->name, saa7134_boards[dev->board].name);
+		else
+			alsa_device_init(dev);
 	}
 
 	if (dev == NULL)

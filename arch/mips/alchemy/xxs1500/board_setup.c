@@ -28,6 +28,8 @@
 
 #include <asm/mach-au1x00/au1000.h>
 
+#include <prom.h>
+
 void board_reset(void)
 {
 	/* Hit BCSR.SYSTEM_CONTROL[SW_RST] */
@@ -37,6 +39,16 @@ void board_reset(void)
 void __init board_setup(void)
 {
 	u32 pin_func;
+
+#ifdef CONFIG_SERIAL_8250_CONSOLE
+	char *argptr;
+	argptr = prom_getcmdline();
+	argptr = strstr(argptr, "console=");
+	if (argptr == NULL) {
+		argptr = prom_getcmdline();
+		strcat(argptr, " console=ttyS0,115200");
+	}
+#endif
 
 	/* Set multiple use pins (UART3/GPIO) to UART (it's used as UART too) */
 	pin_func  = au_readl(SYS_PINFUNC) & ~SYS_PF_UR3;

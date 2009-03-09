@@ -952,6 +952,7 @@ static const struct net_device_ops mlx4_netdev_ops = {
 	.ndo_get_stats		= mlx4_en_get_stats,
 	.ndo_set_multicast_list	= mlx4_en_set_multicast,
 	.ndo_set_mac_address	= mlx4_en_set_mac,
+	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_change_mtu		= mlx4_en_change_mtu,
 	.ndo_tx_timeout		= mlx4_en_tx_timeout,
 	.ndo_vlan_rx_register	= mlx4_en_vlan_rx_register,

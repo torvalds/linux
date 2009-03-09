@@ -119,13 +119,6 @@ config LEDS_GPIO
 	  outputs. To be useful the particular board must have LEDs
 	  and they must be connected to the GPIO lines.
 
-config LEDS_HP_DISK
-	tristate "LED Support for disk protection LED on HP notebooks"
-	depends on LEDS_CLASS && ACPI
-	help
-	  This option enable support for disk protection LED, found on
-	  newer HP notebooks.
-
 config LEDS_CLEVO_MAIL
 	tristate "Mail LED on Clevo notebook (EXPERIMENTAL)"
 	depends on LEDS_CLASS && X86 && SERIO_I8042 && DMI && EXPERIMENTAL

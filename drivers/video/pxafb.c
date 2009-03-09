@@ -2230,7 +2230,7 @@ static int __devexit pxafb_remove(struct platform_device *dev)
 
 static struct platform_driver pxafb_driver = {
 	.probe		= pxafb_probe,
-	.remove 	= pxafb_remove,
+	.remove 	= __devexit_p(pxafb_remove),
 	.suspend	= pxafb_suspend,
 	.resume		= pxafb_resume,
 	.driver		= {

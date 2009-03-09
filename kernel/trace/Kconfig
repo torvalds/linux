@@ -52,6 +52,7 @@ config FUNCTION_TRACER
 	depends on HAVE_FUNCTION_TRACER
 	depends on DEBUG_KERNEL
 	select FRAME_POINTER
+	select KALLSYMS
 	select TRACING
 	select CONTEXT_SWITCH_TRACER
 	help
@@ -238,6 +239,7 @@ config STACK_TRACER
 	depends on DEBUG_KERNEL
 	select FUNCTION_TRACER
 	select STACKTRACE
+	select KALLSYMS
 	help
 	  This special tracer records the maximum stack footprint of the
 	  kernel and displays it in debugfs/tracing/stack_trace.
@@ -301,5 +303,28 @@ config FTRACE_STARTUP_TEST
 	  a series of tests are made to verify that the tracer is
 	  functioning properly. It will do tests on all the configured
 	  tracers of ftrace.
+
+config MMIOTRACE
+	bool "Memory mapped IO tracing"
+	depends on HAVE_MMIOTRACE_SUPPORT && DEBUG_KERNEL && PCI
+	select TRACING
+	help
+	  Mmiotrace traces Memory Mapped I/O access and is meant for
+	  debugging and reverse engineering. It is called from the ioremap
+	  implementation and works via page faults. Tracing is disabled by
+	  default and can be enabled at run-time.
+
+	  See Documentation/tracers/mmiotrace.txt.
+	  If you are not helping to develop drivers, say N.
+
+config MMIOTRACE_TEST
+	tristate "Test module for mmiotrace"
+	depends on MMIOTRACE && m
+	help
+	  This is a dumb module for testing mmiotrace. It is very dangerous
+	  as it will write garbage to IO memory starting at a given address.
+	  However, it should be safe to use on e.g. unused portion of VRAM.
+
+	  Say N, unless you absolutely know what you are doing.
 
 endmenu
