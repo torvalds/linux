@@ -277,7 +277,6 @@ static struct cpufreq_driver p4clockmod_driver = {
 	.name		= "p4-clockmod",
 	.owner		= THIS_MODULE,
 	.attr		= p4clockmod_attr,
-	.hide_interface	= 1,
 };
 
 
