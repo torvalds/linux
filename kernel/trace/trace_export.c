@@ -26,8 +26,8 @@
 		return 0;
 
 
-#undef TPRAWFMT
-#define TPRAWFMT(args...) args
+#undef TP_RAW_FMT
+#define TP_RAW_FMT(args...) args
 
 #undef TRACE_EVENT_FORMAT
 #define TRACE_EVENT_FORMAT(call, proto, args, fmt, tstruct, tpfmt)	\
@@ -57,8 +57,8 @@ ftrace_format_##call(struct trace_seq *s)				\
 #define TRACE_FIELD(type, item, assign)\
 	entry->item = assign;
 
-#undef TPCMD
-#define TPCMD(cmd...)	cmd
+#undef TP_CMD
+#define TP_CMD(cmd...)	cmd
 
 #undef TRACE_ENTRY
 #define TRACE_ENTRY	entry

@@ -18,15 +18,15 @@ struct power_trace {
 };
 
 DECLARE_TRACE(power_start,
-	TPPROTO(struct power_trace *it, unsigned int type, unsigned int state),
-		TPARGS(it, type, state));
+	TP_PROTO(struct power_trace *it, unsigned int type, unsigned int state),
+	      TP_ARGS(it, type, state));
 
 DECLARE_TRACE(power_mark,
-	TPPROTO(struct power_trace *it, unsigned int type, unsigned int state),
-		TPARGS(it, type, state));
+	TP_PROTO(struct power_trace *it, unsigned int type, unsigned int state),
+	      TP_ARGS(it, type, state));
 
 DECLARE_TRACE(power_end,
-	TPPROTO(struct power_trace *it),
-		TPARGS(it));
+	TP_PROTO(struct power_trace *it),
+	      TP_ARGS(it));
 
 #endif /* _TRACE_POWER_H */

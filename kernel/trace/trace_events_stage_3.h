@@ -106,8 +106,8 @@
  *
  */
 
-#undef TPFMT
-#define TPFMT(fmt, args...)	fmt "\n", ##args
+#undef TP_FMT
+#define TP_FMT(fmt, args...)	fmt "\n", ##args
 
 #define _TRACE_FORMAT(call, proto, args, fmt)				\
 static void ftrace_event_##call(proto)					\
@@ -152,8 +152,8 @@ __attribute__((section("_ftrace_events"))) event_##call = {		\
 #define TRACE_FIELD(type, item, assign)\
 	entry->item = assign;
 
-#undef TPCMD
-#define TPCMD(cmd...)	cmd
+#undef TP_CMD
+#define TP_CMD(cmd...)	cmd
 
 #undef TRACE_ENTRY
 #define TRACE_ENTRY	entry

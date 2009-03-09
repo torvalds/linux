@@ -10,7 +10,7 @@ TRACE_EVENT_FORMAT(function, TRACE_FN, ftrace_entry, ignore,
 		TRACE_FIELD(unsigned long, ip, ip)
 		TRACE_FIELD(unsigned long, parent_ip, parent_ip)
 	),
-	TPRAWFMT(" %lx <-- %lx")
+	TP_RAW_FMT(" %lx <-- %lx")
 );
 
 TRACE_EVENT_FORMAT(funcgraph_entry, TRACE_GRAPH_ENT,
@@ -19,7 +19,7 @@ TRACE_EVENT_FORMAT(funcgraph_entry, TRACE_GRAPH_ENT,
 		TRACE_FIELD(unsigned long, graph_ent.func, func)
 		TRACE_FIELD(int, graph_ent.depth, depth)
 	),
-	TPRAWFMT("--> %lx (%d)")
+	TP_RAW_FMT("--> %lx (%d)")
 );
 
 TRACE_EVENT_FORMAT(funcgraph_exit, TRACE_GRAPH_RET,
@@ -28,7 +28,7 @@ TRACE_EVENT_FORMAT(funcgraph_exit, TRACE_GRAPH_RET,
 		TRACE_FIELD(unsigned long, ret.func, func)
 		TRACE_FIELD(int, ret.depth, depth)
 	),
-	TPRAWFMT("<-- %lx (%d)")
+	TP_RAW_FMT("<-- %lx (%d)")
 );
 
 TRACE_EVENT_FORMAT(wakeup, TRACE_WAKE, ctx_switch_entry, ignore,
@@ -41,7 +41,7 @@ TRACE_EVENT_FORMAT(wakeup, TRACE_WAKE, ctx_switch_entry, ignore,
 		TRACE_FIELD(unsigned char, next_state, next_state)
 		TRACE_FIELD(unsigned int, next_cpu, next_cpu)
 	),
-	TPRAWFMT("%u:%u:%u  ==+ %u:%u:%u [%03u]")
+	TP_RAW_FMT("%u:%u:%u  ==+ %u:%u:%u [%03u]")
 );
 
 TRACE_EVENT_FORMAT(context_switch, TRACE_CTX, ctx_switch_entry, ignore,
@@ -54,7 +54,7 @@ TRACE_EVENT_FORMAT(context_switch, TRACE_CTX, ctx_switch_entry, ignore,
 		TRACE_FIELD(unsigned char, next_state, next_state)
 		TRACE_FIELD(unsigned int, next_cpu, next_cpu)
 	),
-	TPRAWFMT("%u:%u:%u  ==+ %u:%u:%u [%03u]")
+	TP_RAW_FMT("%u:%u:%u  ==+ %u:%u:%u [%03u]")
 );
 
 TRACE_EVENT_FORMAT(special, TRACE_SPECIAL, special_entry, ignore,
@@ -63,7 +63,7 @@ TRACE_EVENT_FORMAT(special, TRACE_SPECIAL, special_entry, ignore,
 		TRACE_FIELD(unsigned long, arg2, arg2)
 		TRACE_FIELD(unsigned long, arg3, arg3)
 	),
-	TPRAWFMT("(%08lx) (%08lx) (%08lx)")
+	TP_RAW_FMT("(%08lx) (%08lx) (%08lx)")
 );
 
 /*
@@ -83,7 +83,7 @@ TRACE_EVENT_FORMAT(kernel_stack, TRACE_STACK, stack_entry, ignore,
 		TRACE_FIELD(unsigned long, caller[6], stack6)
 		TRACE_FIELD(unsigned long, caller[7], stack7)
 	),
-	TPRAWFMT("\t=> (%08lx)\n\t=> (%08lx)\n\t=> (%08lx)\n\t=> (%08lx)\n"
+	TP_RAW_FMT("\t=> (%08lx)\n\t=> (%08lx)\n\t=> (%08lx)\n\t=> (%08lx)\n"
 		 "\t=> (%08lx)\n\t=> (%08lx)\n\t=> (%08lx)\n\t=> (%08lx)\n")
 );
 
@@ -98,7 +98,7 @@ TRACE_EVENT_FORMAT(user_stack, TRACE_USER_STACK, userstack_entry, ignore,
 		TRACE_FIELD(unsigned long, caller[6], stack6)
 		TRACE_FIELD(unsigned long, caller[7], stack7)
 	),
-	TPRAWFMT("\t=> (%08lx)\n\t=> (%08lx)\n\t=> (%08lx)\n\t=> (%08lx)\n"
+	TP_RAW_FMT("\t=> (%08lx)\n\t=> (%08lx)\n\t=> (%08lx)\n\t=> (%08lx)\n"
 		 "\t=> (%08lx)\n\t=> (%08lx)\n\t=> (%08lx)\n\t=> (%08lx)\n")
 );
 
@@ -108,7 +108,7 @@ TRACE_EVENT_FORMAT(print, TRACE_PRINT, print_entry, ignore,
 		TRACE_FIELD(unsigned int, depth, depth)
 		TRACE_FIELD_ZERO_CHAR(buf)
 	),
-	TPRAWFMT("%08lx (%d) %s")
+	TP_RAW_FMT("%08lx (%d) %s")
 );
 
 TRACE_EVENT_FORMAT(branch, TRACE_BRANCH, trace_branch, ignore,
@@ -118,7 +118,7 @@ TRACE_EVENT_FORMAT(branch, TRACE_BRANCH, trace_branch, ignore,
 		TRACE_FIELD_SPECIAL(char file[TRACE_FUNC_SIZE+1], file, file)
 		TRACE_FIELD(char, correct, correct)
 	),
-	TPRAWFMT("%u:%s:%s (%u)")
+	TP_RAW_FMT("%u:%s:%s (%u)")
 );
 
 TRACE_EVENT_FORMAT(hw_branch, TRACE_HW_BRANCHES, hw_branch_entry, ignore,
@@ -126,7 +126,7 @@ TRACE_EVENT_FORMAT(hw_branch, TRACE_HW_BRANCHES, hw_branch_entry, ignore,
 		TRACE_FIELD(u64, from, from)
 		TRACE_FIELD(u64, to, to)
 	),
-	TPRAWFMT("from: %llx to: %llx")
+	TP_RAW_FMT("from: %llx to: %llx")
 );
 
 TRACE_EVENT_FORMAT(power, TRACE_POWER, trace_power, ignore,
@@ -136,7 +136,7 @@ TRACE_EVENT_FORMAT(power, TRACE_POWER, trace_power, ignore,
 		TRACE_FIELD(int, state_data.type, type)
 		TRACE_FIELD(int, state_data.state, state)
 	),
-	TPRAWFMT("%llx->%llx type:%u state:%u")
+	TP_RAW_FMT("%llx->%llx type:%u state:%u")
 );
 
 TRACE_EVENT_FORMAT(kmem_alloc, TRACE_KMEM_ALLOC, kmemtrace_alloc_entry, ignore,
@@ -149,7 +149,7 @@ TRACE_EVENT_FORMAT(kmem_alloc, TRACE_KMEM_ALLOC, kmemtrace_alloc_entry, ignore,
 		TRACE_FIELD(gfp_t, gfp_flags, gfp_flags)
 		TRACE_FIELD(int, node, node)
 	),
-	TPRAWFMT("type:%u call_site:%lx ptr:%p req:%lu alloc:%lu"
+	TP_RAW_FMT("type:%u call_site:%lx ptr:%p req:%lu alloc:%lu"
 		 " flags:%x node:%d")
 );
 
@@ -159,7 +159,7 @@ TRACE_EVENT_FORMAT(kmem_free, TRACE_KMEM_FREE, kmemtrace_free_entry, ignore,
 		TRACE_FIELD(unsigned long, call_site, call_site)
 		TRACE_FIELD(const void *, ptr, ptr)
 	),
-	TPRAWFMT("type:%u call_site:%lx ptr:%p")
+	TP_RAW_FMT("type:%u call_site:%lx ptr:%p")
 );
 
 #undef TRACE_SYSTEM

@@ -45,8 +45,8 @@ In include/trace/subsys.h :
 #include <linux/tracepoint.h>
 
 DECLARE_TRACE(subsys_eventname,
-	TPPROTO(int firstarg, struct task_struct *p),
-	TPARGS(firstarg, p));
+	TP_PROTO(int firstarg, struct task_struct *p),
+	TP_ARGS(firstarg, p));
 
 In subsys/file.c (where the tracing statement must be added) :
 
@@ -66,10 +66,10 @@ Where :
     - subsys is the name of your subsystem.
     - eventname is the name of the event to trace.
 
-- TPPROTO(int firstarg, struct task_struct *p) is the prototype of the
+- TP_PROTO(int firstarg, struct task_struct *p) is the prototype of the
   function called by this tracepoint.
 
-- TPARGS(firstarg, p) are the parameters names, same as found in the
+- TP_ARGS(firstarg, p) are the parameters names, same as found in the
   prototype.
 
 Connecting a function (probe) to a tracepoint is done by providing a

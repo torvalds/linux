@@ -20,7 +20,7 @@
  *
  *	field = (typeof(field))entry;
  *
- *	ret = trace_seq_printf(s, <TPRAWFMT> "%s", <ARGS> "\n");
+ *	ret = trace_seq_printf(s, <TP_RAW_FMT> "%s", <ARGS> "\n");
  *	if (!ret)
  *		return TRACE_TYPE_PARTIAL_LINE;
  *
@@ -44,8 +44,8 @@
 	field->item,
 
 
-#undef TPRAWFMT
-#define TPRAWFMT(args...)	args
+#undef TP_RAW_FMT
+#define TP_RAW_FMT(args...)	args
 
 #undef TRACE_EVENT_FORMAT
 #define TRACE_EVENT_FORMAT(call, proto, args, fmt, tstruct, tpfmt)	\

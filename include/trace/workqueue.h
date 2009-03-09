@@ -6,20 +6,20 @@
 #include <linux/sched.h>
 
 DECLARE_TRACE(workqueue_insertion,
-	   TPPROTO(struct task_struct *wq_thread, struct work_struct *work),
-	   TPARGS(wq_thread, work));
+	   TP_PROTO(struct task_struct *wq_thread, struct work_struct *work),
+	   TP_ARGS(wq_thread, work));
 
 DECLARE_TRACE(workqueue_execution,
-	   TPPROTO(struct task_struct *wq_thread, struct work_struct *work),
-	   TPARGS(wq_thread, work));
+	   TP_PROTO(struct task_struct *wq_thread, struct work_struct *work),
+	   TP_ARGS(wq_thread, work));
 
 /* Trace the creation of one workqueue thread on a cpu */
 DECLARE_TRACE(workqueue_creation,
-	   TPPROTO(struct task_struct *wq_thread, int cpu),
-	   TPARGS(wq_thread, cpu));
+	   TP_PROTO(struct task_struct *wq_thread, int cpu),
+	   TP_ARGS(wq_thread, cpu));
 
 DECLARE_TRACE(workqueue_destruction,
-	   TPPROTO(struct task_struct *wq_thread),
-	   TPARGS(wq_thread));
+	   TP_PROTO(struct task_struct *wq_thread),
+	   TP_ARGS(wq_thread));
 
 #endif /* __TRACE_WORKQUEUE_H */
