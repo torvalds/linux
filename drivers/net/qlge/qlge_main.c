@@ -3250,14 +3250,12 @@ static int ql_adapter_up(struct ql_adapter *qdev)
 {
 	int err = 0;
 
-	spin_lock(&qdev->hw_lock);
 	err = ql_adapter_initialize(qdev);
 	if (err) {
 		QPRINTK(qdev, IFUP, INFO, "Unable to initialize adapter.\n");
 		spin_unlock(&qdev->hw_lock);
 		goto err_init;
 	}
-	spin_unlock(&qdev->hw_lock);
 	set_bit(QL_ADAPTER_UP, &qdev->flags);
 	ql_alloc_rx_buffers(qdev);
 	if ((ql_read32(qdev, STS) & qdev->port_init))
