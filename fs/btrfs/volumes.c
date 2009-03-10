@@ -1459,6 +1459,8 @@ static int __btrfs_grow_device(struct btrfs_trans_handle *trans,
 	device->fs_devices->total_rw_bytes += diff;
 
 	device->total_bytes = new_size;
+	btrfs_clear_space_info_full(device->dev_root->fs_info);
+
 	return btrfs_update_device(trans, device);
 }
 
