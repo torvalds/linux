@@ -179,6 +179,9 @@ config CPU_SHX2
 config CPU_SHX3
 	bool
 
+config ARCH_SHMOBILE
+	bool
+
 choice
 	prompt "Processor sub-type selection"
 
@@ -330,6 +333,7 @@ config CPU_SUBTYPE_SH7723
 	bool "Support SH7723 processor"
 	select CPU_SH4A
 	select CPU_SHX2
+	select ARCH_SHMOBILE
 	select ARCH_SPARSEMEM_ENABLE
 	select SYS_SUPPORTS_CMT
 	help
@@ -377,12 +381,14 @@ config CPU_SUBTYPE_SHX3
 config CPU_SUBTYPE_SH7343
 	bool "Support SH7343 processor"
 	select CPU_SH4AL_DSP
+	select ARCH_SHMOBILE
 	select SYS_SUPPORTS_CMT
 
 config CPU_SUBTYPE_SH7722
 	bool "Support SH7722 processor"
 	select CPU_SH4AL_DSP
 	select CPU_SHX2
+	select ARCH_SHMOBILE
 	select ARCH_SPARSEMEM_ENABLE
 	select SYS_SUPPORTS_NUMA
 	select SYS_SUPPORTS_CMT
@@ -391,6 +397,7 @@ config CPU_SUBTYPE_SH7366
 	bool "Support SH7366 processor"
 	select CPU_SH4AL_DSP
 	select CPU_SHX2
+	select ARCH_SHMOBILE
 	select ARCH_SPARSEMEM_ENABLE
 	select SYS_SUPPORTS_NUMA
 	select SYS_SUPPORTS_CMT
