@@ -338,8 +338,7 @@ event_enable_write(struct file *filp, const char __user *ubuf, size_t cnt,
 
 #undef FIELD
 #define FIELD(type, name)						\
-	#type, #name, (unsigned int)offsetof(typeof(field), name),	\
-		(unsigned int)sizeof(field.name)
+	#type, #name, offsetof(typeof(field), name), sizeof(field.name)
 
 static int trace_write_header(struct trace_seq *s)
 {
@@ -347,11 +346,11 @@ static int trace_write_header(struct trace_seq *s)
 
 	/* struct trace_entry */
 	return trace_seq_printf(s,
-				"\tfield:%s %s;\toffset:%u;\tsize:%u;\n"
-				"\tfield:%s %s;\toffset:%u;\tsize:%u;\n"
-				"\tfield:%s %s;\toffset:%u;\tsize:%u;\n"
-				"\tfield:%s %s;\toffset:%u;\tsize:%u;\n"
-				"\tfield:%s %s;\toffset:%u;\tsize:%u;\n"
+				"\tfield:%s %s;\toffset:%zu;\tsize:%zu;\n"
+				"\tfield:%s %s;\toffset:%zu;\tsize:%zu;\n"
+				"\tfield:%s %s;\toffset:%zu;\tsize:%zu;\n"
+				"\tfield:%s %s;\toffset:%zu;\tsize:%zu;\n"
+				"\tfield:%s %s;\toffset:%zu;\tsize:%zu;\n"
 				"\n",
 				FIELD(unsigned char, type),
 				FIELD(unsigned char, flags),
