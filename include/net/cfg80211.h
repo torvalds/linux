@@ -350,8 +350,6 @@ struct bss_parameters {
 
 /**
  * enum reg_set_by - Indicates who is trying to set the regulatory domain
- * @REGDOM_SET_BY_INIT: regulatory domain was set by initialization. We will be
- * 	using a static world regulatory domain by default.
  * @REGDOM_SET_BY_CORE: Core queried CRDA for a dynamic world regulatory domain.
  * @REGDOM_SET_BY_USER: User asked the wireless core to set the
  * 	regulatory domain.
@@ -362,7 +360,6 @@ struct bss_parameters {
  *	should consider.
  */
 enum reg_set_by {
-	REGDOM_SET_BY_INIT,
 	REGDOM_SET_BY_CORE,
 	REGDOM_SET_BY_USER,
 	REGDOM_SET_BY_DRIVER,
