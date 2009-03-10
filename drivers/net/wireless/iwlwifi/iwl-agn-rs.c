@@ -2473,18 +2473,25 @@ static void rs_dbgfs_set_mcs(struct iwl_lq_sta *lq_sta,
 			     u32 *rate_n_flags, int index)
 {
 	struct iwl_priv *priv;
+	u8 valid_tx_ant;
+	u8 ant_sel_tx;
 
 	priv = lq_sta->drv;
+	valid_tx_ant = priv->hw_params.valid_tx_ant;
 	if (lq_sta->dbg_fixed_rate) {
-		if (index < 12) {
+		ant_sel_tx =
+		  ((lq_sta->dbg_fixed_rate & RATE_MCS_ANT_ABC_MSK)
+		  >> RATE_MCS_ANT_POS);
+		if ((valid_tx_ant & ant_sel_tx) == ant_sel_tx) {
 			*rate_n_flags = lq_sta->dbg_fixed_rate;
+			IWL_DEBUG_RATE(priv, "Fixed rate ON\n");
 		} else {
-			if (lq_sta->band == IEEE80211_BAND_5GHZ)
-				*rate_n_flags = 0x800D;
-			else
-				*rate_n_flags = 0x820A;
+			lq_sta->dbg_fixed_rate = 0;
+			IWL_ERR(priv,
+			    "Invalid antenna selection 0x%X, Valid is 0x%X\n",
+			    ant_sel_tx, valid_tx_ant);
+			IWL_DEBUG_RATE(priv, "Fixed rate OFF\n");
 		}
-		IWL_DEBUG_RATE(priv, "Fixed rate ON\n");
 	} else {
 		IWL_DEBUG_RATE(priv, "Fixed rate OFF\n");
 	}
