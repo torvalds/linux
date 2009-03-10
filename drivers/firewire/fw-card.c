@@ -368,9 +368,11 @@ static void fw_card_bm_work(struct work_struct *work)
 			atomic_read(&root_device->state) == FW_DEVICE_RUNNING;
 	root_device_is_cmc = root_device && root_device->cmc;
 	root_id = root_node->node_id;
-	grace = time_after(jiffies, card->reset_jiffies + DIV_ROUND_UP(HZ, 10));
 	irm_device = irm_node->data;
 	local_device = local_node->data;
+
+	grace = time_after(jiffies, card->reset_jiffies + DIV_ROUND_UP(HZ, 8));
+
 	if (is_next_generation(generation, card->bm_generation) ||
 	    (card->bm_generation != generation && grace)) {
 		/*
@@ -434,12 +436,11 @@ static void fw_card_bm_work(struct work_struct *work)
 		}
 	} else if (card->bm_generation != generation) {
 		/*
-		 * OK, we weren't BM in the last generation, and it's
-		 * less than 100ms since last bus reset. Reschedule
-		 * this task 100ms from now.
+		 * We weren't BM in the last generation, and the last
+		 * bus reset is less than 125ms ago.  Reschedule this job.
 		 */
 		spin_unlock_irqrestore(&card->lock, flags);
-		fw_schedule_bm_work(card, DIV_ROUND_UP(HZ, 10));
+		fw_schedule_bm_work(card, DIV_ROUND_UP(HZ, 8));
 		goto out;
 	}
 
