@@ -60,7 +60,6 @@ static void rt_mute(struct rtrack2 *dev)
 	mutex_lock(&dev->lock);
 	outb(1, dev->io);
 	mutex_unlock(&dev->lock);
-	mutex_unlock(&dev->lock);
 	dev->muted = 1;
 }
 
