@@ -913,7 +913,7 @@ void kvm_apic_nmi_wd_deliver(struct kvm_vcpu *vcpu)
 		kvm_apic_local_deliver(apic, APIC_LVT0);
 }
 
-struct kvm_timer_ops lapic_timer_ops = {
+static struct kvm_timer_ops lapic_timer_ops = {
 	.is_periodic = lapic_is_periodic,
 };
 

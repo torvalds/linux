@@ -265,7 +265,7 @@ static bool kpit_is_periodic(struct kvm_timer *ktimer)
 	return ps->is_periodic;
 }
 
-struct kvm_timer_ops kpit_ops = {
+static struct kvm_timer_ops kpit_ops = {
 	.is_periodic = kpit_is_periodic,
 };
 
