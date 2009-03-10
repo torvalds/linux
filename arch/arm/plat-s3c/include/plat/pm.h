@@ -127,6 +127,18 @@ extern void s3c_pm_dbg(const char *msg, ...);
 #define S3C_PMDBG(fmt...) printk(KERN_DEBUG fmt)
 #endif
 
+#ifdef CONFIG_S3C_PM_DEBUG_LED_SMDK
+/**
+ * s3c_pm_debug_smdkled() - Debug PM suspend/resume via SMDK Board LEDs
+ * @set: set bits for the state of the LEDs
+ * @clear: clear bits for the state of the LEDs.
+ */
+extern void s3c_pm_debug_smdkled(u32 set, u32 clear);
+
+#else
+static inline void s3c_pm_debug_smdkled(u32 set, u32 clear) { }
+#endif /* CONFIG_S3C_PM_DEBUG_LED_SMDK */
+
 /* suspend memory checking */
 
 #ifdef CONFIG_S3C2410_PM_CHECK

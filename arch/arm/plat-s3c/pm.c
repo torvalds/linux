@@ -21,11 +21,10 @@
 
 #include <asm/cacheflush.h>
 #include <mach/hardware.h>
+#include <mach/map.h>
 
 #include <plat/regs-serial.h>
 #include <mach/regs-clock.h>
-#include <mach/regs-gpio.h>
-#include <mach/regs-mem.h>
 #include <mach/regs-irq.h>
 #include <asm/irq.h>
 
@@ -325,6 +324,9 @@ static int s3c_pm_enter(suspend_state_t state)
 	s3c_pm_arch_show_resume_irqs();
 
 	S3C_PMDBG("%s: post sleep, preparing to return\n", __func__);
+
+	/* LEDs should now be 1110 */
+	s3c_pm_debug_smdkled(1 << 1, 0);
 
 	s3c_pm_check_restore();
 

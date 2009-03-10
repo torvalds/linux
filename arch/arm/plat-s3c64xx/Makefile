@@ -24,6 +24,11 @@ obj-y				+= gpiolib.o
 obj-$(CONFIG_CPU_S3C6400_INIT)	+= s3c6400-init.o
 obj-$(CONFIG_CPU_S3C6400_CLOCK)	+= s3c6400-clock.o
 
+# PM support
+
+obj-$(CONFIG_PM)		+= pm.o
+obj-$(CONFIG_PM)		+= sleep.o
+
 # Device setup
 
 obj-$(CONFIG_S3C64XX_SETUP_I2C0) += setup-i2c0.o
