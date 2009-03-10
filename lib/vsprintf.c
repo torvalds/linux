@@ -768,7 +768,6 @@ static char *pointer(const char *fmt, char *buf, char *end, void *ptr,
 static int format_decode(const char *fmt, struct printf_spec *spec)
 {
 	const char *start = fmt;
-	bool sign = false;
 
 	/* we finished early by reading the field width */
 	if (spec->type == FORMAT_TYPE_WITDH) {
@@ -900,7 +899,7 @@ qualifier:
 
 	case 'd':
 	case 'i':
-		sign = true;
+		spec->flags |= SIGN;
 	case 'u':
 		break;
 
@@ -912,7 +911,7 @@ qualifier:
 	if (spec->qualifier == 'L')
 		spec->type = FORMAT_TYPE_LONG_LONG;
 	else if (spec->qualifier == 'l') {
-		if (sign)
+		if (spec->flags & SIGN)
 			spec->type = FORMAT_TYPE_LONG;
 		else
 			spec->type = FORMAT_TYPE_ULONG;
@@ -921,12 +920,12 @@ qualifier:
 	} else if (spec->qualifier == 't') {
 		spec->type = FORMAT_TYPE_PTRDIFF;
 	} else if (spec->qualifier == 'h') {
-		if (sign)
+		if (spec->flags & SIGN)
 			spec->type = FORMAT_TYPE_SHORT;
 		else
 			spec->type = FORMAT_TYPE_USHORT;
 	} else {
-		if (sign)
+		if (spec->flags & SIGN)
 			spec->type = FORMAT_TYPE_INT;
 		else
 			spec->type = FORMAT_TYPE_UINT;
@@ -1101,8 +1100,8 @@ int vsnprintf(char *buf, size_t size, const char *fmt, va_list args)
 			case FORMAT_TYPE_SHORT:
 				num = (short) va_arg(args, int);
 				break;
-			case FORMAT_TYPE_UINT:
-				num = va_arg(args, unsigned int);
+			case FORMAT_TYPE_INT:
+				num = (int) va_arg(args, int);
 				break;
 			default:
 				num = va_arg(args, unsigned int);
