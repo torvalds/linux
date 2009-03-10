@@ -1934,6 +1934,39 @@ static const struct cx88_board cx88_boards[] = {
 		} },
 		.mpeg           = CX88_MPEG_DVB,
 	},
+	[CX88_BOARD_TERRATEC_CINERGY_HT_PCI_MKII] = {
+		.name           = "Terratec Cinergy HT PCI MKII",
+		.tuner_type     = TUNER_XC2028,
+		.tuner_addr     = 0x61,
+		.radio_type     = TUNER_XC2028,
+		.radio_addr     = 0x61,
+		.input          = { {
+			.type   = CX88_VMUX_TELEVISION,
+			.vmux   = 0,
+			.gpio0  = 0x004ff,
+			.gpio1  = 0x010ff,
+			.gpio2  = 0x00001,
+		}, {
+			.type   = CX88_VMUX_COMPOSITE1,
+			.vmux   = 1,
+			.gpio0  = 0x004fb,
+			.gpio1  = 0x010ef,
+			.audioroute = 1,
+		}, {
+			.type   = CX88_VMUX_SVIDEO,
+			.vmux   = 2,
+			.gpio0  = 0x004fb,
+			.gpio1  = 0x010ef,
+			.audioroute = 1,
+		} },
+		.radio = {
+			.type   = CX88_RADIO,
+			.gpio0  = 0x004ff,
+			.gpio1  = 0x010ff,
+			.gpio2  = 0x0ff,
+		},
+		.mpeg           = CX88_MPEG_DVB,
+	},
 };
 
 /* ------------------------------------------------------------------ */
@@ -2343,6 +2376,10 @@ static const struct cx88_subid cx88_subids[] = {
 		.subvendor = 0xb200,
 		.subdevice = 0x4200,
 		.card      = CX88_BOARD_SATTRADE_ST4200,
+	}, {
+		.subvendor = 0x153b,
+		.subdevice = 0x1177,
+		.card      = CX88_BOARD_TERRATEC_CINERGY_HT_PCI_MKII,
 	},
 };
 
@@ -2819,6 +2856,7 @@ void cx88_setup_xc3028(struct cx88_core *core, struct xc2028_ctrl *ctl)
 		 */
 		break;
 	case CX88_BOARD_PINNACLE_HYBRID_PCTV:
+	case CX88_BOARD_TERRATEC_CINERGY_HT_PCI_MKII:
 		ctl->demod = XC3028_FE_ZARLINK456;
 		ctl->mts = 1;
 		break;
