@@ -385,14 +385,15 @@ u32 ath_calcrxfilter(struct ath_softc *sc)
 	if (sc->sc_ah->opmode != NL80211_IFTYPE_STATION)
 		rfilt |= ATH9K_RX_FILTER_PROBEREQ;
 
-	/* Can't set HOSTAP into promiscous mode */
+	/*
+	 * Set promiscuous mode when FIF_PROMISC_IN_BSS is enabled for station
+	 * mode interface or when in monitor mode. AP mode does not need this
+	 * since it receives all in-BSS frames anyway.
+	 */
 	if (((sc->sc_ah->opmode != NL80211_IFTYPE_AP) &&
 	     (sc->rx.rxfilter & FIF_PROMISC_IN_BSS)) ||
-	    (sc->sc_ah->opmode == NL80211_IFTYPE_MONITOR)) {
+	    (sc->sc_ah->opmode == NL80211_IFTYPE_MONITOR))
 		rfilt |= ATH9K_RX_FILTER_PROM;
-		/* ??? To prevent from sending ACK */
-		rfilt &= ~ATH9K_RX_FILTER_UCAST;
-	}
 
 	if (sc->rx.rxfilter & FIF_CONTROL)
 		rfilt |= ATH9K_RX_FILTER_CONTROL;
