@@ -233,8 +233,8 @@ proceed:
 		"%zu bytes\n", vm.addr, static_size);
 
 	ret = pcpu_setup_first_chunk(pcpur_get_page, static_size,
-				     PERCPU_FIRST_CHUNK_RESERVE,
-				     PMD_SIZE, dyn_size, vm.addr, NULL);
+				     PERCPU_FIRST_CHUNK_RESERVE, dyn_size,
+				     PMD_SIZE, vm.addr, NULL);
 	goto out_free_ar;
 
 enomem:
@@ -315,9 +315,8 @@ static ssize_t __init setup_pcpu_embed(size_t static_size)
 		pcpue_size >> PAGE_SHIFT, pcpue_ptr, static_size);
 
 	return pcpu_setup_first_chunk(pcpue_get_page, static_size,
-				      PERCPU_FIRST_CHUNK_RESERVE,
-				      pcpue_unit_size, dyn_size,
-				      pcpue_ptr, NULL);
+				      PERCPU_FIRST_CHUNK_RESERVE, dyn_size,
+				      pcpue_unit_size, pcpue_ptr, NULL);
 }
 
 /*
@@ -375,8 +374,8 @@ static ssize_t __init setup_pcpu_4k(size_t static_size)
 		pcpu4k_nr_static_pages, static_size);
 
 	ret = pcpu_setup_first_chunk(pcpu4k_get_page, static_size,
-				     PERCPU_FIRST_CHUNK_RESERVE, -1, -1, NULL,
-				     pcpu4k_populate_pte);
+				     PERCPU_FIRST_CHUNK_RESERVE, -1,
+				     -1, NULL, pcpu4k_populate_pte);
 	goto out_free_ar;
 
 enomem:
