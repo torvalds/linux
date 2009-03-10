@@ -13,6 +13,7 @@
 #include <linux/numa.h>
 #include <linux/ftrace.h>
 #include <linux/io.h>
+#include <linux/suspend.h>
 
 #include <asm/pgtable.h>
 #include <asm/tlbflush.h>
@@ -270,18 +271,42 @@ void machine_kexec(struct kimage *image)
 {
 	unsigned long page_list[PAGES_NR];
 	void *control_page;
+	int save_ftrace_enabled;
 
-	tracer_disable();
+#ifdef CONFIG_KEXEC_JUMP
+	if (kexec_image->preserve_context)
+		save_processor_state();
+#endif
+
+	save_ftrace_enabled = __ftrace_enabled_save();
 
 	/* Interrupts aren't acceptable while we reboot */
 	local_irq_disable();
 
+	if (image->preserve_context) {
+#ifdef CONFIG_X86_IO_APIC
+		/*
+		 * We need to put APICs in legacy mode so that we can
+		 * get timer interrupts in second kernel. kexec/kdump
+		 * paths already have calls to disable_IO_APIC() in
+		 * one form or other. kexec jump path also need
+		 * one.
+		 */
+		disable_IO_APIC();
+#endif
+	}
+
 	control_page = page_address(image->control_code_page) + PAGE_SIZE;
-	memcpy(control_page, relocate_kernel, PAGE_SIZE);
+	memcpy(control_page, relocate_kernel, KEXEC_CONTROL_CODE_MAX_SIZE);
 
 	page_list[PA_CONTROL_PAGE] = virt_to_phys(control_page);
+	page_list[VA_CONTROL_PAGE] = (unsigned long)control_page;
 	page_list[PA_TABLE_PAGE] =
 	  (unsigned long)__pa(page_address(image->control_code_page));
+
+	if (image->type == KEXEC_TYPE_DEFAULT)
+		page_list[PA_SWAP_PAGE] = (page_to_pfn(image->swap_page)
+						<< PAGE_SHIFT);
 
 	/*
 	 * The segment registers are funny things, they have both a
@@ -302,8 +327,17 @@ void machine_kexec(struct kimage *image)
 	set_idt(phys_to_virt(0), 0);
 
 	/* now call it */
-	relocate_kernel((unsigned long)image->head, (unsigned long)page_list,
-			image->start);
+	image->start = relocate_kernel((unsigned long)image->head,
+				       (unsigned long)page_list,
+				       image->start,
+				       image->preserve_context);
+
+#ifdef CONFIG_KEXEC_JUMP
+	if (kexec_image->preserve_context)
+		restore_processor_state();
+#endif
+
+	__ftrace_enabled_restore(save_ftrace_enabled);
 }
 
 void arch_crash_save_vmcoreinfo(void)

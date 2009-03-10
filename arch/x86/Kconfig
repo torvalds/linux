@@ -1431,7 +1431,7 @@ config CRASH_DUMP
 config KEXEC_JUMP
 	bool "kexec jump (EXPERIMENTAL)"
 	depends on EXPERIMENTAL
-	depends on KEXEC && HIBERNATION && X86_32
+	depends on KEXEC && HIBERNATION
 	---help---
 	  Jump between original kernel and kexeced kernel and invoke
 	  code in physical address mode via KEXEC
