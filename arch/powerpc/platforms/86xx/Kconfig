@@ -1,7 +1,7 @@
 config PPC_86xx
 menuconfig PPC_86xx
 	bool "86xx-based boards"
-	depends on 6xx && PPC_MULTIPLATFORM
+	depends on 6xx
 	select FSL_SOC
 	select ALTIVEC
 	help

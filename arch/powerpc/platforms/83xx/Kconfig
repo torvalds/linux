@@ -1,6 +1,6 @@
 menuconfig PPC_83xx
 	bool "83xx-based boards"
-	depends on 6xx && PPC_MULTIPLATFORM
+	depends on 6xx
 	select PPC_UDBG_16550
 	select PPC_PCI_CHOICE
 	select FSL_PCI if PCI

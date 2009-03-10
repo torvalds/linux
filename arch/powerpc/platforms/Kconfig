@@ -1,14 +1,5 @@
 menu "Platform support"
 
-config PPC_MULTIPLATFORM
-	bool
-	depends on PPC64 || 6xx
-	default y
-
-config CLASSIC32
-	def_bool y
-	depends on 6xx && PPC_MULTIPLATFORM
-
 source "arch/powerpc/platforms/pseries/Kconfig"
 source "arch/powerpc/platforms/iseries/Kconfig"
 source "arch/powerpc/platforms/chrp/Kconfig"
@@ -32,11 +23,23 @@ source "arch/powerpc/platforms/amigaone/Kconfig"
 
 config PPC_NATIVE
 	bool
-	depends on PPC_MULTIPLATFORM
+	depends on 6xx || PPC64
 	help
 	  Support for running natively on the hardware, i.e. without
 	  a hypervisor. This option is not user-selectable but should
 	  be selected by all platforms that need it.
+
+config PPC_OF_BOOT_TRAMPOLINE
+	bool "Support booting from Open Firmware or yaboot"
+	depends on 6xx || PPC64
+	default y
+	help
+	  Support from booting from Open Firmware or yaboot using an
+	  Open Firmware client interface. This enables the kernel to
+	  communicate with open firmware to retrieve system informations
+	  such as the device tree.
+
+	  In case of doubt, say Y
 
 config UDBG_RTAS_CONSOLE
 	bool "RTAS based debug console"
@@ -71,7 +74,7 @@ config PPC_I8259
 
 config U3_DART
 	bool
-	depends on PPC_MULTIPLATFORM && PPC64
+	depends on PPC64
 	default n
 
 config PPC_RTAS
@@ -188,7 +191,7 @@ config PPC601_SYNC_FIX
 
 config TAU
 	bool "On-chip CPU temperature sensor support"
-	depends on CLASSIC32
+	depends on 6xx
 	help
 	  G3 and G4 processors have an on-chip temperature sensor called the
 	  'Thermal Assist Unit (TAU)', which, in theory, can measure the on-die

@@ -108,18 +108,21 @@ __start:
  * because OF may have I/O devices mapped into that area
  * (particularly on CHRP).
  */
-#ifdef CONFIG_PPC_MULTIPLATFORM
 	cmpwi	0,r5,0
 	beq	1f
 
+#ifdef CONFIG_PPC_OF_BOOT_TRAMPOLINE
 	/* find out where we are now */
 	bcl	20,31,$+4
 0:	mflr	r8			/* r8 = runtime addr here */
 	addis	r8,r8,(_stext - 0b)@ha
 	addi	r8,r8,(_stext - 0b)@l	/* current runtime base addr */
 	bl	prom_init
+#endif /* CONFIG_PPC_OF_BOOT_TRAMPOLINE */
+
+	/* We never return. We also hit that trap if trying to boot
+	 * from OF while CONFIG_PPC_OF_BOOT_TRAMPOLINE isn't selected */
 	trap
-#endif
 
 /*
  * Check for BootX signature when supporting PowerMac and branch to

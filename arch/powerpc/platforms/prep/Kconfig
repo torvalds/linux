@@ -1,6 +1,6 @@
 config PPC_PREP
 	bool "PowerPC Reference Platform (PReP) based machines"
-	depends on PPC_MULTIPLATFORM && PPC32 && BROKEN
+	depends on 6xx && BROKEN
 	select MPIC
 	select PPC_I8259
 	select PPC_INDIRECT_PCI
