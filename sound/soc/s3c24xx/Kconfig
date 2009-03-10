@@ -42,7 +42,6 @@ config SND_S3C24XX_SOC_JIVE_WM8750
 	tristate "SoC I2S Audio support for Jive"
 	depends on SND_S3C24XX_SOC && MACH_JIVE
 	select SND_SOC_WM8750
-	select SND_SOC_WM8750_SPI
 	select SND_S3C2412_SOC_I2S
 	help
 	  Sat Y if you want to add support for SoC audio on the Jive.
