@@ -463,6 +463,17 @@ static void conexant_free(struct hda_codec *codec)
 	kfree(codec->spec);
 }
 
+static struct snd_kcontrol_new cxt_capture_mixers[] = {
+	{
+		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+		.name = "Capture Source",
+		.info = conexant_mux_enum_info,
+		.get = conexant_mux_enum_get,
+		.put = conexant_mux_enum_put
+	},
+	{}
+};
+
 static const char *slave_vols[] = {
 	"Headphone Playback Volume",
 	"Speaker Playback Volume",
@@ -518,6 +529,12 @@ static int conexant_build_controls(struct hda_codec *codec)
 	    !snd_hda_find_mixer_ctl(codec, "Master Playback Switch")) {
 		err = snd_hda_add_vmaster(codec, "Master Playback Switch",
 					  NULL, slave_sws);
+		if (err < 0)
+			return err;
+	}
+
+	if (spec->input_mux) {
+		err = snd_hda_add_new_ctls(codec, cxt_capture_mixers);
 		if (err < 0)
 			return err;
 	}
@@ -753,13 +770,6 @@ static void cxt5045_hp_unsol_event(struct hda_codec *codec,
 }
 
 static struct snd_kcontrol_new cxt5045_mixers[] = {
-	{
-		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-		.name = "Capture Source",
-		.info = conexant_mux_enum_info,
-		.get = conexant_mux_enum_get,
-		.put = conexant_mux_enum_put
-	},
 	HDA_CODEC_VOLUME("Int Mic Capture Volume", 0x1a, 0x01, HDA_INPUT),
 	HDA_CODEC_MUTE("Int Mic Capture Switch", 0x1a, 0x01, HDA_INPUT),
 	HDA_CODEC_VOLUME("Ext Mic Capture Volume", 0x1a, 0x02, HDA_INPUT),
@@ -793,13 +803,6 @@ static struct snd_kcontrol_new cxt5045_benq_mixers[] = {
 };
 
 static struct snd_kcontrol_new cxt5045_mixers_hp530[] = {
-	{
-		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-		.name = "Capture Source",
-		.info = conexant_mux_enum_info,
-		.get = conexant_mux_enum_get,
-		.put = conexant_mux_enum_put
-	},
 	HDA_CODEC_VOLUME("Int Mic Capture Volume", 0x1a, 0x02, HDA_INPUT),
 	HDA_CODEC_MUTE("Int Mic Capture Switch", 0x1a, 0x02, HDA_INPUT),
 	HDA_CODEC_VOLUME("Ext Mic Capture Volume", 0x1a, 0x01, HDA_INPUT),
@@ -1170,20 +1173,6 @@ static struct hda_channel_mode cxt5047_modes[1] = {
 	{ 2, NULL },
 };
 
-static struct hda_input_mux cxt5047_capture_source = {
-	.num_items = 1,
-	.items = {
-		{ "Mic", 0x2 },
-	}
-};
-
-static struct hda_input_mux cxt5047_hp_capture_source = {
-	.num_items = 1,
-	.items = {
-		{ "ExtMic", 0x2 },
-	}
-};
-
 static struct hda_input_mux cxt5047_toshiba_capture_source = {
 	.num_items = 2,
 	.items = {
@@ -1321,13 +1310,6 @@ static struct snd_kcontrol_new cxt5047_mixers[] = {
 };
 
 static struct snd_kcontrol_new cxt5047_toshiba_mixers[] = {
-	{
-		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-		.name = "Capture Source",
-		.info = conexant_mux_enum_info,
-		.get = conexant_mux_enum_get,
-		.put = conexant_mux_enum_put
-	},
 	HDA_CODEC_VOLUME("Mic Bypass Capture Volume", 0x19, 0x02, HDA_INPUT),
 	HDA_CODEC_MUTE("Mic Bypass Capture Switch", 0x19, 0x02, HDA_INPUT),
 	HDA_CODEC_VOLUME("Capture Volume", 0x12, 0x03, HDA_INPUT),
@@ -1349,13 +1331,6 @@ static struct snd_kcontrol_new cxt5047_toshiba_mixers[] = {
 };
 
 static struct snd_kcontrol_new cxt5047_hp_mixers[] = {
-	{
-		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-		.name = "Capture Source",
-		.info = conexant_mux_enum_info,
-		.get = conexant_mux_enum_get,
-		.put = conexant_mux_enum_put
-	},
 	HDA_CODEC_VOLUME("Mic Bypass Capture Volume", 0x19, 0x02, HDA_INPUT),
 	HDA_CODEC_MUTE("Mic Bypass Capture Switch", 0x19,0x02,HDA_INPUT),
 	HDA_CODEC_VOLUME("Capture Volume", 0x12, 0x03, HDA_INPUT),
@@ -1614,7 +1589,6 @@ static int patch_cxt5047(struct hda_codec *codec)
 	spec->num_adc_nids = 1;
 	spec->adc_nids = cxt5047_adc_nids;
 	spec->capsrc_nids = cxt5047_capsrc_nids;
-	spec->input_mux = &cxt5047_capture_source;
 	spec->num_mixers = 1;
 	spec->mixers[0] = cxt5047_mixers;
 	spec->num_init_verbs = 1;
@@ -1633,7 +1607,6 @@ static int patch_cxt5047(struct hda_codec *codec)
 		codec->patch_ops.unsol_event = cxt5047_hp2_unsol_event;
 		break;
 	case CXT5047_LAPTOP_HP:
-		spec->input_mux = &cxt5047_hp_capture_source;
 		spec->num_init_verbs = 2;
 		spec->init_verbs[1] = cxt5047_hp_init_verbs;
 		spec->mixers[0] = cxt5047_hp_mixers;
