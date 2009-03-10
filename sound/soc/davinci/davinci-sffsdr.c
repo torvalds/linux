@@ -36,6 +36,14 @@
 #include "davinci-pcm.h"
 #include "davinci-i2s.h"
 
+/*
+ * CLKX and CLKR are the inputs for the Sample Rate Generator.
+ * FSX and FSR are outputs, driven by the sample Rate Generator.
+ */
+#define AUDIO_FORMAT (SND_SOC_DAIFMT_DSP_B |	\
+		      SND_SOC_DAIFMT_CBM_CFS |	\
+		      SND_SOC_DAIFMT_IB_NF)
+
 static int sffsdr_hw_params(struct snd_pcm_substream *substream,
 			    struct snd_pcm_hw_params *params,
 			    struct snd_soc_dai *dai)
@@ -56,13 +64,8 @@ static int sffsdr_hw_params(struct snd_pcm_substream *substream,
 	}
 #endif
 
-	/* Set cpu DAI configuration:
-	 * CLKX and CLKR are the inputs for the Sample Rate Generator.
-	 * FSX and FSR are outputs, driven by the sample Rate Generator. */
-	ret = snd_soc_dai_set_fmt(cpu_dai,
-				  SND_SOC_DAIFMT_RIGHT_J |
-				  SND_SOC_DAIFMT_CBM_CFS |
-				  SND_SOC_DAIFMT_IB_NF);
+	/* set cpu DAI configuration */
+	ret = snd_soc_dai_set_fmt(cpu_dai, AUDIO_FORMAT);
 	if (ret < 0)
 		return ret;
 
