@@ -228,6 +228,8 @@ static const u16 VAUX3_VSEL_table[] = {
 static const u16 VAUX4_VSEL_table[] = {
 	700, 1000, 1200, UNSUP(1300),
 	1500, 1800, UNSUP(1850), 2500,
+	UNSUP(2600), 2800, UNSUP(2850), UNSUP(3000),
+	UNSUP(3150), UNSUP(3150), UNSUP(3150), UNSUP(3150),
 };
 static const u16 VMMC1_VSEL_table[] = {
 	1850, 2850, 3000, 3150,
