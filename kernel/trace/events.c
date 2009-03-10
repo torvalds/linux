@@ -2,9 +2,7 @@
  * This is the place to register all trace points as events.
  */
 
-/* someday this needs to go in a generic header */
-#define __STR(x) #x
-#define STR(x) __STR(x)
+#include <linux/stringify.h>
 
 #include <trace/trace_events.h>
 

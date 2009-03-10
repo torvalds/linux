@@ -31,8 +31,8 @@ struct tracepoint {
 					 * Keep in sync with vmlinux.lds.h.
 					 */
 
-#define TPPROTO(args...)	args
-#define TPARGS(args...)		args
+#define TP_PROTO(args...)	args
+#define TP_ARGS(args...)		args
 
 #ifdef CONFIG_TRACEPOINTS
 
@@ -65,7 +65,7 @@ struct tracepoint {
 	{								\
 		if (unlikely(__tracepoint_##name.state))		\
 			__DO_TRACE(&__tracepoint_##name,		\
-				TPPROTO(proto), TPARGS(args));		\
+				TP_PROTO(proto), TP_ARGS(args));	\
 	}								\
 	static inline int register_trace_##name(void (*probe)(proto))	\
 	{								\
@@ -157,7 +157,7 @@ static inline void tracepoint_synchronize_unregister(void)
 #define TRACE_FORMAT(name, proto, args, fmt)		\
 	DECLARE_TRACE(name, PARAMS(proto), PARAMS(args))
 
-#define TRACE_EVENT_FORMAT(name, proto, args, fmt, struct, tpfmt)	\
-	TRACE_FORMAT(name, PARAMS(proto), PARAMS(args), PARAMS(fmt))
+#define TRACE_EVENT(name, proto, args, struct, print, assign)	\
+	DECLARE_TRACE(name, PARAMS(proto), PARAMS(args))
 
 #endif

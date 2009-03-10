@@ -15,19 +15,40 @@
 
 #include "trace_output.h"
 
-#include "trace_format.h"
 
-#undef TRACE_FIELD_ZERO_CHAR
-#define TRACE_FIELD_ZERO_CHAR(item)				\
-	ret = trace_seq_printf(s, "\tfield: char " #item ";\t"	\
-			       "offset:%lu;\tsize:0;\n",	\
-			       offsetof(typeof(field), item));	\
-	if (!ret)						\
+#undef TRACE_STRUCT
+#define TRACE_STRUCT(args...) args
+
+#undef TRACE_FIELD
+#define TRACE_FIELD(type, item, assign)					\
+	ret = trace_seq_printf(s, "\tfield:" #type " " #item ";\t"	\
+			       "offset:%u;\tsize:%u;\n",		\
+			       (unsigned int)offsetof(typeof(field), item), \
+			       (unsigned int)sizeof(field.item));	\
+	if (!ret)							\
 		return 0;
 
 
-#undef TPRAWFMT
-#define TPRAWFMT(args...) args
+#undef TRACE_FIELD_SPECIAL
+#define TRACE_FIELD_SPECIAL(type_item, item, cmd)			\
+	ret = trace_seq_printf(s, "\tfield special:" #type_item ";\t"	\
+			       "offset:%u;\tsize:%u;\n",		\
+			       (unsigned int)offsetof(typeof(field), item), \
+			       (unsigned int)sizeof(field.item));	\
+	if (!ret)							\
+		return 0;
+
+#undef TRACE_FIELD_ZERO_CHAR
+#define TRACE_FIELD_ZERO_CHAR(item)					\
+	ret = trace_seq_printf(s, "\tfield: char " #item ";\t"		\
+			       "offset:%u;\tsize:0;\n",			\
+			       (unsigned int)offsetof(typeof(field), item)); \
+	if (!ret)							\
+		return 0;
+
+
+#undef TP_RAW_FMT
+#define TP_RAW_FMT(args...) args
 
 #undef TRACE_EVENT_FORMAT
 #define TRACE_EVENT_FORMAT(call, proto, args, fmt, tstruct, tpfmt)	\
@@ -57,8 +78,8 @@ ftrace_format_##call(struct trace_seq *s)				\
 #define TRACE_FIELD(type, item, assign)\
 	entry->item = assign;
 
-#undef TPCMD
-#define TPCMD(cmd...)	cmd
+#undef TP_CMD
+#define TP_CMD(cmd...)	cmd
 
 #undef TRACE_ENTRY
 #define TRACE_ENTRY	entry

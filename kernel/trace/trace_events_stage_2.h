@@ -20,7 +20,7 @@
  *
  *	field = (typeof(field))entry;
  *
- *	ret = trace_seq_printf(s, <TPRAWFMT> "%s", <ARGS> "\n");
+ *	ret = trace_seq_printf(s, <TP_RAW_FMT> "%s", <ARGS> "\n");
  *	if (!ret)
  *		return TRACE_TYPE_PARTIAL_LINE;
  *
@@ -32,23 +32,14 @@
  * in binary.
  */
 
-#undef TRACE_STRUCT
-#define TRACE_STRUCT(args...) args
+#undef __entry
+#define __entry field
 
-#undef TRACE_FIELD
-#define TRACE_FIELD(type, item, assign) \
-	field->item,
+#undef TP_printk
+#define TP_printk(fmt, args...) fmt "\n", args
 
-#undef TRACE_FIELD_SPECIAL
-#define TRACE_FIELD_SPECIAL(type_item, item, cmd) \
-	field->item,
-
-
-#undef TPRAWFMT
-#define TPRAWFMT(args...)	args
-
-#undef TRACE_EVENT_FORMAT
-#define TRACE_EVENT_FORMAT(call, proto, args, fmt, tstruct, tpfmt)	\
+#undef TRACE_EVENT
+#define TRACE_EVENT(call, proto, args, tstruct, print, assign)		\
 enum print_line_t							\
 ftrace_raw_output_##call(struct trace_iterator *iter, int flags)	\
 {									\
@@ -66,14 +57,76 @@ ftrace_raw_output_##call(struct trace_iterator *iter, int flags)	\
 									\
 	field = (typeof(field))entry;					\
 									\
-	ret = trace_seq_printf(s, tpfmt "%s", tstruct "\n");		\
+	ret = trace_seq_printf(s, print);				\
 	if (!ret)							\
 		return TRACE_TYPE_PARTIAL_LINE;				\
 									\
 	return TRACE_TYPE_HANDLED;					\
 }
-
+	
 #include <trace/trace_event_types.h>
 
-#include "trace_format.h"
+/*
+ * Setup the showing format of trace point.
+ *
+ * int
+ * ftrace_format_##call(struct trace_seq *s)
+ * {
+ *	struct ftrace_raw_##call field;
+ *	int ret;
+ *
+ *	ret = trace_seq_printf(s, #type " " #item ";"
+ *			       " size:%d; offset:%d;\n",
+ *			       sizeof(field.type),
+ *			       offsetof(struct ftrace_raw_##call,
+ *					item));
+ *
+ * }
+ */
+
+#undef TP_STRUCT__entry
+#define TP_STRUCT__entry(args...) args
+
+#undef __field
+#define __field(type, item)					\
+	ret = trace_seq_printf(s, "\tfield:" #type " " #item ";\t"	\
+			       "offset:%u;\tsize:%u;\n",		\
+			       (unsigned int)offsetof(typeof(field), item), \
+			       (unsigned int)sizeof(field.item));	\
+	if (!ret)							\
+		return 0;
+
+#undef __array
+#define __array(type, item, len)						\
+	ret = trace_seq_printf(s, "\tfield:" #type " " #item "[" #len "];\t"	\
+			       "offset:%u;\tsize:%u;\n",		\
+			       (unsigned int)offsetof(typeof(field), item), \
+			       (unsigned int)sizeof(field.item));	\
+	if (!ret)							\
+		return 0;
+
+#undef __entry
+#define __entry "REC"
+
+#undef TP_printk
+#define TP_printk(fmt, args...) "%s, %s\n", #fmt, #args
+
+#undef TP_fast_assign
+#define TP_fast_assign(args...) args
+
+#undef TRACE_EVENT
+#define TRACE_EVENT(call, proto, args, tstruct, print, func)		\
+static int								\
+ftrace_format_##call(struct trace_seq *s)				\
+{									\
+	struct ftrace_raw_##call field;					\
+	int ret;							\
+									\
+	tstruct;							\
+									\
+	trace_seq_printf(s, "\nprint fmt: " print);			\
+									\
+	return ret;							\
+}
+
 #include <trace/trace_event_types.h>

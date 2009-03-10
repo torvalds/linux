@@ -17,20 +17,21 @@
 #undef TRACE_FORMAT
 #define TRACE_FORMAT(call, proto, args, fmt)
 
-#undef TRACE_EVENT_FORMAT
-#define TRACE_EVENT_FORMAT(name, proto, args, fmt, tstruct, tpfmt)	\
-	struct ftrace_raw_##name {					\
-		struct trace_entry	ent;				\
-		tstruct							\
-	};								\
+#undef __array
+#define __array(type, item, len)	type	item[len];
+
+#undef __field
+#define __field(type, item)		type	item;
+
+#undef TP_STRUCT__entry
+#define TP_STRUCT__entry(args...) args
+
+#undef TRACE_EVENT
+#define TRACE_EVENT(name, proto, args, tstruct, print, assign)	\
+	struct ftrace_raw_##name {				\
+		struct trace_entry	ent;			\
+		tstruct						\
+	};							\
 	static struct ftrace_event_call event_##name
-
-#undef TRACE_STRUCT
-#define TRACE_STRUCT(args...) args
-
-#define TRACE_FIELD(type, item, assign) \
-	type item;
-#define TRACE_FIELD_SPECIAL(type_item, item, cmd) \
-	type_item;
 
 #include <trace/trace_event_types.h>

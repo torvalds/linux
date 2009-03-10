@@ -1,5 +1,6 @@
 /* Include in trace.c */
 
+#include <linux/stringify.h>
 #include <linux/kthread.h>
 #include <linux/delay.h>
 
@@ -100,9 +101,6 @@ static inline void warn_failed_init_tracer(struct tracer *trace, int init_ret)
 
 #ifdef CONFIG_DYNAMIC_FTRACE
 
-#define __STR(x) #x
-#define STR(x) __STR(x)
-
 /* Test dynamic code modification and ftrace filters */
 int trace_selftest_startup_dynamic_tracing(struct tracer *trace,
 					   struct trace_array *tr,
@@ -130,7 +128,7 @@ int trace_selftest_startup_dynamic_tracing(struct tracer *trace,
 	 * start of the function names. We simply put a '*' to
 	 * accommodate them.
 	 */
-	func_name = "*" STR(DYN_FTRACE_TEST_NAME);
+	func_name = "*" __stringify(DYN_FTRACE_TEST_NAME);
 
 	/* filter only on our function */
 	ftrace_set_filter(func_name, strlen(func_name), 1);
