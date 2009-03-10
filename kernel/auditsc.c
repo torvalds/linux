@@ -1478,7 +1478,7 @@ static void audit_log_exit(struct audit_context *context, struct task_struct *ts
 			case 0:
 				/* name was specified as a relative path and the
 				 * directory component is the cwd */
-				audit_log_d_path(ab, " name=", &context->pwd);
+				audit_log_d_path(ab, "name=", &context->pwd);
 				break;
 			default:
 				/* log the name's directory component */
