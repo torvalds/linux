@@ -91,7 +91,7 @@ static void probe_workqueue_creation(struct task_struct *wq_thread, int cpu)
 	struct cpu_workqueue_stats *cws;
 	unsigned long flags;
 
-	WARN_ON(cpu < 0 || cpu >= num_possible_cpus());
+	WARN_ON(cpu < 0);
 
 	/* Workqueues are sometimes created in atomic context */
 	cws = kzalloc(sizeof(struct cpu_workqueue_stats), GFP_ATOMIC);
@@ -175,12 +175,12 @@ static void *workqueue_stat_next(void *prev, int idx)
 	spin_lock_irqsave(&workqueue_cpu_stat(cpu)->lock, flags);
 	if (list_is_last(&prev_cws->list, &workqueue_cpu_stat(cpu)->list)) {
 		spin_unlock_irqrestore(&workqueue_cpu_stat(cpu)->lock, flags);
-		for (++cpu ; cpu < num_possible_cpus(); cpu++) {
-			ret = workqueue_stat_start_cpu(cpu);
-			if (ret)
-				return ret;
-		}
-		return NULL;
+		do {
+			cpu = cpumask_next(cpu, cpu_possible_mask);
+			if (cpu >= nr_cpu_ids)
+				return NULL;
+		} while (!(ret = workqueue_stat_start_cpu(cpu)));
+		return ret;
 	}
 	spin_unlock_irqrestore(&workqueue_cpu_stat(cpu)->lock, flags);
 
