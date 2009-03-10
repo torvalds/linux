@@ -178,8 +178,8 @@ static inline void tracepoint_synchronize_unregister(void)
  *	* prototype, declare it via TP_PROTO():
  *	*
  *
- * 	TP_PROTO(struct rq *rq, struct task_struct *prev,
- * 		 struct task_struct *next),
+ *	TP_PROTO(struct rq *rq, struct task_struct *prev,
+ *		 struct task_struct *next),
  *
  *	*
  *	* Define the call signature of the 'function'.
@@ -187,7 +187,7 @@ static inline void tracepoint_synchronize_unregister(void)
  *	*  TP_PROTO1/TP_PROTO2/TP_PROTO3 ugliness.)
  *	*
  *
- * 	TP_ARGS(rq, prev, next),
+ *	TP_ARGS(rq, prev, next),
  *
  *	*
  *	* Fast binary tracing: define the trace record via
@@ -229,13 +229,13 @@ static inline void tracepoint_synchronize_unregister(void)
  *	* happens, on an active tracepoint.
  *	*
  *
- * 	TP_fast_assign(
- * 		memcpy(__entry->next_comm, next->comm, TASK_COMM_LEN);
- * 		__entry->prev_pid	= prev->pid;
- * 		__entry->prev_prio	= prev->prio;
+ *	TP_fast_assign(
+ *		memcpy(__entry->next_comm, next->comm, TASK_COMM_LEN);
+ *		__entry->prev_pid	= prev->pid;
+ *		__entry->prev_prio	= prev->prio;
  *		memcpy(__entry->prev_comm, prev->comm, TASK_COMM_LEN);
  *		__entry->next_pid	= next->pid;
- * 		__entry->next_prio	= next->prio;
+ *		__entry->next_prio	= next->prio;
  *	)
  *
  *	*
