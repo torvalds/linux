@@ -585,7 +585,7 @@ static int ioctl_send_request(struct client *client, void *buffer)
 		return -EINVAL;
 	}
 
-	return init_request(client, request, client->device->node->node_id,
+	return init_request(client, request, client->device->node_id,
 			    client->device->max_speed);
 }
 
