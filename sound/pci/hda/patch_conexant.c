@@ -58,6 +58,7 @@ struct conexant_spec {
 
 	struct snd_kcontrol_new *mixers[5];
 	int num_mixers;
+	hda_nid_t vmaster_nid;
 
 	const struct hda_verb *init_verbs[5];	/* initialization verbs
 						 * don't forget NULL
@@ -462,6 +463,18 @@ static void conexant_free(struct hda_codec *codec)
 	kfree(codec->spec);
 }
 
+static const char *slave_vols[] = {
+	"Headphone Playback Volume",
+	"Speaker Playback Volume",
+	NULL
+};
+
+static const char *slave_sws[] = {
+	"Headphone Playback Switch",
+	"Speaker Playback Switch",
+	NULL
+};
+
 static int conexant_build_controls(struct hda_codec *codec)
 {
 	struct conexant_spec *spec = codec->spec;
@@ -489,6 +502,26 @@ static int conexant_build_controls(struct hda_codec *codec)
 		if (err < 0)
 			return err;
 	}
+
+	/* if we have no master control, let's create it */
+	if (spec->vmaster_nid &&
+	    !snd_hda_find_mixer_ctl(codec, "Master Playback Volume")) {
+		unsigned int vmaster_tlv[4];
+		snd_hda_set_vmaster_tlv(codec, spec->vmaster_nid,
+					HDA_OUTPUT, vmaster_tlv);
+		err = snd_hda_add_vmaster(codec, "Master Playback Volume",
+					  vmaster_tlv, slave_vols);
+		if (err < 0)
+			return err;
+	}
+	if (spec->vmaster_nid &&
+	    !snd_hda_find_mixer_ctl(codec, "Master Playback Switch")) {
+		err = snd_hda_add_vmaster(codec, "Master Playback Switch",
+					  NULL, slave_sws);
+		if (err < 0)
+			return err;
+	}
+
 	return 0;
 }
 
@@ -1182,16 +1215,6 @@ static int cxt5047_hp_master_sw_put(struct snd_kcontrol *kcontrol,
 	return 1;
 }
 
-/* bind volumes of both NID 0x13 (Headphones) and 0x1d (Speakers) */
-static struct hda_bind_ctls cxt5047_bind_master_vol = {
-	.ops = &snd_hda_bind_vol,
-	.values = {
-		HDA_COMPOSE_AMP_VAL(0x13, 3, 0, HDA_OUTPUT),
-		HDA_COMPOSE_AMP_VAL(0x1d, 3, 0, HDA_OUTPUT),
-		0
-	},
-};
-
 /* mute internal speaker if HP is plugged */
 static void cxt5047_hp_automute(struct hda_codec *codec)
 {
@@ -1311,7 +1334,8 @@ static struct snd_kcontrol_new cxt5047_toshiba_mixers[] = {
 	HDA_CODEC_MUTE("Capture Switch", 0x12, 0x03, HDA_INPUT),
 	HDA_CODEC_VOLUME("PCM Volume", 0x10, 0x00, HDA_OUTPUT),
 	HDA_CODEC_MUTE("PCM Switch", 0x10, 0x00, HDA_OUTPUT),
-	HDA_BIND_VOL("Master Playback Volume", &cxt5047_bind_master_vol),
+	HDA_CODEC_VOLUME("Headphone Playback Volume", 0x13, 0x00, HDA_OUTPUT),
+	HDA_CODEC_VOLUME("Speaker Playback Volume", 0x1d, 0x00, HDA_OUTPUT),
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		.name = "Master Playback Switch",
@@ -1631,6 +1655,7 @@ static int patch_cxt5047(struct hda_codec *codec)
 		codec->patch_ops.unsol_event = cxt5047_hp_unsol_event;
 #endif	
 	}
+	spec->vmaster_nid = 0x13;
 	return 0;
 }
 
