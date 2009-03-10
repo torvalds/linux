@@ -181,83 +181,9 @@ void fw_core_remove_descriptor(struct fw_descriptor *desc)
 	mutex_unlock(&card_mutex);
 }
 
-#define IRM_RETRIES 2
-
-/*
- * The abi is set by device_for_each_child(), even though we have no use
- * for data, nor do we have a meaningful return value.
- */
-int fw_irm_set_broadcast_channel_register(struct device *dev, void *data)
+static int set_broadcast_channel(struct device *dev, void *data)
 {
-	struct fw_device *d;
-	int rcode;
-	int node_id;
-	int max_speed;
-	int retries;
-	int generation;
-	__be32 regval;
-	struct fw_card *card;
-
-	d = fw_device(dev);
-	/* FIXME: do we need locking here? */
-	generation = d->generation;
-	smp_rmb(); /* Ensure generation is at least as old as node_id */
-	node_id = d->node_id;
-	max_speed = d->max_speed;
-	retries = IRM_RETRIES;
-	card = d->card;
-tryagain_r:
-	rcode = fw_run_transaction(card, TCODE_READ_QUADLET_REQUEST,
-				   node_id, generation, max_speed,
-				   CSR_REGISTER_BASE + CSR_BROADCAST_CHANNEL,
-				   &regval, 4);
-	switch (rcode) {
-	case RCODE_BUSY:
-		if (retries--)
-			goto tryagain_r;
-		fw_notify("node %x read broadcast channel busy\n",
-			  node_id);
-		return 0;
-
-	default:
-		fw_notify("node %x read broadcast channel failed %x\n",
-			  node_id, rcode);
-		return 0;
-
-	case RCODE_COMPLETE:
-		/*
-		 * Paranoid reporting of nonstandard broadcast channel
-		 * contents goes here
-		 */
-		if (regval != cpu_to_be32(BROADCAST_CHANNEL_INITIAL))
-			return 0;
-		break;
-	}
-	retries = IRM_RETRIES;
-	regval = cpu_to_be32(BROADCAST_CHANNEL_INITIAL |
-			     BROADCAST_CHANNEL_VALID);
-tryagain_w:
-	rcode = fw_run_transaction(card,
-			TCODE_WRITE_QUADLET_REQUEST, node_id,
-			generation, max_speed,
-			CSR_REGISTER_BASE + CSR_BROADCAST_CHANNEL,
-			&regval, 4);
-	switch (rcode) {
-	case RCODE_BUSY:
-		if (retries--)
-			goto tryagain_w;
-		fw_notify("node %x write broadcast channel busy\n",
-			  node_id);
-		return 0;
-
-	default:
-		fw_notify("node %x write broadcast channel failed %x\n",
-			  node_id, rcode);
-		return 0;
-
-	case RCODE_COMPLETE:
-		return 0;
-	}
+	fw_device_set_broadcast_channel(fw_device(dev), (long)data);
 	return 0;
 }
 
@@ -268,9 +194,9 @@ static void allocate_broadcast_channel(struct fw_card *card, int generation)
 	fw_iso_resource_manage(card, generation, 1ULL << 31,
 			       &channel, &bandwidth, true);
 	if (channel == 31) {
-		card->is_irm = true;
-		device_for_each_child(card->device, NULL,
-				      fw_irm_set_broadcast_channel_register);
+		card->broadcast_channel_allocated = true;
+		device_for_each_child(card->device, (void *)(long)generation,
+				      set_broadcast_channel);
 	}
 }
 
@@ -302,7 +228,6 @@ static void fw_card_bm_work(struct work_struct *work)
 	__be32 lock_data[2];
 
 	spin_lock_irqsave(&card->lock, flags);
-	card->is_irm = false;
 
 	if (card->local_node == NULL) {
 		spin_unlock_irqrestore(&card->lock, flags);

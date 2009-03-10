@@ -230,11 +230,6 @@ struct fw_card {
 	u8 color; /* must be u8 to match the definition in struct fw_node */
 	int gap_count;
 	bool beta_repeaters_present;
-	/*
-	 * Set if the local device is the IRM and the broadcast channel
-	 * was allocated.
-	 */
-	bool is_irm;
 
 	int index;
 
@@ -245,6 +240,7 @@ struct fw_card {
 	int bm_retries;
 	int bm_generation;
 
+	bool broadcast_channel_allocated;
 	u32 broadcast_channel;
 	u32 topology_map[(CSR_TOPOLOGY_MAP_END - CSR_TOPOLOGY_MAP) / 4];
 };

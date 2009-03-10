@@ -71,7 +71,6 @@ struct fw_device {
 	int node_id;
 	int generation;
 	unsigned max_speed;
-	bool cmc;
 	struct fw_card *card;
 	struct device device;
 
@@ -81,6 +80,9 @@ struct fw_device {
 	u32 *config_rom;
 	size_t config_rom_length;
 	int config_rom_retries;
+	unsigned cmc:1;
+	unsigned bc_implemented:2;
+
 	struct delayed_work work;
 	struct fw_attribute_group attribute_group;
 };
@@ -109,6 +111,7 @@ static inline void fw_device_put(struct fw_device *device)
 
 struct fw_device *fw_device_get_by_devt(dev_t devt);
 int fw_device_enable_phys_dma(struct fw_device *device);
+void fw_device_set_broadcast_channel(struct fw_device *device, int generation);
 
 void fw_device_cdev_update(struct fw_device *device);
 void fw_device_cdev_remove(struct fw_device *device);

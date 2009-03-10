@@ -518,7 +518,7 @@ static int read_bus_info_block(struct fw_device *device, int generation)
 
 	kfree(old_rom);
 	ret = 0;
-	device->cmc = rom[2] & 1 << 30;
+	device->cmc = rom[2] >> 30 & 1;
  out:
 	kfree(rom);
 
@@ -756,6 +756,44 @@ static int lookup_existing_device(struct device *dev, void *data)
 	return match;
 }
 
+enum { BC_UNKNOWN = 0, BC_UNIMPLEMENTED, BC_IMPLEMENTED, };
+
+void fw_device_set_broadcast_channel(struct fw_device *device, int generation)
+{
+	struct fw_card *card = device->card;
+	__be32 data;
+	int rcode;
+
+	if (!card->broadcast_channel_allocated)
+		return;
+
+	if (device->bc_implemented == BC_UNKNOWN) {
+		rcode = fw_run_transaction(card, TCODE_READ_QUADLET_REQUEST,
+				device->node_id, generation, device->max_speed,
+				CSR_REGISTER_BASE + CSR_BROADCAST_CHANNEL,
+				&data, 4);
+		switch (rcode) {
+		case RCODE_COMPLETE:
+			if (data & cpu_to_be32(1 << 31)) {
+				device->bc_implemented = BC_IMPLEMENTED;
+				break;
+			}
+			/* else fall through to case address error */
+		case RCODE_ADDRESS_ERROR:
+			device->bc_implemented = BC_UNIMPLEMENTED;
+		}
+	}
+
+	if (device->bc_implemented == BC_IMPLEMENTED) {
+		data = cpu_to_be32(BROADCAST_CHANNEL_INITIAL |
+				   BROADCAST_CHANNEL_VALID);
+		fw_run_transaction(card, TCODE_WRITE_QUADLET_REQUEST,
+				device->node_id, generation, device->max_speed,
+				CSR_REGISTER_BASE + CSR_BROADCAST_CHANNEL,
+				&data, 4);
+	}
+}
+
 static void fw_device_init(struct work_struct *work)
 {
 	struct fw_device *device =
@@ -849,9 +887,8 @@ static void fw_device_init(struct work_struct *work)
 				  device->config_rom[3], device->config_rom[4],
 				  1 << device->max_speed);
 		device->config_rom_retries = 0;
-		if (device->card->is_irm)
-			fw_irm_set_broadcast_channel_register(&device->device,
-							      NULL);
+
+		fw_device_set_broadcast_channel(device, device->generation);
 	}
 
 	/*
