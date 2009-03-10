@@ -12,11 +12,11 @@
 #include <linux/reboot.h>
 #include <linux/numa.h>
 #include <linux/ftrace.h>
+#include <linux/io.h>
 
 #include <asm/pgtable.h>
 #include <asm/tlbflush.h>
 #include <asm/mmu_context.h>
-#include <asm/io.h>
 
 static void init_level2_page(pmd_t *level2p, unsigned long addr)
 {
@@ -83,9 +83,8 @@ static int init_level4_page(struct kimage *image, pgd_t *level4p,
 		}
 		level3p = (pud_t *)page_address(page);
 		result = init_level3_page(image, level3p, addr, last_addr);
-		if (result) {
+		if (result)
 			goto out;
-		}
 		set_pgd(level4p++, __pgd(__pa(level3p) | _KERNPG_TABLE));
 		addr += PGDIR_SIZE;
 	}
@@ -242,7 +241,8 @@ void machine_kexec(struct kimage *image)
 	page_list[PA_TABLE_PAGE] =
 	  (unsigned long)__pa(page_address(image->control_code_page));
 
-	/* The segment registers are funny things, they have both a
+	/*
+	 * The segment registers are funny things, they have both a
 	 * visible and an invisible part.  Whenever the visible part is
 	 * set to a specific selector, the invisible part is loaded
 	 * with from a table in memory.  At no other time is the
@@ -252,11 +252,12 @@ void machine_kexec(struct kimage *image)
 	 * segments, before I zap the gdt with an invalid value.
 	 */
 	load_segments();
-	/* The gdt & idt are now invalid.
+	/*
+	 * The gdt & idt are now invalid.
 	 * If you want to load them you must set up your own idt & gdt.
 	 */
-	set_gdt(phys_to_virt(0),0);
-	set_idt(phys_to_virt(0),0);
+	set_gdt(phys_to_virt(0), 0);
+	set_idt(phys_to_virt(0), 0);
 
 	/* now call it */
 	relocate_kernel((unsigned long)image->head, (unsigned long)page_list,

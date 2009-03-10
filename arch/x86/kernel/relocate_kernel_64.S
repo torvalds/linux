@@ -24,7 +24,8 @@
 	.code64
 	.globl relocate_kernel
 relocate_kernel:
-	/* %rdi indirection_page
+	/*
+	 * %rdi indirection_page
 	 * %rsi page_list
 	 * %rdx start address
 	 */
@@ -33,8 +34,10 @@ relocate_kernel:
 	pushq $0
 	popfq
 
-	/* get physical address of control page now */
-	/* this is impossible after page table switch */
+	/*
+	 * get physical address of control page now
+	 * this is impossible after page table switch
+	 */
 	movq	PTR(PA_CONTROL_PAGE)(%rsi), %r8
 
 	/* get physical address of page table now too */
@@ -55,7 +58,8 @@ identity_mapped:
 	/* store the start address on the stack */
 	pushq   %rdx
 
-	/* Set cr0 to a known state:
+	/*
+	 * Set cr0 to a known state:
 	 *  - Paging enabled
 	 *  - Alignment check disabled
 	 *  - Write protect disabled
@@ -68,7 +72,8 @@ identity_mapped:
 	orl	$(X86_CR0_PG | X86_CR0_PE), %eax
 	movq	%rax, %cr0
 
-	/* Set cr4 to a known state:
+	/*
+	 * Set cr4 to a known state:
 	 *  - physical address extension enabled
 	 */
 	movq	$X86_CR4_PAE, %rax
@@ -117,7 +122,8 @@ identity_mapped:
 	jmp	0b
 3:
 
-	/* To be certain of avoiding problems with self-modifying code
+	/*
+	 * To be certain of avoiding problems with self-modifying code
 	 * I need to execute a serializing instruction here.
 	 * So I flush the TLB by reloading %cr3 here, it's handy,
 	 * and not processor dependent.
@@ -125,8 +131,10 @@ identity_mapped:
 	movq	%cr3, %rax
 	movq	%rax, %cr3
 
-	/* set all of the registers to known values */
-	/* leave %rsp alone */
+	/*
+	 * set all of the registers to known values
+	 * leave %rsp alone
+	 */
 
 	xorq	%rax, %rax
 	xorq	%rbx, %rbx
