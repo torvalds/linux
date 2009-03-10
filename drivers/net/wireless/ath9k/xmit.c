@@ -891,7 +891,7 @@ struct ath_txq *ath_test_get_txq(struct ath_softc *sc, struct sk_buff *skb)
 	spin_lock_bh(&txq->axq_lock);
 
 	if (txq->axq_depth >= (ATH_TXBUF - 20)) {
-		DPRINTF(sc, ATH_DBG_FATAL,
+		DPRINTF(sc, ATH_DBG_XMIT,
 			"TX queue: %d is full, depth: %d\n",
 			qnum, txq->axq_depth);
 		ieee80211_stop_queue(sc->hw, skb_get_queue_mapping(skb));
