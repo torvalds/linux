@@ -549,15 +549,11 @@ static int init_request(struct client *client,
 	client_get(client);
 
 	fw_send_request(client->device->card, &e->r.transaction,
-			request->tcode & 0x1f, destination_id,
-			request->generation, speed, request->offset,
-			e->response.data, request->length,
-			complete_transaction, e);
+			request->tcode, destination_id, request->generation,
+			speed, request->offset, e->response.data,
+			request->length, complete_transaction, e);
+	return 0;
 
-	if (request->data)
-		return sizeof(request) + request->length;
-	else
-		return sizeof(request);
  failed:
 	kfree(e);
 
