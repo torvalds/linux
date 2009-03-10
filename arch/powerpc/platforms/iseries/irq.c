@@ -214,7 +214,7 @@ void __init iSeries_activate_IRQs()
 	unsigned long flags;
 
 	for_each_irq (irq) {
-		irq_desc_t *desc = get_irq_desc(irq);
+		struct irq_desc *desc = get_irq_desc(irq);
 
 		if (desc && desc->chip && desc->chip->startup) {
 			spin_lock_irqsave(&desc->lock, flags);
