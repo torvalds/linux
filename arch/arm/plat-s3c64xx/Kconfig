@@ -38,6 +38,10 @@ config CPU_S3C6400_CLOCK
 	  Common clock support code for the S3C6400 that is shared
 	  by other CPUs in the series, such as the S3C6410.
 
+config S3C64XX_DMA
+	bool "S3C64XX DMA"
+	select S3C_DMA
+
 # platform specific device setup
 
 config S3C64XX_SETUP_I2C0
