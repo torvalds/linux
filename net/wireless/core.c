@@ -350,7 +350,7 @@ int wiphy_register(struct wiphy *wiphy)
 	mutex_lock(&cfg80211_mutex);
 
 	/* set up regulatory info */
-	wiphy_update_regulatory(wiphy, REGDOM_SET_BY_CORE);
+	wiphy_update_regulatory(wiphy, NL80211_REGDOM_SET_BY_CORE);
 
 	res = device_add(&drv->wiphy.dev);
 	if (res)

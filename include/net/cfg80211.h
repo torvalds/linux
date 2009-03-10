@@ -349,27 +349,9 @@ struct bss_parameters {
 };
 
 /**
- * enum reg_set_by - Indicates who is trying to set the regulatory domain
- * @REGDOM_SET_BY_CORE: Core queried CRDA for a dynamic world regulatory domain.
- * @REGDOM_SET_BY_USER: User asked the wireless core to set the
- * 	regulatory domain.
- * @REGDOM_SET_BY_DRIVER: a wireless drivers has hinted to the wireless core
- *	it thinks its knows the regulatory domain we should be in.
- * @REGDOM_SET_BY_COUNTRY_IE: the wireless core has received an 802.11 country
- *	information element with regulatory information it thinks we
- *	should consider.
- */
-enum reg_set_by {
-	REGDOM_SET_BY_CORE,
-	REGDOM_SET_BY_USER,
-	REGDOM_SET_BY_DRIVER,
-	REGDOM_SET_BY_COUNTRY_IE,
-};
-
-/**
  * enum environment_cap - Environment parsed from country IE
  * @ENVIRON_ANY: indicates country IE applies to both indoor and
- * 	outdoor operation.
+ *	outdoor operation.
  * @ENVIRON_INDOOR: indicates country IE applies only to indoor operation
  * @ENVIRON_OUTDOOR: indicates country IE applies only to outdoor operation
  */
@@ -388,7 +370,7 @@ enum environment_cap {
  * 	and potentially inform users of which devices specifically
  * 	cased the conflicts.
  * @initiator: indicates who sent this request, could be any of
- * 	of those set in reg_set_by, %REGDOM_SET_BY_*
+ * 	of those set in nl80211_reg_initiator (%NL80211_REGDOM_SET_BY_*)
  * @alpha2: the ISO / IEC 3166 alpha2 country code of the requested
  * 	regulatory domain. We have a few special codes:
  * 	00 - World regulatory domain
@@ -405,7 +387,7 @@ enum environment_cap {
  */
 struct regulatory_request {
 	int wiphy_idx;
-	enum reg_set_by initiator;
+	enum nl80211_reg_initiator initiator;
 	char alpha2[2];
 	bool intersect;
 	u32 country_ie_checksum;

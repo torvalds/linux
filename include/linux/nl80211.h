@@ -673,6 +673,25 @@ enum nl80211_bitrate_attr {
 };
 
 /**
+ * enum nl80211_initiator - Indicates the initiator of a reg domain request
+ * @NL80211_REGDOM_SET_BY_CORE: Core queried CRDA for a dynamic world
+ * 	regulatory domain.
+ * @NL80211_REGDOM_SET_BY_USER: User asked the wireless core to set the
+ * 	regulatory domain.
+ * @NL80211_REGDOM_SET_BY_DRIVER: a wireless drivers has hinted to the
+ * 	wireless core it thinks its knows the regulatory domain we should be in.
+ * @NL80211_REGDOM_SET_BY_COUNTRY_IE: the wireless core has received an
+ * 	802.11 country information element with regulatory information it
+ * 	thinks we should consider.
+ */
+enum nl80211_reg_initiator {
+	NL80211_REGDOM_SET_BY_CORE,
+	NL80211_REGDOM_SET_BY_USER,
+	NL80211_REGDOM_SET_BY_DRIVER,
+	NL80211_REGDOM_SET_BY_COUNTRY_IE,
+};
+
+/**
  * enum nl80211_reg_rule_attr - regulatory rule attributes
  * @NL80211_ATTR_REG_RULE_FLAGS: a set of flags which specify additional
  * 	considerations for a given frequency range. These are the
