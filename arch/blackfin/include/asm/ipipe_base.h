@@ -1,5 +1,5 @@
 /*   -*- linux-c -*-
- *   include/asm-blackfin/_baseipipe.h
+ *   include/asm-blackfin/ipipe_base.h
  *
  *   Copyright (C) 2007 Philippe Gerum.
  *
@@ -27,8 +27,9 @@
 #define IPIPE_NR_XIRQS		NR_IRQS
 #define IPIPE_IRQ_ISHIFT	5	/* 2^5 for 32bits arch. */
 
-/* Blackfin-specific, global domain flags */
-#define IPIPE_ROOTLOCK_FLAG	1	/* Lock pipeline for root */
+/* Blackfin-specific, per-cpu pipeline status */
+#define IPIPE_SYNCDEFER_FLAG	15
+#define IPIPE_SYNCDEFER_MASK	(1L << IPIPE_SYNCDEFER_MASK)
 
  /* Blackfin traps -- i.e. exception vector numbers */
 #define IPIPE_NR_FAULTS		52 /* We leave a gap after VEC_ILL_RES. */
@@ -47,11 +48,6 @@
 #define IPIPE_TIMER_IRQ		IRQ_CORETMR
 
 #ifndef __ASSEMBLY__
-
-#include <linux/bitops.h>
-
-extern int test_bit(int nr, const void *addr);
-
 
 extern unsigned long __ipipe_root_status; /* Alias to ipipe_root_cpudom_var(status) */
 

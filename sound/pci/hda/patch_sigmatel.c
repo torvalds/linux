@@ -1207,7 +1207,7 @@ static const char *slave_vols[] = {
 	"LFE Playback Volume",
 	"Side Playback Volume",
 	"Headphone Playback Volume",
-	"Headphone Playback Volume",
+	"Headphone2 Playback Volume",
 	"Speaker Playback Volume",
 	"External Speaker Playback Volume",
 	"Speaker2 Playback Volume",
@@ -1221,7 +1221,7 @@ static const char *slave_sws[] = {
 	"LFE Playback Switch",
 	"Side Playback Switch",
 	"Headphone Playback Switch",
-	"Headphone Playback Switch",
+	"Headphone2 Playback Switch",
 	"Speaker Playback Switch",
 	"External Speaker Playback Switch",
 	"Speaker2 Playback Switch",
@@ -3516,6 +3516,7 @@ static int stac92xx_parse_auto_config(struct hda_codec *codec, hda_nid_t dig_out
 	if (! spec->autocfg.line_outs)
 		return 0; /* can't find valid pin config */
 
+#if 0 /* FIXME: temporarily disabled */
 	/* If we have no real line-out pin and multiple hp-outs, HPs should
 	 * be set up as multi-channel outputs.
 	 */
@@ -3535,6 +3536,7 @@ static int stac92xx_parse_auto_config(struct hda_codec *codec, hda_nid_t dig_out
 		spec->autocfg.line_out_type = AUTO_PIN_HP_OUT;
 		spec->autocfg.hp_outs = 0;
 	}
+#endif /* FIXME: temporarily disabled */
 	if (spec->autocfg.mono_out_pin) {
 		int dir = get_wcaps(codec, spec->autocfg.mono_out_pin) &
 			(AC_WCAP_OUT_AMP | AC_WCAP_IN_AMP);
