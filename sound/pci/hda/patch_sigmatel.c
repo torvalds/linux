@@ -1853,12 +1853,12 @@ static struct snd_pci_quirk stac92hd71bxx_cfg_tbl[] = {
 		      "HP dv4-7", STAC_HP_DV5),
 	SND_PCI_QUIRK_MASK(PCI_VENDOR_ID_HP, 0xfff0, 0x3600,
 		      "HP dv4-7", STAC_HP_DV5),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_HP, 0x3610,
+		      "HP HDX", STAC_HP_HDX),  /* HDX18 */
 	SND_PCI_QUIRK(PCI_VENDOR_ID_HP, 0x361a,
 		      "HP mini 1000", STAC_HP_M4),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_HP, 0x361b,
-		                "HP HDX", STAC_HP_HDX),  /* HDX16 */
-	SND_PCI_QUIRK(PCI_VENDOR_ID_HP, 0x3610,
-		                "HP HDX", STAC_HP_HDX),  /* HDX18 */
+		      "HP HDX", STAC_HP_HDX),  /* HDX16 */
 	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x0233,
 				"unknown Dell", STAC_DELL_M4_1),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x0234,
@@ -4489,20 +4489,20 @@ static int stac92xx_resume(struct hda_codec *codec)
  */
 
 #ifdef CONFIG_SND_HDA_POWER_SAVE
-static int stac92xx_hp_hdx_check_power_status (struct hda_codec * codec, hda_nid_t nid)
+static int stac92xx_hp_hdx_check_power_status(struct hda_codec *codec,
+					      hda_nid_t nid)
 {
 	struct sigmatel_spec *spec = codec->spec;
-	
-	if (nid == 0x10)
-	{
-		if (snd_hda_codec_amp_read(codec, nid, 0, HDA_OUTPUT, 0)  & 
+
+	if (nid == 0x10) {
+		if (snd_hda_codec_amp_read(codec, nid, 0, HDA_OUTPUT, 0) &
 		    HDA_AMP_MUTE)
 			spec->gpio_data &= ~0x08;  /* orange */
 		else
 			spec->gpio_data |= 0x08;   /* white */
-		
-		stac_gpio_set(codec, spec->gpio_mask, 
-			      spec->gpio_dir, 
+
+		stac_gpio_set(codec, spec->gpio_mask,
+			      spec->gpio_dir,
 			      spec->gpio_data);
 	}
 
@@ -5185,7 +5185,7 @@ again:
 		spec->num_dmics = 1;
 		spec->num_dmuxes = 1;
 		spec->num_smuxes = 1;
-		/* 
+		/*
 		 * For controlling MUTE LED on HP HDX16/HDX18 notebooks,
 		 * the CONFIG_SND_HDA_POWER_SAVE is needed to be set.
 		 */
@@ -5196,7 +5196,7 @@ again:
 		spec->gpio_data |= 0x08;  /* set to white */
 
 		/* register check_power_status callback. */
-		codec->patch_ops.check_power_status = 
+		codec->patch_ops.check_power_status =
 		    stac92xx_hp_hdx_check_power_status;
 #endif	
 		break;
