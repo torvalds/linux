@@ -111,6 +111,10 @@ extern size_t __init pcpu_setup_first_chunk(pcpu_get_page_fn_t get_page_fn,
 				void *base_addr,
 				pcpu_populate_pte_fn_t populate_pte_fn);
 
+extern ssize_t __init pcpu_embed_first_chunk(
+				size_t static_size, size_t reserved_size,
+				ssize_t dyn_size, ssize_t unit_size);
+
 /*
  * Use this to get to a cpu's version of the per-cpu object
  * dynamically allocated. Non-atomic access to the current CPU's
