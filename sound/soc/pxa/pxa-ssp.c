@@ -522,6 +522,17 @@ static int pxa_ssp_set_dai_fmt(struct snd_soc_dai *cpu_dai,
 	u32 sscr1;
 	u32 sspsp;
 
+	/* check if we need to change anything at all */
+	if (priv->dai_fmt == fmt)
+		return 0;
+
+	/* we can only change the settings if the port is not in use */
+	if (ssp_read_reg(ssp, SSCR0) & SSCR0_SSE) {
+		dev_err(&ssp->pdev->dev,
+			"can't change hardware dai format: stream is in use");
+		return -EINVAL;
+	}
+
 	/* reset port settings */
 	sscr0 = ssp_read_reg(ssp, SSCR0) &
 		(SSCR0_ECS |  SSCR0_NCS | SSCR0_MOD | SSCR0_ACS);
