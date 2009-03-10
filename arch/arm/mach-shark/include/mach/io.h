@@ -15,6 +15,7 @@
 #define IO_SPACE_LIMIT	0xffffffff
 
 #define __io(a)		__typesafe_io(PCIO_BASE + (a))
+
 #define __mem_pci(addr)	(addr)
 
 #endif
