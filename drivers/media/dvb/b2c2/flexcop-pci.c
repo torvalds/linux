@@ -113,6 +113,7 @@ static void flexcop_pci_irq_check_work(struct work_struct *work)
 			deb_chk("no IRQ since the last check\n");
 			if (fc_pci->stream_problem++ == 3) {
 				struct dvb_demux_feed *feed;
+				deb_info("flexcop-pci: stream problem, resetting pid filter\n");
 
 				spin_lock_irq(&fc->demux.lock);
 				list_for_each_entry(feed, &fc->demux.feed_list,
