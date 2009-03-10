@@ -17,6 +17,7 @@
 #include <linux/kernel.h>
 
 #define __OLD_VIDIOC_ /* To allow fixing old calls */
+#include <linux/videodev.h>
 #include <linux/videodev2.h>
 
 #ifdef CONFIG_VIDEO_V4L1

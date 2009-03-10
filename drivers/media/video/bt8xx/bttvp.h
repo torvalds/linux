@@ -32,7 +32,6 @@
 #include <linux/wait.h>
 #include <linux/i2c.h>
 #include <linux/i2c-algo-bit.h>
-#include <linux/videodev.h>
 #include <linux/pci.h>
 #include <linux/input.h>
 #include <linux/mutex.h>

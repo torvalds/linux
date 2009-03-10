@@ -41,11 +41,6 @@
 #include <media/v4l2-common.h>
 #include <media/v4l2-ioctl.h>
 
-#ifdef CONFIG_VIDEO_V4L1_COMPAT
-/* Include V4L1 specific functions. Should be removed soon */
-#include <linux/videodev.h>
-#endif
-
 MODULE_DESCRIPTION("v4l2 driver module for cx2388x based TV cards");
 MODULE_AUTHOR("Gerd Knorr <kraxel@bytesex.org> [SuSE Labs]");
 MODULE_LICENSE("GPL");

@@ -31,11 +31,6 @@
 #include "saa7134.h"
 #include <media/v4l2-common.h>
 
-#ifdef CONFIG_VIDEO_V4L1_COMPAT
-/* Include V4L1 specific functions. Should be removed soon */
-#include <linux/videodev.h>
-#endif
-
 /* ------------------------------------------------------------------ */
 
 unsigned int video_debug;

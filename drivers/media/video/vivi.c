@@ -28,10 +28,6 @@
 #include <linux/mutex.h>
 #include <linux/videodev2.h>
 #include <linux/dma-mapping.h>
-#ifdef CONFIG_VIDEO_V4L1_COMPAT
-/* Include V4L1 specific functions. Should be removed soon */
-#include <linux/videodev.h>
-#endif
 #include <linux/interrupt.h>
 #include <linux/kthread.h>
 #include <linux/highmem.h>
