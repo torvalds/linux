@@ -880,7 +880,7 @@ bool ath9k_hw_calibrate(struct ath_hw *ah, struct ath9k_channel *chan,
 	return true;
 }
 
-bool ar9285_clc(struct ath_hw *ah, struct ath9k_channel *chan)
+static bool ar9285_clc(struct ath_hw *ah, struct ath9k_channel *chan)
 {
 	REG_SET_BIT(ah, AR_PHY_CL_CAL_CTL, AR_PHY_CL_CAL_ENABLE);
 	if (chan->channelFlags & CHANNEL_HT20) {
