@@ -428,6 +428,13 @@ static const struct seq_operations show_set_event_seq_ops = {
 	.stop = t_stop,
 };
 
+static const struct file_operations ftrace_avail_fops = {
+	.open = ftrace_event_seq_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = seq_release,
+};
+
 static const struct file_operations ftrace_set_event_fops = {
 	.open = ftrace_event_seq_open,
 	.read = seq_read,
@@ -568,6 +575,13 @@ static __init int event_trace_init(void)
 	d_tracer = tracing_init_dentry();
 	if (!d_tracer)
 		return 0;
+
+	entry = debugfs_create_file("available_events", 0444, d_tracer,
+				    (void *)&show_event_seq_ops,
+				    &ftrace_avail_fops);
+	if (!entry)
+		pr_warning("Could not create debugfs "
+			   "'available_events' entry\n");
 
 	entry = debugfs_create_file("set_event", 0644, d_tracer,
 				    (void *)&show_set_event_seq_ops,
