@@ -46,7 +46,8 @@
  * - define CONFIG_HAVE_DYNAMIC_PER_CPU_AREA
  *
  * - define __addr_to_pcpu_ptr() and __pcpu_ptr_to_addr() to translate
- *   regular address to percpu pointer and back
+ *   regular address to percpu pointer and back if they need to be
+ *   different from the default
  *
  * - use pcpu_setup_first_chunk() during percpu area initialization to
  *   setup the first chunk containing the kernel static percpu area
@@ -67,10 +68,23 @@
 #include <linux/workqueue.h>
 
 #include <asm/cacheflush.h>
+#include <asm/sections.h>
 #include <asm/tlbflush.h>
 
 #define PCPU_SLOT_BASE_SHIFT		5	/* 1-31 shares the same slot */
 #define PCPU_DFL_MAP_ALLOC		16	/* start a map with 16 ents */
+
+/* default addr <-> pcpu_ptr mapping, override in asm/percpu.h if necessary */
+#ifndef __addr_to_pcpu_ptr
+#define __addr_to_pcpu_ptr(addr)					\
+	(void *)((unsigned long)(addr) - (unsigned long)pcpu_base_addr	\
+		 + (unsigned long)__per_cpu_start)
+#endif
+#ifndef __pcpu_ptr_to_addr
+#define __pcpu_ptr_to_addr(ptr)						\
+	(void *)((unsigned long)(ptr) + (unsigned long)pcpu_base_addr	\
+		 - (unsigned long)__per_cpu_start)
+#endif
 
 struct pcpu_chunk {
 	struct list_head	list;		/* linked to pcpu_slot lists */

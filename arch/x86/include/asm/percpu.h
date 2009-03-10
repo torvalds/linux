@@ -43,14 +43,6 @@
 #else /* ...!ASSEMBLY */
 
 #include <linux/stringify.h>
-#include <asm/sections.h>
-
-#define __addr_to_pcpu_ptr(addr)					\
-	(void *)((unsigned long)(addr) - (unsigned long)pcpu_base_addr	\
-		 + (unsigned long)__per_cpu_start)
-#define __pcpu_ptr_to_addr(ptr)						\
-	(void *)((unsigned long)(ptr) + (unsigned long)pcpu_base_addr	\
-		 - (unsigned long)__per_cpu_start)
 
 #ifdef CONFIG_SMP
 #define __percpu_arg(x)		"%%"__stringify(__percpu_seg)":%P" #x
