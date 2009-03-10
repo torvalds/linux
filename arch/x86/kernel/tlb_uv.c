@@ -314,8 +314,6 @@ const struct cpumask *uv_flush_tlb_others(const struct cpumask *cpumask,
 	int locals = 0;
 	struct bau_desc *bau_desc;
 
-	WARN_ON(!in_atomic());
-
 	cpumask_andnot(flush_mask, cpumask, cpumask_of(cpu));
 
 	uv_cpu = uv_blade_processor_id();

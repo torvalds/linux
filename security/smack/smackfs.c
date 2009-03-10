@@ -650,10 +650,6 @@ static void *netlbladdr_seq_next(struct seq_file *s, void *v, loff_t *pos)
 
 	return skp;
 }
-/*
-#define BEMASK	0x80000000
-*/
-#define BEMASK	0x00000001
 #define BEBITS	(sizeof(__be32) * 8)
 
 /*
@@ -663,12 +659,10 @@ static int netlbladdr_seq_show(struct seq_file *s, void *v)
 {
 	struct smk_netlbladdr *skp = (struct smk_netlbladdr *) v;
 	unsigned char *hp = (char *) &skp->smk_host.sin_addr.s_addr;
-	__be32 bebits;
-	int maskn = 0;
+	int maskn;
+	u32 temp_mask = be32_to_cpu(skp->smk_mask.s_addr);
 
-	for (bebits = BEMASK; bebits != 0; maskn++, bebits <<= 1)
-		if ((skp->smk_mask.s_addr & bebits) == 0)
-			break;
+	for (maskn = 0; temp_mask; temp_mask <<= 1, maskn++);
 
 	seq_printf(s, "%u.%u.%u.%u/%d %s\n",
 		hp[0], hp[1], hp[2], hp[3], maskn, skp->smk_label);
@@ -702,6 +696,42 @@ static int smk_open_netlbladdr(struct inode *inode, struct file *file)
 }
 
 /**
+ * smk_netlbladdr_insert
+ * @new : netlabel to insert
+ *
+ * This helper insert netlabel in the smack_netlbladdrs list
+ * sorted by netmask length (longest to smallest)
+ */
+static void smk_netlbladdr_insert(struct smk_netlbladdr *new)
+{
+	struct smk_netlbladdr *m;
+
+	if (smack_netlbladdrs == NULL) {
+		smack_netlbladdrs = new;
+		return;
+	}
+
+	/* the comparison '>' is a bit hacky, but works */
+	if (new->smk_mask.s_addr > smack_netlbladdrs->smk_mask.s_addr) {
+		new->smk_next = smack_netlbladdrs;
+		smack_netlbladdrs = new;
+		return;
+	}
+	for (m = smack_netlbladdrs; m != NULL; m = m->smk_next) {
+		if (m->smk_next == NULL) {
+			m->smk_next = new;
+			return;
+		}
+		if (new->smk_mask.s_addr > m->smk_next->smk_mask.s_addr) {
+			new->smk_next = m->smk_next;
+			m->smk_next = new;
+			return;
+		}
+	}
+}
+
+
+/**
  * smk_write_netlbladdr - write() for /smack/netlabel
  * @filp: file pointer, not actually used
  * @buf: where to get the data from
@@ -724,8 +754,9 @@ static ssize_t smk_write_netlbladdr(struct file *file, const char __user *buf,
 	struct netlbl_audit audit_info;
 	struct in_addr mask;
 	unsigned int m;
-	__be32 bebits = BEMASK;
+	u32 mask_bits = (1<<31);
 	__be32 nsa;
+	u32 temp_mask;
 
 	/*
 	 * Must have privilege.
@@ -761,10 +792,13 @@ static ssize_t smk_write_netlbladdr(struct file *file, const char __user *buf,
 	if (sp == NULL)
 		return -EINVAL;
 
-	for (mask.s_addr = 0; m > 0; m--) {
-		mask.s_addr |= bebits;
-		bebits <<= 1;
+	for (temp_mask = 0; m > 0; m--) {
+		temp_mask |= mask_bits;
+		mask_bits >>= 1;
 	}
+	mask.s_addr = cpu_to_be32(temp_mask);
+
+	newname.sin_addr.s_addr &= mask.s_addr;
 	/*
 	 * Only allow one writer at a time. Writes should be
 	 * quite rare and small in any case.
@@ -772,6 +806,7 @@ static ssize_t smk_write_netlbladdr(struct file *file, const char __user *buf,
 	mutex_lock(&smk_netlbladdr_lock);
 
 	nsa = newname.sin_addr.s_addr;
+	/* try to find if the prefix is already in the list */
 	for (skp = smack_netlbladdrs; skp != NULL; skp = skp->smk_next)
 		if (skp->smk_host.sin_addr.s_addr == nsa &&
 		    skp->smk_mask.s_addr == mask.s_addr)
@@ -787,9 +822,8 @@ static ssize_t smk_write_netlbladdr(struct file *file, const char __user *buf,
 			rc = 0;
 			skp->smk_host.sin_addr.s_addr = newname.sin_addr.s_addr;
 			skp->smk_mask.s_addr = mask.s_addr;
-			skp->smk_next = smack_netlbladdrs;
 			skp->smk_label = sp;
-			smack_netlbladdrs = skp;
+			smk_netlbladdr_insert(skp);
 		}
 	} else {
 		rc = netlbl_cfg_unlbl_static_del(&init_net, NULL,

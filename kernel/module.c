@@ -381,7 +381,7 @@ static void *percpu_modalloc(unsigned long size, unsigned long align,
 		align = PAGE_SIZE;
 	}
 
-	ptr = __alloc_percpu(size, align);
+	ptr = __alloc_reserved_percpu(size, align);
 	if (!ptr)
 		printk(KERN_WARNING
 		       "Could not allocate %lu bytes percpu data\n", size);

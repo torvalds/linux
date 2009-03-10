@@ -134,8 +134,8 @@ unsigned long __init_refok init_memory_mapping(unsigned long start,
 {
 	unsigned long page_size_mask = 0;
 	unsigned long start_pfn, end_pfn;
+	unsigned long ret = 0;
 	unsigned long pos;
-	unsigned long ret;
 
 	struct map_range mr[NR_RANGE_MR];
 	int nr_range, i;
