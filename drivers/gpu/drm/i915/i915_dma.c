@@ -1105,7 +1105,7 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 					 1024 * 1024,
 					 MTRR_TYPE_WRCOMB, 1);
 	if (dev_priv->mm.gtt_mtrr < 0) {
-		DRM_INFO("MTRR allocation failed\n.  Graphics "
+		DRM_INFO("MTRR allocation failed.  Graphics "
 			 "performance may suffer.\n");
 	}
 
