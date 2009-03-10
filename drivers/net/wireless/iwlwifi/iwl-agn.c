@@ -3482,8 +3482,8 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
  out_iounmap:
 	pci_iounmap(pdev, priv->hw_base);
  out_pci_release_regions:
-	pci_release_regions(pdev);
 	pci_set_drvdata(pdev, NULL);
+	pci_release_regions(pdev);
  out_pci_disable_device:
 	pci_disable_device(pdev);
  out_ieee80211_free_hw:

@@ -5110,7 +5110,7 @@ static int iwl3945_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 	/* amp init */
 	err = priv->cfg->ops->lib->apm_ops.init(priv);
 	if (err < 0) {
-		IWL_DEBUG_INFO(priv, "Failed to init APMG\n");
+		IWL_DEBUG_INFO(priv, "Failed to init the card\n");
 		goto out_iounmap;
 	}
 
@@ -5234,8 +5234,8 @@ static int iwl3945_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
  out_pci_release_regions:
 	pci_release_regions(pdev);
  out_pci_disable_device:
-	pci_disable_device(pdev);
 	pci_set_drvdata(pdev, NULL);
+	pci_disable_device(pdev);
  out_ieee80211_free_hw:
 	ieee80211_free_hw(priv->hw);
  out:
