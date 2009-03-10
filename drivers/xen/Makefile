@@ -5,3 +5,4 @@ obj-$(CONFIG_HOTPLUG_CPU)	+= cpu_hotplug.o
 obj-$(CONFIG_XEN_XENCOMM)	+= xencomm.o
 obj-$(CONFIG_XEN_BALLOON)	+= balloon.o
 obj-$(CONFIG_XENFS)		+= xenfs/
+obj-$(CONFIG_XEN_SYS_HYPERVISOR)	+= sys-hypervisor.o
