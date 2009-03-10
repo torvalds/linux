@@ -45,6 +45,9 @@ static int radeon_suspend(struct drm_device *dev, pm_message_t state)
 {
 	drm_radeon_private_t *dev_priv = dev->dev_private;
 
+	if ((dev_priv->flags & RADEON_FAMILY_MASK) >= CHIP_R600)
+		return 0;
+
 	/* Disable *all* interrupts */
 	if ((dev_priv->flags & RADEON_FAMILY_MASK) >= CHIP_RS600)
 		RADEON_WRITE(R500_DxMODE_INT_MASK, 0);
@@ -55,6 +58,9 @@ static int radeon_suspend(struct drm_device *dev, pm_message_t state)
 static int radeon_resume(struct drm_device *dev)
 {
 	drm_radeon_private_t *dev_priv = dev->dev_private;
+
+	if ((dev_priv->flags & RADEON_FAMILY_MASK) >= CHIP_R600)
+		return 0;
 
 	/* Restore interrupt registers */
 	if ((dev_priv->flags & RADEON_FAMILY_MASK) >= CHIP_RS600)
