@@ -229,7 +229,7 @@ void (*pm_cpu_sleep)(void);
 
 static int s3c_pm_enter(suspend_state_t state)
 {
-	unsigned long regs_save[16];
+	static unsigned long regs_save[16];
 
 	/* ensure the debug is initialised (if enabled) */
 
@@ -289,15 +289,11 @@ static int s3c_pm_enter(suspend_state_t state)
 
 	s3c_pm_arch_stop_clocks();
 
-	/* s3c2410_cpu_save will also act as our return point from when
-	 * we resume as it saves its own register state, so use the return
-	 * code to differentiate return from save and return from sleep */
+	/* s3c_cpu_save will also act as our return point from when
+	 * we resume as it saves its own register state and restores it
+	 * during the resume.  */
 
-	if (s3c_cpu_save(regs_save) == 0) {
-		flush_cache_all();
-		S3C_PMDBG("preparing to sleep\n");
-		pm_cpu_sleep();
-	}
+	s3c_cpu_save(regs_save);
 
 	/* restore the cpu state using the kernel's cpu init code. */
 
@@ -323,6 +319,12 @@ static int s3c_pm_enter(suspend_state_t state)
 
 	S3C_PMDBG("S3C PM Resume (post-restore)\n");
 	return 0;
+}
+
+/* callback from assembly code */
+void s3c_pm_cb_flushcache(void)
+{
+	flush_cache_all();
 }
 
 static int s3c_pm_prepare(void)

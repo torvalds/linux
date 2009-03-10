@@ -162,5 +162,13 @@ extern void s3c_pm_restore_gpios(void);
  */
 extern void s3c_pm_save_gpios(void);
 
+/**
+ * s3c_pm_cb_flushcache - callback for assembly code
+ *
+ * Callback to issue flush_cache_all() as this call is
+ * not a directly callable object.
+ */
+extern void s3c_pm_cb_flushcache(void);
+
 extern void s3c_pm_save_core(void);
 extern void s3c_pm_restore_core(void);

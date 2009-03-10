@@ -43,20 +43,8 @@
 
 	/* s3c_cpu_save
 	 *
-	 * save enough of the CPU state to allow us to re-start
-	 * pm.c code. as we store items like the sp/lr, we will
-	 * end up returning from this function when the cpu resumes
-	 * so the return value is set to mark this.
-	 *
-	 * This arangement means we avoid having to flush the cache
-	 * from this code.
-	 *
 	 * entry:
-	 *	r0 = pointer to save block
-	 *
-	 * exit:
-	 *	r0 = 0 => we stored everything
-	 *	     1 => resumed from sleep
+	 *	r0 = save address (virtual addr of s3c_sleep_save_phys)
 	*/
 
 ENTRY(s3c_cpu_save)
@@ -71,14 +59,19 @@ ENTRY(s3c_cpu_save)
 
 	stmia	r0, { r4 - r13 }
 
-	mov	r0, #0
-	ldmfd	sp, { r4 - r12, pc }
+	@@ write our state back to RAM
+	bl	s3c_pm_cb_flushcache
 
+	@@ jump to final code to send system to sleep
+	ldr	r0, =pm_cpu_sleep
+	@@ldr	pc, [ r0 ]
+	ldr	r0, [ r0 ]
+	mov	pc, r0
+	
 	@@ return to the caller, after having the MMU
 	@@ turned on, this restores the last bits from the
 	@@ stack
 resume_with_mmu:
-	mov	r0, #1
 	ldmfd	sp!, { r4 - r12, pc }
 
 	.ltorg
