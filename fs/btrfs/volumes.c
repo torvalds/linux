@@ -1374,6 +1374,12 @@ int btrfs_init_new_device(struct btrfs_root *root, char *device_path)
 		ret = btrfs_add_device(trans, root, device);
 	}
 
+	/*
+	 * we've got more storage, clear any full flags on the space
+	 * infos
+	 */
+	btrfs_clear_space_info_full(root->fs_info);
+
 	unlock_chunks(root);
 	btrfs_commit_transaction(trans, root);
 
