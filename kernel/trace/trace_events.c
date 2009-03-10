@@ -102,7 +102,7 @@ static int ftrace_set_clr_event(char *buf, int set)
 	mutex_lock(&event_mutex);
 	events_for_each(call) {
 
-		if (!call->name)
+		if (!call->name || !call->regfunc)
 			continue;
 
 		if (match &&
@@ -207,8 +207,20 @@ t_next(struct seq_file *m, void *v, loff_t *pos)
 
 	(*pos)++;
 
-	if ((unsigned long)call >= (unsigned long)__stop_ftrace_events)
-		return NULL;
+	for (;;) {
+		if ((unsigned long)call >= (unsigned long)__stop_ftrace_events)
+			return NULL;
+
+		/*
+		 * The ftrace subsystem is for showing formats only.
+		 * They can not be enabled or disabled via the event files.
+		 */
+		if (call->regfunc)
+			break;
+
+		call++;
+		next = call;
+	}
 
 	m->private = ++next;
 
