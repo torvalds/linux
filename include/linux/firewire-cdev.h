@@ -606,28 +606,29 @@ struct fw_cdev_allocate_iso_resource {
 
 /**
  * struct fw_cdev_send_stream_packet - send an asynchronous stream packet
- * @generation:   Bus generation where the packet is valid
- * @speed:	  Speed code to send the packet at
- * @channel:	  Channel to send the packet on
- * @sy:		  Four-bit sy code for the packet
- * @tag:	  Two-bit tag field to use for the packet
- * @size:	  Size of the packet's data payload
- * @data:	  Userspace pointer to the payload
+ * @length:	Length of outgoing payload, in bytes
+ * @tag:	Data format tag
+ * @channel:	Isochronous channel to transmit to
+ * @sy:		Synchronization code
+ * @closure:	Passed back to userspace in the response event
+ * @data:	Userspace pointer to payload
+ * @generation:	The bus generation where packet is valid
+ * @speed:	Speed to transmit at
  *
  * The %FW_CDEV_IOC_SEND_STREAM_PACKET ioctl sends an asynchronous stream packet
- * to every device (that is listening to the specified channel) on the
- * firewire bus.  It is the applications's job to ensure
- * that the intended device(s) will be able to receive the packet at the chosen
- * transmit speed.
+ * to every device which is listening to the specified channel.  The kernel
+ * writes an &fw_cdev_event_response event which indicates success or failure of
+ * the transmission.
  */
 struct fw_cdev_send_stream_packet {
-	__u32 generation;
-	__u32 speed;
+	__u32 length;
+	__u32 tag;
 	__u32 channel;
 	__u32 sy;
-	__u32 tag;
-	__u32 size;
+	__u64 closure;
 	__u64 data;
+	__u32 generation;
+	__u32 speed;
 };
 
 #endif /* _LINUX_FIREWIRE_CDEV_H */

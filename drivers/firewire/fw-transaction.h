@@ -412,10 +412,6 @@ void fw_send_request(struct fw_card *card, struct fw_transaction *t,
 		int tcode, int destination_id, int generation, int speed,
 		unsigned long long offset, void *payload, size_t length,
 		fw_transaction_callback_t callback, void *callback_data);
-void fw_send_stream_packet(struct fw_card *card, struct fw_packet *p,
-		int generation, int speed, int channel, int sy, int tag,
-		void *payload, size_t length, fw_packet_callback_t callback);
-
 int fw_cancel_transaction(struct fw_card *card,
 			  struct fw_transaction *transaction);
 void fw_flush_transactions(struct fw_card *card);
@@ -424,6 +420,11 @@ int fw_run_transaction(struct fw_card *card, int tcode, int destination_id,
 		       void *payload, size_t length);
 void fw_send_phy_config(struct fw_card *card,
 			int node_id, int generation, int gap_count);
+
+static inline int fw_stream_packet_destination_id(int tag, int channel, int sy)
+{
+	return tag << 14 | channel << 8 | sy;
+}
 
 /*
  * Called by the topology code to inform the device code of node

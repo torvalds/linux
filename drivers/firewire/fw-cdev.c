@@ -522,7 +522,8 @@ static int init_request(struct client *client,
 	struct outbound_transaction_event *e;
 	int ret;
 
-	if (request->length > 4096 || request->length > 512 << speed)
+	if (request->tcode != TCODE_STREAM_DATA &&
+	    (request->length > 4096 || request->length > 512 << speed))
 		return -EIO;
 
 	e = kmalloc(sizeof(*e) + request->length, GFP_KERNEL);
@@ -1247,36 +1248,27 @@ static int ioctl_send_broadcast_request(struct client *client, void *buffer)
 	return init_request(client, request, LOCAL_BUS | 0x3f, SCODE_100);
 }
 
-struct stream_packet {
-	struct fw_packet packet;
-	u8 data[0];
-};
-
-static void send_stream_packet_done(struct fw_packet *packet,
-				    struct fw_card *card, int status)
-{
-	kfree(container_of(packet, struct stream_packet, packet));
-}
-
 static int ioctl_send_stream_packet(struct client *client, void *buffer)
 {
-	struct fw_cdev_send_stream_packet *request = buffer;
-	struct stream_packet *p;
+	struct fw_cdev_send_stream_packet *p = buffer;
+	struct fw_cdev_send_request request;
+	int dest;
 
-	p = kmalloc(sizeof(*p) + request->size, GFP_KERNEL);
-	if (p == NULL)
-		return -ENOMEM;
+	if (p->speed > client->device->card->link_speed ||
+	    p->length > 1024 << p->speed)
+		return -EIO;
 
-	if (request->data &&
-	    copy_from_user(p->data, u64_to_uptr(request->data), request->size)) {
-		kfree(p);
-		return -EFAULT;
-	}
-	fw_send_stream_packet(client->device->card, &p->packet,
-			      request->generation, request->speed,
-			      request->channel, request->sy, request->tag,
-			      p->data, request->size, send_stream_packet_done);
-	return 0;
+	if (p->tag > 3 || p->channel > 63 || p->sy > 15)
+		return -EINVAL;
+
+	dest = fw_stream_packet_destination_id(p->tag, p->channel, p->sy);
+	request.tcode		= TCODE_STREAM_DATA;
+	request.length		= p->length;
+	request.closure		= p->closure;
+	request.data		= p->data;
+	request.generation	= p->generation;
+
+	return init_request(client, &request, dest, p->speed);
 }
 
 static int (* const ioctl_handlers[])(struct client *client, void *buffer) = {

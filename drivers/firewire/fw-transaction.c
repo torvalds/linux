@@ -37,10 +37,6 @@
 #include "fw-topology.h"
 #include "fw-device.h"
 
-#define HEADER_TAG(tag)			((tag) << 14)
-#define HEADER_CHANNEL(ch)		((ch) << 8)
-#define HEADER_SY(sy)			((sy) << 0)
-
 #define HEADER_PRI(pri)			((pri) << 0)
 #define HEADER_TCODE(tcode)		((tcode) << 4)
 #define HEADER_RETRY(retry)		((retry) << 8)
@@ -158,6 +154,18 @@ static void fw_fill_request(struct fw_packet *packet, int tcode, int tlabel,
 {
 	int ext_tcode;
 
+	if (tcode == TCODE_STREAM_DATA) {
+		packet->header[0] =
+			HEADER_DATA_LENGTH(length) |
+			destination_id |
+			HEADER_TCODE(TCODE_STREAM_DATA);
+		packet->header_length = 4;
+		packet->payload = payload;
+		packet->payload_length = length;
+
+		goto common;
+	}
+
 	if (tcode > 0x10) {
 		ext_tcode = tcode & ~0x10;
 		tcode = TCODE_LOCK_REQUEST;
@@ -204,7 +212,7 @@ static void fw_fill_request(struct fw_packet *packet, int tcode, int tlabel,
 		packet->payload_length = 0;
 		break;
 	}
-
+ common:
 	packet->speed = speed;
 	packet->generation = generation;
 	packet->ack = 0;
@@ -246,6 +254,9 @@ static void fw_fill_request(struct fw_packet *packet, int tcode, int tlabel,
  * @param callback function to be called when the transaction is completed
  * @param callback_data pointer to arbitrary data, which will be
  *   passed to the callback
+ *
+ * In case of asynchronous stream packets i.e. TCODE_STREAM_DATA, the caller
+ * needs to synthesize @destination_id with fw_stream_packet_destination_id().
  */
 void fw_send_request(struct fw_card *card, struct fw_transaction *t, int tcode,
 		     int destination_id, int generation, int speed,
@@ -296,27 +307,6 @@ void fw_send_request(struct fw_card *card, struct fw_transaction *t, int tcode,
 	card->driver->send_request(card, &t->packet);
 }
 EXPORT_SYMBOL(fw_send_request);
-
-void fw_send_stream_packet(struct fw_card *card, struct fw_packet *p,
-		int generation, int speed, int channel, int sy, int tag,
-		void *payload, size_t length, fw_packet_callback_t callback)
-{
-	p->callback = callback;
-	p->header[0] =
-		  HEADER_DATA_LENGTH(length)
-		| HEADER_TAG(tag)
-		| HEADER_CHANNEL(channel)
-		| HEADER_TCODE(TCODE_STREAM_DATA)
-		| HEADER_SY(sy);
-	p->header_length = 4;
-	p->payload = payload;
-	p->payload_length = length;
-	p->speed = speed;
-	p->generation = generation;
-	p->ack = 0;
-
-	card->driver->send_request(card, p);
-}
 
 struct transaction_callback_data {
 	struct completion done;
