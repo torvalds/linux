@@ -1,5 +1,5 @@
 
-#ifndef TRACE_EVENT_FORMAT
+#ifndef TRACE_FORMAT
 # error Do not include this file directly.
 # error Unless you know what you are doing.
 #endif

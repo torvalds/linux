@@ -1,6 +1,6 @@
 
 /* use <trace/sched.h> instead */
-#ifndef TRACE_EVENT_FORMAT
+#ifndef TRACE_EVENT
 # error Do not include this file directly.
 # error Unless you know what you are doing.
 #endif

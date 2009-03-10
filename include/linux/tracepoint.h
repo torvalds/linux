@@ -157,9 +157,6 @@ static inline void tracepoint_synchronize_unregister(void)
 #define TRACE_FORMAT(name, proto, args, fmt)		\
 	DECLARE_TRACE(name, PARAMS(proto), PARAMS(args))
 
-#define TRACE_EVENT_FORMAT(name, proto, args, fmt, struct, tpfmt)	\
-	TRACE_FORMAT(name, PARAMS(proto), PARAMS(args), PARAMS(fmt))
-
 #define TRACE_EVENT(name, proto, args, struct, print, assign)	\
 	DECLARE_TRACE(name, PARAMS(proto), PARAMS(args))
 

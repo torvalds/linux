@@ -35,7 +35,7 @@
  * }
  *
  *
- * For those macros defined with TRACE_EVENT_FORMAT:
+ * For those macros defined with TRACE_EVENT:
  *
  * static struct ftrace_event_call event_<call>;
  *
@@ -143,10 +143,6 @@ __attribute__((section("_ftrace_events"))) event_##call = {		\
 	.regfunc		= ftrace_reg_event_##call,		\
 	.unregfunc		= ftrace_unreg_event_##call,		\
 }
-
-#undef TRACE_EVENT_FORMAT
-#define TRACE_EVENT_FORMAT(call, proto, args, fmt, tstruct, raw)	\
-	TRACE_FORMAT(call, PARAMS(proto), PARAMS(args), PARAMS(fmt))
 
 #undef __entry
 #define __entry entry

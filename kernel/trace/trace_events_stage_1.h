@@ -17,9 +17,6 @@
 #undef TRACE_FORMAT
 #define TRACE_FORMAT(call, proto, args, fmt)
 
-#undef TRACE_EVENT_FORMAT
-#define TRACE_EVENT_FORMAT(name, proto, args, fmt, tstruct, tpfmt)
-
 #undef __array
 #define __array(type, item, len)	type	item[len];
 
