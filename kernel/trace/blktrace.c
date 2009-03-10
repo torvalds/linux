@@ -33,7 +33,7 @@ static struct trace_array *blk_tr;
 static int __read_mostly  blk_tracer_enabled;
 
 /* Select an alternative, minimalistic output than the original one */
-#define TRACE_BLK_OPT_CLASSIC 	0x1
+#define TRACE_BLK_OPT_CLASSIC	0x1
 
 static struct tracer_opt blk_tracer_opts[] = {
 	/* Default disable the minimalistic output */
@@ -564,7 +564,7 @@ EXPORT_SYMBOL_GPL(blk_trace_startstop);
 /**
  * blk_trace_ioctl: - handle the ioctls associated with tracing
  * @bdev:	the block device
- * @cmd: 	the ioctl cmd
+ * @cmd:	the ioctl cmd
  * @arg:	the argument data, if any
  *
  **/
@@ -1128,9 +1128,9 @@ static void blk_tracer_reset(struct trace_array *tr)
 
 static struct {
 	const char *act[2];
-	int 	   (*print)(struct trace_seq *s, const struct trace_entry *ent);
+	int	   (*print)(struct trace_seq *s, const struct trace_entry *ent);
 } what2act[] __read_mostly = {
-	[__BLK_TA_QUEUE]	= {{  "Q", "queue" }, 	   blk_log_generic },
+	[__BLK_TA_QUEUE]	= {{  "Q", "queue" },	   blk_log_generic },
 	[__BLK_TA_BACKMERGE]	= {{  "M", "backmerge" },  blk_log_generic },
 	[__BLK_TA_FRONTMERGE]	= {{  "F", "frontmerge" }, blk_log_generic },
 	[__BLK_TA_GETRQ]	= {{  "G", "getrq" },	   blk_log_generic },
@@ -1229,7 +1229,7 @@ static struct tracer blk_tracer __read_mostly = {
 };
 
 static struct trace_event trace_blk_event = {
-	.type	 	= TRACE_BLK,
+	.type		= TRACE_BLK,
 	.trace		= blk_trace_event_print,
 	.binary		= blk_trace_event_print_binary,
 };

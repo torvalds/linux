@@ -94,7 +94,7 @@ ftrace_format_##call(struct trace_seq *s)				\
 static struct ftrace_event_call __used					\
 __attribute__((__aligned__(4)))						\
 __attribute__((section("_ftrace_events"))) event_##call = {		\
-	.name 			= #call,				\
+	.name			= #call,				\
 	.id			= proto,				\
 	.system			= __stringify(TRACE_SYSTEM),		\
 	.show_format		= ftrace_format_##call,			\

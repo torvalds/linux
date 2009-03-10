@@ -19,14 +19,14 @@ struct cpu_workqueue_stats {
 /* Useful to know if we print the cpu headers */
 	bool		            first_entry;
 	int		            cpu;
-	pid_t 			    pid;
+	pid_t			    pid;
 /* Can be inserted from interrupt or user context, need to be atomic */
-	atomic_t 	            inserted;
+	atomic_t	            inserted;
 /*
  *  Don't need to be atomic, works are serialized in a single workqueue thread
  *  on a single CPU.
  */
-	unsigned int 	 	    executed;
+	unsigned int		    executed;
 };
 
 /* List of workqueue threads on one cpu */

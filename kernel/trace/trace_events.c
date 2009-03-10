@@ -102,7 +102,7 @@ static int ftrace_set_clr_event(char *buf, int set)
 	mutex_lock(&event_mutex);
 	events_for_each(call) {
 
-		if (!call->name)
+		if (!call->name || !call->regfunc)
 			continue;
 
 		if (match &&
@@ -207,8 +207,20 @@ t_next(struct seq_file *m, void *v, loff_t *pos)
 
 	(*pos)++;
 
-	if ((unsigned long)call >= (unsigned long)__stop_ftrace_events)
-		return NULL;
+	for (;;) {
+		if ((unsigned long)call >= (unsigned long)__stop_ftrace_events)
+			return NULL;
+
+		/*
+		 * The ftrace subsystem is for showing formats only.
+		 * They can not be enabled or disabled via the event files.
+		 */
+		if (call->regfunc)
+			break;
+
+		call++;
+		next = call;
+	}
 
 	m->private = ++next;
 
@@ -338,8 +350,7 @@ event_enable_write(struct file *filp, const char __user *ubuf, size_t cnt,
 
 #undef FIELD
 #define FIELD(type, name)						\
-	#type, #name, (unsigned int)offsetof(typeof(field), name),	\
-		(unsigned int)sizeof(field.name)
+	#type, #name, offsetof(typeof(field), name), sizeof(field.name)
 
 static int trace_write_header(struct trace_seq *s)
 {
@@ -347,11 +358,11 @@ static int trace_write_header(struct trace_seq *s)
 
 	/* struct trace_entry */
 	return trace_seq_printf(s,
-				"\tfield:%s %s;\toffset:%u;\tsize:%u;\n"
-				"\tfield:%s %s;\toffset:%u;\tsize:%u;\n"
-				"\tfield:%s %s;\toffset:%u;\tsize:%u;\n"
-				"\tfield:%s %s;\toffset:%u;\tsize:%u;\n"
-				"\tfield:%s %s;\toffset:%u;\tsize:%u;\n"
+				"\tfield:%s %s;\toffset:%zu;\tsize:%zu;\n"
+				"\tfield:%s %s;\toffset:%zu;\tsize:%zu;\n"
+				"\tfield:%s %s;\toffset:%zu;\tsize:%zu;\n"
+				"\tfield:%s %s;\toffset:%zu;\tsize:%zu;\n"
+				"\tfield:%s %s;\toffset:%zu;\tsize:%zu;\n"
 				"\n",
 				FIELD(unsigned char, type),
 				FIELD(unsigned char, flags),
@@ -415,6 +426,13 @@ static const struct seq_operations show_set_event_seq_ops = {
 	.next = s_next,
 	.show = t_show,
 	.stop = t_stop,
+};
+
+static const struct file_operations ftrace_avail_fops = {
+	.open = ftrace_event_seq_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = seq_release,
 };
 
 static const struct file_operations ftrace_set_event_fops = {
@@ -557,6 +575,13 @@ static __init int event_trace_init(void)
 	d_tracer = tracing_init_dentry();
 	if (!d_tracer)
 		return 0;
+
+	entry = debugfs_create_file("available_events", 0444, d_tracer,
+				    (void *)&show_event_seq_ops,
+				    &ftrace_avail_fops);
+	if (!entry)
+		pr_warning("Could not create debugfs "
+			   "'available_events' entry\n");
 
 	entry = debugfs_create_file("set_event", 0644, d_tracer,
 				    (void *)&show_set_event_seq_ops,

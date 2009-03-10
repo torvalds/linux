@@ -31,13 +31,13 @@ TRACE_EVENT(irq_handler_exit,
 		__field(	int,	ret	)
 	),
 
-	TP_printk("irq=%d return=%s",
-		  __entry->irq, __entry->ret ? "handled" : "unhandled"),
-
 	TP_fast_assign(
 		__entry->irq	= irq;
 		__entry->ret	= ret;
-	)
+	),
+
+	TP_printk("irq=%d return=%s",
+		  __entry->irq, __entry->ret ? "handled" : "unhandled")
 );
 
 #undef TRACE_SYSTEM

@@ -20,7 +20,7 @@
  *
  *	field = (typeof(field))entry;
  *
- *	ret = trace_seq_printf(s, <TP_RAW_FMT> "%s", <ARGS> "\n");
+ *	ret = trace_seq_printf(s, <TP_printk> "\n");
  *	if (!ret)
  *		return TRACE_TYPE_PARTIAL_LINE;
  *
@@ -39,7 +39,7 @@
 #define TP_printk(fmt, args...) fmt "\n", args
 
 #undef TRACE_EVENT
-#define TRACE_EVENT(call, proto, args, tstruct, print, assign)		\
+#define TRACE_EVENT(call, proto, args, tstruct, assign, print)		\
 enum print_line_t							\
 ftrace_raw_output_##call(struct trace_iterator *iter, int flags)	\
 {									\
@@ -76,10 +76,9 @@ ftrace_raw_output_##call(struct trace_iterator *iter, int flags)	\
  *	int ret;
  *
  *	ret = trace_seq_printf(s, #type " " #item ";"
- *			       " size:%d; offset:%d;\n",
- *			       sizeof(field.type),
- *			       offsetof(struct ftrace_raw_##call,
- *					item));
+ *			       " offset:%u; size:%u;\n",
+ *			       offsetof(struct ftrace_raw_##call, item),
+ *			       sizeof(field.type));
  *
  * }
  */
@@ -115,7 +114,7 @@ ftrace_raw_output_##call(struct trace_iterator *iter, int flags)	\
 #define TP_fast_assign(args...) args
 
 #undef TRACE_EVENT
-#define TRACE_EVENT(call, proto, args, tstruct, print, func)		\
+#define TRACE_EVENT(call, proto, args, tstruct, func, print)		\
 static int								\
 ftrace_format_##call(struct trace_seq *s)				\
 {									\
