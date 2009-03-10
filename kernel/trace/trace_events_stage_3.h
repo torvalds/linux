@@ -148,7 +148,7 @@ __attribute__((section("_ftrace_events"))) event_##call = {		\
 #define __entry entry
 
 #undef TRACE_EVENT
-#define TRACE_EVENT(call, proto, args, tstruct, print, assign)		\
+#define TRACE_EVENT(call, proto, args, tstruct, assign, print)		\
 									\
 static struct ftrace_event_call event_##call;				\
 									\

@@ -27,7 +27,7 @@
 #define TP_STRUCT__entry(args...) args
 
 #undef TRACE_EVENT
-#define TRACE_EVENT(name, proto, args, tstruct, print, assign)	\
+#define TRACE_EVENT(name, proto, args, tstruct, assign, print)	\
 	struct ftrace_raw_##name {				\
 		struct trace_entry	ent;			\
 		tstruct						\

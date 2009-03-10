@@ -39,7 +39,7 @@
 #define TP_printk(fmt, args...) fmt "\n", args
 
 #undef TRACE_EVENT
-#define TRACE_EVENT(call, proto, args, tstruct, print, assign)		\
+#define TRACE_EVENT(call, proto, args, tstruct, assign, print)		\
 enum print_line_t							\
 ftrace_raw_output_##call(struct trace_iterator *iter, int flags)	\
 {									\
@@ -115,7 +115,7 @@ ftrace_raw_output_##call(struct trace_iterator *iter, int flags)	\
 #define TP_fast_assign(args...) args
 
 #undef TRACE_EVENT
-#define TRACE_EVENT(call, proto, args, tstruct, print, func)		\
+#define TRACE_EVENT(call, proto, args, tstruct, func, print)		\
 static int								\
 ftrace_format_##call(struct trace_seq *s)				\
 {									\

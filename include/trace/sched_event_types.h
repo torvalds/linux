@@ -22,12 +22,12 @@ TRACE_EVENT(sched_kthread_stop,
 		__field(	pid_t,	pid			)
 	),
 
-	TP_printk("task %s:%d", __entry->comm, __entry->pid),
-
 	TP_fast_assign(
 		memcpy(__entry->comm, t->comm, TASK_COMM_LEN);
 		__entry->pid	= t->pid;
-	)
+	),
+
+	TP_printk("task %s:%d", __entry->comm, __entry->pid)
 );
 
 /*
@@ -43,11 +43,11 @@ TRACE_EVENT(sched_kthread_stop_ret,
 		__field(	int,	ret	)
 	),
 
-	TP_printk("ret %d", __entry->ret),
-
 	TP_fast_assign(
 		__entry->ret	= ret;
-	)
+	),
+
+	TP_printk("ret %d", __entry->ret)
 );
 
 /*
@@ -68,14 +68,14 @@ TRACE_EVENT(sched_wait_task,
 		__field(	int,	prio			)
 	),
 
-	TP_printk("task %s:%d [%d]",
-		  __entry->comm, __entry->pid, __entry->prio),
-
 	TP_fast_assign(
 		memcpy(__entry->comm, p->comm, TASK_COMM_LEN);
 		__entry->pid	= p->pid;
 		__entry->prio	= p->prio;
-	)
+	),
+
+	TP_printk("task %s:%d [%d]",
+		  __entry->comm, __entry->pid, __entry->prio)
 );
 
 /*
@@ -97,16 +97,16 @@ TRACE_EVENT(sched_wakeup,
 		__field(	int,	success			)
 	),
 
-	TP_printk("task %s:%d [%d] success=%d",
-		  __entry->comm, __entry->pid, __entry->prio,
-		  __entry->success),
-
 	TP_fast_assign(
 		memcpy(__entry->comm, p->comm, TASK_COMM_LEN);
 		__entry->pid		= p->pid;
 		__entry->prio		= p->prio;
 		__entry->success	= success;
-	)
+	),
+
+	TP_printk("task %s:%d [%d] success=%d",
+		  __entry->comm, __entry->pid, __entry->prio,
+		  __entry->success)
 );
 
 /*
@@ -128,16 +128,16 @@ TRACE_EVENT(sched_wakeup_new,
 		__field(	int,	success			)
 	),
 
-	TP_printk("task %s:%d [%d] success=%d",
-		  __entry->comm, __entry->pid, __entry->prio,
-		  __entry->success),
-
 	TP_fast_assign(
 		memcpy(__entry->comm, p->comm, TASK_COMM_LEN);
 		__entry->pid		= p->pid;
 		__entry->prio		= p->prio;
 		__entry->success	= success;
-	)
+	),
+
+	TP_printk("task %s:%d [%d] success=%d",
+		  __entry->comm, __entry->pid, __entry->prio,
+		  __entry->success)
 );
 
 /*
@@ -162,10 +162,6 @@ TRACE_EVENT(sched_switch,
 		__field(	int,	next_prio			)
 	),
 
-	TP_printk("task %s:%d [%d] ==> %s:%d [%d]",
-		__entry->prev_comm, __entry->prev_pid, __entry->prev_prio,
-		__entry->next_comm, __entry->next_pid, __entry->next_prio),
-
 	TP_fast_assign(
 		memcpy(__entry->next_comm, next->comm, TASK_COMM_LEN);
 		__entry->prev_pid	= prev->pid;
@@ -173,7 +169,11 @@ TRACE_EVENT(sched_switch,
 		memcpy(__entry->prev_comm, prev->comm, TASK_COMM_LEN);
 		__entry->next_pid	= next->pid;
 		__entry->next_prio	= next->prio;
-	)
+	),
+
+	TP_printk("task %s:%d [%d] ==> %s:%d [%d]",
+		__entry->prev_comm, __entry->prev_pid, __entry->prev_prio,
+		__entry->next_comm, __entry->next_pid, __entry->next_prio)
 );
 
 /*
@@ -193,17 +193,17 @@ TRACE_EVENT(sched_migrate_task,
 		__field(	int,	dest_cpu		)
 	),
 
-	TP_printk("task %s:%d [%d] from: %d  to: %d",
-		  __entry->comm, __entry->pid, __entry->prio,
-		  __entry->orig_cpu, __entry->dest_cpu),
-
 	TP_fast_assign(
 		memcpy(__entry->comm, p->comm, TASK_COMM_LEN);
 		__entry->pid		= p->pid;
 		__entry->prio		= p->prio;
 		__entry->orig_cpu	= orig_cpu;
 		__entry->dest_cpu	= dest_cpu;
-	)
+	),
+
+	TP_printk("task %s:%d [%d] from: %d  to: %d",
+		  __entry->comm, __entry->pid, __entry->prio,
+		  __entry->orig_cpu, __entry->dest_cpu)
 );
 
 /*
@@ -221,14 +221,14 @@ TRACE_EVENT(sched_process_free,
 		__field(	int,	prio			)
 	),
 
-	TP_printk("task %s:%d [%d]",
-		  __entry->comm, __entry->pid, __entry->prio),
-
 	TP_fast_assign(
 		memcpy(__entry->comm, p->comm, TASK_COMM_LEN);
 		__entry->pid		= p->pid;
 		__entry->prio		= p->prio;
-	)
+	),
+
+	TP_printk("task %s:%d [%d]",
+		  __entry->comm, __entry->pid, __entry->prio)
 );
 
 /*
@@ -246,14 +246,14 @@ TRACE_EVENT(sched_process_exit,
 		__field(	int,	prio			)
 	),
 
-	TP_printk("task %s:%d [%d]",
-		  __entry->comm, __entry->pid, __entry->prio),
-
 	TP_fast_assign(
 		memcpy(__entry->comm, p->comm, TASK_COMM_LEN);
 		__entry->pid		= p->pid;
 		__entry->prio		= p->prio;
-	)
+	),
+
+	TP_printk("task %s:%d [%d]",
+		  __entry->comm, __entry->pid, __entry->prio)
 );
 
 /*
@@ -271,14 +271,14 @@ TRACE_EVENT(sched_process_wait,
 		__field(	int,	prio			)
 	),
 
-	TP_printk("task %s:%d [%d]",
-		  __entry->comm, __entry->pid, __entry->prio),
-
 	TP_fast_assign(
 		memcpy(__entry->comm, current->comm, TASK_COMM_LEN);
 		__entry->pid		= pid_nr(pid);
 		__entry->prio		= current->prio;
-	)
+	),
+
+	TP_printk("task %s:%d [%d]",
+		  __entry->comm, __entry->pid, __entry->prio)
 );
 
 /*
@@ -297,16 +297,16 @@ TRACE_EVENT(sched_process_fork,
 		__field(	pid_t,	child_pid			)
 	),
 
-	TP_printk("parent %s:%d  child %s:%d",
-		__entry->parent_comm, __entry->parent_pid,
-		__entry->child_comm, __entry->child_pid),
-
 	TP_fast_assign(
 		memcpy(__entry->parent_comm, parent->comm, TASK_COMM_LEN);
 		__entry->parent_pid	= parent->pid;
 		memcpy(__entry->child_comm, child->comm, TASK_COMM_LEN);
 		__entry->child_pid	= child->pid;
-	)
+	),
+
+	TP_printk("parent %s:%d  child %s:%d",
+		__entry->parent_comm, __entry->parent_pid,
+		__entry->child_comm, __entry->child_pid)
 );
 
 /*
@@ -324,14 +324,14 @@ TRACE_EVENT(sched_signal_send,
 		__field(	pid_t,	pid			)
 	),
 
-	TP_printk("sig: %d  task %s:%d",
-		  __entry->sig, __entry->comm, __entry->pid),
-
 	TP_fast_assign(
 		memcpy(__entry->comm, p->comm, TASK_COMM_LEN);
 		__entry->pid	= p->pid;
 		__entry->sig	= sig;
-	)
+	),
+
+	TP_printk("sig: %d  task %s:%d",
+		  __entry->sig, __entry->comm, __entry->pid)
 );
 
 #undef TRACE_SYSTEM
