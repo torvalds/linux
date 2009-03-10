@@ -65,8 +65,7 @@
 #define PHY_IDENTIFIER(id)		((id) << 30)
 
 static int close_transaction(struct fw_transaction *transaction,
-			     struct fw_card *card, int rcode,
-			     u32 *payload, size_t length)
+			     struct fw_card *card, int rcode)
 {
 	struct fw_transaction *t;
 	unsigned long flags;
@@ -82,7 +81,7 @@ static int close_transaction(struct fw_transaction *transaction,
 	spin_unlock_irqrestore(&card->lock, flags);
 
 	if (&t->link != &card->transaction_list) {
-		t->callback(card, rcode, payload, length, t->callback_data);
+		t->callback(card, rcode, NULL, 0, t->callback_data);
 		return 0;
 	}
 
@@ -110,7 +109,7 @@ int fw_cancel_transaction(struct fw_card *card,
 	 * if the transaction is still pending and remove it in that case.
 	 */
 
-	return close_transaction(transaction, card, RCODE_CANCELLED, NULL, 0);
+	return close_transaction(transaction, card, RCODE_CANCELLED);
 }
 EXPORT_SYMBOL(fw_cancel_transaction);
 
@@ -122,7 +121,7 @@ static void transmit_complete_callback(struct fw_packet *packet,
 
 	switch (status) {
 	case ACK_COMPLETE:
-		close_transaction(t, card, RCODE_COMPLETE, NULL, 0);
+		close_transaction(t, card, RCODE_COMPLETE);
 		break;
 	case ACK_PENDING:
 		t->timestamp = packet->timestamp;
@@ -130,20 +129,20 @@ static void transmit_complete_callback(struct fw_packet *packet,
 	case ACK_BUSY_X:
 	case ACK_BUSY_A:
 	case ACK_BUSY_B:
-		close_transaction(t, card, RCODE_BUSY, NULL, 0);
+		close_transaction(t, card, RCODE_BUSY);
 		break;
 	case ACK_DATA_ERROR:
-		close_transaction(t, card, RCODE_DATA_ERROR, NULL, 0);
+		close_transaction(t, card, RCODE_DATA_ERROR);
 		break;
 	case ACK_TYPE_ERROR:
-		close_transaction(t, card, RCODE_TYPE_ERROR, NULL, 0);
+		close_transaction(t, card, RCODE_TYPE_ERROR);
 		break;
 	default:
 		/*
 		 * In this case the ack is really a juju specific
 		 * rcode, so just forward that to the callback.
 		 */
-		close_transaction(t, card, status, NULL, 0);
+		close_transaction(t, card, status);
 		break;
 	}
 }
