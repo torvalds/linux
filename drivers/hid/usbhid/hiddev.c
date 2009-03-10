@@ -306,7 +306,7 @@ static int hiddev_open(struct inode *inode, struct file *file)
 	return 0;
 bail:
 	file->private_data = NULL;
-	kfree(list->hiddev);
+	kfree(list);
 	return res;
 }
 
