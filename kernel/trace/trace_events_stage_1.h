@@ -6,11 +6,13 @@
  * struct ftrace_raw_<call> {
  *	struct trace_entry		ent;
  *	<type>				<item>;
+ *	<type2>				<item2>[<len>];
  *	[...]
  * };
  *
- * The <type> <item> is created by the TRACE_FIELD(type, item, assign)
- * macro. We simply do "type item;", and that will create the fields
+ * The <type> <item> is created by the __field(type, item) macro or
+ * the __array(type2, item2, len) macro.
+ * We simply do "type item;", and that will create the fields
  * in the structure.
  */
 

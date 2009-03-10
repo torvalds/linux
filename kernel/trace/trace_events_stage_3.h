@@ -56,7 +56,8 @@
  * 		return;
  * 	entry	= ring_buffer_event_data(event);
  *
- * 	<tstruct>;  <-- Here we assign the entries by the TRACE_FIELD.
+ * 	<assign>;  <-- Here we assign the entries by the __field and
+ *			__array macros.
  *
  * 	trace_current_buffer_unlock_commit(event, irq_flags, pc);
  * }
@@ -96,11 +97,10 @@
  * __attribute__((__aligned__(4)))
  * __attribute__((section("_ftrace_events"))) event_<call> = {
  * 	.name 			= "<call>",
+ *	.system			= "<system>",
+ * 	.raw_init		= ftrace_raw_init_event_<call>,
  * 	.regfunc		= ftrace_reg_event_<call>,
  * 	.unregfunc		= ftrace_unreg_event_<call>,
- * 	.raw_init		= ftrace_raw_init_event_<call>,
- * 	.raw_reg		= ftrace_raw_reg_event_<call>,
- * 	.raw_unreg		= ftrace_raw_unreg_event_<call>,
  *	.show_format		= ftrace_format_<call>,
  * }
  *

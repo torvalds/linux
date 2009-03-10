@@ -20,7 +20,7 @@
  *
  *	field = (typeof(field))entry;
  *
- *	ret = trace_seq_printf(s, <TP_RAW_FMT> "%s", <ARGS> "\n");
+ *	ret = trace_seq_printf(s, <TP_printk> "\n");
  *	if (!ret)
  *		return TRACE_TYPE_PARTIAL_LINE;
  *
@@ -76,10 +76,9 @@ ftrace_raw_output_##call(struct trace_iterator *iter, int flags)	\
  *	int ret;
  *
  *	ret = trace_seq_printf(s, #type " " #item ";"
- *			       " size:%d; offset:%d;\n",
- *			       sizeof(field.type),
- *			       offsetof(struct ftrace_raw_##call,
- *					item));
+ *			       " offset:%u; size:%u;\n",
+ *			       offsetof(struct ftrace_raw_##call, item),
+ *			       sizeof(field.type));
  *
  * }
  */
