@@ -1165,7 +1165,7 @@ static int patch_cxt5045(struct hda_codec *codec)
 /* Conexant 5047 specific */
 #define CXT5047_SPDIF_OUT	0x11
 
-static hda_nid_t cxt5047_dac_nids[2] = { 0x10, 0x1c };
+static hda_nid_t cxt5047_dac_nids[1] = { 0x10 }; /* 0x1c */
 static hda_nid_t cxt5047_adc_nids[1] = { 0x12 };
 static hda_nid_t cxt5047_capsrc_nids[1] = { 0x1a };
 
@@ -1216,9 +1216,6 @@ static void cxt5047_hp_automute(struct hda_codec *codec)
 	bits = (spec->hp_present || !spec->cur_eapd) ? HDA_AMP_MUTE : 0;
 	snd_hda_codec_amp_stereo(codec, 0x1d, HDA_OUTPUT, 0,
 				 HDA_AMP_MUTE, bits);
-	/* Mute/Unmute PCM 2 for good measure - some systems need this */
-	snd_hda_codec_amp_stereo(codec, 0x1c, HDA_OUTPUT, 0,
-				 HDA_AMP_MUTE, bits);
 }
 
 /* mute internal speaker if HP is plugged */
@@ -1232,9 +1229,6 @@ static void cxt5047_hp2_automute(struct hda_codec *codec)
 
 	bits = spec->hp_present ? HDA_AMP_MUTE : 0;
 	snd_hda_codec_amp_stereo(codec, 0x1d, HDA_OUTPUT, 0,
-				 HDA_AMP_MUTE, bits);
-	/* Mute/Unmute PCM 2 for good measure - some systems need this */
-	snd_hda_codec_amp_stereo(codec, 0x1c, HDA_OUTPUT, 0,
 				 HDA_AMP_MUTE, bits);
 }
 
@@ -1299,8 +1293,6 @@ static struct snd_kcontrol_new cxt5047_mixers[] = {
 	HDA_CODEC_MUTE("Capture Switch", 0x12, 0x03, HDA_INPUT),
 	HDA_CODEC_VOLUME("PCM Volume", 0x10, 0x00, HDA_OUTPUT),
 	HDA_CODEC_MUTE("PCM Switch", 0x10, 0x00, HDA_OUTPUT),
-	HDA_CODEC_VOLUME("PCM-2 Volume", 0x1c, 0x00, HDA_OUTPUT),
-	HDA_CODEC_MUTE("PCM-2 Switch", 0x1c, 0x00, HDA_OUTPUT),
 	HDA_CODEC_VOLUME("Speaker Playback Volume", 0x1d, 0x00, HDA_OUTPUT),
 	HDA_CODEC_MUTE("Speaker Playback Switch", 0x1d, 0x00, HDA_OUTPUT),
 	HDA_CODEC_VOLUME("Headphone Playback Volume", 0x13, 0x00, HDA_OUTPUT),
@@ -1356,8 +1348,8 @@ static struct hda_verb cxt5047_init_verbs[] = {
 	{0x17, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_IN|AC_PINCTL_VREF_50 },
 	/* HP, Speaker  */
 	{0x13, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP },
-	{0x13, AC_VERB_SET_CONNECT_SEL,0x1},
-	{0x1d, AC_VERB_SET_CONNECT_SEL,0x0},
+	{0x13, AC_VERB_SET_CONNECT_SEL, 0x0}, /* mixer(0x19) */
+	{0x1d, AC_VERB_SET_CONNECT_SEL, 0x1}, /* mixer(0x19) */
 	/* Record selector: Mic */
 	{0x12, AC_VERB_SET_CONNECT_SEL,0x03},
 	{0x19, AC_VERB_SET_AMP_GAIN_MUTE,
@@ -1378,26 +1370,6 @@ static struct hda_verb cxt5047_init_verbs[] = {
 /* configuration for Toshiba Laptops */
 static struct hda_verb cxt5047_toshiba_init_verbs[] = {
 	{0x13, AC_VERB_SET_EAPD_BTLENABLE, 0x0}, /* default off */
-	/* Speaker routing */
-	{0x1d, AC_VERB_SET_CONNECT_SEL, 0x1},
-	{}
-};
-
-/* configuration for HP Laptops */
-static struct hda_verb cxt5047_hp_init_verbs[] = {
-	/* pin sensing on HP jack */
-	{0x13, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | CONEXANT_HP_EVENT},
-	/* 0x13 is actually shared by both HP and speaker;
-	 * setting the connection to 0 (=0x19) makes the master volume control
-	 * working mysteriouslly...
-	 */
-	{0x13, AC_VERB_SET_CONNECT_SEL, 0x0},
-	/* Record selector: Ext Mic */
-	{0x12, AC_VERB_SET_CONNECT_SEL,0x03},
-	{0x19, AC_VERB_SET_AMP_GAIN_MUTE,
-	 AC_AMP_SET_INPUT|AC_AMP_SET_RIGHT|AC_AMP_SET_LEFT|0x17},
-	/* Speaker routing */
-	{0x1d, AC_VERB_SET_CONNECT_SEL,0x1},
 	{}
 };
 
@@ -1604,8 +1576,6 @@ static int patch_cxt5047(struct hda_codec *codec)
 		codec->patch_ops.unsol_event = cxt5047_hp2_unsol_event;
 		break;
 	case CXT5047_LAPTOP_HP:
-		spec->num_init_verbs = 2;
-		spec->init_verbs[1] = cxt5047_hp_init_verbs;
 		spec->mixers[0] = cxt5047_hp_mixers;
 		codec->patch_ops.unsol_event = cxt5047_hp_unsol_event;
 		codec->patch_ops.init = cxt5047_hp_init;
