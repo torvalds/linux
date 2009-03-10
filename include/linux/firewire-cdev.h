@@ -394,6 +394,9 @@ struct fw_cdev_initiate_bus_reset {
  * If successful, the kernel adds the descriptor and writes back a handle to the
  * kernel-side object to be used for later removal of the descriptor block and
  * immediate key.
+ *
+ * This ioctl affects the configuration ROMs of all local nodes.
+ * The ioctl only succeeds on device files which represent a local node.
  */
 struct fw_cdev_add_descriptor {
 	__u32 immediate;
@@ -409,7 +412,7 @@ struct fw_cdev_add_descriptor {
  *		descriptor was added
  *
  * Remove a descriptor block and accompanying immediate key from the local
- * node's configuration ROM.
+ * nodes' configuration ROMs.
  */
 struct fw_cdev_remove_descriptor {
 	__u32 handle;
