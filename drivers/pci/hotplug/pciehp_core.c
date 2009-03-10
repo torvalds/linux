@@ -434,6 +434,13 @@ static int pciehp_probe(struct pcie_device *dev, const struct pcie_port_service_
 		goto err_out_release_ctlr;
 	}
 
+	/* Enable events after we have setup the data structures */
+	rc = pcie_init_notification(ctrl);
+	if (rc) {
+		ctrl_err(ctrl, "Notification initialization failed\n");
+		goto err_out_release_ctlr;
+	}
+
 	/* Check if slot is occupied */
 	t_slot = pciehp_find_slot(ctrl, ctrl->slot_device_offset);
 	t_slot->hpc_ops->get_adapter_status(t_slot, &value);

@@ -95,13 +95,17 @@ static int jffs2_garbage_collect_thread(void *_c)
 			spin_unlock(&c->erase_completion_lock);
 			
 
-		/* This thread is purely an optimisation. But if it runs when
-		   other things could be running, it actually makes things a
-		   lot worse. Use yield() and put it at the back of the runqueue
-		   every time. Especially during boot, pulling an inode in
-		   with read_inode() is much preferable to having the GC thread
-		   get there first. */
-		yield();
+		/* Problem - immediately after bootup, the GCD spends a lot
+		 * of time in places like jffs2_kill_fragtree(); so much so
+		 * that userspace processes (like gdm and X) are starved
+		 * despite plenty of cond_resched()s and renicing.  Yield()
+		 * doesn't help, either (presumably because userspace and GCD
+		 * are generally competing for a higher latency resource -
+		 * disk).
+		 * This forces the GCD to slow the hell down.   Pulling an
+		 * inode in with read_inode() is much preferable to having
+		 * the GC thread get there first. */
+		schedule_timeout_interruptible(msecs_to_jiffies(50));
 
 		/* Put_super will send a SIGKILL and then wait on the sem.
 		 */

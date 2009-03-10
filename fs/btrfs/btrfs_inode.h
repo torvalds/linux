@@ -66,6 +66,9 @@ struct btrfs_inode {
 	 */
 	struct list_head delalloc_inodes;
 
+	/* the space_info for where this inode's data allocations are done */
+	struct btrfs_space_info *space_info;
+
 	/* full 64 bit generation number, struct vfs_inode doesn't have a big
 	 * enough field for this.
 	 */
@@ -93,6 +96,11 @@ struct btrfs_inode {
 	 * real block usage of the file
 	 */
 	u64 delalloc_bytes;
+
+	/* total number of bytes that may be used for this inode for
+	 * delalloc
+	 */
+	u64 reserved_bytes;
 
 	/*
 	 * the size of the file stored in the metadata on disk.  data=ordered

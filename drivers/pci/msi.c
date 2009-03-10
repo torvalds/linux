@@ -103,14 +103,12 @@ static void msix_set_enable(struct pci_dev *dev, int enable)
 	}
 }
 
-/*
- * Essentially, this is ((1 << (1 << x)) - 1), but without the
- * undefinedness of a << 32.
- */
 static inline __attribute_const__ u32 msi_mask(unsigned x)
 {
-	static const u32 mask[] = { 1, 2, 4, 0xf, 0xff, 0xffff, 0xffffffff };
-	return mask[x];
+	/* Don't shift by >= width of type */
+	if (x >= 5)
+		return 0xffffffff;
+	return (1 << (1 << x)) - 1;
 }
 
 static void msix_flush_writes(struct irq_desc *desc)

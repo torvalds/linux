@@ -688,7 +688,9 @@ static noinline int drop_dirty_roots(struct btrfs_root *tree_root,
 		num_bytes -= btrfs_root_used(&dirty->root->root_item);
 		bytes_used = btrfs_root_used(&root->root_item);
 		if (num_bytes) {
+			mutex_lock(&root->fs_info->trans_mutex);
 			btrfs_record_root_in_trans(root);
+			mutex_unlock(&root->fs_info->trans_mutex);
 			btrfs_set_root_used(&root->root_item,
 					    bytes_used - num_bytes);
 		}
