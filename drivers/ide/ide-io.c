@@ -908,7 +908,7 @@ void ide_timer_expiry (unsigned long data)
 	ide_drive_t	*uninitialized_var(drive);
 	ide_handler_t	*handler;
 	unsigned long	flags;
-	unsigned long	wait = -1;
+	int		wait = -1;
 	int		plug_device = 0;
 
 	spin_lock_irqsave(&hwif->lock, flags);
@@ -1162,6 +1162,7 @@ out_early:
 
 	return irq_ret;
 }
+EXPORT_SYMBOL_GPL(ide_intr);
 
 /**
  *	ide_do_drive_cmd	-	issue IDE special command

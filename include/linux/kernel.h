@@ -454,7 +454,10 @@ do {									\
 do {									\
 	static const char *trace_printk_fmt				\
 	__attribute__((section("__trace_printk_fmt")));			\
-	trace_printk_fmt = fmt;					\
+									\
+	if (!trace_printk_fmt)						\
+		trace_printk_fmt = fmt;					\
+									\
 	__trace_printk_check_format(fmt, ##args);			\
 	__trace_printk(_THIS_IP_, trace_printk_fmt, ##args);		\
 } while (0)
@@ -467,7 +470,10 @@ __trace_printk(unsigned long ip, const char *fmt, ...)
 do {									\
 	static const char *trace_printk_fmt				\
 	__attribute__((section("__trace_printk_fmt")));			\
-	trace_printk_fmt = fmt;					\
+									\
+	if (!trace_printk_fmt)						\
+		trace_printk_fmt = fmt;					\
+									\
 	__ftrace_vprintk(_THIS_IP_, trace_printk_fmt, vargs);		\
 } while (0)
 
