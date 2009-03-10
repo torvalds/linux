@@ -25,7 +25,6 @@
 #include <media/v4l2-common.h>
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-chip-ident.h>
-#include <linux/video_decoder.h>
 
 #define dbgarg(cmd, fmt, arg...) \
 		do {							\
@@ -276,19 +275,6 @@ static const char *v4l2_ioctls[] = {
 #define V4L2_IOCTLS ARRAY_SIZE(v4l2_ioctls)
 
 static const char *v4l2_int_ioctls[] = {
-#ifdef CONFIG_VIDEO_V4L1_COMPAT
-	[_IOC_NR(DECODER_GET_CAPABILITIES)]    = "DECODER_GET_CAPABILITIES",
-	[_IOC_NR(DECODER_GET_STATUS)]          = "DECODER_GET_STATUS",
-	[_IOC_NR(DECODER_SET_NORM)]            = "DECODER_SET_NORM",
-	[_IOC_NR(DECODER_SET_INPUT)]           = "DECODER_SET_INPUT",
-	[_IOC_NR(DECODER_SET_OUTPUT)]          = "DECODER_SET_OUTPUT",
-	[_IOC_NR(DECODER_ENABLE_OUTPUT)]       = "DECODER_ENABLE_OUTPUT",
-	[_IOC_NR(DECODER_SET_PICTURE)]         = "DECODER_SET_PICTURE",
-	[_IOC_NR(DECODER_SET_GPIO)]            = "DECODER_SET_GPIO",
-	[_IOC_NR(DECODER_INIT)]                = "DECODER_INIT",
-	[_IOC_NR(DECODER_SET_VBI_BYPASS)]      = "DECODER_SET_VBI_BYPASS",
-	[_IOC_NR(DECODER_DUMP)]                = "DECODER_DUMP",
-#endif
 	[_IOC_NR(AUDC_SET_RADIO)]              = "AUDC_SET_RADIO",
 
 	[_IOC_NR(TUNER_SET_TYPE_ADDR)]         = "TUNER_SET_TYPE_ADDR",
