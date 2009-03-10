@@ -1737,9 +1737,6 @@ static void r600_cp_init_ring_buffer(struct drm_device *dev,
 
 	RADEON_WRITE(R600_CP_DEBUG, (1 << 27) | (1 << 28));
 
-	/* Start with assuming that writeback doesn't work */
-	dev_priv->writeback_works = 0;
-
 	/* Initialize the scratch register pointer.  This will cause
 	 * the scratch register values to be written out to memory
 	 * whenever they are updated.
