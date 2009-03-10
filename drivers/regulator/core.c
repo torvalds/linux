@@ -709,8 +709,12 @@ static int set_machine_constraints(struct regulator_dev *rdev,
 			cmax = INT_MAX;
 		}
 
+		/* voltage constraints are optional */
+		if ((cmin == 0) && (cmax == 0))
+			goto out;
+
 		/* else require explicit machine-level constraints */
-		else if (cmin <= 0 || cmax <= 0 || cmax < cmin) {
+		if (cmin <= 0 || cmax <= 0 || cmax < cmin) {
 			pr_err("%s: %s '%s' voltage constraints\n",
 				       __func__, "invalid", name);
 			ret = -EINVAL;
