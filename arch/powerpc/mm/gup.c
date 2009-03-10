@@ -14,6 +14,8 @@
 #include <linux/rwsem.h>
 #include <asm/pgtable.h>
 
+#ifdef __HAVE_ARCH_PTE_SPECIAL
+
 /*
  * The performance critical leaf functions are made noinline otherwise gcc
  * inlines everything into a single function which results in too much
@@ -151,8 +153,11 @@ int get_user_pages_fast(unsigned long start, int nr_pages, int write,
 	unsigned long addr, len, end;
 	unsigned long next;
 	pgd_t *pgdp;
-	int psize, nr = 0;
+	int nr = 0;
+#ifdef CONFIG_PPC64
 	unsigned int shift;
+	int psize;
+#endif
 
 	pr_debug("%s(%lx,%x,%s)\n", __func__, start, nr_pages, write ? "write" : "read");
 
@@ -205,8 +210,13 @@ int get_user_pages_fast(unsigned long start, int nr_pages, int write,
 	 */
 	local_irq_disable();
 
+#ifdef CONFIG_PPC64
+	/* Those bits are related to hugetlbfs implementation and only exist
+	 * on 64-bit for now
+	 */
 	psize = get_slice_psize(mm, addr);
 	shift = mmu_psize_defs[psize].shift;
+#endif /* CONFIG_PPC64 */
 
 #ifdef CONFIG_HUGETLB_PAGE
 	if (unlikely(mmu_huge_psizes[psize])) {
@@ -236,7 +246,9 @@ int get_user_pages_fast(unsigned long start, int nr_pages, int write,
 		do {
 			pgd_t pgd = *pgdp;
 
+#ifdef CONFIG_PPC64
 			VM_BUG_ON(shift != mmu_psize_defs[get_slice_psize(mm, addr)].shift);
+#endif
 			pr_debug("  %016lx: normal pgd %p\n", addr,
 				 (void *)pgd_val(pgd));
 			next = pgd_addr_end(addr, end);
@@ -279,3 +291,5 @@ slow_irqon:
 		return ret;
 	}
 }
+
+#endif /* __HAVE_ARCH_PTE_SPECIAL */
