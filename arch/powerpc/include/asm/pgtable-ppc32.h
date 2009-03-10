@@ -146,9 +146,29 @@ extern int icache_44x_need_flush;
 
 #define _PAGE_HPTEFLAGS _PAGE_HASHPTE
 
-#define _PAGE_CHG_MASK	(PAGE_MASK | _PAGE_ACCESSED | _PAGE_DIRTY | \
-			 _PAGE_SPECIAL)
+/* Location of the PFN in the PTE. Most platforms use the same as _PAGE_SHIFT
+ * here (ie, naturally aligned). Platform who don't just pre-define the
+ * value so we don't override it here
+ */
+#ifndef PTE_RPN_SHIFT
+#define PTE_RPN_SHIFT	(PAGE_SHIFT)
+#endif
 
+#ifdef CONFIG_PTE_64BIT
+#define PTE_RPN_MAX	(1ULL << (64 - PTE_RPN_SHIFT))
+#define PTE_RPN_MASK	(~((1ULL<<PTE_RPN_SHIFT)-1))
+#else
+#define PTE_RPN_MAX	(1UL << (32 - PTE_RPN_SHIFT))
+#define PTE_RPN_MASK	(~((1UL<<PTE_RPN_SHIFT)-1))
+#endif
+
+/* _PAGE_CHG_MASK masks of bits that are to be preserved accross
+ * pgprot changes
+ */
+#define _PAGE_CHG_MASK	(PTE_RPN_MASK | _PAGE_HPTEFLAGS | _PAGE_DIRTY | \
+                         _PAGE_ACCESSED | _PAGE_SPECIAL)
+
+/* Mask of bits returned by pte_pgprot() */
 #define PAGE_PROT_BITS	(_PAGE_GUARDED | _PAGE_COHERENT | _PAGE_NO_CACHE | \
 			 _PAGE_WRITETHRU | _PAGE_ENDIAN | \
 			 _PAGE_USER | _PAGE_ACCESSED | \
@@ -236,18 +256,10 @@ extern unsigned long bad_call_to_PMD_PAGE_SIZE(void);
  * Conversions between PTE values and page frame numbers.
  */
 
-/* in some case we want to additionaly adjust where the pfn is in the pte to
- * allow room for more flags */
-#if defined(CONFIG_FSL_BOOKE) && defined(CONFIG_PTE_64BIT)
-#define PFN_SHIFT_OFFSET	(PAGE_SHIFT + 8)
-#else
-#define PFN_SHIFT_OFFSET	(PAGE_SHIFT)
-#endif
-
-#define pte_pfn(x)		(pte_val(x) >> PFN_SHIFT_OFFSET)
+#define pte_pfn(x)		(pte_val(x) >> PTE_RPN_SHIFT)
 #define pte_page(x)		pfn_to_page(pte_pfn(x))
 
-#define pfn_pte(pfn, prot)	__pte(((pte_basic_t)(pfn) << PFN_SHIFT_OFFSET) |\
+#define pfn_pte(pfn, prot)	__pte(((pte_basic_t)(pfn) << PTE_RPN_SHIFT) |\
 					pgprot_val(prot))
 #define mk_pte(page, prot)	pfn_pte(page_to_pfn(page), prot)
 #endif /* __ASSEMBLY__ */
