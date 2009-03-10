@@ -18,6 +18,41 @@
 #include <asm/tlbflush.h>
 #include <asm/mmu_context.h>
 
+static int init_one_level2_page(struct kimage *image, pgd_t *pgd,
+				unsigned long addr)
+{
+	pud_t *pud;
+	pmd_t *pmd;
+	struct page *page;
+	int result = -ENOMEM;
+
+	addr &= PMD_MASK;
+	pgd += pgd_index(addr);
+	if (!pgd_present(*pgd)) {
+		page = kimage_alloc_control_pages(image, 0);
+		if (!page)
+			goto out;
+		pud = (pud_t *)page_address(page);
+		memset(pud, 0, PAGE_SIZE);
+		set_pgd(pgd, __pgd(__pa(pud) | _KERNPG_TABLE));
+	}
+	pud = pud_offset(pgd, addr);
+	if (!pud_present(*pud)) {
+		page = kimage_alloc_control_pages(image, 0);
+		if (!page)
+			goto out;
+		pmd = (pmd_t *)page_address(page);
+		memset(pmd, 0, PAGE_SIZE);
+		set_pud(pud, __pud(__pa(pmd) | _KERNPG_TABLE));
+	}
+	pmd = pmd_offset(pud, addr);
+	if (!pmd_present(*pmd))
+		set_pmd(pmd, __pmd(addr | __PAGE_KERNEL_LARGE_EXEC));
+	result = 0;
+out:
+	return result;
+}
+
 static void init_level2_page(pmd_t *level2p, unsigned long addr)
 {
 	unsigned long end_addr;
@@ -153,6 +188,13 @@ static int init_pgtable(struct kimage *image, unsigned long start_pgtable)
 	int result;
 	level4p = (pgd_t *)__va(start_pgtable);
 	result = init_level4_page(image, level4p, 0, max_pfn << PAGE_SHIFT);
+	if (result)
+		return result;
+	/*
+	 * image->start may be outside 0 ~ max_pfn, for example when
+	 * jump back to original kernel from kexeced kernel
+	 */
+	result = init_one_level2_page(image, level4p, image->start);
 	if (result)
 		return result;
 	return init_transition_pgtable(image, level4p);
