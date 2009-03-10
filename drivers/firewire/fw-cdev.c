@@ -1214,13 +1214,14 @@ static int ioctl_deallocate_iso_resource_once(struct client *client, void *buffe
 	return init_iso_resource(client, request, ISO_RES_DEALLOC_ONCE);
 }
 
+/*
+ * Returns a speed code:  Maximum speed to or from this device,
+ * limited by the device's link speed, the local node's link speed,
+ * and all PHY port speeds between the two links.
+ */
 static int ioctl_get_speed(struct client *client, void *buffer)
 {
-	struct fw_cdev_get_speed *request = buffer;
-
-	request->max_speed = client->device->max_speed;
-
-	return 0;
+	return client->device->max_speed;
 }
 
 static int ioctl_send_broadcast_request(struct client *client, void *buffer)
