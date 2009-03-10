@@ -344,7 +344,9 @@ STAC92HD71B*
   dell-m4-1	Dell desktops
   dell-m4-2	Dell desktops
   dell-m4-3	Dell desktops
-  hp-m4		HP dv laptops
+  hp-m4		HP mini 1000
+  hp-dv5	HP dv series
+  hp-hdx	HP HDX series
   auto		BIOS setup (default)
 
 STAC92HD73*
@@ -361,6 +363,7 @@ STAC92HD83*
 ===========
   ref		Reference board
   mic-ref	Reference board with power managment for ports
+  dell-s14	Dell laptop
   auto		BIOS setup (default)
 
 STAC9872
