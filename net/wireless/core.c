@@ -365,6 +365,17 @@ int wiphy_register(struct wiphy *wiphy)
 	if (IS_ERR(drv->wiphy.debugfsdir))
 		drv->wiphy.debugfsdir = NULL;
 
+	if (wiphy->custom_regulatory) {
+		struct regulatory_request request;
+
+		request.wiphy_idx = get_wiphy_idx(wiphy);
+		request.initiator = NL80211_REGDOM_SET_BY_DRIVER;
+		request.alpha2[0] = '9';
+		request.alpha2[1] = '9';
+
+		nl80211_send_reg_change_event(&request);
+	}
+
 	res = 0;
 out_unlock:
 	mutex_unlock(&cfg80211_mutex);
