@@ -28,6 +28,9 @@
 #include <linux/interrupt.h>
 #include <linux/i2c.h>
 #include <linux/i2c/at24.h>
+#include <linux/delay.h>
+#include <linux/spi/spi.h>
+#include <linux/irq.h>
 
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
@@ -218,17 +221,41 @@ static struct i2c_board_info pcm037_i2c_devices[] = {
 };
 #endif
 
-static int pcm970_sdhc1_init(struct device *dev, irq_handler_t h, void *data)
+/* Not connected by default */
+#ifdef PCM970_SDHC_RW_SWITCH
+static int pcm970_sdhc1_get_ro(struct device *dev)
 {
-	return 0;
+	return gpio_get_value(IOMUX_TO_GPIO(MX31_PIN_SFS6));
+}
+#endif
+
+static int pcm970_sdhc1_init(struct device *dev, irq_handler_t detect_irq,
+		void *data)
+{
+	int ret;
+	int gpio_det, gpio_wp;
+
+	gpio_det = IOMUX_TO_GPIO(MX31_PIN_SCK6);
+	gpio_wp = IOMUX_TO_GPIO(MX31_PIN_SFS6);
+
+	gpio_direction_input(gpio_det);
+	gpio_direction_input(gpio_wp);
+
+	ret = request_irq(IOMUX_TO_IRQ(MX31_PIN_SCK6), detect_irq,
+			IRQF_DISABLED | IRQF_TRIGGER_FALLING,
+				"sdhc-detect", data);
+	return ret;
 }
 
 static void pcm970_sdhc1_exit(struct device *dev, void *data)
 {
+	free_irq(IOMUX_TO_IRQ(MX31_PIN_SCK6), data);
 }
 
-/* No card and rw detection at the moment */
 static struct imxmmc_platform_data sdhc_pdata = {
+#ifdef PCM970_SDHC_RW_SWITCH
+	.get_ro = pcm970_sdhc1_get_ro,
+#endif
 	.init = pcm970_sdhc1_init,
 	.exit = pcm970_sdhc1_exit,
 };
