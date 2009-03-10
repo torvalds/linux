@@ -88,6 +88,13 @@ static
 		}
 	},
 	{
+		.ident = "ASUS A6K",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "ASUSTeK Computer Inc."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "A6K")
+		}
+	},
+	{
 		.ident = "Alienware Aurora m9700",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "alienware"),
