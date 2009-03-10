@@ -1377,12 +1377,9 @@ static struct hda_verb cxt5047_init_verbs[] = {
 
 /* configuration for Toshiba Laptops */
 static struct hda_verb cxt5047_toshiba_init_verbs[] = {
-	{0x13, AC_VERB_SET_EAPD_BTLENABLE, 0x0 }, /* default on */
-	/* pin sensing on HP and Mic jacks */
-	{0x13, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | CONEXANT_HP_EVENT},
-	{0x15, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | CONEXANT_MIC_EVENT},
+	{0x13, AC_VERB_SET_EAPD_BTLENABLE, 0x0}, /* default off */
 	/* Speaker routing */
-	{0x1d, AC_VERB_SET_CONNECT_SEL,0x1},
+	{0x1d, AC_VERB_SET_CONNECT_SEL, 0x1},
 	{}
 };
 
