@@ -2527,6 +2527,7 @@ static ssize_t rs_sta_dbgfs_scale_table_read(struct file *file,
 
 	struct iwl_lq_sta *lq_sta = file->private_data;
 	struct iwl_priv *priv;
+	struct iwl_scale_tbl_info *tbl = &(lq_sta->lq_info[lq_sta->active_tbl]);
 
 	priv = lq_sta->drv;
 	buff = kmalloc(1024, GFP_KERNEL);
@@ -2543,6 +2544,16 @@ static ssize_t rs_sta_dbgfs_scale_table_read(struct file *file,
 	    (priv->hw_params.valid_tx_ant & ANT_A) ? "ANT_A," : "",
 	    (priv->hw_params.valid_tx_ant & ANT_B) ? "ANT_B," : "",
 	    (priv->hw_params.valid_tx_ant & ANT_C) ? "ANT_C" : "");
+	desc += sprintf(buff+desc, "lq type %s\n",
+	   (is_legacy(tbl->lq_type)) ? "legacy" : "HT");
+	if (is_Ht(tbl->lq_type)) {
+		desc += sprintf(buff+desc, " %s",
+		   (is_siso(tbl->lq_type)) ? "SISO" :
+		   ((is_mimo2(tbl->lq_type)) ? "MIMO2" : "MIMO3"));
+		   desc += sprintf(buff+desc, " %s",
+		   (tbl->is_fat) ? "40MHz" : "20MHz");
+		desc += sprintf(buff+desc, " %s\n", (tbl->is_SGI) ? "SGI" : "");
+	}
 	desc += sprintf(buff+desc, "general:"
 		"flags=0x%X mimo-d=%d s-ant0x%x d-ant=0x%x\n",
 		lq_sta->lq.general_params.flags,
