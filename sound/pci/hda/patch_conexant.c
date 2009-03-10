@@ -1218,20 +1218,6 @@ static void cxt5047_hp_automute(struct hda_codec *codec)
 				 HDA_AMP_MUTE, bits);
 }
 
-/* mute internal speaker if HP is plugged */
-static void cxt5047_hp2_automute(struct hda_codec *codec)
-{
-	struct conexant_spec *spec = codec->spec;
-	unsigned int bits;
-
-	spec->hp_present = snd_hda_codec_read(codec, 0x13, 0,
-				     AC_VERB_GET_PIN_SENSE, 0) & 0x80000000;
-
-	bits = spec->hp_present ? HDA_AMP_MUTE : 0;
-	snd_hda_codec_amp_stereo(codec, 0x1d, HDA_OUTPUT, 0,
-				 HDA_AMP_MUTE, bits);
-}
-
 /* toggle input of built-in and mic jack appropriately */
 static void cxt5047_hp_automic(struct hda_codec *codec)
 {
@@ -1269,47 +1255,14 @@ static void cxt5047_hp_unsol_event(struct hda_codec *codec,
 	}
 }
 
-/* unsolicited event for HP jack sensing - non-EAPD systems */
-static void cxt5047_hp2_unsol_event(struct hda_codec *codec,
-				  unsigned int res)
-{
-	res >>= 26;
-	switch (res) {
-	case CONEXANT_HP_EVENT:
-		cxt5047_hp2_automute(codec);
-		break;
-	case CONEXANT_MIC_EVENT:
-		cxt5047_hp_automic(codec);
-		break;
-	}
-}
-
-static struct snd_kcontrol_new cxt5047_mixers[] = {
-	HDA_CODEC_VOLUME("Mic Bypass Capture Volume", 0x19, 0x02, HDA_INPUT),
-	HDA_CODEC_MUTE("Mic Bypass Capture Switch", 0x19, 0x02, HDA_INPUT),
-	HDA_CODEC_VOLUME("Mic Gain Volume", 0x1a, 0x0, HDA_OUTPUT),
-	HDA_CODEC_MUTE("Mic Gain Switch", 0x1a, 0x0, HDA_OUTPUT),
+static struct snd_kcontrol_new cxt5047_base_mixers[] = {
+	HDA_CODEC_VOLUME("Mic Playback Volume", 0x19, 0x02, HDA_INPUT),
+	HDA_CODEC_MUTE("Mic Playback Switch", 0x19, 0x02, HDA_INPUT),
+	HDA_CODEC_VOLUME("Mic Boost", 0x1a, 0x0, HDA_OUTPUT),
 	HDA_CODEC_VOLUME("Capture Volume", 0x12, 0x03, HDA_INPUT),
 	HDA_CODEC_MUTE("Capture Switch", 0x12, 0x03, HDA_INPUT),
 	HDA_CODEC_VOLUME("PCM Volume", 0x10, 0x00, HDA_OUTPUT),
 	HDA_CODEC_MUTE("PCM Switch", 0x10, 0x00, HDA_OUTPUT),
-	HDA_CODEC_VOLUME("Speaker Playback Volume", 0x1d, 0x00, HDA_OUTPUT),
-	HDA_CODEC_MUTE("Speaker Playback Switch", 0x1d, 0x00, HDA_OUTPUT),
-	HDA_CODEC_VOLUME("Headphone Playback Volume", 0x13, 0x00, HDA_OUTPUT),
-	HDA_CODEC_MUTE("Headphone Playback Switch", 0x13, 0x00, HDA_OUTPUT),
-
-	{}
-};
-
-static struct snd_kcontrol_new cxt5047_toshiba_mixers[] = {
-	HDA_CODEC_VOLUME("Mic Bypass Capture Volume", 0x19, 0x02, HDA_INPUT),
-	HDA_CODEC_MUTE("Mic Bypass Capture Switch", 0x19, 0x02, HDA_INPUT),
-	HDA_CODEC_VOLUME("Capture Volume", 0x12, 0x03, HDA_INPUT),
-	HDA_CODEC_MUTE("Capture Switch", 0x12, 0x03, HDA_INPUT),
-	HDA_CODEC_VOLUME("PCM Volume", 0x10, 0x00, HDA_OUTPUT),
-	HDA_CODEC_MUTE("PCM Switch", 0x10, 0x00, HDA_OUTPUT),
-	HDA_CODEC_VOLUME("Headphone Playback Volume", 0x13, 0x00, HDA_OUTPUT),
-	HDA_CODEC_VOLUME("Speaker Playback Volume", 0x1d, 0x00, HDA_OUTPUT),
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		.name = "Master Playback Switch",
@@ -1322,22 +1275,14 @@ static struct snd_kcontrol_new cxt5047_toshiba_mixers[] = {
 	{}
 };
 
-static struct snd_kcontrol_new cxt5047_hp_mixers[] = {
-	HDA_CODEC_VOLUME("Mic Bypass Capture Volume", 0x19, 0x02, HDA_INPUT),
-	HDA_CODEC_MUTE("Mic Bypass Capture Switch", 0x19,0x02,HDA_INPUT),
-	HDA_CODEC_VOLUME("Capture Volume", 0x12, 0x03, HDA_INPUT),
-	HDA_CODEC_MUTE("Capture Switch", 0x12, 0x03, HDA_INPUT),
-	HDA_CODEC_VOLUME("PCM Volume", 0x10, 0x00, HDA_OUTPUT),
-	HDA_CODEC_MUTE("PCM Switch", 0x10, 0x00, HDA_OUTPUT),
+static struct snd_kcontrol_new cxt5047_hp_spk_mixers[] = {
+	HDA_CODEC_VOLUME("Speaker Playback Volume", 0x1d, 0x00, HDA_OUTPUT),
+	HDA_CODEC_VOLUME("Headphone Playback Volume", 0x13, 0x00, HDA_OUTPUT),
+	{}
+};
+
+static struct snd_kcontrol_new cxt5047_hp_only_mixers[] = {
 	HDA_CODEC_VOLUME("Master Playback Volume", 0x13, 0x00, HDA_OUTPUT),
-	{
-		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-		.name = "Master Playback Switch",
-		.info = cxt_eapd_info,
-		.get = cxt_eapd_get,
-		.put = cxt5047_hp_master_sw_put,
-		.private_value = 0x13,
-	},
 	{ } /* end */
 };
 
@@ -1559,7 +1504,7 @@ static int patch_cxt5047(struct hda_codec *codec)
 	spec->adc_nids = cxt5047_adc_nids;
 	spec->capsrc_nids = cxt5047_capsrc_nids;
 	spec->num_mixers = 1;
-	spec->mixers[0] = cxt5047_mixers;
+	spec->mixers[0] = cxt5047_base_mixers;
 	spec->num_init_verbs = 1;
 	spec->init_verbs[0] = cxt5047_init_verbs;
 	spec->spdif_route = 0;
@@ -1573,18 +1518,22 @@ static int patch_cxt5047(struct hda_codec *codec)
 						  cxt5047_cfg_tbl);
 	switch (board_config) {
 	case CXT5047_LAPTOP:
-		codec->patch_ops.unsol_event = cxt5047_hp2_unsol_event;
+		spec->num_mixers = 2;
+		spec->mixers[1] = cxt5047_hp_spk_mixers;
+		codec->patch_ops.unsol_event = cxt5047_hp_unsol_event;
 		break;
 	case CXT5047_LAPTOP_HP:
-		spec->mixers[0] = cxt5047_hp_mixers;
+		spec->num_mixers = 2;
+		spec->mixers[1] = cxt5047_hp_only_mixers;
 		codec->patch_ops.unsol_event = cxt5047_hp_unsol_event;
 		codec->patch_ops.init = cxt5047_hp_init;
 		break;
 	case CXT5047_LAPTOP_EAPD:
 		spec->input_mux = &cxt5047_toshiba_capture_source;
+		spec->num_mixers = 2;
+		spec->mixers[1] = cxt5047_hp_spk_mixers;
 		spec->num_init_verbs = 2;
 		spec->init_verbs[1] = cxt5047_toshiba_init_verbs;
-		spec->mixers[0] = cxt5047_toshiba_mixers;
 		codec->patch_ops.unsol_event = cxt5047_hp_unsol_event;
 		break;
 #ifdef CONFIG_SND_DEBUG
