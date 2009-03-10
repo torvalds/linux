@@ -275,8 +275,7 @@ static int sn_hwperf_get_nearest_node_objdata(struct sn_hwperf_object_info *objb
 
 	/* get it's interconnect topology */
 	sz = op->ports * sizeof(struct sn_hwperf_port_info);
-	if (sz > sizeof(ptdata))
-		BUG();
+	BUG_ON(sz > sizeof(ptdata));
 	e = ia64_sn_hwperf_op(sn_hwperf_master_nasid,
 			      SN_HWPERF_ENUM_PORTS, nodeobj->id, sz,
 			      (u64)&ptdata, 0, 0, NULL);
@@ -310,8 +309,7 @@ static int sn_hwperf_get_nearest_node_objdata(struct sn_hwperf_object_info *objb
 	if (router && (!found_cpu || !found_mem)) {
 		/* search for a node connected to the same router */
 		sz = router->ports * sizeof(struct sn_hwperf_port_info);
-		if (sz > sizeof(ptdata))
-			BUG();
+		BUG_ON(sz > sizeof(ptdata));
 		e = ia64_sn_hwperf_op(sn_hwperf_master_nasid,
 				      SN_HWPERF_ENUM_PORTS, router->id, sz,
 				      (u64)&ptdata, 0, 0, NULL);

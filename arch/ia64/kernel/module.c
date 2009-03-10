@@ -533,8 +533,7 @@ get_ltoff (struct module *mod, uint64_t value, int *okp)
 			goto found;
 
 	/* Not enough GOT entries? */
-	if (e >= (struct got_entry *) (mod->arch.got->sh_addr + mod->arch.got->sh_size))
-		BUG();
+	BUG_ON(e >= (struct got_entry *) (mod->arch.got->sh_addr + mod->arch.got->sh_size));
 
 	e->val = value;
 	++mod->arch.next_got_entry;

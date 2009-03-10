@@ -636,8 +636,7 @@ mem_init (void)
 #endif
 
 #ifdef CONFIG_FLATMEM
-	if (!mem_map)
-		BUG();
+	BUG_ON(!mem_map);
 	max_mapnr = max_low_pfn;
 #endif
 
