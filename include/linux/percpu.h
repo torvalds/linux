@@ -5,6 +5,7 @@
 #include <linux/slab.h> /* For kmalloc() */
 #include <linux/smp.h>
 #include <linux/cpumask.h>
+#include <linux/pfn.h>
 
 #include <asm/percpu.h>
 
@@ -52,17 +53,18 @@
 #define EXPORT_PER_CPU_SYMBOL(var) EXPORT_SYMBOL(per_cpu__##var)
 #define EXPORT_PER_CPU_SYMBOL_GPL(var) EXPORT_SYMBOL_GPL(per_cpu__##var)
 
-/* Enough to cover all DEFINE_PER_CPUs in kernel, including modules. */
-#ifndef PERCPU_ENOUGH_ROOM
+/* enough to cover all DEFINE_PER_CPUs in modules */
 #ifdef CONFIG_MODULES
-#define PERCPU_MODULE_RESERVE	8192
+#define PERCPU_MODULE_RESERVE		(8 << 10)
 #else
-#define PERCPU_MODULE_RESERVE	0
+#define PERCPU_MODULE_RESERVE		0
 #endif
 
+#ifndef PERCPU_ENOUGH_ROOM
 #define PERCPU_ENOUGH_ROOM						\
-	(__per_cpu_end - __per_cpu_start + PERCPU_MODULE_RESERVE)
-#endif	/* PERCPU_ENOUGH_ROOM */
+	(ALIGN(__per_cpu_end - __per_cpu_start, SMP_CACHE_BYTES) +	\
+	 PERCPU_MODULE_RESERVE)
+#endif
 
 /*
  * Must be an lvalue. Since @var must be a simple identifier,
@@ -79,35 +81,24 @@
 #ifdef CONFIG_HAVE_DYNAMIC_PER_CPU_AREA
 
 /* minimum unit size, also is the maximum supported allocation size */
-#define PCPU_MIN_UNIT_SIZE		(16UL << PAGE_SHIFT)
+#define PCPU_MIN_UNIT_SIZE		PFN_ALIGN(64 << 10)
 
 /*
  * PERCPU_DYNAMIC_RESERVE indicates the amount of free area to piggy
- * back on the first chunk if arch is manually allocating and mapping
- * it for faster access (as a part of large page mapping for example).
- * Note that dynamic percpu allocator covers both static and dynamic
- * areas, so these values are bigger than PERCPU_MODULE_RESERVE.
+ * back on the first chunk for dynamic percpu allocation if arch is
+ * manually allocating and mapping it for faster access (as a part of
+ * large page mapping for example).
  *
- * On typical configuration with modules, the following values leave
- * about 8k of free space on the first chunk after boot on both x86_32
- * and 64 when module support is enabled.  When module support is
- * disabled, it's much tighter.
+ * The following values give between one and two pages of free space
+ * after typical minimal boot (2-way SMP, single disk and NIC) with
+ * both defconfig and a distro config on x86_64 and 32.  More
+ * intelligent way to determine this would be nice.
  */
-#ifndef PERCPU_DYNAMIC_RESERVE
-#  if BITS_PER_LONG > 32
-#    ifdef CONFIG_MODULES
-#      define PERCPU_DYNAMIC_RESERVE	(6 << PAGE_SHIFT)
-#    else
-#      define PERCPU_DYNAMIC_RESERVE	(4 << PAGE_SHIFT)
-#    endif
-#  else
-#    ifdef CONFIG_MODULES
-#      define PERCPU_DYNAMIC_RESERVE	(4 << PAGE_SHIFT)
-#    else
-#      define PERCPU_DYNAMIC_RESERVE	(2 << PAGE_SHIFT)
-#    endif
-#  endif
-#endif	/* PERCPU_DYNAMIC_RESERVE */
+#if BITS_PER_LONG > 32
+#define PERCPU_DYNAMIC_RESERVE		(20 << 10)
+#else
+#define PERCPU_DYNAMIC_RESERVE		(12 << 10)
+#endif
 
 extern void *pcpu_base_addr;
 
@@ -115,9 +106,10 @@ typedef struct page * (*pcpu_get_page_fn_t)(unsigned int cpu, int pageno);
 typedef void (*pcpu_populate_pte_fn_t)(unsigned long addr);
 
 extern size_t __init pcpu_setup_first_chunk(pcpu_get_page_fn_t get_page_fn,
-					size_t static_size, size_t unit_size,
-					size_t free_size, void *base_addr,
-					pcpu_populate_pte_fn_t populate_pte_fn);
+				size_t static_size, size_t reserved_size,
+				ssize_t unit_size, ssize_t dyn_size,
+				void *base_addr,
+				pcpu_populate_pte_fn_t populate_pte_fn);
 
 /*
  * Use this to get to a cpu's version of the per-cpu object
@@ -125,6 +117,8 @@ extern size_t __init pcpu_setup_first_chunk(pcpu_get_page_fn_t get_page_fn,
  * version should probably be combined with get_cpu()/put_cpu().
  */
 #define per_cpu_ptr(ptr, cpu)	SHIFT_PERCPU_PTR((ptr), per_cpu_offset((cpu)))
+
+extern void *__alloc_reserved_percpu(size_t size, size_t align);
 
 #else /* CONFIG_HAVE_DYNAMIC_PER_CPU_AREA */
 

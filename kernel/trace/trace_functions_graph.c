@@ -837,7 +837,7 @@ static void graph_trace_open(struct trace_iterator *iter)
 
 static void graph_trace_close(struct trace_iterator *iter)
 {
-	percpu_free(iter->private);
+	free_percpu(iter->private);
 }
 
 static struct tracer graph_trace __read_mostly = {

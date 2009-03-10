@@ -87,6 +87,8 @@ bool __virt_addr_valid(unsigned long x)
 		return false;
 	if (__vmalloc_start_set && is_vmalloc_addr((void *) x))
 		return false;
+	if (x >= FIXADDR_START)
+		return false;
 	return pfn_valid((x - PAGE_OFFSET) >> PAGE_SHIFT);
 }
 EXPORT_SYMBOL(__virt_addr_valid);
@@ -504,12 +506,18 @@ static inline pte_t * __init early_ioremap_pte(unsigned long addr)
 	return &bm_pte[pte_index(addr)];
 }
 
+static unsigned long slot_virt[FIX_BTMAPS_SLOTS] __initdata;
+
 void __init early_ioremap_init(void)
 {
 	pmd_t *pmd;
+	int i;
 
 	if (early_ioremap_debug)
 		printk(KERN_INFO "early_ioremap_init()\n");
+
+	for (i = 0; i < FIX_BTMAPS_SLOTS; i++)
+		slot_virt[i] = fix_to_virt(FIX_BTMAP_BEGIN - NR_FIX_BTMAPS*i);
 
 	pmd = early_ioremap_pmd(fix_to_virt(FIX_BTMAP_BEGIN));
 	memset(bm_pte, 0, sizeof(bm_pte));
@@ -577,6 +585,7 @@ static inline void __init early_clear_fixmap(enum fixed_addresses idx)
 
 static void __iomem *prev_map[FIX_BTMAPS_SLOTS] __initdata;
 static unsigned long prev_size[FIX_BTMAPS_SLOTS] __initdata;
+
 static int __init check_early_ioremap_leak(void)
 {
 	int count = 0;
@@ -598,7 +607,8 @@ static int __init check_early_ioremap_leak(void)
 }
 late_initcall(check_early_ioremap_leak);
 
-static void __init __iomem *__early_ioremap(unsigned long phys_addr, unsigned long size, pgprot_t prot)
+static void __init __iomem *
+__early_ioremap(unsigned long phys_addr, unsigned long size, pgprot_t prot)
 {
 	unsigned long offset, last_addr;
 	unsigned int nrpages;
@@ -664,9 +674,9 @@ static void __init __iomem *__early_ioremap(unsigned long phys_addr, unsigned lo
 		--nrpages;
 	}
 	if (early_ioremap_debug)
-		printk(KERN_CONT "%08lx + %08lx\n", offset, fix_to_virt(idx0));
+		printk(KERN_CONT "%08lx + %08lx\n", offset, slot_virt[slot]);
 
-	prev_map[slot] = (void __iomem *)(offset + fix_to_virt(idx0));
+	prev_map[slot] = (void __iomem *)(offset + slot_virt[slot]);
 	return prev_map[slot];
 }
 
@@ -733,9 +743,4 @@ void __init early_iounmap(void __iomem *addr, unsigned long size)
 		--nrpages;
 	}
 	prev_map[slot] = NULL;
-}
-
-void __this_fixmap_does_not_exist(void)
-{
-	WARN_ON(1);
 }
