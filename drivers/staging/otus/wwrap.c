@@ -350,8 +350,7 @@ void zfLnxUsbDataIn_callback(urb_t *urb)
     buf->len = 0;
 #endif
 
-    if ((buf->tail + urb->actual_length) > buf->end)
-        BUG();
+    BUG_ON((buf->tail + urb->actual_length) > buf->end);
 
     skb_put(buf, urb->actual_length);
 

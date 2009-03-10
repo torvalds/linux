@@ -544,8 +544,7 @@ unsigned int comedi_buf_munge(struct comedi_async *async, unsigned int num_bytes
 
 	if (s->munge == NULL || (async->cmd.flags & CMDF_RAWDATA)) {
 		async->munge_count += num_bytes;
-		if ((int)(async->munge_count - async->buf_write_count) > 0)
-			BUG();
+		BUG_ON((int)(async->munge_count - async->buf_write_count) > 0);
 		return num_bytes;
 	}
 	/* don't munge partial samples */
@@ -575,8 +574,7 @@ unsigned int comedi_buf_munge(struct comedi_async *async, unsigned int num_bytes
 		async->munge_ptr %= async->prealloc_bufsz;
 		count += block_size;
 	}
-	if ((int)(async->munge_count - async->buf_write_count) > 0)
-		BUG();
+	BUG_ON((int)(async->munge_count - async->buf_write_count) > 0);
 	return count;
 }
 
