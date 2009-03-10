@@ -72,6 +72,7 @@ I2C_CLIENT_INSMOD_7(lm85b, lm85c, adm1027, adt7463, adt7468, emc6d100,
 #define	LM85_COMPANY_SMSC		0x5c
 #define	LM85_VERSTEP_VMASK              0xf0
 #define	LM85_VERSTEP_GENERIC		0x60
+#define	LM85_VERSTEP_GENERIC2		0x70
 #define	LM85_VERSTEP_LM85C		0x60
 #define	LM85_VERSTEP_LM85B		0x62
 #define	LM85_VERSTEP_ADM1027		0x60
@@ -334,6 +335,7 @@ static struct lm85_data *lm85_update_device(struct device *dev);
 static const struct i2c_device_id lm85_id[] = {
 	{ "adm1027", adm1027 },
 	{ "adt7463", adt7463 },
+	{ "adt7468", adt7468 },
 	{ "lm85", any_chip },
 	{ "lm85b", lm85b },
 	{ "lm85c", lm85c },
@@ -1153,7 +1155,8 @@ static int lm85_detect(struct i2c_client *client, int kind,
 			address, company, verstep);
 
 		/* All supported chips have the version in common */
-		if ((verstep & LM85_VERSTEP_VMASK) != LM85_VERSTEP_GENERIC) {
+		if ((verstep & LM85_VERSTEP_VMASK) != LM85_VERSTEP_GENERIC &&
+		    (verstep & LM85_VERSTEP_VMASK) != LM85_VERSTEP_GENERIC2) {
 			dev_dbg(&adapter->dev, "Autodetection failed: "
 				"unsupported version\n");
 			return -ENODEV;
