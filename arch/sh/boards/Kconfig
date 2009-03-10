@@ -155,7 +155,7 @@ config SH_SH7785LCR
 
 config SH_SH7785LCR_29BIT_PHYSMAPS
 	bool "SH7785LCR 29bit physmaps"
-	depends on SH_SH7785LCR
+	depends on SH_SH7785LCR && 29BIT
 	default y
 	help
 	  This board has 2 physical memory maps. It can be changed with
