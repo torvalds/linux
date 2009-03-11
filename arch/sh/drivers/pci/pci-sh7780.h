@@ -109,6 +109,7 @@
 struct sh4_pci_address_map;
 
 /* arch/sh/drivers/pci/pci-sh7780.c */
-int sh7780_pcic_init(struct sh4_pci_address_map *map);
+int sh7780_pcic_init(struct pci_channel *chan,
+		     struct sh4_pci_address_map *map);
 
 #endif /* _PCI_SH7780_H_ */

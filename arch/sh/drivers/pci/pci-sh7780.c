@@ -55,7 +55,7 @@ static int __init sh7780_pci_init(void)
 	ctrl_outl(0x00000001, SH7780_PCI_VCR2); /* Enable PCIC */
 
 	/* check for SH7780/SH7780R hardware */
-	id = pci_read_reg(SH7780_PCIVID);
+	id = pci_read_reg(NULL, SH7780_PCIVID);
 	if ((id & 0xffff) == SH7780_VENDOR_ID) {
 		switch ((id >> 16) & 0xffff) {
 		case SH7763_DEVICE_ID:
@@ -82,14 +82,15 @@ static int __init sh7780_pci_init(void)
 		ctrl_outl(0x33333333, INTC_INTPRI);
 	}
 
-	if ((ret = sh4_pci_check_direct()) != 0)
+	if ((ret = sh4_pci_check_direct(NULL)) != 0)
 		return ret;
 
 	return pcibios_init_platform();
 }
 core_initcall(sh7780_pci_init);
 
-int __init sh7780_pcic_init(struct sh4_pci_address_map *map)
+int __init sh7780_pcic_init(struct pci_channel *chan,
+			    struct sh4_pci_address_map *map)
 {
 	u32 word;
 
@@ -101,34 +102,34 @@ int __init sh7780_pcic_init(struct sh4_pci_address_map *map)
 	if (!(map->flags & SH4_PCIC_NO_RESET)) {
 		/* toggle PCI reset pin */
 		word = SH4_PCICR_PREFIX | SH4_PCICR_PRST;
-		pci_write_reg(word, SH4_PCICR);
+		pci_write_reg(chan, word, SH4_PCICR);
 		/* Wait for a long time... not 1 sec. but long enough */
 		mdelay(100);
 		word = SH4_PCICR_PREFIX;
-		pci_write_reg(word, SH4_PCICR);
+		pci_write_reg(chan, word, SH4_PCICR);
 	}
 
 	/* set the command/status bits to:
 	 * Wait Cycle Control + Parity Enable + Bus Master +
 	 * Mem space enable
 	 */
-	pci_write_reg(0x00000046, SH7780_PCICMD);
+	pci_write_reg(chan, 0x00000046, SH7780_PCICMD);
 
 	/* define this host as the host bridge */
 	word = PCI_BASE_CLASS_BRIDGE << 24;
-	pci_write_reg(word, SH7780_PCIRID);
+	pci_write_reg(chan, word, SH7780_PCIRID);
 
 	/* Set IO and Mem windows to local address
 	 * Make PCI and local address the same for easy 1 to 1 mapping
 	 */
-	pci_write_reg(map->window0.size - 0xfffff, SH4_PCILSR0);
-	pci_write_reg(map->window1.size - 0xfffff, SH4_PCILSR1);
+	pci_write_reg(chan, map->window0.size - 0xfffff, SH4_PCILSR0);
+	pci_write_reg(chan, map->window1.size - 0xfffff, SH4_PCILSR1);
 	/* Set the values on window 0 PCI config registers */
-	pci_write_reg(map->window0.base, SH4_PCILAR0);
-	pci_write_reg(map->window0.base, SH7780_PCIMBAR0);
+	pci_write_reg(chan, map->window0.base, SH4_PCILAR0);
+	pci_write_reg(chan, map->window0.base, SH7780_PCIMBAR0);
 	/* Set the values on window 1 PCI config registers */
-	pci_write_reg(map->window1.base, SH4_PCILAR1);
-	pci_write_reg(map->window1.base, SH7780_PCIMBAR1);
+	pci_write_reg(chan, map->window1.base, SH4_PCILAR1);
+	pci_write_reg(chan, map->window1.base, SH7780_PCIMBAR1);
 
 	/* Map IO space into PCI IO window
 	 * The IO window is 64K-PCIBIOS_MIN_IO in size
@@ -145,12 +146,12 @@ int __init sh7780_pcic_init(struct sh4_pci_address_map *map)
 	 */
 
 	/* Apply any last-minute PCIC fixups */
-	pci_fixup_pcic();
+	pci_fixup_pcic(chan);
 
 	/* SH7780 init done, set central function init complete */
 	/* use round robin mode to stop a device starving/overruning */
 	word = SH4_PCICR_PREFIX | SH4_PCICR_CFIN | SH4_PCICR_FTO;
-	pci_write_reg(word, SH4_PCICR);
+	pci_write_reg(chan, word, SH4_PCICR);
 
 	return 1;
 }

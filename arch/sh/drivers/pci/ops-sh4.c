@@ -34,8 +34,8 @@ static int sh4_pci_read(struct pci_bus *bus, unsigned int devfn,
 	 * so we must do byte alignment by hand
 	 */
 	spin_lock_irqsave(&sh4_pci_lock, flags);
-	pci_write_reg(CONFIG_CMD(bus, devfn, where), SH4_PCIPAR);
-	data = pci_read_reg(SH4_PCIPDR);
+	pci_write_reg(NULL, CONFIG_CMD(bus, devfn, where), SH4_PCIPAR);
+	data = pci_read_reg(NULL, SH4_PCIPDR);
 	spin_unlock_irqrestore(&sh4_pci_lock, flags);
 
 	switch (size) {
@@ -68,8 +68,8 @@ static int sh4_pci_write(struct pci_bus *bus, unsigned int devfn,
 	u32 data;
 
 	spin_lock_irqsave(&sh4_pci_lock, flags);
-	pci_write_reg(CONFIG_CMD(bus, devfn, where), SH4_PCIPAR);
-	data = pci_read_reg(SH4_PCIPDR);
+	pci_write_reg(NULL, CONFIG_CMD(bus, devfn, where), SH4_PCIPAR);
+	data = pci_read_reg(NULL, SH4_PCIPDR);
 	spin_unlock_irqrestore(&sh4_pci_lock, flags);
 
 	switch (size) {
@@ -90,7 +90,7 @@ static int sh4_pci_write(struct pci_bus *bus, unsigned int devfn,
 		return PCIBIOS_FUNC_NOT_SUPPORTED;
 	}
 
-	pci_write_reg(data, SH4_PCIPDR);
+	pci_write_reg(NULL, data, SH4_PCIPDR);
 
 	return PCIBIOS_SUCCESSFUL;
 }
@@ -106,25 +106,25 @@ struct pci_ops sh4_pci_ops = {
  */
 static unsigned int pci_probe = PCI_PROBE_CONF1;
 
-int __init sh4_pci_check_direct(void)
+int __init sh4_pci_check_direct(struct pci_channel *chan)
 {
 	/*
 	 * Check if configuration works.
 	 */
 	if (pci_probe & PCI_PROBE_CONF1) {
-		unsigned int tmp = pci_read_reg(SH4_PCIPAR);
+		unsigned int tmp = pci_read_reg(chan, SH4_PCIPAR);
 
-		pci_write_reg(P1SEG, SH4_PCIPAR);
+		pci_write_reg(chan, P1SEG, SH4_PCIPAR);
 
-		if (pci_read_reg(SH4_PCIPAR) == P1SEG) {
-			pci_write_reg(tmp, SH4_PCIPAR);
+		if (pci_read_reg(chan, SH4_PCIPAR) == P1SEG) {
+			pci_write_reg(chan, tmp, SH4_PCIPAR);
 			printk(KERN_INFO "PCI: Using configuration type 1\n");
 			request_region(PCI_REG(SH4_PCIPAR), 8, "PCI conf1");
 
 			return 0;
 		}
 
-		pci_write_reg(tmp, SH4_PCIPAR);
+		pci_write_reg(chan, tmp, SH4_PCIPAR);
 	}
 
 	pr_debug("PCI: pci_check_direct failed\n");
@@ -163,7 +163,7 @@ char * __devinit pcibios_setup(char *str)
 	return str;
 }
 
-int __attribute__((weak)) pci_fixup_pcic(void)
+int __attribute__((weak)) pci_fixup_pcic(struct pci_channel *chan)
 {
 	/* Nothing to do. */
 	return 0;

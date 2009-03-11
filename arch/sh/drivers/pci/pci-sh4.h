@@ -154,8 +154,8 @@
 
 /* arch/sh/kernel/drivers/pci/ops-sh4.c */
 extern struct pci_ops sh4_pci_ops;
-int sh4_pci_check_direct(void);
-int pci_fixup_pcic(void);
+int sh4_pci_check_direct(struct pci_channel *chan);
+int pci_fixup_pcic(struct pci_channel *chan);
 
 struct sh4_pci_address_space {
 	unsigned long base;
@@ -168,13 +168,16 @@ struct sh4_pci_address_map {
 	unsigned long flags;
 };
 
-static inline void pci_write_reg(unsigned long val, unsigned long reg)
+static inline void pci_write_reg(struct pci_channel *chan,
+				 unsigned long val, unsigned long reg)
 {
 	ctrl_outl(val, PCI_REG(reg));
 }
 
-static inline unsigned long pci_read_reg(unsigned long reg)
+static inline unsigned long pci_read_reg(struct pci_channel *chan,
+					 unsigned long reg)
 {
 	return ctrl_inl(PCI_REG(reg));
 }
+
 #endif /* __PCI_SH4_H */

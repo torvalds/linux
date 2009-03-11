@@ -92,5 +92,5 @@ int __init pcibios_init_platform(void)
 	ctrl_outw(0x0013, FPGA_PCI_INTSEL1);
 	ctrl_outw(0xE402, FPGA_PCI_INTSEL2);
 
-	return sh7780_pcic_init(&se7780_pci_map);
+	return sh7780_pcic_init(&board_pci_channels[0], &se7780_pci_map);
 }

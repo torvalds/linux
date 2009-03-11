@@ -69,5 +69,5 @@ static struct sh4_pci_address_map sdk7780_pci_map = {
 int __init pcibios_init_platform(void)
 {
 	printk(KERN_INFO "SH7780 PCI: Finished initializing PCI controller\n");
-	return sh7780_pcic_init(&sdk7780_pci_map);
+	return sh7780_pcic_init(&board_pci_channels[0], &sdk7780_pci_map);
 }
