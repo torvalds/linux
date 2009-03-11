@@ -65,6 +65,7 @@
 
 #include <asm/uaccess.h>
 #include <asm/system.h>
+#include <trace/skb.h>
 
 #include "kmap_skb.h"
 
@@ -442,9 +443,30 @@ void kfree_skb(struct sk_buff *skb)
 		smp_rmb();
 	else if (likely(!atomic_dec_and_test(&skb->users)))
 		return;
+	trace_kfree_skb(skb, __builtin_return_address(0));
 	__kfree_skb(skb);
 }
 EXPORT_SYMBOL(kfree_skb);
+
+/**
+ *	consume_skb - free an skbuff
+ *	@skb: buffer to free
+ *
+ *	Drop a ref to the buffer and free it if the usage count has hit zero
+ *	Functions identically to kfree_skb, but kfree_skb assumes that the frame
+ *	is being dropped after a failure and notes that
+ */
+void consume_skb(struct sk_buff *skb)
+{
+	if (unlikely(!skb))
+		return;
+	if (likely(atomic_read(&skb->users) == 1))
+		smp_rmb();
+	else if (likely(!atomic_dec_and_test(&skb->users)))
+		return;
+	__kfree_skb(skb);
+}
+EXPORT_SYMBOL(consume_skb);
 
 /**
  *	skb_recycle_check - check if skb can be reused for receive

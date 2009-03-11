@@ -1184,7 +1184,7 @@ static int __udp4_lib_mcast_deliver(struct net *net, struct sk_buff *skb,
 			sk = sknext;
 		} while (sknext);
 	} else
-		kfree_skb(skb);
+		consume_skb(skb);
 	spin_unlock(&hslot->lock);
 	return 0;
 }

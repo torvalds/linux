@@ -892,7 +892,7 @@ static int arp_process(struct sk_buff *skb)
 out:
 	if (in_dev)
 		in_dev_put(in_dev);
-	kfree_skb(skb);
+	consume_skb(skb);
 	return 0;
 }
 

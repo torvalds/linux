@@ -584,7 +584,7 @@ drop_n_restore:
 		skb->len = skb_len;
 	}
 drop:
-	kfree_skb(skb);
+	consume_skb(skb);
 	return 0;
 }
 
