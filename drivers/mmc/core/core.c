@@ -297,6 +297,21 @@ void mmc_set_data_timeout(struct mmc_data *data, const struct mmc_card *card)
 			data->timeout_clks = 0;
 		}
 	}
+	/*
+	 * Some cards need very high timeouts if driven in SPI mode.
+	 * The worst observed timeout was 900ms after writing a
+	 * continuous stream of data until the internal logic
+	 * overflowed.
+	 */
+	if (mmc_host_is_spi(card->host)) {
+		if (data->flags & MMC_DATA_WRITE) {
+			if (data->timeout_ns < 1000000000)
+				data->timeout_ns = 1000000000;	/* 1s */
+		} else {
+			if (data->timeout_ns < 100000000)
+				data->timeout_ns =  100000000;	/* 100ms */
+		}
+	}
 }
 EXPORT_SYMBOL(mmc_set_data_timeout);
 
