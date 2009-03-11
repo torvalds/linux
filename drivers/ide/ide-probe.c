@@ -950,6 +950,7 @@ static int ide_port_setup_devices(ide_hwif_t *hwif)
 static int init_irq (ide_hwif_t *hwif)
 {
 	struct ide_io_ports *io_ports = &hwif->io_ports;
+	irq_handler_t irq_handler;
 	int sa = 0;
 
 	mutex_lock(&ide_cfg_mtx);
@@ -958,6 +959,10 @@ static int init_irq (ide_hwif_t *hwif)
 	init_timer(&hwif->timer);
 	hwif->timer.function = &ide_timer_expiry;
 	hwif->timer.data = (unsigned long)hwif;
+
+	irq_handler = hwif->host->irq_handler;
+	if (irq_handler == NULL)
+		irq_handler = ide_intr;
 
 #if defined(__mc68000__)
 	sa = IRQF_SHARED;
@@ -969,7 +974,7 @@ static int init_irq (ide_hwif_t *hwif)
 	if (io_ports->ctl_addr)
 		hwif->tp_ops->set_irq(hwif, 1);
 
-	if (request_irq(hwif->irq, &ide_intr, sa, hwif->name, hwif))
+	if (request_irq(hwif->irq, irq_handler, sa, hwif->name, hwif))
 		goto out_up;
 
 	if (!hwif->rqsize) {

@@ -24,9 +24,6 @@
 #include <asm/kmap_types.h>
 #else
 #include <asm/vsyscall.h>
-#ifdef CONFIG_EFI
-#include <asm/efi.h>
-#endif
 #endif
 
 /*
@@ -91,13 +88,6 @@ enum fixed_addresses {
 #ifdef CONFIG_X86_IO_APIC
 	FIX_IO_APIC_BASE_0,
 	FIX_IO_APIC_BASE_END = FIX_IO_APIC_BASE_0 + MAX_IO_APICS - 1,
-#endif
-#ifdef CONFIG_X86_64
-#ifdef CONFIG_EFI
-	FIX_EFI_IO_MAP_LAST_PAGE,
-	FIX_EFI_IO_MAP_FIRST_PAGE = FIX_EFI_IO_MAP_LAST_PAGE
-				  + MAX_EFI_IO_PAGES - 1,
-#endif
 #endif
 #ifdef CONFIG_X86_VISWS_APIC
 	FIX_CO_CPU,	/* Cobalt timer */

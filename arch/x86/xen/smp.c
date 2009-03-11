@@ -219,6 +219,7 @@ cpu_initialize_context(unsigned int cpu, struct task_struct *idle)
 {
 	struct vcpu_guest_context *ctxt;
 	struct desc_struct *gdt;
+	unsigned long gdt_mfn;
 
 	if (cpumask_test_and_set_cpu(cpu, xen_cpu_initialized_map))
 		return 0;
@@ -248,9 +249,12 @@ cpu_initialize_context(unsigned int cpu, struct task_struct *idle)
 	ctxt->ldt_ents = 0;
 
 	BUG_ON((unsigned long)gdt & ~PAGE_MASK);
-	make_lowmem_page_readonly(gdt);
 
-	ctxt->gdt_frames[0] = virt_to_mfn(gdt);
+	gdt_mfn = arbitrary_virt_to_mfn(gdt);
+	make_lowmem_page_readonly(gdt);
+	make_lowmem_page_readonly(mfn_to_virt(gdt_mfn));
+
+	ctxt->gdt_frames[0] = gdt_mfn;
 	ctxt->gdt_ents      = GDT_ENTRIES;
 
 	ctxt->user_regs.cs = __KERNEL_CS;

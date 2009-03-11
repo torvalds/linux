@@ -326,4 +326,10 @@ static inline void rcu_exit_nohz(void)
 }
 #endif /* CONFIG_NO_HZ */
 
+/* A context switch is a grace period for rcutree. */
+static inline int rcu_blocking_is_gp(void)
+{
+	return num_online_cpus() == 1;
+}
+
 #endif /* __LINUX_RCUTREE_H */

@@ -2523,7 +2523,7 @@ static void __exit nv_exit(void)
 module_init(nv_init);
 module_exit(nv_exit);
 module_param_named(adma, adma_enabled, bool, 0444);
-MODULE_PARM_DESC(adma, "Enable use of ADMA (Default: true)");
+MODULE_PARM_DESC(adma, "Enable use of ADMA (Default: false)");
 module_param_named(swncq, swncq_enabled, bool, 0444);
 MODULE_PARM_DESC(swncq, "Enable use of SWNCQ (Default: true)");
 

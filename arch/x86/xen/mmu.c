@@ -276,6 +276,13 @@ void set_phys_to_machine(unsigned long pfn, unsigned long mfn)
 	p2m_top[topidx][idx] = mfn;
 }
 
+unsigned long arbitrary_virt_to_mfn(void *vaddr)
+{
+	xmaddr_t maddr = arbitrary_virt_to_machine(vaddr);
+
+	return PFN_DOWN(maddr.maddr);
+}
+
 xmaddr_t arbitrary_virt_to_machine(void *vaddr)
 {
 	unsigned long address = (unsigned long)vaddr;
