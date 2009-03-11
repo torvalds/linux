@@ -542,7 +542,7 @@ static int iwl3945_clear_sta_key_info(struct iwl_priv *priv, u8 sta_id)
 	return 0;
 }
 
-int iwl3945_set_dynamic_key(struct iwl_priv *priv,
+static int iwl3945_set_dynamic_key(struct iwl_priv *priv,
 			struct ieee80211_key_conf *keyconf, u8 sta_id)
 {
 	int ret = 0;
