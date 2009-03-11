@@ -77,3 +77,12 @@ config SMDK6410_WM1190_EV1
 	  module into the kernel.  The presence of the module will be
 	  detected at runtime so the the resulting kernel can be used
 	  with or without the 1190-EV1 fitted.
+
+config MACH_NCP
+	bool "NCP"
+	select CPU_S3C6410
+	select S3C_DEV_I2C1
+	select S3C_DEV_HSMMC1
+	select S3C64XX_SETUP_I2C1
+	help
+          Machine support for the Samsung NCP
