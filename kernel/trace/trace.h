@@ -737,6 +737,9 @@ static inline void trace_branch_disable(void)
 }
 #endif /* CONFIG_BRANCH_TRACER */
 
+/* set ring buffers to default size if not already done so */
+int tracing_update_buffers(void);
+
 /* trace event type bit fields, not numeric */
 enum {
 	TRACE_EVENT_TYPE_PRINTF		= 1,

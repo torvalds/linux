@@ -2357,6 +2357,26 @@ static int tracing_resize_ring_buffer(unsigned long size)
 	return ret;
 }
 
+/**
+ * tracing_update_buffers - used by tracing facility to expand ring buffers
+ *
+ * To save on memory when the tracing is never used on a system with it
+ * configured in. The ring buffers are set to a minimum size. But once
+ * a user starts to use the tracing facility, then they need to grow
+ * to their default size.
+ *
+ * This function is to be called when a tracer is about to be used.
+ */
+int tracing_update_buffers(void)
+{
+	int ret = 0;
+
+	if (!ring_buffer_expanded)
+		ret = tracing_resize_ring_buffer(trace_buf_size);
+
+	return ret;
+}
+
 struct trace_option_dentry;
 
 static struct trace_option_dentry *

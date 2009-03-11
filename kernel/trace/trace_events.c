@@ -141,6 +141,10 @@ ftrace_event_write(struct file *file, const char __user *ubuf,
 	if (!cnt || cnt < 0)
 		return 0;
 
+	ret = tracing_update_buffers();
+	if (ret < 0)
+		return ret;
+
 	ret = get_user(ch, ubuf++);
 	if (ret)
 		return ret;
@@ -328,6 +332,10 @@ event_enable_write(struct file *filp, const char __user *ubuf, size_t cnt,
 	buf[cnt] = 0;
 
 	ret = strict_strtoul(buf, 10, &val);
+	if (ret < 0)
+		return ret;
+
+	ret = tracing_update_buffers();
 	if (ret < 0)
 		return ret;
 
