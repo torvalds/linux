@@ -890,7 +890,7 @@ static void iwl3945_build_tx_cmd_basic(struct iwl_priv *priv,
 			tx->timeout.pm_frame_timeout = cpu_to_le16(2);
 	} else {
 		tx->timeout.pm_frame_timeout = 0;
-#ifdef CONFIG_IWL3945_LEDS
+#ifdef CONFIG_IWLWIFI_LEDS
 		priv->rxtxpackets += le16_to_cpu(cmd->cmd.tx.len);
 #endif
 	}

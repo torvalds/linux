@@ -24,6 +24,7 @@
  *
  *****************************************************************************/
 
+#ifdef CONFIG_IWLWIFI_LEDS
 
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -163,8 +164,8 @@ static int iwl3945_led_associated(struct iwl_priv *priv, int led_id)
 static void iwl3945_led_brightness_set(struct led_classdev *led_cdev,
 				enum led_brightness brightness)
 {
-	struct iwl3945_led *led = container_of(led_cdev,
-					       struct iwl3945_led, led_dev);
+	struct iwl_led *led = container_of(led_cdev,
+					       struct iwl_led, led_dev);
 	struct iwl_priv *priv = led->priv;
 
 	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
@@ -202,7 +203,7 @@ static void iwl3945_led_brightness_set(struct led_classdev *led_cdev,
  * Register led class with the system
  */
 static int iwl3945_led_register_led(struct iwl_priv *priv,
-				   struct iwl3945_led *led,
+				   struct iwl_led *led,
 				   enum led_type type, u8 set_led,
 				   char *trigger)
 {
@@ -315,66 +316,66 @@ int iwl3945_led_register(struct iwl_priv *priv)
 	priv->allow_blinking = 0;
 
 	trigger = ieee80211_get_radio_led_name(priv->hw);
-	snprintf(priv->led39[IWL_LED_TRG_RADIO].name,
-		 sizeof(priv->led39[IWL_LED_TRG_RADIO].name), "iwl-%s::radio",
+	snprintf(priv->led[IWL_LED_TRG_RADIO].name,
+		 sizeof(priv->led[IWL_LED_TRG_RADIO].name), "iwl-%s::radio",
 		 wiphy_name(priv->hw->wiphy));
 
-	priv->led39[IWL_LED_TRG_RADIO].led_on = iwl3945_led_on;
-	priv->led39[IWL_LED_TRG_RADIO].led_off = iwl3945_led_off;
-	priv->led39[IWL_LED_TRG_RADIO].led_pattern = NULL;
+	priv->led[IWL_LED_TRG_RADIO].led_on = iwl3945_led_on;
+	priv->led[IWL_LED_TRG_RADIO].led_off = iwl3945_led_off;
+	priv->led[IWL_LED_TRG_RADIO].led_pattern = NULL;
 
 	ret = iwl3945_led_register_led(priv,
-				   &priv->led39[IWL_LED_TRG_RADIO],
+				   &priv->led[IWL_LED_TRG_RADIO],
 				   IWL_LED_TRG_RADIO, 1, trigger);
 
 	if (ret)
 		goto exit_fail;
 
 	trigger = ieee80211_get_assoc_led_name(priv->hw);
-	snprintf(priv->led39[IWL_LED_TRG_ASSOC].name,
-		 sizeof(priv->led39[IWL_LED_TRG_ASSOC].name), "iwl-%s::assoc",
+	snprintf(priv->led[IWL_LED_TRG_ASSOC].name,
+		 sizeof(priv->led[IWL_LED_TRG_ASSOC].name), "iwl-%s::assoc",
 		 wiphy_name(priv->hw->wiphy));
 
 	ret = iwl3945_led_register_led(priv,
-				   &priv->led39[IWL_LED_TRG_ASSOC],
+				   &priv->led[IWL_LED_TRG_ASSOC],
 				   IWL_LED_TRG_ASSOC, 0, trigger);
 
 	/* for assoc always turn led on */
-	priv->led39[IWL_LED_TRG_ASSOC].led_on = iwl3945_led_on;
-	priv->led39[IWL_LED_TRG_ASSOC].led_off = iwl3945_led_on;
-	priv->led39[IWL_LED_TRG_ASSOC].led_pattern = NULL;
+	priv->led[IWL_LED_TRG_ASSOC].led_on = iwl3945_led_on;
+	priv->led[IWL_LED_TRG_ASSOC].led_off = iwl3945_led_on;
+	priv->led[IWL_LED_TRG_ASSOC].led_pattern = NULL;
 
 	if (ret)
 		goto exit_fail;
 
 	trigger = ieee80211_get_rx_led_name(priv->hw);
-	snprintf(priv->led39[IWL_LED_TRG_RX].name,
-		 sizeof(priv->led39[IWL_LED_TRG_RX].name), "iwl-%s::RX",
+	snprintf(priv->led[IWL_LED_TRG_RX].name,
+		 sizeof(priv->led[IWL_LED_TRG_RX].name), "iwl-%s::RX",
 		 wiphy_name(priv->hw->wiphy));
 
 	ret = iwl3945_led_register_led(priv,
-				   &priv->led39[IWL_LED_TRG_RX],
+				   &priv->led[IWL_LED_TRG_RX],
 				   IWL_LED_TRG_RX, 0, trigger);
 
-	priv->led39[IWL_LED_TRG_RX].led_on = iwl3945_led_associated;
-	priv->led39[IWL_LED_TRG_RX].led_off = iwl3945_led_associated;
-	priv->led39[IWL_LED_TRG_RX].led_pattern = iwl3945_led_pattern;
+	priv->led[IWL_LED_TRG_RX].led_on = iwl3945_led_associated;
+	priv->led[IWL_LED_TRG_RX].led_off = iwl3945_led_associated;
+	priv->led[IWL_LED_TRG_RX].led_pattern = iwl3945_led_pattern;
 
 	if (ret)
 		goto exit_fail;
 
 	trigger = ieee80211_get_tx_led_name(priv->hw);
-	snprintf(priv->led39[IWL_LED_TRG_TX].name,
-		 sizeof(priv->led39[IWL_LED_TRG_TX].name), "iwl-%s::TX",
+	snprintf(priv->led[IWL_LED_TRG_TX].name,
+		 sizeof(priv->led[IWL_LED_TRG_TX].name), "iwl-%s::TX",
 		 wiphy_name(priv->hw->wiphy));
 
 	ret = iwl3945_led_register_led(priv,
-				   &priv->led39[IWL_LED_TRG_TX],
+				   &priv->led[IWL_LED_TRG_TX],
 				   IWL_LED_TRG_TX, 0, trigger);
 
-	priv->led39[IWL_LED_TRG_TX].led_on = iwl3945_led_associated;
-	priv->led39[IWL_LED_TRG_TX].led_off = iwl3945_led_associated;
-	priv->led39[IWL_LED_TRG_TX].led_pattern = iwl3945_led_pattern;
+	priv->led[IWL_LED_TRG_TX].led_on = iwl3945_led_associated;
+	priv->led[IWL_LED_TRG_TX].led_off = iwl3945_led_associated;
+	priv->led[IWL_LED_TRG_TX].led_pattern = iwl3945_led_pattern;
 
 	if (ret)
 		goto exit_fail;
@@ -388,7 +389,7 @@ exit_fail:
 
 
 /* unregister led class */
-static void iwl3945_led_unregister_led(struct iwl3945_led *led, u8 set_led)
+static void iwl3945_led_unregister_led(struct iwl_led *led, u8 set_led)
 {
 	if (!led->registered)
 		return;
@@ -403,9 +404,10 @@ static void iwl3945_led_unregister_led(struct iwl3945_led *led, u8 set_led)
 /* Unregister all led handlers */
 void iwl3945_led_unregister(struct iwl_priv *priv)
 {
-	iwl3945_led_unregister_led(&priv->led39[IWL_LED_TRG_ASSOC], 0);
-	iwl3945_led_unregister_led(&priv->led39[IWL_LED_TRG_RX], 0);
-	iwl3945_led_unregister_led(&priv->led39[IWL_LED_TRG_TX], 0);
-	iwl3945_led_unregister_led(&priv->led39[IWL_LED_TRG_RADIO], 1);
+	iwl3945_led_unregister_led(&priv->led[IWL_LED_TRG_ASSOC], 0);
+	iwl3945_led_unregister_led(&priv->led[IWL_LED_TRG_RX], 0);
+	iwl3945_led_unregister_led(&priv->led[IWL_LED_TRG_TX], 0);
+	iwl3945_led_unregister_led(&priv->led[IWL_LED_TRG_RADIO], 1);
 }
 
+#endif
