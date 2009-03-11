@@ -35,8 +35,6 @@
 
 #include "wm8580.h"
 
-#define WM8580_VERSION "0.1"
-
 struct pll_state {
 	unsigned int in;
 	unsigned int out;
@@ -971,8 +969,6 @@ static int wm8580_probe(struct platform_device *pdev)
 	struct snd_soc_codec *codec;
 	struct wm8580_priv *wm8580;
 	int ret = 0;
-
-	pr_info("WM8580 Audio Codec %s\n", WM8580_VERSION);
 
 	setup = socdev->codec_data;
 	codec = kzalloc(sizeof(struct snd_soc_codec), GFP_KERNEL);
