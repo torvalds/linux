@@ -1180,7 +1180,6 @@ static void xs_tcp_state_change(struct sock *sk)
 		break;
 	case TCP_CLOSE_WAIT:
 		/* The server initiated a shutdown of the socket */
-		set_bit(XPRT_CLOSING, &xprt->state);
 		xprt_force_disconnect(xprt);
 	case TCP_SYN_SENT:
 		xprt->connect_cookie++;
@@ -1193,6 +1192,7 @@ static void xs_tcp_state_change(struct sock *sk)
 			xprt->reestablish_timeout = XS_TCP_INIT_REEST_TO;
 		break;
 	case TCP_LAST_ACK:
+		set_bit(XPRT_CLOSING, &xprt->state);
 		smp_mb__before_clear_bit();
 		clear_bit(XPRT_CONNECTED, &xprt->state);
 		smp_mb__after_clear_bit();
@@ -1836,9 +1836,6 @@ static void xs_tcp_connect(struct rpc_task *task)
 {
 	struct rpc_xprt *xprt = task->tk_xprt;
 
-	/* Initiate graceful shutdown of the socket if not already done */
-	if (test_bit(XPRT_CONNECTED, &xprt->state))
-		xs_tcp_shutdown(xprt);
 	/* Exit if we need to wait for socket shutdown to complete */
 	if (test_bit(XPRT_CLOSING, &xprt->state))
 		return;
