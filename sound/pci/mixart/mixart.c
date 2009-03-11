@@ -607,6 +607,7 @@ static int snd_mixart_hw_params(struct snd_pcm_substream *subs,
 	/* set the format to the board */
 	err = mixart_set_format(stream, format);
 	if(err < 0) {
+		mutex_unlock(&mgr->setup_mutex);
 		return err;
 	}
 
