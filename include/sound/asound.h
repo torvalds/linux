@@ -919,18 +919,4 @@ struct snd_ctl_event {
 #define SNDRV_CTL_NAME_IEC958_PCM_STREAM		"PCM Stream"
 #define SNDRV_CTL_NAME_IEC958(expl,direction,what)	"IEC958 " expl SNDRV_CTL_NAME_##direction SNDRV_CTL_NAME_IEC958_##what
 
-/*
- *
- */
-
-struct snd_xferv {
-	const struct iovec *vector;
-	unsigned long count;
-};
-
-enum {
-	SNDRV_IOCTL_READV = _IOW('K', 0x00, struct snd_xferv),
-	SNDRV_IOCTL_WRITEV = _IOW('K', 0x01, struct snd_xferv),
-};
-
 #endif /* __SOUND_ASOUND_H */
