@@ -1105,14 +1105,24 @@ static void
 call_transmit_status(struct rpc_task *task)
 {
 	task->tk_action = call_status;
-	/*
-	 * Special case: if we've been waiting on the socket's write_space()
-	 * callback, then don't call xprt_end_transmit().
-	 */
-	if (task->tk_status == -EAGAIN)
-		return;
-	xprt_end_transmit(task);
-	rpc_task_force_reencode(task);
+	switch (task->tk_status) {
+	case -EAGAIN:
+		break;
+	default:
+		xprt_end_transmit(task);
+		/*
+		 * Special cases: if we've been waiting on the
+		 * socket's write_space() callback, or if the
+		 * socket just returned a connection error,
+		 * then hold onto the transport lock.
+		 */
+	case -ECONNREFUSED:
+	case -ENOTCONN:
+	case -EHOSTDOWN:
+	case -EHOSTUNREACH:
+	case -ENETUNREACH:
+		rpc_task_force_reencode(task);
+	}
 }
 
 /*
