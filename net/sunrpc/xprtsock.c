@@ -1613,10 +1613,9 @@ out:
  * We need to preserve the port number so the reply cache on the server can
  * find our cached RPC replies when we get around to reconnecting.
  */
-static void xs_tcp_reuse_connection(struct rpc_xprt *xprt)
+static void xs_abort_connection(struct rpc_xprt *xprt, struct sock_xprt *transport)
 {
 	int result;
-	struct sock_xprt *transport = container_of(xprt, struct sock_xprt, xprt);
 	struct sockaddr any;
 
 	dprintk("RPC:       disconnecting xprt %p to reuse port\n", xprt);
@@ -1631,6 +1630,17 @@ static void xs_tcp_reuse_connection(struct rpc_xprt *xprt)
 	if (result)
 		dprintk("RPC:       AF_UNSPEC connect return code %d\n",
 				result);
+}
+
+static void xs_tcp_reuse_connection(struct rpc_xprt *xprt, struct sock_xprt *transport)
+{
+	unsigned int state = transport->inet->sk_state;
+
+	if (state == TCP_CLOSE && transport->sock->state == SS_UNCONNECTED)
+		return;
+	if ((1 << state) & (TCPF_ESTABLISHED|TCPF_SYN_SENT))
+		return;
+	xs_abort_connection(xprt, transport);
 }
 
 static int xs_tcp_finish_connecting(struct rpc_xprt *xprt, struct socket *sock)
@@ -1706,7 +1716,7 @@ static void xs_tcp_connect_worker4(struct work_struct *work)
 		}
 	} else
 		/* "close" the socket, preserving the local port */
-		xs_tcp_reuse_connection(xprt);
+		xs_tcp_reuse_connection(xprt, transport);
 
 	dprintk("RPC:       worker connecting xprt %p to address: %s\n",
 			xprt, xprt->address_strings[RPC_DISPLAY_ALL]);
@@ -1766,7 +1776,7 @@ static void xs_tcp_connect_worker6(struct work_struct *work)
 		}
 	} else
 		/* "close" the socket, preserving the local port */
-		xs_tcp_reuse_connection(xprt);
+		xs_tcp_reuse_connection(xprt, transport);
 
 	dprintk("RPC:       worker connecting xprt %p to address: %s\n",
 			xprt, xprt->address_strings[RPC_DISPLAY_ALL]);
