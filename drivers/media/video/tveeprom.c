@@ -261,7 +261,7 @@ hauppauge_tuner[] =
 	{ TUNER_ABSENT,        		"MaxLinear MXL5005_v2"},
 	{ TUNER_PHILIPS_TDA8290, 	"Philips 18271_8295"},
 	/* 150-159 */
-	{ TUNER_ABSENT,                 "Xceive XC5000"},
+	{ TUNER_XC5000,                 "Xceive XC5000"},
 	{ TUNER_ABSENT,                 "Xceive XC3028L"},
 	{ TUNER_ABSENT,                 "NXP 18271C2_716x"},
 	{ TUNER_ABSENT,                 "Xceive XC4000"},
