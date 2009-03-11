@@ -293,37 +293,48 @@ static ssize_t pagesize_show(struct hyp_sysfs_attr *attr, char *buffer)
 
 HYPERVISOR_ATTR_RO(pagesize);
 
-/* eventually there will be several more features to export */
 static ssize_t xen_feature_show(int index, char *buffer)
 {
-	int ret = -ENOMEM;
-	struct xen_feature_info *info;
+	ssize_t ret;
+	struct xen_feature_info info;
 
-	info = kmalloc(sizeof(struct xen_feature_info), GFP_KERNEL);
-	if (info) {
-		info->submap_idx = index;
-		ret = HYPERVISOR_xen_version(XENVER_get_features, info);
-		if (!ret)
-			ret = sprintf(buffer, "%d\n", info->submap);
-		kfree(info);
-	}
+	info.submap_idx = index;
+	ret = HYPERVISOR_xen_version(XENVER_get_features, &info);
+	if (!ret)
+		ret = sprintf(buffer, "%08x", info.submap);
 
 	return ret;
 }
 
-static ssize_t writable_pt_show(struct hyp_sysfs_attr *attr, char *buffer)
+static ssize_t features_show(struct hyp_sysfs_attr *attr, char *buffer)
 {
-	return xen_feature_show(XENFEAT_writable_page_tables, buffer);
+	ssize_t len;
+	int i;
+
+	len = 0;
+	for (i = XENFEAT_NR_SUBMAPS-1; i >= 0; i--) {
+		int ret = xen_feature_show(i, buffer + len);
+		if (ret < 0) {
+			if (len == 0)
+				len = ret;
+			break;
+		}
+		len += ret;
+	}
+	if (len > 0)
+		buffer[len++] = '\n';
+
+	return len;
 }
 
-HYPERVISOR_ATTR_RO(writable_pt);
+HYPERVISOR_ATTR_RO(features);
 
 static struct attribute *xen_properties_attrs[] = {
 	&capabilities_attr.attr,
 	&changeset_attr.attr,
 	&virtual_start_attr.attr,
 	&pagesize_attr.attr,
-	&writable_pt_attr.attr,
+	&features_attr.attr,
 	NULL
 };
 
