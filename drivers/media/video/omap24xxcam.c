@@ -1665,7 +1665,6 @@ static int omap24xxcam_device_register(struct v4l2_int_device *s)
 	vfd->parent = cam->dev;
 
 	strlcpy(vfd->name, CAM_NAME, sizeof(vfd->name));
-	vfd->vfl_type		 = VID_TYPE_CAPTURE | VID_TYPE_CHROMAKEY;
 	vfd->fops		 = &omap24xxcam_fops;
 	vfd->minor		 = -1;
 	vfd->ioctl_ops		 = &omap24xxcam_ioctl_fops;
