@@ -156,6 +156,7 @@ static inline void __iwl_clear_bit(const char *f, u32 l,
 static inline int _iwl_grab_nic_access(struct iwl_priv *priv)
 {
 	int ret;
+	u32 val;
 #ifdef CONFIG_IWLWIFI_DEBUG
 	if (atomic_read(&priv->restrict_refcnt))
 		return 0;
@@ -167,7 +168,8 @@ static inline int _iwl_grab_nic_access(struct iwl_priv *priv)
 			   (CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY |
 			    CSR_GP_CNTRL_REG_FLAG_GOING_TO_SLEEP), 15000);
 	if (ret < 0) {
-		IWL_ERR(priv, "MAC is in deep sleep!\n");
+		val = _iwl_read32(priv, CSR_GP_CNTRL);
+		IWL_ERR(priv, "MAC is in deep sleep!.  CSR_GP_CNTRL = 0x%08X\n", val);
 		return -EIO;
 	}
 
