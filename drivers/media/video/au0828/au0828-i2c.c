@@ -156,6 +156,24 @@ static int i2c_sendbytes(struct i2c_adapter *i2c_adap,
 
 	dprintk(4, "SEND: %02x\n", msg->addr);
 
+	/* Deal with i2c_scan */
+	if (msg->len == 0) {
+		/* The analog tuner detection code makes use of the SMBUS_QUICK
+		   message (which involves a zero length i2c write).  To avoid
+		   checking the status register when we didn't strobe out any
+		   actual bytes to the bus, just do a read check.  This is
+		   consistent with how I saw i2c device checking done in the
+		   USB trace of the Windows driver */
+		au0828_write(dev, REG_200, 0x20);
+		if (!i2c_wait_done(i2c_adap))
+			return -EIO;
+
+		if (i2c_wait_read_ack(i2c_adap))
+			return -EIO;
+
+		return 0;
+	}
+
 	for (i = 0; i < msg->len;) {
 
 		dprintk(4, " %02x\n", msg->buf[i]);
