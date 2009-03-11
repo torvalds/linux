@@ -520,7 +520,7 @@ extern int i915_driver_device_is_agp(struct drm_device * dev);
 extern long i915_compat_ioctl(struct file *filp, unsigned int cmd,
 			      unsigned long arg);
 extern int i915_emit_box(struct drm_device *dev,
-			 struct drm_clip_rect __user *boxes,
+			 struct drm_clip_rect *boxes,
 			 int i, int DR1, int DR4);
 
 /* i915_irq.c */

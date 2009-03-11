@@ -2891,11 +2891,10 @@ i915_gem_object_pin_and_relocate(struct drm_gem_object *obj,
 static int
 i915_dispatch_gem_execbuffer(struct drm_device *dev,
 			      struct drm_i915_gem_execbuffer *exec,
+			      struct drm_clip_rect *cliprects,
 			      uint64_t exec_offset)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
-	struct drm_clip_rect __user *boxes = (struct drm_clip_rect __user *)
-					     (uintptr_t) exec->cliprects_ptr;
 	int nbox = exec->num_cliprects;
 	int i = 0, count;
 	uint32_t	exec_start, exec_len;
@@ -2916,7 +2915,7 @@ i915_dispatch_gem_execbuffer(struct drm_device *dev,
 
 	for (i = 0; i < count; i++) {
 		if (i < nbox) {
-			int ret = i915_emit_box(dev, boxes, i,
+			int ret = i915_emit_box(dev, cliprects, i,
 						exec->DR1, exec->DR4);
 			if (ret)
 				return ret;
@@ -2983,6 +2982,7 @@ i915_gem_execbuffer(struct drm_device *dev, void *data,
 	struct drm_gem_object **object_list = NULL;
 	struct drm_gem_object *batch_obj;
 	struct drm_i915_gem_object *obj_priv;
+	struct drm_clip_rect *cliprects = NULL;
 	int ret, i, pinned = 0;
 	uint64_t exec_offset;
 	uint32_t seqno, flush_domains;
@@ -3017,6 +3017,23 @@ i915_gem_execbuffer(struct drm_device *dev, void *data,
 		DRM_ERROR("copy %d exec entries failed %d\n",
 			  args->buffer_count, ret);
 		goto pre_mutex_err;
+	}
+
+	if (args->num_cliprects != 0) {
+		cliprects = drm_calloc(args->num_cliprects, sizeof(*cliprects),
+				       DRM_MEM_DRIVER);
+		if (cliprects == NULL)
+			goto pre_mutex_err;
+
+		ret = copy_from_user(cliprects,
+				     (struct drm_clip_rect __user *)
+				     (uintptr_t) args->cliprects_ptr,
+				     sizeof(*cliprects) * args->num_cliprects);
+		if (ret != 0) {
+			DRM_ERROR("copy %d cliprects failed: %d\n",
+				  args->num_cliprects, ret);
+			goto pre_mutex_err;
+		}
 	}
 
 	mutex_lock(&dev->struct_mutex);
@@ -3155,7 +3172,7 @@ i915_gem_execbuffer(struct drm_device *dev, void *data,
 #endif
 
 	/* Exec the batchbuffer */
-	ret = i915_dispatch_gem_execbuffer(dev, args, exec_offset);
+	ret = i915_dispatch_gem_execbuffer(dev, args, cliprects, exec_offset);
 	if (ret) {
 		DRM_ERROR("dispatch failed %d\n", ret);
 		goto err;
@@ -3223,6 +3240,8 @@ pre_mutex_err:
 	drm_free(object_list, sizeof(*object_list) * args->buffer_count,
 		 DRM_MEM_DRIVER);
 	drm_free(exec_list, sizeof(*exec_list) * args->buffer_count,
+		 DRM_MEM_DRIVER);
+	drm_free(cliprects, sizeof(*cliprects) * args->num_cliprects,
 		 DRM_MEM_DRIVER);
 
 	return ret;
