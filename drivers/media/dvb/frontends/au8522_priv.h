@@ -37,6 +37,10 @@
 struct au8522_state {
 	struct i2c_adapter *i2c;
 
+	/* Used for sharing of the state between analog and digital mode */
+	struct tuner_i2c_props i2c_props;
+	struct list_head hybrid_tuner_instance_list;
+
 	/* configuration settings */
 	const struct au8522_config *config;
 
@@ -55,3 +59,7 @@ int au8522_writereg(struct au8522_state *state, u16 reg, u8 data);
 u8 au8522_readreg(struct au8522_state *state, u16 reg);
 int au8522_init(struct dvb_frontend *fe);
 int au8522_sleep(struct dvb_frontend *fe);
+
+int au8522_get_state(struct au8522_state **state, struct i2c_adapter *i2c,
+		     u8 client_address);
+void au8522_release_state(struct au8522_state *state);

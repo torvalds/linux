@@ -31,6 +31,10 @@
 
 static int debug;
 
+/* Despite the name "hybrid_tuner", the framework works just as well for
+   hybrid demodulators as well... */
+static LIST_HEAD(hybrid_tuner_instance_list);
+
 #define dprintk(arg...) do {		\
 	if (debug) 			\
 		 printk(arg); 		\
@@ -786,23 +790,50 @@ static int au8522_get_tune_settings(struct dvb_frontend *fe,
 	return 0;
 }
 
+static struct dvb_frontend_ops au8522_ops;
+
+int au8522_get_state(struct au8522_state **state, struct i2c_adapter *i2c,
+		     u8 client_address)
+{
+	return hybrid_tuner_request_state(struct au8522_state, (*state),
+					  hybrid_tuner_instance_list,
+					  i2c, client_address, "au8522");
+}
+
+void au8522_release_state(struct au8522_state *state)
+{
+	if (state != NULL)
+		hybrid_tuner_release_state(state);
+}
+
+
 static void au8522_release(struct dvb_frontend *fe)
 {
 	struct au8522_state *state = fe->demodulator_priv;
-	kfree(state);
+	au8522_release_state(state);
 }
-
-static struct dvb_frontend_ops au8522_ops;
 
 struct dvb_frontend *au8522_attach(const struct au8522_config *config,
 				   struct i2c_adapter *i2c)
 {
 	struct au8522_state *state = NULL;
+	int instance;
 
 	/* allocate memory for the internal state */
-	state = kmalloc(sizeof(struct au8522_state), GFP_KERNEL);
-	if (state == NULL)
-		goto error;
+	instance = au8522_get_state(&state, i2c, config->demod_address);
+	switch (instance) {
+	case 0:
+		dprintk("%s state allocation failed\n", __func__);
+		break;
+	case 1:
+		/* new demod instance */
+		dprintk("%s using new instance\n", __func__);
+		break;
+	default:
+		/* existing demod instance */
+		dprintk("%s using existing instance\n", __func__);
+		break;
+	}
 
 	/* setup the state */
 	state->config = config;
@@ -824,7 +855,7 @@ struct dvb_frontend *au8522_attach(const struct au8522_config *config,
 	return &state->frontend;
 
 error:
-	kfree(state);
+	au8522_release_state(state);
 	return NULL;
 }
 EXPORT_SYMBOL(au8522_attach);
