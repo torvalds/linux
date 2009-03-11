@@ -24,6 +24,7 @@ config PPC_MPC5200_SIMPLE
 	  are:
 	     intercontrol,digsy-mtc
 	     phytec,pcm030
+	     phytec,pcm032
 	     promess,motionpro
 	     schindler,cm5200
 	     tqc,tqm5200
