@@ -165,4 +165,3 @@ struct pci_channel board_pci_channels[] = {
 	  &gapspci_mem_resource, 0, 1 },
 	{ 0, }
 };
-EXPORT_SYMBOL(board_pci_channels);
