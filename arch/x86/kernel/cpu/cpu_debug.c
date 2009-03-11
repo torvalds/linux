@@ -23,6 +23,7 @@
 #include <linux/smp.h>
 
 #include <asm/cpu_debug.h>
+#include <asm/paravirt.h>
 #include <asm/system.h>
 #include <asm/traps.h>
 #include <asm/apic.h>
@@ -427,7 +428,7 @@ static void print_tss(void *arg)
 	seq_printf(seq, " CS\t:             %04x\n", seg);
 	asm("movl %%ds,%0" : "=r" (seg));
 	seq_printf(seq, " DS\t:             %04x\n", seg);
-	seq_printf(seq, " SS\t:             %04lx\n", regs->ss);
+	seq_printf(seq, " SS\t:             %04lx\n", regs->ss & 0xffff);
 	asm("movl %%es,%0" : "=r" (seg));
 	seq_printf(seq, " ES\t:             %04x\n", seg);
 	asm("movl %%fs,%0" : "=r" (seg));
