@@ -1476,7 +1476,7 @@ static void i915_write_fence_reg(struct drm_i915_fence_reg *reg)
 	struct drm_i915_gem_object *obj_priv = obj->driver_private;
 	int regnum = obj_priv->fence_reg;
 	int tile_width;
-	uint32_t val;
+	uint32_t fence_reg, val;
 	uint32_t pitch_val;
 
 	if ((obj_priv->gtt_offset & ~I915_FENCE_START_MASK) ||
@@ -1503,7 +1503,11 @@ static void i915_write_fence_reg(struct drm_i915_fence_reg *reg)
 	val |= pitch_val << I830_FENCE_PITCH_SHIFT;
 	val |= I830_FENCE_REG_VALID;
 
-	I915_WRITE(FENCE_REG_830_0 + (regnum * 4), val);
+	if (regnum < 8)
+		fence_reg = FENCE_REG_830_0 + (regnum * 4);
+	else
+		fence_reg = FENCE_REG_945_8 + ((regnum - 8) * 4);
+	I915_WRITE(fence_reg, val);
 }
 
 static void i830_write_fence_reg(struct drm_i915_fence_reg *reg)
@@ -1687,8 +1691,17 @@ i915_gem_clear_fence_reg(struct drm_gem_object *obj)
 
 	if (IS_I965G(dev))
 		I915_WRITE64(FENCE_REG_965_0 + (obj_priv->fence_reg * 8), 0);
-	else
-		I915_WRITE(FENCE_REG_830_0 + (obj_priv->fence_reg * 4), 0);
+	else {
+		uint32_t fence_reg;
+
+		if (obj_priv->fence_reg < 8)
+			fence_reg = FENCE_REG_830_0 + obj_priv->fence_reg * 4;
+		else
+			fence_reg = FENCE_REG_945_8 + (obj_priv->fence_reg -
+						       8) * 4;
+
+		I915_WRITE(fence_reg, 0);
+	}
 
 	dev_priv->fence_regs[obj_priv->fence_reg].obj = NULL;
 	obj_priv->fence_reg = I915_FENCE_REG_NONE;
