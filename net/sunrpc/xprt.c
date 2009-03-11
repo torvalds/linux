@@ -152,6 +152,37 @@ out:
 EXPORT_SYMBOL_GPL(xprt_unregister_transport);
 
 /**
+ * xprt_load_transport - load a transport implementation
+ * @transport_name: transport to load
+ *
+ * Returns:
+ * 0:		transport successfully loaded
+ * -ENOENT:	transport module not available
+ */
+int xprt_load_transport(const char *transport_name)
+{
+	struct xprt_class *t;
+	char module_name[sizeof t->name + 5];
+	int result;
+
+	result = 0;
+	spin_lock(&xprt_list_lock);
+	list_for_each_entry(t, &xprt_list, list) {
+		if (strcmp(t->name, transport_name) == 0) {
+			spin_unlock(&xprt_list_lock);
+			goto out;
+		}
+	}
+	spin_unlock(&xprt_list_lock);
+	strcpy(module_name, "xprt");
+	strncat(module_name, transport_name, sizeof t->name);
+	result = request_module(module_name);
+out:
+	return result;
+}
+EXPORT_SYMBOL_GPL(xprt_load_transport);
+
+/**
  * xprt_reserve_xprt - serialize write access to transports
  * @task: task that is requesting access to the transport
  *
