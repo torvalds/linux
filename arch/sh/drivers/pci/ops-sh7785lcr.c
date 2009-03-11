@@ -41,7 +41,7 @@ static struct resource sh7785_mem_resource = {
 };
 
 struct pci_channel board_pci_channels[] = {
-	{ &sh4_pci_ops, &sh7785_io_resource, &sh7785_mem_resource, 0, 0xff },
+	{ sh7780_pci_init, &sh4_pci_ops, &sh7785_io_resource, &sh7785_mem_resource, 0, 0xff },
 	{ NULL, NULL, NULL, 0, 0 },
 };
 
@@ -61,5 +61,5 @@ static struct sh4_pci_address_map sh7785_pci_map = {
 
 int __init pcibios_init_platform(void)
 {
-	return sh7780_pcic_init(&sh7785_pci_map);
+	return sh7780_pcic_init(&board_pci_channels[0], &sh7785_pci_map);
 }
