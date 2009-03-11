@@ -86,6 +86,7 @@
 #define RT2870_USB_DEVICES	\
 {	\
 	{USB_DEVICE(0x148F,0x2770)}, /* Ralink */		\
+	{USB_DEVICE(0x1737,0x0071)}, /* Linksys WUSB600N */	\
 	{USB_DEVICE(0x148F,0x2870)}, /* Ralink */		\
 	{USB_DEVICE(0x148F,0x3070)}, /* Ralink */		\
 	{USB_DEVICE(0x0B05,0x1731)}, /* Asus */			\
