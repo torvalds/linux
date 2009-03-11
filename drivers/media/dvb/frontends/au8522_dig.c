@@ -617,6 +617,9 @@ int au8522_sleep(struct dvb_frontend *fe)
 	/* turn off led */
 	au8522_led_ctrl(state, 0);
 
+	/* Power down the chip */
+	au8522_writereg(state, 0xa4, 1 << 5);
+
 	state->current_frequency = 0;
 
 	return 0;
