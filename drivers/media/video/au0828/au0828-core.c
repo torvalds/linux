@@ -165,11 +165,9 @@ static void au0828_usb_disconnect(struct usb_interface *interface)
 static int au0828_usb_probe(struct usb_interface *interface,
 	const struct usb_device_id *id)
 {
-	int ifnum, i;
+	int ifnum;
 	struct au0828_dev *dev;
 	struct usb_device *usbdev = interface_to_usbdev(interface);
-	struct usb_host_interface *iface_desc;
-	struct usb_endpoint_descriptor *endpoint;
 
 	ifnum = interface->altsetting->desc.bInterfaceNumber;
 
@@ -194,30 +192,6 @@ static int au0828_usb_probe(struct usb_interface *interface,
 
 	usb_set_intfdata(interface, dev);
 
-	/* set au0828 usb interface0 to as5 */
-	usb_set_interface(usbdev,
-			  interface->cur_altsetting->desc.bInterfaceNumber, 5);
-
-	/* Figure out which endpoint has the isoc interface */
-	iface_desc = interface->cur_altsetting;
-	for(i = 0; i < iface_desc->desc.bNumEndpoints; i++){
-		endpoint = &iface_desc->endpoint[i].desc;
-		if(((endpoint->bEndpointAddress & USB_ENDPOINT_DIR_MASK) == USB_DIR_IN)	&&
-		   ((endpoint->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) == USB_ENDPOINT_XFER_ISOC)){
-
-			/* we find our isoc in endpoint */
-			u16 tmp = le16_to_cpu(endpoint->wMaxPacketSize);
-			dev->max_pkt_size = (tmp & 0x07ff) * (((tmp & 0x1800) >> 11) + 1);
-			dev->isoc_in_endpointaddr = endpoint->bEndpointAddress;
-		}
-	}
-	if(!(dev->isoc_in_endpointaddr)) {
-		printk("Could not locate isoc endpoint\n");
-		kfree(dev);
-		return -ENODEV;
-	}
-
-
 	/* Power Up the bridge */
 	au0828_write(dev, REG_600, 1 << 4);
 
@@ -232,7 +206,7 @@ static int au0828_usb_probe(struct usb_interface *interface,
 
 	/* Analog TV */
 	if (dev->board.input != NULL)
-		au0828_analog_register(dev);
+		au0828_analog_register(dev, interface);
 
 	/* Digital TV */
 	au0828_dvb_register(dev);

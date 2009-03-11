@@ -1618,11 +1618,42 @@ static const struct video_device au0828_video_template = {
 
 /**************************************************************************/
 
-int au0828_analog_register(struct au0828_dev *dev)
+int au0828_analog_register(struct au0828_dev *dev,
+			   struct usb_interface *interface)
 {
 	int retval = -ENOMEM;
+	struct usb_host_interface *iface_desc;
+	struct usb_endpoint_descriptor *endpoint;
+	int i;
 
 	dprintk(1, "au0828_analog_register called!\n");
+
+	/* set au0828 usb interface0 to as5 */
+	retval = usb_set_interface(dev->usbdev,
+				   interface->cur_altsetting->desc.bInterfaceNumber, 5);
+	if (retval != 0) {
+		printk("Failure setting usb interface0 to as5\n");
+		return retval;
+	}
+
+	/* Figure out which endpoint has the isoc interface */
+	iface_desc = interface->cur_altsetting;
+	for(i = 0; i < iface_desc->desc.bNumEndpoints; i++){
+		endpoint = &iface_desc->endpoint[i].desc;
+		if(((endpoint->bEndpointAddress & USB_ENDPOINT_DIR_MASK) == USB_DIR_IN)	&&
+		   ((endpoint->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) == USB_ENDPOINT_XFER_ISOC)){
+
+			/* we find our isoc in endpoint */
+			u16 tmp = le16_to_cpu(endpoint->wMaxPacketSize);
+			dev->max_pkt_size = (tmp & 0x07ff) * (((tmp & 0x1800) >> 11) + 1);
+			dev->isoc_in_endpointaddr = endpoint->bEndpointAddress;
+		}
+	}
+	if(!(dev->isoc_in_endpointaddr)) {
+		printk("Could not locate isoc endpoint\n");
+		kfree(dev);
+		return -ENODEV;
+	}
 
 	init_waitqueue_head(&dev->open);
 	spin_lock_init(&dev->slock);

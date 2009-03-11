@@ -273,7 +273,8 @@ extern void au0828_call_i2c_clients(struct au0828_dev *dev,
 
 /* ----------------------------------------------------------- */
 /* au0828-video.c */
-int au0828_analog_register(struct au0828_dev *dev);
+int au0828_analog_register(struct au0828_dev *dev,
+			   struct usb_interface *interface);
 int au0828_analog_stream_disable(struct au0828_dev *d);
 void au0828_analog_unregister(struct au0828_dev *dev);
 
