@@ -51,13 +51,13 @@ static int recv_control_msg(struct au0828_dev *dev, u16 request, u32 value,
 u32 au0828_readreg(struct au0828_dev *dev, u16 reg)
 {
 	recv_control_msg(dev, CMD_REQUEST_IN, 0, reg, dev->ctrlmsg, 1);
-	dprintk(8, "%s(0x%x) = 0x%x\n", __func__, reg, dev->ctrlmsg[0]);
+	dprintk(8, "%s(0x%04x) = 0x%02x\n", __func__, reg, dev->ctrlmsg[0]);
 	return dev->ctrlmsg[0];
 }
 
 u32 au0828_writereg(struct au0828_dev *dev, u16 reg, u32 val)
 {
-	dprintk(8, "%s(0x%x, 0x%x)\n", __func__, reg, val);
+	dprintk(8, "%s(0x%04x, 0x%02x)\n", __func__, reg, val);
 	return send_control_msg(dev, CMD_REQUEST_OUT, val, reg,
 				dev->ctrlmsg, 0);
 }
