@@ -171,16 +171,22 @@ struct cpu_private {
 struct cpu_debug_base {
 	char			*name;		/* Register name	*/
 	unsigned		flag;		/* Register flag	*/
+	unsigned		write;		/* Register write flag	*/
+};
+
+/*
+ * Currently it looks similar to cpu_debug_base but once we add more files
+ * cpu_file_base will go in different direction
+ */
+struct cpu_file_base {
+	char			*name;		/* Register file name	*/
+	unsigned		flag;		/* Register file flag	*/
+	unsigned		write;		/* Register write flag	*/
 };
 
 struct cpu_cpuX_base {
 	struct dentry		*dentry;	/* Register dentry	*/
 	int			init;		/* Register index file	*/
-};
-
-struct cpu_file_base {
-	char			*name;		/* Register file name	*/
-	unsigned		flag;		/* Register file flag	*/
 };
 
 struct cpu_debug_range {
