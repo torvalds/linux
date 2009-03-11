@@ -741,7 +741,8 @@ int iwl3945_hw_txq_attach_buf_to_tfd(struct iwl_priv *priv,
 void iwl3945_hw_txq_free_tfd(struct iwl_priv *priv, struct iwl_tx_queue *txq)
 {
 	struct iwl3945_tfd *tfd_tmp = (struct iwl3945_tfd *)txq->tfds;
-	struct iwl3945_tfd *tfd = &tfd_tmp[txq->q.read_ptr];
+	int index = txq->q.read_ptr;
+	struct iwl3945_tfd *tfd = &tfd_tmp[index];
 	struct pci_dev *dev = priv->pci_dev;
 	int i;
 	int counter;
@@ -758,6 +759,13 @@ void iwl3945_hw_txq_free_tfd(struct iwl_priv *priv, struct iwl_tx_queue *txq)
 		/* @todo issue fatal error, it is quite serious situation */
 		return;
 	}
+
+	/* Unmap tx_cmd */
+	if (counter)
+		pci_unmap_single(dev,
+				pci_unmap_addr(&txq->cmd[index]->meta, mapping),
+				pci_unmap_len(&txq->cmd[index]->meta, len),
+				PCI_DMA_TODEVICE);
 
 	/* unmap chunks if any */
 
