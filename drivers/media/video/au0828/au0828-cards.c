@@ -21,6 +21,18 @@
 
 #include "au0828.h"
 #include "au0828-cards.h"
+#include "au8522.h"
+
+void hvr950q_cs5340_audio(void *priv, int enable)
+{
+	/* Because the HVR-950q shares an i2s bus between the cs5340 and the
+	   au8522, we need to hold cs5340 in reset when using the au8522 */
+	struct au0828_dev *dev = priv;
+	if (enable == 1)
+		au0828_set(dev, REG_000, 0x10);
+	else
+		au0828_clear(dev, REG_000, 0x10);
+}
 
 struct au0828_board au0828_boards[] = {
 	[AU0828_BOARD_UNKNOWN] = {
@@ -31,6 +43,25 @@ struct au0828_board au0828_boards[] = {
 	},
 	[AU0828_BOARD_HAUPPAUGE_HVR950Q] = {
 		.name	= "Hauppauge HVR950Q",
+		.input = {
+			{
+				.type = AU0828_VMUX_TELEVISION,
+				.vmux = AU8522_COMPOSITE_CH4_SIF,
+				.amux = AU8522_AUDIO_SIF,
+			},
+			{
+				.type = AU0828_VMUX_COMPOSITE,
+				.vmux = AU8522_COMPOSITE_CH1,
+				.amux = AU8522_AUDIO_NONE,
+				.audio_setup = hvr950q_cs5340_audio,
+			},
+			{
+				.type = AU0828_VMUX_SVIDEO,
+				.vmux = AU8522_SVIDEO_CH13,
+				.amux = AU8522_AUDIO_NONE,
+				.audio_setup = hvr950q_cs5340_audio,
+			},
+		},
 	},
 	[AU0828_BOARD_HAUPPAUGE_HVR950Q_MXL] = {
 		.name	= "Hauppauge HVR950Q rev xxF8",
@@ -144,21 +175,23 @@ void au0828_gpio_setup(struct au0828_dev *dev)
 		 * 4 - CS5340
 		 * 5 - AU8522 Demodulator
 		 * 6 - eeprom W/P
+		 * 7 - power supply
 		 * 9 - XC5000 Tuner
 		 */
 
 		/* Into reset */
 		au0828_write(dev, REG_003, 0x02);
-		au0828_write(dev, REG_002, 0x88 | 0x20);
+		au0828_write(dev, REG_002, 0x80 | 0x20 | 0x10);
 		au0828_write(dev, REG_001, 0x0);
 		au0828_write(dev, REG_000, 0x0);
 		msleep(100);
 
-		/* Out of reset */
+		/* Out of reset (leave the cs5340 in reset until needed) */
 		au0828_write(dev, REG_003, 0x02);
 		au0828_write(dev, REG_001, 0x02);
-		au0828_write(dev, REG_002, 0x88 | 0x20);
-		au0828_write(dev, REG_000, 0x88 | 0x20 | 0x40);
+		au0828_write(dev, REG_002, 0x80 | 0x20 | 0x10);
+		au0828_write(dev, REG_000, 0x80 | 0x40 | 0x20);
+
 		msleep(250);
 		break;
 	case AU0828_BOARD_DVICO_FUSIONHDTV7:
