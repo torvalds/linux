@@ -24,7 +24,6 @@
 #include <linux/version.h>	/* for KERNEL_VERSION MACRO	*/
 #include <linux/mutex.h>
 #include <linux/io.h>		/* outb, outb_p			*/
-#include <linux/uaccess.h>	/* copy to/from user		*/
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-device.h>
 

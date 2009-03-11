@@ -39,7 +39,6 @@
 #include <linux/param.h>
 #include <linux/pnp.h>
 #include <linux/io.h>		/* outb, outb_p			*/
-#include <linux/uaccess.h>	/* copy to/from user		*/
 #include <media/v4l2-device.h>
 #include <media/v4l2-ioctl.h>
 

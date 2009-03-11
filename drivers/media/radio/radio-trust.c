@@ -22,7 +22,6 @@
 #include <linux/version.h>      /* for KERNEL_VERSION MACRO     */
 #include <linux/videodev2.h>
 #include <linux/io.h>
-#include <linux/uaccess.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-ioctl.h>
 
