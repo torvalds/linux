@@ -506,6 +506,16 @@ static int ssm2602_set_bias_level(struct snd_soc_codec *codec,
 #define SSM2602_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE |\
 		SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_S32_LE)
 
+static struct snd_soc_dai_ops ssm2602_dai_ops = {
+	.startup	= ssm2602_startup,
+	.prepare	= ssm2602_pcm_prepare,
+	.hw_params	= ssm2602_hw_params,
+	.shutdown	= ssm2602_shutdown,
+	.digital_mute	= ssm2602_mute,
+	.set_sysclk	= ssm2602_set_dai_sysclk,
+	.set_fmt	= ssm2602_set_dai_fmt,
+};
+
 struct snd_soc_dai ssm2602_dai = {
 	.name = "SSM2602",
 	.playback = {
@@ -520,15 +530,7 @@ struct snd_soc_dai ssm2602_dai = {
 		.channels_max = 2,
 		.rates = SSM2602_RATES,
 		.formats = SSM2602_FORMATS,},
-	.ops = {
-		.startup = ssm2602_startup,
-		.prepare = ssm2602_pcm_prepare,
-		.hw_params = ssm2602_hw_params,
-		.shutdown = ssm2602_shutdown,
-		.digital_mute = ssm2602_mute,
-		.set_sysclk = ssm2602_set_dai_sysclk,
-		.set_fmt = ssm2602_set_dai_fmt,
-	}
+	.ops = &ssm2602_dai_ops,
 };
 EXPORT_SYMBOL_GPL(ssm2602_dai);
 

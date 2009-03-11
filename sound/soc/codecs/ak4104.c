@@ -174,6 +174,11 @@ static int ak4104_hw_params(struct snd_pcm_substream *substream,
 	return ak4104_spi_write(codec, AK4104_REG_CHN_STATUS(3), val);
 }
 
+static struct snd_soc_dai_ops ak4101_dai_ops = {
+	.hw_params = ak4104_hw_params,
+	.set_fmt = ak4104_set_dai_fmt,
+};
+
 struct snd_soc_dai ak4104_dai = {
 	.name = DRV_NAME,
 	.playback = {
@@ -187,10 +192,7 @@ struct snd_soc_dai ak4104_dai = {
 			   SNDRV_PCM_FMTBIT_S24_3LE |
 			   SNDRV_PCM_FMTBIT_S24_LE
 	},
-	.ops = {
-		.hw_params = ak4104_hw_params,
-		.set_fmt = ak4104_set_dai_fmt,
-	}
+	.ops = &ak4101_dai_ops,
 };
 
 static struct snd_soc_codec *ak4104_codec;

@@ -580,6 +580,15 @@ static int fsl_ssi_set_fmt(struct snd_soc_dai *cpu_dai, unsigned int format)
 /**
  * fsl_ssi_dai_template: template CPU DAI for the SSI
  */
+static struct snd_soc_dai_ops fsl_ssi_dai_ops = {
+	.startup	= fsl_ssi_startup,
+	.hw_params	= fsl_ssi_hw_params,
+	.shutdown	= fsl_ssi_shutdown,
+	.trigger	= fsl_ssi_trigger,
+	.set_sysclk	= fsl_ssi_set_sysclk,
+	.set_fmt	= fsl_ssi_set_fmt,
+};
+
 static struct snd_soc_dai fsl_ssi_dai_template = {
 	.playback = {
 		/* The SSI does not support monaural audio. */
@@ -594,14 +603,7 @@ static struct snd_soc_dai fsl_ssi_dai_template = {
 		.rates = FSLSSI_I2S_RATES,
 		.formats = FSLSSI_I2S_FORMATS,
 	},
-	.ops = {
-		.startup = fsl_ssi_startup,
-		.hw_params = fsl_ssi_hw_params,
-		.shutdown = fsl_ssi_shutdown,
-		.trigger = fsl_ssi_trigger,
-		.set_sysclk = fsl_ssi_set_sysclk,
-		.set_fmt = fsl_ssi_set_fmt,
-	},
+	.ops = &fsl_ssi_dai_ops,
 };
 
 /**

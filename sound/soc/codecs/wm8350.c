@@ -1538,6 +1538,16 @@ static int wm8350_remove(struct platform_device *pdev)
 			SNDRV_PCM_FMTBIT_S20_3LE |\
 			SNDRV_PCM_FMTBIT_S24_LE)
 
+static struct snd_soc_dai_ops wm8350_dai_ops = {
+	 .hw_params	= wm8350_pcm_hw_params,
+	 .digital_mute	= wm8350_mute,
+	 .trigger	= wm8350_pcm_trigger,
+	 .set_fmt	= wm8350_set_dai_fmt,
+	 .set_sysclk	= wm8350_set_dai_sysclk,
+	 .set_pll	= wm8350_set_fll,
+	 .set_clkdiv	= wm8350_set_clkdiv,
+};
+
 struct snd_soc_dai wm8350_dai = {
 	.name = "WM8350",
 	.playback = {
@@ -1554,15 +1564,7 @@ struct snd_soc_dai wm8350_dai = {
 		 .rates = WM8350_RATES,
 		 .formats = WM8350_FORMATS,
 	 },
-	.ops = {
-		 .hw_params = wm8350_pcm_hw_params,
-		 .digital_mute = wm8350_mute,
-		 .trigger = wm8350_pcm_trigger,
-		 .set_fmt = wm8350_set_dai_fmt,
-		 .set_sysclk = wm8350_set_dai_sysclk,
-		 .set_pll = wm8350_set_fll,
-		 .set_clkdiv = wm8350_set_clkdiv,
-	 },
+	.ops = &wm8350_dai_ops,
 };
 EXPORT_SYMBOL_GPL(wm8350_dai);
 

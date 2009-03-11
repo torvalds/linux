@@ -1301,6 +1301,51 @@ static int wm8753_set_bias_level(struct snd_soc_codec *codec,
  * 3. Voice disabled - HIFI over HIFI
  * 4. Voice disabled - HIFI over HIFI, uses voice DAI LRC for capture
  */
+static struct snd_soc_dai_ops wm8753_dai_ops_hifi_mode1 = {
+	.hw_params	= wm8753_i2s_hw_params,
+	.digital_mute	= wm8753_mute,
+	.set_fmt	= wm8753_mode1h_set_dai_fmt,
+	.set_clkdiv	= wm8753_set_dai_clkdiv,
+	.set_pll	= wm8753_set_dai_pll,
+	.set_sysclk	= wm8753_set_dai_sysclk,
+};
+
+static struct snd_soc_dai_ops wm8753_dai_ops_voice_mode1 = {
+	.hw_params	= wm8753_pcm_hw_params,
+	.digital_mute	= wm8753_mute,
+	.set_fmt	= wm8753_mode1v_set_dai_fmt,
+	.set_clkdiv	= wm8753_set_dai_clkdiv,
+	.set_pll	= wm8753_set_dai_pll,
+	.set_sysclk	= wm8753_set_dai_sysclk,
+};
+
+static struct snd_soc_dai_ops wm8753_dai_ops_voice_mode2 = {
+	.hw_params	= wm8753_pcm_hw_params,
+	.digital_mute	= wm8753_mute,
+	.set_fmt	= wm8753_mode2_set_dai_fmt,
+	.set_clkdiv	= wm8753_set_dai_clkdiv,
+	.set_pll	= wm8753_set_dai_pll,
+	.set_sysclk	= wm8753_set_dai_sysclk,
+};
+
+static struct snd_soc_dai_ops wm8753_dai_ops_hifi_mode3	= {
+	.hw_params	= wm8753_i2s_hw_params,
+	.digital_mute	= wm8753_mute,
+	.set_fmt	= wm8753_mode3_4_set_dai_fmt,
+	.set_clkdiv	= wm8753_set_dai_clkdiv,
+	.set_pll	= wm8753_set_dai_pll,
+	.set_sysclk	= wm8753_set_dai_sysclk,
+};
+
+static struct snd_soc_dai_ops wm8753_dai_ops_hifi_mode4	= {
+	.hw_params	= wm8753_i2s_hw_params,
+	.digital_mute	= wm8753_mute,
+	.set_fmt	= wm8753_mode3_4_set_dai_fmt,
+	.set_clkdiv	= wm8753_set_dai_clkdiv,
+	.set_pll	= wm8753_set_dai_pll,
+	.set_sysclk	= wm8753_set_dai_sysclk,
+};
+
 static const struct snd_soc_dai wm8753_all_dai[] = {
 /* DAI HiFi mode 1 */
 {	.name = "WM8753 HiFi",
@@ -1317,14 +1362,7 @@ static const struct snd_soc_dai wm8753_all_dai[] = {
 		.channels_max = 2,
 		.rates = WM8753_RATES,
 		.formats = WM8753_FORMATS},
-	.ops = {
-		.hw_params = wm8753_i2s_hw_params,
-		.digital_mute = wm8753_mute,
-		.set_fmt = wm8753_mode1h_set_dai_fmt,
-		.set_clkdiv = wm8753_set_dai_clkdiv,
-		.set_pll = wm8753_set_dai_pll,
-		.set_sysclk = wm8753_set_dai_sysclk,
-	},
+	.ops = &wm8753_dai_ops_hifi_mode1,
 },
 /* DAI Voice mode 1 */
 {	.name = "WM8753 Voice",
@@ -1341,14 +1379,7 @@ static const struct snd_soc_dai wm8753_all_dai[] = {
 		.channels_max = 2,
 		.rates = WM8753_RATES,
 		.formats = WM8753_FORMATS,},
-	.ops = {
-		.hw_params = wm8753_pcm_hw_params,
-		.digital_mute = wm8753_mute,
-		.set_fmt = wm8753_mode1v_set_dai_fmt,
-		.set_clkdiv = wm8753_set_dai_clkdiv,
-		.set_pll = wm8753_set_dai_pll,
-		.set_sysclk = wm8753_set_dai_sysclk,
-	},
+	.ops = &wm8753_dai_ops_voice_mode1,
 },
 /* DAI HiFi mode 2 - dummy */
 {	.name = "WM8753 HiFi",
@@ -1369,14 +1400,7 @@ static const struct snd_soc_dai wm8753_all_dai[] = {
 		.channels_max = 2,
 		.rates = WM8753_RATES,
 		.formats = WM8753_FORMATS,},
-	.ops = {
-		.hw_params = wm8753_pcm_hw_params,
-		.digital_mute = wm8753_mute,
-		.set_fmt = wm8753_mode2_set_dai_fmt,
-		.set_clkdiv = wm8753_set_dai_clkdiv,
-		.set_pll = wm8753_set_dai_pll,
-		.set_sysclk = wm8753_set_dai_sysclk,
-	},
+	.ops = &wm8753_dai_ops_voice_mode2,
 },
 /* DAI HiFi mode 3 */
 {	.name = "WM8753 HiFi",
@@ -1393,14 +1417,7 @@ static const struct snd_soc_dai wm8753_all_dai[] = {
 		.channels_max = 2,
 		.rates = WM8753_RATES,
 		.formats = WM8753_FORMATS,},
-	.ops = {
-		.hw_params = wm8753_i2s_hw_params,
-		.digital_mute = wm8753_mute,
-		.set_fmt = wm8753_mode3_4_set_dai_fmt,
-		.set_clkdiv = wm8753_set_dai_clkdiv,
-		.set_pll = wm8753_set_dai_pll,
-		.set_sysclk = wm8753_set_dai_sysclk,
-	},
+	.ops = &wm8753_dai_ops_hifi_mode3,
 },
 /* DAI Voice mode 3 - dummy */
 {	.name = "WM8753 Voice",
@@ -1421,14 +1438,7 @@ static const struct snd_soc_dai wm8753_all_dai[] = {
 		.channels_max = 2,
 		.rates = WM8753_RATES,
 		.formats = WM8753_FORMATS,},
-	.ops = {
-		.hw_params = wm8753_i2s_hw_params,
-		.digital_mute = wm8753_mute,
-		.set_fmt = wm8753_mode3_4_set_dai_fmt,
-		.set_clkdiv = wm8753_set_dai_clkdiv,
-		.set_pll = wm8753_set_dai_pll,
-		.set_sysclk = wm8753_set_dai_sysclk,
-	},
+	.ops = &wm8753_dai_ops_hifi_mode4,
 },
 /* DAI Voice mode 4 - dummy */
 {	.name = "WM8753 Voice",

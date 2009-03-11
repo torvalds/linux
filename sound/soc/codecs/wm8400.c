@@ -1210,6 +1210,14 @@ static int wm8400_set_bias_level(struct snd_soc_codec *codec,
 #define WM8400_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE |\
 	SNDRV_PCM_FMTBIT_S24_LE)
 
+static struct snd_soc_dai_ops wm8400_dai_ops = {
+	.hw_params = wm8400_hw_params,
+	.digital_mute = wm8400_mute,
+	.set_fmt = wm8400_set_dai_fmt,
+	.set_clkdiv = wm8400_set_dai_clkdiv,
+	.set_sysclk = wm8400_set_dai_sysclk,
+};
+
 /*
  * The WM8400 supports 2 different and mutually exclusive DAI
  * configurations.
@@ -1235,13 +1243,7 @@ struct snd_soc_dai wm8400_dai = {
 		.rates = WM8400_RATES,
 		.formats = WM8400_FORMATS,
 	},
-	.ops = {
-		.hw_params = wm8400_hw_params,
-		.digital_mute = wm8400_mute,
-		.set_fmt = wm8400_set_dai_fmt,
-		.set_clkdiv = wm8400_set_dai_clkdiv,
-		.set_sysclk = wm8400_set_dai_sysclk,
-	},
+	.ops = &wm8400_dai_ops,
 };
 EXPORT_SYMBOL_GPL(wm8400_dai);
 
