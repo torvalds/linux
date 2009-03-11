@@ -1348,7 +1348,15 @@ static int vidioc_g_chip_ident(struct file *file, void *priv,
 	chip->ident = V4L2_IDENT_NONE;
 	chip->revision = 0;
 
+	if (v4l2_chip_match_host(&chip->match)) {
+		chip->ident = V4L2_IDENT_AU0828;
+		return 0;
+	}
+
 	au0828_call_i2c_clients(dev, VIDIOC_DBG_G_CHIP_IDENT, chip);
+	if (chip->ident == V4L2_IDENT_NONE)
+		return -EINVAL;
+
 	return 0;
 }
 

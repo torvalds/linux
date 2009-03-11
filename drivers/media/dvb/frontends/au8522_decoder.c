@@ -636,6 +636,7 @@ static int au8522_queryctrl(struct v4l2_subdev *sd, struct v4l2_queryctrl *qc)
 		break;
 	}
 
+	qc->type = 0;
 	return -EINVAL;
 }
 

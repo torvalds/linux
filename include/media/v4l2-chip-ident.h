@@ -70,6 +70,9 @@ enum {
 	V4L2_IDENT_CX23416 = 416,
 	V4L2_IDENT_CX23418 = 418,
 
+	/* module au0828 */
+	V4L2_IDENT_AU0828 = 828,
+
 	/* module indycam: just ident 2000 */
 	V4L2_IDENT_INDYCAM = 2000,
 
