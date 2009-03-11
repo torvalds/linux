@@ -186,8 +186,8 @@ zoran_v4l2_calc_bufsize (struct zoran_jpg_settings *settings)
 }
 
 /* forward references */
-static void v4l_fbuffer_free(struct file *file);
-static void jpg_fbuffer_free(struct file *file);
+static void v4l_fbuffer_free(struct zoran_fh *fh);
+static void jpg_fbuffer_free(struct zoran_fh *fh);
 
 /* Set mapping mode */
 static void map_mode_raw(struct zoran_fh *fh)
@@ -213,10 +213,8 @@ static inline const char *mode_name(enum zoran_map_mode mode)
  *   These have to be pysically contiguous.
  */
 
-static int
-v4l_fbuffer_alloc (struct file *file)
+static int v4l_fbuffer_alloc(struct zoran_fh *fh)
 {
-	struct zoran_fh *fh = file->private_data;
 	struct zoran *zr = fh->zr;
 	int i, off;
 	unsigned char *mem;
@@ -236,7 +234,7 @@ v4l_fbuffer_alloc (struct file *file)
 				KERN_ERR
 				"%s: v4l_fbuffer_alloc() - kmalloc for V4L buf %d failed\n",
 				ZR_DEVNAME(zr), i);
-			v4l_fbuffer_free(file);
+			v4l_fbuffer_free(fh);
 			return -ENOBUFS;
 		}
 		fh->buffers.buffer[i].v4l.fbuffer = mem;
@@ -258,10 +256,8 @@ v4l_fbuffer_alloc (struct file *file)
 }
 
 /* free the V4L grab buffers */
-static void
-v4l_fbuffer_free (struct file *file)
+static void v4l_fbuffer_free(struct zoran_fh *fh)
 {
-	struct zoran_fh *fh = file->private_data;
 	struct zoran *zr = fh->zr;
 	int i, off;
 	unsigned char *mem;
@@ -311,10 +307,8 @@ v4l_fbuffer_free (struct file *file)
  *       and fragment buffers are not little-endian.
  */
 
-static int
-jpg_fbuffer_alloc (struct file *file)
+static int jpg_fbuffer_alloc(struct zoran_fh *fh)
 {
-	struct zoran_fh *fh = file->private_data;
 	struct zoran *zr = fh->zr;
 	int i, j, off;
 	u8 *mem;
@@ -334,7 +328,7 @@ jpg_fbuffer_alloc (struct file *file)
 				KERN_ERR
 				"%s: jpg_fbuffer_alloc() - get_zeroed_page (frag_tab) failed for buffer %d\n",
 				ZR_DEVNAME(zr), i);
-			jpg_fbuffer_free(file);
+			jpg_fbuffer_free(fh);
 			return -ENOBUFS;
 		}
 		fh->buffers.buffer[i].jpg.frag_tab = (__le32 *)mem;
@@ -347,7 +341,7 @@ jpg_fbuffer_alloc (struct file *file)
 					KERN_ERR
 					"%s: jpg_fbuffer_alloc() - kmalloc failed for buffer %d\n",
 					ZR_DEVNAME(zr), i);
-				jpg_fbuffer_free(file);
+				jpg_fbuffer_free(fh);
 				return -ENOBUFS;
 			}
 			fh->buffers.buffer[i].jpg.frag_tab[0] =
@@ -365,7 +359,7 @@ jpg_fbuffer_alloc (struct file *file)
 						KERN_ERR
 						"%s: jpg_fbuffer_alloc() - get_zeroed_page failed for buffer %d\n",
 						ZR_DEVNAME(zr), i);
-					jpg_fbuffer_free(file);
+					jpg_fbuffer_free(fh);
 					return -ENOBUFS;
 				}
 
@@ -391,10 +385,8 @@ jpg_fbuffer_alloc (struct file *file)
 }
 
 /* free the MJPEG grab buffers */
-static void
-jpg_fbuffer_free (struct file *file)
+static void jpg_fbuffer_free(struct zoran_fh *fh)
 {
-	struct zoran_fh *fh = file->private_data;
 	struct zoran *zr = fh->zr;
 	int i, j, off;
 	unsigned char *mem;
@@ -492,11 +484,8 @@ zoran_v4l_set_format (struct zoran_fh           *fh,
 	return 0;
 }
 
-static int
-zoran_v4l_queue_frame (struct file *file,
-		       int          num)
+static int zoran_v4l_queue_frame(struct zoran_fh *fh, int num)
 {
-	struct zoran_fh *fh = file->private_data;
 	struct zoran *zr = fh->zr;
 	unsigned long flags;
 	int res = 0;
@@ -574,11 +563,8 @@ zoran_v4l_queue_frame (struct file *file,
  * Sync on a V4L buffer
  */
 
-static int
-v4l_sync (struct file *file,
-	  int          frame)
+static int v4l_sync(struct zoran_fh *fh, int frame)
 {
-	struct zoran_fh *fh = file->private_data;
 	struct zoran *zr = fh->zr;
 	unsigned long flags;
 
@@ -643,12 +629,9 @@ v4l_sync (struct file *file,
  *   Queue a MJPEG buffer for capture/playback
  */
 
-static int
-zoran_jpg_queue_frame (struct file          *file,
-		       int                   num,
-		       enum zoran_codec_mode mode)
+static int zoran_jpg_queue_frame(struct zoran_fh *fh, int num,
+				 enum zoran_codec_mode mode)
 {
-	struct zoran_fh *fh = file->private_data;
 	struct zoran *zr = fh->zr;
 	unsigned long flags;
 	int res = 0;
@@ -738,12 +721,8 @@ zoran_jpg_queue_frame (struct file          *file,
 	return res;
 }
 
-static int
-jpg_qbuf (struct file          *file,
-	  int                   frame,
-	  enum zoran_codec_mode mode)
+static int jpg_qbuf(struct zoran_fh *fh, int frame, enum zoran_codec_mode mode)
 {
-	struct zoran_fh *fh = file->private_data;
 	struct zoran *zr = fh->zr;
 	int res = 0;
 
@@ -770,7 +749,7 @@ jpg_qbuf (struct file          *file,
 		}
 	}
 
-	if ((res = zoran_jpg_queue_frame(file, frame, mode)))
+	if ((res = zoran_jpg_queue_frame(fh, frame, mode)))
 		return res;
 
 	/* Start the jpeg codec when the first frame is queued  */
@@ -784,11 +763,8 @@ jpg_qbuf (struct file          *file,
  *   Sync on a MJPEG buffer
  */
 
-static int
-jpg_sync (struct file       *file,
-	  struct zoran_sync *bs)
+static int jpg_sync(struct zoran_fh *fh, struct zoran_sync *bs)
 {
-	struct zoran_fh *fh = file->private_data;
 	struct zoran *zr = fh->zr;
 	unsigned long flags;
 	int frame;
@@ -852,11 +828,9 @@ jpg_sync (struct file       *file,
 	return 0;
 }
 
-static void
-zoran_open_init_session (struct file *file)
+static void zoran_open_init_session(struct zoran_fh *fh)
 {
 	int i;
-	struct zoran_fh *fh = file->private_data;
 	struct zoran *zr = fh->zr;
 
 	/* Per default, map the V4L Buffers */
@@ -883,10 +857,8 @@ zoran_open_init_session (struct file *file)
 	fh->buffers.active = ZORAN_FREE;
 }
 
-static void
-zoran_close_end_session (struct file *file)
+static void zoran_close_end_session(struct zoran_fh *fh)
 {
-	struct zoran_fh *fh = file->private_data;
 	struct zoran *zr = fh->zr;
 
 	/* overlay */
@@ -912,7 +884,7 @@ zoran_close_end_session (struct file *file)
 
 		/* v4l buffers */
 		if (fh->buffers.allocated)
-			v4l_fbuffer_free(file);
+			v4l_fbuffer_free(fh);
 	} else {
 		/* jpg capture */
 		if (fh->buffers.active != ZORAN_FREE) {
@@ -923,7 +895,7 @@ zoran_close_end_session (struct file *file)
 
 		/* jpg buffers */
 		if (fh->buffers.allocated)
-			jpg_fbuffer_free(file);
+			jpg_fbuffer_free(fh);
 	}
 }
 
@@ -989,7 +961,7 @@ static int zoran_open(struct file *file)
 	/* set file_ops stuff */
 	file->private_data = fh;
 	fh->zr = zr;
-	zoran_open_init_session(file);
+	zoran_open_init_session(fh);
 	unlock_kernel();
 
 	return 0;
@@ -1018,7 +990,7 @@ zoran_close(struct file  *file)
 	 * (prevents deadlocks) */
 	/*mutex_lock(&zr->resource_lock);*/
 
-	zoran_close_end_session(file);
+	zoran_close_end_session(fh);
 
 	if (zr->user-- == 1) {	/* Last process */
 		/* Clean up JPEG process */
@@ -1085,15 +1057,13 @@ zoran_write (struct file *file,
 	return -EINVAL;
 }
 
-static int
-setup_fbuffer (struct file               *file,
+static int setup_fbuffer(struct zoran_fh *fh,
 	       void                      *base,
 	       const struct zoran_format *fmt,
 	       int                        width,
 	       int                        height,
 	       int                        bytesperline)
 {
-	struct zoran_fh *fh = file->private_data;
 	struct zoran *zr = fh->zr;
 
 	/* (Ronald) v4l/v4l2 guidelines */
@@ -1163,17 +1133,9 @@ setup_fbuffer (struct file               *file,
 }
 
 
-static int
-setup_window (struct file       *file,
-	      int                x,
-	      int                y,
-	      int                width,
-	      int                height,
-	      struct v4l2_clip __user *clips,
-	      int                clipcount,
-	      void              __user *bitmap)
+static int setup_window(struct zoran_fh *fh, int x, int y, int width, int height,
+	struct v4l2_clip __user *clips, int clipcount, void __user *bitmap)
 {
-	struct zoran_fh *fh = file->private_data;
 	struct zoran *zr = fh->zr;
 	struct v4l2_clip *vcp = NULL;
 	int on, end;
@@ -1273,7 +1235,7 @@ setup_window (struct file       *file,
 			vfree(vcp);
 			return -EFAULT;
 		}
-		write_overlay_mask(file, vcp, clipcount);
+		write_overlay_mask(fh, vcp, clipcount);
 		vfree(vcp);
 	}
 
@@ -1289,11 +1251,8 @@ setup_window (struct file       *file,
 	return wait_grab_pending(zr);
 }
 
-static int
-setup_overlay (struct file *file,
-	       int          on)
+static int setup_overlay(struct zoran_fh *fh, int on)
 {
-	struct zoran_fh *fh = file->private_data;
 	struct zoran *zr = fh->zr;
 
 	/* If there is nothing to do, return immediatly */
@@ -1356,11 +1315,9 @@ setup_overlay (struct file *file,
 	return wait_grab_pending(zr);
 }
 
-	/* get the status of a buffer in the clients buffer queue */
-static int
-zoran_v4l2_buffer_status (struct zoran_fh    *fh,
-			  struct v4l2_buffer *buf,
-			  int                 num)
+/* get the status of a buffer in the clients buffer queue */
+static int zoran_v4l2_buffer_status(struct zoran_fh *fh,
+				    struct v4l2_buffer *buf, int num)
 {
 	struct zoran *zr = fh->zr;
 	unsigned long flags;
@@ -1727,7 +1684,7 @@ sparams_unlock_and_return:
 		fh->buffers.num_buffers = breq->count;
 		fh->buffers.buffer_size = breq->size;
 
-		if (jpg_fbuffer_alloc(file)) {
+		if (jpg_fbuffer_alloc(fh)) {
 			res = -ENOMEM;
 			goto jpgreqbuf_unlock_and_return;
 		}
@@ -1746,7 +1703,7 @@ jpgreqbuf_unlock_and_return:
 			ZR_DEVNAME(zr), *frame);
 
 		mutex_lock(&zr->resource_lock);
-		res = jpg_qbuf(file, *frame, BUZ_MODE_MOTION_COMPRESS);
+		res = jpg_qbuf(fh, *frame, BUZ_MODE_MOTION_COMPRESS);
 		mutex_unlock(&zr->resource_lock);
 
 		return res;
@@ -1760,7 +1717,7 @@ jpgreqbuf_unlock_and_return:
 			ZR_DEVNAME(zr), *frame);
 
 		mutex_lock(&zr->resource_lock);
-		res = jpg_qbuf(file, *frame, BUZ_MODE_MOTION_DECOMPRESS);
+		res = jpg_qbuf(fh, *frame, BUZ_MODE_MOTION_DECOMPRESS);
 		mutex_unlock(&zr->resource_lock);
 
 		return res;
@@ -1781,7 +1738,7 @@ jpgreqbuf_unlock_and_return:
 				ZR_DEVNAME(zr), __func__);
 			res = -EINVAL;
 		} else {
-			res = jpg_sync(file, bsync);
+			res = jpg_sync(fh, bsync);
 		}
 		mutex_unlock(&zr->resource_lock);
 
@@ -1876,7 +1833,7 @@ static int zoran_vidiocgmbuf(struct file *file, void *__fh, struct video_mbuf *v
 	/* The next mmap will map the V4L buffers */
 	map_mode_raw(fh);
 
-	if (v4l_fbuffer_alloc(file)) {
+	if (v4l_fbuffer_alloc(fh)) {
 		res = -ENOMEM;
 		goto v4l1reqbuf_unlock_and_return;
 	}
@@ -2168,14 +2125,10 @@ static int zoran_s_fmt_vid_overlay(struct file *file, void *__fh,
 			fmt->fmt.win.clipcount,
 			fmt->fmt.win.bitmap);
 	mutex_lock(&zr->resource_lock);
-	res = setup_window(file, fmt->fmt.win.w.left,
-			fmt->fmt.win.w.top,
-			fmt->fmt.win.w.width,
-			fmt->fmt.win.w.height,
-			(struct v4l2_clip __user *)
-			fmt->fmt.win.clips,
-			fmt->fmt.win.clipcount,
-			fmt->fmt.win.bitmap);
+	res = setup_window(fh, fmt->fmt.win.w.left, fmt->fmt.win.w.top,
+			   fmt->fmt.win.w.width, fmt->fmt.win.w.height,
+			   (struct v4l2_clip __user *)fmt->fmt.win.clips,
+			   fmt->fmt.win.clipcount, fmt->fmt.win.bitmap);
 	mutex_unlock(&zr->resource_lock);
 	return res;
 }
@@ -2363,9 +2316,8 @@ static int zoran_s_fbuf(struct file *file, void *__fh,
 	}
 
 	mutex_lock(&zr->resource_lock);
-	res = setup_fbuffer(file, fb->base, &zoran_formats[i],
-				fb->fmt.width, fb->fmt.height,
-				fb->fmt.bytesperline);
+	res = setup_fbuffer(fh, fb->base, &zoran_formats[i], fb->fmt.width,
+			    fb->fmt.height, fb->fmt.bytesperline);
 	mutex_unlock(&zr->resource_lock);
 
 	return res;
@@ -2378,7 +2330,7 @@ static int zoran_overlay(struct file *file, void *__fh, unsigned int on)
 	int res;
 
 	mutex_lock(&zr->resource_lock);
-	res = setup_overlay(file, on);
+	res = setup_overlay(fh, on);
 	mutex_unlock(&zr->resource_lock);
 
 	return res;
@@ -2425,7 +2377,7 @@ static int zoran_reqbufs(struct file *file, void *__fh, struct v4l2_requestbuffe
 		map_mode_raw(fh);
 		fh->buffers.num_buffers = req->count;
 
-		if (v4l_fbuffer_alloc(file)) {
+		if (v4l_fbuffer_alloc(fh)) {
 			res = -ENOMEM;
 			goto v4l2reqbuf_unlock_and_return;
 		}
@@ -2442,7 +2394,7 @@ static int zoran_reqbufs(struct file *file, void *__fh, struct v4l2_requestbuffe
 		fh->buffers.num_buffers = req->count;
 		fh->buffers.buffer_size = zoran_v4l2_calc_bufsize(&fh->jpg_settings);
 
-		if (jpg_fbuffer_alloc(file)) {
+		if (jpg_fbuffer_alloc(fh)) {
 			res = -ENOMEM;
 			goto v4l2reqbuf_unlock_and_return;
 		}
@@ -2491,7 +2443,7 @@ static int zoran_qbuf(struct file *file, void *__fh, struct v4l2_buffer *buf)
 			goto qbuf_unlock_and_return;
 		}
 
-		res = zoran_v4l_queue_frame(file, buf->index);
+		res = zoran_v4l_queue_frame(fh, buf->index);
 		if (res)
 			goto qbuf_unlock_and_return;
 		if (!zr->v4l_memgrab_active && fh->buffers.active == ZORAN_LOCKED)
@@ -2516,8 +2468,7 @@ static int zoran_qbuf(struct file *file, void *__fh, struct v4l2_buffer *buf)
 			goto qbuf_unlock_and_return;
 		}
 
-		res = zoran_jpg_queue_frame(file, buf->index,
-					codec_mode);
+		res = zoran_jpg_queue_frame(fh, buf->index, codec_mode);
 		if (res != 0)
 			goto qbuf_unlock_and_return;
 		if (zr->codec_mode == BUZ_MODE_IDLE &&
@@ -2563,7 +2514,7 @@ static int zoran_dqbuf(struct file *file, void *__fh, struct v4l2_buffer *buf)
 			res = -EAGAIN;
 			goto dqbuf_unlock_and_return;
 		}
-		res = v4l_sync(file, num);
+		res = v4l_sync(fh, num);
 		if (res)
 			goto dqbuf_unlock_and_return;
 		zr->v4l_sync_tail++;
@@ -2595,7 +2546,7 @@ static int zoran_dqbuf(struct file *file, void *__fh, struct v4l2_buffer *buf)
 			res = -EAGAIN;
 			goto dqbuf_unlock_and_return;
 		}
-		res = jpg_sync(file, &bs);
+		res = jpg_sync(fh, &bs);
 		if (res)
 			goto dqbuf_unlock_and_return;
 		res = zoran_v4l2_buffer_status(fh, buf, bs.frame);
@@ -2722,7 +2673,7 @@ static int zoran_streamoff(struct file *file, void *__fh, enum v4l2_buf_type typ
 		if (zr->jpg_buffers.active == ZORAN_FREE)
 			goto strmoff_unlock_and_return;
 
-		res = jpg_qbuf(file, -1,
+		res = jpg_qbuf(fh, -1,
 			     (fh->map_mode == ZORAN_MAP_MODE_JPG_REC) ?
 			     BUZ_MODE_MOTION_COMPRESS :
 			     BUZ_MODE_MOTION_DECOMPRESS);
@@ -3185,8 +3136,7 @@ static void
 zoran_vm_close (struct vm_area_struct *vma)
 {
 	struct zoran_mapping *map = vma->vm_private_data;
-	struct file *file = map->file;
-	struct zoran_fh *fh = file->private_data;
+	struct zoran_fh *fh = map->file->private_data;
 	struct zoran *zr = fh->zr;
 	int i;
 
@@ -3222,14 +3172,14 @@ zoran_vm_close (struct vm_area_struct *vma)
 			zr->v4l_buffers.active = fh->buffers.active = ZORAN_FREE;
 			spin_unlock_irqrestore(&zr->spinlock, flags);
 		}
-		v4l_fbuffer_free(file);
+		v4l_fbuffer_free(fh);
 	} else {
 		if (fh->buffers.active != ZORAN_FREE) {
-			jpg_qbuf(file, -1, zr->codec_mode);
+			jpg_qbuf(fh, -1, zr->codec_mode);
 			zr->jpg_buffers.allocated = 0;
 			zr->jpg_buffers.active = fh->buffers.active = ZORAN_FREE;
 		}
-		jpg_fbuffer_free(file);
+		jpg_fbuffer_free(fh);
 	}
 
 	mutex_unlock(&zr->resource_lock);

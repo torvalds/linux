@@ -54,7 +54,7 @@ extern int jpeg_codec_reset(struct zoran *zr);
 /* zr360x7 access to raw capture */
 extern void zr36057_overlay(struct zoran *zr,
 			    int on);
-extern void write_overlay_mask(struct file *file,
+extern void write_overlay_mask(struct zoran_fh *fh,
 			       struct v4l2_clip *vp,
 			       int count);
 extern void zr36057_set_memgrab(struct zoran *zr,

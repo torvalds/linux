@@ -535,12 +535,8 @@ zr36057_overlay (struct zoran *zr,
  *  and the maximum window size is BUZ_MAX_WIDTH * BUZ_MAX_HEIGHT pixels.
  */
 
-void
-write_overlay_mask (struct file       *file,
-		    struct v4l2_clip *vp,
-		    int                count)
+void write_overlay_mask(struct zoran_fh *fh, struct v4l2_clip *vp, int count)
 {
-	struct zoran_fh *fh = file->private_data;
 	struct zoran *zr = fh->zr;
 	unsigned mask_line_size = (BUZ_MAX_WIDTH + 31) / 32;
 	u32 *mask;
