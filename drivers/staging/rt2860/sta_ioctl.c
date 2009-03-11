@@ -358,7 +358,7 @@ VOID RTMPAddKey(
 		if (pAd->StaCfg.bRadio == FALSE)
 		{
 			RTMP_SET_PSFLAG(pAd, fRTMP_PS_CAN_GO_SLEEP);
-			return (NDIS_STATUS_SUCCESS);
+			return;
 		}
 		DBGPRINT(RT_DEBUG_TRACE,("RTMPWPAAddKeyProc1==>\n"));
 		RTMPPCIeLinkCtrlValueRestore(pAd, RESTORE_HALT);
@@ -2465,7 +2465,7 @@ void fnSetCipherKey(
 		if (pAdapter->StaCfg.bRadio == FALSE)
 		{
 			RTMP_SET_PSFLAG(pAdapter, fRTMP_PS_CAN_GO_SLEEP);
-			return (NDIS_STATUS_SUCCESS);
+			return;
 		}
 		DBGPRINT(RT_DEBUG_TRACE,("RTMPWPAAddKeyProc1==>\n"));
 		RTMPPCIeLinkCtrlValueRestore(pAdapter, RESTORE_HALT);

@@ -2046,7 +2046,7 @@ VOID NICRestoreBBPValue(
 	IN PRTMP_ADAPTER pAd)
 {
 	UCHAR		index;
-	UCHAR		Value;
+	UCHAR		Value = 0;
 	ULONG		Data;
 
 	DBGPRINT(RT_DEBUG_TRACE, ("--->  NICRestoreBBPValue !!!!!!!!!!!!!!!!!!!!!!!  \n"));

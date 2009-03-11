@@ -897,7 +897,7 @@ VOID MlmePeriodicExec(
 		{
 			if ((pAd->StaCfg.bRadio == TRUE) && (pAd->SameRxByteCount < 700))
 			{
-				DBGPRINT(RT_DEBUG_TRACE, ("--->  SameRxByteCount = %d !!!!!!!!!!!!!!! \n", pAd->SameRxByteCount));
+				DBGPRINT(RT_DEBUG_TRACE, ("--->  SameRxByteCount = %lu !!!!!!!!!!!!!!! \n", pAd->SameRxByteCount));
 				pAd->SameRxByteCount = 700;
 				AsicResetBBP(pAd);
 			}
