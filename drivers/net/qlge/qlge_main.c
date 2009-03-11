@@ -1941,6 +1941,9 @@ static int qlge_send(struct sk_buff *skb, struct net_device *ndev)
 
 	tx_ring = &qdev->tx_ring[tx_ring_idx];
 
+	if (skb_padto(skb, ETH_ZLEN))
+		return NETDEV_TX_OK;
+
 	if (unlikely(atomic_read(&tx_ring->tx_count) < 2)) {
 		QPRINTK(qdev, TX_QUEUED, INFO,
 			"%s: shutting down tx queue %d du to lack of resources.\n",
