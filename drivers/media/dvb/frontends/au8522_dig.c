@@ -34,6 +34,7 @@ static int debug;
 /* Despite the name "hybrid_tuner", the framework works just as well for
    hybrid demodulators as well... */
 static LIST_HEAD(hybrid_tuner_instance_list);
+static DEFINE_MUTEX(au8522_list_mutex);
 
 #define dprintk(arg...) do {		\
 	if (debug) 			\
@@ -795,15 +796,23 @@ static struct dvb_frontend_ops au8522_ops;
 int au8522_get_state(struct au8522_state **state, struct i2c_adapter *i2c,
 		     u8 client_address)
 {
-	return hybrid_tuner_request_state(struct au8522_state, (*state),
-					  hybrid_tuner_instance_list,
-					  i2c, client_address, "au8522");
+	int ret;
+
+	mutex_lock(&au8522_list_mutex);
+	ret = hybrid_tuner_request_state(struct au8522_state, (*state),
+					 hybrid_tuner_instance_list,
+					 i2c, client_address, "au8522");
+	mutex_unlock(&au8522_list_mutex);
+
+	return ret;
 }
 
 void au8522_release_state(struct au8522_state *state)
 {
+	mutex_lock(&au8522_list_mutex);
 	if (state != NULL)
 		hybrid_tuner_release_state(state);
+	mutex_unlock(&au8522_list_mutex);
 }
 
 
