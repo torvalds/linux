@@ -143,6 +143,13 @@ config HID_EZKEY
 	---help---
 	Support for Ezkey BTC 8193 keyboard.
 
+config HID_KYE
+	tristate "Kye" if EMBEDDED
+	depends on USB_HID
+	default !EMBEDDED
+	---help---
+	Support for Kye/Genius Ergo Mouse.
+
 config HID_GYRATION
 	tristate "Gyration" if EMBEDDED
 	depends on USB_HID

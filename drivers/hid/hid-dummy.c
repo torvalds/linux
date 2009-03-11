@@ -34,6 +34,9 @@ static int __init hid_dummy_init(void)
 #ifdef CONFIG_HID_EZKEY_MODULE
 	HID_COMPAT_CALL_DRIVER(ezkey);
 #endif
+#ifdef CONFIG_HID_KYE_MODULE
+	HID_COMPAT_CALL_DRIVER(kye);
+#endif
 #ifdef CONFIG_HID_GYRATION_MODULE
 	HID_COMPAT_CALL_DRIVER(gyration);
 #endif
