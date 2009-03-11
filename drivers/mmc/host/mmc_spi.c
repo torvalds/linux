@@ -1204,10 +1204,12 @@ static int mmc_spi_probe(struct spi_device *spi)
 
 	/* MMC and SD specs only seem to care that sampling is on the
 	 * rising edge ... meaning SPI modes 0 or 3.  So either SPI mode
-	 * should be legit.  We'll use mode 0 since it seems to be a
-	 * bit less troublesome on some hardware ... unclear why.
+	 * should be legit.  We'll use mode 0 since the steady state is 0,
+	 * which is appropriate for hotplugging, unless the platform data
+	 * specify mode 3 (if hardware is not compatible to mode 0).
 	 */
-	spi->mode = SPI_MODE_0;
+	if (spi->mode != SPI_MODE_3)
+		spi->mode = SPI_MODE_0;
 	spi->bits_per_word = 8;
 
 	status = spi_setup(spi);
