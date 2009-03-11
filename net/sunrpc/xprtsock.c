@@ -577,6 +577,8 @@ static int xs_udp_send_request(struct rpc_task *task)
 				req->rq_svec->iov_base,
 				req->rq_svec->iov_len);
 
+	if (!xprt_bound(xprt))
+		return -ENOTCONN;
 	status = xs_sendpages(transport->sock,
 			      xs_addr(xprt),
 			      xprt->addrlen, xdr,
@@ -1531,7 +1533,7 @@ static void xs_udp_connect_worker4(struct work_struct *work)
 	struct socket *sock = transport->sock;
 	int err, status = -EIO;
 
-	if (xprt->shutdown || !xprt_bound(xprt))
+	if (xprt->shutdown)
 		goto out;
 
 	/* Start by resetting any existing state */
@@ -1572,7 +1574,7 @@ static void xs_udp_connect_worker6(struct work_struct *work)
 	struct socket *sock = transport->sock;
 	int err, status = -EIO;
 
-	if (xprt->shutdown || !xprt_bound(xprt))
+	if (xprt->shutdown)
 		goto out;
 
 	/* Start by resetting any existing state */
@@ -1656,6 +1658,9 @@ static int xs_tcp_finish_connecting(struct rpc_xprt *xprt, struct socket *sock)
 		write_unlock_bh(&sk->sk_callback_lock);
 	}
 
+	if (!xprt_bound(xprt))
+		return -ENOTCONN;
+
 	/* Tell the socket layer to start connecting... */
 	xprt->stat.connect_count++;
 	xprt->stat.connect_start = jiffies;
@@ -1676,7 +1681,7 @@ static void xs_tcp_connect_worker4(struct work_struct *work)
 	struct socket *sock = transport->sock;
 	int err, status = -EIO;
 
-	if (xprt->shutdown || !xprt_bound(xprt))
+	if (xprt->shutdown)
 		goto out;
 
 	if (!sock) {
@@ -1736,7 +1741,7 @@ static void xs_tcp_connect_worker6(struct work_struct *work)
 	struct socket *sock = transport->sock;
 	int err, status = -EIO;
 
-	if (xprt->shutdown || !xprt_bound(xprt))
+	if (xprt->shutdown)
 		goto out;
 
 	if (!sock) {
