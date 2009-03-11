@@ -239,6 +239,35 @@ void clk_recalc_rate(struct clk *clk)
 }
 EXPORT_SYMBOL_GPL(clk_recalc_rate);
 
+int clk_set_parent(struct clk *clk, struct clk *parent)
+{
+	int ret = -EINVAL;
+	struct clk *old;
+
+	if (!parent || !clk)
+		return ret;
+
+	old = clk->parent;
+	if (likely(clk->ops && clk->ops->set_parent)) {
+		unsigned long flags;
+		spin_lock_irqsave(&clock_lock, flags);
+		ret = clk->ops->set_parent(clk, parent);
+		spin_unlock_irqrestore(&clock_lock, flags);
+		clk->parent = (ret ? old : parent);
+	}
+
+	if (unlikely(clk->flags & CLK_RATE_PROPAGATES))
+		propagate_rate(clk);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(clk_set_parent);
+
+struct clk *clk_get_parent(struct clk *clk)
+{
+	return clk->parent;
+}
+EXPORT_SYMBOL_GPL(clk_get_parent);
+
 long clk_round_rate(struct clk *clk, unsigned long rate)
 {
 	if (likely(clk->ops && clk->ops->round_rate)) {
