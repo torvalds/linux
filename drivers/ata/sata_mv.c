@@ -1016,7 +1016,7 @@ static void mv_set_irq_coalescing(struct ata_host *host,
 	void __iomem *mmio = hpriv->base, *hc_mmio;
 	u32 coal_enable = 0;
 	unsigned long flags;
-	unsigned int clks;
+	unsigned int clks, is_dual_hc = hpriv->n_ports > MV_PORTS_PER_HC;
 	const u32 coal_disable = PORTS_0_3_COAL_DONE | PORTS_4_7_COAL_DONE |
 							ALL_PORTS_COAL_DONE;
 
@@ -1033,37 +1033,41 @@ static void mv_set_irq_coalescing(struct ata_host *host,
 	}
 
 	spin_lock_irqsave(&host->lock, flags);
+	mv_set_main_irq_mask(host, coal_disable, 0);
 
-#if 0 /* disabled pending functional clarification from Marvell */
-	if (!IS_GEN_I(hpriv)) {
+	if (is_dual_hc && !IS_GEN_I(hpriv)) {
 		/*
-		 * GEN_II/GEN_IIE: global thresholds for the entire chip.
+		 * GEN_II/GEN_IIE with dual host controllers:
+		 * one set of global thresholds for the entire chip.
 		 */
 		writel(clks,  mmio + MV_IRQ_COAL_TIME_THRESHOLD);
 		writel(count, mmio + MV_IRQ_COAL_IO_THRESHOLD);
 		/* clear leftover coal IRQ bit */
-		writelfl(~ALL_PORTS_COAL_IRQ, mmio + MV_IRQ_COAL_CAUSE);
-		clks = count = 0; /* so as to clear the alternate regs below */
-		coal_enable = ALL_PORTS_COAL_DONE;
+		writel(~ALL_PORTS_COAL_IRQ, mmio + MV_IRQ_COAL_CAUSE);
+		if (count)
+			coal_enable = ALL_PORTS_COAL_DONE;
+		clks = count = 0; /* force clearing of regular regs below */
 	}
-#endif
+
 	/*
 	 * All chips: independent thresholds for each HC on the chip.
 	 */
 	hc_mmio = mv_hc_base_from_port(mmio, 0);
 	writel(clks,  hc_mmio + HC_IRQ_COAL_TIME_THRESHOLD_OFS);
 	writel(count, hc_mmio + HC_IRQ_COAL_IO_THRESHOLD_OFS);
-	coal_enable |= PORTS_0_3_COAL_DONE;
-	if (hpriv->n_ports > 4) {
+	writel(~HC_COAL_IRQ, hc_mmio + HC_IRQ_CAUSE_OFS);
+	if (count)
+		coal_enable |= PORTS_0_3_COAL_DONE;
+	if (is_dual_hc) {
 		hc_mmio = mv_hc_base_from_port(mmio, MV_PORTS_PER_HC);
 		writel(clks,  hc_mmio + HC_IRQ_COAL_TIME_THRESHOLD_OFS);
 		writel(count, hc_mmio + HC_IRQ_COAL_IO_THRESHOLD_OFS);
-		coal_enable |= PORTS_4_7_COAL_DONE;
+		writel(~HC_COAL_IRQ, hc_mmio + HC_IRQ_CAUSE_OFS);
+		if (count)
+			coal_enable |= PORTS_4_7_COAL_DONE;
 	}
-	if (!count)
-		coal_enable = 0;
-	mv_set_main_irq_mask(host, coal_disable, coal_enable);
 
+	mv_set_main_irq_mask(host, 0, coal_enable);
 	spin_unlock_irqrestore(&host->lock, flags);
 }
 
