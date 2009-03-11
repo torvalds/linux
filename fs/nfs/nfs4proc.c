@@ -3678,6 +3678,19 @@ ssize_t nfs4_listxattr(struct dentry *dentry, char *buf, size_t buflen)
 	return len;
 }
 
+static void nfs_fixup_referral_attributes(struct nfs_fattr *fattr)
+{
+	if (!((fattr->valid & NFS_ATTR_FATTR_FILEID) &&
+		(fattr->valid & NFS_ATTR_FATTR_FSID) &&
+		(fattr->valid & NFS_ATTR_FATTR_V4_REFERRAL)))
+		return;
+
+	fattr->valid |= NFS_ATTR_FATTR_TYPE | NFS_ATTR_FATTR_MODE |
+		NFS_ATTR_FATTR_NLINK;
+	fattr->mode = S_IFDIR | S_IRUGO | S_IXUGO;
+	fattr->nlink = 2;
+}
+
 int nfs4_proc_fs_locations(struct inode *dir, const struct qstr *name,
 		struct nfs4_fs_locations *fs_locations, struct page *page)
 {
@@ -3704,6 +3717,7 @@ int nfs4_proc_fs_locations(struct inode *dir, const struct qstr *name,
 	fs_locations->server = server;
 	fs_locations->nlocations = 0;
 	status = rpc_call_sync(server->client, &msg, 0);
+	nfs_fixup_referral_attributes(&fs_locations->fattr);
 	dprintk("%s: returned status = %d\n", __func__, status);
 	return status;
 }
