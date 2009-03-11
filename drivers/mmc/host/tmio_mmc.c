@@ -568,11 +568,11 @@ static int __devinit tmio_mmc_probe(struct platform_device *dev)
 	host->mmc = mmc;
 	platform_set_drvdata(dev, mmc);
 
-	host->ctl = ioremap(res_ctl->start, res_ctl->end - res_ctl->start);
+	host->ctl = ioremap(res_ctl->start, resource_size(res_ctl));
 	if (!host->ctl)
 		goto host_free;
 
-	host->cnf = ioremap(res_cnf->start, res_cnf->end - res_cnf->start);
+	host->cnf = ioremap(res_cnf->start, resource_size(res_cnf));
 	if (!host->cnf)
 		goto unmap_ctl;
 
