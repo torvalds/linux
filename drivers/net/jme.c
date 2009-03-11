@@ -957,13 +957,14 @@ jme_process_receive(struct jme_adapter *jme, int limit)
 		goto out_inc;
 
 	i = atomic_read(&rxring->next_to_clean);
-	while (limit-- > 0) {
+	while (limit > 0) {
 		rxdesc = rxring->desc;
 		rxdesc += i;
 
 		if ((rxdesc->descwb.flags & cpu_to_le16(RXWBFLAG_OWN)) ||
 		!(rxdesc->descwb.desccnt & RXWBDCNT_WBCPL))
 			goto out;
+		--limit;
 
 		desccnt = rxdesc->descwb.desccnt & RXWBDCNT_DCNT;
 

@@ -343,6 +343,11 @@ static void lguest_cpuid(unsigned int *ax, unsigned int *bx,
 		 * flush_tlb_user() for both user and kernel mappings unless
 		 * the Page Global Enable (PGE) feature bit is set. */
 		*dx |= 0x00002000;
+		/* We also lie, and say we're family id 5.  6 or greater
+		 * leads to a rdmsr in early_init_intel which we can't handle.
+		 * Family ID is returned as bits 8-12 in ax. */
+		*ax &= 0xFFFFF0FF;
+		*ax |= 0x00000500;
 		break;
 	case 0x80000000:
 		/* Futureproof this a little: if they ask how much extended
@@ -589,17 +594,19 @@ static void __init lguest_init_IRQ(void)
 		/* Some systems map "vectors" to interrupts weirdly.  Lguest has
 		 * a straightforward 1 to 1 mapping, so force that here. */
 		__get_cpu_var(vector_irq)[vector] = i;
-		if (vector != SYSCALL_VECTOR) {
-			set_intr_gate(vector,
-				      interrupt[vector-FIRST_EXTERNAL_VECTOR]);
-			set_irq_chip_and_handler_name(i, &lguest_irq_controller,
-						      handle_level_irq,
-						      "level");
-		}
+		if (vector != SYSCALL_VECTOR)
+			set_intr_gate(vector, interrupt[i]);
 	}
 	/* This call is required to set up for 4k stacks, where we have
 	 * separate stacks for hard and soft interrupts. */
 	irq_ctx_init(smp_processor_id());
+}
+
+void lguest_setup_irq(unsigned int irq)
+{
+	irq_to_desc_alloc_cpu(irq, 0);
+	set_irq_chip_and_handler_name(irq, &lguest_irq_controller,
+				      handle_level_irq, "level");
 }
 
 /*

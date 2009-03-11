@@ -383,12 +383,13 @@ int i915_irq_emit(struct drm_device *dev, void *data,
 	drm_i915_irq_emit_t *emit = data;
 	int result;
 
-	RING_LOCK_TEST_WITH_RETURN(dev, file_priv);
-
 	if (!dev_priv) {
 		DRM_ERROR("called with no initialization\n");
 		return -EINVAL;
 	}
+
+	RING_LOCK_TEST_WITH_RETURN(dev, file_priv);
+
 	mutex_lock(&dev->struct_mutex);
 	result = i915_emit_irq(dev);
 	mutex_unlock(&dev->struct_mutex);

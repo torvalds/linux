@@ -102,34 +102,6 @@ static int btrfs_init_inode_security(struct inode *inode,  struct inode *dir)
 }
 
 /*
- * a very lame attempt at stopping writes when the FS is 85% full.  There
- * are countless ways this is incorrect, but it is better than nothing.
- */
-int btrfs_check_free_space(struct btrfs_root *root, u64 num_required,
-			   int for_del)
-{
-	u64 total;
-	u64 used;
-	u64 thresh;
-	int ret = 0;
-
-	spin_lock(&root->fs_info->delalloc_lock);
-	total = btrfs_super_total_bytes(&root->fs_info->super_copy);
-	used = btrfs_super_bytes_used(&root->fs_info->super_copy);
-	if (for_del)
-		thresh = total * 90;
-	else
-		thresh = total * 85;
-
-	do_div(thresh, 100);
-
-	if (used + root->fs_info->delalloc_bytes + num_required > thresh)
-		ret = -ENOSPC;
-	spin_unlock(&root->fs_info->delalloc_lock);
-	return ret;
-}
-
-/*
  * this does all the hard work for inserting an inline extent into
  * the btree.  The caller should have done a btrfs_drop_extents so that
  * no overlapping inline items exist in the btree
@@ -1190,6 +1162,7 @@ static int btrfs_set_bit_hook(struct inode *inode, u64 start, u64 end,
 	 */
 	if (!(old & EXTENT_DELALLOC) && (bits & EXTENT_DELALLOC)) {
 		struct btrfs_root *root = BTRFS_I(inode)->root;
+		btrfs_delalloc_reserve_space(root, inode, end - start + 1);
 		spin_lock(&root->fs_info->delalloc_lock);
 		BTRFS_I(inode)->delalloc_bytes += end - start + 1;
 		root->fs_info->delalloc_bytes += end - start + 1;
@@ -1223,9 +1196,12 @@ static int btrfs_clear_bit_hook(struct inode *inode, u64 start, u64 end,
 			       (unsigned long long)end - start + 1,
 			       (unsigned long long)
 			       root->fs_info->delalloc_bytes);
+			btrfs_delalloc_free_space(root, inode, (u64)-1);
 			root->fs_info->delalloc_bytes = 0;
 			BTRFS_I(inode)->delalloc_bytes = 0;
 		} else {
+			btrfs_delalloc_free_space(root, inode,
+						  end - start + 1);
 			root->fs_info->delalloc_bytes -= end - start + 1;
 			BTRFS_I(inode)->delalloc_bytes -= end - start + 1;
 		}
@@ -2245,10 +2221,6 @@ static int btrfs_unlink(struct inode *dir, struct dentry *dentry)
 
 	root = BTRFS_I(dir)->root;
 
-	ret = btrfs_check_free_space(root, 1, 1);
-	if (ret)
-		goto fail;
-
 	trans = btrfs_start_transaction(root, 1);
 
 	btrfs_set_trans_block_group(trans, dir);
@@ -2261,7 +2233,6 @@ static int btrfs_unlink(struct inode *dir, struct dentry *dentry)
 	nr = trans->blocks_used;
 
 	btrfs_end_transaction_throttle(trans, root);
-fail:
 	btrfs_btree_balance_dirty(root, nr);
 	return ret;
 }
@@ -2284,10 +2255,6 @@ static int btrfs_rmdir(struct inode *dir, struct dentry *dentry)
 		return -ENOTEMPTY;
 	}
 
-	ret = btrfs_check_free_space(root, 1, 1);
-	if (ret)
-		goto fail;
-
 	trans = btrfs_start_transaction(root, 1);
 	btrfs_set_trans_block_group(trans, dir);
 
@@ -2304,7 +2271,6 @@ static int btrfs_rmdir(struct inode *dir, struct dentry *dentry)
 fail_trans:
 	nr = trans->blocks_used;
 	ret = btrfs_end_transaction_throttle(trans, root);
-fail:
 	btrfs_btree_balance_dirty(root, nr);
 
 	if (ret && !err)
@@ -2818,7 +2784,7 @@ int btrfs_cont_expand(struct inode *inode, loff_t size)
 	if (size <= hole_start)
 		return 0;
 
-	err = btrfs_check_free_space(root, 1, 0);
+	err = btrfs_check_metadata_free_space(root);
 	if (err)
 		return err;
 
@@ -3014,6 +2980,7 @@ static noinline void init_btrfs_i(struct inode *inode)
 	bi->last_trans = 0;
 	bi->logged_trans = 0;
 	bi->delalloc_bytes = 0;
+	bi->reserved_bytes = 0;
 	bi->disk_i_size = 0;
 	bi->flags = 0;
 	bi->index_cnt = (u64)-1;
@@ -3035,6 +3002,7 @@ static int btrfs_init_locked_inode(struct inode *inode, void *p)
 	inode->i_ino = args->ino;
 	init_btrfs_i(inode);
 	BTRFS_I(inode)->root = args->root;
+	btrfs_set_inode_space_info(args->root, inode);
 	return 0;
 }
 
@@ -3455,6 +3423,7 @@ static struct inode *btrfs_new_inode(struct btrfs_trans_handle *trans,
 	BTRFS_I(inode)->index_cnt = 2;
 	BTRFS_I(inode)->root = root;
 	BTRFS_I(inode)->generation = trans->transid;
+	btrfs_set_inode_space_info(root, inode);
 
 	if (mode & S_IFDIR)
 		owner = 0;
@@ -3602,7 +3571,7 @@ static int btrfs_mknod(struct inode *dir, struct dentry *dentry,
 	if (!new_valid_dev(rdev))
 		return -EINVAL;
 
-	err = btrfs_check_free_space(root, 1, 0);
+	err = btrfs_check_metadata_free_space(root);
 	if (err)
 		goto fail;
 
@@ -3665,7 +3634,7 @@ static int btrfs_create(struct inode *dir, struct dentry *dentry,
 	u64 objectid;
 	u64 index = 0;
 
-	err = btrfs_check_free_space(root, 1, 0);
+	err = btrfs_check_metadata_free_space(root);
 	if (err)
 		goto fail;
 	trans = btrfs_start_transaction(root, 1);
@@ -3733,7 +3702,7 @@ static int btrfs_link(struct dentry *old_dentry, struct inode *dir,
 		return -ENOENT;
 
 	btrfs_inc_nlink(inode);
-	err = btrfs_check_free_space(root, 1, 0);
+	err = btrfs_check_metadata_free_space(root);
 	if (err)
 		goto fail;
 	err = btrfs_set_inode_index(dir, &index);
@@ -3779,7 +3748,7 @@ static int btrfs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 	u64 index = 0;
 	unsigned long nr = 1;
 
-	err = btrfs_check_free_space(root, 1, 0);
+	err = btrfs_check_metadata_free_space(root);
 	if (err)
 		goto out_unlock;
 
@@ -4336,7 +4305,7 @@ int btrfs_page_mkwrite(struct vm_area_struct *vma, struct page *page)
 	u64 page_start;
 	u64 page_end;
 
-	ret = btrfs_check_free_space(root, PAGE_CACHE_SIZE, 0);
+	ret = btrfs_check_data_free_space(root, inode, PAGE_CACHE_SIZE);
 	if (ret)
 		goto out;
 
@@ -4349,6 +4318,7 @@ again:
 
 	if ((page->mapping != inode->i_mapping) ||
 	    (page_start >= size)) {
+		btrfs_free_reserved_data_space(root, inode, PAGE_CACHE_SIZE);
 		/* page got truncated out from underneath us */
 		goto out_unlock;
 	}
@@ -4631,7 +4601,7 @@ static int btrfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	if (old_inode->i_ino == BTRFS_FIRST_FREE_OBJECTID)
 		return -EXDEV;
 
-	ret = btrfs_check_free_space(root, 1, 0);
+	ret = btrfs_check_metadata_free_space(root);
 	if (ret)
 		goto out_unlock;
 
@@ -4749,7 +4719,7 @@ static int btrfs_symlink(struct inode *dir, struct dentry *dentry,
 	if (name_len > BTRFS_MAX_INLINE_DATA_SIZE(root))
 		return -ENAMETOOLONG;
 
-	err = btrfs_check_free_space(root, 1, 0);
+	err = btrfs_check_metadata_free_space(root);
 	if (err)
 		goto out_fail;
 

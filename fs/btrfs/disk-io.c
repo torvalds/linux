@@ -857,7 +857,7 @@ int clean_tree_block(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 	struct inode *btree_inode = root->fs_info->btree_inode;
 	if (btrfs_header_generation(buf) ==
 	    root->fs_info->running_transaction->transid) {
-		WARN_ON(!btrfs_tree_locked(buf));
+		btrfs_assert_tree_locked(buf);
 
 		/* ugh, clear_extent_buffer_dirty can be expensive */
 		btrfs_set_lock_blocking(buf);
@@ -2361,7 +2361,7 @@ void btrfs_mark_buffer_dirty(struct extent_buffer *buf)
 
 	btrfs_set_lock_blocking(buf);
 
-	WARN_ON(!btrfs_tree_locked(buf));
+	btrfs_assert_tree_locked(buf);
 	if (transid != root->fs_info->generation) {
 		printk(KERN_CRIT "btrfs transid mismatch buffer %llu, "
 		       "found %llu running %llu\n",
