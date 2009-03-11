@@ -260,6 +260,7 @@ void			xprt_conditional_disconnect(struct rpc_xprt *xprt, unsigned int cookie);
 #define XPRT_BOUND		(4)
 #define XPRT_BINDING		(5)
 #define XPRT_CLOSING		(6)
+#define XPRT_CONNECTION_ABORT	(7)
 
 static inline void xprt_set_connected(struct rpc_xprt *xprt)
 {
