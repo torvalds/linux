@@ -1117,10 +1117,12 @@ call_transmit_status(struct rpc_task *task)
 		 * then hold onto the transport lock.
 		 */
 	case -ECONNREFUSED:
+	case -ECONNRESET:
 	case -ENOTCONN:
 	case -EHOSTDOWN:
 	case -EHOSTUNREACH:
 	case -ENETUNREACH:
+	case -EPIPE:
 		rpc_task_force_reencode(task);
 	}
 }
@@ -1162,9 +1164,12 @@ call_status(struct rpc_task *task)
 			xprt_conditional_disconnect(task->tk_xprt,
 					req->rq_connect_cookie);
 		break;
+	case -ECONNRESET:
 	case -ECONNREFUSED:
-	case -ENOTCONN:
 		rpc_force_rebind(clnt);
+		rpc_delay(task, 3*HZ);
+	case -EPIPE:
+	case -ENOTCONN:
 		task->tk_action = call_bind;
 		break;
 	case -EAGAIN:

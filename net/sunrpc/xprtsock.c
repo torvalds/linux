@@ -594,6 +594,8 @@ static int xs_udp_send_request(struct rpc_task *task)
 		/* Still some bytes left; set up for a retry later. */
 		status = -EAGAIN;
 	}
+	if (!transport->sock)
+		goto out;
 
 	switch (status) {
 	case -ENOTSOCK:
@@ -603,19 +605,17 @@ static int xs_udp_send_request(struct rpc_task *task)
 	case -EAGAIN:
 		xs_nospace(task);
 		break;
+	default:
+		dprintk("RPC:       sendmsg returned unrecognized error %d\n",
+			-status);
 	case -ENETUNREACH:
 	case -EPIPE:
 	case -ECONNREFUSED:
 		/* When the server has died, an ICMP port unreachable message
 		 * prompts ECONNREFUSED. */
 		clear_bit(SOCK_ASYNC_NOSPACE, &transport->sock->flags);
-		break;
-	default:
-		clear_bit(SOCK_ASYNC_NOSPACE, &transport->sock->flags);
-		dprintk("RPC:       sendmsg returned unrecognized error %d\n",
-			-status);
 	}
-
+out:
 	return status;
 }
 
@@ -697,6 +697,8 @@ static int xs_tcp_send_request(struct rpc_task *task)
 		status = -EAGAIN;
 		break;
 	}
+	if (!transport->sock)
+		goto out;
 
 	switch (status) {
 	case -ENOTSOCK:
@@ -706,21 +708,17 @@ static int xs_tcp_send_request(struct rpc_task *task)
 	case -EAGAIN:
 		xs_nospace(task);
 		break;
+	default:
+		dprintk("RPC:       sendmsg returned unrecognized error %d\n",
+			-status);
 	case -ECONNRESET:
 		xs_tcp_shutdown(xprt);
 	case -ECONNREFUSED:
 	case -ENOTCONN:
 	case -EPIPE:
-		status = -ENOTCONN;
 		clear_bit(SOCK_ASYNC_NOSPACE, &transport->sock->flags);
-		break;
-	default:
-		dprintk("RPC:       sendmsg returned unrecognized error %d\n",
-			-status);
-		clear_bit(SOCK_ASYNC_NOSPACE, &transport->sock->flags);
-		xs_tcp_shutdown(xprt);
 	}
-
+out:
 	return status;
 }
 

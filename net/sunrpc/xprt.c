@@ -901,32 +901,26 @@ void xprt_transmit(struct rpc_task *task)
 	req->rq_connect_cookie = xprt->connect_cookie;
 	req->rq_xtime = jiffies;
 	status = xprt->ops->send_request(task);
-	if (status == 0) {
-		dprintk("RPC: %5u xmit complete\n", task->tk_pid);
-		spin_lock_bh(&xprt->transport_lock);
-
-		xprt->ops->set_retrans_timeout(task);
-
-		xprt->stat.sends++;
-		xprt->stat.req_u += xprt->stat.sends - xprt->stat.recvs;
-		xprt->stat.bklog_u += xprt->backlog.qlen;
-
-		/* Don't race with disconnect */
-		if (!xprt_connected(xprt))
-			task->tk_status = -ENOTCONN;
-		else if (!req->rq_received)
-			rpc_sleep_on(&xprt->pending, task, xprt_timer);
-		spin_unlock_bh(&xprt->transport_lock);
+	if (status != 0) {
+		task->tk_status = status;
 		return;
 	}
 
-	/* Note: at this point, task->tk_sleeping has not yet been set,
-	 *	 hence there is no danger of the waking up task being put on
-	 *	 schedq, and being picked up by a parallel run of rpciod().
-	 */
-	task->tk_status = status;
-	if (status == -ECONNREFUSED)
-		rpc_sleep_on(&xprt->sending, task, NULL);
+	dprintk("RPC: %5u xmit complete\n", task->tk_pid);
+	spin_lock_bh(&xprt->transport_lock);
+
+	xprt->ops->set_retrans_timeout(task);
+
+	xprt->stat.sends++;
+	xprt->stat.req_u += xprt->stat.sends - xprt->stat.recvs;
+	xprt->stat.bklog_u += xprt->backlog.qlen;
+
+	/* Don't race with disconnect */
+	if (!xprt_connected(xprt))
+		task->tk_status = -ENOTCONN;
+	else if (!req->rq_received)
+		rpc_sleep_on(&xprt->pending, task, xprt_timer);
+	spin_unlock_bh(&xprt->transport_lock);
 }
 
 static inline void do_xprt_reserve(struct rpc_task *task)
