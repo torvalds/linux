@@ -45,6 +45,12 @@ unsigned long __read_mostly	tracing_max_latency;
 unsigned long __read_mostly	tracing_thresh;
 
 /*
+ * On boot up, the ring buffer is set to the minimum size, so that
+ * we do not waste memory on systems that are not using tracing.
+ */
+static int ring_buffer_expanded;
+
+/*
  * We need to change this state when a selftest is running.
  * A selftest will lurk into the ring-buffer to count the
  * entries inserted during the selftest although some concurrent
@@ -128,6 +134,8 @@ static int __init set_ftrace(char *str)
 {
 	strncpy(bootup_tracer_buf, str, BOOTUP_TRACER_SIZE);
 	default_bootup_tracer = bootup_tracer_buf;
+	/* We are using ftrace early, expand it */
+	ring_buffer_expanded = 1;
 	return 1;
 }
 __setup("ftrace=", set_ftrace);
@@ -2315,6 +2323,40 @@ int tracer_init(struct tracer *t, struct trace_array *tr)
 	return t->init(tr);
 }
 
+static int tracing_resize_ring_buffer(unsigned long size)
+{
+	int ret;
+
+	/*
+	 * If kernel or user changes the size of the ring buffer
+	 * it get completed.
+	 */
+	ring_buffer_expanded = 1;
+
+	ret = ring_buffer_resize(global_trace.buffer, size);
+	if (ret < 0)
+		return ret;
+
+	ret = ring_buffer_resize(max_tr.buffer, size);
+	if (ret < 0) {
+		int r;
+
+		r = ring_buffer_resize(global_trace.buffer,
+				       global_trace.entries);
+		if (r < 0) {
+			/* AARGH! We are left with different
+			 * size max buffer!!!! */
+			WARN_ON(1);
+			tracing_disabled = 1;
+		}
+		return ret;
+	}
+
+	global_trace.entries = size;
+
+	return ret;
+}
+
 struct trace_option_dentry;
 
 static struct trace_option_dentry *
@@ -2329,6 +2371,13 @@ static int tracing_set_tracer(const char *buf)
 	struct trace_array *tr = &global_trace;
 	struct tracer *t;
 	int ret = 0;
+
+	if (!ring_buffer_expanded) {
+		ret = tracing_resize_ring_buffer(trace_buf_size);
+		if (ret < 0)
+			return ret;
+		ret = 0;
+	}
 
 	mutex_lock(&trace_types_lock);
 	for (t = trace_types; t; t = t->next) {
@@ -2903,28 +2952,11 @@ tracing_entries_write(struct file *filp, const char __user *ubuf,
 	val <<= 10;
 
 	if (val != global_trace.entries) {
-		ret = ring_buffer_resize(global_trace.buffer, val);
+		ret = tracing_resize_ring_buffer(val);
 		if (ret < 0) {
 			cnt = ret;
 			goto out;
 		}
-
-		ret = ring_buffer_resize(max_tr.buffer, val);
-		if (ret < 0) {
-			int r;
-			cnt = ret;
-			r = ring_buffer_resize(global_trace.buffer,
-					       global_trace.entries);
-			if (r < 0) {
-				/* AARGH! We are left with different
-				 * size max buffer!!!! */
-				WARN_ON(1);
-				tracing_disabled = 1;
-			}
-			goto out;
-		}
-
-		global_trace.entries = val;
 	}
 
 	filp->f_pos += cnt;
@@ -3916,6 +3948,7 @@ void ftrace_dump(void)
 __init static int tracer_alloc_buffers(void)
 {
 	struct trace_array_cpu *data;
+	int ring_buf_size;
 	int i;
 	int ret = -ENOMEM;
 
@@ -3928,12 +3961,18 @@ __init static int tracer_alloc_buffers(void)
 	if (!alloc_cpumask_var(&tracing_reader_cpumask, GFP_KERNEL))
 		goto out_free_tracing_cpumask;
 
+	/* To save memory, keep the ring buffer size to its minimum */
+	if (ring_buffer_expanded)
+		ring_buf_size = trace_buf_size;
+	else
+		ring_buf_size = 1;
+
 	cpumask_copy(tracing_buffer_mask, cpu_possible_mask);
 	cpumask_copy(tracing_cpumask, cpu_all_mask);
 	cpumask_clear(tracing_reader_cpumask);
 
 	/* TODO: make the number of buffers hot pluggable with CPUS */
-	global_trace.buffer = ring_buffer_alloc(trace_buf_size,
+	global_trace.buffer = ring_buffer_alloc(ring_buf_size,
 						   TRACE_BUFFER_FLAGS);
 	if (!global_trace.buffer) {
 		printk(KERN_ERR "tracer: failed to allocate ring buffer!\n");
@@ -3944,7 +3983,7 @@ __init static int tracer_alloc_buffers(void)
 
 
 #ifdef CONFIG_TRACER_MAX_TRACE
-	max_tr.buffer = ring_buffer_alloc(trace_buf_size,
+	max_tr.buffer = ring_buffer_alloc(ring_buf_size,
 					     TRACE_BUFFER_FLAGS);
 	if (!max_tr.buffer) {
 		printk(KERN_ERR "tracer: failed to allocate max ring buffer!\n");
