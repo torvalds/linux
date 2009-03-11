@@ -522,20 +522,17 @@ static int nfs4_stat_to_errno(int);
 				 decode_lookup_maxsz + \
 				 decode_fs_locations_maxsz)
 
-static struct {
-	unsigned int	mode;
-	unsigned int	nfs2type;
-} nfs_type2fmt[] = {
-	{ 0,		NFNON	     },
-	{ S_IFREG,	NFREG	     },
-	{ S_IFDIR,	NFDIR	     },
-	{ S_IFBLK,	NFBLK	     },
-	{ S_IFCHR,	NFCHR	     },
-	{ S_IFLNK,	NFLNK	     },
-	{ S_IFSOCK,	NFSOCK	     },
-	{ S_IFIFO,	NFFIFO	     },
-	{ 0,		NFNON	     },
-	{ 0,		NFNON	     },
+static const umode_t nfs_type2fmt[] = {
+	[NF4BAD] = 0,
+	[NF4REG] = S_IFREG,
+	[NF4DIR] = S_IFDIR,
+	[NF4BLK] = S_IFBLK,
+	[NF4CHR] = S_IFCHR,
+	[NF4LNK] = S_IFLNK,
+	[NF4SOCK] = S_IFSOCK,
+	[NF4FIFO] = S_IFIFO,
+	[NF4ATTRDIR] = 0,
+	[NF4NAMEDATTR] = 0,
 };
 
 struct compound_hdr {
@@ -2173,7 +2170,7 @@ static int decode_attr_type(struct xdr_stream *xdr, uint32_t *bitmap, uint32_t *
 		}
 		bitmap[0] &= ~FATTR4_WORD0_TYPE;
 	}
-	dprintk("%s: type=0%o\n", __func__, nfs_type2fmt[*type].nfs2type);
+	dprintk("%s: type=0%o\n", __func__, nfs_type2fmt[*type]);
 	return 0;
 }
 
@@ -2580,8 +2577,9 @@ static int decode_attr_maxwrite(struct xdr_stream *xdr, uint32_t *bitmap, uint32
 	return status;
 }
 
-static int decode_attr_mode(struct xdr_stream *xdr, uint32_t *bitmap, uint32_t *mode)
+static int decode_attr_mode(struct xdr_stream *xdr, uint32_t *bitmap, umode_t *mode)
 {
+	uint32_t tmp;
 	__be32 *p;
 
 	*mode = 0;
@@ -2589,8 +2587,8 @@ static int decode_attr_mode(struct xdr_stream *xdr, uint32_t *bitmap, uint32_t *
 		return -EIO;
 	if (likely(bitmap[1] & FATTR4_WORD1_MODE)) {
 		READ_BUF(4);
-		READ32(*mode);
-		*mode &= ~S_IFMT;
+		READ32(tmp);
+		*mode = tmp & ~S_IFMT;
 		bitmap[1] &= ~FATTR4_WORD1_MODE;
 	}
 	dprintk("%s: file mode=0%o\n", __func__, (unsigned int)*mode);
@@ -2994,7 +2992,8 @@ static int decode_getfattr(struct xdr_stream *xdr, struct nfs_fattr *fattr, cons
 	uint32_t attrlen,
 		 bitmap[2] = {0},
 		 type;
-	int status, fmode = 0;
+	int status;
+	umode_t fmode = 0;
 	uint64_t fileid;
 
 	if ((status = decode_op_hdr(xdr, OP_GETATTR)) != 0)
@@ -3008,8 +3007,7 @@ static int decode_getfattr(struct xdr_stream *xdr, struct nfs_fattr *fattr, cons
 
 	if ((status = decode_attr_type(xdr, bitmap, &type)) != 0)
 		goto xdr_error;
-	fattr->type = nfs_type2fmt[type].nfs2type;
-	fattr->mode = nfs_type2fmt[type].mode;
+	fattr->mode = nfs_type2fmt[type];
 
 	if ((status = decode_attr_change(xdr, bitmap, &fattr->change_attr)) != 0)
 		goto xdr_error;

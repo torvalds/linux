@@ -28,8 +28,7 @@ static inline int nfs_fsid_equal(const struct nfs_fsid *a, const struct nfs_fsid
 
 struct nfs_fattr {
 	unsigned int		valid;		/* which fields are valid */
-	enum nfs_ftype		type;		/* always use NFSv2 types */
-	__u32			mode;
+	umode_t			mode;
 	__u32			nlink;
 	__u32			uid;
 	__u32			gid;
