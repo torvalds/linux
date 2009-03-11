@@ -1,5 +1,8 @@
 if ARCH_DAVINCI
 
+config CP_INTC
+	bool
+
 menu "TI DaVinci Implementations"
 
 comment "DaVinci Core Type"
