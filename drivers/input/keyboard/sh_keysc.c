@@ -257,12 +257,9 @@ static int __devexit sh_keysc_remove(struct platform_device *pdev)
 
 static int sh_keysc_suspend(struct device *dev)
 {
-	struct platform_device *pdev;
-	struct sh_keysc_priv *priv;
+	struct platform_device *pdev = to_platform_device(dev);
+	struct sh_keysc_priv *priv = platform_get_drvdata(pdev);
 	unsigned short value;
-
-	pdev = container_of(dev, struct platform_device, dev);
-	priv = platform_get_drvdata(pdev);
 
 	value = ioread16(priv->iomem_base + KYCR1_OFFS);
 
