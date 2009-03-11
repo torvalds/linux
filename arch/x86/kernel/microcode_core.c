@@ -70,47 +70,47 @@
  *		Fix sigmatch() macro to handle old CPUs with pf == 0.
  *		Thanks to Stuart Swales for pointing out this bug.
  */
-#include <linux/capability.h>
-#include <linux/kernel.h>
-#include <linux/init.h>
-#include <linux/sched.h>
-#include <linux/smp_lock.h>
-#include <linux/cpumask.h>
-#include <linux/module.h>
-#include <linux/slab.h>
-#include <linux/vmalloc.h>
-#include <linux/miscdevice.h>
-#include <linux/spinlock.h>
-#include <linux/mm.h>
-#include <linux/fs.h>
-#include <linux/mutex.h>
-#include <linux/cpu.h>
-#include <linux/firmware.h>
 #include <linux/platform_device.h>
+#include <linux/capability.h>
+#include <linux/miscdevice.h>
+#include <linux/firmware.h>
+#include <linux/smp_lock.h>
+#include <linux/spinlock.h>
+#include <linux/cpumask.h>
+#include <linux/uaccess.h>
+#include <linux/vmalloc.h>
+#include <linux/kernel.h>
+#include <linux/module.h>
+#include <linux/mutex.h>
+#include <linux/sched.h>
+#include <linux/init.h>
+#include <linux/slab.h>
+#include <linux/cpu.h>
+#include <linux/fs.h>
+#include <linux/mm.h>
 
-#include <asm/msr.h>
-#include <asm/uaccess.h>
-#include <asm/processor.h>
 #include <asm/microcode.h>
+#include <asm/processor.h>
+#include <asm/msr.h>
 
 MODULE_DESCRIPTION("Microcode Update Driver");
 MODULE_AUTHOR("Tigran Aivazian <tigran@aivazian.fsnet.co.uk>");
 MODULE_LICENSE("GPL");
 
-#define MICROCODE_VERSION 	"2.00"
+#define MICROCODE_VERSION	"2.00"
 
-static struct microcode_ops *microcode_ops;
+static struct microcode_ops	*microcode_ops;
 
 /* no concurrent ->write()s are allowed on /dev/cpu/microcode */
 static DEFINE_MUTEX(microcode_mutex);
 
-struct ucode_cpu_info ucode_cpu_info[NR_CPUS];
+struct ucode_cpu_info		ucode_cpu_info[NR_CPUS];
 EXPORT_SYMBOL_GPL(ucode_cpu_info);
 
 #ifdef CONFIG_MICROCODE_OLD_INTERFACE
 struct update_for_cpu {
-	const void __user *buf;
-	size_t size;
+	const void __user	*buf;
+	size_t			size;
 };
 
 static long update_for_cpu(void *_ufc)
@@ -209,12 +209,12 @@ static void microcode_dev_exit(void)
 
 MODULE_ALIAS_MISCDEV(MICROCODE_MINOR);
 #else
-#define microcode_dev_init() 0
-#define microcode_dev_exit() do { } while (0)
+#define microcode_dev_init()	0
+#define microcode_dev_exit()	do { } while (0)
 #endif
 
 /* fake device for request_firmware */
-static struct platform_device *microcode_pdev;
+static struct platform_device	*microcode_pdev;
 
 static long reload_for_cpu(void *unused)
 {
@@ -282,8 +282,8 @@ static struct attribute *mc_default_attrs[] = {
 };
 
 static struct attribute_group mc_attr_group = {
-	.attrs = mc_default_attrs,
-	.name = "microcode",
+	.attrs		= mc_default_attrs,
+	.name		= "microcode",
 };
 
 static void __microcode_fini_cpu(int cpu)
@@ -353,7 +353,7 @@ static long microcode_update_cpu(void *unused)
 	 */
 	if (uci->valid) {
 		err = microcode_resume_cpu(smp_processor_id());
-	} else {	
+	} else {
 		collect_cpu_info(smp_processor_id());
 		if (uci->valid && system_state == SYSTEM_RUNNING)
 			err = microcode_ops->request_microcode_fw(
@@ -423,9 +423,9 @@ static int mc_sysdev_resume(struct sys_device *dev)
 }
 
 static struct sysdev_driver mc_sysdev_driver = {
-	.add = mc_sysdev_add,
-	.remove = mc_sysdev_remove,
-	.resume = mc_sysdev_resume,
+	.add		= mc_sysdev_add,
+	.remove		= mc_sysdev_remove,
+	.resume		= mc_sysdev_resume,
 };
 
 static __cpuinit int
@@ -464,7 +464,7 @@ mc_cpu_callback(struct notifier_block *nb, unsigned long action, void *hcpu)
 }
 
 static struct notifier_block __refdata mc_cpu_notifier = {
-	.notifier_call = mc_cpu_callback,
+	.notifier_call	= mc_cpu_callback,
 };
 
 static int __init microcode_init(void)
