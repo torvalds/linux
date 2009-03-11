@@ -1722,20 +1722,19 @@ static void xs_tcp_connect_worker4(struct work_struct *work)
 			xprt, -status, xprt_connected(xprt),
 			sock->sk->sk_state);
 	switch (status) {
+	case -ECONNREFUSED:
+	case -ECONNRESET:
+	case -ENETUNREACH:
+		/* retry with existing socket, after a delay */
 	case 0:
 	case -EINPROGRESS:
 	case -EALREADY:
 		goto out_clear;
-	case -ECONNREFUSED:
-	case -ECONNRESET:
-		/* retry with existing socket, after a delay */
-		break;
-	default:
-		/* get rid of existing socket, and retry */
-		xs_tcp_shutdown(xprt);
-		printk("%s: connect returned unhandled error %d\n",
-				__func__, status);
 	}
+	/* get rid of existing socket, and retry */
+	xs_tcp_shutdown(xprt);
+	printk("%s: connect returned unhandled error %d\n",
+			__func__, status);
 	status = -EAGAIN;
 out:
 	xprt_wake_pending_tasks(xprt, status);
@@ -1783,20 +1782,19 @@ static void xs_tcp_connect_worker6(struct work_struct *work)
 	dprintk("RPC:       %p connect status %d connected %d sock state %d\n",
 			xprt, -status, xprt_connected(xprt), sock->sk->sk_state);
 	switch (status) {
+	case -ECONNREFUSED:
+	case -ECONNRESET:
+	case -ENETUNREACH:
+		/* retry with existing socket, after a delay */
 	case 0:
 	case -EINPROGRESS:
 	case -EALREADY:
 		goto out_clear;
-	case -ECONNREFUSED:
-	case -ECONNRESET:
-		/* retry with existing socket, after a delay */
-		break;
-	default:
-		/* get rid of existing socket, and retry */
-		xs_tcp_shutdown(xprt);
-		printk("%s: connect returned unhandled error %d\n",
-				__func__, status);
 	}
+	/* get rid of existing socket, and retry */
+	xs_tcp_shutdown(xprt);
+	printk("%s: connect returned unhandled error %d\n",
+			__func__, status);
 	status = -EAGAIN;
 out:
 	xprt_wake_pending_tasks(xprt, status);
