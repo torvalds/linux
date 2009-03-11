@@ -1208,23 +1208,20 @@ static void xs_tcp_state_change(struct sock *sk)
 }
 
 /**
- * xs_tcp_error_report - callback mainly for catching RST events
+ * xs_error_report - callback mainly for catching socket errors
  * @sk: socket
  */
-static void xs_tcp_error_report(struct sock *sk)
+static void xs_error_report(struct sock *sk)
 {
 	struct rpc_xprt *xprt;
 
 	read_lock(&sk->sk_callback_lock);
-	if (sk->sk_err != ECONNRESET || sk->sk_state != TCP_ESTABLISHED)
-		goto out;
 	if (!(xprt = xprt_from_sock(sk)))
 		goto out;
 	dprintk("RPC:       %s client %p...\n"
 			"RPC:       error %d\n",
 			__func__, xprt, sk->sk_err);
-
-	xprt_force_disconnect(xprt);
+	xprt_wake_pending_tasks(xprt, -EAGAIN);
 out:
 	read_unlock(&sk->sk_callback_lock);
 }
@@ -1509,6 +1506,7 @@ static void xs_udp_finish_connecting(struct rpc_xprt *xprt, struct socket *sock)
 		sk->sk_user_data = xprt;
 		sk->sk_data_ready = xs_udp_data_ready;
 		sk->sk_write_space = xs_udp_write_space;
+		sk->sk_error_report = xs_error_report;
 		sk->sk_no_check = UDP_CSUM_NORCV;
 		sk->sk_allocation = GFP_ATOMIC;
 
@@ -1656,7 +1654,7 @@ static int xs_tcp_finish_connecting(struct rpc_xprt *xprt, struct socket *sock)
 		sk->sk_data_ready = xs_tcp_data_ready;
 		sk->sk_state_change = xs_tcp_state_change;
 		sk->sk_write_space = xs_tcp_write_space;
-		sk->sk_error_report = xs_tcp_error_report;
+		sk->sk_error_report = xs_error_report;
 		sk->sk_allocation = GFP_ATOMIC;
 
 		/* socket options */
