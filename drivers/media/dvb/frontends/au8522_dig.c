@@ -27,22 +27,7 @@
 #include <linux/delay.h>
 #include "dvb_frontend.h"
 #include "au8522.h"
-
-struct au8522_state {
-
-	struct i2c_adapter *i2c;
-
-	/* configuration settings */
-	const struct au8522_config *config;
-
-	struct dvb_frontend frontend;
-
-	u32 current_frequency;
-	fe_modulation_t current_modulation;
-
-	u32 fe_status;
-	unsigned int led_state;
-};
+#include "au8522_priv.h"
 
 static int debug;
 
@@ -52,7 +37,7 @@ static int debug;
 	} while (0)
 
 /* 16 bit registers, 8 bit values */
-static int au8522_writereg(struct au8522_state *state, u16 reg, u8 data)
+int au8522_writereg(struct au8522_state *state, u16 reg, u8 data)
 {
 	int ret;
 	u8 buf [] = { reg >> 8, reg & 0xff, data };
@@ -69,7 +54,7 @@ static int au8522_writereg(struct au8522_state *state, u16 reg, u8 data)
 	return (ret != 1) ? -1 : 0;
 }
 
-static u8 au8522_readreg(struct au8522_state *state, u16 reg)
+u8 au8522_readreg(struct au8522_state *state, u16 reg)
 {
 	int ret;
 	u8 b0 [] = { reg >> 8, reg & 0xff };
@@ -528,7 +513,7 @@ static int au8522_set_frontend(struct dvb_frontend *fe,
 
 /* Reset the demod hardware and reset all of the configuration registers
    to a default state. */
-static int au8522_init(struct dvb_frontend *fe)
+int au8522_init(struct dvb_frontend *fe)
 {
 	struct au8522_state *state = fe->demodulator_priv;
 	dprintk("%s()\n", __func__);
@@ -624,7 +609,7 @@ static int au8522_led_ctrl(struct au8522_state *state, int led)
 	return 0;
 }
 
-static int au8522_sleep(struct dvb_frontend *fe)
+int au8522_sleep(struct dvb_frontend *fe)
 {
 	struct au8522_state *state = fe->demodulator_priv;
 	dprintk("%s()\n", __func__);
