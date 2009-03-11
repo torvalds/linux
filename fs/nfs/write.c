@@ -404,7 +404,6 @@ nfs_mark_request_commit(struct nfs_page *req)
 	struct nfs_inode *nfsi = NFS_I(inode);
 
 	spin_lock(&inode->i_lock);
-	nfsi->ncommit++;
 	set_bit(PG_CLEAN, &(req)->wb_flags);
 	radix_tree_tag_set(&nfsi->nfs_page_tree,
 			req->wb_index,
@@ -523,6 +522,12 @@ static void nfs_cancel_commit_list(struct list_head *head)
 	}
 }
 
+static int
+nfs_need_commit(struct nfs_inode *nfsi)
+{
+	return radix_tree_tagged(&nfsi->nfs_page_tree, NFS_PAGE_TAG_COMMIT);
+}
+
 #if defined(CONFIG_NFS_V3) || defined(CONFIG_NFS_V4)
 /*
  * nfs_scan_commit - Scan an inode for commit requests
@@ -538,16 +543,18 @@ static int
 nfs_scan_commit(struct inode *inode, struct list_head *dst, pgoff_t idx_start, unsigned int npages)
 {
 	struct nfs_inode *nfsi = NFS_I(inode);
-	int res = 0;
 
-	if (nfsi->ncommit != 0) {
-		res = nfs_scan_list(nfsi, dst, idx_start, npages,
-				NFS_PAGE_TAG_COMMIT);
-		nfsi->ncommit -= res;
-	}
-	return res;
+	if (!nfs_need_commit(nfsi))
+		return 0;
+
+	return nfs_scan_list(nfsi, dst, idx_start, npages, NFS_PAGE_TAG_COMMIT);
 }
 #else
+static inline int nfs_need_commit(struct nfs_inode *nfsi)
+{
+	return 0;
+}
+
 static inline int nfs_scan_commit(struct inode *inode, struct list_head *dst, pgoff_t idx_start, unsigned int npages)
 {
 	return 0;
@@ -820,7 +827,7 @@ static int nfs_write_rpcsetup(struct nfs_page *req,
 	data->args.stable  = NFS_UNSTABLE;
 	if (how & FLUSH_STABLE) {
 		data->args.stable = NFS_DATA_SYNC;
-		if (!NFS_I(inode)->ncommit)
+		if (!nfs_need_commit(NFS_I(inode)))
 			data->args.stable = NFS_FILE_SYNC;
 	}
 
