@@ -64,11 +64,7 @@ const struct file_operations nfs_file_operations = {
 	.write		= do_sync_write,
 	.aio_read	= nfs_file_read,
 	.aio_write	= nfs_file_write,
-#ifdef CONFIG_MMU
 	.mmap		= nfs_file_mmap,
-#else
-	.mmap		= generic_file_mmap,
-#endif
 	.open		= nfs_file_open,
 	.flush		= nfs_file_flush,
 	.release	= nfs_file_release,
@@ -304,11 +300,13 @@ nfs_file_mmap(struct file * file, struct vm_area_struct * vma)
 	dprintk("NFS: mmap(%s/%s)\n",
 		dentry->d_parent->d_name.name, dentry->d_name.name);
 
-	status = nfs_revalidate_mapping(inode, file->f_mapping);
+	/* Note: generic_file_mmap() returns ENOSYS on nommu systems
+	 *       so we call that before revalidating the mapping
+	 */
+	status = generic_file_mmap(file, vma);
 	if (!status) {
 		vma->vm_ops = &nfs_file_vm_ops;
-		vma->vm_flags |= VM_CAN_NONLINEAR;
-		file_accessed(file);
+		status = nfs_revalidate_mapping(inode, file->f_mapping);
 	}
 	return status;
 }
