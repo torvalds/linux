@@ -29,6 +29,7 @@
 #define  WDT_EN			0x0010
 #define WDT_VAL			(TIMER_VIRT_BASE + 0x0024)
 
+#define ORION5X_TCLK		166666667
 #define WDT_MAX_DURATION	(0xffffffff / ORION5X_TCLK)
 #define WDT_IN_USE		0
 #define WDT_OK_TO_CLOSE		1
