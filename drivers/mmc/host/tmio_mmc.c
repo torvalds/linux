@@ -650,10 +650,10 @@ static int __devexit tmio_mmc_remove(struct platform_device *dev)
 	if (mmc) {
 		struct tmio_mmc_host *host = mmc_priv(mmc);
 		mmc_remove_host(mmc);
-		mmc_free_host(mmc);
 		free_irq(host->irq, host);
 		iounmap(host->ctl);
 		iounmap(host->cnf);
+		mmc_free_host(mmc);
 	}
 
 	return 0;
