@@ -521,11 +521,12 @@ static void xs_nospace_callback(struct rpc_task *task)
  * @task: task to put to sleep
  *
  */
-static void xs_nospace(struct rpc_task *task)
+static int xs_nospace(struct rpc_task *task)
 {
 	struct rpc_rqst *req = task->tk_rqstp;
 	struct rpc_xprt *xprt = req->rq_xprt;
 	struct sock_xprt *transport = container_of(xprt, struct sock_xprt, xprt);
+	int ret = 0;
 
 	dprintk("RPC: %5u xmit incomplete (%u left of %u)\n",
 			task->tk_pid, req->rq_slen - req->rq_bytes_sent,
@@ -537,6 +538,7 @@ static void xs_nospace(struct rpc_task *task)
 	/* Don't race with disconnect */
 	if (xprt_connected(xprt)) {
 		if (test_bit(SOCK_ASYNC_NOSPACE, &transport->sock->flags)) {
+			ret = -EAGAIN;
 			/*
 			 * Notify TCP that we're limited by the application
 			 * window size
@@ -548,10 +550,11 @@ static void xs_nospace(struct rpc_task *task)
 		}
 	} else {
 		clear_bit(SOCK_ASYNC_NOSPACE, &transport->sock->flags);
-		task->tk_status = -ENOTCONN;
+		ret = -ENOTCONN;
 	}
 
 	spin_unlock_bh(&xprt->transport_lock);
+	return ret;
 }
 
 /**
@@ -603,7 +606,7 @@ static int xs_udp_send_request(struct rpc_task *task)
 		/* Should we call xs_close() here? */
 		break;
 	case -EAGAIN:
-		xs_nospace(task);
+		status = xs_nospace(task);
 		break;
 	default:
 		dprintk("RPC:       sendmsg returned unrecognized error %d\n",
@@ -706,7 +709,7 @@ static int xs_tcp_send_request(struct rpc_task *task)
 		/* Should we call xs_close() here? */
 		break;
 	case -EAGAIN:
-		xs_nospace(task);
+		status = xs_nospace(task);
 		break;
 	default:
 		dprintk("RPC:       sendmsg returned unrecognized error %d\n",
