@@ -472,6 +472,7 @@ EXPORT_SYMBOL(iwl_remove_station);
 void iwl_clear_stations_table(struct iwl_priv *priv)
 {
 	unsigned long flags;
+	int i;
 
 	spin_lock_irqsave(&priv->sta_lock, flags);
 
@@ -485,6 +486,12 @@ void iwl_clear_stations_table(struct iwl_priv *priv)
 
 	/* clean ucode key table bit map */
 	priv->ucode_key_table = 0;
+
+	/* keep track of static keys */
+	for (i = 0; i < WEP_KEYS_MAX ; i++) {
+		if (priv->wep_keys[i].key_size)
+			test_and_set_bit(i, &priv->ucode_key_table);
+	}
 
 	spin_unlock_irqrestore(&priv->sta_lock, flags);
 }
