@@ -1021,7 +1021,7 @@ static int vidioc_querycap(struct file *file, void  *priv,
 	memset(cap, 0, sizeof(*cap));
 	strlcpy(cap->driver, "au0828", sizeof(cap->driver));
 	strlcpy(cap->card, dev->board.name, sizeof(cap->card));
-	strlcpy(cap->bus_info, dev->usbdev->dev.bus_id, sizeof(cap->bus_info));
+	strlcpy(cap->bus_info, dev->v4l2_dev.name, sizeof(cap->bus_info));
 
 	cap->version = AU0828_VERSION_CODE;
 

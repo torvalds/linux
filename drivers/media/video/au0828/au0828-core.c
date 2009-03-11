@@ -152,6 +152,8 @@ static void au0828_usb_disconnect(struct usb_interface *interface)
 	/* I2C */
 	au0828_i2c_unregister(dev);
 
+	v4l2_device_unregister(&dev->v4l2_dev);
+
 	usb_set_intfdata(interface, NULL);
 
 	mutex_lock(&dev->mutex);
@@ -165,7 +167,7 @@ static void au0828_usb_disconnect(struct usb_interface *interface)
 static int au0828_usb_probe(struct usb_interface *interface,
 	const struct usb_device_id *id)
 {
-	int ifnum;
+	int ifnum, retval;
 	struct au0828_dev *dev;
 	struct usb_device *usbdev = interface_to_usbdev(interface);
 
@@ -191,6 +193,17 @@ static int au0828_usb_probe(struct usb_interface *interface,
 	dev->boardnr = id->driver_info;
 
 	usb_set_intfdata(interface, dev);
+
+	/* Create the v4l2_device */
+	snprintf(dev->v4l2_dev.name, sizeof(dev->v4l2_dev.name), "%s-%03d",
+		 "au0828", 0);
+	retval = v4l2_device_register(&dev->usbdev->dev, &dev->v4l2_dev);
+	if (retval) {
+		printk(KERN_ERR "%s() v4l2_device_register failed\n",
+		       __func__);
+		kfree(dev);
+		return -EIO;
+	}
 
 	/* Power Up the bridge */
 	au0828_write(dev, REG_600, 1 << 4);

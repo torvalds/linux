@@ -345,7 +345,6 @@ static struct i2c_adapter au0828_i2c_adap_template = {
 	.owner             = THIS_MODULE,
 	.id                = I2C_HW_B_AU0828,
 	.algo              = &au0828_i2c_algo_template,
-	.class             = I2C_CLASS_TV_ANALOG,
 	.client_register   = attach_inform,
 	.client_unregister = detach_inform,
 };
@@ -392,9 +391,9 @@ int au0828_i2c_register(struct au0828_dev *dev)
 	strlcpy(dev->i2c_adap.name, DRIVER_NAME,
 		sizeof(dev->i2c_adap.name));
 
-	dev->i2c_algo.data = dev;
+	dev->i2c_adap.algo = &dev->i2c_algo;
 	dev->i2c_adap.algo_data = dev;
-	i2c_set_adapdata(&dev->i2c_adap, dev);
+	i2c_set_adapdata(&dev->i2c_adap, &dev->v4l2_dev);
 	i2c_add_adapter(&dev->i2c_adap);
 
 	dev->i2c_client.adapter = &dev->i2c_adap;

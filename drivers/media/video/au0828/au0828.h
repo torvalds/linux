@@ -27,6 +27,7 @@
 /* Analog */
 #include <linux/videodev2.h>
 #include <media/videobuf-vmalloc.h>
+#include <media/v4l2-device.h>
 
 /* DVB */
 #include "demux.h"
@@ -188,7 +189,7 @@ struct au0828_dev {
 
 	/* I2C */
 	struct i2c_adapter		i2c_adap;
-	struct i2c_algo_bit_data	i2c_algo;
+	struct i2c_algorithm		i2c_algo;
 	struct i2c_client		i2c_client;
 	u32 				i2c_rc;
 
@@ -197,6 +198,7 @@ struct au0828_dev {
 
 	/* Analog */
 	struct list_head au0828list;
+	struct v4l2_device v4l2_dev;
 	int users;
 	unsigned int stream_on:1;	/* Locks streams */
 	struct video_device *vdev;
