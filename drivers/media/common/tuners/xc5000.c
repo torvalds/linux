@@ -973,14 +973,19 @@ struct dvb_frontend *xc5000_attach(struct dvb_frontend *fe,
 	case 1:
 		/* new tuner instance */
 		priv->bandwidth = BANDWIDTH_6_MHZ;
-		priv->if_khz = cfg->if_khz;
-
 		fe->tuner_priv = priv;
 		break;
 	default:
 		/* existing tuner instance */
 		fe->tuner_priv = priv;
 		break;
+	}
+
+	if (priv->if_khz == 0) {
+		/* If the IF hasn't been set yet, use the value provided by
+		   the caller (occurs in hybrid devices where the analog
+		   call to xc5000_attach occurs before the digital side) */
+		priv->if_khz = cfg->if_khz;
 	}
 
 	/* Check if firmware has been loaded. It is possible that another
