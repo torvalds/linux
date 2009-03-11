@@ -451,23 +451,24 @@ static void rcu_free_kmmio_fault_pages(struct rcu_head *head)
 
 static void remove_kmmio_fault_pages(struct rcu_head *head)
 {
-	struct kmmio_delayed_release *dr = container_of(
-						head,
-						struct kmmio_delayed_release,
-						rcu);
+	struct kmmio_delayed_release *dr =
+		container_of(head, struct kmmio_delayed_release, rcu);
 	struct kmmio_fault_page *p = dr->release_list;
 	struct kmmio_fault_page **prevp = &dr->release_list;
 	unsigned long flags;
+
 	spin_lock_irqsave(&kmmio_lock, flags);
 	while (p) {
-		if (!p->count)
+		if (!p->count) {
 			list_del_rcu(&p->list);
-		else
+			prevp = &p->release_next;
+		} else {
 			*prevp = p->release_next;
-		prevp = &p->release_next;
+		}
 		p = p->release_next;
 	}
 	spin_unlock_irqrestore(&kmmio_lock, flags);
+
 	/* This is the real RCU destroy call. */
 	call_rcu(&dr->rcu, rcu_free_kmmio_fault_pages);
 }

@@ -1084,6 +1084,13 @@ out:
 	return 0;
 }
 
+/**
+ * netlink_set_err - report error to broadcast listeners
+ * @ssk: the kernel netlink socket, as returned by netlink_kernel_create()
+ * @pid: the PID of a process that we want to skip (if any)
+ * @groups: the broadcast group that will notice the error
+ * @code: error code, must be negative (as usual in kernelspace)
+ */
 void netlink_set_err(struct sock *ssk, u32 pid, u32 group, int code)
 {
 	struct netlink_set_err_data info;
@@ -1093,7 +1100,8 @@ void netlink_set_err(struct sock *ssk, u32 pid, u32 group, int code)
 	info.exclude_sk = ssk;
 	info.pid = pid;
 	info.group = group;
-	info.code = code;
+	/* sk->sk_err wants a positive error value */
+	info.code = -code;
 
 	read_lock(&nl_table_lock);
 
