@@ -136,7 +136,7 @@ xdr_decode_fattr(__be32 *p, struct nfs_fattr *fattr)
 	p = xdr_decode_time(p, &fattr->atime);
 	p = xdr_decode_time(p, &fattr->mtime);
 	p = xdr_decode_time(p, &fattr->ctime);
-	fattr->valid |= NFS_ATTR_FATTR;
+	fattr->valid |= NFS_ATTR_FATTR_V2;
 	fattr->rdev = new_decode_dev(rdev);
 	if (fattr->type == NFCHR && rdev == NFS2_FIFO_DEV) {
 		fattr->type = NFFIFO;

@@ -177,7 +177,7 @@ xdr_decode_fattr(__be32 *p, struct nfs_fattr *fattr)
 	p = xdr_decode_time3(p, &fattr->ctime);
 
 	/* Update the mode bits */
-	fattr->valid |= (NFS_ATTR_FATTR | NFS_ATTR_FATTR_V3);
+	fattr->valid |= NFS_ATTR_FATTR_V3;
 	return p;
 }
 
@@ -233,7 +233,9 @@ xdr_decode_wcc_attr(__be32 *p, struct nfs_fattr *fattr)
 	p = xdr_decode_hyper(p, &fattr->pre_size);
 	p = xdr_decode_time3(p, &fattr->pre_mtime);
 	p = xdr_decode_time3(p, &fattr->pre_ctime);
-	fattr->valid |= NFS_ATTR_WCC;
+	fattr->valid |= NFS_ATTR_FATTR_PRESIZE
+		| NFS_ATTR_FATTR_PREMTIME
+		| NFS_ATTR_FATTR_PRECTIME;
 	return p;
 }
 

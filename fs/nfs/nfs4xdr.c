@@ -3012,7 +3012,7 @@ static int decode_getfattr(struct xdr_stream *xdr, struct nfs_fattr *fattr, cons
 	if ((status = decode_attr_type(xdr, bitmap, &type)) != 0)
 		goto xdr_error;
 	fattr->type = nfs_type2fmt[type].nfs2type;
-	fmode = nfs_type2fmt[type].mode;
+	fattr->mode = nfs_type2fmt[type].mode;
 
 	if ((status = decode_attr_change(xdr, bitmap, &fattr->change_attr)) != 0)
 		goto xdr_error;
@@ -3026,7 +3026,7 @@ static int decode_getfattr(struct xdr_stream *xdr, struct nfs_fattr *fattr, cons
 						struct nfs4_fs_locations,
 						fattr))) != 0)
 		goto xdr_error;
-	if ((status = decode_attr_mode(xdr, bitmap, &fattr->mode)) != 0)
+	if ((status = decode_attr_mode(xdr, bitmap, &fmode)) != 0)
 		goto xdr_error;
 	fattr->mode |= fmode;
 	if ((status = decode_attr_nlink(xdr, bitmap, &fattr->nlink)) != 0)
@@ -3050,7 +3050,7 @@ static int decode_getfattr(struct xdr_stream *xdr, struct nfs_fattr *fattr, cons
 	if (fattr->fileid == 0 && fileid != 0)
 		fattr->fileid = fileid;
 	if ((status = verify_attr_len(xdr, savep, attrlen)) == 0)
-		fattr->valid = NFS_ATTR_FATTR | NFS_ATTR_FATTR_V3 | NFS_ATTR_FATTR_V4;
+		fattr->valid = NFS_ATTR_FATTR_V4;
 xdr_error:
 	dprintk("%s: xdr returned %d\n", __func__, -status);
 	return status;
