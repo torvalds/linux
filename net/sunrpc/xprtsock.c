@@ -1162,7 +1162,7 @@ static void xs_tcp_state_change(struct sock *sk)
 			transport->tcp_flags =
 				TCP_RCV_COPY_FRAGHDR | TCP_RCV_COPY_XID;
 
-			xprt_wake_pending_tasks(xprt, 0);
+			xprt_wake_pending_tasks(xprt, -EAGAIN);
 		}
 		spin_unlock_bh(&xprt->transport_lock);
 		break;
@@ -1721,20 +1721,22 @@ static void xs_tcp_connect_worker4(struct work_struct *work)
 	dprintk("RPC:       %p connect status %d connected %d sock state %d\n",
 			xprt, -status, xprt_connected(xprt),
 			sock->sk->sk_state);
-	if (status < 0) {
-		switch (status) {
-			case -EINPROGRESS:
-			case -EALREADY:
-				goto out_clear;
-			case -ECONNREFUSED:
-			case -ECONNRESET:
-				/* retry with existing socket, after a delay */
-				break;
-			default:
-				/* get rid of existing socket, and retry */
-				xs_tcp_shutdown(xprt);
-		}
+	switch (status) {
+	case 0:
+	case -EINPROGRESS:
+	case -EALREADY:
+		goto out_clear;
+	case -ECONNREFUSED:
+	case -ECONNRESET:
+		/* retry with existing socket, after a delay */
+		break;
+	default:
+		/* get rid of existing socket, and retry */
+		xs_tcp_shutdown(xprt);
+		printk("%s: connect returned unhandled error %d\n",
+				__func__, status);
 	}
+	status = -EAGAIN;
 out:
 	xprt_wake_pending_tasks(xprt, status);
 out_clear:
@@ -1780,20 +1782,22 @@ static void xs_tcp_connect_worker6(struct work_struct *work)
 	status = xs_tcp_finish_connecting(xprt, sock);
 	dprintk("RPC:       %p connect status %d connected %d sock state %d\n",
 			xprt, -status, xprt_connected(xprt), sock->sk->sk_state);
-	if (status < 0) {
-		switch (status) {
-			case -EINPROGRESS:
-			case -EALREADY:
-				goto out_clear;
-			case -ECONNREFUSED:
-			case -ECONNRESET:
-				/* retry with existing socket, after a delay */
-				break;
-			default:
-				/* get rid of existing socket, and retry */
-				xs_tcp_shutdown(xprt);
-		}
+	switch (status) {
+	case 0:
+	case -EINPROGRESS:
+	case -EALREADY:
+		goto out_clear;
+	case -ECONNREFUSED:
+	case -ECONNRESET:
+		/* retry with existing socket, after a delay */
+		break;
+	default:
+		/* get rid of existing socket, and retry */
+		xs_tcp_shutdown(xprt);
+		printk("%s: connect returned unhandled error %d\n",
+				__func__, status);
 	}
+	status = -EAGAIN;
 out:
 	xprt_wake_pending_tasks(xprt, status);
 out_clear:

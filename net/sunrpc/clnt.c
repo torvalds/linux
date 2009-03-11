@@ -1032,27 +1032,20 @@ call_connect_status(struct rpc_task *task)
 	dprint_status(task);
 
 	task->tk_status = 0;
-	if (status >= 0) {
+	if (status >= 0 || status == -EAGAIN) {
 		clnt->cl_stats->netreconn++;
 		task->tk_action = call_transmit;
 		return;
 	}
 
-	/* Something failed: remote service port may have changed */
-	rpc_force_rebind(clnt);
-
 	switch (status) {
-	case -ENOTCONN:
-	case -EAGAIN:
-		task->tk_action = call_bind;
-		if (!RPC_IS_SOFT(task))
-			return;
 		/* if soft mounted, test if we've timed out */
 	case -ETIMEDOUT:
 		task->tk_action = call_timeout;
-		return;
+		break;
+	default:
+		rpc_exit(task, -EIO);
 	}
-	rpc_exit(task, -EIO);
 }
 
 /*

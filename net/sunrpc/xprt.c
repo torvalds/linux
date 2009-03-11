@@ -611,7 +611,7 @@ void xprt_disconnect_done(struct rpc_xprt *xprt)
 	dprintk("RPC:       disconnected transport %p\n", xprt);
 	spin_lock_bh(&xprt->transport_lock);
 	xprt_clear_connected(xprt);
-	xprt_wake_pending_tasks(xprt, -ENOTCONN);
+	xprt_wake_pending_tasks(xprt, -EAGAIN);
 	spin_unlock_bh(&xprt->transport_lock);
 }
 EXPORT_SYMBOL_GPL(xprt_disconnect_done);
@@ -629,7 +629,7 @@ void xprt_force_disconnect(struct rpc_xprt *xprt)
 	/* Try to schedule an autoclose RPC call */
 	if (test_and_set_bit(XPRT_LOCKED, &xprt->state) == 0)
 		queue_work(rpciod_workqueue, &xprt->task_cleanup);
-	xprt_wake_pending_tasks(xprt, -ENOTCONN);
+	xprt_wake_pending_tasks(xprt, -EAGAIN);
 	spin_unlock_bh(&xprt->transport_lock);
 }
 
@@ -656,7 +656,7 @@ void xprt_conditional_disconnect(struct rpc_xprt *xprt, unsigned int cookie)
 	/* Try to schedule an autoclose RPC call */
 	if (test_and_set_bit(XPRT_LOCKED, &xprt->state) == 0)
 		queue_work(rpciod_workqueue, &xprt->task_cleanup);
-	xprt_wake_pending_tasks(xprt, -ENOTCONN);
+	xprt_wake_pending_tasks(xprt, -EAGAIN);
 out:
 	spin_unlock_bh(&xprt->transport_lock);
 }
@@ -726,9 +726,8 @@ static void xprt_connect_status(struct rpc_task *task)
 	}
 
 	switch (task->tk_status) {
-	case -ENOTCONN:
-		dprintk("RPC: %5u xprt_connect_status: connection broken\n",
-				task->tk_pid);
+	case -EAGAIN:
+		dprintk("RPC: %5u xprt_connect_status: retrying\n", task->tk_pid);
 		break;
 	case -ETIMEDOUT:
 		dprintk("RPC: %5u xprt_connect_status: connect attempt timed "
@@ -849,15 +848,8 @@ int xprt_prepare_transmit(struct rpc_task *task)
 		err = req->rq_received;
 		goto out_unlock;
 	}
-	if (!xprt->ops->reserve_xprt(task)) {
+	if (!xprt->ops->reserve_xprt(task))
 		err = -EAGAIN;
-		goto out_unlock;
-	}
-
-	if (!xprt_connected(xprt)) {
-		err = -ENOTCONN;
-		goto out_unlock;
-	}
 out_unlock:
 	spin_unlock_bh(&xprt->transport_lock);
 	return err;
