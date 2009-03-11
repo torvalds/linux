@@ -3002,9 +3002,6 @@ static int decode_getfattr(struct xdr_stream *xdr, struct nfs_fattr *fattr, cons
 	if ((status = decode_attr_bitmap(xdr, bitmap)) != 0)
 		goto xdr_error;
 
-	fattr->bitmap[0] = bitmap[0];
-	fattr->bitmap[1] = bitmap[1];
-
 	if ((status = decode_attr_length(xdr, &attrlen, &savep)) != 0)
 		goto xdr_error;
 

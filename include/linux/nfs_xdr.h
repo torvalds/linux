@@ -28,9 +28,6 @@ static inline int nfs_fsid_equal(const struct nfs_fsid *a, const struct nfs_fsid
 
 struct nfs_fattr {
 	unsigned int		valid;		/* which fields are valid */
-	__u64			pre_size;	/* pre_op_attr.size	  */
-	struct timespec		pre_mtime;	/* pre_op_attr.mtime	  */
-	struct timespec		pre_ctime;	/* pre_op_attr.ctime	  */
 	enum nfs_ftype		type;		/* always use NFSv2 types */
 	__u32			mode;
 	__u32			nlink;
@@ -52,9 +49,11 @@ struct nfs_fattr {
 	struct timespec		atime;
 	struct timespec		mtime;
 	struct timespec		ctime;
-	__u32			bitmap[2];	/* NFSv4 returned attribute bitmap */
 	__u64			change_attr;	/* NFSv4 change attribute */
 	__u64			pre_change_attr;/* pre-op NFSv4 change attribute */
+	__u64			pre_size;	/* pre_op_attr.size	  */
+	struct timespec		pre_mtime;	/* pre_op_attr.mtime	  */
+	struct timespec		pre_ctime;	/* pre_op_attr.ctime	  */
 	unsigned long		time_start;
 	unsigned long		gencount;
 };
