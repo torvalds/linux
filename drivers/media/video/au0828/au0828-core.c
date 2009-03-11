@@ -146,7 +146,7 @@ static void au0828_usb_disconnect(struct usb_interface *interface)
 	/* Digital TV */
 	au0828_dvb_unregister(dev);
 
-	if (dev->board.input != NULL)
+	if (AUVI_INPUT(0).type != AU0828_VMUX_UNDEFINED)
 		au0828_analog_unregister(dev);
 
 	/* I2C */
@@ -205,7 +205,7 @@ static int au0828_usb_probe(struct usb_interface *interface,
 	au0828_card_setup(dev);
 
 	/* Analog TV */
-	if (dev->board.input != NULL)
+	if (AUVI_INPUT(0).type != AU0828_VMUX_UNDEFINED)
 		au0828_analog_register(dev, interface);
 
 	/* Digital TV */

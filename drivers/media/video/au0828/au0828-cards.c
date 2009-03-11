@@ -195,7 +195,7 @@ void au0828_card_setup(struct au0828_dev *dev)
 		break;
 	}
 
-	if (dev->board.input != NULL) {
+	if (AUVI_INPUT(0).type != AU0828_VMUX_UNDEFINED) {
 		/* Load the analog demodulator driver (note this would need to
 		   be abstracted out if we ever need to support a different
 		   demod) */
