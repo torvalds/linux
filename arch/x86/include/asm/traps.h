@@ -77,7 +77,7 @@ extern int panic_on_unrecovered_nmi;
 extern int kstack_depth_to_print;
 
 void math_error(void __user *);
-asmlinkage void math_emulate(long);
+void math_emulate(struct math_emu_info *);
 #ifdef CONFIG_X86_32
 unsigned long patch_espfix_desc(unsigned long, unsigned long);
 #else

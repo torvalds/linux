@@ -154,81 +154,8 @@ void DeleteTconOplockQEntries(struct cifsTconInfo *tcon)
 	spin_unlock(&GlobalMid_Lock);
 }
 
-int
-smb_send(struct socket *ssocket, struct smb_hdr *smb_buffer,
-	 unsigned int smb_buf_length, struct sockaddr *sin, bool noblocksnd)
-{
-	int rc = 0;
-	int i = 0;
-	struct msghdr smb_msg;
-	struct kvec iov;
-	unsigned len = smb_buf_length + 4;
-
-	if (ssocket == NULL)
-		return -ENOTSOCK; /* BB eventually add reconnect code here */
-	iov.iov_base = smb_buffer;
-	iov.iov_len = len;
-
-	smb_msg.msg_name = sin;
-	smb_msg.msg_namelen = sizeof(struct sockaddr);
-	smb_msg.msg_control = NULL;
-	smb_msg.msg_controllen = 0;
-	if (noblocksnd)
-		smb_msg.msg_flags = MSG_DONTWAIT + MSG_NOSIGNAL;
-	else
-		smb_msg.msg_flags = MSG_NOSIGNAL;
-
-	/* smb header is converted in header_assemble. bcc and rest of SMB word
-	   area, and byte area if necessary, is converted to littleendian in
-	   cifssmb.c and RFC1001 len is converted to bigendian in smb_send
-	   Flags2 is converted in SendReceive */
-
-	smb_buffer->smb_buf_length = cpu_to_be32(smb_buffer->smb_buf_length);
-	cFYI(1, ("Sending smb of length %d", smb_buf_length));
-	dump_smb(smb_buffer, len);
-
-	while (len > 0) {
-		rc = kernel_sendmsg(ssocket, &smb_msg, &iov, 1, len);
-		if ((rc == -ENOSPC) || (rc == -EAGAIN)) {
-			i++;
-		/* smaller timeout here than send2 since smaller size */
-		/* Although it may not be required, this also is smaller
-		   oplock break time */
-			if (i > 12) {
-				cERROR(1,
-				   ("sends on sock %p stuck for 7 seconds",
-				    ssocket));
-				rc = -EAGAIN;
-				break;
-			}
-			msleep(1 << i);
-			continue;
-		}
-		if (rc < 0)
-			break;
-		else
-			i = 0; /* reset i after each successful send */
-		iov.iov_base += rc;
-		iov.iov_len -= rc;
-		len -= rc;
-	}
-
-	if (rc < 0) {
-		cERROR(1, ("Error %d sending data on socket to server", rc));
-	} else {
-		rc = 0;
-	}
-
-	/* Don't want to modify the buffer as a
-	   side effect of this call. */
-	smb_buffer->smb_buf_length = smb_buf_length;
-
-	return rc;
-}
-
 static int
-smb_send2(struct TCP_Server_Info *server, struct kvec *iov, int n_vec,
-	  struct sockaddr *sin, bool noblocksnd)
+smb_sendv(struct TCP_Server_Info *server, struct kvec *iov, int n_vec)
 {
 	int rc = 0;
 	int i = 0;
@@ -243,11 +170,11 @@ smb_send2(struct TCP_Server_Info *server, struct kvec *iov, int n_vec,
 	if (ssocket == NULL)
 		return -ENOTSOCK; /* BB eventually add reconnect code here */
 
-	smb_msg.msg_name = sin;
+	smb_msg.msg_name = (struct sockaddr *) &server->addr.sockAddr;
 	smb_msg.msg_namelen = sizeof(struct sockaddr);
 	smb_msg.msg_control = NULL;
 	smb_msg.msg_controllen = 0;
-	if (noblocksnd)
+	if (server->noblocksnd)
 		smb_msg.msg_flags = MSG_DONTWAIT + MSG_NOSIGNAL;
 	else
 		smb_msg.msg_flags = MSG_NOSIGNAL;
@@ -272,7 +199,25 @@ smb_send2(struct TCP_Server_Info *server, struct kvec *iov, int n_vec,
 				    n_vec - first_vec, total_len);
 		if ((rc == -ENOSPC) || (rc == -EAGAIN)) {
 			i++;
-			if (i >= 14) {
+			/* if blocking send we try 3 times, since each can block
+			   for 5 seconds. For nonblocking  we have to try more
+			   but wait increasing amounts of time allowing time for
+			   socket to clear.  The overall time we wait in either
+			   case to send on the socket is about 15 seconds.
+			   Similarly we wait for 15 seconds for
+			   a response from the server in SendReceive[2]
+			   for the server to send a response back for
+			   most types of requests (except SMB Write
+			   past end of file which can be slow, and
+			   blocking lock operations). NFS waits slightly longer
+			   than CIFS, but this can make it take longer for
+			   nonresponsive servers to be detected and 15 seconds
+			   is more than enough time for modern networks to
+			   send a packet.  In most cases if we fail to send
+			   after the retries we will kill the socket and
+			   reconnect which may clear the network problem.
+			*/
+			if ((i >= 14) || (!server->noblocksnd && (i > 2))) {
 				cERROR(1,
 				   ("sends on sock %p stuck for 15 seconds",
 				    ssocket));
@@ -337,6 +282,18 @@ smb_send2(struct TCP_Server_Info *server, struct kvec *iov, int n_vec,
 	smb_buffer->smb_buf_length = smb_buf_length;
 
 	return rc;
+}
+
+int
+smb_send(struct TCP_Server_Info *server, struct smb_hdr *smb_buffer,
+	 unsigned int smb_buf_length)
+{
+	struct kvec iov;
+
+	iov.iov_base = smb_buffer;
+	iov.iov_len = smb_buf_length + 4;
+
+	return smb_sendv(server, &iov, 1);
 }
 
 static int wait_for_free_request(struct cifsSesInfo *ses, const int long_op)
@@ -540,9 +497,7 @@ SendReceive2(const unsigned int xid, struct cifsSesInfo *ses,
 #ifdef CONFIG_CIFS_STATS2
 	atomic_inc(&ses->server->inSend);
 #endif
-	rc = smb_send2(ses->server, iov, n_vec,
-		      (struct sockaddr *) &(ses->server->addr.sockAddr),
-		       ses->server->noblocksnd);
+	rc = smb_sendv(ses->server, iov, n_vec);
 #ifdef CONFIG_CIFS_STATS2
 	atomic_dec(&ses->server->inSend);
 	midQ->when_sent = jiffies;
@@ -736,9 +691,7 @@ SendReceive(const unsigned int xid, struct cifsSesInfo *ses,
 #ifdef CONFIG_CIFS_STATS2
 	atomic_inc(&ses->server->inSend);
 #endif
-	rc = smb_send(ses->server->ssocket, in_buf, in_buf->smb_buf_length,
-		      (struct sockaddr *) &(ses->server->addr.sockAddr),
-		      ses->server->noblocksnd);
+	rc = smb_send(ses->server, in_buf, in_buf->smb_buf_length);
 #ifdef CONFIG_CIFS_STATS2
 	atomic_dec(&ses->server->inSend);
 	midQ->when_sent = jiffies;
@@ -879,9 +832,7 @@ send_nt_cancel(struct cifsTconInfo *tcon, struct smb_hdr *in_buf,
 		mutex_unlock(&ses->server->srv_mutex);
 		return rc;
 	}
-	rc = smb_send(ses->server->ssocket, in_buf, in_buf->smb_buf_length,
-	      (struct sockaddr *) &(ses->server->addr.sockAddr),
-	      ses->server->noblocksnd);
+	rc = smb_send(ses->server, in_buf, in_buf->smb_buf_length);
 	mutex_unlock(&ses->server->srv_mutex);
 	return rc;
 }
@@ -973,9 +924,7 @@ SendReceiveBlockingLock(const unsigned int xid, struct cifsTconInfo *tcon,
 #ifdef CONFIG_CIFS_STATS2
 	atomic_inc(&ses->server->inSend);
 #endif
-	rc = smb_send(ses->server->ssocket, in_buf, in_buf->smb_buf_length,
-		      (struct sockaddr *) &(ses->server->addr.sockAddr),
-		      ses->server->noblocksnd);
+	rc = smb_send(ses->server, in_buf, in_buf->smb_buf_length);
 #ifdef CONFIG_CIFS_STATS2
 	atomic_dec(&ses->server->inSend);
 	midQ->when_sent = jiffies;

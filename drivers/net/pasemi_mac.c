@@ -712,7 +712,7 @@ static inline void pasemi_mac_rx_error(const struct pasemi_mac *mac,
 	rcmdsta = read_dma_reg(PAS_DMA_RXINT_RCMDSTA(mac->dma_if));
 	ccmdsta = read_dma_reg(PAS_DMA_RXCHAN_CCMDSTA(chan->chno));
 
-	printk(KERN_ERR "pasemi_mac: rx error. macrx %016lx, rx status %lx\n",
+	printk(KERN_ERR "pasemi_mac: rx error. macrx %016llx, rx status %llx\n",
 		macrx, *chan->status);
 
 	printk(KERN_ERR "pasemi_mac: rcmdsta %08x ccmdsta %08x\n",
@@ -730,8 +730,8 @@ static inline void pasemi_mac_tx_error(const struct pasemi_mac *mac,
 
 	cmdsta = read_dma_reg(PAS_DMA_TXCHAN_TCMDSTA(chan->chno));
 
-	printk(KERN_ERR "pasemi_mac: tx error. mactx 0x%016lx, "\
-		"tx status 0x%016lx\n", mactx, *chan->status);
+	printk(KERN_ERR "pasemi_mac: tx error. mactx 0x%016llx, "\
+		"tx status 0x%016llx\n", mactx, *chan->status);
 
 	printk(KERN_ERR "pasemi_mac: tcmdsta 0x%08x\n", cmdsta);
 }

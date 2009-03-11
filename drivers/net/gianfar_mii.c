@@ -234,6 +234,8 @@ static int gfar_mdio_probe(struct of_device *ofdev,
 	if (NULL == new_bus)
 		return -ENOMEM;
 
+	device_init_wakeup(&ofdev->dev, 1);
+
 	new_bus->name = "Gianfar MII Bus",
 	new_bus->read = &gfar_mdio_read,
 	new_bus->write = &gfar_mdio_write,

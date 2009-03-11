@@ -1371,292 +1371,8 @@ auto_msgmni default value is 1.
 2.4 /proc/sys/vm - The virtual memory subsystem
 -----------------------------------------------
 
-The files  in  this directory can be used to tune the operation of the virtual
-memory (VM)  subsystem  of  the  Linux  kernel.
-
-vfs_cache_pressure
-------------------
-
-Controls the tendency of the kernel to reclaim the memory which is used for
-caching of directory and inode objects.
-
-At the default value of vfs_cache_pressure=100 the kernel will attempt to
-reclaim dentries and inodes at a "fair" rate with respect to pagecache and
-swapcache reclaim.  Decreasing vfs_cache_pressure causes the kernel to prefer
-to retain dentry and inode caches.  Increasing vfs_cache_pressure beyond 100
-causes the kernel to prefer to reclaim dentries and inodes.
-
-dirty_background_bytes
-----------------------
-
-Contains the amount of dirty memory at which the pdflush background writeback
-daemon will start writeback.
-
-If dirty_background_bytes is written, dirty_background_ratio becomes a function
-of its value (dirty_background_bytes / the amount of dirtyable system memory).
-
-dirty_background_ratio
-----------------------
-
-Contains, as a percentage of the dirtyable system memory (free pages + mapped
-pages + file cache, not including locked pages and HugePages), the number of
-pages at which the pdflush background writeback daemon will start writing out
-dirty data.
-
-If dirty_background_ratio is written, dirty_background_bytes becomes a function
-of its value (dirty_background_ratio * the amount of dirtyable system memory).
-
-dirty_bytes
------------
-
-Contains the amount of dirty memory at which a process generating disk writes
-will itself start writeback.
-
-If dirty_bytes is written, dirty_ratio becomes a function of its value
-(dirty_bytes / the amount of dirtyable system memory).
-
-dirty_ratio
------------
-
-Contains, as a percentage of the dirtyable system memory (free pages + mapped
-pages + file cache, not including locked pages and HugePages), the number of
-pages at which a process which is generating disk writes will itself start
-writing out dirty data.
-
-If dirty_ratio is written, dirty_bytes becomes a function of its value
-(dirty_ratio * the amount of dirtyable system memory).
-
-dirty_writeback_centisecs
--------------------------
-
-The pdflush writeback daemons will periodically wake up and write `old' data
-out to disk.  This tunable expresses the interval between those wakeups, in
-100'ths of a second.
-
-Setting this to zero disables periodic writeback altogether.
-
-dirty_expire_centisecs
-----------------------
-
-This tunable is used to define when dirty data is old enough to be eligible
-for writeout by the pdflush daemons.  It is expressed in 100'ths of a second. 
-Data which has been dirty in-memory for longer than this interval will be
-written out next time a pdflush daemon wakes up.
-
-highmem_is_dirtyable
---------------------
-
-Only present if CONFIG_HIGHMEM is set.
-
-This defaults to 0 (false), meaning that the ratios set above are calculated
-as a percentage of lowmem only.  This protects against excessive scanning
-in page reclaim, swapping and general VM distress.
-
-Setting this to 1 can be useful on 32 bit machines where you want to make
-random changes within an MMAPed file that is larger than your available
-lowmem without causing large quantities of random IO.  Is is safe if the
-behavior of all programs running on the machine is known and memory will
-not be otherwise stressed.
-
-legacy_va_layout
-----------------
-
-If non-zero, this sysctl disables the new 32-bit mmap mmap layout - the kernel
-will use the legacy (2.4) layout for all processes.
-
-lowmem_reserve_ratio
----------------------
-
-For some specialised workloads on highmem machines it is dangerous for
-the kernel to allow process memory to be allocated from the "lowmem"
-zone.  This is because that memory could then be pinned via the mlock()
-system call, or by unavailability of swapspace.
-
-And on large highmem machines this lack of reclaimable lowmem memory
-can be fatal.
-
-So the Linux page allocator has a mechanism which prevents allocations
-which _could_ use highmem from using too much lowmem.  This means that
-a certain amount of lowmem is defended from the possibility of being
-captured into pinned user memory.
-
-(The same argument applies to the old 16 megabyte ISA DMA region.  This
-mechanism will also defend that region from allocations which could use
-highmem or lowmem).
-
-The `lowmem_reserve_ratio' tunable determines how aggressive the kernel is
-in defending these lower zones.
-
-If you have a machine which uses highmem or ISA DMA and your
-applications are using mlock(), or if you are running with no swap then
-you probably should change the lowmem_reserve_ratio setting.
-
-The lowmem_reserve_ratio is an array. You can see them by reading this file.
--
-% cat /proc/sys/vm/lowmem_reserve_ratio
-256     256     32
--
-Note: # of this elements is one fewer than number of zones. Because the highest
-      zone's value is not necessary for following calculation.
-
-But, these values are not used directly. The kernel calculates # of protection
-pages for each zones from them. These are shown as array of protection pages
-in /proc/zoneinfo like followings. (This is an example of x86-64 box).
-Each zone has an array of protection pages like this.
-
--
-Node 0, zone      DMA
-  pages free     1355
-        min      3
-        low      3
-        high     4
-	:
-	:
-    numa_other   0
-        protection: (0, 2004, 2004, 2004)
-	^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  pagesets
-    cpu: 0 pcp: 0
-        :
--
-These protections are added to score to judge whether this zone should be used
-for page allocation or should be reclaimed.
-
-In this example, if normal pages (index=2) are required to this DMA zone and
-pages_high is used for watermark, the kernel judges this zone should not be
-used because pages_free(1355) is smaller than watermark + protection[2]
-(4 + 2004 = 2008). If this protection value is 0, this zone would be used for
-normal page requirement. If requirement is DMA zone(index=0), protection[0]
-(=0) is used.
-
-zone[i]'s protection[j] is calculated by following expression.
-
-(i < j):
-  zone[i]->protection[j]
-  = (total sums of present_pages from zone[i+1] to zone[j] on the node)
-    / lowmem_reserve_ratio[i];
-(i = j):
-   (should not be protected. = 0;
-(i > j):
-   (not necessary, but looks 0)
-
-The default values of lowmem_reserve_ratio[i] are
-    256 (if zone[i] means DMA or DMA32 zone)
-    32  (others).
-As above expression, they are reciprocal number of ratio.
-256 means 1/256. # of protection pages becomes about "0.39%" of total present
-pages of higher zones on the node.
-
-If you would like to protect more pages, smaller values are effective.
-The minimum value is 1 (1/1 -> 100%).
-
-page-cluster
-------------
-
-page-cluster controls the number of pages which are written to swap in
-a single attempt.  The swap I/O size.
-
-It is a logarithmic value - setting it to zero means "1 page", setting
-it to 1 means "2 pages", setting it to 2 means "4 pages", etc.
-
-The default value is three (eight pages at a time).  There may be some
-small benefits in tuning this to a different value if your workload is
-swap-intensive.
-
-overcommit_memory
------------------
-
-Controls overcommit of system memory, possibly allowing processes
-to allocate (but not use) more memory than is actually available.
-
-
-0	-	Heuristic overcommit handling. Obvious overcommits of
-		address space are refused. Used for a typical system. It
-		ensures a seriously wild allocation fails while allowing
-		overcommit to reduce swap usage.  root is allowed to
-		allocate slightly more memory in this mode. This is the
-		default.
-
-1	-	Always overcommit. Appropriate for some scientific
-		applications.
-
-2	-	Don't overcommit. The total address space commit
-		for the system is not permitted to exceed swap plus a
-		configurable percentage (default is 50) of physical RAM.
-		Depending on the percentage you use, in most situations
-		this means a process will not be killed while attempting
-		to use already-allocated memory but will receive errors
-		on memory allocation as	appropriate.
-
-overcommit_ratio
-----------------
-
-Percentage of physical memory size to include in overcommit calculations
-(see above.)
-
-Memory allocation limit = swapspace + physmem * (overcommit_ratio / 100)
-
-	swapspace = total size of all swap areas
-	physmem = size of physical memory in system
-
-nr_hugepages and hugetlb_shm_group
-----------------------------------
-
-nr_hugepages configures number of hugetlb page reserved for the system.
-
-hugetlb_shm_group contains group id that is allowed to create SysV shared
-memory segment using hugetlb page.
-
-hugepages_treat_as_movable
---------------------------
-
-This parameter is only useful when kernelcore= is specified at boot time to
-create ZONE_MOVABLE for pages that may be reclaimed or migrated. Huge pages
-are not movable so are not normally allocated from ZONE_MOVABLE. A non-zero
-value written to hugepages_treat_as_movable allows huge pages to be allocated
-from ZONE_MOVABLE.
-
-Once enabled, the ZONE_MOVABLE is treated as an area of memory the huge
-pages pool can easily grow or shrink within. Assuming that applications are
-not running that mlock() a lot of memory, it is likely the huge pages pool
-can grow to the size of ZONE_MOVABLE by repeatedly entering the desired value
-into nr_hugepages and triggering page reclaim.
-
-laptop_mode
------------
-
-laptop_mode is a knob that controls "laptop mode". All the things that are
-controlled by this knob are discussed in Documentation/laptops/laptop-mode.txt.
-
-block_dump
-----------
-
-block_dump enables block I/O debugging when set to a nonzero value. More
-information on block I/O debugging is in Documentation/laptops/laptop-mode.txt.
-
-swap_token_timeout
-------------------
-
-This file contains valid hold time of swap out protection token. The Linux
-VM has token based thrashing control mechanism and uses the token to prevent
-unnecessary page faults in thrashing situation. The unit of the value is
-second. The value would be useful to tune thrashing behavior.
-
-drop_caches
------------
-
-Writing to this will cause the kernel to drop clean caches, dentries and
-inodes from memory, causing that memory to become free.
-
-To free pagecache:
-	echo 1 > /proc/sys/vm/drop_caches
-To free dentries and inodes:
-	echo 2 > /proc/sys/vm/drop_caches
-To free pagecache, dentries and inodes:
-	echo 3 > /proc/sys/vm/drop_caches
-
-As this is a non-destructive operation and dirty objects are not freeable, the
-user should run `sync' first.
+Please see: Documentation/sysctls/vm.txt for a description of these
+entries.
 
 
 2.5 /proc/sys/dev - Device specific parameters
@@ -2310,6 +2026,34 @@ should be killed in an  out-of-memory  situation.  Giving it a high score will
 increase the likelihood of this process being killed by the oom-killer.  Valid
 values are in the range -16 to +15, plus the special value -17, which disables
 oom-killing altogether for this process.
+
+The process to be killed in an out-of-memory situation is selected among all others
+based on its badness score. This value equals the original memory size of the process
+and is then updated according to its CPU time (utime + stime) and the
+run time (uptime - start time). The longer it runs the smaller is the score.
+Badness score is divided by the square root of the CPU time and then by
+the double square root of the run time.
+
+Swapped out tasks are killed first. Half of each child's memory size is added to
+the parent's score if they do not share the same memory. Thus forking servers
+are the prime candidates to be killed. Having only one 'hungry' child will make
+parent less preferable than the child.
+
+/proc/<pid>/oom_score shows process' current badness score.
+
+The following heuristics are then applied:
+ * if the task was reniced, its score doubles
+ * superuser or direct hardware access tasks (CAP_SYS_ADMIN, CAP_SYS_RESOURCE
+ 	or CAP_SYS_RAWIO) have their score divided by 4
+ * if oom condition happened in one cpuset and checked task does not belong
+ 	to it, its score is divided by 8
+ * the resulting score is multiplied by two to the power of oom_adj, i.e.
+	points <<= oom_adj when it is positive and
+	points >>= -(oom_adj) otherwise
+
+The task with the highest badness score is then selected and its children
+are killed, process itself will be killed in an OOM situation when it does
+not have children or some of them disabled oom like described above.
 
 2.13 /proc/<pid>/oom_score - Display current oom-killer score
 -------------------------------------------------------------

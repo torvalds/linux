@@ -435,6 +435,28 @@ void __init tx4939_ata_init(void)
 		platform_device_register(&ata1_dev);
 }
 
+void __init tx4939_rtc_init(void)
+{
+	static struct resource res[] = {
+		{
+			.start = TX4939_RTC_REG & 0xfffffffffULL,
+			.end = (TX4939_RTC_REG & 0xfffffffffULL) + 0x100 - 1,
+			.flags = IORESOURCE_MEM,
+		}, {
+			.start = TXX9_IRQ_BASE + TX4939_IR_RTC,
+			.flags = IORESOURCE_IRQ,
+		},
+	};
+	static struct platform_device rtc_dev = {
+		.name = "tx4939rtc",
+		.id = -1,
+		.num_resources = ARRAY_SIZE(res),
+		.resource = res,
+	};
+
+	platform_device_register(&rtc_dev);
+}
+
 static void __init tx4939_stop_unused_modules(void)
 {
 	__u64 pcfg, rst = 0, ckd = 0;

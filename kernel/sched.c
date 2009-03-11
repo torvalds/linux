@@ -223,7 +223,7 @@ static void start_rt_bandwidth(struct rt_bandwidth *rt_b)
 {
 	ktime_t now;
 
-	if (rt_bandwidth_enabled() && rt_b->rt_runtime == RUNTIME_INF)
+	if (!rt_bandwidth_enabled() || rt_b->rt_runtime == RUNTIME_INF)
 		return;
 
 	if (hrtimer_active(&rt_b->rt_period_timer))
@@ -1323,8 +1323,8 @@ static inline void update_load_sub(struct load_weight *lw, unsigned long dec)
  * slice expiry etc.
  */
 
-#define WEIGHT_IDLEPRIO		2
-#define WMULT_IDLEPRIO		(1 << 31)
+#define WEIGHT_IDLEPRIO                3
+#define WMULT_IDLEPRIO         1431655765
 
 /*
  * Nice levels are multiplicative, with a gentle 10% change for every
@@ -3880,18 +3880,23 @@ int select_nohz_load_balancer(int stop_tick)
 	int cpu = smp_processor_id();
 
 	if (stop_tick) {
-		cpumask_set_cpu(cpu, nohz.cpu_mask);
 		cpu_rq(cpu)->in_nohz_recently = 1;
 
-		/*
-		 * If we are going offline and still the leader, give up!
-		 */
-		if (!cpu_active(cpu) &&
-		    atomic_read(&nohz.load_balancer) == cpu) {
+		if (!cpu_active(cpu)) {
+			if (atomic_read(&nohz.load_balancer) != cpu)
+				return 0;
+
+			/*
+			 * If we are going offline and still the leader,
+			 * give up!
+			 */
 			if (atomic_cmpxchg(&nohz.load_balancer, cpu, -1) != cpu)
 				BUG();
+
 			return 0;
 		}
+
+		cpumask_set_cpu(cpu, nohz.cpu_mask);
 
 		/* time for ilb owner also to sleep */
 		if (cpumask_weight(nohz.cpu_mask) == num_online_cpus()) {
@@ -4440,7 +4445,7 @@ void __kprobes sub_preempt_count(int val)
 	/*
 	 * Underflow?
 	 */
-       if (DEBUG_LOCKS_WARN_ON(val > preempt_count() - (!!kernel_locked())))
+	if (DEBUG_LOCKS_WARN_ON(val > preempt_count()))
 		return;
 	/*
 	 * Is the spinlock portion underflowing?
@@ -4687,8 +4692,8 @@ EXPORT_SYMBOL(default_wake_function);
  * started to run but is not in state TASK_RUNNING. try_to_wake_up() returns
  * zero in this (rare) case, and we handle it by continuing to scan the queue.
  */
-static void __wake_up_common(wait_queue_head_t *q, unsigned int mode,
-			     int nr_exclusive, int sync, void *key)
+void __wake_up_common(wait_queue_head_t *q, unsigned int mode,
+			int nr_exclusive, int sync, void *key)
 {
 	wait_queue_t *curr, *next;
 
@@ -5126,7 +5131,7 @@ int can_nice(const struct task_struct *p, const int nice)
  * sys_setpriority is a more generic, but much slower function that
  * does similar things.
  */
-asmlinkage long sys_nice(int increment)
+SYSCALL_DEFINE1(nice, int, increment)
 {
 	long nice, retval;
 
@@ -5433,8 +5438,8 @@ do_sched_setscheduler(pid_t pid, int policy, struct sched_param __user *param)
  * @policy: new policy.
  * @param: structure containing the new RT priority.
  */
-asmlinkage long
-sys_sched_setscheduler(pid_t pid, int policy, struct sched_param __user *param)
+SYSCALL_DEFINE3(sched_setscheduler, pid_t, pid, int, policy,
+		struct sched_param __user *, param)
 {
 	/* negative values for policy are not valid */
 	if (policy < 0)
@@ -5448,7 +5453,7 @@ sys_sched_setscheduler(pid_t pid, int policy, struct sched_param __user *param)
  * @pid: the pid in question.
  * @param: structure containing the new RT priority.
  */
-asmlinkage long sys_sched_setparam(pid_t pid, struct sched_param __user *param)
+SYSCALL_DEFINE2(sched_setparam, pid_t, pid, struct sched_param __user *, param)
 {
 	return do_sched_setscheduler(pid, -1, param);
 }
@@ -5457,7 +5462,7 @@ asmlinkage long sys_sched_setparam(pid_t pid, struct sched_param __user *param)
  * sys_sched_getscheduler - get the policy (scheduling class) of a thread
  * @pid: the pid in question.
  */
-asmlinkage long sys_sched_getscheduler(pid_t pid)
+SYSCALL_DEFINE1(sched_getscheduler, pid_t, pid)
 {
 	struct task_struct *p;
 	int retval;
@@ -5482,7 +5487,7 @@ asmlinkage long sys_sched_getscheduler(pid_t pid)
  * @pid: the pid in question.
  * @param: structure containing the RT priority.
  */
-asmlinkage long sys_sched_getparam(pid_t pid, struct sched_param __user *param)
+SYSCALL_DEFINE2(sched_getparam, pid_t, pid, struct sched_param __user *, param)
 {
 	struct sched_param lp;
 	struct task_struct *p;
@@ -5600,8 +5605,8 @@ static int get_user_cpu_mask(unsigned long __user *user_mask_ptr, unsigned len,
  * @len: length in bytes of the bitmask pointed to by user_mask_ptr
  * @user_mask_ptr: user-space pointer to the new cpu mask
  */
-asmlinkage long sys_sched_setaffinity(pid_t pid, unsigned int len,
-				      unsigned long __user *user_mask_ptr)
+SYSCALL_DEFINE3(sched_setaffinity, pid_t, pid, unsigned int, len,
+		unsigned long __user *, user_mask_ptr)
 {
 	cpumask_var_t new_mask;
 	int retval;
@@ -5648,8 +5653,8 @@ out_unlock:
  * @len: length in bytes of the bitmask pointed to by user_mask_ptr
  * @user_mask_ptr: user-space pointer to hold the current cpu mask
  */
-asmlinkage long sys_sched_getaffinity(pid_t pid, unsigned int len,
-				      unsigned long __user *user_mask_ptr)
+SYSCALL_DEFINE3(sched_getaffinity, pid_t, pid, unsigned int, len,
+		unsigned long __user *, user_mask_ptr)
 {
 	int ret;
 	cpumask_var_t mask;
@@ -5678,7 +5683,7 @@ asmlinkage long sys_sched_getaffinity(pid_t pid, unsigned int len,
  * This function yields the current CPU to other tasks. If there are no
  * other threads running on this CPU then this function will return.
  */
-asmlinkage long sys_sched_yield(void)
+SYSCALL_DEFINE0(sched_yield)
 {
 	struct rq *rq = this_rq_lock();
 
@@ -5819,7 +5824,7 @@ long __sched io_schedule_timeout(long timeout)
  * this syscall returns the maximum rt_priority that can be used
  * by a given scheduling class.
  */
-asmlinkage long sys_sched_get_priority_max(int policy)
+SYSCALL_DEFINE1(sched_get_priority_max, int, policy)
 {
 	int ret = -EINVAL;
 
@@ -5844,7 +5849,7 @@ asmlinkage long sys_sched_get_priority_max(int policy)
  * this syscall returns the minimum rt_priority that can be used
  * by a given scheduling class.
  */
-asmlinkage long sys_sched_get_priority_min(int policy)
+SYSCALL_DEFINE1(sched_get_priority_min, int, policy)
 {
 	int ret = -EINVAL;
 
@@ -5869,8 +5874,8 @@ asmlinkage long sys_sched_get_priority_min(int policy)
  * this syscall writes the default timeslice value of a given process
  * into the user-space timespec buffer. A value of '0' means infinity.
  */
-asmlinkage
-long sys_sched_rr_get_interval(pid_t pid, struct timespec __user *interval)
+SYSCALL_DEFINE2(sched_rr_get_interval, pid_t, pid,
+		struct timespec __user *, interval)
 {
 	struct task_struct *p;
 	unsigned int time_slice;
@@ -5939,12 +5944,7 @@ void sched_show_task(struct task_struct *p)
 		printk(KERN_CONT " %016lx ", thread_saved_pc(p));
 #endif
 #ifdef CONFIG_DEBUG_STACK_USAGE
-	{
-		unsigned long *n = end_of_stack(p);
-		while (!*n)
-			n++;
-		free = (unsigned long)n - (unsigned long)end_of_stack(p);
-	}
+	free = stack_not_used(p);
 #endif
 	printk(KERN_CONT "%5lu %5d %6d\n", free,
 		task_pid_nr(p), task_pid_nr(p->real_parent));
@@ -6939,20 +6939,26 @@ static void free_rootdomain(struct root_domain *rd)
 
 static void rq_attach_root(struct rq *rq, struct root_domain *rd)
 {
+	struct root_domain *old_rd = NULL;
 	unsigned long flags;
 
 	spin_lock_irqsave(&rq->lock, flags);
 
 	if (rq->rd) {
-		struct root_domain *old_rd = rq->rd;
+		old_rd = rq->rd;
 
 		if (cpumask_test_cpu(rq->cpu, old_rd->online))
 			set_rq_offline(rq);
 
 		cpumask_clear_cpu(rq->cpu, old_rd->span);
 
-		if (atomic_dec_and_test(&old_rd->refcount))
-			free_rootdomain(old_rd);
+		/*
+		 * If we dont want to free the old_rt yet then
+		 * set old_rd to NULL to skip the freeing later
+		 * in this function:
+		 */
+		if (!atomic_dec_and_test(&old_rd->refcount))
+			old_rd = NULL;
 	}
 
 	atomic_inc(&rd->refcount);
@@ -6963,6 +6969,9 @@ static void rq_attach_root(struct rq *rq, struct root_domain *rd)
 		set_rq_online(rq);
 
 	spin_unlock_irqrestore(&rq->lock, flags);
+
+	if (old_rd)
+		free_rootdomain(old_rd);
 }
 
 static int __init_refok init_rootdomain(struct root_domain *rd, bool bootmem)
@@ -9050,6 +9059,13 @@ static int tg_schedulable(struct task_group *tg, void *data)
 		runtime = d->rt_runtime;
 	}
 
+#ifdef CONFIG_USER_SCHED
+	if (tg == &root_task_group) {
+		period = global_rt_period();
+		runtime = global_rt_runtime();
+	}
+#endif
+
 	/*
 	 * Cannot have more runtime than the period.
 	 */
@@ -9203,6 +9219,16 @@ static int sched_rt_global_constraints(void)
 
 	return ret;
 }
+
+int sched_rt_can_attach(struct task_group *tg, struct task_struct *tsk)
+{
+	/* Don't accept realtime tasks when there is no way for them to run */
+	if (rt_task(tsk) && tg->rt_bandwidth.rt_runtime == 0)
+		return 0;
+
+	return 1;
+}
+
 #else /* !CONFIG_RT_GROUP_SCHED */
 static int sched_rt_global_constraints(void)
 {
@@ -9296,8 +9322,7 @@ cpu_cgroup_can_attach(struct cgroup_subsys *ss, struct cgroup *cgrp,
 		      struct task_struct *tsk)
 {
 #ifdef CONFIG_RT_GROUP_SCHED
-	/* Don't accept realtime tasks when there is no way for them to run */
-	if (rt_task(tsk) && cgroup_tg(cgrp)->rt_bandwidth.rt_runtime == 0)
+	if (!sched_rt_can_attach(cgroup_tg(cgrp), tsk))
 		return -EINVAL;
 #else
 	/* We don't support RT-tasks being in separate groups */
@@ -9460,7 +9485,7 @@ cpuacct_destroy(struct cgroup_subsys *ss, struct cgroup *cgrp)
 
 static u64 cpuacct_cpuusage_read(struct cpuacct *ca, int cpu)
 {
-	u64 *cpuusage = percpu_ptr(ca->cpuusage, cpu);
+	u64 *cpuusage = per_cpu_ptr(ca->cpuusage, cpu);
 	u64 data;
 
 #ifndef CONFIG_64BIT
@@ -9479,7 +9504,7 @@ static u64 cpuacct_cpuusage_read(struct cpuacct *ca, int cpu)
 
 static void cpuacct_cpuusage_write(struct cpuacct *ca, int cpu, u64 val)
 {
-	u64 *cpuusage = percpu_ptr(ca->cpuusage, cpu);
+	u64 *cpuusage = per_cpu_ptr(ca->cpuusage, cpu);
 
 #ifndef CONFIG_64BIT
 	/*
@@ -9575,7 +9600,7 @@ static void cpuacct_charge(struct task_struct *tsk, u64 cputime)
 	ca = task_ca(tsk);
 
 	for (; ca; ca = ca->parent) {
-		u64 *cpuusage = percpu_ptr(ca->cpuusage, cpu);
+		u64 *cpuusage = per_cpu_ptr(ca->cpuusage, cpu);
 		*cpuusage += cputime;
 	}
 }

@@ -65,7 +65,7 @@ int ath5k_hw_set_opmode(struct ath5k_hw *ah)
 		if (ah->ah_version == AR5K_AR5210)
 			pcu_reg |= AR5K_STA_ID1_NO_PSPOLL;
 		else
-			AR5K_REG_DISABLE_BITS(ah, AR5K_CFG, AR5K_CFG_ADHOC);
+			AR5K_REG_ENABLE_BITS(ah, AR5K_CFG, AR5K_CFG_IBSS);
 		break;
 
 	case NL80211_IFTYPE_AP:
@@ -75,7 +75,7 @@ int ath5k_hw_set_opmode(struct ath5k_hw *ah)
 		if (ah->ah_version == AR5K_AR5210)
 			pcu_reg |= AR5K_STA_ID1_NO_PSPOLL;
 		else
-			AR5K_REG_ENABLE_BITS(ah, AR5K_CFG, AR5K_CFG_ADHOC);
+			AR5K_REG_DISABLE_BITS(ah, AR5K_CFG, AR5K_CFG_IBSS);
 		break;
 
 	case NL80211_IFTYPE_STATION:

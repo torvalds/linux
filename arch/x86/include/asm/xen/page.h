@@ -137,7 +137,7 @@ static inline pte_t mfn_pte(unsigned long page_nr, pgprot_t pgprot)
 	pte_t pte;
 
 	pte.pte = ((phys_addr_t)page_nr << PAGE_SHIFT) |
-		(pgprot_val(pgprot) & __supported_pte_mask);
+			massage_pgprot(pgprot);
 
 	return pte;
 }
@@ -164,6 +164,7 @@ static inline pte_t __pte_ma(pteval_t x)
 
 
 xmaddr_t arbitrary_virt_to_machine(void *address);
+unsigned long arbitrary_virt_to_mfn(void *vaddr);
 void make_lowmem_page_readonly(void *vaddr);
 void make_lowmem_page_readwrite(void *vaddr);
 

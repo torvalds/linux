@@ -10,7 +10,7 @@ use strict;
 my $P = $0;
 $P =~ s@.*/@@g;
 
-my $V = '0.26';
+my $V = '0.28';
 
 use Getopt::Long qw(:config no_auto_abbrev);
 
@@ -110,7 +110,8 @@ our $Sparse	= qr{
 			__iomem|
 			__must_check|
 			__init_refok|
-			__kprobes
+			__kprobes|
+			__ref
 		}x;
 our $Attribute	= qr{
 			const|
@@ -411,13 +412,15 @@ sub ctx_statement_block {
 
 	my $type = '';
 	my $level = 0;
-	my @stack = ([$type, $level]);
+	my @stack = ();
 	my $p;
 	my $c;
 	my $len = 0;
 
 	my $remainder;
 	while (1) {
+		@stack = (['', 0]) if ($#stack == -1);
+
 		#warn "CSB: blk<$blk> remain<$remain>\n";
 		# If we are about to drop off the end, pull in more
 		# context.
@@ -1238,7 +1241,8 @@ sub process {
 			$realfile =~ s@^([^/]*)/@@;
 
 			$p1_prefix = $1;
-			if ($tree && $p1_prefix ne '' && -e "$root/$p1_prefix") {
+			if (!$file && $tree && $p1_prefix ne '' &&
+			    -e "$root/$p1_prefix") {
 				WARN("patch prefix '$p1_prefix' exists, appears to be a -p0 patch\n");
 			}
 
@@ -1581,9 +1585,9 @@ sub process {
 		}
 # TEST: allow direct testing of the attribute matcher.
 		if ($dbg_attr) {
-			if ($line =~ /^.\s*$Attribute\s*$/) {
+			if ($line =~ /^.\s*$Modifier\s*$/) {
 				ERROR("TEST: is attr\n" . $herecurr);
-			} elsif ($dbg_attr > 1 && $line =~ /^.+($Attribute)/) {
+			} elsif ($dbg_attr > 1 && $line =~ /^.+($Modifier)/) {
 				ERROR("TEST: is not attr ($1 is)\n". $herecurr);
 			}
 			next;
@@ -1655,7 +1659,7 @@ sub process {
 
 # * goes on variable not on type
 		# (char*[ const])
-		if ($line =~ m{\($NonptrType(\s*\*[\s\*]*(?:$Modifier\s*)*)\)}) {
+		if ($line =~ m{\($NonptrType(\s*(?:$Modifier\b\s*|\*\s*)+)\)}) {
 			my ($from, $to) = ($1, $1);
 
 			# Should start with a space.
@@ -1663,14 +1667,14 @@ sub process {
 			# Should not end with a space.
 			$to =~ s/\s+$//;
 			# '*'s should not have spaces between.
-			while ($to =~ s/(.)\s\*/$1\*/) {
+			while ($to =~ s/\*\s+\*/\*\*/) {
 			}
 
 			#print "from<$from> to<$to>\n";
 			if ($from ne $to) {
 				ERROR("\"(foo$from)\" should be \"(foo$to)\"\n" .  $herecurr);
 			}
-		} elsif ($line =~ m{\b$NonptrType(\s*\*[\s\*]*(?:$Modifier\s*)?)($Ident)}) {
+		} elsif ($line =~ m{\b$NonptrType(\s*(?:$Modifier\b\s*|\*\s*)+)($Ident)}) {
 			my ($from, $to, $ident) = ($1, $1, $2);
 
 			# Should start with a space.
@@ -1678,13 +1682,13 @@ sub process {
 			# Should not end with a space.
 			$to =~ s/\s+$//;
 			# '*'s should not have spaces between.
-			while ($to =~ s/(.)\s\*/$1\*/) {
+			while ($to =~ s/\*\s+\*/\*\*/) {
 			}
 			# Modifiers should have spaces.
 			$to =~ s/(\b$Modifier$)/$1 /;
 
-			#print "from<$from> to<$to>\n";
-			if ($from ne $to) {
+			#print "from<$from> to<$to> ident<$ident>\n";
+			if ($from ne $to && $ident !~ /^$Modifier$/) {
 				ERROR("\"foo${from}bar\" should be \"foo${to}bar\"\n" .  $herecurr);
 			}
 		}
@@ -1883,11 +1887,11 @@ sub process {
 					if ($ctx !~ /[WEBC]x./ && $ca !~ /(?:\)|!|~|\*|-|\&|\||\+\+|\-\-|\{)$/) {
 						ERROR("space required before that '$op' $at\n" . $hereptr);
 					}
-					if ($op eq '*' && $cc =~/\s*const\b/) {
+					if ($op eq '*' && $cc =~/\s*$Modifier\b/) {
 						# A unary '*' may be const
 
 					} elsif ($ctx =~ /.xW/) {
-						ERROR("space prohibited after that '$op' $at\n" . $hereptr);
+						ERROR("Aspace prohibited after that '$op' $at\n" . $hereptr);
 					}
 
 				# unary ++ and unary -- are allowed no space on one side.
@@ -2014,7 +2018,11 @@ sub process {
 
 			# Flatten any parentheses
 			$value =~ s/\)\(/\) \(/g;
-			while ($value !~ /(?:$Ident|-?$Constant)\s*$Compare\s*(?:$Ident|-?$Constant)/ && $value =~ s/\([^\(\)]*\)/1/) {
+			while ($value =~ s/\[[^\{\}]*\]/1/ ||
+			       $value !~ /(?:$Ident|-?$Constant)\s*
+					     $Compare\s*
+					     (?:$Ident|-?$Constant)/x &&
+			       $value =~ s/\([^\(\)]*\)/1/) {
 			}
 
 			if ($value =~ /^(?:$Ident|-?$Constant)$/) {
@@ -2101,6 +2109,11 @@ sub process {
 			if ($s !~ /^\s*(?:\sif|(?:{|)\s*\\?\s*$)/) {
 				ERROR("trailing statements should be on next line\n" . $herecurr);
 			}
+		}
+# if should not continue a brace
+		if ($line =~ /}\s*if\b/) {
+			ERROR("trailing statements should be on next line\n" .
+				$herecurr);
 		}
 # case and default should not have general statements after them
 		if ($line =~ /^.\s*(?:case\s*.*|default\s*):/g &&
@@ -2516,9 +2529,10 @@ sub process {
 			WARN("please use device_initcall() instead of __initcall()\n" . $herecurr);
 		}
 # check for struct file_operations, ensure they are const.
-		if ($line =~ /\bstruct\s+file_operations\b/ &&
-		    $line !~ /\bconst\b/) {
-			WARN("struct file_operations should normally be const\n" . $herecurr);
+		if ($line !~ /\bconst\b/ &&
+		    $line =~ /\bstruct\s+(file_operations|seq_operations)\b/) {
+			WARN("struct $1 should normally be const\n" .
+				$herecurr);
 		}
 
 # use of NR_CPUS is usually wrong
@@ -2548,7 +2562,7 @@ sub process {
 		if ($line =~ /\bin_atomic\s*\(/) {
 			if ($realfile =~ m@^drivers/@) {
 				ERROR("do not use in_atomic in drivers\n" . $herecurr);
-			} else {
+			} elsif ($realfile !~ m@^kernel/@) {
 				WARN("use of in_atomic() is incorrect outside core kernel code\n" . $herecurr);
 			}
 		}

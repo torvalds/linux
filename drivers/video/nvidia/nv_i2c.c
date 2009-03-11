@@ -87,7 +87,6 @@ static int nvidia_setup_i2c_bus(struct nvidia_i2c_chan *chan, const char *name,
 
 	strcpy(chan->adapter.name, name);
 	chan->adapter.owner = THIS_MODULE;
-	chan->adapter.id = I2C_HW_B_NVIDIA;
 	chan->adapter.class = i2c_class;
 	chan->adapter.algo_data = &chan->algo;
 	chan->adapter.dev.parent = &chan->par->pci_dev->dev;

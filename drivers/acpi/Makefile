@@ -19,7 +19,7 @@ obj-y				+= osl.o utils.o reboot.o\
 
 # sleep related files
 obj-y				+= wakeup.o
-obj-y				+= main.o
+obj-y				+= sleep.o
 obj-$(CONFIG_ACPI_SLEEP)	+= proc.o
 
 
@@ -52,7 +52,7 @@ obj-$(CONFIG_ACPI_PROCESSOR)	+= processor.o
 obj-$(CONFIG_ACPI_CONTAINER)	+= container.o
 obj-$(CONFIG_ACPI_THERMAL)	+= thermal.o
 obj-y				+= power.o
-obj-$(CONFIG_ACPI_SYSTEM)	+= system.o event.o
+obj-y				+= system.o event.o
 obj-$(CONFIG_ACPI_DEBUG)	+= debug.o
 obj-$(CONFIG_ACPI_NUMA)		+= numa.o
 obj-$(CONFIG_ACPI_HOTPLUG_MEMORY)	+= acpi_memhotplug.o

@@ -59,13 +59,6 @@ pgd_alloc(struct mm_struct *mm)
 	return ret;
 }
 
-pte_t *
-pte_alloc_one_kernel(struct mm_struct *mm, unsigned long address)
-{
-	pte_t *pte = (pte_t *)__get_free_page(GFP_KERNEL|__GFP_REPEAT|__GFP_ZERO);
-	return pte;
-}
-
 
 /*
  * BAD_PAGE is the page that is used for page faults when linux
@@ -196,8 +189,20 @@ callback_init(void * kernel_end)
 
 	if (alpha_using_srm) {
 		static struct vm_struct console_remap_vm;
-		unsigned long vaddr = VMALLOC_START;
+		unsigned long nr_pages = 0;
+		unsigned long vaddr;
 		unsigned long i, j;
+
+		/* calculate needed size */
+		for (i = 0; i < crb->map_entries; ++i)
+			nr_pages += crb->map[i].count;
+
+		/* register the vm area */
+		console_remap_vm.flags = VM_ALLOC;
+		console_remap_vm.size = nr_pages << PAGE_SHIFT;
+		vm_area_register_early(&console_remap_vm, PAGE_SIZE);
+
+		vaddr = (unsigned long)console_remap_vm.addr;
 
 		/* Set up the third level PTEs and update the virtual
 		   addresses of the CRB entries.  */
@@ -220,12 +225,6 @@ callback_init(void * kernel_end)
 				vaddr += PAGE_SIZE;
 			}
 		}
-
-		/* Let vmalloc know that we've allocated some space.  */
-		console_remap_vm.flags = VM_ALLOC;
-		console_remap_vm.addr = (void *) VMALLOC_START;
-		console_remap_vm.size = vaddr - VMALLOC_START;
-		vmlist = &console_remap_vm;
 	}
 
 	callback_init_done = 1;

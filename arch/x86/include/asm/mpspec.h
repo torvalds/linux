@@ -9,7 +9,18 @@ extern int apic_version[MAX_APICS];
 extern int pic_mode;
 
 #ifdef CONFIG_X86_32
-#include <mach_mpspec.h>
+
+/*
+ * Summit or generic (i.e. installer) kernels need lots of bus entries.
+ * Maximum 256 PCI busses, plus 1 ISA bus in each of 4 cabinets.
+ */
+#if CONFIG_BASE_SMALL == 0
+# define MAX_MP_BUSSES		260
+#else
+# define MAX_MP_BUSSES		32
+#endif
+
+#define MAX_IRQ_SOURCES		256
 
 extern unsigned int def_to_bigsmp;
 extern u8 apicid_2_node[];
@@ -20,15 +31,15 @@ extern int mp_bus_id_to_local[MAX_MP_BUSSES];
 extern int quad_local_to_mp_bus_id [NR_CPUS/4][4];
 #endif
 
-#define MAX_APICID 256
+#define MAX_APICID		256
 
-#else
+#else /* CONFIG_X86_64: */
 
-#define MAX_MP_BUSSES 256
+#define MAX_MP_BUSSES		256
 /* Each PCI slot may be a combo card with its own bus.  4 IRQ pins per slot. */
-#define MAX_IRQ_SOURCES (MAX_MP_BUSSES * 4)
+#define MAX_IRQ_SOURCES		(MAX_MP_BUSSES * 4)
 
-#endif
+#endif /* CONFIG_X86_64 */
 
 extern void early_find_smp_config(void);
 extern void early_get_smp_config(void);
@@ -45,11 +56,13 @@ extern int smp_found_config;
 extern int mpc_default_type;
 extern unsigned long mp_lapic_addr;
 
-extern void find_smp_config(void);
 extern void get_smp_config(void);
+
 #ifdef CONFIG_X86_MPPARSE
+extern void find_smp_config(void);
 extern void early_reserve_e820_mpc_new(void);
 #else
+static inline void find_smp_config(void) { }
 static inline void early_reserve_e820_mpc_new(void) { }
 #endif
 
@@ -60,9 +73,12 @@ extern void mp_override_legacy_irq(u8 bus_irq, u8 polarity, u8 trigger,
 				   u32 gsi);
 extern void mp_config_acpi_legacy_irqs(void);
 extern int mp_register_gsi(u32 gsi, int edge_level, int active_high_low);
+extern int acpi_probe_gsi(void);
 #ifdef CONFIG_X86_IO_APIC
 extern int mp_config_acpi_gsi(unsigned char number, unsigned int devfn, u8 pin,
 				u32 gsi, int triggering, int polarity);
+extern int mp_find_ioapic(int gsi);
+extern int mp_find_ioapic_pin(int ioapic, int gsi);
 #else
 static inline int
 mp_config_acpi_gsi(unsigned char number, unsigned int devfn, u8 pin,
@@ -71,6 +87,11 @@ mp_config_acpi_gsi(unsigned char number, unsigned int devfn, u8 pin,
 	return 0;
 }
 #endif
+#else /* !CONFIG_ACPI: */
+static inline int acpi_probe_gsi(void)
+{
+	return 0;
+}
 #endif /* CONFIG_ACPI */
 
 #define PHYSID_ARRAY_SIZE	BITS_TO_LONGS(MAX_APICS)
@@ -141,5 +162,9 @@ static inline void physid_set_mask_of_physid(int physid, physid_mask_t *map)
 #define PHYSID_MASK_NONE	{ {[0 ... PHYSID_ARRAY_SIZE-1] = 0UL} }
 
 extern physid_mask_t phys_cpu_present_map;
+
+extern int generic_mps_oem_check(struct mpc_table *, char *, char *);
+
+extern int default_acpi_madt_oem_check(char *, char *);
 
 #endif /* _ASM_X86_MPSPEC_H */

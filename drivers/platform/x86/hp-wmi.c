@@ -382,6 +382,11 @@ static int __init hp_wmi_input_setup(void)
 		case KE_SW:
 			set_bit(EV_SW, hp_wmi_input_dev->evbit);
 			set_bit(key->keycode, hp_wmi_input_dev->swbit);
+
+			/* Set initial dock state */
+			input_report_switch(hp_wmi_input_dev, key->keycode,
+					    hp_wmi_dock_state());
+			input_sync(hp_wmi_input_dev);
 			break;
 		}
 	}
@@ -441,6 +446,7 @@ static int __init hp_wmi_bios_setup(struct platform_device *device)
 		bluetooth_rfkill->toggle_radio = hp_wmi_bluetooth_set;
 		bluetooth_rfkill->user_claim_unsupported = 1;
 		err = rfkill_register(bluetooth_rfkill);
+		if (err)
 			goto register_bluetooth_error;
 	}
 
@@ -457,9 +463,11 @@ static int __init hp_wmi_bios_setup(struct platform_device *device)
 
 	return 0;
 register_wwan_err:
-	rfkill_unregister(bluetooth_rfkill);
+	if (bluetooth_rfkill)
+		rfkill_unregister(bluetooth_rfkill);
 register_bluetooth_error:
-	rfkill_unregister(wifi_rfkill);
+	if (wifi_rfkill)
+		rfkill_unregister(wifi_rfkill);
 add_sysfs_error:
 	cleanup_sysfs(device);
 	return err;

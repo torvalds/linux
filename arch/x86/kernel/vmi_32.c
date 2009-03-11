@@ -321,6 +321,16 @@ static void vmi_release_pmd(unsigned long pfn)
 }
 
 /*
+ * We use the pgd_free hook for releasing the pgd page:
+ */
+static void vmi_pgd_free(struct mm_struct *mm, pgd_t *pgd)
+{
+	unsigned long pfn = __pa(pgd) >> PAGE_SHIFT;
+
+	vmi_ops.release_page(pfn, VMI_PAGE_L2);
+}
+
+/*
  * Helper macros for MMU update flags.  We can defer updates until a flush
  * or page invalidation only if the update is to the current address space
  * (otherwise, there is no flush).  We must check against init_mm, since
@@ -670,10 +680,11 @@ static inline int __init activate_vmi(void)
 	para_fill(pv_mmu_ops.write_cr2, SetCR2);
 	para_fill(pv_mmu_ops.write_cr3, SetCR3);
 	para_fill(pv_cpu_ops.write_cr4, SetCR4);
-	para_fill(pv_irq_ops.save_fl, GetInterruptMask);
-	para_fill(pv_irq_ops.restore_fl, SetInterruptMask);
-	para_fill(pv_irq_ops.irq_disable, DisableInterrupts);
-	para_fill(pv_irq_ops.irq_enable, EnableInterrupts);
+
+	para_fill(pv_irq_ops.save_fl.func, GetInterruptMask);
+	para_fill(pv_irq_ops.restore_fl.func, SetInterruptMask);
+	para_fill(pv_irq_ops.irq_disable.func, DisableInterrupts);
+	para_fill(pv_irq_ops.irq_enable.func, EnableInterrupts);
 
 	para_fill(pv_cpu_ops.wbinvd, WBINVD);
 	para_fill(pv_cpu_ops.read_tsc, RDTSC);
@@ -762,6 +773,7 @@ static inline int __init activate_vmi(void)
 	if (vmi_ops.release_page) {
 		pv_mmu_ops.release_pte = vmi_release_pte;
 		pv_mmu_ops.release_pmd = vmi_release_pmd;
+		pv_mmu_ops.pgd_free = vmi_pgd_free;
 	}
 
 	/* Set linear is needed in all cases */
@@ -786,8 +798,8 @@ static inline int __init activate_vmi(void)
 #endif
 
 #ifdef CONFIG_X86_LOCAL_APIC
-       para_fill(apic_ops->read, APICRead);
-       para_fill(apic_ops->write, APICWrite);
+       para_fill(apic->read, APICRead);
+       para_fill(apic->write, APICWrite);
 #endif
 
 	/*
@@ -858,7 +870,7 @@ void __init vmi_init(void)
 #endif
 }
 
-void vmi_activate(void)
+void __init vmi_activate(void)
 {
 	unsigned long flags;
 

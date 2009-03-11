@@ -228,10 +228,10 @@ void acpi_os_vprintf(const char *fmt, va_list args)
 	if (acpi_in_debugger) {
 		kdb_printf("%s", buffer);
 	} else {
-		printk("%s", buffer);
+		printk(KERN_CONT "%s", buffer);
 	}
 #else
-	printk("%s", buffer);
+	printk(KERN_CONT "%s", buffer);
 #endif
 }
 
@@ -272,13 +272,20 @@ acpi_os_map_memory(acpi_physical_address phys, acpi_size size)
 }
 EXPORT_SYMBOL_GPL(acpi_os_map_memory);
 
-void acpi_os_unmap_memory(void __iomem * virt, acpi_size size)
+void __ref acpi_os_unmap_memory(void __iomem *virt, acpi_size size)
 {
-	if (acpi_gbl_permanent_mmap) {
+	if (acpi_gbl_permanent_mmap)
 		iounmap(virt);
-	}
+	else
+		__acpi_unmap_table(virt, size);
 }
 EXPORT_SYMBOL_GPL(acpi_os_unmap_memory);
+
+void __init early_acpi_os_unmap_memory(void __iomem *virt, acpi_size size)
+{
+	if (!acpi_gbl_permanent_mmap)
+		__acpi_unmap_table(virt, size);
+}
 
 #ifdef ACPI_FUTURE_USAGE
 acpi_status
@@ -1317,6 +1324,54 @@ acpi_os_validate_interface (char *interface)
 	return AE_SUPPORT;
 }
 
+#ifdef	CONFIG_X86
+
+struct aml_port_desc {
+	uint	start;
+	uint	end;
+	char*   name;
+	char	warned;
+};
+
+static struct aml_port_desc aml_invalid_port_list[] = {
+	{0x20, 0x21, "PIC0", 0},
+	{0xA0, 0xA1, "PIC1", 0},
+	{0x4D0, 0x4D1, "ELCR", 0}
+};
+
+/*
+ * valid_aml_io_address()
+ *
+ * if valid, return true
+ * else invalid, warn once, return false
+ */
+static bool valid_aml_io_address(uint address, uint length)
+{
+	int i;
+	int entries = sizeof(aml_invalid_port_list) / sizeof(struct aml_port_desc);
+
+	for (i = 0; i < entries; ++i) {
+		if ((address >= aml_invalid_port_list[i].start &&
+			address <= aml_invalid_port_list[i].end) ||
+			(address + length >= aml_invalid_port_list[i].start &&
+			address  + length <= aml_invalid_port_list[i].end))
+		{
+			if (!aml_invalid_port_list[i].warned)
+			{
+				printk(KERN_ERR "ACPI: Denied BIOS AML access"
+					" to invalid port 0x%x+0x%x (%s)\n",
+					address, length,
+					aml_invalid_port_list[i].name);
+				aml_invalid_port_list[i].warned = 1;
+			}
+			return false;	/* invalid */
+		}
+	}
+	return true;	/* valid */
+}
+#else
+static inline bool valid_aml_io_address(uint address, uint length) { return true; }
+#endif
 /******************************************************************************
  *
  * FUNCTION:    acpi_os_validate_address
@@ -1346,6 +1401,8 @@ acpi_os_validate_address (
 
 	switch (space_id) {
 	case ACPI_ADR_SPACE_SYSTEM_IO:
+		if (!valid_aml_io_address(address, length))
+			return AE_AML_ILLEGAL_ADDRESS;
 	case ACPI_ADR_SPACE_SYSTEM_MEMORY:
 		/* Only interference checks against SystemIO and SytemMemory
 		   are needed */

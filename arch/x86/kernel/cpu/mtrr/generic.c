@@ -33,11 +33,13 @@ u64 mtrr_tom2;
 struct mtrr_state_type mtrr_state = {};
 EXPORT_SYMBOL_GPL(mtrr_state);
 
-#undef MODULE_PARAM_PREFIX
-#define MODULE_PARAM_PREFIX "mtrr."
-
-static int mtrr_show;
-module_param_named(show, mtrr_show, bool, 0);
+static int __initdata mtrr_show;
+static int __init mtrr_debug(char *opt)
+{
+	mtrr_show = 1;
+	return 0;
+}
+early_param("mtrr.show", mtrr_debug);
 
 /*
  * Returns the effective MTRR type for the region

@@ -453,7 +453,7 @@ xfs_bulkstat(
 			    (chunkidx = agino - gino + 1) <
 				    XFS_INODES_PER_CHUNK &&
 					/* there are some left allocated */
-			    XFS_INOBT_MASKN(chunkidx,
+			    xfs_inobt_maskn(chunkidx,
 				    XFS_INODES_PER_CHUNK - chunkidx) & ~gfree) {
 				/*
 				 * Grab the chunk record.  Mark all the
@@ -464,7 +464,7 @@ xfs_bulkstat(
 					if (XFS_INOBT_MASK(i) & ~gfree)
 						gcnt++;
 				}
-				gfree |= XFS_INOBT_MASKN(0, chunkidx);
+				gfree |= xfs_inobt_maskn(0, chunkidx);
 				irbp->ir_startino = gino;
 				irbp->ir_freecount = gcnt;
 				irbp->ir_free = gfree;
@@ -535,7 +535,7 @@ xfs_bulkstat(
 				     chunkidx < XFS_INODES_PER_CHUNK;
 				     chunkidx += nicluster,
 				     agbno += nbcluster) {
-					if (XFS_INOBT_MASKN(chunkidx,
+					if (xfs_inobt_maskn(chunkidx,
 							    nicluster) & ~gfree)
 						xfs_btree_reada_bufs(mp, agno,
 							agbno, nbcluster);

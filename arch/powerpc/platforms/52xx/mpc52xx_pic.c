@@ -196,6 +196,7 @@ static void mpc52xx_extirq_ack(unsigned int virq)
 
 static int mpc52xx_extirq_set_type(unsigned int virq, unsigned int flow_type)
 {
+	struct irq_desc *desc = get_irq_desc(virq);
 	u32 ctrl_reg, type;
 	int irq;
 	int l2irq;
@@ -222,6 +223,11 @@ static int mpc52xx_extirq_set_type(unsigned int virq, unsigned int flow_type)
 		type = 0;
 	}
 
+	desc->status &= ~(IRQ_TYPE_SENSE_MASK | IRQ_LEVEL);
+	desc->status |= flow_type & IRQ_TYPE_SENSE_MASK;
+	if (flow_type & (IRQ_TYPE_LEVEL_HIGH | IRQ_TYPE_LEVEL_LOW))
+		desc->status |= IRQ_LEVEL;
+
 	ctrl_reg = in_be32(&intr->ctrl);
 	ctrl_reg &= ~(0x3 << (22 - (l2irq * 2)));
 	ctrl_reg |= (type << (22 - (l2irq * 2)));
@@ -231,7 +237,7 @@ static int mpc52xx_extirq_set_type(unsigned int virq, unsigned int flow_type)
 }
 
 static struct irq_chip mpc52xx_extirq_irqchip = {
-	.typename = " MPC52xx IRQ[0-3] ",
+	.typename = "MPC52xx External",
 	.mask = mpc52xx_extirq_mask,
 	.unmask = mpc52xx_extirq_unmask,
 	.ack = mpc52xx_extirq_ack,

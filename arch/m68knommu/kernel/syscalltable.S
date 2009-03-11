@@ -18,7 +18,7 @@
 .text
 ALIGN
 ENTRY(sys_call_table)
-	.long sys_ni_syscall	/* 0  -  old "setup()" system call*/
+	.long sys_restart_syscall	/* 0  -  old "setup()" system call */
 	.long sys_exit
 	.long sys_fork
 	.long sys_read
@@ -107,7 +107,7 @@ ENTRY(sys_call_table)
 	.long sys_uselib
 	.long sys_ni_syscall	/* sys_swapon */
 	.long sys_reboot
-	.long old_readdir
+	.long sys_old_readdir
 	.long old_mmap		/* 90 */
 	.long sys_munmap
 	.long sys_truncate

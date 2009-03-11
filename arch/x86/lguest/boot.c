@@ -173,24 +173,29 @@ static unsigned long save_fl(void)
 {
 	return lguest_data.irq_enabled;
 }
+PV_CALLEE_SAVE_REGS_THUNK(save_fl);
 
 /* restore_flags() just sets the flags back to the value given. */
 static void restore_fl(unsigned long flags)
 {
 	lguest_data.irq_enabled = flags;
 }
+PV_CALLEE_SAVE_REGS_THUNK(restore_fl);
 
 /* Interrupts go off... */
 static void irq_disable(void)
 {
 	lguest_data.irq_enabled = 0;
 }
+PV_CALLEE_SAVE_REGS_THUNK(irq_disable);
 
 /* Interrupts go on... */
 static void irq_enable(void)
 {
 	lguest_data.irq_enabled = X86_EFLAGS_IF;
 }
+PV_CALLEE_SAVE_REGS_THUNK(irq_enable);
+
 /*:*/
 /*M:003 Note that we don't check for outstanding interrupts when we re-enable
  * them (or when we unmask an interrupt).  This seems to work for the moment,
@@ -278,7 +283,7 @@ static void lguest_load_tls(struct thread_struct *t, unsigned int cpu)
 	/* There's one problem which normal hardware doesn't have: the Host
 	 * can't handle us removing entries we're currently using.  So we clear
 	 * the GS register here: if it's needed it'll be reloaded anyway. */
-	loadsegment(gs, 0);
+	lazy_load_gs(0);
 	lazy_hcall(LHCALL_LOAD_TLS, __pa(&t->tls_array), cpu, 0);
 }
 
@@ -343,6 +348,11 @@ static void lguest_cpuid(unsigned int *ax, unsigned int *bx,
 		 * flush_tlb_user() for both user and kernel mappings unless
 		 * the Page Global Enable (PGE) feature bit is set. */
 		*dx |= 0x00002000;
+		/* We also lie, and say we're family id 5.  6 or greater
+		 * leads to a rdmsr in early_init_intel which we can't handle.
+		 * Family ID is returned as bits 8-12 in ax. */
+		*ax &= 0xFFFFF0FF;
+		*ax |= 0x00000500;
 		break;
 	case 0x80000000:
 		/* Futureproof this a little: if they ask how much extended
@@ -589,17 +599,19 @@ static void __init lguest_init_IRQ(void)
 		/* Some systems map "vectors" to interrupts weirdly.  Lguest has
 		 * a straightforward 1 to 1 mapping, so force that here. */
 		__get_cpu_var(vector_irq)[vector] = i;
-		if (vector != SYSCALL_VECTOR) {
-			set_intr_gate(vector,
-				      interrupt[vector-FIRST_EXTERNAL_VECTOR]);
-			set_irq_chip_and_handler_name(i, &lguest_irq_controller,
-						      handle_level_irq,
-						      "level");
-		}
+		if (vector != SYSCALL_VECTOR)
+			set_intr_gate(vector, interrupt[i]);
 	}
 	/* This call is required to set up for 4k stacks, where we have
 	 * separate stacks for hard and soft interrupts. */
 	irq_ctx_init(smp_processor_id());
+}
+
+void lguest_setup_irq(unsigned int irq)
+{
+	irq_to_desc_alloc_cpu(irq, 0);
+	set_irq_chip_and_handler_name(irq, &lguest_irq_controller,
+				      handle_level_irq, "level");
 }
 
 /*
@@ -823,13 +835,14 @@ static u32 lguest_apic_safe_wait_icr_idle(void)
 	return 0;
 }
 
-static struct apic_ops lguest_basic_apic_ops = {
-	.read = lguest_apic_read,
-	.write = lguest_apic_write,
-	.icr_read = lguest_apic_icr_read,
-	.icr_write = lguest_apic_icr_write,
-	.wait_icr_idle = lguest_apic_wait_icr_idle,
-	.safe_wait_icr_idle = lguest_apic_safe_wait_icr_idle,
+static void set_lguest_basic_apic_ops(void)
+{
+	apic->read = lguest_apic_read;
+	apic->write = lguest_apic_write;
+	apic->icr_read = lguest_apic_icr_read;
+	apic->icr_write = lguest_apic_icr_write;
+	apic->wait_icr_idle = lguest_apic_wait_icr_idle;
+	apic->safe_wait_icr_idle = lguest_apic_safe_wait_icr_idle;
 };
 #endif
 
@@ -931,7 +944,7 @@ static void lguest_restart(char *reason)
  * that we can fit comfortably.
  *
  * First we need assembly templates of each of the patchable Guest operations,
- * and these are in lguest_asm.S. */
+ * and these are in i386_head.S. */
 
 /*G:060 We construct a table from the assembler templates: */
 static const struct lguest_insns
@@ -984,10 +997,10 @@ __init void lguest_init(void)
 
 	/* interrupt-related operations */
 	pv_irq_ops.init_IRQ = lguest_init_IRQ;
-	pv_irq_ops.save_fl = save_fl;
-	pv_irq_ops.restore_fl = restore_fl;
-	pv_irq_ops.irq_disable = irq_disable;
-	pv_irq_ops.irq_enable = irq_enable;
+	pv_irq_ops.save_fl = PV_CALLEE_SAVE(save_fl);
+	pv_irq_ops.restore_fl = PV_CALLEE_SAVE(restore_fl);
+	pv_irq_ops.irq_disable = PV_CALLEE_SAVE(irq_disable);
+	pv_irq_ops.irq_enable = PV_CALLEE_SAVE(irq_enable);
 	pv_irq_ops.safe_halt = lguest_safe_halt;
 
 	/* init-time operations */
@@ -1030,7 +1043,7 @@ __init void lguest_init(void)
 
 #ifdef CONFIG_X86_LOCAL_APIC
 	/* apic read/write intercepts */
-	apic_ops = &lguest_basic_apic_ops;
+	set_lguest_basic_apic_ops();
 #endif
 
 	/* time operations */
@@ -1093,7 +1106,7 @@ __init void lguest_init(void)
 	acpi_ht = 0;
 #endif
 
-	/* We set the perferred console to "hvc".  This is the "hypervisor
+	/* We set the preferred console to "hvc".  This is the "hypervisor
 	 * virtual console" driver written by the PowerPC people, which we also
 	 * adapted for lguest's use. */
 	add_preferred_console("hvc", 0, NULL);

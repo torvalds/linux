@@ -321,6 +321,10 @@ static void macb_tx(struct macb *bp)
 		printk(KERN_ERR "%s: TX underrun, resetting buffers\n",
 			bp->dev->name);
 
+		/* Transfer ongoing, disable transmitter, to avoid confusion */
+		if (status & MACB_BIT(TGO))
+			macb_writel(bp, NCR, macb_readl(bp, NCR) & ~MACB_BIT(TE));
+
 		head = bp->tx_head;
 
 		/*Mark all the buffer as used to avoid sending a lost buffer*/
@@ -343,6 +347,10 @@ static void macb_tx(struct macb *bp)
 		}
 
 		bp->tx_head = bp->tx_tail = 0;
+
+		/* Enable the transmitter again */
+		if (status & MACB_BIT(TGO))
+			macb_writel(bp, NCR, macb_readl(bp, NCR) | MACB_BIT(TE));
 	}
 
 	if (!(status & MACB_BIT(COMP)))

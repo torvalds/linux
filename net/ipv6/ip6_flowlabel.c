@@ -323,17 +323,21 @@ static struct ip6_flowlabel *
 fl_create(struct net *net, struct in6_flowlabel_req *freq, char __user *optval,
 	  int optlen, int *err_p)
 {
-	struct ip6_flowlabel *fl;
+	struct ip6_flowlabel *fl = NULL;
 	int olen;
 	int addr_type;
 	int err;
+
+	olen = optlen - CMSG_ALIGN(sizeof(*freq));
+	err = -EINVAL;
+	if (olen > 64 * 1024)
+		goto done;
 
 	err = -ENOMEM;
 	fl = kzalloc(sizeof(*fl), GFP_KERNEL);
 	if (fl == NULL)
 		goto done;
 
-	olen = optlen - CMSG_ALIGN(sizeof(*freq));
 	if (olen > 0) {
 		struct msghdr msg;
 		struct flowi flowi;

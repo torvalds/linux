@@ -679,6 +679,7 @@ static int b44_alloc_rx_skb(struct b44 *bp, int src_idx, u32 dest_idx_unmasked)
 			dev_kfree_skb_any(skb);
 			return -ENOMEM;
 		}
+		bp->force_copybreak = 1;
 	}
 
 	rh = (struct rx_header *) skb->data;
@@ -800,7 +801,7 @@ static int b44_rx(struct b44 *bp, int budget)
 		/* Omit CRC. */
 		len -= 4;
 
-		if (len > RX_COPY_THRESHOLD) {
+		if (!bp->force_copybreak && len > RX_COPY_THRESHOLD) {
 			int skb_size;
 			skb_size = b44_alloc_rx_skb(bp, cons, bp->rx_prod);
 			if (skb_size < 0)
@@ -1263,8 +1264,14 @@ static void b44_clear_stats(struct b44 *bp)
 static void b44_chip_reset(struct b44 *bp, int reset_kind)
 {
 	struct ssb_device *sdev = bp->sdev;
+	bool was_enabled;
 
-	if (ssb_device_is_enabled(bp->sdev)) {
+	was_enabled = ssb_device_is_enabled(bp->sdev);
+
+	ssb_device_enable(bp->sdev, 0);
+	ssb_pcicore_dev_irqvecs_enable(&sdev->bus->pcicore, sdev);
+
+	if (was_enabled) {
 		bw32(bp, B44_RCV_LAZY, 0);
 		bw32(bp, B44_ENET_CTRL, ENET_CTRL_DISABLE);
 		b44_wait_bit(bp, B44_ENET_CTRL, ENET_CTRL_DISABLE, 200, 1);
@@ -1276,10 +1283,8 @@ static void b44_chip_reset(struct b44 *bp, int reset_kind)
 		}
 		bw32(bp, B44_DMARX_CTRL, 0);
 		bp->rx_prod = bp->rx_cons = 0;
-	} else
-		ssb_pcicore_dev_irqvecs_enable(&sdev->bus->pcicore, sdev);
+	}
 
-	ssb_device_enable(bp->sdev, 0);
 	b44_clear_stats(bp);
 
 	/*
@@ -2152,6 +2157,7 @@ static int __devinit b44_init_one(struct ssb_device *sdev,
 	bp = netdev_priv(dev);
 	bp->sdev = sdev;
 	bp->dev = dev;
+	bp->force_copybreak = 0;
 
 	bp->msg_enable = netif_msg_init(b44_debug, B44_DEF_MSG_ENABLE);
 
@@ -2234,6 +2240,7 @@ static void __devexit b44_remove_one(struct ssb_device *sdev)
 	struct net_device *dev = ssb_get_drvdata(sdev);
 
 	unregister_netdev(dev);
+	ssb_device_disable(sdev, 0);
 	ssb_bus_may_powerdown(sdev->bus);
 	free_netdev(dev);
 	ssb_pcihost_set_power_state(sdev, PCI_D3hot);

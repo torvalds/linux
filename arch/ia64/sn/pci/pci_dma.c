@@ -356,6 +356,12 @@ int sn_dma_mapping_error(struct device *dev, dma_addr_t dma_addr)
 }
 EXPORT_SYMBOL(sn_dma_mapping_error);
 
+u64 sn_dma_get_required_mask(struct device *dev)
+{
+	return DMA_64BIT_MASK;
+}
+EXPORT_SYMBOL_GPL(sn_dma_get_required_mask);
+
 char *sn_pci_get_legacy_mem(struct pci_bus *bus)
 {
 	if (!SN_PCIBUS_BUSSOFT(bus))

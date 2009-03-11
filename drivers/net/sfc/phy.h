@@ -17,7 +17,6 @@ extern struct efx_phy_operations falcon_sfx7101_phy_ops;
 extern struct efx_phy_operations falcon_sft9001_phy_ops;
 
 extern void tenxpress_phy_blink(struct efx_nic *efx, bool blink);
-extern void tenxpress_crc_err(struct efx_nic *efx);
 
 /****************************************************************************
  * Exported functions from the driver for XFP optical PHYs

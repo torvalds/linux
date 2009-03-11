@@ -36,9 +36,9 @@ asmlinkage int sys_sigreturn(unsigned long r4, unsigned long r5,
 asmlinkage int sys_rt_sigreturn(unsigned long r4, unsigned long r5,
 				unsigned long r6, unsigned long r7,
 				struct pt_regs __regs);
-asmlinkage int sys_pipe(unsigned long r4, unsigned long r5,
-			unsigned long r6, unsigned long r7,
-			struct pt_regs __regs);
+asmlinkage int sys_sh_pipe(unsigned long r4, unsigned long r5,
+			   unsigned long r6, unsigned long r7,
+			   struct pt_regs __regs);
 asmlinkage ssize_t sys_pread_wrapper(unsigned int fd, char __user *buf,
 				     size_t count, long dummy, loff_t pos);
 asmlinkage ssize_t sys_pwrite_wrapper(unsigned int fd, const char __user *buf,

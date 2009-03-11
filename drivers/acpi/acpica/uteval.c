@@ -116,9 +116,9 @@ acpi_status acpi_ut_osi_implementation(struct acpi_walk_state *walk_state)
 		return_ACPI_STATUS(AE_NO_MEMORY);
 	}
 
-	/* Default return value is SUPPORTED */
+	/* Default return value is 0, NOT-SUPPORTED */
 
-	return_desc->integer.value = ACPI_UINT32_MAX;
+	return_desc->integer.value = 0;
 	walk_state->return_desc = return_desc;
 
 	/* Compare input string to static table of supported interfaces */
@@ -127,10 +127,8 @@ acpi_status acpi_ut_osi_implementation(struct acpi_walk_state *walk_state)
 		if (!ACPI_STRCMP
 		    (string_desc->string.pointer,
 		     acpi_interfaces_supported[i])) {
-
-			/* The interface is supported */
-
-			return_ACPI_STATUS(AE_OK);
+			return_desc->integer.value = ACPI_UINT32_MAX;
+			goto done;
 		}
 	}
 
@@ -141,15 +139,14 @@ acpi_status acpi_ut_osi_implementation(struct acpi_walk_state *walk_state)
 	 */
 	status = acpi_os_validate_interface(string_desc->string.pointer);
 	if (ACPI_SUCCESS(status)) {
-
-		/* The interface is supported */
-
-		return_ACPI_STATUS(AE_OK);
+		return_desc->integer.value = ACPI_UINT32_MAX;
 	}
 
-	/* The interface is not supported */
+done:
+	ACPI_DEBUG_PRINT_RAW((ACPI_DB_INFO, "ACPI: BIOS _OSI(%s) %ssupported\n",
+		string_desc->string.pointer,
+		return_desc->integer.value == 0 ? "not-" : ""));
 
-	return_desc->integer.value = 0;
 	return_ACPI_STATUS(AE_OK);
 }
 

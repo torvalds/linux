@@ -14,6 +14,7 @@
 #include <linux/proc_fs.h>
 #include <linux/kernel.h>
 #include <linux/syscalls.h>
+#include <linux/stackprotector.h>
 #include <linux/string.h>
 #include <linux/ctype.h>
 #include <linux/delay.h>
@@ -97,7 +98,7 @@ static inline void mark_rodata_ro(void) { }
 extern void tc_init(void);
 #endif
 
-enum system_states system_state;
+enum system_states system_state __read_mostly;
 EXPORT_SYMBOL(system_state);
 
 /*
@@ -135,14 +136,14 @@ unsigned int __initdata setup_max_cpus = NR_CPUS;
  * greater than 0, limits the maximum number of CPUs activated in
  * SMP mode to <NUM>.
  */
-#ifndef CONFIG_X86_IO_APIC
-static inline void disable_ioapic_setup(void) {};
-#endif
+
+void __weak arch_disable_smp_support(void) { }
 
 static int __init nosmp(char *str)
 {
 	setup_max_cpus = 0;
-	disable_ioapic_setup();
+	arch_disable_smp_support();
+
 	return 0;
 }
 
@@ -152,14 +153,14 @@ static int __init maxcpus(char *str)
 {
 	get_option(&str, &setup_max_cpus);
 	if (setup_max_cpus == 0)
-		disable_ioapic_setup();
+		arch_disable_smp_support();
 
 	return 0;
 }
 
 early_param("maxcpus", maxcpus);
 #else
-#define setup_max_cpus NR_CPUS
+const unsigned int setup_max_cpus = NR_CPUS;
 #endif
 
 /*
@@ -463,6 +464,7 @@ static noinline void __init_refok rest_init(void)
 	 * at least once to get things moving:
 	 */
 	init_idle_bootup_task(current);
+	rcu_scheduler_starting();
 	preempt_enable_no_resched();
 	schedule();
 	preempt_disable();
@@ -539,6 +541,12 @@ asmlinkage void __init start_kernel(void)
 	 */
 	lockdep_init();
 	debug_objects_early_init();
+
+	/*
+	 * Set up the the initial canary ASAP:
+	 */
+	boot_init_stack_canary();
+
 	cgroup_init_early();
 
 	local_irq_disable();

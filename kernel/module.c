@@ -51,6 +51,7 @@
 #include <linux/tracepoint.h>
 #include <linux/ftrace.h>
 #include <linux/async.h>
+#include <linux/percpu.h>
 
 #if 0
 #define DEBUGP printk
@@ -366,6 +367,34 @@ static struct module *find_module(const char *name)
 }
 
 #ifdef CONFIG_SMP
+
+#ifdef CONFIG_HAVE_DYNAMIC_PER_CPU_AREA
+
+static void *percpu_modalloc(unsigned long size, unsigned long align,
+			     const char *name)
+{
+	void *ptr;
+
+	if (align > PAGE_SIZE) {
+		printk(KERN_WARNING "%s: per-cpu alignment %li > %li\n",
+		       name, align, PAGE_SIZE);
+		align = PAGE_SIZE;
+	}
+
+	ptr = __alloc_reserved_percpu(size, align);
+	if (!ptr)
+		printk(KERN_WARNING
+		       "Could not allocate %lu bytes percpu data\n", size);
+	return ptr;
+}
+
+static void percpu_modfree(void *freeme)
+{
+	free_percpu(freeme);
+}
+
+#else /* ... !CONFIG_HAVE_DYNAMIC_PER_CPU_AREA */
+
 /* Number of blocks used and allocated. */
 static unsigned int pcpu_num_used, pcpu_num_allocated;
 /* Size of each block.  -ve means used. */
@@ -480,21 +509,6 @@ static void percpu_modfree(void *freeme)
 	}
 }
 
-static unsigned int find_pcpusec(Elf_Ehdr *hdr,
-				 Elf_Shdr *sechdrs,
-				 const char *secstrings)
-{
-	return find_sec(hdr, sechdrs, secstrings, ".data.percpu");
-}
-
-static void percpu_modcopy(void *pcpudest, const void *from, unsigned long size)
-{
-	int cpu;
-
-	for_each_possible_cpu(cpu)
-		memcpy(pcpudest + per_cpu_offset(cpu), from, size);
-}
-
 static int percpu_modinit(void)
 {
 	pcpu_num_used = 2;
@@ -513,7 +527,26 @@ static int percpu_modinit(void)
 	return 0;
 }
 __initcall(percpu_modinit);
+
+#endif /* CONFIG_HAVE_DYNAMIC_PER_CPU_AREA */
+
+static unsigned int find_pcpusec(Elf_Ehdr *hdr,
+				 Elf_Shdr *sechdrs,
+				 const char *secstrings)
+{
+	return find_sec(hdr, sechdrs, secstrings, ".data.percpu");
+}
+
+static void percpu_modcopy(void *pcpudest, const void *from, unsigned long size)
+{
+	int cpu;
+
+	for_each_possible_cpu(cpu)
+		memcpy(pcpudest + per_cpu_offset(cpu), from, size);
+}
+
 #else /* ... !CONFIG_SMP */
+
 static inline void *percpu_modalloc(unsigned long size, unsigned long align,
 				    const char *name)
 {
@@ -535,6 +568,7 @@ static inline void percpu_modcopy(void *pcpudst, const void *src,
 	/* pcpusec should be 0, and size of that section should be 0. */
 	BUG_ON(size != 0);
 }
+
 #endif /* CONFIG_SMP */
 
 #define MODINFO_ATTR(field)	\
@@ -573,13 +607,13 @@ static char last_unloaded_module[MODULE_NAME_LEN+1];
 /* Init the unload section of the module. */
 static void module_unload_init(struct module *mod)
 {
-	unsigned int i;
+	int cpu;
 
 	INIT_LIST_HEAD(&mod->modules_which_use_me);
-	for (i = 0; i < NR_CPUS; i++)
-		local_set(&mod->ref[i].count, 0);
+	for_each_possible_cpu(cpu)
+		local_set(__module_ref_addr(mod, cpu), 0);
 	/* Hold reference count during initialization. */
-	local_set(&mod->ref[raw_smp_processor_id()].count, 1);
+	local_set(__module_ref_addr(mod, raw_smp_processor_id()), 1);
 	/* Backwards compatibility macros put refcount during init. */
 	mod->waiter = current;
 }
@@ -717,10 +751,11 @@ static int try_stop_module(struct module *mod, int flags, int *forced)
 
 unsigned int module_refcount(struct module *mod)
 {
-	unsigned int i, total = 0;
+	unsigned int total = 0;
+	int cpu;
 
-	for (i = 0; i < NR_CPUS; i++)
-		total += local_read(&mod->ref[i].count);
+	for_each_possible_cpu(cpu)
+		total += local_read(__module_ref_addr(mod, cpu));
 	return total;
 }
 EXPORT_SYMBOL(module_refcount);
@@ -743,8 +778,8 @@ static void wait_for_zero_refcount(struct module *mod)
 	mutex_lock(&module_mutex);
 }
 
-asmlinkage long
-sys_delete_module(const char __user *name_user, unsigned int flags)
+SYSCALL_DEFINE2(delete_module, const char __user *, name_user,
+		unsigned int, flags)
 {
 	struct module *mod;
 	char name[MODULE_NAME_LEN];
@@ -894,7 +929,7 @@ void module_put(struct module *module)
 {
 	if (module) {
 		unsigned int cpu = get_cpu();
-		local_dec(&module->ref[cpu].count);
+		local_dec(__module_ref_addr(module, cpu));
 		/* Maybe they're waiting for us to drop reference? */
 		if (unlikely(!module_is_live(module)))
 			wake_up_process(module->waiter);
@@ -1464,7 +1499,10 @@ static void free_module(struct module *mod)
 	kfree(mod->args);
 	if (mod->percpu)
 		percpu_modfree(mod->percpu);
-
+#if defined(CONFIG_MODULE_UNLOAD) && defined(CONFIG_SMP)
+	if (mod->refptr)
+		percpu_modfree(mod->refptr);
+#endif
 	/* Free lock-classes: */
 	lockdep_free_key_range(mod->module_core, mod->core_size);
 
@@ -2011,6 +2049,14 @@ static noinline struct module *load_module(void __user *umod,
 	if (err < 0)
 		goto free_mod;
 
+#if defined(CONFIG_MODULE_UNLOAD) && defined(CONFIG_SMP)
+	mod->refptr = percpu_modalloc(sizeof(local_t), __alignof__(local_t),
+				      mod->name);
+	if (!mod->refptr) {
+		err = -ENOMEM;
+		goto free_mod;
+	}
+#endif
 	if (pcpuindex) {
 		/* We have a special allocation for this section. */
 		percpu = percpu_modalloc(sechdrs[pcpuindex].sh_size,
@@ -2018,7 +2064,7 @@ static noinline struct module *load_module(void __user *umod,
 					 mod->name);
 		if (!percpu) {
 			err = -ENOMEM;
-			goto free_mod;
+			goto free_percpu;
 		}
 		sechdrs[pcpuindex].sh_flags &= ~(unsigned long)SHF_ALLOC;
 		mod->percpu = percpu;
@@ -2282,6 +2328,9 @@ static noinline struct module *load_module(void __user *umod,
  free_percpu:
 	if (percpu)
 		percpu_modfree(percpu);
+#if defined(CONFIG_MODULE_UNLOAD) && defined(CONFIG_SMP)
+	percpu_modfree(mod->refptr);
+#endif
  free_mod:
 	kfree(args);
  free_hdr:
@@ -2296,10 +2345,8 @@ static noinline struct module *load_module(void __user *umod,
 }
 
 /* This is where the real work happens */
-asmlinkage long
-sys_init_module(void __user *umod,
-		unsigned long len,
-		const char __user *uargs)
+SYSCALL_DEFINE3(init_module, void __user *, umod,
+		unsigned long, len, const char __user *, uargs)
 {
 	struct module *mod;
 	int ret = 0;

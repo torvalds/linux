@@ -315,6 +315,8 @@ void ide_output_data(ide_drive_t *drive, struct request *rq, void *buf,
 	u8 io_32bit = drive->io_32bit;
 	u8 mmio = (hwif->host_flags & IDE_HFLAG_MMIO) ? 1 : 0;
 
+	len++;
+
 	if (io_32bit) {
 		unsigned long uninitialized_var(flags);
 
@@ -493,7 +495,7 @@ static int __ide_wait_stat(ide_drive_t *drive, u8 good, u8 bad, unsigned long ti
 	stat = tp_ops->read_status(hwif);
 
 	if (stat & ATA_BUSY) {
-		local_irq_save(flags);
+		local_save_flags(flags);
 		local_irq_enable_in_hardirq();
 		timeout += jiffies;
 		while ((stat = tp_ops->read_status(hwif)) & ATA_BUSY) {

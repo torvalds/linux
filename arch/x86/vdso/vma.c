@@ -85,8 +85,8 @@ static unsigned long vdso_addr(unsigned long start, unsigned len)
 	unsigned long addr, end;
 	unsigned offset;
 	end = (start + PMD_SIZE - 1) & PMD_MASK;
-	if (end >= TASK_SIZE64)
-		end = TASK_SIZE64;
+	if (end >= TASK_SIZE_MAX)
+		end = TASK_SIZE_MAX;
 	end -= len;
 	/* This loses some more bits than a modulo, but is cheaper */
 	offset = get_random_int() & (PTRS_PER_PTE - 1);

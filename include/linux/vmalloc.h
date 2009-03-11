@@ -84,6 +84,10 @@ extern struct vm_struct *get_vm_area_caller(unsigned long size,
 					unsigned long flags, void *caller);
 extern struct vm_struct *__get_vm_area(unsigned long size, unsigned long flags,
 					unsigned long start, unsigned long end);
+extern struct vm_struct *__get_vm_area_caller(unsigned long size,
+					unsigned long flags,
+					unsigned long start, unsigned long end,
+					void *caller);
 extern struct vm_struct *get_vm_area_node(unsigned long size,
 					  unsigned long flags, int node,
 					  gfp_t gfp_mask);
@@ -91,6 +95,9 @@ extern struct vm_struct *remove_vm_area(const void *addr);
 
 extern int map_vm_area(struct vm_struct *area, pgprot_t prot,
 			struct page ***pages);
+extern int map_kernel_range_noflush(unsigned long start, unsigned long size,
+				    pgprot_t prot, struct page **pages);
+extern void unmap_kernel_range_noflush(unsigned long addr, unsigned long size);
 extern void unmap_kernel_range(unsigned long addr, unsigned long size);
 
 /* Allocate/destroy a 'vmalloc' VM area. */
@@ -106,5 +113,6 @@ extern long vwrite(char *buf, char *addr, unsigned long count);
  */
 extern rwlock_t vmlist_lock;
 extern struct vm_struct *vmlist;
+extern __init void vm_area_register_early(struct vm_struct *vm, size_t align);
 
 #endif /* _LINUX_VMALLOC_H */

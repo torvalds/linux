@@ -1374,7 +1374,7 @@ do_readahead(struct address_space *mapping, struct file *filp,
 	return 0;
 }
 
-asmlinkage ssize_t sys_readahead(int fd, loff_t offset, size_t count)
+SYSCALL_DEFINE(readahead)(int fd, loff_t offset, size_t count)
 {
 	ssize_t ret;
 	struct file *file;
@@ -1393,6 +1393,13 @@ asmlinkage ssize_t sys_readahead(int fd, loff_t offset, size_t count)
 	}
 	return ret;
 }
+#ifdef CONFIG_HAVE_SYSCALL_WRAPPERS
+asmlinkage long SyS_readahead(long fd, loff_t offset, long count)
+{
+	return SYSC_readahead((int) fd, offset, (size_t) count);
+}
+SYSCALL_ALIAS(sys_readahead, SyS_readahead);
+#endif
 
 #ifdef CONFIG_MMU
 /**
@@ -1816,7 +1823,7 @@ static size_t __iovec_copy_from_user_inatomic(char *vaddr,
 		int copy = min(bytes, iov->iov_len - base);
 
 		base = 0;
-		left = __copy_from_user_inatomic_nocache(vaddr, buf, copy);
+		left = __copy_from_user_inatomic(vaddr, buf, copy);
 		copied += copy;
 		bytes -= copy;
 		vaddr += copy;
@@ -1844,8 +1851,7 @@ size_t iov_iter_copy_from_user_atomic(struct page *page,
 	if (likely(i->nr_segs == 1)) {
 		int left;
 		char __user *buf = i->iov->iov_base + i->iov_offset;
-		left = __copy_from_user_inatomic_nocache(kaddr + offset,
-							buf, bytes);
+		left = __copy_from_user_inatomic(kaddr + offset, buf, bytes);
 		copied = bytes - left;
 	} else {
 		copied = __iovec_copy_from_user_inatomic(kaddr + offset,
@@ -1873,7 +1879,7 @@ size_t iov_iter_copy_from_user(struct page *page,
 	if (likely(i->nr_segs == 1)) {
 		int left;
 		char __user *buf = i->iov->iov_base + i->iov_offset;
-		left = __copy_from_user_nocache(kaddr + offset, buf, bytes);
+		left = __copy_from_user(kaddr + offset, buf, bytes);
 		copied = bytes - left;
 	} else {
 		copied = __iovec_copy_from_user_inatomic(kaddr + offset,

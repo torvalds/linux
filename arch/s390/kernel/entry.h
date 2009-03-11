@@ -30,23 +30,23 @@ struct fadvise64_64_args;
 struct old_sigaction;
 struct sel_arg_struct;
 
-long sys_pipe(unsigned long __user *fildes);
 long sys_mmap2(struct mmap_arg_struct __user  *arg);
-long old_mmap(struct mmap_arg_struct __user *arg);
+long sys_s390_old_mmap(struct mmap_arg_struct __user *arg);
 long sys_ipc(uint call, int first, unsigned long second,
 	     unsigned long third, void __user *ptr);
-long s390x_newuname(struct new_utsname __user *name);
-long s390x_personality(unsigned long personality);
-long s390_fadvise64(int fd, u32 offset_high, u32 offset_low,
+long sys_s390_newuname(struct new_utsname __user *name);
+long sys_s390_personality(unsigned long personality);
+long sys_s390_fadvise64(int fd, u32 offset_high, u32 offset_low,
 		    size_t len, int advice);
-long s390_fadvise64_64(struct fadvise64_64_args __user *args);
-long s390_fallocate(int fd, int mode, loff_t offset, u32 len_high, u32 len_low);
+long sys_s390_fadvise64_64(struct fadvise64_64_args __user *args);
+long sys_s390_fallocate(int fd, int mode, loff_t offset, u32 len_high,
+			u32 len_low);
 long sys_fork(void);
 long sys_clone(void);
 long sys_vfork(void);
 void execve_tail(void);
 long sys_execve(void);
-int sys_sigsuspend(int history0, int history1, old_sigset_t mask);
+long sys_sigsuspend(int history0, int history1, old_sigset_t mask);
 long sys_sigaction(int sig, const struct old_sigaction __user *act,
 		   struct old_sigaction __user *oact);
 long sys_sigaltstack(const stack_t __user *uss, stack_t __user *uoss);

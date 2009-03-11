@@ -36,8 +36,11 @@ static struct _cache_table cache_table[] __cpuinitdata =
 {
 	{ 0x06, LVL_1_INST, 8 },	/* 4-way set assoc, 32 byte line size */
 	{ 0x08, LVL_1_INST, 16 },	/* 4-way set assoc, 32 byte line size */
+	{ 0x09, LVL_1_INST, 32 },	/* 4-way set assoc, 64 byte line size */
 	{ 0x0a, LVL_1_DATA, 8 },	/* 2 way set assoc, 32 byte line size */
 	{ 0x0c, LVL_1_DATA, 16 },	/* 4-way set assoc, 32 byte line size */
+	{ 0x0d, LVL_1_DATA, 16 },	/* 4-way set assoc, 64 byte line size */
+	{ 0x21, LVL_2,      256 },	/* 8-way set assoc, 64 byte line size */
 	{ 0x22, LVL_3,      512 },	/* 4-way set assoc, sectored cache, 64 byte line size */
 	{ 0x23, LVL_3,      1024 },	/* 8-way set assoc, sectored cache, 64 byte line size */
 	{ 0x25, LVL_3,      2048 },	/* 8-way set assoc, sectored cache, 64 byte line size */
@@ -85,6 +88,18 @@ static struct _cache_table cache_table[] __cpuinitdata =
 	{ 0x85, LVL_2,    2048 },	/* 8-way set assoc, 32 byte line size */
 	{ 0x86, LVL_2,     512 },	/* 4-way set assoc, 64 byte line size */
 	{ 0x87, LVL_2,    1024 },	/* 8-way set assoc, 64 byte line size */
+	{ 0xd0, LVL_3,     512 },	/* 4-way set assoc, 64 byte line size */
+	{ 0xd1, LVL_3,    1024 },	/* 4-way set assoc, 64 byte line size */
+	{ 0xd2, LVL_3,    2048 },	/* 4-way set assoc, 64 byte line size */
+	{ 0xd6, LVL_3,    1024 },	/* 8-way set assoc, 64 byte line size */
+	{ 0xd7, LVL_3,    2038 },	/* 8-way set assoc, 64 byte line size */
+	{ 0xd8, LVL_3,    4096 },	/* 12-way set assoc, 64 byte line size */
+	{ 0xdc, LVL_3,    2048 },	/* 12-way set assoc, 64 byte line size */
+	{ 0xdd, LVL_3,    4096 },	/* 12-way set assoc, 64 byte line size */
+	{ 0xde, LVL_3,    8192 },	/* 12-way set assoc, 64 byte line size */
+	{ 0xe2, LVL_3,    2048 },	/* 16-way set assoc, 64 byte line size */
+	{ 0xe3, LVL_3,    4096 },	/* 16-way set assoc, 64 byte line size */
+	{ 0xe4, LVL_3,    8192 },	/* 16-way set assoc, 64 byte line size */
 	{ 0x00, 0, 0}
 };
 

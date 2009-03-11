@@ -312,7 +312,7 @@ extern const char gfar_driver_version[];
 #define ATTRELI_EI(x) (x)
 
 #define BD_LFLAG(flags) ((flags) << 16)
-#define BD_LENGTH_MASK		0x00ff
+#define BD_LENGTH_MASK		0x0000ffff
 
 /* TxBD status field bits */
 #define TXBD_READY		0x8000

@@ -909,7 +909,9 @@ static void print_fatal_signal(struct pt_regs *regs, int signr)
 	}
 #endif
 	printk("\n");
+	preempt_disable();
 	show_regs(regs);
+	preempt_enable();
 }
 
 static int __init setup_print_fatal_signals(char *str)
@@ -1365,7 +1367,6 @@ int do_notify_parent(struct task_struct *tsk, int sig)
 	struct siginfo info;
 	unsigned long flags;
 	struct sighand_struct *psig;
-	struct task_cputime cputime;
 	int ret = sig;
 
 	BUG_ON(sig == -1);
@@ -1395,9 +1396,10 @@ int do_notify_parent(struct task_struct *tsk, int sig)
 	info.si_uid = __task_cred(tsk)->uid;
 	rcu_read_unlock();
 
-	thread_group_cputime(tsk, &cputime);
-	info.si_utime = cputime_to_jiffies(cputime.utime);
-	info.si_stime = cputime_to_jiffies(cputime.stime);
+	info.si_utime = cputime_to_clock_t(cputime_add(tsk->utime,
+				tsk->signal->utime));
+	info.si_stime = cputime_to_clock_t(cputime_add(tsk->stime,
+				tsk->signal->stime));
 
 	info.si_status = tsk->exit_code & 0x7f;
 	if (tsk->exit_code & 0x80)
@@ -1961,7 +1963,7 @@ EXPORT_SYMBOL(unblock_all_signals);
  * System call entry points.
  */
 
-asmlinkage long sys_restart_syscall(void)
+SYSCALL_DEFINE0(restart_syscall)
 {
 	struct restart_block *restart = &current_thread_info()->restart_block;
 	return restart->fn(restart);
@@ -2014,8 +2016,8 @@ int sigprocmask(int how, sigset_t *set, sigset_t *oldset)
 	return error;
 }
 
-asmlinkage long
-sys_rt_sigprocmask(int how, sigset_t __user *set, sigset_t __user *oset, size_t sigsetsize)
+SYSCALL_DEFINE4(rt_sigprocmask, int, how, sigset_t __user *, set,
+		sigset_t __user *, oset, size_t, sigsetsize)
 {
 	int error = -EINVAL;
 	sigset_t old_set, new_set;
@@ -2074,8 +2076,7 @@ out:
 	return error;
 }	
 
-asmlinkage long
-sys_rt_sigpending(sigset_t __user *set, size_t sigsetsize)
+SYSCALL_DEFINE2(rt_sigpending, sigset_t __user *, set, size_t, sigsetsize)
 {
 	return do_sigpending(set, sigsetsize);
 }
@@ -2146,11 +2147,9 @@ int copy_siginfo_to_user(siginfo_t __user *to, siginfo_t *from)
 
 #endif
 
-asmlinkage long
-sys_rt_sigtimedwait(const sigset_t __user *uthese,
-		    siginfo_t __user *uinfo,
-		    const struct timespec __user *uts,
-		    size_t sigsetsize)
+SYSCALL_DEFINE4(rt_sigtimedwait, const sigset_t __user *, uthese,
+		siginfo_t __user *, uinfo, const struct timespec __user *, uts,
+		size_t, sigsetsize)
 {
 	int ret, sig;
 	sigset_t these;
@@ -2223,8 +2222,7 @@ sys_rt_sigtimedwait(const sigset_t __user *uthese,
 	return ret;
 }
 
-asmlinkage long
-sys_kill(pid_t pid, int sig)
+SYSCALL_DEFINE2(kill, pid_t, pid, int, sig)
 {
 	struct siginfo info;
 
@@ -2283,7 +2281,7 @@ static int do_tkill(pid_t tgid, pid_t pid, int sig)
  *  exists but it's not belonging to the target process anymore. This
  *  method solves the problem of threads exiting and PIDs getting reused.
  */
-asmlinkage long sys_tgkill(pid_t tgid, pid_t pid, int sig)
+SYSCALL_DEFINE3(tgkill, pid_t, tgid, pid_t, pid, int, sig)
 {
 	/* This is only valid for single tasks */
 	if (pid <= 0 || tgid <= 0)
@@ -2295,8 +2293,7 @@ asmlinkage long sys_tgkill(pid_t tgid, pid_t pid, int sig)
 /*
  *  Send a signal to only one task, even if it's a CLONE_THREAD task.
  */
-asmlinkage long
-sys_tkill(pid_t pid, int sig)
+SYSCALL_DEFINE2(tkill, pid_t, pid, int, sig)
 {
 	/* This is only valid for single tasks */
 	if (pid <= 0)
@@ -2305,8 +2302,8 @@ sys_tkill(pid_t pid, int sig)
 	return do_tkill(0, pid, sig);
 }
 
-asmlinkage long
-sys_rt_sigqueueinfo(pid_t pid, int sig, siginfo_t __user *uinfo)
+SYSCALL_DEFINE3(rt_sigqueueinfo, pid_t, pid, int, sig,
+		siginfo_t __user *, uinfo)
 {
 	siginfo_t info;
 
@@ -2434,8 +2431,7 @@ out:
 
 #ifdef __ARCH_WANT_SYS_SIGPENDING
 
-asmlinkage long
-sys_sigpending(old_sigset_t __user *set)
+SYSCALL_DEFINE1(sigpending, old_sigset_t __user *, set)
 {
 	return do_sigpending(set, sizeof(*set));
 }
@@ -2446,8 +2442,8 @@ sys_sigpending(old_sigset_t __user *set)
 /* Some platforms have their own version with special arguments others
    support only sys_rt_sigprocmask.  */
 
-asmlinkage long
-sys_sigprocmask(int how, old_sigset_t __user *set, old_sigset_t __user *oset)
+SYSCALL_DEFINE3(sigprocmask, int, how, old_sigset_t __user *, set,
+		old_sigset_t __user *, oset)
 {
 	int error;
 	old_sigset_t old_set, new_set;
@@ -2497,11 +2493,10 @@ out:
 #endif /* __ARCH_WANT_SYS_SIGPROCMASK */
 
 #ifdef __ARCH_WANT_SYS_RT_SIGACTION
-asmlinkage long
-sys_rt_sigaction(int sig,
-		 const struct sigaction __user *act,
-		 struct sigaction __user *oact,
-		 size_t sigsetsize)
+SYSCALL_DEFINE4(rt_sigaction, int, sig,
+		const struct sigaction __user *, act,
+		struct sigaction __user *, oact,
+		size_t, sigsetsize)
 {
 	struct k_sigaction new_sa, old_sa;
 	int ret = -EINVAL;
@@ -2531,15 +2526,13 @@ out:
 /*
  * For backwards compatibility.  Functionality superseded by sigprocmask.
  */
-asmlinkage long
-sys_sgetmask(void)
+SYSCALL_DEFINE0(sgetmask)
 {
 	/* SMP safe */
 	return current->blocked.sig[0];
 }
 
-asmlinkage long
-sys_ssetmask(int newmask)
+SYSCALL_DEFINE1(ssetmask, int, newmask)
 {
 	int old;
 
@@ -2559,8 +2552,7 @@ sys_ssetmask(int newmask)
 /*
  * For backwards compatibility.  Functionality superseded by sigaction.
  */
-asmlinkage unsigned long
-sys_signal(int sig, __sighandler_t handler)
+SYSCALL_DEFINE2(signal, int, sig, __sighandler_t, handler)
 {
 	struct k_sigaction new_sa, old_sa;
 	int ret;
@@ -2577,8 +2569,7 @@ sys_signal(int sig, __sighandler_t handler)
 
 #ifdef __ARCH_WANT_SYS_PAUSE
 
-asmlinkage long
-sys_pause(void)
+SYSCALL_DEFINE0(pause)
 {
 	current->state = TASK_INTERRUPTIBLE;
 	schedule();
@@ -2588,7 +2579,7 @@ sys_pause(void)
 #endif
 
 #ifdef __ARCH_WANT_SYS_RT_SIGSUSPEND
-asmlinkage long sys_rt_sigsuspend(sigset_t __user *unewset, size_t sigsetsize)
+SYSCALL_DEFINE2(rt_sigsuspend, sigset_t __user *, unewset, size_t, sigsetsize)
 {
 	sigset_t newset;
 

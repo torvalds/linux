@@ -142,6 +142,10 @@ static void __init gef_sbc610_nec_fixup(struct pci_dev *pdev)
 {
 	unsigned int val;
 
+	/* Do not do the fixup on other platforms! */
+	if (!machine_is(gef_sbc610))
+		return;
+
 	printk(KERN_INFO "Running NEC uPD720101 Fixup\n");
 
 	/* Ensure ports 1, 2, 3, 4 & 5 are enabled */

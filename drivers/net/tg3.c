@@ -852,7 +852,7 @@ static int tg3_bmcr_reset(struct tg3 *tp)
 		}
 		udelay(10);
 	}
-	if (limit <= 0)
+	if (limit < 0)
 		return -EBUSY;
 
 	return 0;
@@ -1473,7 +1473,8 @@ static void tg3_phy_toggle_apd(struct tg3 *tp, bool enable)
 {
 	u32 reg;
 
-	if (!(tp->tg3_flags2 & TG3_FLG2_5705_PLUS))
+	if (!(tp->tg3_flags2 & TG3_FLG2_5705_PLUS) ||
+	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5906)
 		return;
 
 	reg = MII_TG3_MISC_SHDW_WREN |
@@ -1603,7 +1604,7 @@ static int tg3_wait_macro_done(struct tg3 *tp)
 				break;
 		}
 	}
-	if (limit <= 0)
+	if (limit < 0)
 		return -EBUSY;
 
 	return 0;
@@ -2237,8 +2238,8 @@ static int tg3_set_power_state(struct tg3 *tp, pci_power_t state)
 			phyid = phydev->drv->phy_id & phydev->drv->phy_id_mask;
 			if (phyid != TG3_PHY_ID_BCMAC131) {
 				phyid &= TG3_PHY_OUI_MASK;
-				if (phyid == TG3_PHY_OUI_1 &&
-				    phyid == TG3_PHY_OUI_2 &&
+				if (phyid == TG3_PHY_OUI_1 ||
+				    phyid == TG3_PHY_OUI_2 ||
 				    phyid == TG3_PHY_OUI_3)
 					do_low_power = true;
 			}
@@ -7535,10 +7536,57 @@ static int tg3_test_msi(struct tg3 *tp)
 	return err;
 }
 
+static int tg3_request_firmware(struct tg3 *tp)
+{
+	const __be32 *fw_data;
+
+	if (request_firmware(&tp->fw, tp->fw_needed, &tp->pdev->dev)) {
+		printk(KERN_ERR "%s: Failed to load firmware \"%s\"\n",
+		       tp->dev->name, tp->fw_needed);
+		return -ENOENT;
+	}
+
+	fw_data = (void *)tp->fw->data;
+
+	/* Firmware blob starts with version numbers, followed by
+	 * start address and _full_ length including BSS sections
+	 * (which must be longer than the actual data, of course
+	 */
+
+	tp->fw_len = be32_to_cpu(fw_data[2]);	/* includes bss */
+	if (tp->fw_len < (tp->fw->size - 12)) {
+		printk(KERN_ERR "%s: bogus length %d in \"%s\"\n",
+		       tp->dev->name, tp->fw_len, tp->fw_needed);
+		release_firmware(tp->fw);
+		tp->fw = NULL;
+		return -EINVAL;
+	}
+
+	/* We no longer need firmware; we have it. */
+	tp->fw_needed = NULL;
+	return 0;
+}
+
 static int tg3_open(struct net_device *dev)
 {
 	struct tg3 *tp = netdev_priv(dev);
 	int err;
+
+	if (tp->fw_needed) {
+		err = tg3_request_firmware(tp);
+		if (tp->pci_chip_rev_id == CHIPREV_ID_5701_A0) {
+			if (err)
+				return err;
+		} else if (err) {
+			printk(KERN_WARNING "%s: TSO capability disabled.\n",
+			       tp->dev->name);
+			tp->tg3_flags2 &= ~TG3_FLG2_TSO_CAPABLE;
+		} else if (!(tp->tg3_flags2 & TG3_FLG2_TSO_CAPABLE)) {
+			printk(KERN_NOTICE "%s: TSO capability restored.\n",
+			       tp->dev->name);
+			tp->tg3_flags2 |= TG3_FLG2_TSO_CAPABLE;
+		}
+	}
 
 	netif_carrier_off(tp->dev);
 
@@ -12934,7 +12982,6 @@ static int __devinit tg3_init_one(struct pci_dev *pdev,
 	struct net_device *dev;
 	struct tg3 *tp;
 	int err, pm_cap;
-	const char *fw_name = NULL;
 	char str[40];
 	u64 dma_mask, persist_dma_mask;
 
@@ -13091,7 +13138,7 @@ static int __devinit tg3_init_one(struct pci_dev *pdev,
 	tg3_init_bufmgr_config(tp);
 
 	if (tp->pci_chip_rev_id == CHIPREV_ID_5701_A0)
-		fw_name = FIRMWARE_TG3;
+		tp->fw_needed = FIRMWARE_TG3;
 
 	if (tp->tg3_flags2 & TG3_FLG2_HW_TSO) {
 		tp->tg3_flags2 |= TG3_FLG2_TSO_CAPABLE;
@@ -13104,37 +13151,10 @@ static int __devinit tg3_init_one(struct pci_dev *pdev,
 		tp->tg3_flags2 &= ~TG3_FLG2_TSO_CAPABLE;
 	} else {
 		tp->tg3_flags2 |= TG3_FLG2_TSO_CAPABLE | TG3_FLG2_TSO_BUG;
-	}
-	if (tp->tg3_flags2 & TG3_FLG2_TSO_CAPABLE) {
 		if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5705)
-			fw_name = FIRMWARE_TG3TSO5;
+			tp->fw_needed = FIRMWARE_TG3TSO5;
 		else
-			fw_name = FIRMWARE_TG3TSO;
-	}
-
-	if (fw_name) {
-		const __be32 *fw_data;
-
-		err = request_firmware(&tp->fw, fw_name, &tp->pdev->dev);
-		if (err) {
-			printk(KERN_ERR "tg3: Failed to load firmware \"%s\"\n",
-			       fw_name);
-			goto err_out_iounmap;
-		}
-
-		fw_data = (void *)tp->fw->data;
-
-		/* Firmware blob starts with version numbers, followed by
-		   start address and _full_ length including BSS sections
-		   (which must be longer than the actual data, of course */
-
-		tp->fw_len = be32_to_cpu(fw_data[2]);	/* includes bss */
-		if (tp->fw_len < (tp->fw->size - 12)) {
-			printk(KERN_ERR "tg3: bogus length %d in \"%s\"\n",
-			       tp->fw_len, fw_name);
-			err = -EINVAL;
-			goto err_out_fw;
-		}
+			tp->fw_needed = FIRMWARE_TG3TSO;
 	}
 
 	/* TSO is on by default on chips that support hardware TSO.
