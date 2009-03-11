@@ -83,8 +83,6 @@ static int udf_fill_super(struct super_block *, void *, int);
 static void udf_put_super(struct super_block *);
 static void udf_write_super(struct super_block *);
 static int udf_remount_fs(struct super_block *, int *, char *);
-static int udf_check_valid(struct super_block *, int, int);
-static int udf_vrs(struct super_block *sb, int silent);
 static void udf_load_logicalvolint(struct super_block *, struct kernel_extent_ad);
 static int udf_find_fileset(struct super_block *, struct kernel_lb_addr *,
 			    struct kernel_lb_addr *);
@@ -610,7 +608,7 @@ static int udf_remount_fs(struct super_block *sb, int *flags, char *options)
 	return 0;
 }
 
-static int udf_vrs(struct super_block *sb, int silent)
+static loff_t udf_vrs(struct super_block *sb, int silent)
 {
 	struct volStructDesc *vsd = NULL;
 	loff_t sector = 32768;
@@ -1706,7 +1704,7 @@ static noinline int udf_process_sequence(struct super_block *sb, long block,
  */
 static int udf_check_valid(struct super_block *sb, int novrs, int silent)
 {
-	long block;
+	loff_t block;
 	struct udf_sb_info *sbi = UDF_SB(sb);
 
 	if (novrs) {
@@ -1721,7 +1719,7 @@ static int udf_check_valid(struct super_block *sb, int novrs, int silent)
 			  "disc. Skipping validity check\n");
 	if (block && !sbi->s_last_block)
 		sbi->s_last_block = udf_get_last_block(sb);
-	return !block;
+	return !!block;
 }
 
 static int udf_check_volume(struct super_block *sb,
@@ -1735,7 +1733,7 @@ static int udf_check_volume(struct super_block *sb,
 		return 0;
 	}
 	sbi->s_last_block = uopt->lastblock;
-	if (udf_check_valid(sb, uopt->novrs, silent)) {
+	if (!udf_check_valid(sb, uopt->novrs, silent)) {
 		if (!silent)
 			printk(KERN_WARNING "UDF-fs: No VRS found\n");
 		return 0;
