@@ -206,6 +206,9 @@ int __init sh5pci_init(unsigned long memStart, unsigned long memSize)
 	return 0;
 }
 
+#define xPCIBIOS_MIN_IO		board_pci_channels->io_resource->start
+#define xPCIBIOS_MIN_MEM	board_pci_channels->mem_resource->start
+
 void __devinit pcibios_fixup_bus(struct pci_bus *bus)
 {
 	struct pci_dev *dev = bus->self;
@@ -223,9 +226,9 @@ void __devinit pcibios_fixup_bus(struct pci_bus *bus)
 		/* For now, propagate host limits to the bus;
 		 * we'll adjust them later. */
 		bus->resource[0]->end = 64*1024 - 1 ;
-		bus->resource[1]->end = PCIBIOS_MIN_MEM+(256*1024*1024)-1;
-		bus->resource[0]->start = PCIBIOS_MIN_IO;
-		bus->resource[1]->start = PCIBIOS_MIN_MEM;
+		bus->resource[1]->end = xPCIBIOS_MIN_MEM+(256*1024*1024)-1;
+		bus->resource[0]->start = xPCIBIOS_MIN_IO;
+		bus->resource[1]->start = xPCIBIOS_MIN_MEM;
 
 		/* Turn off downstream PF memory address range by default */
 		bus->resource[2]->start = 1024*1024;

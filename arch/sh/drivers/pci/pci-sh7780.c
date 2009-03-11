@@ -130,14 +130,12 @@ int __init sh7780_pcic_init(struct pci_channel *chan,
 	pci_write_reg(chan, map->window1.base, SH4_PCILAR1);
 	pci_write_reg(chan, map->window1.base, SH7780_PCIMBAR1);
 
-	/* Map IO space into PCI IO window
-	 * The IO window is 64K-PCIBIOS_MIN_IO in size
-	 * IO addresses will be translated to the
-	 * PCI IO window base address
+	/* Map IO space into PCI IO window:
+	 * IO addresses will be translated to the PCI IO window base address
 	 */
 	pr_debug("PCI: Mapping IO address 0x%x - 0x%x to base 0x%x\n",
-		 PCIBIOS_MIN_IO, (64 << 10),
-		 SH7780_PCI_IO_BASE + PCIBIOS_MIN_IO);
+		 chan->io_resource->start, chan->io_resource->end,
+		 SH7780_PCI_IO_BASE + chan->io_resource->start);
 
 	/* NOTE: I'm ignoring the PCI error IRQs for now..
 	 * TODO: add support for the internal error interrupts and

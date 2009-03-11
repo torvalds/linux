@@ -144,22 +144,20 @@ int __init sh7751_pcic_init(struct pci_channel *chan,
 	/* Set the local 16MB PCI memory space window to
 	 * the lowest PCI mapped address
 	 */
-	word = PCIBIOS_MIN_MEM & SH4_PCIMBR_MASK;
+	word = chan->mem_resource->start & SH4_PCIMBR_MASK;
 	pr_debug("PCI: Setting upper bits of Memory window to 0x%x\n", word);
 	pci_write_reg(chan, word , SH4_PCIMBR);
 
-	/* Map IO space into PCI IO window
-	 * The IO window is 64K-PCIBIOS_MIN_IO in size
-	 * IO addresses will be translated to the
-	 * PCI IO window base address
+	/* Map IO space into PCI IO window:
+	 * IO addresses will be translated to the PCI IO window base address
 	 */
 	pr_debug("PCI: Mapping IO address 0x%x - 0x%x to base 0x%x\n",
-		 PCIBIOS_MIN_IO, (64 << 10),
-		 SH7751_PCI_IO_BASE + PCIBIOS_MIN_IO);
+		 chan->io_resource->start, chan->io_resource->end,
+		 SH7751_PCI_IO_BASE + chan->io_resource->start);
 
 	/* Make sure the MSB's of IO window are set to access PCI space
 	 * correctly */
-	word = PCIBIOS_MIN_IO & SH4_PCIIOBR_MASK;
+	word = chan->io_resource->start & SH4_PCIIOBR_MASK;
 	pr_debug("PCI: Setting upper bits of IO window to 0x%x\n", word);
 	pci_write_reg(chan, word, SH4_PCIIOBR);
 

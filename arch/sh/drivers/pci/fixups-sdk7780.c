@@ -50,7 +50,7 @@ int pci_fixup_pcic(struct pci_channel *chan)
 	pci_write_reg(chan, 0x00FC0000 , SH7780_PCIMBMR0);	/* 16M */
 
 	/* Set IOBR for window containing area specified in pci.h */
-	pci_write_reg(chan, PCIBIOS_MIN_IO & ~(SH7780_PCI_IO_SIZE-1),
+	pci_write_reg(chan, chan->io_resource->start & ~(SH7780_PCI_IO_SIZE-1),
 		      SH7780_PCIIOBR);
 	pci_write_reg(chan, (SH7780_PCI_IO_SIZE-1) & (7 << 18),
 		      SH7780_PCIIOBMR);
