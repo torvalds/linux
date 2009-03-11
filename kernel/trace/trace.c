@@ -1666,6 +1666,19 @@ static int trace_empty(struct trace_iterator *iter)
 {
 	int cpu;
 
+	/* If we are looking at one CPU buffer, only check that one */
+	if (iter->cpu_file != TRACE_PIPE_ALL_CPU) {
+		cpu = iter->cpu_file;
+		if (iter->buffer_iter[cpu]) {
+			if (!ring_buffer_iter_empty(iter->buffer_iter[cpu]))
+				return 0;
+		} else {
+			if (!ring_buffer_empty_cpu(iter->tr->buffer, cpu))
+				return 0;
+		}
+		return 1;
+	}
+
 	for_each_tracing_cpu(cpu) {
 		if (iter->buffer_iter[cpu]) {
 			if (!ring_buffer_iter_empty(iter->buffer_iter[cpu]))
