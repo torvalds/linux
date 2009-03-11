@@ -498,8 +498,7 @@ static int usbduxfastsub_upload(struct usbduxfastsub_s *udfs,
 	int ret;
 
 #ifdef CONFIG_COMEDI_DEBUG
-	printk(KERN_DEBUG "comedi%d: usbduxfast: uploading %d bytes",
-		udfs->comedidev->minor, len);
+	printk(KERN_DEBUG "comedi: usbduxfast: uploading %d bytes", len);
 	printk(KERN_DEBUG " to addr %d, first byte=%d.\n",
 		startAddr, local_transfer_buffer[0]);
 #endif
