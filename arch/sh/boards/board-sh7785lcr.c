@@ -284,6 +284,9 @@ static void sh7785lcr_power_off(void)
 	}
 	*p = 0x01;
 	iounmap(p);
+	set_bl_bit();
+	while (1)
+		cpu_relax();
 }
 
 /* Initialize the board */
