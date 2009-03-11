@@ -931,7 +931,7 @@ static int lgdt3305_read_snr(struct dvb_frontend *fe, u16 *snr)
 		return -EINVAL;
 	}
 	state->snr = calculate_snr(noise, c);
-	/*report SNR in dB * 10 */
+	/* report SNR in dB * 10 */
 	*snr = (state->snr / ((1 << 24) / 10));
 	lg_dbg("noise = 0x%08x, snr = %d.%02d dB\n", noise,
 	       state->snr >> 24, (((state->snr >> 8) & 0xffff) * 100) >> 16);
