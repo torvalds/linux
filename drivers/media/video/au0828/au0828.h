@@ -83,6 +83,8 @@ struct au0828_input {
 
 struct au0828_board {
 	char *name;
+	unsigned int tuner_type;
+	unsigned char tuner_addr;
 	struct au0828_input input[AU0828_MAX_INPUT];
 
 };
@@ -105,7 +107,7 @@ enum au0828_stream_state {
 	STREAM_ON
 };
 
-#define AUVI_INPUT(nr) (&au0828_boards[dev->board].input[nr])
+#define AUVI_INPUT(nr) (dev->board.input[nr])
 
 /* device state */
 enum au0828_dev_state {
@@ -179,7 +181,8 @@ struct au0828_dmaqueue {
 struct au0828_dev {
 	struct mutex mutex;
 	struct usb_device	*usbdev;
-	int			board;
+	int			boardnr;
+	struct au0828_board	board;
 	u8			ctrlmsg[64];
 
 	/* I2C */

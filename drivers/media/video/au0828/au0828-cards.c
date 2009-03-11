@@ -22,6 +22,8 @@
 #include "au0828.h"
 #include "au0828-cards.h"
 #include "au8522.h"
+#include "media/tuner.h"
+#include "media/v4l2-common.h"
 
 void hvr950q_cs5340_audio(void *priv, int enable)
 {
@@ -37,9 +39,13 @@ void hvr950q_cs5340_audio(void *priv, int enable)
 struct au0828_board au0828_boards[] = {
 	[AU0828_BOARD_UNKNOWN] = {
 		.name	= "Unknown board",
+		.tuner_type = UNSET,
+		.tuner_addr = ADDR_UNSET,
 	},
 	[AU0828_BOARD_HAUPPAUGE_HVR850] = {
 		.name	= "Hauppauge HVR850",
+		.tuner_type = TUNER_XC5000,
+		.tuner_addr = 0x61,
 		.input = {
 			{
 				.type = AU0828_VMUX_TELEVISION,
@@ -62,6 +68,8 @@ struct au0828_board au0828_boards[] = {
 	},
 	[AU0828_BOARD_HAUPPAUGE_HVR950Q] = {
 		.name	= "Hauppauge HVR950Q",
+		.tuner_type = TUNER_XC5000,
+		.tuner_addr = 0x61,
 		.input = {
 			{
 				.type = AU0828_VMUX_TELEVISION,
@@ -84,12 +92,18 @@ struct au0828_board au0828_boards[] = {
 	},
 	[AU0828_BOARD_HAUPPAUGE_HVR950Q_MXL] = {
 		.name	= "Hauppauge HVR950Q rev xxF8",
+		.tuner_type = UNSET,
+		.tuner_addr = ADDR_UNSET,
 	},
 	[AU0828_BOARD_DVICO_FUSIONHDTV7] = {
 		.name	= "DViCO FusionHDTV USB",
+		.tuner_type = UNSET,
+		.tuner_addr = ADDR_UNSET,
 	},
 	[AU0828_BOARD_HAUPPAUGE_WOODBURY] = {
 		.name = "Hauppauge Woodbury",
+		.tuner_type = UNSET,
+		.tuner_addr = ADDR_UNSET,
 	},
 };
 
@@ -102,7 +116,7 @@ int au0828_tuner_callback(void *priv, int component, int command, int arg)
 
 	dprintk(1, "%s()\n", __func__);
 
-	switch (dev->board) {
+	switch (dev->boardnr) {
 	case AU0828_BOARD_HAUPPAUGE_HVR850:
 	case AU0828_BOARD_HAUPPAUGE_HVR950Q:
 	case AU0828_BOARD_HAUPPAUGE_HVR950Q_MXL:
@@ -131,6 +145,7 @@ static void hauppauge_eeprom(struct au0828_dev *dev, u8 *eeprom_data)
 	struct tveeprom tv;
 
 	tveeprom_hauppauge_analog(&dev->i2c_client, &tv, eeprom_data);
+	dev->board.tuner_type = tv.tuner_type;
 
 	/* Make sure we support the board model */
 	switch (tv.model) {
@@ -157,15 +172,20 @@ static void hauppauge_eeprom(struct au0828_dev *dev, u8 *eeprom_data)
 void au0828_card_setup(struct au0828_dev *dev)
 {
 	static u8 eeprom[256];
+	struct tuner_setup tun_setup;
+	unsigned int mode_mask = T_ANALOG_TV |
+				 T_DIGITAL_TV;
 
 	dprintk(1, "%s()\n", __func__);
+
+	memcpy(&dev->board, &au0828_boards[dev->boardnr], sizeof(dev->board));
 
 	if (dev->i2c_rc == 0) {
 		dev->i2c_client.addr = 0xa0 >> 1;
 		tveeprom_read(&dev->i2c_client, eeprom, sizeof(eeprom));
 	}
 
-	switch (dev->board) {
+	switch (dev->boardnr) {
 	case AU0828_BOARD_HAUPPAUGE_HVR850:
 	case AU0828_BOARD_HAUPPAUGE_HVR950Q:
 	case AU0828_BOARD_HAUPPAUGE_HVR950Q_MXL:
@@ -173,6 +193,25 @@ void au0828_card_setup(struct au0828_dev *dev)
 		if (dev->i2c_rc == 0)
 			hauppauge_eeprom(dev, eeprom+0xa0);
 		break;
+	}
+
+	if (dev->board.input != NULL) {
+		/* Load the analog demodulator driver (note this would need to
+		   be abstracted out if we ever need to support a different
+		   demod) */
+		request_module("au8522");
+	}
+
+	/* Setup tuners */
+	if (dev->board.tuner_type != TUNER_ABSENT) {
+		/* Load the tuner module, which does the attach */
+		request_module("tuner");
+
+		tun_setup.mode_mask      = mode_mask;
+		tun_setup.type           = dev->board.tuner_type;
+		tun_setup.addr           = dev->board.tuner_addr;
+		tun_setup.tuner_callback = au0828_tuner_callback;
+		au0828_call_i2c_clients(dev, TUNER_SET_TYPE_ADDR, &tun_setup);
 	}
 }
 
@@ -185,7 +224,7 @@ void au0828_gpio_setup(struct au0828_dev *dev)
 {
 	dprintk(1, "%s()\n", __func__);
 
-	switch (dev->board) {
+	switch (dev->boardnr) {
 	case AU0828_BOARD_HAUPPAUGE_HVR850:
 	case AU0828_BOARD_HAUPPAUGE_HVR950Q:
 	case AU0828_BOARD_HAUPPAUGE_HVR950Q_MXL:

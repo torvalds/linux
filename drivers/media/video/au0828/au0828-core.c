@@ -146,7 +146,8 @@ static void au0828_usb_disconnect(struct usb_interface *interface)
 	/* Digital TV */
 	au0828_dvb_unregister(dev);
 
-	au0828_analog_unregister(dev);
+	if (dev->board.input != NULL)
+		au0828_analog_unregister(dev);
 
 	/* I2C */
 	au0828_i2c_unregister(dev);
@@ -189,7 +190,7 @@ static int au0828_usb_probe(struct usb_interface *interface,
 	mutex_init(&dev->mutex);
 	mutex_init(&dev->dvb.lock);
 	dev->usbdev = usbdev;
-	dev->board = id->driver_info;
+	dev->boardnr = id->driver_info;
 
 	usb_set_intfdata(interface, dev);
 
@@ -230,14 +231,14 @@ static int au0828_usb_probe(struct usb_interface *interface,
 	au0828_card_setup(dev);
 
 	/* Analog TV */
-	au0828_analog_register(dev);
+	if (dev->board.input != NULL)
+		au0828_analog_register(dev);
 
 	/* Digital TV */
 	au0828_dvb_register(dev);
 
 	printk(KERN_INFO "Registered device AU0828 [%s]\n",
-		au0828_boards[dev->board].name == NULL ? "Unset" :
-		au0828_boards[dev->board].name);
+		dev->board.name == NULL ? "Unset" : dev->board.name);
 
 	return 0;
 }

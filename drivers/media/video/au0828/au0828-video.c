@@ -1013,7 +1013,7 @@ static int vidioc_querycap(struct file *file, void  *priv,
 
 	memset(cap, 0, sizeof(*cap));
 	strlcpy(cap->driver, "au0828", sizeof(cap->driver));
-	strlcpy(cap->card, au0828_boards[dev->board].name, sizeof(cap->card));
+	strlcpy(cap->card, dev->board.name, sizeof(cap->card));
 	strlcpy(cap->bus_info, dev->usbdev->dev.bus_id, sizeof(cap->bus_info));
 
 	cap->version = AU0828_VERSION_CODE;
@@ -1127,14 +1127,14 @@ static int vidioc_enum_input(struct file *file, void *priv,
 
 	if(tmp > AU0828_MAX_INPUT)
 		return -EINVAL;
-	if(AUVI_INPUT(tmp)->type == 0)
+	if(AUVI_INPUT(tmp).type == 0)
 		return -EINVAL;
 
 	memset(input, 0, sizeof(*input));
 	input->index = tmp;
-	strcpy(input->name, inames[AUVI_INPUT(tmp)->type]);
-	if((AUVI_INPUT(tmp)->type == AU0828_VMUX_TELEVISION) ||
-	   (AUVI_INPUT(tmp)->type == AU0828_VMUX_CABLE))
+	strcpy(input->name, inames[AUVI_INPUT(tmp).type]);
+	if((AUVI_INPUT(tmp).type == AU0828_VMUX_TELEVISION) ||
+	   (AUVI_INPUT(tmp).type == AU0828_VMUX_CABLE))
 		input->type |= V4L2_INPUT_TYPE_TUNER;
 	else
 		input->type |= V4L2_INPUT_TYPE_CAMERA;
@@ -1163,11 +1163,11 @@ static int vidioc_s_input(struct file *file, void *priv, unsigned int index)
 		index);
 	if(index >= AU0828_MAX_INPUT)
 		return -EINVAL;
-	if(AUVI_INPUT(index)->type == 0)
+	if(AUVI_INPUT(index).type == 0)
 		return -EINVAL;
 	dev->ctrl_input = index;
 
-	switch(AUVI_INPUT(index)->type) {
+	switch(AUVI_INPUT(index).type) {
 	case AU0828_VMUX_SVIDEO:
 	{
 		dev->input_type = AU0828_VMUX_SVIDEO;
@@ -1187,13 +1187,13 @@ static int vidioc_s_input(struct file *file, void *priv, unsigned int index)
 		;
 	}
 
-	route.input = AUVI_INPUT(index)->vmux;
+	route.input = AUVI_INPUT(index).vmux;
 	route.output = 0;
 	au0828_call_i2c_clients(dev, VIDIOC_INT_S_VIDEO_ROUTING, &route);
 
 	for (i = 0; i < AU0828_MAX_INPUT; i++) {
 		int enable = 0;
-		if (AUVI_INPUT(i)->audio_setup == NULL) {
+		if (AUVI_INPUT(i).audio_setup == NULL) {
 			continue;
 		}
 
@@ -1202,18 +1202,18 @@ static int vidioc_s_input(struct file *file, void *priv, unsigned int index)
 		else
 			enable = 0;
 		if (enable) {
-			(AUVI_INPUT(i)->audio_setup)(dev, enable);
+			(AUVI_INPUT(i).audio_setup)(dev, enable);
 		} else {
 			/* Make sure we leave it turned on if some
 			   other input is routed to this callback */
-			if ((AUVI_INPUT(i)->audio_setup) !=
-			    ((AUVI_INPUT(index)->audio_setup))) {
-				(AUVI_INPUT(i)->audio_setup)(dev, enable);
+			if ((AUVI_INPUT(i).audio_setup) !=
+			    ((AUVI_INPUT(index).audio_setup))) {
+				(AUVI_INPUT(i).audio_setup)(dev, enable);
 			}
 		}
 	}
 
-	route.input = AUVI_INPUT(index)->amux;
+	route.input = AUVI_INPUT(index).amux;
 	au0828_call_i2c_clients(dev, VIDIOC_INT_S_AUDIO_ROUTING,
 				&route);
 	return 0;
@@ -1419,10 +1419,10 @@ static int vidioc_streamoff(struct file *file, void *priv,
 	}
 
 	for (i = 0; i < AU0828_MAX_INPUT; i++) {
-		if (AUVI_INPUT(i)->audio_setup == NULL) {
+		if (AUVI_INPUT(i).audio_setup == NULL) {
 			continue;
 		}
-		(AUVI_INPUT(i)->audio_setup)(dev, 0);
+		(AUVI_INPUT(i).audio_setup)(dev, 0);
 	}
 
 	mutex_lock(&dev->lock);
@@ -1602,14 +1602,6 @@ int au0828_analog_register(struct au0828_dev *dev)
 	int retval = -ENOMEM;
 
 	dprintk(1, "au0828_analog_register called!\n");
-
-	/* Load the analog demodulator driver (note this would need to be
-	   abstracted out if we ever need to support a different demod) */
-	request_module("au8522");
-
-	/* Load the tuner module, which results in i2c enumeration and
-	   attachment of whatever tuner is on the bus */
-	request_module("tuner");
 
 	init_waitqueue_head(&dev->open);
 	spin_lock_init(&dev->slock);
