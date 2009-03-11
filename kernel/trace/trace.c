@@ -1176,7 +1176,8 @@ void trace_graph_return(struct ftrace_graph_ret *trace)
  */
 int trace_vprintk(unsigned long ip, int depth, const char *fmt, va_list args)
 {
-	static DEFINE_SPINLOCK(trace_buf_lock);
+	static raw_spinlock_t trace_buf_lock =
+		(raw_spinlock_t)__RAW_SPIN_LOCK_UNLOCKED;
 	static u32 trace_buf[TRACE_BUF_SIZE];
 
 	struct ring_buffer_event *event;
@@ -1201,7 +1202,9 @@ int trace_vprintk(unsigned long ip, int depth, const char *fmt, va_list args)
 	if (unlikely(atomic_read(&data->disabled)))
 		goto out;
 
-	spin_lock_irqsave(&trace_buf_lock, flags);
+	/* Lockdep uses trace_printk for lock tracing */
+	local_irq_save(flags);
+	__raw_spin_lock(&trace_buf_lock);
 	len = vbin_printf(trace_buf, TRACE_BUF_SIZE, fmt, args);
 
 	if (len > TRACE_BUF_SIZE || len < 0)
@@ -1220,7 +1223,8 @@ int trace_vprintk(unsigned long ip, int depth, const char *fmt, va_list args)
 	ring_buffer_unlock_commit(tr->buffer, event);
 
 out_unlock:
-	spin_unlock_irqrestore(&trace_buf_lock, flags);
+	__raw_spin_unlock(&trace_buf_lock);
+	local_irq_restore(flags);
 
 out:
 	ftrace_preempt_enable(resched);
