@@ -1079,6 +1079,7 @@ static struct dvb_frontend_ops lgdt3305_ops = {
 MODULE_DESCRIPTION("LG Electronics LGDT3305 ATSC/QAM-B Demodulator Driver");
 MODULE_AUTHOR("Michael Krufky <mkrufky@linuxtv.org>");
 MODULE_LICENSE("GPL");
+MODULE_VERSION("0.1");
 
 /*
  * Local variables:
