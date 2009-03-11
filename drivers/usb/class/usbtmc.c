@@ -106,12 +106,13 @@ static int usbtmc_open(struct inode *inode, struct file *filp)
 {
 	struct usb_interface *intf;
 	struct usbtmc_device_data *data;
-	int retval = -ENODEV;
+	int retval = 0;
 
 	intf = usb_find_interface(&usbtmc_driver, iminor(inode));
 	if (!intf) {
 		printk(KERN_ERR KBUILD_MODNAME
 		       ": can not find device for minor %d", iminor(inode));
+		retval = -ENODEV;
 		goto exit;
 	}
 
