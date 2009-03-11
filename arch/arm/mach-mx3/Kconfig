@@ -56,4 +56,12 @@ config MACH_MX31MOBOARD
 	  Include support for mx31moboard platform. This includes specific
 	  configurations for the board and its peripherals.
 
+config MACH_QONG
+	bool "Support Dave/DENX QongEVB-LITE platform"
+	select ARCH_MX31
+	default n
+	help
+	  Include support for Dave/DENX QongEVB-LITE platform. This includes
+	  specific configurations for the board and its peripherals.
+
 endif
