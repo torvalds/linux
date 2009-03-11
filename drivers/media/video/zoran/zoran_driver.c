@@ -162,10 +162,6 @@ const struct zoran_format zoran_formats[] = {
 };
 #define NUM_FORMATS ARRAY_SIZE(zoran_formats)
 
-static int lock_norm;	/* 0 = default 1 = Don't change TV standard (norm) */
-module_param(lock_norm, int, 0644);
-MODULE_PARM_DESC(lock_norm, "Prevent norm changes (1 = ignore, >1 = fail)");
-
 	/* small helper function for calculating buffersizes for v4l2
 	 * we calculate the nearest higher power-of-two, which
 	 * will be the recommended buffersize */
@@ -1481,22 +1477,6 @@ zoran_set_norm (struct zoran *zr,
 			"%s: set_norm() called while in playback/capture mode\n",
 			ZR_DEVNAME(zr));
 		return -EBUSY;
-	}
-
-	if (lock_norm && norm != zr->norm) {
-		if (lock_norm > 1) {
-			dprintk(1,
-				KERN_WARNING
-				"%s: set_norm() - TV standard is locked, can not switch norm\n",
-				ZR_DEVNAME(zr));
-			return -EPERM;
-		} else {
-			dprintk(1,
-				KERN_WARNING
-				"%s: set_norm() - TV standard is locked, norm was not changed\n",
-				ZR_DEVNAME(zr));
-			norm = zr->norm;
-		}
 	}
 
 	if (!(norm & zr->card.norms)) {
