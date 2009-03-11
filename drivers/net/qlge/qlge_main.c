@@ -2984,9 +2984,9 @@ static int ql_adapter_initialize(struct ql_adapter *qdev)
 	mask = value << 16;
 	ql_write32(qdev, SYS, mask | value);
 
-	/* Set the default queue. */
-	value = NIC_RCV_CFG_DFQ;
-	mask = NIC_RCV_CFG_DFQ_MASK;
+	/* Set the default queue, and VLAN behavior. */
+	value = NIC_RCV_CFG_DFQ | NIC_RCV_CFG_RV;
+	mask = NIC_RCV_CFG_DFQ_MASK | (NIC_RCV_CFG_RV << 16);
 	ql_write32(qdev, NIC_RCV_CFG, (mask | value));
 
 	/* Set the MPI interrupt to enabled. */
