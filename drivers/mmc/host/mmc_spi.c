@@ -279,8 +279,11 @@ static int mmc_spi_response_get(struct mmc_spi_host *host,
 		 * so it can always DMA directly into the target buffer.
 		 * It'd probably be better to memcpy() the first chunk and
 		 * avoid extra i/o calls...
+		 *
+		 * Note we check for more than 8 bytes, because in practice,
+		 * some SD cards are slow...
 		 */
-		for (i = 2; i < 9; i++) {
+		for (i = 2; i < 16; i++) {
 			value = mmc_spi_readbytes(host, 1);
 			if (value < 0)
 				goto done;
