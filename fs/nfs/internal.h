@@ -165,6 +165,7 @@ extern void nfs_clear_inode(struct inode *);
 extern void nfs4_clear_inode(struct inode *);
 #endif
 void nfs_zap_acl_cache(struct inode *inode);
+extern int nfs_wait_bit_killable(void *word);
 
 /* super.c */
 void nfs_parse_ip_address(char *, size_t, struct sockaddr *, size_t *);

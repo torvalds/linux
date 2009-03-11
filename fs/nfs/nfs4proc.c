@@ -193,14 +193,6 @@ static void nfs4_setup_readdir(u64 cookie, __be32 *verifier, struct dentry *dent
 	kunmap_atomic(start, KM_USER0);
 }
 
-static int nfs4_wait_bit_killable(void *word)
-{
-	if (fatal_signal_pending(current))
-		return -ERESTARTSYS;
-	schedule();
-	return 0;
-}
-
 static int nfs4_wait_clnt_recover(struct nfs_client *clp)
 {
 	int res;
@@ -208,7 +200,7 @@ static int nfs4_wait_clnt_recover(struct nfs_client *clp)
 	might_sleep();
 
 	res = wait_on_bit(&clp->cl_state, NFS4CLNT_MANAGER_RUNNING,
-			nfs4_wait_bit_killable, TASK_KILLABLE);
+			nfs_wait_bit_killable, TASK_KILLABLE);
 	return res;
 }
 
