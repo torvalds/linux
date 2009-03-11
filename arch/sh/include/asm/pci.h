@@ -17,11 +17,13 @@
  * external) PCI controllers.
  */
 struct pci_channel {
+	int (*init)(struct pci_channel *chan);
 	struct pci_ops *pci_ops;
 	struct resource *io_resource;
 	struct resource *mem_resource;
 	int first_devfn;
 	int last_devfn;
+	int enabled;
 };
 
 /*

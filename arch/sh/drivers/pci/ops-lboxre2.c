@@ -39,7 +39,7 @@ static struct resource sh7751_mem_resource = {
 extern struct pci_ops sh7751_pci_ops;
 
 struct pci_channel board_pci_channels[] = {
-	{ &sh4_pci_ops, &sh7751_io_resource, &sh7751_mem_resource, 0, 0xff },
+	{ sh7751_pci_init, &sh4_pci_ops, &sh7751_io_resource, &sh7751_mem_resource, 0, 0xff },
 	{ NULL, NULL, NULL, 0, 0 },
 };
 

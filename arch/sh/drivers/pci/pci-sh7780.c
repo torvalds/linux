@@ -45,7 +45,7 @@
  * space mapping) will be called via the platform defined function
  * pcibios_init_platform().
  */
-static int __init sh7780_pci_init(void)
+int __init sh7780_pci_init(struct pci_channel *chan)
 {
 	unsigned int id;
 	int ret, match = 0;
@@ -55,7 +55,7 @@ static int __init sh7780_pci_init(void)
 	ctrl_outl(0x00000001, SH7780_PCI_VCR2); /* Enable PCIC */
 
 	/* check for SH7780/SH7780R hardware */
-	id = pci_read_reg(NULL, SH7780_PCIVID);
+	id = pci_read_reg(chan, SH7780_PCIVID);
 	if ((id & 0xffff) == SH7780_VENDOR_ID) {
 		switch ((id >> 16) & 0xffff) {
 		case SH7763_DEVICE_ID:
@@ -82,12 +82,11 @@ static int __init sh7780_pci_init(void)
 		ctrl_outl(0x33333333, INTC_INTPRI);
 	}
 
-	if ((ret = sh4_pci_check_direct(NULL)) != 0)
+	if ((ret = sh4_pci_check_direct(chan)) != 0)
 		return ret;
 
 	return pcibios_init_platform();
 }
-core_initcall(sh7780_pci_init);
 
 int __init sh7780_pcic_init(struct pci_channel *chan,
 			    struct sh4_pci_address_map *map)
@@ -153,5 +152,5 @@ int __init sh7780_pcic_init(struct pci_channel *chan,
 	word = SH4_PCICR_PREFIX | SH4_PCICR_CFIN | SH4_PCICR_FTO;
 	pci_write_reg(chan, word, SH4_PCICR);
 
-	return 1;
+	return 0;
 }

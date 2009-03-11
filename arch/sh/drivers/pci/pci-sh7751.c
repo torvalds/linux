@@ -32,7 +32,7 @@
  * space mapping) will be called via the platform defined function
  * pcibios_init_platform().
  */
-static int __init sh7751_pci_init(void)
+int __init sh7751_pci_init(struct pci_channel *chan)
 {
 	unsigned int id;
 	int ret;
@@ -40,19 +40,18 @@ static int __init sh7751_pci_init(void)
 	pr_debug("PCI: Starting intialization.\n");
 
 	/* check for SH7751/SH7751R hardware */
-	id = pci_read_reg(NULL, SH7751_PCICONF0);
+	id = pci_read_reg(chan, SH7751_PCICONF0);
 	if (id != ((SH7751_DEVICE_ID << 16) | SH7751_VENDOR_ID) &&
 	    id != ((SH7751R_DEVICE_ID << 16) | SH7751_VENDOR_ID)) {
 		pr_debug("PCI: This is not an SH7751(R) (%x)\n", id);
 		return -ENODEV;
 	}
 
-	if ((ret = sh4_pci_check_direct(NULL)) != 0)
+	if ((ret = sh4_pci_check_direct(chan)) != 0)
 		return ret;
 
 	return pcibios_init_platform();
 }
-subsys_initcall(sh7751_pci_init);
 
 static int __init __area_sdram_check(struct pci_channel *chan,
 				     unsigned int area)
@@ -178,7 +177,7 @@ int __init sh7751_pcic_init(struct pci_channel *chan,
 	}
 
 	if (!word)
-		return 0;
+		return -1;
 
 	/* configure the wait control registers */
 	word = ctrl_inl(SH7751_WCR1);
@@ -202,5 +201,5 @@ int __init sh7751_pcic_init(struct pci_channel *chan,
 	word = SH4_PCICR_PREFIX | SH4_PCICR_CFIN | SH4_PCICR_ARBM;
 	pci_write_reg(chan, word, SH4_PCICR);
 
-	return 1;
+	return 0;
 }

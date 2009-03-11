@@ -27,6 +27,12 @@
 unsigned long pcicr_virt;
 unsigned long PCI_IO_AREA;
 
+int __init sh5_pci_init(struct pci_channel *chan)
+{
+	pr_debug("PCI: Starting intialization.\n");
+	return pcibios_init_platform();
+}
+
 /* Rounds a number UP to the nearest power of two. Used for
  * sizing the PCI window.
  */

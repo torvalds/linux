@@ -42,15 +42,6 @@ static struct resource gapspci_mem_resource = {
 	.flags	= IORESOURCE_MEM,
 };
 
-static struct pci_ops gapspci_pci_ops;
-
-struct pci_channel board_pci_channels[] = {
-	{ &gapspci_pci_ops, &gapspci_io_resource,
-	  &gapspci_mem_resource, 0, 1 },
-	{ 0, }
-};
-EXPORT_SYMBOL(board_pci_channels);
-
 /*
  * The !gapspci_config_access case really shouldn't happen, ever, unless
  * someone implicitly messes around with the last devfn value.. otherwise we
@@ -116,7 +107,7 @@ static struct pci_ops gapspci_pci_ops = {
  * gapspci init
  */
 
-int __init gapspci_init(void)
+static int __init gapspci_init(struct pci_channel *chan)
 {
 	char idbuf[16];
 	int i;
@@ -168,3 +159,10 @@ char * __devinit pcibios_setup(char *str)
 {
 	return str;
 }
+
+struct pci_channel board_pci_channels[] = {
+	{ gapspci_init, &gapspci_pci_ops, &gapspci_io_resource,
+	  &gapspci_mem_resource, 0, 1 },
+	{ 0, }
+};
+EXPORT_SYMBOL(board_pci_channels);

@@ -43,7 +43,7 @@ static struct resource sh7780_mem_resource = {
 extern struct pci_ops sh7780_pci_ops;
 
 struct pci_channel board_pci_channels[] = {
-	{ &sh4_pci_ops, &sh7780_io_resource, &sh7780_mem_resource, 0, 0xff },
+	{ sh7780_pci_init, &sh4_pci_ops, &sh7780_io_resource, &sh7780_mem_resource, 0, 0xff },
 	{ NULL, NULL, NULL, 0, 0 },
 };
 EXPORT_SYMBOL(board_pci_channels);

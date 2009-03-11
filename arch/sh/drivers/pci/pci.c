@@ -28,18 +28,31 @@ static int __init pcibios_init(void)
 	struct pci_bus *bus;
 	int busno;
 
+	/* init channels */
+	busno = 0;
+	for (p = board_pci_channels; p->init; p++) {
+		if (p->init(p) == 0)
+			p->enabled = 1;
+		else
+			pr_err("Unable to init pci channel %d\n", busno);
+		busno++;
+	}
+
 #ifdef CONFIG_PCI_AUTO
 	/* assign resources */
 	busno = 0;
-	for (p = board_pci_channels; p->pci_ops != NULL; p++)
-		busno = pciauto_assign_resources(busno, p) + 1;
+	for (p = board_pci_channels; p->init; p++)
+		if (p->enabled)
+			busno = pciauto_assign_resources(busno, p) + 1;
 #endif
 
 	/* scan the buses */
 	busno = 0;
-	for (p = board_pci_channels; p->pci_ops != NULL; p++) {
-		bus = pci_scan_bus(busno, p->pci_ops, p);
-		busno = bus->subordinate + 1;
+	for (p = board_pci_channels; p->init; p++) {
+		if (p->enabled) {
+			bus = pci_scan_bus(busno, p->pci_ops, p);
+			busno = bus->subordinate + 1;
+		}
 	}
 
 	pci_fixup_irqs(pci_common_swizzle, pcibios_map_platform_irq);
