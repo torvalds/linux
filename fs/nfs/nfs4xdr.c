@@ -4078,9 +4078,7 @@ static int nfs4_xdr_dec_setattr(struct rpc_rqst *rqstp, __be32 *p, struct nfs_se
 	status = decode_setattr(&xdr, res);
 	if (status)
 		goto out;
-	status = decode_getfattr(&xdr, res->fattr, res->server);
-	if (status == NFS4ERR_DELAY)
-		status = 0;
+	decode_getfattr(&xdr, res->fattr, res->server);
 out:
 	return status;
 }
