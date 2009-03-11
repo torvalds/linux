@@ -40,6 +40,25 @@ struct au0828_board au0828_boards[] = {
 	},
 	[AU0828_BOARD_HAUPPAUGE_HVR850] = {
 		.name	= "Hauppauge HVR850",
+		.input = {
+			{
+				.type = AU0828_VMUX_TELEVISION,
+				.vmux = AU8522_COMPOSITE_CH4_SIF,
+				.amux = AU8522_AUDIO_SIF,
+			},
+			{
+				.type = AU0828_VMUX_COMPOSITE,
+				.vmux = AU8522_COMPOSITE_CH1,
+				.amux = AU8522_AUDIO_NONE,
+				.audio_setup = hvr950q_cs5340_audio,
+			},
+			{
+				.type = AU0828_VMUX_SVIDEO,
+				.vmux = AU8522_SVIDEO_CH13,
+				.amux = AU8522_AUDIO_NONE,
+				.audio_setup = hvr950q_cs5340_audio,
+			},
+		},
 	},
 	[AU0828_BOARD_HAUPPAUGE_HVR950Q] = {
 		.name	= "Hauppauge HVR950Q",
