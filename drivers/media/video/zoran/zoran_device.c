@@ -1125,7 +1125,7 @@ zoran_feed_stat_com (struct zoran *zr)
 			if (!(zr->stat_com[i] & cpu_to_le32(1)))
 				break;
 			zr->stat_com[i] =
-			    cpu_to_le32(zr->jpg_buffers.buffer[frame].frag_tab_bus);
+			    cpu_to_le32(zr->jpg_buffers.buffer[frame].jpg.frag_tab_bus);
 		} else {
 			/* fill 2 stat_com entries */
 			i = ((zr->jpg_dma_head -
@@ -1133,9 +1133,9 @@ zoran_feed_stat_com (struct zoran *zr)
 			if (!(zr->stat_com[i] & cpu_to_le32(1)))
 				break;
 			zr->stat_com[i] =
-			    cpu_to_le32(zr->jpg_buffers.buffer[frame].frag_tab_bus);
+			    cpu_to_le32(zr->jpg_buffers.buffer[frame].jpg.frag_tab_bus);
 			zr->stat_com[i + 1] =
-			    cpu_to_le32(zr->jpg_buffers.buffer[frame].frag_tab_bus);
+			    cpu_to_le32(zr->jpg_buffers.buffer[frame].jpg.frag_tab_bus);
 		}
 		zr->jpg_buffers.buffer[frame].state = BUZ_STATE_DMA;
 		zr->jpg_dma_head++;
@@ -1155,7 +1155,7 @@ zoran_reap_stat_com (struct zoran *zr)
 	u32 stat_com;
 	unsigned int seq;
 	unsigned int dif;
-	struct zoran_jpg_buffer *buffer;
+	struct zoran_buffer *buffer;
 	int frame;
 
 	/* In motion decompress we don't have a hardware frame counter,
@@ -1298,7 +1298,7 @@ error_handler (struct zoran *zr,
 		printk(KERN_INFO "stat_com frames:");
 		for (j = 0; j < BUZ_NUM_STAT_COM; j++) {
 			for (i = 0; i < zr->jpg_buffers.num_buffers; i++) {
-				if (le32_to_cpu(zr->stat_com[j]) == zr->jpg_buffers.buffer[i].frag_tab_bus)
+				if (le32_to_cpu(zr->stat_com[j]) == zr->jpg_buffers.buffer[i].jpg.frag_tab_bus)
 					printk(KERN_CONT "% d->%d", j, i);
 			}
 		}
@@ -1437,7 +1437,7 @@ zoran_irq (int             irq,
 
 					/* Buffer address */
 
-					reg = zr->v4l_buffers.buffer[frame].fbuffer_bus;
+					reg = zr->v4l_buffers.buffer[frame].v4l.fbuffer_bus;
 					btwrite(reg, ZR36057_VDTR);
 					if (zr->v4l_settings.height > BUZ_MAX_HEIGHT / 2)
 						reg += zr->v4l_settings.bytesperline;

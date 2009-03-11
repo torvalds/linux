@@ -172,6 +172,8 @@ Private IOCTL to set up for displaying MJPEG
 #endif
 #define   V4L_MASK_FRAME   (V4L_MAX_FRAME - 1)
 
+#define MAX_FRAME (BUZ_MAX_FRAME > VIDEO_MAX_FRAME ? BUZ_MAX_FRAME : VIDEO_MAX_FRAME)
+
 #include "zr36057.h"
 
 enum card_type {
@@ -280,21 +282,21 @@ struct zoran_mapping {
 	int count;
 };
 
-struct zoran_jpg_buffer {
+struct zoran_buffer {
 	struct zoran_mapping *map;
-	__le32 *frag_tab;		/* addresses of frag table */
-	u32 frag_tab_bus;	/* same value cached to save time in ISR */
-	enum zoran_buffer_state state;	/* non-zero if corresponding buffer is in use in grab queue */
-	struct zoran_sync bs;	/* DONE: info to return to application */
-};
-
-struct zoran_v4l_buffer {
-	struct zoran_mapping *map;
-	char *fbuffer;		/* virtual  address of frame buffer */
-	unsigned long fbuffer_phys;	/* physical address of frame buffer */
-	unsigned long fbuffer_bus;	/* bus      address of frame buffer */
-	enum zoran_buffer_state state;	/* state: unused/pending/done */
-	struct zoran_sync bs;	/* DONE: info to return to application */
+	enum zoran_buffer_state state;	/* state: unused/pending/dma/done */
+	struct zoran_sync bs;		/* DONE: info to return to application */
+	union {
+		struct {
+			__le32 *frag_tab;	/* addresses of frag table */
+			u32 frag_tab_bus;	/* same value cached to save time in ISR */
+		} jpg;
+		struct {
+			char *fbuffer;		/* virtual address of frame buffer */
+			unsigned long fbuffer_phys;/* physical address of frame buffer */
+			unsigned long fbuffer_bus;/* bus address of frame buffer */
+		} v4l;
+	};
 };
 
 enum zoran_lock_activity {
@@ -304,19 +306,13 @@ enum zoran_lock_activity {
 };
 
 /* buffer collections */
-struct zoran_jpg_struct {
+struct zoran_buffer_col {
 	enum zoran_lock_activity active;	/* feature currently in use? */
-	struct zoran_jpg_buffer buffer[BUZ_MAX_FRAME];	/* buffers */
-	int num_buffers, buffer_size;
+	unsigned int num_buffers, buffer_size;
+	struct zoran_buffer buffer[MAX_FRAME];	/* buffers */
 	u8 allocated;		/* Flag if buffers are allocated  */
 	u8 need_contiguous;	/* Flag if contiguous buffers are needed */
-};
-
-struct zoran_v4l_struct {
-	enum zoran_lock_activity active;	/* feature currently in use? */
-	struct zoran_v4l_buffer buffer[VIDEO_MAX_FRAME];	/* buffers */
-	int num_buffers, buffer_size;
-	u8 allocated;		/* Flag if buffers are allocated  */
+	/* only applies to jpg buffers, raw buffers are always contiguous */
 };
 
 struct zoran;
@@ -325,17 +321,16 @@ struct zoran;
 struct zoran_fh {
 	struct zoran *zr;
 
-	enum zoran_map_mode map_mode;	/* Flag which bufferset will map by next mmap() */
+	enum zoran_map_mode map_mode;		/* Flag which bufferset will map by next mmap() */
 
 	struct zoran_overlay_settings overlay_settings;
-	u32 *overlay_mask;	/* overlay mask */
-	enum zoran_lock_activity overlay_active;	/* feature currently in use? */
+	u32 *overlay_mask;			/* overlay mask */
+	enum zoran_lock_activity overlay_active;/* feature currently in use? */
+
+	struct zoran_buffer_col buffers;	/* buffers' info */
 
 	struct zoran_v4l_settings v4l_settings;	/* structure with a lot of things to play with */
-	struct zoran_v4l_struct v4l_buffers;	/* V4L buffers' info */
-
 	struct zoran_jpg_settings jpg_settings;	/* structure with a lot of things to play with */
-	struct zoran_jpg_struct jpg_buffers;	/* MJPEG buffers' info */
 };
 
 struct card_info {
@@ -434,7 +429,7 @@ struct zoran {
 	unsigned long v4l_pend_tail;
 	unsigned long v4l_sync_tail;
 	int v4l_pend[V4L_MAX_FRAME];
-	struct zoran_v4l_struct v4l_buffers;	/* V4L buffers' info */
+	struct zoran_buffer_col v4l_buffers;	/* V4L buffers' info */
 
 	/* Buz MJPEG parameters */
 	enum zoran_codec_mode codec_mode;	/* status of codec */
@@ -461,7 +456,7 @@ struct zoran {
 	int jpg_pend[BUZ_MAX_FRAME];
 
 	/* array indexed by frame number */
-	struct zoran_jpg_struct jpg_buffers;	/* MJPEG buffers' info */
+	struct zoran_buffer_col jpg_buffers;	/* MJPEG buffers' info */
 
 	/* Additional stuff for testing */
 #ifdef CONFIG_PROC_FS
