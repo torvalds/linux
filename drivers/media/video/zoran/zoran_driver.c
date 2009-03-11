@@ -229,7 +229,8 @@ v4l_fbuffer_alloc (struct file *file)
 				ZR_DEVNAME(zr), i);
 
 		//udelay(20);
-		mem = kmalloc(fh->buffers.buffer_size, GFP_KERNEL);
+		mem = kmalloc(fh->buffers.buffer_size,
+			      GFP_KERNEL | __GFP_NOWARN);
 		if (!mem) {
 			dprintk(1,
 				KERN_ERR
