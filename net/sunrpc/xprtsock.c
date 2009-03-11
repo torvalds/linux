@@ -467,7 +467,7 @@ static int xs_sendpages(struct socket *sock, struct sockaddr *addr, int addrlen,
 	int err, sent = 0;
 
 	if (unlikely(!sock))
-		return -ENOTCONN;
+		return -ENOTSOCK;
 
 	clear_bit(SOCK_ASYNC_NOSPACE, &sock->flags);
 	if (base != 0) {
@@ -594,6 +594,10 @@ static int xs_udp_send_request(struct rpc_task *task)
 	}
 
 	switch (status) {
+	case -ENOTSOCK:
+		status = -ENOTCONN;
+		/* Should we call xs_close() here? */
+		break;
 	case -EAGAIN:
 		xs_nospace(task);
 		break;
@@ -693,6 +697,10 @@ static int xs_tcp_send_request(struct rpc_task *task)
 	}
 
 	switch (status) {
+	case -ENOTSOCK:
+		status = -ENOTCONN;
+		/* Should we call xs_close() here? */
+		break;
 	case -EAGAIN:
 		xs_nospace(task);
 		break;
