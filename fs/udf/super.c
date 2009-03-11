@@ -86,7 +86,6 @@ static int udf_remount_fs(struct super_block *, int *, char *);
 static int udf_check_valid(struct super_block *, int, int);
 static int udf_vrs(struct super_block *sb, int silent);
 static void udf_load_logicalvolint(struct super_block *, struct kernel_extent_ad);
-static void udf_find_anchor(struct super_block *);
 static int udf_find_fileset(struct super_block *, struct kernel_lb_addr *,
 			    struct kernel_lb_addr *);
 static void udf_load_fileset(struct super_block *, struct buffer_head *,
@@ -260,7 +259,7 @@ static int udf_show_options(struct seq_file *seq, struct vfsmount *mnt)
 
 	if (!UDF_QUERY_FLAG(sb, UDF_FLAG_STRICT))
 		seq_puts(seq, ",nostrict");
-	if (sb->s_blocksize != UDF_DEFAULT_BLOCKSIZE)
+	if (UDF_QUERY_FLAG(sb, UDF_FLAG_BLOCKSIZE_SET))
 		seq_printf(seq, ",bs=%lu", sb->s_blocksize);
 	if (UDF_QUERY_FLAG(sb, UDF_FLAG_UNHIDE))
 		seq_puts(seq, ",unhide");
@@ -416,7 +415,6 @@ static int udf_parse_options(char *options, struct udf_options *uopt,
 	int option;
 
 	uopt->novrs = 0;
-	uopt->blocksize = UDF_DEFAULT_BLOCKSIZE;
 	uopt->partition = 0xFFFF;
 	uopt->session = 0xFFFFFFFF;
 	uopt->lastblock = 0;
@@ -444,6 +442,7 @@ static int udf_parse_options(char *options, struct udf_options *uopt,
 			if (match_int(&args[0], &option))
 				return 0;
 			uopt->blocksize = option;
+			uopt->flags |= (1 << UDF_FLAG_BLOCKSIZE_SET);
 			break;
 		case Opt_unhide:
 			uopt->flags |= (1 << UDF_FLAG_UNHIDE);
@@ -789,12 +788,13 @@ static sector_t udf_scan_anchors(struct super_block *sb, sector_t lastblock)
  * Return 1 if not found, 0 if ok
  *
  */
-static void udf_find_anchor(struct super_block *sb)
+static int udf_find_anchor(struct super_block *sb)
 {
 	sector_t lastblock;
 	struct buffer_head *bh = NULL;
 	uint16_t ident;
 	int i;
+	int anchor_found = 0;
 	struct udf_sb_info *sbi = UDF_SB(sb);
 
 	lastblock = udf_scan_anchors(sb, sbi->s_last_block);
@@ -832,10 +832,13 @@ check_anchor:
 			brelse(bh);
 			if (ident != TAG_IDENT_AVDP)
 				sbi->s_anchor[i] = 0;
+			else
+				anchor_found = 1;
 		}
 	}
 
 	sbi->s_last_block = lastblock;
+	return anchor_found;
 }
 
 static int udf_find_fileset(struct super_block *sb,
@@ -1721,6 +1724,32 @@ static int udf_check_valid(struct super_block *sb, int novrs, int silent)
 	return !block;
 }
 
+static int udf_check_volume(struct super_block *sb,
+			    struct udf_options *uopt, int silent)
+{
+	struct udf_sb_info *sbi = UDF_SB(sb);
+
+	if (!sb_set_blocksize(sb, uopt->blocksize)) {
+		if (!silent)
+			printk(KERN_WARNING "UDF-fs: Bad block size\n");
+		return 0;
+	}
+	sbi->s_last_block = uopt->lastblock;
+	if (udf_check_valid(sb, uopt->novrs, silent)) {
+		if (!silent)
+			printk(KERN_WARNING "UDF-fs: No VRS found\n");
+		return 0;
+	}
+	sbi->s_anchor[0] = sbi->s_anchor[1] = 0;
+	sbi->s_anchor[2] = uopt->anchor;
+	if (!udf_find_anchor(sb)) {
+		if (!silent)
+			printk(KERN_WARNING "UDF-fs: No anchor found\n");
+		return 0;
+	}
+	return 1;
+}
+
 static int udf_load_sequence(struct super_block *sb, struct kernel_lb_addr *fileset)
 {
 	struct anchorVolDescPtr *anchor;
@@ -1889,6 +1918,7 @@ static void udf_free_partition(struct udf_part_map *map)
 static int udf_fill_super(struct super_block *sb, void *options, int silent)
 {
 	int i;
+	int found_anchor;
 	struct inode *inode = NULL;
 	struct udf_options uopt;
 	struct kernel_lb_addr rootdir, fileset;
@@ -1941,13 +1971,6 @@ static int udf_fill_super(struct super_block *sb, void *options, int silent)
 	sbi->s_dmode = uopt.dmode;
 	sbi->s_nls_map = uopt.nls_map;
 
-	/* Set the block size for all transfers */
-	if (!sb_min_blocksize(sb, uopt.blocksize)) {
-		udf_debug("Bad block size (%d)\n", uopt.blocksize);
-		printk(KERN_ERR "udf: bad block size (%d)\n", uopt.blocksize);
-		goto error_out;
-	}
-
 	if (uopt.session == 0xFFFFFFFF)
 		sbi->s_session = udf_get_last_session(sb);
 	else
@@ -1955,17 +1978,22 @@ static int udf_fill_super(struct super_block *sb, void *options, int silent)
 
 	udf_debug("Multi-session=%d\n", sbi->s_session);
 
-	sbi->s_last_block = uopt.lastblock;
-	sbi->s_anchor[0] = sbi->s_anchor[1] = 0;
-	sbi->s_anchor[2] = uopt.anchor;
-
-	if (udf_check_valid(sb, uopt.novrs, silent)) {
-		/* read volume recognition sequences */
-		printk(KERN_WARNING "UDF-fs: No VRS found\n");
-		goto error_out;
+	if (uopt.flags & (1 << UDF_FLAG_BLOCKSIZE_SET)) {
+		found_anchor = udf_check_volume(sb, &uopt, silent);
+	} else {
+		uopt.blocksize = bdev_hardsect_size(sb->s_bdev);
+		found_anchor = udf_check_volume(sb, &uopt, silent);
+		if (!found_anchor && uopt.blocksize != UDF_DEFAULT_BLOCKSIZE) {
+			if (!silent)
+				printk(KERN_NOTICE
+				       "UDF-fs: Rescanning with blocksize "
+				       "%d\n", UDF_DEFAULT_BLOCKSIZE);
+			uopt.blocksize = UDF_DEFAULT_BLOCKSIZE;
+			found_anchor = udf_check_volume(sb, &uopt, silent);
+		}
 	}
-
-	udf_find_anchor(sb);
+	if (!found_anchor)
+		goto error_out;
 
 	/* Fill in the rest of the superblock */
 	sb->s_op = &udf_sb_ops;
