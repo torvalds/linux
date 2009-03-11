@@ -38,16 +38,15 @@
 #include <sound/control.h>
 #include <media/v4l2-common.h>
 #include "cx231xx.h"
-#include "cx231xx-pcb-config.h"
 
 static int debug;
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "activates debug info");
 
 #define dprintk(fmt, arg...) do {					\
-	    if (debug)							\
-		printk(KERN_INFO "cx231xx-audio %s: " fmt,		\
-				  __func__, ##arg); 		\
+		if (debug)						\
+			printk(KERN_INFO "cx231xx-audio %s: " fmt,	\
+				__func__, ##arg); 			\
 	} while (0)
 
 static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX;
@@ -262,9 +261,10 @@ static int snd_pcm_alloc_vmalloc_buffer(struct snd_pcm_substream *subs,
 }
 
 static struct snd_pcm_hardware snd_cx231xx_hw_capture = {
-	.info = SNDRV_PCM_INFO_BLOCK_TRANSFER |
-	    SNDRV_PCM_INFO_MMAP |
-	    SNDRV_PCM_INFO_INTERLEAVED | SNDRV_PCM_INFO_MMAP_VALID,
+	.info = SNDRV_PCM_INFO_BLOCK_TRANSFER 	|
+	    SNDRV_PCM_INFO_MMAP 		|
+	    SNDRV_PCM_INFO_INTERLEAVED 		|
+	    SNDRV_PCM_INFO_MMAP_VALID,
 
 	.formats = SNDRV_PCM_FMTBIT_S16_LE,
 

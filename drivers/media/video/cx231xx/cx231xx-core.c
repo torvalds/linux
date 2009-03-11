@@ -54,7 +54,6 @@ static int alt = CX231XX_PINOUT;
 module_param(alt, int, 0644);
 MODULE_PARM_DESC(alt, "alternate setting to use for video endpoint");
 
-/* FIXME */
 #define cx231xx_isocdbg(fmt, arg...) do {\
 	if (core_debug) \
 		printk(KERN_INFO "%s %s :"fmt, \
@@ -308,7 +307,7 @@ int cx231xx_read_ctrl_reg(struct cx231xx *dev, u8 req, u16 reg,
 				reg & 0xff, reg >> 8, len & 0xff, len >> 8);
 	}
 
-	/* mutex_lock(&dev->ctrl_urb_lock);  */
+	mutex_lock(&dev->ctrl_urb_lock);
 	ret = usb_control_msg(dev->udev, pipe, req,
 			      USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
 			      val, reg, dev->urb_buf, len, HZ);
@@ -321,7 +320,7 @@ int cx231xx_read_ctrl_reg(struct cx231xx *dev, u8 req, u16 reg,
 	if (len)
 		memcpy(buf, dev->urb_buf, len);
 
-	/* mutex_unlock(&dev->ctrl_urb_lock); */
+	mutex_unlock(&dev->ctrl_urb_lock);
 
 	if (reg_debug) {
 		int byte;
@@ -369,13 +368,13 @@ int cx231xx_send_vendor_cmd(struct cx231xx *dev,
 		cx231xx_isocdbg("\n");
 	}
 
-	/* mutex_lock(&dev->ctrl_urb_lock); */
+	mutex_lock(&dev->ctrl_urb_lock);
 	ret = usb_control_msg(dev->udev, pipe, ven_req->bRequest,
 			      ven_req->
 			      direction | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
 			      ven_req->wValue, ven_req->wIndex, ven_req->pBuff,
 			      ven_req->wLength, HZ);
-	/* mutex_unlock(&dev->ctrl_urb_lock); */
+	mutex_unlock(&dev->ctrl_urb_lock);
 
 	return ret;
 }
@@ -432,12 +431,12 @@ int cx231xx_write_ctrl_reg(struct cx231xx *dev, u8 req, u16 reg, char *buf,
 		cx231xx_isocdbg("\n");
 	}
 
-	/* mutex_lock(&dev->ctrl_urb_lock); */
+	mutex_lock(&dev->ctrl_urb_lock);
 	memcpy(dev->urb_buf, buf, len);
 	ret = usb_control_msg(dev->udev, pipe, req,
 			      USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
 			      val, reg, dev->urb_buf, len, HZ);
-	/* mutex_unlock(&dev->ctrl_urb_lock); */
+	mutex_unlock(&dev->ctrl_urb_lock);
 
 	return ret;
 }

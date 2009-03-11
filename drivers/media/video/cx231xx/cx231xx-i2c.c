@@ -42,8 +42,8 @@ MODULE_PARM_DESC(i2c_debug, "enable debug messages [i2c]");
 #define dprintk1(lvl, fmt, args...)			\
 do {							\
 	if (i2c_debug >= lvl) {				\
-		printk(fmt, ##args);				\
-		}							\
+		printk(fmt, ##args);			\
+		}					\
 } while (0)
 
 #define dprintk2(lvl, fmt, args...)			\
@@ -77,13 +77,10 @@ int cx231xx_i2c_send_bytes(struct i2c_adapter *i2c_adap,
 		size = msg->len;
 
 		if (size == 2) {	/* register write sub addr */
-
-		/* Just writing sub address will cause problem to XC5000
-		So ignore the request */
+			/* Just writing sub address will cause problem
+			* to XC5000. So ignore the request */
 			return 0;
-
 		} else if (size == 4) {	/* register write with sub addr */
-
 			if (msg->len >= 2)
 				saddr = msg->buf[0] << 8 | msg->buf[1];
 			else if (msg->len == 1)
@@ -117,7 +114,6 @@ int cx231xx_i2c_send_bytes(struct i2c_adapter *i2c_adap,
 								   msg->buf,
 								   msg->len);
 			}
-
 		}
 
 		/* special case for Xc5000 tuner case */

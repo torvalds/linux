@@ -35,7 +35,7 @@
 #endif
 
 #include "cx231xx-reg.h"
-#include "cx231xx-pcb-config.h"
+#include "cx231xx-pcb-cfg.h"
 #include "cx231xx-conf-reg.h"
 
 #define DRIVER_NAME                     "cx231xx"
@@ -389,7 +389,7 @@ struct cx231xx_i2c_xfer_data {
 	u8 *p_buffer;		/* pointer to the buffer */
 };
 
-struct VENDOR_REQUEST_IN{
+struct VENDOR_REQUEST_IN {
 	u8 bRequest;
 	u16 wValue;
 	u16 wIndex;
@@ -407,7 +407,7 @@ struct cx231xx_ctrl {
 	u32 shift;
 };
 
-enum TRANSFER_TYPE{
+enum TRANSFER_TYPE {
 	Raw_Video = 0,
 	Audio,
 	Vbi,			/* VANC */
@@ -581,12 +581,14 @@ int cx231xx_colibri_init_channels(struct cx231xx *dev);
 int cx231xx_colibri_setup_AFE_for_baseband(struct cx231xx *dev);
 int cx231xx_colibri_set_input_mux(struct cx231xx *dev, u32 input_mux);
 int cx231xx_colibri_set_mode(struct cx231xx *dev, enum AFE_MODE mode);
-int cx231xx_colibri_update_power_control(struct cx231xx *dev, AV_MODE avmode);
+int cx231xx_colibri_update_power_control(struct cx231xx *dev,
+					enum AV_MODE avmode);
 int cx231xx_colibri_adjust_ref_count(struct cx231xx *dev, u32 video_input);
 
 /* flatiron related functions */
 int cx231xx_flatiron_initialize(struct cx231xx *dev);
-int cx231xx_flatiron_update_power_control(struct cx231xx *dev, AV_MODE avmode);
+int cx231xx_flatiron_update_power_control(struct cx231xx *dev,
+					enum AV_MODE avmode);
 int cx231xx_flatiron_set_audio_input(struct cx231xx *dev, u8 audio_input);
 
 /* DIF related functions */
@@ -692,7 +694,7 @@ int cx231xx_stop_stream(struct cx231xx *dev, u32 ep_mask);
 int cx231xx_initialize_stream_xfer(struct cx231xx *dev, u32 media_type);
 
 /* Power control functions */
-int cx231xx_set_power_mode(struct cx231xx *dev, AV_MODE mode);
+int cx231xx_set_power_mode(struct cx231xx *dev, enum AV_MODE mode);
 int cx231xx_power_suspend(struct cx231xx *dev);
 
 /* chip specific control functions */

@@ -61,127 +61,108 @@ static struct cx231xx_reg_seq RDE250_XCV_TUNER[] = {
  *  Board definitions
  */
 struct cx231xx_board cx231xx_boards[] = {
-
 	[CX231XX_BOARD_UNKNOWN] = {
-				   .name = "Unknown CX231xx video grabber",
-				   .tuner_type = TUNER_ABSENT,
-				   .input = {{
-					      .type = CX231XX_VMUX_TELEVISION,
-					      .vmux = CX231XX_VIN_3_1,
-					      .amux = CX231XX_AMUX_VIDEO,
-					      .gpio = 0,
-					      }, {
-						  .type =
-						  CX231XX_VMUX_COMPOSITE1,
-						  .vmux = CX231XX_VIN_2_1,
-						  .amux = CX231XX_AMUX_LINE_IN,
-						  .gpio = 0,
-						  }, {
-						      .type =
-						      CX231XX_VMUX_SVIDEO,
-						      .vmux =
-						      CX231XX_VIN_1_1 |
-						      (CX231XX_VIN_1_2 << 8) |
-						      CX25840_SVIDEO_ON,
-						      .amux =
-						      CX231XX_AMUX_LINE_IN,
-						      .gpio = 0,
-						      } },
-				   },
-
+		.name = "Unknown CX231xx video grabber",
+		.tuner_type = TUNER_ABSENT,
+		.input = {{
+				.type = CX231XX_VMUX_TELEVISION,
+				.vmux = CX231XX_VIN_3_1,
+				.amux = CX231XX_AMUX_VIDEO,
+				.gpio = 0,
+			}, {
+				.type = CX231XX_VMUX_COMPOSITE1,
+				.vmux = CX231XX_VIN_2_1,
+				.amux = CX231XX_AMUX_LINE_IN,
+				.gpio = 0,
+			}, {
+				.type = CX231XX_VMUX_SVIDEO,
+				.vmux = CX231XX_VIN_1_1 |
+					(CX231XX_VIN_1_2 << 8) |
+					CX25840_SVIDEO_ON,
+				.amux = CX231XX_AMUX_LINE_IN,
+				.gpio = 0,
+			}
+		},
+	},
 	[CX231XX_BOARD_CNXT_RDE_250] = {
-					.name = "Conexant Hybrid TV - RDE250",
-					.valid = CX231XX_BOARD_VALIDATED,
-					.tuner_type = TUNER_XC5000,
-					.tuner_addr = 0x61,
-					.tuner_gpio = RDE250_XCV_TUNER,
-					.tuner_sif_gpio = 0x05,
-					.tuner_scl_gpio = 0x1a,
-					.tuner_sda_gpio = 0x1b,
-					.decoder = CX231XX_AVDECODER,
-					.demod_xfer_mode = 0,
-					.ctl_pin_status_mask = 0xFFFFFFC4,
-					.agc_analog_digital_select_gpio = 0x0c,
-					.gpio_pin_status_mask = 0x4001000,
-					.tuner_i2c_master = 1,
-					.demod_i2c_master = 2,
-					.has_dvb = 1,
-					.demod_addr = 0x02,
-					.norm = V4L2_STD_PAL,
+		.name = "Conexant Hybrid TV - RDE250",
+		.tuner_type = TUNER_XC5000,
+		.tuner_addr = 0x61,
+		.tuner_gpio = RDE250_XCV_TUNER,
+		.tuner_sif_gpio = 0x05,
+		.tuner_scl_gpio = 0x1a,
+		.tuner_sda_gpio = 0x1b,
+		.decoder = CX231XX_AVDECODER,
+		.demod_xfer_mode = 0,
+		.ctl_pin_status_mask = 0xFFFFFFC4,
+		.agc_analog_digital_select_gpio = 0x0c,
+		.gpio_pin_status_mask = 0x4001000,
+		.tuner_i2c_master = 1,
+		.demod_i2c_master = 2,
+		.has_dvb = 1,
+		.demod_addr = 0x02,
+		.norm = V4L2_STD_PAL,
 
-					.input = {{
-						   .type =
-						   CX231XX_VMUX_TELEVISION,
-						   .vmux = CX231XX_VIN_3_1,
-						   .amux = CX231XX_AMUX_VIDEO,
-						   .gpio = 0,
-						   }, {
-						       .type =
-						       CX231XX_VMUX_COMPOSITE1,
-						       .vmux = CX231XX_VIN_2_1,
-						       .amux =
-						       CX231XX_AMUX_LINE_IN,
-						       .gpio = 0,
-						       }, {
-							   .type =
-							   CX231XX_VMUX_SVIDEO,
-							   .vmux =
-							   CX231XX_VIN_1_1 |
-							   (CX231XX_VIN_1_2 <<
-							    8) |
-							   CX25840_SVIDEO_ON,
-							   .amux =
-							   CX231XX_AMUX_LINE_IN,
-							   .gpio = 0,
-							   } },
-					},
+		.input = {{
+				.type = CX231XX_VMUX_TELEVISION,
+				.vmux = CX231XX_VIN_3_1,
+				.amux = CX231XX_AMUX_VIDEO,
+				.gpio = 0,
+			}, {
+				.type = CX231XX_VMUX_COMPOSITE1,
+				.vmux = CX231XX_VIN_2_1,
+				.amux = CX231XX_AMUX_LINE_IN,
+				.gpio = 0,
+			}, {
+				.type = CX231XX_VMUX_SVIDEO,
+				.vmux = CX231XX_VIN_1_1 |
+					(CX231XX_VIN_1_2 << 8) |
+					CX25840_SVIDEO_ON,
+				.amux = CX231XX_AMUX_LINE_IN,
+				.gpio = 0,
+			}
+		},
+	},
 
 	[CX231XX_BOARD_CNXT_RDU_250] = {
-					.name = "Conexant Hybrid TV - RDU250",
-					.valid = CX231XX_BOARD_VALIDATED,
-					.tuner_type = TUNER_XC5000,
-					.tuner_addr = 0x61,
-					.tuner_gpio = RDE250_XCV_TUNER,
-					.tuner_sif_gpio = 0x05,
-					.tuner_scl_gpio = 0x1a,
-					.tuner_sda_gpio = 0x1b,
-					.decoder = CX231XX_AVDECODER,
-					.demod_xfer_mode = 0,
-					.ctl_pin_status_mask = 0xFFFFFFC4,
-					.agc_analog_digital_select_gpio = 0x0c,
-					.gpio_pin_status_mask = 0x4001000,
-					.tuner_i2c_master = 1,
-					.demod_i2c_master = 2,
-					.has_dvb = 1,
-					.demod_addr = 0x32,
-					.norm = V4L2_STD_NTSC,
+		.name = "Conexant Hybrid TV - RDU250",
+		.tuner_type = TUNER_XC5000,
+		.tuner_addr = 0x61,
+		.tuner_gpio = RDE250_XCV_TUNER,
+		.tuner_sif_gpio = 0x05,
+		.tuner_scl_gpio = 0x1a,
+		.tuner_sda_gpio = 0x1b,
+		.decoder = CX231XX_AVDECODER,
+		.demod_xfer_mode = 0,
+		.ctl_pin_status_mask = 0xFFFFFFC4,
+		.agc_analog_digital_select_gpio = 0x0c,
+		.gpio_pin_status_mask = 0x4001000,
+		.tuner_i2c_master = 1,
+		.demod_i2c_master = 2,
+		.has_dvb = 1,
+		.demod_addr = 0x32,
+		.norm = V4L2_STD_NTSC,
 
-					.input = {{
-						   .type =
-						   CX231XX_VMUX_TELEVISION,
-						   .vmux = CX231XX_VIN_3_1,
-						   .amux = CX231XX_AMUX_VIDEO,
-						   .gpio = 0,
-						   }, {
-						       .type =
-						       CX231XX_VMUX_COMPOSITE1,
-						       .vmux = CX231XX_VIN_2_1,
-						       .amux =
-						       CX231XX_AMUX_LINE_IN,
-						       .gpio = 0,
-						       }, {
-							   .type =
-							   CX231XX_VMUX_SVIDEO,
-							   .vmux =
-							   CX231XX_VIN_1_1 |
-							   (CX231XX_VIN_1_2 <<
-							    8) |
-							   CX25840_SVIDEO_ON,
-							   .amux =
-							   CX231XX_AMUX_LINE_IN,
-							   .gpio = 0,
-							   } },
-					},
+		.input = {{
+				.type = CX231XX_VMUX_TELEVISION,
+				.vmux = CX231XX_VIN_3_1,
+				.amux = CX231XX_AMUX_VIDEO,
+				.gpio = 0,
+			}, {
+				.type = CX231XX_VMUX_COMPOSITE1,
+				.vmux = CX231XX_VIN_2_1,
+				.amux = CX231XX_AMUX_LINE_IN,
+				.gpio = 0,
+			}, {
+				.type = CX231XX_VMUX_SVIDEO,
+				.vmux = CX231XX_VIN_1_1 |
+					(CX231XX_VIN_1_2 << 8) |
+					CX25840_SVIDEO_ON,
+				.amux = CX231XX_AMUX_LINE_IN,
+				.gpio = 0,
+			}
+		},
+	},
 };
 const unsigned int cx231xx_bcount = ARRAY_SIZE(cx231xx_boards);
 
@@ -243,25 +224,11 @@ void cx231xx_pre_card_setup(struct cx231xx *dev)
 	cx231xx_info("Identified as %s (card=%d)\n",
 		     dev->board.name, dev->model);
 
-	/* Do card specific if any */
-	switch (dev->model) {
-	case CX231XX_BOARD_CNXT_RDE_250:
-		/* do card specific GPIO settings if required */
-		cx231xx_info("Precard: Board is Conexnat RDE 250\n");
-		/* set the direction for GPIO pins */
-		cx231xx_set_gpio_direction(dev, dev->board.tuner_gpio->bit, 1);
-		cx231xx_set_gpio_value(dev, dev->board.tuner_gpio->bit, 1);
-		cx231xx_set_gpio_direction(dev, dev->board.tuner_sif_gpio, 1);
-		break;
-	case CX231XX_BOARD_CNXT_RDU_250:
-		/* do card specific GPIO settings if required */
-		cx231xx_info("Precard: Board is Conexnat RDU 250\n");
-		/* set the direction for GPIO pins */
-		cx231xx_set_gpio_direction(dev, dev->board.tuner_gpio->bit, 1);
-		cx231xx_set_gpio_value(dev, dev->board.tuner_gpio->bit, 1);
-		cx231xx_set_gpio_direction(dev, dev->board.tuner_sif_gpio, 1);
-		break;
-	}
+	cx231xx_info("Precard: Board is %s\n", dev->board.name);
+	/* set the direction for GPIO pins */
+	cx231xx_set_gpio_direction(dev, dev->board.tuner_gpio->bit, 1);
+	cx231xx_set_gpio_value(dev, dev->board.tuner_gpio->bit, 1);
+	cx231xx_set_gpio_direction(dev, dev->board.tuner_sif_gpio, 1);
 
 	/* request some modules if any required */
 
@@ -360,15 +327,6 @@ void cx231xx_card_setup(struct cx231xx *dev)
 		/* do card specific GPIO settings if required */
 		cx231xx_info("Board is Conexnat RDU 250\n");
 		break;
-	}
-
-	if (dev->board.valid == CX231XX_BOARD_NOT_VALIDATED) {
-		cx231xx_errdev("\n\n");
-		cx231xx_errdev("The support for this board weren't "
-			       "valid yet.\n");
-		cx231xx_errdev("Please send a report of having this working\n");
-		cx231xx_errdev("not to V4L mailing list (and/or to other "
-			       "addresses)\n\n");
 	}
 
 	/* request some modules */
