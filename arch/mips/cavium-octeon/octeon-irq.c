@@ -31,7 +31,7 @@ static void octeon_irq_core_ack(unsigned int irq)
 
 static void octeon_irq_core_eoi(unsigned int irq)
 {
-	irq_desc_t *desc = irq_desc + irq;
+	struct irq_desc *desc = irq_desc + irq;
 	unsigned int bit = irq - OCTEON_IRQ_SW0;
 	/*
 	 * If an IRQ is being processed while we are disabling it the
