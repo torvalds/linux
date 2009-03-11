@@ -40,7 +40,7 @@ static int debug;
 int au8522_writereg(struct au8522_state *state, u16 reg, u8 data)
 {
 	int ret;
-	u8 buf [] = { reg >> 8, reg & 0xff, data };
+	u8 buf [] = { (reg >> 8) | 0x80, reg & 0xff, data };
 
 	struct i2c_msg msg = { .addr = state->config->demod_address,
 			       .flags = 0, .buf = buf, .len = 3 };
@@ -57,7 +57,7 @@ int au8522_writereg(struct au8522_state *state, u16 reg, u8 data)
 u8 au8522_readreg(struct au8522_state *state, u16 reg)
 {
 	int ret;
-	u8 b0 [] = { reg >> 8, reg & 0xff };
+	u8 b0 [] = { (reg >> 8) | 0x40, reg & 0xff };
 	u8 b1 [] = { 0 };
 
 	struct i2c_msg msg [] = {
