@@ -64,7 +64,8 @@ mvme16x_probe(struct platform_device *dev)
 	hostdata->ctest7_extra = CTEST7_TT1;
 
 	/* and register the chip */
-	host = NCR_700_detect(&mvme16x_scsi_driver_template, hostdata, dev);
+	host = NCR_700_detect(&mvme16x_scsi_driver_template, hostdata,
+			      &dev->dev);
 	if (!host) {
 		printk(KERN_ERR "mvme16x-scsi: No host detected; "
 				"board configuration problem?\n");

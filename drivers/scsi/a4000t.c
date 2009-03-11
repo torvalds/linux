@@ -61,7 +61,8 @@ static int __devinit a4000t_probe(struct platform_device *dev)
 	hostdata->dcntl_extra = EA_710;
 
 	/* and register the chip */
-	host = NCR_700_detect(&a4000t_scsi_driver_template, hostdata, dev);
+	host = NCR_700_detect(&a4000t_scsi_driver_template, hostdata,
+			      &dev->dev);
 	if (!host) {
 		printk(KERN_ERR "a4000t-scsi: No host detected; "
 				"board configuration problem?\n");

@@ -58,7 +58,8 @@ bvme6000_probe(struct platform_device *dev)
 	hostdata->ctest7_extra = CTEST7_TT1;
 
 	/* and register the chip */
-	host = NCR_700_detect(&bvme6000_scsi_driver_template, hostdata, dev);
+	host = NCR_700_detect(&bvme6000_scsi_driver_template, hostdata,
+			      &dev->dev);
 	if (!host) {
 		printk(KERN_ERR "bvme6000-scsi: No host detected; "
 				"board configuration problem?\n");
