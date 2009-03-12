@@ -59,7 +59,7 @@ static int if_usb_reset_device(struct if_usb_card *cardp);
 static ssize_t if_usb_firmware_set(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
 {
-	struct lbs_private *priv = netdev_priv(to_net_dev(dev));
+	struct lbs_private *priv = to_net_dev(dev)->ml_priv;
 	struct if_usb_card *cardp = priv->card;
 	char fwname[FIRMWARE_NAME_MAX];
 	int ret;
@@ -86,7 +86,7 @@ static DEVICE_ATTR(lbs_flash_fw, 0200, NULL, if_usb_firmware_set);
 static ssize_t if_usb_boot2_set(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
 {
-	struct lbs_private *priv = netdev_priv(to_net_dev(dev));
+	struct lbs_private *priv = to_net_dev(dev)->ml_priv;
 	struct if_usb_card *cardp = priv->card;
 	char fwname[FIRMWARE_NAME_MAX];
 	int ret;

@@ -1284,7 +1284,7 @@ static int gfar_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	spin_lock_irqsave(&priv->txlock, flags);
 
 	/* check if there is space to queue this packet */
-	if (nr_frags > priv->num_txbdfree) {
+	if ((nr_frags+1) > priv->num_txbdfree) {
 		/* no space, stop the queue */
 		netif_stop_queue(dev);
 		dev->stats.tx_fifo_errors++;

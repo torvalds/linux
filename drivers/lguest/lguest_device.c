@@ -212,6 +212,9 @@ static void lg_notify(struct virtqueue *vq)
 	hcall(LHCALL_NOTIFY, lvq->config.pfn << PAGE_SHIFT, 0, 0);
 }
 
+/* An extern declaration inside a C file is bad form.  Don't do it. */
+extern void lguest_setup_irq(unsigned int irq);
+
 /* This routine finds the first virtqueue described in the configuration of
  * this device and sets it up.
  *
@@ -265,6 +268,9 @@ static struct virtqueue *lg_find_vq(struct virtio_device *vdev,
 		err = -ENOMEM;
 		goto unmap;
 	}
+
+	/* Make sure the interrupt is allocated. */
+	lguest_setup_irq(lvq->config.irq);
 
 	/* Tell the interrupt for this virtqueue to go to the virtio_ring
 	 * interrupt handler. */

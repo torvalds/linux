@@ -34,7 +34,7 @@ static inline struct squashfs_inode_info *squashfs_i(struct inode *inode)
 
 /* block.c */
 extern int squashfs_read_data(struct super_block *, void **, u64, int, u64 *,
-				int);
+				int, int);
 
 /* cache.c */
 extern struct squashfs_cache *squashfs_cache_init(char *, int, int);

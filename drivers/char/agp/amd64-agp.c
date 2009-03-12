@@ -271,15 +271,15 @@ static __devinit int fix_northbridge(struct pci_dev *nb, struct pci_dev *agp,
 	nb_order = (nb_order >> 1) & 7;
 	pci_read_config_dword(nb, AMD64_GARTAPERTUREBASE, &nb_base);
 	nb_aper = nb_base << 25;
-	if (agp_aperture_valid(nb_aper, (32*1024*1024)<<nb_order)) {
-		return 0;
-	}
 
 	/* Northbridge seems to contain crap. Try the AGP bridge. */
 
 	pci_read_config_word(agp, cap+0x14, &apsize);
-	if (apsize == 0xffff)
+	if (apsize == 0xffff) {
+		if (agp_aperture_valid(nb_aper, (32*1024*1024)<<nb_order))
+			return 0;
 		return -1;
+	}
 
 	apsize &= 0xfff;
 	/* Some BIOS use weird encodings not in the AGPv3 table. */
@@ -299,6 +299,11 @@ static __devinit int fix_northbridge(struct pci_dev *nb, struct pci_dev *agp,
 		dev_info(&agp->dev, "aperture size %u MB is not right, using settings from NB\n",
 			 32 << order);
 		order = nb_order;
+	}
+
+	if (nb_order >= order) {
+		if (agp_aperture_valid(nb_aper, (32*1024*1024)<<nb_order))
+			return 0;
 	}
 
 	dev_info(&agp->dev, "aperture from AGP @ %Lx size %u MB\n",

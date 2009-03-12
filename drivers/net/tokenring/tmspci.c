@@ -121,11 +121,6 @@ static int __devinit tms_pci_attach(struct pci_dev *pdev, const struct pci_devic
 		goto err_out_trdev;
 	}
 
-	ret = request_irq(pdev->irq, tms380tr_interrupt, IRQF_SHARED,
-			  dev->name, dev);
-	if (ret)
-		goto err_out_region;
-
 	dev->base_addr	= pci_ioaddr;
 	dev->irq 	= pci_irq_line;
 	dev->dma	= 0;
@@ -142,7 +137,7 @@ static int __devinit tms_pci_attach(struct pci_dev *pdev, const struct pci_devic
 	ret = tmsdev_init(dev, &pdev->dev);
 	if (ret) {
 		printk("%s: unable to get memory for dev->priv.\n", dev->name);
-		goto err_out_irq;
+		goto err_out_region;
 	}
 
 	tp = netdev_priv(dev);
@@ -157,6 +152,11 @@ static int __devinit tms_pci_attach(struct pci_dev *pdev, const struct pci_devic
 
 	tp->tmspriv = cardinfo;
 
+	ret = request_irq(pdev->irq, tms380tr_interrupt, IRQF_SHARED,
+			  dev->name, dev);
+	if (ret)
+		goto err_out_tmsdev;
+
 	dev->open = tms380tr_open;
 	dev->stop = tms380tr_close;
 	pci_set_drvdata(pdev, dev);
@@ -164,15 +164,15 @@ static int __devinit tms_pci_attach(struct pci_dev *pdev, const struct pci_devic
 
 	ret = register_netdev(dev);
 	if (ret)
-		goto err_out_tmsdev;
+		goto err_out_irq;
 	
 	return 0;
 
+err_out_irq:
+	free_irq(pdev->irq, dev);
 err_out_tmsdev:
 	pci_set_drvdata(pdev, NULL);
 	tmsdev_term(dev);
-err_out_irq:
-	free_irq(pdev->irq, dev);
 err_out_region:
 	release_region(pci_ioaddr, TMS_PCI_IO_EXTENT);
 err_out_trdev:
