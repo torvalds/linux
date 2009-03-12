@@ -2336,7 +2336,8 @@ static int tracing_resize_ring_buffer(unsigned long size)
 
 	/*
 	 * If kernel or user changes the size of the ring buffer
-	 * it get completed.
+	 * we use the size that was given, and we can forget about
+	 * expanding it later.
 	 */
 	ring_buffer_expanded = 1;
 
@@ -2351,8 +2352,20 @@ static int tracing_resize_ring_buffer(unsigned long size)
 		r = ring_buffer_resize(global_trace.buffer,
 				       global_trace.entries);
 		if (r < 0) {
-			/* AARGH! We are left with different
-			 * size max buffer!!!! */
+			/*
+			 * AARGH! We are left with different
+			 * size max buffer!!!!
+			 * The max buffer is our "snapshot" buffer.
+			 * When a tracer needs a snapshot (one of the
+			 * latency tracers), it swaps the max buffer
+			 * with the saved snap shot. We succeeded to
+			 * update the size of the main buffer, but failed to
+			 * update the size of the max buffer. But when we tried
+			 * to reset the main buffer to the original size, we
+			 * failed there too. This is very unlikely to
+			 * happen, but if it does, warn and kill all
+			 * tracing.
+			 */
 			WARN_ON(1);
 			tracing_disabled = 1;
 		}
