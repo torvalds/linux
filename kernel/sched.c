@@ -9599,10 +9599,11 @@ static void cpuacct_charge(struct task_struct *tsk, u64 cputime)
 	cpu = task_cpu(tsk);
 	ca = task_ca(tsk);
 
-	for (; ca; ca = ca->parent) {
+	do {
 		u64 *cpuusage = per_cpu_ptr(ca->cpuusage, cpu);
 		*cpuusage += cputime;
-	}
+		ca = ca->parent;
+	} while (ca);
 }
 
 struct cgroup_subsys cpuacct_subsys = {
