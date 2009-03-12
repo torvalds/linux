@@ -39,6 +39,11 @@
 #define __VIRTUAL_MASK_SHIFT	32
 #endif	/* CONFIG_X86_PAE */
 
+/*
+ * Kernel image size is limited to 512 MB (see in arch/x86/kernel/head_32.S)
+ */
+#define KERNEL_IMAGE_SIZE	(512 * 1024 * 1024)
+
 #ifndef __ASSEMBLY__
 
 /*

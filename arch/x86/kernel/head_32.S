@@ -54,7 +54,7 @@
  *
  * This should be a multiple of a page.
  */
-LOW_PAGES = 1<<(32-PAGE_SHIFT_asm)
+LOW_PAGES = (KERNEL_IMAGE_SIZE + PAGE_SIZE_asm - 1)>>PAGE_SHIFT
 
 /*
  * To preserve the DMA pool in PAGEALLOC kernels, we'll allocate
