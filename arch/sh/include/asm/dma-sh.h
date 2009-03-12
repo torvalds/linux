@@ -11,6 +11,7 @@
 #ifndef __DMA_SH_H
 #define __DMA_SH_H
 
+#include <asm/dma.h>
 #include <cpu/dma.h>
 
 /* DMAOR contorl: The DMAOR access size is different by CPU.*/
@@ -29,21 +30,21 @@
 #endif
 
 static int dmte_irq_map[] __maybe_unused = {
-#if (CONFIG_NR_ONCHIP_DMA_CHANNELS >= 4)
+#if (MAX_DMA_CHANNELS >= 4)
     DMTE0_IRQ,
     DMTE0_IRQ + 1,
     DMTE0_IRQ + 2,
     DMTE0_IRQ + 3,
 #endif
-#if (CONFIG_NR_ONCHIP_DMA_CHANNELS >= 6)
+#if (MAX_DMA_CHANNELS >= 6)
     DMTE4_IRQ,
     DMTE4_IRQ + 1,
 #endif
-#if (CONFIG_NR_ONCHIP_DMA_CHANNELS >= 8)
+#if (MAX_DMA_CHANNELS >= 8)
     DMTE6_IRQ,
     DMTE6_IRQ + 1,
 #endif
-#if (CONFIG_NR_ONCHIP_DMA_CHANNELS >= 12)
+#if (MAX_DMA_CHANNELS >= 12)
     DMTE8_IRQ,
     DMTE9_IRQ,
     DMTE10_IRQ,
@@ -85,21 +86,21 @@ static int dmte_irq_map[] __maybe_unused = {
 
 /* DMA base address */
 static u32 dma_base_addr[] __maybe_unused = {
-#if (CONFIG_NR_ONCHIP_DMA_CHANNELS >= 4)
+#if (MAX_DMA_CHANNELS >= 4)
 	SH_DMAC_BASE0 + 0x00,	/* channel 0 */
 	SH_DMAC_BASE0 + 0x10,
 	SH_DMAC_BASE0 + 0x20,
 	SH_DMAC_BASE0 + 0x30,
 #endif
-#if (CONFIG_NR_ONCHIP_DMA_CHANNELS >= 6)
+#if (MAX_DMA_CHANNELS >= 6)
 	SH_DMAC_BASE0 + 0x50,
 	SH_DMAC_BASE0 + 0x60,
 #endif
-#if (CONFIG_NR_ONCHIP_DMA_CHANNELS >= 8)
+#if (MAX_DMA_CHANNELS >= 8)
 	SH_DMAC_BASE1 + 0x00,
 	SH_DMAC_BASE1 + 0x10,
 #endif
-#if (CONFIG_NR_ONCHIP_DMA_CHANNELS >= 12)
+#if (MAX_DMA_CHANNELS >= 12)
 	SH_DMAC_BASE1 + 0x20,
 	SH_DMAC_BASE1 + 0x30,
 	SH_DMAC_BASE1 + 0x50,
