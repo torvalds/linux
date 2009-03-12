@@ -551,20 +551,14 @@ int setup_irq(unsigned int irq, struct irqaction *act)
 }
 
 /**
- *	free_irq - free an interrupt
+ *	remove_irq - free an interrupt
  *	@irq: Interrupt line to free
  *	@dev_id: Device identity to free
  *
- *	Remove an interrupt handler. The handler is removed and if the
- *	interrupt line is no longer in use by any driver it is disabled.
- *	On a shared IRQ the caller must ensure the interrupt is disabled
- *	on the card it drives before calling this function. The function
- *	does not return until any executing interrupts for this IRQ
- *	have completed.
- *
- *	This function must not be called from interrupt context.
+ * Used to remove interrupts statically setup by the early boot process.
  */
-void free_irq(unsigned int irq, void *dev_id)
+
+struct irqaction *remove_irq(unsigned int irq, void *dev_id)
 {
 	struct irq_desc *desc = irq_to_desc(irq);
 	struct irqaction *action, **action_ptr;
@@ -573,7 +567,7 @@ void free_irq(unsigned int irq, void *dev_id)
 	WARN(in_interrupt(), "Trying to free IRQ %d from IRQ context!\n", irq);
 
 	if (!desc)
-		return;
+		return NULL;
 
 	spin_lock_irqsave(&desc->lock, flags);
 
@@ -589,7 +583,7 @@ void free_irq(unsigned int irq, void *dev_id)
 			WARN(1, "Trying to free already-free IRQ %d\n", irq);
 			spin_unlock_irqrestore(&desc->lock, flags);
 
-			return;
+			return NULL;
 		}
 
 		if (action->dev_id == dev_id)
@@ -636,7 +630,26 @@ void free_irq(unsigned int irq, void *dev_id)
 		local_irq_restore(flags);
 	}
 #endif
-	kfree(action);
+	return action;
+}
+
+/**
+ *	free_irq - free an interrupt allocated with request_irq
+ *	@irq: Interrupt line to free
+ *	@dev_id: Device identity to free
+ *
+ *	Remove an interrupt handler. The handler is removed and if the
+ *	interrupt line is no longer in use by any driver it is disabled.
+ *	On a shared IRQ the caller must ensure the interrupt is disabled
+ *	on the card it drives before calling this function. The function
+ *	does not return until any executing interrupts for this IRQ
+ *	have completed.
+ *
+ *	This function must not be called from interrupt context.
+ */
+void free_irq(unsigned int irq, void *dev_id)
+{
+	kfree(remove_irq(irq, dev_id));
 }
 EXPORT_SYMBOL(free_irq);
 

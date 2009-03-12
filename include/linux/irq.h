@@ -236,6 +236,7 @@ typedef struct irq_desc		irq_desc_t;
 #include <asm/hw_irq.h>
 
 extern int setup_irq(unsigned int irq, struct irqaction *new);
+extern struct irqaction *remove_irq(unsigned int irq, void *dev_id);
 
 #ifdef CONFIG_GENERIC_HARDIRQS
 
