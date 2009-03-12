@@ -109,9 +109,11 @@ $(obj)/setup.bin: $(obj)/setup.elf FORCE
 $(obj)/compressed/vmlinux: FORCE
 	$(Q)$(MAKE) $(build)=$(obj)/compressed $@
 
-# Set this if you want to pass append arguments to the zdisk/fdimage/isoimage kernel
+# Set this if you want to pass append arguments to the
+# bzdisk/fdimage/isoimage kernel
 FDARGS =
-# Set this if you want an initrd included with the zdisk/fdimage/isoimage kernel
+# Set this if you want an initrd included with the
+# bzdisk/fdimage/isoimage kernel
 FDINITRD =
 
 image_cmdline = default linux $(FDARGS) $(if $(FDINITRD),initrd=initrd.img,)
@@ -120,7 +122,7 @@ $(obj)/mtools.conf: $(src)/mtools.conf.in
 	sed -e 's|@OBJ@|$(obj)|g' < $< > $@
 
 # This requires write access to /dev/fd0
-zdisk: $(BOOTIMAGE) $(obj)/mtools.conf
+bzdisk: $(obj)/bzImage $(obj)/mtools.conf
 	MTOOLSRC=$(obj)/mtools.conf mformat a:			; sync
 	syslinux /dev/fd0					; sync
 	echo '$(image_cmdline)' | \
@@ -128,10 +130,10 @@ zdisk: $(BOOTIMAGE) $(obj)/mtools.conf
 	if [ -f '$(FDINITRD)' ] ; then \
 		MTOOLSRC=$(obj)/mtools.conf mcopy '$(FDINITRD)' a:initrd.img ; \
 	fi
-	MTOOLSRC=$(obj)/mtools.conf mcopy $(BOOTIMAGE) a:linux	; sync
+	MTOOLSRC=$(obj)/mtools.conf mcopy $(obj)/bzImage a:linux	; sync
 
 # These require being root or having syslinux 2.02 or higher installed
-fdimage fdimage144: $(BOOTIMAGE) $(obj)/mtools.conf
+fdimage fdimage144: $(obj)/bzImage $(obj)/mtools.conf
 	dd if=/dev/zero of=$(obj)/fdimage bs=1024 count=1440
 	MTOOLSRC=$(obj)/mtools.conf mformat v:			; sync
 	syslinux $(obj)/fdimage					; sync
@@ -140,9 +142,9 @@ fdimage fdimage144: $(BOOTIMAGE) $(obj)/mtools.conf
 	if [ -f '$(FDINITRD)' ] ; then \
 		MTOOLSRC=$(obj)/mtools.conf mcopy '$(FDINITRD)' v:initrd.img ; \
 	fi
-	MTOOLSRC=$(obj)/mtools.conf mcopy $(BOOTIMAGE) v:linux	; sync
+	MTOOLSRC=$(obj)/mtools.conf mcopy $(obj)/bzImage v:linux	; sync
 
-fdimage288: $(BOOTIMAGE) $(obj)/mtools.conf
+fdimage288: $(obj)/bzImage $(obj)/mtools.conf
 	dd if=/dev/zero of=$(obj)/fdimage bs=1024 count=2880
 	MTOOLSRC=$(obj)/mtools.conf mformat w:			; sync
 	syslinux $(obj)/fdimage					; sync
@@ -151,9 +153,9 @@ fdimage288: $(BOOTIMAGE) $(obj)/mtools.conf
 	if [ -f '$(FDINITRD)' ] ; then \
 		MTOOLSRC=$(obj)/mtools.conf mcopy '$(FDINITRD)' w:initrd.img ; \
 	fi
-	MTOOLSRC=$(obj)/mtools.conf mcopy $(BOOTIMAGE) w:linux	; sync
+	MTOOLSRC=$(obj)/mtools.conf mcopy $(obj)/bzImage w:linux	; sync
 
-isoimage: $(BOOTIMAGE)
+isoimage: $(obj)/bzImage
 	-rm -rf $(obj)/isoimage
 	mkdir $(obj)/isoimage
 	for i in lib lib64 share end ; do \
@@ -163,7 +165,7 @@ isoimage: $(BOOTIMAGE)
 		fi ; \
 		if [ $$i = end ] ; then exit 1 ; fi ; \
 	done
-	cp $(BOOTIMAGE) $(obj)/isoimage/linux
+	cp $(obj)/bzImage $(obj)/isoimage/linux
 	echo '$(image_cmdline)' > $(obj)/isoimage/isolinux.cfg
 	if [ -f '$(FDINITRD)' ] ; then \
 		cp '$(FDINITRD)' $(obj)/isoimage/initrd.img ; \
@@ -174,12 +176,13 @@ isoimage: $(BOOTIMAGE)
 	isohybrid $(obj)/image.iso 2>/dev/null || true
 	rm -rf $(obj)/isoimage
 
-zlilo: $(BOOTIMAGE)
+bzlilo: $(obj)/bzImage
 	if [ -f $(INSTALL_PATH)/vmlinuz ]; then mv $(INSTALL_PATH)/vmlinuz $(INSTALL_PATH)/vmlinuz.old; fi
 	if [ -f $(INSTALL_PATH)/System.map ]; then mv $(INSTALL_PATH)/System.map $(INSTALL_PATH)/System.old; fi
-	cat $(BOOTIMAGE) > $(INSTALL_PATH)/vmlinuz
+	cat $(obj)/bzImage > $(INSTALL_PATH)/vmlinuz
 	cp System.map $(INSTALL_PATH)/
 	if [ -x /sbin/lilo ]; then /sbin/lilo; else /etc/lilo/install; fi
 
 install:
-	sh $(srctree)/$(src)/install.sh $(KERNELRELEASE) $(BOOTIMAGE) System.map "$(INSTALL_PATH)"
+	sh $(srctree)/$(src)/install.sh $(KERNELRELEASE) $(obj)/bzImage \
+		System.map "$(INSTALL_PATH)"
