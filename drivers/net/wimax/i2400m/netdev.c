@@ -520,7 +520,7 @@ void i2400m_net_erx(struct i2400m *i2400m, struct sk_buff *skb,
 	struct device *dev = i2400m_dev(i2400m);
 	int protocol;
 
-	d_fnstart(2, dev, "(i2400m %p skb %p [%zu] cs %d)\n",
+	d_fnstart(2, dev, "(i2400m %p skb %p [%u] cs %d)\n",
 		  i2400m, skb, skb->len, cs);
 	switch(cs) {
 	case I2400M_CS_IPV4_0:
@@ -545,7 +545,7 @@ void i2400m_net_erx(struct i2400m *i2400m, struct sk_buff *skb,
 	d_dump(4, dev, skb->data, skb->len);
 	netif_rx_ni(skb);	/* see notes in function header */
 error:
-	d_fnend(2, dev, "(i2400m %p skb %p [%zu] cs %d) = void\n",
+	d_fnend(2, dev, "(i2400m %p skb %p [%u] cs %d) = void\n",
 		i2400m, skb, skb->len, cs);
 }
 
