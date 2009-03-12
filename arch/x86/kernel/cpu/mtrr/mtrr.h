@@ -88,3 +88,6 @@ void mtrr_wrmsr(unsigned, unsigned, unsigned);
 int amd_init_mtrr(void);
 int cyrix_init_mtrr(void);
 int centaur_init_mtrr(void);
+
+extern int changed_by_mtrr_cleanup;
+extern int mtrr_cleanup(unsigned address_bits);
