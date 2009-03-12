@@ -830,14 +830,15 @@ recycle:
 				   len - SGE_RX_PULL_LEN);
 		newskb->len = len;
 		newskb->data_len = len - SGE_RX_PULL_LEN;
+		newskb->truesize += newskb->data_len;
 	} else {
 		skb_fill_page_desc(newskb, skb_shinfo(newskb)->nr_frags,
 				   sd->pg_chunk.page,
 				   sd->pg_chunk.offset, len);
 		newskb->len += len;
 		newskb->data_len += len;
+		newskb->truesize += len;
 	}
-	newskb->truesize += newskb->data_len;
 
 	fl->credits--;
 	/*
