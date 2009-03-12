@@ -112,6 +112,8 @@
 #define ARCH_SETUP
 #endif
 
+RESERVE_BRK(dmi_alloc, 65536);
+
 unsigned int boot_cpu_id __read_mostly;
 
 static __initdata unsigned long _brk_start = (unsigned long)__brk_base;

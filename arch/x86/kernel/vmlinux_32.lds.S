@@ -192,7 +192,8 @@ SECTIONS
 
 	. = ALIGN(PAGE_SIZE);
 	__brk_base = . ;
-	. += 1024 * 1024 ;
+	. += 64 * 1024 ;	/* 64k slop space */
+	*(.brk_reservation)	/* areas brk users have reserved */
 	__brk_limit = . ;
 
   	_end = . ;
@@ -201,6 +202,7 @@ SECTIONS
   /* Sections to be discarded */
   /DISCARD/ : {
 	*(.exitcall.exit)
+	*(.discard)
 	}
 
   STABS_DEBUG

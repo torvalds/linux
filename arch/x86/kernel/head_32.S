@@ -75,6 +75,8 @@ ALLOCATOR_SLOP = 4
 
 INIT_MAP_BEYOND_END = BOOTBITMAP_SIZE + (PAGE_TABLE_SIZE + ALLOCATOR_SLOP)*PAGE_SIZE_asm
 
+RESERVE_BRK(pagetables, PAGE_TABLE_SIZE * PAGE_SIZE)
+
 /*
  * 32-bit kernel entrypoint; only used by the boot CPU.  On entry,
  * %esi points to the real-mode code as a 32-bit pointer.
