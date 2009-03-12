@@ -36,6 +36,8 @@ int au0828_debug;
 module_param_named(debug, au0828_debug, int, 0644);
 MODULE_PARM_DESC(debug, "enable debug messages");
 
+static atomic_t au0828_instance = ATOMIC_INIT(0);
+
 #define _AU0828_BULKPIPE 0x03
 #define _BULKPIPESIZE 0xffff
 
@@ -167,7 +169,7 @@ static void au0828_usb_disconnect(struct usb_interface *interface)
 static int au0828_usb_probe(struct usb_interface *interface,
 	const struct usb_device_id *id)
 {
-	int ifnum, retval;
+	int ifnum, retval, i;
 	struct au0828_dev *dev;
 	struct usb_device *usbdev = interface_to_usbdev(interface);
 
@@ -195,8 +197,9 @@ static int au0828_usb_probe(struct usb_interface *interface,
 	usb_set_intfdata(interface, dev);
 
 	/* Create the v4l2_device */
+	i = atomic_inc_return(&au0828_instance) - 1;
 	snprintf(dev->v4l2_dev.name, sizeof(dev->v4l2_dev.name), "%s-%03d",
-		 "au0828", 0);
+		 "au0828", i);
 	retval = v4l2_device_register(&dev->usbdev->dev, &dev->v4l2_dev);
 	if (retval) {
 		printk(KERN_ERR "%s() v4l2_device_register failed\n",
