@@ -498,6 +498,19 @@ static irqreturn_t mmc_omap_irq(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
+static void set_sd_bus_power(struct mmc_omap_host *host)
+{
+	unsigned long i;
+
+	OMAP_HSMMC_WRITE(host->base, HCTL,
+			 OMAP_HSMMC_READ(host->base, HCTL) | SDBP);
+	for (i = 0; i < loops_per_jiffy; i++) {
+		if (OMAP_HSMMC_READ(host->base, HCTL) & SDBP)
+			break;
+		cpu_relax();
+	}
+}
+
 /*
  * Switch MMC interface voltage ... only relevant for MMC1.
  *
@@ -554,9 +567,7 @@ static int omap_mmc_switch_opcond(struct mmc_omap_host *host, int vdd)
 		reg_val |= SDVS30;
 
 	OMAP_HSMMC_WRITE(host->base, HCTL, reg_val);
-
-	OMAP_HSMMC_WRITE(host->base, HCTL,
-		OMAP_HSMMC_READ(host->base, HCTL) | SDBP);
+	set_sd_bus_power(host);
 
 	return 0;
 err:
@@ -942,8 +953,7 @@ static void omap_hsmmc_init(struct mmc_omap_host *host)
 	OMAP_HSMMC_WRITE(host->base, SYSCONFIG, value | AUTOIDLE);
 
 	/* Set SD bus power bit */
-	value = OMAP_HSMMC_READ(host->base, HCTL);
-	OMAP_HSMMC_WRITE(host->base, HCTL, value | SDBP);
+	set_sd_bus_power(host);
 }
 
 static struct mmc_host_ops mmc_omap_ops = {
