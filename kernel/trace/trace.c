@@ -2948,10 +2948,18 @@ tracing_entries_read(struct file *filp, char __user *ubuf,
 		     size_t cnt, loff_t *ppos)
 {
 	struct trace_array *tr = filp->private_data;
-	char buf[64];
+	char buf[96];
 	int r;
 
-	r = sprintf(buf, "%lu\n", tr->entries >> 10);
+	mutex_lock(&trace_types_lock);
+	if (!ring_buffer_expanded)
+		r = sprintf(buf, "%lu (expanded: %lu)\n",
+			    tr->entries >> 10,
+			    trace_buf_size >> 10);
+	else
+		r = sprintf(buf, "%lu\n", tr->entries >> 10);
+	mutex_unlock(&trace_types_lock);
+
 	return simple_read_from_buffer(ubuf, cnt, ppos, buf, r);
 }
 
