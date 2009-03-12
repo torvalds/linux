@@ -538,7 +538,7 @@ static int cx231xx_usb_probe(struct usb_interface *interface,
 	struct usb_interface *uif;
 	struct cx231xx *dev = NULL;
 	int retval = -ENODEV;
-	int nr, ifnum;
+	int nr = 0, ifnum;
 	int i, isoc_pipe = 0;
 	char *speed;
 	char descr[255] = "";
