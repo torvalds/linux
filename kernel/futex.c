@@ -690,6 +690,19 @@ double_lock_hb(struct futex_hash_bucket *hb1, struct futex_hash_bucket *hb2)
 	}
 }
 
+static inline void
+double_unlock_hb(struct futex_hash_bucket *hb1, struct futex_hash_bucket *hb2)
+{
+	if (hb1 <= hb2) {
+		spin_unlock(&hb2->lock);
+		if (hb1 < hb2)
+			spin_unlock(&hb1->lock);
+	} else { /* hb1 > hb2 */
+		spin_unlock(&hb1->lock);
+		spin_unlock(&hb2->lock);
+	}
+}
+
 /*
  * Wake up waiters matching bitset queued on this futex (uaddr).
  */
@@ -767,9 +780,7 @@ retry:
 	if (unlikely(op_ret < 0)) {
 		u32 dummy;
 
-		spin_unlock(&hb1->lock);
-		if (hb1 != hb2)
-			spin_unlock(&hb2->lock);
+		double_unlock_hb(hb1, hb2);
 
 #ifndef CONFIG_MMU
 		/*
@@ -833,9 +844,7 @@ retry:
 		ret += op_ret;
 	}
 
-	spin_unlock(&hb1->lock);
-	if (hb1 != hb2)
-		spin_unlock(&hb2->lock);
+	double_unlock_hb(hb1, hb2);
 out_put_keys:
 	put_futex_key(fshared, &key2);
 out_put_key1:
@@ -876,9 +885,7 @@ retry:
 		ret = get_futex_value_locked(&curval, uaddr1);
 
 		if (unlikely(ret)) {
-			spin_unlock(&hb1->lock);
-			if (hb1 != hb2)
-				spin_unlock(&hb2->lock);
+			double_unlock_hb(hb1, hb2);
 
 			put_futex_key(fshared, &key2);
 			put_futex_key(fshared, &key1);
@@ -925,9 +932,7 @@ retry:
 	}
 
 out_unlock:
-	spin_unlock(&hb1->lock);
-	if (hb1 != hb2)
-		spin_unlock(&hb2->lock);
+	double_unlock_hb(hb1, hb2);
 
 	/* drop_futex_key_refs() must be called outside the spinlocks. */
 	while (--drop_count >= 0)
