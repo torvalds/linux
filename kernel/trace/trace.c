@@ -1805,17 +1805,11 @@ __tracing_open(struct inode *inode, struct file *file)
 
 			iter->buffer_iter[cpu] =
 				ring_buffer_read_start(iter->tr->buffer, cpu);
-
-			if (!iter->buffer_iter[cpu])
-				goto fail_buffer;
 		}
 	} else {
 		cpu = iter->cpu_file;
 		iter->buffer_iter[cpu] =
 				ring_buffer_read_start(iter->tr->buffer, cpu);
-
-		if (!iter->buffer_iter[cpu])
-			goto fail;
 	}
 
 	/* TODO stop tracer */
