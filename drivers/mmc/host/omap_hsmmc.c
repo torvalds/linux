@@ -1214,20 +1214,8 @@ static int omap_mmc_suspend(struct platform_device *pdev, pm_message_t state)
 						" level suspend\n");
 			}
 
-			if (host->id == OMAP_MMC1_DEVID
-					&& !(OMAP_HSMMC_READ(host->base, HCTL)
-							& SDVSDET)) {
-				OMAP_HSMMC_WRITE(host->base, HCTL,
-					OMAP_HSMMC_READ(host->base, HCTL)
-					& SDVSCLR);
-				OMAP_HSMMC_WRITE(host->base, HCTL,
-					OMAP_HSMMC_READ(host->base, HCTL)
-					| SDVS30);
-				OMAP_HSMMC_WRITE(host->base, HCTL,
-					OMAP_HSMMC_READ(host->base, HCTL)
-					| SDBP);
-			}
-
+			OMAP_HSMMC_WRITE(host->base, HCTL,
+					 OMAP_HSMMC_READ(host->base, HCTL) & ~SDBP);
 			clk_disable(host->fclk);
 			clk_disable(host->iclk);
 			clk_disable(host->dbclk);
