@@ -368,6 +368,7 @@ ENTRY(save_rest)
 END(save_rest)
 
 /* save complete stack frame */
+	.pushsection .kprobes.text, "ax"
 ENTRY(save_paranoid)
 	XCPT_FRAME 1 RDI+8
 	cld
@@ -396,6 +397,7 @@ ENTRY(save_paranoid)
 1:	ret
 	CFI_ENDPROC
 END(save_paranoid)
+	.popsection
 
 /*
  * A newly forked process directly context switches into this address.
