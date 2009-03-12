@@ -251,9 +251,9 @@ static int t_show(struct seq_file *m, void *v)
 	int size;
 
 	if (v == SEQ_START_TOKEN) {
-		seq_printf(m, "        Depth   Size      Location"
+		seq_printf(m, "        Depth    Size      Location"
 			   "    (%d entries)\n"
-			   "        -----   ----      --------\n",
+			   "        -----    ----      --------\n",
 			   max_stack_trace.nr_entries);
 		return 0;
 	}
