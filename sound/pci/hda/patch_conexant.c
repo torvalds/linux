@@ -1066,6 +1066,7 @@ static int patch_cxt5045(struct hda_codec *codec)
 	if (!spec)
 		return -ENOMEM;
 	codec->spec = spec;
+	codec->pin_amp_workaround = 1;
 
 	spec->multiout.max_channels = 2;
 	spec->multiout.num_dacs = ARRAY_SIZE(cxt5045_dac_nids);
@@ -1501,6 +1502,7 @@ static int patch_cxt5047(struct hda_codec *codec)
 	if (!spec)
 		return -ENOMEM;
 	codec->spec = spec;
+	codec->pin_amp_workaround = 1;
 
 	spec->multiout.max_channels = 2;
 	spec->multiout.num_dacs = ARRAY_SIZE(cxt5047_dac_nids);
@@ -1847,6 +1849,7 @@ static int patch_cxt5051(struct hda_codec *codec)
 	if (!spec)
 		return -ENOMEM;
 	codec->spec = spec;
+	codec->pin_amp_workaround = 1;
 
 	codec->patch_ops = conexant_patch_ops;
 	codec->patch_ops.init = cxt5051_init;

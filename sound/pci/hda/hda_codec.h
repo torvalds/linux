@@ -793,6 +793,9 @@ struct hda_codec {
 					     * status change
 					     * (e.g. Realtek codecs)
 					     */
+	unsigned int pin_amp_workaround:1; /* pin out-amp takes index
+					    * (e.g. Conexant codecs)
+					    */
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 	unsigned int power_on :1;	/* current (global) power-state */
 	unsigned int power_transition :1; /* power-state in transition */
