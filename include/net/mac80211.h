@@ -97,7 +97,7 @@ struct ieee80211_ht_bss_info {
  *	for A-MPDU operation.
  */
 enum ieee80211_max_queues {
-	IEEE80211_MAX_QUEUES =		16,
+	IEEE80211_MAX_QUEUES =		4,
 	IEEE80211_MAX_AMPDU_QUEUES =	16,
 };
 
