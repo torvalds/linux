@@ -70,7 +70,7 @@ cpumask_t cpu_sibling_setup_map;
 #endif /* CONFIG_X86_32 */
 
 
-static struct cpu_dev *this_cpu __cpuinitdata;
+static const struct cpu_dev *this_cpu __cpuinitdata;
 
 DEFINE_PER_CPU_PAGE_ALIGNED(struct gdt_page, gdt_page) = { .gdt = {
 #ifdef CONFIG_X86_64
@@ -274,9 +274,9 @@ static void __cpuinit filter_cpuid_features(struct cpuinfo_x86 *c, bool warn)
  */
 
 /* Look up CPU names by table lookup. */
-static char __cpuinit *table_lookup_model(struct cpuinfo_x86 *c)
+static const char *__cpuinit table_lookup_model(struct cpuinfo_x86 *c)
 {
-	struct cpu_model_info *info;
+	const struct cpu_model_info *info;
 
 	if (c->x86_model >= 16)
 		return NULL;	/* Range check */
@@ -321,7 +321,7 @@ void switch_to_new_gdt(int cpu)
 	load_percpu_segment(cpu);
 }
 
-static struct cpu_dev *cpu_devs[X86_VENDOR_NUM] = {};
+static const struct cpu_dev *__cpuinitdata cpu_devs[X86_VENDOR_NUM] = {};
 
 static void __cpuinit default_init(struct cpuinfo_x86 *c)
 {
@@ -340,7 +340,7 @@ static void __cpuinit default_init(struct cpuinfo_x86 *c)
 #endif
 }
 
-static struct cpu_dev __cpuinitdata default_cpu = {
+static const struct cpu_dev __cpuinitconst default_cpu = {
 	.c_init	= default_init,
 	.c_vendor = "Unknown",
 	.c_x86_vendor = X86_VENDOR_UNKNOWN,
@@ -634,12 +634,12 @@ static void __init early_identify_cpu(struct cpuinfo_x86 *c)
 
 void __init early_cpu_init(void)
 {
-	struct cpu_dev **cdev;
+	const struct cpu_dev *const *cdev;
 	int count = 0;
 
 	printk("KERNEL supported cpus:\n");
 	for (cdev = __x86_cpu_dev_start; cdev < __x86_cpu_dev_end; cdev++) {
-		struct cpu_dev *cpudev = *cdev;
+		const struct cpu_dev *cpudev = *cdev;
 		unsigned int j;
 
 		if (count >= X86_VENDOR_NUM)
@@ -768,7 +768,7 @@ static void __cpuinit identify_cpu(struct cpuinfo_x86 *c)
 
 	/* If the model name is still unset, do table lookup. */
 	if (!c->x86_model_id[0]) {
-		char *p;
+		const char *p;
 		p = table_lookup_model(c);
 		if (p)
 			strcpy(c->x86_model_id, p);
@@ -847,7 +847,7 @@ struct msr_range {
 	unsigned max;
 };
 
-static struct msr_range msr_range_array[] __cpuinitdata = {
+static const struct msr_range msr_range_array[] __cpuinitconst = {
 	{ 0x00000000, 0x00000418},
 	{ 0xc0000000, 0xc000040b},
 	{ 0xc0010000, 0xc0010142},
@@ -894,7 +894,7 @@ __setup("noclflush", setup_noclflush);
 
 void __cpuinit print_cpu_info(struct cpuinfo_x86 *c)
 {
-	char *vendor = NULL;
+	const char *vendor = NULL;
 
 	if (c->x86_vendor < X86_VENDOR_NUM)
 		vendor = this_cpu->c_vendor;

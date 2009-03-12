@@ -25,7 +25,7 @@ static void __cpuinit init_centaur(struct cpuinfo_x86 *c)
 	set_cpu_cap(c, X86_FEATURE_LFENCE_RDTSC);
 }
 
-static struct cpu_dev centaur_cpu_dev __cpuinitdata = {
+static const struct cpu_dev centaur_cpu_dev __cpuinitconst = {
 	.c_vendor	= "Centaur",
 	.c_ident	= { "CentaurHauls" },
 	.c_early_init	= early_init_centaur,
