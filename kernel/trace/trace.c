@@ -2391,8 +2391,10 @@ int tracing_update_buffers(void)
 {
 	int ret = 0;
 
+	mutex_lock(&trace_types_lock);
 	if (!ring_buffer_expanded)
 		ret = tracing_resize_ring_buffer(trace_buf_size);
+	mutex_unlock(&trace_types_lock);
 
 	return ret;
 }
@@ -2412,6 +2414,8 @@ static int tracing_set_tracer(const char *buf)
 	struct tracer *t;
 	int ret = 0;
 
+	mutex_lock(&trace_types_lock);
+
 	if (!ring_buffer_expanded) {
 		ret = tracing_resize_ring_buffer(trace_buf_size);
 		if (ret < 0)
@@ -2419,7 +2423,6 @@ static int tracing_set_tracer(const char *buf)
 		ret = 0;
 	}
 
-	mutex_lock(&trace_types_lock);
 	for (t = trace_types; t; t = t->next) {
 		if (strcmp(t->name, buf) == 0)
 			break;
