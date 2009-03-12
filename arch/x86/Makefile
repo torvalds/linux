@@ -194,7 +194,3 @@ define archhelp
   echo  '                  FDARGS="..."  arguments for the booted kernel'
   echo  '                  FDINITRD=file initrd for the booted kernel'
 endef
-
-CLEAN_FILES += arch/x86/boot/fdimage \
-	       arch/x86/boot/image.iso \
-	       arch/x86/boot/mtools.conf        
