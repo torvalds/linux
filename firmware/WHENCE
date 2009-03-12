@@ -368,7 +368,7 @@ Driver: cxgb3 - Chelsio Terminator 3 1G/10G Ethernet adapter
 
 File: cxgb3/t3b_psram-1.1.0.bin.ihex
 File: cxgb3/t3c_psram-1.1.0.bin.ihex
-file: cxgb3/t3fw-7.0.0.bin.ihex
+file: cxgb3/t3fw-7.1.0.bin.ihex
 
 License: GPLv2 or OpenIB.org BSD license, no source visible
 
