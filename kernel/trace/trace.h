@@ -20,6 +20,7 @@ enum trace_type {
 	TRACE_WAKE,
 	TRACE_STACK,
 	TRACE_PRINT,
+	TRACE_BPRINT,
 	TRACE_SPECIAL,
 	TRACE_MMIO_RW,
 	TRACE_MMIO_MAP,
@@ -117,12 +118,19 @@ struct userstack_entry {
 /*
  * trace_printk entry:
  */
-struct print_entry {
+struct bprint_entry {
 	struct trace_entry	ent;
 	unsigned long		ip;
 	int			depth;
 	const char		*fmt;
 	u32			buf[];
+};
+
+struct print_entry {
+	struct trace_entry	ent;
+	unsigned long		ip;
+	int			depth;
+	char			buf[];
 };
 
 #define TRACE_OLD_SIZE		88
@@ -286,6 +294,7 @@ extern void __ftrace_bad_type(void);
 		IF_ASSIGN(var, ent, struct stack_entry, TRACE_STACK);	\
 		IF_ASSIGN(var, ent, struct userstack_entry, TRACE_USER_STACK);\
 		IF_ASSIGN(var, ent, struct print_entry, TRACE_PRINT);	\
+		IF_ASSIGN(var, ent, struct bprint_entry, TRACE_BPRINT);	\
 		IF_ASSIGN(var, ent, struct special_entry, 0);		\
 		IF_ASSIGN(var, ent, struct trace_mmiotrace_rw,		\
 			  TRACE_MMIO_RW);				\
@@ -569,6 +578,8 @@ extern int trace_selftest_startup_branch(struct tracer *trace,
 
 extern void *head_page(struct trace_array_cpu *data);
 extern long ns2usecs(cycle_t nsec);
+extern int
+trace_vbprintk(unsigned long ip, int depth, const char *fmt, va_list args);
 extern int
 trace_vprintk(unsigned long ip, int depth, const char *fmt, va_list args);
 

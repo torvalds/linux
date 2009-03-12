@@ -832,13 +832,13 @@ static struct trace_event trace_user_stack_event = {
 	.binary		= trace_special_bin,
 };
 
-/* TRACE_PRINT */
+/* TRACE_BPRINT */
 static enum print_line_t
-trace_print_print(struct trace_iterator *iter, int flags)
+trace_bprint_print(struct trace_iterator *iter, int flags)
 {
 	struct trace_entry *entry = iter->ent;
 	struct trace_seq *s = &iter->seq;
-	struct print_entry *field;
+	struct bprint_entry *field;
 
 	trace_assign_type(field, entry);
 
@@ -858,9 +858,10 @@ trace_print_print(struct trace_iterator *iter, int flags)
 }
 
 
-static enum print_line_t trace_print_raw(struct trace_iterator *iter, int flags)
+static enum print_line_t
+trace_bprint_raw(struct trace_iterator *iter, int flags)
 {
-	struct print_entry *field;
+	struct bprint_entry *field;
 	struct trace_seq *s = &iter->seq;
 
 	trace_assign_type(field, iter->ent);
@@ -878,11 +879,54 @@ static enum print_line_t trace_print_raw(struct trace_iterator *iter, int flags)
 }
 
 
+static struct trace_event trace_bprint_event = {
+	.type		= TRACE_BPRINT,
+	.trace		= trace_bprint_print,
+	.raw		= trace_bprint_raw,
+};
+
+/* TRACE_PRINT */
+static enum print_line_t trace_print_print(struct trace_iterator *iter,
+					   int flags)
+{
+	struct print_entry *field;
+	struct trace_seq *s = &iter->seq;
+
+	trace_assign_type(field, iter->ent);
+
+	if (!seq_print_ip_sym(s, field->ip, flags))
+		goto partial;
+
+	if (!trace_seq_printf(s, ": %s", field->buf))
+		goto partial;
+
+	return TRACE_TYPE_HANDLED;
+
+ partial:
+	return TRACE_TYPE_PARTIAL_LINE;
+}
+
+static enum print_line_t trace_print_raw(struct trace_iterator *iter, int flags)
+{
+	struct print_entry *field;
+
+	trace_assign_type(field, iter->ent);
+
+	if (!trace_seq_printf(&iter->seq, "# %lx %s", field->ip, field->buf))
+		goto partial;
+
+	return TRACE_TYPE_HANDLED;
+
+ partial:
+	return TRACE_TYPE_PARTIAL_LINE;
+}
+
 static struct trace_event trace_print_event = {
-	.type		= TRACE_PRINT,
+	.type	 	= TRACE_PRINT,
 	.trace		= trace_print_print,
 	.raw		= trace_print_raw,
 };
+
 
 static struct trace_event *events[] __initdata = {
 	&trace_fn_event,
@@ -891,6 +935,7 @@ static struct trace_event *events[] __initdata = {
 	&trace_special_event,
 	&trace_stack_event,
 	&trace_user_stack_event,
+	&trace_bprint_event,
 	&trace_print_event,
 	NULL
 };

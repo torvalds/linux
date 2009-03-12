@@ -1179,10 +1179,10 @@ void trace_graph_return(struct ftrace_graph_ret *trace)
 
 
 /**
- * trace_vprintk - write binary msg to tracing buffer
+ * trace_vbprintk - write binary msg to tracing buffer
  *
  */
-int trace_vprintk(unsigned long ip, int depth, const char *fmt, va_list args)
+int trace_vbprintk(unsigned long ip, int depth, const char *fmt, va_list args)
 {
 	static raw_spinlock_t trace_buf_lock =
 		(raw_spinlock_t)__RAW_SPIN_LOCK_UNLOCKED;
@@ -1191,7 +1191,7 @@ int trace_vprintk(unsigned long ip, int depth, const char *fmt, va_list args)
 	struct ring_buffer_event *event;
 	struct trace_array *tr = &global_trace;
 	struct trace_array_cpu *data;
-	struct print_entry *entry;
+	struct bprint_entry *entry;
 	unsigned long flags;
 	int resched;
 	int cpu, len = 0, size, pc;
@@ -1219,7 +1219,7 @@ int trace_vprintk(unsigned long ip, int depth, const char *fmt, va_list args)
 		goto out_unlock;
 
 	size = sizeof(*entry) + sizeof(u32) * len;
-	event = trace_buffer_lock_reserve(tr, TRACE_PRINT, size, flags, pc);
+	event = trace_buffer_lock_reserve(tr, TRACE_BPRINT, size, flags, pc);
 	if (!event)
 		goto out_unlock;
 	entry = ring_buffer_event_data(event);
@@ -1237,6 +1237,60 @@ out_unlock:
 out:
 	ftrace_preempt_enable(resched);
 	unpause_graph_tracing();
+
+	return len;
+}
+EXPORT_SYMBOL_GPL(trace_vbprintk);
+
+int trace_vprintk(unsigned long ip, int depth, const char *fmt, va_list args)
+{
+	static raw_spinlock_t trace_buf_lock = __RAW_SPIN_LOCK_UNLOCKED;
+	static char trace_buf[TRACE_BUF_SIZE];
+
+	struct ring_buffer_event *event;
+	struct trace_array *tr = &global_trace;
+	struct trace_array_cpu *data;
+	int cpu, len = 0, size, pc;
+	struct print_entry *entry;
+	unsigned long irq_flags;
+
+	if (tracing_disabled || tracing_selftest_running)
+		return 0;
+
+	pc = preempt_count();
+	preempt_disable_notrace();
+	cpu = raw_smp_processor_id();
+	data = tr->data[cpu];
+
+	if (unlikely(atomic_read(&data->disabled)))
+		goto out;
+
+	pause_graph_tracing();
+	raw_local_irq_save(irq_flags);
+	__raw_spin_lock(&trace_buf_lock);
+	len = vsnprintf(trace_buf, TRACE_BUF_SIZE, fmt, args);
+
+	len = min(len, TRACE_BUF_SIZE-1);
+	trace_buf[len] = 0;
+
+	size = sizeof(*entry) + len + 1;
+	event = trace_buffer_lock_reserve(tr, TRACE_PRINT, size, irq_flags, pc);
+	if (!event)
+		goto out_unlock;
+	entry = ring_buffer_event_data(event);
+	entry->ip			= ip;
+	entry->depth			= depth;
+
+	memcpy(&entry->buf, trace_buf, len);
+	entry->buf[len] = 0;
+	ring_buffer_unlock_commit(tr->buffer, event);
+
+ out_unlock:
+	__raw_spin_unlock(&trace_buf_lock);
+	raw_local_irq_restore(irq_flags);
+	unpause_graph_tracing();
+ out:
+	preempt_enable_notrace();
 
 	return len;
 }
@@ -1628,6 +1682,22 @@ static enum print_line_t print_hex_fmt(struct trace_iterator *iter)
 	return TRACE_TYPE_HANDLED;
 }
 
+static enum print_line_t print_bprintk_msg_only(struct trace_iterator *iter)
+{
+	struct trace_seq *s = &iter->seq;
+	struct trace_entry *entry = iter->ent;
+	struct bprint_entry *field;
+	int ret;
+
+	trace_assign_type(field, entry);
+
+	ret = trace_seq_bprintf(s, field->fmt, field->buf);
+	if (!ret)
+		return TRACE_TYPE_PARTIAL_LINE;
+
+	return TRACE_TYPE_HANDLED;
+}
+
 static enum print_line_t print_printk_msg_only(struct trace_iterator *iter)
 {
 	struct trace_seq *s = &iter->seq;
@@ -1637,7 +1707,7 @@ static enum print_line_t print_printk_msg_only(struct trace_iterator *iter)
 
 	trace_assign_type(field, entry);
 
-	ret = trace_seq_bprintf(s, field->fmt, field->buf);
+	ret = trace_seq_printf(s, "%s", field->buf);
 	if (!ret)
 		return TRACE_TYPE_PARTIAL_LINE;
 
@@ -1701,6 +1771,11 @@ static enum print_line_t print_trace_line(struct trace_iterator *iter)
 		if (ret != TRACE_TYPE_UNHANDLED)
 			return ret;
 	}
+
+	if (iter->ent->type == TRACE_BPRINT &&
+			trace_flags & TRACE_ITER_PRINTK &&
+			trace_flags & TRACE_ITER_PRINTK_MSGONLY)
+		return print_bprintk_msg_only(iter);
 
 	if (iter->ent->type == TRACE_PRINT &&
 			trace_flags & TRACE_ITER_PRINTK &&

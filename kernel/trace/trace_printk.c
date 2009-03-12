@@ -99,13 +99,40 @@ struct notifier_block module_trace_bprintk_format_nb = {
 	.notifier_call = module_trace_bprintk_format_notify,
 };
 
-int __trace_printk(unsigned long ip, const char *fmt, ...)
+int __trace_bprintk(unsigned long ip, const char *fmt, ...)
  {
 	int ret;
 	va_list ap;
 
 	if (unlikely(!fmt))
 		return 0;
+
+	if (!(trace_flags & TRACE_ITER_PRINTK))
+		return 0;
+
+	va_start(ap, fmt);
+	ret = trace_vbprintk(ip, task_curr_ret_stack(current), fmt, ap);
+	va_end(ap);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(__trace_bprintk);
+
+int __ftrace_vbprintk(unsigned long ip, const char *fmt, va_list ap)
+ {
+	if (unlikely(!fmt))
+		return 0;
+
+	if (!(trace_flags & TRACE_ITER_PRINTK))
+		return 0;
+
+	return trace_vbprintk(ip, task_curr_ret_stack(current), fmt, ap);
+}
+EXPORT_SYMBOL_GPL(__ftrace_vbprintk);
+
+int __trace_printk(unsigned long ip, const char *fmt, ...)
+{
+	int ret;
+	va_list ap;
 
 	if (!(trace_flags & TRACE_ITER_PRINTK))
 		return 0;
@@ -118,17 +145,13 @@ int __trace_printk(unsigned long ip, const char *fmt, ...)
 EXPORT_SYMBOL_GPL(__trace_printk);
 
 int __ftrace_vprintk(unsigned long ip, const char *fmt, va_list ap)
- {
-	if (unlikely(!fmt))
-		return 0;
-
+{
 	if (!(trace_flags & TRACE_ITER_PRINTK))
 		return 0;
 
 	return trace_vprintk(ip, task_curr_ret_stack(current), fmt, ap);
 }
 EXPORT_SYMBOL_GPL(__ftrace_vprintk);
-
 
 static __init int init_trace_printk(void)
 {
