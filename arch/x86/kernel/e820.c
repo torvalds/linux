@@ -421,7 +421,7 @@ static u64 __init e820_update_range_map(struct e820map *e820x, u64 start,
 					u64 size, unsigned old_type,
 					unsigned new_type)
 {
-	int i;
+	unsigned int i, x;
 	u64 real_updated_size = 0;
 
 	BUG_ON(old_type == new_type);
@@ -429,7 +429,7 @@ static u64 __init e820_update_range_map(struct e820map *e820x, u64 start,
 	if (size > (ULLONG_MAX - start))
 		size = ULLONG_MAX - start;
 
-	for (i = 0; i < e820.nr_map; i++) {
+	for (i = 0; i < e820x->nr_map; i++) {
 		struct e820entry *ei = &e820x->map[i];
 		u64 final_start, final_end;
 		if (ei->type != old_type)
@@ -446,14 +446,23 @@ static u64 __init e820_update_range_map(struct e820map *e820x, u64 start,
 		final_end = min(start + size, ei->addr + ei->size);
 		if (final_start >= final_end)
 			continue;
-		e820_add_region(final_start, final_end - final_start,
-					 new_type);
+
+		x = e820x->nr_map;
+		if (x == ARRAY_SIZE(e820x->map)) {
+			printk(KERN_ERR "Too many memory map entries!\n");
+			break;
+		}
+		e820x->map[x].addr = final_start;
+		e820x->map[x].size = final_end - final_start;
+		e820x->map[x].type = new_type;
+		e820x->nr_map++;
+
 		real_updated_size += final_end - final_start;
 
-		ei->size -= final_end - final_start;
 		if (ei->addr < final_start)
 			continue;
 		ei->addr = final_end;
+		ei->size -= final_end - final_start;
 	}
 	return real_updated_size;
 }
@@ -1020,8 +1029,8 @@ u64 __init find_e820_area_size(u64 start, u64 *sizep, u64 align)
 			continue;
 		return addr;
 	}
-	return -1UL;
 
+	return -1ULL;
 }
 
 /*
@@ -1034,13 +1043,22 @@ u64 __init early_reserve_e820(u64 startt, u64 sizet, u64 align)
 	u64 start;
 
 	start = startt;
-	while (size < sizet)
+	while (size < sizet && (start + 1))
 		start = find_e820_area_size(start, &size, align);
 
 	if (size < sizet)
 		return 0;
 
+#ifdef CONFIG_X86_32
+	if (start >= MAXMEM)
+		return 0;
+	if (start + size > MAXMEM)
+		size = MAXMEM - start;
+#endif
+
 	addr = round_down(start + size - sizet, align);
+	if (addr < start)
+		return 0;
 	e820_update_range(addr, sizet, E820_RAM, E820_RESERVED);
 	e820_update_range_saved(addr, sizet, E820_RAM, E820_RESERVED);
 	printk(KERN_INFO "update e820 for early_reserve_e820\n");
