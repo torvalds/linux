@@ -303,7 +303,7 @@ struct ring_buffer {
 
 	struct ring_buffer_per_cpu	**buffers;
 
-#ifdef CONFIG_HOTPLUG
+#ifdef CONFIG_HOTPLUG_CPU
 	struct notifier_block		cpu_notify;
 #endif
 };
@@ -464,7 +464,7 @@ static void rb_free_cpu_buffer(struct ring_buffer_per_cpu *cpu_buffer)
  */
 extern int ring_buffer_page_too_big(void);
 
-#ifdef CONFIG_HOTPLUG
+#ifdef CONFIG_HOTPLUG_CPU
 static int __cpuinit rb_cpu_notify(struct notifier_block *self,
 				   unsigned long action, void *hcpu);
 #endif
@@ -523,7 +523,7 @@ struct ring_buffer *ring_buffer_alloc(unsigned long size, unsigned flags)
 			goto fail_free_buffers;
 	}
 
-#ifdef CONFIG_HOTPLUG
+#ifdef CONFIG_HOTPLUG_CPU
 	buffer->cpu_notify.notifier_call = rb_cpu_notify;
 	buffer->cpu_notify.priority = 0;
 	register_cpu_notifier(&buffer->cpu_notify);
@@ -562,7 +562,7 @@ ring_buffer_free(struct ring_buffer *buffer)
 
 	get_online_cpus();
 
-#ifdef CONFIG_HOTPLUG
+#ifdef CONFIG_HOTPLUG_CPU
 	unregister_cpu_notifier(&buffer->cpu_notify);
 #endif
 
@@ -2757,7 +2757,7 @@ static __init int rb_init_debugfs(void)
 
 fs_initcall(rb_init_debugfs);
 
-#ifdef CONFIG_HOTPLUG
+#ifdef CONFIG_HOTPLUG_CPU
 static int __cpuinit rb_cpu_notify(struct notifier_block *self,
 				   unsigned long action, void *hcpu)
 {
