@@ -91,6 +91,7 @@ struct rx_sw_desc;
 struct sge_fl {                     /* SGE per free-buffer list state */
 	unsigned int buf_size;      /* size of each Rx buffer */
 	unsigned int credits;       /* # of available Rx buffers */
+	unsigned int pend_cred;     /* new buffers since last FL DB ring */
 	unsigned int size;          /* capacity of free list */
 	unsigned int cidx;          /* consumer index */
 	unsigned int pidx;          /* producer index */
