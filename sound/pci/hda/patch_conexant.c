@@ -1196,7 +1196,7 @@ static int cxt5047_hp_master_sw_put(struct snd_kcontrol *kcontrol,
 	 * the headphone jack
 	 */
 	bits = (!spec->hp_present && spec->cur_eapd) ? 0 : HDA_AMP_MUTE;
-	snd_hda_codec_amp_stereo(codec, 0x1d, HDA_OUTPUT, 0,
+	snd_hda_codec_amp_stereo(codec, 0x1d, HDA_OUTPUT, 0x01,
 				 HDA_AMP_MUTE, bits);
 	bits = spec->cur_eapd ? 0 : HDA_AMP_MUTE;
 	snd_hda_codec_amp_stereo(codec, 0x13, HDA_OUTPUT, 0,
@@ -1214,7 +1214,7 @@ static void cxt5047_hp_automute(struct hda_codec *codec)
 				     AC_VERB_GET_PIN_SENSE, 0) & 0x80000000;
 
 	bits = (spec->hp_present || !spec->cur_eapd) ? HDA_AMP_MUTE : 0;
-	snd_hda_codec_amp_stereo(codec, 0x1d, HDA_OUTPUT, 0,
+	snd_hda_codec_amp_stereo(codec, 0x1d, HDA_OUTPUT, 0x01,
 				 HDA_AMP_MUTE, bits);
 }
 
@@ -1276,7 +1276,7 @@ static struct snd_kcontrol_new cxt5047_base_mixers[] = {
 };
 
 static struct snd_kcontrol_new cxt5047_hp_spk_mixers[] = {
-	HDA_CODEC_VOLUME("Speaker Playback Volume", 0x1d, 0x00, HDA_OUTPUT),
+	HDA_CODEC_VOLUME("Speaker Playback Volume", 0x1d, 0x01, HDA_OUTPUT),
 	HDA_CODEC_VOLUME("Headphone Playback Volume", 0x13, 0x00, HDA_OUTPUT),
 	{}
 };
