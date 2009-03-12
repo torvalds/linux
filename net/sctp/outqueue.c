@@ -1758,6 +1758,9 @@ static void sctp_generate_fwdtsn(struct sctp_outq *q, __u32 ctsn)
 	struct sctp_chunk *chunk;
 	struct list_head *lchunk, *temp;
 
+	if (!asoc->peer.prsctp_capable)
+		return;
+
 	/* PR-SCTP C1) Let SackCumAck be the Cumulative TSN ACK carried in the
 	 * received SACK.
 	 *
