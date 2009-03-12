@@ -446,6 +446,7 @@ static void FNAME(invlpg)(struct kvm_vcpu *vcpu, gva_t gva)
 	gpa_t pte_gpa = -1;
 	int level;
 	u64 *sptep;
+	int need_flush = 0;
 
 	spin_lock(&vcpu->kvm->mmu_lock);
 
@@ -465,6 +466,7 @@ static void FNAME(invlpg)(struct kvm_vcpu *vcpu, gva_t gva)
 				rmap_remove(vcpu->kvm, sptep);
 				if (is_large_pte(*sptep))
 					--vcpu->kvm->stat.lpages;
+				need_flush = 1;
 			}
 			set_shadow_pte(sptep, shadow_trap_nonpresent_pte);
 			break;
@@ -474,6 +476,8 @@ static void FNAME(invlpg)(struct kvm_vcpu *vcpu, gva_t gva)
 			break;
 	}
 
+	if (need_flush)
+		kvm_flush_remote_tlbs(vcpu->kvm);
 	spin_unlock(&vcpu->kvm->mmu_lock);
 
 	if (pte_gpa == -1)
