@@ -170,6 +170,40 @@ static void link_report(struct net_device *dev)
 	}
 }
 
+void t3_os_link_fault(struct adapter *adap, int port_id, int state)
+{
+	struct net_device *dev = adap->port[port_id];
+	struct port_info *pi = netdev_priv(dev);
+
+	if (state == netif_carrier_ok(dev))
+		return;
+
+	if (state) {
+		struct cmac *mac = &pi->mac;
+
+		netif_carrier_on(dev);
+
+		/* Clear local faults */
+		t3_xgm_intr_disable(adap, pi->port_id);
+		t3_read_reg(adap, A_XGM_INT_STATUS +
+				    pi->mac.offset);
+		t3_write_reg(adap,
+			     A_XGM_INT_CAUSE + pi->mac.offset,
+			     F_XGM_INT);
+
+		t3_set_reg_field(adap,
+				 A_XGM_INT_ENABLE +
+				 pi->mac.offset,
+				 F_XGM_INT, F_XGM_INT);
+		t3_xgm_intr_enable(adap, pi->port_id);
+
+		t3_mac_enable(mac, MAC_DIRECTION_TX);
+	} else
+		netif_carrier_off(dev);
+
+	link_report(dev);
+}
+
 /**
  *	t3_os_link_changed - handle link status changes
  *	@adapter: the adapter associated with the link change
@@ -197,10 +231,34 @@ void t3_os_link_changed(struct adapter *adapter, int port_id, int link_stat,
 	if (link_stat != netif_carrier_ok(dev)) {
 		if (link_stat) {
 			t3_mac_enable(mac, MAC_DIRECTION_RX);
+
+			/* Clear local faults */
+			t3_xgm_intr_disable(adapter, pi->port_id);
+			t3_read_reg(adapter, A_XGM_INT_STATUS +
+				    pi->mac.offset);
+			t3_write_reg(adapter,
+				     A_XGM_INT_CAUSE + pi->mac.offset,
+				     F_XGM_INT);
+
+			t3_set_reg_field(adapter,
+					 A_XGM_INT_ENABLE + pi->mac.offset,
+					 F_XGM_INT, F_XGM_INT);
+			t3_xgm_intr_enable(adapter, pi->port_id);
+
 			netif_carrier_on(dev);
 		} else {
 			netif_carrier_off(dev);
-			pi->phy.ops->power_down(&pi->phy, 1);
+
+			t3_xgm_intr_disable(adapter, pi->port_id);
+			t3_read_reg(adapter, A_XGM_INT_STATUS + pi->mac.offset);
+			t3_set_reg_field(adapter,
+					 A_XGM_INT_ENABLE + pi->mac.offset,
+					 F_XGM_INT, 0);
+
+			if (is_10G(adapter))
+				pi->phy.ops->power_down(&pi->phy, 1);
+
+			t3_read_reg(adapter, A_XGM_INT_STATUS + pi->mac.offset);
 			t3_mac_disable(mac, MAC_DIRECTION_RX);
 			t3_link_start(&pi->phy, mac, &pi->link_config);
 		}
@@ -1173,6 +1231,10 @@ static int cxgb_close(struct net_device *dev)
 	struct port_info *pi = netdev_priv(dev);
 	struct adapter *adapter = pi->adapter;
 
+	/* Stop link fault interrupts */
+	t3_xgm_intr_disable(adapter, pi->port_id);
+	t3_read_reg(adapter, A_XGM_INT_STATUS + pi->mac.offset);
+
 	t3_port_intr_disable(adapter, pi->port_id);
 	netif_tx_stop_all_queues(dev);
 	pi->phy.ops->power_down(&pi->phy, 1);
@@ -1299,6 +1361,7 @@ static char stats_strings[][ETH_GSTRING_LEN] = {
 	"CheckTXEnToggled   ",
 	"CheckResets        ",
 
+	"LinkFaults         ",
 };
 
 static int get_sset_count(struct net_device *dev, int sset)
@@ -1431,6 +1494,8 @@ static void get_stats(struct net_device *dev, struct ethtool_stats *stats,
 
 	*data++ = s->num_toggled;
 	*data++ = s->num_resets;
+
+	*data++ = s->link_faults;
 }
 
 static inline void reg_block_dump(struct adapter *ap, void *buf,
@@ -2425,8 +2490,20 @@ static void check_link_status(struct adapter *adapter)
 		struct net_device *dev = adapter->port[i];
 		struct port_info *p = netdev_priv(dev);
 
-		if (!(p->phy.caps & SUPPORTED_IRQ) && netif_running(dev))
+		spin_lock_irq(&adapter->work_lock);
+		if (p->link_fault) {
+			spin_unlock_irq(&adapter->work_lock);
+			continue;
+		}
+		spin_unlock_irq(&adapter->work_lock);
+
+		if (!(p->phy.caps & SUPPORTED_IRQ) && netif_running(dev)) {
+			t3_xgm_intr_disable(adapter, i);
+			t3_read_reg(adapter, A_XGM_INT_STATUS + p->mac.offset);
+
 			t3_link_changed(adapter, i);
+			t3_xgm_intr_enable(adapter, i);
+		}
 	}
 }
 
@@ -2553,8 +2630,22 @@ static void ext_intr_task(struct work_struct *work)
 {
 	struct adapter *adapter = container_of(work, struct adapter,
 					       ext_intr_handler_task);
+	int i;
 
+	/* Disable link fault interrupts */
+	for_each_port(adapter, i) {
+		struct net_device *dev = adapter->port[i];
+		struct port_info *p = netdev_priv(dev);
+
+		t3_xgm_intr_disable(adapter, i);
+		t3_read_reg(adapter, A_XGM_INT_STATUS + p->mac.offset);
+	}
+
+	/* Re-enable link fault interrupts */
 	t3_phy_intr_handler(adapter);
+
+	for_each_port(adapter, i)
+		t3_xgm_intr_enable(adapter, i);
 
 	/* Now reenable external interrupts */
 	spin_lock_irq(&adapter->work_lock);
@@ -2585,6 +2676,32 @@ void t3_os_ext_intr_handler(struct adapter *adapter)
 			     adapter->slow_intr_mask);
 		queue_work(cxgb3_wq, &adapter->ext_intr_handler_task);
 	}
+	spin_unlock(&adapter->work_lock);
+}
+
+static void link_fault_task(struct work_struct *work)
+{
+	struct adapter *adapter = container_of(work, struct adapter,
+					       link_fault_handler_task);
+	int i;
+
+	for_each_port(adapter, i) {
+		struct net_device *netdev = adapter->port[i];
+		struct port_info *pi = netdev_priv(netdev);
+
+		if (pi->link_fault)
+			t3_link_fault(adapter, i);
+	}
+}
+
+void t3_os_link_fault_handler(struct adapter *adapter, int port_id)
+{
+	struct net_device *netdev = adapter->port[port_id];
+	struct port_info *pi = netdev_priv(netdev);
+
+	spin_lock(&adapter->work_lock);
+	pi->link_fault = 1;
+	queue_work(cxgb3_wq, &adapter->link_fault_handler_task);
 	spin_unlock(&adapter->work_lock);
 }
 
@@ -2704,7 +2821,6 @@ void t3_fatal_err(struct adapter *adapter)
 		CH_ALERT(adapter, "FW status: 0x%x, 0x%x, 0x%x, 0x%x\n",
 			 fw_status[0], fw_status[1],
 			 fw_status[2], fw_status[3]);
-
 }
 
 /**
@@ -2962,6 +3078,7 @@ static int __devinit init_one(struct pci_dev *pdev,
 
 	INIT_LIST_HEAD(&adapter->adapter_list);
 	INIT_WORK(&adapter->ext_intr_handler_task, ext_intr_task);
+	INIT_WORK(&adapter->link_fault_handler_task, link_fault_task);
 	INIT_WORK(&adapter->fatal_error_handler_task, fatal_error_task);
 	INIT_DELAYED_WORK(&adapter->adap_check_task, t3_adap_check_task);
 

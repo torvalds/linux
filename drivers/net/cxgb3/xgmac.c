@@ -218,6 +218,9 @@ static int t3b2_mac_reset(struct cmac *mac)
 	/* re-enable nic traffic */
 	t3_set_reg_field(adap, A_MPS_CFG, F_ENFORCEPKT, 1);
 
+	/*  Set: re-enable NIC traffic */
+	t3_set_reg_field(adap, A_MPS_CFG, F_ENFORCEPKT, 1);
+
 	return 0;
 }
 
@@ -258,7 +261,7 @@ int t3_mac_set_num_ucast(struct cmac *mac, int n)
 	return 0;
 }
 
-static void disable_exact_filters(struct cmac *mac)
+void t3_mac_disable_exact_filters(struct cmac *mac)
 {
 	unsigned int i, reg = mac->offset + A_XGM_RX_EXACT_MATCH_LOW_1;
 
@@ -269,7 +272,7 @@ static void disable_exact_filters(struct cmac *mac)
 	t3_read_reg(mac->adapter, A_XGM_RX_EXACT_MATCH_LOW_1);	/* flush */
 }
 
-static void enable_exact_filters(struct cmac *mac)
+void t3_mac_enable_exact_filters(struct cmac *mac)
 {
 	unsigned int i, reg = mac->offset + A_XGM_RX_EXACT_MATCH_HIGH_1;
 
@@ -356,7 +359,7 @@ int t3_mac_set_mtu(struct cmac *mac, unsigned int mtu)
 
 	if (adap->params.rev >= T3_REV_B2 &&
 	    (t3_read_reg(adap, A_XGM_RX_CTRL + mac->offset) & F_RXEN)) {
-		disable_exact_filters(mac);
+		t3_mac_disable_exact_filters(mac);
 		v = t3_read_reg(adap, A_XGM_RX_CFG + mac->offset);
 		t3_set_reg_field(adap, A_XGM_RX_CFG + mac->offset,
 				 F_ENHASHMCAST | F_COPYALLFRAMES, F_DISBCAST);
@@ -368,14 +371,14 @@ int t3_mac_set_mtu(struct cmac *mac, unsigned int mtu)
 		if (t3_wait_op_done(adap, reg + mac->offset,
 				    F_RXFIFO_EMPTY, 1, 20, 5)) {
 			t3_write_reg(adap, A_XGM_RX_CFG + mac->offset, v);
-			enable_exact_filters(mac);
+			t3_mac_enable_exact_filters(mac);
 			return -EIO;
 		}
 		t3_set_reg_field(adap, A_XGM_RX_MAX_PKT_SIZE + mac->offset,
 				 V_RXMAXPKTSIZE(M_RXMAXPKTSIZE),
 				 V_RXMAXPKTSIZE(mtu));
 		t3_write_reg(adap, A_XGM_RX_CFG + mac->offset, v);
-		enable_exact_filters(mac);
+		t3_mac_enable_exact_filters(mac);
 	} else
 		t3_set_reg_field(adap, A_XGM_RX_MAX_PKT_SIZE + mac->offset,
 				 V_RXMAXPKTSIZE(M_RXMAXPKTSIZE),

@@ -68,6 +68,8 @@ struct port_info {
 	struct net_device_stats netstats;
 	int activity;
 	__be32 iscsi_ipv4addr;
+
+	int link_fault; /* link fault was detected */
 };
 
 enum {				/* adapter flags */
@@ -241,6 +243,7 @@ struct adapter {
 	struct delayed_work adap_check_task;
 	struct work_struct ext_intr_handler_task;
 	struct work_struct fatal_error_handler_task;
+	struct work_struct link_fault_handler_task;
 
 	struct dentry *debugfs_root;
 
@@ -283,6 +286,8 @@ void t3_os_ext_intr_handler(struct adapter *adapter);
 void t3_os_link_changed(struct adapter *adapter, int port_id, int link_status,
 			int speed, int duplex, int fc);
 void t3_os_phymod_changed(struct adapter *adap, int port_id);
+void t3_os_link_fault(struct adapter *adapter, int port_id, int state);
+void t3_os_link_fault_handler(struct adapter *adapter, int port_id);
 
 void t3_sge_start(struct adapter *adap);
 void t3_sge_stop(struct adapter *adap);
