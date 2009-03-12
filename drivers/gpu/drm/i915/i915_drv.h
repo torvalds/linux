@@ -446,6 +446,9 @@ struct drm_i915_gem_object {
 	uint32_t tiling_mode;
 	uint32_t stride;
 
+	/** Record of address bit 17 of each page at last unbind. */
+	long *bit_17;
+
 	/** AGP mapping type (AGP_USER_MEMORY or AGP_USER_CACHED_MEMORY */
 	uint32_t agp_type;
 
@@ -640,6 +643,8 @@ void i915_gem_object_put_pages(struct drm_gem_object *obj);
 
 /* i915_gem_tiling.c */
 void i915_gem_detect_bit_6_swizzle(struct drm_device *dev);
+void i915_gem_object_do_bit_17_swizzle(struct drm_gem_object *obj);
+void i915_gem_object_save_bit_17_swizzle(struct drm_gem_object *obj);
 
 /* i915_gem_debug.c */
 void i915_gem_dump_object(struct drm_gem_object *obj, int len,

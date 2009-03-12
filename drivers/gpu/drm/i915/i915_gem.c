@@ -155,6 +155,15 @@ fast_shmem_read(struct page **pages,
 	return 0;
 }
 
+static int i915_gem_object_needs_bit17_swizzle(struct drm_gem_object *obj)
+{
+	drm_i915_private_t *dev_priv = obj->dev->dev_private;
+	struct drm_i915_gem_object *obj_priv = obj->driver_private;
+
+	return dev_priv->mm.bit_6_swizzle_x == I915_BIT_6_SWIZZLE_9_10_17 &&
+		obj_priv->tiling_mode != I915_TILING_NONE;
+}
+
 static inline int
 slow_shmem_copy(struct page *dst_page,
 		int dst_offset,
@@ -178,6 +187,64 @@ slow_shmem_copy(struct page *dst_page,
 
 	kunmap_atomic(src_vaddr, KM_USER1);
 	kunmap_atomic(dst_vaddr, KM_USER0);
+
+	return 0;
+}
+
+static inline int
+slow_shmem_bit17_copy(struct page *gpu_page,
+		      int gpu_offset,
+		      struct page *cpu_page,
+		      int cpu_offset,
+		      int length,
+		      int is_read)
+{
+	char *gpu_vaddr, *cpu_vaddr;
+
+	/* Use the unswizzled path if this page isn't affected. */
+	if ((page_to_phys(gpu_page) & (1 << 17)) == 0) {
+		if (is_read)
+			return slow_shmem_copy(cpu_page, cpu_offset,
+					       gpu_page, gpu_offset, length);
+		else
+			return slow_shmem_copy(gpu_page, gpu_offset,
+					       cpu_page, cpu_offset, length);
+	}
+
+	gpu_vaddr = kmap_atomic(gpu_page, KM_USER0);
+	if (gpu_vaddr == NULL)
+		return -ENOMEM;
+
+	cpu_vaddr = kmap_atomic(cpu_page, KM_USER1);
+	if (cpu_vaddr == NULL) {
+		kunmap_atomic(gpu_vaddr, KM_USER0);
+		return -ENOMEM;
+	}
+
+	/* Copy the data, XORing A6 with A17 (1). The user already knows he's
+	 * XORing with the other bits (A9 for Y, A9 and A10 for X)
+	 */
+	while (length > 0) {
+		int cacheline_end = ALIGN(gpu_offset + 1, 64);
+		int this_length = min(cacheline_end - gpu_offset, length);
+		int swizzled_gpu_offset = gpu_offset ^ 64;
+
+		if (is_read) {
+			memcpy(cpu_vaddr + cpu_offset,
+			       gpu_vaddr + swizzled_gpu_offset,
+			       this_length);
+		} else {
+			memcpy(gpu_vaddr + swizzled_gpu_offset,
+			       cpu_vaddr + cpu_offset,
+			       this_length);
+		}
+		cpu_offset += this_length;
+		gpu_offset += this_length;
+		length -= this_length;
+	}
+
+	kunmap_atomic(cpu_vaddr, KM_USER1);
+	kunmap_atomic(gpu_vaddr, KM_USER0);
 
 	return 0;
 }
@@ -270,6 +337,7 @@ i915_gem_shmem_pread_slow(struct drm_device *dev, struct drm_gem_object *obj,
 	int page_length;
 	int ret;
 	uint64_t data_ptr = args->data_ptr;
+	int do_bit17_swizzling;
 
 	remain = args->size;
 
@@ -293,6 +361,8 @@ i915_gem_shmem_pread_slow(struct drm_device *dev, struct drm_gem_object *obj,
 		ret = -EFAULT;
 		goto fail_put_user_pages;
 	}
+
+	do_bit17_swizzling = i915_gem_object_needs_bit17_swizzle(obj);
 
 	mutex_lock(&dev->struct_mutex);
 
@@ -328,11 +398,20 @@ i915_gem_shmem_pread_slow(struct drm_device *dev, struct drm_gem_object *obj,
 		if ((data_page_offset + page_length) > PAGE_SIZE)
 			page_length = PAGE_SIZE - data_page_offset;
 
-		ret = slow_shmem_copy(user_pages[data_page_index],
-				      data_page_offset,
-				      obj_priv->pages[shmem_page_index],
-				      shmem_page_offset,
-				      page_length);
+		if (do_bit17_swizzling) {
+			ret = slow_shmem_bit17_copy(obj_priv->pages[shmem_page_index],
+						    shmem_page_offset,
+						    user_pages[data_page_index],
+						    data_page_offset,
+						    page_length,
+						    1);
+		} else {
+			ret = slow_shmem_copy(user_pages[data_page_index],
+					      data_page_offset,
+					      obj_priv->pages[shmem_page_index],
+					      shmem_page_offset,
+					      page_length);
+		}
 		if (ret)
 			goto fail_put_pages;
 
@@ -384,9 +463,14 @@ i915_gem_pread_ioctl(struct drm_device *dev, void *data,
 		return -EINVAL;
 	}
 
-	ret = i915_gem_shmem_pread_fast(dev, obj, args, file_priv);
-	if (ret != 0)
+	if (i915_gem_object_needs_bit17_swizzle(obj)) {
 		ret = i915_gem_shmem_pread_slow(dev, obj, args, file_priv);
+	} else {
+		ret = i915_gem_shmem_pread_fast(dev, obj, args, file_priv);
+		if (ret != 0)
+			ret = i915_gem_shmem_pread_slow(dev, obj, args,
+							file_priv);
+	}
 
 	drm_gem_object_unreference(obj);
 
@@ -728,6 +812,7 @@ i915_gem_shmem_pwrite_slow(struct drm_device *dev, struct drm_gem_object *obj,
 	int page_length;
 	int ret;
 	uint64_t data_ptr = args->data_ptr;
+	int do_bit17_swizzling;
 
 	remain = args->size;
 
@@ -751,6 +836,8 @@ i915_gem_shmem_pwrite_slow(struct drm_device *dev, struct drm_gem_object *obj,
 		ret = -EFAULT;
 		goto fail_put_user_pages;
 	}
+
+	do_bit17_swizzling = i915_gem_object_needs_bit17_swizzle(obj);
 
 	mutex_lock(&dev->struct_mutex);
 
@@ -786,11 +873,20 @@ i915_gem_shmem_pwrite_slow(struct drm_device *dev, struct drm_gem_object *obj,
 		if ((data_page_offset + page_length) > PAGE_SIZE)
 			page_length = PAGE_SIZE - data_page_offset;
 
-		ret = slow_shmem_copy(obj_priv->pages[shmem_page_index],
-				      shmem_page_offset,
-				      user_pages[data_page_index],
-				      data_page_offset,
-				      page_length);
+		if (do_bit17_swizzling) {
+			ret = slow_shmem_bit17_copy(obj_priv->pages[shmem_page_index],
+						    shmem_page_offset,
+						    user_pages[data_page_index],
+						    data_page_offset,
+						    page_length,
+						    0);
+		} else {
+			ret = slow_shmem_copy(obj_priv->pages[shmem_page_index],
+					      shmem_page_offset,
+					      user_pages[data_page_index],
+					      data_page_offset,
+					      page_length);
+		}
 		if (ret)
 			goto fail_put_pages;
 
@@ -855,6 +951,8 @@ i915_gem_pwrite_ioctl(struct drm_device *dev, void *data,
 			ret = i915_gem_gtt_pwrite_slow(dev, obj, args,
 						       file_priv);
 		}
+	} else if (i915_gem_object_needs_bit17_swizzle(obj)) {
+		ret = i915_gem_shmem_pwrite_slow(dev, obj, args, file_priv);
 	} else {
 		ret = i915_gem_shmem_pwrite_fast(dev, obj, args, file_priv);
 		if (ret == -EFAULT) {
@@ -1297,6 +1395,9 @@ i915_gem_object_put_pages(struct drm_gem_object *obj)
 
 	if (--obj_priv->pages_refcount != 0)
 		return;
+
+	if (obj_priv->tiling_mode != I915_TILING_NONE)
+		i915_gem_object_save_bit_17_swizzle(obj);
 
 	for (i = 0; i < page_count; i++)
 		if (obj_priv->pages[i] != NULL) {
@@ -1923,6 +2024,10 @@ i915_gem_object_get_pages(struct drm_gem_object *obj)
 		}
 		obj_priv->pages[i] = page;
 	}
+
+	if (obj_priv->tiling_mode != I915_TILING_NONE)
+		i915_gem_object_do_bit_17_swizzle(obj);
+
 	return 0;
 }
 
@@ -3601,6 +3706,7 @@ void i915_gem_free_object(struct drm_gem_object *obj)
 	i915_gem_free_mmap_offset(obj);
 
 	drm_free(obj_priv->page_cpu_valid, 1, DRM_MEM_DRIVER);
+	kfree(obj_priv->bit_17);
 	drm_free(obj->driver_private, 1, DRM_MEM_DRIVER);
 }
 
