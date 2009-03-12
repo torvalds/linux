@@ -18,6 +18,7 @@
 #include <linux/serial_sci.h>
 #include <linux/io.h>
 #include <linux/mm.h>
+#include <linux/dma-mapping.h>
 #include <asm/mmzone.h>
 
 static struct plat_sci_port sci_platform_data[] = {
@@ -68,12 +69,94 @@ static struct platform_device sci_device = {
 	},
 };
 
+static struct resource usb_ohci_resources[] = {
+	[0] = {
+		.start	= 0xffe70400,
+		.end	= 0xffe704ff,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= 77,
+		.end	= 77,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static u64 usb_ohci_dma_mask = DMA_BIT_MASK(32);
+static struct platform_device usb_ohci_device = {
+	.name		= "sh_ohci",
+	.id		= -1,
+	.dev = {
+		.dma_mask		= &usb_ohci_dma_mask,
+		.coherent_dma_mask	= DMA_BIT_MASK(32),
+	},
+	.num_resources	= ARRAY_SIZE(usb_ohci_resources),
+	.resource	= usb_ohci_resources,
+};
+
 static struct platform_device *sh7786_devices[] __initdata = {
 	&sci_device,
+	&usb_ohci_device,
 };
+
+
+/*
+ * Please call this function if your platform board
+ * use external clock for USB
+ * */
+#define USBCTL0		0xffe70858
+#define CLOCK_MODE_MASK 0xffffff7f
+#define EXT_CLOCK_MODE  0x00000080
+void __init sh7786_usb_use_exclock(void)
+{
+	u32 val = __raw_readl(USBCTL0) & CLOCK_MODE_MASK;
+	__raw_writel(val | EXT_CLOCK_MODE, USBCTL0);
+}
+
+#define USBINITREG1	0xffe70094
+#define USBINITREG2	0xffe7009c
+#define USBINITVAL1	0x00ff0040
+#define USBINITVAL2	0x00000001
+
+#define USBPCTL1	0xffe70804
+#define USBST		0xffe70808
+#define PHY_ENB		0x00000001
+#define PLL_ENB		0x00000002
+#define PHY_RST		0x00000004
+#define ACT_PLL_STATUS	0xc0000000
+static void __init sh7786_usb_setup(void)
+{
+	int i = 1000000;
+
+	/*
+	 * USB initial settings
+	 *
+	 * The following settings are necessary
+	 * for using the USB modules.
+	 *
+	 * see "USB Inital Settings" for detail
+	 */
+	__raw_writel(USBINITVAL1, USBINITREG1);
+	__raw_writel(USBINITVAL2, USBINITREG2);
+
+	/*
+	 * Set the PHY and PLL enable bit
+	 */
+	__raw_writel(PHY_ENB | PLL_ENB, USBPCTL1);
+	while (i-- &&
+	       ((__raw_readl(USBST) & ACT_PLL_STATUS) != ACT_PLL_STATUS))
+		cpu_relax();
+
+	if (i) {
+		/* Set the PHY RST bit */
+		__raw_writel(PHY_ENB | PLL_ENB | PHY_RST, USBPCTL1);
+		printk(KERN_INFO "sh7786 usb setup done\n");
+	}
+}
 
 static int __init sh7786_devices_setup(void)
 {
+	sh7786_usb_setup();
 	return platform_add_devices(sh7786_devices,
 				    ARRAY_SIZE(sh7786_devices));
 }
