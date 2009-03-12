@@ -94,9 +94,9 @@ struct map_range {
 #define NR_RANGE_MR 5
 #endif
 
-static int save_mr(struct map_range *mr, int nr_range,
-		   unsigned long start_pfn, unsigned long end_pfn,
-		   unsigned long page_size_mask)
+static int __meminit save_mr(struct map_range *mr, int nr_range,
+			     unsigned long start_pfn, unsigned long end_pfn,
+			     unsigned long page_size_mask)
 {
 	if (start_pfn < end_pfn) {
 		if (nr_range >= NR_RANGE_MR)
