@@ -338,6 +338,18 @@ static inline int should_restart_tx(const struct sge_txq *q)
 	return q->in_use - r < (q->size >> 1);
 }
 
+static void clear_rx_desc(const struct sge_fl *q, struct rx_sw_desc *d)
+{
+	if (q->use_pages) {
+		if (d->pg_chunk.page)
+			put_page(d->pg_chunk.page);
+		d->pg_chunk.page = NULL;
+	} else {
+		kfree_skb(d->skb);
+		d->skb = NULL;
+	}
+}
+
 /**
  *	free_rx_bufs - free the Rx buffers on an SGE free list
  *	@pdev: the PCI device associated with the adapter
@@ -355,14 +367,7 @@ static void free_rx_bufs(struct pci_dev *pdev, struct sge_fl *q)
 
 		pci_unmap_single(pdev, pci_unmap_addr(d, dma_addr),
 				 q->buf_size, PCI_DMA_FROMDEVICE);
-		if (q->use_pages) {
-			if (d->pg_chunk.page)
-				put_page(d->pg_chunk.page);
-			d->pg_chunk.page = NULL;
-		} else {
-			kfree_skb(d->skb);
-			d->skb = NULL;
-		}
+		clear_rx_desc(q, d);
 		if (++cidx == q->size)
 			cidx = 0;
 	}
@@ -475,10 +480,7 @@ nomem:				q->alloc_failed++;
 		err = add_one_rx_buf(buf_start, q->buf_size, d, sd, q->gen,
 				     adap->pdev);
 		if (unlikely(err)) {
-			if (!q->use_pages) {
-				kfree_skb(sd->skb);
-				sd->skb = NULL;
-			}
+			clear_rx_desc(q, sd);
 			break;
 		}
 
