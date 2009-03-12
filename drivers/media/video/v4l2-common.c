@@ -813,11 +813,11 @@ struct v4l2_subdev *v4l2_i2c_new_subdev(struct i2c_adapter *adapter,
 	   We need better support from the kernel so that we
 	   can easily wait for the load to finish. */
 	if (client == NULL || client->driver == NULL)
-		return NULL;
+		goto error;
 
 	/* Lock the module so we can safely get the v4l2_subdev pointer */
 	if (!try_module_get(client->driver->driver.owner))
-		return NULL;
+		goto error;
 	sd = i2c_get_clientdata(client);
 
 	/* Register with the v4l2_device which increases the module's
@@ -826,8 +826,13 @@ struct v4l2_subdev *v4l2_i2c_new_subdev(struct i2c_adapter *adapter,
 		sd = NULL;
 	/* Decrease the module use count to match the first try_module_get. */
 	module_put(client->driver->driver.owner);
-	return sd;
 
+error:
+	/* If we have a client but no subdev, then something went wrong and
+	   we must unregister the client. */
+	if (client && sd == NULL)
+		i2c_unregister_device(client);
+	return sd;
 }
 EXPORT_SYMBOL_GPL(v4l2_i2c_new_subdev);
 
@@ -860,11 +865,11 @@ struct v4l2_subdev *v4l2_i2c_new_probed_subdev(struct i2c_adapter *adapter,
 	   We need better support from the kernel so that we
 	   can easily wait for the load to finish. */
 	if (client == NULL || client->driver == NULL)
-		return NULL;
+		goto error;
 
 	/* Lock the module so we can safely get the v4l2_subdev pointer */
 	if (!try_module_get(client->driver->driver.owner))
-		return NULL;
+		goto error;
 	sd = i2c_get_clientdata(client);
 
 	/* Register with the v4l2_device which increases the module's
@@ -873,6 +878,12 @@ struct v4l2_subdev *v4l2_i2c_new_probed_subdev(struct i2c_adapter *adapter,
 		sd = NULL;
 	/* Decrease the module use count to match the first try_module_get. */
 	module_put(client->driver->driver.owner);
+
+error:
+	/* If we have a client but no subdev, then something went wrong and
+	   we must unregister the client. */
+	if (client && sd == NULL)
+		i2c_unregister_device(client);
 	return sd;
 }
 EXPORT_SYMBOL_GPL(v4l2_i2c_new_probed_subdev);
