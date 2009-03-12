@@ -359,14 +359,22 @@ This loads the given module (can be NULL if no module needs to be loaded) and
 calls i2c_new_device() with the given i2c_adapter and chip/address arguments.
 If all goes well, then it registers the subdev with the v4l2_device. It gets
 the v4l2_device by calling i2c_get_adapdata(adapter), so you should make sure
-that adapdata is set to v4l2_device when you setup the i2c_adapter in your
-driver.
+to call i2c_set_adapdata(adapter, v4l2_device) when you setup the i2c_adapter
+in your driver.
 
 You can also use v4l2_i2c_new_probed_subdev() which is very similar to
 v4l2_i2c_new_subdev(), except that it has an array of possible I2C addresses
 that it should probe. Internally it calls i2c_new_probed_device().
 
 Both functions return NULL if something went wrong.
+
+Note that the chipid you pass to v4l2_i2c_new_(probed_)subdev() is usually
+the same as the module name. It allows you to specify a chip variant, e.g.
+"saa7114" or "saa7115". In general though the i2c driver autodetects this.
+The use of chipid is something that needs to be looked at more closely at a
+later date. It differs between i2c drivers and as such can be confusing.
+To see which chip variants are supported you can look in the i2c driver code
+for the i2c_device_id table. This lists all the possibilities.
 
 
 struct video_device
