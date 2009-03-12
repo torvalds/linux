@@ -278,7 +278,7 @@ static const struct snd_kcontrol_new wm8750_spitz_controls[] = {
  */
 static int spitz_wm8750_init(struct snd_soc_codec *codec)
 {
-	int i, err;
+	int err;
 
 	/* NC codec pins */
 	snd_soc_dapm_nc_pin(codec, "RINPUT1");
@@ -290,12 +290,10 @@ static int spitz_wm8750_init(struct snd_soc_codec *codec)
 	snd_soc_dapm_nc_pin(codec, "MONO1");
 
 	/* Add spitz specific controls */
-	for (i = 0; i < ARRAY_SIZE(wm8750_spitz_controls); i++) {
-		err = snd_ctl_add(codec->card,
-			snd_soc_cnew(&wm8750_spitz_controls[i], codec, NULL));
-		if (err < 0)
-			return err;
-	}
+	err = snd_soc_add_controls(codec, wm8750_spitz_controls,
+				ARRAY_SIZE(wm8750_spitz_controls));
+	if (err < 0)
+		return err;
 
 	/* Add spitz specific widgets */
 	snd_soc_dapm_new_controls(codec, wm8750_dapm_widgets,

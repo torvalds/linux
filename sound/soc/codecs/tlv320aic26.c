@@ -324,9 +324,8 @@ static int aic26_probe(struct platform_device *pdev)
 {
 	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
 	struct snd_soc_codec *codec;
-	struct snd_kcontrol *kcontrol;
 	struct aic26 *aic26;
-	int i, ret, err;
+	int ret, err;
 
 	dev_info(&pdev->dev, "Probing AIC26 SoC CODEC driver\n");
 	dev_dbg(&pdev->dev, "socdev=%p\n", socdev);
@@ -353,11 +352,9 @@ static int aic26_probe(struct platform_device *pdev)
 
 	/* register controls */
 	dev_dbg(&pdev->dev, "Registering controls\n");
-	for (i = 0; i < ARRAY_SIZE(aic26_snd_controls); i++) {
-		kcontrol = snd_soc_cnew(&aic26_snd_controls[i], codec, NULL);
-		err = snd_ctl_add(codec->card, kcontrol);
-		WARN_ON(err < 0);
-	}
+	err = snd_soc_add_controls(codec, aic26_snd_controls,
+			ARRAY_SIZE(aic26_snd_controls));
+	WARN_ON(err < 0);
 
 	/* CODEC is setup, we can register the card now */
 	dev_dbg(&pdev->dev, "Registering card\n");

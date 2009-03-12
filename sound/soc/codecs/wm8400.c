@@ -351,16 +351,8 @@ SOC_SINGLE("RIN34 Mute Switch", WM8400_RIGHT_LINE_INPUT_3_4_VOLUME,
 /* add non dapm controls */
 static int wm8400_add_controls(struct snd_soc_codec *codec)
 {
-	int err, i;
-
-	for (i = 0; i < ARRAY_SIZE(wm8400_snd_controls); i++) {
-		err = snd_ctl_add(codec->card,
-				snd_soc_cnew(&wm8400_snd_controls[i],codec,
-					NULL));
-		if (err < 0)
-			return err;
-	}
-	return 0;
+	return snd_soc_add_controls(codec, wm8400_snd_controls,
+				ARRAY_SIZE(wm8400_snd_controls));
 }
 
 /*

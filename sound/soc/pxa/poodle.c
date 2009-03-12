@@ -241,19 +241,17 @@ static const struct snd_kcontrol_new wm8731_poodle_controls[] = {
  */
 static int poodle_wm8731_init(struct snd_soc_codec *codec)
 {
-	int i, err;
+	int err;
 
 	snd_soc_dapm_nc_pin(codec, "LLINEIN");
 	snd_soc_dapm_nc_pin(codec, "RLINEIN");
 	snd_soc_dapm_enable_pin(codec, "MICIN");
 
 	/* Add poodle specific controls */
-	for (i = 0; i < ARRAY_SIZE(wm8731_poodle_controls); i++) {
-		err = snd_ctl_add(codec->card,
-			snd_soc_cnew(&wm8731_poodle_controls[i], codec, NULL));
-		if (err < 0)
-			return err;
-	}
+	err = snd_soc_add_controls(codec, wm8731_poodle_controls,
+				ARRAY_SIZE(wm8731_poodle_controls));
+	if (err < 0)
+		return err;
 
 	/* Add poodle specific widgets */
 	snd_soc_dapm_new_controls(codec, wm8731_dapm_widgets,

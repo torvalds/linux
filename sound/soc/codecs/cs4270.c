@@ -540,7 +540,6 @@ static int cs4270_probe(struct platform_device *pdev)
 {
 	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
 	struct snd_soc_codec *codec = cs4270_codec;
-	unsigned int i;
 	int ret;
 
 	/* Connect the codec to the socdev.  snd_soc_new_pcms() needs this. */
@@ -554,23 +553,11 @@ static int cs4270_probe(struct platform_device *pdev)
 	}
 
 	/* Add the non-DAPM controls */
-	for (i = 0; i < ARRAY_SIZE(cs4270_snd_controls); i++) {
-		struct snd_kcontrol *kctrl;
-
-		kctrl = snd_soc_cnew(&cs4270_snd_controls[i], codec, NULL);
-		if (!kctrl) {
-			dev_err(codec->dev, "error creating control '%s'\n",
-			       cs4270_snd_controls[i].name);
-			ret = -ENOMEM;
-			goto error_free_pcms;
-		}
-
-		ret = snd_ctl_add(codec->card, kctrl);
-		if (ret < 0) {
-			dev_err(codec->dev, "error adding control '%s'\n",
-			       cs4270_snd_controls[i].name);
-			goto error_free_pcms;
-		}
+	ret = snd_soc_add_controls(codec, cs4270_snd_controls,
+				ARRAY_SIZE(cs4270_snd_controls));
+	if (ret < 0) {
+		dev_err(codec->dev, "failed to add controls\n");
+		goto error_free_pcms;
 	}
 
 	/* And finally, register the socdev */
