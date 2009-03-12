@@ -114,7 +114,9 @@ struct futex_q {
 };
 
 /*
- * Split the global futex_lock into every hash list lock.
+ * Hash buckets are shared by all the futex_keys that hash to the same
+ * location.  Each key may have multiple futex_q structures, one for each task
+ * waiting on a futex.
  */
 struct futex_hash_bucket {
 	spinlock_t lock;
@@ -189,8 +191,7 @@ static void drop_futex_key_refs(union futex_key *key)
 /**
  * get_futex_key - Get parameters which are the keys for a futex.
  * @uaddr: virtual address of the futex
- * @shared: NULL for a PROCESS_PRIVATE futex,
- *	&current->mm->mmap_sem for a PROCESS_SHARED futex
+ * @fshared: 0 for a PROCESS_PRIVATE futex, 1 for PROCESS_SHARED
  * @key: address where result is stored.
  *
  * Returns a negative error code or 0
@@ -200,9 +201,7 @@ static void drop_futex_key_refs(union futex_key *key)
  * offset_within_page).  For private mappings, it's (uaddr, current->mm).
  * We can usually work out the index without swapping in the page.
  *
- * fshared is NULL for PROCESS_PRIVATE futexes
- * For other futexes, it points to &current->mm->mmap_sem and
- * caller must have taken the reader lock. but NOT any spinlocks.
+ * lock_page() might sleep, the caller should not hold a spinlock.
  */
 static int get_futex_key(u32 __user *uaddr, int fshared, union futex_key *key)
 {
@@ -589,10 +588,9 @@ static void wake_futex(struct futex_q *q)
 	 * The waiting task can free the futex_q as soon as this is written,
 	 * without taking any locks.  This must come last.
 	 *
-	 * A memory barrier is required here to prevent the following store
-	 * to lock_ptr from getting ahead of the wakeup. Clearing the lock
-	 * at the end of wake_up_all() does not prevent this store from
-	 * moving.
+	 * A memory barrier is required here to prevent the following store to
+	 * lock_ptr from getting ahead of the wakeup. Clearing the lock at the
+	 * end of wake_up() does not prevent this store from moving.
 	 */
 	smp_wmb();
 	q->lock_ptr = NULL;
@@ -693,8 +691,7 @@ double_lock_hb(struct futex_hash_bucket *hb1, struct futex_hash_bucket *hb2)
 }
 
 /*
- * Wake up all waiters hashed on the physical page that is mapped
- * to this virtual address:
+ * Wake up waiters matching bitset queued on this futex (uaddr).
  */
 static int futex_wake(u32 __user *uaddr, int fshared, int nr_wake, u32 bitset)
 {
@@ -1076,11 +1073,9 @@ static int fixup_pi_state_owner(u32 __user *uaddr, struct futex_q *q,
 	 * in the user space variable. This must be atomic as we have
 	 * to preserve the owner died bit here.
 	 *
-	 * Note: We write the user space value _before_ changing the
-	 * pi_state because we can fault here. Imagine swapped out
-	 * pages or a fork, which was running right before we acquired
-	 * mmap_sem, that marked all the anonymous memory readonly for
-	 * cow.
+	 * Note: We write the user space value _before_ changing the pi_state
+	 * because we can fault here. Imagine swapped out pages or a fork
+	 * that marked all the anonymous memory readonly for cow.
 	 *
 	 * Modifying pi_state _before_ the user space value would
 	 * leave the pi_state in an inconsistent state when we fault
@@ -1188,7 +1183,7 @@ retry:
 	hb = queue_lock(&q);
 
 	/*
-	 * Access the page AFTER the futex is queued.
+	 * Access the page AFTER the hash-bucket is locked.
 	 * Order is important:
 	 *
 	 *   Userspace waiter: val = var; if (cond(val)) futex_wait(&var, val);
@@ -1204,7 +1199,7 @@ retry:
 	 * a wakeup when *uaddr != val on entry to the syscall.  This is
 	 * rare, but normal.
 	 *
-	 * for shared futexes, we hold the mmap semaphore, so the mapping
+	 * For shared futexes, we hold the mmap semaphore, so the mapping
 	 * cannot have changed since we looked it up in get_futex_key.
 	 */
 	ret = get_futex_value_locked(&uval, uaddr);
