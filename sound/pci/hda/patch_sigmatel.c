@@ -155,6 +155,12 @@ enum {
 	STAC_927X_MODELS
 };
 
+enum {
+	STAC_9872_AUTO,
+	STAC_9872_VAIO,
+	STAC_9872_MODELS
+};
+
 struct sigmatel_event {
 	hda_nid_t nid;
 	unsigned char type;
@@ -5588,6 +5594,25 @@ static hda_nid_t stac9872_mux_nids[] = {
 	0x15
 };
 
+static unsigned int stac9872_vaio_pin_configs[9] = {
+	0x03211020, 0x411111f0, 0x411111f0, 0x03a15030,
+	0x411111f0, 0x90170110, 0x411111f0, 0x411111f0,
+	0x90a7013e
+};
+
+static const char *stac9872_models[STAC_9872_MODELS] = {
+	[STAC_9872_AUTO] = "auto",
+	[STAC_9872_VAIO] = "vaio",
+};
+
+static unsigned int *stac9872_brd_tbl[STAC_9872_MODELS] = {
+	[STAC_9872_VAIO] = stac9872_vaio_pin_configs,
+};
+
+static struct snd_pci_quirk stac9872_cfg_tbl[] = {
+	{} /* terminator */
+};
+
 static int patch_stac9872(struct hda_codec *codec)
 {
 	struct sigmatel_spec *spec;
@@ -5598,11 +5623,15 @@ static int patch_stac9872(struct hda_codec *codec)
 		return -ENOMEM;
 	codec->spec = spec;
 
-#if 0 /* no model right now */
 	spec->board_config = snd_hda_check_board_config(codec, STAC_9872_MODELS,
 							stac9872_models,
 							stac9872_cfg_tbl);
-#endif
+	if (spec->board_config < 0)
+		snd_printdd(KERN_INFO "hda_codec: Unknown model for STAC9872, "
+			    "using BIOS defaults\n");
+	else
+		stac92xx_set_config_regs(codec,
+					 stac9872_brd_tbl[spec->board_config]);
 
 	spec->num_pins = ARRAY_SIZE(stac9872_pin_nids);
 	spec->pin_nids = stac9872_pin_nids;

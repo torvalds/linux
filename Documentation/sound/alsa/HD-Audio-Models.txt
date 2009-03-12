@@ -368,4 +368,5 @@ STAC92HD83*
 
 STAC9872
 ========
-  N/A
+  vaio		VAIO laptop without SPDIF
+  auto		BIOS setup (default)
