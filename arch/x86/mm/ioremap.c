@@ -22,12 +22,16 @@
 #include <asm/pgalloc.h>
 #include <asm/pat.h>
 
-#ifdef CONFIG_X86_64
-
-static inline int phys_addr_valid(unsigned long addr)
+static inline int phys_addr_valid(resource_size_t addr)
 {
-	return addr < (1UL << boot_cpu_data.x86_phys_bits);
+#ifdef CONFIG_PHYS_ADDR_T_64BIT
+	return !(addr >> boot_cpu_data.x86_phys_bits);
+#else
+	return 1;
+#endif
 }
+
+#ifdef CONFIG_X86_64
 
 unsigned long __phys_addr(unsigned long x)
 {
@@ -64,11 +68,6 @@ bool __virt_addr_valid(unsigned long x)
 EXPORT_SYMBOL(__virt_addr_valid);
 
 #else
-
-static inline int phys_addr_valid(unsigned long addr)
-{
-	return 1;
-}
 
 #ifdef CONFIG_DEBUG_VIRTUAL
 unsigned long __phys_addr(unsigned long x)
