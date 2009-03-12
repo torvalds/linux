@@ -24,16 +24,6 @@ static DEFINE_MUTEX(event_mutex);
 	     (unsigned long)event < (unsigned long)__stop_ftrace_events; \
 	     event++)
 
-void event_trace_printk(unsigned long ip, const char *fmt, ...)
-{
-	va_list ap;
-
-	va_start(ap, fmt);
-	tracing_record_cmdline(current);
-	trace_vprintk(ip, task_curr_ret_stack(current), fmt, ap);
-	va_end(ap);
-}
-
 static void ftrace_clear_events(void)
 {
 	struct ftrace_event_call *call = (void *)__start_ftrace_events;

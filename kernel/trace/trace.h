@@ -773,4 +773,21 @@ void event_trace_printk(unsigned long ip, const char *fmt, ...);
 extern struct ftrace_event_call __start_ftrace_events[];
 extern struct ftrace_event_call __stop_ftrace_events[];
 
+extern const char *__start___trace_bprintk_fmt[];
+extern const char *__stop___trace_bprintk_fmt[];
+
+#define event_trace_printk(ip, fmt, args...)				\
+do {									\
+	__trace_printk_check_format(fmt, ##args);			\
+	tracing_record_cmdline(current);				\
+	if (__builtin_constant_p(fmt)) {				\
+		static const char *trace_printk_fmt			\
+		  __attribute__((section("__trace_printk_fmt"))) =	\
+			__builtin_constant_p(fmt) ? fmt : NULL;		\
+									\
+		__trace_bprintk(ip, trace_printk_fmt, ##args);		\
+	} else								\
+		__trace_printk(ip, fmt, ##args);			\
+} while (0)
+
 #endif /* _LINUX_KERNEL_TRACE_H */
