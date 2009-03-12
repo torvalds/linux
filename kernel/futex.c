@@ -802,8 +802,10 @@ retry:
 
 		ret = get_user(dummy, uaddr2);
 		if (ret)
-			return ret;
+			goto out_put_keys;
 
+		put_futex_key(fshared, &key2);
+		put_futex_key(fshared, &key1);
 		goto retryfull;
 	}
 
@@ -877,6 +879,9 @@ retry:
 			spin_unlock(&hb1->lock);
 			if (hb1 != hb2)
 				spin_unlock(&hb2->lock);
+
+			put_futex_key(fshared, &key2);
+			put_futex_key(fshared, &key1);
 
 			ret = get_user(curval, uaddr1);
 
@@ -1453,6 +1458,7 @@ retry_locked:
 			 * exit to complete.
 			 */
 			queue_unlock(&q, hb);
+			put_futex_key(fshared, &q.key);
 			cond_resched();
 			goto retry;
 
@@ -1595,12 +1601,11 @@ uaddr_faulted:
 
 	ret = get_user(uval, uaddr);
 	if (!ret)
-		goto retry;
+		goto retry_unlocked;
 
-	if (to)
-		destroy_hrtimer_on_stack(&to->timer);
-	return ret;
+	goto out_put_key;
 }
+
 
 /*
  * Userspace attempted a TID -> 0 atomic transition, and failed.
@@ -1705,6 +1710,7 @@ pi_faulted:
 	}
 
 	ret = get_user(uval, uaddr);
+	put_futex_key(fshared, &key);
 	if (!ret)
 		goto retry;
 
