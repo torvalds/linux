@@ -1666,8 +1666,7 @@ int ieee80211_subif_start_xmit(struct sk_buff *skb,
 	}
 
 	/* receiver and we are QoS enabled, use a QoS type frame */
-	if (sta_flags & WLAN_STA_WME &&
-	    ieee80211_num_regular_queues(&local->hw) >= 4) {
+	if ((sta_flags & WLAN_STA_WME) && local->hw.queues >= 4) {
 		fc |= cpu_to_le16(IEEE80211_STYPE_QOS_DATA);
 		hdrlen += 2;
 	}
@@ -1802,7 +1801,7 @@ void ieee80211_clear_tx_pending(struct ieee80211_local *local)
 	int i, j;
 	struct ieee80211_tx_stored_packet *store;
 
-	for (i = 0; i < ieee80211_num_regular_queues(&local->hw); i++) {
+	for (i = 0; i < local->hw.queues; i++) {
 		if (!test_bit(i, local->queues_pending))
 			continue;
 		store = &local->pending_packet[i];
@@ -1827,7 +1826,7 @@ void ieee80211_tx_pending(unsigned long data)
 	int i, ret;
 
 	netif_tx_lock_bh(dev);
-	for (i = 0; i < ieee80211_num_regular_queues(&local->hw); i++) {
+	for (i = 0; i < local->hw.queues; i++) {
 		/* Check that this queue is ok */
 		if (__netif_subqueue_stopped(local->mdev, i) &&
 		    !test_bit(i, local->queues_pending_run))
