@@ -1026,6 +1026,7 @@ int kvm_dev_ioctl_check_extension(long ext)
 	case KVM_CAP_SYNC_MMU:
 	case KVM_CAP_REINJECT_CONTROL:
 	case KVM_CAP_IRQ_INJECT_STATUS:
+	case KVM_CAP_ASSIGN_DEV_IRQ:
 		r = 1;
 		break;
 	case KVM_CAP_COALESCED_MMIO:
