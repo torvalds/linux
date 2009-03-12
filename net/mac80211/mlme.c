@@ -682,6 +682,7 @@ static void ieee80211_set_associated(struct ieee80211_sub_if_data *sdata,
 static void ieee80211_direct_probe(struct ieee80211_sub_if_data *sdata)
 {
 	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
+	struct ieee80211_local *local = sdata->local;
 
 	ifmgd->direct_probe_tries++;
 	if (ifmgd->direct_probe_tries > IEEE80211_AUTH_MAX_TRIES) {
@@ -697,6 +698,13 @@ static void ieee80211_direct_probe(struct ieee80211_sub_if_data *sdata)
 		ieee80211_rx_bss_remove(sdata, ifmgd->bssid,
 				sdata->local->hw.conf.channel->center_freq,
 				ifmgd->ssid, ifmgd->ssid_len);
+
+		/*
+		 * We might have a pending scan which had no chance to run yet
+		 * due to state == IEEE80211_STA_MLME_DIRECT_PROBE.
+		 * Hence, queue the STAs work again
+		 */
+		queue_work(local->hw.workqueue, &ifmgd->work);
 		return;
 	}
 
@@ -721,6 +729,7 @@ static void ieee80211_direct_probe(struct ieee80211_sub_if_data *sdata)
 static void ieee80211_authenticate(struct ieee80211_sub_if_data *sdata)
 {
 	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
+	struct ieee80211_local *local = sdata->local;
 
 	ifmgd->auth_tries++;
 	if (ifmgd->auth_tries > IEEE80211_AUTH_MAX_TRIES) {
@@ -732,6 +741,13 @@ static void ieee80211_authenticate(struct ieee80211_sub_if_data *sdata)
 		ieee80211_rx_bss_remove(sdata, ifmgd->bssid,
 				sdata->local->hw.conf.channel->center_freq,
 				ifmgd->ssid, ifmgd->ssid_len);
+
+		/*
+		 * We might have a pending scan which had no chance to run yet
+		 * due to state == IEEE80211_STA_MLME_AUTHENTICATE.
+		 * Hence, queue the STAs work again
+		 */
+		queue_work(local->hw.workqueue, &ifmgd->work);
 		return;
 	}
 
@@ -878,6 +894,7 @@ static int ieee80211_privacy_mismatch(struct ieee80211_sub_if_data *sdata)
 static void ieee80211_associate(struct ieee80211_sub_if_data *sdata)
 {
 	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
+	struct ieee80211_local *local = sdata->local;
 
 	ifmgd->assoc_tries++;
 	if (ifmgd->assoc_tries > IEEE80211_ASSOC_MAX_TRIES) {
@@ -889,6 +906,12 @@ static void ieee80211_associate(struct ieee80211_sub_if_data *sdata)
 		ieee80211_rx_bss_remove(sdata, ifmgd->bssid,
 				sdata->local->hw.conf.channel->center_freq,
 				ifmgd->ssid, ifmgd->ssid_len);
+		/*
+		 * We might have a pending scan which had no chance to run yet
+		 * due to state == IEEE80211_STA_MLME_ASSOCIATE.
+		 * Hence, queue the STAs work again
+		 */
+		queue_work(local->hw.workqueue, &ifmgd->work);
 		return;
 	}
 
