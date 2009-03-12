@@ -550,15 +550,11 @@ int setup_irq(unsigned int irq, struct irqaction *act)
 	return __setup_irq(irq, desc, act);
 }
 
-/**
- *	remove_irq - free an interrupt
- *	@irq: Interrupt line to free
- *	@dev_id: Device identity to free
- *
- * Used to remove interrupts statically setup by the early boot process.
+ /*
+ * Internal function to unregister an irqaction - used to free
+ * regular and special interrupts that are part of the architecture.
  */
-
-struct irqaction *remove_irq(unsigned int irq, void *dev_id)
+static struct irqaction *__free_irq(unsigned int irq, void *dev_id)
 {
 	struct irq_desc *desc = irq_to_desc(irq);
 	struct irqaction *action, **action_ptr;
@@ -634,6 +630,18 @@ struct irqaction *remove_irq(unsigned int irq, void *dev_id)
 }
 
 /**
+ *	remove_irq - free an interrupt
+ *	@irq: Interrupt line to free
+ *	@act: irqaction for the interrupt
+ *
+ * Used to remove interrupts statically setup by the early boot process.
+ */
+void remove_irq(unsigned int irq, struct irqaction *act)
+{
+	__free_irq(irq, act->dev_id);
+}
+
+/**
  *	free_irq - free an interrupt allocated with request_irq
  *	@irq: Interrupt line to free
  *	@dev_id: Device identity to free
@@ -649,7 +657,7 @@ struct irqaction *remove_irq(unsigned int irq, void *dev_id)
  */
 void free_irq(unsigned int irq, void *dev_id)
 {
-	kfree(remove_irq(irq, dev_id));
+	kfree(__free_irq(irq, dev_id));
 }
 EXPORT_SYMBOL(free_irq);
 
