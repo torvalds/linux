@@ -33,9 +33,6 @@ ENDPROC(memcpy_c)
 ENTRY(__memcpy)
 ENTRY(memcpy)
 	CFI_STARTPROC
-	pushq %rbx
-	CFI_ADJUST_CFA_OFFSET 8
-	CFI_REL_OFFSET rbx, 0
 	movq %rdi,%rax
 
 	movl %edx,%ecx
@@ -102,11 +99,7 @@ ENTRY(memcpy)
 	jnz .Lloop_1
 
 .Lende:
-	popq %rbx
-	CFI_ADJUST_CFA_OFFSET -8
-	CFI_RESTORE rbx
 	ret
-.Lfinal:
 	CFI_ENDPROC
 ENDPROC(memcpy)
 ENDPROC(__memcpy)
