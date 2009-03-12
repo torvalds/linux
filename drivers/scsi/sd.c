@@ -1329,8 +1329,17 @@ static int read_capacity_16(struct scsi_disk *sdkp, struct scsi_device *sdp,
 		if (media_not_present(sdkp, &sshdr))
 			return -ENODEV;
 
-		if (the_result)
+		if (the_result) {
 			sense_valid = scsi_sense_valid(&sshdr);
+			if (sense_valid &&
+			    sshdr.sense_key == ILLEGAL_REQUEST &&
+			    (sshdr.asc == 0x20 || sshdr.asc == 0x24) &&
+			    sshdr.ascq == 0x00)
+				/* Invalid Command Operation Code or
+				 * Invalid Field in CDB, just retry
+				 * silently with RC10 */
+				return -EINVAL;
+		}
 		retries--;
 
 	} while (the_result && retries);
@@ -1414,6 +1423,15 @@ static int read_capacity_10(struct scsi_disk *sdkp, struct scsi_device *sdp,
 	return sector_size;
 }
 
+static int sd_try_rc16_first(struct scsi_device *sdp)
+{
+	if (sdp->scsi_level > SCSI_SPC_2)
+		return 1;
+	if (scsi_device_protection(sdp))
+		return 1;
+	return 0;
+}
+
 /*
  * read disk capacity
  */
@@ -1423,11 +1441,14 @@ sd_read_capacity(struct scsi_disk *sdkp, unsigned char *buffer)
 	int sector_size;
 	struct scsi_device *sdp = sdkp->device;
 
-	/* Force READ CAPACITY(16) when PROTECT=1 */
-	if (scsi_device_protection(sdp)) {
+	if (sd_try_rc16_first(sdp)) {
 		sector_size = read_capacity_16(sdkp, sdp, buffer);
 		if (sector_size == -EOVERFLOW)
 			goto got_data;
+		if (sector_size == -ENODEV)
+			return;
+		if (sector_size < 0)
+			sector_size = read_capacity_10(sdkp, sdp, buffer);
 		if (sector_size < 0)
 			return;
 	} else {
