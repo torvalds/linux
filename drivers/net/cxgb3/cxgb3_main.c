@@ -2471,6 +2471,8 @@ static void t3_adap_check_task(struct work_struct *work)
 	struct adapter *adapter = container_of(work, struct adapter,
 					       adap_check_task.work);
 	const struct adapter_params *p = &adapter->params;
+	int port;
+	unsigned int v, status, reset;
 
 	adapter->check_task_cnt++;
 
@@ -2488,6 +2490,54 @@ static void t3_adap_check_task(struct work_struct *work)
 
 	if (p->rev == T3_REV_B2)
 		check_t3b2_mac(adapter);
+
+	/*
+	 * Scan the XGMAC's to check for various conditions which we want to
+	 * monitor in a periodic polling manner rather than via an interrupt
+	 * condition.  This is used for conditions which would otherwise flood
+	 * the system with interrupts and we only really need to know that the
+	 * conditions are "happening" ...  For each condition we count the
+	 * detection of the condition and reset it for the next polling loop.
+	 */
+	for_each_port(adapter, port) {
+		struct cmac *mac =  &adap2pinfo(adapter, port)->mac;
+		u32 cause;
+
+		cause = t3_read_reg(adapter, A_XGM_INT_CAUSE + mac->offset);
+		reset = 0;
+		if (cause & F_RXFIFO_OVERFLOW) {
+			mac->stats.rx_fifo_ovfl++;
+			reset |= F_RXFIFO_OVERFLOW;
+		}
+
+		t3_write_reg(adapter, A_XGM_INT_CAUSE + mac->offset, reset);
+	}
+
+	/*
+	 * We do the same as above for FL_EMPTY interrupts.
+	 */
+	status = t3_read_reg(adapter, A_SG_INT_CAUSE);
+	reset = 0;
+
+	if (status & F_FLEMPTY) {
+		struct sge_qset *qs = &adapter->sge.qs[0];
+		int i = 0;
+
+		reset |= F_FLEMPTY;
+
+		v = (t3_read_reg(adapter, A_SG_RSPQ_FL_STATUS) >> S_FL0EMPTY) &
+		    0xffff;
+
+		while (v) {
+			qs->fl[i].empty += (v & 1);
+			if (i)
+				qs++;
+			i ^= 1;
+			v >>= 1;
+		}
+	}
+
+	t3_write_reg(adapter, A_SG_INT_CAUSE, reset);
 
 	/* Schedule the next check update if any port is active. */
 	spin_lock_irq(&adapter->work_lock);

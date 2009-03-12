@@ -2725,7 +2725,8 @@ irq_handler_t t3_intr_handler(struct adapter *adap, int polling)
  */
 void t3_sge_err_intr_handler(struct adapter *adapter)
 {
-	unsigned int v, status = t3_read_reg(adapter, A_SG_INT_CAUSE);
+	unsigned int v, status = t3_read_reg(adapter, A_SG_INT_CAUSE) &
+				 ~F_FLEMPTY;
 
 	if (status & SGE_PARERR)
 		CH_ALERT(adapter, "SGE parity error (0x%x)\n",

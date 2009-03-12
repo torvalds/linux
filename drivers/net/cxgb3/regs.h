@@ -170,6 +170,10 @@
 
 #define S_RSPQ0DISABLED    8
 
+#define S_FL0EMPTY    16
+#define V_FL0EMPTY(x) ((x) << S_FL0EMPTY)
+#define F_FL0EMPTY    V_FL0EMPTY(1U)
+
 #define A_SG_EGR_RCQ_DRB_THRSH 0x54
 
 #define S_HIRCQDRBTHRSH    16
@@ -257,6 +261,10 @@
 #define S_RSPQCREDITOVERFOW    2
 #define V_RSPQCREDITOVERFOW(x) ((x) << S_RSPQCREDITOVERFOW)
 #define F_RSPQCREDITOVERFOW    V_RSPQCREDITOVERFOW(1U)
+
+#define S_FLEMPTY    1
+#define V_FLEMPTY(x) ((x) << S_FLEMPTY)
+#define F_FLEMPTY    V_FLEMPTY(1U)
 
 #define A_SG_INT_ENABLE 0x60
 

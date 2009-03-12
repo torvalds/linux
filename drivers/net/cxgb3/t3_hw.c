@@ -1323,7 +1323,7 @@ static int t3_handle_intr_status(struct adapter *adapter, unsigned int reg,
 #define MC7_INTR_MASK (F_AE | F_UE | F_CE | V_PE(M_PE))
 #define XGM_INTR_MASK (V_TXFIFO_PRTY_ERR(M_TXFIFO_PRTY_ERR) | \
 		       V_RXFIFO_PRTY_ERR(M_RXFIFO_PRTY_ERR) | \
-		       F_TXFIFO_UNDERRUN | F_RXFIFO_OVERFLOW)
+		       F_TXFIFO_UNDERRUN)
 #define PCIX_INTR_MASK (F_MSTDETPARERR | F_SIGTARABT | F_RCVTARABT | \
 			F_RCVMSTABT | F_SIGSYSERR | F_DETPARERR | \
 			F_SPLCMPDIS | F_UNXSPLCMP | F_RCVSPLCMPERR | \
@@ -1695,7 +1695,14 @@ static void mc7_intr_handler(struct mc7 *mc7)
 static int mac_intr_handler(struct adapter *adap, unsigned int idx)
 {
 	struct cmac *mac = &adap2pinfo(adap, idx)->mac;
-	u32 cause = t3_read_reg(adap, A_XGM_INT_CAUSE + mac->offset);
+	/*
+	 * We mask out interrupt causes for which we're not taking interrupts.
+	 * This allows us to use polling logic to monitor some of the other
+	 * conditions when taking interrupts would impose too much load on the
+	 * system.
+	 */
+	u32 cause = t3_read_reg(adap, A_XGM_INT_CAUSE + mac->offset) &
+		    ~F_RXFIFO_OVERFLOW;
 
 	if (cause & V_TXFIFO_PRTY_ERR(M_TXFIFO_PRTY_ERR)) {
 		mac->stats.tx_fifo_parity_err++;
@@ -3617,7 +3624,15 @@ int t3_prep_adapter(struct adapter *adapter, const struct adapter_info *ai,
 	adapter->params.info = ai;
 	adapter->params.nports = ai->nports;
 	adapter->params.rev = t3_read_reg(adapter, A_PL_REV);
-	adapter->params.linkpoll_period = 0;
+	/*
+	 * We used to only run the "adapter check task" once a second if
+	 * we had PHYs which didn't support interrupts (we would check
+	 * their link status once a second).  Now we check other conditions
+	 * in that routine which could potentially impose a very high
+	 * interrupt load on the system.  As such, we now always scan the
+	 * adapter state once a second ...
+	 */
+	adapter->params.linkpoll_period = 10;
 	adapter->params.stats_update_period = is_10G(adapter) ?
 	    MAC_STATS_ACCUM_SECS : (MAC_STATS_ACCUM_SECS * 10);
 	adapter->params.pci.vpd_cap_addr =
@@ -3707,7 +3722,14 @@ int t3_prep_adapter(struct adapter *adapter, const struct adapter_info *ai,
 		       ETH_ALEN);
 		init_link_config(&p->link_config, p->phy.caps);
 		p->phy.ops->power_down(&p->phy, 1);
-		if (!(p->phy.caps & SUPPORTED_IRQ))
+
+		/*
+		 * If the PHY doesn't support interrupts for link status
+		 * changes, schedule a scan of the adapter links at least
+		 * once a second.
+		 */
+		if (!(p->phy.caps & SUPPORTED_IRQ) &&
+		    adapter->params.linkpoll_period > 10)
 			adapter->params.linkpoll_period = 10;
 	}
 
