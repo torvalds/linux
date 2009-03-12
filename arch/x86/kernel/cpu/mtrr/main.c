@@ -1424,6 +1424,8 @@ static int __init mtrr_cleanup(unsigned address_bits)
 
 		if (!result[i].bad) {
 			set_var_mtrr_all(address_bits);
+			printk(KERN_DEBUG "New variable MTRRs\n");
+			print_out_mtrr_range_state();
 			return 1;
 		}
 		printk(KERN_INFO "invalid mtrr_gran_size or mtrr_chunk_size, "
