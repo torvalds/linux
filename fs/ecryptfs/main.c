@@ -190,14 +190,14 @@ int ecryptfs_interpose(struct dentry *lower_dentry, struct dentry *dentry,
 		init_special_inode(inode, lower_inode->i_mode,
 				   lower_inode->i_rdev);
 	dentry->d_op = &ecryptfs_dops;
-	if (flags & ECRYPTFS_INTERPOSE_FLAG_D_ADD)
-		d_add(dentry, inode);
-	else
-		d_instantiate(dentry, inode);
 	fsstack_copy_attr_all(inode, lower_inode, NULL);
 	/* This size will be overwritten for real files w/ headers and
 	 * other metadata */
 	fsstack_copy_inode_size(inode, lower_inode);
+	if (flags & ECRYPTFS_INTERPOSE_FLAG_D_ADD)
+		d_add(dentry, inode);
+	else
+		d_instantiate(dentry, inode);
 out:
 	return rc;
 }
