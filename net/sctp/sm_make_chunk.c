@@ -372,10 +372,10 @@ struct sctp_chunk *sctp_make_init_ack(const struct sctp_association *asoc,
 	if (asoc->peer.ecn_capable)
 		chunksize += sizeof(ecap_param);
 
-	if (sctp_prsctp_enable)
+	if (asoc->peer.prsctp_capable)
 		chunksize += sizeof(prsctp_param);
 
-	if (sctp_addip_enable) {
+	if (asoc->peer.asconf_capable) {
 		extensions[num_ext] = SCTP_CID_ASCONF;
 		extensions[num_ext+1] = SCTP_CID_ASCONF_ACK;
 		num_ext += 2;
