@@ -122,6 +122,9 @@ struct ext4_inode_info {
 	struct list_head i_prealloc_list;
 	spinlock_t i_prealloc_lock;
 
+	/* ialloc */
+	ext4_group_t	i_last_alloc_group;
+
 	/* allocation reservation info for delalloc */
 	unsigned int i_reserved_data_blocks;
 	unsigned int i_reserved_meta_blocks;

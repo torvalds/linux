@@ -459,6 +459,8 @@ static ext4_fsblk_t ext4_find_near(struct inode *inode, Indirect *ind)
 	ext4_fsblk_t bg_start;
 	ext4_fsblk_t last_block;
 	ext4_grpblk_t colour;
+	ext4_group_t block_group;
+	int flex_size = ext4_flex_bg_size(EXT4_SB(inode->i_sb));
 
 	/* Try to find previous block */
 	for (p = ind->p - 1; p >= start; p--) {
@@ -474,8 +476,21 @@ static ext4_fsblk_t ext4_find_near(struct inode *inode, Indirect *ind)
 	 * It is going to be referred to from the inode itself? OK, just put it
 	 * into the same cylinder group then.
 	 */
-	bg_start = ext4_group_first_block_no(inode->i_sb, ei->i_block_group);
+	block_group = ei->i_block_group;
+	if (flex_size >= EXT4_FLEX_SIZE_DIR_ALLOC_SCHEME) {
+		block_group &= ~(flex_size-1);
+		if (S_ISREG(inode->i_mode))
+			block_group++;
+	}
+	bg_start = ext4_group_first_block_no(inode->i_sb, block_group);
 	last_block = ext4_blocks_count(EXT4_SB(inode->i_sb)->s_es) - 1;
+
+	/*
+	 * If we are doing delayed allocation, we don't need take
+	 * colour into account.
+	 */
+	if (test_opt(inode->i_sb, DELALLOC))
+		return bg_start;
 
 	if (bg_start + EXT4_BLOCKS_PER_GROUP(inode->i_sb) <= last_block)
 		colour = (current->pid % 16) *
@@ -4287,6 +4302,7 @@ struct inode *ext4_iget(struct super_block *sb, unsigned long ino)
 	ei->i_disksize = inode->i_size;
 	inode->i_generation = le32_to_cpu(raw_inode->i_generation);
 	ei->i_block_group = iloc.block_group;
+	ei->i_last_alloc_group = ~0;
 	/*
 	 * NOTE! The in-memory inode i_data array is in little-endian order
 	 * even on big-endian machines: we do NOT byteswap the block numbers!

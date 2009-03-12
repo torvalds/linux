@@ -828,6 +828,12 @@ static inline int ext4_valid_inum(struct super_block *sb, unsigned long ino)
 #define EXT4_DEF_MAX_BATCH_TIME	15000 /* 15ms */
 
 /*
+ * Minimum number of groups in a flexgroup before we separate out
+ * directories into the first block group of a flexgroup
+ */
+#define EXT4_FLEX_SIZE_DIR_ALLOC_SCHEME	4
+
+/*
  * Structure of a directory entry
  */
 #define EXT4_NAME_LEN 255

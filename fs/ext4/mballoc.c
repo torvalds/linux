@@ -1726,6 +1726,7 @@ static int ext4_mb_good_group(struct ext4_allocation_context *ac,
 {
 	unsigned free, fragments;
 	unsigned i, bits;
+	int flex_size = ext4_flex_bg_size(EXT4_SB(ac->ac_sb));
 	struct ext4_group_desc *desc;
 	struct ext4_group_info *grp = ext4_get_group_info(ac->ac_sb, group);
 
@@ -1745,6 +1746,12 @@ static int ext4_mb_good_group(struct ext4_allocation_context *ac,
 		/* If this group is uninitialized, skip it initially */
 		desc = ext4_get_group_desc(ac->ac_sb, group, NULL);
 		if (desc->bg_flags & cpu_to_le16(EXT4_BG_BLOCK_UNINIT))
+			return 0;
+
+		/* Avoid using the first bg of a flexgroup for data files */
+		if ((ac->ac_flags & EXT4_MB_HINT_DATA) &&
+		    (flex_size >= EXT4_FLEX_SIZE_DIR_ALLOC_SCHEME) &&
+		    ((group % flex_size) == 0))
 			return 0;
 
 		bits = ac->ac_sb->s_blocksize_bits + 1;

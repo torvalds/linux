@@ -152,6 +152,8 @@ static ext4_fsblk_t ext4_ext_find_goal(struct inode *inode,
 	ext4_fsblk_t bg_start;
 	ext4_fsblk_t last_block;
 	ext4_grpblk_t colour;
+	ext4_group_t block_group;
+	int flex_size = ext4_flex_bg_size(EXT4_SB(inode->i_sb));
 	int depth;
 
 	if (path) {
@@ -170,9 +172,30 @@ static ext4_fsblk_t ext4_ext_find_goal(struct inode *inode,
 	}
 
 	/* OK. use inode's group */
-	bg_start = (ei->i_block_group * EXT4_BLOCKS_PER_GROUP(inode->i_sb)) +
+	block_group = ei->i_block_group;
+	if (flex_size >= EXT4_FLEX_SIZE_DIR_ALLOC_SCHEME) {
+		/*
+		 * If there are at least EXT4_FLEX_SIZE_DIR_ALLOC_SCHEME
+		 * block groups per flexgroup, reserve the first block 
+		 * group for directories and special files.  Regular 
+		 * files will start at the second block group.  This
+		 * tends to speed up directory access and improves 
+		 * fsck times.
+		 */
+		block_group &= ~(flex_size-1);
+		if (S_ISREG(inode->i_mode))
+			block_group++;
+	}
+	bg_start = (block_group * EXT4_BLOCKS_PER_GROUP(inode->i_sb)) +
 		le32_to_cpu(EXT4_SB(inode->i_sb)->s_es->s_first_data_block);
 	last_block = ext4_blocks_count(EXT4_SB(inode->i_sb)->s_es) - 1;
+
+	/*
+	 * If we are doing delayed allocation, we don't need take
+	 * colour into account.
+	 */
+	if (test_opt(inode->i_sb, DELALLOC))
+		return bg_start;
 
 	if (bg_start + EXT4_BLOCKS_PER_GROUP(inode->i_sb) <= last_block)
 		colour = (current->pid % 16) *
