@@ -553,8 +553,8 @@ static int dnet_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	tx_status = dnet_readl(bp, TX_STATUS);
 
-	pr_debug("start_xmit: len %u head %p data %p tail %p end %p\n",
-	       skb->len, skb->head, skb->data, skb->tail, skb->end);
+	pr_debug("start_xmit: len %u head %p data %p\n",
+	       skb->len, skb->head, skb->data);
 	dnet_print_skb(skb);
 
 	/* frame size (words) */
@@ -564,11 +564,11 @@ static int dnet_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	tx_status = dnet_readl(bp, TX_STATUS);
 
-	bufp = (unsigned int *)(((u32) skb->data) & 0xFFFFFFFC);
+	bufp = (unsigned int *)(((unsigned long) skb->data) & ~0x3UL);
 	wrsz = (u32) skb->len + 3;
-	wrsz += ((u32) skb->data) & 0x3;
+	wrsz += ((unsigned long) skb->data) & 0x3;
 	wrsz >>= 2;
-	tx_cmd = ((((unsigned int)(skb->data)) & 0x03) << 16) | (u32) skb->len;
+	tx_cmd = ((((unsigned long)(skb->data)) & 0x03) << 16) | (u32) skb->len;
 
 	/* check if there is enough room for the current frame */
 	if (wrsz < (DNET_FIFO_SIZE - dnet_readl(bp, TX_FIFO_WCNT))) {
