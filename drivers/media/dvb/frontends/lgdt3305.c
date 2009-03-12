@@ -1047,7 +1047,6 @@ struct dvb_frontend *lgdt3305_attach(const struct lgdt3305_config *config,
 	return &state->frontend;
 fail:
 	lg_warn("unable to detect LGDT3305 hardware\n");
-	state->frontend.demodulator_priv = NULL;
 	kfree(state);
 	return NULL;
 }
