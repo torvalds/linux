@@ -890,12 +890,12 @@ static int  __init replace_intsrc_all(struct mpc_table *mpc,
 #ifdef CONFIG_X86_IO_APIC
 				struct mpc_intsrc *m = (struct mpc_intsrc *)mpt;
 
-				printk(KERN_INFO "OLD ");
+				apic_printk(APIC_VERBOSE, "OLD ");
 				print_MP_intsrc_info(m);
 				i = get_MP_intsrc_index(m);
 				if (i > 0) {
 					assign_to_mpc_intsrc(&mp_irqs[i], m);
-					printk(KERN_INFO "NEW ");
+					apic_printk(APIC_VERBOSE, "NEW ");
 					print_mp_irq_info(&mp_irqs[i]);
 				} else if (!i) {
 					/* legacy, do nothing */
@@ -943,7 +943,7 @@ static int  __init replace_intsrc_all(struct mpc_table *mpc,
 			continue;
 
 		if (nr_m_spare > 0) {
-			printk(KERN_INFO "*NEW* found ");
+			apic_printk(APIC_VERBOSE, "*NEW* found\n");
 			nr_m_spare--;
 			assign_to_mpc_intsrc(&mp_irqs[i], m_spare[nr_m_spare]);
 			m_spare[nr_m_spare] = NULL;
