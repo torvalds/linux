@@ -245,6 +245,17 @@ static int trace_lookup_stack(struct seq_file *m, long i)
 #endif
 }
 
+static void print_disabled(struct seq_file *m)
+{
+	seq_puts(m, "#\n"
+		 "#  Stack tracer disabled\n"
+		 "#\n"
+		 "# To enable the stack tracer, either add 'stacktrace' to the\n"
+		 "# kernel command line\n"
+		 "# or 'echo 1 > /proc/sys/kernel/stack_tracer_enabled'\n"
+		 "#\n");
+}
+
 static int t_show(struct seq_file *m, void *v)
 {
 	long i;
@@ -255,6 +266,10 @@ static int t_show(struct seq_file *m, void *v)
 			   "    (%d entries)\n"
 			   "        -----    ----      --------\n",
 			   max_stack_trace.nr_entries);
+
+		if (!stack_tracer_enabled && !max_stack_size)
+			print_disabled(m);
+
 		return 0;
 	}
 
