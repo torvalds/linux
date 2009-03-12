@@ -549,6 +549,7 @@ int setup_irq(unsigned int irq, struct irqaction *act)
 
 	return __setup_irq(irq, desc, act);
 }
+EXPORT_SYMBOL_GPL(setup_irq);
 
  /*
  * Internal function to unregister an irqaction - used to free
@@ -640,6 +641,7 @@ void remove_irq(unsigned int irq, struct irqaction *act)
 {
 	__free_irq(irq, act->dev_id);
 }
+EXPORT_SYMBOL_GPL(remove_irq);
 
 /**
  *	free_irq - free an interrupt allocated with request_irq
