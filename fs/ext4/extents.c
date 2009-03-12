@@ -324,7 +324,64 @@ ext4_ext_max_entries(struct inode *inode, int depth)
 	return max;
 }
 
-static int __ext4_ext_check_header(const char *function, struct inode *inode,
+static int ext4_valid_extent(struct inode *inode, struct ext4_extent *ext)
+{
+	ext4_fsblk_t block = ext_pblock(ext);
+	int len = ext4_ext_get_actual_len(ext);
+	struct ext4_super_block *es = EXT4_SB(inode->i_sb)->s_es;
+	if (unlikely(block < le32_to_cpu(es->s_first_data_block) ||
+			((block + len) > ext4_blocks_count(es))))
+		return 0;
+	else
+		return 1;
+}
+
+static int ext4_valid_extent_idx(struct inode *inode,
+				struct ext4_extent_idx *ext_idx)
+{
+	ext4_fsblk_t block = idx_pblock(ext_idx);
+	struct ext4_super_block *es = EXT4_SB(inode->i_sb)->s_es;
+	if (unlikely(block < le32_to_cpu(es->s_first_data_block) ||
+			(block > ext4_blocks_count(es))))
+		return 0;
+	else
+		return 1;
+}
+
+static int ext4_valid_extent_entries(struct inode *inode,
+				struct ext4_extent_header *eh,
+				int depth)
+{
+	struct ext4_extent *ext;
+	struct ext4_extent_idx *ext_idx;
+	unsigned short entries;
+	if (eh->eh_entries == 0)
+		return 1;
+
+	entries = le16_to_cpu(eh->eh_entries);
+
+	if (depth == 0) {
+		/* leaf entries */
+		ext = EXT_FIRST_EXTENT(eh);
+		while (entries) {
+			if (!ext4_valid_extent(inode, ext))
+				return 0;
+			ext++;
+			entries--;
+		}
+	} else {
+		ext_idx = EXT_FIRST_INDEX(eh);
+		while (entries) {
+			if (!ext4_valid_extent_idx(inode, ext_idx))
+				return 0;
+			ext_idx++;
+			entries--;
+		}
+	}
+	return 1;
+}
+
+static int __ext4_ext_check(const char *function, struct inode *inode,
 					struct ext4_extent_header *eh,
 					int depth)
 {
@@ -352,11 +409,15 @@ static int __ext4_ext_check_header(const char *function, struct inode *inode,
 		error_msg = "invalid eh_entries";
 		goto corrupted;
 	}
+	if (!ext4_valid_extent_entries(inode, eh, depth)) {
+		error_msg = "invalid extent entries";
+		goto corrupted;
+	}
 	return 0;
 
 corrupted:
 	ext4_error(inode->i_sb, function,
-			"bad header in inode #%lu: %s - magic %x, "
+			"bad header/extent in inode #%lu: %s - magic %x, "
 			"entries %u, max %u(%u), depth %u(%u)",
 			inode->i_ino, error_msg, le16_to_cpu(eh->eh_magic),
 			le16_to_cpu(eh->eh_entries), le16_to_cpu(eh->eh_max),
@@ -365,8 +426,8 @@ corrupted:
 	return -EIO;
 }
 
-#define ext4_ext_check_header(inode, eh, depth)	\
-	__ext4_ext_check_header(__func__, inode, eh, depth)
+#define ext4_ext_check(inode, eh, depth)	\
+	__ext4_ext_check(__func__, inode, eh, depth)
 
 #ifdef EXT_DEBUG
 static void ext4_ext_show_path(struct inode *inode, struct ext4_ext_path *path)
@@ -570,7 +631,7 @@ ext4_ext_find_extent(struct inode *inode, ext4_lblk_t block,
 
 	eh = ext_inode_hdr(inode);
 	depth = ext_depth(inode);
-	if (ext4_ext_check_header(inode, eh, depth))
+	if (ext4_ext_check(inode, eh, depth))
 		return ERR_PTR(-EIO);
 
 
@@ -607,7 +668,7 @@ ext4_ext_find_extent(struct inode *inode, ext4_lblk_t block,
 		path[ppos].p_hdr = eh;
 		i--;
 
-		if (ext4_ext_check_header(inode, eh, i))
+		if (ext4_ext_check(inode, eh, i))
 			goto err;
 	}
 
@@ -1204,7 +1265,7 @@ got_index:
 			return -EIO;
 		eh = ext_block_hdr(bh);
 		/* subtract from p_depth to get proper eh_depth */
-		if (ext4_ext_check_header(inode, eh, path->p_depth - depth)) {
+		if (ext4_ext_check(inode, eh, path->p_depth - depth)) {
 			put_bh(bh);
 			return -EIO;
 		}
@@ -1217,7 +1278,7 @@ got_index:
 	if (bh == NULL)
 		return -EIO;
 	eh = ext_block_hdr(bh);
-	if (ext4_ext_check_header(inode, eh, path->p_depth - depth)) {
+	if (ext4_ext_check(inode, eh, path->p_depth - depth)) {
 		put_bh(bh);
 		return -EIO;
 	}
@@ -2160,7 +2221,7 @@ static int ext4_ext_remove_space(struct inode *inode, ext4_lblk_t start)
 		return -ENOMEM;
 	}
 	path[0].p_hdr = ext_inode_hdr(inode);
-	if (ext4_ext_check_header(inode, path[0].p_hdr, depth)) {
+	if (ext4_ext_check(inode, path[0].p_hdr, depth)) {
 		err = -EIO;
 		goto out;
 	}
@@ -2214,7 +2275,7 @@ static int ext4_ext_remove_space(struct inode *inode, ext4_lblk_t start)
 				err = -EIO;
 				break;
 			}
-			if (ext4_ext_check_header(inode, ext_block_hdr(bh),
+			if (ext4_ext_check(inode, ext_block_hdr(bh),
 							depth - i - 1)) {
 				err = -EIO;
 				break;
