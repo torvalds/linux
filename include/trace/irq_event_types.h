@@ -40,4 +40,16 @@ TRACE_EVENT(irq_handler_exit,
 		  __entry->irq, __entry->ret ? "handled" : "unhandled")
 );
 
+TRACE_FORMAT(softirq_entry,
+	TP_PROTO(struct softirq_action *h, struct softirq_action *vec),
+	TP_ARGS(h, vec),
+	TP_FMT("softirq=%d action=%s", (int)(h - vec), softirq_to_name[h-vec])
+	);
+
+TRACE_FORMAT(softirq_exit,
+	TP_PROTO(struct softirq_action *h, struct softirq_action *vec),
+	TP_ARGS(h, vec),
+	TP_FMT("softirq=%d action=%s", (int)(h - vec), softirq_to_name[h-vec])
+	);
+
 #undef TRACE_SYSTEM
