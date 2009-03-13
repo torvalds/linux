@@ -32,7 +32,23 @@ int is_io_mapping_possible(resource_size_t base, unsigned long size)
 }
 EXPORT_SYMBOL_GPL(is_io_mapping_possible);
 
-/* Map 'pfn' using fixed map 'type' and protections 'prot'
+void *kmap_atomic_prot_pfn(unsigned long pfn, enum km_type type, pgprot_t prot)
+{
+	enum fixed_addresses idx;
+	unsigned long vaddr;
+
+	pagefault_disable();
+
+	idx = type + KM_TYPE_NR * smp_processor_id();
+	vaddr = __fix_to_virt(FIX_KMAP_BEGIN + idx);
+	set_pte(kmap_pte - idx, pfn_pte(pfn, prot));
+	arch_flush_lazy_mmu_mode();
+
+	return (void *)vaddr;
+}
+
+/*
+ * Map 'pfn' using fixed map 'type' and protections 'prot'
  */
 void *
 iomap_atomic_prot_pfn(unsigned long pfn, enum km_type type, pgprot_t prot)
