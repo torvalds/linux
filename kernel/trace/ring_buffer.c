@@ -22,6 +22,74 @@
 #include "trace.h"
 
 /*
+ * The ring buffer is made up of a list of pages. A separate list of pages is
+ * allocated for each CPU. A writer may only write to a buffer that is
+ * associated with the CPU it is currently executing on.  A reader may read
+ * from any per cpu buffer.
+ *
+ * The reader is special. For each per cpu buffer, the reader has its own
+ * reader page. When a reader has read the entire reader page, this reader
+ * page is swapped with another page in the ring buffer.
+ *
+ * Now, as long as the writer is off the reader page, the reader can do what
+ * ever it wants with that page. The writer will never write to that page
+ * again (as long as it is out of the ring buffer).
+ *
+ * Here's some silly ASCII art.
+ *
+ *   +------+
+ *   |reader|          RING BUFFER
+ *   |page  |
+ *   +------+        +---+   +---+   +---+
+ *                   |   |-->|   |-->|   |
+ *                   +---+   +---+   +---+
+ *                     ^               |
+ *                     |               |
+ *                     +---------------+
+ *
+ *
+ *   +------+
+ *   |reader|          RING BUFFER
+ *   |page  |------------------v
+ *   +------+        +---+   +---+   +---+
+ *                   |   |-->|   |-->|   |
+ *                   +---+   +---+   +---+
+ *                     ^               |
+ *                     |               |
+ *                     +---------------+
+ *
+ *
+ *   +------+
+ *   |reader|          RING BUFFER
+ *   |page  |------------------v
+ *   +------+        +---+   +---+   +---+
+ *      ^            |   |-->|   |-->|   |
+ *      |            +---+   +---+   +---+
+ *      |                              |
+ *      |                              |
+ *      +------------------------------+
+ *
+ *
+ *   +------+
+ *   |buffer|          RING BUFFER
+ *   |page  |------------------v
+ *   +------+        +---+   +---+   +---+
+ *      ^            |   |   |   |-->|   |
+ *      |   New      +---+   +---+   +---+
+ *      |  Reader------^               |
+ *      |   page                       |
+ *      +------------------------------+
+ *
+ *
+ * After we make this swap, the reader can hand this page off to the splice
+ * code and be done with it. It can even allocate a new page if it needs to
+ * and swap that into the ring buffer.
+ *
+ * We will be using cmpxchg soon to make all this lockless.
+ *
+ */
+
+/*
  * A fast way to enable or disable all ring buffers is to
  * call tracing_on or tracing_off. Turning off the ring buffers
  * prevents all ring buffers from being recorded to.
