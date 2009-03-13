@@ -342,7 +342,10 @@ struct tracer bts_tracer __read_mostly =
 	.start		= bts_trace_start,
 	.stop		= bts_trace_stop,
 	.open		= trace_bts_prepare,
-	.close		= trace_bts_close
+	.close		= trace_bts_close,
+#ifdef CONFIG_FTRACE_SELFTEST
+	.selftest	= trace_selftest_startup_hw_branches,
+#endif /* CONFIG_FTRACE_SELFTEST */
 };
 
 __init static int init_bts_trace(void)
