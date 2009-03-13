@@ -335,11 +335,20 @@ static int ixp4xx_mdio_register(void)
 	if (!(mdio_bus = mdiobus_alloc()))
 		return -ENOMEM;
 
-	/* All MII PHY accesses use NPE-B Ethernet registers */
-	spin_lock_init(&mdio_lock);
-	mdio_regs = (struct eth_regs __iomem *)IXP4XX_EthB_BASE_VIRT;
-	__raw_writel(DEFAULT_CORE_CNTRL, &mdio_regs->core_control);
+	if (cpu_is_ixp43x()) {
+		/* IXP43x lacks NPE-B and uses NPE-C for MII PHY access */
+		if (!(ixp4xx_read_feature_bits() & IXP4XX_FEATURE_NPEC_ETH))
+			return -ENOSYS;
+		mdio_regs = (struct eth_regs __iomem *)IXP4XX_EthC_BASE_VIRT;
+	} else {
+		/* All MII PHY accesses use NPE-B Ethernet registers */
+		if (!(ixp4xx_read_feature_bits() & IXP4XX_FEATURE_NPEB_ETH0))
+			return -ENOSYS;
+		mdio_regs = (struct eth_regs __iomem *)IXP4XX_EthB_BASE_VIRT;
+	}
 
+	__raw_writel(DEFAULT_CORE_CNTRL, &mdio_regs->core_control);
+	spin_lock_init(&mdio_lock);
 	mdio_bus->name = "IXP4xx MII Bus";
 	mdio_bus->read = &ixp4xx_mdio_read;
 	mdio_bus->write = &ixp4xx_mdio_write;
@@ -1250,9 +1259,6 @@ static struct platform_driver ixp4xx_eth_driver = {
 static int __init eth_init_module(void)
 {
 	int err;
-	if (!(ixp4xx_read_feature_bits() & IXP4XX_FEATURE_NPEB_ETH0))
-		return -ENOSYS;
-
 	if ((err = ixp4xx_mdio_register()))
 		return err;
 	return platform_driver_register(&ixp4xx_eth_driver);
