@@ -14,7 +14,6 @@
  *	linux-arm-kernel@lists.arm.linux.org.uk
  */
 
-
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
@@ -44,7 +43,12 @@
 
 #define LCDC_SIZE	0x04
 #define SIZE_XMAX(x)	((((x) >> 4) & 0x3f) << 20)
+
+#ifdef CONFIG_ARCH_MX1
 #define SIZE_YMAX(y)	((y) & 0x1ff)
+#else
+#define SIZE_YMAX(y)	((y) & 0x3ff)
+#endif
 
 #define LCDC_VPW	0x08
 #define VPW_VPW(x)	((x) & 0x3ff)
@@ -54,7 +58,12 @@
 #define CPOS_CC0	(1<<30)
 #define CPOS_OP		(1<<28)
 #define CPOS_CXP(x)	(((x) & 3ff) << 16)
+
+#ifdef CONFIG_ARCH_MX1
 #define CPOS_CYP(y)	((y) & 0x1ff)
+#else
+#define CPOS_CYP(y)	((y) & 0x3ff)
+#endif
 
 #define LCDC_LCWHB	0x10
 #define LCWHB_BK_EN	(1<<31)
@@ -63,9 +72,16 @@
 #define LCWHB_BD(x)	((x) & 0xff)
 
 #define LCDC_LCHCC	0x14
+
+#ifdef CONFIG_ARCH_MX1
 #define LCHCC_CUR_COL_R(r) (((r) & 0x1f) << 11)
 #define LCHCC_CUR_COL_G(g) (((g) & 0x3f) << 5)
 #define LCHCC_CUR_COL_B(b) ((b) & 0x1f)
+#else
+#define LCHCC_CUR_COL_R(r) (((r) & 0x3f) << 12)
+#define LCHCC_CUR_COL_G(g) (((g) & 0x3f) << 6)
+#define LCHCC_CUR_COL_B(b) ((b) & 0x3f)
+#endif
 
 #define LCDC_PCR	0x18
 
@@ -92,7 +108,13 @@
 /* bit fields in imxfb.h */
 
 #define LCDC_RMCR	0x34
+
+#ifdef CONFIG_ARCH_MX1
 #define RMCR_LCDC_EN	(1<<1)
+#else
+#define RMCR_LCDC_EN	0
+#endif
+
 #define RMCR_SELF_REF	(1<<0)
 
 #define LCDC_LCDICR	0x38
@@ -158,6 +180,17 @@ struct imxfb_info {
  */
 #define MIN_XRES	64
 #define MIN_YRES	64
+
+/* Actually this really is 18bit support, the lowest 2 bits of each colour
+ * are unused in hardware. We claim to have 24bit support to make software
+ * like X work, which does not support 18bit.
+ */
+static struct imxfb_rgb def_rgb_18 = {
+	.red	= {.offset = 16, .length = 8,},
+	.green	= {.offset = 8, .length = 8,},
+	.blue	= {.offset = 0, .length = 8,},
+	.transp = {.offset = 0, .length = 0,},
+};
 
 static struct imxfb_rgb def_rgb_16_tft = {
 	.red	= {.offset = 11, .length = 5,},
@@ -286,6 +319,9 @@ static int imxfb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 
 	pr_debug("var->bits_per_pixel=%d\n", var->bits_per_pixel);
 	switch (var->bits_per_pixel) {
+	case 32:
+		rgb = &def_rgb_18;
+		break;
 	case 16:
 	default:
 		if (readl(fbi->regs + LCDC_PCR) & PCR_TFT)
@@ -327,9 +363,7 @@ static int imxfb_set_par(struct fb_info *info)
 	struct imxfb_info *fbi = info->par;
 	struct fb_var_screeninfo *var = &info->var;
 
-	pr_debug("set_par\n");
-
-	if (var->bits_per_pixel == 16)
+	if (var->bits_per_pixel == 16 || var->bits_per_pixel == 32)
 		info->fix.visual = FB_VISUAL_TRUECOLOR;
 	else if (!fbi->cmap_static)
 		info->fix.visual = FB_VISUAL_PSEUDOCOLOR;
@@ -353,10 +387,6 @@ static int imxfb_set_par(struct fb_info *info)
 static void imxfb_enable_controller(struct imxfb_info *fbi)
 {
 	pr_debug("Enabling LCD controller\n");
-
-	/* initialize LCDC */
-	writel(readl(fbi->regs + LCDC_RMCR) & ~RMCR_LCDC_EN,
-		fbi->regs + LCDC_RMCR);	/* just to be safe... */
 
 	writel(fbi->screen_dma, fbi->regs + LCDC_SSA);
 
@@ -465,9 +495,9 @@ static int imxfb_activate_var(struct fb_var_screeninfo *var, struct fb_info *inf
 			info->fix.id, var->lower_margin);
 #endif
 
-	writel(HCR_H_WIDTH(var->hsync_len) |
-		HCR_H_WAIT_1(var->right_margin) |
-		HCR_H_WAIT_2(var->left_margin),
+	writel(HCR_H_WIDTH(var->hsync_len - 1) |
+		HCR_H_WAIT_1(var->right_margin - 1) |
+		HCR_H_WAIT_2(var->left_margin - 3),
 		fbi->regs + LCDC_HCR);
 
 	writel(VCR_V_WIDTH(var->vsync_len) |
@@ -650,6 +680,12 @@ static int __init imxfb_probe(struct platform_device *pdev)
 		info->fix.smem_start = fbi->screen_dma;
 	}
 
+	if (pdata->init) {
+		ret = pdata->init(fbi->pdev);
+		if (ret)
+			goto failed_platform_init;
+	}
+
 	/*
 	 * This makes sure that our colour bitfield
 	 * descriptors are correctly initialised.
@@ -674,6 +710,9 @@ static int __init imxfb_probe(struct platform_device *pdev)
 failed_register:
 	fb_dealloc_cmap(&info->cmap);
 failed_cmap:
+	if (pdata->exit)
+		pdata->exit(fbi->pdev);
+failed_platform_init:
 	if (!pdata->fixed_screen_cpu)
 		dma_free_writecombine(&pdev->dev,fbi->map_size,fbi->map_cpu,
 			fbi->map_dma);
@@ -691,6 +730,7 @@ failed_init:
 
 static int __devexit imxfb_remove(struct platform_device *pdev)
 {
+	struct imx_fb_platform_data *pdata;
 	struct fb_info *info = platform_get_drvdata(pdev);
 	struct imxfb_info *fbi = info->par;
 	struct resource *res;
@@ -700,6 +740,10 @@ static int __devexit imxfb_remove(struct platform_device *pdev)
 	imxfb_disable_controller(fbi);
 
 	unregister_framebuffer(info);
+
+	pdata = pdev->dev.platform_data;
+	if (pdata->exit)
+		pdata->exit(fbi->pdev);
 
 	fb_dealloc_cmap(&info->cmap);
 	kfree(info->pseudo_palette);

@@ -729,7 +729,7 @@ static int ipu_init_channel_buffer(struct idmac_channel *ichan,
 
 	ichan->status = IPU_CHANNEL_READY;
 
-	spin_unlock_irqrestore(ipu->lock, flags);
+	spin_unlock_irqrestore(&ipu->lock, flags);
 
 	return 0;
 }
@@ -1649,7 +1649,7 @@ static int ipu_probe(struct platform_device *pdev)
 	}
 
 	/* Get IPU clock */
-	ipu_data.ipu_clk = clk_get(&pdev->dev, "ipu_clk");
+	ipu_data.ipu_clk = clk_get(&pdev->dev, NULL);
 	if (IS_ERR(ipu_data.ipu_clk)) {
 		ret = PTR_ERR(ipu_data.ipu_clk);
 		goto err_clk_get;

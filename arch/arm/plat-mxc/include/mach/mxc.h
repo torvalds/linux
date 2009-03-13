@@ -24,13 +24,74 @@
 #error "Do not include directly."
 #endif
 
-/* clean up all things that are not used */
-#ifndef CONFIG_ARCH_MX3
-# define cpu_is_mx31() (0)
+#define MXC_CPU_MX1		1
+#define MXC_CPU_MX21		21
+#define MXC_CPU_MX27		27
+#define MXC_CPU_MX31		31
+#define MXC_CPU_MX35		35
+
+#ifndef __ASSEMBLY__
+extern unsigned int __mxc_cpu_type;
 #endif
 
-#ifndef CONFIG_MACH_MX27
-# define cpu_is_mx27() (0)
+#ifdef CONFIG_ARCH_MX1
+# ifdef mxc_cpu_type
+#  undef mxc_cpu_type
+#  define mxc_cpu_type __mxc_cpu_type
+# else
+#  define mxc_cpu_type MXC_CPU_MX1
+# endif
+# define cpu_is_mx1()		(mxc_cpu_type == MXC_CPU_MX1)
+#else
+# define cpu_is_mx1()		(0)
+#endif
+
+#ifdef CONFIG_MACH_MX21
+# ifdef mxc_cpu_type
+#  undef mxc_cpu_type
+#  define mxc_cpu_type __mxc_cpu_type
+# else
+#  define mxc_cpu_type MXC_CPU_MX21
+# endif
+# define cpu_is_mx21()		(mxc_cpu_type == MXC_CPU_MX21)
+#else
+# define cpu_is_mx21()		(0)
+#endif
+
+#ifdef CONFIG_MACH_MX27
+# ifdef mxc_cpu_type
+#  undef mxc_cpu_type
+#  define mxc_cpu_type __mxc_cpu_type
+# else
+#  define mxc_cpu_type MXC_CPU_MX27
+# endif
+# define cpu_is_mx27()		(mxc_cpu_type == MXC_CPU_MX27)
+#else
+# define cpu_is_mx27()		(0)
+#endif
+
+#ifdef CONFIG_ARCH_MX31
+# ifdef mxc_cpu_type
+#  undef mxc_cpu_type
+#  define mxc_cpu_type __mxc_cpu_type
+# else
+#  define mxc_cpu_type MXC_CPU_MX31
+# endif
+# define cpu_is_mx31()		(mxc_cpu_type == MXC_CPU_MX31)
+#else
+# define cpu_is_mx31()		(0)
+#endif
+
+#ifdef CONFIG_ARCH_MX35
+# ifdef mxc_cpu_type
+#  undef mxc_cpu_type
+#  define mxc_cpu_type __mxc_cpu_type
+# else
+#  define mxc_cpu_type MXC_CPU_MX35
+# endif
+# define cpu_is_mx35()		(mxc_cpu_type == MXC_CPU_MX35)
+#else
+# define cpu_is_mx35()		(0)
 #endif
 
 #if defined(CONFIG_ARCH_MX3) || defined(CONFIG_ARCH_MX2)
@@ -38,5 +99,8 @@
 #define CSCR_L(n) (IO_ADDRESS(WEIM_BASE_ADDR) + n * 0x10 + 0x4)
 #define CSCR_A(n) (IO_ADDRESS(WEIM_BASE_ADDR) + n * 0x10 + 0x8)
 #endif
+
+#define cpu_is_mx3()	(cpu_is_mx31() || cpu_is_mx35())
+#define cpu_is_mx2()	(cpu_is_mx21() || cpu_is_mx27())
 
 #endif /*  __ASM_ARCH_MXC_H__ */

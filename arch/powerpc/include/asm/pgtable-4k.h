@@ -60,7 +60,7 @@
 /* It should be preserving the high 48 bits and then specifically */
 /* preserving _PAGE_SECONDARY | _PAGE_GROUP_IX */
 #define _PAGE_CHG_MASK	(PAGE_MASK | _PAGE_ACCESSED | _PAGE_DIRTY | \
-                         _PAGE_HPTEFLAGS)
+                         _PAGE_HPTEFLAGS | _PAGE_SPECIAL)
 
 /* Bits to mask out from a PMD to get to the PTE page */
 #define PMD_MASKED_BITS		0

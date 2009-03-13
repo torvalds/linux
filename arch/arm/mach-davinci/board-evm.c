@@ -311,6 +311,9 @@ evm_u35_setup(struct i2c_client *client, int gpio, unsigned ngpio, void *c)
 	gpio_request(gpio + 7, "nCF_SEL");
 	gpio_direction_output(gpio + 7, 1);
 
+	/* irlml6401 sustains over 3A, switches 5V in under 8 msec */
+	setup_usb(500, 8);
+
 	return 0;
 }
 
@@ -417,9 +420,6 @@ static __init void davinci_evm_init(void)
 	platform_add_devices(davinci_evm_devices,
 			     ARRAY_SIZE(davinci_evm_devices));
 	evm_init_i2c();
-
-	/* irlml6401 sustains over 3A, switches 5V in under 8 msec */
-	setup_usb(500, 8);
 }
 
 static __init void davinci_evm_irq_init(void)

@@ -1498,58 +1498,31 @@ static int smack_socket_post_create(struct socket *sock, int family,
  * looks for host based access restrictions
  *
  * This version will only be appropriate for really small
- * sets of single label hosts. Because of the masking
- * it cannot shortcut out on the first match. There are
- * numerious ways to address the problem, but none of them
- * have been applied here.
+ * sets of single label hosts.
  *
  * Returns the label of the far end or NULL if it's not special.
  */
 static char *smack_host_label(struct sockaddr_in *sip)
 {
 	struct smk_netlbladdr *snp;
-	char *bestlabel = NULL;
 	struct in_addr *siap = &sip->sin_addr;
-	struct in_addr *liap;
-	struct in_addr *miap;
-	struct in_addr bestmask;
 
 	if (siap->s_addr == 0)
 		return NULL;
 
-	bestmask.s_addr = 0;
-
 	for (snp = smack_netlbladdrs; snp != NULL; snp = snp->smk_next) {
-		liap = &snp->smk_host.sin_addr;
-		miap = &snp->smk_mask;
 		/*
-		 * If the addresses match after applying the list entry mask
-		 * the entry matches the address. If it doesn't move along to
-		 * the next entry.
+		 * we break after finding the first match because
+		 * the list is sorted from longest to shortest mask
+		 * so we have found the most specific match
 		 */
-		if ((liap->s_addr & miap->s_addr) !=
-		    (siap->s_addr & miap->s_addr))
-			continue;
-		/*
-		 * If the list entry mask identifies a single address
-		 * it can't get any more specific.
-		 */
-		if (miap->s_addr == 0xffffffff)
+		if ((&snp->smk_host.sin_addr)->s_addr  ==
+			(siap->s_addr & (&snp->smk_mask)->s_addr)) {
 			return snp->smk_label;
-		/*
-		 * If the list entry mask is less specific than the best
-		 * already found this entry is uninteresting.
-		 */
-		if ((miap->s_addr | bestmask.s_addr) == bestmask.s_addr)
-			continue;
-		/*
-		 * This is better than any entry found so far.
-		 */
-		bestmask.s_addr = miap->s_addr;
-		bestlabel = snp->smk_label;
+		}
 	}
 
-	return bestlabel;
+	return NULL;
 }
 
 /**

@@ -98,11 +98,16 @@
  * 		- blacklisted KWorld radio in hid-core.c and hid-ids.h
  * 2008-12-03	Mark Lord <mlord@pobox.com>
  *		- add support for DealExtreme USB Radio
+ * 2009-01-31	Bob Ross <pigiron@gmx.com>
+ *		- correction of stereo detection/setting
+ *		- correction of signal strength indicator scaling
+ * 2009-01-31	Rick Bronson <rick@efn.org>
+ *		Tobias Lorenz <tobias.lorenz@gmx.net>
+ *		- add LED status output
  *
  * ToDo:
  * - add firmware download/update support
  * - RDS support: interrupt mode, instead of polling
- * - add LED status output (check if that's not already done in firmware)
  */
 
 
@@ -882,6 +887,30 @@ static int si470x_rds_on(struct si470x_device *radio)
 
 
 /**************************************************************************
+ * General Driver Functions - LED_REPORT
+ **************************************************************************/
+
+/*
+ * si470x_set_led_state - sets the led state
+ */
+static int si470x_set_led_state(struct si470x_device *radio,
+		unsigned char led_state)
+{
+	unsigned char buf[LED_REPORT_SIZE];
+	int retval;
+
+	buf[0] = LED_REPORT;
+	buf[1] = LED_COMMAND;
+	buf[2] = led_state;
+
+	retval = si470x_set_report(radio, (void *) &buf, sizeof(buf));
+
+	return (retval < 0) ? -EINVAL : 0;
+}
+
+
+
+/**************************************************************************
  * RDS Driver Functions
  **************************************************************************/
 
@@ -1385,20 +1414,22 @@ static int si470x_vidioc_g_tuner(struct file *file, void *priv,
 	};
 
 	/* stereo indicator == stereo (instead of mono) */
-	if ((radio->registers[STATUSRSSI] & STATUSRSSI_ST) == 1)
-		tuner->rxsubchans = V4L2_TUNER_SUB_MONO | V4L2_TUNER_SUB_STEREO;
-	else
+	if ((radio->registers[STATUSRSSI] & STATUSRSSI_ST) == 0)
 		tuner->rxsubchans = V4L2_TUNER_SUB_MONO;
+	else
+		tuner->rxsubchans = V4L2_TUNER_SUB_MONO | V4L2_TUNER_SUB_STEREO;
 
 	/* mono/stereo selector */
-	if ((radio->registers[POWERCFG] & POWERCFG_MONO) == 1)
-		tuner->audmode = V4L2_TUNER_MODE_MONO;
-	else
+	if ((radio->registers[POWERCFG] & POWERCFG_MONO) == 0)
 		tuner->audmode = V4L2_TUNER_MODE_STEREO;
+	else
+		tuner->audmode = V4L2_TUNER_MODE_MONO;
 
 	/* min is worst, max is best; signal:0..0xffff; rssi: 0..0xff */
-	tuner->signal = (radio->registers[STATUSRSSI] & STATUSRSSI_RSSI)
-				* 0x0101;
+	/* measured in units of dbµV in 1 db increments (max at ~75 dbµV) */
+	tuner->signal = (radio->registers[STATUSRSSI] & STATUSRSSI_RSSI);
+	/* the ideal factor is 0xffff/75 = 873,8 */
+	tuner->signal = (tuner->signal * 873) + (8 * tuner->signal / 10);
 
 	/* automatic frequency control: -1: freq to low, 1 freq to high */
 	/* AFCRL does only indicate that freq. differs, not if too low/high */
@@ -1632,6 +1663,9 @@ static int si470x_usb_driver_probe(struct usb_interface *intf,
 	/* set initial frequency */
 	si470x_set_freq(radio, 87.5 * FREQ_MUL); /* available in all regions */
 
+	/* set led to connect state */
+	si470x_set_led_state(radio, BLINK_GREEN_LED);
+
 	/* rds buffer allocation */
 	radio->buf_size = rds_buf * 3;
 	radio->buffer = kmalloc(radio->buf_size, GFP_KERNEL);
@@ -1715,6 +1749,9 @@ static void si470x_usb_driver_disconnect(struct usb_interface *intf)
 	cancel_delayed_work_sync(&radio->work);
 	usb_set_intfdata(intf, NULL);
 	if (radio->users == 0) {
+		/* set led to disconnect state */
+		si470x_set_led_state(radio, BLINK_ORANGE_LED);
+
 		video_unregister_device(radio->videodev);
 		kfree(radio->buffer);
 		kfree(radio);

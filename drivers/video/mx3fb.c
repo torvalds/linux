@@ -493,7 +493,7 @@ static int sdc_init_panel(struct mx3fb_data *mx3fb, enum ipu_panel panel,
         */
        dev_dbg(mx3fb->dev, "pixel clk = %d\n", pixel_clk);
 
-       ipu_clk = clk_get(mx3fb->dev, "ipu_clk");
+       ipu_clk = clk_get(mx3fb->dev, NULL);
        div = clk_get_rate(ipu_clk) * 16 / pixel_clk;
        clk_put(ipu_clk);
 

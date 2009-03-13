@@ -2522,6 +2522,19 @@ qla2x00_post_aen_work(struct scsi_qla_host *vha, enum fc_host_event_code code,
 	return qla2x00_post_work(vha, e, 1);
 }
 
+int
+qla2x00_post_idc_ack_work(struct scsi_qla_host *vha, uint16_t *mb)
+{
+	struct qla_work_evt *e;
+
+	e = qla2x00_alloc_work(vha, QLA_EVT_IDC_ACK, 1);
+	if (!e)
+		return QLA_FUNCTION_FAILED;
+
+	memcpy(e->u.idc_ack.mb, mb, QLA_IDC_ACK_REGS * sizeof(uint16_t));
+	return qla2x00_post_work(vha, e, 1);
+}
+
 static void
 qla2x00_do_work(struct scsi_qla_host *vha)
 {
@@ -2538,6 +2551,9 @@ qla2x00_do_work(struct scsi_qla_host *vha)
 		case QLA_EVT_AEN:
 			fc_host_post_event(vha->host, fc_get_event_number(),
 			    e->u.aen.code, e->u.aen.data);
+			break;
+		case QLA_EVT_IDC_ACK:
+			qla81xx_idc_ack(vha, e->u.idc_ack.mb);
 			break;
 		}
 		if (e->flags & QLA_EVT_FLAG_FREE)

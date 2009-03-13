@@ -20,6 +20,7 @@
 static char cmdline[256];
 static unsigned long len;
 
+#ifndef CONFIG_SMP
 static int num1 __attribute__((l1_data));
 
 void kgdb_l1_test(void) __attribute__((l1_text));
@@ -32,6 +33,8 @@ void kgdb_l1_test(void)
 	printk(KERN_ALERT "L1(after change) : data variable addr = 0x%p, data value is %d\n", &num1, num1);
 	return ;
 }
+#endif
+
 #if L2_LENGTH
 
 static int num2 __attribute__((l2));
@@ -59,10 +62,12 @@ int kgdb_test(char *name, int len, int count, int z)
 static int test_proc_output(char *buf)
 {
 	kgdb_test("hello world!", 12, 0x55, 0x10);
+#ifndef CONFIG_SMP
 	kgdb_l1_test();
-	#if L2_LENGTH
+#endif
+#if L2_LENGTH
 	kgdb_l2_test();
-	#endif
+#endif
 
 	return 0;
 }

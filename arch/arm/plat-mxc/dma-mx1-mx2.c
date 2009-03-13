@@ -802,7 +802,7 @@ static int __init imx_dma_init(void)
 	int ret = 0;
 	int i;
 
-	dma_clk = clk_get(NULL, "dma_clk");
+	dma_clk = clk_get(NULL, "dma");
 	clk_enable(dma_clk);
 
 	/* reset DMA module */

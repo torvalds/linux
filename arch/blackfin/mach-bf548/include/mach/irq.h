@@ -123,8 +123,8 @@ Events         (highest priority)  EMU         0
 #define IRQ_MXVR_ERROR		BFIN_IRQ(51)	/* MXVR Status (Error) Interrupt */
 #define IRQ_MXVR_MSG		BFIN_IRQ(52)	/* MXVR Message Interrupt */
 #define IRQ_MXVR_PKT		BFIN_IRQ(53)	/* MXVR Packet Interrupt */
-#define IRQ_EPP1_ERROR		BFIN_IRQ(54)	/* EPPI1 Error Interrupt */
-#define IRQ_EPP2_ERROR		BFIN_IRQ(55)	/* EPPI2 Error Interrupt */
+#define IRQ_EPPI1_ERROR		BFIN_IRQ(54)	/* EPPI1 Error Interrupt */
+#define IRQ_EPPI2_ERROR		BFIN_IRQ(55)	/* EPPI2 Error Interrupt */
 #define IRQ_UART3_ERROR		BFIN_IRQ(56)	/* UART3 Status (Error) Interrupt */
 #define IRQ_HOST_ERROR		BFIN_IRQ(57)	/* HOST Status (Error) Interrupt */
 #define IRQ_PIXC_ERROR		BFIN_IRQ(59)	/* PIXC Status (Error) Interrupt */
@@ -361,8 +361,8 @@ Events         (highest priority)  EMU         0
 #define IRQ_UART2_ERR 		IRQ_UART2_ERROR
 #define IRQ_CAN0_ERR  		IRQ_CAN0_ERROR
 #define IRQ_MXVR_ERR  		IRQ_MXVR_ERROR
-#define IRQ_EPP1_ERR  		IRQ_EPP1_ERROR
-#define IRQ_EPP2_ERR  		IRQ_EPP2_ERROR
+#define IRQ_EPPI1_ERR  		IRQ_EPPI1_ERROR
+#define IRQ_EPPI2_ERR  		IRQ_EPPI2_ERROR
 #define IRQ_UART3_ERR 		IRQ_UART3_ERROR
 #define IRQ_HOST_ERR  		IRQ_HOST_ERROR
 #define IRQ_PIXC_ERR  		IRQ_PIXC_ERROR

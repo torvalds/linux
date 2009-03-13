@@ -890,7 +890,7 @@ unsigned int ipic_get_irq(void)
 	return irq_linear_revmap(primary_ipic->irqhost, irq);
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_SUSPEND
 static struct {
 	u32 sicfr;
 	u32 siprr[2];

@@ -31,7 +31,7 @@
 #include <asm/mach/map.h>
 #include <mach/gpio.h>
 #include <mach/imx-uart.h>
-#include <mach/iomux-mx1-mx2.h>
+#include <mach/iomux.h>
 #include <mach/board-mx27ads.h>
 
 #include "devices.h"
@@ -135,6 +135,7 @@ static int uart_mxc_port3_exit(struct platform_device *pdev)
 {
 	mxc_gpio_release_multiple_pins(mxc_uart3_pins,
 			ARRAY_SIZE(mxc_uart3_pins));
+	return 0;
 }
 
 static int mxc_uart4_pins[] = {
@@ -179,6 +180,7 @@ static int uart_mxc_port5_exit(struct platform_device *pdev)
 
 static struct platform_device *platform_devices[] __initdata = {
 	&mx27ads_nor_mtd_device,
+	&mxc_fec_device,
 };
 
 static int mxc_fec_pins[] = {
@@ -196,7 +198,7 @@ static int mxc_fec_pins[] = {
 	PD11_AOUT_FEC_TX_CLK,
 	PD12_AOUT_FEC_RXD0,
 	PD13_AOUT_FEC_RX_DV,
-	PD14_AOUT_FEC_CLR,
+	PD14_AOUT_FEC_RX_CLK,
 	PD15_AOUT_FEC_COL,
 	PD16_AIN_FEC_TX_ER,
 	PF23_AIN_FEC_TX_EN
@@ -206,12 +208,6 @@ static void gpio_fec_active(void)
 {
 	mxc_gpio_setup_multiple_pins(mxc_fec_pins,
 			ARRAY_SIZE(mxc_fec_pins), "FEC");
-}
-
-static void gpio_fec_inactive(void)
-{
-	mxc_gpio_release_multiple_pins(mxc_fec_pins,
-			ARRAY_SIZE(mxc_fec_pins));
 }
 
 static struct imxuart_platform_data uart_pdata[] = {
@@ -263,11 +259,10 @@ static void __init mx27ads_timer_init(void)
 	if ((__raw_readw(PBC_VERSION_REG) & CKIH_27MHZ_BIT_SET) == 0)
 		fref = 27000000;
 
-	mxc_clocks_init(fref);
-	mxc_timer_init("gpt_clk.0");
+	mx27_clocks_init(fref);
 }
 
-struct sys_timer mx27ads_timer = {
+static struct sys_timer mx27ads_timer = {
 	.init	= mx27ads_timer_init,
 };
 
@@ -280,7 +275,7 @@ static struct map_desc mx27ads_io_desc[] __initdata = {
 	},
 };
 
-void __init mx27ads_map_io(void)
+static void __init mx27ads_map_io(void)
 {
 	mxc_map_io();
 	iotable_init(mx27ads_io_desc, ARRAY_SIZE(mx27ads_io_desc));

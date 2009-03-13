@@ -768,8 +768,8 @@ pci_read_rom(struct kobject *kobj, struct bin_attribute *bin_attr,
 		return -EINVAL;
 	
 	rom = pci_map_rom(pdev, &size);	/* size starts out as PCI window size */
-	if (!rom)
-		return 0;
+	if (!rom || !size)
+		return -EIO;
 		
 	if (off >= size)
 		count = 0;
