@@ -4186,18 +4186,17 @@ static inline void igb_rx_irq_enable(struct igb_ring *rx_ring)
 static int igb_poll(struct napi_struct *napi, int budget)
 {
 	struct igb_ring *rx_ring = container_of(napi, struct igb_ring, napi);
-	struct igb_adapter *adapter = rx_ring->adapter;
 	int work_done = 0;
 
 #ifdef CONFIG_IGB_DCA
-	if (adapter->flags & IGB_FLAG_DCA_ENABLED)
+	if (rx_ring->adapter->flags & IGB_FLAG_DCA_ENABLED)
 		igb_update_rx_dca(rx_ring);
 #endif
 	igb_clean_rx_irq_adv(rx_ring, &work_done, budget);
 
 	if (rx_ring->buddy) {
 #ifdef CONFIG_IGB_DCA
-		if (adapter->flags & IGB_FLAG_DCA_ENABLED)
+		if (rx_ring->adapter->flags & IGB_FLAG_DCA_ENABLED)
 			igb_update_tx_dca(rx_ring->buddy);
 #endif
 		if (!igb_clean_tx_irq(rx_ring->buddy))
