@@ -45,6 +45,7 @@ struct soc_camera_device {
 	int num_formats;
 	struct soc_camera_format_xlate *user_formats;
 	int num_user_formats;
+	enum v4l2_field field;		/* Preserve field over close() */
 	struct module *owner;
 	void *host_priv;		/* Per-device host private data */
 	/* soc_camera.c private count. Only accessed with .video_lock held */

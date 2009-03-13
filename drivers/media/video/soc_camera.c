@@ -286,7 +286,9 @@ static int soc_camera_set_fmt(struct soc_camera_file *icf,
 
 	icd->width		= pix->width;
 	icd->height		= pix->height;
-	icf->vb_vidq.field	= pix->field;
+	icf->vb_vidq.field	=
+		icd->field	= pix->field;
+
 	if (f->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		dev_warn(&icd->dev, "Attention! Wrong buf-type %d\n",
 			 f->type);
@@ -339,26 +341,23 @@ static int soc_camera_open(struct file *file)
 
 	/* Now we really have to activate the camera */
 	if (icd->use_count == 1) {
+		/* Restore parameters before the last close() per V4L2 API */
 		struct v4l2_format f = {
 			.type = V4L2_BUF_TYPE_VIDEO_CAPTURE,
 			.fmt.pix = {
-				.width		= DEFAULT_WIDTH,
-				.height		= DEFAULT_HEIGHT,
-				.field		= V4L2_FIELD_ANY,
+				.width		= icd->width,
+				.height		= icd->height,
+				.field		= icd->field,
+				.pixelformat	= icd->current_fmt->fourcc,
+				.colorspace	= icd->current_fmt->colorspace,
 			},
 		};
 
-		ret = soc_camera_init_user_formats(icd);
-		if (ret < 0)
-			goto eiufmt;
 		ret = ici->ops->add(icd);
 		if (ret < 0) {
 			dev_err(&icd->dev, "Couldn't activate the camera: %d\n", ret);
 			goto eiciadd;
 		}
-
-		f.fmt.pix.pixelformat	= icd->current_fmt->fourcc;
-		f.fmt.pix.colorspace	= icd->current_fmt->colorspace;
 
 		/* Try to configure with default parameters */
 		ret = soc_camera_set_fmt(icf, &f);
@@ -382,8 +381,6 @@ static int soc_camera_open(struct file *file)
 esfmt:
 	ici->ops->remove(icd);
 eiciadd:
-	soc_camera_free_user_formats(icd);
-eiufmt:
 	icd->use_count--;
 	mutex_unlock(&icd->video_lock);
 	module_put(ici->ops->owner);
@@ -403,10 +400,9 @@ static int soc_camera_close(struct file *file)
 
 	mutex_lock(&icd->video_lock);
 	icd->use_count--;
-	if (!icd->use_count) {
+	if (!icd->use_count)
 		ici->ops->remove(icd);
-		soc_camera_free_user_formats(icd);
-	}
+
 	mutex_unlock(&icd->video_lock);
 
 	module_put(icd->ops->owner);
@@ -874,9 +870,18 @@ static int soc_camera_probe(struct device *dev)
 		qctrl = soc_camera_find_qctrl(icd->ops, V4L2_CID_EXPOSURE);
 		icd->exposure = qctrl ? qctrl->default_value :
 			(unsigned short)~0;
-	}
-	ici->ops->remove(icd);
 
+		ret = soc_camera_init_user_formats(icd);
+		if (ret < 0)
+			goto eiufmt;
+
+		icd->height	= DEFAULT_HEIGHT;
+		icd->width	= DEFAULT_WIDTH;
+		icd->field	= V4L2_FIELD_ANY;
+	}
+
+eiufmt:
+	ici->ops->remove(icd);
 eiadd:
 	mutex_unlock(&icd->video_lock);
 	module_put(ici->ops->owner);
@@ -894,6 +899,8 @@ static int soc_camera_remove(struct device *dev)
 
 	if (icd->ops->remove)
 		icd->ops->remove(icd);
+
+	soc_camera_free_user_formats(icd);
 
 	return 0;
 }
