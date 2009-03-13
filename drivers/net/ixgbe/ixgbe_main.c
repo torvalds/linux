@@ -2458,8 +2458,10 @@ static void ixgbe_clean_rx_ring(struct ixgbe_adapter *adapter,
 	rx_ring->next_to_clean = 0;
 	rx_ring->next_to_use = 0;
 
-	writel(0, adapter->hw.hw_addr + rx_ring->head);
-	writel(0, adapter->hw.hw_addr + rx_ring->tail);
+	if (rx_ring->head)
+		writel(0, adapter->hw.hw_addr + rx_ring->head);
+	if (rx_ring->tail)
+		writel(0, adapter->hw.hw_addr + rx_ring->tail);
 }
 
 /**
@@ -2490,8 +2492,10 @@ static void ixgbe_clean_tx_ring(struct ixgbe_adapter *adapter,
 	tx_ring->next_to_use = 0;
 	tx_ring->next_to_clean = 0;
 
-	writel(0, adapter->hw.hw_addr + tx_ring->head);
-	writel(0, adapter->hw.hw_addr + tx_ring->tail);
+	if (tx_ring->head)
+		writel(0, adapter->hw.hw_addr + tx_ring->head);
+	if (tx_ring->tail)
+		writel(0, adapter->hw.hw_addr + tx_ring->tail);
 }
 
 /**
@@ -3327,7 +3331,8 @@ static void ixgbe_free_all_tx_resources(struct ixgbe_adapter *adapter)
 	int i;
 
 	for (i = 0; i < adapter->num_tx_queues; i++)
-		ixgbe_free_tx_resources(adapter, &adapter->tx_ring[i]);
+		if (adapter->tx_ring[i].desc)
+			ixgbe_free_tx_resources(adapter, &adapter->tx_ring[i]);
 }
 
 /**
@@ -3363,7 +3368,8 @@ static void ixgbe_free_all_rx_resources(struct ixgbe_adapter *adapter)
 	int i;
 
 	for (i = 0; i < adapter->num_rx_queues; i++)
-		ixgbe_free_rx_resources(adapter, &adapter->rx_ring[i]);
+		if (adapter->rx_ring[i].desc)
+			ixgbe_free_rx_resources(adapter, &adapter->rx_ring[i]);
 }
 
 /**
