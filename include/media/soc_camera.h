@@ -102,6 +102,13 @@ struct soc_camera_link {
 	/* Optional callbacks to power on or off and reset the sensor */
 	int (*power)(struct device *, int);
 	int (*reset)(struct device *);
+	/*
+	 * some platforms may support different data widths than the sensors
+	 * native ones due to different data line routing. Let the board code
+	 * overwrite the width flags.
+	 */
+	int (*set_bus_param)(struct soc_camera_link *, unsigned long flags);
+	unsigned long (*query_bus_param)(struct soc_camera_link *);
 };
 
 static inline struct soc_camera_device *to_soc_camera_dev(struct device *dev)
