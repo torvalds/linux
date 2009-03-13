@@ -1571,9 +1571,9 @@ static int cpu_clock_perf_counter_enable(struct perf_counter *counter)
 	int cpu = raw_smp_processor_id();
 
 	atomic64_set(&hwc->prev_count, cpu_clock(cpu));
+	hrtimer_init(&hwc->hrtimer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+	hwc->hrtimer.function = perf_swcounter_hrtimer;
 	if (hwc->irq_period) {
-		hrtimer_init(&hwc->hrtimer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
-		hwc->hrtimer.function = perf_swcounter_hrtimer;
 		__hrtimer_start_range_ns(&hwc->hrtimer,
 				ns_to_ktime(hwc->irq_period), 0,
 				HRTIMER_MODE_REL, 0);
@@ -1635,9 +1635,9 @@ static int task_clock_perf_counter_enable(struct perf_counter *counter)
 	struct hw_perf_counter *hwc = &counter->hw;
 
 	atomic64_set(&hwc->prev_count, task_clock_perf_counter_val(counter, 0));
+	hrtimer_init(&hwc->hrtimer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+	hwc->hrtimer.function = perf_swcounter_hrtimer;
 	if (hwc->irq_period) {
-		hrtimer_init(&hwc->hrtimer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
-		hwc->hrtimer.function = perf_swcounter_hrtimer;
 		__hrtimer_start_range_ns(&hwc->hrtimer,
 				ns_to_ktime(hwc->irq_period), 0,
 				HRTIMER_MODE_REL, 0);
