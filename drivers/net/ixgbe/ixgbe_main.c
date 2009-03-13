@@ -808,10 +808,14 @@ static void ixgbe_configure_msix(struct ixgbe_adapter *adapter)
 		/* if this is a tx only vector halve the interrupt rate */
 		if (q_vector->txr_count && !q_vector->rxr_count)
 			q_vector->eitr = (adapter->eitr_param >> 1);
-		else
+		else if (q_vector->rxr_count)
 			/* rx only */
 			q_vector->eitr = adapter->eitr_param;
 
+		/*
+		 * since ths is initial set up don't need to call
+		 * ixgbe_write_eitr helper
+		 */
 		IXGBE_WRITE_REG(&adapter->hw, IXGBE_EITR(v_idx),
 		                EITR_INTS_PER_SEC_TO_REG(q_vector->eitr));
 	}
@@ -896,10 +900,35 @@ update_itr_done:
 	return retval;
 }
 
+/**
+ * ixgbe_write_eitr - write EITR register in hardware specific way
+ * @adapter: pointer to adapter struct
+ * @v_idx: vector index into q_vector array
+ * @itr_reg: new value to be written in *register* format, not ints/s
+ *
+ * This function is made to be called by ethtool and by the driver
+ * when it needs to update EITR registers at runtime.  Hardware
+ * specific quirks/differences are taken care of here.
+ */
+void ixgbe_write_eitr(struct ixgbe_adapter *adapter, int v_idx, u32 itr_reg)
+{
+	struct ixgbe_hw *hw = &adapter->hw;
+	if (adapter->hw.mac.type == ixgbe_mac_82598EB) {
+		/* must write high and low 16 bits to reset counter */
+		itr_reg |= (itr_reg << 16);
+	} else if (adapter->hw.mac.type == ixgbe_mac_82599EB) {
+		/*
+		 * set the WDIS bit to not clear the timer bits and cause an
+		 * immediate assertion of the interrupt
+		 */
+		itr_reg |= IXGBE_EITR_CNT_WDIS;
+	}
+	IXGBE_WRITE_REG(hw, IXGBE_EITR(v_idx), itr_reg);
+}
+
 static void ixgbe_set_itr_msix(struct ixgbe_q_vector *q_vector)
 {
 	struct ixgbe_adapter *adapter = q_vector->adapter;
-	struct ixgbe_hw *hw = &adapter->hw;
 	u32 new_itr;
 	u8 current_itr, ret_itr;
 	int i, r_idx, v_idx = ((void *)q_vector - (void *)(adapter->q_vector)) /
@@ -954,17 +983,13 @@ static void ixgbe_set_itr_msix(struct ixgbe_q_vector *q_vector)
 
 	if (new_itr != q_vector->eitr) {
 		u32 itr_reg;
+
+		/* save the algorithm value here, not the smoothed one */
+		q_vector->eitr = new_itr;
 		/* do an exponential smoothing */
 		new_itr = ((q_vector->eitr * 90)/100) + ((new_itr * 10)/100);
-		q_vector->eitr = new_itr;
 		itr_reg = EITR_INTS_PER_SEC_TO_REG(new_itr);
-		if (adapter->hw.mac.type == ixgbe_mac_82599EB)
-			/* Resolution is 2 usec on 82599, so halve the rate */
-			itr_reg >>= 1;
-		/* must write high and low 16 bits to reset counter */
-		DPRINTK(TX_ERR, DEBUG, "writing eitr(%d): %08X\n", v_idx,
-		        itr_reg);
-		IXGBE_WRITE_REG(hw, IXGBE_EITR(v_idx), itr_reg | (itr_reg)<<16);
+		ixgbe_write_eitr(adapter, v_idx, itr_reg);
 	}
 
 	return;
@@ -1141,7 +1166,7 @@ static int ixgbe_clean_rxonly(struct napi_struct *napi, int budget)
 	/* If all Rx work done, exit the polling mode */
 	if (work_done < budget) {
 		napi_complete(napi);
-		if (adapter->itr_setting & 3)
+		if (adapter->itr_setting & 1)
 			ixgbe_set_itr_msix(q_vector);
 		if (!test_bit(__IXGBE_DOWN, &adapter->state))
 			IXGBE_WRITE_REG(&adapter->hw, IXGBE_EIMS, rx_ring->v_idx);
@@ -1190,7 +1215,7 @@ static int ixgbe_clean_rxonly_many(struct napi_struct *napi, int budget)
 	/* If all Rx work done, exit the polling mode */
 	if (work_done < budget) {
 		napi_complete(napi);
-		if (adapter->itr_setting & 3)
+		if (adapter->itr_setting & 1)
 			ixgbe_set_itr_msix(q_vector);
 		if (!test_bit(__IXGBE_DOWN, &adapter->state))
 			IXGBE_WRITE_REG(&adapter->hw, IXGBE_EIMS, enable_mask);
@@ -1360,7 +1385,6 @@ out:
 
 static void ixgbe_set_itr(struct ixgbe_adapter *adapter)
 {
-	struct ixgbe_hw *hw = &adapter->hw;
 	struct ixgbe_q_vector *q_vector = adapter->q_vector;
 	u8 current_itr;
 	u32 new_itr = q_vector->eitr;
@@ -1395,15 +1419,13 @@ static void ixgbe_set_itr(struct ixgbe_adapter *adapter)
 
 	if (new_itr != q_vector->eitr) {
 		u32 itr_reg;
+
+		/* save the algorithm value here, not the smoothed one */
+		q_vector->eitr = new_itr;
 		/* do an exponential smoothing */
 		new_itr = ((q_vector->eitr * 90)/100) + ((new_itr * 10)/100);
-		q_vector->eitr = new_itr;
 		itr_reg = EITR_INTS_PER_SEC_TO_REG(new_itr);
-		if (adapter->hw.mac.type == ixgbe_mac_82599EB)
-			/* Resolution is 2 usec on 82599, so halve the rate */
-			itr_reg >>= 1;
-		/* must write high and low 16 bits to reset counter */
-		IXGBE_WRITE_REG(hw, IXGBE_EITR(0), itr_reg | (itr_reg)<<16);
+		ixgbe_write_eitr(adapter, 0, itr_reg);
 	}
 
 	return;
@@ -1701,7 +1723,7 @@ static void ixgbe_configure_rx(struct ixgbe_adapter *adapter)
 	                  0xA54F2BEC, 0xEA49AF7C, 0xE214AD3D, 0xB855AABE,
 	                  0x6A3E67EA, 0x14364D17, 0x3BED200D};
 	u32 fctrl, hlreg0;
-	u32 reta = 0, mrqc;
+	u32 reta = 0, mrqc = 0;
 	u32 rdrxctl;
 	int rx_buf_len;
 
@@ -2589,7 +2611,7 @@ static int ixgbe_poll(struct napi_struct *napi, int budget)
 	/* If budget not fully consumed, exit the polling mode */
 	if (work_done < budget) {
 		napi_complete(napi);
-		if (adapter->itr_setting & 3)
+		if (adapter->itr_setting & 1)
 			ixgbe_set_itr(adapter);
 		if (!test_bit(__IXGBE_DOWN, &adapter->state))
 			ixgbe_irq_enable(adapter);

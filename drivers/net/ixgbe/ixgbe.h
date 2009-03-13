@@ -189,10 +189,11 @@ struct ixgbe_q_vector {
 };
 
 /* Helper macros to switch between ints/sec and what the register uses.
- * And yes, it's the same math going both ways.
+ * And yes, it's the same math going both ways.  The lowest value
+ * supported by all of the ixgbe hardware is 8.
  */
 #define EITR_INTS_PER_SEC_TO_REG(_eitr) \
-	((_eitr) ? (1000000000 / ((_eitr) * 256)) : 0)
+	((_eitr) ? (1000000000 / ((_eitr) * 256)) : 8)
 #define EITR_REG_TO_INTS_PER_SEC EITR_INTS_PER_SEC_TO_REG
 
 #define IXGBE_DESC_UNUSED(R) \
@@ -366,5 +367,6 @@ extern void ixgbe_reset_interrupt_capability(struct ixgbe_adapter *adapter);
 extern int ixgbe_init_interrupt_scheme(struct ixgbe_adapter *adapter);
 void ixgbe_napi_add_all(struct ixgbe_adapter *adapter);
 void ixgbe_napi_del_all(struct ixgbe_adapter *adapter);
+extern void ixgbe_write_eitr(struct ixgbe_adapter *, int, u32);
 
 #endif /* _IXGBE_H_ */

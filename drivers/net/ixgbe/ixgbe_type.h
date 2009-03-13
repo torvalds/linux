@@ -98,9 +98,18 @@
 #define IXGBE_EIMS_EX(_i)   (0x00AA0 + (_i) * 4)
 #define IXGBE_EIMC_EX(_i)   (0x00AB0 + (_i) * 4)
 #define IXGBE_EIAM_EX(_i)   (0x00AD0 + (_i) * 4)
+/*
+ * 82598 EITR is 16 bits but set the limits based on the max
+ * supported by all ixgbe hardware.  82599 EITR is only 12 bits,
+ * with the lower 3 always zero.
+ */
+#define IXGBE_MAX_INT_RATE 488281
+#define IXGBE_MIN_INT_RATE 956
+#define IXGBE_MAX_EITR     0x00000FF8
+#define IXGBE_MIN_EITR     8
 #define IXGBE_EITR(_i)  (((_i) <= 23) ? (0x00820 + ((_i) * 4)) : \
                          (0x012300 + (((_i) - 24) * 4)))
-#define IXGBE_EITR_ITR_INT_MASK 0x00000FFF
+#define IXGBE_EITR_ITR_INT_MASK 0x00000FF8
 #define IXGBE_EITR_LLI_MOD      0x00008000
 #define IXGBE_EITR_CNT_WDIS     0x80000000
 #define IXGBE_IVAR(_i)  (0x00900 + ((_i) * 4)) /* 24 at 0x900-0x960 */
