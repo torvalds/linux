@@ -707,13 +707,6 @@ config SOC_CAMERA_MT9M001
 	  This driver supports MT9M001 cameras from Micron, monochrome
 	  and colour models.
 
-config MT9M001_PCA9536_SWITCH
-	bool "pca9536 datawidth switch for mt9m001"
-	depends on SOC_CAMERA_MT9M001 && GENERIC_GPIO
-	help
-	  Select this if your MT9M001 camera uses a PCA9536 I2C GPIO
-	  extender to switch between 8 and 10 bit datawidth modes
-
 config SOC_CAMERA_MT9M111
 	tristate "mt9m111 and mt9m112 support"
 	depends on SOC_CAMERA && I2C
