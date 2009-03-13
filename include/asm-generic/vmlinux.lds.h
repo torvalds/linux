@@ -77,6 +77,14 @@
 #define TRACE_PRINTKS()
 #endif
 
+#ifdef CONFIG_FTRACE_SYSCALLS
+#define TRACE_SYSCALLS() VMLINUX_SYMBOL(__start_syscalls_metadata) = .;	\
+			 *(__syscalls_metadata)				\
+			 VMLINUX_SYMBOL(__stop_syscalls_metadata) = .;
+#else
+#define TRACE_SYSCALLS()
+#endif
+
 /* .data section */
 #define DATA_DATA							\
 	*(.data)							\
@@ -99,7 +107,8 @@
 	LIKELY_PROFILE()		       				\
 	BRANCH_PROFILE()						\
 	TRACE_PRINTKS()							\
-	FTRACE_EVENTS()
+	FTRACE_EVENTS()							\
+	TRACE_SYSCALLS()
 
 #define RO_DATA(align)							\
 	. = ALIGN((align));						\

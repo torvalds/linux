@@ -194,6 +194,19 @@ struct kmemtrace_free_entry {
 	const void *ptr;
 };
 
+struct syscall_trace_enter {
+	struct trace_entry	ent;
+	int			nr;
+	unsigned long		args[];
+};
+
+struct syscall_trace_exit {
+	struct trace_entry	ent;
+	int			nr;
+	unsigned long		ret;
+};
+
+
 /*
  * trace_flag_type is an enumeration that holds different
  * states when a trace occurs. These are:
@@ -306,6 +319,10 @@ extern void __ftrace_bad_type(void);
 			  TRACE_KMEM_ALLOC);	\
 		IF_ASSIGN(var, ent, struct kmemtrace_free_entry,	\
 			  TRACE_KMEM_FREE);	\
+		IF_ASSIGN(var, ent, struct syscall_trace_enter,		\
+			  TRACE_SYSCALL_ENTER);				\
+		IF_ASSIGN(var, ent, struct syscall_trace_exit,		\
+			  TRACE_SYSCALL_EXIT);				\
 		__ftrace_bad_type();					\
 	} while (0)
 
