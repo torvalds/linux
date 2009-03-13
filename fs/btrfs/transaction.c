@@ -972,6 +972,8 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 	struct extent_io_tree *pinned_copy;
 	DEFINE_WAIT(wait);
 	int ret;
+	int should_grow = 0;
+	unsigned long now = get_seconds();
 
 	/* make a pass through all the delayed refs we have so far
 	 * any runnings procs may add more while we are here
@@ -1029,6 +1031,9 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 		}
 	}
 
+	if (now < cur_trans->start_time || now - cur_trans->start_time < 1)
+		should_grow = 1;
+
 	do {
 		int snap_pending = 0;
 		joined = cur_trans->num_joined;
@@ -1041,7 +1046,7 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 
 		if (cur_trans->num_writers > 1)
 			timeout = MAX_SCHEDULE_TIMEOUT;
-		else
+		else if (should_grow)
 			timeout = 1;
 
 		mutex_unlock(&root->fs_info->trans_mutex);
@@ -1051,12 +1056,14 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 			BUG_ON(ret);
 		}
 
-		schedule_timeout(timeout);
+		smp_mb();
+		if (cur_trans->num_writers > 1 || should_grow)
+			schedule_timeout(timeout);
 
 		mutex_lock(&root->fs_info->trans_mutex);
 		finish_wait(&cur_trans->writer_wait, &wait);
 	} while (cur_trans->num_writers > 1 ||
-		 (cur_trans->num_joined != joined));
+		 (should_grow && cur_trans->num_joined != joined));
 
 	ret = create_pending_snapshots(trans, root->fs_info);
 	BUG_ON(ret);
