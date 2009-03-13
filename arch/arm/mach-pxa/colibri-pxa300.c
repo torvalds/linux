@@ -22,6 +22,7 @@
 #include <mach/pxa300.h>
 #include <mach/colibri.h>
 #include <mach/mmc.h>
+#include <mach/ohci.h>
 
 #include "generic.h"
 #include "devices.h"
@@ -40,6 +41,11 @@ static mfp_cfg_t colibri_pxa300_pin_config[] __initdata = {
 	GPIO4_MMC1_DAT1,
 	GPIO5_MMC1_DAT2,
 	GPIO6_MMC1_DAT3,
+#endif
+
+#if defined (CONFIG_USB_OHCI_HCD) || defined(CONFIG_USB_OHCI_HCD_MODULE)
+        GPIO0_2_USBH_PEN,
+        GPIO1_2_USBH_PWR,
 #endif
 };
 
@@ -137,12 +143,27 @@ static void __init colibri_pxa300_init_mmc(void)
 static inline void colibri_pxa300_init_mmc(void) {}
 #endif /* CONFIG_MMC_PXA */
 
+#if defined(CONFIG_USB_OHCI_HCD) || defined(CONFIG_USB_OHCI_HCD_MODULE)
+static struct pxaohci_platform_data colibri_pxa300_ohci_info = {
+	.port_mode	= PMM_GLOBAL_MODE,
+	.flags		= ENABLE_PORT1 | POWER_CONTROL_LOW | POWER_SENSE_LOW,
+};
+
+static void __init colibri_pxa300_init_ohci(void)
+{
+	pxa_set_ohci_info(&colibri_pxa300_ohci_info);
+}
+#else
+static inline void colibri_pxa300_init_ohci(void) {}
+#endif /* CONFIG_USB_OHCI_HCD || CONFIG_USB_OHCI_HCD_MODULE */
+
 static void __init colibri_pxa300_init(void)
 {
 	set_irq_type(COLIBRI_PXA300_ETH_IRQ, IRQ_TYPE_EDGE_FALLING);
 	pxa3xx_mfp_config(ARRAY_AND_SIZE(colibri_pxa300_pin_config));
 	platform_add_devices(ARRAY_AND_SIZE(colibri_pxa300_devices));
 	colibri_pxa300_init_mmc();
+	colibri_pxa300_init_ohci();
 }
 
 MACHINE_START(COLIBRI300, "Toradex Colibri PXA300")
