@@ -646,6 +646,8 @@ static int ov772x_start_capture(struct soc_camera_device *icd)
 		return -EPERM;
 	}
 
+	ov772x_mask_set(priv->client, COM2, SOFT_SLEEP_MODE, 0);
+
 	dev_dbg(&icd->dev,
 		 "format %s, win %s\n", priv->fmt->name, priv->win->name);
 
@@ -654,6 +656,8 @@ static int ov772x_start_capture(struct soc_camera_device *icd)
 
 static int ov772x_stop_capture(struct soc_camera_device *icd)
 {
+	struct ov772x_priv *priv = container_of(icd, struct ov772x_priv, icd);
+	ov772x_mask_set(priv->client, COM2, SOFT_SLEEP_MODE, SOFT_SLEEP_MODE);
 	return 0;
 }
 
