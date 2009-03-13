@@ -143,7 +143,6 @@ extern void setup_node_to_cpumask_map(void);
 #define parent_node(node) (node)
 
 #define pcibus_to_node(bus) __pcibus_to_node(bus)
-#define pcibus_to_cpumask(bus) __pcibus_to_cpumask(bus)
 
 #ifdef CONFIG_X86_32
 extern unsigned long node_start_pfn[];
