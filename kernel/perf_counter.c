@@ -1503,6 +1503,12 @@ static void perf_swcounter_disable(struct perf_counter *counter)
 	perf_swcounter_update(counter);
 }
 
+static const struct hw_perf_counter_ops perf_ops_generic = {
+	.enable		= perf_swcounter_enable,
+	.disable	= perf_swcounter_disable,
+	.read		= perf_swcounter_read,
+};
+
 /*
  * Software counter: cpu wall time clock
  */
@@ -1601,16 +1607,6 @@ static const struct hw_perf_counter_ops perf_ops_task_clock = {
 	.enable		= task_clock_perf_counter_enable,
 	.disable	= task_clock_perf_counter_disable,
 	.read		= task_clock_perf_counter_read,
-};
-
-/*
- * Software counter: page faults
- */
-
-static const struct hw_perf_counter_ops perf_ops_page_faults = {
-	.enable		= perf_swcounter_enable,
-	.disable	= perf_swcounter_disable,
-	.read		= perf_swcounter_read,
 };
 
 /*
@@ -1753,9 +1749,9 @@ sw_perf_counter_init(struct perf_counter *counter)
 			hw_ops = &perf_ops_cpu_clock;
 		break;
 	case PERF_COUNT_PAGE_FAULTS:
-		if (!(counter->hw_event.exclude_user ||
-		      counter->hw_event.exclude_kernel))
-			hw_ops = &perf_ops_page_faults;
+	case PERF_COUNT_PAGE_FAULTS_MIN:
+	case PERF_COUNT_PAGE_FAULTS_MAJ:
+		hw_ops = &perf_ops_generic;
 		break;
 	case PERF_COUNT_CONTEXT_SWITCHES:
 		if (!counter->hw_event.exclude_kernel)
