@@ -85,14 +85,12 @@ NORET_TYPE void panic(const char * fmt, ...)
 	 */
 	crash_kexec(NULL);
 
-#ifdef CONFIG_SMP
 	/*
 	 * Note smp_send_stop is the usual smp shutdown function, which
 	 * unfortunately means it may not be hardened to work in a panic
 	 * situation.
 	 */
 	smp_send_stop();
-#endif
 
 	atomic_notifier_call_chain(&panic_notifier_list, 0, buf);
 
