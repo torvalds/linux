@@ -94,7 +94,7 @@ struct cpuinfo_x86 {
 	unsigned long		loops_per_jiffy;
 #ifdef CONFIG_SMP
 	/* cpus sharing the last level cache: */
-	cpumask_t		llc_shared_map;
+	cpumask_var_t		llc_shared_map;
 #endif
 	/* cpuid returned max cores value: */
 	u16			 x86_max_cores;
