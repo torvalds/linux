@@ -334,7 +334,7 @@ static inline void numaq_smp_callin_clear_local_apic(void)
 	clear_local_APIC();
 }
 
-static inline const cpumask_t *numaq_target_cpus(void)
+static inline const struct cpumask *numaq_target_cpus(void)
 {
 	return cpu_all_mask;
 }
@@ -427,7 +427,7 @@ static inline int numaq_check_phys_apicid_present(int boot_cpu_physical_apicid)
  * We use physical apicids here, not logical, so just return the default
  * physical broadcast to stop people from breaking us
  */
-static inline unsigned int numaq_cpu_mask_to_apicid(const cpumask_t *cpumask)
+static unsigned int numaq_cpu_mask_to_apicid(const struct cpumask *cpumask)
 {
 	return 0x0F;
 }
@@ -462,7 +462,7 @@ static int probe_numaq(void)
 	return found_numaq;
 }
 
-static void numaq_vector_allocation_domain(int cpu, cpumask_t *retmask)
+static void numaq_vector_allocation_domain(int cpu, struct cpumask *retmask)
 {
 	/* Careful. Some cpus do not strictly honor the set of cpus
 	 * specified in the interrupt destination when using lowest

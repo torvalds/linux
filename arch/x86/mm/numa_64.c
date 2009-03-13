@@ -697,7 +697,7 @@ void __cpuinit numa_remove_cpu(int cpu)
 static void __cpuinit numa_set_cpumask(int cpu, int enable)
 {
 	int node = early_cpu_to_node(cpu);
-	cpumask_t *mask;
+	struct cpumask *mask;
 	char buf[64];
 
 	mask = node_to_cpumask_map[node];

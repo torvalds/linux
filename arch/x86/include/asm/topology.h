@@ -89,7 +89,7 @@ static inline int early_cpu_to_node(int cpu)
 extern cpumask_var_t node_to_cpumask_map[MAX_NUMNODES];
 
 #ifdef CONFIG_DEBUG_PER_CPU_MAPS
-extern const cpumask_t *cpumask_of_node(int node);
+extern const struct cpumask *cpumask_of_node(int node);
 #else
 /* Returns a pointer to the cpumask of CPUs on Node 'node'. */
 static inline const struct cpumask *cpumask_of_node(int node)
@@ -172,7 +172,7 @@ static inline int early_cpu_to_node(int cpu)
 	return 0;
 }
 
-static inline const cpumask_t *cpumask_of_node(int node)
+static inline const struct cpumask *cpumask_of_node(int node)
 {
 	return cpu_online_mask;
 }

@@ -410,7 +410,7 @@ static void es7000_enable_apic_mode(void)
 		WARN(1, "Command failed, status = %x\n", mip_status);
 }
 
-static void es7000_vector_allocation_domain(int cpu, cpumask_t *retmask)
+static void es7000_vector_allocation_domain(int cpu, struct cpumask *retmask)
 {
 	/* Careful. Some cpus do not strictly honor the set of cpus
 	 * specified in the interrupt destination when using lowest
@@ -456,7 +456,7 @@ static int es7000_apic_id_registered(void)
 	return 1;
 }
 
-static const cpumask_t *target_cpus_cluster(void)
+static const struct cpumask *target_cpus_cluster(void)
 {
 	return cpu_all_mask;
 }
@@ -573,7 +573,7 @@ static int es7000_check_phys_apicid_present(int cpu_physical_apicid)
 	return 1;
 }
 
-static unsigned int es7000_cpu_mask_to_apicid(const cpumask_t *cpumask)
+static unsigned int es7000_cpu_mask_to_apicid(const struct cpumask *cpumask)
 {
 	unsigned int round = 0;
 	int cpu, uninitialized_var(apicid);
