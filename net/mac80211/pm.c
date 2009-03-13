@@ -143,6 +143,35 @@ int __ieee80211_resume(struct ieee80211_hw *hw)
 	ieee80211_configure_filter(local);
 	netif_addr_unlock_bh(local->mdev);
 
+	/* Finally also reconfigure all the BSS information */
+	list_for_each_entry(sdata, &local->interfaces, list) {
+		u32 changed = ~0;
+		if (!netif_running(sdata->dev))
+			continue;
+		switch (sdata->vif.type) {
+		case NL80211_IFTYPE_STATION:
+			/* disable beacon change bits */
+			changed &= ~IEEE80211_IFCC_BEACON;
+			/* fall through */
+		case NL80211_IFTYPE_ADHOC:
+		case NL80211_IFTYPE_AP:
+		case NL80211_IFTYPE_MESH_POINT:
+			WARN_ON(ieee80211_if_config(sdata, changed));
+			ieee80211_bss_info_change_notify(sdata, ~0);
+			break;
+		case NL80211_IFTYPE_WDS:
+			break;
+		case NL80211_IFTYPE_AP_VLAN:
+		case NL80211_IFTYPE_MONITOR:
+			/* ignore virtual */
+			break;
+		case NL80211_IFTYPE_UNSPECIFIED:
+		case __NL80211_IFTYPE_AFTER_LAST:
+			WARN_ON(1);
+			break;
+		}
+	}
+
 	ieee80211_wake_queues_by_reason(hw,
 			IEEE80211_QUEUE_STOP_REASON_SUSPEND);
 
