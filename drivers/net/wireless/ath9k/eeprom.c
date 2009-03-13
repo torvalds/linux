@@ -416,7 +416,7 @@ static int ath9k_hw_4k_check_eeprom(struct ath_hw *ah)
 	else
 		el = ah->eeprom.map4k.baseEepHeader.length;
 
-	if (el > sizeof(struct ar5416_eeprom_def))
+	if (el > sizeof(struct ar5416_eeprom_4k))
 		el = sizeof(struct ar5416_eeprom_4k) / sizeof(u16);
 	else
 		el = el / sizeof(u16);
