@@ -3124,20 +3124,15 @@ void free_extent_buffer(struct extent_buffer *eb)
 int clear_extent_buffer_dirty(struct extent_io_tree *tree,
 			      struct extent_buffer *eb)
 {
-	int set;
 	unsigned long i;
 	unsigned long num_pages;
 	struct page *page;
 
-	u64 start = eb->start;
-	u64 end = start + eb->len - 1;
-
-	set = clear_extent_dirty(tree, start, end, GFP_NOFS);
 	num_pages = num_extent_pages(eb->start, eb->len);
 
 	for (i = 0; i < num_pages; i++) {
 		page = extent_buffer_page(eb, i);
-		if (!set && !PageDirty(page))
+		if (!PageDirty(page))
 			continue;
 
 		lock_page(page);
@@ -3146,22 +3141,6 @@ int clear_extent_buffer_dirty(struct extent_io_tree *tree,
 		else
 			set_page_private(page, EXTENT_PAGE_PRIVATE);
 
-		/*
-		 * if we're on the last page or the first page and the
-		 * block isn't aligned on a page boundary, do extra checks
-		 * to make sure we don't clean page that is partially dirty
-		 */
-		if ((i == 0 && (eb->start & (PAGE_CACHE_SIZE - 1))) ||
-		    ((i == num_pages - 1) &&
-		     ((eb->start + eb->len) & (PAGE_CACHE_SIZE - 1)))) {
-			start = (u64)page->index << PAGE_CACHE_SHIFT;
-			end  = start + PAGE_CACHE_SIZE - 1;
-			if (test_range_bit(tree, start, end,
-					   EXTENT_DIRTY, 0)) {
-				unlock_page(page);
-				continue;
-			}
-		}
 		clear_page_dirty_for_io(page);
 		spin_lock_irq(&page->mapping->tree_lock);
 		if (!PageDirty(page)) {
@@ -3187,29 +3166,13 @@ int set_extent_buffer_dirty(struct extent_io_tree *tree,
 {
 	unsigned long i;
 	unsigned long num_pages;
+	int was_dirty = 0;
 
+	was_dirty = test_and_set_bit(EXTENT_BUFFER_DIRTY, &eb->bflags);
 	num_pages = num_extent_pages(eb->start, eb->len);
-	for (i = 0; i < num_pages; i++) {
-		struct page *page = extent_buffer_page(eb, i);
-		/* writepage may need to do something special for the
-		 * first page, we have to make sure page->private is
-		 * properly set.  releasepage may drop page->private
-		 * on us if the page isn't already dirty.
-		 */
-		lock_page(page);
-		if (i == 0) {
-			set_page_extent_head(page, eb->len);
-		} else if (PagePrivate(page) &&
-			   page->private != EXTENT_PAGE_PRIVATE) {
-			set_page_extent_mapped(page);
-		}
+	for (i = 0; i < num_pages; i++)
 		__set_page_dirty_nobuffers(extent_buffer_page(eb, i));
-		set_extent_dirty(tree, page_offset(page),
-				 page_offset(page) + PAGE_CACHE_SIZE - 1,
-				 GFP_NOFS);
-		unlock_page(page);
-	}
-	return 0;
+	return was_dirty;
 }
 
 int clear_extent_buffer_uptodate(struct extent_io_tree *tree,
@@ -3786,6 +3749,10 @@ int try_release_extent_buffer(struct extent_io_tree *tree, struct page *page)
 		goto out;
 
 	if (atomic_read(&eb->refs) > 1) {
+		ret = 0;
+		goto out;
+	}
+	if (test_bit(EXTENT_BUFFER_DIRTY, &eb->bflags)) {
 		ret = 0;
 		goto out;
 	}

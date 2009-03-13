@@ -134,6 +134,7 @@ static noinline int insert_inline_extent(struct btrfs_trans_handle *trans,
 	if (!path)
 		return -ENOMEM;
 
+	path->leave_spinning = 1;
 	btrfs_set_trans_block_group(trans, inode);
 
 	key.objectid = inode->i_ino;
@@ -167,9 +168,9 @@ static noinline int insert_inline_extent(struct btrfs_trans_handle *trans,
 			cur_size = min_t(unsigned long, compressed_size,
 				       PAGE_CACHE_SIZE);
 
-			kaddr = kmap(cpage);
+			kaddr = kmap_atomic(cpage, KM_USER0);
 			write_extent_buffer(leaf, kaddr, ptr, cur_size);
-			kunmap(cpage);
+			kunmap_atomic(kaddr, KM_USER0);
 
 			i++;
 			ptr += cur_size;
@@ -1452,6 +1453,7 @@ static int insert_reserved_file_extent(struct btrfs_trans_handle *trans,
 	path = btrfs_alloc_path();
 	BUG_ON(!path);
 
+	path->leave_spinning = 1;
 	ret = btrfs_drop_extents(trans, root, inode, file_pos,
 				 file_pos + num_bytes, file_pos, &hint);
 	BUG_ON(ret);
@@ -1474,6 +1476,10 @@ static int insert_reserved_file_extent(struct btrfs_trans_handle *trans,
 	btrfs_set_file_extent_compression(leaf, fi, compression);
 	btrfs_set_file_extent_encryption(leaf, fi, encryption);
 	btrfs_set_file_extent_other_encoding(leaf, fi, other_encoding);
+
+	btrfs_unlock_up_safe(path, 1);
+	btrfs_set_lock_blocking(leaf);
+
 	btrfs_mark_buffer_dirty(leaf);
 
 	inode_add_bytes(inode, num_bytes);
@@ -1486,8 +1492,8 @@ static int insert_reserved_file_extent(struct btrfs_trans_handle *trans,
 					  root->root_key.objectid,
 					  trans->transid, inode->i_ino, &ins);
 	BUG_ON(ret);
-
 	btrfs_free_path(path);
+
 	return 0;
 }
 
@@ -2118,6 +2124,7 @@ noinline int btrfs_update_inode(struct btrfs_trans_handle *trans,
 
 	path = btrfs_alloc_path();
 	BUG_ON(!path);
+	path->leave_spinning = 1;
 	ret = btrfs_lookup_inode(trans, root, path,
 				 &BTRFS_I(inode)->location, 1);
 	if (ret) {
@@ -2164,6 +2171,7 @@ int btrfs_unlink_inode(struct btrfs_trans_handle *trans,
 		goto err;
 	}
 
+	path->leave_spinning = 1;
 	di = btrfs_lookup_dir_item(trans, root, path, dir->i_ino,
 				    name, name_len, -1);
 	if (IS_ERR(di)) {
@@ -2515,6 +2523,7 @@ noinline int btrfs_truncate_inode_items(struct btrfs_trans_handle *trans,
 	key.type = (u8)-1;
 
 search_again:
+	path->leave_spinning = 1;
 	ret = btrfs_search_slot(trans, root, &key, path, -1, 1);
 	if (ret < 0)
 		goto error;
@@ -2661,6 +2670,7 @@ delete:
 			break;
 		}
 		if (found_extent) {
+			btrfs_set_path_blocking(path);
 			ret = btrfs_free_extent(trans, root, extent_start,
 						extent_num_bytes,
 						leaf->start, root_owner,
@@ -3466,6 +3476,7 @@ static struct inode *btrfs_new_inode(struct btrfs_trans_handle *trans,
 	sizes[0] = sizeof(struct btrfs_inode_item);
 	sizes[1] = name_len + sizeof(*ref);
 
+	path->leave_spinning = 1;
 	ret = btrfs_insert_empty_items(trans, root, path, key, sizes, 2);
 	if (ret != 0)
 		goto fail;

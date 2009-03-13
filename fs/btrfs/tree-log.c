@@ -203,7 +203,6 @@ static int process_one_buffer(struct btrfs_root *log,
 		mutex_lock(&log->fs_info->pinned_mutex);
 		btrfs_update_pinned_extents(log->fs_info->extent_root,
 					    eb->start, eb->len, 1);
-		mutex_unlock(&log->fs_info->pinned_mutex);
 	}
 
 	if (btrfs_buffer_uptodate(eb, gen)) {

@@ -606,6 +606,7 @@ next_slot:
 			btrfs_set_key_type(&ins, BTRFS_EXTENT_DATA_KEY);
 
 			btrfs_release_path(root, path);
+			path->leave_spinning = 1;
 			ret = btrfs_insert_empty_item(trans, root, path, &ins,
 						      sizeof(*extent));
 			BUG_ON(ret);
@@ -639,7 +640,9 @@ next_slot:
 							ram_bytes);
 			btrfs_set_file_extent_type(leaf, extent, found_type);
 
+			btrfs_unlock_up_safe(path, 1);
 			btrfs_mark_buffer_dirty(path->nodes[0]);
+			btrfs_set_lock_blocking(path->nodes[0]);
 
 			if (disk_bytenr != 0) {
 				ret = btrfs_update_extent_ref(trans, root,
@@ -652,6 +655,7 @@ next_slot:
 
 				BUG_ON(ret);
 			}
+			path->leave_spinning = 0;
 			btrfs_release_path(root, path);
 			if (disk_bytenr != 0)
 				inode_add_bytes(inode, extent_end - end);

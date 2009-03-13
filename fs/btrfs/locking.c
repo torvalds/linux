@@ -96,11 +96,12 @@ int btrfs_try_spin_lock(struct extent_buffer *eb)
 {
 	int i;
 
-	spin_nested(eb);
-	if (!test_bit(EXTENT_BUFFER_BLOCKING, &eb->bflags))
-		return 1;
-	spin_unlock(&eb->lock);
-
+	if (btrfs_spin_on_block(eb)) {
+		spin_nested(eb);
+		if (!test_bit(EXTENT_BUFFER_BLOCKING, &eb->bflags))
+			return 1;
+		spin_unlock(&eb->lock);
+	}
 	/* spin for a bit on the BLOCKING flag */
 	for (i = 0; i < 2; i++) {
 		cpu_relax();

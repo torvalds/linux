@@ -401,15 +401,16 @@ struct btrfs_path {
 	int locks[BTRFS_MAX_LEVEL];
 	int reada;
 	/* keep some upper locks as we walk down */
-	int keep_locks;
-	int skip_locking;
 	int lowest_level;
 
 	/*
 	 * set by btrfs_split_item, tells search_slot to keep all locks
 	 * and to force calls to keep space in the nodes
 	 */
-	int search_for_split;
+	unsigned int search_for_split:1;
+	unsigned int keep_locks:1;
+	unsigned int skip_locking:1;
+	unsigned int leave_spinning:1;
 };
 
 /*
@@ -779,6 +780,11 @@ struct btrfs_fs_info {
 	atomic_t throttle_gen;
 
 	u64 total_pinned;
+
+	/* protected by the delalloc lock, used to keep from writing
+	 * metadata until there is a nice batch
+	 */
+	u64 dirty_metadata_bytes;
 	struct list_head dirty_cowonly_roots;
 
 	struct btrfs_fs_devices *fs_devices;

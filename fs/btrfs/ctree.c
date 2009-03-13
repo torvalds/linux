@@ -1684,7 +1684,8 @@ done:
 	 * we don't really know what they plan on doing with the path
 	 * from here on, so for now just mark it as blocking
 	 */
-	btrfs_set_path_blocking(p);
+	if (!p->leave_spinning)
+		btrfs_set_path_blocking(p);
 	return ret;
 }
 
@@ -3032,25 +3033,26 @@ int btrfs_split_item(struct btrfs_trans_handle *trans,
 		return -EAGAIN;
 	}
 
+	btrfs_set_path_blocking(path);
 	ret = split_leaf(trans, root, &orig_key, path,
 			 sizeof(struct btrfs_item), 1);
 	path->keep_locks = 0;
 	BUG_ON(ret);
 
+	btrfs_unlock_up_safe(path, 1);
+	leaf = path->nodes[0];
+	BUG_ON(btrfs_leaf_free_space(root, leaf) < sizeof(struct btrfs_item));
+
+split:
 	/*
 	 * make sure any changes to the path from split_leaf leave it
 	 * in a blocking state
 	 */
 	btrfs_set_path_blocking(path);
 
-	leaf = path->nodes[0];
-	BUG_ON(btrfs_leaf_free_space(root, leaf) < sizeof(struct btrfs_item));
-
-split:
 	item = btrfs_item_nr(leaf, path->slots[0]);
 	orig_offset = btrfs_item_offset(leaf, item);
 	item_size = btrfs_item_size(leaf, item);
-
 
 	buf = kmalloc(item_size, GFP_NOFS);
 	read_extent_buffer(leaf, buf, btrfs_item_ptr_offset(leaf,
@@ -3545,7 +3547,6 @@ setup_items_for_insert(struct btrfs_trans_handle *trans,
 	}
 
 	btrfs_set_header_nritems(leaf, nritems + nr);
-	btrfs_mark_buffer_dirty(leaf);
 
 	ret = 0;
 	if (slot == 0) {
@@ -3553,6 +3554,8 @@ setup_items_for_insert(struct btrfs_trans_handle *trans,
 		btrfs_cpu_key_to_disk(&disk_key, cpu_key);
 		ret = fixup_low_keys(trans, root, path, &disk_key, 1);
 	}
+	btrfs_unlock_up_safe(path, 1);
+	btrfs_mark_buffer_dirty(leaf);
 
 	if (btrfs_leaf_free_space(root, leaf) < 0) {
 		btrfs_print_leaf(root, leaf);
@@ -3596,7 +3599,6 @@ int btrfs_insert_empty_items(struct btrfs_trans_handle *trans,
 			       total_data, total_size, nr);
 
 out:
-	btrfs_unlock_up_safe(path, 1);
 	return ret;
 }
 
@@ -3792,6 +3794,7 @@ int btrfs_del_items(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 			slot = path->slots[1];
 			extent_buffer_get(leaf);
 
+			btrfs_set_path_blocking(path);
 			wret = push_leaf_left(trans, root, path, 1, 1);
 			if (wret < 0 && wret != -ENOSPC)
 				ret = wret;
