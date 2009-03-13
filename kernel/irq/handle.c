@@ -349,6 +349,11 @@ irqreturn_t handle_IRQ_event(unsigned int irq, struct irqaction *action)
 }
 
 #ifndef CONFIG_GENERIC_HARDIRQS_NO__DO_IRQ
+
+#ifdef CONFIG_ENABLE_WARN_DEPRECATED
+# warning __do_IRQ is deprecated. Please convert to proper flow handlers
+#endif
+
 /**
  * __do_IRQ - original all in one highlevel IRQ handler
  * @irq:	the interrupt number
