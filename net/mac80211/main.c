@@ -161,12 +161,6 @@ int ieee80211_if_config(struct ieee80211_sub_if_data *sdata, u32 changed)
 	if (WARN_ON(!netif_running(sdata->dev)))
 		return 0;
 
-	if (WARN_ON(sdata->vif.type == NL80211_IFTYPE_AP_VLAN))
-		return -EINVAL;
-
-	if (!local->ops->config_interface)
-		return 0;
-
 	memset(&conf, 0, sizeof(conf));
 
 	if (sdata->vif.type == NL80211_IFTYPE_STATION)
@@ -182,6 +176,9 @@ int ieee80211_if_config(struct ieee80211_sub_if_data *sdata, u32 changed)
 		WARN_ON(1);
 		return -EINVAL;
 	}
+
+	if (!local->ops->config_interface)
+		return 0;
 
 	switch (sdata->vif.type) {
 	case NL80211_IFTYPE_AP:
@@ -223,9 +220,6 @@ int ieee80211_if_config(struct ieee80211_sub_if_data *sdata, u32 changed)
 			}
 		}
 	}
-
-	if (WARN_ON(!conf.bssid && (changed & IEEE80211_IFCC_BSSID)))
-		return -EINVAL;
 
 	conf.changed = changed;
 
