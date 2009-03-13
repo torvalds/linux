@@ -5,6 +5,7 @@
  */
 #include <linux/rcupdate.h>
 #include <linux/rculist.h>
+#include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/percpu.h>
 #include <linux/init.h>
@@ -285,7 +286,7 @@ int smp_call_function_single(int cpu, void (*func) (void *info), void *info,
 	this_cpu = get_cpu();
 
 	/* Can deadlock when called with interrupts disabled */
-	WARN_ON(irqs_disabled());
+	WARN_ON_ONCE(irqs_disabled() && !oops_in_progress);
 
 	if (cpu == this_cpu) {
 		local_irq_save(flags);
@@ -329,7 +330,7 @@ void __smp_call_function_single(int cpu, struct call_single_data *data,
 	csd_lock(data);
 
 	/* Can deadlock when called with interrupts disabled */
-	WARN_ON(wait && irqs_disabled());
+	WARN_ON_ONCE(wait && irqs_disabled() && !oops_in_progress);
 
 	generic_exec_single(cpu, data, wait);
 }
@@ -365,7 +366,7 @@ void smp_call_function_many(const struct cpumask *mask,
 	int cpu, next_cpu, this_cpu = smp_processor_id();
 
 	/* Can deadlock when called with interrupts disabled */
-	WARN_ON(irqs_disabled());
+	WARN_ON_ONCE(irqs_disabled() && !oops_in_progress);
 
 	/* So, what's a CPU they want? Ignoring this one. */
 	cpu = cpumask_first_and(mask, cpu_online_mask);
