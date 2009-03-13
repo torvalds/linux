@@ -29,6 +29,7 @@
 #include <linux/mm.h>
 #include <linux/kernel.h>
 
+#include "ds_selftest.h"
 
 /*
  * The configuration for a particular DS hardware implementation.
@@ -938,6 +939,26 @@ ds_configure(const struct ds_configuration *cfg,
 	if (!cpu_has(cpu, X86_FEATURE_PEBS)) {
 		ds_cfg.sizeof_rec[ds_pebs] = 0;
 		printk(KERN_INFO "[ds] pebs not available\n");
+	}
+
+	if (ds_cfg.sizeof_rec[ds_bts]) {
+		int error;
+
+		error = ds_selftest_bts();
+		if (error) {
+			WARN(1, "[ds] selftest failed. disabling bts.\n");
+			ds_cfg.sizeof_rec[ds_bts] = 0;
+		}
+	}
+
+	if (ds_cfg.sizeof_rec[ds_pebs]) {
+		int error;
+
+		error = ds_selftest_pebs();
+		if (error) {
+			WARN(1, "[ds] selftest failed. disabling pebs.\n");
+			ds_cfg.sizeof_rec[ds_pebs] = 0;
+		}
 	}
 
 	printk(KERN_INFO "[ds] sizes: address: %u bit, ",
