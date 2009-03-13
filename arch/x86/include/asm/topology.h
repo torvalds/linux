@@ -249,8 +249,8 @@ extern const struct cpumask *cpu_coregroup_mask(int cpu);
 #ifdef ENABLE_TOPO_DEFINES
 #define topology_physical_package_id(cpu)	(cpu_data(cpu).phys_proc_id)
 #define topology_core_id(cpu)			(cpu_data(cpu).cpu_core_id)
-#define topology_core_cpumask(cpu)		(&per_cpu(cpu_core_map, cpu))
-#define topology_thread_cpumask(cpu)		(&per_cpu(cpu_sibling_map, cpu))
+#define topology_core_cpumask(cpu)		(per_cpu(cpu_core_map, cpu))
+#define topology_thread_cpumask(cpu)		(per_cpu(cpu_sibling_map, cpu))
 
 /* indicates that pointers to the topology cpumask_t maps are valid */
 #define arch_provides_topology_pointers		yes
@@ -264,7 +264,7 @@ struct pci_bus;
 void set_pci_bus_resources_arch_default(struct pci_bus *b);
 
 #ifdef CONFIG_SMP
-#define mc_capable()	(cpus_weight(per_cpu(cpu_core_map, 0)) != nr_cpu_ids)
+#define mc_capable()	(cpumask_weight(cpu_core_mask(0)) != nr_cpu_ids)
 #define smt_capable()			(smp_num_siblings > 1)
 #endif
 

@@ -101,11 +101,11 @@ EXPORT_SYMBOL(smp_num_siblings);
 DEFINE_PER_CPU(u16, cpu_llc_id) = BAD_APICID;
 
 /* representing HT siblings of each logical CPU */
-DEFINE_PER_CPU(cpumask_t, cpu_sibling_map);
+DEFINE_PER_CPU(cpumask_var_t, cpu_sibling_map);
 EXPORT_PER_CPU_SYMBOL(cpu_sibling_map);
 
 /* representing HT and core siblings of each logical CPU */
-DEFINE_PER_CPU(cpumask_t, cpu_core_map);
+DEFINE_PER_CPU(cpumask_var_t, cpu_core_map);
 EXPORT_PER_CPU_SYMBOL(cpu_core_map);
 
 /* Per CPU bogomips and other parameters */
@@ -1026,6 +1026,8 @@ static void __init smp_cpu_index_default(void)
  */
 void __init native_smp_prepare_cpus(unsigned int max_cpus)
 {
+	unsigned int i;
+
 	preempt_disable();
 	smp_cpu_index_default();
 	current_cpu_data = boot_cpu_data;
@@ -1039,6 +1041,12 @@ void __init native_smp_prepare_cpus(unsigned int max_cpus)
 	boot_cpu_logical_apicid = logical_smp_processor_id();
 #endif
 	current_thread_info()->cpu = 0;  /* needed? */
+	for_each_possible_cpu(i) {
+		alloc_cpumask_var(&per_cpu(cpu_sibling_map, i), GFP_KERNEL);
+		alloc_cpumask_var(&per_cpu(cpu_core_map, i), GFP_KERNEL);
+		cpumask_clear(per_cpu(cpu_core_map, i));
+		cpumask_clear(per_cpu(cpu_sibling_map, i));
+	}
 	set_cpu_sibling_map(0);
 
 	enable_IR_x2apic();
