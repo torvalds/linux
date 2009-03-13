@@ -922,7 +922,7 @@ static int i915_probe_agp(struct drm_device *dev, unsigned long *aperture_size,
 	 * Some of the preallocated space is taken by the GTT
 	 * and popup.  GTT is 1K per MB of aperture size, and popup is 4K.
 	 */
-	if (IS_G4X(dev))
+	if (IS_G4X(dev) || IS_IGD(dev))
 		overhead = 4096;
 	else
 		overhead = (*aperture_size / 1024) + 4096;
