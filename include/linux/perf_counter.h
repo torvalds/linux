@@ -187,6 +187,7 @@ struct file;
 struct perf_counter {
 #ifdef CONFIG_PERF_COUNTERS
 	struct list_head		list_entry;
+	struct list_head		event_entry;
 	struct list_head		sibling_list;
 	struct perf_counter		*group_leader;
 	const struct hw_perf_counter_ops *hw_ops;
@@ -220,6 +221,8 @@ struct perf_counter {
 	struct perf_data		*irqdata;
 	struct perf_data		*usrdata;
 	struct perf_data		data[2];
+
+	struct rcu_head			rcu_head;
 #endif
 };
 
@@ -243,6 +246,7 @@ struct perf_counter_context {
 	struct mutex		mutex;
 
 	struct list_head	counter_list;
+	struct list_head	event_list;
 	int			nr_counters;
 	int			nr_active;
 	int			is_active;

@@ -22,6 +22,7 @@
 #include <linux/perf_counter.h>
 #include <linux/mm.h>
 #include <linux/vmstat.h>
+#include <linux/rculist.h>
 
 /*
  * Each CPU has a list of per CPU counters:
@@ -72,6 +73,8 @@ list_add_counter(struct perf_counter *counter, struct perf_counter_context *ctx)
 		list_add_tail(&counter->list_entry, &ctx->counter_list);
 	else
 		list_add_tail(&counter->list_entry, &group_leader->sibling_list);
+
+	list_add_rcu(&counter->event_entry, &ctx->event_list);
 }
 
 static void
@@ -80,6 +83,7 @@ list_del_counter(struct perf_counter *counter, struct perf_counter_context *ctx)
 	struct perf_counter *sibling, *tmp;
 
 	list_del_init(&counter->list_entry);
+	list_del_rcu(&counter->event_entry);
 
 	/*
 	 * If this was a group counter with sibling counters then
@@ -1133,6 +1137,14 @@ static struct perf_counter_context *find_get_context(pid_t pid, int cpu)
 	return ctx;
 }
 
+static void free_counter_rcu(struct rcu_head *head)
+{
+	struct perf_counter *counter;
+
+	counter = container_of(head, struct perf_counter, rcu_head);
+	kfree(counter);
+}
+
 /*
  * Called when the last reference to the file is gone.
  */
@@ -1151,7 +1163,7 @@ static int perf_release(struct inode *inode, struct file *file)
 	mutex_unlock(&counter->mutex);
 	mutex_unlock(&ctx->mutex);
 
-	kfree(counter);
+	call_rcu(&counter->rcu_head, free_counter_rcu);
 	put_context(ctx);
 
 	return 0;
@@ -1491,22 +1503,16 @@ static void perf_swcounter_ctx_event(struct perf_counter_context *ctx,
 				     int nmi, struct pt_regs *regs)
 {
 	struct perf_counter *counter;
-	unsigned long flags;
 
-	if (list_empty(&ctx->counter_list))
+	if (list_empty(&ctx->event_list))
 		return;
 
-	spin_lock_irqsave(&ctx->lock, flags);
-
-	/*
-	 * XXX: make counter_list RCU safe
-	 */
-	list_for_each_entry(counter, &ctx->counter_list, list_entry) {
+	rcu_read_lock();
+	list_for_each_entry_rcu(counter, &ctx->event_list, event_entry) {
 		if (perf_swcounter_match(counter, event, regs))
 			perf_swcounter_add(counter, nr, nmi, regs);
 	}
-
-	spin_unlock_irqrestore(&ctx->lock, flags);
+	rcu_read_unlock();
 }
 
 void perf_swcounter_event(enum hw_event_types event, u64 nr,
@@ -1846,6 +1852,7 @@ perf_counter_alloc(struct perf_counter_hw_event *hw_event,
 
 	mutex_init(&counter->mutex);
 	INIT_LIST_HEAD(&counter->list_entry);
+	INIT_LIST_HEAD(&counter->event_entry);
 	INIT_LIST_HEAD(&counter->sibling_list);
 	init_waitqueue_head(&counter->waitq);
 
@@ -1992,6 +1999,7 @@ __perf_counter_init_context(struct perf_counter_context *ctx,
 	spin_lock_init(&ctx->lock);
 	mutex_init(&ctx->mutex);
 	INIT_LIST_HEAD(&ctx->counter_list);
+	INIT_LIST_HEAD(&ctx->event_list);
 	ctx->task = task;
 }
 
