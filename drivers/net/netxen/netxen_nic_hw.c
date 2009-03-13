@@ -2268,7 +2268,7 @@ void netxen_nic_get_firmware_info(struct netxen_adapter *adapter)
 	u32 fw_major, fw_minor, fw_build;
 	char brd_name[NETXEN_MAX_SHORT_NAME];
 	char serial_num[32];
-	int i, addr;
+	int i, addr, val;
 	int *ptr32;
 	struct pci_dev *pdev = adapter->pdev;
 
@@ -2278,14 +2278,12 @@ void netxen_nic_get_firmware_info(struct netxen_adapter *adapter)
 	addr = NETXEN_USER_START +
 	       offsetof(struct netxen_new_user_info, serial_num);
 	for (i = 0; i < 8; i++) {
-		if (netxen_rom_fast_read(adapter, addr, ptr32) == -1) {
-			printk("%s: ERROR reading %s board userarea.\n",
-			       netxen_nic_driver_name,
-			       netxen_nic_driver_name);
+		if (netxen_rom_fast_read(adapter, addr, &val) == -1) {
+			dev_err(&pdev->dev, "error reading board info\n");
 			adapter->driver_mismatch = 1;
 			return;
 		}
-		ptr32++;
+		ptr32[i] = cpu_to_le32(val);
 		addr += sizeof(u32);
 	}
 
