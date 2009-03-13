@@ -910,9 +910,6 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	int pci_func_id = PCI_FUNC(pdev->devfn);
 	uint8_t revision_id;
 
-	if (pci_func_id == 0)
-		printk(KERN_INFO "%s\n", netxen_nic_driver_string);
-
 	if (pdev->class != 0x020000) {
 		printk(KERN_DEBUG "NetXen function %d, class %x will not "
 				"be enabled.\n",pci_func_id, pdev->class);
@@ -1750,6 +1747,8 @@ static struct pci_driver netxen_driver = {
 
 static int __init netxen_init_module(void)
 {
+	printk(KERN_INFO "%s\n", netxen_nic_driver_string);
+
 	if ((netxen_workq = create_singlethread_workqueue("netxen")) == NULL)
 		return -ENOMEM;
 
