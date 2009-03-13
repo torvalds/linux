@@ -352,3 +352,12 @@ When:	2.6.32
 Why:	__do_IRQ was kept for easy migration to the type flow handlers.
 	More than two years of migration time is enough.
 Who:	Thomas Gleixner <tglx@linutronix.de>
+
+-----------------------------
+
+What:	obsolete generic irq defines and typedefs
+When:	2.6.30
+Why:	The defines and typedefs (hw_interrupt_type, no_irq_type, irq_desc_t)
+	have been kept around for migration reasons. After more than two years
+	it's time to remove them finally
+Who:	Thomas Gleixner <tglx@linutronix.de>
