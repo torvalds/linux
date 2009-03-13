@@ -174,6 +174,7 @@ static void free_buffer(struct videobuf_queue *vq,
 	if (in_interrupt())
 		BUG();
 
+	videobuf_waiton(&buf->vb, 0, 0);
 	videobuf_dma_contig_free(vq, &buf->vb);
 	dev_dbg(&icd->dev, "%s freed\n", __func__);
 	buf->vb.state = VIDEOBUF_NEEDS_INIT;
