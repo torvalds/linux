@@ -372,12 +372,14 @@ static int clks_sysdev_suspend(struct sys_device *dev, pm_message_t state)
 		if (prev_state.event == PM_EVENT_FREEZE) {
 			list_for_each_entry(clkp, &clock_list, node)
 				if (likely(clkp->ops)) {
+					unsigned long rate = clkp->rate;
+
 					if (likely(clkp->ops->set_parent))
 						clkp->ops->set_parent(clkp,
 							clkp->parent);
 					if (likely(clkp->ops->set_rate))
 						clkp->ops->set_rate(clkp,
-							clkp->rate, NO_CHANGE);
+							rate, NO_CHANGE);
 					else if (likely(clkp->ops->recalc))
 						clkp->ops->recalc(clkp);
 					}
