@@ -356,7 +356,8 @@ void ftrace_release(void *start, unsigned long size)
 
 	mutex_lock(&ftrace_lock);
 	do_for_each_ftrace_rec(pg, rec) {
-		if ((rec->ip >= s) && (rec->ip < e))
+		if ((rec->ip >= s) && (rec->ip < e) &&
+		    !(rec->flags & FTRACE_FL_FREE))
 			ftrace_free_rec(rec);
 	} while_for_each_ftrace_rec();
 	mutex_unlock(&ftrace_lock);
