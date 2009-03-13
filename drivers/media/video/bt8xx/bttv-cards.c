@@ -320,6 +320,16 @@ static struct CARD {
 	{ 0x763d800b, BTTV_BOARD_GEOVISION_GV800S_SL,	"GeoVision GV-800(S) (slave)" },
 	{ 0x763d800c, BTTV_BOARD_GEOVISION_GV800S_SL,	"GeoVision GV-800(S) (slave)" },
 	{ 0x763d800d, BTTV_BOARD_GEOVISION_GV800S_SL,	"GeoVision GV-800(S) (slave)" },
+
+	{ 0x15401830, BTTV_BOARD_PV183,         "Provideo PV183-1" },
+	{ 0x15401831, BTTV_BOARD_PV183,         "Provideo PV183-2" },
+	{ 0x15401832, BTTV_BOARD_PV183,         "Provideo PV183-3" },
+	{ 0x15401833, BTTV_BOARD_PV183,         "Provideo PV183-4" },
+	{ 0x15401834, BTTV_BOARD_PV183,         "Provideo PV183-5" },
+	{ 0x15401835, BTTV_BOARD_PV183,         "Provideo PV183-6" },
+	{ 0x15401836, BTTV_BOARD_PV183,         "Provideo PV183-7" },
+	{ 0x15401837, BTTV_BOARD_PV183,         "Provideo PV183-8" },
+
 	{ 0, -1, NULL }
 };
 
@@ -2880,6 +2890,20 @@ struct tvcard bttv_tvcards[] = {
 		.no_tda7432	= 1,
 		.no_tda9875	= 1,
 		.muxsel_hook    = gv800s_muxsel,
+	},
+	[BTTV_BOARD_PV183] = {
+		.name           = "ProVideo PV183", /* 0x9f */
+		.video_inputs   = 2,
+		/* .audio_inputs= 0, */
+		.svhs           = NO_SVHS,
+		.gpiomask       = 0,
+		.muxsel         = MUXSEL(2, 3),
+		.gpiomux        = { 0 },
+		.needs_tvaudio  = 0,
+		.no_msp34xx     = 1,
+		.pll            = PLL_28,
+		.tuner_type     = TUNER_ABSENT,
+		.tuner_addr	= ADDR_UNSET,
 	},
 };
 
