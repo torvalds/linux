@@ -428,11 +428,6 @@ const struct cpumask *cpu_coregroup_mask(int cpu)
 		return &c->llc_shared_map;
 }
 
-cpumask_t cpu_coregroup_map(int cpu)
-{
-	return *cpu_coregroup_mask(cpu);
-}
-
 static void impress_friends(void)
 {
 	int cpu;
