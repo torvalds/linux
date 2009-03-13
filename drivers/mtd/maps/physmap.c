@@ -46,16 +46,19 @@ static int physmap_flash_remove(struct platform_device *dev)
 
 	physmap_data = dev->dev.platform_data;
 
+	if (info->cmtd) {
 #ifdef CONFIG_MTD_PARTITIONS
-	if (info->nr_parts) {
-		del_mtd_partitions(info->cmtd);
-		kfree(info->parts);
-	} else if (physmap_data->nr_parts)
-		del_mtd_partitions(info->cmtd);
-	else
-		del_mtd_device(info->cmtd);
+		if (info->nr_parts || physmap_data->nr_parts)
+			del_mtd_partitions(info->cmtd);
+		else
+			del_mtd_device(info->cmtd);
 #else
-	del_mtd_device(info->cmtd);
+		del_mtd_device(info->cmtd);
+#endif
+	}
+#ifdef CONFIG_MTD_PARTITIONS
+	if (info->nr_parts)
+		kfree(info->parts);
 #endif
 
 #ifdef CONFIG_MTD_CONCAT

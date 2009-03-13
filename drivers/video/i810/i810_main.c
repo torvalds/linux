@@ -993,6 +993,7 @@ static int i810_check_params(struct fb_var_screeninfo *var,
 	struct i810fb_par *par = info->par;
 	int line_length, vidmem, mode_valid = 0, retval = 0;
 	u32 vyres = var->yres_virtual, vxres = var->xres_virtual;
+
 	/*
 	 *  Memory limit
 	 */
@@ -1002,12 +1003,12 @@ static int i810_check_params(struct fb_var_screeninfo *var,
 	if (vidmem > par->fb.size) {
 		vyres = par->fb.size/line_length;
 		if (vyres < var->yres) {
-			vyres = yres;
+			vyres = info->var.yres;
 			vxres = par->fb.size/vyres;
 			vxres /= var->bits_per_pixel >> 3;
 			line_length = get_line_length(par, vxres, 
 						      var->bits_per_pixel);
-			vidmem = line_length * yres;
+			vidmem = line_length * info->var.yres;
 			if (vxres < var->xres) {
 				printk("i810fb: required video memory, "
 				       "%d bytes, for %dx%d-%d (virtual) "

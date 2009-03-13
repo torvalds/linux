@@ -4418,13 +4418,13 @@ int btrfs_drop_subtree(struct btrfs_trans_handle *trans,
 	path = btrfs_alloc_path();
 	BUG_ON(!path);
 
-	BUG_ON(!btrfs_tree_locked(parent));
+	btrfs_assert_tree_locked(parent);
 	parent_level = btrfs_header_level(parent);
 	extent_buffer_get(parent);
 	path->nodes[parent_level] = parent;
 	path->slots[parent_level] = btrfs_header_nritems(parent);
 
-	BUG_ON(!btrfs_tree_locked(node));
+	btrfs_assert_tree_locked(node);
 	level = btrfs_header_level(node);
 	extent_buffer_get(node);
 	path->nodes[level] = node;

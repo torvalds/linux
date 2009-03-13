@@ -81,7 +81,7 @@ static inline void __init ldp_init_smc911x(void)
 	}
 
 	ldp_smc911x_resources[0].start = cs_mem_base + 0x0;
-	ldp_smc911x_resources[0].end   = cs_mem_base + 0xf;
+	ldp_smc911x_resources[0].end   = cs_mem_base + 0xff;
 	udelay(100);
 
 	eth_gpio = LDP_SMC911X_GPIO;
