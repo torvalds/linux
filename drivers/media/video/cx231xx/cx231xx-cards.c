@@ -964,9 +964,7 @@ static int __init cx231xx_module_init(void)
 {
 	int result;
 
-	printk(KERN_INFO DRIVER_NAME " v4l2 driver version %d.%d.%d loaded\n",
-	       (CX231XX_VERSION_CODE >> 16) & 0xff,
-	       (CX231XX_VERSION_CODE >> 8) & 0xff, CX231XX_VERSION_CODE & 0xff);
+	printk(KERN_INFO DRIVER_NAME " v4l2 driver loaded.\n");
 
 	/* register this driver with the USB subsystem */
 	result = usb_register(&cx231xx_usb_driver);

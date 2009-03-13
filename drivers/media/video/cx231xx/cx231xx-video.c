@@ -44,6 +44,8 @@
 #include "cx231xx.h"
 #include "cx231xx-vbi.h"
 
+#define CX231XX_VERSION_CODE            KERNEL_VERSION(0, 0, 1)
+
 #define DRIVER_AUTHOR   "Srinivasa Deevi <srinivasa.deevi@conexant.com>"
 #define DRIVER_DESC     "Conexant cx231xx based USB video device driver"
 

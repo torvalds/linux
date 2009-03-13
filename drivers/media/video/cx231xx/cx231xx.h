@@ -37,7 +37,6 @@
 #include "cx231xx-pcb-config.h"
 #include "cx231xx-conf-reg.h"
 
-#define CX231XX_VERSION_CODE            KERNEL_VERSION(0, 1, 0)
 #define DRIVER_NAME                     "cx231xx"
 #define PWR_SLEEP_INTERVAL              5
 
