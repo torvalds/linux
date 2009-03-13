@@ -1,6 +1,6 @@
 /* linux/drivers/i2c/busses/i2c-s3c2410.c
  *
- * Copyright (C) 2004,2005 Simtec Electronics
+ * Copyright (C) 2004,2005,2009 Simtec Electronics
  *	Ben Dooks <ben@simtec.co.uk>
  *
  * S3C2410 I2C Controller
@@ -590,18 +590,6 @@ static int s3c24xx_i2c_calcdivisor(unsigned long clkin, unsigned int wanted,
 	return clkin / (calc_divs * calc_div1);
 }
 
-/* freq_acceptable
- *
- * test wether a frequency is within the acceptable range of error
-*/
-
-static inline int freq_acceptable(unsigned int freq, unsigned int wanted)
-{
-	int diff = freq - wanted;
-
-	return diff >= -2 && diff <= 2;
-}
-
 /* s3c24xx_i2c_clockrate
  *
  * work out a divisor for the user requested frequency setting,
@@ -614,44 +602,28 @@ static int s3c24xx_i2c_clockrate(struct s3c24xx_i2c *i2c, unsigned int *got)
 	struct s3c2410_platform_i2c *pdata = i2c->dev->platform_data;
 	unsigned long clkin = clk_get_rate(i2c->clk);
 	unsigned int divs, div1;
+	unsigned long target_frequency;
 	u32 iiccon;
 	int freq;
-	int start, end;
 
 	i2c->clkrate = clkin;
 	clkin /= 1000;		/* clkin now in KHz */
 
-	dev_dbg(i2c->dev, "pdata %p, freq %lu %lu..%lu\n",
-		 pdata, pdata->bus_freq, pdata->min_freq, pdata->max_freq);
+	dev_dbg(i2c->dev, "pdata desired frequency %lu\n", pdata->frequency);
 
-	if (pdata->bus_freq != 0) {
-		freq = s3c24xx_i2c_calcdivisor(clkin, pdata->bus_freq/1000,
-					       &div1, &divs);
-		if (freq_acceptable(freq, pdata->bus_freq/1000))
-			goto found;
+	target_frequency = pdata->frequency ? pdata->frequency : 100000;
+
+	target_frequency /= 1000; /* Target frequency now in KHz */
+
+	freq = s3c24xx_i2c_calcdivisor(clkin, target_frequency, &div1, &divs);
+
+	if (freq > target_frequency) {
+		dev_err(i2c->dev,
+			"Unable to achieve desired frequency %luKHz."	\
+			" Lowest achievable %dKHz\n", target_frequency, freq);
+		return -EINVAL;
 	}
 
-	/* ok, we may have to search for something suitable... */
-
-	start = (pdata->max_freq == 0) ? pdata->bus_freq : pdata->max_freq;
-	end = pdata->min_freq;
-
-	start /= 1000;
-	end /= 1000;
-
-	/* search loop... */
-
-	for (; start > end; start--) {
-		freq = s3c24xx_i2c_calcdivisor(clkin, start, &div1, &divs);
-		if (freq_acceptable(freq, start))
-			goto found;
-	}
-
-	/* cannot find frequency spec */
-
-	return -EINVAL;
-
- found:
 	*got = freq;
 
 	iiccon = readl(i2c->regs + S3C2410_IICCON);

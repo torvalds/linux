@@ -1,9 +1,9 @@
-/* arch/arm/mach-s3c2410/include/mach/iic.h
+/* arch/arm/plat-s3c/include/plat/iic.h
  *
- * Copyright (c) 2004 Simtec Electronics
+ * Copyright 2004,2009 Simtec Electronics
  *	Ben Dooks <ben@simtec.co.uk>
  *
- * S3C2410 - I2C Controller platfrom_device info
+ * S3C - I2C Controller platform_device info
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -15,19 +15,24 @@
 
 #define S3C_IICFLG_FILTER	(1<<0)	/* enable s3c2440 filter */
 
-/* Notes:
- *	1) All frequencies are expressed in Hz
- *	2) A value of zero is `do not care`
-*/
-
+/**
+ *	struct s3c2410_platform_i2c - Platform data for s3c I2C.
+ *	@bus_num: The bus number to use (if possible).
+ *	@flags: Any flags for the I2C bus (E.g. S3C_IICFLK_FILTER).
+ *	@slave_addr: The I2C address for the slave device (if enabled).
+ *	@frequency: The desired frequency in Hz of the bus.  This is
+ *                  guaranteed to not be exceeded.  If the caller does
+ *                  not care, use zero and the driver will select a
+ *                  useful default.
+ *	@sda_delay: The delay (in ns) applied to SDA edges.
+ *	@cfg_gpio: A callback to configure the pins for I2C operation.
+ */
 struct s3c2410_platform_i2c {
-	int		bus_num;	/* bus number to use */
+	int		bus_num;
 	unsigned int	flags;
-	unsigned int	slave_addr;	/* slave address for controller */
-	unsigned long	bus_freq;	/* standard bus frequency */
-	unsigned long	max_freq;	/* max frequency for the bus */
-	unsigned long	min_freq;	/* min frequency for the bus */
-	unsigned int	sda_delay;	/* pclks (s3c2440 only) */
+	unsigned int	slave_addr;
+	unsigned long	frequency;
+	unsigned int	sda_delay;
 
 	void	(*cfg_gpio)(struct platform_device *dev);
 };

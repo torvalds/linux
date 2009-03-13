@@ -1,6 +1,6 @@
 /* linux/arch/arm/plat-s3c/dev-i2c1.c
  *
- * Copyright 2008 Simtec Electronics
+ * Copyright 2008,2009 Simtec Electronics
  *	Ben Dooks <ben@simtec.co.uk>
  *	http://armlinux.simtec.co.uk/
  *
@@ -47,8 +47,7 @@ static struct s3c2410_platform_i2c default_i2c_data1 __initdata = {
 	.flags		= 0,
 	.bus_num	= 1,
 	.slave_addr	= 0x10,
-	.bus_freq	= 100*1000,
-	.max_freq	= 400*1000,
+	.frequency	= 100*1000,
 	.sda_delay	= 100,
 };
 
