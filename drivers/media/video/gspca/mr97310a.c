@@ -29,9 +29,7 @@ MODULE_LICENSE("GPL");
 /* specific webcam descriptor */
 struct sd {
 	struct gspca_dev gspca_dev;  /* !! must be the first item */
-
 	u8 sof_read;
-	u8 header_read;
 };
 
 /* V4L2 controls supported by the driver */
@@ -285,7 +283,6 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 			__u8 *data,                   /* isoc packet */
 			int len)                      /* iso packet length */
 {
-	struct sd *sd = (struct sd *) gspca_dev;
 	unsigned char *sof;
 
 	sof = pac_find_sof(gspca_dev, data, len);
@@ -300,25 +297,12 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 			n = 0;
 		frame = gspca_frame_add(gspca_dev, LAST_PACKET, frame,
 					data, n);
-		sd->header_read = 0;
-		gspca_frame_add(gspca_dev, FIRST_PACKET, frame, NULL, 0);
+		/* Start next frame. */
+		gspca_frame_add(gspca_dev, FIRST_PACKET, frame,
+			pac_sof_marker, sizeof pac_sof_marker);
 		len -= sof - data;
 		data = sof;
 	}
-	if (sd->header_read < 7) {
-		int needed;
-
-		/* skip the rest of the header */
-		needed = 7 - sd->header_read;
-		if (len <= needed) {
-			sd->header_read += len;
-			return;
-		}
-		data += needed;
-		len -= needed;
-		sd->header_read = 7;
-	}
-
 	gspca_frame_add(gspca_dev, INTER_PACKET, frame, data, len);
 }
 
