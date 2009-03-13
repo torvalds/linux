@@ -104,7 +104,7 @@ static void rb532_pata_setup_ports(struct ata_host *ah)
 
 static __devinit int rb532_pata_driver_probe(struct platform_device *pdev)
 {
-	unsigned int irq;
+	int irq;
 	int gpio;
 	struct resource *res;
 	struct ata_host *ah;
