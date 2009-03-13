@@ -181,6 +181,7 @@ config CPU_SHX3
 
 config ARCH_SHMOBILE
 	bool
+	select ARCH_SUSPEND_POSSIBLE
 
 choice
 	prompt "Processor sub-type selection"
