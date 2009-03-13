@@ -1,4 +1,3 @@
-#define DEBUG
 /*
  * pxa-ssp.c  --  ALSA Soc Audio Layer
  *
@@ -561,14 +560,15 @@ static int pxa_ssp_set_dai_fmt(struct snd_soc_dai *cpu_dai,
 		sscr0 |= SSCR0_PSP;
 		sscr1 |= SSCR1_RWOT | SSCR1_TRAIL;
 
+		/* See hw_params() */
 		switch (fmt & SND_SOC_DAIFMT_INV_MASK) {
 		case SND_SOC_DAIFMT_NB_NF:
-			break;
-		case SND_SOC_DAIFMT_NB_IF:
 			sspsp |= SSPSP_SFRMP;
 			break;
+		case SND_SOC_DAIFMT_NB_IF:
+			break;
 		case SND_SOC_DAIFMT_IB_IF:
-			sspsp |= SSPSP_SFRMP | SSPSP_SCMODE(3);
+			sspsp |= SSPSP_SCMODE(3);
 			break;
 		default:
 			return -EINVAL;
@@ -691,8 +691,17 @@ static int pxa_ssp_hw_params(struct snd_pcm_substream *substream,
 #else
 			return -EINVAL;
 #endif
-		} else
-			sspsp |= SSPSP_SFRMWDTH(width);
+		} else {
+			/* The frame width is the width the LRCLK is
+			 * asserted for; the delay is expressed in
+			 * half cycle units.  We need the extra cycle
+			 * because the data starts clocking out one BCLK
+			 * after LRCLK changes polarity.
+			 */
+			sspsp |= SSPSP_SFRMWDTH(width + 1);
+			sspsp |= SSPSP_SFRMDLY((width + 1) * 2);
+			sspsp |= SSPSP_DMYSTRT(1);
+		}
 
 		ssp_write_reg(ssp, SSPSP, sspsp);
 		break;
