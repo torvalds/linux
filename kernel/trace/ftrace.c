@@ -272,7 +272,7 @@ enum {
 
 static int ftrace_filtered;
 
-static LIST_HEAD(ftrace_new_addrs);
+static struct dyn_ftrace *ftrace_new_addrs;
 
 static DEFINE_MUTEX(ftrace_regex_lock);
 
@@ -409,8 +409,8 @@ ftrace_record_ip(unsigned long ip)
 		return NULL;
 
 	rec->ip = ip;
-
-	list_add(&rec->list, &ftrace_new_addrs);
+	rec->flags = (unsigned long)ftrace_new_addrs;
+	ftrace_new_addrs = rec;
 
 	return rec;
 }
@@ -716,19 +716,21 @@ unsigned long		ftrace_update_tot_cnt;
 
 static int ftrace_update_code(struct module *mod)
 {
-	struct dyn_ftrace *p, *t;
+	struct dyn_ftrace *p;
 	cycle_t start, stop;
 
 	start = ftrace_now(raw_smp_processor_id());
 	ftrace_update_cnt = 0;
 
-	list_for_each_entry_safe(p, t, &ftrace_new_addrs, list) {
+	while (ftrace_new_addrs) {
 
 		/* If something went wrong, bail without enabling anything */
 		if (unlikely(ftrace_disabled))
 			return -1;
 
-		list_del_init(&p->list);
+		p = ftrace_new_addrs;
+		ftrace_new_addrs = (struct dyn_ftrace *)p->flags;
+		p->flags = 0L;
 
 		/* convert record (i.e, patch mcount-call with NOP) */
 		if (ftrace_code_disable(mod, p)) {

@@ -145,7 +145,6 @@ enum {
 };
 
 struct dyn_ftrace {
-	struct list_head	list;
 	unsigned long		ip; /* address of mcount call-site */
 	unsigned long		flags;
 	struct dyn_arch_ftrace	arch;
