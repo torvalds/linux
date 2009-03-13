@@ -457,7 +457,7 @@ static int es7000_apic_id_registered(void)
 
 static const cpumask_t *target_cpus_cluster(void)
 {
-	return &CPU_MASK_ALL;
+	return cpu_all_mask;
 }
 
 static const cpumask_t *es7000_target_cpus(void)
