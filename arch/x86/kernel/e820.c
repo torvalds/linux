@@ -427,6 +427,7 @@ static u64 __init __e820_update_range(struct e820map *e820x, u64 start,
 					u64 size, unsigned old_type,
 					unsigned new_type)
 {
+	u64 end;
 	unsigned int i;
 	u64 real_updated_size = 0;
 
@@ -435,21 +436,35 @@ static u64 __init __e820_update_range(struct e820map *e820x, u64 start,
 	if (size > (ULLONG_MAX - start))
 		size = ULLONG_MAX - start;
 
+	end = start + size;
 	for (i = 0; i < e820x->nr_map; i++) {
 		struct e820entry *ei = &e820x->map[i];
 		u64 final_start, final_end;
+		u64 ei_end;
+
 		if (ei->type != old_type)
 			continue;
-		/* totally covered? */
-		if (ei->addr >= start &&
-		    (ei->addr + ei->size) <= (start + size)) {
+
+		ei_end = ei->addr + ei->size;
+		/* totally covered by new range? */
+		if (ei->addr >= start && ei_end <= end) {
 			ei->type = new_type;
 			real_updated_size += ei->size;
 			continue;
 		}
+
+		/* new range is totally covered? */
+		if (ei->addr < start && ei_end > end) {
+			__e820_add_region(e820x, start, size, new_type);
+			__e820_add_region(e820x, end, ei_end - end, ei->type);
+			ei->size = start - ei->addr;
+			real_updated_size += size;
+			continue;
+		}
+
 		/* partially covered */
 		final_start = max(start, ei->addr);
-		final_end = min(start + size, ei->addr + ei->size);
+		final_end = min(end, ei_end);
 		if (final_start >= final_end)
 			continue;
 
