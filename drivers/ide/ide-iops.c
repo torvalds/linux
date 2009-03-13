@@ -315,6 +315,8 @@ void ide_output_data(ide_drive_t *drive, struct request *rq, void *buf,
 	u8 io_32bit = drive->io_32bit;
 	u8 mmio = (hwif->host_flags & IDE_HFLAG_MMIO) ? 1 : 0;
 
+	len++;
+
 	if (io_32bit) {
 		unsigned long uninitialized_var(flags);
 

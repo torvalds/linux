@@ -612,7 +612,7 @@ CONFIG_BLK_DEV_RAM_BLOCKSIZE=1024
 CONFIG_SCSI=y
 # CONFIG_SCSI_TGT is not set
 # CONFIG_SCSI_NETLINK is not set
-CONFIG_SCSI_PROC_FS=y
+# CONFIG_SCSI_PROC_FS is not set
 
 #
 # SCSI support type (disk, tape, CD-ROM)
