@@ -408,7 +408,7 @@ static int dnet_poll(struct napi_struct *napi, int budget)
 		 * packets waiting
 		 */
 		if (!(dnet_readl(bp, RX_FIFO_WCNT) >> 16)) {
-			netif_rx_complete(napi);
+			napi_complete(napi);
 			int_enable = dnet_readl(bp, INTR_ENB);
 			int_enable |= DNET_INTR_SRC_RX_CMDFIFOAF;
 			dnet_writel(bp, int_enable, INTR_ENB);
@@ -447,7 +447,7 @@ static int dnet_poll(struct napi_struct *napi, int budget)
 	if (npackets < budget) {
 		/* We processed all packets available.  Tell NAPI it can
 		 * stop polling then re-enable rx interrupts */
-		netif_rx_complete(napi);
+		napi_complete(napi);
 		int_enable = dnet_readl(bp, INTR_ENB);
 		int_enable |= DNET_INTR_SRC_RX_CMDFIFOAF;
 		dnet_writel(bp, int_enable, INTR_ENB);
@@ -507,7 +507,7 @@ static irqreturn_t dnet_interrupt(int irq, void *dev_id)
 	}
 
 	if (int_current & DNET_INTR_SRC_RX_CMDFIFOAF) {
-		if (netif_rx_schedule_prep(&bp->napi)) {
+		if (napi_schedule_prep(&bp->napi)) {
 			/*
 			 * There's no point taking any more interrupts
 			 * until we have processed the buffers
@@ -516,7 +516,7 @@ static irqreturn_t dnet_interrupt(int irq, void *dev_id)
 			int_enable = dnet_readl(bp, INTR_ENB);
 			int_enable &= ~DNET_INTR_SRC_RX_CMDFIFOAF;
 			dnet_writel(bp, int_enable, INTR_ENB);
-			__netif_rx_schedule(&bp->napi);
+			__napi_schedule(&bp->napi);
 		}
 		handled = 1;
 	}
