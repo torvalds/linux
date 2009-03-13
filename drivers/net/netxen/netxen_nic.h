@@ -78,16 +78,17 @@
 
 #define PHAN_VENDOR_ID 0x4040
 
-#define RCV_DESC_RINGSIZE	\
-	(sizeof(struct rcv_desc) * adapter->num_rxd)
-#define STATUS_DESC_RINGSIZE	\
-	(sizeof(struct status_desc) * adapter->num_rxd)
-#define LRO_DESC_RINGSIZE	\
-	(sizeof(rcvDesc_t) * adapter->num_lro_rxd)
-#define TX_RINGSIZE	\
-	(sizeof(struct netxen_cmd_buffer) * adapter->num_txd)
-#define RCV_BUFFSIZE	\
+#define RCV_DESC_RINGSIZE(rds_ring)	\
+	(sizeof(struct rcv_desc) * (rds_ring)->num_desc)
+#define RCV_BUFF_RINGSIZE(rds_ring)	\
 	(sizeof(struct netxen_rx_buffer) * rds_ring->num_desc)
+#define STATUS_DESC_RINGSIZE(sds_ring)	\
+	(sizeof(struct status_desc) * (sds_ring)->num_desc)
+#define TX_BUFF_RINGSIZE(adapter)	\
+	(sizeof(struct netxen_cmd_buffer) * adapter->num_txd)
+#define TX_DESC_RINGSIZE(adapter)	\
+	(sizeof(struct cmd_desc_type0) * adapter->num_txd)
+
 #define find_diff_among(a,b,range) ((a)<(b)?((b)-(a)):((b)+(range)-(a)))
 
 #define NETXEN_RCV_PRODUCER_OFFSET	0
@@ -188,7 +189,8 @@
 /* Host writes the following to notify that it has done the init-handshake */
 #define PHAN_INITIALIZE_ACK	0xf00f
 
-#define NUM_RCV_DESC_RINGS	3	/* No of Rcv Descriptor contexts */
+#define NUM_RCV_DESC_RINGS	3
+#define NUM_STS_DESC_RINGS	4
 
 #define RCV_RING_NORMAL	0
 #define RCV_RING_JUMBO	1
@@ -722,7 +724,7 @@ extern char netxen_nic_driver_name[];
 #endif
 
 /* Number of status descriptors to handle per interrupt */
-#define MAX_STATUS_HANDLE	(128)
+#define MAX_STATUS_HANDLE	(64)
 
 /*
  * netxen_skb_frag{} is to contain mapping info for each SG list. This
@@ -827,15 +829,35 @@ struct netxen_adapter_stats {
  */
 struct nx_host_rds_ring {
 	u32 producer;
-	u32 crb_rcv_producer;	/* reg offset */
-	struct rcv_desc *desc_head;	/* address of rx ring in Phantom */
-	struct netxen_rx_buffer *rx_buf_arr;	/* rx buffers for receive   */
-	struct list_head free_list;
+	u32 crb_rcv_producer;
 	u32 num_desc;
 	u32 dma_size;
 	u32 skb_size;
 	u32 flags;
+	struct rcv_desc *desc_head;
+	struct netxen_rx_buffer *rx_buf_arr;
+	struct list_head free_list;
+	spinlock_t lock;
 	dma_addr_t phys_addr;
+};
+
+struct nx_host_sds_ring {
+	u32 consumer;
+	u32 crb_sts_consumer;
+	u32 crb_intr_mask;
+	u32 num_desc;
+
+	struct status_desc *desc_head;
+	struct netxen_adapter *adapter;
+	struct napi_struct napi;
+	struct list_head free_list[NUM_RCV_DESC_RINGS];
+
+	u16 clean_tx;
+	u16 post_rxd;
+	int irq;
+
+	dma_addr_t phys_addr;
+	char name[IFNAMSIZ+4];
 };
 
 /*
@@ -850,10 +872,7 @@ struct netxen_recv_context {
 	u16 virt_port;
 
 	struct nx_host_rds_ring rds_rings[NUM_RCV_DESC_RINGS];
-	u32 status_rx_consumer;
-	u32 crb_sts_consumer;	/* reg offset */
-	dma_addr_t rcv_status_desc_phys_addr;
-	struct status_desc *rcv_status_desc_head;
+	struct nx_host_sds_ring sds_rings[NUM_STS_DESC_RINGS];
 };
 
 /* New HW context creation */
@@ -1179,13 +1198,13 @@ typedef struct {
 #define NETXEN_IS_MSI_FAMILY(adapter) \
 	((adapter)->flags & (NETXEN_NIC_MSI_ENABLED | NETXEN_NIC_MSIX_ENABLED))
 
-#define MSIX_ENTRIES_PER_ADAPTER	1
+#define MSIX_ENTRIES_PER_ADAPTER	NUM_STS_DESC_RINGS
 #define NETXEN_MSIX_TBL_SPACE		8192
 #define NETXEN_PCI_REG_MSIX_TBL		0x44
 
 #define NETXEN_DB_MAPSIZE_BYTES    	0x1000
 
-#define NETXEN_NETDEV_WEIGHT 120
+#define NETXEN_NETDEV_WEIGHT 128
 #define NETXEN_ADAPTER_UP_MAGIC 777
 #define NETXEN_NIC_PEG_TUNE 0
 
@@ -1200,7 +1219,6 @@ struct netxen_adapter {
 	struct net_device *netdev;
 	struct pci_dev *pdev;
 	int pci_using_dac;
-	struct napi_struct napi;
 	struct net_device_stats net_stats;
 	int mtu;
 	int portnum;
@@ -1212,7 +1230,6 @@ struct netxen_adapter {
 	nx_mac_list_t	*mac_list;
 
 	struct netxen_legacy_intr_set legacy_intr;
-	u32	crb_intr_mask;
 
 	struct work_struct watchdog_task;
 	struct timer_list watchdog_timer;
@@ -1227,6 +1244,7 @@ struct netxen_adapter {
 	u32 last_cmd_consumer;
 	u32 crb_addr_cmd_producer;
 	u32 crb_addr_cmd_consumer;
+	spinlock_t tx_clean_lock;
 
 	u32 num_txd;
 	u32 num_rxd;
@@ -1234,6 +1252,7 @@ struct netxen_adapter {
 	u32 num_lro_rxd;
 
 	int max_rds_rings;
+	int max_sds_rings;
 
 	u32 flags;
 	u32 irq;
@@ -1243,8 +1262,7 @@ struct netxen_adapter {
 	u32 fw_major;
 	u32 fw_version;
 
-	u8 msix_supported;
-	u8 max_possible_rss_rings;
+	int msix_supported;
 	struct msix_entry msix_entries[MSIX_ENTRIES_PER_ADAPTER];
 
 	struct netxen_adapter_stats stats;
@@ -1447,14 +1465,16 @@ void netxen_initialize_adapter_ops(struct netxen_adapter *adapter);
 int netxen_init_firmware(struct netxen_adapter *adapter);
 void netxen_nic_clear_stats(struct netxen_adapter *adapter);
 void netxen_watchdog_task(struct work_struct *work);
-void netxen_post_rx_buffers(struct netxen_adapter *adapter, u32 ringid);
+void netxen_post_rx_buffers(struct netxen_adapter *adapter, u32 ringid,
+		struct nx_host_rds_ring *rds_ring);
 int netxen_process_cmd_ring(struct netxen_adapter *adapter);
-int netxen_process_rcv_ring(struct netxen_adapter *adapter, int max);
+int netxen_process_rcv_ring(struct nx_host_sds_ring *sds_ring, int max);
 void netxen_p2_nic_set_multi(struct net_device *netdev);
 void netxen_p3_nic_set_multi(struct net_device *netdev);
 void netxen_p3_free_mac_list(struct netxen_adapter *adapter);
 int netxen_p3_nic_set_promisc(struct netxen_adapter *adapter, u32);
 int netxen_config_intr_coalesce(struct netxen_adapter *adapter);
+int netxen_config_rss(struct netxen_adapter *adapter, int enable);
 
 int nx_fw_cmd_set_mtu(struct netxen_adapter *adapter, int mtu);
 int netxen_nic_change_mtu(struct net_device *netdev, int new_mtu);

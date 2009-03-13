@@ -169,6 +169,7 @@ nx_fw_cmd_create_rx_ctx(struct netxen_adapter *adapter)
 	nx_cardrsp_rds_ring_t *prsp_rds;
 	nx_cardrsp_sds_ring_t *prsp_sds;
 	struct nx_host_rds_ring *rds_ring;
+	struct nx_host_sds_ring *sds_ring;
 
 	dma_addr_t hostrq_phys_addr, cardrsp_phys_addr;
 	u64 phys_addr;
@@ -181,9 +182,8 @@ nx_fw_cmd_create_rx_ctx(struct netxen_adapter *adapter)
 
 	struct netxen_recv_context *recv_ctx = &adapter->recv_ctx;
 
-	/* only one sds ring for now */
 	nrds_rings = adapter->max_rds_rings;
-	nsds_rings = 1;
+	nsds_rings = adapter->max_sds_rings;
 
 	rq_size =
 		SIZEOF_HOSTRQ_RX(nx_hostrq_rx_ctx_t, nrds_rings, nsds_rings);
@@ -239,11 +239,14 @@ nx_fw_cmd_create_rx_ctx(struct netxen_adapter *adapter)
 	prq_sds = (nx_hostrq_sds_ring_t *)(prq->data +
 			le32_to_cpu(prq->sds_ring_offset));
 
-	prq_sds[0].host_phys_addr =
-		cpu_to_le64(recv_ctx->rcv_status_desc_phys_addr);
-	prq_sds[0].ring_size = cpu_to_le32(adapter->num_rxd);
-	/* only one msix vector for now */
-	prq_sds[0].msi_index = cpu_to_le16(0);
+	for (i = 0; i < nsds_rings; i++) {
+
+		sds_ring = &recv_ctx->sds_rings[i];
+
+		prq_sds[i].host_phys_addr = cpu_to_le64(sds_ring->phys_addr);
+		prq_sds[i].ring_size = cpu_to_le32(sds_ring->num_desc);
+		prq_sds[i].msi_index = cpu_to_le16(i);
+	}
 
 	phys_addr = hostrq_phys_addr;
 	err = netxen_issue_cmd(adapter,
@@ -272,11 +275,16 @@ nx_fw_cmd_create_rx_ctx(struct netxen_adapter *adapter)
 
 	prsp_sds = ((nx_cardrsp_sds_ring_t *)
 			&prsp->data[le32_to_cpu(prsp->sds_ring_offset)]);
-	reg = le32_to_cpu(prsp_sds[0].host_consumer_crb);
-	recv_ctx->crb_sts_consumer = NETXEN_NIC_REG(reg - 0x200);
 
-	reg = le32_to_cpu(prsp_sds[0].interrupt_crb);
-	adapter->crb_intr_mask = NETXEN_NIC_REG(reg - 0x200);
+	for (i = 0; i < le16_to_cpu(prsp->num_sds_rings); i++) {
+		sds_ring = &recv_ctx->sds_rings[i];
+
+		reg = le32_to_cpu(prsp_sds[i].host_consumer_crb);
+		sds_ring->crb_sts_consumer = NETXEN_NIC_REG(reg - 0x200);
+
+		reg = le32_to_cpu(prsp_sds[i].interrupt_crb);
+		sds_ring->crb_intr_mask = NETXEN_NIC_REG(reg - 0x200);
+	}
 
 	recv_ctx->state = le32_to_cpu(prsp->host_ctx_state);
 	recv_ctx->context_id = le16_to_cpu(prsp->context_id);
@@ -488,6 +496,7 @@ netxen_init_old_ctx(struct netxen_adapter *adapter)
 {
 	struct netxen_recv_context *recv_ctx;
 	struct nx_host_rds_ring *rds_ring;
+	struct nx_host_sds_ring *sds_ring;
 	int ring;
 	int func_id = adapter->portnum;
 
@@ -506,10 +515,9 @@ netxen_init_old_ctx(struct netxen_adapter *adapter)
 		adapter->ctx_desc->rcv_ctx[ring].rcv_ring_size =
 			cpu_to_le32(rds_ring->num_desc);
 	}
-	adapter->ctx_desc->sts_ring_addr =
-		cpu_to_le64(recv_ctx->rcv_status_desc_phys_addr);
-	adapter->ctx_desc->sts_ring_size =
-		cpu_to_le32(adapter->num_rxd);
+	sds_ring = &recv_ctx->sds_rings[0];
+	adapter->ctx_desc->sts_ring_addr = cpu_to_le64(sds_ring->phys_addr);
+	adapter->ctx_desc->sts_ring_size = cpu_to_le32(sds_ring->num_desc);
 
 	adapter->pci_write_normalize(adapter, CRB_CTX_ADDR_REG_LO(func_id),
 			lower32(adapter->ctx_desc_phys_addr));
@@ -534,6 +542,10 @@ int netxen_alloc_hw_resources(struct netxen_adapter *adapter)
 	int ring;
 	struct netxen_recv_context *recv_ctx;
 	struct nx_host_rds_ring *rds_ring;
+	struct nx_host_sds_ring *sds_ring;
+
+	struct pci_dev *pdev = adapter->pdev;
+	struct net_device *netdev = adapter->netdev;
 
 	err = netxen_receive_peg_ready(adapter);
 	if (err) {
@@ -542,12 +554,12 @@ int netxen_alloc_hw_resources(struct netxen_adapter *adapter)
 		return err;
 	}
 
-	addr = pci_alloc_consistent(adapter->pdev,
+	addr = pci_alloc_consistent(pdev,
 			sizeof(struct netxen_ring_ctx) + sizeof(uint32_t),
 			&adapter->ctx_desc_phys_addr);
 
 	if (addr == NULL) {
-		DPRINTK(ERR, "failed to allocate hw context\n");
+		dev_err(&pdev->dev, "failed to allocate hw context\n");
 		return -ENOMEM;
 	}
 	memset(addr, 0, sizeof(struct netxen_ring_ctx));
@@ -560,14 +572,13 @@ int netxen_alloc_hw_resources(struct netxen_adapter *adapter)
 		(__le32 *)(((char *)addr) + sizeof(struct netxen_ring_ctx));
 
 	/* cmd desc ring */
-	addr = pci_alloc_consistent(adapter->pdev,
-			sizeof(struct cmd_desc_type0) *
-			adapter->num_txd,
+	addr = pci_alloc_consistent(pdev,
+			TX_DESC_RINGSIZE(adapter),
 			&hw->cmd_desc_phys_addr);
 
 	if (addr == NULL) {
-		printk(KERN_ERR "%s failed to allocate tx desc ring\n",
-				netxen_nic_driver_name);
+		dev_err(&pdev->dev, "%s: failed to allocate tx desc ring\n",
+				netdev->name);
 		return -ENOMEM;
 	}
 
@@ -576,15 +587,14 @@ int netxen_alloc_hw_resources(struct netxen_adapter *adapter)
 	recv_ctx = &adapter->recv_ctx;
 
 	for (ring = 0; ring < adapter->max_rds_rings; ring++) {
-		/* rx desc ring */
 		rds_ring = &recv_ctx->rds_rings[ring];
 		addr = pci_alloc_consistent(adapter->pdev,
-				RCV_DESC_RINGSIZE,
+				RCV_DESC_RINGSIZE(rds_ring),
 				&rds_ring->phys_addr);
 		if (addr == NULL) {
-			printk(KERN_ERR "%s failed to allocate rx "
-				"desc ring[%d]\n",
-				netxen_nic_driver_name, ring);
+			dev_err(&pdev->dev,
+				"%s: failed to allocate rds ring [%d]\n",
+				netdev->name, ring);
 			err = -ENOMEM;
 			goto err_out_free;
 		}
@@ -596,22 +606,22 @@ int netxen_alloc_hw_resources(struct netxen_adapter *adapter)
 				crb_rcv_producer[ring];
 	}
 
-	/* status desc ring */
-	addr = pci_alloc_consistent(adapter->pdev,
-			STATUS_DESC_RINGSIZE,
-			&recv_ctx->rcv_status_desc_phys_addr);
-	if (addr == NULL) {
-		printk(KERN_ERR "%s failed to allocate sts desc ring\n",
-				netxen_nic_driver_name);
-		err = -ENOMEM;
-		goto err_out_free;
-	}
-	recv_ctx->rcv_status_desc_head = (struct status_desc *)addr;
+	for (ring = 0; ring < adapter->max_sds_rings; ring++) {
+		sds_ring = &recv_ctx->sds_rings[ring];
 
-	if (adapter->fw_major < 4)
-		recv_ctx->crb_sts_consumer =
-			recv_crb_registers[adapter->portnum].
-			crb_sts_consumer;
+		addr = pci_alloc_consistent(adapter->pdev,
+				STATUS_DESC_RINGSIZE(sds_ring),
+				&sds_ring->phys_addr);
+		if (addr == NULL) {
+			dev_err(&pdev->dev,
+				"%s: failed to allocate sds ring [%d]\n",
+				netdev->name, ring);
+			err = -ENOMEM;
+			goto err_out_free;
+		}
+		sds_ring->desc_head = (struct status_desc *)addr;
+	}
+
 
 	if (adapter->fw_major >= 4) {
 		adapter->intr_scheme = INTR_SCHEME_PERPORT;
@@ -624,12 +634,16 @@ int netxen_alloc_hw_resources(struct netxen_adapter *adapter)
 		if (err)
 			goto err_out_free;
 	} else {
+		sds_ring = &recv_ctx->sds_rings[0];
+		sds_ring->crb_sts_consumer =
+			recv_crb_registers[adapter->portnum].crb_sts_consumer;
 
 		adapter->intr_scheme = adapter->pci_read_normalize(adapter,
 				CRB_NIC_CAPABILITIES_FW);
 		adapter->msi_mode = adapter->pci_read_normalize(adapter,
 				CRB_NIC_MSI_MODE_FW);
-		adapter->crb_intr_mask = sw_int_mask[adapter->portnum];
+		recv_ctx->sds_rings[0].crb_intr_mask =
+				sw_int_mask[adapter->portnum];
 
 		err = netxen_init_old_ctx(adapter);
 		if (err) {
@@ -650,6 +664,7 @@ void netxen_free_hw_resources(struct netxen_adapter *adapter)
 {
 	struct netxen_recv_context *recv_ctx;
 	struct nx_host_rds_ring *rds_ring;
+	struct nx_host_sds_ring *sds_ring;
 	int ring;
 
 	if (adapter->fw_major >= 4) {
@@ -681,19 +696,23 @@ void netxen_free_hw_resources(struct netxen_adapter *adapter)
 
 		if (rds_ring->desc_head != NULL) {
 			pci_free_consistent(adapter->pdev,
-					RCV_DESC_RINGSIZE,
+					RCV_DESC_RINGSIZE(rds_ring),
 					rds_ring->desc_head,
 					rds_ring->phys_addr);
 			rds_ring->desc_head = NULL;
 		}
 	}
 
-	if (recv_ctx->rcv_status_desc_head != NULL) {
-		pci_free_consistent(adapter->pdev,
-				STATUS_DESC_RINGSIZE,
-				recv_ctx->rcv_status_desc_head,
-				recv_ctx->rcv_status_desc_phys_addr);
-		recv_ctx->rcv_status_desc_head = NULL;
+	for (ring = 0; ring < adapter->max_sds_rings; ring++) {
+		sds_ring = &recv_ctx->sds_rings[ring];
+
+		if (sds_ring->desc_head != NULL) {
+			pci_free_consistent(adapter->pdev,
+				STATUS_DESC_RINGSIZE(sds_ring),
+				sds_ring->desc_head,
+				sds_ring->phys_addr);
+			sds_ring->desc_head = NULL;
+		}
 	}
 }
 

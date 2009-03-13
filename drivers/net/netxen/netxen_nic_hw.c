@@ -670,6 +670,53 @@ int netxen_config_intr_coalesce(struct netxen_adapter *adapter)
 	return rv;
 }
 
+#define RSS_HASHTYPE_IP_TCP	0x3
+
+int netxen_config_rss(struct netxen_adapter *adapter, int enable)
+{
+	nx_nic_req_t req;
+	u64 word;
+	int i, rv;
+
+	u64 key[] = { 0xbeac01fa6a42b73bULL, 0x8030f20c77cb2da3ULL,
+			0xae7b30b4d0ca2bcbULL, 0x43a38fb04167253dULL,
+			0x255b0ec26d5a56daULL };
+
+
+	memset(&req, 0, sizeof(nx_nic_req_t));
+	req.qhdr = cpu_to_le64(NX_HOST_REQUEST << 23);
+
+	word = NX_NIC_H2C_OPCODE_CONFIG_RSS | ((u64)adapter->portnum << 16);
+	req.req_hdr = cpu_to_le64(word);
+
+	/*
+	 * RSS request:
+	 * bits 3-0: hash_method
+	 *      5-4: hash_type_ipv4
+	 *	7-6: hash_type_ipv6
+	 *	  8: enable
+	 *        9: use indirection table
+	 *    47-10: reserved
+	 *    63-48: indirection table mask
+	 */
+	word =  ((u64)(RSS_HASHTYPE_IP_TCP & 0x3) << 4) |
+		((u64)(RSS_HASHTYPE_IP_TCP & 0x3) << 6) |
+		((u64)(enable & 0x1) << 8) |
+		((0x7ULL) << 48);
+	req.words[0] = cpu_to_le64(word);
+	for (i = 0; i < 5; i++)
+		req.words[i+1] = cpu_to_le64(key[i]);
+
+
+	rv = netxen_send_cmd_descs(adapter, (struct cmd_desc_type0 *)&req, 1);
+	if (rv != 0) {
+		printk(KERN_ERR "%s: could not configure RSS\n",
+				adapter->netdev->name);
+	}
+
+	return rv;
+}
+
 /*
  * netxen_nic_change_mtu - Change the Maximum Transfer Unit
  * @returns 0 on success, negative on failure

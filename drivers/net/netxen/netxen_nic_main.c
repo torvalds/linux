@@ -135,18 +135,69 @@ static uint32_t msi_tgt_status[8] = {
 
 static struct netxen_legacy_intr_set legacy_intr[] = NX_LEGACY_INTR_CONFIG;
 
-static inline void netxen_nic_disable_int(struct netxen_adapter *adapter)
+static inline void netxen_nic_disable_int(struct nx_host_sds_ring *sds_ring)
 {
-	adapter->pci_write_normalize(adapter, adapter->crb_intr_mask, 0);
+	struct netxen_adapter *adapter = sds_ring->adapter;
+
+	adapter->pci_write_normalize(adapter, sds_ring->crb_intr_mask, 0);
 }
 
-static inline void netxen_nic_enable_int(struct netxen_adapter *adapter)
+static inline void netxen_nic_enable_int(struct nx_host_sds_ring *sds_ring)
 {
-	adapter->pci_write_normalize(adapter, adapter->crb_intr_mask, 0x1);
+	struct netxen_adapter *adapter = sds_ring->adapter;
+
+	adapter->pci_write_normalize(adapter, sds_ring->crb_intr_mask, 0x1);
 
 	if (!NETXEN_IS_MSI_FAMILY(adapter))
 		adapter->pci_write_immediate(adapter,
 				adapter->legacy_intr.tgt_mask_reg, 0xfbff);
+}
+
+static void
+netxen_napi_add(struct netxen_adapter *adapter, struct net_device *netdev)
+{
+	int ring;
+	struct nx_host_sds_ring *sds_ring;
+	struct netxen_recv_context *recv_ctx = &adapter->recv_ctx;
+
+	if (adapter->flags & NETXEN_NIC_MSIX_ENABLED)
+		adapter->max_sds_rings = (num_online_cpus() >= 4) ? 4 : 2;
+	else
+		adapter->max_sds_rings = 1;
+
+	for (ring = 0; ring < adapter->max_sds_rings; ring++) {
+		sds_ring = &recv_ctx->sds_rings[ring];
+		netif_napi_add(netdev, &sds_ring->napi,
+				netxen_nic_poll, NETXEN_NETDEV_WEIGHT);
+	}
+}
+
+static void
+netxen_napi_enable(struct netxen_adapter *adapter)
+{
+	int ring;
+	struct nx_host_sds_ring *sds_ring;
+	struct netxen_recv_context *recv_ctx = &adapter->recv_ctx;
+
+	for (ring = 0; ring < adapter->max_sds_rings; ring++) {
+		sds_ring = &recv_ctx->sds_rings[ring];
+		napi_enable(&sds_ring->napi);
+		netxen_nic_enable_int(sds_ring);
+	}
+}
+
+static void
+netxen_napi_disable(struct netxen_adapter *adapter)
+{
+	int ring;
+	struct nx_host_sds_ring *sds_ring;
+	struct netxen_recv_context *recv_ctx = &adapter->recv_ctx;
+
+	for (ring = 0; ring < adapter->max_sds_rings; ring++) {
+		sds_ring = &recv_ctx->sds_rings[ring];
+		netxen_nic_disable_int(sds_ring);
+		napi_disable(&sds_ring->napi);
+	}
 }
 
 static int nx_set_dma_mask(struct netxen_adapter *adapter, uint8_t revision_id)
@@ -226,7 +277,6 @@ static void netxen_check_options(struct netxen_adapter *adapter)
 	adapter->num_jumbo_rxd = MAX_JUMBO_RCV_DESCRIPTORS;
 	adapter->num_lro_rxd = MAX_LRO_RCV_DESCRIPTORS;
 
-	adapter->max_possible_rss_rings = 1;
 	return;
 }
 
@@ -447,6 +497,7 @@ request_msi:
 			dev_info(&pdev->dev, "using msi interrupts\n");
 		} else
 			dev_info(&pdev->dev, "using legacy interrupts\n");
+		adapter->msix_entries[0].vector = pdev->irq;
 	}
 }
 
@@ -671,8 +722,12 @@ static int
 netxen_nic_request_irq(struct netxen_adapter *adapter)
 {
 	irq_handler_t handler;
+	struct nx_host_sds_ring *sds_ring;
+	int err, ring;
+
 	unsigned long flags = IRQF_SAMPLE_RANDOM;
 	struct net_device *netdev = adapter->netdev;
+	struct netxen_recv_context *recv_ctx = &adapter->recv_ctx;
 
 	if ((adapter->msi_mode != MSI_MODE_MULTIFUNC) ||
 		(adapter->intr_scheme != INTR_SCHEME_PERPORT)) {
@@ -693,8 +748,30 @@ netxen_nic_request_irq(struct netxen_adapter *adapter)
 	}
 	adapter->irq = netdev->irq;
 
-	return request_irq(adapter->irq, handler,
-			  flags, netdev->name, adapter);
+	for (ring = 0; ring < adapter->max_sds_rings; ring++) {
+		sds_ring = &recv_ctx->sds_rings[ring];
+		sprintf(sds_ring->name, "%16s[%d]", netdev->name, ring);
+		err = request_irq(sds_ring->irq, handler,
+				  flags, sds_ring->name, sds_ring);
+		if (err)
+			return err;
+	}
+
+	return 0;
+}
+
+static void
+netxen_nic_free_irq(struct netxen_adapter *adapter)
+{
+	int ring;
+	struct nx_host_sds_ring *sds_ring;
+
+	struct netxen_recv_context *recv_ctx = &adapter->recv_ctx;
+
+	for (ring = 0; ring < adapter->max_sds_rings; ring++) {
+		sds_ring = &recv_ctx->sds_rings[ring];
+		free_irq(sds_ring->irq, sds_ring);
+	}
 }
 
 static int
@@ -719,8 +796,10 @@ netxen_nic_up(struct netxen_adapter *adapter, struct net_device *netdev)
 	adapter->ahw.linkup = 0;
 	mod_timer(&adapter->watchdog_timer, jiffies);
 
-	napi_enable(&adapter->napi);
-	netxen_nic_enable_int(adapter);
+	netxen_napi_enable(adapter);
+
+	if (adapter->max_sds_rings > 1)
+		netxen_config_rss(adapter, 1);
 
 	return 0;
 }
@@ -730,12 +809,10 @@ netxen_nic_down(struct netxen_adapter *adapter, struct net_device *netdev)
 {
 	netif_carrier_off(netdev);
 	netif_stop_queue(netdev);
-	napi_disable(&adapter->napi);
+	netxen_napi_disable(adapter);
 
 	if (adapter->stop_port)
 		adapter->stop_port(adapter);
-
-	netxen_nic_disable_int(adapter);
 
 	netxen_release_tx_buffers(adapter);
 
@@ -750,6 +827,7 @@ netxen_nic_attach(struct netxen_adapter *adapter)
 	struct net_device *netdev = adapter->netdev;
 	struct pci_dev *pdev = adapter->pdev;
 	int err, ring;
+	struct nx_host_rds_ring *rds_ring;
 
 	err = netxen_init_firmware(adapter);
 	if (err != 0) {
@@ -788,8 +866,10 @@ netxen_nic_attach(struct netxen_adapter *adapter)
 		netxen_nic_update_cmd_consumer(adapter, 0);
 	}
 
-	for (ring = 0; ring < adapter->max_rds_rings; ring++)
-		netxen_post_rx_buffers(adapter, ring);
+	for (ring = 0; ring < adapter->max_rds_rings; ring++) {
+		rds_ring = &adapter->recv_ctx.rds_rings[ring];
+		netxen_post_rx_buffers(adapter, ring, rds_ring);
+	}
 
 	err = netxen_nic_request_irq(adapter);
 	if (err) {
@@ -812,8 +892,7 @@ err_out_free_sw:
 static void
 netxen_nic_detach(struct netxen_adapter *adapter)
 {
-	if (adapter->irq)
-		free_irq(adapter->irq, adapter);
+	netxen_nic_free_irq(adapter);
 
 	netxen_release_rx_buffers(adapter);
 	netxen_free_hw_resources(adapter);
@@ -883,13 +962,11 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto err_out_free_netdev;
 
 	rwlock_init(&adapter->adapter_lock);
+	spin_lock_init(&adapter->tx_clean_lock);
 
 	err = netxen_setup_pci_map(adapter);
 	if (err)
 		goto err_out_free_netdev;
-
-	netif_napi_add(netdev, &adapter->napi,
-			netxen_nic_poll, NETXEN_NETDEV_WEIGHT);
 
 	/* This will be reset for mezz cards  */
 	adapter->portnum = pci_func_id;
@@ -963,10 +1040,9 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	netxen_setup_intr(adapter);
 
-	if (adapter->flags & NETXEN_NIC_MSIX_ENABLED)
-		netdev->irq = adapter->msix_entries[0].vector;
-	else
-		netdev->irq = pdev->irq;
+	netdev->irq = adapter->msix_entries[0].vector;
+
+	netxen_napi_add(adapter, netdev);
 
 	err = netxen_receive_peg_ready(adapter);
 	if (err)
@@ -1520,13 +1596,11 @@ static void netxen_tx_timeout_task(struct work_struct *work)
 	printk(KERN_ERR "%s %s: transmit timeout, resetting.\n",
 	       netxen_nic_driver_name, adapter->netdev->name);
 
-	netxen_nic_disable_int(adapter);
-	napi_disable(&adapter->napi);
+	netxen_napi_disable(adapter);
 
 	adapter->netdev->trans_start = jiffies;
 
-	napi_enable(&adapter->napi);
-	netxen_nic_enable_int(adapter);
+	netxen_napi_enable(adapter);
 	netif_wake_queue(adapter->netdev);
 }
 
@@ -1564,7 +1638,8 @@ struct net_device_stats *netxen_nic_get_stats(struct net_device *netdev)
 
 static irqreturn_t netxen_intr(int irq, void *data)
 {
-	struct netxen_adapter *adapter = data;
+	struct nx_host_sds_ring *sds_ring = data;
+	struct netxen_adapter *adapter = sds_ring->adapter;
 	u32 status = 0;
 
 	status = adapter->pci_read_immediate(adapter, ISR_INT_VECTOR);
@@ -1595,7 +1670,7 @@ static irqreturn_t netxen_intr(int irq, void *data)
 
 	/* clear interrupt */
 	if (adapter->fw_major < 4)
-		netxen_nic_disable_int(adapter);
+		netxen_nic_disable_int(sds_ring);
 
 	adapter->pci_write_immediate(adapter,
 			adapter->legacy_intr.tgt_status_reg,
@@ -1604,45 +1679,49 @@ static irqreturn_t netxen_intr(int irq, void *data)
 	adapter->pci_read_immediate(adapter, ISR_INT_VECTOR);
 	adapter->pci_read_immediate(adapter, ISR_INT_VECTOR);
 
-	napi_schedule(&adapter->napi);
+	napi_schedule(&sds_ring->napi);
 
 	return IRQ_HANDLED;
 }
 
 static irqreturn_t netxen_msi_intr(int irq, void *data)
 {
-	struct netxen_adapter *adapter = data;
+	struct nx_host_sds_ring *sds_ring = data;
+	struct netxen_adapter *adapter = sds_ring->adapter;
 
 	/* clear interrupt */
 	adapter->pci_write_immediate(adapter,
 			msi_tgt_status[adapter->ahw.pci_func], 0xffffffff);
 
-	napi_schedule(&adapter->napi);
+	napi_schedule(&sds_ring->napi);
 	return IRQ_HANDLED;
 }
 
 static irqreturn_t netxen_msix_intr(int irq, void *data)
 {
-	struct netxen_adapter *adapter = data;
+	struct nx_host_sds_ring *sds_ring = data;
 
-	napi_schedule(&adapter->napi);
+	napi_schedule(&sds_ring->napi);
 	return IRQ_HANDLED;
 }
 
 static int netxen_nic_poll(struct napi_struct *napi, int budget)
 {
-	struct netxen_adapter *adapter =
-		container_of(napi, struct netxen_adapter, napi);
+	struct nx_host_sds_ring *sds_ring =
+		container_of(napi, struct nx_host_sds_ring, napi);
+
+	struct netxen_adapter *adapter = sds_ring->adapter;
+
 	int tx_complete;
 	int work_done;
 
 	tx_complete = netxen_process_cmd_ring(adapter);
 
-	work_done = netxen_process_rcv_ring(adapter, budget);
+	work_done = netxen_process_rcv_ring(sds_ring, budget);
 
 	if ((work_done < budget) && tx_complete) {
-		napi_complete(&adapter->napi);
-		netxen_nic_enable_int(adapter);
+		napi_complete(&sds_ring->napi);
+		netxen_nic_enable_int(sds_ring);
 	}
 
 	return work_done;
