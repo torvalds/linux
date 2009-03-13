@@ -1667,7 +1667,7 @@ int remap_pfn_range(struct vm_area_struct *vma, unsigned long addr,
 	 */
 	if (addr == vma->vm_start && end == vma->vm_end) {
 		vma->vm_pgoff = pfn;
-		vma->vm_flags |= VM_PFNMAP_AT_MMAP;
+		vma->vm_flags |= VM_PFN_AT_MMAP;
 	} else if (is_cow_mapping(vma->vm_flags))
 		return -EINVAL;
 
@@ -1680,7 +1680,7 @@ int remap_pfn_range(struct vm_area_struct *vma, unsigned long addr,
 		 * needed from higher level routine calling unmap_vmas
 		 */
 		vma->vm_flags &= ~(VM_IO | VM_RESERVED | VM_PFNMAP);
-		vma->vm_flags &= ~VM_PFNMAP_AT_MMAP;
+		vma->vm_flags &= ~VM_PFN_AT_MMAP;
 		return -EINVAL;
 	}
 
