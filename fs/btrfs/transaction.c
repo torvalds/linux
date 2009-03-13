@@ -192,6 +192,7 @@ static struct btrfs_trans_handle *start_transaction(struct btrfs_root *root,
 	h->alloc_exclude_nr = 0;
 	h->alloc_exclude_start = 0;
 	h->delayed_ref_updates = 0;
+
 	root->fs_info->running_transaction->use_count++;
 	mutex_unlock(&root->fs_info->trans_mutex);
 	return h;
@@ -281,7 +282,6 @@ void btrfs_throttle(struct btrfs_root *root)
 	if (!root->fs_info->open_ioctl_trans)
 		wait_current_trans(root);
 	mutex_unlock(&root->fs_info->trans_mutex);
-
 	throttle_on_drops(root);
 }
 
@@ -298,6 +298,13 @@ static int __btrfs_end_transaction(struct btrfs_trans_handle *trans,
 		if (cur &&
 		    trans->transaction->delayed_refs.num_heads_ready > 64) {
 			trans->delayed_ref_updates = 0;
+
+			/*
+			 * do a full flush if the transaction is trying
+			 * to close
+			 */
+			if (trans->transaction->delayed_refs.flushing)
+				cur = 0;
 			btrfs_run_delayed_refs(trans, root, cur);
 		} else {
 			break;
@@ -666,6 +673,31 @@ int btrfs_defrag_root(struct btrfs_root *root, int cacheonly)
 }
 
 /*
+ * when dropping snapshots, we generate a ton of delayed refs, and it makes
+ * sense not to join the transaction while it is trying to flush the current
+ * queue of delayed refs out.
+ *
+ * This is used by the drop snapshot code only
+ */
+static noinline int wait_transaction_pre_flush(struct btrfs_fs_info *info)
+{
+	DEFINE_WAIT(wait);
+
+	mutex_lock(&info->trans_mutex);
+	while (info->running_transaction &&
+	       info->running_transaction->delayed_refs.flushing) {
+		prepare_to_wait(&info->transaction_wait, &wait,
+				TASK_UNINTERRUPTIBLE);
+		mutex_unlock(&info->trans_mutex);
+		schedule();
+		mutex_lock(&info->trans_mutex);
+		finish_wait(&info->transaction_wait, &wait);
+	}
+	mutex_unlock(&info->trans_mutex);
+	return 0;
+}
+
+/*
  * Given a list of roots that need to be deleted, call btrfs_drop_snapshot on
  * all of them
  */
@@ -692,7 +724,22 @@ static noinline int drop_dirty_roots(struct btrfs_root *tree_root,
 		atomic_inc(&root->fs_info->throttles);
 
 		while (1) {
+			/*
+			 * we don't want to jump in and create a bunch of
+			 * delayed refs if the transaction is starting to close
+			 */
+			wait_transaction_pre_flush(tree_root->fs_info);
 			trans = btrfs_start_transaction(tree_root, 1);
+
+			/*
+			 * we've joined a transaction, make sure it isn't
+			 * closing right now
+			 */
+			if (trans->transaction->delayed_refs.flushing) {
+				btrfs_end_transaction(trans, tree_root);
+				continue;
+			}
+
 			mutex_lock(&root->fs_info->drop_mutex);
 			ret = btrfs_drop_snapshot(trans, dirty->root);
 			if (ret != -EAGAIN)
@@ -932,20 +979,20 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 	ret = btrfs_run_delayed_refs(trans, root, 0);
 	BUG_ON(ret);
 
+	cur_trans = trans->transaction;
 	/*
 	 * set the flushing flag so procs in this transaction have to
 	 * start sending their work down.
 	 */
-	trans->transaction->delayed_refs.flushing = 1;
+	cur_trans->delayed_refs.flushing = 1;
 
 	ret = btrfs_run_delayed_refs(trans, root, 0);
 	BUG_ON(ret);
 
-	INIT_LIST_HEAD(&dirty_fs_roots);
 	mutex_lock(&root->fs_info->trans_mutex);
-	if (trans->transaction->in_commit) {
-		cur_trans = trans->transaction;
-		trans->transaction->use_count++;
+	INIT_LIST_HEAD(&dirty_fs_roots);
+	if (cur_trans->in_commit) {
+		cur_trans->use_count++;
 		mutex_unlock(&root->fs_info->trans_mutex);
 		btrfs_end_transaction(trans, root);
 
@@ -968,7 +1015,6 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 
 	trans->transaction->in_commit = 1;
 	trans->transaction->blocked = 1;
-	cur_trans = trans->transaction;
 	if (cur_trans->list.prev != &root->fs_info->trans_list) {
 		prev_trans = list_entry(cur_trans->list.prev,
 					struct btrfs_transaction, list);
@@ -1081,6 +1127,7 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 	btrfs_copy_pinned(root, pinned_copy);
 
 	trans->transaction->blocked = 0;
+
 	wake_up(&root->fs_info->transaction_throttle);
 	wake_up(&root->fs_info->transaction_wait);
 
@@ -1107,6 +1154,7 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 	mutex_lock(&root->fs_info->trans_mutex);
 
 	cur_trans->commit_done = 1;
+
 	root->fs_info->last_trans_committed = cur_trans->transid;
 	wake_up(&cur_trans->commit_wait);
 

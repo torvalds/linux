@@ -1502,12 +1502,30 @@ static int btrfs_finish_ordered_io(struct inode *inode, u64 start, u64 end)
 	struct btrfs_trans_handle *trans;
 	struct btrfs_ordered_extent *ordered_extent;
 	struct extent_io_tree *io_tree = &BTRFS_I(inode)->io_tree;
+	struct btrfs_path *path;
 	int compressed = 0;
 	int ret;
 
 	ret = btrfs_dec_test_ordered_pending(inode, start, end - start + 1);
 	if (!ret)
 		return 0;
+
+	/*
+	 * before we join the transaction, try to do some of our IO.
+	 * This will limit the amount of IO that we have to do with
+	 * the transaction running.  We're unlikely to need to do any
+	 * IO if the file extents are new, the disk_i_size checks
+	 * covers the most common case.
+	 */
+	if (start < BTRFS_I(inode)->disk_i_size) {
+		path = btrfs_alloc_path();
+		if (path) {
+			ret = btrfs_lookup_file_extent(NULL, root, path,
+						       inode->i_ino,
+						       start, 0);
+			btrfs_free_path(path);
+		}
+	}
 
 	trans = btrfs_join_transaction(root, 1);
 

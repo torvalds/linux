@@ -3797,7 +3797,8 @@ int btrfs_drop_snapshot(struct btrfs_trans_handle *trans, struct btrfs_root
 			break;
 		if (wret < 0)
 			ret = wret;
-		if (trans->transaction->in_commit) {
+		if (trans->transaction->in_commit ||
+		    trans->transaction->delayed_refs.flushing) {
 			ret = -EAGAIN;
 			break;
 		}

@@ -23,7 +23,12 @@
 
 struct btrfs_transaction {
 	u64 transid;
+	/*
+	 * total writers in this transaction, it must be zero before the
+	 * transaction can end
+	 */
 	unsigned long num_writers;
+
 	unsigned long num_joined;
 	int in_commit;
 	int use_count;
