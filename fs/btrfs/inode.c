@@ -204,7 +204,7 @@ fail:
  * does the checks required to make sure the data is small enough
  * to fit as an inline extent.
  */
-static int cow_file_range_inline(struct btrfs_trans_handle *trans,
+static noinline int cow_file_range_inline(struct btrfs_trans_handle *trans,
 				 struct btrfs_root *root,
 				 struct inode *inode, u64 start, u64 end,
 				 size_t compressed_size,
@@ -854,11 +854,6 @@ static int cow_file_range_async(struct inode *inode, struct page *locked_page,
 	u64 cur_end;
 	int limit = 10 * 1024 * 1042;
 
-	if (!btrfs_test_opt(root, COMPRESS)) {
-		return cow_file_range(inode, locked_page, start, end,
-				      page_started, nr_written, 1);
-	}
-
 	clear_extent_bit(&BTRFS_I(inode)->io_tree, start, end, EXTENT_LOCKED |
 			 EXTENT_DELALLOC, 1, 0, GFP_NOFS);
 	while (start < end) {
@@ -935,7 +930,8 @@ static noinline int csum_exist_in_range(struct btrfs_root *root,
  * If no cow copies or snapshots exist, we write directly to the existing
  * blocks on disk
  */
-static int run_delalloc_nocow(struct inode *inode, struct page *locked_page,
+static noinline int run_delalloc_nocow(struct inode *inode,
+				       struct page *locked_page,
 			      u64 start, u64 end, int *page_started, int force,
 			      unsigned long *nr_written)
 {
@@ -1133,6 +1129,7 @@ static int run_delalloc_range(struct inode *inode, struct page *locked_page,
 			      unsigned long *nr_written)
 {
 	int ret;
+	struct btrfs_root *root = BTRFS_I(inode)->root;
 
 	if (btrfs_test_flag(inode, NODATACOW))
 		ret = run_delalloc_nocow(inode, locked_page, start, end,
@@ -1140,10 +1137,12 @@ static int run_delalloc_range(struct inode *inode, struct page *locked_page,
 	else if (btrfs_test_flag(inode, PREALLOC))
 		ret = run_delalloc_nocow(inode, locked_page, start, end,
 					 page_started, 0, nr_written);
+	else if (!btrfs_test_opt(root, COMPRESS))
+		ret = cow_file_range(inode, locked_page, start, end,
+				      page_started, nr_written, 1);
 	else
 		ret = cow_file_range_async(inode, locked_page, start, end,
 					   page_started, nr_written);
-
 	return ret;
 }
 
