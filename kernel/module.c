@@ -51,6 +51,7 @@
 #include <linux/tracepoint.h>
 #include <linux/ftrace.h>
 #include <linux/async.h>
+#include <linux/percpu.h>
 
 #if 0
 #define DEBUGP printk
@@ -366,6 +367,34 @@ static struct module *find_module(const char *name)
 }
 
 #ifdef CONFIG_SMP
+
+#ifdef CONFIG_HAVE_DYNAMIC_PER_CPU_AREA
+
+static void *percpu_modalloc(unsigned long size, unsigned long align,
+			     const char *name)
+{
+	void *ptr;
+
+	if (align > PAGE_SIZE) {
+		printk(KERN_WARNING "%s: per-cpu alignment %li > %li\n",
+		       name, align, PAGE_SIZE);
+		align = PAGE_SIZE;
+	}
+
+	ptr = __alloc_reserved_percpu(size, align);
+	if (!ptr)
+		printk(KERN_WARNING
+		       "Could not allocate %lu bytes percpu data\n", size);
+	return ptr;
+}
+
+static void percpu_modfree(void *freeme)
+{
+	free_percpu(freeme);
+}
+
+#else /* ... !CONFIG_HAVE_DYNAMIC_PER_CPU_AREA */
+
 /* Number of blocks used and allocated. */
 static unsigned int pcpu_num_used, pcpu_num_allocated;
 /* Size of each block.  -ve means used. */
@@ -480,21 +509,6 @@ static void percpu_modfree(void *freeme)
 	}
 }
 
-static unsigned int find_pcpusec(Elf_Ehdr *hdr,
-				 Elf_Shdr *sechdrs,
-				 const char *secstrings)
-{
-	return find_sec(hdr, sechdrs, secstrings, ".data.percpu");
-}
-
-static void percpu_modcopy(void *pcpudest, const void *from, unsigned long size)
-{
-	int cpu;
-
-	for_each_possible_cpu(cpu)
-		memcpy(pcpudest + per_cpu_offset(cpu), from, size);
-}
-
 static int percpu_modinit(void)
 {
 	pcpu_num_used = 2;
@@ -513,7 +527,26 @@ static int percpu_modinit(void)
 	return 0;
 }
 __initcall(percpu_modinit);
+
+#endif /* CONFIG_HAVE_DYNAMIC_PER_CPU_AREA */
+
+static unsigned int find_pcpusec(Elf_Ehdr *hdr,
+				 Elf_Shdr *sechdrs,
+				 const char *secstrings)
+{
+	return find_sec(hdr, sechdrs, secstrings, ".data.percpu");
+}
+
+static void percpu_modcopy(void *pcpudest, const void *from, unsigned long size)
+{
+	int cpu;
+
+	for_each_possible_cpu(cpu)
+		memcpy(pcpudest + per_cpu_offset(cpu), from, size);
+}
+
 #else /* ... !CONFIG_SMP */
+
 static inline void *percpu_modalloc(unsigned long size, unsigned long align,
 				    const char *name)
 {
@@ -535,6 +568,7 @@ static inline void percpu_modcopy(void *pcpudst, const void *src,
 	/* pcpusec should be 0, and size of that section should be 0. */
 	BUG_ON(size != 0);
 }
+
 #endif /* CONFIG_SMP */
 
 #define MODINFO_ATTR(field)	\

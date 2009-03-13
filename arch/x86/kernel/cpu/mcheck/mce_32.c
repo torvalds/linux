@@ -60,20 +60,6 @@ void mcheck_init(struct cpuinfo_x86 *c)
 	}
 }
 
-static unsigned long old_cr4 __initdata;
-
-void __init stop_mce(void)
-{
-	old_cr4 = read_cr4();
-	clear_in_cr4(X86_CR4_MCE);
-}
-
-void __init restart_mce(void)
-{
-	if (old_cr4 & X86_CR4_MCE)
-		set_in_cr4(X86_CR4_MCE);
-}
-
 static int __init mcheck_disable(char *str)
 {
 	mce_disabled = 1;

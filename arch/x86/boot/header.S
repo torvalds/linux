@@ -19,17 +19,13 @@
 #include <linux/utsrelease.h>
 #include <asm/boot.h>
 #include <asm/e820.h>
-#include <asm/page.h>
+#include <asm/page_types.h>
 #include <asm/setup.h>
 #include "boot.h"
 #include "offsets.h"
 
-SETUPSECTS	= 4			/* default nr of setup-sectors */
 BOOTSEG		= 0x07C0		/* original address of boot-sector */
-SYSSEG		= DEF_SYSSEG		/* system loaded at 0x10000 (65536) */
-SYSSIZE		= DEF_SYSSIZE		/* system size: # of 16-byte clicks */
-					/* to be loaded */
-ROOT_DEV	= 0			/* ROOT_DEV is now written by "build" */
+SYSSEG		= 0x1000		/* historical load address >> 4 */
 
 #ifndef SVGA_MODE
 #define SVGA_MODE ASK_VGA
@@ -97,12 +93,12 @@ bugger_off_msg:
 	.section ".header", "a"
 	.globl	hdr
 hdr:
-setup_sects:	.byte SETUPSECTS
+setup_sects:	.byte 0			/* Filled in by build.c */
 root_flags:	.word ROOT_RDONLY
-syssize:	.long SYSSIZE
-ram_size:	.word RAMDISK
+syssize:	.long 0			/* Filled in by build.c */
+ram_size:	.word 0			/* Obsolete */
 vid_mode:	.word SVGA_MODE
-root_dev:	.word ROOT_DEV
+root_dev:	.word 0			/* Filled in by build.c */
 boot_flag:	.word 0xAA55
 
 	# offset 512, entry point
@@ -123,14 +119,15 @@ _start:
 					# or else old loadlin-1.5 will fail)
 		.globl realmode_swtch
 realmode_swtch:	.word	0, 0		# default_switch, SETUPSEG
-start_sys_seg:	.word	SYSSEG
+start_sys_seg:	.word	SYSSEG		# obsolete and meaningless, but just
+					# in case something decided to "use" it
 		.word	kernel_version-512 # pointing to kernel version string
 					# above section of header is compatible
 					# with loadlin-1.5 (header v1.5). Don't
 					# change it.
 
-type_of_loader:	.byte	0		# = 0, old one (LILO, Loadlin,
-					#      Bootlin, SYSLX, bootsect...)
+type_of_loader:	.byte	0		# 0 means ancient bootloader, newer
+					# bootloaders know to change this.
 					# See Documentation/i386/boot.txt for
 					# assigned ids
 
@@ -142,11 +139,7 @@ CAN_USE_HEAP	= 0x80			# If set, the loader also has set
 					# space behind setup.S can be used for
 					# heap purposes.
 					# Only the loader knows what is free
-#ifndef __BIG_KERNEL__
-		.byte	0
-#else
 		.byte	LOADED_HIGH
-#endif
 
 setup_move_size: .word  0x8000		# size to move, when setup is not
 					# loaded at 0x90000. We will move setup
@@ -157,11 +150,7 @@ setup_move_size: .word  0x8000		# size to move, when setup is not
 
 code32_start:				# here loaders can put a different
 					# start address for 32-bit code.
-#ifndef __BIG_KERNEL__
-		.long	0x1000		#   0x1000 = default for zImage
-#else
 		.long	0x100000	# 0x100000 = default for big kernel
-#endif
 
 ramdisk_image:	.long	0		# address of loaded ramdisk image
 					# Here the loader puts the 32-bit

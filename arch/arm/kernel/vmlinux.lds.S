@@ -65,6 +65,7 @@ SECTIONS
 #endif
 		. = ALIGN(4096);
 		__per_cpu_start = .;
+			*(.data.percpu.page_aligned)
 			*(.data.percpu)
 			*(.data.percpu.shared_aligned)
 		__per_cpu_end = .;
