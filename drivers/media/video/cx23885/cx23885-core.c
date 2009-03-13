@@ -1699,7 +1699,8 @@ static irqreturn_t cx23885_irq(int irq, void *dev_id)
 				PCI_MSK_GPIO1);
 	}
 
-	if ((pci_status & PCI_MSK_GPIO0) || (pci_status & PCI_MSK_GPIO1))
+	if (cx23885_boards[dev->board].cimax > 0 &&
+		((pci_status & PCI_MSK_GPIO0) || (pci_status & PCI_MSK_GPIO1)))
 		/* handled += cx23885_irq_gpio(dev, pci_status); */
 		handled += netup_ci_slot_status(dev, pci_status);
 
@@ -1775,7 +1776,12 @@ static int __devinit cx23885_initdev(struct pci_dev *pci_dev,
 	}
 
 	pci_set_drvdata(pci_dev, dev);
-	cx_set(PCI_INT_MSK, 0x01800000); /* for NetUP */
+
+	switch (dev->board) {
+	case CX23885_BOARD_NETUP_DUAL_DVBS2_CI:
+		cx_set(PCI_INT_MSK, 0x01800000); /* for NetUP */
+		break;
+	}
 
 	return 0;
 

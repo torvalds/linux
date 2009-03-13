@@ -778,7 +778,11 @@ int cx23885_dvb_unregister(struct cx23885_tsport *port)
 	if (fe0->dvb.frontend)
 		videobuf_dvb_unregister_bus(&port->frontends);
 
-	netup_ci_exit(port);
+	switch (port->dev->board) {
+	case CX23885_BOARD_NETUP_DUAL_DVBS2_CI:
+		netup_ci_exit(port);
+		break;
+	}
 
 	return 0;
 }
