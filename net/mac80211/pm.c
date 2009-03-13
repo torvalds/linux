@@ -11,6 +11,9 @@ int __ieee80211_suspend(struct ieee80211_hw *hw)
 	struct ieee80211_if_init_conf conf;
 	struct sta_info *sta;
 
+	ieee80211_stop_queues_by_reason(hw,
+			IEEE80211_QUEUE_STOP_REASON_SUSPEND);
+
 	flush_workqueue(local->hw.workqueue);
 
 	/* disable keys */
@@ -112,6 +115,9 @@ int __ieee80211_resume(struct ieee80211_hw *hw)
 	netif_addr_lock_bh(local->mdev);
 	ieee80211_configure_filter(local);
 	netif_addr_unlock_bh(local->mdev);
+
+	ieee80211_wake_queues_by_reason(hw,
+			IEEE80211_QUEUE_STOP_REASON_SUSPEND);
 
 	return 0;
 }
