@@ -280,6 +280,7 @@ static struct dma_info sh_dmac_info = {
 	.flags		= DMAC_CHANNELS_TEI_CAPABLE,
 };
 
+#ifdef CONFIG_CPU_SH4
 static unsigned int get_dma_error_irq(int n)
 {
 #if defined(DMAC_IRQ_MULTI)
@@ -293,6 +294,7 @@ static unsigned int get_dma_error_irq(int n)
 #endif
 #endif
 }
+#endif
 
 static int __init sh_dmac_init(void)
 {
