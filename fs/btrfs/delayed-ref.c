@@ -511,6 +511,24 @@ int btrfs_add_delayed_ref(struct btrfs_trans_handle *trans,
 }
 
 /*
+ * this does a simple search for the head node for a given extent.
+ * It must be called with the delayed ref spinlock held, and it returns
+ * the head node if any where found, or NULL if not.
+ */
+struct btrfs_delayed_ref_head *
+btrfs_find_delayed_ref_head(struct btrfs_trans_handle *trans, u64 bytenr)
+{
+	struct btrfs_delayed_ref_node *ref;
+	struct btrfs_delayed_ref_root *delayed_refs;
+
+	delayed_refs = &trans->transaction->delayed_refs;
+	ref = tree_search(&delayed_refs->root, bytenr, (u64)-1);
+	if (ref)
+		return btrfs_delayed_node_to_head(ref);
+	return NULL;
+}
+
+/*
  * add a delayed ref to the tree.  This does all of the accounting required
  * to make sure the delayed ref is eventually processed before this
  * transaction commits.

@@ -1021,6 +1021,7 @@ again:
 		if (!locked_ref && count == 0)
 			break;
 
+		cond_resched();
 		spin_lock(&delayed_refs->lock);
 	}
 	if (run_all) {
@@ -1045,6 +1046,7 @@ again:
 				mutex_unlock(&head->mutex);
 
 				btrfs_put_delayed_ref(ref);
+				cond_resched();
 				goto again;
 			}
 			node = rb_next(node);
@@ -2361,6 +2363,68 @@ static int __btrfs_free_extent(struct btrfs_trans_handle *trans,
 			    owner_objectid, pin, pin == 0, refs_to_drop);
 }
 
+/*
+ * when we free an extent, it is possible (and likely) that we free the last
+ * delayed ref for that extent as well.  This searches the delayed ref tree for
+ * a given extent, and if there are no other delayed refs to be processed, it
+ * removes it from the tree.
+ */
+static noinline int check_ref_cleanup(struct btrfs_trans_handle *trans,
+				      struct btrfs_root *root, u64 bytenr)
+{
+	struct btrfs_delayed_ref_head *head;
+	struct btrfs_delayed_ref_root *delayed_refs;
+	struct btrfs_delayed_ref_node *ref;
+	struct rb_node *node;
+	int ret;
+
+	delayed_refs = &trans->transaction->delayed_refs;
+	spin_lock(&delayed_refs->lock);
+	head = btrfs_find_delayed_ref_head(trans, bytenr);
+	if (!head)
+		goto out;
+
+	node = rb_prev(&head->node.rb_node);
+	if (!node)
+		goto out;
+
+	ref = rb_entry(node, struct btrfs_delayed_ref_node, rb_node);
+
+	/* there are still entries for this ref, we can't drop it */
+	if (ref->bytenr == bytenr)
+		goto out;
+
+	/*
+	 * waiting for the lock here would deadlock.  If someone else has it
+	 * locked they are already in the process of dropping it anyway
+	 */
+	if (!mutex_trylock(&head->mutex))
+		goto out;
+
+	/*
+	 * at this point we have a head with no other entries.  Go
+	 * ahead and process it.
+	 */
+	head->node.in_tree = 0;
+	rb_erase(&head->node.rb_node, &delayed_refs->root);
+	delayed_refs->num_entries--;
+
+	/*
+	 * we don't take a ref on the node because we're removing it from the
+	 * tree, so we just steal the ref the tree was holding.
+	 */
+	spin_unlock(&delayed_refs->lock);
+
+	ret = run_one_delayed_ref(trans, root->fs_info->tree_root,
+				  &head->node, head->must_insert_reserved);
+	BUG_ON(ret);
+	btrfs_put_delayed_ref(&head->node);
+	return 0;
+out:
+	spin_unlock(&delayed_refs->lock);
+	return 0;
+}
+
 int btrfs_free_extent(struct btrfs_trans_handle *trans,
 		      struct btrfs_root *root,
 		      u64 bytenr, u64 num_bytes, u64 parent,
@@ -2388,6 +2452,9 @@ int btrfs_free_extent(struct btrfs_trans_handle *trans,
 				       root_objectid, ref_generation,
 				       owner_objectid,
 				       BTRFS_DROP_DELAYED_REF, 1);
+		BUG_ON(ret);
+		ret = check_ref_cleanup(trans, root, bytenr);
+		BUG_ON(ret);
 	}
 	return ret;
 }

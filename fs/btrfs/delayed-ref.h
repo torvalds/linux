@@ -137,9 +137,8 @@ int btrfs_add_delayed_ref(struct btrfs_trans_handle *trans,
 			  u64 ref_generation, u64 owner_objectid, int action,
 			  int pin);
 
-struct btrfs_delayed_ref *
-btrfs_find_delayed_ref(struct btrfs_trans_handle *trans, u64 bytenr,
-		       u64 parent);
+struct btrfs_delayed_ref_head *
+btrfs_find_delayed_ref_head(struct btrfs_trans_handle *trans, u64 bytenr);
 int btrfs_delayed_ref_pending(struct btrfs_trans_handle *trans, u64 bytenr);
 int btrfs_lock_delayed_ref(struct btrfs_trans_handle *trans,
 			   struct btrfs_delayed_ref_node *ref,
