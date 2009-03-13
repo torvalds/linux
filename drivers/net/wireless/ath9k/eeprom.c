@@ -1232,7 +1232,7 @@ static void ath9k_hw_4k_set_gain(struct ath_hw *ah,
 		REG_WRITE(ah, AR9285_AN_TOP4, (AR9285_AN_TOP4_DEFAULT | 0x14));
 }
 
-static bool ath9k_hw_4k_set_board_values(struct ath_hw *ah,
+static void ath9k_hw_4k_set_board_values(struct ath_hw *ah,
 					 struct ath9k_channel *chan)
 {
 	struct modal_eep_4k_header *pModal;
@@ -1378,8 +1378,6 @@ static bool ath9k_hw_4k_set_board_values(struct ath_hw *ah,
 				      AR_PHY_SETTLING_SWITCH,
 				      pModal->swSettleHt40);
 	}
-
-	return true;
 }
 
 static u16 ath9k_hw_4k_get_eeprom_antenna_cfg(struct ath_hw *ah,
@@ -1718,7 +1716,7 @@ static void ath9k_hw_def_set_gain(struct ath_hw *ah,
 	}
 }
 
-static bool ath9k_hw_def_set_board_values(struct ath_hw *ah,
+static void ath9k_hw_def_set_board_values(struct ath_hw *ah,
 					  struct ath9k_channel *chan)
 {
 	struct modal_eep_header *pModal;
@@ -1884,8 +1882,6 @@ static bool ath9k_hw_def_set_board_values(struct ath_hw *ah,
 			      AR_PHY_TX_DESIRED_SCALE_CCK,
 			      eep->baseEepHeader.desiredScaleCCK);
 	}
-
-	return true;
 }
 
 static void ath9k_hw_def_set_addac(struct ath_hw *ah,

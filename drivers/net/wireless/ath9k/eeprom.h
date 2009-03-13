@@ -490,7 +490,7 @@ struct eeprom_ops {
 	u8 (*get_num_ant_config)(struct ath_hw *hw, enum ieee80211_band band);
 	u16 (*get_eeprom_antenna_cfg)(struct ath_hw *hw,
 				      struct ath9k_channel *chan);
-	bool (*set_board_values)(struct ath_hw *hw, struct ath9k_channel *chan);
+	void (*set_board_values)(struct ath_hw *hw, struct ath9k_channel *chan);
 	void (*set_addac)(struct ath_hw *hw, struct ath9k_channel *chan);
 	int (*set_txpower)(struct ath_hw *hw, struct ath9k_channel *chan,
 			   u16 cfgCtl, u8 twiceAntennaReduction,
