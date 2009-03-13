@@ -126,6 +126,7 @@ struct hw_perf_counter {
 	unsigned long			counter_base;
 	int				nmi;
 	unsigned int			idx;
+	atomic64_t			count; /* software */
 	atomic64_t			prev_count;
 	u64				irq_period;
 	atomic64_t			period_left;
@@ -283,6 +284,8 @@ static inline int is_software_counter(struct perf_counter *counter)
 	return !counter->hw_event.raw && counter->hw_event.type < 0;
 }
 
+extern void perf_swcounter_event(enum hw_event_types, u64, int, struct pt_regs *);
+
 #else
 static inline void
 perf_counter_task_sched_in(struct task_struct *task, int cpu)		{ }
@@ -295,10 +298,13 @@ static inline void perf_counter_exit_task(struct task_struct *child)	{ }
 static inline void perf_counter_notify(struct pt_regs *regs)		{ }
 static inline void perf_counter_print_debug(void)			{ }
 static inline void perf_counter_unthrottle(void)			{ }
-static inline void hw_perf_restore(u64 ctrl)			{ }
+static inline void hw_perf_restore(u64 ctrl)				{ }
 static inline u64 hw_perf_save_disable(void)		      { return 0; }
 static inline int perf_counter_task_disable(void)	{ return -EINVAL; }
 static inline int perf_counter_task_enable(void)	{ return -EINVAL; }
+
+static inline void perf_swcounter_event(enum hw_event_types event, u64 nr,
+					int nmi, struct pt_regs *regs)	{ }
 #endif
 
 #endif /* __KERNEL__ */
