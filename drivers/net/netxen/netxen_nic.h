@@ -766,9 +766,6 @@ struct netxen_rx_buffer {
 	u64 dma;
 	u16 ref_handle;
 	u16 state;
-	u32 lro_expected_frags;
-	u32 lro_current_frags;
-	u32 lro_length;
 };
 
 /* Board types */
