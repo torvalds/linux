@@ -24,16 +24,6 @@ static DEFINE_MUTEX(event_mutex);
 	     (unsigned long)event < (unsigned long)__stop_ftrace_events; \
 	     event++)
 
-void event_trace_printk(unsigned long ip, const char *fmt, ...)
-{
-	va_list ap;
-
-	va_start(ap, fmt);
-	tracing_record_cmdline(current);
-	trace_vprintk(ip, task_curr_ret_stack(current), fmt, ap);
-	va_end(ap);
-}
-
 static void ftrace_clear_events(void)
 {
 	struct ftrace_event_call *call = (void *)__start_ftrace_events;
@@ -140,6 +130,10 @@ ftrace_event_write(struct file *file, const char __user *ubuf,
 
 	if (!cnt || cnt < 0)
 		return 0;
+
+	ret = tracing_update_buffers();
+	if (ret < 0)
+		return ret;
 
 	ret = get_user(ch, ubuf++);
 	if (ret)
@@ -328,6 +322,10 @@ event_enable_write(struct file *filp, const char __user *ubuf, size_t cnt,
 	buf[cnt] = 0;
 
 	ret = strict_strtoul(buf, 10, &val);
+	if (ret < 0)
+		return ret;
+
+	ret = tracing_update_buffers();
 	if (ret < 0)
 		return ret;
 

@@ -102,11 +102,20 @@ TRACE_EVENT_FORMAT(user_stack, TRACE_USER_STACK, userstack_entry, ignore,
 		 "\t=> (%08lx)\n\t=> (%08lx)\n\t=> (%08lx)\n\t=> (%08lx)\n")
 );
 
-TRACE_EVENT_FORMAT(print, TRACE_PRINT, print_entry, ignore,
+TRACE_EVENT_FORMAT(bprint, TRACE_BPRINT, bprint_entry, ignore,
 	TRACE_STRUCT(
 		TRACE_FIELD(unsigned long, ip, ip)
 		TRACE_FIELD(unsigned int, depth, depth)
 		TRACE_FIELD(char *, fmt, fmt)
+		TRACE_FIELD_ZERO_CHAR(buf)
+	),
+	TP_RAW_FMT("%08lx (%d) fmt:%p %s")
+);
+
+TRACE_EVENT_FORMAT(print, TRACE_PRINT, print_entry, ignore,
+	TRACE_STRUCT(
+		TRACE_FIELD(unsigned long, ip, ip)
+		TRACE_FIELD(unsigned int, depth, depth)
 		TRACE_FIELD_ZERO_CHAR(buf)
 	),
 	TP_RAW_FMT("%08lx (%d) fmt:%p %s")

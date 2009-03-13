@@ -57,7 +57,7 @@ ftrace_raw_output_##call(struct trace_iterator *iter, int flags)	\
 									\
 	field = (typeof(field))entry;					\
 									\
-	ret = trace_seq_printf(s, print);				\
+	ret = trace_seq_printf(s, #call ": " print);			\
 	if (!ret)							\
 		return TRACE_TYPE_PARTIAL_LINE;				\
 									\

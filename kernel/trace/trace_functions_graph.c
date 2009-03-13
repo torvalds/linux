@@ -684,7 +684,7 @@ print_graph_return(struct ftrace_graph_ret *trace, struct trace_seq *s,
 }
 
 static enum print_line_t
-print_graph_comment(struct print_entry *trace, struct trace_seq *s,
+print_graph_comment(struct bprint_entry *trace, struct trace_seq *s,
 		   struct trace_entry *ent, struct trace_iterator *iter)
 {
 	int i;
@@ -781,8 +781,8 @@ print_graph_function(struct trace_iterator *iter)
 		trace_assign_type(field, entry);
 		return print_graph_return(&field->ret, s, entry, iter);
 	}
-	case TRACE_PRINT: {
-		struct print_entry *field;
+	case TRACE_BPRINT: {
+		struct bprint_entry *field;
 		trace_assign_type(field, entry);
 		return print_graph_comment(field, s, entry, iter);
 	}

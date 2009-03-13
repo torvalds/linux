@@ -20,6 +20,7 @@ enum trace_type {
 	TRACE_WAKE,
 	TRACE_STACK,
 	TRACE_PRINT,
+	TRACE_BPRINT,
 	TRACE_SPECIAL,
 	TRACE_MMIO_RW,
 	TRACE_MMIO_MAP,
@@ -117,12 +118,19 @@ struct userstack_entry {
 /*
  * trace_printk entry:
  */
-struct print_entry {
+struct bprint_entry {
 	struct trace_entry	ent;
 	unsigned long		ip;
 	int			depth;
 	const char		*fmt;
 	u32			buf[];
+};
+
+struct print_entry {
+	struct trace_entry	ent;
+	unsigned long		ip;
+	int			depth;
+	char			buf[];
 };
 
 #define TRACE_OLD_SIZE		88
@@ -286,6 +294,7 @@ extern void __ftrace_bad_type(void);
 		IF_ASSIGN(var, ent, struct stack_entry, TRACE_STACK);	\
 		IF_ASSIGN(var, ent, struct userstack_entry, TRACE_USER_STACK);\
 		IF_ASSIGN(var, ent, struct print_entry, TRACE_PRINT);	\
+		IF_ASSIGN(var, ent, struct bprint_entry, TRACE_BPRINT);	\
 		IF_ASSIGN(var, ent, struct special_entry, 0);		\
 		IF_ASSIGN(var, ent, struct trace_mmiotrace_rw,		\
 			  TRACE_MMIO_RW);				\
@@ -570,6 +579,8 @@ extern int trace_selftest_startup_branch(struct tracer *trace,
 extern void *head_page(struct trace_array_cpu *data);
 extern long ns2usecs(cycle_t nsec);
 extern int
+trace_vbprintk(unsigned long ip, int depth, const char *fmt, va_list args);
+extern int
 trace_vprintk(unsigned long ip, int depth, const char *fmt, va_list args);
 
 extern unsigned long trace_flags;
@@ -737,6 +748,9 @@ static inline void trace_branch_disable(void)
 }
 #endif /* CONFIG_BRANCH_TRACER */
 
+/* set ring buffers to default size if not already done so */
+int tracing_update_buffers(void);
+
 /* trace event type bit fields, not numeric */
 enum {
 	TRACE_EVENT_TYPE_PRINTF		= 1,
@@ -758,5 +772,22 @@ struct ftrace_event_call {
 void event_trace_printk(unsigned long ip, const char *fmt, ...);
 extern struct ftrace_event_call __start_ftrace_events[];
 extern struct ftrace_event_call __stop_ftrace_events[];
+
+extern const char *__start___trace_bprintk_fmt[];
+extern const char *__stop___trace_bprintk_fmt[];
+
+#define event_trace_printk(ip, fmt, args...)				\
+do {									\
+	__trace_printk_check_format(fmt, ##args);			\
+	tracing_record_cmdline(current);				\
+	if (__builtin_constant_p(fmt)) {				\
+		static const char *trace_printk_fmt			\
+		  __attribute__((section("__trace_printk_fmt"))) =	\
+			__builtin_constant_p(fmt) ? fmt : NULL;		\
+									\
+		__trace_bprintk(ip, trace_printk_fmt, ##args);		\
+	} else								\
+		__trace_printk(ip, fmt, ##args);			\
+} while (0)
 
 #endif /* _LINUX_KERNEL_TRACE_H */

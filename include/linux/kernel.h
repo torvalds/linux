@@ -452,30 +452,44 @@ do {									\
 
 #define trace_printk(fmt, args...)					\
 do {									\
-	static const char *trace_printk_fmt				\
-	__attribute__((section("__trace_printk_fmt")));			\
-									\
-	if (!trace_printk_fmt)						\
-		trace_printk_fmt = fmt;					\
-									\
 	__trace_printk_check_format(fmt, ##args);			\
-	__trace_printk(_THIS_IP_, trace_printk_fmt, ##args);		\
+	if (__builtin_constant_p(fmt)) {				\
+		static const char *trace_printk_fmt			\
+		  __attribute__((section("__trace_printk_fmt"))) =	\
+			__builtin_constant_p(fmt) ? fmt : NULL;		\
+									\
+		__trace_bprintk(_THIS_IP_, trace_printk_fmt, ##args);	\
+	} else								\
+		__trace_printk(_THIS_IP_, fmt, ##args);		\
 } while (0)
+
+extern int
+__trace_bprintk(unsigned long ip, const char *fmt, ...)
+	__attribute__ ((format (printf, 2, 3)));
 
 extern int
 __trace_printk(unsigned long ip, const char *fmt, ...)
 	__attribute__ ((format (printf, 2, 3)));
 
+/*
+ * The double __builtin_constant_p is because gcc will give us an error
+ * if we try to allocate the static variable to fmt if it is not a
+ * constant. Even with the outer if statement.
+ */
 #define ftrace_vprintk(fmt, vargs)					\
 do {									\
-	static const char *trace_printk_fmt				\
-	__attribute__((section("__trace_printk_fmt")));			\
+	if (__builtin_constant_p(fmt)) {				\
+		static const char *trace_printk_fmt			\
+		  __attribute__((section("__trace_printk_fmt"))) =	\
+			__builtin_constant_p(fmt) ? fmt : NULL;		\
 									\
-	if (!trace_printk_fmt)						\
-		trace_printk_fmt = fmt;					\
-									\
-	__ftrace_vprintk(_THIS_IP_, trace_printk_fmt, vargs);		\
+		__ftrace_vbprintk(_THIS_IP_, trace_printk_fmt, vargs);	\
+	} else								\
+		__ftrace_vprintk(_THIS_IP_, fmt, vargs);		\
 } while (0)
+
+extern int
+__ftrace_vbprintk(unsigned long ip, const char *fmt, va_list ap);
 
 extern int
 __ftrace_vprintk(unsigned long ip, const char *fmt, va_list ap);

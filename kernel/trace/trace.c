@@ -45,6 +45,12 @@ unsigned long __read_mostly	tracing_max_latency;
 unsigned long __read_mostly	tracing_thresh;
 
 /*
+ * On boot up, the ring buffer is set to the minimum size, so that
+ * we do not waste memory on systems that are not using tracing.
+ */
+static int ring_buffer_expanded;
+
+/*
  * We need to change this state when a selftest is running.
  * A selftest will lurk into the ring-buffer to count the
  * entries inserted during the selftest although some concurrent
@@ -128,6 +134,8 @@ static int __init set_ftrace(char *str)
 {
 	strncpy(bootup_tracer_buf, str, BOOTUP_TRACER_SIZE);
 	default_bootup_tracer = bootup_tracer_buf;
+	/* We are using ftrace early, expand it */
+	ring_buffer_expanded = 1;
 	return 1;
 }
 __setup("ftrace=", set_ftrace);
@@ -1171,10 +1179,10 @@ void trace_graph_return(struct ftrace_graph_ret *trace)
 
 
 /**
- * trace_vprintk - write binary msg to tracing buffer
+ * trace_vbprintk - write binary msg to tracing buffer
  *
  */
-int trace_vprintk(unsigned long ip, int depth, const char *fmt, va_list args)
+int trace_vbprintk(unsigned long ip, int depth, const char *fmt, va_list args)
 {
 	static raw_spinlock_t trace_buf_lock =
 		(raw_spinlock_t)__RAW_SPIN_LOCK_UNLOCKED;
@@ -1183,7 +1191,7 @@ int trace_vprintk(unsigned long ip, int depth, const char *fmt, va_list args)
 	struct ring_buffer_event *event;
 	struct trace_array *tr = &global_trace;
 	struct trace_array_cpu *data;
-	struct print_entry *entry;
+	struct bprint_entry *entry;
 	unsigned long flags;
 	int resched;
 	int cpu, len = 0, size, pc;
@@ -1211,7 +1219,7 @@ int trace_vprintk(unsigned long ip, int depth, const char *fmt, va_list args)
 		goto out_unlock;
 
 	size = sizeof(*entry) + sizeof(u32) * len;
-	event = trace_buffer_lock_reserve(tr, TRACE_PRINT, size, flags, pc);
+	event = trace_buffer_lock_reserve(tr, TRACE_BPRINT, size, flags, pc);
 	if (!event)
 		goto out_unlock;
 	entry = ring_buffer_event_data(event);
@@ -1229,6 +1237,60 @@ out_unlock:
 out:
 	ftrace_preempt_enable(resched);
 	unpause_graph_tracing();
+
+	return len;
+}
+EXPORT_SYMBOL_GPL(trace_vbprintk);
+
+int trace_vprintk(unsigned long ip, int depth, const char *fmt, va_list args)
+{
+	static raw_spinlock_t trace_buf_lock = __RAW_SPIN_LOCK_UNLOCKED;
+	static char trace_buf[TRACE_BUF_SIZE];
+
+	struct ring_buffer_event *event;
+	struct trace_array *tr = &global_trace;
+	struct trace_array_cpu *data;
+	int cpu, len = 0, size, pc;
+	struct print_entry *entry;
+	unsigned long irq_flags;
+
+	if (tracing_disabled || tracing_selftest_running)
+		return 0;
+
+	pc = preempt_count();
+	preempt_disable_notrace();
+	cpu = raw_smp_processor_id();
+	data = tr->data[cpu];
+
+	if (unlikely(atomic_read(&data->disabled)))
+		goto out;
+
+	pause_graph_tracing();
+	raw_local_irq_save(irq_flags);
+	__raw_spin_lock(&trace_buf_lock);
+	len = vsnprintf(trace_buf, TRACE_BUF_SIZE, fmt, args);
+
+	len = min(len, TRACE_BUF_SIZE-1);
+	trace_buf[len] = 0;
+
+	size = sizeof(*entry) + len + 1;
+	event = trace_buffer_lock_reserve(tr, TRACE_PRINT, size, irq_flags, pc);
+	if (!event)
+		goto out_unlock;
+	entry = ring_buffer_event_data(event);
+	entry->ip			= ip;
+	entry->depth			= depth;
+
+	memcpy(&entry->buf, trace_buf, len);
+	entry->buf[len] = 0;
+	ring_buffer_unlock_commit(tr->buffer, event);
+
+ out_unlock:
+	__raw_spin_unlock(&trace_buf_lock);
+	raw_local_irq_restore(irq_flags);
+	unpause_graph_tracing();
+ out:
+	preempt_enable_notrace();
 
 	return len;
 }
@@ -1620,6 +1682,22 @@ static enum print_line_t print_hex_fmt(struct trace_iterator *iter)
 	return TRACE_TYPE_HANDLED;
 }
 
+static enum print_line_t print_bprintk_msg_only(struct trace_iterator *iter)
+{
+	struct trace_seq *s = &iter->seq;
+	struct trace_entry *entry = iter->ent;
+	struct bprint_entry *field;
+	int ret;
+
+	trace_assign_type(field, entry);
+
+	ret = trace_seq_bprintf(s, field->fmt, field->buf);
+	if (!ret)
+		return TRACE_TYPE_PARTIAL_LINE;
+
+	return TRACE_TYPE_HANDLED;
+}
+
 static enum print_line_t print_printk_msg_only(struct trace_iterator *iter)
 {
 	struct trace_seq *s = &iter->seq;
@@ -1629,7 +1707,7 @@ static enum print_line_t print_printk_msg_only(struct trace_iterator *iter)
 
 	trace_assign_type(field, entry);
 
-	ret = trace_seq_bprintf(s, field->fmt, field->buf);
+	ret = trace_seq_printf(s, "%s", field->buf);
 	if (!ret)
 		return TRACE_TYPE_PARTIAL_LINE;
 
@@ -1658,6 +1736,19 @@ static int trace_empty(struct trace_iterator *iter)
 {
 	int cpu;
 
+	/* If we are looking at one CPU buffer, only check that one */
+	if (iter->cpu_file != TRACE_PIPE_ALL_CPU) {
+		cpu = iter->cpu_file;
+		if (iter->buffer_iter[cpu]) {
+			if (!ring_buffer_iter_empty(iter->buffer_iter[cpu]))
+				return 0;
+		} else {
+			if (!ring_buffer_empty_cpu(iter->tr->buffer, cpu))
+				return 0;
+		}
+		return 1;
+	}
+
 	for_each_tracing_cpu(cpu) {
 		if (iter->buffer_iter[cpu]) {
 			if (!ring_buffer_iter_empty(iter->buffer_iter[cpu]))
@@ -1680,6 +1771,11 @@ static enum print_line_t print_trace_line(struct trace_iterator *iter)
 		if (ret != TRACE_TYPE_UNHANDLED)
 			return ret;
 	}
+
+	if (iter->ent->type == TRACE_BPRINT &&
+			trace_flags & TRACE_ITER_PRINTK &&
+			trace_flags & TRACE_ITER_PRINTK_MSGONLY)
+		return print_bprintk_msg_only(iter);
 
 	if (iter->ent->type == TRACE_PRINT &&
 			trace_flags & TRACE_ITER_PRINTK &&
@@ -1784,17 +1880,11 @@ __tracing_open(struct inode *inode, struct file *file)
 
 			iter->buffer_iter[cpu] =
 				ring_buffer_read_start(iter->tr->buffer, cpu);
-
-			if (!iter->buffer_iter[cpu])
-				goto fail_buffer;
 		}
 	} else {
 		cpu = iter->cpu_file;
 		iter->buffer_iter[cpu] =
 				ring_buffer_read_start(iter->tr->buffer, cpu);
-
-		if (!iter->buffer_iter[cpu])
-			goto fail;
 	}
 
 	/* TODO stop tracer */
@@ -2315,6 +2405,75 @@ int tracer_init(struct tracer *t, struct trace_array *tr)
 	return t->init(tr);
 }
 
+static int tracing_resize_ring_buffer(unsigned long size)
+{
+	int ret;
+
+	/*
+	 * If kernel or user changes the size of the ring buffer
+	 * we use the size that was given, and we can forget about
+	 * expanding it later.
+	 */
+	ring_buffer_expanded = 1;
+
+	ret = ring_buffer_resize(global_trace.buffer, size);
+	if (ret < 0)
+		return ret;
+
+	ret = ring_buffer_resize(max_tr.buffer, size);
+	if (ret < 0) {
+		int r;
+
+		r = ring_buffer_resize(global_trace.buffer,
+				       global_trace.entries);
+		if (r < 0) {
+			/*
+			 * AARGH! We are left with different
+			 * size max buffer!!!!
+			 * The max buffer is our "snapshot" buffer.
+			 * When a tracer needs a snapshot (one of the
+			 * latency tracers), it swaps the max buffer
+			 * with the saved snap shot. We succeeded to
+			 * update the size of the main buffer, but failed to
+			 * update the size of the max buffer. But when we tried
+			 * to reset the main buffer to the original size, we
+			 * failed there too. This is very unlikely to
+			 * happen, but if it does, warn and kill all
+			 * tracing.
+			 */
+			WARN_ON(1);
+			tracing_disabled = 1;
+		}
+		return ret;
+	}
+
+	global_trace.entries = size;
+
+	return ret;
+}
+
+/**
+ * tracing_update_buffers - used by tracing facility to expand ring buffers
+ *
+ * To save on memory when the tracing is never used on a system with it
+ * configured in. The ring buffers are set to a minimum size. But once
+ * a user starts to use the tracing facility, then they need to grow
+ * to their default size.
+ *
+ * This function is to be called when a tracer is about to be used.
+ */
+int tracing_update_buffers(void)
+{
+	int ret = 0;
+
+	mutex_lock(&trace_types_lock);
+	if (!ring_buffer_expanded)
+		ret = tracing_resize_ring_buffer(trace_buf_size);
+	mutex_unlock(&trace_types_lock);
+
+	return ret;
+}
+
 struct trace_option_dentry;
 
 static struct trace_option_dentry *
@@ -2331,6 +2490,14 @@ static int tracing_set_tracer(const char *buf)
 	int ret = 0;
 
 	mutex_lock(&trace_types_lock);
+
+	if (!ring_buffer_expanded) {
+		ret = tracing_resize_ring_buffer(trace_buf_size);
+		if (ret < 0)
+			return ret;
+		ret = 0;
+	}
+
 	for (t = trace_types; t; t = t->next) {
 		if (strcmp(t->name, buf) == 0)
 			break;
@@ -2856,10 +3023,18 @@ tracing_entries_read(struct file *filp, char __user *ubuf,
 		     size_t cnt, loff_t *ppos)
 {
 	struct trace_array *tr = filp->private_data;
-	char buf[64];
+	char buf[96];
 	int r;
 
-	r = sprintf(buf, "%lu\n", tr->entries >> 10);
+	mutex_lock(&trace_types_lock);
+	if (!ring_buffer_expanded)
+		r = sprintf(buf, "%lu (expanded: %lu)\n",
+			    tr->entries >> 10,
+			    trace_buf_size >> 10);
+	else
+		r = sprintf(buf, "%lu\n", tr->entries >> 10);
+	mutex_unlock(&trace_types_lock);
+
 	return simple_read_from_buffer(ubuf, cnt, ppos, buf, r);
 }
 
@@ -2903,28 +3078,11 @@ tracing_entries_write(struct file *filp, const char __user *ubuf,
 	val <<= 10;
 
 	if (val != global_trace.entries) {
-		ret = ring_buffer_resize(global_trace.buffer, val);
+		ret = tracing_resize_ring_buffer(val);
 		if (ret < 0) {
 			cnt = ret;
 			goto out;
 		}
-
-		ret = ring_buffer_resize(max_tr.buffer, val);
-		if (ret < 0) {
-			int r;
-			cnt = ret;
-			r = ring_buffer_resize(global_trace.buffer,
-					       global_trace.entries);
-			if (r < 0) {
-				/* AARGH! We are left with different
-				 * size max buffer!!!! */
-				WARN_ON(1);
-				tracing_disabled = 1;
-			}
-			goto out;
-		}
-
-		global_trace.entries = val;
 	}
 
 	filp->f_pos += cnt;
@@ -3916,6 +4074,7 @@ void ftrace_dump(void)
 __init static int tracer_alloc_buffers(void)
 {
 	struct trace_array_cpu *data;
+	int ring_buf_size;
 	int i;
 	int ret = -ENOMEM;
 
@@ -3928,12 +4087,18 @@ __init static int tracer_alloc_buffers(void)
 	if (!alloc_cpumask_var(&tracing_reader_cpumask, GFP_KERNEL))
 		goto out_free_tracing_cpumask;
 
+	/* To save memory, keep the ring buffer size to its minimum */
+	if (ring_buffer_expanded)
+		ring_buf_size = trace_buf_size;
+	else
+		ring_buf_size = 1;
+
 	cpumask_copy(tracing_buffer_mask, cpu_possible_mask);
 	cpumask_copy(tracing_cpumask, cpu_all_mask);
 	cpumask_clear(tracing_reader_cpumask);
 
 	/* TODO: make the number of buffers hot pluggable with CPUS */
-	global_trace.buffer = ring_buffer_alloc(trace_buf_size,
+	global_trace.buffer = ring_buffer_alloc(ring_buf_size,
 						   TRACE_BUFFER_FLAGS);
 	if (!global_trace.buffer) {
 		printk(KERN_ERR "tracer: failed to allocate ring buffer!\n");
@@ -3944,7 +4109,7 @@ __init static int tracer_alloc_buffers(void)
 
 
 #ifdef CONFIG_TRACER_MAX_TRACE
-	max_tr.buffer = ring_buffer_alloc(trace_buf_size,
+	max_tr.buffer = ring_buffer_alloc(ring_buf_size,
 					     TRACE_BUFFER_FLAGS);
 	if (!max_tr.buffer) {
 		printk(KERN_ERR "tracer: failed to allocate max ring buffer!\n");
