@@ -79,15 +79,15 @@
 #define PHAN_VENDOR_ID 0x4040
 
 #define RCV_DESC_RINGSIZE	\
-	(sizeof(struct rcv_desc) * adapter->max_rx_desc_count)
+	(sizeof(struct rcv_desc) * adapter->num_rxd)
 #define STATUS_DESC_RINGSIZE	\
-	(sizeof(struct status_desc)* adapter->max_rx_desc_count)
+	(sizeof(struct status_desc) * adapter->num_rxd)
 #define LRO_DESC_RINGSIZE	\
-	(sizeof(rcvDesc_t) * adapter->max_lro_rx_desc_count)
+	(sizeof(rcvDesc_t) * adapter->num_lro_rxd)
 #define TX_RINGSIZE	\
-	(sizeof(struct netxen_cmd_buffer) * adapter->max_tx_desc_count)
+	(sizeof(struct netxen_cmd_buffer) * adapter->num_txd)
 #define RCV_BUFFSIZE	\
-	(sizeof(struct netxen_rx_buffer) * rds_ring->max_rx_desc_count)
+	(sizeof(struct netxen_rx_buffer) * rds_ring->num_desc)
 #define find_diff_among(a,b,range) ((a)<(b)?((b)-(a)):((b)+(range)-(a)))
 
 #define NETXEN_RCV_PRODUCER_OFFSET	0
@@ -190,20 +190,9 @@
 
 #define NUM_RCV_DESC_RINGS	3	/* No of Rcv Descriptor contexts */
 
-/* descriptor types */
-#define RCV_DESC_NORMAL		0x01
-#define RCV_DESC_JUMBO		0x02
-#define RCV_DESC_LRO		0x04
-#define RCV_DESC_NORMAL_CTXID	0
-#define RCV_DESC_JUMBO_CTXID	1
-#define RCV_DESC_LRO_CTXID	2
-
-#define RCV_DESC_TYPE(ID) \
-	((ID == RCV_DESC_JUMBO_CTXID)	\
-		? RCV_DESC_JUMBO	\
-		: ((ID == RCV_DESC_LRO_CTXID)	\
-			? RCV_DESC_LRO :	\
-			(RCV_DESC_NORMAL)))
+#define RCV_RING_NORMAL	0
+#define RCV_RING_JUMBO	1
+#define RCV_RING_LRO	2
 
 #define MAX_CMD_DESCRIPTORS		4096
 #define MAX_RCV_DESCRIPTORS		16384
@@ -815,8 +804,6 @@ struct netxen_hardware_context {
 	int pci_func;
 };
 
-#define RCV_RING_LRO	RCV_DESC_LRO
-
 #define MINIMUM_ETHERNET_FRAME_SIZE	64	/* With FCS */
 #define ETHERNET_FCS_SIZE		4
 
@@ -842,16 +829,16 @@ struct netxen_adapter_stats {
  * be one Rcv Descriptor for normal packets, one for jumbo and may be others.
  */
 struct nx_host_rds_ring {
-	u32 flags;
 	u32 producer;
-	dma_addr_t phys_addr;
 	u32 crb_rcv_producer;	/* reg offset */
 	struct rcv_desc *desc_head;	/* address of rx ring in Phantom */
-	u32 max_rx_desc_count;
-	u32 dma_size;
-	u32 skb_size;
 	struct netxen_rx_buffer *rx_buf_arr;	/* rx buffers for receive   */
 	struct list_head free_list;
+	u32 num_desc;
+	u32 dma_size;
+	u32 skb_size;
+	u32 flags;
+	dma_addr_t phys_addr;
 };
 
 /*
@@ -1244,10 +1231,10 @@ struct netxen_adapter {
 	u32 crb_addr_cmd_producer;
 	u32 crb_addr_cmd_consumer;
 
-	u32 max_tx_desc_count;
-	u32 max_rx_desc_count;
-	u32 max_jumbo_rx_desc_count;
-	u32 max_lro_rx_desc_count;
+	u32 num_txd;
+	u32 num_rxd;
+	u32 num_jumbo_rxd;
+	u32 num_lro_rxd;
 
 	int max_rds_rings;
 

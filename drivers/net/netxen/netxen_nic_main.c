@@ -212,62 +212,19 @@ nx_update_dma_mask(struct netxen_adapter *adapter)
 
 static void netxen_check_options(struct netxen_adapter *adapter)
 {
-	switch (adapter->ahw.board_type) {
-	case NETXEN_BRDTYPE_P3_HMEZ:
-	case NETXEN_BRDTYPE_P3_XG_LOM:
-	case NETXEN_BRDTYPE_P3_10G_CX4:
-	case NETXEN_BRDTYPE_P3_10G_CX4_LP:
-	case NETXEN_BRDTYPE_P3_IMEZ:
-	case NETXEN_BRDTYPE_P3_10G_SFP_PLUS:
-	case NETXEN_BRDTYPE_P3_10G_SFP_QT:
-	case NETXEN_BRDTYPE_P3_10G_SFP_CT:
-	case NETXEN_BRDTYPE_P3_10G_XFP:
-	case NETXEN_BRDTYPE_P3_10000_BASE_T:
+	if (adapter->ahw.port_type == NETXEN_NIC_XGBE)
+		adapter->num_rxd = MAX_RCV_DESCRIPTORS_10G;
+	else if (adapter->ahw.port_type == NETXEN_NIC_GBE)
+		adapter->num_rxd = MAX_RCV_DESCRIPTORS_1G;
+
+	if (NX_IS_REVISION_P3(adapter->ahw.revision_id))
 		adapter->msix_supported = !!use_msi_x;
-		adapter->max_rx_desc_count = MAX_RCV_DESCRIPTORS_10G;
-		break;
-
-	case NETXEN_BRDTYPE_P2_SB31_10G:
-	case NETXEN_BRDTYPE_P2_SB31_10G_CX4:
-	case NETXEN_BRDTYPE_P2_SB31_10G_IMEZ:
-	case NETXEN_BRDTYPE_P2_SB31_10G_HMEZ:
+	else
 		adapter->msix_supported = 0;
-		adapter->max_rx_desc_count = MAX_RCV_DESCRIPTORS_10G;
-		break;
 
-	case NETXEN_BRDTYPE_P3_REF_QG:
-	case NETXEN_BRDTYPE_P3_4_GB:
-	case NETXEN_BRDTYPE_P3_4_GB_MM:
-		adapter->msix_supported = !!use_msi_x;
-		adapter->max_rx_desc_count = MAX_RCV_DESCRIPTORS_1G;
-		break;
-
-	case NETXEN_BRDTYPE_P2_SB35_4G:
-	case NETXEN_BRDTYPE_P2_SB31_2G:
-		adapter->msix_supported = 0;
-		adapter->max_rx_desc_count = MAX_RCV_DESCRIPTORS_1G;
-		break;
-
-	case NETXEN_BRDTYPE_P3_10G_TP:
-		adapter->msix_supported = !!use_msi_x;
-		if (adapter->ahw.port_type == NETXEN_NIC_XGBE)
-			adapter->max_rx_desc_count = MAX_RCV_DESCRIPTORS_10G;
-		else
-			adapter->max_rx_desc_count = MAX_RCV_DESCRIPTORS_1G;
-		break;
-
-	default:
-		adapter->msix_supported = 0;
-		adapter->max_rx_desc_count = MAX_RCV_DESCRIPTORS_1G;
-
-		printk(KERN_WARNING "Unknown board type(0x%x)\n",
-				adapter->ahw.board_type);
-		break;
-	}
-
-	adapter->max_tx_desc_count = MAX_CMD_DESCRIPTORS_HOST;
-	adapter->max_jumbo_rx_desc_count = MAX_JUMBO_RCV_DESCRIPTORS;
-	adapter->max_lro_rx_desc_count = MAX_LRO_RCV_DESCRIPTORS;
+	adapter->num_txd = MAX_CMD_DESCRIPTORS_HOST;
+	adapter->num_jumbo_rxd = MAX_JUMBO_RCV_DESCRIPTORS;
+	adapter->num_lro_rxd = MAX_LRO_RCV_DESCRIPTORS;
 
 	adapter->max_possible_rss_rings = 1;
 	return;
@@ -983,12 +940,6 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		break;
 	}
 
-	/*
-	 * This call will setup various max rx/tx counts.
-	 * It must be done before any buffer/ring allocations.
-	 */
-	netxen_check_options(adapter);
-
 	err = netxen_start_firmware(adapter);
 	if (err)
 		goto err_out_iounmap;
@@ -1008,9 +959,7 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 			adapter->physical_port = i;
 	}
 
-	adapter->flags &= ~(NETXEN_NIC_MSI_ENABLED | NETXEN_NIC_MSIX_ENABLED);
-
-	netxen_set_msix_bit(pdev, 0);
+	netxen_check_options(adapter);
 
 	netxen_setup_intr(adapter);
 
@@ -1307,7 +1256,7 @@ netxen_nic_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 
 	u32 producer, consumer;
 	int frag_count, no_of_desc;
-	u32 num_txd = adapter->max_tx_desc_count;
+	u32 num_txd = adapter->num_txd;
 	bool is_tso = false;
 
 	frag_count = skb_shinfo(skb)->nr_frags + 1;

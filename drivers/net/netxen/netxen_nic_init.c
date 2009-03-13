@@ -153,7 +153,7 @@ void netxen_release_rx_buffers(struct netxen_adapter *adapter)
 	recv_ctx = &adapter->recv_ctx;
 	for (ring = 0; ring < adapter->max_rds_rings; ring++) {
 		rds_ring = &recv_ctx->rds_rings[ring];
-		for (i = 0; i < rds_ring->max_rx_desc_count; ++i) {
+		for (i = 0; i < rds_ring->num_desc; ++i) {
 			rx_buf = &(rds_ring->rx_buf_arr[i]);
 			if (rx_buf->state == NETXEN_BUFFER_FREE)
 				continue;
@@ -174,7 +174,7 @@ void netxen_release_tx_buffers(struct netxen_adapter *adapter)
 	int i, j;
 
 	cmd_buf = adapter->cmd_buf_arr;
-	for (i = 0; i < adapter->max_tx_desc_count; i++) {
+	for (i = 0; i < adapter->num_txd; i++) {
 		buffrag = cmd_buf->frag_array;
 		if (buffrag->dma) {
 			pci_unmap_single(adapter->pdev, buffrag->dma,
@@ -190,7 +190,6 @@ void netxen_release_tx_buffers(struct netxen_adapter *adapter)
 				buffrag->dma = 0ULL;
 			}
 		}
-		/* Free the skb we received in netxen_nic_xmit_frame */
 		if (cmd_buf->skb) {
 			dev_kfree_skb_any(cmd_buf->skb);
 			cmd_buf->skb = NULL;
@@ -241,11 +240,9 @@ int netxen_alloc_sw_resources(struct netxen_adapter *adapter)
 	recv_ctx = &adapter->recv_ctx;
 	for (ring = 0; ring < adapter->max_rds_rings; ring++) {
 		rds_ring = &recv_ctx->rds_rings[ring];
-		switch (RCV_DESC_TYPE(ring)) {
-		case RCV_DESC_NORMAL:
-			rds_ring->max_rx_desc_count =
-				adapter->max_rx_desc_count;
-			rds_ring->flags = RCV_DESC_NORMAL;
+		switch (ring) {
+		case RCV_RING_NORMAL:
+			rds_ring->num_desc = adapter->num_rxd;
 			if (adapter->ahw.cut_through) {
 				rds_ring->dma_size =
 					NX_CT_DEFAULT_RX_BUF_LEN;
@@ -258,10 +255,8 @@ int netxen_alloc_sw_resources(struct netxen_adapter *adapter)
 			}
 			break;
 
-		case RCV_DESC_JUMBO:
-			rds_ring->max_rx_desc_count =
-				adapter->max_jumbo_rx_desc_count;
-			rds_ring->flags = RCV_DESC_JUMBO;
+		case RCV_RING_JUMBO:
+			rds_ring->num_desc = adapter->num_jumbo_rxd;
 			if (NX_IS_REVISION_P3(adapter->ahw.revision_id))
 				rds_ring->dma_size =
 					NX_P3_RX_JUMBO_BUF_MAX_LEN;
@@ -273,9 +268,7 @@ int netxen_alloc_sw_resources(struct netxen_adapter *adapter)
 			break;
 
 		case RCV_RING_LRO:
-			rds_ring->max_rx_desc_count =
-				adapter->max_lro_rx_desc_count;
-			rds_ring->flags = RCV_DESC_LRO;
+			rds_ring->num_desc = adapter->num_lro_rxd;
 			rds_ring->dma_size = RX_LRO_DMA_MAP_LEN;
 			rds_ring->skb_size = MAX_RX_LRO_BUFFER_LENGTH;
 			break;
@@ -296,7 +289,7 @@ int netxen_alloc_sw_resources(struct netxen_adapter *adapter)
 		 * Now go through all of them, set reference handles
 		 * and put them in the queues.
 		 */
-		num_rx_bufs = rds_ring->max_rx_desc_count;
+		num_rx_bufs = rds_ring->num_desc;
 		rx_buf = rds_ring->rx_buf_arr;
 		for (i = 0; i < num_rx_bufs; i++) {
 			list_add_tail(&rx_buf->list,
@@ -848,16 +841,15 @@ static void netxen_process_rcv(struct netxen_adapter *adapter,
 	struct nx_host_rds_ring *rds_ring;
 
 	desc_ctx = netxen_get_sts_type(sts_data);
-	if (unlikely(desc_ctx >= NUM_RCV_DESC_RINGS)) {
+	if (unlikely(desc_ctx >= adapter->max_rds_rings))
 		return;
-	}
 
 	rds_ring = &recv_ctx->rds_rings[desc_ctx];
-	if (unlikely(index > rds_ring->max_rx_desc_count)) {
+	if (unlikely(index > rds_ring->num_desc))
 		return;
-	}
+
 	buffer = &rds_ring->rx_buf_arr[index];
-	if (desc_ctx == RCV_DESC_LRO_CTXID) {
+	if (desc_ctx == RCV_RING_LRO) {
 		buffer->lro_current_frags++;
 		if (netxen_get_sts_desc_lro_last_frag(desc)) {
 			buffer->lro_expected_frags =
@@ -875,7 +867,7 @@ static void netxen_process_rcv(struct netxen_adapter *adapter,
 	if (!skb)
 		return;
 
-	if (desc_ctx == RCV_DESC_LRO_CTXID) {
+	if (desc_ctx == RCV_RING_LRO) {
 		/* True length was only available on the last pkt */
 		skb_put(skb, buffer->lro_length);
 	} else {
@@ -921,8 +913,7 @@ netxen_process_rcv_ring(struct netxen_adapter *adapter, int max)
 
 		desc->status_desc_data = cpu_to_le64(STATUS_OWNER_PHANTOM);
 
-		consumer = get_next_index(consumer,
-				adapter->max_rx_desc_count);
+		consumer = get_next_index(consumer, adapter->num_rxd);
 		count++;
 	}
 
@@ -973,7 +964,7 @@ int netxen_process_cmd_ring(struct netxen_adapter *adapter)
 		}
 
 		last_consumer = get_next_index(last_consumer,
-					       adapter->max_tx_desc_count);
+					       adapter->num_txd);
 		if (++count >= MAX_STATUS_HANDLE)
 			break;
 	}
@@ -1060,7 +1051,7 @@ netxen_post_rx_buffers(struct netxen_adapter *adapter, u32 ringid)
 		pdesc->reference_handle = cpu_to_le16(buffer->ref_handle);
 		pdesc->buffer_length = cpu_to_le32(rds_ring->dma_size);
 
-		producer = get_next_index(producer, rds_ring->max_rx_desc_count);
+		producer = get_next_index(producer, rds_ring->num_desc);
 	}
 	/* if we did allocate buffers, then write the count to Phantom */
 	if (count) {
@@ -1068,7 +1059,7 @@ netxen_post_rx_buffers(struct netxen_adapter *adapter, u32 ringid)
 			/* Window = 1 */
 		adapter->pci_write_normalize(adapter,
 				rds_ring->crb_rcv_producer,
-				(producer-1) & (rds_ring->max_rx_desc_count-1));
+				(producer-1) & (rds_ring->num_desc-1));
 
 		if (adapter->fw_major < 4) {
 			/*
@@ -1079,9 +1070,8 @@ netxen_post_rx_buffers(struct netxen_adapter *adapter, u32 ringid)
 			netxen_set_msg_peg_id(msg, NETXEN_RCV_PEG_DB_ID);
 			netxen_set_msg_privid(msg);
 			netxen_set_msg_count(msg,
-					     ((producer -
-					       1) & (rds_ring->
-						     max_rx_desc_count - 1)));
+					     ((producer - 1) &
+					      (rds_ring->num_desc - 1)));
 			netxen_set_msg_ctxid(msg, adapter->portnum);
 			netxen_set_msg_opcode(msg, NETXEN_RCV_PRODUCER(ringid));
 			writel(msg,
@@ -1141,7 +1131,7 @@ netxen_post_rx_buffers_nodb(struct netxen_adapter *adapter, uint32_t ringid)
 		pdesc->buffer_length = cpu_to_le32(rds_ring->dma_size);
 		pdesc->addr_buffer = cpu_to_le64(buffer->dma);
 
-		producer = get_next_index(producer, rds_ring->max_rx_desc_count);
+		producer = get_next_index(producer, rds_ring->num_desc);
 	}
 
 	/* if we did allocate buffers, then write the count to Phantom */
@@ -1150,7 +1140,7 @@ netxen_post_rx_buffers_nodb(struct netxen_adapter *adapter, uint32_t ringid)
 			/* Window = 1 */
 		adapter->pci_write_normalize(adapter,
 			rds_ring->crb_rcv_producer,
-				(producer-1) & (rds_ring->max_rx_desc_count-1));
+				(producer - 1) & (rds_ring->num_desc - 1));
 			wmb();
 	}
 }

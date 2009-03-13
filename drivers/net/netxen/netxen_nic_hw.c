@@ -515,7 +515,7 @@ netxen_send_cmd_descs(struct netxen_adapter *adapter,
 			&cmd_desc_arr[i], sizeof(struct cmd_desc_type0));
 
 		producer = get_next_index(producer,
-				adapter->max_tx_desc_count);
+				adapter->num_txd);
 		i++;
 
 	} while (i != nr_elements);

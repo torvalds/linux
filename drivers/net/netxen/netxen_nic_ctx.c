@@ -231,7 +231,7 @@ nx_fw_cmd_create_rx_ctx(struct netxen_adapter *adapter)
 		rds_ring = &recv_ctx->rds_rings[i];
 
 		prq_rds[i].host_phys_addr = cpu_to_le64(rds_ring->phys_addr);
-		prq_rds[i].ring_size = cpu_to_le32(rds_ring->max_rx_desc_count);
+		prq_rds[i].ring_size = cpu_to_le32(rds_ring->num_desc);
 		prq_rds[i].ring_kind = cpu_to_le32(i);
 		prq_rds[i].buff_size = cpu_to_le64(rds_ring->dma_size);
 	}
@@ -241,7 +241,7 @@ nx_fw_cmd_create_rx_ctx(struct netxen_adapter *adapter)
 
 	prq_sds[0].host_phys_addr =
 		cpu_to_le64(recv_ctx->rcv_status_desc_phys_addr);
-	prq_sds[0].ring_size = cpu_to_le32(adapter->max_rx_desc_count);
+	prq_sds[0].ring_size = cpu_to_le32(adapter->num_rxd);
 	/* only one msix vector for now */
 	prq_sds[0].msi_index = cpu_to_le16(0);
 
@@ -362,7 +362,7 @@ nx_fw_cmd_create_tx_ctx(struct netxen_adapter *adapter)
 	prq_cds->host_phys_addr =
 		cpu_to_le64(adapter->ahw.cmd_desc_phys_addr);
 
-	prq_cds->ring_size = cpu_to_le32(adapter->max_tx_desc_count);
+	prq_cds->ring_size = cpu_to_le32(adapter->num_txd);
 
 	phys_addr = rq_phys_addr;
 	err = netxen_issue_cmd(adapter,
@@ -494,7 +494,7 @@ netxen_init_old_ctx(struct netxen_adapter *adapter)
 	adapter->ctx_desc->cmd_ring_addr =
 		cpu_to_le64(adapter->ahw.cmd_desc_phys_addr);
 	adapter->ctx_desc->cmd_ring_size =
-		cpu_to_le32(adapter->max_tx_desc_count);
+		cpu_to_le32(adapter->num_txd);
 
 	recv_ctx = &adapter->recv_ctx;
 
@@ -504,12 +504,12 @@ netxen_init_old_ctx(struct netxen_adapter *adapter)
 		adapter->ctx_desc->rcv_ctx[ring].rcv_ring_addr =
 			cpu_to_le64(rds_ring->phys_addr);
 		adapter->ctx_desc->rcv_ctx[ring].rcv_ring_size =
-			cpu_to_le32(rds_ring->max_rx_desc_count);
+			cpu_to_le32(rds_ring->num_desc);
 	}
 	adapter->ctx_desc->sts_ring_addr =
 		cpu_to_le64(recv_ctx->rcv_status_desc_phys_addr);
 	adapter->ctx_desc->sts_ring_size =
-		cpu_to_le32(adapter->max_rx_desc_count);
+		cpu_to_le32(adapter->num_rxd);
 
 	adapter->pci_write_normalize(adapter, CRB_CTX_ADDR_REG_LO(func_id),
 			lower32(adapter->ctx_desc_phys_addr));
@@ -562,7 +562,7 @@ int netxen_alloc_hw_resources(struct netxen_adapter *adapter)
 	/* cmd desc ring */
 	addr = pci_alloc_consistent(adapter->pdev,
 			sizeof(struct cmd_desc_type0) *
-			adapter->max_tx_desc_count,
+			adapter->num_txd,
 			&hw->cmd_desc_phys_addr);
 
 	if (addr == NULL) {
@@ -669,7 +669,7 @@ void netxen_free_hw_resources(struct netxen_adapter *adapter)
 	if (adapter->ahw.cmd_desc_head != NULL) {
 		pci_free_consistent(adapter->pdev,
 				sizeof(struct cmd_desc_type0) *
-				adapter->max_tx_desc_count,
+				adapter->num_txd,
 				adapter->ahw.cmd_desc_head,
 				adapter->ahw.cmd_desc_phys_addr);
 		adapter->ahw.cmd_desc_head = NULL;
