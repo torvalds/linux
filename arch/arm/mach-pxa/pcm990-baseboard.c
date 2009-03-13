@@ -421,7 +421,6 @@ static unsigned long pcm990_camera_query_bus_param(struct soc_camera_link *link)
 
 static struct soc_camera_link iclink = {
 	.bus_id	= 0, /* Must match with the camera ID above */
-	.gpio = NR_BUILTIN_GPIO + 1,
 	.query_bus_param = pcm990_camera_query_bus_param,
 	.set_bus_param = pcm990_camera_set_bus_param,
 };

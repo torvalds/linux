@@ -95,8 +95,6 @@ struct soc_camera_host_ops {
 struct soc_camera_link {
 	/* Camera bus id, used to match a camera and a bus */
 	int bus_id;
-	/* GPIO number to switch between 8 and 10 bit modes */
-	unsigned int gpio;
 	/* Per camera SOCAM_SENSOR_* bus flags */
 	unsigned long flags;
 	/* Optional callbacks to power on or off and reset the sensor */
