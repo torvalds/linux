@@ -205,7 +205,7 @@ static void sn_set_msi_irq_affinity(unsigned int irq,
 	msg.address_lo = (u32)(bus_addr & 0x00000000ffffffff);
 
 	write_msi_msg(irq, &msg);
-	irq_desc[irq].affinity = *cpu_mask;
+	cpumask_copy(irq_desc[irq].affinity, cpu_mask);
 }
 #endif /* CONFIG_SMP */
 

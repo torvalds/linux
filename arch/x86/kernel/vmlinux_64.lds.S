@@ -5,7 +5,8 @@
 #define LOAD_OFFSET __START_KERNEL_map
 
 #include <asm-generic/vmlinux.lds.h>
-#include <asm/page.h>
+#include <asm/asm-offsets.h>
+#include <asm/page_types.h>
 
 #undef i386	/* in case the preprocessor is a 32bit one */
 
@@ -13,12 +14,15 @@ OUTPUT_FORMAT("elf64-x86-64", "elf64-x86-64", "elf64-x86-64")
 OUTPUT_ARCH(i386:x86-64)
 ENTRY(phys_startup_64)
 jiffies_64 = jiffies;
-_proxy_pda = 1;
 PHDRS {
 	text PT_LOAD FLAGS(5);	/* R_E */
 	data PT_LOAD FLAGS(7);	/* RWE */
 	user PT_LOAD FLAGS(7);	/* RWE */
 	data.init PT_LOAD FLAGS(7);	/* RWE */
+#ifdef CONFIG_SMP
+	percpu PT_LOAD FLAGS(7);	/* RWE */
+#endif
+	data.init2 PT_LOAD FLAGS(7);	/* RWE */
 	note PT_NOTE FLAGS(0);	/* ___ */
 }
 SECTIONS
@@ -208,14 +212,28 @@ SECTIONS
   __initramfs_end = .;
 #endif
 
+#ifdef CONFIG_SMP
+  /*
+   * percpu offsets are zero-based on SMP.  PERCPU_VADDR() changes the
+   * output PHDR, so the next output section - __data_nosave - should
+   * start another section data.init2.  Also, pda should be at the head of
+   * percpu area.  Preallocate it and define the percpu offset symbol
+   * so that it can be accessed as a percpu variable.
+   */
+  . = ALIGN(PAGE_SIZE);
+  PERCPU_VADDR(0, :percpu)
+#else
   PERCPU(PAGE_SIZE)
+#endif
 
   . = ALIGN(PAGE_SIZE);
   __init_end = .;
 
   . = ALIGN(PAGE_SIZE);
   __nosave_begin = .;
-  .data_nosave : AT(ADDR(.data_nosave) - LOAD_OFFSET) { *(.data.nosave) }
+  .data_nosave : AT(ADDR(.data_nosave) - LOAD_OFFSET) {
+      *(.data.nosave)
+  } :data.init2 /* use another section data.init2, see PERCPU_VADDR() above */
   . = ALIGN(PAGE_SIZE);
   __nosave_end = .;
 
@@ -239,8 +257,28 @@ SECTIONS
   DWARF_DEBUG
 }
 
+ /*
+  * Per-cpu symbols which need to be offset from __per_cpu_load
+  * for the boot processor.
+  */
+#define INIT_PER_CPU(x) init_per_cpu__##x = per_cpu__##x + __per_cpu_load
+INIT_PER_CPU(gdt_page);
+INIT_PER_CPU(irq_stack_union);
+
 /*
  * Build-time check on the image size:
  */
 ASSERT((_end - _text <= KERNEL_IMAGE_SIZE),
 	"kernel image bigger than KERNEL_IMAGE_SIZE")
+
+#ifdef CONFIG_SMP
+ASSERT((per_cpu__irq_stack_union == 0),
+        "irq_stack_union is not at start of per-cpu area");
+#endif
+
+#ifdef CONFIG_KEXEC
+#include <asm/kexec.h>
+
+ASSERT(kexec_control_code_size <= KEXEC_CONTROL_CODE_MAX_SIZE,
+       "kexec control code size is too big")
+#endif

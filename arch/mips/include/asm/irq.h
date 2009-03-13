@@ -66,7 +66,7 @@ extern void smtc_forward_irq(unsigned int irq);
  */
 #define IRQ_AFFINITY_HOOK(irq)						\
 do {									\
-    if (!cpu_isset(smp_processor_id(), irq_desc[irq].affinity)) {	\
+    if (!cpumask_test_cpu(smp_processor_id(), irq_desc[irq].affinity)) {\
 	smtc_forward_irq(irq);						\
 	irq_exit();							\
 	return;								\
