@@ -460,9 +460,9 @@ static const cpumask_t *target_cpus_cluster(void)
 	return cpu_all_mask;
 }
 
-static const cpumask_t *es7000_target_cpus(void)
+static const struct cpumask *es7000_target_cpus(void)
 {
-	return &cpumask_of_cpu(smp_processor_id());
+	return cpumask_of(smp_processor_id());
 }
 
 static unsigned long
@@ -517,7 +517,7 @@ static void es7000_setup_apic_routing(void)
 	  "Enabling APIC mode:  %s. Using %d I/O APICs, target cpus %lx\n",
 		(apic_version[apic] == 0x14) ?
 			"Physical Cluster" : "Logical Cluster",
-		nr_ioapics, cpus_addr(*es7000_target_cpus())[0]);
+		nr_ioapics, cpumask_bits(es7000_target_cpus())[0]);
 }
 
 static int es7000_apicid_to_node(int logical_apicid)

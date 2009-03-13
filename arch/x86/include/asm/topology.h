@@ -174,11 +174,11 @@ static inline int early_cpu_to_node(int cpu)
 
 static inline const cpumask_t *cpumask_of_node(int node)
 {
-	return &cpu_online_map;
+	return cpu_online_mask;
 }
 static inline int node_to_first_cpu(int node)
 {
-	return first_cpu(cpu_online_map);
+	return cpumask_first(cpu_online_mask);
 }
 
 static inline void setup_node_to_cpumask_map(void) { }

@@ -296,7 +296,7 @@ notrace static void __cpuinit start_secondary(void *unused)
 	__flush_tlb_all();
 #endif
 
-	/* This must be done before setting cpu_online_map */
+	/* This must be done before setting cpu_online_mask */
 	set_cpu_sibling_map(raw_smp_processor_id());
 	wmb();
 
@@ -904,9 +904,8 @@ int __cpuinit native_cpu_up(unsigned int cpu)
  */
 static __init void disable_smp(void)
 {
-	/* use the read/write pointers to the present and possible maps */
-	cpumask_copy(&cpu_present_map, cpumask_of(0));
-	cpumask_copy(&cpu_possible_map, cpumask_of(0));
+	init_cpu_present(cpumask_of(0));
+	init_cpu_possible(cpumask_of(0));
 	smpboot_clear_io_apic_irqs();
 
 	if (smp_found_config)
@@ -1149,11 +1148,11 @@ early_param("possible_cpus", _setup_possible_cpus);
 
 
 /*
- * cpu_possible_map should be static, it cannot change as cpu's
+ * cpu_possible_mask should be static, it cannot change as cpu's
  * are onlined, or offlined. The reason is per-cpu data-structures
  * are allocated by some modules at init time, and dont expect to
  * do this dynamically on cpu arrival/departure.
- * cpu_present_map on the other hand can change dynamically.
+ * cpu_present_mask on the other hand can change dynamically.
  * In case when cpu_hotplug is not compiled, then we resort to current
  * behaviour, which is cpu_possible == cpu_present.
  * - Ashok Raj

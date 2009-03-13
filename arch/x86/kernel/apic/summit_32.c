@@ -192,7 +192,7 @@ static const cpumask_t *summit_target_cpus(void)
 	 * dest_LowestPrio mode logical clustered apic interrupt routing
 	 * Just start on cpu 0.  IRQ balancing will spread load
 	 */
-	return &cpumask_of_cpu(0);
+	return cpumask_of(0);
 }
 
 static unsigned long summit_check_apicid_used(physid_mask_t bitmap, int apicid)
