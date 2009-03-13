@@ -14,7 +14,7 @@ static void report(const char *prefix, const char *err, va_list params)
 
 static NORETURN void usage_builtin(const char *err)
 {
-	fprintf(stderr, "usage: %s\n", err);
+	fprintf(stderr, "\n usage: %s\n", err);
 	exit(129);
 }
 

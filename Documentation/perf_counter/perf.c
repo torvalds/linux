@@ -384,9 +384,9 @@ int main(int argc, const char **argv)
 			argv[0] += 2;
 	} else {
 		/* The user didn't specify a command; give them help */
-		printf("usage: %s\n\n", perf_usage_string);
+		printf("\n usage: %s\n\n", perf_usage_string);
 		list_common_cmds_help();
-		printf("\n%s\n", perf_more_info_string);
+		printf("\n %s\n\n", perf_more_info_string);
 		exit(1);
 	}
 	cmd = argv[0];

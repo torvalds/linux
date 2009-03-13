@@ -1,7 +1,9 @@
+#
 # List of known perf commands.
-# command name				category [deprecated] [common]
-perf-record                             mainporcelain common
-perf-report                             mainporcelain common
-perf-stat                               mainporcelain common
-perf-top                                mainporcelain common
-
+# command name			category [deprecated] [common]
+#
+perf-record			mainporcelain common
+perf-report			mainporcelain common
+perf-stat			mainporcelain common
+perf-top			mainporcelain common
+perf-list			mainporcelain common
