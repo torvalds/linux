@@ -89,8 +89,7 @@ list_del_counter(struct perf_counter *counter, struct perf_counter_context *ctx)
 	list_for_each_entry_safe(sibling, tmp,
 				 &counter->sibling_list, list_entry) {
 
-		list_del_init(&sibling->list_entry);
-		list_add_tail(&sibling->list_entry, &ctx->counter_list);
+		list_move_tail(&sibling->list_entry, &ctx->counter_list);
 		sibling->group_leader = sibling;
 	}
 }
@@ -959,8 +958,7 @@ static void rotate_ctx(struct perf_counter_context *ctx)
 	 */
 	perf_flags = hw_perf_save_disable();
 	list_for_each_entry(counter, &ctx->counter_list, list_entry) {
-		list_del(&counter->list_entry);
-		list_add_tail(&counter->list_entry, &ctx->counter_list);
+		list_move_tail(&counter->list_entry, &ctx->counter_list);
 		break;
 	}
 	hw_perf_restore(perf_flags);
