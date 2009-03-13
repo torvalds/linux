@@ -362,7 +362,7 @@ general_exception:
 	 nop
 
 	! Save registers / Switch to bank 0
-	mov.l	k4, k2		! keep vector in k2
+	mov		k4, k2		! keep vector in k2
 	mov.l	1f, k4		! SR bits to clear in k4
 	bsr	save_regs	! needs original pr value in k3
 	 nop
