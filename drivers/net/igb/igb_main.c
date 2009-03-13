@@ -3828,7 +3828,7 @@ static void igb_restore_vf_multicasts(struct igb_adapter *adapter)
 
 	for (i = 0; i < adapter->vfs_allocated_count; i++) {
 		vf_data = &adapter->vf_data[i];
-		for (j = 0; j < vf_data[i].num_vf_mc_hashes; j++)
+		for (j = 0; j < vf_data->num_vf_mc_hashes; j++)
 			igb_mta_set(hw, vf_data->vf_mc_hashes[j]);
 	}
 }

@@ -129,7 +129,7 @@ void igb_write_vfta(struct e1000_hw *hw, u32 offset, u32 value)
 s32 igb_vfta_set(struct e1000_hw *hw, u32 vid, bool add)
 {
 	u32 index = (vid >> E1000_VFTA_ENTRY_SHIFT) & E1000_VFTA_ENTRY_MASK;
-	u32 mask = 1 < (vid & E1000_VFTA_ENTRY_BIT_SHIFT_MASK);
+	u32 mask = 1 << (vid & E1000_VFTA_ENTRY_BIT_SHIFT_MASK);
 	u32 vfta = array_rd32(E1000_VFTA, index);
 	s32 ret_val = 0;
 
