@@ -1497,6 +1497,30 @@ static int insert_reserved_file_extent(struct btrfs_trans_handle *trans,
 	return 0;
 }
 
+/*
+ * helper function for btrfs_finish_ordered_io, this
+ * just reads in some of the csum leaves to prime them into ram
+ * before we start the transaction.  It limits the amount of btree
+ * reads required while inside the transaction.
+ */
+static noinline void reada_csum(struct btrfs_root *root,
+				struct btrfs_path *path,
+				struct btrfs_ordered_extent *ordered_extent)
+{
+	struct btrfs_ordered_sum *sum;
+	u64 bytenr;
+
+	sum = list_entry(ordered_extent->list.next, struct btrfs_ordered_sum,
+			 list);
+	bytenr = sum->sums[0].bytenr;
+
+	/*
+	 * we don't care about the results, the point of this search is
+	 * just to get the btree leaves into ram
+	 */
+	btrfs_lookup_csum(NULL, root->fs_info->csum_root, path, bytenr, 0);
+}
+
 /* as ordered data IO finishes, this gets called so we can finish
  * an ordered extent if the range of bytes in the file it covers are
  * fully written.
@@ -1505,7 +1529,7 @@ static int btrfs_finish_ordered_io(struct inode *inode, u64 start, u64 end)
 {
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	struct btrfs_trans_handle *trans;
-	struct btrfs_ordered_extent *ordered_extent;
+	struct btrfs_ordered_extent *ordered_extent = NULL;
 	struct extent_io_tree *io_tree = &BTRFS_I(inode)->io_tree;
 	struct btrfs_path *path;
 	int compressed = 0;
@@ -1528,13 +1552,20 @@ static int btrfs_finish_ordered_io(struct inode *inode, u64 start, u64 end)
 			ret = btrfs_lookup_file_extent(NULL, root, path,
 						       inode->i_ino,
 						       start, 0);
+			ordered_extent = btrfs_lookup_ordered_extent(inode,
+								     start);
+			if (!list_empty(&ordered_extent->list)) {
+				btrfs_release_path(root, path);
+				reada_csum(root, path, ordered_extent);
+			}
 			btrfs_free_path(path);
 		}
 	}
 
 	trans = btrfs_join_transaction(root, 1);
 
-	ordered_extent = btrfs_lookup_ordered_extent(inode, start);
+	if (!ordered_extent)
+		ordered_extent = btrfs_lookup_ordered_extent(inode, start);
 	BUG_ON(!ordered_extent);
 	if (test_bit(BTRFS_ORDERED_NOCOW, &ordered_extent->flags))
 		goto nocow;
