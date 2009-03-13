@@ -21,6 +21,8 @@
 
 #include <acpi/acpi_bus.h>
 #include <acpi/acpi_drivers.h>
+
+#include "internal.h"
 #include "sleep.h"
 
 u8 sleep_states[ACPI_S_STATE_COUNT];
