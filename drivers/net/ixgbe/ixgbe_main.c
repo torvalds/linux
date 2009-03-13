@@ -1464,6 +1464,7 @@ static inline void ixgbe_irq_enable(struct ixgbe_adapter *adapter)
 	if (adapter->flags & IXGBE_FLAG_FAN_FAIL_CAPABLE)
 		mask |= IXGBE_EIMS_GPI_SDP1;
 	if (adapter->hw.mac.type == ixgbe_mac_82599EB) {
+		mask |= IXGBE_EIMS_ECC;
 		mask |= IXGBE_EIMS_GPI_SDP1;
 		mask |= IXGBE_EIMS_GPI_SDP2;
 	}
@@ -1795,12 +1796,9 @@ static void ixgbe_configure_rx(struct ixgbe_adapter *adapter)
 		 * effects of setting this bit are only that SRRCTL must be
 		 * fully programmed [0..15]
 		 */
-		if (adapter->flags &
-		    (IXGBE_FLAG_RSS_ENABLED | IXGBE_FLAG_VMDQ_ENABLED)) {
-			rdrxctl = IXGBE_READ_REG(hw, IXGBE_RDRXCTL);
-			rdrxctl |= IXGBE_RDRXCTL_MVMEN;
-			IXGBE_WRITE_REG(hw, IXGBE_RDRXCTL, rdrxctl);
-		}
+		rdrxctl = IXGBE_READ_REG(hw, IXGBE_RDRXCTL);
+		rdrxctl |= IXGBE_RDRXCTL_MVMEN;
+		IXGBE_WRITE_REG(hw, IXGBE_RDRXCTL, rdrxctl);
 	}
 
 	/* Program MRQC for the distribution of queues */
@@ -1837,16 +1835,17 @@ static void ixgbe_configure_rx(struct ixgbe_adapter *adapter)
 		for (i = 0; i < 10; i++)
 			IXGBE_WRITE_REG(hw, IXGBE_RSSRK(i), seed[i]);
 
-		mrqc = IXGBE_MRQC_RSSEN
+		if (hw->mac.type == ixgbe_mac_82598EB)
+			mrqc |= IXGBE_MRQC_RSSEN;
 		    /* Perform hash on these packet types */
-		       | IXGBE_MRQC_RSS_FIELD_IPV4
-		       | IXGBE_MRQC_RSS_FIELD_IPV4_TCP
-		       | IXGBE_MRQC_RSS_FIELD_IPV4_UDP
-		       | IXGBE_MRQC_RSS_FIELD_IPV6
-		       | IXGBE_MRQC_RSS_FIELD_IPV6_TCP
-		       | IXGBE_MRQC_RSS_FIELD_IPV6_UDP;
-		IXGBE_WRITE_REG(hw, IXGBE_MRQC, mrqc);
+		mrqc |= IXGBE_MRQC_RSS_FIELD_IPV4
+		      | IXGBE_MRQC_RSS_FIELD_IPV4_TCP
+		      | IXGBE_MRQC_RSS_FIELD_IPV4_UDP
+		      | IXGBE_MRQC_RSS_FIELD_IPV6
+		      | IXGBE_MRQC_RSS_FIELD_IPV6_TCP
+		      | IXGBE_MRQC_RSS_FIELD_IPV6_UDP;
 	}
+	IXGBE_WRITE_REG(hw, IXGBE_MRQC, mrqc);
 
 	rxcsum = IXGBE_READ_REG(hw, IXGBE_RXCSUM);
 
