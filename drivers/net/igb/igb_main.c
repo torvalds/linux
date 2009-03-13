@@ -3895,10 +3895,15 @@ static s32 igb_vlvf_set(struct igb_adapter *adapter, u32 vid, bool add, u32 vf)
 
 			/* if !enabled we need to set this up in vfta */
 			if (!(reg & E1000_VLVF_VLANID_ENABLE)) {
-				/* add VID to filter table */
-				igb_vfta_set(hw, vid, true);
+				/* add VID to filter table, if bit already set
+				 * PF must have added it outside of table */
+				if (igb_vfta_set(hw, vid, true))
+					reg |= 1 << (E1000_VLVF_POOLSEL_SHIFT +
+						adapter->vfs_allocated_count);
 				reg |= E1000_VLVF_VLANID_ENABLE;
 			}
+			reg &= ~E1000_VLVF_VLANID_MASK;
+			reg |= vid;
 
 			wr32(E1000_VLVF(i), reg);
 			return 0;

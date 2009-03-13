@@ -126,19 +126,26 @@ void igb_write_vfta(struct e1000_hw *hw, u32 offset, u32 value)
  *  Sets or clears a bit in the VLAN filter table array based on VLAN id
  *  and if we are adding or removing the filter
  **/
-void igb_vfta_set(struct e1000_hw *hw, u32 vid, bool add)
+s32 igb_vfta_set(struct e1000_hw *hw, u32 vid, bool add)
 {
 	u32 index = (vid >> E1000_VFTA_ENTRY_SHIFT) & E1000_VFTA_ENTRY_MASK;
 	u32 mask = 1 < (vid & E1000_VFTA_ENTRY_BIT_SHIFT_MASK);
-	u32 vfta;
+	u32 vfta = array_rd32(E1000_VFTA, index);
+	s32 ret_val = 0;
 
-	vfta = array_rd32(E1000_VFTA, index);
-	if (add)
-		vfta |= mask;
-	else
-		vfta &= ~mask;
+	/* bit was set/cleared before we started */
+	if ((!!(vfta & mask)) == add) {
+		ret_val = -E1000_ERR_CONFIG;
+	} else {
+		if (add)
+			vfta |= mask;
+		else
+			vfta &= ~mask;
+	}
 
 	igb_write_vfta(hw, index, vfta);
+
+	return ret_val;
 }
 
 /**
