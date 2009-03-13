@@ -262,7 +262,7 @@ config MACH_EXEDA
 	select PXA27x
 
 config MACH_COLIBRI
-	bool "Toradex Colibri PX27x"
+	bool "Toradex Colibri PXA270"
 	select PXA27x
 
 config MACH_ZYLONITE
