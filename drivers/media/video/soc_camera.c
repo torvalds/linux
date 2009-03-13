@@ -30,6 +30,10 @@
 #include <media/videobuf-core.h>
 #include <media/soc_camera.h>
 
+/* Default to VGA resolution */
+#define DEFAULT_WIDTH	640
+#define DEFAULT_HEIGHT	480
+
 static LIST_HEAD(hosts);
 static LIST_HEAD(devices);
 static DEFINE_MUTEX(list_lock);
@@ -256,6 +260,44 @@ static void soc_camera_free_user_formats(struct soc_camera_device *icd)
 	vfree(icd->user_formats);
 }
 
+/* Called with .vb_lock held */
+static int soc_camera_set_fmt(struct soc_camera_file *icf,
+			      struct v4l2_format *f)
+{
+	struct soc_camera_device *icd = icf->icd;
+	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
+	struct v4l2_pix_format *pix = &f->fmt.pix;
+	int ret;
+
+	/* We always call try_fmt() before set_fmt() or set_crop() */
+	ret = ici->ops->try_fmt(icd, f);
+	if (ret < 0)
+		return ret;
+
+	ret = ici->ops->set_fmt(icd, f);
+	if (ret < 0) {
+		return ret;
+	} else if (!icd->current_fmt ||
+		   icd->current_fmt->fourcc != pix->pixelformat) {
+		dev_err(&ici->dev,
+			"Host driver hasn't set up current format correctly!\n");
+		return -EINVAL;
+	}
+
+	icd->width		= pix->width;
+	icd->height		= pix->height;
+	icf->vb_vidq.field	= pix->field;
+	if (f->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
+		dev_warn(&icd->dev, "Attention! Wrong buf-type %d\n",
+			 f->type);
+
+	dev_dbg(&icd->dev, "set width: %d height: %d\n",
+		icd->width, icd->height);
+
+	/* set physical bus parameters */
+	return ici->ops->set_bus_param(icd, pix->pixelformat);
+}
+
 static int soc_camera_open(struct file *file)
 {
 	struct video_device *vdev;
@@ -297,6 +339,15 @@ static int soc_camera_open(struct file *file)
 
 	/* Now we really have to activate the camera */
 	if (icd->use_count == 1) {
+		struct v4l2_format f = {
+			.type = V4L2_BUF_TYPE_VIDEO_CAPTURE,
+			.fmt.pix = {
+				.width		= DEFAULT_WIDTH,
+				.height		= DEFAULT_HEIGHT,
+				.field		= V4L2_FIELD_ANY,
+			},
+		};
+
 		ret = soc_camera_init_user_formats(icd);
 		if (ret < 0)
 			goto eiufmt;
@@ -305,6 +356,14 @@ static int soc_camera_open(struct file *file)
 			dev_err(&icd->dev, "Couldn't activate the camera: %d\n", ret);
 			goto eiciadd;
 		}
+
+		f.fmt.pix.pixelformat	= icd->current_fmt->fourcc;
+		f.fmt.pix.colorspace	= icd->current_fmt->colorspace;
+
+		/* Try to configure with default parameters */
+		ret = soc_camera_set_fmt(icf, &f);
+		if (ret < 0)
+			goto esfmt;
 	}
 
 	mutex_unlock(&icd->video_lock);
@@ -316,7 +375,12 @@ static int soc_camera_open(struct file *file)
 
 	return 0;
 
-	/* First two errors are entered with the .video_lock held */
+	/*
+	 * First three errors are entered with the .video_lock held
+	 * and use_count == 1
+	 */
+esfmt:
+	ici->ops->remove(icd);
 eiciadd:
 	soc_camera_free_user_formats(icd);
 eiufmt:
@@ -415,15 +479,9 @@ static int soc_camera_s_fmt_vid_cap(struct file *file, void *priv,
 {
 	struct soc_camera_file *icf = file->private_data;
 	struct soc_camera_device *icd = icf->icd;
-	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
-	struct v4l2_pix_format *pix = &f->fmt.pix;
 	int ret;
 
 	WARN_ON(priv != file->private_data);
-
-	ret = soc_camera_try_fmt_vid_cap(file, priv, f);
-	if (ret < 0)
-		return ret;
 
 	mutex_lock(&icf->vb_vidq.vb_lock);
 
@@ -433,29 +491,7 @@ static int soc_camera_s_fmt_vid_cap(struct file *file, void *priv,
 		goto unlock;
 	}
 
-	ret = ici->ops->set_fmt(icd, f);
-	if (ret < 0) {
-		goto unlock;
-	} else if (!icd->current_fmt ||
-		   icd->current_fmt->fourcc != pix->pixelformat) {
-		dev_err(&ici->dev,
-			"Host driver hasn't set up current format correctly!\n");
-		ret = -EINVAL;
-		goto unlock;
-	}
-
-	icd->width		= f->fmt.pix.width;
-	icd->height		= f->fmt.pix.height;
-	icf->vb_vidq.field	= pix->field;
-	if (f->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
-		dev_warn(&icd->dev, "Attention! Wrong buf-type %d\n",
-			 f->type);
-
-	dev_dbg(&icd->dev, "set width: %d height: %d\n",
-		icd->width, icd->height);
-
-	/* set physical bus parameters */
-	ret = ici->ops->set_bus_param(icd, pix->pixelformat);
+	ret = soc_camera_set_fmt(icf, f);
 
 unlock:
 	mutex_unlock(&icf->vb_vidq.vb_lock);
@@ -642,8 +678,8 @@ static int soc_camera_cropcap(struct file *file, void *fh,
 	a->bounds.height		= icd->height_max;
 	a->defrect.left			= icd->x_min;
 	a->defrect.top			= icd->y_min;
-	a->defrect.width		= 640;
-	a->defrect.height		= 480;
+	a->defrect.width		= DEFAULT_WIDTH;
+	a->defrect.height		= DEFAULT_HEIGHT;
 	a->pixelaspect.numerator	= 1;
 	a->pixelaspect.denominator	= 1;
 
