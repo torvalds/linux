@@ -2339,8 +2339,6 @@ static int ixgbe_up_complete(struct ixgbe_adapter *adapter)
 	else
 		ixgbe_configure_msi_and_legacy(adapter);
 
-	ixgbe_napi_add_all(adapter);
-
 	clear_bit(__IXGBE_DOWN, &adapter->state);
 	ixgbe_napi_enable_all(adapter);
 
@@ -2396,6 +2394,8 @@ int ixgbe_up(struct ixgbe_adapter *adapter)
 {
 	/* hardware has been reset, we need to reload some things */
 	ixgbe_configure(adapter);
+
+	ixgbe_napi_add_all(adapter);
 
 	return ixgbe_up_complete(adapter);
 }
@@ -3426,6 +3426,8 @@ static int ixgbe_open(struct net_device *netdev)
 
 	ixgbe_configure(adapter);
 
+	ixgbe_napi_add_all(adapter);
+
 	err = ixgbe_request_irq(adapter);
 	if (err)
 		goto err_req_irq;
@@ -3480,6 +3482,7 @@ static int ixgbe_close(struct net_device *netdev)
 /**
  * ixgbe_napi_add_all - prep napi structs for use
  * @adapter: private struct
+ *
  * helper function to napi_add each possible q_vector->napi
  */
 void ixgbe_napi_add_all(struct ixgbe_adapter *adapter)
@@ -3552,7 +3555,6 @@ static int ixgbe_resume(struct pci_dev *pdev)
 		return err;
 	}
 
-	ixgbe_napi_add_all(adapter);
 	ixgbe_reset(adapter);
 
 	if (netif_running(netdev)) {
