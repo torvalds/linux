@@ -71,9 +71,7 @@ extern void ba_reordering_resource_release(PRTMP_ADAPTER pAd);
 #endif // DOT11_N_SUPPORT //
 extern NDIS_STATUS NICLoadRateSwitchingParams(IN PRTMP_ADAPTER pAd);
 
-#ifdef RT2860
 extern void init_thread_task(PRTMP_ADAPTER pAd);
-#endif // RT2860 //
 
 // public function prototype
 INT __devinit rt28xx_probe(IN void *_dev_p, IN void *_dev_id_p,
@@ -310,9 +308,7 @@ int rt28xx_close(IN PNET_DEV dev)
 #endif // WPA_SUPPLICANT_SUPPORT //
 
 		MlmeRadioOff(pAd);
-#ifdef RT2860
 		pAd->bPCIclkOff = FALSE;
-#endif // RT2860 //
 	}
 #endif // CONFIG_STA_SUPPORT //
 
@@ -346,7 +342,6 @@ int rt28xx_close(IN PNET_DEV dev)
 	TpcReqTabExit(pAd);
 
 
-#ifdef RT2860
 	if (RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_INTERRUPT_ACTIVE))
 	{
 		NICDisableInterrupt(pAd);
@@ -362,7 +357,6 @@ int rt28xx_close(IN PNET_DEV dev)
 		RT28XX_IRQ_RELEASE(net_dev)
 		RTMP_CLEAR_FLAG(pAd, fRTMP_ADAPTER_INTERRUPT_IN_USE);
 	}
-#endif // RT2860 //
 
 
 	// Free Ring or USB buffers
@@ -426,12 +420,10 @@ static int rt28xx_init(IN struct net_device *net_dev)
 
 	// Disable interrupts here which is as soon as possible
 	// This statement should never be true. We might consider to remove it later
-#ifdef RT2860
 	if (RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_INTERRUPT_ACTIVE))
 	{
 		NICDisableInterrupt(pAd);
 	}
-#endif // RT2860 //
 
 	Status = RTMPAllocTxRxRingMemory(pAd);
 	if (Status != NDIS_STATUS_SUCCESS)
@@ -720,10 +712,8 @@ int rt28xx_open(IN PNET_DEV dev)
 	}
 
 #ifdef CONFIG_STA_SUPPORT
-#ifdef RT2860
 	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
         RTMPInitPCIeLinkCtrlValue(pAd);
-#endif // RT2860 //
 #endif // CONFIG_STA_SUPPORT //
 
 	return (retval);
@@ -1203,9 +1193,7 @@ INT __devinit   rt28xx_probe(
     PRTMP_ADAPTER       pAd = (PRTMP_ADAPTER) NULL;
     INT                 status;
 	PVOID				handle;
-#ifdef RT2860
 	struct pci_dev *dev_p = (struct pci_dev *)_dev_p;
-#endif // RT2860 //
 
 
 #ifdef CONFIG_STA_SUPPORT

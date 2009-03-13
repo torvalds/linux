@@ -203,9 +203,7 @@ typedef	struct _ATE_INFO {
 	BOOLEAN	bRxFer;
 	BOOLEAN	bQATxStart; // Have compiled QA in and use it to ATE tx.
 	BOOLEAN	bQARxStart;	// Have compiled QA in and use it to ATE rx.
-#ifdef RT2860
 	BOOLEAN	bFWLoading;	// Reload firmware when ATE is done.
-#endif // RT2860 //
 	UINT32	RxTotalCnt;
 	UINT32	RxCntPerSec;
 
@@ -485,7 +483,6 @@ typedef struct  _QUEUE_HEADER   {
 //
 #define MAX_BUSY_COUNT  100         // Number of retry before failing access BBP & RF indirect register
 //
-#ifdef RT2860
 #define RTMP_RF_IO_WRITE32(_A, _V)                  \
 {                                                   \
     PHY_CSR4_STRUC  Value;                          \
@@ -649,7 +646,6 @@ typedef struct  _QUEUE_HEADER   {
     }                                                   \
     }                                                   \
 }
-#endif // RT2860 //
 
 
 #define     MAP_CHANNEL_ID_TO_KHZ(ch, khz)  {               \
@@ -901,7 +897,6 @@ typedef struct _RTMP_SCATTER_GATHER_LIST {
 // Enqueue this frame to MLME engine
 // We need to enqueue the whole frame because MLME need to pass data type
 // information from 802.11 header
-#ifdef RT2860
 #define REPORT_MGMT_FRAME_TO_MLME(_pAd, Wcid, _pFrame, _FrameSize, _Rssi0, _Rssi1, _Rssi2, _PlcpSignal)        \
 {                                                                                       \
     UINT32 High32TSF, Low32TSF;                                                          \
@@ -909,7 +904,6 @@ typedef struct _RTMP_SCATTER_GATHER_LIST {
     RTMP_IO_READ32(_pAd, TSF_TIMER_DW0, &Low32TSF);                                        \
     MlmeEnqueueForRecv(_pAd, Wcid, High32TSF, Low32TSF, (UCHAR)_Rssi0, (UCHAR)_Rssi1,(UCHAR)_Rssi2,_FrameSize, _pFrame, (UCHAR)_PlcpSignal);   \
 }
-#endif // RT2860 //
 
 #define NDIS_QUERY_BUFFER(_NdisBuf, _ppVA, _pBufLen)                    \
     NdisQueryBuffer(_NdisBuf, _ppVA, _pBufLen)
@@ -1008,9 +1002,7 @@ typedef struct  _RTMP_REORDERBUF
 	UCHAR 		DataOffset;
 	USHORT 		Datasize;
 	ULONG                   AllocSize;
-#ifdef RT2860
 	NDIS_PHYSICAL_ADDRESS   AllocPa;            // TxBuf physical address
-#endif // RT2860 //
 }   RTMP_REORDERBUF, *PRTMP_REORDERBUF;
 
 //
@@ -1445,11 +1437,9 @@ typedef struct _MLME_STRUCT {
 	RALINK_TIMER_STRUCT     APSDPeriodicTimer;
 	RALINK_TIMER_STRUCT     LinkDownTimer;
 	RALINK_TIMER_STRUCT     LinkUpTimer;
-#ifdef RT2860
     UCHAR                   bPsPollTimerRunning;
     RALINK_TIMER_STRUCT     PsPollTimer;
 	RALINK_TIMER_STRUCT     RadioOnOffTimer;
-#endif // RT2860 //
 	ULONG                   PeriodicRound;
 	ULONG                   OneSecPeriodicRound;
 
@@ -2237,9 +2227,7 @@ typedef struct _STA_ADMIN_CONFIG {
 	RT_HT_PHY_INFO					DesiredHtPhyInfo;
 	BOOLEAN							bAutoTxRateSwitch;
 
-#ifdef RT2860
     UCHAR       BBPR3;
-#endif // RT2860 //
 
 #ifdef EXT_BUILD_CHANNEL_LIST
 	UCHAR				IEEE80211dClientMode;
@@ -2672,7 +2660,6 @@ typedef struct _RTMP_ADAPTER
 	PNET_DEV				net_dev;
 	ULONG					VirtualIfCnt;
 
-#ifdef RT2860
     USHORT		            LnkCtrlBitMask;
     USHORT		            RLnkCtrlConfiguration;
     USHORT                  RLnkCtrlOffset;
@@ -2699,7 +2686,6 @@ typedef struct _RTMP_ADAPTER
 	RTMP_DMABUF             RxDescRing;                 // Shared memory for RX descriptors
 	RTMP_DMABUF             TxDescRing[NUM_OF_TX_RING]; 	// Shared memory for Tx descriptors
 	RTMP_TX_RING            TxRing[NUM_OF_TX_RING];     	// AC0~4 + HCCA
-#endif // RT2860 //
 
 
 	NDIS_SPIN_LOCK          irq_lock;
@@ -2732,10 +2718,8 @@ typedef struct _RTMP_ADAPTER
 /*      Rx related parameters                                                           */
 /*****************************************************************************************/
 
-#ifdef RT2860
 	RTMP_RX_RING            RxRing;
 	NDIS_SPIN_LOCK          RxRingLock;                 // Rx Ring spinlock
-#endif // RT2860 //
 
 
 
@@ -3193,7 +3177,6 @@ typedef struct _TX_BLK_
 //------------------------------------------------------------------------------------------
 
 
-#ifdef RT2860
 //
 // Enable & Disable NIC interrupt via writing interrupt mask register
 // Since it use ADAPTER structure, it have to be put after structure definition.
@@ -3226,7 +3209,6 @@ __inline    VOID    NICEnableInterrupt(
 	//RTMP_IO_WRITE32(pAd, PBF_INT_ENA, 0x00000030); // 1 : enable
 	RTMP_SET_FLAG(pAd, fRTMP_ADAPTER_INTERRUPT_ACTIVE);
 }
-#endif // RT2860 //
 
 #ifdef RT_BIG_ENDIAN
 static inline VOID	WriteBackToDescriptor(
@@ -3303,7 +3285,6 @@ static inline VOID	RTMPWIEndianChange(
 		Call this function when read or update descriptor
 	========================================================================
 */
-#ifdef RT2860
 static inline VOID	RTMPDescriptorEndianChange(
 	IN	PUCHAR			pData,
 	IN	ULONG			DescriptorType)
@@ -3313,7 +3294,6 @@ static inline VOID	RTMPDescriptorEndianChange(
 	*((UINT32 *)(pData +12)) = SWAP32(*((UINT32 *)(pData + 12)));	// Byte 12~15
 	*((UINT32 *)(pData + 4)) = SWAP32(*((UINT32 *)(pData + 4)));				// Byte 4~7, this must be swapped last
 }
-#endif // RT2860 //
 
 /*
 	========================================================================
@@ -4319,11 +4299,9 @@ BOOLEAN AsicSendCommandToMcu(
 	IN UCHAR         Arg0,
 	IN UCHAR         Arg1);
 
-#ifdef RT2860
 BOOLEAN AsicCheckCommanOk(
 	IN PRTMP_ADAPTER pAd,
 	IN UCHAR		 Command);
-#endif // RT2860 //
 
 VOID MacAddrRandomBssid(
 	IN  PRTMP_ADAPTER   pAd,
@@ -6993,7 +6971,6 @@ void kill_thread_task(PRTMP_ADAPTER pAd);
 
 void tbtt_tasklet(unsigned long data);
 
-#ifdef RT2860
 //
 // Function Prototype in cmm_data_2860.c
 //
@@ -7108,7 +7085,6 @@ VOID RT28xxPciMlmeRadioOn(
 
 VOID RT28xxPciMlmeRadioOFF(
 	IN PRTMP_ADAPTER pAd);
-#endif // RT2860 //
 
 VOID AsicTurnOffRFClk(
 	IN PRTMP_ADAPTER    pAd,

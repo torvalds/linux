@@ -48,10 +48,8 @@ BUILD_TIMER_FUNCTION(LeapAuthTimeout);
 #endif
 BUILD_TIMER_FUNCTION(StaQuickResponeForRateUpExec);
 BUILD_TIMER_FUNCTION(WpaDisassocApAndBlockAssoc);
-#ifdef RT2860
 BUILD_TIMER_FUNCTION(PsPollWakeExec);
 BUILD_TIMER_FUNCTION(RadioOnExec);
-#endif // RT2860 //
 #ifdef QOS_DLS_SUPPORT
 BUILD_TIMER_FUNCTION(DlsTimeoutAction);
 #endif // QOS_DLS_SUPPORT //
@@ -293,9 +291,7 @@ VOID	RTMPFreeAdapter(
 
 	NdisFreeSpinLock(&pAd->MgmtRingLock);
 
-#ifdef RT2860
 	NdisFreeSpinLock(&pAd->RxRingLock);
-#endif // RT2860 //
 
 	for (index =0 ; index < NUM_OF_TX_RING; index++)
 	{

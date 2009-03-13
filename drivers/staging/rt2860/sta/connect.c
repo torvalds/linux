@@ -1275,7 +1275,6 @@ VOID LinkUp(
 	//rt2860b. Don't know why need this
 	SwitchBetweenWepAndCkip(pAd);
 
-#ifdef RT2860
 	// Before power save before link up function, We will force use 1R.
 	// So after link up, check Rx antenna # again.
 	RTMP_BBP_IO_READ8_BY_REG_ID(pAd, BBP_R3, &Value);
@@ -1293,7 +1292,6 @@ VOID LinkUp(
 	}
 	RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, BBP_R3, Value);
 	pAd->StaCfg.BBPR3 = Value;
-#endif // RT2860 //
 
 	if (BssType == BSS_ADHOC)
 	{
@@ -1341,9 +1339,7 @@ VOID LinkUp(
 		RTMP_BBP_IO_READ8_BY_REG_ID(pAd, BBP_R3, &Value);
 		Value &= (~0x20);
 		RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, BBP_R3, Value);
-#ifdef RT2860
         pAd->StaCfg.BBPR3 = Value;
-#endif // RT2860 //
 
 		RTMP_IO_READ32(pAd, TX_BAND_CFG, &Data);
 		Data &= 0xfffffffe;
@@ -1378,9 +1374,7 @@ VOID LinkUp(
 		RTMP_BBP_IO_READ8_BY_REG_ID(pAd, BBP_R3, &Value);
 	    Value |= (0x20);
 		RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, BBP_R3, Value);
-#ifdef RT2860
         pAd->StaCfg.BBPR3 = Value;
-#endif // RT2860 //
 
 		if (pAd->MACVersion == 0x28600100)
 		{
@@ -1411,9 +1405,7 @@ VOID LinkUp(
 		RTMP_BBP_IO_READ8_BY_REG_ID(pAd, BBP_R3, &Value);
 		Value &= (~0x20);
 		RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, BBP_R3, Value);
-#ifdef RT2860
         pAd->StaCfg.BBPR3 = Value;
-#endif // RT2860 //
 
 		if (pAd->MACVersion == 0x28600100)
 		{
@@ -2001,7 +1993,6 @@ VOID LinkDown(
 	DBGPRINT(RT_DEBUG_TRACE, ("!!! LINK DOWN !!!\n"));
 	OPSTATUS_CLEAR_FLAG(pAd, fOP_STATUS_AGGREGATION_INUSED);
 
-#ifdef RT2860
     if (OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_ADVANCE_POWER_SAVE_PCIE_DEVICE))
     {
 	    BOOLEAN Cancelled;
@@ -2018,7 +2009,6 @@ VOID LinkDown(
     }
 
     pAd->bPCIclkOff = FALSE;
-#endif // RT2860 //
 	if (ADHOC_ON(pAd))		// Adhoc mode link down
 	{
 		DBGPRINT(RT_DEBUG_TRACE, ("!!! LINK DOWN 1!!!\n"));
@@ -2533,7 +2523,6 @@ VOID AuthParmFill(
 
 	==========================================================================
  */
-#ifdef RT2860
 VOID ComposePsPoll(
 	IN PRTMP_ADAPTER pAd)
 {
@@ -2557,7 +2546,6 @@ VOID ComposeNullFrame(
 	COPY_MAC_ADDR(pAd->NullFrame.Addr2, pAd->CurrentAddress);
 	COPY_MAC_ADDR(pAd->NullFrame.Addr3, pAd->CommonCfg.Bssid);
 }
-#endif // RT2860 //
 
 
 

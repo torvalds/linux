@@ -1670,11 +1670,9 @@ typedef struct _HW_WCID_ENTRY {  // 8-byte per entry
 #define E2PROM_CSR          0x0004
 #define IO_CNTL_CSR         0x77d0
 
-#ifdef RT2860
 // 8051 firmware image for RT2860 - base address = 0x4000
 #define FIRMWARE_IMAGE_BASE     0x2000
 #define MAX_FIRMWARE_IMAGE_SIZE 0x2000    // 8kbyte
-#endif // RT2860 //
 
 
 // ================================================================
@@ -2029,7 +2027,6 @@ typedef	struct	PACKED _TXWI_STRUC {
 //
 // Rx descriptor format, Rx	Ring
 //
-#ifdef RT2860
 #ifdef RT_BIG_ENDIAN
 typedef	struct	PACKED _RXD_STRUC	{
 	// Word 0
@@ -2098,7 +2095,6 @@ typedef	struct	PACKED _RXD_STRUC	{
 	UINT32		Rsv1:13;
 }	RXD_STRUC, *PRXD_STRUC, RT28XX_RXD_STRUC, *PRT28XX_RXD_STRUC;
 #endif
-#endif // RT2860 //
 //
 // RXWI wireless information format, in PBF. invisible in driver.
 //

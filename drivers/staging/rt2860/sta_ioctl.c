@@ -583,9 +583,7 @@ rt_ioctl_giwname(struct net_device *dev,
 {
 //	PRTMP_ADAPTER pAdapter = dev->ml_priv;
 
-#ifdef RT2860
     strncpy(name, "RT2860 Wireless", IFNAMSIZ);
-#endif // RT2860 //
 	return 0;
 }
 
@@ -5321,7 +5319,6 @@ INT RTMPQueryInformation(
 		case RT_OID_802_11_PRODUCTID:
 			DBGPRINT(RT_DEBUG_TRACE, ("Query::RT_OID_802_11_PRODUCTID \n"));
 
-#ifdef RT2860
 			{
 
 				USHORT  device_id;
@@ -5331,7 +5328,6 @@ INT RTMPQueryInformation(
 					DBGPRINT(RT_DEBUG_TRACE, (" pci_dev = NULL\n"));
 				sprintf(tmp, "%04x %04x\n", NIC_PCI_VENDOR_ID, device_id);
 			}
-#endif // RT2860 //
 			wrq->u.data.length = strlen(tmp);
 			Status = copy_to_user(wrq->u.data.pointer, tmp, wrq->u.data.length);
 			break;

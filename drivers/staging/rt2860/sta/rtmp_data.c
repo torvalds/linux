@@ -75,7 +75,6 @@ VOID STARxEAPOLFrameIndicate(
 
                     if (pAd->StaCfg.DesireSharedKey[idx].KeyLen > 0)
     				{
-#ifdef RT2860
 						MAC_TABLE_ENTRY *pEntry = &pAd->MacTab.Content[BSSID_WCID];
 
 						// Set key material and cipherAlg to Asic
@@ -89,7 +88,6 @@ VOID STARxEAPOLFrameIndicate(
 
                         pAd->IndicateMediaState = NdisMediaStateConnected;
                         pAd->ExtraInfo = GENERAL_LINK_UP;
-#endif // RT2860 //
 						// For Preventing ShardKey Table is cleared by remove key procedure.
     					pAd->SharedKey[BSS0][idx].CipherAlg = CipherAlg;
 						pAd->SharedKey[BSS0][idx].KeyLen = pAd->StaCfg.DesireSharedKey[idx].KeyLen;
@@ -693,14 +691,12 @@ BOOLEAN STARxDoneInterruptHandle(
 			break;
 		}
 
-#ifdef RT2860
 		if (RxProcessed++ > MAX_RX_PROCESS_CNT)
 		{
 			// need to reschedule rx handle
 			bReschedule = TRUE;
 			break;
 		}
-#endif // RT2860 //
 
 		RxProcessed ++; // test
 
@@ -1227,7 +1223,6 @@ NDIS_STATUS STASendPacket(
 
 	========================================================================
 */
-#ifdef RT2860
 NDIS_STATUS RTMPFreeTXDRequest(
 	IN		PRTMP_ADAPTER	pAd,
 	IN		UCHAR			QueIdx,
@@ -1271,7 +1266,6 @@ NDIS_STATUS RTMPFreeTXDRequest(
 
 	return (Status);
 }
-#endif // RT2860 //
 
 
 

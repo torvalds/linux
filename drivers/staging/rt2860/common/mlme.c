@@ -527,7 +527,6 @@ NDIS_STATUS MlmeInit(
 
 
 #ifdef CONFIG_STA_SUPPORT
-#ifdef RT2860
 		IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 		{
 	        if (OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_ADVANCE_POWER_SAVE_PCIE_DEVICE))
@@ -537,7 +536,6 @@ NDIS_STATUS MlmeInit(
 	    		RTMPInitTimer(pAd, &pAd->Mlme.RadioOnOffTimer, GET_TIMER_FUNCTION(RadioOnExec), pAd, FALSE);
 	        }
 		}
-#endif // RT2860 //
 #endif // CONFIG_STA_SUPPORT //
 
 	} while (FALSE);
@@ -711,13 +709,11 @@ VOID MlmeHalt(
 		RTMPCancelTimer(&pAd->MlmeAux.AuthTimer,		&Cancelled);
 		RTMPCancelTimer(&pAd->MlmeAux.BeaconTimer,		&Cancelled);
 		RTMPCancelTimer(&pAd->MlmeAux.ScanTimer,		&Cancelled);
-#ifdef RT2860
 	    if (OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_ADVANCE_POWER_SAVE_PCIE_DEVICE))
 	    {
 	   	    RTMPCancelTimer(&pAd->Mlme.PsPollTimer,		&Cancelled);
 		    RTMPCancelTimer(&pAd->Mlme.RadioOnOffTimer,		&Cancelled);
 		}
-#endif // RT2860 //
 
 #ifdef QOS_DLS_SUPPORT
 		for (i=0; i<MAX_NUM_OF_DLS_ENTRY; i++)
@@ -822,7 +818,6 @@ VOID MlmePeriodicExec(
 	}
 
 #ifdef CONFIG_STA_SUPPORT
-#ifdef RT2860
 	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 	{
 	    // If Hardware controlled Radio enabled, we have to check GPIO pin2 every 2 second.
@@ -863,7 +858,6 @@ VOID MlmePeriodicExec(
 			}
 		}
 	}
-#endif // RT2860 //
 #endif // CONFIG_STA_SUPPORT //
 
 	// Do nothing if the driver is starting halt state.
@@ -1075,9 +1069,7 @@ VOID MlmePeriodicExec(
 #ifdef CONFIG_STA_SUPPORT
 		IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 		{
-#ifdef RT2860
 			if (!RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_NIC_NOT_EXIST) && (pAd->bPCIclkOff == FALSE))
-#endif // RT2860 //
 			{
 				// When Adhoc beacon is enabled and RTS/CTS is enabled, there is a chance that hardware MAC FSM will run into a deadlock
 				// and sending CTS-to-self over and over.
@@ -5036,16 +5028,13 @@ BOOLEAN MlmeDequeue(
 VOID	MlmeRestartStateMachine(
 	IN	PRTMP_ADAPTER	pAd)
 {
-#ifdef RT2860
 	MLME_QUEUE_ELEM		*Elem = NULL;
-#endif // RT2860 //
 #ifdef CONFIG_STA_SUPPORT
 	BOOLEAN				Cancelled;
 #endif // CONFIG_STA_SUPPORT //
 
 	DBGPRINT(RT_DEBUG_TRACE, ("MlmeRestartStateMachine \n"));
 
-#ifdef RT2860
 	NdisAcquireSpinLock(&pAd->Mlme.TaskLock);
 	if(pAd->Mlme.bRunning)
 	{
@@ -5073,7 +5062,6 @@ VOID	MlmeRestartStateMachine(
 			DBGPRINT_ERR(("MlmeRestartStateMachine: MlmeQueue empty\n"));
 		}
 	}
-#endif // RT2860 //
 
 #ifdef CONFIG_STA_SUPPORT
 	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
@@ -5122,12 +5110,10 @@ VOID	MlmeRestartStateMachine(
 	}
 #endif // CONFIG_STA_SUPPORT //
 
-#ifdef RT2860
 	// Remove running state
 	NdisAcquireSpinLock(&pAd->Mlme.TaskLock);
 	pAd->Mlme.bRunning = FALSE;
 	NdisReleaseSpinLock(&pAd->Mlme.TaskLock);
-#endif // RT2860 //
 }
 
 /*! \brief	test if the MLME Queue is empty
@@ -6799,7 +6785,6 @@ VOID AsicEnableIbssSync(
 	csr9.field.bTsfTicking = 0;
 	RTMP_IO_WRITE32(pAd, BCN_TIME_CFG, csr9.word);
 
-#ifdef RT2860
 	// move BEACON TXD and frame content to on-chip memory
 	ptr = (PUCHAR)&pAd->BeaconTxWI;
 	for (i=0; i<TXWI_SIZE; i+=4)  // 16-byte TXWI field
@@ -6817,7 +6802,6 @@ VOID AsicEnableIbssSync(
 		RTMP_IO_WRITE32(pAd, HW_BEACON_BASE0 + TXWI_SIZE + i, longptr);
 		ptr +=4;
 	}
-#endif // RT2860 //
 
 	// start sending BEACON
 	csr9.field.BeaconInterval = pAd->CommonCfg.BeaconPeriod << 4; // ASIC register in units of 1/16 TU
@@ -7186,9 +7170,7 @@ VOID AsicAddSharedKeyEntry(
 {
 	ULONG offset; //, csr0;
 	SHAREDKEY_MODE_STRUC csr1;
-#ifdef RT2860
 	INT   i;
-#endif // RT2860 //
 
 	DBGPRINT(RT_DEBUG_TRACE, ("AsicAddSharedKeyEntry BssIndex=%d, KeyIdx=%d\n", BssIndex,KeyIdx));
 //============================================================================================
@@ -7210,7 +7192,6 @@ VOID AsicAddSharedKeyEntry(
 	//
 	// fill key material - key + TX MIC + RX MIC
 	//
-#ifdef RT2860
 	offset = SHARED_KEY_TABLE_BASE + (4*BssIndex + KeyIdx)*HW_KEY_ENTRY_SIZE;
 	for (i=0; i<MAX_LEN_OF_SHARE_KEY; i++)
 	{
@@ -7234,7 +7215,6 @@ VOID AsicAddSharedKeyEntry(
 			RTMP_IO_WRITE8(pAd, offset + i, pRxMic[i]);
 		}
 	}
-#endif // RT2860 //
 
 
 	//
@@ -7409,9 +7389,7 @@ VOID AsicAddKeyEntry(
 	PUCHAR		pTxtsc = pCipherKey->TxTsc;
 	UCHAR		CipherAlg = pCipherKey->CipherAlg;
 	SHAREDKEY_MODE_STRUC csr1;
-#ifdef RT2860
 	UCHAR		i;
-#endif // RT2860 //
 
 	DBGPRINT(RT_DEBUG_TRACE, ("==> AsicAddKeyEntry\n"));
 	//
@@ -7426,7 +7404,6 @@ VOID AsicAddKeyEntry(
 	// 2.) Set Key to Asic
 	//
 	//for (i = 0; i < KeyLen; i++)
-#ifdef RT2860
 	for (i = 0; i < MAX_LEN_OF_PEER_KEY; i++)
 	{
 		RTMP_IO_WRITE8(pAd, offset + i, pKey[i]);
@@ -7452,7 +7429,6 @@ VOID AsicAddKeyEntry(
 			RTMP_IO_WRITE8(pAd, offset + i, pRxMic[i]);
 		}
 	}
-#endif // RT2860 //
 
 
 	//
@@ -7461,7 +7437,6 @@ VOID AsicAddKeyEntry(
 	//
 	if (bTxKey)
 	{
-#ifdef RT2860
 		offset = MAC_IVEIV_TABLE_BASE + (WCID * HW_IVEIV_ENTRY_SIZE);
 		//
 		// Write IV
@@ -7484,7 +7459,6 @@ VOID AsicAddKeyEntry(
 		{
 			RTMP_IO_WRITE8(pAd, offset + i, pTxtsc[i + 2]);
 		}
-#endif // RT2860 //
 
 		AsicUpdateWCIDAttribute(pAd, WCID, BssIndex, CipherAlg, bUsePairewiseKeyTable);
 	}
@@ -7550,12 +7524,10 @@ VOID AsicAddPairwiseKeyEntry(
 
 	// EKEY
 	offset = PAIRWISE_KEY_TABLE_BASE + (WCID * HW_KEY_ENTRY_SIZE);
-#ifdef RT2860
 	for (i=0; i<MAX_LEN_OF_PEER_KEY; i++)
 	{
 		RTMP_IO_WRITE8(pAd, offset + i, pKey[i]);
 	}
-#endif // RT2860 //
 	for (i=0; i<MAX_LEN_OF_PEER_KEY; i+=4)
 	{
 		UINT32 Value;
@@ -7567,22 +7539,18 @@ VOID AsicAddPairwiseKeyEntry(
 	//  MIC KEY
 	if (pTxMic)
 	{
-#ifdef RT2860
 		for (i=0; i<8; i++)
 		{
 			RTMP_IO_WRITE8(pAd, offset+i, pTxMic[i]);
 		}
-#endif // RT2860 //
 	}
 	offset += 8;
 	if (pRxMic)
 	{
-#ifdef RT2860
 		for (i=0; i<8; i++)
 		{
 			RTMP_IO_WRITE8(pAd, offset+i, pRxMic[i]);
 		}
-#endif // RT2860 //
 	}
 
 	DBGPRINT(RT_DEBUG_TRACE,("AsicAddPairwiseKeyEntry: WCID #%d Alg=%s\n",WCID, CipherName[CipherAlg]));
@@ -7631,11 +7599,9 @@ BOOLEAN AsicSendCommandToMcu(
 	HOST_CMD_CSR_STRUC	H2MCmd;
 	H2M_MAILBOX_STRUC	H2MMailbox;
 	ULONG				i = 0;
-#ifdef RT2860
 #ifdef RALINK_ATE
 	static UINT32 j = 0;
 #endif // RALINK_ATE //
-#endif // RT2860 //
 	do
 	{
 		RTMP_IO_READ32(pAd, H2M_MAILBOX_CSR, &H2MMailbox.word);
@@ -7647,7 +7613,6 @@ BOOLEAN AsicSendCommandToMcu(
 
 	if (i >= 100)
 	{
-#ifdef RT2860
 #ifdef RALINK_ATE
 		if (pAd->ate.bFWLoading == TRUE)
 		{
@@ -7672,7 +7637,6 @@ BOOLEAN AsicSendCommandToMcu(
 		}
 		else
 #endif // RALINK_ATE //
-#endif // RT2860 //
 		{
 			UINT32 Data;
 
@@ -7700,7 +7664,6 @@ BOOLEAN AsicSendCommandToMcu(
 		//return FALSE;
 	}
 
-#ifdef RT2860
 #ifdef RALINK_ATE
 	else if (pAd->ate.bFWLoading == TRUE)
 	{
@@ -7710,7 +7673,6 @@ BOOLEAN AsicSendCommandToMcu(
 		j = 0;
 	}
 #endif // RALINK_ATE //
-#endif // RT2860 //
 
 	H2MMailbox.field.Owner	  = 1;	   // pass ownership to MCU
 	H2MMailbox.field.CmdToken = Token;
@@ -7729,7 +7691,6 @@ BOOLEAN AsicSendCommandToMcu(
 	return TRUE;
 }
 
-#ifdef RT2860
 BOOLEAN AsicCheckCommanOk(
 	IN PRTMP_ADAPTER pAd,
 	IN UCHAR		 Command)
@@ -7794,7 +7755,6 @@ BOOLEAN AsicCheckCommanOk(
 
 	return FALSE;
 }
-#endif // RT2860 //
 
 /*
 	========================================================================
@@ -8206,10 +8166,8 @@ VOID AsicEvaluateRxAnt(
 	}
 	RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, BBP_R3, BBPR3);
 #ifdef CONFIG_STA_SUPPORT
-#ifdef RT2860
 	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
     	pAd->StaCfg.BBPR3 = BBPR3;
-#endif // RT2860 //
 #endif // CONFIG_STA_SUPPORT //
 	if (OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_MEDIA_STATE_CONNECTED)
 		)
@@ -8321,9 +8279,7 @@ VOID AsicRxAntEvalTimeout(
 			BBPR3 |= (0x0);
 		}
 		RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, BBP_R3, BBPR3);
-#ifdef RT2860
-    pAd->StaCfg.BBPR3 = BBPR3;
-#endif // RT2860 //
+		pAd->StaCfg.BBPR3 = BBPR3;
 	}
 
 #endif // CONFIG_STA_SUPPORT //
@@ -8549,10 +8505,7 @@ VOID AsicStaBbpTuning(
 		&& (OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_MEDIA_STATE_CONNECTED)
 			)
 		&& !(OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_DOZE))
-#ifdef RT2860
-		&& (pAd->bPCIclkOff == FALSE)
-#endif // RT2860 //
-		)
+		&& (pAd->bPCIclkOff == FALSE))
 	{
 		RTMP_BBP_IO_READ8_BY_REG_ID(pAd, BBP_R66, &OrigR66Value);
 		R66 = OrigR66Value;

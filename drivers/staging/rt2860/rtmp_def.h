@@ -111,7 +111,6 @@
 // Entry number for each DMA descriptor ring
 //
 
-#ifdef RT2860
 #define TX_RING_SIZE            64 //64
 #define MGMT_RING_SIZE          128
 #define RX_RING_SIZE            128 //64
@@ -119,7 +118,6 @@
 #define MAX_DMA_DONE_PROCESS    TX_RING_SIZE
 #define MAX_TX_DONE_PROCESS     TX_RING_SIZE //8
 #define LOCAL_TXBUF_SIZE        2
-#endif // RT2860 //
 
 
 #ifdef MULTIPLE_CARD_SUPPORT

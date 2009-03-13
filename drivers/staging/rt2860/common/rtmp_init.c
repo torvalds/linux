@@ -149,9 +149,7 @@ RTMP_REG_PAIR	MACRegTable[] =	{
 	{GF20_PROT_CFG,			0x01744004},    // set 19:18 --> Short NAV for MIMO PS
 	{GF40_PROT_CFG,			0x03F44084},
 	{MM20_PROT_CFG,			0x01744004},
-#ifdef RT2860
 	{MM40_PROT_CFG,			0x03F54084},
-#endif // RT2860 //
 	{TXOP_CTRL_CFG,			0x0000583f, /*0x0000243f*/ /*0x000024bf*/},	//Extension channel backoff.
 	{TX_RTS_CFG,			0x00092b20},
 	{EXP_ACK_TIME,			0x002400ca},	// default value
@@ -188,9 +186,7 @@ RTMP_REG_PAIR	STAMACRegTable[] =	{
 #define FIRMWAREIMAGEV1_LENGTH	0x1000
 #define FIRMWAREIMAGEV2_LENGTH	0x1000
 
-#ifdef RT2860
 #define FIRMWARE_MINOR_VERSION	2
-#endif // RT2860 //
 
 
 /*
@@ -248,9 +244,7 @@ NDIS_STATUS	RTMPAllocAdapterBlock(
 
 		// Init spin locks
 		NdisAllocateSpinLock(&pAd->MgmtRingLock);
-#ifdef RT2860
 		NdisAllocateSpinLock(&pAd->RxRingLock);
-#endif // RT2860 //
 
 		for (index =0 ; index < NUM_OF_TX_RING; index++)
 		{
@@ -1555,10 +1549,7 @@ VOID	NICInitAsicFromEEPROM(
 		pAd->LedCntl.word = 0x01;
 		pAd->Led1 = 0x5555;
 		pAd->Led2 = 0x2221;
-
-#ifdef RT2860
 		pAd->Led3 = 0xA9F8;
-#endif // RT2860 //
 	}
 
 	AsicSendCommandToMcu(pAd, 0x52, 0xff, (UCHAR)pAd->Led1, (UCHAR)(pAd->Led1 >> 8));
@@ -1594,12 +1585,10 @@ VOID	NICInitAsicFromEEPROM(
 		else
 		{
 			RTMPSetLED(pAd, LED_RADIO_ON);
-#ifdef RT2860
 			AsicSendCommandToMcu(pAd, 0x30, 0xff, 0xff, 0x02);
 			AsicSendCommandToMcu(pAd, 0x31, PowerWakeCID, 0x00, 0x00);
 			// 2-1. wait command ok.
 			AsicCheckCommanOk(pAd, PowerWakeCID);
-#endif // RT2860 //
 		}
 	}
 #endif // CONFIG_STA_SUPPORT //
@@ -1677,10 +1666,8 @@ NDIS_STATUS	NICInitializeAdapter(
 {
 	NDIS_STATUS     Status = NDIS_STATUS_SUCCESS;
 	WPDMA_GLO_CFG_STRUC	GloCfg;
-#ifdef RT2860
 	UINT32			Value;
 	DELAY_INT_CFG_STRUC	IntCfg;
-#endif // RT2860 //
 	ULONG	i =0, j=0;
 	AC_TXOP_CSR0_STRUC	csr0;
 
@@ -1719,11 +1706,9 @@ retry:
 
 	// asic simulation sequence put this ahead before loading firmware.
 	// pbf hardware reset
-#ifdef RT2860
 	RTMP_IO_WRITE32(pAd, WPDMA_RST_IDX, 0x1003f);	// 0x10000 for reset rx, 0x3f resets all 6 tx rings.
 	RTMP_IO_WRITE32(pAd, PBF_SYS_CTRL, 0xe1f);
 	RTMP_IO_WRITE32(pAd, PBF_SYS_CTRL, 0xe00);
-#endif // RT2860 //
 
 	// Initialze ASIC for TX & Rx operation
 	if (NICInitializeAsic(pAd , bHardReset) != NDIS_STATUS_SUCCESS)
@@ -1737,7 +1722,6 @@ retry:
 	}
 
 
-#ifdef RT2860
 	// Write AC_BK base address register
 	Value = RTMP_GetPhysicalAddressLow(pAd->TxRing[QID_AC_BK].Cell[0].AllocPa);
 	RTMP_IO_WRITE32(pAd, TX_BASE_PTR1, Value);
@@ -1810,7 +1794,6 @@ retry:
 	// Write RX_RING_CSR register
 	Value = RX_RING_SIZE;
 	RTMP_IO_WRITE32(pAd, RX_MAX_CNT, Value);
-#endif // RT2860 //
 
 
 	// WMM parameter
@@ -1829,7 +1812,6 @@ retry:
 	RTMP_IO_WRITE32(pAd, WMM_TXOP1_CFG, csr0.word);
 
 
-#ifdef RT2860
 	// 3. Set DMA global configuration except TX_DMA_EN and RX_DMA_EN bits:
 	i = 0;
 	do
@@ -1848,7 +1830,6 @@ retry:
 
 	IntCfg.word = 0;
 	RTMP_IO_WRITE32(pAd, DELAY_INT_CFG, IntCfg.word);
-#endif // RT2860 //
 
 
 	// reset action
@@ -1889,7 +1870,6 @@ NDIS_STATUS	NICInitializeAsic(
 
 	DBGPRINT(RT_DEBUG_TRACE, ("--> NICInitializeAsic\n"));
 
-#ifdef RT2860
 	if (bHardReset == TRUE)
 	{
 		RTMP_IO_WRITE32(pAd, MAC_SYS_CTRL, 0x3);
@@ -1914,7 +1894,6 @@ NDIS_STATUS	NICInitializeAsic(
 		}
 	}
 #endif // CONFIG_STA_SUPPORT //
-#endif // RT2860 //
 
 
 	//
@@ -3153,12 +3132,10 @@ VOID	UserCfgInit(
 	pAd->CommonCfg.BBPCurrentBW = BW_20;
 
 	pAd->LedCntl.word = 0;
-#ifdef RT2860
 	pAd->LedIndicatorStregth = 0;
 	pAd->RLnkCtrlOffset = 0;
 	pAd->HostLnkCtrlOffset = 0;
 	pAd->CheckDmaBusyCount = 0;
-#endif // RT2860 //
 
 	pAd->bAutoTxAgcA = FALSE;			// Default is OFF
 	pAd->bAutoTxAgcG = FALSE;			// Default is OFF
@@ -3418,9 +3395,7 @@ VOID	UserCfgInit(
 	pAd->ate.bRxFer = 0;
 	pAd->ate.bQATxStart = FALSE;
 	pAd->ate.bQARxStart = FALSE;
-#ifdef RT2860
 	pAd->ate.bFWLoading = FALSE;
-#endif // RT2860 //
 #ifdef RALINK_28xx_QA
 	//pAd->ate.Repeat = 0;
 	pAd->ate.TxStatus = 0;
@@ -3430,9 +3405,7 @@ VOID	UserCfgInit(
 
 
 	pAd->CommonCfg.bWiFiTest = FALSE;
-#ifdef RT2860
-    pAd->bPCIclkOff = FALSE;
-#endif // RT2860 //
+	pAd->bPCIclkOff = FALSE;
 
 	RTMP_SET_PSFLAG(pAd, fRTMP_PS_CAN_GO_SLEEP);
 	DBGPRINT(RT_DEBUG_TRACE, ("<-- UserCfgInit\n"));
