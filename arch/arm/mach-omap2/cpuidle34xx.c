@@ -35,14 +35,14 @@
 
 #ifdef CONFIG_CPU_IDLE
 
-#define OMAP3_MAX_STATES 8
-#define OMAP3_STATE_C1 1 /* C1 - MPU WFI + Core active */
-#define OMAP3_STATE_C2 2 /* C2 - MPU WFI + Core inactive */
-#define OMAP3_STATE_C3 3 /* C3 - MPU CSWR + Core inactive */
-#define OMAP3_STATE_C4 4 /* C4 - MPU OFF + Core iactive */
-#define OMAP3_STATE_C5 5 /* C5 - MPU RET + Core RET */
-#define OMAP3_STATE_C6 6 /* C6 - MPU OFF + Core RET */
-#define OMAP3_STATE_C7 7 /* C7 - MPU OFF + Core OFF */
+#define OMAP3_MAX_STATES 7
+#define OMAP3_STATE_C1 0 /* C1 - MPU WFI + Core active */
+#define OMAP3_STATE_C2 1 /* C2 - MPU WFI + Core inactive */
+#define OMAP3_STATE_C3 2 /* C3 - MPU CSWR + Core inactive */
+#define OMAP3_STATE_C4 3 /* C4 - MPU OFF + Core iactive */
+#define OMAP3_STATE_C5 4 /* C5 - MPU RET + Core RET */
+#define OMAP3_STATE_C6 5 /* C6 - MPU OFF + Core RET */
+#define OMAP3_STATE_C7 6 /* C7 - MPU OFF + Core OFF */
 
 struct omap3_processor_cx {
 	u8 valid;
@@ -279,7 +279,7 @@ int __init omap3_idle_init(void)
 
 	dev = &per_cpu(omap3_idle_dev, smp_processor_id());
 
-	for (i = 1; i < OMAP3_MAX_STATES; i++) {
+	for (i = OMAP3_STATE_C1; i < OMAP3_MAX_STATES; i++) {
 		cx = &omap3_power_states[i];
 		state = &dev->states[count];
 
