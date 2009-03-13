@@ -3670,11 +3670,11 @@ static void igb_update_rx_dca(struct igb_ring *rx_ring)
 		dca_rxctrl = rd32(E1000_DCA_RXCTRL(q));
 		if (hw->mac.type == e1000_82576) {
 			dca_rxctrl &= ~E1000_DCA_RXCTRL_CPUID_MASK_82576;
-			dca_rxctrl |= dca_get_tag(cpu) <<
+			dca_rxctrl |= dca3_get_tag(&adapter->pdev->dev, cpu) <<
 			              E1000_DCA_RXCTRL_CPUID_SHIFT;
 		} else {
 			dca_rxctrl &= ~E1000_DCA_RXCTRL_CPUID_MASK;
-			dca_rxctrl |= dca_get_tag(cpu);
+			dca_rxctrl |= dca3_get_tag(&adapter->pdev->dev, cpu);
 		}
 		dca_rxctrl |= E1000_DCA_RXCTRL_DESC_DCA_EN;
 		dca_rxctrl |= E1000_DCA_RXCTRL_HEAD_DCA_EN;
@@ -3697,11 +3697,11 @@ static void igb_update_tx_dca(struct igb_ring *tx_ring)
 		dca_txctrl = rd32(E1000_DCA_TXCTRL(q));
 		if (hw->mac.type == e1000_82576) {
 			dca_txctrl &= ~E1000_DCA_TXCTRL_CPUID_MASK_82576;
-			dca_txctrl |= dca_get_tag(cpu) <<
+			dca_txctrl |= dca3_get_tag(&adapter->pdev->dev, cpu) <<
 			              E1000_DCA_TXCTRL_CPUID_SHIFT;
 		} else {
 			dca_txctrl &= ~E1000_DCA_TXCTRL_CPUID_MASK;
-			dca_txctrl |= dca_get_tag(cpu);
+			dca_txctrl |= dca3_get_tag(&adapter->pdev->dev, cpu);
 		}
 		dca_txctrl |= E1000_DCA_TXCTRL_DESC_DCA_EN;
 		wr32(E1000_DCA_TXCTRL(q), dca_txctrl);
