@@ -827,32 +827,6 @@ const cpumask_t *cpumask_of_node(int node)
 EXPORT_SYMBOL(cpumask_of_node);
 
 /*
- * Returns a bitmask of CPUs on Node 'node'.
- *
- * Side note: this function creates the returned cpumask on the stack
- * so with a high NR_CPUS count, excessive stack space is used.  The
- * node_to_cpumask_ptr function should be used whenever possible.
- */
-cpumask_t node_to_cpumask(int node)
-{
-	if (node_to_cpumask_map == NULL) {
-		printk(KERN_WARNING
-			"node_to_cpumask(%d): no node_to_cpumask_map!\n", node);
-		dump_stack();
-		return cpu_online_map;
-	}
-	if (node >= nr_node_ids) {
-		printk(KERN_WARNING
-			"node_to_cpumask(%d): node > nr_node_ids(%d)\n",
-			node, nr_node_ids);
-		dump_stack();
-		return cpu_mask_none;
-	}
-	return node_to_cpumask_map[node];
-}
-EXPORT_SYMBOL(node_to_cpumask);
-
-/*
  * --------- end of debug versions of the numa functions ---------
  */
 

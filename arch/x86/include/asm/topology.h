@@ -57,17 +57,6 @@ static inline int cpu_to_node(int cpu)
 }
 #define early_cpu_to_node(cpu)	cpu_to_node(cpu)
 
-/* Returns a bitmask of CPUs on Node 'node'.
- *
- * Side note: this function creates the returned cpumask on the stack
- * so with a high NR_CPUS count, excessive stack space is used.  The
- * cpumask_of_node function should be used whenever possible.
- */
-static inline cpumask_t node_to_cpumask(int node)
-{
-	return node_to_cpumask_map[node];
-}
-
 /* Returns a bitmask of CPUs on Node 'node'. */
 static inline const struct cpumask *cpumask_of_node(int node)
 {
@@ -92,7 +81,6 @@ DECLARE_PER_CPU(int, node_number);
 extern int cpu_to_node(int cpu);
 extern int early_cpu_to_node(int cpu);
 extern const cpumask_t *cpumask_of_node(int node);
-extern cpumask_t node_to_cpumask(int node);
 
 #else	/* !CONFIG_DEBUG_PER_CPU_MAPS */
 
@@ -114,25 +102,9 @@ static inline const cpumask_t *cpumask_of_node(int node)
 	return &node_to_cpumask_map[node];
 }
 
-/* Returns a bitmask of CPUs on Node 'node'. */
-static inline cpumask_t node_to_cpumask(int node)
-{
-	return node_to_cpumask_map[node];
-}
-
 #endif /* !CONFIG_DEBUG_PER_CPU_MAPS */
 
 extern void setup_node_to_cpumask_map(void);
-
-/*
- * Replace default node_to_cpumask_ptr with optimized version
- * Deprecated: use "const struct cpumask *mask = cpumask_of_node(node)"
- */
-#define node_to_cpumask_ptr(v, node)		\
-		const cpumask_t *v = cpumask_of_node(node)
-
-#define node_to_cpumask_ptr_next(v, node)	\
-			   v = cpumask_of_node(node)
 
 #endif /* CONFIG_X86_64 */
 
@@ -212,10 +184,6 @@ static inline const cpumask_t *cpumask_of_node(int node)
 {
 	return &cpu_online_map;
 }
-static inline cpumask_t node_to_cpumask(int node)
-{
-	return cpu_online_map;
-}
 static inline int node_to_first_cpu(int node)
 {
 	return first_cpu(cpu_online_map);
@@ -223,15 +191,6 @@ static inline int node_to_first_cpu(int node)
 
 static inline void setup_node_to_cpumask_map(void) { }
 
-/*
- * Replace default node_to_cpumask_ptr with optimized version
- * Deprecated: use "const struct cpumask *mask = cpumask_of_node(node)"
- */
-#define node_to_cpumask_ptr(v, node)		\
-		const cpumask_t *v = cpumask_of_node(node)
-
-#define node_to_cpumask_ptr_next(v, node)	\
-			   v = cpumask_of_node(node)
 #endif
 
 #include <asm-generic/topology.h>
