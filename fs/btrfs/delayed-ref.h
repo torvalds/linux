@@ -68,6 +68,8 @@ struct btrfs_delayed_ref_head {
 	 */
 	struct mutex mutex;
 
+	struct list_head cluster;
+
 	/*
 	 * when a new extent is allocated, it is just reserved in memory
 	 * The actual extent isn't inserted into the extent allocation tree
@@ -115,12 +117,20 @@ struct btrfs_delayed_ref_root {
 	 */
 	unsigned long num_entries;
 
+	/* total number of head nodes in tree */
+	unsigned long num_heads;
+
+	/* total number of head nodes ready for processing */
+	unsigned long num_heads_ready;
+
 	/*
 	 * set when the tree is flushing before a transaction commit,
 	 * used by the throttling code to decide if new updates need
 	 * to be run right away
 	 */
 	int flushing;
+
+	u64 run_delayed_start;
 };
 
 static inline void btrfs_put_delayed_ref(struct btrfs_delayed_ref_node *ref)
@@ -140,9 +150,6 @@ int btrfs_add_delayed_ref(struct btrfs_trans_handle *trans,
 struct btrfs_delayed_ref_head *
 btrfs_find_delayed_ref_head(struct btrfs_trans_handle *trans, u64 bytenr);
 int btrfs_delayed_ref_pending(struct btrfs_trans_handle *trans, u64 bytenr);
-int btrfs_lock_delayed_ref(struct btrfs_trans_handle *trans,
-			   struct btrfs_delayed_ref_node *ref,
-			   struct btrfs_delayed_ref_head **next_ret);
 int btrfs_lookup_extent_ref(struct btrfs_trans_handle *trans,
 			    struct btrfs_root *root, u64 bytenr,
 			    u64 num_bytes, u32 *refs);
@@ -151,6 +158,10 @@ int btrfs_update_delayed_ref(struct btrfs_trans_handle *trans,
 			  u64 parent, u64 orig_ref_root, u64 ref_root,
 			  u64 orig_ref_generation, u64 ref_generation,
 			  u64 owner_objectid, int pin);
+int btrfs_delayed_ref_lock(struct btrfs_trans_handle *trans,
+			   struct btrfs_delayed_ref_head *head);
+int btrfs_find_ref_cluster(struct btrfs_trans_handle *trans,
+			   struct list_head *cluster, u64 search_start);
 /*
  * a node might live in a head or a regular ref, this lets you
  * test for the proper type to use.

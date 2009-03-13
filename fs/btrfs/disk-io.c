@@ -1458,7 +1458,6 @@ static int transaction_kthread(void *arg)
 	struct btrfs_root *root = arg;
 	struct btrfs_trans_handle *trans;
 	struct btrfs_transaction *cur;
-	struct btrfs_fs_info *info = root->fs_info;
 	unsigned long now;
 	unsigned long delay;
 	int ret;
@@ -1481,24 +1480,8 @@ static int transaction_kthread(void *arg)
 
 		now = get_seconds();
 		if (now < cur->start_time || now - cur->start_time < 30) {
-			unsigned long num_delayed;
-			num_delayed = cur->delayed_refs.num_entries;
 			mutex_unlock(&root->fs_info->trans_mutex);
 			delay = HZ * 5;
-
-			/*
-			 * we may have been woken up early to start
-			 * processing the delayed extent ref updates
-			 * If so, run some of them and then loop around again
-			 * to see if we need to force a commit
-			 */
-			if (num_delayed > 64) {
-				mutex_unlock(&info->transaction_kthread_mutex);
-				trans = btrfs_start_transaction(root, 1);
-				btrfs_run_delayed_refs(trans, root, 256);
-				btrfs_end_transaction(trans, root);
-				continue;
-			}
 			goto sleep;
 		}
 		mutex_unlock(&root->fs_info->trans_mutex);

@@ -68,7 +68,10 @@ static noinline int join_transaction(struct btrfs_root *root)
 
 		cur_trans->delayed_refs.root.rb_node = NULL;
 		cur_trans->delayed_refs.num_entries = 0;
+		cur_trans->delayed_refs.num_heads_ready = 0;
+		cur_trans->delayed_refs.num_heads = 0;
 		cur_trans->delayed_refs.flushing = 0;
+		cur_trans->delayed_refs.run_delayed_start = 0;
 		spin_lock_init(&cur_trans->delayed_refs.lock);
 
 		INIT_LIST_HEAD(&cur_trans->pending_snapshots);
@@ -287,13 +290,19 @@ static int __btrfs_end_transaction(struct btrfs_trans_handle *trans,
 {
 	struct btrfs_transaction *cur_trans;
 	struct btrfs_fs_info *info = root->fs_info;
+	int count = 0;
 
-	if (trans->delayed_ref_updates &&
-	    (trans->transaction->delayed_refs.flushing ||
-	    trans->transaction->delayed_refs.num_entries > 16384)) {
-		btrfs_run_delayed_refs(trans, root, trans->delayed_ref_updates);
-	} else if (trans->transaction->delayed_refs.num_entries > 64) {
-		wake_up_process(root->fs_info->transaction_kthread);
+	while (count < 4) {
+		unsigned long cur = trans->delayed_ref_updates;
+		trans->delayed_ref_updates = 0;
+		if (cur &&
+		    trans->transaction->delayed_refs.num_heads_ready > 64) {
+			trans->delayed_ref_updates = 0;
+			btrfs_run_delayed_refs(trans, root, cur);
+		} else {
+			break;
+		}
+		count++;
 	}
 
 	mutex_lock(&info->trans_mutex);
@@ -929,7 +938,7 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 	 */
 	trans->transaction->delayed_refs.flushing = 1;
 
-	ret = btrfs_run_delayed_refs(trans, root, (u64)-1);
+	ret = btrfs_run_delayed_refs(trans, root, 0);
 	BUG_ON(ret);
 
 	INIT_LIST_HEAD(&dirty_fs_roots);

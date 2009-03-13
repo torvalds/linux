@@ -720,6 +720,7 @@ struct btrfs_fs_info {
 	struct mutex drop_mutex;
 	struct mutex volume_mutex;
 	struct mutex tree_reloc_mutex;
+
 	struct list_head trans_list;
 	struct list_head hashers;
 	struct list_head dead_roots;

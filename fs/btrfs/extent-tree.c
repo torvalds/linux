@@ -926,52 +926,41 @@ again:
 	return NULL;
 }
 
-/*
- * this starts processing the delayed reference count updates and
- * extent insertions we have queued up so far.  count can be
- * 0, which means to process everything in the tree at the start
- * of the run (but not newly added entries), or it can be some target
- * number you'd like to process.
- */
-int btrfs_run_delayed_refs(struct btrfs_trans_handle *trans,
-			   struct btrfs_root *root, unsigned long count)
+static noinline int run_clustered_refs(struct btrfs_trans_handle *trans,
+				       struct btrfs_root *root,
+				       struct list_head *cluster)
 {
-	struct rb_node *node;
 	struct btrfs_delayed_ref_root *delayed_refs;
 	struct btrfs_delayed_ref_node *ref;
 	struct btrfs_delayed_ref_head *locked_ref = NULL;
 	int ret;
+	int count = 0;
 	int must_insert_reserved = 0;
-	int run_all = count == (unsigned long)-1;
-
-	if (root == root->fs_info->extent_root)
-		root = root->fs_info->tree_root;
 
 	delayed_refs = &trans->transaction->delayed_refs;
-again:
-	spin_lock(&delayed_refs->lock);
-	if (count == 0)
-		count = delayed_refs->num_entries;
 	while (1) {
 		if (!locked_ref) {
-			/*
-			 * no locked ref, go find something we can
-			 * process in the rbtree.  We start at
-			 * the beginning of the tree, there may be less
-			 * lock contention if we do something smarter here.
-			 */
-			node = rb_first(&delayed_refs->root);
-			if (!node) {
-				spin_unlock(&delayed_refs->lock);
+			/* pick a new head ref from the cluster list */
+			if (list_empty(cluster))
 				break;
-			}
 
-			ref = rb_entry(node, struct btrfs_delayed_ref_node,
-				       rb_node);
-			ret = btrfs_lock_delayed_ref(trans, ref, &locked_ref);
-			if (ret) {
-				spin_unlock(&delayed_refs->lock);
-				break;
+			locked_ref = list_entry(cluster->next,
+				     struct btrfs_delayed_ref_head, cluster);
+
+			/* grab the lock that says we are going to process
+			 * all the refs for this head */
+			ret = btrfs_delayed_ref_lock(trans, locked_ref);
+
+			/*
+			 * we may have dropped the spin lock to get the head
+			 * mutex lock, and that might have given someone else
+			 * time to free the head.  If that's true, it has been
+			 * removed from our list and we can move on.
+			 */
+			if (ret == -EAGAIN) {
+				locked_ref = NULL;
+				count++;
+				continue;
 			}
 		}
 
@@ -986,7 +975,6 @@ again:
 		 * locked_ref is the head node, so we have to go one
 		 * node back for any delayed ref updates
 		 */
-
 		ref = select_delayed_ref(locked_ref);
 		if (!ref) {
 			/* All delayed refs have been processed, Go ahead
@@ -994,6 +982,7 @@ again:
 			 * so that any accounting fixes can happen
 			 */
 			ref = &locked_ref->node;
+			list_del_init(&locked_ref->cluster);
 			locked_ref = NULL;
 		}
 
@@ -1007,30 +996,72 @@ again:
 		BUG_ON(ret);
 		btrfs_put_delayed_ref(ref);
 
-		/* once we lock the head ref, we have to process all the
-		 * entries for it.  So, we might end up doing more entries
-		 * that count was asking us to do.
-		 */
-		if (count > 0)
-			count--;
-
-		/*
-		 * we set locked_ref to null above if we're all done
-		 * with this bytenr
-		 */
-		if (!locked_ref && count == 0)
-			break;
-
+		count++;
 		cond_resched();
 		spin_lock(&delayed_refs->lock);
 	}
+	return count;
+}
+
+/*
+ * this starts processing the delayed reference count updates and
+ * extent insertions we have queued up so far.  count can be
+ * 0, which means to process everything in the tree at the start
+ * of the run (but not newly added entries), or it can be some target
+ * number you'd like to process.
+ */
+int btrfs_run_delayed_refs(struct btrfs_trans_handle *trans,
+			   struct btrfs_root *root, unsigned long count)
+{
+	struct rb_node *node;
+	struct btrfs_delayed_ref_root *delayed_refs;
+	struct btrfs_delayed_ref_node *ref;
+	struct list_head cluster;
+	int ret;
+	int run_all = count == (unsigned long)-1;
+	int run_most = 0;
+
+	if (root == root->fs_info->extent_root)
+		root = root->fs_info->tree_root;
+
+	delayed_refs = &trans->transaction->delayed_refs;
+	INIT_LIST_HEAD(&cluster);
+again:
+	spin_lock(&delayed_refs->lock);
+	if (count == 0) {
+		count = delayed_refs->num_entries * 2;
+		run_most = 1;
+	}
+	while (1) {
+		if (!(run_all || run_most) &&
+		    delayed_refs->num_heads_ready < 64)
+			break;
+
+		/*
+		 * go find something we can process in the rbtree.  We start at
+		 * the beginning of the tree, and then build a cluster
+		 * of refs to process starting at the first one we are able to
+		 * lock
+		 */
+		ret = btrfs_find_ref_cluster(trans, &cluster,
+					     delayed_refs->run_delayed_start);
+		if (ret)
+			break;
+
+		ret = run_clustered_refs(trans, root, &cluster);
+		BUG_ON(ret < 0);
+
+		count -= min_t(unsigned long, ret, count);
+
+		if (count == 0)
+			break;
+	}
+
 	if (run_all) {
-		spin_lock(&delayed_refs->lock);
 		node = rb_first(&delayed_refs->root);
-		if (!node) {
-			spin_unlock(&delayed_refs->lock);
+		if (!node)
 			goto out;
-		}
+		count = (unsigned long)-1;
 
 		while (node) {
 			ref = rb_entry(node, struct btrfs_delayed_ref_node,
@@ -1052,11 +1083,11 @@ again:
 			node = rb_next(node);
 		}
 		spin_unlock(&delayed_refs->lock);
-		count = (unsigned long)-1;
 		schedule_timeout(1);
 		goto again;
 	}
 out:
+	spin_unlock(&delayed_refs->lock);
 	return 0;
 }
 
@@ -2407,12 +2438,18 @@ static noinline int check_ref_cleanup(struct btrfs_trans_handle *trans,
 	 */
 	head->node.in_tree = 0;
 	rb_erase(&head->node.rb_node, &delayed_refs->root);
+
 	delayed_refs->num_entries--;
 
 	/*
 	 * we don't take a ref on the node because we're removing it from the
 	 * tree, so we just steal the ref the tree was holding.
 	 */
+	delayed_refs->num_heads--;
+	if (list_empty(&head->cluster))
+		delayed_refs->num_heads_ready--;
+
+	list_del_init(&head->cluster);
 	spin_unlock(&delayed_refs->lock);
 
 	ret = run_one_delayed_ref(trans, root->fs_info->tree_root,
@@ -3705,6 +3742,7 @@ int btrfs_drop_snapshot(struct btrfs_trans_handle *trans, struct btrfs_root
 	struct btrfs_path *path;
 	int i;
 	int orig_level;
+	int update_count;
 	struct btrfs_root_item *root_item = &root->root_item;
 
 	WARN_ON(!mutex_is_locked(&root->fs_info->drop_mutex));
@@ -3746,6 +3784,7 @@ int btrfs_drop_snapshot(struct btrfs_trans_handle *trans, struct btrfs_root
 		}
 	}
 	while (1) {
+		unsigned long update;
 		wret = walk_down_tree(trans, root, path, &level);
 		if (wret > 0)
 			break;
@@ -3764,6 +3803,14 @@ int btrfs_drop_snapshot(struct btrfs_trans_handle *trans, struct btrfs_root
 		}
 		atomic_inc(&root->fs_info->throttle_gen);
 		wake_up(&root->fs_info->transaction_throttle);
+		for (update_count = 0; update_count < 16; update_count++) {
+			update = trans->delayed_ref_updates;
+			trans->delayed_ref_updates = 0;
+			if (update)
+				btrfs_run_delayed_refs(trans, root, update);
+			else
+				break;
+		}
 	}
 	for (i = 0; i <= orig_level; i++) {
 		if (path->nodes[i]) {
