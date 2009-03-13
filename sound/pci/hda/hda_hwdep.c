@@ -176,25 +176,29 @@ static int reconfig_codec(struct hda_codec *codec)
 {
 	int err;
 
+	snd_hda_power_up(codec);
 	snd_printk(KERN_INFO "hda-codec: reconfiguring\n");
 	err = snd_hda_codec_reset(codec);
 	if (err < 0) {
 		snd_printk(KERN_ERR
 			   "The codec is being used, can't reconfigure.\n");
-		return err;
+		goto error;
 	}
 	err = snd_hda_codec_configure(codec);
 	if (err < 0)
-		return err;
+		goto error;
 	/* rebuild PCMs */
 	err = snd_hda_codec_build_pcms(codec);
 	if (err < 0)
-		return err;
+		goto error;
 	/* rebuild mixers */
 	err = snd_hda_codec_build_controls(codec);
 	if (err < 0)
-		return err;
-	return snd_card_register(codec->bus->card);
+		goto error;
+	err = snd_card_register(codec->bus->card);
+ error:
+	snd_hda_power_down(codec);
+	return err;
 }
 
 /*

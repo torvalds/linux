@@ -842,6 +842,9 @@ static void snd_hda_codec_free(struct hda_codec *codec)
 	kfree(codec);
 }
 
+static void hda_set_power_state(struct hda_codec *codec, hda_nid_t fg,
+				unsigned int power_state);
+
 /**
  * snd_hda_codec_new - create a HDA codec
  * @bus: the bus to assign
@@ -940,6 +943,11 @@ int /*__devinit*/ snd_hda_codec_new(struct hda_bus *bus, unsigned int codec_addr
 	}
 	if (bus->modelname)
 		codec->modelname = kstrdup(bus->modelname, GFP_KERNEL);
+
+	/* power-up all before initialization */
+	hda_set_power_state(codec,
+			    codec->afg ? codec->afg : codec->mfg,
+			    AC_PWRST_D0);
 
 	if (do_init) {
 		err = snd_hda_codec_configure(codec);
@@ -2413,19 +2421,12 @@ EXPORT_SYMBOL_HDA(snd_hda_build_controls);
 int snd_hda_codec_build_controls(struct hda_codec *codec)
 {
 	int err = 0;
-	/* fake as if already powered-on */
-	hda_keep_power_on(codec);
-	/* then fire up */
-	hda_set_power_state(codec,
-			    codec->afg ? codec->afg : codec->mfg,
-			    AC_PWRST_D0);
 	hda_exec_init_verbs(codec);
 	/* continue to initialize... */
 	if (codec->patch_ops.init)
 		err = codec->patch_ops.init(codec);
 	if (!err && codec->patch_ops.build_controls)
 		err = codec->patch_ops.build_controls(codec);
-	snd_hda_power_down(codec);
 	if (err < 0)
 		return err;
 	return 0;
