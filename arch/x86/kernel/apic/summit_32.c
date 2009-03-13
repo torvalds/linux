@@ -53,23 +53,19 @@ static unsigned summit_get_apic_id(unsigned long x)
 	return (x >> 24) & 0xFF;
 }
 
-static inline void summit_send_IPI_mask(const cpumask_t *mask, int vector)
+static inline void summit_send_IPI_mask(const struct cpumask *mask, int vector)
 {
 	default_send_IPI_mask_sequence_logical(mask, vector);
 }
 
 static void summit_send_IPI_allbutself(int vector)
 {
-	cpumask_t mask = cpu_online_map;
-	cpu_clear(smp_processor_id(), mask);
-
-	if (!cpus_empty(mask))
-		summit_send_IPI_mask(&mask, vector);
+	default_send_IPI_mask_allbutself_logical(cpu_online_mask, vector);
 }
 
 static void summit_send_IPI_all(int vector)
 {
-	summit_send_IPI_mask(&cpu_online_map, vector);
+	summit_send_IPI_mask(cpu_online_mask, vector);
 }
 
 #include <asm/tsc.h>
