@@ -588,6 +588,10 @@ static int ath9k_hw_post_attach(struct ath_hw *ah)
 	ecode = ath9k_hw_eeprom_attach(ah);
 	if (ecode != 0)
 		return ecode;
+
+	DPRINTF(ah->ah_sc, ATH_DBG_CONFIG, "Eeprom VER: %d, REV: %d\n",
+		ah->eep_ops->get_eeprom_ver(ah), ah->eep_ops->get_eeprom_rev(ah));
+
 	ecode = ath9k_hw_rfattach(ah);
 	if (ecode != 0)
 		return ecode;
