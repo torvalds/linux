@@ -74,7 +74,8 @@ struct soc_camera_host_ops {
 	int (*resume)(struct soc_camera_device *);
 	int (*get_formats)(struct soc_camera_device *, int,
 			   struct soc_camera_format_xlate *);
-	int (*set_fmt)(struct soc_camera_device *, __u32, struct v4l2_rect *);
+	int (*set_crop)(struct soc_camera_device *, struct v4l2_rect *);
+	int (*set_fmt)(struct soc_camera_device *, struct v4l2_format *);
 	int (*try_fmt)(struct soc_camera_device *, struct v4l2_format *);
 	void (*init_videobuf)(struct videobuf_queue *,
 			      struct soc_camera_device *);
@@ -159,7 +160,8 @@ struct soc_camera_ops {
 	int (*release)(struct soc_camera_device *);
 	int (*start_capture)(struct soc_camera_device *);
 	int (*stop_capture)(struct soc_camera_device *);
-	int (*set_fmt)(struct soc_camera_device *, __u32, struct v4l2_rect *);
+	int (*set_crop)(struct soc_camera_device *, struct v4l2_rect *);
+	int (*set_fmt)(struct soc_camera_device *, struct v4l2_format *);
 	int (*try_fmt)(struct soc_camera_device *, struct v4l2_format *);
 	unsigned long (*query_bus_param)(struct soc_camera_device *);
 	int (*set_bus_param)(struct soc_camera_device *, unsigned long);

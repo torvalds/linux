@@ -284,8 +284,8 @@ static unsigned long mt9m001_query_bus_param(struct soc_camera_device *icd)
 	return soc_camera_apply_sensor_flags(icl, flags);
 }
 
-static int mt9m001_set_fmt(struct soc_camera_device *icd,
-			   __u32 pixfmt, struct v4l2_rect *rect)
+static int mt9m001_set_crop(struct soc_camera_device *icd,
+			    struct v4l2_rect *rect)
 {
 	struct mt9m001 *mt9m001 = container_of(icd, struct mt9m001, icd);
 	int ret;
@@ -322,6 +322,20 @@ static int mt9m001_set_fmt(struct soc_camera_device *icd,
 	}
 
 	return ret;
+}
+
+static int mt9m001_set_fmt(struct soc_camera_device *icd,
+			   struct v4l2_format *f)
+{
+	struct v4l2_rect rect = {
+		.left	= icd->x_current,
+		.top	= icd->y_current,
+		.width	= f->fmt.pix.width,
+		.height	= f->fmt.pix.height,
+	};
+
+	/* No support for scaling so far, just crop. TODO: use skipping */
+	return mt9m001_set_crop(icd, &rect);
 }
 
 static int mt9m001_try_fmt(struct soc_camera_device *icd,
@@ -449,6 +463,7 @@ static struct soc_camera_ops mt9m001_ops = {
 	.release		= mt9m001_release,
 	.start_capture		= mt9m001_start_capture,
 	.stop_capture		= mt9m001_stop_capture,
+	.set_crop		= mt9m001_set_crop,
 	.set_fmt		= mt9m001_set_fmt,
 	.try_fmt		= mt9m001_try_fmt,
 	.set_bus_param		= mt9m001_set_bus_param,

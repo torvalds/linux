@@ -781,11 +781,9 @@ ov772x_select_win(u32 width, u32 height)
 	return win;
 }
 
-static int ov772x_set_fmt(struct soc_camera_device *icd,
-			  __u32                     pixfmt,
-			  struct v4l2_rect         *rect)
+static int ov772x_set_params(struct ov772x_priv *priv, u32 width, u32 height,
+			     u32 pixfmt)
 {
-	struct ov772x_priv *priv = container_of(icd, struct ov772x_priv, icd);
 	int ret = -EINVAL;
 	u8  val;
 	int i;
@@ -806,7 +804,7 @@ static int ov772x_set_fmt(struct soc_camera_device *icd,
 	/*
 	 * select win
 	 */
-	priv->win = ov772x_select_win(rect->width, rect->height);
+	priv->win = ov772x_select_win(width, height);
 
 	/*
 	 * reset hardware
@@ -868,6 +866,28 @@ ov772x_set_fmt_error:
 	priv->fmt = NULL;
 
 	return ret;
+}
+
+static int ov772x_set_crop(struct soc_camera_device *icd,
+			   struct v4l2_rect *rect)
+{
+	struct ov772x_priv *priv = container_of(icd, struct ov772x_priv, icd);
+
+	if (!priv->fmt)
+		return -EINVAL;
+
+	return ov772x_set_params(priv, rect->width, rect->height,
+				 priv->fmt->fourcc);
+}
+
+static int ov772x_set_fmt(struct soc_camera_device *icd,
+			  struct v4l2_format *f)
+{
+	struct ov772x_priv *priv = container_of(icd, struct ov772x_priv, icd);
+	struct v4l2_pix_format *pix = &f->fmt.pix;
+
+	return ov772x_set_params(priv, pix->width, pix->height,
+				 pix->pixelformat);
 }
 
 static int ov772x_try_fmt(struct soc_camera_device *icd,
@@ -959,6 +979,7 @@ static struct soc_camera_ops ov772x_ops = {
 	.release		= ov772x_release,
 	.start_capture		= ov772x_start_capture,
 	.stop_capture		= ov772x_stop_capture,
+	.set_crop		= ov772x_set_crop,
 	.set_fmt		= ov772x_set_fmt,
 	.try_fmt		= ov772x_try_fmt,
 	.set_bus_param		= ov772x_set_bus_param,

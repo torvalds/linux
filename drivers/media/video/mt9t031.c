@@ -213,36 +213,14 @@ static void recalculate_limits(struct soc_camera_device *icd,
 	icd->height_max = MT9T031_MAX_HEIGHT / yskip;
 }
 
-static int mt9t031_set_fmt(struct soc_camera_device *icd,
-			   __u32 pixfmt, struct v4l2_rect *rect)
+static int mt9t031_set_params(struct soc_camera_device *icd,
+			      struct v4l2_rect *rect, u16 xskip, u16 yskip)
 {
 	struct mt9t031 *mt9t031 = container_of(icd, struct mt9t031, icd);
 	int ret;
+	u16 xbin, ybin, width, height, left, top;
 	const u16 hblank = MT9T031_HORIZONTAL_BLANK,
 		vblank = MT9T031_VERTICAL_BLANK;
-	u16 xbin, xskip, ybin, yskip, width, height, left, top;
-
-	if (pixfmt) {
-		/*
-		 * try_fmt has put rectangle within limits.
-		 * S_FMT - use binning and skipping for scaling, recalculate
-		 * limits, used for cropping
-		 */
-		/* Is this more optimal than just a division? */
-		for (xskip = 8; xskip > 1; xskip--)
-			if (rect->width * xskip <= MT9T031_MAX_WIDTH)
-				break;
-
-		for (yskip = 8; yskip > 1; yskip--)
-			if (rect->height * yskip <= MT9T031_MAX_HEIGHT)
-				break;
-
-		recalculate_limits(icd, xskip, yskip);
-	} else {
-		/* CROP - no change in scaling, or in limits */
-		xskip = mt9t031->xskip;
-		yskip = mt9t031->yskip;
-	}
 
 	/* Make sure we don't exceed sensor limits */
 	if (rect->left + rect->width > icd->width_max)
@@ -289,7 +267,7 @@ static int mt9t031_set_fmt(struct soc_camera_device *icd,
 	if (ret >= 0)
 		ret = reg_write(icd, MT9T031_VERTICAL_BLANKING, vblank);
 
-	if (pixfmt) {
+	if (yskip != mt9t031->yskip || xskip != mt9t031->xskip) {
 		/* Binning, skipping */
 		if (ret >= 0)
 			ret = reg_write(icd, MT9T031_COLUMN_ADDRESS_MODE,
@@ -325,15 +303,58 @@ static int mt9t031_set_fmt(struct soc_camera_device *icd,
 		}
 	}
 
-	if (!ret && pixfmt) {
+	/* Re-enable register update, commit all changes */
+	if (ret >= 0)
+		ret = reg_clear(icd, MT9T031_OUTPUT_CONTROL, 1);
+
+	return ret < 0 ? ret : 0;
+}
+
+static int mt9t031_set_crop(struct soc_camera_device *icd,
+			    struct v4l2_rect *rect)
+{
+	struct mt9t031 *mt9t031 = container_of(icd, struct mt9t031, icd);
+
+	/* CROP - no change in scaling, or in limits */
+	return mt9t031_set_params(icd, rect, mt9t031->xskip, mt9t031->yskip);
+}
+
+static int mt9t031_set_fmt(struct soc_camera_device *icd,
+			   struct v4l2_format *f)
+{
+	struct mt9t031 *mt9t031 = container_of(icd, struct mt9t031, icd);
+	int ret;
+	u16 xskip, yskip;
+	struct v4l2_rect rect = {
+		.left	= icd->x_current,
+		.top	= icd->y_current,
+		.width	= f->fmt.pix.width,
+		.height	= f->fmt.pix.height,
+	};
+
+	/*
+	 * try_fmt has put rectangle within limits.
+	 * S_FMT - use binning and skipping for scaling, recalculate
+	 * limits, used for cropping
+	 */
+	/* Is this more optimal than just a division? */
+	for (xskip = 8; xskip > 1; xskip--)
+		if (rect.width * xskip <= MT9T031_MAX_WIDTH)
+			break;
+
+	for (yskip = 8; yskip > 1; yskip--)
+		if (rect.height * yskip <= MT9T031_MAX_HEIGHT)
+			break;
+
+	recalculate_limits(icd, xskip, yskip);
+
+	ret = mt9t031_set_params(icd, &rect, xskip, yskip);
+	if (!ret) {
 		mt9t031->xskip = xskip;
 		mt9t031->yskip = yskip;
 	}
 
-	/* Re-enable register update, commit all changes */
-	reg_clear(icd, MT9T031_OUTPUT_CONTROL, 1);
-
-	return ret < 0 ? ret : 0;
+	return ret;
 }
 
 static int mt9t031_try_fmt(struct soc_camera_device *icd,
@@ -470,6 +491,7 @@ static struct soc_camera_ops mt9t031_ops = {
 	.release		= mt9t031_release,
 	.start_capture		= mt9t031_start_capture,
 	.stop_capture		= mt9t031_stop_capture,
+	.set_crop		= mt9t031_set_crop,
 	.set_fmt		= mt9t031_set_fmt,
 	.try_fmt		= mt9t031_try_fmt,
 	.set_bus_param		= mt9t031_set_bus_param,

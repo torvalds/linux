@@ -638,16 +638,21 @@ add_single_format:
 	return formats;
 }
 
+static int sh_mobile_ceu_set_crop(struct soc_camera_device *icd,
+				  struct v4l2_rect *rect)
+{
+	return icd->ops->set_crop(icd, rect);
+}
+
 static int sh_mobile_ceu_set_fmt(struct soc_camera_device *icd,
-				 __u32 pixfmt, struct v4l2_rect *rect)
+				 struct v4l2_format *f)
 {
 	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
 	struct sh_mobile_ceu_dev *pcdev = ici->priv;
+	__u32 pixfmt = f->fmt.pix.pixelformat;
 	const struct soc_camera_format_xlate *xlate;
+	struct v4l2_format cam_f = *f;
 	int ret;
-
-	if (!pixfmt)
-		return icd->ops->set_fmt(icd, pixfmt, rect);
 
 	xlate = soc_camera_xlate_by_fourcc(icd, pixfmt);
 	if (!xlate) {
@@ -655,7 +660,8 @@ static int sh_mobile_ceu_set_fmt(struct soc_camera_device *icd,
 		return -EINVAL;
 	}
 
-	ret = icd->ops->set_fmt(icd, xlate->cam_fmt->fourcc, rect);
+	cam_f.fmt.pix.pixelformat = xlate->cam_fmt->fourcc;
+	ret = icd->ops->set_fmt(icd, &cam_f);
 
 	if (!ret) {
 		icd->buswidth = xlate->buswidth;
@@ -787,6 +793,7 @@ static struct soc_camera_host_ops sh_mobile_ceu_host_ops = {
 	.add		= sh_mobile_ceu_add_device,
 	.remove		= sh_mobile_ceu_remove_device,
 	.get_formats	= sh_mobile_ceu_get_formats,
+	.set_crop	= sh_mobile_ceu_set_crop,
 	.set_fmt	= sh_mobile_ceu_set_fmt,
 	.try_fmt	= sh_mobile_ceu_try_fmt,
 	.reqbufs	= sh_mobile_ceu_reqbufs,

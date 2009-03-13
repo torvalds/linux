@@ -544,16 +544,14 @@ static void mx3_camera_remove_device(struct soc_camera_device *icd)
 }
 
 static bool channel_change_requested(struct soc_camera_device *icd,
-				     const struct soc_camera_format_xlate *xlate,
-				     __u32 pixfmt, struct v4l2_rect *rect)
+				     struct v4l2_rect *rect)
 {
 	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
 	struct mx3_camera_dev *mx3_cam = ici->priv;
 	struct idmac_channel *ichan = mx3_cam->idmac_channel[0];
 
-	/* So far only one configuration is supported */
-	return pixfmt || (ichan && rect->width * rect->height >
-			  icd->width * icd->height);
+	/* Do buffers have to be re-allocated or channel re-configured? */
+	return ichan && rect->width * rect->height > icd->width * icd->height;
 }
 
 static int test_platform_param(struct mx3_camera_dev *mx3_cam,
@@ -733,61 +731,10 @@ passthrough:
 	return formats;
 }
 
-static int mx3_camera_set_fmt(struct soc_camera_device *icd,
-			      __u32 pixfmt, struct v4l2_rect *rect)
+static void configure_geometry(struct mx3_camera_dev *mx3_cam,
+			       struct v4l2_rect *rect)
 {
-	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
-	struct mx3_camera_dev *mx3_cam = ici->priv;
-	const struct soc_camera_format_xlate *xlate;
 	u32 ctrl, width_field, height_field;
-	int ret;
-
-	xlate = soc_camera_xlate_by_fourcc(icd, pixfmt);
-	if (pixfmt && !xlate) {
-		dev_warn(&ici->dev, "Format %x not found\n", pixfmt);
-		return -EINVAL;
-	}
-
-	/*
-	 * We now know pixel formats and can decide upon DMA-channel(s)
-	 * So far only direct camera-to-memory is supported
-	 */
-	if (channel_change_requested(icd, xlate, pixfmt, rect)) {
-		dma_cap_mask_t mask;
-		struct dma_chan *chan;
-		struct idmac_channel **ichan = &mx3_cam->idmac_channel[0];
-		/* We have to use IDMAC_IC_7 for Bayer / generic data */
-		struct dma_chan_request rq = {.mx3_cam = mx3_cam,
-					      .id = IDMAC_IC_7};
-
-		if (*ichan) {
-			struct videobuf_buffer *vb, *_vb;
-			dma_release_channel(&(*ichan)->dma_chan);
-			*ichan = NULL;
-			mx3_cam->active = NULL;
-			list_for_each_entry_safe(vb, _vb, &mx3_cam->capture, queue) {
-				list_del_init(&vb->queue);
-				vb->state = VIDEOBUF_ERROR;
-				wake_up(&vb->done);
-			}
-		}
-
-		dma_cap_zero(mask);
-		dma_cap_set(DMA_SLAVE, mask);
-		dma_cap_set(DMA_PRIVATE, mask);
-		chan = dma_request_channel(mask, chan_filter, &rq);
-		if (!chan)
-			return -EBUSY;
-
-		*ichan = to_idmac_chan(chan);
-		(*ichan)->client = mx3_cam;
-	}
-
-	/*
-	 * Might have to perform a complete interface initialisation like in
-	 * ipu_csi_init_interface() in mxc_v4l2_s_param(). Also consider
-	 * mxc_v4l2_s_fmt()
-	 */
 
 	/* Setup frame size - this cannot be changed on-the-fly... */
 	width_field = rect->width - 1;
@@ -808,9 +755,98 @@ static int mx3_camera_set_fmt(struct soc_camera_device *icd,
 	 * No need to free resources here if we fail, we'll see if we need to
 	 * do this next time we are called
 	 */
+}
 
-	ret = icd->ops->set_fmt(icd, pixfmt ? xlate->cam_fmt->fourcc : 0, rect);
-	if (pixfmt && !ret) {
+static int acquire_dma_channel(struct mx3_camera_dev *mx3_cam)
+{
+	dma_cap_mask_t mask;
+	struct dma_chan *chan;
+	struct idmac_channel **ichan = &mx3_cam->idmac_channel[0];
+	/* We have to use IDMAC_IC_7 for Bayer / generic data */
+	struct dma_chan_request rq = {.mx3_cam = mx3_cam,
+				      .id = IDMAC_IC_7};
+
+	if (*ichan) {
+		struct videobuf_buffer *vb, *_vb;
+		dma_release_channel(&(*ichan)->dma_chan);
+		*ichan = NULL;
+		mx3_cam->active = NULL;
+		list_for_each_entry_safe(vb, _vb, &mx3_cam->capture, queue) {
+			list_del_init(&vb->queue);
+			vb->state = VIDEOBUF_ERROR;
+			wake_up(&vb->done);
+		}
+	}
+
+	dma_cap_zero(mask);
+	dma_cap_set(DMA_SLAVE, mask);
+	dma_cap_set(DMA_PRIVATE, mask);
+	chan = dma_request_channel(mask, chan_filter, &rq);
+	if (!chan)
+		return -EBUSY;
+
+	*ichan = to_idmac_chan(chan);
+	(*ichan)->client = mx3_cam;
+
+	return 0;
+}
+
+static int mx3_camera_set_crop(struct soc_camera_device *icd,
+			       struct v4l2_rect *rect)
+{
+	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
+	struct mx3_camera_dev *mx3_cam = ici->priv;
+
+	/*
+	 * We now know pixel formats and can decide upon DMA-channel(s)
+	 * So far only direct camera-to-memory is supported
+	 */
+	if (channel_change_requested(icd, rect)) {
+		int ret = acquire_dma_channel(mx3_cam);
+		if (ret < 0)
+			return ret;
+	}
+
+	configure_geometry(mx3_cam, rect);
+
+	return icd->ops->set_crop(icd, rect);
+}
+
+static int mx3_camera_set_fmt(struct soc_camera_device *icd,
+			      struct v4l2_format *f)
+{
+	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
+	struct mx3_camera_dev *mx3_cam = ici->priv;
+	const struct soc_camera_format_xlate *xlate;
+	struct v4l2_pix_format *pix = &f->fmt.pix;
+	struct v4l2_rect rect = {
+		.left	= icd->x_current,
+		.top	= icd->y_current,
+		.width	= pix->width,
+		.height	= pix->height,
+	};
+	int ret;
+
+	xlate = soc_camera_xlate_by_fourcc(icd, pix->pixelformat);
+	if (!xlate) {
+		dev_warn(&ici->dev, "Format %x not found\n", pix->pixelformat);
+		return -EINVAL;
+	}
+
+	ret = acquire_dma_channel(mx3_cam);
+	if (ret < 0)
+		return ret;
+
+	/*
+	 * Might have to perform a complete interface initialisation like in
+	 * ipu_csi_init_interface() in mxc_v4l2_s_param(). Also consider
+	 * mxc_v4l2_s_fmt()
+	 */
+
+	configure_geometry(mx3_cam, &rect);
+
+	ret = icd->ops->set_fmt(icd, f);
+	if (!ret) {
 		icd->buswidth = xlate->buswidth;
 		icd->current_fmt = xlate->host_fmt;
 	}
@@ -1031,6 +1067,7 @@ static struct soc_camera_host_ops mx3_soc_camera_host_ops = {
 	.suspend	= mx3_camera_suspend,
 	.resume		= mx3_camera_resume,
 #endif
+	.set_crop	= mx3_camera_set_crop,
 	.set_fmt	= mx3_camera_set_fmt,
 	.try_fmt	= mx3_camera_try_fmt,
 	.get_formats	= mx3_camera_get_formats,

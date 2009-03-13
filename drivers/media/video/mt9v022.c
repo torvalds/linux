@@ -340,31 +340,10 @@ static unsigned long mt9v022_query_bus_param(struct soc_camera_device *icd)
 		width_flag;
 }
 
-static int mt9v022_set_fmt(struct soc_camera_device *icd,
-			   __u32 pixfmt, struct v4l2_rect *rect)
+static int mt9v022_set_crop(struct soc_camera_device *icd,
+			    struct v4l2_rect *rect)
 {
-	struct mt9v022 *mt9v022 = container_of(icd, struct mt9v022, icd);
 	int ret;
-
-	/* The caller provides a supported format, as verified per call to
-	 * icd->try_fmt(), datawidth is from our supported format list */
-	switch (pixfmt) {
-	case V4L2_PIX_FMT_GREY:
-	case V4L2_PIX_FMT_Y16:
-		if (mt9v022->model != V4L2_IDENT_MT9V022IX7ATM)
-			return -EINVAL;
-		break;
-	case V4L2_PIX_FMT_SBGGR8:
-	case V4L2_PIX_FMT_SBGGR16:
-		if (mt9v022->model != V4L2_IDENT_MT9V022IX7ATC)
-			return -EINVAL;
-		break;
-	case 0:
-		/* No format change, only geometry */
-		break;
-	default:
-		return -EINVAL;
-	}
 
 	/* Like in example app. Contradicts the datasheet though */
 	ret = reg_read(icd, MT9V022_AEC_AGC_ENABLE);
@@ -401,6 +380,42 @@ static int mt9v022_set_fmt(struct soc_camera_device *icd,
 	dev_dbg(&icd->dev, "Frame %ux%u pixel\n", rect->width, rect->height);
 
 	return 0;
+}
+
+static int mt9v022_set_fmt(struct soc_camera_device *icd,
+			   struct v4l2_format *f)
+{
+	struct mt9v022 *mt9v022 = container_of(icd, struct mt9v022, icd);
+	struct v4l2_pix_format *pix = &f->fmt.pix;
+	struct v4l2_rect rect = {
+		.left	= icd->x_current,
+		.top	= icd->y_current,
+		.width	= pix->width,
+		.height	= pix->height,
+	};
+
+	/* The caller provides a supported format, as verified per call to
+	 * icd->try_fmt(), datawidth is from our supported format list */
+	switch (pix->pixelformat) {
+	case V4L2_PIX_FMT_GREY:
+	case V4L2_PIX_FMT_Y16:
+		if (mt9v022->model != V4L2_IDENT_MT9V022IX7ATM)
+			return -EINVAL;
+		break;
+	case V4L2_PIX_FMT_SBGGR8:
+	case V4L2_PIX_FMT_SBGGR16:
+		if (mt9v022->model != V4L2_IDENT_MT9V022IX7ATC)
+			return -EINVAL;
+		break;
+	case 0:
+		/* No format change, only geometry */
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	/* No support for scaling on this camera, just crop. */
+	return mt9v022_set_crop(icd, &rect);
 }
 
 static int mt9v022_try_fmt(struct soc_camera_device *icd,
@@ -544,6 +559,7 @@ static struct soc_camera_ops mt9v022_ops = {
 	.release		= mt9v022_release,
 	.start_capture		= mt9v022_start_capture,
 	.stop_capture		= mt9v022_stop_capture,
+	.set_crop		= mt9v022_set_crop,
 	.set_fmt		= mt9v022_set_fmt,
 	.try_fmt		= mt9v022_try_fmt,
 	.set_bus_param		= mt9v022_set_bus_param,

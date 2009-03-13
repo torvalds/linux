@@ -417,9 +417,7 @@ static int soc_camera_s_fmt_vid_cap(struct file *file, void *priv,
 	struct soc_camera_device *icd = icf->icd;
 	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
 	struct v4l2_pix_format *pix = &f->fmt.pix;
-	__u32 pixfmt = pix->pixelformat;
 	int ret;
-	struct v4l2_rect rect;
 
 	WARN_ON(priv != file->private_data);
 
@@ -435,23 +433,19 @@ static int soc_camera_s_fmt_vid_cap(struct file *file, void *priv,
 		goto unlock;
 	}
 
-	rect.left	= icd->x_current;
-	rect.top	= icd->y_current;
-	rect.width	= pix->width;
-	rect.height	= pix->height;
-	ret = ici->ops->set_fmt(icd, pix->pixelformat, &rect);
+	ret = ici->ops->set_fmt(icd, f);
 	if (ret < 0) {
 		goto unlock;
 	} else if (!icd->current_fmt ||
-		   icd->current_fmt->fourcc != pixfmt) {
+		   icd->current_fmt->fourcc != pix->pixelformat) {
 		dev_err(&ici->dev,
 			"Host driver hasn't set up current format correctly!\n");
 		ret = -EINVAL;
 		goto unlock;
 	}
 
-	icd->width		= rect.width;
-	icd->height		= rect.height;
+	icd->width		= f->fmt.pix.width;
+	icd->height		= f->fmt.pix.height;
 	icf->vb_vidq.field	= pix->field;
 	if (f->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		dev_warn(&icd->dev, "Attention! Wrong buf-type %d\n",
@@ -461,7 +455,7 @@ static int soc_camera_s_fmt_vid_cap(struct file *file, void *priv,
 		icd->width, icd->height);
 
 	/* set physical bus parameters */
-	ret = ici->ops->set_bus_param(icd, pixfmt);
+	ret = ici->ops->set_bus_param(icd, pix->pixelformat);
 
 unlock:
 	mutex_unlock(&icf->vb_vidq.vb_lock);
@@ -685,7 +679,7 @@ static int soc_camera_s_crop(struct file *file, void *fh,
 	/* Cropping is allowed during a running capture, guard consistency */
 	mutex_lock(&icf->vb_vidq.vb_lock);
 
-	ret = ici->ops->set_fmt(icd, 0, &a->c);
+	ret = ici->ops->set_crop(icd, &a->c);
 	if (!ret) {
 		icd->width	= a->c.width;
 		icd->height	= a->c.height;
@@ -918,6 +912,7 @@ int soc_camera_host_register(struct soc_camera_host *ici)
 	if (!ici || !ici->ops ||
 	    !ici->ops->try_fmt ||
 	    !ici->ops->set_fmt ||
+	    !ici->ops->set_crop ||
 	    !ici->ops->set_bus_param ||
 	    !ici->ops->querycap ||
 	    !ici->ops->init_videobuf ||
@@ -998,6 +993,7 @@ int soc_camera_device_register(struct soc_camera_device *icd)
 	    !icd->ops->release ||
 	    !icd->ops->start_capture ||
 	    !icd->ops->stop_capture ||
+	    !icd->ops->set_crop ||
 	    !icd->ops->set_fmt ||
 	    !icd->ops->try_fmt ||
 	    !icd->ops->query_bus_param ||
