@@ -1,5 +1,5 @@
 /*
- * h/w branch tracer for x86 based on bts
+ * h/w branch tracer for x86 based on BTS
  *
  * Copyright (C) 2008-2009 Intel Corporation.
  * Markus Metzger <markus.t.metzger@gmail.com>, 2008-2009
@@ -15,8 +15,8 @@
 
 #include <asm/ds.h>
 
-#include "trace.h"
 #include "trace_output.h"
+#include "trace.h"
 
 
 #define BTS_BUFFER_SIZE (1 << 13)
@@ -197,10 +197,10 @@ static void bts_trace_print_header(struct seq_file *m)
 
 static enum print_line_t bts_trace_print_line(struct trace_iterator *iter)
 {
+	unsigned long symflags = TRACE_ITER_SYM_OFFSET;
 	struct trace_entry *entry = iter->ent;
 	struct trace_seq *seq = &iter->seq;
 	struct hw_branch_entry *it;
-	unsigned long symflags = TRACE_ITER_SYM_OFFSET;
 
 	trace_assign_type(it, entry);
 

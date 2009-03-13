@@ -19,43 +19,52 @@
  * Markus Metzger <markus.t.metzger@intel.com>, 2007-2009
  */
 
+#include <linux/kernel.h>
+#include <linux/string.h>
+#include <linux/errno.h>
+#include <linux/sched.h>
+#include <linux/slab.h>
+#include <linux/mm.h>
 
 #include <asm/ds.h>
-
-#include <linux/errno.h>
-#include <linux/string.h>
-#include <linux/slab.h>
-#include <linux/sched.h>
-#include <linux/mm.h>
-#include <linux/kernel.h>
 
 #include "ds_selftest.h"
 
 /*
- * The configuration for a particular DS hardware implementation.
+ * The configuration for a particular DS hardware implementation:
  */
 struct ds_configuration {
-	/* The name of the configuration. */
-	const char *name;
-	/* The size of pointer-typed fields in DS, BTS, and PEBS. */
-	unsigned char  sizeof_ptr_field;
-	/* The size of a BTS/PEBS record in bytes. */
-	unsigned char  sizeof_rec[2];
-	/* Control bit-masks indexed by enum ds_feature. */
-	unsigned long ctl[dsf_ctl_max];
+	/* The name of the configuration: */
+	const char		*name;
+
+	/* The size of pointer-typed fields in DS, BTS, and PEBS: */
+	unsigned char		sizeof_ptr_field;
+
+	/* The size of a BTS/PEBS record in bytes: */
+	unsigned char		sizeof_rec[2];
+
+	/* Control bit-masks indexed by enum ds_feature: */
+	unsigned long		ctl[dsf_ctl_max];
 };
 static DEFINE_PER_CPU(struct ds_configuration, ds_cfg_array);
 
 #define ds_cfg per_cpu(ds_cfg_array, smp_processor_id())
 
-#define MAX_SIZEOF_DS (12 * 8)	/* Maximal size of a DS configuration. */
-#define MAX_SIZEOF_BTS (3 * 8)	/* Maximal size of a BTS record. */
-#define DS_ALIGNMENT (1 << 3)	/* BTS and PEBS buffer alignment. */
+/* Maximal size of a DS configuration: */
+#define MAX_SIZEOF_DS		(12 * 8)
 
-#define BTS_CONTROL \
- (ds_cfg.ctl[dsf_bts] | ds_cfg.ctl[dsf_bts_kernel] | ds_cfg.ctl[dsf_bts_user] |\
-  ds_cfg.ctl[dsf_bts_overflow])
+/* Maximal size of a BTS record: */
+#define MAX_SIZEOF_BTS		(3 * 8)
 
+/* BTS and PEBS buffer alignment: */
+#define DS_ALIGNMENT		(1 << 3)
+
+/* Mask of control bits in the DS MSR register: */
+#define BTS_CONTROL				  \
+	( ds_cfg.ctl[dsf_bts]			| \
+	  ds_cfg.ctl[dsf_bts_kernel]		| \
+	  ds_cfg.ctl[dsf_bts_user]		| \
+	  ds_cfg.ctl[dsf_bts_overflow] )
 
 /*
  * A BTS or PEBS tracer.
@@ -65,28 +74,32 @@ static DEFINE_PER_CPU(struct ds_configuration, ds_cfg_array);
  */
 struct ds_tracer {
 	/* The DS context (partially) owned by this tracer. */
-	struct ds_context *context;
+	struct ds_context	*context;
 	/* The buffer provided on ds_request() and its size in bytes. */
-	void *buffer;
-	size_t size;
+	void			*buffer;
+	size_t			size;
 };
 
 struct bts_tracer {
-	/* The common DS part. */
-	struct ds_tracer ds;
-	/* The trace including the DS configuration. */
-	struct bts_trace trace;
-	/* Buffer overflow notification function. */
-	bts_ovfl_callback_t ovfl;
+	/* The common DS part: */
+	struct ds_tracer	ds;
+
+	/* The trace including the DS configuration: */
+	struct bts_trace	trace;
+
+	/* Buffer overflow notification function: */
+	bts_ovfl_callback_t	ovfl;
 };
 
 struct pebs_tracer {
-	/* The common DS part. */
-	struct ds_tracer ds;
-	/* The trace including the DS configuration. */
-	struct pebs_trace trace;
-	/* Buffer overflow notification function. */
-	pebs_ovfl_callback_t ovfl;
+	/* The common DS part: */
+	struct ds_tracer	ds;
+
+	/* The trace including the DS configuration: */
+	struct pebs_trace	trace;
+
+	/* Buffer overflow notification function: */
+	pebs_ovfl_callback_t	ovfl;
 };
 
 /*
@@ -95,6 +108,7 @@ struct pebs_tracer {
  *
  * The DS configuration consists of the following fields; different
  * architetures vary in the size of those fields.
+ *
  * - double-word aligned base linear address of the BTS buffer
  * - write pointer into the BTS buffer
  * - end linear address of the BTS buffer (one byte beyond the end of
@@ -133,19 +147,20 @@ enum ds_field {
 };
 
 enum ds_qualifier {
-	ds_bts  = 0,
+	ds_bts = 0,
 	ds_pebs
 };
 
-static inline unsigned long ds_get(const unsigned char *base,
-				   enum ds_qualifier qual, enum ds_field field)
+static inline unsigned long
+ds_get(const unsigned char *base, enum ds_qualifier qual, enum ds_field field)
 {
 	base += (ds_cfg.sizeof_ptr_field * (field + (4 * qual)));
 	return *(unsigned long *)base;
 }
 
-static inline void ds_set(unsigned char *base, enum ds_qualifier qual,
-			  enum ds_field field, unsigned long value)
+static inline void
+ds_set(unsigned char *base, enum ds_qualifier qual, enum ds_field field,
+       unsigned long value)
 {
 	base += (ds_cfg.sizeof_ptr_field * (field + (4 * qual)));
 	(*(unsigned long *)base) = value;
@@ -156,7 +171,6 @@ static inline void ds_set(unsigned char *base, enum ds_qualifier qual,
  * Locking is done only for allocating BTS or PEBS resources.
  */
 static DEFINE_SPINLOCK(ds_lock);
-
 
 /*
  * We either support (system-wide) per-cpu or per-thread allocation.
@@ -211,17 +225,21 @@ static inline int check_tracer(struct task_struct *task)
  * deallocated when the last user puts the context.
  */
 struct ds_context {
-	/* The DS configuration; goes into MSR_IA32_DS_AREA. */
-	unsigned char ds[MAX_SIZEOF_DS];
-	/* The owner of the BTS and PEBS configuration, respectively. */
-	struct bts_tracer *bts_master;
-	struct pebs_tracer *pebs_master;
-	/* Use count. */
+	/* The DS configuration; goes into MSR_IA32_DS_AREA: */
+	unsigned char		ds[MAX_SIZEOF_DS];
+
+	/* The owner of the BTS and PEBS configuration, respectively: */
+	struct bts_tracer	*bts_master;
+	struct pebs_tracer	*pebs_master;
+
+	/* Use count: */
 	unsigned long count;
-	/* Pointer to the context pointer field. */
-	struct ds_context **this;
-	/* The traced task; NULL for current cpu. */
-	struct task_struct *task;
+
+	/* Pointer to the context pointer field: */
+	struct ds_context	**this;
+
+	/* The traced task; NULL for current cpu: */
+	struct task_struct	*task;
 };
 
 static DEFINE_PER_CPU(struct ds_context *, system_context_array);
@@ -328,9 +346,9 @@ static void ds_overflow(struct ds_context *context, enum ds_qualifier qual)
  * The remainder of any partially written record is zeroed out.
  *
  * context: the DS context
- * qual: the buffer type
- * record: the data to write
- * size: the size of the data
+ * qual:    the buffer type
+ * record:  the data to write
+ * size:    the size of the data
  */
 static int ds_write(struct ds_context *context, enum ds_qualifier qual,
 		    const void *record, size_t size)
@@ -429,12 +447,12 @@ enum bts_field {
 	bts_to,
 	bts_flags,
 
-	bts_qual = bts_from,
-	bts_jiffies = bts_to,
-	bts_pid = bts_flags,
+	bts_qual		= bts_from,
+	bts_jiffies		= bts_to,
+	bts_pid			= bts_flags,
 
-	bts_qual_mask = (bts_qual_max - 1),
-	bts_escape = ((unsigned long)-1 & ~bts_qual_mask)
+	bts_qual_mask		= (bts_qual_max - 1),
+	bts_escape		= ((unsigned long)-1 & ~bts_qual_mask)
 };
 
 static inline unsigned long bts_get(const char *base, enum bts_field field)
@@ -461,8 +479,8 @@ static inline void bts_set(char *base, enum bts_field field, unsigned long val)
  *
  * return: bytes read/written on success; -Eerrno, otherwise
  */
-static int bts_read(struct bts_tracer *tracer, const void *at,
-		    struct bts_struct *out)
+static int
+bts_read(struct bts_tracer *tracer, const void *at, struct bts_struct *out)
 {
 	if (!tracer)
 		return -EINVAL;

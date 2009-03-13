@@ -189,6 +189,7 @@ int trace_selftest_startup_dynamic_tracing(struct tracer *trace,
 #else
 # define trace_selftest_startup_dynamic_tracing(trace, tr, func) ({ 0; })
 #endif /* CONFIG_DYNAMIC_FTRACE */
+
 /*
  * Simple verification test of ftrace function tracer.
  * Enable ftrace, sleep 1/10 second, and then read the trace
@@ -698,10 +699,10 @@ int
 trace_selftest_startup_hw_branches(struct tracer *trace,
 				   struct trace_array *tr)
 {
-	unsigned long count;
-	int ret;
 	struct trace_iterator iter;
 	struct tracer tracer;
+	unsigned long count;
+	int ret;
 
 	if (!trace->open) {
 		printk(KERN_CONT "missing open function...");
