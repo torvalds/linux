@@ -643,6 +643,18 @@ netxen_start_firmware(struct netxen_adapter *adapter)
 	int val, err, first_boot;
 	struct pci_dev *pdev = adapter->pdev;
 
+	int first_driver = 0;
+	if (NX_IS_REVISION_P3(adapter->ahw.revision_id)) {
+		if (adapter->ahw.pci_func == 0)
+			first_driver = 1;
+	} else {
+		if (adapter->portnum == 0)
+			first_driver = 1;
+	}
+
+	if (!first_driver)
+		return 0;
+
 	first_boot = adapter->pci_read_normalize(adapter,
 			NETXEN_CAM_RAM(0x1fc));
 
@@ -859,7 +871,6 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct net_device *netdev = NULL;
 	struct netxen_adapter *adapter = NULL;
 	int i = 0, err;
-	int first_driver;
 	int pci_func_id = PCI_FUNC(pdev->devfn);
 	uint8_t revision_id;
 
@@ -978,20 +989,9 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	 */
 	netxen_check_options(adapter);
 
-	first_driver = 0;
-	if (NX_IS_REVISION_P3(revision_id)) {
-		if (adapter->ahw.pci_func == 0)
-			first_driver = 1;
-	} else {
-		if (adapter->portnum == 0)
-			first_driver = 1;
-	}
-
-	if (first_driver) {
-		err = netxen_start_firmware(adapter);
-		if (err)
-			goto err_out_iounmap;
-	}
+	err = netxen_start_firmware(adapter);
+	if (err)
+		goto err_out_iounmap;
 
 	nx_update_dma_mask(adapter);
 
@@ -1062,8 +1062,7 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 err_out_disable_msi:
 	netxen_teardown_intr(adapter);
 
-	if (first_driver)
-		netxen_free_adapter_offload(adapter);
+	netxen_free_adapter_offload(adapter);
 
 err_out_iounmap:
 	netxen_cleanup_pci_map(adapter);
@@ -1112,6 +1111,71 @@ static void __devexit netxen_nic_remove(struct pci_dev *pdev)
 	pci_set_drvdata(pdev, NULL);
 
 	free_netdev(netdev);
+}
+
+static int
+netxen_nic_suspend(struct pci_dev *pdev, pm_message_t state)
+{
+
+	struct netxen_adapter *adapter = pci_get_drvdata(pdev);
+	struct net_device *netdev = adapter->netdev;
+
+	netif_device_detach(netdev);
+
+	if (netif_running(netdev))
+		netxen_nic_down(adapter, netdev);
+
+	if (adapter->is_up == NETXEN_ADAPTER_UP_MAGIC)
+		netxen_nic_detach(adapter);
+
+	pci_save_state(pdev);
+
+	if (netxen_nic_wol_supported(adapter)) {
+		pci_enable_wake(pdev, PCI_D3cold, 1);
+		pci_enable_wake(pdev, PCI_D3hot, 1);
+	}
+
+	pci_disable_device(pdev);
+	pci_set_power_state(pdev, pci_choose_state(pdev, state));
+
+	return 0;
+}
+
+static int
+netxen_nic_resume(struct pci_dev *pdev)
+{
+	struct netxen_adapter *adapter = pci_get_drvdata(pdev);
+	struct net_device *netdev = adapter->netdev;
+	int err;
+
+	pci_set_power_state(pdev, PCI_D0);
+	pci_restore_state(pdev);
+
+	err = pci_enable_device(pdev);
+	if (err)
+		return err;
+
+	adapter->curr_window = 255;
+
+	err = netxen_start_firmware(adapter);
+	if (err) {
+		dev_err(&pdev->dev, "failed to start firmware\n");
+		return err;
+	}
+
+	if (netif_running(netdev)) {
+		err = netxen_nic_attach(adapter);
+		if (err)
+			return err;
+
+		err = netxen_nic_up(adapter, netdev);
+		if (err)
+			return err;
+
+		netif_device_attach(netdev);
+	}
+
+	return 0;
 }
 
 static int netxen_nic_open(struct net_device *netdev)
@@ -1649,7 +1713,9 @@ static struct pci_driver netxen_driver = {
 	.name = netxen_nic_driver_name,
 	.id_table = netxen_pci_tbl,
 	.probe = netxen_nic_probe,
-	.remove = __devexit_p(netxen_nic_remove)
+	.remove = __devexit_p(netxen_nic_remove),
+	.suspend = netxen_nic_suspend,
+	.resume = netxen_nic_resume
 };
 
 /* Driver Registration on NetXen card    */

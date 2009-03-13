@@ -2320,3 +2320,20 @@ void netxen_nic_get_firmware_info(struct netxen_adapter *adapter)
 	}
 }
 
+int
+netxen_nic_wol_supported(struct netxen_adapter *adapter)
+{
+	u32 wol_cfg;
+
+	if (NX_IS_REVISION_P2(adapter->ahw.revision_id))
+		return 0;
+
+	wol_cfg = netxen_nic_reg_read(adapter, NETXEN_WOL_CONFIG_NV);
+	if (wol_cfg & (1UL << adapter->portnum)) {
+		wol_cfg = netxen_nic_reg_read(adapter, NETXEN_WOL_CONFIG);
+		if (wol_cfg & (1 << adapter->portnum))
+			return 1;
+	}
+
+	return 0;
+}
