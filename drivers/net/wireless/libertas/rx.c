@@ -351,19 +351,11 @@ static int process_rxed_802_11_packet(struct lbs_private *priv,
 	radiotap_hdr.hdr.it_pad = 0;
 	radiotap_hdr.hdr.it_len = cpu_to_le16 (sizeof(struct rx_radiotap_hdr));
 	radiotap_hdr.hdr.it_present = cpu_to_le32 (RX_RADIOTAP_PRESENT);
-	/* unknown values */
-	radiotap_hdr.flags = 0;
-	radiotap_hdr.chan_freq = 0;
-	radiotap_hdr.chan_flags = 0;
-	radiotap_hdr.antenna = 0;
-	/* known values */
+	if (!(prxpd->status & cpu_to_le16(MRVDRV_RXPD_STATUS_OK)))
+		radiotap_hdr.flags |= IEEE80211_RADIOTAP_F_BADFCS;
 	radiotap_hdr.rate = convert_mv_rate_to_radiotap(prxpd->rx_rate);
 	/* XXX must check no carryout */
 	radiotap_hdr.antsignal = prxpd->snr + prxpd->nf;
-	radiotap_hdr.rx_flags = 0;
-	if (!(prxpd->status & cpu_to_le16(MRVDRV_RXPD_STATUS_OK)))
-		radiotap_hdr.rx_flags |= IEEE80211_RADIOTAP_F_RX_BADFCS;
-	//memset(radiotap_hdr.pad, 0x11, IEEE80211_RADIOTAP_HDRLEN - 18);
 
 	/* chop the rxpd */
 	skb_pull(skb, sizeof(struct rxpd));
