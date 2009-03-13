@@ -168,11 +168,11 @@ const unsigned int cx231xx_bcount = ARRAY_SIZE(cx231xx_boards);
 
 /* table of devices that work with this driver */
 struct usb_device_id cx231xx_id_table[] = {
-	{USB_DEVICE(0x0572, 0x58A0),
+	{USB_DEVICE(0x0572, 0x5A3C),
 	 .driver_info = CX231XX_BOARD_UNKNOWN},
 	{USB_DEVICE(0x0572, 0x58A2),
 	 .driver_info = CX231XX_BOARD_CNXT_RDE_250},
-	{USB_DEVICE(0x0572, 0x5A3C),
+	{USB_DEVICE(0x0572, 0x58A1),
 	 .driver_info = CX231XX_BOARD_CNXT_RDU_250},
 	{},
 };
@@ -321,11 +321,11 @@ void cx231xx_card_setup(struct cx231xx *dev)
 	switch (dev->model) {
 	case CX231XX_BOARD_CNXT_RDE_250:
 		/* do card specific GPIO settings if required */
-		cx231xx_info("Board is Conexnat RDE 250\n");
+		cx231xx_info("Board is Conexant RDE 250\n");
 		break;
 	case CX231XX_BOARD_CNXT_RDU_250:
 		/* do card specific GPIO settings if required */
-		cx231xx_info("Board is Conexnat RDU 250\n");
+		cx231xx_info("Board is Conexant RDU 250\n");
 		break;
 	}
 
