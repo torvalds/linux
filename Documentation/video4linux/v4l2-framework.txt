@@ -91,7 +91,8 @@ NULL, then you *must* setup v4l2_dev->name before calling v4l2_device_register.
 
 The first 'dev' argument is normally the struct device pointer of a pci_dev,
 usb_device or platform_device. It is rare for dev to be NULL, but it happens
-with ISA devices, for example.
+with ISA devices or when one device creates multiple PCI devices, thus making
+it impossible to associate v4l2_dev with a particular parent.
 
 You unregister with:
 
@@ -414,6 +415,15 @@ You should also set these fields:
 - ioctl_ops: if you use the v4l2_ioctl_ops to simplify ioctl maintenance
   (highly recommended to use this and it might become compulsory in the
   future!), then set this to your v4l2_ioctl_ops struct.
+- parent: you only set this if v4l2_device was registered with NULL as
+  the parent device struct. This only happens in cases where one hardware
+  device has multiple PCI devices that all share the same v4l2_device core.
+
+  The cx88 driver is an example of this: one core v4l2_device struct, but
+  it is used by both an raw video PCI device (cx8800) and a MPEG PCI device
+  (cx8802). Since the v4l2_device cannot be associated with a particular
+  PCI device it is setup without a parent device. But when the struct
+  video_device is setup you do know which parent PCI device to use.
 
 If you use v4l2_ioctl_ops, then you should set either .unlocked_ioctl or
 .ioctl to video_ioctl2 in your v4l2_file_operations struct.

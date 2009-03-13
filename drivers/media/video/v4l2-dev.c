@@ -395,7 +395,7 @@ int video_register_device_index(struct video_device *vdev, int type, int nr,
 
 	vdev->vfl_type = type;
 	vdev->cdev = NULL;
-	if (vdev->v4l2_dev)
+	if (vdev->v4l2_dev && vdev->v4l2_dev->dev)
 		vdev->parent = vdev->v4l2_dev->dev;
 
 	/* Part 2: find a free minor, kernel number and device index. */
