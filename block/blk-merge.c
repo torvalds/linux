@@ -39,14 +39,13 @@ void blk_recalc_rq_sectors(struct request *rq, int nsect)
 }
 
 static unsigned int __blk_recalc_rq_segments(struct request_queue *q,
-					     struct bio *bio,
-					     unsigned int *seg_size_ptr)
+					     struct bio *bio)
 {
 	unsigned int phys_size;
 	struct bio_vec *bv, *bvprv = NULL;
 	int cluster, i, high, highprv = 1;
 	unsigned int seg_size, nr_phys_segs;
-	struct bio *fbio;
+	struct bio *fbio, *bbio;
 
 	if (!bio)
 		return 0;
@@ -87,26 +86,20 @@ new_segment:
 			seg_size = bv->bv_len;
 			highprv = high;
 		}
+		bbio = bio;
 	}
 
-	if (seg_size_ptr)
-		*seg_size_ptr = seg_size;
+	if (nr_phys_segs == 1 && seg_size > fbio->bi_seg_front_size)
+		fbio->bi_seg_front_size = seg_size;
+	if (seg_size > bbio->bi_seg_back_size)
+		bbio->bi_seg_back_size = seg_size;
 
 	return nr_phys_segs;
 }
 
 void blk_recalc_rq_segments(struct request *rq)
 {
-	unsigned int seg_size = 0, phys_segs;
-
-	phys_segs = __blk_recalc_rq_segments(rq->q, rq->bio, &seg_size);
-
-	if (phys_segs == 1 && seg_size > rq->bio->bi_seg_front_size)
-		rq->bio->bi_seg_front_size = seg_size;
-	if (seg_size > rq->biotail->bi_seg_back_size)
-		rq->biotail->bi_seg_back_size = seg_size;
-
-	rq->nr_phys_segments = phys_segs;
+	rq->nr_phys_segments = __blk_recalc_rq_segments(rq->q, rq->bio);
 }
 
 void blk_recount_segments(struct request_queue *q, struct bio *bio)
@@ -114,7 +107,7 @@ void blk_recount_segments(struct request_queue *q, struct bio *bio)
 	struct bio *nxt = bio->bi_next;
 
 	bio->bi_next = NULL;
-	bio->bi_phys_segments = __blk_recalc_rq_segments(q, bio, NULL);
+	bio->bi_phys_segments = __blk_recalc_rq_segments(q, bio);
 	bio->bi_next = nxt;
 	bio->bi_flags |= (1 << BIO_SEG_VALID);
 }

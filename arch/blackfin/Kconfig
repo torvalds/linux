@@ -1129,6 +1129,7 @@ endchoice
 
 config PM_WAKEUP_BY_GPIO
 	bool "Allow Wakeup from Standby by GPIO"
+	depends on PM && !BF54x
 
 config PM_WAKEUP_GPIO_NUMBER
 	int "GPIO number"
@@ -1168,6 +1169,12 @@ config PM_BFIN_WAKE_GP
 	default n
 	help
 	  Enable General-Purpose Wake-Up (Voltage Regulator Power-Up)
+	  (all processors, except ADSP-BF549). This option sets
+	  the general-purpose wake-up enable (GPWE) control bit to enable
+	  wake-up upon detection of an active low signal on the /GPW (PH7) pin.
+	  On ADSP-BF549 this option enables the the same functionality on the
+	  /MRXON pin also PH7.
+
 endmenu
 
 menu "CPU Frequency scaling"

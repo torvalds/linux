@@ -27,12 +27,19 @@
  */
 u64 notrace trace_clock_local(void)
 {
+	unsigned long flags;
+	u64 clock;
+
 	/*
 	 * sched_clock() is an architecture implemented, fast, scalable,
 	 * lockless clock. It is not guaranteed to be coherent across
 	 * CPUs, nor across CPU idle events.
 	 */
-	return sched_clock();
+	raw_local_irq_save(flags);
+	clock = sched_clock();
+	raw_local_irq_restore(flags);
+
+	return clock;
 }
 
 /*

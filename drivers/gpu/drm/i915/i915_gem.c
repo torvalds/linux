@@ -1476,7 +1476,7 @@ static void i915_write_fence_reg(struct drm_i915_fence_reg *reg)
 	struct drm_i915_gem_object *obj_priv = obj->driver_private;
 	int regnum = obj_priv->fence_reg;
 	int tile_width;
-	uint32_t val;
+	uint32_t fence_reg, val;
 	uint32_t pitch_val;
 
 	if ((obj_priv->gtt_offset & ~I915_FENCE_START_MASK) ||
@@ -1503,7 +1503,11 @@ static void i915_write_fence_reg(struct drm_i915_fence_reg *reg)
 	val |= pitch_val << I830_FENCE_PITCH_SHIFT;
 	val |= I830_FENCE_REG_VALID;
 
-	I915_WRITE(FENCE_REG_830_0 + (regnum * 4), val);
+	if (regnum < 8)
+		fence_reg = FENCE_REG_830_0 + (regnum * 4);
+	else
+		fence_reg = FENCE_REG_945_8 + ((regnum - 8) * 4);
+	I915_WRITE(fence_reg, val);
 }
 
 static void i830_write_fence_reg(struct drm_i915_fence_reg *reg)
@@ -1557,7 +1561,8 @@ i915_gem_object_get_fence_reg(struct drm_gem_object *obj, bool write)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_i915_gem_object *obj_priv = obj->driver_private;
 	struct drm_i915_fence_reg *reg = NULL;
-	int i, ret;
+	struct drm_i915_gem_object *old_obj_priv = NULL;
+	int i, ret, avail;
 
 	switch (obj_priv->tiling_mode) {
 	case I915_TILING_NONE:
@@ -1580,25 +1585,46 @@ i915_gem_object_get_fence_reg(struct drm_gem_object *obj, bool write)
 	}
 
 	/* First try to find a free reg */
+try_again:
+	avail = 0;
 	for (i = dev_priv->fence_reg_start; i < dev_priv->num_fence_regs; i++) {
 		reg = &dev_priv->fence_regs[i];
 		if (!reg->obj)
 			break;
+
+		old_obj_priv = reg->obj->driver_private;
+		if (!old_obj_priv->pin_count)
+		    avail++;
 	}
 
 	/* None available, try to steal one or wait for a user to finish */
 	if (i == dev_priv->num_fence_regs) {
-		struct drm_i915_gem_object *old_obj_priv = NULL;
+		uint32_t seqno = dev_priv->mm.next_gem_seqno;
 		loff_t offset;
 
-try_again:
-		/* Could try to use LRU here instead... */
+		if (avail == 0)
+			return -ENOMEM;
+
 		for (i = dev_priv->fence_reg_start;
 		     i < dev_priv->num_fence_regs; i++) {
+			uint32_t this_seqno;
+
 			reg = &dev_priv->fence_regs[i];
 			old_obj_priv = reg->obj->driver_private;
-			if (!old_obj_priv->pin_count)
+
+			if (old_obj_priv->pin_count)
+				continue;
+
+			/* i915 uses fences for GPU access to tiled buffers */
+			if (IS_I965G(dev) || !old_obj_priv->active)
 				break;
+
+			/* find the seqno of the first available fence */
+			this_seqno = old_obj_priv->last_rendering_seqno;
+			if (this_seqno != 0 &&
+			    reg->obj->write_domain == 0 &&
+			    i915_seqno_passed(seqno, this_seqno))
+				seqno = this_seqno;
 		}
 
 		/*
@@ -1606,14 +1632,24 @@ try_again:
 		 * objects to finish before trying again.
 		 */
 		if (i == dev_priv->num_fence_regs) {
-			ret = i915_gem_object_set_to_gtt_domain(reg->obj, 0);
-			if (ret) {
-				WARN(ret != -ERESTARTSYS,
-				     "switch to GTT domain failed: %d\n", ret);
-				return ret;
+			if (seqno == dev_priv->mm.next_gem_seqno) {
+				i915_gem_flush(dev,
+					       I915_GEM_GPU_DOMAINS,
+					       I915_GEM_GPU_DOMAINS);
+				seqno = i915_add_request(dev,
+							 I915_GEM_GPU_DOMAINS);
+				if (seqno == 0)
+					return -ENOMEM;
 			}
+
+			ret = i915_wait_request(dev, seqno);
+			if (ret)
+				return ret;
 			goto try_again;
 		}
+
+		BUG_ON(old_obj_priv->active ||
+		       (reg->obj->write_domain & I915_GEM_GPU_DOMAINS));
 
 		/*
 		 * Zap this virtual mapping so we can set up a fence again
@@ -1655,8 +1691,17 @@ i915_gem_clear_fence_reg(struct drm_gem_object *obj)
 
 	if (IS_I965G(dev))
 		I915_WRITE64(FENCE_REG_965_0 + (obj_priv->fence_reg * 8), 0);
-	else
-		I915_WRITE(FENCE_REG_830_0 + (obj_priv->fence_reg * 4), 0);
+	else {
+		uint32_t fence_reg;
+
+		if (obj_priv->fence_reg < 8)
+			fence_reg = FENCE_REG_830_0 + obj_priv->fence_reg * 4;
+		else
+			fence_reg = FENCE_REG_945_8 + (obj_priv->fence_reg -
+						       8) * 4;
+
+		I915_WRITE(fence_reg, 0);
+	}
 
 	dev_priv->fence_regs[obj_priv->fence_reg].obj = NULL;
 	obj_priv->fence_reg = I915_FENCE_REG_NONE;
@@ -2469,6 +2514,7 @@ i915_gem_execbuffer(struct drm_device *dev, void *data,
 	struct drm_i915_gem_exec_object *exec_list = NULL;
 	struct drm_gem_object **object_list = NULL;
 	struct drm_gem_object *batch_obj;
+	struct drm_i915_gem_object *obj_priv;
 	int ret, i, pinned = 0;
 	uint64_t exec_offset;
 	uint32_t seqno, flush_domains;
@@ -2533,6 +2579,15 @@ i915_gem_execbuffer(struct drm_device *dev, void *data,
 			ret = -EBADF;
 			goto err;
 		}
+
+		obj_priv = object_list[i]->driver_private;
+		if (obj_priv->in_execbuffer) {
+			DRM_ERROR("Object %p appears more than once in object list\n",
+				   object_list[i]);
+			ret = -EBADF;
+			goto err;
+		}
+		obj_priv->in_execbuffer = true;
 	}
 
 	/* Pin and relocate */
@@ -2674,8 +2729,13 @@ err:
 	for (i = 0; i < pinned; i++)
 		i915_gem_object_unpin(object_list[i]);
 
-	for (i = 0; i < args->buffer_count; i++)
+	for (i = 0; i < args->buffer_count; i++) {
+		if (object_list[i]) {
+			obj_priv = object_list[i]->driver_private;
+			obj_priv->in_execbuffer = false;
+		}
 		drm_gem_object_unreference(object_list[i]);
+	}
 
 	mutex_unlock(&dev->struct_mutex);
 
@@ -2712,17 +2772,24 @@ i915_gem_object_pin(struct drm_gem_object *obj, uint32_t alignment)
 		ret = i915_gem_object_bind_to_gtt(obj, alignment);
 		if (ret != 0) {
 			if (ret != -EBUSY && ret != -ERESTARTSYS)
-				DRM_ERROR("Failure to bind: %d", ret);
+				DRM_ERROR("Failure to bind: %d\n", ret);
 			return ret;
 		}
-		/*
-		 * Pre-965 chips need a fence register set up in order to
-		 * properly handle tiled surfaces.
-		 */
-		if (!IS_I965G(dev) &&
-		    obj_priv->fence_reg == I915_FENCE_REG_NONE &&
-		    obj_priv->tiling_mode != I915_TILING_NONE)
-			i915_gem_object_get_fence_reg(obj, true);
+	}
+	/*
+	 * Pre-965 chips need a fence register set up in order to
+	 * properly handle tiled surfaces.
+	 */
+	if (!IS_I965G(dev) &&
+	    obj_priv->fence_reg == I915_FENCE_REG_NONE &&
+	    obj_priv->tiling_mode != I915_TILING_NONE) {
+		ret = i915_gem_object_get_fence_reg(obj, true);
+		if (ret != 0) {
+			if (ret != -EBUSY && ret != -ERESTARTSYS)
+				DRM_ERROR("Failure to install fence: %d\n",
+					  ret);
+			return ret;
+		}
 	}
 	obj_priv->pin_count++;
 

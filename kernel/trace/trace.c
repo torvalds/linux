@@ -1478,11 +1478,11 @@ print_trace_header(struct seq_file *m, struct trace_iterator *iter)
 	total = entries +
 		ring_buffer_overruns(iter->tr->buffer);
 
-	seq_printf(m, "%s latency trace v1.1.5 on %s\n",
+	seq_printf(m, "# %s latency trace v1.1.5 on %s\n",
 		   name, UTS_RELEASE);
-	seq_puts(m, "-----------------------------------"
+	seq_puts(m, "# -----------------------------------"
 		 "---------------------------------\n");
-	seq_printf(m, " latency: %lu us, #%lu/%lu, CPU#%d |"
+	seq_printf(m, "# latency: %lu us, #%lu/%lu, CPU#%d |"
 		   " (M:%s VP:%d, KP:%d, SP:%d HP:%d",
 		   nsecs_to_usecs(data->saved_latency),
 		   entries,
@@ -1504,24 +1504,24 @@ print_trace_header(struct seq_file *m, struct trace_iterator *iter)
 #else
 	seq_puts(m, ")\n");
 #endif
-	seq_puts(m, "    -----------------\n");
-	seq_printf(m, "    | task: %.16s-%d "
+	seq_puts(m, "#    -----------------\n");
+	seq_printf(m, "#    | task: %.16s-%d "
 		   "(uid:%d nice:%ld policy:%ld rt_prio:%ld)\n",
 		   data->comm, data->pid, data->uid, data->nice,
 		   data->policy, data->rt_priority);
-	seq_puts(m, "    -----------------\n");
+	seq_puts(m, "#    -----------------\n");
 
 	if (data->critical_start) {
-		seq_puts(m, " => started at: ");
+		seq_puts(m, "#  => started at: ");
 		seq_print_ip_sym(&iter->seq, data->critical_start, sym_flags);
 		trace_print_seq(m, &iter->seq);
-		seq_puts(m, "\n => ended at:   ");
+		seq_puts(m, "\n#  => ended at:   ");
 		seq_print_ip_sym(&iter->seq, data->critical_end, sym_flags);
 		trace_print_seq(m, &iter->seq);
-		seq_puts(m, "\n");
+		seq_puts(m, "#\n");
 	}
 
-	seq_puts(m, "\n");
+	seq_puts(m, "#\n");
 }
 
 static void test_cpu_buff_start(struct trace_iterator *iter)

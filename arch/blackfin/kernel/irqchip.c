@@ -70,6 +70,11 @@ static struct irq_desc bad_irq_desc = {
 #endif
 };
 
+#ifdef CONFIG_CPUMASK_OFFSTACK
+/* We are not allocating a variable-sized bad_irq_desc.affinity */
+#error "Blackfin architecture does not support CONFIG_CPUMASK_OFFSTACK."
+#endif
+
 int show_interrupts(struct seq_file *p, void *v)
 {
 	int i = *(loff_t *) v, j;
@@ -144,11 +149,15 @@ asmlinkage void asm_do_IRQ(unsigned int irq, struct pt_regs *regs)
 #endif
 	generic_handle_irq(irq);
 
-#ifndef CONFIG_IPIPE	/* Useless and bugous over the I-pipe: IRQs are threaded. */
-	/* If we're the only interrupt running (ignoring IRQ15 which is for
-	   syscalls), lower our priority to IRQ14 so that softirqs run at
-	   that level.  If there's another, lower-level interrupt, irq_exit
-	   will defer softirqs to that.  */
+#ifndef CONFIG_IPIPE
+	/*
+	 * If we're the only interrupt running (ignoring IRQ15 which
+	 * is for syscalls), lower our priority to IRQ14 so that
+	 * softirqs run at that level.  If there's another,
+	 * lower-level interrupt, irq_exit will defer softirqs to
+	 * that. If the interrupt pipeline is enabled, we are already
+	 * running at IRQ14 priority, so we don't need this code.
+	 */
 	CSYNC();
 	pending = bfin_read_IPEND() & ~0x8000;
 	other_ints = pending & (pending - 1);

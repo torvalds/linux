@@ -103,6 +103,7 @@ static int __devinit pcie_portdrv_probe (struct pci_dev *dev,
 static void pcie_portdrv_remove (struct pci_dev *dev)
 {
 	pcie_port_device_remove(dev);
+	pci_disable_device(dev);
 	kfree(pci_get_drvdata(dev));
 }
 

@@ -219,6 +219,7 @@ SECTIONS
   .data.percpu PERCPU_ADDR : AT(__phys_per_cpu_start - LOAD_OFFSET)
 	{
 		__per_cpu_start = .;
+		*(.data.percpu.page_aligned)
 		*(.data.percpu)
 		*(.data.percpu.shared_aligned)
 		__per_cpu_end = .;

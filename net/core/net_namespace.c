@@ -157,9 +157,6 @@ static void cleanup_net(struct work_struct *work)
 	struct pernet_operations *ops;
 	struct net *net;
 
-	/* Be very certain incoming network packets will not find us */
-	rcu_barrier();
-
 	net = container_of(work, struct net, work);
 
 	mutex_lock(&net_mutex);

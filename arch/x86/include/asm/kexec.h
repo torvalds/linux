@@ -9,23 +9,8 @@
 # define PAGES_NR		4
 #else
 # define PA_CONTROL_PAGE	0
-# define VA_CONTROL_PAGE	1
-# define PA_PGD			2
-# define VA_PGD			3
-# define PA_PUD_0		4
-# define VA_PUD_0		5
-# define PA_PMD_0		6
-# define VA_PMD_0		7
-# define PA_PTE_0		8
-# define VA_PTE_0		9
-# define PA_PUD_1		10
-# define VA_PUD_1		11
-# define PA_PMD_1		12
-# define VA_PMD_1		13
-# define PA_PTE_1		14
-# define VA_PTE_1		15
-# define PA_TABLE_PAGE		16
-# define PAGES_NR		17
+# define PA_TABLE_PAGE		1
+# define PAGES_NR		2
 #endif
 
 #ifdef CONFIG_X86_32
@@ -157,9 +142,9 @@ relocate_kernel(unsigned long indirection_page,
 		unsigned long start_address) ATTRIB_NORET;
 #endif
 
-#ifdef CONFIG_X86_32
 #define ARCH_HAS_KIMAGE_ARCH
 
+#ifdef CONFIG_X86_32
 struct kimage_arch {
 	pgd_t *pgd;
 #ifdef CONFIG_X86_PAE
@@ -168,6 +153,12 @@ struct kimage_arch {
 #endif
 	pte_t *pte0;
 	pte_t *pte1;
+};
+#else
+struct kimage_arch {
+	pud_t *pud;
+	pmd_t *pmd;
+	pte_t *pte;
 };
 #endif
 

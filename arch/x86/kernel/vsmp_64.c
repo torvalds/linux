@@ -22,7 +22,7 @@
 #include <asm/paravirt.h>
 #include <asm/setup.h>
 
-#if defined CONFIG_PCI && defined CONFIG_PARAVIRT
+#ifdef CONFIG_PARAVIRT
 /*
  * Interrupt control on vSMPowered systems:
  * ~AC is a shadow of IF.  If IF is 'on' AC should be 'off'
@@ -37,6 +37,7 @@ static unsigned long vsmp_save_fl(void)
 		flags &= ~X86_EFLAGS_IF;
 	return flags;
 }
+PV_CALLEE_SAVE_REGS_THUNK(vsmp_save_fl);
 
 static void vsmp_restore_fl(unsigned long flags)
 {
@@ -46,6 +47,7 @@ static void vsmp_restore_fl(unsigned long flags)
 		flags |= X86_EFLAGS_AC;
 	native_restore_fl(flags);
 }
+PV_CALLEE_SAVE_REGS_THUNK(vsmp_restore_fl);
 
 static void vsmp_irq_disable(void)
 {
@@ -53,6 +55,7 @@ static void vsmp_irq_disable(void)
 
 	native_restore_fl((flags & ~X86_EFLAGS_IF) | X86_EFLAGS_AC);
 }
+PV_CALLEE_SAVE_REGS_THUNK(vsmp_irq_disable);
 
 static void vsmp_irq_enable(void)
 {
@@ -60,6 +63,7 @@ static void vsmp_irq_enable(void)
 
 	native_restore_fl((flags | X86_EFLAGS_IF) & (~X86_EFLAGS_AC));
 }
+PV_CALLEE_SAVE_REGS_THUNK(vsmp_irq_enable);
 
 static unsigned __init_or_module vsmp_patch(u8 type, u16 clobbers, void *ibuf,
 				  unsigned long addr, unsigned len)
@@ -90,10 +94,10 @@ static void __init set_vsmp_pv_ops(void)
 	       cap, ctl);
 	if (cap & ctl & (1 << 4)) {
 		/* Setup irq ops and turn on vSMP  IRQ fastpath handling */
-		pv_irq_ops.irq_disable = vsmp_irq_disable;
-		pv_irq_ops.irq_enable  = vsmp_irq_enable;
-		pv_irq_ops.save_fl  = vsmp_save_fl;
-		pv_irq_ops.restore_fl  = vsmp_restore_fl;
+		pv_irq_ops.irq_disable = PV_CALLEE_SAVE(vsmp_irq_disable);
+		pv_irq_ops.irq_enable  = PV_CALLEE_SAVE(vsmp_irq_enable);
+		pv_irq_ops.save_fl  = PV_CALLEE_SAVE(vsmp_save_fl);
+		pv_irq_ops.restore_fl  = PV_CALLEE_SAVE(vsmp_restore_fl);
 		pv_init_ops.patch = vsmp_patch;
 
 		ctl &= ~(1 << 4);
@@ -110,7 +114,6 @@ static void __init set_vsmp_pv_ops(void)
 }
 #endif
 
-#ifdef CONFIG_PCI
 static int is_vsmp = -1;
 
 static void __init detect_vsmp_box(void)
@@ -135,15 +138,6 @@ int is_vsmp_box(void)
 		return 0;
 	}
 }
-#else
-static void __init detect_vsmp_box(void)
-{
-}
-int is_vsmp_box(void)
-{
-	return 0;
-}
-#endif
 
 void __init vsmp_init(void)
 {

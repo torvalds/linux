@@ -101,6 +101,20 @@ config LZO_DECOMPRESS
 	tristate
 
 #
+# These all provide a common interface (hence the apparent duplication with
+# ZLIB_INFLATE; DECOMPRESS_GZIP is just a wrapper.)
+#
+config DECOMPRESS_GZIP
+	select ZLIB_INFLATE
+	tristate
+
+config DECOMPRESS_BZIP2
+	tristate
+
+config DECOMPRESS_LZMA
+	tristate
+
+#
 # Generic allocator support is selected if needed
 #
 config GENERIC_ALLOCATOR
