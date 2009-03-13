@@ -40,8 +40,8 @@ struct ppp_channel {
 	int		mtu;		/* max transmit packet size */
 	int		hdrlen;		/* amount of headroom channel needs */
 	void		*ppp;		/* opaque to channel */
-	/* the following are not used at present */
 	int		speed;		/* transfer rate (bytes/second) */
+	/* the following is not used at present */
 	int		latency;	/* overhead time in milliseconds */
 };
 
