@@ -1130,6 +1130,7 @@ s32 ixgbe_identify_phy_82599(struct ixgbe_hw *hw)
 u32 ixgbe_get_supported_physical_layer_82599(struct ixgbe_hw *hw)
 {
 	u32 physical_layer = IXGBE_PHYSICAL_LAYER_UNKNOWN;
+	u8 comp_codes_10g = 0;
 
 	switch (hw->device_id) {
 	case IXGBE_DEV_ID_82599:
@@ -1143,6 +1144,8 @@ u32 ixgbe_get_supported_physical_layer_82599(struct ixgbe_hw *hw)
 
 		switch (hw->phy.sfp_type) {
 		case ixgbe_sfp_type_da_cu:
+		case ixgbe_sfp_type_da_cu_core0:
+		case ixgbe_sfp_type_da_cu_core1:
 			physical_layer = IXGBE_PHYSICAL_LAYER_SFP_PLUS_CU;
 			break;
 		case ixgbe_sfp_type_sr:
@@ -1151,6 +1154,19 @@ u32 ixgbe_get_supported_physical_layer_82599(struct ixgbe_hw *hw)
 		case ixgbe_sfp_type_lr:
 			physical_layer = IXGBE_PHYSICAL_LAYER_10GBASE_LR;
 			break;
+		case ixgbe_sfp_type_srlr_core0:
+		case ixgbe_sfp_type_srlr_core1:
+			hw->phy.ops.read_i2c_eeprom(hw,
+			                            IXGBE_SFF_10GBE_COMP_CODES,
+			                            &comp_codes_10g);
+			if (comp_codes_10g & IXGBE_SFF_10GBASESR_CAPABLE)
+				physical_layer =
+				                IXGBE_PHYSICAL_LAYER_10GBASE_SR;
+			else if (comp_codes_10g & IXGBE_SFF_10GBASELR_CAPABLE)
+				physical_layer =
+				                IXGBE_PHYSICAL_LAYER_10GBASE_LR;
+			else
+				physical_layer = IXGBE_PHYSICAL_LAYER_UNKNOWN;
 		default:
 			physical_layer = IXGBE_PHYSICAL_LAYER_UNKNOWN;
 			break;
