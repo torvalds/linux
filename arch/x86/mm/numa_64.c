@@ -681,12 +681,12 @@ void __cpuinit numa_clear_node(int cpu)
 
 void __cpuinit numa_add_cpu(int cpu)
 {
-	cpu_set(cpu, node_to_cpumask_map[early_cpu_to_node(cpu)]);
+	cpumask_set_cpu(cpu, node_to_cpumask_map[early_cpu_to_node(cpu)]);
 }
 
 void __cpuinit numa_remove_cpu(int cpu)
 {
-	cpu_clear(cpu, node_to_cpumask_map[early_cpu_to_node(cpu)]);
+	cpumask_clear_cpu(cpu, node_to_cpumask_map[early_cpu_to_node(cpu)]);
 }
 
 #else /* CONFIG_DEBUG_PER_CPU_MAPS */
@@ -700,17 +700,17 @@ static void __cpuinit numa_set_cpumask(int cpu, int enable)
 	cpumask_t *mask;
 	char buf[64];
 
-	if (node_to_cpumask_map == NULL) {
-		printk(KERN_ERR "node_to_cpumask_map NULL\n");
+	mask = node_to_cpumask_map[node];
+	if (mask == NULL) {
+		printk(KERN_ERR "node_to_cpumask_map[%i] NULL\n", node);
 		dump_stack();
 		return;
 	}
 
-	mask = &node_to_cpumask_map[node];
 	if (enable)
-		cpu_set(cpu, *mask);
+		cpumask_set_cpu(cpu, mask);
 	else
-		cpu_clear(cpu, *mask);
+		cpumask_clear_cpu(cpu, mask);
 
 	cpulist_scnprintf(buf, sizeof(buf), mask);
 	printk(KERN_DEBUG "%s cpu %d node %d: mask now %s\n",

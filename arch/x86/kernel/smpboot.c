@@ -123,7 +123,7 @@ EXPORT_SYMBOL(cpu_to_node_map);
 static void map_cpu_to_node(int cpu, int node)
 {
 	printk(KERN_INFO "Mapping cpu %d to node %d\n", cpu, node);
-	cpumask_set_cpu(cpu, &node_to_cpumask_map[node]);
+	cpumask_set_cpu(cpu, node_to_cpumask_map[node]);
 	cpu_to_node_map[cpu] = node;
 }
 
@@ -134,7 +134,7 @@ static void unmap_cpu_to_node(int cpu)
 
 	printk(KERN_INFO "Unmapping cpu %d from all nodes\n", cpu);
 	for (node = 0; node < MAX_NUMNODES; node++)
-		cpumask_clear_cpu(cpu, &node_to_cpumask_map[node]);
+		cpumask_clear_cpu(cpu, node_to_cpumask_map[node]);
 	cpu_to_node_map[cpu] = 0;
 }
 #else /* !(CONFIG_NUMA && CONFIG_X86_32) */

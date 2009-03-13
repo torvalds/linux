@@ -86,15 +86,15 @@ static inline int early_cpu_to_node(int cpu)
 #endif /* CONFIG_X86_64 */
 
 /* Mappings between node number and cpus on that node. */
-extern cpumask_t *node_to_cpumask_map;
+extern cpumask_var_t node_to_cpumask_map[MAX_NUMNODES];
 
 #ifdef CONFIG_DEBUG_PER_CPU_MAPS
 extern const cpumask_t *cpumask_of_node(int node);
 #else
 /* Returns a pointer to the cpumask of CPUs on Node 'node'. */
-static inline const cpumask_t *cpumask_of_node(int node)
+static inline const struct cpumask *cpumask_of_node(int node)
 {
-	return &node_to_cpumask_map[node];
+	return node_to_cpumask_map[node];
 }
 #endif
 
