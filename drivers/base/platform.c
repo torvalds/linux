@@ -247,7 +247,20 @@ int platform_device_add(struct platform_device *pdev)
 	else
 		dev_set_name(&pdev->dev, pdev->name);
 
-	pdev->platform_data = pdev->dev.platform_data;
+	/* We will remove platform_data field from struct device
+	* if all platform devices pass its platform specific data
+	* from platform_device. The conversion is going to be a
+	* long time, so we allow the two cases coexist to make
+	* this kind of fix more easily*/
+	if (pdev->platform_data && pdev->dev.platform_data) {
+		printk(KERN_ERR
+			       "%s: use which platform_data?\n",
+			       dev_name(&pdev->dev));
+	} else if (pdev->platform_data) {
+		pdev->dev.platform_data = pdev->platform_data;
+	} else if (pdev->dev.platform_data) {
+		pdev->platform_data = pdev->dev.platform_data;
+	}
 
 	for (i = 0; i < pdev->num_resources; i++) {
 		struct resource *p, *r = &pdev->resource[i];
