@@ -392,7 +392,7 @@ static void hub_irq(struct urb *urb)
 {
 	struct usb_hub *hub = urb->context;
 	int status = urb->status;
-	int i;
+	unsigned i;
 	unsigned long bits;
 
 	switch (status) {

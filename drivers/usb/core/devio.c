@@ -302,7 +302,7 @@ static struct async *async_getpending(struct dev_state *ps,
 
 static void snoop_urb(struct urb *urb, void __user *userurb)
 {
-	int j;
+	unsigned j;
 	unsigned char *data = urb->transfer_buffer;
 
 	if (!usbfs_snoop)
@@ -311,9 +311,9 @@ static void snoop_urb(struct urb *urb, void __user *userurb)
 	dev_info(&urb->dev->dev, "direction=%s\n",
 			usb_urb_dir_in(urb) ? "IN" : "OUT");
 	dev_info(&urb->dev->dev, "userurb=%p\n", userurb);
-	dev_info(&urb->dev->dev, "transfer_buffer_length=%d\n",
+	dev_info(&urb->dev->dev, "transfer_buffer_length=%u\n",
 		 urb->transfer_buffer_length);
-	dev_info(&urb->dev->dev, "actual_length=%d\n", urb->actual_length);
+	dev_info(&urb->dev->dev, "actual_length=%u\n", urb->actual_length);
 	dev_info(&urb->dev->dev, "data: ");
 	for (j = 0; j < urb->transfer_buffer_length; ++j)
 		printk("%02x ", data[j]);
