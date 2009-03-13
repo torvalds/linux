@@ -235,7 +235,7 @@ static int map_xdr(struct svcxprt_rdma *xprt,
 	}
 
 	dprintk("svcrdma: map_xdr: sge_no %d page_no %d "
-		"page_base %zd page_len %zd head_len %d tail_len %d\n",
+		"page_base %u page_len %u head_len %zu tail_len %zu\n",
 		sge_no, page_no, xdr->page_base, xdr->page_len,
 		xdr->head[0].iov_len, xdr->tail[0].iov_len);
 
