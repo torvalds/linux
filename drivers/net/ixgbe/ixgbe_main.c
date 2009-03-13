@@ -2558,6 +2558,11 @@ void ixgbe_down(struct ixgbe_adapter *adapter)
 		IXGBE_WRITE_REG(hw, IXGBE_TXDCTL(j),
 		                (txdctl & ~IXGBE_TXDCTL_ENABLE));
 	}
+	/* Disable the Tx DMA engine on 82599 */
+	if (hw->mac.type == ixgbe_mac_82599EB)
+		IXGBE_WRITE_REG(hw, IXGBE_DMATXCTL,
+		                (IXGBE_READ_REG(hw, IXGBE_DMATXCTL) &
+		                 ~IXGBE_DMATXCTL_TE));
 
 	netif_carrier_off(netdev);
 
@@ -4794,7 +4799,7 @@ static pci_ers_result_t ixgbe_io_slot_reset(struct pci_dev *pdev)
 		pci_enable_wake(pdev, PCI_D3cold, 0);
 
 		ixgbe_reset(adapter);
-
+		IXGBE_WRITE_REG(&adapter->hw, IXGBE_WUS, ~0);
 		result = PCI_ERS_RESULT_RECOVERED;
 	}
 
