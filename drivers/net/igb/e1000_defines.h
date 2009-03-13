@@ -512,6 +512,7 @@
 #define NVM_ID_LED_SETTINGS        0x0004
 /* For SERDES output amplitude adjustment. */
 #define NVM_INIT_CONTROL2_REG      0x000F
+#define NVM_INIT_CONTROL3_PORT_B   0x0014
 #define NVM_INIT_CONTROL3_PORT_A   0x0024
 #define NVM_ALT_MAC_ADDR_PTR       0x0037
 #define NVM_CHECKSUM_REG           0x003F
