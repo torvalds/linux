@@ -44,9 +44,6 @@
 
 #ifdef CONFIG_X86_32
 
-/* Mappings between node number and cpus on that node. */
-extern cpumask_t node_to_cpumask_map[];
-
 /* Mappings between logical cpu number and node number */
 extern int cpu_to_node_map[];
 
@@ -57,18 +54,7 @@ static inline int cpu_to_node(int cpu)
 }
 #define early_cpu_to_node(cpu)	cpu_to_node(cpu)
 
-/* Returns a bitmask of CPUs on Node 'node'. */
-static inline const struct cpumask *cpumask_of_node(int node)
-{
-	return &node_to_cpumask_map[node];
-}
-
-static inline void setup_node_to_cpumask_map(void) { }
-
 #else /* CONFIG_X86_64 */
-
-/* Mappings between node number and cpus on that node. */
-extern cpumask_t *node_to_cpumask_map;
 
 /* Mappings between logical cpu number and node number */
 DECLARE_EARLY_PER_CPU(int, x86_cpu_to_node_map);
@@ -80,7 +66,6 @@ DECLARE_PER_CPU(int, node_number);
 #ifdef CONFIG_DEBUG_PER_CPU_MAPS
 extern int cpu_to_node(int cpu);
 extern int early_cpu_to_node(int cpu);
-extern const cpumask_t *cpumask_of_node(int node);
 
 #else	/* !CONFIG_DEBUG_PER_CPU_MAPS */
 
@@ -96,17 +81,24 @@ static inline int early_cpu_to_node(int cpu)
 	return early_per_cpu(x86_cpu_to_node_map, cpu);
 }
 
+#endif /* !CONFIG_DEBUG_PER_CPU_MAPS */
+
+#endif /* CONFIG_X86_64 */
+
+/* Mappings between node number and cpus on that node. */
+extern cpumask_t *node_to_cpumask_map;
+
+#ifdef CONFIG_DEBUG_PER_CPU_MAPS
+extern const cpumask_t *cpumask_of_node(int node);
+#else
 /* Returns a pointer to the cpumask of CPUs on Node 'node'. */
 static inline const cpumask_t *cpumask_of_node(int node)
 {
 	return &node_to_cpumask_map[node];
 }
-
-#endif /* !CONFIG_DEBUG_PER_CPU_MAPS */
+#endif
 
 extern void setup_node_to_cpumask_map(void);
-
-#endif /* CONFIG_X86_64 */
 
 /*
  * Returns the number of the node containing Node 'node'. This

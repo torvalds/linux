@@ -115,11 +115,6 @@ EXPORT_PER_CPU_SYMBOL(cpu_info);
 atomic_t init_deasserted;
 
 #if defined(CONFIG_NUMA) && defined(CONFIG_X86_32)
-
-/* which logical CPUs are on which nodes */
-cpumask_t node_to_cpumask_map[MAX_NUMNODES] __read_mostly =
-				{ [0 ... MAX_NUMNODES-1] = CPU_MASK_NONE };
-EXPORT_SYMBOL(node_to_cpumask_map);
 /* which node each logical CPU is on */
 int cpu_to_node_map[NR_CPUS] __read_mostly = { [0 ... NR_CPUS-1] = 0 };
 EXPORT_SYMBOL(cpu_to_node_map);
