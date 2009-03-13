@@ -114,6 +114,7 @@ struct perf_counter_hw_event {
 #include <linux/rculist.h>
 #include <linux/rcupdate.h>
 #include <linux/spinlock.h>
+#include <linux/hrtimer.h>
 #include <asm/atomic.h>
 
 struct task_struct;
@@ -123,12 +124,19 @@ struct task_struct;
  */
 struct hw_perf_counter {
 #ifdef CONFIG_PERF_COUNTERS
-	u64				config;
-	unsigned long			config_base;
-	unsigned long			counter_base;
-	int				nmi;
-	unsigned int			idx;
-	atomic64_t			count; /* software */
+	union {
+		struct { /* hardware */
+			u64				config;
+			unsigned long			config_base;
+			unsigned long			counter_base;
+			int				nmi;
+			unsigned int			idx;
+		};
+		union { /* software */
+			atomic64_t			count;
+			struct hrtimer			hrtimer;
+		};
+	};
 	atomic64_t			prev_count;
 	u64				irq_period;
 	atomic64_t			period_left;
