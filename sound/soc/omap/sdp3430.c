@@ -39,6 +39,8 @@
 #include "omap-pcm.h"
 #include "../codecs/twl4030.h"
 
+static struct snd_soc_card snd_soc_sdp3430;
+
 static int sdp3430_hw_params(struct snd_pcm_substream *substream,
 	struct snd_pcm_hw_params *params)
 {
@@ -80,6 +82,27 @@ static int sdp3430_hw_params(struct snd_pcm_substream *substream,
 
 static struct snd_soc_ops sdp3430_ops = {
 	.hw_params = sdp3430_hw_params,
+};
+
+/* Headset jack */
+static struct snd_soc_jack hs_jack;
+
+/* Headset jack detection DAPM pins */
+static struct snd_soc_jack_pin hs_jack_pins[] = {
+	{
+		.pin = "Headset Jack",
+		.mask = SND_JACK_HEADSET,
+	},
+};
+
+/* Headset jack detection gpios */
+static struct snd_soc_jack_gpio hs_jack_gpios[] = {
+	{
+		.gpio = (OMAP_MAX_GPIO_LINES + 2),
+		.name = "hsdet-gpio",
+		.report = SND_JACK_HEADSET,
+		.debounce_time = 200,
+	},
 };
 
 /* SDP3430 machine DAPM */
@@ -141,30 +164,25 @@ static int sdp3430_twl4030_init(struct snd_soc_codec *codec)
 	snd_soc_dapm_nc_pin(codec, "CARKITR");
 
 	ret = snd_soc_dapm_sync(codec);
+	if (ret)
+		return ret;
+
+	/* Headset jack detection */
+	ret = snd_soc_jack_new(&snd_soc_sdp3430, "Headset Jack",
+				SND_JACK_HEADSET, &hs_jack);
+	if (ret)
+		return ret;
+
+	ret = snd_soc_jack_add_pins(&hs_jack, ARRAY_SIZE(hs_jack_pins),
+				hs_jack_pins);
+	if (ret)
+		return ret;
+
+	ret = snd_soc_jack_add_gpios(&hs_jack, ARRAY_SIZE(hs_jack_gpios),
+				hs_jack_gpios);
 
 	return ret;
 }
-
-/* Headset jack */
-static struct snd_soc_jack hs_jack;
-
-/* Headset jack detection DAPM pins */
-static struct snd_soc_jack_pin hs_jack_pins[] = {
-	{
-		.pin = "Headset Jack",
-		.mask = SND_JACK_HEADSET,
-	},
-};
-
-/* Headset jack detection gpios */
-static struct snd_soc_jack_gpio hs_jack_gpios[] = {
-	{
-		.gpio = (OMAP_MAX_GPIO_LINES + 2),
-		.name = "hsdet-gpio",
-		.report = SND_JACK_HEADSET,
-		.debounce_time = 200,
-	},
-};
 
 /* Digital audio interface glue - connects codec <--> CPU */
 static struct snd_soc_dai_link sdp3430_dai = {
@@ -216,21 +234,7 @@ static int __init sdp3430_soc_init(void)
 	if (ret)
 		goto err1;
 
-	/* Headset jack detection */
-	ret = snd_soc_jack_new(&snd_soc_sdp3430, "SDP3430 headset jack",
-				SND_JACK_HEADSET, &hs_jack);
-	if (ret)
-		return ret;
-
-	ret = snd_soc_jack_add_pins(&hs_jack, ARRAY_SIZE(hs_jack_pins),
-				hs_jack_pins);
-	if (ret)
-		return ret;
-
-	ret = snd_soc_jack_add_gpios(&hs_jack, ARRAY_SIZE(hs_jack_gpios),
-				hs_jack_gpios);
-
-	return ret;
+	return 0;
 
 err1:
 	printk(KERN_ERR "Unable to add platform device\n");
