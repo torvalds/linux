@@ -449,7 +449,7 @@ __hw_perf_counter_set_period(struct perf_counter *counter,
 			     struct hw_perf_counter *hwc, int idx)
 {
 	s64 left = atomic64_read(&hwc->period_left);
-	s32 period = hwc->irq_period;
+	s64 period = hwc->irq_period;
 	int err;
 
 	/*
