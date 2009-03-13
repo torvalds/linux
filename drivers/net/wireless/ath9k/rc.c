@@ -1470,16 +1470,18 @@ static void ath_rc_init(struct ath_softc *sc,
 		ath_rc_priv->ht_cap);
 }
 
-static u8 ath_rc_build_ht_caps(struct ath_softc *sc, bool is_ht, bool is_cw40,
-			       bool is_sgi40)
+static u8 ath_rc_build_ht_caps(struct ath_softc *sc, struct ieee80211_sta *sta,
+			       bool is_cw40, bool is_sgi40)
 {
 	u8 caps = 0;
 
-	if (is_ht) {
+	if (sta->ht_cap.ht_supported) {
 		caps = WLAN_RC_HT_FLAG;
 		if (sc->sc_ah->caps.tx_chainmask != 1 &&
-		    ath9k_hw_getcapability(sc->sc_ah, ATH9K_CAP_DS, 0, NULL))
-			caps |= WLAN_RC_DS_FLAG;
+		    ath9k_hw_getcapability(sc->sc_ah, ATH9K_CAP_DS, 0, NULL)) {
+			if (sta->ht_cap.mcs.rx_mask[1])
+				caps |= WLAN_RC_DS_FLAG;
+		}
 		if (is_cw40)
 			caps |= WLAN_RC_40_FLAG;
 		if (is_sgi40)
@@ -1626,8 +1628,7 @@ static void ath_rate_init(void *priv, struct ieee80211_supported_band *sband,
 		rate_table = sc->cur_rate_table;
 	}
 
-	ath_rc_priv->ht_cap = ath_rc_build_ht_caps(sc, sta->ht_cap.ht_supported,
-						   is_cw40, is_sgi40);
+	ath_rc_priv->ht_cap = ath_rc_build_ht_caps(sc, sta, is_cw40, is_sgi40);
 	ath_rc_init(sc, priv_sta, sband, sta, rate_table);
 }
 
@@ -1661,8 +1662,7 @@ static void ath_rate_update(void *priv, struct ieee80211_supported_band *sband,
 			rate_table = ath_choose_rate_table(sc, sband->band,
 						   sta->ht_cap.ht_supported,
 						   oper_cw40);
-			ath_rc_priv->ht_cap = ath_rc_build_ht_caps(sc,
-						   sta->ht_cap.ht_supported,
+			ath_rc_priv->ht_cap = ath_rc_build_ht_caps(sc, sta,
 						   oper_cw40, oper_sgi40);
 			ath_rc_init(sc, priv_sta, sband, sta, rate_table);
 
