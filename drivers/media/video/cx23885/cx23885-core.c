@@ -1739,16 +1739,20 @@ static int __devinit cx23885_initdev(struct pci_dev *pci_dev,
 	if (NULL == dev)
 		return -ENOMEM;
 
+	err = v4l2_device_register(&pci_dev->dev, &dev->v4l2_dev);
+	if (err < 0)
+		goto fail_free;
+
 	/* pci init */
 	dev->pci = pci_dev;
 	if (pci_enable_device(pci_dev)) {
 		err = -EIO;
-		goto fail_free;
+		goto fail_unreg;
 	}
 
 	if (cx23885_dev_setup(dev) < 0) {
 		err = -EINVAL;
-		goto fail_free;
+		goto fail_unreg;
 	}
 
 	/* print pci info */
@@ -1775,8 +1779,6 @@ static int __devinit cx23885_initdev(struct pci_dev *pci_dev,
 		goto fail_irq;
 	}
 
-	pci_set_drvdata(pci_dev, dev);
-
 	switch (dev->board) {
 	case CX23885_BOARD_NETUP_DUAL_DVBS2_CI:
 		cx_set(PCI_INT_MSK, 0x01800000); /* for NetUP */
@@ -1787,6 +1789,8 @@ static int __devinit cx23885_initdev(struct pci_dev *pci_dev,
 
 fail_irq:
 	cx23885_dev_unregister(dev);
+fail_unreg:
+	v4l2_device_unregister(&dev->v4l2_dev);
 fail_free:
 	kfree(dev);
 	return err;
@@ -1794,7 +1798,8 @@ fail_free:
 
 static void __devexit cx23885_finidev(struct pci_dev *pci_dev)
 {
-	struct cx23885_dev *dev = pci_get_drvdata(pci_dev);
+	struct v4l2_device *v4l2_dev = pci_get_drvdata(pci_dev);
+	struct cx23885_dev *dev = to_cx23885(v4l2_dev);
 
 	cx23885_shutdown(dev);
 
@@ -1802,13 +1807,13 @@ static void __devexit cx23885_finidev(struct pci_dev *pci_dev)
 
 	/* unregister stuff */
 	free_irq(pci_dev->irq, dev);
-	pci_set_drvdata(pci_dev, NULL);
 
 	mutex_lock(&devlist);
 	list_del(&dev->devlist);
 	mutex_unlock(&devlist);
 
 	cx23885_dev_unregister(dev);
+	v4l2_device_unregister(v4l2_dev);
 	kfree(dev);
 }
 

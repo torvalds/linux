@@ -24,7 +24,7 @@
 #include <linux/i2c-algo-bit.h>
 #include <linux/kdev_t.h>
 
-#include <media/v4l2-common.h>
+#include <media/v4l2-device.h>
 #include <media/tuner.h>
 #include <media/tveeprom.h>
 #include <media/videobuf-dma-sg.h>
@@ -277,6 +277,7 @@ struct cx23885_tsport {
 struct cx23885_dev {
 	struct list_head           devlist;
 	atomic_t                   refcount;
+	struct v4l2_device 	   v4l2_dev;
 
 	/* pci stuff */
 	struct pci_dev             *pci;
@@ -341,6 +342,11 @@ struct cx23885_dev {
 	struct cx23885_tvnorm      encodernorm;
 
 };
+
+static inline struct cx23885_dev *to_cx23885(struct v4l2_device *v4l2_dev)
+{
+	return container_of(v4l2_dev, struct cx23885_dev, v4l2_dev);
+}
 
 extern struct list_head cx23885_devlist;
 

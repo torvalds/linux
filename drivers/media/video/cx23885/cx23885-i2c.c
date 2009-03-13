@@ -270,8 +270,8 @@ static int i2c_xfer(struct i2c_adapter *i2c_adap,
 
 static int attach_inform(struct i2c_client *client)
 {
-	struct cx23885_i2c *bus = i2c_get_adapdata(client->adapter);
-	struct cx23885_dev *dev = bus->dev;
+	struct v4l2_device *v4l2_dev = i2c_get_adapdata(client->adapter);
+	struct cx23885_dev *dev = to_cx23885(v4l2_dev);
 	struct tuner_setup tun_setup;
 
 	dprintk(1, "%s i2c attach [addr=0x%x,client=%s]\n",
@@ -310,7 +310,8 @@ static int attach_inform(struct i2c_client *client)
 
 static int detach_inform(struct i2c_client *client)
 {
-	struct cx23885_dev *dev = i2c_get_adapdata(client->adapter);
+	struct v4l2_device *v4l2_dev = i2c_get_adapdata(client->adapter);
+	struct cx23885_dev *dev = to_cx23885(v4l2_dev);
 
 	dprintk(1, "i2c detach [client=%s]\n", client->name);
 
@@ -402,7 +403,7 @@ int cx23885_i2c_register(struct cx23885_i2c *bus)
 
 	bus->i2c_algo.data = bus;
 	bus->i2c_adap.algo_data = bus;
-	i2c_set_adapdata(&bus->i2c_adap, bus);
+	i2c_set_adapdata(&bus->i2c_adap, &dev->v4l2_dev);
 	i2c_add_adapter(&bus->i2c_adap);
 
 	bus->i2c_client.adapter = &bus->i2c_adap;
