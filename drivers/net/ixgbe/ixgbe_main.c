@@ -1679,8 +1679,6 @@ static void ixgbe_configure_srrctl(struct ixgbe_adapter *adapter, int index)
 			srrctl |= rx_ring->rx_buf_len >>
 			          IXGBE_SRRCTL_BSIZEPKT_SHIFT;
 	}
-	if (adapter->hw.mac.type == ixgbe_mac_82599EB)
-		srrctl |= IXGBE_SRRCTL_DROP_EN;
 
 	IXGBE_WRITE_REG(&adapter->hw, IXGBE_SRRCTL(index), srrctl);
 }
