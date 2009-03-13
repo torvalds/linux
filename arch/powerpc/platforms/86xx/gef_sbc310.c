@@ -153,6 +153,10 @@ static void __init gef_sbc310_nec_fixup(struct pci_dev *pdev)
 {
 	unsigned int val;
 
+	/* Do not do the fixup on other platforms! */
+	if (!machine_is(gef_sbc310))
+		return;
+
 	printk(KERN_INFO "Running NEC uPD720101 Fixup\n");
 
 	/* Ensure only ports 1 & 2 are enabled */
