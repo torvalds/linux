@@ -434,13 +434,6 @@ atomic_t nr_find_usage_forwards_checks;
 atomic_t nr_find_usage_forwards_recursions;
 atomic_t nr_find_usage_backwards_checks;
 atomic_t nr_find_usage_backwards_recursions;
-# define debug_atomic_inc(ptr)		atomic_inc(ptr)
-# define debug_atomic_dec(ptr)		atomic_dec(ptr)
-# define debug_atomic_read(ptr)		atomic_read(ptr)
-#else
-# define debug_atomic_inc(ptr)		do { } while (0)
-# define debug_atomic_dec(ptr)		do { } while (0)
-# define debug_atomic_read(ptr)		0
 #endif
 
 /*
