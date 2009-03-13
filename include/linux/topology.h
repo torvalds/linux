@@ -38,11 +38,7 @@
 #endif
 
 #ifndef nr_cpus_node
-#define nr_cpus_node(node)				\
-	({						\
-		node_to_cpumask_ptr(__tmp__, node);	\
-		cpus_weight(*__tmp__);			\
-	})
+#define nr_cpus_node(node) cpumask_weight(cpumask_of_node(node))
 #endif
 
 #define for_each_node_with_cpus(node)			\

@@ -21,19 +21,19 @@
 extern int smp_num_siblings;
 extern unsigned int num_processors;
 
-DECLARE_PER_CPU(cpumask_t, cpu_sibling_map);
-DECLARE_PER_CPU(cpumask_t, cpu_core_map);
+DECLARE_PER_CPU(cpumask_var_t, cpu_sibling_map);
+DECLARE_PER_CPU(cpumask_var_t, cpu_core_map);
 DECLARE_PER_CPU(u16, cpu_llc_id);
 DECLARE_PER_CPU(int, cpu_number);
 
 static inline struct cpumask *cpu_sibling_mask(int cpu)
 {
-	return &per_cpu(cpu_sibling_map, cpu);
+	return per_cpu(cpu_sibling_map, cpu);
 }
 
 static inline struct cpumask *cpu_core_mask(int cpu)
 {
-	return &per_cpu(cpu_core_map, cpu);
+	return per_cpu(cpu_core_map, cpu);
 }
 
 DECLARE_EARLY_PER_CPU(u16, x86_cpu_to_apicid);
@@ -121,9 +121,10 @@ static inline void arch_send_call_function_single_ipi(int cpu)
 	smp_ops.send_call_func_single_ipi(cpu);
 }
 
-static inline void arch_send_call_function_ipi(cpumask_t mask)
+#define arch_send_call_function_ipi_mask arch_send_call_function_ipi_mask
+static inline void arch_send_call_function_ipi_mask(const struct cpumask *mask)
 {
-	smp_ops.send_call_func_ipi(&mask);
+	smp_ops.send_call_func_ipi(mask);
 }
 
 void cpu_disable_common(void);

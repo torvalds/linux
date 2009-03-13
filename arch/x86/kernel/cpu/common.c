@@ -41,8 +41,6 @@
 
 #include "cpu.h"
 
-#ifdef CONFIG_X86_64
-
 /* all of these masks are initialized in setup_cpu_local_masks() */
 cpumask_var_t cpu_callin_mask;
 cpumask_var_t cpu_callout_mask;
@@ -59,16 +57,6 @@ void __init setup_cpu_local_masks(void)
 	alloc_bootmem_cpumask_var(&cpu_callout_mask);
 	alloc_bootmem_cpumask_var(&cpu_sibling_setup_mask);
 }
-
-#else /* CONFIG_X86_32 */
-
-cpumask_t cpu_callin_map;
-cpumask_t cpu_callout_map;
-cpumask_t cpu_initialized;
-cpumask_t cpu_sibling_setup_map;
-
-#endif /* CONFIG_X86_32 */
-
 
 static struct cpu_dev *this_cpu __cpuinitdata;
 

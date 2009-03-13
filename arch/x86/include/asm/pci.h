@@ -109,11 +109,6 @@ static inline int __pcibus_to_node(const struct pci_bus *bus)
 	return sd->node;
 }
 
-static inline cpumask_t __pcibus_to_cpumask(struct pci_bus *bus)
-{
-	return node_to_cpumask(__pcibus_to_node(bus));
-}
-
 static inline const struct cpumask *
 cpumask_of_pcibus(const struct pci_bus *bus)
 {

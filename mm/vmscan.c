@@ -1963,7 +1963,7 @@ static int kswapd(void *p)
 	struct reclaim_state reclaim_state = {
 		.reclaimed_slab = 0,
 	};
-	node_to_cpumask_ptr(cpumask, pgdat->node_id);
+	const struct cpumask *cpumask = cpumask_of_node(pgdat->node_id);
 
 	if (!cpumask_empty(cpumask))
 		set_cpus_allowed_ptr(tsk, cpumask);
@@ -2198,7 +2198,9 @@ static int __devinit cpu_callback(struct notifier_block *nfb,
 	if (action == CPU_ONLINE || action == CPU_ONLINE_FROZEN) {
 		for_each_node_state(nid, N_HIGH_MEMORY) {
 			pg_data_t *pgdat = NODE_DATA(nid);
-			node_to_cpumask_ptr(mask, pgdat->node_id);
+			const struct cpumask *mask;
+
+			mask = cpumask_of_node(pgdat->node_id);
 
 			if (cpumask_any_and(cpu_online_mask, mask) < nr_cpu_ids)
 				/* One of our CPUs online: restore mask */

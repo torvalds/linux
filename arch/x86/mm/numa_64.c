@@ -20,12 +20,6 @@
 #include <asm/acpi.h>
 #include <asm/k8.h>
 
-#ifdef CONFIG_DEBUG_PER_CPU_MAPS
-# define DBG(x...) printk(KERN_DEBUG x)
-#else
-# define DBG(x...)
-#endif
-
 struct pglist_data *node_data[MAX_NUMNODES] __read_mostly;
 EXPORT_SYMBOL(node_data);
 
@@ -47,12 +41,6 @@ EXPORT_PER_CPU_SYMBOL(node_number);
  */
 DEFINE_EARLY_PER_CPU(int, x86_cpu_to_node_map, NUMA_NO_NODE);
 EXPORT_EARLY_PER_CPU_SYMBOL(x86_cpu_to_node_map);
-
-/*
- * Which logical CPUs are on which nodes
- */
-cpumask_t *node_to_cpumask_map;
-EXPORT_SYMBOL(node_to_cpumask_map);
 
 /*
  * Given a shift value, try to populate memnodemap[]
@@ -661,36 +649,6 @@ void __init init_cpu_to_node(void)
 #endif
 
 
-/*
- * Allocate node_to_cpumask_map based on number of available nodes
- * Requires node_possible_map to be valid.
- *
- * Note: node_to_cpumask() is not valid until after this is done.
- * (Use CONFIG_DEBUG_PER_CPU_MAPS to check this.)
- */
-void __init setup_node_to_cpumask_map(void)
-{
-	unsigned int node, num = 0;
-	cpumask_t *map;
-
-	/* setup nr_node_ids if not done yet */
-	if (nr_node_ids == MAX_NUMNODES) {
-		for_each_node_mask(node, node_possible_map)
-			num = node;
-		nr_node_ids = num + 1;
-	}
-
-	/* allocate the map */
-	map = alloc_bootmem_low(nr_node_ids * sizeof(cpumask_t));
-	DBG("node_to_cpumask_map at %p for %d nodes\n", map, nr_node_ids);
-
-	pr_debug("Node to cpumask map at %p for %d nodes\n",
-		 map, nr_node_ids);
-
-	/* node_to_cpumask() will now work */
-	node_to_cpumask_map = map;
-}
-
 void __cpuinit numa_set_node(int cpu, int node)
 {
 	int *cpu_to_node_map = early_per_cpu_ptr(x86_cpu_to_node_map);
@@ -723,12 +681,12 @@ void __cpuinit numa_clear_node(int cpu)
 
 void __cpuinit numa_add_cpu(int cpu)
 {
-	cpu_set(cpu, node_to_cpumask_map[early_cpu_to_node(cpu)]);
+	cpumask_set_cpu(cpu, node_to_cpumask_map[early_cpu_to_node(cpu)]);
 }
 
 void __cpuinit numa_remove_cpu(int cpu)
 {
-	cpu_clear(cpu, node_to_cpumask_map[early_cpu_to_node(cpu)]);
+	cpumask_clear_cpu(cpu, node_to_cpumask_map[early_cpu_to_node(cpu)]);
 }
 
 #else /* CONFIG_DEBUG_PER_CPU_MAPS */
@@ -739,20 +697,20 @@ void __cpuinit numa_remove_cpu(int cpu)
 static void __cpuinit numa_set_cpumask(int cpu, int enable)
 {
 	int node = early_cpu_to_node(cpu);
-	cpumask_t *mask;
+	struct cpumask *mask;
 	char buf[64];
 
-	if (node_to_cpumask_map == NULL) {
-		printk(KERN_ERR "node_to_cpumask_map NULL\n");
+	mask = node_to_cpumask_map[node];
+	if (mask == NULL) {
+		printk(KERN_ERR "node_to_cpumask_map[%i] NULL\n", node);
 		dump_stack();
 		return;
 	}
 
-	mask = &node_to_cpumask_map[node];
 	if (enable)
-		cpu_set(cpu, *mask);
+		cpumask_set_cpu(cpu, mask);
 	else
-		cpu_clear(cpu, *mask);
+		cpumask_clear_cpu(cpu, mask);
 
 	cpulist_scnprintf(buf, sizeof(buf), mask);
 	printk(KERN_DEBUG "%s cpu %d node %d: mask now %s\n",
@@ -798,59 +756,6 @@ int early_cpu_to_node(int cpu)
 	}
 	return per_cpu(x86_cpu_to_node_map, cpu);
 }
-
-
-/* empty cpumask */
-static const cpumask_t cpu_mask_none;
-
-/*
- * Returns a pointer to the bitmask of CPUs on Node 'node'.
- */
-const cpumask_t *cpumask_of_node(int node)
-{
-	if (node_to_cpumask_map == NULL) {
-		printk(KERN_WARNING
-			"cpumask_of_node(%d): no node_to_cpumask_map!\n",
-			node);
-		dump_stack();
-		return (const cpumask_t *)&cpu_online_map;
-	}
-	if (node >= nr_node_ids) {
-		printk(KERN_WARNING
-			"cpumask_of_node(%d): node > nr_node_ids(%d)\n",
-			node, nr_node_ids);
-		dump_stack();
-		return &cpu_mask_none;
-	}
-	return &node_to_cpumask_map[node];
-}
-EXPORT_SYMBOL(cpumask_of_node);
-
-/*
- * Returns a bitmask of CPUs on Node 'node'.
- *
- * Side note: this function creates the returned cpumask on the stack
- * so with a high NR_CPUS count, excessive stack space is used.  The
- * node_to_cpumask_ptr function should be used whenever possible.
- */
-cpumask_t node_to_cpumask(int node)
-{
-	if (node_to_cpumask_map == NULL) {
-		printk(KERN_WARNING
-			"node_to_cpumask(%d): no node_to_cpumask_map!\n", node);
-		dump_stack();
-		return cpu_online_map;
-	}
-	if (node >= nr_node_ids) {
-		printk(KERN_WARNING
-			"node_to_cpumask(%d): node > nr_node_ids(%d)\n",
-			node, nr_node_ids);
-		dump_stack();
-		return cpu_mask_none;
-	}
-	return node_to_cpumask_map[node];
-}
-EXPORT_SYMBOL(node_to_cpumask);
 
 /*
  * --------- end of debug versions of the numa functions ---------

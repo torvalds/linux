@@ -324,7 +324,7 @@ void stop_this_cpu(void *dummy)
 	/*
 	 * Remove this CPU:
 	 */
-	cpu_clear(smp_processor_id(), cpu_online_map);
+	set_cpu_online(smp_processor_id(), false);
 	disable_local_APIC();
 
 	for (;;) {
@@ -474,12 +474,12 @@ static int __cpuinit check_c1e_idle(const struct cpuinfo_x86 *c)
 	return 1;
 }
 
-static cpumask_t c1e_mask = CPU_MASK_NONE;
+static cpumask_var_t c1e_mask;
 static int c1e_detected;
 
 void c1e_remove_cpu(int cpu)
 {
-	cpu_clear(cpu, c1e_mask);
+	cpumask_clear_cpu(cpu, c1e_mask);
 }
 
 /*
@@ -508,8 +508,8 @@ static void c1e_idle(void)
 	if (c1e_detected) {
 		int cpu = smp_processor_id();
 
-		if (!cpu_isset(cpu, c1e_mask)) {
-			cpu_set(cpu, c1e_mask);
+		if (!cpumask_test_cpu(cpu, c1e_mask)) {
+			cpumask_set_cpu(cpu, c1e_mask);
 			/*
 			 * Force broadcast so ACPI can not interfere. Needs
 			 * to run with interrupts enabled as it uses
@@ -556,6 +556,8 @@ void __cpuinit select_idle_routine(const struct cpuinfo_x86 *c)
 		pm_idle = mwait_idle;
 	} else if (check_c1e_idle(c)) {
 		printk(KERN_INFO "using C1E aware idle routine\n");
+		alloc_cpumask_var(&c1e_mask, GFP_KERNEL);
+		cpumask_clear(c1e_mask);
 		pm_idle = c1e_idle;
 	} else
 		pm_idle = default_idle;

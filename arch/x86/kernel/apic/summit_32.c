@@ -53,23 +53,19 @@ static unsigned summit_get_apic_id(unsigned long x)
 	return (x >> 24) & 0xFF;
 }
 
-static inline void summit_send_IPI_mask(const cpumask_t *mask, int vector)
+static inline void summit_send_IPI_mask(const struct cpumask *mask, int vector)
 {
 	default_send_IPI_mask_sequence_logical(mask, vector);
 }
 
 static void summit_send_IPI_allbutself(int vector)
 {
-	cpumask_t mask = cpu_online_map;
-	cpu_clear(smp_processor_id(), mask);
-
-	if (!cpus_empty(mask))
-		summit_send_IPI_mask(&mask, vector);
+	default_send_IPI_mask_allbutself_logical(cpu_online_mask, vector);
 }
 
 static void summit_send_IPI_all(int vector)
 {
-	summit_send_IPI_mask(&cpu_online_map, vector);
+	summit_send_IPI_mask(cpu_online_mask, vector);
 }
 
 #include <asm/tsc.h>
@@ -186,13 +182,13 @@ static inline int is_WPEG(struct rio_detail *rio){
 
 #define SUMMIT_APIC_DFR_VALUE	(APIC_DFR_CLUSTER)
 
-static const cpumask_t *summit_target_cpus(void)
+static const struct cpumask *summit_target_cpus(void)
 {
 	/* CPU_MASK_ALL (0xff) has undefined behaviour with
 	 * dest_LowestPrio mode logical clustered apic interrupt routing
 	 * Just start on cpu 0.  IRQ balancing will spread load
 	 */
-	return &cpumask_of_cpu(0);
+	return cpumask_of(0);
 }
 
 static unsigned long summit_check_apicid_used(physid_mask_t bitmap, int apicid)
@@ -289,7 +285,7 @@ static int summit_check_phys_apicid_present(int boot_cpu_physical_apicid)
 	return 1;
 }
 
-static unsigned int summit_cpu_mask_to_apicid(const cpumask_t *cpumask)
+static unsigned int summit_cpu_mask_to_apicid(const struct cpumask *cpumask)
 {
 	unsigned int round = 0;
 	int cpu, apicid = 0;
@@ -346,7 +342,7 @@ static int probe_summit(void)
 	return 0;
 }
 
-static void summit_vector_allocation_domain(int cpu, cpumask_t *retmask)
+static void summit_vector_allocation_domain(int cpu, struct cpumask *retmask)
 {
 	/* Careful. Some cpus do not strictly honor the set of cpus
 	 * specified in the interrupt destination when using lowest
@@ -356,7 +352,8 @@ static void summit_vector_allocation_domain(int cpu, cpumask_t *retmask)
 	 * deliver interrupts to the wrong hyperthread when only one
 	 * hyperthread was specified in the interrupt desitination.
 	 */
-	*retmask = (cpumask_t){ { [0] = APIC_ALL_CPUS, } };
+	cpumask_clear(retmask);
+	cpumask_bits(retmask)[0] = APIC_ALL_CPUS;
 }
 
 #ifdef CONFIG_X86_SUMMIT_NUMA
