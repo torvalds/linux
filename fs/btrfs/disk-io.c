@@ -1458,6 +1458,7 @@ static int transaction_kthread(void *arg)
 	struct btrfs_root *root = arg;
 	struct btrfs_trans_handle *trans;
 	struct btrfs_transaction *cur;
+	struct btrfs_fs_info *info = root->fs_info;
 	unsigned long now;
 	unsigned long delay;
 	int ret;
@@ -1471,12 +1472,6 @@ static int transaction_kthread(void *arg)
 		vfs_check_frozen(root->fs_info->sb, SB_FREEZE_WRITE);
 		mutex_lock(&root->fs_info->transaction_kthread_mutex);
 
-		if (root->fs_info->total_ref_cache_size > 20 * 1024 * 1024) {
-			printk(KERN_INFO "btrfs: total reference cache "
-			       "size %llu\n",
-			       root->fs_info->total_ref_cache_size);
-		}
-
 		mutex_lock(&root->fs_info->trans_mutex);
 		cur = root->fs_info->running_transaction;
 		if (!cur) {
@@ -1486,13 +1481,30 @@ static int transaction_kthread(void *arg)
 
 		now = get_seconds();
 		if (now < cur->start_time || now - cur->start_time < 30) {
+			unsigned long num_delayed;
+			num_delayed = cur->delayed_refs.num_entries;
 			mutex_unlock(&root->fs_info->trans_mutex);
 			delay = HZ * 5;
+
+			/*
+			 * we may have been woken up early to start
+			 * processing the delayed extent ref updates
+			 * If so, run some of them and then loop around again
+			 * to see if we need to force a commit
+			 */
+			if (num_delayed > 64) {
+				mutex_unlock(&info->transaction_kthread_mutex);
+				trans = btrfs_start_transaction(root, 1);
+				btrfs_run_delayed_refs(trans, root, 256);
+				btrfs_end_transaction(trans, root);
+				continue;
+			}
 			goto sleep;
 		}
 		mutex_unlock(&root->fs_info->trans_mutex);
 		trans = btrfs_start_transaction(root, 1);
 		ret = btrfs_commit_transaction(trans, root);
+
 sleep:
 		wake_up_process(root->fs_info->cleaner_kthread);
 		mutex_unlock(&root->fs_info->transaction_kthread_mutex);
@@ -1611,10 +1623,6 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 
 	extent_io_tree_init(&fs_info->pinned_extents,
 			     fs_info->btree_inode->i_mapping, GFP_NOFS);
-	extent_io_tree_init(&fs_info->pending_del,
-			     fs_info->btree_inode->i_mapping, GFP_NOFS);
-	extent_io_tree_init(&fs_info->extent_ins,
-			     fs_info->btree_inode->i_mapping, GFP_NOFS);
 	fs_info->do_barriers = 1;
 
 	INIT_LIST_HEAD(&fs_info->dead_reloc_roots);
@@ -1629,7 +1637,6 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	mutex_init(&fs_info->trans_mutex);
 	mutex_init(&fs_info->tree_log_mutex);
 	mutex_init(&fs_info->drop_mutex);
-	mutex_init(&fs_info->extent_ins_mutex);
 	mutex_init(&fs_info->pinned_mutex);
 	mutex_init(&fs_info->chunk_mutex);
 	mutex_init(&fs_info->transaction_kthread_mutex);

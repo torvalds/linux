@@ -19,6 +19,7 @@
 #ifndef __BTRFS_TRANSACTION__
 #define __BTRFS_TRANSACTION__
 #include "btrfs_inode.h"
+#include "delayed-ref.h"
 
 struct btrfs_transaction {
 	u64 transid;
@@ -34,6 +35,7 @@ struct btrfs_transaction {
 	wait_queue_head_t writer_wait;
 	wait_queue_head_t commit_wait;
 	struct list_head pending_snapshots;
+	struct btrfs_delayed_ref_root delayed_refs;
 };
 
 struct btrfs_trans_handle {
@@ -44,6 +46,7 @@ struct btrfs_trans_handle {
 	u64 block_group;
 	u64 alloc_exclude_start;
 	u64 alloc_exclude_nr;
+	unsigned long delayed_ref_updates;
 };
 
 struct btrfs_pending_snapshot {

@@ -65,6 +65,12 @@ static noinline int join_transaction(struct btrfs_root *root)
 		cur_trans->use_count = 1;
 		cur_trans->commit_done = 0;
 		cur_trans->start_time = get_seconds();
+
+		cur_trans->delayed_refs.root.rb_node = NULL;
+		cur_trans->delayed_refs.num_entries = 0;
+		cur_trans->delayed_refs.flushing = 0;
+		spin_lock_init(&cur_trans->delayed_refs.lock);
+
 		INIT_LIST_HEAD(&cur_trans->pending_snapshots);
 		list_add_tail(&cur_trans->list, &root->fs_info->trans_list);
 		extent_io_tree_init(&cur_trans->dirty_pages,
@@ -182,6 +188,7 @@ static struct btrfs_trans_handle *start_transaction(struct btrfs_root *root,
 	h->block_group = 0;
 	h->alloc_exclude_nr = 0;
 	h->alloc_exclude_start = 0;
+	h->delayed_ref_updates = 0;
 	root->fs_info->running_transaction->use_count++;
 	mutex_unlock(&root->fs_info->trans_mutex);
 	return h;
@@ -280,6 +287,14 @@ static int __btrfs_end_transaction(struct btrfs_trans_handle *trans,
 {
 	struct btrfs_transaction *cur_trans;
 	struct btrfs_fs_info *info = root->fs_info;
+
+	if (trans->delayed_ref_updates &&
+	    (trans->transaction->delayed_refs.flushing ||
+	    trans->transaction->delayed_refs.num_entries > 16384)) {
+		btrfs_run_delayed_refs(trans, root, trans->delayed_ref_updates);
+	} else if (trans->transaction->delayed_refs.num_entries > 64) {
+		wake_up_process(root->fs_info->transaction_kthread);
+	}
 
 	mutex_lock(&info->trans_mutex);
 	cur_trans = info->running_transaction;
@@ -424,9 +439,10 @@ static int update_cowonly_root(struct btrfs_trans_handle *trans,
 	u64 old_root_bytenr;
 	struct btrfs_root *tree_root = root->fs_info->tree_root;
 
-	btrfs_extent_post_op(trans, root);
 	btrfs_write_dirty_block_groups(trans, root);
-	btrfs_extent_post_op(trans, root);
+
+	ret = btrfs_run_delayed_refs(trans, root, (unsigned long)-1);
+	BUG_ON(ret);
 
 	while (1) {
 		old_root_bytenr = btrfs_root_bytenr(&root->root_item);
@@ -438,14 +454,14 @@ static int update_cowonly_root(struct btrfs_trans_handle *trans,
 				     btrfs_header_level(root->node));
 		btrfs_set_root_generation(&root->root_item, trans->transid);
 
-		btrfs_extent_post_op(trans, root);
-
 		ret = btrfs_update_root(trans, tree_root,
 					&root->root_key,
 					&root->root_item);
 		BUG_ON(ret);
 		btrfs_write_dirty_block_groups(trans, root);
-		btrfs_extent_post_op(trans, root);
+
+		ret = btrfs_run_delayed_refs(trans, root, (unsigned long)-1);
+		BUG_ON(ret);
 	}
 	return 0;
 }
@@ -459,15 +475,18 @@ int btrfs_commit_tree_roots(struct btrfs_trans_handle *trans,
 	struct btrfs_fs_info *fs_info = root->fs_info;
 	struct list_head *next;
 	struct extent_buffer *eb;
+	int ret;
 
-	btrfs_extent_post_op(trans, fs_info->tree_root);
+	ret = btrfs_run_delayed_refs(trans, root, (unsigned long)-1);
+	BUG_ON(ret);
 
 	eb = btrfs_lock_root_node(fs_info->tree_root);
 	btrfs_cow_block(trans, fs_info->tree_root, eb, NULL, 0, &eb);
 	btrfs_tree_unlock(eb);
 	free_extent_buffer(eb);
 
-	btrfs_extent_post_op(trans, fs_info->tree_root);
+	ret = btrfs_run_delayed_refs(trans, root, (unsigned long)-1);
+	BUG_ON(ret);
 
 	while (!list_empty(&fs_info->dirty_cowonly_roots)) {
 		next = fs_info->dirty_cowonly_roots.next;
@@ -475,6 +494,9 @@ int btrfs_commit_tree_roots(struct btrfs_trans_handle *trans,
 		root = list_entry(next, struct btrfs_root, dirty_list);
 
 		update_cowonly_root(trans, root);
+
+		ret = btrfs_run_delayed_refs(trans, root, (unsigned long)-1);
+		BUG_ON(ret);
 	}
 	return 0;
 }
@@ -895,6 +917,21 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 	DEFINE_WAIT(wait);
 	int ret;
 
+	/* make a pass through all the delayed refs we have so far
+	 * any runnings procs may add more while we are here
+	 */
+	ret = btrfs_run_delayed_refs(trans, root, 0);
+	BUG_ON(ret);
+
+	/*
+	 * set the flushing flag so procs in this transaction have to
+	 * start sending their work down.
+	 */
+	trans->transaction->delayed_refs.flushing = 1;
+
+	ret = btrfs_run_delayed_refs(trans, root, (u64)-1);
+	BUG_ON(ret);
+
 	INIT_LIST_HEAD(&dirty_fs_roots);
 	mutex_lock(&root->fs_info->trans_mutex);
 	if (trans->transaction->in_commit) {
@@ -967,6 +1004,9 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 		 (cur_trans->num_joined != joined));
 
 	ret = create_pending_snapshots(trans, root->fs_info);
+	BUG_ON(ret);
+
+	ret = btrfs_run_delayed_refs(trans, root, (unsigned long)-1);
 	BUG_ON(ret);
 
 	WARN_ON(cur_trans != trans->transaction);

@@ -922,6 +922,7 @@ static noinline int balance_level(struct btrfs_trans_handle *trans,
 		spin_unlock(&root->node_lock);
 
 		ret = btrfs_update_extent_ref(trans, root, child->start,
+					      child->len,
 					      mid->start, child->start,
 					      root->root_key.objectid,
 					      trans->transid, level - 1);
@@ -2075,7 +2076,7 @@ static noinline int insert_new_root(struct btrfs_trans_handle *trans,
 	spin_unlock(&root->node_lock);
 
 	ret = btrfs_update_extent_ref(trans, root, lower->start,
-				      lower->start, c->start,
+				      lower->len, lower->start, c->start,
 				      root->root_key.objectid,
 				      trans->transid, level - 1);
 	BUG_ON(ret);

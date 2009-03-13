@@ -643,7 +643,9 @@ next_slot:
 
 			if (disk_bytenr != 0) {
 				ret = btrfs_update_extent_ref(trans, root,
-						disk_bytenr, orig_parent,
+						disk_bytenr,
+						le64_to_cpu(old.disk_num_bytes),
+						orig_parent,
 						leaf->start,
 						root->root_key.objectid,
 						trans->transid, ins.objectid);
@@ -912,7 +914,7 @@ again:
 	btrfs_set_file_extent_other_encoding(leaf, fi, 0);
 
 	if (orig_parent != leaf->start) {
-		ret = btrfs_update_extent_ref(trans, root, bytenr,
+		ret = btrfs_update_extent_ref(trans, root, bytenr, num_bytes,
 					      orig_parent, leaf->start,
 					      root->root_key.objectid,
 					      trans->transid, inode->i_ino);
