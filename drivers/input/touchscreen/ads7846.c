@@ -295,7 +295,7 @@ name ## _show(struct device *dev, struct device_attribute *attr, char *buf) \
 static DEVICE_ATTR(name, S_IRUGO, name ## _show, NULL);
 
 
-/* Sysfs conventions report temperatures in millidegrees Celcius.
+/* Sysfs conventions report temperatures in millidegrees Celsius.
  * ADS7846 could use the low-accuracy two-sample scheme, but can't do the high
  * accuracy scheme without calibration data.  For now we won't try either;
  * userspace sees raw sensor values, and must scale/calibrate appropriately.
