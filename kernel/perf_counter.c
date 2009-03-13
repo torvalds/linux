@@ -1607,57 +1607,10 @@ static const struct hw_perf_counter_ops perf_ops_task_clock = {
  * Software counter: page faults
  */
 
-#ifdef CONFIG_VM_EVENT_COUNTERS
-#define cpu_page_faults()	__get_cpu_var(vm_event_states).event[PGFAULT]
-#else
-#define cpu_page_faults()	0
-#endif
-
-static u64 get_page_faults(struct perf_counter *counter)
-{
-	struct task_struct *curr = counter->ctx->task;
-
-	if (curr)
-		return curr->maj_flt + curr->min_flt;
-	return cpu_page_faults();
-}
-
-static void page_faults_perf_counter_update(struct perf_counter *counter)
-{
-	u64 prev, now;
-	s64 delta;
-
-	prev = atomic64_read(&counter->hw.prev_count);
-	now = get_page_faults(counter);
-
-	atomic64_set(&counter->hw.prev_count, now);
-
-	delta = now - prev;
-
-	atomic64_add(delta, &counter->count);
-}
-
-static void page_faults_perf_counter_read(struct perf_counter *counter)
-{
-	page_faults_perf_counter_update(counter);
-}
-
-static int page_faults_perf_counter_enable(struct perf_counter *counter)
-{
-	if (counter->prev_state <= PERF_COUNTER_STATE_OFF)
-		atomic64_set(&counter->hw.prev_count, get_page_faults(counter));
-	return 0;
-}
-
-static void page_faults_perf_counter_disable(struct perf_counter *counter)
-{
-	page_faults_perf_counter_update(counter);
-}
-
 static const struct hw_perf_counter_ops perf_ops_page_faults = {
-	.enable		= page_faults_perf_counter_enable,
-	.disable	= page_faults_perf_counter_disable,
-	.read		= page_faults_perf_counter_read,
+	.enable		= perf_swcounter_enable,
+	.disable	= perf_swcounter_disable,
+	.read		= perf_swcounter_read,
 };
 
 /*

@@ -27,6 +27,7 @@
 #include <linux/tty.h>
 #include <linux/smp.h>
 #include <linux/mm.h>
+#include <linux/perf_counter.h>
 
 #include <asm-generic/sections.h>
 
@@ -1043,6 +1044,8 @@ do_page_fault(struct pt_regs *regs, unsigned long error_code)
 
 	if (unlikely(error_code & PF_RSVD))
 		pgtable_bad(regs, error_code, address);
+
+	perf_swcounter_event(PERF_COUNT_PAGE_FAULTS, 1, 0, regs);
 
 	/*
 	 * If we're in an interrupt, have no user context or are running

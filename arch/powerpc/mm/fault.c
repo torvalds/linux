@@ -29,6 +29,7 @@
 #include <linux/module.h>
 #include <linux/kprobes.h>
 #include <linux/kdebug.h>
+#include <linux/perf_counter.h>
 
 #include <asm/firmware.h>
 #include <asm/page.h>
@@ -169,6 +170,8 @@ int __kprobes do_page_fault(struct pt_regs *regs, unsigned long address,
 		       regs->nip, regs->msr);
 		die("Weird page fault", regs, SIGSEGV);
 	}
+
+	perf_swcounter_event(PERF_COUNT_PAGE_FAULTS, 1, 0, regs);
 
 	/* When running in the kernel we expect faults to occur only to
 	 * addresses in user space.  All other faults represent errors in the
