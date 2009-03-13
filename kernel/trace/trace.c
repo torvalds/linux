@@ -3543,6 +3543,11 @@ static void tracing_init_debugfs_percpu(long cpu)
 				(void *) cpu, &tracing_fops);
 	if (!entry)
 		pr_warning("Could not create debugfs 'trace' entry\n");
+
+	entry = debugfs_create_file("trace_pipe_raw", 0444, d_cpu,
+				    (void *) cpu, &tracing_buffers_fops);
+	if (!entry)
+		pr_warning("Could not create debugfs 'trace_pipe_raw' entry\n");
 }
 
 #ifdef CONFIG_FTRACE_SELFTEST
@@ -3826,7 +3831,6 @@ static __init void create_trace_options_dir(void)
 static __init int tracer_init_debugfs(void)
 {
 	struct dentry *d_tracer;
-	struct dentry *buffers;
 	struct dentry *entry;
 	int cpu;
 
@@ -3898,26 +3902,6 @@ static __init int tracer_init_debugfs(void)
 	if (!entry)
 		pr_warning("Could not create debugfs "
 			   "'trace_marker' entry\n");
-
-	buffers = debugfs_create_dir("binary_buffers", d_tracer);
-
-	if (!buffers)
-		pr_warning("Could not create buffers directory\n");
-	else {
-		int cpu;
-		char buf[64];
-
-		for_each_tracing_cpu(cpu) {
-			sprintf(buf, "%d", cpu);
-
-			entry = debugfs_create_file(buf, 0444, buffers,
-						    (void *)(long)cpu,
-						    &tracing_buffers_fops);
-			if (!entry)
-				pr_warning("Could not create debugfs buffers "
-					   "'%s' entry\n", buf);
-		}
-	}
 
 #ifdef CONFIG_DYNAMIC_FTRACE
 	entry = debugfs_create_file("dyn_ftrace_total_info", 0444, d_tracer,
