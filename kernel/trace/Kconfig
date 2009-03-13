@@ -34,6 +34,9 @@ config HAVE_FTRACE_MCOUNT_RECORD
 config HAVE_HW_BRANCH_TRACER
 	bool
 
+config HAVE_FTRACE_SYSCALLS
+	bool
+
 config TRACER_MAX_TRACE
 	bool
 
@@ -174,6 +177,13 @@ config EVENT_TRACER
 	  This tracer hooks to various trace points in the kernel
 	  allowing the user to pick and choose which trace point they
 	  want to trace.
+
+config FTRACE_SYSCALLS
+	bool "Trace syscalls"
+	depends on HAVE_FTRACE_SYSCALLS
+	select TRACING
+	help
+	  Basic tracer to catch the syscall entry and exit events.
 
 config BOOT_TRACER
 	bool "Trace boot initcalls"
