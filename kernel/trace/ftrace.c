@@ -1120,16 +1120,6 @@ ftrace_notrace_open(struct inode *inode, struct file *file)
 	return ftrace_regex_open(inode, file, 0);
 }
 
-static ssize_t
-ftrace_regex_read(struct file *file, char __user *ubuf,
-		       size_t cnt, loff_t *ppos)
-{
-	if (file->f_mode & FMODE_READ)
-		return seq_read(file, ubuf, cnt, ppos);
-	else
-		return -EPERM;
-}
-
 static loff_t
 ftrace_regex_lseek(struct file *file, loff_t offset, int origin)
 {
@@ -1882,7 +1872,7 @@ static const struct file_operations ftrace_failures_fops = {
 
 static const struct file_operations ftrace_filter_fops = {
 	.open = ftrace_filter_open,
-	.read = ftrace_regex_read,
+	.read = seq_read,
 	.write = ftrace_filter_write,
 	.llseek = ftrace_regex_lseek,
 	.release = ftrace_filter_release,
@@ -1890,7 +1880,7 @@ static const struct file_operations ftrace_filter_fops = {
 
 static const struct file_operations ftrace_notrace_fops = {
 	.open = ftrace_notrace_open,
-	.read = ftrace_regex_read,
+	.read = seq_read,
 	.write = ftrace_notrace_write,
 	.llseek = ftrace_regex_lseek,
 	.release = ftrace_notrace_release,
@@ -1990,16 +1980,6 @@ ftrace_graph_open(struct inode *inode, struct file *file)
 	mutex_unlock(&graph_lock);
 
 	return ret;
-}
-
-static ssize_t
-ftrace_graph_read(struct file *file, char __user *ubuf,
-		       size_t cnt, loff_t *ppos)
-{
-	if (file->f_mode & FMODE_READ)
-		return seq_read(file, ubuf, cnt, ppos);
-	else
-		return -EPERM;
 }
 
 static int
@@ -2132,7 +2112,7 @@ ftrace_graph_write(struct file *file, const char __user *ubuf,
 
 static const struct file_operations ftrace_graph_fops = {
 	.open = ftrace_graph_open,
-	.read = ftrace_graph_read,
+	.read = seq_read,
 	.write = ftrace_graph_write,
 };
 #endif /* CONFIG_FUNCTION_GRAPH_TRACER */
