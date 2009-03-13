@@ -2649,8 +2649,6 @@ static int __devinit happy_meal_sbus_probe_one(struct of_device *op, int is_qfe)
 	int err = -ENODEV;
 
 	sbus_dp = to_of_device(op->dev.parent)->node;
-	if (is_qfe)
-		sbus_dp = to_of_device(op->dev.parent->parent)->node;
 
 	/* We can match PCI devices too, do not accept those here. */
 	if (strcmp(sbus_dp->name, "sbus"))

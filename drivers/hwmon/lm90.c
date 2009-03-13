@@ -32,10 +32,10 @@
  * supported by this driver. These chips lack the remote temperature
  * offset feature.
  *
- * This driver also supports the MAX6646, MAX6647 and MAX6649 chips
- * made by Maxim.  These are again similar to the LM86, but they use
- * unsigned temperature values and can report temperatures from 0 to
- * 145 degrees.
+ * This driver also supports the MAX6646, MAX6647, MAX6648, MAX6649 and
+ * MAX6692 chips made by Maxim.  These are again similar to the LM86,
+ * but they use unsigned temperature values and can report temperatures
+ * from 0 to 145 degrees.
  *
  * This driver also supports the MAX6680 and MAX6681, two other sensor
  * chips made by Maxim. These are quite similar to the other Maxim

@@ -168,7 +168,7 @@ int drm_setmaster_ioctl(struct drm_device *dev, void *data,
 	    file_priv->minor->master != file_priv->master) {
 		mutex_lock(&dev->struct_mutex);
 		file_priv->minor->master = drm_master_get(file_priv->master);
-		mutex_lock(&dev->struct_mutex);
+		mutex_unlock(&dev->struct_mutex);
 	}
 
 	return 0;
