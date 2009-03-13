@@ -381,11 +381,14 @@ static void generic_get_mtrr(unsigned int reg, unsigned long *base,
 {
 	unsigned int mask_lo, mask_hi, base_lo, base_hi;
 	unsigned int tmp, hi;
+	int cpu;
 
 	/*
 	 * get_mtrr doesn't need to update mtrr_state, also it could be called
 	 * from any cpu, so try to print it out directly.
 	 */
+	cpu = get_cpu();
+
 	rdmsr(MTRRphysMask_MSR(reg), mask_lo, mask_hi);
 
 	if ((mask_lo & 0x800) == 0) {
@@ -393,15 +396,16 @@ static void generic_get_mtrr(unsigned int reg, unsigned long *base,
 		*base = 0;
 		*size = 0;
 		*type = 0;
-		return;
+		goto out_put_cpu;
 	}
 
 	rdmsr(MTRRphysBase_MSR(reg), base_lo, base_hi);
 
-	/* Work out the shifted address mask. */
+	/* Work out the shifted address mask: */
 	tmp = mask_hi << (32 - PAGE_SHIFT) | mask_lo >> PAGE_SHIFT;
 	mask_lo = size_or_mask | tmp;
-	/* Expand tmp with high bits to all 1s*/
+
+	/* Expand tmp with high bits to all 1s: */
 	hi = fls(tmp);
 	if (hi > 0) {
 		tmp |= ~((1<<(hi - 1)) - 1);
@@ -412,15 +416,19 @@ static void generic_get_mtrr(unsigned int reg, unsigned long *base,
 		}
 	}
 
-	/* This works correctly if size is a power of two, i.e. a
-	   contiguous range. */
+	/*
+	 * This works correctly if size is a power of two, i.e. a
+	 * contiguous range:
+	 */
 	*size = -mask_lo;
 	*base = base_hi << (32 - PAGE_SHIFT) | base_lo >> PAGE_SHIFT;
 	*type = base_lo & 0xff;
 
 	printk(KERN_DEBUG "  get_mtrr: cpu%d reg%02d base=%010lx size=%010lx %s\n",
-			smp_processor_id(), reg, *base, *size,
+			cpu, reg, *base, *size,
 			mtrr_attrib_to_str(*type & 0xff));
+out_put_cpu:
+	put_cpu();
 }
 
 /**
