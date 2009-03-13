@@ -404,8 +404,7 @@ s32 ixgbe_setup_mac_link_multispeed_fiber(struct ixgbe_hw *hw)
 {
 	s32 status = 0;
 	ixgbe_link_speed link_speed = IXGBE_LINK_SPEED_82599_AUTONEG;
-	status = ixgbe_setup_mac_link_speed_multispeed_fiber(hw,
-	                                                     link_speed,
+	status = ixgbe_setup_mac_link_speed_multispeed_fiber(hw, link_speed,
 	                                                     true, true);
 	return status;
 }
@@ -759,7 +758,7 @@ s32 ixgbe_reset_hw_82599(struct ixgbe_hw *hw)
 		hw->mac.orig_autoc = autoc;
 		hw->mac.orig_autoc2 = autoc2;
 		hw->mac.orig_link_settings_stored = true;
-	} else  {
+	} else {
 		if (autoc != hw->mac.orig_autoc)
 			IXGBE_WRITE_REG(hw, IXGBE_AUTOC, (hw->mac.orig_autoc |
 			                IXGBE_AUTOC_AN_RESTART));

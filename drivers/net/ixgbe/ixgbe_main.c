@@ -779,7 +779,8 @@ static void ixgbe_configure_msix(struct ixgbe_adapter *adapter)
 
 	q_vectors = adapter->num_msix_vectors - NON_Q_VECTORS;
 
-	/* Populate the IVAR table and set the ITR values to the
+	/*
+	 * Populate the IVAR table and set the ITR values to the
 	 * corresponding register.
 	 */
 	for (v_idx = 0; v_idx < q_vectors; v_idx++) {
@@ -814,7 +815,7 @@ static void ixgbe_configure_msix(struct ixgbe_adapter *adapter)
 			q_vector->eitr = adapter->eitr_param;
 
 		/*
-		 * since ths is initial set up don't need to call
+		 * since this is initial set up don't need to call
 		 * ixgbe_write_eitr helper
 		 */
 		IXGBE_WRITE_REG(&adapter->hw, IXGBE_EITR(v_idx),
@@ -2675,6 +2676,14 @@ static inline bool ixgbe_set_dcb_queues(struct ixgbe_adapter *adapter)
 }
 #endif
 
+/**
+ * ixgbe_set_rss_queues: Allocate queues for RSS
+ * @adapter: board private structure to initialize
+ *
+ * This is our "base" multiqueue mode.  RSS (Receive Side Scaling) will try
+ * to allocate one Rx queue per CPU, and if available, one Tx queue per CPU.
+ *
+ **/
 static inline bool ixgbe_set_rss_queues(struct ixgbe_adapter *adapter)
 {
 	bool ret = false;
@@ -2693,6 +2702,17 @@ static inline bool ixgbe_set_rss_queues(struct ixgbe_adapter *adapter)
 	return ret;
 }
 
+/*
+ * ixgbe_set_num_queues: Allocate queues for device, feature dependant
+ * @adapter: board private structure to initialize
+ *
+ * This is the top level queue allocation routine.  The order here is very
+ * important, starting with the "most" number of features turned on at once,
+ * and ending with the smallest set of features.  This way large combinations
+ * can be allocated if they're turned on, and smaller combinations are the
+ * fallthrough conditions.
+ *
+ **/
 static void ixgbe_set_num_queues(struct ixgbe_adapter *adapter)
 {
 	/* Start with base case */
@@ -2856,7 +2876,8 @@ static void ixgbe_cache_ring_register(struct ixgbe_adapter *adapter)
  * @adapter: board private structure to initialize
  *
  * We allocate one ring per queue at run-time since we don't know the
- * number of queues at compile-time.
+ * number of queues at compile-time.  The polling_netdev array is
+ * intended for Multiqueue, but should work fine with a single queue.
  **/
 static int ixgbe_alloc_queues(struct ixgbe_adapter *adapter)
 {
@@ -3035,7 +3056,8 @@ static void ixgbe_sfp_timer(unsigned long data)
 {
 	struct ixgbe_adapter *adapter = (struct ixgbe_adapter *)data;
 
-	/* Do the sfp_timer outside of interrupt context due to the
+	/*
+	 * Do the sfp_timer outside of interrupt context due to the
 	 * delays that sfp+ detection requires
 	 */
 	schedule_work(&adapter->sfp_task);
@@ -3609,6 +3631,7 @@ static int ixgbe_suspend(struct pci_dev *pdev, pm_message_t state)
 	retval = pci_save_state(pdev);
 	if (retval)
 		return retval;
+
 #endif
 	if (wufc) {
 		ixgbe_set_rx_mode(netdev);
