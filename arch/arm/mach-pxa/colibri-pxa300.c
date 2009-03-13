@@ -21,6 +21,7 @@
 
 #include <mach/pxa300.h>
 #include <mach/colibri.h>
+#include <mach/mmc.h>
 
 #include "generic.h"
 #include "devices.h"
@@ -31,6 +32,15 @@
 static mfp_cfg_t colibri_pxa300_pin_config[] __initdata = {
 	GPIO1_nCS2,			/* AX88796 chip select */
 	GPIO26_GPIO | MFP_PULL_HIGH,	/* AX88796 IRQ */
+
+#if defined(CONFIG_MMC_PXA) || defined(CONFIG_MMC_PXA_MODULE)
+	GPIO7_MMC1_CLK,
+	GPIO14_MMC1_CMD,
+	GPIO3_MMC1_DAT0,
+	GPIO4_MMC1_DAT1,
+	GPIO5_MMC1_DAT2,
+	GPIO6_MMC1_DAT3,
+#endif
 };
 
 #if defined(CONFIG_AX88796)
@@ -80,11 +90,59 @@ static struct platform_device *colibri_pxa300_devices[] __initdata = {
 #endif
 };
 
+#if defined(CONFIG_MMC_PXA) || defined(CONFIG_MMC_PXA_MODULE)
+#define MMC_DETECT_PIN   mfp_to_gpio(MFP_PIN_GPIO13)
+
+static int colibri_pxa300_mci_init(struct device *dev,
+				   irq_handler_t colibri_mmc_detect_int,
+				   void *data)
+{
+	int ret;
+
+	ret = gpio_request(MMC_DETECT_PIN, "mmc card detect");
+	if (ret)
+		return ret;
+
+	gpio_direction_input(MMC_DETECT_PIN);
+	ret = request_irq(gpio_to_irq(MMC_DETECT_PIN), colibri_mmc_detect_int,
+			  IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
+			  "MMC card detect", data);
+	if (ret) {
+		gpio_free(MMC_DETECT_PIN);
+		return ret;
+	}
+
+	return 0;
+}
+
+static void colibri_pxa300_mci_exit(struct device *dev, void *data)
+{
+	free_irq(MMC_DETECT_PIN, data);
+	gpio_free(gpio_to_irq(MMC_DETECT_PIN));
+}
+
+static struct pxamci_platform_data colibri_pxa300_mci_platform_data = {
+	.detect_delay	= 20,
+	.ocr_mask	= MMC_VDD_32_33 | MMC_VDD_33_34,
+	.init		= colibri_pxa300_mci_init,
+	.exit		= colibri_pxa300_mci_exit,
+};
+
+static void __init colibri_pxa300_init_mmc(void)
+{
+	pxa_set_mci_info(&colibri_pxa300_mci_platform_data);
+}
+
+#else
+static inline void colibri_pxa300_init_mmc(void) {}
+#endif /* CONFIG_MMC_PXA */
+
 static void __init colibri_pxa300_init(void)
 {
 	set_irq_type(COLIBRI_PXA300_ETH_IRQ, IRQ_TYPE_EDGE_FALLING);
 	pxa3xx_mfp_config(ARRAY_AND_SIZE(colibri_pxa300_pin_config));
 	platform_add_devices(ARRAY_AND_SIZE(colibri_pxa300_devices));
+	colibri_pxa300_init_mmc();
 }
 
 MACHINE_START(COLIBRI300, "Toradex Colibri PXA300")
