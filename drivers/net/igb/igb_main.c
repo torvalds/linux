@@ -4187,7 +4187,6 @@ static int igb_poll(struct napi_struct *napi, int budget)
 {
 	struct igb_ring *rx_ring = container_of(napi, struct igb_ring, napi);
 	struct igb_adapter *adapter = rx_ring->adapter;
-	struct net_device *netdev = adapter->netdev;
 	int work_done = 0;
 
 #ifdef CONFIG_IGB_DCA
@@ -4206,7 +4205,7 @@ static int igb_poll(struct napi_struct *napi, int budget)
 	}
 
 	/* If not enough Rx work done, exit the polling mode */
-	if ((work_done < budget) || !netif_running(netdev)) {
+	if (work_done < budget) {
 		napi_complete(napi);
 		igb_rx_irq_enable(rx_ring);
 	}
