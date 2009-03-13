@@ -94,7 +94,7 @@ struct sh_mobile_ceu_dev {
 	spinlock_t lock;
 	struct list_head capture;
 	struct videobuf_buffer *active;
-	int is_interlace;
+	int is_interlaced;
 
 	struct sh_mobile_ceu_info *pdata;
 
@@ -205,7 +205,7 @@ static void sh_mobile_ceu_capture(struct sh_mobile_ceu_dev *pcdev)
 
 	phys_addr_top = videobuf_to_dma_contig(pcdev->active);
 	ceu_write(pcdev, CDAYR, phys_addr_top);
-	if (pcdev->is_interlace) {
+	if (pcdev->is_interlaced) {
 		phys_addr_bottom = phys_addr_top + icd->width;
 		ceu_write(pcdev, CDBYR, phys_addr_bottom);
 	}
@@ -217,7 +217,7 @@ static void sh_mobile_ceu_capture(struct sh_mobile_ceu_dev *pcdev)
 	case V4L2_PIX_FMT_NV61:
 		phys_addr_top += icd->width * icd->height;
 		ceu_write(pcdev, CDACR, phys_addr_top);
-		if (pcdev->is_interlace) {
+		if (pcdev->is_interlaced) {
 			phys_addr_bottom = phys_addr_top + icd->width;
 			ceu_write(pcdev, CDBCR, phys_addr_bottom);
 		}
@@ -481,7 +481,7 @@ static int sh_mobile_ceu_set_bus_param(struct soc_camera_device *icd,
 	ceu_write(pcdev, CAMCR, value);
 
 	ceu_write(pcdev, CAPCR, 0x00300000);
-	ceu_write(pcdev, CAIFR, (pcdev->is_interlace) ? 0x101 : 0);
+	ceu_write(pcdev, CAIFR, pcdev->is_interlaced ? 0x101 : 0);
 
 	mdelay(1);
 
@@ -497,7 +497,7 @@ static int sh_mobile_ceu_set_bus_param(struct soc_camera_device *icd,
 	}
 
 	height = icd->height;
-	if (pcdev->is_interlace) {
+	if (pcdev->is_interlaced) {
 		height /= 2;
 		cdwdr_width *= 2;
 	}
@@ -711,13 +711,13 @@ static int sh_mobile_ceu_try_fmt(struct soc_camera_device *icd,
 
 	switch (f->fmt.pix.field) {
 	case V4L2_FIELD_INTERLACED:
-		pcdev->is_interlace = 1;
+		pcdev->is_interlaced = 1;
 		break;
 	case V4L2_FIELD_ANY:
 		f->fmt.pix.field = V4L2_FIELD_NONE;
 		/* fall-through */
 	case V4L2_FIELD_NONE:
-		pcdev->is_interlace = 0;
+		pcdev->is_interlaced = 0;
 		break;
 	default:
 		ret = -EINVAL;
@@ -783,7 +783,8 @@ static void sh_mobile_ceu_init_videobuf(struct videobuf_queue *q,
 				       &sh_mobile_ceu_videobuf_ops,
 				       &ici->dev, &pcdev->lock,
 				       V4L2_BUF_TYPE_VIDEO_CAPTURE,
-				       V4L2_FIELD_ANY,
+				       pcdev->is_interlaced ?
+				       V4L2_FIELD_INTERLACED : V4L2_FIELD_NONE,
 				       sizeof(struct sh_mobile_ceu_buffer),
 				       icd);
 }
