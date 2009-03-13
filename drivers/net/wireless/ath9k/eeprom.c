@@ -1588,7 +1588,6 @@ static int ath9k_hw_def_check_eeprom(struct ath_hw *ah)
 static u32 ath9k_hw_def_get_eeprom(struct ath_hw *ah,
 				   enum eeprom_param param)
 {
-#define AR5416_VER_MASK (pBase->version & AR5416_EEP_VER_MINOR_MASK)
 	struct ar5416_eeprom_def *eep = &ah->eeprom.def;
 	struct modal_eep_header *pModal = eep->modalHeader;
 	struct base_eep_header *pBase = &eep->baseEepHeader;
@@ -1655,14 +1654,12 @@ static u32 ath9k_hw_def_get_eeprom(struct ath_hw *ah,
 	default:
 		return 0;
 	}
-#undef AR5416_VER_MASK
 }
 
 /* XXX: Clean me up, make me more legible */
 static bool ath9k_hw_def_set_board_values(struct ath_hw *ah,
 					  struct ath9k_channel *chan)
 {
-#define AR5416_VER_MASK (eep->baseEepHeader.version & AR5416_EEP_VER_MINOR_MASK)
 	struct modal_eep_header *pModal;
 	struct ar5416_eeprom_def *eep = &ah->eeprom.def;
 	int i, regChainOffset;
@@ -1910,7 +1907,6 @@ static bool ath9k_hw_def_set_board_values(struct ath_hw *ah,
 	}
 
 	return true;
-#undef AR5416_VER_MASK
 }
 
 static void ath9k_hw_def_set_addac(struct ath_hw *ah,
