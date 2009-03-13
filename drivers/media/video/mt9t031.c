@@ -144,8 +144,6 @@ static int mt9t031_init(struct soc_camera_device *icd)
 	int ret;
 
 	/* Disable chip output, synchronous option update */
-	dev_dbg(icd->vdev->parent, "%s\n", __func__);
-
 	ret = reg_write(icd, MT9T031_RESET, 1);
 	if (ret >= 0)
 		ret = reg_write(icd, MT9T031_RESET, 0);
@@ -186,9 +184,9 @@ static int mt9t031_set_bus_param(struct soc_camera_device *icd,
 		return -EINVAL;
 
 	if (flags & SOCAM_PCLK_SAMPLE_FALLING)
-		reg_set(icd, MT9T031_PIXEL_CLOCK_CONTROL, 0x8000);
-	else
 		reg_clear(icd, MT9T031_PIXEL_CLOCK_CONTROL, 0x8000);
+	else
+		reg_set(icd, MT9T031_PIXEL_CLOCK_CONTROL, 0x8000);
 
 	return 0;
 }
