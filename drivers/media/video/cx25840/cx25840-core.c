@@ -1535,9 +1535,9 @@ static int cx25840_probe(struct i2c_client *client,
 	}
 	else if ((device_id & 0xff00) == 0x8400) {
 		id = V4L2_IDENT_CX25840 + ((device_id >> 4) & 0xf);
-	} /* else if (device_id == 0x0000) {
+	} else if (device_id == 0x0000) {
 		id = V4L2_IDENT_CX25836 + ((device_id >> 4) & 0xf) - 6;
-	} */ else if (device_id == 0x1313) {
+	} else if (device_id == 0x1313) {
 		id = V4L2_IDENT_CX25836 + ((device_id >> 4) & 0xf) - 6;
 	} else if ((device_id & 0xfff0) == 0x5A30) {
 		id = V4L2_IDENT_CX25840 + ((device_id >> 4) & 0xf);
