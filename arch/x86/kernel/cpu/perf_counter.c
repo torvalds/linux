@@ -247,6 +247,10 @@ static u64 pmc_amd_save_disable_all(void)
 
 	enabled = cpuc->enabled;
 	cpuc->enabled = 0;
+	/*
+	 * ensure we write the disable before we start disabling the
+	 * counters proper, so that pcm_amd_enable() does the right thing.
+	 */
 	barrier();
 
 	for (idx = 0; idx < nr_counters_generic; idx++) {
