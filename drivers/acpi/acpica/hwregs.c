@@ -328,6 +328,21 @@ acpi_status acpi_hw_register_write(u32 register_id, u32 value)
 
 	case ACPI_REGISTER_PM2_CONTROL:	/* 8-bit access */
 
+		/*
+		 * For control registers, all reserved bits must be preserved,
+		 * as per the ACPI spec.
+		 */
+		status =
+		    acpi_read(&read_value, &acpi_gbl_FADT.xpm2_control_block);
+		if (ACPI_FAILURE(status)) {
+			goto exit;
+		}
+
+		/* Insert the bits to be preserved */
+
+		ACPI_INSERT_BITS(value, ACPI_PM2_CONTROL_PRESERVED_BITS,
+				 read_value);
+
 		status = acpi_write(value, &acpi_gbl_FADT.xpm2_control_block);
 		break;
 
