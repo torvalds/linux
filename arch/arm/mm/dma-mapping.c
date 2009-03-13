@@ -19,6 +19,7 @@
 #include <linux/dma-mapping.h>
 
 #include <asm/memory.h>
+#include <asm/highmem.h>
 #include <asm/cacheflush.h>
 #include <asm/tlbflush.h>
 #include <asm/sizes.h>
@@ -517,6 +518,74 @@ void dma_cache_maint(const void *start, size_t size, int direction)
 }
 EXPORT_SYMBOL(dma_cache_maint);
 
+static void dma_cache_maint_contiguous(struct page *page, unsigned long offset,
+				       size_t size, int direction)
+{
+	void *vaddr;
+	unsigned long paddr;
+	void (*inner_op)(const void *, const void *);
+	void (*outer_op)(unsigned long, unsigned long);
+
+	switch (direction) {
+	case DMA_FROM_DEVICE:		/* invalidate only */
+		inner_op = dmac_inv_range;
+		outer_op = outer_inv_range;
+		break;
+	case DMA_TO_DEVICE:		/* writeback only */
+		inner_op = dmac_clean_range;
+		outer_op = outer_clean_range;
+		break;
+	case DMA_BIDIRECTIONAL:		/* writeback and invalidate */
+		inner_op = dmac_flush_range;
+		outer_op = outer_flush_range;
+		break;
+	default:
+		BUG();
+	}
+
+	if (!PageHighMem(page)) {
+		vaddr = page_address(page) + offset;
+		inner_op(vaddr, vaddr + size);
+	} else {
+		vaddr = kmap_high_get(page);
+		if (vaddr) {
+			vaddr += offset;
+			inner_op(vaddr, vaddr + size);
+			kunmap_high(page);
+		}
+	}
+
+	paddr = page_to_phys(page) + offset;
+	outer_op(paddr, paddr + size);
+}
+
+void dma_cache_maint_page(struct page *page, unsigned long offset,
+			  size_t size, int dir)
+{
+	/*
+	 * A single sg entry may refer to multiple physically contiguous
+	 * pages.  But we still need to process highmem pages individually.
+	 * If highmem is not configured then the bulk of this loop gets
+	 * optimized out.
+	 */
+	size_t left = size;
+	do {
+		size_t len = left;
+		if (PageHighMem(page) && len + offset > PAGE_SIZE) {
+			if (offset >= PAGE_SIZE) {
+				page += offset / PAGE_SIZE;
+				offset %= PAGE_SIZE;
+			}
+			len = PAGE_SIZE - offset;
+		}
+		dma_cache_maint_contiguous(page, offset, len, dir);
+		offset = 0;
+		page++;
+		left -= len;
+	} while (left);
+}
+EXPORT_SYMBOL(dma_cache_maint_page);
+
 /**
  * dma_map_sg - map a set of SG buffers for streaming mode DMA
  * @dev: valid struct device pointer, or NULL for ISA and EISA-like devices
@@ -614,7 +683,8 @@ void dma_sync_sg_for_device(struct device *dev, struct scatterlist *sg,
 			continue;
 
 		if (!arch_is_coherent())
-			dma_cache_maint(sg_virt(s), s->length, dir);
+			dma_cache_maint_page(sg_page(s), s->offset,
+					     s->length, dir);
 	}
 }
 EXPORT_SYMBOL(dma_sync_sg_for_device);

@@ -15,7 +15,10 @@
 
 extern pte_t *pkmap_page_table;
 
+#define ARCH_NEEDS_KMAP_HIGH_GET
+
 extern void *kmap_high(struct page *page);
+extern void *kmap_high_get(struct page *page);
 extern void kunmap_high(struct page *page);
 
 extern void *kmap(struct page *page);
