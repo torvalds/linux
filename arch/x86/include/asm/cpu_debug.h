@@ -33,6 +33,8 @@ enum cpu_debug_bit {
 	CPU_VMX_BIT,				/* VMX			*/
 	CPU_CALL_BIT,				/* System Call		*/
 	CPU_BASE_BIT,				/* BASE Address		*/
+	CPU_VER_BIT,				/* Version ID		*/
+	CPU_CONF_BIT,				/* Configuration	*/
 	CPU_SMM_BIT,				/* System mgmt mode	*/
 	CPU_SVM_BIT,				/*Secure Virtual Machine*/
 	CPU_OSVM_BIT,				/* OS-Visible Workaround*/
@@ -69,6 +71,8 @@ enum cpu_debug_bit {
 #define	CPU_VMX			(1 << CPU_VMX_BIT)
 #define	CPU_CALL		(1 << CPU_CALL_BIT)
 #define	CPU_BASE		(1 << CPU_BASE_BIT)
+#define	CPU_VER			(1 << CPU_VER_BIT)
+#define	CPU_CONF		(1 << CPU_CONF_BIT)
 #define	CPU_SMM			(1 << CPU_SMM_BIT)
 #define	CPU_SVM			(1 << CPU_SVM_BIT)
 #define	CPU_OSVM		(1 << CPU_OSVM_BIT)
@@ -123,9 +127,14 @@ enum cpu_processor_bit {
 	CPU_INTEL_ATOM_BIT,
 	CPU_INTEL_XEON_P4_BIT,
 	CPU_INTEL_XEON_MP_BIT,
+/* AMD */
+	CPU_AMD_K6_BIT,
+	CPU_AMD_K7_BIT,
+	CPU_AMD_K8_BIT,
+	CPU_AMD_0F_BIT,
+	CPU_AMD_10_BIT,
+	CPU_AMD_11_BIT,
 };
-
-#define	CPU_ALL			(~0)		/* Select all CPUs	*/
 
 #define	CPU_INTEL_PENTIUM	(1 << CPU_INTEL_PENTIUM_BIT)
 #define	CPU_INTEL_P6		(1 << CPU_INTEL_P6_BIT)
@@ -156,8 +165,26 @@ enum cpu_processor_bit {
 #define	CPU_PX_CX_AT		(CPU_INTEL_PX | CPU_CX_AT)
 #define	CPU_PX_CX_AT_XE		(CPU_INTEL_PX | CPU_CX_AT_XE)
 
-/* Select all Intel CPUs*/
+/* Select all supported Intel CPUs */
 #define	CPU_INTEL_ALL		(CPU_INTEL_PENTIUM | CPU_PX_CX_AT_XE)
+
+#define	CPU_AMD_K6		(1 << CPU_AMD_K6_BIT)
+#define	CPU_AMD_K7		(1 << CPU_AMD_K7_BIT)
+#define	CPU_AMD_K8		(1 << CPU_AMD_K8_BIT)
+#define	CPU_AMD_0F		(1 << CPU_AMD_0F_BIT)
+#define	CPU_AMD_10		(1 << CPU_AMD_10_BIT)
+#define	CPU_AMD_11		(1 << CPU_AMD_11_BIT)
+
+#define	CPU_K10_PLUS		(CPU_AMD_10 | CPU_AMD_11)
+#define	CPU_K0F_PLUS		(CPU_AMD_0F | CPU_K10_PLUS)
+#define	CPU_K8_PLUS		(CPU_AMD_K8 | CPU_K0F_PLUS)
+#define	CPU_K7_PLUS		(CPU_AMD_K7 | CPU_K8_PLUS)
+
+/* Select all supported AMD CPUs */
+#define	CPU_AMD_ALL		(CPU_AMD_K6 | CPU_K7_PLUS)
+
+/* Select all supported CPUs */
+#define	CPU_ALL			(CPU_INTEL_ALL | CPU_AMD_ALL)
 
 #define MAX_CPU_FILES		512
 

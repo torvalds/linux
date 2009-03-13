@@ -64,6 +64,8 @@ static struct cpu_debug_base cpu_base[] = {
 	{ "vmx",	CPU_VMX,	0	},
 	{ "call",	CPU_CALL,	0	},
 	{ "base",	CPU_BASE,	0	},
+	{ "ver",	CPU_VER,	0	},
+	{ "conf",	CPU_CONF,	0	},
 	{ "smm",	CPU_SMM,	0	},
 	{ "svm",	CPU_SVM,	0	},
 	{ "osvm",	CPU_OSVM,	0	},
@@ -177,54 +179,59 @@ static struct cpu_debug_range cpu_intel_range[] = {
 
 /* AMD Registers Range */
 static struct cpu_debug_range cpu_amd_range[] = {
-	{ 0x00000010, 0x00000010, CPU_TIME,	CPU_ALL,		},
-	{ 0x0000001B, 0x0000001B, CPU_APIC,	CPU_ALL,		},
-	{ 0x000000FE, 0x000000FE, CPU_MTRR,	CPU_ALL,		},
+	{ 0x00000000, 0x00000001, CPU_MC,	CPU_K10_PLUS,		},
+	{ 0x00000010, 0x00000010, CPU_TIME,	CPU_K8_PLUS,		},
+	{ 0x0000001B, 0x0000001B, CPU_APIC,	CPU_K8_PLUS,		},
+	{ 0x0000002A, 0x0000002A, CPU_POWERON,	CPU_K7_PLUS		},
+	{ 0x0000008B, 0x0000008B, CPU_VER,	CPU_K8_PLUS		},
+	{ 0x000000FE, 0x000000FE, CPU_MTRR,	CPU_K8_PLUS,		},
 
-	{ 0x00000174, 0x00000176, CPU_SYSENTER,	CPU_ALL,		},
-	{ 0x00000179, 0x0000017A, CPU_MC,	CPU_ALL,		},
-	{ 0x0000017B, 0x0000017B, CPU_MC,	CPU_ALL,		},
-	{ 0x000001D9, 0x000001D9, CPU_DEBUG,	CPU_ALL,		},
-	{ 0x000001DB, 0x000001DE, CPU_LBRANCH,	CPU_ALL,		},
+	{ 0x00000174, 0x00000176, CPU_SYSENTER,	CPU_K8_PLUS,		},
+	{ 0x00000179, 0x0000017B, CPU_MC,	CPU_K8_PLUS,		},
+	{ 0x000001D9, 0x000001D9, CPU_DEBUG,	CPU_K8_PLUS,		},
+	{ 0x000001DB, 0x000001DE, CPU_LBRANCH,	CPU_K8_PLUS,		},
 
-	{ 0x00000200, 0x0000020F, CPU_MTRR,	CPU_ALL,		},
-	{ 0x00000250, 0x00000250, CPU_MTRR,	CPU_ALL,		},
-	{ 0x00000258, 0x00000259, CPU_MTRR,	CPU_ALL,		},
-	{ 0x00000268, 0x0000026F, CPU_MTRR,	CPU_ALL,		},
-	{ 0x00000277, 0x00000277, CPU_PAT,	CPU_ALL,		},
-	{ 0x000002FF, 0x000002FF, CPU_MTRR,	CPU_ALL,		},
+	{ 0x00000200, 0x0000020F, CPU_MTRR,	CPU_K8_PLUS,		},
+	{ 0x00000250, 0x00000250, CPU_MTRR,	CPU_K8_PLUS,		},
+	{ 0x00000258, 0x00000259, CPU_MTRR,	CPU_K8_PLUS,		},
+	{ 0x00000268, 0x0000026F, CPU_MTRR,	CPU_K8_PLUS,		},
+	{ 0x00000277, 0x00000277, CPU_PAT,	CPU_K8_PLUS,		},
+	{ 0x000002FF, 0x000002FF, CPU_MTRR,	CPU_K8_PLUS,		},
 
-	{ 0x00000400, 0x00000417, CPU_MC,	CPU_ALL,		},
+	{ 0x00000400, 0x00000413, CPU_MC,	CPU_K8_PLUS,		},
 
-	{ 0xC0000080, 0xC0000080, CPU_FEATURES,	CPU_ALL,		},
-	{ 0xC0000081, 0xC0000084, CPU_CALL,	CPU_ALL,		},
-	{ 0xC0000100, 0xC0000102, CPU_BASE,	CPU_ALL,		},
-	{ 0xC0000103, 0xC0000103, CPU_TIME,	CPU_ALL,		},
+	{ 0xC0000080, 0xC0000080, CPU_FEATURES,	CPU_AMD_ALL,		},
+	{ 0xC0000081, 0xC0000084, CPU_CALL,	CPU_K8_PLUS,		},
+	{ 0xC0000100, 0xC0000102, CPU_BASE,	CPU_K8_PLUS,		},
+	{ 0xC0000103, 0xC0000103, CPU_TIME,	CPU_K10_PLUS,		},
 
-	{ 0xC0000408, 0xC000040A, CPU_MC,	CPU_ALL,		},
-
-	{ 0xc0010000, 0xc0010007, CPU_PMC,	CPU_ALL,		},
-	{ 0xc0010010, 0xc0010010, CPU_MTRR,	CPU_ALL,		},
-	{ 0xc0010016, 0xc001001A, CPU_MTRR,	CPU_ALL,		},
-	{ 0xc001001D, 0xc001001D, CPU_MTRR,	CPU_ALL,		},
-	{ 0xc0010030, 0xc0010035, CPU_BIOS,	CPU_ALL,		},
-	{ 0xc0010056, 0xc0010056, CPU_SMM,	CPU_ALL,		},
-	{ 0xc0010061, 0xc0010063, CPU_SMM,	CPU_ALL,		},
-	{ 0xc0010074, 0xc0010074, CPU_MC,	CPU_ALL,		},
-	{ 0xc0010111, 0xc0010113, CPU_SMM,	CPU_ALL,		},
-	{ 0xc0010114, 0xc0010118, CPU_SVM,	CPU_ALL,		},
-	{ 0xc0010119, 0xc001011A, CPU_SMM,	CPU_ALL,		},
-	{ 0xc0010140, 0xc0010141, CPU_OSVM,	CPU_ALL,		},
-	{ 0xc0010156, 0xc0010156, CPU_SMM,	CPU_ALL,		},
+	{ 0xC0010000, 0xC0010007, CPU_PMC,	CPU_K8_PLUS,		},
+	{ 0xC0010010, 0xC0010010, CPU_CONF,	CPU_K7_PLUS,		},
+	{ 0xC0010015, 0xC0010015, CPU_CONF,	CPU_K7_PLUS,		},
+	{ 0xC0010016, 0xC001001A, CPU_MTRR,	CPU_K8_PLUS,		},
+	{ 0xC001001D, 0xC001001D, CPU_MTRR,	CPU_K8_PLUS,		},
+	{ 0xC001001F, 0xC001001F, CPU_CONF,	CPU_K8_PLUS,		},
+	{ 0xC0010030, 0xC0010035, CPU_BIOS,	CPU_K8_PLUS,		},
+	{ 0xC0010044, 0xC0010048, CPU_MC,	CPU_K8_PLUS,		},
+	{ 0xC0010050, 0xC0010056, CPU_SMM,	CPU_K0F_PLUS,		},
+	{ 0xC0010058, 0xC0010058, CPU_CONF,	CPU_K10_PLUS,		},
+	{ 0xC0010060, 0xC0010060, CPU_CACHE,	CPU_AMD_11,		},
+	{ 0xC0010061, 0xC0010068, CPU_SMM,	CPU_K10_PLUS,		},
+	{ 0xC0010069, 0xC001006B, CPU_SMM,	CPU_AMD_11,		},
+	{ 0xC0010070, 0xC0010071, CPU_SMM,	CPU_K10_PLUS,		},
+	{ 0xC0010111, 0xC0010113, CPU_SMM,	CPU_K8_PLUS,		},
+	{ 0xC0010114, 0xC0010118, CPU_SVM,	CPU_K10_PLUS,		},
+	{ 0xC0010140, 0xC0010141, CPU_OSVM,	CPU_K10_PLUS,		},
+	{ 0xC0011022, 0xC0011023, CPU_CONF,	CPU_K10_PLUS,		},
 };
 
 
-static int get_cpu_modelflag(unsigned cpu)
+/* Intel */
+static int get_intel_modelflag(unsigned model)
 {
 	int flag;
 
-	switch (per_cpu(cpu_model, cpu)) {
-	/* Intel */
+	switch (model) {
 	case 0x0501:
 	case 0x0502:
 	case 0x0504:
@@ -262,6 +269,59 @@ static int get_cpu_modelflag(unsigned cpu)
 		break;
 	case 0x0F06:
 		flag = CPU_INTEL_XEON_MP;
+		break;
+	default:
+		flag = CPU_NONE;
+		break;
+	}
+
+	return flag;
+}
+
+/* AMD */
+static int get_amd_modelflag(unsigned model)
+{
+	int flag;
+
+	switch (model >> 8) {
+	case 0x6:
+		flag = CPU_AMD_K6;
+		break;
+	case 0x7:
+		flag = CPU_AMD_K7;
+		break;
+	case 0x8:
+		flag = CPU_AMD_K8;
+		break;
+	case 0xf:
+		flag = CPU_AMD_0F;
+		break;
+	case 0x10:
+		flag = CPU_AMD_10;
+		break;
+	case 0x11:
+		flag = CPU_AMD_11;
+		break;
+	default:
+		flag = CPU_NONE;
+		break;
+	}
+
+	return flag;
+}
+
+static int get_cpu_modelflag(unsigned cpu)
+{
+	int flag;
+
+	flag = per_cpu(cpu_model, cpu);
+
+	switch (flag >> 16) {
+	case X86_VENDOR_INTEL:
+		flag = get_intel_modelflag(flag);
+		break;
+	case X86_VENDOR_AMD:
+		flag = get_amd_modelflag(flag & 0xffff);
 		break;
 	default:
 		flag = CPU_NONE;
@@ -311,7 +371,8 @@ static int is_typeflag_valid(unsigned cpu, unsigned flag)
 				return 1;
 			break;
 		case X86_VENDOR_AMD:
-			if (cpu_amd_range[i].flag & flag)
+			if ((cpu_amd_range[i].model & modelflag) &&
+			    (cpu_amd_range[i].flag & flag))
 				return 1;
 			break;
 		}
@@ -337,7 +398,8 @@ static unsigned get_cpu_range(unsigned cpu, unsigned *min, unsigned *max,
 		}
 		break;
 	case X86_VENDOR_AMD:
-		if (cpu_amd_range[index].flag & flag) {
+		if ((cpu_amd_range[index].model & modelflag) &&
+		    (cpu_amd_range[index].flag & flag)) {
 			*min = cpu_amd_range[index].min;
 			*max = cpu_amd_range[index].max;
 		}
