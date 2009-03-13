@@ -3629,6 +3629,12 @@ void ixgbe_update_stats(struct ixgbe_adapter *adapter)
 	u64 total_mpc = 0;
 	u32 i, missed_rx = 0, mpc, bprc, lxon, lxoff, xon_off_tot;
 
+	if (hw->mac.type == ixgbe_mac_82599EB) {
+		for (i = 0; i < 16; i++)
+			adapter->hw_rx_no_dma_resources +=
+			                     IXGBE_READ_REG(hw, IXGBE_QPRDC(i));
+	}
+
 	adapter->stats.crcerrs += IXGBE_READ_REG(hw, IXGBE_CRCERRS);
 	for (i = 0; i < 8; i++) {
 		/* for packet buffers not used, the register should read 0 */
@@ -3648,7 +3654,6 @@ void ixgbe_update_stats(struct ixgbe_adapter *adapter)
 			adapter->stats.pxoffrxc[i] += IXGBE_READ_REG(hw,
 			                                   IXGBE_PXOFFRXCNT(i));
 			adapter->stats.qprdc[i] += IXGBE_READ_REG(hw, IXGBE_QPRDC(i));
-			adapter->hw_rx_no_dma_resources += adapter->stats.qprdc[i];
 		} else {
 			adapter->stats.pxonrxc[i] += IXGBE_READ_REG(hw,
 			                                      IXGBE_PXONRXC(i));
