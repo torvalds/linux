@@ -104,19 +104,19 @@ static struct scsi_host_template fcoe_sw_shost_template = {
 	.max_sectors = 0xffff,
 };
 
-/*
- * fcoe_sw_lport_config - sets up the fc_lport
+/**
+ * fcoe_sw_lport_config() - sets up the fc_lport
  * @lp: ptr to the fc_lport
  * @shost: ptr to the parent scsi host
  *
  * Returns: 0 for success
- *
  */
 static int fcoe_sw_lport_config(struct fc_lport *lp)
 {
 	int i = 0;
 
-	lp->link_status = 0;
+	lp->link_up = 0;
+	lp->qfull = 0;
 	lp->max_retry_count = 3;
 	lp->e_d_tov = 2 * 1000;	/* FC-FS default */
 	lp->r_a_tov = 2 * 2 * 1000;
@@ -136,16 +136,14 @@ static int fcoe_sw_lport_config(struct fc_lport *lp)
 	return 0;
 }
 
-/*
- * fcoe_sw_netdev_config - sets up fcoe_softc for lport and network
- * related properties
+/**
+ * fcoe_sw_netdev_config() - Set up netdev for SW FCoE
  * @lp : ptr to the fc_lport
  * @netdev : ptr to the associated netdevice struct
  *
  * Must be called after fcoe_sw_lport_config() as it will use lport mutex
  *
  * Returns : 0 for success
- *
  */
 static int fcoe_sw_netdev_config(struct fc_lport *lp, struct net_device *netdev)
 {
@@ -181,9 +179,8 @@ static int fcoe_sw_netdev_config(struct fc_lport *lp, struct net_device *netdev)
 	if (fc_set_mfs(lp, mfs))
 		return -EINVAL;
 
-	lp->link_status = ~FC_PAUSE & ~FC_LINK_UP;
 	if (!fcoe_link_ok(lp))
-		lp->link_status |= FC_LINK_UP;
+		lp->link_up = 1;
 
 	/* offload features support */
 	if (fc->real_dev->features & NETIF_F_SG)
@@ -191,6 +188,7 @@ static int fcoe_sw_netdev_config(struct fc_lport *lp, struct net_device *netdev)
 
 
 	skb_queue_head_init(&fc->fcoe_pending_queue);
+	fc->fcoe_pending_queue_active = 0;
 
 	/* setup Source Mac Address */
 	memcpy(fc->ctl_src_addr, fc->real_dev->dev_addr,
@@ -224,16 +222,15 @@ static int fcoe_sw_netdev_config(struct fc_lport *lp, struct net_device *netdev)
 	return 0;
 }
 
-/*
- * fcoe_sw_shost_config - sets up fc_lport->host
+/**
+ * fcoe_sw_shost_config() - Sets up fc_lport->host
  * @lp : ptr to the fc_lport
  * @shost : ptr to the associated scsi host
  * @dev : device associated to scsi host
  *
- * Must be called after fcoe_sw_lport_config) and fcoe_sw_netdev_config()
+ * Must be called after fcoe_sw_lport_config() and fcoe_sw_netdev_config()
  *
  * Returns : 0 for success
- *
  */
 static int fcoe_sw_shost_config(struct fc_lport *lp, struct Scsi_Host *shost,
 				struct device *dev)
@@ -261,8 +258,8 @@ static int fcoe_sw_shost_config(struct fc_lport *lp, struct Scsi_Host *shost,
 	return 0;
 }
 
-/*
- * fcoe_sw_em_config - allocates em for this lport
+/**
+ * fcoe_sw_em_config() - allocates em for this lport
  * @lp: the port that em is to allocated for
  *
  * Returns : 0 on success
@@ -279,8 +276,8 @@ static inline int fcoe_sw_em_config(struct fc_lport *lp)
 	return 0;
 }
 
-/*
- * fcoe_sw_destroy - FCoE software HBA tear-down function
+/**
+ * fcoe_sw_destroy() - FCoE software HBA tear-down function
  * @netdev: ptr to the associated net_device
  *
  * Returns: 0 if link is OK for use by FCoE.
@@ -301,7 +298,7 @@ static int fcoe_sw_destroy(struct net_device *netdev)
 	if (!lp)
 		return -ENODEV;
 
-	fc = fcoe_softc(lp);
+	fc = lport_priv(lp);
 
 	/* Logout of the fabric */
 	fc_fabric_logoff(lp);
@@ -353,8 +350,8 @@ static struct libfc_function_template fcoe_sw_libfc_fcn_templ = {
 	.frame_send = fcoe_xmit,
 };
 
-/*
- * fcoe_sw_create - this function creates the fcoe interface
+/**
+ * fcoe_sw_create() - this function creates the fcoe interface
  * @netdev: pointer the associated netdevice
  *
  * Creates fc_lport struct and scsi_host for lport, configures lport
@@ -440,8 +437,8 @@ out_host_put:
 	return rc;
 }
 
-/*
- * fcoe_sw_match - the fcoe sw transport match function
+/**
+ * fcoe_sw_match() - The FCoE SW transport match function
  *
  * Returns : false always
  */
@@ -461,8 +458,8 @@ struct fcoe_transport fcoe_sw_transport = {
 	.device = 0xffff,
 };
 
-/*
- * fcoe_sw_init - registers fcoe_sw_transport
+/**
+ * fcoe_sw_init() - Registers fcoe_sw_transport
  *
  * Returns : 0 on success
  */
@@ -471,17 +468,22 @@ int __init fcoe_sw_init(void)
 	/* attach to scsi transport */
 	scsi_transport_fcoe_sw =
 		fc_attach_transport(&fcoe_sw_transport_function);
+
 	if (!scsi_transport_fcoe_sw) {
 		printk(KERN_ERR "fcoe_sw_init:fc_attach_transport() failed\n");
 		return -ENODEV;
 	}
+
+	mutex_init(&fcoe_sw_transport.devlock);
+	INIT_LIST_HEAD(&fcoe_sw_transport.devlist);
+
 	/* register sw transport */
 	fcoe_transport_register(&fcoe_sw_transport);
 	return 0;
 }
 
-/*
- * fcoe_sw_exit - unregisters fcoe_sw_transport
+/**
+ * fcoe_sw_exit() - Unregisters fcoe_sw_transport
  *
  * Returns : 0 on success
  */
