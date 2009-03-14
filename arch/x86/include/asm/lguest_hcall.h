@@ -26,36 +26,20 @@
 
 #ifndef __ASSEMBLY__
 #include <asm/hw_irq.h>
+#include <asm/kvm_para.h>
 
 /*G:031 But first, how does our Guest contact the Host to ask for privileged
  * operations?  There are two ways: the direct way is to make a "hypercall",
  * to make requests of the Host Itself.
  *
- * Our hypercall mechanism uses the highest unused trap code (traps 32 and
- * above are used by real hardware interrupts).  Fifteen hypercalls are
+ * We use the KVM hypercall mechanism. Eighteen hypercalls are
  * available: the hypercall number is put in the %eax register, and the
- * arguments (when required) are placed in %edx, %ebx and %ecx.  If a return
+ * arguments (when required) are placed in %ebx, %ecx and %edx.  If a return
  * value makes sense, it's returned in %eax.
  *
  * Grossly invalid calls result in Sudden Death at the hands of the vengeful
  * Host, rather than returning failure.  This reflects Winston Churchill's
  * definition of a gentleman: "someone who is only rude intentionally". */
-static inline unsigned long
-hcall(unsigned long call,
-      unsigned long arg1, unsigned long arg2, unsigned long arg3)
-{
-	/* "int" is the Intel instruction to trigger a trap. */
-	asm volatile("int $" __stringify(LGUEST_TRAP_ENTRY)
-		     /* The call in %eax (aka "a") might be overwritten */
-		     : "=a"(call)
-		       /* The arguments are in %eax, %edx, %ebx & %ecx */
-		     : "a"(call), "d"(arg1), "b"(arg2), "c"(arg3)
-		       /* "memory" means this might write somewhere in memory.
-			* This isn't true for all calls, but it's safe to tell
-			* gcc that it might happen so it doesn't get clever. */
-		     : "memory");
-	return call;
-}
 /*:*/
 
 /* Can't use our min() macro here: needs to be a constant */
@@ -64,7 +48,7 @@ hcall(unsigned long call,
 #define LHCALL_RING_SIZE 64
 struct hcall_args {
 	/* These map directly onto eax, ebx, ecx, edx in struct lguest_regs */
-	unsigned long arg0, arg2, arg3, arg1;
+	unsigned long arg0, arg1, arg2, arg3;
 };
 
 #endif /* !__ASSEMBLY__ */

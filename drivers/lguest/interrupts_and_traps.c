@@ -288,9 +288,10 @@ static int direct_trap(unsigned int num)
 
 	/* The Host needs to see page faults (for shadow paging and to save the
 	 * fault address), general protection faults (in/out emulation) and
-	 * device not available (TS handling), and of course, the hypercall
-	 * trap. */
-	return num != 14 && num != 13 && num != 7 && num != LGUEST_TRAP_ENTRY;
+	 * device not available (TS handling), invalid opcode fault (kvm hcall),
+	 * and of course, the hypercall trap. */
+	return num != 14 && num != 13 && num != 7 &&
+			num != 6 && num != LGUEST_TRAP_ENTRY;
 }
 /*:*/
 

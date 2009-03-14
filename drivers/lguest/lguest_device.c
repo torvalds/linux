@@ -161,7 +161,7 @@ static void set_status(struct virtio_device *vdev, u8 status)
 
 	/* We set the status. */
 	to_lgdev(vdev)->desc->status = status;
-	hcall(LHCALL_NOTIFY, (max_pfn<<PAGE_SHIFT) + offset, 0, 0);
+	kvm_hypercall1(LHCALL_NOTIFY, (max_pfn << PAGE_SHIFT) + offset);
 }
 
 static void lg_set_status(struct virtio_device *vdev, u8 status)
@@ -209,7 +209,7 @@ static void lg_notify(struct virtqueue *vq)
 	 * virtqueue structure. */
 	struct lguest_vq_info *lvq = vq->priv;
 
-	hcall(LHCALL_NOTIFY, lvq->config.pfn << PAGE_SHIFT, 0, 0);
+	kvm_hypercall1(LHCALL_NOTIFY, lvq->config.pfn << PAGE_SHIFT);
 }
 
 /* An extern declaration inside a C file is bad form.  Don't do it. */
