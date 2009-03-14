@@ -2836,7 +2836,7 @@ static void tcp_mtup_probe_failed(struct sock *sk)
 	icsk->icsk_mtup.probe_size = 0;
 }
 
-static void tcp_mtup_probe_success(struct sock *sk, struct sk_buff *skb)
+static void tcp_mtup_probe_success(struct sock *sk)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct inet_connection_sock *icsk = inet_csk(sk);
@@ -3219,12 +3219,6 @@ static int tcp_clean_rtx_queue(struct sock *sk, int prior_fackets,
 			acked_pcount = tcp_skb_pcount(skb);
 		}
 
-		/* MTU probing checks */
-		if (fully_acked && icsk->icsk_mtup.probe_size &&
-		    !after(tp->mtu_probe.probe_seq_end, scb->end_seq)) {
-			tcp_mtup_probe_success(sk, skb);
-		}
-
 		if (sacked & TCPCB_RETRANS) {
 			if (sacked & TCPCB_SACKED_RETRANS)
 				tp->retrans_out -= acked_pcount;
@@ -3286,6 +3280,11 @@ static int tcp_clean_rtx_queue(struct sock *sk, int prior_fackets,
 	if (flag & FLAG_ACKED) {
 		const struct tcp_congestion_ops *ca_ops
 			= inet_csk(sk)->icsk_ca_ops;
+
+		if (unlikely(icsk->icsk_mtup.probe_size &&
+			     !after(tp->mtu_probe.probe_seq_end, tp->snd_una))) {
+			tcp_mtup_probe_success(sk);
+		}
 
 		tcp_ack_update_rtt(sk, flag, seq_rtt);
 		tcp_rearm_rto(sk);
