@@ -421,8 +421,7 @@ static int write_cnodes(struct ubifs_info *c)
 			err = realloc_lpt_leb(c, &lnum);
 			if (err)
 				goto no_space;
-			offs = 0;
-			from = 0;
+			offs = from = 0;
 			ubifs_assert(lnum >= c->lpt_first &&
 				     lnum <= c->lpt_last);
 			err = ubifs_leb_unmap(c, lnum);
@@ -480,7 +479,7 @@ static int write_cnodes(struct ubifs_info *c)
 			err = realloc_lpt_leb(c, &lnum);
 			if (err)
 				goto no_space;
-			offs = 0;
+			offs = from = 0;
 			ubifs_assert(lnum >= c->lpt_first &&
 				     lnum <= c->lpt_last);
 			err = ubifs_leb_unmap(c, lnum);
@@ -507,7 +506,7 @@ static int write_cnodes(struct ubifs_info *c)
 			err = realloc_lpt_leb(c, &lnum);
 			if (err)
 				goto no_space;
-			offs = 0;
+			offs = from = 0;
 			ubifs_assert(lnum >= c->lpt_first &&
 				     lnum <= c->lpt_last);
 			err = ubifs_leb_unmap(c, lnum);
