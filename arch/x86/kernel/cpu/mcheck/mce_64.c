@@ -639,7 +639,7 @@ static void mce_init_timer(void)
 	if (!next_interval)
 		return;
 	setup_timer(t, mcheck_timer, smp_processor_id());
-	t->expires = round_jiffies_relative(jiffies + next_interval);
+	t->expires = round_jiffies(jiffies + next_interval);
 	add_timer(t);
 }
 
@@ -1110,7 +1110,7 @@ static int __cpuinit mce_cpu_callback(struct notifier_block *nfb,
 		break;
 	case CPU_DOWN_FAILED:
 	case CPU_DOWN_FAILED_FROZEN:
-		t->expires = round_jiffies_relative(jiffies + next_interval);
+		t->expires = round_jiffies(jiffies + next_interval);
 		add_timer_on(t, cpu);
 		smp_call_function_single(cpu, mce_reenable_cpu, &action, 1);
 		break;

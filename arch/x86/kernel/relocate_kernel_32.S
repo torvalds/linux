@@ -17,7 +17,8 @@
 
 #define PTR(x) (x << 2)
 
-/* control_page + KEXEC_CONTROL_CODE_MAX_SIZE
+/*
+ * control_page + KEXEC_CONTROL_CODE_MAX_SIZE
  * ~ control_page + PAGE_SIZE are used as data storage and stack for
  * jumping back
  */
@@ -76,8 +77,10 @@ relocate_kernel:
 	movl	%eax, CP_PA_SWAP_PAGE(%edi)
 	movl	%ebx, CP_PA_BACKUP_PAGES_MAP(%edi)
 
-	/* get physical address of control page now */
-	/* this is impossible after page table switch */
+	/*
+	 * get physical address of control page now
+	 * this is impossible after page table switch
+	 */
 	movl	PTR(PA_CONTROL_PAGE)(%ebp), %edi
 
 	/* switch to new set of page tables */
@@ -97,7 +100,8 @@ identity_mapped:
 	/* store the start address on the stack */
 	pushl   %edx
 
-	/* Set cr0 to a known state:
+	/*
+	 * Set cr0 to a known state:
 	 *  - Paging disabled
 	 *  - Alignment check disabled
 	 *  - Write protect disabled
@@ -113,7 +117,8 @@ identity_mapped:
 	/* clear cr4 if applicable */
 	testl	%ecx, %ecx
 	jz	1f
-	/* Set cr4 to a known state:
+	/*
+	 * Set cr4 to a known state:
 	 * Setting everything to zero seems safe.
 	 */
 	xorl	%eax, %eax
@@ -132,15 +137,18 @@ identity_mapped:
 	call	swap_pages
 	addl	$8, %esp
 
-	/* To be certain of avoiding problems with self-modifying code
+	/*
+	 * To be certain of avoiding problems with self-modifying code
 	 * I need to execute a serializing instruction here.
 	 * So I flush the TLB, it's handy, and not processor dependent.
 	 */
 	xorl	%eax, %eax
 	movl	%eax, %cr3
 
-	/* set all of the registers to known values */
-	/* leave %esp alone */
+	/*
+	 * set all of the registers to known values
+	 * leave %esp alone
+	 */
 
 	testl	%esi, %esi
 	jnz 1f

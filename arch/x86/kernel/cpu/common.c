@@ -1078,8 +1078,7 @@ void __cpuinit cpu_init(void)
 
 	atomic_inc(&init_mm.mm_count);
 	me->active_mm = &init_mm;
-	if (me->mm)
-		BUG();
+	BUG_ON(me->mm);
 	enter_lazy_tlb(&init_mm, me);
 
 	load_sp0(t, &current->thread);
@@ -1145,8 +1144,7 @@ void __cpuinit cpu_init(void)
 	 */
 	atomic_inc(&init_mm.mm_count);
 	curr->active_mm = &init_mm;
-	if (curr->mm)
-		BUG();
+	BUG_ON(curr->mm);
 	enter_lazy_tlb(&init_mm, curr);
 
 	load_sp0(t, thread);
