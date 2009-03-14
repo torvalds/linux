@@ -252,8 +252,8 @@ static int efar_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 	static const struct ata_port_info info = {
 		.flags		= ATA_FLAG_SLAVE_POSS,
 		.pio_mask	= ATA_PIO4,
-		.mwdma_mask	= ATA_MWDMA2, /* mwdma1-2 */
-		.udma_mask 	= ATA_UDMA3, /* UDMA 66 */
+		.mwdma_mask	= ATA_MWDMA2,
+		.udma_mask 	= ATA_UDMA4,
 		.port_ops	= &efar_ops,
 	};
 	const struct ata_port_info *ppi[] = { &info, NULL };
