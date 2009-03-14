@@ -3557,7 +3557,9 @@ static void w9968cf_usb_disconnect(struct usb_interface* intf)
 
 		cam->disconnected = 1;
 
-		DBG(2, "Disconnecting %s...", symbolic(camlist, cam->id))
+		DBG(2, "Disconnecting %s...", symbolic(camlist, cam->id));
+
+		v4l2_device_disconnect(&cam->v4l2_dev);
 
 		wake_up_interruptible_all(&cam->open);
 

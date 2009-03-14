@@ -1771,6 +1771,8 @@ static void __devexit usbvision_disconnect(struct usb_interface *intf)
 	// At this time we ask to cancel outstanding URBs
 	usbvision_stop_isoc(usbvision);
 
+	v4l2_device_disconnect(&usbvision->v4l2_dev);
+
 	if (usbvision->power) {
 		usbvision_i2c_unregister(usbvision);
 		usbvision_power_off(usbvision);
