@@ -1367,9 +1367,7 @@ sba_ioc_init_pluto(struct parisc_device *sba, struct ioc *ioc, int ioc_num)
 		ioc->pdir_size /= 2;
 		ioc->pdir_base[PDIR_INDEX(iova_space_size/2)] = SBA_AGPGART_COOKIE;
 	}
-}
 #endif /*SBA_AGP_SUPPORT*/
-
 }
 
 static void
