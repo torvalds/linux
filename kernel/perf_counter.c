@@ -24,6 +24,8 @@
 #include <linux/vmstat.h>
 #include <linux/rculist.h>
 
+#include <asm/irq_regs.h>
+
 /*
  * Each CPU has a list of per CPU counters:
  */
