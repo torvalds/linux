@@ -689,7 +689,7 @@ static unsigned int tcp_xmit_size_goal(struct sock *sk, u32 mss_now,
 		}
 	}
 
-	return xmit_size_goal;
+	return max(xmit_size_goal, mss_now);
 }
 
 static int tcp_send_mss(struct sock *sk, int *size_goal, int flags)
