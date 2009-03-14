@@ -107,7 +107,7 @@ tcp_timewait_state_process(struct inet_timewait_sock *tw, struct sk_buff *skb,
 		if (tmp_opt.saw_tstamp) {
 			tmp_opt.ts_recent	= tcptw->tw_ts_recent;
 			tmp_opt.ts_recent_stamp	= tcptw->tw_ts_recent_stamp;
-			paws_reject = tcp_paws_check(&tmp_opt, th->rst);
+			paws_reject = tcp_paws_reject(&tmp_opt, th->rst);
 		}
 	}
 
@@ -511,7 +511,7 @@ struct sock *tcp_check_req(struct sock *sk, struct sk_buff *skb,
 			 * from another data.
 			 */
 			tmp_opt.ts_recent_stamp = get_seconds() - ((TCP_TIMEOUT_INIT/HZ)<<req->retrans);
-			paws_reject = tcp_paws_check(&tmp_opt, th->rst);
+			paws_reject = tcp_paws_reject(&tmp_opt, th->rst);
 		}
 	}
 

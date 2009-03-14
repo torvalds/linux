@@ -997,11 +997,21 @@ static inline int tcp_fin_time(const struct sock *sk)
 	return fin_timeout;
 }
 
-static inline int tcp_paws_check(const struct tcp_options_received *rx_opt, int rst)
+static inline int tcp_paws_check(const struct tcp_options_received *rx_opt,
+				 int paws_win)
 {
-	if ((s32)(rx_opt->rcv_tsval - rx_opt->ts_recent) >= 0)
-		return 0;
-	if (get_seconds() >= rx_opt->ts_recent_stamp + TCP_PAWS_24DAYS)
+	if ((s32)(rx_opt->ts_recent - rx_opt->rcv_tsval) <= paws_win)
+		return 1;
+	if (unlikely(get_seconds() >= rx_opt->ts_recent_stamp + TCP_PAWS_24DAYS))
+		return 1;
+
+	return 0;
+}
+
+static inline int tcp_paws_reject(const struct tcp_options_received *rx_opt,
+				  int rst)
+{
+	if (tcp_paws_check(rx_opt, 0))
 		return 0;
 
 	/* RST segments are not recommended to carry timestamp,
