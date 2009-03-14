@@ -921,7 +921,7 @@ int tcp_trim_head(struct sock *sk, struct sk_buff *skb, u32 len)
 	 * factor and mss.
 	 */
 	if (tcp_skb_pcount(skb) > 1)
-		tcp_set_skb_tso_segs(sk, skb, tcp_current_mss(sk, 1));
+		tcp_set_skb_tso_segs(sk, skb, tcp_current_mss(sk));
 
 	return 0;
 }
@@ -982,15 +982,6 @@ void tcp_mtup_init(struct sock *sk)
 	icsk->icsk_mtup.probe_size = 0;
 }
 
-/* Bound MSS / TSO packet size with the half of the window */
-static int tcp_bound_to_half_wnd(struct tcp_sock *tp, int pktsize)
-{
-	if (tp->max_window && pktsize > (tp->max_window >> 1))
-		return max(tp->max_window >> 1, 68U - tp->tcp_header_len);
-	else
-		return pktsize;
-}
-
 /* This function synchronize snd mss to current pmtu/exthdr set.
 
    tp->rx_opt.user_mss is mss set by user by TCP_MAXSEG. It does NOT counts
@@ -1037,21 +1028,16 @@ unsigned int tcp_sync_mss(struct sock *sk, u32 pmtu)
 /* Compute the current effective MSS, taking SACKs and IP options,
  * and even PMTU discovery events into account.
  */
-unsigned int tcp_current_mss(struct sock *sk, int large_allowed)
+unsigned int tcp_current_mss(struct sock *sk)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct dst_entry *dst = __sk_dst_get(sk);
 	u32 mss_now;
-	u16 xmit_size_goal;
-	int doing_tso = 0;
 	unsigned header_len;
 	struct tcp_out_options opts;
 	struct tcp_md5sig_key *md5;
 
 	mss_now = tp->mss_cache;
-
-	if (large_allowed && sk_can_gso(sk))
-		doing_tso = 1;
 
 	if (dst) {
 		u32 mtu = dst_mtu(dst);
@@ -1069,19 +1055,6 @@ unsigned int tcp_current_mss(struct sock *sk, int large_allowed)
 		int delta = (int) header_len - tp->tcp_header_len;
 		mss_now -= delta;
 	}
-
-	xmit_size_goal = mss_now;
-
-	if (doing_tso) {
-		xmit_size_goal = ((sk->sk_gso_max_size - 1) -
-				  inet_csk(sk)->icsk_af_ops->net_header_len -
-				  inet_csk(sk)->icsk_ext_hdr_len -
-				  tp->tcp_header_len);
-
-		xmit_size_goal = tcp_bound_to_half_wnd(tp, xmit_size_goal);
-		xmit_size_goal -= (xmit_size_goal % mss_now);
-	}
-	tp->xmit_size_goal = xmit_size_goal;
 
 	return mss_now;
 }
@@ -1264,7 +1237,7 @@ int tcp_may_send_now(struct sock *sk)
 	struct sk_buff *skb = tcp_send_head(sk);
 
 	return (skb &&
-		tcp_snd_test(sk, skb, tcp_current_mss(sk, 1),
+		tcp_snd_test(sk, skb, tcp_current_mss(sk),
 			     (tcp_skb_is_last(sk, skb) ?
 			      tp->nonagle : TCP_NAGLE_PUSH)));
 }
@@ -1421,7 +1394,7 @@ static int tcp_mtu_probe(struct sock *sk)
 		return -1;
 
 	/* Very simple search strategy: just double the MSS. */
-	mss_now = tcp_current_mss(sk, 0);
+	mss_now = tcp_current_mss(sk);
 	probe_size = 2 * tp->mss_cache;
 	size_needed = probe_size + (tp->reordering + 1) * tp->mss_cache;
 	if (probe_size > tcp_mtu_to_mss(sk, icsk->icsk_mtup.search_high)) {
@@ -1903,7 +1876,7 @@ int tcp_retransmit_skb(struct sock *sk, struct sk_buff *skb)
 	if (inet_csk(sk)->icsk_af_ops->rebuild_header(sk))
 		return -EHOSTUNREACH; /* Routing failure or similar. */
 
-	cur_mss = tcp_current_mss(sk, 0);
+	cur_mss = tcp_current_mss(sk);
 
 	/* If receiver has shrunk his window, and skb is out of
 	 * new window, do not retransmit it. The exception is the
@@ -2111,7 +2084,7 @@ void tcp_send_fin(struct sock *sk)
 	 * unsent frames.  But be careful about outgoing SACKS
 	 * and IP options.
 	 */
-	mss_now = tcp_current_mss(sk, 1);
+	mss_now = tcp_current_mss(sk);
 
 	if (tcp_send_head(sk) != NULL) {
 		TCP_SKB_CB(skb)->flags |= TCPCB_FLAG_FIN;
@@ -2523,7 +2496,7 @@ int tcp_write_wakeup(struct sock *sk)
 	if ((skb = tcp_send_head(sk)) != NULL &&
 	    before(TCP_SKB_CB(skb)->seq, tcp_wnd_end(tp))) {
 		int err;
-		unsigned int mss = tcp_current_mss(sk, 0);
+		unsigned int mss = tcp_current_mss(sk);
 		unsigned int seg_size = tcp_wnd_end(tp) - TCP_SKB_CB(skb)->seq;
 
 		if (before(tp->pushed_seq, TCP_SKB_CB(skb)->end_seq))

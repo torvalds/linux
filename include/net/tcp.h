@@ -481,7 +481,16 @@ static inline void tcp_clear_xmit_timers(struct sock *sk)
 }
 
 extern unsigned int tcp_sync_mss(struct sock *sk, u32 pmtu);
-extern unsigned int tcp_current_mss(struct sock *sk, int large);
+extern unsigned int tcp_current_mss(struct sock *sk);
+
+/* Bound MSS / TSO packet size with the half of the window */
+static inline int tcp_bound_to_half_wnd(struct tcp_sock *tp, int pktsize)
+{
+	if (tp->max_window && pktsize > (tp->max_window >> 1))
+		return max(tp->max_window >> 1, 68U - tp->tcp_header_len);
+	else
+		return pktsize;
+}
 
 /* tcp.c */
 extern void tcp_get_info(struct sock *, struct tcp_info *);
@@ -822,7 +831,7 @@ static inline void tcp_push_pending_frames(struct sock *sk)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 
-	__tcp_push_pending_frames(sk, tcp_current_mss(sk, 1), tp->nonagle);
+	__tcp_push_pending_frames(sk, tcp_current_mss(sk), tp->nonagle);
 }
 
 static inline void tcp_init_wl(struct tcp_sock *tp, u32 seq)

@@ -2864,7 +2864,7 @@ void tcp_simple_retransmit(struct sock *sk)
 	const struct inet_connection_sock *icsk = inet_csk(sk);
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct sk_buff *skb;
-	unsigned int mss = tcp_current_mss(sk, 0);
+	unsigned int mss = tcp_current_mss(sk);
 	u32 prior_lost = tp->lost_out;
 
 	tcp_for_write_queue(skb, sk) {
