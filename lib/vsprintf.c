@@ -398,7 +398,7 @@ static noinline char* put_dec(char *buf, unsigned long long num)
 
 enum format_type {
 	FORMAT_TYPE_NONE, /* Just a string part */
-	FORMAT_TYPE_WITDH,
+	FORMAT_TYPE_WIDTH,
 	FORMAT_TYPE_PRECISION,
 	FORMAT_TYPE_CHAR,
 	FORMAT_TYPE_STR,
@@ -770,7 +770,7 @@ static int format_decode(const char *fmt, struct printf_spec *spec)
 	const char *start = fmt;
 
 	/* we finished early by reading the field width */
-	if (spec->type == FORMAT_TYPE_WITDH) {
+	if (spec->type == FORMAT_TYPE_WIDTH) {
 		if (spec->field_width < 0) {
 			spec->field_width = -spec->field_width;
 			spec->flags |= LEFT;
@@ -828,7 +828,7 @@ static int format_decode(const char *fmt, struct printf_spec *spec)
 		spec->field_width = skip_atoi(&fmt);
 	else if (*fmt == '*') {
 		/* it's the next argument */
-		spec->type = FORMAT_TYPE_WITDH;
+		spec->type = FORMAT_TYPE_WIDTH;
 		return ++fmt - start;
 	}
 
@@ -1002,7 +1002,7 @@ int vsnprintf(char *buf, size_t size, const char *fmt, va_list args)
 			break;
 		}
 
-		case FORMAT_TYPE_WITDH:
+		case FORMAT_TYPE_WIDTH:
 			spec.field_width = va_arg(args, int);
 			break;
 
@@ -1306,7 +1306,7 @@ do {									\
 		case FORMAT_TYPE_NONE:
 			break;
 
-		case FORMAT_TYPE_WITDH:
+		case FORMAT_TYPE_WIDTH:
 		case FORMAT_TYPE_PRECISION:
 			save_arg(int);
 			break;
@@ -1472,7 +1472,7 @@ int bstr_printf(char *buf, size_t size, const char *fmt, const u32 *bin_buf)
 			break;
 		}
 
-		case FORMAT_TYPE_WITDH:
+		case FORMAT_TYPE_WIDTH:
 			spec.field_width = get_arg(int);
 			break;
 
