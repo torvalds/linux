@@ -123,6 +123,7 @@ static const char *module_names[] = {
 	[PVR2_CLIENT_ID_CX25840] = "cx25840",
 	[PVR2_CLIENT_ID_SAA7115] = "saa7115",
 	[PVR2_CLIENT_ID_TUNER] = "tuner",
+	[PVR2_CLIENT_ID_DEMOD] = "tuner",
 	[PVR2_CLIENT_ID_CS53L32A] = "cs53l32a",
 	[PVR2_CLIENT_ID_WM8775] = "wm8775",
 };
@@ -130,6 +131,7 @@ static const char *module_names[] = {
 
 static const unsigned char *module_i2c_addresses[] = {
 	[PVR2_CLIENT_ID_TUNER] = "\x60\x61\x62\x63",
+	[PVR2_CLIENT_ID_DEMOD] = "\x43",
 	[PVR2_CLIENT_ID_MSP3400] = "\x40",
 	[PVR2_CLIENT_ID_SAA7115] = "\x21",
 	[PVR2_CLIENT_ID_WM8775] = "\x1b",

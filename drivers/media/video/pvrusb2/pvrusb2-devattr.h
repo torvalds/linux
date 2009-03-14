@@ -40,6 +40,7 @@
 #define PVR2_CLIENT_ID_TUNER 4
 #define PVR2_CLIENT_ID_CS53L32A 5
 #define PVR2_CLIENT_ID_WM8775 6
+#define PVR2_CLIENT_ID_DEMOD 7
 
 struct pvr2_device_client_desc {
 	/* One ovr PVR2_CLIENT_ID_xxxx */
