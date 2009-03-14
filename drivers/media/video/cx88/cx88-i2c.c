@@ -99,7 +99,8 @@ static int cx8800_bit_getsda(void *data)
 
 static int attach_inform(struct i2c_client *client)
 {
-	struct cx88_core *core = i2c_get_adapdata(client->adapter);
+	struct v4l2_device *v4l2_dev = i2c_get_adapdata(client->adapter);
+	struct cx88_core *core = to_core(v4l2_dev);
 
 	dprintk(1, "%s i2c attach [addr=0x%x,client=%s]\n",
 		client->driver->driver.name, client->addr, client->name);
@@ -108,7 +109,8 @@ static int attach_inform(struct i2c_client *client)
 
 static int detach_inform(struct i2c_client *client)
 {
-	struct cx88_core *core = i2c_get_adapdata(client->adapter);
+	struct v4l2_device *v4l2_dev = i2c_get_adapdata(client->adapter);
+	struct cx88_core *core = to_core(v4l2_dev);
 
 	dprintk(1, "i2c detach [client=%s]\n", client->name);
 	return 0;
@@ -186,7 +188,7 @@ int cx88_i2c_init(struct cx88_core *core, struct pci_dev *pci)
 	core->i2c_adap.client_unregister = detach_inform;
 	core->i2c_algo.udelay = i2c_udelay;
 	core->i2c_algo.data = core;
-	i2c_set_adapdata(&core->i2c_adap,core);
+	i2c_set_adapdata(&core->i2c_adap, &core->v4l2_dev);
 	core->i2c_adap.algo_data = &core->i2c_algo;
 	core->i2c_client.adapter = &core->i2c_adap;
 	strlcpy(core->i2c_client.name, "cx88xx internal", I2C_NAME_SIZE);

@@ -25,7 +25,7 @@
 #include <linux/videodev2.h>
 #include <linux/kdev_t.h>
 
-#include <media/v4l2-common.h>
+#include <media/v4l2-device.h>
 #include <media/tuner.h>
 #include <media/tveeprom.h>
 #include <media/videobuf-dma-sg.h>
@@ -327,6 +327,7 @@ struct cx88_core {
 	u32                        i2c_state, i2c_rc;
 
 	/* config info -- analog */
+	struct v4l2_device 	   v4l2_dev;
 	unsigned int               boardnr;
 	struct cx88_board	   board;
 
@@ -364,6 +365,11 @@ struct cx88_core {
 	int			   active_ref;
 	int			   active_fe_id;
 };
+
+static inline struct cx88_core *to_core(struct v4l2_device *v4l2_dev)
+{
+	return container_of(v4l2_dev, struct cx88_core, v4l2_dev);
+}
 
 struct cx8800_dev;
 struct cx8802_dev;

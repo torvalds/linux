@@ -1011,7 +1011,8 @@ struct video_device *cx88_vdev_init(struct cx88_core *core,
 		return NULL;
 	*vfd = *template;
 	vfd->minor   = -1;
-	vfd->parent  = &pci->dev;
+	vfd->v4l2_dev = &core->v4l2_dev;
+	vfd->parent = &pci->dev;
 	vfd->release = video_device_release;
 	snprintf(vfd->name, sizeof(vfd->name), "%s %s (%s)",
 		 core->name, type, core->board.name);
@@ -1064,6 +1065,7 @@ void cx88_core_put(struct cx88_core *core, struct pci_dev *pci)
 	iounmap(core->lmmio);
 	cx88_devcount--;
 	mutex_unlock(&devlist);
+	v4l2_device_unregister(&core->v4l2_dev);
 	kfree(core);
 }
 
