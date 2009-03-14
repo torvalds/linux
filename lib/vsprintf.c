@@ -843,7 +843,7 @@ precision:
 				spec->precision = 0;
 		} else if (*fmt == '*') {
 			/* it's the next argument */
-			spec->type = FORMAT_TYPE_WITDH;
+			spec->type = FORMAT_TYPE_PRECISION;
 			return ++fmt - start;
 		}
 	}
