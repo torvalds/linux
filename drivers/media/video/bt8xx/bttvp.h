@@ -458,6 +458,11 @@ struct bttv {
 	__s32			crop_start;
 };
 
+static inline struct bttv *to_bttv(struct v4l2_device *v4l2_dev)
+{
+	return container_of(v4l2_dev, struct bttv, c.v4l2_dev);
+}
+
 /* our devices */
 #define BTTV_MAX 32
 extern unsigned int bttv_num;

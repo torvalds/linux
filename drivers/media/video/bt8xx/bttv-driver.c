@@ -167,7 +167,7 @@ static ssize_t show_card(struct device *cd,
 			 struct device_attribute *attr, char *buf)
 {
 	struct video_device *vfd = container_of(cd, struct video_device, dev);
-	struct bttv *btv = dev_get_drvdata(vfd->parent);
+	struct bttv *btv = video_get_drvdata(vfd);
 	return sprintf(buf, "%d\n", btv ? btv->c.type : UNSET);
 }
 static DEVICE_ATTR(card, S_IRUGO, show_card, NULL);
@@ -3692,14 +3692,14 @@ static void bttv_risc_disasm(struct bttv *btv,
 	unsigned int i,j,n;
 
 	printk("%s: risc disasm: %p [dma=0x%08lx]\n",
-	       btv->c.name, risc->cpu, (unsigned long)risc->dma);
+	       btv->c.v4l2_dev.name, risc->cpu, (unsigned long)risc->dma);
 	for (i = 0; i < (risc->size >> 2); i += n) {
-		printk("%s:   0x%lx: ", btv->c.name,
+		printk("%s:   0x%lx: ", btv->c.v4l2_dev.name,
 		       (unsigned long)(risc->dma + (i<<2)));
 		n = bttv_risc_decode(le32_to_cpu(risc->cpu[i]));
 		for (j = 1; j < n; j++)
 			printk("%s:   0x%lx: 0x%08x [ arg #%d ]\n",
-			       btv->c.name, (unsigned long)(risc->dma + ((i+j)<<2)),
+			       btv->c.v4l2_dev.name, (unsigned long)(risc->dma + ((i+j)<<2)),
 			       risc->cpu[i+j], j);
 		if (0 == risc->cpu[i])
 			break;
@@ -4175,7 +4175,7 @@ static struct video_device *vdev_init(struct bttv *btv,
 		return NULL;
 	*vfd = *template;
 	vfd->minor   = -1;
-	vfd->parent  = &btv->c.pci->dev;
+	vfd->v4l2_dev = &btv->c.v4l2_dev;
 	vfd->release = video_device_release;
 	vfd->debug   = bttv_debug;
 	video_set_drvdata(vfd, btv);
@@ -4289,8 +4289,13 @@ static int __devinit bttv_probe(struct pci_dev *dev,
 		return -ENOMEM;
 	printk(KERN_INFO "bttv: Bt8xx card found (%d).\n", bttv_num);
 	bttvs[bttv_num] = btv = kzalloc(sizeof(*btv), GFP_KERNEL);
+	if (btv == NULL) {
+		printk(KERN_ERR "bttv: out of memory.\n");
+		return -ENOMEM;
+	}
 	btv->c.nr  = bttv_num;
-	sprintf(btv->c.name,"bttv%d",btv->c.nr);
+	snprintf(btv->c.v4l2_dev.name, sizeof(btv->c.v4l2_dev.name),
+			"bttv%d", btv->c.nr);
 
 	/* initialize structs / fill in defaults */
 	mutex_init(&btv->lock);
@@ -4327,7 +4332,7 @@ static int __devinit bttv_probe(struct pci_dev *dev,
 	}
 	if (!request_mem_region(pci_resource_start(dev,0),
 				pci_resource_len(dev,0),
-				btv->c.name)) {
+				btv->c.v4l2_dev.name)) {
 		printk(KERN_WARNING "bttv%d: can't request iomem (0x%llx).\n",
 		       btv->c.nr,
 		       (unsigned long long)pci_resource_start(dev,0));
@@ -4335,7 +4340,12 @@ static int __devinit bttv_probe(struct pci_dev *dev,
 	}
 	pci_set_master(dev);
 	pci_set_command(dev);
-	pci_set_drvdata(dev,btv);
+
+	result = v4l2_device_register(&dev->dev, &btv->c.v4l2_dev);
+	if (result < 0) {
+		printk(KERN_WARNING "bttv%d: v4l2_device_register() failed\n", btv->c.nr);
+		goto fail0;
+	}
 
 	pci_read_config_byte(dev, PCI_CLASS_REVISION, &btv->revision);
 	pci_read_config_byte(dev, PCI_LATENCY_TIMER, &lat);
@@ -4359,7 +4369,7 @@ static int __devinit bttv_probe(struct pci_dev *dev,
 	/* disable irqs, register irq handler */
 	btwrite(0, BT848_INT_MASK);
 	result = request_irq(btv->c.pci->irq, bttv_irq,
-			     IRQF_SHARED | IRQF_DISABLED,btv->c.name,(void *)btv);
+	    IRQF_SHARED | IRQF_DISABLED, btv->c.v4l2_dev.name, (void *)btv);
 	if (result < 0) {
 		printk(KERN_ERR "bttv%d: can't get IRQ %d\n",
 		       bttv_num,btv->c.pci->irq);
@@ -4443,21 +4453,24 @@ static int __devinit bttv_probe(struct pci_dev *dev,
 	bttv_num++;
 	return 0;
 
- fail2:
+fail2:
 	free_irq(btv->c.pci->irq,btv);
 
- fail1:
+fail1:
+	v4l2_device_unregister(&btv->c.v4l2_dev);
+
+fail0:
 	if (btv->bt848_mmio)
 		iounmap(btv->bt848_mmio);
 	release_mem_region(pci_resource_start(btv->c.pci,0),
 			   pci_resource_len(btv->c.pci,0));
-	pci_set_drvdata(dev,NULL);
 	return result;
 }
 
 static void __devexit bttv_remove(struct pci_dev *pci_dev)
 {
-	struct bttv *btv = pci_get_drvdata(pci_dev);
+	struct v4l2_device *v4l2_dev = pci_get_drvdata(pci_dev);
+	struct bttv *btv = to_bttv(v4l2_dev);
 
 	if (bttv_verbose)
 		printk("bttv%d: unloading\n",btv->c.nr);
@@ -4491,7 +4504,7 @@ static void __devexit bttv_remove(struct pci_dev *pci_dev)
 	release_mem_region(pci_resource_start(btv->c.pci,0),
 			   pci_resource_len(btv->c.pci,0));
 
-	pci_set_drvdata(pci_dev, NULL);
+	v4l2_device_unregister(&btv->c.v4l2_dev);
 	bttvs[btv->c.nr] = NULL;
 	kfree(btv);
 
@@ -4501,7 +4514,8 @@ static void __devexit bttv_remove(struct pci_dev *pci_dev)
 #ifdef CONFIG_PM
 static int bttv_suspend(struct pci_dev *pci_dev, pm_message_t state)
 {
-	struct bttv *btv = pci_get_drvdata(pci_dev);
+	struct v4l2_device *v4l2_dev = pci_get_drvdata(pci_dev);
+	struct bttv *btv = to_bttv(v4l2_dev);
 	struct bttv_buffer_set idle;
 	unsigned long flags;
 
@@ -4536,7 +4550,8 @@ static int bttv_suspend(struct pci_dev *pci_dev, pm_message_t state)
 
 static int bttv_resume(struct pci_dev *pci_dev)
 {
-	struct bttv *btv = pci_get_drvdata(pci_dev);
+	struct v4l2_device *v4l2_dev = pci_get_drvdata(pci_dev);
+	struct bttv *btv = to_bttv(v4l2_dev);
 	unsigned long flags;
 	int err;
 

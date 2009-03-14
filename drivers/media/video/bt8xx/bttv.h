@@ -16,6 +16,7 @@
 
 #include <linux/videodev2.h>
 #include <linux/i2c.h>
+#include <media/v4l2-device.h>
 #include <media/ir-common.h>
 #include <media/ir-kbd-i2c.h>
 #include <media/i2c-addr.h>
@@ -196,6 +197,7 @@
 
 struct bttv_core {
 	/* device structs */
+	struct v4l2_device   v4l2_dev;
 	struct pci_dev       *pci;
 	struct i2c_adapter   i2c_adap;
 	struct list_head     subs;     /* struct bttv_sub_device */
@@ -203,7 +205,6 @@ struct bttv_core {
 	/* device config */
 	unsigned int         nr;       /* dev nr (for printk("bttv%d: ...");  */
 	unsigned int         type;     /* card type (pointer into tvcards[])  */
-	char                 name[8];  /* dev name */
 };
 
 struct bttv;
