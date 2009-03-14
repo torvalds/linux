@@ -206,10 +206,6 @@ nfsd4_open(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 
 	switch (open->op_claim_type) {
 		case NFS4_OPEN_CLAIM_DELEGATE_CUR:
-			status = nfserr_inval;
-			if (open->op_create)
-				goto out;
-			/* fall through */
 		case NFS4_OPEN_CLAIM_NULL:
 			/*
 			 * (1) set CURRENT_FH to the file being opened,
