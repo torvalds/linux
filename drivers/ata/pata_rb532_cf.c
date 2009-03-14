@@ -89,7 +89,7 @@ static void rb532_pata_setup_ports(struct ata_host *ah)
 	ap = ah->ports[0];
 
 	ap->ops		= &rb532_pata_port_ops;
-	ap->pio_mask	= 0x1f; /* PIO4 */
+	ap->pio_mask	= ATA_PIO4;
 	ap->flags	= ATA_FLAG_NO_LEGACY | ATA_FLAG_MMIO;
 
 	ap->ioaddr.cmd_addr	= info->iobase + RB500_CF_REG_BASE;

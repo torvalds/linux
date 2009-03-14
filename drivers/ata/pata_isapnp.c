@@ -66,7 +66,7 @@ static int isapnp_init_one(struct pnp_dev *idev, const struct pnp_device_id *dev
 	ap = host->ports[0];
 
 	ap->ops = &isapnp_port_ops;
-	ap->pio_mask = 1;
+	ap->pio_mask = ATA_PIO0;
 	ap->flags |= ATA_FLAG_SLAVE_POSS;
 
 	ap->ioaddr.cmd_addr = cmd_addr;

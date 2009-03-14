@@ -299,7 +299,7 @@ static int pcmcia_init_one(struct pcmcia_device *pdev)
 		ap = host->ports[p];
 
 		ap->ops = ops;
-		ap->pio_mask = 1;		/* ISA so PIO 0 cycles */
+		ap->pio_mask = ATA_PIO0;	/* ISA so PIO 0 cycles */
 		ap->flags |= ATA_FLAG_SLAVE_POSS;
 		ap->ioaddr.cmd_addr = io_addr + 0x10 * p;
 		ap->ioaddr.altstatus_addr = ctl_addr + 0x10 * p;
