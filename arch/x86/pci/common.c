@@ -90,7 +90,7 @@ static int __devinit can_skip_ioresource_align(const struct dmi_system_id *d)
 	return 0;
 }
 
-static struct dmi_system_id can_skip_pciprobe_dmi_table[] __devinitdata = {
+static const struct dmi_system_id can_skip_pciprobe_dmi_table[] __devinitconst = {
 /*
  * Systems where PCI IO resource ISA alignment can be skipped
  * when the ISA enable bit in the bridge control is not set
@@ -183,7 +183,7 @@ static int __devinit assign_all_busses(const struct dmi_system_id *d)
 }
 #endif
 
-static struct dmi_system_id __devinitdata pciprobe_dmi_table[] = {
+static const struct dmi_system_id __devinitconst pciprobe_dmi_table[] = {
 #ifdef __i386__
 /*
  * Laptops which need pci=assign-busses to see Cardbus cards

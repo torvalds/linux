@@ -22,12 +22,16 @@
 #include <asm/pgalloc.h>
 #include <asm/pat.h>
 
-#ifdef CONFIG_X86_64
-
-static inline int phys_addr_valid(unsigned long addr)
+static inline int phys_addr_valid(resource_size_t addr)
 {
-	return addr < (1UL << boot_cpu_data.x86_phys_bits);
+#ifdef CONFIG_PHYS_ADDR_T_64BIT
+	return !(addr >> boot_cpu_data.x86_phys_bits);
+#else
+	return 1;
+#endif
 }
+
+#ifdef CONFIG_X86_64
 
 unsigned long __phys_addr(unsigned long x)
 {
@@ -64,11 +68,6 @@ bool __virt_addr_valid(unsigned long x)
 EXPORT_SYMBOL(__virt_addr_valid);
 
 #else
-
-static inline int phys_addr_valid(unsigned long addr)
-{
-	return 1;
-}
 
 #ifdef CONFIG_DEBUG_VIRTUAL
 unsigned long __phys_addr(unsigned long x)
@@ -488,7 +487,12 @@ static int __init early_ioremap_debug_setup(char *str)
 early_param("early_ioremap_debug", early_ioremap_debug_setup);
 
 static __initdata int after_paging_init;
-static pte_t bm_pte[PAGE_SIZE/sizeof(pte_t)] __page_aligned_bss;
+#define __FIXADDR_TOP (-PAGE_SIZE)
+static pte_t bm_pte[(__fix_to_virt(FIX_DBGP_BASE)
+		     ^ __fix_to_virt(FIX_BTMAP_BEGIN)) >> PMD_SHIFT
+		    ? PAGE_SIZE / sizeof(pte_t) : 0] __page_aligned_bss;
+#undef __FIXADDR_TOP
+static __initdata pte_t *bm_ptep;
 
 static inline pmd_t * __init early_ioremap_pmd(unsigned long addr)
 {
@@ -503,6 +507,8 @@ static inline pmd_t * __init early_ioremap_pmd(unsigned long addr)
 
 static inline pte_t * __init early_ioremap_pte(unsigned long addr)
 {
+	if (!sizeof(bm_pte))
+		return &bm_ptep[pte_index(addr)];
 	return &bm_pte[pte_index(addr)];
 }
 
@@ -520,8 +526,14 @@ void __init early_ioremap_init(void)
 		slot_virt[i] = fix_to_virt(FIX_BTMAP_BEGIN - NR_FIX_BTMAPS*i);
 
 	pmd = early_ioremap_pmd(fix_to_virt(FIX_BTMAP_BEGIN));
-	memset(bm_pte, 0, sizeof(bm_pte));
-	pmd_populate_kernel(&init_mm, pmd, bm_pte);
+	if (sizeof(bm_pte)) {
+		memset(bm_pte, 0, sizeof(bm_pte));
+		pmd_populate_kernel(&init_mm, pmd, bm_pte);
+	} else {
+		bm_ptep = pte_offset_kernel(pmd, 0);
+		if (early_ioremap_debug)
+			printk(KERN_INFO "bm_ptep=%p\n", bm_ptep);
+	}
 
 	/*
 	 * The boot-ioremap range spans multiple pmds, for which

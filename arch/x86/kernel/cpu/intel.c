@@ -54,6 +54,11 @@ static void __cpuinit early_init_intel(struct cpuinfo_x86 *c)
 		c->x86_cache_alignment = 128;
 #endif
 
+	/* CPUID workaround for 0F33/0F34 CPU */
+	if (c->x86 == 0xF && c->x86_model == 0x3
+	    && (c->x86_mask == 0x3 || c->x86_mask == 0x4))
+		c->x86_phys_bits = 36;
+
 	/*
 	 * c->x86_power is 8000_0007 edx. Bit 8 is TSC runs at constant rate
 	 * with P/T states and does not stop in deep C-states
@@ -410,7 +415,7 @@ static unsigned int __cpuinit intel_size_cache(struct cpuinfo_x86 *c, unsigned i
 }
 #endif
 
-static struct cpu_dev intel_cpu_dev __cpuinitdata = {
+static const struct cpu_dev __cpuinitconst intel_cpu_dev = {
 	.c_vendor	= "Intel",
 	.c_ident	= { "GenuineIntel" },
 #ifdef CONFIG_X86_32

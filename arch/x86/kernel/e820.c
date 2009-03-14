@@ -110,19 +110,25 @@ int __init e820_all_mapped(u64 start, u64 end, unsigned type)
 /*
  * Add a memory region to the kernel e820 map.
  */
-void __init e820_add_region(u64 start, u64 size, int type)
+static void __init __e820_add_region(struct e820map *e820x, u64 start, u64 size,
+					 int type)
 {
-	int x = e820.nr_map;
+	int x = e820x->nr_map;
 
-	if (x == ARRAY_SIZE(e820.map)) {
+	if (x == ARRAY_SIZE(e820x->map)) {
 		printk(KERN_ERR "Ooops! Too many entries in the memory map!\n");
 		return;
 	}
 
-	e820.map[x].addr = start;
-	e820.map[x].size = size;
-	e820.map[x].type = type;
-	e820.nr_map++;
+	e820x->map[x].addr = start;
+	e820x->map[x].size = size;
+	e820x->map[x].type = type;
+	e820x->nr_map++;
+}
+
+void __init e820_add_region(u64 start, u64 size, int type)
+{
+	__e820_add_region(&e820, start, size, type);
 }
 
 void __init e820_print_map(char *who)
@@ -417,11 +423,11 @@ static int __init append_e820_map(struct e820entry *biosmap, int nr_map)
 	return __append_e820_map(biosmap, nr_map);
 }
 
-static u64 __init e820_update_range_map(struct e820map *e820x, u64 start,
+static u64 __init __e820_update_range(struct e820map *e820x, u64 start,
 					u64 size, unsigned old_type,
 					unsigned new_type)
 {
-	int i;
+	unsigned int i;
 	u64 real_updated_size = 0;
 
 	BUG_ON(old_type == new_type);
@@ -429,7 +435,7 @@ static u64 __init e820_update_range_map(struct e820map *e820x, u64 start,
 	if (size > (ULLONG_MAX - start))
 		size = ULLONG_MAX - start;
 
-	for (i = 0; i < e820.nr_map; i++) {
+	for (i = 0; i < e820x->nr_map; i++) {
 		struct e820entry *ei = &e820x->map[i];
 		u64 final_start, final_end;
 		if (ei->type != old_type)
@@ -446,10 +452,16 @@ static u64 __init e820_update_range_map(struct e820map *e820x, u64 start,
 		final_end = min(start + size, ei->addr + ei->size);
 		if (final_start >= final_end)
 			continue;
-		e820_add_region(final_start, final_end - final_start,
-					 new_type);
+
+		__e820_add_region(e820x, final_start, final_end - final_start,
+				  new_type);
+
 		real_updated_size += final_end - final_start;
 
+		/*
+		 * left range could be head or tail, so need to update
+		 * size at first.
+		 */
 		ei->size -= final_end - final_start;
 		if (ei->addr < final_start)
 			continue;
@@ -461,13 +473,13 @@ static u64 __init e820_update_range_map(struct e820map *e820x, u64 start,
 u64 __init e820_update_range(u64 start, u64 size, unsigned old_type,
 			     unsigned new_type)
 {
-	return e820_update_range_map(&e820, start, size, old_type, new_type);
+	return __e820_update_range(&e820, start, size, old_type, new_type);
 }
 
 static u64 __init e820_update_range_saved(u64 start, u64 size,
 					  unsigned old_type, unsigned new_type)
 {
-	return e820_update_range_map(&e820_saved, start, size, old_type,
+	return __e820_update_range(&e820_saved, start, size, old_type,
 				     new_type);
 }
 
@@ -1020,8 +1032,8 @@ u64 __init find_e820_area_size(u64 start, u64 *sizep, u64 align)
 			continue;
 		return addr;
 	}
-	return -1UL;
 
+	return -1ULL;
 }
 
 /*
@@ -1034,13 +1046,22 @@ u64 __init early_reserve_e820(u64 startt, u64 sizet, u64 align)
 	u64 start;
 
 	start = startt;
-	while (size < sizet)
+	while (size < sizet && (start + 1))
 		start = find_e820_area_size(start, &size, align);
 
 	if (size < sizet)
 		return 0;
 
+#ifdef CONFIG_X86_32
+	if (start >= MAXMEM)
+		return 0;
+	if (start + size > MAXMEM)
+		size = MAXMEM - start;
+#endif
+
 	addr = round_down(start + size - sizet, align);
+	if (addr < start)
+		return 0;
 	e820_update_range(addr, sizet, E820_RAM, E820_RESERVED);
 	e820_update_range_saved(addr, sizet, E820_RAM, E820_RESERVED);
 	printk(KERN_INFO "update e820 for early_reserve_e820\n");

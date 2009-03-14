@@ -169,6 +169,9 @@ config GENERIC_HARDIRQS
 	bool
 	default y
 
+config GENERIC_HARDIRQS_NO__DO_IRQ
+       def_bool y
+
 config GENERIC_IRQ_PROBE
 	bool
 	default y
@@ -1129,7 +1132,7 @@ config NUMA_EMU
 
 config NODES_SHIFT
 	int "Maximum NUMA Nodes (as a power of 2)" if !MAXSMP
-	range 1 9   if X86_64
+	range 1 9
 	default "9" if MAXSMP
 	default "6" if X86_64
 	default "4" if X86_NUMAQ

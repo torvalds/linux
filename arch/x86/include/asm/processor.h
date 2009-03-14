@@ -75,9 +75,9 @@ struct cpuinfo_x86 {
 #else
 	/* Number of 4K pages in DTLB/ITLB combined(in pages): */
 	int			x86_tlbsize;
+#endif
 	__u8			x86_virt_bits;
 	__u8			x86_phys_bits;
-#endif
 	/* CPUID returned core id bits: */
 	__u8			x86_coreid_bits;
 	/* Max extended CPUID function supported: */
@@ -391,6 +391,9 @@ DECLARE_PER_CPU(union irq_stack_union, irq_stack_union);
 DECLARE_INIT_PER_CPU(irq_stack_union);
 
 DECLARE_PER_CPU(char *, irq_stack_ptr);
+DECLARE_PER_CPU(unsigned int, irq_count);
+extern unsigned long kernel_eflags;
+extern asmlinkage void ignore_sysret(void);
 #else	/* X86_64 */
 #ifdef CONFIG_CC_STACKPROTECTOR
 DECLARE_PER_CPU(unsigned long, stack_canary);
