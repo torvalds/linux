@@ -1713,7 +1713,7 @@ static int si470x_usb_driver_probe(struct usb_interface *intf,
 			": If you have some trouble using this driver,\n");
 		printk(KERN_WARNING DRIVER_NAME
 			": please report to V4L ML at "
-			"video4linux-list@redhat.com\n");
+			"linux-media@vger.kernel.org\n");
 	}
 
 	/* set initial frequency */

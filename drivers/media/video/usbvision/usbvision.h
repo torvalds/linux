@@ -6,7 +6,7 @@
  *                         Dwaine Garden <dwainegarden@rogers.com>
  *
  *
- * Report problems to v4l MailingList : http://www.redhat.com/mailman/listinfo/video4linux-list
+ * Report problems to v4l MailingList: linux-media@vger.kernel.org
  *
  * This module is part of usbvision driver project.
  * Updates to driver completed by Dwaine P. Garden
