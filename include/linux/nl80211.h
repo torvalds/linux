@@ -349,6 +349,10 @@ enum nl80211_commands {
  * @NL80211_ATTR_REG_TYPE: indicates the type of the regulatory domain currently
  * 	set. This can be one of the nl80211_reg_type (%NL80211_REGDOM_TYPE_*)
  *
+ * @NL80211_ATTR_SUPPORTED_COMMANDS: wiphy attribute that specifies
+ *	an array of command numbers (i.e. a mapping index to command number)
+ *	that the driver for the given wiphy supports.
+ *
  * @NL80211_ATTR_MAX: highest attribute number currently defined
  * @__NL80211_ATTR_AFTER_LAST: internal use
  */
@@ -425,6 +429,8 @@ enum nl80211_attrs {
 
 	NL80211_ATTR_REG_INITIATOR,
 	NL80211_ATTR_REG_TYPE,
+
+	NL80211_ATTR_SUPPORTED_COMMANDS,
 
 	/* add attributes here, update the policy in nl80211.c */
 

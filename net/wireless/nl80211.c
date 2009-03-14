@@ -131,6 +131,7 @@ static int nl80211_send_wiphy(struct sk_buff *msg, u32 pid, u32 seq, int flags,
 	struct nlattr *nl_freqs, *nl_freq;
 	struct nlattr *nl_rates, *nl_rate;
 	struct nlattr *nl_modes;
+	struct nlattr *nl_cmds;
 	enum ieee80211_band band;
 	struct ieee80211_channel *chan;
 	struct ieee80211_rate *rate;
@@ -241,6 +242,32 @@ static int nl80211_send_wiphy(struct sk_buff *msg, u32 pid, u32 seq, int flags,
 		nla_nest_end(msg, nl_band);
 	}
 	nla_nest_end(msg, nl_bands);
+
+	nl_cmds = nla_nest_start(msg, NL80211_ATTR_SUPPORTED_COMMANDS);
+	if (!nl_cmds)
+		goto nla_put_failure;
+
+	i = 0;
+#define CMD(op, n)						\
+	 do {							\
+		if (dev->ops->op) {				\
+			i++;					\
+			NLA_PUT_U32(msg, i, NL80211_CMD_ ## n);	\
+		}						\
+	} while (0)
+
+	CMD(add_virtual_intf, NEW_INTERFACE);
+	CMD(change_virtual_intf, SET_INTERFACE);
+	CMD(add_key, NEW_KEY);
+	CMD(add_beacon, NEW_BEACON);
+	CMD(add_station, NEW_STATION);
+	CMD(add_mpath, NEW_MPATH);
+	CMD(set_mesh_params, SET_MESH_PARAMS);
+	CMD(change_bss, SET_BSS);
+	CMD(set_mgmt_extra_ie, SET_MGMT_EXTRA_IE);
+
+#undef CMD
+	nla_nest_end(msg, nl_cmds);
 
 	return genlmsg_end(msg, hdr);
 
