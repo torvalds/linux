@@ -185,6 +185,8 @@ static void copy_vbi_data(struct ivtv *itv, int lines, u32 pts_stamp)
 		size = 4 + ((43 * line + 3) & ~3);
 	} else {
 		memcpy(dst + sd, "itv0", 4);
+		cpu_to_le32s(&linemask[0]);
+		cpu_to_le32s(&linemask[1]);
 		memcpy(dst + sd + 4, &linemask[0], 8);
 		size = 12 + ((43 * line + 3) & ~3);
 	}
