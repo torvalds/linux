@@ -3201,7 +3201,6 @@ static int tcp_clean_rtx_queue(struct sock *sk, int prior_fackets,
 
 	while ((skb = tcp_write_queue_head(sk)) && skb != tcp_send_head(sk)) {
 		struct tcp_skb_cb *scb = TCP_SKB_CB(skb);
-		u32 end_seq;
 		u32 acked_pcount;
 		u8 sacked = scb->sacked;
 
@@ -3216,10 +3215,8 @@ static int tcp_clean_rtx_queue(struct sock *sk, int prior_fackets,
 				break;
 
 			fully_acked = 0;
-			end_seq = tp->snd_una;
 		} else {
 			acked_pcount = tcp_skb_pcount(skb);
-			end_seq = scb->end_seq;
 		}
 
 		/* MTU probing checks */
