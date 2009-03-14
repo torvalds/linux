@@ -1348,6 +1348,53 @@ struct v4l2_sliced_vbi_data {
 };
 
 /*
+ * Sliced VBI data inserted into MPEG Streams
+ */
+
+/*
+ * V4L2_MPEG_STREAM_VBI_FMT_IVTV:
+ *
+ * Structure of payload contained in an MPEG 2 Private Stream 1 PES Packet in an
+ * MPEG-2 Program Pack that contains V4L2_MPEG_STREAM_VBI_FMT_IVTV Sliced VBI
+ * data
+ *
+ * Note, the MPEG-2 Program Pack and Private Stream 1 PES packet header
+ * definitions are not included here.  See the MPEG-2 specifications for details
+ * on these headers.
+ */
+
+/* Line type IDs */
+#define V4L2_MPEG_VBI_IVTV_TELETEXT_B     (1)
+#define V4L2_MPEG_VBI_IVTV_CAPTION_525    (4)
+#define V4L2_MPEG_VBI_IVTV_WSS_625        (5)
+#define V4L2_MPEG_VBI_IVTV_VPS            (7)
+
+struct v4l2_mpeg_vbi_itv0_line {
+	__u8 id;	/* One of V4L2_MPEG_VBI_IVTV_* above */
+	__u8 data[42];	/* Sliced VBI data for the line */
+} __attribute__ ((packed));
+
+struct v4l2_mpeg_vbi_itv0 {
+	__le32 linemask[2]; /* Bitmasks of VBI service lines present */
+	struct v4l2_mpeg_vbi_itv0_line line[35];
+} __attribute__ ((packed));
+
+struct v4l2_mpeg_vbi_ITV0 {
+	struct v4l2_mpeg_vbi_itv0_line line[36];
+} __attribute__ ((packed));
+
+#define V4L2_MPEG_VBI_IVTV_MAGIC0	"itv0"
+#define V4L2_MPEG_VBI_IVTV_MAGIC1	"ITV0"
+
+struct v4l2_mpeg_vbi_fmt_ivtv {
+	__u8 magic[4];
+	union {
+		struct v4l2_mpeg_vbi_itv0 itv0;
+		struct v4l2_mpeg_vbi_ITV0 ITV0;
+	};
+} __attribute__ ((packed));
+
+/*
  *	A G G R E G A T E   S T R U C T U R E S
  */
 
