@@ -217,7 +217,7 @@ static int radisys_init_one (struct pci_dev *pdev, const struct pci_device_id *e
 	static const struct ata_port_info info = {
 		.flags		= ATA_FLAG_SLAVE_POSS,
 		.pio_mask	= ATA_PIO4,
-		.mwdma_mask	= ATA_MWDMA2, /* mwdma1-2 */
+		.mwdma_mask	= ATA_MWDMA12_ONLY,
 		.udma_mask	= ATA_UDMA24_ONLY,
 		.port_ops	= &radisys_pata_ops,
 	};
