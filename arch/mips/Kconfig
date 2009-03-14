@@ -238,8 +238,12 @@ config MIPS_SIM
 	  This option enables support for MIPS Technologies MIPSsim software
 	  emulator.
 
-config MACH_EMMA
-	bool "NEC EMMA series based machines"
+config NEC_MARKEINS
+	bool "NEC EMMA2RH Mark-eins board"
+	select SOC_EMMA2RH
+	select HW_HAS_PCI
+	help
+	  This enables support for the NEC Electronics Mark-eins boards.
 
 config MACH_VR41XX
 	bool "NEC VR4100 series based machines"
@@ -637,7 +641,6 @@ endchoice
 
 source "arch/mips/alchemy/Kconfig"
 source "arch/mips/basler/excite/Kconfig"
-source "arch/mips/emma/Kconfig"
 source "arch/mips/jazz/Kconfig"
 source "arch/mips/lasat/Kconfig"
 source "arch/mips/pmc-sierra/Kconfig"
@@ -895,6 +898,18 @@ config MIPS_RM9122
 	bool
 	select SERIAL_RM9000
 
+config SOC_EMMA2RH
+	bool
+	select CEVT_R4K
+	select CSRC_R4K
+	select DMA_NONCOHERENT
+	select IRQ_CPU
+	select SWAP_IO_SPACE
+	select SYS_HAS_CPU_R5500
+	select SYS_SUPPORTS_32BIT_KERNEL
+	select SYS_SUPPORTS_64BIT_KERNEL
+	select SYS_SUPPORTS_BIG_ENDIAN
+
 config SOC_PNX833X
 	bool
 	select CEVT_R4K
@@ -929,11 +944,6 @@ config SOC_PNX8550
 
 config SWAP_IO_SPACE
 	bool
-
-config EMMA2RH
-	bool
-	depends on MARKEINS
-	default y
 
 config SERIAL_RM9000
 	bool
