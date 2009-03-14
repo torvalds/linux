@@ -49,19 +49,26 @@ int v4l2_device_register(struct device *dev, struct v4l2_device *v4l2_dev)
 }
 EXPORT_SYMBOL_GPL(v4l2_device_register);
 
+void v4l2_device_disconnect(struct v4l2_device *v4l2_dev)
+{
+	if (v4l2_dev->dev) {
+		dev_set_drvdata(v4l2_dev->dev, NULL);
+		v4l2_dev->dev = NULL;
+	}
+}
+EXPORT_SYMBOL_GPL(v4l2_device_disconnect);
+
 void v4l2_device_unregister(struct v4l2_device *v4l2_dev)
 {
 	struct v4l2_subdev *sd, *next;
 
 	if (v4l2_dev == NULL)
 		return;
-	if (v4l2_dev->dev)
-		dev_set_drvdata(v4l2_dev->dev, NULL);
+	v4l2_device_disconnect(v4l2_dev);
+
 	/* Unregister subdevs */
 	list_for_each_entry_safe(sd, next, &v4l2_dev->subdevs, list)
 		v4l2_device_unregister_subdev(sd);
-
-	v4l2_dev->dev = NULL;
 }
 EXPORT_SYMBOL_GPL(v4l2_device_unregister);
 

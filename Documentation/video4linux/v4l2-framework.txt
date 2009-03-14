@@ -105,6 +105,17 @@ You unregister with:
 
 Unregistering will also automatically unregister all subdevs from the device.
 
+If you have a hotpluggable device (e.g. a USB device), then when a disconnect
+happens the parent device becomes invalid. Since v4l2_device has a pointer to
+that parent device it has to be cleared as well to mark that the parent is
+gone. To do this call:
+
+	v4l2_device_disconnect(struct v4l2_device *v4l2_dev);
+
+This does *not* unregister the subdevs, so you still need to call the
+v4l2_device_unregister() function for that. If your driver is not hotpluggable,
+then there is no need to call v4l2_device_disconnect().
+
 Sometimes you need to iterate over all devices registered by a specific
 driver. This is usually the case if multiple device drivers use the same
 hardware. E.g. the ivtvfb driver is a framebuffer driver that uses the ivtv

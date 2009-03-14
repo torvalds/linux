@@ -53,7 +53,11 @@ struct v4l2_device {
    dev may be NULL in rare cases (ISA devices). In that case you
    must fill in the v4l2_dev->name field before calling this function. */
 int __must_check v4l2_device_register(struct device *dev, struct v4l2_device *v4l2_dev);
-/* Set v4l2_dev->dev->driver_data to NULL and unregister all sub-devices */
+/* Set v4l2_dev->dev to NULL. Call when the USB parent disconnects.
+   Since the parent disappears this ensures that v4l2_dev doesn't have an
+   invalid parent pointer. */
+void v4l2_device_disconnect(struct v4l2_device *v4l2_dev);
+/* Unregister all sub-devices and any other resources related to v4l2_dev. */
 void v4l2_device_unregister(struct v4l2_device *v4l2_dev);
 
 /* Register a subdev with a v4l2 device. While registered the subdev module
