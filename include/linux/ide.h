@@ -797,6 +797,7 @@ typedef struct hwif_s {
 	struct scatterlist *sg_table;
 	int sg_max_nents;		/* Maximum number of entries in it */
 	int sg_nents;			/* Current number of entries in it */
+	int orig_sg_nents;
 	int sg_dma_direction;		/* dma transfer direction */
 
 	/* data phase of the active command (currently only valid for PIO/DMA) */
