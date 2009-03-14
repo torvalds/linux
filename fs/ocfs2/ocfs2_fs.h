@@ -1070,12 +1070,6 @@ static inline int ocfs2_fast_symlink_chars(struct super_block *sb)
 		 offsetof(struct ocfs2_dinode, id2.i_symlink);
 }
 
-static inline int ocfs2_max_inline_data(struct super_block *sb)
-{
-	return sb->s_blocksize -
-		offsetof(struct ocfs2_dinode, id2.i_data.id_data);
-}
-
 static inline int ocfs2_max_inline_data_with_xattr(struct super_block *sb,
 						   struct ocfs2_dinode *di)
 {
