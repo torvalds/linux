@@ -86,11 +86,11 @@ void __init setup_bios_corruption_check(void)
 		if (!(addr + 1))
 			break;
 
+		if (addr >= corruption_check_size)
+			break;
+
 		if ((addr + size) > corruption_check_size)
 			size = corruption_check_size - addr;
-
-		if (size == 0)
-			break;
 
 		e820_update_range(addr, size, E820_RAM, E820_RESERVED);
 		scan_areas[num_scan_areas].addr = addr;
