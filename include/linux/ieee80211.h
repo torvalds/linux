@@ -18,6 +18,22 @@
 #include <linux/types.h>
 #include <asm/byteorder.h>
 
+/*
+ * DS bit usage
+ *
+ * TA = transmitter address
+ * RA = receiver address
+ * DA = destination address
+ * SA = source address
+ *
+ * ToDS    FromDS  A1(RA)  A2(TA)  A3      A4      Use
+ * -----------------------------------------------------------------
+ *  0       0       DA      SA      BSSID   -       IBSS/DLS
+ *  0       1       DA      BSSID   SA      -       AP -> STA
+ *  1       0       BSSID   SA      DA      -       AP <- STA
+ *  1       1       RA      TA      DA      SA      unspecified (WDS)
+ */
+
 #define FCS_LEN 4
 
 #define IEEE80211_FCTL_VERS		0x0003
