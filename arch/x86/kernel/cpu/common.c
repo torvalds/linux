@@ -1,52 +1,52 @@
-#include <linux/init.h>
-#include <linux/kernel.h>
-#include <linux/sched.h>
-#include <linux/string.h>
-#include <linux/bootmem.h>
-#include <linux/bitops.h>
-#include <linux/module.h>
-#include <linux/kgdb.h>
 #include <linux/topology.h>
-#include <linux/delay.h>
-#include <linux/smp.h>
+#include <linux/bootmem.h>
+#include <linux/linkage.h>
+#include <linux/bitops.h>
+#include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/percpu.h>
-#include <asm/i387.h>
-#include <asm/msr.h>
-#include <asm/io.h>
-#include <asm/linkage.h>
+#include <linux/string.h>
+#include <linux/delay.h>
+#include <linux/sched.h>
+#include <linux/init.h>
+#include <linux/kgdb.h>
+#include <linux/smp.h>
+#include <linux/io.h>
+
+#include <asm/stackprotector.h>
 #include <asm/mmu_context.h>
-#include <asm/mtrr.h>
-#include <asm/mce.h>
-#include <asm/pat.h>
-#include <asm/asm.h>
-#include <asm/numa.h>
-#include <asm/smp.h>
-#include <asm/cpu.h>
+#include <asm/hypervisor.h>
+#include <asm/processor.h>
+#include <asm/sections.h>
 #include <asm/cpumask.h>
+#include <asm/pgtable.h>
+#include <asm/atomic.h>
+#include <asm/proto.h>
+#include <asm/setup.h>
 #include <asm/apic.h>
+#include <asm/desc.h>
+#include <asm/i387.h>
+#include <asm/mtrr.h>
+#include <asm/numa.h>
+#include <asm/asm.h>
+#include <asm/cpu.h>
+#include <asm/mce.h>
+#include <asm/msr.h>
+#include <asm/pat.h>
+#include <asm/smp.h>
 
 #ifdef CONFIG_X86_LOCAL_APIC
 #include <asm/uv/uv.h>
 #endif
-
-#include <asm/pgtable.h>
-#include <asm/processor.h>
-#include <asm/desc.h>
-#include <asm/atomic.h>
-#include <asm/proto.h>
-#include <asm/sections.h>
-#include <asm/setup.h>
-#include <asm/hypervisor.h>
-#include <asm/stackprotector.h>
 
 #include "cpu.h"
 
 #ifdef CONFIG_X86_64
 
 /* all of these masks are initialized in setup_cpu_local_masks() */
-cpumask_var_t cpu_callin_mask;
-cpumask_var_t cpu_callout_mask;
 cpumask_var_t cpu_initialized_mask;
+cpumask_var_t cpu_callout_mask;
+cpumask_var_t cpu_callin_mask;
 
 /* representing cpus for which sibling maps can be computed */
 cpumask_var_t cpu_sibling_setup_mask;
@@ -62,10 +62,10 @@ void __init setup_cpu_local_masks(void)
 
 #else /* CONFIG_X86_32 */
 
-cpumask_t cpu_callin_map;
+cpumask_t cpu_sibling_setup_map;
 cpumask_t cpu_callout_map;
 cpumask_t cpu_initialized;
-cpumask_t cpu_sibling_setup_map;
+cpumask_t cpu_callin_map;
 
 #endif /* CONFIG_X86_32 */
 
@@ -79,7 +79,7 @@ DEFINE_PER_CPU_PAGE_ALIGNED(struct gdt_page, gdt_page) = { .gdt = {
 	 * IRET will check the segment types  kkeil 2000/10/28
 	 * Also sysret mandates a special GDT layout
 	 *
-	 * The TLS descriptors are currently at a different place compared to i386.
+	 * TLS descriptors are currently at a different place compared to i386.
 	 * Hopefully nobody expects them at a fixed place (Wine?)
 	 */
 	[GDT_ENTRY_KERNEL32_CS] = { { { 0x0000ffff, 0x00cf9b00 } } },
@@ -243,6 +243,7 @@ cpuid_dependent_features[] = {
 static void __cpuinit filter_cpuid_features(struct cpuinfo_x86 *c, bool warn)
 {
 	const struct cpuid_dependent_feature *df;
+
 	for (df = cpuid_dependent_features; df->feature; df++) {
 		/*
 		 * Note: cpuid_level is set to -1 if unavailable, but
@@ -364,12 +365,12 @@ static void __cpuinit get_model_name(struct cpuinfo_x86 *c)
 	   undo that brain damage */
 	p = q = &c->x86_model_id[0];
 	while (*p == ' ')
-	     p++;
+		p++;
 	if (p != q) {
-	     while (*p)
-		  *q++ = *p++;
-	     while (q <= &c->x86_model_id[48])
-		  *q++ = '\0';	/* Zero-pad the rest */
+		while (*p)
+			*q++ = *p++;
+		while (q <= &c->x86_model_id[48])
+			*q++ = '\0';	/* Zero-pad the rest */
 	}
 }
 
@@ -441,14 +442,15 @@ void __cpuinit detect_ht(struct cpuinfo_x86 *c)
 	} else if (smp_num_siblings > 1) {
 
 		if (smp_num_siblings > nr_cpu_ids) {
-			printk(KERN_WARNING "CPU: Unsupported number of siblings %d",
-					smp_num_siblings);
+			pr_warning("CPU: Unsupported number of siblings %d",
+				   smp_num_siblings);
 			smp_num_siblings = 1;
 			return;
 		}
 
 		index_msb = get_count_order(smp_num_siblings);
-		c->phys_proc_id = apic->phys_pkg_id(c->initial_apicid, index_msb);
+		c->phys_proc_id = apic->phys_pkg_id(c->initial_apicid,
+						    index_msb);
 
 		smp_num_siblings = smp_num_siblings / c->x86_max_cores;
 
@@ -491,7 +493,8 @@ static void __cpuinit get_cpu_vendor(struct cpuinfo_x86 *c)
 
 	if (!printed) {
 		printed++;
-		printk(KERN_ERR "CPU: vendor_id '%s' unknown, using generic init.\n", v);
+		printk(KERN_ERR "CPU: vendor_id '%s'"
+			"unknown, using generic init.\n", v);
 		printk(KERN_ERR "CPU: Your system may be unstable.\n");
 	}
 
@@ -637,7 +640,7 @@ void __init early_cpu_init(void)
 	struct cpu_dev **cdev;
 	int count = 0;
 
-	printk("KERNEL supported cpus:\n");
+	printk(KERN_INFO "KERNEL supported cpus:\n");
 	for (cdev = __x86_cpu_dev_start; cdev < __x86_cpu_dev_end; cdev++) {
 		struct cpu_dev *cpudev = *cdev;
 		unsigned int j;
@@ -650,7 +653,7 @@ void __init early_cpu_init(void)
 		for (j = 0; j < 2; j++) {
 			if (!cpudev->c_ident[j])
 				continue;
-			printk("  %s %s\n", cpudev->c_vendor,
+			printk(KERN_INFO "  %s %s\n", cpudev->c_vendor,
 				cpudev->c_ident[j]);
 		}
 	}
@@ -952,8 +955,6 @@ static DEFINE_PER_CPU_PAGE_ALIGNED(char, exception_stacks
 	[(N_EXCEPTION_STACKS - 1) * EXCEPTION_STKSZ + DEBUG_STKSZ])
 	__aligned(PAGE_SIZE);
 
-extern asmlinkage void ignore_sysret(void);
-
 /* May not be marked __init: used by software suspend */
 void syscall_init(void)
 {
@@ -998,6 +999,22 @@ struct pt_regs * __cpuinit idle_regs(struct pt_regs *regs)
 	return regs;
 }
 #endif	/* x86_64 */
+
+/*
+ * Clear all 6 debug registers:
+ */
+static void clear_all_debug_regs(void)
+{
+	int i;
+
+	for (i = 0; i < 8; i++) {
+		/* Ignore db4, db5 */
+		if ((i == 4) || (i == 5))
+			continue;
+
+		set_debugreg(0, i);
+	}
+}
 
 /*
  * cpu_init() initializes state that is per-CPU. Some data is already
@@ -1098,17 +1115,7 @@ void __cpuinit cpu_init(void)
 		arch_kgdb_ops.correct_hw_break();
 	else
 #endif
-	{
-		/*
-		 * Clear all 6 debug registers:
-		 */
-		set_debugreg(0UL, 0);
-		set_debugreg(0UL, 1);
-		set_debugreg(0UL, 2);
-		set_debugreg(0UL, 3);
-		set_debugreg(0UL, 6);
-		set_debugreg(0UL, 7);
-	}
+		clear_all_debug_regs();
 
 	fpu_init();
 
@@ -1129,7 +1136,8 @@ void __cpuinit cpu_init(void)
 
 	if (cpumask_test_and_set_cpu(cpu, cpu_initialized_mask)) {
 		printk(KERN_WARNING "CPU#%d already initialized!\n", cpu);
-		for (;;) local_irq_enable();
+		for (;;)
+			local_irq_enable();
 	}
 
 	printk(KERN_INFO "Initializing CPU#%d\n", cpu);
@@ -1159,13 +1167,7 @@ void __cpuinit cpu_init(void)
 	__set_tss_desc(cpu, GDT_ENTRY_DOUBLEFAULT_TSS, &doublefault_tss);
 #endif
 
-	/* Clear all 6 debug registers: */
-	set_debugreg(0, 0);
-	set_debugreg(0, 1);
-	set_debugreg(0, 2);
-	set_debugreg(0, 3);
-	set_debugreg(0, 6);
-	set_debugreg(0, 7);
+	clear_all_debug_regs();
 
 	/*
 	 * Force FPU initialization:
@@ -1185,6 +1187,5 @@ void __cpuinit cpu_init(void)
 
 	xsave_init();
 }
-
 
 #endif
