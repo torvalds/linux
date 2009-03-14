@@ -1196,7 +1196,7 @@ zoran_setup_videocodec (struct zoran *zr,
 	return m;
 }
 
-static int zoran_subdev_notify(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
+static void zoran_subdev_notify(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 {
 	struct zoran *zr = to_zoran(sd->v4l2_dev);
 
@@ -1206,7 +1206,6 @@ static int zoran_subdev_notify(struct v4l2_subdev *sd, unsigned int cmd, void *a
 		GPIO(zr, 7, 0);
 	else if (cmd == BT819_FIFO_RESET_HIGH)
 		GPIO(zr, 7, 1);
-	return 0;
 }
 
 /*
