@@ -108,6 +108,8 @@ enum {
 	ATA_PIO5		= ATA_PIO4 | (1 << 5),
 	ATA_PIO6		= ATA_PIO5 | (1 << 6),
 
+	ATA_PIO4_ONLY		= (1 << 4),
+
 	ATA_SWDMA0		= (1 << 0),
 	ATA_SWDMA1		= ATA_SWDMA0 | (1 << 1),
 	ATA_SWDMA2		= ATA_SWDMA1 | (1 << 2),
@@ -117,6 +119,8 @@ enum {
 	ATA_MWDMA0		= (1 << 0),
 	ATA_MWDMA1		= ATA_MWDMA0 | (1 << 1),
 	ATA_MWDMA2		= ATA_MWDMA1 | (1 << 2),
+	ATA_MWDMA3		= ATA_MWDMA2 | (1 << 3),
+	ATA_MWDMA4		= ATA_MWDMA3 | (1 << 4),
 
 	ATA_MWDMA12_ONLY	= (1 << 1) | (1 << 2),
 	ATA_MWDMA2_ONLY		= (1 << 2),
@@ -130,6 +134,8 @@ enum {
 	ATA_UDMA6		= ATA_UDMA5 | (1 << 6),
 	ATA_UDMA7		= ATA_UDMA6 | (1 << 7),
 	/* ATA_UDMA7 is just for completeness... doesn't exist (yet?).  */
+
+	ATA_UDMA24_ONLY		= (1 << 2) | (1 << 4),
 
 	ATA_UDMA_MASK_40C	= ATA_UDMA2,	/* udma0-2 */
 
