@@ -46,7 +46,8 @@
  * - define CONFIG_HAVE_DYNAMIC_PER_CPU_AREA
  *
  * - define __addr_to_pcpu_ptr() and __pcpu_ptr_to_addr() to translate
- *   regular address to percpu pointer and back
+ *   regular address to percpu pointer and back if they need to be
+ *   different from the default
  *
  * - use pcpu_setup_first_chunk() during percpu area initialization to
  *   setup the first chunk containing the kernel static percpu area
@@ -67,10 +68,23 @@
 #include <linux/workqueue.h>
 
 #include <asm/cacheflush.h>
+#include <asm/sections.h>
 #include <asm/tlbflush.h>
 
 #define PCPU_SLOT_BASE_SHIFT		5	/* 1-31 shares the same slot */
 #define PCPU_DFL_MAP_ALLOC		16	/* start a map with 16 ents */
+
+/* default addr <-> pcpu_ptr mapping, override in asm/percpu.h if necessary */
+#ifndef __addr_to_pcpu_ptr
+#define __addr_to_pcpu_ptr(addr)					\
+	(void *)((unsigned long)(addr) - (unsigned long)pcpu_base_addr	\
+		 + (unsigned long)__per_cpu_start)
+#endif
+#ifndef __pcpu_ptr_to_addr
+#define __pcpu_ptr_to_addr(ptr)						\
+	(void *)((unsigned long)(ptr) + (unsigned long)pcpu_base_addr	\
+		 - (unsigned long)__per_cpu_start)
+#endif
 
 struct pcpu_chunk {
 	struct list_head	list;		/* linked to pcpu_slot lists */
@@ -1013,8 +1027,8 @@ EXPORT_SYMBOL_GPL(free_percpu);
  * @get_page_fn: callback to fetch page pointer
  * @static_size: the size of static percpu area in bytes
  * @reserved_size: the size of reserved percpu area in bytes
- * @unit_size: unit size in bytes, must be multiple of PAGE_SIZE, -1 for auto
  * @dyn_size: free size for dynamic allocation in bytes, -1 for auto
+ * @unit_size: unit size in bytes, must be multiple of PAGE_SIZE, -1 for auto
  * @base_addr: mapped address, NULL for auto
  * @populate_pte_fn: callback to allocate pagetable, NULL if unnecessary
  *
@@ -1039,14 +1053,14 @@ EXPORT_SYMBOL_GPL(free_percpu);
  * limited offset range for symbol relocations to guarantee module
  * percpu symbols fall inside the relocatable range.
  *
+ * @dyn_size, if non-negative, determines the number of bytes
+ * available for dynamic allocation in the first chunk.  Specifying
+ * non-negative value makes percpu leave alone the area beyond
+ * @static_size + @reserved_size + @dyn_size.
+ *
  * @unit_size, if non-negative, specifies unit size and must be
  * aligned to PAGE_SIZE and equal to or larger than @static_size +
- * @reserved_size + @dyn_size.
- *
- * @dyn_size, if non-negative, limits the number of bytes available
- * for dynamic allocation in the first chunk.  Specifying non-negative
- * value make percpu leave alone the area beyond @static_size +
- * @reserved_size + @dyn_size.
+ * @reserved_size + if non-negative, @dyn_size.
  *
  * Non-null @base_addr means that the caller already allocated virtual
  * region for the first chunk and mapped it.  percpu must not mess
@@ -1069,12 +1083,14 @@ EXPORT_SYMBOL_GPL(free_percpu);
  */
 size_t __init pcpu_setup_first_chunk(pcpu_get_page_fn_t get_page_fn,
 				     size_t static_size, size_t reserved_size,
-				     ssize_t unit_size, ssize_t dyn_size,
+				     ssize_t dyn_size, ssize_t unit_size,
 				     void *base_addr,
 				     pcpu_populate_pte_fn_t populate_pte_fn)
 {
 	static struct vm_struct first_vm;
 	static int smap[2], dmap[2];
+	size_t size_sum = static_size + reserved_size +
+			  (dyn_size >= 0 ? dyn_size : 0);
 	struct pcpu_chunk *schunk, *dchunk = NULL;
 	unsigned int cpu;
 	int nr_pages;
@@ -1085,20 +1101,18 @@ size_t __init pcpu_setup_first_chunk(pcpu_get_page_fn_t get_page_fn,
 		     ARRAY_SIZE(dmap) >= PCPU_DFL_MAP_ALLOC);
 	BUG_ON(!static_size);
 	if (unit_size >= 0) {
-		BUG_ON(unit_size < static_size + reserved_size +
-				   (dyn_size >= 0 ? dyn_size : 0));
+		BUG_ON(unit_size < size_sum);
 		BUG_ON(unit_size & ~PAGE_MASK);
-	} else {
-		BUG_ON(dyn_size >= 0);
+		BUG_ON(unit_size < PCPU_MIN_UNIT_SIZE);
+	} else
 		BUG_ON(base_addr);
-	}
 	BUG_ON(base_addr && populate_pte_fn);
 
 	if (unit_size >= 0)
 		pcpu_unit_pages = unit_size >> PAGE_SHIFT;
 	else
 		pcpu_unit_pages = max_t(int, PCPU_MIN_UNIT_SIZE >> PAGE_SHIFT,
-					PFN_UP(static_size + reserved_size));
+					PFN_UP(size_sum));
 
 	pcpu_unit_size = pcpu_unit_pages << PAGE_SHIFT;
 	pcpu_chunk_size = num_possible_cpus() * pcpu_unit_size;
@@ -1223,4 +1237,90 @@ size_t __init pcpu_setup_first_chunk(pcpu_get_page_fn_t get_page_fn,
 	/* we're done */
 	pcpu_base_addr = (void *)pcpu_chunk_addr(schunk, 0, 0);
 	return pcpu_unit_size;
+}
+
+/*
+ * Embedding first chunk setup helper.
+ */
+static void *pcpue_ptr __initdata;
+static size_t pcpue_size __initdata;
+static size_t pcpue_unit_size __initdata;
+
+static struct page * __init pcpue_get_page(unsigned int cpu, int pageno)
+{
+	size_t off = (size_t)pageno << PAGE_SHIFT;
+
+	if (off >= pcpue_size)
+		return NULL;
+
+	return virt_to_page(pcpue_ptr + cpu * pcpue_unit_size + off);
+}
+
+/**
+ * pcpu_embed_first_chunk - embed the first percpu chunk into bootmem
+ * @static_size: the size of static percpu area in bytes
+ * @reserved_size: the size of reserved percpu area in bytes
+ * @dyn_size: free size for dynamic allocation in bytes, -1 for auto
+ * @unit_size: unit size in bytes, must be multiple of PAGE_SIZE, -1 for auto
+ *
+ * This is a helper to ease setting up embedded first percpu chunk and
+ * can be called where pcpu_setup_first_chunk() is expected.
+ *
+ * If this function is used to setup the first chunk, it is allocated
+ * as a contiguous area using bootmem allocator and used as-is without
+ * being mapped into vmalloc area.  This enables the first chunk to
+ * piggy back on the linear physical mapping which often uses larger
+ * page size.
+ *
+ * When @dyn_size is positive, dynamic area might be larger than
+ * specified to fill page alignment.  Also, when @dyn_size is auto,
+ * @dyn_size does not fill the whole first chunk but only what's
+ * necessary for page alignment after static and reserved areas.
+ *
+ * If the needed size is smaller than the minimum or specified unit
+ * size, the leftover is returned to the bootmem allocator.
+ *
+ * RETURNS:
+ * The determined pcpu_unit_size which can be used to initialize
+ * percpu access on success, -errno on failure.
+ */
+ssize_t __init pcpu_embed_first_chunk(size_t static_size, size_t reserved_size,
+				      ssize_t dyn_size, ssize_t unit_size)
+{
+	unsigned int cpu;
+
+	/* determine parameters and allocate */
+	pcpue_size = PFN_ALIGN(static_size + reserved_size +
+			       (dyn_size >= 0 ? dyn_size : 0));
+	if (dyn_size != 0)
+		dyn_size = pcpue_size - static_size - reserved_size;
+
+	if (unit_size >= 0) {
+		BUG_ON(unit_size < pcpue_size);
+		pcpue_unit_size = unit_size;
+	} else
+		pcpue_unit_size = max_t(size_t, pcpue_size, PCPU_MIN_UNIT_SIZE);
+
+	pcpue_ptr = __alloc_bootmem_nopanic(
+					num_possible_cpus() * pcpue_unit_size,
+					PAGE_SIZE, __pa(MAX_DMA_ADDRESS));
+	if (!pcpue_ptr)
+		return -ENOMEM;
+
+	/* return the leftover and copy */
+	for_each_possible_cpu(cpu) {
+		void *ptr = pcpue_ptr + cpu * pcpue_unit_size;
+
+		free_bootmem(__pa(ptr + pcpue_size),
+			     pcpue_unit_size - pcpue_size);
+		memcpy(ptr, __per_cpu_load, static_size);
+	}
+
+	/* we're ready, commit */
+	pr_info("PERCPU: Embedded %zu pages at %p, static data %zu bytes\n",
+		pcpue_size >> PAGE_SHIFT, pcpue_ptr, static_size);
+
+	return pcpu_setup_first_chunk(pcpue_get_page, static_size,
+				      reserved_size, dyn_size,
+				      pcpue_unit_size, pcpue_ptr, NULL);
 }
