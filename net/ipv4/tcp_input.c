@@ -4248,8 +4248,7 @@ static void tcp_sack_remove(struct tcp_sock *tp)
 		this_sack++;
 		sp++;
 	}
-	if (num_sacks != tp->rx_opt.num_sacks)
-		tp->rx_opt.num_sacks = num_sacks;
+	tp->rx_opt.num_sacks = num_sacks;
 }
 
 /* This one checks to see if we can put data from the
@@ -4325,8 +4324,7 @@ static void tcp_data_queue(struct sock *sk, struct sk_buff *skb)
 
 	TCP_ECN_accept_cwr(tp, skb);
 
-	if (tp->rx_opt.dsack)
-		tp->rx_opt.dsack = 0;
+	tp->rx_opt.dsack = 0;
 
 	/*  Queue data for delivery to the user.
 	 *  Packets in sequence go to the receive queue.
@@ -4445,7 +4443,6 @@ drop:
 		/* Initial out of order segment, build 1 SACK. */
 		if (tcp_is_sack(tp)) {
 			tp->rx_opt.num_sacks = 1;
-			tp->rx_opt.dsack     = 0;
 			tp->selective_acks[0].start_seq = TCP_SKB_CB(skb)->seq;
 			tp->selective_acks[0].end_seq =
 						TCP_SKB_CB(skb)->end_seq;

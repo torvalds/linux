@@ -441,8 +441,7 @@ static void tcp_options_write(__be32 *ptr, struct tcp_sock *tp,
 			*ptr++ = htonl(sp[this_sack].end_seq);
 		}
 
-		if (tp->rx_opt.dsack)
-			tp->rx_opt.dsack = 0;
+		tp->rx_opt.dsack = 0;
 	}
 }
 
