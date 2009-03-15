@@ -37,7 +37,7 @@
 #include <linux/delay.h>
 #include <media/v4l2-common.h>
 #include <media/v4l2-chip-ident.h>
-#include <media/v4l2-i2c-drv-legacy.h>
+#include <media/v4l2-i2c-drv.h>
 #include <media/v4l2-device.h>
 #include "au8522.h"
 #include "au8522_priv.h"
@@ -725,11 +725,6 @@ static int au8522_log_status(struct v4l2_subdev *sd)
 	return 0;
 }
 
-static int au8522_command(struct i2c_client *client, unsigned cmd, void *arg)
-{
-	return v4l2_subdev_command(i2c_get_clientdata(client), cmd, arg);
-}
-
 /* ----------------------------------------------------------------------- */
 
 static const struct v4l2_subdev_core_ops au8522_core_ops = {
@@ -838,7 +833,6 @@ MODULE_DEVICE_TABLE(i2c, au8522_id);
 static struct v4l2_i2c_driver_data v4l2_i2c_data = {
 	.name = "au8522",
 	.driverid = I2C_DRIVERID_AU8522,
-	.command = au8522_command,
 	.probe = au8522_probe,
 	.remove = au8522_remove,
 	.id_table = au8522_id,
