@@ -950,6 +950,8 @@ static int __devinit snd_echo_new_pcm(struct echoaudio *chip)
 	Control interface
 ******************************************************************************/
 
+#ifndef ECHOCARD_HAS_VMIXER
+
 /******************* PCM output volume *******************/
 static int snd_echo_output_gain_info(struct snd_kcontrol *kcontrol,
 				     struct snd_ctl_elem_info *uinfo)
@@ -1001,18 +1003,6 @@ static int snd_echo_output_gain_put(struct snd_kcontrol *kcontrol,
 	return changed;
 }
 
-#ifdef ECHOCARD_HAS_VMIXER
-/* On Vmixer cards this one controls the line-out volume */
-static struct snd_kcontrol_new snd_echo_line_output_gain __devinitdata = {
-	.name = "Line Playback Volume",
-	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-	.access = SNDRV_CTL_ELEM_ACCESS_READWRITE | SNDRV_CTL_ELEM_ACCESS_TLV_READ,
-	.info = snd_echo_output_gain_info,
-	.get = snd_echo_output_gain_get,
-	.put = snd_echo_output_gain_put,
-	.tlv = {.p = db_scale_output_gain},
-};
-#else
 static struct snd_kcontrol_new snd_echo_pcm_output_gain __devinitdata = {
 	.name = "PCM Playback Volume",
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
@@ -1022,6 +1012,7 @@ static struct snd_kcontrol_new snd_echo_pcm_output_gain __devinitdata = {
 	.put = snd_echo_output_gain_put,
 	.tlv = {.p = db_scale_output_gain},
 };
+
 #endif
 
 
@@ -2037,8 +2028,6 @@ static int __devinit snd_echo_probe(struct pci_dev *pci,
 
 #ifdef ECHOCARD_HAS_VMIXER
 	snd_echo_vmixer.count = num_pipes_out(chip) * num_busses_out(chip);
-	if ((err = snd_ctl_add(chip->card, snd_ctl_new1(&snd_echo_line_output_gain, chip))) < 0)
-		goto ctl_error;
 	if ((err = snd_ctl_add(chip->card, snd_ctl_new1(&snd_echo_vmixer, chip))) < 0)
 		goto ctl_error;
 #else
