@@ -38,6 +38,7 @@
 #include "pvrusb2-wm8775.h"
 #include "pvrusb2-video-v4l.h"
 #include "pvrusb2-cx2584x-v4l.h"
+#include "pvrusb2-cs53l32a.h"
 #include "pvrusb2-audio.h"
 
 #define TV_MIN_FREQ     55250000L
@@ -116,6 +117,7 @@ static const pvr2_subdev_update_func pvr2_module_update_functions[] = {
 	[PVR2_CLIENT_ID_SAA7115] = pvr2_saa7115_subdev_update,
 	[PVR2_CLIENT_ID_MSP3400] = pvr2_msp3400_subdev_update,
 	[PVR2_CLIENT_ID_CX25840] = pvr2_cx25840_subdev_update,
+	[PVR2_CLIENT_ID_CS53L32A] = pvr2_cs53l32a_subdev_update,
 };
 
 static const char *module_names[] = {

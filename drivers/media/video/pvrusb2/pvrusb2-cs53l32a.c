@@ -22,20 +22,17 @@
 /*
 
    This source file is specifically designed to interface with the
-   saa711x support that is available in the v4l available starting
-   with linux 2.6.15.
+   v4l-dvb cs53l32a module.
 
 */
 
-#include "pvrusb2-video-v4l.h"
-
+#include "pvrusb2-cs53l32a.h"
 
 
 #include "pvrusb2-hdw-internal.h"
 #include "pvrusb2-debug.h"
 #include <linux/videodev2.h>
 #include <media/v4l2-common.h>
-#include <media/saa7115.h>
 #include <linux/errno.h>
 #include <linux/slab.h>
 
@@ -45,34 +42,22 @@ struct routing_scheme {
 };
 
 
-static const int routing_scheme0[] = {
-	[PVR2_CVAL_INPUT_TV] = SAA7115_COMPOSITE4,
-	/* In radio mode, we mute the video, but point at one
-	   spot just to stay consistent */
-	[PVR2_CVAL_INPUT_RADIO] = SAA7115_COMPOSITE5,
-	[PVR2_CVAL_INPUT_COMPOSITE] = SAA7115_COMPOSITE5,
-	[PVR2_CVAL_INPUT_SVIDEO] =  SAA7115_SVIDEO2,
-};
-
 static const int routing_scheme1[] = {
-	[PVR2_CVAL_INPUT_TV] = SAA7115_COMPOSITE4,
-	[PVR2_CVAL_INPUT_RADIO] = SAA7115_COMPOSITE5,
-	[PVR2_CVAL_INPUT_COMPOSITE] = SAA7115_COMPOSITE3,
-	[PVR2_CVAL_INPUT_SVIDEO] =  SAA7115_SVIDEO2, /* or SVIDEO0, it seems */
+	[PVR2_CVAL_INPUT_TV] = 2,  /* 1 or 2 seems to work here */
+	[PVR2_CVAL_INPUT_RADIO] = 2,
+	[PVR2_CVAL_INPUT_COMPOSITE] = 0,
+	[PVR2_CVAL_INPUT_SVIDEO] =  0,
 };
 
 static const struct routing_scheme routing_schemes[] = {
-	[PVR2_ROUTING_SCHEME_HAUPPAUGE] = {
-		.def = routing_scheme0,
-		.cnt = ARRAY_SIZE(routing_scheme0),
-	},
 	[PVR2_ROUTING_SCHEME_ONAIR] = {
 		.def = routing_scheme1,
 		.cnt = ARRAY_SIZE(routing_scheme1),
 	},
 };
 
-void pvr2_saa7115_subdev_update(struct pvr2_hdw *hdw, struct v4l2_subdev *sd)
+
+void pvr2_cs53l32a_subdev_update(struct pvr2_hdw *hdw, struct v4l2_subdev *sd)
 {
 	if (hdw->input_dirty || hdw->force_dirty) {
 		struct v4l2_routing route;
@@ -94,7 +79,7 @@ void pvr2_saa7115_subdev_update(struct pvr2_hdw *hdw, struct v4l2_subdev *sd)
 			return;
 		}
 		route.output = 0;
-		sd->ops->video->s_routing(sd, &route);
+		sd->ops->audio->s_routing(sd, &route);
 	}
 }
 
