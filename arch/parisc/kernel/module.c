@@ -115,8 +115,6 @@ struct got_entry {
 	Elf32_Addr addr;
 };
 
-#define Elf_Fdesc	Elf32_Fdesc
-
 struct stub_entry {
 	Elf32_Word insns[2]; /* each stub entry has two insns */
 };
@@ -124,8 +122,6 @@ struct stub_entry {
 struct got_entry {
 	Elf64_Addr addr;
 };
-
-#define Elf_Fdesc	Elf64_Fdesc
 
 struct stub_entry {
 	Elf64_Word insns[4]; /* each stub entry has four insns */
