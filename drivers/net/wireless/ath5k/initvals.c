@@ -1510,8 +1510,8 @@ int ath5k_hw_write_initvals(struct ath5k_hw *ah, u8 mode, bool change_channel)
 					rf2425_ini_mode_end, mode);
 
 			ath5k_hw_ini_registers(ah,
-					ARRAY_SIZE(rf2413_ini_common_end),
-					rf2413_ini_common_end, change_channel);
+					ARRAY_SIZE(rf2425_ini_common_end),
+					rf2425_ini_common_end, change_channel);
 
 			ath5k_hw_ini_registers(ah,
 					ARRAY_SIZE(rf5112_ini_bbgain),
