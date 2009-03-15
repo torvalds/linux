@@ -93,17 +93,7 @@ enum ipaq_egpio_type {
 	IPAQ_EGPIO_LCD_ENABLE,	  /* Enable/disable LCD controller */
 };
 
-struct ipaq_model_ops {
-	void	      (*control)(enum ipaq_egpio_type, int);
-};
-
-extern struct ipaq_model_ops ipaq_model_ops;
-
-static __inline__ void assign_h3600_egpio(enum ipaq_egpio_type x, int level)
-{
-	if (ipaq_model_ops.control)
-		ipaq_model_ops.control(x,level);
-}
+extern void (*assign_h3600_egpio)(enum ipaq_egpio_type x, int level);
 
 #endif /* ASSEMBLY */
 

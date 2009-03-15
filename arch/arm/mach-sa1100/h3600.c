@@ -46,8 +46,8 @@
 
 #include "generic.h"
 
-struct ipaq_model_ops ipaq_model_ops;
-EXPORT_SYMBOL(ipaq_model_ops);
+void (*assign_h3600_egpio)(enum ipaq_egpio_type x, int level);
+EXPORT_SYMBOL(assign_h3600_egpio);
 
 static struct mtd_partition h3xxx_partitions[] = {
 	{
@@ -293,10 +293,6 @@ static void h3100_control_egpio(enum ipaq_egpio_type x, int setp)
 	}
 }
 
-static struct ipaq_model_ops h3100_model_ops __initdata = {
-	.control	= h3100_control_egpio,
-};
-
 #define H3100_DIRECT_EGPIO (GPIO_H3100_BT_ON	  \
 			  | GPIO_H3100_GPIO3	  \
 			  | GPIO_H3100_QMUTE	  \
@@ -322,7 +318,7 @@ static void __init h3100_map_io(void)
 	GAFR &= ~H3100_DIRECT_EGPIO;
 
 	H3100_EGPIO = h3100_egpio;
-	ipaq_model_ops = h3100_model_ops;
+	assign_h3600_egpio = h3100_control_egpio;
 }
 
 MACHINE_START(H3100, "Compaq iPAQ H3100")
@@ -405,10 +401,6 @@ static void h3600_control_egpio(enum ipaq_egpio_type x, int setp)
 	}
 }
 
-static struct ipaq_model_ops h3600_model_ops __initdata = {
-	.control	= h3600_control_egpio,
-};
-
 static void __init h3600_map_io(void)
 {
 	h3xxx_map_io();
@@ -423,7 +415,7 @@ static void __init h3600_map_io(void)
 	       GPIO_LDD11 | GPIO_LDD10 | GPIO_LDD9  | GPIO_LDD8;
 
 	H3600_EGPIO = h3600_egpio;	   /* Maintains across sleep? */
-	ipaq_model_ops = h3600_model_ops;
+	assign_h3600_egpio = h3600_control_egpio;
 }
 
 MACHINE_START(H3600, "Compaq iPAQ H3600")
