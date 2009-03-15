@@ -664,29 +664,35 @@ static void ath5k_hw_commit_eeprom_settings(struct ath5k_hw *ah,
 		struct ieee80211_channel *channel, u8 *ant, u8 ee_mode)
 {
 	struct ath5k_eeprom_info *ee = &ah->ah_capabilities.cap_eeprom;
+	s16 cck_ofdm_pwr_delta;
 
-	/* Set CCK to OFDM power delta */
+	/* Adjust power delta for channel 14 */
+	if (channel->center_freq == 2484)
+		cck_ofdm_pwr_delta =
+			((ee->ee_cck_ofdm_power_delta -
+			ee->ee_scaled_cck_delta) * 2) / 10;
+	else
+		cck_ofdm_pwr_delta =
+			(ee->ee_cck_ofdm_power_delta * 2) / 10;
+
+	/* Set CCK to OFDM power delta on tx power
+	 * adjustment register */
 	if (ah->ah_phy_revision >= AR5K_SREV_PHY_5212A) {
-		int16_t cck_ofdm_pwr_delta;
-
-		/* Adjust power delta for channel 14 */
-		if (channel->center_freq == 2484)
-			cck_ofdm_pwr_delta =
-				((ee->ee_cck_ofdm_power_delta -
-				ee->ee_scaled_cck_delta) * 2) / 10;
-		else
-			cck_ofdm_pwr_delta =
-				(ee->ee_cck_ofdm_power_delta * 2) / 10;
-
 		if (channel->hw_value == CHANNEL_G)
 			ath5k_hw_reg_write(ah,
-			AR5K_REG_SM((ee->ee_cck_ofdm_power_delta * -1),
+			AR5K_REG_SM((ee->ee_cck_ofdm_gain_delta * -1),
 				AR5K_PHY_TX_PWR_ADJ_CCK_GAIN_DELTA) |
 			AR5K_REG_SM((cck_ofdm_pwr_delta * -1),
 				AR5K_PHY_TX_PWR_ADJ_CCK_PCDAC_INDEX),
 				AR5K_PHY_TX_PWR_ADJ);
 		else
 			ath5k_hw_reg_write(ah, 0, AR5K_PHY_TX_PWR_ADJ);
+	} else {
+		/* For older revs we scale power on sw during tx power
+		 * setup */
+		ah->ah_txpower.txp_cck_ofdm_pwr_delta = cck_ofdm_pwr_delta;
+		ah->ah_txpower.txp_cck_ofdm_gainf_delta =
+						ee->ee_cck_ofdm_gain_delta;
 	}
 
 	/* Set antenna idle switch table */
@@ -994,7 +1000,8 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum nl80211_iftype op_mode,
 		/*
 		 * Set TX power (FIXME)
 		 */
-		ret = ath5k_hw_txpower(ah, channel, AR5K_TUNE_DEFAULT_TXPOWER);
+		ret = ath5k_hw_txpower(ah, channel, ee_mode,
+					AR5K_TUNE_DEFAULT_TXPOWER);
 		if (ret)
 			return ret;
 

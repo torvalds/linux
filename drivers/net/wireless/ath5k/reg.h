@@ -1554,6 +1554,19 @@
 /*===5212 Specific PCU registers===*/
 
 /*
+ * Transmit power control register
+ */
+#define AR5K_TPC			0x80e8
+#define AR5K_TPC_ACK			0x0000003f	/* ack frames */
+#define AR5K_TPC_ACK_S			0
+#define AR5K_TPC_CTS			0x00003f00	/* cts frames */
+#define AR5K_TPC_CTS_S			8
+#define AR5K_TPC_CHIRP			0x003f0000	/* chirp frames */
+#define AR5K_TPC_CHIRP_S		16
+#define AR5K_TPC_DOPPLER		0x0f000000	/* doppler chirp span */
+#define AR5K_TPC_DOPPLER_S		24
+
+/*
  * XR (eXtended Range) mode register
  */
 #define AR5K_XRMODE			0x80c0			/* Register Address */
@@ -2550,6 +2563,12 @@
 #define	AR5K_PHY_TPC_RG1		0xa258
 #define	AR5K_PHY_TPC_RG1_NUM_PD_GAIN	0x0000c000
 #define	AR5K_PHY_TPC_RG1_NUM_PD_GAIN_S	14
+#define AR5K_PHY_TPC_RG1_PDGAIN_1	0x00030000
+#define AR5K_PHY_TPC_RG1_PDGAIN_1_S	16
+#define AR5K_PHY_TPC_RG1_PDGAIN_2	0x000c0000
+#define AR5K_PHY_TPC_RG1_PDGAIN_2_S	18
+#define AR5K_PHY_TPC_RG1_PDGAIN_3	0x00300000
+#define AR5K_PHY_TPC_RG1_PDGAIN_3_S	20
 
 #define	AR5K_PHY_TPC_RG5			0xa26C
 #define	AR5K_PHY_TPC_RG5_PD_GAIN_OVERLAP	0x0000000F
