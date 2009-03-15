@@ -182,6 +182,7 @@ config FTRACE_SYSCALLS
 	bool "Trace syscalls"
 	depends on HAVE_FTRACE_SYSCALLS
 	select TRACING
+	select KALLSYMS
 	help
 	  Basic tracer to catch the syscall entry and exit events.
 
