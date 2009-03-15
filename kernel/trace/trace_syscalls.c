@@ -7,7 +7,7 @@
 
 static atomic_t refcount;
 
-/* Our two options */
+/* Option to display the parameters types */
 enum {
 	TRACE_SYSCALLS_OPT_TYPES = 0x1,
 };
@@ -18,7 +18,7 @@ static struct tracer_opt syscalls_opts[] = {
 };
 
 static struct tracer_flags syscalls_flags = {
-	.val = 0, /* By default: no args types */
+	.val = 0, /* By default: no parameters types */
 	.opts = syscalls_opts
 };
 
@@ -135,11 +135,8 @@ void ftrace_syscall_enter(struct pt_regs *regs)
 	struct ring_buffer_event *event;
 	int size;
 	int syscall_nr;
-	int cpu;
 
 	syscall_nr = syscall_get_nr(current, regs);
-
-	cpu = raw_smp_processor_id();
 
 	sys_data = syscall_nr_to_meta(syscall_nr);
 	if (!sys_data)
@@ -166,11 +163,8 @@ void ftrace_syscall_exit(struct pt_regs *regs)
 	struct syscall_metadata *sys_data;
 	struct ring_buffer_event *event;
 	int syscall_nr;
-	int cpu;
 
 	syscall_nr = syscall_get_nr(current, regs);
-
-	cpu = raw_smp_processor_id();
 
 	sys_data = syscall_nr_to_meta(syscall_nr);
 	if (!sys_data)
