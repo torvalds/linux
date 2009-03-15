@@ -96,8 +96,9 @@ void start_ftrace_syscalls(void)
 	unsigned long flags;
 	struct task_struct *g, *t;
 
+	/* Don't enable the flag on the tasks twice */
 	if (atomic_inc_return(&refcount) != 1)
-		goto out;
+		return;
 
 	arch_init_ftrace_syscalls();
 	read_lock_irqsave(&tasklist_lock, flags);
@@ -107,8 +108,6 @@ void start_ftrace_syscalls(void)
 	} while_each_thread(g, t);
 
 	read_unlock_irqrestore(&tasklist_lock, flags);
-out:
-	atomic_dec(&refcount);
 }
 
 void stop_ftrace_syscalls(void)
@@ -116,8 +115,9 @@ void stop_ftrace_syscalls(void)
 	unsigned long flags;
 	struct task_struct *g, *t;
 
+	/* There are perhaps still some users */
 	if (atomic_dec_return(&refcount))
-		goto out;
+		return;
 
 	read_lock_irqsave(&tasklist_lock, flags);
 
@@ -126,8 +126,6 @@ void stop_ftrace_syscalls(void)
 	} while_each_thread(g, t);
 
 	read_unlock_irqrestore(&tasklist_lock, flags);
-out:
-	atomic_inc(&refcount);
 }
 
 void ftrace_syscall_enter(struct pt_regs *regs)
@@ -201,6 +199,7 @@ static int init_syscall_tracer(struct trace_array *tr)
 static void reset_syscall_tracer(struct trace_array *tr)
 {
 	stop_ftrace_syscalls();
+	tracing_reset_online_cpus(tr);
 }
 
 static struct trace_event syscall_enter_event = {
