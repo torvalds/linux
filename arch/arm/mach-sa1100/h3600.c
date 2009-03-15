@@ -56,41 +56,9 @@ static struct mtd_partition h3xxx_partitions[] = {
 		.offset		= 0,
 		.mask_flags	= MTD_WRITEABLE,  /* force read-only */
 	}, {
-#ifdef CONFIG_MTD_2PARTS_IPAQ
-		.name		= "H3XXX root jffs2",
+		.name		= "H3XXX rootfs",
 		.size		= MTDPART_SIZ_FULL,
 		.offset		= 0x00040000,
-#else
-		.name		= "H3XXX kernel",
-		.size		= 0x00080000,
-		.offset		= 0x00040000,
-	}, {
-		.name		= "H3XXX params",
-		.size		= 0x00040000,
-		.offset		= 0x000C0000,
-	}, {
-#ifdef CONFIG_JFFS2_FS
-		.name		= "H3XXX root jffs2",
-		.size		= MTDPART_SIZ_FULL,
-		.offset		= 0x00100000,
-#else
-		.name		= "H3XXX initrd",
-		.size		= 0x00100000,
-		.offset		= 0x00100000,
-	}, {
-		.name		= "H3XXX root cramfs",
-		.size		= 0x00300000,
-		.offset		= 0x00200000,
-	}, {
-		.name		= "H3XXX usr cramfs",
-		.size		= 0x00800000,
-		.offset		= 0x00500000,
-	}, {
-		.name		= "H3XXX usr local",
-		.size		= MTDPART_SIZ_FULL,
-		.offset		= 0x00d00000,
-#endif
-#endif
 	}
 };
 
