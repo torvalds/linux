@@ -667,7 +667,7 @@ static s32 stv0900_carr_get_quality(struct dvb_frontend *fe,
 		dmd_reg(noise_field1, F0900_P1_NOSDATAT_NORMED1,
 					F0900_P2_NOSDATAT_NORMED1);
 		dmd_reg(noise_field0, F0900_P1_NOSDATAT_NORMED0,
-					F0900_P1_NOSDATAT_NORMED0);
+					F0900_P2_NOSDATAT_NORMED0);
 	}
 
 	if (stv0900_get_bits(i_params, lock_flag_field)) {
