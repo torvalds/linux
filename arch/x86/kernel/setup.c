@@ -272,6 +272,35 @@ static inline void copy_edd(void)
 }
 #endif
 
+void * __init extend_brk(size_t size, size_t align)
+{
+	size_t mask = align - 1;
+	void *ret;
+
+	BUG_ON(_brk_start == 0);
+	BUG_ON(align & mask);
+
+	_brk_end = (_brk_end + mask) & ~mask;
+	BUG_ON((char *)(_brk_end + size) > __brk_limit);
+
+	ret = (void *)_brk_end;
+	_brk_end += size;
+
+	memset(ret, 0, size);
+
+	return ret;
+}
+
+static void __init reserve_brk(void)
+{
+	if (_brk_end > _brk_start)
+		reserve_early(__pa(_brk_start), __pa(_brk_end), "BRK");
+
+	/* Mark brk area as locked down and no longer taking any
+	   new allocations */
+	_brk_start = 0;
+}
+
 #ifdef CONFIG_BLK_DEV_INITRD
 
 #ifdef CONFIG_X86_32
@@ -339,34 +368,6 @@ static void __init relocate_initrd(void)
 		ramdisk_here, ramdisk_here + ramdisk_size - 1);
 }
 #endif
-
-void * __init extend_brk(size_t size, size_t align)
-{
-	size_t mask = align - 1;
-	void *ret;
-
-	BUG_ON(_brk_start == 0);
-	BUG_ON(align & mask);
-
-	_brk_end = (_brk_end + mask) & ~mask;
-	BUG_ON((char *)(_brk_end + size) > __brk_limit);
-
-	ret = (void *)_brk_end;
-	_brk_end += size;
-
-	memset(ret, 0, size);
-
-	return ret;
-}
-
-static void __init reserve_brk(void)
-{
-	if (_brk_end > _brk_start)
-		reserve_early(__pa(_brk_start), __pa(_brk_end), "BRK");
-
-	/* Mark brk area as locked down and no longer taking any new allocations */
-	_brk_start = 0;
-}
 
 static void __init reserve_initrd(void)
 {
