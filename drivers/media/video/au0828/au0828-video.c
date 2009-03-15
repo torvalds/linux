@@ -1018,7 +1018,6 @@ static int vidioc_querycap(struct file *file, void  *priv,
 	struct au0828_fh *fh  = priv;
 	struct au0828_dev *dev = fh->dev;
 
-	memset(cap, 0, sizeof(*cap));
 	strlcpy(cap->driver, "au0828", sizeof(cap->driver));
 	strlcpy(cap->card, dev->board.name, sizeof(cap->card));
 	strlcpy(cap->bus_info, dev->v4l2_dev.name, sizeof(cap->bus_info));
@@ -1043,14 +1042,12 @@ static int vidioc_enum_fmt_vid_cap(struct file *file, void  *priv,
 	if(f->index)
 		return -EINVAL;
 
-	memset(f, 0, sizeof(*f));
 	f->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 	strcpy(f->description, "Packed YUV2");
 
 	f->flags = 0;
 	f->pixelformat = V4L2_PIX_FMT_UYVY;
 
-	memset(f->reserved, 0, sizeof(f->reserved));
 	return 0;
 }
 
@@ -1139,7 +1136,6 @@ static int vidioc_enum_input(struct file *file, void *priv,
 	if(AUVI_INPUT(tmp).type == 0)
 		return -EINVAL;
 
-	memset(input, 0, sizeof(*input));
 	input->index = tmp;
 	strcpy(input->name, inames[AUVI_INPUT(tmp).type]);
 	if((AUVI_INPUT(tmp).type == AU0828_VMUX_TELEVISION) ||
@@ -1237,7 +1233,6 @@ static int vidioc_g_audio(struct file *file, void *priv, struct v4l2_audio *a)
 	if(a->index > 1)
 		return -EINVAL;
 
-	memset(a, 0, sizeof(*a));
 	index = dev->ctrl_ainput;
 	if(index == 0)
 		strcpy(a->name, "Television");
@@ -1286,7 +1281,6 @@ static int vidioc_g_tuner(struct file *file, void *priv, struct v4l2_tuner *t)
 	if(t->index != 0)
 		return -EINVAL;
 
-	memset(t, 0, sizeof(*t));
 	strcpy(t->name, "Auvitek tuner");
 
 	au0828_call_i2c_clients(dev, VIDIOC_G_TUNER, t);
@@ -1315,7 +1309,7 @@ static int vidioc_g_frequency(struct file *file, void *priv,
 {
 	struct au0828_fh *fh = priv;
 	struct au0828_dev *dev = fh->dev;
-	memset(freq, 0, sizeof(*freq));
+
 	freq->type = V4L2_TUNER_ANALOG_TV;
 	freq->frequency = dev->ctrl_freq;
 	return 0;
