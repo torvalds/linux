@@ -393,6 +393,18 @@ config PCM990_DISPLAY_NONE
 
 endchoice
 
+config MACH_CSB726
+	bool "Enable Cogent CSB726 System On a Module"
+	select PXA27x
+	select IWMMXT
+	help
+	  Say Y here if you intend to run this kernel on a Cogent
+	  CSB726 System On Module.
+
+config CSB726_CSB701
+	bool "Enable supprot for CSB701 baseboard"
+	depends on MACH_CSB726
+
 config PXA_EZX
 	bool "Motorola EZX Platform"
 	select PXA27x
