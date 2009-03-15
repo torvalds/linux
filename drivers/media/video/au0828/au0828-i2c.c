@@ -299,33 +299,6 @@ err:
 	return retval;
 }
 
-static int attach_inform(struct i2c_client *client)
-{
-	dprintk(1, "%s i2c attach [addr=0x%x,client=%s]\n",
-		client->driver->driver.name, client->addr, client->name);
-
-	if (!client->driver->command)
-		return 0;
-
-	return 0;
-}
-
-static int detach_inform(struct i2c_client *client)
-{
-	dprintk(1, "i2c detach [client=%s]\n", client->name);
-
-	return 0;
-}
-
-void au0828_call_i2c_clients(struct au0828_dev *dev,
-			      unsigned int cmd, void *arg)
-{
-	if (dev->i2c_rc != 0)
-		return;
-
-	i2c_clients_command(&dev->i2c_adap, cmd, arg);
-}
-
 static u32 au0828_functionality(struct i2c_adapter *adap)
 {
 	return I2C_FUNC_SMBUS_EMUL | I2C_FUNC_I2C;
@@ -343,8 +316,6 @@ static struct i2c_adapter au0828_i2c_adap_template = {
 	.owner             = THIS_MODULE,
 	.id                = I2C_HW_B_AU0828,
 	.algo              = &au0828_i2c_algo_template,
-	.client_register   = attach_inform,
-	.client_unregister = detach_inform,
 };
 
 static struct i2c_client au0828_i2c_client_template = {

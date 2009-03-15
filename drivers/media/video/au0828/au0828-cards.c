@@ -218,7 +218,8 @@ void au0828_card_setup(struct au0828_dev *dev)
 		tun_setup.type           = dev->board.tuner_type;
 		tun_setup.addr           = dev->board.tuner_addr;
 		tun_setup.tuner_callback = au0828_tuner_callback;
-		au0828_call_i2c_clients(dev, TUNER_SET_TYPE_ADDR, &tun_setup);
+		v4l2_device_call_all(&dev->v4l2_dev, 0, tuner, s_type_addr,
+				     &tun_setup);
 	}
 }
 

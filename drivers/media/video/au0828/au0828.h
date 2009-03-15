@@ -265,8 +265,6 @@ extern void au0828_card_setup(struct au0828_dev *dev);
 /* au0828-i2c.c */
 extern int au0828_i2c_register(struct au0828_dev *dev);
 extern int au0828_i2c_unregister(struct au0828_dev *dev);
-extern void au0828_call_i2c_clients(struct au0828_dev *dev,
-	unsigned int cmd, void *arg);
 
 /* ----------------------------------------------------------- */
 /* au0828-video.c */

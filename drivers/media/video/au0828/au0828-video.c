@@ -996,7 +996,7 @@ static int vidioc_queryctrl(struct file *file, void *priv,
 {
 	struct au0828_fh *fh = priv;
 	struct au0828_dev *dev = fh->dev;
-	au0828_call_i2c_clients(dev, VIDIOC_QUERYCTRL, qc);
+	v4l2_device_call_all(&dev->v4l2_dev, 0, core, queryctrl, qc);
 	if (qc->type)
 		return 0;
 	else
@@ -1100,7 +1100,7 @@ static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id * norm)
 	   have to make the au0828 bridge adjust the size of its capture
 	   buffer, which is currently hardcoded at 720x480 */
 
-	au0828_call_i2c_clients(dev, VIDIOC_S_STD, norm);
+	v4l2_device_call_all(&dev->v4l2_dev, 0, tuner, s_std, *norm);
 	return 0;
 }
 
@@ -1182,7 +1182,7 @@ static int vidioc_s_input(struct file *file, void *priv, unsigned int index)
 
 	route.input = AUVI_INPUT(index).vmux;
 	route.output = 0;
-	au0828_call_i2c_clients(dev, VIDIOC_INT_S_VIDEO_ROUTING, &route);
+	v4l2_device_call_all(&dev->v4l2_dev, 0, video, s_routing, &route);
 
 	for (i = 0; i < AU0828_MAX_INPUT; i++) {
 		int enable = 0;
@@ -1206,8 +1206,7 @@ static int vidioc_s_input(struct file *file, void *priv, unsigned int index)
 	}
 
 	route.input = AUVI_INPUT(index).amux;
-	au0828_call_i2c_clients(dev, VIDIOC_INT_S_AUDIO_ROUTING,
-				&route);
+	v4l2_device_call_all(&dev->v4l2_dev, 0, audio, s_routing, &route);
 	return 0;
 }
 
@@ -1246,7 +1245,7 @@ static int vidioc_g_ctrl(struct file *file, void *priv,
 	struct au0828_fh *fh = priv;
 	struct au0828_dev *dev = fh->dev;
 
-	au0828_call_i2c_clients(dev, VIDIOC_G_CTRL, ctrl);
+	v4l2_device_call_all(&dev->v4l2_dev, 0, core, g_ctrl, ctrl);
 	return 0;
 
 }
@@ -1256,7 +1255,7 @@ static int vidioc_s_ctrl(struct file *file, void *priv,
 {
 	struct au0828_fh *fh = priv;
 	struct au0828_dev *dev = fh->dev;
-	au0828_call_i2c_clients(dev, VIDIOC_S_CTRL, ctrl);
+	v4l2_device_call_all(&dev->v4l2_dev, 0, core, s_ctrl, ctrl);
 	return 0;
 }
 
@@ -1269,8 +1268,7 @@ static int vidioc_g_tuner(struct file *file, void *priv, struct v4l2_tuner *t)
 		return -EINVAL;
 
 	strcpy(t->name, "Auvitek tuner");
-
-	au0828_call_i2c_clients(dev, VIDIOC_G_TUNER, t);
+	v4l2_device_call_all(&dev->v4l2_dev, 0, tuner, g_tuner, t);
 	return 0;
 }
 
@@ -1284,7 +1282,7 @@ static int vidioc_s_tuner(struct file *file, void *priv,
 		return -EINVAL;
 
 	t->type = V4L2_TUNER_ANALOG_TV;
-	au0828_call_i2c_clients(dev, VIDIOC_S_TUNER, t);
+	v4l2_device_call_all(&dev->v4l2_dev, 0, tuner, s_tuner, t);
 	dprintk(1, "VIDIOC_S_TUNER: signal = %x, afc = %x\n", t->signal,
 		t->afc);
 	return 0;
@@ -1315,7 +1313,7 @@ static int vidioc_s_frequency(struct file *file, void *priv,
 
 	dev->ctrl_freq = freq->frequency;
 
-	au0828_call_i2c_clients(dev, VIDIOC_S_FREQUENCY, freq);
+	v4l2_device_call_all(&dev->v4l2_dev, 0, tuner, s_frequency, freq);
 
 	au0828_analog_stream_reset(dev);
 
@@ -1335,7 +1333,7 @@ static int vidioc_g_chip_ident(struct file *file, void *priv,
 		return 0;
 	}
 
-	au0828_call_i2c_clients(dev, VIDIOC_DBG_G_CHIP_IDENT, chip);
+	v4l2_device_call_all(&dev->v4l2_dev, 0, core, g_chip_ident, chip);
 	if (chip->ident == V4L2_IDENT_NONE)
 		return -EINVAL;
 
@@ -1369,7 +1367,6 @@ static int vidioc_streamon(struct file *file, void *priv,
 {
 	struct au0828_fh *fh = priv;
 	struct au0828_dev *dev = fh->dev;
-	int b = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 	int rc;
 
 	rc = check_dev(dev);
@@ -1378,7 +1375,7 @@ static int vidioc_streamon(struct file *file, void *priv,
 
 	if (type == V4L2_BUF_TYPE_VIDEO_CAPTURE) {
 		au0828_analog_stream_enable(dev);
-		au0828_call_i2c_clients(dev, VIDIOC_STREAMON, &b);
+		v4l2_device_call_all(&dev->v4l2_dev, 0, video, s_stream, 1);
 	}
 
 	mutex_lock(&dev->lock);
@@ -1396,7 +1393,6 @@ static int vidioc_streamoff(struct file *file, void *priv,
 {
 	struct au0828_fh *fh = priv;
 	struct au0828_dev *dev = fh->dev;
-	int b = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 	int i;
 	int ret;
 	int rc;
@@ -1411,7 +1407,7 @@ static int vidioc_streamoff(struct file *file, void *priv,
 		return -EINVAL;
 
 	if (type == V4L2_BUF_TYPE_VIDEO_CAPTURE) {
-		au0828_call_i2c_clients(dev, VIDIOC_STREAMOFF, &b);
+		v4l2_device_call_all(&dev->v4l2_dev, 0, video, s_stream, 0);
 		ret = au0828_stream_interrupt(dev);
 		if (ret != 0)
 			return ret;
@@ -1439,7 +1435,7 @@ static int vidioc_g_register(struct file *file, void *priv,
 
 	switch (reg->match.type) {
 	case V4L2_CHIP_MATCH_I2C_DRIVER:
-		au0828_call_i2c_clients(dev, VIDIOC_DBG_G_REGISTER, reg);
+		v4l2_device_call_all(&dev->v4l2_dev, 0, core, g_register, reg);
 		return 0;
 	default:
 		return -EINVAL;
@@ -1454,7 +1450,7 @@ static int vidioc_s_register(struct file *file, void *priv,
 
 	switch (reg->match.type) {
 	case V4L2_CHIP_MATCH_I2C_DRIVER:
-		au0828_call_i2c_clients(dev, VIDIOC_DBG_S_REGISTER, reg);
+		v4l2_device_call_all(&dev->v4l2_dev, 0, core, s_register, reg);
 		return 0;
 	default:
 		return -EINVAL;
