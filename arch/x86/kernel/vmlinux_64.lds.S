@@ -247,10 +247,12 @@ SECTIONS
 	*(.bss.page_aligned)
 	*(.bss)
 	__bss_stop = .;
+  }
 
+  .brk : AT(ADDR(.brk) - LOAD_OFFSET) {
 	. = ALIGN(PAGE_SIZE);
 	__brk_base = . ;
-	. += 64 * 1024;		/* 64k slop space */
+ 	. += 64 * 1024 ;	/* 64k alignment slop space */
 	*(.brk_reservation)	/* areas brk users have reserved */
 	__brk_limit = . ;
   }
