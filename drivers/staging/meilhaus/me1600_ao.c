@@ -55,11 +55,7 @@
 
 static void me1600_ao_destructor(struct me_subdevice *subdevice);
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,20)
-static void me1600_ao_work_control_task(void *subdevice);
-#else
 static void me1600_ao_work_control_task(struct work_struct *work);
-#endif
 
 static int me1600_ao_io_reset_subdevice(me_subdevice_t * subdevice,
 					struct file *filep, int flags);
@@ -200,13 +196,8 @@ me1600_ao_subdevice_t *me1600_ao_constructor(uint32_t reg_base,
 	subdevice->me1600_workqueue = me1600_wq;
 
 /* workqueue API changed in kernel 2.6.20 */
-#if ( LINUX_VERSION_CODE < KERNEL_VERSION(2,6,20) )
-	INIT_WORK(&subdevice->ao_control_task, me1600_ao_work_control_task,
-		  (void *)subdevice);
-#else
 	INIT_DELAYED_WORK(&subdevice->ao_control_task,
 			  me1600_ao_work_control_task);
-#endif
 	return subdevice;
 }
 
@@ -962,22 +953,14 @@ static int me1600_ao_query_range_info(me_subdevice_t * subdevice,
 	return ME_ERRNO_SUCCESS;
 }
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,20)
-static void me1600_ao_work_control_task(void *subdevice)
-#else
 static void me1600_ao_work_control_task(struct work_struct *work)
-#endif
 {
 	me1600_ao_subdevice_t *instance;
 	int reschedule = 1;
 	int signaling = 0;
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,20)
-	instance = (me1600_ao_subdevice_t *) subdevice;
-#else
 	instance =
 	    container_of((void *)work, me1600_ao_subdevice_t, ao_control_task);
-#endif
 
 	PINFO("<%s: %ld> executed. idx=%d\n", __func__, jiffies,
 	      instance->ao_idx);

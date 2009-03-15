@@ -151,11 +151,7 @@ static int me6000_ao_io_stream_write(me_subdevice_t * subdevice,
 				     int *values, int *count, int flags);
 
 /** Interrupt handler. Copy from buffer to FIFO. */
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 19)
 static irqreturn_t me6000_ao_isr(int irq, void *dev_id);
-#else
-static irqreturn_t me6000_ao_isr(int irq, void *dev_id, struct pt_regs *regs);
-#endif
 
 /** Copy data from circular buffer to fifo (fast) in wraparound mode. */
 int inline ao_write_data_wraparound(me6000_ao_subdevice_t * instance, int count,
@@ -177,11 +173,7 @@ int inline ao_get_data_from_user(me6000_ao_subdevice_t * instance, int count,
 int inline ao_stop_immediately(me6000_ao_subdevice_t * instance);
 
 /** Function for checking timeout in non-blocking mode. */
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,20)
-static void me6000_ao_work_control_task(void *subdevice);
-#else
 static void me6000_ao_work_control_task(struct work_struct *work);
-#endif
 
 /* Functions
  */
@@ -2324,11 +2316,7 @@ static int me6000_ao_io_stream_write(me_subdevice_t * subdevice,
 	return err;
 }
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 19)
 static irqreturn_t me6000_ao_isr(int irq, void *dev_id)
-#else
-static irqreturn_t me6000_ao_isr(int irq, void *dev_id, struct pt_regs *regs)
-#endif
 {
 	me6000_ao_subdevice_t *instance = dev_id;
 	uint32_t irq_status;
@@ -2797,13 +2785,8 @@ me6000_ao_subdevice_t *me6000_ao_constructor(uint32_t reg_base,
 	subdevice->me6000_workqueue = me6000_wq;
 
 /* workqueue API changed in kernel 2.6.20 */
-#if ( LINUX_VERSION_CODE < KERNEL_VERSION(2,6,20) )
-	INIT_WORK(&subdevice->ao_control_task, me6000_ao_work_control_task,
-		  (void *)subdevice);
-#else
 	INIT_DELAYED_WORK(&subdevice->ao_control_task,
 			  me6000_ao_work_control_task);
-#endif
 
 	if (subdevice->fifo) {	//Set speed
 		outl(ME6000_AO_MIN_CHAN_TICKS - 1, subdevice->timer_reg);
@@ -3110,13 +3093,7 @@ int inline ao_get_data_from_user(me6000_ao_subdevice_t * instance, int count,
 	return copied;
 }
 
-static void me6000_ao_work_control_task(
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,20)
-					       void *subdevice
-#else
-					       struct work_struct *work
-#endif
-    )
+static void me6000_ao_work_control_task(struct work_struct *work)
 {
 	me6000_ao_subdevice_t *instance;
 	unsigned long cpu_flags = 0;
@@ -3127,12 +3104,8 @@ static void me6000_ao_work_control_task(
 	int signaling = 0;
 	uint32_t single_mask;
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,20)
-	instance = (me6000_ao_subdevice_t *) subdevice;
-#else
 	instance =
 	    container_of((void *)work, me6000_ao_subdevice_t, ao_control_task);
-#endif
 	PINFO("<%s: %ld> executed. idx=%d\n", __func__, jiffies,
 	      instance->ao_idx);
 

@@ -503,11 +503,7 @@ static void me8100_di_destructor(struct me_subdevice *subdevice)
 	kfree(instance);
 }
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 19)
 static irqreturn_t me8100_isr(int irq, void *dev_id)
-#else
-static irqreturn_t me8100_isr(int irq, void *dev_id, struct pt_regs *regs)
-#endif
 {
 	me8100_di_subdevice_t *instance;
 	uint32_t icsr;

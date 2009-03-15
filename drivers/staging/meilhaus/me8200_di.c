@@ -81,16 +81,8 @@ static int me8200_di_query_subdevice_type(me_subdevice_t * subdevice,
 					  int *type, int *subtype);
 static int me8200_di_query_subdevice_caps(me_subdevice_t * subdevice,
 					  int *caps);
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 19)
 static irqreturn_t me8200_isr(int irq, void *dev_id);
-#else
-static irqreturn_t me8200_isr(int irq, void *dev_id, struct pt_regs *regs);
-#endif
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 19)
 static irqreturn_t me8200_isr_EX(int irq, void *dev_id);
-#else
-static irqreturn_t me8200_isr_EX(int irq, void *dev_id, struct pt_regs *regs);
-#endif
 static void me8200_di_check_version(me8200_di_subdevice_t * instance,
 				    unsigned long addr);
 
@@ -546,11 +538,7 @@ static int me8200_di_query_subdevice_caps(me_subdevice_t * subdevice, int *caps)
 	return ME_ERRNO_SUCCESS;
 }
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 19)
 static irqreturn_t me8200_isr(int irq, void *dev_id)
-#else
-static irqreturn_t me8200_isr(int irq, void *dev_id, struct pt_regs *regs)
-#endif
 {
 	me8200_di_subdevice_t *instance;
 	uint8_t ctrl;
@@ -629,11 +617,7 @@ static irqreturn_t me8200_isr(int irq, void *dev_id, struct pt_regs *regs)
 	return IRQ_HANDLED;
 }
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 19)
 static irqreturn_t me8200_isr_EX(int irq, void *dev_id)
-#else
-static irqreturn_t me8200_isr_EX(int irq, void *dev_id, struct pt_regs *regs)
-#endif
 {
 	me8200_di_subdevice_t *instance;
 	uint8_t irq_status = 0;

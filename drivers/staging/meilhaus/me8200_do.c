@@ -452,11 +452,7 @@ static void me8200_do_destructor(struct me_subdevice *subdevice)
 	kfree(instance);
 }
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 19)
 static irqreturn_t me8200_do_isr(int irq, void *dev_id)
-#else
-static irqreturn_t me8200_do_isr(int irq, void *dev_id, struct pt_regs *regs)
-#endif
 {
 	me8200_do_subdevice_t *instance;
 	uint16_t ctrl;

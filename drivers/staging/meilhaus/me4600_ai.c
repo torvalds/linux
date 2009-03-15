@@ -125,11 +125,7 @@ static int me4600_ai_query_subdevice_caps(me_subdevice_t * subdevice,
 static int me4600_ai_query_subdevice_caps_args(struct me_subdevice *subdevice,
 					       int cap, int *args, int count);
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 19)
 static irqreturn_t me4600_ai_isr(int irq, void *dev_id);
-#else
-static irqreturn_t me4600_ai_isr(int irq, void *dev_id, struct pt_regs *regs);
-#endif
 
 static int ai_mux_toggler(me4600_ai_subdevice_t * subdevice);
 
@@ -177,11 +173,7 @@ void inline ai_limited_ISM(me4600_ai_subdevice_t * instance,
 /** Set ISM to next stage for limited mode */
 void inline ai_data_acquisition_logic(me4600_ai_subdevice_t * instance);
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,20)
-static void me4600_ai_work_control_task(void *subdevice);
-#else
 static void me4600_ai_work_control_task(struct work_struct *work);
-#endif
 
 /* Definitions
  */
@@ -360,13 +352,8 @@ me4600_ai_subdevice_t *me4600_ai_constructor(uint32_t reg_base,
 	subdevice->me4600_workqueue = me4600_wq;
 
 /* workqueue API changed in kernel 2.6.20 */
-#if ( LINUX_VERSION_CODE < KERNEL_VERSION(2,6,20) )
-	INIT_WORK(&subdevice->ai_control_task, me4600_ai_work_control_task,
-		  (void *)subdevice);
-#else
 	INIT_DELAYED_WORK(&subdevice->ai_control_task,
 			  me4600_ai_work_control_task);
-#endif
 
 	return subdevice;
 }
@@ -2603,11 +2590,7 @@ void ai_infinite_isr(me4600_ai_subdevice_t * instance,
 	}
 }
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 19)
 static irqreturn_t me4600_ai_isr(int irq, void *dev_id)
-#else
-static irqreturn_t me4600_ai_isr(int irq, void *dev_id, struct pt_regs *regs)
-#endif
 {				/// @note This is time critical function!
 	uint32_t irq_status;
 	uint32_t ctrl_status;
@@ -3310,11 +3293,7 @@ static int inline ai_read_data_pooling(me4600_ai_subdevice_t * instance)
 	return (!status) ? copied : -ME_ERRNO_RING_BUFFER_OVERFLOW;
 }
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,20)
-static void me4600_ai_work_control_task(void *subdevice)
-#else
 static void me4600_ai_work_control_task(struct work_struct *work)
-#endif
 {
 	me4600_ai_subdevice_t *instance;
 	uint32_t status;
@@ -3323,12 +3302,8 @@ static void me4600_ai_work_control_task(struct work_struct *work)
 	int reschedule = 0;
 	int signaling = 0;
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,20)
-	instance = (me4600_ai_subdevice_t *) subdevice;
-#else
 	instance =
 	    container_of((void *)work, me4600_ai_subdevice_t, ai_control_task);
-#endif
 	PINFO("<%s: %ld> executed.\n", __func__, jiffies);
 
 	status = inl(instance->status_reg);

@@ -175,11 +175,7 @@ static int me4600_ao_io_stream_write(me_subdevice_t * subdevice,
 
 /** Interrupt handler. Copy from buffer to FIFO.
 */
-static irqreturn_t me4600_ao_isr(int irq, void *dev_id
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 19)
-				 , struct pt_regs *regs
-#endif
-    );
+static irqreturn_t me4600_ao_isr(int irq, void *dev_id);
 /** Copy data from circular buffer to fifo (fast) in wraparound mode.
 */
 int inline ao_write_data_wraparound(me4600_ao_subdevice_t * instance, int count,
@@ -206,13 +202,7 @@ int inline ao_stop_immediately(me4600_ao_subdevice_t * instance);
 
 /** Task for asynchronical state verifying.
 */
-static void me4600_ao_work_control_task(
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,20)
-					       void *subdevice
-#else
-					       struct work_struct *work
-#endif
-    );
+static void me4600_ao_work_control_task(struct work_struct *work);
 /* Functions
  */
 
@@ -2272,11 +2262,7 @@ static int me4600_ao_io_stream_write(me_subdevice_t * subdevice,
 
 	return err;
 }
-static irqreturn_t me4600_ao_isr(int irq, void *dev_id
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 19)
-				 , struct pt_regs *regs
-#endif
-    )
+static irqreturn_t me4600_ao_isr(int irq, void *dev_id)
 {
 	me4600_ao_subdevice_t *instance = dev_id;
 	uint32_t irq_status;
@@ -2689,13 +2675,8 @@ me4600_ao_subdevice_t *me4600_ao_constructor(uint32_t reg_base,
 	subdevice->me4600_workqueue = me4600_wq;
 
 /* workqueue API changed in kernel 2.6.20 */
-#if ( LINUX_VERSION_CODE < KERNEL_VERSION(2,6,20) )
-	INIT_WORK(&subdevice->ao_control_task, me4600_ao_work_control_task,
-		  (void *)subdevice);
-#else
 	INIT_DELAYED_WORK(&subdevice->ao_control_task,
 			  me4600_ao_work_control_task);
-#endif
 
 	if (subdevice->fifo) {	// Set speed for single operations.
 		outl(ME4600_AO_MIN_CHAN_TICKS - 1, subdevice->timer_reg);
@@ -2987,13 +2968,7 @@ int inline ao_get_data_from_user(me4600_ao_subdevice_t * instance, int count,
 /** @brief Checking actual hardware and logical state.
 * @param instance The subdevice instance (pointer).
 */
-static void me4600_ao_work_control_task(
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,20)
-					       void *subdevice
-#else
-					       struct work_struct *work
-#endif
-    )
+static void me4600_ao_work_control_task(struct work_struct *work)
 {
 	me4600_ao_subdevice_t *instance;
 	unsigned long cpu_flags = 0;
@@ -3003,12 +2978,8 @@ static void me4600_ao_work_control_task(
 	int reschedule = 0;
 	int signaling = 0;
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,20)
-	instance = (me4600_ao_subdevice_t *) subdevice;
-#else
 	instance =
 	    container_of((void *)work, me4600_ao_subdevice_t, ao_control_task);
-#endif
 	PINFO("<%s: %ld> executed. idx=%d\n", __func__, jiffies,
 	      instance->ao_idx);
 
@@ -5439,11 +5410,7 @@ static int me4600_ao_io_stream_write(me_subdevice_t * subdevice,
 	return err;
 }
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 19)
 static irqreturn_t me4600_ao_isr(int irq, void *dev_id)
-#else
-static irqreturn_t me4600_ao_isr(int irq, void *dev_id, struct pt_regs *regs)
-#endif
 {
 	unsigned long tmp;
 	int value;
