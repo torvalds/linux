@@ -92,11 +92,7 @@ static int h3600_irda_set_power(struct device *dev, unsigned int state)
 
 static void h3600_irda_set_speed(struct device *dev, unsigned int speed)
 {
-	if (speed < 4000000) {
-		clr_h3600_egpio(IPAQ_EGPIO_IR_FSEL);
-	} else {
-		set_h3600_egpio(IPAQ_EGPIO_IR_FSEL);
-	}
+	assign_h3600_egpio(IPAQ_EGPIO_IR_FSEL, !(speed < 4000000));
 }
 
 static struct irda_platform_data h3600_irda_data = {

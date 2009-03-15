@@ -105,19 +105,6 @@ static __inline__ void assign_h3600_egpio(enum ipaq_egpio_type x, int level)
 		ipaq_model_ops.control(x,level);
 }
 
-static __inline__ void clr_h3600_egpio(enum ipaq_egpio_type x)
-{
-	if (ipaq_model_ops.control)
-		ipaq_model_ops.control(x,0);
-}
-
-static __inline__ void set_h3600_egpio(enum ipaq_egpio_type x)
-{
-	if (ipaq_model_ops.control)
-		ipaq_model_ops.control(x,1);
-}
-
-
 #endif /* ASSEMBLY */
 
 #endif /* _INCLUDE_H3600_H_ */
