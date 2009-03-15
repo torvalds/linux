@@ -382,7 +382,7 @@ void __init bootmem_init(void)
 	for_each_node(node)
 		bootmem_free_node(node, mi);
 
-	high_memory = __va(memend_pfn << PAGE_SHIFT);
+	high_memory = __va((memend_pfn << PAGE_SHIFT) - 1) + 1;
 
 	/*
 	 * This doesn't seem to be used by the Linux memory manager any
