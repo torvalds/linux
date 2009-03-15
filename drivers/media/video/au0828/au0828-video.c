@@ -1174,22 +1174,18 @@ static int vidioc_s_input(struct file *file, void *priv, unsigned int index)
 
 	switch(AUVI_INPUT(index).type) {
 	case AU0828_VMUX_SVIDEO:
-	{
 		dev->input_type = AU0828_VMUX_SVIDEO;
 		break;
-	}
 	case AU0828_VMUX_COMPOSITE:
-	{
 		dev->input_type = AU0828_VMUX_COMPOSITE;
 		break;
-	}
 	case AU0828_VMUX_TELEVISION:
-	{
 		dev->input_type = AU0828_VMUX_TELEVISION;
 		break;
-	}
 	default:
-		;
+		dprintk(1, "VIDIOC_S_INPUT unknown input type set [%d]\n",
+			AUVI_INPUT(index).type);
+		break;
 	}
 
 	route.input = AUVI_INPUT(index).vmux;
