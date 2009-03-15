@@ -18,7 +18,6 @@
 
 #include <asm/iomap.h>
 #include <asm/pat.h>
-#include <asm/highmem.h>
 #include <linux/module.h>
 
 int is_io_mapping_possible(resource_size_t base, unsigned long size)
