@@ -150,13 +150,13 @@ static void hauppauge_eeprom(struct au0828_dev *dev, u8 *eeprom_data)
 	/* Make sure we support the board model */
 	switch (tv.model) {
 	case 72000: /* WinTV-HVR950q (Retail, IR, ATSC/QAM */
-	case 72001: /* WinTV-HVR950q (Retail, IR, ATSC/QAM and basic analog video */
-	case 72211: /* WinTV-HVR950q (OEM, IR, ATSC/QAM and basic analog video */
-	case 72221: /* WinTV-HVR950q (OEM, IR, ATSC/QAM and basic analog video */
-	case 72231: /* WinTV-HVR950q (OEM, IR, ATSC/QAM and basic analog video */
-	case 72241: /* WinTV-HVR950q (OEM, No IR, ATSC/QAM and basic analog video */
-	case 72251: /* WinTV-HVR950q (Retail, IR, ATSC/QAM and basic analog video */
-	case 72301: /* WinTV-HVR850 (Retail, IR, ATSC and basic analog video */
+	case 72001: /* WinTV-HVR950q (Retail, IR, ATSC/QAM and analog video */
+	case 72211: /* WinTV-HVR950q (OEM, IR, ATSC/QAM and analog video */
+	case 72221: /* WinTV-HVR950q (OEM, IR, ATSC/QAM and analog video */
+	case 72231: /* WinTV-HVR950q (OEM, IR, ATSC/QAM and analog video */
+	case 72241: /* WinTV-HVR950q (OEM, No IR, ATSC/QAM and analog video */
+	case 72251: /* WinTV-HVR950q (Retail, IR, ATSC/QAM and analog video */
+	case 72301: /* WinTV-HVR850 (Retail, IR, ATSC and analog video */
 	case 72500: /* WinTV-HVR950q (OEM, No IR, ATSC/QAM */
 		break;
 	default:
@@ -202,9 +202,8 @@ void au0828_card_setup(struct au0828_dev *dev)
 		   demod) */
 		sd = v4l2_i2c_new_subdev(&dev->i2c_adap, "au8522", "au8522",
 					 0x8e >> 1);
-		if (sd == NULL) {
-			printk("analog subdev registration failure\n");
-		}
+		if (sd == NULL)
+			printk(KERN_ERR "analog subdev registration failed\n");
 	}
 
 	/* Setup tuners */
@@ -212,9 +211,8 @@ void au0828_card_setup(struct au0828_dev *dev)
 		/* Load the tuner module, which does the attach */
 		sd = v4l2_i2c_new_subdev(&dev->i2c_adap, "tuner", "tuner",
 					 dev->board.tuner_addr);
-		if (sd == NULL) {
-			printk("analog tuner subdev registration failure\n");
-		}
+		if (sd == NULL)
+			printk(KERN_ERR "tuner subdev registration fail\n");
 
 		tun_setup.mode_mask      = mode_mask;
 		tun_setup.type           = dev->board.tuner_type;

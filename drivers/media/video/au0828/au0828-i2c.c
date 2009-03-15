@@ -145,11 +145,10 @@ static int i2c_sendbytes(struct i2c_adapter *i2c_adap,
 	   requires us to slow down the i2c clock until we have a better
 	   strategy (such as using the secondary i2c bus to do firmware
 	   loading */
-	if ((msg->addr << 1) == 0xc2) {
+	if ((msg->addr << 1) == 0xc2)
 		au0828_write(dev, REG_202, 0x40);
-	} else {
+	else
 		au0828_write(dev, REG_202, 0x07);
-	}
 
 	/* Hardware needs 8 bit addresses */
 	au0828_write(dev, REG_203, msg->addr << 1);
@@ -223,11 +222,10 @@ static int i2c_readbytes(struct i2c_adapter *i2c_adap,
 	   requires us to slow down the i2c clock until we have a better
 	   strategy (such as using the secondary i2c bus to do firmware
 	   loading */
-	if ((msg->addr << 1) == 0xc2) {
+	if ((msg->addr << 1) == 0xc2)
 		au0828_write(dev, REG_202, 0x40);
-	} else {
+	else
 		au0828_write(dev, REG_202, 0x07);
-	}
 
 	/* Hardware needs 8 bit addresses */
 	au0828_write(dev, REG_203, msg->addr << 1);
