@@ -656,13 +656,18 @@ static s32 stv0900_carr_get_quality(struct dvb_frontend *fe,
 
 	dprintk(KERN_INFO "%s\n", __func__);
 
-	dmd_reg(lock_flag_field, F0900_P1_LOCK_DEFINITIF, F0900_P2_LOCK_DEFINITIF);
+	dmd_reg(lock_flag_field, F0900_P1_LOCK_DEFINITIF,
+					F0900_P2_LOCK_DEFINITIF);
 	if (stv0900_get_standard(fe, demod) == STV0900_DVBS2_STANDARD) {
-		dmd_reg(noise_field1, F0900_P1_NOSPLHT_NORMED1, F0900_P2_NOSPLHT_NORMED1);
-		dmd_reg(noise_field0, F0900_P1_NOSPLHT_NORMED0, F0900_P2_NOSPLHT_NORMED0);
+		dmd_reg(noise_field1, F0900_P1_NOSPLHT_NORMED1,
+					F0900_P2_NOSPLHT_NORMED1);
+		dmd_reg(noise_field0, F0900_P1_NOSPLHT_NORMED0,
+					F0900_P2_NOSPLHT_NORMED0);
 	} else {
-		dmd_reg(noise_field1, F0900_P1_NOSDATAT_NORMED1, F0900_P2_NOSDATAT_NORMED1);
-		dmd_reg(noise_field0, F0900_P1_NOSDATAT_NORMED0, F0900_P1_NOSDATAT_NORMED0);
+		dmd_reg(noise_field1, F0900_P1_NOSDATAT_NORMED1,
+					F0900_P2_NOSDATAT_NORMED1);
+		dmd_reg(noise_field0, F0900_P1_NOSDATAT_NORMED0,
+					F0900_P1_NOSDATAT_NORMED0);
 	}
 
 	if (stv0900_get_bits(i_params, lock_flag_field)) {
@@ -670,27 +675,34 @@ static s32 stv0900_carr_get_quality(struct dvb_frontend *fe,
 			regval = 0;
 			msleep(5);
 			for (i = 0; i < 16; i++) {
-				regval += MAKEWORD(stv0900_get_bits(i_params, noise_field1),
-						stv0900_get_bits(i_params, noise_field0));
+				regval += MAKEWORD(stv0900_get_bits(i_params,
+								noise_field1),
+						stv0900_get_bits(i_params,
+								noise_field0));
 				msleep(1);
 			}
 
 			regval /= 16;
 			imin = 0;
 			imax = lookup->size - 1;
-			if (INRANGE(lookup->table[imin].regval, regval, lookup->table[imax].regval)) {
+			if (INRANGE(lookup->table[imin].regval,
+					regval,
+					lookup->table[imax].regval)) {
 				while ((imax - imin) > 1) {
 					i = (imax + imin) >> 1;
-
-					if (INRANGE(lookup->table[imin].regval, regval, lookup->table[i].regval))
+					if (INRANGE(lookup->table[imin].regval,
+						    regval,
+						    lookup->table[i].regval))
 						imax = i;
 					else
 						imin = i;
 				}
 
 				c_n = ((regval - lookup->table[imin].regval)
-						* (lookup->table[imax].realval - lookup->table[imin].realval)
-						/ (lookup->table[imax].regval - lookup->table[imin].regval))
+						* (lookup->table[imax].realval
+						- lookup->table[imin].realval)
+						/ (lookup->table[imax].regval
+						- lookup->table[imin].regval))
 						+ lookup->table[imin].realval;
 			} else if (regval < lookup->table[imin].regval)
 				c_n = 1000;
@@ -702,7 +714,10 @@ static s32 stv0900_carr_get_quality(struct dvb_frontend *fe,
 
 static int stv0900_read_snr(struct dvb_frontend *fe, u16 *snr)
 {
-	*snr = (16383 / 1030) * (30 + stv0900_carr_get_quality(fe, (const struct stv0900_table *)&stv0900_s2_cn));
+	*snr = stv0900_carr_get_quality(fe,
+			(const struct stv0900_table *)&stv0900_s2_cn);
+	*snr += 30;
+	*snr *= (16383 / 1030);
 
 	return 0;
 }
