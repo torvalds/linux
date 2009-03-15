@@ -750,7 +750,7 @@ static int au0828_v4l2_open(struct file *filp)
 			dev = h;
 			type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 		}
-#ifdef VBI_NOT_YET_WORKING
+#ifdef VBI_IS_WORKING
 		if (h->vbi_dev->minor == minor) {
 			dev = h;
 			type = V4L2_BUF_TYPE_VBI_CAPTURE;
@@ -929,7 +929,7 @@ static int au0828_set_format(struct au0828_dev *dev, unsigned int cmd,
 	maxwidth = 720;
 	maxheight = 480;
 
-#ifdef VBI_NOT_YET_WORKING
+#ifdef VBI_IS_WORKING
 	if (format->type == V4L2_BUF_TYPE_SLICED_VBI_CAPTURE) {
 		dprintk(1, "VBI format set: to be supported!\n");
 		return 0;
@@ -1017,7 +1017,7 @@ static int vidioc_querycap(struct file *file, void  *priv,
 
 	/*set the device capabilities */
 	cap->capabilities = V4L2_CAP_VIDEO_CAPTURE |
-#ifdef VBI_NOT_YET_WORKING
+#ifdef VBI_IS_WORKING
 		V4L2_CAP_VBI_CAPTURE |
 #endif
 		V4L2_CAP_AUDIO |
@@ -1549,7 +1549,7 @@ static const struct v4l2_ioctl_ops video_ioctl_ops = {
 	.vidioc_g_fmt_vid_cap       = vidioc_g_fmt_vid_cap,
 	.vidioc_try_fmt_vid_cap     = vidioc_try_fmt_vid_cap,
 	.vidioc_s_fmt_vid_cap       = vidioc_s_fmt_vid_cap,
-#ifdef VBI_NOT_YET_WORKING
+#ifdef VBI_IS_WORKING
 	.vidioc_g_fmt_vbi_cap       = vidioc_g_fmt_vbi_cap,
 	.vidioc_try_fmt_vbi_cap     = vidioc_s_fmt_vbi_cap,
 	.vidioc_s_fmt_vbi_cap       = vidioc_s_fmt_vbi_cap,
@@ -1557,7 +1557,7 @@ static const struct v4l2_ioctl_ops video_ioctl_ops = {
 	.vidioc_g_audio             = vidioc_g_audio,
 	.vidioc_s_audio             = vidioc_s_audio,
 	.vidioc_cropcap             = vidioc_cropcap,
-#ifdef VBI_NOT_YET_WORKING
+#ifdef VBI_IS_WORKING
 	.vidioc_g_fmt_sliced_vbi_cap   = vidioc_g_fmt_sliced_vbi_cap,
 	.vidioc_try_fmt_sliced_vbi_cap = vidioc_try_set_sliced_vbi_cap,
 	.vidioc_s_fmt_sliced_vbi_cap   = vidioc_try_set_sliced_vbi_cap,
@@ -1661,7 +1661,7 @@ int au0828_analog_register(struct au0828_dev *dev,
 		return -ENOMEM;
 	}
 
-#ifdef VBI_NOT_YET_WORKING
+#ifdef VBI_IS_WORKING
 	dev->vbi_dev = video_device_alloc();
 	if (NULL == dev->vbi_dev) {
 		dprintk(1, "Can't allocate vbi_device.\n");
@@ -1675,7 +1675,7 @@ int au0828_analog_register(struct au0828_dev *dev,
 	dev->vdev->parent = &dev->usbdev->dev;
 	strcpy(dev->vdev->name, "au0828a video");
 
-#ifdef VBI_NOT_YET_WORKING
+#ifdef VBI_IS_WORKING
 	/* Setup the VBI device */
 	*dev->vbi_dev = au0828_video_template;
 	dev->vbi_dev->parent = &dev->usbdev->dev;
@@ -1694,7 +1694,7 @@ int au0828_analog_register(struct au0828_dev *dev,
 		return -ENODEV;
 	}
 
-#ifdef VBI_NOT_YET_WORKING
+#ifdef VBI_IS_WORKING
 	/* Register the vbi device */
 	retval = video_register_device(dev->vbi_dev, VFL_TYPE_VBI, -1);
 	if (retval != 0) {
