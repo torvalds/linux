@@ -1318,11 +1318,15 @@ static int mount_ubifs(struct ubifs_info *c)
 		else {
 			c->need_recovery = 0;
 			ubifs_msg("recovery completed");
-			/* GC LEB has to be empty and taken at this point */
-			ubifs_assert(c->lst.taken_empty_lebs == 1);
+			/*
+			 * GC LEB has to be empty and taken at this point. But
+			 * the journal head LEBs may also be accounted as
+			 * "empty taken" if they are empty.
+			 */
+			ubifs_assert(c->lst.taken_empty_lebs > 0);
 		}
 	} else
-		ubifs_assert(c->lst.taken_empty_lebs == 1);
+		ubifs_assert(c->lst.taken_empty_lebs > 0);
 
 	err = dbg_check_filesystem(c);
 	if (err)
@@ -1775,7 +1779,7 @@ static int ubifs_remount_fs(struct super_block *sb, int *flags, char *data)
 		c->bu.buf = NULL;
 	}
 
-	ubifs_assert(c->lst.taken_empty_lebs == 1);
+	ubifs_assert(c->lst.taken_empty_lebs > 0);
 	return 0;
 }
 
