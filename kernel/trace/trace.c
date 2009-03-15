@@ -2494,7 +2494,7 @@ static int tracing_set_tracer(const char *buf)
 	if (!ring_buffer_expanded) {
 		ret = tracing_resize_ring_buffer(trace_buf_size);
 		if (ret < 0)
-			return ret;
+			goto out;
 		ret = 0;
 	}
 
