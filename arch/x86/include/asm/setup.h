@@ -116,13 +116,13 @@ void *extend_brk(size_t size, size_t align);
  * executable.)
  */
 #define RESERVE_BRK(name,sz)						\
-	static void __section(.discard) __used			\
+	static void __section(.discard) __used				\
 	__brk_reservation_fn_##name##__(void) {				\
 		asm volatile (						\
 			".pushsection .brk_reservation,\"aw\",@nobits;" \
-			"__brk_reservation_" #name "__:"		\
+			".brk." #name ":"				\
 			" 1:.skip %c0;"					\
-			" .size __brk_reservation_" #name "__, . - 1b;"	\
+			" .size .brk." #name ", . - 1b;"		\
 			" .popsection"					\
 			: : "i" (sz));					\
 	}
@@ -141,9 +141,9 @@ void __init x86_64_start_reservations(char *real_mode_data);
 #else
 #define RESERVE_BRK(name,sz)				\
 	.pushsection .brk_reservation,"aw",@nobits;	\
-__brk_reservation_##name##__:				\
+.brk.name:						\
 1:	.skip sz;					\
-	.size __brk_reservation_##name##__,.-1b;	\
+	.size .brk.name,.-1b;				\
 	.popsection
 #endif /* __ASSEMBLY__ */
 #endif  /*  __KERNEL__  */
