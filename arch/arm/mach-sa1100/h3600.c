@@ -227,12 +227,6 @@ static void __init h3xxx_map_io(void)
 	sa1100fb_lcd_power = h3xxx_lcd_power;
 }
 
-static __inline__ void do_blank(int setp)
-{
-	if (ipaq_model_ops.blank_callback)
-		ipaq_model_ops.blank_callback(1-setp);
-}
-
 /************************* H3100 *************************/
 
 #ifdef CONFIG_SA1100_H3100
@@ -250,7 +244,6 @@ static void h3100_control_egpio(enum ipaq_egpio_type x, int setp)
 	case IPAQ_EGPIO_LCD_POWER:
 		egpio |= EGPIO_H3600_LCD_ON;
 		gpio  |= GPIO_H3100_LCD_3V_ON;
-		do_blank(setp);
 		break;
 	case IPAQ_EGPIO_LCD_ENABLE:
 		break;
@@ -304,23 +297,8 @@ static void h3100_control_egpio(enum ipaq_egpio_type x, int setp)
 	}
 }
 
-static unsigned long h3100_read_egpio(void)
-{
-	return h3100_egpio;
-}
-
-static int h3100_pm_callback(int req)
-{
-	if (ipaq_model_ops.pm_callback_aux)
-		return ipaq_model_ops.pm_callback_aux(req);
-	return 0;
-}
-
 static struct ipaq_model_ops h3100_model_ops __initdata = {
-	.generic_name	= "3100",
 	.control	= h3100_control_egpio,
-	.read		= h3100_read_egpio,
-	.pm_callback	= h3100_pm_callback
 };
 
 #define H3100_DIRECT_EGPIO (GPIO_H3100_BT_ON	  \
@@ -381,7 +359,6 @@ static void h3600_control_egpio(enum ipaq_egpio_type x, int setp)
 			 EGPIO_H3600_LCD_PCI |
 			 EGPIO_H3600_LCD_5V_ON |
 			 EGPIO_H3600_LVDD_ON;
-		do_blank(setp);
 		break;
 	case IPAQ_EGPIO_LCD_ENABLE:
 		break;
@@ -432,23 +409,8 @@ static void h3600_control_egpio(enum ipaq_egpio_type x, int setp)
 	}
 }
 
-static unsigned long h3600_read_egpio(void)
-{
-	return h3600_egpio;
-}
-
-static int h3600_pm_callback(int req)
-{
-	if (ipaq_model_ops.pm_callback_aux)
-		return ipaq_model_ops.pm_callback_aux(req);
-	return 0;
-}
-
 static struct ipaq_model_ops h3600_model_ops __initdata = {
-	.generic_name	= "3600",
 	.control	= h3600_control_egpio,
-	.read		= h3600_read_egpio,
-	.pm_callback	= h3600_pm_callback
 };
 
 static void __init h3600_map_io(void)

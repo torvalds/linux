@@ -94,20 +94,10 @@ enum ipaq_egpio_type {
 };
 
 struct ipaq_model_ops {
-	const char     *generic_name;
 	void	      (*control)(enum ipaq_egpio_type, int);
-	unsigned long (*read)(void);
-	void	      (*blank_callback)(int blank);
-	int	      (*pm_callback)(int req);	    /* Primary model callback */
-	int	      (*pm_callback_aux)(int req);  /* Secondary callback (used by HAL modules) */
 };
 
 extern struct ipaq_model_ops ipaq_model_ops;
-
-static __inline__ const char * h3600_generic_name(void)
-{
-	return ipaq_model_ops.generic_name;
-}
 
 static __inline__ void assign_h3600_egpio(enum ipaq_egpio_type x, int level)
 {
@@ -127,42 +117,6 @@ static __inline__ void set_h3600_egpio(enum ipaq_egpio_type x)
 		ipaq_model_ops.control(x,1);
 }
 
-static __inline__ unsigned long read_h3600_egpio(void)
-{
-	if (ipaq_model_ops.read)
-		return ipaq_model_ops.read();
-	return 0;
-}
-
-static __inline__ int  h3600_register_blank_callback(void (*f)(int))
-{
-	ipaq_model_ops.blank_callback = f;
-	return 0;
-}
-
-static __inline__ void h3600_unregister_blank_callback(void (*f)(int))
-{
-	ipaq_model_ops.blank_callback = NULL;
-}
-
-
-static __inline__ int  h3600_register_pm_callback(int (*f)(int))
-{
-	ipaq_model_ops.pm_callback_aux = f;
-	return 0;
-}
-
-static __inline__ void h3600_unregister_pm_callback(int (*f)(int))
-{
-	ipaq_model_ops.pm_callback_aux = NULL;
-}
-
-static __inline__ int h3600_power_management(int req)
-{
-	if (ipaq_model_ops.pm_callback)
-		return ipaq_model_ops.pm_callback(req);
-	return 0;
-}
 
 #endif /* ASSEMBLY */
 
