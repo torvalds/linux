@@ -1114,7 +1114,7 @@ struct pci_bus * pci_create_bus(struct device *parent,
 	if (!b)
 		return NULL;
 
-	dev = kmalloc(sizeof(*dev), GFP_KERNEL);
+	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (!dev){
 		kfree(b);
 		return NULL;
@@ -1133,7 +1133,6 @@ struct pci_bus * pci_create_bus(struct device *parent,
 	list_add_tail(&b->node, &pci_root_buses);
 	up_write(&pci_bus_sem);
 
-	memset(dev, 0, sizeof(*dev));
 	dev->parent = parent;
 	dev->release = pci_release_bus_bridge_dev;
 	dev_set_name(dev, "pci%04x:%02x", pci_domain_nr(b), bus);
