@@ -46,14 +46,15 @@
 #include <linux/stddef.h>
 #include <linux/unistd.h>
 #include <linux/kallsyms.h>
+#include <linux/uaccess.h>
 
 #include <asm/io.h>
 #include <asm/asm-offsets.h>
 #include <asm/pdc.h>
 #include <asm/pdc_chassis.h>
 #include <asm/pgalloc.h>
-#include <asm/uaccess.h>
 #include <asm/unwind.h>
+#include <asm/sections.h>
 
 /*
  * The idle thread. There's no useful work to be
@@ -390,3 +391,15 @@ get_wchan(struct task_struct *p)
 	} while (count++ < 16);
 	return 0;
 }
+
+#ifdef CONFIG_64BIT
+void *dereference_function_descriptor(void *ptr)
+{
+	Elf64_Fdesc *desc = ptr;
+	void *p;
+
+	if (!probe_kernel_address(&desc->addr, p))
+		ptr = p;
+	return ptr;
+}
+#endif
