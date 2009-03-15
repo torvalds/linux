@@ -1121,6 +1121,7 @@ static int vidioc_enum_input(struct file *file, void *priv,
 	unsigned int tmp;
 
 	static const char *inames[] = {
+		[AU0828_VMUX_UNDEFINED] = "Undefined",
 		[AU0828_VMUX_COMPOSITE] = "Composite",
 		[AU0828_VMUX_SVIDEO] = "S-Video",
 		[AU0828_VMUX_CABLE] = "Cable TV",
