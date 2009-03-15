@@ -131,6 +131,31 @@ void __init e820_add_region(u64 start, u64 size, int type)
 	__e820_add_region(&e820, start, size, type);
 }
 
+static void __init e820_print_type(u32 type)
+{
+	switch (type) {
+	case E820_RAM:
+	case E820_RESERVED_KERN:
+		printk(KERN_CONT "(usable)");
+		break;
+	case E820_RESERVED:
+		printk(KERN_CONT "(reserved)");
+		break;
+	case E820_ACPI:
+		printk(KERN_CONT "(ACPI data)");
+		break;
+	case E820_NVS:
+		printk(KERN_CONT "(ACPI NVS)");
+		break;
+	case E820_UNUSABLE:
+		printk(KERN_CONT "(unusable)");
+		break;
+	default:
+		printk(KERN_CONT "type %u", type);
+		break;
+	}
+}
+
 void __init e820_print_map(char *who)
 {
 	int i;
@@ -140,27 +165,8 @@ void __init e820_print_map(char *who)
 		       (unsigned long long) e820.map[i].addr,
 		       (unsigned long long)
 		       (e820.map[i].addr + e820.map[i].size));
-		switch (e820.map[i].type) {
-		case E820_RAM:
-		case E820_RESERVED_KERN:
-			printk(KERN_CONT "(usable)\n");
-			break;
-		case E820_RESERVED:
-			printk(KERN_CONT "(reserved)\n");
-			break;
-		case E820_ACPI:
-			printk(KERN_CONT "(ACPI data)\n");
-			break;
-		case E820_NVS:
-			printk(KERN_CONT "(ACPI NVS)\n");
-			break;
-		case E820_UNUSABLE:
-			printk("(unusable)\n");
-			break;
-		default:
-			printk(KERN_CONT "type %u\n", e820.map[i].type);
-			break;
-		}
+		e820_print_type(e820.map[i].type);
+		printk(KERN_CONT "\n");
 	}
 }
 
@@ -437,6 +443,14 @@ static u64 __init __e820_update_range(struct e820map *e820x, u64 start,
 		size = ULLONG_MAX - start;
 
 	end = start + size;
+	printk(KERN_DEBUG "e820 update range: %016Lx - %016Lx ",
+		       (unsigned long long) start,
+		       (unsigned long long) end);
+	e820_print_type(old_type);
+	printk(KERN_CONT " ==> ");
+	e820_print_type(new_type);
+	printk(KERN_CONT "\n");
+
 	for (i = 0; i < e820x->nr_map; i++) {
 		struct e820entry *ei = &e820x->map[i];
 		u64 final_start, final_end;
