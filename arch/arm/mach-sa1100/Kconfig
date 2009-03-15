@@ -147,15 +147,6 @@ config SA1100_SSP
 	  This isn't for audio support, but for attached sensors and
 	  other devices, eg for BadgePAD 4 sensor support.
 
-config H3600_SLEEVE
-	tristate "Compaq iPAQ Handheld sleeve support"
-	depends on SA1100_H3100 || SA1100_H3600
-	help
-	  Choose this option to enable support for extension packs (sleeves)
-	  for the Compaq iPAQ H3XXX series of handheld computers.  This option
-	  is required for the CF, PCMCIA, Bluetooth and GSM/GPRS extension
-	  packs.
-
 endmenu
 
 endif
