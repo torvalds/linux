@@ -105,54 +105,72 @@ static void copy_vbi_data(struct cx18 *cx, int lines, u32 pts_stamp)
 
 /* Compress raw VBI format, removes leading SAV codes and surplus space
    after the frame.  Returns new compressed size. */
-static u32 compress_raw_buf(struct cx18 *cx, u8 *buf, u32 size)
+static u32 compress_raw_buf(struct cx18 *cx, u8 *buf, u32 size, u32 hdr_size)
 {
 	u32 line_size = vbi_active_samples;
 	u32 lines = cx->vbi.count * 2;
-	u8 sav1 = raw_vbi_sav_rp[0];
-	u8 sav2 = raw_vbi_sav_rp[1];
 	u8 *q = buf;
 	u8 *p;
 	int i;
+
+	/* Skip the header */
+	buf += hdr_size;
 
 	for (i = 0; i < lines; i++) {
 		p = buf + i * line_size;
 
 		/* Look for SAV code */
 		if (p[0] != 0xff || p[1] || p[2] ||
-		    (p[3] != sav1 && p[3] != sav2))
+		    (p[3] != raw_vbi_sav_rp[0] &&
+		     p[3] != raw_vbi_sav_rp[1]))
 			break;
-		memcpy(q, p + 4, line_size - 4);
-		q += line_size - 4;
+		if (i == lines - 1) {
+			/* last line is hdr_size bytes short - extrapolate it */
+			memcpy(q, p + 4, line_size - 4 - hdr_size);
+			q += line_size - 4 - hdr_size;
+			p += line_size - hdr_size - 1;
+			memset(q, (int) *p, hdr_size);
+		} else {
+			memcpy(q, p + 4, line_size - 4);
+			q += line_size - 4;
+		}
 	}
 	return lines * (line_size - 4);
 }
 
-
-/* Compressed VBI format, all found sliced blocks put next to one another
-   Returns new compressed size */
-static u32 compress_sliced_buf(struct cx18 *cx, u32 line, u8 *buf,
-			       u32 size, u8 eav)
+static u32 compress_sliced_buf(struct cx18 *cx, u8 *buf, u32 size,
+			       const u32 hdr_size)
 {
 	struct v4l2_decode_vbi_line vbi;
 	int i;
+	u32 line = 0;
 	u32 line_size = cx->is_60hz ? vbi_hblank_samples_60Hz
 				    : vbi_hblank_samples_50Hz;
 
 	/* find the first valid line */
-	for (i = 0; i < size; i++, buf++) {
-		if (buf[0] == 0xff && !buf[1] && !buf[2] && buf[3] == eav)
+	for (i = hdr_size, buf += hdr_size; i < size; i++, buf++) {
+		if (buf[0] == 0xff && !buf[1] && !buf[2] &&
+		    (buf[3] == sliced_vbi_eav_rp[0] ||
+		     buf[3] == sliced_vbi_eav_rp[1]))
 			break;
 	}
 
-	size -= i;
+	/*
+	 * The last line is short by hdr_size bytes, but for the remaining
+	 * checks against size, we pretend that it is not, by counting the
+	 * header bytes we knowingly skipped
+	 */
+	size -= (i - hdr_size);
 	if (size < line_size)
 		return line;
+
 	for (i = 0; i < size / line_size; i++) {
 		u8 *p = buf + i * line_size;
 
 		/* Look for EAV code  */
-		if (p[0] != 0xff || p[1] || p[2] || p[3] != eav)
+		if (p[0] != 0xff || p[1] || p[2] ||
+		    (p[3] != sliced_vbi_eav_rp[0] &&
+		     p[3] != sliced_vbi_eav_rp[1]))
 			continue;
 		vbi.p = p + 4;
 		v4l2_subdev_call(cx->sd_av, video, decode_vbi_line, &vbi);
@@ -170,8 +188,17 @@ static u32 compress_sliced_buf(struct cx18 *cx, u32 line, u8 *buf,
 void cx18_process_vbi_data(struct cx18 *cx, struct cx18_buffer *buf,
 			   int streamtype)
 {
+	/*
+	 * The CX23418 provides a 12 byte header in its raw VBI buffers to us:
+	 * 0x3fffffff [4 bytes of something] [4 byte presentation time stamp]
+	 */
+	struct vbi_data_hdr {
+		__be32 magic;
+		__be32 unknown;
+		__be32 pts;
+	} *hdr = (struct vbi_data_hdr *) buf->buf;
+
 	u8 *p = (u8 *) buf->buf;
-	__be32 *q = (__be32 *) buf->buf;
 	u32 size = buf->bytesused;
 	u32 pts;
 	int lines;
@@ -182,32 +209,15 @@ void cx18_process_vbi_data(struct cx18 *cx, struct cx18_buffer *buf,
 	/*
 	 * The CX23418 sends us data that is 32 bit little-endian swapped,
 	 * but we want the raw VBI bytes in the order they were in the raster
-	 * line.  This has a side effect of making the 12 byte header big endian
+	 * line.  This has a side effect of making the header big endian
 	 */
 	cx18_buf_swap(buf);
 
-	/*
-	 * The CX23418 provides a 12 byte header in it's raw VBI buffers to us:
-	 * 0x3fffffff [4 bytes of something] [4 byte presentation time stamp?]
-	 */
-
 	/* Raw VBI data */
 	if (cx18_raw_vbi(cx)) {
-		u8 type;
 
-		/*
-		 * We've set up to get a frame's worth of VBI data at a time.
-		 * Skip 12 bytes of header prefixing the first field.
-		 */
-		size -= 12;
-		memcpy(p, &buf->buf[12], size);
-		type = p[3];
-
-		/* Extrapolate the last 12 bytes of the frame's last line */
-		memset(&p[size], (int) p[size - 1], 12);
-		size += 12;
-
-		size = buf->bytesused = compress_raw_buf(cx, p, size);
+		size = buf->bytesused =
+		     compress_raw_buf(cx, p, size, sizeof(struct vbi_data_hdr));
 
 		/*
 		 * Hack needed for compatibility with old VBI software.
@@ -221,26 +231,11 @@ void cx18_process_vbi_data(struct cx18 *cx, struct cx18_buffer *buf,
 
 	/* Sliced VBI data with data insertion */
 
-	pts = (be32_to_cpu(q[0]) == 0x3fffffff) ? be32_to_cpu(q[2]) : 0;
+	pts = (be32_to_cpu(hdr->magic) == 0x3fffffff) ? be32_to_cpu(hdr->pts)
+						      : 0;
 
-	/*
-	 * For calls to compress_sliced_buf(), ensure there are an integral
-	 * number of lines by shifting the real data up over the 12 bytes header
-	 * that got stuffed in.
-	 * FIXME - there's a smarter way to do this with pointers, but for some
-	 * reason I can't get it to work correctly right now.
-	 */
-	memcpy(p, &buf->buf[12], size-12);
+	lines = compress_sliced_buf(cx, p, size, sizeof(struct vbi_data_hdr));
 
-	/* first field */
-	lines = compress_sliced_buf(cx, 0, p, size / 2, sliced_vbi_eav_rp[0]);
-	/*
-	 * second field
-	 * In case the second half does not always begin at the exact address,
-	 * start a bit earlier (hence 32).
-	 */
-	lines = compress_sliced_buf(cx, lines, p + size / 2 - 32,
-			size / 2 + 32, sliced_vbi_eav_rp[1]);
 	/* always return at least one empty line */
 	if (lines == 0) {
 		cx->vbi.sliced_data[0].id = 0;
