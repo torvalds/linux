@@ -859,7 +859,7 @@ int hash_page(unsigned long ea, unsigned long access, unsigned long trap)
 	unsigned long vsid;
 	struct mm_struct *mm;
 	pte_t *ptep;
-	cpumask_t tmp;
+	const struct cpumask *tmp;
 	int rc, user_region = 0, local = 0;
 	int psize, ssize;
 
@@ -907,8 +907,8 @@ int hash_page(unsigned long ea, unsigned long access, unsigned long trap)
 		return 1;
 
 	/* Check CPU locality */
-	tmp = cpumask_of_cpu(smp_processor_id());
-	if (user_region && cpus_equal(mm->cpu_vm_mask, tmp))
+	tmp = cpumask_of(smp_processor_id());
+	if (user_region && cpumask_equal(mm_cpumask(mm), tmp))
 		local = 1;
 
 #ifdef CONFIG_HUGETLB_PAGE
@@ -1024,7 +1024,6 @@ void hash_preload(struct mm_struct *mm, unsigned long ea,
 	unsigned long vsid;
 	void *pgdir;
 	pte_t *ptep;
-	cpumask_t mask;
 	unsigned long flags;
 	int local = 0;
 	int ssize;
@@ -1067,8 +1066,7 @@ void hash_preload(struct mm_struct *mm, unsigned long ea,
 	local_irq_save(flags);
 
 	/* Is that local to this CPU ? */
-	mask = cpumask_of_cpu(smp_processor_id());
-	if (cpus_equal(mm->cpu_vm_mask, mask))
+	if (cpumask_equal(mm_cpumask(mm), cpumask_of(smp_processor_id())))
 		local = 1;
 
 	/* Hash it in */

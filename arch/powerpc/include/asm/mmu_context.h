@@ -31,7 +31,7 @@ static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
 			     struct task_struct *tsk)
 {
 	/* Mark this context has been used on the new CPU */
-	cpu_set(smp_processor_id(), next->cpu_vm_mask);
+	cpumask_set_cpu(smp_processor_id(), mm_cpumask(next));
 
 	/* 32-bit keeps track of the current PGDIR in the thread struct */
 #ifdef CONFIG_PPC32

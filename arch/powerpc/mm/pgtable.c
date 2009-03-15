@@ -82,11 +82,10 @@ static void pte_free_submit(struct pte_freelist_batch *batch)
 void pgtable_free_tlb(struct mmu_gather *tlb, pgtable_free_t pgf)
 {
 	/* This is safe since tlb_gather_mmu has disabled preemption */
-        cpumask_t local_cpumask = cpumask_of_cpu(smp_processor_id());
 	struct pte_freelist_batch **batchp = &__get_cpu_var(pte_freelist_cur);
 
 	if (atomic_read(&tlb->mm->mm_users) < 2 ||
-	    cpus_equal(tlb->mm->cpu_vm_mask, local_cpumask)) {
+	    cpumask_equal(mm_cpumask(tlb->mm), cpumask_of(smp_processor_id()))){
 		pgtable_free(pgf);
 		return;
 	}
