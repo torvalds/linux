@@ -5,7 +5,11 @@
 #include "trace_output.h"
 #include "trace.h"
 
-static atomic_t refcount;
+/* Keep a counter of the syscall tracing users */
+static int refcount;
+
+/* Prevent from races on thread flags toggling */
+static DEFINE_MUTEX(syscall_trace_lock);
 
 /* Option to display the parameters types */
 enum {
@@ -96,9 +100,11 @@ void start_ftrace_syscalls(void)
 	unsigned long flags;
 	struct task_struct *g, *t;
 
+	mutex_lock(&syscall_trace_lock);
+
 	/* Don't enable the flag on the tasks twice */
-	if (atomic_inc_return(&refcount) != 1)
-		return;
+	if (++refcount != 1)
+		goto unlock;
 
 	arch_init_ftrace_syscalls();
 	read_lock_irqsave(&tasklist_lock, flags);
@@ -108,6 +114,9 @@ void start_ftrace_syscalls(void)
 	} while_each_thread(g, t);
 
 	read_unlock_irqrestore(&tasklist_lock, flags);
+
+unlock:
+	mutex_unlock(&syscall_trace_lock);
 }
 
 void stop_ftrace_syscalls(void)
@@ -115,9 +124,11 @@ void stop_ftrace_syscalls(void)
 	unsigned long flags;
 	struct task_struct *g, *t;
 
+	mutex_lock(&syscall_trace_lock);
+
 	/* There are perhaps still some users */
-	if (atomic_dec_return(&refcount))
-		return;
+	if (--refcount)
+		goto unlock;
 
 	read_lock_irqsave(&tasklist_lock, flags);
 
@@ -126,6 +137,9 @@ void stop_ftrace_syscalls(void)
 	} while_each_thread(g, t);
 
 	read_unlock_irqrestore(&tasklist_lock, flags);
+
+unlock:
+	mutex_unlock(&syscall_trace_lock);
 }
 
 void ftrace_syscall_enter(struct pt_regs *regs)
