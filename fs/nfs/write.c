@@ -537,13 +537,13 @@ static void nfs_cancel_commit_list(struct list_head *head)
 	}
 }
 
+#if defined(CONFIG_NFS_V3) || defined(CONFIG_NFS_V4)
 static int
 nfs_need_commit(struct nfs_inode *nfsi)
 {
 	return radix_tree_tagged(&nfsi->nfs_page_tree, NFS_PAGE_TAG_COMMIT);
 }
 
-#if defined(CONFIG_NFS_V3) || defined(CONFIG_NFS_V4)
 /*
  * nfs_scan_commit - Scan an inode for commit requests
  * @inode: NFS inode to scan
