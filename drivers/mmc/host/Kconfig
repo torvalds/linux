@@ -72,6 +72,17 @@ config MMC_RICOH_MMC
 
 	  If unsure, say Y.
 
+config MMC_SDHCI_OF
+	tristate "SDHCI support on OpenFirmware platforms"
+	depends on MMC_SDHCI && PPC_OF
+	select MMC_SDHCI_IO_ACCESSORS
+	help
+	  This selects the OF support for Secure Digital Host Controller
+	  Interfaces. So far, only the Freescale eSDHC controller is known
+	  to exist on OF platforms.
+
+	  If unsure, say N.
+
 config MMC_OMAP
 	tristate "TI OMAP Multimedia Card Interface support"
 	depends on ARCH_OMAP
