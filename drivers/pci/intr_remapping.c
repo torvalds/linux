@@ -207,7 +207,7 @@ int alloc_irte(struct intel_iommu *iommu, int irq, u16 count)
 	return index;
 }
 
-static void qi_flush_iec(struct intel_iommu *iommu, int index, int mask)
+static int qi_flush_iec(struct intel_iommu *iommu, int index, int mask)
 {
 	struct qi_desc desc;
 
@@ -215,7 +215,7 @@ static void qi_flush_iec(struct intel_iommu *iommu, int index, int mask)
 		   | QI_IEC_SELECTIVE;
 	desc.high = 0;
 
-	qi_submit_sync(&desc, iommu);
+	return qi_submit_sync(&desc, iommu);
 }
 
 int map_irq_to_irte_handle(int irq, u16 *sub_handle)
@@ -283,6 +283,7 @@ int clear_irte_irq(int irq, struct intel_iommu *iommu, u16 index)
 
 int modify_irte(int irq, struct irte *irte_modified)
 {
+	int rc;
 	int index;
 	struct irte *irte;
 	struct intel_iommu *iommu;
@@ -303,14 +304,15 @@ int modify_irte(int irq, struct irte *irte_modified)
 	set_64bit((unsigned long *)irte, irte_modified->low | (1 << 1));
 	__iommu_flush_cache(iommu, irte, sizeof(*irte));
 
-	qi_flush_iec(iommu, index, 0);
-
+	rc = qi_flush_iec(iommu, index, 0);
 	spin_unlock(&irq_2_ir_lock);
-	return 0;
+
+	return rc;
 }
 
 int flush_irte(int irq)
 {
+	int rc;
 	int index;
 	struct intel_iommu *iommu;
 	struct irq_2_iommu *irq_iommu;
@@ -326,10 +328,10 @@ int flush_irte(int irq)
 
 	index = irq_iommu->irte_index + irq_iommu->sub_handle;
 
-	qi_flush_iec(iommu, index, irq_iommu->irte_mask);
+	rc = qi_flush_iec(iommu, index, irq_iommu->irte_mask);
 	spin_unlock(&irq_2_ir_lock);
 
-	return 0;
+	return rc;
 }
 
 struct intel_iommu *map_ioapic_to_ir(int apic)
@@ -355,6 +357,7 @@ struct intel_iommu *map_dev_to_ir(struct pci_dev *dev)
 
 int free_irte(int irq)
 {
+	int rc = 0;
 	int index, i;
 	struct irte *irte;
 	struct intel_iommu *iommu;
@@ -375,7 +378,7 @@ int free_irte(int irq)
 	if (!irq_iommu->sub_handle) {
 		for (i = 0; i < (1 << irq_iommu->irte_mask); i++)
 			set_64bit((unsigned long *)irte, 0);
-		qi_flush_iec(iommu, index, irq_iommu->irte_mask);
+		rc = qi_flush_iec(iommu, index, irq_iommu->irte_mask);
 	}
 
 	irq_iommu->iommu = NULL;
@@ -385,7 +388,7 @@ int free_irte(int irq)
 
 	spin_unlock(&irq_2_ir_lock);
 
-	return 0;
+	return rc;
 }
 
 static void iommu_set_intr_remapping(struct intel_iommu *iommu, int mode)

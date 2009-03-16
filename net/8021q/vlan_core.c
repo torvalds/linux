@@ -1,12 +1,16 @@
 #include <linux/skbuff.h>
 #include <linux/netdevice.h>
 #include <linux/if_vlan.h>
+#include <linux/netpoll.h>
 #include "vlan.h"
 
 /* VLAN rx hw acceleration helper.  This acts like netif_{rx,receive_skb}(). */
 int __vlan_hwaccel_rx(struct sk_buff *skb, struct vlan_group *grp,
 		      u16 vlan_tci, int polling)
 {
+	if (netpoll_rx(skb))
+		return NET_RX_DROP;
+
 	if (skb_bond_should_drop(skb))
 		goto drop;
 
@@ -100,6 +104,9 @@ int vlan_gro_receive(struct napi_struct *napi, struct vlan_group *grp,
 {
 	int err = NET_RX_SUCCESS;
 
+	if (netpoll_receive_skb(skb))
+		return NET_RX_DROP;
+
 	switch (vlan_gro_common(napi, grp, vlan_tci, skb)) {
 	case -1:
 		return netif_receive_skb(skb);
@@ -124,6 +131,9 @@ int vlan_gro_frags(struct napi_struct *napi, struct vlan_group *grp,
 	int err = NET_RX_DROP;
 
 	if (!skb)
+		goto out;
+
+	if (netpoll_receive_skb(skb))
 		goto out;
 
 	err = NET_RX_SUCCESS;

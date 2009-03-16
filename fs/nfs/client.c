@@ -255,6 +255,32 @@ static int nfs_sockaddr_match_ipaddr(const struct sockaddr *sa1,
 	}
 	return 0;
 }
+
+/*
+ * Test if two ip6 socket addresses refer to the same socket by
+ * comparing relevant fields. The padding bytes specifically, are not
+ * compared. sin6_flowinfo is not compared because it only affects QoS
+ * and sin6_scope_id is only compared if the address is "link local"
+ * because "link local" addresses need only be unique to a specific
+ * link. Conversely, ordinary unicast addresses might have different
+ * sin6_scope_id.
+ *
+ * The caller should ensure both socket addresses are AF_INET6.
+ */
+static int nfs_sockaddr_cmp_ip6(const struct sockaddr *sa1,
+				const struct sockaddr *sa2)
+{
+	const struct sockaddr_in6 *saddr1 = (const struct sockaddr_in6 *)sa1;
+	const struct sockaddr_in6 *saddr2 = (const struct sockaddr_in6 *)sa2;
+
+	if (!ipv6_addr_equal(&saddr1->sin6_addr,
+			     &saddr1->sin6_addr))
+		return 0;
+	if (ipv6_addr_scope(&saddr1->sin6_addr) == IPV6_ADDR_SCOPE_LINKLOCAL &&
+	    saddr1->sin6_scope_id != saddr2->sin6_scope_id)
+		return 0;
+	return saddr1->sin6_port == saddr2->sin6_port;
+}
 #else
 static int nfs_sockaddr_match_ipaddr4(const struct sockaddr_in *sa1,
 				 const struct sockaddr_in *sa2)
@@ -270,7 +296,50 @@ static int nfs_sockaddr_match_ipaddr(const struct sockaddr *sa1,
 	return nfs_sockaddr_match_ipaddr4((const struct sockaddr_in *)sa1,
 			(const struct sockaddr_in *)sa2);
 }
+
+static int nfs_sockaddr_cmp_ip6(const struct sockaddr * sa1,
+				const struct sockaddr * sa2)
+{
+	return 0;
+}
 #endif
+
+/*
+ * Test if two ip4 socket addresses refer to the same socket, by
+ * comparing relevant fields. The padding bytes specifically, are
+ * not compared.
+ *
+ * The caller should ensure both socket addresses are AF_INET.
+ */
+static int nfs_sockaddr_cmp_ip4(const struct sockaddr *sa1,
+				const struct sockaddr *sa2)
+{
+	const struct sockaddr_in *saddr1 = (const struct sockaddr_in *)sa1;
+	const struct sockaddr_in *saddr2 = (const struct sockaddr_in *)sa2;
+
+	if (saddr1->sin_addr.s_addr != saddr2->sin_addr.s_addr)
+		return 0;
+	return saddr1->sin_port == saddr2->sin_port;
+}
+
+/*
+ * Test if two socket addresses represent the same actual socket,
+ * by comparing (only) relevant fields.
+ */
+static int nfs_sockaddr_cmp(const struct sockaddr *sa1,
+			    const struct sockaddr *sa2)
+{
+	if (sa1->sa_family != sa2->sa_family)
+		return 0;
+
+	switch (sa1->sa_family) {
+	case AF_INET:
+		return nfs_sockaddr_cmp_ip4(sa1, sa2);
+	case AF_INET6:
+		return nfs_sockaddr_cmp_ip6(sa1, sa2);
+	}
+	return 0;
+}
 
 /*
  * Find a client by IP address and protocol version
@@ -344,8 +413,10 @@ struct nfs_client *nfs_find_client_next(struct nfs_client *clp)
 static struct nfs_client *nfs_match_client(const struct nfs_client_initdata *data)
 {
 	struct nfs_client *clp;
+	const struct sockaddr *sap = data->addr;
 
 	list_for_each_entry(clp, &nfs_client_list, cl_share_link) {
+	        const struct sockaddr *clap = (struct sockaddr *)&clp->cl_addr;
 		/* Don't match clients that failed to initialise properly */
 		if (clp->cl_cons_state < 0)
 			continue;
@@ -358,7 +429,7 @@ static struct nfs_client *nfs_match_client(const struct nfs_client_initdata *dat
 			continue;
 
 		/* Match the full socket address */
-		if (memcmp(&clp->cl_addr, data->addr, sizeof(clp->cl_addr)) != 0)
+		if (!nfs_sockaddr_cmp(sap, clap))
 			continue;
 
 		atomic_inc(&clp->cl_count);

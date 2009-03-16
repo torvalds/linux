@@ -184,6 +184,8 @@ typedef struct drm_i915_private {
 	unsigned int lvds_dither:1;
 	unsigned int lvds_vbt:1;
 	unsigned int int_crt_support:1;
+	unsigned int lvds_use_ssc:1;
+	int lvds_ssc_freq;
 
 	struct drm_i915_fence_reg fence_regs[16]; /* assume 965 */
 	int fence_reg_start; /* 4 if userland hasn't ioctl'd us yet */
@@ -277,7 +279,6 @@ typedef struct drm_i915_private {
 	u8 saveAR_INDEX;
 	u8 saveAR[21];
 	u8 saveDACMASK;
-	u8 saveDACDATA[256*3]; /* 256 3-byte colors */
 	u8 saveCR[37];
 
 	struct {
@@ -455,6 +456,12 @@ struct drm_i915_gem_object {
 
 	/** for phy allocated objects */
 	struct drm_i915_gem_phys_object *phys_obj;
+
+	/**
+	 * Used for checking the object doesn't appear more than once
+	 * in an execbuffer object list.
+	 */
+	int in_execbuffer;
 };
 
 /**
@@ -616,6 +623,7 @@ int i915_gem_init_ringbuffer(struct drm_device *dev);
 void i915_gem_cleanup_ringbuffer(struct drm_device *dev);
 int i915_gem_do_init(struct drm_device *dev, unsigned long start,
 		     unsigned long end);
+int i915_gem_idle(struct drm_device *dev);
 int i915_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf);
 int i915_gem_object_set_to_gtt_domain(struct drm_gem_object *obj,
 				      int write);

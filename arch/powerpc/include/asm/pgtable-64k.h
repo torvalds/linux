@@ -114,7 +114,7 @@ static inline struct subpage_prot_table *pgd_subpage_prot(pgd_t *pgd)
  * pgprot changes
  */
 #define _PAGE_CHG_MASK	(PTE_RPN_MASK | _PAGE_HPTEFLAGS | _PAGE_DIRTY | \
-                         _PAGE_ACCESSED)
+                         _PAGE_ACCESSED | _PAGE_SPECIAL)
 
 /* Bits to mask out from a PMD to get to the PTE page */
 #define PMD_MASKED_BITS		0x1ff

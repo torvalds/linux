@@ -176,7 +176,8 @@ static int ocfs2_dinode_insert_check(struct inode *inode,
 
 	BUG_ON(OCFS2_I(inode)->ip_dyn_features & OCFS2_INLINE_DATA_FL);
 	mlog_bug_on_msg(!ocfs2_sparse_alloc(osb) &&
-			(OCFS2_I(inode)->ip_clusters != rec->e_cpos),
+			(OCFS2_I(inode)->ip_clusters !=
+			 le32_to_cpu(rec->e_cpos)),
 			"Device %s, asking for sparse allocation: inode %llu, "
 			"cpos %u, clusters %u\n",
 			osb->dev_str,
@@ -4796,6 +4797,29 @@ out:
 	return ret;
 }
 
+static int ocfs2_replace_extent_rec(struct inode *inode,
+				    handle_t *handle,
+				    struct ocfs2_path *path,
+				    struct ocfs2_extent_list *el,
+				    int split_index,
+				    struct ocfs2_extent_rec *split_rec)
+{
+	int ret;
+
+	ret = ocfs2_path_bh_journal_access(handle, inode, path,
+					   path_num_items(path) - 1);
+	if (ret) {
+		mlog_errno(ret);
+		goto out;
+	}
+
+	el->l_recs[split_index] = *split_rec;
+
+	ocfs2_journal_dirty(handle, path_leaf_bh(path));
+out:
+	return ret;
+}
+
 /*
  * Mark part or all of the extent record at split_index in the leaf
  * pointed to by path as written. This removes the unwritten
@@ -4885,7 +4909,9 @@ static int __ocfs2_mark_extent_written(struct inode *inode,
 
 	if (ctxt.c_contig_type == CONTIG_NONE) {
 		if (ctxt.c_split_covers_rec)
-			el->l_recs[split_index] = *split_rec;
+			ret = ocfs2_replace_extent_rec(inode, handle,
+						       path, el,
+						       split_index, split_rec);
 		else
 			ret = ocfs2_split_and_insert(inode, handle, path, et,
 						     &last_eb_bh, split_index,

@@ -134,6 +134,7 @@ struct nes_qp {
 	struct ietf_mpa_frame *ietf_frame;
 	dma_addr_t            ietf_frame_pbase;
 	wait_queue_head_t     state_waitq;
+	struct ib_mr          *lsmm_mr;
 	unsigned long         socket;
 	struct nes_hw_qp      hwqp;
 	struct work_struct    work;

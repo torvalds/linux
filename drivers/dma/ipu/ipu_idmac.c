@@ -729,7 +729,7 @@ static int ipu_init_channel_buffer(struct idmac_channel *ichan,
 
 	ichan->status = IPU_CHANNEL_READY;
 
-	spin_unlock_irqrestore(ipu->lock, flags);
+	spin_unlock_irqrestore(&ipu->lock, flags);
 
 	return 0;
 }

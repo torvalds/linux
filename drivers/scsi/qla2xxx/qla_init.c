@@ -1226,9 +1226,8 @@ qla24xx_config_rings(struct scsi_qla_host *vha)
 			icb->firmware_options_2 |=
 				__constant_cpu_to_le32(BIT_18);
 
-		icb->firmware_options_2 |= __constant_cpu_to_le32(BIT_22);
+		icb->firmware_options_2 &= __constant_cpu_to_le32(~BIT_22);
 		icb->firmware_options_2 |= __constant_cpu_to_le32(BIT_23);
-		ha->rsp_q_map[0]->options = icb->firmware_options_2;
 
 		WRT_REG_DWORD(&reg->isp25mq.req_q_in, 0);
 		WRT_REG_DWORD(&reg->isp25mq.req_q_out, 0);
@@ -1309,8 +1308,12 @@ qla2x00_init_rings(scsi_qla_host_t *vha)
 
 	DEBUG(printk("scsi(%ld): Issue init firmware.\n", vha->host_no));
 
-	if (ha->flags.npiv_supported)
+	if (ha->flags.npiv_supported) {
+		if (ha->operating_mode == LOOP)
+			ha->max_npiv_vports = MIN_MULTI_ID_FABRIC - 1;
 		mid_init_cb->count = cpu_to_le16(ha->max_npiv_vports);
+	}
+
 
 	mid_init_cb->options = __constant_cpu_to_le16(BIT_1);
 
@@ -2611,6 +2614,7 @@ qla2x00_find_all_fabric_devs(scsi_qla_host_t *vha,
 	port_id_t	wrap, nxt_d_id;
 	struct qla_hw_data *ha = vha->hw;
 	struct scsi_qla_host *vp, *base_vha = pci_get_drvdata(ha->pdev);
+	struct scsi_qla_host *tvp;
 
 	rval = QLA_SUCCESS;
 
@@ -2710,7 +2714,7 @@ qla2x00_find_all_fabric_devs(scsi_qla_host_t *vha,
 		/* Bypass virtual ports of the same host. */
 		found = 0;
 		if (ha->num_vhosts) {
-			list_for_each_entry(vp, &ha->vp_list, list) {
+			list_for_each_entry_safe(vp, tvp, &ha->vp_list, list) {
 				if (new_fcport->d_id.b24 == vp->d_id.b24) {
 					found = 1;
 					break;
@@ -2833,6 +2837,7 @@ qla2x00_find_new_loop_id(scsi_qla_host_t *vha, fc_port_t *dev)
 	uint16_t first_loop_id;
 	struct qla_hw_data *ha = vha->hw;
 	struct scsi_qla_host *vp;
+	struct scsi_qla_host *tvp;
 
 	rval = QLA_SUCCESS;
 
@@ -2857,7 +2862,7 @@ qla2x00_find_new_loop_id(scsi_qla_host_t *vha, fc_port_t *dev)
 		/* Check for loop ID being already in use. */
 		found = 0;
 		fcport = NULL;
-		list_for_each_entry(vp, &ha->vp_list, list) {
+		list_for_each_entry_safe(vp, tvp, &ha->vp_list, list) {
 			list_for_each_entry(fcport, &vp->vp_fcports, list) {
 				if (fcport->loop_id == dev->loop_id &&
 								fcport != dev) {
@@ -3292,6 +3297,7 @@ qla2x00_abort_isp(scsi_qla_host_t *vha)
 	uint8_t        status = 0;
 	struct qla_hw_data *ha = vha->hw;
 	struct scsi_qla_host *vp;
+	struct scsi_qla_host *tvp;
 	struct req_que *req = ha->req_q_map[0];
 
 	if (vha->flags.online) {
@@ -3307,7 +3313,7 @@ qla2x00_abort_isp(scsi_qla_host_t *vha)
 		if (atomic_read(&vha->loop_state) != LOOP_DOWN) {
 			atomic_set(&vha->loop_state, LOOP_DOWN);
 			qla2x00_mark_all_devices_lost(vha, 0);
-			list_for_each_entry(vp, &ha->vp_list, list)
+			list_for_each_entry_safe(vp, tvp, &ha->vp_list, list)
 			       qla2x00_mark_all_devices_lost(vp, 0);
 		} else {
 			if (!atomic_read(&vha->loop_down_timer))
@@ -3404,7 +3410,7 @@ qla2x00_abort_isp(scsi_qla_host_t *vha)
 		DEBUG(printk(KERN_INFO
 				"qla2x00_abort_isp(%ld): succeeded.\n",
 				vha->host_no));
-		list_for_each_entry(vp, &ha->vp_list, list) {
+		list_for_each_entry_safe(vp, tvp, &ha->vp_list, list) {
 			if (vp->vp_idx)
 				qla2x00_vp_abort_isp(vp);
 		}
@@ -3429,7 +3435,7 @@ qla2x00_abort_isp(scsi_qla_host_t *vha)
 static int
 qla2x00_restart_isp(scsi_qla_host_t *vha)
 {
-	uint8_t		status = 0;
+	int status = 0;
 	uint32_t wait_time;
 	struct qla_hw_data *ha = vha->hw;
 	struct req_que *req = ha->req_q_map[0];
@@ -3493,7 +3499,7 @@ qla25xx_init_queues(struct qla_hw_data *ha)
 		rsp = ha->rsp_q_map[i];
 		if (rsp) {
 			rsp->options &= ~BIT_0;
-			ret = qla25xx_init_rsp_que(base_vha, rsp, rsp->options);
+			ret = qla25xx_init_rsp_que(base_vha, rsp);
 			if (ret != QLA_SUCCESS)
 				DEBUG2_17(printk(KERN_WARNING
 					"%s Rsp que:%d init failed\n", __func__,
@@ -3507,7 +3513,7 @@ qla25xx_init_queues(struct qla_hw_data *ha)
 		if (req) {
 		/* Clear outstanding commands array. */
 			req->options &= ~BIT_0;
-			ret = qla25xx_init_req_que(base_vha, req, req->options);
+			ret = qla25xx_init_req_que(base_vha, req);
 			if (ret != QLA_SUCCESS)
 				DEBUG2_17(printk(KERN_WARNING
 					"%s Req que:%d init failed\n", __func__,

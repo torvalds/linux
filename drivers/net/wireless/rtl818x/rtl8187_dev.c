@@ -48,6 +48,10 @@ static struct usb_device_id rtl8187_table[] __devinitdata = {
 	{USB_DEVICE(0x0bda, 0x8189), .driver_info = DEVICE_RTL8187B},
 	{USB_DEVICE(0x0bda, 0x8197), .driver_info = DEVICE_RTL8187B},
 	{USB_DEVICE(0x0bda, 0x8198), .driver_info = DEVICE_RTL8187B},
+	/* Surecom */
+	{USB_DEVICE(0x0769, 0x11F2), .driver_info = DEVICE_RTL8187},
+	/* Logitech */
+	{USB_DEVICE(0x0789, 0x010C), .driver_info = DEVICE_RTL8187},
 	/* Netgear */
 	{USB_DEVICE(0x0846, 0x6100), .driver_info = DEVICE_RTL8187},
 	{USB_DEVICE(0x0846, 0x6a00), .driver_info = DEVICE_RTL8187},
@@ -57,8 +61,16 @@ static struct usb_device_id rtl8187_table[] __devinitdata = {
 	/* Sitecom */
 	{USB_DEVICE(0x0df6, 0x000d), .driver_info = DEVICE_RTL8187},
 	{USB_DEVICE(0x0df6, 0x0028), .driver_info = DEVICE_RTL8187B},
+	/* Sphairon Access Systems GmbH */
+	{USB_DEVICE(0x114B, 0x0150), .driver_info = DEVICE_RTL8187},
+	/* Dick Smith Electronics */
+	{USB_DEVICE(0x1371, 0x9401), .driver_info = DEVICE_RTL8187},
 	/* Abocom */
 	{USB_DEVICE(0x13d1, 0xabe6), .driver_info = DEVICE_RTL8187},
+	/* Qcom */
+	{USB_DEVICE(0x18E8, 0x6232), .driver_info = DEVICE_RTL8187},
+	/* AirLive */
+	{USB_DEVICE(0x1b75, 0x8187), .driver_info = DEVICE_RTL8187},
 	{}
 };
 

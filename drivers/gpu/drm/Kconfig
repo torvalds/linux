@@ -80,18 +80,17 @@ config DRM_I915
 	  XFree86 4.4 and above. If unsure, build this and i830 as modules and
 	  the X server will load the correct one.
 
-endchoice
-
 config DRM_I915_KMS
 	bool "Enable modesetting on intel by default"
 	depends on DRM_I915
 	help
-	Choose this option if you want kernel modesetting enabled by default,
-	and you have a new enough userspace to support this. Running old
-	userspaces with this enabled will cause pain.  Note that this causes
-	the driver to bind to PCI devices, which precludes loading things
-	like intelfb.
+	  Choose this option if you want kernel modesetting enabled by default,
+	  and you have a new enough userspace to support this. Running old
+	  userspaces with this enabled will cause pain.  Note that this causes
+	  the driver to bind to PCI devices, which precludes loading things
+	  like intelfb.
 
+endchoice
 
 config DRM_MGA
 	tristate "Matrox g200/g400"

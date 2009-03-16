@@ -218,7 +218,6 @@ irq_remap_to_desc(unsigned int irq, struct irq_desc *desc)
  * Migration helpers for obsolete names, they will go away:
  */
 #define hw_interrupt_type	irq_chip
-typedef struct irq_chip		hw_irq_controller;
 #define no_irq_type		no_irq_chip
 typedef struct irq_desc		irq_desc_t;
 
@@ -228,6 +227,7 @@ typedef struct irq_desc		irq_desc_t;
 #include <asm/hw_irq.h>
 
 extern int setup_irq(unsigned int irq, struct irqaction *new);
+extern void remove_irq(unsigned int irq, struct irqaction *act);
 
 #ifdef CONFIG_GENERIC_HARDIRQS
 
@@ -272,7 +272,7 @@ static inline int irq_balancing_disabled(unsigned int irq)
 }
 
 /* Handle irq action chains: */
-extern int handle_IRQ_event(unsigned int irq, struct irqaction *action);
+extern irqreturn_t handle_IRQ_event(unsigned int irq, struct irqaction *action);
 
 /*
  * Built-in IRQ handlers for various IRQ types,
@@ -317,7 +317,7 @@ static inline void generic_handle_irq(unsigned int irq)
 
 /* Handling of unhandled and spurious interrupts: */
 extern void note_interrupt(unsigned int irq, struct irq_desc *desc,
-			   int action_ret);
+			   irqreturn_t action_ret);
 
 /* Resending of interrupts :*/
 void check_irq_resend(struct irq_desc *desc, unsigned int irq);

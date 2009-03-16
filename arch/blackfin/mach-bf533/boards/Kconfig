@@ -38,9 +38,4 @@ config BFIN532_IP0X
 	help
 	  Core support for IP04/IP04 open hardware IP-PBX.
 
-config GENERIC_BF533_BOARD
-	bool "Generic"
-	help
-	  Generic or Custom board support.
-
 endchoice

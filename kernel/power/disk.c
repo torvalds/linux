@@ -227,6 +227,12 @@ static int create_image(int platform_mode)
 			"aborting hibernation\n");
 		goto Enable_irqs;
 	}
+	sysdev_suspend(PMSG_FREEZE);
+	if (error) {
+		printk(KERN_ERR "PM: Some devices failed to power down, "
+			"aborting hibernation\n");
+		goto Power_up_devices;
+	}
 
 	if (hibernation_test(TEST_CORE))
 		goto Power_up;
@@ -242,9 +248,11 @@ static int create_image(int platform_mode)
 	if (!in_suspend)
 		platform_leave(platform_mode);
  Power_up:
+	sysdev_resume();
 	/* NOTE:  device_power_up() is just a resume() for devices
 	 * that suspended with irqs off ... no overall powerup.
 	 */
+ Power_up_devices:
 	device_power_up(in_suspend ?
 		(error ? PMSG_RECOVER : PMSG_THAW) : PMSG_RESTORE);
  Enable_irqs:
@@ -335,6 +343,7 @@ static int resume_target_kernel(void)
 			"aborting resume\n");
 		goto Enable_irqs;
 	}
+	sysdev_suspend(PMSG_QUIESCE);
 	/* We'll ignore saved state, but this gets preempt count (etc) right */
 	save_processor_state();
 	error = restore_highmem();
@@ -357,6 +366,7 @@ static int resume_target_kernel(void)
 	swsusp_free();
 	restore_processor_state();
 	touch_softlockup_watchdog();
+	sysdev_resume();
 	device_power_up(PMSG_RECOVER);
  Enable_irqs:
 	local_irq_enable();
@@ -440,6 +450,7 @@ int hibernation_platform_enter(void)
 	local_irq_disable();
 	error = device_power_down(PMSG_HIBERNATE);
 	if (!error) {
+		sysdev_suspend(PMSG_HIBERNATE);
 		hibernation_ops->enter();
 		/* We should never get here */
 		while (1);
@@ -595,6 +606,12 @@ static int software_resume(void)
 	unsigned int flags;
 
 	/*
+	 * If the user said "noresume".. bail out early.
+	 */
+	if (noresume)
+		return 0;
+
+	/*
 	 * name_to_dev_t() below takes a sysfs buffer mutex when sysfs
 	 * is configured into the kernel. Since the regular hibernate
 	 * trigger path is via sysfs which takes a buffer mutex before
@@ -610,6 +627,11 @@ static int software_resume(void)
 			mutex_unlock(&pm_mutex);
 			return -ENOENT;
 		}
+		/*
+		 * Some device discovery might still be in progress; we need
+		 * to wait for this to finish.
+		 */
+		wait_for_device_probe();
 		swsusp_resume_device = name_to_dev_t(resume_file);
 		pr_debug("PM: Resume from partition %s\n", resume_file);
 	} else {

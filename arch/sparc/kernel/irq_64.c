@@ -323,17 +323,25 @@ static void sun4u_set_affinity(unsigned int virt_irq,
 	sun4u_irq_enable(virt_irq);
 }
 
+/* Don't do anything.  The desc->status check for IRQ_DISABLED in
+ * handler_irq() will skip the handler call and that will leave the
+ * interrupt in the sent state.  The next ->enable() call will hit the
+ * ICLR register to reset the state machine.
+ *
+ * This scheme is necessary, instead of clearing the Valid bit in the
+ * IMAP register, to handle the case of IMAP registers being shared by
+ * multiple INOs (and thus ICLR registers).  Since we use a different
+ * virtual IRQ for each shared IMAP instance, the generic code thinks
+ * there is only one user so it prematurely calls ->disable() on
+ * free_irq().
+ *
+ * We have to provide an explicit ->disable() method instead of using
+ * NULL to get the default.  The reason is that if the generic code
+ * sees that, it also hooks up a default ->shutdown method which
+ * invokes ->mask() which we do not want.  See irq_chip_set_defaults().
+ */
 static void sun4u_irq_disable(unsigned int virt_irq)
 {
-	struct irq_handler_data *data = get_irq_chip_data(virt_irq);
-
-	if (likely(data)) {
-		unsigned long imap = data->imap;
-		unsigned long tmp = upa_readq(imap);
-
-		tmp &= ~IMAP_VALID;
-		upa_writeq(tmp, imap);
-	}
 }
 
 static void sun4u_irq_eoi(unsigned int virt_irq)
@@ -746,7 +754,8 @@ void handler_irq(int irq, struct pt_regs *regs)
 
 		desc = irq_desc + virt_irq;
 
-		desc->handle_irq(virt_irq, desc);
+		if (!(desc->status & IRQ_DISABLED))
+			desc->handle_irq(virt_irq, desc);
 
 		bucket_pa = next_pa;
 	}
