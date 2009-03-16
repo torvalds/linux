@@ -154,13 +154,37 @@ static int seq_show(struct seq_file *s, void *v)
 {
 	loff_t *pos = v;
 	const struct nf_logger *logger;
+	struct nf_logger *t;
+	int ret;
 
 	logger = rcu_dereference(nf_loggers[*pos]);
 
 	if (!logger)
-		return seq_printf(s, "%2lld NONE\n", *pos);
+		ret = seq_printf(s, "%2lld NONE (", *pos);
+	else
+		ret = seq_printf(s, "%2lld %s (", *pos, logger->name);
 
-	return seq_printf(s, "%2lld %s\n", *pos, logger->name);
+	if (ret < 0)
+		return ret;
+
+	mutex_lock(&nf_log_mutex);
+	list_for_each_entry(t, &nf_loggers_l[*pos], list[*pos]) {
+		ret = seq_printf(s, "%s", t->name);
+		if (ret < 0) {
+			mutex_unlock(&nf_log_mutex);
+			return ret;
+		}
+		if (&t->list[*pos] != nf_loggers_l[*pos].prev) {
+			ret = seq_printf(s, ",");
+			if (ret < 0) {
+				mutex_unlock(&nf_log_mutex);
+				return ret;
+			}
+		}
+	}
+	mutex_unlock(&nf_log_mutex);
+
+	return seq_printf(s, ")\n");
 }
 
 static const struct seq_operations nflog_seq_ops = {
