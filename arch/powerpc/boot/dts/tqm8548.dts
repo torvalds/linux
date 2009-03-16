@@ -85,9 +85,9 @@
 			interrupt-parent = <&mpic>;
 			dfsrr;
 
-			dtt@50 {
+			dtt@48 {
 				compatible = "national,lm75";
-				reg = <0x50>;
+				reg = <0x48>;
 			};
 
 			rtc@68 {
