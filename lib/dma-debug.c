@@ -29,6 +29,8 @@
 #include <linux/list.h>
 #include <linux/slab.h>
 
+#include <asm/sections.h>
+
 #define HASH_SIZE       1024ULL
 #define HASH_FN_SHIFT   13
 #define HASH_FN_MASK    (HASH_SIZE - 1)
@@ -549,6 +551,24 @@ static void check_for_stack(struct device *dev, void *addr)
 				"stack [addr=%p]\n", addr);
 }
 
+static inline bool overlap(void *addr, u64 size, void *start, void *end)
+{
+	void *addr2 = (char *)addr + size;
+
+	return ((addr >= start && addr < end) ||
+		(addr2 >= start && addr2 < end) ||
+		((addr < start) && (addr2 >= end)));
+}
+
+static void check_for_illegal_area(struct device *dev, void *addr, u64 size)
+{
+	if (overlap(addr, size, _text, _etext) ||
+	    overlap(addr, size, __start_rodata, __end_rodata))
+		err_printk(dev, NULL, "DMA-API: device driver maps "
+				"memory from kernel text or rodata "
+				"[addr=%p] [size=%llu]\n", addr, size);
+}
+
 static void check_sync(struct device *dev, dma_addr_t addr,
 		       u64 size, u64 offset, int direction, bool to_cpu)
 {
@@ -645,8 +665,11 @@ void debug_dma_map_page(struct device *dev, struct page *page, size_t offset,
 	entry->direction = direction;
 
 	if (map_single) {
+		void *addr = ((char *)page_address(page)) + offset;
+
 		entry->type = dma_debug_single;
-		check_for_stack(dev, page_address(page) + offset);
+		check_for_stack(dev, addr);
+		check_for_illegal_area(dev, addr, size);
 	}
 
 	add_dma_entry(entry);
@@ -699,6 +722,7 @@ void debug_dma_map_sg(struct device *dev, struct scatterlist *sg,
 		entry->sg_mapped_ents = mapped_ents;
 
 		check_for_stack(dev, sg_virt(s));
+		check_for_illegal_area(dev, sg_virt(s), s->length);
 
 		add_dma_entry(entry);
 	}
