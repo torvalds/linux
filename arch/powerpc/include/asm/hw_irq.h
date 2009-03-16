@@ -142,10 +142,17 @@ static inline unsigned long get_perf_counter_pending(void)
 	return x;
 }
 
-static inline void set_perf_counter_pending(int x)
+static inline void set_perf_counter_pending(void)
 {
 	asm volatile("stb %0,%1(13)" : :
-		"r" (x),
+		"r" (1),
+		"i" (offsetof(struct paca_struct, perf_counter_pending)));
+}
+
+static inline void clear_perf_counter_pending(void)
+{
+	asm volatile("stb %0,%1(13)" : :
+		"r" (0),
 		"i" (offsetof(struct paca_struct, perf_counter_pending)));
 }
 
@@ -158,7 +165,8 @@ static inline unsigned long get_perf_counter_pending(void)
 	return 0;
 }
 
-static inline void set_perf_counter_pending(int x) {}
+static inline void set_perf_counter_pending(void) {}
+static inline void clear_perf_counter_pending(void) {}
 static inline void perf_counter_do_pending(void) {}
 #endif /* CONFIG_PERF_COUNTERS */
 

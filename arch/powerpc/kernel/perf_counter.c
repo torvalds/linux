@@ -653,7 +653,6 @@ void perf_counter_do_pending(void)
 	struct cpu_hw_counters *cpuhw = &__get_cpu_var(cpu_hw_counters);
 	struct perf_counter *counter;
 
-	set_perf_counter_pending(0);
 	for (i = 0; i < cpuhw->n_counters; ++i) {
 		counter = cpuhw->counter[i];
 		if (counter && counter->wakeup_pending) {
@@ -811,7 +810,7 @@ static void perf_counter_interrupt(struct pt_regs *regs)
 			perf_counter_do_pending();
 			irq_exit();
 		} else {
-			set_perf_counter_pending(1);
+			set_perf_counter_pending();
 		}
 	}
 }

@@ -1433,7 +1433,7 @@ static void perf_swcounter_interrupt(struct perf_counter *counter,
 
 	if (nmi) {
 		counter->wakeup_pending = 1;
-		set_tsk_thread_flag(current, TIF_PERF_COUNTERS);
+		set_perf_counter_pending();
 	} else
 		wake_up(&counter->waitq);
 }
