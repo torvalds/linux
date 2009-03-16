@@ -133,7 +133,7 @@ sn2_ipi_flush_all_tlb(struct mm_struct *mm)
 	unsigned long itc;
 
 	itc = ia64_get_itc();
-	smp_flush_tlb_cpumask(mm->cpu_vm_mask);
+	smp_flush_tlb_cpumask(*mm_cpumask(mm));
 	itc = ia64_get_itc() - itc;
 	__get_cpu_var(ptcstats).shub_ipi_flushes_itc_clocks += itc;
 	__get_cpu_var(ptcstats).shub_ipi_flushes++;
@@ -182,7 +182,7 @@ sn2_global_tlb_purge(struct mm_struct *mm, unsigned long start,
 	nodes_clear(nodes_flushed);
 	i = 0;
 
-	for_each_cpu_mask(cpu, mm->cpu_vm_mask) {
+	for_each_cpu(cpu, mm_cpumask(mm)) {
 		cnode = cpu_to_node(cpu);
 		node_set(cnode, nodes_flushed);
 		lcpu = cpu;

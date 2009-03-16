@@ -309,7 +309,7 @@ flush_tlb_range (struct vm_area_struct *vma, unsigned long start,
 
 	preempt_disable();
 #ifdef CONFIG_SMP
-	if (mm != current->active_mm || cpus_weight(mm->cpu_vm_mask) != 1) {
+	if (mm != current->active_mm || cpumask_weight(mm_cpumask(mm)) != 1) {
 		platform_global_tlb_purge(mm, start, end, nbits);
 		preempt_enable();
 		return;

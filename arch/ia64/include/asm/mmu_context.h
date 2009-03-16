@@ -87,7 +87,7 @@ get_mmu_context (struct mm_struct *mm)
 	/* re-check, now that we've got the lock: */
 	context = mm->context;
 	if (context == 0) {
-		cpus_clear(mm->cpu_vm_mask);
+		cpumask_clear(mm_cpumask(mm));
 		if (ia64_ctx.next >= ia64_ctx.limit) {
 			ia64_ctx.next = find_next_zero_bit(ia64_ctx.bitmap,
 					ia64_ctx.max_ctx, ia64_ctx.next);
@@ -166,8 +166,8 @@ activate_context (struct mm_struct *mm)
 
 	do {
 		context = get_mmu_context(mm);
-		if (!cpu_isset(smp_processor_id(), mm->cpu_vm_mask))
-			cpu_set(smp_processor_id(), mm->cpu_vm_mask);
+		if (!cpumask_test_cpu(smp_processor_id(), mm_cpumask(mm)))
+			cpumask_set_cpu(smp_processor_id(), mm_cpumask(mm));
 		reload_context(context);
 		/*
 		 * in the unlikely event of a TLB-flush by another thread,
