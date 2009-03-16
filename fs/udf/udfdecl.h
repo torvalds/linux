@@ -111,6 +111,17 @@ struct extent_position {
 
 /* super.c */
 extern void udf_warning(struct super_block *, const char *, const char *, ...);
+static inline void udf_updated_lvid(struct super_block *sb)
+{
+	struct buffer_head *bh = UDF_SB(sb)->s_lvid_bh;
+
+	BUG_ON(!bh);
+	WARN_ON_ONCE(((struct logicalVolIntegrityDesc *)
+		     bh->b_data)->integrityType !=
+		     cpu_to_le32(LVID_INTEGRITY_TYPE_OPEN));
+	sb->s_dirt = 1;
+	UDF_SB(sb)->s_lvid_dirty = 1;
+}
 
 /* namei.c */
 extern int udf_write_fi(struct inode *inode, struct fileIdentDesc *,

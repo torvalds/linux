@@ -148,6 +148,8 @@ struct udf_sb_info {
 	struct inode		*s_vat_inode;
 
 	struct mutex		s_alloc_mutex;
+	/* Protected by s_alloc_mutex */
+	unsigned int		s_lvid_dirty;
 };
 
 static inline struct udf_sb_info *UDF_SB(struct super_block *sb)

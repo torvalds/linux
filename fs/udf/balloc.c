@@ -140,17 +140,17 @@ static inline int load_block_bitmap(struct super_block *sb,
 	return slot;
 }
 
-static bool udf_add_free_space(struct udf_sb_info *sbi,
-				u16 partition, u32 cnt)
+static void udf_add_free_space(struct super_block *sb, u16 partition, u32 cnt)
 {
+	struct udf_sb_info *sbi = UDF_SB(sb);
 	struct logicalVolIntegrityDesc *lvid;
 
-	if (sbi->s_lvid_bh == NULL)
-		return false;
+	if (!sbi->s_lvid_bh)
+		return;
 
 	lvid = (struct logicalVolIntegrityDesc *)sbi->s_lvid_bh->b_data;
 	le32_add_cpu(&lvid->freeSpaceTable[partition], cnt);
-	return true;
+	udf_updated_lvid(sb);
 }
 
 static void udf_bitmap_free_blocks(struct super_block *sb,
@@ -209,7 +209,7 @@ static void udf_bitmap_free_blocks(struct super_block *sb,
 			} else {
 				if (inode)
 					vfs_dq_free_block(inode, 1);
-				udf_add_free_space(sbi, sbi->s_partition, 1);
+				udf_add_free_space(sb, sbi->s_partition, 1);
 			}
 		}
 		mark_buffer_dirty(bh);
@@ -220,9 +220,6 @@ static void udf_bitmap_free_blocks(struct super_block *sb,
 	} while (overflow);
 
 error_return:
-	sb->s_dirt = 1;
-	if (sbi->s_lvid_bh)
-		mark_buffer_dirty(sbi->s_lvid_bh);
 	mutex_unlock(&sbi->s_alloc_mutex);
 }
 
@@ -279,9 +276,7 @@ static int udf_bitmap_prealloc_blocks(struct super_block *sb,
 	} while (block_count > 0);
 
 out:
-	if (udf_add_free_space(sbi, partition, -alloc_count))
-		mark_buffer_dirty(sbi->s_lvid_bh);
-	sb->s_dirt = 1;
+	udf_add_free_space(sb, partition, -alloc_count);
 	mutex_unlock(&sbi->s_alloc_mutex);
 	return alloc_count;
 }
@@ -411,9 +406,7 @@ got_block:
 
 	mark_buffer_dirty(bh);
 
-	if (udf_add_free_space(sbi, partition, -1))
-		mark_buffer_dirty(sbi->s_lvid_bh);
-	sb->s_dirt = 1;
+	udf_add_free_space(sb, partition, -1);
 	mutex_unlock(&sbi->s_alloc_mutex);
 	*err = 0;
 	return newblock;
@@ -457,8 +450,7 @@ static void udf_table_free_blocks(struct super_block *sb,
 	   could occure, but.. oh well */
 	if (inode)
 		vfs_dq_free_block(inode, count);
-	if (udf_add_free_space(sbi, sbi->s_partition, count))
-		mark_buffer_dirty(sbi->s_lvid_bh);
+	udf_add_free_space(sb, sbi->s_partition, count);
 
 	start = bloc->logicalBlockNum + offset;
 	end = bloc->logicalBlockNum + offset + count - 1;
@@ -657,7 +649,6 @@ static void udf_table_free_blocks(struct super_block *sb,
 	brelse(oepos.bh);
 
 error_return:
-	sb->s_dirt = 1;
 	mutex_unlock(&sbi->s_alloc_mutex);
 	return;
 }
@@ -722,10 +713,8 @@ static int udf_table_prealloc_blocks(struct super_block *sb,
 
 	brelse(epos.bh);
 
-	if (alloc_count && udf_add_free_space(sbi, partition, -alloc_count)) {
-		mark_buffer_dirty(sbi->s_lvid_bh);
-		sb->s_dirt = 1;
-	}
+	if (alloc_count)
+		udf_add_free_space(sb, partition, -alloc_count);
 	mutex_unlock(&sbi->s_alloc_mutex);
 	return alloc_count;
 }
@@ -823,10 +812,8 @@ static int udf_table_new_block(struct super_block *sb,
 		udf_delete_aext(table, goal_epos, goal_eloc, goal_elen);
 	brelse(goal_epos.bh);
 
-	if (udf_add_free_space(sbi, partition, -1))
-		mark_buffer_dirty(sbi->s_lvid_bh);
+	udf_add_free_space(sb, partition, -1);
 
-	sb->s_dirt = 1;
 	mutex_unlock(&sbi->s_alloc_mutex);
 	*err = 0;
 	return newblock;

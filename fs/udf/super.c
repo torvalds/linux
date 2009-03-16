@@ -81,7 +81,7 @@ static char error_buf[1024];
 /* These are the "meat" - everything else is stuffing */
 static int udf_fill_super(struct super_block *, void *, int);
 static void udf_put_super(struct super_block *);
-static void udf_write_super(struct super_block *);
+static int udf_sync_fs(struct super_block *, int);
 static int udf_remount_fs(struct super_block *, int *, char *);
 static void udf_load_logicalvolint(struct super_block *, struct kernel_extent_ad);
 static int udf_find_fileset(struct super_block *, struct kernel_lb_addr *,
@@ -178,7 +178,7 @@ static const struct super_operations udf_sb_ops = {
 	.delete_inode	= udf_delete_inode,
 	.clear_inode	= udf_clear_inode,
 	.put_super	= udf_put_super,
-	.write_super	= udf_write_super,
+	.sync_fs	= udf_sync_fs,
 	.statfs		= udf_statfs,
 	.remount_fs	= udf_remount_fs,
 	.show_options	= udf_show_options,
@@ -551,17 +551,6 @@ static int udf_parse_options(char *options, struct udf_options *uopt,
 		}
 	}
 	return 1;
-}
-
-static void udf_write_super(struct super_block *sb)
-{
-	lock_kernel();
-
-	if (!(sb->s_flags & MS_RDONLY))
-		udf_open_lvid(sb);
-	sb->s_dirt = 0;
-
-	unlock_kernel();
 }
 
 static int udf_remount_fs(struct super_block *sb, int *flags, char *options)
@@ -1753,9 +1742,9 @@ static void udf_open_lvid(struct super_block *sb)
 	struct buffer_head *bh = sbi->s_lvid_bh;
 	struct logicalVolIntegrityDesc *lvid;
 	struct logicalVolIntegrityDescImpUse *lvidiu;
+
 	if (!bh)
 		return;
-
 	lvid = (struct logicalVolIntegrityDesc *)bh->b_data;
 	lvidiu = udf_sb_lvidiu(sbi);
 
@@ -1763,7 +1752,7 @@ static void udf_open_lvid(struct super_block *sb)
 	lvidiu->impIdent.identSuffix[1] = UDF_OS_ID_LINUX;
 	udf_time_to_disk_stamp(&lvid->recordingDateAndTime,
 				CURRENT_TIME);
-	lvid->integrityType = LVID_INTEGRITY_TYPE_OPEN;
+	lvid->integrityType = cpu_to_le32(LVID_INTEGRITY_TYPE_OPEN);
 
 	lvid->descTag.descCRC = cpu_to_le16(
 		crc_itu_t(0, (char *)lvid + sizeof(struct tag),
@@ -1771,6 +1760,7 @@ static void udf_open_lvid(struct super_block *sb)
 
 	lvid->descTag.tagChecksum = udf_tag_checksum(&lvid->descTag);
 	mark_buffer_dirty(bh);
+	sbi->s_lvid_dirty = 0;
 }
 
 static void udf_close_lvid(struct super_block *sb)
@@ -1784,10 +1774,6 @@ static void udf_close_lvid(struct super_block *sb)
 		return;
 
 	lvid = (struct logicalVolIntegrityDesc *)bh->b_data;
-
-	if (lvid->integrityType != LVID_INTEGRITY_TYPE_OPEN)
-		return;
-
 	lvidiu = udf_sb_lvidiu(sbi);
 	lvidiu->impIdent.identSuffix[0] = UDF_OS_CLASS_UNIX;
 	lvidiu->impIdent.identSuffix[1] = UDF_OS_ID_LINUX;
@@ -1806,6 +1792,7 @@ static void udf_close_lvid(struct super_block *sb)
 
 	lvid->descTag.tagChecksum = udf_tag_checksum(&lvid->descTag);
 	mark_buffer_dirty(bh);
+	sbi->s_lvid_dirty = 0;
 }
 
 static void udf_sb_free_bitmap(struct udf_bitmap *bitmap)
@@ -2090,6 +2077,25 @@ static void udf_put_super(struct super_block *sb)
 	kfree(sbi->s_partmaps);
 	kfree(sb->s_fs_info);
 	sb->s_fs_info = NULL;
+}
+
+static int udf_sync_fs(struct super_block *sb, int wait)
+{
+	struct udf_sb_info *sbi = UDF_SB(sb);
+
+	mutex_lock(&sbi->s_alloc_mutex);
+	if (sbi->s_lvid_dirty) {
+		/*
+		 * Blockdevice will be synced later so we don't have to submit
+		 * the buffer for IO
+		 */
+		mark_buffer_dirty(sbi->s_lvid_bh);
+		sb->s_dirt = 0;
+		sbi->s_lvid_dirty = 0;
+	}
+	mutex_unlock(&sbi->s_alloc_mutex);
+
+	return 0;
 }
 
 static int udf_statfs(struct dentry *dentry, struct kstatfs *buf)
