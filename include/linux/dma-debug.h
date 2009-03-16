@@ -24,8 +24,11 @@
 
 struct device;
 struct scatterlist;
+struct bus_type;
 
 #ifdef CONFIG_DMA_API_DEBUG
+
+extern void dma_debug_add_bus(struct bus_type *bus);
 
 extern void dma_debug_init(u32 num_entries);
 
@@ -79,6 +82,10 @@ extern void debug_dma_sync_sg_for_device(struct device *dev,
 extern void debug_dma_dump_mappings(struct device *dev);
 
 #else /* CONFIG_DMA_API_DEBUG */
+
+void dma_debug_add_bus(struct bus_type *bus)
+{
+}
 
 static inline void dma_debug_init(u32 num_entries)
 {
