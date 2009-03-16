@@ -612,6 +612,7 @@ mmc_spi_writeblock(struct mmc_spi_host *host, struct spi_transfer *t,
 	struct spi_device	*spi = host->spi;
 	int			status, i;
 	struct scratch		*scratch = host->data;
+	u32			pattern;
 
 	if (host->mmc->use_spi_crc)
 		scratch->crc_val = cpu_to_be16(
@@ -639,8 +640,27 @@ mmc_spi_writeblock(struct mmc_spi_host *host, struct spi_transfer *t,
 	 * doesn't necessarily tell whether the write operation succeeded;
 	 * it just says if the transmission was ok and whether *earlier*
 	 * writes succeeded; see the standard.
+	 *
+	 * In practice, there are (even modern SDHC-)cards which are late
+	 * in sending the response, and miss the time frame by a few bits,
+	 * so we have to cope with this situation and check the response
+	 * bit-by-bit. Arggh!!!
 	 */
-	switch (SPI_MMC_RESPONSE_CODE(scratch->status[0])) {
+	pattern  = scratch->status[0] << 24;
+	pattern |= scratch->status[1] << 16;
+	pattern |= scratch->status[2] << 8;
+	pattern |= scratch->status[3];
+
+	/* First 3 bit of pattern are undefined */
+	pattern |= 0xE0000000;
+
+	/* left-adjust to leading 0 bit */
+	while (pattern & 0x80000000)
+		pattern <<= 1;
+	/* right-adjust for pattern matching. Code is in bit 4..0 now. */
+	pattern >>= 27;
+
+	switch (pattern) {
 	case SPI_RESPONSE_ACCEPTED:
 		status = 0;
 		break;
@@ -671,8 +691,9 @@ mmc_spi_writeblock(struct mmc_spi_host *host, struct spi_transfer *t,
 	/* Return when not busy.  If we didn't collect that status yet,
 	 * we'll need some more I/O.
 	 */
-	for (i = 1; i < sizeof(scratch->status); i++) {
-		if (scratch->status[i] != 0)
+	for (i = 4; i < sizeof(scratch->status); i++) {
+		/* card is non-busy if the most recent bit is 1 */
+		if (scratch->status[i] & 0x01)
 			return 0;
 	}
 	return mmc_spi_wait_unbusy(host, timeout);
