@@ -28,6 +28,7 @@
 static DEFINE_MUTEX(regulator_list_mutex);
 static LIST_HEAD(regulator_list);
 static LIST_HEAD(regulator_map_list);
+static int has_full_constraints;
 
 /*
  * struct regulator_map
@@ -2143,6 +2144,23 @@ out:
 EXPORT_SYMBOL_GPL(regulator_suspend_prepare);
 
 /**
+ * regulator_has_full_constraints - the system has fully specified constraints
+ *
+ * Calling this function will cause the regulator API to disable all
+ * regulators which have a zero use count and don't have an always_on
+ * constraint in a late_initcall.
+ *
+ * The intention is that this will become the default behaviour in a
+ * future kernel release so users are encouraged to use this facility
+ * now.
+ */
+void regulator_has_full_constraints(void)
+{
+	has_full_constraints = 1;
+}
+EXPORT_SYMBOL_GPL(regulator_has_full_constraints);
+
+/**
  * rdev_get_drvdata - get rdev regulator driver data
  * @rdev: regulator
  *
@@ -2209,3 +2227,77 @@ static int __init regulator_init(void)
 
 /* init early to allow our consumers to complete system booting */
 core_initcall(regulator_init);
+
+static int __init regulator_init_complete(void)
+{
+	struct regulator_dev *rdev;
+	struct regulator_ops *ops;
+	struct regulation_constraints *c;
+	int enabled, ret;
+	const char *name;
+
+	mutex_lock(&regulator_list_mutex);
+
+	/* If we have a full configuration then disable any regulators
+	 * which are not in use or always_on.  This will become the
+	 * default behaviour in the future.
+	 */
+	list_for_each_entry(rdev, &regulator_list, list) {
+		ops = rdev->desc->ops;
+		c = rdev->constraints;
+
+		if (c->name)
+			name = c->name;
+		else if (rdev->desc->name)
+			name = rdev->desc->name;
+		else
+			name = "regulator";
+
+		if (!ops->disable || c->always_on)
+			continue;
+
+		mutex_lock(&rdev->mutex);
+
+		if (rdev->use_count)
+			goto unlock;
+
+		/* If we can't read the status assume it's on. */
+		if (ops->is_enabled)
+			enabled = ops->is_enabled(rdev);
+		else
+			enabled = 1;
+
+		if (!enabled)
+			goto unlock;
+
+		if (has_full_constraints) {
+			/* We log since this may kill the system if it
+			 * goes wrong. */
+			printk(KERN_INFO "%s: disabling %s\n",
+			       __func__, name);
+			ret = ops->disable(rdev);
+			if (ret != 0) {
+				printk(KERN_ERR
+				       "%s: couldn't disable %s: %d\n",
+				       __func__, name, ret);
+			}
+		} else {
+			/* The intention is that in future we will
+			 * assume that full constraints are provided
+			 * so warn even if we aren't going to do
+			 * anything here.
+			 */
+			printk(KERN_WARNING
+			       "%s: incomplete constraints, leaving %s on\n",
+			       __func__, name);
+		}
+
+unlock:
+		mutex_unlock(&rdev->mutex);
+	}
+
+	mutex_unlock(&regulator_list_mutex);
+
+	return 0;
+}
+late_initcall(regulator_init_complete);

@@ -166,4 +166,6 @@ struct regulator_init_data {
 
 int regulator_suspend_prepare(suspend_state_t state);
 
+void regulator_has_full_constraints(void);
+
 #endif
