@@ -35,7 +35,7 @@
 
 #include <linux/slab.h>
 #include <linux/spinlock.h>
-#include <asm/io.h>
+#include <linux/io.h>
 #include <linux/types.h>
 
 #include "medefines.h"
@@ -183,7 +183,7 @@ static int me8254_io_reset_subdevice(struct me_subdevice *subdevice,
 	return err;
 }
 
-static int me1400_ab_ref_config(me8254_subdevice_t * instance, int ref)
+static int me1400_ab_ref_config(me8254_subdevice_t *instance, int ref)
 {
 	uint8_t clk_src;
 
@@ -291,7 +291,7 @@ static int me1400_ab_ref_config(me8254_subdevice_t * instance, int ref)
 	return ME_ERRNO_SUCCESS;
 }
 
-static int me1400_cd_ref_config(me8254_subdevice_t * instance, int ref)
+static int me1400_cd_ref_config(me8254_subdevice_t *instance, int ref)
 {
 	uint8_t clk_src;
 
@@ -436,7 +436,7 @@ static int me1400_cd_ref_config(me8254_subdevice_t * instance, int ref)
 	return ME_ERRNO_SUCCESS;
 }
 
-static int me4600_ref_config(me8254_subdevice_t * instance, int ref)
+static int me4600_ref_config(me8254_subdevice_t *instance, int ref)
 {
 	switch (ref) {
 
@@ -453,7 +453,7 @@ static int me4600_ref_config(me8254_subdevice_t * instance, int ref)
 	return ME_ERRNO_SUCCESS;
 }
 
-static int me8100_ref_config(me8254_subdevice_t * instance, int ref)
+static int me8100_ref_config(me8254_subdevice_t *instance, int ref)
 {
 	switch (ref) {
 
@@ -962,8 +962,8 @@ me8254_subdevice_t *me8254_constructor(uint32_t device_id,
 				       uint32_t reg_base,
 				       unsigned int me8254_idx,
 				       unsigned int ctr_idx,
-				       spinlock_t * ctrl_reg_lock,
-				       spinlock_t * clk_src_reg_lock)
+				       spinlock_t *ctrl_reg_lock,
+				       spinlock_t *clk_src_reg_lock)
 {
 	me8254_subdevice_t *subdevice;
 	int err;

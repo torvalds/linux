@@ -69,7 +69,7 @@ me_device_t *me_dlist_get_device(struct me_dlist * dlist, unsigned int index)
 	return device;
 }
 
-void me_dlist_add_device_tail(struct me_dlist *dlist, me_device_t * device)
+void me_dlist_add_device_tail(struct me_dlist *dlist, me_device_t *device)
 {
 	PDEBUG_LOCKS("called.\n");
 
@@ -99,7 +99,7 @@ me_device_t *me_dlist_del_device_tail(struct me_dlist *dlist)
 	return device;
 }
 
-int me_dlist_init(me_dlist_t * dlist)
+int me_dlist_init(me_dlist_t *dlist)
 {
 	PDEBUG_LOCKS("called.\n");
 
@@ -108,7 +108,7 @@ int me_dlist_init(me_dlist_t * dlist)
 	return 0;
 }
 
-void me_dlist_deinit(me_dlist_t * dlist)
+void me_dlist_deinit(me_dlist_t *dlist)
 {
 
 	struct list_head *s;

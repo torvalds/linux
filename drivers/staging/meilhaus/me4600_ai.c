@@ -36,8 +36,8 @@
 
 #include <linux/slab.h>
 #include <linux/spinlock.h>
-#include <asm/io.h>
-#include <asm/uaccess.h>
+#include <linux/io.h>
+#include <linux/uaccess.h>
 #include <linux/types.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
@@ -57,10 +57,10 @@
  */
 
 static void me4600_ai_destructor(struct me_subdevice *subdevice);
-static int me4600_ai_io_reset_subdevice(me_subdevice_t * subdevice,
+static int me4600_ai_io_reset_subdevice(me_subdevice_t *subdevice,
 					struct file *filep, int flags);
 
-static int me4600_ai_io_single_config(me_subdevice_t * subdevice,
+static int me4600_ai_io_single_config(me_subdevice_t *subdevice,
 				      struct file *filep,
 				      int channel,
 				      int single_config,
@@ -68,110 +68,110 @@ static int me4600_ai_io_single_config(me_subdevice_t * subdevice,
 				      int trig_chan,
 				      int trig_type, int trig_edge, int flags);
 
-static int me4600_ai_io_single_read(me_subdevice_t * subdevice,
+static int me4600_ai_io_single_read(me_subdevice_t *subdevice,
 				    struct file *filep,
 				    int channel,
 				    int *value, int time_out, int flags);
 
-static int me4600_ai_io_stream_config(me_subdevice_t * subdevice,
+static int me4600_ai_io_stream_config(me_subdevice_t *subdevice,
 				      struct file *filep,
-				      meIOStreamConfig_t * config_list,
+				      meIOStreamConfig_t *config_list,
 				      int count,
-				      meIOStreamTrigger_t * trigger,
+				      meIOStreamTrigger_t *trigger,
 				      int fifo_irq_threshold, int flags);
-static int me4600_ai_io_stream_read(me_subdevice_t * subdevice,
+static int me4600_ai_io_stream_read(me_subdevice_t *subdevice,
 				    struct file *filep,
 				    int read_mode,
 				    int *values, int *count, int flags);
-static int me4600_ai_io_stream_new_values(me_subdevice_t * subdevice,
+static int me4600_ai_io_stream_new_values(me_subdevice_t *subdevice,
 					  struct file *filep,
 					  int time_out, int *count, int flags);
-static int inline me4600_ai_io_stream_read_get_value(me4600_ai_subdevice_t *
+static inline int me4600_ai_io_stream_read_get_value(me4600_ai_subdevice_t *
 						     instance, int *values,
 						     const int count,
 						     const int flags);
 
-static int me4600_ai_io_stream_start(me_subdevice_t * subdevice,
+static int me4600_ai_io_stream_start(me_subdevice_t *subdevice,
 				     struct file *filep,
 				     int start_mode, int time_out, int flags);
-static int me4600_ai_io_stream_stop(me_subdevice_t * subdevice,
+static int me4600_ai_io_stream_stop(me_subdevice_t *subdevice,
 				    struct file *filep,
 				    int stop_mode, int flags);
-static int me4600_ai_io_stream_status(me_subdevice_t * subdevice,
+static int me4600_ai_io_stream_status(me_subdevice_t *subdevice,
 				      struct file *filep,
 				      int wait,
 				      int *status, int *values, int flags);
 
-static int me4600_ai_query_range_by_min_max(me_subdevice_t * subdevice,
+static int me4600_ai_query_range_by_min_max(me_subdevice_t *subdevice,
 					    int unit,
 					    int *min,
 					    int *max, int *maxdata, int *range);
-static int me4600_ai_query_number_ranges(me_subdevice_t * subdevice,
+static int me4600_ai_query_number_ranges(me_subdevice_t *subdevice,
 					 int unit, int *count);
-static int me4600_ai_query_range_info(me_subdevice_t * subdevice,
+static int me4600_ai_query_range_info(me_subdevice_t *subdevice,
 				      int range,
 				      int *unit,
 				      int *min, int *max, int *maxdata);
-static int me4600_ai_query_timer(me_subdevice_t * subdevice,
+static int me4600_ai_query_timer(me_subdevice_t *subdevice,
 				 int timer,
 				 int *base_frequency,
 				 long long *min_ticks, long long *max_ticks);
-static int me4600_ai_query_number_channels(me_subdevice_t * subdevice,
+static int me4600_ai_query_number_channels(me_subdevice_t *subdevice,
 					   int *number);
-static int me4600_ai_query_subdevice_type(me_subdevice_t * subdevice,
+static int me4600_ai_query_subdevice_type(me_subdevice_t *subdevice,
 					  int *type, int *subtype);
-static int me4600_ai_query_subdevice_caps(me_subdevice_t * subdevice,
+static int me4600_ai_query_subdevice_caps(me_subdevice_t *subdevice,
 					  int *caps);
 static int me4600_ai_query_subdevice_caps_args(struct me_subdevice *subdevice,
 					       int cap, int *args, int count);
 
 static irqreturn_t me4600_ai_isr(int irq, void *dev_id);
 
-static int ai_mux_toggler(me4600_ai_subdevice_t * subdevice);
+static int ai_mux_toggler(me4600_ai_subdevice_t *subdevice);
 
 /** Immidiate stop.
 * Reset all IRQ's sources. (block laches)
 * Preserve FIFO
 */
-static int ai_stop_immediately(me4600_ai_subdevice_t * instance);
+static int ai_stop_immediately(me4600_ai_subdevice_t *instance);
 
 /** Immidiate stop.
 * Reset all IRQ's sources. (block laches)
 * Reset data FIFO
 */
-void inline ai_stop_isr(me4600_ai_subdevice_t * instance);
+inline void ai_stop_isr(me4600_ai_subdevice_t *instance);
 
 /** Interrupt logics.
 * Read datas
 * Reset latches
 */
-void ai_limited_isr(me4600_ai_subdevice_t * instance, const uint32_t irq_status,
+void ai_limited_isr(me4600_ai_subdevice_t *instance, const uint32_t irq_status,
 		    const uint32_t ctrl_status);
-void ai_infinite_isr(me4600_ai_subdevice_t * instance,
+void ai_infinite_isr(me4600_ai_subdevice_t *instance,
 		     const uint32_t irq_status, const uint32_t ctrl_status);
 
 /** Last chunck of datas. We must reschedule sample counter.
 * Leaving SC_RELOAD doesn't do any harm, but in some bad case can make extra interrupts.
 * When threshold is wrongly set some IRQ are lost.(!!!)
 */
-void inline ai_reschedule_SC(me4600_ai_subdevice_t * instance);
+inline void ai_reschedule_SC(me4600_ai_subdevice_t *instance);
 
 /** Read datas from FIFO and copy them to buffer */
-static int inline ai_read_data(me4600_ai_subdevice_t * instance,
+static inline int ai_read_data(me4600_ai_subdevice_t *instance,
 			       const int count);
 
 /** Copy rest of data from fifo to circular buffer.*/
-static int inline ai_read_data_pooling(me4600_ai_subdevice_t * instance);
+static inline int ai_read_data_pooling(me4600_ai_subdevice_t *instance);
 
 /** Set ISM to next state for infinite data aqusation mode*/
-void inline ai_infinite_ISM(me4600_ai_subdevice_t * instance);
+inline void ai_infinite_ISM(me4600_ai_subdevice_t *instance);
 
 /** Set ISM to next state for define amount of data aqusation mode*/
-void inline ai_limited_ISM(me4600_ai_subdevice_t * instance,
+inline void ai_limited_ISM(me4600_ai_subdevice_t *instance,
 			   uint32_t irq_status);
 
 /** Set ISM to next stage for limited mode */
-void inline ai_data_acquisition_logic(me4600_ai_subdevice_t * instance);
+inline void ai_data_acquisition_logic(me4600_ai_subdevice_t *instance);
 
 static void me4600_ai_work_control_task(struct work_struct *work);
 
@@ -184,7 +184,7 @@ me4600_ai_subdevice_t *me4600_ai_constructor(uint32_t reg_base,
 					     int isolated,
 					     int sh,
 					     int irq,
-					     spinlock_t * ctrl_reg_lock,
+					     spinlock_t *ctrl_reg_lock,
 					     struct workqueue_struct *me4600_wq)
 {
 	me4600_ai_subdevice_t *subdevice;
@@ -384,7 +384,7 @@ static void me4600_ai_destructor(struct me_subdevice *subdevice)
 	kfree(instance);
 }
 
-static int me4600_ai_io_reset_subdevice(me_subdevice_t * subdevice,
+static int me4600_ai_io_reset_subdevice(me_subdevice_t *subdevice,
 					struct file *filep, int flags)
 {
 	me4600_ai_subdevice_t *instance;
@@ -506,7 +506,7 @@ static int me4600_ai_io_reset_subdevice(me_subdevice_t * subdevice,
 	return err;
 }
 
-static int me4600_ai_io_single_config(me_subdevice_t * subdevice,
+static int me4600_ai_io_single_config(me_subdevice_t *subdevice,
 				      struct file *filep,
 				      int channel,
 				      int single_config,
@@ -696,7 +696,7 @@ static int me4600_ai_io_single_config(me_subdevice_t * subdevice,
 	return err;
 }
 
-static int me4600_ai_io_single_read(me_subdevice_t * subdevice,
+static int me4600_ai_io_single_read(me_subdevice_t *subdevice,
 				    struct file *filep,
 				    int channel,
 				    int *value, int time_out, int flags)
@@ -902,11 +902,11 @@ static int me4600_ai_io_single_read(me_subdevice_t * subdevice,
 	return err;
 }
 
-static int me4600_ai_io_stream_config(me_subdevice_t * subdevice,
+static int me4600_ai_io_stream_config(me_subdevice_t *subdevice,
 				      struct file *filep,
-				      meIOStreamConfig_t * config_list,
+				      meIOStreamConfig_t *config_list,
 				      int count,
-				      meIOStreamTrigger_t * trigger,
+				      meIOStreamTrigger_t *trigger,
 				      int fifo_irq_threshold, int flags)
 {
 	me4600_ai_subdevice_t *instance;
@@ -1573,15 +1573,15 @@ static int me4600_ai_io_stream_config(me_subdevice_t * subdevice,
 		    ME_SINGLE_CHANNEL_NOT_CONFIGURED;
 	}
 
-      VERIFY_ERROR:		// Error in code. Wrong setting check. This should never ever happend!
+VERIFY_ERROR:		// Error in code. Wrong setting check. This should never ever happend!
 	spin_unlock_irqrestore(&instance->subdevice_lock, cpu_flags);
-      ERROR:			// Error in settings.
+ERROR:			// Error in settings.
 	ME_SUBDEVICE_EXIT;
 
 	return err;
 }
 
-static int me4600_ai_io_stream_new_values(me_subdevice_t * subdevice,
+static int me4600_ai_io_stream_new_values(me_subdevice_t *subdevice,
 					  struct file *filep,
 					  int time_out, int *count, int flags)
 {
@@ -1664,7 +1664,7 @@ static int me4600_ai_io_stream_new_values(me_subdevice_t * subdevice,
 	return err;
 }
 
-static int inline me4600_ai_io_stream_read_get_value(me4600_ai_subdevice_t *
+static inline int me4600_ai_io_stream_read_get_value(me4600_ai_subdevice_t *
 						     instance, int *values,
 						     const int count,
 						     const int flags)
@@ -1699,7 +1699,7 @@ static int inline me4600_ai_io_stream_read_get_value(me4600_ai_subdevice_t *
 	return n;
 }
 
-static int me4600_ai_io_stream_read(me_subdevice_t * subdevice,
+static int me4600_ai_io_stream_read(me_subdevice_t *subdevice,
 				    struct file *filep,
 				    int read_mode,
 				    int *values, int *count, int flags)
@@ -1825,7 +1825,7 @@ static int me4600_ai_io_stream_read(me_subdevice_t * subdevice,
 * @param instance The subdevice instance (pointer).
 */
 
-static int ai_stop_immediately(me4600_ai_subdevice_t * instance)
+static int ai_stop_immediately(me4600_ai_subdevice_t *instance)
 {
 	unsigned long cpu_flags = 0;
 	volatile uint32_t ctrl;
@@ -1864,7 +1864,7 @@ static int ai_stop_immediately(me4600_ai_subdevice_t * instance)
 	return ME_ERRNO_SUCCESS;
 }
 
-static int me4600_ai_io_stream_start(me_subdevice_t * subdevice,
+static int me4600_ai_io_stream_start(me_subdevice_t *subdevice,
 				     struct file *filep,
 				     int start_mode, int time_out, int flags)
 {
@@ -2042,13 +2042,13 @@ static int me4600_ai_io_stream_start(me_subdevice_t * subdevice,
 	      (tmp & ME4600_AI_CTRL_BIT_SC_IRQ_RESET) ? "reset" : "work");
 #endif
 
-      ERROR:
+ERROR:
 	ME_SUBDEVICE_EXIT;
 
 	return err;
 }
 
-static int me4600_ai_io_stream_status(me_subdevice_t * subdevice,
+static int me4600_ai_io_stream_status(me_subdevice_t *subdevice,
 				      struct file *filep,
 				      int wait,
 				      int *status, int *values, int flags)
@@ -2126,7 +2126,7 @@ static int me4600_ai_io_stream_status(me_subdevice_t * subdevice,
 	return err;
 }
 
-static int me4600_ai_io_stream_stop(me_subdevice_t * subdevice,
+static int me4600_ai_io_stream_stop(me_subdevice_t *subdevice,
 				    struct file *filep,
 				    int stop_mode, int flags)
 {
@@ -2223,7 +2223,7 @@ static int me4600_ai_io_stream_stop(me_subdevice_t * subdevice,
 	return ret;
 }
 
-static int me4600_ai_query_range_by_min_max(me_subdevice_t * subdevice,
+static int me4600_ai_query_range_by_min_max(me_subdevice_t *subdevice,
 					    int unit,
 					    int *min,
 					    int *max, int *maxdata, int *range)
@@ -2275,7 +2275,7 @@ static int me4600_ai_query_range_by_min_max(me_subdevice_t * subdevice,
 	return ME_ERRNO_SUCCESS;
 }
 
-static int me4600_ai_query_number_ranges(me_subdevice_t * subdevice,
+static int me4600_ai_query_number_ranges(me_subdevice_t *subdevice,
 					 int unit, int *count)
 {
 	me4600_ai_subdevice_t *instance;
@@ -2293,7 +2293,7 @@ static int me4600_ai_query_number_ranges(me_subdevice_t * subdevice,
 	return ME_ERRNO_SUCCESS;
 }
 
-static int me4600_ai_query_range_info(me_subdevice_t * subdevice,
+static int me4600_ai_query_range_info(me_subdevice_t *subdevice,
 				      int range,
 				      int *unit,
 				      int *min, int *max, int *maxdata)
@@ -2317,7 +2317,7 @@ static int me4600_ai_query_range_info(me_subdevice_t * subdevice,
 	return ME_ERRNO_SUCCESS;
 }
 
-static int me4600_ai_query_timer(me_subdevice_t * subdevice,
+static int me4600_ai_query_timer(me_subdevice_t *subdevice,
 				 int timer,
 				 int *base_frequency,
 				 long long *min_ticks, long long *max_ticks)
@@ -2357,7 +2357,7 @@ static int me4600_ai_query_timer(me_subdevice_t * subdevice,
 	return ME_ERRNO_SUCCESS;
 }
 
-static int me4600_ai_query_number_channels(me_subdevice_t * subdevice,
+static int me4600_ai_query_number_channels(me_subdevice_t *subdevice,
 					   int *number)
 {
 	me4600_ai_subdevice_t *instance;
@@ -2370,7 +2370,7 @@ static int me4600_ai_query_number_channels(me_subdevice_t * subdevice,
 	return ME_ERRNO_SUCCESS;
 }
 
-static int me4600_ai_query_subdevice_type(me_subdevice_t * subdevice,
+static int me4600_ai_query_subdevice_type(me_subdevice_t *subdevice,
 					  int *type, int *subtype)
 {
 	PDEBUG("executed. idx=0\n");
@@ -2381,7 +2381,7 @@ static int me4600_ai_query_subdevice_type(me_subdevice_t * subdevice,
 	return ME_ERRNO_SUCCESS;
 }
 
-static int me4600_ai_query_subdevice_caps(me_subdevice_t * subdevice, int *caps)
+static int me4600_ai_query_subdevice_caps(me_subdevice_t *subdevice, int *caps)
 {
 	PDEBUG("executed. idx=0\n");
 
@@ -2426,7 +2426,7 @@ static int me4600_ai_query_subdevice_caps_args(struct me_subdevice *subdevice,
 	return err;
 }
 
-void ai_limited_isr(me4600_ai_subdevice_t * instance, const uint32_t irq_status,
+void ai_limited_isr(me4600_ai_subdevice_t *instance, const uint32_t irq_status,
 		    const uint32_t ctrl_status)
 {
 	int to_read;
@@ -2534,7 +2534,7 @@ void ai_limited_isr(me4600_ai_subdevice_t * instance, const uint32_t irq_status,
 	}
 }
 
-void ai_infinite_isr(me4600_ai_subdevice_t * instance,
+void ai_infinite_isr(me4600_ai_subdevice_t *instance,
 		     const uint32_t irq_status, const uint32_t ctrl_status)
 {
 	int to_read;
@@ -2786,7 +2786,7 @@ static irqreturn_t me4600_ai_isr(int irq, void *dev_id)
 *
 * @param instance The subdevice instance (pointer).
 */
-void inline ai_stop_isr(me4600_ai_subdevice_t * instance)
+inline void ai_stop_isr(me4600_ai_subdevice_t *instance)
 {				/// @note This is soft time critical function!
 	register uint32_t tmp;
 
@@ -2812,7 +2812,7 @@ void inline ai_stop_isr(me4600_ai_subdevice_t * instance)
 * @return On success: Number of copied values.
 * @return On error: -ME_ERRNO_RING_BUFFER_OVERFLOW.
 */
-static int inline ai_read_data(me4600_ai_subdevice_t * instance,
+static inline int ai_read_data(me4600_ai_subdevice_t *instance,
 			       const int count)
 {				/// @note This is time critical function!
 	int c = count;
@@ -2858,7 +2858,7 @@ static int inline ai_read_data(me4600_ai_subdevice_t * instance,
 	return copied;
 }
 
-void inline ai_infinite_ISM(me4600_ai_subdevice_t * instance)
+inline void ai_infinite_ISM(me4600_ai_subdevice_t *instance)
 {				/// @note This is time critical function!
 	register volatile uint32_t ctrl_set, ctrl_reset, tmp;
 
@@ -2908,7 +2908,7 @@ void inline ai_infinite_ISM(me4600_ai_subdevice_t * instance)
 
 }
 
-void inline ai_limited_ISM(me4600_ai_subdevice_t * instance,
+inline void ai_limited_ISM(me4600_ai_subdevice_t *instance,
 			   uint32_t irq_status)
 {				/// @note This is time critical function!
 	register volatile uint32_t ctrl_set, ctrl_reset = 0xFFFFFFFF, tmp;
@@ -2969,7 +2969,7 @@ void inline ai_limited_ISM(me4600_ai_subdevice_t * instance,
 *	Leaving SC_RELOAD doesn't do any harm, but in some bad case can make extra interrupts.
 *	@warning When threshold is wrongly set some IRQ are lost.(!!!)
 */
-void inline ai_reschedule_SC(me4600_ai_subdevice_t * instance)
+inline void ai_reschedule_SC(me4600_ai_subdevice_t *instance)
 {
 	register uint32_t rest;
 
@@ -3001,7 +3001,7 @@ void inline ai_reschedule_SC(me4600_ai_subdevice_t * instance)
 }
 
 /** Start the ISM. All must be reseted before enter to this function. */
-void inline ai_data_acquisition_logic(me4600_ai_subdevice_t * instance)
+inline void ai_data_acquisition_logic(me4600_ai_subdevice_t *instance)
 {
 	register uint32_t tmp;
 
@@ -3149,7 +3149,7 @@ void inline ai_data_acquisition_logic(me4600_ai_subdevice_t * instance)
 	}
 }
 
-static int ai_mux_toggler(me4600_ai_subdevice_t * instance)
+static int ai_mux_toggler(me4600_ai_subdevice_t *instance)
 {
 	uint32_t tmp;
 
@@ -3259,7 +3259,7 @@ static int ai_mux_toggler(me4600_ai_subdevice_t * instance)
 * @return On success: Number of copied values.
 * @return On error: Negative error code -ME_ERRNO_RING_BUFFER_OVERFLOW.
 */
-static int inline ai_read_data_pooling(me4600_ai_subdevice_t * instance)
+static inline int ai_read_data_pooling(me4600_ai_subdevice_t *instance)
 {				/// @note This is time critical function!
 	int empty_space;
 	int copied = 0;

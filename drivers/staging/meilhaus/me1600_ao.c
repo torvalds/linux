@@ -36,7 +36,7 @@
 
 #include <linux/slab.h>
 #include <linux/spinlock.h>
-#include <asm/io.h>
+#include <linux/io.h>
 #include <linux/types.h>
 #include <linux/sched.h>
 
@@ -57,30 +57,30 @@ static void me1600_ao_destructor(struct me_subdevice *subdevice);
 
 static void me1600_ao_work_control_task(struct work_struct *work);
 
-static int me1600_ao_io_reset_subdevice(me_subdevice_t * subdevice,
+static int me1600_ao_io_reset_subdevice(me_subdevice_t *subdevice,
 					struct file *filep, int flags);
-static int me1600_ao_io_single_config(me_subdevice_t * subdevice,
+static int me1600_ao_io_single_config(me_subdevice_t *subdevice,
 				      struct file *filep, int channel,
 				      int single_config, int ref, int trig_chan,
 				      int trig_type, int trig_edge, int flags);
-static int me1600_ao_io_single_read(me_subdevice_t * subdevice,
+static int me1600_ao_io_single_read(me_subdevice_t *subdevice,
 				    struct file *filep, int channel, int *value,
 				    int time_out, int flags);
-static int me1600_ao_io_single_write(me_subdevice_t * subdevice,
+static int me1600_ao_io_single_write(me_subdevice_t *subdevice,
 				     struct file *filep, int channel, int value,
 				     int time_out, int flags);
-static int me1600_ao_query_number_channels(me_subdevice_t * subdevice,
+static int me1600_ao_query_number_channels(me_subdevice_t *subdevice,
 					   int *number);
-static int me1600_ao_query_subdevice_type(me_subdevice_t * subdevice, int *type,
+static int me1600_ao_query_subdevice_type(me_subdevice_t *subdevice, int *type,
 					  int *subtype);
-static int me1600_ao_query_subdevice_caps(me_subdevice_t * subdevice,
+static int me1600_ao_query_subdevice_caps(me_subdevice_t *subdevice,
 					  int *caps);
-static int me1600_ao_query_range_by_min_max(me_subdevice_t * subdevice,
+static int me1600_ao_query_range_by_min_max(me_subdevice_t *subdevice,
 					    int unit, int *min, int *max,
 					    int *maxdata, int *range);
-static int me1600_ao_query_number_ranges(me_subdevice_t * subdevice, int unit,
+static int me1600_ao_query_number_ranges(me_subdevice_t *subdevice, int unit,
 					 int *count);
-static int me1600_ao_query_range_info(me_subdevice_t * subdevice, int range,
+static int me1600_ao_query_range_info(me_subdevice_t *subdevice, int range,
 				      int *unit, int *min, int *max,
 				      int *maxdata);
 
@@ -90,10 +90,9 @@ static int me1600_ao_query_range_info(me_subdevice_t * subdevice, int range,
 me1600_ao_subdevice_t *me1600_ao_constructor(uint32_t reg_base,
 					     unsigned int ao_idx,
 					     int curr,
-					     spinlock_t * config_regs_lock,
-					     spinlock_t * ao_shadows_lock,
-					     me1600_ao_shadow_t *
-					     ao_regs_shadows,
+					     spinlock_t *config_regs_lock,
+					     spinlock_t *ao_shadows_lock,
+					     me1600_ao_shadow_t *ao_regs_shadows,
 					     struct workqueue_struct *me1600_wq)
 {
 	me1600_ao_subdevice_t *subdevice;
@@ -222,7 +221,7 @@ static void me1600_ao_destructor(struct me_subdevice *subdevice)
 	}
 }
 
-static int me1600_ao_io_reset_subdevice(me_subdevice_t * subdevice,
+static int me1600_ao_io_reset_subdevice(me_subdevice_t *subdevice,
 					struct file *filep, int flags)
 {
 	me1600_ao_subdevice_t *instance;
@@ -304,7 +303,7 @@ static int me1600_ao_io_reset_subdevice(me_subdevice_t * subdevice,
 	return ME_ERRNO_SUCCESS;
 }
 
-static int me1600_ao_io_single_config(me_subdevice_t * subdevice,
+static int me1600_ao_io_single_config(me_subdevice_t *subdevice,
 				      struct file *filep,
 				      int channel,
 				      int single_config,
@@ -536,7 +535,7 @@ static int me1600_ao_io_single_config(me_subdevice_t * subdevice,
 	return ME_ERRNO_SUCCESS;
 }
 
-static int me1600_ao_io_single_read(me_subdevice_t * subdevice,
+static int me1600_ao_io_single_read(me_subdevice_t *subdevice,
 				    struct file *filep,
 				    int channel,
 				    int *value, int time_out, int flags)
@@ -603,7 +602,7 @@ static int me1600_ao_io_single_read(me_subdevice_t * subdevice,
 	return err;
 }
 
-static int me1600_ao_io_single_write(me_subdevice_t * subdevice,
+static int me1600_ao_io_single_write(me_subdevice_t *subdevice,
 				     struct file *filep,
 				     int channel,
 				     int value, int time_out, int flags)
@@ -786,7 +785,7 @@ static int me1600_ao_io_single_write(me_subdevice_t * subdevice,
 	return err;
 }
 
-static int me1600_ao_query_number_channels(me_subdevice_t * subdevice,
+static int me1600_ao_query_number_channels(me_subdevice_t *subdevice,
 					   int *number)
 {
 	me1600_ao_subdevice_t *instance;
@@ -798,7 +797,7 @@ static int me1600_ao_query_number_channels(me_subdevice_t * subdevice,
 	return ME_ERRNO_SUCCESS;
 }
 
-static int me1600_ao_query_subdevice_type(me_subdevice_t * subdevice, int *type,
+static int me1600_ao_query_subdevice_type(me_subdevice_t *subdevice, int *type,
 					  int *subtype)
 {
 	me1600_ao_subdevice_t *instance;
@@ -811,14 +810,14 @@ static int me1600_ao_query_subdevice_type(me_subdevice_t * subdevice, int *type,
 	return ME_ERRNO_SUCCESS;
 }
 
-static int me1600_ao_query_subdevice_caps(me_subdevice_t * subdevice, int *caps)
+static int me1600_ao_query_subdevice_caps(me_subdevice_t *subdevice, int *caps)
 {
 	PDEBUG("executed.\n");
 	*caps = ME_CAPS_AO_TRIG_SYNCHRONOUS;
 	return ME_ERRNO_SUCCESS;
 }
 
-static int me1600_ao_query_range_by_min_max(me_subdevice_t * subdevice,
+static int me1600_ao_query_range_by_min_max(me_subdevice_t *subdevice,
 					    int unit,
 					    int *min,
 					    int *max, int *maxdata, int *range)
@@ -896,7 +895,7 @@ static int me1600_ao_query_range_by_min_max(me_subdevice_t * subdevice,
 	return ME_ERRNO_SUCCESS;
 }
 
-static int me1600_ao_query_number_ranges(me_subdevice_t * subdevice,
+static int me1600_ao_query_number_ranges(me_subdevice_t *subdevice,
 					 int unit, int *count)
 {
 	me1600_ao_subdevice_t *instance;
@@ -921,7 +920,7 @@ static int me1600_ao_query_number_ranges(me_subdevice_t * subdevice,
 	return ME_ERRNO_SUCCESS;
 }
 
-static int me1600_ao_query_range_info(me_subdevice_t * subdevice,
+static int me1600_ao_query_range_info(me_subdevice_t *subdevice,
 				      int range,
 				      int *unit,
 				      int *min, int *max, int *maxdata)

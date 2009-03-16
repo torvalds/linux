@@ -34,7 +34,7 @@
 
 #include <linux/slab.h>
 #include <linux/spinlock.h>
-#include <asm/io.h>
+#include <linux/io.h>
 #include <linux/types.h>
 #include <linux/interrupt.h>
 #include <linux/version.h>
@@ -50,44 +50,44 @@
 
 /// Defines
 static void me8200_di_destructor(struct me_subdevice *subdevice);
-static int me8200_di_io_irq_start(me_subdevice_t * subdevice,
+static int me8200_di_io_irq_start(me_subdevice_t *subdevice,
 				  struct file *filep,
 				  int channel,
 				  int irq_source,
 				  int irq_edge, int irq_arg, int flags);
-static int me8200_di_io_irq_wait(me_subdevice_t * subdevice,
+static int me8200_di_io_irq_wait(me_subdevice_t *subdevice,
 				 struct file *filep,
 				 int channel,
 				 int *irq_count,
 				 int *value, int time_out, int flags);
-static int me8200_di_io_irq_stop(me_subdevice_t * subdevice,
+static int me8200_di_io_irq_stop(me_subdevice_t *subdevice,
 				 struct file *filep, int channel, int flags);
-static int me8200_di_io_single_config(me_subdevice_t * subdevice,
+static int me8200_di_io_single_config(me_subdevice_t *subdevice,
 				      struct file *filep,
 				      int channel,
 				      int single_config,
 				      int ref,
 				      int trig_chan,
 				      int trig_type, int trig_edge, int flags);
-static int me8200_di_io_single_read(me_subdevice_t * subdevice,
+static int me8200_di_io_single_read(me_subdevice_t *subdevice,
 				    struct file *filep,
 				    int channel,
 				    int *value, int time_out, int flags);
 static int me8200_di_io_reset_subdevice(struct me_subdevice *subdevice,
 					struct file *filep, int flags);
-static int me8200_di_query_number_channels(me_subdevice_t * subdevice,
+static int me8200_di_query_number_channels(me_subdevice_t *subdevice,
 					   int *number);
-static int me8200_di_query_subdevice_type(me_subdevice_t * subdevice,
+static int me8200_di_query_subdevice_type(me_subdevice_t *subdevice,
 					  int *type, int *subtype);
-static int me8200_di_query_subdevice_caps(me_subdevice_t * subdevice,
+static int me8200_di_query_subdevice_caps(me_subdevice_t *subdevice,
 					  int *caps);
 static irqreturn_t me8200_isr(int irq, void *dev_id);
 static irqreturn_t me8200_isr_EX(int irq, void *dev_id);
-static void me8200_di_check_version(me8200_di_subdevice_t * instance,
+static void me8200_di_check_version(me8200_di_subdevice_t *instance,
 				    unsigned long addr);
 
 ///Functions
-static int me8200_di_io_irq_start(me_subdevice_t * subdevice,
+static int me8200_di_io_irq_start(me_subdevice_t *subdevice,
 				  struct file *filep,
 				  int channel,
 				  int irq_source,
@@ -238,7 +238,7 @@ static int me8200_di_io_irq_start(me_subdevice_t * subdevice,
 	return err;
 }
 
-static int me8200_di_io_irq_wait(me_subdevice_t * subdevice,
+static int me8200_di_io_irq_wait(me_subdevice_t *subdevice,
 				 struct file *filep,
 				 int channel,
 				 int *irq_count,
@@ -344,7 +344,7 @@ static int me8200_di_io_irq_wait(me_subdevice_t * subdevice,
 	return err;
 }
 
-static int me8200_di_io_irq_stop(me_subdevice_t * subdevice,
+static int me8200_di_io_irq_stop(me_subdevice_t *subdevice,
 				 struct file *filep, int channel, int flags)
 {
 	me8200_di_subdevice_t *instance;
@@ -398,7 +398,7 @@ static int me8200_di_io_irq_stop(me_subdevice_t * subdevice,
 	return ME_ERRNO_SUCCESS;
 }
 
-static int me8200_di_io_single_config(me_subdevice_t * subdevice,
+static int me8200_di_io_single_config(me_subdevice_t *subdevice,
 				      struct file *filep,
 				      int channel,
 				      int single_config,
@@ -445,7 +445,7 @@ static int me8200_di_io_single_config(me_subdevice_t * subdevice,
 	return err;
 }
 
-static int me8200_di_io_single_read(me_subdevice_t * subdevice,
+static int me8200_di_io_single_read(me_subdevice_t *subdevice,
 				    struct file *filep,
 				    int channel,
 				    int *value, int time_out, int flags)
@@ -510,7 +510,7 @@ static int me8200_di_io_reset_subdevice(struct me_subdevice *subdevice,
 	return me8200_di_io_irq_stop(subdevice, filep, 0, 0);
 }
 
-static int me8200_di_query_number_channels(me_subdevice_t * subdevice,
+static int me8200_di_query_number_channels(me_subdevice_t *subdevice,
 					   int *number)
 {
 	PDEBUG("executed.\n");
@@ -518,7 +518,7 @@ static int me8200_di_query_number_channels(me_subdevice_t * subdevice,
 	return ME_ERRNO_SUCCESS;
 }
 
-static int me8200_di_query_subdevice_type(me_subdevice_t * subdevice,
+static int me8200_di_query_subdevice_type(me_subdevice_t *subdevice,
 					  int *type, int *subtype)
 {
 	PDEBUG("executed.\n");
@@ -527,7 +527,7 @@ static int me8200_di_query_subdevice_type(me_subdevice_t * subdevice,
 	return ME_ERRNO_SUCCESS;
 }
 
-static int me8200_di_query_subdevice_caps(me_subdevice_t * subdevice, int *caps)
+static int me8200_di_query_subdevice_caps(me_subdevice_t *subdevice, int *caps)
 {
 	PDEBUG("executed.\n");
 	*caps =
@@ -699,8 +699,8 @@ static void me8200_di_destructor(struct me_subdevice *subdevice)
 me8200_di_subdevice_t *me8200_di_constructor(uint32_t me8200_regbase,
 					     unsigned int di_idx,
 					     int irq,
-					     spinlock_t * irq_ctrl_lock,
-					     spinlock_t * irq_mode_lock)
+					     spinlock_t *irq_ctrl_lock,
+					     spinlock_t *irq_mode_lock)
 {
 	me8200_di_subdevice_t *subdevice;
 	int err;
@@ -827,7 +827,7 @@ me8200_di_subdevice_t *me8200_di_constructor(uint32_t me8200_regbase,
 	return subdevice;
 }
 
-static void me8200_di_check_version(me8200_di_subdevice_t * instance,
+static void me8200_di_check_version(me8200_di_subdevice_t *instance,
 				    unsigned long addr)
 {
 
