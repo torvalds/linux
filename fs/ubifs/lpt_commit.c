@@ -1,4 +1,4 @@
-/*
+ /*
  * This file is part of UBIFS.
  *
  * Copyright (C) 2006-2008 Nokia Corporation.
@@ -1921,12 +1921,12 @@ static void dump_lpt_leb(const struct ubifs_info *c, int lnum)
 				       lnum, offs);
 			err = ubifs_unpack_nnode(c, buf, &nnode);
 			for (i = 0; i < UBIFS_LPT_FANOUT; i++) {
-				printk("%d:%d", nnode.nbranch[i].lnum,
+				printk(KERN_CONT "%d:%d", nnode.nbranch[i].lnum,
 				       nnode.nbranch[i].offs);
 				if (i != UBIFS_LPT_FANOUT - 1)
-					printk(", ");
+					printk(KERN_CONT ", ");
 			}
-			printk("\n");
+			printk(KERN_CONT "\n");
 			break;
 		}
 		case UBIFS_LPT_LTAB:

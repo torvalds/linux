@@ -479,9 +479,9 @@ void dbg_dump_node(const struct ubifs_info *c, const void *node)
 					  "bad or corrupted node)");
 		else {
 			for (i = 0; i < nlen && dent->name[i]; i++)
-				printk("%c", dent->name[i]);
+				printk(KERN_CONT "%c", dent->name[i]);
 		}
-		printk("\n");
+		printk(KERN_CONT "\n");
 
 		break;
 	}
