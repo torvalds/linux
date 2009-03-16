@@ -135,14 +135,6 @@
 /* This should be increased if a protocol with a bigger head is added. */
 #define GRO_MAX_HEAD (MAX_HEADER + 128)
 
-enum {
-	GRO_MERGED,
-	GRO_MERGED_FREE,
-	GRO_HELD,
-	GRO_NORMAL,
-	GRO_DROP,
-};
-
 /*
  *	The list of packet types we will receive (as opposed to discard)
  *	and the routines to invoke.
@@ -2474,6 +2466,9 @@ static int __napi_gro_receive(struct napi_struct *napi, struct sk_buff *skb)
 {
 	struct sk_buff *p;
 
+	if (netpoll_rx_on(skb))
+		return GRO_NORMAL;
+
 	for (p = napi->gro_list; p; p = p->next) {
 		NAPI_GRO_CB(p)->same_flow = !compare_ether_header(
 			skb_mac_header(p), skb_gro_mac_header(skb));
@@ -2486,9 +2481,6 @@ static int __napi_gro_receive(struct napi_struct *napi, struct sk_buff *skb)
 int napi_skb_finish(int ret, struct sk_buff *skb)
 {
 	int err = NET_RX_SUCCESS;
-
-	if (netpoll_receive_skb(skb))
-		return NET_RX_DROP;
 
 	switch (ret) {
 	case GRO_NORMAL:
@@ -2586,9 +2578,6 @@ EXPORT_SYMBOL(napi_fraginfo_skb);
 int napi_frags_finish(struct napi_struct *napi, struct sk_buff *skb, int ret)
 {
 	int err = NET_RX_SUCCESS;
-
-	if (netpoll_receive_skb(skb))
-		return NET_RX_DROP;
 
 	switch (ret) {
 	case GRO_NORMAL:
