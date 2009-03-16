@@ -1374,27 +1374,6 @@ void pci_allocate_cap_save_buffers(struct pci_dev *dev)
 }
 
 /**
- * pci_restore_standard_config - restore standard config registers of PCI device
- * @dev: PCI device to handle
- *
- * This function assumes that the device's configuration space is accessible.
- * If the device needs to be powered up, the function will wait for it to
- * change the state.
- */
-int pci_restore_standard_config(struct pci_dev *dev)
-{
-	pci_update_current_state(dev, PCI_UNKNOWN);
-
-	if (dev->current_state != PCI_D0) {
-		int error = pci_set_power_state(dev, PCI_D0);
-		if (error)
-			return error;
-	}
-
-	return dev->state_saved ? pci_restore_state(dev) : 0;
-}
-
-/**
  * pci_enable_ari - enable ARI forwarding if hardware support it
  * @dev: the PCI device
  */
