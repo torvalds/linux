@@ -1760,6 +1760,15 @@ and is between 256 and 4096 characters. It is defined in the file
 		cbmemsize=nn[KMG]	The fixed amount of bus space which is
 				reserved for the CardBus bridge's memory
 				window. The default value is 64 megabytes.
+		resource_alignment=
+				Format:
+				[<order of align>@][<domain>:]<bus>:<slot>.<func>[; ...]
+				Specifies alignment and device to reassign
+				aligned memory resources.
+				If <order of align> is not specified,
+				PAGE_SIZE is used as alignment.
+				PCI-PCI bridge can be specified, if resource
+				windows need to be expanded.
 
 	pcie_aspm=	[PCIE] Forcibly enable or disable PCIe Active State Power
 			Management.

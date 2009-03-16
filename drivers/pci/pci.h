@@ -195,4 +195,10 @@ static inline int pci_ari_enabled(struct pci_bus *bus)
 	return bus->self && bus->self->ari_enabled;
 }
 
+#ifdef CONFIG_PCI_QUIRKS
+extern int pci_is_reassigndev(struct pci_dev *dev);
+resource_size_t pci_specified_resource_alignment(struct pci_dev *dev);
+extern void pci_disable_bridge_window(struct pci_dev *dev);
+#endif
+
 #endif /* DRIVERS_PCI_H */

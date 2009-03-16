@@ -20,6 +20,8 @@
 #include <linux/pm_wakeup.h>
 #include <linux/interrupt.h>
 #include <asm/dma.h>	/* isa_dma_bridge_buggy */
+#include <linux/device.h>
+#include <asm/setup.h>
 #include "pci.h"
 
 unsigned int pci_pm_d3_delay = PCI_PM_D3_WAIT;
@@ -2370,6 +2372,121 @@ int pci_resource_bar(struct pci_dev *dev, int resno, enum pci_bar_type *type)
 	return 0;
 }
 
+#define RESOURCE_ALIGNMENT_PARAM_SIZE COMMAND_LINE_SIZE
+static char resource_alignment_param[RESOURCE_ALIGNMENT_PARAM_SIZE] = {0};
+spinlock_t resource_alignment_lock = SPIN_LOCK_UNLOCKED;
+
+/**
+ * pci_specified_resource_alignment - get resource alignment specified by user.
+ * @dev: the PCI device to get
+ *
+ * RETURNS: Resource alignment if it is specified.
+ *          Zero if it is not specified.
+ */
+resource_size_t pci_specified_resource_alignment(struct pci_dev *dev)
+{
+	int seg, bus, slot, func, align_order, count;
+	resource_size_t align = 0;
+	char *p;
+
+	spin_lock(&resource_alignment_lock);
+	p = resource_alignment_param;
+	while (*p) {
+		count = 0;
+		if (sscanf(p, "%d%n", &align_order, &count) == 1 &&
+							p[count] == '@') {
+			p += count + 1;
+		} else {
+			align_order = -1;
+		}
+		if (sscanf(p, "%x:%x:%x.%x%n",
+			&seg, &bus, &slot, &func, &count) != 4) {
+			seg = 0;
+			if (sscanf(p, "%x:%x.%x%n",
+					&bus, &slot, &func, &count) != 3) {
+				/* Invalid format */
+				printk(KERN_ERR "PCI: Can't parse resource_alignment parameter: %s\n",
+					p);
+				break;
+			}
+		}
+		p += count;
+		if (seg == pci_domain_nr(dev->bus) &&
+			bus == dev->bus->number &&
+			slot == PCI_SLOT(dev->devfn) &&
+			func == PCI_FUNC(dev->devfn)) {
+			if (align_order == -1) {
+				align = PAGE_SIZE;
+			} else {
+				align = 1 << align_order;
+			}
+			/* Found */
+			break;
+		}
+		if (*p != ';' && *p != ',') {
+			/* End of param or invalid format */
+			break;
+		}
+		p++;
+	}
+	spin_unlock(&resource_alignment_lock);
+	return align;
+}
+
+/**
+ * pci_is_reassigndev - check if specified PCI is target device to reassign
+ * @dev: the PCI device to check
+ *
+ * RETURNS: non-zero for PCI device is a target device to reassign,
+ *          or zero is not.
+ */
+int pci_is_reassigndev(struct pci_dev *dev)
+{
+	return (pci_specified_resource_alignment(dev) != 0);
+}
+
+ssize_t pci_set_resource_alignment_param(const char *buf, size_t count)
+{
+	if (count > RESOURCE_ALIGNMENT_PARAM_SIZE - 1)
+		count = RESOURCE_ALIGNMENT_PARAM_SIZE - 1;
+	spin_lock(&resource_alignment_lock);
+	strncpy(resource_alignment_param, buf, count);
+	resource_alignment_param[count] = '\0';
+	spin_unlock(&resource_alignment_lock);
+	return count;
+}
+
+ssize_t pci_get_resource_alignment_param(char *buf, size_t size)
+{
+	size_t count;
+	spin_lock(&resource_alignment_lock);
+	count = snprintf(buf, size, "%s", resource_alignment_param);
+	spin_unlock(&resource_alignment_lock);
+	return count;
+}
+
+static ssize_t pci_resource_alignment_show(struct bus_type *bus, char *buf)
+{
+	return pci_get_resource_alignment_param(buf, PAGE_SIZE);
+}
+
+static ssize_t pci_resource_alignment_store(struct bus_type *bus,
+					const char *buf, size_t count)
+{
+	return pci_set_resource_alignment_param(buf, count);
+}
+
+BUS_ATTR(resource_alignment, 0644, pci_resource_alignment_show,
+					pci_resource_alignment_store);
+
+static int __init pci_resource_alignment_sysfs_init(void)
+{
+	return bus_create_file(&pci_bus_type,
+					&bus_attr_resource_alignment);
+}
+
+late_initcall(pci_resource_alignment_sysfs_init);
+
 static void __devinit pci_no_domains(void)
 {
 #ifdef CONFIG_PCI_DOMAINS
@@ -2418,6 +2535,9 @@ static int __init pci_setup(char *str)
 				pci_cardbus_io_size = memparse(str + 9, &str);
 			} else if (!strncmp(str, "cbmemsize=", 10)) {
 				pci_cardbus_mem_size = memparse(str + 10, &str);
+			} else if (!strncmp(str, "resource_alignment=", 19)) {
+				pci_set_resource_alignment_param(str + 19,
+							strlen(str + 19));
 			} else {
 				printk(KERN_ERR "PCI: Unknown option `%s'\n",
 						str);

@@ -120,6 +120,21 @@ int pci_claim_resource(struct pci_dev *dev, int resource)
 	return err;
 }
 
+#ifdef CONFIG_PCI_QUIRKS
+void pci_disable_bridge_window(struct pci_dev *dev)
+{
+	dev_dbg(&dev->dev, "Disabling bridge window.\n");
+
+	/* MMIO Base/Limit */
+	pci_write_config_dword(dev, PCI_MEMORY_BASE, 0x0000fff0);
+
+	/* Prefetchable MMIO Base/Limit */
+	pci_write_config_dword(dev, PCI_PREF_LIMIT_UPPER32, 0);
+	pci_write_config_dword(dev, PCI_PREF_MEMORY_BASE, 0x0000fff0);
+	pci_write_config_dword(dev, PCI_PREF_BASE_UPPER32, 0xffffffff);
+}
+#endif	/* CONFIG_PCI_QUIRKS */
+
 int pci_assign_resource(struct pci_dev *dev, int resno)
 {
 	struct pci_bus *bus = dev->bus;
