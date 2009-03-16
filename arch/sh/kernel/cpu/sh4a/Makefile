@@ -35,10 +35,6 @@ pinmux-$(CONFIG_CPU_SUBTYPE_SH7723)	:= pinmux-sh7723.o
 pinmux-$(CONFIG_CPU_SUBTYPE_SH7785)	:= pinmux-sh7785.o
 pinmux-$(CONFIG_CPU_SUBTYPE_SH7786)	:= pinmux-sh7786.o
 
-# Power Mangement & Sleep mode
-pm-$(CONFIG_ARCH_SHMOBILE)		:= pm-sh_mobile.o sleep-sh_mobile.o
-
 obj-y			+= $(clock-y)
 obj-$(CONFIG_SMP)	+= $(smp-y)
 obj-$(CONFIG_GENERIC_GPIO)	+= $(pinmux-y)
-obj-$(CONFIG_PM)	+= $(pm-y)
