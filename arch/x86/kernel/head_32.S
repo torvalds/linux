@@ -38,8 +38,8 @@
 #define X86_VENDOR_ID	new_cpu_data+CPUINFO_x86_vendor_id
 
 /*
- * This is how much memory *in addition to the memory covered up to
- * and including _end* we need mapped initially.
+ * This is how much memory in addition to the memory covered up to
+ * and including _end we need mapped initially.
  * We need:
  *     (KERNEL_IMAGE_SIZE/4096) / 1024 pages (worst case, non PAE)
  *     (KERNEL_IMAGE_SIZE/4096) / 512 + 4 pages (worst case for PAE)
@@ -52,16 +52,25 @@
  * KERNEL_IMAGE_SIZE should be greater than pa(_end)
  * and small than max_low_pfn, otherwise will waste some page table entries
  */
-LOW_PAGES = (KERNEL_IMAGE_SIZE + PAGE_SIZE_asm - 1)>>PAGE_SHIFT
 
 #if PTRS_PER_PMD > 1
-PAGE_TABLE_SIZE = (LOW_PAGES / PTRS_PER_PMD) + PTRS_PER_PGD
+#define PAGE_TABLE_SIZE(pages) (((pages) / PTRS_PER_PMD) + PTRS_PER_PGD)
 #else
-PAGE_TABLE_SIZE = (LOW_PAGES / PTRS_PER_PGD)
+#define PAGE_TABLE_SIZE(pages) ((pages) / PTRS_PER_PGD)
 #endif
 ALLOCATOR_SLOP = 4
 
-INIT_MAP_SIZE = (PAGE_TABLE_SIZE + ALLOCATOR_SLOP) * PAGE_SIZE_asm
+/* Enough space to fit pagetables for the low memory linear map */
+MAPPING_BEYOND_END = (PAGE_TABLE_SIZE(1 << (32 - PAGE_SHIFT)) * PAGE_SIZE)
+
+/*
+ * Worst-case size of the kernel mapping we need to make:
+ * the worst-case size of the kernel itself, plus the extra we need
+ * to map for the linear map.
+ */
+KERNEL_PAGES = (KERNEL_IMAGE_SIZE + MAPPING_BEYOND_END)>>PAGE_SHIFT
+
+INIT_MAP_SIZE = (PAGE_TABLE_SIZE(KERNEL_PAGES) + ALLOCATOR_SLOP) * PAGE_SIZE_asm
 RESERVE_BRK(pagetables, INIT_MAP_SIZE)
 
 /*
@@ -197,9 +206,9 @@ default_entry:
 	loop 11b
 
 	/*
-	 * End condition: we must map up to the end.
+	 * End condition: we must map up to the end + MAPPING_BEYOND_END.
 	 */
-	movl $pa(_end) + PTE_IDENT_ATTR, %ebp
+	movl $pa(_end) + MAPPING_BEYOND_END + PTE_IDENT_ATTR, %ebp
 	cmpl %ebp,%eax
 	jb 10b
 1:
@@ -229,9 +238,9 @@ page_pde_offset = (__PAGE_OFFSET >> 20);
 	addl $0x1000,%eax
 	loop 11b
 	/*
-	 * End condition: we must map up to end
+	 * End condition: we must map up to the end + MAPPING_BEYOND_END.
 	 */
-	movl $pa(_end) + PTE_IDENT_ATTR, %ebp
+	movl $pa(_end) + MAPPING_BEYOND_END + PTE_IDENT_ATTR, %ebp
 	cmpl %ebp,%eax
 	jb 10b
 	addl $__PAGE_OFFSET, %edi
