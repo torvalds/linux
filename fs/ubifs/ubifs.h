@@ -1015,6 +1015,8 @@ struct ubifs_debug_info;
  * @min_io_shift: number of bits in @min_io_size minus one
  * @leb_size: logical eraseblock size in bytes
  * @half_leb_size: half LEB size
+ * @idx_leb_size: how many bytes of an LEB are effectively available when it is
+ *                used to store indexing nodes (@leb_size - @max_idx_node_sz)
  * @leb_cnt: count of logical eraseblocks
  * @max_leb_cnt: maximum count of logical eraseblocks
  * @old_leb_cnt: count of logical eraseblocks before re-size
@@ -1132,8 +1134,8 @@ struct ubifs_debug_info;
  *             previous commit start
  * @uncat_list: list of un-categorized LEBs
  * @empty_list: list of empty LEBs
- * @freeable_list: list of freeable non-index LEBs (free + dirty == leb_size)
- * @frdi_idx_list: list of freeable index LEBs (free + dirty == leb_size)
+ * @freeable_list: list of freeable non-index LEBs (free + dirty == @leb_size)
+ * @frdi_idx_list: list of freeable index LEBs (free + dirty == @leb_size)
  * @freeable_cnt: number of freeable LEBs in @freeable_list
  *
  * @ltab_lnum: LEB number of LPT's own lprops table
@@ -1253,6 +1255,7 @@ struct ubifs_info {
 	int min_io_shift;
 	int leb_size;
 	int half_leb_size;
+	int idx_leb_size;
 	int leb_cnt;
 	int max_leb_cnt;
 	int old_leb_cnt;

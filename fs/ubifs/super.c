@@ -700,6 +700,8 @@ static int init_constants_sb(struct ubifs_info *c)
 	if (err)
 		return err;
 
+	/* Initialize effective LEB size used in budgeting calculations */
+	c->idx_leb_size = c->leb_size - c->max_idx_node_sz;
 	return 0;
 }
 
@@ -716,6 +718,7 @@ static void init_constants_master(struct ubifs_info *c)
 	long long tmp64;
 
 	c->min_idx_lebs = ubifs_calc_min_idx_lebs(c);
+	c->report_rp_size = ubifs_reported_space(c, c->rp_size);
 
 	/*
 	 * Calculate total amount of FS blocks. This number is not used
