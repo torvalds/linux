@@ -537,7 +537,7 @@ static void ftrace_replace_code(int enable)
 		 */
 		if (rec->flags & FTRACE_FL_FREE ||
 		    rec->flags & FTRACE_FL_FAILED ||
-		    rec->flags & FTRACE_FL_CONVERTED)
+		    !(rec->flags & FTRACE_FL_CONVERTED))
 			continue;
 
 		/* ignore updates to this record's mcount site */
