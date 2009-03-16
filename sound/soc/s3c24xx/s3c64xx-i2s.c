@@ -177,6 +177,10 @@ static int s3c64xx_i2s_probe(struct platform_device *pdev,
 #define S3C64XX_I2S_FMTS \
 	(SNDRV_PCM_FMTBIT_S8 | SNDRV_PCM_FMTBIT_S16_LE)
 
+static struct snd_soc_dai_ops s3c64xx_i2s_dai_ops = {
+	.set_sysclk	= s3c64xx_i2s_set_sysclk,	
+};
+
 struct snd_soc_dai s3c64xx_i2s_dai = {
 	.name		= "s3c64xx-i2s",
 	.id		= 0,
@@ -193,9 +197,7 @@ struct snd_soc_dai s3c64xx_i2s_dai = {
 		.rates		= S3C64XX_I2S_RATES,
 		.formats	= S3C64XX_I2S_FMTS,
 	},
-	.ops = {
-		.set_sysclk	= s3c64xx_i2s_set_sysclk,
-	},
+	.ops = &s3c64xx_i2s_dai_ops,
 };
 EXPORT_SYMBOL_GPL(s3c64xx_i2s_dai);
 
