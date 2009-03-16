@@ -1988,7 +1988,7 @@ static long kvm_dev_ioctl_check_extension_generic(long arg)
 		return 1;
 #ifdef CONFIG_HAVE_KVM_IRQCHIP
 	case KVM_CAP_IRQ_ROUTING:
-		return 1;
+		return KVM_MAX_IRQ_ROUTES;
 #endif
 	default:
 		break;
