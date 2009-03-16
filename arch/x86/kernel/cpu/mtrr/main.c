@@ -574,7 +574,7 @@ struct mtrr_value {
 	unsigned long	lsize;
 };
 
-static struct mtrr_value mtrr_state[MTRR_MAX_VAR_RANGES];
+static struct mtrr_value mtrr_value[MTRR_MAX_VAR_RANGES];
 
 static int mtrr_save(struct sys_device * sysdev, pm_message_t state)
 {
@@ -582,9 +582,9 @@ static int mtrr_save(struct sys_device * sysdev, pm_message_t state)
 
 	for (i = 0; i < num_var_ranges; i++) {
 		mtrr_if->get(i,
-			     &mtrr_state[i].lbase,
-			     &mtrr_state[i].lsize,
-			     &mtrr_state[i].ltype);
+			     &mtrr_value[i].lbase,
+			     &mtrr_value[i].lsize,
+			     &mtrr_value[i].ltype);
 	}
 	return 0;
 }
@@ -594,11 +594,11 @@ static int mtrr_restore(struct sys_device * sysdev)
 	int i;
 
 	for (i = 0; i < num_var_ranges; i++) {
-		if (mtrr_state[i].lsize) 
+		if (mtrr_value[i].lsize)
 			set_mtrr(i,
-				 mtrr_state[i].lbase,
-				 mtrr_state[i].lsize,
-				 mtrr_state[i].ltype);
+				 mtrr_value[i].lbase,
+				 mtrr_value[i].lsize,
+				 mtrr_value[i].ltype);
 	}
 	return 0;
 }

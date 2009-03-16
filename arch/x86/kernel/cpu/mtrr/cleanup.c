@@ -189,6 +189,17 @@ x86_get_mtrr_mem_range(struct res_range *range, int nr_range,
 		if (!size)
 			continue;
 		base = range_state[i].base_pfn;
+		if (base < (1<<(20-PAGE_SHIFT)) && mtrr_state.have_fixed &&
+		    (mtrr_state.enabled & 1)) {
+			/* Var MTRR contains UC entry below 1M? Skip it: */
+			printk(KERN_WARNING "WARNING: BIOS bug: VAR MTRR %d "
+				"contains strange UC entry under 1M, check "
+				"with your system vendor!\n", i);
+			if (base + size <= (1<<(20-PAGE_SHIFT)))
+				continue;
+			size -= (1<<(20-PAGE_SHIFT)) - base;
+			base = 1<<(20-PAGE_SHIFT);
+		}
 		subtract_range(range, base, base + size - 1);
 	}
 	if (extra_remove_size)
