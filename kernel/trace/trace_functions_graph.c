@@ -190,15 +190,15 @@ print_graph_cpu(struct trace_seq *s, int cpu)
 static enum print_line_t
 print_graph_proc(struct trace_seq *s, pid_t pid)
 {
-	int i;
-	int ret;
-	int len;
-	char comm[8];
-	int spaces = 0;
+	char comm[TASK_COMM_LEN];
 	/* sign + log10(MAX_INT) + '\0' */
 	char pid_str[11];
+	int spaces = 0;
+	int ret;
+	int len;
+	int i;
 
-	strncpy(comm, trace_find_cmdline(pid), 7);
+	trace_find_cmdline(pid, comm);
 	comm[7] = '\0';
 	sprintf(pid_str, "%d", pid);
 

@@ -770,25 +770,29 @@ static void trace_save_cmdline(struct task_struct *tsk)
 	__raw_spin_unlock(&trace_cmdline_lock);
 }
 
-char *trace_find_cmdline(int pid)
+void trace_find_cmdline(int pid, char comm[])
 {
-	char *cmdline = "<...>";
 	unsigned map;
 
-	if (!pid)
-		return "<idle>";
+	if (!pid) {
+		strcpy(comm, "<idle>");
+		return;
+	}
 
-	if (pid > PID_MAX_DEFAULT)
-		goto out;
+	if (pid > PID_MAX_DEFAULT) {
+		strcpy(comm, "<...>");
+		return;
+	}
 
+	__raw_spin_lock(&trace_cmdline_lock);
 	map = map_pid_to_cmdline[pid];
 	if (map >= SAVED_CMDLINES)
 		goto out;
 
-	cmdline = saved_cmdlines[map];
+	strcpy(comm, saved_cmdlines[map]);
 
  out:
-	return cmdline;
+	__raw_spin_unlock(&trace_cmdline_lock);
 }
 
 void tracing_record_cmdline(struct task_struct *tsk)

@@ -1027,7 +1027,9 @@ static int blk_log_action_seq(struct trace_seq *s, const struct blk_io_trace *t,
 
 static int blk_log_generic(struct trace_seq *s, const struct trace_entry *ent)
 {
-	const char *cmd = trace_find_cmdline(ent->pid);
+	char cmd[TASK_COMM_LEN];
+
+	trace_find_cmdline(ent->pid, cmd);
 
 	if (t_sec(ent))
 		return trace_seq_printf(s, "%llu + %u [%s]\n",
@@ -1057,19 +1059,30 @@ static int blk_log_remap(struct trace_seq *s, const struct trace_entry *ent)
 
 static int blk_log_plug(struct trace_seq *s, const struct trace_entry *ent)
 {
-	return trace_seq_printf(s, "[%s]\n", trace_find_cmdline(ent->pid));
+	char cmd[TASK_COMM_LEN];
+
+	trace_find_cmdline(ent->pid, cmd);
+
+	return trace_seq_printf(s, "[%s]\n", cmd);
 }
 
 static int blk_log_unplug(struct trace_seq *s, const struct trace_entry *ent)
 {
-	return trace_seq_printf(s, "[%s] %llu\n", trace_find_cmdline(ent->pid),
-				get_pdu_int(ent));
+	char cmd[TASK_COMM_LEN];
+
+	trace_find_cmdline(ent->pid, cmd);
+
+	return trace_seq_printf(s, "[%s] %llu\n", cmd, get_pdu_int(ent));
 }
 
 static int blk_log_split(struct trace_seq *s, const struct trace_entry *ent)
 {
+	char cmd[TASK_COMM_LEN];
+
+	trace_find_cmdline(ent->pid, cmd);
+
 	return trace_seq_printf(s, "%llu / %llu [%s]\n", t_sector(ent),
-				get_pdu_int(ent), trace_find_cmdline(ent->pid));
+				get_pdu_int(ent), cmd);
 }
 
 /*

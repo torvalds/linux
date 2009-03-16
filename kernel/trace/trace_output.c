@@ -309,9 +309,9 @@ static int
 lat_print_generic(struct trace_seq *s, struct trace_entry *entry, int cpu)
 {
 	int hardirq, softirq;
-	char *comm;
+	char comm[TASK_COMM_LEN];
 
-	comm = trace_find_cmdline(entry->pid);
+	trace_find_cmdline(entry->pid, comm);
 	hardirq = entry->flags & TRACE_FLAG_HARDIRQ;
 	softirq = entry->flags & TRACE_FLAG_SOFTIRQ;
 
@@ -346,10 +346,12 @@ int trace_print_context(struct trace_iterator *iter)
 {
 	struct trace_seq *s = &iter->seq;
 	struct trace_entry *entry = iter->ent;
-	char *comm = trace_find_cmdline(entry->pid);
 	unsigned long long t = ns2usecs(iter->ts);
 	unsigned long usec_rem = do_div(t, USEC_PER_SEC);
 	unsigned long secs = (unsigned long)t;
+	char comm[TASK_COMM_LEN];
+
+	trace_find_cmdline(entry->pid, comm);
 
 	return trace_seq_printf(s, "%16s-%-5d [%03d] %5lu.%06lu: ",
 				comm, entry->pid, iter->cpu, secs, usec_rem);
@@ -372,7 +374,10 @@ int trace_print_lat_context(struct trace_iterator *iter)
 	rel_usecs = ns2usecs(next_ts - iter->ts);
 
 	if (verbose) {
-		char *comm = trace_find_cmdline(entry->pid);
+		char comm[TASK_COMM_LEN];
+
+		trace_find_cmdline(entry->pid, comm);
+
 		ret = trace_seq_printf(s, "%16s %5d %3d %d %08x %08lx [%08lx]"
 				       " %ld.%03ldms (+%ld.%03ldms): ", comm,
 				       entry->pid, iter->cpu, entry->flags,
@@ -577,14 +582,15 @@ static enum print_line_t trace_ctxwake_print(struct trace_iterator *iter,
 					     char *delim)
 {
 	struct ctx_switch_entry *field;
-	char *comm;
+	char comm[TASK_COMM_LEN];
 	int S, T;
+
 
 	trace_assign_type(field, iter->ent);
 
 	T = task_state_char(field->next_state);
 	S = task_state_char(field->prev_state);
-	comm = trace_find_cmdline(field->next_pid);
+	trace_find_cmdline(field->next_pid, comm);
 	if (!trace_seq_printf(&iter->seq,
 			      " %5d:%3d:%c %s [%03d] %5d:%3d:%c %s\n",
 			      field->prev_pid,

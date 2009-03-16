@@ -547,7 +547,7 @@ struct tracer_switch_ops {
 };
 #endif /* CONFIG_CONTEXT_SWITCH_TRACER */
 
-extern char *trace_find_cmdline(int pid);
+extern void trace_find_cmdline(int pid, char comm[]);
 
 #ifdef CONFIG_DYNAMIC_FTRACE
 extern unsigned long ftrace_update_tot_cnt;
