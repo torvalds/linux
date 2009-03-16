@@ -516,12 +516,12 @@ static int pci_pm_suspend(struct device *dev)
 	if (pci_has_legacy_pm_support(pci_dev))
 		return pci_legacy_suspend(dev, PMSG_SUSPEND);
 
+	pci_dev->state_saved = false;
+
 	if (!pm) {
 		pci_pm_default_suspend(pci_dev);
 		goto Fixup;
 	}
-
-	pci_dev->state_saved = false;
 
 	if (pm->suspend) {
 		pci_power_t prev = pci_dev->current_state;
@@ -554,8 +554,10 @@ static int pci_pm_suspend_noirq(struct device *dev)
 	if (pci_has_legacy_pm_support(pci_dev))
 		return pci_legacy_suspend_late(dev, PMSG_SUSPEND);
 
-	if (!pm)
+	if (!pm) {
+		pci_save_state(pci_dev);
 		return 0;
+	}
 
 	if (pm->suspend_noirq) {
 		pci_power_t prev = pci_dev->current_state;
@@ -650,12 +652,12 @@ static int pci_pm_freeze(struct device *dev)
 	if (pci_has_legacy_pm_support(pci_dev))
 		return pci_legacy_suspend(dev, PMSG_FREEZE);
 
+	pci_dev->state_saved = false;
+
 	if (!pm) {
 		pci_pm_default_suspend(pci_dev);
 		return 0;
 	}
-
-	pci_dev->state_saved = false;
 
 	if (pm->freeze) {
 		int error;
@@ -738,12 +740,12 @@ static int pci_pm_poweroff(struct device *dev)
 	if (pci_has_legacy_pm_support(pci_dev))
 		return pci_legacy_suspend(dev, PMSG_HIBERNATE);
 
+	pci_dev->state_saved = false;
+
 	if (!pm) {
 		pci_pm_default_suspend(pci_dev);
 		goto Fixup;
 	}
-
-	pci_dev->state_saved = false;
 
 	if (pm->poweroff) {
 		int error;
