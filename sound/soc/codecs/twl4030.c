@@ -1383,6 +1383,12 @@ static int twl4030_set_dai_fmt(struct snd_soc_dai *codec_dai,
 #define TWL4030_RATES	 (SNDRV_PCM_RATE_8000_48000)
 #define TWL4030_FORMATS	 (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FORMAT_S24_LE)
 
+static struct snd_soc_dai_ops twl4030_dai_ops = {
+	.hw_params	= twl4030_hw_params,
+	.set_sysclk	= twl4030_set_dai_sysclk,
+	.set_fmt	= twl4030_set_dai_fmt,
+};
+
 struct snd_soc_dai twl4030_dai = {
 	.name = "twl4030",
 	.playback = {
@@ -1397,11 +1403,7 @@ struct snd_soc_dai twl4030_dai = {
 		.channels_max = 2,
 		.rates = TWL4030_RATES,
 		.formats = TWL4030_FORMATS,},
-	.ops = {
-		.hw_params = twl4030_hw_params,
-		.set_sysclk = twl4030_set_dai_sysclk,
-		.set_fmt = twl4030_set_dai_fmt,
-	}
+	.ops = &twl4030_dai_ops,
 };
 EXPORT_SYMBOL_GPL(twl4030_dai);
 
