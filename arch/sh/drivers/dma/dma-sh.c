@@ -19,13 +19,6 @@
 #include <asm/io.h>
 #include <asm/dma-sh.h>
 
-#if defined(CONFIG_CPU_SUBTYPE_SH7763)	|| \
-		defined(CONFIG_CPU_SUBTYPE_SH7764)	|| \
-		defined(CONFIG_CPU_SUBTYPE_SH7780)	|| \
-		defined(CONFIG_CPU_SUBTYPE_SH7785)
-#define DMAC_IRQ_MULTI	1
-#endif
-
 #if defined(DMAE1_IRQ)
 #define NR_DMAE		2
 #else
@@ -42,7 +35,7 @@ static inline unsigned int get_dmte_irq(unsigned int chan)
 	if (chan < ARRAY_SIZE(dmte_irq_map))
 		irq = dmte_irq_map[chan];
 
-#if defined(DMAC_IRQ_MULTI)
+#if defined(CONFIG_SH_DMA_IRQ_MULTI)
 	if (irq > DMTE6_IRQ)
 		return DMTE6_IRQ;
 	return DMTE0_IRQ;
@@ -96,7 +89,7 @@ static int sh_dmac_request_dma(struct dma_channel *chan)
 		return 0;
 
 	return request_irq(get_dmte_irq(chan->chan), dma_tei,
-#if defined(DMAC_IRQ_MULTI)
+#if defined(CONFIG_SH_DMA_IRQ_MULTI)
 				IRQF_SHARED,
 #else
 				IRQF_DISABLED,
@@ -235,7 +228,7 @@ static inline int dmaor_reset(int no)
 #if defined(CONFIG_CPU_SH4)
 static irqreturn_t dma_err(int irq, void *dummy)
 {
-#if defined(DMAC_IRQ_MULTI)
+#if defined(CONFIG_SH_DMA_IRQ_MULTI)
 	int cnt = 0;
 	switch (irq) {
 #if defined(DMTE6_IRQ) && defined(DMAE1_IRQ)
@@ -283,7 +276,7 @@ static struct dma_info sh_dmac_info = {
 #ifdef CONFIG_CPU_SH4
 static unsigned int get_dma_error_irq(int n)
 {
-#if defined(DMAC_IRQ_MULTI)
+#if defined(CONFIG_SH_DMA_IRQ_MULTI)
 	return (n == 0) ? get_dmte_irq(0) : get_dmte_irq(6);
 #else
 	return (n == 0) ? DMAE0_IRQ :
@@ -306,7 +299,7 @@ static int __init sh_dmac_init(void)
 
 	for (n = 0; n < NR_DMAE; n++) {
 		i = request_irq(get_dma_error_irq(n), dma_err,
-#if defined(DMAC_IRQ_MULTI)
+#if defined(CONFIG_SH_DMA_IRQ_MULTI)
 				IRQF_SHARED,
 #else
 				IRQF_DISABLED,
