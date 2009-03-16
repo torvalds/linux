@@ -1128,12 +1128,10 @@ ctnetlink_event_report(struct nf_conn *ct, u32 pid, int report)
 				  report);
 }
 
-static int
+static struct nf_conn *
 ctnetlink_create_conntrack(struct nlattr *cda[],
 			   struct nf_conntrack_tuple *otuple,
 			   struct nf_conntrack_tuple *rtuple,
-			   u32 pid,
-			   int report,
 			   u8 u3)
 {
 	struct nf_conn *ct;
@@ -1142,7 +1140,7 @@ ctnetlink_create_conntrack(struct nlattr *cda[],
 
 	ct = nf_conntrack_alloc(&init_net, otuple, rtuple, GFP_ATOMIC);
 	if (IS_ERR(ct))
-		return -ENOMEM;
+		return ERR_PTR(-ENOMEM);
 
 	if (!cda[CTA_TIMEOUT])
 		goto err;
@@ -1265,18 +1263,14 @@ ctnetlink_create_conntrack(struct nlattr *cda[],
 		ct->master = master_ct;
 	}
 
-	nf_conntrack_get(&ct->ct_general);
 	add_timer(&ct->timeout);
 	nf_conntrack_hash_insert(ct);
 	rcu_read_unlock();
-	ctnetlink_event_report(ct, pid, report);
-	nf_ct_put(ct);
 
-	return 0;
-
+	return ct;
 err:
 	nf_conntrack_free(ct);
-	return err;
+	return ERR_PTR(err);
 }
 
 static int
@@ -1309,14 +1303,25 @@ ctnetlink_new_conntrack(struct sock *ctnl, struct sk_buff *skb,
 
 	if (h == NULL) {
 		err = -ENOENT;
-		if (nlh->nlmsg_flags & NLM_F_CREATE)
-			err = ctnetlink_create_conntrack(cda,
-							 &otuple,
-							 &rtuple,
-							 NETLINK_CB(skb).pid,
-							 nlmsg_report(nlh),
-							 u3);
-		spin_unlock_bh(&nf_conntrack_lock);
+		if (nlh->nlmsg_flags & NLM_F_CREATE) {
+			struct nf_conn *ct;
+
+			ct = ctnetlink_create_conntrack(cda, &otuple,
+							&rtuple, u3);
+			if (IS_ERR(ct)) {
+				err = PTR_ERR(ct);
+				goto out_unlock;
+			}
+			err = 0;
+			nf_conntrack_get(&ct->ct_general);
+			spin_unlock_bh(&nf_conntrack_lock);
+			ctnetlink_event_report(ct,
+					       NETLINK_CB(skb).pid,
+					       nlmsg_report(nlh));
+			nf_ct_put(ct);
+		} else
+			spin_unlock_bh(&nf_conntrack_lock);
+
 		return err;
 	}
 	/* implicit 'else' */
