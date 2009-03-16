@@ -704,7 +704,8 @@ static int dev_rename(struct dm_ioctl *param, size_t param_size)
 	char *new_name = (char *) param + param->data_start;
 
 	if (new_name < param->data ||
-	    invalid_str(new_name, (void *) param + param_size)) {
+	    invalid_str(new_name, (void *) param + param_size) ||
+	    strlen(new_name) > DM_NAME_LEN - 1) {
 		DMWARN("Invalid new logical volume name supplied.");
 		return -EINVAL;
 	}
