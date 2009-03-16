@@ -270,7 +270,7 @@ void cmci_reenable(void)
 		cmci_discover(banks, 0);
 }
 
-static __cpuinit void intel_init_cmci(void)
+static void intel_init_cmci(void)
 {
 	int banks;
 
