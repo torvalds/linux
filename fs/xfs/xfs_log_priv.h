@@ -455,7 +455,6 @@ extern void	 xlog_recover_process_iunlinks(xlog_t *log);
 
 extern struct xfs_buf *xlog_get_bp(xlog_t *, int);
 extern void	 xlog_put_bp(struct xfs_buf *);
-extern int	 xlog_bread(xlog_t *, xfs_daddr_t, int, struct xfs_buf *);
 
 extern kmem_zone_t	*xfs_log_ticket_zone;
 

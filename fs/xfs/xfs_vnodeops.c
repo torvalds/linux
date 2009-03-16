@@ -1136,7 +1136,7 @@ xfs_inactive(
 	 * If the inode is already free, then there can be nothing
 	 * to clean up here.
 	 */
-	if (ip->i_d.di_mode == 0 || VN_BAD(VFS_I(ip))) {
+	if (ip->i_d.di_mode == 0 || is_bad_inode(VFS_I(ip))) {
 		ASSERT(ip->i_df.if_real_bytes == 0);
 		ASSERT(ip->i_df.if_broot_bytes == 0);
 		return VN_INACTIVE_CACHE;
@@ -2448,7 +2448,7 @@ xfs_reclaim(
 	ASSERT(!VN_MAPPED(VFS_I(ip)));
 
 	/* bad inode, get out here ASAP */
-	if (VN_BAD(VFS_I(ip))) {
+	if (is_bad_inode(VFS_I(ip))) {
 		xfs_ireclaim(ip);
 		return 0;
 	}

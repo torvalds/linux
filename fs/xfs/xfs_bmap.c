@@ -2712,9 +2712,6 @@ xfs_bmap_btalloc(
 	xfs_agnumber_t	startag;
 	xfs_alloc_arg_t	args;
 	xfs_extlen_t	blen;
-	xfs_extlen_t	delta;
-	xfs_extlen_t	longest;
-	xfs_extlen_t	need;
 	xfs_extlen_t	nextminlen = 0;
 	xfs_perag_t	*pag;
 	int		nullfb;		/* true if ap->firstblock isn't set */
@@ -2796,13 +2793,8 @@ xfs_bmap_btalloc(
 			 * See xfs_alloc_fix_freelist...
 			 */
 			if (pag->pagf_init) {
-				need = XFS_MIN_FREELIST_PAG(pag, mp);
-				delta = need > pag->pagf_flcount ?
-					need - pag->pagf_flcount : 0;
-				longest = (pag->pagf_longest > delta) ?
-					(pag->pagf_longest - delta) :
-					(pag->pagf_flcount > 0 ||
-					 pag->pagf_longest > 0);
+				xfs_extlen_t	longest;
+				longest = xfs_alloc_longest_free_extent(mp, pag);
 				if (blen < longest)
 					blen = longest;
 			} else
