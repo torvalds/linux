@@ -2511,16 +2511,10 @@ xlog_recover_do_inode_trans(
 	}
 
 write_inode_buffer:
-	if (ITEM_TYPE(item) == XFS_LI_INODE) {
-		ASSERT(bp->b_mount == NULL || bp->b_mount == mp);
-		bp->b_mount = mp;
-		XFS_BUF_SET_IODONE_FUNC(bp, xlog_recover_iodone);
-		xfs_bdwrite(mp, bp);
-	} else {
-		XFS_BUF_STALE(bp);
-		error = xfs_bwrite(mp, bp);
-	}
-
+	ASSERT(bp->b_mount == NULL || bp->b_mount == mp);
+	bp->b_mount = mp;
+	XFS_BUF_SET_IODONE_FUNC(bp, xlog_recover_iodone);
+	xfs_bdwrite(mp, bp);
 error:
 	if (need_free)
 		kmem_free(in_f);
