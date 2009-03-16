@@ -214,11 +214,11 @@ ipi_send(int cpu, enum ipi_message_type op)
 }
 
 static void
-send_IPI_mask(cpumask_t mask, enum ipi_message_type op)
+send_IPI_mask(const struct cpumask *mask, enum ipi_message_type op)
 {
 	int cpu;
 
-	for_each_cpu_mask(cpu, mask)
+	for_each_cpu(cpu, mask)
 		ipi_send(cpu, op);
 }
 
@@ -257,7 +257,7 @@ smp_send_all_nop(void)
 	send_IPI_allbutself(IPI_NOP);
 }
 
-void arch_send_call_function_ipi(cpumask_t mask)
+void arch_send_call_function_ipi_mask(const struct cpumask *mask)
 {
 	send_IPI_mask(mask, IPI_CALL_FUNC);
 }
