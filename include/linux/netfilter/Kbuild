@@ -21,6 +21,7 @@ header-y += xt_connbytes.h
 header-y += xt_connlimit.h
 header-y += xt_connmark.h
 header-y += xt_conntrack.h
+header-y += xt_cluster.h
 header-y += xt_dccp.h
 header-y += xt_dscp.h
 header-y += xt_esp.h
