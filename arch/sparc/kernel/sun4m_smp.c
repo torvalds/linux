@@ -186,11 +186,9 @@ void __init smp4m_smp_done(void)
 	/* setup cpu list for irq rotation */
 	first = 0;
 	prev = &first;
-	for (i = 0; i < NR_CPUS; i++) {
-		if (cpu_online(i)) {
-			*prev = i;
-			prev = &cpu_data(i).next;
-		}
+	for_each_online_cpu(i) {
+		*prev = i;
+		prev = &cpu_data(i).next;
 	}
 	*prev = first;
 	local_flush_cache_all();

@@ -1425,7 +1425,7 @@ static void __init init_vac_layout(void)
 				min_line_size = vac_line_size;
 			//FIXME: cpus not contiguous!!
 			cpu++;
-			if (cpu >= NR_CPUS || !cpu_online(cpu))
+			if (cpu >= nr_cpu_ids || !cpu_online(cpu))
 				break;
 #else
 			break;

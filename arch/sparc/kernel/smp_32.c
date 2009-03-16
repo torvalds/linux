@@ -70,13 +70,12 @@ void __init smp_cpus_done(unsigned int max_cpus)
 	extern void smp4m_smp_done(void);
 	extern void smp4d_smp_done(void);
 	unsigned long bogosum = 0;
-	int cpu, num;
+	int cpu, num = 0;
 
-	for (cpu = 0, num = 0; cpu < NR_CPUS; cpu++)
-		if (cpu_online(cpu)) {
-			num++;
-			bogosum += cpu_data(cpu).udelay_val;
-		}
+	for_each_online_cpu(cpu) {
+		num++;
+		bogosum += cpu_data(cpu).udelay_val;
+	}
 
 	printk("Total of %d processors activated (%lu.%02lu BogoMIPS).\n",
 		num, bogosum/(500000/HZ),
