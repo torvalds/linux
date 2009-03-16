@@ -232,7 +232,7 @@ void flush_tlb_common(struct mm_struct* mm, struct vm_area_struct* vma, unsigned
 	cpumask_t cpu_mask;
 
 	spin_lock_irqsave(&tlbstate_lock, flags);
-	cpu_mask = (mm == FLUSH_ALL ? CPU_MASK_ALL : mm->cpu_vm_mask);
+	cpu_mask = (mm == FLUSH_ALL ? cpu_all_mask : *mm_cpumask(mm));
 	cpu_clear(smp_processor_id(), cpu_mask);
 	flush_mm = mm;
 	flush_vma = vma;
@@ -252,8 +252,8 @@ void flush_tlb_mm(struct mm_struct *mm)
 	__flush_tlb_mm(mm);
 	flush_tlb_common(mm, FLUSH_ALL, 0);
 	/* No more mappings in other CPUs */
-	cpus_clear(mm->cpu_vm_mask);
-	cpu_set(smp_processor_id(), mm->cpu_vm_mask);
+	cpumask_clear(mm_cpumask(mm));
+	cpumask_set_cpu(smp_processor_id(), mm_cpumask(mm));
 }
 
 void flush_tlb_page(struct vm_area_struct *vma,
