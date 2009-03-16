@@ -860,6 +860,7 @@ static struct zl10353_config behold_h6_config = {
 	.demod_address = 0x1e>>1,
 	.no_tuner      = 1,
 	.parallel_ts   = 1,
+	.disable_i2c_gate_ctrl = 1,
 };
 
 /* ==================================================================

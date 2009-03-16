@@ -114,6 +114,9 @@ int ramfs_nommu_expand_for_mapping(struct inode *inode, size_t newsize)
 		if (!pagevec_add(&lru_pvec, page))
 			__pagevec_lru_add_file(&lru_pvec);
 
+		/* prevent the page from being discarded on memory pressure */
+		SetPageDirty(page);
+
 		unlock_page(page);
 	}
 
@@ -126,6 +129,7 @@ int ramfs_nommu_expand_for_mapping(struct inode *inode, size_t newsize)
 	return -EFBIG;
 
  add_error:
+	pagevec_lru_add_file(&lru_pvec);
 	page_cache_release(pages + loop);
 	for (loop++; loop < npages; loop++)
 		__free_page(pages + loop);

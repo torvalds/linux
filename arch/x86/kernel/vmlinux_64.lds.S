@@ -275,3 +275,10 @@ ASSERT((_end - _text <= KERNEL_IMAGE_SIZE),
 ASSERT((per_cpu__irq_stack_union == 0),
         "irq_stack_union is not at start of per-cpu area");
 #endif
+
+#ifdef CONFIG_KEXEC
+#include <asm/kexec.h>
+
+ASSERT(kexec_control_code_size <= KEXEC_CONTROL_CODE_MAX_SIZE,
+       "kexec control code size is too big")
+#endif
