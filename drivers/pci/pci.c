@@ -439,6 +439,10 @@ static int pci_raw_set_power_state(struct pci_dev *dev, pci_power_t state)
 	u16 pmcsr;
 	bool need_restore = false;
 
+	/* Check if we're already there */
+	if (dev->current_state == state)
+		return 0;
+
 	if (!dev->pm_cap)
 		return -EIO;
 
@@ -449,10 +453,7 @@ static int pci_raw_set_power_state(struct pci_dev *dev, pci_power_t state)
 	 * Can enter D0 from any state, but if we can only go deeper 
 	 * to sleep if we're already in a low power state
 	 */
-	if (dev->current_state == state) {
-		/* we're already there */
-		return 0;
-	} else if (state != PCI_D0 && dev->current_state <= PCI_D3cold
+	if (state != PCI_D0 && dev->current_state <= PCI_D3cold
 	    && dev->current_state > state) {
 		dev_err(&dev->dev, "invalid power transition "
 			"(from state %d to %d)\n", dev->current_state, state);
@@ -570,12 +571,17 @@ int pci_set_power_state(struct pci_dev *dev, pci_power_t state)
 		 */
 		return 0;
 
-	if (state == PCI_D0 && platform_pci_power_manageable(dev)) {
+	/* Check if we're already there */
+	if (dev->current_state == state)
+		return 0;
+
+	if (state == PCI_D0) {
 		/*
 		 * Allow the platform to change the state, for example via ACPI
 		 * _PR0, _PS0 and some such, but do not trust it.
 		 */
-		int ret = platform_pci_set_power_state(dev, PCI_D0);
+		int ret = platform_pci_power_manageable(dev) ?
+			platform_pci_set_power_state(dev, PCI_D0) : 0;
 		if (!ret)
 			pci_update_current_state(dev, PCI_D0);
 	}
