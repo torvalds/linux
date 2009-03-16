@@ -34,10 +34,6 @@
 
 #define I915_GEM_GPU_DOMAINS	(~(I915_GEM_DOMAIN_CPU | I915_GEM_DOMAIN_GTT))
 
-static void
-i915_gem_object_set_to_gpu_domain(struct drm_gem_object *obj,
-				  uint32_t read_domains,
-				  uint32_t write_domain);
 static void i915_gem_object_flush_gpu_write_domain(struct drm_gem_object *obj);
 static void i915_gem_object_flush_gtt_write_domain(struct drm_gem_object *obj);
 static void i915_gem_object_flush_cpu_write_domain(struct drm_gem_object *obj);
@@ -607,8 +603,6 @@ int i915_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	case -EAGAIN:
 		return VM_FAULT_OOM;
 	case -EFAULT:
-	case -EBUSY:
-		DRM_ERROR("can't insert pfn??  fault or busy...\n");
 		return VM_FAULT_SIGBUS;
 	default:
 		return VM_FAULT_NOPAGE;
@@ -682,6 +676,30 @@ out_free_list:
 	drm_free(list->map, sizeof(struct drm_map_list), DRM_MEM_DRIVER);
 
 	return ret;
+}
+
+static void
+i915_gem_free_mmap_offset(struct drm_gem_object *obj)
+{
+	struct drm_device *dev = obj->dev;
+	struct drm_i915_gem_object *obj_priv = obj->driver_private;
+	struct drm_gem_mm *mm = dev->mm_private;
+	struct drm_map_list *list;
+
+	list = &obj->map_list;
+	drm_ht_remove_item(&mm->offset_hash, &list->hash);
+
+	if (list->file_offset_node) {
+		drm_mm_put_block(list->file_offset_node);
+		list->file_offset_node = NULL;
+	}
+
+	if (list->map) {
+		drm_free(list->map, sizeof(struct drm_map), DRM_MEM_DRIVER);
+		list->map = NULL;
+	}
+
+	obj_priv->mmap_offset = 0;
 }
 
 /**
@@ -758,8 +776,11 @@ i915_gem_mmap_gtt_ioctl(struct drm_device *dev, void *data,
 
 	if (!obj_priv->mmap_offset) {
 		ret = i915_gem_create_mmap_offset(obj);
-		if (ret)
+		if (ret) {
+			drm_gem_object_unreference(obj);
+			mutex_unlock(&dev->struct_mutex);
 			return ret;
+		}
 	}
 
 	args->offset = obj_priv->mmap_offset;
@@ -1029,6 +1050,9 @@ i915_gem_retire_requests(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	uint32_t seqno;
+
+	if (!dev_priv->hw_status_page)
+		return;
 
 	seqno = i915_get_gem_seqno(dev);
 
@@ -1996,30 +2020,28 @@ i915_gem_object_set_to_cpu_domain(struct drm_gem_object *obj, int write)
  *		drm_agp_chipset_flush
  */
 static void
-i915_gem_object_set_to_gpu_domain(struct drm_gem_object *obj,
-				  uint32_t read_domains,
-				  uint32_t write_domain)
+i915_gem_object_set_to_gpu_domain(struct drm_gem_object *obj)
 {
 	struct drm_device		*dev = obj->dev;
 	struct drm_i915_gem_object	*obj_priv = obj->driver_private;
 	uint32_t			invalidate_domains = 0;
 	uint32_t			flush_domains = 0;
 
-	BUG_ON(read_domains & I915_GEM_DOMAIN_CPU);
-	BUG_ON(write_domain == I915_GEM_DOMAIN_CPU);
+	BUG_ON(obj->pending_read_domains & I915_GEM_DOMAIN_CPU);
+	BUG_ON(obj->pending_write_domain == I915_GEM_DOMAIN_CPU);
 
 #if WATCH_BUF
 	DRM_INFO("%s: object %p read %08x -> %08x write %08x -> %08x\n",
 		 __func__, obj,
-		 obj->read_domains, read_domains,
-		 obj->write_domain, write_domain);
+		 obj->read_domains, obj->pending_read_domains,
+		 obj->write_domain, obj->pending_write_domain);
 #endif
 	/*
 	 * If the object isn't moving to a new write domain,
 	 * let the object stay in multiple read domains
 	 */
-	if (write_domain == 0)
-		read_domains |= obj->read_domains;
+	if (obj->pending_write_domain == 0)
+		obj->pending_read_domains |= obj->read_domains;
 	else
 		obj_priv->dirty = 1;
 
@@ -2029,15 +2051,17 @@ i915_gem_object_set_to_gpu_domain(struct drm_gem_object *obj,
 	 * any read domains which differ from the old
 	 * write domain
 	 */
-	if (obj->write_domain && obj->write_domain != read_domains) {
+	if (obj->write_domain &&
+	    obj->write_domain != obj->pending_read_domains) {
 		flush_domains |= obj->write_domain;
-		invalidate_domains |= read_domains & ~obj->write_domain;
+		invalidate_domains |=
+			obj->pending_read_domains & ~obj->write_domain;
 	}
 	/*
 	 * Invalidate any read caches which may have
 	 * stale data. That is, any new read domains.
 	 */
-	invalidate_domains |= read_domains & ~obj->read_domains;
+	invalidate_domains |= obj->pending_read_domains & ~obj->read_domains;
 	if ((flush_domains | invalidate_domains) & I915_GEM_DOMAIN_CPU) {
 #if WATCH_BUF
 		DRM_INFO("%s: CPU domain flush %08x invalidate %08x\n",
@@ -2046,9 +2070,15 @@ i915_gem_object_set_to_gpu_domain(struct drm_gem_object *obj,
 		i915_gem_clflush_object(obj);
 	}
 
-	if ((write_domain | flush_domains) != 0)
-		obj->write_domain = write_domain;
-	obj->read_domains = read_domains;
+	/* The actual obj->write_domain will be updated with
+	 * pending_write_domain after we emit the accumulated flush for all
+	 * of our domain changes in execbuffers (which clears objects'
+	 * write_domains).  So if we have a current write domain that we
+	 * aren't changing, set pending_write_domain to that.
+	 */
+	if (flush_domains == 0 && obj->pending_write_domain == 0)
+		obj->pending_write_domain = obj->write_domain;
+	obj->read_domains = obj->pending_read_domains;
 
 	dev->invalidate_domains |= invalidate_domains;
 	dev->flush_domains |= flush_domains;
@@ -2251,6 +2281,8 @@ i915_gem_object_pin_and_relocate(struct drm_gem_object *obj,
 				  (int) reloc.offset,
 				  reloc.read_domains,
 				  reloc.write_domain);
+			drm_gem_object_unreference(target_obj);
+			i915_gem_object_unpin(obj);
 			return -EINVAL;
 		}
 
@@ -2480,13 +2512,15 @@ i915_gem_execbuffer(struct drm_device *dev, void *data,
 	if (dev_priv->mm.wedged) {
 		DRM_ERROR("Execbuf while wedged\n");
 		mutex_unlock(&dev->struct_mutex);
-		return -EIO;
+		ret = -EIO;
+		goto pre_mutex_err;
 	}
 
 	if (dev_priv->mm.suspended) {
 		DRM_ERROR("Execbuf while VT-switched.\n");
 		mutex_unlock(&dev->struct_mutex);
-		return -EBUSY;
+		ret = -EBUSY;
+		goto pre_mutex_err;
 	}
 
 	/* Look up object handles */
@@ -2554,9 +2588,7 @@ i915_gem_execbuffer(struct drm_device *dev, void *data,
 		struct drm_gem_object *obj = object_list[i];
 
 		/* Compute new gpu domains and update invalidate/flush */
-		i915_gem_object_set_to_gpu_domain(obj,
-						  obj->pending_read_domains,
-						  obj->pending_write_domain);
+		i915_gem_object_set_to_gpu_domain(obj);
 	}
 
 	i915_verify_inactive(dev, __FILE__, __LINE__);
@@ -2573,6 +2605,12 @@ i915_gem_execbuffer(struct drm_device *dev, void *data,
 			       dev->flush_domains);
 		if (dev->flush_domains)
 			(void)i915_add_request(dev, dev->flush_domains);
+	}
+
+	for (i = 0; i < args->buffer_count; i++) {
+		struct drm_gem_object *obj = object_list[i];
+
+		obj->write_domain = obj->pending_write_domain;
 	}
 
 	i915_verify_inactive(dev, __FILE__, __LINE__);
@@ -2632,15 +2670,6 @@ i915_gem_execbuffer(struct drm_device *dev, void *data,
 
 	i915_verify_inactive(dev, __FILE__, __LINE__);
 
-	/* Copy the new buffer offsets back to the user's exec list. */
-	ret = copy_to_user((struct drm_i915_relocation_entry __user *)
-			   (uintptr_t) args->buffers_ptr,
-			   exec_list,
-			   sizeof(*exec_list) * args->buffer_count);
-	if (ret)
-		DRM_ERROR("failed to copy %d exec entries "
-			  "back to user (%d)\n",
-			   args->buffer_count, ret);
 err:
 	for (i = 0; i < pinned; i++)
 		i915_gem_object_unpin(object_list[i]);
@@ -2649,6 +2678,18 @@ err:
 		drm_gem_object_unreference(object_list[i]);
 
 	mutex_unlock(&dev->struct_mutex);
+
+	if (!ret) {
+		/* Copy the new buffer offsets back to the user's exec list. */
+		ret = copy_to_user((struct drm_i915_relocation_entry __user *)
+				   (uintptr_t) args->buffers_ptr,
+				   exec_list,
+				   sizeof(*exec_list) * args->buffer_count);
+		if (ret)
+			DRM_ERROR("failed to copy %d exec entries "
+				  "back to user (%d)\n",
+				  args->buffer_count, ret);
+	}
 
 pre_mutex_err:
 	drm_free(object_list, sizeof(*object_list) * args->buffer_count,
@@ -2753,6 +2794,7 @@ i915_gem_pin_ioctl(struct drm_device *dev, void *data,
 	if (obj_priv->pin_filp != NULL && obj_priv->pin_filp != file_priv) {
 		DRM_ERROR("Already pinned in i915_gem_pin_ioctl(): %d\n",
 			  args->handle);
+		drm_gem_object_unreference(obj);
 		mutex_unlock(&dev->struct_mutex);
 		return -EINVAL;
 	}
@@ -2833,6 +2875,13 @@ i915_gem_busy_ioctl(struct drm_device *dev, void *data,
 		return -EBADF;
 	}
 
+	/* Update the active list for the hardware's current position.
+	 * Otherwise this only updates on a delayed timer or when irqs are
+	 * actually unmasked, and our working set ends up being larger than
+	 * required.
+	 */
+	i915_gem_retire_requests(dev);
+
 	obj_priv = obj->driver_private;
 	/* Don't count being on the flushing list against the object being
 	 * done.  Otherwise, a buffer left on the flushing list but not getting
@@ -2885,9 +2934,6 @@ int i915_gem_init_object(struct drm_gem_object *obj)
 void i915_gem_free_object(struct drm_gem_object *obj)
 {
 	struct drm_device *dev = obj->dev;
-	struct drm_gem_mm *mm = dev->mm_private;
-	struct drm_map_list *list;
-	struct drm_map *map;
 	struct drm_i915_gem_object *obj_priv = obj->driver_private;
 
 	while (obj_priv->pin_count > 0)
@@ -2898,19 +2944,7 @@ void i915_gem_free_object(struct drm_gem_object *obj)
 
 	i915_gem_object_unbind(obj);
 
-	list = &obj->map_list;
-	drm_ht_remove_item(&mm->offset_hash, &list->hash);
-
-	if (list->file_offset_node) {
-		drm_mm_put_block(list->file_offset_node);
-		list->file_offset_node = NULL;
-	}
-
-	map = list->map;
-	if (map) {
-		drm_free(map, sizeof(*map), DRM_MEM_DRIVER);
-		list->map = NULL;
-	}
+	i915_gem_free_mmap_offset(obj);
 
 	drm_free(obj_priv->page_cpu_valid, 1, DRM_MEM_DRIVER);
 	drm_free(obj->driver_private, 1, DRM_MEM_DRIVER);
@@ -2949,7 +2983,7 @@ i915_gem_evict_from_list(struct drm_device *dev, struct list_head *head)
 	return 0;
 }
 
-static int
+int
 i915_gem_idle(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
@@ -3095,6 +3129,7 @@ i915_gem_init_hws(struct drm_device *dev)
 	if (dev_priv->hw_status_page == NULL) {
 		DRM_ERROR("Failed to map status page.\n");
 		memset(&dev_priv->hws_map, 0, sizeof(dev_priv->hws_map));
+		i915_gem_object_unpin(obj);
 		drm_gem_object_unreference(obj);
 		return -EINVAL;
 	}
@@ -3105,6 +3140,31 @@ i915_gem_init_hws(struct drm_device *dev)
 	DRM_DEBUG("hws offset: 0x%08x\n", dev_priv->status_gfx_addr);
 
 	return 0;
+}
+
+static void
+i915_gem_cleanup_hws(struct drm_device *dev)
+{
+	drm_i915_private_t *dev_priv = dev->dev_private;
+	struct drm_gem_object *obj;
+	struct drm_i915_gem_object *obj_priv;
+
+	if (dev_priv->hws_obj == NULL)
+		return;
+
+	obj = dev_priv->hws_obj;
+	obj_priv = obj->driver_private;
+
+	kunmap(obj_priv->page_list[0]);
+	i915_gem_object_unpin(obj);
+	drm_gem_object_unreference(obj);
+	dev_priv->hws_obj = NULL;
+
+	memset(&dev_priv->hws_map, 0, sizeof(dev_priv->hws_map));
+	dev_priv->hw_status_page = NULL;
+
+	/* Write high address into HWS_PGA when disabling. */
+	I915_WRITE(HWS_PGA, 0x1ffff000);
 }
 
 int
@@ -3124,6 +3184,7 @@ i915_gem_init_ringbuffer(struct drm_device *dev)
 	obj = drm_gem_object_alloc(dev, 128 * 1024);
 	if (obj == NULL) {
 		DRM_ERROR("Failed to allocate ringbuffer\n");
+		i915_gem_cleanup_hws(dev);
 		return -ENOMEM;
 	}
 	obj_priv = obj->driver_private;
@@ -3131,6 +3192,7 @@ i915_gem_init_ringbuffer(struct drm_device *dev)
 	ret = i915_gem_object_pin(obj, 4096);
 	if (ret != 0) {
 		drm_gem_object_unreference(obj);
+		i915_gem_cleanup_hws(dev);
 		return ret;
 	}
 
@@ -3148,7 +3210,9 @@ i915_gem_init_ringbuffer(struct drm_device *dev)
 	if (ring->map.handle == NULL) {
 		DRM_ERROR("Failed to map ringbuffer.\n");
 		memset(&dev_priv->ring, 0, sizeof(dev_priv->ring));
+		i915_gem_object_unpin(obj);
 		drm_gem_object_unreference(obj);
+		i915_gem_cleanup_hws(dev);
 		return -EINVAL;
 	}
 	ring->ring_obj = obj;
@@ -3228,20 +3292,7 @@ i915_gem_cleanup_ringbuffer(struct drm_device *dev)
 	dev_priv->ring.ring_obj = NULL;
 	memset(&dev_priv->ring, 0, sizeof(dev_priv->ring));
 
-	if (dev_priv->hws_obj != NULL) {
-		struct drm_gem_object *obj = dev_priv->hws_obj;
-		struct drm_i915_gem_object *obj_priv = obj->driver_private;
-
-		kunmap(obj_priv->page_list[0]);
-		i915_gem_object_unpin(obj);
-		drm_gem_object_unreference(obj);
-		dev_priv->hws_obj = NULL;
-		memset(&dev_priv->hws_map, 0, sizeof(dev_priv->hws_map));
-		dev_priv->hw_status_page = NULL;
-
-		/* Write high address into HWS_PGA when disabling. */
-		I915_WRITE(HWS_PGA, 0x1ffff000);
-	}
+	i915_gem_cleanup_hws(dev);
 }
 
 int
@@ -3497,7 +3548,7 @@ i915_gem_phys_pwrite(struct drm_device *dev, struct drm_gem_object *obj,
 	user_data = (char __user *) (uintptr_t) args->data_ptr;
 	obj_addr = obj_priv->phys_obj->handle->vaddr + args->offset;
 
-	DRM_ERROR("obj_addr %p, %lld\n", obj_addr, args->size);
+	DRM_DEBUG("obj_addr %p, %lld\n", obj_addr, args->size);
 	ret = copy_from_user(obj_addr, user_data, args->size);
 	if (ret)
 		return -EFAULT;

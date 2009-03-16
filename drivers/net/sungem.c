@@ -1157,7 +1157,7 @@ static void gem_pcs_reset(struct gem *gp)
 		if (limit-- <= 0)
 			break;
 	}
-	if (limit <= 0)
+	if (limit < 0)
 		printk(KERN_WARNING "%s: PCS reset bit would not clear.\n",
 		       gp->dev->name);
 }

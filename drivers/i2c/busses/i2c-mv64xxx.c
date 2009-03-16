@@ -482,7 +482,7 @@ mv64xxx_i2c_map_regs(struct platform_device *pd,
 	return 0;
 }
 
-static void __devexit
+static void
 mv64xxx_i2c_unmap_regs(struct mv64xxx_i2c_data *drv_data)
 {
 	if (drv_data->reg_base) {
@@ -577,7 +577,7 @@ mv64xxx_i2c_remove(struct platform_device *dev)
 
 static struct platform_driver mv64xxx_i2c_driver = {
 	.probe	= mv64xxx_i2c_probe,
-	.remove	= mv64xxx_i2c_remove,
+	.remove	= __devexit_p(mv64xxx_i2c_remove),
 	.driver	= {
 		.owner	= THIS_MODULE,
 		.name	= MV64XXX_I2C_CTLR_NAME,

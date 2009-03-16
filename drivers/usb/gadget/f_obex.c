@@ -366,9 +366,9 @@ obex_bind(struct usb_configuration *c, struct usb_function *f)
 		f->hs_descriptors = usb_copy_descriptors(hs_function);
 
 		obex->hs.obex_in = usb_find_endpoint(hs_function,
-				f->descriptors, &obex_hs_ep_in_desc);
+				f->hs_descriptors, &obex_hs_ep_in_desc);
 		obex->hs.obex_out = usb_find_endpoint(hs_function,
-				f->descriptors, &obex_hs_ep_out_desc);
+				f->hs_descriptors, &obex_hs_ep_out_desc);
 	}
 
 	/* Avoid letting this gadget enumerate until the userspace

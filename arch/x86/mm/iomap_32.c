@@ -20,6 +20,17 @@
 #include <asm/pat.h>
 #include <linux/module.h>
 
+int is_io_mapping_possible(resource_size_t base, unsigned long size)
+{
+#ifndef CONFIG_X86_PAE
+	/* There is no way to map greater than 1 << 32 address without PAE */
+	if (base + size > 0x100000000ULL)
+		return 0;
+#endif
+	return 1;
+}
+EXPORT_SYMBOL_GPL(is_io_mapping_possible);
+
 /* Map 'pfn' using fixed map 'type' and protections 'prot'
  */
 void *

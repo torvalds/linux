@@ -481,8 +481,6 @@ void intel_lvds_init(struct drm_device *dev)
 		if (dev_priv->panel_fixed_mode) {
 			dev_priv->panel_fixed_mode->type |=
 				DRM_MODE_TYPE_PREFERRED;
-			drm_mode_probed_add(connector,
-					    dev_priv->panel_fixed_mode);
 			goto out;
 		}
 	}

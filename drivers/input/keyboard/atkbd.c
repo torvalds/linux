@@ -839,7 +839,7 @@ static void atkbd_disconnect(struct serio *serio)
  */
 static void atkbd_dell_laptop_keymap_fixup(struct atkbd *atkbd)
 {
-	const unsigned int forced_release_keys[] = {
+	static const unsigned int forced_release_keys[] = {
 		0x85, 0x86, 0x87, 0x88, 0x89, 0x8a, 0x8b, 0x8f, 0x93,
 	};
 	int i;
@@ -856,7 +856,7 @@ static void atkbd_dell_laptop_keymap_fixup(struct atkbd *atkbd)
  */
 static void atkbd_hp_keymap_fixup(struct atkbd *atkbd)
 {
-	const unsigned int forced_release_keys[] = {
+	static const unsigned int forced_release_keys[] = {
 		0x94,
 	};
 	int i;

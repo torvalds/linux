@@ -1226,9 +1226,8 @@ qla24xx_config_rings(struct scsi_qla_host *vha)
 			icb->firmware_options_2 |=
 				__constant_cpu_to_le32(BIT_18);
 
-		icb->firmware_options_2 |= __constant_cpu_to_le32(BIT_22);
+		icb->firmware_options_2 &= __constant_cpu_to_le32(~BIT_22);
 		icb->firmware_options_2 |= __constant_cpu_to_le32(BIT_23);
-		ha->rsp_q_map[0]->options = icb->firmware_options_2;
 
 		WRT_REG_DWORD(&reg->isp25mq.req_q_in, 0);
 		WRT_REG_DWORD(&reg->isp25mq.req_q_out, 0);
@@ -3493,7 +3492,7 @@ qla25xx_init_queues(struct qla_hw_data *ha)
 		rsp = ha->rsp_q_map[i];
 		if (rsp) {
 			rsp->options &= ~BIT_0;
-			ret = qla25xx_init_rsp_que(base_vha, rsp, rsp->options);
+			ret = qla25xx_init_rsp_que(base_vha, rsp);
 			if (ret != QLA_SUCCESS)
 				DEBUG2_17(printk(KERN_WARNING
 					"%s Rsp que:%d init failed\n", __func__,
@@ -3507,7 +3506,7 @@ qla25xx_init_queues(struct qla_hw_data *ha)
 		if (req) {
 		/* Clear outstanding commands array. */
 			req->options &= ~BIT_0;
-			ret = qla25xx_init_req_que(base_vha, req, req->options);
+			ret = qla25xx_init_req_que(base_vha, req);
 			if (ret != QLA_SUCCESS)
 				DEBUG2_17(printk(KERN_WARNING
 					"%s Req que:%d init failed\n", __func__,

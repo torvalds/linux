@@ -256,6 +256,22 @@ void blkdev_show(struct seq_file *seqf, off_t offset)
 }
 #endif /* CONFIG_PROC_FS */
 
+/**
+ * register_blkdev - register a new block device
+ *
+ * @major: the requested major device number [1..255]. If @major=0, try to
+ *         allocate any unused major number.
+ * @name: the name of the new block device as a zero terminated string
+ *
+ * The @name must be unique within the system.
+ *
+ * The return value depends on the @major input parameter.
+ *  - if a major device number was requested in range [1..255] then the
+ *    function returns zero on success, or a negative error code
+ *  - if any unused major number was requested with @major=0 parameter
+ *    then the return value is the allocated major number in range
+ *    [1..255] or a negative error code otherwise
+ */
 int register_blkdev(unsigned int major, const char *name)
 {
 	struct blk_major_name **n, *p;

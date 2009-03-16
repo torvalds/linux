@@ -1265,13 +1265,6 @@ qla24xx_vport_delete(struct fc_vport *fc_vport)
 	    test_bit(FCPORT_UPDATE_NEEDED, &vha->dpc_flags))
 		msleep(1000);
 
-	if (ha->mqenable) {
-		if (qla25xx_delete_queues(vha, 0) != QLA_SUCCESS)
-			qla_printk(KERN_WARNING, ha,
-				"Queue delete failed.\n");
-		vha->req_ques[0] = ha->req_q_map[0]->id;
-	}
-
 	qla24xx_disable_vp(vha);
 
 	fc_remove_host(vha->host);
@@ -1292,6 +1285,12 @@ qla24xx_vport_delete(struct fc_vport *fc_vport)
 		    "has stopped\n",
 		    vha->host_no, vha->vp_idx, vha));
         }
+
+	if (ha->mqenable) {
+		if (qla25xx_delete_queues(vha, 0) != QLA_SUCCESS)
+			qla_printk(KERN_WARNING, ha,
+				"Queue delete failed.\n");
+	}
 
 	scsi_host_put(vha->host);
 	qla_printk(KERN_INFO, ha, "vport %d deleted\n", id);
