@@ -1040,6 +1040,17 @@ config NI65
 	  To compile this driver as a module, choose M here. The module
 	  will be called ni65.
 
+config DNET
+	tristate "Dave ethernet support (DNET)"
+	depends on NET_ETHERNET
+	select PHYLIB
+	help
+	  The Dave ethernet interface (DNET) is found on Qong Board FPGA.
+	  Say Y to include support for the DNET chip.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called dnet.
+
 source "drivers/net/tulip/Kconfig"
 
 config AT1700
@@ -2618,6 +2629,8 @@ config QLGE
 	  will be called qlge.
 
 source "drivers/net/sfc/Kconfig"
+
+source "drivers/net/benet/Kconfig"
 
 endif # NETDEV_10000
 
