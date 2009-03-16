@@ -426,7 +426,6 @@ static inline int platform_pci_sleep_wake(struct pci_dev *dev, bool enable)
  *                           given PCI device
  * @dev: PCI device to handle.
  * @state: PCI power state (D0, D1, D2, D3hot) to put the device into.
- * @wait: If 'true', wait for the device to change its power state
  *
  * RETURN VALUE:
  * -EINVAL if the requested state is invalid.
@@ -435,8 +434,7 @@ static inline int platform_pci_sleep_wake(struct pci_dev *dev, bool enable)
  * 0 if device already is in the requested state.
  * 0 if device's power state has been successfully changed.
  */
-static int
-pci_raw_set_power_state(struct pci_dev *dev, pci_power_t state, bool wait)
+static int pci_raw_set_power_state(struct pci_dev *dev, pci_power_t state)
 {
 	u16 pmcsr;
 	bool need_restore = false;
@@ -481,10 +479,8 @@ pci_raw_set_power_state(struct pci_dev *dev, pci_power_t state, bool wait)
 		break;
 	case PCI_UNKNOWN: /* Boot-up */
 		if ((pmcsr & PCI_PM_CTRL_STATE_MASK) == PCI_D3hot
-		 && !(pmcsr & PCI_PM_CTRL_NO_SOFT_RESET)) {
+		 && !(pmcsr & PCI_PM_CTRL_NO_SOFT_RESET))
 			need_restore = true;
-			wait = true;
-		}
 		/* Fall-through: force to D0 */
 	default:
 		pmcsr = 0;
@@ -493,9 +489,6 @@ pci_raw_set_power_state(struct pci_dev *dev, pci_power_t state, bool wait)
 
 	/* enter specified state */
 	pci_write_config_word(dev, dev->pm_cap + PCI_PM_CTRL, pmcsr);
-
-	if (!wait)
-		return 0;
 
 	/* Mandatory power management transition delays */
 	/* see PCI PM 1.1 5.6.1 table 18 */
@@ -521,7 +514,7 @@ pci_raw_set_power_state(struct pci_dev *dev, pci_power_t state, bool wait)
 	if (need_restore)
 		pci_restore_bars(dev);
 
-	if (wait && dev->bus->self)
+	if (dev->bus->self)
 		pcie_aspm_pm_state_change(dev->bus->self);
 
 	return 0;
@@ -591,7 +584,7 @@ int pci_set_power_state(struct pci_dev *dev, pci_power_t state)
 	if (state == PCI_D3hot && (dev->dev_flags & PCI_DEV_FLAGS_NO_D3))
 		return 0;
 
-	error = pci_raw_set_power_state(dev, state, true);
+	error = pci_raw_set_power_state(dev, state);
 
 	if (state > PCI_D0 && platform_pci_power_manageable(dev)) {
 		/* Allow the platform to finalize the transition */
@@ -1390,37 +1383,14 @@ void pci_allocate_cap_save_buffers(struct pci_dev *dev)
  */
 int pci_restore_standard_config(struct pci_dev *dev)
 {
-	pci_power_t prev_state;
-	int error;
+	pci_update_current_state(dev, PCI_UNKNOWN);
 
-	pci_update_current_state(dev, PCI_D0);
-
-	prev_state = dev->current_state;
-	if (prev_state == PCI_D0)
-		goto Restore;
-
-	error = pci_raw_set_power_state(dev, PCI_D0, false);
-	if (error)
-		return error;
-
-	/*
-	 * This assumes that we won't get a bus in B2 or B3 from the BIOS, but
-	 * we've made this assumption forever and it appears to be universally
-	 * satisfied.
-	 */
-	switch(prev_state) {
-	case PCI_D3cold:
-	case PCI_D3hot:
-		mdelay(pci_pm_d3_delay);
-		break;
-	case PCI_D2:
-		udelay(PCI_PM_D2_DELAY);
-		break;
+	if (dev->current_state != PCI_D0) {
+		int error = pci_set_power_state(dev, PCI_D0);
+		if (error)
+			return error;
 	}
 
-	pci_update_current_state(dev, PCI_D0);
-
- Restore:
 	return dev->state_saved ? pci_restore_state(dev) : 0;
 }
 
