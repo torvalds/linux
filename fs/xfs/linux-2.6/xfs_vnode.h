@@ -50,14 +50,6 @@ struct attrlist_cursor_kern;
 					   the operation completes. */
 
 /*
- * Dealing with bad inodes
- */
-static inline int VN_BAD(struct inode *vp)
-{
-	return is_bad_inode(vp);
-}
-
-/*
  * Some useful predicates.
  */
 #define VN_MAPPED(vp)	mapping_mapped(vp->i_mapping)
