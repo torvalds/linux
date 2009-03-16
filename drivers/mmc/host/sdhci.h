@@ -10,6 +10,9 @@
  */
 
 #include <linux/scatterlist.h>
+#include <linux/compiler.h>
+#include <linux/types.h>
+#include <linux/io.h>
 
 /*
  * Controller registers
@@ -267,9 +270,101 @@ struct sdhci_host {
 
 
 struct sdhci_ops {
+#ifdef CONFIG_MMC_SDHCI_IO_ACCESSORS
+	u32		(*readl)(struct sdhci_host *host, int reg);
+	u16		(*readw)(struct sdhci_host *host, int reg);
+	u8		(*readb)(struct sdhci_host *host, int reg);
+	void		(*writel)(struct sdhci_host *host, u32 val, int reg);
+	void		(*writew)(struct sdhci_host *host, u16 val, int reg);
+	void		(*writeb)(struct sdhci_host *host, u8 val, int reg);
+#endif
+
 	int		(*enable_dma)(struct sdhci_host *host);
 };
 
+#ifdef CONFIG_MMC_SDHCI_IO_ACCESSORS
+
+static inline void sdhci_writel(struct sdhci_host *host, u32 val, int reg)
+{
+	if (unlikely(host->ops->writel))
+		host->ops->writel(host, val, reg);
+	else
+		writel(val, host->ioaddr + reg);
+}
+
+static inline void sdhci_writew(struct sdhci_host *host, u16 val, int reg)
+{
+	if (unlikely(host->ops->writew))
+		host->ops->writew(host, val, reg);
+	else
+		writew(val, host->ioaddr + reg);
+}
+
+static inline void sdhci_writeb(struct sdhci_host *host, u8 val, int reg)
+{
+	if (unlikely(host->ops->writeb))
+		host->ops->writeb(host, val, reg);
+	else
+		writeb(val, host->ioaddr + reg);
+}
+
+static inline u32 sdhci_readl(struct sdhci_host *host, int reg)
+{
+	if (unlikely(host->ops->readl))
+		return host->ops->readl(host, reg);
+	else
+		return readl(host->ioaddr + reg);
+}
+
+static inline u16 sdhci_readw(struct sdhci_host *host, int reg)
+{
+	if (unlikely(host->ops->readw))
+		return host->ops->readw(host, reg);
+	else
+		return readw(host->ioaddr + reg);
+}
+
+static inline u8 sdhci_readb(struct sdhci_host *host, int reg)
+{
+	if (unlikely(host->ops->readb))
+		return host->ops->readb(host, reg);
+	else
+		return readb(host->ioaddr + reg);
+}
+
+#else
+
+static inline void sdhci_writel(struct sdhci_host *host, u32 val, int reg)
+{
+	writel(val, host->ioaddr + reg);
+}
+
+static inline void sdhci_writew(struct sdhci_host *host, u16 val, int reg)
+{
+	writew(val, host->ioaddr + reg);
+}
+
+static inline void sdhci_writeb(struct sdhci_host *host, u8 val, int reg)
+{
+	writeb(val, host->ioaddr + reg);
+}
+
+static inline u32 sdhci_readl(struct sdhci_host *host, int reg)
+{
+	return readl(host->ioaddr + reg);
+}
+
+static inline u16 sdhci_readw(struct sdhci_host *host, int reg)
+{
+	return readw(host->ioaddr + reg);
+}
+
+static inline u8 sdhci_readb(struct sdhci_host *host, int reg)
+{
+	return readb(host->ioaddr + reg);
+}
+
+#endif /* CONFIG_MMC_SDHCI_IO_ACCESSORS */
 
 extern struct sdhci_host *sdhci_alloc_host(struct device *dev,
 	size_t priv_size);
