@@ -1853,13 +1853,14 @@ static void aty128_bl_exit(struct backlight_device *bd)
  *  Initialisation
  */
 
-#ifdef CONFIG_PPC_PMAC
+#ifdef CONFIG_PPC_PMAC__disabled
 static void aty128_early_resume(void *data)
 {
         struct aty128fb_par *par = data;
 
 	if (try_acquire_console_sem())
 		return;
+	pci_restore_state(par->pdev);
 	aty128_do_resume(par->pdev);
 	release_console_sem();
 }
@@ -1907,7 +1908,14 @@ static int __devinit aty128_init(struct pci_dev *pdev, const struct pci_device_i
 		/* Indicate sleep capability */
 		if (par->chip_gen == rage_M3) {
 			pmac_call_feature(PMAC_FTR_DEVICE_CAN_WAKE, NULL, 0, 1);
+#if 0 /* Disable the early video resume hack for now as it's causing problems, among
+       * others we now rely on the PCI core restoring the config space for us, which
+       * isn't the case with that hack, and that code path causes various things to
+       * be called with interrupts off while they shouldn't. I'm leaving the code in
+       * as it can be useful for debugging purposes
+       */
 			pmac_set_early_video_resume(aty128_early_resume, par);
+#endif
 		}
 
 		/* Find default mode */
