@@ -45,7 +45,7 @@ static inline int pcibus_to_node(struct pci_bus *pbus)
 
 #define cpumask_of_pcibus(bus)	\
 	(pcibus_to_node(bus) == -1 ? \
-	 CPU_MASK_ALL_PTR : \
+	 cpu_all_mask : \
 	 cpumask_of_node(pcibus_to_node(bus)))
 
 #define SD_NODE_INIT (struct sched_domain) {		\
