@@ -58,25 +58,6 @@ static inline int VN_BAD(struct inode *vp)
 }
 
 /*
- * Extracting atime values in various formats
- */
-static inline void vn_atime_to_bstime(struct inode *vp, xfs_bstime_t *bs_atime)
-{
-	bs_atime->tv_sec = vp->i_atime.tv_sec;
-	bs_atime->tv_nsec = vp->i_atime.tv_nsec;
-}
-
-static inline void vn_atime_to_timespec(struct inode *vp, struct timespec *ts)
-{
-	*ts = vp->i_atime;
-}
-
-static inline void vn_atime_to_time_t(struct inode *vp, time_t *tt)
-{
-	*tt = vp->i_atime.tv_sec;
-}
-
-/*
  * Some useful predicates.
  */
 #define VN_MAPPED(vp)	mapping_mapped(vp->i_mapping)
