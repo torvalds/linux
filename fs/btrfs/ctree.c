@@ -949,6 +949,10 @@ static noinline int balance_level(struct btrfs_trans_handle *trans,
 	    BTRFS_NODEPTRS_PER_BLOCK(root) / 4)
 		return 0;
 
+	if (trans->transaction->delayed_refs.flushing &&
+	    btrfs_header_nritems(mid) > 2)
+		return 0;
+
 	if (btrfs_header_nritems(mid) < 2)
 		err_on_enospc = 1;
 
@@ -2159,7 +2163,7 @@ static noinline int split_node(struct btrfs_trans_handle *trans,
 		ret = insert_new_root(trans, root, path, level + 1);
 		if (ret)
 			return ret;
-	} else {
+	} else if (!trans->transaction->delayed_refs.flushing) {
 		ret = push_nodes_for_insert(trans, root, path, level);
 		c = path->nodes[level];
 		if (!ret && btrfs_header_nritems(c) <
@@ -2848,7 +2852,8 @@ static noinline int split_leaf(struct btrfs_trans_handle *trans,
 	int num_doubles = 0;
 
 	/* first try to make some room by pushing left and right */
-	if (data_size && ins_key->type != BTRFS_DIR_ITEM_KEY) {
+	if (data_size && ins_key->type != BTRFS_DIR_ITEM_KEY &&
+	    !trans->transaction->delayed_refs.flushing) {
 		wret = push_leaf_right(trans, root, path, data_size, 0);
 		if (wret < 0)
 			return wret;
@@ -3786,7 +3791,8 @@ int btrfs_del_items(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 		}
 
 		/* delete the leaf if it is mostly empty */
-		if (used < BTRFS_LEAF_DATA_SIZE(root) / 4) {
+		if (used < BTRFS_LEAF_DATA_SIZE(root) / 4 &&
+		    !trans->transaction->delayed_refs.flushing) {
 			/* push_leaf_left fixes the path.
 			 * make sure the path still points to our leaf
 			 * for possible call to del_ptr below
