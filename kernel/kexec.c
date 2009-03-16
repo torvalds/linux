@@ -1450,9 +1450,6 @@ int kernel_kexec(void)
 		error = device_suspend(PMSG_FREEZE);
 		if (error)
 			goto Resume_console;
-		error = disable_nonboot_cpus();
-		if (error)
-			goto Resume_devices;
 		device_pm_lock();
 		/* At this point, device_suspend() has been called,
 		 * but *not* device_power_down(). We *must*
@@ -1463,13 +1460,15 @@ int kernel_kexec(void)
 		 */
 		error = device_power_down(PMSG_FREEZE);
 		if (error)
-			goto Unlock_pm;
-
+			goto Resume_devices;
+		error = disable_nonboot_cpus();
+		if (error)
+			goto Enable_cpus;
 		local_irq_disable();
 		/* Suspend system devices */
 		error = sysdev_suspend(PMSG_FREEZE);
 		if (error)
-			goto Power_up_devices;
+			goto Enable_irqs;
 	} else
 #endif
 	{
@@ -1483,13 +1482,13 @@ int kernel_kexec(void)
 #ifdef CONFIG_KEXEC_JUMP
 	if (kexec_image->preserve_context) {
 		sysdev_resume();
- Power_up_devices:
+ Enable_irqs:
 		local_irq_enable();
-		device_power_up(PMSG_RESTORE);
- Unlock_pm:
-		device_pm_unlock();
+ Enable_cpus:
 		enable_nonboot_cpus();
+		device_power_up(PMSG_RESTORE);
  Resume_devices:
+		device_pm_unlock();
 		device_resume(PMSG_RESTORE);
  Resume_console:
 		resume_console();
