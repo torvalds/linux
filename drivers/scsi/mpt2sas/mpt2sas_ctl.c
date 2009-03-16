@@ -355,7 +355,7 @@ _ctl_verify_adapter(int ioc_number, struct MPT2SAS_ADAPTER **iocpp)
 {
 	struct MPT2SAS_ADAPTER *ioc;
 
-	list_for_each_entry(ioc, &ioc_list, list) {
+	list_for_each_entry(ioc, &mpt2sas_ioc_list, list) {
 		if (ioc->id != ioc_number)
 			continue;
 		*iocpp = ioc;
@@ -439,7 +439,7 @@ _ctl_poll(struct file *filep, poll_table *wait)
 
 	poll_wait(filep, &ctl_poll_wait, wait);
 
-	list_for_each_entry(ioc, &ioc_list, list) {
+	list_for_each_entry(ioc, &mpt2sas_ioc_list, list) {
 		if (ioc->aen_event_read_flag)
 			return POLLIN | POLLRDNORM;
 	}
@@ -2497,7 +2497,7 @@ mpt2sas_ctl_exit(void)
 	struct MPT2SAS_ADAPTER *ioc;
 	int i;
 
-	list_for_each_entry(ioc, &ioc_list, list) {
+	list_for_each_entry(ioc, &mpt2sas_ioc_list, list) {
 
 		/* free memory associated to diag buffers */
 		for (i = 0; i < MPI2_DIAG_BUF_TYPE_COUNT; i++) {

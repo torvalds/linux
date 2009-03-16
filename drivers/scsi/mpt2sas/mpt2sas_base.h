@@ -68,11 +68,11 @@
 #define MPT2SAS_DRIVER_NAME		"mpt2sas"
 #define MPT2SAS_AUTHOR	"LSI Corporation <DL-MPTFusionLinux@lsi.com>"
 #define MPT2SAS_DESCRIPTION	"LSI MPT Fusion SAS 2.0 Device Driver"
-#define MPT2SAS_DRIVER_VERSION		"00.100.11.15"
+#define MPT2SAS_DRIVER_VERSION		"00.100.11.16"
 #define MPT2SAS_MAJOR_VERSION		00
 #define MPT2SAS_MINOR_VERSION		100
 #define MPT2SAS_BUILD_VERSION		11
-#define MPT2SAS_RELEASE_VERSION		15
+#define MPT2SAS_RELEASE_VERSION		16
 
 /*
  * Set MPT2SAS_SG_DEPTH value based on user input.
@@ -647,7 +647,7 @@ typedef void (*MPT_CALLBACK)(struct MPT2SAS_ADAPTER *ioc, u16 smid, u8 VF_ID,
 
 
 /* base shared API */
-extern struct list_head ioc_list;
+extern struct list_head mpt2sas_ioc_list;
 
 int mpt2sas_base_attach(struct MPT2SAS_ADAPTER *ioc);
 void mpt2sas_base_detach(struct MPT2SAS_ADAPTER *ioc);

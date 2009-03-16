@@ -68,10 +68,9 @@ static void _scsih_expander_node_remove(struct MPT2SAS_ADAPTER *ioc,
 static void _firmware_event_work(struct work_struct *work);
 
 /* global parameters */
-LIST_HEAD(ioc_list);
+LIST_HEAD(mpt2sas_ioc_list);
 
 /* local parameters */
-static u32 logging_level;
 static u8 scsi_io_cb_idx = -1;
 static u8 tm_cb_idx = -1;
 static u8 ctl_cb_idx = -1;
@@ -81,6 +80,7 @@ static u8 config_cb_idx = -1;
 static int mpt_ids;
 
 /* command line options */
+static u32 logging_level;
 MODULE_PARM_DESC(logging_level, " bits for enabling additional logging info "
     "(default=0)");
 
@@ -211,7 +211,7 @@ scsih_set_debug_level(const char *val, struct kernel_param *kp)
 		return ret;
 
 	printk(KERN_INFO "setting logging_level(0x%08x)\n", logging_level);
-	list_for_each_entry(ioc, &ioc_list, list)
+	list_for_each_entry(ioc, &mpt2sas_ioc_list, list)
 		ioc->logging_level = logging_level;
 	return 0;
 }
@@ -5464,7 +5464,7 @@ scsih_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	ioc = shost_priv(shost);
 	memset(ioc, 0, sizeof(struct MPT2SAS_ADAPTER));
 	INIT_LIST_HEAD(&ioc->list);
-	list_add_tail(&ioc->list, &ioc_list);
+	list_add_tail(&ioc->list, &mpt2sas_ioc_list);
 	ioc->shost = shost;
 	ioc->id = mpt_ids++;
 	sprintf(ioc->name, "%s%d", MPT2SAS_DRIVER_NAME, ioc->id);
