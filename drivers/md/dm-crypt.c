@@ -568,19 +568,22 @@ static void crypt_inc_pending(struct dm_crypt_io *io)
 static void crypt_dec_pending(struct dm_crypt_io *io)
 {
 	struct crypt_config *cc = io->target->private;
+	struct bio *base_bio = io->base_bio;
+	struct dm_crypt_io *base_io = io->base_io;
+	int error = io->error;
 
 	if (!atomic_dec_and_test(&io->pending))
 		return;
 
-	if (likely(!io->base_io))
-		bio_endio(io->base_bio, io->error);
-	else {
-		if (io->error && !io->base_io->error)
-			io->base_io->error = io->error;
-		crypt_dec_pending(io->base_io);
-	}
-
 	mempool_free(io, cc->io_pool);
+
+	if (likely(!base_io))
+		bio_endio(base_bio, error);
+	else {
+		if (error && !base_io->error)
+			base_io->error = error;
+		crypt_dec_pending(base_io);
+	}
 }
 
 /*
