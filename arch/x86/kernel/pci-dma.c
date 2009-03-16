@@ -271,6 +271,10 @@ static int __init pci_iommu_init(void)
 {
 	dma_debug_init(PREALLOC_DMA_DEBUG_ENTRIES);
 
+#ifdef CONFIG_PCI
+	dma_debug_add_bus(&pci_bus_type);
+#endif
+
 	calgary_iommu_init();
 
 	intel_iommu_init();
