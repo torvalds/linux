@@ -228,13 +228,22 @@ static int create_image(int platform_mode)
 		goto Unlock;
 	}
 
+	error = platform_pre_snapshot(platform_mode);
+	if (error || hibernation_test(TEST_PLATFORM))
+		goto Platform_finish;
+
+	error = disable_nonboot_cpus();
+	if (error || hibernation_test(TEST_CPUS)
+	    || hibernation_testmode(HIBERNATION_TEST))
+		goto Enable_cpus;
+
 	local_irq_disable();
 
 	sysdev_suspend(PMSG_FREEZE);
 	if (error) {
 		printk(KERN_ERR "PM: Some devices failed to power down, "
 			"aborting hibernation\n");
-		goto Power_up_devices;
+		goto Enable_irqs;
 	}
 
 	if (hibernation_test(TEST_CORE))
@@ -250,14 +259,21 @@ static int create_image(int platform_mode)
 	restore_processor_state();
 	if (!in_suspend)
 		platform_leave(platform_mode);
+
  Power_up:
 	sysdev_resume();
 	/* NOTE:  device_power_up() is just a resume() for devices
 	 * that suspended with irqs off ... no overall powerup.
 	 */
 
- Power_up_devices:
+ Enable_irqs:
 	local_irq_enable();
+
+ Enable_cpus:
+	enable_nonboot_cpus();
+
+ Platform_finish:
+	platform_finish(platform_mode);
 
 	device_power_up(in_suspend ?
 		(error ? PMSG_RECOVER : PMSG_THAW) : PMSG_RESTORE);
@@ -298,25 +314,9 @@ int hibernation_snapshot(int platform_mode)
 	if (hibernation_test(TEST_DEVICES))
 		goto Recover_platform;
 
-	error = platform_pre_snapshot(platform_mode);
-	if (error || hibernation_test(TEST_PLATFORM))
-		goto Finish;
+	error = create_image(platform_mode);
+	/* Control returns here after successful restore */
 
-	error = disable_nonboot_cpus();
-	if (!error) {
-		if (hibernation_test(TEST_CPUS))
-			goto Enable_cpus;
-
-		if (hibernation_testmode(HIBERNATION_TEST))
-			goto Enable_cpus;
-
-		error = create_image(platform_mode);
-		/* Control returns here after successful restore */
-	}
- Enable_cpus:
-	enable_nonboot_cpus();
- Finish:
-	platform_finish(platform_mode);
  Resume_devices:
 	device_resume(in_suspend ?
 		(error ? PMSG_RECOVER : PMSG_THAW) : PMSG_RESTORE);
@@ -338,7 +338,7 @@ int hibernation_snapshot(int platform_mode)
  *	kernel.
  */
 
-static int resume_target_kernel(void)
+static int resume_target_kernel(bool platform_mode)
 {
 	int error;
 
@@ -351,9 +351,20 @@ static int resume_target_kernel(void)
 		goto Unlock;
 	}
 
+	error = platform_pre_restore(platform_mode);
+	if (error)
+		goto Cleanup;
+
+	error = disable_nonboot_cpus();
+	if (error)
+		goto Enable_cpus;
+
 	local_irq_disable();
 
-	sysdev_suspend(PMSG_QUIESCE);
+	error = sysdev_suspend(PMSG_QUIESCE);
+	if (error)
+		goto Enable_irqs;
+
 	/* We'll ignore saved state, but this gets preempt count (etc) right */
 	save_processor_state();
 	error = restore_highmem();
@@ -379,7 +390,14 @@ static int resume_target_kernel(void)
 
 	sysdev_resume();
 
+ Enable_irqs:
 	local_irq_enable();
+
+ Enable_cpus:
+	enable_nonboot_cpus();
+
+ Cleanup:
+	platform_restore_cleanup(platform_mode);
 
 	device_power_up(PMSG_RECOVER);
 
@@ -405,19 +423,10 @@ int hibernation_restore(int platform_mode)
 	pm_prepare_console();
 	suspend_console();
 	error = device_suspend(PMSG_QUIESCE);
-	if (error)
-		goto Finish;
-
-	error = platform_pre_restore(platform_mode);
 	if (!error) {
-		error = disable_nonboot_cpus();
-		if (!error)
-			error = resume_target_kernel();
-		enable_nonboot_cpus();
+		error = resume_target_kernel(platform_mode);
+		device_resume(PMSG_RECOVER);
 	}
-	platform_restore_cleanup(platform_mode);
-	device_resume(PMSG_RECOVER);
- Finish:
 	resume_console();
 	pm_restore_console();
 	return error;
@@ -453,33 +462,37 @@ int hibernation_platform_enter(void)
 		goto Resume_devices;
 	}
 
-	error = hibernation_ops->prepare();
-	if (error)
-		goto Resume_devices;
-
-	error = disable_nonboot_cpus();
-	if (error)
-		goto Finish;
-
 	device_pm_lock();
 
 	error = device_power_down(PMSG_HIBERNATE);
-	if (!error) {
-		local_irq_disable();
-		sysdev_suspend(PMSG_HIBERNATE);
-		hibernation_ops->enter();
-		/* We should never get here */
-		while (1);
-	}
+	if (error)
+		goto Unlock;
 
-	device_pm_unlock();
+	error = hibernation_ops->prepare();
+	if (error)
+		goto Platofrm_finish;
+
+	error = disable_nonboot_cpus();
+	if (error)
+		goto Platofrm_finish;
+
+	local_irq_disable();
+	sysdev_suspend(PMSG_HIBERNATE);
+	hibernation_ops->enter();
+	/* We should never get here */
+	while (1);
 
 	/*
 	 * We don't need to reenable the nonboot CPUs or resume consoles, since
 	 * the system is going to be halted anyway.
 	 */
- Finish:
+ Platofrm_finish:
 	hibernation_ops->finish();
+
+	device_power_up(PMSG_RESTORE);
+
+ Unlock:
+	device_pm_unlock();
 
  Resume_devices:
 	entering_platform_hibernation = false;
