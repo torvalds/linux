@@ -31,7 +31,7 @@ config NF_CONNTRACK_PROC_COMPAT
 	default y
 	help
 	  This option enables /proc and sysctl compatibility with the old
-	  layer 3 dependant connection tracking. This is needed to keep
+	  layer 3 dependent connection tracking. This is needed to keep
 	  old programs that have not been adapted to the new names working.
 
 	  If unsure, say Y.
@@ -99,7 +99,7 @@ config IP_NF_MATCH_TTL
 	---help---
 	This is a backwards-compat option for the user's convenience
 	(e.g. when running oldconfig). It selects
-	COFNIG_NETFILTER_XT_MATCH_HL.
+	CONFIG_NETFILTER_XT_MATCH_HL.
 
 # `filter', generic and specific targets
 config IP_NF_FILTER
@@ -329,7 +329,7 @@ config IP_NF_TARGET_TTL
 	---help---
 	This is a backwards-compat option for the user's convenience
 	(e.g. when running oldconfig). It selects
-	COFNIG_NETFILTER_XT_TARGET_HL.
+	CONFIG_NETFILTER_XT_TARGET_HL.
 
 # raw + specific targets
 config IP_NF_RAW
