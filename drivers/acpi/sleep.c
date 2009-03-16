@@ -386,6 +386,14 @@ static struct dmi_system_id __initdata acpisleep_dmi_table[] = {
 		DMI_MATCH(DMI_BOARD_NAME, "M2N8L"),
 		},
 	},
+	{
+	.callback = init_set_sci_en_on_resume,
+	.ident = "Toshiba Satellite L300",
+	.matches = {
+		DMI_MATCH(DMI_SYS_VENDOR, "TOSHIBA"),
+		DMI_MATCH(DMI_PRODUCT_NAME, "Satellite L300"),
+		},
+	},
 	{},
 };
 #endif /* CONFIG_SUSPEND */
