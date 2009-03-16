@@ -814,7 +814,6 @@ static int set_machine_constraints(struct regulator_dev *rdev,
 			rdev->constraints = NULL;
 			goto out;
 		}
-		rdev->use_count = 1;
 	}
 
 	print_constraints(rdev);
