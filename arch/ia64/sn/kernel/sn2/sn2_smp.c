@@ -461,7 +461,7 @@ bool sn_cpu_disable_allowed(int cpu)
 
 static void *sn2_ptc_seq_start(struct seq_file *file, loff_t * offset)
 {
-	if (*offset < NR_CPUS)
+	if (*offset < nr_cpu_ids)
 		return offset;
 	return NULL;
 }
@@ -469,7 +469,7 @@ static void *sn2_ptc_seq_start(struct seq_file *file, loff_t * offset)
 static void *sn2_ptc_seq_next(struct seq_file *file, void *data, loff_t * offset)
 {
 	(*offset)++;
-	if (*offset < NR_CPUS)
+	if (*offset < nr_cpu_ids)
 		return offset;
 	return NULL;
 }
@@ -491,7 +491,7 @@ static int sn2_ptc_seq_show(struct seq_file *file, void *data)
 		seq_printf(file, "# ptctest %d, flushopt %d\n", sn2_ptctest, sn2_flush_opt);
 	}
 
-	if (cpu < NR_CPUS && cpu_online(cpu)) {
+	if (cpu < nr_cpu_ids && cpu_online(cpu)) {
 		stat = &per_cpu(ptcstats, cpu);
 		seq_printf(file, "cpu %d %ld %ld %ld %ld %ld %ld %ld %ld %ld %ld %ld %ld\n", cpu, stat->ptc_l,
 				stat->change_rid, stat->shub_ptc_flushes, stat->nodes_flushed,
