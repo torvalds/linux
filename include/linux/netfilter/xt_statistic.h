@@ -13,6 +13,8 @@ enum xt_statistic_flags {
 };
 #define XT_STATISTIC_MASK		0x1
 
+struct xt_statistic_priv;
+
 struct xt_statistic_info {
 	u_int16_t			mode;
 	u_int16_t			flags;
@@ -23,11 +25,10 @@ struct xt_statistic_info {
 		struct {
 			u_int32_t	every;
 			u_int32_t	packet;
-			/* Used internally by the kernel */
-			u_int32_t	count;
+			u_int32_t	count; /* unused */
 		} nth;
 	} u;
-	struct xt_statistic_info	*master __attribute__((aligned(8)));
+	struct xt_statistic_priv *master __attribute__((aligned(8)));
 };
 
 #endif /* _XT_STATISTIC_H */
