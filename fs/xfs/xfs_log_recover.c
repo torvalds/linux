@@ -2763,51 +2763,48 @@ xlog_recover_do_trans(
 	int			error = 0;
 	xlog_recover_item_t	*item, *first_item;
 
-	if ((error = xlog_recover_reorder_trans(trans)))
+	error = xlog_recover_reorder_trans(trans);
+	if (error)
 		return error;
+
 	first_item = item = trans->r_itemq;
 	do {
-		/*
-		 * we don't need to worry about the block number being
-		 * truncated in > 1 TB buffers because in user-land,
-		 * we're now n32 or 64-bit so xfs_daddr_t is 64-bits so
-		 * the blknos will get through the user-mode buffer
-		 * cache properly.  The only bad case is o32 kernels
-		 * where xfs_daddr_t is 32-bits but mount will warn us
-		 * off a > 1 TB filesystem before we get here.
-		 */
-		if ((ITEM_TYPE(item) == XFS_LI_BUF)) {
-			if  ((error = xlog_recover_do_buffer_trans(log, item,
-								 pass)))
-				break;
-		} else if ((ITEM_TYPE(item) == XFS_LI_INODE)) {
-			if ((error = xlog_recover_do_inode_trans(log, item,
-								pass)))
-				break;
-		} else if (ITEM_TYPE(item) == XFS_LI_EFI) {
-			if ((error = xlog_recover_do_efi_trans(log, item, trans->r_lsn,
-						  pass)))
-				break;
-		} else if (ITEM_TYPE(item) == XFS_LI_EFD) {
+		switch (ITEM_TYPE(item)) {
+		case XFS_LI_BUF:
+			error = xlog_recover_do_buffer_trans(log, item, pass);
+			break;
+		case XFS_LI_INODE:
+			error = xlog_recover_do_inode_trans(log, item, pass);
+			break;
+		case XFS_LI_EFI:
+			error = xlog_recover_do_efi_trans(log, item,
+							  trans->r_lsn, pass);
+			break;
+		case XFS_LI_EFD:
 			xlog_recover_do_efd_trans(log, item, pass);
-		} else if (ITEM_TYPE(item) == XFS_LI_DQUOT) {
-			if ((error = xlog_recover_do_dquot_trans(log, item,
-								   pass)))
-					break;
-		} else if ((ITEM_TYPE(item) == XFS_LI_QUOTAOFF)) {
-			if ((error = xlog_recover_do_quotaoff_trans(log, item,
-								   pass)))
-					break;
-		} else {
-			xlog_warn("XFS: xlog_recover_do_trans");
+			error = 0;
+			break;
+		case XFS_LI_DQUOT:
+			error = xlog_recover_do_dquot_trans(log, item, pass);
+			break;
+		case XFS_LI_QUOTAOFF:
+			error = xlog_recover_do_quotaoff_trans(log, item,
+							       pass);
+			break;
+		default:
+			xlog_warn(
+	"XFS: invalid item type (%d) xlog_recover_do_trans", ITEM_TYPE(item));
 			ASSERT(0);
 			error = XFS_ERROR(EIO);
 			break;
 		}
+
+		if (error)
+			return error;
 		item = item->ri_next;
 	} while (first_item != item);
 
-	return error;
+	return 0;
 }
 
 /*
