@@ -1128,9 +1128,9 @@ static int
 ctnetlink_create_conntrack(struct nlattr *cda[],
 			   struct nf_conntrack_tuple *otuple,
 			   struct nf_conntrack_tuple *rtuple,
-			   struct nf_conn *master_ct,
 			   u32 pid,
-			   int report)
+			   int report,
+			   u8 u3)
 {
 	struct nf_conn *ct;
 	int err = -EINVAL;
@@ -1241,7 +1241,22 @@ ctnetlink_create_conntrack(struct nlattr *cda[],
 #endif
 
 	/* setup master conntrack: this is a confirmed expectation */
-	if (master_ct) {
+	if (cda[CTA_TUPLE_MASTER]) {
+		struct nf_conntrack_tuple master;
+		struct nf_conntrack_tuple_hash *master_h;
+		struct nf_conn *master_ct;
+
+		err = ctnetlink_parse_tuple(cda, &master, CTA_TUPLE_MASTER, u3);
+		if (err < 0)
+			goto err;
+
+		master_h = __nf_conntrack_find(&init_net, &master);
+		if (master_h == NULL) {
+			err = -ENOENT;
+			goto err;
+		}
+		master_ct = nf_ct_tuplehash_to_ctrack(master_h);
+		nf_conntrack_get(&master_ct->ct_general);
 		__set_bit(IPS_EXPECTED_BIT, &ct->status);
 		ct->master = master_ct;
 	}
@@ -1289,39 +1304,15 @@ ctnetlink_new_conntrack(struct sock *ctnl, struct sk_buff *skb,
 		h = __nf_conntrack_find(&init_net, &rtuple);
 
 	if (h == NULL) {
-		struct nf_conntrack_tuple master;
-		struct nf_conntrack_tuple_hash *master_h = NULL;
-		struct nf_conn *master_ct = NULL;
-
-		if (cda[CTA_TUPLE_MASTER]) {
-			err = ctnetlink_parse_tuple(cda,
-						    &master,
-						    CTA_TUPLE_MASTER,
-						    u3);
-			if (err < 0)
-				goto out_unlock;
-
-			master_h = __nf_conntrack_find(&init_net, &master);
-			if (master_h == NULL) {
-				err = -ENOENT;
-				goto out_unlock;
-			}
-			master_ct = nf_ct_tuplehash_to_ctrack(master_h);
-			nf_conntrack_get(&master_ct->ct_general);
-		}
-
 		err = -ENOENT;
 		if (nlh->nlmsg_flags & NLM_F_CREATE)
 			err = ctnetlink_create_conntrack(cda,
 							 &otuple,
 							 &rtuple,
-							 master_ct,
 							 NETLINK_CB(skb).pid,
-							 nlmsg_report(nlh));
+							 nlmsg_report(nlh),
+							 u3);
 		spin_unlock_bh(&nf_conntrack_lock);
-		if (err < 0 && master_ct)
-			nf_ct_put(master_ct);
-
 		return err;
 	}
 	/* implicit 'else' */
