@@ -1432,7 +1432,8 @@ void snd_soc_free_pcms(struct snd_soc_device *socdev)
 #ifdef CONFIG_SND_SOC_AC97_BUS
 	for (i = 0; i < codec->num_dai; i++) {
 		codec_dai = &codec->dai[i];
-		if (codec_dai->ac97_control && codec->ac97) {
+		if (codec_dai->ac97_control && codec->ac97 &&
+		    strcmp(codec->name, "AC97") != 0) {
 			soc_ac97_dev_unregister(codec);
 			goto free_card;
 		}
