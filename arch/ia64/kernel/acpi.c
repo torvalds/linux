@@ -886,7 +886,7 @@ __init void prefill_possible_map(void)
 		possible, max((possible - available_cpus), 0));
 
 	for (i = 0; i < possible; i++)
-		cpu_set(i, cpu_possible_map);
+		set_cpu_possible(i, true);
 }
 
 int acpi_map_lsapic(acpi_handle handle, int *pcpu)
