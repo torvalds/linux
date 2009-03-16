@@ -635,19 +635,6 @@ xfs_log_mount_finish(xfs_mount_t *mp)
 }
 
 /*
- * Unmount processing for the log.
- */
-int
-xfs_log_unmount(xfs_mount_t *mp)
-{
-	int		error;
-
-	error = xfs_log_unmount_write(mp);
-	xfs_log_unmount_dealloc(mp);
-	return error;
-}
-
-/*
  * Final log writes as part of unmount.
  *
  * Mark the filesystem clean as unmount happens.  Note that during relocation
@@ -797,7 +784,7 @@ xfs_log_unmount_write(xfs_mount_t *mp)
  * and deallocate the log as the aild references the log.
  */
 void
-xfs_log_unmount_dealloc(xfs_mount_t *mp)
+xfs_log_unmount(xfs_mount_t *mp)
 {
 	xfs_trans_ail_destroy(mp);
 	xlog_dealloc_log(mp->m_log);

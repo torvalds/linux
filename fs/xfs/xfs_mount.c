@@ -1194,7 +1194,7 @@ xfs_mountfs(
  out_rele_rip:
 	IRELE(rip);
  out_log_dealloc:
-	xfs_log_unmount_dealloc(mp);
+	xfs_log_unmount(mp);
  out_free_perag:
 	xfs_free_perag(mp);
  out_remove_uuid:
@@ -1280,7 +1280,8 @@ xfs_unmountfs(
 				"Freespace may not be correct on next mount.");
 	xfs_unmountfs_writesb(mp);
 	xfs_unmountfs_wait(mp); 		/* wait for async bufs */
-	xfs_log_unmount(mp);			/* Done! No more fs ops. */
+	xfs_log_unmount_write(mp);
+	xfs_log_unmount(mp);
 
 	if ((mp->m_flags & XFS_MOUNT_NOUUID) == 0)
 		uuid_table_remove(&mp->m_sb.sb_uuid);
