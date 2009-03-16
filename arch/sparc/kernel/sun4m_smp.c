@@ -113,7 +113,7 @@ void __cpuinit smp4m_callin(void)
 
 	local_irq_enable();
 
-	cpu_set(cpuid, cpu_online_map);
+	set_cpu_online(cpuid, true);
 }
 
 /*

@@ -150,7 +150,7 @@ void __cpuinit smp4d_callin(void)
 	spin_lock_irqsave(&sun4d_imsk_lock, flags);
 	cc_set_imsk(cc_get_imsk() & ~0x4000); /* Allow PIL 14 as well */
 	spin_unlock_irqrestore(&sun4d_imsk_lock, flags);
-	cpu_set(cpuid, cpu_online_map);
+	set_cpu_online(cpuid, true);
 
 }
 
