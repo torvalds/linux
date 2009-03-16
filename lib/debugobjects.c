@@ -50,6 +50,9 @@ static int			debug_objects_enabled __read_mostly
 
 static struct debug_obj_descr	*descr_test  __read_mostly;
 
+static void free_obj_work(struct work_struct *work);
+static DECLARE_WORK(debug_obj_work, free_obj_work);
+
 static int __init enable_object_debug(char *str)
 {
 	debug_objects_enabled = 1;
@@ -154,25 +157,51 @@ alloc_object(void *addr, struct debug_bucket *b, struct debug_obj_descr *descr)
 }
 
 /*
- * Put the object back into the pool or give it back to kmem_cache:
+ * workqueue function to free objects.
+ */
+static void free_obj_work(struct work_struct *work)
+{
+	struct debug_obj *obj;
+	unsigned long flags;
+
+	spin_lock_irqsave(&pool_lock, flags);
+	while (obj_pool_free > ODEBUG_POOL_SIZE) {
+		obj = hlist_entry(obj_pool.first, typeof(*obj), node);
+		hlist_del(&obj->node);
+		obj_pool_free--;
+		/*
+		 * We release pool_lock across kmem_cache_free() to
+		 * avoid contention on pool_lock.
+		 */
+		spin_unlock_irqrestore(&pool_lock, flags);
+		kmem_cache_free(obj_cache, obj);
+		spin_lock_irqsave(&pool_lock, flags);
+	}
+	spin_unlock_irqrestore(&pool_lock, flags);
+}
+
+/*
+ * Put the object back into the pool and schedule work to free objects
+ * if necessary.
  */
 static void free_object(struct debug_obj *obj)
 {
-	unsigned long idx = (unsigned long)(obj - obj_static_pool);
 	unsigned long flags;
+	int sched = 0;
 
-	if (obj_pool_free < ODEBUG_POOL_SIZE || idx < ODEBUG_POOL_SIZE) {
-		spin_lock_irqsave(&pool_lock, flags);
-		hlist_add_head(&obj->node, &obj_pool);
-		obj_pool_free++;
-		obj_pool_used--;
-		spin_unlock_irqrestore(&pool_lock, flags);
-	} else {
-		spin_lock_irqsave(&pool_lock, flags);
-		obj_pool_used--;
-		spin_unlock_irqrestore(&pool_lock, flags);
-		kmem_cache_free(obj_cache, obj);
-	}
+	spin_lock_irqsave(&pool_lock, flags);
+	/*
+	 * schedule work when the pool is filled and the cache is
+	 * initialized:
+	 */
+	if (obj_pool_free > ODEBUG_POOL_SIZE && obj_cache)
+		sched = !work_pending(&debug_obj_work);
+	hlist_add_head(&obj->node, &obj_pool);
+	obj_pool_free++;
+	obj_pool_used--;
+	spin_unlock_irqrestore(&pool_lock, flags);
+	if (sched)
+		schedule_work(&debug_obj_work);
 }
 
 /*
