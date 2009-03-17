@@ -57,6 +57,8 @@ static void x2apic_send_IPI_mask(const struct cpumask *mask, int vector)
 	unsigned long query_cpu;
 	unsigned long flags;
 
+	x2apic_wrmsr_fence();
+
 	local_irq_save(flags);
 	for_each_cpu(query_cpu, mask) {
 		__x2apic_send_IPI_dest(
@@ -72,6 +74,8 @@ static void
 	unsigned long this_cpu = smp_processor_id();
 	unsigned long query_cpu;
 	unsigned long flags;
+
+	x2apic_wrmsr_fence();
 
 	local_irq_save(flags);
 	for_each_cpu(query_cpu, mask) {
@@ -89,6 +93,8 @@ static void x2apic_send_IPI_allbutself(int vector)
 	unsigned long this_cpu = smp_processor_id();
 	unsigned long query_cpu;
 	unsigned long flags;
+
+	x2apic_wrmsr_fence();
 
 	local_irq_save(flags);
 	for_each_online_cpu(query_cpu) {
