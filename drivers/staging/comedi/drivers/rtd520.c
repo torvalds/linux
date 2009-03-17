@@ -704,7 +704,7 @@ static int rtd_ai_cmdtest(comedi_device * dev, comedi_subdevice * s,
 	comedi_cmd * cmd);
 static int rtd_ai_cmd(comedi_device * dev, comedi_subdevice * s);
 static int rtd_ai_cancel(comedi_device * dev, comedi_subdevice * s);
-//static int rtd_ai_poll (comedi_device *dev,comedi_subdevice *s);
+/* static int rtd_ai_poll (comedi_device *dev,comedi_subdevice *s); */
 static int rtd_ns_to_timer(unsigned int *ns, int roundMode);
 static irqreturn_t rtd_interrupt(int irq, void *d PT_REGS_ARG);
 static int rtd520_probe_fifo_depth(comedi_device *dev);
@@ -866,7 +866,7 @@ static int rtd_attach(comedi_device * dev, comedi_devconfig * it)
 	s->do_cmd = rtd_ai_cmd;
 	s->do_cmdtest = rtd_ai_cmdtest;
 	s->cancel = rtd_ai_cancel;
-	/*s->poll = rtd_ai_poll; *//* not ready yet */
+	/* s->poll = rtd_ai_poll; */ /* not ready yet */
 
 	s = dev->subdevices + 1;
 	/* analog output subdevice */
@@ -1005,7 +1005,7 @@ static int rtd_attach(comedi_device * dev, comedi_devconfig * it)
 
 #if 0
 	/* hit an error, clean up memory and return ret */
-//rtd_attach_die_error:
+/* rtd_attach_die_error: */
 #ifdef USE_DMA
 	for (index = 0; index < DMA_CHAIN_COUNT; index++) {
 		if (NULL != devpriv->dma0Buff[index]) {	/* free buffer memory */
@@ -1377,15 +1377,15 @@ void abort_dma(comedi_device * dev, unsigned int channel)
 	unsigned long dma_cs_addr;	/* the control/status register */
 	uint8_t status;
 	unsigned int ii;
-	//unsigned long flags;
+	/* unsigned long flags; */
 
 	dma_cs_addr = (unsigned long)devpriv->lcfg
 		+ ((channel == 0) ? LCFG_DMACSR0 : LCFG_DMACSR1);
 
-	// spinlock for plx dma control/status reg
-	//comedi_spin_lock_irqsave( &dev->spinlock, flags );
+	/*  spinlock for plx dma control/status reg */
+	/* comedi_spin_lock_irqsave( &dev->spinlock, flags ); */
 
-	// abort dma transfer if necessary
+	/*  abort dma transfer if necessary */
 	status = readb(dma_cs_addr);
 	if ((status & PLX_DMA_EN_BIT) == 0) {	/* not enabled (Error?) */
 		DPRINTK("rtd520: AbortDma on non-active channel %d (0x%x)\n",
@@ -1410,7 +1410,7 @@ void abort_dma(comedi_device * dev, unsigned int channel)
 	/* set abort bit for channel */
 	writeb(PLX_DMA_ABORT_BIT, dma_cs_addr);
 
-	// wait for dma done bit to be set
+	/*  wait for dma done bit to be set */
 	status = readb(dma_cs_addr);
 	for (ii = 0;
 		(status & PLX_DMA_DONE_BIT) == 0 && ii < RTD_DMA_TIMEOUT;
@@ -1424,7 +1424,7 @@ void abort_dma(comedi_device * dev, unsigned int channel)
 	}
 
       abortDmaExit:
-	//comedi_spin_unlock_irqrestore( &dev->spinlock, flags );
+	/* comedi_spin_unlock_irqrestore( &dev->spinlock, flags ); */
 }
 
 /*

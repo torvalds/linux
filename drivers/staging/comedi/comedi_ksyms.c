@@ -31,12 +31,12 @@
 /* for drivers */
 EXPORT_SYMBOL(comedi_driver_register);
 EXPORT_SYMBOL(comedi_driver_unregister);
-//EXPORT_SYMBOL(comedi_bufcheck);
-//EXPORT_SYMBOL(comedi_done);
-//EXPORT_SYMBOL(comedi_error_done);
+/* EXPORT_SYMBOL(comedi_bufcheck); */
+/* EXPORT_SYMBOL(comedi_done); */
+/* EXPORT_SYMBOL(comedi_error_done); */
 EXPORT_SYMBOL(comedi_error);
-//EXPORT_SYMBOL(comedi_eobuf);
-//EXPORT_SYMBOL(comedi_eos);
+/* EXPORT_SYMBOL(comedi_eobuf); */
+/* EXPORT_SYMBOL(comedi_eos); */
 EXPORT_SYMBOL(comedi_event);
 EXPORT_SYMBOL(comedi_get_subdevice_runflags);
 EXPORT_SYMBOL(comedi_set_subdevice_runflags);

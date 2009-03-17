@@ -78,7 +78,7 @@ int comedi_request_irq(unsigned irq, irqreturn_t(*handler) (int,
 
 	ret = request_irq(irq, handler, unshared_flags, device, dev_id);
 	if (ret < 0) {
-		// we failed, so fall back on allowing shared interrupt (which we won't ever make RT)
+		/*  we failed, so fall back on allowing shared interrupt (which we won't ever make RT) */
 		if (flags & IRQF_SHARED) {
 			rt_printk
 				("comedi: cannot get unshared interrupt, will not use RT interrupts.\n");
@@ -192,7 +192,7 @@ static void handle_void_irq(int irq)
 		return;
 	}
 	it->handler(irq, it->dev_id PT_REGS_NULL);
-	rt_enable_irq(irq);	//needed by rtai-adeos, seems like it shouldn't hurt earlier versions
+	rt_enable_irq(irq);	/* needed by rtai-adeos, seems like it shouldn't hurt earlier versions */
 }
 
 DECLARE_VOID_IRQ(0);
@@ -402,11 +402,11 @@ static int comedi_rt_release_irq(struct comedi_irq_struct *it)
 
 void comedi_rt_init(void)
 {
-	//rt_pend_tq_init();
+	/* rt_pend_tq_init(); */
 }
 
 void comedi_rt_cleanup(void)
 {
-	//rt_pend_tq_cleanup();
+	/* rt_pend_tq_cleanup(); */
 }
 #endif

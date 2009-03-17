@@ -277,7 +277,7 @@ static int me4000_attach(comedi_device * dev, comedi_devconfig * it)
 		s->subdev_flags =
 			SDF_READABLE | SDF_COMMON | SDF_GROUND | SDF_DIFF;
 		s->n_chan = thisboard->ai.count;
-		s->maxdata = 0xFFFF;	// 16 bit ADC
+		s->maxdata = 0xFFFF;	/*  16 bit ADC */
 		s->len_chanlist = ME4000_AI_CHANNEL_LIST_COUNT;
 		s->range_table = &me4000_ai_range;
 		s->insn_read = me4000_ai_insn_read;
@@ -312,7 +312,7 @@ static int me4000_attach(comedi_device * dev, comedi_devconfig * it)
 		s->type = COMEDI_SUBD_AO;
 		s->subdev_flags = SDF_WRITEABLE | SDF_COMMON | SDF_GROUND;
 		s->n_chan = thisboard->ao.count;
-		s->maxdata = 0xFFFF;	// 16 bit DAC
+		s->maxdata = 0xFFFF;	/*  16 bit DAC */
 		s->range_table = &me4000_ao_range;
 		s->insn_write = me4000_ao_insn_write;
 		s->insn_read = me4000_ao_insn_read;
@@ -358,7 +358,7 @@ static int me4000_attach(comedi_device * dev, comedi_devconfig * it)
 		s->type = COMEDI_SUBD_COUNTER;
 		s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
 		s->n_chan = thisboard->cnt.count;
-		s->maxdata = 0xFFFF;	// 16 bit counters
+		s->maxdata = 0xFFFF;	/*  16 bit counters */
 		s->insn_read = me4000_cnt_insn_read;
 		s->insn_write = me4000_cnt_insn_write;
 		s->insn_config = me4000_cnt_insn_config;
@@ -571,8 +571,8 @@ static int init_board_info(comedi_device * dev, struct pci_dev *pci_dev_p)
 	CALL_PDEBUG("In init_board_info()\n");
 
 	/* Init spin locks */
-	//spin_lock_init(&info->preload_lock);
-	//spin_lock_init(&info->ai_ctrl_lock);
+	/* spin_lock_init(&info->preload_lock); */
+	/* spin_lock_init(&info->ai_ctrl_lock); */
 
 	/* Get the serial number */
 	result = pci_read_config_dword(pci_dev_p, 0x2C, &info->serial_no);
@@ -605,7 +605,7 @@ static int init_ao_context(comedi_device * dev)
 	CALL_PDEBUG("In init_ao_context()\n");
 
 	for (i = 0; i < thisboard->ao.count; i++) {
-		//spin_lock_init(&info->ao_context[i].use_lock);
+		/* spin_lock_init(&info->ao_context[i].use_lock); */
 		info->ao_context[i].irq = info->irq;
 
 		switch (i) {
@@ -1604,21 +1604,21 @@ static int me4000_ai_do_cmd_test(comedi_device * dev,
 			printk(KERN_ERR
 				"comedi%d: me4000: me4000_ai_do_cmd_test(): Invalid start arg\n",
 				dev->minor);
-			cmd->start_arg = 2000;	// 66 ticks at least
+			cmd->start_arg = 2000;	/*  66 ticks at least */
 			err++;
 		}
 		if (chan_ticks < ME4000_AI_MIN_TICKS) {
 			printk(KERN_ERR
 				"comedi%d: me4000: me4000_ai_do_cmd_test(): Invalid convert arg\n",
 				dev->minor);
-			cmd->convert_arg = 2000;	// 66 ticks at least
+			cmd->convert_arg = 2000;	/*  66 ticks at least */
 			err++;
 		}
 		if (scan_ticks <= cmd->chanlist_len * chan_ticks) {
 			printk(KERN_ERR
 				"comedi%d: me4000: me4000_ai_do_cmd_test(): Invalid scan end arg\n",
 				dev->minor);
-			cmd->scan_end_arg = 2000 * cmd->chanlist_len + 31;	// At least one tick more
+			cmd->scan_end_arg = 2000 * cmd->chanlist_len + 31;	/*  At least one tick more */
 			err++;
 		}
 	} else if (cmd->start_src == TRIG_NOW &&
@@ -1630,14 +1630,14 @@ static int me4000_ai_do_cmd_test(comedi_device * dev,
 			printk(KERN_ERR
 				"comedi%d: me4000: me4000_ai_do_cmd_test(): Invalid start arg\n",
 				dev->minor);
-			cmd->start_arg = 2000;	// 66 ticks at least
+			cmd->start_arg = 2000;	/*  66 ticks at least */
 			err++;
 		}
 		if (chan_ticks < ME4000_AI_MIN_TICKS) {
 			printk(KERN_ERR
 				"comedi%d: me4000: me4000_ai_do_cmd_test(): Invalid convert arg\n",
 				dev->minor);
-			cmd->convert_arg = 2000;	// 66 ticks at least
+			cmd->convert_arg = 2000;	/*  66 ticks at least */
 			err++;
 		}
 	} else if (cmd->start_src == TRIG_EXT &&
@@ -1649,21 +1649,21 @@ static int me4000_ai_do_cmd_test(comedi_device * dev,
 			printk(KERN_ERR
 				"comedi%d: me4000: me4000_ai_do_cmd_test(): Invalid start arg\n",
 				dev->minor);
-			cmd->start_arg = 2000;	// 66 ticks at least
+			cmd->start_arg = 2000;	/*  66 ticks at least */
 			err++;
 		}
 		if (chan_ticks < ME4000_AI_MIN_TICKS) {
 			printk(KERN_ERR
 				"comedi%d: me4000: me4000_ai_do_cmd_test(): Invalid convert arg\n",
 				dev->minor);
-			cmd->convert_arg = 2000;	// 66 ticks at least
+			cmd->convert_arg = 2000;	/*  66 ticks at least */
 			err++;
 		}
 		if (scan_ticks <= cmd->chanlist_len * chan_ticks) {
 			printk(KERN_ERR
 				"comedi%d: me4000: me4000_ai_do_cmd_test(): Invalid scan end arg\n",
 				dev->minor);
-			cmd->scan_end_arg = 2000 * cmd->chanlist_len + 31;	// At least one tick more
+			cmd->scan_end_arg = 2000 * cmd->chanlist_len + 31;	/*  At least one tick more */
 			err++;
 		}
 	} else if (cmd->start_src == TRIG_EXT &&
@@ -1675,14 +1675,14 @@ static int me4000_ai_do_cmd_test(comedi_device * dev,
 			printk(KERN_ERR
 				"comedi%d: me4000: me4000_ai_do_cmd_test(): Invalid start arg\n",
 				dev->minor);
-			cmd->start_arg = 2000;	// 66 ticks at least
+			cmd->start_arg = 2000;	/*  66 ticks at least */
 			err++;
 		}
 		if (chan_ticks < ME4000_AI_MIN_TICKS) {
 			printk(KERN_ERR
 				"comedi%d: me4000: me4000_ai_do_cmd_test(): Invalid convert arg\n",
 				dev->minor);
-			cmd->convert_arg = 2000;	// 66 ticks at least
+			cmd->convert_arg = 2000;	/*  66 ticks at least */
 			err++;
 		}
 	} else if (cmd->start_src == TRIG_EXT &&
@@ -1694,14 +1694,14 @@ static int me4000_ai_do_cmd_test(comedi_device * dev,
 			printk(KERN_ERR
 				"comedi%d: me4000: me4000_ai_do_cmd_test(): Invalid start arg\n",
 				dev->minor);
-			cmd->start_arg = 2000;	// 66 ticks at least
+			cmd->start_arg = 2000;	/*  66 ticks at least */
 			err++;
 		}
 		if (chan_ticks < ME4000_AI_MIN_TICKS) {
 			printk(KERN_ERR
 				"comedi%d: me4000: me4000_ai_do_cmd_test(): Invalid convert arg\n",
 				dev->minor);
-			cmd->convert_arg = 2000;	// 66 ticks at least
+			cmd->convert_arg = 2000;	/*  66 ticks at least */
 			err++;
 		}
 	} else if (cmd->start_src == TRIG_EXT &&
@@ -1713,7 +1713,7 @@ static int me4000_ai_do_cmd_test(comedi_device * dev,
 			printk(KERN_ERR
 				"comedi%d: me4000: me4000_ai_do_cmd_test(): Invalid start arg\n",
 				dev->minor);
-			cmd->start_arg = 2000;	// 66 ticks at least
+			cmd->start_arg = 2000;	/*  66 ticks at least */
 			err++;
 		}
 	}

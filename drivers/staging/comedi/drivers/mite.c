@@ -47,7 +47,7 @@
 
 */
 
-//#define USE_KMALLOC
+/* #define USE_KMALLOC */
 
 #include "mite.h"
 
@@ -139,7 +139,7 @@ int mite_setup2(struct mite_struct *mite, unsigned use_iodwbsr_1)
 	addr = pci_resource_start(mite->pcidev, 1);
 	mite->daq_phys_addr = addr;
 	length = pci_resource_len(mite->pcidev, 1);
-	// In case of a 660x board, DAQ size is 8k instead of 4k (see as shown by lspci output)
+	/*  In case of a 660x board, DAQ size is 8k instead of 4k (see as shown by lspci output) */
 	mite->daq_io_addr = ioremap(mite->daq_phys_addr, length);
 	if (!mite->daq_io_addr) {
 		printk("failed to remap daq io memory address\n");
@@ -212,7 +212,7 @@ void mite_cleanup(void)
 
 void mite_unsetup(struct mite_struct *mite)
 {
-	//unsigned long offset, start, length;
+	/* unsigned long offset, start, length; */
 
 	if (!mite)
 		return;
@@ -257,7 +257,7 @@ struct mite_channel *mite_request_channel_in_range(struct mite_struct *mite,
 	unsigned long flags;
 	struct mite_channel *channel = NULL;
 
-	// spin lock so mite_release_channel can be called safely from interrupts
+	/*  spin lock so mite_release_channel can be called safely from interrupts */
 	comedi_spin_lock_irqsave(&mite->lock, flags);
 	for (i = min_channel; i <= max_channel; ++i) {
 		if (mite->channel_allocated[i] == 0) {
@@ -276,7 +276,7 @@ void mite_release_channel(struct mite_channel *mite_chan)
 	struct mite_struct *mite = mite_chan->mite;
 	unsigned long flags;
 
-	// spin lock to prevent races with mite_request_channel
+	/*  spin lock to prevent races with mite_request_channel */
 	comedi_spin_lock_irqsave(&mite->lock, flags);
 	if (mite->channel_allocated[mite_chan->channel]) {
 		mite_dma_disarm(mite_chan);
@@ -312,7 +312,7 @@ void mite_dma_arm(struct mite_channel *mite_chan)
 	writel(chor, mite->mite_io_addr + MITE_CHOR(mite_chan->channel));
 	mmiowb();
 	comedi_spin_unlock_irqrestore(&mite->lock, flags);
-//      mite_dma_tcr(mite, channel);
+/*       mite_dma_tcr(mite, channel); */
 }
 
 /**************************************/
@@ -466,7 +466,7 @@ u32 mite_bytes_in_transit(struct mite_channel * mite_chan)
 		MITE_FCR(mite_chan->channel)) & 0x000000FF;
 }
 
-// returns lower bound for number of bytes transferred from device to memory
+/*  returns lower bound for number of bytes transferred from device to memory */
 u32 mite_bytes_written_to_memory_lb(struct mite_channel * mite_chan)
 {
 	u32 device_byte_count;
@@ -475,7 +475,7 @@ u32 mite_bytes_written_to_memory_lb(struct mite_channel * mite_chan)
 	return device_byte_count - mite_bytes_in_transit(mite_chan);
 }
 
-// returns upper bound for number of bytes transferred from device to memory
+/*  returns upper bound for number of bytes transferred from device to memory */
 u32 mite_bytes_written_to_memory_ub(struct mite_channel * mite_chan)
 {
 	u32 in_transit_count;
@@ -484,7 +484,7 @@ u32 mite_bytes_written_to_memory_ub(struct mite_channel * mite_chan)
 	return mite_device_bytes_transferred(mite_chan) - in_transit_count;
 }
 
-// returns lower bound for number of bytes read from memory for transfer to device
+/*  returns lower bound for number of bytes read from memory for transfer to device */
 u32 mite_bytes_read_from_memory_lb(struct mite_channel * mite_chan)
 {
 	u32 device_byte_count;
@@ -493,7 +493,7 @@ u32 mite_bytes_read_from_memory_lb(struct mite_channel * mite_chan)
 	return device_byte_count + mite_bytes_in_transit(mite_chan);
 }
 
-// returns upper bound for number of bytes read from memory for transfer to device
+/*  returns upper bound for number of bytes read from memory for transfer to device */
 u32 mite_bytes_read_from_memory_ub(struct mite_channel * mite_chan)
 {
 	u32 in_transit_count;
@@ -533,7 +533,7 @@ int mite_sync_input_dma(struct mite_channel *mite_chan, comedi_async * async)
 	const unsigned bytes_per_scan = cfc_bytes_per_scan(async->subdevice);
 
 	old_alloc_count = async->buf_write_alloc_count;
-	// write alloc as much as we can
+	/*  write alloc as much as we can */
 	comedi_buf_write_alloc(async, async->prealloc_bufsz);
 
 	nbytes = mite_bytes_written_to_memory_lb(mite_chan);
@@ -570,7 +570,7 @@ int mite_sync_output_dma(struct mite_channel *mite_chan, comedi_async * async)
 		async->cmd.stop_arg * cfc_bytes_per_scan(async->subdevice);
 
 	old_alloc_count = async->buf_read_alloc_count;
-	// read alloc as much as we can
+	/*  read alloc as much as we can */
 	comedi_buf_read_alloc(async, async->prealloc_bufsz);
 	nbytes_lb = mite_bytes_read_from_memory_lb(mite_chan);
 	if (async->cmd.stop_src == TRIG_COUNT &&

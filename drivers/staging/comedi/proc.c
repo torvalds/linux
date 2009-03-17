@@ -31,7 +31,7 @@
 #define __NO_VERSION__
 #include "comedidev.h"
 #include <linux/proc_fs.h>
-//#include <linux/string.h>
+/* #include <linux/string.h> */
 
 int comedi_read_procmem(char *buf, char **start, off_t offset, int len,
 	int *eof, void *data);

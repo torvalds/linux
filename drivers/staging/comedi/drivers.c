@@ -140,7 +140,7 @@ int comedi_device_attach(comedi_device * dev, comedi_devconfig * it)
 				continue;
 			}
 		}
-		//initialize dev->driver here so comedi_error() can be called from attach
+		/* initialize dev->driver here so comedi_error() can be called from attach */
 		dev->driver = driv;
 		ret = driv->attach(dev, it);
 		if (ret < 0) {
@@ -151,8 +151,8 @@ int comedi_device_attach(comedi_device * dev, comedi_devconfig * it)
 		goto attached;
 	}
 
-	// recognize has failed if we get here
-	// report valid board names before returning error
+	/*  recognize has failed if we get here */
+	/*  report valid board names before returning error */
 	for (driv = comedi_drivers; driv; driv = driv->next) {
 		if (!try_module_get(driv->module)) {
 			printk("comedi: failed to increment module count\n");
@@ -299,7 +299,7 @@ static int postconfig(comedi_device * dev)
 	return 0;
 }
 
-// generic recognize function for drivers that register their supported board names
+/*  generic recognize function for drivers that register their supported board names */
 void *comedi_recognize(comedi_driver * driv, const char *name)
 {
 	unsigned i;
@@ -426,7 +426,7 @@ int comedi_buf_alloc(comedi_device * dev, comedi_subdevice * s,
 	if (async->prealloc_buf && async->prealloc_bufsz == new_size) {
 		return 0;
 	}
-	// deallocate old buffer
+	/*  deallocate old buffer */
 	if (async->prealloc_buf) {
 		vunmap(async->prealloc_buf);
 		async->prealloc_buf = NULL;
@@ -455,7 +455,7 @@ int comedi_buf_alloc(comedi_device * dev, comedi_subdevice * s,
 		async->buf_page_list = NULL;
 		async->n_buf_pages = 0;
 	}
-	// allocate new buffer
+	/*  allocate new buffer */
 	if (new_size) {
 		unsigned i = 0;
 		unsigned n_pages = new_size >> PAGE_SHIFT;
@@ -568,7 +568,7 @@ unsigned int comedi_buf_munge(comedi_async * async, unsigned int num_bytes)
 		s->munge(s->device, s, async->prealloc_buf + async->munge_ptr,
 			block_size, async->munge_chan);
 
-		smp_wmb();	//barrier insures data is munged in buffer before munge_count is incremented
+		smp_wmb();	/* barrier insures data is munged in buffer before munge_count is incremented */
 
 		async->munge_chan += block_size / num_sample_bytes;
 		async->munge_chan %= async->cmd.chanlist_len;
@@ -667,7 +667,7 @@ unsigned comedi_buf_read_alloc(comedi_async * async, unsigned nbytes)
 /* transfers control of a chunk from reader to free buffer space */
 unsigned comedi_buf_read_free(comedi_async * async, unsigned int nbytes)
 {
-	// barrier insures data has been read out of buffer before read count is incremented
+	/*  barrier insures data has been read out of buffer before read count is incremented */
 	smp_mb();
 	if ((int)(async->buf_read_count + nbytes -
 			async->buf_read_alloc_count) > 0) {
@@ -852,9 +852,9 @@ int comedi_pci_auto_config(struct pci_dev *pcidev, const char *board_name)
 {
 	int options[2];
 
-	// pci bus
+	/*  pci bus */
 	options[0] = pcidev->bus->number;
-	// pci slot
+	/*  pci slot */
 	options[1] = PCI_SLOT(pcidev->devfn);
 
 	return comedi_auto_config(&pcidev->dev, board_name, options, sizeof(options) / sizeof(options[0]));
