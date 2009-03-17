@@ -152,12 +152,12 @@ static unsigned int das16m1_set_pacer(struct comedi_device * dev, unsigned int n
 
 static int das16m1_irq_bits(unsigned int irq);
 
-typedef struct das16m1_board_struct {
+struct das16m1_board {
 	const char *name;
 	unsigned int ai_speed;
-} das16m1_board;
+};
 
-static const das16m1_board das16m1_boards[] = {
+static const struct das16m1_board das16m1_boards[] = {
 	{
 	      name:	"cio-das16/m1",	// CIO-DAS16_M1.pdf
 	      ai_speed:1000,	// 1MHz max speed
@@ -191,7 +191,7 @@ struct das16m1_private_struct {
 	unsigned int divisor2;	// divides master clock to obtain conversion speed
 };
 #define devpriv ((struct das16m1_private_struct *)(dev->private))
-#define thisboard ((const das16m1_board *)(dev->board_ptr))
+#define thisboard ((const struct das16m1_board *)(dev->board_ptr))
 
 COMEDI_INITCLEANUP(driver_das16m1);
 
