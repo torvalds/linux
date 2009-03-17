@@ -22,7 +22,7 @@ Devices: [Adlink] ACL-7225b (acl7225b), [ICP] P16R16DIO (p16r16dio)
 #define ACL7225_DI_LO  2	/* Digital input low byte (DI0-DI7) */
 #define ACL7225_DI_HI  3	/* Digital input high byte (DI8-DI15) */
 
-static int acl7225b_attach(struct comedi_device *dev, comedi_devconfig * it);
+static int acl7225b_attach(struct comedi_device *dev, struct comedi_devconfig * it);
 static int acl7225b_detach(struct comedi_device *dev);
 
 typedef struct {
@@ -83,7 +83,7 @@ static int acl7225b_di_insn(struct comedi_device *dev, struct comedi_subdevice *
 	return 2;
 }
 
-static int acl7225b_attach(struct comedi_device *dev, comedi_devconfig * it)
+static int acl7225b_attach(struct comedi_device *dev, struct comedi_devconfig * it)
 {
 	struct comedi_subdevice *s;
 	int iobase, iorange;

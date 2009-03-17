@@ -105,7 +105,7 @@ typedef struct {
  * the board, and also about the kernel module that contains
  * the device code.
  */
-static int pcmda12_attach(struct comedi_device * dev, comedi_devconfig * it);
+static int pcmda12_attach(struct comedi_device * dev, struct comedi_devconfig * it);
 static int pcmda12_detach(struct comedi_device * dev);
 
 static void zero_chans(struct comedi_device * dev);
@@ -149,7 +149,7 @@ static int ao_rinsn(struct comedi_device * dev, struct comedi_subdevice * s,
  * in the driver structure, dev->board_ptr contains that
  * address.
  */
-static int pcmda12_attach(struct comedi_device * dev, comedi_devconfig * it)
+static int pcmda12_attach(struct comedi_device * dev, struct comedi_devconfig * it)
 {
 	struct comedi_subdevice *s;
 	unsigned long iobase;

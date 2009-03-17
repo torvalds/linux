@@ -48,7 +48,7 @@ Kolter Electronic PCI Counter Card.
 
 /*-- function prototypes ----------------------------------------------------*/
 
-static int cnt_attach(struct comedi_device * dev, comedi_devconfig * it);
+static int cnt_attach(struct comedi_device * dev, struct comedi_devconfig * it);
 static int cnt_detach(struct comedi_device * dev);
 
 static DEFINE_PCI_DEVICE_TABLE(cnt_pci_table) = {
@@ -144,7 +144,7 @@ static int cnt_rinsn(struct comedi_device * dev,
 
 /*-- attach -----------------------------------------------------------------*/
 
-static int cnt_attach(struct comedi_device * dev, comedi_devconfig * it)
+static int cnt_attach(struct comedi_device * dev, struct comedi_devconfig * it)
 {
 	struct comedi_subdevice *subdevice;
 	struct pci_dev *pci_device;

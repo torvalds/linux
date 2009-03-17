@@ -178,7 +178,7 @@ static const struct comedi_lrange range_pci9118hg = { 8, {
 
 #define PCI9118_BIPOLAR_RANGES	4	/* used for test on mixture of BIP/UNI ranges */
 
-static int pci9118_attach(struct comedi_device * dev, comedi_devconfig * it);
+static int pci9118_attach(struct comedi_device * dev, struct comedi_devconfig * it);
 static int pci9118_detach(struct comedi_device * dev);
 
 typedef struct {
@@ -1835,7 +1835,7 @@ static int pci9118_reset(struct comedi_device * dev)
 /*
 ==============================================================================
 */
-static int pci9118_attach(struct comedi_device * dev, comedi_devconfig * it)
+static int pci9118_attach(struct comedi_device * dev, struct comedi_devconfig * it)
 {
 	struct comedi_subdevice *s;
 	int ret, pages, i;

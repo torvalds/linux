@@ -98,7 +98,7 @@ This driver has suffered bitrot.
 #define	C2 0x80
 #define	RWLH 0x30
 
-static int das6402_attach(struct comedi_device * dev, comedi_devconfig * it);
+static int das6402_attach(struct comedi_device * dev, struct comedi_devconfig * it);
 static int das6402_detach(struct comedi_device * dev);
 static struct comedi_driver driver_das6402 = {
       driver_name:"das6402",
@@ -299,7 +299,7 @@ static int das6402_detach(struct comedi_device * dev)
 	return 0;
 }
 
-static int das6402_attach(struct comedi_device * dev, comedi_devconfig * it)
+static int das6402_attach(struct comedi_device * dev, struct comedi_devconfig * it)
 {
 	unsigned int irq;
 	unsigned long iobase;

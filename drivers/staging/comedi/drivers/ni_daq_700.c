@@ -55,7 +55,7 @@ static struct pcmcia_device *pcmcia_cur_dev = NULL;
 
 #define DIO700_SIZE 8		// size of io region used by board
 
-static int dio700_attach(struct comedi_device * dev, comedi_devconfig * it);
+static int dio700_attach(struct comedi_device * dev, struct comedi_devconfig * it);
 static int dio700_detach(struct comedi_device * dev);
 
 enum dio700_bustype { pcmcia_bustype };
@@ -350,7 +350,7 @@ EXPORT_SYMBOL(subdev_700_init_irq);
 EXPORT_SYMBOL(subdev_700_cleanup);
 EXPORT_SYMBOL(subdev_700_interrupt);
 
-static int dio700_attach(struct comedi_device * dev, comedi_devconfig * it)
+static int dio700_attach(struct comedi_device * dev, struct comedi_devconfig * it)
 {
 	struct comedi_subdevice *s;
 	unsigned long iobase = 0;

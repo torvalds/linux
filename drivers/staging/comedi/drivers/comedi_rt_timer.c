@@ -122,7 +122,7 @@ static inline RTIME nano2count(long long ns)
  * task period because analog input tends to be slow. */
 #define SPEED_LIMIT 100000	/* in nanoseconds */
 
-static int timer_attach(struct comedi_device * dev, comedi_devconfig * it);
+static int timer_attach(struct comedi_device * dev, struct comedi_devconfig * it);
 static int timer_detach(struct comedi_device * dev);
 static int timer_inttrig(struct comedi_device * dev, struct comedi_subdevice * s,
 	unsigned int trig_num);
@@ -607,7 +607,7 @@ static int timer_start_cmd(struct comedi_device * dev, struct comedi_subdevice *
 	return 0;
 }
 
-static int timer_attach(struct comedi_device * dev, comedi_devconfig * it)
+static int timer_attach(struct comedi_device * dev, struct comedi_devconfig * it)
 {
 	int ret;
 	struct comedi_subdevice *s, *emul_s;

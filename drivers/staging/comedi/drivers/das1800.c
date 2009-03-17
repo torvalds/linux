@@ -180,7 +180,7 @@ enum {
 	das1802hr, das1802hr_da, das1801hc, das1802hc, das1801ao, das1802ao
 };
 
-static int das1800_attach(struct comedi_device * dev, comedi_devconfig * it);
+static int das1800_attach(struct comedi_device * dev, struct comedi_devconfig * it);
 static int das1800_detach(struct comedi_device * dev);
 static int das1800_probe(struct comedi_device * dev);
 static int das1800_cancel(struct comedi_device * dev, struct comedi_subdevice * s);
@@ -590,7 +590,7 @@ static int das1800_init_dma(struct comedi_device * dev, unsigned int dma0,
 	return 0;
 }
 
-static int das1800_attach(struct comedi_device * dev, comedi_devconfig * it)
+static int das1800_attach(struct comedi_device * dev, struct comedi_devconfig * it)
 {
 	struct comedi_subdevice *s;
 	unsigned long iobase = it->options[0];

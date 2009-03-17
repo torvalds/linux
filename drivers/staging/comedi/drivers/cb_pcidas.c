@@ -440,7 +440,7 @@ typedef struct {
  * the board, and also about the kernel module that contains
  * the device code.
  */
-static int cb_pcidas_attach(struct comedi_device * dev, comedi_devconfig * it);
+static int cb_pcidas_attach(struct comedi_device * dev, struct comedi_devconfig * it);
 static int cb_pcidas_detach(struct comedi_device * dev);
 static struct comedi_driver driver_cb_pcidas = {
       driver_name:"cb_pcidas",
@@ -508,7 +508,7 @@ static inline unsigned int cal_enable_bits(struct comedi_device * dev)
  * Attach is called by the Comedi core to configure the driver
  * for a particular board.
  */
-static int cb_pcidas_attach(struct comedi_device * dev, comedi_devconfig * it)
+static int cb_pcidas_attach(struct comedi_device * dev, struct comedi_devconfig * it)
 {
 	struct comedi_subdevice *s;
 	struct pci_dev *pcidev;

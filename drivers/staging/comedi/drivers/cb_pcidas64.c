@@ -1125,7 +1125,7 @@ static inline pcidas64_private *priv(struct comedi_device * dev)
  * the board, and also about the kernel module that contains
  * the device code.
  */
-static int attach(struct comedi_device * dev, comedi_devconfig * it);
+static int attach(struct comedi_device * dev, struct comedi_devconfig * it);
 static int detach(struct comedi_device * dev);
 static struct comedi_driver driver_cb_pcidas = {
       driver_name:"cb_pcidas64",
@@ -1673,7 +1673,7 @@ static inline void warn_external_queue(struct comedi_device * dev)
  * Attach is called by the Comedi core to configure the driver
  * for a particular board.
  */
-static int attach(struct comedi_device * dev, comedi_devconfig * it)
+static int attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	struct pci_dev *pcidev;
 	int index;

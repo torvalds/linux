@@ -75,7 +75,7 @@ typedef struct {
 
 #define devpriv ((contec_private *)dev->private)
 
-static int contec_attach(struct comedi_device * dev, comedi_devconfig * it);
+static int contec_attach(struct comedi_device * dev, struct comedi_devconfig * it);
 static int contec_detach(struct comedi_device * dev);
 static struct comedi_driver driver_contec = {
       driver_name:"contec_pci_dio",
@@ -97,7 +97,7 @@ static int contec_cmdtest(struct comedi_device * dev, struct comedi_subdevice * 
 static int contec_ns_to_timer(unsigned int *ns, int round);
 #endif
 
-static int contec_attach(struct comedi_device * dev, comedi_devconfig * it)
+static int contec_attach(struct comedi_device * dev, struct comedi_devconfig * it)
 {
 	struct pci_dev *pcidev;
 	struct comedi_subdevice *s;

@@ -58,7 +58,7 @@ typedef struct {
 
 #define devpriv ((adl_pci7432_private *)dev->private)
 
-static int adl_pci7432_attach(struct comedi_device * dev, comedi_devconfig * it);
+static int adl_pci7432_attach(struct comedi_device * dev, struct comedi_devconfig * it);
 static int adl_pci7432_detach(struct comedi_device * dev);
 static struct comedi_driver driver_adl_pci7432 = {
       driver_name:"adl_pci7432",
@@ -77,7 +77,7 @@ static int adl_pci7432_do_insn_bits(struct comedi_device * dev, struct comedi_su
 
 /*            */
 
-static int adl_pci7432_attach(struct comedi_device * dev, comedi_devconfig * it)
+static int adl_pci7432_attach(struct comedi_device * dev, struct comedi_devconfig * it)
 {
 	struct pci_dev *pcidev;
 	struct comedi_subdevice *s;

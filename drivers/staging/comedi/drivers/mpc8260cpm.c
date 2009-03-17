@@ -44,7 +44,7 @@ typedef struct {
 } mpc8260cpm_private;
 #define devpriv ((mpc8260cpm_private *)dev->private)
 
-static int mpc8260cpm_attach(struct comedi_device * dev, comedi_devconfig * it);
+static int mpc8260cpm_attach(struct comedi_device * dev, struct comedi_devconfig * it);
 static int mpc8260cpm_detach(struct comedi_device * dev);
 static struct comedi_driver driver_mpc8260cpm = {
       driver_name:"mpc8260cpm",
@@ -60,7 +60,7 @@ static int mpc8260cpm_dio_config(struct comedi_device * dev, struct comedi_subde
 static int mpc8260cpm_dio_bits(struct comedi_device * dev, struct comedi_subdevice * s,
 	struct comedi_insn * insn, unsigned int * data);
 
-static int mpc8260cpm_attach(struct comedi_device * dev, comedi_devconfig * it)
+static int mpc8260cpm_attach(struct comedi_device * dev, struct comedi_devconfig * it)
 {
 	struct comedi_subdevice *s;
 	int i;

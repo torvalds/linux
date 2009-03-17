@@ -225,7 +225,7 @@ static uint16_t mio_cs_win_in(struct comedi_device * dev, int addr)
 	return ret;
 }
 
-static int mio_cs_attach(struct comedi_device * dev, comedi_devconfig * it);
+static int mio_cs_attach(struct comedi_device * dev, struct comedi_devconfig * it);
 static int mio_cs_detach(struct comedi_device * dev);
 static struct comedi_driver driver_ni_mio_cs = {
       driver_name:"ni_mio_cs",
@@ -401,7 +401,7 @@ static void mio_cs_config(struct pcmcia_device *link)
 	link->dev_node = &dev_node;
 }
 
-static int mio_cs_attach(struct comedi_device * dev, comedi_devconfig * it)
+static int mio_cs_attach(struct comedi_device * dev, struct comedi_devconfig * it)
 {
 	struct pcmcia_device *link;
 	unsigned int irq;

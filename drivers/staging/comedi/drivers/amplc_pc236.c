@@ -165,7 +165,7 @@ typedef struct {
  * the board, and also about the kernel module that contains
  * the device code.
  */
-static int pc236_attach(struct comedi_device * dev, comedi_devconfig * it);
+static int pc236_attach(struct comedi_device * dev, struct comedi_devconfig * it);
 static int pc236_detach(struct comedi_device * dev);
 static struct comedi_driver driver_amplc_pc236 = {
       driver_name:PC236_DRIVER_NAME,
@@ -264,7 +264,7 @@ pc236_find_pci(struct comedi_device * dev, int bus, int slot,
  * in the driver structure, dev->board_ptr contains that
  * address.
  */
-static int pc236_attach(struct comedi_device * dev, comedi_devconfig * it)
+static int pc236_attach(struct comedi_device * dev, struct comedi_devconfig * it)
 {
 	struct comedi_subdevice *s;
 	unsigned long iobase = 0;

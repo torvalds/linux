@@ -52,7 +52,7 @@ support could be added to this driver.
 #include "plx9080.h"
 #include "comedi_fc.h"
 
-static int hpdi_attach(struct comedi_device * dev, comedi_devconfig * it);
+static int hpdi_attach(struct comedi_device * dev, struct comedi_devconfig * it);
 static int hpdi_detach(struct comedi_device * dev);
 void abort_dma(struct comedi_device * dev, unsigned int channel);
 static int hpdi_cmd(struct comedi_device * dev, struct comedi_subdevice * s);
@@ -552,7 +552,7 @@ static int setup_dma_descriptors(struct comedi_device * dev,
 	return transfer_size;
 }
 
-static int hpdi_attach(struct comedi_device * dev, comedi_devconfig * it)
+static int hpdi_attach(struct comedi_device * dev, struct comedi_devconfig * it)
 {
 	struct pci_dev *pcidev;
 	int i;

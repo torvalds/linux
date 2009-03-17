@@ -113,7 +113,7 @@ void comedi_device_detach(struct comedi_device *dev)
 	__comedi_device_detach(dev);
 }
 
-int comedi_device_attach(struct comedi_device *dev, comedi_devconfig *it)
+int comedi_device_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	struct comedi_driver *driv;
 	int ret;
@@ -791,7 +791,7 @@ void comedi_reset_async_buf(struct comedi_async *async)
 
 int comedi_auto_config(struct device *hardware_device, const char *board_name, const int *options, unsigned num_options)
 {
-	comedi_devconfig it;
+	struct comedi_devconfig it;
 	int minor;
 	struct comedi_device_file_info *dev_file_info;
 	int retval;

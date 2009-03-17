@@ -85,7 +85,7 @@ typedef struct {
  */
 #define devpriv ((serial2002_private *)dev->private)
 
-static int serial2002_attach(struct comedi_device * dev, comedi_devconfig * it);
+static int serial2002_attach(struct comedi_device * dev, struct comedi_devconfig * it);
 static int serial2002_detach(struct comedi_device * dev);
 struct comedi_driver driver_serial2002 = {
       driver_name:"serial2002",
@@ -776,7 +776,7 @@ static int serial2002_ei_rinsn(struct comedi_device * dev, struct comedi_subdevi
 	return n;
 }
 
-static int serial2002_attach(struct comedi_device * dev, comedi_devconfig * it)
+static int serial2002_attach(struct comedi_device * dev, struct comedi_devconfig * it)
 {
 	struct comedi_subdevice *s;
 

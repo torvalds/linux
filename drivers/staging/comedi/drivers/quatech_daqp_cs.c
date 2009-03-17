@@ -197,7 +197,7 @@ static const struct comedi_lrange range_daqp_ao = { 1, {BIP_RANGE(5)} };
 
 /* comedi interface code */
 
-static int daqp_attach(struct comedi_device * dev, comedi_devconfig * it);
+static int daqp_attach(struct comedi_device * dev, struct comedi_devconfig * it);
 static int daqp_detach(struct comedi_device * dev);
 static struct comedi_driver driver_daqp = {
       driver_name:"quatech_daqp_cs",
@@ -856,7 +856,7 @@ static int daqp_do_insn_write(struct comedi_device * dev, struct comedi_subdevic
  * when it is inserted.
  */
 
-static int daqp_attach(struct comedi_device * dev, comedi_devconfig * it)
+static int daqp_attach(struct comedi_device * dev, struct comedi_devconfig * it)
 {
 	int ret;
 	local_info_t *local = dev_table[it->options[0]];

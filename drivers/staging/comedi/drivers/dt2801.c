@@ -88,7 +88,7 @@ Configuration options:
 #define DT2801_STATUS		1
 #define DT2801_CMD		1
 
-static int dt2801_attach(struct comedi_device * dev, comedi_devconfig * it);
+static int dt2801_attach(struct comedi_device * dev, struct comedi_devconfig * it);
 static int dt2801_detach(struct comedi_device * dev);
 static struct comedi_driver driver_dt2801 = {
       driver_name:"dt2801",
@@ -478,7 +478,7 @@ static const struct comedi_lrange *ai_range_lkup(int type, int opt)
 	[4] - dac0 range 0=[-10,10], 1=[-5,5], 2=[-2.5,2.5] 3=[0,10], 4=[0,5]
 	[5] - dac1 range 0=[-10,10], 1=[-5,5], 2=[-2.5,2.5] 3=[0,10], 4=[0,5]
 */
-static int dt2801_attach(struct comedi_device * dev, comedi_devconfig * it)
+static int dt2801_attach(struct comedi_device * dev, struct comedi_devconfig * it)
 {
 	struct comedi_subdevice *s;
 	unsigned long iobase;

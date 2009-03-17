@@ -239,7 +239,7 @@ struct comedi_driver {
 
 	const char *driver_name;
 	struct module *module;
-	int (*attach) (struct comedi_device *, comedi_devconfig *);
+	int (*attach) (struct comedi_device *, struct comedi_devconfig *);
 	int (*detach) (struct comedi_device *);
 
 	/* number of elements in board_name and board_id arrays */
@@ -337,7 +337,7 @@ static inline struct comedi_subdevice *comedi_get_write_subdevice(
 }
 
 void comedi_device_detach(struct comedi_device *dev);
-int comedi_device_attach(struct comedi_device *dev, comedi_devconfig *it);
+int comedi_device_attach(struct comedi_device *dev, struct comedi_devconfig *it);
 int comedi_driver_register(struct comedi_driver *);
 int comedi_driver_unregister(struct comedi_driver *);
 

@@ -90,7 +90,7 @@ pin, which can be used to wake up tasks.
 #define PARPORT_B 1
 #define PARPORT_C 2
 
-static int parport_attach(struct comedi_device *dev, comedi_devconfig *it);
+static int parport_attach(struct comedi_device *dev, struct comedi_devconfig *it);
 static int parport_detach(struct comedi_device *dev);
 static struct comedi_driver driver_parport = {
       .driver_name =	"comedi_parport",
@@ -291,7 +291,7 @@ static irqreturn_t parport_interrupt(int irq, void *d PT_REGS_ARG)
 	return IRQ_HANDLED;
 }
 
-static int parport_attach(struct comedi_device *dev, comedi_devconfig *it)
+static int parport_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	int ret;
 	unsigned int irq;

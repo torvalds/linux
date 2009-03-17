@@ -87,7 +87,7 @@ typedef struct {
 /* In the following section we define the API of this driver.                */
 /* ------------------------------------------------------------------------- */
 
-static int dnp_attach(struct comedi_device * dev, comedi_devconfig * it);
+static int dnp_attach(struct comedi_device * dev, struct comedi_devconfig * it);
 static int dnp_detach(struct comedi_device * dev);
 
 static struct comedi_driver driver_dnp = {
@@ -115,7 +115,7 @@ static int dnp_dio_insn_config(struct comedi_device * dev,
 /* dev->board_ptr contains that address.                                     */
 /* ------------------------------------------------------------------------- */
 
-static int dnp_attach(struct comedi_device * dev, comedi_devconfig * it)
+static int dnp_attach(struct comedi_device * dev, struct comedi_devconfig * it)
 {
 
 	struct comedi_subdevice *s;

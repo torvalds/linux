@@ -1207,7 +1207,7 @@ static const ni_board ni_boards[] = {
 
 #define n_pcimio_boards ((sizeof(ni_boards)/sizeof(ni_boards[0])))
 
-static int pcimio_attach(struct comedi_device * dev, comedi_devconfig * it);
+static int pcimio_attach(struct comedi_device * dev, struct comedi_devconfig * it);
 static int pcimio_detach(struct comedi_device * dev);
 static struct comedi_driver driver_pcimio = {
 	driver_name: DRV_NAME,
@@ -1616,7 +1616,7 @@ static int pcimio_detach(struct comedi_device * dev)
 	return 0;
 }
 
-static int pcimio_attach(struct comedi_device * dev, comedi_devconfig * it)
+static int pcimio_attach(struct comedi_device * dev, struct comedi_devconfig * it)
 {
 	int ret;
 

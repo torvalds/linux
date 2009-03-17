@@ -127,7 +127,7 @@ typedef struct {
  * the board, and also about the kernel module that contains
  * the device code.
  */
-static int pcidio_attach(struct comedi_device * dev, comedi_devconfig * it);
+static int pcidio_attach(struct comedi_device * dev, struct comedi_devconfig * it);
 static int pcidio_detach(struct comedi_device * dev);
 static struct comedi_driver driver_cb_pcidio = {
       driver_name:"cb_pcidio",
@@ -166,7 +166,7 @@ static struct comedi_driver driver_cb_pcidio = {
  * in the driver structure, dev->board_ptr contains that
  * address.
  */
-static int pcidio_attach(struct comedi_device * dev, comedi_devconfig * it)
+static int pcidio_attach(struct comedi_device * dev, struct comedi_devconfig * it)
 {
 	struct pci_dev *pcidev = NULL;
 	int index;

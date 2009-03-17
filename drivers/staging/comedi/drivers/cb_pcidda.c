@@ -232,7 +232,7 @@ typedef struct {
  */
 #define devpriv ((cb_pcidda_private *)dev->private)
 
-static int cb_pcidda_attach(struct comedi_device * dev, comedi_devconfig * it);
+static int cb_pcidda_attach(struct comedi_device * dev, struct comedi_devconfig * it);
 static int cb_pcidda_detach(struct comedi_device * dev);
 //static int cb_pcidda_ai_rinsn(struct comedi_device *dev,struct comedi_subdevice *s,struct comedi_insn *insn,unsigned int *data);
 static int cb_pcidda_ao_winsn(struct comedi_device * dev, struct comedi_subdevice * s,
@@ -265,7 +265,7 @@ static struct comedi_driver driver_cb_pcidda = {
  * Attach is called by the Comedi core to configure the driver
  * for a particular board.
  */
-static int cb_pcidda_attach(struct comedi_device * dev, comedi_devconfig * it)
+static int cb_pcidda_attach(struct comedi_device * dev, struct comedi_devconfig * it)
 {
 	struct comedi_subdevice *s;
 	struct pci_dev *pcidev;

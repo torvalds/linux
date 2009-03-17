@@ -163,7 +163,7 @@ NI manuals:
 #define   INIT_A1_BITS	0x70	// put hardware conversion counter output in harmless state (a1 mode 0)
 #define COUNTER_B_BASE_REG	0x18
 
-static int labpc_attach(struct comedi_device * dev, comedi_devconfig * it);
+static int labpc_attach(struct comedi_device * dev, struct comedi_devconfig * it);
 static int labpc_cancel(struct comedi_device * dev, struct comedi_subdevice * s);
 static irqreturn_t labpc_interrupt(int irq, void *d PT_REGS_ARG);
 static int labpc_drain_fifo(struct comedi_device * dev);
@@ -643,7 +643,7 @@ int labpc_common_attach(struct comedi_device * dev, unsigned long iobase,
 	return 0;
 }
 
-static int labpc_attach(struct comedi_device * dev, comedi_devconfig * it)
+static int labpc_attach(struct comedi_device * dev, struct comedi_devconfig * it)
 {
 	unsigned long iobase = 0;
 	unsigned int irq = 0;

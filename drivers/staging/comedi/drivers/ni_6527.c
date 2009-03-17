@@ -75,7 +75,7 @@ Updated: Sat, 25 Jan 2003 13:24:40 -0800
 #define Rising_Edge_Detection_Enable(x)		(0x018+(x))
 #define Falling_Edge_Detection_Enable(x)	(0x020+(x))
 
-static int ni6527_attach(struct comedi_device * dev, comedi_devconfig * it);
+static int ni6527_attach(struct comedi_device * dev, struct comedi_devconfig * it);
 static int ni6527_detach(struct comedi_device * dev);
 static struct comedi_driver driver_ni6527 = {
       driver_name:"ni6527",
@@ -361,7 +361,7 @@ static int ni6527_intr_insn_config(struct comedi_device * dev, struct comedi_sub
 	return 2;
 }
 
-static int ni6527_attach(struct comedi_device * dev, comedi_devconfig * it)
+static int ni6527_attach(struct comedi_device * dev, struct comedi_devconfig * it)
 {
 	struct comedi_subdevice *s;
 	int ret;

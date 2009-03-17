@@ -394,7 +394,7 @@ typedef struct {
 		if(_i){b}				\
 	}while(0)
 
-static int dt282x_attach(struct comedi_device * dev, comedi_devconfig * it);
+static int dt282x_attach(struct comedi_device * dev, struct comedi_devconfig * it);
 static int dt282x_detach(struct comedi_device * dev);
 static struct comedi_driver driver_dt282x = {
       driver_name:"dt282x",
@@ -1240,7 +1240,7 @@ enum { opt_iobase = 0, opt_irq, opt_dma1, opt_dma2,	/* i/o base, irq, dma channe
    9	ao0 0=±10 V, 1=0-10 V, 2=±5 V, 3=0-5 V, 4=±2.5 V
    10	ao1 0=±10 V, 1=0-10 V, 2=±5 V, 3=0-5 V, 4=±2.5 V
  */
-static int dt282x_attach(struct comedi_device * dev, comedi_devconfig * it)
+static int dt282x_attach(struct comedi_device * dev, struct comedi_devconfig * it)
 {
 	int i, irq;
 	int ret;

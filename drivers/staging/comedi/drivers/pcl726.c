@@ -111,7 +111,7 @@ static const struct comedi_lrange *const rangelist_728[] = {
 	&range_4_20mA, &range_0_20mA
 };
 
-static int pcl726_attach(struct comedi_device * dev, comedi_devconfig * it);
+static int pcl726_attach(struct comedi_device * dev, struct comedi_devconfig * it);
 static int pcl726_detach(struct comedi_device * dev);
 
 typedef struct {
@@ -237,7 +237,7 @@ static int pcl726_do_insn_bits(struct comedi_device * dev, struct comedi_subdevi
 	return 2;
 }
 
-static int pcl726_attach(struct comedi_device * dev, comedi_devconfig * it)
+static int pcl726_attach(struct comedi_device * dev, struct comedi_devconfig * it)
 {
 	struct comedi_subdevice *s;
 	unsigned long iobase;

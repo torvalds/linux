@@ -258,7 +258,7 @@ typedef struct {
  * the board, and also about the kernel module that contains
  * the device code.
  */
-static int dmm32at_attach(struct comedi_device * dev, comedi_devconfig * it);
+static int dmm32at_attach(struct comedi_device * dev, struct comedi_devconfig * it);
 static int dmm32at_detach(struct comedi_device * dev);
 static struct comedi_driver driver_dmm32at = {
       driver_name:"dmm32at",
@@ -313,7 +313,7 @@ void dmm32at_setaitimer(struct comedi_device * dev, unsigned int nansec);
  * in the driver structure, dev->board_ptr contains that
  * address.
  */
-static int dmm32at_attach(struct comedi_device * dev, comedi_devconfig * it)
+static int dmm32at_attach(struct comedi_device * dev, struct comedi_devconfig * it)
 {
 	int ret;
 	struct comedi_subdevice *s;

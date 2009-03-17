@@ -80,7 +80,7 @@ typedef struct unioxx5_subd_priv {
 	unsigned char usp_prev_cn_val[3];	/* previous channel value */
 } unioxx5_subd_priv;
 
-static int unioxx5_attach(struct comedi_device * dev, comedi_devconfig * it);
+static int unioxx5_attach(struct comedi_device * dev, struct comedi_devconfig * it);
 static int unioxx5_subdev_write(struct comedi_device * dev, struct comedi_subdevice * subdev,
 	struct comedi_insn * insn, unsigned int * data);
 static int unioxx5_subdev_read(struct comedi_device * dev, struct comedi_subdevice * subdev,
@@ -111,7 +111,7 @@ static struct comedi_driver unioxx5_driver = {
 
 COMEDI_INITCLEANUP(unioxx5_driver);
 
-static int unioxx5_attach(struct comedi_device * dev, comedi_devconfig * it)
+static int unioxx5_attach(struct comedi_device * dev, struct comedi_devconfig * it)
 {
 	int iobase, i, n_subd;
 	int id, num, ba;

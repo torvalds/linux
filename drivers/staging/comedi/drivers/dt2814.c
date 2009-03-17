@@ -59,7 +59,7 @@ addition, the clock does not seem to be very accurate.
 #define DT2814_ENB 0x10
 #define DT2814_CHANMASK 0x0f
 
-static int dt2814_attach(struct comedi_device * dev, comedi_devconfig * it);
+static int dt2814_attach(struct comedi_device * dev, struct comedi_devconfig * it);
 static int dt2814_detach(struct comedi_device * dev);
 static struct comedi_driver driver_dt2814 = {
       driver_name:"dt2814",
@@ -243,7 +243,7 @@ static int dt2814_ai_cmd(struct comedi_device * dev, struct comedi_subdevice * s
 
 }
 
-static int dt2814_attach(struct comedi_device * dev, comedi_devconfig * it)
+static int dt2814_attach(struct comedi_device * dev, struct comedi_devconfig * it)
 {
 	int i, irq;
 	int ret;

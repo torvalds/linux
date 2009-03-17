@@ -123,7 +123,7 @@ static const char range_codes_analog[] = { 0x00, 0x20, 0x10, 0x30 };
 	Forward declarations
 ==============================================================================
 */
-static int icp_multi_attach(struct comedi_device *dev, comedi_devconfig *it);
+static int icp_multi_attach(struct comedi_device *dev, struct comedi_devconfig *it);
 static int icp_multi_detach(struct comedi_device *dev);
 
 /*
@@ -864,13 +864,13 @@ static int icp_multi_reset(struct comedi_device *dev)
 
 	Parameters:
 		struct comedi_device *dev	Pointer to current device structure
-		comedi_devconfig *it	Pointer to current device configuration
+		struct comedi_devconfig *it	Pointer to current device configuration
 
 	Returns:int	0 = success
 
 ==============================================================================
 */
-static int icp_multi_attach(struct comedi_device *dev, comedi_devconfig *it)
+static int icp_multi_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	struct comedi_subdevice *s;
 	int ret, subdev, n_subdevices;

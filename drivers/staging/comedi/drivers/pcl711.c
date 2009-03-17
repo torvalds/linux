@@ -154,7 +154,7 @@ static const boardtype boardtypes[] = {
 #define n_boardtypes (sizeof(boardtypes)/sizeof(boardtype))
 #define this_board ((const boardtype *)dev->board_ptr)
 
-static int pcl711_attach(struct comedi_device * dev, comedi_devconfig * it);
+static int pcl711_attach(struct comedi_device * dev, struct comedi_devconfig * it);
 static int pcl711_detach(struct comedi_device * dev);
 static struct comedi_driver driver_pcl711 = {
       driver_name:"pcl711",
@@ -508,7 +508,7 @@ static int pcl711_detach(struct comedi_device * dev)
 }
 
 /*  Initialization */
-static int pcl711_attach(struct comedi_device * dev, comedi_devconfig * it)
+static int pcl711_attach(struct comedi_device * dev, struct comedi_devconfig * it)
 {
 	int ret;
 	unsigned long iobase;

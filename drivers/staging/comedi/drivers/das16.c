@@ -698,7 +698,7 @@ static const struct das16_board_struct das16_boards[] = {
 
 #define n_das16_boards ((sizeof(das16_boards))/(sizeof(das16_board)))
 
-static int das16_attach(struct comedi_device * dev, comedi_devconfig * it);
+static int das16_attach(struct comedi_device * dev, struct comedi_devconfig * it);
 static int das16_detach(struct comedi_device * dev);
 static struct comedi_driver driver_das16 = {
       driver_name:"das16",
@@ -1304,7 +1304,7 @@ static void reg_dump(struct comedi_device * dev)
 		inb(dev->iobase + DAS1600_STATUS_B));
 }
 
-static int das16_probe(struct comedi_device * dev, comedi_devconfig * it)
+static int das16_probe(struct comedi_device * dev, struct comedi_devconfig * it)
 {
 	int status;
 	int diobits;
@@ -1366,7 +1366,7 @@ static int das1600_mode_detect(struct comedi_device * dev)
  *   3  Clock speed (in MHz)
  */
 
-static int das16_attach(struct comedi_device * dev, comedi_devconfig * it)
+static int das16_attach(struct comedi_device * dev, struct comedi_devconfig * it)
 {
 	struct comedi_subdevice *s;
 	int ret;

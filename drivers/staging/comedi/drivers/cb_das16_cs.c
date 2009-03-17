@@ -89,7 +89,7 @@ typedef struct {
 } das16cs_private;
 #define devpriv ((das16cs_private *)dev->private)
 
-static int das16cs_attach(struct comedi_device * dev, comedi_devconfig * it);
+static int das16cs_attach(struct comedi_device * dev, struct comedi_devconfig * it);
 static int das16cs_detach(struct comedi_device * dev);
 static struct comedi_driver driver_das16cs = {
       driver_name:"cb_das16_cs",
@@ -165,7 +165,7 @@ static const das16cs_board *das16cs_probe(struct comedi_device * dev,
 	return NULL;
 }
 
-static int das16cs_attach(struct comedi_device * dev, comedi_devconfig * it)
+static int das16cs_attach(struct comedi_device * dev, struct comedi_devconfig * it)
 {
 	struct pcmcia_device *link;
 	struct comedi_subdevice *s;

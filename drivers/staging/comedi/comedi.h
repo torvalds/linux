@@ -291,7 +291,7 @@ enum comedi_support_level {
 /* ioctls */
 
 #define CIO 'd'
-#define COMEDI_DEVCONFIG _IOW(CIO, 0, comedi_devconfig)
+#define COMEDI_DEVCONFIG _IOW(CIO, 0, struct comedi_devconfig)
 #define COMEDI_DEVINFO _IOR(CIO, 1, struct comedi_devinfo)
 #define COMEDI_SUBDINFO _IOR(CIO, 2, struct comedi_subdinfo)
 #define COMEDI_CHANINFO _IOR(CIO, 3, struct comedi_chaninfo)
@@ -310,7 +310,6 @@ enum comedi_support_level {
 
 /* structures */
 
-typedef struct comedi_devconfig_struct comedi_devconfig;
 typedef struct comedi_rangeinfo_struct comedi_rangeinfo;
 typedef struct comedi_krange_struct comedi_krange;
 typedef struct comedi_bufconfig_struct comedi_bufconfig;
@@ -415,7 +414,7 @@ struct comedi_devinfo {
 	int unused[30];
 };
 
-struct comedi_devconfig_struct {
+struct comedi_devconfig {
 	char board_name[COMEDI_NAMELEN];
 	int options[COMEDI_NDEVCONFOPTS];
 };

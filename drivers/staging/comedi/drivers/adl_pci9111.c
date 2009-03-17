@@ -265,7 +265,7 @@ TODO:
 // Function prototypes
 //
 
-static int pci9111_attach(struct comedi_device * dev, comedi_devconfig * it);
+static int pci9111_attach(struct comedi_device * dev, struct comedi_devconfig * it);
 static int pci9111_detach(struct comedi_device * dev);
 static void pci9111_ai_munge(struct comedi_device * dev, struct comedi_subdevice * s,
 	void *data, unsigned int num_bytes, unsigned int start_chan_index);
@@ -1246,7 +1246,7 @@ static int pci9111_reset(struct comedi_device * dev)
 //      - Declare device driver capability
 //
 
-static int pci9111_attach(struct comedi_device * dev, comedi_devconfig * it)
+static int pci9111_attach(struct comedi_device * dev, struct comedi_devconfig * it)
 {
 	struct comedi_subdevice *subdevice;
 	unsigned long io_base, io_range, lcr_io_base, lcr_io_range;

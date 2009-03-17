@@ -178,7 +178,7 @@ typedef struct {
 } atao_private;
 #define devpriv ((atao_private *)dev->private)
 
-static int atao_attach(struct comedi_device * dev, comedi_devconfig * it);
+static int atao_attach(struct comedi_device * dev, struct comedi_devconfig * it);
 static int atao_detach(struct comedi_device * dev);
 static struct comedi_driver driver_atao = {
       driver_name:"ni_at_ao",
@@ -207,7 +207,7 @@ static int atao_calib_insn_read(struct comedi_device * dev, struct comedi_subdev
 static int atao_calib_insn_write(struct comedi_device * dev, struct comedi_subdevice * s,
 	struct comedi_insn * insn, unsigned int * data);
 
-static int atao_attach(struct comedi_device * dev, comedi_devconfig * it)
+static int atao_attach(struct comedi_device * dev, struct comedi_devconfig * it)
 {
 	struct comedi_subdevice *s;
 	unsigned long iobase;

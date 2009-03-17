@@ -473,7 +473,7 @@ typedef struct {
  * the board, and also about the kernel module that contains
  * the device code.
  */
-static int dio200_attach(struct comedi_device * dev, comedi_devconfig * it);
+static int dio200_attach(struct comedi_device * dev, struct comedi_devconfig * it);
 static int dio200_detach(struct comedi_device * dev);
 static struct comedi_driver driver_amplc_dio200 = {
       driver_name:DIO200_DRIVER_NAME,
@@ -1262,7 +1262,7 @@ dio200_subdev_8254_cleanup(struct comedi_device * dev, struct comedi_subdevice *
  * in the driver structure, dev->board_ptr contains that
  * address.
  */
-static int dio200_attach(struct comedi_device * dev, comedi_devconfig * it)
+static int dio200_attach(struct comedi_device * dev, struct comedi_devconfig * it)
 {
 	struct comedi_subdevice *s;
 	unsigned long iobase = 0;

@@ -2703,7 +2703,7 @@ static void usbduxsub_disconnect(struct usb_interface *intf)
 }
 
 /* is called when comedi-config is called */
-static int usbdux_attach(struct comedi_device *dev, comedi_devconfig *it)
+static int usbdux_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	int ret;
 	int index;

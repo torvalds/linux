@@ -70,7 +70,7 @@ typedef struct {
 
 #define devpriv ((adl_pci8164_private *)dev->private)
 
-static int adl_pci8164_attach(struct comedi_device * dev, comedi_devconfig * it);
+static int adl_pci8164_attach(struct comedi_device * dev, struct comedi_devconfig * it);
 static int adl_pci8164_detach(struct comedi_device * dev);
 static struct comedi_driver driver_adl_pci8164 = {
       driver_name:"adl_pci8164",
@@ -103,7 +103,7 @@ static int adl_pci8164_insn_write_buf0(struct comedi_device * dev,
 static int adl_pci8164_insn_write_buf1(struct comedi_device * dev,
 	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data);
 
-static int adl_pci8164_attach(struct comedi_device * dev, comedi_devconfig * it)
+static int adl_pci8164_attach(struct comedi_device * dev, struct comedi_devconfig * it)
 {
 	struct pci_dev *pcidev;
 	struct comedi_subdevice *s;

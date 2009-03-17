@@ -680,7 +680,7 @@ struct rtdPrivate {
  * the board, and also about the kernel module that contains
  * the device code.
  */
-static int rtd_attach(struct comedi_device *dev, comedi_devconfig *it);
+static int rtd_attach(struct comedi_device *dev, struct comedi_devconfig *it);
 static int rtd_detach(struct comedi_device *dev);
 
 static struct comedi_driver rtd520Driver = {
@@ -715,7 +715,7 @@ static int rtd520_probe_fifo_depth(struct comedi_device *dev);
  * in the driver structure, dev->board_ptr contains that
  * address.
  */
-static int rtd_attach(struct comedi_device *dev, comedi_devconfig *it)
+static int rtd_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {				/* board name and options flags */
 	struct comedi_subdevice *s;
 	struct pci_dev *pcidev;

@@ -62,7 +62,7 @@ Copy/pasted/hacked from pcm724.c
 #define CR_A_MODE(a)	((a)<<5)
 #define CR_CW		0x80
 
-static int pcm3724_attach(struct comedi_device * dev, comedi_devconfig * it);
+static int pcm3724_attach(struct comedi_device * dev, struct comedi_devconfig * it);
 static int pcm3724_detach(struct comedi_device * dev);
 
 typedef struct {
@@ -251,7 +251,7 @@ static int subdev_3724_insn_config(struct comedi_device * dev, struct comedi_sub
 	return 1;
 }
 
-static int pcm3724_attach(struct comedi_device * dev, comedi_devconfig * it)
+static int pcm3724_attach(struct comedi_device * dev, struct comedi_devconfig * it)
 {
 	unsigned long iobase;
 	unsigned int iorange;

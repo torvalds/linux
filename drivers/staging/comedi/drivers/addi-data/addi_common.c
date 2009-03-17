@@ -2542,7 +2542,7 @@ COMEDI_PCI_INITCLEANUP(driver_addi, addi_apci_tbl);
 /*
 +----------------------------------------------------------------------------+
 | Function name     :static int i_ADDI_Attach(struct comedi_device *dev,            |
-|										comedi_devconfig *it)        |
+|										struct comedi_devconfig *it)        |
 |                                        									 |
 +----------------------------------------------------------------------------+
 | Task              :Detects the card.                                       |
@@ -2551,7 +2551,7 @@ COMEDI_PCI_INITCLEANUP(driver_addi, addi_apci_tbl);
 |			 allocation of data structures for the driver.	         |
 +----------------------------------------------------------------------------+
 | Input Parameters  :struct comedi_device *dev										 |
-|                    comedi_devconfig *it									 |
+|                    struct comedi_devconfig *it									 |
 |                                                 					         |
 +----------------------------------------------------------------------------+
 | Return Value      :  0            					                     |
@@ -2559,7 +2559,7 @@ COMEDI_PCI_INITCLEANUP(driver_addi, addi_apci_tbl);
 +----------------------------------------------------------------------------+
 */
 
-static int i_ADDI_Attach(struct comedi_device * dev, comedi_devconfig * it)
+static int i_ADDI_Attach(struct comedi_device * dev, struct comedi_devconfig * it)
 {
 	struct comedi_subdevice *s;
 	int ret, pages, i, n_subdevices;

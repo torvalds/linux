@@ -40,7 +40,7 @@ static const struct comedi_lrange range_fl512 = { 4, {
 	}
 };
 
-static int fl512_attach(struct comedi_device * dev, comedi_devconfig * it);
+static int fl512_attach(struct comedi_device * dev, struct comedi_devconfig * it);
 static int fl512_detach(struct comedi_device * dev);
 
 static struct comedi_driver driver_fl512 = {
@@ -124,7 +124,7 @@ static int fl512_ao_insn_readback(struct comedi_device * dev,
 /*
  * start attach
  */
-static int fl512_attach(struct comedi_device * dev, comedi_devconfig * it)
+static int fl512_attach(struct comedi_device * dev, struct comedi_devconfig * it)
 {
 	unsigned long iobase;
 	struct comedi_subdevice *s;	/* pointer to the subdevice:

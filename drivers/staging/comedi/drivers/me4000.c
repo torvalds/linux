@@ -118,7 +118,7 @@ static const me4000_board_t me4000_boards[] = {
 /*-----------------------------------------------------------------------------
   Comedi function prototypes
   ---------------------------------------------------------------------------*/
-static int me4000_attach(struct comedi_device *dev, comedi_devconfig *it);
+static int me4000_attach(struct comedi_device *dev, struct comedi_devconfig *it);
 static int me4000_detach(struct comedi_device *dev);
 static struct comedi_driver driver_me4000 = {
       driver_name:"me4000",
@@ -130,7 +130,7 @@ static struct comedi_driver driver_me4000 = {
 /*-----------------------------------------------------------------------------
   Meilhaus function prototypes
   ---------------------------------------------------------------------------*/
-static int me4000_probe(struct comedi_device *dev, comedi_devconfig *it);
+static int me4000_probe(struct comedi_device *dev, struct comedi_devconfig *it);
 static int get_registers(struct comedi_device *dev, struct pci_dev *pci_dev_p);
 static int init_board_info(struct comedi_device *dev, struct pci_dev *pci_dev_p);
 static int init_ao_context(struct comedi_device *dev);
@@ -247,7 +247,7 @@ static const struct comedi_lrange me4000_ao_range = {
 		}
 };
 
-static int me4000_attach(struct comedi_device *dev, comedi_devconfig *it)
+static int me4000_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	struct comedi_subdevice *s;
 	int result;
@@ -369,7 +369,7 @@ static int me4000_attach(struct comedi_device *dev, comedi_devconfig *it)
 	return 0;
 }
 
-static int me4000_probe(struct comedi_device *dev, comedi_devconfig *it)
+static int me4000_probe(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	struct pci_dev *pci_device;
 	int result, i;

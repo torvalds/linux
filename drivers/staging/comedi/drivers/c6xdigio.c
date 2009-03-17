@@ -97,7 +97,7 @@ union encvaluetype {
 
 #define C6XDIGIO_TIME_OUT 20
 
-static int c6xdigio_attach(struct comedi_device * dev, comedi_devconfig * it);
+static int c6xdigio_attach(struct comedi_device * dev, struct comedi_devconfig * it);
 static int c6xdigio_detach(struct comedi_device * dev);
 struct comedi_driver driver_c6xdigio = {
       driver_name:"c6xdigio",
@@ -428,7 +428,7 @@ static struct pnp_driver c6xdigio_pnp_driver = {
 	.id_table = c6xdigio_pnp_tbl,
 };
 
-static int c6xdigio_attach(struct comedi_device * dev, comedi_devconfig * it)
+static int c6xdigio_attach(struct comedi_device * dev, struct comedi_devconfig * it)
 {
 	int result = 0;
 	unsigned long iobase;

@@ -82,7 +82,7 @@ Devices: [Quanser Consulting] MultiQ-3 (multiq3)
 
 #define MULTIQ3_TIMEOUT 30
 
-static int multiq3_attach(struct comedi_device * dev, comedi_devconfig * it);
+static int multiq3_attach(struct comedi_device * dev, struct comedi_devconfig * it);
 static int multiq3_detach(struct comedi_device * dev);
 static struct comedi_driver driver_multiq3 = {
       driver_name:"multiq3",
@@ -235,7 +235,7 @@ static void encoder_reset(struct comedi_device * dev)
    options[2] - number of encoder chips installed
  */
 
-static int multiq3_attach(struct comedi_device * dev, comedi_devconfig * it)
+static int multiq3_attach(struct comedi_device * dev, struct comedi_devconfig * it)
 {
 	int result = 0;
 	unsigned long iobase;

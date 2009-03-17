@@ -47,7 +47,7 @@ Configuration options:
 #define DT2817_CR 0
 #define DT2817_DATA 1
 
-static int dt2817_attach(struct comedi_device * dev, comedi_devconfig * it);
+static int dt2817_attach(struct comedi_device * dev, struct comedi_devconfig * it);
 static int dt2817_detach(struct comedi_device * dev);
 static struct comedi_driver driver_dt2817 = {
       driver_name:"dt2817",
@@ -131,7 +131,7 @@ static int dt2817_dio_insn_bits(struct comedi_device * dev, struct comedi_subdev
 	return 2;
 }
 
-static int dt2817_attach(struct comedi_device * dev, comedi_devconfig * it)
+static int dt2817_attach(struct comedi_device * dev, struct comedi_devconfig * it)
 {
 	int ret;
 	struct comedi_subdevice *s;

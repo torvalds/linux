@@ -215,7 +215,7 @@ typedef struct {
  * the board, and also about the kernel module that contains
  * the device code.
  */
-static int s526_attach(struct comedi_device * dev, comedi_devconfig * it);
+static int s526_attach(struct comedi_device * dev, struct comedi_devconfig * it);
 static int s526_detach(struct comedi_device * dev);
 static struct comedi_driver driver_s526 = {
       driver_name:"s526",
@@ -270,7 +270,7 @@ static int s526_dio_insn_config(struct comedi_device * dev, struct comedi_subdev
  * in the driver structure, dev->board_ptr contains that
  * address.
  */
-static int s526_attach(struct comedi_device * dev, comedi_devconfig * it)
+static int s526_attach(struct comedi_device * dev, struct comedi_devconfig * it)
 {
 	struct comedi_subdevice *s;
 	int iobase;

@@ -222,7 +222,7 @@ typedef struct {
  * the board, and also about the kernel module that contains
  * the device code.
  */
-static int pcmuio_attach(struct comedi_device * dev, comedi_devconfig * it);
+static int pcmuio_attach(struct comedi_device * dev, struct comedi_devconfig * it);
 static int pcmuio_detach(struct comedi_device * dev);
 
 static struct comedi_driver driver = {
@@ -279,7 +279,7 @@ static void unlock_port(struct comedi_device * dev, int asic, int port);
  * in the driver structure, dev->board_ptr contains that
  * address.
  */
-static int pcmuio_attach(struct comedi_device * dev, comedi_devconfig * it)
+static int pcmuio_attach(struct comedi_device * dev, struct comedi_devconfig * it)
 {
 	struct comedi_subdevice *s;
 	int sdev_no, chans_left, n_subdevs, port, asic, thisasic_chanct = 0;

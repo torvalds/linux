@@ -287,7 +287,7 @@ enum FPGA_Control_Bits {
 #define IntEn (TransferReady|CountExpired|Waited|PrimaryTC|SecondaryTC)
 #endif
 
-static int nidio_attach(struct comedi_device * dev, comedi_devconfig * it);
+static int nidio_attach(struct comedi_device * dev, struct comedi_devconfig * it);
 static int nidio_detach(struct comedi_device * dev);
 static int ni_pcidio_cancel(struct comedi_device * dev, struct comedi_subdevice * s);
 
@@ -1149,7 +1149,7 @@ static int pci_6534_upload_firmware(struct comedi_device * dev, int options[])
 	return 0;
 }
 
-static int nidio_attach(struct comedi_device * dev, comedi_devconfig * it)
+static int nidio_attach(struct comedi_device * dev, struct comedi_devconfig * it)
 {
 	struct comedi_subdevice *s;
 	int i;

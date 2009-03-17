@@ -118,7 +118,7 @@ static DEFINE_PCI_DEVICE_TABLE(s626_pci_table) = {
 
 MODULE_DEVICE_TABLE(pci, s626_pci_table);
 
-static int s626_attach(struct comedi_device *dev, comedi_devconfig *it);
+static int s626_attach(struct comedi_device *dev, struct comedi_devconfig *it);
 static int s626_detach(struct comedi_device *dev);
 
 static struct comedi_driver driver_s626 = {
@@ -485,7 +485,7 @@ static const struct comedi_lrange s626_range_table = { 2, {
 	}
 };
 
-static int s626_attach(struct comedi_device *dev, comedi_devconfig *it)
+static int s626_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 /*   uint8_t	PollList; */
 /*   uint16_t	AdcData; */

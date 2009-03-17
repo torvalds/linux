@@ -166,7 +166,7 @@ static const das16m1_board das16m1_boards[] = {
 
 #define das16m1_num_boards ((sizeof(das16m1_boards)) / (sizeof(das16m1_boards[0])))
 
-static int das16m1_attach(struct comedi_device * dev, comedi_devconfig * it);
+static int das16m1_attach(struct comedi_device * dev, struct comedi_devconfig * it);
 static int das16m1_detach(struct comedi_device * dev);
 static struct comedi_driver driver_das16m1 = {
       driver_name:"das16m1",
@@ -635,7 +635,7 @@ static int das16m1_irq_bits(unsigned int irq)
  *   1  IRQ
  */
 
-static int das16m1_attach(struct comedi_device * dev, comedi_devconfig * it)
+static int das16m1_attach(struct comedi_device * dev, struct comedi_devconfig * it)
 {
 	struct comedi_subdevice *s;
 	int ret;

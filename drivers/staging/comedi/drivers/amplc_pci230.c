@@ -601,7 +601,7 @@ static const unsigned char pci230_ao_bipolar[2] = { 0, 1 };
  * the board, and also about the kernel module that contains
  * the device code.
  */
-static int pci230_attach(struct comedi_device * dev, comedi_devconfig * it);
+static int pci230_attach(struct comedi_device * dev, struct comedi_devconfig * it);
 static int pci230_detach(struct comedi_device * dev);
 static struct comedi_driver driver_amplc_pci230 = {
       driver_name:"amplc_pci230",
@@ -702,7 +702,7 @@ static inline void pci230_ao_write_fifo(struct comedi_device * dev, short datum,
  * in the driver structure, dev->board_ptr contains that
  * address.
  */
-static int pci230_attach(struct comedi_device * dev, comedi_devconfig * it)
+static int pci230_attach(struct comedi_device * dev, struct comedi_devconfig * it)
 {
 	struct comedi_subdevice *s;
 	unsigned long iobase1, iobase2;

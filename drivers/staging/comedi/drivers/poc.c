@@ -41,7 +41,7 @@ Configuration options:
 
 #include <linux/ioport.h>
 
-static int poc_attach(struct comedi_device * dev, comedi_devconfig * it);
+static int poc_attach(struct comedi_device * dev, struct comedi_devconfig * it);
 static int poc_detach(struct comedi_device * dev);
 static int readback_insn(struct comedi_device * dev, struct comedi_subdevice * s,
 	struct comedi_insn * insn, unsigned int * data);
@@ -113,7 +113,7 @@ static struct comedi_driver driver_poc = {
       offset:sizeof(boards[0]),
 };
 
-static int poc_attach(struct comedi_device * dev, comedi_devconfig * it)
+static int poc_attach(struct comedi_device * dev, struct comedi_devconfig * it)
 {
 	struct comedi_subdevice *s;
 	unsigned long iobase;

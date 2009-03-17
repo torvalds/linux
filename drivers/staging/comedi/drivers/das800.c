@@ -242,7 +242,7 @@ typedef struct {
 
 #define devpriv ((das800_private *)dev->private)
 
-static int das800_attach(struct comedi_device * dev, comedi_devconfig * it);
+static int das800_attach(struct comedi_device * dev, struct comedi_devconfig * it);
 static int das800_detach(struct comedi_device * dev);
 static int das800_cancel(struct comedi_device * dev, struct comedi_subdevice * s);
 
@@ -441,7 +441,7 @@ static irqreturn_t das800_interrupt(int irq, void *d PT_REGS_ARG)
 	return IRQ_HANDLED;
 }
 
-static int das800_attach(struct comedi_device * dev, comedi_devconfig * it)
+static int das800_attach(struct comedi_device * dev, struct comedi_devconfig * it)
 {
 	struct comedi_subdevice *s;
 	unsigned long iobase = it->options[0];

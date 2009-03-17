@@ -183,7 +183,7 @@ typedef enum {
 
 #define OMBCMD_RETRY	0x03	/* 3 times try request before error */
 
-static int pci_dio_attach(struct comedi_device * dev, comedi_devconfig * it);
+static int pci_dio_attach(struct comedi_device * dev, struct comedi_devconfig * it);
 static int pci_dio_detach(struct comedi_device * dev);
 
 typedef struct {
@@ -750,7 +750,7 @@ static int pci_dio_reset(struct comedi_device * dev)
 /*
 ==============================================================================
 */
-static int pci1760_attach(struct comedi_device * dev, comedi_devconfig * it)
+static int pci1760_attach(struct comedi_device * dev, struct comedi_devconfig * it)
 {
 	struct comedi_subdevice *s;
 	int subdev = 0;
@@ -857,7 +857,7 @@ static int pci_dio_add_do(struct comedi_device * dev, struct comedi_subdevice * 
 /*
 ==============================================================================
 */
-static int CheckAndAllocCard(struct comedi_device * dev, comedi_devconfig * it,
+static int CheckAndAllocCard(struct comedi_device * dev, struct comedi_devconfig * it,
 	struct pci_dev *pcidev)
 {
 	pci_dio_private *pr, *prev;
@@ -883,7 +883,7 @@ static int CheckAndAllocCard(struct comedi_device * dev, comedi_devconfig * it,
 /*
 ==============================================================================
 */
-static int pci_dio_attach(struct comedi_device * dev, comedi_devconfig * it)
+static int pci_dio_attach(struct comedi_device * dev, struct comedi_devconfig * it)
 {
 	struct comedi_subdevice *s;
 	int ret, subdev, n_subdevices, i, j;

@@ -143,7 +143,7 @@ MODULE_DEVICE_TABLE(pci, pci1723_pci_table);
  * the board, and also about the kernel module that contains
  * the device code.
  */
-static int pci1723_attach(struct comedi_device * dev, comedi_devconfig * it);
+static int pci1723_attach(struct comedi_device * dev, struct comedi_devconfig * it);
 static int pci1723_detach(struct comedi_device * dev);
 
 #define n_boardtypes (sizeof(boardtypes)/sizeof(boardtype))
@@ -294,7 +294,7 @@ static int pci1723_dio_insn_bits(struct comedi_device * dev, struct comedi_subde
  * Attach is called by the Comedi core to configure the driver
  * for a pci1723 board.
  */
-static int pci1723_attach(struct comedi_device * dev, comedi_devconfig * it)
+static int pci1723_attach(struct comedi_device * dev, struct comedi_devconfig * it)
 {
 	struct comedi_subdevice *s;
 	int ret, subdev, n_subdevices;

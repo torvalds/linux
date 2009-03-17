@@ -105,7 +105,7 @@ struct subdev_8255_struct {
 #define CALLBACK_FUNC	(((struct subdev_8255_struct *)s->private)->cb_func)
 #define subdevpriv	((struct subdev_8255_struct *)s->private)
 
-static int dev_8255_attach(struct comedi_device *dev, comedi_devconfig * it);
+static int dev_8255_attach(struct comedi_device *dev, struct comedi_devconfig * it);
 static int dev_8255_detach(struct comedi_device *dev);
 static struct comedi_driver driver_8255 = {
       driver_name:"8255",
@@ -374,7 +374,7 @@ void subdev_8255_cleanup(struct comedi_device *dev, struct comedi_subdevice * s)
 
  */
 
-static int dev_8255_attach(struct comedi_device *dev, comedi_devconfig * it)
+static int dev_8255_attach(struct comedi_device *dev, struct comedi_devconfig * it)
 {
 	int ret;
 	unsigned long iobase;

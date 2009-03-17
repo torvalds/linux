@@ -144,7 +144,7 @@ from http://www.comedi.org
 #define ME_COUNTER_VALUE_B		0x0022	/* R | - */
 
 /* Function prototypes */
-static int me_attach(struct comedi_device *dev, comedi_devconfig *it);
+static int me_attach(struct comedi_device *dev, struct comedi_devconfig *it);
 static int me_detach(struct comedi_device *dev);
 
 static const struct comedi_lrange me2000_ai_range = {
@@ -632,7 +632,7 @@ static int me_reset(struct comedi_device *dev)
  * - Register PCI device
  * - Declare device driver capability
  */
-static int me_attach(struct comedi_device *dev, comedi_devconfig *it)
+static int me_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	struct pci_dev *pci_device;
 	struct comedi_subdevice *subdevice;

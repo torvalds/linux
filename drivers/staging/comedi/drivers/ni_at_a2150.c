@@ -167,7 +167,7 @@ typedef struct {
 
 #define devpriv ((a2150_private *)dev->private)
 
-static int a2150_attach(struct comedi_device * dev, comedi_devconfig * it);
+static int a2150_attach(struct comedi_device * dev, struct comedi_devconfig * it);
 static int a2150_detach(struct comedi_device * dev);
 static int a2150_cancel(struct comedi_device * dev, struct comedi_subdevice * s);
 
@@ -322,7 +322,7 @@ static int a2150_probe(struct comedi_device * dev)
 	return ID_BITS(status);
 }
 
-static int a2150_attach(struct comedi_device * dev, comedi_devconfig * it)
+static int a2150_attach(struct comedi_device * dev, struct comedi_devconfig * it)
 {
 	struct comedi_subdevice *s;
 	unsigned long iobase = it->options[0];

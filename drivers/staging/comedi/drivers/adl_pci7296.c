@@ -63,7 +63,7 @@ typedef struct {
 
 #define devpriv ((adl_pci7296_private *)dev->private)
 
-static int adl_pci7296_attach(struct comedi_device * dev, comedi_devconfig * it);
+static int adl_pci7296_attach(struct comedi_device * dev, struct comedi_devconfig * it);
 static int adl_pci7296_detach(struct comedi_device * dev);
 static struct comedi_driver driver_adl_pci7296 = {
       driver_name:"adl_pci7296",
@@ -72,7 +72,7 @@ static struct comedi_driver driver_adl_pci7296 = {
       detach:adl_pci7296_detach,
 };
 
-static int adl_pci7296_attach(struct comedi_device * dev, comedi_devconfig * it)
+static int adl_pci7296_attach(struct comedi_device * dev, struct comedi_devconfig * it)
 {
 	struct pci_dev *pcidev;
 	struct comedi_subdevice *s;

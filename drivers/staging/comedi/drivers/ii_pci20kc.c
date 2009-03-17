@@ -156,7 +156,7 @@ typedef struct {
 #define devpriv ((pci20xxx_private *)dev->private)
 #define CHAN (CR_CHAN(it->chanlist[0]))
 
-static int pci20xxx_attach(struct comedi_device * dev, comedi_devconfig * it);
+static int pci20xxx_attach(struct comedi_device * dev, struct comedi_devconfig * it);
 static int pci20xxx_detach(struct comedi_device * dev);
 
 static struct comedi_driver driver_pci20xxx = {
@@ -199,7 +199,7 @@ static int pci20xxx_dio_init(struct comedi_device * dev, struct comedi_subdevice
 		1 == unipolar 10V  (0V -- +10V)
 		2 == bipolar 5V  (-5V -- +5V)
 */
-static int pci20xxx_attach(struct comedi_device * dev, comedi_devconfig * it)
+static int pci20xxx_attach(struct comedi_device * dev, struct comedi_devconfig * it)
 {
 	unsigned char i;
 	int ret;

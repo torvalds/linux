@@ -151,7 +151,7 @@ typedef struct {
  * the board, and also about the kernel module that contains
  * the device code.
  */
-static int skel_attach(struct comedi_device * dev, comedi_devconfig * it);
+static int skel_attach(struct comedi_device * dev, struct comedi_devconfig * it);
 static int skel_detach(struct comedi_device * dev);
 static struct comedi_driver driver_skel = {
       driver_name:"dummy",
@@ -201,7 +201,7 @@ static int skel_ns_to_timer(unsigned int *ns, int round);
  * in the driver structure, dev->board_ptr contains that
  * address.
  */
-static int skel_attach(struct comedi_device * dev, comedi_devconfig * it)
+static int skel_attach(struct comedi_device * dev, struct comedi_devconfig * it)
 {
 	struct comedi_subdevice *s;
 

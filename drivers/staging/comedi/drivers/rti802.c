@@ -47,7 +47,7 @@ Configuration Options:
 #define RTI802_DATALOW 1
 #define RTI802_DATAHIGH 2
 
-static int rti802_attach(struct comedi_device * dev, comedi_devconfig * it);
+static int rti802_attach(struct comedi_device * dev, struct comedi_devconfig * it);
 static int rti802_detach(struct comedi_device * dev);
 static struct comedi_driver driver_rti802 = {
       driver_name:"rti802",
@@ -96,7 +96,7 @@ static int rti802_ao_insn_write(struct comedi_device * dev, struct comedi_subdev
 	return i;
 }
 
-static int rti802_attach(struct comedi_device * dev, comedi_devconfig * it)
+static int rti802_attach(struct comedi_device * dev, struct comedi_devconfig * it)
 {
 	struct comedi_subdevice *s;
 	int i;

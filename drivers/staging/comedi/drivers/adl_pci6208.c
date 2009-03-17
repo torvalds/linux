@@ -106,7 +106,7 @@ typedef struct {
 
 #define devpriv ((pci6208_private *)dev->private)
 
-static int pci6208_attach(struct comedi_device * dev, comedi_devconfig * it);
+static int pci6208_attach(struct comedi_device * dev, struct comedi_devconfig * it);
 static int pci6208_detach(struct comedi_device * dev);
 
 #define pci6208_board_nbr \
@@ -142,7 +142,7 @@ static int pci6208_ao_rinsn(struct comedi_device * dev, struct comedi_subdevice 
  * in the driver structure, dev->board_ptr contains that
  * address.
  */
-static int pci6208_attach(struct comedi_device * dev, comedi_devconfig * it)
+static int pci6208_attach(struct comedi_device * dev, struct comedi_devconfig * it)
 {
 	struct comedi_subdevice *s;
 	int retval;

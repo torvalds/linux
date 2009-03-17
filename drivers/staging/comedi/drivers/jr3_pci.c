@@ -103,7 +103,7 @@ static int comedi_load_firmware(struct comedi_device * dev,
 #define PCI_DEVICE_ID_JR3_3_CHANNEL 0x3113
 #define PCI_DEVICE_ID_JR3_4_CHANNEL 0x3114
 
-static int jr3_pci_attach(struct comedi_device * dev, comedi_devconfig * it);
+static int jr3_pci_attach(struct comedi_device * dev, struct comedi_devconfig * it);
 static int jr3_pci_detach(struct comedi_device * dev);
 
 static struct comedi_driver driver_jr3_pci = {
@@ -770,7 +770,7 @@ static void jr3_pci_poll_dev(unsigned long data)
 	add_timer(&devpriv->timer);
 }
 
-static int jr3_pci_attach(struct comedi_device * dev, comedi_devconfig * it)
+static int jr3_pci_attach(struct comedi_device * dev, struct comedi_devconfig * it)
 {
 	int result = 0;
 	struct pci_dev *card = NULL;

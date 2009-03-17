@@ -123,7 +123,7 @@ static const atmio16_board_t atmio16_boards[] = {
 #define boardtype ((const atmio16_board_t *)dev->board_ptr)
 
 /* function prototypes */
-static int atmio16d_attach(struct comedi_device * dev, comedi_devconfig * it);
+static int atmio16d_attach(struct comedi_device * dev, struct comedi_devconfig * it);
 static int atmio16d_detach(struct comedi_device * dev);
 static irqreturn_t atmio16d_interrupt(int irq, void *d PT_REGS_ARG);
 static int atmio16d_ai_cmdtest(struct comedi_device * dev, struct comedi_subdevice * s,
@@ -704,7 +704,7 @@ static int atmio16d_dio_insn_config(struct comedi_device * dev, struct comedi_su
    options[12] - dac1 coding
  */
 
-static int atmio16d_attach(struct comedi_device * dev, comedi_devconfig * it)
+static int atmio16d_attach(struct comedi_device * dev, struct comedi_devconfig * it)
 {
 	unsigned int irq;
 	unsigned long iobase;

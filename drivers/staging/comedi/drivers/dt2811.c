@@ -212,7 +212,7 @@ static const boardtype boardtypes[] = {
 
 #define this_board ((const boardtype *)dev->board_ptr)
 
-static int dt2811_attach(struct comedi_device * dev, comedi_devconfig * it);
+static int dt2811_attach(struct comedi_device * dev, struct comedi_devconfig * it);
 static int dt2811_detach(struct comedi_device * dev);
 static struct comedi_driver driver_dt2811 = {
       driver_name:"dt2811",
@@ -308,7 +308,7 @@ static irqreturn_t dt2811_interrupt(int irq, void *d PT_REGS_ARG)
                  2 == unipolar 5V  (0V -- +5V)
 */
 
-static int dt2811_attach(struct comedi_device * dev, comedi_devconfig * it)
+static int dt2811_attach(struct comedi_device * dev, struct comedi_devconfig * it)
 {
 	//int i, irq;
 	//unsigned long irqs;

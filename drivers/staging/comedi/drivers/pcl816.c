@@ -146,7 +146,7 @@ static const boardtype boardtypes[] = {
 #define devpriv ((pcl816_private *)dev->private)
 #define this_board ((const boardtype *)dev->board_ptr)
 
-static int pcl816_attach(struct comedi_device * dev, comedi_devconfig * it);
+static int pcl816_attach(struct comedi_device * dev, struct comedi_devconfig * it);
 static int pcl816_detach(struct comedi_device * dev);
 
 #ifdef unused
@@ -1011,7 +1011,7 @@ static void free_resources(struct comedi_device * dev)
    Initialization
 
 */
-static int pcl816_attach(struct comedi_device * dev, comedi_devconfig * it)
+static int pcl816_attach(struct comedi_device * dev, struct comedi_devconfig * it)
 {
 	int ret;
 	unsigned long iobase;

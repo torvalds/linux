@@ -827,7 +827,7 @@ static int das08_counter_config(struct comedi_device * dev, struct comedi_subdev
 	return 2;
 }
 
-static int das08_attach(struct comedi_device * dev, comedi_devconfig * it);
+static int das08_attach(struct comedi_device * dev, struct comedi_devconfig * it);
 
 static struct comedi_driver driver_das08 = {
       driver_name: DRV_NAME,
@@ -952,7 +952,7 @@ int das08_common_attach(struct comedi_device * dev, unsigned long iobase)
 	return 0;
 }
 
-static int das08_attach(struct comedi_device * dev, comedi_devconfig * it)
+static int das08_attach(struct comedi_device * dev, struct comedi_devconfig * it)
 {
 	int ret;
 	unsigned long iobase;

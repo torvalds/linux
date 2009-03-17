@@ -296,7 +296,7 @@ typedef struct daqboard2000_hw {
 #define DAQBOARD2000_PosRefDacSelect             0x0100
 #define DAQBOARD2000_NegRefDacSelect             0x0000
 
-static int daqboard2000_attach(struct comedi_device * dev, comedi_devconfig * it);
+static int daqboard2000_attach(struct comedi_device * dev, struct comedi_devconfig * it);
 static int daqboard2000_detach(struct comedi_device * dev);
 
 static struct comedi_driver driver_daqboard2000 = {
@@ -717,7 +717,7 @@ static int daqboard2000_8255_cb(int dir, int port, int data,
 	return result;
 }
 
-static int daqboard2000_attach(struct comedi_device * dev, comedi_devconfig * it)
+static int daqboard2000_attach(struct comedi_device * dev, struct comedi_devconfig * it)
 {
 	int result = 0;
 	struct comedi_subdevice *s;

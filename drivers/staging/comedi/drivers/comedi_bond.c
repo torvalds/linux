@@ -176,10 +176,10 @@ struct Private {
  * the board, and also about the kernel module that contains
  * the device code.
  */
-static int bonding_attach(struct comedi_device *dev, comedi_devconfig *it);
+static int bonding_attach(struct comedi_device *dev, struct comedi_devconfig *it);
 static int bonding_detach(struct comedi_device *dev);
 /** Build Private array of all devices.. */
-static int doDevConfig(struct comedi_device *dev, comedi_devconfig *it);
+static int doDevConfig(struct comedi_device *dev, struct comedi_devconfig *it);
 static void doDevUnconfig(struct comedi_device *dev);
 /* Ugly implementation of realloc that always copies memory around -- I'm lazy,
  * what can I say?  I like to do wasteful memcopies.. :) */
@@ -224,7 +224,7 @@ static int bonding_dio_insn_config(struct comedi_device *dev, struct comedi_subd
  * in the driver structure, dev->board_ptr contains that
  * address.
  */
-static int bonding_attach(struct comedi_device *dev, comedi_devconfig *it)
+static int bonding_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	struct comedi_subdevice *s;
 
@@ -394,7 +394,7 @@ static void *Realloc(const void *oldmem, size_t newlen, size_t oldlen)
 	return newmem;
 }
 
-static int doDevConfig(struct comedi_device *dev, comedi_devconfig *it)
+static int doDevConfig(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	int i;
 	void *devs_opened[COMEDI_NUM_BOARD_MINORS];

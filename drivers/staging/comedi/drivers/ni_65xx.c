@@ -102,7 +102,7 @@ static inline unsigned Filter_Enable(unsigned port)
 #define OverflowIntEnable		0x02
 #define EdgeIntEnable			0x01
 
-static int ni_65xx_attach(struct comedi_device * dev, comedi_devconfig * it);
+static int ni_65xx_attach(struct comedi_device * dev, struct comedi_devconfig * it);
 static int ni_65xx_detach(struct comedi_device * dev);
 static struct comedi_driver driver_ni_65xx = {
       driver_name:"ni_65xx",
@@ -615,7 +615,7 @@ static int ni_65xx_intr_insn_config(struct comedi_device * dev, struct comedi_su
 	return 2;
 }
 
-static int ni_65xx_attach(struct comedi_device * dev, comedi_devconfig * it)
+static int ni_65xx_attach(struct comedi_device * dev, struct comedi_devconfig * it)
 {
 	struct comedi_subdevice *s;
 	unsigned i;

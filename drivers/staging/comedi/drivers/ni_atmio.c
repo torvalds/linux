@@ -338,7 +338,7 @@ static struct pnp_device_id device_ids[] = {
 
 MODULE_DEVICE_TABLE(pnp, device_ids);
 
-static int ni_atmio_attach(struct comedi_device * dev, comedi_devconfig * it);
+static int ni_atmio_attach(struct comedi_device * dev, struct comedi_devconfig * it);
 static int ni_atmio_detach(struct comedi_device * dev);
 static struct comedi_driver driver_atmio = {
       driver_name:"ni_atmio",
@@ -404,7 +404,7 @@ static int ni_isapnp_find_board(struct pnp_dev **dev)
 	return 0;
 }
 
-static int ni_atmio_attach(struct comedi_device * dev, comedi_devconfig * it)
+static int ni_atmio_attach(struct comedi_device * dev, struct comedi_devconfig * it)
 {
 	struct pnp_dev *isapnp_dev;
 	int ret;

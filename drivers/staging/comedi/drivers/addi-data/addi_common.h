@@ -456,7 +456,7 @@ typedef struct {
 static unsigned short pci_list_builded;	/* set to 1 when list of card is known */
 
 /* Function declarations */
-static int i_ADDI_Attach(struct comedi_device *dev, comedi_devconfig *it);
+static int i_ADDI_Attach(struct comedi_device *dev, struct comedi_devconfig *it);
 static int i_ADDI_Detach(struct comedi_device *dev);
 static int i_ADDI_Reset(struct comedi_device *dev);
 

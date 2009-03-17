@@ -108,7 +108,7 @@ typedef struct {
 #define devpriv ((ni_670x_private *)dev->private)
 #define n_ni_670x_boards (sizeof(ni_670x_boards)/sizeof(ni_670x_boards[0]))
 
-static int ni_670x_attach(struct comedi_device * dev, comedi_devconfig * it);
+static int ni_670x_attach(struct comedi_device * dev, struct comedi_devconfig * it);
 static int ni_670x_detach(struct comedi_device * dev);
 
 static struct comedi_driver driver_ni_670x = {
@@ -133,7 +133,7 @@ static int ni_670x_dio_insn_bits(struct comedi_device * dev, struct comedi_subde
 static int ni_670x_dio_insn_config(struct comedi_device * dev, struct comedi_subdevice * s,
 	struct comedi_insn * insn, unsigned int * data);
 
-static int ni_670x_attach(struct comedi_device * dev, comedi_devconfig * it)
+static int ni_670x_attach(struct comedi_device * dev, struct comedi_devconfig * it)
 {
 	struct comedi_subdevice *s;
 	int ret;

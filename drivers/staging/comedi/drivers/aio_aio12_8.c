@@ -161,7 +161,7 @@ static const struct comedi_lrange range_aio_aio12_8 = {
 		}
 };
 
-static int aio_aio12_8_attach(struct comedi_device * dev, comedi_devconfig * it)
+static int aio_aio12_8_attach(struct comedi_device * dev, struct comedi_devconfig * it)
 {
 	int iobase;
 	struct comedi_subdevice *s;

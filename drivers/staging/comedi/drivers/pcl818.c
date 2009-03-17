@@ -244,7 +244,7 @@ static const struct comedi_lrange range718_bipolar0_5 = { 1, {BIP_RANGE(0.5),} }
 static const struct comedi_lrange range718_unipolar2 = { 1, {UNI_RANGE(2),} };
 static const struct comedi_lrange range718_unipolar1 = { 1, {BIP_RANGE(1),} };
 
-static int pcl818_attach(struct comedi_device * dev, comedi_devconfig * it);
+static int pcl818_attach(struct comedi_device * dev, struct comedi_devconfig * it);
 static int pcl818_detach(struct comedi_device * dev);
 
 #ifdef unused
@@ -1675,7 +1675,7 @@ static void free_resources(struct comedi_device * dev)
    Initialization
 
 */
-static int pcl818_attach(struct comedi_device * dev, comedi_devconfig * it)
+static int pcl818_attach(struct comedi_device * dev, struct comedi_devconfig * it)
 {
 	int ret;
 	unsigned long iobase;

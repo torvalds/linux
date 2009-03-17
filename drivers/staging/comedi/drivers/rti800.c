@@ -129,7 +129,7 @@ static const boardtype boardtypes[] = {
 
 #define this_board ((const boardtype *)dev->board_ptr)
 
-static int rti800_attach(struct comedi_device * dev, comedi_devconfig * it);
+static int rti800_attach(struct comedi_device * dev, struct comedi_devconfig * it);
 static int rti800_detach(struct comedi_device * dev);
 static struct comedi_driver driver_rti800 = {
       driver_name:"rti800",
@@ -307,7 +307,7 @@ static int rti800_do_insn_bits(struct comedi_device * dev, struct comedi_subdevi
    options[8] - dac1 coding
  */
 
-static int rti800_attach(struct comedi_device * dev, comedi_devconfig * it)
+static int rti800_attach(struct comedi_device * dev, struct comedi_devconfig * it)
 {
 	unsigned int irq;
 	unsigned long iobase;

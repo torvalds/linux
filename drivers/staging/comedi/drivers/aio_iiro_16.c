@@ -67,7 +67,7 @@ typedef struct {
 
 #define	devpriv	((aio_iiro_16_private *) dev->private)
 
-static int aio_iiro_16_attach(struct comedi_device * dev, comedi_devconfig * it);
+static int aio_iiro_16_attach(struct comedi_device * dev, struct comedi_devconfig * it);
 
 static int aio_iiro_16_detach(struct comedi_device * dev);
 
@@ -87,7 +87,7 @@ static int aio_iiro_16_dio_insn_bits_read(struct comedi_device * dev,
 static int aio_iiro_16_dio_insn_bits_write(struct comedi_device * dev,
 	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data);
 
-static int aio_iiro_16_attach(struct comedi_device * dev, comedi_devconfig * it)
+static int aio_iiro_16_attach(struct comedi_device * dev, struct comedi_devconfig * it)
 {
 	int iobase;
 	struct comedi_subdevice *s;

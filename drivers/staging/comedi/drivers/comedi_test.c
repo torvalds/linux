@@ -93,7 +93,7 @@ struct waveform_private {
 };
 #define devpriv ((struct waveform_private *)dev->private)
 
-static int waveform_attach(struct comedi_device *dev, comedi_devconfig *it);
+static int waveform_attach(struct comedi_device *dev, struct comedi_devconfig *it);
 static int waveform_detach(struct comedi_device *dev);
 static struct comedi_driver driver_waveform = {
       .driver_name =	"comedi_test",
@@ -192,7 +192,7 @@ static void waveform_ai_interrupt(unsigned long arg)
 	comedi_event(dev, dev->read_subdev);
 }
 
-static int waveform_attach(struct comedi_device *dev, comedi_devconfig *it)
+static int waveform_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	struct comedi_subdevice *s;
 	int amplitude = it->options[0];

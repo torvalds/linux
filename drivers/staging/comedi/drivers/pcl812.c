@@ -292,7 +292,7 @@ static const struct comedi_lrange range_a821pgh_ai = { 4, {
 	}
 };
 
-static int pcl812_attach(struct comedi_device * dev, comedi_devconfig * it);
+static int pcl812_attach(struct comedi_device * dev, struct comedi_devconfig * it);
 static int pcl812_detach(struct comedi_device * dev);
 
 typedef struct {
@@ -1262,7 +1262,7 @@ static void pcl812_reset(struct comedi_device * dev)
 /*
 ==============================================================================
 */
-static int pcl812_attach(struct comedi_device * dev, comedi_devconfig * it)
+static int pcl812_attach(struct comedi_device * dev, struct comedi_devconfig * it)
 {
 	int ret, subdev;
 	unsigned long iobase;

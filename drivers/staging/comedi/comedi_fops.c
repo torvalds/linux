@@ -69,7 +69,7 @@ static DEFINE_SPINLOCK(comedi_file_info_table_lock);
 static struct comedi_device_file_info
     *comedi_file_info_table[COMEDI_NUM_MINORS];
 
-static int do_devconfig_ioctl(struct comedi_device *dev, comedi_devconfig *arg);
+static int do_devconfig_ioctl(struct comedi_device *dev, struct comedi_devconfig *arg);
 static int do_bufconfig_ioctl(struct comedi_device *dev, void *arg);
 static int do_devinfo_ioctl(struct comedi_device *dev, struct comedi_devinfo *arg,
 			    struct file *file);
@@ -192,9 +192,9 @@ done:
 	writes:
 		none
 */
-static int do_devconfig_ioctl(struct comedi_device *dev, comedi_devconfig *arg)
+static int do_devconfig_ioctl(struct comedi_device *dev, struct comedi_devconfig *arg)
 {
-	comedi_devconfig it;
+	struct comedi_devconfig it;
 	int ret;
 	unsigned char *aux_data = NULL;
 	int aux_len;
@@ -213,7 +213,7 @@ static int do_devconfig_ioctl(struct comedi_device *dev, comedi_devconfig *arg)
 		return 0;
 	}
 
-	if (copy_from_user(&it, arg, sizeof(comedi_devconfig)))
+	if (copy_from_user(&it, arg, sizeof(struct comedi_devconfig)))
 		return -EFAULT;
 
 	it.board_name[COMEDI_NAMELEN - 1] = 0;

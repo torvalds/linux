@@ -1009,7 +1009,7 @@ static int dt9812_ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s
 	return n;
 }
 
-static int dt9812_attach(struct comedi_device *dev, comedi_devconfig *it)
+static int dt9812_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	int i;
 	struct comedi_subdevice *s;

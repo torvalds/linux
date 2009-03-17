@@ -181,7 +181,7 @@ typedef struct {
  * the board, and also about the kernel module that contains
  * the device code.
  */
-static int attach(struct comedi_device * dev, comedi_devconfig * it);
+static int attach(struct comedi_device * dev, struct comedi_devconfig * it);
 static int detach(struct comedi_device * dev);
 static struct comedi_driver cb_pcimdda_driver = {
       driver_name:"cb_pcimdda",
@@ -226,7 +226,7 @@ static inline unsigned int figure_out_maxdata(int bits)
  *
  *  Otherwise, returns a -errno on error
  */
-static int probe(struct comedi_device * dev, const comedi_devconfig * it);
+static int probe(struct comedi_device * dev, const struct comedi_devconfig * it);
 
 /*---------------------------------------------------------------------------
   FUNCTION DEFINITIONS
@@ -238,7 +238,7 @@ static int probe(struct comedi_device * dev, const comedi_devconfig * it);
  * in the driver structure, dev->board_ptr contains that
  * address.
  */
-static int attach(struct comedi_device * dev, comedi_devconfig * it)
+static int attach(struct comedi_device * dev, struct comedi_devconfig * it)
 {
 	struct comedi_subdevice *s;
 	int err;
@@ -425,7 +425,7 @@ static int ao_rinsn(struct comedi_device * dev, struct comedi_subdevice * s,
  *
  *  Otherwise, returns a -errno on error
  */
-static int probe(struct comedi_device * dev, const comedi_devconfig * it)
+static int probe(struct comedi_device * dev, const struct comedi_devconfig * it)
 {
 	struct pci_dev *pcidev;
 	int index;

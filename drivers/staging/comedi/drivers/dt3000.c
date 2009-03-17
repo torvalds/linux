@@ -271,7 +271,7 @@ typedef struct {
 } dt3k_private;
 #define devpriv ((dt3k_private *)dev->private)
 
-static int dt3000_attach(struct comedi_device * dev, comedi_devconfig * it);
+static int dt3000_attach(struct comedi_device * dev, struct comedi_devconfig * it);
 static int dt3000_detach(struct comedi_device * dev);
 static struct comedi_driver driver_dt3000 = {
       driver_name:"dt3000",
@@ -797,7 +797,7 @@ static int dt3k_mem_insn_read(struct comedi_device * dev, struct comedi_subdevic
 
 static int dt_pci_probe(struct comedi_device * dev, int bus, int slot);
 
-static int dt3000_attach(struct comedi_device * dev, comedi_devconfig * it)
+static int dt3000_attach(struct comedi_device * dev, struct comedi_devconfig * it)
 {
 	struct comedi_subdevice *s;
 	int bus, slot;
