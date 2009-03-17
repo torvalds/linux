@@ -274,12 +274,12 @@ static int do_devconfig_ioctl(struct comedi_device *dev, struct comedi_devconfig
 */
 static int do_bufconfig_ioctl(struct comedi_device *dev, void *arg)
 {
-	comedi_bufconfig bc;
+	struct comedi_bufconfig bc;
 	struct comedi_async *async;
 	struct comedi_subdevice *s;
 	int ret = 0;
 
-	if (copy_from_user(&bc, arg, sizeof(comedi_bufconfig)))
+	if (copy_from_user(&bc, arg, sizeof(struct comedi_bufconfig)))
 		return -EFAULT;
 
 	if (bc.subdevice >= dev->n_subdevices || bc.subdevice < 0)
@@ -340,7 +340,7 @@ static int do_bufconfig_ioctl(struct comedi_device *dev, void *arg)
 	bc.maximum_size = async->max_bufsize;
 
 copyback:
-	if (copy_to_user(arg, &bc, sizeof(comedi_bufconfig)))
+	if (copy_to_user(arg, &bc, sizeof(struct comedi_bufconfig)))
 		return -EFAULT;
 
 	return 0;
