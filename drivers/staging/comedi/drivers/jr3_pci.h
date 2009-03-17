@@ -87,7 +87,8 @@ struct six_axis_array {
  * have two force vectors, set changeV1 to 1.
  */
 
-typedef enum {
+/* vect_bits appears to be unused at this time */
+enum {
 	fx = 0x0001,
 	fy = 0x0002,
 	fz = 0x0004,
@@ -108,7 +109,7 @@ typedef enum {
  * exceeded the near saturation value.
  */
 
-typedef enum {
+enum {
 	fx_near_sat = 0x0001,
 	fy_near_sat = 0x0002,
 	fz_near_sat = 0x0004,
@@ -176,7 +177,7 @@ typedef enum {
  * the sensor data is not being received correctly.
  */
 
-typedef enum {
+enum error_bits_t {
 	fx_sat = 0x0001,
 	fy_sat = 0x0002,
 	fz_sat = 0x0004,
@@ -189,7 +190,7 @@ typedef enum {
 	cal_crc_bad = 0x2000,
 	watch_dog2 = 0x4000,
 	watch_dog = 0x8000
-} error_bits_t;
+};
 
 /*  THRESH_STRUCT */
 
