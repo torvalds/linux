@@ -65,14 +65,14 @@ The state of the outputs can be read.
 enum pc263_bustype { isa_bustype, pci_bustype };
 enum pc263_model { pc263_model, pci263_model, anypci_model };
 
-typedef struct pc263_board_struct {
+struct pc263_board {
 	const char *name;
 	const char *fancy_name;
 	unsigned short devid;
 	enum pc263_bustype bustype;
 	enum pc263_model model;
-} pc263_board;
-static const pc263_board pc263_boards[] = {
+};
+static const struct pc263_board pc263_boards[] = {
 	{
 	      name:	"pc263",
 	      fancy_name:"PC263",
@@ -112,7 +112,7 @@ MODULE_DEVICE_TABLE(pci, pc263_pci_table);
 /*
  * Useful for shorthand access to the particular board structure
  */
-#define thisboard ((const pc263_board *)dev->board_ptr)
+#define thisboard ((const struct pc263_board *)dev->board_ptr)
 
 /* this structure is for data unique to this hardware driver.  If
    several hardware drivers keep similar information in this structure,
@@ -140,8 +140,8 @@ static struct comedi_driver driver_amplc_pc263 = {
       attach:pc263_attach,
       detach:pc263_detach,
       board_name:&pc263_boards[0].name,
-      offset:sizeof(pc263_board),
-      num_names:sizeof(pc263_boards) / sizeof(pc263_board),
+      offset:sizeof(struct pc263_board),
+      num_names:sizeof(pc263_boards) / sizeof(struct pc263_board),
 };
 
 static int pc263_request_region(unsigned minor, unsigned long from,
