@@ -145,7 +145,7 @@ COMEDI_INITCLEANUP(driver_rti800);
 
 static irqreturn_t rti800_interrupt(int irq, void *dev PT_REGS_ARG);
 
-typedef struct {
+struct rti800_private {
 	enum {
 		adc_diff, adc_pseudodiff, adc_singleended
 	} adc_mux;
@@ -164,9 +164,9 @@ typedef struct {
 	const struct comedi_lrange *ao_range_type_list[2];
 	unsigned int ao_readback[2];
 	int muxgain_bits;
-} rti800_private;
+};
 
-#define devpriv ((rti800_private *)dev->private)
+#define devpriv ((struct rti800_private *)dev->private)
 
 #define RTI800_TIMEOUT 100
 
@@ -351,7 +351,7 @@ static int rti800_attach(struct comedi_device * dev, struct comedi_devconfig * i
 
 	if ((ret = alloc_subdevices(dev, 4)) < 0)
 		return ret;
-	if ((ret = alloc_private(dev, sizeof(rti800_private))) < 0)
+	if ((ret = alloc_private(dev, sizeof(struct rti800_private))) < 0)
 		return ret;
 
 	devpriv->adc_mux = it->options[2];
