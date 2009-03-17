@@ -54,4 +54,17 @@ config SH_DMABRG
 	  of the SH7760.
 	  Say Y if you want to use Audio/USB DMA on your SH7760 board.
 
+config PVR2_DMA
+	tristate "PowerVR 2 DMAC support"
+	depends on SH_DREAMCAST && SH_DMA
+	help
+	  Selecting this will enable support for the PVR2 DMA controller.
+	  As this chains off of the on-chip DMAC, that must also be
+	  enabled by default.
+
+	  This is primarily used by the pvr2fb framebuffer driver for
+	  certain optimizations, but is not necessary for functionality.
+
+	  If in doubt, say N.
+
 endmenu
