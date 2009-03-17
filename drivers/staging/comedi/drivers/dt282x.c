@@ -340,7 +340,7 @@ static const struct dt282x_board boardtypes[] = {
 #define n_boardtypes sizeof(boardtypes)/sizeof(struct dt282x_board)
 #define this_board ((const struct dt282x_board *)dev->board_ptr)
 
-typedef struct {
+struct dt282x_private {
 	int ad_2scomp;		/* we have 2's comp jumper set  */
 	int da0_2scomp;		/* same, for DAC0               */
 	int da1_2scomp;		/* same, for DAC1               */
@@ -365,9 +365,9 @@ typedef struct {
 	int usedma;		/* driver uses DMA              */
 	volatile int current_dma_index;
 	int dma_dir;
-} dt282x_private;
+};
 
-#define devpriv ((dt282x_private *)dev->private)
+#define devpriv ((struct dt282x_private *)dev->private)
 #define boardtype (*(const struct dt282x_board *)dev->board_ptr)
 
 /*
@@ -1326,7 +1326,7 @@ static int dt282x_attach(struct comedi_device * dev, struct comedi_devconfig * i
 #endif
 	}
 
-	if ((ret = alloc_private(dev, sizeof(dt282x_private))) < 0)
+	if ((ret = alloc_private(dev, sizeof(struct dt282x_private))) < 0)
 		return ret;
 
 	ret = dt282x_grab_dma(dev, it->options[opt_dma1],
