@@ -241,7 +241,7 @@ static const struct comedi_lrange range_ai_das1802 = {
 		}
 };
 
-typedef struct das1800_board_struct {
+struct das1800_board {
 	const char *name;
 	int ai_speed;		/* max conversion period in nanoseconds */
 	int resolution;		/* bits of ai resolution */
@@ -251,13 +251,13 @@ typedef struct das1800_board_struct {
 	int ao_ability;		/* 0 == no analog out, 1 == basic analog out, 2 == waveform analog out */
 	int ao_n_chan;		/* number of analog out channels */
 	const struct comedi_lrange *range_ai;	/* available input ranges */
-} das1800_board;
+};
 
 /* Warning: the maximum conversion speeds listed below are
  * not always achievable depending on board setup (see
  * user manual.)
  */
-static const das1800_board das1800_boards[] = {
+static const struct das1800_board das1800_boards[] = {
 	{
 	      name:	"das-1701st",
 	      ai_speed:6250,
@@ -461,7 +461,7 @@ static const das1800_board das1800_boards[] = {
 /*
  * Useful for shorthand access to the particular board structure
  */
-#define thisboard ((const das1800_board *)dev->board_ptr)
+#define thisboard ((const struct das1800_board *)dev->board_ptr)
 
 typedef struct {
 	volatile unsigned int count;	/* number of data points left to be taken */
@@ -509,9 +509,9 @@ static struct comedi_driver driver_das1800 = {
       module:THIS_MODULE,
       attach:das1800_attach,
       detach:das1800_detach,
-      num_names:sizeof(das1800_boards) / sizeof(das1800_board),
+      num_names:sizeof(das1800_boards) / sizeof(struct das1800_board),
       board_name:&das1800_boards[0].name,
-      offset:sizeof(das1800_board),
+      offset:sizeof(struct das1800_board),
 };
 
 /*
@@ -799,7 +799,7 @@ static int das1800_probe(struct comedi_device * dev)
 	int board;
 
 	id = (inb(dev->iobase + DAS1800_DIGITAL) >> 4) & 0xf;	/* get id bits */
-	board = ((das1800_board *) dev->board_ptr) - das1800_boards;
+	board = ((struct das1800_board *) dev->board_ptr) - das1800_boards;
 
 	switch (id) {
 	case 0x3:
