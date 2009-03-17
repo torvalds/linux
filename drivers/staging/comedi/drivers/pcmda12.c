@@ -68,9 +68,9 @@ Configuration Options:
 /*
  * Bords
  */
-typedef struct pcmda12_board_struct {
+struct pcmda12_board {
 	const char *name;
-} pcmda12_board;
+};
 
 /* note these have no effect and are merely here for reference..
    these are configured by jumpering the board! */
@@ -81,7 +81,7 @@ static const struct comedi_lrange pcmda12_ranges = {
 		}
 };
 
-static const pcmda12_board pcmda12_boards[] = {
+static const struct pcmda12_board pcmda12_boards[] = {
 	{
 	      name:	"pcmda12",
 		},
@@ -90,7 +90,7 @@ static const pcmda12_board pcmda12_boards[] = {
 /*
  * Useful for shorthand access to the particular board structure
  */
-#define thisboard ((const pcmda12_board *)dev->board_ptr)
+#define thisboard ((const struct pcmda12_board *)dev->board_ptr)
 
 struct pcmda12_private {
 
@@ -136,8 +136,8 @@ static struct comedi_driver driver = {
 	 * devices are such boards.
 	 */
       board_name:&pcmda12_boards[0].name,
-      offset:sizeof(pcmda12_board),
-      num_names:sizeof(pcmda12_boards) / sizeof(pcmda12_board),
+      offset:sizeof(struct pcmda12_board),
+      num_names:sizeof(pcmda12_boards) / sizeof(struct pcmda12_board),
 };
 
 static int ao_winsn(struct comedi_device * dev, struct comedi_subdevice * s,
