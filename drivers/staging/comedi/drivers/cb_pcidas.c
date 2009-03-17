@@ -399,7 +399,7 @@ MODULE_DEVICE_TABLE(pci, cb_pcidas_pci_table);
 /* this structure is for data unique to this hardware driver.  If
    several hardware drivers keep similar information in this structure,
    feel free to suggest moving the variable to the struct comedi_device struct.  */
-typedef struct {
+struct cb_pcidas_private {
 	/* would be useful for a PCI device */
 	struct pci_dev *pci_dev;
 	// base addresses
@@ -426,13 +426,13 @@ typedef struct {
 	unsigned int trimpot_value[NUM_CHANNELS_8402];	// for readback of trimpot
 	unsigned int dac08_value;
 	unsigned int calibration_source;
-} cb_pcidas_private;
+};
 
 /*
  * most drivers define the following macro to make it easy to
  * access the private structure.
  */
-#define devpriv ((cb_pcidas_private *)dev->private)
+#define devpriv ((struct cb_pcidas_private *)dev->private)
 
 /*
  * The struct comedi_driver structure tells the Comedi core module
@@ -520,7 +520,7 @@ static int cb_pcidas_attach(struct comedi_device * dev, struct comedi_devconfig 
 /*
  * Allocate the private structure area.
  */
-	if (alloc_private(dev, sizeof(cb_pcidas_private)) < 0)
+	if (alloc_private(dev, sizeof(struct cb_pcidas_private)) < 0)
 		return -ENOMEM;
 
 /*
