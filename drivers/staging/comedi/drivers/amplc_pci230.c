@@ -443,7 +443,7 @@ enum {
  * Board descriptions for the two boards supported.
  */
 
-typedef struct pci230_board_struct {
+struct pci230_board {
 	const char *name;
 	unsigned short id;
 	int ai_chans;
@@ -452,8 +452,8 @@ typedef struct pci230_board_struct {
 	int ao_bits;
 	int have_dio;
 	unsigned int min_hwver;	/* Minimum hardware version supported. */
-} pci230_board;
-static const pci230_board pci230_boards[] = {
+};
+static const struct pci230_board pci230_boards[] = {
 	{
 	      name:	"pci230+",
 	      id:	PCI_DEVICE_ID_PCI230,
@@ -511,7 +511,7 @@ MODULE_DEVICE_TABLE(pci, pci230_pci_table);
  * Useful for shorthand access to the particular board structure
  */
 #define n_pci230_boards (sizeof(pci230_boards)/sizeof(pci230_boards[0]))
-#define thisboard ((const pci230_board *)dev->board_ptr)
+#define thisboard ((const struct pci230_board *)dev->board_ptr)
 
 /* this structure is for data unique to this hardware driver.  If
    several hardware drivers keep similar information in this structure,
