@@ -174,7 +174,7 @@ typedef struct {
 	unsigned short cfg3;
 
 	/* Used for AO readback */
-	lsampl_t ao_readback[10];
+	unsigned int ao_readback[10];
 } atao_private;
 #define devpriv ((atao_private *)dev->private)
 
@@ -195,17 +195,17 @@ COMEDI_INITCLEANUP(driver_atao);
 static void atao_reset(comedi_device * dev);
 
 static int atao_ao_winsn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
+	comedi_insn * insn, unsigned int * data);
 static int atao_ao_rinsn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
+	comedi_insn * insn, unsigned int * data);
 static int atao_dio_insn_bits(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
+	comedi_insn * insn, unsigned int * data);
 static int atao_dio_insn_config(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
+	comedi_insn * insn, unsigned int * data);
 static int atao_calib_insn_read(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
+	comedi_insn * insn, unsigned int * data);
 static int atao_calib_insn_write(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
+	comedi_insn * insn, unsigned int * data);
 
 static int atao_attach(comedi_device * dev, comedi_devconfig * it)
 {
@@ -321,7 +321,7 @@ static void atao_reset(comedi_device * dev)
 }
 
 static int atao_ao_winsn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	int i;
 	int chan = CR_CHAN(insn->chanspec);
@@ -345,7 +345,7 @@ static int atao_ao_winsn(comedi_device * dev, comedi_subdevice * s,
 }
 
 static int atao_ao_rinsn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	int i;
 	int chan = CR_CHAN(insn->chanspec);
@@ -357,7 +357,7 @@ static int atao_ao_rinsn(comedi_device * dev, comedi_subdevice * s,
 }
 
 static int atao_dio_insn_bits(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	if (insn->n != 2)
 		return -EINVAL;
@@ -374,7 +374,7 @@ static int atao_dio_insn_bits(comedi_device * dev, comedi_subdevice * s,
 }
 
 static int atao_dio_insn_config(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	int chan = CR_CHAN(insn->chanspec);
 	unsigned int mask, bit;
@@ -419,7 +419,7 @@ static int atao_dio_insn_config(comedi_device * dev, comedi_subdevice * s,
  * the caldacs, but we can guess.
  */
 static int atao_calib_insn_read(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	int i;
 	for (i = 0; i < insn->n; i++) {
@@ -429,7 +429,7 @@ static int atao_calib_insn_read(comedi_device * dev, comedi_subdevice * s,
 }
 
 static int atao_calib_insn_write(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	unsigned int bitstring, bit;
 	unsigned int chan = CR_CHAN(insn->chanspec);

@@ -75,7 +75,7 @@ int comedi_dio_bitfield(void *dev, unsigned int subdev, unsigned int mask,
 	unsigned int *bits)
 {
 	comedi_insn insn;
-	lsampl_t data[2];
+	unsigned int data[2];
 	int ret;
 
 	memset(&insn, 0, sizeof(insn));

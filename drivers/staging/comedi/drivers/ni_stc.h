@@ -1482,7 +1482,7 @@ typedef struct ni_board_struct {
 	unsigned short pwm_up_count;	\
 	unsigned short pwm_down_count;	\
 	\
-	sampl_t ai_fifo_buffer[0x2000];				\
+	short ai_fifo_buffer[0x2000];				\
 	uint8_t eeprom_buffer[M_SERIES_EEPROM_SIZE]; \
 	uint32_t serial_number; \
 	\

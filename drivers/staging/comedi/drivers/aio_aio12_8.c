@@ -83,13 +83,13 @@ static const board_type board_types[] = {
 #define	thisboard	((const board_type *) dev->board_ptr)
 
 typedef struct {
-	lsampl_t ao_readback[4];
+	unsigned int ao_readback[4];
 } aio12_8_private;
 
 #define devpriv	((aio12_8_private *) dev->private)
 
 static int aio_aio12_8_ai_read(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	int n;
 	unsigned char control =
@@ -123,7 +123,7 @@ static int aio_aio12_8_ai_read(comedi_device * dev, comedi_subdevice * s,
 }
 
 static int aio_aio12_8_ao_read(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	int i;
 	int val = devpriv->ao_readback[CR_CHAN(insn->chanspec)];
@@ -134,7 +134,7 @@ static int aio_aio12_8_ao_read(comedi_device * dev, comedi_subdevice * s,
 }
 
 static int aio_aio12_8_ao_write(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	int i;
 	int chan = CR_CHAN(insn->chanspec);

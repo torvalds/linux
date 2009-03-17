@@ -334,7 +334,7 @@ struct rtdPrivate {
 	unsigned char chanBipolar[RTD_MAX_CHANLIST / 8];	/* bit array */
 
 	/* read back data */
-	lsampl_t aoValue[2];	/* Used for AO read back */
+	unsigned int aoValue[2];	/* Used for AO read back */
 
 	/* timer gate (when enabled) */
 	u8 utcGate[4];		/* 1 extra allows simple range check */
@@ -691,15 +691,15 @@ static comedi_driver rtd520Driver = {
 };
 
 static int rtd_ai_rinsn(comedi_device *dev, comedi_subdevice *s,
-	comedi_insn *insn, lsampl_t *data);
+	comedi_insn *insn, unsigned int *data);
 static int rtd_ao_winsn(comedi_device *dev, comedi_subdevice *s,
-	comedi_insn *insn, lsampl_t *data);
+	comedi_insn *insn, unsigned int *data);
 static int rtd_ao_rinsn(comedi_device *dev, comedi_subdevice *s,
-	comedi_insn *insn, lsampl_t *data);
+	comedi_insn *insn, unsigned int *data);
 static int rtd_dio_insn_bits(comedi_device *dev, comedi_subdevice *s,
-	comedi_insn *insn, lsampl_t *data);
+	comedi_insn *insn, unsigned int *data);
 static int rtd_dio_insn_config(comedi_device *dev, comedi_subdevice *s,
-	comedi_insn *insn, lsampl_t *data);
+	comedi_insn *insn, unsigned int *data);
 static int rtd_ai_cmdtest(comedi_device *dev, comedi_subdevice *s,
 	comedi_cmd *cmd);
 static int rtd_ai_cmd(comedi_device *dev, comedi_subdevice *s);
@@ -1211,7 +1211,7 @@ static void rtd_load_channelgain_list(comedi_device *dev,
 empty status flag clears */
 static int rtd520_probe_fifo_depth(comedi_device *dev)
 {
-	lsampl_t chanspec = CR_PACK(0, 0, AREF_GROUND);
+	unsigned int chanspec = CR_PACK(0, 0, AREF_GROUND);
 	unsigned i;
 	static const unsigned limit = 0x2000;
 	unsigned fifo_size = 0;
@@ -1255,7 +1255,7 @@ static int rtd520_probe_fifo_depth(comedi_device *dev)
   select, delay, then read.
  */
 static int rtd_ai_rinsn(comedi_device *dev,
-	comedi_subdevice *s, comedi_insn *insn, lsampl_t *data)
+	comedi_subdevice *s, comedi_insn *insn, unsigned int *data)
 {
 	int n, ii;
 	int stat;
@@ -1312,7 +1312,7 @@ static int ai_read_n(comedi_device *dev, comedi_subdevice *s, int count)
 	int ii;
 
 	for (ii = 0; ii < count; ii++) {
-		sampl_t sample;
+		short sample;
 		s16 d;
 
 		if (0 == devpriv->aiCount) {	/* done */
@@ -1349,7 +1349,7 @@ static int ai_read_n(comedi_device *dev, comedi_subdevice *s, int count)
 static int ai_read_dregs(comedi_device *dev, comedi_subdevice *s)
 {
 	while (RtdFifoStatus(dev) & FS_ADC_NOT_EMPTY) {	/* 1 -> not empty */
-		sampl_t sample;
+		short sample;
 		s16 d = RtdAdcFifoGet(dev);	/* get 2s comp value */
 
 		if (0 == devpriv->aiCount) {	/* done */
@@ -1444,7 +1444,7 @@ static int ai_process_dma(comedi_device *dev, comedi_subdevice *s)
 
 	dp = devpriv->dma0Buff[devpriv->dma0Offset];
 	for (ii = 0; ii < devpriv->fifoLen / 2;) {	/* convert samples */
-		sampl_t sample;
+		short sample;
 
 		if (CHAN_ARRAY_TEST(devpriv->chanBipolar, s->async->cur_chan)) {
 			sample = (*dp >> 3) + 2048;	/* convert to comedi unsigned data */
@@ -2136,7 +2136,7 @@ static int rtd_ns_to_timer(unsigned int *ns, int round_mode)
   Output one (or more) analog values to a single port as fast as possible.
 */
 static int rtd_ao_winsn(comedi_device *dev,
-	comedi_subdevice *s, comedi_insn *insn, lsampl_t *data)
+	comedi_subdevice *s, comedi_insn *insn, unsigned int *data)
 {
 	int i;
 	int chan = CR_CHAN(insn->chanspec);
@@ -2191,7 +2191,7 @@ static int rtd_ao_winsn(comedi_device *dev,
 /* AO subdevices should have a read insn as well as a write insn.
  * Usually this means copying a value stored in devpriv. */
 static int rtd_ao_rinsn(comedi_device *dev,
-	comedi_subdevice *s, comedi_insn *insn, lsampl_t *data)
+	comedi_subdevice *s, comedi_insn *insn, unsigned int *data)
 {
 	int i;
 	int chan = CR_CHAN(insn->chanspec);
@@ -2214,7 +2214,7 @@ static int rtd_ao_rinsn(comedi_device *dev,
  * comedi core can convert between insn_bits and insn_read/write
  */
 static int rtd_dio_insn_bits(comedi_device *dev,
-	comedi_subdevice *s, comedi_insn *insn, lsampl_t *data)
+	comedi_subdevice *s, comedi_insn *insn, unsigned int *data)
 {
 	if (insn->n != 2)
 		return -EINVAL;
@@ -2241,7 +2241,7 @@ static int rtd_dio_insn_bits(comedi_device *dev,
   Configure one bit on a IO port as Input or Output (hence the name :-).
 */
 static int rtd_dio_insn_config(comedi_device *dev,
-	comedi_subdevice *s, comedi_insn *insn, lsampl_t *data)
+	comedi_subdevice *s, comedi_insn *insn, unsigned int *data)
 {
 	int chan = CR_CHAN(insn->chanspec);
 

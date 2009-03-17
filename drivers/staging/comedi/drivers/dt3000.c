@@ -265,7 +265,7 @@ typedef struct {
 	resource_size_t phys_addr;
 	void *io_addr;
 	unsigned int lock;
-	lsampl_t ao_readback[2];
+	unsigned int ao_readback[2];
 	unsigned int ai_front;
 	unsigned int ai_rear;
 } dt3k_private;
@@ -402,7 +402,7 @@ static void dt3k_ai_empty_fifo(comedi_device * dev, comedi_subdevice * s)
 	int rear;
 	int count;
 	int i;
-	sampl_t data;
+	short data;
 
 	front = readw(devpriv->io_addr + DPR_AD_Buf_Front);
 	count = front - devpriv->ai_front;
@@ -668,7 +668,7 @@ static int dt3k_ai_cancel(comedi_device * dev, comedi_subdevice * s)
 }
 
 static int dt3k_ai_insn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	int i;
 	unsigned int chan, gain, aref;
@@ -686,7 +686,7 @@ static int dt3k_ai_insn(comedi_device * dev, comedi_subdevice * s,
 }
 
 static int dt3k_ao_insn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	int i;
 	unsigned int chan;
@@ -701,7 +701,7 @@ static int dt3k_ao_insn(comedi_device * dev, comedi_subdevice * s,
 }
 
 static int dt3k_ao_insn_read(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	int i;
 	unsigned int chan;
@@ -730,7 +730,7 @@ static void dt3k_dio_config(comedi_device * dev, int bits)
 }
 
 static int dt3k_dio_insn_config(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	int mask;
 
@@ -761,7 +761,7 @@ static int dt3k_dio_insn_config(comedi_device * dev, comedi_subdevice * s,
 }
 
 static int dt3k_dio_insn_bits(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	if (insn->n != 2)
 		return -EINVAL;
@@ -777,7 +777,7 @@ static int dt3k_dio_insn_bits(comedi_device * dev, comedi_subdevice * s,
 }
 
 static int dt3k_mem_insn_read(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	unsigned int addr = CR_CHAN(insn->chanspec);
 	int i;

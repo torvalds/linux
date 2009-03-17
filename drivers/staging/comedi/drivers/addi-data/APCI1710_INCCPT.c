@@ -62,7 +62,7 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 /*
 +----------------------------------------------------------------------------+
 | INT	i_APCI1710_InsnConfigINCCPT(comedi_device *dev,comedi_subdevice *s,
-comedi_insn *insn,lsampl_t *data)
+comedi_insn *insn,unsigned int *data)
 
 +----------------------------------------------------------------------------+
 | Task              : Configuration function for INC_CPT                             |
@@ -76,7 +76,7 @@ comedi_insn *insn,lsampl_t *data)
 */
 
 INT i_APCI1710_InsnConfigINCCPT(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	UINT ui_ConfigType;
 	INT i_ReturnValue = 0;
@@ -2003,7 +2003,7 @@ INT i_APCI1710_InitFrequencyMeasurement(comedi_device * dev,
 /*
 +----------------------------------------------------------------------------+
 | Function Name     :INT	i_APCI1710_InsnBitsINCCPT(comedi_device *dev,comedi_subdevice *s,
-comedi_insn *insn,lsampl_t *data)                   |
+comedi_insn *insn,unsigned int *data)                   |
 +----------------------------------------------------------------------------+
 | Task              : Set & Clear Functions for INC_CPT                                          |
 +----------------------------------------------------------------------------+
@@ -2016,7 +2016,7 @@ comedi_insn *insn,lsampl_t *data)                   |
 */
 
 INT i_APCI1710_InsnBitsINCCPT(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	UINT ui_BitsType;
 	INT i_ReturnValue = 0;
@@ -2940,7 +2940,7 @@ INT i_APCI1710_SetDigitalChlOff(comedi_device * dev, BYTE b_ModulNbr)
 /*
 +----------------------------------------------------------------------------+
 | Function Name     :INT	i_APCI1710_InsnWriteINCCPT(comedi_device *dev,comedi_subdevice *s,
-comedi_insn *insn,lsampl_t *data)                   |
+comedi_insn *insn,unsigned int *data)                   |
 +----------------------------------------------------------------------------+
 | Task              : Enable Disable functions for INC_CPT                                       |
 +----------------------------------------------------------------------------+
@@ -2952,7 +2952,7 @@ comedi_insn *insn,lsampl_t *data)                   |
 +----------------------------------------------------------------------------+
 */
 INT i_APCI1710_InsnWriteINCCPT(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	UINT ui_WriteType;
 	INT i_ReturnValue = 0;
@@ -4038,7 +4038,7 @@ INT i_APCI1710_DisableFrequencyMeasurement(comedi_device * dev, BYTE b_ModulNbr)
 /*
 +----------------------------------------------------------------------------+
 | Function Name     :INT	i_APCI1710_InsnWriteINCCPT(comedi_device *dev,comedi_subdevice *s,
-comedi_insn *insn,lsampl_t *data)                   |
+comedi_insn *insn,unsigned int *data)                   |
 +----------------------------------------------------------------------------+
 | Task              : Read and Get functions for INC_CPT                                       |
 +----------------------------------------------------------------------------+
@@ -4050,7 +4050,7 @@ comedi_insn *insn,lsampl_t *data)                   |
 +----------------------------------------------------------------------------+
 */
 INT i_APCI1710_InsnReadINCCPT(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	UINT ui_ReadType;
 	INT i_ReturnValue = 0;

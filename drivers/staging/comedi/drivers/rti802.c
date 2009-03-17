@@ -63,13 +63,13 @@ typedef struct {
 		dac_2comp, dac_straight
 	} dac_coding[8];
 	const comedi_lrange *range_type_list[8];
-	lsampl_t ao_readback[8];
+	unsigned int ao_readback[8];
 } rti802_private;
 
 #define devpriv ((rti802_private *)dev->private)
 
 static int rti802_ao_insn_read(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	int i;
 
@@ -80,7 +80,7 @@ static int rti802_ao_insn_read(comedi_device * dev, comedi_subdevice * s,
 }
 
 static int rti802_ao_insn_write(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	int i, d;
 	int chan = CR_CHAN(insn->chanspec);

@@ -186,7 +186,7 @@ static irqreturn_t intr_handler(int irq, void *d PT_REGS_ARG)
 }
 
 #if 0
-static void das6402_ai_fifo_read(comedi_device * dev, sampl_t * data, int n)
+static void das6402_ai_fifo_read(comedi_device * dev, short * data, int n)
 {
 	int i;
 
@@ -238,7 +238,7 @@ static int das6402_ai_mode2(comedi_device * dev, comedi_subdevice * s,
 	outw_p(SCANL, dev->iobase + 2);	/* resets the card fifo */
 	outb_p(IRQ | CONVSRC | BURSTEN | INTE, dev->iobase + 9);
 
-	devpriv->ai_bytes_to_read = it->n * sizeof(sampl_t);
+	devpriv->ai_bytes_to_read = it->n * sizeof(short);
 
 	/* um... ignoreirq is a nasty race condition */
 	devpriv->das6402_ignoreirq = 0;

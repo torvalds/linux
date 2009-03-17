@@ -89,7 +89,7 @@ struct waveform_private {
 	unsigned int scan_period;	/* scan period in usec */
 	unsigned int convert_period;	/* conversion period in usec */
 	unsigned timer_running:1;
-	lsampl_t ao_loopbacks[N_CHANS];
+	unsigned int ao_loopbacks[N_CHANS];
 };
 #define devpriv ((struct waveform_private *)dev->private)
 
@@ -112,16 +112,16 @@ static int waveform_ai_cmdtest(comedi_device *dev, comedi_subdevice *s,
 static int waveform_ai_cmd(comedi_device *dev, comedi_subdevice *s);
 static int waveform_ai_cancel(comedi_device *dev, comedi_subdevice *s);
 static int waveform_ai_insn_read(comedi_device *dev, comedi_subdevice *s,
-				 comedi_insn *insn, lsampl_t *data);
+				 comedi_insn *insn, unsigned int *data);
 static int waveform_ao_insn_write(comedi_device *dev, comedi_subdevice *s,
-				  comedi_insn *insn, lsampl_t *data);
-static sampl_t fake_sawtooth(comedi_device *dev, unsigned int range,
+				  comedi_insn *insn, unsigned int *data);
+static short fake_sawtooth(comedi_device *dev, unsigned int range,
 			     unsigned long current_time);
-static sampl_t fake_squarewave(comedi_device *dev, unsigned int range,
+static short fake_squarewave(comedi_device *dev, unsigned int range,
 			       unsigned long current_time);
-static sampl_t fake_flatline(comedi_device *dev, unsigned int range,
+static short fake_flatline(comedi_device *dev, unsigned int range,
 			     unsigned long current_time);
-static sampl_t fake_waveform(comedi_device *dev, unsigned int channel,
+static short fake_waveform(comedi_device *dev, unsigned int channel,
 			     unsigned int range, unsigned long current_time);
 
 /* 1000 nanosec in a microsec */
@@ -436,7 +436,7 @@ static int waveform_ai_cancel(comedi_device *dev, comedi_subdevice *s)
 	return 0;
 }
 
-static sampl_t fake_sawtooth(comedi_device *dev, unsigned int range_index,
+static short fake_sawtooth(comedi_device *dev, unsigned int range_index,
 			     unsigned long current_time)
 {
 	comedi_subdevice *s = dev->read_subdev;
@@ -457,7 +457,7 @@ static sampl_t fake_sawtooth(comedi_device *dev, unsigned int range_index,
 
 	return offset + value;
 }
-static sampl_t fake_squarewave(comedi_device *dev, unsigned int range_index,
+static short fake_squarewave(comedi_device *dev, unsigned int range_index,
 			       unsigned long current_time)
 {
 	comedi_subdevice *s = dev->read_subdev;
@@ -476,14 +476,14 @@ static sampl_t fake_squarewave(comedi_device *dev, unsigned int range_index,
 	return offset + value;
 }
 
-static sampl_t fake_flatline(comedi_device *dev, unsigned int range_index,
+static short fake_flatline(comedi_device *dev, unsigned int range_index,
 			     unsigned long current_time)
 {
 	return dev->read_subdev->maxdata / 2;
 }
 
 /* generates a different waveform depending on what channel is read */
-static sampl_t fake_waveform(comedi_device *dev, unsigned int channel,
+static short fake_waveform(comedi_device *dev, unsigned int channel,
 			     unsigned int range, unsigned long current_time)
 {
 	enum {
@@ -505,7 +505,7 @@ static sampl_t fake_waveform(comedi_device *dev, unsigned int channel,
 }
 
 static int waveform_ai_insn_read(comedi_device *dev, comedi_subdevice *s,
-				 comedi_insn *insn, lsampl_t *data)
+				 comedi_insn *insn, unsigned int *data)
 {
 	int i, chan = CR_CHAN(insn->chanspec);
 
@@ -516,7 +516,7 @@ static int waveform_ai_insn_read(comedi_device *dev, comedi_subdevice *s,
 }
 
 static int waveform_ao_insn_write(comedi_device *dev, comedi_subdevice *s,
-				  comedi_insn *insn, lsampl_t *data)
+				  comedi_insn *insn, unsigned int *data)
 {
 	int i, chan = CR_CHAN(insn->chanspec);
 

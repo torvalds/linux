@@ -162,7 +162,7 @@ typedef struct {
 		dac_2comp, dac_straight
 	} dac0_coding, dac1_coding;
 	const comedi_lrange *ao_range_type_list[2];
-	lsampl_t ao_readback[2];
+	unsigned int ao_readback[2];
 	int muxgain_bits;
 } rti800_private;
 
@@ -179,7 +179,7 @@ static irqreturn_t rti800_interrupt(int irq, void *dev PT_REGS_ARG)
 static const int gaindelay[] = { 10, 20, 40, 80 };
 
 static int rti800_ai_insn_read(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	int i, t;
 	int status;
@@ -232,7 +232,7 @@ static int rti800_ai_insn_read(comedi_device * dev, comedi_subdevice * s,
 }
 
 static int rti800_ao_insn_read(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	int i;
 	int chan = CR_CHAN(insn->chanspec);
@@ -244,7 +244,7 @@ static int rti800_ao_insn_read(comedi_device * dev, comedi_subdevice * s,
 }
 
 static int rti800_ao_insn_write(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	int chan = CR_CHAN(insn->chanspec);
 	int d;
@@ -264,7 +264,7 @@ static int rti800_ao_insn_write(comedi_device * dev, comedi_subdevice * s,
 }
 
 static int rti800_di_insn_bits(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	if (insn->n != 2)
 		return -EINVAL;
@@ -273,7 +273,7 @@ static int rti800_di_insn_bits(comedi_device * dev, comedi_subdevice * s,
 }
 
 static int rti800_do_insn_bits(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	if (insn->n != 2)
 		return -EINVAL;

@@ -36,18 +36,18 @@
  * CHRONOMETER INISIALISATION FUNCTION
  */
 INT i_APCI1710_InsnConfigInitChrono(comedi_device *dev, comedi_subdevice *s,
-				    comedi_insn *insn, lsampl_t *data);
+				    comedi_insn *insn, unsigned int *data);
 
 INT i_APCI1710_InsnWriteEnableDisableChrono(comedi_device *dev,
 					    comedi_subdevice *s,
 					    comedi_insn *insn,
-					    lsampl_t *data);
+					    unsigned int *data);
 
 /*
  * CHRONOMETER READ FUNCTION
  */
 INT i_APCI1710_InsnReadChrono(comedi_device *dev, comedi_subdevice *s,
-			      comedi_insn *insn, lsampl_t *data);
+			      comedi_insn *insn, unsigned int *data);
 
 INT i_APCI1710_GetChronoProgressStatus(comedi_device *dev,
 				       BYTE b_ModulNbr, PBYTE pb_ChronoStatus);
@@ -71,4 +71,4 @@ INT i_APCI1710_ConvertChronoValue(comedi_device *dev,
  */
 INT i_APCI1710_InsnBitsChronoDigitalIO(comedi_device *dev,
 				       comedi_subdevice *s, comedi_insn *insn,
-				       lsampl_t *data);
+				       unsigned int *data);

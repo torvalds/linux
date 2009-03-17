@@ -3030,14 +3030,14 @@ static irqreturn_t v_ADDI_Interrupt(int irq, void *d PT_REGS_ARG)
 +----------------------------------------------------------------------------+
 | Function name     :                                                        |
 |INT i_ADDIDATA_InsnReadEeprom(comedi_device *dev,comedi_subdevice *s,
-							comedi_insn *insn,lsampl_t *data)
+							comedi_insn *insn,unsigned int *data)
 |                                        									 |
 +----------------------------------------------------------------------------+
 | Task              : Read 256 words from EEPROM          				     |
 |                     										                 |
 +----------------------------------------------------------------------------+
 | Input Parameters  :(comedi_device *dev,comedi_subdevice *s,
-			comedi_insn *insn,lsampl_t *data) 						 |
+			comedi_insn *insn,unsigned int *data) 						 |
 |                     														 |
 |                                                 					         |
 +----------------------------------------------------------------------------+
@@ -3047,7 +3047,7 @@ static irqreturn_t v_ADDI_Interrupt(int irq, void *d PT_REGS_ARG)
 */
 
 static int i_ADDIDATA_InsnReadEeprom(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	WORD w_Data;
 	WORD w_Address;

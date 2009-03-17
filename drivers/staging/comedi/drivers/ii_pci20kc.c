@@ -138,7 +138,7 @@ typedef union {
 	struct {
 		void *iobase;
 		const comedi_lrange *ao_range_list[2];	/* range of channels of ao module */
-		lsampl_t last_data[2];
+		unsigned int last_data[2];
 	} pci20006;
 	struct {
 		void *iobase;
@@ -271,9 +271,9 @@ static int pci20xxx_detach(comedi_device * dev)
 /* pci20006m */
 
 static int pci20006_insn_read(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
+	comedi_insn * insn, unsigned int * data);
 static int pci20006_insn_write(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
+	comedi_insn * insn, unsigned int * data);
 
 static const comedi_lrange *pci20006_range_list[] = {
 	&range_bipolar10,
@@ -307,7 +307,7 @@ static int pci20006_init(comedi_device * dev, comedi_subdevice * s,
 }
 
 static int pci20006_insn_read(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	pci20xxx_subdev_private *sdp = s->private;
 
@@ -317,7 +317,7 @@ static int pci20006_insn_read(comedi_device * dev, comedi_subdevice * s,
 }
 
 static int pci20006_insn_write(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	pci20xxx_subdev_private *sdp = s->private;
 	int hi, lo;
@@ -350,7 +350,7 @@ static int pci20006_insn_write(comedi_device * dev, comedi_subdevice * s,
 /* PCI20341M */
 
 static int pci20341_insn_read(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
+	comedi_insn * insn, unsigned int * data);
 
 static const int pci20341_timebase[] = { 0x00, 0x00, 0x00, 0x04 };
 static const int pci20341_settling_time[] = { 0x58, 0x58, 0x93, 0x99 };
@@ -398,7 +398,7 @@ static int pci20341_init(comedi_device * dev, comedi_subdevice * s,
 }
 
 static int pci20341_insn_read(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	pci20xxx_subdev_private *sdp = s->private;
 	unsigned int i = 0, j = 0;
@@ -435,7 +435,7 @@ static int pci20341_insn_read(comedi_device * dev, comedi_subdevice * s,
 		lo = readb(sdp->iobase + PCI20341_LDATA);
 		hi = readb(sdp->iobase + PCI20341_LDATA + 1);
 		boarddata = lo + 0x100 * hi;
-		data[i] = (sampl_t) ((boarddata + 0x8000) & 0xffff);	/* board-data -> comedi-data */
+		data[i] = (short) ((boarddata + 0x8000) & 0xffff);	/* board-data -> comedi-data */
 	}
 
 	return i;
@@ -445,9 +445,9 @@ static int pci20341_insn_read(comedi_device * dev, comedi_subdevice * s,
 
 static void pci20xxx_dio_config(comedi_device * dev, comedi_subdevice * s);
 static int pci20xxx_dio_insn_bits(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
+	comedi_insn * insn, unsigned int * data);
 static int pci20xxx_dio_insn_config(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
+	comedi_insn * insn, unsigned int * data);
 
 /* initialize pci20xxx_private */
 static int pci20xxx_dio_init(comedi_device * dev, comedi_subdevice * s)
@@ -470,7 +470,7 @@ static int pci20xxx_dio_init(comedi_device * dev, comedi_subdevice * s)
 }
 
 static int pci20xxx_dio_insn_config(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	int mask, bits;
 
@@ -495,7 +495,7 @@ static int pci20xxx_dio_insn_config(comedi_device * dev, comedi_subdevice * s,
 }
 
 static int pci20xxx_dio_insn_bits(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	unsigned int mask = data[0];
 

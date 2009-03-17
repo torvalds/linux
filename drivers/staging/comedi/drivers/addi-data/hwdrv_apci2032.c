@@ -58,7 +58,7 @@ UINT ui_InterruptData, ui_Type;
 +----------------------------------------------------------------------------+
 | Function   Name   : int i_APCI2032_ConfigDigitalOutput                     |
 |			  (comedi_device *dev,comedi_subdevice *s,               |
-|                      comedi_insn *insn,lsampl_t *data)                     |
+|                      comedi_insn *insn,unsigned int *data)                     |
 +----------------------------------------------------------------------------+
 | Task              : Configures The Digital Output Subdevice.               |
 +----------------------------------------------------------------------------+
@@ -80,7 +80,7 @@ UINT ui_InterruptData, ui_Type;
 +----------------------------------------------------------------------------+
 */
 int i_APCI2032_ConfigDigitalOutput(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	ULONG ul_Command = 0;
 	devpriv->tsk_Current = current;
@@ -118,7 +118,7 @@ int i_APCI2032_ConfigDigitalOutput(comedi_device * dev, comedi_subdevice * s,
 +----------------------------------------------------------------------------+
 | Function   Name   : int i_APCI2032_WriteDigitalOutput                      |
 |			  (comedi_device *dev,comedi_subdevice *s,               |
-|                      comedi_insn *insn,lsampl_t *data)                     |
+|                      comedi_insn *insn,unsigned int *data)                     |
 +----------------------------------------------------------------------------+
 | Task              : Writes port value  To the selected port                |
 +----------------------------------------------------------------------------+
@@ -135,7 +135,7 @@ int i_APCI2032_ConfigDigitalOutput(comedi_device * dev, comedi_subdevice * s,
 */
 
 INT i_APCI2032_WriteDigitalOutput(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	UINT ui_Temp, ui_Temp1;
 	UINT ui_NoOfChannel = CR_CHAN(insn->chanspec);	// get the channel
@@ -297,7 +297,7 @@ INT i_APCI2032_WriteDigitalOutput(comedi_device * dev, comedi_subdevice * s,
 +----------------------------------------------------------------------------+
 | Function   Name   : int i_APCI2032_ReadDigitalOutput                       |
 |			  (comedi_device *dev,comedi_subdevice *s,               |
-|                      comedi_insn *insn,lsampl_t *data)                     |
+|                      comedi_insn *insn,unsigned int *data)                     |
 +----------------------------------------------------------------------------+
 | Task              : Read  value  of the selected channel or port           |
 +----------------------------------------------------------------------------+
@@ -314,7 +314,7 @@ INT i_APCI2032_WriteDigitalOutput(comedi_device * dev, comedi_subdevice * s,
 */
 
 INT i_APCI2032_ReadDigitalOutput(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	UINT ui_Temp;
 	UINT ui_NoOfChannel;
@@ -363,7 +363,7 @@ INT i_APCI2032_ReadDigitalOutput(comedi_device * dev, comedi_subdevice * s,
 /*
 +----------------------------------------------------------------------------+
 | Function   Name   : INT i_APCI2032_ConfigWatchdog(comedi_device
-                   *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data)|
+                   *dev,comedi_subdevice *s,comedi_insn *insn,unsigned int *data)|
 |				                                                     |
 +----------------------------------------------------------------------------+
 | Task              : Configures The Watchdog                                |
@@ -371,7 +371,7 @@ INT i_APCI2032_ReadDigitalOutput(comedi_device * dev, comedi_subdevice * s,
 | Input Parameters  : comedi_device *dev      : Driver handle                |
 |                     comedi_subdevice *s,   :pointer to subdevice structure
                       comedi_insn *insn      :pointer to insn structure      |
-|                     lsampl_t *data          : Data Pointer to read status                                                                                                             |
+|                     unsigned int *data          : Data Pointer to read status                                                                                                             |
 +----------------------------------------------------------------------------+
 | Output Parameters :	--													 |
 +----------------------------------------------------------------------------+
@@ -381,7 +381,7 @@ INT i_APCI2032_ReadDigitalOutput(comedi_device * dev, comedi_subdevice * s,
 +----------------------------------------------------------------------------+
 */
 INT i_APCI2032_ConfigWatchdog(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	if (data[0] == 0) {
 		//Disable the watchdog
@@ -404,14 +404,14 @@ INT i_APCI2032_ConfigWatchdog(comedi_device * dev, comedi_subdevice * s,
     +----------------------------------------------------------------------------+
     | Function   Name   : int i_APCI2032_StartStopWriteWatchdog                  |
     |                           (comedi_device *dev,comedi_subdevice *s,
-    comedi_insn *insn,lsampl_t *data);                      |
+    comedi_insn *insn,unsigned int *data);                      |
     +----------------------------------------------------------------------------+
     | Task              : Start / Stop The Watchdog                              |
     +----------------------------------------------------------------------------+
     | Input Parameters  : comedi_device *dev      : Driver handle                |
     |                     comedi_subdevice *s,   :pointer to subdevice structure
     comedi_insn *insn      :pointer to insn structure      |
-    |                     lsampl_t *data          : Data Pointer to read status  |
+    |                     unsigned int *data          : Data Pointer to read status  |
     +----------------------------------------------------------------------------+
     | Output Parameters :       --                                                                                                       |
     +----------------------------------------------------------------------------+
@@ -422,7 +422,7 @@ INT i_APCI2032_ConfigWatchdog(comedi_device * dev, comedi_subdevice * s,
   */
 
 int i_APCI2032_StartStopWriteWatchdog(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	switch (data[0]) {
 	case 0:		//stop the watchdog
@@ -449,14 +449,14 @@ int i_APCI2032_StartStopWriteWatchdog(comedi_device * dev, comedi_subdevice * s,
 +----------------------------------------------------------------------------+
 | Function   Name   : int i_APCI2032_ReadWatchdog                            |
 |			(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,
-                    lsampl_t *data); 	                                     |
+                    unsigned int *data); 	                                     |
 +----------------------------------------------------------------------------+
 | Task              : Read The Watchdog                                      |
 +----------------------------------------------------------------------------+
 | Input Parameters  :   comedi_device *dev      : Driver handle              |
 |                     comedi_subdevice *s,   :pointer to subdevice structure
                       comedi_insn *insn      :pointer to insn structure      |
-|                     lsampl_t *data          : Data Pointer to read status  |
+|                     unsigned int *data          : Data Pointer to read status  |
 +----------------------------------------------------------------------------+
 | Output Parameters :	--													 |
 +----------------------------------------------------------------------------+
@@ -467,7 +467,7 @@ int i_APCI2032_StartStopWriteWatchdog(comedi_device * dev, comedi_subdevice * s,
 */
 
 int i_APCI2032_ReadWatchdog(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 
 	data[0] =
@@ -531,7 +531,7 @@ void v_APCI2032_Interrupt(int irq, void *d)
 +----------------------------------------------------------------------------+
 | Function   Name   :  int i_APCI2032_ReadInterruptStatus                    |
 |			  (comedi_device *dev,comedi_subdevice *s,               |
-|                      comedi_insn *insn,lsampl_t *data)                     |
+|                      comedi_insn *insn,unsigned int *data)                     |
 +----------------------------------------------------------------------------+
 | Task              :Reads the interrupt status register                     |
 +----------------------------------------------------------------------------+
@@ -545,7 +545,7 @@ void v_APCI2032_Interrupt(int irq, void *d)
 */
 
 int i_APCI2032_ReadInterruptStatus(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	*data = ui_Type;
 	return insn->n;

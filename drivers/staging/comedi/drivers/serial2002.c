@@ -70,7 +70,7 @@ typedef struct {
 	int port;		// /dev/ttyS<port>
 	int speed;		// baudrate
 	struct file *tty;
-	lsampl_t ao_readback[32];
+	unsigned int ao_readback[32];
 	unsigned char digital_in_mapping[32];
 	unsigned char digital_out_mapping[32];
 	unsigned char analog_in_mapping[32];
@@ -98,15 +98,15 @@ comedi_driver driver_serial2002 = {
 };
 
 static int serial2002_di_rinsn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
+	comedi_insn * insn, unsigned int * data);
 static int serial2002_do_winsn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
+	comedi_insn * insn, unsigned int * data);
 static int serial2002_ai_rinsn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
+	comedi_insn * insn, unsigned int * data);
 static int serial2002_ao_winsn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
+	comedi_insn * insn, unsigned int * data);
 static int serial2002_ao_rinsn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
+	comedi_insn * insn, unsigned int * data);
 
 struct serial_data {
 	enum { is_invalid, is_digital, is_channel } kind;
@@ -614,7 +614,7 @@ static void serial_2002_open(comedi_device * dev)
 					kfree(s->maxdata_list);
 				}
 				s->maxdata_list = maxdata_list =
-					kmalloc(sizeof(lsampl_t) * s->n_chan,
+					kmalloc(sizeof(unsigned int) * s->n_chan,
 					GFP_KERNEL);
 				if (s->range_table_list) {
 					kfree(s->range_table_list);
@@ -661,7 +661,7 @@ static void serial_2002_close(comedi_device * dev)
 }
 
 static int serial2002_di_rinsn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	int n;
 	int chan;
@@ -683,7 +683,7 @@ static int serial2002_di_rinsn(comedi_device * dev, comedi_subdevice * s,
 }
 
 static int serial2002_do_winsn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	int n;
 	int chan;
@@ -701,7 +701,7 @@ static int serial2002_do_winsn(comedi_device * dev, comedi_subdevice * s,
 }
 
 static int serial2002_ai_rinsn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	int n;
 	int chan;
@@ -723,7 +723,7 @@ static int serial2002_ai_rinsn(comedi_device * dev, comedi_subdevice * s,
 }
 
 static int serial2002_ao_winsn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	int n;
 	int chan;
@@ -742,7 +742,7 @@ static int serial2002_ao_winsn(comedi_device * dev, comedi_subdevice * s,
 }
 
 static int serial2002_ao_rinsn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	int n;
 	int chan = CR_CHAN(insn->chanspec);
@@ -755,7 +755,7 @@ static int serial2002_ao_rinsn(comedi_device * dev, comedi_subdevice * s,
 }
 
 static int serial2002_ei_rinsn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	int n;
 	int chan;

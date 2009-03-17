@@ -132,11 +132,11 @@ static const comedi_lrange range_das16m1 = { 9,
 };
 
 static int das16m1_do_wbits(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
+	comedi_insn * insn, unsigned int * data);
 static int das16m1_di_rbits(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
+	comedi_insn * insn, unsigned int * data);
 static int das16m1_ai_rinsn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
+	comedi_insn * insn, unsigned int * data);
 
 static int das16m1_cmd_test(comedi_device * dev, comedi_subdevice * s,
 	comedi_cmd * cmd);
@@ -185,7 +185,7 @@ struct das16m1_private_struct {
 	 * needed to keep track of whether new count has been loaded into
 	 * counter yet (loaded by first sample conversion) */
 	u16 initial_hw_count;
-	sampl_t ai_buffer[FIFO_SIZE];
+	short ai_buffer[FIFO_SIZE];
 	unsigned int do_bits;	// saves status of digital output bits
 	unsigned int divisor1;	// divides master clock to obtain conversion speed
 	unsigned int divisor2;	// divides master clock to obtain conversion speed
@@ -195,7 +195,7 @@ struct das16m1_private_struct {
 
 COMEDI_INITCLEANUP(driver_das16m1);
 
-static inline sampl_t munge_sample(sampl_t data)
+static inline short munge_sample(short data)
 {
 	return (data >> 4) & 0xfff;
 }
@@ -394,7 +394,7 @@ static int das16m1_cancel(comedi_device * dev, comedi_subdevice * s)
 }
 
 static int das16m1_ai_rinsn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	int i, n;
 	int byte;
@@ -431,9 +431,9 @@ static int das16m1_ai_rinsn(comedi_device * dev, comedi_subdevice * s,
 }
 
 static int das16m1_di_rbits(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
-	lsampl_t bits;
+	unsigned int bits;
 
 	bits = inb(dev->iobase + DAS16M1_DIO) & 0xf;
 	data[1] = bits;
@@ -443,9 +443,9 @@ static int das16m1_di_rbits(comedi_device * dev, comedi_subdevice * s,
 }
 
 static int das16m1_do_wbits(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
-	lsampl_t wbits;
+	unsigned int wbits;
 
 	// only set bits that have been masked
 	data[0] &= 0xf;
@@ -505,7 +505,7 @@ static irqreturn_t das16m1_interrupt(int irq, void *d PT_REGS_ARG)
 	return IRQ_HANDLED;
 }
 
-static void munge_sample_array(sampl_t * array, unsigned int num_elements)
+static void munge_sample_array(short * array, unsigned int num_elements)
 {
 	unsigned int i;
 
@@ -553,7 +553,7 @@ static void das16m1_handler(comedi_device * dev, unsigned int status)
 	insw(dev->iobase, devpriv->ai_buffer, num_samples);
 	munge_sample_array(devpriv->ai_buffer, num_samples);
 	cfc_write_array_to_buffer(s, devpriv->ai_buffer,
-		num_samples * sizeof(sampl_t));
+		num_samples * sizeof(short));
 	devpriv->adc_count += num_samples;
 
 	if (cmd->stop_src == TRIG_COUNT) {

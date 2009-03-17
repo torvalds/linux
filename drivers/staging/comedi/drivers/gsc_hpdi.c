@@ -60,7 +60,7 @@ static int hpdi_cmd_test(comedi_device * dev, comedi_subdevice * s,
 	comedi_cmd * cmd);
 static int hpdi_cancel(comedi_device * dev, comedi_subdevice * s);
 static irqreturn_t handle_interrupt(int irq, void *d PT_REGS_ARG);
-static int dio_config_block_size(comedi_device * dev, lsampl_t * data);
+static int dio_config_block_size(comedi_device * dev, unsigned int * data);
 
 #undef HPDI_DEBUG		// disable debugging messages
 //#define HPDI_DEBUG    // enable debugging code
@@ -337,7 +337,7 @@ static comedi_driver driver_hpdi = {
 COMEDI_PCI_INITCLEANUP(driver_hpdi, hpdi_pci_table);
 
 static int dio_config_insn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	switch (data[0]) {
 	case INSN_CONFIG_DIO_OUTPUT:
@@ -702,7 +702,7 @@ static int hpdi_detach(comedi_device * dev)
 	return 0;
 }
 
-static int dio_config_block_size(comedi_device * dev, lsampl_t * data)
+static int dio_config_block_size(comedi_device * dev, unsigned int * data)
 {
 	unsigned int requested_block_size;
 	int retval;

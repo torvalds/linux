@@ -141,10 +141,10 @@ static int xilinx_download(comedi_device *dev);
 static int reset_board(comedi_device *dev);
 
 static int me4000_dio_insn_bits(comedi_device *dev,
-	comedi_subdevice *s, comedi_insn *insn, lsampl_t *data);
+	comedi_subdevice *s, comedi_insn *insn, unsigned int *data);
 
 static int me4000_dio_insn_config(comedi_device *dev,
-	comedi_subdevice *s, comedi_insn *insn, lsampl_t *data);
+	comedi_subdevice *s, comedi_insn *insn, unsigned int *data);
 
 static int cnt_reset(comedi_device *dev, unsigned int channel);
 
@@ -152,16 +152,16 @@ static int cnt_config(comedi_device *dev,
 	unsigned int channel, unsigned int mode);
 
 static int me4000_cnt_insn_config(comedi_device *dev,
-	comedi_subdevice *s, comedi_insn *insn, lsampl_t *data);
+	comedi_subdevice *s, comedi_insn *insn, unsigned int *data);
 
 static int me4000_cnt_insn_write(comedi_device *dev,
-	comedi_subdevice *s, comedi_insn *insn, lsampl_t *data);
+	comedi_subdevice *s, comedi_insn *insn, unsigned int *data);
 
 static int me4000_cnt_insn_read(comedi_device *dev,
-	comedi_subdevice *s, comedi_insn *insn, lsampl_t *data);
+	comedi_subdevice *s, comedi_insn *insn, unsigned int *data);
 
 static int me4000_ai_insn_read(comedi_device *dev,
-	comedi_subdevice *subdevice, comedi_insn *insn, lsampl_t *data);
+	comedi_subdevice *subdevice, comedi_insn *insn, unsigned int *data);
 
 static int me4000_ai_cancel(comedi_device *dev, comedi_subdevice *s);
 
@@ -191,10 +191,10 @@ static int me4000_ai_do_cmd_test(comedi_device *dev,
 static int me4000_ai_do_cmd(comedi_device *dev, comedi_subdevice *s);
 
 static int me4000_ao_insn_write(comedi_device *dev,
-	comedi_subdevice *s, comedi_insn *insn, lsampl_t *data);
+	comedi_subdevice *s, comedi_insn *insn, unsigned int *data);
 
 static int me4000_ao_insn_read(comedi_device *dev,
-	comedi_subdevice *s, comedi_insn *insn, lsampl_t *data);
+	comedi_subdevice *s, comedi_insn *insn, unsigned int *data);
 
 /*-----------------------------------------------------------------------------
   Meilhaus inline functions
@@ -914,7 +914,7 @@ static int me4000_detach(comedi_device *dev)
   ===========================================================================*/
 
 static int me4000_ai_insn_read(comedi_device *dev,
-	comedi_subdevice *subdevice, comedi_insn *insn, lsampl_t *data)
+	comedi_subdevice *subdevice, comedi_insn *insn, unsigned int *data)
 {
 
 	int chan = CR_CHAN(insn->chanspec);
@@ -1904,7 +1904,7 @@ static irqreturn_t me4000_ai_isr(int irq, void *dev_id PT_REGS_ARG)
   ===========================================================================*/
 
 static int me4000_ao_insn_write(comedi_device *dev,
-	comedi_subdevice *s, comedi_insn *insn, lsampl_t *data)
+	comedi_subdevice *s, comedi_insn *insn, unsigned int *data)
 {
 
 	int chan = CR_CHAN(insn->chanspec);
@@ -1962,7 +1962,7 @@ static int me4000_ao_insn_write(comedi_device *dev,
 }
 
 static int me4000_ao_insn_read(comedi_device *dev,
-	comedi_subdevice *s, comedi_insn *insn, lsampl_t *data)
+	comedi_subdevice *s, comedi_insn *insn, unsigned int *data)
 {
 	int chan = CR_CHAN(insn->chanspec);
 
@@ -1983,7 +1983,7 @@ static int me4000_ao_insn_read(comedi_device *dev,
   ===========================================================================*/
 
 static int me4000_dio_insn_bits(comedi_device *dev,
-	comedi_subdevice *s, comedi_insn *insn, lsampl_t *data)
+	comedi_subdevice *s, comedi_insn *insn, unsigned int *data)
 {
 
 	CALL_PDEBUG("In me4000_dio_insn_bits()\n");
@@ -2034,7 +2034,7 @@ static int me4000_dio_insn_bits(comedi_device *dev,
 }
 
 static int me4000_dio_insn_config(comedi_device *dev,
-	comedi_subdevice *s, comedi_insn *insn, lsampl_t *data)
+	comedi_subdevice *s, comedi_insn *insn, unsigned int *data)
 {
 	unsigned long tmp;
 	int chan = CR_CHAN(insn->chanspec);
@@ -2216,7 +2216,7 @@ static int cnt_config(comedi_device *dev, unsigned int channel,
 }
 
 static int me4000_cnt_insn_config(comedi_device *dev,
-	comedi_subdevice *s, comedi_insn *insn, lsampl_t *data)
+	comedi_subdevice *s, comedi_insn *insn, unsigned int *data)
 {
 
 	int err;
@@ -2259,7 +2259,7 @@ static int me4000_cnt_insn_config(comedi_device *dev,
 }
 
 static int me4000_cnt_insn_read(comedi_device *dev,
-	comedi_subdevice *s, comedi_insn *insn, lsampl_t *data)
+	comedi_subdevice *s, comedi_insn *insn, unsigned int *data)
 {
 
 	unsigned short tmp;
@@ -2306,7 +2306,7 @@ static int me4000_cnt_insn_read(comedi_device *dev,
 }
 
 static int me4000_cnt_insn_write(comedi_device *dev,
-	comedi_subdevice *s, comedi_insn *insn, lsampl_t *data)
+	comedi_subdevice *s, comedi_insn *insn, unsigned int *data)
 {
 
 	unsigned short tmp;

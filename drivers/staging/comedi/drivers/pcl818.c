@@ -350,12 +350,12 @@ typedef struct {
 	unsigned int *ai_chanlist;	// actaul chanlist
 	unsigned int ai_flags;	// flaglist
 	unsigned int ai_data_len;	// len of data buffer
-	sampl_t *ai_data;	// data buffer
+	short *ai_data;	// data buffer
 	unsigned int ai_timer1;	// timers
 	unsigned int ai_timer2;
 	comedi_subdevice *sub_ai;	// ptr to AI subdevice
 	unsigned char usefifo;	// 1=use fifo
-	lsampl_t ao_readback[2];
+	unsigned int ao_readback[2];
 } pcl818_private;
 
 static const unsigned int muxonechan[] = { 0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77,	// used for gain list programming
@@ -388,7 +388,7 @@ static int rtc_setfreq_irq(int freq);
    ANALOG INPUT MODE0, 818 cards, slow version
 */
 static int pcl818_ai_insn_read(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	int n;
 	int timeout;
@@ -435,7 +435,7 @@ static int pcl818_ai_insn_read(comedi_device * dev, comedi_subdevice * s,
    only one sample per call is supported
 */
 static int pcl818_ao_insn_read(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	int n;
 	int chan = CR_CHAN(insn->chanspec);
@@ -448,7 +448,7 @@ static int pcl818_ao_insn_read(comedi_device * dev, comedi_subdevice * s,
 }
 
 static int pcl818_ao_insn_write(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	int n;
 	int chan = CR_CHAN(insn->chanspec);
@@ -471,7 +471,7 @@ static int pcl818_ao_insn_write(comedi_device * dev, comedi_subdevice * s,
    only one sample per call is supported
 */
 static int pcl818_di_insn_bits(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	if (insn->n != 2)
 		return -EINVAL;
@@ -489,7 +489,7 @@ static int pcl818_di_insn_bits(comedi_device * dev, comedi_subdevice * s,
    only one sample per call is supported
 */
 static int pcl818_do_insn_bits(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	if (insn->n != 2)
 		return -EINVAL;
@@ -569,7 +569,7 @@ static irqreturn_t interrupt_pcl818_ai_mode13_dma(int irq, void *d)
 	comedi_subdevice *s = dev->subdevices + 0;
 	int i, len, bufptr;
 	unsigned long flags;
-	sampl_t *ptr;
+	short *ptr;
 
 	disable_dma(devpriv->dma);
 	devpriv->next_dma_buf = 1 - devpriv->next_dma_buf;
@@ -591,7 +591,7 @@ static irqreturn_t interrupt_pcl818_ai_mode13_dma(int irq, void *d)
 
 	devpriv->dma_runs_to_end--;
 	outb(0, dev->iobase + PCL818_CLRINT);	/* clear INT request */
-	ptr = (sampl_t *) devpriv->dmabuf[1 - devpriv->next_dma_buf];
+	ptr = (short *) devpriv->dmabuf[1 - devpriv->next_dma_buf];
 
 	len = devpriv->hwdmasize[0] >> 1;
 	bufptr = 0;
@@ -645,7 +645,7 @@ static irqreturn_t interrupt_pcl818_ai_mode13_dma_rtc(int irq, void *d)
 	unsigned long tmp;
 	unsigned int top1, top2, i, bufptr;
 	long ofs_dats;
-	sampl_t *dmabuf = (sampl_t *) devpriv->dmabuf[0];
+	short *dmabuf = (short *) devpriv->dmabuf[0];
 
 	//outb(2,0x378);
 	switch (devpriv->ai_mode) {
@@ -880,7 +880,7 @@ static void pcl818_ai_mode13dma_int(int mode, comedi_device * dev,
 	disable_dma(devpriv->dma);	// disable dma
 	bytes = devpriv->hwdmasize[0];
 	if (!devpriv->neverending_ai) {
-		bytes = devpriv->ai_n_chan * devpriv->ai_scans * sizeof(sampl_t);	// how many
+		bytes = devpriv->ai_n_chan * devpriv->ai_scans * sizeof(short);	// how many
 		devpriv->dma_runs_to_end = bytes / devpriv->hwdmasize[0];	// how many DMA pages we must fiil
 		devpriv->last_dma_run = bytes % devpriv->hwdmasize[0];	//on last dma transfer must be moved
 		devpriv->dma_runs_to_end--;
@@ -915,7 +915,7 @@ static void pcl818_ai_mode13dma_rtc(int mode, comedi_device * dev,
 	comedi_subdevice * s)
 {
 	unsigned int flags;
-	sampl_t *pole;
+	short *pole;
 
 	set_dma_mode(devpriv->dma, DMA_MODE_READ | DMA_AUTOINIT);
 	flags = claim_dma_lock();
@@ -925,7 +925,7 @@ static void pcl818_ai_mode13dma_rtc(int mode, comedi_device * dev,
 	release_dma_lock(flags);
 	enable_dma(devpriv->dma);
 	devpriv->last_top_dma = 0;	//devpriv->hwdmasize[0];
-	pole = (sampl_t *) devpriv->dmabuf[0];
+	pole = (short *) devpriv->dmabuf[0];
 	devpriv->dmasamplsize = devpriv->hwdmasize[0] / 2;
 	pole[devpriv->dmasamplsize - 1] = MAGIC_DMA_WORD;
 #ifdef unused

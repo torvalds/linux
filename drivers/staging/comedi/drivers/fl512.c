@@ -25,7 +25,7 @@ Configuration options:
 
 #define FL512_SIZE 16		/* the size of the used memory */
 typedef struct {
-	sampl_t ao_readback[2];
+	short ao_readback[2];
 } fl512_private;
 #define devpriv ((fl512_private *) dev->private)
 
@@ -53,17 +53,17 @@ static comedi_driver driver_fl512 = {
 COMEDI_INITCLEANUP(driver_fl512);
 
 static int fl512_ai_insn(comedi_device * dev,
-	comedi_subdevice * s, comedi_insn * insn, lsampl_t * data);
+	comedi_subdevice * s, comedi_insn * insn, unsigned int * data);
 static int fl512_ao_insn(comedi_device * dev,
-	comedi_subdevice * s, comedi_insn * insn, lsampl_t * data);
+	comedi_subdevice * s, comedi_insn * insn, unsigned int * data);
 static int fl512_ao_insn_readback(comedi_device * dev,
-	comedi_subdevice * s, comedi_insn * insn, lsampl_t * data);
+	comedi_subdevice * s, comedi_insn * insn, unsigned int * data);
 
 /*
  * fl512_ai_insn : this is the analog input function
  */
 static int fl512_ai_insn(comedi_device * dev,
-	comedi_subdevice * s, comedi_insn * insn, lsampl_t * data)
+	comedi_subdevice * s, comedi_insn * insn, unsigned int * data)
 {
 	int n;
 	unsigned int lo_byte, hi_byte;
@@ -88,7 +88,7 @@ static int fl512_ai_insn(comedi_device * dev,
  * fl512_ao_insn : used to write to a DA port n times
  */
 static int fl512_ao_insn(comedi_device * dev,
-	comedi_subdevice * s, comedi_insn * insn, lsampl_t * data)
+	comedi_subdevice * s, comedi_insn * insn, unsigned int * data)
 {
 	int n;
 	int chan = CR_CHAN(insn->chanspec);	/* get chan to write */
@@ -109,7 +109,7 @@ static int fl512_ao_insn(comedi_device * dev,
  * DA port
  */
 static int fl512_ao_insn_readback(comedi_device * dev,
-	comedi_subdevice * s, comedi_insn * insn, lsampl_t * data)
+	comedi_subdevice * s, comedi_insn * insn, unsigned int * data)
 {
 	int n;
 	int chan = CR_CHAN(insn->chanspec);

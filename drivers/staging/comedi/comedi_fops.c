@@ -506,7 +506,7 @@ static int do_chaninfo_ioctl(comedi_device *dev, comedi_chaninfo *arg)
 		if (s->maxdata || !s->maxdata_list)
 			return -EINVAL;
 		if (copy_to_user(it.maxdata_list, s->maxdata_list,
-				 s->n_chan * sizeof(lsampl_t)))
+				 s->n_chan * sizeof(unsigned int)))
 			return -EFAULT;
 	}
 
@@ -607,7 +607,7 @@ copyback:
 	return 0;
 }
 
-static int parse_insn(comedi_device *dev, comedi_insn *insn, lsampl_t *data,
+static int parse_insn(comedi_device *dev, comedi_insn *insn, unsigned int *data,
 		      void *file);
 /*
  * 	COMEDI_INSNLIST
@@ -630,14 +630,14 @@ static int do_insnlist_ioctl(comedi_device *dev, void *arg, void *file)
 {
 	comedi_insnlist insnlist;
 	comedi_insn *insns = NULL;
-	lsampl_t *data = NULL;
+	unsigned int *data = NULL;
 	int i = 0;
 	int ret = 0;
 
 	if (copy_from_user(&insnlist, arg, sizeof(comedi_insnlist)))
 		return -EFAULT;
 
-	data = kmalloc(sizeof(lsampl_t) * MAX_SAMPLES, GFP_KERNEL);
+	data = kmalloc(sizeof(unsigned int) * MAX_SAMPLES, GFP_KERNEL);
 	if (!data) {
 		DPRINTK("kmalloc failed\n");
 		ret = -ENOMEM;
@@ -666,7 +666,7 @@ static int do_insnlist_ioctl(comedi_device *dev, void *arg, void *file)
 		}
 		if (insns[i].insn & INSN_MASK_WRITE) {
 			if (copy_from_user(data, insns[i].data,
-					   insns[i].n * sizeof(lsampl_t))) {
+					   insns[i].n * sizeof(unsigned int))) {
 				DPRINTK("copy_from_user failed\n");
 				ret = -EFAULT;
 				goto error;
@@ -677,7 +677,7 @@ static int do_insnlist_ioctl(comedi_device *dev, void *arg, void *file)
 			goto error;
 		if (insns[i].insn & INSN_MASK_READ) {
 			if (copy_to_user(insns[i].data, data,
-					 insns[i].n * sizeof(lsampl_t))) {
+					 insns[i].n * sizeof(unsigned int))) {
 				DPRINTK("copy_to_user failed\n");
 				ret = -EFAULT;
 				goto error;
@@ -696,7 +696,7 @@ error:
 	return i;
 }
 
-static int check_insn_config_length(comedi_insn *insn, lsampl_t *data)
+static int check_insn_config_length(comedi_insn *insn, unsigned int *data)
 {
 	if (insn->n < 1)
 		return -EINVAL;
@@ -757,7 +757,7 @@ static int check_insn_config_length(comedi_insn *insn, lsampl_t *data)
 	return -EINVAL;
 }
 
-static int parse_insn(comedi_device *dev, comedi_insn *insn, lsampl_t *data,
+static int parse_insn(comedi_device *dev, comedi_insn *insn, unsigned int *data,
 		      void *file)
 {
 	comedi_subdevice *s;
@@ -825,7 +825,7 @@ static int parse_insn(comedi_device *dev, comedi_insn *insn, lsampl_t *data,
 		}
 	} else {
 		/* a subdevice instruction */
-		lsampl_t maxdata;
+		unsigned int maxdata;
 
 		if (insn->subdev >= dev->n_subdevices) {
 			DPRINTK("subdevice %d out of range\n", insn->subdev);
@@ -920,10 +920,10 @@ out:
 static int do_insn_ioctl(comedi_device *dev, void *arg, void *file)
 {
 	comedi_insn insn;
-	lsampl_t *data = NULL;
+	unsigned int *data = NULL;
 	int ret = 0;
 
-	data = kmalloc(sizeof(lsampl_t) * MAX_SAMPLES, GFP_KERNEL);
+	data = kmalloc(sizeof(unsigned int) * MAX_SAMPLES, GFP_KERNEL);
 	if (!data) {
 		ret = -ENOMEM;
 		goto error;
@@ -938,7 +938,7 @@ static int do_insn_ioctl(comedi_device *dev, void *arg, void *file)
 	if (insn.n > MAX_SAMPLES)
 		insn.n = MAX_SAMPLES;
 	if (insn.insn & INSN_MASK_WRITE) {
-		if (copy_from_user(data, insn.data, insn.n * sizeof(lsampl_t))) {
+		if (copy_from_user(data, insn.data, insn.n * sizeof(unsigned int))) {
 			ret = -EFAULT;
 			goto error;
 		}
@@ -947,7 +947,7 @@ static int do_insn_ioctl(comedi_device *dev, void *arg, void *file)
 	if (ret < 0)
 		goto error;
 	if (insn.insn & INSN_MASK_READ) {
-		if (copy_to_user(insn.data, data, insn.n * sizeof(lsampl_t))) {
+		if (copy_to_user(insn.data, data, insn.n * sizeof(unsigned int))) {
 			ret = -EFAULT;
 			goto error;
 		}

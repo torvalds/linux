@@ -83,34 +83,34 @@
 //DI
 // for di read
 INT i_APCI1564_ConfigDigitalInput(comedi_device *dev, comedi_subdevice *s,
-				  comedi_insn *insn, lsampl_t *data);
+				  comedi_insn *insn, unsigned int *data);
 INT i_APCI1564_Read1DigitalInput(comedi_device *dev, comedi_subdevice *s,
-				 comedi_insn *insn, lsampl_t *data);
+				 comedi_insn *insn, unsigned int *data);
 INT i_APCI1564_ReadMoreDigitalInput(comedi_device *dev, comedi_subdevice *s,
-				    comedi_insn *insn, lsampl_t *data);
+				    comedi_insn *insn, unsigned int *data);
 
 //DO
 int i_APCI1564_ConfigDigitalOutput(comedi_device *dev, comedi_subdevice *s,
-				   comedi_insn *insn, lsampl_t *data);
+				   comedi_insn *insn, unsigned int *data);
 INT i_APCI1564_WriteDigitalOutput(comedi_device *dev, comedi_subdevice *s,
-				  comedi_insn *insn, lsampl_t *data);
+				  comedi_insn *insn, unsigned int *data);
 INT i_APCI1564_ReadDigitalOutput(comedi_device *dev, comedi_subdevice *s,
-				 comedi_insn *insn, lsampl_t *data);
+				 comedi_insn *insn, unsigned int *data);
 int i_APCI1564_ReadInterruptStatus(comedi_device *dev, comedi_subdevice *s,
-				   comedi_insn *insn, lsampl_t *data);
+				   comedi_insn *insn, unsigned int *data);
 
 // TIMER
 // timer value is passed as u seconds
 INT i_APCI1564_ConfigTimerCounterWatchdog(comedi_device *dev,
 					  comedi_subdevice *s,
-					  comedi_insn *insn, lsampl_t *data);
+					  comedi_insn *insn, unsigned int *data);
 int i_APCI1564_StartStopWriteTimerCounterWatchdog(comedi_device *dev,
 						  comedi_subdevice *s,
 						  comedi_insn *insn,
-						  lsampl_t *data);
+						  unsigned int *data);
 int i_APCI1564_ReadTimerCounterWatchdog(comedi_device *dev,
 					comedi_subdevice *s,
-					comedi_insn *insn, lsampl_t *data);
+					comedi_insn *insn, unsigned int *data);
 
 // INTERRUPT
 static VOID v_APCI1564_Interrupt(int irq, void *d);

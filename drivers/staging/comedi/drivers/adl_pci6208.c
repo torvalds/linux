@@ -101,7 +101,7 @@ MODULE_DEVICE_TABLE(pci, pci6208_pci_table);
 typedef struct {
 	int data;
 	struct pci_dev *pci_dev;	/* for a PCI device */
-	lsampl_t ao_readback[2];	/* Used for AO readback */
+	unsigned int ao_readback[2];	/* Used for AO readback */
 } pci6208_private;
 
 #define devpriv ((pci6208_private *)dev->private)
@@ -128,13 +128,13 @@ pci6208_pci_setup(struct pci_dev *pci_dev, unsigned long *io_base_ptr,
 
 /*read/write functions*/
 static int pci6208_ao_winsn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
+	comedi_insn * insn, unsigned int * data);
 static int pci6208_ao_rinsn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
+	comedi_insn * insn, unsigned int * data);
 //static int pci6208_dio_insn_bits(comedi_device *dev,comedi_subdevice *s,
-//      comedi_insn *insn,lsampl_t *data);
+//      comedi_insn *insn,unsigned int *data);
 //static int pci6208_dio_insn_config(comedi_device *dev,comedi_subdevice *s,
-//      comedi_insn *insn,lsampl_t *data);
+//      comedi_insn *insn,unsigned int *data);
 
 /*
  * Attach is called by the Comedi core to configure the driver
@@ -220,7 +220,7 @@ static int pci6208_detach(comedi_device * dev)
 }
 
 static int pci6208_ao_winsn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	int i = 0, Data_Read;
 	unsigned short chan = CR_CHAN(insn->chanspec);
@@ -245,7 +245,7 @@ static int pci6208_ao_winsn(comedi_device * dev, comedi_subdevice * s,
 /* AO subdevices should have a read insn as well as a write insn.
  * Usually this means copying a value stored in devpriv. */
 static int pci6208_ao_rinsn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	int i;
 	int chan = CR_CHAN(insn->chanspec);
@@ -262,7 +262,7 @@ static int pci6208_ao_rinsn(comedi_device * dev, comedi_subdevice * s,
  * This allows packed reading/writing of the DIO channels.  The
  * comedi core can convert between insn_bits and insn_read/write */
 //static int pci6208_dio_insn_bits(comedi_device *dev,comedi_subdevice *s,
-//      comedi_insn *insn,lsampl_t *data)
+//      comedi_insn *insn,unsigned int *data)
 //{
 //      if(insn->n!=2)return -EINVAL;
 
@@ -286,7 +286,7 @@ static int pci6208_ao_rinsn(comedi_device * dev, comedi_subdevice * s,
 //}
 
 //static int pci6208_dio_insn_config(comedi_device *dev,comedi_subdevice *s,
-//      comedi_insn *insn,lsampl_t *data)
+//      comedi_insn *insn,unsigned int *data)
 //{
 //      int chan=CR_CHAN(insn->chanspec);
 

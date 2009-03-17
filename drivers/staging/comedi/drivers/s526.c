@@ -198,7 +198,7 @@ typedef struct {
 	struct pci_dev *pci_dev;
 
 	/* Used for AO readback */
-	lsampl_t ao_readback[2];
+	unsigned int ao_readback[2];
 
 	s526_gpct_config_t s526_gpct_config[4];
 	unsigned short s526_ai_config;
@@ -246,23 +246,23 @@ static comedi_driver driver_s526 = {
 };
 
 static int s526_gpct_rinsn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
+	comedi_insn * insn, unsigned int * data);
 static int s526_gpct_insn_config(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
+	comedi_insn * insn, unsigned int * data);
 static int s526_gpct_winsn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
+	comedi_insn * insn, unsigned int * data);
 static int s526_ai_insn_config(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
+	comedi_insn * insn, unsigned int * data);
 static int s526_ai_rinsn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
+	comedi_insn * insn, unsigned int * data);
 static int s526_ao_winsn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
+	comedi_insn * insn, unsigned int * data);
 static int s526_ao_rinsn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
+	comedi_insn * insn, unsigned int * data);
 static int s526_dio_insn_bits(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
+	comedi_insn * insn, unsigned int * data);
 static int s526_dio_insn_config(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
+	comedi_insn * insn, unsigned int * data);
 
 /*
  * Attach is called by the Comedi core to configure the driver
@@ -275,7 +275,7 @@ static int s526_attach(comedi_device * dev, comedi_devconfig * it)
 	comedi_subdevice *s;
 	int iobase;
 	int i, n;
-//      sampl_t value;
+//      short value;
 //      int subdev_channel = 0;
 
 	printk("comedi%d: s526: ", dev->minor);
@@ -428,11 +428,11 @@ static int s526_attach(comedi_device * dev, comedi_devconfig * it)
 	printk("Read back mode reg=0x%04x\n", inw(ADDR_CHAN_REG(REG_C0M, n)));
 
 	// Load the pre-laod register high word
-//                      value = (sampl_t) (0x55);
+//                      value = (short) (0x55);
 //                      outw(value, ADDR_CHAN_REG(REG_C0H, n));
 
 	// Load the pre-laod register low word
-//                      value = (sampl_t)(0xaa55);
+//                      value = (short)(0xaa55);
 //                      outw(value, ADDR_CHAN_REG(REG_C0L, n));
 
 	// Write the Counter Control Register
@@ -477,7 +477,7 @@ static int s526_detach(comedi_device * dev)
 }
 
 static int s526_gpct_rinsn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	int i;			// counts the Data
 	int counter_channel = CR_CHAN(insn->chanspec);
@@ -501,11 +501,11 @@ static int s526_gpct_rinsn(comedi_device * dev, comedi_subdevice * s,
 }
 
 static int s526_gpct_insn_config(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	int subdev_channel = CR_CHAN(insn->chanspec);	// Unpack chanspec
 	int i;
-	sampl_t value;
+	short value;
 
 //        printk("s526: GPCT_INSN_CONFIG: Configuring Channel %d\n", subdev_channel);
 
@@ -602,20 +602,20 @@ static int s526_gpct_insn_config(comedi_device * dev, comedi_subdevice * s,
 			cmReg.reg.autoLoadResetRcap = 4;	// Auto load with INDEX^
 
 		// Set Counter Mode Register
-		cmReg.value = (sampl_t) (insn->data[1] & 0xFFFF);
+		cmReg.value = (short) (insn->data[1] & 0xFFFF);
 		outw(cmReg.value, ADDR_CHAN_REG(REG_C0M, subdev_channel));
 
 		// Load the pre-laod register high word
-		value = (sampl_t) ((insn->data[2] >> 16) & 0xFFFF);
+		value = (short) ((insn->data[2] >> 16) & 0xFFFF);
 		outw(value, ADDR_CHAN_REG(REG_C0H, subdev_channel));
 
 		// Load the pre-laod register low word
-		value = (sampl_t) (insn->data[2] & 0xFFFF);
+		value = (short) (insn->data[2] & 0xFFFF);
 		outw(value, ADDR_CHAN_REG(REG_C0L, subdev_channel));
 
 		// Write the Counter Control Register
 		if (insn->data[3] != 0) {
-			value = (sampl_t) (insn->data[3] & 0xFFFF);
+			value = (short) (insn->data[3] & 0xFFFF);
 			outw(value, ADDR_CHAN_REG(REG_C0C, subdev_channel));
 		}
 		// Reset the counter if it is software preload
@@ -639,34 +639,34 @@ static int s526_gpct_insn_config(comedi_device * dev, comedi_subdevice * s,
 			SinglePulseGeneration;
 
 		// Set Counter Mode Register
-		cmReg.value = (sampl_t) (insn->data[1] & 0xFFFF);
+		cmReg.value = (short) (insn->data[1] & 0xFFFF);
 		cmReg.reg.preloadRegSel = 0;	// PR0
 		outw(cmReg.value, ADDR_CHAN_REG(REG_C0M, subdev_channel));
 
 		// Load the pre-laod register 0 high word
-		value = (sampl_t) ((insn->data[2] >> 16) & 0xFFFF);
+		value = (short) ((insn->data[2] >> 16) & 0xFFFF);
 		outw(value, ADDR_CHAN_REG(REG_C0H, subdev_channel));
 
 		// Load the pre-laod register 0 low word
-		value = (sampl_t) (insn->data[2] & 0xFFFF);
+		value = (short) (insn->data[2] & 0xFFFF);
 		outw(value, ADDR_CHAN_REG(REG_C0L, subdev_channel));
 
 		// Set Counter Mode Register
-		cmReg.value = (sampl_t) (insn->data[1] & 0xFFFF);
+		cmReg.value = (short) (insn->data[1] & 0xFFFF);
 		cmReg.reg.preloadRegSel = 1;	// PR1
 		outw(cmReg.value, ADDR_CHAN_REG(REG_C0M, subdev_channel));
 
 		// Load the pre-laod register 1 high word
-		value = (sampl_t) ((insn->data[3] >> 16) & 0xFFFF);
+		value = (short) ((insn->data[3] >> 16) & 0xFFFF);
 		outw(value, ADDR_CHAN_REG(REG_C0H, subdev_channel));
 
 		// Load the pre-laod register 1 low word
-		value = (sampl_t) (insn->data[3] & 0xFFFF);
+		value = (short) (insn->data[3] & 0xFFFF);
 		outw(value, ADDR_CHAN_REG(REG_C0L, subdev_channel));
 
 		// Write the Counter Control Register
 		if (insn->data[3] != 0) {
-			value = (sampl_t) (insn->data[3] & 0xFFFF);
+			value = (short) (insn->data[3] & 0xFFFF);
 			outw(value, ADDR_CHAN_REG(REG_C0C, subdev_channel));
 		}
 		break;
@@ -684,34 +684,34 @@ static int s526_gpct_insn_config(comedi_device * dev, comedi_subdevice * s,
 			PulseTrainGeneration;
 
 		// Set Counter Mode Register
-		cmReg.value = (sampl_t) (insn->data[1] & 0xFFFF);
+		cmReg.value = (short) (insn->data[1] & 0xFFFF);
 		cmReg.reg.preloadRegSel = 0;	// PR0
 		outw(cmReg.value, ADDR_CHAN_REG(REG_C0M, subdev_channel));
 
 		// Load the pre-laod register 0 high word
-		value = (sampl_t) ((insn->data[2] >> 16) & 0xFFFF);
+		value = (short) ((insn->data[2] >> 16) & 0xFFFF);
 		outw(value, ADDR_CHAN_REG(REG_C0H, subdev_channel));
 
 		// Load the pre-laod register 0 low word
-		value = (sampl_t) (insn->data[2] & 0xFFFF);
+		value = (short) (insn->data[2] & 0xFFFF);
 		outw(value, ADDR_CHAN_REG(REG_C0L, subdev_channel));
 
 		// Set Counter Mode Register
-		cmReg.value = (sampl_t) (insn->data[1] & 0xFFFF);
+		cmReg.value = (short) (insn->data[1] & 0xFFFF);
 		cmReg.reg.preloadRegSel = 1;	// PR1
 		outw(cmReg.value, ADDR_CHAN_REG(REG_C0M, subdev_channel));
 
 		// Load the pre-laod register 1 high word
-		value = (sampl_t) ((insn->data[3] >> 16) & 0xFFFF);
+		value = (short) ((insn->data[3] >> 16) & 0xFFFF);
 		outw(value, ADDR_CHAN_REG(REG_C0H, subdev_channel));
 
 		// Load the pre-laod register 1 low word
-		value = (sampl_t) (insn->data[3] & 0xFFFF);
+		value = (short) (insn->data[3] & 0xFFFF);
 		outw(value, ADDR_CHAN_REG(REG_C0L, subdev_channel));
 
 		// Write the Counter Control Register
 		if (insn->data[3] != 0) {
-			value = (sampl_t) (insn->data[3] & 0xFFFF);
+			value = (short) (insn->data[3] & 0xFFFF);
 			outw(value, ADDR_CHAN_REG(REG_C0C, subdev_channel));
 		}
 		break;
@@ -726,10 +726,10 @@ static int s526_gpct_insn_config(comedi_device * dev, comedi_subdevice * s,
 }
 
 static int s526_gpct_winsn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	int subdev_channel = CR_CHAN(insn->chanspec);	// Unpack chanspec
-	sampl_t value;
+	short value;
 
 	printk("s526: GPCT_INSN_WRITE on channel %d\n", subdev_channel);
 	cmReg.value = inw(ADDR_CHAN_REG(REG_C0M, subdev_channel));
@@ -769,9 +769,9 @@ static int s526_gpct_winsn(comedi_device * dev, comedi_subdevice * s,
 			return -EINVAL;
 		}
 
-		value = (sampl_t) ((*data >> 16) & 0xFFFF);
+		value = (short) ((*data >> 16) & 0xFFFF);
 		outw(value, ADDR_CHAN_REG(REG_C0H, subdev_channel));
-		value = (sampl_t) (*data & 0xFFFF);
+		value = (short) (*data & 0xFFFF);
 		outw(value, ADDR_CHAN_REG(REG_C0L, subdev_channel));
 		break;
 	default:		// Impossible
@@ -785,7 +785,7 @@ static int s526_gpct_winsn(comedi_device * dev, comedi_subdevice * s,
 
 #define ISR_ADC_DONE 0x4
 static int s526_ai_insn_config(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	int result = -EINVAL;
 
@@ -818,7 +818,7 @@ static int s526_ai_insn_config(comedi_device * dev, comedi_subdevice * s,
  * mode.
  */
 static int s526_ai_rinsn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	int n, i;
 	int chan = CR_CHAN(insn->chanspec);
@@ -868,7 +868,7 @@ static int s526_ai_rinsn(comedi_device * dev, comedi_subdevice * s,
 }
 
 static int s526_ao_winsn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	int i;
 	int chan = CR_CHAN(insn->chanspec);
@@ -897,7 +897,7 @@ static int s526_ao_winsn(comedi_device * dev, comedi_subdevice * s,
 /* AO subdevices should have a read insn as well as a write insn.
  * Usually this means copying a value stored in devpriv. */
 static int s526_ao_rinsn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	int i;
 	int chan = CR_CHAN(insn->chanspec);
@@ -914,7 +914,7 @@ static int s526_ao_rinsn(comedi_device * dev, comedi_subdevice * s,
  * This allows packed reading/writing of the DIO channels.  The
  * comedi core can convert between insn_bits and insn_read/write */
 static int s526_dio_insn_bits(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	if (insn->n != 2)
 		return -EINVAL;
@@ -939,10 +939,10 @@ static int s526_dio_insn_bits(comedi_device * dev, comedi_subdevice * s,
 }
 
 static int s526_dio_insn_config(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	int chan = CR_CHAN(insn->chanspec);
-	sampl_t value;
+	short value;
 
 	printk("S526 DIO insn_config\n");
 

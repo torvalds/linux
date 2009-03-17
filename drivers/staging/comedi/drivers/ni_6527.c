@@ -120,7 +120,7 @@ typedef struct {
 static int ni6527_find_device(comedi_device * dev, int bus, int slot);
 
 static int ni6527_di_insn_config(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	int chan = CR_CHAN(insn->chanspec);
 	unsigned int interval;
@@ -168,7 +168,7 @@ static int ni6527_di_insn_config(comedi_device * dev, comedi_subdevice * s,
 }
 
 static int ni6527_di_insn_bits(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	if (insn->n != 2)
 		return -EINVAL;
@@ -181,7 +181,7 @@ static int ni6527_di_insn_bits(comedi_device * dev, comedi_subdevice * s,
 }
 
 static int ni6527_do_insn_bits(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	if (insn->n != 2)
 		return -EINVAL;
@@ -327,7 +327,7 @@ static int ni6527_intr_cancel(comedi_device * dev, comedi_subdevice * s)
 }
 
 static int ni6527_intr_insn_bits(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	if (insn->n < 1)
 		return -EINVAL;
@@ -337,7 +337,7 @@ static int ni6527_intr_insn_bits(comedi_device * dev, comedi_subdevice * s,
 }
 
 static int ni6527_intr_insn_config(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	if (insn->n < 1)
 		return -EINVAL;

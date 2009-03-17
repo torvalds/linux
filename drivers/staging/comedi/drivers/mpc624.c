@@ -156,7 +156,7 @@ static comedi_driver driver_mpc624 = {
 
 //----------------------------------------------------------------------------
 static int mpc624_ai_rinsn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
+	comedi_insn * insn, unsigned int * data);
 //----------------------------------------------------------------------------
 static int mpc624_attach(comedi_device * dev, comedi_devconfig * it)
 {
@@ -269,7 +269,7 @@ static int mpc624_detach(comedi_device * dev)
 #define TIMEOUT 200
 
 static int mpc624_ai_rinsn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	int n, i;
 	unsigned long int data_in, data_out;

@@ -227,15 +227,15 @@ static comedi_driver driver_dt2811 = {
 COMEDI_INITCLEANUP(driver_dt2811);
 
 static int dt2811_ai_insn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
+	comedi_insn * insn, unsigned int * data);
 static int dt2811_ao_insn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
+	comedi_insn * insn, unsigned int * data);
 static int dt2811_ao_insn_read(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
+	comedi_insn * insn, unsigned int * data);
 static int dt2811_di_insn_bits(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
+	comedi_insn * insn, unsigned int * data);
 static int dt2811_do_insn_bits(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
+	comedi_insn * insn, unsigned int * data);
 
 enum { card_2811_pgh, card_2811_pgl };
 typedef struct {
@@ -248,7 +248,7 @@ typedef struct {
 		dac_bipolar_5, dac_bipolar_2_5, dac_unipolar_5
 	} dac_range[2];
 	const comedi_lrange *range_type_list[2];
-	lsampl_t ao_readback[2];
+	unsigned int ao_readback[2];
 } dt2811_private;
 
 #define devpriv ((dt2811_private *)dev->private)
@@ -491,7 +491,7 @@ static int dt2811_detach(comedi_device * dev)
 }
 
 static int dt2811_ai_insn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	int chan = CR_CHAN(insn->chanspec);
 	int timeout = DT2811_TIMEOUT;
@@ -542,7 +542,7 @@ int dt2811_adtrig(kdev_t minor, comedi_adtrig * adtrig)
 #endif
 
 static int dt2811_ao_insn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	int i;
 	int chan;
@@ -560,7 +560,7 @@ static int dt2811_ao_insn(comedi_device * dev, comedi_subdevice * s,
 }
 
 static int dt2811_ao_insn_read(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	int i;
 	int chan;
@@ -575,7 +575,7 @@ static int dt2811_ao_insn_read(comedi_device * dev, comedi_subdevice * s,
 }
 
 static int dt2811_di_insn_bits(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	if (insn->n != 2)
 		return -EINVAL;
@@ -586,7 +586,7 @@ static int dt2811_di_insn_bits(comedi_device * dev, comedi_subdevice * s,
 }
 
 static int dt2811_do_insn_bits(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	if (insn->n != 2)
 		return -EINVAL;

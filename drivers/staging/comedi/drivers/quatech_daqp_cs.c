@@ -313,7 +313,7 @@ static void daqp_interrupt(int irq, void *dev_id PT_REGS_ARG)
 		while (!((status = inb(dev->iobase + DAQP_STATUS))
 				& DAQP_STATUS_FIFO_EMPTY)) {
 
-			sampl_t data;
+			short data;
 
 			if (status & DAQP_STATUS_DATA_LOST) {
 				s->async->events |=
@@ -362,7 +362,7 @@ static void daqp_interrupt(int irq, void *dev_id PT_REGS_ARG)
 /* One-shot analog data acquisition routine */
 
 static int daqp_ai_insn_read(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	local_info_t *local = (local_info_t *) s->private;
 	int i;
@@ -794,7 +794,7 @@ static int daqp_ai_cmd(comedi_device * dev, comedi_subdevice * s)
 /* Single-shot analog output routine */
 
 static int daqp_ao_insn_write(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	local_info_t *local = (local_info_t *) s->private;
 	int d;
@@ -821,7 +821,7 @@ static int daqp_ao_insn_write(comedi_device * dev, comedi_subdevice * s,
 /* Digital input routine */
 
 static int daqp_di_insn_read(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	local_info_t *local = (local_info_t *) s->private;
 
@@ -837,7 +837,7 @@ static int daqp_di_insn_read(comedi_device * dev, comedi_subdevice * s,
 /* Digital output routine */
 
 static int daqp_do_insn_write(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	local_info_t *local = (local_info_t *) s->private;
 

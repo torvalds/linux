@@ -214,9 +214,9 @@ static comedi_driver driver_bonding = {
 };
 
 static int bonding_dio_insn_bits(comedi_device *dev, comedi_subdevice *s,
-				 comedi_insn *insn, lsampl_t *data);
+				 comedi_insn *insn, unsigned int *data);
 static int bonding_dio_insn_config(comedi_device *dev, comedi_subdevice *s,
-				   comedi_insn *insn, lsampl_t *data);
+				   comedi_insn *insn, unsigned int *data);
 
 /*
  * Attach is called by the Comedi core to configure the driver
@@ -294,9 +294,9 @@ static int bonding_detach(comedi_device *dev)
  * This allows packed reading/writing of the DIO channels.  The
  * comedi core can convert between insn_bits and insn_read/write */
 static int bonding_dio_insn_bits(comedi_device *dev, comedi_subdevice *s,
-				 comedi_insn *insn, lsampl_t *data)
+				 comedi_insn *insn, unsigned int *data)
 {
-#define LSAMPL_BITS (sizeof(lsampl_t)*8)
+#define LSAMPL_BITS (sizeof(unsigned int)*8)
 	unsigned nchans = LSAMPL_BITS, num_done = 0, i;
 	if (insn->n != 2)
 		return -EINVAL;
@@ -312,12 +312,12 @@ static int bonding_dio_insn_bits(comedi_device *dev, comedi_subdevice *s,
 		   to this subdevice.. need to shift them to zero position of
 		   course. */
 		/* Bits corresponding to this subdev. */
-		lsampl_t subdevMask = ((1 << bdev->nchans) - 1);
-		lsampl_t writeMask, dataBits;
+		unsigned int subdevMask = ((1 << bdev->nchans) - 1);
+		unsigned int writeMask, dataBits;
 
 		/* Argh, we have >= LSAMPL_BITS chans.. take all bits */
 		if (bdev->nchans >= LSAMPL_BITS)
-			subdevMask = (lsampl_t) (-1);
+			subdevMask = (unsigned int) (-1);
 
 		writeMask = (data[0] >> num_done) & subdevMask;
 		dataBits = (data[1] >> num_done) & subdevMask;
@@ -341,7 +341,7 @@ static int bonding_dio_insn_bits(comedi_device *dev, comedi_subdevice *s,
 }
 
 static int bonding_dio_insn_config(comedi_device *dev, comedi_subdevice *s,
-				   comedi_insn *insn, lsampl_t *data)
+				   comedi_insn *insn, unsigned int *data)
 {
 	int chan = CR_CHAN(insn->chanspec), ret, io_bits = s->io_bits;
 	unsigned int io;

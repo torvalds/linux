@@ -56,7 +56,7 @@ static comedi_driver driver_pcl730 = {
 COMEDI_INITCLEANUP(driver_pcl730);
 
 static int pcl730_do_insn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	if (insn->n != 2)
 		return -EINVAL;
@@ -78,7 +78,7 @@ static int pcl730_do_insn(comedi_device * dev, comedi_subdevice * s,
 }
 
 static int pcl730_di_insn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	if (insn->n != 2)
 		return -EINVAL;

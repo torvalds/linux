@@ -100,7 +100,7 @@ COMEDI_PCI_INITCLEANUP(cnt_driver, cnt_pci_table);
 /* This should be used only for resetting the counters; maybe it is better
    to make a special command 'reset'. */
 static int cnt_winsn(comedi_device * dev,
-	comedi_subdevice * s, comedi_insn * insn, lsampl_t * data)
+	comedi_subdevice * s, comedi_insn * insn, unsigned int * data)
 {
 	int chan = CR_CHAN(insn->chanspec);
 
@@ -120,7 +120,7 @@ static int cnt_winsn(comedi_device * dev,
 /*-- counter read -----------------------------------------------------------*/
 
 static int cnt_rinsn(comedi_device * dev,
-	comedi_subdevice * s, comedi_insn * insn, lsampl_t * data)
+	comedi_subdevice * s, comedi_insn * insn, unsigned int * data)
 {
 	unsigned char a0, a1, a2, a3, a4;
 	int chan = CR_CHAN(insn->chanspec);
@@ -136,7 +136,7 @@ static int cnt_rinsn(comedi_device * dev,
 	if (a4 > 0)
 		result = result - s->maxdata;
 
-	*data = (lsampl_t) result;
+	*data = (unsigned int) result;
 
 	/* return the number of samples read */
 	return 1;

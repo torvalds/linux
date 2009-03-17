@@ -50,7 +50,7 @@
 
 struct comedi32_chaninfo_struct {
 	unsigned int subdev;
-	compat_uptr_t maxdata_list;	/* 32-bit 'lsampl_t *' */
+	compat_uptr_t maxdata_list;	/* 32-bit 'unsigned int *' */
 	compat_uptr_t flaglist;		/* 32-bit 'unsigned int *' */
 	compat_uptr_t rangelist;	/* 32-bit 'unsigned int *' */
 	unsigned int unused[4];
@@ -76,14 +76,14 @@ struct comedi32_cmd_struct {
 	unsigned int stop_arg;
 	compat_uptr_t chanlist;		/* 32-bit 'unsigned int *' */
 	unsigned int chanlist_len;
-	compat_uptr_t data;		/* 32-bit 'sampl_t *' */
+	compat_uptr_t data;		/* 32-bit 'short *' */
 	unsigned int data_len;
 };
 
 struct comedi32_insn_struct {
 	unsigned int insn;
 	unsigned int n;
-	compat_uptr_t data;		/* 32-bit 'lsampl_t *' */
+	compat_uptr_t data;		/* 32-bit 'unsigned int *' */
 	unsigned int subdev;
 	unsigned int chanspec;
 	unsigned int unused[3];

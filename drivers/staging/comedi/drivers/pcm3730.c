@@ -40,7 +40,7 @@ static comedi_driver driver_pcm3730 = {
 COMEDI_INITCLEANUP(driver_pcm3730);
 
 static int pcm3730_do_insn_bits(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	if (insn->n != 2)
 		return -EINVAL;
@@ -55,7 +55,7 @@ static int pcm3730_do_insn_bits(comedi_device * dev, comedi_subdevice * s,
 }
 
 static int pcm3730_di_insn_bits(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	if (insn->n != 2)
 		return -EINVAL;

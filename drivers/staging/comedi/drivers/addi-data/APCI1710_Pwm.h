@@ -27,7 +27,7 @@
 #define APCI1710_PWM_NEWTIMING		2
 
 INT i_APCI1710_InsnConfigPWM(comedi_device *dev, comedi_subdevice *s,
-			     comedi_insn *insn, lsampl_t *data);
+			     comedi_insn *insn, unsigned int *data);
 
 INT i_APCI1710_InitPWM(comedi_device *dev,
 		       BYTE b_ModulNbr,
@@ -51,7 +51,7 @@ INT i_APCI1710_GetPWMInitialisation(comedi_device *dev,
 				    PBYTE pb_InterruptEnable, PBYTE pb_Enable);
 
 INT i_APCI1710_InsnWritePWM(comedi_device *dev, comedi_subdevice *s,
-			    comedi_insn *insn, lsampl_t *data);
+			    comedi_insn *insn, unsigned int *data);
 
 INT i_APCI1710_EnablePWM(comedi_device *dev,
 			 BYTE b_ModulNbr,
@@ -69,8 +69,8 @@ INT i_APCI1710_SetNewPWMTiming(comedi_device *dev,
 INT i_APCI1710_DisablePWM(comedi_device *dev, BYTE b_ModulNbr, BYTE b_PWM);
 
 INT i_APCI1710_InsnReadGetPWMStatus(comedi_device *dev, comedi_subdevice *s,
-				    comedi_insn *insn, lsampl_t *data);
+				    comedi_insn *insn, unsigned int *data);
 
 INT i_APCI1710_InsnBitsReadPWMInterrupt(comedi_device *dev,
 					comedi_subdevice *s,
-					comedi_insn *insn, lsampl_t *data);
+					comedi_insn *insn, unsigned int *data);

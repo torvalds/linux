@@ -28,19 +28,19 @@
  * DIGITAL I/O INISIALISATION FUNCTION
  */
 INT i_APCI1710_InsnConfigDigitalIO(comedi_device *dev, comedi_subdevice *s,
-				   comedi_insn *insn, lsampl_t *data);
+				   comedi_insn *insn, unsigned int *data);
 
 /*
  * INPUT OUTPUT  FUNCTIONS
  */
 INT i_APCI1710_InsnReadDigitalIOChlValue(comedi_device *dev,
 					 comedi_subdevice *s,
-					 comedi_insn *insn, lsampl_t *data);
+					 comedi_insn *insn, unsigned int *data);
 
 INT i_APCI1710_InsnWriteDigitalIOChlOnOff(comedi_device *dev,
 					  comedi_subdevice *s,
-					  comedi_insn *insn, lsampl_t *data);
+					  comedi_insn *insn, unsigned int *data);
 
 INT i_APCI1710_InsnBitsDigitalIOPortOnOff(comedi_device *dev,
 					  comedi_subdevice *s,
-					  comedi_insn *insn, lsampl_t *data);
+					  comedi_insn *insn, unsigned int *data);

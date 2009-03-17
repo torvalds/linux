@@ -120,19 +120,19 @@ typedef struct {
 	int (*i_hwdrv_InsnConfigAnalogInput)(comedi_device *dev,
 					     comedi_subdevice *s,
 					     comedi_insn *insn,
-					     lsampl_t *data);
+					     unsigned int *data);
 	int (*i_hwdrv_InsnReadAnalogInput)(comedi_device *dev,
 					    comedi_subdevice *s,
 					    comedi_insn *insn,
-					    lsampl_t *data);
+					    unsigned int *data);
 	int (*i_hwdrv_InsnWriteAnalogInput)(comedi_device *dev,
 					    comedi_subdevice *s,
 					    comedi_insn *insn,
-					    lsampl_t *data);
+					    unsigned int *data);
 	int (*i_hwdrv_InsnBitsAnalogInput)(comedi_device *dev,
 					   comedi_subdevice *s,
 					   comedi_insn *insn,
-					   lsampl_t *data);
+					   unsigned int *data);
 	int (*i_hwdrv_CommandTestAnalogInput)(comedi_device *dev,
 					      comedi_subdevice *s,
 					      comedi_cmd *cmd);
@@ -145,77 +145,77 @@ typedef struct {
 	int (*i_hwdrv_InsnConfigAnalogOutput)(comedi_device *dev,
 					      comedi_subdevice *s,
 					      comedi_insn *insn,
-					      lsampl_t *data);
+					      unsigned int *data);
 	int (*i_hwdrv_InsnWriteAnalogOutput)(comedi_device *dev,
 					     comedi_subdevice *s,
 					     comedi_insn *insn,
-					     lsampl_t *data);
+					     unsigned int *data);
 	int (*i_hwdrv_InsnBitsAnalogOutput)(comedi_device *dev,
 					    comedi_subdevice *s,
 					    comedi_insn *insn,
-					    lsampl_t *data);
+					    unsigned int *data);
 
 	/* Digital Input */
 	int (*i_hwdrv_InsnConfigDigitalInput) (comedi_device *dev,
 					       comedi_subdevice *s,
 					       comedi_insn *insn,
-					       lsampl_t *data);
+					       unsigned int *data);
 	int (*i_hwdrv_InsnReadDigitalInput) (comedi_device *dev,
 					     comedi_subdevice *s,
 					     comedi_insn *insn,
-					     lsampl_t *data);
+					     unsigned int *data);
 	int (*i_hwdrv_InsnWriteDigitalInput) (comedi_device *dev,
 					      comedi_subdevice *s,
 					      comedi_insn *insn,
-					      lsampl_t *data);
+					      unsigned int *data);
 	int (*i_hwdrv_InsnBitsDigitalInput) (comedi_device *dev,
 					     comedi_subdevice *s,
 					     comedi_insn *insn,
-					     lsampl_t *data);
+					     unsigned int *data);
 
 	/* Digital Output */
 	int (*i_hwdrv_InsnConfigDigitalOutput)(comedi_device *dev,
 					       comedi_subdevice *s,
 					       comedi_insn *insn,
-					       lsampl_t *data);
+					       unsigned int *data);
 	int (*i_hwdrv_InsnWriteDigitalOutput)(comedi_device *dev,
 					      comedi_subdevice *s,
 					      comedi_insn *insn,
-					      lsampl_t *data);
+					      unsigned int *data);
 	int (*i_hwdrv_InsnBitsDigitalOutput)(comedi_device *dev,
 					     comedi_subdevice *s,
 					     comedi_insn *insn,
-					     lsampl_t *data);
+					     unsigned int *data);
 	int (*i_hwdrv_InsnReadDigitalOutput)(comedi_device *dev,
 					     comedi_subdevice *s,
 					     comedi_insn *insn,
-					     lsampl_t *data);
+					     unsigned int *data);
 
 	/* TIMER */
 	int (*i_hwdrv_InsnConfigTimer)(comedi_device *dev,
 				       comedi_subdevice *s,
-				       comedi_insn *insn, lsampl_t *data);
+				       comedi_insn *insn, unsigned int *data);
 	int (*i_hwdrv_InsnWriteTimer)(comedi_device *dev,
 				      comedi_subdevice *s, comedi_insn *insn,
-				      lsampl_t *data);
+				      unsigned int *data);
 	int (*i_hwdrv_InsnReadTimer)(comedi_device *dev, comedi_subdevice *s,
-				     comedi_insn *insn, lsampl_t *data);
+				     comedi_insn *insn, unsigned int *data);
 	int (*i_hwdrv_InsnBitsTimer)(comedi_device *dev, comedi_subdevice *s,
-				     comedi_insn *insn, lsampl_t *data);
+				     comedi_insn *insn, unsigned int *data);
 
 	/* TTL IO */
 	int (*i_hwdr_ConfigInitTTLIO)(comedi_device *dev,
 				      comedi_subdevice *s, comedi_insn *insn,
-				      lsampl_t *data);
+				      unsigned int *data);
 	int (*i_hwdr_ReadTTLIOBits)(comedi_device *dev, comedi_subdevice *s,
-				    comedi_insn *insn, lsampl_t *data);
+				    comedi_insn *insn, unsigned int *data);
 	int (*i_hwdr_ReadTTLIOAllPortValue)(comedi_device *dev,
 					    comedi_subdevice *s,
 					    comedi_insn *insn,
-					    lsampl_t *data);
+					    unsigned int *data);
 	int (*i_hwdr_WriteTTLIOChlOnOff)(comedi_device *dev,
 					 comedi_subdevice *s,
-					 comedi_insn *insn, lsampl_t *data);
+					 comedi_insn *insn, unsigned int *data);
 } boardtype;
 
 //MODULE INFO STRUCTURE
@@ -388,14 +388,14 @@ typedef struct {
 	UINT ui_AiTimer1;	//Timer constant for Timer1
 	UINT ui_AiFlags;
 	UINT ui_AiDataLength;
-	sampl_t *AiData;	// Pointer to sample data
+	short *AiData;	// Pointer to sample data
 	UINT ui_AiNbrofScans;	// number of scans to do
 	USHORT us_UseDma;	// To use Dma or not
 	BYTE b_DmaDoubleBuffer;	// we can use double buffering
 	UINT ui_DmaActualBuffer;	// which buffer is used now
 	//*UPDATE-0.7.57->0.7.68
 	//ULONG               ul_DmaBufferVirtual[2];// pointers to begin of DMA buffer
-	sampl_t *ul_DmaBufferVirtual[2];	// pointers to begin of DMA buffer
+	short *ul_DmaBufferVirtual[2];	// pointers to begin of DMA buffer
 	ULONG ul_DmaBufferHw[2];	// hw address of DMA buff
 	UINT ui_DmaBufferSize[2];	// size of dma buffer in bytes
 	UINT ui_DmaBufferUsesize[2];	// which size we may now used for transfer
@@ -462,4 +462,4 @@ static int i_ADDI_Reset(comedi_device *dev);
 
 static irqreturn_t v_ADDI_Interrupt(int irq, void *d PT_REGS_ARG);
 static int i_ADDIDATA_InsnReadEeprom(comedi_device *dev, comedi_subdevice *s,
-				     comedi_insn *insn, lsampl_t *data);
+				     comedi_insn *insn, unsigned int *data);

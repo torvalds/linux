@@ -90,7 +90,7 @@ static void dt2815_free_resources(comedi_device * dev);
 
 typedef struct {
 	const comedi_lrange *range_type_list[8];
-	lsampl_t ao_readback[8];
+	unsigned int ao_readback[8];
 } dt2815_private;
 
 #define devpriv ((dt2815_private *)dev->private)
@@ -107,7 +107,7 @@ static int dt2815_wait_for_status(comedi_device * dev, int status)
 }
 
 static int dt2815_ao_insn_read(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	int i;
 	int chan = CR_CHAN(insn->chanspec);
@@ -120,7 +120,7 @@ static int dt2815_ao_insn_read(comedi_device * dev, comedi_subdevice * s,
 }
 
 static int dt2815_ao_insn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	int i;
 	int chan = CR_CHAN(insn->chanspec);

@@ -60,12 +60,12 @@ UINT ui_InterruptStatus = 0;
 +----------------------------------------------------------------------------+
 | Function   Name   : int i_APCI1032_ConfigDigitalInput                      |
 |			  (comedi_device *dev,comedi_subdevice *s,               |
-|                      comedi_insn *insn,lsampl_t *data)                     |
+|                      comedi_insn *insn,unsigned int *data)                     |
 +----------------------------------------------------------------------------+
 | Task              : Configures the digital input Subdevice                 |
 +----------------------------------------------------------------------------+
 | Input Parameters  : comedi_device *dev : Driver handle                     |
-|                     lsampl_t *data         : Data Pointer contains         |
+|                     unsigned int *data         : Data Pointer contains         |
 |                                          configuration parameters as below |
 |                                                                            |
 |			  data[0]            : 1 Enable  Digital Input Interrupt |
@@ -85,7 +85,7 @@ UINT ui_InterruptStatus = 0;
 */
 
 INT i_APCI1032_ConfigDigitalInput(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	UINT ui_TmpValue;
 
@@ -129,13 +129,13 @@ INT i_APCI1032_ConfigDigitalInput(comedi_device * dev, comedi_subdevice * s,
 +----------------------------------------------------------------------------+
 | Function   Name   : int i_APCI1032_Read1DigitalInput                       |
 |			  (comedi_device *dev,comedi_subdevice *s,               |
-|                      comedi_insn *insn,lsampl_t *data)                     |
+|                      comedi_insn *insn,unsigned int *data)                     |
 +----------------------------------------------------------------------------+
 | Task              : Return the status of the digital input                 |
 +----------------------------------------------------------------------------+
 | Input Parameters  : comedi_device *dev      : Driver handle                |
 |		              UINT ui_Channel : Channel number to read       |
-|                     lsampl_t *data          : Data Pointer to read status  |
+|                     unsigned int *data          : Data Pointer to read status  |
 +----------------------------------------------------------------------------+
 | Output Parameters :	--													 |
 +----------------------------------------------------------------------------+
@@ -145,7 +145,7 @@ INT i_APCI1032_ConfigDigitalInput(comedi_device * dev, comedi_subdevice * s,
 +----------------------------------------------------------------------------+
 */
 INT i_APCI1032_Read1DigitalInput(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	UINT ui_TmpValue = 0;
 	UINT ui_Channel;
@@ -167,7 +167,7 @@ INT i_APCI1032_Read1DigitalInput(comedi_device * dev, comedi_subdevice * s,
 +----------------------------------------------------------------------------+
 | Function   Name   : int i_APCI1032_ReadMoreDigitalInput                    |
 |			  (comedi_device *dev,comedi_subdevice *s,               |
-|                     comedi_insn *insn,lsampl_t *data)                      |
+|                     comedi_insn *insn,unsigned int *data)                      |
 +----------------------------------------------------------------------------+
 | Task              : Return the status of the Requested digital inputs      |
 +----------------------------------------------------------------------------+
@@ -184,7 +184,7 @@ INT i_APCI1032_Read1DigitalInput(comedi_device * dev, comedi_subdevice * s,
 */
 
 INT i_APCI1032_ReadMoreDigitalInput(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	UINT ui_PortValue = data[0];
 	UINT ui_Mask = 0;

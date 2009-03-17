@@ -41,25 +41,25 @@
 
 //DO
 int i_APCI2016_ConfigDigitalOutput(comedi_device *dev, comedi_subdevice *s,
-				   comedi_insn *insn, lsampl_t *data);
+				   comedi_insn *insn, unsigned int *data);
 
 int i_APCI2016_WriteDigitalOutput(comedi_device *dev, comedi_subdevice *s,
-				  comedi_insn *insn, lsampl_t *data);
+				  comedi_insn *insn, unsigned int *data);
 
 int i_APCI2016_BitsDigitalOutput(comedi_device *dev, comedi_subdevice *s,
-				 comedi_insn *insn, lsampl_t *data);
+				 comedi_insn *insn, unsigned int *data);
 
 // TIMER
 // timer value is passed as u seconds
 
 int i_APCI2016_ConfigWatchdog(comedi_device *dev, comedi_subdevice *s,
-			      comedi_insn *insn, lsampl_t *data);
+			      comedi_insn *insn, unsigned int *data);
 
 int i_APCI2016_StartStopWriteWatchdog(comedi_device *dev, comedi_subdevice *s,
-				      comedi_insn *insn, lsampl_t *data);
+				      comedi_insn *insn, unsigned int *data);
 
 int i_APCI2016_ReadWatchdog(comedi_device *dev, comedi_subdevice *s,
-			    comedi_insn *insn, lsampl_t *data);
+			    comedi_insn *insn, unsigned int *data);
 
 // Interrupt functions.....
 

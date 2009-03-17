@@ -1108,7 +1108,7 @@ typedef struct {
 	volatile short ai_cmd_running;
 	unsigned int ai_fifo_segment_length;
 	struct ext_clock_info ext_clock;
-	sampl_t ao_bounce_buffer[DAC_FIFO_SIZE];
+	short ao_bounce_buffer[DAC_FIFO_SIZE];
 } pcidas64_private;
 
 /* inline function that makes it easier to
@@ -1135,13 +1135,13 @@ static comedi_driver driver_cb_pcidas = {
 };
 
 static int ai_rinsn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
+	comedi_insn * insn, unsigned int * data);
 static int ai_config_insn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
+	comedi_insn * insn, unsigned int * data);
 static int ao_winsn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
+	comedi_insn * insn, unsigned int * data);
 static int ao_readback_insn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
+	comedi_insn * insn, unsigned int * data);
 static int ai_cmd(comedi_device * dev, comedi_subdevice * s);
 static int ai_cmdtest(comedi_device * dev, comedi_subdevice * s,
 	comedi_cmd * cmd);
@@ -1156,25 +1156,25 @@ static int ao_cancel(comedi_device * dev, comedi_subdevice * s);
 static int dio_callback(int dir, int port, int data, unsigned long arg);
 static int dio_callback_4020(int dir, int port, int data, unsigned long arg);
 static int di_rbits(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
+	comedi_insn * insn, unsigned int * data);
 static int do_wbits(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
+	comedi_insn * insn, unsigned int * data);
 static int dio_60xx_config_insn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
+	comedi_insn * insn, unsigned int * data);
 static int dio_60xx_wbits(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
+	comedi_insn * insn, unsigned int * data);
 static int calib_read_insn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
+	comedi_insn * insn, unsigned int * data);
 static int calib_write_insn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
+	comedi_insn * insn, unsigned int * data);
 static int ad8402_read_insn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
+	comedi_insn * insn, unsigned int * data);
 static void ad8402_write(comedi_device * dev, unsigned int channel,
 	unsigned int value);
 static int ad8402_write_insn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
+	comedi_insn * insn, unsigned int * data);
 static int eeprom_read_insn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
+	comedi_insn * insn, unsigned int * data);
 static void check_adc_timing(comedi_device * dev, comedi_cmd * cmd);
 static unsigned int get_divisor(unsigned int ns, unsigned int flags);
 static void i2c_write(comedi_device * dev, unsigned int address,
@@ -1882,7 +1882,7 @@ static int detach(comedi_device * dev)
 }
 
 static int ai_rinsn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	unsigned int bits = 0, n, i;
 	unsigned int channel, range, aref;
@@ -2018,9 +2018,9 @@ static int ai_rinsn(comedi_device * dev, comedi_subdevice * s,
 	return n;
 }
 
-static int ai_config_calibration_source(comedi_device * dev, lsampl_t * data)
+static int ai_config_calibration_source(comedi_device * dev, unsigned int * data)
 {
-	lsampl_t source = data[1];
+	unsigned int source = data[1];
 	int num_calibration_sources;
 
 	if (board(dev)->layout == LAYOUT_60XX)
@@ -2038,7 +2038,7 @@ static int ai_config_calibration_source(comedi_device * dev, lsampl_t * data)
 	return 2;
 }
 
-static int ai_config_block_size(comedi_device * dev, lsampl_t * data)
+static int ai_config_block_size(comedi_device * dev, unsigned int * data)
 {
 	int fifo_size;
 	const hw_fifo_info_t *const fifo = board(dev)->ai_fifo;
@@ -2065,7 +2065,7 @@ static int ai_config_block_size(comedi_device * dev, lsampl_t * data)
 	return 2;
 }
 
-static int ai_config_master_clock_4020(comedi_device * dev, lsampl_t * data)
+static int ai_config_master_clock_4020(comedi_device * dev, unsigned int * data)
 {
 	unsigned int divisor = data[4];
 	int retval = 0;
@@ -2091,7 +2091,7 @@ static int ai_config_master_clock_4020(comedi_device * dev, lsampl_t * data)
 }
 
 // XXX could add support for 60xx series
-static int ai_config_master_clock(comedi_device * dev, lsampl_t * data)
+static int ai_config_master_clock(comedi_device * dev, unsigned int * data)
 {
 
 	switch (board(dev)->layout) {
@@ -2107,7 +2107,7 @@ static int ai_config_master_clock(comedi_device * dev, lsampl_t * data)
 }
 
 static int ai_config_insn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	int id = data[0];
 
@@ -3195,7 +3195,7 @@ static int ai_cancel(comedi_device * dev, comedi_subdevice * s)
 }
 
 static int ao_winsn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	int chan = CR_CHAN(insn->chanspec);
 	int range = CR_RANGE(insn->chanspec);
@@ -3225,7 +3225,7 @@ static int ao_winsn(comedi_device * dev, comedi_subdevice * s,
 }
 
 static int ao_readback_insn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	data[0] = priv(dev)->ao_value[CR_CHAN(insn->chanspec)];
 
@@ -3606,9 +3606,9 @@ static int dio_callback_4020(int dir, int port, int data, unsigned long iobase)
 }
 
 static int di_rbits(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
-	lsampl_t bits;
+	unsigned int bits;
 
 	bits = readb(priv(dev)->dio_counter_iobase + DI_REG);
 	bits &= 0xf;
@@ -3619,7 +3619,7 @@ static int di_rbits(comedi_device * dev, comedi_subdevice * s,
 }
 
 static int do_wbits(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	data[0] &= 0xf;
 	// zero bits we are going to change
@@ -3635,7 +3635,7 @@ static int do_wbits(comedi_device * dev, comedi_subdevice * s,
 }
 
 static int dio_60xx_config_insn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	unsigned int mask;
 
@@ -3662,7 +3662,7 @@ static int dio_60xx_config_insn(comedi_device * dev, comedi_subdevice * s,
 }
 
 static int dio_60xx_wbits(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	if (data[0]) {
 		s->state &= ~data[0];
@@ -3695,7 +3695,7 @@ static void caldac_write(comedi_device * dev, unsigned int channel,
 }
 
 static int calib_write_insn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	int channel = CR_CHAN(insn->chanspec);
 
@@ -3710,7 +3710,7 @@ static int calib_write_insn(comedi_device * dev, comedi_subdevice * s,
 }
 
 static int calib_read_insn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	unsigned int channel = CR_CHAN(insn->chanspec);
 
@@ -3751,7 +3751,7 @@ static void ad8402_write(comedi_device * dev, unsigned int channel,
 
 /* for pci-das6402/16, channel 0 is analog input gain and channel 1 is offset */
 static int ad8402_write_insn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	int channel = CR_CHAN(insn->chanspec);
 
@@ -3768,7 +3768,7 @@ static int ad8402_write_insn(comedi_device * dev, comedi_subdevice * s,
 }
 
 static int ad8402_read_insn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	unsigned int channel = CR_CHAN(insn->chanspec);
 
@@ -3840,7 +3840,7 @@ static uint16_t read_eeprom(comedi_device * dev, uint8_t address)
 }
 
 static int eeprom_read_insn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	data[0] = read_eeprom(dev, CR_CHAN(insn->chanspec));
 

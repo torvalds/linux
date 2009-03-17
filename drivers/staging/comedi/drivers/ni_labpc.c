@@ -174,19 +174,19 @@ static int labpc_ai_cmdtest(comedi_device * dev, comedi_subdevice * s,
 	comedi_cmd * cmd);
 static int labpc_ai_cmd(comedi_device * dev, comedi_subdevice * s);
 static int labpc_ai_rinsn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
+	comedi_insn * insn, unsigned int * data);
 static int labpc_ao_winsn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
+	comedi_insn * insn, unsigned int * data);
 static int labpc_ao_rinsn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
+	comedi_insn * insn, unsigned int * data);
 static int labpc_calib_read_insn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
+	comedi_insn * insn, unsigned int * data);
 static int labpc_calib_write_insn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
+	comedi_insn * insn, unsigned int * data);
 static int labpc_eeprom_read_insn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
+	comedi_insn * insn, unsigned int * data);
 static int labpc_eeprom_write_insn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
+	comedi_insn * insn, unsigned int * data);
 static unsigned int labpc_suggest_transfer_size(comedi_cmd cmd);
 static void labpc_adc_timing(comedi_device * dev, comedi_cmd * cmd);
 #ifdef CONFIG_COMEDI_PCI
@@ -1396,7 +1396,7 @@ static irqreturn_t labpc_interrupt(int irq, void *d PT_REGS_ARG)
 static int labpc_drain_fifo(comedi_device * dev)
 {
 	unsigned int lsb, msb;
-	sampl_t data;
+	short data;
 	comedi_async *async = dev->read_subdev->async;
 	const int timeout = 10000;
 	unsigned int i;
@@ -1501,7 +1501,7 @@ static void labpc_drain_dregs(comedi_device * dev)
 }
 
 static int labpc_ai_rinsn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	int i, n;
 	int chan, range;
@@ -1587,7 +1587,7 @@ static int labpc_ai_rinsn(comedi_device * dev, comedi_subdevice * s,
 
 // analog output insn
 static int labpc_ao_winsn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	int channel, range;
 	unsigned long flags;
@@ -1628,7 +1628,7 @@ static int labpc_ao_winsn(comedi_device * dev, comedi_subdevice * s,
 
 // analog output readback insn
 static int labpc_ao_rinsn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	data[0] = devpriv->ao_value[CR_CHAN(insn->chanspec)];
 
@@ -1636,7 +1636,7 @@ static int labpc_ao_rinsn(comedi_device * dev, comedi_subdevice * s,
 }
 
 static int labpc_calib_read_insn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	data[0] = devpriv->caldac[CR_CHAN(insn->chanspec)];
 
@@ -1644,7 +1644,7 @@ static int labpc_calib_read_insn(comedi_device * dev, comedi_subdevice * s,
 }
 
 static int labpc_calib_write_insn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	int channel = CR_CHAN(insn->chanspec);
 
@@ -1653,7 +1653,7 @@ static int labpc_calib_write_insn(comedi_device * dev, comedi_subdevice * s,
 }
 
 static int labpc_eeprom_read_insn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	data[0] = devpriv->eeprom_data[CR_CHAN(insn->chanspec)];
 
@@ -1661,7 +1661,7 @@ static int labpc_eeprom_read_insn(comedi_device * dev, comedi_subdevice * s,
 }
 
 static int labpc_eeprom_write_insn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	int channel = CR_CHAN(insn->chanspec);
 	int ret;

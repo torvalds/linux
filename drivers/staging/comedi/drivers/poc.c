@@ -44,14 +44,14 @@ Configuration options:
 static int poc_attach(comedi_device * dev, comedi_devconfig * it);
 static int poc_detach(comedi_device * dev);
 static int readback_insn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
+	comedi_insn * insn, unsigned int * data);
 
 static int dac02_ao_winsn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
+	comedi_insn * insn, unsigned int * data);
 static int pcl733_insn_bits(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
+	comedi_insn * insn, unsigned int * data);
 static int pcl734_insn_bits(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
+	comedi_insn * insn, unsigned int * data);
 
 struct boarddef_struct {
 	const char *name;
@@ -61,11 +61,11 @@ struct boarddef_struct {
 	int n_chan;
 	int n_bits;
 	int (*winsn) (comedi_device *, comedi_subdevice *, comedi_insn *,
-		lsampl_t *);
+		unsigned int *);
 	int (*rinsn) (comedi_device *, comedi_subdevice *, comedi_insn *,
-		lsampl_t *);
+		unsigned int *);
 	int (*insnbits) (comedi_device *, comedi_subdevice *, comedi_insn *,
-		lsampl_t *);
+		unsigned int *);
 	const comedi_lrange *range;
 };
 static const struct boarddef_struct boards[] = {
@@ -140,7 +140,7 @@ static int poc_attach(comedi_device * dev, comedi_devconfig * it)
 
 	if (alloc_subdevices(dev, 1) < 0)
 		return -ENOMEM;
-	if (alloc_private(dev, sizeof(lsampl_t) * this_board->n_chan) < 0)
+	if (alloc_private(dev, sizeof(unsigned int) * this_board->n_chan) < 0)
 		return -ENOMEM;
 
 	/* analog output subdevice */
@@ -171,12 +171,12 @@ static int poc_detach(comedi_device * dev)
 }
 
 static int readback_insn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	int chan;
 
 	chan = CR_CHAN(insn->chanspec);
-	data[0] = ((lsampl_t *) dev->private)[chan];
+	data[0] = ((unsigned int *) dev->private)[chan];
 
 	return 1;
 }
@@ -186,14 +186,14 @@ static int readback_insn(comedi_device * dev, comedi_subdevice * s,
 #define DAC02_MSB(a)	(2 * a + 1)
 
 static int dac02_ao_winsn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	int temp;
 	int chan;
 	int output;
 
 	chan = CR_CHAN(insn->chanspec);
-	((lsampl_t *) dev->private)[chan] = data[0];
+	((unsigned int *) dev->private)[chan] = data[0];
 	output = data[0];
 #ifdef wrong
 	// convert to complementary binary if range is bipolar
@@ -209,7 +209,7 @@ static int dac02_ao_winsn(comedi_device * dev, comedi_subdevice * s,
 }
 
 static int pcl733_insn_bits(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	if (insn->n != 2)
 		return -EINVAL;
@@ -223,7 +223,7 @@ static int pcl733_insn_bits(comedi_device * dev, comedi_subdevice * s,
 }
 
 static int pcl734_insn_bits(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	if (insn->n != 2)
 		return -EINVAL;

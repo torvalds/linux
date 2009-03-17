@@ -165,7 +165,7 @@ typedef struct {
 
 #define MAX_AO_READBACK_CHANNELS 6
 	/* Used for AO readback */
-	lsampl_t ao_readback[MAX_AO_READBACK_CHANNELS];
+	unsigned int ao_readback[MAX_AO_READBACK_CHANNELS];
 
 } private;
 
@@ -198,18 +198,18 @@ MODULE_LICENSE("GPL");
 COMEDI_PCI_INITCLEANUP_NOMODULE(cb_pcimdda_driver, pci_table);
 
 static int ao_winsn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
+	comedi_insn * insn, unsigned int * data);
 static int ao_rinsn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
+	comedi_insn * insn, unsigned int * data);
 
 /*---------------------------------------------------------------------------
   HELPER FUNCTION DECLARATIONS
 -----------------------------------------------------------------------------*/
 
 /* returns a maxdata value for a given n_bits */
-static inline lsampl_t figure_out_maxdata(int bits)
+static inline unsigned int figure_out_maxdata(int bits)
 {
-	return (((lsampl_t) 1 << bits) - 1);
+	return (((unsigned int) 1 << bits) - 1);
 }
 
 /*
@@ -353,7 +353,7 @@ static int detach(comedi_device * dev)
 }
 
 static int ao_winsn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	int i;
 	int chan = CR_CHAN(insn->chanspec);
@@ -392,7 +392,7 @@ static int ao_winsn(comedi_device * dev, comedi_subdevice * s,
    applications, I would imagine.
 */
 static int ao_rinsn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	int i;
 	int chan = CR_CHAN(insn->chanspec);
@@ -400,7 +400,7 @@ static int ao_rinsn(comedi_device * dev, comedi_subdevice * s,
 	for (i = 0; i < insn->n; i++) {
 		inw(devpriv->registers + chan * 2);
 		/* should I set data[i] to the result of the actual read on the register
-		   or the cached lsampl_t in devpriv->ao_readback[]? */
+		   or the cached unsigned int in devpriv->ao_readback[]? */
 		data[i] = devpriv->ao_readback[chan];
 	}
 

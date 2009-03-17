@@ -150,8 +150,8 @@ struct comedi_subdevice_struct {
 
 	int io_bits;
 
-	lsampl_t maxdata;	/* if maxdata==0, use list */
-	const lsampl_t *maxdata_list;	/* list is channel specific */
+	unsigned int maxdata;	/* if maxdata==0, use list */
+	const unsigned int *maxdata_list;	/* list is channel specific */
 
 	unsigned int flags;
 	const unsigned int *flaglist;
@@ -164,13 +164,13 @@ struct comedi_subdevice_struct {
 	unsigned int *chanlist;	/* driver-owned chanlist (not used) */
 
 	int (*insn_read) (comedi_device *, comedi_subdevice *, comedi_insn *,
-		lsampl_t *);
+		unsigned int *);
 	int (*insn_write) (comedi_device *, comedi_subdevice *, comedi_insn *,
-		lsampl_t *);
+		unsigned int *);
 	int (*insn_bits) (comedi_device *, comedi_subdevice *, comedi_insn *,
-		lsampl_t *);
+		unsigned int *);
 	int (*insn_config) (comedi_device *, comedi_subdevice *, comedi_insn *,
-		lsampl_t *);
+		unsigned int *);
 
 	int (*do_cmd) (comedi_device *, comedi_subdevice *);
 	int (*do_cmdtest) (comedi_device *, comedi_subdevice *, comedi_cmd *);
@@ -389,7 +389,7 @@ void comedi_set_subdevice_runflags(comedi_subdevice *s, unsigned mask,
 	unsigned bits);
 unsigned comedi_get_subdevice_runflags(comedi_subdevice *s);
 int insn_inval(comedi_device *dev, comedi_subdevice *s,
-	comedi_insn *insn, lsampl_t *data);
+	comedi_insn *insn, unsigned int *data);
 
 /* range stuff */
 
@@ -452,9 +452,9 @@ static inline int alloc_private(comedi_device *dev, int size)
 static inline unsigned int bytes_per_sample(const comedi_subdevice *subd)
 {
 	if (subd->subdev_flags & SDF_LSAMPL)
-		return sizeof(lsampl_t);
+		return sizeof(unsigned int);
 	else
-		return sizeof(sampl_t);
+		return sizeof(short);
 }
 
 /* must be used in attach to set dev->hw_dev if you wish to dma directly
@@ -471,8 +471,8 @@ static inline void comedi_set_hw_dev(comedi_device *dev, struct device *hw_dev)
 	}
 }
 
-int comedi_buf_put(comedi_async *async, sampl_t x);
-int comedi_buf_get(comedi_async *async, sampl_t *x);
+int comedi_buf_put(comedi_async *async, short x);
+int comedi_buf_get(comedi_async *async, short *x);
 
 unsigned int comedi_buf_write_n_available(comedi_async *async);
 unsigned int comedi_buf_write_alloc(comedi_async *async, unsigned int nbytes);

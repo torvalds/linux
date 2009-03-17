@@ -110,7 +110,7 @@ typedef struct {
 	struct pci_dev *pci_dev;
 
 	/* used for DO readback, curently unused */
-	lsampl_t do_readback[4];	/* up to 4 lsampl_t suffice to hold 96 bits for PCI-DIO96 */
+	unsigned int do_readback[4];	/* up to 4 unsigned int suffice to hold 96 bits for PCI-DIO96 */
 
 	unsigned long dio_reg_base;	// address of port A of the first 8255 chip on board
 } pcidio_private;

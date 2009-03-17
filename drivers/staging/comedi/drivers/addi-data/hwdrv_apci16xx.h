@@ -64,7 +64,7 @@ static const comedi_lrange range_apci16xx_ttl = { 12,
 
 int i_APCI16XX_InsnConfigInitTTLIO(comedi_device *dev,
 				   comedi_subdevice *s, comedi_insn *insn,
-				   lsampl_t *data);
+				   unsigned int *data);
 
 /*
 +----------------------------------------------------------------------------+
@@ -74,11 +74,11 @@ int i_APCI16XX_InsnConfigInitTTLIO(comedi_device *dev,
 
 int i_APCI16XX_InsnBitsReadTTLIO(comedi_device *dev,
 				 comedi_subdevice *s, comedi_insn *insn,
-				 lsampl_t *data);
+				 unsigned int *data);
 
 int i_APCI16XX_InsnReadTTLIOAllPortValue(comedi_device *dev,
 					 comedi_subdevice *s,
-					 comedi_insn *insn, lsampl_t *data);
+					 comedi_insn *insn, unsigned int *data);
 
 /*
 +----------------------------------------------------------------------------+
@@ -88,7 +88,7 @@ int i_APCI16XX_InsnReadTTLIOAllPortValue(comedi_device *dev,
 
 int i_APCI16XX_InsnBitsWriteTTLIO(comedi_device *dev,
 				  comedi_subdevice *s, comedi_insn *insn,
-				  lsampl_t *data);
+				  unsigned int *data);
 
 int i_APCI16XX_Reset(comedi_device *dev);
 #endif

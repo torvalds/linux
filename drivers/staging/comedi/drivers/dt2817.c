@@ -59,7 +59,7 @@ static comedi_driver driver_dt2817 = {
 COMEDI_INITCLEANUP(driver_dt2817);
 
 static int dt2817_dio_insn_config(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	int mask;
 	int chan;
@@ -97,7 +97,7 @@ static int dt2817_dio_insn_config(comedi_device * dev, comedi_subdevice * s,
 }
 
 static int dt2817_dio_insn_bits(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	unsigned int changed;
 

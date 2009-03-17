@@ -35,20 +35,20 @@
  * 82X54 TIMER INISIALISATION FUNCTION
  */
 INT i_APCI1710_InsnConfigInitTimer(comedi_device *dev, comedi_subdevice *s,
-				   comedi_insn *insn, lsampl_t *data);
+				   comedi_insn *insn, unsigned int *data);
 
 INT i_APCI1710_InsnWriteEnableDisableTimer(comedi_device *dev,
 					   comedi_subdevice *s,
-					   comedi_insn *insn, lsampl_t *data);
+					   comedi_insn *insn, unsigned int *data);
 
 /*
  * 82X54 READ FUNCTION
  */
 INT i_APCI1710_InsnReadAllTimerValue(comedi_device *dev, comedi_subdevice *s,
-				     comedi_insn *insn, lsampl_t *data);
+				     comedi_insn *insn, unsigned int *data);
 
 INT i_APCI1710_InsnBitsTimer(comedi_device *dev, comedi_subdevice *s,
-			     comedi_insn *insn, lsampl_t *data);
+			     comedi_insn *insn, unsigned int *data);
 
 /*
  * 82X54 READ & WRITE FUNCTION

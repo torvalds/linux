@@ -82,7 +82,7 @@ typedef struct {
 #define DT2814_MAX_SPEED 100000	/* Arbitrary 10 khz limit */
 
 static int dt2814_ai_insn_read(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	int n, i, hi, lo;
 	int chan;

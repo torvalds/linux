@@ -57,9 +57,6 @@ extern "C" {
 /* max length of device and driver names */
 #define COMEDI_NAMELEN 20
 
-	typedef unsigned int lsampl_t;
-	typedef unsigned short sampl_t;
-
 /* packs and unpacks a channel/range number */
 
 #define CR_PACK(chan, rng, aref)		((((aref)&0x3)<<24) | (((rng)&0xff)<<16) | (chan))
@@ -332,7 +329,7 @@ struct comedi_trig_struct {
 	unsigned int flags;
 	unsigned int n_chan;	/* number of channels */
 	unsigned int *chanlist;	/* channel/range list */
-	sampl_t *data;	/* data list, size depends on subd flags */
+	short *data;	/* data list, size depends on subd flags */
 	unsigned int n;	/* number of scans */
 	unsigned int trigsrc;
 	unsigned int trigvar;
@@ -344,7 +341,7 @@ struct comedi_trig_struct {
 struct comedi_insn_struct {
 	unsigned int insn;
 	unsigned int n;
-	lsampl_t *data;
+	unsigned int *data;
 	unsigned int subdev;
 	unsigned int chanspec;
 	unsigned int unused[3];
@@ -377,13 +374,13 @@ struct comedi_cmd_struct {
 	unsigned int *chanlist;	/* channel/range list */
 	unsigned int chanlist_len;
 
-	sampl_t *data;	/* data list, size depends on subd flags */
+	short *data;	/* data list, size depends on subd flags */
 	unsigned int data_len;
 };
 
 struct comedi_chaninfo_struct {
 	unsigned int subdev;
-	lsampl_t *maxdata_list;
+	unsigned int *maxdata_list;
 	unsigned int *flaglist;
 	unsigned int *rangelist;
 	unsigned int unused[4];
@@ -407,7 +404,7 @@ struct comedi_subdinfo_struct {
 	unsigned int subd_flags;
 	unsigned int timer_type;
 	unsigned int len_chanlist;
-	lsampl_t maxdata;
+	unsigned int maxdata;
 	unsigned int flags;	/* channel flags */
 	unsigned int range_type;	/* lookup in kernel */
 	unsigned int settling_time_0;

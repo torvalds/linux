@@ -82,22 +82,22 @@ typedef struct unioxx5_subd_priv {
 
 static int unioxx5_attach(comedi_device * dev, comedi_devconfig * it);
 static int unioxx5_subdev_write(comedi_device * dev, comedi_subdevice * subdev,
-	comedi_insn * insn, lsampl_t * data);
+	comedi_insn * insn, unsigned int * data);
 static int unioxx5_subdev_read(comedi_device * dev, comedi_subdevice * subdev,
-	comedi_insn * insn, lsampl_t * data);
+	comedi_insn * insn, unsigned int * data);
 static int unioxx5_insn_config(comedi_device * dev, comedi_subdevice * subdev,
-	comedi_insn * insn, lsampl_t * data);
+	comedi_insn * insn, unsigned int * data);
 static int unioxx5_detach(comedi_device * dev);
 static int __unioxx5_subdev_init(comedi_subdevice * subdev, int subdev_iobase,
 	int minor);
-static int __unioxx5_digital_write(unioxx5_subd_priv * usp, lsampl_t * data,
+static int __unioxx5_digital_write(unioxx5_subd_priv * usp, unsigned int * data,
 	int channel, int minor);
-static int __unioxx5_digital_read(unioxx5_subd_priv * usp, lsampl_t * data,
+static int __unioxx5_digital_read(unioxx5_subd_priv * usp, unsigned int * data,
 	int channel, int minor);
 //static void __unioxx5_digital_config(unioxx5_subd_priv* usp, int mode);
-static int __unioxx5_analog_write(unioxx5_subd_priv * usp, lsampl_t * data,
+static int __unioxx5_analog_write(unioxx5_subd_priv * usp, unsigned int * data,
 	int channel, int minor);
-static int __unioxx5_analog_read(unioxx5_subd_priv * usp, lsampl_t * data,
+static int __unioxx5_analog_read(unioxx5_subd_priv * usp, unsigned int * data,
 	int channel, int minor);
 static int __unioxx5_define_chan_offset(int chan_num);
 static void __unioxx5_analog_config(unioxx5_subd_priv * usp, int channel);
@@ -157,7 +157,7 @@ static int unioxx5_attach(comedi_device * dev, comedi_devconfig * it)
 }
 
 static int unioxx5_subdev_read(comedi_device * dev, comedi_subdevice * subdev,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	unioxx5_subd_priv *usp = subdev->private;
 	int channel, type;
@@ -177,7 +177,7 @@ static int unioxx5_subdev_read(comedi_device * dev, comedi_subdevice * subdev,
 }
 
 static int unioxx5_subdev_write(comedi_device * dev, comedi_subdevice * subdev,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	unioxx5_subd_priv *usp = subdev->private;
 	int channel, type;
@@ -198,7 +198,7 @@ static int unioxx5_subdev_write(comedi_device * dev, comedi_subdevice * subdev,
 
 /* for digital modules only */
 static int unioxx5_insn_config(comedi_device * dev, comedi_subdevice * subdev,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	int channel_offset, flags, channel = CR_CHAN(insn->chanspec), type;
 	unioxx5_subd_priv *usp = subdev->private;
@@ -330,7 +330,7 @@ static int __unioxx5_subdev_init(comedi_subdevice * subdev, int subdev_iobase,
 	return 0;
 }
 
-static int __unioxx5_digital_write(unioxx5_subd_priv * usp, lsampl_t * data,
+static int __unioxx5_digital_write(unioxx5_subd_priv * usp, unsigned int * data,
 	int channel, int minor)
 {
 	int channel_offset, val;
@@ -357,7 +357,7 @@ static int __unioxx5_digital_write(unioxx5_subd_priv * usp, lsampl_t * data,
 }
 
 /* function for digital reading */
-static int __unioxx5_digital_read(unioxx5_subd_priv * usp, lsampl_t * data,
+static int __unioxx5_digital_read(unioxx5_subd_priv * usp, unsigned int * data,
 	int channel, int minor)
 {
 	int channel_offset, mask = 1 << (channel & 0x07);
@@ -396,7 +396,7 @@ static void __unioxx5_digital_config(unioxx5_subd_priv * usp, int mode)
 }
 #endif
 
-static int __unioxx5_analog_write(unioxx5_subd_priv * usp, lsampl_t * data,
+static int __unioxx5_analog_write(unioxx5_subd_priv * usp, unsigned int * data,
 	int channel, int minor)
 {
 	int module, i;
@@ -431,7 +431,7 @@ static int __unioxx5_analog_write(unioxx5_subd_priv * usp, lsampl_t * data,
 	return 1;
 }
 
-static int __unioxx5_analog_read(unioxx5_subd_priv * usp, lsampl_t * data,
+static int __unioxx5_analog_read(unioxx5_subd_priv * usp, unsigned int * data,
 	int channel, int minor)
 {
 	int module_no, read_ch;

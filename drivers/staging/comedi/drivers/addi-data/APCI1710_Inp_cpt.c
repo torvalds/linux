@@ -124,7 +124,7 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 */
 
 INT i_APCI1710_InsnConfigInitPulseEncoder(comedi_device * dev,
-	comedi_subdevice * s, comedi_insn * insn, lsampl_t * data)
+	comedi_subdevice * s, comedi_insn * insn, unsigned int * data)
 {
 	INT i_ReturnValue = 0;
 	DWORD dw_IntRegister;
@@ -415,7 +415,7 @@ INT i_APCI1710_InsnConfigInitPulseEncoder(comedi_device * dev,
 */
 
 INT i_APCI1710_InsnWriteEnableDisablePulseEncoder(comedi_device * dev,
-	comedi_subdevice * s, comedi_insn * insn, lsampl_t * data)
+	comedi_subdevice * s, comedi_insn * insn, unsigned int * data)
 {
 	INT i_ReturnValue = 0;
 	BYTE b_ModulNbr;
@@ -709,7 +709,7 @@ INT i_APCI1710_InsnWriteEnableDisablePulseEncoder(comedi_device * dev,
    						 PBYTE_ pb_Status)
 						 */
 INT i_APCI1710_InsnBitsReadWritePulseEncoder(comedi_device * dev,
-	comedi_subdevice * s, comedi_insn * insn, lsampl_t * data)
+	comedi_subdevice * s, comedi_insn * insn, unsigned int * data)
 {
 	INT i_ReturnValue = 0;
 	DWORD dw_StatusRegister;
@@ -835,7 +835,7 @@ INT i_APCI1710_InsnBitsReadWritePulseEncoder(comedi_device * dev,
 }
 
 INT i_APCI1710_InsnReadInterruptPulseEncoder(comedi_device * dev,
-	comedi_subdevice * s, comedi_insn * insn, lsampl_t * data)
+	comedi_subdevice * s, comedi_insn * insn, unsigned int * data)
 {
 
 	data[0] = devpriv->s_InterruptParameters.

@@ -155,19 +155,19 @@ driver.
 /* gainlist same as _pgx_ below */
 
 static int das08_ai_rinsn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
+	comedi_insn * insn, unsigned int * data);
 static int das08_di_rbits(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
+	comedi_insn * insn, unsigned int * data);
 static int das08_do_wbits(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
+	comedi_insn * insn, unsigned int * data);
 static int das08jr_di_rbits(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
+	comedi_insn * insn, unsigned int * data);
 static int das08jr_do_wbits(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
+	comedi_insn * insn, unsigned int * data);
 static int das08jr_ao_winsn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
+	comedi_insn * insn, unsigned int * data);
 static int das08ao_ao_winsn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
+	comedi_insn * insn, unsigned int * data);
 static void i8254_set_mode_low(unsigned int base, int channel,
 	unsigned int mode);
 
@@ -513,7 +513,7 @@ MODULE_DEVICE_TABLE(pci, das08_pci_table);
 #define TIMEOUT 100000
 
 static int das08_ai_rinsn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	int i, n;
 	int chan;
@@ -580,7 +580,7 @@ static int das08_ai_rinsn(comedi_device * dev, comedi_subdevice * s,
 }
 
 static int das08_di_rbits(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	data[0] = 0;
 	data[1] = DAS08_IP(inb(dev->iobase + DAS08_STATUS));
@@ -589,7 +589,7 @@ static int das08_di_rbits(comedi_device * dev, comedi_subdevice * s,
 }
 
 static int das08_do_wbits(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	int wbits;
 
@@ -612,7 +612,7 @@ static int das08_do_wbits(comedi_device * dev, comedi_subdevice * s,
 }
 
 static int das08jr_di_rbits(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	data[0] = 0;
 	data[1] = inb(dev->iobase + DAS08JR_DIO);
@@ -621,7 +621,7 @@ static int das08jr_di_rbits(comedi_device * dev, comedi_subdevice * s,
 }
 
 static int das08jr_do_wbits(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	// null bits we are going to set
 	devpriv->do_bits &= ~data[0];
@@ -635,7 +635,7 @@ static int das08jr_do_wbits(comedi_device * dev, comedi_subdevice * s,
 }
 
 static int das08jr_ao_winsn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	int n;
 	int lsb, msb;
@@ -669,7 +669,7 @@ static int das08jr_ao_winsn(comedi_device * dev, comedi_subdevice * s,
  *
  */
 static int das08ao_ao_winsn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	int n;
 	int lsb, msb;
@@ -783,7 +783,7 @@ static unsigned int i8254_read_status(struct i8254_struct *st, int channel)
 }
 
 static int das08_counter_read(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	int chan = insn->chanspec;
 
@@ -795,7 +795,7 @@ static int das08_counter_read(comedi_device * dev, comedi_subdevice * s,
 }
 
 static int das08_counter_write(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	int chan = insn->chanspec;
 
@@ -806,7 +806,7 @@ static int das08_counter_write(comedi_device * dev, comedi_subdevice * s,
 }
 
 static int das08_counter_config(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	int chan = insn->chanspec;
 

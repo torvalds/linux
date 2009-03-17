@@ -406,7 +406,7 @@ typedef struct {
 	unsigned int ai_n_chan;	// how many channels is measured
 	unsigned int ai_flags;	// flaglist
 	unsigned int ai_data_len;	// len of data buffer
-	sampl_t *ai_data;	// data buffer
+	short *ai_data;	// data buffer
 	unsigned int ai_is16b;	// =1 we have 16 bit card
 	unsigned long dmabuf[2];	// PTR to DMA buf
 	unsigned int dmapages[2];	// how many pages we have allocated
@@ -417,7 +417,7 @@ typedef struct {
 	unsigned int dma_runs_to_end;	// how many times we must switch DMA buffers
 	unsigned int last_dma_run;	// how many bytes to transfer on last DMA buffer
 	unsigned int max_812_ai_mode0_rangewait;	// setling time for gain
-	lsampl_t ao_readback[2];	// data for AO readback
+	unsigned int ao_readback[2];	// data for AO readback
 } pcl812_private;
 
 #define devpriv ((pcl812_private *)dev->private)
@@ -434,7 +434,7 @@ static int pcl812_ai_cancel(comedi_device * dev, comedi_subdevice * s);
 ==============================================================================
 */
 static int pcl812_ai_insn_read(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	int n;
 	int timeout, hi;
@@ -468,7 +468,7 @@ static int pcl812_ai_insn_read(comedi_device * dev, comedi_subdevice * s,
 ==============================================================================
 */
 static int acl8216_ai_insn_read(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	int n;
 	int timeout;
@@ -504,7 +504,7 @@ static int acl8216_ai_insn_read(comedi_device * dev, comedi_subdevice * s,
 ==============================================================================
 */
 static int pcl812_ao_insn_write(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	int chan = CR_CHAN(insn->chanspec);
 	int i;
@@ -524,7 +524,7 @@ static int pcl812_ao_insn_write(comedi_device * dev, comedi_subdevice * s,
 ==============================================================================
 */
 static int pcl812_ao_insn_read(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	int chan = CR_CHAN(insn->chanspec);
 	int i;
@@ -540,7 +540,7 @@ static int pcl812_ao_insn_read(comedi_device * dev, comedi_subdevice * s,
 ==============================================================================
 */
 static int pcl812_di_insn_bits(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	if (insn->n != 2)
 		return -EINVAL;
@@ -555,7 +555,7 @@ static int pcl812_di_insn_bits(comedi_device * dev, comedi_subdevice * s,
 ==============================================================================
 */
 static int pcl812_do_insn_bits(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	if (insn->n != 2)
 		return -EINVAL;
@@ -846,9 +846,9 @@ static int pcl812_ai_cmd(comedi_device * dev, comedi_subdevice * s)
 	if (devpriv->ai_dma) {
 		if (devpriv->ai_eos) {	// we use EOS, so adapt DMA buffer to one scan
 			devpriv->dmabytestomove[0] =
-				devpriv->ai_n_chan * sizeof(sampl_t);
+				devpriv->ai_n_chan * sizeof(short);
 			devpriv->dmabytestomove[1] =
-				devpriv->ai_n_chan * sizeof(sampl_t);
+				devpriv->ai_n_chan * sizeof(short);
 			devpriv->dma_runs_to_end = 1;
 		} else {
 			devpriv->dmabytestomove[0] = devpriv->hwdmasize[0];
@@ -862,7 +862,7 @@ static int pcl812_ai_cmd(comedi_device * dev, comedi_subdevice * s)
 			if (devpriv->ai_neverending) {
 				devpriv->dma_runs_to_end = 1;
 			} else {
-				bytes = devpriv->ai_n_chan * devpriv->ai_scans * sizeof(sampl_t);	// how many samples we must transfer?
+				bytes = devpriv->ai_n_chan * devpriv->ai_scans * sizeof(short);	// how many samples we must transfer?
 				devpriv->dma_runs_to_end = bytes / devpriv->dmabytestomove[0];	// how many DMA pages we must fill
 				devpriv->last_dma_run = bytes % devpriv->dmabytestomove[0];	//on last dma transfer must be moved
 				if (devpriv->dma_runs_to_end == 0)
@@ -981,7 +981,7 @@ static irqreturn_t interrupt_pcl812_ai_int(int irq, void *d)
 ==============================================================================
 */
 static void transfer_from_dma_buf(comedi_device * dev, comedi_subdevice * s,
-	sampl_t * ptr, unsigned int bufptr, unsigned int len)
+	short * ptr, unsigned int bufptr, unsigned int len)
 {
 	unsigned int i;
 
@@ -1012,12 +1012,12 @@ static irqreturn_t interrupt_pcl812_ai_dma(int irq, void *d)
 	comedi_subdevice *s = dev->subdevices + 0;
 	unsigned long dma_flags;
 	int len, bufptr;
-	sampl_t *ptr;
+	short *ptr;
 
 #ifdef PCL812_EXTDEBUG
 	rt_printk("pcl812 EDBG: BGN: interrupt_pcl812_ai_dma(...)\n");
 #endif
-	ptr = (sampl_t *) devpriv->dmabuf[devpriv->next_dma_buf];
+	ptr = (short *) devpriv->dmabuf[devpriv->next_dma_buf];
 	len = (devpriv->dmabytestomove[devpriv->next_dma_buf] >> 1) -
 		devpriv->ai_poll_ptr;
 

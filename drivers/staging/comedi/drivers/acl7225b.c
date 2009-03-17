@@ -51,7 +51,7 @@ static comedi_driver driver_acl7225b = {
 COMEDI_INITCLEANUP(driver_acl7225b);
 
 static int acl7225b_do_insn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	if (insn->n != 2)
 		return -EINVAL;
@@ -72,7 +72,7 @@ static int acl7225b_do_insn(comedi_device * dev, comedi_subdevice * s,
 }
 
 static int acl7225b_di_insn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	if (insn->n != 2)
 		return -EINVAL;

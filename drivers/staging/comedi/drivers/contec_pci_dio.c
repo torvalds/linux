@@ -86,9 +86,9 @@ static comedi_driver driver_contec = {
 
 /* Classic digital IO */
 static int contec_di_insn_bits(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
+	comedi_insn * insn, unsigned int * data);
 static int contec_do_insn_bits(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
+	comedi_insn * insn, unsigned int * data);
 
 #if 0
 static int contec_cmdtest(comedi_device * dev, comedi_subdevice * s,
@@ -193,7 +193,7 @@ static int contec_ns_to_timer(unsigned int *ns, int round)
 #endif
 
 static int contec_do_insn_bits(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 
 	printk("contec_do_insn_bits called\n");
@@ -213,7 +213,7 @@ static int contec_do_insn_bits(comedi_device * dev, comedi_subdevice * s,
 }
 
 static int contec_di_insn_bits(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 
 	rt_printk("contec_di_insn_bits called\n");

@@ -83,7 +83,7 @@ static const das16cs_board das16cs_boards[] = {
 typedef struct {
 	struct pcmcia_device *link;
 
-	lsampl_t ao_readback[2];
+	unsigned int ao_readback[2];
 	unsigned short status1;
 	unsigned short status2;
 } das16cs_private;
@@ -110,22 +110,22 @@ static const comedi_lrange das16cs_ai_range = { 4, {
 
 static irqreturn_t das16cs_interrupt(int irq, void *d PT_REGS_ARG);
 static int das16cs_ai_rinsn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
+	comedi_insn * insn, unsigned int * data);
 static int das16cs_ai_cmd(comedi_device * dev, comedi_subdevice * s);
 static int das16cs_ai_cmdtest(comedi_device * dev, comedi_subdevice * s,
 	comedi_cmd * cmd);
 static int das16cs_ao_winsn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
+	comedi_insn * insn, unsigned int * data);
 static int das16cs_ao_rinsn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
+	comedi_insn * insn, unsigned int * data);
 static int das16cs_dio_insn_bits(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
+	comedi_insn * insn, unsigned int * data);
 static int das16cs_dio_insn_config(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
+	comedi_insn * insn, unsigned int * data);
 static int das16cs_timer_insn_read(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
+	comedi_insn * insn, unsigned int * data);
 static int das16cs_timer_insn_config(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
+	comedi_insn * insn, unsigned int * data);
 
 static int get_prodid(comedi_device * dev, struct pcmcia_device *link)
 {
@@ -287,7 +287,7 @@ static irqreturn_t das16cs_interrupt(int irq, void *d PT_REGS_ARG)
  * mode.
  */
 static int das16cs_ai_rinsn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	int i;
 	int to;
@@ -490,7 +490,7 @@ static int das16cs_ai_cmdtest(comedi_device * dev, comedi_subdevice * s,
 }
 
 static int das16cs_ao_winsn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	int i;
 	int chan = CR_CHAN(insn->chanspec);
@@ -536,7 +536,7 @@ static int das16cs_ao_winsn(comedi_device * dev, comedi_subdevice * s,
 /* AO subdevices should have a read insn as well as a write insn.
  * Usually this means copying a value stored in devpriv. */
 static int das16cs_ao_rinsn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	int i;
 	int chan = CR_CHAN(insn->chanspec);
@@ -553,7 +553,7 @@ static int das16cs_ao_rinsn(comedi_device * dev, comedi_subdevice * s,
  * This allows packed reading/writing of the DIO channels.  The
  * comedi core can convert between insn_bits and insn_read/write */
 static int das16cs_dio_insn_bits(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	if (insn->n != 2)
 		return -EINVAL;
@@ -573,7 +573,7 @@ static int das16cs_dio_insn_bits(comedi_device * dev, comedi_subdevice * s,
 }
 
 static int das16cs_dio_insn_config(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	int chan = CR_CHAN(insn->chanspec);
 	int bits;
@@ -611,13 +611,13 @@ static int das16cs_dio_insn_config(comedi_device * dev, comedi_subdevice * s,
 }
 
 static int das16cs_timer_insn_read(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	return -EINVAL;
 }
 
 static int das16cs_timer_insn_config(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	return -EINVAL;
 }

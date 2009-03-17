@@ -23,12 +23,12 @@
 
 INT i_APCI1710_InsnConfigInitPulseEncoder(comedi_device *dev,
 					  comedi_subdevice *s,
-					  comedi_insn *insn, lsampl_t *data);
+					  comedi_insn *insn, unsigned int *data);
 
 INT i_APCI1710_InsnWriteEnableDisablePulseEncoder(comedi_device *dev,
 						  comedi_subdevice *s,
 						  comedi_insn *insn,
-						  lsampl_t *data);
+						  unsigned int *data);
 
 /*
  * READ PULSE ENCODER FUNCTIONS
@@ -36,7 +36,7 @@ INT i_APCI1710_InsnWriteEnableDisablePulseEncoder(comedi_device *dev,
 INT i_APCI1710_InsnReadInterruptPulseEncoder(comedi_device *dev,
 					     comedi_subdevice *s,
 					     comedi_insn *insn,
-					     lsampl_t *data);
+					     unsigned int *data);
 
 /*
  * WRITE PULSE ENCODER FUNCTIONS
@@ -44,4 +44,4 @@ INT i_APCI1710_InsnReadInterruptPulseEncoder(comedi_device *dev,
 INT i_APCI1710_InsnBitsReadWritePulseEncoder(comedi_device *dev,
 					     comedi_subdevice *s,
 					     comedi_insn *insn,
-					     lsampl_t *data);
+					     unsigned int *data);

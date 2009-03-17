@@ -227,7 +227,7 @@ static int pcl816_ai_cmd(comedi_device * dev, comedi_subdevice * s);
    ANALOG INPUT MODE0, 816 cards, slow version
 */
 static int pcl816_ai_insn_read(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	int n;
 	int timeout;
@@ -331,7 +331,7 @@ static irqreturn_t interrupt_pcl816_ai_mode13_int(int irq, void *d)
    analog input dma mode 1 & 3, 816 cards
 */
 static void transfer_from_dma_buf(comedi_device * dev, comedi_subdevice * s,
-	sampl_t * ptr, unsigned int bufptr, unsigned int len)
+	short * ptr, unsigned int bufptr, unsigned int len)
 {
 	int i;
 
@@ -365,7 +365,7 @@ static irqreturn_t interrupt_pcl816_ai_mode13_dma(int irq, void *d)
 	comedi_subdevice *s = dev->subdevices + 0;
 	int len, bufptr, this_dma_buf;
 	unsigned long dma_flags;
-	sampl_t *ptr;
+	short *ptr;
 
 	disable_dma(devpriv->dma);
 	this_dma_buf = devpriv->next_dma_buf;
@@ -391,7 +391,7 @@ static irqreturn_t interrupt_pcl816_ai_mode13_dma(int irq, void *d)
 	devpriv->dma_runs_to_end--;
 	outb(0, dev->iobase + PCL816_CLRINT);	/* clear INT request */
 
-	ptr = (sampl_t *) devpriv->dmabuf[this_dma_buf];
+	ptr = (short *) devpriv->dmabuf[this_dma_buf];
 
 	len = (devpriv->hwdmasize[0] >> 1) - devpriv->ai_poll_ptr;
 	bufptr = devpriv->ai_poll_ptr;
@@ -658,7 +658,7 @@ static int pcl816_ai_cmd(comedi_device * dev, comedi_subdevice * s)
 	if (devpriv->dma) {
 		bytes = devpriv->hwdmasize[0];
 		if (!devpriv->ai_neverending) {
-			bytes = s->async->cmd.chanlist_len * s->async->cmd.chanlist_len * sizeof(sampl_t);	// how many
+			bytes = s->async->cmd.chanlist_len * s->async->cmd.chanlist_len * sizeof(short);	// how many
 			devpriv->dma_runs_to_end = bytes / devpriv->hwdmasize[0];	// how many DMA pages we must fill
 			devpriv->last_dma_run = bytes % devpriv->hwdmasize[0];	//on last dma transfer must be moved
 			devpriv->dma_runs_to_end--;
@@ -728,7 +728,7 @@ static int pcl816_ai_poll(comedi_device * dev, comedi_subdevice * s)
 	}
 
 	transfer_from_dma_buf(dev, s,
-		(sampl_t *) devpriv->dmabuf[devpriv->next_dma_buf],
+		(short *) devpriv->dmabuf[devpriv->next_dma_buf],
 		devpriv->ai_poll_ptr, top2);
 
 	devpriv->ai_poll_ptr = top1;	// new buffer position

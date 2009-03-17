@@ -48,13 +48,13 @@
 // for di read
 
 INT i_APCI1032_ConfigDigitalInput(comedi_device *dev, comedi_subdevice *s,
-				  comedi_insn *insn, lsampl_t *data);
+				  comedi_insn *insn, unsigned int *data);
 
 INT i_APCI1032_Read1DigitalInput(comedi_device *dev, comedi_subdevice *s,
-				 comedi_insn *insn, lsampl_t *data);
+				 comedi_insn *insn, unsigned int *data);
 
 INT i_APCI1032_ReadMoreDigitalInput(comedi_device *dev, comedi_subdevice *s,
-				    comedi_insn *insn, lsampl_t *data);
+				    comedi_insn *insn, unsigned int *data);
 
 // Interrupt functions.....
 

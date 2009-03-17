@@ -263,11 +263,11 @@ static int das800_ai_do_cmdtest(comedi_device * dev, comedi_subdevice * s,
 	comedi_cmd * cmd);
 static int das800_ai_do_cmd(comedi_device * dev, comedi_subdevice * s);
 static int das800_ai_rinsn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
+	comedi_insn * insn, unsigned int * data);
 static int das800_di_rbits(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
+	comedi_insn * insn, unsigned int * data);
 static int das800_do_wbits(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
+	comedi_insn * insn, unsigned int * data);
 static int das800_probe(comedi_device * dev);
 static int das800_set_frequency(comedi_device * dev);
 
@@ -346,7 +346,7 @@ COMEDI_INITCLEANUP(driver_das800);
 static irqreturn_t das800_interrupt(int irq, void *d PT_REGS_ARG)
 {
 	short i;		/* loop index */
-	sampl_t dataPoint = 0;
+	short dataPoint = 0;
 	comedi_device *dev = d;
 	comedi_subdevice *s = dev->read_subdev;	/* analog input subdevice */
 	comedi_async *async;
@@ -789,7 +789,7 @@ static int das800_ai_do_cmd(comedi_device * dev, comedi_subdevice * s)
 }
 
 static int das800_ai_rinsn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	int i, n;
 	int chan;
@@ -843,9 +843,9 @@ static int das800_ai_rinsn(comedi_device * dev, comedi_subdevice * s,
 }
 
 static int das800_di_rbits(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
-	lsampl_t bits;
+	unsigned int bits;
 
 	bits = inb(dev->iobase + DAS800_STATUS) >> 4;
 	bits &= 0x7;
@@ -856,7 +856,7 @@ static int das800_di_rbits(comedi_device * dev, comedi_subdevice * s,
 }
 
 static int das800_do_wbits(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	int wbits;
 	unsigned long irq_flags;

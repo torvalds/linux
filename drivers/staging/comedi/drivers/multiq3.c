@@ -94,12 +94,12 @@ static comedi_driver driver_multiq3 = {
 COMEDI_INITCLEANUP(driver_multiq3);
 
 struct multiq3_private {
-	lsampl_t ao_readback[2];
+	unsigned int ao_readback[2];
 };
 #define devpriv ((struct multiq3_private *)dev->private)
 
 static int multiq3_ai_insn_read(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	int i, n;
 	int chan;
@@ -135,7 +135,7 @@ static int multiq3_ai_insn_read(comedi_device * dev, comedi_subdevice * s,
 }
 
 static int multiq3_ao_insn_read(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	int i;
 	int chan = CR_CHAN(insn->chanspec);
@@ -148,7 +148,7 @@ static int multiq3_ao_insn_read(comedi_device * dev, comedi_subdevice * s,
 }
 
 static int multiq3_ao_insn_write(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	int i;
 	int chan = CR_CHAN(insn->chanspec);
@@ -166,7 +166,7 @@ static int multiq3_ao_insn_write(comedi_device * dev, comedi_subdevice * s,
 }
 
 static int multiq3_di_insn_bits(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	if (insn->n != 2)
 		return -EINVAL;
@@ -177,7 +177,7 @@ static int multiq3_di_insn_bits(comedi_device * dev, comedi_subdevice * s,
 }
 
 static int multiq3_do_insn_bits(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	if (insn->n != 2)
 		return -EINVAL;
@@ -192,7 +192,7 @@ static int multiq3_do_insn_bits(comedi_device * dev, comedi_subdevice * s,
 }
 
 static int multiq3_encoder_insn_read(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	int n;
 	int chan = CR_CHAN(insn->chanspec);

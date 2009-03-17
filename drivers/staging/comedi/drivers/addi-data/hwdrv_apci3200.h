@@ -139,7 +139,7 @@ typedef struct {
 	UINT ui_InterruptChannelValue[144];	//Buffer
 	BYTE b_StructInitialized;
 	//Begin JK 19.10.2004: APCI-3200 Driver update 0.7.57 -> 0.7.68
-	lsampl_t ui_ScanValueArray[7 + 12];	// 7 is the maximal number of channels
+	unsigned int ui_ScanValueArray[7 + 12];	// 7 is the maximal number of channels
 	//End JK 19.10.2004: APCI-3200 Driver update 0.7.57 -> 0.7.68
 
 	//Begin JK 21.10.2004: APCI-3200 / APCI-3300 Reading of EEPROM values
@@ -155,33 +155,33 @@ typedef struct {
 //AI
 
 INT i_APCI3200_ConfigAnalogInput(comedi_device *dev, comedi_subdevice *s,
-				 comedi_insn *insn, lsampl_t *data);
+				 comedi_insn *insn, unsigned int *data);
 INT i_APCI3200_ReadAnalogInput(comedi_device *dev, comedi_subdevice *s,
-			       comedi_insn *insn, lsampl_t *data);
+			       comedi_insn *insn, unsigned int *data);
 INT i_APCI3200_InsnWriteReleaseAnalogInput(comedi_device *dev,
 					   comedi_subdevice *s,
-					   comedi_insn *insn, lsampl_t *data);
+					   comedi_insn *insn, unsigned int *data);
 INT i_APCI3200_InsnBits_AnalogInput_Test(comedi_device *dev,
 					 comedi_subdevice *s,
-					 comedi_insn *insn, lsampl_t *data);
+					 comedi_insn *insn, unsigned int *data);
 INT i_APCI3200_StopCyclicAcquisition(comedi_device *dev, comedi_subdevice *s);
 INT i_APCI3200_InterruptHandleEos(comedi_device *dev);
 INT i_APCI3200_CommandTestAnalogInput(comedi_device *dev, comedi_subdevice *s,
 				      comedi_cmd *cmd);
 INT i_APCI3200_CommandAnalogInput(comedi_device *dev, comedi_subdevice *s);
 INT i_APCI3200_ReadDigitalInput(comedi_device *dev, comedi_subdevice *s,
-				comedi_insn *insn, lsampl_t *data);
+				comedi_insn *insn, unsigned int *data);
 //Interrupt
 void v_APCI3200_Interrupt(int irq, void *d);
 int i_APCI3200_InterruptHandleEos(comedi_device *dev);
 //Reset functions
 INT i_APCI3200_Reset(comedi_device *dev);
 
-int i_APCI3200_ReadCJCCalOffset(comedi_device *dev, lsampl_t *data);
-int i_APCI3200_ReadCJCValue(comedi_device *dev, lsampl_t *data);
+int i_APCI3200_ReadCJCCalOffset(comedi_device *dev, unsigned int *data);
+int i_APCI3200_ReadCJCValue(comedi_device *dev, unsigned int *data);
 int i_APCI3200_ReadCalibrationGainValue(comedi_device *dev, UINT *data);
 int i_APCI3200_ReadCalibrationOffsetValue(comedi_device *dev, UINT *data);
 int i_APCI3200_Read1AnalogInputChannel(comedi_device *dev,
 				       comedi_subdevice *s, comedi_insn *insn,
-				       lsampl_t *data);
-int i_APCI3200_ReadCJCCalGain(comedi_device *dev, lsampl_t *data);
+				       unsigned int *data);
+int i_APCI3200_ReadCJCCalGain(comedi_device *dev, unsigned int *data);

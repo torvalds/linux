@@ -201,7 +201,7 @@ to be enabled.  All channels will be sampled together (convert_src ==
 TRIG_NOW).  The scan begins a short time after the hardware interrupt
 occurs, subject to interrupt latencies (scan_begin_src == TRIG_EXT,
 scan_begin_arg == 0).  The value read from the interrupt status register
-is packed into a sampl_t value, one bit per requested channel, in the
+is packed into a short value, one bit per requested channel, in the
 order they appear in the channel list.
 */
 
@@ -573,7 +573,7 @@ dio200_request_region(unsigned minor, unsigned long from, unsigned long extent)
  */
 static int
 dio200_subdev_intr_insn_bits(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	dio200_subdev_intr *subpriv = s->private;
 
@@ -732,7 +732,7 @@ static int dio200_handle_read_intr(comedi_device * dev, comedi_subdevice * s)
 			 */
 			if (triggered & subpriv->enabled_isns) {
 				/* Collect scan data. */
-				sampl_t val;
+				short val;
 				unsigned int n, ch, len;
 
 				val = 0;
@@ -1034,7 +1034,7 @@ static irqreturn_t dio200_interrupt(int irq, void *d PT_REGS_ARG)
  */
 static int
 dio200_subdev_8254_read(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	dio200_subdev_8254 *subpriv = s->private;
 	int chan = CR_CHAN(insn->chanspec);
@@ -1049,7 +1049,7 @@ dio200_subdev_8254_read(comedi_device * dev, comedi_subdevice * s,
  */
 static int
 dio200_subdev_8254_write(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	dio200_subdev_8254 *subpriv = s->private;
 	int chan = CR_CHAN(insn->chanspec);
@@ -1124,7 +1124,7 @@ dio200_set_clock_src(dio200_subdev_8254 * subpriv, unsigned int counter_number,
  */
 static int
 dio200_get_clock_src(dio200_subdev_8254 * subpriv, unsigned int counter_number,
-	lsampl_t * period_ns)
+	unsigned int * period_ns)
 {
 	unsigned clock_src;
 
@@ -1143,7 +1143,7 @@ dio200_get_clock_src(dio200_subdev_8254 * subpriv, unsigned int counter_number,
  */
 static int
 dio200_subdev_8254_config(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	dio200_subdev_8254 *subpriv = s->private;
 	int ret;

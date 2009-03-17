@@ -180,7 +180,7 @@ typedef struct {
 	enum { dac_internal, dac_external } dac0_reference, dac1_reference;
 	enum { dac_2comp, dac_straight } dac0_coding, dac1_coding;
 	const comedi_lrange *ao_range_type_list[2];
-	lsampl_t ao_readback[2];
+	unsigned int ao_readback[2];
 	unsigned int com_reg_1_state;	/* current state of command register 1 */
 	unsigned int com_reg_2_state;	/* current state of command register 2 */
 } atmio16d_private;
@@ -526,7 +526,7 @@ static int atmio16d_ai_cancel(comedi_device * dev, comedi_subdevice * s)
 
 /* Mode 0 is used to get a single conversion on demand */
 static int atmio16d_ai_insn_read(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	int i, t;
 	int chan;
@@ -585,7 +585,7 @@ static int atmio16d_ai_insn_read(comedi_device * dev, comedi_subdevice * s,
 }
 
 static int atmio16d_ao_insn_read(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	int i;
 #ifdef DEBUG1
@@ -600,7 +600,7 @@ static int atmio16d_ao_insn_read(comedi_device * dev, comedi_subdevice * s,
 }
 
 static int atmio16d_ao_insn_write(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	int i;
 	int chan;
@@ -635,7 +635,7 @@ static int atmio16d_ao_insn_write(comedi_device * dev, comedi_subdevice * s,
 }
 
 static int atmio16d_dio_insn_bits(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	if (insn->n != 2)
 		return -EINVAL;
@@ -651,7 +651,7 @@ static int atmio16d_dio_insn_bits(comedi_device * dev, comedi_subdevice * s,
 }
 
 static int atmio16d_dio_insn_config(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	int i;
 	int mask;

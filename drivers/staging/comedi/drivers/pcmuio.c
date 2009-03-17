@@ -254,9 +254,9 @@ static comedi_driver driver = {
 };
 
 static int pcmuio_dio_insn_bits(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
+	comedi_insn * insn, unsigned int * data);
 static int pcmuio_dio_insn_config(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
+	comedi_insn * insn, unsigned int * data);
 
 static irqreturn_t interrupt_pcmuio(int irq, void *d PT_REGS_ARG);
 static void pcmuio_stop_intr(comedi_device *, comedi_subdevice *);
@@ -475,7 +475,7 @@ static int pcmuio_detach(comedi_device * dev)
  * This allows packed reading/writing of the DIO channels.  The
  * comedi core can convert between insn_bits and insn_read/write */
 static int pcmuio_dio_insn_bits(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	int byte_no;
 	if (insn->n != 2)
@@ -549,7 +549,7 @@ static int pcmuio_dio_insn_bits(comedi_device * dev, comedi_subdevice * s,
  * contains the channel to be changed, and data[0] contains the
  * value COMEDI_INPUT or COMEDI_OUTPUT. */
 static int pcmuio_dio_insn_config(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	int chan = CR_CHAN(insn->chanspec), byte_no = chan / 8, bit_no =
 		chan % 8;
@@ -764,7 +764,7 @@ static irqreturn_t interrupt_pcmuio(int irq, void *d PT_REGS_ARG)
 							if (mytrig & subpriv->
 								intr.
 								enabled_mask) {
-								lsampl_t val =
+								unsigned int val =
 									0;
 								unsigned int n,
 									ch, len;
@@ -781,10 +781,10 @@ static irqreturn_t interrupt_pcmuio(int irq, void *d PT_REGS_ARG)
 									}
 								}
 								/* Write the scan to the buffer. */
-								if (comedi_buf_put(s->async, ((sampl_t *) & val)[0])
+								if (comedi_buf_put(s->async, ((short *) & val)[0])
 									&&
 									comedi_buf_put
-									(s->async, ((sampl_t *) & val)[1])) {
+									(s->async, ((short *) & val)[1])) {
 									s->async->events |= (COMEDI_CB_BLOCK | COMEDI_CB_EOS);
 								} else {
 									/* Overflow! Stop acquisition!! */

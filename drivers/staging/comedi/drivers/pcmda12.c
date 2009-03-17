@@ -93,7 +93,7 @@ static const pcmda12_board pcmda12_boards[] = {
 #define thisboard ((const pcmda12_board *)dev->board_ptr)
 
 typedef struct {
-	lsampl_t ao_readback[CHANS];
+	unsigned int ao_readback[CHANS];
 	int simultaneous_xfer_mode;
 } pcmda12_private;
 
@@ -139,9 +139,9 @@ static comedi_driver driver = {
 };
 
 static int ao_winsn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
+	comedi_insn * insn, unsigned int * data);
 static int ao_rinsn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
+	comedi_insn * insn, unsigned int * data);
 
 /*
  * Attach is called by the Comedi core to configure the driver
@@ -240,7 +240,7 @@ static void zero_chans(comedi_device * dev)
 }
 
 static int ao_winsn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	int i;
 	int chan = CR_CHAN(insn->chanspec);
@@ -282,7 +282,7 @@ static int ao_winsn(comedi_device * dev, comedi_subdevice * s,
    This is useful for some control applications, I would imagine.
 */
 static int ao_rinsn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	int i;
 	int chan = CR_CHAN(insn->chanspec);

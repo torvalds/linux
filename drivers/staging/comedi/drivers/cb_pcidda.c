@@ -234,9 +234,9 @@ typedef struct {
 
 static int cb_pcidda_attach(comedi_device * dev, comedi_devconfig * it);
 static int cb_pcidda_detach(comedi_device * dev);
-//static int cb_pcidda_ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
+//static int cb_pcidda_ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,unsigned int *data);
 static int cb_pcidda_ao_winsn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
+	comedi_insn * insn, unsigned int * data);
 //static int cb_pcidda_ai_cmd(comedi_device *dev,comedi_subdevice *s);
 //static int cb_pcidda_ai_cmdtest(comedi_device *dev,comedi_subdevice *s, comedi_cmd *cmd);
 //static int cb_pcidda_ns_to_timer(unsigned int *ns,int round);
@@ -599,7 +599,7 @@ static int cb_pcidda_ns_to_timer(unsigned int *ns, int round)
 #endif
 
 static int cb_pcidda_ao_winsn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	unsigned int command;
 	unsigned int channel, range;

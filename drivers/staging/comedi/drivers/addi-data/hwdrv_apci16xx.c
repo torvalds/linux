@@ -61,7 +61,7 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 |                          (comedi_device    *dev,                           |
 |                           comedi_subdevice *s,                             |
 |                           comedi_insn      *insn,                          |
-|                           lsampl_t         *data)                          |
+|                           unsigned int         *data)                          |
 +----------------------------------------------------------------------------+
 | Task           APCI16XX_TTL_INIT (using defaults)   :                      |
 |                Configure the TTL I/O operating mode from all ports         |
@@ -91,7 +91,7 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 */
 
 int i_APCI16XX_InsnConfigInitTTLIO(comedi_device * dev,
-	comedi_subdevice * s, comedi_insn * insn, lsampl_t * data)
+	comedi_subdevice * s, comedi_insn * insn, unsigned int * data)
 {
 	INT i_ReturnValue = insn->n;
 	BYTE b_Command = 0;
@@ -254,7 +254,7 @@ int i_APCI16XX_InsnConfigInitTTLIO(comedi_device * dev,
 |                          (comedi_device    *dev,                           |
 |                           comedi_subdevice *s,                             |
 |                           comedi_insn      *insn,                          |
-|                           lsampl_t         *data)                          |
+|                           unsigned int         *data)                          |
 +----------------------------------------------------------------------------+
 | Task              : Read the status from selected TTL digital input        |
 |                     (b_InputChannel)                                       |
@@ -284,7 +284,7 @@ int i_APCI16XX_InsnConfigInitTTLIO(comedi_device * dev,
 */
 
 int i_APCI16XX_InsnBitsReadTTLIO(comedi_device * dev,
-	comedi_subdevice * s, comedi_insn * insn, lsampl_t * data)
+	comedi_subdevice * s, comedi_insn * insn, unsigned int * data)
 {
 	INT i_ReturnValue = insn->n;
 	BYTE b_Command = 0;
@@ -414,7 +414,7 @@ int i_APCI16XX_InsnBitsReadTTLIO(comedi_device * dev,
 |                          (comedi_device    *dev,                           |
 |                           comedi_subdevice *s,                             |
 |                           comedi_insn      *insn,                          |
-|                           lsampl_t         *data)                          |
+|                           unsigned int         *data)                          |
 +----------------------------------------------------------------------------+
 | Task              : Read the status from all digital input ports           |
 +----------------------------------------------------------------------------+
@@ -431,13 +431,13 @@ int i_APCI16XX_InsnBitsReadTTLIO(comedi_device * dev,
 */
 
 int i_APCI16XX_InsnReadTTLIOAllPortValue(comedi_device * dev,
-	comedi_subdevice * s, comedi_insn * insn, lsampl_t * data)
+	comedi_subdevice * s, comedi_insn * insn, unsigned int * data)
 {
 	BYTE b_Command = (BYTE) CR_AREF(insn->chanspec);
 	INT i_ReturnValue = insn->n;
 	BYTE b_Cpt = 0;
 	BYTE b_NumberOfPort = 0;
-	lsampl_t *pls_ReadData = data;
+	unsigned int *pls_ReadData = data;
 
 	/********************/
 	/* Test the command */
@@ -539,7 +539,7 @@ int i_APCI16XX_InsnReadTTLIOAllPortValue(comedi_device * dev,
 |                          (comedi_device    *dev,                           |
 |                           comedi_subdevice *s,                             |
 |                           comedi_insn      *insn,                          |
-|                           lsampl_t         *data)                          |
+|                           unsigned int         *data)                          |
 +----------------------------------------------------------------------------+
 | Task              : Set the state from selected TTL digital output         |
 |                     (b_OutputChannel)                                      |
@@ -571,7 +571,7 @@ int i_APCI16XX_InsnReadTTLIOAllPortValue(comedi_device * dev,
 */
 
 int i_APCI16XX_InsnBitsWriteTTLIO(comedi_device * dev,
-	comedi_subdevice * s, comedi_insn * insn, lsampl_t * data)
+	comedi_subdevice * s, comedi_insn * insn, unsigned int * data)
 {
 	INT i_ReturnValue = insn->n;
 	BYTE b_Command = 0;

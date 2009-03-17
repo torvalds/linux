@@ -132,7 +132,7 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 */
 
 INT i_APCI1710_InsnConfigInitChrono(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	INT i_ReturnValue = 0;
 	ULONG ul_TimerValue = 0;
@@ -791,7 +791,7 @@ INT i_APCI1710_InsnConfigInitChrono(comedi_device * dev, comedi_subdevice * s,
 |                                                BYTE_ b_CycleMode,          |
 |                                                BYTE_ b_InterruptEnable)
 INT i_APCI1710_InsnWriteEnableDisableChrono(comedi_device *dev,
-comedi_subdevice *s,comedi_insn *insn,lsampl_t *data)						 |
+comedi_subdevice *s,comedi_insn *insn,unsigned int *data)						 |
 +----------------------------------------------------------------------------+
 | Task              : Enable the chronometer from selected module            |
 |                     (b_ModulNbr). You must calling the                     |
@@ -841,7 +841,7 @@ comedi_subdevice *s,comedi_insn *insn,lsampl_t *data)						 |
 */
 
 INT i_APCI1710_InsnWriteEnableDisableChrono(comedi_device * dev,
-	comedi_subdevice * s, comedi_insn * insn, lsampl_t * data)
+	comedi_subdevice * s, comedi_insn * insn, unsigned int * data)
 {
 	INT i_ReturnValue = 0;
 	BYTE b_ModulNbr, b_CycleMode, b_InterruptEnable, b_Action;
@@ -1078,7 +1078,7 @@ INT i_APCI1710_InsnWriteEnableDisableChrono(comedi_device * dev,
 /*
 +----------------------------------------------------------------------------+
 | Function Name     :INT	i_APCI1710_InsnReadChrono(comedi_device *dev,comedi_subdevice *s,
-comedi_insn *insn,lsampl_t *data)                   |
+comedi_insn *insn,unsigned int *data)                   |
 +----------------------------------------------------------------------------+
 | Task              : Read  functions for Timer                                     |
 +----------------------------------------------------------------------------+
@@ -1091,7 +1091,7 @@ comedi_insn *insn,lsampl_t *data)                   |
 */
 
 INT i_APCI1710_InsnReadChrono(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	BYTE b_ReadType;
 	INT i_ReturnValue = insn->n;
@@ -1758,7 +1758,7 @@ INT i_APCI1710_ConvertChronoValue(comedi_device * dev,
 /*
 +----------------------------------------------------------------------------+
 | Function Name     : INT i_APCI1710_InsnBitsChronoDigitalIO(comedi_device *dev,comedi_subdevice *s,
-	comedi_insn *insn,lsampl_t *data)                    |
+	comedi_insn *insn,unsigned int *data)                    |
 +----------------------------------------------------------------------------+
 | Task              : Sets the output witch has been passed with the         |
 |                     parameter b_Channel. Setting an output means setting an|
@@ -1877,7 +1877,7 @@ INT i_APCI1710_ConvertChronoValue(comedi_device * dev,
 */
 
 INT i_APCI1710_InsnBitsChronoDigitalIO(comedi_device * dev,
-	comedi_subdevice * s, comedi_insn * insn, lsampl_t * data)
+	comedi_subdevice * s, comedi_insn * insn, unsigned int * data)
 {
 	INT i_ReturnValue = 0;
 	BYTE b_ModulNbr, b_OutputChannel, b_InputChannel, b_IOType;

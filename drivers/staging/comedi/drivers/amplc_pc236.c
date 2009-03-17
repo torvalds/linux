@@ -189,7 +189,7 @@ static void pc236_intr_disable(comedi_device * dev);
 static void pc236_intr_enable(comedi_device * dev);
 static int pc236_intr_check(comedi_device * dev);
 static int pc236_intr_insn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
+	comedi_insn * insn, unsigned int * data);
 static int pc236_intr_cmdtest(comedi_device * dev, comedi_subdevice * s,
 	comedi_cmd * cmd);
 static int pc236_intr_cmd(comedi_device * dev, comedi_subdevice * s);
@@ -529,7 +529,7 @@ static int pc236_intr_check(comedi_device * dev)
  * Copied from the comedi_parport driver.
  */
 static int pc236_intr_insn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	data[1] = 0;
 	return 2;

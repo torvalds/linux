@@ -62,7 +62,7 @@ static const aio_iiro_16_board aio_iiro_16_boards[] = {
 typedef struct {
 	int data;
 	struct pci_dev *pci_dev;
-	lsampl_t ao_readback[2];
+	unsigned int ao_readback[2];
 } aio_iiro_16_private;
 
 #define	devpriv	((aio_iiro_16_private *) dev->private)
@@ -82,10 +82,10 @@ static comedi_driver driver_aio_iiro_16 = {
 };
 
 static int aio_iiro_16_dio_insn_bits_read(comedi_device * dev,
-	comedi_subdevice * s, comedi_insn * insn, lsampl_t * data);
+	comedi_subdevice * s, comedi_insn * insn, unsigned int * data);
 
 static int aio_iiro_16_dio_insn_bits_write(comedi_device * dev,
-	comedi_subdevice * s, comedi_insn * insn, lsampl_t * data);
+	comedi_subdevice * s, comedi_insn * insn, unsigned int * data);
 
 static int aio_iiro_16_attach(comedi_device * dev, comedi_devconfig * it)
 {
@@ -143,7 +143,7 @@ static int aio_iiro_16_detach(comedi_device * dev)
 }
 
 static int aio_iiro_16_dio_insn_bits_write(comedi_device * dev,
-	comedi_subdevice * s, comedi_insn * insn, lsampl_t * data)
+	comedi_subdevice * s, comedi_insn * insn, unsigned int * data)
 {
 	if (insn->n != 2)
 		return -EINVAL;
@@ -162,7 +162,7 @@ static int aio_iiro_16_dio_insn_bits_write(comedi_device * dev,
 }
 
 static int aio_iiro_16_dio_insn_bits_read(comedi_device * dev,
-	comedi_subdevice * s, comedi_insn * insn, lsampl_t * data)
+	comedi_subdevice * s, comedi_insn * insn, unsigned int * data)
 {
 	if (insn->n != 2)
 		return -EINVAL;

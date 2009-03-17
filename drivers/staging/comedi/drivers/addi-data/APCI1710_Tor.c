@@ -131,7 +131,7 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 */
 
 INT i_APCI1710_InsnConfigInitTorCounter(comedi_device * dev,
-	comedi_subdevice * s, comedi_insn * insn, lsampl_t * data)
+	comedi_subdevice * s, comedi_insn * insn, unsigned int * data)
 {
 	INT i_ReturnValue = 0;
 	ULONG ul_TimerValue = 0;
@@ -988,7 +988,7 @@ INT i_APCI1710_InsnConfigInitTorCounter(comedi_device * dev,
 */
 
 INT i_APCI1710_InsnWriteEnableDisableTorCounter(comedi_device * dev,
-	comedi_subdevice * s, comedi_insn * insn, lsampl_t * data)
+	comedi_subdevice * s, comedi_insn * insn, unsigned int * data)
 {
 	INT i_ReturnValue = 0;
 	DWORD dw_Status;
@@ -1461,7 +1461,7 @@ INT i_APCI1710_InsnWriteEnableDisableTorCounter(comedi_device * dev,
 */
 
 INT i_APCI1710_InsnReadGetTorCounterInitialisation(comedi_device * dev,
-	comedi_subdevice * s, comedi_insn * insn, lsampl_t * data)
+	comedi_subdevice * s, comedi_insn * insn, unsigned int * data)
 {
 	INT i_ReturnValue = 0;
 	DWORD dw_Status;
@@ -1701,7 +1701,7 @@ INT i_APCI1710_InsnReadGetTorCounterInitialisation(comedi_device * dev,
 */
 
 INT i_APCI1710_InsnBitsGetTorCounterProgressStatusAndValue(comedi_device * dev,
-	comedi_subdevice * s, comedi_insn * insn, lsampl_t * data)
+	comedi_subdevice * s, comedi_insn * insn, unsigned int * data)
 {
 	INT i_ReturnValue = 0;
 	DWORD dw_Status;

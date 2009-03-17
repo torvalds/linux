@@ -162,7 +162,7 @@ typedef struct {
 	struct pci_dev *pcidev;
 	unsigned char da_range[8];	// D/A output range for each channel
 
-	sampl_t ao_data[8];	// data output buffer
+	short ao_data[8];	// data output buffer
 } pci1723_private;
 
 /*the following macro to make it easy to
@@ -203,7 +203,7 @@ static int pci1723_reset(comedi_device * dev)
 }
 
 static int pci1723_insn_read_ao(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	int n, chan;
 
@@ -219,7 +219,7 @@ static int pci1723_insn_read_ao(comedi_device * dev, comedi_subdevice * s,
   analog data output;
 */
 static int pci1723_ao_write_winsn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	int n, chan;
 	chan = CR_CHAN(insn->chanspec);
@@ -239,7 +239,7 @@ static int pci1723_ao_write_winsn(comedi_device * dev, comedi_subdevice * s,
   digital i/o config/query
 */
 static int pci1723_dio_insn_config(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	unsigned int mask;
 	unsigned int bits;
@@ -279,7 +279,7 @@ static int pci1723_dio_insn_config(comedi_device * dev, comedi_subdevice * s,
   digital i/o bits read/write
 */
 static int pci1723_dio_insn_bits(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	if (data[0]) {
 		s->state &= ~data[0];

@@ -159,7 +159,7 @@ typedef struct {
 		comedi_krange range;
 	} range[9];
 	const comedi_lrange *range_table_list[8 * 7 + 2];
-	lsampl_t maxdata_list[8 * 7 + 2];
+	unsigned int maxdata_list[8 * 7 + 2];
 	u16 errors;
 	int retries;
 } jr3_pci_subdev_private;
@@ -270,7 +270,7 @@ static six_axis_t get_max_full_scales(volatile jr3_channel_t * channel)
 }
 
 static int jr3_pci_ai_insn_read(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	int result;
 	jr3_pci_subdev_private *p;

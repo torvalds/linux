@@ -137,7 +137,7 @@ typedef struct {
 	struct pci_dev *pci_dev;
 
 	/* Used for AO readback */
-	lsampl_t ao_readback[2];
+	unsigned int ao_readback[2];
 } skel_private;
 /*
  * most drivers define the following macro to make it easy to
@@ -182,15 +182,15 @@ static comedi_driver driver_skel = {
 };
 
 static int skel_ai_rinsn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
+	comedi_insn * insn, unsigned int * data);
 static int skel_ao_winsn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
+	comedi_insn * insn, unsigned int * data);
 static int skel_ao_rinsn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
+	comedi_insn * insn, unsigned int * data);
 static int skel_dio_insn_bits(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
+	comedi_insn * insn, unsigned int * data);
 static int skel_dio_insn_config(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
+	comedi_insn * insn, unsigned int * data);
 static int skel_ai_cmdtest(comedi_device * dev, comedi_subdevice * s,
 	comedi_cmd * cmd);
 static int skel_ns_to_timer(unsigned int *ns, int round);
@@ -299,7 +299,7 @@ static int skel_detach(comedi_device * dev)
  * mode.
  */
 static int skel_ai_rinsn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	int n, i;
 	unsigned int d;
@@ -516,7 +516,7 @@ static int skel_ns_to_timer(unsigned int *ns, int round)
 }
 
 static int skel_ao_winsn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	int i;
 	int chan = CR_CHAN(insn->chanspec);
@@ -537,7 +537,7 @@ static int skel_ao_winsn(comedi_device * dev, comedi_subdevice * s,
 /* AO subdevices should have a read insn as well as a write insn.
  * Usually this means copying a value stored in devpriv. */
 static int skel_ao_rinsn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	int i;
 	int chan = CR_CHAN(insn->chanspec);
@@ -554,7 +554,7 @@ static int skel_ao_rinsn(comedi_device * dev, comedi_subdevice * s,
  * This allows packed reading/writing of the DIO channels.  The
  * comedi core can convert between insn_bits and insn_read/write */
 static int skel_dio_insn_bits(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	if (insn->n != 2)
 		return -EINVAL;
@@ -579,7 +579,7 @@ static int skel_dio_insn_bits(comedi_device * dev, comedi_subdevice * s,
 }
 
 static int skel_dio_insn_config(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	int chan = CR_CHAN(insn->chanspec);
 

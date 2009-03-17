@@ -347,7 +347,7 @@ typedef struct {
 
 	const comedi_lrange *darangelist[2];
 
-	sampl_t ao[2];
+	short ao[2];
 
 	volatile int dacsr;	/* software copies of registers */
 	volatile int adcsr;
@@ -418,7 +418,7 @@ static void dt282x_disable_dma(comedi_device * dev);
 
 static int dt282x_grab_dma(comedi_device * dev, int dma1, int dma2);
 
-static void dt282x_munge(comedi_device * dev, sampl_t * buf,
+static void dt282x_munge(comedi_device * dev, short * buf,
 	unsigned int nbytes)
 {
 	unsigned int i;
@@ -626,9 +626,9 @@ static irqreturn_t dt282x_interrupt(int irq, void *d PT_REGS_ARG)
 #if 0
 	if (adcsr & DT2821_ADDONE) {
 		int ret;
-		sampl_t data;
+		short data;
 
-		data = (sampl_t) inw(dev->iobase + DT2821_ADDAT);
+		data = (short) inw(dev->iobase + DT2821_ADDAT);
 		data &= (1 << boardtype.adbits) - 1;
 		if (devpriv->ad_2scomp) {
 			data ^= 1 << (boardtype.adbits - 1);
@@ -675,7 +675,7 @@ static void dt282x_load_changain(comedi_device * dev, int n,
  *      - trigger conversion and wait for it to finish
  */
 static int dt282x_ai_insn_read(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	int i;
 
@@ -938,7 +938,7 @@ static int dt282x_ns_to_timer(int *nanosec, int round_mode)
  *      data register, and performs the conversion.
  */
 static int dt282x_ao_insn_read(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	data[0] = devpriv->ao[CR_CHAN(insn->chanspec)];
 
@@ -946,9 +946,9 @@ static int dt282x_ao_insn_read(comedi_device * dev, comedi_subdevice * s,
 }
 
 static int dt282x_ao_insn_write(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
-	sampl_t d;
+	short d;
 	unsigned int chan;
 
 	chan = CR_CHAN(insn->chanspec);
@@ -1146,7 +1146,7 @@ static int dt282x_ao_cancel(comedi_device * dev, comedi_subdevice * s)
 }
 
 static int dt282x_dio_insn_bits(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	if (data[0]) {
 		s->state &= ~data[0];
@@ -1160,7 +1160,7 @@ static int dt282x_dio_insn_bits(comedi_device * dev, comedi_subdevice * s,
 }
 
 static int dt282x_dio_insn_config(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	int mask;
 

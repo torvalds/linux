@@ -157,7 +157,7 @@ struct s626_private {
 	uint32_t I2CAdrs;
 	/* I2C device address for onboard EEPROM (board rev dependent). */
 	/*   short         I2Cards; */
-	lsampl_t ao_readback[S626_DAC_CHANNELS];
+	unsigned int ao_readback[S626_DAC_CHANNELS];
 };
 
 struct dio_private {
@@ -223,39 +223,39 @@ COMEDI_PCI_INITCLEANUP_NOMODULE(driver_s626, s626_pci_table);
 
 /* ioctl routines */
 static int s626_ai_insn_config(comedi_device *dev, comedi_subdevice *s,
-	comedi_insn *insn, lsampl_t *data);
-/* static int s626_ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data); */
+	comedi_insn *insn, unsigned int *data);
+/* static int s626_ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,unsigned int *data); */
 static int s626_ai_insn_read(comedi_device *dev, comedi_subdevice *s,
-	comedi_insn *insn, lsampl_t *data);
+	comedi_insn *insn, unsigned int *data);
 static int s626_ai_cmd(comedi_device *dev, comedi_subdevice *s);
 static int s626_ai_cmdtest(comedi_device *dev, comedi_subdevice *s,
 	comedi_cmd *cmd);
 static int s626_ai_cancel(comedi_device *dev, comedi_subdevice *s);
 static int s626_ao_winsn(comedi_device *dev, comedi_subdevice *s,
-	comedi_insn *insn, lsampl_t *data);
+	comedi_insn *insn, unsigned int *data);
 static int s626_ao_rinsn(comedi_device *dev, comedi_subdevice *s,
-	comedi_insn *insn, lsampl_t *data);
+	comedi_insn *insn, unsigned int *data);
 static int s626_dio_insn_bits(comedi_device *dev, comedi_subdevice *s,
-	comedi_insn *insn, lsampl_t *data);
+	comedi_insn *insn, unsigned int *data);
 static int s626_dio_insn_config(comedi_device *dev, comedi_subdevice *s,
-	comedi_insn *insn, lsampl_t *data);
+	comedi_insn *insn, unsigned int *data);
 static int s626_dio_set_irq(comedi_device *dev, unsigned int chan);
 static int s626_dio_reset_irq(comedi_device *dev, unsigned int gruop,
 	unsigned int mask);
 static int s626_dio_clear_irq(comedi_device *dev);
 static int s626_enc_insn_config(comedi_device *dev, comedi_subdevice *s,
-	comedi_insn *insn, lsampl_t *data);
+	comedi_insn *insn, unsigned int *data);
 static int s626_enc_insn_read(comedi_device *dev, comedi_subdevice *s,
-	comedi_insn *insn, lsampl_t *data);
+	comedi_insn *insn, unsigned int *data);
 static int s626_enc_insn_write(comedi_device *dev, comedi_subdevice *s,
-	comedi_insn *insn, lsampl_t *data);
+	comedi_insn *insn, unsigned int *data);
 static int s626_ns_to_timer(int *nanosec, int round_mode);
 static int s626_ai_load_polllist(uint8_t *ppl, comedi_cmd *cmd);
 static int s626_ai_inttrig(comedi_device *dev, comedi_subdevice *s,
 	unsigned int trignum);
 static irqreturn_t s626_irq_handler(int irq, void *d PT_REGS_ARG);
-static lsampl_t s626_ai_reg_to_uint(int data);
-/* static lsampl_t s626_uint_to_reg(comedi_subdevice *s, int data); */
+static unsigned int s626_ai_reg_to_uint(int data);
+/* static unsigned int s626_uint_to_reg(comedi_subdevice *s, int data); */
 
 /* end ioctl routines */
 
@@ -951,9 +951,9 @@ static int s626_attach(comedi_device *dev, comedi_devconfig *it)
 	return 1;
 }
 
-static lsampl_t s626_ai_reg_to_uint(int data)
+static unsigned int s626_ai_reg_to_uint(int data)
 {
-	lsampl_t tempdata;
+	unsigned int tempdata;
 
 	tempdata = (data >> 18);
 	if (tempdata & 0x2000)
@@ -964,7 +964,7 @@ static lsampl_t s626_ai_reg_to_uint(int data)
 	return tempdata;
 }
 
-/* static lsampl_t s626_uint_to_reg(comedi_subdevice *s, int data){ */
+/* static unsigned int s626_uint_to_reg(comedi_subdevice *s, int data){ */
 /*   return 0; */
 /* } */
 
@@ -978,7 +978,7 @@ static irqreturn_t s626_irq_handler(int irq, void *d PT_REGS_ARG)
 	int32_t *readaddr;
 	uint32_t irqtype, irqstatus;
 	int i = 0;
-	sampl_t tempdata;
+	short tempdata;
 	uint8_t group;
 	uint16_t irqbit;
 
@@ -1504,13 +1504,13 @@ void ResetADC(comedi_device *dev, uint8_t *ppl)
 
 /* TO COMPLETE, IF NECESSARY */
 static int s626_ai_insn_config(comedi_device *dev, comedi_subdevice *s,
-	comedi_insn *insn, lsampl_t *data)
+	comedi_insn *insn, unsigned int *data)
 {
 
 	return -EINVAL;
 }
 
-/* static int s626_ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data) */
+/* static int s626_ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,unsigned int *data) */
 /* { */
 /*   register uint8_t	i; */
 /*   register int32_t	*readaddr; */
@@ -1541,7 +1541,7 @@ static int s626_ai_insn_config(comedi_device *dev, comedi_subdevice *s,
 /* } */
 
 static int s626_ai_insn_read(comedi_device *dev, comedi_subdevice *s,
-	comedi_insn *insn, lsampl_t *data)
+	comedi_insn *insn, unsigned int *data)
 {
 	uint16_t chan = CR_CHAN(insn->chanspec);
 	uint16_t range = CR_RANGE(insn->chanspec);
@@ -2046,7 +2046,7 @@ static int s626_ns_to_timer(int *nanosec, int round_mode)
 }
 
 static int s626_ao_winsn(comedi_device *dev, comedi_subdevice *s,
-	comedi_insn *insn, lsampl_t *data)
+	comedi_insn *insn, unsigned int *data)
 {
 
 	int i;
@@ -2065,7 +2065,7 @@ static int s626_ao_winsn(comedi_device *dev, comedi_subdevice *s,
 }
 
 static int s626_ao_rinsn(comedi_device *dev, comedi_subdevice *s,
-	comedi_insn *insn, lsampl_t *data)
+	comedi_insn *insn, unsigned int *data)
 {
 	int i;
 
@@ -2111,7 +2111,7 @@ static void s626_dio_init(comedi_device *dev)
  * core can convert between insn_bits and insn_read/write */
 
 static int s626_dio_insn_bits(comedi_device *dev, comedi_subdevice *s,
-	comedi_insn *insn, lsampl_t *data)
+	comedi_insn *insn, unsigned int *data)
 {
 
 	/* Length of data must be 2 (mask and new data, see below) */
@@ -2147,7 +2147,7 @@ static int s626_dio_insn_bits(comedi_device *dev, comedi_subdevice *s,
 }
 
 static int s626_dio_insn_config(comedi_device *dev, comedi_subdevice *s,
-	comedi_insn *insn, lsampl_t *data)
+	comedi_insn *insn, unsigned int *data)
 {
 
 	switch (data[0]) {
@@ -2252,7 +2252,7 @@ static int s626_dio_clear_irq(comedi_device *dev)
    and set the subdevice. To complete with trigger and interrupt
    configuration */
 static int s626_enc_insn_config(comedi_device *dev, comedi_subdevice *s,
-	comedi_insn *insn, lsampl_t *data)
+	comedi_insn *insn, unsigned int *data)
 {
 	uint16_t Setup = (LOADSRC_INDX << BF_LOADSRC) |	/*  Preload upon */
 		/*  index. */
@@ -2282,7 +2282,7 @@ static int s626_enc_insn_config(comedi_device *dev, comedi_subdevice *s,
 }
 
 static int s626_enc_insn_read(comedi_device *dev, comedi_subdevice *s,
-	comedi_insn *insn, lsampl_t *data)
+	comedi_insn *insn, unsigned int *data)
 {
 
 	int n;
@@ -2300,7 +2300,7 @@ static int s626_enc_insn_read(comedi_device *dev, comedi_subdevice *s,
 }
 
 static int s626_enc_insn_write(comedi_device *dev, comedi_subdevice *s,
-	comedi_insn *insn, lsampl_t *data)
+	comedi_insn *insn, unsigned int *data)
 {
 
 	struct enc_private *k = &encpriv[CR_CHAN(insn->chanspec)];

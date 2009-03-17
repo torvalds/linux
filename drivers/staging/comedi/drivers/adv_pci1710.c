@@ -290,10 +290,10 @@ typedef struct {
 	unsigned int *ai_chanlist;	// actaul chanlist
 	unsigned int ai_flags;	// flaglist
 	unsigned int ai_data_len;	// len of data buffer
-	sampl_t *ai_data;	// data buffer
+	short *ai_data;	// data buffer
 	unsigned int ai_timer1;	// timers
 	unsigned int ai_timer2;
-	sampl_t ao_data[4];	// data output buffer
+	short ao_data[4];	// data output buffer
 	unsigned int cnt0_write_wait;	// after a write, wait for update of the internal state
 } pci1710_private;
 
@@ -323,7 +323,7 @@ static const unsigned int muxonechan[] = { 0x0000, 0x0101, 0x0202, 0x0303, 0x040
 ==============================================================================
 */
 static int pci171x_insn_read_ai(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	int n, timeout;
 #ifdef PCI171x_PARANOIDCHECK
@@ -391,7 +391,7 @@ static int pci171x_insn_read_ai(comedi_device * dev, comedi_subdevice * s,
 ==============================================================================
 */
 static int pci171x_insn_write_ao(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	int n, chan, range, ofs;
 
@@ -422,7 +422,7 @@ static int pci171x_insn_write_ao(comedi_device * dev, comedi_subdevice * s,
 ==============================================================================
 */
 static int pci171x_insn_read_ao(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	int n, chan;
 
@@ -437,7 +437,7 @@ static int pci171x_insn_read_ao(comedi_device * dev, comedi_subdevice * s,
 ==============================================================================
 */
 static int pci171x_insn_bits_di(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	data[1] = inw(dev->iobase + PCI171x_DI);
 
@@ -448,7 +448,7 @@ static int pci171x_insn_bits_di(comedi_device * dev, comedi_subdevice * s,
 ==============================================================================
 */
 static int pci171x_insn_bits_do(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	if (data[0]) {
 		s->state &= ~data[0];
@@ -464,7 +464,7 @@ static int pci171x_insn_bits_do(comedi_device * dev, comedi_subdevice * s,
 ==============================================================================
 */
 static int pci171x_insn_counter_read(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	unsigned int msb, lsb, ccntrl;
 	int i;
@@ -486,7 +486,7 @@ static int pci171x_insn_counter_read(comedi_device * dev, comedi_subdevice * s,
 ==============================================================================
 */
 static int pci171x_insn_counter_write(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	uint msb, lsb, ccntrl, status;
 
@@ -513,7 +513,7 @@ static int pci171x_insn_counter_write(comedi_device * dev, comedi_subdevice * s,
 ==============================================================================
 */
 static int pci171x_insn_counter_config(comedi_device * dev,
-	comedi_subdevice * s, comedi_insn * insn, lsampl_t * data)
+	comedi_subdevice * s, comedi_insn * insn, unsigned int * data)
 {
 #ifdef unused
 	/* This doesn't work like a normal Comedi counter config */
@@ -549,7 +549,7 @@ static int pci171x_insn_counter_config(comedi_device * dev,
 ==============================================================================
 */
 static int pci1720_insn_write_ao(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	int n, rangereg, chan;
 
@@ -580,7 +580,7 @@ static void interrupt_pci1710_every_sample(void *d)
 	comedi_subdevice *s = dev->subdevices + 0;
 	int m;
 #ifdef PCI171x_PARANOIDCHECK
-	sampl_t sampl;
+	short sampl;
 #endif
 
 	DPRINTK("adv_pci1710 EDBG: BGN: interrupt_pci1710_every_sample(...)\n");
@@ -732,8 +732,8 @@ static void interrupt_pci1710_half_fifo(void *d)
 	}
 
 	samplesinbuf = this_board->fifo_half_size;
-	if (samplesinbuf * sizeof(sampl_t) >= devpriv->ai_data_len) {
-		m = devpriv->ai_data_len / sizeof(sampl_t);
+	if (samplesinbuf * sizeof(short) >= devpriv->ai_data_len) {
+		m = devpriv->ai_data_len / sizeof(short);
 		if (move_block_from_fifo(dev, s, m, 0))
 			return;
 		samplesinbuf -= m;

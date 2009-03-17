@@ -49,7 +49,7 @@
 
 static int postconfig(comedi_device *dev);
 static int insn_rw_emulate_bits(comedi_device *dev, comedi_subdevice *s,
-	comedi_insn *insn, lsampl_t *data);
+	comedi_insn *insn, unsigned int *data);
 static void *comedi_recognize(comedi_driver * driv, const char *name);
 static void comedi_report_boards(comedi_driver *driv);
 static int poll_invalid(comedi_device *dev, comedi_subdevice *s);
@@ -337,13 +337,13 @@ static int poll_invalid(comedi_device *dev, comedi_subdevice *s)
 }
 
 int insn_inval(comedi_device *dev, comedi_subdevice *s,
-	comedi_insn *insn, lsampl_t *data)
+	comedi_insn *insn, unsigned int *data)
 {
 	return -EINVAL;
 }
 
 static int insn_rw_emulate_bits(comedi_device *dev, comedi_subdevice *s,
-	comedi_insn *insn, lsampl_t *data)
+	comedi_insn *insn, unsigned int *data)
 {
 	comedi_insn new_insn;
 	int ret;
@@ -352,7 +352,7 @@ static int insn_rw_emulate_bits(comedi_device *dev, comedi_subdevice *s,
 	unsigned chan = CR_CHAN(insn->chanspec);
 	const unsigned base_bitfield_channel =
 		(chan < channels_per_bitfield) ? 0 : chan;
-	lsampl_t new_data[2];
+	unsigned int new_data[2];
 	memset(new_data, 0, sizeof(new_data));
 	memset(&new_insn, 0, sizeof(new_insn));
 	new_insn.insn = INSN_BITS;
@@ -745,28 +745,28 @@ unsigned int comedi_buf_read_n_available(comedi_async *async)
 	return num_bytes;
 }
 
-int comedi_buf_get(comedi_async *async, sampl_t *x)
+int comedi_buf_get(comedi_async *async, short *x)
 {
 	unsigned int n = comedi_buf_read_n_available(async);
 
-	if (n < sizeof(sampl_t))
+	if (n < sizeof(short))
 		return 0;
-	comedi_buf_read_alloc(async, sizeof(sampl_t));
-	*x = *(sampl_t *) (async->prealloc_buf + async->buf_read_ptr);
-	comedi_buf_read_free(async, sizeof(sampl_t));
+	comedi_buf_read_alloc(async, sizeof(short));
+	*x = *(short *) (async->prealloc_buf + async->buf_read_ptr);
+	comedi_buf_read_free(async, sizeof(short));
 	return 1;
 }
 
-int comedi_buf_put(comedi_async *async, sampl_t x)
+int comedi_buf_put(comedi_async *async, short x)
 {
-	unsigned int n = comedi_buf_write_alloc_strict(async, sizeof(sampl_t));
+	unsigned int n = comedi_buf_write_alloc_strict(async, sizeof(short));
 
-	if (n < sizeof(sampl_t)) {
+	if (n < sizeof(short)) {
 		async->events |= COMEDI_CB_ERROR;
 		return 0;
 	}
-	*(sampl_t *) (async->prealloc_buf + async->buf_write_ptr) = x;
-	comedi_buf_write_free(async, sizeof(sampl_t));
+	*(short *) (async->prealloc_buf + async->buf_write_ptr) = x;
+	comedi_buf_write_free(async, sizeof(short));
 	return 1;
 }
 

@@ -361,7 +361,7 @@ typedef struct {
 
 	int is_valid;		// Is device valid
 
-	sampl_t ai_bounce_buffer[2 * PCI9111_FIFO_HALF_SIZE];
+	short ai_bounce_buffer[2 * PCI9111_FIFO_HALF_SIZE];
 } pci9111_private_data_struct;
 
 #define dev_private 	((pci9111_private_data_struct *)dev->private)
@@ -884,8 +884,8 @@ static int pci9111_ai_do_cmd(comedi_device * dev, comedi_subdevice * subdevice)
 static void pci9111_ai_munge(comedi_device * dev, comedi_subdevice * s,
 	void *data, unsigned int num_bytes, unsigned int start_chan_index)
 {
-	unsigned int i, num_samples = num_bytes / sizeof(sampl_t);
-	sampl_t *array = data;
+	unsigned int i, num_samples = num_bytes / sizeof(short);
+	short *array = data;
 	int resolution =
 		((pci9111_board_struct *) dev->board_ptr)->ai_resolution;
 
@@ -983,7 +983,7 @@ static irqreturn_t pci9111_interrupt(int irq, void *p_device PT_REGS_ARG)
 				bytes_written =
 					cfc_write_array_to_buffer(subdevice,
 					dev_private->ai_bounce_buffer,
-					num_samples * sizeof(sampl_t));
+					num_samples * sizeof(short));
 			} else {
 				int position = 0;
 				int to_read;
@@ -1010,7 +1010,7 @@ static irqreturn_t pci9111_interrupt(int irq, void *p_device PT_REGS_ARG)
 							ai_bounce_buffer +
 							position,
 							to_read *
-							sizeof(sampl_t));
+							sizeof(short));
 					} else {
 						to_read =
 							dev_private->
@@ -1024,7 +1024,7 @@ static irqreturn_t pci9111_interrupt(int irq, void *p_device PT_REGS_ARG)
 								position;
 
 						bytes_written +=
-							sizeof(sampl_t) *
+							sizeof(short) *
 							to_read;
 					}
 
@@ -1038,7 +1038,7 @@ static irqreturn_t pci9111_interrupt(int irq, void *p_device PT_REGS_ARG)
 			}
 
 			dev_private->stop_counter -=
-				bytes_written / sizeof(sampl_t);
+				bytes_written / sizeof(short);
 		}
 	}
 
@@ -1072,7 +1072,7 @@ static irqreturn_t pci9111_interrupt(int irq, void *p_device PT_REGS_ARG)
 #undef AI_INSN_DEBUG
 
 static int pci9111_ai_insn_read(comedi_device * dev,
-	comedi_subdevice * subdevice, comedi_insn * insn, lsampl_t * data)
+	comedi_subdevice * subdevice, comedi_insn * insn, unsigned int * data)
 {
 	int resolution =
 		((pci9111_board_struct *) dev->board_ptr)->ai_resolution;
@@ -1132,7 +1132,7 @@ static int pci9111_ai_insn_read(comedi_device * dev,
 
 static int
 pci9111_ao_insn_write(comedi_device * dev,
-	comedi_subdevice * s, comedi_insn * insn, lsampl_t * data)
+	comedi_subdevice * s, comedi_insn * insn, unsigned int * data)
 {
 	int i;
 
@@ -1149,7 +1149,7 @@ pci9111_ao_insn_write(comedi_device * dev,
 //
 
 static int pci9111_ao_insn_read(comedi_device * dev,
-	comedi_subdevice * s, comedi_insn * insn, lsampl_t * data)
+	comedi_subdevice * s, comedi_insn * insn, unsigned int * data)
 {
 	int i;
 
@@ -1171,9 +1171,9 @@ static int pci9111_ao_insn_read(comedi_device * dev,
 //
 
 static int pci9111_di_insn_bits(comedi_device * dev,
-	comedi_subdevice * subdevice, comedi_insn * insn, lsampl_t * data)
+	comedi_subdevice * subdevice, comedi_insn * insn, unsigned int * data)
 {
-	lsampl_t bits;
+	unsigned int bits;
 
 	bits = pci9111_di_get_bits();
 	data[1] = bits;
@@ -1186,9 +1186,9 @@ static int pci9111_di_insn_bits(comedi_device * dev,
 //
 
 static int pci9111_do_insn_bits(comedi_device * dev,
-	comedi_subdevice * subdevice, comedi_insn * insn, lsampl_t * data)
+	comedi_subdevice * subdevice, comedi_insn * insn, unsigned int * data)
 {
-	lsampl_t bits;
+	unsigned int bits;
 
 	// Only set bits that have been masked
 	// data[0] = mask

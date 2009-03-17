@@ -58,7 +58,7 @@ static UINT ui_Temp = 0;
 /*
 +----------------------------------------------------------------------------+
 | Function name     :int i_APCI3120_InsnConfigAnalogInput(comedi_device *dev,|
-|  comedi_subdevice *s,comedi_insn *insn,lsampl_t *data)					 |
+|  comedi_subdevice *s,comedi_insn *insn,unsigned int *data)					 |
 |                                            						         |
 +----------------------------------------------------------------------------+
 | Task              : Calls card specific function  					     |
@@ -67,7 +67,7 @@ static UINT ui_Temp = 0;
 | Input Parameters  : comedi_device *dev									 |
 |                     comedi_subdevice *s									 |
 |                     comedi_insn *insn                                      |
-|                     lsampl_t *data      					         		 |
+|                     unsigned int *data      					         		 |
 +----------------------------------------------------------------------------+
 | Return Value      :              					                         |
 |                    													     |
@@ -75,7 +75,7 @@ static UINT ui_Temp = 0;
 */
 
 int i_APCI3120_InsnConfigAnalogInput(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	UINT i;
 
@@ -125,7 +125,7 @@ int i_APCI3120_InsnConfigAnalogInput(comedi_device * dev, comedi_subdevice * s,
 /*
 +----------------------------------------------------------------------------+
 | Function name     :int i_APCI3120_InsnReadAnalogInput(comedi_device *dev,  |
-|			comedi_subdevice *s,comedi_insn *insn, lsampl_t *data)	 |
+|			comedi_subdevice *s,comedi_insn *insn, unsigned int *data)	 |
 |                                            						         |
 +----------------------------------------------------------------------------+
 | Task              :  card specific function								 |
@@ -138,7 +138,7 @@ int i_APCI3120_InsnConfigAnalogInput(comedi_device * dev, comedi_subdevice * s,
 | Input Parameters  : comedi_device *dev									 |
 |                     comedi_subdevice *s									 |
 |                     comedi_insn *insn                                      |
-|                     lsampl_t *data     									 |
+|                     unsigned int *data     									 |
 +----------------------------------------------------------------------------+
 | Return Value      :              					                         |
 |                    													     |
@@ -146,7 +146,7 @@ int i_APCI3120_InsnConfigAnalogInput(comedi_device * dev, comedi_subdevice * s,
 */
 
 int i_APCI3120_InsnReadAnalogInput(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	USHORT us_ConvertTiming, us_TmpValue, i;
 	BYTE b_Tmp;
@@ -1633,7 +1633,7 @@ void v_APCI3120_Interrupt(int irq, void *d)
 /*int i_APCI3120_InterruptHandleEos(comedi_device *dev)
 {
        int n_chan,i;
-       sampl_t *data;
+       short *data;
        comedi_subdevice *s=dev->subdevices+0;
        comedi_async *async = s->async;
        data=async->data+async->buf_int_ptr;//new samples added from here onwards
@@ -1643,8 +1643,8 @@ void v_APCI3120_Interrupt(int irq, void *d)
          {
            data[i]=inw(dev->iobase+0);
          }
-       async->buf_int_count+=n_chan*sizeof(sampl_t);
-       async->buf_int_ptr+=n_chan*sizeof(sampl_t);
+       async->buf_int_count+=n_chan*sizeof(short);
+       async->buf_int_ptr+=n_chan*sizeof(short);
        comedi_eos(dev,s);
        if (s->async->buf_int_ptr>=s->async->data_len) //  for buffer rool over
 		         {
@@ -1771,16 +1771,16 @@ void v_APCI3120_InterruptDma(int irq, void *d)
 
 	}
 /*UPDATE-0.7.57->0.7.68
-	ptr=(sampl_t *)devpriv->ul_DmaBufferVirtual[devpriv->ui_DmaActualBuffer];
+	ptr=(short *)devpriv->ul_DmaBufferVirtual[devpriv->ui_DmaActualBuffer];
 
 
 	// if there is not enough space left in the buffer to copy all data contained in the DMABufferVirtual
-	if(s->async->buf_int_ptr+samplesinbuf*sizeof(sampl_t)>=devpriv->ui_AiDataLength)
+	if(s->async->buf_int_ptr+samplesinbuf*sizeof(short)>=devpriv->ui_AiDataLength)
 	{
-		m=(devpriv->ui_AiDataLength-s->async->buf_int_ptr)/sizeof(sampl_t);
+		m=(devpriv->ui_AiDataLength-s->async->buf_int_ptr)/sizeof(short);
 		v_APCI3120_InterruptDmaMoveBlock16bit(dev,s,(void *)ptr,((void *)(devpriv->AiData))+s->async->buf_int_ptr,m);
-		s->async->buf_int_count+=m*sizeof(sampl_t);
-		ptr+=m*sizeof(sampl_t);
+		s->async->buf_int_count+=m*sizeof(short);
+		ptr+=m*sizeof(short);
                 samplesinbuf-=m;
 		s->async->buf_int_ptr=0;
 		comedi_eobuf(dev,s);
@@ -1790,8 +1790,8 @@ void v_APCI3120_InterruptDma(int irq, void *d)
 	{
 	        v_APCI3120_InterruptDmaMoveBlock16bit(dev,s,(void *)ptr,((void *)(devpriv->AiData))+s->async->buf_int_ptr,samplesinbuf);
 
-		s->async->buf_int_count+=samplesinbuf*sizeof(sampl_t);
-		s->async->buf_int_ptr+=samplesinbuf*sizeof(sampl_t);
+		s->async->buf_int_count+=samplesinbuf*sizeof(short);
+		s->async->buf_int_ptr+=samplesinbuf*sizeof(short);
 		if (!(devpriv->ui_AiFlags & TRIG_WAKE_EOS))
 		{
 			comedi_bufcheck(dev,s);
@@ -1879,7 +1879,7 @@ void v_APCI3120_InterruptDma(int irq, void *d)
 /*
 +----------------------------------------------------------------------------+
 | Function name     :void v_APCI3120_InterruptDmaMoveBlock16bit(comedi_device|
-|*dev,comedi_subdevice *s,sampl_t *dma,sampl_t *data,int n)				     |
+|*dev,comedi_subdevice *s,short *dma,short *data,int n)				     |
 |                                        									 |
 +----------------------------------------------------------------------------+
 | Task              : This function copies the data from DMA buffer to the   |
@@ -1888,15 +1888,15 @@ void v_APCI3120_InterruptDma(int irq, void *d)
 +----------------------------------------------------------------------------+
 | Input Parameters  : comedi_device *dev									 |
 |                     comedi_subdevice *s									 |
-|                     sampl_t *dma											 |
-|                     sampl_t *data,int n          					         |
+|                     short *dma											 |
+|                     short *data,int n          					         |
 +----------------------------------------------------------------------------+
 | Return Value      : void         					                         |
 |                    													     |
 +----------------------------------------------------------------------------+
 */
 
-/*void v_APCI3120_InterruptDmaMoveBlock16bit(comedi_device *dev,comedi_subdevice *s,sampl_t *dma,sampl_t *data,int n)
+/*void v_APCI3120_InterruptDmaMoveBlock16bit(comedi_device *dev,comedi_subdevice *s,short *dma,short *data,int n)
 {
 	int i,j,m;
 
@@ -1926,14 +1926,14 @@ void v_APCI3120_InterruptDma(int irq, void *d)
 }
 */
 void v_APCI3120_InterruptDmaMoveBlock16bit(comedi_device * dev,
-	comedi_subdevice * s, sampl_t * dma_buffer, unsigned int num_samples)
+	comedi_subdevice * s, short * dma_buffer, unsigned int num_samples)
 {
 	devpriv->ui_AiActualScan +=
 		(s->async->cur_chan + num_samples) / devpriv->ui_AiScanLength;
 	s->async->cur_chan += num_samples;
 	s->async->cur_chan %= devpriv->ui_AiScanLength;
 
-	cfc_write_array_to_buffer(s, dma_buffer, num_samples * sizeof(sampl_t));
+	cfc_write_array_to_buffer(s, dma_buffer, num_samples * sizeof(short));
 }
 
 /*
@@ -1945,7 +1945,7 @@ void v_APCI3120_InterruptDmaMoveBlock16bit(comedi_device * dev,
 /*
 +----------------------------------------------------------------------------+
 | Function name     :int i_APCI3120_InsnConfigTimer(comedi_device *dev,          |
-|	comedi_subdevice *s,comedi_insn *insn,lsampl_t *data) 			     |
+|	comedi_subdevice *s,comedi_insn *insn,unsigned int *data) 			     |
 |                                        									 |
 +----------------------------------------------------------------------------+
 | Task              :Configure Timer 2  								     |
@@ -1954,7 +1954,7 @@ void v_APCI3120_InterruptDmaMoveBlock16bit(comedi_device * dev,
 | Input Parameters  : comedi_device *dev									 |
 |                     comedi_subdevice *s									 |
 |                     comedi_insn *insn                                      |
-|                     lsampl_t *data 										 |
+|                     unsigned int *data 										 |
 |                     														 |
 |                      data[0]= TIMER  configure as timer                    |
 |              				 = WATCHDOG configure as watchdog				 |
@@ -1968,7 +1968,7 @@ void v_APCI3120_InterruptDmaMoveBlock16bit(comedi_device * dev,
 */
 
 int i_APCI3120_InsnConfigTimer(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 
 	UINT ui_Timervalue2;
@@ -2093,7 +2093,7 @@ int i_APCI3120_InsnConfigTimer(comedi_device * dev, comedi_subdevice * s,
 /*
 +----------------------------------------------------------------------------+
 | Function name     :int i_APCI3120_InsnWriteTimer(comedi_device *dev,           |
-|                    comedi_subdevice *s, comedi_insn *insn,lsampl_t *data)  |
+|                    comedi_subdevice *s, comedi_insn *insn,unsigned int *data)  |
 |                                            						         |
 +----------------------------------------------------------------------------+
 | Task              :    To start and stop the timer		                 |
@@ -2101,7 +2101,7 @@ int i_APCI3120_InsnConfigTimer(comedi_device * dev, comedi_subdevice * s,
 | Input Parameters  : comedi_device *dev									 |
 |                     comedi_subdevice *s									 |
 |                     comedi_insn *insn                                      |
-|                     lsampl_t *data                                         |
+|                     unsigned int *data                                         |
 |                                                                            |
 |				data[0] = 1 (start)                                  |
 |				data[0] = 0 (stop )                                  |
@@ -2119,7 +2119,7 @@ int i_APCI3120_InsnConfigTimer(comedi_device * dev, comedi_subdevice * s,
 */
 
 int i_APCI3120_InsnWriteTimer(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 
 	UINT ui_Timervalue2 = 0;
@@ -2284,7 +2284,7 @@ int i_APCI3120_InsnWriteTimer(comedi_device * dev, comedi_subdevice * s,
 /*
 +----------------------------------------------------------------------------+
 | Function name     : int i_APCI3120_InsnReadTimer(comedi_device *dev,           |
-|		comedi_subdevice *s,comedi_insn *insn, lsampl_t *data) 		 |
+|		comedi_subdevice *s,comedi_insn *insn, unsigned int *data) 		 |
 |                                        									 |
 |                                            						         |
 +----------------------------------------------------------------------------+
@@ -2293,7 +2293,7 @@ int i_APCI3120_InsnWriteTimer(comedi_device * dev, comedi_subdevice * s,
 | Input Parameters  : 	comedi_device *dev									 |
 |                     comedi_subdevice *s									 |
 |                     comedi_insn *insn                                      |
-|                     lsampl_t *data 										 |
+|                     unsigned int *data 										 |
 |                     														 |
 +----------------------------------------------------------------------------+
 | Return Value      :   													 |
@@ -2305,7 +2305,7 @@ int i_APCI3120_InsnWriteTimer(comedi_device * dev, comedi_subdevice * s,
 +----------------------------------------------------------------------------+
 */
 int i_APCI3120_InsnReadTimer(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	BYTE b_Tmp;
 	USHORT us_TmpValue, us_TmpValue_2, us_StatusValue;
@@ -2361,7 +2361,7 @@ int i_APCI3120_InsnReadTimer(comedi_device * dev, comedi_subdevice * s,
 /*
 +----------------------------------------------------------------------------+
 | Function name     :int i_APCI3120_InsnReadDigitalInput(comedi_device *dev,     |
-|			comedi_subdevice *s, comedi_insn *insn,lsampl_t *data)   |
+|			comedi_subdevice *s, comedi_insn *insn,unsigned int *data)   |
 |                                        									 |
 |                                            						         |
 +----------------------------------------------------------------------------+
@@ -2371,7 +2371,7 @@ int i_APCI3120_InsnReadTimer(comedi_device * dev, comedi_subdevice * s,
 | Input Parameters  : comedi_device *dev									 |
 |                     comedi_subdevice *s									 |
 |                     comedi_insn *insn                                      |
-|                     lsampl_t *data 										 |
+|                     unsigned int *data 										 |
 +----------------------------------------------------------------------------+
 | Return Value      :              					                         |
 |                    													     |
@@ -2379,7 +2379,7 @@ int i_APCI3120_InsnReadTimer(comedi_device * dev, comedi_subdevice * s,
 */
 
 int i_APCI3120_InsnReadDigitalInput(comedi_device * dev, comedi_subdevice
-	* s, comedi_insn * insn, lsampl_t * data)
+	* s, comedi_insn * insn, unsigned int * data)
 {
 	UINT ui_Chan, ui_TmpValue;
 
@@ -2404,7 +2404,7 @@ int i_APCI3120_InsnReadDigitalInput(comedi_device * dev, comedi_subdevice
 /*
 +----------------------------------------------------------------------------+
 | Function name     :int i_APCI3120_InsnBitsDigitalInput(comedi_device *dev, |
-|comedi_subdevice *s, comedi_insn *insn,lsampl_t *data)                      |
+|comedi_subdevice *s, comedi_insn *insn,unsigned int *data)                      |
 |                                        									 |
 +----------------------------------------------------------------------------+
 | Task              : Reads the value of the Digital input Port i.e.4channels|
@@ -2414,14 +2414,14 @@ int i_APCI3120_InsnReadDigitalInput(comedi_device * dev, comedi_subdevice
 | Input Parameters  : comedi_device *dev									 |
 |                     comedi_subdevice *s									 |
 |                     comedi_insn *insn                                      |
-|                     lsampl_t *data 										 |
+|                     unsigned int *data 										 |
 +----------------------------------------------------------------------------+
 | Return Value      :              					                         |
 |                    													     |
 +----------------------------------------------------------------------------+
 */
 int i_APCI3120_InsnBitsDigitalInput(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	UINT ui_TmpValue;
 	ui_TmpValue = (UINT) inw(devpriv->iobase + APCI3120_RD_STATUS);
@@ -2443,7 +2443,7 @@ int i_APCI3120_InsnBitsDigitalInput(comedi_device * dev, comedi_subdevice * s,
 /*
 +----------------------------------------------------------------------------+
 | Function name     :int i_APCI3120_InsnConfigDigitalOutput(comedi_device    |
-| *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data)				 |
+| *dev,comedi_subdevice *s,comedi_insn *insn,unsigned int *data)				 |
 |                                            						         |
 +----------------------------------------------------------------------------+
 | Task              :Configure the output memory ON or OFF				     |
@@ -2452,7 +2452,7 @@ int i_APCI3120_InsnBitsDigitalInput(comedi_device * dev, comedi_subdevice * s,
 | Input Parameters  :comedi_device *dev									 	 |
 |                     comedi_subdevice *s									 |
 |                     comedi_insn *insn                                      |
-|                     lsampl_t *data 										 |
+|                     unsigned int *data 										 |
 +----------------------------------------------------------------------------+
 | Return Value      :              					                         |
 |                    													     |
@@ -2460,7 +2460,7 @@ int i_APCI3120_InsnBitsDigitalInput(comedi_device * dev, comedi_subdevice * s,
 */
 
 int i_APCI3120_InsnConfigDigitalOutput(comedi_device * dev,
-	comedi_subdevice * s, comedi_insn * insn, lsampl_t * data)
+	comedi_subdevice * s, comedi_insn * insn, unsigned int * data)
 {
 
 	if ((data[0] != 0) && (data[0] != 1)) {
@@ -2486,7 +2486,7 @@ int i_APCI3120_InsnConfigDigitalOutput(comedi_device * dev,
 /*
 +----------------------------------------------------------------------------+
 | Function name     :int i_APCI3120_InsnBitsDigitalOutput(comedi_device *dev,    |
-|		comedi_subdevice *s, comedi_insn *insn,lsampl_t *data) 		 |
+|		comedi_subdevice *s, comedi_insn *insn,unsigned int *data) 		 |
 |                                        									 |
 +----------------------------------------------------------------------------+
 | Task              : write diatal output port							     |
@@ -2495,7 +2495,7 @@ int i_APCI3120_InsnConfigDigitalOutput(comedi_device * dev,
 | Input Parameters  : comedi_device *dev									 |
 |                     comedi_subdevice *s									 |
 |                     comedi_insn *insn                                      |
-|                     lsampl_t *data 										 |
+|                     unsigned int *data 										 |
                       data[0]     Value to be written
                       data[1]    :1 Set digital o/p ON
                       data[1]     2 Set digital o/p OFF with memory ON
@@ -2506,7 +2506,7 @@ int i_APCI3120_InsnConfigDigitalOutput(comedi_device * dev,
 */
 
 int i_APCI3120_InsnBitsDigitalOutput(comedi_device * dev, comedi_subdevice
-	* s, comedi_insn * insn, lsampl_t * data)
+	* s, comedi_insn * insn, unsigned int * data)
 {
 	if ((data[0] > this_board->i_DoMaxdata) || (data[0] < 0)) {
 
@@ -2537,7 +2537,7 @@ int i_APCI3120_InsnBitsDigitalOutput(comedi_device * dev, comedi_subdevice
 /*
 +----------------------------------------------------------------------------+
 | Function name     :int i_APCI3120_InsnWriteDigitalOutput(comedi_device *dev,|
-|comedi_subdevice *s,comedi_insn *insn,lsampl_t *data) 			             |
+|comedi_subdevice *s,comedi_insn *insn,unsigned int *data) 			             |
 |                                            						         |
 +----------------------------------------------------------------------------+
 | Task              : Write digiatl output								     |
@@ -2546,7 +2546,7 @@ int i_APCI3120_InsnBitsDigitalOutput(comedi_device * dev, comedi_subdevice
 | Input Parameters  : comedi_device *dev								 	 |
 |                     comedi_subdevice *s									 |
 |                     comedi_insn *insn                                      |
-|                     lsampl_t *data 										 |
+|                     unsigned int *data 										 |
                       data[0]     Value to be written
                       data[1]    :1 Set digital o/p ON
                       data[1]     2 Set digital o/p OFF with memory ON
@@ -2557,7 +2557,7 @@ int i_APCI3120_InsnBitsDigitalOutput(comedi_device * dev, comedi_subdevice
 */
 
 int i_APCI3120_InsnWriteDigitalOutput(comedi_device * dev, comedi_subdevice
-	* s, comedi_insn * insn, lsampl_t * data)
+	* s, comedi_insn * insn, unsigned int * data)
 {
 
 	UINT ui_Temp1;
@@ -2618,7 +2618,7 @@ int i_APCI3120_InsnWriteDigitalOutput(comedi_device * dev, comedi_subdevice
 /*
 +----------------------------------------------------------------------------+
 | Function name     :int i_APCI3120_InsnWriteAnalogOutput(comedi_device *dev,|
-|comedi_subdevice *s, comedi_insn *insn,lsampl_t *data)			             |
+|comedi_subdevice *s, comedi_insn *insn,unsigned int *data)			             |
 |                                        									 |
 +----------------------------------------------------------------------------+
 | Task              : Write  analog output   							     |
@@ -2627,7 +2627,7 @@ int i_APCI3120_InsnWriteDigitalOutput(comedi_device * dev, comedi_subdevice
 | Input Parameters  : comedi_device *dev									 |
 |                     comedi_subdevice *s									 |
 |                     comedi_insn *insn                                      |
-|                     lsampl_t *data  										 |
+|                     unsigned int *data  										 |
 +----------------------------------------------------------------------------+
 | Return Value      :              					                         |
 |                    													     |
@@ -2635,7 +2635,7 @@ int i_APCI3120_InsnWriteDigitalOutput(comedi_device * dev, comedi_subdevice
 */
 
 int i_APCI3120_InsnWriteAnalogOutput(comedi_device * dev, comedi_subdevice
-	* s, comedi_insn * insn, lsampl_t * data)
+	* s, comedi_insn * insn, unsigned int * data)
 {
 	UINT ui_Range, ui_Channel;
 	USHORT us_TmpValue;

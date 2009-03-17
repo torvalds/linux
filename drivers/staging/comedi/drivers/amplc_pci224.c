@@ -404,8 +404,8 @@ typedef struct {
 	unsigned long iobase1;
 	unsigned long state;
 	spinlock_t ao_spinlock;
-	lsampl_t *ao_readback;
-	sampl_t *ao_scan_vals;
+	unsigned int *ao_readback;
+	short *ao_scan_vals;
 	unsigned char *ao_scan_order;
 	int intr_cpuid;
 	short intr_running;
@@ -444,7 +444,7 @@ COMEDI_PCI_INITCLEANUP(driver_amplc_pci224, pci224_pci_table);
  * Called from the 'insn_write' function to perform a single write.
  */
 static void
-pci224_ao_set_data(comedi_device * dev, int chan, int range, lsampl_t data)
+pci224_ao_set_data(comedi_device * dev, int chan, int range, unsigned int data)
 {
 	unsigned short mangled;
 
@@ -478,7 +478,7 @@ pci224_ao_set_data(comedi_device * dev, int chan, int range, lsampl_t data)
  */
 static int
 pci224_ao_insn_write(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	int i;
 	int chan, range;
@@ -505,7 +505,7 @@ pci224_ao_insn_write(comedi_device * dev, comedi_subdevice * s,
  */
 static int
 pci224_ao_insn_read(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	int i;
 	int chan;
@@ -609,10 +609,10 @@ static void pci224_ao_handle_fifo(comedi_device * dev, comedi_subdevice * s)
 	unsigned int bytes_per_scan;
 
 	if (cmd->chanlist_len) {
-		bytes_per_scan = cmd->chanlist_len * sizeof(sampl_t);
+		bytes_per_scan = cmd->chanlist_len * sizeof(short);
 	} else {
 		/* Shouldn't get here! */
-		bytes_per_scan = sizeof(sampl_t);
+		bytes_per_scan = sizeof(short);
 	}
 	/* Determine number of scans available in buffer. */
 	num_scans = comedi_buf_read_n_available(s->async) / bytes_per_scan;
@@ -1186,7 +1186,7 @@ pci224_ao_munge(comedi_device * dev, comedi_subdevice * s, void *data,
 	unsigned int num_bytes, unsigned int chan_index)
 {
 	comedi_async *async = s->async;
-	sampl_t *array = data;
+	short *array = data;
 	unsigned int length = num_bytes / sizeof(*array);
 	unsigned int offset;
 	unsigned int shift;

@@ -39,26 +39,26 @@
 
 //Digital Input
 INT i_APCI1516_ReadMoreDigitalInput(comedi_device *dev, comedi_subdevice *s,
-				    comedi_insn *insn, lsampl_t *data);
+				    comedi_insn *insn, unsigned int *data);
 INT i_APCI1516_Read1DigitalInput(comedi_device *dev, comedi_subdevice *s,
-				 comedi_insn *insn, lsampl_t *data);
+				 comedi_insn *insn, unsigned int *data);
 
 //Digital Output
 int i_APCI1516_ConfigDigitalOutput(comedi_device *dev, comedi_subdevice *s,
-				   comedi_insn *insn, lsampl_t *data);
+				   comedi_insn *insn, unsigned int *data);
 INT i_APCI1516_WriteDigitalOutput(comedi_device *dev, comedi_subdevice *s,
-				  comedi_insn *insn, lsampl_t *data);
+				  comedi_insn *insn, unsigned int *data);
 INT i_APCI1516_ReadDigitalOutput(comedi_device *dev, comedi_subdevice *s,
-				 comedi_insn *insn, lsampl_t *data);
+				 comedi_insn *insn, unsigned int *data);
 
 // TIMER
 // timer value is passed as u seconds
 int i_APCI1516_ConfigWatchdog(comedi_device *dev, comedi_subdevice *s,
-			      comedi_insn *insn, lsampl_t *data);
+			      comedi_insn *insn, unsigned int *data);
 int i_APCI1516_StartStopWriteWatchdog(comedi_device *dev, comedi_subdevice *s,
-				      comedi_insn *insn, lsampl_t *data);
+				      comedi_insn *insn, unsigned int *data);
 int i_APCI1516_ReadWatchdog(comedi_device *dev, comedi_subdevice *s,
-			    comedi_insn *insn, lsampl_t *data);
+			    comedi_insn *insn, unsigned int *data);
 
 //reset
 INT i_APCI1516_Reset(comedi_device *dev);

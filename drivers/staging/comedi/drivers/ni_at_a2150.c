@@ -183,7 +183,7 @@ static int a2150_ai_cmdtest(comedi_device * dev, comedi_subdevice * s,
 	comedi_cmd * cmd);
 static int a2150_ai_cmd(comedi_device * dev, comedi_subdevice * s);
 static int a2150_ai_rinsn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
+	comedi_insn * insn, unsigned int * data);
 static int a2150_get_timing(comedi_device * dev, unsigned int *period,
 	int flags);
 static int a2150_probe(comedi_device * dev);
@@ -217,7 +217,7 @@ static irqreturn_t a2150_interrupt(int irq, void *d PT_REGS_ARG)
 	comedi_async *async;
 	comedi_cmd *cmd;
 	unsigned int max_points, num_points, residue, leftover;
-	sampl_t dpnt;
+	short dpnt;
 	static const int sample_size = sizeof(devpriv->dma_buffer[0]);
 
 	if (dev->attached == 0) {
@@ -727,7 +727,7 @@ static int a2150_ai_cmd(comedi_device * dev, comedi_subdevice * s)
 }
 
 static int a2150_ai_rinsn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	unsigned int i, n;
 	static const int timeout = 100000;

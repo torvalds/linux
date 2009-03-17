@@ -524,7 +524,7 @@ struct pci230_private {
 	spinlock_t ao_stop_spinlock;	/* Spin lock for stopping AO command */
 	unsigned long state;	/* State flags */
 	unsigned long iobase1;	/* PCI230's I/O space 1 */
-	lsampl_t ao_readback[2];	/* Used for AO readback */
+	unsigned int ao_readback[2];	/* Used for AO readback */
 	unsigned int ai_scan_count;	/* Number of analogue input scans
 					 * remaining.  */
 	unsigned int ai_scan_pos;	/* Current position within analogue
@@ -616,11 +616,11 @@ static comedi_driver driver_amplc_pci230 = {
 COMEDI_PCI_INITCLEANUP(driver_amplc_pci230, pci230_pci_table);
 
 static int pci230_ai_rinsn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
+	comedi_insn * insn, unsigned int * data);
 static int pci230_ao_winsn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
+	comedi_insn * insn, unsigned int * data);
 static int pci230_ao_rinsn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
+	comedi_insn * insn, unsigned int * data);
 static void pci230_ct_setup_ns_mode(comedi_device * dev, unsigned int ct,
 	unsigned int mode, uint64_t ns, unsigned int round);
 static void pci230_ns_to_single_timer(unsigned int *ns, unsigned int round);
@@ -640,10 +640,10 @@ static int pci230_ai_cancel(comedi_device * dev, comedi_subdevice * s);
 static void pci230_ai_stop(comedi_device * dev, comedi_subdevice * s);
 static void pci230_handle_ai(comedi_device * dev, comedi_subdevice * s);
 
-static sampl_t pci230_ai_read(comedi_device * dev)
+static short pci230_ai_read(comedi_device * dev)
 {
 	/* Read sample. */
-	sampl_t data = (sampl_t) inw(dev->iobase + PCI230_ADCDATA);
+	short data = (short) inw(dev->iobase + PCI230_ADCDATA);
 
 	/* PCI230 is 12 bit - stored in upper bits of 16 bit register (lower
 	 * four bits reserved for expansion). */
@@ -659,7 +659,7 @@ static sampl_t pci230_ai_read(comedi_device * dev)
 }
 
 static inline unsigned short pci230_ao_mangle_datum(comedi_device * dev,
-	sampl_t datum)
+	short datum)
 {
 	/* If a bipolar range was specified, mangle it (straight binary->twos
 	 * complement). */
@@ -674,7 +674,7 @@ static inline unsigned short pci230_ao_mangle_datum(comedi_device * dev,
 	return (unsigned short)datum;
 }
 
-static inline void pci230_ao_write_nofifo(comedi_device * dev, sampl_t datum,
+static inline void pci230_ao_write_nofifo(comedi_device * dev, short datum,
 	unsigned int chan)
 {
 	/* Store unmangled datum to be read back later. */
@@ -685,7 +685,7 @@ static inline void pci230_ao_write_nofifo(comedi_device * dev, sampl_t datum,
 			? PCI230_DACOUT1 : PCI230_DACOUT2));
 }
 
-static inline void pci230_ao_write_fifo(comedi_device * dev, sampl_t datum,
+static inline void pci230_ao_write_fifo(comedi_device * dev, short datum,
 	unsigned int chan)
 {
 	/* Store unmangled datum to be read back later. */
@@ -1059,7 +1059,7 @@ static inline void put_all_resources(comedi_device * dev, unsigned char owner)
  *  COMEDI_SUBD_AI instruction;
  */
 static int pci230_ai_rinsn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	unsigned int n, i;
 	unsigned int chan, range, aref;
@@ -1164,7 +1164,7 @@ static int pci230_ai_rinsn(comedi_device * dev, comedi_subdevice * s,
  *  COMEDI_SUBD_AO instructions;
  */
 static int pci230_ao_winsn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	int i;
 	int chan, range;
@@ -1192,7 +1192,7 @@ static int pci230_ao_winsn(comedi_device * dev, comedi_subdevice * s,
 /* AO subdevices should have a read insn as well as a write insn.
  * Usually this means copying a value stored in devpriv. */
 static int pci230_ao_rinsn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	int i;
 	int chan = CR_CHAN(insn->chanspec);
@@ -2624,7 +2624,7 @@ static irqreturn_t pci230_interrupt(int irq, void *d PT_REGS_ARG)
 
 static void pci230_handle_ao_nofifo(comedi_device * dev, comedi_subdevice * s)
 {
-	sampl_t data;
+	short data;
 	int i, ret;
 	comedi_async *async = s->async;
 	comedi_cmd *cmd = &async->cmd;
@@ -2675,7 +2675,7 @@ static int pci230_handle_ao_fifo(comedi_device * dev, comedi_subdevice * s)
 	dacstat = inw(dev->iobase + PCI230_DACCON);
 
 	/* Determine number of scans available in buffer. */
-	bytes_per_scan = cmd->chanlist_len * sizeof(sampl_t);
+	bytes_per_scan = cmd->chanlist_len * sizeof(short);
 	num_scans = comedi_buf_read_n_available(async) / bytes_per_scan;
 	if (!devpriv->ao_continuous) {
 		/* Fixed number of scans. */
@@ -2722,7 +2722,7 @@ static int pci230_handle_ao_fifo(comedi_device * dev, comedi_subdevice * s)
 		/* Process scans. */
 		for (n = 0; n < num_scans; n++) {
 			for (i = 0; i < cmd->chanlist_len; i++) {
-				sampl_t datum;
+				short datum;
 
 				comedi_buf_get(async, &datum);
 				pci230_ao_write_fifo(dev, datum,

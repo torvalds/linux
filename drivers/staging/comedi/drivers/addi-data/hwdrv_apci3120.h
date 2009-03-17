@@ -188,10 +188,10 @@ int i_APCI3120_CyclicAnalogInput(int mode, comedi_device *dev,
 				 comedi_subdevice *s);
 // Interrupt functions
 void v_APCI3120_Interrupt(int irq, void *d);
-//UPDATE-0.7.57->0.7.68 void v_APCI3120_InterruptDmaMoveBlock16bit(comedi_device *dev,comedi_subdevice *s,sampl_t *dma,sampl_t *data,int n);
+//UPDATE-0.7.57->0.7.68 void v_APCI3120_InterruptDmaMoveBlock16bit(comedi_device *dev,comedi_subdevice *s,short *dma,short *data,int n);
 void v_APCI3120_InterruptDmaMoveBlock16bit(comedi_device *dev,
 					   comedi_subdevice *s,
-					   sampl_t *dma_buffer,
+					   short *dma_buffer,
 					   unsigned int num_samples);
 int i_APCI3120_InterruptHandleEos(comedi_device *dev);
 void v_APCI3120_InterruptDma(int irq, void *d);
@@ -199,41 +199,41 @@ void v_APCI3120_InterruptDma(int irq, void *d);
 // TIMER
 
 int i_APCI3120_InsnConfigTimer(comedi_device *dev, comedi_subdevice *s,
-			       comedi_insn *insn, lsampl_t *data);
+			       comedi_insn *insn, unsigned int *data);
 int i_APCI3120_InsnWriteTimer(comedi_device *dev, comedi_subdevice *s,
-			      comedi_insn *insn, lsampl_t *data);
+			      comedi_insn *insn, unsigned int *data);
 int i_APCI3120_InsnReadTimer(comedi_device *dev, comedi_subdevice *s,
-			     comedi_insn *insn, lsampl_t *data);
+			     comedi_insn *insn, unsigned int *data);
 
 //DI
 // for di read
 
 int i_APCI3120_InsnBitsDigitalInput(comedi_device *dev, comedi_subdevice *s,
-				    comedi_insn *insn, lsampl_t *data);
+				    comedi_insn *insn, unsigned int *data);
 int i_APCI3120_InsnReadDigitalInput(comedi_device *dev, comedi_subdevice *s,
-				    comedi_insn *insn, lsampl_t *data);
+				    comedi_insn *insn, unsigned int *data);
 
 //DO
 //int i_APCI3120_WriteDigitalOutput(comedi_device *dev, BYTE data);
 int i_APCI3120_InsnConfigDigitalOutput(comedi_device *dev,
 				       comedi_subdevice *s, comedi_insn *insn,
-				       lsampl_t *data);
+				       unsigned int *data);
 int i_APCI3120_InsnBitsDigitalOutput(comedi_device *dev, comedi_subdevice *s,
-				     comedi_insn *insn, lsampl_t *data);
+				     comedi_insn *insn, unsigned int *data);
 int i_APCI3120_InsnWriteDigitalOutput(comedi_device *dev, comedi_subdevice *s,
-				      comedi_insn *insn, lsampl_t *data);
+				      comedi_insn *insn, unsigned int *data);
 
 //AO
 //int i_APCI3120_Write1AnalogValue(comedi_device *dev,UINT ui_Range,UINT ui_Channel,UINT data );
 int i_APCI3120_InsnWriteAnalogOutput(comedi_device *dev, comedi_subdevice *s,
-				     comedi_insn *insn, lsampl_t *data);
+				     comedi_insn *insn, unsigned int *data);
 
 //AI HArdware layer
 
 int i_APCI3120_InsnConfigAnalogInput(comedi_device *dev, comedi_subdevice *s,
-				     comedi_insn *insn, lsampl_t *data);
+				     comedi_insn *insn, unsigned int *data);
 int i_APCI3120_InsnReadAnalogInput(comedi_device *dev, comedi_subdevice *s,
-				   comedi_insn *insn, lsampl_t *data);
+				   comedi_insn *insn, unsigned int *data);
 int i_APCI3120_CommandTestAnalogInput(comedi_device *dev, comedi_subdevice *s,
 				      comedi_cmd *cmd);
 int i_APCI3120_CommandAnalogInput(comedi_device *dev, comedi_subdevice *s);

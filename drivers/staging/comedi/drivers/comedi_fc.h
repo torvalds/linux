@@ -35,13 +35,13 @@ extern unsigned int cfc_write_array_to_buffer(comedi_subdevice *subd,
 					      unsigned int num_bytes);
 
 static inline unsigned int cfc_write_to_buffer(comedi_subdevice *subd,
-					       sampl_t data)
+					       short data)
 {
 	return cfc_write_array_to_buffer(subd, &data, sizeof(data));
 };
 
 static inline unsigned int cfc_write_long_to_buffer(comedi_subdevice *subd,
-						    lsampl_t data)
+						    unsigned int data)
 {
 	return cfc_write_array_to_buffer(subd, &data, sizeof(data));
 };

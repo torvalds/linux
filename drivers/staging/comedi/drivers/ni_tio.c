@@ -262,7 +262,7 @@ static inline unsigned NI_660x_RTSI_Second_Gate_Select(unsigned n)
 	return 0xb + n;
 }
 
-static const lsampl_t counter_status_mask =
+static const unsigned int counter_status_mask =
 	COMEDI_COUNTER_ARMED | COMEDI_COUNTER_COUNTING;
 
 static int __init ni_tio_init_module(void)
@@ -388,9 +388,9 @@ void ni_tio_init_counter(struct ni_gpct *counter)
 		NITIO_Gi_Interrupt_Enable_Reg(counter->counter_index), ~0, 0x0);
 }
 
-static lsampl_t ni_tio_counter_status(struct ni_gpct *counter)
+static unsigned int ni_tio_counter_status(struct ni_gpct *counter)
 {
-	lsampl_t status = 0;
+	unsigned int status = 0;
 	const unsigned bits = read_register(counter,
 		NITIO_Gxx_Status_Reg(counter->counter_index));
 	if (bits & Gi_Armed_Bit(counter->counter_index)) {
@@ -564,7 +564,7 @@ int ni_tio_arm(struct ni_gpct *counter, int arm, unsigned start_trigger)
 	return 0;
 }
 
-static unsigned ni_660x_source_select_bits(lsampl_t clock_source)
+static unsigned ni_660x_source_select_bits(unsigned int clock_source)
 {
 	unsigned ni_660x_clock;
 	unsigned i;
@@ -618,7 +618,7 @@ static unsigned ni_660x_source_select_bits(lsampl_t clock_source)
 	return Gi_Source_Select_Bits(ni_660x_clock);
 }
 
-static unsigned ni_m_series_source_select_bits(lsampl_t clock_source)
+static unsigned ni_m_series_source_select_bits(unsigned int clock_source)
 {
 	unsigned ni_m_series_clock;
 	unsigned i;
@@ -679,7 +679,7 @@ static unsigned ni_m_series_source_select_bits(lsampl_t clock_source)
 };
 
 static void ni_tio_set_source_subselect(struct ni_gpct *counter,
-	lsampl_t clock_source)
+	unsigned int clock_source)
 {
 	struct ni_gpct_device *counter_dev = counter->counter_dev;
 	const unsigned second_gate_reg =
@@ -708,7 +708,7 @@ static void ni_tio_set_source_subselect(struct ni_gpct *counter,
 }
 
 static int ni_tio_set_clock_src(struct ni_gpct *counter,
-	lsampl_t clock_source, lsampl_t period_ns)
+	unsigned int clock_source, unsigned int period_ns)
 {
 	struct ni_gpct_device *counter_dev = counter->counter_dev;
 	unsigned input_select_bits = 0;
@@ -965,7 +965,7 @@ static uint64_t ni_tio_clock_period_ps(const struct ni_gpct *counter,
 }
 
 static void ni_tio_get_clock_src(struct ni_gpct *counter,
-	lsampl_t * clock_source, lsampl_t * period_ns)
+	unsigned int * clock_source, unsigned int * period_ns)
 {
 	static const unsigned pico_per_nano = 1000;
 	uint64_t temp64;
@@ -976,7 +976,7 @@ static void ni_tio_get_clock_src(struct ni_gpct *counter,
 }
 
 static void ni_tio_set_first_gate_modifiers(struct ni_gpct *counter,
-	lsampl_t gate_source)
+	unsigned int gate_source)
 {
 	const unsigned mode_mask = Gi_Gate_Polarity_Bit | Gi_Gating_Mode_Mask;
 	unsigned mode_values = 0;
@@ -993,7 +993,7 @@ static void ni_tio_set_first_gate_modifiers(struct ni_gpct *counter,
 		mode_mask, mode_values);
 }
 
-static int ni_660x_set_first_gate(struct ni_gpct *counter, lsampl_t gate_source)
+static int ni_660x_set_first_gate(struct ni_gpct *counter, unsigned int gate_source)
 {
 	const unsigned selected_gate = CR_CHAN(gate_source);
 	/* bits of selected_gate that may be meaningful to input select register */
@@ -1040,7 +1040,7 @@ static int ni_660x_set_first_gate(struct ni_gpct *counter, lsampl_t gate_source)
 }
 
 static int ni_m_series_set_first_gate(struct ni_gpct *counter,
-	lsampl_t gate_source)
+	unsigned int gate_source)
 {
 	const unsigned selected_gate = CR_CHAN(gate_source);
 	/* bits of selected_gate that may be meaningful to input select register */
@@ -1089,7 +1089,7 @@ static int ni_m_series_set_first_gate(struct ni_gpct *counter,
 }
 
 static int ni_660x_set_second_gate(struct ni_gpct *counter,
-	lsampl_t gate_source)
+	unsigned int gate_source)
 {
 	struct ni_gpct_device *counter_dev = counter->counter_dev;
 	const unsigned second_gate_reg =
@@ -1148,7 +1148,7 @@ static int ni_660x_set_second_gate(struct ni_gpct *counter,
 }
 
 static int ni_m_series_set_second_gate(struct ni_gpct *counter,
-	lsampl_t gate_source)
+	unsigned int gate_source)
 {
 	struct ni_gpct_device *counter_dev = counter->counter_dev;
 	const unsigned second_gate_reg =
@@ -1176,7 +1176,7 @@ static int ni_m_series_set_second_gate(struct ni_gpct *counter,
 }
 
 int ni_tio_set_gate_src(struct ni_gpct *counter, unsigned gate_index,
-	lsampl_t gate_source)
+	unsigned int gate_source)
 {
 	struct ni_gpct_device *counter_dev = counter->counter_dev;
 	const unsigned second_gate_reg =
@@ -1243,7 +1243,7 @@ int ni_tio_set_gate_src(struct ni_gpct *counter, unsigned gate_index,
 }
 
 static int ni_tio_set_other_src(struct ni_gpct *counter, unsigned index,
-	lsampl_t source)
+	unsigned int source)
 {
 	struct ni_gpct_device *counter_dev = counter->counter_dev;
 
@@ -1442,7 +1442,7 @@ static unsigned ni_m_series_second_gate_to_generic_gate_source(unsigned
 };
 
 static int ni_tio_get_gate_src(struct ni_gpct *counter, unsigned gate_index,
-	lsampl_t * gate_source)
+	unsigned int * gate_source)
 {
 	struct ni_gpct_device *counter_dev = counter->counter_dev;
 	const unsigned mode_bits = ni_tio_get_soft_copy(counter,
@@ -1534,7 +1534,7 @@ static int ni_tio_get_gate_src(struct ni_gpct *counter, unsigned gate_index,
 }
 
 int ni_tio_insn_config(struct ni_gpct *counter,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	switch (data[0]) {
 	case INSN_CONFIG_SET_COUNTER_MODE:
@@ -1578,7 +1578,7 @@ int ni_tio_insn_config(struct ni_gpct *counter,
 	return -EINVAL;
 }
 
-int ni_tio_rinsn(struct ni_gpct *counter, comedi_insn * insn, lsampl_t * data)
+int ni_tio_rinsn(struct ni_gpct *counter, comedi_insn * insn, unsigned int * data)
 {
 	struct ni_gpct_device *counter_dev = counter->counter_dev;
 	const unsigned channel = CR_CHAN(insn->chanspec);
@@ -1642,7 +1642,7 @@ static unsigned ni_tio_next_load_register(struct ni_gpct *counter)
 	}
 }
 
-int ni_tio_winsn(struct ni_gpct *counter, comedi_insn * insn, lsampl_t * data)
+int ni_tio_winsn(struct ni_gpct *counter, comedi_insn * insn, unsigned int * data)
 {
 	struct ni_gpct_device *counter_dev = counter->counter_dev;
 	const unsigned channel = CR_CHAN(insn->chanspec);

@@ -153,7 +153,7 @@ typedef struct {
 	unsigned long BADR4;
 
 	/* Used for AO readback */
-	lsampl_t ao_readback[2];
+	unsigned int ao_readback[2];
 
 	// Used for DIO
 	unsigned short int port_a;	// copy of BADR4+0
@@ -185,11 +185,11 @@ static comedi_driver driver_cb_pcimdas = {
 };
 
 static int cb_pcimdas_ai_rinsn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
+	comedi_insn * insn, unsigned int * data);
 static int cb_pcimdas_ao_winsn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
+	comedi_insn * insn, unsigned int * data);
 static int cb_pcimdas_ao_rinsn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
+	comedi_insn * insn, unsigned int * data);
 
 /*
  * Attach is called by the Comedi core to configure the driver
@@ -373,7 +373,7 @@ static int cb_pcimdas_detach(comedi_device * dev)
  * mode.
  */
 static int cb_pcimdas_ai_rinsn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	int n, i;
 	unsigned int d;
@@ -438,7 +438,7 @@ static int cb_pcimdas_ai_rinsn(comedi_device * dev, comedi_subdevice * s,
 }
 
 static int cb_pcimdas_ao_winsn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	int i;
 	int chan = CR_CHAN(insn->chanspec);
@@ -466,7 +466,7 @@ static int cb_pcimdas_ao_winsn(comedi_device * dev, comedi_subdevice * s,
 /* AO subdevices should have a read insn as well as a write insn.
  * Usually this means copying a value stored in devpriv. */
 static int cb_pcimdas_ao_rinsn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	int i;
 	int chan = CR_CHAN(insn->chanspec);

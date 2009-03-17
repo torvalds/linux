@@ -58,7 +58,7 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 /*
 +----------------------------------------------------------------------------+
 | Function Name     :INT i_APCI1710_InsnConfigPWM(comedi_device *dev,
-comedi_subdevice *s,comedi_insn *insn,lsampl_t *data)                        |
+comedi_subdevice *s,comedi_insn *insn,unsigned int *data)                        |
 +----------------------------------------------------------------------------+
 | Task              : Pwm Init and Get Pwm Initialisation                    |
 +----------------------------------------------------------------------------+
@@ -71,7 +71,7 @@ comedi_subdevice *s,comedi_insn *insn,lsampl_t *data)                        |
 */
 
 INT i_APCI1710_InsnConfigPWM(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	BYTE b_ConfigType;
 	INT i_ReturnValue = 0;
@@ -1671,7 +1671,7 @@ INT i_APCI1710_GetPWMInitialisation(comedi_device * dev,
 /*
 +----------------------------------------------------------------------------+
 | Function Name     :INT i_APCI1710_InsnWritePWM(comedi_device *dev,
-comedi_subdevice *s,comedi_insn *insn,lsampl_t *data)                        |
+comedi_subdevice *s,comedi_insn *insn,unsigned int *data)                        |
 +----------------------------------------------------------------------------+
 | Task              : Pwm Enable Disable and Set New Timing                  |
 +----------------------------------------------------------------------------+
@@ -1684,7 +1684,7 @@ comedi_subdevice *s,comedi_insn *insn,lsampl_t *data)                        |
 */
 
 INT i_APCI1710_InsnWritePWM(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	BYTE b_WriteType;
 	INT i_ReturnValue = 0;
@@ -3461,7 +3461,7 @@ INT i_APCI1710_SetNewPWMTiming(comedi_device * dev,
 */
 
 INT i_APCI1710_InsnReadGetPWMStatus(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	INT i_ReturnValue = 0;
 	DWORD dw_Status;
@@ -3562,7 +3562,7 @@ INT i_APCI1710_InsnReadGetPWMStatus(comedi_device * dev, comedi_subdevice * s,
 }
 
 INT i_APCI1710_InsnBitsReadPWMInterrupt(comedi_device * dev,
-	comedi_subdevice * s, comedi_insn * insn, lsampl_t * data)
+	comedi_subdevice * s, comedi_insn * insn, unsigned int * data)
 {
 	data[0] = devpriv->s_InterruptParameters.
 		s_FIFOInterruptParameters[devpriv->

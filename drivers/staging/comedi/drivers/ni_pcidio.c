@@ -486,8 +486,8 @@ static irqreturn_t nidio_interrupt(int irq, void *d PT_REGS_ARG)
 
 	//int i, j;
 	long int AuxData = 0;
-	sampl_t data1 = 0;
-	sampl_t data2 = 0;
+	short data1 = 0;
+	short data2 = 0;
 	int flags;
 	int status;
 	int work = 0;
@@ -703,7 +703,7 @@ static void debug_int(comedi_device * dev)
 #endif
 
 static int ni_pcidio_insn_config(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	if (insn->n != 1)
 		return -EINVAL;
@@ -730,7 +730,7 @@ static int ni_pcidio_insn_config(comedi_device * dev, comedi_subdevice * s,
 }
 
 static int ni_pcidio_insn_bits(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	if (insn->n != 2)
 		return -EINVAL;

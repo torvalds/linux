@@ -56,37 +56,37 @@ comedi_lrange range_apci3501_ao = { 2, {
 
 //AO
 INT i_APCI3501_ConfigAnalogOutput(comedi_device *dev, comedi_subdevice *s,
-				  comedi_insn *insn, lsampl_t *data);
+				  comedi_insn *insn, unsigned int *data);
 INT i_APCI3501_WriteAnalogOutput(comedi_device *dev, comedi_subdevice *s,
-				 comedi_insn *insn, lsampl_t *data);
+				 comedi_insn *insn, unsigned int *data);
 
 //DI
 // for di read
-//INT i_APCI3501_ReadDigitalInput(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
+//INT i_APCI3501_ReadDigitalInput(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,unsigned int *data);
 
 INT i_APCI3501_ReadDigitalInput(comedi_device *dev, comedi_subdevice *s,
-				comedi_insn *insn, lsampl_t *data);
+				comedi_insn *insn, unsigned int *data);
 
 //DO
 int i_APCI3501_ConfigDigitalOutput(comedi_device *dev, comedi_subdevice *s,
-				   comedi_insn *insn, lsampl_t *data);
+				   comedi_insn *insn, unsigned int *data);
 INT i_APCI3501_WriteDigitalOutput(comedi_device *dev, comedi_subdevice *s,
-				  comedi_insn *insn, lsampl_t *data);
+				  comedi_insn *insn, unsigned int *data);
 INT i_APCI3501_ReadDigitalOutput(comedi_device *dev, comedi_subdevice *s,
-				 comedi_insn *insn, lsampl_t *data);
+				 comedi_insn *insn, unsigned int *data);
 
 // TIMER
 // timer value is passed as u seconds
 INT i_APCI3501_ConfigTimerCounterWatchdog(comedi_device *dev,
 					  comedi_subdevice *s,
-					  comedi_insn *insn, lsampl_t *data);
+					  comedi_insn *insn, unsigned int *data);
 int i_APCI3501_StartStopWriteTimerCounterWatchdog(comedi_device *dev,
 						  comedi_subdevice *s,
 						  comedi_insn *insn,
-						  lsampl_t *data);
+						  unsigned int *data);
 int i_APCI3501_ReadTimerCounterWatchdog(comedi_device *dev,
 					comedi_subdevice *s,
-					comedi_insn *insn, lsampl_t *data);
+					comedi_insn *insn, unsigned int *data);
 //Interrupt
 void v_APCI3501_Interrupt(int irq, void *d);
 

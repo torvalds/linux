@@ -130,7 +130,7 @@ static void do_config(comedi_device * dev, comedi_subdevice * s);
 
 void subdev_700_interrupt(comedi_device * dev, comedi_subdevice * s)
 {
-	sampl_t d;
+	short d;
 
 	d = CALLBACK_FUNC(0, _700_DATA, 0, CALLBACK_ARG);
 
@@ -154,7 +154,7 @@ static int subdev_700_cb(int dir, int port, int data, unsigned long arg)
 }
 
 static int subdev_700_insn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	if (data[0]) {
 		s->state &= ~data[0];
@@ -172,7 +172,7 @@ static int subdev_700_insn(comedi_device * dev, comedi_subdevice * s,
 }
 
 static int subdev_700_insn_config(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 
 	switch (data[0]) {

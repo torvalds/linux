@@ -98,7 +98,7 @@ int comedi_get_len_chanlist(void *d, unsigned int subdevice)
 	return s->len_chanlist;
 }
 
-lsampl_t comedi_get_maxdata(void *d, unsigned int subdevice,
+unsigned int comedi_get_maxdata(void *d, unsigned int subdevice,
 	unsigned int chan)
 {
 	comedi_device *dev = (comedi_device *) d;

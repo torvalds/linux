@@ -63,12 +63,12 @@ UINT ui_InterruptData, ui_Type;
 +----------------------------------------------------------------------------+
 | Function   Name   : int i_APCI1564_ConfigDigitalInput                      |
 |			  (comedi_device *dev,comedi_subdevice *s,               |
-|                      comedi_insn *insn,lsampl_t *data)                     |
+|                      comedi_insn *insn,unsigned int *data)                     |
 +----------------------------------------------------------------------------+
 | Task              : Configures the digital input Subdevice                 |
 +----------------------------------------------------------------------------+
 | Input Parameters  : comedi_device *dev : Driver handle                     |
-|                     lsampl_t *data         : Data Pointer contains         |
+|                     unsigned int *data         : Data Pointer contains         |
 |                                          configuration parameters as below |
 |                                                                            |
 |			  data[0]            : 1 Enable  Digital Input Interrupt |
@@ -87,7 +87,7 @@ UINT ui_InterruptData, ui_Type;
 +----------------------------------------------------------------------------+
 */
 INT i_APCI1564_ConfigDigitalInput(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	devpriv->tsk_Current = current;
    /*******************************/
@@ -132,13 +132,13 @@ INT i_APCI1564_ConfigDigitalInput(comedi_device * dev, comedi_subdevice * s,
 +----------------------------------------------------------------------------+
 | Function   Name   : int i_APCI1564_Read1DigitalInput                       |
 |			  (comedi_device *dev,comedi_subdevice *s,               |
-|                      comedi_insn *insn,lsampl_t *data)                     |
+|                      comedi_insn *insn,unsigned int *data)                     |
 +----------------------------------------------------------------------------+
 | Task              : Return the status of the digital input                 |
 +----------------------------------------------------------------------------+
 | Input Parameters  : comedi_device *dev      : Driver handle                |
 |		              UINT ui_Channel : Channel number to read       |
-|                     lsampl_t *data          : Data Pointer to read status  |
+|                     unsigned int *data          : Data Pointer to read status  |
 +----------------------------------------------------------------------------+
 | Output Parameters :	--													 |
 +----------------------------------------------------------------------------+
@@ -148,7 +148,7 @@ INT i_APCI1564_ConfigDigitalInput(comedi_device * dev, comedi_subdevice * s,
 +----------------------------------------------------------------------------+
 */
 INT i_APCI1564_Read1DigitalInput(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	UINT ui_TmpValue = 0;
 	UINT ui_Channel;
@@ -172,7 +172,7 @@ INT i_APCI1564_Read1DigitalInput(comedi_device * dev, comedi_subdevice * s,
 +----------------------------------------------------------------------------+
 | Function   Name   : int i_APCI1564_ReadMoreDigitalInput                    |
 |			  (comedi_device *dev,comedi_subdevice *s,               |
-|                     comedi_insn *insn,lsampl_t *data)                      |
+|                     comedi_insn *insn,unsigned int *data)                      |
 +----------------------------------------------------------------------------+
 | Task              : Return the status of the Requested digital inputs      |
 +----------------------------------------------------------------------------+
@@ -188,7 +188,7 @@ INT i_APCI1564_Read1DigitalInput(comedi_device * dev, comedi_subdevice * s,
 +----------------------------------------------------------------------------+
 */
 INT i_APCI1564_ReadMoreDigitalInput(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	UINT ui_PortValue = data[0];
 	UINT ui_Mask = 0;
@@ -234,7 +234,7 @@ INT i_APCI1564_ReadMoreDigitalInput(comedi_device * dev, comedi_subdevice * s,
 +----------------------------------------------------------------------------+
 | Function   Name   : int i_APCI1564_ConfigDigitalOutput                     |
 |			  (comedi_device *dev,comedi_subdevice *s,               |
-|                      comedi_insn *insn,lsampl_t *data)                     |
+|                      comedi_insn *insn,unsigned int *data)                     |
 +----------------------------------------------------------------------------+
 | Task              : Configures The Digital Output Subdevice.               |
 +----------------------------------------------------------------------------+
@@ -256,7 +256,7 @@ INT i_APCI1564_ReadMoreDigitalInput(comedi_device * dev, comedi_subdevice * s,
 +----------------------------------------------------------------------------+
 */
 INT i_APCI1564_ConfigDigitalOutput(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	ULONG ul_Command = 0;
 
@@ -297,7 +297,7 @@ INT i_APCI1564_ConfigDigitalOutput(comedi_device * dev, comedi_subdevice * s,
 +----------------------------------------------------------------------------+
 | Function   Name   : int i_APCI1564_WriteDigitalOutput                      |
 |			  (comedi_device *dev,comedi_subdevice *s,               |
-|                      comedi_insn *insn,lsampl_t *data)                     |
+|                      comedi_insn *insn,unsigned int *data)                     |
 +----------------------------------------------------------------------------+
 | Task              : Writes port value  To the selected port                |
 +----------------------------------------------------------------------------+
@@ -313,7 +313,7 @@ INT i_APCI1564_ConfigDigitalOutput(comedi_device * dev, comedi_subdevice * s,
 +----------------------------------------------------------------------------+
 */
 INT i_APCI1564_WriteDigitalOutput(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	UINT ui_Temp, ui_Temp1;
 	UINT ui_NoOfChannel;
@@ -471,7 +471,7 @@ INT i_APCI1564_WriteDigitalOutput(comedi_device * dev, comedi_subdevice * s,
 +----------------------------------------------------------------------------+
 | Function   Name   : int i_APCI1564_ReadDigitalOutput                       |
 |			  (comedi_device *dev,comedi_subdevice *s,               |
-|                      comedi_insn *insn,lsampl_t *data)                     |
+|                      comedi_insn *insn,unsigned int *data)                     |
 +----------------------------------------------------------------------------+
 | Task              : Read  value  of the selected channel or port           |
 +----------------------------------------------------------------------------+
@@ -487,7 +487,7 @@ INT i_APCI1564_WriteDigitalOutput(comedi_device * dev, comedi_subdevice * s,
 +----------------------------------------------------------------------------+
 */
 INT i_APCI1564_ReadDigitalOutput(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	UINT ui_Temp;
 	UINT ui_NoOfChannel;
@@ -538,7 +538,7 @@ INT i_APCI1564_ReadDigitalOutput(comedi_device * dev, comedi_subdevice * s,
 +----------------------------------------------------------------------------+
 | Function   Name   : int i_APCI1564_ConfigTimerCounterWatchdog              |
 |			  (comedi_device *dev,comedi_subdevice *s,               |
-|                      comedi_insn *insn,lsampl_t *data)                     |
+|                      comedi_insn *insn,unsigned int *data)                     |
 +----------------------------------------------------------------------------+
 | Task              : Configures The Timer , Counter or Watchdog             |
 +----------------------------------------------------------------------------+
@@ -565,7 +565,7 @@ INT i_APCI1564_ReadDigitalOutput(comedi_device * dev, comedi_subdevice * s,
 +----------------------------------------------------------------------------+
 */
 INT i_APCI1564_ConfigTimerCounterWatchdog(comedi_device * dev,
-	comedi_subdevice * s, comedi_insn * insn, lsampl_t * data)
+	comedi_subdevice * s, comedi_insn * insn, unsigned int * data)
 {
 	ULONG ul_Command1 = 0;
 	devpriv->tsk_Current = current;
@@ -696,7 +696,7 @@ INT i_APCI1564_ConfigTimerCounterWatchdog(comedi_device * dev,
 +----------------------------------------------------------------------------+
 | Function   Name   : int i_APCI1564_StartStopWriteTimerCounterWatchdog      |
 |			  (comedi_device *dev,comedi_subdevice *s,               |
-|                      comedi_insn *insn,lsampl_t *data)                     |
+|                      comedi_insn *insn,unsigned int *data)                     |
 +----------------------------------------------------------------------------+
 | Task              : Start / Stop The Selected Timer , Counter or Watchdog  |
 +----------------------------------------------------------------------------+
@@ -719,7 +719,7 @@ INT i_APCI1564_ConfigTimerCounterWatchdog(comedi_device * dev,
 +----------------------------------------------------------------------------+
 */
 INT i_APCI1564_StartStopWriteTimerCounterWatchdog(comedi_device * dev,
-	comedi_subdevice * s, comedi_insn * insn, lsampl_t * data)
+	comedi_subdevice * s, comedi_insn * insn, unsigned int * data)
 {
 	ULONG ul_Command1 = 0;
 	if (devpriv->b_TimerSelectMode == ADDIDATA_WATCHDOG) {
@@ -796,7 +796,7 @@ INT i_APCI1564_StartStopWriteTimerCounterWatchdog(comedi_device * dev,
 +----------------------------------------------------------------------------+
 | Function   Name   : int i_APCI1564_ReadTimerCounterWatchdog                |
 |			  (comedi_device *dev,comedi_subdevice *s,               |
-|                      comedi_insn *insn,lsampl_t *data)                     |
+|                      comedi_insn *insn,unsigned int *data)                     |
 +----------------------------------------------------------------------------+
 | Task              : Read The Selected Timer , Counter or Watchdog          |
 +----------------------------------------------------------------------------+
@@ -814,7 +814,7 @@ INT i_APCI1564_StartStopWriteTimerCounterWatchdog(comedi_device * dev,
 +----------------------------------------------------------------------------+
 */
 INT i_APCI1564_ReadTimerCounterWatchdog(comedi_device * dev,
-	comedi_subdevice * s, comedi_insn * insn, lsampl_t * data)
+	comedi_subdevice * s, comedi_insn * insn, unsigned int * data)
 {
 	ULONG ul_Command1 = 0;
 
@@ -879,7 +879,7 @@ INT i_APCI1564_ReadTimerCounterWatchdog(comedi_device * dev,
 +----------------------------------------------------------------------------+
 | Function   Name   :  int i_APCI1564_ReadInterruptStatus                    |
 |			  (comedi_device *dev,comedi_subdevice *s,               |
-|                      comedi_insn *insn,lsampl_t *data)                     |
+|                      comedi_insn *insn,unsigned int *data)                     |
 +----------------------------------------------------------------------------+
 | Task              :Reads the interrupt status register                     |
 +----------------------------------------------------------------------------+
@@ -893,7 +893,7 @@ INT i_APCI1564_ReadTimerCounterWatchdog(comedi_device * dev,
 */
 
 int i_APCI1564_ReadInterruptStatus(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	*data = ui_Type;
 	return insn->n;

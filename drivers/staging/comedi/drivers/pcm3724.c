@@ -215,7 +215,7 @@ static void enable_chan(comedi_device * dev, comedi_subdevice * s, int chanspec)
 
 /* overriding the 8255 insn config */
 static int subdev_3724_insn_config(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	unsigned int mask;
 	unsigned int bits;

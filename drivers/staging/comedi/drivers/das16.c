@@ -327,13 +327,13 @@ struct munge_info {
 };
 
 static int das16_ao_winsn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
+	comedi_insn * insn, unsigned int * data);
 static int das16_do_wbits(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
+	comedi_insn * insn, unsigned int * data);
 static int das16_di_rbits(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
+	comedi_insn * insn, unsigned int * data);
 static int das16_ai_rinsn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
+	comedi_insn * insn, unsigned int * data);
 
 static int das16_cmd_test(comedi_device * dev, comedi_subdevice * s,
 	comedi_cmd * cmd);
@@ -1032,7 +1032,7 @@ static void das16_reset(comedi_device * dev)
 }
 
 static int das16_ai_rinsn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	int i, n;
 	int range;
@@ -1080,9 +1080,9 @@ static int das16_ai_rinsn(comedi_device * dev, comedi_subdevice * s,
 }
 
 static int das16_di_rbits(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
-	lsampl_t bits;
+	unsigned int bits;
 
 	bits = inb(dev->iobase + DAS16_DIO) & 0xf;
 	data[1] = bits;
@@ -1092,9 +1092,9 @@ static int das16_di_rbits(comedi_device * dev, comedi_subdevice * s,
 }
 
 static int das16_do_wbits(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
-	lsampl_t wbits;
+	unsigned int wbits;
 
 	// only set bits that have been masked
 	data[0] &= 0xf;
@@ -1112,7 +1112,7 @@ static int das16_do_wbits(comedi_device * dev, comedi_subdevice * s,
 }
 
 static int das16_ao_winsn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	int i;
 	int lsb, msb;
@@ -1718,8 +1718,8 @@ static unsigned int das16_suggest_transfer_size(comedi_device * dev,
 static void das16_ai_munge(comedi_device * dev, comedi_subdevice * s,
 	void *array, unsigned int num_bytes, unsigned int start_chan_index)
 {
-	unsigned int i, num_samples = num_bytes / sizeof(sampl_t);
-	sampl_t *data = array;
+	unsigned int i, num_samples = num_bytes / sizeof(short);
+	short *data = array;
 
 	for (i = 0; i < num_samples; i++) {
 		data[i] = le16_to_cpu(data[i]);

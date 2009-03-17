@@ -57,14 +57,14 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 +----------------------------------------------------------------------------+
 | Function   Name   : int i_APCI2200_Read1DigitalInput                       |
 |			  (comedi_device *dev,comedi_subdevice *s,               |
-|                      comedi_insn *insn,lsampl_t *data)                     |
+|                      comedi_insn *insn,unsigned int *data)                     |
 +----------------------------------------------------------------------------+
 | Task              : Return the status of the digital input                 |
 +----------------------------------------------------------------------------+
 | Input Parameters  : comedi_device *dev      : Driver handle                |
 |		       comedi_subdevice *s,   :pointer to subdevice structure
                        comedi_insn *insn      :pointer to insn structure     |
-|                     lsampl_t *data          : Data Pointer to read status  |
+|                     unsigned int *data          : Data Pointer to read status  |
 +----------------------------------------------------------------------------+
 | Output Parameters :	--													 |
 +----------------------------------------------------------------------------+
@@ -74,7 +74,7 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 +----------------------------------------------------------------------------+
 */
 INT i_APCI2200_Read1DigitalInput(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	UINT ui_TmpValue = 0;
 	UINT ui_Channel;
@@ -95,14 +95,14 @@ INT i_APCI2200_Read1DigitalInput(comedi_device * dev, comedi_subdevice * s,
 +----------------------------------------------------------------------------+
 | Function   Name   : int i_APCI2200_ReadMoreDigitalInput                    |
 |			  (comedi_device *dev,comedi_subdevice *s,               |
-|                     comedi_insn *insn,lsampl_t *data)                      |
+|                     comedi_insn *insn,unsigned int *data)                      |
 +----------------------------------------------------------------------------+
 | Task              : Return the status of the Requested digital inputs      |
 +----------------------------------------------------------------------------+
 | Input Parameters  : comedi_device *dev      : Driver handle                |
 |                      comedi_subdevice *s,   :pointer to subdevice structure
                        comedi_insn *insn      :pointer to insn structure     |
-|                      lsampl_t *data         : Data Pointer to read status  |
+|                      unsigned int *data         : Data Pointer to read status  |
 +----------------------------------------------------------------------------+
 | Output Parameters :	--													 |
 +----------------------------------------------------------------------------+
@@ -113,7 +113,7 @@ INT i_APCI2200_Read1DigitalInput(comedi_device * dev, comedi_subdevice * s,
 */
 
 INT i_APCI2200_ReadMoreDigitalInput(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 
 	UINT ui_PortValue = data[0];
@@ -147,13 +147,13 @@ INT i_APCI2200_ReadMoreDigitalInput(comedi_device * dev, comedi_subdevice * s,
 /*
 +----------------------------------------------------------------------------+
 | Function   Name   : int i_APCI2200_ConfigDigitalOutput (comedi_device *dev,
-                    comedi_subdevice *s comedi_insn *insn,lsampl_t *data)    |
+                    comedi_subdevice *s comedi_insn *insn,unsigned int *data)    |
 |				                                                     |
 +----------------------------------------------------------------------------+
 | Task              : Configures The Digital Output Subdevice.               |
 +----------------------------------------------------------------------------+
 | Input Parameters  : comedi_device *dev : Driver handle                     |
-|                     lsampl_t *data         : Data Pointer contains         |
+|                     unsigned int *data         : Data Pointer contains         |
 |                                          configuration parameters as below |
 |                      comedi_subdevice *s,   :pointer to subdevice structure
                        comedi_insn *insn      :pointer to insn structure                                                           |
@@ -170,7 +170,7 @@ INT i_APCI2200_ReadMoreDigitalInput(comedi_device * dev, comedi_subdevice * s,
 +----------------------------------------------------------------------------+
 */
 int i_APCI2200_ConfigDigitalOutput(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	devpriv->b_OutputMemoryStatus = data[0];
 	return insn->n;
@@ -180,14 +180,14 @@ int i_APCI2200_ConfigDigitalOutput(comedi_device * dev, comedi_subdevice * s,
 +----------------------------------------------------------------------------+
 | Function   Name   : int i_APCI2200_WriteDigitalOutput                      |
 |			(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,
-                     lsampl_t *data)                                         |
+                     unsigned int *data)                                         |
 +----------------------------------------------------------------------------+
 | Task              : Writes port value  To the selected port                |
 +----------------------------------------------------------------------------+
 | Input Parameters  : comedi_device *dev      : Driver handle                |
 |                     comedi_subdevice *s,   :pointer to subdevice structure
                       comedi_insn *insn      :pointer to insn structure      |
-|                    lsampl_t *data           : Data Pointer to read status  |
+|                    unsigned int *data           : Data Pointer to read status  |
 +----------------------------------------------------------------------------+
 | Output Parameters :	--													 |
 +----------------------------------------------------------------------------+
@@ -198,7 +198,7 @@ int i_APCI2200_ConfigDigitalOutput(comedi_device * dev, comedi_subdevice * s,
 */
 
 INT i_APCI2200_WriteDigitalOutput(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	UINT ui_Temp, ui_Temp1;
 	UINT ui_NoOfChannel = CR_CHAN(insn->chanspec);	// get the channel
@@ -337,14 +337,14 @@ INT i_APCI2200_WriteDigitalOutput(comedi_device * dev, comedi_subdevice * s,
 +----------------------------------------------------------------------------+
 | Function   Name   : int i_APCI2200_ReadDigitalOutput                       |
 |			(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,
-                    lsampl_t *data) 	                                     |
+                    unsigned int *data) 	                                     |
 +----------------------------------------------------------------------------+
 | Task              : Read  value  of the selected channel or port           |
 +----------------------------------------------------------------------------+
 | Input Parameters  : comedi_device *dev      : Driver handle                |
 |                     comedi_subdevice *s,   :pointer to subdevice structure
                       comedi_insn *insn      :pointer to insn structure      |
-|                     lsampl_t *data          : Data Pointer to read status  |
+|                     unsigned int *data          : Data Pointer to read status  |
 +----------------------------------------------------------------------------+
 | Output Parameters :	--													 |
 +----------------------------------------------------------------------------+
@@ -355,7 +355,7 @@ INT i_APCI2200_WriteDigitalOutput(comedi_device * dev, comedi_subdevice * s,
 */
 
 INT i_APCI2200_ReadDigitalOutput(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 
 	UINT ui_Temp;
@@ -400,7 +400,7 @@ INT i_APCI2200_ReadDigitalOutput(comedi_device * dev, comedi_subdevice * s,
 /*
 +----------------------------------------------------------------------------+
 | Function   Name   : int i_APCI2200_ConfigWatchdog(comedi_device *dev,
-                      comedi_subdevice *s,comedi_insn *insn,lsampl_t *data)  |
+                      comedi_subdevice *s,comedi_insn *insn,unsigned int *data)  |
 |				                                                     |
 +----------------------------------------------------------------------------+
 | Task              : Configures The Watchdog                                |
@@ -408,7 +408,7 @@ INT i_APCI2200_ReadDigitalOutput(comedi_device * dev, comedi_subdevice * s,
 | Input Parameters  :   comedi_device *dev      : Driver handle              |
 |                     comedi_subdevice *s,   :pointer to subdevice structure
                       comedi_insn *insn      :pointer to insn structure      |
-|                     lsampl_t *data          : Data Pointer to read status                                                                                                             |
+|                     unsigned int *data          : Data Pointer to read status                                                                                                             |
 +----------------------------------------------------------------------------+
 | Output Parameters :	--													 |
 +----------------------------------------------------------------------------+
@@ -419,7 +419,7 @@ INT i_APCI2200_ReadDigitalOutput(comedi_device * dev, comedi_subdevice * s,
 */
 
 int i_APCI2200_ConfigWatchdog(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	if (data[0] == 0) {
 		//Disable the watchdog
@@ -447,14 +447,14 @@ int i_APCI2200_ConfigWatchdog(comedi_device * dev, comedi_subdevice * s,
     +----------------------------------------------------------------------------+
     | Function   Name   : int i_APCI2200_StartStopWriteWatchdog                  |
     |                           (comedi_device *dev,comedi_subdevice *s,
-    comedi_insn *insn,lsampl_t *data);                      |
+    comedi_insn *insn,unsigned int *data);                      |
     +----------------------------------------------------------------------------+
     | Task              : Start / Stop The Watchdog                              |
     +----------------------------------------------------------------------------+
     | Input Parameters  : comedi_device *dev      : Driver handle                |
     |                     comedi_subdevice *s,   :pointer to subdevice structure
     comedi_insn *insn      :pointer to insn structure      |
-    |                     lsampl_t *data          : Data Pointer to read status  |
+    |                     unsigned int *data          : Data Pointer to read status  |
     +----------------------------------------------------------------------------+
     | Output Parameters :       --                                                                                                       |
     +----------------------------------------------------------------------------+
@@ -465,7 +465,7 @@ int i_APCI2200_ConfigWatchdog(comedi_device * dev, comedi_subdevice * s,
   */
 
 int i_APCI2200_StartStopWriteWatchdog(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	switch (data[0]) {
 	case 0:		//stop the watchdog
@@ -492,14 +492,14 @@ int i_APCI2200_StartStopWriteWatchdog(comedi_device * dev, comedi_subdevice * s,
 +----------------------------------------------------------------------------+
 | Function   Name   : int i_APCI2200_ReadWatchdog                            |
 |			(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,
-                    lsampl_t *data); 	                                     |
+                    unsigned int *data); 	                                     |
 +----------------------------------------------------------------------------+
 | Task              : Read The Watchdog                                      |
 +----------------------------------------------------------------------------+
 | Input Parameters  :   comedi_device *dev      : Driver handle              |
 |                     comedi_subdevice *s,   :pointer to subdevice structure
                       comedi_insn *insn      :pointer to insn structure      |
-|                     lsampl_t *data          : Data Pointer to read status  |
+|                     unsigned int *data          : Data Pointer to read status  |
 +----------------------------------------------------------------------------+
 | Output Parameters :	--													 |
 +----------------------------------------------------------------------------+
@@ -510,7 +510,7 @@ int i_APCI2200_StartStopWriteWatchdog(comedi_device * dev, comedi_subdevice * s,
 */
 
 int i_APCI2200_ReadWatchdog(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	data[0] =
 		inw(devpriv->iobase + APCI2200_WATCHDOG +

@@ -415,8 +415,8 @@ typedef struct {
 	volatile unsigned int adc_fifo_bits;	// bits to write to interupt/adcfifo register
 	volatile unsigned int s5933_intcsr_bits;	// bits to write to amcc s5933 interrupt control/status register
 	volatile unsigned int ao_control_bits;	// bits to write to ao control and status register
-	sampl_t ai_buffer[AI_BUFFER_SIZE];
-	sampl_t ao_buffer[AO_BUFFER_SIZE];
+	short ai_buffer[AI_BUFFER_SIZE];
+	short ao_buffer[AO_BUFFER_SIZE];
 	// divisors of master clock for analog output pacing
 	unsigned int ao_divisor1;
 	unsigned int ao_divisor2;
@@ -450,15 +450,15 @@ static comedi_driver driver_cb_pcidas = {
 };
 
 static int cb_pcidas_ai_rinsn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
+	comedi_insn * insn, unsigned int * data);
 static int ai_config_insn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
+	comedi_insn * insn, unsigned int * data);
 static int cb_pcidas_ao_nofifo_winsn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
+	comedi_insn * insn, unsigned int * data);
 static int cb_pcidas_ao_fifo_winsn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
+	comedi_insn * insn, unsigned int * data);
 static int cb_pcidas_ao_readback_insn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
+	comedi_insn * insn, unsigned int * data);
 static int cb_pcidas_ai_cmd(comedi_device * dev, comedi_subdevice * s);
 static int cb_pcidas_ai_cmdtest(comedi_device * dev, comedi_subdevice * s,
 	comedi_cmd * cmd);
@@ -474,22 +474,22 @@ static int cb_pcidas_ao_cancel(comedi_device * dev, comedi_subdevice * s);
 static void cb_pcidas_load_counters(comedi_device * dev, unsigned int *ns,
 	int round_flags);
 static int eeprom_read_insn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
+	comedi_insn * insn, unsigned int * data);
 static int caldac_read_insn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
+	comedi_insn * insn, unsigned int * data);
 static int caldac_write_insn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
+	comedi_insn * insn, unsigned int * data);
 static int trimpot_read_insn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
+	comedi_insn * insn, unsigned int * data);
 static int cb_pcidas_trimpot_write(comedi_device * dev, unsigned int channel,
-	lsampl_t value);
+	unsigned int value);
 static int trimpot_write_insn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
+	comedi_insn * insn, unsigned int * data);
 static int dac08_read_insn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
-static int dac08_write(comedi_device * dev, lsampl_t value);
+	comedi_insn * insn, unsigned int * data);
+static int dac08_write(comedi_device * dev, unsigned int value);
 static int dac08_write_insn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
+	comedi_insn * insn, unsigned int * data);
 static int caldac_8800_write(comedi_device * dev, unsigned int address,
 	uint8_t value);
 static int trimpot_7376_write(comedi_device * dev, uint8_t value);
@@ -753,7 +753,7 @@ static int cb_pcidas_detach(comedi_device * dev)
  * mode.
  */
 static int cb_pcidas_ai_rinsn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	int n, i;
 	unsigned int bits;
@@ -804,10 +804,10 @@ static int cb_pcidas_ai_rinsn(comedi_device * dev, comedi_subdevice * s,
 	return n;
 }
 
-static int ai_config_calibration_source(comedi_device * dev, lsampl_t * data)
+static int ai_config_calibration_source(comedi_device * dev, unsigned int * data)
 {
 	static const int num_calibration_sources = 8;
-	lsampl_t source = data[1];
+	unsigned int source = data[1];
 
 	if (source >= num_calibration_sources) {
 		printk("invalid calibration source: %i\n", source);
@@ -820,7 +820,7 @@ static int ai_config_calibration_source(comedi_device * dev, lsampl_t * data)
 }
 
 static int ai_config_insn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	int id = data[0];
 
@@ -837,7 +837,7 @@ static int ai_config_insn(comedi_device * dev, comedi_subdevice * s,
 
 // analog output insn for pcidas-1000 and 1200 series
 static int cb_pcidas_ao_nofifo_winsn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	int channel;
 	unsigned long flags;
@@ -862,7 +862,7 @@ static int cb_pcidas_ao_nofifo_winsn(comedi_device * dev, comedi_subdevice * s,
 
 // analog output insn for pcidas-1602 series
 static int cb_pcidas_ao_fifo_winsn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	int channel;
 	unsigned long flags;
@@ -893,7 +893,7 @@ static int cb_pcidas_ao_fifo_winsn(comedi_device * dev, comedi_subdevice * s,
 // analog output readback insn
 // XXX loses track of analog output value back after an analog ouput command is executed
 static int cb_pcidas_ao_readback_insn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	data[0] = devpriv->ao_value[CR_CHAN(insn->chanspec)];
 
@@ -901,7 +901,7 @@ static int cb_pcidas_ao_readback_insn(comedi_device * dev, comedi_subdevice * s,
 }
 
 static int eeprom_read_insn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	uint8_t nvram_data;
 	int retval;
@@ -916,7 +916,7 @@ static int eeprom_read_insn(comedi_device * dev, comedi_subdevice * s,
 }
 
 static int caldac_write_insn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	const unsigned int channel = CR_CHAN(insn->chanspec);
 
@@ -924,7 +924,7 @@ static int caldac_write_insn(comedi_device * dev, comedi_subdevice * s,
 }
 
 static int caldac_read_insn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	data[0] = devpriv->caldac_value[CR_CHAN(insn->chanspec)];
 
@@ -932,7 +932,7 @@ static int caldac_read_insn(comedi_device * dev, comedi_subdevice * s,
 }
 
 /* 1602/16 pregain offset */
-static int dac08_write(comedi_device * dev, lsampl_t value)
+static int dac08_write(comedi_device * dev, unsigned int value)
 {
 	if (devpriv->dac08_value == value)
 		return 1;
@@ -953,13 +953,13 @@ static int dac08_write(comedi_device * dev, lsampl_t value)
 }
 
 static int dac08_write_insn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	return dac08_write(dev, data[0]);
 }
 
 static int dac08_read_insn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	data[0] = devpriv->dac08_value;
 
@@ -967,7 +967,7 @@ static int dac08_read_insn(comedi_device * dev, comedi_subdevice * s,
 }
 
 static int cb_pcidas_trimpot_write(comedi_device * dev,
-	unsigned int channel, lsampl_t value)
+	unsigned int channel, unsigned int value)
 {
 	if (devpriv->trimpot_value[channel] == value)
 		return 1;
@@ -990,7 +990,7 @@ static int cb_pcidas_trimpot_write(comedi_device * dev,
 }
 
 static int trimpot_write_insn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	unsigned int channel = CR_CHAN(insn->chanspec);
 
@@ -998,7 +998,7 @@ static int trimpot_write_insn(comedi_device * dev, comedi_subdevice * s,
 }
 
 static int trimpot_read_insn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	unsigned int channel = CR_CHAN(insn->chanspec);
 
@@ -1441,8 +1441,8 @@ static int cb_pcidas_ao_inttrig(comedi_device * dev, comedi_subdevice * s,
 		num_points = devpriv->ao_count;
 
 	num_bytes = cfc_read_array_from_buffer(s, devpriv->ao_buffer,
-		num_points * sizeof(sampl_t));
-	num_points = num_bytes / sizeof(sampl_t);
+		num_points * sizeof(short));
+	num_points = num_bytes / sizeof(short);
 
 	if (cmd->stop_src == TRIG_COUNT) {
 		devpriv->ao_count -= num_points;
@@ -1530,7 +1530,7 @@ static irqreturn_t cb_pcidas_interrupt(int irq, void *d PT_REGS_ARG)
 		insw(devpriv->adc_fifo + ADCDATA, devpriv->ai_buffer,
 			num_samples);
 		cfc_write_array_to_buffer(s, devpriv->ai_buffer,
-			num_samples * sizeof(sampl_t));
+			num_samples * sizeof(short));
 		devpriv->count -= num_samples;
 		if (async->cmd.stop_src == TRIG_COUNT && devpriv->count == 0) {
 			async->events |= COMEDI_CB_EOA;
@@ -1623,8 +1623,8 @@ static void handle_ao_interrupt(comedi_device * dev, unsigned int status)
 			num_points = devpriv->ao_count;
 		num_bytes =
 			cfc_read_array_from_buffer(s, devpriv->ao_buffer,
-			num_points * sizeof(sampl_t));
-		num_points = num_bytes / sizeof(sampl_t);
+			num_points * sizeof(short));
+		num_points = num_bytes / sizeof(short);
 
 		if (async->cmd.stop_src == TRIG_COUNT) {
 			devpriv->ao_count -= num_points;

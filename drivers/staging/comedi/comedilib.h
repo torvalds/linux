@@ -65,14 +65,14 @@ int comedi_command_test(void *dev, comedi_cmd *cmd);
 int comedi_trigger(void *dev, unsigned int subdev, comedi_trig *it);
 int __comedi_trigger(void *dev, unsigned int subdev, comedi_trig *it);
 int comedi_data_write(void *dev, unsigned int subdev, unsigned int chan,
-	unsigned int range, unsigned int aref, lsampl_t data);
+	unsigned int range, unsigned int aref, unsigned int data);
 int comedi_data_read(void *dev, unsigned int subdev, unsigned int chan,
-	unsigned int range, unsigned int aref, lsampl_t *data);
+	unsigned int range, unsigned int aref, unsigned int *data);
 int comedi_data_read_hint(void *dev, unsigned int subdev,
 	unsigned int chan, unsigned int range, unsigned int aref);
 int comedi_data_read_delayed(void *dev, unsigned int subdev,
 	unsigned int chan, unsigned int range, unsigned int aref,
-	lsampl_t *data, unsigned int nano_sec);
+	unsigned int *data, unsigned int nano_sec);
 int comedi_dio_config(void *dev, unsigned int subdev, unsigned int chan,
 	unsigned int io);
 int comedi_dio_read(void *dev, unsigned int subdev, unsigned int chan,
@@ -88,7 +88,7 @@ const char *comedi_get_board_name(void *dev);
 int comedi_get_subdevice_type(void *dev, unsigned int subdevice);
 int comedi_find_subdevice_by_type(void *dev, int type, unsigned int subd);
 int comedi_get_n_channels(void *dev, unsigned int subdevice);
-lsampl_t comedi_get_maxdata(void *dev, unsigned int subdevice, unsigned
+unsigned int comedi_get_maxdata(void *dev, unsigned int subdevice, unsigned
 	int chan);
 int comedi_get_n_ranges(void *dev, unsigned int subdevice, unsigned int
 	chan);
@@ -142,9 +142,9 @@ int comedi_command_test(unsigned int minor, comedi_cmd *cmd);
 int comedi_trigger(unsigned int minor, unsigned int subdev, comedi_trig *it);
 int __comedi_trigger(unsigned int minor, unsigned int subdev, comedi_trig *it);
 int comedi_data_write(unsigned int dev, unsigned int subdev, unsigned int chan,
-	unsigned int range, unsigned int aref, lsampl_t data);
+	unsigned int range, unsigned int aref, unsigned int data);
 int comedi_data_read(unsigned int dev, unsigned int subdev, unsigned int chan,
-	unsigned int range, unsigned int aref, lsampl_t *data);
+	unsigned int range, unsigned int aref, unsigned int *data);
 int comedi_dio_config(unsigned int dev, unsigned int subdev, unsigned int chan,
 	unsigned int io);
 int comedi_dio_read(unsigned int dev, unsigned int subdev, unsigned int chan,
@@ -161,7 +161,7 @@ int comedi_get_subdevice_type(unsigned int minor, unsigned int subdevice);
 int comedi_find_subdevice_by_type(unsigned int minor, int type,
 	unsigned int subd);
 int comedi_get_n_channels(unsigned int minor, unsigned int subdevice);
-lsampl_t comedi_get_maxdata(unsigned int minor, unsigned int subdevice, unsigned
+unsigned int comedi_get_maxdata(unsigned int minor, unsigned int subdevice, unsigned
 	int chan);
 int comedi_get_n_ranges(unsigned int minor, unsigned int subdevice, unsigned int
 	chan);

@@ -333,7 +333,7 @@ typedef struct {
 	void *daq;
 	void *plx;
 	int got_regions;
-	lsampl_t ao_readback[2];
+	unsigned int ao_readback[2];
 } daqboard2000_private;
 
 #define devpriv ((daqboard2000_private*)dev->private)
@@ -394,7 +394,7 @@ static void setup_sampling(comedi_device * dev, int chan, int gain)
 }
 
 static int daqboard2000_ai_insn_read(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	int i;
 	daqboard2000_hw *fpga = devpriv->daq;
@@ -451,7 +451,7 @@ static int daqboard2000_ai_insn_read(comedi_device * dev, comedi_subdevice * s,
 }
 
 static int daqboard2000_ao_insn_read(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	int i;
 	int chan = CR_CHAN(insn->chanspec);
@@ -464,7 +464,7 @@ static int daqboard2000_ao_insn_read(comedi_device * dev, comedi_subdevice * s,
 }
 
 static int daqboard2000_ao_insn_write(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	int i;
 	int chan = CR_CHAN(insn->chanspec);

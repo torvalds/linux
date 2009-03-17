@@ -253,7 +253,7 @@ struct usbduxsub {
 	/* pwm-transfer handling */
 	struct urb *urbPwm;
 	/* PWM period */
-	lsampl_t pwmPeriod;
+	unsigned int pwmPeriod;
 	/* PWM internal delay for the GPIF in the FX2 */
 	int8_t pwmDelay;
 	/* size of the PWM buffer which holds the bit pattern */
@@ -656,7 +656,7 @@ static void usbduxsub_ao_IsocIrq(struct urb *urb)
 		((uint8_t *) (urb->transfer_buffer))[0] =
 			s->async->cmd.chanlist_len;
 		for (i = 0; i < s->async->cmd.chanlist_len; i++) {
-			sampl_t temp;
+			short temp;
 			if (i >= NUMOUTCHANNELS)
 				break;
 
@@ -1277,10 +1277,10 @@ static int usbdux_ai_cmd(comedi_device *dev, comedi_subdevice *s)
 
 /* Mode 0 is used to get a single conversion on demand */
 static int usbdux_ai_insn_read(comedi_device *dev, comedi_subdevice *s,
-			       comedi_insn *insn, lsampl_t *data)
+			       comedi_insn *insn, unsigned int *data)
 {
 	int i;
-	lsampl_t one = 0;
+	unsigned int one = 0;
 	int chan, range;
 	int err;
 	struct usbduxsub *this_usbduxsub = dev->private;
@@ -1338,7 +1338,7 @@ static int usbdux_ai_insn_read(comedi_device *dev, comedi_subdevice *s,
 /* analog out */
 
 static int usbdux_ao_insn_read(comedi_device *dev, comedi_subdevice *s,
-			       comedi_insn *insn, lsampl_t *data)
+			       comedi_insn *insn, unsigned int *data)
 {
 	int i;
 	int chan = CR_CHAN(insn->chanspec);
@@ -1360,7 +1360,7 @@ static int usbdux_ao_insn_read(comedi_device *dev, comedi_subdevice *s,
 }
 
 static int usbdux_ao_insn_write(comedi_device *dev, comedi_subdevice *s,
-				comedi_insn *insn, lsampl_t *data)
+				comedi_insn *insn, unsigned int *data)
 {
 	int i, err;
 	int chan = CR_CHAN(insn->chanspec);
@@ -1698,7 +1698,7 @@ static int usbdux_ao_cmd(comedi_device *dev, comedi_subdevice *s)
 }
 
 static int usbdux_dio_insn_config(comedi_device *dev, comedi_subdevice *s,
-				  comedi_insn *insn, lsampl_t *data)
+				  comedi_insn *insn, unsigned int *data)
 {
 	int chan = CR_CHAN(insn->chanspec);
 
@@ -1729,7 +1729,7 @@ static int usbdux_dio_insn_config(comedi_device *dev, comedi_subdevice *s,
 }
 
 static int usbdux_dio_insn_bits(comedi_device *dev, comedi_subdevice *s,
-				comedi_insn *insn, lsampl_t *data)
+				comedi_insn *insn, unsigned int *data)
 {
 
 	struct usbduxsub *this_usbduxsub = dev->private;
@@ -1776,7 +1776,7 @@ static int usbdux_dio_insn_bits(comedi_device *dev, comedi_subdevice *s,
 
 /* reads the 4 counters, only two are used just now */
 static int usbdux_counter_read(comedi_device *dev, comedi_subdevice *s,
-			       comedi_insn *insn, lsampl_t *data)
+			       comedi_insn *insn, unsigned int *data)
 {
 	struct usbduxsub *this_usbduxsub = dev->private;
 	int chan = insn->chanspec;
@@ -1810,7 +1810,7 @@ static int usbdux_counter_read(comedi_device *dev, comedi_subdevice *s,
 }
 
 static int usbdux_counter_write(comedi_device *dev, comedi_subdevice *s,
-				comedi_insn *insn, lsampl_t *data)
+				comedi_insn *insn, unsigned int *data)
 {
 	struct usbduxsub *this_usbduxsub = dev->private;
 	int err;
@@ -1840,7 +1840,7 @@ static int usbdux_counter_write(comedi_device *dev, comedi_subdevice *s,
 }
 
 static int usbdux_counter_config(comedi_device *dev, comedi_subdevice *s,
-				 comedi_insn *insn, lsampl_t *data)
+				 comedi_insn *insn, unsigned int *data)
 {
 	/* nothing to do so far */
 	return 2;
@@ -1997,7 +1997,7 @@ static int usbduxsub_submit_PwmURBs(struct usbduxsub *usbduxsub)
 }
 
 static int usbdux_pwm_period(comedi_device *dev, comedi_subdevice *s,
-			     lsampl_t period)
+			     unsigned int period)
 {
 	struct usbduxsub *this_usbduxsub = dev->private;
 	int fx2delay = 255;
@@ -2057,7 +2057,7 @@ static int usbdux_pwm_start(comedi_device *dev, comedi_subdevice *s)
 
 /* generates the bit pattern for PWM with the optional sign bit */
 static int usbdux_pwm_pattern(comedi_device *dev, comedi_subdevice *s,
-			      int channel, lsampl_t value, lsampl_t sign)
+			      int channel, unsigned int value, unsigned int sign)
 {
 	struct usbduxsub *this_usbduxsub = dev->private;
 	int i, szbuf;
@@ -2098,7 +2098,7 @@ static int usbdux_pwm_pattern(comedi_device *dev, comedi_subdevice *s,
 }
 
 static int usbdux_pwm_write(comedi_device *dev, comedi_subdevice *s,
-			    comedi_insn *insn, lsampl_t *data)
+			    comedi_insn *insn, unsigned int *data)
 {
 	struct usbduxsub *this_usbduxsub = dev->private;
 
@@ -2123,7 +2123,7 @@ static int usbdux_pwm_write(comedi_device *dev, comedi_subdevice *s,
 }
 
 static int usbdux_pwm_read(comedi_device *x1, comedi_subdevice *x2,
-			   comedi_insn *x3, lsampl_t *x4)
+			   comedi_insn *x3, unsigned int *x4)
 {
 	/* not needed */
 	return -EINVAL;
@@ -2131,7 +2131,7 @@ static int usbdux_pwm_read(comedi_device *x1, comedi_subdevice *x2,
 
 /* switches on/off PWM */
 static int usbdux_pwm_config(comedi_device *dev, comedi_subdevice *s,
-			     comedi_insn *insn, lsampl_t *data)
+			     comedi_insn *insn, unsigned int *data)
 {
 	struct usbduxsub *this_usbduxsub = dev->private;
 	switch (data[0]) {

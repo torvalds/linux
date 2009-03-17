@@ -198,9 +198,9 @@ struct icp_multi_private {
 	unsigned char act_chanlist_len;	/*  len of scanlist */
 	unsigned char act_chanlist_pos;	/*  actual position in MUX list */
 	unsigned int *ai_chanlist;	/*  actaul chanlist */
-	sampl_t *ai_data;	/*  data buffer */
-	sampl_t ao_data[4];	/*  data output buffer */
-	sampl_t di_data;	/*  Digital input data */
+	short *ai_data;	/*  data buffer */
+	short ao_data[4];	/*  data output buffer */
+	short di_data;	/*  Digital input data */
 	unsigned int do_data;	/*  Remember digital output data */
 };
 
@@ -239,14 +239,14 @@ static int icp_multi_reset(comedi_device *dev);
 		comedi_device *dev	Pointer to current device structure
 		comedi_subdevice *s	Pointer to current subdevice structure
 		comedi_insn *insn	Pointer to current comedi instruction
-		lsampl_t *data		Pointer to analogue input data
+		unsigned int *data		Pointer to analogue input data
 
 	Returns:int			Nmuber of instructions executed
 
 ==============================================================================
 */
 static int icp_multi_insn_read_ai(comedi_device *dev, comedi_subdevice *s,
-	comedi_insn *insn, lsampl_t *data)
+	comedi_insn *insn, unsigned int *data)
 {
 	int n, timeout;
 
@@ -358,14 +358,14 @@ static int icp_multi_insn_read_ai(comedi_device *dev, comedi_subdevice *s,
 		comedi_device *dev	Pointer to current device structure
 		comedi_subdevice *s	Pointer to current subdevice structure
 		comedi_insn *insn	Pointer to current comedi instruction
-		lsampl_t *data		Pointer to analogue output data
+		unsigned int *data		Pointer to analogue output data
 
 	Returns:int			Nmuber of instructions executed
 
 ==============================================================================
 */
 static int icp_multi_insn_write_ao(comedi_device *dev, comedi_subdevice *s,
-	comedi_insn *insn, lsampl_t *data)
+	comedi_insn *insn, unsigned int *data)
 {
 	int n, chan, range, timeout;
 
@@ -466,14 +466,14 @@ static int icp_multi_insn_write_ao(comedi_device *dev, comedi_subdevice *s,
 		comedi_device *dev	Pointer to current device structure
 		comedi_subdevice *s	Pointer to current subdevice structure
 		comedi_insn *insn	Pointer to current comedi instruction
-		lsampl_t *data		Pointer to analogue output data
+		unsigned int *data		Pointer to analogue output data
 
 	Returns:int			Nmuber of instructions executed
 
 ==============================================================================
 */
 static int icp_multi_insn_read_ao(comedi_device *dev, comedi_subdevice *s,
-	comedi_insn *insn, lsampl_t *data)
+	comedi_insn *insn, unsigned int *data)
 {
 	int n, chan;
 
@@ -499,14 +499,14 @@ static int icp_multi_insn_read_ao(comedi_device *dev, comedi_subdevice *s,
 		comedi_device *dev	Pointer to current device structure
 		comedi_subdevice *s	Pointer to current subdevice structure
 		comedi_insn *insn	Pointer to current comedi instruction
-		lsampl_t *data		Pointer to analogue output data
+		unsigned int *data		Pointer to analogue output data
 
 	Returns:int			Nmuber of instructions executed
 
 ==============================================================================
 */
 static int icp_multi_insn_bits_di(comedi_device *dev, comedi_subdevice *s,
-	comedi_insn *insn, lsampl_t *data)
+	comedi_insn *insn, unsigned int *data)
 {
 	data[1] = readw(devpriv->io_addr + ICP_MULTI_DI);
 
@@ -525,14 +525,14 @@ static int icp_multi_insn_bits_di(comedi_device *dev, comedi_subdevice *s,
 		comedi_device *dev	Pointer to current device structure
 		comedi_subdevice *s	Pointer to current subdevice structure
 		comedi_insn *insn	Pointer to current comedi instruction
-		lsampl_t *data		Pointer to analogue output data
+		unsigned int *data		Pointer to analogue output data
 
 	Returns:int			Nmuber of instructions executed
 
 ==============================================================================
 */
 static int icp_multi_insn_bits_do(comedi_device *dev, comedi_subdevice *s,
-	comedi_insn *insn, lsampl_t *data)
+	comedi_insn *insn, unsigned int *data)
 {
 #ifdef ICP_MULTI_EXTDEBUG
 	printk("icp multi EDBG: BGN: icp_multi_insn_bits_do(...)\n");
@@ -567,14 +567,14 @@ static int icp_multi_insn_bits_do(comedi_device *dev, comedi_subdevice *s,
 		comedi_device *dev	Pointer to current device structure
 		comedi_subdevice *s	Pointer to current subdevice structure
 		comedi_insn *insn	Pointer to current comedi instruction
-		lsampl_t *data		Pointer to counter data
+		unsigned int *data		Pointer to counter data
 
 	Returns:int			Nmuber of instructions executed
 
 ==============================================================================
 */
 static int icp_multi_insn_read_ctr(comedi_device *dev, comedi_subdevice *s,
-	comedi_insn *insn, lsampl_t *data)
+	comedi_insn *insn, unsigned int *data)
 {
 	return 0;
 }
@@ -591,14 +591,14 @@ static int icp_multi_insn_read_ctr(comedi_device *dev, comedi_subdevice *s,
 		comedi_device *dev	Pointer to current device structure
 		comedi_subdevice *s	Pointer to current subdevice structure
 		comedi_insn *insn	Pointer to current comedi instruction
-		lsampl_t *data		Pointer to counter data
+		unsigned int *data		Pointer to counter data
 
 	Returns:int			Nmuber of instructions executed
 
 ==============================================================================
 */
 static int icp_multi_insn_write_ctr(comedi_device *dev, comedi_subdevice *s,
-	comedi_insn *insn, lsampl_t *data)
+	comedi_insn *insn, unsigned int *data)
 {
 	return 0;
 }

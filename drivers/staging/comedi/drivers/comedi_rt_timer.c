@@ -211,7 +211,7 @@ static int timer_data_read(comedi_device * dev, comedi_cmd * cmd,
 {
 	comedi_subdevice *s = dev->read_subdev;
 	int ret;
-	lsampl_t data;
+	unsigned int data;
 
 	ret = comedi_data_read(devpriv->device, devpriv->subd,
 		CR_CHAN(cmd->chanlist[index]),
@@ -236,8 +236,8 @@ static int timer_data_write(comedi_device * dev, comedi_cmd * cmd,
 {
 	comedi_subdevice *s = dev->write_subdev;
 	unsigned int num_bytes;
-	sampl_t data;
-	lsampl_t long_data;
+	short data;
+	unsigned int long_data;
 	int ret;
 
 	if (s->flags & SDF_LSAMPL) {
@@ -271,7 +271,7 @@ static int timer_dio_read(comedi_device * dev, comedi_cmd * cmd,
 {
 	comedi_subdevice *s = dev->read_subdev;
 	int ret;
-	lsampl_t data;
+	unsigned int data;
 
 	ret = comedi_dio_bitfield(devpriv->device, devpriv->subd, 0, &data);
 	if (ret < 0) {
@@ -397,7 +397,7 @@ static void timer_task_func(comedi_rt_task_context_t d)
 }
 
 static int timer_insn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	comedi_insn xinsn = *insn;
 

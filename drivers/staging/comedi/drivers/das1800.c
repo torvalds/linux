@@ -200,13 +200,13 @@ static int das1800_ai_do_cmdtest(comedi_device * dev, comedi_subdevice * s,
 	comedi_cmd * cmd);
 static int das1800_ai_do_cmd(comedi_device * dev, comedi_subdevice * s);
 static int das1800_ai_rinsn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
+	comedi_insn * insn, unsigned int * data);
 static int das1800_ao_winsn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
+	comedi_insn * insn, unsigned int * data);
 static int das1800_di_rbits(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
+	comedi_insn * insn, unsigned int * data);
 static int das1800_do_wbits(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
+	comedi_insn * insn, unsigned int * data);
 
 static int das1800_set_frequency(comedi_device * dev);
 static unsigned int burst_convert_arg(unsigned int convert_arg, int round_mode);
@@ -1037,7 +1037,7 @@ static void das1800_flush_dma_channel(comedi_device * dev, comedi_subdevice * s,
 
 	// figure out how many points to read
 	num_bytes = devpriv->dma_transfer_size - get_dma_residue(channel);
-	num_samples = num_bytes / sizeof(sampl_t);
+	num_samples = num_bytes / sizeof(short);
 
 	/* if we only need some of the points */
 	if (cmd->stop_src == TRIG_COUNT && devpriv->count < num_samples)
@@ -1105,7 +1105,7 @@ static void das1800_handle_fifo_half_full(comedi_device * dev,
 static void das1800_handle_fifo_not_empty(comedi_device * dev,
 	comedi_subdevice * s)
 {
-	sampl_t dpnt;
+	short dpnt;
 	int unipolar;
 	comedi_cmd *cmd = &s->async->cmd;
 
@@ -1553,7 +1553,7 @@ static int das1800_ai_do_cmd(comedi_device * dev, comedi_subdevice * s)
 
 /* read analog input */
 static int das1800_ai_rinsn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	int i, n;
 	int chan, range, aref, chan_range;
@@ -1613,7 +1613,7 @@ static int das1800_ai_rinsn(comedi_device * dev, comedi_subdevice * s,
 
 /* writes to an analog output channel */
 static int das1800_ao_winsn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	int chan = CR_CHAN(insn->chanspec);
 //      int range = CR_RANGE(insn->chanspec);
@@ -1642,7 +1642,7 @@ static int das1800_ao_winsn(comedi_device * dev, comedi_subdevice * s,
 
 /* reads from digital input channels */
 static int das1800_di_rbits(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 
 	data[1] = inb(dev->iobase + DAS1800_DIGITAL) & 0xf;
@@ -1653,9 +1653,9 @@ static int das1800_di_rbits(comedi_device * dev, comedi_subdevice * s,
 
 /* writes to digital output channels */
 static int das1800_do_wbits(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
-	lsampl_t wbits;
+	unsigned int wbits;
 
 	// only set bits that have been masked
 	data[0] &= (1 << s->n_chan) - 1;

@@ -454,8 +454,8 @@ VOID v_GetAPCI3200EepromCalibrationValue(DWORD dw_PCIBoardEepromAddress,
 }
 
 INT i_APCI3200_GetChannelCalibrationValue(comedi_device * dev,
-	unsigned int ui_Channel_num, lsampl_t * CJCCurrentSource,
-	lsampl_t * ChannelCurrentSource, lsampl_t * ChannelGainFactor)
+	unsigned int ui_Channel_num, unsigned int * CJCCurrentSource,
+	unsigned int * ChannelCurrentSource, unsigned int * ChannelGainFactor)
 {
 	int i_DiffChannel = 0;
 	int i_Module = 0;
@@ -531,7 +531,7 @@ INT i_APCI3200_GetChannelCalibrationValue(comedi_device * dev,
   +----------------------------------------------------------------------------+
   | Function   Name   : int i_APCI3200_ReadDigitalInput                       |
   |			  (comedi_device *dev,comedi_subdevice *s,               |
-  |                      comedi_insn *insn,lsampl_t *data)                     |
+  |                      comedi_insn *insn,unsigned int *data)                     |
   +----------------------------------------------------------------------------+
   | Task              : Read  value  of the selected channel or port           |
   +----------------------------------------------------------------------------+
@@ -551,7 +551,7 @@ INT i_APCI3200_GetChannelCalibrationValue(comedi_device * dev,
 */
 
 INT i_APCI3200_ReadDigitalInput(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	UINT ui_Temp = 0;
 	UINT ui_NoOfChannel = 0;
@@ -593,7 +593,7 @@ INT i_APCI3200_ReadDigitalInput(comedi_device * dev, comedi_subdevice * s,
   +----------------------------------------------------------------------------+
   | Function   Name   : int i_APCI3200_ConfigDigitalOutput                     |
   |			  (comedi_device *dev,comedi_subdevice *s,				 |
-  |                      comedi_insn *insn,lsampl_t *data)                     |
+  |                      comedi_insn *insn,unsigned int *data)                     |
   +----------------------------------------------------------------------------+
   | Task              : Configures The Digital Output Subdevice.               |
   +----------------------------------------------------------------------------+
@@ -609,7 +609,7 @@ INT i_APCI3200_ReadDigitalInput(comedi_device * dev, comedi_subdevice * s,
   +----------------------------------------------------------------------------+
 */
 int i_APCI3200_ConfigDigitalOutput(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 
 	if ((data[0] != 0) && (data[0] != 1)) {
@@ -630,14 +630,14 @@ int i_APCI3200_ConfigDigitalOutput(comedi_device * dev, comedi_subdevice * s,
   +----------------------------------------------------------------------------+
   | Function   Name   : int i_APCI3200_WriteDigitalOutput                      |
   |			  (comedi_device *dev,comedi_subdevice *s,				 |
-  |                      comedi_insn *insn,lsampl_t *data)                     |
+  |                      comedi_insn *insn,unsigned int *data)                     |
   +----------------------------------------------------------------------------+
   | Task              : writes To the digital Output Subdevice                 |
   +----------------------------------------------------------------------------+
   | Input Parameters  : comedi_device *dev      : Driver handle                |
   |                     comedi_subdevice *s     : Subdevice Pointer            |
   |                     comedi_insn *insn       : Insn Structure Pointer       |
-  |                     lsampl_t *data          : Data Pointer contains        |
+  |                     unsigned int *data          : Data Pointer contains        |
   |                                          configuration parameters as below |
   |                     data[0]             :Value to output
   data[1]             : 0 o/p single channel
@@ -654,7 +654,7 @@ int i_APCI3200_ConfigDigitalOutput(comedi_device * dev, comedi_subdevice * s,
   +----------------------------------------------------------------------------+
 */
 INT i_APCI3200_WriteDigitalOutput(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	UINT ui_Temp = 0, ui_Temp1 = 0;
 	UINT ui_NoOfChannel = CR_CHAN(insn->chanspec);	// get the channel
@@ -747,7 +747,7 @@ INT i_APCI3200_WriteDigitalOutput(comedi_device * dev, comedi_subdevice * s,
   +----------------------------------------------------------------------------+
   | Function   Name   : int i_APCI3200_ReadDigitalOutput                       |
   |			  (comedi_device *dev,comedi_subdevice *s,               |
-  |                      comedi_insn *insn,lsampl_t *data)                     |
+  |                      comedi_insn *insn,unsigned int *data)                     |
   +----------------------------------------------------------------------------+
   | Task              : Read  value  of the selected channel or port           |
   +----------------------------------------------------------------------------+
@@ -767,7 +767,7 @@ INT i_APCI3200_WriteDigitalOutput(comedi_device * dev, comedi_subdevice * s,
   +----------------------------------------------------------------------------+
 */
 INT i_APCI3200_ReadDigitalOutput(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	UINT ui_Temp;
 	UINT ui_NoOfChannel;
@@ -808,14 +808,14 @@ INT i_APCI3200_ReadDigitalOutput(comedi_device * dev, comedi_subdevice * s,
   +----------------------------------------------------------------------------+
   | Function   Name   : INT i_APCI3200_ConfigAnalogInput                       |
   |			  (comedi_device *dev,comedi_subdevice *s,               |
-  |                      comedi_insn *insn,lsampl_t *data)                     |
+  |                      comedi_insn *insn,unsigned int *data)                     |
   +----------------------------------------------------------------------------+
   | Task              : Configures The Analog Input Subdevice                  |
   +----------------------------------------------------------------------------+
   | Input Parameters  : comedi_device *dev      : Driver handle                |
   |                     comedi_subdevice *s     : Subdevice Pointer            |
   |                     comedi_insn *insn       : Insn Structure Pointer       |
-  |                     lsampl_t *data          : Data Pointer contains        |
+  |                     unsigned int *data          : Data Pointer contains        |
   |                                          configuration parameters as below |
   |                                                                            |
   |					data[0]
@@ -875,7 +875,7 @@ INT i_APCI3200_ReadDigitalOutput(comedi_device * dev, comedi_subdevice * s,
   +----------------------------------------------------------------------------+
 */
 INT i_APCI3200_ConfigAnalogInput(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 
 	UINT ul_Config = 0, ul_Temp = 0;
@@ -1028,7 +1028,7 @@ INT i_APCI3200_ConfigAnalogInput(comedi_device * dev, comedi_subdevice * s,
 	//END JK 06.07.04: Management of sevrals boards
 
 	//Begin JK 19.10.2004: APCI-3200 Driver update 0.7.57 -> 0.7.68
-	memset(s_BoardInfos[dev->minor].ui_ScanValueArray, 0, (7 + 12) * sizeof(lsampl_t));	// 7 is the maximal number of channels
+	memset(s_BoardInfos[dev->minor].ui_ScanValueArray, 0, (7 + 12) * sizeof(unsigned int));	// 7 is the maximal number of channels
 	//End JK 19.10.2004: APCI-3200 Driver update 0.7.57 -> 0.7.68
 
 	//BEGIN JK 02.07.04 : This while can't be do, it block the process when using severals boards
@@ -1335,7 +1335,7 @@ INT i_APCI3200_ConfigAnalogInput(comedi_device * dev, comedi_subdevice * s,
   +----------------------------------------------------------------------------+
   | Function   Name   : int i_APCI3200_ReadAnalogInput                         |
   |			          (comedi_device *dev,comedi_subdevice *s,       |
-  |                     comedi_insn *insn,lsampl_t *data)                      |
+  |                     comedi_insn *insn,unsigned int *data)                      |
   +----------------------------------------------------------------------------+
   | Task              : Read  value  of the selected channel			         |
   +----------------------------------------------------------------------------+
@@ -1362,7 +1362,7 @@ INT i_APCI3200_ConfigAnalogInput(comedi_device * dev, comedi_subdevice * s,
   +----------------------------------------------------------------------------+
 */
 INT i_APCI3200_ReadAnalogInput(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	UINT ui_DummyValue = 0;
 	int i_ConvertCJCCalibration;
@@ -1634,7 +1634,7 @@ INT i_APCI3200_ReadAnalogInput(comedi_device * dev, comedi_subdevice * s,
   +----------------------------------------------------------------------------+
   | Function   Name   : int i_APCI3200_Read1AnalogInputChannel                 |
   |			          (comedi_device *dev,comedi_subdevice *s,       |
-  |                     comedi_insn *insn,lsampl_t *data)                      |
+  |                     comedi_insn *insn,unsigned int *data)                      |
   +----------------------------------------------------------------------------+
   | Task              : Read  value  of the selected channel			         |
   +----------------------------------------------------------------------------+
@@ -1652,7 +1652,7 @@ INT i_APCI3200_ReadAnalogInput(comedi_device * dev, comedi_subdevice * s,
   +----------------------------------------------------------------------------+
 */
 INT i_APCI3200_Read1AnalogInputChannel(comedi_device * dev,
-	comedi_subdevice * s, comedi_insn * insn, lsampl_t * data)
+	comedi_subdevice * s, comedi_insn * insn, unsigned int * data)
 {
 	UINT ui_EOC = 0;
 	UINT ui_ChannelNo = 0;
@@ -1760,7 +1760,7 @@ INT i_APCI3200_Read1AnalogInputChannel(comedi_device * dev,
   +----------------------------------------------------------------------------+
   | Function   Name   : int i_APCI3200_ReadCalibrationOffsetValue              |
   |			          (comedi_device *dev,comedi_subdevice *s,       |
-  |                     comedi_insn *insn,lsampl_t *data)                      |
+  |                     comedi_insn *insn,unsigned int *data)                      |
   +----------------------------------------------------------------------------+
   | Task              : Read calibration offset  value  of the selected channel|
   +----------------------------------------------------------------------------+
@@ -1896,7 +1896,7 @@ int i_APCI3200_ReadCalibrationOffsetValue(comedi_device * dev, UINT * data)
   +----------------------------------------------------------------------------+
   | Function   Name   : int i_APCI3200_ReadCalibrationGainValue                |
   |			          (comedi_device *dev,comedi_subdevice *s,       |
-  |                     comedi_insn *insn,lsampl_t *data)                      |
+  |                     comedi_insn *insn,unsigned int *data)                      |
   +----------------------------------------------------------------------------+
   | Task              : Read calibration gain  value  of the selected channel  |
   +----------------------------------------------------------------------------+
@@ -2031,7 +2031,7 @@ int i_APCI3200_ReadCalibrationGainValue(comedi_device * dev, UINT * data)
   +----------------------------------------------------------------------------+
   | Function   Name   : int i_APCI3200_ReadCJCValue                            |
   |			          (comedi_device *dev,comedi_subdevice *s,       |
-  |                     comedi_insn *insn,lsampl_t *data)                      |
+  |                     comedi_insn *insn,unsigned int *data)                      |
   +----------------------------------------------------------------------------+
   | Task              : Read CJC  value  of the selected channel               |
   +----------------------------------------------------------------------------+
@@ -2048,7 +2048,7 @@ int i_APCI3200_ReadCalibrationGainValue(comedi_device * dev, UINT * data)
   +----------------------------------------------------------------------------+
 */
 
-int i_APCI3200_ReadCJCValue(comedi_device * dev, lsampl_t * data)
+int i_APCI3200_ReadCJCValue(comedi_device * dev, unsigned int * data)
 {
 	UINT ui_EOC = 0;
 	INT ui_CommandRegister = 0;
@@ -2151,7 +2151,7 @@ int i_APCI3200_ReadCJCValue(comedi_device * dev, lsampl_t * data)
   +----------------------------------------------------------------------------+
   | Function   Name   : int i_APCI3200_ReadCJCCalOffset                        |
   |			          (comedi_device *dev,comedi_subdevice *s,       |
-  |                     comedi_insn *insn,lsampl_t *data)                      |
+  |                     comedi_insn *insn,unsigned int *data)                      |
   +----------------------------------------------------------------------------+
   | Task              : Read CJC calibration offset  value  of the selected channel
   +----------------------------------------------------------------------------+
@@ -2167,7 +2167,7 @@ int i_APCI3200_ReadCJCValue(comedi_device * dev, lsampl_t * data)
   |			                                                         |
   +----------------------------------------------------------------------------+
 */
-int i_APCI3200_ReadCJCCalOffset(comedi_device * dev, lsampl_t * data)
+int i_APCI3200_ReadCJCCalOffset(comedi_device * dev, unsigned int * data)
 {
 	UINT ui_EOC = 0;
 	INT ui_CommandRegister = 0;
@@ -2266,7 +2266,7 @@ int i_APCI3200_ReadCJCCalOffset(comedi_device * dev, lsampl_t * data)
   +----------------------------------------------------------------------------+
   | Function   Name   : int i_APCI3200_ReadCJCGainValue                        |
   |			          (comedi_device *dev,comedi_subdevice *s,       |
-  |                     comedi_insn *insn,lsampl_t *data)                      |
+  |                     comedi_insn *insn,unsigned int *data)                      |
   +----------------------------------------------------------------------------+
   | Task              : Read CJC calibration gain value
   +----------------------------------------------------------------------------+
@@ -2283,7 +2283,7 @@ int i_APCI3200_ReadCJCCalOffset(comedi_device * dev, lsampl_t * data)
   |			                                                         |
   +----------------------------------------------------------------------------+
 */
-int i_APCI3200_ReadCJCCalGain(comedi_device * dev, lsampl_t * data)
+int i_APCI3200_ReadCJCCalGain(comedi_device * dev, unsigned int * data)
 {
 	UINT ui_EOC = 0;
 	INT ui_CommandRegister = 0;
@@ -2376,14 +2376,14 @@ int i_APCI3200_ReadCJCCalGain(comedi_device * dev, lsampl_t * data)
   +----------------------------------------------------------------------------+
   | Function   Name   : int i_APCI3200_InsnBits_AnalogInput_Test               |
   |			  (comedi_device *dev,comedi_subdevice *s,               |
-  |                      comedi_insn *insn,lsampl_t *data)                     |
+  |                      comedi_insn *insn,unsigned int *data)                     |
   +----------------------------------------------------------------------------+
   | Task              : Tests the Selected Anlog Input Channel                 |
   +----------------------------------------------------------------------------+
   | Input Parameters  : comedi_device *dev      : Driver handle                |
   |                     comedi_subdevice *s     : Subdevice Pointer            |
   |                     comedi_insn *insn       : Insn Structure Pointer       |
-  |                     lsampl_t *data          : Data Pointer contains        |
+  |                     unsigned int *data          : Data Pointer contains        |
   |                                          configuration parameters as below |
   |
   |
@@ -2405,7 +2405,7 @@ int i_APCI3200_ReadCJCCalGain(comedi_device * dev, lsampl_t * data)
 */
 
 INT i_APCI3200_InsnBits_AnalogInput_Test(comedi_device * dev,
-	comedi_subdevice * s, comedi_insn * insn, lsampl_t * data)
+	comedi_subdevice * s, comedi_insn * insn, unsigned int * data)
 {
 	UINT ui_Configuration = 0;
 	INT i_Temp;		//,i_TimeUnit;
@@ -2511,14 +2511,14 @@ INT i_APCI3200_InsnBits_AnalogInput_Test(comedi_device * dev,
   +----------------------------------------------------------------------------+
   | Function   Name   : int i_APCI3200_InsnWriteReleaseAnalogInput             |
   |			  (comedi_device *dev,comedi_subdevice *s,               |
-  |                      comedi_insn *insn,lsampl_t *data)                     |
+  |                      comedi_insn *insn,unsigned int *data)                     |
   +----------------------------------------------------------------------------+
   | Task              :  Resets the channels                                                      |
   +----------------------------------------------------------------------------+
   | Input Parameters  : comedi_device *dev      : Driver handle                |
   |                     comedi_subdevice *s     : Subdevice Pointer            |
   |                     comedi_insn *insn       : Insn Structure Pointer       |
-  |                     lsampl_t *data          : Data Pointer
+  |                     unsigned int *data          : Data Pointer
   +----------------------------------------------------------------------------+
   | Output Parameters :	--													 |
 
@@ -2530,7 +2530,7 @@ INT i_APCI3200_InsnBits_AnalogInput_Test(comedi_device * dev,
 */
 
 INT i_APCI3200_InsnWriteReleaseAnalogInput(comedi_device * dev,
-	comedi_subdevice * s, comedi_insn * insn, lsampl_t * data)
+	comedi_subdevice * s, comedi_insn * insn, unsigned int * data)
 {
 	i_APCI3200_Reset(dev);
 	return insn->n;
@@ -3601,23 +3601,23 @@ int i_APCI3200_InterruptHandleEos(comedi_device * dev)
 			s->async->events |= COMEDI_CB_EOS;
 
 			// Test if enougth memory is available and allocate it for 7 values
-			//n = comedi_buf_write_alloc(s->async, 7*sizeof(lsampl_t));
+			//n = comedi_buf_write_alloc(s->async, 7*sizeof(unsigned int));
 			n = comedi_buf_write_alloc(s->async,
-				(7 + 12) * sizeof(lsampl_t));
+				(7 + 12) * sizeof(unsigned int));
 
 			// If not enougth memory available, event is set to Comedi Buffer Errror
-			if (n > ((7 + 12) * sizeof(lsampl_t))) {
+			if (n > ((7 + 12) * sizeof(unsigned int))) {
 				printk("\ncomedi_buf_write_alloc n = %i", n);
 				s->async->events |= COMEDI_CB_ERROR;
 			}
 			// Write all 7 scan values in the comedi buffer
 			comedi_buf_memcpy_to(s->async, 0,
-				(lsampl_t *) s_BoardInfos[dev->minor].
-				ui_ScanValueArray, (7 + 12) * sizeof(lsampl_t));
+				(unsigned int *) s_BoardInfos[dev->minor].
+				ui_ScanValueArray, (7 + 12) * sizeof(unsigned int));
 
 			// Update comedi buffer pinters indexes
 			comedi_buf_write_free(s->async,
-				(7 + 12) * sizeof(lsampl_t));
+				(7 + 12) * sizeof(unsigned int));
 
 			// Send events
 			comedi_event(dev, s);

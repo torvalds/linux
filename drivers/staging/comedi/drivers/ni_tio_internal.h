@@ -769,6 +769,6 @@ static inline unsigned ni_tio_get_soft_copy(const struct ni_gpct *counter,
 
 int ni_tio_arm(struct ni_gpct *counter, int arm, unsigned start_trigger);
 int ni_tio_set_gate_src(struct ni_gpct *counter, unsigned gate_index,
-	lsampl_t gate_source);
+	unsigned int gate_source);
 
 #endif /* _COMEDI_NI_TIO_INTERNAL_H */

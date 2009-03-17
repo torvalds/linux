@@ -147,9 +147,9 @@ static comedi_driver driver_amplc_pc263 = {
 static int pc263_request_region(unsigned minor, unsigned long from,
 	unsigned long extent);
 static int pc263_dio_insn_bits(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
+	comedi_insn * insn, unsigned int * data);
 static int pc263_dio_insn_config(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
+	comedi_insn * insn, unsigned int * data);
 
 /*
  * This function looks for a PCI device matching the requested board name,
@@ -388,7 +388,7 @@ static int pc263_request_region(unsigned minor, unsigned long from,
  * This allows packed reading/writing of the DIO channels.  The
  * comedi core can convert between insn_bits and insn_read/write */
 static int pc263_dio_insn_bits(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	if (insn->n != 2)
 		return -EINVAL;
@@ -413,7 +413,7 @@ static int pc263_dio_insn_bits(comedi_device * dev, comedi_subdevice * s,
 }
 
 static int pc263_dio_insn_config(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	if (insn->n != 1)
 		return -EINVAL;

@@ -164,12 +164,12 @@ COMEDI_INITCLEANUP(driver_pcl726);
 typedef struct {
 	int bipolar[12];
 	const comedi_lrange *rangelist[12];
-	lsampl_t ao_readback[12];
+	unsigned int ao_readback[12];
 } pcl726_private;
 #define devpriv ((pcl726_private *)dev->private)
 
 static int pcl726_ao_insn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	int hi, lo;
 	int n;
@@ -194,7 +194,7 @@ static int pcl726_ao_insn(comedi_device * dev, comedi_subdevice * s,
 }
 
 static int pcl726_ao_insn_read(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	int chan = CR_CHAN(insn->chanspec);
 	int n;
@@ -206,7 +206,7 @@ static int pcl726_ao_insn_read(comedi_device * dev, comedi_subdevice * s,
 }
 
 static int pcl726_di_insn_bits(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	if (insn->n != 2)
 		return -EINVAL;
@@ -218,7 +218,7 @@ static int pcl726_di_insn_bits(comedi_device * dev, comedi_subdevice * s,
 }
 
 static int pcl726_do_insn_bits(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	if (insn->n != 2)
 		return -EINVAL;

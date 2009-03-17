@@ -34,10 +34,10 @@
  * SSI INISIALISATION FUNCTION
  */
 INT i_APCI1710_InsnConfigInitSSI(comedi_device *dev, comedi_subdevice *s,
-				 comedi_insn *insn, lsampl_t *data);
+				 comedi_insn *insn, unsigned int *data);
 
 INT i_APCI1710_InsnReadSSIValue(comedi_device *dev, comedi_subdevice *s,
-				comedi_insn *insn, lsampl_t *data);
+				comedi_insn *insn, unsigned int *data);
 
 INT i_APCI1710_InsnBitsSSIDigitalIO(comedi_device *dev, comedi_subdevice *s,
-				    comedi_insn *insn, lsampl_t *data);
+				    comedi_insn *insn, unsigned int *data);

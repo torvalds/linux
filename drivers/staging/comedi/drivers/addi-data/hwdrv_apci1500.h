@@ -117,49 +117,49 @@ enum {
 
  /*----------DIGITAL INPUT----------------*/
 static int i_APCI1500_Initialisation(comedi_device *dev, comedi_subdevice *s,
-				     comedi_insn *insn, lsampl_t *data);
+				     comedi_insn *insn, unsigned int *data);
 static int i_APCI1500_ConfigDigitalInputEvent(comedi_device *dev,
 					      comedi_subdevice *s,
 					      comedi_insn *insn,
-					      lsampl_t *data);
+					      unsigned int *data);
 
 static int i_APCI1500_StartStopInputEvent(comedi_device *dev,
 					  comedi_subdevice *s,
-					  comedi_insn *insn, lsampl_t *data);
+					  comedi_insn *insn, unsigned int *data);
 static int i_APCI1500_ReadMoreDigitalInput(comedi_device *dev,
 					   comedi_subdevice *s,
-					   comedi_insn *insn, lsampl_t *data);
+					   comedi_insn *insn, unsigned int *data);
 
 /*----------	DIGITAL OUTPUT------------*/
 static int i_APCI1500_ConfigDigitalOutputErrorInterrupt(comedi_device *dev,
 							comedi_subdevice *s,
 							comedi_insn *insn,
-							lsampl_t *data);
+							unsigned int *data);
 static int i_APCI1500_WriteDigitalOutput(comedi_device *dev,
 					 comedi_subdevice *s,
-					 comedi_insn *insn, lsampl_t *data);
+					 comedi_insn *insn, unsigned int *data);
 
 /*----------TIMER----------------*/
 static int i_APCI1500_ConfigCounterTimerWatchdog(comedi_device *dev,
 						 comedi_subdevice *s,
 						 comedi_insn *insn,
-						 lsampl_t *data);
+						 unsigned int *data);
 static int i_APCI1500_StartStopTriggerTimerCounterWatchdog(comedi_device *dev,
 							   comedi_subdevice *s,
 							   comedi_insn *insn,
-							   lsampl_t *data);
+							   unsigned int *data);
 static int i_APCI1500_ReadCounterTimerWatchdog(comedi_device *dev,
 					       comedi_subdevice *s,
 					       comedi_insn *insn,
-					       lsampl_t *data);
+					       unsigned int *data);
 static int i_APCI1500_ReadInterruptMask(comedi_device *dev,
 					comedi_subdevice *s,
-					comedi_insn *insn, lsampl_t *data);
+					comedi_insn *insn, unsigned int *data);
 
 /*----------INTERRUPT HANDLER------*/
 static void v_APCI1500_Interrupt(int irq, void *d);
 static int i_APCI1500_ConfigureInterrupt(comedi_device *dev,
 					 comedi_subdevice *s,
-					 comedi_insn *insn, lsampl_t *data);
+					 comedi_insn *insn, unsigned int *data);
 /*----------RESET---------------*/
 static int i_APCI1500_Reset(comedi_device *dev);

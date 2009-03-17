@@ -57,7 +57,7 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 +----------------------------------------------------------------------------+
 | Function   Name   : int i_APCI2016_ConfigDigitalOutput                     |
 |			  (comedi_device *dev,comedi_subdevice *s,               |
-|                      comedi_insn *insn,lsampl_t *data)                     |
+|                      comedi_insn *insn,unsigned int *data)                     |
 +----------------------------------------------------------------------------+
 | Task              : Configures The Digital Output Subdevice.               |
 +----------------------------------------------------------------------------+
@@ -76,7 +76,7 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 +----------------------------------------------------------------------------+
 */
 int i_APCI2016_ConfigDigitalOutput(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	if ((data[0] != 0) && (data[0] != 1)) {
 		comedi_error(dev,
@@ -96,7 +96,7 @@ int i_APCI2016_ConfigDigitalOutput(comedi_device * dev, comedi_subdevice * s,
 +----------------------------------------------------------------------------+
 | Function   Name   : int i_APCI2016_WriteDigitalOutput                      |
 |			  (comedi_device *dev,comedi_subdevice *s,               |
-|                      comedi_insn *insn,lsampl_t *data)                     |
+|                      comedi_insn *insn,unsigned int *data)                     |
 +----------------------------------------------------------------------------+
 | Task              : Writes port value  To the selected port                |
 +----------------------------------------------------------------------------+
@@ -112,7 +112,7 @@ int i_APCI2016_ConfigDigitalOutput(comedi_device * dev, comedi_subdevice * s,
 +----------------------------------------------------------------------------+
 */
 int i_APCI2016_WriteDigitalOutput(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	UINT ui_NoOfChannel;
 	UINT ui_Temp, ui_Temp1;
@@ -251,7 +251,7 @@ int i_APCI2016_WriteDigitalOutput(comedi_device * dev, comedi_subdevice * s,
 +----------------------------------------------------------------------------+
 | Function   Name   : int i_APCI2016_BitsDigitalOutput                       |
 |			  (comedi_device *dev,comedi_subdevice *s,               |
-|                      comedi_insn *insn,lsampl_t *data)                     |
+|                      comedi_insn *insn,unsigned int *data)                     |
 +----------------------------------------------------------------------------+
 | Task              : Read  value  of the selected channel or port           |
 +----------------------------------------------------------------------------+
@@ -267,7 +267,7 @@ int i_APCI2016_WriteDigitalOutput(comedi_device * dev, comedi_subdevice * s,
 +----------------------------------------------------------------------------+
 */
 int i_APCI2016_BitsDigitalOutput(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	UINT ui_Temp;
 	UINT ui_NoOfChannel;
@@ -321,14 +321,14 @@ int i_APCI2016_BitsDigitalOutput(comedi_device * dev, comedi_subdevice * s,
 +----------------------------------------------------------------------------+
 | Function   Name   : int i_APCI2016_ConfigWatchdog                          |
 |			  (comedi_device *dev,comedi_subdevice *s,               |
-|                      comedi_insn *insn,lsampl_t *data)                     |
+|                      comedi_insn *insn,unsigned int *data)                     |
 +----------------------------------------------------------------------------+
 | Task              : Configures The Watchdog                                |
 +----------------------------------------------------------------------------+
 | Input Parameters  :   comedi_device *dev      : Driver handle              |
 |                     comedi_subdevice *s,   :pointer to subdevice structure |
 |                     comedi_insn *insn      :pointer to insn structure      |
-|                     lsampl_t *data          : Data Pointer to read status  |
+|                     unsigned int *data          : Data Pointer to read status  |
 +----------------------------------------------------------------------------+
 | Output Parameters :	--													 |
 +----------------------------------------------------------------------------+
@@ -338,7 +338,7 @@ int i_APCI2016_BitsDigitalOutput(comedi_device * dev, comedi_subdevice * s,
 +----------------------------------------------------------------------------+
 */
 int i_APCI2016_ConfigWatchdog(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 
 	if (data[0] == 0) {
@@ -364,14 +364,14 @@ int i_APCI2016_ConfigWatchdog(comedi_device * dev, comedi_subdevice * s,
 +----------------------------------------------------------------------------+
 | Function   Name   : int i_APCI2016_StartStopWriteWatchdog                  |
 |			  (comedi_device *dev,comedi_subdevice *s,               |
-|                      comedi_insn *insn,lsampl_t *data)                     |
+|                      comedi_insn *insn,unsigned int *data)                     |
 +----------------------------------------------------------------------------+
 | Task              : Start / Stop The Watchdog                              |
 +----------------------------------------------------------------------------+
 | Input Parameters  : comedi_device *dev      : Driver handle                |
 |                     comedi_subdevice *s,   :pointer to subdevice structure |
 |                     comedi_insn *insn      :pointer to insn structure      |
-|                     lsampl_t *data          : Data Pointer to read status  |
+|                     unsigned int *data          : Data Pointer to read status  |
 +----------------------------------------------------------------------------+
 | Output Parameters :	--													 |
 +----------------------------------------------------------------------------+
@@ -381,7 +381,7 @@ int i_APCI2016_ConfigWatchdog(comedi_device * dev, comedi_subdevice * s,
 +----------------------------------------------------------------------------+
 */
 int i_APCI2016_StartStopWriteWatchdog(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 
 	switch (data[0]) {
@@ -410,14 +410,14 @@ int i_APCI2016_StartStopWriteWatchdog(comedi_device * dev, comedi_subdevice * s,
 +----------------------------------------------------------------------------+
 | Function   Name   : int i_APCI2016_ReadWatchdog                            |
 |			  (comedi_device *dev,comedi_subdevice *s,               |
-|                      comedi_insn *insn,lsampl_t *data)                     |
+|                      comedi_insn *insn,unsigned int *data)                     |
 +----------------------------------------------------------------------------+
 | Task              : Read The Watchdog                                      |
 +----------------------------------------------------------------------------+
 | Input Parameters  : comedi_device *dev      : Driver handle                |
 |                     comedi_subdevice *s,   :pointer to subdevice structure |
 |                     comedi_insn *insn      :pointer to insn structure      |
-|                     lsampl_t *data          : Data Pointer to read status  |
+|                     unsigned int *data          : Data Pointer to read status  |
 +----------------------------------------------------------------------------+
 | Output Parameters :	--													 |
 +----------------------------------------------------------------------------+
@@ -428,7 +428,7 @@ int i_APCI2016_StartStopWriteWatchdog(comedi_device * dev, comedi_subdevice * s,
 */
 
 int i_APCI2016_ReadWatchdog(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	udelay(5);
 	data[0] = inw(devpriv->i_IobaseAddon + APCI2016_WATCHDOG_STATUS) & 0x1;

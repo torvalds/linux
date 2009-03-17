@@ -101,7 +101,7 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 */
 
 INT i_APCI1710_InsnConfigInitTTLIO(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	INT i_ReturnValue = 0;
 	BYTE b_ModulNbr;
@@ -407,7 +407,7 @@ APCI1710_TTL_READCHANNEL
 */
 
 INT i_APCI1710_InsnBitsReadTTLIO(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	INT i_ReturnValue = 0;
 	DWORD dw_StatusReg;
@@ -634,7 +634,7 @@ INT i_APCI1710_InsnBitsReadTTLIO(comedi_device * dev, comedi_subdevice * s,
 /*
 +----------------------------------------------------------------------------+
 | Function Name     : INT i_APCI1710_InsnReadTTLIOAllPortValue(comedi_device
-*dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data)              |
+*dev,comedi_subdevice *s,comedi_insn *insn,unsigned int *data)              |
 +----------------------------------------------------------------------------+
 | Task              : Read the status from all digital input ports           |
 |                     (port A, port B and port C) from selected TTL          |
@@ -656,7 +656,7 @@ INT i_APCI1710_InsnBitsReadTTLIO(comedi_device * dev, comedi_subdevice * s,
 */
 
 INT i_APCI1710_InsnReadTTLIOAllPortValue(comedi_device * dev,
-	comedi_subdevice * s, comedi_insn * insn, lsampl_t * data)
+	comedi_subdevice * s, comedi_insn * insn, unsigned int * data)
 {
 	INT i_ReturnValue = 0;
 	DWORD dw_StatusReg;
@@ -793,7 +793,7 @@ INT i_APCI1710_InsnReadTTLIOAllPortValue(comedi_device * dev,
 |                                BYTE_           b_ModulNbr,                 |
 |                                BYTE_           b_OutputChannel)
 INT i_APCI1710_InsnWriteSetTTLIOChlOnOff(comedi_device *dev,comedi_subdevice *s,
-	comedi_insn *insn,lsampl_t *data)           |
+	comedi_insn *insn,unsigned int *data)           |
 +----------------------------------------------------------------------------+
 | Task              : Sets or resets  the output witch has been passed with the         |
 |                     parameter b_Channel. Setting an output means setting   |
@@ -826,7 +826,7 @@ INT i_APCI1710_InsnWriteSetTTLIOChlOnOff(comedi_device *dev,comedi_subdevice *s,
 */
 
 INT i_APCI1710_InsnWriteSetTTLIOChlOnOff(comedi_device * dev,
-	comedi_subdevice * s, comedi_insn * insn, lsampl_t * data)
+	comedi_subdevice * s, comedi_insn * insn, unsigned int * data)
 {
 	INT i_ReturnValue = 0;
 	DWORD dw_StatusReg = 0;

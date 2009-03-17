@@ -272,12 +272,12 @@ typedef struct {
 	char ai12_startstop;	// measure can start/stop on external trigger
 	unsigned int ai_divisor1, ai_divisor2;	// divisors for start of measure on external start
 	unsigned int ai_data_len;
-	sampl_t *ai_data;
-	sampl_t ao_data[2];	// data output buffer
+	short *ai_data;
+	short ao_data[2];	// data output buffer
 	unsigned int ai_scans;	// number of scans to do
 	char dma_doublebuf;	// we can use double buffring
 	unsigned int dma_actbuf;	// which buffer is used now
-	sampl_t *dmabuf_virt[2];	// pointers to begin of DMA buffer
+	short *dmabuf_virt[2];	// pointers to begin of DMA buffer
 	unsigned long dmabuf_hw[2];	// hw address of DMA buff
 	unsigned int dmabuf_size[2];	// size of dma buffer in bytes
 	unsigned int dmabuf_use_size[2];	// which size we may now used for transfer
@@ -328,7 +328,7 @@ static void pci9118_calc_divisors(char mode, comedi_device * dev,
 ==============================================================================
 */
 static int pci9118_insn_read_ai(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 
 	int n, timeout;
@@ -378,7 +378,7 @@ static int pci9118_insn_read_ai(comedi_device * dev, comedi_subdevice * s,
 ==============================================================================
 */
 static int pci9118_insn_write_ao(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	int n, chanreg, ch;
 
@@ -401,7 +401,7 @@ static int pci9118_insn_write_ao(comedi_device * dev, comedi_subdevice * s,
 ==============================================================================
 */
 static int pci9118_insn_read_ao(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	int n, chan;
 
@@ -416,7 +416,7 @@ static int pci9118_insn_read_ao(comedi_device * dev, comedi_subdevice * s,
 ==============================================================================
 */
 static int pci9118_insn_bits_di(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	data[1] = inl(dev->iobase + PCI9118_DI) & 0xf;
 
@@ -427,7 +427,7 @@ static int pci9118_insn_bits_di(comedi_device * dev, comedi_subdevice * s,
 ==============================================================================
 */
 static int pci9118_insn_bits_do(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+	comedi_insn * insn, unsigned int * data)
 {
 	if (data[0]) {
 		s->state &= ~data[0];
@@ -457,7 +457,7 @@ static void interrupt_pci9118_ai_mode4_switch(comedi_device * dev)
 }
 
 static unsigned int defragment_dma_buffer(comedi_device * dev,
-	comedi_subdevice * s, sampl_t * dma_buffer, unsigned int num_samples)
+	comedi_subdevice * s, short * dma_buffer, unsigned int num_samples)
 {
 	unsigned int i = 0, j = 0;
 	unsigned int start_pos = devpriv->ai_add_front,
@@ -481,7 +481,7 @@ static unsigned int defragment_dma_buffer(comedi_device * dev,
 ==============================================================================
 */
 static unsigned int move_block_from_dma(comedi_device * dev,
-	comedi_subdevice * s, sampl_t * dma_buffer, unsigned int num_samples)
+	comedi_subdevice * s, short * dma_buffer, unsigned int num_samples)
 {
 	unsigned int num_bytes;
 
@@ -492,8 +492,8 @@ static unsigned int move_block_from_dma(comedi_device * dev,
 	s->async->cur_chan %= devpriv->ai_n_scanlen;
 	num_bytes =
 		cfc_write_array_to_buffer(s, dma_buffer,
-		num_samples * sizeof(sampl_t));
-	if (num_bytes < num_samples * sizeof(sampl_t))
+		num_samples * sizeof(short));
+	if (num_bytes < num_samples * sizeof(short))
 		return -1;
 	return 0;
 }
@@ -534,8 +534,8 @@ static char pci9118_decode_error_status(comedi_device * dev,
 static void pci9118_ai_munge(comedi_device * dev, comedi_subdevice * s,
 	void *data, unsigned int num_bytes, unsigned int start_chan_index)
 {
-	unsigned int i, num_samples = num_bytes / sizeof(sampl_t);
-	sampl_t *array = data;
+	unsigned int i, num_samples = num_bytes / sizeof(short);
+	short *array = data;
 
 	for (i = 0; i < num_samples; i++) {
 		if (devpriv->usedma)
@@ -555,7 +555,7 @@ static void interrupt_pci9118_ai_onesample(comedi_device * dev,
 	comedi_subdevice * s, unsigned short int_adstat, unsigned int int_amcc,
 	unsigned short int_daq)
 {
-	register sampl_t sampl;
+	register short sampl;
 
 	s->async->events = 0;
 
@@ -1131,10 +1131,10 @@ static int Compute_and_setup_dma(comedi_device * dev)
 	if (devpriv->ai_n_scanlen < this_board->half_fifo_size) {
 		devpriv->dmabuf_panic_size[0] =
 			(this_board->half_fifo_size / devpriv->ai_n_scanlen +
-			1) * devpriv->ai_n_scanlen * sizeof(sampl_t);
+			1) * devpriv->ai_n_scanlen * sizeof(short);
 		devpriv->dmabuf_panic_size[1] =
 			(this_board->half_fifo_size / devpriv->ai_n_scanlen +
-			1) * devpriv->ai_n_scanlen * sizeof(sampl_t);
+			1) * devpriv->ai_n_scanlen * sizeof(short);
 	} else {
 		devpriv->dmabuf_panic_size[0] =
 			(devpriv->ai_n_scanlen << 1) % devpriv->dmabuf_size[0];
@@ -1940,7 +1940,7 @@ static int pci9118_attach(comedi_device * dev, comedi_devconfig * it)
 		devpriv->dma_doublebuf = 0;
 		for (i = 0; i < 2; i++) {
 			for (pages = 4; pages >= 0; pages--)
-				if ((devpriv->dmabuf_virt[i] = (sampl_t *)
+				if ((devpriv->dmabuf_virt[i] = (short *)
 						__get_free_pages(GFP_KERNEL,
 							pages)))
 					break;
