@@ -355,15 +355,15 @@ enum dio200_sdtype { sd_none, sd_intr, sd_8255, sd_8254 };
 #define DIO200_MAX_SUBDEVS	7
 #define DIO200_MAX_ISNS		6
 
-typedef struct dio200_layout_struct {
+struct dio200_layout_struct {
 	unsigned short n_subdevs;	/* number of subdevices */
 	unsigned char sdtype[DIO200_MAX_SUBDEVS];	/* enum dio200_sdtype */
 	unsigned char sdinfo[DIO200_MAX_SUBDEVS];	/* depends on sdtype */
 	char has_int_sce;	/* has interrupt enable/status register */
 	char has_clk_gat_sce;	/* has clock/gate selection registers */
-} dio200_layout;
+};
 
-static const dio200_layout dio200_layouts[] = {
+static const struct dio200_layout_struct dio200_layouts[] = {
 	[pc212_layout] = {
 	      n_subdevs:6,
 	      sdtype:	{sd_8255, sd_8254, sd_8254, sd_8254,
@@ -1271,7 +1271,7 @@ static int dio200_attach(struct comedi_device * dev, struct comedi_devconfig * i
 	struct pci_dev *pci_dev = NULL;
 	int bus = 0, slot = 0;
 #endif
-	const dio200_layout *layout;
+	const struct dio200_layout_struct *layout;
 	int share_irq = 0;
 	int sdx;
 	unsigned n;
@@ -1431,7 +1431,7 @@ static int dio200_attach(struct comedi_device * dev, struct comedi_devconfig * i
  */
 static int dio200_detach(struct comedi_device * dev)
 {
-	const dio200_layout *layout;
+	const struct dio200_layout_struct *layout;
 	unsigned n;
 
 	printk(KERN_DEBUG "comedi%d: %s: detach\n", dev->minor,
