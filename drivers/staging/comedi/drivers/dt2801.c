@@ -220,11 +220,13 @@ static const struct dt2801_board boardtypes[] = {
 #define n_boardtypes ((sizeof(boardtypes))/(sizeof(boardtypes[0])))
 #define boardtype (*(const struct dt2801_board *)dev->board_ptr)
 
-typedef struct {
+struct dt2801_private {
+
 	const struct comedi_lrange *dac_range_types[2];
 	unsigned int ao_readback[2];
-} dt2801_private;
-#define devpriv ((dt2801_private *)dev->private)
+};
+
+#define devpriv ((struct dt2801_private *)dev->private)
 
 static int dt2801_ai_insn_read(struct comedi_device * dev, struct comedi_subdevice * s,
 	struct comedi_insn * insn, unsigned int * data);
@@ -521,7 +523,7 @@ static int dt2801_attach(struct comedi_device * dev, struct comedi_devconfig * i
 	if ((ret = alloc_subdevices(dev, 4)) < 0)
 		goto out;
 
-	if ((ret = alloc_private(dev, sizeof(dt2801_private))) < 0)
+	if ((ret = alloc_private(dev, sizeof(struct dt2801_private))) < 0)
 		goto out;
 
 	dev->board_name = boardtype.name;
