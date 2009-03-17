@@ -211,7 +211,7 @@ MODULE_DEVICE_TABLE(pci, cb_pcidda_pci_table);
 /* this structure is for data unique to this hardware driver.  If
    several hardware drivers keep similar information in this structure,
    feel free to suggest moving the variable to the struct comedi_device struct.  */
-typedef struct {
+struct cb_pcidda_private {
 	int data;
 
 	/* would be useful for a PCI device */
@@ -224,13 +224,13 @@ typedef struct {
 	unsigned int dac_cal1_bits;	// bits last written to da calibration register 1
 	unsigned int ao_range[MAX_AO_CHANNELS];	// current range settings for output channels
 	u16 eeprom_data[EEPROM_SIZE];	// software copy of board's eeprom
-} cb_pcidda_private;
+};
 
 /*
  * most drivers define the following macro to make it easy to
  * access the private structure.
  */
-#define devpriv ((cb_pcidda_private *)dev->private)
+#define devpriv ((struct cb_pcidda_private *)dev->private)
 
 static int cb_pcidda_attach(struct comedi_device * dev, struct comedi_devconfig * it);
 static int cb_pcidda_detach(struct comedi_device * dev);
@@ -276,7 +276,7 @@ static int cb_pcidda_attach(struct comedi_device * dev, struct comedi_devconfig 
 /*
  * Allocate the private structure area.
  */
-	if (alloc_private(dev, sizeof(cb_pcidda_private)) < 0)
+	if (alloc_private(dev, sizeof(struct cb_pcidda_private)) < 0)
 		return -ENOMEM;
 
 /*
