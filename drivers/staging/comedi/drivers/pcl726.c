@@ -161,12 +161,14 @@ static struct comedi_driver driver_pcl726 = {
 
 COMEDI_INITCLEANUP(driver_pcl726);
 
-typedef struct {
+struct pcl726_private {
+
 	int bipolar[12];
 	const struct comedi_lrange *rangelist[12];
 	unsigned int ao_readback[12];
-} pcl726_private;
-#define devpriv ((pcl726_private *)dev->private)
+};
+
+#define devpriv ((struct pcl726_private *)dev->private)
 
 static int pcl726_ao_insn(struct comedi_device * dev, struct comedi_subdevice * s,
 	struct comedi_insn * insn, unsigned int * data)
@@ -260,7 +262,7 @@ static int pcl726_attach(struct comedi_device * dev, struct comedi_devconfig * i
 
 	dev->board_name = this_board->name;
 
-	if ((ret = alloc_private(dev, sizeof(pcl726_private))) < 0)
+	if ((ret = alloc_private(dev, sizeof(struct pcl726_private))) < 0)
 		return -ENOMEM;
 
 	for (i = 0; i < 12; i++) {
