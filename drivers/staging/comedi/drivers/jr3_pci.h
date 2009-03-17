@@ -2,16 +2,14 @@
  * is 16 bits, but aligned on a 32 bit PCI boundary
  */
 
-typedef u32 u_val_t;
-
 typedef s32 s_val_t;
 
-static inline u16 get_u16(volatile const u_val_t * p)
+static inline u16 get_u16(volatile const u32 * p)
 {
 	return (u16) readl(p);
 }
 
-static inline void set_u16(volatile u_val_t * p, u16 val)
+static inline void set_u16(volatile u32 * p, u16 val)
 {
 	writel(val, p);
 }
@@ -46,7 +44,7 @@ static inline void set_s16(volatile s_val_t * p, s16 val)
  */
 
 typedef struct raw_channel {
-	u_val_t raw_time;
+	u32 raw_time;
 	s_val_t raw_data;
 	s_val_t reserved[2];
 } raw_channel_t;
@@ -259,7 +257,7 @@ typedef enum link_types {
 /*  Structure used to describe a transform. */
 typedef struct {
 	struct {
-		u_val_t link_type;
+		u32 link_type;
 		s_val_t link_amount;
 	} link[8];
 } intern_transform_t;
@@ -276,7 +274,7 @@ typedef struct force_sensor_data {
 	/*  Copyright is a null terminated ASCII string containing the JR3 */
 	/*  copyright notice. */
 
-	u_val_t copyright[0x0018];	/* offset 0x0040 */
+	u32 copyright[0x0018];	/* offset 0x0040 */
 	s_val_t reserved1[0x0008];	/* offset 0x0058 */
 
 	/* Shunts contains the sensor shunt readings. Some JR3 sensors have
@@ -408,7 +406,7 @@ typedef struct force_sensor_data {
 	 * after the user has executed the set vector axes command (pg. 37).
 	 */
 
-	u_val_t vect_axes;	/* offset 0x008f */
+	u32 vect_axes;	/* offset 0x008f */
 
 	/* Filter0 is the decoupled, unfiltered data from the JR3 sensor.
 	 * This data has had the offsets removed.
@@ -488,8 +486,8 @@ typedef struct force_sensor_data {
 	 */
 
 	s_val_t rate_address;	/* offset 0x00e2 */
-	u_val_t rate_divisor;	/* offset 0x00e3 */
-	u_val_t rate_count;	/* offset 0x00e4 */
+	u32 rate_divisor;	/* offset 0x00e3 */
+	u32 rate_count;	/* offset 0x00e4 */
 
 	/* Command_word2 through command_word0 are the locations used to
 	 * send commands to the JR3 DSP. Their usage varies with the command
@@ -520,12 +518,12 @@ typedef struct force_sensor_data {
 	 * once.
 	 */
 
-	u_val_t count1;		/* offset 0x00e8 */
-	u_val_t count2;		/* offset 0x00e9 */
-	u_val_t count3;		/* offset 0x00ea */
-	u_val_t count4;		/* offset 0x00eb */
-	u_val_t count5;		/* offset 0x00ec */
-	u_val_t count6;		/* offset 0x00ed */
+	u32 count1;		/* offset 0x00e8 */
+	u32 count2;		/* offset 0x00e9 */
+	u32 count3;		/* offset 0x00ea */
+	u32 count4;		/* offset 0x00eb */
+	u32 count5;		/* offset 0x00ec */
+	u32 count6;		/* offset 0x00ed */
 
 	/* Error_count is a running count of data reception errors. If this
 	 * counter is changing rapidly, it probably indicates a bad sensor
@@ -537,7 +535,7 @@ typedef struct force_sensor_data {
 	 * where this counter counts a bad sample, that sample is ignored.
 	 */
 
-	u_val_t error_count;	/* offset 0x00ee */
+	u32 error_count;	/* offset 0x00ee */
 
 	/* Count_x is a counter which is incremented every time the JR3 DSP
 	 * searches its job queues and finds nothing to do. It indicates the
@@ -546,15 +544,15 @@ typedef struct force_sensor_data {
 	 * Issues section on pg. 49 for more details.
 	 */
 
-	u_val_t count_x;	/* offset 0x00ef */
+	u32 count_x;	/* offset 0x00ef */
 
 	/* Warnings & errors contain the warning and error bits
 	 * respectively. The format of these two words is discussed on page
 	 * 21 under the headings warnings_bits and error_bits.
 	 */
 
-	u_val_t warnings;	/* offset 0x00f0 */
-	u_val_t errors;		/* offset 0x00f1 */
+	u32 warnings;	/* offset 0x00f0 */
+	u32 errors;		/* offset 0x00f1 */
 
 	/* Threshold_bits is a word containing the bits that are set by the
 	 * load envelopes. See load_envelopes (pg. 17) and thresh_struct
@@ -594,8 +592,8 @@ typedef struct force_sensor_data {
 	 * different sensor configurations.
 	 */
 
-	u_val_t serial_no;	/* offset 0x00f8 */
-	u_val_t model_no;	/* offset 0x00f9 */
+	u32 serial_no;	/* offset 0x00f8 */
+	u32 model_no;	/* offset 0x00f9 */
 
 	/* Cal_day & cal_year are the sensor calibration date. Day is the
 	 * day of the year, with January 1 being 1, and December 31, being
@@ -628,7 +626,7 @@ typedef struct force_sensor_data {
 	 * received.
 	 */
 
-	u_val_t units;		/* offset 0x00fc */
+	u32 units;		/* offset 0x00fc */
 	s_val_t bits;		/* offset 0x00fd */
 	s_val_t channels;	/* offset 0x00fe */
 
@@ -674,10 +672,10 @@ typedef struct force_sensor_data {
 
 typedef struct {
 	struct {
-		u_val_t program_low[0x4000];	/*  0x00000 - 0x10000 */
+		u32 program_low[0x4000];	/*  0x00000 - 0x10000 */
 		jr3_channel_t data;	/*  0x10000 - 0x10c00 */
 		char pad2[0x30000 - 0x00c00];	/*  0x10c00 - 0x40000 */
-		u_val_t program_high[0x8000];	/*  0x40000 - 0x60000 */
+		u32 program_high[0x8000];	/*  0x40000 - 0x60000 */
 		u32 reset;	/*  0x60000 - 0x60004 */
 		char pad3[0x20000 - 0x00004];	/*  0x60004 - 0x80000 */
 	} channel[4];
