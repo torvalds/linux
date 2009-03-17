@@ -98,14 +98,16 @@ MODULE_DEVICE_TABLE(pci, ni_670x_pci_table);
 
 #define thisboard ((ni_670x_board *)dev->board_ptr)
 
-typedef struct {
+struct ni_670x_private {
+
 	struct mite_struct *mite;
 	int boardtype;
 	int dio;
 	unsigned int ao_readback[32];
-} ni_670x_private;
+};
 
-#define devpriv ((ni_670x_private *)dev->private)
+
+#define devpriv ((struct ni_670x_private *)dev->private)
 #define n_ni_670x_boards (sizeof(ni_670x_boards)/sizeof(ni_670x_boards[0]))
 
 static int ni_670x_attach(struct comedi_device * dev, struct comedi_devconfig * it);
@@ -141,7 +143,7 @@ static int ni_670x_attach(struct comedi_device * dev, struct comedi_devconfig * 
 
 	printk("comedi%d: ni_670x: ", dev->minor);
 
-	if ((ret = alloc_private(dev, sizeof(ni_670x_private))) < 0)
+	if ((ret = alloc_private(dev, sizeof(struct ni_670x_private))) < 0)
 		return ret;
 
 	ret = ni_670x_find_device(dev, it->options[0], it->options[1]);
