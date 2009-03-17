@@ -116,16 +116,16 @@ static const struct comedi_lrange range_adq12b_ai_unipolar = { 4, {
 
 
 
-typedef struct adq12b_board_struct{
+struct adq12b_board {
         const char *name;
         int ai_se_chans;
         int ai_diff_chans;
         int ai_bits;
         int di_chans;
         int do_chans;
-}adq12b_board;
+};
 
-static const adq12b_board adq12b_boards[] = {
+static const struct adq12b_board adq12b_boards[] = {
         {
         name:           "adq12b",
         ai_se_chans:    16,
@@ -144,7 +144,7 @@ static const adq12b_board adq12b_boards[] = {
         }*/
 };
 
-#define thisboard ((const adq12b_board *)dev->board_ptr)
+#define thisboard ((const struct adq12b_board *)dev->board_ptr)
 
 typedef struct{
         int unipolar;          /* option 2 of comedi_config (1 is iobase) */
@@ -170,8 +170,8 @@ static struct comedi_driver driver_adq12b={
         attach:         adq12b_attach,
         detach:         adq12b_detach,
         board_name:     &adq12b_boards[0].name,
-        offset:         sizeof(adq12b_board),
-        num_names:      sizeof(adq12b_boards) / sizeof(adq12b_board),
+        offset:         sizeof(struct adq12b_board),
+        num_names:      sizeof(adq12b_boards) / sizeof(struct adq12b_board),
 };
 
 static int adq12b_ai_rinsn(struct comedi_device *dev,struct comedi_subdevice *s,struct comedi_insn *insn,unsigned int *data);
