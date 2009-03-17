@@ -63,15 +63,19 @@ static struct platform_device sh7763rdp_nor_flash_device = {
 	},
 };
 
-/* SH-Ether */
+/*
+ * SH-Ether
+ *
+ * SH Ether of SH7763 has multi IRQ handling.
+ * (57,58,59 -> 57)
+ */
 static struct resource sh_eth_resources[] = {
 	{
 		.start  = 0xFEE00800,   /* use eth1 */
 		.end    = 0xFEE00F7C - 1,
 		.flags  = IORESOURCE_MEM,
 	}, {
-		.start  = 58,   /* irq number */
-		.end    = 58,
+		.start  = 57,   /* irq number */
 		.flags  = IORESOURCE_IRQ,
 	},
 };
