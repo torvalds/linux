@@ -56,12 +56,13 @@ static DEFINE_PCI_DEVICE_TABLE(adl_pci7296_pci_table) = {
 
 MODULE_DEVICE_TABLE(pci, adl_pci7296_pci_table);
 
-typedef struct {
+struct adl_pci7296_private {
 	int data;
 	struct pci_dev *pci_dev;
-} adl_pci7296_private;
+};
 
-#define devpriv ((adl_pci7296_private *)dev->private)
+
+#define devpriv ((struct adl_pci7296_private *)dev->private)
 
 static int adl_pci7296_attach(struct comedi_device * dev, struct comedi_devconfig * it);
 static int adl_pci7296_detach(struct comedi_device * dev);
@@ -86,7 +87,7 @@ static int adl_pci7296_attach(struct comedi_device * dev, struct comedi_devconfi
 	bus = it->options[0];
 	slot = it->options[1];
 
-	if (alloc_private(dev, sizeof(adl_pci7296_private)) < 0)
+	if (alloc_private(dev, sizeof(struct adl_pci7296_private)) < 0)
 		return -ENOMEM;
 
 	if (alloc_subdevices(dev, 4) < 0)
