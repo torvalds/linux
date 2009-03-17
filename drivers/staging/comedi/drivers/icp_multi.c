@@ -133,7 +133,7 @@ static int icp_multi_detach(comedi_device *dev);
 */
 static unsigned short pci_list_builded = 0;	/*>0 list of card is known */
 
-typedef struct {
+struct boardtype {
 	const char *name;	/*  driver name */
 	int device_id;
 	int iorange;		/*  I/O range len */
@@ -150,9 +150,9 @@ typedef struct {
 	const comedi_lrange *rangelist_ai;	/*  rangelist for A/D */
 	const char *rangecode;	/*  range codes for programming */
 	const comedi_lrange *rangelist_ao;	/*  rangelist for D/A */
-} boardtype;
+};
 
-static const boardtype boardtypes[] = {
+static const struct boardtype boardtypes[] = {
 	{"icp_multi",		/*  Driver name */
 			DEVICE_ID,	/*  PCI device ID */
 			IORANGE_ICP_MULTI,	/*  I/O range length */
@@ -171,7 +171,7 @@ static const boardtype boardtypes[] = {
 		&range_analog},	/*  Rangelist for D/A */
 };
 
-#define n_boardtypes (sizeof(boardtypes)/sizeof(boardtype))
+#define n_boardtypes (sizeof(boardtypes)/sizeof(struct boardtype))
 
 static comedi_driver driver_icp_multi = {
       driver_name:"icp_multi",
@@ -180,12 +180,12 @@ static comedi_driver driver_icp_multi = {
       detach : icp_multi_detach,
       num_names : n_boardtypes,
       board_name : &boardtypes[0].name,
-      offset : sizeof(boardtype),
+      offset : sizeof(struct boardtype),
 };
 
 COMEDI_INITCLEANUP(driver_icp_multi);
 
-typedef struct {
+struct icp_multi_private {
 	struct pcilst_struct *card;	/*  pointer to card */
 	char valid;		/*  card is usable */
 	void *io_addr;		/*  Pointer to mapped io address */
@@ -202,10 +202,10 @@ typedef struct {
 	sampl_t ao_data[4];	/*  data output buffer */
 	sampl_t di_data;	/*  Digital input data */
 	unsigned int do_data;	/*  Remember digital output data */
-} icp_multi_private;
+};
 
-#define devpriv ((icp_multi_private *)dev->private)
-#define this_board ((const boardtype *)dev->board_ptr)
+#define devpriv ((struct icp_multi_private *)dev->private)
+#define this_board ((const struct boardtype *)dev->board_ptr)
 
 /*
 ==============================================================================
@@ -882,7 +882,7 @@ static int icp_multi_attach(comedi_device *dev, comedi_devconfig *it)
 	printk("icp_multi EDBG: BGN: icp_multi_attach(...)\n");
 
 	/*  Alocate private data storage space */
-	ret = alloc_private(dev, sizeof(icp_multi_private));
+	ret = alloc_private(dev, sizeof(struct icp_multi_private));
 	if (ret < 0)
 		return ret;
 
