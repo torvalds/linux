@@ -102,7 +102,7 @@ static const struct comedi_lrange range_pci1723 = { 1, {
 /*
  * Board descriptions for pci1723 boards.
  */
-typedef struct pci1723_board_struct {
+struct pci1723_board {
 	const char *name;
 	int vendor_id;		// PCI vendor a device ID of card
 	int device_id;
@@ -112,9 +112,9 @@ typedef struct pci1723_board_struct {
 	int n_diochan;		// num of DIO chans
 	int ao_maxdata;		// resolution of D/A
 	const struct comedi_lrange *rangelist_ao;	// rangelist for D/A
-} boardtype;
+};
 
-static const boardtype boardtypes[] = {
+static const struct pci1723_board boardtypes[] = {
 	{
 	      name:	"pci1723",
 	      vendor_id:ADVANTECH_VENDOR,
@@ -146,7 +146,7 @@ MODULE_DEVICE_TABLE(pci, pci1723_pci_table);
 static int pci1723_attach(struct comedi_device * dev, struct comedi_devconfig * it);
 static int pci1723_detach(struct comedi_device * dev);
 
-#define n_boardtypes (sizeof(boardtypes)/sizeof(boardtype))
+#define n_boardtypes (sizeof(boardtypes)/sizeof(struct pci1723_board))
 
 static struct comedi_driver driver_pci1723 = {
       driver_name:"adv_pci1723",
@@ -156,19 +156,19 @@ static struct comedi_driver driver_pci1723 = {
 };
 
 /* this structure is for data unique to this hardware driver. */
-typedef struct {
+struct pci1723_private {
 	int valid;		//card is usable;
 
 	struct pci_dev *pcidev;
 	unsigned char da_range[8];	// D/A output range for each channel
 
 	short ao_data[8];	// data output buffer
-} pci1723_private;
+};
 
 /*the following macro to make it easy to
 * access the private structure.
 */
-#define devpriv ((pci1723_private *)dev->private)
+#define devpriv ((struct pci1723_private *)dev->private)
 
 #define this_board boardtypes
 
@@ -310,7 +310,7 @@ static int pci1723_attach(struct comedi_device * dev, struct comedi_devconfig * 
 	opt_bus = it->options[0];
 	opt_slot = it->options[1];
 
-	if ((ret = alloc_private(dev, sizeof(pci1723_private))) < 0) {
+	if ((ret = alloc_private(dev, sizeof(struct pci1723_private))) < 0) {
 		rt_printk(" - Allocation failed!\n");
 		return -ENOMEM;
 	}
