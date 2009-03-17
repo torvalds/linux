@@ -328,10 +328,10 @@ static struct comedi_driver driver_pci_dio = {
       attach:pci_dio_attach,
       detach:pci_dio_detach
 };
-typedef struct pci_dio_private_st pci_dio_private;
-struct pci_dio_private_st {
-	pci_dio_private *prev;	/*  previous private struct */
-	pci_dio_private *next;	/*  next private struct */
+
+struct pci_dio_private {
+	struct pci_dio_private *prev;	/*  previous private struct */
+	struct pci_dio_private *next;	/*  next private struct */
 	struct pci_dev *pcidev;	/*  pointer to board's pci_dev */
 	char valid;		/*  card is usable */
 	char GlobalIrqEnabled;	/*  1= any IRQ source is enabled */
@@ -349,9 +349,9 @@ struct pci_dio_private_st {
 	unsigned short IDIFiltrHigh[8];	/*  IDI's filter value high signal */
 };
 
-static pci_dio_private *pci_priv = NULL;	/* list of allocated cards */
+static struct pci_dio_private *pci_priv = NULL;	/* list of allocated cards */
 
-#define devpriv ((pci_dio_private *)dev->private)
+#define devpriv ((struct pci_dio_private *)dev->private)
 #define this_board ((const struct dio_boardtype *)dev->board_ptr)
 
 /*
@@ -860,7 +860,7 @@ static int pci_dio_add_do(struct comedi_device * dev, struct comedi_subdevice * 
 static int CheckAndAllocCard(struct comedi_device * dev, struct comedi_devconfig * it,
 	struct pci_dev *pcidev)
 {
-	pci_dio_private *pr, *prev;
+	struct pci_dio_private *pr, *prev;
 
 	for (pr = pci_priv, prev = NULL; pr != NULL; prev = pr, pr = pr->next) {
 		if (pr->pcidev == pcidev) {
@@ -892,7 +892,7 @@ static int pci_dio_attach(struct comedi_device * dev, struct comedi_devconfig * 
 
 	rt_printk("comedi%d: adv_pci_dio: ", dev->minor);
 
-	if ((ret = alloc_private(dev, sizeof(pci_dio_private))) < 0) {
+	if ((ret = alloc_private(dev, sizeof(struct pci_dio_private))) < 0) {
 		rt_printk(", Error: Cann't allocate private memory!\n");
 		return -ENOMEM;
 	}
