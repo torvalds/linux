@@ -278,15 +278,15 @@ enum dio200_layout {
 	pc272_layout
 };
 
-typedef struct dio200_board_struct {
+struct dio200_board {
 	const char *name;
 	unsigned short devid;
 	enum dio200_bustype bustype;
 	enum dio200_model model;
 	enum dio200_layout layout;
-} dio200_board;
+};
 
-static const dio200_board dio200_boards[] = {
+static const struct dio200_board dio200_boards[] = {
 	{
 	      name:	"pc212e",
 	      bustype:	isa_bustype,
@@ -431,8 +431,8 @@ MODULE_DEVICE_TABLE(pci, dio200_pci_table);
 /*
  * Useful for shorthand access to the particular board structure
  */
-#define thisboard ((const dio200_board *)dev->board_ptr)
-#define thislayout (&dio200_layouts[((dio200_board *)dev->board_ptr)->layout])
+#define thisboard ((const struct dio200_board *)dev->board_ptr)
+#define thislayout (&dio200_layouts[((struct dio200_board *)dev->board_ptr)->layout])
 
 /* this structure is for data unique to this hardware driver.  If
    several hardware drivers keep similar information in this structure,
@@ -481,8 +481,8 @@ static struct comedi_driver driver_amplc_dio200 = {
       attach:dio200_attach,
       detach:dio200_detach,
       board_name:&dio200_boards[0].name,
-      offset:sizeof(dio200_board),
-      num_names:sizeof(dio200_boards) / sizeof(dio200_board),
+      offset:sizeof(struct dio200_board),
+      num_names:sizeof(dio200_boards) / sizeof(struct dio200_board),
 };
 
 #ifdef CONFIG_COMEDI_PCI
