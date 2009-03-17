@@ -345,8 +345,8 @@ static void CountersInit(comedi_device *dev);
 /*  Counter objects constructor. */
 
 /*  Counter overflow/index event flag masks for RDMISC2. */
-#define INDXMASK(C)		( 1 << ( ( (C) > 2 ) ? ( (C) * 2 - 1 ) : ( (C) * 2 +  4 ) ) )
-#define OVERMASK(C)		( 1 << ( ( (C) > 2 ) ? ( (C) * 2 + 5 ) : ( (C) * 2 + 10 ) ) )
+#define INDXMASK(C)		(1 << (((C) > 2) ? ((C) * 2 - 1) : ((C) * 2 +  4)))
+#define OVERMASK(C)		(1 << (((C) > 2) ? ((C) * 2 + 5) : ((C) * 2 + 10)))
 #define EVBITS(C)		{ 0, OVERMASK(C), INDXMASK(C), OVERMASK(C) | INDXMASK(C) }
 
 /*  Translation table to map IntSrc into equivalent RDMISC2 event flag  bits. */
@@ -454,11 +454,11 @@ static enc_private enc_private_data[] = {
 
 /*  enab/disable a function or test status bit(s) that are accessed */
 /*  through Main Control Registers 1 or 2. */
-#define MC_ENABLE( REGADRS, CTRLWORD )	writel(  ( (uint32_t)( CTRLWORD ) << 16 ) | (uint32_t)( CTRLWORD ), devpriv->base_addr+( REGADRS ) )
+#define MC_ENABLE(REGADRS, CTRLWORD)	writel(((uint32_t)(CTRLWORD) << 16) | (uint32_t)(CTRLWORD), devpriv->base_addr+(REGADRS))
 
-#define MC_DISABLE( REGADRS, CTRLWORD )	writel(  (uint32_t)( CTRLWORD ) << 16 , devpriv->base_addr+( REGADRS ) )
+#define MC_DISABLE(REGADRS, CTRLWORD)	writel((uint32_t)(CTRLWORD) << 16 , devpriv->base_addr+(REGADRS))
 
-#define MC_TEST( REGADRS, CTRLWORD )	( ( readl(devpriv->base_addr+( REGADRS )) & CTRLWORD ) != 0 )
+#define MC_TEST(REGADRS, CTRLWORD)	((readl(devpriv->base_addr+(REGADRS)) & CTRLWORD) != 0)
 
 /* #define WR7146(REGARDS,CTRLWORD)
     writel(CTRLWORD,(uint32_t)(devpriv->base_addr+(REGARDS))) */
@@ -468,16 +468,16 @@ static enc_private enc_private_data[] = {
     readl((uint32_t)(devpriv->base_addr+(REGARDS))) */
 #define RR7146(REGARDS)		readl(devpriv->base_addr+(REGARDS))
 
-#define BUGFIX_STREG(REGADRS)   ( REGADRS - 4 )
+#define BUGFIX_STREG(REGADRS)   (REGADRS - 4)
 
 /*  Write a time slot control record to TSL2. */
-#define VECTPORT( VECTNUM )		(P_TSL2 + ( (VECTNUM) << 2 ))
-#define SETVECT( VECTNUM, VECTVAL )	WR7146(VECTPORT( VECTNUM ), (VECTVAL))
+#define VECTPORT(VECTNUM)		(P_TSL2 + ((VECTNUM) << 2))
+#define SETVECT(VECTNUM, VECTVAL)	WR7146(VECTPORT(VECTNUM), (VECTVAL))
 
 /*  Code macros used for constructing I2C command bytes. */
-#define I2C_B2(ATTR, VAL)	( ( (ATTR) << 6 ) | ( (VAL) << 24 ) )
-#define I2C_B1(ATTR, VAL)	( ( (ATTR) << 4 ) | ( (VAL) << 16 ) )
-#define I2C_B0(ATTR, VAL)	( ( (ATTR) << 2 ) | ( (VAL) <<  8 ) )
+#define I2C_B2(ATTR, VAL)	(((ATTR) << 6) | ((VAL) << 24))
+#define I2C_B1(ATTR, VAL)	(((ATTR) << 4) | ((VAL) << 16))
+#define I2C_B0(ATTR, VAL)	(((ATTR) << 2) | ((VAL) <<  8))
 
 static const comedi_lrange s626_range_table = { 2, {
 			RANGE(-5, 5),
@@ -2353,7 +2353,7 @@ static void s626_timer_load(comedi_device *dev, enc_private *k, int tick)
 /* ***********  DAC FUNCTIONS *********** */
 
 /*  Slot 0 base settings. */
-#define VECT0	( XSD2 | RSD3 | SIB_A2 )
+#define VECT0	(XSD2 | RSD3 | SIB_A2)
 /*  Slot 0 always shifts in  0xFF and store it to  FB_BUFFER2. */
 
 /*  TrimDac LogicalChan-to-PhysicalChan mapping table. */

@@ -33,7 +33,7 @@
 #define PCIMIO_COMPAT
 
 #ifdef DEBUG_MITE
-#define MDPRINTK(format, args...)	printk(format , ## args )
+#define MDPRINTK(format, args...)	printk(format , ## args)
 #else
 #define MDPRINTK(format, args...)
 #endif

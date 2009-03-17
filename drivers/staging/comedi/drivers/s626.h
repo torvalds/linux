@@ -173,7 +173,7 @@
 
 /*  RPS clock parameters. */
 #define RPSCLK_SCALAR		8	/*  This is apparent ratio of PCI/RPS clks (undocumented!!). */
-#define RPSCLK_PER_US		( 33 / RPSCLK_SCALAR )	/*  Number of RPS clocks in one microsecond. */
+#define RPSCLK_PER_US		(33 / RPSCLK_SCALAR)	/*  Number of RPS clocks in one microsecond. */
 
 /*  Event counter source addresses. */
 #define SBA_RPS_A0		0x27	/*  Time of RPS0 busy, in PCI clocks. */
@@ -377,14 +377,14 @@
 
 #if PLATFORM == INTEL		/* Base ACON1 config: always run A1 based
 				 * on TSL1. */
-#define ACON1_BASE		( WS_MODES | A1_RUN )
+#define ACON1_BASE		(WS_MODES | A1_RUN)
 #elif PLATFORM == MOTOROLA
-#define ACON1_BASE		( WS_MODES | A1_RUN | A1_SWAP | A2_SWAP )
+#define ACON1_BASE		(WS_MODES | A1_RUN | A1_SWAP | A2_SWAP)
 #endif
 
 #define ACON1_ADCSTART		ACON1_BASE	/* Start ADC: run A1
 						 *  based on TSL1. */
-#define ACON1_DACSTART		( ACON1_BASE | A2_RUN )
+#define ACON1_DACSTART		(ACON1_BASE | A2_RUN)
 /* Start transmit to DAC: run A2 based on TSL2. */
 #define ACON1_DACSTOP		ACON1_BASE	/*  Halt A2. */
 
@@ -398,7 +398,7 @@
 #define ACON2_XORMASK		0x000C0000	/*  XOR mask for ACON2 */
 						/*  active-low bits. */
 
-#define ACON2_INIT		( ACON2_XORMASK ^ ( A1_CLKSRC_BCLK1 | A2_CLKSRC_X2 | INVERT_BCLK2 | BCLK2_OE ) )
+#define ACON2_INIT		(ACON2_XORMASK ^ (A1_CLKSRC_BCLK1 | A2_CLKSRC_X2 | INVERT_BCLK2 | BCLK2_OE))
 
 /*  Bit masks for timeslot records. */
 #define WS1		     	0x40000000	/*  WS output to assert. */
@@ -452,7 +452,7 @@
 /*  I2C manifest constants. */
 
 /*  Max retries to wait for EEPROM write. */
-#define I2C_RETRIES		( I2C_WRTIME * I2C_BITRATE / 9.0 )
+#define I2C_RETRIES		(I2C_WRTIME * I2C_BITRATE / 9.0)
 #define I2C_ERR			0x0002	/*  I2C control/status */
 						/*  flag ERROR. */
 #define I2C_BUSY		0x0001	/*  I2C control/status */
@@ -464,15 +464,15 @@
 #define I2C_ATTRNOP		0x0	/*  I2C attribute NOP. */
 
 /*  I2C read command  | EEPROM address. */
-#define I2CR			( devpriv->I2CAdrs | 1 )
+#define I2CR			(devpriv->I2CAdrs | 1)
 
 /*  I2C write command | EEPROM address. */
-#define I2CW			( devpriv->I2CAdrs )
+#define I2CW			(devpriv->I2CAdrs)
 
 /*  Code macros used for constructing I2C command bytes. */
-#define I2C_B2(ATTR, VAL)	( ( (ATTR) << 6 ) | ( (VAL) << 24 ) )
-#define I2C_B1(ATTR, VAL)	( ( (ATTR) << 4 ) | ( (VAL) << 16 ) )
-#define I2C_B0(ATTR, VAL)	( ( (ATTR) << 2 ) | ( (VAL) <<  8 ) )
+#define I2C_B2(ATTR, VAL)	(((ATTR) << 6) | ((VAL) << 24))
+#define I2C_B1(ATTR, VAL)	(((ATTR) << 4) | ((VAL) << 16))
+#define I2C_B0(ATTR, VAL)	(((ATTR) << 2) | ((VAL) <<  8))
 
 /* oldest */
 #define P_DEBICFGq              0x007C	/*  DEBI configuration. */
@@ -490,16 +490,16 @@
 #define DEBI_PAGE_DISABLEQ	0x00000000	/*  paging disable */
 
 /*  DEBI command constants. */
-#define DEBI_CMD_SIZE16		( 2 << 17 )	/*  Transfer size is */
+#define DEBI_CMD_SIZE16		(2 << 17)	/*  Transfer size is */
 						/*  always 2 bytes. */
 #define DEBI_CMD_READ		0x00010000	/*  Read operation. */
 #define DEBI_CMD_WRITE		0x00000000	/*  Write operation. */
 
 /*  Read immediate 2 bytes. */
-#define DEBI_CMD_RDWORD		( DEBI_CMD_READ  | DEBI_CMD_SIZE16 )
+#define DEBI_CMD_RDWORD		(DEBI_CMD_READ  | DEBI_CMD_SIZE16)
 
 /*  Write immediate 2 bytes. */
-#define DEBI_CMD_WRWORD		( DEBI_CMD_WRITE | DEBI_CMD_SIZE16 )
+#define DEBI_CMD_WRWORD		(DEBI_CMD_WRITE | DEBI_CMD_SIZE16)
 
 /*  DEBI configuration constants. */
 #define DEBI_CFG_XIRQ_EN	0x80000000	/*  enab external */
@@ -681,29 +681,29 @@
 
 /*  Bit field masks for CRA and CRB. */
 
-#define CRAMSK_INDXSRC_B	( (uint16_t)( 3 << CRABIT_INDXSRC_B) )
-#define CRAMSK_CLKSRC_B		( (uint16_t)( 3 << CRABIT_CLKSRC_B) )
-#define CRAMSK_INDXPOL_A	( (uint16_t)( 1 << CRABIT_INDXPOL_A) )
-#define CRAMSK_LOADSRC_A	( (uint16_t)( 3 << CRABIT_LOADSRC_A) )
-#define CRAMSK_CLKMULT_A	( (uint16_t)( 3 << CRABIT_CLKMULT_A) )
-#define CRAMSK_INTSRC_A		( (uint16_t)( 3 << CRABIT_INTSRC_A) )
-#define CRAMSK_CLKPOL_A		( (uint16_t)( 3 << CRABIT_CLKPOL_A) )
-#define CRAMSK_INDXSRC_A	( (uint16_t)( 3 << CRABIT_INDXSRC_A) )
-#define CRAMSK_CLKSRC_A		( (uint16_t)( 3 << CRABIT_CLKSRC_A) )
+#define CRAMSK_INDXSRC_B	((uint16_t)(3 << CRABIT_INDXSRC_B))
+#define CRAMSK_CLKSRC_B		((uint16_t)(3 << CRABIT_CLKSRC_B))
+#define CRAMSK_INDXPOL_A	((uint16_t)(1 << CRABIT_INDXPOL_A))
+#define CRAMSK_LOADSRC_A	((uint16_t)(3 << CRABIT_LOADSRC_A))
+#define CRAMSK_CLKMULT_A	((uint16_t)(3 << CRABIT_CLKMULT_A))
+#define CRAMSK_INTSRC_A		((uint16_t)(3 << CRABIT_INTSRC_A))
+#define CRAMSK_CLKPOL_A		((uint16_t)(3 << CRABIT_CLKPOL_A))
+#define CRAMSK_INDXSRC_A	((uint16_t)(3 << CRABIT_INDXSRC_A))
+#define CRAMSK_CLKSRC_A		((uint16_t)(3 << CRABIT_CLKSRC_A))
 
-#define CRBMSK_INTRESETCMD	( (uint16_t)( 1 << CRBBIT_INTRESETCMD) )
-#define CRBMSK_INTRESET_B	( (uint16_t)( 1 << CRBBIT_INTRESET_B) )
-#define CRBMSK_INTRESET_A	( (uint16_t)( 1 << CRBBIT_INTRESET_A) )
-#define CRBMSK_CLKENAB_A	( (uint16_t)( 1 << CRBBIT_CLKENAB_A) )
-#define CRBMSK_INTSRC_B		( (uint16_t)( 3 << CRBBIT_INTSRC_B) )
-#define CRBMSK_LATCHSRC		( (uint16_t)( 3 << CRBBIT_LATCHSRC) )
-#define CRBMSK_LOADSRC_B	( (uint16_t)( 3 << CRBBIT_LOADSRC_B) )
-#define CRBMSK_CLKMULT_B	( (uint16_t)( 3 << CRBBIT_CLKMULT_B) )
-#define CRBMSK_CLKENAB_B	( (uint16_t)( 1 << CRBBIT_CLKENAB_B) )
-#define CRBMSK_INDXPOL_B	( (uint16_t)( 1 << CRBBIT_INDXPOL_B) )
-#define CRBMSK_CLKPOL_B		( (uint16_t)( 1 << CRBBIT_CLKPOL_B) )
+#define CRBMSK_INTRESETCMD	((uint16_t)(1 << CRBBIT_INTRESETCMD))
+#define CRBMSK_INTRESET_B	((uint16_t)(1 << CRBBIT_INTRESET_B))
+#define CRBMSK_INTRESET_A	((uint16_t)(1 << CRBBIT_INTRESET_A))
+#define CRBMSK_CLKENAB_A	((uint16_t)(1 << CRBBIT_CLKENAB_A))
+#define CRBMSK_INTSRC_B		((uint16_t)(3 << CRBBIT_INTSRC_B))
+#define CRBMSK_LATCHSRC		((uint16_t)(3 << CRBBIT_LATCHSRC))
+#define CRBMSK_LOADSRC_B	((uint16_t)(3 << CRBBIT_LOADSRC_B))
+#define CRBMSK_CLKMULT_B	((uint16_t)(3 << CRBBIT_CLKMULT_B))
+#define CRBMSK_CLKENAB_B	((uint16_t)(1 << CRBBIT_CLKENAB_B))
+#define CRBMSK_INDXPOL_B	((uint16_t)(1 << CRBBIT_INDXPOL_B))
+#define CRBMSK_CLKPOL_B		((uint16_t)(1 << CRBBIT_CLKPOL_B))
 
-#define CRBMSK_INTCTRL		( CRBMSK_INTRESETCMD | CRBMSK_INTRESET_A | CRBMSK_INTRESET_B )	/*  Interrupt reset control bits. */
+#define CRBMSK_INTCTRL		(CRBMSK_INTRESETCMD | CRBMSK_INTRESET_A | CRBMSK_INTRESET_B)	/*  Interrupt reset control bits. */
 
 /*  Bit field positions for standardized SETUP structure. */
 
@@ -719,15 +719,15 @@
 
 /*  Bit field masks for standardized SETUP structure. */
 
-#define STDMSK_INTSRC		( (uint16_t)( 3 << STDBIT_INTSRC   ) )
-#define STDMSK_LATCHSRC		( (uint16_t)( 3 << STDBIT_LATCHSRC ) )
-#define STDMSK_LOADSRC		( (uint16_t)( 3 << STDBIT_LOADSRC  ) )
-#define STDMSK_INDXSRC		( (uint16_t)( 1 << STDBIT_INDXSRC  ) )
-#define STDMSK_INDXPOL		( (uint16_t)( 1 << STDBIT_INDXPOL  ) )
-#define STDMSK_CLKSRC		( (uint16_t)( 3 << STDBIT_CLKSRC   ) )
-#define STDMSK_CLKPOL		( (uint16_t)( 1 << STDBIT_CLKPOL   ) )
-#define STDMSK_CLKMULT		( (uint16_t)( 3 << STDBIT_CLKMULT  ) )
-#define STDMSK_CLKENAB		( (uint16_t)( 1 << STDBIT_CLKENAB  ) )
+#define STDMSK_INTSRC		((uint16_t)(3 << STDBIT_INTSRC))
+#define STDMSK_LATCHSRC		((uint16_t)(3 << STDBIT_LATCHSRC))
+#define STDMSK_LOADSRC		((uint16_t)(3 << STDBIT_LOADSRC))
+#define STDMSK_INDXSRC		((uint16_t)(1 << STDBIT_INDXSRC))
+#define STDMSK_INDXPOL		((uint16_t)(1 << STDBIT_INDXPOL))
+#define STDMSK_CLKSRC		((uint16_t)(3 << STDBIT_CLKSRC))
+#define STDMSK_CLKPOL		((uint16_t)(1 << STDBIT_CLKPOL))
+#define STDMSK_CLKMULT		((uint16_t)(3 << STDBIT_CLKMULT))
+#define STDMSK_CLKENAB		((uint16_t)(1 << STDBIT_CLKENAB))
 
 
 /* typedef struct indexCounter */

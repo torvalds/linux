@@ -55,7 +55,7 @@ int comedi_read_procmem(char *buf, char **start, off_t offset, int len,
 		struct comedi_device_file_info *dev_file_info = comedi_get_device_file_info(i);
 		comedi_device *dev;
 
-		if(dev_file_info == NULL) continue;
+		if (dev_file_info == NULL) continue;
 		dev = dev_file_info->device;
 
 		if (dev->attached) {

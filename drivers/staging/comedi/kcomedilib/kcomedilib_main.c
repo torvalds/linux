@@ -57,11 +57,11 @@ comedi_t *comedi_open(const char *filename)
 		return NULL;
 
 	dev_file_info = comedi_get_device_file_info(minor);
-	if(dev_file_info == NULL)
+	if (dev_file_info == NULL)
 		return NULL;
 	dev = dev_file_info->device;
 
-	if(dev == NULL || !dev->attached)
+	if (dev == NULL || !dev->attached)
 		return NULL;
 
 	if (!try_module_get(dev->driver->module))
@@ -79,11 +79,11 @@ comedi_t *comedi_open_old(unsigned int minor)
 		return NULL;
 
 	dev_file_info = comedi_get_device_file_info(minor);
-	if(dev_file_info == NULL)
+	if (dev_file_info == NULL)
 		return NULL;
 	dev = dev_file_info->device;
 
-	if(dev == NULL || !dev->attached)
+	if (dev == NULL || !dev->attached)
 		return NULL;
 
 	return (comedi_t *) dev;
