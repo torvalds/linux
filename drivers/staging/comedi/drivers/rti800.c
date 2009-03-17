@@ -118,16 +118,18 @@ static const struct comedi_lrange range_rti800_ai_unipolar = { 4, {
 	}
 };
 
-typedef struct {
+struct rti800_board {
+
 	const char *name;
 	int has_ao;
-} boardtype;
-static const boardtype boardtypes[] = {
+};
+
+static const struct rti800_board boardtypes[] = {
 	{"rti800", 0},
 	{"rti815", 1},
 };
 
-#define this_board ((const boardtype *)dev->board_ptr)
+#define this_board ((const struct rti800_board *)dev->board_ptr)
 
 static int rti800_attach(struct comedi_device * dev, struct comedi_devconfig * it);
 static int rti800_detach(struct comedi_device * dev);
@@ -136,9 +138,9 @@ static struct comedi_driver driver_rti800 = {
       module:THIS_MODULE,
       attach:rti800_attach,
       detach:rti800_detach,
-      num_names:sizeof(boardtypes) / sizeof(boardtype),
+      num_names:sizeof(boardtypes) / sizeof(struct rti800_board),
       board_name:&boardtypes[0].name,
-      offset:sizeof(boardtype),
+      offset:sizeof(struct rti800_board),
 };
 
 COMEDI_INITCLEANUP(driver_rti800);
