@@ -229,7 +229,7 @@ static int s626_ai_insn_read(struct comedi_device *dev, struct comedi_subdevice 
 	comedi_insn *insn, unsigned int *data);
 static int s626_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s);
 static int s626_ai_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
-	comedi_cmd *cmd);
+	struct comedi_cmd *cmd);
 static int s626_ai_cancel(struct comedi_device *dev, struct comedi_subdevice *s);
 static int s626_ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
 	comedi_insn *insn, unsigned int *data);
@@ -250,7 +250,7 @@ static int s626_enc_insn_read(struct comedi_device *dev, struct comedi_subdevice
 static int s626_enc_insn_write(struct comedi_device *dev, struct comedi_subdevice *s,
 	comedi_insn *insn, unsigned int *data);
 static int s626_ns_to_timer(int *nanosec, int round_mode);
-static int s626_ai_load_polllist(uint8_t *ppl, comedi_cmd *cmd);
+static int s626_ai_load_polllist(uint8_t *ppl, struct comedi_cmd *cmd);
 static int s626_ai_inttrig(struct comedi_device *dev, struct comedi_subdevice *s,
 	unsigned int trignum);
 static irqreturn_t s626_irq_handler(int irq, void *d PT_REGS_ARG);
@@ -972,7 +972,7 @@ static irqreturn_t s626_irq_handler(int irq, void *d PT_REGS_ARG)
 {
 	struct comedi_device *dev = d;
 	struct comedi_subdevice *s;
-	comedi_cmd *cmd;
+	struct comedi_cmd *cmd;
 	struct enc_private *k;
 	unsigned long flags;
 	int32_t *readaddr;
@@ -1318,7 +1318,7 @@ void ResetADC(struct comedi_device *dev, uint8_t *ppl)
 	uint16_t i;
 	uint16_t n;
 	uint32_t LocalPPL;
-	comedi_cmd *cmd = &(dev->subdevices->async->cmd);
+	struct comedi_cmd *cmd = &(dev->subdevices->async->cmd);
 
 	/*  Stop RPS program in case it is currently running. */
 	MC_DISABLE(P_MC1, MC1_ERPS1);
@@ -1638,7 +1638,7 @@ static int s626_ai_insn_read(struct comedi_device *dev, struct comedi_subdevice 
 	return n;
 }
 
-static int s626_ai_load_polllist(uint8_t *ppl, comedi_cmd *cmd)
+static int s626_ai_load_polllist(uint8_t *ppl, struct comedi_cmd *cmd)
 {
 
 	int n;
@@ -1677,7 +1677,7 @@ static int s626_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 
 	uint8_t ppl[16];
-	comedi_cmd *cmd = &s->async->cmd;
+	struct comedi_cmd *cmd = &s->async->cmd;
 	struct enc_private *k;
 	int tick;
 
@@ -1820,7 +1820,7 @@ static int s626_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 }
 
 static int s626_ai_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
-	comedi_cmd *cmd)
+	struct comedi_cmd *cmd)
 {
 	int err = 0;
 	int tmp;

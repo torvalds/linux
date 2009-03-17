@@ -166,27 +166,27 @@ static int me4000_ai_insn_read(struct comedi_device *dev,
 static int me4000_ai_cancel(struct comedi_device *dev, struct comedi_subdevice *s);
 
 static int ai_check_chanlist(struct comedi_device *dev,
-	struct comedi_subdevice *s, comedi_cmd *cmd);
+	struct comedi_subdevice *s, struct comedi_cmd *cmd);
 
 static int ai_round_cmd_args(struct comedi_device *dev,
 	struct comedi_subdevice *s,
-	comedi_cmd *cmd,
+	struct comedi_cmd *cmd,
 	unsigned int *init_ticks,
 	unsigned int *scan_ticks, unsigned int *chan_ticks);
 
 static int ai_prepare(struct comedi_device *dev,
 	struct comedi_subdevice *s,
-	comedi_cmd *cmd,
+	struct comedi_cmd *cmd,
 	unsigned int init_ticks,
 	unsigned int scan_ticks, unsigned int chan_ticks);
 
 static int ai_write_chanlist(struct comedi_device *dev,
-	struct comedi_subdevice *s, comedi_cmd *cmd);
+	struct comedi_subdevice *s, struct comedi_cmd *cmd);
 
 static irqreturn_t me4000_ai_isr(int irq, void *dev_id PT_REGS_ARG);
 
 static int me4000_ai_do_cmd_test(struct comedi_device *dev,
-	struct comedi_subdevice *s, comedi_cmd *cmd);
+	struct comedi_subdevice *s, struct comedi_cmd *cmd);
 
 static int me4000_ai_do_cmd(struct comedi_device *dev, struct comedi_subdevice *s);
 
@@ -1055,7 +1055,7 @@ static int me4000_ai_cancel(struct comedi_device *dev, struct comedi_subdevice *
 }
 
 static int ai_check_chanlist(struct comedi_device *dev,
-	struct comedi_subdevice *s, comedi_cmd *cmd)
+	struct comedi_subdevice *s, struct comedi_cmd *cmd)
 {
 	int aref;
 	int i;
@@ -1137,7 +1137,7 @@ static int ai_check_chanlist(struct comedi_device *dev,
 
 static int ai_round_cmd_args(struct comedi_device *dev,
 	struct comedi_subdevice *s,
-	comedi_cmd *cmd,
+	struct comedi_cmd *cmd,
 	unsigned int *init_ticks,
 	unsigned int *scan_ticks, unsigned int *chan_ticks)
 {
@@ -1224,7 +1224,7 @@ static void ai_write_timer(struct comedi_device *dev,
 
 static int ai_prepare(struct comedi_device *dev,
 	struct comedi_subdevice *s,
-	comedi_cmd *cmd,
+	struct comedi_cmd *cmd,
 	unsigned int init_ticks,
 	unsigned int scan_ticks, unsigned int chan_ticks)
 {
@@ -1292,7 +1292,7 @@ static int ai_prepare(struct comedi_device *dev,
 }
 
 static int ai_write_chanlist(struct comedi_device *dev,
-	struct comedi_subdevice *s, comedi_cmd *cmd)
+	struct comedi_subdevice *s, struct comedi_cmd *cmd)
 {
 	unsigned int entry;
 	unsigned int chan;
@@ -1337,7 +1337,7 @@ static int me4000_ai_do_cmd(struct comedi_device *dev, struct comedi_subdevice *
 	unsigned int init_ticks = 0;
 	unsigned int scan_ticks = 0;
 	unsigned int chan_ticks = 0;
-	comedi_cmd *cmd = &s->async->cmd;
+	struct comedi_cmd *cmd = &s->async->cmd;
 
 	CALL_PDEBUG("In me4000_ai_do_cmd()\n");
 
@@ -1376,7 +1376,7 @@ static int me4000_ai_do_cmd(struct comedi_device *dev, struct comedi_subdevice *
  * So I tried to adopt this scheme.
  */
 static int me4000_ai_do_cmd_test(struct comedi_device *dev,
-	struct comedi_subdevice *s, comedi_cmd *cmd)
+	struct comedi_subdevice *s, struct comedi_cmd *cmd)
 {
 
 	unsigned int init_ticks;

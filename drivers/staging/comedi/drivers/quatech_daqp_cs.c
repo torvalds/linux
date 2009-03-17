@@ -468,7 +468,7 @@ static int daqp_ns_to_timer(unsigned int *ns, int round)
  */
 
 static int daqp_ai_cmdtest(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_cmd * cmd)
+	struct comedi_cmd * cmd)
 {
 	int err = 0;
 	int tmp;
@@ -596,7 +596,7 @@ static int daqp_ai_cmdtest(struct comedi_device * dev, struct comedi_subdevice *
 static int daqp_ai_cmd(struct comedi_device * dev, struct comedi_subdevice * s)
 {
 	local_info_t *local = (local_info_t *) s->private;
-	comedi_cmd *cmd = &s->async->cmd;
+	struct comedi_cmd *cmd = &s->async->cmd;
 	int counter = 100;
 	int scanlist_start_on_every_entry;
 	int threshold;

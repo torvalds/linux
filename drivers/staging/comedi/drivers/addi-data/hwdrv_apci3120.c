@@ -460,7 +460,7 @@ int i_APCI3120_StopCyclicAcquisition(struct comedi_device * dev, struct comedi_s
 /*
 +----------------------------------------------------------------------------+
 | Function name     :int i_APCI3120_CommandTestAnalogInput(struct comedi_device *dev|
-|			,struct comedi_subdevice *s,comedi_cmd *cmd)					 |
+|			,struct comedi_subdevice *s,struct comedi_cmd *cmd)					 |
 |                                        									 |
 +----------------------------------------------------------------------------+
 | Task              : Test validity for a command for cyclic anlog input     |
@@ -469,7 +469,7 @@ int i_APCI3120_StopCyclicAcquisition(struct comedi_device * dev, struct comedi_s
 +----------------------------------------------------------------------------+
 | Input Parameters  : struct comedi_device *dev									 |
 |                     struct comedi_subdevice *s									 |
-|                     comedi_cmd *cmd              					         |
+|                     struct comedi_cmd *cmd              					         |
 +----------------------------------------------------------------------------+
 | Return Value      :0              					                     |
 |                    													     |
@@ -477,7 +477,7 @@ int i_APCI3120_StopCyclicAcquisition(struct comedi_device * dev, struct comedi_s
 */
 
 int i_APCI3120_CommandTestAnalogInput(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_cmd * cmd)
+	struct comedi_cmd * cmd)
 {
 	int err = 0;
 	int tmp;		// divisor1,divisor2;
@@ -635,7 +635,7 @@ int i_APCI3120_CommandTestAnalogInput(struct comedi_device * dev, struct comedi_
 
 int i_APCI3120_CommandAnalogInput(struct comedi_device * dev, struct comedi_subdevice * s)
 {
-	comedi_cmd *cmd = &s->async->cmd;
+	struct comedi_cmd *cmd = &s->async->cmd;
 
 	//loading private structure with cmd structure inputs
 	devpriv->ui_AiFlags = cmd->flags;

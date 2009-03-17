@@ -231,7 +231,7 @@ static irqreturn_t ni6527_interrupt(int irq, void *d PT_REGS_ARG)
 }
 
 static int ni6527_intr_cmdtest(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_cmd * cmd)
+	struct comedi_cmd * cmd)
 {
 	int err = 0;
 	int tmp;
@@ -308,7 +308,7 @@ static int ni6527_intr_cmdtest(struct comedi_device * dev, struct comedi_subdevi
 
 static int ni6527_intr_cmd(struct comedi_device * dev, struct comedi_subdevice * s)
 {
-	//comedi_cmd *cmd = &s->async->cmd;
+	//struct comedi_cmd *cmd = &s->async->cmd;
 
 	writeb(ClrEdge | ClrOverflow,
 		devpriv->mite->daq_io_addr + Clear_Register);

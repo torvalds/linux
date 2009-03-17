@@ -977,13 +977,13 @@ error:
 */
 static int do_cmd_ioctl(struct comedi_device *dev, void *arg, void *file)
 {
-	comedi_cmd user_cmd;
+	struct comedi_cmd user_cmd;
 	struct comedi_subdevice *s;
 	struct comedi_async *async;
 	int ret = 0;
 	unsigned int *chanlist_saver = NULL;
 
-	if (copy_from_user(&user_cmd, arg, sizeof(comedi_cmd))) {
+	if (copy_from_user(&user_cmd, arg, sizeof(struct comedi_cmd))) {
 		DPRINTK("bad cmd address\n");
 		return -EFAULT;
 	}
@@ -1072,7 +1072,7 @@ static int do_cmd_ioctl(struct comedi_device *dev, void *arg, void *file)
 		/* restore chanlist pointer before copying back */
 		user_cmd.chanlist = chanlist_saver;
 		user_cmd.data = NULL;
-		if (copy_to_user(arg, &user_cmd, sizeof(comedi_cmd))) {
+		if (copy_to_user(arg, &user_cmd, sizeof(struct comedi_cmd))) {
 			DPRINTK("fault writing cmd\n");
 			ret = -EFAULT;
 			goto cleanup;
@@ -1131,13 +1131,13 @@ cleanup:
 */
 static int do_cmdtest_ioctl(struct comedi_device *dev, void *arg, void *file)
 {
-	comedi_cmd user_cmd;
+	struct comedi_cmd user_cmd;
 	struct comedi_subdevice *s;
 	int ret = 0;
 	unsigned int *chanlist = NULL;
 	unsigned int *chanlist_saver = NULL;
 
-	if (copy_from_user(&user_cmd, arg, sizeof(comedi_cmd))) {
+	if (copy_from_user(&user_cmd, arg, sizeof(struct comedi_cmd))) {
 		DPRINTK("bad cmd address\n");
 		return -EFAULT;
 	}
@@ -1201,7 +1201,7 @@ static int do_cmdtest_ioctl(struct comedi_device *dev, void *arg, void *file)
 	/* restore chanlist pointer before copying back */
 	user_cmd.chanlist = chanlist_saver;
 
-	if (copy_to_user(arg, &user_cmd, sizeof(comedi_cmd))) {
+	if (copy_to_user(arg, &user_cmd, sizeof(struct comedi_cmd))) {
 		DPRINTK("bad cmd address\n");
 		ret = -EFAULT;
 		goto cleanup;

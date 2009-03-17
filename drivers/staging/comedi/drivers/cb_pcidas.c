@@ -461,13 +461,13 @@ static int cb_pcidas_ao_readback_insn(struct comedi_device * dev, struct comedi_
 	comedi_insn * insn, unsigned int * data);
 static int cb_pcidas_ai_cmd(struct comedi_device * dev, struct comedi_subdevice * s);
 static int cb_pcidas_ai_cmdtest(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_cmd * cmd);
+	struct comedi_cmd * cmd);
 static int cb_pcidas_ao_cmd(struct comedi_device * dev, struct comedi_subdevice * s);
 static int cb_pcidas_ao_inttrig(struct comedi_device *dev,
 				struct comedi_subdevice *subdev,
 				unsigned int trig_num);
 static int cb_pcidas_ao_cmdtest(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_cmd * cmd);
+	struct comedi_cmd * cmd);
 static irqreturn_t cb_pcidas_interrupt(int irq, void *d PT_REGS_ARG);
 static void handle_ao_interrupt(struct comedi_device * dev, unsigned int status);
 static int cb_pcidas_cancel(struct comedi_device * dev, struct comedi_subdevice * s);
@@ -1009,7 +1009,7 @@ static int trimpot_read_insn(struct comedi_device * dev, struct comedi_subdevice
 }
 
 static int cb_pcidas_ai_cmdtest(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_cmd * cmd)
+	struct comedi_cmd * cmd)
 {
 	int err = 0;
 	int tmp;
@@ -1166,7 +1166,7 @@ static int cb_pcidas_ai_cmdtest(struct comedi_device * dev, struct comedi_subdev
 static int cb_pcidas_ai_cmd(struct comedi_device * dev, struct comedi_subdevice * s)
 {
 	struct comedi_async *async = s->async;
-	comedi_cmd *cmd = &async->cmd;
+	struct comedi_cmd *cmd = &async->cmd;
 	unsigned int bits;
 	unsigned long flags;
 
@@ -1251,7 +1251,7 @@ static int cb_pcidas_ai_cmd(struct comedi_device * dev, struct comedi_subdevice 
 }
 
 static int cb_pcidas_ao_cmdtest(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_cmd * cmd)
+	struct comedi_cmd * cmd)
 {
 	int err = 0;
 	int tmp;
@@ -1366,7 +1366,7 @@ static int cb_pcidas_ao_cmdtest(struct comedi_device * dev, struct comedi_subdev
 static int cb_pcidas_ao_cmd(struct comedi_device * dev, struct comedi_subdevice * s)
 {
 	struct comedi_async *async = s->async;
-	comedi_cmd *cmd = &async->cmd;
+	struct comedi_cmd *cmd = &async->cmd;
 	unsigned int i;
 	unsigned long flags;
 
@@ -1432,7 +1432,7 @@ static int cb_pcidas_ao_inttrig(struct comedi_device *dev,
 {
 	unsigned int num_bytes, num_points = thisboard->fifo_size;
 	struct comedi_async *async = s->async;
-	comedi_cmd *cmd = &s->async->cmd;
+	struct comedi_cmd *cmd = &s->async->cmd;
 	unsigned long flags;
 
 	if (trig_num != 0)
@@ -1592,7 +1592,7 @@ static void handle_ao_interrupt(struct comedi_device * dev, unsigned int status)
 {
 	struct comedi_subdevice *s = dev->write_subdev;
 	struct comedi_async *async = s->async;
-	comedi_cmd *cmd = &async->cmd;
+	struct comedi_cmd *cmd = &async->cmd;
 	unsigned int half_fifo = thisboard->fifo_size / 2;
 	unsigned int num_points;
 	unsigned int flags;

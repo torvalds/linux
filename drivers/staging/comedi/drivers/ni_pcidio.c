@@ -400,7 +400,7 @@ typedef struct {
 #define devpriv ((nidio96_private *)dev->private)
 
 static int ni_pcidio_cmdtest(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_cmd * cmd);
+	struct comedi_cmd * cmd);
 static int ni_pcidio_cmd(struct comedi_device * dev, struct comedi_subdevice * s);
 static int ni_pcidio_inttrig(struct comedi_device * dev, struct comedi_subdevice * s,
 	unsigned int trignum);
@@ -745,7 +745,7 @@ static int ni_pcidio_insn_bits(struct comedi_device * dev, struct comedi_subdevi
 }
 
 static int ni_pcidio_cmdtest(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_cmd * cmd)
+	struct comedi_cmd * cmd)
 {
 	int err = 0;
 	int tmp;
@@ -878,7 +878,7 @@ static int ni_pcidio_ns_to_timer(int *nanosec, int round_mode)
 
 static int ni_pcidio_cmd(struct comedi_device * dev, struct comedi_subdevice * s)
 {
-	comedi_cmd *cmd = &s->async->cmd;
+	struct comedi_cmd *cmd = &s->async->cmd;
 
 	/* XXX configure ports for input */
 	writel(0x0000, devpriv->mite->daq_io_addr + Port_Pin_Directions(0));

@@ -848,7 +848,7 @@ static int ni_660x_cmd(struct comedi_device * dev, struct comedi_subdevice * s)
 	int retval;
 
 	struct ni_gpct *counter = subdev_to_counter(s);
-//      const comedi_cmd *cmd = &s->async->cmd;
+//      const struct comedi_cmd *cmd = &s->async->cmd;
 
 	retval = ni_660x_request_mite_channel(dev, counter, COMEDI_INPUT);
 	if (retval) {
@@ -863,7 +863,7 @@ static int ni_660x_cmd(struct comedi_device * dev, struct comedi_subdevice * s)
 }
 
 static int ni_660x_cmdtest(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_cmd * cmd)
+	struct comedi_cmd * cmd)
 {
 	struct ni_gpct *counter = subdev_to_counter(s);
 

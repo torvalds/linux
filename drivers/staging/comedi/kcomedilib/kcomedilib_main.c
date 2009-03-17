@@ -121,7 +121,7 @@ int comedi_fileno(void *d)
 	return dev->minor;
 }
 
-int comedi_command(void *d, comedi_cmd *cmd)
+int comedi_command(void *d, struct comedi_cmd *cmd)
 {
 	struct comedi_device *dev = (struct comedi_device *) d;
 	struct comedi_subdevice *s;
@@ -161,7 +161,7 @@ int comedi_command(void *d, comedi_cmd *cmd)
 	return s->do_cmd(dev, s);
 }
 
-int comedi_command_test(void *d, comedi_cmd *cmd)
+int comedi_command_test(void *d, struct comedi_cmd *cmd)
 {
 	struct comedi_device *dev = (struct comedi_device *) d;
 	struct comedi_subdevice *s;

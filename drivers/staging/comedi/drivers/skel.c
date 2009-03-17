@@ -192,7 +192,7 @@ static int skel_dio_insn_bits(struct comedi_device * dev, struct comedi_subdevic
 static int skel_dio_insn_config(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data);
 static int skel_ai_cmdtest(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_cmd * cmd);
+	struct comedi_cmd * cmd);
 static int skel_ns_to_timer(unsigned int *ns, int round);
 
 /*
@@ -347,7 +347,7 @@ static int skel_ai_rinsn(struct comedi_device * dev, struct comedi_subdevice * s
 }
 
 static int skel_ai_cmdtest(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_cmd * cmd)
+	struct comedi_cmd * cmd)
 {
 	int err = 0;
 	int tmp;

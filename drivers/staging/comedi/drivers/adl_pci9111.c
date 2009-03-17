@@ -558,7 +558,7 @@ static int pci9111_ai_cancel(struct comedi_device * dev, struct comedi_subdevice
 
 static int
 pci9111_ai_do_cmd_test(struct comedi_device * dev,
-	struct comedi_subdevice * s, comedi_cmd * cmd)
+	struct comedi_subdevice * s, struct comedi_cmd * cmd)
 {
 	int tmp;
 	int error = 0;
@@ -760,7 +760,7 @@ pci9111_ai_do_cmd_test(struct comedi_device * dev,
 
 static int pci9111_ai_do_cmd(struct comedi_device * dev, struct comedi_subdevice * subdevice)
 {
-	comedi_cmd *async_cmd = &subdevice->async->cmd;
+	struct comedi_cmd *async_cmd = &subdevice->async->cmd;
 
 	if (!dev->irq) {
 		comedi_error(dev,

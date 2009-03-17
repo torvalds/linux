@@ -235,7 +235,7 @@ int i_APCI3120_InsnConfigAnalogInput(struct comedi_device *dev, struct comedi_su
 int i_APCI3120_InsnReadAnalogInput(struct comedi_device *dev, struct comedi_subdevice *s,
 				   comedi_insn *insn, unsigned int *data);
 int i_APCI3120_CommandTestAnalogInput(struct comedi_device *dev, struct comedi_subdevice *s,
-				      comedi_cmd *cmd);
+				      struct comedi_cmd *cmd);
 int i_APCI3120_CommandAnalogInput(struct comedi_device *dev, struct comedi_subdevice *s);
 //int i_APCI3120_CancelAnalogInput(struct comedi_device *dev, struct comedi_subdevice *s);
 int i_APCI3120_StopCyclicAcquisition(struct comedi_device *dev, struct comedi_subdevice *s);

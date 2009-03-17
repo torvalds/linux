@@ -198,7 +198,7 @@ static int ni_dio_insn_config(struct comedi_device * dev, struct comedi_subdevic
 static int ni_dio_insn_bits(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data);
 static int ni_cdio_cmdtest(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_cmd * cmd);
+	struct comedi_cmd * cmd);
 static int ni_cdio_cmd(struct comedi_device * dev, struct comedi_subdevice * s);
 static int ni_cdio_cancel(struct comedi_device * dev, struct comedi_subdevice * s);
 static void handle_cdio_interrupt(struct comedi_device * dev);
@@ -275,7 +275,7 @@ static int ni_gpct_insn_config(struct comedi_device * dev, struct comedi_subdevi
 	comedi_insn * insn, unsigned int * data);
 static int ni_gpct_cmd(struct comedi_device * dev, struct comedi_subdevice * s);
 static int ni_gpct_cmdtest(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_cmd * cmd);
+	struct comedi_cmd * cmd);
 static int ni_gpct_cancel(struct comedi_device * dev, struct comedi_subdevice * s);
 static void handle_gpct_interrupt(struct comedi_device * dev,
 	unsigned short counter_index);
@@ -1207,7 +1207,7 @@ static void ni_mio_print_status_b(int status)
 static void ni_ao_fifo_load(struct comedi_device * dev, struct comedi_subdevice * s, int n)
 {
 	struct comedi_async *async = s->async;
-	comedi_cmd *cmd = &async->cmd;
+	struct comedi_cmd *cmd = &async->cmd;
 	int chan;
 	int i;
 	short d;
@@ -2096,7 +2096,7 @@ static unsigned ni_min_ai_scan_period_ns(struct comedi_device * dev,
 }
 
 static int ni_ai_cmdtest(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_cmd * cmd)
+	struct comedi_cmd * cmd)
 {
 	int err = 0;
 	int tmp;
@@ -2310,7 +2310,7 @@ static int ni_ai_cmdtest(struct comedi_device * dev, struct comedi_subdevice * s
 
 static int ni_ai_cmd(struct comedi_device * dev, struct comedi_subdevice * s)
 {
-	const comedi_cmd *cmd = &s->async->cmd;
+	const struct comedi_cmd *cmd = &s->async->cmd;
 	int timer;
 	int mode1 = 0;		/* mode1 is needed for both stop and convert */
 	int mode2 = 0;
@@ -3064,7 +3064,7 @@ static int ni_ao_inttrig(struct comedi_device * dev, struct comedi_subdevice * s
 
 static int ni_ao_cmd(struct comedi_device * dev, struct comedi_subdevice * s)
 {
-	const comedi_cmd *cmd = &s->async->cmd;
+	const struct comedi_cmd *cmd = &s->async->cmd;
 	int bits;
 	int i;
 	unsigned trigvar;
@@ -3262,7 +3262,7 @@ static int ni_ao_cmd(struct comedi_device * dev, struct comedi_subdevice * s)
 }
 
 static int ni_ao_cmdtest(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_cmd * cmd)
+	struct comedi_cmd * cmd)
 {
 	int err = 0;
 	int tmp;
@@ -3545,7 +3545,7 @@ static int ni_m_series_dio_insn_bits(struct comedi_device * dev, struct comedi_s
 }
 
 static int ni_cdio_cmdtest(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_cmd * cmd)
+	struct comedi_cmd * cmd)
 {
 	int err = 0;
 	int tmp;
@@ -3655,7 +3655,7 @@ static int ni_cdio_cmdtest(struct comedi_device * dev, struct comedi_subdevice *
 
 static int ni_cdio_cmd(struct comedi_device * dev, struct comedi_subdevice * s)
 {
-	const comedi_cmd *cmd = &s->async->cmd;
+	const struct comedi_cmd *cmd = &s->async->cmd;
 	unsigned cdo_mode_bits = CDO_FIFO_Mode_Bit | CDO_Halt_On_Error_Bit;
 	int retval;
 
@@ -5096,7 +5096,7 @@ static int ni_gpct_cmd(struct comedi_device * dev, struct comedi_subdevice * s)
 	int retval;
 #ifdef PCIDMA
 	struct ni_gpct *counter = s->private;
-//      const comedi_cmd *cmd = &s->async->cmd;
+//      const struct comedi_cmd *cmd = &s->async->cmd;
 
 	retval = ni_request_gpct_mite_channel(dev, counter->counter_index,
 		COMEDI_INPUT);
@@ -5115,7 +5115,7 @@ static int ni_gpct_cmd(struct comedi_device * dev, struct comedi_subdevice * s)
 }
 
 static int ni_gpct_cmdtest(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_cmd * cmd)
+	struct comedi_cmd * cmd)
 {
 #ifdef PCIDMA
 	struct ni_gpct *counter = s->private;

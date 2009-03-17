@@ -305,7 +305,7 @@ static void pcmmio_stop_intr(struct comedi_device *, struct comedi_subdevice *);
 static int pcmmio_cancel(struct comedi_device * dev, struct comedi_subdevice * s);
 static int pcmmio_cmd(struct comedi_device * dev, struct comedi_subdevice * s);
 static int pcmmio_cmdtest(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_cmd * cmd);
+	struct comedi_cmd * cmd);
 
 /* some helper functions to deal with specifics of this device's registers */
 static void init_asics(struct comedi_device * dev);	/* sets up/clears ASIC chips to defaults */
@@ -946,7 +946,7 @@ static int pcmmio_start_intr(struct comedi_device * dev, struct comedi_subdevice
 	} else {
 		unsigned bits = 0, pol_bits = 0, n;
 		int nports, firstport, asic, port;
-		comedi_cmd *cmd = &s->async->cmd;
+		struct comedi_cmd *cmd = &s->async->cmd;
 
 		if ((asic = subpriv->dio.intr.asic) < 0)
 			return 1;	/* not an interrupt
@@ -1039,7 +1039,7 @@ pcmmio_inttrig_start_intr(struct comedi_device * dev, struct comedi_subdevice * 
  */
 static int pcmmio_cmd(struct comedi_device * dev, struct comedi_subdevice * s)
 {
-	comedi_cmd *cmd = &s->async->cmd;
+	struct comedi_cmd *cmd = &s->async->cmd;
 	unsigned long flags;
 	int event = 0;
 
@@ -1082,7 +1082,7 @@ static int pcmmio_cmd(struct comedi_device * dev, struct comedi_subdevice * s)
  * 'do_cmdtest' function for an 'INTERRUPT' subdevice.
  */
 static int
-pcmmio_cmdtest(struct comedi_device * dev, struct comedi_subdevice * s, comedi_cmd * cmd)
+pcmmio_cmdtest(struct comedi_device * dev, struct comedi_subdevice * s, struct comedi_cmd * cmd)
 {
 	int err = 0;
 	unsigned int tmp;

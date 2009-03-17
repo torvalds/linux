@@ -180,7 +180,7 @@ static struct comedi_driver driver_a2150 = {
 
 static irqreturn_t a2150_interrupt(int irq, void *d PT_REGS_ARG);
 static int a2150_ai_cmdtest(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_cmd * cmd);
+	struct comedi_cmd * cmd);
 static int a2150_ai_cmd(struct comedi_device * dev, struct comedi_subdevice * s);
 static int a2150_ai_rinsn(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data);
@@ -215,7 +215,7 @@ static irqreturn_t a2150_interrupt(int irq, void *d PT_REGS_ARG)
 	struct comedi_device *dev = d;
 	struct comedi_subdevice *s = dev->read_subdev;
 	struct comedi_async *async;
-	comedi_cmd *cmd;
+	struct comedi_cmd *cmd;
 	unsigned int max_points, num_points, residue, leftover;
 	short dpnt;
 	static const int sample_size = sizeof(devpriv->dma_buffer[0]);
@@ -486,7 +486,7 @@ static int a2150_cancel(struct comedi_device * dev, struct comedi_subdevice * s)
 }
 
 static int a2150_ai_cmdtest(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_cmd * cmd)
+	struct comedi_cmd * cmd)
 {
 	int err = 0;
 	int tmp;
@@ -618,7 +618,7 @@ static int a2150_ai_cmdtest(struct comedi_device * dev, struct comedi_subdevice 
 static int a2150_ai_cmd(struct comedi_device * dev, struct comedi_subdevice * s)
 {
 	struct comedi_async *async = s->async;
-	comedi_cmd *cmd = &async->cmd;
+	struct comedi_cmd *cmd = &async->cmd;
 	unsigned long lock_flags;
 	unsigned int old_config_bits = devpriv->config_bits;
 	unsigned int trigger_bits;

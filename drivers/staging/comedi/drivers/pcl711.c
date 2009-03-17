@@ -280,7 +280,7 @@ static int pcl711_ai_insn(struct comedi_device * dev, struct comedi_subdevice * 
 }
 
 static int pcl711_ai_cmdtest(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_cmd * cmd)
+	struct comedi_cmd * cmd)
 {
 	int tmp;
 	int err = 0;
@@ -384,7 +384,7 @@ static int pcl711_ai_cmdtest(struct comedi_device * dev, struct comedi_subdevice
 static int pcl711_ai_cmd(struct comedi_device * dev, struct comedi_subdevice * s)
 {
 	int timer1, timer2;
-	comedi_cmd *cmd = &s->async->cmd;
+	struct comedi_cmd *cmd = &s->async->cmd;
 
 	pcl711_set_changain(dev, cmd->chanlist[0]);
 

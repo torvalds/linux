@@ -300,8 +300,8 @@ enum comedi_support_level {
 #define COMEDI_UNLOCK _IO(CIO, 6)
 #define COMEDI_CANCEL _IO(CIO, 7)
 #define COMEDI_RANGEINFO _IOR(CIO, 8, comedi_rangeinfo)
-#define COMEDI_CMD _IOR(CIO, 9, comedi_cmd)
-#define COMEDI_CMDTEST _IOR(CIO, 10, comedi_cmd)
+#define COMEDI_CMD _IOR(CIO, 9, struct comedi_cmd)
+#define COMEDI_CMDTEST _IOR(CIO, 10, struct comedi_cmd)
 #define COMEDI_INSNLIST _IOR(CIO, 11, comedi_insnlist)
 #define COMEDI_INSN _IOR(CIO, 12, comedi_insn)
 #define COMEDI_BUFCONFIG _IOR(CIO, 13, comedi_bufconfig)
@@ -310,7 +310,6 @@ enum comedi_support_level {
 
 /* structures */
 
-typedef struct comedi_cmd_struct comedi_cmd;
 typedef struct comedi_insn_struct comedi_insn;
 typedef struct comedi_insnlist_struct comedi_insnlist;
 typedef struct comedi_chaninfo_struct comedi_chaninfo;
@@ -351,7 +350,7 @@ struct comedi_insnlist_struct {
 	comedi_insn *insns;
 };
 
-struct comedi_cmd_struct {
+struct comedi_cmd {
 	unsigned int subdev;
 	unsigned int flags;
 

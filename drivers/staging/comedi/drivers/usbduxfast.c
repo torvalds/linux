@@ -578,7 +578,7 @@ int usbduxfastsub_submit_InURBs(struct usbduxfastsub_s *udfs)
 }
 
 static int usbduxfast_ai_cmdtest(struct comedi_device *dev,
-	struct comedi_subdevice *s, comedi_cmd *cmd)
+	struct comedi_subdevice *s, struct comedi_cmd *cmd)
 {
 	int err = 0, stop_mask = 0;
 	long int steps, tmp;
@@ -773,7 +773,7 @@ static int usbduxfast_ai_inttrig(struct comedi_device *dev,
 
 static int usbduxfast_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 {
-	comedi_cmd *cmd = &s->async->cmd;
+	struct comedi_cmd *cmd = &s->async->cmd;
 	unsigned int chan, gain, rngmask = 0xff;
 	int i, j, ret;
 	struct usbduxfastsub_s *udfs;

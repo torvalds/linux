@@ -197,7 +197,7 @@ static void das1800_handle_fifo_half_full(struct comedi_device * dev,
 static void das1800_handle_fifo_not_empty(struct comedi_device * dev,
 	struct comedi_subdevice * s);
 static int das1800_ai_do_cmdtest(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_cmd * cmd);
+	struct comedi_cmd * cmd);
 static int das1800_ai_do_cmd(struct comedi_device * dev, struct comedi_subdevice * s);
 static int das1800_ai_rinsn(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data);
@@ -210,7 +210,7 @@ static int das1800_do_wbits(struct comedi_device * dev, struct comedi_subdevice 
 
 static int das1800_set_frequency(struct comedi_device * dev);
 static unsigned int burst_convert_arg(unsigned int convert_arg, int round_mode);
-static unsigned int suggest_transfer_size(comedi_cmd * cmd);
+static unsigned int suggest_transfer_size(struct comedi_cmd * cmd);
 
 // analog input ranges
 static const struct comedi_lrange range_ai_das1801 = {
@@ -913,7 +913,7 @@ static void das1800_ai_handler(struct comedi_device * dev)
 {
 	struct comedi_subdevice *s = dev->subdevices + 0;	/* analog input subdevice */
 	struct comedi_async *async = s->async;
-	comedi_cmd *cmd = &async->cmd;
+	struct comedi_cmd *cmd = &async->cmd;
 	unsigned int status = inb(dev->iobase + DAS1800_STATUS);
 
 	async->events = 0;
@@ -1027,7 +1027,7 @@ static void das1800_flush_dma_channel(struct comedi_device * dev, struct comedi_
 	unsigned int channel, uint16_t * buffer)
 {
 	unsigned int num_bytes, num_samples;
-	comedi_cmd *cmd = &s->async->cmd;
+	struct comedi_cmd *cmd = &s->async->cmd;
 
 	disable_dma(channel);
 
@@ -1087,7 +1087,7 @@ static void das1800_handle_fifo_half_full(struct comedi_device * dev,
 	struct comedi_subdevice * s)
 {
 	int numPoints = 0;	/* number of points to read */
-	comedi_cmd *cmd = &s->async->cmd;
+	struct comedi_cmd *cmd = &s->async->cmd;
 
 	numPoints = FIFO_SIZE / 2;
 	/* if we only need some of the points */
@@ -1107,7 +1107,7 @@ static void das1800_handle_fifo_not_empty(struct comedi_device * dev,
 {
 	short dpnt;
 	int unipolar;
-	comedi_cmd *cmd = &s->async->cmd;
+	struct comedi_cmd *cmd = &s->async->cmd;
 
 	unipolar = inb(dev->iobase + DAS1800_CONTROL_C) & UB;
 
@@ -1140,7 +1140,7 @@ static int das1800_cancel(struct comedi_device * dev, struct comedi_subdevice * 
 
 /* test analog input cmd */
 static int das1800_ai_do_cmdtest(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_cmd * cmd)
+	struct comedi_cmd * cmd)
 {
 	int err = 0;
 	int tmp;
@@ -1314,7 +1314,7 @@ static int das1800_ai_do_cmdtest(struct comedi_device * dev, struct comedi_subde
 // first, some utility functions used in the main ai_do_cmd()
 
 // returns appropriate bits for control register a, depending on command
-static int control_a_bits(comedi_cmd cmd)
+static int control_a_bits(struct comedi_cmd cmd)
 {
 	int control_a;
 
@@ -1337,7 +1337,7 @@ static int control_a_bits(comedi_cmd cmd)
 }
 
 // returns appropriate bits for control register c, depending on command
-static int control_c_bits(comedi_cmd cmd)
+static int control_c_bits(struct comedi_cmd cmd)
 {
 	int control_c;
 	int aref;
@@ -1385,7 +1385,7 @@ static int control_c_bits(comedi_cmd cmd)
 }
 
 // sets up counters
-static int setup_counters(struct comedi_device * dev, comedi_cmd cmd)
+static int setup_counters(struct comedi_device * dev, struct comedi_cmd cmd)
 {
 	// setup cascaded counters for conversion/scan frequency
 	switch (cmd.scan_begin_src) {
@@ -1424,7 +1424,7 @@ static int setup_counters(struct comedi_device * dev, comedi_cmd cmd)
 }
 
 // sets up dma
-static void setup_dma(struct comedi_device * dev, comedi_cmd cmd)
+static void setup_dma(struct comedi_device * dev, struct comedi_cmd cmd)
 {
 	unsigned long lock_flags;
 	const int dual_dma = devpriv->irq_dma_bits & DMA_DUAL;
@@ -1462,7 +1462,7 @@ static void setup_dma(struct comedi_device * dev, comedi_cmd cmd)
 }
 
 // programs channel/gain list into card
-static void program_chanlist(struct comedi_device * dev, comedi_cmd cmd)
+static void program_chanlist(struct comedi_device * dev, struct comedi_cmd cmd)
 {
 	int i, n, chan_range;
 	unsigned long irq_flags;
@@ -1494,7 +1494,7 @@ static int das1800_ai_do_cmd(struct comedi_device * dev, struct comedi_subdevice
 	int ret;
 	int control_a, control_c;
 	struct comedi_async *async = s->async;
-	comedi_cmd cmd = async->cmd;
+	struct comedi_cmd cmd = async->cmd;
 
 	if (!dev->irq) {
 		comedi_error(dev,
@@ -1720,7 +1720,7 @@ static unsigned int burst_convert_arg(unsigned int convert_arg, int round_mode)
 }
 
 // utility function that suggests a dma transfer size based on the conversion period 'ns'
-static unsigned int suggest_transfer_size(comedi_cmd * cmd)
+static unsigned int suggest_transfer_size(struct comedi_cmd * cmd)
 {
 	unsigned int size = DMA_BUF_SIZE;
 	static const int sample_size = 2;	// size in bytes of one sample from board

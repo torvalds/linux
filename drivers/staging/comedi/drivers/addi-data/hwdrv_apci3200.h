@@ -167,7 +167,7 @@ INT i_APCI3200_InsnBits_AnalogInput_Test(struct comedi_device *dev,
 INT i_APCI3200_StopCyclicAcquisition(struct comedi_device *dev, struct comedi_subdevice *s);
 INT i_APCI3200_InterruptHandleEos(struct comedi_device *dev);
 INT i_APCI3200_CommandTestAnalogInput(struct comedi_device *dev, struct comedi_subdevice *s,
-				      comedi_cmd *cmd);
+				      struct comedi_cmd *cmd);
 INT i_APCI3200_CommandAnalogInput(struct comedi_device *dev, struct comedi_subdevice *s);
 INT i_APCI3200_ReadDigitalInput(struct comedi_device *dev, struct comedi_subdevice *s,
 				comedi_insn *insn, unsigned int *data);

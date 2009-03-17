@@ -92,7 +92,7 @@ static int contec_do_insn_bits(struct comedi_device * dev, struct comedi_subdevi
 
 #if 0
 static int contec_cmdtest(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_cmd * cmd);
+	struct comedi_cmd * cmd);
 
 static int contec_ns_to_timer(unsigned int *ns, int round);
 #endif
@@ -180,7 +180,7 @@ static int contec_detach(struct comedi_device * dev)
 
 #if 0
 static int contec_cmdtest(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_cmd * cmd)
+	struct comedi_cmd * cmd)
 {
 	printk("contec_cmdtest called\n");
 	return 0;

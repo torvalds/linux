@@ -135,7 +135,7 @@ typedef struct {
 					   unsigned int *data);
 	int (*i_hwdrv_CommandTestAnalogInput)(struct comedi_device *dev,
 					      struct comedi_subdevice *s,
-					      comedi_cmd *cmd);
+					      struct comedi_cmd *cmd);
 	int (*i_hwdrv_CommandAnalogInput)(struct comedi_device *dev,
 					  struct comedi_subdevice *s);
 	int (*i_hwdrv_CancelAnalogInput)(struct comedi_device *dev,

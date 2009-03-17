@@ -171,7 +171,7 @@ static void labpc_drain_dma(struct comedi_device * dev);
 static void handle_isa_dma(struct comedi_device * dev);
 static void labpc_drain_dregs(struct comedi_device * dev);
 static int labpc_ai_cmdtest(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_cmd * cmd);
+	struct comedi_cmd * cmd);
 static int labpc_ai_cmd(struct comedi_device * dev, struct comedi_subdevice * s);
 static int labpc_ai_rinsn(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data);
@@ -187,8 +187,8 @@ static int labpc_eeprom_read_insn(struct comedi_device * dev, struct comedi_subd
 	comedi_insn * insn, unsigned int * data);
 static int labpc_eeprom_write_insn(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data);
-static unsigned int labpc_suggest_transfer_size(comedi_cmd cmd);
-static void labpc_adc_timing(struct comedi_device * dev, comedi_cmd * cmd);
+static unsigned int labpc_suggest_transfer_size(struct comedi_cmd cmd);
+static void labpc_adc_timing(struct comedi_device * dev, struct comedi_cmd * cmd);
 #ifdef CONFIG_COMEDI_PCI
 static int labpc_find_device(struct comedi_device *dev, int bus, int slot);
 #endif
@@ -770,7 +770,7 @@ static int labpc_cancel(struct comedi_device * dev, struct comedi_subdevice * s)
 	return 0;
 }
 
-static enum scan_mode labpc_ai_scan_mode(const comedi_cmd * cmd)
+static enum scan_mode labpc_ai_scan_mode(const struct comedi_cmd * cmd)
 {
 	if (cmd->chanlist_len == 1)
 		return MODE_SINGLE_CHAN;
@@ -794,7 +794,7 @@ static enum scan_mode labpc_ai_scan_mode(const comedi_cmd * cmd)
 }
 
 static int labpc_ai_chanlist_invalid(const struct comedi_device * dev,
-	const comedi_cmd * cmd)
+	const struct comedi_cmd * cmd)
 {
 	int mode, channel, range, aref, i;
 
@@ -865,7 +865,7 @@ static int labpc_ai_chanlist_invalid(const struct comedi_device * dev,
 	return 0;
 }
 
-static int labpc_use_continuous_mode(const comedi_cmd * cmd)
+static int labpc_use_continuous_mode(const struct comedi_cmd * cmd)
 {
 	if (labpc_ai_scan_mode(cmd) == MODE_SINGLE_CHAN)
 		return 1;
@@ -876,7 +876,7 @@ static int labpc_use_continuous_mode(const comedi_cmd * cmd)
 	return 0;
 }
 
-static unsigned int labpc_ai_convert_period(const comedi_cmd * cmd)
+static unsigned int labpc_ai_convert_period(const struct comedi_cmd * cmd)
 {
 	if (cmd->convert_src != TRIG_TIMER)
 		return 0;
@@ -888,7 +888,7 @@ static unsigned int labpc_ai_convert_period(const comedi_cmd * cmd)
 	return cmd->convert_arg;
 }
 
-static void labpc_set_ai_convert_period(comedi_cmd * cmd, unsigned int ns)
+static void labpc_set_ai_convert_period(struct comedi_cmd * cmd, unsigned int ns)
 {
 	if (cmd->convert_src != TRIG_TIMER)
 		return;
@@ -902,7 +902,7 @@ static void labpc_set_ai_convert_period(comedi_cmd * cmd, unsigned int ns)
 		cmd->convert_arg = ns;
 }
 
-static unsigned int labpc_ai_scan_period(const comedi_cmd * cmd)
+static unsigned int labpc_ai_scan_period(const struct comedi_cmd * cmd)
 {
 	if (cmd->scan_begin_src != TRIG_TIMER)
 		return 0;
@@ -914,7 +914,7 @@ static unsigned int labpc_ai_scan_period(const comedi_cmd * cmd)
 	return cmd->scan_begin_arg;
 }
 
-static void labpc_set_ai_scan_period(comedi_cmd * cmd, unsigned int ns)
+static void labpc_set_ai_scan_period(struct comedi_cmd * cmd, unsigned int ns)
 {
 	if (cmd->scan_begin_src != TRIG_TIMER)
 		return;
@@ -927,7 +927,7 @@ static void labpc_set_ai_scan_period(comedi_cmd * cmd, unsigned int ns)
 }
 
 static int labpc_ai_cmdtest(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_cmd * cmd)
+	struct comedi_cmd * cmd)
 {
 	int err = 0;
 	int tmp, tmp2;
@@ -1069,7 +1069,7 @@ static int labpc_ai_cmd(struct comedi_device * dev, struct comedi_subdevice * s)
 	unsigned long irq_flags;
 	int ret;
 	struct comedi_async *async = s->async;
-	comedi_cmd *cmd = &async->cmd;
+	struct comedi_cmd *cmd = &async->cmd;
 	enum transfer_type xfer;
 	unsigned long flags;
 
@@ -1314,7 +1314,7 @@ static irqreturn_t labpc_interrupt(int irq, void *d PT_REGS_ARG)
 	struct comedi_device *dev = d;
 	struct comedi_subdevice *s = dev->read_subdev;
 	struct comedi_async *async;
-	comedi_cmd *cmd;
+	struct comedi_cmd *cmd;
 
 	if (dev->attached == 0) {
 		comedi_error(dev, "premature interrupt");
@@ -1680,7 +1680,7 @@ static int labpc_eeprom_write_insn(struct comedi_device * dev, struct comedi_sub
 }
 
 // utility function that suggests a dma transfer size in bytes
-static unsigned int labpc_suggest_transfer_size(comedi_cmd cmd)
+static unsigned int labpc_suggest_transfer_size(struct comedi_cmd cmd)
 {
 	unsigned int size;
 	unsigned int freq;
@@ -1704,7 +1704,7 @@ static unsigned int labpc_suggest_transfer_size(comedi_cmd cmd)
 }
 
 // figures out what counter values to use based on command
-static void labpc_adc_timing(struct comedi_device * dev, comedi_cmd * cmd)
+static void labpc_adc_timing(struct comedi_device * dev, struct comedi_cmd * cmd)
 {
 	const int max_counter_value = 0x10000;	// max value for 16 bit counter in mode 2
 	const int min_counter_value = 2;	// min value for 16 bit counter in mode 2

@@ -145,7 +145,7 @@ typedef struct {
 	RT_TASK *scan_task;	// rt task that controls conversion timing in a scan
 	/* io_function can point to either an input or output function
 	 * depending on what kind of subdevice we are emulating for */
-	int (*io_function) (struct comedi_device * dev, comedi_cmd * cmd,
+	int (*io_function) (struct comedi_device * dev, struct comedi_cmd * cmd,
 		unsigned int index);
 	// RTIME has units of 1 = 838 nanoseconds
 	// time at which first scan started, used to check scan timing
@@ -156,8 +156,8 @@ typedef struct {
 	RTIME convert_period;
 	// flags
 	volatile int stop;	// indicates we should stop
-	volatile int rt_task_active;	// indicates rt_task is servicing a comedi_cmd
-	volatile int scan_task_active;	// indicates scan_task is servicing a comedi_cmd
+	volatile int rt_task_active;	// indicates rt_task is servicing a struct comedi_cmd
+	volatile int scan_task_active;	// indicates scan_task is servicing a struct comedi_cmd
 	unsigned timer_running:1;
 } timer_private;
 #define devpriv ((timer_private *)dev->private)
@@ -206,7 +206,7 @@ inline static int check_conversion_timing(struct comedi_device * dev,
 }
 
 // devpriv->io_function for an input subdevice
-static int timer_data_read(struct comedi_device * dev, comedi_cmd * cmd,
+static int timer_data_read(struct comedi_device * dev, struct comedi_cmd * cmd,
 	unsigned int index)
 {
 	struct comedi_subdevice *s = dev->read_subdev;
@@ -231,7 +231,7 @@ static int timer_data_read(struct comedi_device * dev, comedi_cmd * cmd,
 }
 
 // devpriv->io_function for an output subdevice
-static int timer_data_write(struct comedi_device * dev, comedi_cmd * cmd,
+static int timer_data_write(struct comedi_device * dev, struct comedi_cmd * cmd,
 	unsigned int index)
 {
 	struct comedi_subdevice *s = dev->write_subdev;
@@ -266,7 +266,7 @@ static int timer_data_write(struct comedi_device * dev, comedi_cmd * cmd,
 }
 
 // devpriv->io_function for DIO subdevices
-static int timer_dio_read(struct comedi_device * dev, comedi_cmd * cmd,
+static int timer_dio_read(struct comedi_device * dev, struct comedi_cmd * cmd,
 	unsigned int index)
 {
 	struct comedi_subdevice *s = dev->read_subdev;
@@ -293,12 +293,12 @@ static void scan_task_func(comedi_rt_task_context_t d)
 	struct comedi_device *dev = (struct comedi_device *) d;
 	struct comedi_subdevice *s = dev->subdevices + 0;
 	struct comedi_async *async = s->async;
-	comedi_cmd *cmd = &async->cmd;
+	struct comedi_cmd *cmd = &async->cmd;
 	int i, ret;
 	unsigned long long n;
 	RTIME scan_start;
 
-	// every comedi_cmd causes one execution of while loop
+	// every struct comedi_cmd causes one execution of while loop
 	while (1) {
 		devpriv->scan_task_active = 1;
 		// each for loop completes one scan
@@ -353,7 +353,7 @@ static void scan_task_func(comedi_rt_task_context_t d)
 		comedi_event(dev, s);
 		async->events = 0;
 		devpriv->scan_task_active = 0;
-		// suspend task until next comedi_cmd
+		// suspend task until next struct comedi_cmd
 		rt_task_suspend(devpriv->scan_task);
 	}
 }
@@ -362,11 +362,11 @@ static void timer_task_func(comedi_rt_task_context_t d)
 {
 	struct comedi_device *dev = (struct comedi_device *) d;
 	struct comedi_subdevice *s = dev->subdevices + 0;
-	comedi_cmd *cmd = &s->async->cmd;
+	struct comedi_cmd *cmd = &s->async->cmd;
 	int ret;
 	unsigned long long n;
 
-	// every comedi_cmd causes one execution of while loop
+	// every struct comedi_cmd causes one execution of while loop
 	while (1) {
 		devpriv->rt_task_active = 1;
 		devpriv->scan_task_active = 1;
@@ -391,7 +391,7 @@ static void timer_task_func(comedi_rt_task_context_t d)
 	      cleanup:
 
 		devpriv->rt_task_active = 0;
-		// suspend until next comedi_cmd
+		// suspend until next struct comedi_cmd
 		rt_task_suspend(devpriv->rt_task);
 	}
 }
@@ -407,7 +407,7 @@ static int timer_insn(struct comedi_device * dev, struct comedi_subdevice * s,
 	return comedi_do_insn(devpriv->device, &xinsn);
 }
 
-static int cmdtest_helper(comedi_cmd * cmd,
+static int cmdtest_helper(struct comedi_cmd * cmd,
 	unsigned int start_src,
 	unsigned int scan_begin_src,
 	unsigned int convert_src,
@@ -445,7 +445,7 @@ static int cmdtest_helper(comedi_cmd * cmd,
 }
 
 static int timer_cmdtest(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_cmd * cmd)
+	struct comedi_cmd * cmd)
 {
 	int err = 0;
 	unsigned int start_src = 0;
@@ -519,12 +519,12 @@ static int timer_cmdtest(struct comedi_device * dev, struct comedi_subdevice * s
 static int timer_cmd(struct comedi_device * dev, struct comedi_subdevice * s)
 {
 	int ret;
-	comedi_cmd *cmd = &s->async->cmd;
+	struct comedi_cmd *cmd = &s->async->cmd;
 
 	/* hack attack: drivers are not supposed to do this: */
 	dev->rt = 1;
 
-	// make sure tasks have finished cleanup of last comedi_cmd
+	// make sure tasks have finished cleanup of last struct comedi_cmd
 	if (devpriv->rt_task_active || devpriv->scan_task_active)
 		return -EBUSY;
 
@@ -581,7 +581,7 @@ static int timer_inttrig(struct comedi_device * dev, struct comedi_subdevice * s
 static int timer_start_cmd(struct comedi_device * dev, struct comedi_subdevice * s)
 {
 	struct comedi_async *async = s->async;
-	comedi_cmd *cmd = &async->cmd;
+	struct comedi_cmd *cmd = &async->cmd;
 	RTIME now, delay, period;
 	int ret;
 

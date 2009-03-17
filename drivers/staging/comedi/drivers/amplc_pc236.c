@@ -191,7 +191,7 @@ static int pc236_intr_check(struct comedi_device * dev);
 static int pc236_intr_insn(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data);
 static int pc236_intr_cmdtest(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_cmd * cmd);
+	struct comedi_cmd * cmd);
 static int pc236_intr_cmd(struct comedi_device * dev, struct comedi_subdevice * s);
 static int pc236_intr_cancel(struct comedi_device * dev, struct comedi_subdevice * s);
 static irqreturn_t pc236_interrupt(int irq, void *d PT_REGS_ARG);
@@ -540,7 +540,7 @@ static int pc236_intr_insn(struct comedi_device * dev, struct comedi_subdevice *
  * Copied from the comedi_parport driver.
  */
 static int pc236_intr_cmdtest(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_cmd * cmd)
+	struct comedi_cmd * cmd)
 {
 	int err = 0;
 	int tmp;

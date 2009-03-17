@@ -188,7 +188,7 @@ static int compat_rangeinfo(struct file *file, unsigned long arg)
 }
 
 /* Copy 32-bit cmd structure to native cmd structure. */
-static int get_compat_cmd(comedi_cmd __user *cmd,
+static int get_compat_cmd(struct comedi_cmd __user *cmd,
 		struct comedi32_cmd_struct __user *cmd32)
 {
 	int err;
@@ -239,7 +239,7 @@ static int get_compat_cmd(comedi_cmd __user *cmd,
 }
 
 /* Copy native cmd structure to 32-bit cmd structure. */
-static int put_compat_cmd(struct comedi32_cmd_struct __user *cmd32, comedi_cmd __user *cmd)
+static int put_compat_cmd(struct comedi32_cmd_struct __user *cmd32, struct comedi_cmd __user *cmd)
 {
 	int err;
 	unsigned int temp;
@@ -289,7 +289,7 @@ static int put_compat_cmd(struct comedi32_cmd_struct __user *cmd32, comedi_cmd _
 /* Handle 32-bit COMEDI_CMD ioctl. */
 static int compat_cmd(struct file *file, unsigned long arg)
 {
-	comedi_cmd __user *cmd;
+	struct comedi_cmd __user *cmd;
 	struct comedi32_cmd_struct __user *cmd32;
 	int rc;
 
@@ -306,7 +306,7 @@ static int compat_cmd(struct file *file, unsigned long arg)
 /* Handle 32-bit COMEDI_CMDTEST ioctl. */
 static int compat_cmdtest(struct file *file, unsigned long arg)
 {
-	comedi_cmd __user *cmd;
+	struct comedi_cmd __user *cmd;
 	struct comedi32_cmd_struct __user *cmd32;
 	int rc, err;
 

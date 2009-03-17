@@ -146,7 +146,7 @@ extern int ni_tio_insn_config(struct ni_gpct *counter,
 extern int ni_tio_winsn(struct ni_gpct *counter,
 	comedi_insn * insn, unsigned int * data);
 extern int ni_tio_cmd(struct ni_gpct *counter, struct comedi_async *async);
-extern int ni_tio_cmdtest(struct ni_gpct *counter, comedi_cmd * cmd);
+extern int ni_tio_cmdtest(struct ni_gpct *counter, struct comedi_cmd * cmd);
 extern int ni_tio_cancel(struct ni_gpct *counter);
 extern void ni_tio_handle_interrupt(struct ni_gpct *counter,
 	struct comedi_subdevice * s);

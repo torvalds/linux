@@ -260,7 +260,7 @@ static irqreturn_t das800_interrupt(int irq, void *d PT_REGS_ARG);
 static void enable_das800(struct comedi_device * dev);
 static void disable_das800(struct comedi_device * dev);
 static int das800_ai_do_cmdtest(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_cmd * cmd);
+	struct comedi_cmd * cmd);
 static int das800_ai_do_cmd(struct comedi_device * dev, struct comedi_subdevice * s);
 static int das800_ai_rinsn(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data);
@@ -585,7 +585,7 @@ static void disable_das800(struct comedi_device * dev)
 }
 
 static int das800_ai_do_cmdtest(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_cmd * cmd)
+	struct comedi_cmd * cmd)
 {
 	int err = 0;
 	int tmp;

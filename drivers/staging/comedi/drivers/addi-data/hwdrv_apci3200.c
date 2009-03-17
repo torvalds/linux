@@ -2539,7 +2539,7 @@ INT i_APCI3200_InsnWriteReleaseAnalogInput(struct comedi_device * dev,
 /*
   +----------------------------------------------------------------------------+
   | Function name     :int i_APCI3200_CommandTestAnalogInput(struct comedi_device *dev|
-  |			,struct comedi_subdevice *s,comedi_cmd *cmd)			         |
+  |			,struct comedi_subdevice *s,struct comedi_cmd *cmd)			         |
   |                                        									 |
   +----------------------------------------------------------------------------+
   | Task              : Test validity for a command for cyclic anlog input     |
@@ -2548,7 +2548,7 @@ INT i_APCI3200_InsnWriteReleaseAnalogInput(struct comedi_device * dev,
   +----------------------------------------------------------------------------+
   | Input Parameters  : struct comedi_device *dev									 |
   |                     struct comedi_subdevice *s									 |
-  |                     comedi_cmd *cmd              					         |
+  |                     struct comedi_cmd *cmd              					         |
   |                     										                 |
   |
   |                     										                 |
@@ -2561,7 +2561,7 @@ INT i_APCI3200_InsnWriteReleaseAnalogInput(struct comedi_device * dev,
 */
 
 int i_APCI3200_CommandTestAnalogInput(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_cmd * cmd)
+	struct comedi_cmd * cmd)
 {
 
 	int err = 0;
@@ -2816,7 +2816,7 @@ int i_APCI3200_StopCyclicAcquisition(struct comedi_device * dev, struct comedi_s
 
 int i_APCI3200_CommandAnalogInput(struct comedi_device * dev, struct comedi_subdevice * s)
 {
-	comedi_cmd *cmd = &s->async->cmd;
+	struct comedi_cmd *cmd = &s->async->cmd;
 	UINT ui_Configuration = 0;
 	//INT  i_CurrentSource = 0;
 	UINT ui_Trigger = 0;

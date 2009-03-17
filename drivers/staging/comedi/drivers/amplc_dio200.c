@@ -610,7 +610,7 @@ static int dio200_start_intr(struct comedi_device * dev, struct comedi_subdevice
 	unsigned int n;
 	unsigned isn_bits;
 	dio200_subdev_intr *subpriv = s->private;
-	comedi_cmd *cmd = &s->async->cmd;
+	struct comedi_cmd *cmd = &s->async->cmd;
 	int retval = 0;
 
 	if (!subpriv->continuous && subpriv->stopcount == 0) {
@@ -802,7 +802,7 @@ static int dio200_subdev_intr_cancel(struct comedi_device * dev, struct comedi_s
  */
 static int
 dio200_subdev_intr_cmdtest(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_cmd * cmd)
+	struct comedi_cmd * cmd)
 {
 	int err = 0;
 	unsigned int tmp;
@@ -909,7 +909,7 @@ dio200_subdev_intr_cmdtest(struct comedi_device * dev, struct comedi_subdevice *
  */
 static int dio200_subdev_intr_cmd(struct comedi_device * dev, struct comedi_subdevice * s)
 {
-	comedi_cmd *cmd = &s->async->cmd;
+	struct comedi_cmd *cmd = &s->async->cmd;
 	dio200_subdev_intr *subpriv = s->private;
 	unsigned long flags;
 	int event = 0;

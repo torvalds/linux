@@ -884,7 +884,7 @@ static int pci171x_ai_docmd_and_mode(int mode, struct comedi_device * dev,
 /*
 ==============================================================================
 */
-static void pci171x_cmdtest_out(int e, comedi_cmd * cmd)
+static void pci171x_cmdtest_out(int e, struct comedi_cmd * cmd)
 {
 	rt_printk("adv_pci1710 e=%d startsrc=%x scansrc=%x convsrc=%x\n", e,
 		cmd->start_src, cmd->scan_begin_src, cmd->convert_src);
@@ -901,7 +901,7 @@ static void pci171x_cmdtest_out(int e, comedi_cmd * cmd)
 ==============================================================================
 */
 static int pci171x_ai_cmdtest(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_cmd * cmd)
+	struct comedi_cmd * cmd)
 {
 	int err = 0;
 	int tmp, divisor1, divisor2;
@@ -1067,7 +1067,7 @@ static int pci171x_ai_cmdtest(struct comedi_device * dev, struct comedi_subdevic
 */
 static int pci171x_ai_cmd(struct comedi_device * dev, struct comedi_subdevice * s)
 {
-	comedi_cmd *cmd = &s->async->cmd;
+	struct comedi_cmd *cmd = &s->async->cmd;
 
 	DPRINTK("adv_pci1710 EDBG: BGN: pci171x_ai_cmd(...)\n");
 	devpriv->ai_n_chan = cmd->chanlist_len;

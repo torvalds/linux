@@ -219,7 +219,7 @@ static int set_rtc_irq_bit(unsigned char bit);
 #endif
 
 static int pcl816_ai_cmdtest(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_cmd * cmd);
+	struct comedi_cmd * cmd);
 static int pcl816_ai_cmd(struct comedi_device * dev, struct comedi_subdevice * s);
 
 /*
@@ -443,7 +443,7 @@ static irqreturn_t interrupt_pcl816(int irq, void *d PT_REGS_ARG)
 ==============================================================================
    COMMAND MODE
 */
-static void pcl816_cmdtest_out(int e, comedi_cmd * cmd)
+static void pcl816_cmdtest_out(int e, struct comedi_cmd * cmd)
 {
 	rt_printk("pcl816 e=%d startsrc=%x scansrc=%x convsrc=%x\n", e,
 		cmd->start_src, cmd->scan_begin_src, cmd->convert_src);
@@ -459,7 +459,7 @@ static void pcl816_cmdtest_out(int e, comedi_cmd * cmd)
 ==============================================================================
 */
 static int pcl816_ai_cmdtest(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_cmd * cmd)
+	struct comedi_cmd * cmd)
 {
 	int err = 0;
 	int tmp, divisor1, divisor2;
@@ -596,7 +596,7 @@ static int pcl816_ai_cmdtest(struct comedi_device * dev, struct comedi_subdevice
 static int pcl816_ai_cmd(struct comedi_device * dev, struct comedi_subdevice * s)
 {
 	unsigned int divisor1 = 0, divisor2 = 0, dma_flags, bytes, dmairq;
-	comedi_cmd *cmd = &s->async->cmd;
+	struct comedi_cmd *cmd = &s->async->cmd;
 
 	if (cmd->start_src != TRIG_NOW)
 		return -EINVAL;

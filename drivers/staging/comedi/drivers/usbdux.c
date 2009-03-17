@@ -897,7 +897,7 @@ static int usbduxsub_submit_OutURBs(struct usbduxsub *usbduxsub)
 }
 
 static int usbdux_ai_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
-			     comedi_cmd *cmd)
+			     struct comedi_cmd *cmd)
 {
 	int err = 0, tmp, i;
 	unsigned int tmpTimer;
@@ -1162,7 +1162,7 @@ static int usbdux_ai_inttrig(struct comedi_device *dev, struct comedi_subdevice 
 
 static int usbdux_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 {
-	comedi_cmd *cmd = &s->async->cmd;
+	struct comedi_cmd *cmd = &s->async->cmd;
 	unsigned int chan, range;
 	int i, ret;
 	struct usbduxsub *this_usbduxsub = dev->private;
@@ -1451,7 +1451,7 @@ static int usbdux_ao_inttrig(struct comedi_device *dev, struct comedi_subdevice 
 }
 
 static int usbdux_ao_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
-			     comedi_cmd *cmd)
+			     struct comedi_cmd *cmd)
 {
 	int err = 0, tmp;
 	struct usbduxsub *this_usbduxsub = dev->private;
@@ -1591,7 +1591,7 @@ static int usbdux_ao_cmdtest(struct comedi_device *dev, struct comedi_subdevice 
 
 static int usbdux_ao_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 {
-	comedi_cmd *cmd = &s->async->cmd;
+	struct comedi_cmd *cmd = &s->async->cmd;
 	unsigned int chan, gain;
 	int i, ret;
 	struct usbduxsub *this_usbduxsub = dev->private;

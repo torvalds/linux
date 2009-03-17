@@ -38,7 +38,7 @@ significantly different.
 
 I was _barely_ able to reach the full 1 MHz capability
 of this board, using a hard real-time interrupt
-(set the TRIG_RT flag in your comedi_cmd and use
+(set the TRIG_RT flag in your struct comedi_cmd and use
 rtlinux or RTAI).  The board can't do dma, so the bottleneck is
 pulling the data across the ISA bus.  I timed the interrupt
 handler, and it took my computer ~470 microseconds to pull 512
@@ -139,7 +139,7 @@ static int das16m1_ai_rinsn(struct comedi_device * dev, struct comedi_subdevice 
 	comedi_insn * insn, unsigned int * data);
 
 static int das16m1_cmd_test(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_cmd * cmd);
+	struct comedi_cmd * cmd);
 static int das16m1_cmd_exec(struct comedi_device * dev, struct comedi_subdevice * s);
 static int das16m1_cancel(struct comedi_device * dev, struct comedi_subdevice * s);
 
@@ -201,7 +201,7 @@ static inline short munge_sample(short data)
 }
 
 static int das16m1_cmd_test(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_cmd * cmd)
+	struct comedi_cmd * cmd)
 {
 	unsigned int err = 0, tmp, i;
 
@@ -325,7 +325,7 @@ static int das16m1_cmd_test(struct comedi_device * dev, struct comedi_subdevice 
 static int das16m1_cmd_exec(struct comedi_device * dev, struct comedi_subdevice * s)
 {
 	struct comedi_async *async = s->async;
-	comedi_cmd *cmd = &async->cmd;
+	struct comedi_cmd *cmd = &async->cmd;
 	unsigned int byte, i;
 
 	if (dev->irq == 0) {
@@ -518,7 +518,7 @@ static void das16m1_handler(struct comedi_device * dev, unsigned int status)
 {
 	struct comedi_subdevice *s;
 	struct comedi_async *async;
-	comedi_cmd *cmd;
+	struct comedi_cmd *cmd;
 	u16 num_samples;
 	u16 hw_counter;
 

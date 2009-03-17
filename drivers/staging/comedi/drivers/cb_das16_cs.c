@@ -113,7 +113,7 @@ static int das16cs_ai_rinsn(struct comedi_device * dev, struct comedi_subdevice 
 	comedi_insn * insn, unsigned int * data);
 static int das16cs_ai_cmd(struct comedi_device * dev, struct comedi_subdevice * s);
 static int das16cs_ai_cmdtest(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_cmd * cmd);
+	struct comedi_cmd * cmd);
 static int das16cs_ao_winsn(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data);
 static int das16cs_ao_rinsn(struct comedi_device * dev, struct comedi_subdevice * s,
@@ -334,7 +334,7 @@ static int das16cs_ai_cmd(struct comedi_device * dev, struct comedi_subdevice * 
 }
 
 static int das16cs_ai_cmdtest(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_cmd * cmd)
+	struct comedi_cmd * cmd)
 {
 	int err = 0;
 	int tmp;

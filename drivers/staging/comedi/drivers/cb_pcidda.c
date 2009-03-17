@@ -238,7 +238,7 @@ static int cb_pcidda_detach(struct comedi_device * dev);
 static int cb_pcidda_ao_winsn(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data);
 //static int cb_pcidda_ai_cmd(struct comedi_device *dev,struct comedi_subdevice *s);
-//static int cb_pcidda_ai_cmdtest(struct comedi_device *dev,struct comedi_subdevice *s, comedi_cmd *cmd);
+//static int cb_pcidda_ai_cmdtest(struct comedi_device *dev,struct comedi_subdevice *s, struct comedi_cmd *cmd);
 //static int cb_pcidda_ns_to_timer(unsigned int *ns,int round);
 static unsigned int cb_pcidda_serial_in(struct comedi_device * dev);
 static void cb_pcidda_serial_out(struct comedi_device * dev, unsigned int value,
@@ -433,7 +433,7 @@ static int cb_pcidda_ai_cmd(struct comedi_device * dev, struct comedi_subdevice 
 
 #if 0
 static int cb_pcidda_ai_cmdtest(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_cmd * cmd)
+	struct comedi_cmd * cmd)
 {
 	int err = 0;
 	int tmp;

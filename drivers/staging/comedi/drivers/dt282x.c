@@ -707,7 +707,7 @@ static int dt282x_ai_insn_read(struct comedi_device * dev, struct comedi_subdevi
 }
 
 static int dt282x_ai_cmdtest(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_cmd * cmd)
+	struct comedi_cmd * cmd)
 {
 	int err = 0;
 	int tmp;
@@ -820,7 +820,7 @@ static int dt282x_ai_cmdtest(struct comedi_device * dev, struct comedi_subdevice
 
 static int dt282x_ai_cmd(struct comedi_device * dev, struct comedi_subdevice * s)
 {
-	comedi_cmd *cmd = &s->async->cmd;
+	struct comedi_cmd *cmd = &s->async->cmd;
 	int timer;
 
 	if (devpriv->usedma == 0) {
@@ -979,7 +979,7 @@ static int dt282x_ao_insn_write(struct comedi_device * dev, struct comedi_subdev
 }
 
 static int dt282x_ao_cmdtest(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_cmd * cmd)
+	struct comedi_cmd * cmd)
 {
 	int err = 0;
 	int tmp;
@@ -1102,7 +1102,7 @@ static int dt282x_ao_inttrig(struct comedi_device * dev, struct comedi_subdevice
 static int dt282x_ao_cmd(struct comedi_device * dev, struct comedi_subdevice * s)
 {
 	int timer;
-	comedi_cmd *cmd = &s->async->cmd;
+	struct comedi_cmd *cmd = &s->async->cmd;
 
 	if (devpriv->usedma == 0) {
 		comedi_error(dev,

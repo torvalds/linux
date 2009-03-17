@@ -108,7 +108,7 @@ static struct comedi_driver driver_waveform = {
 COMEDI_INITCLEANUP(driver_waveform);
 
 static int waveform_ai_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
-			       comedi_cmd *cmd);
+			       struct comedi_cmd *cmd);
 static int waveform_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s);
 static int waveform_ai_cancel(struct comedi_device *dev, struct comedi_subdevice *s);
 static int waveform_ai_insn_read(struct comedi_device *dev, struct comedi_subdevice *s,
@@ -145,7 +145,7 @@ static void waveform_ai_interrupt(unsigned long arg)
 {
 	struct comedi_device *dev = (struct comedi_device *) arg;
 	struct comedi_async *async = dev->read_subdev->async;
-	comedi_cmd *cmd = &async->cmd;
+	struct comedi_cmd *cmd = &async->cmd;
 	unsigned int i, j;
 	/* all times in microsec */
 	unsigned long elapsed_time;
@@ -270,7 +270,7 @@ static int waveform_detach(struct comedi_device *dev)
 }
 
 static int waveform_ai_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
-			       comedi_cmd *cmd)
+			       struct comedi_cmd *cmd)
 {
 	int err = 0;
 	int tmp;
@@ -399,7 +399,7 @@ static int waveform_ai_cmdtest(struct comedi_device *dev, struct comedi_subdevic
 
 static int waveform_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 {
-	comedi_cmd *cmd = &s->async->cmd;
+	struct comedi_cmd *cmd = &s->async->cmd;
 
 	if (cmd->flags & TRIG_RT) {
 		comedi_error(dev,

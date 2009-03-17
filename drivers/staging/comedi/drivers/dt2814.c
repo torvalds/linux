@@ -133,7 +133,7 @@ static int dt2814_ns_to_timer(unsigned int *ns, unsigned int flags)
 }
 
 static int dt2814_ai_cmdtest(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_cmd * cmd)
+	struct comedi_cmd * cmd)
 {
 	int err = 0;
 	int tmp;
@@ -226,7 +226,7 @@ static int dt2814_ai_cmdtest(struct comedi_device * dev, struct comedi_subdevice
 
 static int dt2814_ai_cmd(struct comedi_device * dev, struct comedi_subdevice * s)
 {
-	comedi_cmd *cmd = &s->async->cmd;
+	struct comedi_cmd *cmd = &s->async->cmd;
 	int chan;
 	int trigvar;
 

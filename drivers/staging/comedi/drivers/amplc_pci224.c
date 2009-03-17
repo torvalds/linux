@@ -574,7 +574,7 @@ static void pci224_ao_stop(struct comedi_device * dev, struct comedi_subdevice *
  */
 static void pci224_ao_start(struct comedi_device * dev, struct comedi_subdevice * s)
 {
-	comedi_cmd *cmd = &s->async->cmd;
+	struct comedi_cmd *cmd = &s->async->cmd;
 	unsigned long flags;
 
 	set_bit(AO_CMD_STARTED, &devpriv->state);
@@ -601,7 +601,7 @@ static void pci224_ao_start(struct comedi_device * dev, struct comedi_subdevice 
  */
 static void pci224_ao_handle_fifo(struct comedi_device * dev, struct comedi_subdevice * s)
 {
-	comedi_cmd *cmd = &s->async->cmd;
+	struct comedi_cmd *cmd = &s->async->cmd;
 	unsigned int num_scans;
 	unsigned int room;
 	unsigned short dacstat;
@@ -748,7 +748,7 @@ pci224_ao_inttrig_start(struct comedi_device * dev, struct comedi_subdevice * s,
  * 'do_cmdtest' function for AO subdevice.
  */
 static int
-pci224_ao_cmdtest(struct comedi_device * dev, struct comedi_subdevice * s, comedi_cmd * cmd)
+pci224_ao_cmdtest(struct comedi_device * dev, struct comedi_subdevice * s, struct comedi_cmd * cmd)
 {
 	int err = 0;
 	unsigned int tmp;
@@ -1017,7 +1017,7 @@ pci224_ao_cmdtest(struct comedi_device * dev, struct comedi_subdevice * s, comed
  */
 static int pci224_ao_cmd(struct comedi_device * dev, struct comedi_subdevice * s)
 {
-	comedi_cmd *cmd = &s->async->cmd;
+	struct comedi_cmd *cmd = &s->async->cmd;
 	int range;
 	unsigned int i, j;
 	unsigned int ch;
@@ -1216,7 +1216,7 @@ static irqreturn_t pci224_interrupt(int irq, void *d PT_REGS_ARG)
 {
 	struct comedi_device *dev = d;
 	struct comedi_subdevice *s = &dev->subdevices[0];
-	comedi_cmd *cmd;
+	struct comedi_cmd *cmd;
 	unsigned char intstat, valid_intstat;
 	unsigned char curenab;
 	int retval = 0;

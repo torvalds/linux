@@ -300,7 +300,7 @@ static int dmm32at_dio_insn_bits(struct comedi_device * dev, struct comedi_subde
 static int dmm32at_dio_insn_config(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data);
 static int dmm32at_ai_cmdtest(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_cmd * cmd);
+	struct comedi_cmd * cmd);
 static int dmm32at_ai_cmd(struct comedi_device * dev, struct comedi_subdevice * s);
 static int dmm32at_ai_cancel(struct comedi_device * dev, struct comedi_subdevice * s);
 static int dmm32at_ns_to_timer(unsigned int *ns, int round);
@@ -569,7 +569,7 @@ static int dmm32at_ai_rinsn(struct comedi_device * dev, struct comedi_subdevice 
 }
 
 static int dmm32at_ai_cmdtest(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_cmd * cmd)
+	struct comedi_cmd * cmd)
 {
 	int err = 0;
 	int tmp;
@@ -754,7 +754,7 @@ static int dmm32at_ai_cmdtest(struct comedi_device * dev, struct comedi_subdevic
 
 static int dmm32at_ai_cmd(struct comedi_device * dev, struct comedi_subdevice * s)
 {
-	comedi_cmd *cmd = &s->async->cmd;
+	struct comedi_cmd *cmd = &s->async->cmd;
 	int i, range;
 	unsigned char chanlo, chanhi, status;
 
@@ -845,7 +845,7 @@ static irqreturn_t dmm32at_isr(int irq, void *d PT_REGS_ARG)
 
 	if (intstat & DMM32AT_ADINT) {
 		struct comedi_subdevice *s = dev->read_subdev;
-		comedi_cmd *cmd = &s->async->cmd;
+		struct comedi_cmd *cmd = &s->async->cmd;
 
 		for (i = 0; i < cmd->chanlist_len; i++) {
 			/* read data */

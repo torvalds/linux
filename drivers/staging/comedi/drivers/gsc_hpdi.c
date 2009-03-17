@@ -57,7 +57,7 @@ static int hpdi_detach(struct comedi_device * dev);
 void abort_dma(struct comedi_device * dev, unsigned int channel);
 static int hpdi_cmd(struct comedi_device * dev, struct comedi_subdevice * s);
 static int hpdi_cmd_test(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_cmd * cmd);
+	struct comedi_cmd * cmd);
 static int hpdi_cancel(struct comedi_device * dev, struct comedi_subdevice * s);
 static irqreturn_t handle_interrupt(int irq, void *d PT_REGS_ARG);
 static int dio_config_block_size(struct comedi_device * dev, unsigned int * data);
@@ -719,7 +719,7 @@ static int dio_config_block_size(struct comedi_device * dev, unsigned int * data
 }
 
 static int di_cmd_test(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_cmd * cmd)
+	struct comedi_cmd * cmd)
 {
 	int err = 0;
 	int tmp;
@@ -819,7 +819,7 @@ static int di_cmd_test(struct comedi_device * dev, struct comedi_subdevice * s,
 }
 
 static int hpdi_cmd_test(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_cmd * cmd)
+	struct comedi_cmd * cmd)
 {
 	if (priv(dev)->dio_config_output) {
 		return -EINVAL;
@@ -839,7 +839,7 @@ static int di_cmd(struct comedi_device * dev, struct comedi_subdevice * s)
 	uint32_t bits;
 	unsigned long flags;
 	struct comedi_async *async = s->async;
-	comedi_cmd *cmd = &async->cmd;
+	struct comedi_cmd *cmd = &async->cmd;
 
 	hpdi_writel(dev, RX_FIFO_RESET_BIT, BOARD_CONTROL_REG);
 

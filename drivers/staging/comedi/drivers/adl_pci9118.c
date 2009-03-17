@@ -752,7 +752,7 @@ static int pci9118_ai_inttrig(struct comedi_device * dev, struct comedi_subdevic
 ==============================================================================
 */
 static int pci9118_ai_cmdtest(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_cmd * cmd)
+	struct comedi_cmd * cmd)
 {
 	int err = 0;
 	int tmp, divisor1, divisor2;
@@ -1289,7 +1289,7 @@ static int pci9118_ai_docmd_dma(struct comedi_device * dev, struct comedi_subdev
 */
 static int pci9118_ai_cmd(struct comedi_device * dev, struct comedi_subdevice * s)
 {
-	comedi_cmd *cmd = &s->async->cmd;
+	struct comedi_cmd *cmd = &s->async->cmd;
 	unsigned int addchans = 0;
 	int ret = 0;
 

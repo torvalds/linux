@@ -127,7 +127,7 @@ static int atmio16d_attach(struct comedi_device * dev, comedi_devconfig * it);
 static int atmio16d_detach(struct comedi_device * dev);
 static irqreturn_t atmio16d_interrupt(int irq, void *d PT_REGS_ARG);
 static int atmio16d_ai_cmdtest(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_cmd * cmd);
+	struct comedi_cmd * cmd);
 static int atmio16d_ai_cmd(struct comedi_device * dev, struct comedi_subdevice * s);
 static int atmio16d_ai_cancel(struct comedi_device * dev, struct comedi_subdevice * s);
 static void reset_counters(struct comedi_device * dev);
@@ -269,7 +269,7 @@ static irqreturn_t atmio16d_interrupt(int irq, void *d PT_REGS_ARG)
 }
 
 static int atmio16d_ai_cmdtest(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_cmd * cmd)
+	struct comedi_cmd * cmd)
 {
 	int err = 0, tmp;
 #ifdef DEBUG1
@@ -371,7 +371,7 @@ static int atmio16d_ai_cmdtest(struct comedi_device * dev, struct comedi_subdevi
 
 static int atmio16d_ai_cmd(struct comedi_device * dev, struct comedi_subdevice * s)
 {
-	comedi_cmd *cmd = &s->async->cmd;
+	struct comedi_cmd *cmd = &s->async->cmd;
 	unsigned int timer, base_clock;
 	unsigned int sample_count, tmp, chan, gain;
 	int i;

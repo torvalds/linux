@@ -701,7 +701,7 @@ static int rtd_dio_insn_bits(struct comedi_device *dev, struct comedi_subdevice 
 static int rtd_dio_insn_config(struct comedi_device *dev, struct comedi_subdevice *s,
 	comedi_insn *insn, unsigned int *data);
 static int rtd_ai_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
-	comedi_cmd *cmd);
+	struct comedi_cmd *cmd);
 static int rtd_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s);
 static int rtd_ai_cancel(struct comedi_device *dev, struct comedi_subdevice *s);
 /* static int rtd_ai_poll (struct comedi_device *dev,struct comedi_subdevice *s); */
@@ -1666,7 +1666,7 @@ static int rtd_ai_poll(struct comedi_device *dev, struct comedi_subdevice *s)
 */
 
 static int rtd_ai_cmdtest(struct comedi_device *dev,
-	struct comedi_subdevice *s, comedi_cmd *cmd)
+	struct comedi_subdevice *s, struct comedi_cmd *cmd)
 {
 	int err = 0;
 	int tmp;
@@ -1872,7 +1872,7 @@ static int rtd_ai_cmdtest(struct comedi_device *dev,
 */
 static int rtd_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 {
-	comedi_cmd *cmd = &s->async->cmd;
+	struct comedi_cmd *cmd = &s->async->cmd;
 	int timer;
 
 	/* stop anything currently running */

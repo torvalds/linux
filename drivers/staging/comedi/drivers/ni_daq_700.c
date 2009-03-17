@@ -200,7 +200,7 @@ static void do_config(struct comedi_device * dev, struct comedi_subdevice * s)
 }
 
 static int subdev_700_cmdtest(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_cmd * cmd)
+	struct comedi_cmd * cmd)
 {
 	int err = 0;
 	unsigned int tmp;

@@ -450,7 +450,7 @@ static int me_ai_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 
 /* Test analog input command */
 static int me_ai_do_cmd_test(struct comedi_device *dev, struct comedi_subdevice *s,
-			     comedi_cmd *cmd)
+			     struct comedi_cmd *cmd)
 {
 	return 0;
 }

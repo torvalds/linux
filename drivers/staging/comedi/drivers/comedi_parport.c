@@ -178,7 +178,7 @@ static int parport_intr_insn(struct comedi_device *dev, struct comedi_subdevice 
 }
 
 static int parport_intr_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
-				comedi_cmd *cmd)
+				struct comedi_cmd *cmd)
 {
 	int err = 0;
 	int tmp;

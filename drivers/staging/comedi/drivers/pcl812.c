@@ -575,7 +575,7 @@ static int pcl812_do_insn_bits(struct comedi_device * dev, struct comedi_subdevi
 /*
 ==============================================================================
 */
-static void pcl812_cmdtest_out(int e, comedi_cmd * cmd)
+static void pcl812_cmdtest_out(int e, struct comedi_cmd * cmd)
 {
 	rt_printk("pcl812 e=%d startsrc=%x scansrc=%x convsrc=%x\n", e,
 		cmd->start_src, cmd->scan_begin_src, cmd->convert_src);
@@ -592,7 +592,7 @@ static void pcl812_cmdtest_out(int e, comedi_cmd * cmd)
 ==============================================================================
 */
 static int pcl812_ai_cmdtest(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_cmd * cmd)
+	struct comedi_cmd * cmd)
 {
 	int err = 0;
 	int tmp, divisor1, divisor2;
@@ -773,7 +773,7 @@ static int pcl812_ai_cmdtest(struct comedi_device * dev, struct comedi_subdevice
 static int pcl812_ai_cmd(struct comedi_device * dev, struct comedi_subdevice * s)
 {
 	unsigned int divisor1 = 0, divisor2 = 0, i, dma_flags, bytes;
-	comedi_cmd *cmd = &s->async->cmd;
+	struct comedi_cmd *cmd = &s->async->cmd;
 
 #ifdef PCL812_EXTDEBUG
 	rt_printk("pcl812 EDBG: BGN: pcl812_ai_cmd(...)\n");

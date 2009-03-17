@@ -165,7 +165,7 @@ struct comedi_subdevice {
 		unsigned int *);
 
 	int (*do_cmd) (struct comedi_device *, struct comedi_subdevice *);
-	int (*do_cmdtest) (struct comedi_device *, struct comedi_subdevice *, comedi_cmd *);
+	int (*do_cmdtest) (struct comedi_device *, struct comedi_subdevice *, struct comedi_cmd *);
 	int (*poll) (struct comedi_device *, struct comedi_subdevice *);
 	int (*cancel) (struct comedi_device *, struct comedi_subdevice *);
 	/* int (*do_lock)(struct comedi_device *,struct comedi_subdevice *); */
@@ -221,7 +221,7 @@ struct comedi_async {
 
 	unsigned int events;	/* events that have occurred */
 
-	comedi_cmd cmd;
+	struct comedi_cmd cmd;
 
 	wait_queue_head_t wait_head;
 

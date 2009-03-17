@@ -955,7 +955,7 @@ static void pcl818_ai_mode13dma_rtc(int mode, struct comedi_device * dev,
 static int pcl818_ai_cmd_mode(int mode, struct comedi_device * dev,
 	struct comedi_subdevice * s)
 {
-	comedi_cmd *cmd = &s->async->cmd;
+	struct comedi_cmd *cmd = &s->async->cmd;
 	int divisor1, divisor2;
 	unsigned int seglen;
 
@@ -1252,7 +1252,7 @@ static int check_single_ended(unsigned int port)
 ==============================================================================
 */
 static int ai_cmdtest(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_cmd * cmd)
+	struct comedi_cmd * cmd)
 {
 	int err = 0;
 	int tmp, divisor1, divisor2;
@@ -1398,7 +1398,7 @@ static int ai_cmdtest(struct comedi_device * dev, struct comedi_subdevice * s,
 */
 static int ai_cmd(struct comedi_device * dev, struct comedi_subdevice * s)
 {
-	comedi_cmd *cmd = &s->async->cmd;
+	struct comedi_cmd *cmd = &s->async->cmd;
 	int retval;
 
 	rt_printk("pcl818_ai_cmd()\n");
