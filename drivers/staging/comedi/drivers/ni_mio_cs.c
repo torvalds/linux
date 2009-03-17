@@ -173,11 +173,13 @@ static const ni_board ni_boards[] = {
 
 #define NI_E_IRQ_FLAGS		IRQF_SHARED
 
-typedef struct {
+struct ni_private {
+
 	struct pcmcia_device *link;
 
- NI_PRIVATE_COMMON} ni_private;
-#define devpriv ((ni_private *)dev->private)
+ NI_PRIVATE_COMMON};
+
+#define devpriv ((struct ni_private *)dev->private)
 
 /* How we access registers */
 
