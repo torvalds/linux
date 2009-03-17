@@ -157,7 +157,7 @@ int netup_ci_get_mem(struct cx23885_dev *dev)
 }
 
 int netup_ci_op_cam(struct dvb_ca_en50221 *en50221, int slot,
-				u8 flag, u8 read, u8 addr, u8 data)
+				u8 flag, u8 read, int addr, u8 data)
 {
 	struct netup_ci_state *state = en50221->data;
 	struct cx23885_tsport *port = state->priv;
