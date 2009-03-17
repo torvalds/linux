@@ -38,9 +38,9 @@ Configuration Options:
 
 #include "comedi_pci.h"
 
-typedef enum contec_model {
+enum contec_model {
 	PIO1616L = 0,
-} contec_model;
+};
 
 struct contec_board {
 	const char *name;
