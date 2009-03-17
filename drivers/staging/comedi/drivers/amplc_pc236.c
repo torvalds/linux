@@ -96,14 +96,14 @@ unused.
 enum pc236_bustype { isa_bustype, pci_bustype };
 enum pc236_model { pc36at_model, pci236_model, anypci_model };
 
-typedef struct pc236_board_struct {
+struct pc236_board {
 	const char *name;
 	const char *fancy_name;
 	unsigned short devid;
 	enum pc236_bustype bustype;
 	enum pc236_model model;
-} pc236_board;
-static const pc236_board pc236_boards[] = {
+};
+static const struct pc236_board pc236_boards[] = {
 	{
 	      name:	"pc36at",
 	      fancy_name:"PC36AT",
@@ -143,7 +143,7 @@ MODULE_DEVICE_TABLE(pci, pc236_pci_table);
 /*
  * Useful for shorthand access to the particular board structure
  */
-#define thisboard ((const pc236_board *)dev->board_ptr)
+#define thisboard ((const struct pc236_board *)dev->board_ptr)
 
 /* this structure is for data unique to this hardware driver.  If
    several hardware drivers keep similar information in this structure,
@@ -173,8 +173,8 @@ static struct comedi_driver driver_amplc_pc236 = {
       attach:pc236_attach,
       detach:pc236_detach,
       board_name:&pc236_boards[0].name,
-      offset:sizeof(pc236_board),
-      num_names:sizeof(pc236_boards) / sizeof(pc236_board),
+      offset:sizeof(struct pc236_board),
+      num_names:sizeof(pc236_boards) / sizeof(struct pc236_board),
 };
 
 #ifdef CONFIG_COMEDI_PCI
