@@ -71,7 +71,7 @@ static struct comedi_device_file_info
 
 static int do_devconfig_ioctl(struct comedi_device *dev, comedi_devconfig *arg);
 static int do_bufconfig_ioctl(struct comedi_device *dev, void *arg);
-static int do_devinfo_ioctl(struct comedi_device *dev, comedi_devinfo *arg,
+static int do_devinfo_ioctl(struct comedi_device *dev, struct comedi_devinfo *arg,
 			    struct file *file);
 static int do_subdinfo_ioctl(struct comedi_device *dev, struct comedi_subdinfo *arg,
 			     void *file);
@@ -360,10 +360,10 @@ copyback:
 		devinfo structure
 
 */
-static int do_devinfo_ioctl(struct comedi_device *dev, comedi_devinfo *arg,
+static int do_devinfo_ioctl(struct comedi_device *dev, struct comedi_devinfo *arg,
 			    struct file *file)
 {
-	comedi_devinfo devinfo;
+	struct comedi_devinfo devinfo;
 	const unsigned minor = iminor(file->f_dentry->d_inode);
 	struct comedi_device_file_info *dev_file_info =
 	    comedi_get_device_file_info(minor);
@@ -390,7 +390,7 @@ static int do_devinfo_ioctl(struct comedi_device *dev, comedi_devinfo *arg,
 	else
 		devinfo.write_subdevice = -1;
 
-	if (copy_to_user(arg, &devinfo, sizeof(comedi_devinfo)))
+	if (copy_to_user(arg, &devinfo, sizeof(struct comedi_devinfo)))
 		return -EFAULT;
 
 	return 0;

@@ -292,7 +292,7 @@ enum comedi_support_level {
 
 #define CIO 'd'
 #define COMEDI_DEVCONFIG _IOW(CIO, 0, comedi_devconfig)
-#define COMEDI_DEVINFO _IOR(CIO, 1, comedi_devinfo)
+#define COMEDI_DEVINFO _IOR(CIO, 1, struct comedi_devinfo)
 #define COMEDI_SUBDINFO _IOR(CIO, 2, struct comedi_subdinfo)
 #define COMEDI_CHANINFO _IOR(CIO, 3, struct comedi_chaninfo)
 #define COMEDI_TRIG _IOWR(CIO, 4, comedi_trig)
@@ -310,7 +310,6 @@ enum comedi_support_level {
 
 /* structures */
 
-typedef struct comedi_devinfo_struct comedi_devinfo;
 typedef struct comedi_devconfig_struct comedi_devconfig;
 typedef struct comedi_rangeinfo_struct comedi_rangeinfo;
 typedef struct comedi_krange_struct comedi_krange;
@@ -406,7 +405,7 @@ struct comedi_subdinfo {
 	unsigned int unused[8];
 };
 
-struct comedi_devinfo_struct {
+struct comedi_devinfo {
 	unsigned int version_code;
 	unsigned int n_subdevs;
 	char driver_name[COMEDI_NAMELEN];
