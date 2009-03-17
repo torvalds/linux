@@ -264,7 +264,7 @@ struct intern_transform {
 /*  JR3 force/torque sensor data definition. For more information see sensor and */
 /*  hardware manuals. */
 
-typedef struct force_sensor_data {
+struct jr3_channel {
 	/*  Raw_channels is the area used to store the raw data coming from */
 	/*  the sensor. */
 
@@ -667,12 +667,12 @@ typedef struct force_sensor_data {
 	 */
 
 	struct intern_transform transforms[0x10];	/* offset 0x0200 */
-} jr3_channel_t;
+};
 
 struct jr3_t {
 	struct {
 		u32 program_low[0x4000];	/*  0x00000 - 0x10000 */
-		jr3_channel_t data;	/*  0x10000 - 0x10c00 */
+		struct jr3_channel data;	/*  0x10000 - 0x10c00 */
 		char pad2[0x30000 - 0x00c00];	/*  0x10c00 - 0x40000 */
 		u32 program_high[0x8000];	/*  0x40000 - 0x60000 */
 		u32 reset;	/*  0x60000 - 0x60004 */
