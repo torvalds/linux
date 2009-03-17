@@ -531,7 +531,7 @@ static int __devinit dma_test(struct ape_dev *ape, struct pci_dev *dev)
         goto fail;
 
 	/* allocate and map coherently-cached memory for a DMA-able buffer */
-	/* @see 2.6.26.2/Documentation/DMA-mapping.txt line 318 */
+	/* @see Documentation/PCI/PCI-DMA-mapping.txt, near line 318 */
 	buffer_virt = (u8 *)pci_alloc_consistent(dev, PAGE_SIZE * 4, &buffer_bus);
 	if (!buffer_virt) {
 		printk(KERN_DEBUG "Could not allocate coherent DMA buffer.\n");
@@ -846,7 +846,7 @@ static int __devinit probe(struct pci_dev *dev, const struct pci_device_id *id)
 
 #if 1 // @todo For now, disable 64-bit, because I do not understand the implications (DAC!)
 	/* query for DMA transfer */
-	/* @see Documentation/DMA-mapping.txt */
+	/* @see Documentation/PCI/PCI-DMA-mapping.txt */
 	if (!pci_set_dma_mask(dev, DMA_64BIT_MASK)) {
 		pci_set_consistent_dma_mask(dev, DMA_64BIT_MASK);
 		/* use 64-bit DMA */

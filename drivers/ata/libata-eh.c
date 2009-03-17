@@ -82,6 +82,10 @@ enum {
 	ATA_EH_FASTDRAIN_INTERVAL	=  3000,
 
 	ATA_EH_UA_TRIES			= 5,
+
+	/* probe speed down parameters, see ata_eh_schedule_probe() */
+	ATA_EH_PROBE_TRIAL_INTERVAL	= 60000,	/* 1 min */
+	ATA_EH_PROBE_TRIALS		= 2,
 };
 
 /* The following table determines how we sequence resets.  Each entry
@@ -1176,6 +1180,32 @@ void ata_eh_qc_retry(struct ata_queued_cmd *qc)
 }
 
 /**
+ *	ata_dev_disable - disable ATA device
+ *	@dev: ATA device to disable
+ *
+ *	Disable @dev.
+ *
+ *	Locking:
+ *	EH context.
+ */
+void ata_dev_disable(struct ata_device *dev)
+{
+	if (!ata_dev_enabled(dev))
+		return;
+
+	if (ata_msg_drv(dev->link->ap))
+		ata_dev_printk(dev, KERN_WARNING, "disabled\n");
+	ata_acpi_on_disable(dev);
+	ata_down_xfermask_limit(dev, ATA_DNXFER_FORCE_PIO0 | ATA_DNXFER_QUIET);
+	dev->class++;
+
+	/* From now till the next successful probe, ering is used to
+	 * track probe failures.  Clear accumulated device error info.
+	 */
+	ata_ering_clear(&dev->ering);
+}
+
+/**
  *	ata_eh_detach_dev - detach ATA device
  *	@dev: ATA device to detach
  *
@@ -1849,7 +1879,7 @@ static unsigned int ata_eh_speed_down(struct ata_device *dev,
 	/* speed down? */
 	if (verdict & ATA_EH_SPDN_SPEED_DOWN) {
 		/* speed down SATA link speed if possible */
-		if (sata_down_spd_limit(link) == 0) {
+		if (sata_down_spd_limit(link, 0) == 0) {
 			action |= ATA_EH_RESET;
 			goto done;
 		}
@@ -2393,11 +2423,14 @@ int ata_eh_reset(struct ata_link *link, int classify,
 		}
 
 		/* prereset() might have cleared ATA_EH_RESET.  If so,
-		 * bang classes and return.
+		 * bang classes, thaw and return.
 		 */
 		if (reset && !(ehc->i.action & ATA_EH_RESET)) {
 			ata_for_each_dev(dev, link, ALL)
 				classes[dev->devno] = ATA_DEV_NONE;
+			if ((ap->pflags & ATA_PFLAG_FROZEN) &&
+			    ata_is_host_link(link))
+				ata_eh_thaw_port(ap);
 			rc = 0;
 			goto out;
 		}
@@ -2601,11 +2634,11 @@ int ata_eh_reset(struct ata_link *link, int classify,
 	}
 
 	if (try == max_tries - 1) {
-		sata_down_spd_limit(link);
+		sata_down_spd_limit(link, 0);
 		if (slave)
-			sata_down_spd_limit(slave);
+			sata_down_spd_limit(slave, 0);
 	} else if (rc == -EPIPE)
-		sata_down_spd_limit(failed_link);
+		sata_down_spd_limit(failed_link, 0);
 
 	if (hardreset)
 		reset = hardreset;
@@ -2744,6 +2777,8 @@ static int ata_eh_revalidate_and_attach(struct ata_link *link,
 						     readid_flags, dev->id);
 			switch (rc) {
 			case 0:
+				/* clear error info accumulated during probe */
+				ata_ering_clear(&dev->ering);
 				new_mask |= 1 << dev->devno;
 				break;
 			case -ENOENT:
@@ -2869,7 +2904,7 @@ static int atapi_eh_clear_ua(struct ata_device *dev)
 	int i;
 
 	for (i = 0; i < ATA_EH_UA_TRIES; i++) {
-		u8 sense_buffer[SCSI_SENSE_BUFFERSIZE];
+		u8 *sense_buffer = dev->link->ap->sector_buf;
 		u8 sense_key = 0;
 		unsigned int err_mask;
 
@@ -2947,9 +2982,24 @@ static int ata_eh_skip_recovery(struct ata_link *link)
 	return 1;
 }
 
+static int ata_count_probe_trials_cb(struct ata_ering_entry *ent, void *void_arg)
+{
+	u64 interval = msecs_to_jiffies(ATA_EH_PROBE_TRIAL_INTERVAL);
+	u64 now = get_jiffies_64();
+	int *trials = void_arg;
+
+	if (ent->timestamp < now - min(now, interval))
+		return -1;
+
+	(*trials)++;
+	return 0;
+}
+
 static int ata_eh_schedule_probe(struct ata_device *dev)
 {
 	struct ata_eh_context *ehc = &dev->link->eh_context;
+	struct ata_link *link = ata_dev_phys_link(dev);
+	int trials = 0;
 
 	if (!(ehc->i.probe_mask & (1 << dev->devno)) ||
 	    (ehc->did_probe_mask & (1 << dev->devno)))
@@ -2962,6 +3012,25 @@ static int ata_eh_schedule_probe(struct ata_device *dev)
 	ehc->saved_xfer_mode[dev->devno] = 0;
 	ehc->saved_ncq_enabled &= ~(1 << dev->devno);
 
+	/* Record and count probe trials on the ering.  The specific
+	 * error mask used is irrelevant.  Because a successful device
+	 * detection clears the ering, this count accumulates only if
+	 * there are consecutive failed probes.
+	 *
+	 * If the count is equal to or higher than ATA_EH_PROBE_TRIALS
+	 * in the last ATA_EH_PROBE_TRIAL_INTERVAL, link speed is
+	 * forced to 1.5Gbps.
+	 *
+	 * This is to work around cases where failed link speed
+	 * negotiation results in device misdetection leading to
+	 * infinite DEVXCHG or PHRDY CHG events.
+	 */
+	ata_ering_record(&dev->ering, 0, AC_ERR_OTHER);
+	ata_ering_map(&dev->ering, ata_count_probe_trials_cb, &trials);
+
+	if (trials > ATA_EH_PROBE_TRIALS)
+		sata_down_spd_limit(link, 1);
+
 	return 1;
 }
 
@@ -2969,7 +3038,11 @@ static int ata_eh_handle_dev_fail(struct ata_device *dev, int err)
 {
 	struct ata_eh_context *ehc = &dev->link->eh_context;
 
-	ehc->tries[dev->devno]--;
+	/* -EAGAIN from EH routine indicates retry without prejudice.
+	 * The requester is responsible for ensuring forward progress.
+	 */
+	if (err != -EAGAIN)
+		ehc->tries[dev->devno]--;
 
 	switch (err) {
 	case -ENODEV:
@@ -2979,12 +3052,13 @@ static int ata_eh_handle_dev_fail(struct ata_device *dev, int err)
 		/* give it just one more chance */
 		ehc->tries[dev->devno] = min(ehc->tries[dev->devno], 1);
 	case -EIO:
-		if (ehc->tries[dev->devno] == 1 && dev->pio_mode > XFER_PIO_0) {
+		if (ehc->tries[dev->devno] == 1) {
 			/* This is the last chance, better to slow
 			 * down than lose it.
 			 */
-			sata_down_spd_limit(ata_dev_phys_link(dev));
-			ata_down_xfermask_limit(dev, ATA_DNXFER_PIO);
+			sata_down_spd_limit(ata_dev_phys_link(dev), 0);
+			if (dev->pio_mode > XFER_PIO_0)
+				ata_down_xfermask_limit(dev, ATA_DNXFER_PIO);
 		}
 	}
 

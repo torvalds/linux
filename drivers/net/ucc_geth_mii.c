@@ -107,7 +107,7 @@ int uec_mdio_read(struct mii_bus *bus, int mii_id, int regnum)
 static int uec_mdio_reset(struct mii_bus *bus)
 {
 	struct ucc_mii_mng __iomem *regs = (void __iomem *)bus->priv;
-	unsigned int timeout = PHY_INIT_TIMEOUT;
+	int timeout = PHY_INIT_TIMEOUT;
 
 	mutex_lock(&bus->mdio_lock);
 
@@ -123,7 +123,7 @@ static int uec_mdio_reset(struct mii_bus *bus)
 
 	mutex_unlock(&bus->mdio_lock);
 
-	if (timeout <= 0) {
+	if (timeout < 0) {
 		printk(KERN_ERR "%s: The MII Bus is stuck!\n", bus->name);
 		return -EBUSY;
 	}
@@ -156,7 +156,7 @@ static int uec_mdio_probe(struct of_device *ofdev, const struct of_device_id *ma
 	if (err)
 		goto reg_map_fail;
 
-	snprintf(new_bus->id, MII_BUS_ID_SIZE, "%x", res.start);
+	uec_mdio_bus_name(new_bus->id, np);
 
 	new_bus->irq = kmalloc(32 * sizeof(int), GFP_KERNEL);
 
@@ -283,3 +283,13 @@ void uec_mdio_exit(void)
 {
 	of_unregister_platform_driver(&uec_mdio_driver);
 }
+
+void uec_mdio_bus_name(char *name, struct device_node *np)
+{
+        const u32 *reg;
+
+        reg = of_get_property(np, "reg", NULL);
+
+        snprintf(name, MII_BUS_ID_SIZE, "%s@%x", np->name, reg ? *reg : 0);
+}
+

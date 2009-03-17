@@ -335,3 +335,12 @@ Why:	In 2.6.18 the Secmark concept was introduced to replace the "compat_net"
 	Secmark, it is time to deprecate the older mechanism and start the
 	process of removing the old code.
 Who:	Paul Moore <paul.moore@hp.com>
+---------------------------
+
+What:	sysfs ui for changing p4-clockmod parameters
+When:	September 2009
+Why:	See commits 129f8ae9b1b5be94517da76009ea956e89104ce8 and
+	e088e4c9cdb618675874becb91b2fd581ee707e6.
+	Removal is subject to fixing any remaining bugs in ACPI which may
+	cause the thermal throttling not to happen at the right time.
+Who:	Dave Jones <davej@redhat.com>, Matthew Garrett <mjg@redhat.com>

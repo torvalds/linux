@@ -787,12 +787,12 @@ struct mbox_params {
 
 struct flash_params {
 	u8 dev_id_str[4];
-	u16 size;
-	u16 csum;
-	u16 ver;
-	u16 sub_dev_id;
+	__le16 size;
+	__le16 csum;
+	__le16 ver;
+	__le16 sub_dev_id;
 	u8 mac_addr[6];
-	u16 res;
+	__le16 res;
 };
 
 

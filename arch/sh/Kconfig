@@ -644,65 +644,24 @@ endmenu
 
 menu "Bus options"
 
-# Even on SuperH devices which don't have an ISA bus,
-# this variable helps the PCMCIA modules handle
-# IRQ requesting properly -- Greg Banks.
-#
-# Though we're generally not interested in it when
-# we're not using PCMCIA, so we make it dependent on
-# PCMCIA outright. -- PFM.
-config ISA
-	def_bool y
-	depends on PCMCIA && HD6446X_SERIES
-	help
-	  Find out whether you have ISA slots on your motherboard.  ISA is the
-	  name of a bus system, i.e. the way the CPU talks to the other stuff
-	  inside your box.  Other bus systems are PCI, EISA, MicroChannel
-	  (MCA) or VESA.  ISA is an older system, now being displaced by PCI;
-	  newer boards don't support it.  If you have ISA, say Y, otherwise N.
-
-config EISA
-	bool
-	---help---
-	  The Extended Industry Standard Architecture (EISA) bus was
-	  developed as an open alternative to the IBM MicroChannel bus.
-
-	  The EISA bus provided some of the features of the IBM MicroChannel
-	  bus while maintaining backward compatibility with cards made for
-	  the older ISA bus.  The EISA bus saw limited use between 1988 and
-	  1995 when it was made obsolete by the PCI bus.
-
-	  Say Y here if you are building a kernel for an EISA-based machine.
-
-	  Otherwise, say N.
-
-config MCA
-	bool
-	help
-	  MicroChannel Architecture is found in some IBM PS/2 machines and
-	  laptops.  It is a bus system similar to PCI or ISA. See
-	  <file:Documentation/mca.txt> (and especially the web page given
-	  there) before attempting to build an MCA bus kernel.
-
-config SBUS
-	bool
-
 config SUPERHYWAY
 	tristate "SuperHyway Bus support"
 	depends on CPU_SUBTYPE_SH4_202
 
 config MAPLE
-       bool "Maple Bus support"
-       depends on SH_DREAMCAST
-       help
-         The Maple Bus is SEGA's serial communication bus for peripherals
-         on the Dreamcast. Without this bus support you won't be able to
-         get your Dreamcast keyboard etc to work, so most users
-         probably want to say 'Y' here, unless you are only using the
-         Dreamcast with a serial line terminal or a remote network
-         connection.
+	bool "Maple Bus support"
+	depends on SH_DREAMCAST
+	help
+	 The Maple Bus is SEGA's serial communication bus for peripherals
+	 on the Dreamcast. Without this bus support you won't be able to
+	 get your Dreamcast keyboard etc to work, so most users
+	 probably want to say 'Y' here, unless you are only using the
+	 Dreamcast with a serial line terminal or a remote network
+	 connection.
 
 source "arch/sh/drivers/pci/Kconfig"
+
+source "drivers/pci/pcie/Kconfig"
 
 source "drivers/pci/Kconfig"
 

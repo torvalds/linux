@@ -269,9 +269,8 @@ void vesa_store_edid(void)
 	   we genuinely have to assume all registers are destroyed here. */
 
 	asm("pushw %%es; movw %2,%%es; "INT10"; popw %%es"
-	    : "+a" (ax), "+b" (bx)
-	    :  "c" (cx), "D" (di)
-	    : "esi");
+	    : "+a" (ax), "+b" (bx), "+c" (cx), "+D" (di)
+	    : : "esi", "edx");
 
 	if (ax != 0x004f)
 		return;		/* No EDID */
@@ -285,9 +284,9 @@ void vesa_store_edid(void)
 	dx = 0;			/* EDID block number */
 	di =(size_t) &boot_params.edid_info; /* (ES:)Pointer to block */
 	asm(INT10
-	    : "+a" (ax), "+b" (bx), "+d" (dx), "=m" (boot_params.edid_info)
-	    : "c" (cx), "D" (di)
-	    : "esi");
+	    : "+a" (ax), "+b" (bx), "+d" (dx), "=m" (boot_params.edid_info),
+	      "+c" (cx), "+D" (di)
+	    : : "esi");
 #endif /* CONFIG_FIRMWARE_EDID */
 }
 

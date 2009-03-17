@@ -234,7 +234,6 @@ struct cpufreq_driver {
 	int	(*suspend)	(struct cpufreq_policy *policy, pm_message_t pmsg);
 	int	(*resume)	(struct cpufreq_policy *policy);
 	struct freq_attr	**attr;
-	bool			hide_interface;
 };
 
 /* flags */

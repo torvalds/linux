@@ -746,7 +746,6 @@ static int __devinit iic_probe(struct of_device *ofdev,
 	adap->dev.parent = &ofdev->dev;
 	strlcpy(adap->name, "IBM IIC", sizeof(adap->name));
 	i2c_set_adapdata(adap, dev);
-	adap->id = I2C_HW_OCP;
 	adap->class = I2C_CLASS_HWMON | I2C_CLASS_SPD;
 	adap->algo = &iic_algo;
 	adap->timeout = 1;

@@ -25,13 +25,13 @@ static inline dev_info_t *which_dev(mddev_t *mddev, sector_t sector)
 {
 	dev_info_t *hash;
 	linear_conf_t *conf = mddev_to_conf(mddev);
+	sector_t idx = sector >> conf->sector_shift;
 
 	/*
 	 * sector_div(a,b) returns the remainer and sets a to a/b
 	 */
-	sector >>= conf->sector_shift;
-	(void)sector_div(sector, conf->spacing);
-	hash = conf->hash_table[sector];
+	(void)sector_div(idx, conf->spacing);
+	hash = conf->hash_table[idx];
 
 	while (sector >= hash->num_sectors + hash->start_sector)
 		hash++;
