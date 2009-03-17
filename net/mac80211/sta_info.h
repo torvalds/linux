@@ -35,6 +35,8 @@
  *	IEEE80211_TX_CTL_CLEAR_PS_FILT control flag) when the next
  *	frame to this station is transmitted.
  * @WLAN_STA_MFP: Management frame protection is used with this STA.
+ * @WLAN_STA_SUSPEND: Set/cleared during a suspend/resume cycle.
+ *	Used to deny ADDBA requests (both TX and RX).
  */
 enum ieee80211_sta_info_flags {
 	WLAN_STA_AUTH		= 1<<0,
@@ -48,6 +50,7 @@ enum ieee80211_sta_info_flags {
 	WLAN_STA_PSPOLL		= 1<<8,
 	WLAN_STA_CLEAR_PS_FILT	= 1<<9,
 	WLAN_STA_MFP		= 1<<10,
+	WLAN_STA_SUSPEND	= 1<<11
 };
 
 #define STA_TID_NUM 16

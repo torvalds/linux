@@ -257,6 +257,15 @@ int ieee80211_start_tx_ba_session(struct ieee80211_hw *hw, u8 *ra, u16 tid)
 		goto unlock;
 	}
 
+	if (test_sta_flags(sta, WLAN_STA_SUSPEND)) {
+#ifdef CONFIG_MAC80211_HT_DEBUG
+		printk(KERN_DEBUG "Suspend in progress. "
+		       "Denying BA session request\n");
+#endif
+		ret = -EINVAL;
+		goto unlock;
+	}
+
 	spin_lock_bh(&sta->lock);
 
 	sdata = sta->sdata;

@@ -21,6 +21,19 @@ int __ieee80211_suspend(struct ieee80211_hw *hw)
 	list_for_each_entry(sdata, &local->interfaces, list)
 		ieee80211_disable_keys(sdata);
 
+	/* Tear down aggregation sessions */
+
+	rcu_read_lock();
+
+	if (hw->flags & IEEE80211_HW_AMPDU_AGGREGATION) {
+		list_for_each_entry_rcu(sta, &local->sta_list, list) {
+			set_sta_flags(sta, WLAN_STA_SUSPEND);
+			ieee80211_sta_tear_down_BA_sessions(sta);
+		}
+	}
+
+	rcu_read_unlock();
+
 	/* remove STAs */
 	if (local->ops->sta_notify) {
 		spin_lock_irqsave(&local->sta_lock, flags);
@@ -101,6 +114,18 @@ int __ieee80211_resume(struct ieee80211_hw *hw)
 		}
 		spin_unlock_irqrestore(&local->sta_lock, flags);
 	}
+
+	/* Clear Suspend state so that ADDBA requests can be processed */
+
+	rcu_read_lock();
+
+	if (hw->flags & IEEE80211_HW_AMPDU_AGGREGATION) {
+		list_for_each_entry_rcu(sta, &local->sta_list, list) {
+			clear_sta_flags(sta, WLAN_STA_SUSPEND);
+		}
+	}
+
+	rcu_read_unlock();
 
 	/* add back keys */
 	list_for_each_entry(sdata, &local->interfaces, list)
