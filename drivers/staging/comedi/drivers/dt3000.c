@@ -262,7 +262,8 @@ MODULE_DEVICE_TABLE(pci, dt3k_pci_table);
 #define DT3000_CHANNEL_MODE_SE		0
 #define DT3000_CHANNEL_MODE_DI		1
 
-typedef struct {
+struct dt3k_private {
+
 	struct pci_dev *pci_dev;
 	resource_size_t phys_addr;
 	void *io_addr;
@@ -270,8 +271,9 @@ typedef struct {
 	unsigned int ao_readback[2];
 	unsigned int ai_front;
 	unsigned int ai_rear;
-} dt3k_private;
-#define devpriv ((dt3k_private *)dev->private)
+};
+
+#define devpriv ((struct dt3k_private *)dev->private)
 
 static int dt3000_attach(struct comedi_device * dev, struct comedi_devconfig * it);
 static int dt3000_detach(struct comedi_device * dev);
@@ -809,7 +811,7 @@ static int dt3000_attach(struct comedi_device * dev, struct comedi_devconfig * i
 	bus = it->options[0];
 	slot = it->options[1];
 
-	if ((ret = alloc_private(dev, sizeof(dt3k_private))) < 0)
+	if ((ret = alloc_private(dev, sizeof(struct dt3k_private))) < 0)
 		return ret;
 
 	ret = dt_pci_probe(dev, bus, slot);
