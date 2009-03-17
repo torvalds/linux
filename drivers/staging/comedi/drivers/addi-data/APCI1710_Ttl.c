@@ -100,7 +100,7 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_InsnConfigInitTTLIO(comedi_device * dev, comedi_subdevice * s,
+INT i_APCI1710_InsnConfigInitTTLIO(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	INT i_ReturnValue = 0;
@@ -406,7 +406,7 @@ APCI1710_TTL_READCHANNEL
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_InsnBitsReadTTLIO(comedi_device * dev, comedi_subdevice * s,
+INT i_APCI1710_InsnBitsReadTTLIO(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	INT i_ReturnValue = 0;
@@ -655,7 +655,7 @@ INT i_APCI1710_InsnBitsReadTTLIO(comedi_device * dev, comedi_subdevice * s,
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_InsnReadTTLIOAllPortValue(comedi_device * dev,
+INT i_APCI1710_InsnReadTTLIOAllPortValue(struct comedi_device * dev,
 	comedi_subdevice * s, comedi_insn * insn, unsigned int * data)
 {
 	INT i_ReturnValue = 0;
@@ -792,7 +792,7 @@ INT i_APCI1710_InsnReadTTLIOAllPortValue(comedi_device * dev,
 |                               (BYTE_           b_BoardHandle,              |
 |                                BYTE_           b_ModulNbr,                 |
 |                                BYTE_           b_OutputChannel)
-INT i_APCI1710_InsnWriteSetTTLIOChlOnOff(comedi_device *dev,comedi_subdevice *s,
+INT i_APCI1710_InsnWriteSetTTLIOChlOnOff(struct comedi_device *dev,comedi_subdevice *s,
 	comedi_insn *insn,unsigned int *data)           |
 +----------------------------------------------------------------------------+
 | Task              : Sets or resets  the output witch has been passed with the         |
@@ -825,7 +825,7 @@ INT i_APCI1710_InsnWriteSetTTLIOChlOnOff(comedi_device *dev,comedi_subdevice *s,
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_InsnWriteSetTTLIOChlOnOff(comedi_device * dev,
+INT i_APCI1710_InsnWriteSetTTLIOChlOnOff(struct comedi_device * dev,
 	comedi_subdevice * s, comedi_insn * insn, unsigned int * data)
 {
 	INT i_ReturnValue = 0;

@@ -62,8 +62,8 @@ Copy/pasted/hacked from pcm724.c
 #define CR_A_MODE(a)	((a)<<5)
 #define CR_CW		0x80
 
-static int pcm3724_attach(comedi_device * dev, comedi_devconfig * it);
-static int pcm3724_detach(comedi_device * dev);
+static int pcm3724_attach(struct comedi_device * dev, comedi_devconfig * it);
+static int pcm3724_detach(struct comedi_device * dev);
 
 typedef struct {
 	const char *name;	// driver name
@@ -142,7 +142,7 @@ static int compute_buffer(int config, int devno, comedi_subdevice * s)
 	return config;
 }
 
-static void do_3724_config(comedi_device * dev, comedi_subdevice * s,
+static void do_3724_config(struct comedi_device * dev, comedi_subdevice * s,
 	int chanspec)
 {
 	int config;
@@ -176,7 +176,7 @@ static void do_3724_config(comedi_device * dev, comedi_subdevice * s,
 	outb(config, port_8255_cfg);
 }
 
-static void enable_chan(comedi_device * dev, comedi_subdevice * s, int chanspec)
+static void enable_chan(struct comedi_device * dev, comedi_subdevice * s, int chanspec)
 {
 	unsigned int mask;
 	int gatecfg;
@@ -214,7 +214,7 @@ static void enable_chan(comedi_device * dev, comedi_subdevice * s, int chanspec)
 }
 
 /* overriding the 8255 insn config */
-static int subdev_3724_insn_config(comedi_device * dev, comedi_subdevice * s,
+static int subdev_3724_insn_config(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	unsigned int mask;
@@ -251,7 +251,7 @@ static int subdev_3724_insn_config(comedi_device * dev, comedi_subdevice * s,
 	return 1;
 }
 
-static int pcm3724_attach(comedi_device * dev, comedi_devconfig * it)
+static int pcm3724_attach(struct comedi_device * dev, comedi_devconfig * it)
 {
 	unsigned long iobase;
 	unsigned int iorange;
@@ -289,7 +289,7 @@ static int pcm3724_attach(comedi_device * dev, comedi_devconfig * it)
 	return 0;
 }
 
-static int pcm3724_detach(comedi_device * dev)
+static int pcm3724_detach(struct comedi_device * dev)
 {
 	int i;
 

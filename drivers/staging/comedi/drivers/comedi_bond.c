@@ -154,7 +154,7 @@ struct BondedDevice {
 
 /* this structure is for data unique to this hardware driver.  If
    several hardware drivers keep similar information in this structure,
-   feel free to suggest moving the variable to the comedi_device struct.  */
+   feel free to suggest moving the variable to the struct comedi_device struct.  */
 struct Private {
 # define MAX_BOARD_NAME 256
 	char name[MAX_BOARD_NAME];
@@ -176,11 +176,11 @@ struct Private {
  * the board, and also about the kernel module that contains
  * the device code.
  */
-static int bonding_attach(comedi_device *dev, comedi_devconfig *it);
-static int bonding_detach(comedi_device *dev);
+static int bonding_attach(struct comedi_device *dev, comedi_devconfig *it);
+static int bonding_detach(struct comedi_device *dev);
 /** Build Private array of all devices.. */
-static int doDevConfig(comedi_device *dev, comedi_devconfig *it);
-static void doDevUnconfig(comedi_device *dev);
+static int doDevConfig(struct comedi_device *dev, comedi_devconfig *it);
+static void doDevUnconfig(struct comedi_device *dev);
 /* Ugly implementation of realloc that always copies memory around -- I'm lazy,
  * what can I say?  I like to do wasteful memcopies.. :) */
 static void *Realloc(const void *ptr, size_t len, size_t old_len);
@@ -213,9 +213,9 @@ static comedi_driver driver_bonding = {
       .num_names =	sizeof(bondingBoards) / sizeof(struct BondingBoard),
 };
 
-static int bonding_dio_insn_bits(comedi_device *dev, comedi_subdevice *s,
+static int bonding_dio_insn_bits(struct comedi_device *dev, comedi_subdevice *s,
 				 comedi_insn *insn, unsigned int *data);
-static int bonding_dio_insn_config(comedi_device *dev, comedi_subdevice *s,
+static int bonding_dio_insn_config(struct comedi_device *dev, comedi_subdevice *s,
 				   comedi_insn *insn, unsigned int *data);
 
 /*
@@ -224,7 +224,7 @@ static int bonding_dio_insn_config(comedi_device *dev, comedi_subdevice *s,
  * in the driver structure, dev->board_ptr contains that
  * address.
  */
-static int bonding_attach(comedi_device *dev, comedi_devconfig *it)
+static int bonding_attach(struct comedi_device *dev, comedi_devconfig *it)
 {
 	comedi_subdevice *s;
 
@@ -281,7 +281,7 @@ static int bonding_attach(comedi_device *dev, comedi_devconfig *it)
  * allocated by _attach().  dev->private and dev->subdevices are
  * deallocated automatically by the core.
  */
-static int bonding_detach(comedi_device *dev)
+static int bonding_detach(struct comedi_device *dev)
 {
 	LOG_MSG("comedi%d: remove\n", dev->minor);
 	doDevUnconfig(dev);
@@ -293,7 +293,7 @@ static int bonding_detach(comedi_device *dev)
  * useful to applications if you implement the insn_bits interface.
  * This allows packed reading/writing of the DIO channels.  The
  * comedi core can convert between insn_bits and insn_read/write */
-static int bonding_dio_insn_bits(comedi_device *dev, comedi_subdevice *s,
+static int bonding_dio_insn_bits(struct comedi_device *dev, comedi_subdevice *s,
 				 comedi_insn *insn, unsigned int *data)
 {
 #define LSAMPL_BITS (sizeof(unsigned int)*8)
@@ -340,7 +340,7 @@ static int bonding_dio_insn_bits(comedi_device *dev, comedi_subdevice *s,
 	return insn->n;
 }
 
-static int bonding_dio_insn_config(comedi_device *dev, comedi_subdevice *s,
+static int bonding_dio_insn_config(struct comedi_device *dev, comedi_subdevice *s,
 				   comedi_insn *insn, unsigned int *data)
 {
 	int chan = CR_CHAN(insn->chanspec), ret, io_bits = s->io_bits;
@@ -394,7 +394,7 @@ static void *Realloc(const void *oldmem, size_t newlen, size_t oldlen)
 	return newmem;
 }
 
-static int doDevConfig(comedi_device *dev, comedi_devconfig *it)
+static int doDevConfig(struct comedi_device *dev, comedi_devconfig *it)
 {
 	int i;
 	void *devs_opened[COMEDI_NUM_BOARD_MINORS];
@@ -497,7 +497,7 @@ static int doDevConfig(comedi_device *dev, comedi_devconfig *it)
 	return 1;
 }
 
-static void doDevUnconfig(comedi_device *dev)
+static void doDevUnconfig(struct comedi_device *dev)
 {
 	unsigned long devs_closed = 0;
 

@@ -278,7 +278,7 @@ static void __exit ni_tio_cleanup_module(void)
 
 module_exit(ni_tio_cleanup_module);
 
-struct ni_gpct_device *ni_gpct_device_construct(comedi_device * dev,
+struct ni_gpct_device *ni_gpct_device_construct(struct comedi_device * dev,
 	void (*write_register) (struct ni_gpct * counter, unsigned bits,
 		enum ni_gpct_register reg),
 	unsigned (*read_register) (struct ni_gpct * counter,

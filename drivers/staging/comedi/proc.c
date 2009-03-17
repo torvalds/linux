@@ -53,7 +53,7 @@ int comedi_read_procmem(char *buf, char **start, off_t offset, int len,
 
 	for (i = 0; i < COMEDI_NUM_BOARD_MINORS; i++) {
 		struct comedi_device_file_info *dev_file_info = comedi_get_device_file_info(i);
-		comedi_device *dev;
+		struct comedi_device *dev;
 
 		if (dev_file_info == NULL)
 			continue;

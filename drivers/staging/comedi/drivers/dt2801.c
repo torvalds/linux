@@ -88,8 +88,8 @@ Configuration options:
 #define DT2801_STATUS		1
 #define DT2801_CMD		1
 
-static int dt2801_attach(comedi_device * dev, comedi_devconfig * it);
-static int dt2801_detach(comedi_device * dev);
+static int dt2801_attach(struct comedi_device * dev, comedi_devconfig * it);
+static int dt2801_detach(struct comedi_device * dev);
 static comedi_driver driver_dt2801 = {
       driver_name:"dt2801",
       module:THIS_MODULE,
@@ -224,15 +224,15 @@ typedef struct {
 } dt2801_private;
 #define devpriv ((dt2801_private *)dev->private)
 
-static int dt2801_ai_insn_read(comedi_device * dev, comedi_subdevice * s,
+static int dt2801_ai_insn_read(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data);
-static int dt2801_ao_insn_read(comedi_device * dev, comedi_subdevice * s,
+static int dt2801_ao_insn_read(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data);
-static int dt2801_ao_insn_write(comedi_device * dev, comedi_subdevice * s,
+static int dt2801_ao_insn_write(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data);
-static int dt2801_dio_insn_bits(comedi_device * dev, comedi_subdevice * s,
+static int dt2801_dio_insn_bits(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data);
-static int dt2801_dio_insn_config(comedi_device * dev, comedi_subdevice * s,
+static int dt2801_dio_insn_config(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data);
 
 /* These are the low-level routines:
@@ -244,7 +244,7 @@ static int dt2801_dio_insn_config(comedi_device * dev, comedi_subdevice * s,
 /* Only checks DataOutReady-flag, not the Ready-flag as it is done
    in the examples of the manual. I don't see why this should be
    necessary. */
-static int dt2801_readdata(comedi_device * dev, int *data)
+static int dt2801_readdata(struct comedi_device * dev, int *data)
 {
 	int stat = 0;
 	int timeout = DT2801_TIMEOUT;
@@ -263,7 +263,7 @@ static int dt2801_readdata(comedi_device * dev, int *data)
 	return -ETIME;
 }
 
-static int dt2801_readdata2(comedi_device * dev, int *data)
+static int dt2801_readdata2(struct comedi_device * dev, int *data)
 {
 	int lb, hb;
 	int ret;
@@ -279,7 +279,7 @@ static int dt2801_readdata2(comedi_device * dev, int *data)
 	return 0;
 }
 
-static int dt2801_writedata(comedi_device * dev, unsigned int data)
+static int dt2801_writedata(struct comedi_device * dev, unsigned int data)
 {
 	int stat = 0;
 	int timeout = DT2801_TIMEOUT;
@@ -305,7 +305,7 @@ static int dt2801_writedata(comedi_device * dev, unsigned int data)
 	return -ETIME;
 }
 
-static int dt2801_writedata2(comedi_device * dev, unsigned int data)
+static int dt2801_writedata2(struct comedi_device * dev, unsigned int data)
 {
 	int ret;
 
@@ -319,7 +319,7 @@ static int dt2801_writedata2(comedi_device * dev, unsigned int data)
 	return 0;
 }
 
-static int dt2801_wait_for_ready(comedi_device * dev)
+static int dt2801_wait_for_ready(struct comedi_device * dev)
 {
 	int timeout = DT2801_TIMEOUT;
 	int stat;
@@ -342,7 +342,7 @@ static int dt2801_wait_for_ready(comedi_device * dev)
 	return -ETIME;
 }
 
-static int dt2801_writecmd(comedi_device * dev, int command)
+static int dt2801_writecmd(struct comedi_device * dev, int command)
 {
 	int stat;
 
@@ -360,7 +360,7 @@ static int dt2801_writecmd(comedi_device * dev, int command)
 	return 0;
 }
 
-static int dt2801_reset(comedi_device * dev)
+static int dt2801_reset(struct comedi_device * dev)
 {
 	int board_code = 0;
 	unsigned int stat;
@@ -417,7 +417,7 @@ static int dt2801_reset(comedi_device * dev)
 	return board_code;
 }
 
-static int probe_number_of_ai_chans(comedi_device * dev)
+static int probe_number_of_ai_chans(struct comedi_device * dev)
 {
 	int n_chans;
 	int stat;
@@ -478,7 +478,7 @@ static const comedi_lrange *ai_range_lkup(int type, int opt)
 	[4] - dac0 range 0=[-10,10], 1=[-5,5], 2=[-2.5,2.5] 3=[0,10], 4=[0,5]
 	[5] - dac1 range 0=[-10,10], 1=[-5,5], 2=[-2.5,2.5] 3=[0,10], 4=[0,5]
 */
-static int dt2801_attach(comedi_device * dev, comedi_devconfig * it)
+static int dt2801_attach(struct comedi_device * dev, comedi_devconfig * it)
 {
 	comedi_subdevice *s;
 	unsigned long iobase;
@@ -579,7 +579,7 @@ static int dt2801_attach(comedi_device * dev, comedi_devconfig * it)
 	return ret;
 }
 
-static int dt2801_detach(comedi_device * dev)
+static int dt2801_detach(struct comedi_device * dev)
 {
 	if (dev->iobase)
 		release_region(dev->iobase, DT2801_IOSIZE);
@@ -587,7 +587,7 @@ static int dt2801_detach(comedi_device * dev)
 	return 0;
 }
 
-static int dt2801_error(comedi_device * dev, int stat)
+static int dt2801_error(struct comedi_device * dev, int stat)
 {
 	if (stat < 0) {
 		if (stat == -ETIME) {
@@ -605,7 +605,7 @@ static int dt2801_error(comedi_device * dev, int stat)
 	return -EIO;
 }
 
-static int dt2801_ai_insn_read(comedi_device * dev, comedi_subdevice * s,
+static int dt2801_ai_insn_read(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	int d;
@@ -627,7 +627,7 @@ static int dt2801_ai_insn_read(comedi_device * dev, comedi_subdevice * s,
 	return i;
 }
 
-static int dt2801_ao_insn_read(comedi_device * dev, comedi_subdevice * s,
+static int dt2801_ao_insn_read(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	data[0] = devpriv->ao_readback[CR_CHAN(insn->chanspec)];
@@ -635,7 +635,7 @@ static int dt2801_ao_insn_read(comedi_device * dev, comedi_subdevice * s,
 	return 1;
 }
 
-static int dt2801_ao_insn_write(comedi_device * dev, comedi_subdevice * s,
+static int dt2801_ao_insn_write(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	dt2801_writecmd(dev, DT_C_WRITE_DAIM);
@@ -647,7 +647,7 @@ static int dt2801_ao_insn_write(comedi_device * dev, comedi_subdevice * s,
 	return 1;
 }
 
-static int dt2801_dio_insn_bits(comedi_device * dev, comedi_subdevice * s,
+static int dt2801_dio_insn_bits(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	int which = 0;
@@ -671,7 +671,7 @@ static int dt2801_dio_insn_bits(comedi_device * dev, comedi_subdevice * s,
 	return 2;
 }
 
-static int dt2801_dio_insn_config(comedi_device * dev, comedi_subdevice * s,
+static int dt2801_dio_insn_config(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	int which = 0;

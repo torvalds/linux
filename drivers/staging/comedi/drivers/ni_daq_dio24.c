@@ -56,8 +56,8 @@ static struct pcmcia_device *pcmcia_cur_dev = NULL;
 
 #define DIO24_SIZE 4		// size of io region used by board
 
-static int dio24_attach(comedi_device * dev, comedi_devconfig * it);
-static int dio24_detach(comedi_device * dev);
+static int dio24_attach(struct comedi_device * dev, comedi_devconfig * it);
+static int dio24_detach(struct comedi_device * dev);
 
 enum dio24_bustype { pcmcia_bustype };
 
@@ -107,7 +107,7 @@ static comedi_driver driver_dio24 = {
       offset:sizeof(dio24_board),
 };
 
-static int dio24_attach(comedi_device * dev, comedi_devconfig * it)
+static int dio24_attach(struct comedi_device * dev, comedi_devconfig * it)
 {
 	comedi_subdevice *s;
 	unsigned long iobase = 0;
@@ -170,7 +170,7 @@ static int dio24_attach(comedi_device * dev, comedi_devconfig * it)
 	return 0;
 };
 
-static int dio24_detach(comedi_device * dev)
+static int dio24_detach(struct comedi_device * dev)
 {
 	printk("comedi%d: ni_daq_dio24: remove\n", dev->minor);
 

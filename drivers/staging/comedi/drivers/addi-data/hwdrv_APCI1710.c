@@ -56,7 +56,7 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 #include "APCI1710_Pwm.c"
 #include "APCI1710_INCCPT.c"
 
-void i_ADDI_AttachPCI1710(comedi_device * dev)
+void i_ADDI_AttachPCI1710(struct comedi_device * dev)
 {
 	comedi_subdevice *s;
 	int ret = 0;
@@ -195,11 +195,11 @@ void i_ADDI_AttachPCI1710(comedi_device * dev)
 	s->insn_bits = i_APCI1710_InsnBitsINCCPT;
 }
 
-int i_APCI1710_Reset(comedi_device * dev);
+int i_APCI1710_Reset(struct comedi_device * dev);
 VOID v_APCI1710_Interrupt(int irq, void *d);
 //for 1710
 
-int i_APCI1710_Reset(comedi_device * dev)
+int i_APCI1710_Reset(struct comedi_device * dev)
 {
 	int ret;
 	DWORD dw_Dummy;
@@ -249,7 +249,7 @@ int i_APCI1710_Reset(comedi_device * dev)
 
 VOID v_APCI1710_Interrupt(int irq, void *d)
 {
-	comedi_device *dev = d;
+	struct comedi_device *dev = d;
 	BYTE b_ModuleCpt = 0;
 	BYTE b_InterruptFlag = 0;
 	BYTE b_PWMCpt = 0;

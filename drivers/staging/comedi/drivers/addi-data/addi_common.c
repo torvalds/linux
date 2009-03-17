@@ -2541,7 +2541,7 @@ COMEDI_PCI_INITCLEANUP(driver_addi, addi_apci_tbl);
 
 /*
 +----------------------------------------------------------------------------+
-| Function name     :static int i_ADDI_Attach(comedi_device *dev,            |
+| Function name     :static int i_ADDI_Attach(struct comedi_device *dev,            |
 |										comedi_devconfig *it)        |
 |                                        									 |
 +----------------------------------------------------------------------------+
@@ -2550,7 +2550,7 @@ COMEDI_PCI_INITCLEANUP(driver_addi, addi_apci_tbl);
 |  			 This function does all the initializations and memory   |
 |			 allocation of data structures for the driver.	         |
 +----------------------------------------------------------------------------+
-| Input Parameters  :comedi_device *dev										 |
+| Input Parameters  :struct comedi_device *dev										 |
 |                    comedi_devconfig *it									 |
 |                                                 					         |
 +----------------------------------------------------------------------------+
@@ -2559,7 +2559,7 @@ COMEDI_PCI_INITCLEANUP(driver_addi, addi_apci_tbl);
 +----------------------------------------------------------------------------+
 */
 
-static int i_ADDI_Attach(comedi_device * dev, comedi_devconfig * it)
+static int i_ADDI_Attach(struct comedi_device * dev, comedi_devconfig * it)
 {
 	comedi_subdevice *s;
 	int ret, pages, i, n_subdevices;
@@ -2909,7 +2909,7 @@ static int i_ADDI_Attach(comedi_device * dev, comedi_devconfig * it)
 
 /*
 +----------------------------------------------------------------------------+
-| Function name     : static int i_ADDI_Detach(comedi_device *dev)           |
+| Function name     : static int i_ADDI_Detach(struct comedi_device *dev)           |
 |                                        									 |
 |                                            						         |
 +----------------------------------------------------------------------------+
@@ -2917,7 +2917,7 @@ static int i_ADDI_Attach(comedi_device * dev, comedi_devconfig * it)
 |			  Free the DMA buffers, unregister irq.				     |
 |                     										                 |
 +----------------------------------------------------------------------------+
-| Input Parameters  : comedi_device *dev									 |
+| Input Parameters  : struct comedi_device *dev									 |
 |                     														 |
 |                                                 					         |
 +----------------------------------------------------------------------------+
@@ -2926,7 +2926,7 @@ static int i_ADDI_Attach(comedi_device * dev, comedi_devconfig * it)
 +----------------------------------------------------------------------------+
 */
 
-static int i_ADDI_Detach(comedi_device * dev)
+static int i_ADDI_Detach(struct comedi_device * dev)
 {
 
 	if (dev->private) {
@@ -2976,14 +2976,14 @@ static int i_ADDI_Detach(comedi_device * dev)
 
 /*
 +----------------------------------------------------------------------------+
-| Function name     : static int i_ADDI_Reset(comedi_device *dev)			 |
+| Function name     : static int i_ADDI_Reset(struct comedi_device *dev)			 |
 |                                        									 |
 +----------------------------------------------------------------------------+
 | Task              : Disables all interrupts, Resets digital output to low, |
 |				Set all analog output to low						 |
 |                     										                 |
 +----------------------------------------------------------------------------+
-| Input Parameters  : comedi_device *dev									 |
+| Input Parameters  : struct comedi_device *dev									 |
 |                     														 |
 |                                                 					         |
 +----------------------------------------------------------------------------+
@@ -2992,7 +2992,7 @@ static int i_ADDI_Detach(comedi_device * dev)
 +----------------------------------------------------------------------------+
 */
 
-static int i_ADDI_Reset(comedi_device * dev)
+static int i_ADDI_Reset(struct comedi_device * dev)
 {
 
 	this_board->i_hwdrv_Reset(dev);
@@ -3020,7 +3020,7 @@ static int i_ADDI_Reset(comedi_device * dev)
 
 static irqreturn_t v_ADDI_Interrupt(int irq, void *d PT_REGS_ARG)
 {
-	comedi_device *dev = d;
+	struct comedi_device *dev = d;
 	this_board->v_hwdrv_Interrupt(irq, d);
 	return IRQ_RETVAL(1);
 }
@@ -3029,14 +3029,14 @@ static irqreturn_t v_ADDI_Interrupt(int irq, void *d PT_REGS_ARG)
 /*
 +----------------------------------------------------------------------------+
 | Function name     :                                                        |
-|INT i_ADDIDATA_InsnReadEeprom(comedi_device *dev,comedi_subdevice *s,
+|INT i_ADDIDATA_InsnReadEeprom(struct comedi_device *dev,comedi_subdevice *s,
 							comedi_insn *insn,unsigned int *data)
 |                                        									 |
 +----------------------------------------------------------------------------+
 | Task              : Read 256 words from EEPROM          				     |
 |                     										                 |
 +----------------------------------------------------------------------------+
-| Input Parameters  :(comedi_device *dev,comedi_subdevice *s,
+| Input Parameters  :(struct comedi_device *dev,comedi_subdevice *s,
 			comedi_insn *insn,unsigned int *data) 						 |
 |                     														 |
 |                                                 					         |
@@ -3046,7 +3046,7 @@ static irqreturn_t v_ADDI_Interrupt(int irq, void *d PT_REGS_ARG)
 +----------------------------------------------------------------------------+
 */
 
-static int i_ADDIDATA_InsnReadEeprom(comedi_device * dev, comedi_subdevice * s,
+static int i_ADDIDATA_InsnReadEeprom(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	WORD w_Data;

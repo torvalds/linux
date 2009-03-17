@@ -45,7 +45,7 @@ MODULE_LICENSE("GPL");
 void *comedi_open(const char *filename)
 {
 	struct comedi_device_file_info *dev_file_info;
-	comedi_device *dev;
+	struct comedi_device *dev;
 	unsigned int minor;
 
 	if (strncmp(filename, "/dev/comedi", 11) != 0)
@@ -73,7 +73,7 @@ void *comedi_open(const char *filename)
 void *comedi_open_old(unsigned int minor)
 {
 	struct comedi_device_file_info *dev_file_info;
-	comedi_device *dev;
+	struct comedi_device *dev;
 
 	if (minor >= COMEDI_NUM_MINORS)
 		return NULL;
@@ -91,7 +91,7 @@ void *comedi_open_old(unsigned int minor)
 
 int comedi_close(void *d)
 {
-	comedi_device *dev = (comedi_device *) d;
+	struct comedi_device *dev = (struct comedi_device *) d;
 
 	module_put(dev->driver->module);
 
@@ -115,7 +115,7 @@ char *comedi_strerror(int err)
 
 int comedi_fileno(void *d)
 {
-	comedi_device *dev = (comedi_device *) d;
+	struct comedi_device *dev = (struct comedi_device *) d;
 
 	/* return something random */
 	return dev->minor;
@@ -123,7 +123,7 @@ int comedi_fileno(void *d)
 
 int comedi_command(void *d, comedi_cmd *cmd)
 {
-	comedi_device *dev = (comedi_device *) d;
+	struct comedi_device *dev = (struct comedi_device *) d;
 	comedi_subdevice *s;
 	comedi_async *async;
 	unsigned runflags;
@@ -163,7 +163,7 @@ int comedi_command(void *d, comedi_cmd *cmd)
 
 int comedi_command_test(void *d, comedi_cmd *cmd)
 {
-	comedi_device *dev = (comedi_device *) d;
+	struct comedi_device *dev = (struct comedi_device *) d;
 	comedi_subdevice *s;
 
 	if (cmd->subdev >= dev->n_subdevices)
@@ -185,7 +185,7 @@ int comedi_command_test(void *d, comedi_cmd *cmd)
  */
 int comedi_do_insn(void *d, comedi_insn *insn)
 {
-	comedi_device *dev = (comedi_device *) d;
+	struct comedi_device *dev = (struct comedi_device *) d;
 	comedi_subdevice *s;
 	int ret = 0;
 
@@ -326,7 +326,7 @@ int comedi_do_insn(void *d, comedi_insn *insn)
 */
 int comedi_lock(void *d, unsigned int subdevice)
 {
-	comedi_device *dev = (comedi_device *) d;
+	struct comedi_device *dev = (struct comedi_device *) d;
 	comedi_subdevice *s;
 	unsigned long flags;
 	int ret = 0;
@@ -369,7 +369,7 @@ int comedi_lock(void *d, unsigned int subdevice)
 */
 int comedi_unlock(void *d, unsigned int subdevice)
 {
-	comedi_device *dev = (comedi_device *) d;
+	struct comedi_device *dev = (struct comedi_device *) d;
 	comedi_subdevice *s;
 	unsigned long flags;
 	comedi_async *async;
@@ -421,7 +421,7 @@ int comedi_unlock(void *d, unsigned int subdevice)
 */
 int comedi_cancel(void *d, unsigned int subdevice)
 {
-	comedi_device *dev = (comedi_device *) d;
+	struct comedi_device *dev = (struct comedi_device *) d;
 	comedi_subdevice *s;
 	int ret = 0;
 
@@ -467,7 +467,7 @@ int comedi_cancel(void *d, unsigned int subdevice)
 int comedi_register_callback(void *d, unsigned int subdevice,
 	unsigned int mask, int (*cb) (unsigned int, void *), void *arg)
 {
-	comedi_device *dev = (comedi_device *) d;
+	struct comedi_device *dev = (struct comedi_device *) d;
 	comedi_subdevice *s;
 	comedi_async *async;
 
@@ -503,7 +503,7 @@ int comedi_register_callback(void *d, unsigned int subdevice,
 
 int comedi_poll(void *d, unsigned int subdevice)
 {
-	comedi_device *dev = (comedi_device *) d;
+	struct comedi_device *dev = (struct comedi_device *) d;
 	comedi_subdevice *s = dev->subdevices;
 	comedi_async *async;
 
@@ -530,7 +530,7 @@ int comedi_poll(void *d, unsigned int subdevice)
 /* WARNING: not portable */
 int comedi_map(void *d, unsigned int subdevice, void *ptr)
 {
-	comedi_device *dev = (comedi_device *) d;
+	struct comedi_device *dev = (struct comedi_device *) d;
 	comedi_subdevice *s;
 
 	if (subdevice >= dev->n_subdevices)
@@ -552,7 +552,7 @@ int comedi_map(void *d, unsigned int subdevice, void *ptr)
 /* WARNING: not portable */
 int comedi_unmap(void *d, unsigned int subdevice)
 {
-	comedi_device *dev = (comedi_device *) d;
+	struct comedi_device *dev = (struct comedi_device *) d;
 	comedi_subdevice *s;
 
 	if (subdevice >= dev->n_subdevices)

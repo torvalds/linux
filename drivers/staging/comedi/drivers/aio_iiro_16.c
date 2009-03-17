@@ -67,9 +67,9 @@ typedef struct {
 
 #define	devpriv	((aio_iiro_16_private *) dev->private)
 
-static int aio_iiro_16_attach(comedi_device * dev, comedi_devconfig * it);
+static int aio_iiro_16_attach(struct comedi_device * dev, comedi_devconfig * it);
 
-static int aio_iiro_16_detach(comedi_device * dev);
+static int aio_iiro_16_detach(struct comedi_device * dev);
 
 static comedi_driver driver_aio_iiro_16 = {
       driver_name:"aio_iiro_16",
@@ -81,13 +81,13 @@ static comedi_driver driver_aio_iiro_16 = {
       num_names:sizeof(aio_iiro_16_boards) / sizeof(aio_iiro_16_board),
 };
 
-static int aio_iiro_16_dio_insn_bits_read(comedi_device * dev,
+static int aio_iiro_16_dio_insn_bits_read(struct comedi_device * dev,
 	comedi_subdevice * s, comedi_insn * insn, unsigned int * data);
 
-static int aio_iiro_16_dio_insn_bits_write(comedi_device * dev,
+static int aio_iiro_16_dio_insn_bits_write(struct comedi_device * dev,
 	comedi_subdevice * s, comedi_insn * insn, unsigned int * data);
 
-static int aio_iiro_16_attach(comedi_device * dev, comedi_devconfig * it)
+static int aio_iiro_16_attach(struct comedi_device * dev, comedi_devconfig * it)
 {
 	int iobase;
 	comedi_subdevice *s;
@@ -132,7 +132,7 @@ static int aio_iiro_16_attach(comedi_device * dev, comedi_devconfig * it)
 	return 1;
 }
 
-static int aio_iiro_16_detach(comedi_device * dev)
+static int aio_iiro_16_detach(struct comedi_device * dev)
 {
 	printk("comedi%d: aio_iiro_16: remove\n", dev->minor);
 
@@ -142,7 +142,7 @@ static int aio_iiro_16_detach(comedi_device * dev)
 	return 0;
 }
 
-static int aio_iiro_16_dio_insn_bits_write(comedi_device * dev,
+static int aio_iiro_16_dio_insn_bits_write(struct comedi_device * dev,
 	comedi_subdevice * s, comedi_insn * insn, unsigned int * data)
 {
 	if (insn->n != 2)
@@ -161,7 +161,7 @@ static int aio_iiro_16_dio_insn_bits_write(comedi_device * dev,
 	return 2;
 }
 
-static int aio_iiro_16_dio_insn_bits_read(comedi_device * dev,
+static int aio_iiro_16_dio_insn_bits_read(struct comedi_device * dev,
 	comedi_subdevice * s, comedi_insn * insn, unsigned int * data)
 {
 	if (insn->n != 2)

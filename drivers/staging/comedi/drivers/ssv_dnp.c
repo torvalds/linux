@@ -87,8 +87,8 @@ typedef struct {
 /* In the following section we define the API of this driver.                */
 /* ------------------------------------------------------------------------- */
 
-static int dnp_attach(comedi_device * dev, comedi_devconfig * it);
-static int dnp_detach(comedi_device * dev);
+static int dnp_attach(struct comedi_device * dev, comedi_devconfig * it);
+static int dnp_detach(struct comedi_device * dev);
 
 static comedi_driver driver_dnp = {
       driver_name:"ssv_dnp",
@@ -103,10 +103,10 @@ static comedi_driver driver_dnp = {
 
 COMEDI_INITCLEANUP(driver_dnp);
 
-static int dnp_dio_insn_bits(comedi_device * dev,
+static int dnp_dio_insn_bits(struct comedi_device * dev,
 	comedi_subdevice * s, comedi_insn * insn, unsigned int * data);
 
-static int dnp_dio_insn_config(comedi_device * dev,
+static int dnp_dio_insn_config(struct comedi_device * dev,
 	comedi_subdevice * s, comedi_insn * insn, unsigned int * data);
 
 /* ------------------------------------------------------------------------- */
@@ -115,7 +115,7 @@ static int dnp_dio_insn_config(comedi_device * dev,
 /* dev->board_ptr contains that address.                                     */
 /* ------------------------------------------------------------------------- */
 
-static int dnp_attach(comedi_device * dev, comedi_devconfig * it)
+static int dnp_attach(struct comedi_device * dev, comedi_devconfig * it)
 {
 
 	comedi_subdevice *s;
@@ -176,7 +176,7 @@ static int dnp_attach(comedi_device * dev, comedi_devconfig * it)
 /* deallocated automatically by the core.                                    */
 /* ------------------------------------------------------------------------- */
 
-static int dnp_detach(comedi_device * dev)
+static int dnp_detach(struct comedi_device * dev)
 {
 
 	/* configure all ports as input (default)                                  */
@@ -200,7 +200,7 @@ static int dnp_detach(comedi_device * dev)
 /* are able to use these instructions as well.                               */
 /* ------------------------------------------------------------------------- */
 
-static int dnp_dio_insn_bits(comedi_device * dev,
+static int dnp_dio_insn_bits(struct comedi_device * dev,
 	comedi_subdevice * s, comedi_insn * insn, unsigned int * data)
 {
 
@@ -250,7 +250,7 @@ static int dnp_dio_insn_bits(comedi_device * dev,
 /* COMEDI_INPUT or COMEDI_OUTPUT.                                            */
 /* ------------------------------------------------------------------------- */
 
-static int dnp_dio_insn_config(comedi_device * dev,
+static int dnp_dio_insn_config(struct comedi_device * dev,
 	comedi_subdevice * s, comedi_insn * insn, unsigned int * data)
 {
 

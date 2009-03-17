@@ -86,7 +86,7 @@ typedef struct local_info_t {
 
 	struct semaphore eos;
 
-	comedi_device *dev;
+	struct comedi_device *dev;
 	comedi_subdevice *s;
 	int count;
 } local_info_t;
@@ -197,8 +197,8 @@ static const comedi_lrange range_daqp_ao = { 1, {BIP_RANGE(5)} };
 
 /* comedi interface code */
 
-static int daqp_attach(comedi_device * dev, comedi_devconfig * it);
-static int daqp_detach(comedi_device * dev);
+static int daqp_attach(struct comedi_device * dev, comedi_devconfig * it);
+static int daqp_detach(struct comedi_device * dev);
 static comedi_driver driver_daqp = {
       driver_name:"quatech_daqp_cs",
       module:THIS_MODULE,
@@ -208,7 +208,7 @@ static comedi_driver driver_daqp = {
 
 #ifdef DAQP_DEBUG
 
-static void daqp_dump(comedi_device * dev)
+static void daqp_dump(struct comedi_device * dev)
 {
 	printk("DAQP: status %02x; aux status %02x\n",
 		inb(dev->iobase + DAQP_STATUS), inb(dev->iobase + DAQP_AUX));
@@ -234,7 +234,7 @@ static void hex_dump(char *str, void *ptr, int len)
 
 /* Cancel a running acquisition */
 
-static int daqp_ai_cancel(comedi_device * dev, comedi_subdevice * s)
+static int daqp_ai_cancel(struct comedi_device * dev, comedi_subdevice * s)
 {
 	local_info_t *local = (local_info_t *) s->private;
 
@@ -265,7 +265,7 @@ static int daqp_ai_cancel(comedi_device * dev, comedi_subdevice * s)
 static void daqp_interrupt(int irq, void *dev_id PT_REGS_ARG)
 {
 	local_info_t *local = (local_info_t *) dev_id;
-	comedi_device *dev;
+	struct comedi_device *dev;
 	comedi_subdevice *s;
 	int loop_limit = 10000;
 	int status;
@@ -284,7 +284,7 @@ static void daqp_interrupt(int irq, void *dev_id PT_REGS_ARG)
 
 	if (!dev->attached) {
 		printk(KERN_WARNING
-			"daqp_interrupt(): comedi_device not yet attached.\n");
+			"daqp_interrupt(): struct comedi_device not yet attached.\n");
 		return;
 	}
 
@@ -361,7 +361,7 @@ static void daqp_interrupt(int irq, void *dev_id PT_REGS_ARG)
 
 /* One-shot analog data acquisition routine */
 
-static int daqp_ai_insn_read(comedi_device * dev, comedi_subdevice * s,
+static int daqp_ai_insn_read(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	local_info_t *local = (local_info_t *) s->private;
@@ -467,7 +467,7 @@ static int daqp_ns_to_timer(unsigned int *ns, int round)
  * the command passes.
  */
 
-static int daqp_ai_cmdtest(comedi_device * dev, comedi_subdevice * s,
+static int daqp_ai_cmdtest(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_cmd * cmd)
 {
 	int err = 0;
@@ -593,7 +593,7 @@ static int daqp_ai_cmdtest(comedi_device * dev, comedi_subdevice * s,
 	return 0;
 }
 
-static int daqp_ai_cmd(comedi_device * dev, comedi_subdevice * s)
+static int daqp_ai_cmd(struct comedi_device * dev, comedi_subdevice * s)
 {
 	local_info_t *local = (local_info_t *) s->private;
 	comedi_cmd *cmd = &s->async->cmd;
@@ -793,7 +793,7 @@ static int daqp_ai_cmd(comedi_device * dev, comedi_subdevice * s)
 
 /* Single-shot analog output routine */
 
-static int daqp_ao_insn_write(comedi_device * dev, comedi_subdevice * s,
+static int daqp_ao_insn_write(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	local_info_t *local = (local_info_t *) s->private;
@@ -820,7 +820,7 @@ static int daqp_ao_insn_write(comedi_device * dev, comedi_subdevice * s,
 
 /* Digital input routine */
 
-static int daqp_di_insn_read(comedi_device * dev, comedi_subdevice * s,
+static int daqp_di_insn_read(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	local_info_t *local = (local_info_t *) s->private;
@@ -836,7 +836,7 @@ static int daqp_di_insn_read(comedi_device * dev, comedi_subdevice * s,
 
 /* Digital output routine */
 
-static int daqp_do_insn_write(comedi_device * dev, comedi_subdevice * s,
+static int daqp_do_insn_write(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	local_info_t *local = (local_info_t *) s->private;
@@ -856,7 +856,7 @@ static int daqp_do_insn_write(comedi_device * dev, comedi_subdevice * s,
  * when it is inserted.
  */
 
-static int daqp_attach(comedi_device * dev, comedi_devconfig * it)
+static int daqp_attach(struct comedi_device * dev, comedi_devconfig * it)
 {
 	int ret;
 	local_info_t *local = dev_table[it->options[0]];
@@ -962,7 +962,7 @@ static int daqp_attach(comedi_device * dev, comedi_devconfig * it)
  * card is removed, daqp_cs_detach() is called by the pcmcia subsystem.
  */
 
-static int daqp_detach(comedi_device * dev)
+static int daqp_detach(struct comedi_device * dev)
 {
 	printk("comedi%d: detaching daqp\n", dev->minor);
 

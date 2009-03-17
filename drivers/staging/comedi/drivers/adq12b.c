@@ -162,8 +162,8 @@ typedef struct{
  * the board, and also about the kernel module that contains
  * the device code.
  */
-static int adq12b_attach(comedi_device *dev,comedi_devconfig *it);
-static int adq12b_detach(comedi_device *dev);
+static int adq12b_attach(struct comedi_device *dev,comedi_devconfig *it);
+static int adq12b_detach(struct comedi_device *dev);
 static comedi_driver driver_adq12b={
         driver_name:    "adq12b",
         module:         THIS_MODULE,
@@ -174,9 +174,9 @@ static comedi_driver driver_adq12b={
         num_names:      sizeof(adq12b_boards) / sizeof(adq12b_board),
 };
 
-static int adq12b_ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,unsigned int *data);
-static int adq12b_di_insn_bits(comedi_device *dev,comedi_subdevice *s, comedi_insn *insn,unsigned int *data);
-static int adq12b_do_insn_bits(comedi_device *dev,comedi_subdevice *s, comedi_insn *insn,unsigned int *data);
+static int adq12b_ai_rinsn(struct comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,unsigned int *data);
+static int adq12b_di_insn_bits(struct comedi_device *dev,comedi_subdevice *s, comedi_insn *insn,unsigned int *data);
+static int adq12b_do_insn_bits(struct comedi_device *dev,comedi_subdevice *s, comedi_insn *insn,unsigned int *data);
 
 /*
  * Attach is called by the Comedi core to configure the driver
@@ -184,7 +184,7 @@ static int adq12b_do_insn_bits(comedi_device *dev,comedi_subdevice *s, comedi_in
  * in the driver structure, dev->board_ptr contains that
  * address.
  */
-static int adq12b_attach(comedi_device *dev,comedi_devconfig *it)
+static int adq12b_attach(struct comedi_device *dev,comedi_devconfig *it)
 {
         comedi_subdevice *s;
         unsigned long iobase;
@@ -297,7 +297,7 @@ static int adq12b_attach(comedi_device *dev,comedi_devconfig *it)
  * allocated by _attach().  dev->private and dev->subdevices are
  * deallocated automatically by the core.
  */
-static int adq12b_detach(comedi_device *dev)
+static int adq12b_detach(struct comedi_device *dev)
 {
         if (dev->iobase)
           release_region(dev->iobase, ADQ12B_SIZE);
@@ -314,7 +314,7 @@ static int adq12b_detach(comedi_device *dev)
  * mode.
  */
 
-static int adq12b_ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,unsigned int *data)
+static int adq12b_ai_rinsn(struct comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,unsigned int *data)
 {
         int n, i;
         int range, channel;
@@ -357,7 +357,7 @@ static int adq12b_ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *i
 }
 
 
-static int adq12b_di_insn_bits(comedi_device *dev,comedi_subdevice *s, 	comedi_insn *insn,unsigned int *data)
+static int adq12b_di_insn_bits(struct comedi_device *dev,comedi_subdevice *s, 	comedi_insn *insn,unsigned int *data)
 {
 
         /* only bits 0-4 have information about digital inputs */
@@ -367,7 +367,7 @@ static int adq12b_di_insn_bits(comedi_device *dev,comedi_subdevice *s, 	comedi_i
 }
 
 
-static int adq12b_do_insn_bits(comedi_device *dev,comedi_subdevice *s, 	comedi_insn *insn,unsigned int *data)
+static int adq12b_do_insn_bits(struct comedi_device *dev,comedi_subdevice *s, 	comedi_insn *insn,unsigned int *data)
 {
         int channel;
 

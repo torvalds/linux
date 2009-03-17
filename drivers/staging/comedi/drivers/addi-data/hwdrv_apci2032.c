@@ -57,12 +57,12 @@ UINT ui_InterruptData, ui_Type;
 /*
 +----------------------------------------------------------------------------+
 | Function   Name   : int i_APCI2032_ConfigDigitalOutput                     |
-|			  (comedi_device *dev,comedi_subdevice *s,               |
+|			  (struct comedi_device *dev,comedi_subdevice *s,               |
 |                      comedi_insn *insn,unsigned int *data)                     |
 +----------------------------------------------------------------------------+
 | Task              : Configures The Digital Output Subdevice.               |
 +----------------------------------------------------------------------------+
-| Input Parameters  : comedi_device *dev : Driver handle                     |
+| Input Parameters  : struct comedi_device *dev : Driver handle                     |
 |                     UINT *data         : Data Pointer contains             |
 |                                          configuration parameters as below |
 |                                                                            |
@@ -79,7 +79,7 @@ UINT ui_InterruptData, ui_Type;
 |			                                                         |
 +----------------------------------------------------------------------------+
 */
-int i_APCI2032_ConfigDigitalOutput(comedi_device * dev, comedi_subdevice * s,
+int i_APCI2032_ConfigDigitalOutput(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	ULONG ul_Command = 0;
@@ -117,12 +117,12 @@ int i_APCI2032_ConfigDigitalOutput(comedi_device * dev, comedi_subdevice * s,
 /*
 +----------------------------------------------------------------------------+
 | Function   Name   : int i_APCI2032_WriteDigitalOutput                      |
-|			  (comedi_device *dev,comedi_subdevice *s,               |
+|			  (struct comedi_device *dev,comedi_subdevice *s,               |
 |                      comedi_insn *insn,unsigned int *data)                     |
 +----------------------------------------------------------------------------+
 | Task              : Writes port value  To the selected port                |
 +----------------------------------------------------------------------------+
-| Input Parameters  : comedi_device *dev      : Driver handle                |
+| Input Parameters  : struct comedi_device *dev      : Driver handle                |
 |                     UINT ui_NoOfChannels    : No Of Channels To Write      |
 |                     UINT *data              : Data Pointer to read status  |
 +----------------------------------------------------------------------------+
@@ -134,7 +134,7 @@ int i_APCI2032_ConfigDigitalOutput(comedi_device * dev, comedi_subdevice * s,
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI2032_WriteDigitalOutput(comedi_device * dev, comedi_subdevice * s,
+INT i_APCI2032_WriteDigitalOutput(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	UINT ui_Temp, ui_Temp1;
@@ -296,12 +296,12 @@ INT i_APCI2032_WriteDigitalOutput(comedi_device * dev, comedi_subdevice * s,
 /*
 +----------------------------------------------------------------------------+
 | Function   Name   : int i_APCI2032_ReadDigitalOutput                       |
-|			  (comedi_device *dev,comedi_subdevice *s,               |
+|			  (struct comedi_device *dev,comedi_subdevice *s,               |
 |                      comedi_insn *insn,unsigned int *data)                     |
 +----------------------------------------------------------------------------+
 | Task              : Read  value  of the selected channel or port           |
 +----------------------------------------------------------------------------+
-| Input Parameters  : comedi_device *dev      : Driver handle                |
+| Input Parameters  : struct comedi_device *dev      : Driver handle                |
 |                     UINT ui_NoOfChannels    : No Of Channels To read       |
 |                     UINT *data              : Data Pointer to read status  |
 +----------------------------------------------------------------------------+
@@ -313,7 +313,7 @@ INT i_APCI2032_WriteDigitalOutput(comedi_device * dev, comedi_subdevice * s,
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI2032_ReadDigitalOutput(comedi_device * dev, comedi_subdevice * s,
+INT i_APCI2032_ReadDigitalOutput(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	UINT ui_Temp;
@@ -368,7 +368,7 @@ INT i_APCI2032_ReadDigitalOutput(comedi_device * dev, comedi_subdevice * s,
 +----------------------------------------------------------------------------+
 | Task              : Configures The Watchdog                                |
 +----------------------------------------------------------------------------+
-| Input Parameters  : comedi_device *dev      : Driver handle                |
+| Input Parameters  : struct comedi_device *dev      : Driver handle                |
 |                     comedi_subdevice *s,   :pointer to subdevice structure
                       comedi_insn *insn      :pointer to insn structure      |
 |                     unsigned int *data          : Data Pointer to read status                                                                                                             |
@@ -380,7 +380,7 @@ INT i_APCI2032_ReadDigitalOutput(comedi_device * dev, comedi_subdevice * s,
 |			                                                         |
 +----------------------------------------------------------------------------+
 */
-INT i_APCI2032_ConfigWatchdog(comedi_device * dev, comedi_subdevice * s,
+INT i_APCI2032_ConfigWatchdog(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	if (data[0] == 0) {
@@ -403,12 +403,12 @@ INT i_APCI2032_ConfigWatchdog(comedi_device * dev, comedi_subdevice * s,
  /*
     +----------------------------------------------------------------------------+
     | Function   Name   : int i_APCI2032_StartStopWriteWatchdog                  |
-    |                           (comedi_device *dev,comedi_subdevice *s,
+    |                           (struct comedi_device *dev,comedi_subdevice *s,
     comedi_insn *insn,unsigned int *data);                      |
     +----------------------------------------------------------------------------+
     | Task              : Start / Stop The Watchdog                              |
     +----------------------------------------------------------------------------+
-    | Input Parameters  : comedi_device *dev      : Driver handle                |
+    | Input Parameters  : struct comedi_device *dev      : Driver handle                |
     |                     comedi_subdevice *s,   :pointer to subdevice structure
     comedi_insn *insn      :pointer to insn structure      |
     |                     unsigned int *data          : Data Pointer to read status  |
@@ -421,7 +421,7 @@ INT i_APCI2032_ConfigWatchdog(comedi_device * dev, comedi_subdevice * s,
     +----------------------------------------------------------------------------+
   */
 
-int i_APCI2032_StartStopWriteWatchdog(comedi_device * dev, comedi_subdevice * s,
+int i_APCI2032_StartStopWriteWatchdog(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	switch (data[0]) {
@@ -448,12 +448,12 @@ int i_APCI2032_StartStopWriteWatchdog(comedi_device * dev, comedi_subdevice * s,
 /*
 +----------------------------------------------------------------------------+
 | Function   Name   : int i_APCI2032_ReadWatchdog                            |
-|			(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,
+|			(struct comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,
                     unsigned int *data); 	                                     |
 +----------------------------------------------------------------------------+
 | Task              : Read The Watchdog                                      |
 +----------------------------------------------------------------------------+
-| Input Parameters  :   comedi_device *dev      : Driver handle              |
+| Input Parameters  :   struct comedi_device *dev      : Driver handle              |
 |                     comedi_subdevice *s,   :pointer to subdevice structure
                       comedi_insn *insn      :pointer to insn structure      |
 |                     unsigned int *data          : Data Pointer to read status  |
@@ -466,7 +466,7 @@ int i_APCI2032_StartStopWriteWatchdog(comedi_device * dev, comedi_subdevice * s,
 +----------------------------------------------------------------------------+
 */
 
-int i_APCI2032_ReadWatchdog(comedi_device * dev, comedi_subdevice * s,
+int i_APCI2032_ReadWatchdog(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 
@@ -495,7 +495,7 @@ int i_APCI2032_ReadWatchdog(comedi_device * dev, comedi_subdevice * s,
 */
 void v_APCI2032_Interrupt(int irq, void *d)
 {
-	comedi_device *dev = d;
+	struct comedi_device *dev = d;
 	unsigned int ui_DO;
 
 	ui_DO = inl(devpriv->iobase + APCI2032_DIGITAL_OP_IRQ) & 0x1;	//Check if VCC OR CC interrupt has occured.
@@ -530,7 +530,7 @@ void v_APCI2032_Interrupt(int irq, void *d)
 /*
 +----------------------------------------------------------------------------+
 | Function   Name   :  int i_APCI2032_ReadInterruptStatus                    |
-|			  (comedi_device *dev,comedi_subdevice *s,               |
+|			  (struct comedi_device *dev,comedi_subdevice *s,               |
 |                      comedi_insn *insn,unsigned int *data)                     |
 +----------------------------------------------------------------------------+
 | Task              :Reads the interrupt status register                     |
@@ -544,7 +544,7 @@ void v_APCI2032_Interrupt(int irq, void *d)
 +----------------------------------------------------------------------------+
 */
 
-int i_APCI2032_ReadInterruptStatus(comedi_device * dev, comedi_subdevice * s,
+int i_APCI2032_ReadInterruptStatus(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	*data = ui_Type;
@@ -553,7 +553,7 @@ int i_APCI2032_ReadInterruptStatus(comedi_device * dev, comedi_subdevice * s,
 
 /*
 +----------------------------------------------------------------------------+
-| Function   Name   :  int i_APCI2032_Reset(comedi_device *dev)			     |
+| Function   Name   :  int i_APCI2032_Reset(struct comedi_device *dev)			     |
 |					                                                 |
 +----------------------------------------------------------------------------+
 | Task              :Resets the registers of the card                        |
@@ -567,7 +567,7 @@ int i_APCI2032_ReadInterruptStatus(comedi_device * dev, comedi_subdevice * s,
 +----------------------------------------------------------------------------+
 */
 
-int i_APCI2032_Reset(comedi_device * dev)
+int i_APCI2032_Reset(struct comedi_device * dev)
 {
 	devpriv->b_DigitalOutputRegister = 0;
 	ui_Type = 0;

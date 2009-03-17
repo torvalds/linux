@@ -50,7 +50,7 @@ extern unsigned int cfc_read_array_from_buffer(comedi_subdevice *subd,
 					       void *data,
 					       unsigned int num_bytes);
 
-extern unsigned int cfc_handle_events(comedi_device *dev,
+extern unsigned int cfc_handle_events(struct comedi_device *dev,
 				      comedi_subdevice *subd);
 
 static inline unsigned int cfc_bytes_per_scan(comedi_subdevice *subd)

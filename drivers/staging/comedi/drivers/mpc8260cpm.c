@@ -44,8 +44,8 @@ typedef struct {
 } mpc8260cpm_private;
 #define devpriv ((mpc8260cpm_private *)dev->private)
 
-static int mpc8260cpm_attach(comedi_device * dev, comedi_devconfig * it);
-static int mpc8260cpm_detach(comedi_device * dev);
+static int mpc8260cpm_attach(struct comedi_device * dev, comedi_devconfig * it);
+static int mpc8260cpm_detach(struct comedi_device * dev);
 static comedi_driver driver_mpc8260cpm = {
       driver_name:"mpc8260cpm",
       module:THIS_MODULE,
@@ -55,12 +55,12 @@ static comedi_driver driver_mpc8260cpm = {
 
 COMEDI_INITCLEANUP(driver_mpc8260cpm);
 
-static int mpc8260cpm_dio_config(comedi_device * dev, comedi_subdevice * s,
+static int mpc8260cpm_dio_config(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data);
-static int mpc8260cpm_dio_bits(comedi_device * dev, comedi_subdevice * s,
+static int mpc8260cpm_dio_bits(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data);
 
-static int mpc8260cpm_attach(comedi_device * dev, comedi_devconfig * it)
+static int mpc8260cpm_attach(struct comedi_device * dev, comedi_devconfig * it)
 {
 	comedi_subdevice *s;
 	int i;
@@ -91,7 +91,7 @@ static int mpc8260cpm_attach(comedi_device * dev, comedi_devconfig * it)
 	return 1;
 }
 
-static int mpc8260cpm_detach(comedi_device * dev)
+static int mpc8260cpm_detach(struct comedi_device * dev)
 {
 	printk("comedi%d: mpc8260cpm: remove\n", dev->minor);
 
@@ -112,7 +112,7 @@ static unsigned long *cpm_pdat(int port)
 	}
 }
 
-static int mpc8260cpm_dio_config(comedi_device * dev, comedi_subdevice * s,
+static int mpc8260cpm_dio_config(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	int n;
@@ -155,7 +155,7 @@ static int mpc8260cpm_dio_config(comedi_device * dev, comedi_subdevice * s,
 	return 1;
 }
 
-static int mpc8260cpm_dio_bits(comedi_device * dev, comedi_subdevice * s,
+static int mpc8260cpm_dio_bits(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	int port;

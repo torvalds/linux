@@ -144,8 +144,8 @@ from http://www.comedi.org
 #define ME_COUNTER_VALUE_B		0x0022	/* R | - */
 
 /* Function prototypes */
-static int me_attach(comedi_device *dev, comedi_devconfig *it);
-static int me_detach(comedi_device *dev);
+static int me_attach(struct comedi_device *dev, comedi_devconfig *it);
+static int me_detach(struct comedi_device *dev);
 
 static const comedi_lrange me2000_ai_range = {
 	8,
@@ -290,7 +290,7 @@ static inline void sleep(unsigned sec)
  *
  * ------------------------------------------------------------------
  */
-static int me_dio_insn_config(comedi_device *dev, comedi_subdevice *s,
+static int me_dio_insn_config(struct comedi_device *dev, comedi_subdevice *s,
 			      comedi_insn *insn, unsigned int *data)
 {
 	int bits;
@@ -326,7 +326,7 @@ static int me_dio_insn_config(comedi_device *dev, comedi_subdevice *s,
 }
 
 /* Digital instant input/outputs */
-static int me_dio_insn_bits(comedi_device *dev, comedi_subdevice *s,
+static int me_dio_insn_bits(struct comedi_device *dev, comedi_subdevice *s,
 			    comedi_insn *insn, unsigned int *data)
 {
 	unsigned int mask = data[0];
@@ -362,7 +362,7 @@ static int me_dio_insn_bits(comedi_device *dev, comedi_subdevice *s,
  */
 
 /* Analog instant input */
-static int me_ai_insn_read(comedi_device *dev, comedi_subdevice *subdevice,
+static int me_ai_insn_read(struct comedi_device *dev, comedi_subdevice *subdevice,
 			   comedi_insn *insn, unsigned int *data)
 {
 	unsigned short value;
@@ -436,7 +436,7 @@ static int me_ai_insn_read(comedi_device *dev, comedi_subdevice *subdevice,
  */
 
 /* Cancel analog input autoscan */
-static int me_ai_cancel(comedi_device *dev, comedi_subdevice *s)
+static int me_ai_cancel(struct comedi_device *dev, comedi_subdevice *s)
 {
 	/* disable interrupts */
 
@@ -448,14 +448,14 @@ static int me_ai_cancel(comedi_device *dev, comedi_subdevice *s)
 }
 
 /* Test analog input command */
-static int me_ai_do_cmd_test(comedi_device *dev, comedi_subdevice *s,
+static int me_ai_do_cmd_test(struct comedi_device *dev, comedi_subdevice *s,
 			     comedi_cmd *cmd)
 {
 	return 0;
 }
 
 /* Analog input command */
-static int me_ai_do_cmd(comedi_device *dev, comedi_subdevice *subdevice)
+static int me_ai_do_cmd(struct comedi_device *dev, comedi_subdevice *subdevice)
 {
 	return 0;
 }
@@ -469,7 +469,7 @@ static int me_ai_do_cmd(comedi_device *dev, comedi_subdevice *subdevice)
  */
 
 /* Analog instant output */
-static int me_ao_insn_write(comedi_device *dev, comedi_subdevice *s,
+static int me_ao_insn_write(struct comedi_device *dev, comedi_subdevice *s,
 			    comedi_insn *insn, unsigned int *data)
 {
 	int chan;
@@ -519,7 +519,7 @@ static int me_ao_insn_write(comedi_device *dev, comedi_subdevice *s,
 }
 
 /* Analog output readback */
-static int me_ao_insn_read(comedi_device *dev, comedi_subdevice *s,
+static int me_ao_insn_read(struct comedi_device *dev, comedi_subdevice *s,
 			   comedi_insn *insn, unsigned int *data)
 {
 	int i;
@@ -541,7 +541,7 @@ static int me_ao_insn_read(comedi_device *dev, comedi_subdevice *s,
  */
 
 /* Xilinx firmware download for card: ME-2600i */
-static int me2600_xilinx_download(comedi_device *dev,
+static int me2600_xilinx_download(struct comedi_device *dev,
 				  unsigned char *me2600_firmware,
 				  unsigned int length)
 {
@@ -609,7 +609,7 @@ static int me2600_xilinx_download(comedi_device *dev,
 }
 
 /* Reset device */
-static int me_reset(comedi_device *dev)
+static int me_reset(struct comedi_device *dev)
 {
 	/* Reset board */
 	writew(0x00, dev_private->me_regbase + ME_CONTROL_1);
@@ -631,7 +631,7 @@ static int me_reset(comedi_device *dev)
  * - Register PCI device
  * - Declare device driver capability
  */
-static int me_attach(comedi_device *dev, comedi_devconfig *it)
+static int me_attach(struct comedi_device *dev, comedi_devconfig *it)
 {
 	struct pci_dev *pci_device;
 	comedi_subdevice *subdevice;
@@ -825,7 +825,7 @@ found:
 }
 
 /* Detach */
-static int me_detach(comedi_device *dev)
+static int me_detach(struct comedi_device *dev)
 {
 	if (dev_private) {
 		if (dev_private->me_regbase) {

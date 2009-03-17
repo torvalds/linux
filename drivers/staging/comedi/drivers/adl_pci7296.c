@@ -63,8 +63,8 @@ typedef struct {
 
 #define devpriv ((adl_pci7296_private *)dev->private)
 
-static int adl_pci7296_attach(comedi_device * dev, comedi_devconfig * it);
-static int adl_pci7296_detach(comedi_device * dev);
+static int adl_pci7296_attach(struct comedi_device * dev, comedi_devconfig * it);
+static int adl_pci7296_detach(struct comedi_device * dev);
 static comedi_driver driver_adl_pci7296 = {
       driver_name:"adl_pci7296",
       module:THIS_MODULE,
@@ -72,7 +72,7 @@ static comedi_driver driver_adl_pci7296 = {
       detach:adl_pci7296_detach,
 };
 
-static int adl_pci7296_attach(comedi_device * dev, comedi_devconfig * it)
+static int adl_pci7296_attach(struct comedi_device * dev, comedi_devconfig * it)
 {
 	struct pci_dev *pcidev;
 	comedi_subdevice *s;
@@ -148,7 +148,7 @@ static int adl_pci7296_attach(comedi_device * dev, comedi_devconfig * it)
 	return -EIO;
 }
 
-static int adl_pci7296_detach(comedi_device * dev)
+static int adl_pci7296_detach(struct comedi_device * dev)
 {
 	printk("comedi%d: pci7432: remove\n", dev->minor);
 

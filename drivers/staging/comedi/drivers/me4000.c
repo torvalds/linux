@@ -118,8 +118,8 @@ static const me4000_board_t me4000_boards[] = {
 /*-----------------------------------------------------------------------------
   Comedi function prototypes
   ---------------------------------------------------------------------------*/
-static int me4000_attach(comedi_device *dev, comedi_devconfig *it);
-static int me4000_detach(comedi_device *dev);
+static int me4000_attach(struct comedi_device *dev, comedi_devconfig *it);
+static int me4000_detach(struct comedi_device *dev);
 static comedi_driver driver_me4000 = {
       driver_name:"me4000",
       module : THIS_MODULE,
@@ -130,91 +130,91 @@ static comedi_driver driver_me4000 = {
 /*-----------------------------------------------------------------------------
   Meilhaus function prototypes
   ---------------------------------------------------------------------------*/
-static int me4000_probe(comedi_device *dev, comedi_devconfig *it);
-static int get_registers(comedi_device *dev, struct pci_dev *pci_dev_p);
-static int init_board_info(comedi_device *dev, struct pci_dev *pci_dev_p);
-static int init_ao_context(comedi_device *dev);
-static int init_ai_context(comedi_device *dev);
-static int init_dio_context(comedi_device *dev);
-static int init_cnt_context(comedi_device *dev);
-static int xilinx_download(comedi_device *dev);
-static int reset_board(comedi_device *dev);
+static int me4000_probe(struct comedi_device *dev, comedi_devconfig *it);
+static int get_registers(struct comedi_device *dev, struct pci_dev *pci_dev_p);
+static int init_board_info(struct comedi_device *dev, struct pci_dev *pci_dev_p);
+static int init_ao_context(struct comedi_device *dev);
+static int init_ai_context(struct comedi_device *dev);
+static int init_dio_context(struct comedi_device *dev);
+static int init_cnt_context(struct comedi_device *dev);
+static int xilinx_download(struct comedi_device *dev);
+static int reset_board(struct comedi_device *dev);
 
-static int me4000_dio_insn_bits(comedi_device *dev,
+static int me4000_dio_insn_bits(struct comedi_device *dev,
 	comedi_subdevice *s, comedi_insn *insn, unsigned int *data);
 
-static int me4000_dio_insn_config(comedi_device *dev,
+static int me4000_dio_insn_config(struct comedi_device *dev,
 	comedi_subdevice *s, comedi_insn *insn, unsigned int *data);
 
-static int cnt_reset(comedi_device *dev, unsigned int channel);
+static int cnt_reset(struct comedi_device *dev, unsigned int channel);
 
-static int cnt_config(comedi_device *dev,
+static int cnt_config(struct comedi_device *dev,
 	unsigned int channel, unsigned int mode);
 
-static int me4000_cnt_insn_config(comedi_device *dev,
+static int me4000_cnt_insn_config(struct comedi_device *dev,
 	comedi_subdevice *s, comedi_insn *insn, unsigned int *data);
 
-static int me4000_cnt_insn_write(comedi_device *dev,
+static int me4000_cnt_insn_write(struct comedi_device *dev,
 	comedi_subdevice *s, comedi_insn *insn, unsigned int *data);
 
-static int me4000_cnt_insn_read(comedi_device *dev,
+static int me4000_cnt_insn_read(struct comedi_device *dev,
 	comedi_subdevice *s, comedi_insn *insn, unsigned int *data);
 
-static int me4000_ai_insn_read(comedi_device *dev,
+static int me4000_ai_insn_read(struct comedi_device *dev,
 	comedi_subdevice *subdevice, comedi_insn *insn, unsigned int *data);
 
-static int me4000_ai_cancel(comedi_device *dev, comedi_subdevice *s);
+static int me4000_ai_cancel(struct comedi_device *dev, comedi_subdevice *s);
 
-static int ai_check_chanlist(comedi_device *dev,
+static int ai_check_chanlist(struct comedi_device *dev,
 	comedi_subdevice *s, comedi_cmd *cmd);
 
-static int ai_round_cmd_args(comedi_device *dev,
+static int ai_round_cmd_args(struct comedi_device *dev,
 	comedi_subdevice *s,
 	comedi_cmd *cmd,
 	unsigned int *init_ticks,
 	unsigned int *scan_ticks, unsigned int *chan_ticks);
 
-static int ai_prepare(comedi_device *dev,
+static int ai_prepare(struct comedi_device *dev,
 	comedi_subdevice *s,
 	comedi_cmd *cmd,
 	unsigned int init_ticks,
 	unsigned int scan_ticks, unsigned int chan_ticks);
 
-static int ai_write_chanlist(comedi_device *dev,
+static int ai_write_chanlist(struct comedi_device *dev,
 	comedi_subdevice *s, comedi_cmd *cmd);
 
 static irqreturn_t me4000_ai_isr(int irq, void *dev_id PT_REGS_ARG);
 
-static int me4000_ai_do_cmd_test(comedi_device *dev,
+static int me4000_ai_do_cmd_test(struct comedi_device *dev,
 	comedi_subdevice *s, comedi_cmd *cmd);
 
-static int me4000_ai_do_cmd(comedi_device *dev, comedi_subdevice *s);
+static int me4000_ai_do_cmd(struct comedi_device *dev, comedi_subdevice *s);
 
-static int me4000_ao_insn_write(comedi_device *dev,
+static int me4000_ao_insn_write(struct comedi_device *dev,
 	comedi_subdevice *s, comedi_insn *insn, unsigned int *data);
 
-static int me4000_ao_insn_read(comedi_device *dev,
+static int me4000_ao_insn_read(struct comedi_device *dev,
 	comedi_subdevice *s, comedi_insn *insn, unsigned int *data);
 
 /*-----------------------------------------------------------------------------
   Meilhaus inline functions
   ---------------------------------------------------------------------------*/
 
-static inline void me4000_outb(comedi_device *dev, unsigned char value,
+static inline void me4000_outb(struct comedi_device *dev, unsigned char value,
 	unsigned long port)
 {
 	PORT_PDEBUG("--> 0x%02X port 0x%04lX\n", value, port);
 	outb(value, port);
 }
 
-static inline void me4000_outl(comedi_device *dev, unsigned long value,
+static inline void me4000_outl(struct comedi_device *dev, unsigned long value,
 	unsigned long port)
 {
 	PORT_PDEBUG("--> 0x%08lX port 0x%04lX\n", value, port);
 	outl(value, port);
 }
 
-static inline unsigned long me4000_inl(comedi_device *dev, unsigned long port)
+static inline unsigned long me4000_inl(struct comedi_device *dev, unsigned long port)
 {
 	unsigned long value;
 	value = inl(port);
@@ -222,7 +222,7 @@ static inline unsigned long me4000_inl(comedi_device *dev, unsigned long port)
 	return value;
 }
 
-static inline unsigned char me4000_inb(comedi_device *dev, unsigned long port)
+static inline unsigned char me4000_inb(struct comedi_device *dev, unsigned long port)
 {
 	unsigned char value;
 	value = inb(port);
@@ -247,7 +247,7 @@ static const comedi_lrange me4000_ao_range = {
 		}
 };
 
-static int me4000_attach(comedi_device *dev, comedi_devconfig *it)
+static int me4000_attach(struct comedi_device *dev, comedi_devconfig *it)
 {
 	comedi_subdevice *s;
 	int result;
@@ -369,7 +369,7 @@ static int me4000_attach(comedi_device *dev, comedi_devconfig *it)
 	return 0;
 }
 
-static int me4000_probe(comedi_device *dev, comedi_devconfig *it)
+static int me4000_probe(struct comedi_device *dev, comedi_devconfig *it)
 {
 	struct pci_dev *pci_device;
 	int result, i;
@@ -512,7 +512,7 @@ static int me4000_probe(comedi_device *dev, comedi_devconfig *it)
 	return 0;
 }
 
-static int get_registers(comedi_device *dev, struct pci_dev *pci_dev_p)
+static int get_registers(struct comedi_device *dev, struct pci_dev *pci_dev_p)
 {
 
 	CALL_PDEBUG("In get_registers()\n");
@@ -564,7 +564,7 @@ static int get_registers(comedi_device *dev, struct pci_dev *pci_dev_p)
 	return 0;
 }
 
-static int init_board_info(comedi_device *dev, struct pci_dev *pci_dev_p)
+static int init_board_info(struct comedi_device *dev, struct pci_dev *pci_dev_p)
 {
 	int result;
 
@@ -596,7 +596,7 @@ static int init_board_info(comedi_device *dev, struct pci_dev *pci_dev_p)
 	return 0;
 }
 
-static int init_ao_context(comedi_device *dev)
+static int init_ao_context(struct comedi_device *dev)
 {
 	int i;
 
@@ -679,7 +679,7 @@ static int init_ao_context(comedi_device *dev)
 	return 0;
 }
 
-static int init_ai_context(comedi_device *dev)
+static int init_ai_context(struct comedi_device *dev)
 {
 
 	CALL_PDEBUG("In init_ai_context()\n");
@@ -713,7 +713,7 @@ static int init_ai_context(comedi_device *dev)
 	return 0;
 }
 
-static int init_dio_context(comedi_device *dev)
+static int init_dio_context(struct comedi_device *dev)
 {
 
 	CALL_PDEBUG("In init_dio_context()\n");
@@ -732,7 +732,7 @@ static int init_dio_context(comedi_device *dev)
 	return 0;
 }
 
-static int init_cnt_context(comedi_device *dev)
+static int init_cnt_context(struct comedi_device *dev)
 {
 
 	CALL_PDEBUG("In init_cnt_context()\n");
@@ -753,7 +753,7 @@ static int init_cnt_context(comedi_device *dev)
 extern unsigned char *xilinx_firm;
 #endif
 
-static int xilinx_download(comedi_device *dev)
+static int xilinx_download(struct comedi_device *dev)
 {
 	u32 value = 0;
 	wait_queue_head_t queue;
@@ -835,7 +835,7 @@ static int xilinx_download(comedi_device *dev)
 	return 0;
 }
 
-static int reset_board(comedi_device *dev)
+static int reset_board(struct comedi_device *dev)
 {
 	unsigned long icr;
 
@@ -893,7 +893,7 @@ static int reset_board(comedi_device *dev)
 	return 0;
 }
 
-static int me4000_detach(comedi_device *dev)
+static int me4000_detach(struct comedi_device *dev)
 {
 	CALL_PDEBUG("In me4000_detach()\n");
 
@@ -913,7 +913,7 @@ static int me4000_detach(comedi_device *dev)
   Analog input section
   ===========================================================================*/
 
-static int me4000_ai_insn_read(comedi_device *dev,
+static int me4000_ai_insn_read(struct comedi_device *dev,
 	comedi_subdevice *subdevice, comedi_insn *insn, unsigned int *data)
 {
 
@@ -1037,7 +1037,7 @@ static int me4000_ai_insn_read(comedi_device *dev,
 	return 1;
 }
 
-static int me4000_ai_cancel(comedi_device *dev, comedi_subdevice *s)
+static int me4000_ai_cancel(struct comedi_device *dev, comedi_subdevice *s)
 {
 	unsigned long tmp;
 
@@ -1054,7 +1054,7 @@ static int me4000_ai_cancel(comedi_device *dev, comedi_subdevice *s)
 	return 0;
 }
 
-static int ai_check_chanlist(comedi_device *dev,
+static int ai_check_chanlist(struct comedi_device *dev,
 	comedi_subdevice *s, comedi_cmd *cmd)
 {
 	int aref;
@@ -1135,7 +1135,7 @@ static int ai_check_chanlist(comedi_device *dev,
 	return 0;
 }
 
-static int ai_round_cmd_args(comedi_device *dev,
+static int ai_round_cmd_args(struct comedi_device *dev,
 	comedi_subdevice *s,
 	comedi_cmd *cmd,
 	unsigned int *init_ticks,
@@ -1201,7 +1201,7 @@ static int ai_round_cmd_args(comedi_device *dev,
 	return 0;
 }
 
-static void ai_write_timer(comedi_device *dev,
+static void ai_write_timer(struct comedi_device *dev,
 	unsigned int init_ticks,
 	unsigned int scan_ticks, unsigned int chan_ticks)
 {
@@ -1222,7 +1222,7 @@ static void ai_write_timer(comedi_device *dev,
 	me4000_outl(dev, chan_ticks - 1, info->ai_context.chan_timer_reg);
 }
 
-static int ai_prepare(comedi_device *dev,
+static int ai_prepare(struct comedi_device *dev,
 	comedi_subdevice *s,
 	comedi_cmd *cmd,
 	unsigned int init_ticks,
@@ -1291,7 +1291,7 @@ static int ai_prepare(comedi_device *dev,
 	return 0;
 }
 
-static int ai_write_chanlist(comedi_device *dev,
+static int ai_write_chanlist(struct comedi_device *dev,
 	comedi_subdevice *s, comedi_cmd *cmd)
 {
 	unsigned int entry;
@@ -1331,7 +1331,7 @@ static int ai_write_chanlist(comedi_device *dev,
 	return 0;
 }
 
-static int me4000_ai_do_cmd(comedi_device *dev, comedi_subdevice *s)
+static int me4000_ai_do_cmd(struct comedi_device *dev, comedi_subdevice *s)
 {
 	int err;
 	unsigned int init_ticks = 0;
@@ -1375,7 +1375,7 @@ static int me4000_ai_do_cmd(comedi_device *dev, comedi_subdevice *s)
  * - invalid chanlist
  * So I tried to adopt this scheme.
  */
-static int me4000_ai_do_cmd_test(comedi_device *dev,
+static int me4000_ai_do_cmd_test(struct comedi_device *dev,
 	comedi_subdevice *s, comedi_cmd *cmd)
 {
 
@@ -1743,7 +1743,7 @@ static int me4000_ai_do_cmd_test(comedi_device *dev,
 static irqreturn_t me4000_ai_isr(int irq, void *dev_id PT_REGS_ARG)
 {
 	unsigned int tmp;
-	comedi_device *dev = dev_id;
+	struct comedi_device *dev = dev_id;
 	comedi_subdevice *s = dev->subdevices;
 	me4000_ai_context_t *ai_context = &info->ai_context;
 	int i;
@@ -1903,7 +1903,7 @@ static irqreturn_t me4000_ai_isr(int irq, void *dev_id PT_REGS_ARG)
   Analog output section
   ===========================================================================*/
 
-static int me4000_ao_insn_write(comedi_device *dev,
+static int me4000_ao_insn_write(struct comedi_device *dev,
 	comedi_subdevice *s, comedi_insn *insn, unsigned int *data)
 {
 
@@ -1961,7 +1961,7 @@ static int me4000_ao_insn_write(comedi_device *dev,
 	return 1;
 }
 
-static int me4000_ao_insn_read(comedi_device *dev,
+static int me4000_ao_insn_read(struct comedi_device *dev,
 	comedi_subdevice *s, comedi_insn *insn, unsigned int *data)
 {
 	int chan = CR_CHAN(insn->chanspec);
@@ -1982,7 +1982,7 @@ static int me4000_ao_insn_read(comedi_device *dev,
   Digital I/O section
   ===========================================================================*/
 
-static int me4000_dio_insn_bits(comedi_device *dev,
+static int me4000_dio_insn_bits(struct comedi_device *dev,
 	comedi_subdevice *s, comedi_insn *insn, unsigned int *data)
 {
 
@@ -2033,7 +2033,7 @@ static int me4000_dio_insn_bits(comedi_device *dev,
 	return 2;
 }
 
-static int me4000_dio_insn_config(comedi_device *dev,
+static int me4000_dio_insn_config(struct comedi_device *dev,
 	comedi_subdevice *s, comedi_insn *insn, unsigned int *data)
 {
 	unsigned long tmp;
@@ -2127,7 +2127,7 @@ static int me4000_dio_insn_config(comedi_device *dev,
   Counter section
   ===========================================================================*/
 
-static int cnt_reset(comedi_device *dev, unsigned int channel)
+static int cnt_reset(struct comedi_device *dev, unsigned int channel)
 {
 
 	CALL_PDEBUG("In cnt_reset()\n");
@@ -2158,7 +2158,7 @@ static int cnt_reset(comedi_device *dev, unsigned int channel)
 	return 0;
 }
 
-static int cnt_config(comedi_device *dev, unsigned int channel,
+static int cnt_config(struct comedi_device *dev, unsigned int channel,
 	unsigned int mode)
 {
 	int tmp = 0;
@@ -2215,7 +2215,7 @@ static int cnt_config(comedi_device *dev, unsigned int channel,
 	return 0;
 }
 
-static int me4000_cnt_insn_config(comedi_device *dev,
+static int me4000_cnt_insn_config(struct comedi_device *dev,
 	comedi_subdevice *s, comedi_insn *insn, unsigned int *data)
 {
 
@@ -2258,7 +2258,7 @@ static int me4000_cnt_insn_config(comedi_device *dev,
 	return 2;
 }
 
-static int me4000_cnt_insn_read(comedi_device *dev,
+static int me4000_cnt_insn_read(struct comedi_device *dev,
 	comedi_subdevice *s, comedi_insn *insn, unsigned int *data)
 {
 
@@ -2305,7 +2305,7 @@ static int me4000_cnt_insn_read(comedi_device *dev,
 	return 1;
 }
 
-static int me4000_cnt_insn_write(comedi_device *dev,
+static int me4000_cnt_insn_write(struct comedi_device *dev,
 	comedi_subdevice *s, comedi_insn *insn, unsigned int *data)
 {
 

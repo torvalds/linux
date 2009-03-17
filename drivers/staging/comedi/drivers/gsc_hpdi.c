@@ -52,15 +52,15 @@ support could be added to this driver.
 #include "plx9080.h"
 #include "comedi_fc.h"
 
-static int hpdi_attach(comedi_device * dev, comedi_devconfig * it);
-static int hpdi_detach(comedi_device * dev);
-void abort_dma(comedi_device * dev, unsigned int channel);
-static int hpdi_cmd(comedi_device * dev, comedi_subdevice * s);
-static int hpdi_cmd_test(comedi_device * dev, comedi_subdevice * s,
+static int hpdi_attach(struct comedi_device * dev, comedi_devconfig * it);
+static int hpdi_detach(struct comedi_device * dev);
+void abort_dma(struct comedi_device * dev, unsigned int channel);
+static int hpdi_cmd(struct comedi_device * dev, comedi_subdevice * s);
+static int hpdi_cmd_test(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_cmd * cmd);
-static int hpdi_cancel(comedi_device * dev, comedi_subdevice * s);
+static int hpdi_cancel(struct comedi_device * dev, comedi_subdevice * s);
 static irqreturn_t handle_interrupt(int irq, void *d PT_REGS_ARG);
-static int dio_config_block_size(comedi_device * dev, unsigned int * data);
+static int dio_config_block_size(struct comedi_device * dev, unsigned int * data);
 
 #undef HPDI_DEBUG		// disable debugging messages
 //#define HPDI_DEBUG    // enable debugging code
@@ -294,7 +294,7 @@ static DEFINE_PCI_DEVICE_TABLE(hpdi_pci_table) = {
 
 MODULE_DEVICE_TABLE(pci, hpdi_pci_table);
 
-static inline hpdi_board *board(const comedi_device * dev)
+static inline hpdi_board *board(const struct comedi_device * dev)
 {
 	return (hpdi_board *) dev->board_ptr;
 }
@@ -322,7 +322,7 @@ typedef struct {
 	unsigned dio_config_output:1;
 } hpdi_private;
 
-static inline hpdi_private *priv(comedi_device * dev)
+static inline hpdi_private *priv(struct comedi_device * dev)
 {
 	return dev->private;
 }
@@ -336,7 +336,7 @@ static comedi_driver driver_hpdi = {
 
 COMEDI_PCI_INITCLEANUP(driver_hpdi, hpdi_pci_table);
 
-static int dio_config_insn(comedi_device * dev, comedi_subdevice * s,
+static int dio_config_insn(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	switch (data[0]) {
@@ -364,13 +364,13 @@ static int dio_config_insn(comedi_device * dev, comedi_subdevice * s,
 	return -EINVAL;
 }
 
-static void disable_plx_interrupts(comedi_device * dev)
+static void disable_plx_interrupts(struct comedi_device * dev)
 {
 	writel(0, priv(dev)->plx9080_iobase + PLX_INTRCS_REG);
 }
 
 // initialize plx9080 chip
-static void init_plx9080(comedi_device * dev)
+static void init_plx9080(struct comedi_device * dev)
 {
 	uint32_t bits;
 	void *plx_iobase = priv(dev)->plx9080_iobase;
@@ -435,7 +435,7 @@ static void init_plx9080(comedi_device * dev)
 
 /* Allocate and initialize the subdevice structures.
  */
-static int setup_subdevices(comedi_device * dev)
+static int setup_subdevices(struct comedi_device * dev)
 {
 	comedi_subdevice *s;
 
@@ -461,7 +461,7 @@ static int setup_subdevices(comedi_device * dev)
 	return 0;
 }
 
-static int init_hpdi(comedi_device * dev)
+static int init_hpdi(struct comedi_device * dev)
 {
 	uint32_t plx_intcsr_bits;
 
@@ -490,7 +490,7 @@ static int init_hpdi(comedi_device * dev)
 }
 
 // setup dma descriptors so a link completes every 'transfer_size' bytes
-static int setup_dma_descriptors(comedi_device * dev,
+static int setup_dma_descriptors(struct comedi_device * dev,
 	unsigned int transfer_size)
 {
 	unsigned int buffer_index, buffer_offset;
@@ -552,7 +552,7 @@ static int setup_dma_descriptors(comedi_device * dev,
 	return transfer_size;
 }
 
-static int hpdi_attach(comedi_device * dev, comedi_devconfig * it)
+static int hpdi_attach(struct comedi_device * dev, comedi_devconfig * it)
 {
 	struct pci_dev *pcidev;
 	int i;
@@ -661,7 +661,7 @@ static int hpdi_attach(comedi_device * dev, comedi_devconfig * it)
 	return init_hpdi(dev);
 }
 
-static int hpdi_detach(comedi_device * dev)
+static int hpdi_detach(struct comedi_device * dev)
 {
 	unsigned int i;
 
@@ -702,7 +702,7 @@ static int hpdi_detach(comedi_device * dev)
 	return 0;
 }
 
-static int dio_config_block_size(comedi_device * dev, unsigned int * data)
+static int dio_config_block_size(struct comedi_device * dev, unsigned int * data)
 {
 	unsigned int requested_block_size;
 	int retval;
@@ -718,7 +718,7 @@ static int dio_config_block_size(comedi_device * dev, unsigned int * data)
 	return 2;
 }
 
-static int di_cmd_test(comedi_device * dev, comedi_subdevice * s,
+static int di_cmd_test(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_cmd * cmd)
 {
 	int err = 0;
@@ -818,7 +818,7 @@ static int di_cmd_test(comedi_device * dev, comedi_subdevice * s,
 	return 0;
 }
 
-static int hpdi_cmd_test(comedi_device * dev, comedi_subdevice * s,
+static int hpdi_cmd_test(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_cmd * cmd)
 {
 	if (priv(dev)->dio_config_output) {
@@ -827,14 +827,14 @@ static int hpdi_cmd_test(comedi_device * dev, comedi_subdevice * s,
 		return di_cmd_test(dev, s, cmd);
 }
 
-static inline void hpdi_writel(comedi_device * dev, uint32_t bits,
+static inline void hpdi_writel(struct comedi_device * dev, uint32_t bits,
 	unsigned int offset)
 {
 	writel(bits | priv(dev)->bits[offset / sizeof(uint32_t)],
 		priv(dev)->hpdi_iobase + offset);
 }
 
-static int di_cmd(comedi_device * dev, comedi_subdevice * s)
+static int di_cmd(struct comedi_device * dev, comedi_subdevice * s)
 {
 	uint32_t bits;
 	unsigned long flags;
@@ -887,7 +887,7 @@ static int di_cmd(comedi_device * dev, comedi_subdevice * s)
 	return 0;
 }
 
-static int hpdi_cmd(comedi_device * dev, comedi_subdevice * s)
+static int hpdi_cmd(struct comedi_device * dev, comedi_subdevice * s)
 {
 	if (priv(dev)->dio_config_output) {
 		return -EINVAL;
@@ -895,7 +895,7 @@ static int hpdi_cmd(comedi_device * dev, comedi_subdevice * s)
 		return di_cmd(dev, s);
 }
 
-static void drain_dma_buffers(comedi_device * dev, unsigned int channel)
+static void drain_dma_buffers(struct comedi_device * dev, unsigned int channel)
 {
 	comedi_async *async = dev->read_subdev->async;
 	uint32_t next_transfer_addr;
@@ -943,7 +943,7 @@ static void drain_dma_buffers(comedi_device * dev, unsigned int channel)
 
 static irqreturn_t handle_interrupt(int irq, void *d PT_REGS_ARG)
 {
-	comedi_device *dev = d;
+	struct comedi_device *dev = d;
 	comedi_subdevice *s = dev->read_subdev;
 	comedi_async *async = s->async;
 	uint32_t hpdi_intr_status, hpdi_board_status;
@@ -1032,7 +1032,7 @@ static irqreturn_t handle_interrupt(int irq, void *d PT_REGS_ARG)
 	return IRQ_HANDLED;
 }
 
-void abort_dma(comedi_device * dev, unsigned int channel)
+void abort_dma(struct comedi_device * dev, unsigned int channel)
 {
 	unsigned long flags;
 
@@ -1044,7 +1044,7 @@ void abort_dma(comedi_device * dev, unsigned int channel)
 	comedi_spin_unlock_irqrestore(&dev->spinlock, flags);
 }
 
-static int hpdi_cancel(comedi_device * dev, comedi_subdevice * s)
+static int hpdi_cancel(struct comedi_device * dev, comedi_subdevice * s)
 {
 	hpdi_writel(dev, 0, BOARD_CONTROL_REG);
 

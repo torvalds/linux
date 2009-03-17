@@ -82,8 +82,8 @@ Devices: [Quanser Consulting] MultiQ-3 (multiq3)
 
 #define MULTIQ3_TIMEOUT 30
 
-static int multiq3_attach(comedi_device * dev, comedi_devconfig * it);
-static int multiq3_detach(comedi_device * dev);
+static int multiq3_attach(struct comedi_device * dev, comedi_devconfig * it);
+static int multiq3_detach(struct comedi_device * dev);
 static comedi_driver driver_multiq3 = {
       driver_name:"multiq3",
       module:THIS_MODULE,
@@ -98,7 +98,7 @@ struct multiq3_private {
 };
 #define devpriv ((struct multiq3_private *)dev->private)
 
-static int multiq3_ai_insn_read(comedi_device * dev, comedi_subdevice * s,
+static int multiq3_ai_insn_read(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	int i, n;
@@ -134,7 +134,7 @@ static int multiq3_ai_insn_read(comedi_device * dev, comedi_subdevice * s,
 	return n;
 }
 
-static int multiq3_ao_insn_read(comedi_device * dev, comedi_subdevice * s,
+static int multiq3_ao_insn_read(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	int i;
@@ -147,7 +147,7 @@ static int multiq3_ao_insn_read(comedi_device * dev, comedi_subdevice * s,
 	return i;
 }
 
-static int multiq3_ao_insn_write(comedi_device * dev, comedi_subdevice * s,
+static int multiq3_ao_insn_write(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	int i;
@@ -165,7 +165,7 @@ static int multiq3_ao_insn_write(comedi_device * dev, comedi_subdevice * s,
 	return i;
 }
 
-static int multiq3_di_insn_bits(comedi_device * dev, comedi_subdevice * s,
+static int multiq3_di_insn_bits(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	if (insn->n != 2)
@@ -176,7 +176,7 @@ static int multiq3_di_insn_bits(comedi_device * dev, comedi_subdevice * s,
 	return 2;
 }
 
-static int multiq3_do_insn_bits(comedi_device * dev, comedi_subdevice * s,
+static int multiq3_do_insn_bits(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	if (insn->n != 2)
@@ -191,7 +191,7 @@ static int multiq3_do_insn_bits(comedi_device * dev, comedi_subdevice * s,
 	return 2;
 }
 
-static int multiq3_encoder_insn_read(comedi_device * dev, comedi_subdevice * s,
+static int multiq3_encoder_insn_read(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	int n;
@@ -212,7 +212,7 @@ static int multiq3_encoder_insn_read(comedi_device * dev, comedi_subdevice * s,
 	return n;
 }
 
-static void encoder_reset(comedi_device * dev)
+static void encoder_reset(struct comedi_device * dev)
 {
 	int chan;
 	for (chan = 0; chan < dev->subdevices[4].n_chan; chan++) {
@@ -235,7 +235,7 @@ static void encoder_reset(comedi_device * dev)
    options[2] - number of encoder chips installed
  */
 
-static int multiq3_attach(comedi_device * dev, comedi_devconfig * it)
+static int multiq3_attach(struct comedi_device * dev, comedi_devconfig * it)
 {
 	int result = 0;
 	unsigned long iobase;
@@ -318,7 +318,7 @@ static int multiq3_attach(comedi_device * dev, comedi_devconfig * it)
 	return 0;
 }
 
-static int multiq3_detach(comedi_device * dev)
+static int multiq3_detach(struct comedi_device * dev)
 {
 	printk("comedi%d: multiq3: remove\n", dev->minor);
 

@@ -47,13 +47,13 @@
 #include <asm/io.h>
 #include <asm/system.h>
 
-static int postconfig(comedi_device *dev);
-static int insn_rw_emulate_bits(comedi_device *dev, comedi_subdevice *s,
+static int postconfig(struct comedi_device *dev);
+static int insn_rw_emulate_bits(struct comedi_device *dev, comedi_subdevice *s,
 	comedi_insn *insn, unsigned int *data);
 static void *comedi_recognize(comedi_driver * driv, const char *name);
 static void comedi_report_boards(comedi_driver *driv);
-static int poll_invalid(comedi_device *dev, comedi_subdevice *s);
-int comedi_buf_alloc(comedi_device *dev, comedi_subdevice *s,
+static int poll_invalid(struct comedi_device *dev, comedi_subdevice *s);
+int comedi_buf_alloc(struct comedi_device *dev, comedi_subdevice *s,
 	unsigned long new_size);
 
 comedi_driver *comedi_drivers;
@@ -63,7 +63,7 @@ int comedi_modprobe(int minor)
 	return -EINVAL;
 }
 
-static void cleanup_device(comedi_device *dev)
+static void cleanup_device(struct comedi_device *dev)
 {
 	int i;
 	comedi_subdevice *s;
@@ -95,7 +95,7 @@ static void cleanup_device(comedi_device *dev)
 	comedi_set_hw_dev(dev, NULL);
 }
 
-static void __comedi_device_detach(comedi_device *dev)
+static void __comedi_device_detach(struct comedi_device *dev)
 {
 	dev->attached = 0;
 	if (dev->driver) {
@@ -106,14 +106,14 @@ static void __comedi_device_detach(comedi_device *dev)
 	cleanup_device(dev);
 }
 
-void comedi_device_detach(comedi_device *dev)
+void comedi_device_detach(struct comedi_device *dev)
 {
 	if (!dev->attached)
 		return;
 	__comedi_device_detach(dev);
 }
 
-int comedi_device_attach(comedi_device *dev, comedi_devconfig *it)
+int comedi_device_attach(struct comedi_device *dev, comedi_devconfig *it)
 {
 	comedi_driver *driv;
 	int ret;
@@ -196,7 +196,7 @@ int comedi_driver_unregister(comedi_driver *driver)
 	/* check for devices using this driver */
 	for (i = 0; i < COMEDI_NUM_BOARD_MINORS; i++) {
 		struct comedi_device_file_info *dev_file_info = comedi_get_device_file_info(i);
-		comedi_device *dev;
+		struct comedi_device *dev;
 
 		if(dev_file_info == NULL) continue;
 		dev = dev_file_info->device;
@@ -224,7 +224,7 @@ int comedi_driver_unregister(comedi_driver *driver)
 	return -EINVAL;
 }
 
-static int postconfig(comedi_device *dev)
+static int postconfig(struct comedi_device *dev)
 {
 	int i;
 	comedi_subdevice *s;
@@ -331,18 +331,18 @@ void comedi_report_boards(comedi_driver *driv)
 		printk(" %s\n", driv->driver_name);
 }
 
-static int poll_invalid(comedi_device *dev, comedi_subdevice *s)
+static int poll_invalid(struct comedi_device *dev, comedi_subdevice *s)
 {
 	return -EINVAL;
 }
 
-int insn_inval(comedi_device *dev, comedi_subdevice *s,
+int insn_inval(struct comedi_device *dev, comedi_subdevice *s,
 	comedi_insn *insn, unsigned int *data)
 {
 	return -EINVAL;
 }
 
-static int insn_rw_emulate_bits(comedi_device *dev, comedi_subdevice *s,
+static int insn_rw_emulate_bits(struct comedi_device *dev, comedi_subdevice *s,
 	comedi_insn *insn, unsigned int *data)
 {
 	comedi_insn new_insn;
@@ -412,7 +412,7 @@ static inline unsigned long kvirt_to_kva(unsigned long adr)
 	return kva;
 }
 
-int comedi_buf_alloc(comedi_device *dev, comedi_subdevice *s,
+int comedi_buf_alloc(struct comedi_device *dev, comedi_subdevice *s,
 	unsigned long new_size)
 {
 	comedi_async *async = s->async;

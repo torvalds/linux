@@ -41,30 +41,30 @@ Configuration options:
 
 #include <linux/ioport.h>
 
-static int poc_attach(comedi_device * dev, comedi_devconfig * it);
-static int poc_detach(comedi_device * dev);
-static int readback_insn(comedi_device * dev, comedi_subdevice * s,
+static int poc_attach(struct comedi_device * dev, comedi_devconfig * it);
+static int poc_detach(struct comedi_device * dev);
+static int readback_insn(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data);
 
-static int dac02_ao_winsn(comedi_device * dev, comedi_subdevice * s,
+static int dac02_ao_winsn(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data);
-static int pcl733_insn_bits(comedi_device * dev, comedi_subdevice * s,
+static int pcl733_insn_bits(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data);
-static int pcl734_insn_bits(comedi_device * dev, comedi_subdevice * s,
+static int pcl734_insn_bits(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data);
 
 struct boarddef_struct {
 	const char *name;
 	unsigned int iosize;
-	int (*setup) (comedi_device *);
+	int (*setup) (struct comedi_device *);
 	int type;
 	int n_chan;
 	int n_bits;
-	int (*winsn) (comedi_device *, comedi_subdevice *, comedi_insn *,
+	int (*winsn) (struct comedi_device *, comedi_subdevice *, comedi_insn *,
 		unsigned int *);
-	int (*rinsn) (comedi_device *, comedi_subdevice *, comedi_insn *,
+	int (*rinsn) (struct comedi_device *, comedi_subdevice *, comedi_insn *,
 		unsigned int *);
-	int (*insnbits) (comedi_device *, comedi_subdevice *, comedi_insn *,
+	int (*insnbits) (struct comedi_device *, comedi_subdevice *, comedi_insn *,
 		unsigned int *);
 	const comedi_lrange *range;
 };
@@ -113,7 +113,7 @@ static comedi_driver driver_poc = {
       offset:sizeof(boards[0]),
 };
 
-static int poc_attach(comedi_device * dev, comedi_devconfig * it)
+static int poc_attach(struct comedi_device * dev, comedi_devconfig * it)
 {
 	comedi_subdevice *s;
 	unsigned long iobase;
@@ -159,7 +159,7 @@ static int poc_attach(comedi_device * dev, comedi_devconfig * it)
 	return 0;
 }
 
-static int poc_detach(comedi_device * dev)
+static int poc_detach(struct comedi_device * dev)
 {
 	/* only free stuff if it has been allocated by _attach */
 	if (dev->iobase)
@@ -170,7 +170,7 @@ static int poc_detach(comedi_device * dev)
 	return 0;
 }
 
-static int readback_insn(comedi_device * dev, comedi_subdevice * s,
+static int readback_insn(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	int chan;
@@ -185,7 +185,7 @@ static int readback_insn(comedi_device * dev, comedi_subdevice * s,
 #define DAC02_LSB(a)	(2 * a)
 #define DAC02_MSB(a)	(2 * a + 1)
 
-static int dac02_ao_winsn(comedi_device * dev, comedi_subdevice * s,
+static int dac02_ao_winsn(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	int temp;
@@ -208,7 +208,7 @@ static int dac02_ao_winsn(comedi_device * dev, comedi_subdevice * s,
 	return 1;
 }
 
-static int pcl733_insn_bits(comedi_device * dev, comedi_subdevice * s,
+static int pcl733_insn_bits(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	if (insn->n != 2)
@@ -222,7 +222,7 @@ static int pcl733_insn_bits(comedi_device * dev, comedi_subdevice * s,
 	return 2;
 }
 
-static int pcl734_insn_bits(comedi_device * dev, comedi_subdevice * s,
+static int pcl734_insn_bits(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	if (insn->n != 2)

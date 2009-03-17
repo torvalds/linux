@@ -61,7 +61,7 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 
 /*
 +----------------------------------------------------------------------------+
-| INT	i_APCI1710_InsnConfigINCCPT(comedi_device *dev,comedi_subdevice *s,
+| INT	i_APCI1710_InsnConfigINCCPT(struct comedi_device *dev,comedi_subdevice *s,
 comedi_insn *insn,unsigned int *data)
 
 +----------------------------------------------------------------------------+
@@ -75,7 +75,7 @@ comedi_insn *insn,unsigned int *data)
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_InsnConfigINCCPT(comedi_device * dev, comedi_subdevice * s,
+INT i_APCI1710_InsnConfigINCCPT(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	UINT ui_ConfigType;
@@ -299,7 +299,7 @@ INT i_APCI1710_InsnConfigINCCPT(comedi_device * dev, comedi_subdevice * s,
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_InitCounter(comedi_device * dev,
+INT i_APCI1710_InitCounter(struct comedi_device * dev,
 	BYTE b_ModulNbr,
 	BYTE b_CounterRange,
 	BYTE b_FirstCounterModus,
@@ -545,7 +545,7 @@ INT i_APCI1710_InitCounter(comedi_device * dev,
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_CounterAutoTest(comedi_device * dev, PBYTE pb_TestStatus)
+INT i_APCI1710_CounterAutoTest(struct comedi_device * dev, PBYTE pb_TestStatus)
 {
 	BYTE b_ModulCpt = 0;
 	INT i_ReturnValue = 0;
@@ -708,7 +708,7 @@ INT i_APCI1710_CounterAutoTest(comedi_device * dev, PBYTE pb_TestStatus)
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_InitIndex(comedi_device * dev,
+INT i_APCI1710_InitIndex(struct comedi_device * dev,
 	BYTE b_ModulNbr,
 	BYTE b_ReferenceAction,
 	BYTE b_IndexOperation, BYTE b_AutoMode, BYTE b_InterruptEnable)
@@ -1152,7 +1152,7 @@ INT i_APCI1710_InitIndex(comedi_device * dev,
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_InitReference(comedi_device * dev,
+INT i_APCI1710_InitReference(struct comedi_device * dev,
 	BYTE b_ModulNbr, BYTE b_ReferenceLevel)
 {
 	INT i_ReturnValue = 0;
@@ -1277,7 +1277,7 @@ INT i_APCI1710_InitReference(comedi_device * dev,
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_InitExternalStrobe(comedi_device * dev,
+INT i_APCI1710_InitExternalStrobe(struct comedi_device * dev,
 	BYTE b_ModulNbr, BYTE b_ExternalStrobe, BYTE b_ExternalStrobeLevel)
 {
 	INT i_ReturnValue = 0;
@@ -1391,7 +1391,7 @@ INT i_APCI1710_InitExternalStrobe(comedi_device * dev,
 	   +----------------------------------------------------------------------------+
 	 */
 
-INT i_APCI1710_InitCompareLogic(comedi_device * dev,
+INT i_APCI1710_InitCompareLogic(struct comedi_device * dev,
 	BYTE b_ModulNbr, UINT ui_CompareValue)
 {
 	INT i_ReturnValue = 0;
@@ -1487,7 +1487,7 @@ INT i_APCI1710_InitCompareLogic(comedi_device * dev,
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_InitFrequencyMeasurement(comedi_device * dev,
+INT i_APCI1710_InitFrequencyMeasurement(struct comedi_device * dev,
 	BYTE b_ModulNbr,
 	BYTE b_PCIInputClock,
 	BYTE b_TimingUnity,
@@ -2002,7 +2002,7 @@ INT i_APCI1710_InitFrequencyMeasurement(comedi_device * dev,
 
 /*
 +----------------------------------------------------------------------------+
-| Function Name     :INT	i_APCI1710_InsnBitsINCCPT(comedi_device *dev,comedi_subdevice *s,
+| Function Name     :INT	i_APCI1710_InsnBitsINCCPT(struct comedi_device *dev,comedi_subdevice *s,
 comedi_insn *insn,unsigned int *data)                   |
 +----------------------------------------------------------------------------+
 | Task              : Set & Clear Functions for INC_CPT                                          |
@@ -2015,7 +2015,7 @@ comedi_insn *insn,unsigned int *data)                   |
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_InsnBitsINCCPT(comedi_device * dev, comedi_subdevice * s,
+INT i_APCI1710_InsnBitsINCCPT(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	UINT ui_BitsType;
@@ -2091,7 +2091,7 @@ INT i_APCI1710_InsnBitsINCCPT(comedi_device * dev, comedi_subdevice * s,
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_ClearCounterValue(comedi_device * dev, BYTE b_ModulNbr)
+INT i_APCI1710_ClearCounterValue(struct comedi_device * dev, BYTE b_ModulNbr)
 {
 	INT i_ReturnValue = 0;
 
@@ -2151,7 +2151,7 @@ INT i_APCI1710_ClearCounterValue(comedi_device * dev, BYTE b_ModulNbr)
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_ClearAllCounterValue(comedi_device * dev)
+INT i_APCI1710_ClearAllCounterValue(struct comedi_device * dev)
 {
 	BYTE b_ModulCpt = 0;
 	INT i_ReturnValue = 0;
@@ -2297,7 +2297,7 @@ INT i_APCI1710_ClearAllCounterValue(comedi_device * dev)
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_SetInputFilter(comedi_device * dev,
+INT i_APCI1710_SetInputFilter(struct comedi_device * dev,
 	BYTE b_ModulNbr, BYTE b_PCIInputClock, BYTE b_Filter)
 {
 	INT i_ReturnValue = 0;
@@ -2561,7 +2561,7 @@ INT i_APCI1710_SetInputFilter(comedi_device * dev,
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_LatchCounter(comedi_device * dev,
+INT i_APCI1710_LatchCounter(struct comedi_device * dev,
 	BYTE b_ModulNbr, BYTE b_LatchReg)
 {
 	INT i_ReturnValue = 0;
@@ -2658,7 +2658,7 @@ INT i_APCI1710_LatchCounter(comedi_device * dev,
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_SetIndexAndReferenceSource(comedi_device * dev,
+INT i_APCI1710_SetIndexAndReferenceSource(struct comedi_device * dev,
 	BYTE b_ModulNbr, BYTE b_SourceSelection)
 {
 	INT i_ReturnValue = 0;
@@ -2795,7 +2795,7 @@ INT i_APCI1710_SetIndexAndReferenceSource(comedi_device * dev,
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_SetDigitalChlOn(comedi_device * dev, BYTE b_ModulNbr)
+INT i_APCI1710_SetDigitalChlOn(struct comedi_device * dev, BYTE b_ModulNbr)
 {
 	INT i_ReturnValue = 0;
 
@@ -2875,7 +2875,7 @@ INT i_APCI1710_SetDigitalChlOn(comedi_device * dev, BYTE b_ModulNbr)
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_SetDigitalChlOff(comedi_device * dev, BYTE b_ModulNbr)
+INT i_APCI1710_SetDigitalChlOff(struct comedi_device * dev, BYTE b_ModulNbr)
 {
 	INT i_ReturnValue = 0;
 
@@ -2939,7 +2939,7 @@ INT i_APCI1710_SetDigitalChlOff(comedi_device * dev, BYTE b_ModulNbr)
 
 /*
 +----------------------------------------------------------------------------+
-| Function Name     :INT	i_APCI1710_InsnWriteINCCPT(comedi_device *dev,comedi_subdevice *s,
+| Function Name     :INT	i_APCI1710_InsnWriteINCCPT(struct comedi_device *dev,comedi_subdevice *s,
 comedi_insn *insn,unsigned int *data)                   |
 +----------------------------------------------------------------------------+
 | Task              : Enable Disable functions for INC_CPT                                       |
@@ -2951,7 +2951,7 @@ comedi_insn *insn,unsigned int *data)                   |
 | Return Value      :
 +----------------------------------------------------------------------------+
 */
-INT i_APCI1710_InsnWriteINCCPT(comedi_device * dev, comedi_subdevice * s,
+INT i_APCI1710_InsnWriteINCCPT(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	UINT ui_WriteType;
@@ -3047,7 +3047,7 @@ INT i_APCI1710_InsnWriteINCCPT(comedi_device * dev, comedi_subdevice * s,
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_EnableLatchInterrupt(comedi_device * dev, BYTE b_ModulNbr)
+INT i_APCI1710_EnableLatchInterrupt(struct comedi_device * dev, BYTE b_ModulNbr)
 {
 	INT i_ReturnValue = 0;
 
@@ -3133,7 +3133,7 @@ INT i_APCI1710_EnableLatchInterrupt(comedi_device * dev, BYTE b_ModulNbr)
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_DisableLatchInterrupt(comedi_device * dev, BYTE b_ModulNbr)
+INT i_APCI1710_DisableLatchInterrupt(struct comedi_device * dev, BYTE b_ModulNbr)
 {
 	INT i_ReturnValue = 0;
 
@@ -3231,7 +3231,7 @@ INT i_APCI1710_DisableLatchInterrupt(comedi_device * dev, BYTE b_ModulNbr)
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_Write16BitCounterValue(comedi_device * dev,
+INT i_APCI1710_Write16BitCounterValue(struct comedi_device * dev,
 	BYTE b_ModulNbr, BYTE b_SelectedCounter, UINT ui_WriteValue)
 {
 	INT i_ReturnValue = 0;
@@ -3316,7 +3316,7 @@ INT i_APCI1710_Write16BitCounterValue(comedi_device * dev,
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_Write32BitCounterValue(comedi_device * dev,
+INT i_APCI1710_Write32BitCounterValue(struct comedi_device * dev,
 	BYTE b_ModulNbr, ULONG ul_WriteValue)
 {
 	INT i_ReturnValue = 0;
@@ -3383,7 +3383,7 @@ INT i_APCI1710_Write32BitCounterValue(comedi_device * dev,
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_EnableIndex(comedi_device * dev, BYTE b_ModulNbr)
+INT i_APCI1710_EnableIndex(struct comedi_device * dev, BYTE b_ModulNbr)
 {
 	INT i_ReturnValue = 0;
 	ULONG ul_InterruptLatchReg;
@@ -3481,7 +3481,7 @@ INT i_APCI1710_EnableIndex(comedi_device * dev, BYTE b_ModulNbr)
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_DisableIndex(comedi_device * dev, BYTE b_ModulNbr)
+INT i_APCI1710_DisableIndex(struct comedi_device * dev, BYTE b_ModulNbr)
 {
 	INT i_ReturnValue = 0;
 
@@ -3580,7 +3580,7 @@ INT i_APCI1710_DisableIndex(comedi_device * dev, BYTE b_ModulNbr)
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_EnableCompareLogic(comedi_device * dev, BYTE b_ModulNbr)
+INT i_APCI1710_EnableCompareLogic(struct comedi_device * dev, BYTE b_ModulNbr)
 {
 	INT i_ReturnValue = 0;
 
@@ -3680,7 +3680,7 @@ INT i_APCI1710_EnableCompareLogic(comedi_device * dev, BYTE b_ModulNbr)
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_DisableCompareLogic(comedi_device * dev, BYTE b_ModulNbr)
+INT i_APCI1710_DisableCompareLogic(struct comedi_device * dev, BYTE b_ModulNbr)
 {
 	INT i_ReturnValue = 0;
 
@@ -3789,7 +3789,7 @@ INT i_APCI1710_DisableCompareLogic(comedi_device * dev, BYTE b_ModulNbr)
 	   +----------------------------------------------------------------------------+
 	 */
 
-INT i_APCI1710_EnableFrequencyMeasurement(comedi_device * dev,
+INT i_APCI1710_EnableFrequencyMeasurement(struct comedi_device * dev,
 	BYTE b_ModulNbr, BYTE b_InterruptEnable)
 {
 	INT i_ReturnValue = 0;
@@ -3936,7 +3936,7 @@ INT i_APCI1710_EnableFrequencyMeasurement(comedi_device * dev,
 	   +----------------------------------------------------------------------------+
 	 */
 
-INT i_APCI1710_DisableFrequencyMeasurement(comedi_device * dev, BYTE b_ModulNbr)
+INT i_APCI1710_DisableFrequencyMeasurement(struct comedi_device * dev, BYTE b_ModulNbr)
 {
 	INT i_ReturnValue = 0;
 
@@ -4037,7 +4037,7 @@ INT i_APCI1710_DisableFrequencyMeasurement(comedi_device * dev, BYTE b_ModulNbr)
 
 /*
 +----------------------------------------------------------------------------+
-| Function Name     :INT	i_APCI1710_InsnWriteINCCPT(comedi_device *dev,comedi_subdevice *s,
+| Function Name     :INT	i_APCI1710_InsnWriteINCCPT(struct comedi_device *dev,comedi_subdevice *s,
 comedi_insn *insn,unsigned int *data)                   |
 +----------------------------------------------------------------------------+
 | Task              : Read and Get functions for INC_CPT                                       |
@@ -4049,7 +4049,7 @@ comedi_insn *insn,unsigned int *data)                   |
 | Return Value      :
 +----------------------------------------------------------------------------+
 */
-INT i_APCI1710_InsnReadINCCPT(comedi_device * dev, comedi_subdevice * s,
+INT i_APCI1710_InsnReadINCCPT(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	UINT ui_ReadType;
@@ -4193,7 +4193,7 @@ INT i_APCI1710_InsnReadINCCPT(comedi_device * dev, comedi_subdevice * s,
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_ReadLatchRegisterStatus(comedi_device * dev,
+INT i_APCI1710_ReadLatchRegisterStatus(struct comedi_device * dev,
 	BYTE b_ModulNbr, BYTE b_LatchReg, PBYTE pb_LatchStatus)
 {
 	INT i_ReturnValue = 0;
@@ -4280,7 +4280,7 @@ INT i_APCI1710_ReadLatchRegisterStatus(comedi_device * dev,
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_ReadLatchRegisterValue(comedi_device * dev,
+INT i_APCI1710_ReadLatchRegisterValue(struct comedi_device * dev,
 	BYTE b_ModulNbr, BYTE b_LatchReg, PULONG pul_LatchValue)
 {
 	INT i_ReturnValue = 0;
@@ -4364,7 +4364,7 @@ INT i_APCI1710_ReadLatchRegisterValue(comedi_device * dev,
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_Read16BitCounterValue(comedi_device * dev,
+INT i_APCI1710_Read16BitCounterValue(struct comedi_device * dev,
 	BYTE b_ModulNbr, BYTE b_SelectedCounter, PUINT pui_CounterValue)
 {
 	INT i_ReturnValue = 0;
@@ -4459,7 +4459,7 @@ INT i_APCI1710_Read16BitCounterValue(comedi_device * dev,
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_Read32BitCounterValue(comedi_device * dev,
+INT i_APCI1710_Read32BitCounterValue(struct comedi_device * dev,
 	BYTE b_ModulNbr, PULONG pul_CounterValue)
 {
 	INT i_ReturnValue = 0;
@@ -4535,7 +4535,7 @@ INT i_APCI1710_Read32BitCounterValue(comedi_device * dev,
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_GetIndexStatus(comedi_device * dev,
+INT i_APCI1710_GetIndexStatus(struct comedi_device * dev,
 	BYTE b_ModulNbr, PBYTE pb_IndexStatus)
 {
 	INT i_ReturnValue = 0;
@@ -4619,7 +4619,7 @@ INT i_APCI1710_GetIndexStatus(comedi_device * dev,
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_GetReferenceStatus(comedi_device * dev,
+INT i_APCI1710_GetReferenceStatus(struct comedi_device * dev,
 	BYTE b_ModulNbr, PBYTE pb_ReferenceStatus)
 {
 	INT i_ReturnValue = 0;
@@ -4703,7 +4703,7 @@ INT i_APCI1710_GetReferenceStatus(comedi_device * dev,
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_GetUASStatus(comedi_device * dev,
+INT i_APCI1710_GetUASStatus(struct comedi_device * dev,
 	BYTE b_ModulNbr, PBYTE pb_UASStatus)
 {
 	INT i_ReturnValue = 0;
@@ -4771,7 +4771,7 @@ INT i_APCI1710_GetUASStatus(comedi_device * dev,
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_GetCBStatus(comedi_device * dev,
+INT i_APCI1710_GetCBStatus(struct comedi_device * dev,
 	BYTE b_ModulNbr, PBYTE pb_CBStatus)
 {
 	INT i_ReturnValue = 0;
@@ -4853,7 +4853,7 @@ INT i_APCI1710_GetCBStatus(comedi_device * dev,
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_Get16BitCBStatus(comedi_device * dev,
+INT i_APCI1710_Get16BitCBStatus(struct comedi_device * dev,
 	BYTE b_ModulNbr, PBYTE pb_CBStatusCounter0, PBYTE pb_CBStatusCounter1)
 {
 	INT i_ReturnValue = 0;
@@ -4966,7 +4966,7 @@ INT i_APCI1710_Get16BitCBStatus(comedi_device * dev,
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_GetUDStatus(comedi_device * dev,
+INT i_APCI1710_GetUDStatus(struct comedi_device * dev,
 	BYTE b_ModulNbr, PBYTE pb_UDStatus)
 {
 	INT i_ReturnValue = 0;
@@ -5040,7 +5040,7 @@ INT i_APCI1710_GetUDStatus(comedi_device * dev,
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_GetInterruptUDLatchedStatus(comedi_device * dev,
+INT i_APCI1710_GetInterruptUDLatchedStatus(struct comedi_device * dev,
 	BYTE b_ModulNbr, PBYTE pb_UDStatus)
 {
 	INT i_ReturnValue = 0;
@@ -5145,7 +5145,7 @@ INT i_APCI1710_GetInterruptUDLatchedStatus(comedi_device * dev,
 	   +----------------------------------------------------------------------------+
 	 */
 
-INT i_APCI1710_ReadFrequencyMeasurement(comedi_device * dev,
+INT i_APCI1710_ReadFrequencyMeasurement(struct comedi_device * dev,
 	BYTE b_ModulNbr,
 	PBYTE pb_Status, PBYTE pb_UDStatus, PULONG pul_ReadValue)
 {

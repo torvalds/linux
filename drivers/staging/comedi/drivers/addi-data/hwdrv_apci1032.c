@@ -59,12 +59,12 @@ UINT ui_InterruptStatus = 0;
 /*
 +----------------------------------------------------------------------------+
 | Function   Name   : int i_APCI1032_ConfigDigitalInput                      |
-|			  (comedi_device *dev,comedi_subdevice *s,               |
+|			  (struct comedi_device *dev,comedi_subdevice *s,               |
 |                      comedi_insn *insn,unsigned int *data)                     |
 +----------------------------------------------------------------------------+
 | Task              : Configures the digital input Subdevice                 |
 +----------------------------------------------------------------------------+
-| Input Parameters  : comedi_device *dev : Driver handle                     |
+| Input Parameters  : struct comedi_device *dev : Driver handle                     |
 |                     unsigned int *data         : Data Pointer contains         |
 |                                          configuration parameters as below |
 |                                                                            |
@@ -84,7 +84,7 @@ UINT ui_InterruptStatus = 0;
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1032_ConfigDigitalInput(comedi_device * dev, comedi_subdevice * s,
+INT i_APCI1032_ConfigDigitalInput(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	UINT ui_TmpValue;
@@ -128,12 +128,12 @@ INT i_APCI1032_ConfigDigitalInput(comedi_device * dev, comedi_subdevice * s,
 /*
 +----------------------------------------------------------------------------+
 | Function   Name   : int i_APCI1032_Read1DigitalInput                       |
-|			  (comedi_device *dev,comedi_subdevice *s,               |
+|			  (struct comedi_device *dev,comedi_subdevice *s,               |
 |                      comedi_insn *insn,unsigned int *data)                     |
 +----------------------------------------------------------------------------+
 | Task              : Return the status of the digital input                 |
 +----------------------------------------------------------------------------+
-| Input Parameters  : comedi_device *dev      : Driver handle                |
+| Input Parameters  : struct comedi_device *dev      : Driver handle                |
 |		              UINT ui_Channel : Channel number to read       |
 |                     unsigned int *data          : Data Pointer to read status  |
 +----------------------------------------------------------------------------+
@@ -144,7 +144,7 @@ INT i_APCI1032_ConfigDigitalInput(comedi_device * dev, comedi_subdevice * s,
 |			                                                         |
 +----------------------------------------------------------------------------+
 */
-INT i_APCI1032_Read1DigitalInput(comedi_device * dev, comedi_subdevice * s,
+INT i_APCI1032_Read1DigitalInput(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	UINT ui_TmpValue = 0;
@@ -166,12 +166,12 @@ INT i_APCI1032_Read1DigitalInput(comedi_device * dev, comedi_subdevice * s,
 /*
 +----------------------------------------------------------------------------+
 | Function   Name   : int i_APCI1032_ReadMoreDigitalInput                    |
-|			  (comedi_device *dev,comedi_subdevice *s,               |
+|			  (struct comedi_device *dev,comedi_subdevice *s,               |
 |                     comedi_insn *insn,unsigned int *data)                      |
 +----------------------------------------------------------------------------+
 | Task              : Return the status of the Requested digital inputs      |
 +----------------------------------------------------------------------------+
-| Input Parameters  : comedi_device *dev      : Driver handle                |
+| Input Parameters  : struct comedi_device *dev      : Driver handle                |
 |                     UINT ui_NoOfChannels    : No Of Channels To be Read    |
 |                      UINT *data             : Data Pointer to read status  |
 +----------------------------------------------------------------------------+
@@ -183,7 +183,7 @@ INT i_APCI1032_Read1DigitalInput(comedi_device * dev, comedi_subdevice * s,
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1032_ReadMoreDigitalInput(comedi_device * dev, comedi_subdevice * s,
+INT i_APCI1032_ReadMoreDigitalInput(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	UINT ui_PortValue = data[0];
@@ -245,7 +245,7 @@ INT i_APCI1032_ReadMoreDigitalInput(comedi_device * dev, comedi_subdevice * s,
 */
 static VOID v_APCI1032_Interrupt(int irq, void *d)
 {
-	comedi_device *dev = d;
+	struct comedi_device *dev = d;
 
 	UINT ui_Temp;
 	//disable the interrupt
@@ -262,11 +262,11 @@ static VOID v_APCI1032_Interrupt(int irq, void *d)
 
 /*
 +----------------------------------------------------------------------------+
-| Function   Name   : int i_APCI1032_Reset(comedi_device *dev)               |                                                       |
+| Function   Name   : int i_APCI1032_Reset(struct comedi_device *dev)               |                                                       |
 +----------------------------------------------------------------------------+
 | Task              :resets all the registers                                |
 +----------------------------------------------------------------------------+
-| Input Parameters  : comedi_device *dev
+| Input Parameters  : struct comedi_device *dev
 +----------------------------------------------------------------------------+
 | Output Parameters :	--													 |
 +----------------------------------------------------------------------------+
@@ -275,7 +275,7 @@ static VOID v_APCI1032_Interrupt(int irq, void *d)
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1032_Reset(comedi_device * dev)
+INT i_APCI1032_Reset(struct comedi_device * dev)
 {
 	outl(0x0, devpriv->iobase + APCI1032_DIGITAL_IP_IRQ);	//disable the interrupts
 	inl(devpriv->iobase + APCI1032_DIGITAL_IP_INTERRUPT_STATUS);	//Reset the interrupt status register

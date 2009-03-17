@@ -106,8 +106,8 @@ typedef struct {
 
 #define devpriv ((pci6208_private *)dev->private)
 
-static int pci6208_attach(comedi_device * dev, comedi_devconfig * it);
-static int pci6208_detach(comedi_device * dev);
+static int pci6208_attach(struct comedi_device * dev, comedi_devconfig * it);
+static int pci6208_detach(struct comedi_device * dev);
 
 #define pci6208_board_nbr \
 	(sizeof(pci6208_boards) / sizeof(pci6208_board))
@@ -121,19 +121,19 @@ static comedi_driver driver_pci6208 = {
 
 COMEDI_PCI_INITCLEANUP(driver_pci6208, pci6208_pci_table);
 
-static int pci6208_find_device(comedi_device * dev, int bus, int slot);
+static int pci6208_find_device(struct comedi_device * dev, int bus, int slot);
 static int
 pci6208_pci_setup(struct pci_dev *pci_dev, unsigned long *io_base_ptr,
 	int dev_minor);
 
 /*read/write functions*/
-static int pci6208_ao_winsn(comedi_device * dev, comedi_subdevice * s,
+static int pci6208_ao_winsn(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data);
-static int pci6208_ao_rinsn(comedi_device * dev, comedi_subdevice * s,
+static int pci6208_ao_rinsn(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data);
-//static int pci6208_dio_insn_bits(comedi_device *dev,comedi_subdevice *s,
+//static int pci6208_dio_insn_bits(struct comedi_device *dev,comedi_subdevice *s,
 //      comedi_insn *insn,unsigned int *data);
-//static int pci6208_dio_insn_config(comedi_device *dev,comedi_subdevice *s,
+//static int pci6208_dio_insn_config(struct comedi_device *dev,comedi_subdevice *s,
 //      comedi_insn *insn,unsigned int *data);
 
 /*
@@ -142,7 +142,7 @@ static int pci6208_ao_rinsn(comedi_device * dev, comedi_subdevice * s,
  * in the driver structure, dev->board_ptr contains that
  * address.
  */
-static int pci6208_attach(comedi_device * dev, comedi_devconfig * it)
+static int pci6208_attach(struct comedi_device * dev, comedi_devconfig * it)
 {
 	comedi_subdevice *s;
 	int retval;
@@ -205,7 +205,7 @@ static int pci6208_attach(comedi_device * dev, comedi_devconfig * it)
  * allocated by _attach().  dev->private and dev->subdevices are
  * deallocated automatically by the core.
  */
-static int pci6208_detach(comedi_device * dev)
+static int pci6208_detach(struct comedi_device * dev)
 {
 	printk("comedi%d: pci6208: remove\n", dev->minor);
 
@@ -219,7 +219,7 @@ static int pci6208_detach(comedi_device * dev)
 	return 0;
 }
 
-static int pci6208_ao_winsn(comedi_device * dev, comedi_subdevice * s,
+static int pci6208_ao_winsn(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	int i = 0, Data_Read;
@@ -244,7 +244,7 @@ static int pci6208_ao_winsn(comedi_device * dev, comedi_subdevice * s,
 
 /* AO subdevices should have a read insn as well as a write insn.
  * Usually this means copying a value stored in devpriv. */
-static int pci6208_ao_rinsn(comedi_device * dev, comedi_subdevice * s,
+static int pci6208_ao_rinsn(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	int i;
@@ -261,7 +261,7 @@ static int pci6208_ao_rinsn(comedi_device * dev, comedi_subdevice * s,
  * useful to applications if you implement the insn_bits interface.
  * This allows packed reading/writing of the DIO channels.  The
  * comedi core can convert between insn_bits and insn_read/write */
-//static int pci6208_dio_insn_bits(comedi_device *dev,comedi_subdevice *s,
+//static int pci6208_dio_insn_bits(struct comedi_device *dev,comedi_subdevice *s,
 //      comedi_insn *insn,unsigned int *data)
 //{
 //      if(insn->n!=2)return -EINVAL;
@@ -285,7 +285,7 @@ static int pci6208_ao_rinsn(comedi_device * dev, comedi_subdevice * s,
 //      return 2;
 //}
 
-//static int pci6208_dio_insn_config(comedi_device *dev,comedi_subdevice *s,
+//static int pci6208_dio_insn_config(struct comedi_device *dev,comedi_subdevice *s,
 //      comedi_insn *insn,unsigned int *data)
 //{
 //      int chan=CR_CHAN(insn->chanspec);
@@ -305,7 +305,7 @@ static int pci6208_ao_rinsn(comedi_device * dev, comedi_subdevice * s,
 //      return 1;
 //}
 
-static int pci6208_find_device(comedi_device * dev, int bus, int slot)
+static int pci6208_find_device(struct comedi_device * dev, int bus, int slot)
 {
 	struct pci_dev *pci_dev;
 	int i;

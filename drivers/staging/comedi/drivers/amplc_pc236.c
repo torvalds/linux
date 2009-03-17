@@ -147,7 +147,7 @@ MODULE_DEVICE_TABLE(pci, pc236_pci_table);
 
 /* this structure is for data unique to this hardware driver.  If
    several hardware drivers keep similar information in this structure,
-   feel free to suggest moving the variable to the comedi_device struct.  */
+   feel free to suggest moving the variable to the struct comedi_device struct.  */
 typedef struct {
 #ifdef CONFIG_COMEDI_PCI
 	/* PCI device */
@@ -165,8 +165,8 @@ typedef struct {
  * the board, and also about the kernel module that contains
  * the device code.
  */
-static int pc236_attach(comedi_device * dev, comedi_devconfig * it);
-static int pc236_detach(comedi_device * dev);
+static int pc236_attach(struct comedi_device * dev, comedi_devconfig * it);
+static int pc236_detach(struct comedi_device * dev);
 static comedi_driver driver_amplc_pc236 = {
       driver_name:PC236_DRIVER_NAME,
       module:THIS_MODULE,
@@ -185,15 +185,15 @@ COMEDI_INITCLEANUP(driver_amplc_pc236);
 
 static int pc236_request_region(unsigned minor, unsigned long from,
 	unsigned long extent);
-static void pc236_intr_disable(comedi_device * dev);
-static void pc236_intr_enable(comedi_device * dev);
-static int pc236_intr_check(comedi_device * dev);
-static int pc236_intr_insn(comedi_device * dev, comedi_subdevice * s,
+static void pc236_intr_disable(struct comedi_device * dev);
+static void pc236_intr_enable(struct comedi_device * dev);
+static int pc236_intr_check(struct comedi_device * dev);
+static int pc236_intr_insn(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data);
-static int pc236_intr_cmdtest(comedi_device * dev, comedi_subdevice * s,
+static int pc236_intr_cmdtest(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_cmd * cmd);
-static int pc236_intr_cmd(comedi_device * dev, comedi_subdevice * s);
-static int pc236_intr_cancel(comedi_device * dev, comedi_subdevice * s);
+static int pc236_intr_cmd(struct comedi_device * dev, comedi_subdevice * s);
+static int pc236_intr_cancel(struct comedi_device * dev, comedi_subdevice * s);
 static irqreturn_t pc236_interrupt(int irq, void *d PT_REGS_ARG);
 
 /*
@@ -202,7 +202,7 @@ static irqreturn_t pc236_interrupt(int irq, void *d PT_REGS_ARG);
  */
 #ifdef CONFIG_COMEDI_PCI
 static int
-pc236_find_pci(comedi_device * dev, int bus, int slot,
+pc236_find_pci(struct comedi_device * dev, int bus, int slot,
 	struct pci_dev **pci_dev_p)
 {
 	struct pci_dev *pci_dev = NULL;
@@ -264,7 +264,7 @@ pc236_find_pci(comedi_device * dev, int bus, int slot,
  * in the driver structure, dev->board_ptr contains that
  * address.
  */
-static int pc236_attach(comedi_device * dev, comedi_devconfig * it)
+static int pc236_attach(struct comedi_device * dev, comedi_devconfig * it)
 {
 	comedi_subdevice *s;
 	unsigned long iobase = 0;
@@ -405,7 +405,7 @@ static int pc236_attach(comedi_device * dev, comedi_devconfig * it)
  * allocated by _attach().  dev->private and dev->subdevices are
  * deallocated automatically by the core.
  */
-static int pc236_detach(comedi_device * dev)
+static int pc236_detach(struct comedi_device * dev)
 {
 	printk(KERN_DEBUG "comedi%d: %s: detach\n", dev->minor,
 		PC236_DRIVER_NAME);
@@ -459,7 +459,7 @@ static int pc236_request_region(unsigned minor, unsigned long from,
  * configured on subdevice 1) and to physically disable the interrupt
  * (not possible on the PC36AT, except by removing the IRQ jumper!).
  */
-static void pc236_intr_disable(comedi_device * dev)
+static void pc236_intr_disable(struct comedi_device * dev)
 {
 	unsigned long flags;
 
@@ -477,7 +477,7 @@ static void pc236_intr_disable(comedi_device * dev)
  * configured on subdevice 1) and to physically enable the interrupt
  * (not possible on the PC36AT, except by (re)connecting the IRQ jumper!).
  */
-static void pc236_intr_enable(comedi_device * dev)
+static void pc236_intr_enable(struct comedi_device * dev)
 {
 	unsigned long flags;
 
@@ -497,7 +497,7 @@ static void pc236_intr_enable(comedi_device * dev)
  * interrupt.
  * Returns 0 if the interrupt should be ignored.
  */
-static int pc236_intr_check(comedi_device * dev)
+static int pc236_intr_check(struct comedi_device * dev)
 {
 	int retval = 0;
 	unsigned long flags;
@@ -528,7 +528,7 @@ static int pc236_intr_check(comedi_device * dev)
  * Input from subdevice 1.
  * Copied from the comedi_parport driver.
  */
-static int pc236_intr_insn(comedi_device * dev, comedi_subdevice * s,
+static int pc236_intr_insn(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	data[1] = 0;
@@ -539,7 +539,7 @@ static int pc236_intr_insn(comedi_device * dev, comedi_subdevice * s,
  * Subdevice 1 command test.
  * Copied from the comedi_parport driver.
  */
-static int pc236_intr_cmdtest(comedi_device * dev, comedi_subdevice * s,
+static int pc236_intr_cmdtest(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_cmd * cmd)
 {
 	int err = 0;
@@ -617,7 +617,7 @@ static int pc236_intr_cmdtest(comedi_device * dev, comedi_subdevice * s,
 /*
  * Subdevice 1 command.
  */
-static int pc236_intr_cmd(comedi_device * dev, comedi_subdevice * s)
+static int pc236_intr_cmd(struct comedi_device * dev, comedi_subdevice * s)
 {
 	pc236_intr_enable(dev);
 
@@ -627,7 +627,7 @@ static int pc236_intr_cmd(comedi_device * dev, comedi_subdevice * s)
 /*
  * Subdevice 1 cancel command.
  */
-static int pc236_intr_cancel(comedi_device * dev, comedi_subdevice * s)
+static int pc236_intr_cancel(struct comedi_device * dev, comedi_subdevice * s)
 {
 	pc236_intr_disable(dev);
 
@@ -640,7 +640,7 @@ static int pc236_intr_cancel(comedi_device * dev, comedi_subdevice * s)
  */
 static irqreturn_t pc236_interrupt(int irq, void *d PT_REGS_ARG)
 {
-	comedi_device *dev = d;
+	struct comedi_device *dev = d;
 	comedi_subdevice *s = dev->subdevices + 1;
 	int handled;
 

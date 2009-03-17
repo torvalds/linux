@@ -70,8 +70,8 @@ typedef struct {
 
 #define devpriv ((adl_pci8164_private *)dev->private)
 
-static int adl_pci8164_attach(comedi_device * dev, comedi_devconfig * it);
-static int adl_pci8164_detach(comedi_device * dev);
+static int adl_pci8164_attach(struct comedi_device * dev, comedi_devconfig * it);
+static int adl_pci8164_detach(struct comedi_device * dev);
 static comedi_driver driver_adl_pci8164 = {
       driver_name:"adl_pci8164",
       module:THIS_MODULE,
@@ -79,31 +79,31 @@ static comedi_driver driver_adl_pci8164 = {
       detach:adl_pci8164_detach,
 };
 
-static int adl_pci8164_insn_read_msts(comedi_device * dev, comedi_subdevice * s,
+static int adl_pci8164_insn_read_msts(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data);
 
-static int adl_pci8164_insn_read_ssts(comedi_device * dev, comedi_subdevice * s,
+static int adl_pci8164_insn_read_ssts(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data);
 
-static int adl_pci8164_insn_read_buf0(comedi_device * dev, comedi_subdevice * s,
+static int adl_pci8164_insn_read_buf0(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data);
 
-static int adl_pci8164_insn_read_buf1(comedi_device * dev, comedi_subdevice * s,
+static int adl_pci8164_insn_read_buf1(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data);
 
-static int adl_pci8164_insn_write_cmd(comedi_device * dev, comedi_subdevice * s,
+static int adl_pci8164_insn_write_cmd(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data);
 
-static int adl_pci8164_insn_write_otp(comedi_device * dev, comedi_subdevice * s,
+static int adl_pci8164_insn_write_otp(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data);
 
-static int adl_pci8164_insn_write_buf0(comedi_device * dev,
+static int adl_pci8164_insn_write_buf0(struct comedi_device * dev,
 	comedi_subdevice * s, comedi_insn * insn, unsigned int * data);
 
-static int adl_pci8164_insn_write_buf1(comedi_device * dev,
+static int adl_pci8164_insn_write_buf1(struct comedi_device * dev,
 	comedi_subdevice * s, comedi_insn * insn, unsigned int * data);
 
-static int adl_pci8164_attach(comedi_device * dev, comedi_devconfig * it)
+static int adl_pci8164_attach(struct comedi_device * dev, comedi_devconfig * it)
 {
 	struct pci_dev *pcidev;
 	comedi_subdevice *s;
@@ -194,7 +194,7 @@ static int adl_pci8164_attach(comedi_device * dev, comedi_devconfig * it)
 	return -EIO;
 }
 
-static int adl_pci8164_detach(comedi_device * dev)
+static int adl_pci8164_detach(struct comedi_device * dev)
 {
 	printk("comedi%d: pci8164: remove\n", dev->minor);
 
@@ -208,7 +208,7 @@ static int adl_pci8164_detach(comedi_device * dev)
 	return 0;
 }
 
-static int adl_pci8164_insn_read_msts(comedi_device * dev, comedi_subdevice * s,
+static int adl_pci8164_insn_read_msts(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	int axis, axis_reg;
@@ -245,7 +245,7 @@ static int adl_pci8164_insn_read_msts(comedi_device * dev, comedi_subdevice * s,
 	return 2;
 }
 
-static int adl_pci8164_insn_read_ssts(comedi_device * dev, comedi_subdevice * s,
+static int adl_pci8164_insn_read_ssts(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	int axis, axis_reg;
@@ -282,7 +282,7 @@ static int adl_pci8164_insn_read_ssts(comedi_device * dev, comedi_subdevice * s,
 	return 2;
 }
 
-static int adl_pci8164_insn_read_buf0(comedi_device * dev, comedi_subdevice * s,
+static int adl_pci8164_insn_read_buf0(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	int axis, axis_reg;
@@ -319,7 +319,7 @@ static int adl_pci8164_insn_read_buf0(comedi_device * dev, comedi_subdevice * s,
 	return 2;
 }
 
-static int adl_pci8164_insn_read_buf1(comedi_device * dev, comedi_subdevice * s,
+static int adl_pci8164_insn_read_buf1(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	int axis, axis_reg;
@@ -357,7 +357,7 @@ static int adl_pci8164_insn_read_buf1(comedi_device * dev, comedi_subdevice * s,
 	return 2;
 }
 
-static int adl_pci8164_insn_write_cmd(comedi_device * dev, comedi_subdevice * s,
+static int adl_pci8164_insn_write_cmd(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	unsigned int axis, axis_reg;
@@ -395,7 +395,7 @@ static int adl_pci8164_insn_write_cmd(comedi_device * dev, comedi_subdevice * s,
 	return 2;
 }
 
-static int adl_pci8164_insn_write_otp(comedi_device * dev, comedi_subdevice * s,
+static int adl_pci8164_insn_write_otp(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	int axis, axis_reg;
@@ -433,7 +433,7 @@ static int adl_pci8164_insn_write_otp(comedi_device * dev, comedi_subdevice * s,
 	return 2;
 }
 
-static int adl_pci8164_insn_write_buf0(comedi_device * dev,
+static int adl_pci8164_insn_write_buf0(struct comedi_device * dev,
 	comedi_subdevice * s, comedi_insn * insn, unsigned int * data)
 {
 	int axis, axis_reg;
@@ -471,7 +471,7 @@ static int adl_pci8164_insn_write_buf0(comedi_device * dev,
 	return 2;
 }
 
-static int adl_pci8164_insn_write_buf1(comedi_device * dev,
+static int adl_pci8164_insn_write_buf1(struct comedi_device * dev,
 	comedi_subdevice * s, comedi_insn * insn, unsigned int * data)
 {
 	int axis, axis_reg;

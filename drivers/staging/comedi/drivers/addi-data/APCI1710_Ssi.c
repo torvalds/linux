@@ -133,7 +133,7 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_InsnConfigInitSSI(comedi_device * dev, comedi_subdevice * s,
+INT i_APCI1710_InsnConfigInitSSI(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	INT i_ReturnValue = 0;
@@ -362,7 +362,7 @@ INT i_APCI1710_InsnConfigInitSSI(comedi_device * dev, comedi_subdevice * s,
 |                                BYTE_     b_SelectedSSI,                    |
 |                                PULONG_ pul_Position,                       |
 |                                PULONG_ pul_TurnCpt)
- INT i_APCI1710_ReadSSIValue(comedi_device *dev,comedi_subdevice *s,
+ INT i_APCI1710_ReadSSIValue(struct comedi_device *dev,comedi_subdevice *s,
 	comedi_insn *insn,unsigned int *data)                       |
 +----------------------------------------------------------------------------+
 | Task              :
@@ -400,7 +400,7 @@ pul_Position	=	(PULONG) &data[0];
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_InsnReadSSIValue(comedi_device * dev, comedi_subdevice * s,
+INT i_APCI1710_InsnReadSSIValue(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	INT i_ReturnValue = 0;
@@ -735,7 +735,7 @@ INT i_APCI1710_InsnReadSSIValue(comedi_device * dev, comedi_subdevice * s,
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_InsnBitsSSIDigitalIO(comedi_device * dev, comedi_subdevice * s,
+INT i_APCI1710_InsnBitsSSIDigitalIO(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	INT i_ReturnValue = 0;

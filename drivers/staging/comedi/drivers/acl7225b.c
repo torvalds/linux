@@ -22,8 +22,8 @@ Devices: [Adlink] ACL-7225b (acl7225b), [ICP] P16R16DIO (p16r16dio)
 #define ACL7225_DI_LO  2	/* Digital input low byte (DI0-DI7) */
 #define ACL7225_DI_HI  3	/* Digital input high byte (DI8-DI15) */
 
-static int acl7225b_attach(comedi_device * dev, comedi_devconfig * it);
-static int acl7225b_detach(comedi_device * dev);
+static int acl7225b_attach(struct comedi_device *dev, comedi_devconfig * it);
+static int acl7225b_detach(struct comedi_device *dev);
 
 typedef struct {
 	const char *name;	// driver name
@@ -50,7 +50,7 @@ static comedi_driver driver_acl7225b = {
 
 COMEDI_INITCLEANUP(driver_acl7225b);
 
-static int acl7225b_do_insn(comedi_device * dev, comedi_subdevice * s,
+static int acl7225b_do_insn(struct comedi_device *dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	if (insn->n != 2)
@@ -71,7 +71,7 @@ static int acl7225b_do_insn(comedi_device * dev, comedi_subdevice * s,
 	return 2;
 }
 
-static int acl7225b_di_insn(comedi_device * dev, comedi_subdevice * s,
+static int acl7225b_di_insn(struct comedi_device *dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	if (insn->n != 2)
@@ -83,7 +83,7 @@ static int acl7225b_di_insn(comedi_device * dev, comedi_subdevice * s,
 	return 2;
 }
 
-static int acl7225b_attach(comedi_device * dev, comedi_devconfig * it)
+static int acl7225b_attach(struct comedi_device *dev, comedi_devconfig * it)
 {
 	comedi_subdevice *s;
 	int iobase, iorange;
@@ -138,7 +138,7 @@ static int acl7225b_attach(comedi_device * dev, comedi_devconfig * it)
 	return 0;
 }
 
-static int acl7225b_detach(comedi_device * dev)
+static int acl7225b_detach(struct comedi_device *dev)
 {
 	printk("comedi%d: acl7225b: remove\n", dev->minor);
 

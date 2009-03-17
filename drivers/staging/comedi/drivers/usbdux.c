@@ -269,7 +269,7 @@ struct usbduxsub {
 	/* interface structure in 2.6 */
 	struct usb_interface *interface;
 	/* comedi device for the interrupt context */
-	comedi_device *comedidev;
+	struct comedi_device *comedidev;
 	/* is it USB_SPEED_HIGH or not? */
 	short int high_speed;
 	/* asynchronous command is running */
@@ -363,7 +363,7 @@ static int usbdux_ai_stop(struct usbduxsub *this_usbduxsub, int do_unlink)
  * This will cancel a running acquisition operation.
  * This is called by comedi but never from inside the driver.
  */
-static int usbdux_ai_cancel(comedi_device *dev, comedi_subdevice *s)
+static int usbdux_ai_cancel(struct comedi_device *dev, comedi_subdevice *s)
 {
 	struct usbduxsub *this_usbduxsub;
 	int res = 0;
@@ -392,7 +392,7 @@ static void usbduxsub_ai_IsocIrq(struct urb *urb)
 {
 	int i, err, n;
 	struct usbduxsub *this_usbduxsub;
-	comedi_device *this_comedidev;
+	struct comedi_device *this_comedidev;
 	comedi_subdevice *s;
 
 	/* the context variable points to the subdevice */
@@ -561,7 +561,7 @@ static int usbdux_ao_stop(struct usbduxsub *this_usbduxsub, int do_unlink)
 }
 
 /* force unlink, is called by comedi */
-static int usbdux_ao_cancel(comedi_device *dev, comedi_subdevice *s)
+static int usbdux_ao_cancel(struct comedi_device *dev, comedi_subdevice *s)
 {
 	struct usbduxsub *this_usbduxsub = dev->private;
 	int res = 0;
@@ -586,7 +586,7 @@ static void usbduxsub_ao_IsocIrq(struct urb *urb)
 	int i, ret;
 	int8_t *datap;
 	struct usbduxsub *this_usbduxsub;
-	comedi_device *this_comedidev;
+	struct comedi_device *this_comedidev;
 	comedi_subdevice *s;
 
 	/* the context variable points to the subdevice */
@@ -896,7 +896,7 @@ static int usbduxsub_submit_OutURBs(struct usbduxsub *usbduxsub)
 	return 0;
 }
 
-static int usbdux_ai_cmdtest(comedi_device *dev, comedi_subdevice *s,
+static int usbdux_ai_cmdtest(struct comedi_device *dev, comedi_subdevice *s,
 			     comedi_cmd *cmd)
 {
 	int err = 0, tmp, i;
@@ -1116,7 +1116,7 @@ static int receive_dux_commands(struct usbduxsub *this_usbduxsub, int command)
 	return -EFAULT;
 }
 
-static int usbdux_ai_inttrig(comedi_device *dev, comedi_subdevice *s,
+static int usbdux_ai_inttrig(struct comedi_device *dev, comedi_subdevice *s,
 			     unsigned int trignum)
 {
 	int ret;
@@ -1160,7 +1160,7 @@ static int usbdux_ai_inttrig(comedi_device *dev, comedi_subdevice *s,
 	return 1;
 }
 
-static int usbdux_ai_cmd(comedi_device *dev, comedi_subdevice *s)
+static int usbdux_ai_cmd(struct comedi_device *dev, comedi_subdevice *s)
 {
 	comedi_cmd *cmd = &s->async->cmd;
 	unsigned int chan, range;
@@ -1276,7 +1276,7 @@ static int usbdux_ai_cmd(comedi_device *dev, comedi_subdevice *s)
 }
 
 /* Mode 0 is used to get a single conversion on demand */
-static int usbdux_ai_insn_read(comedi_device *dev, comedi_subdevice *s,
+static int usbdux_ai_insn_read(struct comedi_device *dev, comedi_subdevice *s,
 			       comedi_insn *insn, unsigned int *data)
 {
 	int i;
@@ -1337,7 +1337,7 @@ static int usbdux_ai_insn_read(comedi_device *dev, comedi_subdevice *s,
 /************************************/
 /* analog out */
 
-static int usbdux_ao_insn_read(comedi_device *dev, comedi_subdevice *s,
+static int usbdux_ao_insn_read(struct comedi_device *dev, comedi_subdevice *s,
 			       comedi_insn *insn, unsigned int *data)
 {
 	int i;
@@ -1359,7 +1359,7 @@ static int usbdux_ao_insn_read(comedi_device *dev, comedi_subdevice *s,
 	return i;
 }
 
-static int usbdux_ao_insn_write(comedi_device *dev, comedi_subdevice *s,
+static int usbdux_ao_insn_write(struct comedi_device *dev, comedi_subdevice *s,
 				comedi_insn *insn, unsigned int *data)
 {
 	int i, err;
@@ -1409,7 +1409,7 @@ static int usbdux_ao_insn_write(comedi_device *dev, comedi_subdevice *s,
 	return i;
 }
 
-static int usbdux_ao_inttrig(comedi_device *dev, comedi_subdevice *s,
+static int usbdux_ao_inttrig(struct comedi_device *dev, comedi_subdevice *s,
 			     unsigned int trignum)
 {
 	int ret;
@@ -1450,7 +1450,7 @@ static int usbdux_ao_inttrig(comedi_device *dev, comedi_subdevice *s,
 	return 1;
 }
 
-static int usbdux_ao_cmdtest(comedi_device *dev, comedi_subdevice *s,
+static int usbdux_ao_cmdtest(struct comedi_device *dev, comedi_subdevice *s,
 			     comedi_cmd *cmd)
 {
 	int err = 0, tmp;
@@ -1589,7 +1589,7 @@ static int usbdux_ao_cmdtest(comedi_device *dev, comedi_subdevice *s,
 	return 0;
 }
 
-static int usbdux_ao_cmd(comedi_device *dev, comedi_subdevice *s)
+static int usbdux_ao_cmd(struct comedi_device *dev, comedi_subdevice *s)
 {
 	comedi_cmd *cmd = &s->async->cmd;
 	unsigned int chan, gain;
@@ -1697,7 +1697,7 @@ static int usbdux_ao_cmd(comedi_device *dev, comedi_subdevice *s)
 	return 0;
 }
 
-static int usbdux_dio_insn_config(comedi_device *dev, comedi_subdevice *s,
+static int usbdux_dio_insn_config(struct comedi_device *dev, comedi_subdevice *s,
 				  comedi_insn *insn, unsigned int *data)
 {
 	int chan = CR_CHAN(insn->chanspec);
@@ -1728,7 +1728,7 @@ static int usbdux_dio_insn_config(comedi_device *dev, comedi_subdevice *s,
 	return insn->n;
 }
 
-static int usbdux_dio_insn_bits(comedi_device *dev, comedi_subdevice *s,
+static int usbdux_dio_insn_bits(struct comedi_device *dev, comedi_subdevice *s,
 				comedi_insn *insn, unsigned int *data)
 {
 
@@ -1775,7 +1775,7 @@ static int usbdux_dio_insn_bits(comedi_device *dev, comedi_subdevice *s,
 }
 
 /* reads the 4 counters, only two are used just now */
-static int usbdux_counter_read(comedi_device *dev, comedi_subdevice *s,
+static int usbdux_counter_read(struct comedi_device *dev, comedi_subdevice *s,
 			       comedi_insn *insn, unsigned int *data)
 {
 	struct usbduxsub *this_usbduxsub = dev->private;
@@ -1809,7 +1809,7 @@ static int usbdux_counter_read(comedi_device *dev, comedi_subdevice *s,
 	return 1;
 }
 
-static int usbdux_counter_write(comedi_device *dev, comedi_subdevice *s,
+static int usbdux_counter_write(struct comedi_device *dev, comedi_subdevice *s,
 				comedi_insn *insn, unsigned int *data)
 {
 	struct usbduxsub *this_usbduxsub = dev->private;
@@ -1839,7 +1839,7 @@ static int usbdux_counter_write(comedi_device *dev, comedi_subdevice *s,
 	return 1;
 }
 
-static int usbdux_counter_config(comedi_device *dev, comedi_subdevice *s,
+static int usbdux_counter_config(struct comedi_device *dev, comedi_subdevice *s,
 				 comedi_insn *insn, unsigned int *data)
 {
 	/* nothing to do so far */
@@ -1883,7 +1883,7 @@ static int usbdux_pwm_stop(struct usbduxsub *this_usbduxsub, int do_unlink)
 }
 
 /* force unlink - is called by comedi */
-static int usbdux_pwm_cancel(comedi_device *dev, comedi_subdevice *s)
+static int usbdux_pwm_cancel(struct comedi_device *dev, comedi_subdevice *s)
 {
 	struct usbduxsub *this_usbduxsub = dev->private;
 	int res = 0;
@@ -1905,7 +1905,7 @@ static void usbduxsub_pwm_irq(struct urb *urb)
 {
 	int ret;
 	struct usbduxsub *this_usbduxsub;
-	comedi_device *this_comedidev;
+	struct comedi_device *this_comedidev;
 	comedi_subdevice *s;
 
 	/* printk(KERN_DEBUG "PWM: IRQ\n"); */
@@ -1996,7 +1996,7 @@ static int usbduxsub_submit_PwmURBs(struct usbduxsub *usbduxsub)
 	return 0;
 }
 
-static int usbdux_pwm_period(comedi_device *dev, comedi_subdevice *s,
+static int usbdux_pwm_period(struct comedi_device *dev, comedi_subdevice *s,
 			     unsigned int period)
 {
 	struct usbduxsub *this_usbduxsub = dev->private;
@@ -2024,7 +2024,7 @@ static int usbdux_pwm_period(comedi_device *dev, comedi_subdevice *s,
 }
 
 /* is called from insn so there's no need to do all the sanity checks */
-static int usbdux_pwm_start(comedi_device *dev, comedi_subdevice *s)
+static int usbdux_pwm_start(struct comedi_device *dev, comedi_subdevice *s)
 {
 	int ret, i;
 	struct usbduxsub *this_usbduxsub = dev->private;
@@ -2056,7 +2056,7 @@ static int usbdux_pwm_start(comedi_device *dev, comedi_subdevice *s)
 }
 
 /* generates the bit pattern for PWM with the optional sign bit */
-static int usbdux_pwm_pattern(comedi_device *dev, comedi_subdevice *s,
+static int usbdux_pwm_pattern(struct comedi_device *dev, comedi_subdevice *s,
 			      int channel, unsigned int value, unsigned int sign)
 {
 	struct usbduxsub *this_usbduxsub = dev->private;
@@ -2097,7 +2097,7 @@ static int usbdux_pwm_pattern(comedi_device *dev, comedi_subdevice *s,
 	return 1;
 }
 
-static int usbdux_pwm_write(comedi_device *dev, comedi_subdevice *s,
+static int usbdux_pwm_write(struct comedi_device *dev, comedi_subdevice *s,
 			    comedi_insn *insn, unsigned int *data)
 {
 	struct usbduxsub *this_usbduxsub = dev->private;
@@ -2122,7 +2122,7 @@ static int usbdux_pwm_write(comedi_device *dev, comedi_subdevice *s,
 				  data[0], 0);
 }
 
-static int usbdux_pwm_read(comedi_device *x1, comedi_subdevice *x2,
+static int usbdux_pwm_read(struct comedi_device *x1, comedi_subdevice *x2,
 			   comedi_insn *x3, unsigned int *x4)
 {
 	/* not needed */
@@ -2130,7 +2130,7 @@ static int usbdux_pwm_read(comedi_device *x1, comedi_subdevice *x2,
 };
 
 /* switches on/off PWM */
-static int usbdux_pwm_config(comedi_device *dev, comedi_subdevice *s,
+static int usbdux_pwm_config(struct comedi_device *dev, comedi_subdevice *s,
 			     comedi_insn *insn, unsigned int *data)
 {
 	struct usbduxsub *this_usbduxsub = dev->private;
@@ -2703,7 +2703,7 @@ static void usbduxsub_disconnect(struct usb_interface *intf)
 }
 
 /* is called when comedi-config is called */
-static int usbdux_attach(comedi_device *dev, comedi_devconfig *it)
+static int usbdux_attach(struct comedi_device *dev, comedi_devconfig *it)
 {
 	int ret;
 	int index;
@@ -2870,7 +2870,7 @@ static int usbdux_attach(comedi_device *dev, comedi_devconfig *it)
 	return 0;
 }
 
-static int usbdux_detach(comedi_device *dev)
+static int usbdux_detach(struct comedi_device *dev)
 {
 	struct usbduxsub *usbduxsub_tmp;
 

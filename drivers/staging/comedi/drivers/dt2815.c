@@ -75,8 +75,8 @@ static const comedi_lrange range_dt2815_ao_20_current = { 1, {
 #define DT2815_DATA 0
 #define DT2815_STATUS 1
 
-static int dt2815_attach(comedi_device * dev, comedi_devconfig * it);
-static int dt2815_detach(comedi_device * dev);
+static int dt2815_attach(struct comedi_device * dev, comedi_devconfig * it);
+static int dt2815_detach(struct comedi_device * dev);
 static comedi_driver driver_dt2815 = {
       driver_name:"dt2815",
       module:THIS_MODULE,
@@ -86,7 +86,7 @@ static comedi_driver driver_dt2815 = {
 
 COMEDI_INITCLEANUP(driver_dt2815);
 
-static void dt2815_free_resources(comedi_device * dev);
+static void dt2815_free_resources(struct comedi_device * dev);
 
 typedef struct {
 	const comedi_lrange *range_type_list[8];
@@ -95,7 +95,7 @@ typedef struct {
 
 #define devpriv ((dt2815_private *)dev->private)
 
-static int dt2815_wait_for_status(comedi_device * dev, int status)
+static int dt2815_wait_for_status(struct comedi_device * dev, int status)
 {
 	int i;
 
@@ -106,7 +106,7 @@ static int dt2815_wait_for_status(comedi_device * dev, int status)
 	return status;
 }
 
-static int dt2815_ao_insn_read(comedi_device * dev, comedi_subdevice * s,
+static int dt2815_ao_insn_read(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	int i;
@@ -119,7 +119,7 @@ static int dt2815_ao_insn_read(comedi_device * dev, comedi_subdevice * s,
 	return i;
 }
 
-static int dt2815_ao_insn(comedi_device * dev, comedi_subdevice * s,
+static int dt2815_ao_insn(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	int i;
@@ -177,7 +177,7 @@ static int dt2815_ao_insn(comedi_device * dev, comedi_subdevice * s,
                  1 == current
  */
 
-static int dt2815_attach(comedi_device * dev, comedi_devconfig * it)
+static int dt2815_attach(struct comedi_device * dev, comedi_devconfig * it)
 {
 	comedi_subdevice *s;
 	int i;
@@ -246,13 +246,13 @@ static int dt2815_attach(comedi_device * dev, comedi_devconfig * it)
 	return 0;
 }
 
-static void dt2815_free_resources(comedi_device * dev)
+static void dt2815_free_resources(struct comedi_device * dev)
 {
 	if (dev->iobase)
 		release_region(dev->iobase, DT2815_SIZE);
 }
 
-static int dt2815_detach(comedi_device * dev)
+static int dt2815_detach(struct comedi_device * dev)
 {
 	printk("comedi%d: dt2815: remove\n", dev->minor);
 

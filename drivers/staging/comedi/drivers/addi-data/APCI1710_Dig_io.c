@@ -61,7 +61,7 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 
 /*
 +----------------------------------------------------------------------------+
-| Function Name     : INT i_APCI1710_InsnConfigDigitalIO(comedi_device *dev, |
+| Function Name     : INT i_APCI1710_InsnConfigDigitalIO(struct comedi_device *dev, |
 |						comedi_subdevice *s,comedi_insn *insn,unsigned int *data)|
 +----------------------------------------------------------------------------+
 | Task              : Configure the digital I/O operating mode from selected |
@@ -99,7 +99,7 @@ Activates and deactivates the digital output memory.
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_InsnConfigDigitalIO(comedi_device * dev, comedi_subdevice * s,
+INT i_APCI1710_InsnConfigDigitalIO(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	BYTE b_ModulNbr, b_ChannelAMode, b_ChannelBMode;
@@ -247,7 +247,7 @@ INT i_APCI1710_InsnConfigDigitalIO(comedi_device * dev, comedi_subdevice * s,
 /*
 +----------------------------------------------------------------------------+
 
-|INT i_APCI1710_InsnReadDigitalIOChlValue(comedi_device *dev,comedi_subdevice
+|INT i_APCI1710_InsnReadDigitalIOChlValue(struct comedi_device *dev,comedi_subdevice
 *s,	comedi_insn *insn,unsigned int *data)
 
 +----------------------------------------------------------------------------+
@@ -293,7 +293,7 @@ INT i_APCI1710_InsnConfigDigitalIO(comedi_device * dev, comedi_subdevice * s,
 //                                             BYTE_    b_InputChannel,
 //
 //                                             PBYTE_  pb_ChannelStatus)
-INT i_APCI1710_InsnReadDigitalIOChlValue(comedi_device * dev,
+INT i_APCI1710_InsnReadDigitalIOChlValue(struct comedi_device * dev,
 	comedi_subdevice * s, comedi_insn * insn, unsigned int * data)
 {
 	INT i_ReturnValue = 0;
@@ -481,7 +481,7 @@ INT i_APCI1710_InsnReadDigitalIOChlValue(comedi_device * dev,
 //_INT_   i_APCI1710_SetDigitalIOChlOn    (BYTE_ b_BoardHandle,
 //                                       BYTE_ b_ModulNbr,
 //                                       BYTE_ b_OutputChannel)
-INT i_APCI1710_InsnWriteDigitalIOChlOnOff(comedi_device * dev,
+INT i_APCI1710_InsnWriteDigitalIOChlOnOff(struct comedi_device * dev,
 	comedi_subdevice * s, comedi_insn * insn, unsigned int * data)
 {
 	INT i_ReturnValue = 0;
@@ -676,7 +676,7 @@ INT i_APCI1710_InsnWriteDigitalIOChlOnOff(comedi_device * dev,
 /*
 +----------------------------------------------------------------------------+
 
-|INT i_APCI1710_InsnBitsDigitalIOPortOnOff(comedi_device *dev,comedi_subdevice
+|INT i_APCI1710_InsnBitsDigitalIOPortOnOff(struct comedi_device *dev,comedi_subdevice
 	*s,	comedi_insn *insn,unsigned int *data)
 +----------------------------------------------------------------------------+
 | Task              : write:
@@ -728,7 +728,7 @@ INT i_APCI1710_InsnWriteDigitalIOChlOnOff(comedi_device * dev,
 //_INT_   i_APCI1710_SetDigitalIOPortOn   (BYTE_ b_BoardHandle,
 //                                       BYTE_ b_ModulNbr,
 //                                       BYTE_ b_PortValue)
-INT i_APCI1710_InsnBitsDigitalIOPortOnOff(comedi_device * dev,
+INT i_APCI1710_InsnBitsDigitalIOPortOnOff(struct comedi_device * dev,
 	comedi_subdevice * s, comedi_insn * insn, unsigned int * data)
 {
 	INT i_ReturnValue = 0;

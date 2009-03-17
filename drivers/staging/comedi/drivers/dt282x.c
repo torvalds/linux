@@ -394,8 +394,8 @@ typedef struct {
 		if(_i){b}				\
 	}while(0)
 
-static int dt282x_attach(comedi_device * dev, comedi_devconfig * it);
-static int dt282x_detach(comedi_device * dev);
+static int dt282x_attach(struct comedi_device * dev, comedi_devconfig * it);
+static int dt282x_detach(struct comedi_device * dev);
 static comedi_driver driver_dt282x = {
       driver_name:"dt282x",
       module:THIS_MODULE,
@@ -408,17 +408,17 @@ static comedi_driver driver_dt282x = {
 
 COMEDI_INITCLEANUP(driver_dt282x);
 
-static void free_resources(comedi_device * dev);
-static int prep_ai_dma(comedi_device * dev, int chan, int size);
-static int prep_ao_dma(comedi_device * dev, int chan, int size);
-static int dt282x_ai_cancel(comedi_device * dev, comedi_subdevice * s);
-static int dt282x_ao_cancel(comedi_device * dev, comedi_subdevice * s);
+static void free_resources(struct comedi_device * dev);
+static int prep_ai_dma(struct comedi_device * dev, int chan, int size);
+static int prep_ao_dma(struct comedi_device * dev, int chan, int size);
+static int dt282x_ai_cancel(struct comedi_device * dev, comedi_subdevice * s);
+static int dt282x_ao_cancel(struct comedi_device * dev, comedi_subdevice * s);
 static int dt282x_ns_to_timer(int *nanosec, int round_mode);
-static void dt282x_disable_dma(comedi_device * dev);
+static void dt282x_disable_dma(struct comedi_device * dev);
 
-static int dt282x_grab_dma(comedi_device * dev, int dma1, int dma2);
+static int dt282x_grab_dma(struct comedi_device * dev, int dma1, int dma2);
 
-static void dt282x_munge(comedi_device * dev, short * buf,
+static void dt282x_munge(struct comedi_device * dev, short * buf,
 	unsigned int nbytes)
 {
 	unsigned int i;
@@ -440,7 +440,7 @@ static void dt282x_munge(comedi_device * dev, short * buf,
 	}
 }
 
-static void dt282x_ao_dma_interrupt(comedi_device * dev)
+static void dt282x_ao_dma_interrupt(struct comedi_device * dev)
 {
 	void *ptr;
 	int size;
@@ -472,7 +472,7 @@ static void dt282x_ao_dma_interrupt(comedi_device * dev)
 	return;
 }
 
-static void dt282x_ai_dma_interrupt(comedi_device * dev)
+static void dt282x_ai_dma_interrupt(struct comedi_device * dev)
 {
 	void *ptr;
 	int size;
@@ -524,7 +524,7 @@ static void dt282x_ai_dma_interrupt(comedi_device * dev)
 	prep_ai_dma(dev, i, 0);
 }
 
-static int prep_ai_dma(comedi_device * dev, int dma_index, int n)
+static int prep_ai_dma(struct comedi_device * dev, int dma_index, int n)
 {
 	int dma_chan;
 	unsigned long dma_ptr;
@@ -555,7 +555,7 @@ static int prep_ai_dma(comedi_device * dev, int dma_index, int n)
 	return n;
 }
 
-static int prep_ao_dma(comedi_device * dev, int dma_index, int n)
+static int prep_ao_dma(struct comedi_device * dev, int dma_index, int n)
 {
 	int dma_chan;
 	unsigned long dma_ptr;
@@ -579,7 +579,7 @@ static int prep_ao_dma(comedi_device * dev, int dma_index, int n)
 
 static irqreturn_t dt282x_interrupt(int irq, void *d PT_REGS_ARG)
 {
-	comedi_device *dev = d;
+	struct comedi_device *dev = d;
 	comedi_subdevice *s;
 	comedi_subdevice *s_ao;
 	unsigned int supcsr, adcsr, dacsr;
@@ -653,7 +653,7 @@ static irqreturn_t dt282x_interrupt(int irq, void *d PT_REGS_ARG)
 	return IRQ_RETVAL(handled);
 }
 
-static void dt282x_load_changain(comedi_device * dev, int n,
+static void dt282x_load_changain(struct comedi_device * dev, int n,
 	unsigned int *chanlist)
 {
 	unsigned int i;
@@ -674,7 +674,7 @@ static void dt282x_load_changain(comedi_device * dev, int n,
  *      - preload multiplexer
  *      - trigger conversion and wait for it to finish
  */
-static int dt282x_ai_insn_read(comedi_device * dev, comedi_subdevice * s,
+static int dt282x_ai_insn_read(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	int i;
@@ -706,7 +706,7 @@ static int dt282x_ai_insn_read(comedi_device * dev, comedi_subdevice * s,
 	return i;
 }
 
-static int dt282x_ai_cmdtest(comedi_device * dev, comedi_subdevice * s,
+static int dt282x_ai_cmdtest(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_cmd * cmd)
 {
 	int err = 0;
@@ -818,7 +818,7 @@ static int dt282x_ai_cmdtest(comedi_device * dev, comedi_subdevice * s,
 	return 0;
 }
 
-static int dt282x_ai_cmd(comedi_device * dev, comedi_subdevice * s)
+static int dt282x_ai_cmd(struct comedi_device * dev, comedi_subdevice * s)
 {
 	comedi_cmd *cmd = &s->async->cmd;
 	int timer;
@@ -879,7 +879,7 @@ static int dt282x_ai_cmd(comedi_device * dev, comedi_subdevice * s)
 	return 0;
 }
 
-static void dt282x_disable_dma(comedi_device * dev)
+static void dt282x_disable_dma(struct comedi_device * dev)
 {
 	if (devpriv->usedma) {
 		disable_dma(devpriv->dma[0].chan);
@@ -887,7 +887,7 @@ static void dt282x_disable_dma(comedi_device * dev)
 	}
 }
 
-static int dt282x_ai_cancel(comedi_device * dev, comedi_subdevice * s)
+static int dt282x_ai_cancel(struct comedi_device * dev, comedi_subdevice * s)
 {
 	dt282x_disable_dma(dev);
 
@@ -937,7 +937,7 @@ static int dt282x_ns_to_timer(int *nanosec, int round_mode)
  *      offset binary if necessary, loads the data into the DAC
  *      data register, and performs the conversion.
  */
-static int dt282x_ao_insn_read(comedi_device * dev, comedi_subdevice * s,
+static int dt282x_ao_insn_read(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	data[0] = devpriv->ao[CR_CHAN(insn->chanspec)];
@@ -945,7 +945,7 @@ static int dt282x_ao_insn_read(comedi_device * dev, comedi_subdevice * s,
 	return 1;
 }
 
-static int dt282x_ao_insn_write(comedi_device * dev, comedi_subdevice * s,
+static int dt282x_ao_insn_write(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	short d;
@@ -978,7 +978,7 @@ static int dt282x_ao_insn_write(comedi_device * dev, comedi_subdevice * s,
 	return 1;
 }
 
-static int dt282x_ao_cmdtest(comedi_device * dev, comedi_subdevice * s,
+static int dt282x_ao_cmdtest(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_cmd * cmd)
 {
 	int err = 0;
@@ -1069,7 +1069,7 @@ static int dt282x_ao_cmdtest(comedi_device * dev, comedi_subdevice * s,
 
 }
 
-static int dt282x_ao_inttrig(comedi_device * dev, comedi_subdevice * s,
+static int dt282x_ao_inttrig(struct comedi_device * dev, comedi_subdevice * s,
 	unsigned int x)
 {
 	int size;
@@ -1099,7 +1099,7 @@ static int dt282x_ao_inttrig(comedi_device * dev, comedi_subdevice * s,
 	return 1;
 }
 
-static int dt282x_ao_cmd(comedi_device * dev, comedi_subdevice * s)
+static int dt282x_ao_cmd(struct comedi_device * dev, comedi_subdevice * s)
 {
 	int timer;
 	comedi_cmd *cmd = &s->async->cmd;
@@ -1132,7 +1132,7 @@ static int dt282x_ao_cmd(comedi_device * dev, comedi_subdevice * s)
 	return 0;
 }
 
-static int dt282x_ao_cancel(comedi_device * dev, comedi_subdevice * s)
+static int dt282x_ao_cancel(struct comedi_device * dev, comedi_subdevice * s)
 {
 	dt282x_disable_dma(dev);
 
@@ -1145,7 +1145,7 @@ static int dt282x_ao_cancel(comedi_device * dev, comedi_subdevice * s)
 	return 0;
 }
 
-static int dt282x_dio_insn_bits(comedi_device * dev, comedi_subdevice * s,
+static int dt282x_dio_insn_bits(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	if (data[0]) {
@@ -1159,7 +1159,7 @@ static int dt282x_dio_insn_bits(comedi_device * dev, comedi_subdevice * s,
 	return 2;
 }
 
-static int dt282x_dio_insn_config(comedi_device * dev, comedi_subdevice * s,
+static int dt282x_dio_insn_config(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	int mask;
@@ -1240,7 +1240,7 @@ enum { opt_iobase = 0, opt_irq, opt_dma1, opt_dma2,	/* i/o base, irq, dma channe
    9	ao0 0=±10 V, 1=0-10 V, 2=±5 V, 3=0-5 V, 4=±2.5 V
    10	ao1 0=±10 V, 1=0-10 V, 2=±5 V, 3=0-5 V, 4=±2.5 V
  */
-static int dt282x_attach(comedi_device * dev, comedi_devconfig * it)
+static int dt282x_attach(struct comedi_device * dev, comedi_devconfig * it)
 {
 	int i, irq;
 	int ret;
@@ -1396,7 +1396,7 @@ static int dt282x_attach(comedi_device * dev, comedi_devconfig * it)
 	return 0;
 }
 
-static void free_resources(comedi_device * dev)
+static void free_resources(struct comedi_device * dev)
 {
 	if (dev->irq) {
 		comedi_free_irq(dev->irq, dev);
@@ -1415,7 +1415,7 @@ static void free_resources(comedi_device * dev)
 	}
 }
 
-static int dt282x_detach(comedi_device * dev)
+static int dt282x_detach(struct comedi_device * dev)
 {
 	printk("comedi%d: dt282x: remove\n", dev->minor);
 
@@ -1424,7 +1424,7 @@ static int dt282x_detach(comedi_device * dev)
 	return 0;
 }
 
-static int dt282x_grab_dma(comedi_device * dev, int dma1, int dma2)
+static int dt282x_grab_dma(struct comedi_device * dev, int dma1, int dma2)
 {
 	int ret;
 

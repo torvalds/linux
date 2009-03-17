@@ -154,8 +154,8 @@ static const boardtype boardtypes[] = {
 #define n_boardtypes (sizeof(boardtypes)/sizeof(boardtype))
 #define this_board ((const boardtype *)dev->board_ptr)
 
-static int pcl711_attach(comedi_device * dev, comedi_devconfig * it);
-static int pcl711_detach(comedi_device * dev);
+static int pcl711_attach(struct comedi_device * dev, comedi_devconfig * it);
+static int pcl711_detach(struct comedi_device * dev);
 static comedi_driver driver_pcl711 = {
       driver_name:"pcl711",
       module:THIS_MODULE,
@@ -185,7 +185,7 @@ static irqreturn_t pcl711_interrupt(int irq, void *d PT_REGS_ARG)
 {
 	int lo, hi;
 	int data;
-	comedi_device *dev = d;
+	struct comedi_device *dev = d;
 	comedi_subdevice *s = dev->subdevices + 0;
 
 	if (!dev->attached) {
@@ -213,7 +213,7 @@ static irqreturn_t pcl711_interrupt(int irq, void *d PT_REGS_ARG)
 	return IRQ_HANDLED;
 }
 
-static void pcl711_set_changain(comedi_device * dev, int chan)
+static void pcl711_set_changain(struct comedi_device * dev, int chan)
 {
 	int chan_register;
 
@@ -240,7 +240,7 @@ static void pcl711_set_changain(comedi_device * dev, int chan)
 	}
 }
 
-static int pcl711_ai_insn(comedi_device * dev, comedi_subdevice * s,
+static int pcl711_ai_insn(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	int i, n;
@@ -279,7 +279,7 @@ static int pcl711_ai_insn(comedi_device * dev, comedi_subdevice * s,
 	return n;
 }
 
-static int pcl711_ai_cmdtest(comedi_device * dev, comedi_subdevice * s,
+static int pcl711_ai_cmdtest(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_cmd * cmd)
 {
 	int tmp;
@@ -381,7 +381,7 @@ static int pcl711_ai_cmdtest(comedi_device * dev, comedi_subdevice * s,
 	return 0;
 }
 
-static int pcl711_ai_cmd(comedi_device * dev, comedi_subdevice * s)
+static int pcl711_ai_cmd(struct comedi_device * dev, comedi_subdevice * s)
 {
 	int timer1, timer2;
 	comedi_cmd *cmd = &s->async->cmd;
@@ -427,7 +427,7 @@ static int pcl711_ai_cmd(comedi_device * dev, comedi_subdevice * s)
 /*
    analog output
 */
-static int pcl711_ao_insn(comedi_device * dev, comedi_subdevice * s,
+static int pcl711_ao_insn(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	int n;
@@ -445,7 +445,7 @@ static int pcl711_ao_insn(comedi_device * dev, comedi_subdevice * s,
 	return n;
 }
 
-static int pcl711_ao_insn_read(comedi_device * dev, comedi_subdevice * s,
+static int pcl711_ao_insn_read(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	int n;
@@ -460,7 +460,7 @@ static int pcl711_ao_insn_read(comedi_device * dev, comedi_subdevice * s,
 }
 
 /* Digital port read - Untested on 8112 */
-static int pcl711_di_insn_bits(comedi_device * dev, comedi_subdevice * s,
+static int pcl711_di_insn_bits(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	if (insn->n != 2)
@@ -473,7 +473,7 @@ static int pcl711_di_insn_bits(comedi_device * dev, comedi_subdevice * s,
 }
 
 /* Digital port write - Untested on 8112 */
-static int pcl711_do_insn_bits(comedi_device * dev, comedi_subdevice * s,
+static int pcl711_do_insn_bits(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	if (insn->n != 2)
@@ -494,7 +494,7 @@ static int pcl711_do_insn_bits(comedi_device * dev, comedi_subdevice * s,
 }
 
 /*  Free any resources that we have claimed  */
-static int pcl711_detach(comedi_device * dev)
+static int pcl711_detach(struct comedi_device * dev)
 {
 	printk("comedi%d: pcl711: remove\n", dev->minor);
 
@@ -508,7 +508,7 @@ static int pcl711_detach(comedi_device * dev)
 }
 
 /*  Initialization */
-static int pcl711_attach(comedi_device * dev, comedi_devconfig * it)
+static int pcl711_attach(struct comedi_device * dev, comedi_devconfig * it)
 {
 	int ret;
 	unsigned long iobase;

@@ -111,8 +111,8 @@ static const comedi_lrange *const rangelist_728[] = {
 	&range_4_20mA, &range_0_20mA
 };
 
-static int pcl726_attach(comedi_device * dev, comedi_devconfig * it);
-static int pcl726_detach(comedi_device * dev);
+static int pcl726_attach(struct comedi_device * dev, comedi_devconfig * it);
+static int pcl726_detach(struct comedi_device * dev);
 
 typedef struct {
 	const char *name;	// driver name
@@ -168,7 +168,7 @@ typedef struct {
 } pcl726_private;
 #define devpriv ((pcl726_private *)dev->private)
 
-static int pcl726_ao_insn(comedi_device * dev, comedi_subdevice * s,
+static int pcl726_ao_insn(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	int hi, lo;
@@ -193,7 +193,7 @@ static int pcl726_ao_insn(comedi_device * dev, comedi_subdevice * s,
 	return n;
 }
 
-static int pcl726_ao_insn_read(comedi_device * dev, comedi_subdevice * s,
+static int pcl726_ao_insn_read(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	int chan = CR_CHAN(insn->chanspec);
@@ -205,7 +205,7 @@ static int pcl726_ao_insn_read(comedi_device * dev, comedi_subdevice * s,
 	return n;
 }
 
-static int pcl726_di_insn_bits(comedi_device * dev, comedi_subdevice * s,
+static int pcl726_di_insn_bits(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	if (insn->n != 2)
@@ -217,7 +217,7 @@ static int pcl726_di_insn_bits(comedi_device * dev, comedi_subdevice * s,
 	return 2;
 }
 
-static int pcl726_do_insn_bits(comedi_device * dev, comedi_subdevice * s,
+static int pcl726_do_insn_bits(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	if (insn->n != 2)
@@ -237,7 +237,7 @@ static int pcl726_do_insn_bits(comedi_device * dev, comedi_subdevice * s,
 	return 2;
 }
 
-static int pcl726_attach(comedi_device * dev, comedi_devconfig * it)
+static int pcl726_attach(struct comedi_device * dev, comedi_devconfig * it)
 {
 	comedi_subdevice *s;
 	unsigned long iobase;
@@ -356,7 +356,7 @@ static int pcl726_attach(comedi_device * dev, comedi_devconfig * it)
 	return 0;
 }
 
-static int pcl726_detach(comedi_device * dev)
+static int pcl726_detach(struct comedi_device * dev)
 {
 //      printk("comedi%d: pcl726: remove\n",dev->minor);
 

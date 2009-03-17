@@ -24,21 +24,21 @@
 /*
  * TTL INISIALISATION FUNCTION
  */
-INT i_APCI1710_InsnConfigInitTTLIO(comedi_device *dev, comedi_subdevice *s,
+INT i_APCI1710_InsnConfigInitTTLIO(struct comedi_device *dev, comedi_subdevice *s,
 				   comedi_insn *insn, unsigned int *data);
 
 /*
  * TTL INPUT FUNCTION
  */
-INT i_APCI1710_InsnBitsReadTTLIO(comedi_device *dev, comedi_subdevice *s,
+INT i_APCI1710_InsnBitsReadTTLIO(struct comedi_device *dev, comedi_subdevice *s,
 				 comedi_insn *insn, unsigned int *data);
-INT i_APCI1710_InsnReadTTLIOAllPortValue(comedi_device *dev,
+INT i_APCI1710_InsnReadTTLIOAllPortValue(struct comedi_device *dev,
 					 comedi_subdevice *s,
 					 comedi_insn *insn, unsigned int *data);
 
 /*
  * TTL OUTPUT FUNCTIONS
  */
-INT i_APCI1710_InsnWriteSetTTLIOChlOnOff(comedi_device *dev,
+INT i_APCI1710_InsnWriteSetTTLIOChlOnOff(struct comedi_device *dev,
 					 comedi_subdevice *s,
 					 comedi_insn *insn, unsigned int *data);

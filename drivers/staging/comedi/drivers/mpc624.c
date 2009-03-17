@@ -144,8 +144,8 @@ static const comedi_lrange range_mpc624_bipolar10 = {
 };
 
 //----------------------------------------------------------------------------
-static int mpc624_attach(comedi_device * dev, comedi_devconfig * it);
-static int mpc624_detach(comedi_device * dev);
+static int mpc624_attach(struct comedi_device * dev, comedi_devconfig * it);
+static int mpc624_detach(struct comedi_device * dev);
 //----------------------------------------------------------------------------
 static comedi_driver driver_mpc624 = {
       driver_name:"mpc624",
@@ -155,10 +155,10 @@ static comedi_driver driver_mpc624 = {
 };
 
 //----------------------------------------------------------------------------
-static int mpc624_ai_rinsn(comedi_device * dev, comedi_subdevice * s,
+static int mpc624_ai_rinsn(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data);
 //----------------------------------------------------------------------------
-static int mpc624_attach(comedi_device * dev, comedi_devconfig * it)
+static int mpc624_attach(struct comedi_device * dev, comedi_devconfig * it)
 {
 	comedi_subdevice *s;
 	unsigned long iobase;
@@ -255,7 +255,7 @@ static int mpc624_attach(comedi_device * dev, comedi_devconfig * it)
 	return 1;
 }
 
-static int mpc624_detach(comedi_device * dev)
+static int mpc624_detach(struct comedi_device * dev)
 {
 	rt_printk("comedi%d: mpc624: remove\n", dev->minor);
 
@@ -268,7 +268,7 @@ static int mpc624_detach(comedi_device * dev)
 // Timeout 200ms
 #define TIMEOUT 200
 
-static int mpc624_ai_rinsn(comedi_device * dev, comedi_subdevice * s,
+static int mpc624_ai_rinsn(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	int n, i;

@@ -102,7 +102,7 @@ MODULE_DEVICE_TABLE(pci, pcidio_pci_table);
 
 /* this structure is for data unique to this hardware driver.  If
    several hardware drivers keep similar information in this structure,
-   feel free to suggest moving the variable to the comedi_device struct.  */
+   feel free to suggest moving the variable to the struct comedi_device struct.  */
 typedef struct {
 	int data;		// curently unused
 
@@ -127,8 +127,8 @@ typedef struct {
  * the board, and also about the kernel module that contains
  * the device code.
  */
-static int pcidio_attach(comedi_device * dev, comedi_devconfig * it);
-static int pcidio_detach(comedi_device * dev);
+static int pcidio_attach(struct comedi_device * dev, comedi_devconfig * it);
+static int pcidio_detach(struct comedi_device * dev);
 static comedi_driver driver_cb_pcidio = {
       driver_name:"cb_pcidio",
       module:THIS_MODULE,
@@ -166,7 +166,7 @@ static comedi_driver driver_cb_pcidio = {
  * in the driver structure, dev->board_ptr contains that
  * address.
  */
-static int pcidio_attach(comedi_device * dev, comedi_devconfig * it)
+static int pcidio_attach(struct comedi_device * dev, comedi_devconfig * it)
 {
 	struct pci_dev *pcidev = NULL;
 	int index;
@@ -267,7 +267,7 @@ static int pcidio_attach(comedi_device * dev, comedi_devconfig * it)
  * allocated by _attach().  dev->private and dev->subdevices are
  * deallocated automatically by the core.
  */
-static int pcidio_detach(comedi_device * dev)
+static int pcidio_detach(struct comedi_device * dev)
 {
 	printk("comedi%d: cb_pcidio: remove\n", dev->minor);
 	if (devpriv) {

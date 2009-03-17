@@ -101,23 +101,23 @@ comedi_lrange range_apci035_ai = { 8, {
 
 /* TIMER */
 /* timer value is passed as u seconds */
-INT i_APCI035_ConfigTimerWatchdog(comedi_device *dev, comedi_subdevice *s,
+INT i_APCI035_ConfigTimerWatchdog(struct comedi_device *dev, comedi_subdevice *s,
 				  comedi_insn *insn, unsigned int *data);
-INT i_APCI035_StartStopWriteTimerWatchdog(comedi_device *dev,
+INT i_APCI035_StartStopWriteTimerWatchdog(struct comedi_device *dev,
 					  comedi_subdevice *s,
 					  comedi_insn *insn, unsigned int *data);
-INT i_APCI035_ReadTimerWatchdog(comedi_device *dev, comedi_subdevice *s,
+INT i_APCI035_ReadTimerWatchdog(struct comedi_device *dev, comedi_subdevice *s,
 				comedi_insn *insn, unsigned int *data);
 
 /* Temperature Related Defines (Analog Input Subdevice) */
 
-INT i_APCI035_ConfigAnalogInput(comedi_device *dev, comedi_subdevice *s,
+INT i_APCI035_ConfigAnalogInput(struct comedi_device *dev, comedi_subdevice *s,
 				comedi_insn *insn, unsigned int *data);
-INT i_APCI035_ReadAnalogInput(comedi_device *dev, comedi_subdevice *s,
+INT i_APCI035_ReadAnalogInput(struct comedi_device *dev, comedi_subdevice *s,
 			      comedi_insn *insn, unsigned int *data);
 
 /* Interrupt */
 static void v_APCI035_Interrupt(int irq, void *d);
 
 /* Reset functions */
-INT i_APCI035_Reset(comedi_device *dev);
+INT i_APCI035_Reset(struct comedi_device *dev);

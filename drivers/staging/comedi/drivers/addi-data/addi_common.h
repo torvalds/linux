@@ -112,108 +112,108 @@ typedef struct {
 
 	/* interrupt and reset */
 	void (*v_hwdrv_Interrupt)(int irq, void *d);
-	int (*i_hwdrv_Reset)(comedi_device *dev);
+	int (*i_hwdrv_Reset)(struct comedi_device *dev);
 
 	/* Subdevice functions */
 
 	/* ANALOG INPUT */
-	int (*i_hwdrv_InsnConfigAnalogInput)(comedi_device *dev,
+	int (*i_hwdrv_InsnConfigAnalogInput)(struct comedi_device *dev,
 					     comedi_subdevice *s,
 					     comedi_insn *insn,
 					     unsigned int *data);
-	int (*i_hwdrv_InsnReadAnalogInput)(comedi_device *dev,
+	int (*i_hwdrv_InsnReadAnalogInput)(struct comedi_device *dev,
 					    comedi_subdevice *s,
 					    comedi_insn *insn,
 					    unsigned int *data);
-	int (*i_hwdrv_InsnWriteAnalogInput)(comedi_device *dev,
+	int (*i_hwdrv_InsnWriteAnalogInput)(struct comedi_device *dev,
 					    comedi_subdevice *s,
 					    comedi_insn *insn,
 					    unsigned int *data);
-	int (*i_hwdrv_InsnBitsAnalogInput)(comedi_device *dev,
+	int (*i_hwdrv_InsnBitsAnalogInput)(struct comedi_device *dev,
 					   comedi_subdevice *s,
 					   comedi_insn *insn,
 					   unsigned int *data);
-	int (*i_hwdrv_CommandTestAnalogInput)(comedi_device *dev,
+	int (*i_hwdrv_CommandTestAnalogInput)(struct comedi_device *dev,
 					      comedi_subdevice *s,
 					      comedi_cmd *cmd);
-	int (*i_hwdrv_CommandAnalogInput)(comedi_device *dev,
+	int (*i_hwdrv_CommandAnalogInput)(struct comedi_device *dev,
 					  comedi_subdevice *s);
-	int (*i_hwdrv_CancelAnalogInput)(comedi_device *dev,
+	int (*i_hwdrv_CancelAnalogInput)(struct comedi_device *dev,
 					 comedi_subdevice *s);
 
 	/* Analog Output */
-	int (*i_hwdrv_InsnConfigAnalogOutput)(comedi_device *dev,
+	int (*i_hwdrv_InsnConfigAnalogOutput)(struct comedi_device *dev,
 					      comedi_subdevice *s,
 					      comedi_insn *insn,
 					      unsigned int *data);
-	int (*i_hwdrv_InsnWriteAnalogOutput)(comedi_device *dev,
+	int (*i_hwdrv_InsnWriteAnalogOutput)(struct comedi_device *dev,
 					     comedi_subdevice *s,
 					     comedi_insn *insn,
 					     unsigned int *data);
-	int (*i_hwdrv_InsnBitsAnalogOutput)(comedi_device *dev,
+	int (*i_hwdrv_InsnBitsAnalogOutput)(struct comedi_device *dev,
 					    comedi_subdevice *s,
 					    comedi_insn *insn,
 					    unsigned int *data);
 
 	/* Digital Input */
-	int (*i_hwdrv_InsnConfigDigitalInput) (comedi_device *dev,
+	int (*i_hwdrv_InsnConfigDigitalInput) (struct comedi_device *dev,
 					       comedi_subdevice *s,
 					       comedi_insn *insn,
 					       unsigned int *data);
-	int (*i_hwdrv_InsnReadDigitalInput) (comedi_device *dev,
+	int (*i_hwdrv_InsnReadDigitalInput) (struct comedi_device *dev,
 					     comedi_subdevice *s,
 					     comedi_insn *insn,
 					     unsigned int *data);
-	int (*i_hwdrv_InsnWriteDigitalInput) (comedi_device *dev,
+	int (*i_hwdrv_InsnWriteDigitalInput) (struct comedi_device *dev,
 					      comedi_subdevice *s,
 					      comedi_insn *insn,
 					      unsigned int *data);
-	int (*i_hwdrv_InsnBitsDigitalInput) (comedi_device *dev,
+	int (*i_hwdrv_InsnBitsDigitalInput) (struct comedi_device *dev,
 					     comedi_subdevice *s,
 					     comedi_insn *insn,
 					     unsigned int *data);
 
 	/* Digital Output */
-	int (*i_hwdrv_InsnConfigDigitalOutput)(comedi_device *dev,
+	int (*i_hwdrv_InsnConfigDigitalOutput)(struct comedi_device *dev,
 					       comedi_subdevice *s,
 					       comedi_insn *insn,
 					       unsigned int *data);
-	int (*i_hwdrv_InsnWriteDigitalOutput)(comedi_device *dev,
+	int (*i_hwdrv_InsnWriteDigitalOutput)(struct comedi_device *dev,
 					      comedi_subdevice *s,
 					      comedi_insn *insn,
 					      unsigned int *data);
-	int (*i_hwdrv_InsnBitsDigitalOutput)(comedi_device *dev,
+	int (*i_hwdrv_InsnBitsDigitalOutput)(struct comedi_device *dev,
 					     comedi_subdevice *s,
 					     comedi_insn *insn,
 					     unsigned int *data);
-	int (*i_hwdrv_InsnReadDigitalOutput)(comedi_device *dev,
+	int (*i_hwdrv_InsnReadDigitalOutput)(struct comedi_device *dev,
 					     comedi_subdevice *s,
 					     comedi_insn *insn,
 					     unsigned int *data);
 
 	/* TIMER */
-	int (*i_hwdrv_InsnConfigTimer)(comedi_device *dev,
+	int (*i_hwdrv_InsnConfigTimer)(struct comedi_device *dev,
 				       comedi_subdevice *s,
 				       comedi_insn *insn, unsigned int *data);
-	int (*i_hwdrv_InsnWriteTimer)(comedi_device *dev,
+	int (*i_hwdrv_InsnWriteTimer)(struct comedi_device *dev,
 				      comedi_subdevice *s, comedi_insn *insn,
 				      unsigned int *data);
-	int (*i_hwdrv_InsnReadTimer)(comedi_device *dev, comedi_subdevice *s,
+	int (*i_hwdrv_InsnReadTimer)(struct comedi_device *dev, comedi_subdevice *s,
 				     comedi_insn *insn, unsigned int *data);
-	int (*i_hwdrv_InsnBitsTimer)(comedi_device *dev, comedi_subdevice *s,
+	int (*i_hwdrv_InsnBitsTimer)(struct comedi_device *dev, comedi_subdevice *s,
 				     comedi_insn *insn, unsigned int *data);
 
 	/* TTL IO */
-	int (*i_hwdr_ConfigInitTTLIO)(comedi_device *dev,
+	int (*i_hwdr_ConfigInitTTLIO)(struct comedi_device *dev,
 				      comedi_subdevice *s, comedi_insn *insn,
 				      unsigned int *data);
-	int (*i_hwdr_ReadTTLIOBits)(comedi_device *dev, comedi_subdevice *s,
+	int (*i_hwdr_ReadTTLIOBits)(struct comedi_device *dev, comedi_subdevice *s,
 				    comedi_insn *insn, unsigned int *data);
-	int (*i_hwdr_ReadTTLIOAllPortValue)(comedi_device *dev,
+	int (*i_hwdr_ReadTTLIOAllPortValue)(struct comedi_device *dev,
 					    comedi_subdevice *s,
 					    comedi_insn *insn,
 					    unsigned int *data);
-	int (*i_hwdr_WriteTTLIOChlOnOff)(comedi_device *dev,
+	int (*i_hwdr_WriteTTLIOChlOnOff)(struct comedi_device *dev,
 					 comedi_subdevice *s,
 					 comedi_insn *insn, unsigned int *data);
 } boardtype;
@@ -456,10 +456,10 @@ typedef struct {
 static unsigned short pci_list_builded;	/* set to 1 when list of card is known */
 
 /* Function declarations */
-static int i_ADDI_Attach(comedi_device *dev, comedi_devconfig *it);
-static int i_ADDI_Detach(comedi_device *dev);
-static int i_ADDI_Reset(comedi_device *dev);
+static int i_ADDI_Attach(struct comedi_device *dev, comedi_devconfig *it);
+static int i_ADDI_Detach(struct comedi_device *dev);
+static int i_ADDI_Reset(struct comedi_device *dev);
 
 static irqreturn_t v_ADDI_Interrupt(int irq, void *d PT_REGS_ARG);
-static int i_ADDIDATA_InsnReadEeprom(comedi_device *dev, comedi_subdevice *s,
+static int i_ADDIDATA_InsnReadEeprom(struct comedi_device *dev, comedi_subdevice *s,
 				     comedi_insn *insn, unsigned int *data);

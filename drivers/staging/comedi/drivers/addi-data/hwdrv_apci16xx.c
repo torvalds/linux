@@ -58,7 +58,7 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 /*
 +----------------------------------------------------------------------------+
 | Function Name     : INT   i_APCI16XX_InsnConfigInitTTLIO                   |
-|                          (comedi_device    *dev,                           |
+|                          (struct comedi_device    *dev,                           |
 |                           comedi_subdevice *s,                             |
 |                           comedi_insn      *insn,                          |
 |                           unsigned int         *data)                          |
@@ -90,7 +90,7 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 +----------------------------------------------------------------------------+
 */
 
-int i_APCI16XX_InsnConfigInitTTLIO(comedi_device * dev,
+int i_APCI16XX_InsnConfigInitTTLIO(struct comedi_device * dev,
 	comedi_subdevice * s, comedi_insn * insn, unsigned int * data)
 {
 	INT i_ReturnValue = insn->n;
@@ -251,7 +251,7 @@ int i_APCI16XX_InsnConfigInitTTLIO(comedi_device * dev,
 /*
 +----------------------------------------------------------------------------+
 | Function Name     : INT     i_APCI16XX_InsnBitsReadTTLIO                   |
-|                          (comedi_device    *dev,                           |
+|                          (struct comedi_device    *dev,                           |
 |                           comedi_subdevice *s,                             |
 |                           comedi_insn      *insn,                          |
 |                           unsigned int         *data)                          |
@@ -283,7 +283,7 @@ int i_APCI16XX_InsnConfigInitTTLIO(comedi_device * dev,
 +----------------------------------------------------------------------------+
 */
 
-int i_APCI16XX_InsnBitsReadTTLIO(comedi_device * dev,
+int i_APCI16XX_InsnBitsReadTTLIO(struct comedi_device * dev,
 	comedi_subdevice * s, comedi_insn * insn, unsigned int * data)
 {
 	INT i_ReturnValue = insn->n;
@@ -411,7 +411,7 @@ int i_APCI16XX_InsnBitsReadTTLIO(comedi_device * dev,
 /*
 +----------------------------------------------------------------------------+
 | Function Name     : INT i_APCI16XX_InsnReadTTLIOAllPortValue               |
-|                          (comedi_device    *dev,                           |
+|                          (struct comedi_device    *dev,                           |
 |                           comedi_subdevice *s,                             |
 |                           comedi_insn      *insn,                          |
 |                           unsigned int         *data)                          |
@@ -430,7 +430,7 @@ int i_APCI16XX_InsnBitsReadTTLIO(comedi_device * dev,
 +----------------------------------------------------------------------------+
 */
 
-int i_APCI16XX_InsnReadTTLIOAllPortValue(comedi_device * dev,
+int i_APCI16XX_InsnReadTTLIOAllPortValue(struct comedi_device * dev,
 	comedi_subdevice * s, comedi_insn * insn, unsigned int * data)
 {
 	BYTE b_Command = (BYTE) CR_AREF(insn->chanspec);
@@ -536,7 +536,7 @@ int i_APCI16XX_InsnReadTTLIOAllPortValue(comedi_device * dev,
 /*
 +----------------------------------------------------------------------------+
 | Function Name     : INT     i_APCI16XX_InsnBitsWriteTTLIO                  |
-|                          (comedi_device    *dev,                           |
+|                          (struct comedi_device    *dev,                           |
 |                           comedi_subdevice *s,                             |
 |                           comedi_insn      *insn,                          |
 |                           unsigned int         *data)                          |
@@ -570,7 +570,7 @@ int i_APCI16XX_InsnReadTTLIOAllPortValue(comedi_device * dev,
 +----------------------------------------------------------------------------+
 */
 
-int i_APCI16XX_InsnBitsWriteTTLIO(comedi_device * dev,
+int i_APCI16XX_InsnBitsWriteTTLIO(struct comedi_device * dev,
 	comedi_subdevice * s, comedi_insn * insn, unsigned int * data)
 {
 	INT i_ReturnValue = insn->n;
@@ -763,10 +763,10 @@ int i_APCI16XX_InsnBitsWriteTTLIO(comedi_device * dev,
 
 /*
 +----------------------------------------------------------------------------+
-| Function   Name   : int i_APCI2200_Reset(comedi_device *dev)               |                                                         +----------------------------------------------------------------------------+
+| Function   Name   : int i_APCI2200_Reset(struct comedi_device *dev)               |                                                         +----------------------------------------------------------------------------+
 | Task              :resets all the registers                                |
 +----------------------------------------------------------------------------+
-| Input Parameters  : comedi_device *dev                                     |
+| Input Parameters  : struct comedi_device *dev                                     |
 +----------------------------------------------------------------------------+
 | Output Parameters : -                                                      |
 +----------------------------------------------------------------------------+
@@ -774,7 +774,7 @@ int i_APCI16XX_InsnBitsWriteTTLIO(comedi_device * dev,
 +----------------------------------------------------------------------------+
 */
 
-int i_APCI16XX_Reset(comedi_device * dev)
+int i_APCI16XX_Reset(struct comedi_device * dev)
 {
 	return 0;
 }

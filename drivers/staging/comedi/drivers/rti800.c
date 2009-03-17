@@ -129,8 +129,8 @@ static const boardtype boardtypes[] = {
 
 #define this_board ((const boardtype *)dev->board_ptr)
 
-static int rti800_attach(comedi_device * dev, comedi_devconfig * it);
-static int rti800_detach(comedi_device * dev);
+static int rti800_attach(struct comedi_device * dev, comedi_devconfig * it);
+static int rti800_detach(struct comedi_device * dev);
 static comedi_driver driver_rti800 = {
       driver_name:"rti800",
       module:THIS_MODULE,
@@ -178,7 +178,7 @@ static irqreturn_t rti800_interrupt(int irq, void *dev PT_REGS_ARG)
 // settling delay times in usec for different gains
 static const int gaindelay[] = { 10, 20, 40, 80 };
 
-static int rti800_ai_insn_read(comedi_device * dev, comedi_subdevice * s,
+static int rti800_ai_insn_read(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	int i, t;
@@ -231,7 +231,7 @@ static int rti800_ai_insn_read(comedi_device * dev, comedi_subdevice * s,
 	return i;
 }
 
-static int rti800_ao_insn_read(comedi_device * dev, comedi_subdevice * s,
+static int rti800_ao_insn_read(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	int i;
@@ -243,7 +243,7 @@ static int rti800_ao_insn_read(comedi_device * dev, comedi_subdevice * s,
 	return i;
 }
 
-static int rti800_ao_insn_write(comedi_device * dev, comedi_subdevice * s,
+static int rti800_ao_insn_write(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	int chan = CR_CHAN(insn->chanspec);
@@ -263,7 +263,7 @@ static int rti800_ao_insn_write(comedi_device * dev, comedi_subdevice * s,
 	return i;
 }
 
-static int rti800_di_insn_bits(comedi_device * dev, comedi_subdevice * s,
+static int rti800_di_insn_bits(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	if (insn->n != 2)
@@ -272,7 +272,7 @@ static int rti800_di_insn_bits(comedi_device * dev, comedi_subdevice * s,
 	return 2;
 }
 
-static int rti800_do_insn_bits(comedi_device * dev, comedi_subdevice * s,
+static int rti800_do_insn_bits(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	if (insn->n != 2)
@@ -307,7 +307,7 @@ static int rti800_do_insn_bits(comedi_device * dev, comedi_subdevice * s,
    options[8] - dac1 coding
  */
 
-static int rti800_attach(comedi_device * dev, comedi_devconfig * it)
+static int rti800_attach(struct comedi_device * dev, comedi_devconfig * it)
 {
 	unsigned int irq;
 	unsigned long iobase;
@@ -442,7 +442,7 @@ static int rti800_attach(comedi_device * dev, comedi_devconfig * it)
 	return 0;
 }
 
-static int rti800_detach(comedi_device * dev)
+static int rti800_detach(struct comedi_device * dev)
 {
 	printk("comedi%d: rti800: remove\n", dev->minor);
 

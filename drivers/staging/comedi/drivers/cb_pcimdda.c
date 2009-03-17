@@ -154,7 +154,7 @@ MODULE_DEVICE_TABLE(pci, pci_table);
 
 /* this structure is for data unique to this hardware driver.  If
    several hardware drivers keep similar information in this structure,
-   feel free to suggest moving the variable to the comedi_device struct.  */
+   feel free to suggest moving the variable to the struct comedi_device struct.  */
 typedef struct {
 	unsigned long registers;	/* set by probe */
 	unsigned long dio_registers;
@@ -181,8 +181,8 @@ typedef struct {
  * the board, and also about the kernel module that contains
  * the device code.
  */
-static int attach(comedi_device * dev, comedi_devconfig * it);
-static int detach(comedi_device * dev);
+static int attach(struct comedi_device * dev, comedi_devconfig * it);
+static int detach(struct comedi_device * dev);
 static comedi_driver cb_pcimdda_driver = {
       driver_name:"cb_pcimdda",
       module:THIS_MODULE,
@@ -197,9 +197,9 @@ MODULE_DESCRIPTION("Comedi low-level driver for the Computerboards PCIM-DDA "
 MODULE_LICENSE("GPL");
 COMEDI_PCI_INITCLEANUP_NOMODULE(cb_pcimdda_driver, pci_table);
 
-static int ao_winsn(comedi_device * dev, comedi_subdevice * s,
+static int ao_winsn(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data);
-static int ao_rinsn(comedi_device * dev, comedi_subdevice * s,
+static int ao_rinsn(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data);
 
 /*---------------------------------------------------------------------------
@@ -226,7 +226,7 @@ static inline unsigned int figure_out_maxdata(int bits)
  *
  *  Otherwise, returns a -errno on error
  */
-static int probe(comedi_device * dev, const comedi_devconfig * it);
+static int probe(struct comedi_device * dev, const comedi_devconfig * it);
 
 /*---------------------------------------------------------------------------
   FUNCTION DEFINITIONS
@@ -238,7 +238,7 @@ static int probe(comedi_device * dev, const comedi_devconfig * it);
  * in the driver structure, dev->board_ptr contains that
  * address.
  */
-static int attach(comedi_device * dev, comedi_devconfig * it)
+static int attach(struct comedi_device * dev, comedi_devconfig * it)
 {
 	comedi_subdevice *s;
 	int err;
@@ -326,7 +326,7 @@ static int attach(comedi_device * dev, comedi_devconfig * it)
  * allocated by _attach().  dev->private and dev->subdevices are
  * deallocated automatically by the core.
  */
-static int detach(comedi_device * dev)
+static int detach(struct comedi_device * dev)
 {
 	if (devpriv) {
 
@@ -352,7 +352,7 @@ static int detach(comedi_device * dev)
 	return 0;
 }
 
-static int ao_winsn(comedi_device * dev, comedi_subdevice * s,
+static int ao_winsn(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	int i;
@@ -391,7 +391,7 @@ static int ao_winsn(comedi_device * dev, comedi_subdevice * s,
    all AO channels update simultaneously.  This is useful for some control
    applications, I would imagine.
 */
-static int ao_rinsn(comedi_device * dev, comedi_subdevice * s,
+static int ao_rinsn(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	int i;
@@ -425,7 +425,7 @@ static int ao_rinsn(comedi_device * dev, comedi_subdevice * s,
  *
  *  Otherwise, returns a -errno on error
  */
-static int probe(comedi_device * dev, const comedi_devconfig * it)
+static int probe(struct comedi_device * dev, const comedi_devconfig * it)
 {
 	struct pci_dev *pcidev;
 	int index;

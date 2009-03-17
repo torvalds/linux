@@ -47,8 +47,8 @@ Configuration Options:
 #define RTI802_DATALOW 1
 #define RTI802_DATAHIGH 2
 
-static int rti802_attach(comedi_device * dev, comedi_devconfig * it);
-static int rti802_detach(comedi_device * dev);
+static int rti802_attach(struct comedi_device * dev, comedi_devconfig * it);
+static int rti802_detach(struct comedi_device * dev);
 static comedi_driver driver_rti802 = {
       driver_name:"rti802",
       module:THIS_MODULE,
@@ -68,7 +68,7 @@ typedef struct {
 
 #define devpriv ((rti802_private *)dev->private)
 
-static int rti802_ao_insn_read(comedi_device * dev, comedi_subdevice * s,
+static int rti802_ao_insn_read(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	int i;
@@ -79,7 +79,7 @@ static int rti802_ao_insn_read(comedi_device * dev, comedi_subdevice * s,
 	return i;
 }
 
-static int rti802_ao_insn_write(comedi_device * dev, comedi_subdevice * s,
+static int rti802_ao_insn_write(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	int i, d;
@@ -96,7 +96,7 @@ static int rti802_ao_insn_write(comedi_device * dev, comedi_subdevice * s,
 	return i;
 }
 
-static int rti802_attach(comedi_device * dev, comedi_devconfig * it)
+static int rti802_attach(struct comedi_device * dev, comedi_devconfig * it)
 {
 	comedi_subdevice *s;
 	int i;
@@ -140,7 +140,7 @@ static int rti802_attach(comedi_device * dev, comedi_devconfig * it)
 	return 0;
 }
 
-static int rti802_detach(comedi_device * dev)
+static int rti802_detach(struct comedi_device * dev)
 {
 	printk("comedi%d: rti802: remove\n", dev->minor);
 

@@ -179,7 +179,7 @@ struct usbduxfastsub_s {
 	int16_t *insnBuffer;		/* input buffer for single insn */
 	int ifnum;			/* interface number */
 	struct usb_interface *interface;	/* interface structure */
-	comedi_device *comedidev;	/* comedi device for the interrupt
+	struct comedi_device *comedidev;	/* comedi device for the interrupt
 					   context */
 	short int ai_cmd_running;	/* asynchronous command is running */
 	short int ai_continous;		/* continous aquisition */
@@ -284,7 +284,7 @@ static int usbduxfast_ai_stop(struct usbduxfastsub_s *udfs,
  * This will cancel a running acquisition operation.
  * This is called by comedi but never from inside the driver.
  */
-static int usbduxfast_ai_cancel(comedi_device *dev, comedi_subdevice *s)
+static int usbduxfast_ai_cancel(struct comedi_device *dev, comedi_subdevice *s)
 {
 	struct usbduxfastsub_s *udfs;
 	int ret;
@@ -318,7 +318,7 @@ static void usbduxfastsub_ai_Irq(struct urb *urb PT_REGS_ARG)
 {
 	int n, err;
 	struct usbduxfastsub_s *udfs;
-	comedi_device *this_comedidev;
+	struct comedi_device *this_comedidev;
 	comedi_subdevice *s;
 	uint16_t *p;
 
@@ -577,7 +577,7 @@ int usbduxfastsub_submit_InURBs(struct usbduxfastsub_s *udfs)
 	return 0;
 }
 
-static int usbduxfast_ai_cmdtest(comedi_device *dev,
+static int usbduxfast_ai_cmdtest(struct comedi_device *dev,
 	comedi_subdevice *s, comedi_cmd *cmd)
 {
 	int err = 0, stop_mask = 0;
@@ -719,7 +719,7 @@ static int usbduxfast_ai_cmdtest(comedi_device *dev,
 
 }
 
-static int usbduxfast_ai_inttrig(comedi_device *dev,
+static int usbduxfast_ai_inttrig(struct comedi_device *dev,
 	comedi_subdevice *s, unsigned int trignum)
 {
 	int ret;
@@ -771,7 +771,7 @@ static int usbduxfast_ai_inttrig(comedi_device *dev,
 #define OUTBASE	(1+0x10)
 #define LOGBASE	(1+0x18)
 
-static int usbduxfast_ai_cmd(comedi_device *dev, comedi_subdevice *s)
+static int usbduxfast_ai_cmd(struct comedi_device *dev, comedi_subdevice *s)
 {
 	comedi_cmd *cmd = &s->async->cmd;
 	unsigned int chan, gain, rngmask = 0xff;
@@ -1230,7 +1230,7 @@ static int usbduxfast_ai_cmd(comedi_device *dev, comedi_subdevice *s)
 /*
  * Mode 0 is used to get a single conversion on demand.
  */
-static int usbduxfast_ai_insn_read(comedi_device *dev,
+static int usbduxfast_ai_insn_read(struct comedi_device *dev,
 	comedi_subdevice *s, comedi_insn *insn, unsigned int *data)
 {
 	int i, j, n, actual_length;
@@ -1715,7 +1715,7 @@ static void usbduxfastsub_disconnect(struct usb_interface *intf)
 /*
  * is called when comedi-config is called
  */
-static int usbduxfast_attach(comedi_device *dev, comedi_devconfig *it)
+static int usbduxfast_attach(struct comedi_device *dev, comedi_devconfig *it)
 {
 	int ret;
 	int index;
@@ -1813,7 +1813,7 @@ static int usbduxfast_attach(comedi_device *dev, comedi_devconfig *it)
 	return 0;
 }
 
-static int usbduxfast_detach(comedi_device *dev)
+static int usbduxfast_detach(struct comedi_device *dev)
 {
 	struct usbduxfastsub_s *udfs;
 

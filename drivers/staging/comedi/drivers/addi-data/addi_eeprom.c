@@ -121,7 +121,7 @@ typedef struct {
 		/*****************************************/
 
 INT i_EepromReadMainHeader(WORD w_PCIBoardEepromAddress,
-	PCHAR pc_PCIChipInformation, comedi_device * dev);
+	PCHAR pc_PCIChipInformation, struct comedi_device *dev);
 
 INT i_EepromReadDigitalInputHeader(WORD w_PCIBoardEepromAddress,
 	PCHAR pc_PCIChipInformation, WORD w_Address,
@@ -787,7 +787,7 @@ VOID v_EepromCs76Read(DWORD dw_Address, WORD w_offset, PWORD pw_Value)
 /*
 +----------------------------------------------------------------------------+
 | Function Name  : INT i_EepromReadMainHeader(WORD w_PCIBoardEepromAddress,  |
-|				PCHAR 	pc_PCIChipInformation,comedi_device *dev)    |
+|				PCHAR 	pc_PCIChipInformation,struct comedi_device *dev)    |
 +----------------------------------------------------------------------------+
 | Task              : Read from eeprom Main Header                           |
 +----------------------------------------------------------------------------+
@@ -795,7 +795,7 @@ VOID v_EepromCs76Read(DWORD dw_Address, WORD w_offset, PWORD pw_Value)
 |																	 |
 |		      PCHAR pc_PCIChipInformation  : PCI Chip Type.          |
 |																	 |
-|			  comedi_device *dev		   : comedi device structure |
+|			  struct comedi_device *dev		   : comedi device structure |
 |											 pointer				 |
 +----------------------------------------------------------------------------+
 | Output Parameters : -                                                      |
@@ -805,7 +805,7 @@ VOID v_EepromCs76Read(DWORD dw_Address, WORD w_offset, PWORD pw_Value)
 */
 
 INT i_EepromReadMainHeader(WORD w_PCIBoardEepromAddress,
-	PCHAR pc_PCIChipInformation, comedi_device * dev)
+	PCHAR pc_PCIChipInformation, struct comedi_device *dev)
 {
 	WORD w_Temp, i, w_Count = 0;
 	UINT ui_Temp;

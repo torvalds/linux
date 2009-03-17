@@ -76,8 +76,8 @@ struct pcmad_priv_struct {
 };
 #define devpriv ((struct pcmad_priv_struct *)dev->private)
 
-static int pcmad_attach(comedi_device * dev, comedi_devconfig * it);
-static int pcmad_detach(comedi_device * dev);
+static int pcmad_attach(struct comedi_device * dev, comedi_devconfig * it);
+static int pcmad_detach(struct comedi_device * dev);
 static comedi_driver driver_pcmad = {
       driver_name:"pcmad",
       module:THIS_MODULE,
@@ -92,7 +92,7 @@ COMEDI_INITCLEANUP(driver_pcmad);
 
 #define TIMEOUT	100
 
-static int pcmad_ai_insn_read(comedi_device * dev, comedi_subdevice * s,
+static int pcmad_ai_insn_read(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	int i;
@@ -126,7 +126,7 @@ static int pcmad_ai_insn_read(comedi_device * dev, comedi_subdevice * s,
  * 2	0=single ended 1=differential
  * 3	0=straight binary 1=two's comp
  */
-static int pcmad_attach(comedi_device * dev, comedi_devconfig * it)
+static int pcmad_attach(struct comedi_device * dev, comedi_devconfig * it)
 {
 	int ret;
 	comedi_subdevice *s;
@@ -159,7 +159,7 @@ static int pcmad_attach(comedi_device * dev, comedi_devconfig * it)
 	return 0;
 }
 
-static int pcmad_detach(comedi_device * dev)
+static int pcmad_detach(struct comedi_device * dev)
 {
 	printk("comedi%d: pcmad: remove\n", dev->minor);
 

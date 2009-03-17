@@ -32,7 +32,7 @@
 |                                BYTE_   b_InputClockLevel,                  |
 |                                BYTE_   b_OutputLevel,                      |
 |                                BYTE_   b_HardwareGateLevel)
-INT i_InsnConfig_InitTimer(comedi_device *dev,comedi_subdevice *s,
+INT i_InsnConfig_InitTimer(struct comedi_device *dev,comedi_subdevice *s,
 	comedi_insn *insn,unsigned int *data)
 |
 +----------------------------------------------------------------------------+
@@ -219,7 +219,7 @@ INT i_InsnConfig_InitTimer(comedi_device *dev,comedi_subdevice *s,
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_InsnConfigInitTimer(comedi_device * dev, comedi_subdevice * s,
+INT i_APCI1710_InsnConfigInitTimer(struct comedi_device * dev, comedi_subdevice * s,
 				   comedi_insn * insn, unsigned int * data)
 {
 
@@ -406,7 +406,7 @@ INT i_APCI1710_InsnConfigInitTimer(comedi_device * dev, comedi_subdevice * s,
 |                                BYTE_ b_ModulNbr,                           |
 |                                BYTE_ b_TimerNbr,                           |
 |                                BYTE_ b_InterruptEnable)
-INT i_APCI1710_InsnWriteEnableDisableTimer(comedi_device *dev,comedi_subdevice *s,
+INT i_APCI1710_InsnWriteEnableDisableTimer(struct comedi_device *dev,comedi_subdevice *s,
 	comedi_insn *insn,unsigned int *data)                |
 +----------------------------------------------------------------------------+
 | Task              : Enable OR Disable the Timer (b_TimerNbr) from selected module     |
@@ -448,7 +448,7 @@ i_ReturnValue=insn->n;
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_InsnWriteEnableDisableTimer(comedi_device * dev,
+INT i_APCI1710_InsnWriteEnableDisableTimer(struct comedi_device * dev,
 					   comedi_subdevice * s,
 					   comedi_insn * insn, unsigned int * data)
 {
@@ -561,7 +561,7 @@ INT i_APCI1710_InsnWriteEnableDisableTimer(comedi_device * dev,
 |                                       (BYTE_     b_BoardHandle,            |
 |                                        BYTE_     b_ModulNbr,               |
 |                                        PULONG_ pul_TimerValueArray)
-INT i_APCI1710_InsnReadAllTimerValue(comedi_device *dev,comedi_subdevice *s,
+INT i_APCI1710_InsnReadAllTimerValue(struct comedi_device *dev,comedi_subdevice *s,
 	comedi_insn *insn,unsigned int *data)        |
 +----------------------------------------------------------------------------+
 | Task              : Return the all timer values from selected timer        |
@@ -590,7 +590,7 @@ INT i_APCI1710_InsnReadAllTimerValue(comedi_device *dev,comedi_subdevice *s,
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_InsnReadAllTimerValue(comedi_device *dev, comedi_subdevice *s,
+INT i_APCI1710_InsnReadAllTimerValue(struct comedi_device *dev, comedi_subdevice *s,
 				     comedi_insn *insn, unsigned int *data)
 {
 	INT i_ReturnValue = 0;
@@ -668,7 +668,7 @@ INT i_APCI1710_InsnReadAllTimerValue(comedi_device *dev, comedi_subdevice *s,
 
 /*
 +----------------------------------------------------------------------------+
-| Function Name     :INT i_APCI1710_InsnBitsTimer(comedi_device *dev,
+| Function Name     :INT i_APCI1710_InsnBitsTimer(struct comedi_device *dev,
 comedi_subdevice *s,comedi_insn *insn,unsigned int *data)                   |
 +----------------------------------------------------------------------------+
 | Task              : Read write functions for Timer                                          |
@@ -681,7 +681,7 @@ comedi_subdevice *s,comedi_insn *insn,unsigned int *data)                   |
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_InsnBitsTimer(comedi_device * dev, comedi_subdevice * s,
+INT i_APCI1710_InsnBitsTimer(struct comedi_device * dev, comedi_subdevice * s,
 			     comedi_insn * insn, unsigned int * data)
 {
 	BYTE b_BitsType;
@@ -760,7 +760,7 @@ INT i_APCI1710_InsnBitsTimer(comedi_device * dev, comedi_subdevice * s,
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_ReadTimerValue(comedi_device * dev,
+INT i_APCI1710_ReadTimerValue(struct comedi_device * dev,
 			      BYTE b_ModulNbr, BYTE b_TimerNbr,
 			      PULONG pul_TimerValue)
 {
@@ -848,7 +848,7 @@ INT i_APCI1710_ReadTimerValue(comedi_device * dev,
 	   +----------------------------------------------------------------------------+
 	 */
 
-INT i_APCI1710_GetTimerOutputLevel(comedi_device * dev,
+INT i_APCI1710_GetTimerOutputLevel(struct comedi_device * dev,
 				   BYTE b_ModulNbr, BYTE b_TimerNbr,
 				   PBYTE pb_OutputLevel)
 {
@@ -927,7 +927,7 @@ INT i_APCI1710_GetTimerOutputLevel(comedi_device * dev,
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_GetTimerProgressStatus(comedi_device *dev,
+INT i_APCI1710_GetTimerProgressStatus(struct comedi_device *dev,
 				      BYTE b_ModulNbr, BYTE b_TimerNbr,
 				      PBYTE pb_TimerStatus)
 {
@@ -1006,7 +1006,7 @@ INT i_APCI1710_GetTimerProgressStatus(comedi_device *dev,
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_WriteTimerValue(comedi_device * dev,
+INT i_APCI1710_WriteTimerValue(struct comedi_device * dev,
 			       BYTE b_ModulNbr, BYTE b_TimerNbr,
 			       ULONG ul_WriteValue)
 {

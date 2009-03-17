@@ -129,7 +129,7 @@ MODULE_DEVICE_TABLE(pci, skel_pci_table);
 
 /* this structure is for data unique to this hardware driver.  If
    several hardware drivers keep similar information in this structure,
-   feel free to suggest moving the variable to the comedi_device struct.  */
+   feel free to suggest moving the variable to the struct comedi_device struct.  */
 typedef struct {
 	int data;
 
@@ -151,8 +151,8 @@ typedef struct {
  * the board, and also about the kernel module that contains
  * the device code.
  */
-static int skel_attach(comedi_device * dev, comedi_devconfig * it);
-static int skel_detach(comedi_device * dev);
+static int skel_attach(struct comedi_device * dev, comedi_devconfig * it);
+static int skel_detach(struct comedi_device * dev);
 static comedi_driver driver_skel = {
       driver_name:"dummy",
       module:THIS_MODULE,
@@ -181,17 +181,17 @@ static comedi_driver driver_skel = {
       num_names:sizeof(skel_boards) / sizeof(skel_board),
 };
 
-static int skel_ai_rinsn(comedi_device * dev, comedi_subdevice * s,
+static int skel_ai_rinsn(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data);
-static int skel_ao_winsn(comedi_device * dev, comedi_subdevice * s,
+static int skel_ao_winsn(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data);
-static int skel_ao_rinsn(comedi_device * dev, comedi_subdevice * s,
+static int skel_ao_rinsn(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data);
-static int skel_dio_insn_bits(comedi_device * dev, comedi_subdevice * s,
+static int skel_dio_insn_bits(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data);
-static int skel_dio_insn_config(comedi_device * dev, comedi_subdevice * s,
+static int skel_dio_insn_config(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data);
-static int skel_ai_cmdtest(comedi_device * dev, comedi_subdevice * s,
+static int skel_ai_cmdtest(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_cmd * cmd);
 static int skel_ns_to_timer(unsigned int *ns, int round);
 
@@ -201,7 +201,7 @@ static int skel_ns_to_timer(unsigned int *ns, int round);
  * in the driver structure, dev->board_ptr contains that
  * address.
  */
-static int skel_attach(comedi_device * dev, comedi_devconfig * it)
+static int skel_attach(struct comedi_device * dev, comedi_devconfig * it)
 {
 	comedi_subdevice *s;
 
@@ -287,7 +287,7 @@ static int skel_attach(comedi_device * dev, comedi_devconfig * it)
  * allocated by _attach().  dev->private and dev->subdevices are
  * deallocated automatically by the core.
  */
-static int skel_detach(comedi_device * dev)
+static int skel_detach(struct comedi_device * dev)
 {
 	printk("comedi%d: skel: remove\n", dev->minor);
 
@@ -298,7 +298,7 @@ static int skel_detach(comedi_device * dev)
  * "instructions" read/write data in "one-shot" or "software-triggered"
  * mode.
  */
-static int skel_ai_rinsn(comedi_device * dev, comedi_subdevice * s,
+static int skel_ai_rinsn(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	int n, i;
@@ -346,7 +346,7 @@ static int skel_ai_rinsn(comedi_device * dev, comedi_subdevice * s,
 	return n;
 }
 
-static int skel_ai_cmdtest(comedi_device * dev, comedi_subdevice * s,
+static int skel_ai_cmdtest(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_cmd * cmd)
 {
 	int err = 0;
@@ -515,7 +515,7 @@ static int skel_ns_to_timer(unsigned int *ns, int round)
 	return *ns;
 }
 
-static int skel_ao_winsn(comedi_device * dev, comedi_subdevice * s,
+static int skel_ao_winsn(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	int i;
@@ -536,7 +536,7 @@ static int skel_ao_winsn(comedi_device * dev, comedi_subdevice * s,
 
 /* AO subdevices should have a read insn as well as a write insn.
  * Usually this means copying a value stored in devpriv. */
-static int skel_ao_rinsn(comedi_device * dev, comedi_subdevice * s,
+static int skel_ao_rinsn(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	int i;
@@ -553,7 +553,7 @@ static int skel_ao_rinsn(comedi_device * dev, comedi_subdevice * s,
  * useful to applications if you implement the insn_bits interface.
  * This allows packed reading/writing of the DIO channels.  The
  * comedi core can convert between insn_bits and insn_read/write */
-static int skel_dio_insn_bits(comedi_device * dev, comedi_subdevice * s,
+static int skel_dio_insn_bits(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	if (insn->n != 2)
@@ -578,7 +578,7 @@ static int skel_dio_insn_bits(comedi_device * dev, comedi_subdevice * s,
 	return 2;
 }
 
-static int skel_dio_insn_config(comedi_device * dev, comedi_subdevice * s,
+static int skel_dio_insn_config(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	int chan = CR_CHAN(insn->chanspec);

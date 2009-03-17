@@ -163,46 +163,46 @@ NI manuals:
 #define   INIT_A1_BITS	0x70	// put hardware conversion counter output in harmless state (a1 mode 0)
 #define COUNTER_B_BASE_REG	0x18
 
-static int labpc_attach(comedi_device * dev, comedi_devconfig * it);
-static int labpc_cancel(comedi_device * dev, comedi_subdevice * s);
+static int labpc_attach(struct comedi_device * dev, comedi_devconfig * it);
+static int labpc_cancel(struct comedi_device * dev, comedi_subdevice * s);
 static irqreturn_t labpc_interrupt(int irq, void *d PT_REGS_ARG);
-static int labpc_drain_fifo(comedi_device * dev);
-static void labpc_drain_dma(comedi_device * dev);
-static void handle_isa_dma(comedi_device * dev);
-static void labpc_drain_dregs(comedi_device * dev);
-static int labpc_ai_cmdtest(comedi_device * dev, comedi_subdevice * s,
+static int labpc_drain_fifo(struct comedi_device * dev);
+static void labpc_drain_dma(struct comedi_device * dev);
+static void handle_isa_dma(struct comedi_device * dev);
+static void labpc_drain_dregs(struct comedi_device * dev);
+static int labpc_ai_cmdtest(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_cmd * cmd);
-static int labpc_ai_cmd(comedi_device * dev, comedi_subdevice * s);
-static int labpc_ai_rinsn(comedi_device * dev, comedi_subdevice * s,
+static int labpc_ai_cmd(struct comedi_device * dev, comedi_subdevice * s);
+static int labpc_ai_rinsn(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data);
-static int labpc_ao_winsn(comedi_device * dev, comedi_subdevice * s,
+static int labpc_ao_winsn(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data);
-static int labpc_ao_rinsn(comedi_device * dev, comedi_subdevice * s,
+static int labpc_ao_rinsn(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data);
-static int labpc_calib_read_insn(comedi_device * dev, comedi_subdevice * s,
+static int labpc_calib_read_insn(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data);
-static int labpc_calib_write_insn(comedi_device * dev, comedi_subdevice * s,
+static int labpc_calib_write_insn(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data);
-static int labpc_eeprom_read_insn(comedi_device * dev, comedi_subdevice * s,
+static int labpc_eeprom_read_insn(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data);
-static int labpc_eeprom_write_insn(comedi_device * dev, comedi_subdevice * s,
+static int labpc_eeprom_write_insn(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data);
 static unsigned int labpc_suggest_transfer_size(comedi_cmd cmd);
-static void labpc_adc_timing(comedi_device * dev, comedi_cmd * cmd);
+static void labpc_adc_timing(struct comedi_device * dev, comedi_cmd * cmd);
 #ifdef CONFIG_COMEDI_PCI
-static int labpc_find_device(comedi_device *dev, int bus, int slot);
+static int labpc_find_device(struct comedi_device *dev, int bus, int slot);
 #endif
 static int labpc_dio_mem_callback(int dir, int port, int data,
 	unsigned long arg);
-static void labpc_serial_out(comedi_device * dev, unsigned int value,
+static void labpc_serial_out(struct comedi_device * dev, unsigned int value,
 	unsigned int num_bits);
-static unsigned int labpc_serial_in(comedi_device * dev);
-static unsigned int labpc_eeprom_read(comedi_device * dev,
+static unsigned int labpc_serial_in(struct comedi_device * dev);
+static unsigned int labpc_eeprom_read(struct comedi_device * dev,
 	unsigned int address);
-static unsigned int labpc_eeprom_read_status(comedi_device * dev);
-static unsigned int labpc_eeprom_write(comedi_device * dev,
+static unsigned int labpc_eeprom_read_status(struct comedi_device * dev);
+static unsigned int labpc_eeprom_write(struct comedi_device * dev,
 	unsigned int address, unsigned int value);
-static void write_caldac(comedi_device * dev, unsigned int channel,
+static void write_caldac(struct comedi_device * dev, unsigned int channel,
 	unsigned int value);
 
 enum scan_mode {
@@ -448,7 +448,7 @@ static DEFINE_PCI_DEVICE_TABLE(labpc_pci_table) = {
 MODULE_DEVICE_TABLE(pci, labpc_pci_table);
 #endif /* CONFIG_COMEDI_PCI */
 
-static inline int labpc_counter_load(comedi_device * dev,
+static inline int labpc_counter_load(struct comedi_device * dev,
 	unsigned long base_address, unsigned int counter_number,
 	unsigned int count, unsigned int mode)
 {
@@ -459,7 +459,7 @@ static inline int labpc_counter_load(comedi_device * dev,
 		return i8254_load(base_address, 0, counter_number, count, mode);
 }
 
-int labpc_common_attach(comedi_device * dev, unsigned long iobase,
+int labpc_common_attach(struct comedi_device * dev, unsigned long iobase,
 	unsigned int irq, unsigned int dma_chan)
 {
 	comedi_subdevice *s;
@@ -643,7 +643,7 @@ int labpc_common_attach(comedi_device * dev, unsigned long iobase,
 	return 0;
 }
 
-static int labpc_attach(comedi_device * dev, comedi_devconfig * it)
+static int labpc_attach(struct comedi_device * dev, comedi_devconfig * it)
 {
 	unsigned long iobase = 0;
 	unsigned int irq = 0;
@@ -694,7 +694,7 @@ static int labpc_attach(comedi_device * dev, comedi_devconfig * it)
 
 // adapted from ni_pcimio for finding mite based boards (pc-1200)
 #ifdef CONFIG_COMEDI_PCI
-static int labpc_find_device(comedi_device *dev, int bus, int slot)
+static int labpc_find_device(struct comedi_device *dev, int bus, int slot)
 {
 	struct mite_struct *mite;
 	int i;
@@ -724,7 +724,7 @@ static int labpc_find_device(comedi_device *dev, int bus, int slot)
 }
 #endif
 
-int labpc_common_detach(comedi_device * dev)
+int labpc_common_detach(struct comedi_device * dev)
 {
 	printk("comedi%d: ni_labpc: detach\n", dev->minor);
 
@@ -748,14 +748,14 @@ int labpc_common_detach(comedi_device * dev)
 	return 0;
 };
 
-static void labpc_clear_adc_fifo(const comedi_device * dev)
+static void labpc_clear_adc_fifo(const struct comedi_device * dev)
 {
 	devpriv->write_byte(0x1, dev->iobase + ADC_CLEAR_REG);
 	devpriv->read_byte(dev->iobase + ADC_FIFO_REG);
 	devpriv->read_byte(dev->iobase + ADC_FIFO_REG);
 }
 
-static int labpc_cancel(comedi_device * dev, comedi_subdevice * s)
+static int labpc_cancel(struct comedi_device * dev, comedi_subdevice * s)
 {
 	unsigned long flags;
 
@@ -793,7 +793,7 @@ static enum scan_mode labpc_ai_scan_mode(const comedi_cmd * cmd)
 	return 0;
 }
 
-static int labpc_ai_chanlist_invalid(const comedi_device * dev,
+static int labpc_ai_chanlist_invalid(const struct comedi_device * dev,
 	const comedi_cmd * cmd)
 {
 	int mode, channel, range, aref, i;
@@ -926,7 +926,7 @@ static void labpc_set_ai_scan_period(comedi_cmd * cmd, unsigned int ns)
 	cmd->scan_begin_arg = ns;
 }
 
-static int labpc_ai_cmdtest(comedi_device * dev, comedi_subdevice * s,
+static int labpc_ai_cmdtest(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_cmd * cmd)
 {
 	int err = 0;
@@ -1063,7 +1063,7 @@ static int labpc_ai_cmdtest(comedi_device * dev, comedi_subdevice * s,
 	return 0;
 }
 
-static int labpc_ai_cmd(comedi_device * dev, comedi_subdevice * s)
+static int labpc_ai_cmd(struct comedi_device * dev, comedi_subdevice * s)
 {
 	int channel, range, aref;
 	unsigned long irq_flags;
@@ -1311,7 +1311,7 @@ static int labpc_ai_cmd(comedi_device * dev, comedi_subdevice * s)
 /* interrupt service routine */
 static irqreturn_t labpc_interrupt(int irq, void *d PT_REGS_ARG)
 {
-	comedi_device *dev = d;
+	struct comedi_device *dev = d;
 	comedi_subdevice *s = dev->read_subdev;
 	comedi_async *async;
 	comedi_cmd *cmd;
@@ -1393,7 +1393,7 @@ static irqreturn_t labpc_interrupt(int irq, void *d PT_REGS_ARG)
 }
 
 // read all available samples from ai fifo
-static int labpc_drain_fifo(comedi_device * dev)
+static int labpc_drain_fifo(struct comedi_device * dev)
 {
 	unsigned int lsb, msb;
 	short data;
@@ -1427,7 +1427,7 @@ static int labpc_drain_fifo(comedi_device * dev)
 	return 0;
 }
 
-static void labpc_drain_dma(comedi_device * dev)
+static void labpc_drain_dma(struct comedi_device * dev)
 {
 	comedi_subdevice *s = dev->read_subdev;
 	comedi_async *async = s->async;
@@ -1480,7 +1480,7 @@ static void labpc_drain_dma(comedi_device * dev)
 	async->events |= COMEDI_CB_BLOCK;
 }
 
-static void handle_isa_dma(comedi_device * dev)
+static void handle_isa_dma(struct comedi_device * dev)
 {
 	labpc_drain_dma(dev);
 
@@ -1492,7 +1492,7 @@ static void handle_isa_dma(comedi_device * dev)
 
 /* makes sure all data aquired by board is transfered to comedi (used
  * when aquisition is terminated by stop_src == TRIG_EXT). */
-static void labpc_drain_dregs(comedi_device * dev)
+static void labpc_drain_dregs(struct comedi_device * dev)
 {
 	if (devpriv->current_transfer == isa_dma_transfer)
 		labpc_drain_dma(dev);
@@ -1500,7 +1500,7 @@ static void labpc_drain_dregs(comedi_device * dev)
 	labpc_drain_fifo(dev);
 }
 
-static int labpc_ai_rinsn(comedi_device * dev, comedi_subdevice * s,
+static int labpc_ai_rinsn(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	int i, n;
@@ -1586,7 +1586,7 @@ static int labpc_ai_rinsn(comedi_device * dev, comedi_subdevice * s,
 }
 
 // analog output insn
-static int labpc_ao_winsn(comedi_device * dev, comedi_subdevice * s,
+static int labpc_ao_winsn(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	int channel, range;
@@ -1627,7 +1627,7 @@ static int labpc_ao_winsn(comedi_device * dev, comedi_subdevice * s,
 }
 
 // analog output readback insn
-static int labpc_ao_rinsn(comedi_device * dev, comedi_subdevice * s,
+static int labpc_ao_rinsn(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	data[0] = devpriv->ao_value[CR_CHAN(insn->chanspec)];
@@ -1635,7 +1635,7 @@ static int labpc_ao_rinsn(comedi_device * dev, comedi_subdevice * s,
 	return 1;
 }
 
-static int labpc_calib_read_insn(comedi_device * dev, comedi_subdevice * s,
+static int labpc_calib_read_insn(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	data[0] = devpriv->caldac[CR_CHAN(insn->chanspec)];
@@ -1643,7 +1643,7 @@ static int labpc_calib_read_insn(comedi_device * dev, comedi_subdevice * s,
 	return 1;
 }
 
-static int labpc_calib_write_insn(comedi_device * dev, comedi_subdevice * s,
+static int labpc_calib_write_insn(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	int channel = CR_CHAN(insn->chanspec);
@@ -1652,7 +1652,7 @@ static int labpc_calib_write_insn(comedi_device * dev, comedi_subdevice * s,
 	return 1;
 }
 
-static int labpc_eeprom_read_insn(comedi_device * dev, comedi_subdevice * s,
+static int labpc_eeprom_read_insn(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	data[0] = devpriv->eeprom_data[CR_CHAN(insn->chanspec)];
@@ -1660,7 +1660,7 @@ static int labpc_eeprom_read_insn(comedi_device * dev, comedi_subdevice * s,
 	return 1;
 }
 
-static int labpc_eeprom_write_insn(comedi_device * dev, comedi_subdevice * s,
+static int labpc_eeprom_write_insn(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	int channel = CR_CHAN(insn->chanspec);
@@ -1704,7 +1704,7 @@ static unsigned int labpc_suggest_transfer_size(comedi_cmd cmd)
 }
 
 // figures out what counter values to use based on command
-static void labpc_adc_timing(comedi_device * dev, comedi_cmd * cmd)
+static void labpc_adc_timing(struct comedi_device * dev, comedi_cmd * cmd)
 {
 	const int max_counter_value = 0x10000;	// max value for 16 bit counter in mode 2
 	const int min_counter_value = 2;	// min value for 16 bit counter in mode 2
@@ -1796,7 +1796,7 @@ static int labpc_dio_mem_callback(int dir, int port, int data,
 }
 
 // lowlevel write to eeprom/dac
-static void labpc_serial_out(comedi_device * dev, unsigned int value,
+static void labpc_serial_out(struct comedi_device * dev, unsigned int value,
 	unsigned int value_width)
 {
 	int i;
@@ -1821,7 +1821,7 @@ static void labpc_serial_out(comedi_device * dev, unsigned int value,
 }
 
 // lowlevel read from eeprom
-static unsigned int labpc_serial_in(comedi_device * dev)
+static unsigned int labpc_serial_in(struct comedi_device * dev)
 {
 	unsigned int value = 0;
 	int i;
@@ -1850,7 +1850,7 @@ static unsigned int labpc_serial_in(comedi_device * dev)
 	return value;
 }
 
-static unsigned int labpc_eeprom_read(comedi_device * dev, unsigned int address)
+static unsigned int labpc_eeprom_read(struct comedi_device * dev, unsigned int address)
 {
 	unsigned int value;
 	const int read_instruction = 0x3;	// bits to tell eeprom to expect a read
@@ -1879,7 +1879,7 @@ static unsigned int labpc_eeprom_read(comedi_device * dev, unsigned int address)
 	return value;
 }
 
-static unsigned int labpc_eeprom_write(comedi_device * dev,
+static unsigned int labpc_eeprom_write(struct comedi_device * dev,
 	unsigned int address, unsigned int value)
 {
 	const int write_enable_instruction = 0x6;
@@ -1937,7 +1937,7 @@ static unsigned int labpc_eeprom_write(comedi_device * dev,
 	return 0;
 }
 
-static unsigned int labpc_eeprom_read_status(comedi_device * dev)
+static unsigned int labpc_eeprom_read_status(struct comedi_device * dev)
 {
 	unsigned int value;
 	const int read_status_instruction = 0x5;
@@ -1965,7 +1965,7 @@ static unsigned int labpc_eeprom_read_status(comedi_device * dev)
 }
 
 // writes to 8 bit calibration dacs
-static void write_caldac(comedi_device * dev, unsigned int channel,
+static void write_caldac(struct comedi_device * dev, unsigned int channel,
 	unsigned int value)
 {
 	if (value == devpriv->caldac[channel])

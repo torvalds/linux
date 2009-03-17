@@ -75,8 +75,8 @@ typedef struct {
 
 #define devpriv ((contec_private *)dev->private)
 
-static int contec_attach(comedi_device * dev, comedi_devconfig * it);
-static int contec_detach(comedi_device * dev);
+static int contec_attach(struct comedi_device * dev, comedi_devconfig * it);
+static int contec_detach(struct comedi_device * dev);
 static comedi_driver driver_contec = {
       driver_name:"contec_pci_dio",
       module:THIS_MODULE,
@@ -85,19 +85,19 @@ static comedi_driver driver_contec = {
 };
 
 /* Classic digital IO */
-static int contec_di_insn_bits(comedi_device * dev, comedi_subdevice * s,
+static int contec_di_insn_bits(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data);
-static int contec_do_insn_bits(comedi_device * dev, comedi_subdevice * s,
+static int contec_do_insn_bits(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data);
 
 #if 0
-static int contec_cmdtest(comedi_device * dev, comedi_subdevice * s,
+static int contec_cmdtest(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_cmd * cmd);
 
 static int contec_ns_to_timer(unsigned int *ns, int round);
 #endif
 
-static int contec_attach(comedi_device * dev, comedi_devconfig * it)
+static int contec_attach(struct comedi_device * dev, comedi_devconfig * it)
 {
 	struct pci_dev *pcidev;
 	comedi_subdevice *s;
@@ -164,7 +164,7 @@ static int contec_attach(comedi_device * dev, comedi_devconfig * it)
 	return -EIO;
 }
 
-static int contec_detach(comedi_device * dev)
+static int contec_detach(struct comedi_device * dev)
 {
 	printk("comedi%d: contec: remove\n", dev->minor);
 
@@ -179,7 +179,7 @@ static int contec_detach(comedi_device * dev)
 }
 
 #if 0
-static int contec_cmdtest(comedi_device * dev, comedi_subdevice * s,
+static int contec_cmdtest(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_cmd * cmd)
 {
 	printk("contec_cmdtest called\n");
@@ -192,7 +192,7 @@ static int contec_ns_to_timer(unsigned int *ns, int round)
 }
 #endif
 
-static int contec_do_insn_bits(comedi_device * dev, comedi_subdevice * s,
+static int contec_do_insn_bits(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 
@@ -212,7 +212,7 @@ static int contec_do_insn_bits(comedi_device * dev, comedi_subdevice * s,
 	return 2;
 }
 
-static int contec_di_insn_bits(comedi_device * dev, comedi_subdevice * s,
+static int contec_di_insn_bits(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 

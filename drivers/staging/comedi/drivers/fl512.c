@@ -40,8 +40,8 @@ static const comedi_lrange range_fl512 = { 4, {
 	}
 };
 
-static int fl512_attach(comedi_device * dev, comedi_devconfig * it);
-static int fl512_detach(comedi_device * dev);
+static int fl512_attach(struct comedi_device * dev, comedi_devconfig * it);
+static int fl512_detach(struct comedi_device * dev);
 
 static comedi_driver driver_fl512 = {
       driver_name:"fl512",
@@ -52,17 +52,17 @@ static comedi_driver driver_fl512 = {
 
 COMEDI_INITCLEANUP(driver_fl512);
 
-static int fl512_ai_insn(comedi_device * dev,
+static int fl512_ai_insn(struct comedi_device * dev,
 	comedi_subdevice * s, comedi_insn * insn, unsigned int * data);
-static int fl512_ao_insn(comedi_device * dev,
+static int fl512_ao_insn(struct comedi_device * dev,
 	comedi_subdevice * s, comedi_insn * insn, unsigned int * data);
-static int fl512_ao_insn_readback(comedi_device * dev,
+static int fl512_ao_insn_readback(struct comedi_device * dev,
 	comedi_subdevice * s, comedi_insn * insn, unsigned int * data);
 
 /*
  * fl512_ai_insn : this is the analog input function
  */
-static int fl512_ai_insn(comedi_device * dev,
+static int fl512_ai_insn(struct comedi_device * dev,
 	comedi_subdevice * s, comedi_insn * insn, unsigned int * data)
 {
 	int n;
@@ -87,7 +87,7 @@ static int fl512_ai_insn(comedi_device * dev,
 /*
  * fl512_ao_insn : used to write to a DA port n times
  */
-static int fl512_ao_insn(comedi_device * dev,
+static int fl512_ao_insn(struct comedi_device * dev,
 	comedi_subdevice * s, comedi_insn * insn, unsigned int * data)
 {
 	int n;
@@ -108,7 +108,7 @@ static int fl512_ao_insn(comedi_device * dev,
  * fl512_ao_insn_readback : used to read previous values written to
  * DA port
  */
-static int fl512_ao_insn_readback(comedi_device * dev,
+static int fl512_ao_insn_readback(struct comedi_device * dev,
 	comedi_subdevice * s, comedi_insn * insn, unsigned int * data)
 {
 	int n;
@@ -124,7 +124,7 @@ static int fl512_ao_insn_readback(comedi_device * dev,
 /*
  * start attach
  */
-static int fl512_attach(comedi_device * dev, comedi_devconfig * it)
+static int fl512_attach(struct comedi_device * dev, comedi_devconfig * it)
 {
 	unsigned long iobase;
 	comedi_subdevice *s;	/* pointer to the subdevice:
@@ -175,7 +175,7 @@ static int fl512_attach(comedi_device * dev, comedi_devconfig * it)
 	return 1;
 }
 
-static int fl512_detach(comedi_device * dev)
+static int fl512_detach(struct comedi_device * dev)
 {
 	if (dev->iobase)
 		release_region(dev->iobase, FL512_SIZE);

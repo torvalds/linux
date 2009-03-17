@@ -296,7 +296,7 @@ typedef struct {
  * read/written directly in the I/O space of the board.  The
  * AT-MIO devices map the low 8 STC registers to iobase+addr*2. */
 
-static void ni_atmio_win_out(comedi_device * dev, uint16_t data, int addr)
+static void ni_atmio_win_out(struct comedi_device * dev, uint16_t data, int addr)
 {
 	unsigned long flags;
 
@@ -310,7 +310,7 @@ static void ni_atmio_win_out(comedi_device * dev, uint16_t data, int addr)
 	comedi_spin_unlock_irqrestore(&devpriv->window_lock, flags);
 }
 
-static uint16_t ni_atmio_win_in(comedi_device * dev, int addr)
+static uint16_t ni_atmio_win_in(struct comedi_device * dev, int addr)
 {
 	unsigned long flags;
 	uint16_t ret;
@@ -338,8 +338,8 @@ static struct pnp_device_id device_ids[] = {
 
 MODULE_DEVICE_TABLE(pnp, device_ids);
 
-static int ni_atmio_attach(comedi_device * dev, comedi_devconfig * it);
-static int ni_atmio_detach(comedi_device * dev);
+static int ni_atmio_attach(struct comedi_device * dev, comedi_devconfig * it);
+static int ni_atmio_detach(struct comedi_device * dev);
 static comedi_driver driver_atmio = {
       driver_name:"ni_atmio",
       module:THIS_MODULE,
@@ -351,10 +351,10 @@ COMEDI_INITCLEANUP(driver_atmio);
 
 #include "ni_mio_common.c"
 
-static int ni_getboardtype(comedi_device * dev);
+static int ni_getboardtype(struct comedi_device * dev);
 
 /* clean up allocated resources */
-static int ni_atmio_detach(comedi_device * dev)
+static int ni_atmio_detach(struct comedi_device * dev)
 {
 	mio_common_detach(dev);
 
@@ -404,7 +404,7 @@ static int ni_isapnp_find_board(struct pnp_dev **dev)
 	return 0;
 }
 
-static int ni_atmio_attach(comedi_device * dev, comedi_devconfig * it)
+static int ni_atmio_attach(struct comedi_device * dev, comedi_devconfig * it)
 {
 	struct pnp_dev *isapnp_dev;
 	int ret;
@@ -492,7 +492,7 @@ static int ni_atmio_attach(comedi_device * dev, comedi_devconfig * it)
 	return 0;
 }
 
-static int ni_getboardtype(comedi_device * dev)
+static int ni_getboardtype(struct comedi_device * dev)
 {
 	int device_id = ni_read_eeprom(dev, 511);
 	int i;

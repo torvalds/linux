@@ -119,7 +119,7 @@ struct ni_gpct {
 };
 
 struct ni_gpct_device {
-	comedi_device *dev;
+	struct comedi_device *dev;
 	void (*write_register) (struct ni_gpct * counter, unsigned bits,
 		enum ni_gpct_register reg);
 	unsigned (*read_register) (struct ni_gpct * counter,
@@ -131,7 +131,7 @@ struct ni_gpct_device {
 	spinlock_t regs_lock;
 };
 
-extern struct ni_gpct_device *ni_gpct_device_construct(comedi_device * dev,
+extern struct ni_gpct_device *ni_gpct_device_construct(struct comedi_device * dev,
 	void (*write_register) (struct ni_gpct * counter, unsigned bits,
 		enum ni_gpct_register reg),
 	unsigned (*read_register) (struct ni_gpct * counter,

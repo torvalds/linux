@@ -892,7 +892,7 @@ static struct usb_driver dt9812_usb_driver = {
  * Comedi functions
  */
 
-static void dt9812_comedi_open(comedi_device *dev)
+static void dt9812_comedi_open(struct comedi_device *dev)
 {
 	down(&devpriv->slot->mutex);
 	if (devpriv->slot->usb) {
@@ -940,7 +940,7 @@ static void dt9812_comedi_open(comedi_device *dev)
 	up(&devpriv->slot->mutex);
 }
 
-static int dt9812_di_rinsn(comedi_device *dev, comedi_subdevice *s,
+static int dt9812_di_rinsn(struct comedi_device *dev, comedi_subdevice *s,
 			   comedi_insn *insn, unsigned int *data)
 {
 	int n;
@@ -952,7 +952,7 @@ static int dt9812_di_rinsn(comedi_device *dev, comedi_subdevice *s,
 	return n;
 }
 
-static int dt9812_do_winsn(comedi_device *dev, comedi_subdevice *s,
+static int dt9812_do_winsn(struct comedi_device *dev, comedi_subdevice *s,
 			   comedi_insn *insn, unsigned int *data)
 {
 	int n;
@@ -970,7 +970,7 @@ static int dt9812_do_winsn(comedi_device *dev, comedi_subdevice *s,
 	return n;
 }
 
-static int dt9812_ai_rinsn(comedi_device *dev, comedi_subdevice *s,
+static int dt9812_ai_rinsn(struct comedi_device *dev, comedi_subdevice *s,
 			   comedi_insn *insn, unsigned int *data)
 {
 	int n;
@@ -985,7 +985,7 @@ static int dt9812_ai_rinsn(comedi_device *dev, comedi_subdevice *s,
 	return n;
 }
 
-static int dt9812_ao_rinsn(comedi_device *dev, comedi_subdevice *s,
+static int dt9812_ao_rinsn(struct comedi_device *dev, comedi_subdevice *s,
 			   comedi_insn *insn, unsigned int *data)
 {
 	int n;
@@ -999,7 +999,7 @@ static int dt9812_ao_rinsn(comedi_device *dev, comedi_subdevice *s,
 	return n;
 }
 
-static int dt9812_ao_winsn(comedi_device *dev, comedi_subdevice *s,
+static int dt9812_ao_winsn(struct comedi_device *dev, comedi_subdevice *s,
 			   comedi_insn *insn, unsigned int *data)
 {
 	int n;
@@ -1009,7 +1009,7 @@ static int dt9812_ao_winsn(comedi_device *dev, comedi_subdevice *s,
 	return n;
 }
 
-static int dt9812_attach(comedi_device *dev, comedi_devconfig *it)
+static int dt9812_attach(struct comedi_device *dev, comedi_devconfig *it)
 {
 	int i;
 	comedi_subdevice *s;
@@ -1103,7 +1103,7 @@ static int dt9812_attach(comedi_device *dev, comedi_devconfig *it)
 	return 0;
 }
 
-static int dt9812_detach(comedi_device *dev)
+static int dt9812_detach(struct comedi_device *dev)
 {
 	return 0;
 }

@@ -40,25 +40,25 @@
 // Hardware Layer  functions for Apci2016
 
 //DO
-int i_APCI2016_ConfigDigitalOutput(comedi_device *dev, comedi_subdevice *s,
+int i_APCI2016_ConfigDigitalOutput(struct comedi_device *dev, comedi_subdevice *s,
 				   comedi_insn *insn, unsigned int *data);
 
-int i_APCI2016_WriteDigitalOutput(comedi_device *dev, comedi_subdevice *s,
+int i_APCI2016_WriteDigitalOutput(struct comedi_device *dev, comedi_subdevice *s,
 				  comedi_insn *insn, unsigned int *data);
 
-int i_APCI2016_BitsDigitalOutput(comedi_device *dev, comedi_subdevice *s,
+int i_APCI2016_BitsDigitalOutput(struct comedi_device *dev, comedi_subdevice *s,
 				 comedi_insn *insn, unsigned int *data);
 
 // TIMER
 // timer value is passed as u seconds
 
-int i_APCI2016_ConfigWatchdog(comedi_device *dev, comedi_subdevice *s,
+int i_APCI2016_ConfigWatchdog(struct comedi_device *dev, comedi_subdevice *s,
 			      comedi_insn *insn, unsigned int *data);
 
-int i_APCI2016_StartStopWriteWatchdog(comedi_device *dev, comedi_subdevice *s,
+int i_APCI2016_StartStopWriteWatchdog(struct comedi_device *dev, comedi_subdevice *s,
 				      comedi_insn *insn, unsigned int *data);
 
-int i_APCI2016_ReadWatchdog(comedi_device *dev, comedi_subdevice *s,
+int i_APCI2016_ReadWatchdog(struct comedi_device *dev, comedi_subdevice *s,
 			    comedi_insn *insn, unsigned int *data);
 
 // Interrupt functions.....
@@ -67,4 +67,4 @@ int i_APCI2016_ReadWatchdog(comedi_device *dev, comedi_subdevice *s,
 
  //VOID v_APCI2016_Interrupt(int irq, void *d);
 // RESET
-INT i_APCI2016_Reset(comedi_device *dev);
+INT i_APCI2016_Reset(struct comedi_device *dev);

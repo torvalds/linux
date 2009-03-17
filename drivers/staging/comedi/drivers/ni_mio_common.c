@@ -193,49 +193,49 @@ static const comedi_lrange *const ni_range_lkup[] = {
 	[ai_gain_6143] = &range_ni_S_ai_6143
 };
 
-static int ni_dio_insn_config(comedi_device * dev, comedi_subdevice * s,
+static int ni_dio_insn_config(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data);
-static int ni_dio_insn_bits(comedi_device * dev, comedi_subdevice * s,
+static int ni_dio_insn_bits(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data);
-static int ni_cdio_cmdtest(comedi_device * dev, comedi_subdevice * s,
+static int ni_cdio_cmdtest(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_cmd * cmd);
-static int ni_cdio_cmd(comedi_device * dev, comedi_subdevice * s);
-static int ni_cdio_cancel(comedi_device * dev, comedi_subdevice * s);
-static void handle_cdio_interrupt(comedi_device * dev);
-static int ni_cdo_inttrig(comedi_device * dev, comedi_subdevice * s,
+static int ni_cdio_cmd(struct comedi_device * dev, comedi_subdevice * s);
+static int ni_cdio_cancel(struct comedi_device * dev, comedi_subdevice * s);
+static void handle_cdio_interrupt(struct comedi_device * dev);
+static int ni_cdo_inttrig(struct comedi_device * dev, comedi_subdevice * s,
 	unsigned int trignum);
 
-static int ni_serial_insn_config(comedi_device * dev, comedi_subdevice * s,
+static int ni_serial_insn_config(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data);
-static int ni_serial_hw_readwrite8(comedi_device * dev, comedi_subdevice * s,
+static int ni_serial_hw_readwrite8(struct comedi_device * dev, comedi_subdevice * s,
 	unsigned char data_out, unsigned char *data_in);
-static int ni_serial_sw_readwrite8(comedi_device * dev, comedi_subdevice * s,
+static int ni_serial_sw_readwrite8(struct comedi_device * dev, comedi_subdevice * s,
 	unsigned char data_out, unsigned char *data_in);
 
-static int ni_calib_insn_read(comedi_device * dev, comedi_subdevice * s,
+static int ni_calib_insn_read(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data);
-static int ni_calib_insn_write(comedi_device * dev, comedi_subdevice * s,
+static int ni_calib_insn_write(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data);
 
-static int ni_eeprom_insn_read(comedi_device * dev, comedi_subdevice * s,
+static int ni_eeprom_insn_read(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data);
-static int ni_m_series_eeprom_insn_read(comedi_device * dev,
+static int ni_m_series_eeprom_insn_read(struct comedi_device * dev,
 	comedi_subdevice * s, comedi_insn * insn, unsigned int * data);
 
-static int ni_pfi_insn_bits(comedi_device * dev, comedi_subdevice * s,
+static int ni_pfi_insn_bits(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data);
-static int ni_pfi_insn_config(comedi_device * dev, comedi_subdevice * s,
+static int ni_pfi_insn_config(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data);
-static unsigned ni_old_get_pfi_routing(comedi_device * dev, unsigned chan);
+static unsigned ni_old_get_pfi_routing(struct comedi_device * dev, unsigned chan);
 
-static void ni_rtsi_init(comedi_device * dev);
-static int ni_rtsi_insn_bits(comedi_device * dev, comedi_subdevice * s,
+static void ni_rtsi_init(struct comedi_device * dev);
+static int ni_rtsi_insn_bits(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data);
-static int ni_rtsi_insn_config(comedi_device * dev, comedi_subdevice * s,
+static int ni_rtsi_insn_config(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data);
 
-static void caldac_setup(comedi_device * dev, comedi_subdevice * s);
-static int ni_read_eeprom(comedi_device * dev, int addr);
+static void caldac_setup(struct comedi_device * dev, comedi_subdevice * s);
+static int ni_read_eeprom(struct comedi_device * dev, int addr);
 
 #ifdef DEBUG_STATUS_A
 static void ni_mio_print_status_a(int status);
@@ -248,58 +248,58 @@ static void ni_mio_print_status_b(int status);
 #define ni_mio_print_status_b(a)
 #endif
 
-static int ni_ai_reset(comedi_device * dev, comedi_subdevice * s);
+static int ni_ai_reset(struct comedi_device * dev, comedi_subdevice * s);
 #ifndef PCIDMA
-static void ni_handle_fifo_half_full(comedi_device * dev);
-static int ni_ao_fifo_half_empty(comedi_device * dev, comedi_subdevice * s);
+static void ni_handle_fifo_half_full(struct comedi_device * dev);
+static int ni_ao_fifo_half_empty(struct comedi_device * dev, comedi_subdevice * s);
 #endif
-static void ni_handle_fifo_dregs(comedi_device * dev);
-static int ni_ai_inttrig(comedi_device * dev, comedi_subdevice * s,
+static void ni_handle_fifo_dregs(struct comedi_device * dev);
+static int ni_ai_inttrig(struct comedi_device * dev, comedi_subdevice * s,
 	unsigned int trignum);
-static void ni_load_channelgain_list(comedi_device * dev, unsigned int n_chan,
+static void ni_load_channelgain_list(struct comedi_device * dev, unsigned int n_chan,
 	unsigned int *list);
-static void shutdown_ai_command(comedi_device * dev);
+static void shutdown_ai_command(struct comedi_device * dev);
 
-static int ni_ao_inttrig(comedi_device * dev, comedi_subdevice * s,
+static int ni_ao_inttrig(struct comedi_device * dev, comedi_subdevice * s,
 	unsigned int trignum);
 
-static int ni_ao_reset(comedi_device * dev, comedi_subdevice * s);
+static int ni_ao_reset(struct comedi_device * dev, comedi_subdevice * s);
 
 static int ni_8255_callback(int dir, int port, int data, unsigned long arg);
 
-static int ni_gpct_insn_write(comedi_device * dev, comedi_subdevice * s,
+static int ni_gpct_insn_write(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data);
-static int ni_gpct_insn_read(comedi_device * dev, comedi_subdevice * s,
+static int ni_gpct_insn_read(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data);
-static int ni_gpct_insn_config(comedi_device * dev, comedi_subdevice * s,
+static int ni_gpct_insn_config(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data);
-static int ni_gpct_cmd(comedi_device * dev, comedi_subdevice * s);
-static int ni_gpct_cmdtest(comedi_device * dev, comedi_subdevice * s,
+static int ni_gpct_cmd(struct comedi_device * dev, comedi_subdevice * s);
+static int ni_gpct_cmdtest(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_cmd * cmd);
-static int ni_gpct_cancel(comedi_device * dev, comedi_subdevice * s);
-static void handle_gpct_interrupt(comedi_device * dev,
+static int ni_gpct_cancel(struct comedi_device * dev, comedi_subdevice * s);
+static void handle_gpct_interrupt(struct comedi_device * dev,
 	unsigned short counter_index);
 
-static int init_cs5529(comedi_device * dev);
-static int cs5529_do_conversion(comedi_device * dev, unsigned short *data);
-static int cs5529_ai_insn_read(comedi_device * dev, comedi_subdevice * s,
+static int init_cs5529(struct comedi_device * dev);
+static int cs5529_do_conversion(struct comedi_device * dev, unsigned short *data);
+static int cs5529_ai_insn_read(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data);
 #ifdef NI_CS5529_DEBUG
-static unsigned int cs5529_config_read(comedi_device * dev,
+static unsigned int cs5529_config_read(struct comedi_device * dev,
 	unsigned int reg_select_bits);
 #endif
-static void cs5529_config_write(comedi_device * dev, unsigned int value,
+static void cs5529_config_write(struct comedi_device * dev, unsigned int value,
 	unsigned int reg_select_bits);
 
-static int ni_m_series_pwm_config(comedi_device * dev, comedi_subdevice * s,
+static int ni_m_series_pwm_config(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data);
-static int ni_6143_pwm_config(comedi_device * dev, comedi_subdevice * s,
+static int ni_6143_pwm_config(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data);
 
-static int ni_set_master_clock(comedi_device * dev, unsigned source,
+static int ni_set_master_clock(struct comedi_device * dev, unsigned source,
 	unsigned period_ns);
-static void ack_a_interrupt(comedi_device * dev, unsigned short a_status);
-static void ack_b_interrupt(comedi_device * dev, unsigned short b_status);
+static void ack_a_interrupt(struct comedi_device * dev, unsigned short a_status);
+static void ack_b_interrupt(struct comedi_device * dev, unsigned short b_status);
 
 enum aimodes {
 	AIMODE_NONE = 0,
@@ -353,14 +353,14 @@ enum timebase_nanoseconds {
 
 static const int num_adc_stages_611x = 3;
 
-static void handle_a_interrupt(comedi_device * dev, unsigned short status,
+static void handle_a_interrupt(struct comedi_device * dev, unsigned short status,
 	unsigned ai_mite_status);
-static void handle_b_interrupt(comedi_device * dev, unsigned short status,
+static void handle_b_interrupt(struct comedi_device * dev, unsigned short status,
 	unsigned ao_mite_status);
-static void get_last_sample_611x(comedi_device * dev);
-static void get_last_sample_6143(comedi_device * dev);
+static void get_last_sample_611x(struct comedi_device * dev);
+static void get_last_sample_6143(struct comedi_device * dev);
 
-static inline void ni_set_bitfield(comedi_device * dev, int reg,
+static inline void ni_set_bitfield(struct comedi_device * dev, int reg,
 	unsigned bit_mask, unsigned bit_values)
 {
 	unsigned long flags;
@@ -406,12 +406,12 @@ static inline void ni_set_bitfield(comedi_device * dev, int reg,
 }
 
 #ifdef PCIDMA
-static int ni_ai_drain_dma(comedi_device * dev);
+static int ni_ai_drain_dma(struct comedi_device * dev);
 
 /* DMA channel setup */
 
 // negative channel means no channel
-static inline void ni_set_ai_dma_channel(comedi_device * dev, int channel)
+static inline void ni_set_ai_dma_channel(struct comedi_device * dev, int channel)
 {
 	unsigned bitfield;
 
@@ -426,7 +426,7 @@ static inline void ni_set_ai_dma_channel(comedi_device * dev, int channel)
 }
 
 // negative channel means no channel
-static inline void ni_set_ao_dma_channel(comedi_device * dev, int channel)
+static inline void ni_set_ao_dma_channel(struct comedi_device * dev, int channel)
 {
 	unsigned bitfield;
 
@@ -441,7 +441,7 @@ static inline void ni_set_ao_dma_channel(comedi_device * dev, int channel)
 }
 
 // negative mite_channel means no channel
-static inline void ni_set_gpct_dma_channel(comedi_device * dev,
+static inline void ni_set_gpct_dma_channel(struct comedi_device * dev,
 	unsigned gpct_index, int mite_channel)
 {
 	unsigned bitfield;
@@ -456,7 +456,7 @@ static inline void ni_set_gpct_dma_channel(comedi_device * dev,
 }
 
 // negative mite_channel means no channel
-static inline void ni_set_cdo_dma_channel(comedi_device * dev, int mite_channel)
+static inline void ni_set_cdo_dma_channel(struct comedi_device * dev, int mite_channel)
 {
 	unsigned long flags;
 
@@ -475,7 +475,7 @@ static inline void ni_set_cdo_dma_channel(comedi_device * dev, int mite_channel)
 	comedi_spin_unlock_irqrestore(&devpriv->soft_reg_copy_lock, flags);
 }
 
-static int ni_request_ai_mite_channel(comedi_device * dev)
+static int ni_request_ai_mite_channel(struct comedi_device * dev)
 {
 	unsigned long flags;
 
@@ -496,7 +496,7 @@ static int ni_request_ai_mite_channel(comedi_device * dev)
 	return 0;
 }
 
-static int ni_request_ao_mite_channel(comedi_device * dev)
+static int ni_request_ao_mite_channel(struct comedi_device * dev)
 {
 	unsigned long flags;
 
@@ -517,7 +517,7 @@ static int ni_request_ao_mite_channel(comedi_device * dev)
 	return 0;
 }
 
-static int ni_request_gpct_mite_channel(comedi_device * dev,
+static int ni_request_gpct_mite_channel(struct comedi_device * dev,
 	unsigned gpct_index, enum comedi_io_direction direction)
 {
 	unsigned long flags;
@@ -546,7 +546,7 @@ static int ni_request_gpct_mite_channel(comedi_device * dev,
 
 #endif // PCIDMA
 
-static int ni_request_cdo_mite_channel(comedi_device * dev)
+static int ni_request_cdo_mite_channel(struct comedi_device * dev)
 {
 #ifdef PCIDMA
 	unsigned long flags;
@@ -569,7 +569,7 @@ static int ni_request_cdo_mite_channel(comedi_device * dev)
 	return 0;
 }
 
-static void ni_release_ai_mite_channel(comedi_device * dev)
+static void ni_release_ai_mite_channel(struct comedi_device * dev)
 {
 #ifdef PCIDMA
 	unsigned long flags;
@@ -584,7 +584,7 @@ static void ni_release_ai_mite_channel(comedi_device * dev)
 #endif // PCIDMA
 }
 
-static void ni_release_ao_mite_channel(comedi_device * dev)
+static void ni_release_ao_mite_channel(struct comedi_device * dev)
 {
 #ifdef PCIDMA
 	unsigned long flags;
@@ -599,7 +599,7 @@ static void ni_release_ao_mite_channel(comedi_device * dev)
 #endif // PCIDMA
 }
 
-void ni_release_gpct_mite_channel(comedi_device * dev, unsigned gpct_index)
+void ni_release_gpct_mite_channel(struct comedi_device * dev, unsigned gpct_index)
 {
 #ifdef PCIDMA
 	unsigned long flags;
@@ -619,7 +619,7 @@ void ni_release_gpct_mite_channel(comedi_device * dev, unsigned gpct_index)
 #endif // PCIDMA
 }
 
-static void ni_release_cdo_mite_channel(comedi_device * dev)
+static void ni_release_cdo_mite_channel(struct comedi_device * dev)
 {
 #ifdef PCIDMA
 	unsigned long flags;
@@ -636,7 +636,7 @@ static void ni_release_cdo_mite_channel(comedi_device * dev)
 
 // e-series boards use the second irq signals to generate dma requests for their counters
 #ifdef PCIDMA
-static void ni_e_series_enable_second_irq(comedi_device * dev,
+static void ni_e_series_enable_second_irq(struct comedi_device * dev,
 	unsigned gpct_index, short enable)
 {
 	if (boardtype.reg_type & ni_reg_m_series_mask)
@@ -667,7 +667,7 @@ static void ni_e_series_enable_second_irq(comedi_device * dev,
 }
 #endif // PCIDMA
 
-static void ni_clear_ai_fifo(comedi_device * dev)
+static void ni_clear_ai_fifo(struct comedi_device * dev)
 {
 	if (boardtype.reg_type == ni_reg_6143) {
 		// Flush the 6143 data FIFO
@@ -693,13 +693,13 @@ static void ni_clear_ai_fifo(comedi_device * dev)
 	}
 }
 
-static void win_out2(comedi_device * dev, uint32_t data, int reg)
+static void win_out2(struct comedi_device * dev, uint32_t data, int reg)
 {
 	devpriv->stc_writew(dev, data >> 16, reg);
 	devpriv->stc_writew(dev, data & 0xffff, reg + 1);
 }
 
-static uint32_t win_in2(comedi_device * dev, int reg)
+static uint32_t win_in2(struct comedi_device * dev, int reg)
 {
 	uint32_t bits;
 	bits = devpriv->stc_readw(dev, reg) << 16;
@@ -708,7 +708,7 @@ static uint32_t win_in2(comedi_device * dev, int reg)
 }
 
 #define ao_win_out(data,addr) ni_ao_win_outw(dev,data,addr)
-static inline void ni_ao_win_outw(comedi_device * dev, uint16_t data, int addr)
+static inline void ni_ao_win_outw(struct comedi_device * dev, uint16_t data, int addr)
 {
 	unsigned long flags;
 
@@ -718,7 +718,7 @@ static inline void ni_ao_win_outw(comedi_device * dev, uint16_t data, int addr)
 	comedi_spin_unlock_irqrestore(&devpriv->window_lock, flags);
 }
 
-static inline void ni_ao_win_outl(comedi_device * dev, uint32_t data, int addr)
+static inline void ni_ao_win_outl(struct comedi_device * dev, uint32_t data, int addr)
 {
 	unsigned long flags;
 
@@ -728,7 +728,7 @@ static inline void ni_ao_win_outl(comedi_device * dev, uint32_t data, int addr)
 	comedi_spin_unlock_irqrestore(&devpriv->window_lock, flags);
 }
 
-static inline unsigned short ni_ao_win_inw(comedi_device * dev, int addr)
+static inline unsigned short ni_ao_win_inw(struct comedi_device * dev, int addr)
 {
 	unsigned long flags;
 	unsigned short data;
@@ -750,7 +750,7 @@ static inline unsigned short ni_ao_win_inw(comedi_device * dev, int addr)
 *
 * value should only be 1 or 0.
 */
-static inline void ni_set_bits(comedi_device * dev, int reg, unsigned bits,
+static inline void ni_set_bits(struct comedi_device * dev, int reg, unsigned bits,
 	unsigned value)
 {
 	unsigned bit_values;
@@ -764,7 +764,7 @@ static inline void ni_set_bits(comedi_device * dev, int reg, unsigned bits,
 
 static irqreturn_t ni_E_interrupt(int irq, void *d PT_REGS_ARG)
 {
-	comedi_device *dev = d;
+	struct comedi_device *dev = d;
 	unsigned short a_status;
 	unsigned short b_status;
 	unsigned int ai_mite_status = 0;
@@ -823,7 +823,7 @@ static irqreturn_t ni_E_interrupt(int irq, void *d PT_REGS_ARG)
 }
 
 #ifdef PCIDMA
-static void ni_sync_ai_dma(comedi_device * dev)
+static void ni_sync_ai_dma(struct comedi_device * dev)
 {
 	comedi_subdevice *s = dev->subdevices + NI_AI_SUBDEV;
 	unsigned long flags;
@@ -834,7 +834,7 @@ static void ni_sync_ai_dma(comedi_device * dev)
 	comedi_spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags);
 }
 
-static void mite_handle_b_linkc(struct mite_struct *mite, comedi_device * dev)
+static void mite_handle_b_linkc(struct mite_struct *mite, struct comedi_device * dev)
 {
 	comedi_subdevice *s = dev->subdevices + NI_AO_SUBDEV;
 	unsigned long flags;
@@ -846,7 +846,7 @@ static void mite_handle_b_linkc(struct mite_struct *mite, comedi_device * dev)
 	comedi_spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags);
 }
 
-static int ni_ao_wait_for_dma_load(comedi_device * dev)
+static int ni_ao_wait_for_dma_load(struct comedi_device * dev)
 {
 	static const int timeout = 10000;
 	int i;
@@ -868,7 +868,7 @@ static int ni_ao_wait_for_dma_load(comedi_device * dev)
 }
 
 #endif //PCIDMA
-static void ni_handle_eos(comedi_device * dev, comedi_subdevice * s)
+static void ni_handle_eos(struct comedi_device * dev, comedi_subdevice * s)
 {
 	if (devpriv->aimode == AIMODE_SCAN) {
 #ifdef PCIDMA
@@ -892,7 +892,7 @@ static void ni_handle_eos(comedi_device * dev, comedi_subdevice * s)
 	}
 }
 
-static void shutdown_ai_command(comedi_device * dev)
+static void shutdown_ai_command(struct comedi_device * dev)
 {
 	comedi_subdevice *s = dev->subdevices + NI_AI_SUBDEV;
 
@@ -906,7 +906,7 @@ static void shutdown_ai_command(comedi_device * dev)
 	s->async->events |= COMEDI_CB_EOA;
 }
 
-static void ni_event(comedi_device * dev, comedi_subdevice * s)
+static void ni_event(struct comedi_device * dev, comedi_subdevice * s)
 {
 	if (s->async->
 		events & (COMEDI_CB_ERROR | COMEDI_CB_OVERFLOW | COMEDI_CB_EOA))
@@ -932,7 +932,7 @@ static void ni_event(comedi_device * dev, comedi_subdevice * s)
 	comedi_event(dev, s);
 }
 
-static void handle_gpct_interrupt(comedi_device * dev,
+static void handle_gpct_interrupt(struct comedi_device * dev,
 	unsigned short counter_index)
 {
 #ifdef PCIDMA
@@ -945,7 +945,7 @@ static void handle_gpct_interrupt(comedi_device * dev,
 #endif
 }
 
-static void ack_a_interrupt(comedi_device * dev, unsigned short a_status)
+static void ack_a_interrupt(struct comedi_device * dev, unsigned short a_status)
 {
 	unsigned short ack = 0;
 
@@ -966,7 +966,7 @@ static void ack_a_interrupt(comedi_device * dev, unsigned short a_status)
 		devpriv->stc_writew(dev, ack, Interrupt_A_Ack_Register);
 }
 
-static void handle_a_interrupt(comedi_device * dev, unsigned short status,
+static void handle_a_interrupt(struct comedi_device * dev, unsigned short status,
 	unsigned ai_mite_status)
 {
 	comedi_subdevice *s = dev->subdevices + NI_AI_SUBDEV;
@@ -1070,7 +1070,7 @@ static void handle_a_interrupt(comedi_device * dev, unsigned short status,
 #endif
 }
 
-static void ack_b_interrupt(comedi_device * dev, unsigned short b_status)
+static void ack_b_interrupt(struct comedi_device * dev, unsigned short b_status)
 {
 	unsigned short ack = 0;
 	if (b_status & AO_BC_TC_St) {
@@ -1098,7 +1098,7 @@ static void ack_b_interrupt(comedi_device * dev, unsigned short b_status)
 		devpriv->stc_writew(dev, ack, Interrupt_B_Ack_Register);
 }
 
-static void handle_b_interrupt(comedi_device * dev, unsigned short b_status,
+static void handle_b_interrupt(struct comedi_device * dev, unsigned short b_status,
 	unsigned ao_mite_status)
 {
 	comedi_subdevice *s = dev->subdevices + NI_AO_SUBDEV;
@@ -1204,7 +1204,7 @@ static void ni_mio_print_status_b(int status)
 
 #ifndef PCIDMA
 
-static void ni_ao_fifo_load(comedi_device * dev, comedi_subdevice * s, int n)
+static void ni_ao_fifo_load(struct comedi_device * dev, comedi_subdevice * s, int n)
 {
 	comedi_async *async = s->async;
 	comedi_cmd *cmd = &async->cmd;
@@ -1263,7 +1263,7 @@ static void ni_ao_fifo_load(comedi_device * dev, comedi_subdevice * s, int n)
  *  RT code, as RT code might purposely be running close to the
  *  metal.  Needs to be fixed eventually.
  */
-static int ni_ao_fifo_half_empty(comedi_device * dev, comedi_subdevice * s)
+static int ni_ao_fifo_half_empty(struct comedi_device * dev, comedi_subdevice * s)
 {
 	int n;
 
@@ -1284,7 +1284,7 @@ static int ni_ao_fifo_half_empty(comedi_device * dev, comedi_subdevice * s)
 	return 1;
 }
 
-static int ni_ao_prep_fifo(comedi_device * dev, comedi_subdevice * s)
+static int ni_ao_prep_fifo(struct comedi_device * dev, comedi_subdevice * s)
 {
 	int n;
 
@@ -1307,7 +1307,7 @@ static int ni_ao_prep_fifo(comedi_device * dev, comedi_subdevice * s)
 	return n;
 }
 
-static void ni_ai_fifo_read(comedi_device * dev, comedi_subdevice * s, int n)
+static void ni_ai_fifo_read(struct comedi_device * dev, comedi_subdevice * s, int n)
 {
 	comedi_async *async = s->async;
 	int i;
@@ -1364,7 +1364,7 @@ static void ni_ai_fifo_read(comedi_device * dev, comedi_subdevice * s, int n)
 	}
 }
 
-static void ni_handle_fifo_half_full(comedi_device * dev)
+static void ni_handle_fifo_half_full(struct comedi_device * dev)
 {
 	int n;
 	comedi_subdevice *s = dev->subdevices + NI_AI_SUBDEV;
@@ -1376,7 +1376,7 @@ static void ni_handle_fifo_half_full(comedi_device * dev)
 #endif
 
 #ifdef PCIDMA
-static int ni_ai_drain_dma(comedi_device * dev)
+static int ni_ai_drain_dma(struct comedi_device * dev)
 {
 	int i;
 	static const int timeout = 10000;
@@ -1414,7 +1414,7 @@ static int ni_ai_drain_dma(comedi_device * dev)
 /*
    Empties the AI fifo
 */
-static void ni_handle_fifo_dregs(comedi_device * dev)
+static void ni_handle_fifo_dregs(struct comedi_device * dev)
 {
 	comedi_subdevice *s = dev->subdevices + NI_AI_SUBDEV;
 	short data[2];
@@ -1476,7 +1476,7 @@ static void ni_handle_fifo_dregs(comedi_device * dev)
 	}
 }
 
-static void get_last_sample_611x(comedi_device * dev)
+static void get_last_sample_611x(struct comedi_device * dev)
 {
 	comedi_subdevice *s = dev->subdevices + NI_AI_SUBDEV;
 	short data;
@@ -1493,7 +1493,7 @@ static void get_last_sample_611x(comedi_device * dev)
 	}
 }
 
-static void get_last_sample_6143(comedi_device * dev)
+static void get_last_sample_6143(struct comedi_device * dev)
 {
 	comedi_subdevice *s = dev->subdevices + NI_AI_SUBDEV;
 	short data;
@@ -1513,7 +1513,7 @@ static void get_last_sample_6143(comedi_device * dev)
 	}
 }
 
-static void ni_ai_munge(comedi_device * dev, comedi_subdevice * s,
+static void ni_ai_munge(struct comedi_device * dev, comedi_subdevice * s,
 	void *data, unsigned int num_bytes, unsigned int chan_index)
 {
 	comedi_async *async = s->async;
@@ -1539,7 +1539,7 @@ static void ni_ai_munge(comedi_device * dev, comedi_subdevice * s,
 
 #ifdef PCIDMA
 
-static int ni_ai_setup_MITE_dma(comedi_device * dev)
+static int ni_ai_setup_MITE_dma(struct comedi_device * dev)
 {
 	comedi_subdevice *s = dev->subdevices + NI_AI_SUBDEV;
 	int retval;
@@ -1579,7 +1579,7 @@ static int ni_ai_setup_MITE_dma(comedi_device * dev)
 	return 0;
 }
 
-static int ni_ao_setup_MITE_dma(comedi_device * dev)
+static int ni_ao_setup_MITE_dma(struct comedi_device * dev)
 {
 	comedi_subdevice *s = dev->subdevices + NI_AO_SUBDEV;
 	int retval;
@@ -1617,7 +1617,7 @@ static int ni_ao_setup_MITE_dma(comedi_device * dev)
    this is pretty harsh for a cancel, but it works...
  */
 
-static int ni_ai_reset(comedi_device * dev, comedi_subdevice * s)
+static int ni_ai_reset(struct comedi_device * dev, comedi_subdevice * s)
 {
 	ni_release_ai_mite_channel(dev);
 	/* ai configuration */
@@ -1698,7 +1698,7 @@ static int ni_ai_reset(comedi_device * dev, comedi_subdevice * s)
 	return 0;
 }
 
-static int ni_ai_poll(comedi_device * dev, comedi_subdevice * s)
+static int ni_ai_poll(struct comedi_device * dev, comedi_subdevice * s)
 {
 	unsigned long flags = 0;
 	int count;
@@ -1718,7 +1718,7 @@ static int ni_ai_poll(comedi_device * dev, comedi_subdevice * s)
 	return count;
 }
 
-static int ni_ai_insn_read(comedi_device * dev, comedi_subdevice * s,
+static int ni_ai_insn_read(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	int i, n;
@@ -1814,7 +1814,7 @@ static int ni_ai_insn_read(comedi_device * dev, comedi_subdevice * s,
 	return insn->n;
 }
 
-void ni_prime_channelgain_list(comedi_device * dev)
+void ni_prime_channelgain_list(struct comedi_device * dev)
 {
 	int i;
 	devpriv->stc_writew(dev, AI_CONVERT_Pulse, AI_Command_1_Register);
@@ -1830,7 +1830,7 @@ void ni_prime_channelgain_list(comedi_device * dev)
 	rt_printk("ni_mio_common: timeout loading channel/gain list\n");
 }
 
-static void ni_m_series_load_channelgain_list(comedi_device * dev,
+static void ni_m_series_load_channelgain_list(struct comedi_device * dev,
 	unsigned int n_chan, unsigned int *list)
 {
 	unsigned int chan, range, aref;
@@ -1935,7 +1935,7 @@ static void ni_m_series_load_channelgain_list(comedi_device * dev,
  *   bits 0-2: channel
  *       valid channels are 0-3
  */
-static void ni_load_channelgain_list(comedi_device * dev, unsigned int n_chan,
+static void ni_load_channelgain_list(struct comedi_device * dev, unsigned int n_chan,
 	unsigned int *list)
 {
 	unsigned int chan, range, aref;
@@ -2055,7 +2055,7 @@ static void ni_load_channelgain_list(comedi_device * dev, unsigned int n_chan,
 	}
 }
 
-static int ni_ns_to_timer(const comedi_device * dev, unsigned nanosec,
+static int ni_ns_to_timer(const struct comedi_device * dev, unsigned nanosec,
 	int round_mode)
 {
 	int divider;
@@ -2074,12 +2074,12 @@ static int ni_ns_to_timer(const comedi_device * dev, unsigned nanosec,
 	return divider - 1;
 }
 
-static unsigned ni_timer_to_ns(const comedi_device * dev, int timer)
+static unsigned ni_timer_to_ns(const struct comedi_device * dev, int timer)
 {
 	return devpriv->clock_ns * (timer + 1);
 }
 
-static unsigned ni_min_ai_scan_period_ns(comedi_device * dev,
+static unsigned ni_min_ai_scan_period_ns(struct comedi_device * dev,
 	unsigned num_channels)
 {
 	switch (boardtype.reg_type) {
@@ -2095,7 +2095,7 @@ static unsigned ni_min_ai_scan_period_ns(comedi_device * dev,
 	return boardtype.ai_speed * num_channels;
 }
 
-static int ni_ai_cmdtest(comedi_device * dev, comedi_subdevice * s,
+static int ni_ai_cmdtest(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_cmd * cmd)
 {
 	int err = 0;
@@ -2308,7 +2308,7 @@ static int ni_ai_cmdtest(comedi_device * dev, comedi_subdevice * s,
 	return 0;
 }
 
-static int ni_ai_cmd(comedi_device * dev, comedi_subdevice * s)
+static int ni_ai_cmd(struct comedi_device * dev, comedi_subdevice * s)
 {
 	const comedi_cmd *cmd = &s->async->cmd;
 	int timer;
@@ -2612,7 +2612,7 @@ static int ni_ai_cmd(comedi_device * dev, comedi_subdevice * s)
 	return 0;
 }
 
-static int ni_ai_inttrig(comedi_device * dev, comedi_subdevice * s,
+static int ni_ai_inttrig(struct comedi_device * dev, comedi_subdevice * s,
 	unsigned int trignum)
 {
 	if (trignum != 0)
@@ -2625,10 +2625,10 @@ static int ni_ai_inttrig(comedi_device * dev, comedi_subdevice * s,
 	return 1;
 }
 
-static int ni_ai_config_analog_trig(comedi_device * dev, comedi_subdevice * s,
+static int ni_ai_config_analog_trig(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data);
 
-static int ni_ai_insn_config(comedi_device * dev, comedi_subdevice * s,
+static int ni_ai_insn_config(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	if (insn->n < 1)
@@ -2679,7 +2679,7 @@ static int ni_ai_insn_config(comedi_device * dev, comedi_subdevice * s,
 	return -EINVAL;
 }
 
-static int ni_ai_config_analog_trig(comedi_device * dev, comedi_subdevice * s,
+static int ni_ai_config_analog_trig(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	unsigned int a, b, modebits;
@@ -2777,7 +2777,7 @@ static int ni_ai_config_analog_trig(comedi_device * dev, comedi_subdevice * s,
 }
 
 /* munge data from unsigned to 2's complement for analog output bipolar modes */
-static void ni_ao_munge(comedi_device * dev, comedi_subdevice * s,
+static void ni_ao_munge(struct comedi_device * dev, comedi_subdevice * s,
 	void *data, unsigned int num_bytes, unsigned int chan_index)
 {
 	comedi_async *async = s->async;
@@ -2800,7 +2800,7 @@ static void ni_ao_munge(comedi_device * dev, comedi_subdevice * s,
 	}
 }
 
-static int ni_m_series_ao_config_chanlist(comedi_device * dev,
+static int ni_m_series_ao_config_chanlist(struct comedi_device * dev,
 	comedi_subdevice * s, unsigned int chanspec[], unsigned int n_chans,
 	int timed)
 {
@@ -2869,7 +2869,7 @@ static int ni_m_series_ao_config_chanlist(comedi_device * dev,
 	return invert;
 }
 
-static int ni_old_ao_config_chanlist(comedi_device * dev, comedi_subdevice * s,
+static int ni_old_ao_config_chanlist(struct comedi_device * dev, comedi_subdevice * s,
 	unsigned int chanspec[], unsigned int n_chans)
 {
 	unsigned int range;
@@ -2912,7 +2912,7 @@ static int ni_old_ao_config_chanlist(comedi_device * dev, comedi_subdevice * s,
 	return invert;
 }
 
-static int ni_ao_config_chanlist(comedi_device * dev, comedi_subdevice * s,
+static int ni_ao_config_chanlist(struct comedi_device * dev, comedi_subdevice * s,
 	unsigned int chanspec[], unsigned int n_chans, int timed)
 {
 	if (boardtype.reg_type & ni_reg_m_series_mask)
@@ -2921,7 +2921,7 @@ static int ni_ao_config_chanlist(comedi_device * dev, comedi_subdevice * s,
 	else
 		return ni_old_ao_config_chanlist(dev, s, chanspec, n_chans);
 }
-static int ni_ao_insn_read(comedi_device * dev, comedi_subdevice * s,
+static int ni_ao_insn_read(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	data[0] = devpriv->ao[CR_CHAN(insn->chanspec)];
@@ -2929,7 +2929,7 @@ static int ni_ao_insn_read(comedi_device * dev, comedi_subdevice * s,
 	return 1;
 }
 
-static int ni_ao_insn_write(comedi_device * dev, comedi_subdevice * s,
+static int ni_ao_insn_write(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	unsigned int chan = CR_CHAN(insn->chanspec);
@@ -2948,7 +2948,7 @@ static int ni_ao_insn_write(comedi_device * dev, comedi_subdevice * s,
 	return 1;
 }
 
-static int ni_ao_insn_write_671x(comedi_device * dev, comedi_subdevice * s,
+static int ni_ao_insn_write_671x(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	unsigned int chan = CR_CHAN(insn->chanspec);
@@ -2965,7 +2965,7 @@ static int ni_ao_insn_write_671x(comedi_device * dev, comedi_subdevice * s,
 	return 1;
 }
 
-static int ni_ao_insn_config(comedi_device * dev, comedi_subdevice * s,
+static int ni_ao_insn_config(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	switch (data[0]) {
@@ -2991,7 +2991,7 @@ static int ni_ao_insn_config(comedi_device * dev, comedi_subdevice * s,
 	return -EINVAL;
 }
 
-static int ni_ao_inttrig(comedi_device * dev, comedi_subdevice * s,
+static int ni_ao_inttrig(struct comedi_device * dev, comedi_subdevice * s,
 	unsigned int trignum)
 {
 	int ret;
@@ -3062,7 +3062,7 @@ static int ni_ao_inttrig(comedi_device * dev, comedi_subdevice * s,
 	return 0;
 }
 
-static int ni_ao_cmd(comedi_device * dev, comedi_subdevice * s)
+static int ni_ao_cmd(struct comedi_device * dev, comedi_subdevice * s)
 {
 	const comedi_cmd *cmd = &s->async->cmd;
 	int bits;
@@ -3261,7 +3261,7 @@ static int ni_ao_cmd(comedi_device * dev, comedi_subdevice * s)
 	return 0;
 }
 
-static int ni_ao_cmdtest(comedi_device * dev, comedi_subdevice * s,
+static int ni_ao_cmdtest(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_cmd * cmd)
 {
 	int err = 0;
@@ -3384,7 +3384,7 @@ static int ni_ao_cmdtest(comedi_device * dev, comedi_subdevice * s,
 	return 0;
 }
 
-static int ni_ao_reset(comedi_device * dev, comedi_subdevice * s)
+static int ni_ao_reset(struct comedi_device * dev, comedi_subdevice * s)
 {
 	//devpriv->ao0p=0x0000;
 	//ni_writew(devpriv->ao0p,AO_Configuration);
@@ -3436,7 +3436,7 @@ static int ni_ao_reset(comedi_device * dev, comedi_subdevice * s)
 
 // digital io
 
-static int ni_dio_insn_config(comedi_device * dev, comedi_subdevice * s,
+static int ni_dio_insn_config(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 #ifdef DEBUG_DIO
@@ -3468,7 +3468,7 @@ static int ni_dio_insn_config(comedi_device * dev, comedi_subdevice * s,
 	return 1;
 }
 
-static int ni_dio_insn_bits(comedi_device * dev, comedi_subdevice * s,
+static int ni_dio_insn_bits(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 #ifdef DEBUG_DIO
@@ -3495,7 +3495,7 @@ static int ni_dio_insn_bits(comedi_device * dev, comedi_subdevice * s,
 	return 2;
 }
 
-static int ni_m_series_dio_insn_config(comedi_device * dev,
+static int ni_m_series_dio_insn_config(struct comedi_device * dev,
 	comedi_subdevice * s, comedi_insn * insn, unsigned int * data)
 {
 #ifdef DEBUG_DIO
@@ -3525,7 +3525,7 @@ static int ni_m_series_dio_insn_config(comedi_device * dev,
 	return 1;
 }
 
-static int ni_m_series_dio_insn_bits(comedi_device * dev, comedi_subdevice * s,
+static int ni_m_series_dio_insn_bits(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 #ifdef DEBUG_DIO
@@ -3544,7 +3544,7 @@ static int ni_m_series_dio_insn_bits(comedi_device * dev, comedi_subdevice * s,
 	return 2;
 }
 
-static int ni_cdio_cmdtest(comedi_device * dev, comedi_subdevice * s,
+static int ni_cdio_cmdtest(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_cmd * cmd)
 {
 	int err = 0;
@@ -3653,7 +3653,7 @@ static int ni_cdio_cmdtest(comedi_device * dev, comedi_subdevice * s,
 	return 0;
 }
 
-static int ni_cdio_cmd(comedi_device * dev, comedi_subdevice * s)
+static int ni_cdio_cmd(struct comedi_device * dev, comedi_subdevice * s)
 {
 	const comedi_cmd *cmd = &s->async->cmd;
 	unsigned cdo_mode_bits = CDO_FIFO_Mode_Bit | CDO_Halt_On_Error_Bit;
@@ -3690,7 +3690,7 @@ static int ni_cdio_cmd(comedi_device * dev, comedi_subdevice * s)
 	return 0;
 }
 
-static int ni_cdo_inttrig(comedi_device * dev, comedi_subdevice * s,
+static int ni_cdo_inttrig(struct comedi_device * dev, comedi_subdevice * s,
 	unsigned int trignum)
 {
 #ifdef PCIDMA
@@ -3736,7 +3736,7 @@ static int ni_cdo_inttrig(comedi_device * dev, comedi_subdevice * s,
 	return retval;
 }
 
-static int ni_cdio_cancel(comedi_device * dev, comedi_subdevice * s)
+static int ni_cdio_cancel(struct comedi_device * dev, comedi_subdevice * s)
 {
 	ni_writel(CDO_Disarm_Bit | CDO_Error_Interrupt_Enable_Clear_Bit |
 		CDO_Empty_FIFO_Interrupt_Enable_Clear_Bit |
@@ -3749,7 +3749,7 @@ static int ni_cdio_cancel(comedi_device * dev, comedi_subdevice * s)
 	return 0;
 }
 
-static void handle_cdio_interrupt(comedi_device * dev)
+static void handle_cdio_interrupt(struct comedi_device * dev)
 {
 	unsigned cdio_status;
 	comedi_subdevice *s = dev->subdevices + NI_DIO_SUBDEV;
@@ -3790,7 +3790,7 @@ static void handle_cdio_interrupt(comedi_device * dev)
 	ni_event(dev, s);
 }
 
-static int ni_serial_insn_config(comedi_device * dev, comedi_subdevice * s,
+static int ni_serial_insn_config(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	int err = insn->n;
@@ -3884,7 +3884,7 @@ static int ni_serial_insn_config(comedi_device * dev, comedi_subdevice * s,
 
 }
 
-static int ni_serial_hw_readwrite8(comedi_device * dev, comedi_subdevice * s,
+static int ni_serial_hw_readwrite8(struct comedi_device * dev, comedi_subdevice * s,
 	unsigned char data_out, unsigned char *data_in)
 {
 	unsigned int status1;
@@ -3940,7 +3940,7 @@ static int ni_serial_hw_readwrite8(comedi_device * dev, comedi_subdevice * s,
 	return err;
 }
 
-static int ni_serial_sw_readwrite8(comedi_device * dev, comedi_subdevice * s,
+static int ni_serial_sw_readwrite8(struct comedi_device * dev, comedi_subdevice * s,
 	unsigned char data_out, unsigned char *data_in)
 {
 	unsigned char mask, input = 0;
@@ -3993,7 +3993,7 @@ static int ni_serial_sw_readwrite8(comedi_device * dev, comedi_subdevice * s,
 	return 0;
 }
 
-static void mio_common_detach(comedi_device * dev)
+static void mio_common_detach(struct comedi_device * dev)
 {
 	if (dev->private) {
 		if (devpriv->counter_dev) {
@@ -4004,7 +4004,7 @@ static void mio_common_detach(comedi_device * dev)
 		subdev_8255_cleanup(dev, dev->subdevices + NI_8255_DIO_SUBDEV);
 }
 
-static void init_ao_67xx(comedi_device * dev, comedi_subdevice * s)
+static void init_ao_67xx(struct comedi_device * dev, comedi_subdevice * s)
 {
 	int i;
 
@@ -4111,7 +4111,7 @@ static unsigned ni_gpct_to_stc_register(enum ni_gpct_register reg)
 static void ni_gpct_write_register(struct ni_gpct *counter, unsigned bits,
 	enum ni_gpct_register reg)
 {
-	comedi_device *dev = counter->counter_dev->dev;
+	struct comedi_device *dev = counter->counter_dev->dev;
 	unsigned stc_register;
 	/* bits in the join reset register which are relevant to counters */
 	static const unsigned gpct_joint_reset_mask = G0_Reset | G1_Reset;
@@ -4179,7 +4179,7 @@ static void ni_gpct_write_register(struct ni_gpct *counter, unsigned bits,
 static unsigned ni_gpct_read_register(struct ni_gpct *counter,
 	enum ni_gpct_register reg)
 {
-	comedi_device *dev = counter->counter_dev->dev;
+	struct comedi_device *dev = counter->counter_dev->dev;
 	unsigned stc_register;
 	switch (reg) {
 		/* m-series only registers */
@@ -4208,14 +4208,14 @@ static unsigned ni_gpct_read_register(struct ni_gpct *counter,
 	return 0;
 }
 
-static int ni_freq_out_insn_read(comedi_device * dev,
+static int ni_freq_out_insn_read(struct comedi_device * dev,
 	comedi_subdevice * s, comedi_insn * insn, unsigned int * data)
 {
 	data[0] = devpriv->clock_and_fout & FOUT_Divider_mask;
 	return 1;
 }
 
-static int ni_freq_out_insn_write(comedi_device * dev,
+static int ni_freq_out_insn_write(struct comedi_device * dev,
 	comedi_subdevice * s, comedi_insn * insn, unsigned int * data)
 {
 	devpriv->clock_and_fout &= ~FOUT_Enable;
@@ -4229,7 +4229,7 @@ static int ni_freq_out_insn_write(comedi_device * dev,
 	return insn->n;
 }
 
-static int ni_set_freq_out_clock(comedi_device * dev, unsigned int clock_source)
+static int ni_set_freq_out_clock(struct comedi_device * dev, unsigned int clock_source)
 {
 	switch (clock_source) {
 	case NI_FREQ_OUT_TIMEBASE_1_DIV_2_CLOCK_SRC:
@@ -4246,7 +4246,7 @@ static int ni_set_freq_out_clock(comedi_device * dev, unsigned int clock_source)
 	return 3;
 }
 
-static void ni_get_freq_out_clock(comedi_device * dev, unsigned int * clock_source,
+static void ni_get_freq_out_clock(struct comedi_device * dev, unsigned int * clock_source,
 	unsigned int * clock_period_ns)
 {
 	if (devpriv->clock_and_fout & FOUT_Timebase_Select) {
@@ -4258,7 +4258,7 @@ static void ni_get_freq_out_clock(comedi_device * dev, unsigned int * clock_sour
 	}
 }
 
-static int ni_freq_out_insn_config(comedi_device * dev, comedi_subdevice * s,
+static int ni_freq_out_insn_config(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	switch (data[0]) {
@@ -4274,7 +4274,7 @@ static int ni_freq_out_insn_config(comedi_device * dev, comedi_subdevice * s,
 	return -EINVAL;
 }
 
-static int ni_alloc_private(comedi_device * dev)
+static int ni_alloc_private(struct comedi_device * dev)
 {
 	int ret;
 
@@ -4289,7 +4289,7 @@ static int ni_alloc_private(comedi_device * dev)
 	return 0;
 };
 
-static int ni_E_init(comedi_device * dev, comedi_devconfig * it)
+static int ni_E_init(struct comedi_device * dev, comedi_devconfig * it)
 {
 	comedi_subdevice *s;
 	unsigned j;
@@ -4609,7 +4609,7 @@ static int ni_E_init(comedi_device * dev, comedi_devconfig * it)
 
 static int ni_8255_callback(int dir, int port, int data, unsigned long arg)
 {
-	comedi_device *dev = (comedi_device *) arg;
+	struct comedi_device *dev = (struct comedi_device *) arg;
 
 	if (dir) {
 		ni_writeb(data, Port_A + 2 * port);
@@ -4623,7 +4623,7 @@ static int ni_8255_callback(int dir, int port, int data, unsigned long arg)
 	presents the EEPROM as a subdevice
 */
 
-static int ni_eeprom_insn_read(comedi_device * dev, comedi_subdevice * s,
+static int ni_eeprom_insn_read(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	data[0] = ni_read_eeprom(dev, CR_CHAN(insn->chanspec));
@@ -4635,7 +4635,7 @@ static int ni_eeprom_insn_read(comedi_device * dev, comedi_subdevice * s,
 	reads bytes out of eeprom
 */
 
-static int ni_read_eeprom(comedi_device * dev, int addr)
+static int ni_read_eeprom(struct comedi_device * dev, int addr)
 {
 	int bit;
 	int bitstring;
@@ -4659,7 +4659,7 @@ static int ni_read_eeprom(comedi_device * dev, int addr)
 	return bitstring;
 }
 
-static int ni_m_series_eeprom_insn_read(comedi_device * dev,
+static int ni_m_series_eeprom_insn_read(struct comedi_device * dev,
 	comedi_subdevice * s, comedi_insn * insn, unsigned int * data)
 {
 	data[0] = devpriv->eeprom_buffer[CR_CHAN(insn->chanspec)];
@@ -4667,14 +4667,14 @@ static int ni_m_series_eeprom_insn_read(comedi_device * dev,
 	return 1;
 }
 
-static int ni_get_pwm_config(comedi_device * dev, unsigned int * data)
+static int ni_get_pwm_config(struct comedi_device * dev, unsigned int * data)
 {
 	data[1] = devpriv->pwm_up_count * devpriv->clock_ns;
 	data[2] = devpriv->pwm_down_count * devpriv->clock_ns;
 	return 3;
 }
 
-static int ni_m_series_pwm_config(comedi_device * dev, comedi_subdevice * s,
+static int ni_m_series_pwm_config(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	unsigned up_count, down_count;
@@ -4739,7 +4739,7 @@ static int ni_m_series_pwm_config(comedi_device * dev, comedi_subdevice * s,
 	return 0;
 }
 
-static int ni_6143_pwm_config(comedi_device * dev, comedi_subdevice * s,
+static int ni_6143_pwm_config(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	unsigned up_count, down_count;
@@ -4802,11 +4802,11 @@ static int ni_6143_pwm_config(comedi_device * dev, comedi_subdevice * s,
 	return 0;
 }
 
-static void ni_write_caldac(comedi_device * dev, int addr, int val);
+static void ni_write_caldac(struct comedi_device * dev, int addr, int val);
 /*
 	calibration subdevice
 */
-static int ni_calib_insn_write(comedi_device * dev, comedi_subdevice * s,
+static int ni_calib_insn_write(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	ni_write_caldac(dev, CR_CHAN(insn->chanspec), data[0]);
@@ -4814,7 +4814,7 @@ static int ni_calib_insn_write(comedi_device * dev, comedi_subdevice * s,
 	return 1;
 }
 
-static int ni_calib_insn_read(comedi_device * dev, comedi_subdevice * s,
+static int ni_calib_insn_read(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	data[0] = devpriv->caldacs[CR_CHAN(insn->chanspec)];
@@ -4845,7 +4845,7 @@ static struct caldac_struct caldacs[] = {
 	[ad8804_debug] = {16, 8, pack_ad8804},
 };
 
-static void caldac_setup(comedi_device * dev, comedi_subdevice * s)
+static void caldac_setup(struct comedi_device * dev, comedi_subdevice * s)
 {
 	int i, j;
 	int n_dacs;
@@ -4898,7 +4898,7 @@ static void caldac_setup(comedi_device * dev, comedi_subdevice * s)
 	}
 }
 
-static void ni_write_caldac(comedi_device * dev, int addr, int val)
+static void ni_write_caldac(struct comedi_device * dev, int addr, int val)
 {
 	unsigned int loadbit = 0, bits = 0, bit, bitstring = 0;
 	int i;
@@ -4985,7 +4985,7 @@ static int pack_ad8842(int addr, int val, int *bitstring)
 /*
  *	Read the GPCTs current value.
  */
-static int GPCT_G_Watch(comedi_device * dev, int chan)
+static int GPCT_G_Watch(struct comedi_device * dev, int chan)
 {
 	unsigned int hi1, hi2, lo;
 
@@ -5008,7 +5008,7 @@ static int GPCT_G_Watch(comedi_device * dev, int chan)
 	return (hi1 << 16) | lo;
 }
 
-static void GPCT_Reset(comedi_device * dev, int chan)
+static void GPCT_Reset(struct comedi_device * dev, int chan)
 {
 	int temp_ack_reg = 0;
 
@@ -5070,28 +5070,28 @@ static void GPCT_Reset(comedi_device * dev, int chan)
 
 #endif
 
-static int ni_gpct_insn_config(comedi_device * dev, comedi_subdevice * s,
+static int ni_gpct_insn_config(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	struct ni_gpct *counter = s->private;
 	return ni_tio_insn_config(counter, insn, data);
 }
 
-static int ni_gpct_insn_read(comedi_device * dev, comedi_subdevice * s,
+static int ni_gpct_insn_read(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	struct ni_gpct *counter = s->private;
 	return ni_tio_rinsn(counter, insn, data);
 }
 
-static int ni_gpct_insn_write(comedi_device * dev, comedi_subdevice * s,
+static int ni_gpct_insn_write(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	struct ni_gpct *counter = s->private;
 	return ni_tio_winsn(counter, insn, data);
 }
 
-static int ni_gpct_cmd(comedi_device * dev, comedi_subdevice * s)
+static int ni_gpct_cmd(struct comedi_device * dev, comedi_subdevice * s)
 {
 	int retval;
 #ifdef PCIDMA
@@ -5114,7 +5114,7 @@ static int ni_gpct_cmd(comedi_device * dev, comedi_subdevice * s)
 	return retval;
 }
 
-static int ni_gpct_cmdtest(comedi_device * dev, comedi_subdevice * s,
+static int ni_gpct_cmdtest(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_cmd * cmd)
 {
 #ifdef PCIDMA
@@ -5126,7 +5126,7 @@ static int ni_gpct_cmdtest(comedi_device * dev, comedi_subdevice * s,
 #endif
 }
 
-static int ni_gpct_cancel(comedi_device * dev, comedi_subdevice * s)
+static int ni_gpct_cancel(struct comedi_device * dev, comedi_subdevice * s)
 {
 #ifdef PCIDMA
 	struct ni_gpct *counter = s->private;
@@ -5147,7 +5147,7 @@ static int ni_gpct_cancel(comedi_device * dev, comedi_subdevice * s)
  *
  */
 
-static int ni_m_series_set_pfi_routing(comedi_device * dev, unsigned chan,
+static int ni_m_series_set_pfi_routing(struct comedi_device * dev, unsigned chan,
 	unsigned source)
 {
 	unsigned pfi_reg_index;
@@ -5165,7 +5165,7 @@ static int ni_m_series_set_pfi_routing(comedi_device * dev, unsigned chan,
 	return 2;
 }
 
-static int ni_old_set_pfi_routing(comedi_device * dev, unsigned chan,
+static int ni_old_set_pfi_routing(struct comedi_device * dev, unsigned chan,
 	unsigned source)
 {
 	// pre-m-series boards have fixed signals on pfi pins
@@ -5174,7 +5174,7 @@ static int ni_old_set_pfi_routing(comedi_device * dev, unsigned chan,
 	return 2;
 }
 
-static int ni_set_pfi_routing(comedi_device * dev, unsigned chan,
+static int ni_set_pfi_routing(struct comedi_device * dev, unsigned chan,
 	unsigned source)
 {
 	if (boardtype.reg_type & ni_reg_m_series_mask)
@@ -5183,14 +5183,14 @@ static int ni_set_pfi_routing(comedi_device * dev, unsigned chan,
 		return ni_old_set_pfi_routing(dev, chan, source);
 }
 
-static unsigned ni_m_series_get_pfi_routing(comedi_device * dev, unsigned chan)
+static unsigned ni_m_series_get_pfi_routing(struct comedi_device * dev, unsigned chan)
 {
 	const unsigned array_offset = chan / 3;
 	return MSeries_PFI_Output_Select_Source(chan,
 		devpriv->pfi_output_select_reg[array_offset]);
 }
 
-static unsigned ni_old_get_pfi_routing(comedi_device * dev, unsigned chan)
+static unsigned ni_old_get_pfi_routing(struct comedi_device * dev, unsigned chan)
 {
 	// pre-m-series boards have fixed signals on pfi pins
 	switch (chan) {
@@ -5231,7 +5231,7 @@ static unsigned ni_old_get_pfi_routing(comedi_device * dev, unsigned chan)
 	return 0;
 }
 
-static unsigned ni_get_pfi_routing(comedi_device * dev, unsigned chan)
+static unsigned ni_get_pfi_routing(struct comedi_device * dev, unsigned chan)
 {
 	if (boardtype.reg_type & ni_reg_m_series_mask)
 		return ni_m_series_get_pfi_routing(dev, chan);
@@ -5239,7 +5239,7 @@ static unsigned ni_get_pfi_routing(comedi_device * dev, unsigned chan)
 		return ni_old_get_pfi_routing(dev, chan);
 }
 
-static int ni_config_filter(comedi_device * dev, unsigned pfi_channel,
+static int ni_config_filter(struct comedi_device * dev, unsigned pfi_channel,
 	enum ni_pfi_filter_select filter)
 {
 	unsigned bits;
@@ -5253,7 +5253,7 @@ static int ni_config_filter(comedi_device * dev, unsigned pfi_channel,
 	return 0;
 }
 
-static int ni_pfi_insn_bits(comedi_device * dev, comedi_subdevice * s,
+static int ni_pfi_insn_bits(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	if ((boardtype.reg_type & ni_reg_m_series_mask) == 0) {
@@ -5268,7 +5268,7 @@ static int ni_pfi_insn_bits(comedi_device * dev, comedi_subdevice * s,
 	return 2;
 }
 
-static int ni_pfi_insn_config(comedi_device * dev, comedi_subdevice * s,
+static int ni_pfi_insn_config(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	unsigned int chan;
@@ -5312,7 +5312,7 @@ static int ni_pfi_insn_config(comedi_device * dev, comedi_subdevice * s,
  *  NI RTSI Bus Functions
  *
  */
-static void ni_rtsi_init(comedi_device * dev)
+static void ni_rtsi_init(struct comedi_device * dev)
 {
 	// Initialises the RTSI bus signal switch to a default state
 
@@ -5345,7 +5345,7 @@ static void ni_rtsi_init(comedi_device * dev)
 //      devpriv->stc_writew(dev, 0x0000, RTSI_Board_Register);
 }
 
-static int ni_rtsi_insn_bits(comedi_device * dev, comedi_subdevice * s,
+static int ni_rtsi_insn_bits(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	if (insn->n != 2)
@@ -5401,7 +5401,7 @@ static int ni_mseries_get_pll_parameters(unsigned reference_period_ns,
 	return 0;
 }
 
-static inline unsigned num_configurable_rtsi_channels(comedi_device * dev)
+static inline unsigned num_configurable_rtsi_channels(struct comedi_device * dev)
 {
 	if (boardtype.reg_type & ni_reg_m_series_mask)
 		return 8;
@@ -5409,7 +5409,7 @@ static inline unsigned num_configurable_rtsi_channels(comedi_device * dev)
 		return 7;
 }
 
-static int ni_mseries_set_pll_master_clock(comedi_device * dev, unsigned source,
+static int ni_mseries_set_pll_master_clock(struct comedi_device * dev, unsigned source,
 	unsigned period_ns)
 {
 	static const unsigned min_period_ns = 50;
@@ -5504,7 +5504,7 @@ static int ni_mseries_set_pll_master_clock(comedi_device * dev, unsigned source,
 	return 3;
 }
 
-static int ni_set_master_clock(comedi_device * dev, unsigned source,
+static int ni_set_master_clock(struct comedi_device * dev, unsigned source,
 	unsigned period_ns)
 {
 	if (source == NI_MIO_INTERNAL_CLOCK) {
@@ -5548,7 +5548,7 @@ static int ni_set_master_clock(comedi_device * dev, unsigned source,
 	return 3;
 }
 
-static int ni_valid_rtsi_output_source(comedi_device * dev, unsigned chan,
+static int ni_valid_rtsi_output_source(struct comedi_device * dev, unsigned chan,
 	unsigned source)
 {
 	if (chan >= num_configurable_rtsi_channels(dev)) {
@@ -5589,7 +5589,7 @@ static int ni_valid_rtsi_output_source(comedi_device * dev, unsigned chan,
 	}
 }
 
-static int ni_set_rtsi_routing(comedi_device * dev, unsigned chan,
+static int ni_set_rtsi_routing(struct comedi_device * dev, unsigned chan,
 	unsigned source)
 {
 	if (ni_valid_rtsi_output_source(dev, chan, source) == 0)
@@ -5610,7 +5610,7 @@ static int ni_set_rtsi_routing(comedi_device * dev, unsigned chan,
 	return 2;
 }
 
-static unsigned ni_get_rtsi_routing(comedi_device * dev, unsigned chan)
+static unsigned ni_get_rtsi_routing(struct comedi_device * dev, unsigned chan)
 {
 	if (chan < 4) {
 		return RTSI_Trig_Output_Source(chan,
@@ -5626,7 +5626,7 @@ static unsigned ni_get_rtsi_routing(comedi_device * dev, unsigned chan)
 	}
 }
 
-static int ni_rtsi_insn_config(comedi_device * dev, comedi_subdevice * s,
+static int ni_rtsi_insn_config(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	unsigned int chan = CR_CHAN(insn->chanspec);
@@ -5698,7 +5698,7 @@ static int ni_rtsi_insn_config(comedi_device * dev, comedi_subdevice * s,
 	return 1;
 }
 
-static int cs5529_wait_for_idle(comedi_device * dev)
+static int cs5529_wait_for_idle(struct comedi_device * dev)
 {
 	unsigned short status;
 	const int timeout = HZ;
@@ -5722,7 +5722,7 @@ static int cs5529_wait_for_idle(comedi_device * dev)
 	return 0;
 }
 
-static void cs5529_command(comedi_device * dev, unsigned short value)
+static void cs5529_command(struct comedi_device * dev, unsigned short value)
 {
 	static const int timeout = 100;
 	int i;
@@ -5744,7 +5744,7 @@ static void cs5529_command(comedi_device * dev, unsigned short value)
 }
 
 /* write to cs5529 register */
-static void cs5529_config_write(comedi_device * dev, unsigned int value,
+static void cs5529_config_write(struct comedi_device * dev, unsigned int value,
 	unsigned int reg_select_bits)
 {
 	ni_ao_win_outw(dev, ((value >> 16) & 0xff),
@@ -5759,7 +5759,7 @@ static void cs5529_config_write(comedi_device * dev, unsigned int value,
 
 #ifdef NI_CS5529_DEBUG
 /* read from cs5529 register */
-static unsigned int cs5529_config_read(comedi_device * dev,
+static unsigned int cs5529_config_read(struct comedi_device * dev,
 	unsigned int reg_select_bits)
 {
 	unsigned int value;
@@ -5775,7 +5775,7 @@ static unsigned int cs5529_config_read(comedi_device * dev,
 }
 #endif
 
-static int cs5529_do_conversion(comedi_device * dev, unsigned short *data)
+static int cs5529_do_conversion(struct comedi_device * dev, unsigned short *data)
 {
 	int retval;
 	unsigned short status;
@@ -5805,7 +5805,7 @@ static int cs5529_do_conversion(comedi_device * dev, unsigned short *data)
 	return 0;
 }
 
-static int cs5529_ai_insn_read(comedi_device * dev, comedi_subdevice * s,
+static int cs5529_ai_insn_read(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	int n, retval;
@@ -5831,7 +5831,7 @@ static int cs5529_ai_insn_read(comedi_device * dev, comedi_subdevice * s,
 	return insn->n;
 }
 
-static int init_cs5529(comedi_device * dev)
+static int init_cs5529(struct comedi_device * dev)
 {
 	unsigned int config_bits =
 		CSCFG_PORT_MODE | CSCFG_WORD_RATE_2180_CYCLES;

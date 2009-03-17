@@ -146,8 +146,8 @@ static const boardtype boardtypes[] = {
 #define devpriv ((pcl816_private *)dev->private)
 #define this_board ((const boardtype *)dev->board_ptr)
 
-static int pcl816_attach(comedi_device * dev, comedi_devconfig * it);
-static int pcl816_detach(comedi_device * dev);
+static int pcl816_attach(struct comedi_device * dev, comedi_devconfig * it);
+static int pcl816_detach(struct comedi_device * dev);
 
 #ifdef unused
 static int RTC_lock = 0;	/* RTC lock */
@@ -209,24 +209,24 @@ typedef struct {
 /*
 ==============================================================================
 */
-static int check_and_setup_channel_list(comedi_device * dev,
+static int check_and_setup_channel_list(struct comedi_device * dev,
 	comedi_subdevice * s, unsigned int *chanlist, int chanlen);
-static int pcl816_ai_cancel(comedi_device * dev, comedi_subdevice * s);
-static void start_pacer(comedi_device * dev, int mode, unsigned int divisor1,
+static int pcl816_ai_cancel(struct comedi_device * dev, comedi_subdevice * s);
+static void start_pacer(struct comedi_device * dev, int mode, unsigned int divisor1,
 	unsigned int divisor2);
 #ifdef unused
 static int set_rtc_irq_bit(unsigned char bit);
 #endif
 
-static int pcl816_ai_cmdtest(comedi_device * dev, comedi_subdevice * s,
+static int pcl816_ai_cmdtest(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_cmd * cmd);
-static int pcl816_ai_cmd(comedi_device * dev, comedi_subdevice * s);
+static int pcl816_ai_cmd(struct comedi_device * dev, comedi_subdevice * s);
 
 /*
 ==============================================================================
    ANALOG INPUT MODE0, 816 cards, slow version
 */
-static int pcl816_ai_insn_read(comedi_device * dev, comedi_subdevice * s,
+static int pcl816_ai_insn_read(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	int n;
@@ -280,7 +280,7 @@ static int pcl816_ai_insn_read(comedi_device * dev, comedi_subdevice * s,
 */
 static irqreturn_t interrupt_pcl816_ai_mode13_int(int irq, void *d)
 {
-	comedi_device *dev = d;
+	struct comedi_device *dev = d;
 	comedi_subdevice *s = dev->subdevices + 0;
 	int low, hi;
 	int timeout = 50;	/* wait max 50us */
@@ -330,7 +330,7 @@ static irqreturn_t interrupt_pcl816_ai_mode13_int(int irq, void *d)
 ==============================================================================
    analog input dma mode 1 & 3, 816 cards
 */
-static void transfer_from_dma_buf(comedi_device * dev, comedi_subdevice * s,
+static void transfer_from_dma_buf(struct comedi_device * dev, comedi_subdevice * s,
 	short * ptr, unsigned int bufptr, unsigned int len)
 {
 	int i;
@@ -361,7 +361,7 @@ static void transfer_from_dma_buf(comedi_device * dev, comedi_subdevice * s,
 
 static irqreturn_t interrupt_pcl816_ai_mode13_dma(int irq, void *d)
 {
-	comedi_device *dev = d;
+	struct comedi_device *dev = d;
 	comedi_subdevice *s = dev->subdevices + 0;
 	int len, bufptr, this_dma_buf;
 	unsigned long dma_flags;
@@ -407,7 +407,7 @@ static irqreturn_t interrupt_pcl816_ai_mode13_dma(int irq, void *d)
 */
 static irqreturn_t interrupt_pcl816(int irq, void *d PT_REGS_ARG)
 {
-	comedi_device *dev = d;
+	struct comedi_device *dev = d;
 	DPRINTK("<I>");
 
 	if (!dev->attached) {
@@ -458,7 +458,7 @@ static void pcl816_cmdtest_out(int e, comedi_cmd * cmd)
 /*
 ==============================================================================
 */
-static int pcl816_ai_cmdtest(comedi_device * dev, comedi_subdevice * s,
+static int pcl816_ai_cmdtest(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_cmd * cmd)
 {
 	int err = 0;
@@ -593,7 +593,7 @@ static int pcl816_ai_cmdtest(comedi_device * dev, comedi_subdevice * s,
 	return 0;
 }
 
-static int pcl816_ai_cmd(comedi_device * dev, comedi_subdevice * s)
+static int pcl816_ai_cmd(struct comedi_device * dev, comedi_subdevice * s)
 {
 	unsigned int divisor1 = 0, divisor2 = 0, dma_flags, bytes, dmairq;
 	comedi_cmd *cmd = &s->async->cmd;
@@ -698,7 +698,7 @@ static int pcl816_ai_cmd(comedi_device * dev, comedi_subdevice * s)
 	return 0;
 }
 
-static int pcl816_ai_poll(comedi_device * dev, comedi_subdevice * s)
+static int pcl816_ai_poll(struct comedi_device * dev, comedi_subdevice * s)
 {
 	unsigned long flags;
 	unsigned int top1, top2, i;
@@ -741,7 +741,7 @@ static int pcl816_ai_poll(comedi_device * dev, comedi_subdevice * s)
 ==============================================================================
  cancel any mode 1-4 AI
 */
-static int pcl816_ai_cancel(comedi_device * dev, comedi_subdevice * s)
+static int pcl816_ai_cancel(struct comedi_device * dev, comedi_subdevice * s)
 {
 //  DEBUG(rt_printk("pcl816_ai_cancel()\n");)
 
@@ -809,7 +809,7 @@ static int pcl816_check(unsigned long iobase)
 ==============================================================================
  reset whole PCL-816 cards
 */
-static void pcl816_reset(comedi_device * dev)
+static void pcl816_reset(struct comedi_device * dev)
 {
 //  outb (0, dev->iobase + PCL818_DA_LO);       // DAC=0V
 //  outb (0, dev->iobase + PCL818_DA_HI);
@@ -831,7 +831,7 @@ static void pcl816_reset(comedi_device * dev)
  Start/stop pacer onboard pacer
 */
 static void
-start_pacer(comedi_device * dev, int mode, unsigned int divisor1,
+start_pacer(struct comedi_device * dev, int mode, unsigned int divisor1,
 	unsigned int divisor2)
 {
 	outb(0x32, dev->iobase + PCL816_CTRCTL);
@@ -861,7 +861,7 @@ start_pacer(comedi_device * dev, int mode, unsigned int divisor1,
  If it's ok, then program scan/gain logic
 */
 static int
-check_and_setup_channel_list(comedi_device * dev, comedi_subdevice * s,
+check_and_setup_channel_list(struct comedi_device * dev, comedi_subdevice * s,
 	unsigned int *chanlist, int chanlen)
 {
 	unsigned int chansegment[16];
@@ -975,7 +975,7 @@ static int set_rtc_irq_bit(unsigned char bit)
 ==============================================================================
   Free any resources that we have claimed
 */
-static void free_resources(comedi_device * dev)
+static void free_resources(struct comedi_device * dev)
 {
 	//rt_printk("free_resource()\n");
 	if (dev->private) {
@@ -1011,7 +1011,7 @@ static void free_resources(comedi_device * dev)
    Initialization
 
 */
-static int pcl816_attach(comedi_device * dev, comedi_devconfig * it)
+static int pcl816_attach(struct comedi_device * dev, comedi_devconfig * it)
 {
 	int ret;
 	unsigned long iobase;
@@ -1234,7 +1234,7 @@ case COMEDI_SUBD_DO:
 ==============================================================================
   Removes device
  */
-static int pcl816_detach(comedi_device * dev)
+static int pcl816_detach(struct comedi_device * dev)
 {
 	DEBUG(rt_printk("comedi%d: pcl816: remove\n", dev->minor);
 		)

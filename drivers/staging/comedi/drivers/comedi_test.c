@@ -93,8 +93,8 @@ struct waveform_private {
 };
 #define devpriv ((struct waveform_private *)dev->private)
 
-static int waveform_attach(comedi_device *dev, comedi_devconfig *it);
-static int waveform_detach(comedi_device *dev);
+static int waveform_attach(struct comedi_device *dev, comedi_devconfig *it);
+static int waveform_detach(struct comedi_device *dev);
 static comedi_driver driver_waveform = {
       .driver_name =	"comedi_test",
       .module =		THIS_MODULE,
@@ -107,21 +107,21 @@ static comedi_driver driver_waveform = {
 
 COMEDI_INITCLEANUP(driver_waveform);
 
-static int waveform_ai_cmdtest(comedi_device *dev, comedi_subdevice *s,
+static int waveform_ai_cmdtest(struct comedi_device *dev, comedi_subdevice *s,
 			       comedi_cmd *cmd);
-static int waveform_ai_cmd(comedi_device *dev, comedi_subdevice *s);
-static int waveform_ai_cancel(comedi_device *dev, comedi_subdevice *s);
-static int waveform_ai_insn_read(comedi_device *dev, comedi_subdevice *s,
+static int waveform_ai_cmd(struct comedi_device *dev, comedi_subdevice *s);
+static int waveform_ai_cancel(struct comedi_device *dev, comedi_subdevice *s);
+static int waveform_ai_insn_read(struct comedi_device *dev, comedi_subdevice *s,
 				 comedi_insn *insn, unsigned int *data);
-static int waveform_ao_insn_write(comedi_device *dev, comedi_subdevice *s,
+static int waveform_ao_insn_write(struct comedi_device *dev, comedi_subdevice *s,
 				  comedi_insn *insn, unsigned int *data);
-static short fake_sawtooth(comedi_device *dev, unsigned int range,
+static short fake_sawtooth(struct comedi_device *dev, unsigned int range,
 			     unsigned long current_time);
-static short fake_squarewave(comedi_device *dev, unsigned int range,
+static short fake_squarewave(struct comedi_device *dev, unsigned int range,
 			       unsigned long current_time);
-static short fake_flatline(comedi_device *dev, unsigned int range,
+static short fake_flatline(struct comedi_device *dev, unsigned int range,
 			     unsigned long current_time);
-static short fake_waveform(comedi_device *dev, unsigned int channel,
+static short fake_waveform(struct comedi_device *dev, unsigned int channel,
 			     unsigned int range, unsigned long current_time);
 
 /* 1000 nanosec in a microsec */
@@ -143,7 +143,7 @@ static const comedi_lrange waveform_ai_ranges = {
 */
 static void waveform_ai_interrupt(unsigned long arg)
 {
-	comedi_device *dev = (comedi_device *) arg;
+	struct comedi_device *dev = (struct comedi_device *) arg;
 	comedi_async *async = dev->read_subdev->async;
 	comedi_cmd *cmd = &async->cmd;
 	unsigned int i, j;
@@ -192,7 +192,7 @@ static void waveform_ai_interrupt(unsigned long arg)
 	comedi_event(dev, dev->read_subdev);
 }
 
-static int waveform_attach(comedi_device *dev, comedi_devconfig *it)
+static int waveform_attach(struct comedi_device *dev, comedi_devconfig *it)
 {
 	comedi_subdevice *s;
 	int amplitude = it->options[0];
@@ -259,7 +259,7 @@ static int waveform_attach(comedi_device *dev, comedi_devconfig *it)
 	return 1;
 }
 
-static int waveform_detach(comedi_device *dev)
+static int waveform_detach(struct comedi_device *dev)
 {
 	printk("comedi%d: comedi_test: remove\n", dev->minor);
 
@@ -269,7 +269,7 @@ static int waveform_detach(comedi_device *dev)
 	return 0;
 }
 
-static int waveform_ai_cmdtest(comedi_device *dev, comedi_subdevice *s,
+static int waveform_ai_cmdtest(struct comedi_device *dev, comedi_subdevice *s,
 			       comedi_cmd *cmd)
 {
 	int err = 0;
@@ -397,7 +397,7 @@ static int waveform_ai_cmdtest(comedi_device *dev, comedi_subdevice *s,
 	return 0;
 }
 
-static int waveform_ai_cmd(comedi_device *dev, comedi_subdevice *s)
+static int waveform_ai_cmd(struct comedi_device *dev, comedi_subdevice *s)
 {
 	comedi_cmd *cmd = &s->async->cmd;
 
@@ -429,14 +429,14 @@ static int waveform_ai_cmd(comedi_device *dev, comedi_subdevice *s)
 	return 0;
 }
 
-static int waveform_ai_cancel(comedi_device *dev, comedi_subdevice *s)
+static int waveform_ai_cancel(struct comedi_device *dev, comedi_subdevice *s)
 {
 	devpriv->timer_running = 0;
 	del_timer(&devpriv->timer);
 	return 0;
 }
 
-static short fake_sawtooth(comedi_device *dev, unsigned int range_index,
+static short fake_sawtooth(struct comedi_device *dev, unsigned int range_index,
 			     unsigned long current_time)
 {
 	comedi_subdevice *s = dev->read_subdev;
@@ -457,7 +457,7 @@ static short fake_sawtooth(comedi_device *dev, unsigned int range_index,
 
 	return offset + value;
 }
-static short fake_squarewave(comedi_device *dev, unsigned int range_index,
+static short fake_squarewave(struct comedi_device *dev, unsigned int range_index,
 			       unsigned long current_time)
 {
 	comedi_subdevice *s = dev->read_subdev;
@@ -476,14 +476,14 @@ static short fake_squarewave(comedi_device *dev, unsigned int range_index,
 	return offset + value;
 }
 
-static short fake_flatline(comedi_device *dev, unsigned int range_index,
+static short fake_flatline(struct comedi_device *dev, unsigned int range_index,
 			     unsigned long current_time)
 {
 	return dev->read_subdev->maxdata / 2;
 }
 
 /* generates a different waveform depending on what channel is read */
-static short fake_waveform(comedi_device *dev, unsigned int channel,
+static short fake_waveform(struct comedi_device *dev, unsigned int channel,
 			     unsigned int range, unsigned long current_time)
 {
 	enum {
@@ -504,7 +504,7 @@ static short fake_waveform(comedi_device *dev, unsigned int channel,
 	return fake_flatline(dev, range, current_time);
 }
 
-static int waveform_ai_insn_read(comedi_device *dev, comedi_subdevice *s,
+static int waveform_ai_insn_read(struct comedi_device *dev, comedi_subdevice *s,
 				 comedi_insn *insn, unsigned int *data)
 {
 	int i, chan = CR_CHAN(insn->chanspec);
@@ -515,7 +515,7 @@ static int waveform_ai_insn_read(comedi_device *dev, comedi_subdevice *s,
 	return insn->n;
 }
 
-static int waveform_ao_insn_write(comedi_device *dev, comedi_subdevice *s,
+static int waveform_ao_insn_write(struct comedi_device *dev, comedi_subdevice *s,
 				  comedi_insn *insn, unsigned int *data)
 {
 	int i, chan = CR_CHAN(insn->chanspec);

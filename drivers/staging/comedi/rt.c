@@ -57,7 +57,7 @@ struct comedi_irq_struct {
 	 irqreturn_t(*handler) (int irq, void *dev_id PT_REGS_ARG);
 	unsigned long flags;
 	const char *device;
-	comedi_device *dev_id;
+	struct comedi_device *dev_id;
 };
 
 static int comedi_rt_get_irq(struct comedi_irq_struct *it);
@@ -67,7 +67,7 @@ static struct comedi_irq_struct *comedi_irqs[NR_IRQS];
 
 int comedi_request_irq(unsigned irq, irqreturn_t(*handler) (int,
 		void *PT_REGS_ARG), unsigned long flags, const char *device,
-	comedi_device *dev_id)
+	struct comedi_device *dev_id)
 {
 	struct comedi_irq_struct *it;
 	int ret;
@@ -102,7 +102,7 @@ int comedi_request_irq(unsigned irq, irqreturn_t(*handler) (int,
 	return 0;
 }
 
-void comedi_free_irq(unsigned int irq, comedi_device *dev_id)
+void comedi_free_irq(unsigned int irq, struct comedi_device *dev_id)
 {
 	struct comedi_irq_struct *it;
 
@@ -121,7 +121,7 @@ void comedi_free_irq(unsigned int irq, comedi_device *dev_id)
 	comedi_irqs[irq] = NULL;
 }
 
-int comedi_switch_to_rt(comedi_device *dev)
+int comedi_switch_to_rt(struct comedi_device *dev)
 {
 	struct comedi_irq_struct *it;
 	unsigned long flags;
@@ -145,7 +145,7 @@ int comedi_switch_to_rt(comedi_device *dev)
 	return 0;
 }
 
-void comedi_switch_to_non_rt(comedi_device *dev)
+void comedi_switch_to_non_rt(struct comedi_device *dev)
 {
 	struct comedi_irq_struct *it;
 	unsigned long flags;

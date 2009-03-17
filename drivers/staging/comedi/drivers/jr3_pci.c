@@ -60,10 +60,10 @@ static struct device comedi_fw_device = {
 	.release = comedi_fw_release
 };
 
-typedef int comedi_firmware_callback(comedi_device * dev,
+typedef int comedi_firmware_callback(struct comedi_device * dev,
 	const u8 * data, size_t size);
 
-static int comedi_load_firmware(comedi_device * dev,
+static int comedi_load_firmware(struct comedi_device * dev,
 	char *name, comedi_firmware_callback cb)
 {
 	int result = 0;
@@ -103,8 +103,8 @@ static int comedi_load_firmware(comedi_device * dev,
 #define PCI_DEVICE_ID_JR3_3_CHANNEL 0x3113
 #define PCI_DEVICE_ID_JR3_4_CHANNEL 0x3114
 
-static int jr3_pci_attach(comedi_device * dev, comedi_devconfig * it);
-static int jr3_pci_detach(comedi_device * dev);
+static int jr3_pci_attach(struct comedi_device * dev, comedi_devconfig * it);
+static int jr3_pci_detach(struct comedi_device * dev);
 
 static comedi_driver driver_jr3_pci = {
       driver_name:"jr3_pci",
@@ -269,7 +269,7 @@ static six_axis_t get_max_full_scales(volatile jr3_channel_t * channel)
 	return result;
 }
 
-static int jr3_pci_ai_insn_read(comedi_device * dev, comedi_subdevice * s,
+static int jr3_pci_ai_insn_read(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	int result;
@@ -385,7 +385,7 @@ static int jr3_pci_ai_insn_read(comedi_device * dev, comedi_subdevice * s,
 	return result;
 }
 
-static void jr3_pci_open(comedi_device * dev)
+static void jr3_pci_open(struct comedi_device * dev)
 {
 	int i;
 	jr3_pci_dev_private *devpriv = dev->private;
@@ -424,7 +424,7 @@ int read_idm_word(const u8 * data, size_t size, int *pos, unsigned int *val)
 	return result;
 }
 
-static int jr3_download_firmware(comedi_device * dev, const u8 * data,
+static int jr3_download_firmware(struct comedi_device * dev, const u8 * data,
 	size_t size)
 {
 	/*
@@ -737,7 +737,7 @@ static poll_delay_t jr3_pci_poll_subdevice(comedi_subdevice * s)
 static void jr3_pci_poll_dev(unsigned long data)
 {
 	unsigned long flags;
-	comedi_device *dev = (comedi_device *) data;
+	struct comedi_device *dev = (struct comedi_device *) data;
 	jr3_pci_dev_private *devpriv = dev->private;
 	unsigned long now;
 	int delay;
@@ -770,7 +770,7 @@ static void jr3_pci_poll_dev(unsigned long data)
 	add_timer(&devpriv->timer);
 }
 
-static int jr3_pci_attach(comedi_device * dev, comedi_devconfig * it)
+static int jr3_pci_attach(struct comedi_device * dev, comedi_devconfig * it)
 {
 	int result = 0;
 	struct pci_dev *card = NULL;
@@ -940,7 +940,7 @@ static int jr3_pci_attach(comedi_device * dev, comedi_devconfig * it)
 	return result;
 }
 
-static int jr3_pci_detach(comedi_device * dev)
+static int jr3_pci_detach(struct comedi_device * dev)
 {
 	int i;
 	jr3_pci_dev_private *devpriv = dev->private;

@@ -59,8 +59,8 @@ addition, the clock does not seem to be very accurate.
 #define DT2814_ENB 0x10
 #define DT2814_CHANMASK 0x0f
 
-static int dt2814_attach(comedi_device * dev, comedi_devconfig * it);
-static int dt2814_detach(comedi_device * dev);
+static int dt2814_attach(struct comedi_device * dev, comedi_devconfig * it);
+static int dt2814_detach(struct comedi_device * dev);
 static comedi_driver driver_dt2814 = {
       driver_name:"dt2814",
       module:THIS_MODULE,
@@ -81,7 +81,7 @@ typedef struct {
 #define DT2814_TIMEOUT 10
 #define DT2814_MAX_SPEED 100000	/* Arbitrary 10 khz limit */
 
-static int dt2814_ai_insn_read(comedi_device * dev, comedi_subdevice * s,
+static int dt2814_ai_insn_read(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	int n, i, hi, lo;
@@ -132,7 +132,7 @@ static int dt2814_ns_to_timer(unsigned int *ns, unsigned int flags)
 	return i;
 }
 
-static int dt2814_ai_cmdtest(comedi_device * dev, comedi_subdevice * s,
+static int dt2814_ai_cmdtest(struct comedi_device * dev, comedi_subdevice * s,
 	comedi_cmd * cmd)
 {
 	int err = 0;
@@ -224,7 +224,7 @@ static int dt2814_ai_cmdtest(comedi_device * dev, comedi_subdevice * s,
 	return 0;
 }
 
-static int dt2814_ai_cmd(comedi_device * dev, comedi_subdevice * s)
+static int dt2814_ai_cmd(struct comedi_device * dev, comedi_subdevice * s)
 {
 	comedi_cmd *cmd = &s->async->cmd;
 	int chan;
@@ -243,7 +243,7 @@ static int dt2814_ai_cmd(comedi_device * dev, comedi_subdevice * s)
 
 }
 
-static int dt2814_attach(comedi_device * dev, comedi_devconfig * it)
+static int dt2814_attach(struct comedi_device * dev, comedi_devconfig * it)
 {
 	int i, irq;
 	int ret;
@@ -327,7 +327,7 @@ static int dt2814_attach(comedi_device * dev, comedi_devconfig * it)
 	return 0;
 }
 
-static int dt2814_detach(comedi_device * dev)
+static int dt2814_detach(struct comedi_device * dev)
 {
 	printk("comedi%d: dt2814: remove\n", dev->minor);
 
@@ -344,7 +344,7 @@ static int dt2814_detach(comedi_device * dev)
 static irqreturn_t dt2814_interrupt(int irq, void *d PT_REGS_ARG)
 {
 	int lo, hi;
-	comedi_device *dev = d;
+	struct comedi_device *dev = d;
 	comedi_subdevice *s;
 	int data;
 

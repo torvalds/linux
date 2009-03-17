@@ -33,11 +33,11 @@
 /*
  * SSI INISIALISATION FUNCTION
  */
-INT i_APCI1710_InsnConfigInitSSI(comedi_device *dev, comedi_subdevice *s,
+INT i_APCI1710_InsnConfigInitSSI(struct comedi_device *dev, comedi_subdevice *s,
 				 comedi_insn *insn, unsigned int *data);
 
-INT i_APCI1710_InsnReadSSIValue(comedi_device *dev, comedi_subdevice *s,
+INT i_APCI1710_InsnReadSSIValue(struct comedi_device *dev, comedi_subdevice *s,
 				comedi_insn *insn, unsigned int *data);
 
-INT i_APCI1710_InsnBitsSSIDigitalIO(comedi_device *dev, comedi_subdevice *s,
+INT i_APCI1710_InsnBitsSSIDigitalIO(struct comedi_device *dev, comedi_subdevice *s,
 				    comedi_insn *insn, unsigned int *data);
