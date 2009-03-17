@@ -180,29 +180,6 @@ EXPORT_SYMBOL_GPL(tracing_is_on);
 
 #include "trace.h"
 
-/* Up this if you want to test the TIME_EXTENTS and normalization */
-#define DEBUG_SHIFT 0
-
-u64 ring_buffer_time_stamp(int cpu)
-{
-	u64 time;
-
-	preempt_disable_notrace();
-	/* shift to debug/test normalization and TIME_EXTENTS */
-	time = trace_clock_local() << DEBUG_SHIFT;
-	preempt_enable_no_resched_notrace();
-
-	return time;
-}
-EXPORT_SYMBOL_GPL(ring_buffer_time_stamp);
-
-void ring_buffer_normalize_time_stamp(int cpu, u64 *ts)
-{
-	/* Just stupid testing the normalize function and deltas */
-	*ts >>= DEBUG_SHIFT;
-}
-EXPORT_SYMBOL_GPL(ring_buffer_normalize_time_stamp);
-
 #define RB_EVNT_HDR_SIZE (offsetof(struct ring_buffer_event, array))
 #define RB_ALIGNMENT		4U
 #define RB_MAX_SMALL_DATA	28
@@ -374,6 +351,7 @@ struct ring_buffer {
 #ifdef CONFIG_HOTPLUG_CPU
 	struct notifier_block		cpu_notify;
 #endif
+	u64				(*clock)(void);
 };
 
 struct ring_buffer_iter {
@@ -393,6 +371,30 @@ struct ring_buffer_iter {
 		}						\
 		_____ret;					\
 	})
+
+/* Up this if you want to test the TIME_EXTENTS and normalization */
+#define DEBUG_SHIFT 0
+
+u64 ring_buffer_time_stamp(struct ring_buffer *buffer, int cpu)
+{
+	u64 time;
+
+	preempt_disable_notrace();
+	/* shift to debug/test normalization and TIME_EXTENTS */
+	time = buffer->clock() << DEBUG_SHIFT;
+	preempt_enable_no_resched_notrace();
+
+	return time;
+}
+EXPORT_SYMBOL_GPL(ring_buffer_time_stamp);
+
+void ring_buffer_normalize_time_stamp(struct ring_buffer *buffer,
+				      int cpu, u64 *ts)
+{
+	/* Just stupid testing the normalize function and deltas */
+	*ts >>= DEBUG_SHIFT;
+}
+EXPORT_SYMBOL_GPL(ring_buffer_normalize_time_stamp);
 
 /**
  * check_pages - integrity check of buffer pages
@@ -569,6 +571,7 @@ struct ring_buffer *ring_buffer_alloc(unsigned long size, unsigned flags)
 
 	buffer->pages = DIV_ROUND_UP(size, BUF_PAGE_SIZE);
 	buffer->flags = flags;
+	buffer->clock = trace_clock_local;
 
 	/* need at least two pages */
 	if (buffer->pages == 1)
@@ -644,6 +647,12 @@ ring_buffer_free(struct ring_buffer *buffer)
 	kfree(buffer);
 }
 EXPORT_SYMBOL_GPL(ring_buffer_free);
+
+void ring_buffer_set_clock(struct ring_buffer *buffer,
+			   u64 (*clock)(void))
+{
+	buffer->clock = clock;
+}
 
 static void rb_reset_cpu(struct ring_buffer_per_cpu *cpu_buffer);
 
@@ -1191,7 +1200,7 @@ __rb_reserve_next(struct ring_buffer_per_cpu *cpu_buffer,
 			cpu_buffer->tail_page = next_page;
 
 			/* reread the time stamp */
-			*ts = ring_buffer_time_stamp(cpu_buffer->cpu);
+			*ts = ring_buffer_time_stamp(buffer, cpu_buffer->cpu);
 			cpu_buffer->tail_page->page->time_stamp = *ts;
 		}
 
@@ -1334,7 +1343,7 @@ rb_reserve_next_event(struct ring_buffer_per_cpu *cpu_buffer,
 	if (RB_WARN_ON(cpu_buffer, ++nr_loops > 1000))
 		return NULL;
 
-	ts = ring_buffer_time_stamp(cpu_buffer->cpu);
+	ts = ring_buffer_time_stamp(cpu_buffer->buffer, cpu_buffer->cpu);
 
 	/*
 	 * Only the first commit can update the timestamp.
@@ -2051,7 +2060,8 @@ rb_buffer_peek(struct ring_buffer *buffer, int cpu, u64 *ts)
 	case RINGBUF_TYPE_DATA:
 		if (ts) {
 			*ts = cpu_buffer->read_stamp + event->time_delta;
-			ring_buffer_normalize_time_stamp(cpu_buffer->cpu, ts);
+			ring_buffer_normalize_time_stamp(buffer,
+							 cpu_buffer->cpu, ts);
 		}
 		return event;
 
@@ -2112,7 +2122,8 @@ rb_iter_peek(struct ring_buffer_iter *iter, u64 *ts)
 	case RINGBUF_TYPE_DATA:
 		if (ts) {
 			*ts = iter->read_stamp + event->time_delta;
-			ring_buffer_normalize_time_stamp(cpu_buffer->cpu, ts);
+			ring_buffer_normalize_time_stamp(buffer,
+							 cpu_buffer->cpu, ts);
 		}
 		return event;
 

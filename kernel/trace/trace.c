@@ -155,13 +155,6 @@ ns2usecs(cycle_t nsec)
 	return nsec;
 }
 
-cycle_t ftrace_now(int cpu)
-{
-	u64 ts = ring_buffer_time_stamp(cpu);
-	ring_buffer_normalize_time_stamp(cpu, &ts);
-	return ts;
-}
-
 /*
  * The global_trace is the descriptor that holds the tracing
  * buffers for the live tracing. For each CPU, it contains
@@ -177,6 +170,20 @@ cycle_t ftrace_now(int cpu)
 static struct trace_array	global_trace;
 
 static DEFINE_PER_CPU(struct trace_array_cpu, global_trace_cpu);
+
+cycle_t ftrace_now(int cpu)
+{
+	u64 ts;
+
+	/* Early boot up does not have a buffer yet */
+	if (!global_trace.buffer)
+		return trace_clock_local();
+
+	ts = ring_buffer_time_stamp(global_trace.buffer, cpu);
+	ring_buffer_normalize_time_stamp(global_trace.buffer, cpu, &ts);
+
+	return ts;
+}
 
 /*
  * The max_tr is used to snapshot the global_trace when a maximum
