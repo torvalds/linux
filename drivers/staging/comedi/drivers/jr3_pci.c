@@ -130,7 +130,7 @@ MODULE_DEVICE_TABLE(pci, jr3_pci_pci_table);
 typedef struct {
 	struct pci_dev *pci_dev;
 	int pci_enabled;
-	volatile jr3_t *iobase;
+	volatile struct jr3_t *iobase;
 	int n_channels;
 	struct timer_list timer;
 } jr3_pci_dev_private;
@@ -845,7 +845,7 @@ static int jr3_pci_attach(struct comedi_device * dev, struct comedi_devconfig * 
 		return -EIO;
 	}
 	devpriv->pci_enabled = 1;
-	devpriv->iobase = ioremap(pci_resource_start(card, 0), sizeof(jr3_t));
+	devpriv->iobase = ioremap(pci_resource_start(card, 0), sizeof(struct jr3_t));
 	result = alloc_subdevices(dev, devpriv->n_channels);
 	if (result < 0)
 		goto out;

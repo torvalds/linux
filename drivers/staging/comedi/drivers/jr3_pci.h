@@ -669,7 +669,7 @@ typedef struct force_sensor_data {
 	intern_transform_t transforms[0x10];	/* offset 0x0200 */
 } jr3_channel_t;
 
-typedef struct {
+struct jr3_t {
 	struct {
 		u32 program_low[0x4000];	/*  0x00000 - 0x10000 */
 		jr3_channel_t data;	/*  0x10000 - 0x10c00 */
@@ -678,4 +678,4 @@ typedef struct {
 		u32 reset;	/*  0x60000 - 0x60004 */
 		char pad3[0x20000 - 0x00004];	/*  0x60004 - 0x80000 */
 	} channel[4];
-} jr3_t;
+};
