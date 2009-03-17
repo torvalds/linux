@@ -437,14 +437,14 @@ MODULE_DEVICE_TABLE(pci, dio200_pci_table);
 /* this structure is for data unique to this hardware driver.  If
    several hardware drivers keep similar information in this structure,
    feel free to suggest moving the variable to the struct comedi_device struct.  */
-typedef struct {
+struct dio200_private {
 #ifdef CONFIG_COMEDI_PCI
 	struct pci_dev *pci_dev;	/* PCI device */
 #endif
 	int intr_sd;
-} dio200_private;
+};
 
-#define devpriv ((dio200_private *)dev->private)
+#define devpriv ((struct dio200_private *)dev->private)
 
 typedef struct {
 	unsigned long iobase;	/* Counter base address */
@@ -1280,7 +1280,7 @@ static int dio200_attach(struct comedi_device * dev, struct comedi_devconfig * i
 	printk(KERN_DEBUG "comedi%d: %s: attach\n", dev->minor,
 		DIO200_DRIVER_NAME);
 
-	if ((ret = alloc_private(dev, sizeof(dio200_private))) < 0) {
+	if ((ret = alloc_private(dev, sizeof(struct dio200_private))) < 0) {
 		printk(KERN_ERR "comedi%d: error! out of memory!\n",
 			dev->minor);
 		return ret;
