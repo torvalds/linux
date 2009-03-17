@@ -155,7 +155,7 @@ MODULE_DEVICE_TABLE(pci, pci_table);
 /* this structure is for data unique to this hardware driver.  If
    several hardware drivers keep similar information in this structure,
    feel free to suggest moving the variable to the struct comedi_device struct.  */
-typedef struct {
+struct board_private_struct {
 	unsigned long registers;	/* set by probe */
 	unsigned long dio_registers;
 	char attached_to_8255;	/* boolean */
@@ -167,13 +167,13 @@ typedef struct {
 	/* Used for AO readback */
 	unsigned int ao_readback[MAX_AO_READBACK_CHANNELS];
 
-} private;
+};
 
 /*
  * most drivers define the following macro to make it easy to
  * access the private structure.
  */
-#define devpriv ((private *)dev->private)
+#define devpriv ((struct board_private_struct *)dev->private)
 
 /*
  * The struct comedi_driver structure tells the Comedi core module
@@ -249,7 +249,7 @@ static int attach(struct comedi_device * dev, struct comedi_devconfig * it)
  * if this function fails (returns negative) then the private area is
  * kfree'd by comedi
  */
-	if (alloc_private(dev, sizeof(private)) < 0)
+	if (alloc_private(dev, sizeof(struct board_private_struct)) < 0)
 		return -ENOMEM;
 
 /*
