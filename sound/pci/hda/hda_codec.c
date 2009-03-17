@@ -2539,12 +2539,11 @@ EXPORT_SYMBOL_HDA(snd_hda_calc_stream_format);
 static int snd_hda_query_supported_pcm(struct hda_codec *codec, hda_nid_t nid,
 				u32 *ratesp, u64 *formatsp, unsigned int *bpsp)
 {
-	int i;
-	unsigned int val, streams;
+	unsigned int i, val, wcaps;
 
 	val = 0;
-	if (nid != codec->afg &&
-	    (get_wcaps(codec, nid) & AC_WCAP_FORMAT_OVRD)) {
+	wcaps = get_wcaps(codec, nid);
+	if (nid != codec->afg && (wcaps & AC_WCAP_FORMAT_OVRD)) {
 		val = snd_hda_param_read(codec, nid, AC_PAR_PCM);
 		if (val == -1)
 			return -EIO;
@@ -2558,15 +2557,20 @@ static int snd_hda_query_supported_pcm(struct hda_codec *codec, hda_nid_t nid,
 			if (val & (1 << i))
 				rates |= rate_bits[i].alsa_bits;
 		}
+		if (rates == 0) {
+			snd_printk(KERN_ERR "hda_codec: rates == 0 "
+				   "(nid=0x%x, val=0x%x, ovrd=%i)\n",
+					nid, val,
+					(wcaps & AC_WCAP_FORMAT_OVRD) ? 1 : 0);
+			return -EIO;
+		}
 		*ratesp = rates;
 	}
 
 	if (formatsp || bpsp) {
 		u64 formats = 0;
-		unsigned int bps;
-		unsigned int wcaps;
+		unsigned int streams, bps;
 
-		wcaps = get_wcaps(codec, nid);
 		streams = snd_hda_param_read(codec, nid, AC_PAR_STREAM);
 		if (streams == -1)
 			return -EIO;
@@ -2618,6 +2622,15 @@ static int snd_hda_query_supported_pcm(struct hda_codec *codec, hda_nid_t nid,
 			 */
 			formats |= SNDRV_PCM_FMTBIT_U8;
 			bps = 8;
+		}
+		if (formats == 0) {
+			snd_printk(KERN_ERR "hda_codec: formats == 0 "
+				   "(nid=0x%x, val=0x%x, ovrd=%i, "
+				   "streams=0x%x)\n",
+					nid, val,
+					(wcaps & AC_WCAP_FORMAT_OVRD) ? 1 : 0,
+					streams);
+			return -EIO;
 		}
 		if (formatsp)
 			*formatsp = formats;
@@ -2734,12 +2747,16 @@ static int hda_pcm_default_cleanup(struct hda_pcm_stream *hinfo,
 static int set_pcm_default_values(struct hda_codec *codec,
 				  struct hda_pcm_stream *info)
 {
+	int err;
+
 	/* query support PCM information from the given NID */
 	if (info->nid && (!info->rates || !info->formats)) {
-		snd_hda_query_supported_pcm(codec, info->nid,
+		err = snd_hda_query_supported_pcm(codec, info->nid,
 				info->rates ? NULL : &info->rates,
 				info->formats ? NULL : &info->formats,
 				info->maxbps ? NULL : &info->maxbps);
+		if (err < 0)
+			return err;
 	}
 	if (info->ops.open == NULL)
 		info->ops.open = hda_pcm_default_open_close;
