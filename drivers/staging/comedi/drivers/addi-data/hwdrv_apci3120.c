@@ -1630,14 +1630,15 @@ void v_APCI3120_Interrupt(int irq, void *d)
 +----------------------------------------------------------------------------+
 */
 
-/*int i_APCI3120_InterruptHandleEos(struct comedi_device *dev)
+/*
+ * int i_APCI3120_InterruptHandleEos(struct comedi_device *dev)
 {
        int n_chan,i;
        short *data;
        struct comedi_subdevice *s=dev->subdevices+0;
-       comedi_async *async = s->async;
-       data=async->data+async->buf_int_ptr;//new samples added from here onwards
-       n_chan=devpriv->ui_AiNbrofChannels;
+       struct comedi_async *async = s->async;
+       data=async->data+async->buf_int_ptr;
+        n_chan=devpriv->ui_AiNbrofChannels;
 
        for(i=0;i<n_chan;i++)
          {

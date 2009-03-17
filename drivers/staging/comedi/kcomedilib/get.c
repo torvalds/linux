@@ -175,7 +175,7 @@ unsigned int comedi_get_buf_head_pos(void *d, unsigned int subdevice)
 {
 	struct comedi_device *dev = (struct comedi_device *) d;
 	struct comedi_subdevice *s = dev->subdevices + subdevice;
-	comedi_async *async;
+	struct comedi_async *async;
 
 	async = s->async;
 	if (async == NULL)
@@ -188,7 +188,7 @@ int comedi_get_buffer_contents(void *d, unsigned int subdevice)
 {
 	struct comedi_device *dev = (struct comedi_device *) d;
 	struct comedi_subdevice *s = dev->subdevices + subdevice;
-	comedi_async *async;
+	struct comedi_async *async;
 	unsigned int num_bytes;
 
 	if (subdevice >= dev->n_subdevices)
@@ -208,7 +208,7 @@ int comedi_set_user_int_count(void *d, unsigned int subdevice,
 {
 	struct comedi_device *dev = (struct comedi_device *) d;
 	struct comedi_subdevice *s = dev->subdevices + subdevice;
-	comedi_async *async;
+	struct comedi_async *async;
 	int num_bytes;
 
 	async = s->async;
@@ -229,7 +229,7 @@ int comedi_mark_buffer_read(void *d, unsigned int subdevice,
 {
 	struct comedi_device *dev = (struct comedi_device *) d;
 	struct comedi_subdevice *s = dev->subdevices + subdevice;
-	comedi_async *async;
+	struct comedi_async *async;
 
 	if (subdevice >= dev->n_subdevices)
 		return -1;
@@ -248,7 +248,7 @@ int comedi_mark_buffer_written(void *d, unsigned int subdevice,
 {
 	struct comedi_device *dev = (struct comedi_device *) d;
 	struct comedi_subdevice *s = dev->subdevices + subdevice;
-	comedi_async *async;
+	struct comedi_async *async;
 	int bytes_written;
 
 	if (subdevice >= dev->n_subdevices)
@@ -267,7 +267,7 @@ int comedi_get_buffer_size(void *d, unsigned int subdev)
 {
 	struct comedi_device *dev = (struct comedi_device *) d;
 	struct comedi_subdevice *s = dev->subdevices + subdev;
-	comedi_async *async;
+	struct comedi_async *async;
 
 	if (subdev >= dev->n_subdevices)
 		return -1;
@@ -282,7 +282,7 @@ int comedi_get_buffer_offset(void *d, unsigned int subdevice)
 {
 	struct comedi_device *dev = (struct comedi_device *) d;
 	struct comedi_subdevice *s = dev->subdevices + subdevice;
-	comedi_async *async;
+	struct comedi_async *async;
 
 	if (subdevice >= dev->n_subdevices)
 		return -1;

@@ -895,7 +895,7 @@ static int das16_cmd_test(struct comedi_device * dev, struct comedi_subdevice * 
 
 static int das16_cmd_exec(struct comedi_device * dev, struct comedi_subdevice * s)
 {
-	comedi_async *async = s->async;
+	struct comedi_async *async = s->async;
 	comedi_cmd *cmd = &async->cmd;
 	unsigned int byte;
 	unsigned long flags;
@@ -1201,7 +1201,7 @@ static void das16_interrupt(struct comedi_device * dev)
 {
 	unsigned long dma_flags, spin_flags;
 	struct comedi_subdevice *s = dev->read_subdev;
-	comedi_async *async;
+	struct comedi_async *async;
 	comedi_cmd *cmd;
 	int num_bytes, residue;
 	int buffer_index;

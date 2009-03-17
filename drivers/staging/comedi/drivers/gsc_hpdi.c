@@ -838,7 +838,7 @@ static int di_cmd(struct comedi_device * dev, struct comedi_subdevice * s)
 {
 	uint32_t bits;
 	unsigned long flags;
-	comedi_async *async = s->async;
+	struct comedi_async *async = s->async;
 	comedi_cmd *cmd = &async->cmd;
 
 	hpdi_writel(dev, RX_FIFO_RESET_BIT, BOARD_CONTROL_REG);
@@ -897,7 +897,7 @@ static int hpdi_cmd(struct comedi_device * dev, struct comedi_subdevice * s)
 
 static void drain_dma_buffers(struct comedi_device * dev, unsigned int channel)
 {
-	comedi_async *async = dev->read_subdev->async;
+	struct comedi_async *async = dev->read_subdev->async;
 	uint32_t next_transfer_addr;
 	int j;
 	int num_samples = 0;
@@ -945,7 +945,7 @@ static irqreturn_t handle_interrupt(int irq, void *d PT_REGS_ARG)
 {
 	struct comedi_device *dev = d;
 	struct comedi_subdevice *s = dev->read_subdev;
-	comedi_async *async = s->async;
+	struct comedi_async *async = s->async;
 	uint32_t hpdi_intr_status, hpdi_board_status;
 	uint32_t plx_status;
 	uint32_t plx_bits;

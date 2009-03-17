@@ -31,7 +31,7 @@
 static void increment_scan_progress(struct comedi_subdevice *subd,
 				    unsigned int num_bytes)
 {
-	comedi_async *async = subd->async;
+	struct comedi_async *async = subd->async;
 	unsigned int scan_length = cfc_bytes_per_scan(subd);
 
 	async->scan_progress += num_bytes;
@@ -45,7 +45,7 @@ static void increment_scan_progress(struct comedi_subdevice *subd,
 unsigned int cfc_write_array_to_buffer(struct comedi_subdevice *subd, void *data,
 				       unsigned int num_bytes)
 {
-	comedi_async *async = subd->async;
+	struct comedi_async *async = subd->async;
 	unsigned int retval;
 
 	if (num_bytes == 0)
@@ -70,7 +70,7 @@ EXPORT_SYMBOL(cfc_write_array_to_buffer);
 unsigned int cfc_read_array_from_buffer(struct comedi_subdevice *subd, void *data,
 					unsigned int num_bytes)
 {
-	comedi_async *async = subd->async;
+	struct comedi_async *async = subd->async;
 
 	if (num_bytes == 0)
 		return 0;

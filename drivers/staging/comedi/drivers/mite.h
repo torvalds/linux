@@ -142,8 +142,8 @@ void mite_release_channel(struct mite_channel *mite_chan);
 unsigned mite_dma_tcr(struct mite_channel *mite_chan);
 void mite_dma_arm(struct mite_channel *mite_chan);
 void mite_dma_disarm(struct mite_channel *mite_chan);
-int mite_sync_input_dma(struct mite_channel *mite_chan, comedi_async * async);
-int mite_sync_output_dma(struct mite_channel *mite_chan, comedi_async * async);
+int mite_sync_input_dma(struct mite_channel *mite_chan, struct comedi_async * async);
+int mite_sync_output_dma(struct mite_channel *mite_chan, struct comedi_async * async);
 u32 mite_bytes_written_to_memory_lb(struct mite_channel *mite_chan);
 u32 mite_bytes_written_to_memory_ub(struct mite_channel *mite_chan);
 u32 mite_bytes_read_from_memory_lb(struct mite_channel *mite_chan);
@@ -153,7 +153,7 @@ unsigned mite_get_status(struct mite_channel *mite_chan);
 int mite_done(struct mite_channel *mite_chan);
 
 #if 0
-unsigned long mite_ll_from_kvmem(struct mite_struct *mite, comedi_async * async,
+unsigned long mite_ll_from_kvmem(struct mite_struct *mite, struct comedi_async * async,
 	int len);
 void mite_setregs(struct mite_struct *mite, unsigned long ll_start, int chan,
 	int dir);
@@ -162,7 +162,7 @@ void mite_setregs(struct mite_struct *mite, unsigned long ll_start, int chan,
 void mite_prep_dma(struct mite_channel *mite_chan,
 	unsigned int num_device_bits, unsigned int num_memory_bits);
 int mite_buf_change(struct mite_dma_descriptor_ring *ring,
-	comedi_async *async);
+	struct comedi_async *async);
 
 #ifdef DEBUG_MITE
 void mite_print_chsr(unsigned int chsr);

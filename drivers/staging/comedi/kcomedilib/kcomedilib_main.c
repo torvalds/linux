@@ -125,7 +125,7 @@ int comedi_command(void *d, comedi_cmd *cmd)
 {
 	struct comedi_device *dev = (struct comedi_device *) d;
 	struct comedi_subdevice *s;
-	comedi_async *async;
+	struct comedi_async *async;
 	unsigned runflags;
 
 	if (cmd->subdev >= dev->n_subdevices)
@@ -372,7 +372,7 @@ int comedi_unlock(void *d, unsigned int subdevice)
 	struct comedi_device *dev = (struct comedi_device *) d;
 	struct comedi_subdevice *s;
 	unsigned long flags;
-	comedi_async *async;
+	struct comedi_async *async;
 	int ret;
 
 	if (subdevice >= dev->n_subdevices)
@@ -469,7 +469,7 @@ int comedi_register_callback(void *d, unsigned int subdevice,
 {
 	struct comedi_device *dev = (struct comedi_device *) d;
 	struct comedi_subdevice *s;
-	comedi_async *async;
+	struct comedi_async *async;
 
 	if (subdevice >= dev->n_subdevices)
 		return -EINVAL;
@@ -505,7 +505,7 @@ int comedi_poll(void *d, unsigned int subdevice)
 {
 	struct comedi_device *dev = (struct comedi_device *) d;
 	struct comedi_subdevice *s = dev->subdevices;
-	comedi_async *async;
+	struct comedi_async *async;
 
 	if (subdevice >= dev->n_subdevices)
 		return -EINVAL;

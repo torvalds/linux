@@ -324,7 +324,7 @@ static int das16m1_cmd_test(struct comedi_device * dev, struct comedi_subdevice 
 
 static int das16m1_cmd_exec(struct comedi_device * dev, struct comedi_subdevice * s)
 {
-	comedi_async *async = s->async;
+	struct comedi_async *async = s->async;
 	comedi_cmd *cmd = &async->cmd;
 	unsigned int byte, i;
 
@@ -517,7 +517,7 @@ static void munge_sample_array(short * array, unsigned int num_elements)
 static void das16m1_handler(struct comedi_device * dev, unsigned int status)
 {
 	struct comedi_subdevice *s;
-	comedi_async *async;
+	struct comedi_async *async;
 	comedi_cmd *cmd;
 	u16 num_samples;
 	u16 hw_counter;

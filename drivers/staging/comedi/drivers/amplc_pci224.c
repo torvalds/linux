@@ -1185,7 +1185,7 @@ static void
 pci224_ao_munge(struct comedi_device * dev, struct comedi_subdevice * s, void *data,
 	unsigned int num_bytes, unsigned int chan_index)
 {
-	comedi_async *async = s->async;
+	struct comedi_async *async = s->async;
 	short *array = data;
 	unsigned int length = num_bytes / sizeof(*array);
 	unsigned int offset;

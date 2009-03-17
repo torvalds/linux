@@ -275,7 +275,7 @@ static int do_devconfig_ioctl(struct comedi_device *dev, comedi_devconfig *arg)
 static int do_bufconfig_ioctl(struct comedi_device *dev, void *arg)
 {
 	comedi_bufconfig bc;
-	comedi_async *async;
+	struct comedi_async *async;
 	struct comedi_subdevice *s;
 	int ret = 0;
 
@@ -558,7 +558,7 @@ static int do_bufinfo_ioctl(struct comedi_device *dev, void *arg)
 {
 	comedi_bufinfo bi;
 	struct comedi_subdevice *s;
-	comedi_async *async;
+	struct comedi_async *async;
 
 	if (copy_from_user(&bi, arg, sizeof(comedi_bufinfo)))
 		return -EFAULT;
@@ -979,7 +979,7 @@ static int do_cmd_ioctl(struct comedi_device *dev, void *arg, void *file)
 {
 	comedi_cmd user_cmd;
 	struct comedi_subdevice *s;
-	comedi_async *async;
+	struct comedi_async *async;
 	int ret = 0;
 	unsigned int *chanlist_saver = NULL;
 
@@ -1384,7 +1384,7 @@ static int do_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 
 void comedi_unmap(struct vm_area_struct *area)
 {
-	comedi_async *async;
+	struct comedi_async *async;
 	struct comedi_device *dev;
 
 	async = area->vm_private_data;
@@ -1405,7 +1405,7 @@ static int comedi_mmap(struct file *file, struct vm_area_struct *vma)
 	struct comedi_device_file_info *dev_file_info =
 	    comedi_get_device_file_info(minor);
 	struct comedi_device *dev = dev_file_info->device;
-	comedi_async *async = NULL;
+	struct comedi_async *async = NULL;
 	unsigned long start = vma->vm_start;
 	unsigned long size;
 	int n_pages;
@@ -1524,7 +1524,7 @@ static ssize_t comedi_write(struct file *file, const char *buf, size_t nbytes,
 			    loff_t *offset)
 {
 	struct comedi_subdevice *s;
-	comedi_async *async;
+	struct comedi_async *async;
 	int n, m, count = 0, retval = 0;
 	DECLARE_WAITQUEUE(wait, current);
 	const unsigned minor = iminor(file->f_dentry->d_inode);
@@ -1626,7 +1626,7 @@ static ssize_t comedi_read(struct file *file, char *buf, size_t nbytes,
 			   loff_t *offset)
 {
 	struct comedi_subdevice *s;
-	comedi_async *async;
+	struct comedi_async *async;
 	int n, m, count = 0, retval = 0;
 	DECLARE_WAITQUEUE(wait, current);
 	const unsigned minor = iminor(file->f_dentry->d_inode);
@@ -1735,7 +1735,7 @@ done:
  */
 void do_become_nonbusy(struct comedi_device *dev, struct comedi_subdevice *s)
 {
-	comedi_async *async = s->async;
+	struct comedi_async *async = s->async;
 
 	comedi_set_subdevice_runflags(s, SRF_RUNNING, 0);
 #ifdef CONFIG_COMEDI_RT
@@ -2008,7 +2008,7 @@ void comedi_error(const struct comedi_device *dev, const char *s)
 
 void comedi_event(struct comedi_device *dev, struct comedi_subdevice *s)
 {
-	comedi_async *async = s->async;
+	struct comedi_async *async = s->async;
 	unsigned runflags = 0;
 	unsigned runflags_mask = 0;
 

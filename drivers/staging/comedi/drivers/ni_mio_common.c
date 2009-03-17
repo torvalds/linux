@@ -1206,7 +1206,7 @@ static void ni_mio_print_status_b(int status)
 
 static void ni_ao_fifo_load(struct comedi_device * dev, struct comedi_subdevice * s, int n)
 {
-	comedi_async *async = s->async;
+	struct comedi_async *async = s->async;
 	comedi_cmd *cmd = &async->cmd;
 	int chan;
 	int i;
@@ -1309,7 +1309,7 @@ static int ni_ao_prep_fifo(struct comedi_device * dev, struct comedi_subdevice *
 
 static void ni_ai_fifo_read(struct comedi_device * dev, struct comedi_subdevice * s, int n)
 {
-	comedi_async *async = s->async;
+	struct comedi_async *async = s->async;
 	int i;
 
 	if (boardtype.reg_type == ni_reg_611x) {
@@ -1516,7 +1516,7 @@ static void get_last_sample_6143(struct comedi_device * dev)
 static void ni_ai_munge(struct comedi_device * dev, struct comedi_subdevice * s,
 	void *data, unsigned int num_bytes, unsigned int chan_index)
 {
-	comedi_async *async = s->async;
+	struct comedi_async *async = s->async;
 	unsigned int i;
 	unsigned int length = num_bytes / bytes_per_sample(s);
 	short *array = data;
@@ -2780,7 +2780,7 @@ static int ni_ai_config_analog_trig(struct comedi_device * dev, struct comedi_su
 static void ni_ao_munge(struct comedi_device * dev, struct comedi_subdevice * s,
 	void *data, unsigned int num_bytes, unsigned int chan_index)
 {
-	comedi_async *async = s->async;
+	struct comedi_async *async = s->async;
 	unsigned int range;
 	unsigned int i;
 	unsigned int offset;

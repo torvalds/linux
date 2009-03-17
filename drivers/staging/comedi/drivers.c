@@ -228,7 +228,7 @@ static int postconfig(struct comedi_device *dev)
 {
 	int i;
 	struct comedi_subdevice *s;
-	comedi_async *async = NULL;
+	struct comedi_async *async = NULL;
 	int ret;
 
 	for (i = 0; i < dev->n_subdevices; i++) {
@@ -245,7 +245,7 @@ static int postconfig(struct comedi_device *dev)
 				SDF_CMD_WRITE)) == 0);
 			BUG_ON(!s->do_cmdtest);
 
-			async = kzalloc(sizeof(comedi_async), GFP_KERNEL);
+			async = kzalloc(sizeof(struct comedi_async), GFP_KERNEL);
 			if (async == NULL) {
 				printk("failed to allocate async struct\n");
 				return -ENOMEM;
@@ -415,7 +415,7 @@ static inline unsigned long kvirt_to_kva(unsigned long adr)
 int comedi_buf_alloc(struct comedi_device *dev, struct comedi_subdevice *s,
 	unsigned long new_size)
 {
-	comedi_async *async = s->async;
+	struct comedi_async *async = s->async;
 
 	/* Round up new_size to multiple of PAGE_SIZE */
 	new_size = (new_size + PAGE_SIZE - 1) & PAGE_MASK;
@@ -536,7 +536,7 @@ int comedi_buf_alloc(struct comedi_device *dev, struct comedi_subdevice *s,
 
 /* munging is applied to data by core as it passes between user
  * and kernel space */
-unsigned int comedi_buf_munge(comedi_async *async, unsigned int num_bytes)
+unsigned int comedi_buf_munge(struct comedi_async *async, unsigned int num_bytes)
 {
 	struct comedi_subdevice *s = async->subdevice;
 	unsigned int count = 0;
@@ -580,7 +580,7 @@ unsigned int comedi_buf_munge(comedi_async *async, unsigned int num_bytes)
 	return count;
 }
 
-unsigned int comedi_buf_write_n_available(comedi_async *async)
+unsigned int comedi_buf_write_n_available(struct comedi_async *async)
 {
 	unsigned int free_end;
 	unsigned int nbytes;
@@ -600,7 +600,7 @@ unsigned int comedi_buf_write_n_available(comedi_async *async)
 }
 
 /* allocates chunk for the writer from free buffer space */
-unsigned int comedi_buf_write_alloc(comedi_async *async, unsigned int nbytes)
+unsigned int comedi_buf_write_alloc(struct comedi_async *async, unsigned int nbytes)
 {
 	unsigned int free_end = async->buf_read_count + async->prealloc_bufsz;
 
@@ -615,7 +615,7 @@ unsigned int comedi_buf_write_alloc(comedi_async *async, unsigned int nbytes)
 }
 
 /* allocates nothing unless it can completely fulfill the request */
-unsigned int comedi_buf_write_alloc_strict(comedi_async *async,
+unsigned int comedi_buf_write_alloc_strict(struct comedi_async *async,
 	unsigned int nbytes)
 {
 	unsigned int free_end = async->buf_read_count + async->prealloc_bufsz;
@@ -631,7 +631,7 @@ unsigned int comedi_buf_write_alloc_strict(comedi_async *async,
 }
 
 /* transfers a chunk from writer to filled buffer space */
-unsigned comedi_buf_write_free(comedi_async *async, unsigned int nbytes)
+unsigned comedi_buf_write_free(struct comedi_async *async, unsigned int nbytes)
 {
 	if ((int)(async->buf_write_count + nbytes -
 			async->buf_write_alloc_count) > 0) {
@@ -649,7 +649,7 @@ unsigned comedi_buf_write_free(comedi_async *async, unsigned int nbytes)
 }
 
 /* allocates a chunk for the reader from filled (and munged) buffer space */
-unsigned comedi_buf_read_alloc(comedi_async *async, unsigned nbytes)
+unsigned comedi_buf_read_alloc(struct comedi_async *async, unsigned nbytes)
 {
 	if ((int)(async->buf_read_alloc_count + nbytes - async->munge_count) >
 		0) {
@@ -663,7 +663,7 @@ unsigned comedi_buf_read_alloc(comedi_async *async, unsigned nbytes)
 }
 
 /* transfers control of a chunk from reader to free buffer space */
-unsigned comedi_buf_read_free(comedi_async *async, unsigned int nbytes)
+unsigned comedi_buf_read_free(struct comedi_async *async, unsigned int nbytes)
 {
 	/*  barrier insures data has been read out of buffer before read count is incremented */
 	smp_mb();
@@ -679,7 +679,7 @@ unsigned comedi_buf_read_free(comedi_async *async, unsigned int nbytes)
 	return nbytes;
 }
 
-void comedi_buf_memcpy_to(comedi_async *async, unsigned int offset,
+void comedi_buf_memcpy_to(struct comedi_async *async, unsigned int offset,
 	const void *data, unsigned int num_bytes)
 {
 	unsigned int write_ptr = async->buf_write_ptr + offset;
@@ -704,7 +704,7 @@ void comedi_buf_memcpy_to(comedi_async *async, unsigned int offset,
 	}
 }
 
-void comedi_buf_memcpy_from(comedi_async *async, unsigned int offset,
+void comedi_buf_memcpy_from(struct comedi_async *async, unsigned int offset,
 	void *dest, unsigned int nbytes)
 {
 	void *src;
@@ -730,7 +730,7 @@ void comedi_buf_memcpy_from(comedi_async *async, unsigned int offset,
 	}
 }
 
-unsigned int comedi_buf_read_n_available(comedi_async *async)
+unsigned int comedi_buf_read_n_available(struct comedi_async *async)
 {
 	unsigned num_bytes;
 
@@ -745,7 +745,7 @@ unsigned int comedi_buf_read_n_available(comedi_async *async)
 	return num_bytes;
 }
 
-int comedi_buf_get(comedi_async *async, short *x)
+int comedi_buf_get(struct comedi_async *async, short *x)
 {
 	unsigned int n = comedi_buf_read_n_available(async);
 
@@ -757,7 +757,7 @@ int comedi_buf_get(comedi_async *async, short *x)
 	return 1;
 }
 
-int comedi_buf_put(comedi_async *async, short x)
+int comedi_buf_put(struct comedi_async *async, short x)
 {
 	unsigned int n = comedi_buf_write_alloc_strict(async, sizeof(short));
 
@@ -770,7 +770,7 @@ int comedi_buf_put(comedi_async *async, short x)
 	return 1;
 }
 
-void comedi_reset_async_buf(comedi_async *async)
+void comedi_reset_async_buf(struct comedi_async *async)
 {
 	async->buf_write_alloc_count = 0;
 	async->buf_write_count = 0;

@@ -1068,7 +1068,7 @@ static int labpc_ai_cmd(struct comedi_device * dev, struct comedi_subdevice * s)
 	int channel, range, aref;
 	unsigned long irq_flags;
 	int ret;
-	comedi_async *async = s->async;
+	struct comedi_async *async = s->async;
 	comedi_cmd *cmd = &async->cmd;
 	enum transfer_type xfer;
 	unsigned long flags;
@@ -1313,7 +1313,7 @@ static irqreturn_t labpc_interrupt(int irq, void *d PT_REGS_ARG)
 {
 	struct comedi_device *dev = d;
 	struct comedi_subdevice *s = dev->read_subdev;
-	comedi_async *async;
+	struct comedi_async *async;
 	comedi_cmd *cmd;
 
 	if (dev->attached == 0) {
@@ -1397,7 +1397,7 @@ static int labpc_drain_fifo(struct comedi_device * dev)
 {
 	unsigned int lsb, msb;
 	short data;
-	comedi_async *async = dev->read_subdev->async;
+	struct comedi_async *async = dev->read_subdev->async;
 	const int timeout = 10000;
 	unsigned int i;
 
@@ -1430,7 +1430,7 @@ static int labpc_drain_fifo(struct comedi_device * dev)
 static void labpc_drain_dma(struct comedi_device * dev)
 {
 	struct comedi_subdevice *s = dev->read_subdev;
-	comedi_async *async = s->async;
+	struct comedi_async *async = s->async;
 	int status;
 	unsigned long flags;
 	unsigned int max_points, num_points, residue, leftover;

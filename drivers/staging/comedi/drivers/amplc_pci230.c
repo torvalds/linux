@@ -1450,7 +1450,7 @@ static int pci230_ao_inttrig_scan_begin(struct comedi_device * dev,
 
 static void pci230_ao_start(struct comedi_device * dev, struct comedi_subdevice * s)
 {
-	comedi_async *async = s->async;
+	struct comedi_async *async = s->async;
 	comedi_cmd *cmd = &async->cmd;
 	unsigned long irqflags;
 
@@ -2147,7 +2147,7 @@ static void pci230_ai_start(struct comedi_device * dev, struct comedi_subdevice 
 {
 	unsigned long irqflags;
 	unsigned short conv;
-	comedi_async *async = s->async;
+	struct comedi_async *async = s->async;
 	comedi_cmd *cmd = &async->cmd;
 
 	set_bit(AI_CMD_STARTED, &devpriv->state);
@@ -2300,7 +2300,7 @@ static int pci230_ai_cmd(struct comedi_device * dev, struct comedi_subdevice * s
 	unsigned char zgat;
 
 	/* Get the command. */
-	comedi_async *async = s->async;
+	struct comedi_async *async = s->async;
 	comedi_cmd *cmd = &async->cmd;
 
 	/*
@@ -2626,7 +2626,7 @@ static void pci230_handle_ao_nofifo(struct comedi_device * dev, struct comedi_su
 {
 	short data;
 	int i, ret;
-	comedi_async *async = s->async;
+	struct comedi_async *async = s->async;
 	comedi_cmd *cmd = &async->cmd;
 
 	if (!devpriv->ao_continuous && (devpriv->ao_scan_count == 0)) {
@@ -2661,7 +2661,7 @@ static void pci230_handle_ao_nofifo(struct comedi_device * dev, struct comedi_su
 /* Returns 0 if AO finished due to completion or error, 1 if still going. */
 static int pci230_handle_ao_fifo(struct comedi_device * dev, struct comedi_subdevice * s)
 {
-	comedi_async *async = s->async;
+	struct comedi_async *async = s->async;
 	comedi_cmd *cmd = &async->cmd;
 	unsigned int num_scans;
 	unsigned int room;
@@ -2769,7 +2769,7 @@ static void pci230_handle_ai(struct comedi_device * dev, struct comedi_subdevice
 	unsigned int i;
 	unsigned int todo;
 	unsigned int fifoamount;
-	comedi_async *async = s->async;
+	struct comedi_async *async = s->async;
 	unsigned int scanlen = async->cmd.scan_end_arg;
 
 	/* Determine number of samples to read. */

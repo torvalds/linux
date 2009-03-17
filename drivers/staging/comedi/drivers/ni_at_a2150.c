@@ -214,7 +214,7 @@ static irqreturn_t a2150_interrupt(int irq, void *d PT_REGS_ARG)
 	unsigned long flags;
 	struct comedi_device *dev = d;
 	struct comedi_subdevice *s = dev->read_subdev;
-	comedi_async *async;
+	struct comedi_async *async;
 	comedi_cmd *cmd;
 	unsigned int max_points, num_points, residue, leftover;
 	short dpnt;
@@ -617,7 +617,7 @@ static int a2150_ai_cmdtest(struct comedi_device * dev, struct comedi_subdevice 
 
 static int a2150_ai_cmd(struct comedi_device * dev, struct comedi_subdevice * s)
 {
-	comedi_async *async = s->async;
+	struct comedi_async *async = s->async;
 	comedi_cmd *cmd = &async->cmd;
 	unsigned long lock_flags;
 	unsigned int old_config_bits = devpriv->config_bits;

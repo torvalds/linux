@@ -121,7 +121,6 @@
 #define COMEDI_NUM_BOARD_MINORS 0x30
 #define COMEDI_FIRST_SUBDEVICE_MINOR COMEDI_NUM_BOARD_MINORS
 
-typedef struct comedi_async_struct comedi_async;
 typedef struct comedi_driver_struct comedi_driver;
 typedef struct comedi_lrange_struct comedi_lrange;
 
@@ -139,7 +138,7 @@ struct comedi_subdevice {
 
 	void *private;
 
-	comedi_async *async;
+	struct comedi_async *async;
 
 	void *lock;
 	void *busy;
@@ -196,7 +195,7 @@ struct comedi_buf_page {
 	dma_addr_t dma_addr;
 };
 
-struct comedi_async_struct {
+struct comedi_async {
 	struct comedi_subdevice *subdevice;
 
 	void *prealloc_buf;	/* pre-allocated buffer */
@@ -469,31 +468,31 @@ static inline void comedi_set_hw_dev(struct comedi_device *dev, struct device *h
 	}
 }
 
-int comedi_buf_put(comedi_async *async, short x);
-int comedi_buf_get(comedi_async *async, short *x);
+int comedi_buf_put(struct comedi_async *async, short x);
+int comedi_buf_get(struct comedi_async *async, short *x);
 
-unsigned int comedi_buf_write_n_available(comedi_async *async);
-unsigned int comedi_buf_write_alloc(comedi_async *async, unsigned int nbytes);
-unsigned int comedi_buf_write_alloc_strict(comedi_async *async,
+unsigned int comedi_buf_write_n_available(struct comedi_async *async);
+unsigned int comedi_buf_write_alloc(struct comedi_async *async, unsigned int nbytes);
+unsigned int comedi_buf_write_alloc_strict(struct comedi_async *async,
 	unsigned int nbytes);
-unsigned comedi_buf_write_free(comedi_async *async, unsigned int nbytes);
-unsigned comedi_buf_read_alloc(comedi_async *async, unsigned nbytes);
-unsigned comedi_buf_read_free(comedi_async *async, unsigned int nbytes);
-unsigned int comedi_buf_read_n_available(comedi_async *async);
-void comedi_buf_memcpy_to(comedi_async *async, unsigned int offset,
+unsigned comedi_buf_write_free(struct comedi_async *async, unsigned int nbytes);
+unsigned comedi_buf_read_alloc(struct comedi_async *async, unsigned nbytes);
+unsigned comedi_buf_read_free(struct comedi_async *async, unsigned int nbytes);
+unsigned int comedi_buf_read_n_available(struct comedi_async *async);
+void comedi_buf_memcpy_to(struct comedi_async *async, unsigned int offset,
 	const void *source, unsigned int num_bytes);
-void comedi_buf_memcpy_from(comedi_async *async, unsigned int offset,
+void comedi_buf_memcpy_from(struct comedi_async *async, unsigned int offset,
 	void *destination, unsigned int num_bytes);
-static inline unsigned comedi_buf_write_n_allocated(comedi_async *async)
+static inline unsigned comedi_buf_write_n_allocated(struct comedi_async *async)
 {
 	return async->buf_write_alloc_count - async->buf_write_count;
 }
-static inline unsigned comedi_buf_read_n_allocated(comedi_async *async)
+static inline unsigned comedi_buf_read_n_allocated(struct comedi_async *async)
 {
 	return async->buf_read_alloc_count - async->buf_read_count;
 }
 
-void comedi_reset_async_buf(comedi_async *async);
+void comedi_reset_async_buf(struct comedi_async *async);
 
 static inline void *comedi_aux_data(int options[], int n)
 {

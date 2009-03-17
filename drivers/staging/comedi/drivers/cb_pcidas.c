@@ -449,7 +449,7 @@ static comedi_driver driver_cb_pcidas = {
       detach:cb_pcidas_detach,
 };
 
-static int cb_pcidas_ai_rinsn(struct comedi_device * dev, struct comedi_subdevice * s,
+static int cb_pcidas_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data);
 static int ai_config_insn(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data);
@@ -463,8 +463,9 @@ static int cb_pcidas_ai_cmd(struct comedi_device * dev, struct comedi_subdevice 
 static int cb_pcidas_ai_cmdtest(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_cmd * cmd);
 static int cb_pcidas_ao_cmd(struct comedi_device * dev, struct comedi_subdevice * s);
-static int cb_pcidas_ao_inttrig(struct comedi_device * dev, struct comedi_subdevice * subdev,
-	unsigned int trig_num);
+static int cb_pcidas_ao_inttrig(struct comedi_device *dev,
+				struct comedi_subdevice *subdev,
+				unsigned int trig_num);
 static int cb_pcidas_ao_cmdtest(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_cmd * cmd);
 static irqreturn_t cb_pcidas_interrupt(int irq, void *d PT_REGS_ARG);
@@ -1164,7 +1165,7 @@ static int cb_pcidas_ai_cmdtest(struct comedi_device * dev, struct comedi_subdev
 
 static int cb_pcidas_ai_cmd(struct comedi_device * dev, struct comedi_subdevice * s)
 {
-	comedi_async *async = s->async;
+	struct comedi_async *async = s->async;
 	comedi_cmd *cmd = &async->cmd;
 	unsigned int bits;
 	unsigned long flags;
@@ -1364,7 +1365,7 @@ static int cb_pcidas_ao_cmdtest(struct comedi_device * dev, struct comedi_subdev
 
 static int cb_pcidas_ao_cmd(struct comedi_device * dev, struct comedi_subdevice * s)
 {
-	comedi_async *async = s->async;
+	struct comedi_async *async = s->async;
 	comedi_cmd *cmd = &async->cmd;
 	unsigned int i;
 	unsigned long flags;
@@ -1425,11 +1426,12 @@ static int cb_pcidas_ao_cmd(struct comedi_device * dev, struct comedi_subdevice 
 	return 0;
 }
 
-static int cb_pcidas_ao_inttrig(struct comedi_device * dev, struct comedi_subdevice * s,
-	unsigned int trig_num)
+static int cb_pcidas_ao_inttrig(struct comedi_device *dev,
+				struct comedi_subdevice *s,
+				unsigned int trig_num)
 {
 	unsigned int num_bytes, num_points = thisboard->fifo_size;
-	comedi_async *async = s->async;
+	struct comedi_async *async = s->async;
 	comedi_cmd *cmd = &s->async->cmd;
 	unsigned long flags;
 
@@ -1478,7 +1480,7 @@ static irqreturn_t cb_pcidas_interrupt(int irq, void *d PT_REGS_ARG)
 {
 	struct comedi_device *dev = (struct comedi_device *) d;
 	struct comedi_subdevice *s = dev->read_subdev;
-	comedi_async *async;
+	struct comedi_async *async;
 	int status, s5933_status;
 	int half_fifo = thisboard->fifo_size / 2;
 	unsigned int num_samples, i;
@@ -1589,7 +1591,7 @@ static irqreturn_t cb_pcidas_interrupt(int irq, void *d PT_REGS_ARG)
 static void handle_ao_interrupt(struct comedi_device * dev, unsigned int status)
 {
 	struct comedi_subdevice *s = dev->write_subdev;
-	comedi_async *async = s->async;
+	struct comedi_async *async = s->async;
 	comedi_cmd *cmd = &async->cmd;
 	unsigned int half_fifo = thisboard->fifo_size / 2;
 	unsigned int num_points;
@@ -1642,7 +1644,7 @@ static void handle_ao_interrupt(struct comedi_device * dev, unsigned int status)
 	comedi_event(dev, s);
 }
 
-// cancel analog input command
+/* cancel analog input command */
 static int cb_pcidas_cancel(struct comedi_device * dev, struct comedi_subdevice * s)
 {
 	unsigned long flags;
@@ -1661,8 +1663,9 @@ static int cb_pcidas_cancel(struct comedi_device * dev, struct comedi_subdevice 
 	return 0;
 }
 
-// cancel analog output command
-static int cb_pcidas_ao_cancel(struct comedi_device * dev, struct comedi_subdevice * s)
+/* cancel analog output command */
+static int cb_pcidas_ao_cancel(struct comedi_device *dev,
+			       struct comedi_subdevice *s)
 {
 	unsigned long flags;
 

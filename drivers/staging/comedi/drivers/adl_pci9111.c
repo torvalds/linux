@@ -913,7 +913,7 @@ static irqreturn_t pci9111_interrupt(int irq, void *p_device PT_REGS_ARG)
 {
 	struct comedi_device *dev = p_device;
 	struct comedi_subdevice *subdevice = dev->read_subdev;
-	comedi_async *async;
+	struct comedi_async *async;
 	unsigned long irq_flags;
 	unsigned char intcsr;
 

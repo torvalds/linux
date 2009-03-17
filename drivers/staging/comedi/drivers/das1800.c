@@ -912,7 +912,7 @@ static irqreturn_t das1800_interrupt(int irq, void *d PT_REGS_ARG)
 static void das1800_ai_handler(struct comedi_device * dev)
 {
 	struct comedi_subdevice *s = dev->subdevices + 0;	/* analog input subdevice */
-	comedi_async *async = s->async;
+	struct comedi_async *async = s->async;
 	comedi_cmd *cmd = &async->cmd;
 	unsigned int status = inb(dev->iobase + DAS1800_STATUS);
 
@@ -1493,7 +1493,7 @@ static int das1800_ai_do_cmd(struct comedi_device * dev, struct comedi_subdevice
 {
 	int ret;
 	int control_a, control_c;
-	comedi_async *async = s->async;
+	struct comedi_async *async = s->async;
 	comedi_cmd cmd = async->cmd;
 
 	if (!dev->irq) {

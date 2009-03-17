@@ -2681,7 +2681,7 @@ static inline void load_first_dma_descriptor(struct comedi_device * dev,
 
 static int ai_cmd(struct comedi_device * dev, struct comedi_subdevice * s)
 {
-	comedi_async *async = s->async;
+	struct comedi_async *async = s->async;
 	comedi_cmd *cmd = &async->cmd;
 	uint32_t bits;
 	unsigned int i;
@@ -2800,7 +2800,7 @@ static int ai_cmd(struct comedi_device * dev, struct comedi_subdevice * s)
 static void pio_drain_ai_fifo_16(struct comedi_device * dev)
 {
 	struct comedi_subdevice *s = dev->read_subdev;
-	comedi_async *async = s->async;
+	struct comedi_async *async = s->async;
 	comedi_cmd *cmd = &async->cmd;
 	unsigned int i;
 	uint16_t prepost_bits;
@@ -2867,7 +2867,7 @@ static void pio_drain_ai_fifo_16(struct comedi_device * dev)
 static void pio_drain_ai_fifo_32(struct comedi_device * dev)
 {
 	struct comedi_subdevice *s = dev->read_subdev;
-	comedi_async *async = s->async;
+	struct comedi_async *async = s->async;
 	comedi_cmd *cmd = &async->cmd;
 	unsigned int i;
 	unsigned int max_transfer = 100000;
@@ -2908,7 +2908,7 @@ static void pio_drain_ai_fifo(struct comedi_device * dev)
 
 static void drain_dma_buffers(struct comedi_device * dev, unsigned int channel)
 {
-	comedi_async *async = dev->read_subdev->async;
+	struct comedi_async *async = dev->read_subdev->async;
 	uint32_t next_transfer_addr;
 	int j;
 	int num_samples = 0;
@@ -2956,7 +2956,7 @@ void handle_ai_interrupt(struct comedi_device * dev, unsigned short status,
 	unsigned int plx_status)
 {
 	struct comedi_subdevice *s = dev->read_subdev;
-	comedi_async *async = s->async;
+	struct comedi_async *async = s->async;
 	comedi_cmd *cmd = &async->cmd;
 	uint8_t dma1_status;
 	unsigned long flags;
@@ -3078,7 +3078,7 @@ static void handle_ao_interrupt(struct comedi_device * dev, unsigned short statu
 	unsigned int plx_status)
 {
 	struct comedi_subdevice *s = dev->write_subdev;
-	comedi_async *async;
+	struct comedi_async *async;
 	comedi_cmd *cmd;
 	uint8_t dma0_status;
 	unsigned long flags;

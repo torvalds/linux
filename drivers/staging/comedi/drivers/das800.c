@@ -349,7 +349,7 @@ static irqreturn_t das800_interrupt(int irq, void *d PT_REGS_ARG)
 	short dataPoint = 0;
 	struct comedi_device *dev = d;
 	struct comedi_subdevice *s = dev->read_subdev;	/* analog input subdevice */
-	comedi_async *async;
+	struct comedi_async *async;
 	int status;
 	unsigned long irq_flags;
 	static const int max_loops = 128;	// half-fifo size for cio-das802/16
@@ -714,7 +714,7 @@ static int das800_ai_do_cmd(struct comedi_device * dev, struct comedi_subdevice 
 	int startChan, endChan, scan, gain;
 	int conv_bits;
 	unsigned long irq_flags;
-	comedi_async *async = s->async;
+	struct comedi_async *async = s->async;
 
 	if (!dev->irq) {
 		comedi_error(dev,

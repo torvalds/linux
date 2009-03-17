@@ -144,7 +144,7 @@ static const comedi_lrange waveform_ai_ranges = {
 static void waveform_ai_interrupt(unsigned long arg)
 {
 	struct comedi_device *dev = (struct comedi_device *) arg;
-	comedi_async *async = dev->read_subdev->async;
+	struct comedi_async *async = dev->read_subdev->async;
 	comedi_cmd *cmd = &async->cmd;
 	unsigned int i, j;
 	/* all times in microsec */

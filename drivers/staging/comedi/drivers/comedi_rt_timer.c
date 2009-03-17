@@ -292,7 +292,7 @@ static void scan_task_func(comedi_rt_task_context_t d)
 {
 	struct comedi_device *dev = (struct comedi_device *) d;
 	struct comedi_subdevice *s = dev->subdevices + 0;
-	comedi_async *async = s->async;
+	struct comedi_async *async = s->async;
 	comedi_cmd *cmd = &async->cmd;
 	int i, ret;
 	unsigned long long n;
@@ -580,7 +580,7 @@ static int timer_inttrig(struct comedi_device * dev, struct comedi_subdevice * s
 
 static int timer_start_cmd(struct comedi_device * dev, struct comedi_subdevice * s)
 {
-	comedi_async *async = s->async;
+	struct comedi_async *async = s->async;
 	comedi_cmd *cmd = &async->cmd;
 	RTIME now, delay, period;
 	int ret;

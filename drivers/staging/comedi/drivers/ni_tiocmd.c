@@ -121,7 +121,7 @@ static int ni_tio_input_inttrig(struct comedi_device * dev, struct comedi_subdev
 	return retval;
 }
 
-static int ni_tio_input_cmd(struct ni_gpct *counter, comedi_async * async)
+static int ni_tio_input_cmd(struct ni_gpct *counter, struct comedi_async *async)
 {
 	struct ni_gpct_device *counter_dev = counter->counter_dev;
 	comedi_cmd *cmd = &async->cmd;
@@ -169,7 +169,7 @@ static int ni_tio_input_cmd(struct ni_gpct *counter, comedi_async * async)
 	return retval;
 }
 
-static int ni_tio_output_cmd(struct ni_gpct *counter, comedi_async * async)
+static int ni_tio_output_cmd(struct ni_gpct *counter, struct comedi_async *async)
 {
 	rt_printk("ni_tio: output commands not yet implemented.\n");
 	return -ENOTSUPP;
@@ -181,7 +181,7 @@ static int ni_tio_output_cmd(struct ni_gpct *counter, comedi_async * async)
 	return ni_tio_arm(counter, 1, NI_GPCT_ARM_IMMEDIATE);
 }
 
-static int ni_tio_cmd_setup(struct ni_gpct *counter, comedi_async * async)
+static int ni_tio_cmd_setup(struct ni_gpct *counter, struct comedi_async *async)
 {
 	comedi_cmd *cmd = &async->cmd;
 	int set_gate_source = 0;
@@ -207,7 +207,7 @@ static int ni_tio_cmd_setup(struct ni_gpct *counter, comedi_async * async)
 	return retval;
 }
 
-int ni_tio_cmd(struct ni_gpct *counter, comedi_async * async)
+int ni_tio_cmd(struct ni_gpct *counter, struct comedi_async *async)
 {
 	comedi_cmd *cmd = &async->cmd;
 	int retval = 0;

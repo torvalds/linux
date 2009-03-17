@@ -481,7 +481,7 @@ static irqreturn_t nidio_interrupt(int irq, void *d PT_REGS_ARG)
 {
 	struct comedi_device *dev = d;
 	struct comedi_subdevice *s = dev->subdevices;
-	comedi_async *async = s->async;
+	struct comedi_async *async = s->async;
 	struct mite_struct *mite = devpriv->mite;
 
 	//int i, j;
