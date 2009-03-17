@@ -92,12 +92,14 @@ static const pcmda12_board pcmda12_boards[] = {
  */
 #define thisboard ((const pcmda12_board *)dev->board_ptr)
 
-typedef struct {
+struct pcmda12_private {
+
 	unsigned int ao_readback[CHANS];
 	int simultaneous_xfer_mode;
-} pcmda12_private;
+};
 
-#define devpriv ((pcmda12_private *)(dev->private))
+
+#define devpriv ((struct pcmda12_private *)(dev->private))
 
 /*
  * The struct comedi_driver structure tells the Comedi core module
@@ -174,7 +176,7 @@ static int pcmda12_attach(struct comedi_device * dev, struct comedi_devconfig * 
  * Allocate the private structure area.  alloc_private() is a
  * convenient macro defined in comedidev.h.
  */
-	if (alloc_private(dev, sizeof(pcmda12_private)) < 0) {
+	if (alloc_private(dev, sizeof(struct pcmda12_private)) < 0) {
 		printk("cannot allocate private data structure\n");
 		return -ENOMEM;
 	}
