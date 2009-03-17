@@ -859,7 +859,7 @@ static int tcp_packet(struct nf_conn *ct,
 			 */
 			if (nf_ct_kill(ct))
 				return -NF_REPEAT;
-			return -NF_DROP;
+			return NF_DROP;
 		}
 		/* Fall through */
 	case TCP_CONNTRACK_IGNORE:
@@ -892,7 +892,7 @@ static int tcp_packet(struct nf_conn *ct,
 				nf_log_packet(pf, 0, skb, NULL, NULL, NULL,
 					  "nf_ct_tcp: killing out of sync session ");
 			nf_ct_kill(ct);
-			return -NF_DROP;
+			return NF_DROP;
 		}
 		ct->proto.tcp.last_index = index;
 		ct->proto.tcp.last_dir = dir;
