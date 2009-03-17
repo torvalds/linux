@@ -361,7 +361,7 @@ static int get_compat_insn(struct comedi_insn __user *insn,
 static int compat_insnlist(struct file *file, unsigned long arg)
 {
 	struct combined_insnlist {
-		comedi_insnlist insnlist;
+		struct comedi_insnlist insnlist;
 		struct comedi_insn insn[1];
 	} __user *s;
 	struct comedi32_insnlist_struct __user *insnlist32;

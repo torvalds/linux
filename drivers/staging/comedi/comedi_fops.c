@@ -628,13 +628,13 @@ static int parse_insn(struct comedi_device *dev, struct comedi_insn *insn, unsig
 #define MAX_SAMPLES 256
 static int do_insnlist_ioctl(struct comedi_device *dev, void *arg, void *file)
 {
-	comedi_insnlist insnlist;
+	struct comedi_insnlist insnlist;
 	struct comedi_insn *insns = NULL;
 	unsigned int *data = NULL;
 	int i = 0;
 	int ret = 0;
 
-	if (copy_from_user(&insnlist, arg, sizeof(comedi_insnlist)))
+	if (copy_from_user(&insnlist, arg, sizeof(struct comedi_insnlist)))
 		return -EFAULT;
 
 	data = kmalloc(sizeof(unsigned int) * MAX_SAMPLES, GFP_KERNEL);
