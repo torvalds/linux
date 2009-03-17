@@ -224,17 +224,17 @@ static void set_offset(volatile struct jr3_channel *channel)
 	set_s16(&channel->command_word0, 0x0700);
 }
 
-typedef struct {
+struct six_axis_t {
 	s16 fx;
 	s16 fy;
 	s16 fz;
 	s16 mx;
 	s16 my;
 	s16 mz;
-} six_axis_t;
+};
 
 static void set_full_scales(volatile struct jr3_channel *channel,
-	six_axis_t full_scale)
+	struct six_axis_t full_scale)
 {
 	printk("%d %d %d %d %d %d\n",
 		full_scale.fx,
@@ -249,9 +249,9 @@ static void set_full_scales(volatile struct jr3_channel *channel,
 	set_s16(&channel->command_word0, 0x0a00);
 }
 
-static six_axis_t get_min_full_scales(volatile struct jr3_channel *channel)
+static struct six_axis_t get_min_full_scales(volatile struct jr3_channel *channel)
 {
-	six_axis_t result;
+	struct six_axis_t result;
 	result.fx = get_s16(&channel->min_full_scale.fx);
 	result.fy = get_s16(&channel->min_full_scale.fy);
 	result.fz = get_s16(&channel->min_full_scale.fz);
@@ -261,9 +261,9 @@ static six_axis_t get_min_full_scales(volatile struct jr3_channel *channel)
 	return result;
 }
 
-static six_axis_t get_max_full_scales(volatile struct jr3_channel *channel)
+static struct six_axis_t get_max_full_scales(volatile struct jr3_channel *channel)
 {
-	six_axis_t result;
+	struct six_axis_t result;
 	result.fx = get_s16(&channel->max_full_scale.fx);
 	result.fy = get_s16(&channel->max_full_scale.fy);
 	result.fz = get_s16(&channel->max_full_scale.fz);
@@ -609,8 +609,8 @@ static struct poll_delay_t jr3_pci_poll_subdevice(struct comedi_subdevice * s)
 					result = poll_delay_min_max(20, 100);
 				} else {
 					// Set full scale
-					six_axis_t min_full_scale;
-					six_axis_t max_full_scale;
+					struct six_axis_t min_full_scale;
+					struct six_axis_t max_full_scale;
 
 					min_full_scale =
 						get_min_full_scales(channel);
