@@ -82,11 +82,13 @@ static const struct cnt_board_struct cnt_boards[] = {
 
 /*-- device private structure -----------------------------------------------*/
 
-typedef struct {
-	struct pci_dev *pcidev;
-} cnt_device_private;
+struct cnt_device_private {
 
-#define devpriv ((cnt_device_private *)dev->private)
+	struct pci_dev *pcidev;
+};
+
+
+#define devpriv ((struct cnt_device_private *)dev->private)
 
 static struct comedi_driver cnt_driver = {
       driver_name:CNT_DRIVER_NAME,
@@ -155,7 +157,7 @@ static int cnt_attach(struct comedi_device * dev, struct comedi_devconfig * it)
 	int error, i;
 
 	/* allocate device private structure */
-	if ((error = alloc_private(dev, sizeof(cnt_device_private))) < 0) {
+	if ((error = alloc_private(dev, sizeof(struct cnt_device_private))) < 0) {
 		return error;
 	}
 
