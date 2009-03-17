@@ -75,7 +75,7 @@ static char *version = "quatech_daqp_cs.c 1.10 2003/04/21 (Brent Baccala)";
 /* Maximum number of separate DAQP devices we'll allow */
 #define MAX_DEV         4
 
-typedef struct local_info_t {
+struct local_info_t {
 	struct pcmcia_device *link;
 	dev_node_t node;
 	int stop;
@@ -89,11 +89,11 @@ typedef struct local_info_t {
 	struct comedi_device *dev;
 	struct comedi_subdevice *s;
 	int count;
-} local_info_t;
+};
 
 /* A list of "instances" of the device. */
 
-static local_info_t *dev_table[MAX_DEV] = { NULL, /* ... */  };
+static struct local_info_t *dev_table[MAX_DEV] = { NULL, /* ... */  };
 
 /* The DAQP communicates with the system through a 16 byte I/O window. */
 
@@ -236,7 +236,7 @@ static void hex_dump(char *str, void *ptr, int len)
 
 static int daqp_ai_cancel(struct comedi_device * dev, struct comedi_subdevice * s)
 {
-	local_info_t *local = (local_info_t *) s->private;
+	struct local_info_t *local = (struct local_info_t *) s->private;
 
 	if (local->stop) {
 		return -EIO;
@@ -264,7 +264,7 @@ static int daqp_ai_cancel(struct comedi_device * dev, struct comedi_subdevice * 
 
 static void daqp_interrupt(int irq, void *dev_id PT_REGS_ARG)
 {
-	local_info_t *local = (local_info_t *) dev_id;
+	struct local_info_t *local = (struct local_info_t *) dev_id;
 	struct comedi_device *dev;
 	struct comedi_subdevice *s;
 	int loop_limit = 10000;
@@ -295,7 +295,7 @@ static void daqp_interrupt(int irq, void *dev_id PT_REGS_ARG)
 		return;
 	}
 
-	if ((local_info_t *) s->private != local) {
+	if ((struct local_info_t *) s->private != local) {
 		printk(KERN_WARNING
 			"daqp_interrupt(): invalid comedi_subdevice.\n");
 		return;
@@ -364,7 +364,7 @@ static void daqp_interrupt(int irq, void *dev_id PT_REGS_ARG)
 static int daqp_ai_insn_read(struct comedi_device * dev, struct comedi_subdevice * s,
 	struct comedi_insn * insn, unsigned int * data)
 {
-	local_info_t *local = (local_info_t *) s->private;
+	struct local_info_t *local = (struct local_info_t *) s->private;
 	int i;
 	int v;
 	int counter = 10000;
@@ -595,7 +595,7 @@ static int daqp_ai_cmdtest(struct comedi_device * dev, struct comedi_subdevice *
 
 static int daqp_ai_cmd(struct comedi_device * dev, struct comedi_subdevice * s)
 {
-	local_info_t *local = (local_info_t *) s->private;
+	struct local_info_t *local = (struct local_info_t *) s->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
 	int counter = 100;
 	int scanlist_start_on_every_entry;
@@ -796,7 +796,7 @@ static int daqp_ai_cmd(struct comedi_device * dev, struct comedi_subdevice * s)
 static int daqp_ao_insn_write(struct comedi_device * dev, struct comedi_subdevice * s,
 	struct comedi_insn * insn, unsigned int * data)
 {
-	local_info_t *local = (local_info_t *) s->private;
+	struct local_info_t *local = (struct local_info_t *) s->private;
 	int d;
 	unsigned int chan;
 
@@ -823,7 +823,7 @@ static int daqp_ao_insn_write(struct comedi_device * dev, struct comedi_subdevic
 static int daqp_di_insn_read(struct comedi_device * dev, struct comedi_subdevice * s,
 	struct comedi_insn * insn, unsigned int * data)
 {
-	local_info_t *local = (local_info_t *) s->private;
+	struct local_info_t *local = (struct local_info_t *) s->private;
 
 	if (local->stop) {
 		return -EIO;
@@ -839,7 +839,7 @@ static int daqp_di_insn_read(struct comedi_device * dev, struct comedi_subdevice
 static int daqp_do_insn_write(struct comedi_device * dev, struct comedi_subdevice * s,
 	struct comedi_insn * insn, unsigned int * data)
 {
-	local_info_t *local = (local_info_t *) s->private;
+	struct local_info_t *local = (struct local_info_t *) s->private;
 
 	if (local->stop) {
 		return -EIO;
@@ -859,7 +859,7 @@ static int daqp_do_insn_write(struct comedi_device * dev, struct comedi_subdevic
 static int daqp_attach(struct comedi_device * dev, struct comedi_devconfig * it)
 {
 	int ret;
-	local_info_t *local = dev_table[it->options[0]];
+	struct local_info_t *local = dev_table[it->options[0]];
 	tuple_t tuple;
 	int i;
 	struct comedi_subdevice *s;
@@ -1051,7 +1051,7 @@ static const dev_info_t dev_info = "quatech_daqp_cs";
 
 static int daqp_cs_attach(struct pcmcia_device *link)
 {
-	local_info_t *local;
+	struct local_info_t *local;
 	int i;
 
 	DEBUG(0, "daqp_cs_attach()\n");
@@ -1065,7 +1065,7 @@ static int daqp_cs_attach(struct pcmcia_device *link)
 	}
 
 	/* Allocate space for private device-specific data */
-	local = kzalloc(sizeof(local_info_t), GFP_KERNEL);
+	local = kzalloc(sizeof(struct local_info_t), GFP_KERNEL);
 	if (!local)
 		return -ENOMEM;
 
@@ -1106,7 +1106,7 @@ static int daqp_cs_attach(struct pcmcia_device *link)
 
 static void daqp_cs_detach(struct pcmcia_device *link)
 {
-	local_info_t *dev = link->priv;
+	struct local_info_t *dev = link->priv;
 
 	DEBUG(0, "daqp_cs_detach(0x%p)\n", link);
 
@@ -1132,7 +1132,7 @@ static void daqp_cs_detach(struct pcmcia_device *link)
 
 static void daqp_cs_config(struct pcmcia_device *link)
 {
-	local_info_t *dev = link->priv;
+	struct local_info_t *dev = link->priv;
 	tuple_t tuple;
 	cisparse_t parse;
 	int last_ret;
@@ -1306,7 +1306,7 @@ static void daqp_cs_release(struct pcmcia_device *link)
 
 static int daqp_cs_suspend(struct pcmcia_device *link)
 {
-	local_info_t *local = link->priv;
+	struct local_info_t *local = link->priv;
 
 	/* Mark the device as stopped, to block IO until later */
 	local->stop = 1;
@@ -1315,7 +1315,7 @@ static int daqp_cs_suspend(struct pcmcia_device *link)
 
 static int daqp_cs_resume(struct pcmcia_device *link)
 {
-	local_info_t *local = link->priv;
+	struct local_info_t *local = link->priv;
 
 	local->stop = 0;
 
