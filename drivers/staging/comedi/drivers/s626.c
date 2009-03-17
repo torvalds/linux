@@ -2431,8 +2431,7 @@ static uint8_t I2Cread(comedi_device *dev, uint8_t addr)
 			 /* Byte2 = I2C command: write to I2C EEPROM  device. */
 			| I2C_B1(I2C_ATTRSTOP, addr)
 			 /* Byte1 = EEPROM internal target address. */
-			| I2C_B0(I2C_ATTRNOP, 0)))	/*  Byte0 = Not sent. */
-	{
+			| I2C_B0(I2C_ATTRNOP, 0))) {	/*  Byte0 = Not sent. */
 		/*  Abort function and declare error if handshake failed. */
 		DEBUG("I2Cread: error handshake I2Cread  a\n");
 		return 0;
@@ -2445,9 +2444,8 @@ static uint8_t I2Cread(comedi_device *dev, uint8_t addr)
 			| I2C_B1(I2C_ATTRSTOP, 0)	/*  Byte1 receives */
 			/*  uint8_t from */
 			/*  EEPROM. */
-			| I2C_B0(I2C_ATTRNOP, 0)))	/*  Byte0 = Not */
-		/*  sent. */
-	{
+			| I2C_B0(I2C_ATTRNOP, 0))) {	/*  Byte0 = Not  sent. */
+
 		/*  Abort function and declare error if handshake failed. */
 		DEBUG("I2Cread: error handshake I2Cread b\n");
 		return 0;
