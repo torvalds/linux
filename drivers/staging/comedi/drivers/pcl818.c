@@ -313,7 +313,8 @@ static struct comedi_driver driver_pcl818 = {
 
 COMEDI_INITCLEANUP(driver_pcl818);
 
-typedef struct {
+struct pcl818_private {
+
 	unsigned int dma;	// used DMA, 0=don't use DMA
 	int dma_rtc;		// 1=RTC used with DMA, 0=no RTC alloc
 	unsigned int io_range;
@@ -358,13 +359,14 @@ typedef struct {
 	struct comedi_subdevice *sub_ai;	// ptr to AI subdevice
 	unsigned char usefifo;	// 1=use fifo
 	unsigned int ao_readback[2];
-} pcl818_private;
+};
+
 
 static const unsigned int muxonechan[] = { 0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77,	// used for gain list programming
 	0x88, 0x99, 0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff
 };
 
-#define devpriv ((pcl818_private *)dev->private)
+#define devpriv ((struct pcl818_private *)dev->private)
 #define this_board ((const struct pcl818_board *)dev->board_ptr)
 
 /*
@@ -1685,7 +1687,7 @@ static int pcl818_attach(struct comedi_device * dev, struct comedi_devconfig * i
 	unsigned long pages;
 	struct comedi_subdevice *s;
 
-	if ((ret = alloc_private(dev, sizeof(pcl818_private))) < 0)
+	if ((ret = alloc_private(dev, sizeof(struct pcl818_private))) < 0)
 		return ret;	/* Can't alloc mem */
 
 	/* claim our I/O space */
