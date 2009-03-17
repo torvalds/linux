@@ -238,7 +238,8 @@ static int dt2811_do_insn_bits(struct comedi_device * dev, struct comedi_subdevi
 	struct comedi_insn * insn, unsigned int * data);
 
 enum { card_2811_pgh, card_2811_pgl };
-typedef struct {
+
+struct dt2811_private {
 	int ntrig;
 	int curadchan;
 	enum {
@@ -249,9 +250,9 @@ typedef struct {
 	} dac_range[2];
 	const struct comedi_lrange *range_type_list[2];
 	unsigned int ao_readback[2];
-} dt2811_private;
+};
 
-#define devpriv ((dt2811_private *)dev->private)
+#define devpriv ((struct dt2811_private *)dev->private)
 
 static const struct comedi_lrange *dac_range_types[] = {
 	&range_bipolar5,
@@ -377,7 +378,7 @@ static int dt2811_attach(struct comedi_device * dev, struct comedi_devconfig * i
 
 	if ((ret = alloc_subdevices(dev, 4)) < 0)
 		return ret;
-	if ((ret = alloc_private(dev, sizeof(dt2811_private))) < 0)
+	if ((ret = alloc_private(dev, sizeof(struct dt2811_private))) < 0)
 		return ret;
 	switch (it->options[2]) {
 	case 0:
