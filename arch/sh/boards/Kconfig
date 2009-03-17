@@ -190,6 +190,13 @@ config SH_SH7763RDP
 	  Select SH7763RDP if configuring for a Renesas SH7763
 	  evaluation board.
 
+config SH_ESPT
+	bool "ESPT"
+	depends on CPU_SUBTYPE_SH7763
+	help
+	  Select ESPT if configuring for a Renesas SH7763
+	  with gigabit ether evaluation board.
+
 config SH_EDOSK7705
 	bool "EDOSK7705"
 	depends on CPU_SUBTYPE_SH7705
