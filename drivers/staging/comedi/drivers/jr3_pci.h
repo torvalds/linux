@@ -2,8 +2,6 @@
  * is 16 bits, but aligned on a 32 bit PCI boundary
  */
 
-typedef s32 s_val_t;
-
 static inline u16 get_u16(volatile const u32 * p)
 {
 	return (u16) readl(p);
@@ -14,12 +12,12 @@ static inline void set_u16(volatile u32 * p, u16 val)
 	writel(val, p);
 }
 
-static inline s16 get_s16(volatile const s_val_t * p)
+static inline s16 get_s16(volatile const s32 * p)
 {
 	return (s16) readl(p);
 }
 
-static inline void set_s16(volatile s_val_t * p, s16 val)
+static inline void set_s16(volatile s32 * p, s16 val)
 {
 	writel(val, p);
 }
@@ -45,34 +43,34 @@ static inline void set_s16(volatile s_val_t * p, s16 val)
 
 typedef struct raw_channel {
 	u32 raw_time;
-	s_val_t raw_data;
-	s_val_t reserved[2];
+	s32 raw_data;
+	s32 reserved[2];
 } raw_channel_t;
 
 /* The force_array structure shows the layout for the decoupled and
  * filtered force data.
  */
 typedef struct force_array {
-	s_val_t fx;
-	s_val_t fy;
-	s_val_t fz;
-	s_val_t mx;
-	s_val_t my;
-	s_val_t mz;
-	s_val_t v1;
-	s_val_t v2;
+	s32 fx;
+	s32 fy;
+	s32 fz;
+	s32 mx;
+	s32 my;
+	s32 mz;
+	s32 v1;
+	s32 v2;
 } force_array_t;
 
 /* The six_axis_array structure shows the layout for the offsets and
  * the full scales.
  */
 typedef struct six_axis_array {
-	s_val_t fx;
-	s_val_t fy;
-	s_val_t fz;
-	s_val_t mx;
-	s_val_t my;
-	s_val_t mz;
+	s32 fx;
+	s32 fy;
+	s32 fz;
+	s32 mx;
+	s32 my;
+	s32 mz;
 } six_axis_array_t;
 
 /* VECT_BITS */
@@ -258,7 +256,7 @@ typedef enum link_types {
 typedef struct {
 	struct {
 		u32 link_type;
-		s_val_t link_amount;
+		s32 link_amount;
 	} link[8];
 } intern_transform_t;
 
@@ -275,7 +273,7 @@ typedef struct force_sensor_data {
 	/*  copyright notice. */
 
 	u32 copyright[0x0018];	/* offset 0x0040 */
-	s_val_t reserved1[0x0008];	/* offset 0x0058 */
+	s32 reserved1[0x0008];	/* offset 0x0058 */
 
 	/* Shunts contains the sensor shunt readings. Some JR3 sensors have
 	 * the ability to have their gains adjusted. This allows the
@@ -305,14 +303,14 @@ typedef struct force_sensor_data {
 	/* not set a full scale. */
 
 	six_axis_array_t default_FS;	/* offset 0x0068 */
-	s_val_t reserved3;	/* offset 0x006e */
+	s32 reserved3;	/* offset 0x006e */
 
 	/* Load_envelope_num is the load envelope number that is currently
 	 * in use. This value is set by the user after one of the load
 	 * envelopes has been initialized.
 	 */
 
-	s_val_t load_envelope_num;	/* offset 0x006f */
+	s32 load_envelope_num;	/* offset 0x006f */
 
 	/* Min_full_scale is the recommend minimum full scale. */
 
@@ -342,20 +340,20 @@ typedef struct force_sensor_data {
 	 */
 
 	six_axis_array_t min_full_scale;	/* offset 0x0070 */
-	s_val_t reserved4;	/* offset 0x0076 */
+	s32 reserved4;	/* offset 0x0076 */
 
 	/* Transform_num is the transform number that is currently in use.
 	 * This value is set by the JR3 DSP after the user has used command
 	 * (5) use transform # (pg. 33).
 	 */
 
-	s_val_t transform_num;	/* offset 0x0077 */
+	s32 transform_num;	/* offset 0x0077 */
 
 	/*  Max_full_scale is the recommended maximum full scale. See */
 	/*  min_full_scale (pg. 9) for more details. */
 
 	six_axis_array_t max_full_scale;	/* offset 0x0078 */
-	s_val_t reserved5;	/* offset 0x007e */
+	s32 reserved5;	/* offset 0x007e */
 
 	/* Peak_address is the address of the data which will be monitored
 	 * by the peak routine. This value is set by the user. The peak
@@ -363,7 +361,7 @@ typedef struct force_sensor_data {
 	 * (ex. to watch filter3 data for peaks, set this value to 0x00a8).
 	 */
 
-	s_val_t peak_address;	/* offset 0x007f */
+	s32 peak_address;	/* offset 0x007f */
 
 	/* Full_scale is the sensor full scales which are currently in use.
 	 * Decoupled and filtered data is scaled so that +/- 16384 is equal
@@ -399,7 +397,7 @@ typedef struct force_sensor_data {
 	 * offset # command (pg. 34). It can vary between 0 and 15.
 	 */
 
-	s_val_t offset_num;	/* offset 0x008e */
+	s32 offset_num;	/* offset 0x008e */
 
 	/* Vect_axes is a bit map showing which of the axes are being used
 	 * in the vector calculations. This value is set by the JR3 DSP
@@ -465,8 +463,8 @@ typedef struct force_sensor_data {
 	 *   sat_value = 32768 - 2^(16 - ADC bits)
 	 */
 
-	s_val_t near_sat_value;	/* offset 0x00e0 */
-	s_val_t sat_value;	/* offset 0x00e1 */
+	s32 near_sat_value;	/* offset 0x00e0 */
+	s32 sat_value;	/* offset 0x00e1 */
 
 	/* Rate_address, rate_divisor & rate_count contain the data used to
 	 * control the calculations of the rates. Rate_address is the
@@ -485,7 +483,7 @@ typedef struct force_sensor_data {
 	 * will minimize the time necessary to start the rate calculations.
 	 */
 
-	s_val_t rate_address;	/* offset 0x00e2 */
+	s32 rate_address;	/* offset 0x00e2 */
 	u32 rate_divisor;	/* offset 0x00e3 */
 	u32 rate_count;	/* offset 0x00e4 */
 
@@ -502,9 +500,9 @@ typedef struct force_sensor_data {
 	 * command_word1).
 	 */
 
-	s_val_t command_word2;	/* offset 0x00e5 */
-	s_val_t command_word1;	/* offset 0x00e6 */
-	s_val_t command_word0;	/* offset 0x00e7 */
+	s32 command_word2;	/* offset 0x00e5 */
+	s32 command_word1;	/* offset 0x00e6 */
+	s32 command_word0;	/* offset 0x00e7 */
 
 	/* Count1 through count6 are unsigned counters which are incremented
 	 * every time the matching filters are calculated. Filter1 is
@@ -559,14 +557,14 @@ typedef struct force_sensor_data {
 	 * (pg. 23) for more details.
 	 */
 
-	s_val_t threshold_bits;	/* offset 0x00f2 */
+	s32 threshold_bits;	/* offset 0x00f2 */
 
 	/* Last_crc is the value that shows the actual calculated CRC. CRC
 	 * is short for cyclic redundancy code. It should be zero. See the
 	 * description for cal_crc_bad (pg. 21) for more information.
 	 */
 
-	s_val_t last_CRC;	/* offset 0x00f3 */
+	s32 last_CRC;	/* offset 0x00f3 */
 
 	/* EEProm_ver_no contains the version number of the sensor EEProm.
 	 * EEProm version numbers can vary between 0 and 255.
@@ -574,8 +572,8 @@ typedef struct force_sensor_data {
 	 * 3.02 would be stored as 302.
 	 */
 
-	s_val_t eeprom_ver_no;	/* offset 0x00f4 */
-	s_val_t software_ver_no;	/* offset 0x00f5 */
+	s32 eeprom_ver_no;	/* offset 0x00f4 */
+	s32 software_ver_no;	/* offset 0x00f5 */
 
 	/* Software_day & software_year are the release date of the software
 	 * the JR3 DSP is currently running. Day is the day of the year,
@@ -583,8 +581,8 @@ typedef struct force_sensor_data {
 	 * years.
 	 */
 
-	s_val_t software_day;	/* offset 0x00f6 */
-	s_val_t software_year;	/* offset 0x00f7 */
+	s32 software_day;	/* offset 0x00f6 */
+	s32 software_year;	/* offset 0x00f7 */
 
 	/* Serial_no & model_no are the two values which uniquely identify a
 	 * sensor. This model number does not directly correspond to the JR3
@@ -600,8 +598,8 @@ typedef struct force_sensor_data {
 	 * 366 for leap years.
 	 */
 
-	s_val_t cal_day;	/* offset 0x00fa */
-	s_val_t cal_year;	/* offset 0x00fb */
+	s32 cal_day;	/* offset 0x00fa */
+	s32 cal_year;	/* offset 0x00fb */
 
 	/* Units is an enumerated read only value defining the engineering
 	 * units used in the sensor full scale. The meanings of particular
@@ -627,8 +625,8 @@ typedef struct force_sensor_data {
 	 */
 
 	u32 units;		/* offset 0x00fc */
-	s_val_t bits;		/* offset 0x00fd */
-	s_val_t channels;	/* offset 0x00fe */
+	s32 bits;		/* offset 0x00fd */
+	s32 channels;	/* offset 0x00fe */
 
 	/* Thickness specifies the overall thickness of the sensor from
 	 * flange to flange. The engineering units for this value are
@@ -637,7 +635,7 @@ typedef struct force_sensor_data {
 	 * transformation from the center of the sensor to either flange.
 	 */
 
-	s_val_t thickness;	/* offset 0x00ff */
+	s32 thickness;	/* offset 0x00ff */
 
 	/* Load_envelopes is a table containing the load envelope
 	 * descriptions. There are 16 possible load envelope slots in the
