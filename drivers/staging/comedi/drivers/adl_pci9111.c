@@ -339,7 +339,7 @@ COMEDI_PCI_INITCLEANUP(pci9111_driver, pci9111_pci_table);
 // Private data structure
 //
 
-typedef struct {
+struct pci9111_private_data {
 	struct pci_dev *pci_device;
 	unsigned long io_range;	// PCI6503 io range
 
@@ -362,9 +362,9 @@ typedef struct {
 	int is_valid;		// Is device valid
 
 	short ai_bounce_buffer[2 * PCI9111_FIFO_HALF_SIZE];
-} pci9111_private_data_struct;
+};
 
-#define dev_private 	((pci9111_private_data_struct *)dev->private)
+#define dev_private 	((struct pci9111_private_data *)dev->private)
 
 // ------------------------------------------------------------------
 //
@@ -1254,7 +1254,7 @@ static int pci9111_attach(struct comedi_device * dev, struct comedi_devconfig * 
 	int error, i;
 	const struct pci9111_board *board;
 
-	if (alloc_private(dev, sizeof(pci9111_private_data_struct)) < 0) {
+	if (alloc_private(dev, sizeof(struct pci9111_private_data)) < 0) {
 		return -ENOMEM;
 	}
 	//
