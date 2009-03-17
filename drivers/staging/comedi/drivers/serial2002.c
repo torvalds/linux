@@ -68,7 +68,8 @@ struct serial2002_range_table_t {
 };
 
 
-typedef struct {
+struct serial2002_private {
+
 	int port;		// /dev/ttyS<port>
 	int speed;		// baudrate
 	struct file *tty;
@@ -79,13 +80,14 @@ typedef struct {
 	unsigned char analog_out_mapping[32];
 	unsigned char encoder_in_mapping[32];
 	struct serial2002_range_table_t in_range[32], out_range[32];
-} serial2002_private;
+};
+
 
 /*
  * most drivers define the following macro to make it easy to
  * access the private structure.
  */
-#define devpriv ((serial2002_private *)dev->private)
+#define devpriv ((struct serial2002_private *)dev->private)
 
 static int serial2002_attach(struct comedi_device * dev, struct comedi_devconfig * it);
 static int serial2002_detach(struct comedi_device * dev);
@@ -786,7 +788,7 @@ static int serial2002_attach(struct comedi_device * dev, struct comedi_devconfig
 
 	printk("comedi%d: serial2002: ", dev->minor);
 	dev->board_name = thisboard->name;
-	if (alloc_private(dev, sizeof(serial2002_private)) < 0) {
+	if (alloc_private(dev, sizeof(struct serial2002_private)) < 0) {
 		return -ENOMEM;
 	}
 	dev->open = serial_2002_open;
