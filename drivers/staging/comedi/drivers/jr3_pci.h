@@ -64,14 +64,14 @@ struct force_array {
 /* The six_axis_array structure shows the layout for the offsets and
  * the full scales.
  */
-typedef struct six_axis_array {
+struct six_axis_array {
 	s32 fx;
 	s32 fy;
 	s32 fz;
 	s32 mx;
 	s32 my;
 	s32 mz;
-} six_axis_array_t;
+};
 
 /* VECT_BITS */
 /* The vect_bits structure shows the layout for indicating
@@ -296,13 +296,13 @@ typedef struct force_sensor_data {
 	 * command (10) set new full scales (pg. 38).
 	 */
 
-	six_axis_array_t shunts;	/* offset 0x0060 */
+	struct six_axis_array shunts;	/* offset 0x0060 */
 	s32 reserved2[2];	/* offset 0x0066 */
 
 	/* Default_FS contains the full scale that is used if the user does */
 	/* not set a full scale. */
 
-	six_axis_array_t default_FS;	/* offset 0x0068 */
+	struct six_axis_array default_FS;	/* offset 0x0068 */
 	s32 reserved3;	/* offset 0x006e */
 
 	/* Load_envelope_num is the load envelope number that is currently
@@ -339,7 +339,7 @@ typedef struct force_sensor_data {
 	 * cause erroneous results.
 	 */
 
-	six_axis_array_t min_full_scale;	/* offset 0x0070 */
+	struct six_axis_array min_full_scale;	/* offset 0x0070 */
 	s32 reserved4;	/* offset 0x0076 */
 
 	/* Transform_num is the transform number that is currently in use.
@@ -352,7 +352,7 @@ typedef struct force_sensor_data {
 	/*  Max_full_scale is the recommended maximum full scale. See */
 	/*  min_full_scale (pg. 9) for more details. */
 
-	six_axis_array_t max_full_scale;	/* offset 0x0078 */
+	struct six_axis_array max_full_scale;	/* offset 0x0078 */
 	s32 reserved5;	/* offset 0x007e */
 
 	/* Peak_address is the address of the data which will be monitored
@@ -390,7 +390,7 @@ typedef struct force_sensor_data {
 	 * about Z by 90 degrees, FY would be 5 and all others would be zero.
 	 */
 
-	six_axis_array_t offsets;	/* offset 0x0088 */
+	struct six_axis_array offsets;	/* offset 0x0088 */
 
 	/* Offset_num is the number of the offset currently in use. This
 	 * value is set by the JR3 DSP after the user has executed the use
