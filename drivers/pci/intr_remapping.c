@@ -499,6 +499,23 @@ int __init enable_intr_remapping(int eim)
 	struct dmar_drhd_unit *drhd;
 	int setup = 0;
 
+	for_each_drhd_unit(drhd) {
+		struct intel_iommu *iommu = drhd->iommu;
+
+		/*
+		 * Clear previous faults.
+		 */
+		dmar_fault(-1, iommu);
+
+		/*
+		 * Disable intr remapping and queued invalidation, if already
+		 * enabled prior to OS handover.
+		 */
+		disable_intr_remapping(iommu);
+
+		dmar_disable_qi(iommu);
+	}
+
 	/*
 	 * check for the Interrupt-remapping support
 	 */

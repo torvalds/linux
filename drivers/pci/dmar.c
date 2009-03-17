@@ -982,7 +982,7 @@ static int dmar_fault_do_one(struct intel_iommu *iommu, int type,
 }
 
 #define PRIMARY_FAULT_REG_LEN (16)
-static irqreturn_t dmar_fault(int irq, void *dev_id)
+irqreturn_t dmar_fault(int irq, void *dev_id)
 {
 	struct intel_iommu *iommu = dev_id;
 	int reg, fault_index;
@@ -1073,9 +1073,6 @@ int dmar_set_interrupt(struct intel_iommu *iommu)
 		destroy_irq(irq);
 		return 0;
 	}
-
-	/* Force fault register is cleared */
-	dmar_fault(irq, iommu);
 
 	ret = request_irq(irq, dmar_fault, 0, iommu->name, iommu);
 	if (ret)

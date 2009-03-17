@@ -24,6 +24,7 @@
 #include <linux/acpi.h>
 #include <linux/types.h>
 #include <linux/msi.h>
+#include <linux/irqreturn.h>
 
 #if defined(CONFIG_DMAR) || defined(CONFIG_INTR_REMAP)
 struct intel_iommu;
@@ -125,6 +126,7 @@ extern void dmar_msi_mask(unsigned int irq);
 extern void dmar_msi_read(int irq, struct msi_msg *msg);
 extern void dmar_msi_write(int irq, struct msi_msg *msg);
 extern int dmar_set_interrupt(struct intel_iommu *iommu);
+extern irqreturn_t dmar_fault(int irq, void *dev_id);
 extern int arch_setup_dmar_msi(unsigned int irq);
 
 #ifdef CONFIG_DMAR

@@ -1855,11 +1855,40 @@ static int __init init_dmars(void)
 		}
 	}
 
+	/*
+	 * Start from the sane iommu hardware state.
+	 */
 	for_each_drhd_unit(drhd) {
 		if (drhd->ignored)
 			continue;
 
 		iommu = drhd->iommu;
+
+		/*
+		 * If the queued invalidation is already initialized by us
+		 * (for example, while enabling interrupt-remapping) then
+		 * we got the things already rolling from a sane state.
+		 */
+		if (iommu->qi)
+			continue;
+
+		/*
+		 * Clear any previous faults.
+		 */
+		dmar_fault(-1, iommu);
+		/*
+		 * Disable queued invalidation if supported and already enabled
+		 * before OS handover.
+		 */
+		dmar_disable_qi(iommu);
+	}
+
+	for_each_drhd_unit(drhd) {
+		if (drhd->ignored)
+			continue;
+
+		iommu = drhd->iommu;
+
 		if (dmar_enable_qi(iommu)) {
 			/*
 			 * Queued Invalidate not enabled, use Register Based
