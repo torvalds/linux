@@ -234,7 +234,7 @@ static const struct dmm32at_board dmm32at_boards[] = {
  * several hardware drivers keep similar information in this structure,
  * feel free to suggest moving the variable to the struct comedi_device struct.
  */
-typedef struct {
+struct dmm32at_private {
 
 	int data;
 	int ai_inuse;
@@ -244,13 +244,13 @@ typedef struct {
 	unsigned int ao_readback[4];
 	unsigned char dio_config;
 
-} dmm32at_private;
+};
 
 /*
  * most drivers define the following macro to make it easy to
  * access the private structure.
  */
-#define devpriv ((dmm32at_private *)dev->private)
+#define devpriv ((struct dmm32at_private *)dev->private)
 
 /*
  * The struct comedi_driver structure tells the Comedi core module
@@ -406,7 +406,7 @@ static int dmm32at_attach(struct comedi_device * dev, struct comedi_devconfig * 
  * Allocate the private structure area.  alloc_private() is a
  * convenient macro defined in comedidev.h.
  */
-	if (alloc_private(dev, sizeof(dmm32at_private)) < 0)
+	if (alloc_private(dev, sizeof(struct dmm32at_private)) < 0)
 		return -ENOMEM;
 
 /*
