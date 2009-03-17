@@ -145,7 +145,7 @@ static int msi_set_mask_bits(struct irq_desc *desc, u32 mask, u32 flag)
 		if (!entry->msi_attrib.maskbit)
 			return 0;
 
-		pos = (long)entry->mask_base;
+		pos = entry->mask_pos;
 		pci_read_config_dword(entry->dev, pos, &mask_bits);
 		mask_bits &= ~mask;
 		mask_bits |= flag & mask;
@@ -363,8 +363,7 @@ static int msi_capability_init(struct pci_dev *dev)
 		unsigned int base, maskbits, temp;
 
 		base = msi_mask_bits_reg(pos, entry->msi_attrib.is_64);
-		entry->mask_base = (void __iomem *)(long)base;
-
+		entry->mask_pos = base;
 		/* All MSIs are unmasked by default, Mask them all */
 		pci_read_config_dword(dev, base, &maskbits);
 		temp = msi_mask((control & PCI_MSI_FLAGS_QMASK) >> 1);

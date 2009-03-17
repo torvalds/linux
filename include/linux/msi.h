@@ -33,7 +33,10 @@ struct msi_desc {
 	unsigned int irq;
 	struct list_head list;
 
-	void __iomem *mask_base;
+	union {
+		void __iomem *mask_base;
+		u8 mask_pos;
+	};
 	struct pci_dev *dev;
 
 	/* Last set MSI message */
