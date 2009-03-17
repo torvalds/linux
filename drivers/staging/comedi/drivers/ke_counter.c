@@ -61,14 +61,16 @@ MODULE_DEVICE_TABLE(pci, cnt_pci_table);
 
 /*-- board specification structure ------------------------------------------*/
 
-typedef struct {
+struct cnt_board_struct {
+
 	const char *name;
 	int device_id;
 	int cnt_channel_nbr;
 	int cnt_bits;
-} cnt_board_struct;
+};
 
-static const cnt_board_struct cnt_boards[] = {
+
+static const struct cnt_board_struct cnt_boards[] = {
 	{
 	      name:	CNT_DRIVER_NAME,
 	      device_id:CNT_CARD_DEVICE_ID,
@@ -76,7 +78,7 @@ static const cnt_board_struct cnt_boards[] = {
       cnt_bits:24}
 };
 
-#define cnt_board_nbr (sizeof(cnt_boards)/sizeof(cnt_board_struct))
+#define cnt_board_nbr (sizeof(cnt_boards)/sizeof(struct cnt_board_struct))
 
 /*-- device private structure -----------------------------------------------*/
 
@@ -148,7 +150,7 @@ static int cnt_attach(struct comedi_device * dev, struct comedi_devconfig * it)
 {
 	struct comedi_subdevice *subdevice;
 	struct pci_dev *pci_device;
-	cnt_board_struct *board;
+	struct cnt_board_struct *board;
 	unsigned long io_base;
 	int error, i;
 
@@ -180,7 +182,7 @@ static int cnt_attach(struct comedi_device * dev, struct comedi_devconfig * it)
 					}
 
 					dev->board_ptr = cnt_boards + i;
-					board = (cnt_board_struct *) dev->
+					board = (struct cnt_board_struct *) dev->
 						board_ptr;
 					goto found;
 				}
