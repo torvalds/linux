@@ -19,15 +19,12 @@
 
 #include <linux/module.h>
 #include <linux/version.h>
-#include <linux/kernel.h>
 #include <linux/spinlock.h>
-#include <linux/skbuff.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/ethtool.h>
 #include <linux/if_ether.h>
 #include <linux/if_vlan.h>
-#include <linux/kthread.h>
 #include <linux/crc32.h>
 #include <linux/cpu.h>
 #include <linux/fs.h>
@@ -45,28 +42,9 @@
 #include <scsi/fc_frame.h>
 #include <scsi/libfcoe.h>
 
+#include "fcoe.h"
+
 static int debug_fcoe;
-
-#define FCOE_MAX_QUEUE_DEPTH  256
-#define FCOE_LOW_QUEUE_DEPTH  32
-
-/* destination address mode */
-#define FCOE_GW_ADDR_MODE	    0x00
-#define FCOE_FCOUI_ADDR_MODE	    0x01
-
-#define FCOE_WORD_TO_BYTE  4
-
-#define FCOE_VERSION	"0.1"
-#define	FCOE_NAME	"fcoe"
-#define	FCOE_VENDOR	"Open-FCoE.org"
-
-#define FCOE_MAX_LUN		255
-#define FCOE_MAX_FCP_TARGET	256
-
-#define FCOE_MAX_OUTSTANDING_COMMANDS	1024
-
-#define FCOE_MIN_XID		0x0001	/* the min xid supported by fcoe_sw */
-#define FCOE_MAX_XID		0x07ef	/* the max xid supported by fcoe_sw */
 
 MODULE_AUTHOR("Open-FCoE.org");
 MODULE_DESCRIPTION("FCoE");
@@ -78,8 +56,22 @@ DEFINE_RWLOCK(fcoe_hostlist_lock);
 DEFINE_TIMER(fcoe_timer, NULL, 0, 0);
 DEFINE_PER_CPU(struct fcoe_percpu_s, fcoe_percpu);
 
-
 /* Function Prototyes */
+static int fcoe_reset(struct Scsi_Host *shost);
+static int fcoe_xmit(struct fc_lport *, struct fc_frame *);
+static int fcoe_rcv(struct sk_buff *, struct net_device *,
+		    struct packet_type *, struct net_device *);
+static int fcoe_percpu_receive_thread(void *arg);
+static void fcoe_clean_pending_queue(struct fc_lport *lp);
+static void fcoe_percpu_clean(struct fc_lport *lp);
+static int fcoe_link_ok(struct fc_lport *lp);
+
+static struct fc_lport *fcoe_hostlist_lookup(const struct net_device *);
+static int fcoe_hostlist_add(const struct fc_lport *);
+static int fcoe_hostlist_remove(const struct fc_lport *);
+
+static struct Scsi_Host *fcoe_host_alloc(struct scsi_host_template *, int);
+
 static int fcoe_check_wait_queue(struct fc_lport *);
 static void fcoe_recv_flogi(struct fcoe_softc *, struct fc_frame *, u8 *);
 static int fcoe_device_notification(struct notifier_block *, ulong, void *);
@@ -919,7 +911,6 @@ u32 fcoe_fc_crc(struct fc_frame *fp)
 	}
 	return crc;
 }
-EXPORT_SYMBOL_GPL(fcoe_fc_crc);
 
 /**
  * fcoe_xmit() - FCoE frame transmit function
