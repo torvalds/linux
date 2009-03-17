@@ -197,7 +197,7 @@ struct pcmuio_subdev_private {
 /* this structure is for data unique to this hardware driver.  If
    several hardware drivers keep similar information in this structure,
    feel free to suggest moving the variable to the struct comedi_device struct.  */
-typedef struct {
+struct pcmuio_private {
 	struct {
 		unsigned char pagelock;	/* current page and lock */
 		unsigned char pol[NUM_PAGED_REGS];	/* shadow of POLx registers */
@@ -208,13 +208,13 @@ typedef struct {
 		spinlock_t spinlock;
 	} asics[MAX_ASICS];
 	struct pcmuio_subdev_private *sprivs;
-} pcmuio_private;
+};
 
 /*
  * most drivers define the following macro to make it easy to
  * access the private structure.
  */
-#define devpriv ((pcmuio_private *)dev->private)
+#define devpriv ((struct pcmuio_private *)dev->private)
 #define subpriv ((struct pcmuio_subdev_private *)s->private)
 /*
  * The struct comedi_driver structure tells the Comedi core module
@@ -312,7 +312,7 @@ static int pcmuio_attach(struct comedi_device * dev, struct comedi_devconfig * i
  * Allocate the private structure area.  alloc_private() is a
  * convenient macro defined in comedidev.h.
  */
-	if (alloc_private(dev, sizeof(pcmuio_private)) < 0) {
+	if (alloc_private(dev, sizeof(struct pcmuio_private)) < 0) {
 		printk("cannot allocate private data structure\n");
 		return -ENOMEM;
 	}
