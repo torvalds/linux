@@ -148,16 +148,16 @@ MODULE_DEVICE_TABLE(pci, pc236_pci_table);
 /* this structure is for data unique to this hardware driver.  If
    several hardware drivers keep similar information in this structure,
    feel free to suggest moving the variable to the struct comedi_device struct.  */
-typedef struct {
+struct pc236_private {
 #ifdef CONFIG_COMEDI_PCI
 	/* PCI device */
 	struct pci_dev *pci_dev;
 	unsigned long lcr_iobase;	/* PLX PCI9052 config registers in PCIBAR1 */
 #endif
 	int enable_irq;
-} pc236_private;
+};
 
-#define devpriv ((pc236_private *)dev->private)
+#define devpriv ((struct pc236_private *)dev->private)
 
 /*
  * The struct comedi_driver structure tells the Comedi core module
@@ -282,7 +282,7 @@ static int pc236_attach(struct comedi_device * dev, struct comedi_devconfig * it
  * Allocate the private structure area.  alloc_private() is a
  * convenient macro defined in comedidev.h.
  */
-	if ((ret = alloc_private(dev, sizeof(pc236_private))) < 0) {
+	if ((ret = alloc_private(dev, sizeof(struct pc236_private))) < 0) {
 		printk(KERN_ERR "comedi%d: error! out of memory!\n",
 			dev->minor);
 		return ret;
