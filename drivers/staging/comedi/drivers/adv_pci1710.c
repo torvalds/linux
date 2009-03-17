@@ -266,7 +266,7 @@ static struct comedi_driver driver_pci1710 = {
 	.offset = sizeof(struct boardtype),
 };
 
-typedef struct {
+struct pci1710_private {
 	struct pci_dev *pcidev;	// ptr to PCI device
 	char valid;		// card is usable
 	char neverending_ai;	// we do unlimited AI
@@ -295,9 +295,9 @@ typedef struct {
 	unsigned int ai_timer2;
 	short ao_data[4];	// data output buffer
 	unsigned int cnt0_write_wait;	// after a write, wait for update of the internal state
-} pci1710_private;
+};
 
-#define devpriv ((pci1710_private *)dev->private)
+#define devpriv ((struct pci1710_private *)dev->private)
 #define this_board ((const struct boardtype *)dev->board_ptr)
 
 /*
@@ -1334,7 +1334,7 @@ static int pci1710_attach(struct comedi_device * dev, struct comedi_devconfig * 
 	opt_bus = it->options[0];
 	opt_slot = it->options[1];
 
-	if ((ret = alloc_private(dev, sizeof(pci1710_private))) < 0) {
+	if ((ret = alloc_private(dev, sizeof(struct pci1710_private))) < 0) {
 		rt_printk(" - Allocation failed!\n");
 		return -ENOMEM;
 	}
