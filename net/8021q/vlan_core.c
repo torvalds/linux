@@ -79,9 +79,6 @@ static int vlan_gro_common(struct napi_struct *napi, struct vlan_group *grp,
 {
 	struct sk_buff *p;
 
-	if (netpoll_rx_on(skb))
-		return GRO_NORMAL;
-
 	if (skb_bond_should_drop(skb))
 		goto drop;
 
@@ -107,6 +104,9 @@ drop:
 int vlan_gro_receive(struct napi_struct *napi, struct vlan_group *grp,
 		     unsigned int vlan_tci, struct sk_buff *skb)
 {
+	if (netpoll_rx_on(skb))
+		return vlan_hwaccel_receive_skb(skb, grp, vlan_tci);
+
 	skb_gro_reset_offset(skb);
 
 	return napi_skb_finish(vlan_gro_common(napi, grp, vlan_tci, skb), skb);
@@ -120,6 +120,9 @@ int vlan_gro_frags(struct napi_struct *napi, struct vlan_group *grp,
 
 	if (!skb)
 		return NET_RX_DROP;
+
+	if (netpoll_rx_on(skb))
+		return vlan_hwaccel_receive_skb(skb, grp, vlan_tci);
 
 	return napi_frags_finish(napi, skb,
 				 vlan_gro_common(napi, grp, vlan_tci, skb));
