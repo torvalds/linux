@@ -94,15 +94,48 @@ This function should be called before the driver calls request_irq()
 since enabling MSIs disables the pin-based IRQ and the driver will not
 receive interrupts on the old interrupt.
 
-4.2.2 pci_disable_msi
+4.2.2 pci_enable_msi_block
+
+int pci_enable_msi_block(struct pci_dev *dev, int count)
+
+This variation on the above call allows a device driver to request multiple
+MSIs.  The MSI specification only allows interrupts to be allocated in
+powers of two, up to a maximum of 2^5 (32).
+
+If this function returns 0, it has succeeded in allocating at least as many
+interrupts as the driver requested (it may have allocated more in order
+to satisfy the power-of-two requirement).  In this case, the function
+enables MSI on this device and updates dev->irq to be the lowest of
+the new interrupts assigned to it.  The other interrupts assigned to
+the device are in the range dev->irq to dev->irq + count - 1.
+
+If this function returns a negative number, it indicates an error and
+the driver should not attempt to request any more MSI interrupts for
+this device.  If this function returns a positive number, it will be
+less than 'count' and indicate the number of interrupts that could have
+been allocated.  In neither case will the irq value have been
+updated, nor will the device have been switched into MSI mode.
+
+The device driver must decide what action to take if
+pci_enable_msi_block() returns a value less than the number asked for.
+Some devices can make use of fewer interrupts than the maximum they
+request; in this case the driver should call pci_enable_msi_block()
+again.  Note that it is not guaranteed to succeed, even when the
+'count' has been reduced to the value returned from a previous call to
+pci_enable_msi_block().  This is because there are multiple constraints
+on the number of vectors that can be allocated; pci_enable_msi_block()
+will return as soon as it finds any constraint that doesn't allow the
+call to succeed.
+
+4.2.3 pci_disable_msi
 
 void pci_disable_msi(struct pci_dev *dev)
 
-This function should be used to undo the effect of pci_enable_msi().
-Calling it restores dev->irq to the pin-based interrupt number and frees
-the previously allocated message signaled interrupt(s).  The interrupt
-may subsequently be assigned to another device, so drivers should not
-cache the value of dev->irq.
+This function should be used to undo the effect of pci_enable_msi() or
+pci_enable_msi_block().  Calling it restores dev->irq to the pin-based
+interrupt number and frees the previously allocated message signaled
+interrupt(s).  The interrupt may subsequently be assigned to another
+device, so drivers should not cache the value of dev->irq.
 
 A device driver must always call free_irq() on the interrupt(s)
 for which it has called request_irq() before calling this function.

@@ -19,6 +19,10 @@ int arch_msi_check_device(struct pci_dev* dev, int nvec, int type)
 		return -ENOSYS;
 	}
 
+	/* PowerPC doesn't support multiple MSI yet */
+	if (type == PCI_CAP_ID_MSI && nvec > 1)
+		return 1;
+
 	if (ppc_md.msi_check_device) {
 		pr_debug("msi: Using platform check routine.\n");
 		return ppc_md.msi_check_device(dev, nvec, type);

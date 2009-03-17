@@ -789,7 +789,7 @@ struct msix_entry {
 
 
 #ifndef CONFIG_PCI_MSI
-static inline int pci_enable_msi(struct pci_dev *dev)
+static inline int pci_enable_msi_block(struct pci_dev *dev, unsigned int nvec)
 {
 	return -1;
 }
@@ -824,7 +824,7 @@ static inline int pci_msi_enabled(void)
 	return 0;
 }
 #else
-extern int pci_enable_msi(struct pci_dev *dev);
+extern int pci_enable_msi_block(struct pci_dev *dev, unsigned int nvec);
 extern void pci_msi_shutdown(struct pci_dev *dev);
 extern void pci_disable_msi(struct pci_dev *dev);
 extern int pci_msix_table_size(struct pci_dev *dev);
@@ -845,6 +845,8 @@ static inline int pcie_aspm_enabled(void)
 #else
 extern int pcie_aspm_enabled(void);
 #endif
+
+#define pci_enable_msi(pdev)	pci_enable_msi_block(pdev, 1)
 
 #ifdef CONFIG_HT_IRQ
 /* The functions a driver should call */
