@@ -25,18 +25,18 @@ Devices: [Adlink] ACL-7225b (acl7225b), [ICP] P16R16DIO (p16r16dio)
 static int acl7225b_attach(struct comedi_device *dev, struct comedi_devconfig * it);
 static int acl7225b_detach(struct comedi_device *dev);
 
-typedef struct {
+struct boardtype {
 	const char *name;	// driver name
 	int io_range;		// len of I/O space
-} boardtype;
+};
 
-static const boardtype boardtypes[] = {
+static const struct boardtype boardtypes[] = {
 	{"acl7225b", ACL7225_SIZE,},
 	{"p16r16dio", P16R16DIO_SIZE,},
 };
 
-#define n_boardtypes (sizeof(boardtypes)/sizeof(boardtype))
-#define this_board ((const boardtype *)dev->board_ptr)
+#define n_boardtypes (sizeof(boardtypes)/sizeof(struct boardtype))
+#define this_board ((const struct boardtype *)dev->board_ptr)
 
 static struct comedi_driver driver_acl7225b = {
       driver_name:"acl7225b",
@@ -45,7 +45,7 @@ static struct comedi_driver driver_acl7225b = {
       detach:acl7225b_detach,
       board_name:&boardtypes[0].name,
       num_names:n_boardtypes,
-      offset:sizeof(boardtype),
+      offset:sizeof(struct boardtype),
 };
 
 COMEDI_INITCLEANUP(driver_acl7225b);
