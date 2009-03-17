@@ -456,7 +456,7 @@ struct dio200_subdev_8254 {
 	unsigned gate_src[3];	/* Current gate sources */
 };
 
-typedef struct {
+struct dio200_subdev_intr {
 	unsigned long iobase;
 	spinlock_t spinlock;
 	int active;
@@ -465,7 +465,7 @@ typedef struct {
 	unsigned int enabled_isns;
 	unsigned int stopcount;
 	int continuous;
-} dio200_subdev_intr;
+};
 
 /*
  * The struct comedi_driver structure tells the Comedi core module
@@ -575,7 +575,7 @@ static int
 dio200_subdev_intr_insn_bits(struct comedi_device * dev, struct comedi_subdevice * s,
 	struct comedi_insn * insn, unsigned int * data)
 {
-	dio200_subdev_intr *subpriv = s->private;
+	struct dio200_subdev_intr *subpriv = s->private;
 
 	if (subpriv->has_int_sce) {
 		/* Just read the interrupt status register.  */
@@ -593,7 +593,7 @@ dio200_subdev_intr_insn_bits(struct comedi_device * dev, struct comedi_subdevice
  */
 static void dio200_stop_intr(struct comedi_device * dev, struct comedi_subdevice * s)
 {
-	dio200_subdev_intr *subpriv = s->private;
+	struct dio200_subdev_intr *subpriv = s->private;
 
 	subpriv->active = 0;
 	subpriv->enabled_isns = 0;
@@ -609,7 +609,7 @@ static int dio200_start_intr(struct comedi_device * dev, struct comedi_subdevice
 {
 	unsigned int n;
 	unsigned isn_bits;
-	dio200_subdev_intr *subpriv = s->private;
+	struct dio200_subdev_intr *subpriv = s->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
 	int retval = 0;
 
@@ -644,7 +644,7 @@ static int
 dio200_inttrig_start_intr(struct comedi_device * dev, struct comedi_subdevice * s,
 	unsigned int trignum)
 {
-	dio200_subdev_intr *subpriv;
+	struct dio200_subdev_intr *subpriv;
 	unsigned long flags;
 	int event = 0;
 
@@ -673,7 +673,7 @@ dio200_inttrig_start_intr(struct comedi_device * dev, struct comedi_subdevice * 
  */
 static int dio200_handle_read_intr(struct comedi_device * dev, struct comedi_subdevice * s)
 {
-	dio200_subdev_intr *subpriv = s->private;
+	struct dio200_subdev_intr *subpriv = s->private;
 	unsigned triggered;
 	unsigned intstat;
 	unsigned cur_enabled;
@@ -785,7 +785,7 @@ static int dio200_handle_read_intr(struct comedi_device * dev, struct comedi_sub
  */
 static int dio200_subdev_intr_cancel(struct comedi_device * dev, struct comedi_subdevice * s)
 {
-	dio200_subdev_intr *subpriv = s->private;
+	struct dio200_subdev_intr *subpriv = s->private;
 	unsigned long flags;
 
 	comedi_spin_lock_irqsave(&subpriv->spinlock, flags);
@@ -910,7 +910,7 @@ dio200_subdev_intr_cmdtest(struct comedi_device * dev, struct comedi_subdevice *
 static int dio200_subdev_intr_cmd(struct comedi_device * dev, struct comedi_subdevice * s)
 {
 	struct comedi_cmd *cmd = &s->async->cmd;
-	dio200_subdev_intr *subpriv = s->private;
+	struct dio200_subdev_intr *subpriv = s->private;
 	unsigned long flags;
 	int event = 0;
 
@@ -956,7 +956,7 @@ static int
 dio200_subdev_intr_init(struct comedi_device * dev, struct comedi_subdevice * s,
 	unsigned long iobase, unsigned valid_isns, int has_int_sce)
 {
-	dio200_subdev_intr *subpriv;
+	struct dio200_subdev_intr *subpriv;
 
 	subpriv = kzalloc(sizeof(*subpriv), GFP_KERNEL);
 	if (!subpriv) {
@@ -1000,7 +1000,7 @@ dio200_subdev_intr_init(struct comedi_device * dev, struct comedi_subdevice * s,
 static void
 dio200_subdev_intr_cleanup(struct comedi_device * dev, struct comedi_subdevice * s)
 {
-	dio200_subdev_intr *subpriv = s->private;
+	struct dio200_subdev_intr *subpriv = s->private;
 
 	if (subpriv) {
 		kfree(subpriv);
@@ -1249,7 +1249,7 @@ dio200_subdev_8254_init(struct comedi_device * dev, struct comedi_subdevice * s,
 static void
 dio200_subdev_8254_cleanup(struct comedi_device * dev, struct comedi_subdevice * s)
 {
-	dio200_subdev_intr *subpriv = s->private;
+	struct dio200_subdev_intr *subpriv = s->private;
 
 	if (subpriv) {
 		kfree(subpriv);
