@@ -298,14 +298,16 @@ static struct comedi_driver driver_pcidio = {
       detach:nidio_detach,
 };
 
-typedef struct {
+struct nidio_board {
+
 	int dev_id;
 	const char *name;
 	int n_8255;
 	unsigned int is_diodaq:1;
 	unsigned int uses_firmware:1;
-} nidio_board;
-static const nidio_board nidio_boards[] = {
+};
+
+static const struct nidio_board nidio_boards[] = {
 	{
 	      dev_id:	0x1150,
 	      name:	"pci-dio-32hs",
@@ -370,7 +372,7 @@ static const nidio_board nidio_boards[] = {
 };
 
 #define n_nidio_boards (sizeof(nidio_boards)/sizeof(nidio_boards[0]))
-#define this_board ((const nidio_board *)dev->board_ptr)
+#define this_board ((const struct nidio_board *)dev->board_ptr)
 
 static DEFINE_PCI_DEVICE_TABLE(ni_pcidio_pci_table) = {
 	{PCI_VENDOR_ID_NATINST, 0x1150, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
