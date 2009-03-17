@@ -138,7 +138,7 @@ static struct comedi_driver driver_timer = {
 
 COMEDI_INITCLEANUP(driver_timer);
 
-typedef struct {
+struct timer_private {
 	comedi_t *device;	// device we are emulating commands for
 	int subd;		// subdevice we are emulating commands for
 	RT_TASK *rt_task;	// rt task that starts scans
@@ -159,8 +159,8 @@ typedef struct {
 	volatile int rt_task_active;	// indicates rt_task is servicing a struct comedi_cmd
 	volatile int scan_task_active;	// indicates scan_task is servicing a struct comedi_cmd
 	unsigned timer_running:1;
-} timer_private;
-#define devpriv ((timer_private *)dev->private)
+};
+#define devpriv ((struct timer_private *)dev->private)
 
 static int timer_cancel(struct comedi_device * dev, struct comedi_subdevice * s)
 {
@@ -623,7 +623,7 @@ static int timer_attach(struct comedi_device * dev, struct comedi_devconfig * it
 
 	if ((ret = alloc_subdevices(dev, 1)) < 0)
 		return ret;
-	if ((ret = alloc_private(dev, sizeof(timer_private))) < 0)
+	if ((ret = alloc_private(dev, sizeof(struct timer_private))) < 0)
 		return ret;
 
 	sprintf(path, "/dev/comedi%d", it->options[0]);
