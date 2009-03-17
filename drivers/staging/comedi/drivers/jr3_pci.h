@@ -241,7 +241,7 @@ struct le_struct {
  * 7 - negate all axes (NEG)
  */
 
-typedef enum link_types {
+enum link_types {
 	end_x_form,
 	tx,
 	ty,
@@ -250,7 +250,7 @@ typedef enum link_types {
 	ry,
 	rz,
 	neg
-} link_types;
+};
 
 /*  TRANSFORM */
 /*  Structure used to describe a transform. */
