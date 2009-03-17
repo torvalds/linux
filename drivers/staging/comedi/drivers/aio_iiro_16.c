@@ -59,13 +59,13 @@ static const struct aio_iiro_16_board aio_iiro_16_boards[] = {
 
 #define	thisboard	((const struct aio_iiro_16_board *) dev->board_ptr)
 
-typedef struct {
+struct aio_iiro_16_private {
 	int data;
 	struct pci_dev *pci_dev;
 	unsigned int ao_readback[2];
-} aio_iiro_16_private;
+};
 
-#define	devpriv	((aio_iiro_16_private *) dev->private)
+#define	devpriv	((struct aio_iiro_16_private *) dev->private)
 
 static int aio_iiro_16_attach(struct comedi_device * dev, struct comedi_devconfig * it);
 
@@ -105,7 +105,7 @@ static int aio_iiro_16_attach(struct comedi_device * dev, struct comedi_devconfi
 
 	dev->iobase = iobase;
 
-	if (alloc_private(dev, sizeof(aio_iiro_16_private)) < 0)
+	if (alloc_private(dev, sizeof(struct aio_iiro_16_private)) < 0)
 		return -ENOMEM;
 
 	if (alloc_subdevices(dev, 2) < 0)
