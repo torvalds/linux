@@ -44,20 +44,20 @@ Configuration Options:
 #define AIO_IIRO_16_RELAY_8_15	0x04
 #define AIO_IIRO_16_INPUT_8_15	0x05
 
-typedef struct aio_iiro_16_board_struct {
+struct aio_iiro_16_board {
 	const char *name;
 	int do_;
 	int di;
-} aio_iiro_16_board;
+};
 
-static const aio_iiro_16_board aio_iiro_16_boards[] = {
+static const struct aio_iiro_16_board aio_iiro_16_boards[] = {
 	{
 	      name:	"aio_iiro_16",
 	      di:	16,
       do_:	16},
 };
 
-#define	thisboard	((const aio_iiro_16_board *) dev->board_ptr)
+#define	thisboard	((const struct aio_iiro_16_board *) dev->board_ptr)
 
 typedef struct {
 	int data;
@@ -77,8 +77,8 @@ static struct comedi_driver driver_aio_iiro_16 = {
       attach:aio_iiro_16_attach,
       detach:aio_iiro_16_detach,
       board_name:&aio_iiro_16_boards[0].name,
-      offset:sizeof(aio_iiro_16_board),
-      num_names:sizeof(aio_iiro_16_boards) / sizeof(aio_iiro_16_board),
+      offset:sizeof(struct aio_iiro_16_board),
+      num_names:sizeof(aio_iiro_16_boards) / sizeof(struct aio_iiro_16_board),
 };
 
 static int aio_iiro_16_dio_insn_bits_read(struct comedi_device * dev,
