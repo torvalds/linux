@@ -26,7 +26,7 @@
 
 #include <linux/string.h>
 
-int comedi_dio_config(comedi_t *dev, unsigned int subdev, unsigned int chan,
+int comedi_dio_config(void *dev, unsigned int subdev, unsigned int chan,
 	unsigned int io)
 {
 	comedi_insn insn;
@@ -41,7 +41,7 @@ int comedi_dio_config(comedi_t *dev, unsigned int subdev, unsigned int chan,
 	return comedi_do_insn(dev, &insn);
 }
 
-int comedi_dio_read(comedi_t *dev, unsigned int subdev, unsigned int chan,
+int comedi_dio_read(void *dev, unsigned int subdev, unsigned int chan,
 	unsigned int *val)
 {
 	comedi_insn insn;
@@ -56,7 +56,7 @@ int comedi_dio_read(comedi_t *dev, unsigned int subdev, unsigned int chan,
 	return comedi_do_insn(dev, &insn);
 }
 
-int comedi_dio_write(comedi_t *dev, unsigned int subdev, unsigned int chan,
+int comedi_dio_write(void *dev, unsigned int subdev, unsigned int chan,
 	unsigned int val)
 {
 	comedi_insn insn;
@@ -71,7 +71,7 @@ int comedi_dio_write(comedi_t *dev, unsigned int subdev, unsigned int chan,
 	return comedi_do_insn(dev, &insn);
 }
 
-int comedi_dio_bitfield(comedi_t *dev, unsigned int subdev, unsigned int mask,
+int comedi_dio_bitfield(void *dev, unsigned int subdev, unsigned int mask,
 	unsigned int *bits)
 {
 	comedi_insn insn;

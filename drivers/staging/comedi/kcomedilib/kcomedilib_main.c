@@ -42,7 +42,7 @@ MODULE_AUTHOR("David Schleef <ds@schleef.org>");
 MODULE_DESCRIPTION("Comedi kernel library");
 MODULE_LICENSE("GPL");
 
-comedi_t *comedi_open(const char *filename)
+void *comedi_open(const char *filename)
 {
 	struct comedi_device_file_info *dev_file_info;
 	comedi_device *dev;
@@ -67,10 +67,10 @@ comedi_t *comedi_open(const char *filename)
 	if (!try_module_get(dev->driver->module))
 		return NULL;
 
-	return (comedi_t *) dev;
+	return (void *) dev;
 }
 
-comedi_t *comedi_open_old(unsigned int minor)
+void *comedi_open_old(unsigned int minor)
 {
 	struct comedi_device_file_info *dev_file_info;
 	comedi_device *dev;
@@ -86,10 +86,10 @@ comedi_t *comedi_open_old(unsigned int minor)
 	if (dev == NULL || !dev->attached)
 		return NULL;
 
-	return (comedi_t *) dev;
+	return (void *) dev;
 }
 
-int comedi_close(comedi_t *d)
+int comedi_close(void *d)
 {
 	comedi_device *dev = (comedi_device *) d;
 
@@ -113,7 +113,7 @@ char *comedi_strerror(int err)
 	return "unknown error";
 }
 
-int comedi_fileno(comedi_t *d)
+int comedi_fileno(void *d)
 {
 	comedi_device *dev = (comedi_device *) d;
 
@@ -121,7 +121,7 @@ int comedi_fileno(comedi_t *d)
 	return dev->minor;
 }
 
-int comedi_command(comedi_t *d, comedi_cmd *cmd)
+int comedi_command(void *d, comedi_cmd *cmd)
 {
 	comedi_device *dev = (comedi_device *) d;
 	comedi_subdevice *s;
@@ -161,7 +161,7 @@ int comedi_command(comedi_t *d, comedi_cmd *cmd)
 	return s->do_cmd(dev, s);
 }
 
-int comedi_command_test(comedi_t *d, comedi_cmd *cmd)
+int comedi_command_test(void *d, comedi_cmd *cmd)
 {
 	comedi_device *dev = (comedi_device *) d;
 	comedi_subdevice *s;
@@ -183,7 +183,7 @@ int comedi_command_test(comedi_t *d, comedi_cmd *cmd)
  *	COMEDI_INSN
  *	perform an instruction
  */
-int comedi_do_insn(comedi_t *d, comedi_insn *insn)
+int comedi_do_insn(void *d, comedi_insn *insn)
 {
 	comedi_device *dev = (comedi_device *) d;
 	comedi_subdevice *s;
@@ -324,7 +324,7 @@ int comedi_do_insn(comedi_t *d, comedi_insn *insn)
 	- lock while subdevice being programmed
 
 */
-int comedi_lock(comedi_t *d, unsigned int subdevice)
+int comedi_lock(void *d, unsigned int subdevice)
 {
 	comedi_device *dev = (comedi_device *) d;
 	comedi_subdevice *s;
@@ -367,7 +367,7 @@ int comedi_lock(comedi_t *d, unsigned int subdevice)
 		none
 
 */
-int comedi_unlock(comedi_t *d, unsigned int subdevice)
+int comedi_unlock(void *d, unsigned int subdevice)
 {
 	comedi_device *dev = (comedi_device *) d;
 	comedi_subdevice *s;
@@ -419,7 +419,7 @@ int comedi_unlock(comedi_t *d, unsigned int subdevice)
 		nothing
 
 */
-int comedi_cancel(comedi_t *d, unsigned int subdevice)
+int comedi_cancel(void *d, unsigned int subdevice)
 {
 	comedi_device *dev = (comedi_device *) d;
 	comedi_subdevice *s;
@@ -464,7 +464,7 @@ int comedi_cancel(comedi_t *d, unsigned int subdevice)
 /*
    registration of callback functions
  */
-int comedi_register_callback(comedi_t *d, unsigned int subdevice,
+int comedi_register_callback(void *d, unsigned int subdevice,
 	unsigned int mask, int (*cb) (unsigned int, void *), void *arg)
 {
 	comedi_device *dev = (comedi_device *) d;
@@ -501,7 +501,7 @@ int comedi_register_callback(comedi_t *d, unsigned int subdevice,
 	return 0;
 }
 
-int comedi_poll(comedi_t *d, unsigned int subdevice)
+int comedi_poll(void *d, unsigned int subdevice)
 {
 	comedi_device *dev = (comedi_device *) d;
 	comedi_subdevice *s = dev->subdevices;
@@ -528,7 +528,7 @@ int comedi_poll(comedi_t *d, unsigned int subdevice)
 }
 
 /* WARNING: not portable */
-int comedi_map(comedi_t *d, unsigned int subdevice, void *ptr)
+int comedi_map(void *d, unsigned int subdevice, void *ptr)
 {
 	comedi_device *dev = (comedi_device *) d;
 	comedi_subdevice *s;
@@ -550,7 +550,7 @@ int comedi_map(comedi_t *d, unsigned int subdevice, void *ptr)
 }
 
 /* WARNING: not portable */
-int comedi_unmap(comedi_t *d, unsigned int subdevice)
+int comedi_unmap(void *d, unsigned int subdevice)
 {
 	comedi_device *dev = (comedi_device *) d;
 	comedi_subdevice *s;

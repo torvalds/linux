@@ -142,7 +142,7 @@ static const struct BondingBoard bondingBoards[] = {
 #define thisboard ((const struct BondingBoard *)dev->board_ptr)
 
 struct BondedDevice {
-	comedi_t *dev;
+	void *dev;
 	unsigned minor;
 	unsigned subdev;
 	unsigned subdev_type;
@@ -397,7 +397,7 @@ static void *Realloc(const void *oldmem, size_t newlen, size_t oldlen)
 static int doDevConfig(comedi_device *dev, comedi_devconfig *it)
 {
 	int i;
-	comedi_t *devs_opened[COMEDI_NUM_BOARD_MINORS];
+	void *devs_opened[COMEDI_NUM_BOARD_MINORS];
 
 	memset(devs_opened, 0, sizeof(devs_opened));
 	devpriv->name[0] = 0;;
@@ -406,7 +406,7 @@ static int doDevConfig(comedi_device *dev, comedi_devconfig *it)
 	for (i = 0; i < COMEDI_NDEVCONFOPTS && (!i || it->options[i]); ++i) {
 		char file[] = "/dev/comediXXXXXX";
 		int minor = it->options[i];
-		comedi_t *d;
+		void *d;
 		int sdev = -1, nchans, tmp;
 		struct BondedDevice *bdev = NULL;
 

@@ -26,33 +26,33 @@
 #include "../comedilib.h"
 #include "../comedidev.h"
 
-int comedi_get_n_subdevices(comedi_t *d)
+int comedi_get_n_subdevices(void *d)
 {
 	comedi_device *dev = (comedi_device *) d;
 
 	return dev->n_subdevices;
 }
 
-int comedi_get_version_code(comedi_t *d)
+int comedi_get_version_code(void *d)
 {
 	return COMEDI_VERSION_CODE;
 }
 
-const char *comedi_get_driver_name(comedi_t * d)
+const char *comedi_get_driver_name(void * d)
 {
 	comedi_device *dev = (comedi_device *) d;
 
 	return dev->driver->driver_name;
 }
 
-const char *comedi_get_board_name(comedi_t * d)
+const char *comedi_get_board_name(void * d)
 {
 	comedi_device *dev = (comedi_device *) d;
 
 	return dev->board_name;
 }
 
-int comedi_get_subdevice_type(comedi_t *d, unsigned int subdevice)
+int comedi_get_subdevice_type(void *d, unsigned int subdevice)
 {
 	comedi_device *dev = (comedi_device *) d;
 	comedi_subdevice *s = dev->subdevices + subdevice;
@@ -60,7 +60,7 @@ int comedi_get_subdevice_type(comedi_t *d, unsigned int subdevice)
 	return s->type;
 }
 
-unsigned int comedi_get_subdevice_flags(comedi_t *d, unsigned int subdevice)
+unsigned int comedi_get_subdevice_flags(void *d, unsigned int subdevice)
 {
 	comedi_device *dev = (comedi_device *) d;
 	comedi_subdevice *s = dev->subdevices + subdevice;
@@ -68,7 +68,7 @@ unsigned int comedi_get_subdevice_flags(comedi_t *d, unsigned int subdevice)
 	return s->subdev_flags;
 }
 
-int comedi_find_subdevice_by_type(comedi_t *d, int type, unsigned int subd)
+int comedi_find_subdevice_by_type(void *d, int type, unsigned int subd)
 {
 	comedi_device *dev = (comedi_device *) d;
 
@@ -82,7 +82,7 @@ int comedi_find_subdevice_by_type(comedi_t *d, int type, unsigned int subd)
 	return -1;
 }
 
-int comedi_get_n_channels(comedi_t *d, unsigned int subdevice)
+int comedi_get_n_channels(void *d, unsigned int subdevice)
 {
 	comedi_device *dev = (comedi_device *) d;
 	comedi_subdevice *s = dev->subdevices + subdevice;
@@ -90,7 +90,7 @@ int comedi_get_n_channels(comedi_t *d, unsigned int subdevice)
 	return s->n_chan;
 }
 
-int comedi_get_len_chanlist(comedi_t *d, unsigned int subdevice)
+int comedi_get_len_chanlist(void *d, unsigned int subdevice)
 {
 	comedi_device *dev = (comedi_device *) d;
 	comedi_subdevice *s = dev->subdevices + subdevice;
@@ -98,7 +98,7 @@ int comedi_get_len_chanlist(comedi_t *d, unsigned int subdevice)
 	return s->len_chanlist;
 }
 
-lsampl_t comedi_get_maxdata(comedi_t *d, unsigned int subdevice,
+lsampl_t comedi_get_maxdata(void *d, unsigned int subdevice,
 	unsigned int chan)
 {
 	comedi_device *dev = (comedi_device *) d;
@@ -111,7 +111,7 @@ lsampl_t comedi_get_maxdata(comedi_t *d, unsigned int subdevice,
 }
 
 #ifdef KCOMEDILIB_DEPRECATED
-int comedi_get_rangetype(comedi_t *d, unsigned int subdevice,
+int comedi_get_rangetype(void *d, unsigned int subdevice,
 	unsigned int chan)
 {
 	comedi_device *dev = (comedi_device *) d;
@@ -130,7 +130,7 @@ int comedi_get_rangetype(comedi_t *d, unsigned int subdevice,
 }
 #endif
 
-int comedi_get_n_ranges(comedi_t *d, unsigned int subdevice, unsigned int chan)
+int comedi_get_n_ranges(void *d, unsigned int subdevice, unsigned int chan)
 {
 	comedi_device *dev = (comedi_device *) d;
 	comedi_subdevice *s = dev->subdevices + subdevice;
@@ -148,7 +148,7 @@ int comedi_get_n_ranges(comedi_t *d, unsigned int subdevice, unsigned int chan)
 /*
  * ALPHA (non-portable)
 */
-int comedi_get_krange(comedi_t *d, unsigned int subdevice, unsigned int chan,
+int comedi_get_krange(void *d, unsigned int subdevice, unsigned int chan,
 	unsigned int range, comedi_krange *krange)
 {
 	comedi_device *dev = (comedi_device *) d;
@@ -171,7 +171,7 @@ int comedi_get_krange(comedi_t *d, unsigned int subdevice, unsigned int chan,
 /*
  * ALPHA (may be renamed)
 */
-unsigned int comedi_get_buf_head_pos(comedi_t *d, unsigned int subdevice)
+unsigned int comedi_get_buf_head_pos(void *d, unsigned int subdevice)
 {
 	comedi_device *dev = (comedi_device *) d;
 	comedi_subdevice *s = dev->subdevices + subdevice;
@@ -184,7 +184,7 @@ unsigned int comedi_get_buf_head_pos(comedi_t *d, unsigned int subdevice)
 	return async->buf_write_count;
 }
 
-int comedi_get_buffer_contents(comedi_t *d, unsigned int subdevice)
+int comedi_get_buffer_contents(void *d, unsigned int subdevice)
 {
 	comedi_device *dev = (comedi_device *) d;
 	comedi_subdevice *s = dev->subdevices + subdevice;
@@ -203,7 +203,7 @@ int comedi_get_buffer_contents(comedi_t *d, unsigned int subdevice)
 /*
  * ALPHA
 */
-int comedi_set_user_int_count(comedi_t *d, unsigned int subdevice,
+int comedi_set_user_int_count(void *d, unsigned int subdevice,
 	unsigned int buf_user_count)
 {
 	comedi_device *dev = (comedi_device *) d;
@@ -224,7 +224,7 @@ int comedi_set_user_int_count(comedi_t *d, unsigned int subdevice,
 	return 0;
 }
 
-int comedi_mark_buffer_read(comedi_t *d, unsigned int subdevice,
+int comedi_mark_buffer_read(void *d, unsigned int subdevice,
 	unsigned int num_bytes)
 {
 	comedi_device *dev = (comedi_device *) d;
@@ -243,7 +243,7 @@ int comedi_mark_buffer_read(comedi_t *d, unsigned int subdevice,
 	return 0;
 }
 
-int comedi_mark_buffer_written(comedi_t *d, unsigned int subdevice,
+int comedi_mark_buffer_written(void *d, unsigned int subdevice,
 	unsigned int num_bytes)
 {
 	comedi_device *dev = (comedi_device *) d;
@@ -263,7 +263,7 @@ int comedi_mark_buffer_written(comedi_t *d, unsigned int subdevice,
 	return 0;
 }
 
-int comedi_get_buffer_size(comedi_t *d, unsigned int subdev)
+int comedi_get_buffer_size(void *d, unsigned int subdev)
 {
 	comedi_device *dev = (comedi_device *) d;
 	comedi_subdevice *s = dev->subdevices + subdev;
@@ -278,7 +278,7 @@ int comedi_get_buffer_size(comedi_t *d, unsigned int subdev)
 	return async->prealloc_bufsz;
 }
 
-int comedi_get_buffer_offset(comedi_t *d, unsigned int subdevice)
+int comedi_get_buffer_offset(void *d, unsigned int subdevice)
 {
 	comedi_device *dev = (comedi_device *) d;
 	comedi_subdevice *s = dev->subdevices + subdevice;
