@@ -346,15 +346,15 @@ static const unsigned short hwrange_pci234[1] = {
 
 enum pci224_model { any_model, pci224_model, pci234_model };
 
-typedef struct pci224_board_struct {
+struct pci224_board {
 	const char *name;
 	unsigned short devid;
 	enum pci224_model model;
 	unsigned int ao_chans;
 	unsigned int ao_bits;
-} pci224_board;
+};
 
-static const pci224_board pci224_boards[] = {
+static const struct pci224_board pci224_boards[] = {
 	{
 	      name:	"pci224",
 	      devid: PCI_DEVICE_ID_AMPLICON_PCI224,
@@ -393,7 +393,7 @@ MODULE_DEVICE_TABLE(pci, pci224_pci_table);
 /*
  * Useful for shorthand access to the particular board structure
  */
-#define thisboard ((pci224_board *)dev->board_ptr)
+#define thisboard ((struct pci224_board *)dev->board_ptr)
 
 /* this structure is for data unique to this hardware driver.  If
    several hardware drivers keep similar information in this structure,
@@ -434,8 +434,8 @@ static struct comedi_driver driver_amplc_pci224 = {
       attach:pci224_attach,
       detach:pci224_detach,
       board_name:&pci224_boards[0].name,
-      offset:sizeof(pci224_board),
-      num_names:sizeof(pci224_boards) / sizeof(pci224_board),
+      offset:sizeof(struct pci224_board),
+      num_names:sizeof(pci224_boards) / sizeof(struct pci224_board),
 };
 
 COMEDI_PCI_INITCLEANUP(driver_amplc_pci224, pci224_pci_table);
