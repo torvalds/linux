@@ -3602,7 +3602,7 @@ S:	Maintained
 RALINK RT2X00 WIRELESS LAN DRIVER
 P:	rt2x00 project
 L:	linux-wireless@vger.kernel.org
-L:	rt2400-devel@lists.sourceforge.net
+L:	users@rt2x00.serialmonkey.com
 W:	http://rt2x00.serialmonkey.com/
 S:	Maintained
 T:	git kernel.org:/pub/scm/linux/kernel/git/ivd/rt2x00.git
