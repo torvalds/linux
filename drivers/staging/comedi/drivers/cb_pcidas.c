@@ -241,7 +241,7 @@ enum trimpot_model {
 	AD8402,
 };
 
-typedef struct cb_pcidas_board_struct {
+struct cb_pcidas_board {
 	const char *name;
 	unsigned short device_id;
 	int ai_se_chans;	// Inputs in single-ended mode
@@ -255,9 +255,9 @@ typedef struct cb_pcidas_board_struct {
 	const struct comedi_lrange *ranges;
 	enum trimpot_model trimpot;
 	unsigned has_dac08:1;
-} cb_pcidas_board;
+};
 
-static const cb_pcidas_board cb_pcidas_boards[] = {
+static const struct cb_pcidas_board cb_pcidas_boards[] = {
 	{
 	      name:	"pci-das1602/16",
 	      device_id:0x1,
@@ -375,7 +375,7 @@ static const cb_pcidas_board cb_pcidas_boards[] = {
 };
 
 // Number of boards in cb_pcidas_boards
-#define N_BOARDS	(sizeof(cb_pcidas_boards) / sizeof(cb_pcidas_board))
+#define N_BOARDS	(sizeof(cb_pcidas_boards) / sizeof(struct cb_pcidas_board))
 
 static DEFINE_PCI_DEVICE_TABLE(cb_pcidas_pci_table) = {
 	{PCI_VENDOR_ID_CB, 0x0001, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
@@ -394,7 +394,7 @@ MODULE_DEVICE_TABLE(pci, cb_pcidas_pci_table);
 /*
  * Useful for shorthand access to the particular board structure
  */
-#define thisboard ((const cb_pcidas_board *)dev->board_ptr)
+#define thisboard ((const struct cb_pcidas_board *)dev->board_ptr)
 
 /* this structure is for data unique to this hardware driver.  If
    several hardware drivers keep similar information in this structure,
