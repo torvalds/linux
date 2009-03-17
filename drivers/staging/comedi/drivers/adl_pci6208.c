@@ -112,7 +112,7 @@ static int pci6208_detach(struct comedi_device * dev);
 #define pci6208_board_nbr \
 	(sizeof(pci6208_boards) / sizeof(pci6208_board))
 
-static comedi_driver driver_pci6208 = {
+static struct comedi_driver driver_pci6208 = {
       driver_name:PCI6208_DRIVER_NAME,
       module:THIS_MODULE,
       attach:pci6208_attach,

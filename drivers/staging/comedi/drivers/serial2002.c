@@ -87,7 +87,7 @@ typedef struct {
 
 static int serial2002_attach(struct comedi_device * dev, comedi_devconfig * it);
 static int serial2002_detach(struct comedi_device * dev);
-comedi_driver driver_serial2002 = {
+struct comedi_driver driver_serial2002 = {
       driver_name:"serial2002",
       module:THIS_MODULE,
       attach:serial2002_attach,

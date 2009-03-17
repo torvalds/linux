@@ -92,7 +92,7 @@ pin, which can be used to wake up tasks.
 
 static int parport_attach(struct comedi_device *dev, comedi_devconfig *it);
 static int parport_detach(struct comedi_device *dev);
-static comedi_driver driver_parport = {
+static struct comedi_driver driver_parport = {
       .driver_name =	"comedi_parport",
       .module =		THIS_MODULE,
       .attach =		parport_attach,

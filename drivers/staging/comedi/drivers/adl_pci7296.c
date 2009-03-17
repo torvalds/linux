@@ -65,7 +65,7 @@ typedef struct {
 
 static int adl_pci7296_attach(struct comedi_device * dev, comedi_devconfig * it);
 static int adl_pci7296_detach(struct comedi_device * dev);
-static comedi_driver driver_adl_pci7296 = {
+static struct comedi_driver driver_adl_pci7296 = {
       driver_name:"adl_pci7296",
       module:THIS_MODULE,
       attach:adl_pci7296_attach,

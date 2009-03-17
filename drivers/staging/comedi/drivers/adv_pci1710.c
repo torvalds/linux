@@ -256,7 +256,7 @@ static const boardtype boardtypes[] = {
 
 #define n_boardtypes (sizeof(boardtypes)/sizeof(boardtype))
 
-static comedi_driver driver_pci1710 = {
+static struct comedi_driver driver_pci1710 = {
 	.driver_name = DRV_NAME,
 	.module = THIS_MODULE,
 	.attach = pci1710_attach,

@@ -246,7 +246,7 @@ static int das800_attach(struct comedi_device * dev, comedi_devconfig * it);
 static int das800_detach(struct comedi_device * dev);
 static int das800_cancel(struct comedi_device * dev, struct comedi_subdevice * s);
 
-static comedi_driver driver_das800 = {
+static struct comedi_driver driver_das800 = {
       driver_name:"das800",
       module:THIS_MODULE,
       attach:das800_attach,

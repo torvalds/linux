@@ -58,7 +58,7 @@ static struct pcmcia_device *cur_dev = NULL;
 
 static int das08_cs_attach(struct comedi_device * dev, comedi_devconfig * it);
 
-static comedi_driver driver_das08_cs = {
+static struct comedi_driver driver_das08_cs = {
       driver_name:"das08_cs",
       module:THIS_MODULE,
       attach:das08_cs_attach,

@@ -829,7 +829,7 @@ static int das08_counter_config(struct comedi_device * dev, struct comedi_subdev
 
 static int das08_attach(struct comedi_device * dev, comedi_devconfig * it);
 
-static comedi_driver driver_das08 = {
+static struct comedi_driver driver_das08 = {
       driver_name: DRV_NAME,
       module:THIS_MODULE,
       attach:das08_attach,

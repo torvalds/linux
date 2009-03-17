@@ -1127,7 +1127,7 @@ static inline pcidas64_private *priv(struct comedi_device * dev)
  */
 static int attach(struct comedi_device * dev, comedi_devconfig * it);
 static int detach(struct comedi_device * dev);
-static comedi_driver driver_cb_pcidas = {
+static struct comedi_driver driver_cb_pcidas = {
       driver_name:"cb_pcidas64",
       module:THIS_MODULE,
       attach:attach,

@@ -2527,7 +2527,7 @@ static const boardtype boardtypes[] = {
 
 #define n_boardtypes (sizeof(boardtypes)/sizeof(boardtype))
 
-comedi_driver driver_addi = {
+struct comedi_driver driver_addi = {
       driver_name:"addi_common",
       module:THIS_MODULE,
       attach:i_ADDI_Attach,

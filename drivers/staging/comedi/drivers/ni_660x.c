@@ -450,7 +450,7 @@ static void init_tio_chip(struct comedi_device * dev, int chipset);
 static void ni_660x_select_pfi_output(struct comedi_device * dev, unsigned pfi_channel,
 	unsigned output_select);
 
-static comedi_driver driver_ni_660x = {
+static struct comedi_driver driver_ni_660x = {
       driver_name:"ni_660x",
       module:THIS_MODULE,
       attach:ni_660x_attach,

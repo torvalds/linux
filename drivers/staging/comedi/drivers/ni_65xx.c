@@ -104,7 +104,7 @@ static inline unsigned Filter_Enable(unsigned port)
 
 static int ni_65xx_attach(struct comedi_device * dev, comedi_devconfig * it);
 static int ni_65xx_detach(struct comedi_device * dev);
-static comedi_driver driver_ni_65xx = {
+static struct comedi_driver driver_ni_65xx = {
       driver_name:"ni_65xx",
       module:THIS_MODULE,
       attach:ni_65xx_attach,

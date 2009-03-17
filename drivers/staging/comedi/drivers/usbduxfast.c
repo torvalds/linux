@@ -1856,7 +1856,7 @@ static int usbduxfast_detach(struct comedi_device *dev)
 /*
  * main driver struct
  */
-static comedi_driver driver_usbduxfast = {
+static struct comedi_driver driver_usbduxfast = {
 	.driver_name	= "usbduxfast",
 	.module		= THIS_MODULE,
 	.attach		= usbduxfast_attach,

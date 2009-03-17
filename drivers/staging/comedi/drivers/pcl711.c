@@ -156,7 +156,7 @@ static const boardtype boardtypes[] = {
 
 static int pcl711_attach(struct comedi_device * dev, comedi_devconfig * it);
 static int pcl711_detach(struct comedi_device * dev);
-static comedi_driver driver_pcl711 = {
+static struct comedi_driver driver_pcl711 = {
       driver_name:"pcl711",
       module:THIS_MODULE,
       attach:pcl711_attach,

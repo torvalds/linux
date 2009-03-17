@@ -78,7 +78,7 @@ struct pcmad_priv_struct {
 
 static int pcmad_attach(struct comedi_device * dev, comedi_devconfig * it);
 static int pcmad_detach(struct comedi_device * dev);
-static comedi_driver driver_pcmad = {
+static struct comedi_driver driver_pcmad = {
       driver_name:"pcmad",
       module:THIS_MODULE,
       attach:pcmad_attach,

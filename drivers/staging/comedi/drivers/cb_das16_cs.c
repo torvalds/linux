@@ -91,7 +91,7 @@ typedef struct {
 
 static int das16cs_attach(struct comedi_device * dev, comedi_devconfig * it);
 static int das16cs_detach(struct comedi_device * dev);
-static comedi_driver driver_das16cs = {
+static struct comedi_driver driver_das16cs = {
       driver_name:"cb_das16_cs",
       module:THIS_MODULE,
       attach:das16cs_attach,

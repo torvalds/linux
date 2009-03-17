@@ -154,7 +154,7 @@ static int RTC_lock = 0;	/* RTC lock */
 static int RTC_timer_lock = 0;	/* RTC int lock */
 #endif
 
-static comedi_driver driver_pcl816 = {
+static struct comedi_driver driver_pcl816 = {
       driver_name:"pcl816",
       module:THIS_MODULE,
       attach:pcl816_attach,

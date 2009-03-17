@@ -138,7 +138,7 @@ static DEFINE_PCI_DEVICE_TABLE(pci1723_pci_table) = {
 MODULE_DEVICE_TABLE(pci, pci1723_pci_table);
 
 /*
- * The comedi_driver structure tells the Comedi core module
+ * The struct comedi_driver structure tells the Comedi core module
  * which functions to call to configure/deconfigure (attach/detach)
  * the board, and also about the kernel module that contains
  * the device code.
@@ -148,7 +148,7 @@ static int pci1723_detach(struct comedi_device * dev);
 
 #define n_boardtypes (sizeof(boardtypes)/sizeof(boardtype))
 
-static comedi_driver driver_pci1723 = {
+static struct comedi_driver driver_pci1723 = {
       driver_name:"adv_pci1723",
       module:THIS_MODULE,
       attach:pci1723_attach,

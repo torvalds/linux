@@ -120,7 +120,7 @@ static const me4000_board_t me4000_boards[] = {
   ---------------------------------------------------------------------------*/
 static int me4000_attach(struct comedi_device *dev, comedi_devconfig *it);
 static int me4000_detach(struct comedi_device *dev);
-static comedi_driver driver_me4000 = {
+static struct comedi_driver driver_me4000 = {
       driver_name:"me4000",
       module : THIS_MODULE,
       attach : me4000_attach,

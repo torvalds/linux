@@ -90,7 +90,7 @@ Configuration options:
 
 static int dt2801_attach(struct comedi_device * dev, comedi_devconfig * it);
 static int dt2801_detach(struct comedi_device * dev);
-static comedi_driver driver_dt2801 = {
+static struct comedi_driver driver_dt2801 = {
       driver_name:"dt2801",
       module:THIS_MODULE,
       attach:dt2801_attach,

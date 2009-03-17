@@ -97,7 +97,7 @@ typedef struct {
 
 #define devpriv ((dio24_private *)dev->private)
 
-static comedi_driver driver_dio24 = {
+static struct comedi_driver driver_dio24 = {
       driver_name:"ni_daq_dio24",
       module:THIS_MODULE,
       attach:dio24_attach,

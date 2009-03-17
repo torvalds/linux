@@ -134,7 +134,7 @@ static void reset_counters(struct comedi_device * dev);
 static void reset_atmio16d(struct comedi_device * dev);
 
 /* main driver struct */
-static comedi_driver driver_atmio16d = {
+static struct comedi_driver driver_atmio16d = {
       driver_name:"atmio16",
       module:THIS_MODULE,
       attach:atmio16d_attach,

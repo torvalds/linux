@@ -429,7 +429,7 @@ static const int sample_size = 2;	// 2 bytes per sample
 
 #define devpriv ((labpc_private *)dev->private)
 
-static comedi_driver driver_labpc = {
+static struct comedi_driver driver_labpc = {
 	.driver_name = DRV_NAME,
 	.module = THIS_MODULE,
 	.attach = labpc_attach,

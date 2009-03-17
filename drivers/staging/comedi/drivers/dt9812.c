@@ -1108,7 +1108,7 @@ static int dt9812_detach(struct comedi_device *dev)
 	return 0;
 }
 
-static comedi_driver dt9812_comedi_driver = {
+static struct comedi_driver dt9812_comedi_driver = {
 	.module = THIS_MODULE,
 	.driver_name = "dt9812",
 	.attach = dt9812_attach,

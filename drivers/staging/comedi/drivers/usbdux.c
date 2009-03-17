@@ -2903,7 +2903,7 @@ static int usbdux_detach(struct comedi_device *dev)
 }
 
 /* main driver struct */
-static comedi_driver driver_usbdux = {
+static struct comedi_driver driver_usbdux = {
       .driver_name =	"usbdux",
       .module =		THIS_MODULE,
       .attach =		usbdux_attach,

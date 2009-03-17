@@ -116,7 +116,7 @@ static const labpc_board labpc_cs_boards[] = {
  */
 #define thisboard ((const labpc_board *)dev->board_ptr)
 
-static comedi_driver driver_labpc_cs = {
+static struct comedi_driver driver_labpc_cs = {
 	.driver_name = "ni_labpc_cs",
 	.module = THIS_MODULE,
 	.attach = &labpc_attach,

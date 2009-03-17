@@ -50,13 +50,13 @@
 static int postconfig(struct comedi_device *dev);
 static int insn_rw_emulate_bits(struct comedi_device *dev, struct comedi_subdevice *s,
 	comedi_insn *insn, unsigned int *data);
-static void *comedi_recognize(comedi_driver * driv, const char *name);
-static void comedi_report_boards(comedi_driver *driv);
+static void *comedi_recognize(struct comedi_driver * driv, const char *name);
+static void comedi_report_boards(struct comedi_driver *driv);
 static int poll_invalid(struct comedi_device *dev, struct comedi_subdevice *s);
 int comedi_buf_alloc(struct comedi_device *dev, struct comedi_subdevice *s,
 	unsigned long new_size);
 
-comedi_driver *comedi_drivers;
+struct comedi_driver *comedi_drivers;
 
 int comedi_modprobe(int minor)
 {
@@ -115,7 +115,7 @@ void comedi_device_detach(struct comedi_device *dev)
 
 int comedi_device_attach(struct comedi_device *dev, comedi_devconfig *it)
 {
-	comedi_driver *driv;
+	struct comedi_driver *driv;
 	int ret;
 
 	if (dev->attached)
@@ -180,7 +180,7 @@ attached:
 	return 0;
 }
 
-int comedi_driver_register(comedi_driver *driver)
+int comedi_driver_register(struct comedi_driver *driver)
 {
 	driver->next = comedi_drivers;
 	comedi_drivers = driver;
@@ -188,9 +188,9 @@ int comedi_driver_register(comedi_driver *driver)
 	return 0;
 }
 
-int comedi_driver_unregister(comedi_driver *driver)
+int comedi_driver_unregister(struct comedi_driver *driver)
 {
-	comedi_driver *prev;
+	struct comedi_driver *prev;
 	int i;
 
 	/* check for devices using this driver */
@@ -298,7 +298,7 @@ static int postconfig(struct comedi_device *dev)
 }
 
 /*  generic recognize function for drivers that register their supported board names */
-void *comedi_recognize(comedi_driver * driv, const char *name)
+void *comedi_recognize(struct comedi_driver * driv, const char *name)
 {
 	unsigned i;
 	const char *const *name_ptr = driv->board_name;
@@ -313,7 +313,7 @@ void *comedi_recognize(comedi_driver * driv, const char *name)
 	return NULL;
 }
 
-void comedi_report_boards(comedi_driver *driv)
+void comedi_report_boards(struct comedi_driver *driv)
 {
 	unsigned int i;
 	const char *const *name_ptr;

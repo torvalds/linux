@@ -106,7 +106,7 @@ static int comedi_load_firmware(struct comedi_device * dev,
 static int jr3_pci_attach(struct comedi_device * dev, comedi_devconfig * it);
 static int jr3_pci_detach(struct comedi_device * dev);
 
-static comedi_driver driver_jr3_pci = {
+static struct comedi_driver driver_jr3_pci = {
       driver_name:"jr3_pci",
       module:THIS_MODULE,
       attach:jr3_pci_attach,

@@ -86,7 +86,7 @@ typedef struct {
 
 #define devpriv ((cnt_device_private *)dev->private)
 
-static comedi_driver cnt_driver = {
+static struct comedi_driver cnt_driver = {
       driver_name:CNT_DRIVER_NAME,
       module:THIS_MODULE,
       attach:cnt_attach,

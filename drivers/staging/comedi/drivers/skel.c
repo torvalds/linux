@@ -44,7 +44,7 @@ Configuration Options:
  * Devices: a full list of the boards that attempt to be supported by
  *   the driver.  Format is "(manufacturer) board name [comedi name]",
  *   where comedi_name is the name that is used to configure the board.
- *   See the comment near board_name: in the comedi_driver structure
+ *   See the comment near board_name: in the struct comedi_driver structure
  *   below.  If (manufacturer) or [comedi name] is missing, the previous
  *   value is used.
  * Author: you
@@ -146,14 +146,14 @@ typedef struct {
 #define devpriv ((skel_private *)dev->private)
 
 /*
- * The comedi_driver structure tells the Comedi core module
+ * The struct comedi_driver structure tells the Comedi core module
  * which functions to call to configure/deconfigure (attach/detach)
  * the board, and also about the kernel module that contains
  * the device code.
  */
 static int skel_attach(struct comedi_device * dev, comedi_devconfig * it);
 static int skel_detach(struct comedi_device * dev);
-static comedi_driver driver_skel = {
+static struct comedi_driver driver_skel = {
       driver_name:"dummy",
       module:THIS_MODULE,
       attach:skel_attach,

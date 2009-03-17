@@ -327,7 +327,7 @@ static inline hpdi_private *priv(struct comedi_device * dev)
 	return dev->private;
 }
 
-static comedi_driver driver_hpdi = {
+static struct comedi_driver driver_hpdi = {
       driver_name:"gsc_hpdi",
       module:THIS_MODULE,
       attach:hpdi_attach,

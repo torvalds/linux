@@ -468,14 +468,14 @@ typedef struct {
 } dio200_subdev_intr;
 
 /*
- * The comedi_driver structure tells the Comedi core module
+ * The struct comedi_driver structure tells the Comedi core module
  * which functions to call to configure/deconfigure (attach/detach)
  * the board, and also about the kernel module that contains
  * the device code.
  */
 static int dio200_attach(struct comedi_device * dev, comedi_devconfig * it);
 static int dio200_detach(struct comedi_device * dev);
-static comedi_driver driver_amplc_dio200 = {
+static struct comedi_driver driver_amplc_dio200 = {
       driver_name:DIO200_DRIVER_NAME,
       module:THIS_MODULE,
       attach:dio200_attach,

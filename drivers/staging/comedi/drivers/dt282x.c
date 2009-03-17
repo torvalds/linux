@@ -396,7 +396,7 @@ typedef struct {
 
 static int dt282x_attach(struct comedi_device * dev, comedi_devconfig * it);
 static int dt282x_detach(struct comedi_device * dev);
-static comedi_driver driver_dt282x = {
+static struct comedi_driver driver_dt282x = {
       driver_name:"dt282x",
       module:THIS_MODULE,
       attach:dt282x_attach,

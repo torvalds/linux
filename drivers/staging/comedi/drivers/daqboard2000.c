@@ -299,7 +299,7 @@ typedef struct daqboard2000_hw {
 static int daqboard2000_attach(struct comedi_device * dev, comedi_devconfig * it);
 static int daqboard2000_detach(struct comedi_device * dev);
 
-static comedi_driver driver_daqboard2000 = {
+static struct comedi_driver driver_daqboard2000 = {
       driver_name:"daqboard2000",
       module:THIS_MODULE,
       attach:daqboard2000_attach,

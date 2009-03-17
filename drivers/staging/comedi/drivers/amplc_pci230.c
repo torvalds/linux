@@ -596,14 +596,14 @@ static const comedi_lrange pci230_ao_range = { 2, {
 static const unsigned char pci230_ao_bipolar[2] = { 0, 1 };
 
 /*
- * The comedi_driver structure tells the Comedi core module
+ * The struct comedi_driver structure tells the Comedi core module
  * which functions to call to configure/deconfigure (attach/detach)
  * the board, and also about the kernel module that contains
  * the device code.
  */
 static int pci230_attach(struct comedi_device * dev, comedi_devconfig * it);
 static int pci230_detach(struct comedi_device * dev);
-static comedi_driver driver_amplc_pci230 = {
+static struct comedi_driver driver_amplc_pci230 = {
       driver_name:"amplc_pci230",
       module:THIS_MODULE,
       attach:pci230_attach,

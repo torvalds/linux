@@ -102,7 +102,7 @@ static int __unioxx5_analog_read(unioxx5_subd_priv * usp, unsigned int * data,
 static int __unioxx5_define_chan_offset(int chan_num);
 static void __unioxx5_analog_config(unioxx5_subd_priv * usp, int channel);
 
-static comedi_driver unioxx5_driver = {
+static struct comedi_driver unioxx5_driver = {
       driver_name:DRIVER_NAME,
       module:THIS_MODULE,
       attach:unioxx5_attach,

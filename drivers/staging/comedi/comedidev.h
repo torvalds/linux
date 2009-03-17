@@ -121,7 +121,6 @@
 #define COMEDI_NUM_BOARD_MINORS 0x30
 #define COMEDI_FIRST_SUBDEVICE_MINOR COMEDI_NUM_BOARD_MINORS
 
-typedef struct comedi_driver_struct comedi_driver;
 typedef struct comedi_lrange_struct comedi_lrange;
 
 typedef struct device device_create_result_type;
@@ -239,8 +238,8 @@ struct comedi_async {
 			unsigned int x);
 };
 
-struct comedi_driver_struct {
-	struct comedi_driver_struct *next;
+struct comedi_driver {
+	struct comedi_driver *next;
 
 	const char *driver_name;
 	struct module *module;
@@ -256,7 +255,7 @@ struct comedi_driver_struct {
 
 struct comedi_device {
 	int use_count;
-	comedi_driver *driver;
+	struct comedi_driver *driver;
 	void *private;
 
 	device_create_result_type *class_dev;
@@ -343,8 +342,8 @@ static inline struct comedi_subdevice *comedi_get_write_subdevice(
 
 void comedi_device_detach(struct comedi_device *dev);
 int comedi_device_attach(struct comedi_device *dev, comedi_devconfig *it);
-int comedi_driver_register(comedi_driver *);
-int comedi_driver_unregister(comedi_driver *);
+int comedi_driver_register(struct comedi_driver *);
+int comedi_driver_unregister(struct comedi_driver *);
 
 void init_polling(void);
 void cleanup_polling(void);

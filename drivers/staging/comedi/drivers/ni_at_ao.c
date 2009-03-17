@@ -180,7 +180,7 @@ typedef struct {
 
 static int atao_attach(struct comedi_device * dev, comedi_devconfig * it);
 static int atao_detach(struct comedi_device * dev);
-static comedi_driver driver_atao = {
+static struct comedi_driver driver_atao = {
       driver_name:"ni_at_ao",
       module:THIS_MODULE,
       attach:atao_attach,

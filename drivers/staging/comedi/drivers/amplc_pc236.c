@@ -160,14 +160,14 @@ typedef struct {
 #define devpriv ((pc236_private *)dev->private)
 
 /*
- * The comedi_driver structure tells the Comedi core module
+ * The struct comedi_driver structure tells the Comedi core module
  * which functions to call to configure/deconfigure (attach/detach)
  * the board, and also about the kernel module that contains
  * the device code.
  */
 static int pc236_attach(struct comedi_device * dev, comedi_devconfig * it);
 static int pc236_detach(struct comedi_device * dev);
-static comedi_driver driver_amplc_pc236 = {
+static struct comedi_driver driver_amplc_pc236 = {
       driver_name:PC236_DRIVER_NAME,
       module:THIS_MODULE,
       attach:pc236_attach,

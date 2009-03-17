@@ -147,7 +147,7 @@ static const comedi_lrange range_mpc624_bipolar10 = {
 static int mpc624_attach(struct comedi_device * dev, comedi_devconfig * it);
 static int mpc624_detach(struct comedi_device * dev);
 //----------------------------------------------------------------------------
-static comedi_driver driver_mpc624 = {
+static struct comedi_driver driver_mpc624 = {
       driver_name:"mpc624",
       module:THIS_MODULE,
       attach:mpc624_attach,

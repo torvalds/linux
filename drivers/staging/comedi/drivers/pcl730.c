@@ -43,7 +43,7 @@ static const boardtype boardtypes[] = {
 #define n_boardtypes (sizeof(boardtypes)/sizeof(boardtype))
 #define this_board ((const boardtype *)dev->board_ptr)
 
-static comedi_driver driver_pcl730 = {
+static struct comedi_driver driver_pcl730 = {
       driver_name:"pcl730",
       module:THIS_MODULE,
       attach:pcl730_attach,

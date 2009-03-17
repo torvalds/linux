@@ -95,7 +95,7 @@ struct waveform_private {
 
 static int waveform_attach(struct comedi_device *dev, comedi_devconfig *it);
 static int waveform_detach(struct comedi_device *dev);
-static comedi_driver driver_waveform = {
+static struct comedi_driver driver_waveform = {
       .driver_name =	"comedi_test",
       .module =		THIS_MODULE,
       .attach =		waveform_attach,

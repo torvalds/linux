@@ -299,7 +299,7 @@ static const boardtype boardtypes[] = {
 
 #define n_boardtypes (sizeof(boardtypes)/sizeof(boardtype))
 
-static comedi_driver driver_pcl818 = {
+static struct comedi_driver driver_pcl818 = {
       driver_name:"pcl818",
       module:THIS_MODULE,
       attach:pcl818_attach,

@@ -291,7 +291,7 @@ static int nidio_attach(struct comedi_device * dev, comedi_devconfig * it);
 static int nidio_detach(struct comedi_device * dev);
 static int ni_pcidio_cancel(struct comedi_device * dev, struct comedi_subdevice * s);
 
-static comedi_driver driver_pcidio = {
+static struct comedi_driver driver_pcidio = {
       driver_name:"ni_pcidio",
       module:THIS_MODULE,
       attach:nidio_attach,

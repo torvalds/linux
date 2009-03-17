@@ -100,7 +100,7 @@ This driver has suffered bitrot.
 
 static int das6402_attach(struct comedi_device * dev, comedi_devconfig * it);
 static int das6402_detach(struct comedi_device * dev);
-static comedi_driver driver_das6402 = {
+static struct comedi_driver driver_das6402 = {
       driver_name:"das6402",
       module:THIS_MODULE,
       attach:das6402_attach,

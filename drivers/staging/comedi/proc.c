@@ -36,7 +36,7 @@
 int comedi_read_procmem(char *buf, char **start, off_t offset, int len,
 	int *eof, void *data);
 
-extern comedi_driver *comedi_drivers;
+extern struct comedi_driver *comedi_drivers;
 
 int comedi_read_procmem(char *buf, char **start, off_t offset, int len,
 	int *eof, void *data)
@@ -44,7 +44,7 @@ int comedi_read_procmem(char *buf, char **start, off_t offset, int len,
 	int i;
 	int devices_q = 0;
 	int l = 0;
-	comedi_driver *driv;
+	struct comedi_driver *driv;
 
 	l += sprintf(buf + l,
 		"comedi version " COMEDI_RELEASE "\n"

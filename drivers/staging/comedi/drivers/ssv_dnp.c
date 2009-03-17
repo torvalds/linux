@@ -80,7 +80,7 @@ typedef struct {
 #define devpriv ((dnp_private *)dev->private)
 
 /* ------------------------------------------------------------------------- */
-/* The comedi_driver structure tells the Comedi core module which functions  */
+/* The struct comedi_driver structure tells the Comedi core module which functions  */
 /* to call to configure/deconfigure (attach/detach) the board, and also      */
 /* about the kernel module that contains the device code.                    */
 /*                                                                           */
@@ -90,7 +90,7 @@ typedef struct {
 static int dnp_attach(struct comedi_device * dev, comedi_devconfig * it);
 static int dnp_detach(struct comedi_device * dev);
 
-static comedi_driver driver_dnp = {
+static struct comedi_driver driver_dnp = {
       driver_name:"ssv_dnp",
       module:THIS_MODULE,
       attach:dnp_attach,

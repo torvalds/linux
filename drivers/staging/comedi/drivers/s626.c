@@ -121,7 +121,7 @@ MODULE_DEVICE_TABLE(pci, s626_pci_table);
 static int s626_attach(struct comedi_device *dev, comedi_devconfig *it);
 static int s626_detach(struct comedi_device *dev);
 
-static comedi_driver driver_s626 = {
+static struct comedi_driver driver_s626 = {
       driver_name:"s626",
       module : THIS_MODULE,
       attach : s626_attach,

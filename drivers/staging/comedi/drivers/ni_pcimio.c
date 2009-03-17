@@ -1209,7 +1209,7 @@ static const ni_board ni_boards[] = {
 
 static int pcimio_attach(struct comedi_device * dev, comedi_devconfig * it);
 static int pcimio_detach(struct comedi_device * dev);
-static comedi_driver driver_pcimio = {
+static struct comedi_driver driver_pcimio = {
 	driver_name: DRV_NAME,
 	module:THIS_MODULE,
 	attach:pcimio_attach,

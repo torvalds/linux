@@ -700,7 +700,7 @@ static const struct das16_board_struct das16_boards[] = {
 
 static int das16_attach(struct comedi_device * dev, comedi_devconfig * it);
 static int das16_detach(struct comedi_device * dev);
-static comedi_driver driver_das16 = {
+static struct comedi_driver driver_das16 = {
       driver_name:"das16",
       module:THIS_MODULE,
       attach:das16_attach,

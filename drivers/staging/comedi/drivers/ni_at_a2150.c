@@ -171,7 +171,7 @@ static int a2150_attach(struct comedi_device * dev, comedi_devconfig * it);
 static int a2150_detach(struct comedi_device * dev);
 static int a2150_cancel(struct comedi_device * dev, struct comedi_subdevice * s);
 
-static comedi_driver driver_a2150 = {
+static struct comedi_driver driver_a2150 = {
       driver_name:"ni_at_a2150",
       module:THIS_MODULE,
       attach:a2150_attach,

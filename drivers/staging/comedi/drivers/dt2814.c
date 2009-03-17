@@ -61,7 +61,7 @@ addition, the clock does not seem to be very accurate.
 
 static int dt2814_attach(struct comedi_device * dev, comedi_devconfig * it);
 static int dt2814_detach(struct comedi_device * dev);
-static comedi_driver driver_dt2814 = {
+static struct comedi_driver driver_dt2814 = {
       driver_name:"dt2814",
       module:THIS_MODULE,
       attach:dt2814_attach,

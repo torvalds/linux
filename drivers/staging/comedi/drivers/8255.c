@@ -107,7 +107,7 @@ struct subdev_8255_struct {
 
 static int dev_8255_attach(struct comedi_device *dev, comedi_devconfig * it);
 static int dev_8255_detach(struct comedi_device *dev);
-static comedi_driver driver_8255 = {
+static struct comedi_driver driver_8255 = {
       driver_name:"8255",
       module:THIS_MODULE,
       attach:dev_8255_attach,

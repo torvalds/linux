@@ -131,7 +131,7 @@ static const boardtype boardtypes[] = {
 
 static int rti800_attach(struct comedi_device * dev, comedi_devconfig * it);
 static int rti800_detach(struct comedi_device * dev);
-static comedi_driver driver_rti800 = {
+static struct comedi_driver driver_rti800 = {
       driver_name:"rti800",
       module:THIS_MODULE,
       attach:rti800_attach,

@@ -173,7 +173,7 @@ static const struct boardtype boardtypes[] = {
 
 #define n_boardtypes (sizeof(boardtypes)/sizeof(struct boardtype))
 
-static comedi_driver driver_icp_multi = {
+static struct comedi_driver driver_icp_multi = {
       driver_name:"icp_multi",
       module : THIS_MODULE,
       attach : icp_multi_attach,

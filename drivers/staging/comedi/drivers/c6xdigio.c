@@ -99,7 +99,7 @@ union encvaluetype {
 
 static int c6xdigio_attach(struct comedi_device * dev, comedi_devconfig * it);
 static int c6xdigio_detach(struct comedi_device * dev);
-comedi_driver driver_c6xdigio = {
+struct comedi_driver driver_c6xdigio = {
       driver_name:"c6xdigio",
       module:THIS_MODULE,
       attach:c6xdigio_attach,

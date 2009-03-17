@@ -249,12 +249,12 @@ static void cb_pcidda_calibrate(struct comedi_device * dev, unsigned int channel
 	unsigned int range);
 
 /*
- * The comedi_driver structure tells the Comedi core module
+ * The struct comedi_driver structure tells the Comedi core module
  * which functions to call to configure/deconfigure (attach/detach)
  * the board, and also about the kernel module that contains
  * the device code.
  */
-static comedi_driver driver_cb_pcidda = {
+static struct comedi_driver driver_cb_pcidda = {
       driver_name:"cb_pcidda",
       module:THIS_MODULE,
       attach:cb_pcidda_attach,

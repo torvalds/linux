@@ -675,7 +675,7 @@ struct rtdPrivate {
     readb (devpriv->lcfg+LCFG_DMACSR1)
 
 /*
- * The comedi_driver structure tells the Comedi core module
+ * The struct comedi_driver structure tells the Comedi core module
  * which functions to call to configure/deconfigure (attac/detach)
  * the board, and also about the kernel module that contains
  * the device code.
@@ -683,7 +683,7 @@ struct rtdPrivate {
 static int rtd_attach(struct comedi_device *dev, comedi_devconfig *it);
 static int rtd_detach(struct comedi_device *dev);
 
-static comedi_driver rtd520Driver = {
+static struct comedi_driver rtd520Driver = {
       driver_name: DRV_NAME,
       module : THIS_MODULE,
       attach : rtd_attach,

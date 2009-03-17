@@ -246,7 +246,8 @@ static const struct me_board me_boards[] = {
 
 #define me_board_nbr (sizeof(me_boards)/sizeof(struct me_board))
 
-static comedi_driver me_driver = {
+
+static struct comedi_driver me_driver = {
       .driver_name =	ME_DRIVER_NAME,
       .module =		THIS_MODULE,
       .attach =		me_attach,

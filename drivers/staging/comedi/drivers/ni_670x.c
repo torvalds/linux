@@ -111,7 +111,7 @@ typedef struct {
 static int ni_670x_attach(struct comedi_device * dev, comedi_devconfig * it);
 static int ni_670x_detach(struct comedi_device * dev);
 
-static comedi_driver driver_ni_670x = {
+static struct comedi_driver driver_ni_670x = {
       driver_name:"ni_670x",
       module:THIS_MODULE,
       attach:ni_670x_attach,

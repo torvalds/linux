@@ -127,14 +127,14 @@ typedef struct {
 #endif /* CONFIG_COMEDI_PCI */
 
 /*
- * The comedi_driver structure tells the Comedi core module
+ * The struct comedi_driver structure tells the Comedi core module
  * which functions to call to configure/deconfigure (attach/detach)
  * the board, and also about the kernel module that contains
  * the device code.
  */
 static int pc263_attach(struct comedi_device * dev, comedi_devconfig * it);
 static int pc263_detach(struct comedi_device * dev);
-static comedi_driver driver_amplc_pc263 = {
+static struct comedi_driver driver_amplc_pc263 = {
       driver_name:PC263_DRIVER_NAME,
       module:THIS_MODULE,
       attach:pc263_attach,

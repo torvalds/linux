@@ -199,7 +199,7 @@ static const comedi_lrange range_daqp_ao = { 1, {BIP_RANGE(5)} };
 
 static int daqp_attach(struct comedi_device * dev, comedi_devconfig * it);
 static int daqp_detach(struct comedi_device * dev);
-static comedi_driver driver_daqp = {
+static struct comedi_driver driver_daqp = {
       driver_name:"quatech_daqp_cs",
       module:THIS_MODULE,
       attach:daqp_attach,

@@ -326,7 +326,7 @@ static const pci9111_board_struct pci9111_boards[] = {
 #define pci9111_board_nbr \
   (sizeof(pci9111_boards)/sizeof(pci9111_board_struct))
 
-static comedi_driver pci9111_driver = {
+static struct comedi_driver pci9111_driver = {
       driver_name:PCI9111_DRIVER_NAME,
       module:THIS_MODULE,
       attach:pci9111_attach,

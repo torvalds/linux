@@ -214,7 +214,7 @@ static const boardtype boardtypes[] = {
 
 static int dt2811_attach(struct comedi_device * dev, comedi_devconfig * it);
 static int dt2811_detach(struct comedi_device * dev);
-static comedi_driver driver_dt2811 = {
+static struct comedi_driver driver_dt2811 = {
       driver_name:"dt2811",
       module:THIS_MODULE,
       attach:dt2811_attach,

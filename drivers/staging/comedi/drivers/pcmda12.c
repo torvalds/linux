@@ -100,7 +100,7 @@ typedef struct {
 #define devpriv ((pcmda12_private *)(dev->private))
 
 /*
- * The comedi_driver structure tells the Comedi core module
+ * The struct comedi_driver structure tells the Comedi core module
  * which functions to call to configure/deconfigure (attach/detach)
  * the board, and also about the kernel module that contains
  * the device code.
@@ -110,7 +110,7 @@ static int pcmda12_detach(struct comedi_device * dev);
 
 static void zero_chans(struct comedi_device * dev);
 
-static comedi_driver driver = {
+static struct comedi_driver driver = {
       driver_name:"pcmda12",
       module:THIS_MODULE,
       attach:pcmda12_attach,

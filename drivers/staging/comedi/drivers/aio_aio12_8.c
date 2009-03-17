@@ -213,7 +213,7 @@ static int aio_aio12_8_detach(struct comedi_device * dev)
 	return 0;
 }
 
-static comedi_driver driver_aio_aio12_8 = {
+static struct comedi_driver driver_aio_aio12_8 = {
       driver_name:"aio_aio12_8",
       module:THIS_MODULE,
       attach:aio_aio12_8_attach,

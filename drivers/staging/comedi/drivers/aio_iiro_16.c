@@ -71,7 +71,7 @@ static int aio_iiro_16_attach(struct comedi_device * dev, comedi_devconfig * it)
 
 static int aio_iiro_16_detach(struct comedi_device * dev);
 
-static comedi_driver driver_aio_iiro_16 = {
+static struct comedi_driver driver_aio_iiro_16 = {
       driver_name:"aio_iiro_16",
       module:THIS_MODULE,
       attach:aio_iiro_16_attach,
