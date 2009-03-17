@@ -158,7 +158,7 @@ typedef struct {
 		int length;
 		comedi_krange range;
 	} range[9];
-	const comedi_lrange *range_table_list[8 * 7 + 2];
+	const struct comedi_lrange *range_table_list[8 * 7 + 2];
 	unsigned int maxdata_list[8 * 7 + 2];
 	u16 errors;
 	int retries;
@@ -877,7 +877,7 @@ static int jr3_pci_attach(struct comedi_device * dev, comedi_devconfig * it)
 				p->range[j].range.max = 1000000;
 				for (k = 0; k < 7; k++) {
 					p->range_table_list[j + k * 8] =
-						(comedi_lrange *) & p->range[j];
+						(struct comedi_lrange *) & p->range[j];
 					p->maxdata_list[j + k * 8] = 0x7fff;
 				}
 			}
@@ -886,9 +886,9 @@ static int jr3_pci_attach(struct comedi_device * dev, comedi_devconfig * it)
 			p->range[8].range.max = 65536;
 
 			p->range_table_list[56] =
-				(comedi_lrange *) & p->range[8];
+				(struct comedi_lrange *) & p->range[8];
 			p->range_table_list[57] =
-				(comedi_lrange *) & p->range[8];
+				(struct comedi_lrange *) & p->range[8];
 			p->maxdata_list[56] = 0xffff;
 			p->maxdata_list[57] = 0xffff;
 			// Channel specific range and maxdata

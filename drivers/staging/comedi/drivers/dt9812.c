@@ -300,22 +300,22 @@ struct slot_dt9812 {
 	struct comedi_dt9812 *comedi;
 };
 
-static const comedi_lrange dt9812_10_ain_range = { 1, {
+static const struct comedi_lrange dt9812_10_ain_range = { 1, {
 			BIP_RANGE(10),
 	}
 };
 
-static const comedi_lrange dt9812_2pt5_ain_range = { 1, {
+static const struct comedi_lrange dt9812_2pt5_ain_range = { 1, {
 			UNI_RANGE(2.5),
 	}
 };
 
-static const comedi_lrange dt9812_10_aout_range = { 1, {
+static const struct comedi_lrange dt9812_10_aout_range = { 1, {
 			BIP_RANGE(10),
 	}
 };
 
-static const comedi_lrange dt9812_2pt5_aout_range = { 1, {
+static const struct comedi_lrange dt9812_2pt5_aout_range = { 1, {
 			UNI_RANGE(2.5),
 	}
 };

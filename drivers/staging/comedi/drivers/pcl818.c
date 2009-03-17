@@ -194,7 +194,7 @@ A word or two about DMA. Driver support DMA operations at two ways:
 
 #define MAGIC_DMA_WORD 0x5a5a
 
-static const comedi_lrange range_pcl818h_ai = { 9, {
+static const struct comedi_lrange range_pcl818h_ai = { 9, {
 			BIP_RANGE(5),
 			BIP_RANGE(2.5),
 			BIP_RANGE(1.25),
@@ -207,7 +207,7 @@ static const comedi_lrange range_pcl818h_ai = { 9, {
 	}
 };
 
-static const comedi_lrange range_pcl818hg_ai = { 10, {
+static const struct comedi_lrange range_pcl818hg_ai = { 10, {
 			BIP_RANGE(5),
 			BIP_RANGE(0.5),
 			BIP_RANGE(0.05),
@@ -223,7 +223,7 @@ static const comedi_lrange range_pcl818hg_ai = { 10, {
 	}
 };
 
-static const comedi_lrange range_pcl818l_l_ai = { 4, {
+static const struct comedi_lrange range_pcl818l_l_ai = { 4, {
 			BIP_RANGE(5),
 			BIP_RANGE(2.5),
 			BIP_RANGE(1.25),
@@ -231,7 +231,7 @@ static const comedi_lrange range_pcl818l_l_ai = { 4, {
 	}
 };
 
-static const comedi_lrange range_pcl818l_h_ai = { 4, {
+static const struct comedi_lrange range_pcl818l_h_ai = { 4, {
 			BIP_RANGE(10),
 			BIP_RANGE(5),
 			BIP_RANGE(2.5),
@@ -239,10 +239,10 @@ static const comedi_lrange range_pcl818l_h_ai = { 4, {
 	}
 };
 
-static const comedi_lrange range718_bipolar1 = { 1, {BIP_RANGE(1),} };
-static const comedi_lrange range718_bipolar0_5 = { 1, {BIP_RANGE(0.5),} };
-static const comedi_lrange range718_unipolar2 = { 1, {UNI_RANGE(2),} };
-static const comedi_lrange range718_unipolar1 = { 1, {BIP_RANGE(1),} };
+static const struct comedi_lrange range718_bipolar1 = { 1, {BIP_RANGE(1),} };
+static const struct comedi_lrange range718_bipolar0_5 = { 1, {BIP_RANGE(0.5),} };
+static const struct comedi_lrange range718_unipolar2 = { 1, {UNI_RANGE(2),} };
+static const struct comedi_lrange range718_unipolar1 = { 1, {BIP_RANGE(1),} };
 
 static int pcl818_attach(struct comedi_device * dev, comedi_devconfig * it);
 static int pcl818_detach(struct comedi_device * dev);
@@ -261,8 +261,8 @@ typedef struct {
 	int n_aochan;		// num of D/A chans
 	int n_dichan;		// num of DI chans
 	int n_dochan;		// num of DO chans
-	const comedi_lrange *ai_range_type;	// default A/D rangelist
-	const comedi_lrange *ao_range_type;	// default D/A rangelist
+	const struct comedi_lrange *ai_range_type;	// default A/D rangelist
+	const struct comedi_lrange *ao_range_type;	// default D/A rangelist
 	unsigned int io_range;	// len of IO space
 	unsigned int IRQbits;	// allowed interrupts
 	unsigned int DMAbits;	// allowed DMA chans

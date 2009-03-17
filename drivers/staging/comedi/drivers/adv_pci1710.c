@@ -121,7 +121,7 @@ Configuration options:
 // D/A synchronized control (PCI1720_SYNCONT)
 #define Syncont_SC0	 1	/* set synchronous output mode */
 
-static const comedi_lrange range_pci1710_3 = { 9, {
+static const struct comedi_lrange range_pci1710_3 = { 9, {
 			BIP_RANGE(5),
 			BIP_RANGE(2.5),
 			BIP_RANGE(1.25),
@@ -137,7 +137,7 @@ static const comedi_lrange range_pci1710_3 = { 9, {
 static const char range_codes_pci1710_3[] =
 	{ 0x00, 0x01, 0x02, 0x03, 0x04, 0x10, 0x11, 0x12, 0x13 };
 
-static const comedi_lrange range_pci1710hg = { 12, {
+static const struct comedi_lrange range_pci1710hg = { 12, {
 			BIP_RANGE(5),
 			BIP_RANGE(0.5),
 			BIP_RANGE(0.05),
@@ -157,7 +157,7 @@ static const char range_codes_pci1710hg[] =
 	{ 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x10, 0x11, 0x12,
 		0x13 };
 
-static const comedi_lrange range_pci17x1 = { 5, {
+static const struct comedi_lrange range_pci17x1 = { 5, {
 			BIP_RANGE(10),
 			BIP_RANGE(5),
 			BIP_RANGE(2.5),
@@ -168,7 +168,7 @@ static const comedi_lrange range_pci17x1 = { 5, {
 
 static const char range_codes_pci17x1[] = { 0x00, 0x01, 0x02, 0x03, 0x04 };
 
-static const comedi_lrange range_pci1720 = { 4, {
+static const struct comedi_lrange range_pci1720 = { 4, {
 			UNI_RANGE(5),
 			UNI_RANGE(10),
 			BIP_RANGE(5),
@@ -176,7 +176,7 @@ static const comedi_lrange range_pci1720 = { 4, {
 	}
 };
 
-static const comedi_lrange range_pci171x_da = { 2, {
+static const struct comedi_lrange range_pci171x_da = { 2, {
 			UNI_RANGE(5),
 			UNI_RANGE(10),
 	}
@@ -199,9 +199,9 @@ typedef struct {
 	int n_counter;		// num of counters
 	int ai_maxdata;		// resolution of A/D
 	int ao_maxdata;		// resolution of D/A
-	const comedi_lrange *rangelist_ai;	// rangelist for A/D
+	const struct comedi_lrange *rangelist_ai;	// rangelist for A/D
 	const char *rangecode_ai;	// range codes for programming
-	const comedi_lrange *rangelist_ao;	// rangelist for D/A
+	const struct comedi_lrange *rangelist_ao;	// rangelist for D/A
 	unsigned int ai_ns_min;	// max sample speed of card v ns
 	unsigned int fifo_half_size;	// size of FIFO/2
 } boardtype;

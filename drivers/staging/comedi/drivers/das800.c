@@ -109,19 +109,19 @@ cmd triggers supported:
 typedef struct das800_board_struct {
 	const char *name;
 	int ai_speed;
-	const comedi_lrange *ai_range;
+	const struct comedi_lrange *ai_range;
 	int resolution;
 } das800_board;
 
 //analog input ranges
-static const comedi_lrange range_das800_ai = {
+static const struct comedi_lrange range_das800_ai = {
 	1,
 	{
 			RANGE(-5, 5),
 		}
 };
 
-static const comedi_lrange range_das801_ai = {
+static const struct comedi_lrange range_das801_ai = {
 	9,
 	{
 			RANGE(-5, 5),
@@ -136,7 +136,7 @@ static const comedi_lrange range_das801_ai = {
 		}
 };
 
-static const comedi_lrange range_cio_das801_ai = {
+static const struct comedi_lrange range_cio_das801_ai = {
 	9,
 	{
 			RANGE(-5, 5),
@@ -151,7 +151,7 @@ static const comedi_lrange range_cio_das801_ai = {
 		}
 };
 
-static const comedi_lrange range_das802_ai = {
+static const struct comedi_lrange range_das802_ai = {
 	9,
 	{
 			RANGE(-5, 5),
@@ -166,7 +166,7 @@ static const comedi_lrange range_das802_ai = {
 		}
 };
 
-static const comedi_lrange range_das80216_ai = {
+static const struct comedi_lrange range_das80216_ai = {
 	8,
 	{
 			RANGE(-10, 10),

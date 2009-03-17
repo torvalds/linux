@@ -34,7 +34,7 @@ struct {
 } Config_Parameters_Main;
 
 /* ANALOG INPUT RANGE */
-comedi_lrange range_apci035_ai = { 8, {
+struct comedi_lrange range_apci035_ai = { 8, {
 				       BIP_RANGE(10),
 				       BIP_RANGE(5),
 				       BIP_RANGE(2),

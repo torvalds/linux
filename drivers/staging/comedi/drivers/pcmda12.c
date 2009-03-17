@@ -74,7 +74,7 @@ typedef struct pcmda12_board_struct {
 
 /* note these have no effect and are merely here for reference..
    these are configured by jumpering the board! */
-static const comedi_lrange pcmda12_ranges = {
+static const struct comedi_lrange pcmda12_ranges = {
 	3,
 	{
 			UNI_RANGE(5), UNI_RANGE(10), BIP_RANGE(5)

@@ -21,7 +21,7 @@
 // comedi related defines
 
 //ANALOG INPUT RANGE
-static const comedi_lrange range_apci3120_ai = { 8, {
+static const struct comedi_lrange range_apci3120_ai = { 8, {
 						     BIP_RANGE(10),
 						     BIP_RANGE(5),
 						     BIP_RANGE(2),
@@ -34,7 +34,7 @@ static const comedi_lrange range_apci3120_ai = { 8, {
 };
 
 // ANALOG OUTPUT RANGE
-static const comedi_lrange range_apci3120_ao = { 2, {
+static const struct comedi_lrange range_apci3120_ao = { 2, {
 						     BIP_RANGE(10),
 						     UNI_RANGE(10)
 						     }

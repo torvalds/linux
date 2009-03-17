@@ -145,7 +145,7 @@ Configuration options:
 #define DAQBOARD2000_CPLD_DONE 		0x0004
 
 // Available ranges
-static const comedi_lrange range_daqboard2000_ai = { 13, {
+static const struct comedi_lrange range_daqboard2000_ai = { 13, {
 			RANGE(-10, 10),
 			RANGE(-5, 5),
 			RANGE(-2.5, 2.5),
@@ -162,7 +162,7 @@ static const comedi_lrange range_daqboard2000_ai = { 13, {
 	}
 };
 
-static const comedi_lrange range_daqboard2000_ao = { 1, {
+static const struct comedi_lrange range_daqboard2000_ao = { 1, {
 			RANGE(-10, 10)
 	}
 };

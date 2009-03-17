@@ -153,7 +153,7 @@ int comedi_get_krange(void *d, unsigned int subdevice, unsigned int chan,
 {
 	struct comedi_device *dev = (struct comedi_device *) d;
 	struct comedi_subdevice *s = dev->subdevices + subdevice;
-	const comedi_lrange *lr;
+	const struct comedi_lrange *lr;
 
 	if (s->range_table_list) {
 		lr = s->range_table_list[chan];

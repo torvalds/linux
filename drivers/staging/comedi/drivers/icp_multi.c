@@ -108,7 +108,7 @@ Options:
 #define	Status_IRQ	0x00ff	/*  All interrupts */
 
 /*  Define analogue range */
-static const comedi_lrange range_analog = { 4, {
+static const struct comedi_lrange range_analog = { 4, {
 			UNI_RANGE(5),
 			UNI_RANGE(10),
 			BIP_RANGE(5),
@@ -147,9 +147,9 @@ struct boardtype {
 	int n_ctrs;		/*  num of counters */
 	int ai_maxdata;		/*  resolution of A/D */
 	int ao_maxdata;		/*  resolution of D/A */
-	const comedi_lrange *rangelist_ai;	/*  rangelist for A/D */
+	const struct comedi_lrange *rangelist_ai;	/*  rangelist for A/D */
 	const char *rangecode;	/*  range codes for programming */
-	const comedi_lrange *rangelist_ao;	/*  rangelist for D/A */
+	const struct comedi_lrange *rangelist_ao;	/*  rangelist for D/A */
 };
 
 static const struct boardtype boardtypes[] = {

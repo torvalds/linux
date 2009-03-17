@@ -163,16 +163,16 @@ typedef struct pcmmio_board_struct {
 	const int ao_bits;
 	const int n_ai_chans;
 	const int n_ao_chans;
-	const comedi_lrange *ai_range_table, *ao_range_table;
+	const struct comedi_lrange *ai_range_table, *ao_range_table;
 	comedi_insn_fn_t ai_rinsn, ao_rinsn, ao_winsn;
 } pcmmio_board;
 
-static const comedi_lrange ranges_ai =
+static const struct comedi_lrange ranges_ai =
 	{ 4, {RANGE(-5., 5.), RANGE(-10., 10.), RANGE(0., 5.), RANGE(0.,
 		10.)}
 };
 
-static const comedi_lrange ranges_ao =
+static const struct comedi_lrange ranges_ao =
 	{ 6, {RANGE(0., 5.), RANGE(0., 10.), RANGE(-5., 5.), RANGE(-10., 10.),
 	RANGE(-2.5, 2.5), RANGE(-2.5, 7.5)}
 };

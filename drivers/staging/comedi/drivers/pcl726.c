@@ -90,22 +90,22 @@ Interrupts are not supported.
 #define PCL727_DI_HI  0
 #define PCL727_DI_LO  1
 
-static const comedi_lrange range_4_20mA = { 1, {RANGE_mA(4, 20)} };
-static const comedi_lrange range_0_20mA = { 1, {RANGE_mA(0, 20)} };
+static const struct comedi_lrange range_4_20mA = { 1, {RANGE_mA(4, 20)} };
+static const struct comedi_lrange range_0_20mA = { 1, {RANGE_mA(0, 20)} };
 
-static const comedi_lrange *const rangelist_726[] = {
+static const struct comedi_lrange *const rangelist_726[] = {
 	&range_unipolar5, &range_unipolar10,
 	&range_bipolar5, &range_bipolar10,
 	&range_4_20mA, &range_unknown
 };
 
-static const comedi_lrange *const rangelist_727[] = {
+static const struct comedi_lrange *const rangelist_727[] = {
 	&range_unipolar5, &range_unipolar10,
 	&range_bipolar5,
 	&range_4_20mA
 };
 
-static const comedi_lrange *const rangelist_728[] = {
+static const struct comedi_lrange *const rangelist_728[] = {
 	&range_unipolar5, &range_unipolar10,
 	&range_bipolar5, &range_bipolar10,
 	&range_4_20mA, &range_0_20mA
@@ -125,7 +125,7 @@ typedef struct {
 	int di_lo;
 	int do_hi;
 	int do_lo;
-	const comedi_lrange *const *range_type_list;	// list of supported ranges
+	const struct comedi_lrange *const *range_type_list;	// list of supported ranges
 } boardtype;
 
 static const boardtype boardtypes[] = {
@@ -163,7 +163,7 @@ COMEDI_INITCLEANUP(driver_pcl726);
 
 typedef struct {
 	int bipolar[12];
-	const comedi_lrange *rangelist[12];
+	const struct comedi_lrange *rangelist[12];
 	unsigned int ao_readback[12];
 } pcl726_private;
 #define devpriv ((pcl726_private *)dev->private)

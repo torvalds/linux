@@ -147,7 +147,7 @@ static struct comedi_driver driver_atmio16d = {
 COMEDI_INITCLEANUP(driver_atmio16d);
 
 /* range structs */
-static const comedi_lrange range_atmio16d_ai_10_bipolar = { 4, {
+static const struct comedi_lrange range_atmio16d_ai_10_bipolar = { 4, {
 			BIP_RANGE(10),
 			BIP_RANGE(1),
 			BIP_RANGE(0.1),
@@ -155,7 +155,7 @@ static const comedi_lrange range_atmio16d_ai_10_bipolar = { 4, {
 	}
 };
 
-static const comedi_lrange range_atmio16d_ai_5_bipolar = { 4, {
+static const struct comedi_lrange range_atmio16d_ai_5_bipolar = { 4, {
 			BIP_RANGE(5),
 			BIP_RANGE(0.5),
 			BIP_RANGE(0.05),
@@ -163,7 +163,7 @@ static const comedi_lrange range_atmio16d_ai_5_bipolar = { 4, {
 	}
 };
 
-static const comedi_lrange range_atmio16d_ai_unipolar = { 4, {
+static const struct comedi_lrange range_atmio16d_ai_unipolar = { 4, {
 			UNI_RANGE(10),
 			UNI_RANGE(1),
 			UNI_RANGE(0.1),
@@ -179,7 +179,7 @@ typedef struct {
 	enum { dac_bipolar, dac_unipolar } dac0_range, dac1_range;
 	enum { dac_internal, dac_external } dac0_reference, dac1_reference;
 	enum { dac_2comp, dac_straight } dac0_coding, dac1_coding;
-	const comedi_lrange *ao_range_type_list[2];
+	const struct comedi_lrange *ao_range_type_list[2];
 	unsigned int ao_readback[2];
 	unsigned int com_reg_1_state;	/* current state of command register 1 */
 	unsigned int com_reg_2_state;	/* current state of command register 2 */

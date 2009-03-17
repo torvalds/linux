@@ -66,7 +66,7 @@ struct boarddef_struct {
 		unsigned int *);
 	int (*insnbits) (struct comedi_device *, struct comedi_subdevice *, comedi_insn *,
 		unsigned int *);
-	const comedi_lrange *range;
+	const struct comedi_lrange *range;
 };
 static const struct boarddef_struct boards[] = {
 	{

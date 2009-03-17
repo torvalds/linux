@@ -137,7 +137,7 @@ typedef union {
 	void *iobase;
 	struct {
 		void *iobase;
-		const comedi_lrange *ao_range_list[2];	/* range of channels of ao module */
+		const struct comedi_lrange *ao_range_list[2];	/* range of channels of ao module */
 		unsigned int last_data[2];
 	} pci20006;
 	struct {
@@ -275,7 +275,7 @@ static int pci20006_insn_read(struct comedi_device * dev, struct comedi_subdevic
 static int pci20006_insn_write(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data);
 
-static const comedi_lrange *pci20006_range_list[] = {
+static const struct comedi_lrange *pci20006_range_list[] = {
 	&range_bipolar10,
 	&range_unipolar10,
 	&range_bipolar5,
@@ -355,11 +355,11 @@ static int pci20341_insn_read(struct comedi_device * dev, struct comedi_subdevic
 static const int pci20341_timebase[] = { 0x00, 0x00, 0x00, 0x04 };
 static const int pci20341_settling_time[] = { 0x58, 0x58, 0x93, 0x99 };
 
-static const comedi_lrange range_bipolar0_5 = { 1, {BIP_RANGE(0.5)} };
-static const comedi_lrange range_bipolar0_05 = { 1, {BIP_RANGE(0.05)} };
-static const comedi_lrange range_bipolar0_025 = { 1, {BIP_RANGE(0.025)} };
+static const struct comedi_lrange range_bipolar0_5 = { 1, {BIP_RANGE(0.5)} };
+static const struct comedi_lrange range_bipolar0_05 = { 1, {BIP_RANGE(0.05)} };
+static const struct comedi_lrange range_bipolar0_025 = { 1, {BIP_RANGE(0.025)} };
 
-static const comedi_lrange *const pci20341_ranges[] = {
+static const struct comedi_lrange *const pci20341_ranges[] = {
 	&range_bipolar5,
 	&range_bipolar0_5,
 	&range_bipolar0_05,

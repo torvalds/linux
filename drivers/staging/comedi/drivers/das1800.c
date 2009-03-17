@@ -213,7 +213,7 @@ static unsigned int burst_convert_arg(unsigned int convert_arg, int round_mode);
 static unsigned int suggest_transfer_size(comedi_cmd * cmd);
 
 // analog input ranges
-static const comedi_lrange range_ai_das1801 = {
+static const struct comedi_lrange range_ai_das1801 = {
 	8,
 	{
 			RANGE(-5, 5),
@@ -227,7 +227,7 @@ static const comedi_lrange range_ai_das1801 = {
 		}
 };
 
-static const comedi_lrange range_ai_das1802 = {
+static const struct comedi_lrange range_ai_das1802 = {
 	8,
 	{
 			RANGE(-10, 10),
@@ -250,7 +250,7 @@ typedef struct das1800_board_struct {
 	int do_n_chan;		/* number of digital output channels */
 	int ao_ability;		/* 0 == no analog out, 1 == basic analog out, 2 == waveform analog out */
 	int ao_n_chan;		/* number of analog out channels */
-	const comedi_lrange *range_ai;	/* available input ranges */
+	const struct comedi_lrange *range_ai;	/* available input ranges */
 } das1800_board;
 
 /* Warning: the maximum conversion speeds listed below are
@@ -486,7 +486,7 @@ typedef struct {
 #define devpriv ((das1800_private *)dev->private)
 
 // analog out range for boards with basic analog out
-static const comedi_lrange range_ao_1 = {
+static const struct comedi_lrange range_ao_1 = {
 	1,
 	{
 			RANGE(-10, 10),
@@ -495,7 +495,7 @@ static const comedi_lrange range_ao_1 = {
 
 // analog out range for 'ao' boards
 /*
-static const comedi_lrange range_ao_2 = {
+static const struct comedi_lrange range_ao_2 = {
 	2,
 	{
 		RANGE(-10, 10),

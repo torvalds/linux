@@ -183,7 +183,7 @@ static local_info_t *dev_table[MAX_DEV] = { NULL, /* ... */  };
  * +/- 1.25V, and the D/A converter has only one: +/- 5V.
  */
 
-static const comedi_lrange range_daqp_ai = { 4, {
+static const struct comedi_lrange range_daqp_ai = { 4, {
 			BIP_RANGE(10),
 			BIP_RANGE(5),
 			BIP_RANGE(2.5),
@@ -191,7 +191,7 @@ static const comedi_lrange range_daqp_ai = { 4, {
 	}
 };
 
-static const comedi_lrange range_daqp_ao = { 1, {BIP_RANGE(5)} };
+static const struct comedi_lrange range_daqp_ao = { 1, {BIP_RANGE(5)} };
 
 /*====================================================================*/
 

@@ -120,7 +120,7 @@ static struct comedi_driver driver_ni_670x = {
 
 COMEDI_PCI_INITCLEANUP(driver_ni_670x, ni_670x_pci_table);
 
-static comedi_lrange range_0_20mA = { 1, {RANGE_mA(0, 20)} };
+static struct comedi_lrange range_0_20mA = { 1, {RANGE_mA(0, 20)} };
 
 static int ni_670x_find_device(struct comedi_device * dev, int bus, int slot);
 
@@ -167,9 +167,9 @@ static int ni_670x_attach(struct comedi_device * dev, comedi_devconfig * it)
 	s->n_chan = thisboard->ao_chans;
 	s->maxdata = 0xffff;
 	if (s->n_chan == 32) {
-		const comedi_lrange **range_table_list;
+		const struct comedi_lrange **range_table_list;
 
-		range_table_list = kmalloc(sizeof(comedi_lrange *) * 32,
+		range_table_list = kmalloc(sizeof(struct comedi_lrange *) * 32,
 			GFP_KERNEL);
 		if (!range_table_list)
 			return -ENOMEM;

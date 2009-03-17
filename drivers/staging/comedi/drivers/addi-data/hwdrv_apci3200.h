@@ -35,7 +35,7 @@ struct {
     Config_Parameters_Module3, Config_Parameters_Module4;
 
 //ANALOG INPUT RANGE
-static const comedi_lrange range_apci3200_ai = { 8, {
+static const struct comedi_lrange range_apci3200_ai = { 8, {
 						     BIP_RANGE(10),
 						     BIP_RANGE(5),
 						     BIP_RANGE(2),
@@ -47,7 +47,7 @@ static const comedi_lrange range_apci3200_ai = { 8, {
 						     }
 };
 
-static const comedi_lrange range_apci3300_ai = { 4, {
+static const struct comedi_lrange range_apci3300_ai = { 4, {
 						     UNI_RANGE(10),
 						     UNI_RANGE(5),
 						     UNI_RANGE(2),

@@ -568,7 +568,7 @@ static const unsigned int pci230_timebase[8] = {
 };
 
 /* PCI230 analogue input range table */
-static const comedi_lrange pci230_ai_range = { 7, {
+static const struct comedi_lrange pci230_ai_range = { 7, {
 			BIP_RANGE(10),
 			BIP_RANGE(5),
 			BIP_RANGE(2.5),
@@ -586,7 +586,7 @@ static const unsigned char pci230_ai_gain[7] = { 0, 1, 2, 3, 1, 2, 3 };
 static const unsigned char pci230_ai_bipolar[7] = { 1, 1, 1, 1, 0, 0, 0 };
 
 /* PCI230 analogue output range table */
-static const comedi_lrange pci230_ao_range = { 2, {
+static const struct comedi_lrange pci230_ao_range = { 2, {
 			UNI_RANGE(10),
 			BIP_RANGE(10)
 	}

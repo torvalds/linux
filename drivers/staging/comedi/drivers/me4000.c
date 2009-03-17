@@ -230,7 +230,7 @@ static inline unsigned char me4000_inb(struct comedi_device *dev, unsigned long 
 	return value;
 }
 
-static const comedi_lrange me4000_ai_range = {
+static const struct comedi_lrange me4000_ai_range = {
 	4,
 	{
 			UNI_RANGE(2.5),
@@ -240,7 +240,7 @@ static const comedi_lrange me4000_ai_range = {
 		}
 };
 
-static const comedi_lrange me4000_ao_range = {
+static const struct comedi_lrange me4000_ao_range = {
 	1,
 	{
 			BIP_RANGE(10),

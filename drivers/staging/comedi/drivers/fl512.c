@@ -29,7 +29,7 @@ typedef struct {
 } fl512_private;
 #define devpriv ((fl512_private *) dev->private)
 
-static const comedi_lrange range_fl512 = { 4, {
+static const struct comedi_lrange range_fl512 = { 4, {
 			BIP_RANGE(0.5),
 			BIP_RANGE(1),
 			BIP_RANGE(5),

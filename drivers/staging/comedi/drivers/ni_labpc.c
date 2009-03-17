@@ -253,7 +253,7 @@ static const int labpc_plus_ai_gain_bits[NUM_LABPC_PLUS_AI_RANGES] = {
 	0x60,
 	0x70,
 };
-static const comedi_lrange range_labpc_plus_ai = {
+static const struct comedi_lrange range_labpc_plus_ai = {
 	NUM_LABPC_PLUS_AI_RANGES,
 	{
 			BIP_RANGE(5),
@@ -311,7 +311,7 @@ const int labpc_1200_ai_gain_bits[NUM_LABPC_1200_AI_RANGES] = {
 	0x60,
 	0x70,
 };
-const comedi_lrange range_labpc_1200_ai = {
+const struct comedi_lrange range_labpc_1200_ai = {
 	NUM_LABPC_1200_AI_RANGES,
 	{
 			BIP_RANGE(5),
@@ -333,7 +333,7 @@ const comedi_lrange range_labpc_1200_ai = {
 
 //analog output ranges
 #define AO_RANGE_IS_UNIPOLAR 0x1
-static const comedi_lrange range_labpc_ao = {
+static const struct comedi_lrange range_labpc_ao = {
 	2,
 	{
 			BIP_RANGE(5),

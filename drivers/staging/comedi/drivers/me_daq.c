@@ -147,7 +147,7 @@ from http://www.comedi.org
 static int me_attach(struct comedi_device *dev, comedi_devconfig *it);
 static int me_detach(struct comedi_device *dev);
 
-static const comedi_lrange me2000_ai_range = {
+static const struct comedi_lrange me2000_ai_range = {
 	8,
 	{
 		BIP_RANGE(10),
@@ -161,7 +161,7 @@ static const comedi_lrange me2000_ai_range = {
 	}
 };
 
-static const comedi_lrange me2600_ai_range = {
+static const struct comedi_lrange me2600_ai_range = {
 	8,
 	{
 			BIP_RANGE(10),
@@ -175,7 +175,7 @@ static const comedi_lrange me2600_ai_range = {
 		}
 };
 
-static const comedi_lrange me2600_ao_range = {
+static const struct comedi_lrange me2600_ao_range = {
 	3,
 	{
 			BIP_RANGE(10),
@@ -201,11 +201,11 @@ struct me_board {
 	int ao_channel_nbr;	/* DA config */
 	int ao_resolution;
 	int ao_resolution_mask;
-	const comedi_lrange *ao_range_list;
+	const struct comedi_lrange *ao_range_list;
 	int ai_channel_nbr;	/* AD config */
 	int ai_resolution;
 	int ai_resolution_mask;
-	const comedi_lrange *ai_range_list;
+	const struct comedi_lrange *ai_range_list;
 	int dio_channel_nbr;	/* DIO config */
 };
 

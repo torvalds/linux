@@ -94,7 +94,7 @@ TODO:
 
 //static unsigned short pci_list_builded=0;     /*=1 list of card is know */
 
-static const comedi_lrange range_pci1723 = { 1, {
+static const struct comedi_lrange range_pci1723 = { 1, {
 			BIP_RANGE(10)
 	}
 };
@@ -111,7 +111,7 @@ typedef struct pci1723_board_struct {
 	int n_aochan;		// num of D/A chans
 	int n_diochan;		// num of DIO chans
 	int ao_maxdata;		// resolution of D/A
-	const comedi_lrange *rangelist_ao;	// rangelist for D/A
+	const struct comedi_lrange *rangelist_ao;	// rangelist for D/A
 } boardtype;
 
 static const boardtype boardtypes[] = {

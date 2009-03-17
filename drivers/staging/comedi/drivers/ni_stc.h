@@ -917,7 +917,7 @@ enum ni_reg_type {
 	ni_reg_6143 = 0x20
 };
 
-static const comedi_lrange range_ni_E_ao_ext;
+static const struct comedi_lrange range_ni_E_ao_ext;
 
 enum m_series_register_offsets {
 	M_Offset_CDIO_DMA_Select = 0x7,	// write
@@ -1390,7 +1390,7 @@ typedef struct ni_board_struct {
 	int n_aochan;
 	int aobits;
 	int ao_fifo_depth;
-	const comedi_lrange *ao_range_table;
+	const struct comedi_lrange *ao_range_table;
 	unsigned ao_speed;
 
 	unsigned num_p0_dio_channels;

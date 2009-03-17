@@ -171,7 +171,7 @@ static int das08ao_ao_winsn(struct comedi_device * dev, struct comedi_subdevice 
 static void i8254_set_mode_low(unsigned int base, int channel,
 	unsigned int mode);
 
-static const comedi_lrange range_das08_pgl = { 9, {
+static const struct comedi_lrange range_das08_pgl = { 9, {
 			BIP_RANGE(10),
 			BIP_RANGE(5),
 			BIP_RANGE(2.5),
@@ -183,7 +183,7 @@ static const comedi_lrange range_das08_pgl = { 9, {
 			UNI_RANGE(1.25)
 	}
 };
-static const comedi_lrange range_das08_pgh = { 12, {
+static const struct comedi_lrange range_das08_pgh = { 12, {
 			BIP_RANGE(10),
 			BIP_RANGE(5),
 			BIP_RANGE(1),
@@ -198,7 +198,7 @@ static const comedi_lrange range_das08_pgh = { 12, {
 			UNI_RANGE(0.01),
 	}
 };
-static const comedi_lrange range_das08_pgm = { 9, {
+static const struct comedi_lrange range_das08_pgm = { 9, {
 			BIP_RANGE(10),
 			BIP_RANGE(5),
 			BIP_RANGE(0.5),
@@ -225,7 +225,7 @@ static const comedi_lrange range_das08_pgm = { 9, {
 
 				 */
 
-static const comedi_lrange *const das08_ai_lranges[] = {
+static const struct comedi_lrange *const das08_ai_lranges[] = {
 	&range_unknown,
 	&range_bipolar5,
 	&range_das08_pgh,

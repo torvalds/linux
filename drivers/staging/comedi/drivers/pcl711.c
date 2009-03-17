@@ -87,7 +87,7 @@ supported.
 #define PCL711_DO_LO 13
 #define PCL711_DO_HI 14
 
-static const comedi_lrange range_pcl711b_ai = { 5, {
+static const struct comedi_lrange range_pcl711b_ai = { 5, {
 			BIP_RANGE(5),
 			BIP_RANGE(2.5),
 			BIP_RANGE(1.25),
@@ -95,7 +95,7 @@ static const comedi_lrange range_pcl711b_ai = { 5, {
 			BIP_RANGE(0.3125)
 	}
 };
-static const comedi_lrange range_acl8112hg_ai = { 12, {
+static const struct comedi_lrange range_acl8112hg_ai = { 12, {
 			BIP_RANGE(5),
 			BIP_RANGE(0.5),
 			BIP_RANGE(0.05),
@@ -110,7 +110,7 @@ static const comedi_lrange range_acl8112hg_ai = { 12, {
 			BIP_RANGE(0.01)
 	}
 };
-static const comedi_lrange range_acl8112dg_ai = { 9, {
+static const struct comedi_lrange range_acl8112dg_ai = { 9, {
 			BIP_RANGE(5),
 			BIP_RANGE(2.5),
 			BIP_RANGE(1.25),
@@ -141,7 +141,7 @@ typedef struct {
 	int n_aichan;
 	int n_aochan;
 	int maxirq;
-	const comedi_lrange *ai_range_type;
+	const struct comedi_lrange *ai_range_type;
 } boardtype;
 
 static const boardtype boardtypes[] = {

@@ -62,7 +62,7 @@ typedef struct {
 	enum {
 		dac_2comp, dac_straight
 	} dac_coding[8];
-	const comedi_lrange *range_type_list[8];
+	const struct comedi_lrange *range_type_list[8];
 	unsigned int ao_readback[8];
 } rti802_private;
 

@@ -51,7 +51,7 @@ typedef unsigned int ULONG, *PULONG;	/* 32-bit */
 typedef unsigned int DWORD, *PDWORD;	/* 32-bit */
 typedef unsigned long ULONG_PTR;
 
-typedef const comedi_lrange *PCRANGE;
+typedef const struct comedi_lrange *PCRANGE;
 
 #define LOBYTE(W)	(BYTE)((W) & 0xFF)
 #define HIBYTE(W)	(BYTE)(((W) >> 8) & 0xFF)

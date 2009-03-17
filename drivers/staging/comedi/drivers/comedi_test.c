@@ -128,7 +128,7 @@ static short fake_waveform(struct comedi_device *dev, unsigned int channel,
 static const int nano_per_micro = 1000;
 
 /* fake analog input ranges */
-static const comedi_lrange waveform_ai_ranges = {
+static const struct comedi_lrange waveform_ai_ranges = {
 	2,
 	{
 			BIP_RANGE(10),

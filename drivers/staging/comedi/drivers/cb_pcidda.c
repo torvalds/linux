@@ -112,7 +112,7 @@ Please report success/failure with other different cards to
 
 #define DADATA	8		// FIRST D/A DATA REGISTER (0)
 
-static const comedi_lrange cb_pcidda_ranges = {
+static const struct comedi_lrange cb_pcidda_ranges = {
 	6,
 	{
 			BIP_RANGE(10),
@@ -138,7 +138,7 @@ typedef struct cb_pcidda_board_struct {
 	unsigned short device_id;
 	int ao_chans;
 	int ao_bits;
-	const comedi_lrange *ranges;
+	const struct comedi_lrange *ranges;
 } cb_pcidda_board;
 static const cb_pcidda_board cb_pcidda_boards[] = {
 	{

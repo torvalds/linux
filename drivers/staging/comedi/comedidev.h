@@ -121,8 +121,6 @@
 #define COMEDI_NUM_BOARD_MINORS 0x30
 #define COMEDI_FIRST_SUBDEVICE_MINOR COMEDI_NUM_BOARD_MINORS
 
-typedef struct comedi_lrange_struct comedi_lrange;
-
 typedef struct device device_create_result_type;
 
 #define COMEDI_DEVICE_CREATE(cs, parent, devt, drvdata, device, fmt...) \
@@ -154,8 +152,8 @@ struct comedi_subdevice {
 
 	unsigned int settling_time_0;
 
-	const comedi_lrange *range_table;
-	const comedi_lrange *const *range_table_list;
+	const struct comedi_lrange *range_table;
+	const struct comedi_lrange *const *range_table_list;
 
 	unsigned int *chanlist;	/* driver-owned chanlist (not used) */
 
@@ -396,12 +394,12 @@ int insn_inval(struct comedi_device *dev, struct comedi_subdevice *s,
 #define BIP_RANGE(a)		{-(a)*1e6, (a)*1e6, 0}
 #define UNI_RANGE(a)		{0, (a)*1e6, 0}
 
-extern const comedi_lrange range_bipolar10;
-extern const comedi_lrange range_bipolar5;
-extern const comedi_lrange range_bipolar2_5;
-extern const comedi_lrange range_unipolar10;
-extern const comedi_lrange range_unipolar5;
-extern const comedi_lrange range_unknown;
+extern const struct comedi_lrange range_bipolar10;
+extern const struct comedi_lrange range_bipolar5;
+extern const struct comedi_lrange range_bipolar2_5;
+extern const struct comedi_lrange range_unipolar10;
+extern const struct comedi_lrange range_unipolar5;
+extern const struct comedi_lrange range_unknown;
 
 #define range_digital		range_unipolar5
 
@@ -411,7 +409,7 @@ extern const comedi_lrange range_unknown;
 #define GCC_ZERO_LENGTH_ARRAY 0
 #endif
 
-struct comedi_lrange_struct {
+struct comedi_lrange {
 	int length;
 	comedi_krange range[GCC_ZERO_LENGTH_ARRAY];
 };

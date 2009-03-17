@@ -278,7 +278,7 @@ Caveats:
  */
 
 /* The software selectable internal ranges for PCI224 (option[2] == 0). */
-static const comedi_lrange range_pci224_internal = {
+static const struct comedi_lrange range_pci224_internal = {
 	8,
 	{
 			BIP_RANGE(10),
@@ -304,7 +304,7 @@ static const unsigned short hwrange_pci224_internal[8] = {
 };
 
 /* The software selectable external ranges for PCI224 (option[2] == 1). */
-static const comedi_lrange range_pci224_external = {
+static const struct comedi_lrange range_pci224_external = {
 	2,
 	{
 			RANGE_ext(-1, 1),	/* bipolar [-Vref,+Vref] */
@@ -319,7 +319,7 @@ static const unsigned short hwrange_pci224_external[2] = {
 
 /* The hardware selectable Vref*2 external range for PCI234
  * (option[2] == 1, option[3+n] == 0). */
-static const comedi_lrange range_pci234_ext2 = {
+static const struct comedi_lrange range_pci234_ext2 = {
 	1,
 	{
 			RANGE_ext(-2, 2),
@@ -328,7 +328,7 @@ static const comedi_lrange range_pci234_ext2 = {
 
 /* The hardware selectable Vref external range for PCI234
  * (option[2] == 1, option[3+n] == 1). */
-static const comedi_lrange range_pci234_ext = {
+static const struct comedi_lrange range_pci234_ext = {
 	1,
 	{
 			RANGE_ext(-1, 1),
@@ -1417,10 +1417,10 @@ static int pci224_attach(struct comedi_device * dev, comedi_devconfig * it)
 	/* Sort out channel range options. */
 	if (thisboard->model == pci234_model) {
 		/* PCI234 range options. */
-		const comedi_lrange **range_table_list;
+		const struct comedi_lrange **range_table_list;
 
 		s->range_table_list = range_table_list =
-			kmalloc(sizeof(comedi_lrange *) * s->n_chan,
+			kmalloc(sizeof(struct comedi_lrange *) * s->n_chan,
 			GFP_KERNEL);
 		if (!s->range_table_list) {
 			return -ENOMEM;

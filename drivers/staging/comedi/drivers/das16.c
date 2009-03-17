@@ -236,35 +236,35 @@ static const int sample_size = 2;	// size in bytes of a sample from board
 #define   DAS1600_WS			0x02
 #define   DAS1600_CLK_10MHZ		0x01
 
-static const comedi_lrange range_das1x01_bip = { 4, {
+static const struct comedi_lrange range_das1x01_bip = { 4, {
 			BIP_RANGE(10),
 			BIP_RANGE(1),
 			BIP_RANGE(0.1),
 			BIP_RANGE(0.01),
 	}
 };
-static const comedi_lrange range_das1x01_unip = { 4, {
+static const struct comedi_lrange range_das1x01_unip = { 4, {
 			UNI_RANGE(10),
 			UNI_RANGE(1),
 			UNI_RANGE(0.1),
 			UNI_RANGE(0.01),
 	}
 };
-static const comedi_lrange range_das1x02_bip = { 4, {
+static const struct comedi_lrange range_das1x02_bip = { 4, {
 			BIP_RANGE(10),
 			BIP_RANGE(5),
 			BIP_RANGE(2.5),
 			BIP_RANGE(1.25),
 	}
 };
-static const comedi_lrange range_das1x02_unip = { 4, {
+static const struct comedi_lrange range_das1x02_unip = { 4, {
 			UNI_RANGE(10),
 			UNI_RANGE(5),
 			UNI_RANGE(2.5),
 			UNI_RANGE(1.25),
 	}
 };
-static const comedi_lrange range_das16jr = { 9, {
+static const struct comedi_lrange range_das16jr = { 9, {
 			// also used by 16/330
 			BIP_RANGE(10),
 			BIP_RANGE(5),
@@ -277,7 +277,7 @@ static const comedi_lrange range_das16jr = { 9, {
 			UNI_RANGE(1.25),
 	}
 };
-static const comedi_lrange range_das16jr_16 = { 8, {
+static const struct comedi_lrange range_das16jr_16 = { 8, {
 			BIP_RANGE(10),
 			BIP_RANGE(5),
 			BIP_RANGE(2.5),
@@ -306,14 +306,14 @@ static const int *const das16_gainlists[] = {
 	das1600_gainlist,
 	das1600_gainlist,
 };
-static const comedi_lrange *const das16_ai_uni_lranges[] = {
+static const struct comedi_lrange *const das16_ai_uni_lranges[] = {
 	&range_unknown,
 	&range_das16jr,
 	&range_das16jr_16,
 	&range_das1x01_unip,
 	&range_das1x02_unip,
 };
-static const comedi_lrange *const das16_ai_bip_lranges[] = {
+static const struct comedi_lrange *const das16_ai_bip_lranges[] = {
 	&range_unknown,
 	&range_das16jr,
 	&range_das16jr_16,
@@ -732,8 +732,8 @@ struct das16_private_struct {
 	unsigned int current_buffer;
 	volatile unsigned int dma_transfer_size;	// target number of bytes to transfer per dma shot
 	// user-defined analog input and output ranges defined from config options
-	comedi_lrange *user_ai_range_table;
-	comedi_lrange *user_ao_range_table;
+	struct comedi_lrange *user_ai_range_table;
+	struct comedi_lrange *user_ao_range_table;
 
 	struct timer_list timer;	// for timed interrupt
 	volatile short timer_running;
@@ -1496,7 +1496,7 @@ static int das16_attach(struct comedi_device * dev, comedi_devconfig * it)
 		(it->options[4] || it->options[5])) {
 		// allocate single-range range table
 		devpriv->user_ai_range_table =
-			kmalloc(sizeof(comedi_lrange) + sizeof(comedi_krange),
+			kmalloc(sizeof(struct comedi_lrange) + sizeof(comedi_krange),
 			GFP_KERNEL);
 		// initialize ai range
 		devpriv->user_ai_range_table->length = 1;
@@ -1509,7 +1509,7 @@ static int das16_attach(struct comedi_device * dev, comedi_devconfig * it)
 	if (it->options[6] || it->options[7]) {
 		// allocate single-range range table
 		devpriv->user_ao_range_table =
-			kmalloc(sizeof(comedi_lrange) + sizeof(comedi_krange),
+			kmalloc(sizeof(struct comedi_lrange) + sizeof(comedi_krange),
 			GFP_KERNEL);
 		// initialize ao range
 		devpriv->user_ao_range_table->length = 1;

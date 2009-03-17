@@ -196,7 +196,7 @@ static inline unsigned int DAC_DATA_REG(unsigned int channel)
 // bit in hexadecimal representation of range index that indicates unipolar input range
 #define IS_UNIPOLAR 0x4
 // analog input ranges for most boards
-static const comedi_lrange cb_pcidas_ranges = {
+static const struct comedi_lrange cb_pcidas_ranges = {
 	8,
 	{
 			BIP_RANGE(10),
@@ -211,7 +211,7 @@ static const comedi_lrange cb_pcidas_ranges = {
 };
 
 // pci-das1001 input ranges
-static const comedi_lrange cb_pcidas_alt_ranges = {
+static const struct comedi_lrange cb_pcidas_alt_ranges = {
 	8,
 	{
 			BIP_RANGE(10),
@@ -226,7 +226,7 @@ static const comedi_lrange cb_pcidas_alt_ranges = {
 };
 
 // analog output ranges
-static const comedi_lrange cb_pcidas_ao_ranges = {
+static const struct comedi_lrange cb_pcidas_ao_ranges = {
 	4,
 	{
 			BIP_RANGE(5),
@@ -252,7 +252,7 @@ typedef struct cb_pcidas_board_struct {
 	int has_ao_fifo;	// analog output has fifo
 	int ao_scan_speed;	// analog output speed for 1602 series (for a scan, not conversion)
 	int fifo_size;		// number of samples fifo can hold
-	const comedi_lrange *ranges;
+	const struct comedi_lrange *ranges;
 	enum trimpot_model trimpot;
 	unsigned has_dac08:1;
 } cb_pcidas_board;

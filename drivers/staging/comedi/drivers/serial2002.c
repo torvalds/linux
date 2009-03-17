@@ -598,7 +598,7 @@ static void serial_2002_open(struct comedi_device * dev)
 			}
 			if (c) {
 				struct comedi_subdevice *s;
-				const comedi_lrange **range_table_list = NULL;
+				const struct comedi_lrange **range_table_list = NULL;
 				unsigned int *maxdata_list;
 				int j, chan;
 
@@ -638,7 +638,7 @@ static void serial_2002_open(struct comedi_device * dev)
 							range[j].range.max =
 								c[j].max;
 							range_table_list[chan] =
-								(const
+								(const struct
 								comedi_lrange *)
 								&range[j];
 						}

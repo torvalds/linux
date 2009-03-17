@@ -152,7 +152,7 @@ Configuration options:
 
 #define EXTTRG_AI	0	/* ext trg is used by AI */
 
-static const comedi_lrange range_pci9118dg_hr = { 8, {
+static const struct comedi_lrange range_pci9118dg_hr = { 8, {
 			BIP_RANGE(5),
 			BIP_RANGE(2.5),
 			BIP_RANGE(1.25),
@@ -164,7 +164,7 @@ static const comedi_lrange range_pci9118dg_hr = { 8, {
 	}
 };
 
-static const comedi_lrange range_pci9118hg = { 8, {
+static const struct comedi_lrange range_pci9118hg = { 8, {
 			BIP_RANGE(5),
 			BIP_RANGE(0.5),
 			BIP_RANGE(0.05),
@@ -194,8 +194,8 @@ typedef struct {
 	int n_aochan;		// num of D/A chans
 	int ai_maxdata;		// resolution of A/D
 	int ao_maxdata;		// resolution of D/A
-	const comedi_lrange *rangelist_ai;	// rangelist for A/D
-	const comedi_lrange *rangelist_ao;	// rangelist for D/A
+	const struct comedi_lrange *rangelist_ai;	// rangelist for A/D
+	const struct comedi_lrange *rangelist_ao;	// rangelist for D/A
 	unsigned int ai_ns_min;	// max sample speed of card v ns
 	unsigned int ai_pacer_min;	// minimal pacer value (c1*c2 or c1 in burst)
 	int half_fifo_size;	// size of FIFO/2

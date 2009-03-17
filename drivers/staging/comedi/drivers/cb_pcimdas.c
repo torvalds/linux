@@ -97,7 +97,7 @@ typedef struct cb_pcimdas_board_struct {
 	int fifo_size;		// number of samples fifo can hold
 	int dio_bits;		// number of dio bits
 	int has_dio;		// has DIO
-	const comedi_lrange *ranges;
+	const struct comedi_lrange *ranges;
 } cb_pcimdas_board;
 
 static const cb_pcimdas_board cb_pcimdas_boards[] = {

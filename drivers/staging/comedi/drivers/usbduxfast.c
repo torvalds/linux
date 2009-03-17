@@ -160,7 +160,7 @@
 /*
  * comedi constants
  */
-static const comedi_lrange range_usbduxfast_ai_range = {
+static const struct comedi_lrange range_usbduxfast_ai_range = {
 	2, { BIP_RANGE(0.75), BIP_RANGE(0.5) }
 };
 

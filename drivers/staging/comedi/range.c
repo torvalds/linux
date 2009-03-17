@@ -24,12 +24,12 @@
 #include "comedidev.h"
 #include <asm/uaccess.h>
 
-const comedi_lrange range_bipolar10 = { 1, {BIP_RANGE(10)} };
-const comedi_lrange range_bipolar5 = { 1, {BIP_RANGE(5)} };
-const comedi_lrange range_bipolar2_5 = { 1, {BIP_RANGE(2.5)} };
-const comedi_lrange range_unipolar10 = { 1, {UNI_RANGE(10)} };
-const comedi_lrange range_unipolar5 = { 1, {UNI_RANGE(5)} };
-const comedi_lrange range_unknown = { 1, {{0, 1000000, UNIT_none}} };
+const struct comedi_lrange range_bipolar10 = { 1, {BIP_RANGE(10)} };
+const struct comedi_lrange range_bipolar5 = { 1, {BIP_RANGE(5)} };
+const struct comedi_lrange range_bipolar2_5 = { 1, {BIP_RANGE(2.5)} };
+const struct comedi_lrange range_unipolar10 = { 1, {UNI_RANGE(10)} };
+const struct comedi_lrange range_unipolar5 = { 1, {UNI_RANGE(5)} };
+const struct comedi_lrange range_unknown = { 1, {{0, 1000000, UNIT_none}} };
 
 /*
    	COMEDI_RANGEINFO
@@ -48,7 +48,7 @@ int do_rangeinfo_ioctl(struct comedi_device *dev, comedi_rangeinfo *arg)
 {
 	comedi_rangeinfo it;
 	int subd, chan;
-	const comedi_lrange *lr;
+	const struct comedi_lrange *lr;
 	struct comedi_subdevice *s;
 
 	if (copy_from_user(&it, arg, sizeof(comedi_rangeinfo)))

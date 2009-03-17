@@ -164,7 +164,7 @@ Configuration Options:
 #define DMM32AT_DIRCH 0x08
 
 /* board AI ranges in comedi structure */
-static const comedi_lrange dmm32at_airanges = {
+static const struct comedi_lrange dmm32at_airanges = {
 	4,
 	{
 			UNI_RANGE(10),
@@ -185,7 +185,7 @@ static const unsigned char dmm32at_rangebits[] = {
 /* only one of these ranges is valid, as set by a jumper on the
  * board. The application should only use the range set by the jumper
  */
-static const comedi_lrange dmm32at_aoranges = {
+static const struct comedi_lrange dmm32at_aoranges = {
 	4,
 	{
 			UNI_RANGE(10),
@@ -204,10 +204,10 @@ typedef struct dmm32at_board_struct {
 	const char *name;
 	int ai_chans;
 	int ai_bits;
-	const comedi_lrange *ai_ranges;
+	const struct comedi_lrange *ai_ranges;
 	int ao_chans;
 	int ao_bits;
-	const comedi_lrange *ao_ranges;
+	const struct comedi_lrange *ao_ranges;
 	int have_dio;
 	int dio_chans;
 } dmm32at_board;

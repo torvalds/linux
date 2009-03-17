@@ -100,7 +100,7 @@ static struct comedi_driver driver_das16cs = {
 
 static struct pcmcia_device *cur_dev = NULL;
 
-static const comedi_lrange das16cs_ai_range = { 4, {
+static const struct comedi_lrange das16cs_ai_range = { 4, {
 			RANGE(-10, 10),
 			RANGE(-5, 5),
 			RANGE(-2.5, 2.5),

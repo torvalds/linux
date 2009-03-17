@@ -154,42 +154,42 @@ Notes:
 #define DT2821_XCLK	0x0002	/* (R/W) external clock enable            */
 #define DT2821_BDINIT	0x0001	/* (W)   initialize board         */
 
-static const comedi_lrange range_dt282x_ai_lo_bipolar = { 4, {
+static const struct comedi_lrange range_dt282x_ai_lo_bipolar = { 4, {
 			RANGE(-10, 10),
 			RANGE(-5, 5),
 			RANGE(-2.5, 2.5),
 			RANGE(-1.25, 1.25)
 	}
 };
-static const comedi_lrange range_dt282x_ai_lo_unipolar = { 4, {
+static const struct comedi_lrange range_dt282x_ai_lo_unipolar = { 4, {
 			RANGE(0, 10),
 			RANGE(0, 5),
 			RANGE(0, 2.5),
 			RANGE(0, 1.25)
 	}
 };
-static const comedi_lrange range_dt282x_ai_5_bipolar = { 4, {
+static const struct comedi_lrange range_dt282x_ai_5_bipolar = { 4, {
 			RANGE(-5, 5),
 			RANGE(-2.5, 2.5),
 			RANGE(-1.25, 1.25),
 			RANGE(-0.625, 0.625),
 	}
 };
-static const comedi_lrange range_dt282x_ai_5_unipolar = { 4, {
+static const struct comedi_lrange range_dt282x_ai_5_unipolar = { 4, {
 			RANGE(0, 5),
 			RANGE(0, 2.5),
 			RANGE(0, 1.25),
 			RANGE(0, 0.625),
 	}
 };
-static const comedi_lrange range_dt282x_ai_hi_bipolar = { 4, {
+static const struct comedi_lrange range_dt282x_ai_hi_bipolar = { 4, {
 			RANGE(-10, 10),
 			RANGE(-1, 1),
 			RANGE(-0.1, 0.1),
 			RANGE(-0.02, 0.02)
 	}
 };
-static const comedi_lrange range_dt282x_ai_hi_unipolar = { 4, {
+static const struct comedi_lrange range_dt282x_ai_hi_unipolar = { 4, {
 			RANGE(0, 10),
 			RANGE(0, 1),
 			RANGE(0, 0.1),
@@ -345,7 +345,7 @@ typedef struct {
 	int da0_2scomp;		/* same, for DAC0               */
 	int da1_2scomp;		/* same, for DAC1               */
 
-	const comedi_lrange *darangelist[2];
+	const struct comedi_lrange *darangelist[2];
 
 	short ao[2];
 
@@ -1184,17 +1184,17 @@ static int dt282x_dio_insn_config(struct comedi_device * dev, struct comedi_subd
 	return 1;
 }
 
-static const comedi_lrange *const ai_range_table[] = {
+static const struct comedi_lrange *const ai_range_table[] = {
 	&range_dt282x_ai_lo_bipolar,
 	&range_dt282x_ai_lo_unipolar,
 	&range_dt282x_ai_5_bipolar,
 	&range_dt282x_ai_5_unipolar
 };
-static const comedi_lrange *const ai_range_pgl_table[] = {
+static const struct comedi_lrange *const ai_range_pgl_table[] = {
 	&range_dt282x_ai_hi_bipolar,
 	&range_dt282x_ai_hi_unipolar
 };
-static const comedi_lrange *opt_ai_range_lkup(int ispgl, int x)
+static const struct comedi_lrange *opt_ai_range_lkup(int ispgl, int x)
 {
 	if (ispgl) {
 		if (x < 0 || x >= 2)
@@ -1206,14 +1206,14 @@ static const comedi_lrange *opt_ai_range_lkup(int ispgl, int x)
 		return ai_range_table[x];
 	}
 }
-static const comedi_lrange *const ao_range_table[] = {
+static const struct comedi_lrange *const ao_range_table[] = {
 	&range_bipolar10,
 	&range_unipolar10,
 	&range_bipolar5,
 	&range_unipolar5,
 	&range_bipolar2_5
 };
-static const comedi_lrange *opt_ao_range_lkup(int x)
+static const struct comedi_lrange *opt_ao_range_lkup(int x)
 {
 	if (x < 0 || x >= 5)
 		x = 0;

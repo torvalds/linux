@@ -151,7 +151,7 @@ static int aio_aio12_8_ao_write(struct comedi_device * dev, struct comedi_subdev
 	return insn->n;
 }
 
-static const comedi_lrange range_aio_aio12_8 = {
+static const struct comedi_lrange range_aio_aio12_8 = {
 	4,
 	{
 			UNI_RANGE(5),

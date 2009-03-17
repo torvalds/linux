@@ -117,7 +117,7 @@ irq can be omitted, although the cmd interface will not work without it.
 #define DAS16M1_82C55                  0x400
 #define DAS16M1_8254_THIRD             0x404
 
-static const comedi_lrange range_das16m1 = { 9,
+static const struct comedi_lrange range_das16m1 = { 9,
 	{
 			BIP_RANGE(5),
 			BIP_RANGE(2.5),

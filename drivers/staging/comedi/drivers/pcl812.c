@@ -159,7 +159,7 @@ Options for ACL-8113, ISO-813:
 
 #define MAX_CHANLIST_LEN	256	/* length of scan list */
 
-static const comedi_lrange range_pcl812pg_ai = { 5, {
+static const struct comedi_lrange range_pcl812pg_ai = { 5, {
 			BIP_RANGE(5),
 			BIP_RANGE(2.5),
 			BIP_RANGE(1.25),
@@ -167,7 +167,7 @@ static const comedi_lrange range_pcl812pg_ai = { 5, {
 			BIP_RANGE(0.3125),
 	}
 };
-static const comedi_lrange range_pcl812pg2_ai = { 5, {
+static const struct comedi_lrange range_pcl812pg2_ai = { 5, {
 			BIP_RANGE(10),
 			BIP_RANGE(5),
 			BIP_RANGE(2.5),
@@ -175,33 +175,33 @@ static const comedi_lrange range_pcl812pg2_ai = { 5, {
 			BIP_RANGE(0.625),
 	}
 };
-static const comedi_lrange range812_bipolar1_25 = { 1, {
+static const struct comedi_lrange range812_bipolar1_25 = { 1, {
 			BIP_RANGE(1.25),
 	}
 };
-static const comedi_lrange range812_bipolar0_625 = { 1, {
+static const struct comedi_lrange range812_bipolar0_625 = { 1, {
 			BIP_RANGE(0.625),
 	}
 };
-static const comedi_lrange range812_bipolar0_3125 = { 1, {
+static const struct comedi_lrange range812_bipolar0_3125 = { 1, {
 			BIP_RANGE(0.3125),
 	}
 };
-static const comedi_lrange range_pcl813b_ai = { 4, {
+static const struct comedi_lrange range_pcl813b_ai = { 4, {
 			BIP_RANGE(5),
 			BIP_RANGE(2.5),
 			BIP_RANGE(1.25),
 			BIP_RANGE(0.625),
 	}
 };
-static const comedi_lrange range_pcl813b2_ai = { 4, {
+static const struct comedi_lrange range_pcl813b2_ai = { 4, {
 			UNI_RANGE(10),
 			UNI_RANGE(5),
 			UNI_RANGE(2.5),
 			UNI_RANGE(1.25),
 	}
 };
-static const comedi_lrange range_iso813_1_ai = { 5, {
+static const struct comedi_lrange range_iso813_1_ai = { 5, {
 			BIP_RANGE(5),
 			BIP_RANGE(2.5),
 			BIP_RANGE(1.25),
@@ -209,7 +209,7 @@ static const comedi_lrange range_iso813_1_ai = { 5, {
 			BIP_RANGE(0.3125),
 	}
 };
-static const comedi_lrange range_iso813_1_2_ai = { 5, {
+static const struct comedi_lrange range_iso813_1_2_ai = { 5, {
 			UNI_RANGE(10),
 			UNI_RANGE(5),
 			UNI_RANGE(2.5),
@@ -217,47 +217,47 @@ static const comedi_lrange range_iso813_1_2_ai = { 5, {
 			UNI_RANGE(0.625),
 	}
 };
-static const comedi_lrange range_iso813_2_ai = { 4, {
+static const struct comedi_lrange range_iso813_2_ai = { 4, {
 			BIP_RANGE(5),
 			BIP_RANGE(2.5),
 			BIP_RANGE(1.25),
 			BIP_RANGE(0.625),
 	}
 };
-static const comedi_lrange range_iso813_2_2_ai = { 4, {
+static const struct comedi_lrange range_iso813_2_2_ai = { 4, {
 			UNI_RANGE(10),
 			UNI_RANGE(5),
 			UNI_RANGE(2.5),
 			UNI_RANGE(1.25),
 	}
 };
-static const comedi_lrange range_acl8113_1_ai = { 4, {
+static const struct comedi_lrange range_acl8113_1_ai = { 4, {
 			BIP_RANGE(5),
 			BIP_RANGE(2.5),
 			BIP_RANGE(1.25),
 			BIP_RANGE(0.625),
 	}
 };
-static const comedi_lrange range_acl8113_1_2_ai = { 4, {
+static const struct comedi_lrange range_acl8113_1_2_ai = { 4, {
 			UNI_RANGE(10),
 			UNI_RANGE(5),
 			UNI_RANGE(2.5),
 			UNI_RANGE(1.25),
 	}
 };
-static const comedi_lrange range_acl8113_2_ai = { 3, {
+static const struct comedi_lrange range_acl8113_2_ai = { 3, {
 			BIP_RANGE(5),
 			BIP_RANGE(2.5),
 			BIP_RANGE(1.25),
 	}
 };
-static const comedi_lrange range_acl8113_2_2_ai = { 3, {
+static const struct comedi_lrange range_acl8113_2_2_ai = { 3, {
 			UNI_RANGE(10),
 			UNI_RANGE(5),
 			UNI_RANGE(2.5),
 	}
 };
-static const comedi_lrange range_acl8112dg_ai = { 9, {
+static const struct comedi_lrange range_acl8112dg_ai = { 9, {
 			BIP_RANGE(5),
 			BIP_RANGE(2.5),
 			BIP_RANGE(1.25),
@@ -269,7 +269,7 @@ static const comedi_lrange range_acl8112dg_ai = { 9, {
 			BIP_RANGE(10),
 	}
 };
-static const comedi_lrange range_acl8112hg_ai = { 12, {
+static const struct comedi_lrange range_acl8112hg_ai = { 12, {
 			BIP_RANGE(5),
 			BIP_RANGE(0.5),
 			BIP_RANGE(0.05),
@@ -284,7 +284,7 @@ static const comedi_lrange range_acl8112hg_ai = { 12, {
 			BIP_RANGE(0.01),
 	}
 };
-static const comedi_lrange range_a821pgh_ai = { 4, {
+static const struct comedi_lrange range_a821pgh_ai = { 4, {
 			BIP_RANGE(5),
 			BIP_RANGE(0.5),
 			BIP_RANGE(0.05),
@@ -306,8 +306,8 @@ typedef struct {
 	int ai_maxdata;		// AI resolution
 	unsigned int ai_ns_min;	// max sample speed of card v ns
 	unsigned int i8254_osc_base;	// clock base
-	const comedi_lrange *rangelist_ai;	// rangelist for A/D
-	const comedi_lrange *rangelist_ao;	// rangelist for D/A
+	const struct comedi_lrange *rangelist_ai;	// rangelist for A/D
+	const struct comedi_lrange *rangelist_ao;	// rangelist for D/A
 	unsigned int IRQbits;	// allowed IRQ
 	unsigned char DMAbits;	// allowed DMA chans
 	unsigned char io_range;	// iorange for this board

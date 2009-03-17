@@ -51,42 +51,42 @@ Configuration options:
 
 static const char *driver_name = "dt2811";
 
-static const comedi_lrange range_dt2811_pgh_ai_5_unipolar = { 4, {
+static const struct comedi_lrange range_dt2811_pgh_ai_5_unipolar = { 4, {
 			RANGE(0, 5),
 			RANGE(0, 2.5),
 			RANGE(0, 1.25),
 			RANGE(0, 0.625)
 	}
 };
-static const comedi_lrange range_dt2811_pgh_ai_2_5_bipolar = { 4, {
+static const struct comedi_lrange range_dt2811_pgh_ai_2_5_bipolar = { 4, {
 			RANGE(-2.5, 2.5),
 			RANGE(-1.25, 1.25),
 			RANGE(-0.625, 0.625),
 			RANGE(-0.3125, 0.3125)
 	}
 };
-static const comedi_lrange range_dt2811_pgh_ai_5_bipolar = { 4, {
+static const struct comedi_lrange range_dt2811_pgh_ai_5_bipolar = { 4, {
 			RANGE(-5, 5),
 			RANGE(-2.5, 2.5),
 			RANGE(-1.25, 1.25),
 			RANGE(-0.625, 0.625)
 	}
 };
-static const comedi_lrange range_dt2811_pgl_ai_5_unipolar = { 4, {
+static const struct comedi_lrange range_dt2811_pgl_ai_5_unipolar = { 4, {
 			RANGE(0, 5),
 			RANGE(0, 0.5),
 			RANGE(0, 0.05),
 			RANGE(0, 0.01)
 	}
 };
-static const comedi_lrange range_dt2811_pgl_ai_2_5_bipolar = { 4, {
+static const struct comedi_lrange range_dt2811_pgl_ai_2_5_bipolar = { 4, {
 			RANGE(-2.5, 2.5),
 			RANGE(-0.25, 0.25),
 			RANGE(-0.025, 0.025),
 			RANGE(-0.005, 0.005)
 	}
 };
-static const comedi_lrange range_dt2811_pgl_ai_5_bipolar = { 4, {
+static const struct comedi_lrange range_dt2811_pgl_ai_5_bipolar = { 4, {
 			RANGE(-5, 5),
 			RANGE(-0.5, 0.5),
 			RANGE(-0.05, 0.05),
@@ -193,9 +193,9 @@ static const comedi_lrange range_dt2811_pgl_ai_5_bipolar = { 4, {
 
 typedef struct {
 	const char *name;
-	const comedi_lrange *bip_5;
-	const comedi_lrange *bip_2_5;
-	const comedi_lrange *unip_5;
+	const struct comedi_lrange *bip_5;
+	const struct comedi_lrange *bip_2_5;
+	const struct comedi_lrange *unip_5;
 } boardtype;
 static const boardtype boardtypes[] = {
 	{"dt2811-pgh",
@@ -247,13 +247,13 @@ typedef struct {
 	enum {
 		dac_bipolar_5, dac_bipolar_2_5, dac_unipolar_5
 	} dac_range[2];
-	const comedi_lrange *range_type_list[2];
+	const struct comedi_lrange *range_type_list[2];
 	unsigned int ao_readback[2];
 } dt2811_private;
 
 #define devpriv ((dt2811_private *)dev->private)
 
-static const comedi_lrange *dac_range_types[] = {
+static const struct comedi_lrange *dac_range_types[] = {
 	&range_bipolar5,
 	&range_bipolar2_5,
 	&range_unipolar5

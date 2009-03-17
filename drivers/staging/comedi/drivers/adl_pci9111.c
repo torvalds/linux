@@ -270,7 +270,7 @@ static int pci9111_detach(struct comedi_device * dev);
 static void pci9111_ai_munge(struct comedi_device * dev, struct comedi_subdevice * s,
 	void *data, unsigned int num_bytes, unsigned int start_chan_index);
 
-static const comedi_lrange pci9111_hr_ai_range = {
+static const struct comedi_lrange pci9111_hr_ai_range = {
 	5,
 	{
 			BIP_RANGE(10),
@@ -303,8 +303,8 @@ typedef struct {
 	int ai_resolution_mask;
 	int ao_resolution;	// resolution of D/A
 	int ao_resolution_mask;
-	const comedi_lrange *ai_range_list;	// rangelist for A/D
-	const comedi_lrange *ao_range_list;	// rangelist for D/A
+	const struct comedi_lrange *ai_range_list;	// rangelist for A/D
+	const struct comedi_lrange *ao_range_list;	// rangelist for D/A
 	unsigned int ai_acquisition_period_min_ns;
 } pci9111_board_struct;
 

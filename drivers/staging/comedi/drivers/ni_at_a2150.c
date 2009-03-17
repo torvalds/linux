@@ -127,7 +127,7 @@ typedef struct a2150_board_struct {
 } a2150_board;
 
 //analog input range
-static const comedi_lrange range_a2150 = {
+static const struct comedi_lrange range_a2150 = {
 	1,
 	{
 			RANGE(-2.828, 2.828),
