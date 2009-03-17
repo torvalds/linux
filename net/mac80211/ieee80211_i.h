@@ -972,6 +972,7 @@ int ieee80211_sta_set_extra_ie(struct ieee80211_sub_if_data *sdata,
 			       char *ie, size_t len);
 
 void ieee80211_mlme_notify_scan_completed(struct ieee80211_local *local);
+void ieee80211_scan_failed(struct ieee80211_local *local);
 int ieee80211_start_scan(struct ieee80211_sub_if_data *scan_sdata,
 			 struct cfg80211_scan_request *req);
 struct ieee80211_bss *

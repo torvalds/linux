@@ -3359,7 +3359,7 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/* amp init */
 	err = priv->cfg->ops->lib->apm_ops.init(priv);
 	if (err < 0) {
-		IWL_DEBUG_INFO(priv, "Failed to init APMG\n");
+		IWL_ERR(priv, "Failed to init APMG\n");
 		goto out_iounmap;
 	}
 	/*****************
@@ -3643,9 +3643,9 @@ static struct pci_device_id iwl_hw_card_ids[] = {
 	{IWL_PCI_DEVICE(0x0087, PCI_ANY_ID, iwl6050_2agn_cfg)},
 	{IWL_PCI_DEVICE(0x0088, PCI_ANY_ID, iwl6050_3agn_cfg)},
 	{IWL_PCI_DEVICE(0x0089, PCI_ANY_ID, iwl6050_2agn_cfg)},
-/* 100 Series WiFi */
-	{IWL_PCI_DEVICE(0x0083, PCI_ANY_ID, iwl100_bgn_cfg)},
-	{IWL_PCI_DEVICE(0x0084, PCI_ANY_ID, iwl100_bgn_cfg)},
+/* 1000 Series WiFi */
+	{IWL_PCI_DEVICE(0x0083, PCI_ANY_ID, iwl1000_bgn_cfg)},
+	{IWL_PCI_DEVICE(0x0084, PCI_ANY_ID, iwl1000_bgn_cfg)},
 #endif /* CONFIG_IWL5000 */
 
 	{0}

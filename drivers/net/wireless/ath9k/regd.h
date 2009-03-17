@@ -236,7 +236,8 @@ enum CountryCode {
 bool ath9k_is_world_regd(struct ath_hw *ah);
 const struct ieee80211_regdomain *ath9k_world_regdomain(struct ath_hw *ah);
 const struct ieee80211_regdomain *ath9k_default_world_regdomain(void);
-void ath9k_reg_apply_world_flags(struct wiphy *wiphy, enum reg_set_by setby);
+void ath9k_reg_apply_world_flags(struct wiphy *wiphy,
+				 enum nl80211_reg_initiator initiator);
 void ath9k_reg_apply_radar_flags(struct wiphy *wiphy);
 int ath9k_regd_init(struct ath_hw *ah);
 bool ath9k_regd_is_eeprom_valid(struct ath_hw *ah);

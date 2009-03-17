@@ -1129,6 +1129,12 @@ struct ath5k_hw {
 extern struct ath5k_hw *ath5k_hw_attach(struct ath5k_softc *sc, u8 mac_version);
 extern void ath5k_hw_detach(struct ath5k_hw *ah);
 
+/* LED functions */
+extern int ath5k_init_leds(struct ath5k_softc *sc);
+extern void ath5k_led_enable(struct ath5k_softc *sc);
+extern void ath5k_led_off(struct ath5k_softc *sc);
+extern void ath5k_unregister_leds(struct ath5k_softc *sc);
+
 /* Reset Functions */
 extern int ath5k_hw_nic_wakeup(struct ath5k_hw *ah, int flags, bool initial);
 extern int ath5k_hw_reset(struct ath5k_hw *ah, enum nl80211_iftype op_mode, struct ieee80211_channel *channel, bool change_channel);

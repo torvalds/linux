@@ -261,7 +261,7 @@ struct base_eep_header_4k {
 	u16 deviceCap;
 	u32 binBuildNumber;
 	u8 deviceType;
-	u8 futureBase[1];
+	u8 txGainType;
 } __packed;
 
 

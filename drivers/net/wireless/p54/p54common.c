@@ -21,6 +21,9 @@
 #include <linux/etherdevice.h>
 
 #include <net/mac80211.h>
+#ifdef CONFIG_MAC80211_LEDS
+#include <linux/leds.h>
+#endif /* CONFIG_MAC80211_LEDS */
 
 #include "p54.h"
 #include "p54common.h"
@@ -735,10 +738,7 @@ static int p54_rx_data(struct ieee80211_hw *dev, struct sk_buff *skb)
 		return 0;
 
 	if (!(hdr->flags & cpu_to_le16(P54_HDR_FLAG_DATA_IN_FCS_GOOD))) {
-		if (priv->filter_flags & FIF_FCSFAIL)
-			rx_status.flag |= RX_FLAG_FAILED_FCS_CRC;
-		else
-			return 0;
+		return 0;
 	}
 
 	if (hdr->decrypt_status == P54_DECRYPT_OK)
@@ -1680,7 +1680,7 @@ static int p54_setup_mac(struct ieee80211_hw *dev)
 			mode = P54_FILTER_TYPE_PROMISCUOUS;
 			break;
 		default:
-			mode = P54_FILTER_TYPE_NONE;
+			mode = P54_FILTER_TYPE_HIBERNATE;
 			break;
 		}
 
@@ -1693,7 +1693,7 @@ static int p54_setup_mac(struct ieee80211_hw *dev)
 		    (mode != P54_FILTER_TYPE_PROMISCUOUS))
 			mode |= P54_FILTER_TYPE_TRANSPARENT;
 	} else
-		mode = P54_FILTER_TYPE_RX_DISABLED;
+		mode = P54_FILTER_TYPE_HIBERNATE;
 
 	setup->mac_mode = cpu_to_le16(mode);
 	memcpy(setup->mac_addr, priv->mac_addr, ETH_ALEN);
@@ -1871,7 +1871,7 @@ static int p54_scan(struct ieee80211_hw *dev, u16 mode, u16 dwell)
 	return -EINVAL;
 }
 
-static int p54_set_leds(struct ieee80211_hw *dev, int mode, int link, int act)
+static int p54_set_leds(struct ieee80211_hw *dev)
 {
 	struct p54_common *priv = dev->priv;
 	struct sk_buff *skb;
@@ -1882,11 +1882,11 @@ static int p54_set_leds(struct ieee80211_hw *dev, int mode, int link, int act)
 	if (!skb)
 		return -ENOMEM;
 
-	led = (struct p54_led *)skb_put(skb, sizeof(*led));
-	led->mode = cpu_to_le16(mode);
-	led->led_permanent = cpu_to_le16(link);
-	led->led_temporary = cpu_to_le16(act);
-	led->duration = cpu_to_le16(1000);
+	led = (struct p54_led *) skb_put(skb, sizeof(*led));
+	led->flags = cpu_to_le16(0x0003);
+	led->mask[0] = led->mask[1] = cpu_to_le16(priv->softled_state);
+	led->delay[0] = cpu_to_le16(1);
+	led->delay[1] = cpu_to_le16(0);
 	priv->tx(dev, skb);
 	return 0;
 }
@@ -2070,6 +2070,9 @@ static int p54_start(struct ieee80211_hw *dev)
 
 	queue_delayed_work(dev->workqueue, &priv->work, 0);
 
+	priv->softled_state = 0;
+	err = p54_set_leds(dev);
+
 out:
 	mutex_unlock(&priv->conf_mutex);
 	return err;
@@ -2082,6 +2085,9 @@ static void p54_stop(struct ieee80211_hw *dev)
 
 	mutex_lock(&priv->conf_mutex);
 	priv->mode = NL80211_IFTYPE_UNSPECIFIED;
+	priv->softled_state = 0;
+	p54_set_leds(dev);
+
 	cancel_delayed_work_sync(&priv->work);
 	if (priv->cached_beacon)
 		p54_tx_cancel(dev, priv->cached_beacon);
@@ -2119,7 +2125,6 @@ static int p54_add_interface(struct ieee80211_hw *dev,
 
 	memcpy(priv->mac_addr, conf->mac_addr, ETH_ALEN);
 	p54_setup_mac(dev);
-	p54_set_leds(dev, 1, 0, 0);
 	mutex_unlock(&priv->conf_mutex);
 	return 0;
 }
@@ -2199,8 +2204,6 @@ static int p54_config_interface(struct ieee80211_hw *dev,
 			goto out;
 	}
 
-	ret = p54_set_leds(dev, 1, !is_multicast_ether_addr(priv->bssid), 0);
-
 out:
 	mutex_unlock(&priv->conf_mutex);
 	return ret;
@@ -2214,9 +2217,7 @@ static void p54_configure_filter(struct ieee80211_hw *dev,
 	struct p54_common *priv = dev->priv;
 
 	*total_flags &= FIF_PROMISC_IN_BSS |
-			FIF_OTHER_BSS |
-			(*total_flags & FIF_PROMISC_IN_BSS ?
-				FIF_FCSFAIL : 0);
+			FIF_OTHER_BSS;
 
 	priv->filter_flags = *total_flags;
 
@@ -2419,6 +2420,96 @@ static int p54_set_key(struct ieee80211_hw *dev, enum set_key_cmd cmd,
 	return 0;
 }
 
+#ifdef CONFIG_MAC80211_LEDS
+static void p54_led_brightness_set(struct led_classdev *led_dev,
+				   enum led_brightness brightness)
+{
+	struct p54_led_dev *led = container_of(led_dev, struct p54_led_dev,
+					       led_dev);
+	struct ieee80211_hw *dev = led->hw_dev;
+	struct p54_common *priv = dev->priv;
+	int err;
+
+	/* Don't toggle the LED, when the device is down. */
+	if (priv->mode == NL80211_IFTYPE_UNSPECIFIED)
+		return ;
+
+	if (brightness != LED_OFF)
+		priv->softled_state |= BIT(led->index);
+	else
+		priv->softled_state &= ~BIT(led->index);
+
+	err = p54_set_leds(dev);
+	if (err && net_ratelimit())
+		printk(KERN_ERR "%s: failed to update %s LED.\n",
+			wiphy_name(dev->wiphy), led_dev->name);
+}
+
+static int p54_register_led(struct ieee80211_hw *dev,
+			    struct p54_led_dev *led,
+			    unsigned int led_index,
+			    char *name, char *trigger)
+{
+	int err;
+
+	if (led->registered)
+		return -EEXIST;
+
+	snprintf(led->name, sizeof(led->name), "p54-%s::%s",
+		 wiphy_name(dev->wiphy), name);
+	led->hw_dev = dev;
+	led->index = led_index;
+	led->led_dev.name = led->name;
+	led->led_dev.default_trigger = trigger;
+	led->led_dev.brightness_set = p54_led_brightness_set;
+
+	err = led_classdev_register(wiphy_dev(dev->wiphy), &led->led_dev);
+	if (err)
+		printk(KERN_ERR "%s: Failed to register %s LED.\n",
+			wiphy_name(dev->wiphy), name);
+	else
+		led->registered = 1;
+
+	return err;
+}
+
+static int p54_init_leds(struct ieee80211_hw *dev)
+{
+	struct p54_common *priv = dev->priv;
+	int err;
+
+	/*
+	 * TODO:
+	 * Figure out if the EEPROM contains some hints about the number
+	 * of available/programmable LEDs of the device.
+	 * But for now, we can assume that we have two programmable LEDs.
+	 */
+
+	err = p54_register_led(dev, &priv->assoc_led, 0, "assoc",
+			       ieee80211_get_assoc_led_name(dev));
+	if (err)
+		return err;
+
+	err = p54_register_led(dev, &priv->tx_led, 1, "tx",
+			       ieee80211_get_tx_led_name(dev));
+	if (err)
+		return err;
+
+	err = p54_set_leds(dev);
+	return err;
+}
+
+static void p54_unregister_leds(struct ieee80211_hw *dev)
+{
+	struct p54_common *priv = dev->priv;
+
+	if (priv->tx_led.registered)
+		led_classdev_unregister(&priv->tx_led.led_dev);
+	if (priv->assoc_led.registered)
+		led_classdev_unregister(&priv->assoc_led.led_dev);
+}
+#endif /* CONFIG_MAC80211_LEDS */
+
 static const struct ieee80211_ops p54_ops = {
 	.tx			= p54_tx,
 	.start			= p54_start,
@@ -2452,6 +2543,8 @@ struct ieee80211_hw *p54_init_common(size_t priv_data_len)
 	priv->basic_rate_mask = 0x15f;
 	skb_queue_head_init(&priv->tx_queue);
 	dev->flags = IEEE80211_HW_RX_INCLUDES_FCS |
+		     IEEE80211_HW_SUPPORTS_PS |
+		     IEEE80211_HW_PS_NULLFUNC_STACK |
 		     IEEE80211_HW_SIGNAL_DBM |
 		     IEEE80211_HW_NOISE_DBM;
 
@@ -2489,12 +2582,37 @@ struct ieee80211_hw *p54_init_common(size_t priv_data_len)
 }
 EXPORT_SYMBOL_GPL(p54_init_common);
 
+int p54_register_common(struct ieee80211_hw *dev, struct device *pdev)
+{
+	int err;
+
+	err = ieee80211_register_hw(dev);
+	if (err) {
+		dev_err(pdev, "Cannot register device (%d).\n", err);
+		return err;
+	}
+
+	#ifdef CONFIG_MAC80211_LEDS
+	err = p54_init_leds(dev);
+	if (err)
+		return err;
+	#endif /* CONFIG_MAC80211_LEDS */
+
+	dev_info(pdev, "is registered as '%s'\n", wiphy_name(dev->wiphy));
+	return 0;
+}
+EXPORT_SYMBOL_GPL(p54_register_common);
+
 void p54_free_common(struct ieee80211_hw *dev)
 {
 	struct p54_common *priv = dev->priv;
 	kfree(priv->iq_autocal);
 	kfree(priv->output_limit);
 	kfree(priv->curve_data);
+
+	#ifdef CONFIG_MAC80211_LEDS
+	p54_unregister_leds(dev);
+	#endif /* CONFIG_MAC80211_LEDS */
 }
 EXPORT_SYMBOL_GPL(p54_free_common);
 

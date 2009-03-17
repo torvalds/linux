@@ -221,7 +221,7 @@ void free_ieee80211(struct net_device *dev)
 	free_netdev(dev);
 }
 
-#ifdef CONFIG_IEEE80211_DEBUG
+#ifdef CONFIG_LIBIPW_DEBUG
 
 static int debug = 0;
 u32 ieee80211_debug_level = 0;
@@ -252,11 +252,11 @@ static int store_debug_level(struct file *file, const char __user * buffer,
 
 	return strnlen(buf, len);
 }
-#endif				/* CONFIG_IEEE80211_DEBUG */
+#endif				/* CONFIG_LIBIPW_DEBUG */
 
 static int __init ieee80211_init(void)
 {
-#ifdef CONFIG_IEEE80211_DEBUG
+#ifdef CONFIG_LIBIPW_DEBUG
 	struct proc_dir_entry *e;
 
 	ieee80211_debug_level = debug;
@@ -276,7 +276,7 @@ static int __init ieee80211_init(void)
 	e->read_proc = show_debug_level;
 	e->write_proc = store_debug_level;
 	e->data = NULL;
-#endif				/* CONFIG_IEEE80211_DEBUG */
+#endif				/* CONFIG_LIBIPW_DEBUG */
 
 	printk(KERN_INFO DRV_NAME ": " DRV_DESCRIPTION ", " DRV_VERSION "\n");
 	printk(KERN_INFO DRV_NAME ": " DRV_COPYRIGHT "\n");
@@ -286,20 +286,20 @@ static int __init ieee80211_init(void)
 
 static void __exit ieee80211_exit(void)
 {
-#ifdef CONFIG_IEEE80211_DEBUG
+#ifdef CONFIG_LIBIPW_DEBUG
 	if (ieee80211_proc) {
 		remove_proc_entry("debug_level", ieee80211_proc);
 		remove_proc_entry(DRV_NAME, init_net.proc_net);
 		ieee80211_proc = NULL;
 	}
-#endif				/* CONFIG_IEEE80211_DEBUG */
+#endif				/* CONFIG_LIBIPW_DEBUG */
 }
 
-#ifdef CONFIG_IEEE80211_DEBUG
+#ifdef CONFIG_LIBIPW_DEBUG
 #include <linux/moduleparam.h>
 module_param(debug, int, 0444);
 MODULE_PARM_DESC(debug, "debug output mask");
-#endif				/* CONFIG_IEEE80211_DEBUG */
+#endif				/* CONFIG_LIBIPW_DEBUG */
 
 module_exit(ieee80211_exit);
 module_init(ieee80211_init);

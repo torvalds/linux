@@ -328,6 +328,8 @@ static int iwl3945_commit_rxon(struct iwl_priv *priv)
 	struct iwl3945_rxon_cmd *active_rxon = (void *)&priv->active_rxon;
 	struct iwl3945_rxon_cmd *staging_rxon = (void *)&priv->staging_rxon;
 	int rc = 0;
+	bool new_assoc =
+		!!(priv->staging_rxon.filter_flags & RXON_FILTER_ASSOC_MSK);
 
 	if (!iwl_is_alive(priv))
 		return -1;
@@ -366,8 +368,7 @@ static int iwl3945_commit_rxon(struct iwl_priv *priv)
 	 * an RXON_ASSOC and the new config wants the associated mask enabled,
 	 * we must clear the associated from the active configuration
 	 * before we apply the new config */
-	if (iwl_is_associated(priv) &&
-	    (staging_rxon->filter_flags & RXON_FILTER_ASSOC_MSK)) {
+	if (iwl_is_associated(priv) && new_assoc) {
 		IWL_DEBUG_INFO(priv, "Toggling associated bit on current RXON\n");
 		active_rxon->filter_flags &= ~RXON_FILTER_ASSOC_MSK;
 
@@ -395,8 +396,7 @@ static int iwl3945_commit_rxon(struct iwl_priv *priv)
 		       "* with%s RXON_FILTER_ASSOC_MSK\n"
 		       "* channel = %d\n"
 		       "* bssid = %pM\n",
-		       ((priv->staging_rxon.filter_flags &
-			 RXON_FILTER_ASSOC_MSK) ? "" : "out"),
+		       (new_assoc ? "" : "out"),
 		       le16_to_cpu(staging_rxon->channel),
 		       staging_rxon->bssid_addr);
 
@@ -542,7 +542,7 @@ static int iwl3945_clear_sta_key_info(struct iwl_priv *priv, u8 sta_id)
 	return 0;
 }
 
-int iwl3945_set_dynamic_key(struct iwl_priv *priv,
+static int iwl3945_set_dynamic_key(struct iwl_priv *priv,
 			struct ieee80211_key_conf *keyconf, u8 sta_id)
 {
 	int ret = 0;
@@ -890,7 +890,7 @@ static void iwl3945_build_tx_cmd_basic(struct iwl_priv *priv,
 			tx->timeout.pm_frame_timeout = cpu_to_le16(2);
 	} else {
 		tx->timeout.pm_frame_timeout = 0;
-#ifdef CONFIG_IWL3945_LEDS
+#ifdef CONFIG_IWLWIFI_LEDS
 		priv->rxtxpackets += le16_to_cpu(cmd->cmd.tx.len);
 #endif
 	}
@@ -1479,85 +1479,6 @@ static void iwl3945_setup_rx_handlers(struct iwl_priv *priv)
 	iwl3945_hw_rx_handler_setup(priv);
 }
 
-/**
- * iwl3945_cmd_queue_reclaim - Reclaim CMD queue entries
- * When FW advances 'R' index, all entries between old and new 'R' index
- * need to be reclaimed.
- */
-static void iwl3945_cmd_queue_reclaim(struct iwl_priv *priv,
-				      int txq_id, int index)
-{
-	struct iwl_tx_queue *txq = &priv->txq[txq_id];
-	struct iwl_queue *q = &txq->q;
-	int nfreed = 0;
-
-	if ((index >= q->n_bd) || (iwl_queue_used(q, index) == 0)) {
-		IWL_ERR(priv, "Read index for DMA queue txq id (%d), index %d, "
-			  "is out of range [0-%d] %d %d.\n", txq_id,
-			  index, q->n_bd, q->write_ptr, q->read_ptr);
-		return;
-	}
-
-	for (index = iwl_queue_inc_wrap(index, q->n_bd); q->read_ptr != index;
-		q->read_ptr = iwl_queue_inc_wrap(q->read_ptr, q->n_bd)) {
-		if (nfreed > 1) {
-			IWL_ERR(priv, "HCMD skipped: index (%d) %d %d\n", index,
-					q->write_ptr, q->read_ptr);
-			queue_work(priv->workqueue, &priv->restart);
-			break;
-		}
-		nfreed++;
-	}
-}
-
-
-/**
- * iwl3945_tx_cmd_complete - Pull unused buffers off the queue and reclaim them
- * @rxb: Rx buffer to reclaim
- *
- * If an Rx buffer has an async callback associated with it the callback
- * will be executed.  The attached skb (if present) will only be freed
- * if the callback returns 1
- */
-static void iwl3945_tx_cmd_complete(struct iwl_priv *priv,
-				struct iwl_rx_mem_buffer *rxb)
-{
-	struct iwl_rx_packet *pkt = (struct iwl_rx_packet *)rxb->skb->data;
-	u16 sequence = le16_to_cpu(pkt->hdr.sequence);
-	int txq_id = SEQ_TO_QUEUE(sequence);
-	int index = SEQ_TO_INDEX(sequence);
-	int huge =  !!(pkt->hdr.sequence & SEQ_HUGE_FRAME);
-	int cmd_index;
-	struct iwl_cmd *cmd;
-
-	if (WARN(txq_id != IWL_CMD_QUEUE_NUM,
-		 "wrong command queue %d, sequence 0x%X readp=%d writep=%d\n",
-		  txq_id, sequence,
-		  priv->txq[IWL_CMD_QUEUE_NUM].q.read_ptr,
-		  priv->txq[IWL_CMD_QUEUE_NUM].q.write_ptr)) {
-		iwl_print_hex_dump(priv, IWL_DL_INFO , rxb, 32);
-		return;
-	}
-
-	cmd_index = get_cmd_index(&priv->txq[IWL_CMD_QUEUE_NUM].q, index, huge);
-	cmd = priv->txq[IWL_CMD_QUEUE_NUM].cmd[cmd_index];
-
-	/* Input error checking is done when commands are added to queue. */
-	if (cmd->meta.flags & CMD_WANT_SKB) {
-		cmd->meta.source->u.skb = rxb->skb;
-		rxb->skb = NULL;
-	} else if (cmd->meta.u.callback &&
-		   !cmd->meta.u.callback(priv, cmd, rxb->skb))
-		rxb->skb = NULL;
-
-	iwl3945_cmd_queue_reclaim(priv, txq_id, index);
-
-	if (!(cmd->meta.flags & CMD_ASYNC)) {
-		clear_bit(STATUS_HCMD_ACTIVE, &priv->status);
-		wake_up_interruptible(&priv->wait_command_queue);
-	}
-}
-
 /************************** RX-FUNCTIONS ****************************/
 /*
  * Rx theory of operation
@@ -1917,7 +1838,7 @@ static void iwl3945_rx_handle(struct iwl_priv *priv)
 			 * fire off the (possibly) blocking iwl_send_cmd()
 			 * as we reclaim the driver command queue */
 			if (rxb && rxb->skb)
-				iwl3945_tx_cmd_complete(priv, rxb);
+				iwl_tx_cmd_complete(priv, rxb);
 			else
 				IWL_WARN(priv, "Claim null rxb?\n");
 		}

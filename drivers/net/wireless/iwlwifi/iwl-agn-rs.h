@@ -231,7 +231,7 @@ enum {
 #define IWL_RS_GOOD_RATIO		12800	/* 100% */
 #define IWL_RATE_SCALE_SWITCH		10880	/*  85% */
 #define IWL_RATE_HIGH_TH		10880	/*  85% */
-#define IWL_RATE_INCREASE_TH            8960	/*  70% */
+#define IWL_RATE_INCREASE_TH		6400	/*  50% */
 #define IWL_RATE_DECREASE_TH		1920	/*  15% */
 
 /* possible actions when in legacy mode */

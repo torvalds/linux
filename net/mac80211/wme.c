@@ -99,10 +99,13 @@ static u16 classify80211(struct ieee80211_local *local, struct sk_buff *skb)
 	/* in case we are a client verify acm is not set for this ac */
 	while (unlikely(local->wmm_acm & BIT(skb->priority))) {
 		if (wme_downgrade_ac(skb)) {
-			/* The old code would drop the packet in this
-			 * case.
+			/*
+			 * This should not really happen. The AP has marked all
+			 * lower ACs to require admission control which is not
+			 * a reasonable configuration. Allow the frame to be
+			 * transmitted using AC_BK as a workaround.
 			 */
-			return 0;
+			break;
 		}
 	}
 

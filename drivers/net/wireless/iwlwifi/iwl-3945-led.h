@@ -29,23 +29,9 @@
 
 struct iwl_priv;
 
-#ifdef CONFIG_IWL3945_LEDS
+#ifdef CONFIG_IWLWIFI_LEDS
 
 #include "iwl-led.h"
-
-struct iwl3945_led {
-	struct iwl_priv *priv;
-	struct led_classdev led_dev;
-	char name[32];
-
-	int (*led_on) (struct iwl_priv *priv, int led_id);
-	int (*led_off) (struct iwl_priv *priv, int led_id);
-	int (*led_pattern) (struct iwl_priv *priv, int led_id,
-			    unsigned int idx);
-
-	enum led_type type;
-	unsigned int registered;
-};
 
 extern int iwl3945_led_register(struct iwl_priv *priv);
 extern void iwl3945_led_unregister(struct iwl_priv *priv);
@@ -55,6 +41,6 @@ extern void iwl3945_led_background(struct iwl_priv *priv);
 static inline int iwl3945_led_register(struct iwl_priv *priv) { return 0; }
 static inline void iwl3945_led_unregister(struct iwl_priv *priv) {}
 static inline void iwl3945_led_background(struct iwl_priv *priv) {}
-#endif /* CONFIG_IWL3945_LEDS */
 
+#endif /* IWLWIFI_LEDS*/
 #endif /* IWL3945_LEDS_H */

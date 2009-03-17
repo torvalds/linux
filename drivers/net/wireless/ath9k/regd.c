@@ -168,8 +168,9 @@ static bool ath9k_is_radar_freq(u16 center_freq)
  *   received a beacon on a channel we can enable active scan and
  *   adhoc (or beaconing).
  */
-static void ath9k_reg_apply_beaconing_flags(struct wiphy *wiphy,
-					     enum reg_set_by setby)
+static void ath9k_reg_apply_beaconing_flags(
+	struct wiphy *wiphy,
+	enum nl80211_reg_initiator initiator)
 {
 	enum ieee80211_band band;
 	struct ieee80211_supported_band *sband;
@@ -194,7 +195,7 @@ static void ath9k_reg_apply_beaconing_flags(struct wiphy *wiphy,
 			    (ch->flags & IEEE80211_CHAN_RADAR))
 				continue;
 
-			if (setby == REGDOM_SET_BY_COUNTRY_IE) {
+			if (initiator == NL80211_REGDOM_SET_BY_COUNTRY_IE) {
 				r = freq_reg_info(wiphy, ch->center_freq,
 					&bandwidth, &reg_rule);
 				if (r)
@@ -226,8 +227,9 @@ static void ath9k_reg_apply_beaconing_flags(struct wiphy *wiphy,
 }
 
 /* Allows active scan scan on Ch 12 and 13 */
-static void ath9k_reg_apply_active_scan_flags(struct wiphy *wiphy,
-					      enum reg_set_by setby)
+static void ath9k_reg_apply_active_scan_flags(
+	struct wiphy *wiphy,
+	enum nl80211_reg_initiator initiator)
 {
 	struct ieee80211_supported_band *sband;
 	struct ieee80211_channel *ch;
@@ -241,7 +243,7 @@ static void ath9k_reg_apply_active_scan_flags(struct wiphy *wiphy,
 	 * If no country IE has been received always enable active scan
 	 * on these channels. This is only done for specific regulatory SKUs
 	 */
-	if (setby != REGDOM_SET_BY_COUNTRY_IE) {
+	if (initiator != NL80211_REGDOM_SET_BY_COUNTRY_IE) {
 		ch = &sband->channels[11]; /* CH 12 */
 		if (ch->flags & IEEE80211_CHAN_PASSIVE_SCAN)
 			ch->flags &= ~IEEE80211_CHAN_PASSIVE_SCAN;
@@ -308,7 +310,8 @@ void ath9k_reg_apply_radar_flags(struct wiphy *wiphy)
 	}
 }
 
-void ath9k_reg_apply_world_flags(struct wiphy *wiphy, enum reg_set_by setby)
+void ath9k_reg_apply_world_flags(struct wiphy *wiphy,
+				 enum nl80211_reg_initiator initiator)
 {
 	struct ieee80211_hw *hw = wiphy_to_ieee80211_hw(wiphy);
 	struct ath_wiphy *aphy = hw->priv;
@@ -320,11 +323,11 @@ void ath9k_reg_apply_world_flags(struct wiphy *wiphy, enum reg_set_by setby)
 	case 0x63:
 	case 0x66:
 	case 0x67:
-		ath9k_reg_apply_beaconing_flags(wiphy, setby);
+		ath9k_reg_apply_beaconing_flags(wiphy, initiator);
 		break;
 	case 0x68:
-		ath9k_reg_apply_beaconing_flags(wiphy, setby);
-		ath9k_reg_apply_active_scan_flags(wiphy, setby);
+		ath9k_reg_apply_beaconing_flags(wiphy, initiator);
+		ath9k_reg_apply_active_scan_flags(wiphy, initiator);
 		break;
 	}
 	return;
@@ -340,12 +343,11 @@ int ath9k_reg_notifier(struct wiphy *wiphy, struct regulatory_request *request)
 	ath9k_reg_apply_radar_flags(wiphy);
 
 	switch (request->initiator) {
-	case REGDOM_SET_BY_DRIVER:
-	case REGDOM_SET_BY_INIT:
-	case REGDOM_SET_BY_CORE:
-	case REGDOM_SET_BY_USER:
+	case NL80211_REGDOM_SET_BY_DRIVER:
+	case NL80211_REGDOM_SET_BY_CORE:
+	case NL80211_REGDOM_SET_BY_USER:
 		break;
-	case REGDOM_SET_BY_COUNTRY_IE:
+	case NL80211_REGDOM_SET_BY_COUNTRY_IE:
 		if (ath9k_is_world_regd(sc->sc_ah))
 			ath9k_reg_apply_world_flags(wiphy, request->initiator);
 		break;

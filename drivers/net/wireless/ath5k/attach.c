@@ -34,14 +34,14 @@
 static int ath5k_hw_post(struct ath5k_hw *ah)
 {
 
-	int i, c;
-	u16 cur_reg;
-	u16 regs[2] = {AR5K_STA_ID0, AR5K_PHY(8)};
-	u32 var_pattern;
-	u32 static_pattern[4] = {
+	static const u32 static_pattern[4] = {
 		0x55555555,	0xaaaaaaaa,
 		0x66666666,	0x99999999
 	};
+	static const u16 regs[2] = { AR5K_STA_ID0, AR5K_PHY(8) };
+	int i, c;
+	u16 cur_reg;
+	u32 var_pattern;
 	u32 init_val;
 	u32 cur_val;
 
@@ -106,7 +106,6 @@ struct ath5k_hw *ath5k_hw_attach(struct ath5k_softc *sc, u8 mac_version)
 {
 	struct ath5k_hw *ah;
 	struct pci_dev *pdev = sc->pdev;
-	u8 mac[ETH_ALEN] = {};
 	int ret;
 	u32 srev;
 
@@ -312,7 +311,7 @@ struct ath5k_hw *ath5k_hw_attach(struct ath5k_softc *sc, u8 mac_version)
 	}
 
 	/* MAC address is cleared until add_interface */
-	ath5k_hw_set_lladdr(ah, mac);
+	ath5k_hw_set_lladdr(ah, (u8[ETH_ALEN]){});
 
 	/* Set BSSID to bcast address: ff:ff:ff:ff:ff:ff for now */
 	memset(ah->ah_bssid, 0xff, ETH_ALEN);

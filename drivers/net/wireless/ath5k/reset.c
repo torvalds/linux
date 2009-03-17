@@ -102,7 +102,7 @@ static inline int ath5k_hw_write_ofdm_timings(struct ath5k_hw *ah,
  * index into rates for control rates, we can set it up like this because
  * this is only used for AR5212 and we know it supports G mode
  */
-static int control_rates[] =
+static const unsigned int control_rates[] =
 	{ 0, 1, 1, 1, 4, 4, 6, 6, 8, 8, 8, 8 };
 
 /**

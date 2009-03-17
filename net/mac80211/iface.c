@@ -370,6 +370,18 @@ static int ieee80211_stop(struct net_device *dev)
 	rcu_read_unlock();
 
 	/*
+	 * Announce that we are leaving the network, in case we are a
+	 * station interface type. This must be done before removing
+	 * all stations associated with sta_info_flush, otherwise STA
+	 * information will be gone and no announce being done.
+	 */
+	if (sdata->vif.type == NL80211_IFTYPE_STATION) {
+		if (sdata->u.mgd.state != IEEE80211_STA_MLME_DISABLED)
+			ieee80211_sta_deauthenticate(sdata,
+				WLAN_REASON_DEAUTH_LEAVING);
+	}
+
+	/*
 	 * Remove all stations associated with this interface.
 	 *
 	 * This must be done before calling ops->remove_interface()
@@ -454,10 +466,6 @@ static int ieee80211_stop(struct net_device *dev)
 		netif_addr_unlock_bh(local->mdev);
 		break;
 	case NL80211_IFTYPE_STATION:
-		/* Announce that we are leaving the network. */
-		if (sdata->u.mgd.state != IEEE80211_STA_MLME_DISABLED)
-			ieee80211_sta_deauthenticate(sdata,
-						WLAN_REASON_DEAUTH_LEAVING);
 		memset(sdata->u.mgd.bssid, 0, ETH_ALEN);
 		del_timer_sync(&sdata->u.mgd.chswitch_timer);
 		del_timer_sync(&sdata->u.mgd.timer);

@@ -6,11 +6,9 @@ config IWLWIFI
 	select MAC80211_LEDS if IWLWIFI_LEDS
 	select LEDS_CLASS if IWLWIFI_LEDS
 	select RFKILL if IWLWIFI_RFKILL
-	select MAC80211_LEDS if IWL3945_LEDS
-	select LEDS_CLASS if IWL3945_LEDS
 
 config IWLWIFI_LEDS
-	bool "Enable LED support in iwlagn driver"
+	bool "Enable LED support in iwlagn and iwl3945 drivers"
 	depends on IWLWIFI
 
 config IWLWIFI_RFKILL
@@ -87,7 +85,7 @@ config IWL4965
 	  This option enables support for Intel Wireless WiFi Link 4965AGN
 
 config IWL5000
-	bool "Intel Wireless WiFi 5000AGN; Intel WiFi Link 100, 6000, and 6050 Series"
+	bool "Intel Wireless WiFi 5000AGN; Intel WiFi Link 1000, 6000, and 6050 Series"
 	depends on IWLAGN
 	---help---
 	  This option enables support for Intel Wireless WiFi Link 5000AGN Family
@@ -122,9 +120,3 @@ config IWL3945_SPECTRUM_MEASUREMENT
 	depends on IWL3945
 	---help---
 	  This option will enable spectrum measurement for the iwl3945 driver.
-
-config IWL3945_LEDS
-	bool "Enable LEDS features in iwl3945 driver"
-	depends on IWL3945
-	---help---
-	  This option enables LEDS for the iwl3945 driver.

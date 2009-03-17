@@ -102,7 +102,6 @@ struct ath_stats {
 
 struct ath9k_debug {
 	int debug_mask;
-	struct dentry *debugfs_root;
 	struct dentry *debugfs_phy;
 	struct dentry *debugfs_dma;
 	struct dentry *debugfs_interrupt;
@@ -114,6 +113,8 @@ struct ath9k_debug {
 void DPRINTF(struct ath_softc *sc, int dbg_mask, const char *fmt, ...);
 int ath9k_init_debug(struct ath_softc *sc);
 void ath9k_exit_debug(struct ath_softc *sc);
+int ath9k_debug_create_root(void);
+void ath9k_debug_remove_root(void);
 void ath_debug_stat_interrupt(struct ath_softc *sc, enum ath9k_int status);
 void ath_debug_stat_rc(struct ath_softc *sc, struct sk_buff *skb);
 void ath_debug_stat_retries(struct ath_softc *sc, int rix,
@@ -132,6 +133,15 @@ static inline int ath9k_init_debug(struct ath_softc *sc)
 }
 
 static inline void ath9k_exit_debug(struct ath_softc *sc)
+{
+}
+
+static inline int ath9k_debug_create_root(void)
+{
+	return 0;
+}
+
+static inline void ath9k_debug_remove_root(void)
 {
 }
 

@@ -62,7 +62,7 @@ extern struct iwl_cfg iwl6000_2agn_cfg;
 extern struct iwl_cfg iwl6000_3agn_cfg;
 extern struct iwl_cfg iwl6050_2agn_cfg;
 extern struct iwl_cfg iwl6050_3agn_cfg;
-extern struct iwl_cfg iwl100_bgn_cfg;
+extern struct iwl_cfg iwl1000_bgn_cfg;
 
 /* shared structures from iwl-5000.c */
 extern struct iwl_mod_params iwl50_mod_params;
@@ -926,19 +926,12 @@ struct iwl_priv {
 	struct rfkill *rfkill;
 #endif
 
-#if defined(CONFIG_IWLWIFI_LEDS) || defined(CONFIG_IWL3945_LEDS)
+#ifdef CONFIG_IWLWIFI_LEDS
 	unsigned long last_blink_time;
 	u8 last_blink_rate;
 	u8 allow_blinking;
 	u64 led_tpt;
-#endif
-
-#ifdef CONFIG_IWLWIFI_LEDS
 	struct iwl_led led[IWL_LED_TRG_MAX];
-#endif
-
-#ifdef CONFIG_IWL3945_LEDS
-	struct iwl3945_led led39[IWL_LED_TRG_MAX];
 	unsigned int rxtxpackets;
 #endif
 	u16 active_rate;

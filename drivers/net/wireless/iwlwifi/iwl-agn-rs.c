@@ -801,7 +801,10 @@ static void rs_tx_status(void *priv_r, struct ieee80211_supported_band *sband,
 	    !(info->flags & IEEE80211_TX_STAT_AMPDU))
 		return;
 
-	retries = info->status.rates[0].count - 1;
+	if (info->flags & IEEE80211_TX_STAT_AMPDU)
+		retries = 0;
+	else
+		retries = info->status.rates[0].count - 1;
 
 	if (retries > 15)
 		retries = 15;
@@ -913,7 +916,7 @@ static void rs_tx_status(void *priv_r, struct ieee80211_supported_band *sband,
 			tpt = search_tbl->expected_tpt[rs_index];
 		else
 			tpt = 0;
-		if (info->flags & IEEE80211_TX_CTL_AMPDU)
+		if (info->flags & IEEE80211_TX_STAT_AMPDU)
 			rs_collect_tx_data(search_win, rs_index, tpt,
 					   info->status.ampdu_ack_len,
 					   info->status.ampdu_ack_map);
@@ -929,7 +932,7 @@ static void rs_tx_status(void *priv_r, struct ieee80211_supported_band *sband,
 			tpt = curr_tbl->expected_tpt[rs_index];
 		else
 			tpt = 0;
-		if (info->flags & IEEE80211_TX_CTL_AMPDU)
+		if (info->flags & IEEE80211_TX_STAT_AMPDU)
 			rs_collect_tx_data(window, rs_index, tpt,
 					   info->status.ampdu_ack_len,
 					   info->status.ampdu_ack_map);
@@ -941,7 +944,7 @@ static void rs_tx_status(void *priv_r, struct ieee80211_supported_band *sband,
 	/* If not searching for new mode, increment success/failed counter
 	 * ... these help determine when to start searching again */
 	if (lq_sta->stay_in_tbl) {
-		if (info->flags & IEEE80211_TX_CTL_AMPDU) {
+		if (info->flags & IEEE80211_TX_STAT_AMPDU) {
 			lq_sta->total_success += info->status.ampdu_ack_map;
 			lq_sta->total_failed +=
 			     (info->status.ampdu_ack_len - info->status.ampdu_ack_map);
@@ -1700,6 +1703,7 @@ static void rs_rate_scale_perform(struct iwl_priv *priv,
 	u16 high_low;
 	s32 sr;
 	u8 tid = MAX_TID_COUNT;
+	struct iwl_tid_data *tid_data;
 
 	IWL_DEBUG_RATE(priv, "rate scale calculate new rate for skb\n");
 
@@ -1896,7 +1900,7 @@ static void rs_rate_scale_perform(struct iwl_priv *priv,
 		if (high != IWL_RATE_INVALID && sr >= IWL_RATE_INCREASE_TH)
 			scale_action = 1;
 		else if (low != IWL_RATE_INVALID)
-			scale_action = -1;
+			scale_action = 0;
 	}
 
 	/* Both adjacent throughputs are measured, but neither one has better
@@ -1917,9 +1921,7 @@ static void rs_rate_scale_perform(struct iwl_priv *priv,
 					sr >= IWL_RATE_INCREASE_TH) {
 				scale_action = 1;
 			} else {
-				IWL_DEBUG_RATE(priv,
-				    "decrease rate because of high tpt\n");
-				scale_action = -1;
+				scale_action = 0;
 			}
 
 		/* Lower adjacent rate's throughput is measured */
@@ -2035,8 +2037,15 @@ lq_update:
 			if ((lq_sta->last_tpt > IWL_AGG_TPT_THREHOLD) &&
 			    (lq_sta->tx_agg_tid_en & (1 << tid)) &&
 			    (tid != MAX_TID_COUNT)) {
-				IWL_DEBUG_RATE(priv, "try to aggregate tid %d\n", tid);
-				rs_tl_turn_on_agg(priv, tid, lq_sta, sta);
+				tid_data =
+				   &priv->stations[lq_sta->lq.sta_id].tid[tid];
+				if (tid_data->agg.state == IWL_AGG_OFF) {
+					IWL_DEBUG_RATE(priv,
+						       "try to aggregate tid %d\n",
+						       tid);
+					rs_tl_turn_on_agg(priv, tid,
+							  lq_sta, sta);
+				}
 			}
 			lq_sta->action_counter = 0;
 			rs_set_stay_in_table(priv, 0, lq_sta);
@@ -2464,18 +2473,25 @@ static void rs_dbgfs_set_mcs(struct iwl_lq_sta *lq_sta,
 			     u32 *rate_n_flags, int index)
 {
 	struct iwl_priv *priv;
+	u8 valid_tx_ant;
+	u8 ant_sel_tx;
 
 	priv = lq_sta->drv;
+	valid_tx_ant = priv->hw_params.valid_tx_ant;
 	if (lq_sta->dbg_fixed_rate) {
-		if (index < 12) {
+		ant_sel_tx =
+		  ((lq_sta->dbg_fixed_rate & RATE_MCS_ANT_ABC_MSK)
+		  >> RATE_MCS_ANT_POS);
+		if ((valid_tx_ant & ant_sel_tx) == ant_sel_tx) {
 			*rate_n_flags = lq_sta->dbg_fixed_rate;
+			IWL_DEBUG_RATE(priv, "Fixed rate ON\n");
 		} else {
-			if (lq_sta->band == IEEE80211_BAND_5GHZ)
-				*rate_n_flags = 0x800D;
-			else
-				*rate_n_flags = 0x820A;
+			lq_sta->dbg_fixed_rate = 0;
+			IWL_ERR(priv,
+			    "Invalid antenna selection 0x%X, Valid is 0x%X\n",
+			    ant_sel_tx, valid_tx_ant);
+			IWL_DEBUG_RATE(priv, "Fixed rate OFF\n");
 		}
-		IWL_DEBUG_RATE(priv, "Fixed rate ON\n");
 	} else {
 		IWL_DEBUG_RATE(priv, "Fixed rate OFF\n");
 	}
@@ -2526,7 +2542,10 @@ static ssize_t rs_sta_dbgfs_scale_table_read(struct file *file,
 	ssize_t ret;
 
 	struct iwl_lq_sta *lq_sta = file->private_data;
+	struct iwl_priv *priv;
+	struct iwl_scale_tbl_info *tbl = &(lq_sta->lq_info[lq_sta->active_tbl]);
 
+	priv = lq_sta->drv;
 	buff = kmalloc(1024, GFP_KERNEL);
 	if (!buff)
 		return -ENOMEM;
@@ -2537,6 +2556,20 @@ static ssize_t rs_sta_dbgfs_scale_table_read(struct file *file,
 			lq_sta->active_legacy_rate);
 	desc += sprintf(buff+desc, "fixed rate 0x%X\n",
 			lq_sta->dbg_fixed_rate);
+	desc += sprintf(buff+desc, "valid_tx_ant %s%s%s\n",
+	    (priv->hw_params.valid_tx_ant & ANT_A) ? "ANT_A," : "",
+	    (priv->hw_params.valid_tx_ant & ANT_B) ? "ANT_B," : "",
+	    (priv->hw_params.valid_tx_ant & ANT_C) ? "ANT_C" : "");
+	desc += sprintf(buff+desc, "lq type %s\n",
+	   (is_legacy(tbl->lq_type)) ? "legacy" : "HT");
+	if (is_Ht(tbl->lq_type)) {
+		desc += sprintf(buff+desc, " %s",
+		   (is_siso(tbl->lq_type)) ? "SISO" :
+		   ((is_mimo2(tbl->lq_type)) ? "MIMO2" : "MIMO3"));
+		   desc += sprintf(buff+desc, " %s",
+		   (tbl->is_fat) ? "40MHz" : "20MHz");
+		desc += sprintf(buff+desc, " %s\n", (tbl->is_SGI) ? "SGI" : "");
+	}
 	desc += sprintf(buff+desc, "general:"
 		"flags=0x%X mimo-d=%d s-ant0x%x d-ant=0x%x\n",
 		lq_sta->lq.general_params.flags,

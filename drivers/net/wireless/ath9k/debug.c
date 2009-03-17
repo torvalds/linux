@@ -14,10 +14,14 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+#include <asm/unaligned.h>
+
 #include "ath9k.h"
 
 static unsigned int ath9k_debug = DBG_DEFAULT;
 module_param_named(debug, ath9k_debug, uint, 0);
+
+static struct dentry *ath9k_debugfs_root;
 
 void DPRINTF(struct ath_softc *sc, int dbg_mask, const char *fmt, ...)
 {
@@ -318,6 +322,9 @@ static ssize_t read_file_rcstat(struct file *file, char __user *user_buf,
 {
 	struct ath_softc *sc = file->private_data;
 
+	if (sc->cur_rate_table == NULL)
+		return 0;
+
 	if (conf_is_ht(&sc->hw->conf))
 		return ath_read_file_stat_11n_rc(file, user_buf, count, ppos);
 	else
@@ -491,12 +498,8 @@ int ath9k_init_debug(struct ath_softc *sc)
 {
 	sc->debug.debug_mask = ath9k_debug;
 
-	sc->debug.debugfs_root = debugfs_create_dir(KBUILD_MODNAME, NULL);
-	if (!sc->debug.debugfs_root)
-		goto err;
-
 	sc->debug.debugfs_phy = debugfs_create_dir(wiphy_name(sc->hw->wiphy),
-						      sc->debug.debugfs_root);
+						      ath9k_debugfs_root);
 	if (!sc->debug.debugfs_phy)
 		goto err;
 
@@ -538,5 +541,19 @@ void ath9k_exit_debug(struct ath_softc *sc)
 	debugfs_remove(sc->debug.debugfs_interrupt);
 	debugfs_remove(sc->debug.debugfs_dma);
 	debugfs_remove(sc->debug.debugfs_phy);
-	debugfs_remove(sc->debug.debugfs_root);
+}
+
+int ath9k_debug_create_root(void)
+{
+	ath9k_debugfs_root = debugfs_create_dir(KBUILD_MODNAME, NULL);
+	if (!ath9k_debugfs_root)
+		return -ENOENT;
+
+	return 0;
+}
+
+void ath9k_debug_remove_root(void)
+{
+	debugfs_remove(ath9k_debugfs_root);
+	ath9k_debugfs_root = NULL;
 }

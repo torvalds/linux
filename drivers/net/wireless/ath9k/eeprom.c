@@ -640,7 +640,7 @@ static void ath9k_hw_get_4k_gain_boundaries_pdadcs(struct ath_hw *ah,
 		pPdGainBoundaries[i] =
 			min((u16)AR5416_MAX_RATE_POWER, pPdGainBoundaries[i]);
 
-		if ((i == 0) && !AR_SREV_5416_V20_OR_LATER(ah)) {
+		if ((i == 0) && !AR_SREV_5416_20_OR_LATER(ah)) {
 			minDelta = pPdGainBoundaries[0] - 23;
 			pPdGainBoundaries[0] = 23;
 		} else {
@@ -679,7 +679,7 @@ static void ath9k_hw_get_4k_gain_boundaries_pdadcs(struct ath_hw *ah,
 				    vpdTableI[i][sizeCurrVpdTable - 2]);
 		vpdStep = (int16_t)((vpdStep < 1) ? 1 : vpdStep);
 
-		if (tgtIndex > maxIndex) {
+		if (tgtIndex >= maxIndex) {
 			while ((ss <= tgtIndex) &&
 			       (k < (AR5416_NUM_PDADC_VALUES - 1))) {
 				tmpVal = (int16_t) TMP_VAL_VPD_TABLE;
@@ -713,11 +713,11 @@ static bool ath9k_hw_set_4k_power_cal_table(struct ath_hw *ah,
 	u8 *pCalBChans = NULL;
 	u16 pdGainOverlap_t2;
 	static u8 pdadcValues[AR5416_NUM_PDADC_VALUES];
-	u16 gainBoundaries[AR5416_PD_GAINS_IN_MASK];
+	u16 gainBoundaries[AR5416_EEP4K_PD_GAINS_IN_MASK];
 	u16 numPiers, i, j;
 	int16_t tMinCalPower;
 	u16 numXpdGain, xpdMask;
-	u16 xpdGainValues[AR5416_NUM_PD_GAINS] = { 0, 0, 0, 0 };
+	u16 xpdGainValues[AR5416_EEP4K_NUM_PD_GAINS] = { 0, 0 };
 	u32 reg32, regOffset, regChainOffset;
 
 	xpdMask = pEepData->modalHeader.xpdGain;
@@ -732,16 +732,16 @@ static bool ath9k_hw_set_4k_power_cal_table(struct ath_hw *ah,
 	}
 
 	pCalBChans = pEepData->calFreqPier2G;
-	numPiers = AR5416_NUM_2G_CAL_PIERS;
+	numPiers = AR5416_EEP4K_NUM_2G_CAL_PIERS;
 
 	numXpdGain = 0;
 
-	for (i = 1; i <= AR5416_PD_GAINS_IN_MASK; i++) {
-		if ((xpdMask >> (AR5416_PD_GAINS_IN_MASK - i)) & 1) {
-			if (numXpdGain >= AR5416_NUM_PD_GAINS)
+	for (i = 1; i <= AR5416_EEP4K_PD_GAINS_IN_MASK; i++) {
+		if ((xpdMask >> (AR5416_EEP4K_PD_GAINS_IN_MASK - i)) & 1) {
+			if (numXpdGain >= AR5416_EEP4K_NUM_PD_GAINS)
 				break;
 			xpdGainValues[numXpdGain] =
-				(u16)(AR5416_PD_GAINS_IN_MASK - i);
+				(u16)(AR5416_EEP4K_PD_GAINS_IN_MASK - i);
 			numXpdGain++;
 		}
 	}
@@ -754,8 +754,8 @@ static bool ath9k_hw_set_4k_power_cal_table(struct ath_hw *ah,
 		      xpdGainValues[1]);
 	REG_RMW_FIELD(ah, AR_PHY_TPCRG1, AR_PHY_TPCRG1_PD_GAIN_3, 0);
 
-	for (i = 0; i < AR5416_MAX_CHAINS; i++) {
-		if (AR_SREV_5416_V20_OR_LATER(ah) &&
+	for (i = 0; i < AR5416_EEP4K_MAX_CHAINS; i++) {
+		if (AR_SREV_5416_20_OR_LATER(ah) &&
 		    (ah->rxchainmask == 5 || ah->txchainmask == 5) &&
 		    (i != 0)) {
 			regChainOffset = (i == 1) ? 0x2000 : 0x1000;
@@ -771,7 +771,7 @@ static bool ath9k_hw_set_4k_power_cal_table(struct ath_hw *ah,
 					    &tMinCalPower, gainBoundaries,
 					    pdadcValues, numXpdGain);
 
-			if ((i == 0) || AR_SREV_5416_V20_OR_LATER(ah)) {
+			if ((i == 0) || AR_SREV_5416_20_OR_LATER(ah)) {
 				REG_WRITE(ah, AR_PHY_TPCRG5 + regChainOffset,
 					  SM(pdGainOverlap_t2,
 					     AR_PHY_TPCRG5_PD_GAIN_OVERLAP)
@@ -1707,7 +1707,7 @@ static bool ath9k_hw_def_set_board_values(struct ath_hw *ah,
 				break;
 		}
 
-		if (AR_SREV_5416_V20_OR_LATER(ah) &&
+		if (AR_SREV_5416_20_OR_LATER(ah) &&
 		    (ah->rxchainmask == 5 || ah->txchainmask == 5)
 		    && (i != 0))
 			regChainOffset = (i == 1) ? 0x2000 : 0x1000;
@@ -1728,7 +1728,7 @@ static bool ath9k_hw_def_set_board_values(struct ath_hw *ah,
 			  SM(pModal->iqCalQCh[i],
 			     AR_PHY_TIMING_CTRL4_IQCORR_Q_Q_COFF));
 
-		if ((i == 0) || AR_SREV_5416_V20_OR_LATER(ah)) {
+		if ((i == 0) || AR_SREV_5416_20_OR_LATER(ah)) {
 			if (AR5416_VER_MASK >= AR5416_EEP_MINOR_VER_3) {
 				txRxAttenLocal = pModal->txRxAttenCh[i];
 				if (AR_SREV_9280_10_OR_LATER(ah)) {
@@ -2094,7 +2094,7 @@ static void ath9k_hw_get_def_gain_boundaries_pdadcs(struct ath_hw *ah,
 		pPdGainBoundaries[i] =
 			min((u16)AR5416_MAX_RATE_POWER, pPdGainBoundaries[i]);
 
-		if ((i == 0) && !AR_SREV_5416_V20_OR_LATER(ah)) {
+		if ((i == 0) && !AR_SREV_5416_20_OR_LATER(ah)) {
 			minDelta = pPdGainBoundaries[0] - 23;
 			pPdGainBoundaries[0] = 23;
 		} else {
@@ -2228,7 +2228,7 @@ static bool ath9k_hw_set_def_power_cal_table(struct ath_hw *ah,
 		      xpdGainValues[2]);
 
 	for (i = 0; i < AR5416_MAX_CHAINS; i++) {
-		if (AR_SREV_5416_V20_OR_LATER(ah) &&
+		if (AR_SREV_5416_20_OR_LATER(ah) &&
 		    (ah->rxchainmask == 5 || ah->txchainmask == 5) &&
 		    (i != 0)) {
 			regChainOffset = (i == 1) ? 0x2000 : 0x1000;
@@ -2262,7 +2262,7 @@ static bool ath9k_hw_set_def_power_cal_table(struct ath_hw *ah,
 							numXpdGain);
 			}
 
-			if ((i == 0) || AR_SREV_5416_V20_OR_LATER(ah)) {
+			if ((i == 0) || AR_SREV_5416_20_OR_LATER(ah)) {
 				if (OLC_FOR_AR9280_20_LATER) {
 					REG_WRITE(ah,
 						AR_PHY_TPCRG5 + regChainOffset,

@@ -46,20 +46,20 @@
 #include "iwl-5000-hw.h"
 
 /* Highest firmware API version supported */
-#define IWL100_UCODE_API_MAX 2
+#define IWL1000_UCODE_API_MAX 2
 
 /* Lowest firmware API version supported */
-#define IWL100_UCODE_API_MIN 1
+#define IWL1000_UCODE_API_MIN 1
 
-#define IWL100_FW_PRE "iwlwifi-100-"
-#define _IWL100_MODULE_FIRMWARE(api) IWL100_FW_PRE #api ".ucode"
-#define IWL100_MODULE_FIRMWARE(api) _IWL100_MODULE_FIRMWARE(api)
+#define IWL1000_FW_PRE "iwlwifi-1000-"
+#define _IWL1000_MODULE_FIRMWARE(api) IWL1000_FW_PRE #api ".ucode"
+#define IWL1000_MODULE_FIRMWARE(api) _IWL1000_MODULE_FIRMWARE(api)
 
-struct iwl_cfg iwl100_bgn_cfg = {
-	.name = "100 Series BGN",
-	.fw_name_pre = IWL100_FW_PRE,
-	.ucode_api_max = IWL100_UCODE_API_MAX,
-	.ucode_api_min = IWL100_UCODE_API_MIN,
+struct iwl_cfg iwl1000_bgn_cfg = {
+	.name = "1000 Series BGN",
+	.fw_name_pre = IWL1000_FW_PRE,
+	.ucode_api_max = IWL1000_UCODE_API_MAX,
+	.ucode_api_min = IWL1000_UCODE_API_MIN,
 	.sku = IWL_SKU_G|IWL_SKU_N,
 	.ops = &iwl5000_ops,
 	.eeprom_size = IWL_5000_EEPROM_IMG_SIZE,

@@ -150,6 +150,17 @@
  * @NL80211_CMD_SCAN_ABORTED: scan was aborted, for unspecified reasons,
  *	partial scan results may be available
  *
+ * @NL80211_CMD_REG_CHANGE: indicates to userspace the regulatory domain
+ * 	has been changed and provides details of the request information
+ * 	that caused the change such as who initiated the regulatory request
+ * 	(%NL80211_ATTR_REG_INITIATOR), the wiphy_idx
+ * 	(%NL80211_ATTR_REG_ALPHA2) on which the request was made from if
+ * 	the initiator was %NL80211_REGDOM_SET_BY_COUNTRY_IE or
+ * 	%NL80211_REGDOM_SET_BY_DRIVER, the type of regulatory domain
+ * 	set (%NL80211_ATTR_REG_TYPE), if the type of regulatory domain is
+ * 	%NL80211_REG_TYPE_COUNTRY the alpha2 to which we have moved on
+ * 	to (%NL80211_ATTR_REG_ALPHA2).
+ *
  * @NL80211_CMD_MAX: highest used command number
  * @__NL80211_CMD_AFTER_LAST: internal use
  */
@@ -204,6 +215,8 @@ enum nl80211_commands {
 	NL80211_CMD_NEW_SCAN_RESULTS,
 	NL80211_CMD_SCAN_ABORTED,
 
+	NL80211_CMD_REG_CHANGE,
+
 	/* add new commands above here */
 
 	/* used to define NL80211_CMD_MAX below */
@@ -217,6 +230,8 @@ enum nl80211_commands {
  */
 #define NL80211_CMD_SET_BSS NL80211_CMD_SET_BSS
 #define NL80211_CMD_SET_MGMT_EXTRA_IE NL80211_CMD_SET_MGMT_EXTRA_IE
+
+#define NL80211_CMD_REG_CHANGE NL80211_CMD_REG_CHANGE
 
 /**
  * enum nl80211_attrs - nl80211 netlink attributes
@@ -329,6 +344,11 @@ enum nl80211_commands {
  *	messages carried the same generation number)
  * @NL80211_ATTR_BSS: scan result BSS
  *
+ * @NL80211_ATTR_REG_INITIATOR: indicates who requested the regulatory domain
+ * 	currently in effect. This could be any of the %NL80211_REGDOM_SET_BY_*
+ * @NL80211_ATTR_REG_TYPE: indicates the type of the regulatory domain currently
+ * 	set. This can be one of the nl80211_reg_type (%NL80211_REGDOM_TYPE_*)
+ *
  * @NL80211_ATTR_MAX: highest attribute number currently defined
  * @__NL80211_ATTR_AFTER_LAST: internal use
  */
@@ -403,6 +423,9 @@ enum nl80211_attrs {
 	NL80211_ATTR_SCAN_GENERATION,
 	NL80211_ATTR_BSS,
 
+	NL80211_ATTR_REG_INITIATOR,
+	NL80211_ATTR_REG_TYPE,
+
 	/* add attributes here, update the policy in nl80211.c */
 
 	__NL80211_ATTR_AFTER_LAST,
@@ -420,6 +443,8 @@ enum nl80211_attrs {
 #define NL80211_ATTR_WIPHY_CHANNEL_TYPE NL80211_ATTR_WIPHY_CHANNEL_TYPE
 #define NL80211_ATTR_MGMT_SUBTYPE NL80211_ATTR_MGMT_SUBTYPE
 #define NL80211_ATTR_IE NL80211_ATTR_IE
+#define NL80211_ATTR_REG_INITIATOR NL80211_ATTR_REG_INITIATOR
+#define NL80211_ATTR_REG_TYPE NL80211_ATTR_REG_TYPE
 
 #define NL80211_MAX_SUPP_RATES			32
 #define NL80211_MAX_SUPP_REG_RULES		32
@@ -670,6 +695,48 @@ enum nl80211_bitrate_attr {
 	/* keep last */
 	__NL80211_BITRATE_ATTR_AFTER_LAST,
 	NL80211_BITRATE_ATTR_MAX = __NL80211_BITRATE_ATTR_AFTER_LAST - 1
+};
+
+/**
+ * enum nl80211_initiator - Indicates the initiator of a reg domain request
+ * @NL80211_REGDOM_SET_BY_CORE: Core queried CRDA for a dynamic world
+ * 	regulatory domain.
+ * @NL80211_REGDOM_SET_BY_USER: User asked the wireless core to set the
+ * 	regulatory domain.
+ * @NL80211_REGDOM_SET_BY_DRIVER: a wireless drivers has hinted to the
+ * 	wireless core it thinks its knows the regulatory domain we should be in.
+ * @NL80211_REGDOM_SET_BY_COUNTRY_IE: the wireless core has received an
+ * 	802.11 country information element with regulatory information it
+ * 	thinks we should consider.
+ */
+enum nl80211_reg_initiator {
+	NL80211_REGDOM_SET_BY_CORE,
+	NL80211_REGDOM_SET_BY_USER,
+	NL80211_REGDOM_SET_BY_DRIVER,
+	NL80211_REGDOM_SET_BY_COUNTRY_IE,
+};
+
+/**
+ * enum nl80211_reg_type - specifies the type of regulatory domain
+ * @NL80211_REGDOM_TYPE_COUNTRY: the regulatory domain set is one that pertains
+ *	to a specific country. When this is set you can count on the
+ *	ISO / IEC 3166 alpha2 country code being valid.
+ * @NL80211_REGDOM_TYPE_WORLD: the regulatory set domain is the world regulatory
+ * 	domain.
+ * @NL80211_REGDOM_TYPE_CUSTOM_WORLD: the regulatory domain set is a custom
+ * 	driver specific world regulatory domain. These do not apply system-wide
+ * 	and are only applicable to the individual devices which have requested
+ * 	them to be applied.
+ * @NL80211_REGDOM_TYPE_INTERSECTION: the regulatory domain set is the product
+ *	of an intersection between two regulatory domains -- the previously
+ *	set regulatory domain on the system and the last accepted regulatory
+ *	domain request to be processed.
+ */
+enum nl80211_reg_type {
+	NL80211_REGDOM_TYPE_COUNTRY,
+	NL80211_REGDOM_TYPE_WORLD,
+	NL80211_REGDOM_TYPE_CUSTOM_WORLD,
+	NL80211_REGDOM_TYPE_INTERSECTION,
 };
 
 /**

@@ -54,65 +54,12 @@
 #define MIN_FRAG_THRESHOLD     256U
 #define	MAX_FRAG_THRESHOLD     2346U
 
-/* Frame control field constants */
-#define IEEE80211_FCTL_VERS		0x0003
-#define IEEE80211_FCTL_FTYPE		0x000c
-#define IEEE80211_FCTL_STYPE		0x00f0
-#define IEEE80211_FCTL_TODS		0x0100
-#define IEEE80211_FCTL_FROMDS		0x0200
-#define IEEE80211_FCTL_MOREFRAGS	0x0400
-#define IEEE80211_FCTL_RETRY		0x0800
-#define IEEE80211_FCTL_PM		0x1000
-#define IEEE80211_FCTL_MOREDATA		0x2000
-#define IEEE80211_FCTL_PROTECTED	0x4000
-#define IEEE80211_FCTL_ORDER		0x8000
-
-#define IEEE80211_FTYPE_MGMT		0x0000
-#define IEEE80211_FTYPE_CTL		0x0004
-#define IEEE80211_FTYPE_DATA		0x0008
-
-/* management */
-#define IEEE80211_STYPE_ASSOC_REQ	0x0000
-#define IEEE80211_STYPE_ASSOC_RESP 	0x0010
-#define IEEE80211_STYPE_REASSOC_REQ	0x0020
-#define IEEE80211_STYPE_REASSOC_RESP	0x0030
-#define IEEE80211_STYPE_PROBE_REQ	0x0040
-#define IEEE80211_STYPE_PROBE_RESP	0x0050
-#define IEEE80211_STYPE_BEACON		0x0080
-#define IEEE80211_STYPE_ATIM		0x0090
-#define IEEE80211_STYPE_DISASSOC	0x00A0
-#define IEEE80211_STYPE_AUTH		0x00B0
-#define IEEE80211_STYPE_DEAUTH		0x00C0
-#define IEEE80211_STYPE_ACTION		0x00D0
-
-/* control */
-#define IEEE80211_STYPE_PSPOLL		0x00A0
-#define IEEE80211_STYPE_RTS		0x00B0
-#define IEEE80211_STYPE_CTS		0x00C0
-#define IEEE80211_STYPE_ACK		0x00D0
-#define IEEE80211_STYPE_CFEND		0x00E0
-#define IEEE80211_STYPE_CFENDACK	0x00F0
-
-/* data */
-#define IEEE80211_STYPE_DATA		0x0000
-#define IEEE80211_STYPE_DATA_CFACK	0x0010
-#define IEEE80211_STYPE_DATA_CFPOLL	0x0020
-#define IEEE80211_STYPE_DATA_CFACKPOLL	0x0030
-#define IEEE80211_STYPE_NULLFUNC	0x0040
-#define IEEE80211_STYPE_CFACK		0x0050
-#define IEEE80211_STYPE_CFPOLL		0x0060
-#define IEEE80211_STYPE_CFACKPOLL	0x0070
-#define IEEE80211_STYPE_QOS_DATA        0x0080
-
-#define IEEE80211_SCTL_FRAG		0x000F
-#define IEEE80211_SCTL_SEQ		0xFFF0
-
 /* QOS control */
 #define IEEE80211_QCTL_TID		0x000F
 
 /* debug macros */
 
-#ifdef CONFIG_IEEE80211_DEBUG
+#ifdef CONFIG_LIBIPW_DEBUG
 extern u32 ieee80211_debug_level;
 #define IEEE80211_DEBUG(level, fmt, args...) \
 do { if (ieee80211_debug_level & (level)) \
@@ -128,7 +75,7 @@ static inline bool ieee80211_ratelimit_debug(u32 level)
 {
 	return false;
 }
-#endif				/* CONFIG_IEEE80211_DEBUG */
+#endif				/* CONFIG_LIBIPW_DEBUG */
 
 /*
  * To use the debug system:
@@ -152,7 +99,7 @@ static inline bool ieee80211_ratelimit_debug(u32 level)
  * you simply need to add your entry to the ieee80211_debug_level array.
  *
  * If you do not see debug_level in /proc/net/ieee80211 then you do not have
- * CONFIG_IEEE80211_DEBUG defined in your kernel configuration
+ * CONFIG_LIBIPW_DEBUG defined in your kernel configuration
  *
  */
 
@@ -216,23 +163,6 @@ struct ieee80211_snap_hdr {
 
 #define WLAN_GET_SEQ_FRAG(seq) ((seq) & IEEE80211_SCTL_FRAG)
 #define WLAN_GET_SEQ_SEQ(seq)  (((seq) & IEEE80211_SCTL_SEQ) >> 4)
-
-/* Action categories - 802.11h */
-enum ieee80211_actioncategories {
-	WLAN_ACTION_SPECTRUM_MGMT = 0,
-	/* Reserved 1-127  */
-	/* Error    128-255 */
-};
-
-/* Action details - 802.11h */
-enum ieee80211_actiondetails {
-	WLAN_ACTION_CATEGORY_MEASURE_REQUEST = 0,
-	WLAN_ACTION_CATEGORY_MEASURE_REPORT = 1,
-	WLAN_ACTION_CATEGORY_TPC_REQUEST = 2,
-	WLAN_ACTION_CATEGORY_TPC_REPORT = 3,
-	WLAN_ACTION_CATEGORY_CHANNEL_SWITCH = 4,
-	/* 5 - 255 Reserved */
-};
 
 #define IEEE80211_STATMASK_SIGNAL (1<<0)
 #define IEEE80211_STATMASK_RSSI (1<<1)
@@ -410,37 +340,6 @@ Total: 28-2340 bytes
 */
 
 #define BEACON_PROBE_SSID_ID_POSITION 12
-
-/* Management Frame Information Element Types */
-enum ieee80211_mfie {
-	MFIE_TYPE_SSID = 0,
-	MFIE_TYPE_RATES = 1,
-	MFIE_TYPE_FH_SET = 2,
-	MFIE_TYPE_DS_SET = 3,
-	MFIE_TYPE_CF_SET = 4,
-	MFIE_TYPE_TIM = 5,
-	MFIE_TYPE_IBSS_SET = 6,
-	MFIE_TYPE_COUNTRY = 7,
-	MFIE_TYPE_HOP_PARAMS = 8,
-	MFIE_TYPE_HOP_TABLE = 9,
-	MFIE_TYPE_REQUEST = 10,
-	MFIE_TYPE_CHALLENGE = 16,
-	MFIE_TYPE_POWER_CONSTRAINT = 32,
-	MFIE_TYPE_POWER_CAPABILITY = 33,
-	MFIE_TYPE_TPC_REQUEST = 34,
-	MFIE_TYPE_TPC_REPORT = 35,
-	MFIE_TYPE_SUPP_CHANNELS = 36,
-	MFIE_TYPE_CSA = 37,
-	MFIE_TYPE_MEASURE_REQUEST = 38,
-	MFIE_TYPE_MEASURE_REPORT = 39,
-	MFIE_TYPE_QUIET = 40,
-	MFIE_TYPE_IBSS_DFS = 41,
-	MFIE_TYPE_ERP_INFO = 42,
-	MFIE_TYPE_RSN = 48,
-	MFIE_TYPE_RATES_EX = 50,
-	MFIE_TYPE_GENERIC = 221,
-	MFIE_TYPE_QOS_PARAMETER = 222,
-};
 
 struct ieee80211_hdr_1addr {
 	__le16 frame_ctl;

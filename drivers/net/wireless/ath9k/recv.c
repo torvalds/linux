@@ -100,7 +100,7 @@ static u64 ath_extend_tsf(struct ath_softc *sc, u32 rstamp)
 	return (tsf & ~0x7fff) | rstamp;
 }
 
-static struct sk_buff *ath_rxbuf_alloc(struct ath_softc *sc, u32 len)
+static struct sk_buff *ath_rxbuf_alloc(struct ath_softc *sc, u32 len, gfp_t gfp_mask)
 {
 	struct sk_buff *skb;
 	u32 off;
@@ -118,7 +118,7 @@ static struct sk_buff *ath_rxbuf_alloc(struct ath_softc *sc, u32 len)
 	 * Unfortunately this means we may get 8 KB here from the
 	 * kernel... and that is actually what is observed on some
 	 * systems :( */
-	skb = dev_alloc_skb(len + sc->cachelsz - 1);
+	skb = __dev_alloc_skb(len + sc->cachelsz - 1, gfp_mask);
 	if (skb != NULL) {
 		off = ((unsigned long) skb->data) % sc->cachelsz;
 		if (off != 0)
@@ -306,7 +306,7 @@ int ath_rx_init(struct ath_softc *sc, int nbufs)
 		}
 
 		list_for_each_entry(bf, &sc->rx.rxbuf, list) {
-			skb = ath_rxbuf_alloc(sc, sc->rx.bufsize);
+			skb = ath_rxbuf_alloc(sc, sc->rx.bufsize, GFP_KERNEL);
 			if (skb == NULL) {
 				error = -ENOMEM;
 				break;
@@ -385,14 +385,15 @@ u32 ath_calcrxfilter(struct ath_softc *sc)
 	if (sc->sc_ah->opmode != NL80211_IFTYPE_STATION)
 		rfilt |= ATH9K_RX_FILTER_PROBEREQ;
 
-	/* Can't set HOSTAP into promiscous mode */
+	/*
+	 * Set promiscuous mode when FIF_PROMISC_IN_BSS is enabled for station
+	 * mode interface or when in monitor mode. AP mode does not need this
+	 * since it receives all in-BSS frames anyway.
+	 */
 	if (((sc->sc_ah->opmode != NL80211_IFTYPE_AP) &&
 	     (sc->rx.rxfilter & FIF_PROMISC_IN_BSS)) ||
-	    (sc->sc_ah->opmode == NL80211_IFTYPE_MONITOR)) {
+	    (sc->sc_ah->opmode == NL80211_IFTYPE_MONITOR))
 		rfilt |= ATH9K_RX_FILTER_PROM;
-		/* ??? To prevent from sending ACK */
-		rfilt &= ~ATH9K_RX_FILTER_UCAST;
-	}
 
 	if (sc->rx.rxfilter & FIF_CONTROL)
 		rfilt |= ATH9K_RX_FILTER_CONTROL;
@@ -580,7 +581,7 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush)
 
 		/* Ensure we always have an skb to requeue once we are done
 		 * processing the current buffer's skb */
-		requeue_skb = ath_rxbuf_alloc(sc, sc->rx.bufsize);
+		requeue_skb = ath_rxbuf_alloc(sc, sc->rx.bufsize, GFP_ATOMIC);
 
 		/* If there is no memory we ignore the current RX'd frame,
 		 * tell hardware it can give us a new frame using the old
