@@ -52,16 +52,16 @@ Passing a zero for an option is the same as leaving it unspecified.
  * boards in this way is optional, and completely driver-dependent.
  * Some drivers use arrays such as this, other do not.
  */
-typedef struct pcidio_board_struct {
+struct pcidio_board {
 	const char *name;	// anme of the board
 	int n_8255;		// number of 8255 chips on board
 
 	// indices of base address regions
 	int pcicontroler_badrindex;
 	int dioregs_badrindex;
-} pcidio_board;
+};
 
-static const pcidio_board pcidio_boards[] = {
+static const struct pcidio_board pcidio_boards[] = {
 	{
 	      name:	"pci-dio24",
 	      n_8255:	1,
@@ -98,7 +98,7 @@ MODULE_DEVICE_TABLE(pci, pcidio_pci_table);
 /*
  * Useful for shorthand access to the particular board structure
  */
-#define thisboard ((const pcidio_board *)dev->board_ptr)
+#define thisboard ((const struct pcidio_board *)dev->board_ptr)
 
 /* this structure is for data unique to this hardware driver.  If
    several hardware drivers keep similar information in this structure,
@@ -154,8 +154,8 @@ static struct comedi_driver driver_cb_pcidio = {
 	 */
 // The following fields should NOT be initialized if you are dealing with PCI devices
 //      board_name:     pcidio_boards,
-//      offset:         sizeof(pcidio_board),
-//      num_names:      sizeof(pcidio_boards) / sizeof(pcidio_board),
+//      offset:         sizeof(struct pcidio_board),
+//      num_names:      sizeof(pcidio_boards) / sizeof(struct pcidio_board),
 };
 
 /*------------------------------- FUNCTIONS -----------------------------------*/
@@ -197,7 +197,7 @@ static int pcidio_attach(struct comedi_device * dev, struct comedi_devconfig * i
 			continue;
 		// loop through cards supported by this driver
 		for (index = 0;
-			index < sizeof pcidio_boards / sizeof(pcidio_board);
+			index < sizeof pcidio_boards / sizeof(struct pcidio_board);
 			index++) {
 			if (pcidio_pci_table[index].device != pcidev->device)
 				continue;
