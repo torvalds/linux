@@ -59,7 +59,8 @@ See the source for configuration details.
 static int pcl724_attach(struct comedi_device * dev, struct comedi_devconfig * it);
 static int pcl724_detach(struct comedi_device * dev);
 
-typedef struct {
+struct pcl724_board {
+
 	const char *name;	// board name
 	int dio;		// num of DIO
 	int numofports;		// num of 8255 subdevices
@@ -67,9 +68,10 @@ typedef struct {
 	unsigned int io_range;	// len of IO space
 	char can_have96;
 	char is_pet48;
-} boardtype;
+};
 
-static const boardtype boardtypes[] = {
+
+static const struct pcl724_board boardtypes[] = {
 	{"pcl724", 24, 1, 0x00fc, PCL724_SIZE, 0, 0,},
 	{"pcl722", 144, 6, 0x00fc, PCL722_SIZE, 1, 0,},
 	{"pcl731", 48, 2, 0x9cfc, PCL731_SIZE, 0, 0,},
@@ -78,8 +80,8 @@ static const boardtype boardtypes[] = {
 	{"pet48dio", 48, 2, 0x9eb8, PET48_SIZE, 0, 1,},
 };
 
-#define n_boardtypes (sizeof(boardtypes)/sizeof(boardtype))
-#define this_board ((const boardtype *)dev->board_ptr)
+#define n_boardtypes (sizeof(boardtypes)/sizeof(struct pcl724_board))
+#define this_board ((const struct pcl724_board *)dev->board_ptr)
 
 static struct comedi_driver driver_pcl724 = {
       driver_name:"pcl724",
@@ -88,7 +90,7 @@ static struct comedi_driver driver_pcl724 = {
       detach:pcl724_detach,
       board_name:&boardtypes[0].name,
       num_names:n_boardtypes,
-      offset:sizeof(boardtype),
+      offset:sizeof(struct pcl724_board),
 };
 
 COMEDI_INITCLEANUP(driver_pcl724);
