@@ -162,7 +162,8 @@ extern int (*ioapic_renumber_irq)(int ioapic, int irq);
 extern void ioapic_init_mappings(void);
 
 #ifdef CONFIG_X86_64
-extern int save_mask_IO_APIC_setup(void);
+extern int save_IO_APIC_setup(void);
+extern void mask_IO_APIC_setup(void);
 extern void restore_IO_APIC_setup(void);
 extern void reinit_intr_remapped_IO_APIC(int);
 #endif

@@ -853,9 +853,9 @@ __setup("pirq=", ioapic_pirq_setup);
 static struct IO_APIC_route_entry *early_ioapic_entries[MAX_IO_APICS];
 
 /*
- * Saves and masks all the unmasked IO-APIC RTE's
+ * Saves all the IO-APIC RTE's
  */
-int save_mask_IO_APIC_setup(void)
+int save_IO_APIC_setup(void)
 {
 	union IO_APIC_reg_01 reg_01;
 	unsigned long flags;
@@ -880,16 +880,9 @@ int save_mask_IO_APIC_setup(void)
 	}
 
 	for (apic = 0; apic < nr_ioapics; apic++)
-		for (pin = 0; pin < nr_ioapic_registers[apic]; pin++) {
-			struct IO_APIC_route_entry entry;
-
-			entry = early_ioapic_entries[apic][pin] =
+		for (pin = 0; pin < nr_ioapic_registers[apic]; pin++)
+			early_ioapic_entries[apic][pin] =
 				ioapic_read_entry(apic, pin);
-			if (!entry.mask) {
-				entry.mask = 1;
-				ioapic_write_entry(apic, pin, entry);
-			}
-		}
 
 	return 0;
 
@@ -900,6 +893,25 @@ nomem:
 		ARRAY_SIZE(early_ioapic_entries));
 
 	return -ENOMEM;
+}
+
+void mask_IO_APIC_setup(void)
+{
+	int apic, pin;
+
+	for (apic = 0; apic < nr_ioapics; apic++) {
+		if (!early_ioapic_entries[apic])
+			break;
+		for (pin = 0; pin < nr_ioapic_registers[apic]; pin++) {
+			struct IO_APIC_route_entry entry;
+
+			entry = early_ioapic_entries[apic][pin];
+			if (!entry.mask) {
+				entry.mask = 1;
+				ioapic_write_entry(apic, pin, entry);
+			}
+		}
+	}
 }
 
 void restore_IO_APIC_setup(void)
