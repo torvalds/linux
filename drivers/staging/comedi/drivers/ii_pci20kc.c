@@ -133,7 +133,7 @@ options for PCI-20341M:
 #define PCI20341_MUX			0x04	/* Enable on-board MUX */
 #define PCI20341_SCANLIST		0x80	/* Channel/Gain Scan List */
 
-typedef union {
+union pci20xxx_subdev_private {
 	void *iobase;
 	struct {
 		void *iobase;
@@ -146,12 +146,12 @@ typedef union {
 		int settling_time;
 		int ai_gain;
 	} pci20341;
-} pci20xxx_subdev_private;
+};
 
 struct pci20xxx_private {
 
 	void *ioaddr;
-	pci20xxx_subdev_private subdev_private[PCI20000_MODULES];
+	union pci20xxx_subdev_private subdev_private[PCI20000_MODULES];
 };
 
 
@@ -207,7 +207,7 @@ static int pci20xxx_attach(struct comedi_device * dev, struct comedi_devconfig *
 	int ret;
 	int id;
 	struct comedi_subdevice *s;
-	pci20xxx_subdev_private *sdp;
+	union pci20xxx_subdev_private *sdp;
 
 	if ((ret = alloc_subdevices(dev, 1 + PCI20000_MODULES)) < 0)
 		return ret;
@@ -286,7 +286,7 @@ static const struct comedi_lrange *pci20006_range_list[] = {
 static int pci20006_init(struct comedi_device * dev, struct comedi_subdevice * s,
 	int opt0, int opt1)
 {
-	pci20xxx_subdev_private *sdp = s->private;
+	union pci20xxx_subdev_private *sdp = s->private;
 
 	if (opt0 < 0 || opt0 > 2)
 		opt0 = 0;
@@ -311,7 +311,7 @@ static int pci20006_init(struct comedi_device * dev, struct comedi_subdevice * s
 static int pci20006_insn_read(struct comedi_device * dev, struct comedi_subdevice * s,
 	struct comedi_insn * insn, unsigned int * data)
 {
-	pci20xxx_subdev_private *sdp = s->private;
+	union pci20xxx_subdev_private *sdp = s->private;
 
 	data[0] = sdp->pci20006.last_data[CR_CHAN(insn->chanspec)];
 
@@ -321,7 +321,7 @@ static int pci20006_insn_read(struct comedi_device * dev, struct comedi_subdevic
 static int pci20006_insn_write(struct comedi_device * dev, struct comedi_subdevice * s,
 	struct comedi_insn * insn, unsigned int * data)
 {
-	pci20xxx_subdev_private *sdp = s->private;
+	union pci20xxx_subdev_private *sdp = s->private;
 	int hi, lo;
 	unsigned int boarddata;
 
@@ -371,7 +371,7 @@ static const struct comedi_lrange *const pci20341_ranges[] = {
 static int pci20341_init(struct comedi_device * dev, struct comedi_subdevice * s,
 	int opt0, int opt1)
 {
-	pci20xxx_subdev_private *sdp = s->private;
+	union pci20xxx_subdev_private *sdp = s->private;
 	int option;
 
 	/* options handling */
@@ -402,7 +402,7 @@ static int pci20341_init(struct comedi_device * dev, struct comedi_subdevice * s
 static int pci20341_insn_read(struct comedi_device * dev, struct comedi_subdevice * s,
 	struct comedi_insn * insn, unsigned int * data)
 {
-	pci20xxx_subdev_private *sdp = s->private;
+        union pci20xxx_subdev_private *sdp = s->private;
 	unsigned int i = 0, j = 0;
 	int lo, hi;
 	unsigned char eoc;	/* end of conversion */
