@@ -99,13 +99,13 @@ MODULE_DEVICE_TABLE(pci, pci6208_pci_table);
 /* Will be initialized in pci6208_find device(). */
 #define thisboard ((const struct pci6208_board *)dev->board_ptr)
 
-typedef struct {
+struct pci6208_private {
 	int data;
 	struct pci_dev *pci_dev;	/* for a PCI device */
 	unsigned int ao_readback[2];	/* Used for AO readback */
-} pci6208_private;
+};
 
-#define devpriv ((pci6208_private *)dev->private)
+#define devpriv ((struct pci6208_private *)dev->private)
 
 static int pci6208_attach(struct comedi_device * dev, struct comedi_devconfig * it);
 static int pci6208_detach(struct comedi_device * dev);
@@ -151,7 +151,7 @@ static int pci6208_attach(struct comedi_device * dev, struct comedi_devconfig * 
 
 	printk("comedi%d: pci6208: ", dev->minor);
 
-	retval = alloc_private(dev, sizeof(pci6208_private));
+	retval = alloc_private(dev, sizeof(struct pci6208_private));
 	if (retval < 0)
 		return retval;
 
