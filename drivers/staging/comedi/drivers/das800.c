@@ -106,12 +106,12 @@ cmd triggers supported:
 #define   STATUS2_INTE          0X20
 #define DAS800_ID             7
 
-typedef struct das800_board_struct {
+struct das800_board {
 	const char *name;
 	int ai_speed;
 	const struct comedi_lrange *ai_range;
 	int resolution;
-} das800_board;
+};
 
 //analog input ranges
 static const struct comedi_lrange range_das800_ai = {
@@ -182,7 +182,7 @@ static const struct comedi_lrange range_das80216_ai = {
 
 enum { das800, ciodas800, das801, ciodas801, das802, ciodas802, ciodas80216 };
 
-static const das800_board das800_boards[] = {
+static const struct das800_board das800_boards[] = {
 	{
 	      name:	"das-800",
 	      ai_speed:25000,
@@ -230,7 +230,7 @@ static const das800_board das800_boards[] = {
 /*
  * Useful for shorthand access to the particular board structure
  */
-#define thisboard ((const das800_board *)dev->board_ptr)
+#define thisboard ((const struct das800_board *)dev->board_ptr)
 
 typedef struct {
 	volatile unsigned int count;	/* number of data points left to be taken */
@@ -251,9 +251,9 @@ static struct comedi_driver driver_das800 = {
       module:THIS_MODULE,
       attach:das800_attach,
       detach:das800_detach,
-      num_names:sizeof(das800_boards) / sizeof(das800_board),
+      num_names:sizeof(das800_boards) / sizeof(struct das800_board),
       board_name:&das800_boards[0].name,
-      offset:sizeof(das800_board),
+      offset:sizeof(struct das800_board),
 };
 
 static irqreturn_t das800_interrupt(int irq, void *d PT_REGS_ARG);
