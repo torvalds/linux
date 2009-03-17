@@ -294,7 +294,7 @@ enum comedi_support_level {
 #define COMEDI_DEVCONFIG _IOW(CIO, 0, comedi_devconfig)
 #define COMEDI_DEVINFO _IOR(CIO, 1, comedi_devinfo)
 #define COMEDI_SUBDINFO _IOR(CIO, 2, comedi_subdinfo)
-#define COMEDI_CHANINFO _IOR(CIO, 3, comedi_chaninfo)
+#define COMEDI_CHANINFO _IOR(CIO, 3, struct comedi_chaninfo)
 #define COMEDI_TRIG _IOWR(CIO, 4, comedi_trig)
 #define COMEDI_LOCK _IO(CIO, 5)
 #define COMEDI_UNLOCK _IO(CIO, 6)
@@ -310,7 +310,6 @@ enum comedi_support_level {
 
 /* structures */
 
-typedef struct comedi_chaninfo_struct comedi_chaninfo;
 typedef struct comedi_subdinfo_struct comedi_subdinfo;
 typedef struct comedi_devinfo_struct comedi_devinfo;
 typedef struct comedi_devconfig_struct comedi_devconfig;
@@ -374,7 +373,7 @@ struct comedi_cmd {
 	unsigned int data_len;
 };
 
-struct comedi_chaninfo_struct {
+struct comedi_chaninfo {
 	unsigned int subdev;
 	unsigned int *maxdata_list;
 	unsigned int *flaglist;

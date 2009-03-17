@@ -75,7 +75,7 @@ static int do_devinfo_ioctl(struct comedi_device *dev, comedi_devinfo *arg,
 			    struct file *file);
 static int do_subdinfo_ioctl(struct comedi_device *dev, comedi_subdinfo *arg,
 			     void *file);
-static int do_chaninfo_ioctl(struct comedi_device *dev, comedi_chaninfo *arg);
+static int do_chaninfo_ioctl(struct comedi_device *dev, struct comedi_chaninfo *arg);
 static int do_bufinfo_ioctl(struct comedi_device *dev, void *arg);
 static int do_cmd_ioctl(struct comedi_device *dev, void *arg, void *file);
 static int do_lock_ioctl(struct comedi_device *dev, unsigned int arg, void *file);
@@ -490,12 +490,12 @@ static int do_subdinfo_ioctl(struct comedi_device *dev, comedi_subdinfo *arg,
 		arrays at elements of chaninfo structure
 
 */
-static int do_chaninfo_ioctl(struct comedi_device *dev, comedi_chaninfo *arg)
+static int do_chaninfo_ioctl(struct comedi_device *dev, struct comedi_chaninfo *arg)
 {
 	struct comedi_subdevice *s;
-	comedi_chaninfo it;
+	struct comedi_chaninfo it;
 
-	if (copy_from_user(&it, arg, sizeof(comedi_chaninfo)))
+	if (copy_from_user(&it, arg, sizeof(struct comedi_chaninfo)))
 		return -EFAULT;
 
 	if (it.subdev >= dev->n_subdevices)
