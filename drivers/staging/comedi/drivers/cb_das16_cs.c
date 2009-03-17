@@ -80,14 +80,14 @@ static const struct das16cs_board das16cs_boards[] = {
 #define n_boards (sizeof(das16cs_boards)/sizeof(das16cs_boards[0]))
 #define thisboard ((const struct das16cs_board *)dev->board_ptr)
 
-typedef struct {
+struct das16cs_private {
 	struct pcmcia_device *link;
 
 	unsigned int ao_readback[2];
 	unsigned short status1;
 	unsigned short status2;
-} das16cs_private;
-#define devpriv ((das16cs_private *)dev->private)
+};
+#define devpriv ((struct das16cs_private *)dev->private)
 
 static int das16cs_attach(struct comedi_device * dev, struct comedi_devconfig * it);
 static int das16cs_detach(struct comedi_device * dev);
@@ -201,7 +201,7 @@ static int das16cs_attach(struct comedi_device * dev, struct comedi_devconfig * 
 
 	dev->board_name = thisboard->name;
 
-	if (alloc_private(dev, sizeof(das16cs_private)) < 0)
+	if (alloc_private(dev, sizeof(struct das16cs_private)) < 0)
 		return -ENOMEM;
 
 	if (alloc_subdevices(dev, 4) < 0)
