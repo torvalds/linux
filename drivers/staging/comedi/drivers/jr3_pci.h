@@ -254,12 +254,12 @@ enum link_types {
 
 /*  TRANSFORM */
 /*  Structure used to describe a transform. */
-typedef struct {
+struct intern_transform {
 	struct {
 		u32 link_type;
 		s32 link_amount;
 	} link[8];
-} intern_transform_t;
+};
 
 /*  JR3 force/torque sensor data definition. For more information see sensor and */
 /*  hardware manuals. */
@@ -666,7 +666,7 @@ typedef struct force_sensor_data {
 	 * definition of the transform structure (pg. 26).
 	 */
 
-	intern_transform_t transforms[0x10];	/* offset 0x0200 */
+	struct intern_transform transforms[0x10];	/* offset 0x0200 */
 } jr3_channel_t;
 
 struct jr3_t {
