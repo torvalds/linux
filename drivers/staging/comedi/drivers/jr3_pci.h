@@ -204,11 +204,11 @@ enum error_bits_t {
  *    met or exceeded.
  */
 
-typedef struct thresh_struct {
+struct thresh_struct {
 	s32 data_address;
 	s32 threshold;
 	s32 bit_pattern;
-} thresh_struct;
+};
 
 /*  LE_STRUCT */
 
