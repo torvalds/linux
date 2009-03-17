@@ -43,7 +43,7 @@ Configuration options:
 /* Ports */
 #define DT2801_IOSIZE 2
 
-/* define's & typedef's */
+/* define's */
 /* ====================== */
 
 /* Commands */
