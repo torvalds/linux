@@ -398,7 +398,7 @@ MODULE_DEVICE_TABLE(pci, pci224_pci_table);
 /* this structure is for data unique to this hardware driver.  If
    several hardware drivers keep similar information in this structure,
    feel free to suggest moving the variable to the struct comedi_device struct.  */
-typedef struct {
+struct pci224_private {
 	struct pci_dev *pci_dev;	/* PCI device */
 	const unsigned short *hwrange;
 	unsigned long iobase1;
@@ -416,9 +416,9 @@ typedef struct {
 	short ao_stop_continuous;
 	unsigned short ao_enab;	/* max 16 channels so 'short' will do */
 	unsigned char intsce;
-} pci224_private;
+};
 
-#define devpriv ((pci224_private *)dev->private)
+#define devpriv ((struct pci224_private *)dev->private)
 
 /*
  * The struct comedi_driver structure tells the Comedi core module
@@ -1336,7 +1336,7 @@ static int pci224_attach(struct comedi_device * dev, struct comedi_devconfig * i
 
 	bus = it->options[0];
 	slot = it->options[1];
-	if ((ret = alloc_private(dev, sizeof(pci224_private))) < 0) {
+	if ((ret = alloc_private(dev, sizeof(struct pci224_private))) < 0) {
 		printk(KERN_ERR "comedi%d: error! out of memory!\n",
 			dev->minor);
 		return ret;
