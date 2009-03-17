@@ -378,14 +378,14 @@ event_format_read(struct file *filp, char __user *ubuf, size_t cnt,
 	char *buf;
 	int r;
 
+	if (*ppos)
+		return 0;
+
 	s = kmalloc(sizeof(*s), GFP_KERNEL);
 	if (!s)
 		return -ENOMEM;
 
 	trace_seq_init(s);
-
-	if (*ppos)
-		return 0;
 
 	/* If any of the first writes fail, so will the show_format. */
 
