@@ -614,10 +614,16 @@ config LIBFC
 	---help---
 	  Fibre Channel library module
 
+config LIBFCOE
+	tristate "LibFCoE module"
+	select LIBFC
+	---help---
+	  Library for Fibre Channel over Ethernet module
+
 config FCOE
 	tristate "FCoE module"
 	depends on PCI
-	select LIBFC
+	select LIBFCOE
 	---help---
 	  Fibre Channel over Ethernet module
 
