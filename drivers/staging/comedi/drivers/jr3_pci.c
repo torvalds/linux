@@ -182,15 +182,15 @@ static int is_complete(volatile struct jr3_channel *channel)
 	return get_s16(&channel->command_word0) == 0;
 }
 
-typedef struct {
+struct transform_t {
 	struct {
 		u16 link_type;
 		s16 link_amount;
 	} link[8];
-} transform_t;
+};
 
 static void set_transforms(volatile struct jr3_channel *channel,
-	transform_t transf, short num)
+	struct transform_t transf, short num)
 {
 	int i;
 
@@ -569,7 +569,7 @@ static struct poll_delay_t jr3_pci_poll_subdevice(struct comedi_subdevice * s)
 					// Wait for offeset to stabilize (< 10 s according to manual)
 					result = poll_delay_min_max(1000, 2000);
 				} else {
-					transform_t transf;
+					struct transform_t transf;
 
 					p->model_no =
 						get_u16(&channel->model_no);
