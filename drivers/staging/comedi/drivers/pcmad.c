@@ -92,7 +92,7 @@ COMEDI_INITCLEANUP(driver_pcmad);
 
 #define TIMEOUT	100
 
-static int pcmad_ai_insn_read(struct comedi_device * dev, comedi_subdevice * s,
+static int pcmad_ai_insn_read(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	int i;
@@ -129,7 +129,7 @@ static int pcmad_ai_insn_read(struct comedi_device * dev, comedi_subdevice * s,
 static int pcmad_attach(struct comedi_device * dev, comedi_devconfig * it)
 {
 	int ret;
-	comedi_subdevice *s;
+	struct comedi_subdevice *s;
 	unsigned long iobase;
 
 	iobase = it->options[0];

@@ -2561,7 +2561,7 @@ COMEDI_PCI_INITCLEANUP(driver_addi, addi_apci_tbl);
 
 static int i_ADDI_Attach(struct comedi_device * dev, comedi_devconfig * it)
 {
-	comedi_subdevice *s;
+	struct comedi_subdevice *s;
 	int ret, pages, i, n_subdevices;
 	DWORD dw_Dummy;
 	resource_size_t io_addr[5];
@@ -3029,14 +3029,14 @@ static irqreturn_t v_ADDI_Interrupt(int irq, void *d PT_REGS_ARG)
 /*
 +----------------------------------------------------------------------------+
 | Function name     :                                                        |
-|INT i_ADDIDATA_InsnReadEeprom(struct comedi_device *dev,comedi_subdevice *s,
+|INT i_ADDIDATA_InsnReadEeprom(struct comedi_device *dev,struct comedi_subdevice *s,
 							comedi_insn *insn,unsigned int *data)
 |                                        									 |
 +----------------------------------------------------------------------------+
 | Task              : Read 256 words from EEPROM          				     |
 |                     										                 |
 +----------------------------------------------------------------------------+
-| Input Parameters  :(struct comedi_device *dev,comedi_subdevice *s,
+| Input Parameters  :(struct comedi_device *dev,struct comedi_subdevice *s,
 			comedi_insn *insn,unsigned int *data) 						 |
 |                     														 |
 |                                                 					         |
@@ -3046,7 +3046,7 @@ static irqreturn_t v_ADDI_Interrupt(int irq, void *d PT_REGS_ARG)
 +----------------------------------------------------------------------------+
 */
 
-static int i_ADDIDATA_InsnReadEeprom(struct comedi_device * dev, comedi_subdevice * s,
+static int i_ADDIDATA_InsnReadEeprom(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	WORD w_Data;

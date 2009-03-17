@@ -82,15 +82,15 @@ static comedi_driver driver_aio_iiro_16 = {
 };
 
 static int aio_iiro_16_dio_insn_bits_read(struct comedi_device * dev,
-	comedi_subdevice * s, comedi_insn * insn, unsigned int * data);
+	struct comedi_subdevice * s, comedi_insn * insn, unsigned int * data);
 
 static int aio_iiro_16_dio_insn_bits_write(struct comedi_device * dev,
-	comedi_subdevice * s, comedi_insn * insn, unsigned int * data);
+	struct comedi_subdevice * s, comedi_insn * insn, unsigned int * data);
 
 static int aio_iiro_16_attach(struct comedi_device * dev, comedi_devconfig * it)
 {
 	int iobase;
-	comedi_subdevice *s;
+	struct comedi_subdevice *s;
 
 	printk("comedi%d: aio_iiro_16: ", dev->minor);
 
@@ -143,7 +143,7 @@ static int aio_iiro_16_detach(struct comedi_device * dev)
 }
 
 static int aio_iiro_16_dio_insn_bits_write(struct comedi_device * dev,
-	comedi_subdevice * s, comedi_insn * insn, unsigned int * data)
+	struct comedi_subdevice * s, comedi_insn * insn, unsigned int * data)
 {
 	if (insn->n != 2)
 		return -EINVAL;
@@ -162,7 +162,7 @@ static int aio_iiro_16_dio_insn_bits_write(struct comedi_device * dev,
 }
 
 static int aio_iiro_16_dio_insn_bits_read(struct comedi_device * dev,
-	comedi_subdevice * s, comedi_insn * insn, unsigned int * data)
+	struct comedi_subdevice * s, comedi_insn * insn, unsigned int * data)
 {
 	if (insn->n != 2)
 		return -EINVAL;

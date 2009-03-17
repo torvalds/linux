@@ -290,7 +290,7 @@ static inline void sleep(unsigned sec)
  *
  * ------------------------------------------------------------------
  */
-static int me_dio_insn_config(struct comedi_device *dev, comedi_subdevice *s,
+static int me_dio_insn_config(struct comedi_device *dev, struct comedi_subdevice *s,
 			      comedi_insn *insn, unsigned int *data)
 {
 	int bits;
@@ -326,7 +326,7 @@ static int me_dio_insn_config(struct comedi_device *dev, comedi_subdevice *s,
 }
 
 /* Digital instant input/outputs */
-static int me_dio_insn_bits(struct comedi_device *dev, comedi_subdevice *s,
+static int me_dio_insn_bits(struct comedi_device *dev, struct comedi_subdevice *s,
 			    comedi_insn *insn, unsigned int *data)
 {
 	unsigned int mask = data[0];
@@ -362,7 +362,7 @@ static int me_dio_insn_bits(struct comedi_device *dev, comedi_subdevice *s,
  */
 
 /* Analog instant input */
-static int me_ai_insn_read(struct comedi_device *dev, comedi_subdevice *subdevice,
+static int me_ai_insn_read(struct comedi_device *dev, struct comedi_subdevice *subdevice,
 			   comedi_insn *insn, unsigned int *data)
 {
 	unsigned short value;
@@ -436,7 +436,7 @@ static int me_ai_insn_read(struct comedi_device *dev, comedi_subdevice *subdevic
  */
 
 /* Cancel analog input autoscan */
-static int me_ai_cancel(struct comedi_device *dev, comedi_subdevice *s)
+static int me_ai_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	/* disable interrupts */
 
@@ -448,14 +448,14 @@ static int me_ai_cancel(struct comedi_device *dev, comedi_subdevice *s)
 }
 
 /* Test analog input command */
-static int me_ai_do_cmd_test(struct comedi_device *dev, comedi_subdevice *s,
+static int me_ai_do_cmd_test(struct comedi_device *dev, struct comedi_subdevice *s,
 			     comedi_cmd *cmd)
 {
 	return 0;
 }
 
 /* Analog input command */
-static int me_ai_do_cmd(struct comedi_device *dev, comedi_subdevice *subdevice)
+static int me_ai_do_cmd(struct comedi_device *dev, struct comedi_subdevice *subdevice)
 {
 	return 0;
 }
@@ -469,7 +469,7 @@ static int me_ai_do_cmd(struct comedi_device *dev, comedi_subdevice *subdevice)
  */
 
 /* Analog instant output */
-static int me_ao_insn_write(struct comedi_device *dev, comedi_subdevice *s,
+static int me_ao_insn_write(struct comedi_device *dev, struct comedi_subdevice *s,
 			    comedi_insn *insn, unsigned int *data)
 {
 	int chan;
@@ -519,7 +519,7 @@ static int me_ao_insn_write(struct comedi_device *dev, comedi_subdevice *s,
 }
 
 /* Analog output readback */
-static int me_ao_insn_read(struct comedi_device *dev, comedi_subdevice *s,
+static int me_ao_insn_read(struct comedi_device *dev, struct comedi_subdevice *s,
 			   comedi_insn *insn, unsigned int *data)
 {
 	int i;
@@ -634,7 +634,7 @@ static int me_reset(struct comedi_device *dev)
 static int me_attach(struct comedi_device *dev, comedi_devconfig *it)
 {
 	struct pci_dev *pci_device;
-	comedi_subdevice *subdevice;
+	struct comedi_subdevice *subdevice;
 	struct me_board *board;
 	resource_size_t plx_regbase_tmp;
 	unsigned long plx_regbase_size_tmp;

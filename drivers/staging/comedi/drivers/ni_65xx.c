@@ -295,7 +295,7 @@ static inline ni_65xx_private *private(struct comedi_device * dev)
 typedef struct {
 	unsigned base_port;
 } ni_65xx_subdevice_private;
-static inline ni_65xx_subdevice_private *sprivate(comedi_subdevice * subdev)
+static inline ni_65xx_subdevice_private *sprivate(struct comedi_subdevice * subdev)
 {
 	return subdev->private;
 }
@@ -310,7 +310,7 @@ static ni_65xx_subdevice_private *ni_65xx_alloc_subdevice_private(void)
 
 static int ni_65xx_find_device(struct comedi_device * dev, int bus, int slot);
 
-static int ni_65xx_config_filter(struct comedi_device * dev, comedi_subdevice * s,
+static int ni_65xx_config_filter(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	const unsigned chan = CR_CHAN(insn->chanspec);
@@ -349,7 +349,7 @@ static int ni_65xx_config_filter(struct comedi_device * dev, comedi_subdevice * 
 	return 2;
 }
 
-static int ni_65xx_dio_insn_config(struct comedi_device * dev, comedi_subdevice * s,
+static int ni_65xx_dio_insn_config(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	unsigned port;
@@ -388,7 +388,7 @@ static int ni_65xx_dio_insn_config(struct comedi_device * dev, comedi_subdevice 
 	return -EINVAL;
 }
 
-static int ni_65xx_dio_insn_bits(struct comedi_device * dev, comedi_subdevice * s,
+static int ni_65xx_dio_insn_bits(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	unsigned base_bitfield_channel;
@@ -453,7 +453,7 @@ static int ni_65xx_dio_insn_bits(struct comedi_device * dev, comedi_subdevice * 
 static irqreturn_t ni_65xx_interrupt(int irq, void *d PT_REGS_ARG)
 {
 	struct comedi_device *dev = d;
-	comedi_subdevice *s = dev->subdevices + 2;
+	struct comedi_subdevice *s = dev->subdevices + 2;
 	unsigned int status;
 
 	status = readb(private(dev)->mite->daq_io_addr + Change_Status);
@@ -471,7 +471,7 @@ static irqreturn_t ni_65xx_interrupt(int irq, void *d PT_REGS_ARG)
 	return IRQ_HANDLED;
 }
 
-static int ni_65xx_intr_cmdtest(struct comedi_device * dev, comedi_subdevice * s,
+static int ni_65xx_intr_cmdtest(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_cmd * cmd)
 {
 	int err = 0;
@@ -547,7 +547,7 @@ static int ni_65xx_intr_cmdtest(struct comedi_device * dev, comedi_subdevice * s
 	return 0;
 }
 
-static int ni_65xx_intr_cmd(struct comedi_device * dev, comedi_subdevice * s)
+static int ni_65xx_intr_cmd(struct comedi_device * dev, struct comedi_subdevice * s)
 {
 	//comedi_cmd *cmd = &s->async->cmd;
 
@@ -560,7 +560,7 @@ static int ni_65xx_intr_cmd(struct comedi_device * dev, comedi_subdevice * s)
 	return 0;
 }
 
-static int ni_65xx_intr_cancel(struct comedi_device * dev, comedi_subdevice * s)
+static int ni_65xx_intr_cancel(struct comedi_device * dev, struct comedi_subdevice * s)
 {
 	writeb(0x00,
 		private(dev)->mite->daq_io_addr + Master_Interrupt_Control);
@@ -568,7 +568,7 @@ static int ni_65xx_intr_cancel(struct comedi_device * dev, comedi_subdevice * s)
 	return 0;
 }
 
-static int ni_65xx_intr_insn_bits(struct comedi_device * dev, comedi_subdevice * s,
+static int ni_65xx_intr_insn_bits(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	if (insn->n < 1)
@@ -578,7 +578,7 @@ static int ni_65xx_intr_insn_bits(struct comedi_device * dev, comedi_subdevice *
 	return 2;
 }
 
-static int ni_65xx_intr_insn_config(struct comedi_device * dev, comedi_subdevice * s,
+static int ni_65xx_intr_insn_config(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	if (insn->n < 1)
@@ -617,7 +617,7 @@ static int ni_65xx_intr_insn_config(struct comedi_device * dev, comedi_subdevice
 
 static int ni_65xx_attach(struct comedi_device * dev, comedi_devconfig * it)
 {
-	comedi_subdevice *s;
+	struct comedi_subdevice *s;
 	unsigned i;
 	int ret;
 

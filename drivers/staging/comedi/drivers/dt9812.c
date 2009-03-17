@@ -897,7 +897,7 @@ static void dt9812_comedi_open(struct comedi_device *dev)
 	down(&devpriv->slot->mutex);
 	if (devpriv->slot->usb) {
 		/* We have an attached device, fill in current range info */
-		comedi_subdevice *s;
+		struct comedi_subdevice *s;
 
 		s = &dev->subdevices[0];
 		s->n_chan = 8;
@@ -940,7 +940,7 @@ static void dt9812_comedi_open(struct comedi_device *dev)
 	up(&devpriv->slot->mutex);
 }
 
-static int dt9812_di_rinsn(struct comedi_device *dev, comedi_subdevice *s,
+static int dt9812_di_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 			   comedi_insn *insn, unsigned int *data)
 {
 	int n;
@@ -952,7 +952,7 @@ static int dt9812_di_rinsn(struct comedi_device *dev, comedi_subdevice *s,
 	return n;
 }
 
-static int dt9812_do_winsn(struct comedi_device *dev, comedi_subdevice *s,
+static int dt9812_do_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
 			   comedi_insn *insn, unsigned int *data)
 {
 	int n;
@@ -970,7 +970,7 @@ static int dt9812_do_winsn(struct comedi_device *dev, comedi_subdevice *s,
 	return n;
 }
 
-static int dt9812_ai_rinsn(struct comedi_device *dev, comedi_subdevice *s,
+static int dt9812_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 			   comedi_insn *insn, unsigned int *data)
 {
 	int n;
@@ -985,7 +985,7 @@ static int dt9812_ai_rinsn(struct comedi_device *dev, comedi_subdevice *s,
 	return n;
 }
 
-static int dt9812_ao_rinsn(struct comedi_device *dev, comedi_subdevice *s,
+static int dt9812_ao_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 			   comedi_insn *insn, unsigned int *data)
 {
 	int n;
@@ -999,7 +999,7 @@ static int dt9812_ao_rinsn(struct comedi_device *dev, comedi_subdevice *s,
 	return n;
 }
 
-static int dt9812_ao_winsn(struct comedi_device *dev, comedi_subdevice *s,
+static int dt9812_ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
 			   comedi_insn *insn, unsigned int *data)
 {
 	int n;
@@ -1012,7 +1012,7 @@ static int dt9812_ao_winsn(struct comedi_device *dev, comedi_subdevice *s,
 static int dt9812_attach(struct comedi_device *dev, comedi_devconfig *it)
 {
 	int i;
-	comedi_subdevice *s;
+	struct comedi_subdevice *s;
 
 	dev->board_name = "dt9812";
 

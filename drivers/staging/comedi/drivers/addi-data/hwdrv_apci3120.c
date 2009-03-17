@@ -58,14 +58,14 @@ static UINT ui_Temp = 0;
 /*
 +----------------------------------------------------------------------------+
 | Function name     :int i_APCI3120_InsnConfigAnalogInput(struct comedi_device *dev,|
-|  comedi_subdevice *s,comedi_insn *insn,unsigned int *data)					 |
+|  struct comedi_subdevice *s,comedi_insn *insn,unsigned int *data)					 |
 |                                            						         |
 +----------------------------------------------------------------------------+
 | Task              : Calls card specific function  					     |
 |                     										                 |
 +----------------------------------------------------------------------------+
 | Input Parameters  : struct comedi_device *dev									 |
-|                     comedi_subdevice *s									 |
+|                     struct comedi_subdevice *s									 |
 |                     comedi_insn *insn                                      |
 |                     unsigned int *data      					         		 |
 +----------------------------------------------------------------------------+
@@ -74,7 +74,7 @@ static UINT ui_Temp = 0;
 +----------------------------------------------------------------------------+
 */
 
-int i_APCI3120_InsnConfigAnalogInput(struct comedi_device * dev, comedi_subdevice * s,
+int i_APCI3120_InsnConfigAnalogInput(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	UINT i;
@@ -125,7 +125,7 @@ int i_APCI3120_InsnConfigAnalogInput(struct comedi_device * dev, comedi_subdevic
 /*
 +----------------------------------------------------------------------------+
 | Function name     :int i_APCI3120_InsnReadAnalogInput(struct comedi_device *dev,  |
-|			comedi_subdevice *s,comedi_insn *insn, unsigned int *data)	 |
+|			struct comedi_subdevice *s,comedi_insn *insn, unsigned int *data)	 |
 |                                            						         |
 +----------------------------------------------------------------------------+
 | Task              :  card specific function								 |
@@ -136,7 +136,7 @@ int i_APCI3120_InsnConfigAnalogInput(struct comedi_device * dev, comedi_subdevic
 |                     										                 |
 +----------------------------------------------------------------------------+
 | Input Parameters  : struct comedi_device *dev									 |
-|                     comedi_subdevice *s									 |
+|                     struct comedi_subdevice *s									 |
 |                     comedi_insn *insn                                      |
 |                     unsigned int *data     									 |
 +----------------------------------------------------------------------------+
@@ -145,7 +145,7 @@ int i_APCI3120_InsnConfigAnalogInput(struct comedi_device * dev, comedi_subdevic
 +----------------------------------------------------------------------------+
 */
 
-int i_APCI3120_InsnReadAnalogInput(struct comedi_device * dev, comedi_subdevice * s,
+int i_APCI3120_InsnReadAnalogInput(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	USHORT us_ConvertTiming, us_TmpValue, i;
@@ -394,14 +394,14 @@ int i_APCI3120_InsnReadAnalogInput(struct comedi_device * dev, comedi_subdevice 
 /*
 +----------------------------------------------------------------------------+
 | Function name     :int i_APCI3120_StopCyclicAcquisition(struct comedi_device *dev,|
-| 											     comedi_subdevice *s)|
+| 											     struct comedi_subdevice *s)|
 |                                        									 |
 +----------------------------------------------------------------------------+
 | Task              : Stops Cyclic acquisition  						     |
 |                     										                 |
 +----------------------------------------------------------------------------+
 | Input Parameters  : struct comedi_device *dev									 |
-|                     comedi_subdevice *s									 |
+|                     struct comedi_subdevice *s									 |
 |                                                 					         |
 +----------------------------------------------------------------------------+
 | Return Value      :0              					                     |
@@ -409,7 +409,7 @@ int i_APCI3120_InsnReadAnalogInput(struct comedi_device * dev, comedi_subdevice 
 +----------------------------------------------------------------------------+
 */
 
-int i_APCI3120_StopCyclicAcquisition(struct comedi_device * dev, comedi_subdevice * s)
+int i_APCI3120_StopCyclicAcquisition(struct comedi_device * dev, struct comedi_subdevice * s)
 {
 	// Disable A2P Fifo write and AMWEN signal
 	outw(0, devpriv->i_IobaseAddon + 4);
@@ -460,7 +460,7 @@ int i_APCI3120_StopCyclicAcquisition(struct comedi_device * dev, comedi_subdevic
 /*
 +----------------------------------------------------------------------------+
 | Function name     :int i_APCI3120_CommandTestAnalogInput(struct comedi_device *dev|
-|			,comedi_subdevice *s,comedi_cmd *cmd)					 |
+|			,struct comedi_subdevice *s,comedi_cmd *cmd)					 |
 |                                        									 |
 +----------------------------------------------------------------------------+
 | Task              : Test validity for a command for cyclic anlog input     |
@@ -468,7 +468,7 @@ int i_APCI3120_StopCyclicAcquisition(struct comedi_device * dev, comedi_subdevic
 |                     										                 |
 +----------------------------------------------------------------------------+
 | Input Parameters  : struct comedi_device *dev									 |
-|                     comedi_subdevice *s									 |
+|                     struct comedi_subdevice *s									 |
 |                     comedi_cmd *cmd              					         |
 +----------------------------------------------------------------------------+
 | Return Value      :0              					                     |
@@ -476,7 +476,7 @@ int i_APCI3120_StopCyclicAcquisition(struct comedi_device * dev, comedi_subdevic
 +----------------------------------------------------------------------------+
 */
 
-int i_APCI3120_CommandTestAnalogInput(struct comedi_device * dev, comedi_subdevice * s,
+int i_APCI3120_CommandTestAnalogInput(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_cmd * cmd)
 {
 	int err = 0;
@@ -617,7 +617,7 @@ int i_APCI3120_CommandTestAnalogInput(struct comedi_device * dev, comedi_subdevi
 /*
 +----------------------------------------------------------------------------+
 | Function name     : int i_APCI3120_CommandAnalogInput(struct comedi_device *dev,  |
-|												comedi_subdevice *s) |
+|												struct comedi_subdevice *s) |
 |                                        									 |
 +----------------------------------------------------------------------------+
 | Task              : Does asynchronous acquisition                          |
@@ -625,7 +625,7 @@ int i_APCI3120_CommandTestAnalogInput(struct comedi_device * dev, comedi_subdevi
 |                     										                 |
 +----------------------------------------------------------------------------+
 | Input Parameters  : struct comedi_device *dev									 |
-|                     comedi_subdevice *s									 |
+|                     struct comedi_subdevice *s									 |
 |                     														 |
 +----------------------------------------------------------------------------+
 | Return Value      :              					                         |
@@ -633,7 +633,7 @@ int i_APCI3120_CommandTestAnalogInput(struct comedi_device * dev, comedi_subdevi
 +----------------------------------------------------------------------------+
 */
 
-int i_APCI3120_CommandAnalogInput(struct comedi_device * dev, comedi_subdevice * s)
+int i_APCI3120_CommandAnalogInput(struct comedi_device * dev, struct comedi_subdevice * s)
 {
 	comedi_cmd *cmd = &s->async->cmd;
 
@@ -690,7 +690,7 @@ int i_APCI3120_CommandAnalogInput(struct comedi_device * dev, comedi_subdevice *
 /*
 +----------------------------------------------------------------------------+
 | Function name     :  int i_APCI3120_CyclicAnalogInput(int mode,            |
-|		 	   struct comedi_device * dev,comedi_subdevice * s)			 |
+|		 	   struct comedi_device * dev,struct comedi_subdevice * s)			 |
 +----------------------------------------------------------------------------+
 | Task              : This is used for analog input cyclic acquisition       |
 |			  Performs the command operations.                       |
@@ -708,7 +708,7 @@ int i_APCI3120_CommandAnalogInput(struct comedi_device * dev, comedi_subdevice *
 */
 
 int i_APCI3120_CyclicAnalogInput(int mode, struct comedi_device * dev,
-	comedi_subdevice * s)
+	struct comedi_subdevice * s)
 {
 	BYTE b_Tmp;
 	UINT ui_Tmp, ui_DelayTiming = 0, ui_TimerValue1 = 0, dmalen0 =
@@ -1275,7 +1275,7 @@ int i_APCI3120_Reset(struct comedi_device * dev)
 /*
 +----------------------------------------------------------------------------+
 | Function name     : int i_APCI3120_SetupChannelList(struct comedi_device * dev,   |
-|                     comedi_subdevice * s, int n_chan,unsigned int *chanlist|
+|                     struct comedi_subdevice * s, int n_chan,unsigned int *chanlist|
 |			  ,char check)											 |
 |                                            						         |
 +----------------------------------------------------------------------------+
@@ -1286,7 +1286,7 @@ int i_APCI3120_Reset(struct comedi_device * dev)
 |                     										                 |
 +----------------------------------------------------------------------------+
 | Input Parameters  : struct comedi_device * dev									 |
-|                     comedi_subdevice * s									 |
+|                     struct comedi_subdevice * s									 |
 |                     int n_chan                   					         |
 			  unsigned int *chanlist
 			  char check
@@ -1296,7 +1296,7 @@ int i_APCI3120_Reset(struct comedi_device * dev)
 +----------------------------------------------------------------------------+
 */
 
-int i_APCI3120_SetupChannelList(struct comedi_device * dev, comedi_subdevice * s,
+int i_APCI3120_SetupChannelList(struct comedi_device * dev, struct comedi_subdevice * s,
 	int n_chan, unsigned int *chanlist, char check)
 {
 	unsigned int i;		//, differencial=0, bipolar=0;
@@ -1428,7 +1428,7 @@ void v_APCI3120_Interrupt(int irq, void *d)
 	USHORT us_TmpValue;
 	BYTE b_DummyRead;
 
-	comedi_subdevice *s = dev->subdevices + 0;
+	struct comedi_subdevice *s = dev->subdevices + 0;
 	ui_Check = 1;
 
 	int_daq = inw(dev->iobase + APCI3120_RD_STATUS) & 0xf000;	// get IRQ reasons
@@ -1634,7 +1634,7 @@ void v_APCI3120_Interrupt(int irq, void *d)
 {
        int n_chan,i;
        short *data;
-       comedi_subdevice *s=dev->subdevices+0;
+       struct comedi_subdevice *s=dev->subdevices+0;
        comedi_async *async = s->async;
        data=async->data+async->buf_int_ptr;//new samples added from here onwards
        n_chan=devpriv->ui_AiNbrofChannels;
@@ -1657,7 +1657,7 @@ void v_APCI3120_Interrupt(int irq, void *d)
 int i_APCI3120_InterruptHandleEos(struct comedi_device * dev)
 {
 	int n_chan, i;
-	comedi_subdevice *s = dev->subdevices + 0;
+	struct comedi_subdevice *s = dev->subdevices + 0;
 	int err = 1;
 
 	n_chan = devpriv->ui_AiNbrofChannels;
@@ -1699,7 +1699,7 @@ int i_APCI3120_InterruptHandleEos(struct comedi_device * dev)
 void v_APCI3120_InterruptDma(int irq, void *d)
 {
 	struct comedi_device *dev = d;
-	comedi_subdevice *s = dev->subdevices + 0;
+	struct comedi_subdevice *s = dev->subdevices + 0;
 	unsigned int next_dma_buf, samplesinbuf;
 	unsigned long low_word, high_word, var;
 
@@ -1879,7 +1879,7 @@ void v_APCI3120_InterruptDma(int irq, void *d)
 /*
 +----------------------------------------------------------------------------+
 | Function name     :void v_APCI3120_InterruptDmaMoveBlock16bit(comedi_device|
-|*dev,comedi_subdevice *s,short *dma,short *data,int n)				     |
+|*dev,struct comedi_subdevice *s,short *dma,short *data,int n)				     |
 |                                        									 |
 +----------------------------------------------------------------------------+
 | Task              : This function copies the data from DMA buffer to the   |
@@ -1887,7 +1887,7 @@ void v_APCI3120_InterruptDma(int irq, void *d)
 |                     										                 |
 +----------------------------------------------------------------------------+
 | Input Parameters  : struct comedi_device *dev									 |
-|                     comedi_subdevice *s									 |
+|                     struct comedi_subdevice *s									 |
 |                     short *dma											 |
 |                     short *data,int n          					         |
 +----------------------------------------------------------------------------+
@@ -1896,7 +1896,7 @@ void v_APCI3120_InterruptDma(int irq, void *d)
 +----------------------------------------------------------------------------+
 */
 
-/*void v_APCI3120_InterruptDmaMoveBlock16bit(struct comedi_device *dev,comedi_subdevice *s,short *dma,short *data,int n)
+/*void v_APCI3120_InterruptDmaMoveBlock16bit(struct comedi_device *dev,struct comedi_subdevice *s,short *dma,short *data,int n)
 {
 	int i,j,m;
 
@@ -1926,7 +1926,7 @@ void v_APCI3120_InterruptDma(int irq, void *d)
 }
 */
 void v_APCI3120_InterruptDmaMoveBlock16bit(struct comedi_device * dev,
-	comedi_subdevice * s, short * dma_buffer, unsigned int num_samples)
+	struct comedi_subdevice * s, short * dma_buffer, unsigned int num_samples)
 {
 	devpriv->ui_AiActualScan +=
 		(s->async->cur_chan + num_samples) / devpriv->ui_AiScanLength;
@@ -1945,14 +1945,14 @@ void v_APCI3120_InterruptDmaMoveBlock16bit(struct comedi_device * dev,
 /*
 +----------------------------------------------------------------------------+
 | Function name     :int i_APCI3120_InsnConfigTimer(struct comedi_device *dev,          |
-|	comedi_subdevice *s,comedi_insn *insn,unsigned int *data) 			     |
+|	struct comedi_subdevice *s,comedi_insn *insn,unsigned int *data) 			     |
 |                                        									 |
 +----------------------------------------------------------------------------+
 | Task              :Configure Timer 2  								     |
 |                     										                 |
 +----------------------------------------------------------------------------+
 | Input Parameters  : struct comedi_device *dev									 |
-|                     comedi_subdevice *s									 |
+|                     struct comedi_subdevice *s									 |
 |                     comedi_insn *insn                                      |
 |                     unsigned int *data 										 |
 |                     														 |
@@ -1967,7 +1967,7 @@ void v_APCI3120_InterruptDmaMoveBlock16bit(struct comedi_device * dev,
 +----------------------------------------------------------------------------+
 */
 
-int i_APCI3120_InsnConfigTimer(struct comedi_device * dev, comedi_subdevice * s,
+int i_APCI3120_InsnConfigTimer(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 
@@ -2093,13 +2093,13 @@ int i_APCI3120_InsnConfigTimer(struct comedi_device * dev, comedi_subdevice * s,
 /*
 +----------------------------------------------------------------------------+
 | Function name     :int i_APCI3120_InsnWriteTimer(struct comedi_device *dev,           |
-|                    comedi_subdevice *s, comedi_insn *insn,unsigned int *data)  |
+|                    struct comedi_subdevice *s, comedi_insn *insn,unsigned int *data)  |
 |                                            						         |
 +----------------------------------------------------------------------------+
 | Task              :    To start and stop the timer		                 |
 +----------------------------------------------------------------------------+
 | Input Parameters  : struct comedi_device *dev									 |
-|                     comedi_subdevice *s									 |
+|                     struct comedi_subdevice *s									 |
 |                     comedi_insn *insn                                      |
 |                     unsigned int *data                                         |
 |                                                                            |
@@ -2118,7 +2118,7 @@ int i_APCI3120_InsnConfigTimer(struct comedi_device * dev, comedi_subdevice * s,
 +----------------------------------------------------------------------------+
 */
 
-int i_APCI3120_InsnWriteTimer(struct comedi_device * dev, comedi_subdevice * s,
+int i_APCI3120_InsnWriteTimer(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 
@@ -2284,14 +2284,14 @@ int i_APCI3120_InsnWriteTimer(struct comedi_device * dev, comedi_subdevice * s,
 /*
 +----------------------------------------------------------------------------+
 | Function name     : int i_APCI3120_InsnReadTimer(struct comedi_device *dev,           |
-|		comedi_subdevice *s,comedi_insn *insn, unsigned int *data) 		 |
+|		struct comedi_subdevice *s,comedi_insn *insn, unsigned int *data) 		 |
 |                                        									 |
 |                                            						         |
 +----------------------------------------------------------------------------+
 | Task              : read the Timer value 				                 	 |
 +----------------------------------------------------------------------------+
 | Input Parameters  : 	struct comedi_device *dev									 |
-|                     comedi_subdevice *s									 |
+|                     struct comedi_subdevice *s									 |
 |                     comedi_insn *insn                                      |
 |                     unsigned int *data 										 |
 |                     														 |
@@ -2304,7 +2304,7 @@ int i_APCI3120_InsnWriteTimer(struct comedi_device * dev, comedi_subdevice * s,
 |                    													     |
 +----------------------------------------------------------------------------+
 */
-int i_APCI3120_InsnReadTimer(struct comedi_device * dev, comedi_subdevice * s,
+int i_APCI3120_InsnReadTimer(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	BYTE b_Tmp;
@@ -2361,7 +2361,7 @@ int i_APCI3120_InsnReadTimer(struct comedi_device * dev, comedi_subdevice * s,
 /*
 +----------------------------------------------------------------------------+
 | Function name     :int i_APCI3120_InsnReadDigitalInput(struct comedi_device *dev,     |
-|			comedi_subdevice *s, comedi_insn *insn,unsigned int *data)   |
+|			struct comedi_subdevice *s, comedi_insn *insn,unsigned int *data)   |
 |                                        									 |
 |                                            						         |
 +----------------------------------------------------------------------------+
@@ -2369,7 +2369,7 @@ int i_APCI3120_InsnReadTimer(struct comedi_device * dev, comedi_subdevice * s,
 |                     										                 |
 +----------------------------------------------------------------------------+
 | Input Parameters  : struct comedi_device *dev									 |
-|                     comedi_subdevice *s									 |
+|                     struct comedi_subdevice *s									 |
 |                     comedi_insn *insn                                      |
 |                     unsigned int *data 										 |
 +----------------------------------------------------------------------------+
@@ -2378,8 +2378,10 @@ int i_APCI3120_InsnReadTimer(struct comedi_device * dev, comedi_subdevice * s,
 +----------------------------------------------------------------------------+
 */
 
-int i_APCI3120_InsnReadDigitalInput(struct comedi_device * dev, comedi_subdevice
-	* s, comedi_insn * insn, unsigned int * data)
+int i_APCI3120_InsnReadDigitalInput(struct comedi_device *dev,
+				    struct comedi_subdevice *s,
+				    comedi_insn *insn,
+				    unsigned int *data)
 {
 	UINT ui_Chan, ui_TmpValue;
 
@@ -2404,7 +2406,7 @@ int i_APCI3120_InsnReadDigitalInput(struct comedi_device * dev, comedi_subdevice
 /*
 +----------------------------------------------------------------------------+
 | Function name     :int i_APCI3120_InsnBitsDigitalInput(struct comedi_device *dev, |
-|comedi_subdevice *s, comedi_insn *insn,unsigned int *data)                      |
+|struct comedi_subdevice *s, comedi_insn *insn,unsigned int *data)                      |
 |                                        									 |
 +----------------------------------------------------------------------------+
 | Task              : Reads the value of the Digital input Port i.e.4channels|
@@ -2412,7 +2414,7 @@ int i_APCI3120_InsnReadDigitalInput(struct comedi_device * dev, comedi_subdevice
 |                     										                 |
 +----------------------------------------------------------------------------+
 | Input Parameters  : struct comedi_device *dev									 |
-|                     comedi_subdevice *s									 |
+|                     struct comedi_subdevice *s									 |
 |                     comedi_insn *insn                                      |
 |                     unsigned int *data 										 |
 +----------------------------------------------------------------------------+
@@ -2420,7 +2422,7 @@ int i_APCI3120_InsnReadDigitalInput(struct comedi_device * dev, comedi_subdevice
 |                    													     |
 +----------------------------------------------------------------------------+
 */
-int i_APCI3120_InsnBitsDigitalInput(struct comedi_device * dev, comedi_subdevice * s,
+int i_APCI3120_InsnBitsDigitalInput(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	UINT ui_TmpValue;
@@ -2443,14 +2445,14 @@ int i_APCI3120_InsnBitsDigitalInput(struct comedi_device * dev, comedi_subdevice
 /*
 +----------------------------------------------------------------------------+
 | Function name     :int i_APCI3120_InsnConfigDigitalOutput(struct comedi_device    |
-| *dev,comedi_subdevice *s,comedi_insn *insn,unsigned int *data)				 |
+| *dev,struct comedi_subdevice *s,comedi_insn *insn,unsigned int *data)				 |
 |                                            						         |
 +----------------------------------------------------------------------------+
 | Task              :Configure the output memory ON or OFF				     |
 |                     										                 |
 +----------------------------------------------------------------------------+
 | Input Parameters  :struct comedi_device *dev									 	 |
-|                     comedi_subdevice *s									 |
+|                     struct comedi_subdevice *s									 |
 |                     comedi_insn *insn                                      |
 |                     unsigned int *data 										 |
 +----------------------------------------------------------------------------+
@@ -2460,7 +2462,7 @@ int i_APCI3120_InsnBitsDigitalInput(struct comedi_device * dev, comedi_subdevice
 */
 
 int i_APCI3120_InsnConfigDigitalOutput(struct comedi_device * dev,
-	comedi_subdevice * s, comedi_insn * insn, unsigned int * data)
+	struct comedi_subdevice * s, comedi_insn * insn, unsigned int * data)
 {
 
 	if ((data[0] != 0) && (data[0] != 1)) {
@@ -2486,14 +2488,14 @@ int i_APCI3120_InsnConfigDigitalOutput(struct comedi_device * dev,
 /*
 +----------------------------------------------------------------------------+
 | Function name     :int i_APCI3120_InsnBitsDigitalOutput(struct comedi_device *dev,    |
-|		comedi_subdevice *s, comedi_insn *insn,unsigned int *data) 		 |
+|		struct comedi_subdevice *s, comedi_insn *insn,unsigned int *data) 		 |
 |                                        									 |
 +----------------------------------------------------------------------------+
 | Task              : write diatal output port							     |
 |                     										                 |
 +----------------------------------------------------------------------------+
 | Input Parameters  : struct comedi_device *dev									 |
-|                     comedi_subdevice *s									 |
+|                     struct comedi_subdevice *s									 |
 |                     comedi_insn *insn                                      |
 |                     unsigned int *data 										 |
                       data[0]     Value to be written
@@ -2505,8 +2507,10 @@ int i_APCI3120_InsnConfigDigitalOutput(struct comedi_device * dev,
 +----------------------------------------------------------------------------+
 */
 
-int i_APCI3120_InsnBitsDigitalOutput(struct comedi_device * dev, comedi_subdevice
-	* s, comedi_insn * insn, unsigned int * data)
+int i_APCI3120_InsnBitsDigitalOutput(struct comedi_device * dev,
+				     struct comedi_subdevice *s,
+				     comedi_insn *insn,
+				     unsigned int *data)
 {
 	if ((data[0] > this_board->i_DoMaxdata) || (data[0] < 0)) {
 
@@ -2537,14 +2541,14 @@ int i_APCI3120_InsnBitsDigitalOutput(struct comedi_device * dev, comedi_subdevic
 /*
 +----------------------------------------------------------------------------+
 | Function name     :int i_APCI3120_InsnWriteDigitalOutput(struct comedi_device *dev,|
-|comedi_subdevice *s,comedi_insn *insn,unsigned int *data) 			             |
+|struct comedi_subdevice *s,comedi_insn *insn,unsigned int *data) 			             |
 |                                            						         |
 +----------------------------------------------------------------------------+
 | Task              : Write digiatl output								     |
 |                     										                 |
 +----------------------------------------------------------------------------+
 | Input Parameters  : struct comedi_device *dev								 	 |
-|                     comedi_subdevice *s									 |
+|                     struct comedi_subdevice *s									 |
 |                     comedi_insn *insn                                      |
 |                     unsigned int *data 										 |
                       data[0]     Value to be written
@@ -2556,8 +2560,10 @@ int i_APCI3120_InsnBitsDigitalOutput(struct comedi_device * dev, comedi_subdevic
 +----------------------------------------------------------------------------+
 */
 
-int i_APCI3120_InsnWriteDigitalOutput(struct comedi_device * dev, comedi_subdevice
-	* s, comedi_insn * insn, unsigned int * data)
+int i_APCI3120_InsnWriteDigitalOutput(struct comedi_device *dev,
+				      struct comedi_subdevice *s,
+				      comedi_insn *insn,
+				      unsigned int *data)
 {
 
 	UINT ui_Temp1;
@@ -2618,14 +2624,14 @@ int i_APCI3120_InsnWriteDigitalOutput(struct comedi_device * dev, comedi_subdevi
 /*
 +----------------------------------------------------------------------------+
 | Function name     :int i_APCI3120_InsnWriteAnalogOutput(struct comedi_device *dev,|
-|comedi_subdevice *s, comedi_insn *insn,unsigned int *data)			             |
+|struct comedi_subdevice *s, comedi_insn *insn,unsigned int *data)			             |
 |                                        									 |
 +----------------------------------------------------------------------------+
 | Task              : Write  analog output   							     |
 |                     										                 |
 +----------------------------------------------------------------------------+
 | Input Parameters  : struct comedi_device *dev									 |
-|                     comedi_subdevice *s									 |
+|                     struct comedi_subdevice *s									 |
 |                     comedi_insn *insn                                      |
 |                     unsigned int *data  										 |
 +----------------------------------------------------------------------------+
@@ -2634,8 +2640,10 @@ int i_APCI3120_InsnWriteDigitalOutput(struct comedi_device * dev, comedi_subdevi
 +----------------------------------------------------------------------------+
 */
 
-int i_APCI3120_InsnWriteAnalogOutput(struct comedi_device * dev, comedi_subdevice
-	* s, comedi_insn * insn, unsigned int * data)
+int i_APCI3120_InsnWriteAnalogOutput(struct comedi_device *dev,
+				     struct comedi_subdevice *s,
+				     comedi_insn *insn,
+				     unsigned int *data)
 {
 	UINT ui_Range, ui_Channel;
 	USHORT us_TmpValue;

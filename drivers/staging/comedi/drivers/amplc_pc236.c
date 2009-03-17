@@ -188,12 +188,12 @@ static int pc236_request_region(unsigned minor, unsigned long from,
 static void pc236_intr_disable(struct comedi_device * dev);
 static void pc236_intr_enable(struct comedi_device * dev);
 static int pc236_intr_check(struct comedi_device * dev);
-static int pc236_intr_insn(struct comedi_device * dev, comedi_subdevice * s,
+static int pc236_intr_insn(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data);
-static int pc236_intr_cmdtest(struct comedi_device * dev, comedi_subdevice * s,
+static int pc236_intr_cmdtest(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_cmd * cmd);
-static int pc236_intr_cmd(struct comedi_device * dev, comedi_subdevice * s);
-static int pc236_intr_cancel(struct comedi_device * dev, comedi_subdevice * s);
+static int pc236_intr_cmd(struct comedi_device * dev, struct comedi_subdevice * s);
+static int pc236_intr_cancel(struct comedi_device * dev, struct comedi_subdevice * s);
 static irqreturn_t pc236_interrupt(int irq, void *d PT_REGS_ARG);
 
 /*
@@ -266,7 +266,7 @@ pc236_find_pci(struct comedi_device * dev, int bus, int slot,
  */
 static int pc236_attach(struct comedi_device * dev, comedi_devconfig * it)
 {
-	comedi_subdevice *s;
+	struct comedi_subdevice *s;
 	unsigned long iobase = 0;
 	unsigned int irq = 0;
 #ifdef CONFIG_COMEDI_PCI
@@ -528,7 +528,7 @@ static int pc236_intr_check(struct comedi_device * dev)
  * Input from subdevice 1.
  * Copied from the comedi_parport driver.
  */
-static int pc236_intr_insn(struct comedi_device * dev, comedi_subdevice * s,
+static int pc236_intr_insn(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	data[1] = 0;
@@ -539,7 +539,7 @@ static int pc236_intr_insn(struct comedi_device * dev, comedi_subdevice * s,
  * Subdevice 1 command test.
  * Copied from the comedi_parport driver.
  */
-static int pc236_intr_cmdtest(struct comedi_device * dev, comedi_subdevice * s,
+static int pc236_intr_cmdtest(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_cmd * cmd)
 {
 	int err = 0;
@@ -617,7 +617,7 @@ static int pc236_intr_cmdtest(struct comedi_device * dev, comedi_subdevice * s,
 /*
  * Subdevice 1 command.
  */
-static int pc236_intr_cmd(struct comedi_device * dev, comedi_subdevice * s)
+static int pc236_intr_cmd(struct comedi_device * dev, struct comedi_subdevice * s)
 {
 	pc236_intr_enable(dev);
 
@@ -627,7 +627,7 @@ static int pc236_intr_cmd(struct comedi_device * dev, comedi_subdevice * s)
 /*
  * Subdevice 1 cancel command.
  */
-static int pc236_intr_cancel(struct comedi_device * dev, comedi_subdevice * s)
+static int pc236_intr_cancel(struct comedi_device * dev, struct comedi_subdevice * s)
 {
 	pc236_intr_disable(dev);
 
@@ -641,7 +641,7 @@ static int pc236_intr_cancel(struct comedi_device * dev, comedi_subdevice * s)
 static irqreturn_t pc236_interrupt(int irq, void *d PT_REGS_ARG)
 {
 	struct comedi_device *dev = d;
-	comedi_subdevice *s = dev->subdevices + 1;
+	struct comedi_subdevice *s = dev->subdevices + 1;
 	int handled;
 
 	handled = pc236_intr_check(dev);

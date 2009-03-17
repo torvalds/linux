@@ -197,9 +197,9 @@ MODULE_DESCRIPTION("Comedi low-level driver for the Computerboards PCIM-DDA "
 MODULE_LICENSE("GPL");
 COMEDI_PCI_INITCLEANUP_NOMODULE(cb_pcimdda_driver, pci_table);
 
-static int ao_winsn(struct comedi_device * dev, comedi_subdevice * s,
+static int ao_winsn(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data);
-static int ao_rinsn(struct comedi_device * dev, comedi_subdevice * s,
+static int ao_rinsn(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data);
 
 /*---------------------------------------------------------------------------
@@ -240,7 +240,7 @@ static int probe(struct comedi_device * dev, const comedi_devconfig * it);
  */
 static int attach(struct comedi_device * dev, comedi_devconfig * it)
 {
-	comedi_subdevice *s;
+	struct comedi_subdevice *s;
 	int err;
 
 /*
@@ -352,7 +352,7 @@ static int detach(struct comedi_device * dev)
 	return 0;
 }
 
-static int ao_winsn(struct comedi_device * dev, comedi_subdevice * s,
+static int ao_winsn(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	int i;
@@ -391,7 +391,7 @@ static int ao_winsn(struct comedi_device * dev, comedi_subdevice * s,
    all AO channels update simultaneously.  This is useful for some control
    applications, I would imagine.
 */
-static int ao_rinsn(struct comedi_device * dev, comedi_subdevice * s,
+static int ao_rinsn(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	int i;

@@ -174,9 +174,9 @@ static comedi_driver driver_adq12b={
         num_names:      sizeof(adq12b_boards) / sizeof(adq12b_board),
 };
 
-static int adq12b_ai_rinsn(struct comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,unsigned int *data);
-static int adq12b_di_insn_bits(struct comedi_device *dev,comedi_subdevice *s, comedi_insn *insn,unsigned int *data);
-static int adq12b_do_insn_bits(struct comedi_device *dev,comedi_subdevice *s, comedi_insn *insn,unsigned int *data);
+static int adq12b_ai_rinsn(struct comedi_device *dev,struct comedi_subdevice *s,comedi_insn *insn,unsigned int *data);
+static int adq12b_di_insn_bits(struct comedi_device *dev,struct comedi_subdevice *s, comedi_insn *insn,unsigned int *data);
+static int adq12b_do_insn_bits(struct comedi_device *dev,struct comedi_subdevice *s, comedi_insn *insn,unsigned int *data);
 
 /*
  * Attach is called by the Comedi core to configure the driver
@@ -186,7 +186,7 @@ static int adq12b_do_insn_bits(struct comedi_device *dev,comedi_subdevice *s, co
  */
 static int adq12b_attach(struct comedi_device *dev,comedi_devconfig *it)
 {
-        comedi_subdevice *s;
+        struct comedi_subdevice *s;
         unsigned long iobase;
         int unipolar, differential;
 
@@ -314,7 +314,7 @@ static int adq12b_detach(struct comedi_device *dev)
  * mode.
  */
 
-static int adq12b_ai_rinsn(struct comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,unsigned int *data)
+static int adq12b_ai_rinsn(struct comedi_device *dev,struct comedi_subdevice *s,comedi_insn *insn,unsigned int *data)
 {
         int n, i;
         int range, channel;
@@ -357,7 +357,7 @@ static int adq12b_ai_rinsn(struct comedi_device *dev,comedi_subdevice *s,comedi_
 }
 
 
-static int adq12b_di_insn_bits(struct comedi_device *dev,comedi_subdevice *s, 	comedi_insn *insn,unsigned int *data)
+static int adq12b_di_insn_bits(struct comedi_device *dev,struct comedi_subdevice *s, 	comedi_insn *insn,unsigned int *data)
 {
 
         /* only bits 0-4 have information about digital inputs */
@@ -367,7 +367,7 @@ static int adq12b_di_insn_bits(struct comedi_device *dev,comedi_subdevice *s, 	c
 }
 
 
-static int adq12b_do_insn_bits(struct comedi_device *dev,comedi_subdevice *s, 	comedi_insn *insn,unsigned int *data)
+static int adq12b_do_insn_bits(struct comedi_device *dev,struct comedi_subdevice *s, 	comedi_insn *insn,unsigned int *data)
 {
         int channel;
 

@@ -69,10 +69,10 @@ static comedi_driver driver_adl_pci7432 = {
 
 /* Digital IO */
 
-static int adl_pci7432_di_insn_bits(struct comedi_device * dev, comedi_subdevice * s,
+static int adl_pci7432_di_insn_bits(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data);
 
-static int adl_pci7432_do_insn_bits(struct comedi_device * dev, comedi_subdevice * s,
+static int adl_pci7432_do_insn_bits(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data);
 
 /*            */
@@ -80,7 +80,7 @@ static int adl_pci7432_do_insn_bits(struct comedi_device * dev, comedi_subdevice
 static int adl_pci7432_attach(struct comedi_device * dev, comedi_devconfig * it)
 {
 	struct pci_dev *pcidev;
-	comedi_subdevice *s;
+	struct comedi_subdevice *s;
 	int bus, slot;
 
 	printk("comedi: attempt to attach...\n");
@@ -164,7 +164,7 @@ static int adl_pci7432_detach(struct comedi_device * dev)
 	return 0;
 }
 
-static int adl_pci7432_do_insn_bits(struct comedi_device * dev, comedi_subdevice * s,
+static int adl_pci7432_do_insn_bits(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	printk("comedi: pci7432_do_insn_bits called\n");
@@ -184,7 +184,7 @@ static int adl_pci7432_do_insn_bits(struct comedi_device * dev, comedi_subdevice
 	return 2;
 }
 
-static int adl_pci7432_di_insn_bits(struct comedi_device * dev, comedi_subdevice * s,
+static int adl_pci7432_di_insn_bits(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	printk("comedi: pci7432_di_insn_bits called\n");

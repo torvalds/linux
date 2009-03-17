@@ -572,7 +572,7 @@ dio200_request_region(unsigned minor, unsigned long from, unsigned long extent)
  * 'insn_bits' function for an 'INTERRUPT' subdevice.
  */
 static int
-dio200_subdev_intr_insn_bits(struct comedi_device * dev, comedi_subdevice * s,
+dio200_subdev_intr_insn_bits(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	dio200_subdev_intr *subpriv = s->private;
@@ -591,7 +591,7 @@ dio200_subdev_intr_insn_bits(struct comedi_device * dev, comedi_subdevice * s,
 /*
  * Called to stop acquisition for an 'INTERRUPT' subdevice.
  */
-static void dio200_stop_intr(struct comedi_device * dev, comedi_subdevice * s)
+static void dio200_stop_intr(struct comedi_device * dev, struct comedi_subdevice * s)
 {
 	dio200_subdev_intr *subpriv = s->private;
 
@@ -605,7 +605,7 @@ static void dio200_stop_intr(struct comedi_device * dev, comedi_subdevice * s)
 /*
  * Called to start acquisition for an 'INTERRUPT' subdevice.
  */
-static int dio200_start_intr(struct comedi_device * dev, comedi_subdevice * s)
+static int dio200_start_intr(struct comedi_device * dev, struct comedi_subdevice * s)
 {
 	unsigned int n;
 	unsigned isn_bits;
@@ -641,7 +641,7 @@ static int dio200_start_intr(struct comedi_device * dev, comedi_subdevice * s)
  * Internal trigger function to start acquisition for an 'INTERRUPT' subdevice.
  */
 static int
-dio200_inttrig_start_intr(struct comedi_device * dev, comedi_subdevice * s,
+dio200_inttrig_start_intr(struct comedi_device * dev, struct comedi_subdevice * s,
 	unsigned int trignum)
 {
 	dio200_subdev_intr *subpriv;
@@ -671,7 +671,7 @@ dio200_inttrig_start_intr(struct comedi_device * dev, comedi_subdevice * s,
  * This is called from the interrupt service routine to handle a read
  * scan on an 'INTERRUPT' subdevice.
  */
-static int dio200_handle_read_intr(struct comedi_device * dev, comedi_subdevice * s)
+static int dio200_handle_read_intr(struct comedi_device * dev, struct comedi_subdevice * s)
 {
 	dio200_subdev_intr *subpriv = s->private;
 	unsigned triggered;
@@ -783,7 +783,7 @@ static int dio200_handle_read_intr(struct comedi_device * dev, comedi_subdevice 
 /*
  * 'cancel' function for an 'INTERRUPT' subdevice.
  */
-static int dio200_subdev_intr_cancel(struct comedi_device * dev, comedi_subdevice * s)
+static int dio200_subdev_intr_cancel(struct comedi_device * dev, struct comedi_subdevice * s)
 {
 	dio200_subdev_intr *subpriv = s->private;
 	unsigned long flags;
@@ -801,7 +801,7 @@ static int dio200_subdev_intr_cancel(struct comedi_device * dev, comedi_subdevic
  * 'do_cmdtest' function for an 'INTERRUPT' subdevice.
  */
 static int
-dio200_subdev_intr_cmdtest(struct comedi_device * dev, comedi_subdevice * s,
+dio200_subdev_intr_cmdtest(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_cmd * cmd)
 {
 	int err = 0;
@@ -907,7 +907,7 @@ dio200_subdev_intr_cmdtest(struct comedi_device * dev, comedi_subdevice * s,
 /*
  * 'do_cmd' function for an 'INTERRUPT' subdevice.
  */
-static int dio200_subdev_intr_cmd(struct comedi_device * dev, comedi_subdevice * s)
+static int dio200_subdev_intr_cmd(struct comedi_device * dev, struct comedi_subdevice * s)
 {
 	comedi_cmd *cmd = &s->async->cmd;
 	dio200_subdev_intr *subpriv = s->private;
@@ -953,7 +953,7 @@ static int dio200_subdev_intr_cmd(struct comedi_device * dev, comedi_subdevice *
  * This function initializes an 'INTERRUPT' subdevice.
  */
 static int
-dio200_subdev_intr_init(struct comedi_device * dev, comedi_subdevice * s,
+dio200_subdev_intr_init(struct comedi_device * dev, struct comedi_subdevice * s,
 	unsigned long iobase, unsigned valid_isns, int has_int_sce)
 {
 	dio200_subdev_intr *subpriv;
@@ -998,7 +998,7 @@ dio200_subdev_intr_init(struct comedi_device * dev, comedi_subdevice * s,
  * This function cleans up an 'INTERRUPT' subdevice.
  */
 static void
-dio200_subdev_intr_cleanup(struct comedi_device * dev, comedi_subdevice * s)
+dio200_subdev_intr_cleanup(struct comedi_device * dev, struct comedi_subdevice * s)
 {
 	dio200_subdev_intr *subpriv = s->private;
 
@@ -1033,7 +1033,7 @@ static irqreturn_t dio200_interrupt(int irq, void *d PT_REGS_ARG)
  * Handle 'insn_read' for an '8254' counter subdevice.
  */
 static int
-dio200_subdev_8254_read(struct comedi_device * dev, comedi_subdevice * s,
+dio200_subdev_8254_read(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	dio200_subdev_8254 *subpriv = s->private;
@@ -1048,7 +1048,7 @@ dio200_subdev_8254_read(struct comedi_device * dev, comedi_subdevice * s,
  * Handle 'insn_write' for an '8254' counter subdevice.
  */
 static int
-dio200_subdev_8254_write(struct comedi_device * dev, comedi_subdevice * s,
+dio200_subdev_8254_write(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	dio200_subdev_8254 *subpriv = s->private;
@@ -1142,7 +1142,7 @@ dio200_get_clock_src(dio200_subdev_8254 * subpriv, unsigned int counter_number,
  * Handle 'insn_config' for an '8254' counter subdevice.
  */
 static int
-dio200_subdev_8254_config(struct comedi_device * dev, comedi_subdevice * s,
+dio200_subdev_8254_config(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	dio200_subdev_8254 *subpriv = s->private;
@@ -1194,7 +1194,7 @@ dio200_subdev_8254_config(struct comedi_device * dev, comedi_subdevice * s,
  * offset is the offset to the 8254 chip.
  */
 static int
-dio200_subdev_8254_init(struct comedi_device * dev, comedi_subdevice * s,
+dio200_subdev_8254_init(struct comedi_device * dev, struct comedi_subdevice * s,
 	unsigned long iobase, unsigned offset, int has_clk_gat_sce)
 {
 	dio200_subdev_8254 *subpriv;
@@ -1247,7 +1247,7 @@ dio200_subdev_8254_init(struct comedi_device * dev, comedi_subdevice * s,
  * This function cleans up an '8254' counter subdevice.
  */
 static void
-dio200_subdev_8254_cleanup(struct comedi_device * dev, comedi_subdevice * s)
+dio200_subdev_8254_cleanup(struct comedi_device * dev, struct comedi_subdevice * s)
 {
 	dio200_subdev_intr *subpriv = s->private;
 
@@ -1264,7 +1264,7 @@ dio200_subdev_8254_cleanup(struct comedi_device * dev, comedi_subdevice * s)
  */
 static int dio200_attach(struct comedi_device * dev, comedi_devconfig * it)
 {
-	comedi_subdevice *s;
+	struct comedi_subdevice *s;
 	unsigned long iobase = 0;
 	unsigned int irq = 0;
 #ifdef CONFIG_COMEDI_PCI
@@ -1443,7 +1443,7 @@ static int dio200_detach(struct comedi_device * dev)
 	if (dev->subdevices) {
 		layout = thislayout;
 		for (n = 0; n < dev->n_subdevices; n++) {
-			comedi_subdevice *s = &dev->subdevices[n];
+			struct comedi_subdevice *s = &dev->subdevices[n];
 			switch (layout->sdtype[n]) {
 			case sd_8254:
 				dio200_subdev_8254_cleanup(dev, s);

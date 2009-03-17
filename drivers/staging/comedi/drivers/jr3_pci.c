@@ -269,7 +269,7 @@ static six_axis_t get_max_full_scales(volatile jr3_channel_t * channel)
 	return result;
 }
 
-static int jr3_pci_ai_insn_read(struct comedi_device * dev, comedi_subdevice * s,
+static int jr3_pci_ai_insn_read(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	int result;
@@ -523,7 +523,7 @@ static int jr3_download_firmware(struct comedi_device * dev, const u8 * data,
 	return result;
 }
 
-static poll_delay_t jr3_pci_poll_subdevice(comedi_subdevice * s)
+static poll_delay_t jr3_pci_poll_subdevice(struct comedi_subdevice * s)
 {
 	poll_delay_t result = poll_delay_min_max(1000, 2000);
 	jr3_pci_subdev_private *p = s->private;

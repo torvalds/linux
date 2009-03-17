@@ -109,7 +109,7 @@ static comedi_driver driver_dio24 = {
 
 static int dio24_attach(struct comedi_device * dev, comedi_devconfig * it)
 {
-	comedi_subdevice *s;
+	struct comedi_subdevice *s;
 	unsigned long iobase = 0;
 #ifdef incomplete
 	unsigned int irq = 0;

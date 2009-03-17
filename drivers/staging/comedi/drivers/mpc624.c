@@ -155,12 +155,12 @@ static comedi_driver driver_mpc624 = {
 };
 
 //----------------------------------------------------------------------------
-static int mpc624_ai_rinsn(struct comedi_device * dev, comedi_subdevice * s,
+static int mpc624_ai_rinsn(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data);
 //----------------------------------------------------------------------------
 static int mpc624_attach(struct comedi_device * dev, comedi_devconfig * it)
 {
-	comedi_subdevice *s;
+	struct comedi_subdevice *s;
 	unsigned long iobase;
 
 	iobase = it->options[0];
@@ -268,7 +268,7 @@ static int mpc624_detach(struct comedi_device * dev)
 // Timeout 200ms
 #define TIMEOUT 200
 
-static int mpc624_ai_rinsn(struct comedi_device * dev, comedi_subdevice * s,
+static int mpc624_ai_rinsn(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	int n, i;

@@ -222,40 +222,40 @@ static struct dio_private *dio_private_word[]={
 COMEDI_PCI_INITCLEANUP_NOMODULE(driver_s626, s626_pci_table);
 
 /* ioctl routines */
-static int s626_ai_insn_config(struct comedi_device *dev, comedi_subdevice *s,
+static int s626_ai_insn_config(struct comedi_device *dev, struct comedi_subdevice *s,
 	comedi_insn *insn, unsigned int *data);
-/* static int s626_ai_rinsn(struct comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,unsigned int *data); */
-static int s626_ai_insn_read(struct comedi_device *dev, comedi_subdevice *s,
+/* static int s626_ai_rinsn(struct comedi_device *dev,struct comedi_subdevice *s,comedi_insn *insn,unsigned int *data); */
+static int s626_ai_insn_read(struct comedi_device *dev, struct comedi_subdevice *s,
 	comedi_insn *insn, unsigned int *data);
-static int s626_ai_cmd(struct comedi_device *dev, comedi_subdevice *s);
-static int s626_ai_cmdtest(struct comedi_device *dev, comedi_subdevice *s,
+static int s626_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s);
+static int s626_ai_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
 	comedi_cmd *cmd);
-static int s626_ai_cancel(struct comedi_device *dev, comedi_subdevice *s);
-static int s626_ao_winsn(struct comedi_device *dev, comedi_subdevice *s,
+static int s626_ai_cancel(struct comedi_device *dev, struct comedi_subdevice *s);
+static int s626_ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
 	comedi_insn *insn, unsigned int *data);
-static int s626_ao_rinsn(struct comedi_device *dev, comedi_subdevice *s,
+static int s626_ao_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 	comedi_insn *insn, unsigned int *data);
-static int s626_dio_insn_bits(struct comedi_device *dev, comedi_subdevice *s,
+static int s626_dio_insn_bits(struct comedi_device *dev, struct comedi_subdevice *s,
 	comedi_insn *insn, unsigned int *data);
-static int s626_dio_insn_config(struct comedi_device *dev, comedi_subdevice *s,
+static int s626_dio_insn_config(struct comedi_device *dev, struct comedi_subdevice *s,
 	comedi_insn *insn, unsigned int *data);
 static int s626_dio_set_irq(struct comedi_device *dev, unsigned int chan);
 static int s626_dio_reset_irq(struct comedi_device *dev, unsigned int gruop,
 	unsigned int mask);
 static int s626_dio_clear_irq(struct comedi_device *dev);
-static int s626_enc_insn_config(struct comedi_device *dev, comedi_subdevice *s,
+static int s626_enc_insn_config(struct comedi_device *dev, struct comedi_subdevice *s,
 	comedi_insn *insn, unsigned int *data);
-static int s626_enc_insn_read(struct comedi_device *dev, comedi_subdevice *s,
+static int s626_enc_insn_read(struct comedi_device *dev, struct comedi_subdevice *s,
 	comedi_insn *insn, unsigned int *data);
-static int s626_enc_insn_write(struct comedi_device *dev, comedi_subdevice *s,
+static int s626_enc_insn_write(struct comedi_device *dev, struct comedi_subdevice *s,
 	comedi_insn *insn, unsigned int *data);
 static int s626_ns_to_timer(int *nanosec, int round_mode);
 static int s626_ai_load_polllist(uint8_t *ppl, comedi_cmd *cmd);
-static int s626_ai_inttrig(struct comedi_device *dev, comedi_subdevice *s,
+static int s626_ai_inttrig(struct comedi_device *dev, struct comedi_subdevice *s,
 	unsigned int trignum);
 static irqreturn_t s626_irq_handler(int irq, void *d PT_REGS_ARG);
 static unsigned int s626_ai_reg_to_uint(int data);
-/* static unsigned int s626_uint_to_reg(comedi_subdevice *s, int data); */
+/* static unsigned int s626_uint_to_reg(struct comedi_subdevice *s, int data); */
 
 /* end ioctl routines */
 
@@ -497,7 +497,7 @@ static int s626_attach(struct comedi_device *dev, comedi_devconfig *it)
 	int ret;
 	resource_size_t resourceStart;
 	dma_addr_t appdma;
-	comedi_subdevice *s;
+	struct comedi_subdevice *s;
 	struct pci_dev *pdev;
 
 	if (alloc_private(dev, sizeof(struct s626_private)) < 0)
@@ -964,14 +964,14 @@ static unsigned int s626_ai_reg_to_uint(int data)
 	return tempdata;
 }
 
-/* static unsigned int s626_uint_to_reg(comedi_subdevice *s, int data){ */
+/* static unsigned int s626_uint_to_reg(struct comedi_subdevice *s, int data){ */
 /*   return 0; */
 /* } */
 
 static irqreturn_t s626_irq_handler(int irq, void *d PT_REGS_ARG)
 {
 	struct comedi_device *dev = d;
-	comedi_subdevice *s;
+	struct comedi_subdevice *s;
 	comedi_cmd *cmd;
 	struct enc_private *k;
 	unsigned long flags;
@@ -1503,14 +1503,14 @@ void ResetADC(struct comedi_device *dev, uint8_t *ppl)
 }
 
 /* TO COMPLETE, IF NECESSARY */
-static int s626_ai_insn_config(struct comedi_device *dev, comedi_subdevice *s,
+static int s626_ai_insn_config(struct comedi_device *dev, struct comedi_subdevice *s,
 	comedi_insn *insn, unsigned int *data)
 {
 
 	return -EINVAL;
 }
 
-/* static int s626_ai_rinsn(struct comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,unsigned int *data) */
+/* static int s626_ai_rinsn(struct comedi_device *dev,struct comedi_subdevice *s,comedi_insn *insn,unsigned int *data) */
 /* { */
 /*   register uint8_t	i; */
 /*   register int32_t	*readaddr; */
@@ -1540,7 +1540,7 @@ static int s626_ai_insn_config(struct comedi_device *dev, comedi_subdevice *s,
 /*   return i; */
 /* } */
 
-static int s626_ai_insn_read(struct comedi_device *dev, comedi_subdevice *s,
+static int s626_ai_insn_read(struct comedi_device *dev, struct comedi_subdevice *s,
 	comedi_insn *insn, unsigned int *data)
 {
 	uint16_t chan = CR_CHAN(insn->chanspec);
@@ -1654,7 +1654,7 @@ static int s626_ai_load_polllist(uint8_t *ppl, comedi_cmd *cmd)
 	return n;
 }
 
-static int s626_ai_inttrig(struct comedi_device *dev, comedi_subdevice *s,
+static int s626_ai_inttrig(struct comedi_device *dev, struct comedi_subdevice *s,
 	unsigned int trignum)
 {
 	if (trignum != 0)
@@ -1673,7 +1673,7 @@ static int s626_ai_inttrig(struct comedi_device *dev, comedi_subdevice *s,
 }
 
 /*  TO COMPLETE  */
-static int s626_ai_cmd(struct comedi_device *dev, comedi_subdevice *s)
+static int s626_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 
 	uint8_t ppl[16];
@@ -1819,7 +1819,7 @@ static int s626_ai_cmd(struct comedi_device *dev, comedi_subdevice *s)
 	return 0;
 }
 
-static int s626_ai_cmdtest(struct comedi_device *dev, comedi_subdevice *s,
+static int s626_ai_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
 	comedi_cmd *cmd)
 {
 	int err = 0;
@@ -2004,7 +2004,7 @@ static int s626_ai_cmdtest(struct comedi_device *dev, comedi_subdevice *s,
 	return 0;
 }
 
-static int s626_ai_cancel(struct comedi_device *dev, comedi_subdevice *s)
+static int s626_ai_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	/*  Stop RPS program in case it is currently running. */
 	MC_DISABLE(P_MC1, MC1_ERPS1);
@@ -2045,7 +2045,7 @@ static int s626_ns_to_timer(int *nanosec, int round_mode)
 	return divider - 1;
 }
 
-static int s626_ao_winsn(struct comedi_device *dev, comedi_subdevice *s,
+static int s626_ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
 	comedi_insn *insn, unsigned int *data)
 {
 
@@ -2064,7 +2064,7 @@ static int s626_ao_winsn(struct comedi_device *dev, comedi_subdevice *s,
 	return i;
 }
 
-static int s626_ao_rinsn(struct comedi_device *dev, comedi_subdevice *s,
+static int s626_ao_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 	comedi_insn *insn, unsigned int *data)
 {
 	int i;
@@ -2084,7 +2084,7 @@ static int s626_ao_rinsn(struct comedi_device *dev, comedi_subdevice *s,
 static void s626_dio_init(struct comedi_device *dev)
 {
 	uint16_t group;
-	comedi_subdevice *s;
+	struct comedi_subdevice *s;
 
 	/*  Prepare to treat writes to WRCapSel as capture disables. */
 	DEBIwrite(dev, LP_MISC1, MISC1_NOEDCAP);
@@ -2110,7 +2110,7 @@ static void s626_dio_init(struct comedi_device *dev)
  * This allows packed reading/writing of the DIO channels.  The comedi
  * core can convert between insn_bits and insn_read/write */
 
-static int s626_dio_insn_bits(struct comedi_device *dev, comedi_subdevice *s,
+static int s626_dio_insn_bits(struct comedi_device *dev, struct comedi_subdevice *s,
 	comedi_insn *insn, unsigned int *data)
 {
 
@@ -2146,7 +2146,7 @@ static int s626_dio_insn_bits(struct comedi_device *dev, comedi_subdevice *s,
 	return 2;
 }
 
-static int s626_dio_insn_config(struct comedi_device *dev, comedi_subdevice *s,
+static int s626_dio_insn_config(struct comedi_device *dev, struct comedi_subdevice *s,
 	comedi_insn *insn, unsigned int *data)
 {
 
@@ -2251,7 +2251,7 @@ static int s626_dio_clear_irq(struct comedi_device *dev)
 /* Now this function initializes the value of the counter (data[0])
    and set the subdevice. To complete with trigger and interrupt
    configuration */
-static int s626_enc_insn_config(struct comedi_device *dev, comedi_subdevice *s,
+static int s626_enc_insn_config(struct comedi_device *dev, struct comedi_subdevice *s,
 	comedi_insn *insn, unsigned int *data)
 {
 	uint16_t Setup = (LOADSRC_INDX << BF_LOADSRC) |	/*  Preload upon */
@@ -2281,7 +2281,7 @@ static int s626_enc_insn_config(struct comedi_device *dev, comedi_subdevice *s,
 	return insn->n;
 }
 
-static int s626_enc_insn_read(struct comedi_device *dev, comedi_subdevice *s,
+static int s626_enc_insn_read(struct comedi_device *dev, struct comedi_subdevice *s,
 	comedi_insn *insn, unsigned int *data)
 {
 
@@ -2299,7 +2299,7 @@ static int s626_enc_insn_read(struct comedi_device *dev, comedi_subdevice *s,
 	return n;
 }
 
-static int s626_enc_insn_write(struct comedi_device *dev, comedi_subdevice *s,
+static int s626_enc_insn_write(struct comedi_device *dev, struct comedi_subdevice *s,
 	comedi_insn *insn, unsigned int *data)
 {
 

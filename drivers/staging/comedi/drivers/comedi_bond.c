@@ -213,9 +213,9 @@ static comedi_driver driver_bonding = {
       .num_names =	sizeof(bondingBoards) / sizeof(struct BondingBoard),
 };
 
-static int bonding_dio_insn_bits(struct comedi_device *dev, comedi_subdevice *s,
+static int bonding_dio_insn_bits(struct comedi_device *dev, struct comedi_subdevice *s,
 				 comedi_insn *insn, unsigned int *data);
-static int bonding_dio_insn_config(struct comedi_device *dev, comedi_subdevice *s,
+static int bonding_dio_insn_config(struct comedi_device *dev, struct comedi_subdevice *s,
 				   comedi_insn *insn, unsigned int *data);
 
 /*
@@ -226,7 +226,7 @@ static int bonding_dio_insn_config(struct comedi_device *dev, comedi_subdevice *
  */
 static int bonding_attach(struct comedi_device *dev, comedi_devconfig *it)
 {
-	comedi_subdevice *s;
+	struct comedi_subdevice *s;
 
 	LOG_MSG("comedi%d\n", dev->minor);
 
@@ -293,7 +293,7 @@ static int bonding_detach(struct comedi_device *dev)
  * useful to applications if you implement the insn_bits interface.
  * This allows packed reading/writing of the DIO channels.  The
  * comedi core can convert between insn_bits and insn_read/write */
-static int bonding_dio_insn_bits(struct comedi_device *dev, comedi_subdevice *s,
+static int bonding_dio_insn_bits(struct comedi_device *dev, struct comedi_subdevice *s,
 				 comedi_insn *insn, unsigned int *data)
 {
 #define LSAMPL_BITS (sizeof(unsigned int)*8)
@@ -340,7 +340,7 @@ static int bonding_dio_insn_bits(struct comedi_device *dev, comedi_subdevice *s,
 	return insn->n;
 }
 
-static int bonding_dio_insn_config(struct comedi_device *dev, comedi_subdevice *s,
+static int bonding_dio_insn_config(struct comedi_device *dev, struct comedi_subdevice *s,
 				   comedi_insn *insn, unsigned int *data)
 {
 	int chan = CR_CHAN(insn->chanspec), ret, io_bits = s->io_bits;

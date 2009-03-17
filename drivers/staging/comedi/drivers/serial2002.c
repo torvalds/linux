@@ -97,15 +97,15 @@ comedi_driver driver_serial2002 = {
       num_names:sizeof(serial2002_boards) / sizeof(serial2002_board),
 };
 
-static int serial2002_di_rinsn(struct comedi_device * dev, comedi_subdevice * s,
+static int serial2002_di_rinsn(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data);
-static int serial2002_do_winsn(struct comedi_device * dev, comedi_subdevice * s,
+static int serial2002_do_winsn(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data);
-static int serial2002_ai_rinsn(struct comedi_device * dev, comedi_subdevice * s,
+static int serial2002_ai_rinsn(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data);
-static int serial2002_ao_winsn(struct comedi_device * dev, comedi_subdevice * s,
+static int serial2002_ao_winsn(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data);
-static int serial2002_ao_rinsn(struct comedi_device * dev, comedi_subdevice * s,
+static int serial2002_ao_rinsn(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data);
 
 struct serial_data {
@@ -597,7 +597,7 @@ static void serial_2002_open(struct comedi_device * dev)
 				break;
 			}
 			if (c) {
-				comedi_subdevice *s;
+				struct comedi_subdevice *s;
 				const comedi_lrange **range_table_list = NULL;
 				unsigned int *maxdata_list;
 				int j, chan;
@@ -660,7 +660,7 @@ static void serial_2002_close(struct comedi_device * dev)
 	}
 }
 
-static int serial2002_di_rinsn(struct comedi_device * dev, comedi_subdevice * s,
+static int serial2002_di_rinsn(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	int n;
@@ -682,7 +682,7 @@ static int serial2002_di_rinsn(struct comedi_device * dev, comedi_subdevice * s,
 	return n;
 }
 
-static int serial2002_do_winsn(struct comedi_device * dev, comedi_subdevice * s,
+static int serial2002_do_winsn(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	int n;
@@ -700,7 +700,7 @@ static int serial2002_do_winsn(struct comedi_device * dev, comedi_subdevice * s,
 	return n;
 }
 
-static int serial2002_ai_rinsn(struct comedi_device * dev, comedi_subdevice * s,
+static int serial2002_ai_rinsn(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	int n;
@@ -722,7 +722,7 @@ static int serial2002_ai_rinsn(struct comedi_device * dev, comedi_subdevice * s,
 	return n;
 }
 
-static int serial2002_ao_winsn(struct comedi_device * dev, comedi_subdevice * s,
+static int serial2002_ao_winsn(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	int n;
@@ -741,7 +741,7 @@ static int serial2002_ao_winsn(struct comedi_device * dev, comedi_subdevice * s,
 	return n;
 }
 
-static int serial2002_ao_rinsn(struct comedi_device * dev, comedi_subdevice * s,
+static int serial2002_ao_rinsn(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	int n;
@@ -754,7 +754,7 @@ static int serial2002_ao_rinsn(struct comedi_device * dev, comedi_subdevice * s,
 	return n;
 }
 
-static int serial2002_ei_rinsn(struct comedi_device * dev, comedi_subdevice * s,
+static int serial2002_ei_rinsn(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	int n;
@@ -778,7 +778,7 @@ static int serial2002_ei_rinsn(struct comedi_device * dev, comedi_subdevice * s,
 
 static int serial2002_attach(struct comedi_device * dev, comedi_devconfig * it)
 {
-	comedi_subdevice *s;
+	struct comedi_subdevice *s;
 
 	printk("comedi%d: serial2002: ", dev->minor);
 	dev->board_name = thisboard->name;
@@ -845,7 +845,7 @@ static int serial2002_attach(struct comedi_device * dev, comedi_devconfig * it)
 
 static int serial2002_detach(struct comedi_device * dev)
 {
-	comedi_subdevice *s;
+	struct comedi_subdevice *s;
 	int i;
 
 	printk("comedi%d: serial2002: remove\n", dev->minor);

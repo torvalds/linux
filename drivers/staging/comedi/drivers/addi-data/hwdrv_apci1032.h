@@ -47,13 +47,13 @@
 //DI
 // for di read
 
-INT i_APCI1032_ConfigDigitalInput(struct comedi_device *dev, comedi_subdevice *s,
+INT i_APCI1032_ConfigDigitalInput(struct comedi_device *dev, struct comedi_subdevice *s,
 				  comedi_insn *insn, unsigned int *data);
 
-INT i_APCI1032_Read1DigitalInput(struct comedi_device *dev, comedi_subdevice *s,
+INT i_APCI1032_Read1DigitalInput(struct comedi_device *dev, struct comedi_subdevice *s,
 				 comedi_insn *insn, unsigned int *data);
 
-INT i_APCI1032_ReadMoreDigitalInput(struct comedi_device *dev, comedi_subdevice *s,
+INT i_APCI1032_ReadMoreDigitalInput(struct comedi_device *dev, struct comedi_subdevice *s,
 				    comedi_insn *insn, unsigned int *data);
 
 // Interrupt functions.....

@@ -119,7 +119,7 @@ typedef struct {
 
 static int ni6527_find_device(struct comedi_device * dev, int bus, int slot);
 
-static int ni6527_di_insn_config(struct comedi_device * dev, comedi_subdevice * s,
+static int ni6527_di_insn_config(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	int chan = CR_CHAN(insn->chanspec);
@@ -167,7 +167,7 @@ static int ni6527_di_insn_config(struct comedi_device * dev, comedi_subdevice * 
 	return 2;
 }
 
-static int ni6527_di_insn_bits(struct comedi_device * dev, comedi_subdevice * s,
+static int ni6527_di_insn_bits(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	if (insn->n != 2)
@@ -180,7 +180,7 @@ static int ni6527_di_insn_bits(struct comedi_device * dev, comedi_subdevice * s,
 	return 2;
 }
 
-static int ni6527_do_insn_bits(struct comedi_device * dev, comedi_subdevice * s,
+static int ni6527_do_insn_bits(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	if (insn->n != 2)
@@ -212,7 +212,7 @@ static int ni6527_do_insn_bits(struct comedi_device * dev, comedi_subdevice * s,
 static irqreturn_t ni6527_interrupt(int irq, void *d PT_REGS_ARG)
 {
 	struct comedi_device *dev = d;
-	comedi_subdevice *s = dev->subdevices + 2;
+	struct comedi_subdevice *s = dev->subdevices + 2;
 	unsigned int status;
 
 	status = readb(devpriv->mite->daq_io_addr + Change_Status);
@@ -230,7 +230,7 @@ static irqreturn_t ni6527_interrupt(int irq, void *d PT_REGS_ARG)
 	return IRQ_HANDLED;
 }
 
-static int ni6527_intr_cmdtest(struct comedi_device * dev, comedi_subdevice * s,
+static int ni6527_intr_cmdtest(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_cmd * cmd)
 {
 	int err = 0;
@@ -306,7 +306,7 @@ static int ni6527_intr_cmdtest(struct comedi_device * dev, comedi_subdevice * s,
 	return 0;
 }
 
-static int ni6527_intr_cmd(struct comedi_device * dev, comedi_subdevice * s)
+static int ni6527_intr_cmd(struct comedi_device * dev, struct comedi_subdevice * s)
 {
 	//comedi_cmd *cmd = &s->async->cmd;
 
@@ -319,14 +319,14 @@ static int ni6527_intr_cmd(struct comedi_device * dev, comedi_subdevice * s)
 	return 0;
 }
 
-static int ni6527_intr_cancel(struct comedi_device * dev, comedi_subdevice * s)
+static int ni6527_intr_cancel(struct comedi_device * dev, struct comedi_subdevice * s)
 {
 	writeb(0x00, devpriv->mite->daq_io_addr + Master_Interrupt_Control);
 
 	return 0;
 }
 
-static int ni6527_intr_insn_bits(struct comedi_device * dev, comedi_subdevice * s,
+static int ni6527_intr_insn_bits(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	if (insn->n < 1)
@@ -336,7 +336,7 @@ static int ni6527_intr_insn_bits(struct comedi_device * dev, comedi_subdevice * 
 	return 2;
 }
 
-static int ni6527_intr_insn_config(struct comedi_device * dev, comedi_subdevice * s,
+static int ni6527_intr_insn_config(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	if (insn->n < 1)
@@ -363,7 +363,7 @@ static int ni6527_intr_insn_config(struct comedi_device * dev, comedi_subdevice 
 
 static int ni6527_attach(struct comedi_device * dev, comedi_devconfig * it)
 {
-	comedi_subdevice *s;
+	struct comedi_subdevice *s;
 	int ret;
 
 	printk("comedi%d: ni6527:", dev->minor);

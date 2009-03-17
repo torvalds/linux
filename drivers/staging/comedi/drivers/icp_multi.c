@@ -214,10 +214,10 @@ struct icp_multi_private {
 */
 
 #if 0
-static int check_channel_list(struct comedi_device *dev, comedi_subdevice *s,
+static int check_channel_list(struct comedi_device *dev, struct comedi_subdevice *s,
 	unsigned int *chanlist, unsigned int n_chan);
 #endif
-static void setup_channel_list(struct comedi_device *dev, comedi_subdevice *s,
+static void setup_channel_list(struct comedi_device *dev, struct comedi_subdevice *s,
 	unsigned int *chanlist, unsigned int n_chan);
 static int icp_multi_reset(struct comedi_device *dev);
 
@@ -237,7 +237,7 @@ static int icp_multi_reset(struct comedi_device *dev);
 
 	Parameters:
 		struct comedi_device *dev	Pointer to current device structure
-		comedi_subdevice *s	Pointer to current subdevice structure
+		struct comedi_subdevice *s	Pointer to current subdevice structure
 		comedi_insn *insn	Pointer to current comedi instruction
 		unsigned int *data		Pointer to analogue input data
 
@@ -245,7 +245,7 @@ static int icp_multi_reset(struct comedi_device *dev);
 
 ==============================================================================
 */
-static int icp_multi_insn_read_ai(struct comedi_device *dev, comedi_subdevice *s,
+static int icp_multi_insn_read_ai(struct comedi_device *dev, struct comedi_subdevice *s,
 	comedi_insn *insn, unsigned int *data)
 {
 	int n, timeout;
@@ -356,7 +356,7 @@ static int icp_multi_insn_read_ai(struct comedi_device *dev, comedi_subdevice *s
 
 	Parameters:
 		struct comedi_device *dev	Pointer to current device structure
-		comedi_subdevice *s	Pointer to current subdevice structure
+		struct comedi_subdevice *s	Pointer to current subdevice structure
 		comedi_insn *insn	Pointer to current comedi instruction
 		unsigned int *data		Pointer to analogue output data
 
@@ -364,7 +364,7 @@ static int icp_multi_insn_read_ai(struct comedi_device *dev, comedi_subdevice *s
 
 ==============================================================================
 */
-static int icp_multi_insn_write_ao(struct comedi_device *dev, comedi_subdevice *s,
+static int icp_multi_insn_write_ao(struct comedi_device *dev, struct comedi_subdevice *s,
 	comedi_insn *insn, unsigned int *data)
 {
 	int n, chan, range, timeout;
@@ -464,7 +464,7 @@ static int icp_multi_insn_write_ao(struct comedi_device *dev, comedi_subdevice *
 
 	Parameters:
 		struct comedi_device *dev	Pointer to current device structure
-		comedi_subdevice *s	Pointer to current subdevice structure
+		struct comedi_subdevice *s	Pointer to current subdevice structure
 		comedi_insn *insn	Pointer to current comedi instruction
 		unsigned int *data		Pointer to analogue output data
 
@@ -472,7 +472,7 @@ static int icp_multi_insn_write_ao(struct comedi_device *dev, comedi_subdevice *
 
 ==============================================================================
 */
-static int icp_multi_insn_read_ao(struct comedi_device *dev, comedi_subdevice *s,
+static int icp_multi_insn_read_ao(struct comedi_device *dev, struct comedi_subdevice *s,
 	comedi_insn *insn, unsigned int *data)
 {
 	int n, chan;
@@ -497,7 +497,7 @@ static int icp_multi_insn_read_ao(struct comedi_device *dev, comedi_subdevice *s
 
 	Parameters:
 		struct comedi_device *dev	Pointer to current device structure
-		comedi_subdevice *s	Pointer to current subdevice structure
+		struct comedi_subdevice *s	Pointer to current subdevice structure
 		comedi_insn *insn	Pointer to current comedi instruction
 		unsigned int *data		Pointer to analogue output data
 
@@ -505,7 +505,7 @@ static int icp_multi_insn_read_ao(struct comedi_device *dev, comedi_subdevice *s
 
 ==============================================================================
 */
-static int icp_multi_insn_bits_di(struct comedi_device *dev, comedi_subdevice *s,
+static int icp_multi_insn_bits_di(struct comedi_device *dev, struct comedi_subdevice *s,
 	comedi_insn *insn, unsigned int *data)
 {
 	data[1] = readw(devpriv->io_addr + ICP_MULTI_DI);
@@ -523,7 +523,7 @@ static int icp_multi_insn_bits_di(struct comedi_device *dev, comedi_subdevice *s
 
 	Parameters:
 		struct comedi_device *dev	Pointer to current device structure
-		comedi_subdevice *s	Pointer to current subdevice structure
+		struct comedi_subdevice *s	Pointer to current subdevice structure
 		comedi_insn *insn	Pointer to current comedi instruction
 		unsigned int *data		Pointer to analogue output data
 
@@ -531,7 +531,7 @@ static int icp_multi_insn_bits_di(struct comedi_device *dev, comedi_subdevice *s
 
 ==============================================================================
 */
-static int icp_multi_insn_bits_do(struct comedi_device *dev, comedi_subdevice *s,
+static int icp_multi_insn_bits_do(struct comedi_device *dev, struct comedi_subdevice *s,
 	comedi_insn *insn, unsigned int *data)
 {
 #ifdef ICP_MULTI_EXTDEBUG
@@ -565,7 +565,7 @@ static int icp_multi_insn_bits_do(struct comedi_device *dev, comedi_subdevice *s
 
 	Parameters:
 		struct comedi_device *dev	Pointer to current device structure
-		comedi_subdevice *s	Pointer to current subdevice structure
+		struct comedi_subdevice *s	Pointer to current subdevice structure
 		comedi_insn *insn	Pointer to current comedi instruction
 		unsigned int *data		Pointer to counter data
 
@@ -573,7 +573,7 @@ static int icp_multi_insn_bits_do(struct comedi_device *dev, comedi_subdevice *s
 
 ==============================================================================
 */
-static int icp_multi_insn_read_ctr(struct comedi_device *dev, comedi_subdevice *s,
+static int icp_multi_insn_read_ctr(struct comedi_device *dev, struct comedi_subdevice *s,
 	comedi_insn *insn, unsigned int *data)
 {
 	return 0;
@@ -589,7 +589,7 @@ static int icp_multi_insn_read_ctr(struct comedi_device *dev, comedi_subdevice *
 
 	Parameters:
 		struct comedi_device *dev	Pointer to current device structure
-		comedi_subdevice *s	Pointer to current subdevice structure
+		struct comedi_subdevice *s	Pointer to current subdevice structure
 		comedi_insn *insn	Pointer to current comedi instruction
 		unsigned int *data		Pointer to counter data
 
@@ -597,7 +597,7 @@ static int icp_multi_insn_read_ctr(struct comedi_device *dev, comedi_subdevice *
 
 ==============================================================================
 */
-static int icp_multi_insn_write_ctr(struct comedi_device *dev, comedi_subdevice *s,
+static int icp_multi_insn_write_ctr(struct comedi_device *dev, struct comedi_subdevice *s,
 	comedi_insn *insn, unsigned int *data)
 {
 	return 0;
@@ -680,7 +680,7 @@ static irqreturn_t interrupt_service_icp_multi(int irq, void *d PT_REGS_ARG)
 
 	Parameters:
 		struct comedi_device *dev	Pointer to current sevice structure
-		comedi_subdevice *s	Pointer to current subdevice structure
+		struct comedi_subdevice *s	Pointer to current subdevice structure
 		unsigned int *chanlist	Pointer to packed channel list
 		unsigned int n_chan	Number of channels to scan
 
@@ -689,7 +689,7 @@ static irqreturn_t interrupt_service_icp_multi(int irq, void *d PT_REGS_ARG)
 
 ==============================================================================
 */
-static int check_channel_list(struct comedi_device *dev, comedi_subdevice *s,
+static int check_channel_list(struct comedi_device *dev, struct comedi_subdevice *s,
 	unsigned int *chanlist, unsigned int n_chan)
 {
 	unsigned int i;
@@ -735,7 +735,7 @@ static int check_channel_list(struct comedi_device *dev, comedi_subdevice *s,
 
 	Parameters:
 		struct comedi_device *dev	Pointer to current sevice structure
-		comedi_subdevice *s	Pointer to current subdevice structure
+		struct comedi_subdevice *s	Pointer to current subdevice structure
 		unsigned int *chanlist	Pointer to packed channel list
 		unsigned int n_chan	Number of channels to scan
 
@@ -743,7 +743,7 @@ static int check_channel_list(struct comedi_device *dev, comedi_subdevice *s,
 
 ==============================================================================
 */
-static void setup_channel_list(struct comedi_device *dev, comedi_subdevice *s,
+static void setup_channel_list(struct comedi_device *dev, struct comedi_subdevice *s,
 	unsigned int *chanlist, unsigned int n_chan)
 {
 	unsigned int i, range, chanprog;
@@ -872,7 +872,7 @@ static int icp_multi_reset(struct comedi_device *dev)
 */
 static int icp_multi_attach(struct comedi_device *dev, comedi_devconfig *it)
 {
-	comedi_subdevice *s;
+	struct comedi_subdevice *s;
 	int ret, subdev, n_subdevices;
 	unsigned int irq;
 	struct pcilst_struct *card = NULL;

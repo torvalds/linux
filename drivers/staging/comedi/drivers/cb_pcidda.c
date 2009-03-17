@@ -234,11 +234,11 @@ typedef struct {
 
 static int cb_pcidda_attach(struct comedi_device * dev, comedi_devconfig * it);
 static int cb_pcidda_detach(struct comedi_device * dev);
-//static int cb_pcidda_ai_rinsn(struct comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,unsigned int *data);
-static int cb_pcidda_ao_winsn(struct comedi_device * dev, comedi_subdevice * s,
+//static int cb_pcidda_ai_rinsn(struct comedi_device *dev,struct comedi_subdevice *s,comedi_insn *insn,unsigned int *data);
+static int cb_pcidda_ao_winsn(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data);
-//static int cb_pcidda_ai_cmd(struct comedi_device *dev,comedi_subdevice *s);
-//static int cb_pcidda_ai_cmdtest(struct comedi_device *dev,comedi_subdevice *s, comedi_cmd *cmd);
+//static int cb_pcidda_ai_cmd(struct comedi_device *dev,struct comedi_subdevice *s);
+//static int cb_pcidda_ai_cmdtest(struct comedi_device *dev,struct comedi_subdevice *s, comedi_cmd *cmd);
 //static int cb_pcidda_ns_to_timer(unsigned int *ns,int round);
 static unsigned int cb_pcidda_serial_in(struct comedi_device * dev);
 static void cb_pcidda_serial_out(struct comedi_device * dev, unsigned int value,
@@ -267,7 +267,7 @@ static comedi_driver driver_cb_pcidda = {
  */
 static int cb_pcidda_attach(struct comedi_device * dev, comedi_devconfig * it)
 {
-	comedi_subdevice *s;
+	struct comedi_subdevice *s;
 	struct pci_dev *pcidev;
 	int index;
 
@@ -413,7 +413,7 @@ static int cb_pcidda_detach(struct comedi_device * dev)
  * I will program this later... ;-)
  */
 #if 0
-static int cb_pcidda_ai_cmd(struct comedi_device * dev, comedi_subdevice * s)
+static int cb_pcidda_ai_cmd(struct comedi_device * dev, struct comedi_subdevice * s)
 {
 	printk("cb_pcidda_ai_cmd\n");
 	printk("subdev: %d\n", cmd->subdev);
@@ -432,7 +432,7 @@ static int cb_pcidda_ai_cmd(struct comedi_device * dev, comedi_subdevice * s)
 #endif
 
 #if 0
-static int cb_pcidda_ai_cmdtest(struct comedi_device * dev, comedi_subdevice * s,
+static int cb_pcidda_ai_cmdtest(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_cmd * cmd)
 {
 	int err = 0;
@@ -598,7 +598,7 @@ static int cb_pcidda_ns_to_timer(unsigned int *ns, int round)
 }
 #endif
 
-static int cb_pcidda_ao_winsn(struct comedi_device * dev, comedi_subdevice * s,
+static int cb_pcidda_ao_winsn(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	unsigned int command;

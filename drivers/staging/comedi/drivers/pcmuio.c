@@ -253,16 +253,16 @@ static comedi_driver driver = {
       num_names:sizeof(pcmuio_boards) / sizeof(pcmuio_board),
 };
 
-static int pcmuio_dio_insn_bits(struct comedi_device * dev, comedi_subdevice * s,
+static int pcmuio_dio_insn_bits(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data);
-static int pcmuio_dio_insn_config(struct comedi_device * dev, comedi_subdevice * s,
+static int pcmuio_dio_insn_config(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data);
 
 static irqreturn_t interrupt_pcmuio(int irq, void *d PT_REGS_ARG);
-static void pcmuio_stop_intr(struct comedi_device *, comedi_subdevice *);
-static int pcmuio_cancel(struct comedi_device * dev, comedi_subdevice * s);
-static int pcmuio_cmd(struct comedi_device * dev, comedi_subdevice * s);
-static int pcmuio_cmdtest(struct comedi_device * dev, comedi_subdevice * s,
+static void pcmuio_stop_intr(struct comedi_device *, struct comedi_subdevice *);
+static int pcmuio_cancel(struct comedi_device * dev, struct comedi_subdevice * s);
+static int pcmuio_cmd(struct comedi_device * dev, struct comedi_subdevice * s);
+static int pcmuio_cmdtest(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_cmd * cmd);
 
 /* some helper functions to deal with specifics of this device's registers */
@@ -281,7 +281,7 @@ static void unlock_port(struct comedi_device * dev, int asic, int port);
  */
 static int pcmuio_attach(struct comedi_device * dev, comedi_devconfig * it)
 {
-	comedi_subdevice *s;
+	struct comedi_subdevice *s;
 	int sdev_no, chans_left, n_subdevs, port, asic, thisasic_chanct = 0;
 	unsigned long iobase;
 	unsigned int irq[MAX_ASICS];
@@ -474,7 +474,7 @@ static int pcmuio_detach(struct comedi_device * dev)
  * useful to applications if you implement the insn_bits interface.
  * This allows packed reading/writing of the DIO channels.  The
  * comedi core can convert between insn_bits and insn_read/write */
-static int pcmuio_dio_insn_bits(struct comedi_device * dev, comedi_subdevice * s,
+static int pcmuio_dio_insn_bits(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	int byte_no;
@@ -548,7 +548,7 @@ static int pcmuio_dio_insn_bits(struct comedi_device * dev, comedi_subdevice * s
  * configured by a special insn_config instruction.  chanspec
  * contains the channel to be changed, and data[0] contains the
  * value COMEDI_INPUT or COMEDI_OUTPUT. */
-static int pcmuio_dio_insn_config(struct comedi_device * dev, comedi_subdevice * s,
+static int pcmuio_dio_insn_config(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	int chan = CR_CHAN(insn->chanspec), byte_no = chan / 8, bit_no =
@@ -738,7 +738,7 @@ static irqreturn_t interrupt_pcmuio(int irq, void *d PT_REGS_ARG)
 				spinlock, flags);
 
 			if (triggered) {
-				comedi_subdevice *s;
+				struct comedi_subdevice *s;
 				/* TODO here: dispatch io lines to subdevs with commands.. */
 				printk("PCMUIO DEBUG: got edge detect interrupt %d asic %d which_chans: %06x\n", irq, asic, triggered);
 				for (s = dev->subdevices;
@@ -837,7 +837,7 @@ static irqreturn_t interrupt_pcmuio(int irq, void *d PT_REGS_ARG)
 	return IRQ_HANDLED;
 }
 
-static void pcmuio_stop_intr(struct comedi_device * dev, comedi_subdevice * s)
+static void pcmuio_stop_intr(struct comedi_device * dev, struct comedi_subdevice * s)
 {
 	int nports, firstport, asic, port;
 
@@ -856,7 +856,7 @@ static void pcmuio_stop_intr(struct comedi_device * dev, comedi_subdevice * s)
 	}
 }
 
-static int pcmuio_start_intr(struct comedi_device * dev, comedi_subdevice * s)
+static int pcmuio_start_intr(struct comedi_device * dev, struct comedi_subdevice * s)
 {
 	if (!subpriv->intr.continuous && subpriv->intr.stop_count == 0) {
 		/* An empty acquisition! */
@@ -905,7 +905,7 @@ static int pcmuio_start_intr(struct comedi_device * dev, comedi_subdevice * s)
 	return 0;
 }
 
-static int pcmuio_cancel(struct comedi_device * dev, comedi_subdevice * s)
+static int pcmuio_cancel(struct comedi_device * dev, struct comedi_subdevice * s)
 {
 	unsigned long flags;
 
@@ -921,7 +921,7 @@ static int pcmuio_cancel(struct comedi_device * dev, comedi_subdevice * s)
  * Internal trigger function to start acquisition for an 'INTERRUPT' subdevice.
  */
 static int
-pcmuio_inttrig_start_intr(struct comedi_device * dev, comedi_subdevice * s,
+pcmuio_inttrig_start_intr(struct comedi_device * dev, struct comedi_subdevice * s,
 	unsigned int trignum)
 {
 	unsigned long flags;
@@ -947,7 +947,7 @@ pcmuio_inttrig_start_intr(struct comedi_device * dev, comedi_subdevice * s,
 /*
  * 'do_cmd' function for an 'INTERRUPT' subdevice.
  */
-static int pcmuio_cmd(struct comedi_device * dev, comedi_subdevice * s)
+static int pcmuio_cmd(struct comedi_device * dev, struct comedi_subdevice * s)
 {
 	comedi_cmd *cmd = &s->async->cmd;
 	unsigned long flags;
@@ -992,7 +992,7 @@ static int pcmuio_cmd(struct comedi_device * dev, comedi_subdevice * s)
  * 'do_cmdtest' function for an 'INTERRUPT' subdevice.
  */
 static int
-pcmuio_cmdtest(struct comedi_device * dev, comedi_subdevice * s, comedi_cmd * cmd)
+pcmuio_cmdtest(struct comedi_device * dev, struct comedi_subdevice * s, comedi_cmd * cmd)
 {
 	int err = 0;
 	unsigned int tmp;

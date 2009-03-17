@@ -146,9 +146,9 @@ static comedi_driver driver_amplc_pc263 = {
 
 static int pc263_request_region(unsigned minor, unsigned long from,
 	unsigned long extent);
-static int pc263_dio_insn_bits(struct comedi_device * dev, comedi_subdevice * s,
+static int pc263_dio_insn_bits(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data);
-static int pc263_dio_insn_config(struct comedi_device * dev, comedi_subdevice * s,
+static int pc263_dio_insn_config(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data);
 
 /*
@@ -221,7 +221,7 @@ pc263_find_pci(struct comedi_device * dev, int bus, int slot,
  */
 static int pc263_attach(struct comedi_device * dev, comedi_devconfig * it)
 {
-	comedi_subdevice *s;
+	struct comedi_subdevice *s;
 	unsigned long iobase = 0;
 #ifdef CONFIG_COMEDI_PCI
 	struct pci_dev *pci_dev = NULL;
@@ -387,7 +387,7 @@ static int pc263_request_region(unsigned minor, unsigned long from,
  * useful to applications if you implement the insn_bits interface.
  * This allows packed reading/writing of the DIO channels.  The
  * comedi core can convert between insn_bits and insn_read/write */
-static int pc263_dio_insn_bits(struct comedi_device * dev, comedi_subdevice * s,
+static int pc263_dio_insn_bits(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	if (insn->n != 2)
@@ -412,7 +412,7 @@ static int pc263_dio_insn_bits(struct comedi_device * dev, comedi_subdevice * s,
 	return 2;
 }
 
-static int pc263_dio_insn_config(struct comedi_device * dev, comedi_subdevice * s,
+static int pc263_dio_insn_config(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	if (insn->n != 1)

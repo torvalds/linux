@@ -126,9 +126,9 @@ struct subdev_700_struct {
 #define CALLBACK_FUNC	(((struct subdev_700_struct *)s->private)->cb_func)
 #define subdevpriv	((struct subdev_700_struct *)s->private)
 
-static void do_config(struct comedi_device * dev, comedi_subdevice * s);
+static void do_config(struct comedi_device * dev, struct comedi_subdevice * s);
 
-void subdev_700_interrupt(struct comedi_device * dev, comedi_subdevice * s)
+void subdev_700_interrupt(struct comedi_device * dev, struct comedi_subdevice * s)
 {
 	short d;
 
@@ -153,7 +153,7 @@ static int subdev_700_cb(int dir, int port, int data, unsigned long arg)
 	}
 }
 
-static int subdev_700_insn(struct comedi_device * dev, comedi_subdevice * s,
+static int subdev_700_insn(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	if (data[0]) {
@@ -171,7 +171,7 @@ static int subdev_700_insn(struct comedi_device * dev, comedi_subdevice * s,
 	return 2;
 }
 
-static int subdev_700_insn_config(struct comedi_device * dev, comedi_subdevice * s,
+static int subdev_700_insn_config(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 
@@ -194,12 +194,12 @@ static int subdev_700_insn_config(struct comedi_device * dev, comedi_subdevice *
 	return 1;
 }
 
-static void do_config(struct comedi_device * dev, comedi_subdevice * s)
+static void do_config(struct comedi_device * dev, struct comedi_subdevice * s)
 {				/* use powerup defaults */
 	return;
 }
 
-static int subdev_700_cmdtest(struct comedi_device * dev, comedi_subdevice * s,
+static int subdev_700_cmdtest(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_cmd * cmd)
 {
 	int err = 0;
@@ -274,21 +274,21 @@ static int subdev_700_cmdtest(struct comedi_device * dev, comedi_subdevice * s,
 	return 0;
 }
 
-static int subdev_700_cmd(struct comedi_device * dev, comedi_subdevice * s)
+static int subdev_700_cmd(struct comedi_device * dev, struct comedi_subdevice * s)
 {
 	/* FIXME */
 
 	return 0;
 }
 
-static int subdev_700_cancel(struct comedi_device * dev, comedi_subdevice * s)
+static int subdev_700_cancel(struct comedi_device * dev, struct comedi_subdevice * s)
 {
 	/* FIXME */
 
 	return 0;
 }
 
-int subdev_700_init(struct comedi_device * dev, comedi_subdevice * s, int (*cb) (int,
+int subdev_700_init(struct comedi_device * dev, struct comedi_subdevice * s, int (*cb) (int,
 		int, int, unsigned long), unsigned long arg)
 {
 	s->type = COMEDI_SUBD_DIO;
@@ -317,7 +317,7 @@ int subdev_700_init(struct comedi_device * dev, comedi_subdevice * s, int (*cb) 
 	return 0;
 }
 
-int subdev_700_init_irq(struct comedi_device * dev, comedi_subdevice * s,
+int subdev_700_init_irq(struct comedi_device * dev, struct comedi_subdevice * s,
 	int (*cb) (int, int, int, unsigned long), unsigned long arg)
 {
 	int ret;
@@ -335,7 +335,7 @@ int subdev_700_init_irq(struct comedi_device * dev, comedi_subdevice * s,
 	return 0;
 }
 
-void subdev_700_cleanup(struct comedi_device * dev, comedi_subdevice * s)
+void subdev_700_cleanup(struct comedi_device * dev, struct comedi_subdevice * s)
 {
 	if (s->private) {
 		if (subdevpriv->have_irq) {
@@ -352,7 +352,7 @@ EXPORT_SYMBOL(subdev_700_interrupt);
 
 static int dio700_attach(struct comedi_device * dev, comedi_devconfig * it)
 {
-	comedi_subdevice *s;
+	struct comedi_subdevice *s;
 	unsigned long iobase = 0;
 #ifdef incomplete
 	unsigned int irq = 0;

@@ -88,7 +88,7 @@ typedef struct {
 
 #define devpriv	((aio12_8_private *) dev->private)
 
-static int aio_aio12_8_ai_read(struct comedi_device * dev, comedi_subdevice * s,
+static int aio_aio12_8_ai_read(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	int n;
@@ -122,7 +122,7 @@ static int aio_aio12_8_ai_read(struct comedi_device * dev, comedi_subdevice * s,
 	return n;
 }
 
-static int aio_aio12_8_ao_read(struct comedi_device * dev, comedi_subdevice * s,
+static int aio_aio12_8_ao_read(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	int i;
@@ -133,7 +133,7 @@ static int aio_aio12_8_ao_read(struct comedi_device * dev, comedi_subdevice * s,
 	return insn->n;
 }
 
-static int aio_aio12_8_ao_write(struct comedi_device * dev, comedi_subdevice * s,
+static int aio_aio12_8_ao_write(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	int i;
@@ -164,7 +164,7 @@ static const comedi_lrange range_aio_aio12_8 = {
 static int aio_aio12_8_attach(struct comedi_device * dev, comedi_devconfig * it)
 {
 	int iobase;
-	comedi_subdevice *s;
+	struct comedi_subdevice *s;
 
 	iobase = it->options[0];
 	if (!request_region(iobase, 24, "aio_aio12_8")) {

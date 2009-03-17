@@ -393,7 +393,7 @@ static void setup_sampling(struct comedi_device * dev, int chan, int gain)
 	writeAcqScanListEntry(dev, word3);
 }
 
-static int daqboard2000_ai_insn_read(struct comedi_device * dev, comedi_subdevice * s,
+static int daqboard2000_ai_insn_read(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	int i;
@@ -450,7 +450,7 @@ static int daqboard2000_ai_insn_read(struct comedi_device * dev, comedi_subdevic
 	return i;
 }
 
-static int daqboard2000_ao_insn_read(struct comedi_device * dev, comedi_subdevice * s,
+static int daqboard2000_ao_insn_read(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	int i;
@@ -463,7 +463,7 @@ static int daqboard2000_ao_insn_read(struct comedi_device * dev, comedi_subdevic
 	return i;
 }
 
-static int daqboard2000_ao_insn_write(struct comedi_device * dev, comedi_subdevice * s,
+static int daqboard2000_ao_insn_write(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	int i;
@@ -720,7 +720,7 @@ static int daqboard2000_8255_cb(int dir, int port, int data,
 static int daqboard2000_attach(struct comedi_device * dev, comedi_devconfig * it)
 {
 	int result = 0;
-	comedi_subdevice *s;
+	struct comedi_subdevice *s;
 	struct pci_dev *card = NULL;
 	void *aux_data;
 	unsigned int aux_len;

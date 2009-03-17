@@ -178,7 +178,7 @@ static irqreturn_t rti800_interrupt(int irq, void *dev PT_REGS_ARG)
 // settling delay times in usec for different gains
 static const int gaindelay[] = { 10, 20, 40, 80 };
 
-static int rti800_ai_insn_read(struct comedi_device * dev, comedi_subdevice * s,
+static int rti800_ai_insn_read(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	int i, t;
@@ -231,7 +231,7 @@ static int rti800_ai_insn_read(struct comedi_device * dev, comedi_subdevice * s,
 	return i;
 }
 
-static int rti800_ao_insn_read(struct comedi_device * dev, comedi_subdevice * s,
+static int rti800_ao_insn_read(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	int i;
@@ -243,7 +243,7 @@ static int rti800_ao_insn_read(struct comedi_device * dev, comedi_subdevice * s,
 	return i;
 }
 
-static int rti800_ao_insn_write(struct comedi_device * dev, comedi_subdevice * s,
+static int rti800_ao_insn_write(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	int chan = CR_CHAN(insn->chanspec);
@@ -263,7 +263,7 @@ static int rti800_ao_insn_write(struct comedi_device * dev, comedi_subdevice * s
 	return i;
 }
 
-static int rti800_di_insn_bits(struct comedi_device * dev, comedi_subdevice * s,
+static int rti800_di_insn_bits(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	if (insn->n != 2)
@@ -272,7 +272,7 @@ static int rti800_di_insn_bits(struct comedi_device * dev, comedi_subdevice * s,
 	return 2;
 }
 
-static int rti800_do_insn_bits(struct comedi_device * dev, comedi_subdevice * s,
+static int rti800_do_insn_bits(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	if (insn->n != 2)
@@ -312,7 +312,7 @@ static int rti800_attach(struct comedi_device * dev, comedi_devconfig * it)
 	unsigned int irq;
 	unsigned long iobase;
 	int ret;
-	comedi_subdevice *s;
+	struct comedi_subdevice *s;
 
 	iobase = it->options[0];
 	printk("comedi%d: rti800: 0x%04lx ", dev->minor, iobase);

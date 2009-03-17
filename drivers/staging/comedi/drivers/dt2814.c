@@ -81,7 +81,7 @@ typedef struct {
 #define DT2814_TIMEOUT 10
 #define DT2814_MAX_SPEED 100000	/* Arbitrary 10 khz limit */
 
-static int dt2814_ai_insn_read(struct comedi_device * dev, comedi_subdevice * s,
+static int dt2814_ai_insn_read(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	int n, i, hi, lo;
@@ -132,7 +132,7 @@ static int dt2814_ns_to_timer(unsigned int *ns, unsigned int flags)
 	return i;
 }
 
-static int dt2814_ai_cmdtest(struct comedi_device * dev, comedi_subdevice * s,
+static int dt2814_ai_cmdtest(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_cmd * cmd)
 {
 	int err = 0;
@@ -224,7 +224,7 @@ static int dt2814_ai_cmdtest(struct comedi_device * dev, comedi_subdevice * s,
 	return 0;
 }
 
-static int dt2814_ai_cmd(struct comedi_device * dev, comedi_subdevice * s)
+static int dt2814_ai_cmd(struct comedi_device * dev, struct comedi_subdevice * s)
 {
 	comedi_cmd *cmd = &s->async->cmd;
 	int chan;
@@ -247,7 +247,7 @@ static int dt2814_attach(struct comedi_device * dev, comedi_devconfig * it)
 {
 	int i, irq;
 	int ret;
-	comedi_subdevice *s;
+	struct comedi_subdevice *s;
 	unsigned long iobase;
 
 	iobase = it->options[0];
@@ -345,7 +345,7 @@ static irqreturn_t dt2814_interrupt(int irq, void *d PT_REGS_ARG)
 {
 	int lo, hi;
 	struct comedi_device *dev = d;
-	comedi_subdevice *s;
+	struct comedi_subdevice *s;
 	int data;
 
 	if (!dev->attached) {

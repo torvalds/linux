@@ -284,7 +284,7 @@ static int usbduxfast_ai_stop(struct usbduxfastsub_s *udfs,
  * This will cancel a running acquisition operation.
  * This is called by comedi but never from inside the driver.
  */
-static int usbduxfast_ai_cancel(struct comedi_device *dev, comedi_subdevice *s)
+static int usbduxfast_ai_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	struct usbduxfastsub_s *udfs;
 	int ret;
@@ -319,7 +319,7 @@ static void usbduxfastsub_ai_Irq(struct urb *urb PT_REGS_ARG)
 	int n, err;
 	struct usbduxfastsub_s *udfs;
 	struct comedi_device *this_comedidev;
-	comedi_subdevice *s;
+	struct comedi_subdevice *s;
 	uint16_t *p;
 
 	/* sanity checks - is the urb there? */
@@ -578,7 +578,7 @@ int usbduxfastsub_submit_InURBs(struct usbduxfastsub_s *udfs)
 }
 
 static int usbduxfast_ai_cmdtest(struct comedi_device *dev,
-	comedi_subdevice *s, comedi_cmd *cmd)
+	struct comedi_subdevice *s, comedi_cmd *cmd)
 {
 	int err = 0, stop_mask = 0;
 	long int steps, tmp;
@@ -720,7 +720,7 @@ static int usbduxfast_ai_cmdtest(struct comedi_device *dev,
 }
 
 static int usbduxfast_ai_inttrig(struct comedi_device *dev,
-	comedi_subdevice *s, unsigned int trignum)
+	struct comedi_subdevice *s, unsigned int trignum)
 {
 	int ret;
 	struct usbduxfastsub_s *udfs = dev->private;
@@ -771,7 +771,7 @@ static int usbduxfast_ai_inttrig(struct comedi_device *dev,
 #define OUTBASE	(1+0x10)
 #define LOGBASE	(1+0x18)
 
-static int usbduxfast_ai_cmd(struct comedi_device *dev, comedi_subdevice *s)
+static int usbduxfast_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	comedi_cmd *cmd = &s->async->cmd;
 	unsigned int chan, gain, rngmask = 0xff;
@@ -1231,7 +1231,7 @@ static int usbduxfast_ai_cmd(struct comedi_device *dev, comedi_subdevice *s)
  * Mode 0 is used to get a single conversion on demand.
  */
 static int usbduxfast_ai_insn_read(struct comedi_device *dev,
-	comedi_subdevice *s, comedi_insn *insn, unsigned int *data)
+	struct comedi_subdevice *s, comedi_insn *insn, unsigned int *data)
 {
 	int i, j, n, actual_length;
 	int chan, range, rngmask;
@@ -1720,7 +1720,7 @@ static int usbduxfast_attach(struct comedi_device *dev, comedi_devconfig *it)
 	int ret;
 	int index;
 	int i;
-	comedi_subdevice *s = NULL;
+	struct comedi_subdevice *s = NULL;
 	dev->private = NULL;
 
 	down(&start_stop_sem);

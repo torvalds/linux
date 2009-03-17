@@ -50,7 +50,7 @@ static comedi_driver driver_acl7225b = {
 
 COMEDI_INITCLEANUP(driver_acl7225b);
 
-static int acl7225b_do_insn(struct comedi_device *dev, comedi_subdevice * s,
+static int acl7225b_do_insn(struct comedi_device *dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	if (insn->n != 2)
@@ -71,7 +71,7 @@ static int acl7225b_do_insn(struct comedi_device *dev, comedi_subdevice * s,
 	return 2;
 }
 
-static int acl7225b_di_insn(struct comedi_device *dev, comedi_subdevice * s,
+static int acl7225b_di_insn(struct comedi_device *dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	if (insn->n != 2)
@@ -85,7 +85,7 @@ static int acl7225b_di_insn(struct comedi_device *dev, comedi_subdevice * s,
 
 static int acl7225b_attach(struct comedi_device *dev, comedi_devconfig * it)
 {
-	comedi_subdevice *s;
+	struct comedi_subdevice *s;
 	int iobase, iorange;
 
 	iobase = it->options[0];

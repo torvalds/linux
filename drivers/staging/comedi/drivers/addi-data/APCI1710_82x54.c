@@ -32,7 +32,7 @@
 |                                BYTE_   b_InputClockLevel,                  |
 |                                BYTE_   b_OutputLevel,                      |
 |                                BYTE_   b_HardwareGateLevel)
-INT i_InsnConfig_InitTimer(struct comedi_device *dev,comedi_subdevice *s,
+INT i_InsnConfig_InitTimer(struct comedi_device *dev,struct comedi_subdevice *s,
 	comedi_insn *insn,unsigned int *data)
 |
 +----------------------------------------------------------------------------+
@@ -219,7 +219,7 @@ INT i_InsnConfig_InitTimer(struct comedi_device *dev,comedi_subdevice *s,
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_InsnConfigInitTimer(struct comedi_device * dev, comedi_subdevice * s,
+INT i_APCI1710_InsnConfigInitTimer(struct comedi_device * dev, struct comedi_subdevice * s,
 				   comedi_insn * insn, unsigned int * data)
 {
 
@@ -406,7 +406,7 @@ INT i_APCI1710_InsnConfigInitTimer(struct comedi_device * dev, comedi_subdevice 
 |                                BYTE_ b_ModulNbr,                           |
 |                                BYTE_ b_TimerNbr,                           |
 |                                BYTE_ b_InterruptEnable)
-INT i_APCI1710_InsnWriteEnableDisableTimer(struct comedi_device *dev,comedi_subdevice *s,
+INT i_APCI1710_InsnWriteEnableDisableTimer(struct comedi_device *dev,struct comedi_subdevice *s,
 	comedi_insn *insn,unsigned int *data)                |
 +----------------------------------------------------------------------------+
 | Task              : Enable OR Disable the Timer (b_TimerNbr) from selected module     |
@@ -449,7 +449,7 @@ i_ReturnValue=insn->n;
 */
 
 INT i_APCI1710_InsnWriteEnableDisableTimer(struct comedi_device * dev,
-					   comedi_subdevice * s,
+					   struct comedi_subdevice * s,
 					   comedi_insn * insn, unsigned int * data)
 {
 	INT i_ReturnValue = 0;
@@ -561,7 +561,7 @@ INT i_APCI1710_InsnWriteEnableDisableTimer(struct comedi_device * dev,
 |                                       (BYTE_     b_BoardHandle,            |
 |                                        BYTE_     b_ModulNbr,               |
 |                                        PULONG_ pul_TimerValueArray)
-INT i_APCI1710_InsnReadAllTimerValue(struct comedi_device *dev,comedi_subdevice *s,
+INT i_APCI1710_InsnReadAllTimerValue(struct comedi_device *dev,struct comedi_subdevice *s,
 	comedi_insn *insn,unsigned int *data)        |
 +----------------------------------------------------------------------------+
 | Task              : Return the all timer values from selected timer        |
@@ -590,7 +590,7 @@ INT i_APCI1710_InsnReadAllTimerValue(struct comedi_device *dev,comedi_subdevice 
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_InsnReadAllTimerValue(struct comedi_device *dev, comedi_subdevice *s,
+INT i_APCI1710_InsnReadAllTimerValue(struct comedi_device *dev, struct comedi_subdevice *s,
 				     comedi_insn *insn, unsigned int *data)
 {
 	INT i_ReturnValue = 0;
@@ -669,7 +669,7 @@ INT i_APCI1710_InsnReadAllTimerValue(struct comedi_device *dev, comedi_subdevice
 /*
 +----------------------------------------------------------------------------+
 | Function Name     :INT i_APCI1710_InsnBitsTimer(struct comedi_device *dev,
-comedi_subdevice *s,comedi_insn *insn,unsigned int *data)                   |
+struct comedi_subdevice *s,comedi_insn *insn,unsigned int *data)                   |
 +----------------------------------------------------------------------------+
 | Task              : Read write functions for Timer                                          |
 +----------------------------------------------------------------------------+
@@ -681,7 +681,7 @@ comedi_subdevice *s,comedi_insn *insn,unsigned int *data)                   |
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_InsnBitsTimer(struct comedi_device * dev, comedi_subdevice * s,
+INT i_APCI1710_InsnBitsTimer(struct comedi_device * dev, struct comedi_subdevice * s,
 			     comedi_insn * insn, unsigned int * data)
 {
 	BYTE b_BitsType;

@@ -55,22 +55,22 @@
 // Hardware Layer  functions for Apci2032
 
 //DO
-int i_APCI2032_ConfigDigitalOutput(struct comedi_device *dev, comedi_subdevice *s,
+int i_APCI2032_ConfigDigitalOutput(struct comedi_device *dev, struct comedi_subdevice *s,
 				   comedi_insn *insn, unsigned int *data);
-INT i_APCI2032_WriteDigitalOutput(struct comedi_device *dev, comedi_subdevice *s,
+INT i_APCI2032_WriteDigitalOutput(struct comedi_device *dev, struct comedi_subdevice *s,
 				  comedi_insn *insn, unsigned int *data);
-INT i_APCI2032_ReadDigitalOutput(struct comedi_device *dev, comedi_subdevice *s,
+INT i_APCI2032_ReadDigitalOutput(struct comedi_device *dev, struct comedi_subdevice *s,
 				 comedi_insn *insn, unsigned int *data);
-int i_APCI2032_ReadInterruptStatus(struct comedi_device *dev, comedi_subdevice *s,
+int i_APCI2032_ReadInterruptStatus(struct comedi_device *dev, struct comedi_subdevice *s,
 				   comedi_insn *insn, unsigned int *data);
 
 // TIMER
 // timer value is passed as u seconds
-INT i_APCI2032_ConfigWatchdog(struct comedi_device *dev, comedi_subdevice *s,
+INT i_APCI2032_ConfigWatchdog(struct comedi_device *dev, struct comedi_subdevice *s,
 			      comedi_insn *insn, unsigned int *data);
-int i_APCI2032_StartStopWriteWatchdog(struct comedi_device *dev, comedi_subdevice *s,
+int i_APCI2032_StartStopWriteWatchdog(struct comedi_device *dev, struct comedi_subdevice *s,
 				      comedi_insn *insn, unsigned int *data);
-int i_APCI2032_ReadWatchdog(struct comedi_device *dev, comedi_subdevice *s,
+int i_APCI2032_ReadWatchdog(struct comedi_device *dev, struct comedi_subdevice *s,
 			    comedi_insn *insn, unsigned int *data);
 
 // Interrupt functions.....

@@ -282,10 +282,10 @@ static comedi_driver driver_dt3000 = {
 
 COMEDI_PCI_INITCLEANUP(driver_dt3000, dt3k_pci_table);
 
-static void dt3k_ai_empty_fifo(struct comedi_device * dev, comedi_subdevice * s);
+static void dt3k_ai_empty_fifo(struct comedi_device * dev, struct comedi_subdevice * s);
 static int dt3k_ns_to_timer(unsigned int timer_base, unsigned int *arg,
 	unsigned int round_mode);
-static int dt3k_ai_cancel(struct comedi_device * dev, comedi_subdevice * s);
+static int dt3k_ai_cancel(struct comedi_device * dev, struct comedi_subdevice * s);
 #ifdef DEBUG
 static void debug_intr_flags(unsigned int flags);
 #endif
@@ -346,7 +346,7 @@ static int debug_n_ints = 0;
 static irqreturn_t dt3k_interrupt(int irq, void *d PT_REGS_ARG)
 {
 	struct comedi_device *dev = d;
-	comedi_subdevice *s;
+	struct comedi_subdevice *s;
 	unsigned int status;
 
 	if (!dev->attached) {
@@ -396,7 +396,7 @@ static void debug_intr_flags(unsigned int flags)
 }
 #endif
 
-static void dt3k_ai_empty_fifo(struct comedi_device * dev, comedi_subdevice * s)
+static void dt3k_ai_empty_fifo(struct comedi_device * dev, struct comedi_subdevice * s)
 {
 	int front;
 	int rear;
@@ -425,7 +425,7 @@ static void dt3k_ai_empty_fifo(struct comedi_device * dev, comedi_subdevice * s)
 	writew(rear, devpriv->io_addr + DPR_AD_Buf_Rear);
 }
 
-static int dt3k_ai_cmdtest(struct comedi_device * dev, comedi_subdevice * s,
+static int dt3k_ai_cmdtest(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_cmd * cmd)
 {
 	int err = 0;
@@ -587,7 +587,7 @@ static int dt3k_ns_to_timer(unsigned int timer_base, unsigned int *nanosec,
 	return (prescale << 16) | (divider);
 }
 
-static int dt3k_ai_cmd(struct comedi_device * dev, comedi_subdevice * s)
+static int dt3k_ai_cmd(struct comedi_device * dev, struct comedi_subdevice * s)
 {
 	comedi_cmd *cmd = &s->async->cmd;
 	int i;
@@ -655,7 +655,7 @@ static int dt3k_ai_cmd(struct comedi_device * dev, comedi_subdevice * s)
 	return 0;
 }
 
-static int dt3k_ai_cancel(struct comedi_device * dev, comedi_subdevice * s)
+static int dt3k_ai_cancel(struct comedi_device * dev, struct comedi_subdevice * s)
 {
 	int ret;
 
@@ -667,7 +667,7 @@ static int dt3k_ai_cancel(struct comedi_device * dev, comedi_subdevice * s)
 	return 0;
 }
 
-static int dt3k_ai_insn(struct comedi_device * dev, comedi_subdevice * s,
+static int dt3k_ai_insn(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	int i;
@@ -685,7 +685,7 @@ static int dt3k_ai_insn(struct comedi_device * dev, comedi_subdevice * s,
 	return i;
 }
 
-static int dt3k_ao_insn(struct comedi_device * dev, comedi_subdevice * s,
+static int dt3k_ao_insn(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	int i;
@@ -700,7 +700,7 @@ static int dt3k_ao_insn(struct comedi_device * dev, comedi_subdevice * s,
 	return i;
 }
 
-static int dt3k_ao_insn_read(struct comedi_device * dev, comedi_subdevice * s,
+static int dt3k_ao_insn_read(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	int i;
@@ -729,7 +729,7 @@ static void dt3k_dio_config(struct comedi_device * dev, int bits)
 	dt3k_send_cmd(dev, CMD_CONFIG);
 }
 
-static int dt3k_dio_insn_config(struct comedi_device * dev, comedi_subdevice * s,
+static int dt3k_dio_insn_config(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	int mask;
@@ -760,7 +760,7 @@ static int dt3k_dio_insn_config(struct comedi_device * dev, comedi_subdevice * s
 	return insn->n;
 }
 
-static int dt3k_dio_insn_bits(struct comedi_device * dev, comedi_subdevice * s,
+static int dt3k_dio_insn_bits(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	if (insn->n != 2)
@@ -776,7 +776,7 @@ static int dt3k_dio_insn_bits(struct comedi_device * dev, comedi_subdevice * s,
 	return 2;
 }
 
-static int dt3k_mem_insn_read(struct comedi_device * dev, comedi_subdevice * s,
+static int dt3k_mem_insn_read(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	unsigned int addr = CR_CHAN(insn->chanspec);
@@ -799,7 +799,7 @@ static int dt_pci_probe(struct comedi_device * dev, int bus, int slot);
 
 static int dt3000_attach(struct comedi_device * dev, comedi_devconfig * it)
 {
-	comedi_subdevice *s;
+	struct comedi_subdevice *s;
 	int bus, slot;
 	int ret = 0;
 

@@ -58,7 +58,7 @@ static comedi_driver driver_dt2817 = {
 
 COMEDI_INITCLEANUP(driver_dt2817);
 
-static int dt2817_dio_insn_config(struct comedi_device * dev, comedi_subdevice * s,
+static int dt2817_dio_insn_config(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	int mask;
@@ -96,7 +96,7 @@ static int dt2817_dio_insn_config(struct comedi_device * dev, comedi_subdevice *
 	return 1;
 }
 
-static int dt2817_dio_insn_bits(struct comedi_device * dev, comedi_subdevice * s,
+static int dt2817_dio_insn_bits(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	unsigned int changed;
@@ -134,7 +134,7 @@ static int dt2817_dio_insn_bits(struct comedi_device * dev, comedi_subdevice * s
 static int dt2817_attach(struct comedi_device * dev, comedi_devconfig * it)
 {
 	int ret;
-	comedi_subdevice *s;
+	struct comedi_subdevice *s;
 	unsigned long iobase;
 
 	iobase = it->options[0];

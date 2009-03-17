@@ -326,20 +326,20 @@ struct munge_info {
 	unsigned have_byte:1;
 };
 
-static int das16_ao_winsn(struct comedi_device * dev, comedi_subdevice * s,
+static int das16_ao_winsn(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data);
-static int das16_do_wbits(struct comedi_device * dev, comedi_subdevice * s,
+static int das16_do_wbits(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data);
-static int das16_di_rbits(struct comedi_device * dev, comedi_subdevice * s,
+static int das16_di_rbits(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data);
-static int das16_ai_rinsn(struct comedi_device * dev, comedi_subdevice * s,
+static int das16_ai_rinsn(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data);
 
-static int das16_cmd_test(struct comedi_device * dev, comedi_subdevice * s,
+static int das16_cmd_test(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_cmd * cmd);
-static int das16_cmd_exec(struct comedi_device * dev, comedi_subdevice * s);
-static int das16_cancel(struct comedi_device * dev, comedi_subdevice * s);
-static void das16_ai_munge(struct comedi_device * dev, comedi_subdevice * s,
+static int das16_cmd_exec(struct comedi_device * dev, struct comedi_subdevice * s);
+static int das16_cancel(struct comedi_device * dev, struct comedi_subdevice * s);
+static void das16_ai_munge(struct comedi_device * dev, struct comedi_subdevice * s,
 	void *array, unsigned int num_bytes, unsigned int start_chan_index);
 
 static void das16_reset(struct comedi_device * dev);
@@ -742,7 +742,7 @@ struct das16_private_struct {
 #define devpriv ((struct das16_private_struct *)(dev->private))
 #define thisboard ((struct das16_board_struct *)(dev->board_ptr))
 
-static int das16_cmd_test(struct comedi_device * dev, comedi_subdevice * s,
+static int das16_cmd_test(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_cmd * cmd)
 {
 	int err = 0, tmp;
@@ -893,7 +893,7 @@ static int das16_cmd_test(struct comedi_device * dev, comedi_subdevice * s,
 	return 0;
 }
 
-static int das16_cmd_exec(struct comedi_device * dev, comedi_subdevice * s)
+static int das16_cmd_exec(struct comedi_device * dev, struct comedi_subdevice * s)
 {
 	comedi_async *async = s->async;
 	comedi_cmd *cmd = &async->cmd;
@@ -996,7 +996,7 @@ static int das16_cmd_exec(struct comedi_device * dev, comedi_subdevice * s)
 	return 0;
 }
 
-static int das16_cancel(struct comedi_device * dev, comedi_subdevice * s)
+static int das16_cancel(struct comedi_device * dev, struct comedi_subdevice * s)
 {
 	unsigned long flags;
 
@@ -1031,7 +1031,7 @@ static void das16_reset(struct comedi_device * dev)
 	outb(0, dev->iobase + DAS16_CNTR_CONTROL);
 }
 
-static int das16_ai_rinsn(struct comedi_device * dev, comedi_subdevice * s,
+static int das16_ai_rinsn(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	int i, n;
@@ -1079,7 +1079,7 @@ static int das16_ai_rinsn(struct comedi_device * dev, comedi_subdevice * s,
 	return n;
 }
 
-static int das16_di_rbits(struct comedi_device * dev, comedi_subdevice * s,
+static int das16_di_rbits(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	unsigned int bits;
@@ -1091,7 +1091,7 @@ static int das16_di_rbits(struct comedi_device * dev, comedi_subdevice * s,
 	return 2;
 }
 
-static int das16_do_wbits(struct comedi_device * dev, comedi_subdevice * s,
+static int das16_do_wbits(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	unsigned int wbits;
@@ -1111,7 +1111,7 @@ static int das16_do_wbits(struct comedi_device * dev, comedi_subdevice * s,
 	return 2;
 }
 
-static int das16_ao_winsn(struct comedi_device * dev, comedi_subdevice * s,
+static int das16_ao_winsn(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	int i;
@@ -1200,7 +1200,7 @@ static int disable_dma_on_even(struct comedi_device * dev)
 static void das16_interrupt(struct comedi_device * dev)
 {
 	unsigned long dma_flags, spin_flags;
-	comedi_subdevice *s = dev->read_subdev;
+	struct comedi_subdevice *s = dev->read_subdev;
 	comedi_async *async;
 	comedi_cmd *cmd;
 	int num_bytes, residue;
@@ -1368,7 +1368,7 @@ static int das1600_mode_detect(struct comedi_device * dev)
 
 static int das16_attach(struct comedi_device * dev, comedi_devconfig * it)
 {
-	comedi_subdevice *s;
+	struct comedi_subdevice *s;
 	int ret;
 	unsigned int irq;
 	unsigned long iobase;
@@ -1715,7 +1715,7 @@ static unsigned int das16_suggest_transfer_size(struct comedi_device * dev,
 	return size;
 }
 
-static void das16_ai_munge(struct comedi_device * dev, comedi_subdevice * s,
+static void das16_ai_munge(struct comedi_device * dev, struct comedi_subdevice * s,
 	void *array, unsigned int num_bytes, unsigned int start_chan_index)
 {
 	unsigned int i, num_samples = num_bytes / sizeof(short);

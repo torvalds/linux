@@ -149,13 +149,13 @@ extern int ni_tio_cmd(struct ni_gpct *counter, comedi_async * async);
 extern int ni_tio_cmdtest(struct ni_gpct *counter, comedi_cmd * cmd);
 extern int ni_tio_cancel(struct ni_gpct *counter);
 extern void ni_tio_handle_interrupt(struct ni_gpct *counter,
-	comedi_subdevice * s);
+	struct comedi_subdevice * s);
 extern void ni_tio_set_mite_channel(struct ni_gpct *counter,
 	struct mite_channel *mite_chan);
 extern void ni_tio_acknowledge_and_confirm(struct ni_gpct *counter,
 	int *gate_error, int *tc_error, int *perm_stale_data, int *stale_data);
 
-static inline struct ni_gpct *subdev_to_counter(comedi_subdevice * s)
+static inline struct ni_gpct *subdev_to_counter(struct comedi_subdevice * s)
 {
 	return s->private;
 }

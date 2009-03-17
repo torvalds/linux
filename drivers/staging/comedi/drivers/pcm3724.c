@@ -115,7 +115,7 @@ static int subdev_8255_cb(int dir, int port, int data, unsigned long arg)
 	}
 }
 
-static int compute_buffer(int config, int devno, comedi_subdevice * s)
+static int compute_buffer(int config, int devno, struct comedi_subdevice * s)
 {
 	/* 1 in io_bits indicates output */
 	if (s->io_bits & 0x0000ff) {
@@ -142,7 +142,7 @@ static int compute_buffer(int config, int devno, comedi_subdevice * s)
 	return config;
 }
 
-static void do_3724_config(struct comedi_device * dev, comedi_subdevice * s,
+static void do_3724_config(struct comedi_device * dev, struct comedi_subdevice * s,
 	int chanspec)
 {
 	int config;
@@ -176,7 +176,7 @@ static void do_3724_config(struct comedi_device * dev, comedi_subdevice * s,
 	outb(config, port_8255_cfg);
 }
 
-static void enable_chan(struct comedi_device * dev, comedi_subdevice * s, int chanspec)
+static void enable_chan(struct comedi_device * dev, struct comedi_subdevice * s, int chanspec)
 {
 	unsigned int mask;
 	int gatecfg;
@@ -214,7 +214,7 @@ static void enable_chan(struct comedi_device * dev, comedi_subdevice * s, int ch
 }
 
 /* overriding the 8255 insn config */
-static int subdev_3724_insn_config(struct comedi_device * dev, comedi_subdevice * s,
+static int subdev_3724_insn_config(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	unsigned int mask;

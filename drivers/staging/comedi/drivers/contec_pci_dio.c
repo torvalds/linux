@@ -85,13 +85,13 @@ static comedi_driver driver_contec = {
 };
 
 /* Classic digital IO */
-static int contec_di_insn_bits(struct comedi_device * dev, comedi_subdevice * s,
+static int contec_di_insn_bits(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data);
-static int contec_do_insn_bits(struct comedi_device * dev, comedi_subdevice * s,
+static int contec_do_insn_bits(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data);
 
 #if 0
-static int contec_cmdtest(struct comedi_device * dev, comedi_subdevice * s,
+static int contec_cmdtest(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_cmd * cmd);
 
 static int contec_ns_to_timer(unsigned int *ns, int round);
@@ -100,7 +100,7 @@ static int contec_ns_to_timer(unsigned int *ns, int round);
 static int contec_attach(struct comedi_device * dev, comedi_devconfig * it)
 {
 	struct pci_dev *pcidev;
-	comedi_subdevice *s;
+	struct comedi_subdevice *s;
 
 	printk("comedi%d: contec: ", dev->minor);
 
@@ -179,7 +179,7 @@ static int contec_detach(struct comedi_device * dev)
 }
 
 #if 0
-static int contec_cmdtest(struct comedi_device * dev, comedi_subdevice * s,
+static int contec_cmdtest(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_cmd * cmd)
 {
 	printk("contec_cmdtest called\n");
@@ -192,7 +192,7 @@ static int contec_ns_to_timer(unsigned int *ns, int round)
 }
 #endif
 
-static int contec_do_insn_bits(struct comedi_device * dev, comedi_subdevice * s,
+static int contec_do_insn_bits(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 
@@ -212,7 +212,7 @@ static int contec_do_insn_bits(struct comedi_device * dev, comedi_subdevice * s,
 	return 2;
 }
 
-static int contec_di_insn_bits(struct comedi_device * dev, comedi_subdevice * s,
+static int contec_di_insn_bits(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 

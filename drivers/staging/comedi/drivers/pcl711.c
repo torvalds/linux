@@ -186,7 +186,7 @@ static irqreturn_t pcl711_interrupt(int irq, void *d PT_REGS_ARG)
 	int lo, hi;
 	int data;
 	struct comedi_device *dev = d;
-	comedi_subdevice *s = dev->subdevices + 0;
+	struct comedi_subdevice *s = dev->subdevices + 0;
 
 	if (!dev->attached) {
 		comedi_error(dev, "spurious interrupt");
@@ -240,7 +240,7 @@ static void pcl711_set_changain(struct comedi_device * dev, int chan)
 	}
 }
 
-static int pcl711_ai_insn(struct comedi_device * dev, comedi_subdevice * s,
+static int pcl711_ai_insn(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	int i, n;
@@ -279,7 +279,7 @@ static int pcl711_ai_insn(struct comedi_device * dev, comedi_subdevice * s,
 	return n;
 }
 
-static int pcl711_ai_cmdtest(struct comedi_device * dev, comedi_subdevice * s,
+static int pcl711_ai_cmdtest(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_cmd * cmd)
 {
 	int tmp;
@@ -381,7 +381,7 @@ static int pcl711_ai_cmdtest(struct comedi_device * dev, comedi_subdevice * s,
 	return 0;
 }
 
-static int pcl711_ai_cmd(struct comedi_device * dev, comedi_subdevice * s)
+static int pcl711_ai_cmd(struct comedi_device * dev, struct comedi_subdevice * s)
 {
 	int timer1, timer2;
 	comedi_cmd *cmd = &s->async->cmd;
@@ -427,7 +427,7 @@ static int pcl711_ai_cmd(struct comedi_device * dev, comedi_subdevice * s)
 /*
    analog output
 */
-static int pcl711_ao_insn(struct comedi_device * dev, comedi_subdevice * s,
+static int pcl711_ao_insn(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	int n;
@@ -445,7 +445,7 @@ static int pcl711_ao_insn(struct comedi_device * dev, comedi_subdevice * s,
 	return n;
 }
 
-static int pcl711_ao_insn_read(struct comedi_device * dev, comedi_subdevice * s,
+static int pcl711_ao_insn_read(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	int n;
@@ -460,7 +460,7 @@ static int pcl711_ao_insn_read(struct comedi_device * dev, comedi_subdevice * s,
 }
 
 /* Digital port read - Untested on 8112 */
-static int pcl711_di_insn_bits(struct comedi_device * dev, comedi_subdevice * s,
+static int pcl711_di_insn_bits(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	if (insn->n != 2)
@@ -473,7 +473,7 @@ static int pcl711_di_insn_bits(struct comedi_device * dev, comedi_subdevice * s,
 }
 
 /* Digital port write - Untested on 8112 */
-static int pcl711_do_insn_bits(struct comedi_device * dev, comedi_subdevice * s,
+static int pcl711_do_insn_bits(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	if (insn->n != 2)
@@ -513,7 +513,7 @@ static int pcl711_attach(struct comedi_device * dev, comedi_devconfig * it)
 	int ret;
 	unsigned long iobase;
 	unsigned int irq;
-	comedi_subdevice *s;
+	struct comedi_subdevice *s;
 
 	/* claim our I/O space */
 

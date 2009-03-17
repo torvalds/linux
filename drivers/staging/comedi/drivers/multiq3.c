@@ -98,7 +98,7 @@ struct multiq3_private {
 };
 #define devpriv ((struct multiq3_private *)dev->private)
 
-static int multiq3_ai_insn_read(struct comedi_device * dev, comedi_subdevice * s,
+static int multiq3_ai_insn_read(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	int i, n;
@@ -134,7 +134,7 @@ static int multiq3_ai_insn_read(struct comedi_device * dev, comedi_subdevice * s
 	return n;
 }
 
-static int multiq3_ao_insn_read(struct comedi_device * dev, comedi_subdevice * s,
+static int multiq3_ao_insn_read(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	int i;
@@ -147,7 +147,7 @@ static int multiq3_ao_insn_read(struct comedi_device * dev, comedi_subdevice * s
 	return i;
 }
 
-static int multiq3_ao_insn_write(struct comedi_device * dev, comedi_subdevice * s,
+static int multiq3_ao_insn_write(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	int i;
@@ -165,7 +165,7 @@ static int multiq3_ao_insn_write(struct comedi_device * dev, comedi_subdevice * 
 	return i;
 }
 
-static int multiq3_di_insn_bits(struct comedi_device * dev, comedi_subdevice * s,
+static int multiq3_di_insn_bits(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	if (insn->n != 2)
@@ -176,7 +176,7 @@ static int multiq3_di_insn_bits(struct comedi_device * dev, comedi_subdevice * s
 	return 2;
 }
 
-static int multiq3_do_insn_bits(struct comedi_device * dev, comedi_subdevice * s,
+static int multiq3_do_insn_bits(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	if (insn->n != 2)
@@ -191,7 +191,7 @@ static int multiq3_do_insn_bits(struct comedi_device * dev, comedi_subdevice * s
 	return 2;
 }
 
-static int multiq3_encoder_insn_read(struct comedi_device * dev, comedi_subdevice * s,
+static int multiq3_encoder_insn_read(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	int n;
@@ -240,7 +240,7 @@ static int multiq3_attach(struct comedi_device * dev, comedi_devconfig * it)
 	int result = 0;
 	unsigned long iobase;
 	unsigned int irq;
-	comedi_subdevice *s;
+	struct comedi_subdevice *s;
 
 	iobase = it->options[0];
 	printk("comedi%d: multiq3: 0x%04lx ", dev->minor, iobase);

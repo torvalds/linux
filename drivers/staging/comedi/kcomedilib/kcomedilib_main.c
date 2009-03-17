@@ -124,7 +124,7 @@ int comedi_fileno(void *d)
 int comedi_command(void *d, comedi_cmd *cmd)
 {
 	struct comedi_device *dev = (struct comedi_device *) d;
-	comedi_subdevice *s;
+	struct comedi_subdevice *s;
 	comedi_async *async;
 	unsigned runflags;
 
@@ -164,7 +164,7 @@ int comedi_command(void *d, comedi_cmd *cmd)
 int comedi_command_test(void *d, comedi_cmd *cmd)
 {
 	struct comedi_device *dev = (struct comedi_device *) d;
-	comedi_subdevice *s;
+	struct comedi_subdevice *s;
 
 	if (cmd->subdev >= dev->n_subdevices)
 		return -ENODEV;
@@ -186,7 +186,7 @@ int comedi_command_test(void *d, comedi_cmd *cmd)
 int comedi_do_insn(void *d, comedi_insn *insn)
 {
 	struct comedi_device *dev = (struct comedi_device *) d;
-	comedi_subdevice *s;
+	struct comedi_subdevice *s;
 	int ret = 0;
 
 	if (insn->insn & INSN_MASK_SPECIAL) {
@@ -327,7 +327,7 @@ int comedi_do_insn(void *d, comedi_insn *insn)
 int comedi_lock(void *d, unsigned int subdevice)
 {
 	struct comedi_device *dev = (struct comedi_device *) d;
-	comedi_subdevice *s;
+	struct comedi_subdevice *s;
 	unsigned long flags;
 	int ret = 0;
 
@@ -370,7 +370,7 @@ int comedi_lock(void *d, unsigned int subdevice)
 int comedi_unlock(void *d, unsigned int subdevice)
 {
 	struct comedi_device *dev = (struct comedi_device *) d;
-	comedi_subdevice *s;
+	struct comedi_subdevice *s;
 	unsigned long flags;
 	comedi_async *async;
 	int ret;
@@ -422,7 +422,7 @@ int comedi_unlock(void *d, unsigned int subdevice)
 int comedi_cancel(void *d, unsigned int subdevice)
 {
 	struct comedi_device *dev = (struct comedi_device *) d;
-	comedi_subdevice *s;
+	struct comedi_subdevice *s;
 	int ret = 0;
 
 	if (subdevice >= dev->n_subdevices)
@@ -468,7 +468,7 @@ int comedi_register_callback(void *d, unsigned int subdevice,
 	unsigned int mask, int (*cb) (unsigned int, void *), void *arg)
 {
 	struct comedi_device *dev = (struct comedi_device *) d;
-	comedi_subdevice *s;
+	struct comedi_subdevice *s;
 	comedi_async *async;
 
 	if (subdevice >= dev->n_subdevices)
@@ -504,7 +504,7 @@ int comedi_register_callback(void *d, unsigned int subdevice,
 int comedi_poll(void *d, unsigned int subdevice)
 {
 	struct comedi_device *dev = (struct comedi_device *) d;
-	comedi_subdevice *s = dev->subdevices;
+	struct comedi_subdevice *s = dev->subdevices;
 	comedi_async *async;
 
 	if (subdevice >= dev->n_subdevices)
@@ -531,7 +531,7 @@ int comedi_poll(void *d, unsigned int subdevice)
 int comedi_map(void *d, unsigned int subdevice, void *ptr)
 {
 	struct comedi_device *dev = (struct comedi_device *) d;
-	comedi_subdevice *s;
+	struct comedi_subdevice *s;
 
 	if (subdevice >= dev->n_subdevices)
 		return -EINVAL;
@@ -553,7 +553,7 @@ int comedi_map(void *d, unsigned int subdevice, void *ptr)
 int comedi_unmap(void *d, unsigned int subdevice)
 {
 	struct comedi_device *dev = (struct comedi_device *) d;
-	comedi_subdevice *s;
+	struct comedi_subdevice *s;
 
 	if (subdevice >= dev->n_subdevices)
 		return -EINVAL;

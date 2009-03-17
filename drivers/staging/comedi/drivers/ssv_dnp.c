@@ -104,10 +104,10 @@ static comedi_driver driver_dnp = {
 COMEDI_INITCLEANUP(driver_dnp);
 
 static int dnp_dio_insn_bits(struct comedi_device * dev,
-	comedi_subdevice * s, comedi_insn * insn, unsigned int * data);
+	struct comedi_subdevice * s, comedi_insn * insn, unsigned int * data);
 
 static int dnp_dio_insn_config(struct comedi_device * dev,
-	comedi_subdevice * s, comedi_insn * insn, unsigned int * data);
+	struct comedi_subdevice * s, comedi_insn * insn, unsigned int * data);
 
 /* ------------------------------------------------------------------------- */
 /* Attach is called by comedi core to configure the driver for a particular  */
@@ -118,7 +118,7 @@ static int dnp_dio_insn_config(struct comedi_device * dev,
 static int dnp_attach(struct comedi_device * dev, comedi_devconfig * it)
 {
 
-	comedi_subdevice *s;
+	struct comedi_subdevice *s;
 
 	printk("comedi%d: dnp: ", dev->minor);
 
@@ -201,7 +201,7 @@ static int dnp_detach(struct comedi_device * dev)
 /* ------------------------------------------------------------------------- */
 
 static int dnp_dio_insn_bits(struct comedi_device * dev,
-	comedi_subdevice * s, comedi_insn * insn, unsigned int * data)
+	struct comedi_subdevice * s, comedi_insn * insn, unsigned int * data)
 {
 
 	if (insn->n != 2)
@@ -251,7 +251,7 @@ static int dnp_dio_insn_bits(struct comedi_device * dev,
 /* ------------------------------------------------------------------------- */
 
 static int dnp_dio_insn_config(struct comedi_device * dev,
-	comedi_subdevice * s, comedi_insn * insn, unsigned int * data)
+	struct comedi_subdevice * s, comedi_insn * insn, unsigned int * data)
 {
 
 	u8 register_buffer;

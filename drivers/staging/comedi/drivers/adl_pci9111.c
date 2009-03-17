@@ -267,7 +267,7 @@ TODO:
 
 static int pci9111_attach(struct comedi_device * dev, comedi_devconfig * it);
 static int pci9111_detach(struct comedi_device * dev);
-static void pci9111_ai_munge(struct comedi_device * dev, comedi_subdevice * s,
+static void pci9111_ai_munge(struct comedi_device * dev, struct comedi_subdevice * s,
 	void *data, unsigned int num_bytes, unsigned int start_chan_index);
 
 static const comedi_lrange pci9111_hr_ai_range = {
@@ -527,7 +527,7 @@ static void pci9111_interrupt_source_set(struct comedi_device * dev,
 
 #undef AI_DO_CMD_DEBUG
 
-static int pci9111_ai_cancel(struct comedi_device * dev, comedi_subdevice * s)
+static int pci9111_ai_cancel(struct comedi_device * dev, struct comedi_subdevice * s)
 {
 	// Disable interrupts
 
@@ -558,7 +558,7 @@ static int pci9111_ai_cancel(struct comedi_device * dev, comedi_subdevice * s)
 
 static int
 pci9111_ai_do_cmd_test(struct comedi_device * dev,
-	comedi_subdevice * s, comedi_cmd * cmd)
+	struct comedi_subdevice * s, comedi_cmd * cmd)
 {
 	int tmp;
 	int error = 0;
@@ -758,7 +758,7 @@ pci9111_ai_do_cmd_test(struct comedi_device * dev,
 // Analog input command
 //
 
-static int pci9111_ai_do_cmd(struct comedi_device * dev, comedi_subdevice * subdevice)
+static int pci9111_ai_do_cmd(struct comedi_device * dev, struct comedi_subdevice * subdevice)
 {
 	comedi_cmd *async_cmd = &subdevice->async->cmd;
 
@@ -881,7 +881,7 @@ static int pci9111_ai_do_cmd(struct comedi_device * dev, comedi_subdevice * subd
 	return 0;
 }
 
-static void pci9111_ai_munge(struct comedi_device * dev, comedi_subdevice * s,
+static void pci9111_ai_munge(struct comedi_device * dev, struct comedi_subdevice * s,
 	void *data, unsigned int num_bytes, unsigned int start_chan_index)
 {
 	unsigned int i, num_samples = num_bytes / sizeof(short);
@@ -912,7 +912,7 @@ static void pci9111_ai_munge(struct comedi_device * dev, comedi_subdevice * s,
 static irqreturn_t pci9111_interrupt(int irq, void *p_device PT_REGS_ARG)
 {
 	struct comedi_device *dev = p_device;
-	comedi_subdevice *subdevice = dev->read_subdev;
+	struct comedi_subdevice *subdevice = dev->read_subdev;
 	comedi_async *async;
 	unsigned long irq_flags;
 	unsigned char intcsr;
@@ -1072,7 +1072,7 @@ static irqreturn_t pci9111_interrupt(int irq, void *p_device PT_REGS_ARG)
 #undef AI_INSN_DEBUG
 
 static int pci9111_ai_insn_read(struct comedi_device * dev,
-	comedi_subdevice * subdevice, comedi_insn * insn, unsigned int * data)
+	struct comedi_subdevice * subdevice, comedi_insn * insn, unsigned int * data)
 {
 	int resolution =
 		((pci9111_board_struct *) dev->board_ptr)->ai_resolution;
@@ -1132,7 +1132,7 @@ static int pci9111_ai_insn_read(struct comedi_device * dev,
 
 static int
 pci9111_ao_insn_write(struct comedi_device * dev,
-	comedi_subdevice * s, comedi_insn * insn, unsigned int * data)
+	struct comedi_subdevice * s, comedi_insn * insn, unsigned int * data)
 {
 	int i;
 
@@ -1149,7 +1149,7 @@ pci9111_ao_insn_write(struct comedi_device * dev,
 //
 
 static int pci9111_ao_insn_read(struct comedi_device * dev,
-	comedi_subdevice * s, comedi_insn * insn, unsigned int * data)
+	struct comedi_subdevice * s, comedi_insn * insn, unsigned int * data)
 {
 	int i;
 
@@ -1171,7 +1171,7 @@ static int pci9111_ao_insn_read(struct comedi_device * dev,
 //
 
 static int pci9111_di_insn_bits(struct comedi_device * dev,
-	comedi_subdevice * subdevice, comedi_insn * insn, unsigned int * data)
+	struct comedi_subdevice * subdevice, comedi_insn * insn, unsigned int * data)
 {
 	unsigned int bits;
 
@@ -1186,7 +1186,7 @@ static int pci9111_di_insn_bits(struct comedi_device * dev,
 //
 
 static int pci9111_do_insn_bits(struct comedi_device * dev,
-	comedi_subdevice * subdevice, comedi_insn * insn, unsigned int * data)
+	struct comedi_subdevice * subdevice, comedi_insn * insn, unsigned int * data)
 {
 	unsigned int bits;
 
@@ -1248,7 +1248,7 @@ static int pci9111_reset(struct comedi_device * dev)
 
 static int pci9111_attach(struct comedi_device * dev, comedi_devconfig * it)
 {
-	comedi_subdevice *subdevice;
+	struct comedi_subdevice *subdevice;
 	unsigned long io_base, io_range, lcr_io_base, lcr_io_range;
 	struct pci_dev *pci_device;
 	int error, i;

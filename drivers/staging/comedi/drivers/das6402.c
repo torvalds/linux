@@ -116,7 +116,7 @@ typedef struct {
 } das6402_private;
 #define devpriv ((das6402_private *)dev->private)
 
-static void das6402_ai_fifo_dregs(struct comedi_device * dev, comedi_subdevice * s);
+static void das6402_ai_fifo_dregs(struct comedi_device * dev, struct comedi_subdevice * s);
 
 static void das6402_setcounter(struct comedi_device * dev)
 {
@@ -154,7 +154,7 @@ static void das6402_setcounter(struct comedi_device * dev)
 static irqreturn_t intr_handler(int irq, void *d PT_REGS_ARG)
 {
 	struct comedi_device *dev = d;
-	comedi_subdevice *s = dev->subdevices;
+	struct comedi_subdevice *s = dev->subdevices;
 
 	if (!dev->attached || devpriv->das6402_ignoreirq) {
 		printk("das6402: BUG: spurious interrupt\n");
@@ -195,7 +195,7 @@ static void das6402_ai_fifo_read(struct comedi_device * dev, short * data, int n
 }
 #endif
 
-static void das6402_ai_fifo_dregs(struct comedi_device * dev, comedi_subdevice * s)
+static void das6402_ai_fifo_dregs(struct comedi_device * dev, struct comedi_subdevice * s)
 {
 	while (1) {
 		if (!(inb(dev->iobase + 8) & 0x01))
@@ -204,7 +204,7 @@ static void das6402_ai_fifo_dregs(struct comedi_device * dev, comedi_subdevice *
 	}
 }
 
-static int das6402_ai_cancel(struct comedi_device * dev, comedi_subdevice * s)
+static int das6402_ai_cancel(struct comedi_device * dev, struct comedi_subdevice * s)
 {
 	/*
 	 *  This function should reset the board from whatever condition it
@@ -226,7 +226,7 @@ static int das6402_ai_cancel(struct comedi_device * dev, comedi_subdevice * s)
 }
 
 #ifdef unused
-static int das6402_ai_mode2(struct comedi_device * dev, comedi_subdevice * s,
+static int das6402_ai_mode2(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_trig * it)
 {
 	devpriv->das6402_ignoreirq = 1;
@@ -304,7 +304,7 @@ static int das6402_attach(struct comedi_device * dev, comedi_devconfig * it)
 	unsigned int irq;
 	unsigned long iobase;
 	int ret;
-	comedi_subdevice *s;
+	struct comedi_subdevice *s;
 
 	dev->board_name = "das6402";
 

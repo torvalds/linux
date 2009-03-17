@@ -87,7 +87,7 @@ typedef struct local_info_t {
 	struct semaphore eos;
 
 	struct comedi_device *dev;
-	comedi_subdevice *s;
+	struct comedi_subdevice *s;
 	int count;
 } local_info_t;
 
@@ -234,7 +234,7 @@ static void hex_dump(char *str, void *ptr, int len)
 
 /* Cancel a running acquisition */
 
-static int daqp_ai_cancel(struct comedi_device * dev, comedi_subdevice * s)
+static int daqp_ai_cancel(struct comedi_device * dev, struct comedi_subdevice * s)
 {
 	local_info_t *local = (local_info_t *) s->private;
 
@@ -266,7 +266,7 @@ static void daqp_interrupt(int irq, void *dev_id PT_REGS_ARG)
 {
 	local_info_t *local = (local_info_t *) dev_id;
 	struct comedi_device *dev;
-	comedi_subdevice *s;
+	struct comedi_subdevice *s;
 	int loop_limit = 10000;
 	int status;
 
@@ -361,7 +361,7 @@ static void daqp_interrupt(int irq, void *dev_id PT_REGS_ARG)
 
 /* One-shot analog data acquisition routine */
 
-static int daqp_ai_insn_read(struct comedi_device * dev, comedi_subdevice * s,
+static int daqp_ai_insn_read(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	local_info_t *local = (local_info_t *) s->private;
@@ -467,7 +467,7 @@ static int daqp_ns_to_timer(unsigned int *ns, int round)
  * the command passes.
  */
 
-static int daqp_ai_cmdtest(struct comedi_device * dev, comedi_subdevice * s,
+static int daqp_ai_cmdtest(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_cmd * cmd)
 {
 	int err = 0;
@@ -593,7 +593,7 @@ static int daqp_ai_cmdtest(struct comedi_device * dev, comedi_subdevice * s,
 	return 0;
 }
 
-static int daqp_ai_cmd(struct comedi_device * dev, comedi_subdevice * s)
+static int daqp_ai_cmd(struct comedi_device * dev, struct comedi_subdevice * s)
 {
 	local_info_t *local = (local_info_t *) s->private;
 	comedi_cmd *cmd = &s->async->cmd;
@@ -793,7 +793,7 @@ static int daqp_ai_cmd(struct comedi_device * dev, comedi_subdevice * s)
 
 /* Single-shot analog output routine */
 
-static int daqp_ao_insn_write(struct comedi_device * dev, comedi_subdevice * s,
+static int daqp_ao_insn_write(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	local_info_t *local = (local_info_t *) s->private;
@@ -820,7 +820,7 @@ static int daqp_ao_insn_write(struct comedi_device * dev, comedi_subdevice * s,
 
 /* Digital input routine */
 
-static int daqp_di_insn_read(struct comedi_device * dev, comedi_subdevice * s,
+static int daqp_di_insn_read(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	local_info_t *local = (local_info_t *) s->private;
@@ -836,7 +836,7 @@ static int daqp_di_insn_read(struct comedi_device * dev, comedi_subdevice * s,
 
 /* Digital output routine */
 
-static int daqp_do_insn_write(struct comedi_device * dev, comedi_subdevice * s,
+static int daqp_do_insn_write(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	local_info_t *local = (local_info_t *) s->private;
@@ -862,7 +862,7 @@ static int daqp_attach(struct comedi_device * dev, comedi_devconfig * it)
 	local_info_t *local = dev_table[it->options[0]];
 	tuple_t tuple;
 	int i;
-	comedi_subdevice *s;
+	struct comedi_subdevice *s;
 
 	if (it->options[0] < 0 || it->options[0] >= MAX_DEV || !local) {
 		printk("comedi%d: No such daqp device %d\n",

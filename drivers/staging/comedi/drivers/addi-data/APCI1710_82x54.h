@@ -34,20 +34,20 @@
 /*
  * 82X54 TIMER INISIALISATION FUNCTION
  */
-INT i_APCI1710_InsnConfigInitTimer(struct comedi_device *dev, comedi_subdevice *s,
+INT i_APCI1710_InsnConfigInitTimer(struct comedi_device *dev, struct comedi_subdevice *s,
 				   comedi_insn *insn, unsigned int *data);
 
 INT i_APCI1710_InsnWriteEnableDisableTimer(struct comedi_device *dev,
-					   comedi_subdevice *s,
+					   struct comedi_subdevice *s,
 					   comedi_insn *insn, unsigned int *data);
 
 /*
  * 82X54 READ FUNCTION
  */
-INT i_APCI1710_InsnReadAllTimerValue(struct comedi_device *dev, comedi_subdevice *s,
+INT i_APCI1710_InsnReadAllTimerValue(struct comedi_device *dev, struct comedi_subdevice *s,
 				     comedi_insn *insn, unsigned int *data);
 
-INT i_APCI1710_InsnBitsTimer(struct comedi_device *dev, comedi_subdevice *s,
+INT i_APCI1710_InsnBitsTimer(struct comedi_device *dev, struct comedi_subdevice *s,
 			     comedi_insn *insn, unsigned int *data);
 
 /*

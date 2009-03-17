@@ -138,9 +138,9 @@ static comedi_driver driver = {
       num_names:sizeof(pcmda12_boards) / sizeof(pcmda12_board),
 };
 
-static int ao_winsn(struct comedi_device * dev, comedi_subdevice * s,
+static int ao_winsn(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data);
-static int ao_rinsn(struct comedi_device * dev, comedi_subdevice * s,
+static int ao_rinsn(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data);
 
 /*
@@ -151,7 +151,7 @@ static int ao_rinsn(struct comedi_device * dev, comedi_subdevice * s,
  */
 static int pcmda12_attach(struct comedi_device * dev, comedi_devconfig * it)
 {
-	comedi_subdevice *s;
+	struct comedi_subdevice *s;
 	unsigned long iobase;
 
 	iobase = it->options[0];
@@ -239,7 +239,7 @@ static void zero_chans(struct comedi_device * dev)
 	inb(LSB_PORT(0));	/* update chans. */
 }
 
-static int ao_winsn(struct comedi_device * dev, comedi_subdevice * s,
+static int ao_winsn(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	int i;
@@ -281,7 +281,7 @@ static int ao_winsn(struct comedi_device * dev, comedi_subdevice * s,
    DAC outputs, which makes all AO channels update simultaneously.
    This is useful for some control applications, I would imagine.
 */
-static int ao_rinsn(struct comedi_device * dev, comedi_subdevice * s,
+static int ao_rinsn(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	int i;

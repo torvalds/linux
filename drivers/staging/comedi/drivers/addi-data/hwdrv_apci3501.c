@@ -56,7 +56,7 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 /*
 +----------------------------------------------------------------------------+
 | Function   Name   : int i_APCI3501_ReadDigitalInput                    |
-|			  (struct comedi_device *dev,comedi_subdevice *s,               |
+|			  (struct comedi_device *dev,struct comedi_subdevice *s,               |
 |                      comedi_insn *insn,unsigned int *data)                     |
 +----------------------------------------------------------------------------+
 | Task              : Read  value  of the selected channel or port           |
@@ -73,7 +73,7 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI3501_ReadDigitalInput(struct comedi_device * dev, comedi_subdevice * s,
+INT i_APCI3501_ReadDigitalInput(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	UINT ui_Temp;
@@ -99,7 +99,7 @@ INT i_APCI3501_ReadDigitalInput(struct comedi_device * dev, comedi_subdevice * s
 /*
 +----------------------------------------------------------------------------+
 | Function   Name   : int i_APCI3501_ConfigDigitalOutput                     |
-|			  (struct comedi_device *dev,comedi_subdevice *s,               |
+|			  (struct comedi_device *dev,struct comedi_subdevice *s,               |
 |                      comedi_insn *insn,unsigned int *data)                     |
 +----------------------------------------------------------------------------+
 | Task              : Configures The Digital Output Subdevice.               |
@@ -121,7 +121,7 @@ INT i_APCI3501_ReadDigitalInput(struct comedi_device * dev, comedi_subdevice * s
 |			                                                         |
 +----------------------------------------------------------------------------+
 */
-int i_APCI3501_ConfigDigitalOutput(struct comedi_device * dev, comedi_subdevice * s,
+int i_APCI3501_ConfigDigitalOutput(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 
@@ -142,13 +142,13 @@ int i_APCI3501_ConfigDigitalOutput(struct comedi_device * dev, comedi_subdevice 
 /*
 +----------------------------------------------------------------------------+
 | Function   Name   : int i_APCI3501_WriteDigitalOutput                      |
-|			  (struct comedi_device *dev,comedi_subdevice *s,               |
+|			  (struct comedi_device *dev,struct comedi_subdevice *s,               |
 |                      comedi_insn *insn,unsigned int *data)                     |
 +----------------------------------------------------------------------------+
 | Task              : writes To the digital Output Subdevice                 |
 +----------------------------------------------------------------------------+
 | Input Parameters  : struct comedi_device *dev      : Driver handle                |
-|                     comedi_subdevice *s     : Subdevice Pointer            |
+|                     struct comedi_subdevice *s     : Subdevice Pointer            |
 |                     comedi_insn *insn       : Insn Structure Pointer       |
 |                     unsigned int *data          : Data Pointer contains        |
 |                                          configuration parameters as below |
@@ -161,7 +161,7 @@ int i_APCI3501_ConfigDigitalOutput(struct comedi_device * dev, comedi_subdevice 
 |			                                                         |
 +----------------------------------------------------------------------------+
 */
-INT i_APCI3501_WriteDigitalOutput(struct comedi_device * dev, comedi_subdevice * s,
+INT i_APCI3501_WriteDigitalOutput(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	UINT ui_Temp, ui_Temp1;
@@ -232,7 +232,7 @@ INT i_APCI3501_WriteDigitalOutput(struct comedi_device * dev, comedi_subdevice *
 /*
 +----------------------------------------------------------------------------+
 | Function   Name   : int i_APCI3501_ReadDigitalOutput                       |
-|			  (struct comedi_device *dev,comedi_subdevice *s,               |
+|			  (struct comedi_device *dev,struct comedi_subdevice *s,               |
 |                      comedi_insn *insn,unsigned int *data)                     |
 +----------------------------------------------------------------------------+
 | Task              : Read  value  of the selected channel or port           |
@@ -248,7 +248,7 @@ INT i_APCI3501_WriteDigitalOutput(struct comedi_device * dev, comedi_subdevice *
 |			                                                         |
 +----------------------------------------------------------------------------+
 */
-INT i_APCI3501_ReadDigitalOutput(struct comedi_device * dev, comedi_subdevice * s,
+INT i_APCI3501_ReadDigitalOutput(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	UINT ui_Temp;
@@ -275,13 +275,13 @@ INT i_APCI3501_ReadDigitalOutput(struct comedi_device * dev, comedi_subdevice * 
 /*
 +----------------------------------------------------------------------------+
 | Function   Name   : int i_APCI3501_ConfigAnalogOutput                      |
-|			  (struct comedi_device *dev,comedi_subdevice *s,               |
+|			  (struct comedi_device *dev,struct comedi_subdevice *s,               |
 |                      comedi_insn *insn,unsigned int *data)                     |
 +----------------------------------------------------------------------------+
 | Task              : Configures The Analog Output Subdevice                 |
 +----------------------------------------------------------------------------+
 | Input Parameters  : struct comedi_device *dev      : Driver handle                |
-|                     comedi_subdevice *s     : Subdevice Pointer            |
+|                     struct comedi_subdevice *s     : Subdevice Pointer            |
 |                     comedi_insn *insn       : Insn Structure Pointer       |
 |                     unsigned int *data          : Data Pointer contains        |
 |                                          configuration parameters as below |
@@ -298,7 +298,7 @@ INT i_APCI3501_ReadDigitalOutput(struct comedi_device * dev, comedi_subdevice * 
 |			                                                         |
 +----------------------------------------------------------------------------+
 */
-INT i_APCI3501_ConfigAnalogOutput(struct comedi_device * dev, comedi_subdevice * s,
+INT i_APCI3501_ConfigAnalogOutput(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	outl(data[0],
@@ -316,13 +316,13 @@ INT i_APCI3501_ConfigAnalogOutput(struct comedi_device * dev, comedi_subdevice *
 /*
 +----------------------------------------------------------------------------+
 | Function   Name   : int i_APCI3501_WriteAnalogOutput                       |
-|			  (struct comedi_device *dev,comedi_subdevice *s,               |
+|			  (struct comedi_device *dev,struct comedi_subdevice *s,               |
 |                      comedi_insn *insn,unsigned int *data)                     |
 +----------------------------------------------------------------------------+
 | Task              : Writes To the Selected Anlog Output Channel            |
 +----------------------------------------------------------------------------+
 | Input Parameters  : struct comedi_device *dev      : Driver handle                |
-|                     comedi_subdevice *s     : Subdevice Pointer            |
+|                     struct comedi_subdevice *s     : Subdevice Pointer            |
 |                     comedi_insn *insn       : Insn Structure Pointer       |
 |                     unsigned int *data          : Data Pointer contains        |
 |                                          configuration parameters as below |
@@ -336,7 +336,7 @@ INT i_APCI3501_ConfigAnalogOutput(struct comedi_device * dev, comedi_subdevice *
 |			                                                         |
 +----------------------------------------------------------------------------+
 */
-INT i_APCI3501_WriteAnalogOutput(struct comedi_device * dev, comedi_subdevice * s,
+INT i_APCI3501_WriteAnalogOutput(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	ULONG ul_Command1 = 0, ul_Channel_no, ul_Polarity, ul_DAC_Ready = 0;;
@@ -386,7 +386,7 @@ INT i_APCI3501_WriteAnalogOutput(struct comedi_device * dev, comedi_subdevice * 
 /*
 +----------------------------------------------------------------------------+
 | Function   Name   : int i_APCI3501_ConfigTimerCounterWatchdog              |
-|			  (struct comedi_device *dev,comedi_subdevice *s,               |
+|			  (struct comedi_device *dev,struct comedi_subdevice *s,               |
 |                      comedi_insn *insn,unsigned int *data)                     |
 +----------------------------------------------------------------------------+
 | Task              : Configures The Timer , Counter or Watchdog             |
@@ -411,7 +411,7 @@ INT i_APCI3501_WriteAnalogOutput(struct comedi_device * dev, comedi_subdevice * 
 +----------------------------------------------------------------------------+
 */
 INT i_APCI3501_ConfigTimerCounterWatchdog(struct comedi_device * dev,
-	comedi_subdevice * s, comedi_insn * insn, unsigned int * data)
+	struct comedi_subdevice * s, comedi_insn * insn, unsigned int * data)
 {
 	ULONG ul_Command1 = 0;
 	devpriv->tsk_Current = current;
@@ -489,7 +489,7 @@ INT i_APCI3501_ConfigTimerCounterWatchdog(struct comedi_device * dev,
 /*
 +----------------------------------------------------------------------------+
 | Function   Name   : int i_APCI3501_StartStopWriteTimerCounterWatchdog      |
-|			  (struct comedi_device *dev,comedi_subdevice *s,               |
+|			  (struct comedi_device *dev,struct comedi_subdevice *s,               |
 |                      comedi_insn *insn,unsigned int *data)                     |
 +----------------------------------------------------------------------------+
 | Task              : Start / Stop The Selected Timer , Counter or Watchdog  |
@@ -512,7 +512,7 @@ INT i_APCI3501_ConfigTimerCounterWatchdog(struct comedi_device * dev,
 */
 
 int i_APCI3501_StartStopWriteTimerCounterWatchdog(struct comedi_device * dev,
-	comedi_subdevice * s, comedi_insn * insn, unsigned int * data)
+	struct comedi_subdevice * s, comedi_insn * insn, unsigned int * data)
 {
 	ULONG ul_Command1 = 0;
 	int i_Temp;
@@ -592,7 +592,7 @@ int i_APCI3501_StartStopWriteTimerCounterWatchdog(struct comedi_device * dev,
 /*
 +----------------------------------------------------------------------------+
 | Function   Name   : int i_APCI3501_ReadTimerCounterWatchdog                |
-|			  (struct comedi_device *dev,comedi_subdevice *s,               |
+|			  (struct comedi_device *dev,struct comedi_subdevice *s,               |
 |                      comedi_insn *insn,unsigned int *data)                     |
 +----------------------------------------------------------------------------+
 | Task              : Read The Selected Timer , Counter or Watchdog          |
@@ -614,7 +614,7 @@ int i_APCI3501_StartStopWriteTimerCounterWatchdog(struct comedi_device * dev,
 */
 
 int i_APCI3501_ReadTimerCounterWatchdog(struct comedi_device * dev,
-	comedi_subdevice * s, comedi_insn * insn, unsigned int * data)
+	struct comedi_subdevice * s, comedi_insn * insn, unsigned int * data)
 {
 
 	if (devpriv->b_TimerSelectMode == ADDIDATA_WATCHDOG) {

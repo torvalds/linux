@@ -615,30 +615,30 @@ static comedi_driver driver_amplc_pci230 = {
 
 COMEDI_PCI_INITCLEANUP(driver_amplc_pci230, pci230_pci_table);
 
-static int pci230_ai_rinsn(struct comedi_device * dev, comedi_subdevice * s,
+static int pci230_ai_rinsn(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data);
-static int pci230_ao_winsn(struct comedi_device * dev, comedi_subdevice * s,
+static int pci230_ao_winsn(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data);
-static int pci230_ao_rinsn(struct comedi_device * dev, comedi_subdevice * s,
+static int pci230_ao_rinsn(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data);
 static void pci230_ct_setup_ns_mode(struct comedi_device * dev, unsigned int ct,
 	unsigned int mode, uint64_t ns, unsigned int round);
 static void pci230_ns_to_single_timer(unsigned int *ns, unsigned int round);
 static void pci230_cancel_ct(struct comedi_device * dev, unsigned int ct);
 static irqreturn_t pci230_interrupt(int irq, void *d PT_REGS_ARG);
-static int pci230_ao_cmdtest(struct comedi_device * dev, comedi_subdevice * s,
+static int pci230_ao_cmdtest(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_cmd * cmd);
-static int pci230_ao_cmd(struct comedi_device * dev, comedi_subdevice * s);
-static int pci230_ao_cancel(struct comedi_device * dev, comedi_subdevice * s);
-static void pci230_ao_stop(struct comedi_device * dev, comedi_subdevice * s);
-static void pci230_handle_ao_nofifo(struct comedi_device * dev, comedi_subdevice * s);
-static int pci230_handle_ao_fifo(struct comedi_device * dev, comedi_subdevice * s);
-static int pci230_ai_cmdtest(struct comedi_device * dev, comedi_subdevice * s,
+static int pci230_ao_cmd(struct comedi_device * dev, struct comedi_subdevice * s);
+static int pci230_ao_cancel(struct comedi_device * dev, struct comedi_subdevice * s);
+static void pci230_ao_stop(struct comedi_device * dev, struct comedi_subdevice * s);
+static void pci230_handle_ao_nofifo(struct comedi_device * dev, struct comedi_subdevice * s);
+static int pci230_handle_ao_fifo(struct comedi_device * dev, struct comedi_subdevice * s);
+static int pci230_ai_cmdtest(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_cmd * cmd);
-static int pci230_ai_cmd(struct comedi_device * dev, comedi_subdevice * s);
-static int pci230_ai_cancel(struct comedi_device * dev, comedi_subdevice * s);
-static void pci230_ai_stop(struct comedi_device * dev, comedi_subdevice * s);
-static void pci230_handle_ai(struct comedi_device * dev, comedi_subdevice * s);
+static int pci230_ai_cmd(struct comedi_device * dev, struct comedi_subdevice * s);
+static int pci230_ai_cancel(struct comedi_device * dev, struct comedi_subdevice * s);
+static void pci230_ai_stop(struct comedi_device * dev, struct comedi_subdevice * s);
+static void pci230_handle_ai(struct comedi_device * dev, struct comedi_subdevice * s);
 
 static short pci230_ai_read(struct comedi_device * dev)
 {
@@ -704,7 +704,7 @@ static inline void pci230_ao_write_fifo(struct comedi_device * dev, short datum,
  */
 static int pci230_attach(struct comedi_device * dev, comedi_devconfig * it)
 {
-	comedi_subdevice *s;
+	struct comedi_subdevice *s;
 	unsigned long iobase1, iobase2;
 	/* PCI230's I/O spaces 1 and 2 respectively. */
 	struct pci_dev *pci_dev;
@@ -1058,7 +1058,7 @@ static inline void put_all_resources(struct comedi_device * dev, unsigned char o
 /*
  *  COMEDI_SUBD_AI instruction;
  */
-static int pci230_ai_rinsn(struct comedi_device * dev, comedi_subdevice * s,
+static int pci230_ai_rinsn(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	unsigned int n, i;
@@ -1163,7 +1163,7 @@ static int pci230_ai_rinsn(struct comedi_device * dev, comedi_subdevice * s,
 /*
  *  COMEDI_SUBD_AO instructions;
  */
-static int pci230_ao_winsn(struct comedi_device * dev, comedi_subdevice * s,
+static int pci230_ao_winsn(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	int i;
@@ -1191,7 +1191,7 @@ static int pci230_ao_winsn(struct comedi_device * dev, comedi_subdevice * s,
 
 /* AO subdevices should have a read insn as well as a write insn.
  * Usually this means copying a value stored in devpriv. */
-static int pci230_ao_rinsn(struct comedi_device * dev, comedi_subdevice * s,
+static int pci230_ao_rinsn(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	int i;
@@ -1203,7 +1203,7 @@ static int pci230_ao_rinsn(struct comedi_device * dev, comedi_subdevice * s,
 	return i;
 }
 
-static int pci230_ao_cmdtest(struct comedi_device * dev, comedi_subdevice * s,
+static int pci230_ao_cmdtest(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_cmd * cmd)
 {
 	int err = 0;
@@ -1417,7 +1417,7 @@ static int pci230_ao_cmdtest(struct comedi_device * dev, comedi_subdevice * s,
 }
 
 static int pci230_ao_inttrig_scan_begin(struct comedi_device * dev,
-	comedi_subdevice * s, unsigned int trig_num)
+	struct comedi_subdevice * s, unsigned int trig_num)
 {
 	unsigned long irqflags;
 
@@ -1448,7 +1448,7 @@ static int pci230_ao_inttrig_scan_begin(struct comedi_device * dev,
 	return 1;
 }
 
-static void pci230_ao_start(struct comedi_device * dev, comedi_subdevice * s)
+static void pci230_ao_start(struct comedi_device * dev, struct comedi_subdevice * s)
 {
 	comedi_async *async = s->async;
 	comedi_cmd *cmd = &async->cmd;
@@ -1536,7 +1536,7 @@ static void pci230_ao_start(struct comedi_device * dev, comedi_subdevice * s)
 	}
 }
 
-static int pci230_ao_inttrig_start(struct comedi_device * dev, comedi_subdevice * s,
+static int pci230_ao_inttrig_start(struct comedi_device * dev, struct comedi_subdevice * s,
 	unsigned int trig_num)
 {
 	if (trig_num != 0)
@@ -1548,7 +1548,7 @@ static int pci230_ao_inttrig_start(struct comedi_device * dev, comedi_subdevice 
 	return 1;
 }
 
-static int pci230_ao_cmd(struct comedi_device * dev, comedi_subdevice * s)
+static int pci230_ao_cmd(struct comedi_device * dev, struct comedi_subdevice * s)
 {
 	unsigned short daccon;
 	unsigned int range;
@@ -1648,7 +1648,7 @@ static int pci230_ai_check_scan_period(comedi_cmd * cmd)
 	return !err;
 }
 
-static int pci230_ai_cmdtest(struct comedi_device * dev, comedi_subdevice * s,
+static int pci230_ai_cmdtest(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_cmd * cmd)
 {
 	int err = 0;
@@ -2035,7 +2035,7 @@ static int pci230_ai_cmdtest(struct comedi_device * dev, comedi_subdevice * s,
 }
 
 static void pci230_ai_update_fifo_trigger_level(struct comedi_device * dev,
-	comedi_subdevice * s)
+	struct comedi_subdevice * s)
 {
 	comedi_cmd *cmd = &s->async->cmd;
 	unsigned int scanlen = cmd->scan_end_arg;
@@ -2078,7 +2078,7 @@ static void pci230_ai_update_fifo_trigger_level(struct comedi_device * dev,
 	}
 }
 
-static int pci230_ai_inttrig_convert(struct comedi_device * dev, comedi_subdevice * s,
+static int pci230_ai_inttrig_convert(struct comedi_device * dev, struct comedi_subdevice * s,
 	unsigned int trig_num)
 {
 	unsigned long irqflags;
@@ -2122,7 +2122,7 @@ static int pci230_ai_inttrig_convert(struct comedi_device * dev, comedi_subdevic
 }
 
 static int pci230_ai_inttrig_scan_begin(struct comedi_device * dev,
-	comedi_subdevice * s, unsigned int trig_num)
+	struct comedi_subdevice * s, unsigned int trig_num)
 {
 	unsigned long irqflags;
 	unsigned char zgat;
@@ -2143,7 +2143,7 @@ static int pci230_ai_inttrig_scan_begin(struct comedi_device * dev,
 	return 1;
 }
 
-static void pci230_ai_start(struct comedi_device * dev, comedi_subdevice * s)
+static void pci230_ai_start(struct comedi_device * dev, struct comedi_subdevice * s)
 {
 	unsigned long irqflags;
 	unsigned short conv;
@@ -2280,7 +2280,7 @@ static void pci230_ai_start(struct comedi_device * dev, comedi_subdevice * s)
 	}
 }
 
-static int pci230_ai_inttrig_start(struct comedi_device * dev, comedi_subdevice * s,
+static int pci230_ai_inttrig_start(struct comedi_device * dev, struct comedi_subdevice * s,
 	unsigned int trig_num)
 {
 	if (trig_num != 0)
@@ -2292,7 +2292,7 @@ static int pci230_ai_inttrig_start(struct comedi_device * dev, comedi_subdevice 
 	return 1;
 }
 
-static int pci230_ai_cmd(struct comedi_device * dev, comedi_subdevice * s)
+static int pci230_ai_cmd(struct comedi_device * dev, struct comedi_subdevice * s)
 {
 	unsigned int i, chan, range, diff;
 	unsigned int res_mask;
@@ -2563,7 +2563,7 @@ static irqreturn_t pci230_interrupt(int irq, void *d PT_REGS_ARG)
 {
 	unsigned char status_int, valid_status_int;
 	struct comedi_device *dev = (struct comedi_device *) d;
-	comedi_subdevice *s;
+	struct comedi_subdevice *s;
 	unsigned long irqflags;
 
 	/* Read interrupt status/enable register. */
@@ -2622,7 +2622,7 @@ static irqreturn_t pci230_interrupt(int irq, void *d PT_REGS_ARG)
 	return IRQ_HANDLED;
 }
 
-static void pci230_handle_ao_nofifo(struct comedi_device * dev, comedi_subdevice * s)
+static void pci230_handle_ao_nofifo(struct comedi_device * dev, struct comedi_subdevice * s)
 {
 	short data;
 	int i, ret;
@@ -2659,7 +2659,7 @@ static void pci230_handle_ao_nofifo(struct comedi_device * dev, comedi_subdevice
 
 /* Loads DAC FIFO (if using it) from buffer. */
 /* Returns 0 if AO finished due to completion or error, 1 if still going. */
-static int pci230_handle_ao_fifo(struct comedi_device * dev, comedi_subdevice * s)
+static int pci230_handle_ao_fifo(struct comedi_device * dev, struct comedi_subdevice * s)
 {
 	comedi_async *async = s->async;
 	comedi_cmd *cmd = &async->cmd;
@@ -2762,7 +2762,7 @@ static int pci230_handle_ao_fifo(struct comedi_device * dev, comedi_subdevice * 
 	return running;
 }
 
-static void pci230_handle_ai(struct comedi_device * dev, comedi_subdevice * s)
+static void pci230_handle_ai(struct comedi_device * dev, struct comedi_subdevice * s)
 {
 	unsigned int events = 0;
 	unsigned int status_fifo;
@@ -2861,7 +2861,7 @@ static void pci230_handle_ai(struct comedi_device * dev, comedi_subdevice * s)
 	}
 }
 
-static void pci230_ao_stop(struct comedi_device * dev, comedi_subdevice * s)
+static void pci230_ao_stop(struct comedi_device * dev, struct comedi_subdevice * s)
 {
 	unsigned long irqflags;
 	unsigned char intsrc;
@@ -2916,13 +2916,13 @@ static void pci230_ao_stop(struct comedi_device * dev, comedi_subdevice * s)
 	put_all_resources(dev, OWNER_AOCMD);
 }
 
-static int pci230_ao_cancel(struct comedi_device * dev, comedi_subdevice * s)
+static int pci230_ao_cancel(struct comedi_device * dev, struct comedi_subdevice * s)
 {
 	pci230_ao_stop(dev, s);
 	return 0;
 }
 
-static void pci230_ai_stop(struct comedi_device * dev, comedi_subdevice * s)
+static void pci230_ai_stop(struct comedi_device * dev, struct comedi_subdevice * s)
 {
 	unsigned long irqflags;
 	comedi_cmd *cmd;
@@ -2970,7 +2970,7 @@ static void pci230_ai_stop(struct comedi_device * dev, comedi_subdevice * s)
 	put_all_resources(dev, OWNER_AICMD);
 }
 
-static int pci230_ai_cancel(struct comedi_device * dev, comedi_subdevice * s)
+static int pci230_ai_cancel(struct comedi_device * dev, struct comedi_subdevice * s)
 {
 	pci230_ai_stop(dev, s);
 	return 0;

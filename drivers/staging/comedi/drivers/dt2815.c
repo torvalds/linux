@@ -106,7 +106,7 @@ static int dt2815_wait_for_status(struct comedi_device * dev, int status)
 	return status;
 }
 
-static int dt2815_ao_insn_read(struct comedi_device * dev, comedi_subdevice * s,
+static int dt2815_ao_insn_read(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	int i;
@@ -119,7 +119,7 @@ static int dt2815_ao_insn_read(struct comedi_device * dev, comedi_subdevice * s,
 	return i;
 }
 
-static int dt2815_ao_insn(struct comedi_device * dev, comedi_subdevice * s,
+static int dt2815_ao_insn(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	int i;
@@ -179,7 +179,7 @@ static int dt2815_ao_insn(struct comedi_device * dev, comedi_subdevice * s,
 
 static int dt2815_attach(struct comedi_device * dev, comedi_devconfig * it)
 {
-	comedi_subdevice *s;
+	struct comedi_subdevice *s;
 	int i;
 	const comedi_lrange *current_range_type, *voltage_range_type;
 	unsigned long iobase;

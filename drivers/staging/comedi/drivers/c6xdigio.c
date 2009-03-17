@@ -339,14 +339,14 @@ static void C6X_encResetAll(unsigned long baseAddr)
 }
 
 static int c6xdigio_pwmo_insn_read(struct comedi_device * dev,
-	comedi_subdevice * s, comedi_insn * insn, unsigned int * data)
+	struct comedi_subdevice * s, comedi_insn * insn, unsigned int * data)
 {
 	printk("c6xdigio_pwmo_insn_read %x\n", insn->n);
 	return insn->n;
 }
 
 static int c6xdigio_pwmo_insn_write(struct comedi_device * dev,
-	comedi_subdevice * s, comedi_insn * insn, unsigned int * data)
+	struct comedi_subdevice * s, comedi_insn * insn, unsigned int * data)
 {
 	int i;
 	int chan = CR_CHAN(insn->chanspec);
@@ -360,7 +360,7 @@ static int c6xdigio_pwmo_insn_write(struct comedi_device * dev,
 }
 
 //static int c6xdigio_ei_init_insn_read(struct comedi_device *dev,
-//                                 comedi_subdevice *s,
+//                                 struct comedi_subdevice *s,
 //                                 comedi_insn *insn,
 //                                 unsigned int *data)
 //{
@@ -369,7 +369,7 @@ static int c6xdigio_pwmo_insn_write(struct comedi_device * dev,
 //}
 
 //static int c6xdigio_ei_init_insn_write(struct comedi_device *dev,
-//                                 comedi_subdevice *s,
+//                                 struct comedi_subdevice *s,
 //                                 comedi_insn *insn,
 //                                 unsigned int *data)
 //{
@@ -382,7 +382,7 @@ static int c6xdigio_pwmo_insn_write(struct comedi_device * dev,
 //}
 
 static int c6xdigio_ei_insn_read(struct comedi_device * dev,
-	comedi_subdevice * s, comedi_insn * insn, unsigned int * data)
+	struct comedi_subdevice * s, comedi_insn * insn, unsigned int * data)
 {
 	//  printk("c6xdigio_ei__insn_read %x\n", insn->n);
 	int n;
@@ -433,7 +433,7 @@ static int c6xdigio_attach(struct comedi_device * dev, comedi_devconfig * it)
 	int result = 0;
 	unsigned long iobase;
 	unsigned int irq;
-	comedi_subdevice *s;
+	struct comedi_subdevice *s;
 
 	iobase = it->options[0];
 	printk("comedi%d: c6xdigio: 0x%04lx\n", dev->minor, iobase);

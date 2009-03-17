@@ -193,13 +193,13 @@ typedef struct {
 #endif
 	int irq_was_now_closed;	// when IRQ finish, there's stored int816_mode for last interrupt
 	int int816_mode;	// who now uses IRQ - 1=AI1 int, 2=AI1 dma, 3=AI3 int, 4AI3 dma
-	comedi_subdevice *last_int_sub;	// ptr to subdevice which now finish
+	struct comedi_subdevice *last_int_sub;	// ptr to subdevice which now finish
 	int ai_act_scan;	// how many scans we finished
 	unsigned int ai_act_chanlist[16];	// MUX setting for actual AI operations
 	unsigned int ai_act_chanlist_len;	// how long is actual MUX list
 	unsigned int ai_act_chanlist_pos;	// actual position in MUX list
 	unsigned int ai_poll_ptr;	// how many sampes transfer poll
-	comedi_subdevice *sub_ai;	// ptr to AI subdevice
+	struct comedi_subdevice *sub_ai;	// ptr to AI subdevice
 #ifdef unused
 	struct timer_list rtc_irq_timer;	// timer for RTC sanity check
 	unsigned long rtc_freq;	// RTC int freq
@@ -210,23 +210,23 @@ typedef struct {
 ==============================================================================
 */
 static int check_and_setup_channel_list(struct comedi_device * dev,
-	comedi_subdevice * s, unsigned int *chanlist, int chanlen);
-static int pcl816_ai_cancel(struct comedi_device * dev, comedi_subdevice * s);
+	struct comedi_subdevice * s, unsigned int *chanlist, int chanlen);
+static int pcl816_ai_cancel(struct comedi_device * dev, struct comedi_subdevice * s);
 static void start_pacer(struct comedi_device * dev, int mode, unsigned int divisor1,
 	unsigned int divisor2);
 #ifdef unused
 static int set_rtc_irq_bit(unsigned char bit);
 #endif
 
-static int pcl816_ai_cmdtest(struct comedi_device * dev, comedi_subdevice * s,
+static int pcl816_ai_cmdtest(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_cmd * cmd);
-static int pcl816_ai_cmd(struct comedi_device * dev, comedi_subdevice * s);
+static int pcl816_ai_cmd(struct comedi_device * dev, struct comedi_subdevice * s);
 
 /*
 ==============================================================================
    ANALOG INPUT MODE0, 816 cards, slow version
 */
-static int pcl816_ai_insn_read(struct comedi_device * dev, comedi_subdevice * s,
+static int pcl816_ai_insn_read(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	int n;
@@ -281,7 +281,7 @@ static int pcl816_ai_insn_read(struct comedi_device * dev, comedi_subdevice * s,
 static irqreturn_t interrupt_pcl816_ai_mode13_int(int irq, void *d)
 {
 	struct comedi_device *dev = d;
-	comedi_subdevice *s = dev->subdevices + 0;
+	struct comedi_subdevice *s = dev->subdevices + 0;
 	int low, hi;
 	int timeout = 50;	/* wait max 50us */
 
@@ -330,7 +330,7 @@ static irqreturn_t interrupt_pcl816_ai_mode13_int(int irq, void *d)
 ==============================================================================
    analog input dma mode 1 & 3, 816 cards
 */
-static void transfer_from_dma_buf(struct comedi_device * dev, comedi_subdevice * s,
+static void transfer_from_dma_buf(struct comedi_device * dev, struct comedi_subdevice * s,
 	short * ptr, unsigned int bufptr, unsigned int len)
 {
 	int i;
@@ -362,7 +362,7 @@ static void transfer_from_dma_buf(struct comedi_device * dev, comedi_subdevice *
 static irqreturn_t interrupt_pcl816_ai_mode13_dma(int irq, void *d)
 {
 	struct comedi_device *dev = d;
-	comedi_subdevice *s = dev->subdevices + 0;
+	struct comedi_subdevice *s = dev->subdevices + 0;
 	int len, bufptr, this_dma_buf;
 	unsigned long dma_flags;
 	short *ptr;
@@ -458,7 +458,7 @@ static void pcl816_cmdtest_out(int e, comedi_cmd * cmd)
 /*
 ==============================================================================
 */
-static int pcl816_ai_cmdtest(struct comedi_device * dev, comedi_subdevice * s,
+static int pcl816_ai_cmdtest(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_cmd * cmd)
 {
 	int err = 0;
@@ -593,7 +593,7 @@ static int pcl816_ai_cmdtest(struct comedi_device * dev, comedi_subdevice * s,
 	return 0;
 }
 
-static int pcl816_ai_cmd(struct comedi_device * dev, comedi_subdevice * s)
+static int pcl816_ai_cmd(struct comedi_device * dev, struct comedi_subdevice * s)
 {
 	unsigned int divisor1 = 0, divisor2 = 0, dma_flags, bytes, dmairq;
 	comedi_cmd *cmd = &s->async->cmd;
@@ -698,7 +698,7 @@ static int pcl816_ai_cmd(struct comedi_device * dev, comedi_subdevice * s)
 	return 0;
 }
 
-static int pcl816_ai_poll(struct comedi_device * dev, comedi_subdevice * s)
+static int pcl816_ai_poll(struct comedi_device * dev, struct comedi_subdevice * s)
 {
 	unsigned long flags;
 	unsigned int top1, top2, i;
@@ -741,7 +741,7 @@ static int pcl816_ai_poll(struct comedi_device * dev, comedi_subdevice * s)
 ==============================================================================
  cancel any mode 1-4 AI
 */
-static int pcl816_ai_cancel(struct comedi_device * dev, comedi_subdevice * s)
+static int pcl816_ai_cancel(struct comedi_device * dev, struct comedi_subdevice * s)
 {
 //  DEBUG(rt_printk("pcl816_ai_cancel()\n");)
 
@@ -861,7 +861,7 @@ start_pacer(struct comedi_device * dev, int mode, unsigned int divisor1,
  If it's ok, then program scan/gain logic
 */
 static int
-check_and_setup_channel_list(struct comedi_device * dev, comedi_subdevice * s,
+check_and_setup_channel_list(struct comedi_device * dev, struct comedi_subdevice * s,
 	unsigned int *chanlist, int chanlen)
 {
 	unsigned int chansegment[16];
@@ -1018,7 +1018,7 @@ static int pcl816_attach(struct comedi_device * dev, comedi_devconfig * it)
 	unsigned int irq, dma;
 	unsigned long pages;
 	//int i;
-	comedi_subdevice *s;
+	struct comedi_subdevice *s;
 
 	/* claim our I/O space */
 	iobase = it->options[0];

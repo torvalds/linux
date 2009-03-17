@@ -154,22 +154,22 @@ typedef struct {
 
 //AI
 
-INT i_APCI3200_ConfigAnalogInput(struct comedi_device *dev, comedi_subdevice *s,
+INT i_APCI3200_ConfigAnalogInput(struct comedi_device *dev, struct comedi_subdevice *s,
 				 comedi_insn *insn, unsigned int *data);
-INT i_APCI3200_ReadAnalogInput(struct comedi_device *dev, comedi_subdevice *s,
+INT i_APCI3200_ReadAnalogInput(struct comedi_device *dev, struct comedi_subdevice *s,
 			       comedi_insn *insn, unsigned int *data);
 INT i_APCI3200_InsnWriteReleaseAnalogInput(struct comedi_device *dev,
-					   comedi_subdevice *s,
+					   struct comedi_subdevice *s,
 					   comedi_insn *insn, unsigned int *data);
 INT i_APCI3200_InsnBits_AnalogInput_Test(struct comedi_device *dev,
-					 comedi_subdevice *s,
+					 struct comedi_subdevice *s,
 					 comedi_insn *insn, unsigned int *data);
-INT i_APCI3200_StopCyclicAcquisition(struct comedi_device *dev, comedi_subdevice *s);
+INT i_APCI3200_StopCyclicAcquisition(struct comedi_device *dev, struct comedi_subdevice *s);
 INT i_APCI3200_InterruptHandleEos(struct comedi_device *dev);
-INT i_APCI3200_CommandTestAnalogInput(struct comedi_device *dev, comedi_subdevice *s,
+INT i_APCI3200_CommandTestAnalogInput(struct comedi_device *dev, struct comedi_subdevice *s,
 				      comedi_cmd *cmd);
-INT i_APCI3200_CommandAnalogInput(struct comedi_device *dev, comedi_subdevice *s);
-INT i_APCI3200_ReadDigitalInput(struct comedi_device *dev, comedi_subdevice *s,
+INT i_APCI3200_CommandAnalogInput(struct comedi_device *dev, struct comedi_subdevice *s);
+INT i_APCI3200_ReadDigitalInput(struct comedi_device *dev, struct comedi_subdevice *s,
 				comedi_insn *insn, unsigned int *data);
 //Interrupt
 void v_APCI3200_Interrupt(int irq, void *d);
@@ -182,6 +182,6 @@ int i_APCI3200_ReadCJCValue(struct comedi_device *dev, unsigned int *data);
 int i_APCI3200_ReadCalibrationGainValue(struct comedi_device *dev, UINT *data);
 int i_APCI3200_ReadCalibrationOffsetValue(struct comedi_device *dev, UINT *data);
 int i_APCI3200_Read1AnalogInputChannel(struct comedi_device *dev,
-				       comedi_subdevice *s, comedi_insn *insn,
+				       struct comedi_subdevice *s, comedi_insn *insn,
 				       unsigned int *data);
 int i_APCI3200_ReadCJCCalGain(struct comedi_device *dev, unsigned int *data);

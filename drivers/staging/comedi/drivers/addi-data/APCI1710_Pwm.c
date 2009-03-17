@@ -58,7 +58,7 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 /*
 +----------------------------------------------------------------------------+
 | Function Name     :INT i_APCI1710_InsnConfigPWM(struct comedi_device *dev,
-comedi_subdevice *s,comedi_insn *insn,unsigned int *data)                        |
+struct comedi_subdevice *s,comedi_insn *insn,unsigned int *data)                        |
 +----------------------------------------------------------------------------+
 | Task              : Pwm Init and Get Pwm Initialisation                    |
 +----------------------------------------------------------------------------+
@@ -70,7 +70,7 @@ comedi_subdevice *s,comedi_insn *insn,unsigned int *data)                       
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_InsnConfigPWM(struct comedi_device * dev, comedi_subdevice * s,
+INT i_APCI1710_InsnConfigPWM(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	BYTE b_ConfigType;
@@ -1671,7 +1671,7 @@ INT i_APCI1710_GetPWMInitialisation(struct comedi_device * dev,
 /*
 +----------------------------------------------------------------------------+
 | Function Name     :INT i_APCI1710_InsnWritePWM(struct comedi_device *dev,
-comedi_subdevice *s,comedi_insn *insn,unsigned int *data)                        |
+struct comedi_subdevice *s,comedi_insn *insn,unsigned int *data)                        |
 +----------------------------------------------------------------------------+
 | Task              : Pwm Enable Disable and Set New Timing                  |
 +----------------------------------------------------------------------------+
@@ -1683,7 +1683,7 @@ comedi_subdevice *s,comedi_insn *insn,unsigned int *data)                       
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_InsnWritePWM(struct comedi_device * dev, comedi_subdevice * s,
+INT i_APCI1710_InsnWritePWM(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	BYTE b_WriteType;
@@ -3460,7 +3460,7 @@ INT i_APCI1710_SetNewPWMTiming(struct comedi_device * dev,
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_InsnReadGetPWMStatus(struct comedi_device * dev, comedi_subdevice * s,
+INT i_APCI1710_InsnReadGetPWMStatus(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	INT i_ReturnValue = 0;
@@ -3562,7 +3562,7 @@ INT i_APCI1710_InsnReadGetPWMStatus(struct comedi_device * dev, comedi_subdevice
 }
 
 INT i_APCI1710_InsnBitsReadPWMInterrupt(struct comedi_device * dev,
-	comedi_subdevice * s, comedi_insn * insn, unsigned int * data)
+	struct comedi_subdevice * s, comedi_insn * insn, unsigned int * data)
 {
 	data[0] = devpriv->s_InterruptParameters.
 		s_FIFOInterruptParameters[devpriv->

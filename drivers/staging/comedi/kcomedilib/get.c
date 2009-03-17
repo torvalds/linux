@@ -55,7 +55,7 @@ const char *comedi_get_board_name(void * d)
 int comedi_get_subdevice_type(void *d, unsigned int subdevice)
 {
 	struct comedi_device *dev = (struct comedi_device *) d;
-	comedi_subdevice *s = dev->subdevices + subdevice;
+	struct comedi_subdevice *s = dev->subdevices + subdevice;
 
 	return s->type;
 }
@@ -63,7 +63,7 @@ int comedi_get_subdevice_type(void *d, unsigned int subdevice)
 unsigned int comedi_get_subdevice_flags(void *d, unsigned int subdevice)
 {
 	struct comedi_device *dev = (struct comedi_device *) d;
-	comedi_subdevice *s = dev->subdevices + subdevice;
+	struct comedi_subdevice *s = dev->subdevices + subdevice;
 
 	return s->subdev_flags;
 }
@@ -85,7 +85,7 @@ int comedi_find_subdevice_by_type(void *d, int type, unsigned int subd)
 int comedi_get_n_channels(void *d, unsigned int subdevice)
 {
 	struct comedi_device *dev = (struct comedi_device *) d;
-	comedi_subdevice *s = dev->subdevices + subdevice;
+	struct comedi_subdevice *s = dev->subdevices + subdevice;
 
 	return s->n_chan;
 }
@@ -93,7 +93,7 @@ int comedi_get_n_channels(void *d, unsigned int subdevice)
 int comedi_get_len_chanlist(void *d, unsigned int subdevice)
 {
 	struct comedi_device *dev = (struct comedi_device *) d;
-	comedi_subdevice *s = dev->subdevices + subdevice;
+	struct comedi_subdevice *s = dev->subdevices + subdevice;
 
 	return s->len_chanlist;
 }
@@ -102,7 +102,7 @@ unsigned int comedi_get_maxdata(void *d, unsigned int subdevice,
 	unsigned int chan)
 {
 	struct comedi_device *dev = (struct comedi_device *) d;
-	comedi_subdevice *s = dev->subdevices + subdevice;
+	struct comedi_subdevice *s = dev->subdevices + subdevice;
 
 	if (s->maxdata_list)
 		return s->maxdata_list[chan];
@@ -115,7 +115,7 @@ int comedi_get_rangetype(void *d, unsigned int subdevice,
 	unsigned int chan)
 {
 	struct comedi_device *dev = (struct comedi_device *) d;
-	comedi_subdevice *s = dev->subdevices + subdevice;
+	struct comedi_subdevice *s = dev->subdevices + subdevice;
 	int ret;
 
 	if (s->range_table_list) {
@@ -133,7 +133,7 @@ int comedi_get_rangetype(void *d, unsigned int subdevice,
 int comedi_get_n_ranges(void *d, unsigned int subdevice, unsigned int chan)
 {
 	struct comedi_device *dev = (struct comedi_device *) d;
-	comedi_subdevice *s = dev->subdevices + subdevice;
+	struct comedi_subdevice *s = dev->subdevices + subdevice;
 	int ret;
 
 	if (s->range_table_list) {
@@ -152,7 +152,7 @@ int comedi_get_krange(void *d, unsigned int subdevice, unsigned int chan,
 	unsigned int range, comedi_krange *krange)
 {
 	struct comedi_device *dev = (struct comedi_device *) d;
-	comedi_subdevice *s = dev->subdevices + subdevice;
+	struct comedi_subdevice *s = dev->subdevices + subdevice;
 	const comedi_lrange *lr;
 
 	if (s->range_table_list) {
@@ -174,7 +174,7 @@ int comedi_get_krange(void *d, unsigned int subdevice, unsigned int chan,
 unsigned int comedi_get_buf_head_pos(void *d, unsigned int subdevice)
 {
 	struct comedi_device *dev = (struct comedi_device *) d;
-	comedi_subdevice *s = dev->subdevices + subdevice;
+	struct comedi_subdevice *s = dev->subdevices + subdevice;
 	comedi_async *async;
 
 	async = s->async;
@@ -187,7 +187,7 @@ unsigned int comedi_get_buf_head_pos(void *d, unsigned int subdevice)
 int comedi_get_buffer_contents(void *d, unsigned int subdevice)
 {
 	struct comedi_device *dev = (struct comedi_device *) d;
-	comedi_subdevice *s = dev->subdevices + subdevice;
+	struct comedi_subdevice *s = dev->subdevices + subdevice;
 	comedi_async *async;
 	unsigned int num_bytes;
 
@@ -207,7 +207,7 @@ int comedi_set_user_int_count(void *d, unsigned int subdevice,
 	unsigned int buf_user_count)
 {
 	struct comedi_device *dev = (struct comedi_device *) d;
-	comedi_subdevice *s = dev->subdevices + subdevice;
+	struct comedi_subdevice *s = dev->subdevices + subdevice;
 	comedi_async *async;
 	int num_bytes;
 
@@ -228,7 +228,7 @@ int comedi_mark_buffer_read(void *d, unsigned int subdevice,
 	unsigned int num_bytes)
 {
 	struct comedi_device *dev = (struct comedi_device *) d;
-	comedi_subdevice *s = dev->subdevices + subdevice;
+	struct comedi_subdevice *s = dev->subdevices + subdevice;
 	comedi_async *async;
 
 	if (subdevice >= dev->n_subdevices)
@@ -247,7 +247,7 @@ int comedi_mark_buffer_written(void *d, unsigned int subdevice,
 	unsigned int num_bytes)
 {
 	struct comedi_device *dev = (struct comedi_device *) d;
-	comedi_subdevice *s = dev->subdevices + subdevice;
+	struct comedi_subdevice *s = dev->subdevices + subdevice;
 	comedi_async *async;
 	int bytes_written;
 
@@ -266,7 +266,7 @@ int comedi_mark_buffer_written(void *d, unsigned int subdevice,
 int comedi_get_buffer_size(void *d, unsigned int subdev)
 {
 	struct comedi_device *dev = (struct comedi_device *) d;
-	comedi_subdevice *s = dev->subdevices + subdev;
+	struct comedi_subdevice *s = dev->subdevices + subdev;
 	comedi_async *async;
 
 	if (subdev >= dev->n_subdevices)
@@ -281,7 +281,7 @@ int comedi_get_buffer_size(void *d, unsigned int subdev)
 int comedi_get_buffer_offset(void *d, unsigned int subdevice)
 {
 	struct comedi_device *dev = (struct comedi_device *) d;
-	comedi_subdevice *s = dev->subdevices + subdevice;
+	struct comedi_subdevice *s = dev->subdevices + subdevice;
 	comedi_async *async;
 
 	if (subdevice >= dev->n_subdevices)

@@ -48,12 +48,12 @@
 #include <asm/system.h>
 
 static int postconfig(struct comedi_device *dev);
-static int insn_rw_emulate_bits(struct comedi_device *dev, comedi_subdevice *s,
+static int insn_rw_emulate_bits(struct comedi_device *dev, struct comedi_subdevice *s,
 	comedi_insn *insn, unsigned int *data);
 static void *comedi_recognize(comedi_driver * driv, const char *name);
 static void comedi_report_boards(comedi_driver *driv);
-static int poll_invalid(struct comedi_device *dev, comedi_subdevice *s);
-int comedi_buf_alloc(struct comedi_device *dev, comedi_subdevice *s,
+static int poll_invalid(struct comedi_device *dev, struct comedi_subdevice *s);
+int comedi_buf_alloc(struct comedi_device *dev, struct comedi_subdevice *s,
 	unsigned long new_size);
 
 comedi_driver *comedi_drivers;
@@ -66,7 +66,7 @@ int comedi_modprobe(int minor)
 static void cleanup_device(struct comedi_device *dev)
 {
 	int i;
-	comedi_subdevice *s;
+	struct comedi_subdevice *s;
 
 	if (dev->subdevices) {
 		for (i = 0; i < dev->n_subdevices; i++) {
@@ -227,7 +227,7 @@ int comedi_driver_unregister(comedi_driver *driver)
 static int postconfig(struct comedi_device *dev)
 {
 	int i;
-	comedi_subdevice *s;
+	struct comedi_subdevice *s;
 	comedi_async *async = NULL;
 	int ret;
 
@@ -331,18 +331,18 @@ void comedi_report_boards(comedi_driver *driv)
 		printk(" %s\n", driv->driver_name);
 }
 
-static int poll_invalid(struct comedi_device *dev, comedi_subdevice *s)
+static int poll_invalid(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	return -EINVAL;
 }
 
-int insn_inval(struct comedi_device *dev, comedi_subdevice *s,
+int insn_inval(struct comedi_device *dev, struct comedi_subdevice *s,
 	comedi_insn *insn, unsigned int *data)
 {
 	return -EINVAL;
 }
 
-static int insn_rw_emulate_bits(struct comedi_device *dev, comedi_subdevice *s,
+static int insn_rw_emulate_bits(struct comedi_device *dev, struct comedi_subdevice *s,
 	comedi_insn *insn, unsigned int *data)
 {
 	comedi_insn new_insn;
@@ -412,7 +412,7 @@ static inline unsigned long kvirt_to_kva(unsigned long adr)
 	return kva;
 }
 
-int comedi_buf_alloc(struct comedi_device *dev, comedi_subdevice *s,
+int comedi_buf_alloc(struct comedi_device *dev, struct comedi_subdevice *s,
 	unsigned long new_size)
 {
 	comedi_async *async = s->async;
@@ -538,7 +538,7 @@ int comedi_buf_alloc(struct comedi_device *dev, comedi_subdevice *s,
  * and kernel space */
 unsigned int comedi_buf_munge(comedi_async *async, unsigned int num_bytes)
 {
-	comedi_subdevice *s = async->subdevice;
+	struct comedi_subdevice *s = async->subdevice;
 	unsigned int count = 0;
 	const unsigned num_sample_bytes = bytes_per_sample(s);
 

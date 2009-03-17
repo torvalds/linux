@@ -75,7 +75,7 @@ static comedi_driver driver_adl_pci7296 = {
 static int adl_pci7296_attach(struct comedi_device * dev, comedi_devconfig * it)
 {
 	struct pci_dev *pcidev;
-	comedi_subdevice *s;
+	struct comedi_subdevice *s;
 	int bus, slot;
 	int ret;
 

@@ -58,7 +58,7 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 
 void i_ADDI_AttachPCI1710(struct comedi_device * dev)
 {
-	comedi_subdevice *s;
+	struct comedi_subdevice *s;
 	int ret = 0;
 	int n_subdevices = 9;
 

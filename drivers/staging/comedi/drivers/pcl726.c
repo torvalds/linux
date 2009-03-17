@@ -168,7 +168,7 @@ typedef struct {
 } pcl726_private;
 #define devpriv ((pcl726_private *)dev->private)
 
-static int pcl726_ao_insn(struct comedi_device * dev, comedi_subdevice * s,
+static int pcl726_ao_insn(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	int hi, lo;
@@ -193,7 +193,7 @@ static int pcl726_ao_insn(struct comedi_device * dev, comedi_subdevice * s,
 	return n;
 }
 
-static int pcl726_ao_insn_read(struct comedi_device * dev, comedi_subdevice * s,
+static int pcl726_ao_insn_read(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	int chan = CR_CHAN(insn->chanspec);
@@ -205,7 +205,7 @@ static int pcl726_ao_insn_read(struct comedi_device * dev, comedi_subdevice * s,
 	return n;
 }
 
-static int pcl726_di_insn_bits(struct comedi_device * dev, comedi_subdevice * s,
+static int pcl726_di_insn_bits(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	if (insn->n != 2)
@@ -217,7 +217,7 @@ static int pcl726_di_insn_bits(struct comedi_device * dev, comedi_subdevice * s,
 	return 2;
 }
 
-static int pcl726_do_insn_bits(struct comedi_device * dev, comedi_subdevice * s,
+static int pcl726_do_insn_bits(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	if (insn->n != 2)
@@ -239,7 +239,7 @@ static int pcl726_do_insn_bits(struct comedi_device * dev, comedi_subdevice * s,
 
 static int pcl726_attach(struct comedi_device * dev, comedi_devconfig * it)
 {
-	comedi_subdevice *s;
+	struct comedi_subdevice *s;
 	unsigned long iobase;
 	unsigned int iorange;
 	int ret, i;

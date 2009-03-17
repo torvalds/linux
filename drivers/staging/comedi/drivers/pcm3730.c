@@ -39,7 +39,7 @@ static comedi_driver driver_pcm3730 = {
 
 COMEDI_INITCLEANUP(driver_pcm3730);
 
-static int pcm3730_do_insn_bits(struct comedi_device * dev, comedi_subdevice * s,
+static int pcm3730_do_insn_bits(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	if (insn->n != 2)
@@ -54,7 +54,7 @@ static int pcm3730_do_insn_bits(struct comedi_device * dev, comedi_subdevice * s
 	return 2;
 }
 
-static int pcm3730_di_insn_bits(struct comedi_device * dev, comedi_subdevice * s,
+static int pcm3730_di_insn_bits(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	if (insn->n != 2)
@@ -65,7 +65,7 @@ static int pcm3730_di_insn_bits(struct comedi_device * dev, comedi_subdevice * s
 
 static int pcm3730_attach(struct comedi_device * dev, comedi_devconfig * it)
 {
-	comedi_subdevice *s;
+	struct comedi_subdevice *s;
 	unsigned long iobase;
 
 	iobase = it->options[0];

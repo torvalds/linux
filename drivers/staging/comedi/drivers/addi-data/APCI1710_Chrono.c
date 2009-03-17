@@ -131,7 +131,7 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_InsnConfigInitChrono(struct comedi_device * dev, comedi_subdevice * s,
+INT i_APCI1710_InsnConfigInitChrono(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	INT i_ReturnValue = 0;
@@ -791,7 +791,7 @@ INT i_APCI1710_InsnConfigInitChrono(struct comedi_device * dev, comedi_subdevice
 |                                                BYTE_ b_CycleMode,          |
 |                                                BYTE_ b_InterruptEnable)
 INT i_APCI1710_InsnWriteEnableDisableChrono(struct comedi_device *dev,
-comedi_subdevice *s,comedi_insn *insn,unsigned int *data)						 |
+struct comedi_subdevice *s,comedi_insn *insn,unsigned int *data)						 |
 +----------------------------------------------------------------------------+
 | Task              : Enable the chronometer from selected module            |
 |                     (b_ModulNbr). You must calling the                     |
@@ -841,7 +841,7 @@ comedi_subdevice *s,comedi_insn *insn,unsigned int *data)						 |
 */
 
 INT i_APCI1710_InsnWriteEnableDisableChrono(struct comedi_device * dev,
-	comedi_subdevice * s, comedi_insn * insn, unsigned int * data)
+	struct comedi_subdevice * s, comedi_insn * insn, unsigned int * data)
 {
 	INT i_ReturnValue = 0;
 	BYTE b_ModulNbr, b_CycleMode, b_InterruptEnable, b_Action;
@@ -1077,7 +1077,7 @@ INT i_APCI1710_InsnWriteEnableDisableChrono(struct comedi_device * dev,
 
 /*
 +----------------------------------------------------------------------------+
-| Function Name     :INT	i_APCI1710_InsnReadChrono(struct comedi_device *dev,comedi_subdevice *s,
+| Function Name     :INT	i_APCI1710_InsnReadChrono(struct comedi_device *dev,struct comedi_subdevice *s,
 comedi_insn *insn,unsigned int *data)                   |
 +----------------------------------------------------------------------------+
 | Task              : Read  functions for Timer                                     |
@@ -1090,7 +1090,7 @@ comedi_insn *insn,unsigned int *data)                   |
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_InsnReadChrono(struct comedi_device * dev, comedi_subdevice * s,
+INT i_APCI1710_InsnReadChrono(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	BYTE b_ReadType;
@@ -1757,7 +1757,7 @@ INT i_APCI1710_ConvertChronoValue(struct comedi_device * dev,
 
 /*
 +----------------------------------------------------------------------------+
-| Function Name     : INT i_APCI1710_InsnBitsChronoDigitalIO(struct comedi_device *dev,comedi_subdevice *s,
+| Function Name     : INT i_APCI1710_InsnBitsChronoDigitalIO(struct comedi_device *dev,struct comedi_subdevice *s,
 	comedi_insn *insn,unsigned int *data)                    |
 +----------------------------------------------------------------------------+
 | Task              : Sets the output witch has been passed with the         |
@@ -1877,7 +1877,7 @@ INT i_APCI1710_ConvertChronoValue(struct comedi_device * dev,
 */
 
 INT i_APCI1710_InsnBitsChronoDigitalIO(struct comedi_device * dev,
-	comedi_subdevice * s, comedi_insn * insn, unsigned int * data)
+	struct comedi_subdevice * s, comedi_insn * insn, unsigned int * data)
 {
 	INT i_ReturnValue = 0;
 	BYTE b_ModulNbr, b_OutputChannel, b_InputChannel, b_IOType;

@@ -124,9 +124,9 @@ static inline RTIME nano2count(long long ns)
 
 static int timer_attach(struct comedi_device * dev, comedi_devconfig * it);
 static int timer_detach(struct comedi_device * dev);
-static int timer_inttrig(struct comedi_device * dev, comedi_subdevice * s,
+static int timer_inttrig(struct comedi_device * dev, struct comedi_subdevice * s,
 	unsigned int trig_num);
-static int timer_start_cmd(struct comedi_device * dev, comedi_subdevice * s);
+static int timer_start_cmd(struct comedi_device * dev, struct comedi_subdevice * s);
 
 static comedi_driver driver_timer = {
       module:THIS_MODULE,
@@ -162,7 +162,7 @@ typedef struct {
 } timer_private;
 #define devpriv ((timer_private *)dev->private)
 
-static int timer_cancel(struct comedi_device * dev, comedi_subdevice * s)
+static int timer_cancel(struct comedi_device * dev, struct comedi_subdevice * s)
 {
 	devpriv->stop = 1;
 
@@ -209,7 +209,7 @@ inline static int check_conversion_timing(struct comedi_device * dev,
 static int timer_data_read(struct comedi_device * dev, comedi_cmd * cmd,
 	unsigned int index)
 {
-	comedi_subdevice *s = dev->read_subdev;
+	struct comedi_subdevice *s = dev->read_subdev;
 	int ret;
 	unsigned int data;
 
@@ -234,7 +234,7 @@ static int timer_data_read(struct comedi_device * dev, comedi_cmd * cmd,
 static int timer_data_write(struct comedi_device * dev, comedi_cmd * cmd,
 	unsigned int index)
 {
-	comedi_subdevice *s = dev->write_subdev;
+	struct comedi_subdevice *s = dev->write_subdev;
 	unsigned int num_bytes;
 	short data;
 	unsigned int long_data;
@@ -269,7 +269,7 @@ static int timer_data_write(struct comedi_device * dev, comedi_cmd * cmd,
 static int timer_dio_read(struct comedi_device * dev, comedi_cmd * cmd,
 	unsigned int index)
 {
-	comedi_subdevice *s = dev->read_subdev;
+	struct comedi_subdevice *s = dev->read_subdev;
 	int ret;
 	unsigned int data;
 
@@ -291,7 +291,7 @@ static int timer_dio_read(struct comedi_device * dev, comedi_cmd * cmd,
 static void scan_task_func(comedi_rt_task_context_t d)
 {
 	struct comedi_device *dev = (struct comedi_device *) d;
-	comedi_subdevice *s = dev->subdevices + 0;
+	struct comedi_subdevice *s = dev->subdevices + 0;
 	comedi_async *async = s->async;
 	comedi_cmd *cmd = &async->cmd;
 	int i, ret;
@@ -361,7 +361,7 @@ static void scan_task_func(comedi_rt_task_context_t d)
 static void timer_task_func(comedi_rt_task_context_t d)
 {
 	struct comedi_device *dev = (struct comedi_device *) d;
-	comedi_subdevice *s = dev->subdevices + 0;
+	struct comedi_subdevice *s = dev->subdevices + 0;
 	comedi_cmd *cmd = &s->async->cmd;
 	int ret;
 	unsigned long long n;
@@ -396,7 +396,7 @@ static void timer_task_func(comedi_rt_task_context_t d)
 	}
 }
 
-static int timer_insn(struct comedi_device * dev, comedi_subdevice * s,
+static int timer_insn(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	comedi_insn xinsn = *insn;
@@ -444,7 +444,7 @@ static int cmdtest_helper(comedi_cmd * cmd,
 	return err;
 }
 
-static int timer_cmdtest(struct comedi_device * dev, comedi_subdevice * s,
+static int timer_cmdtest(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_cmd * cmd)
 {
 	int err = 0;
@@ -516,7 +516,7 @@ static int timer_cmdtest(struct comedi_device * dev, comedi_subdevice * s,
 	return 0;
 }
 
-static int timer_cmd(struct comedi_device * dev, comedi_subdevice * s)
+static int timer_cmd(struct comedi_device * dev, struct comedi_subdevice * s)
 {
 	int ret;
 	comedi_cmd *cmd = &s->async->cmd;
@@ -567,7 +567,7 @@ static int timer_cmd(struct comedi_device * dev, comedi_subdevice * s)
 	return 0;
 }
 
-static int timer_inttrig(struct comedi_device * dev, comedi_subdevice * s,
+static int timer_inttrig(struct comedi_device * dev, struct comedi_subdevice * s,
 	unsigned int trig_num)
 {
 	if (trig_num != 0)
@@ -578,7 +578,7 @@ static int timer_inttrig(struct comedi_device * dev, comedi_subdevice * s,
 	return timer_start_cmd(dev, s);
 }
 
-static int timer_start_cmd(struct comedi_device * dev, comedi_subdevice * s)
+static int timer_start_cmd(struct comedi_device * dev, struct comedi_subdevice * s)
 {
 	comedi_async *async = s->async;
 	comedi_cmd *cmd = &async->cmd;
@@ -610,7 +610,7 @@ static int timer_start_cmd(struct comedi_device * dev, comedi_subdevice * s)
 static int timer_attach(struct comedi_device * dev, comedi_devconfig * it)
 {
 	int ret;
-	comedi_subdevice *s, *emul_s;
+	struct comedi_subdevice *s, *emul_s;
 	struct comedi_device *emul_dev;
 	/* These should probably be devconfig options[] */
 	const int timer_priority = 4;

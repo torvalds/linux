@@ -427,13 +427,13 @@ typedef struct {
 */
 static void start_pacer(struct comedi_device * dev, int mode, unsigned int divisor1,
 	unsigned int divisor2);
-static void setup_range_channel(struct comedi_device * dev, comedi_subdevice * s,
+static void setup_range_channel(struct comedi_device * dev, struct comedi_subdevice * s,
 	unsigned int rangechan, char wait);
-static int pcl812_ai_cancel(struct comedi_device * dev, comedi_subdevice * s);
+static int pcl812_ai_cancel(struct comedi_device * dev, struct comedi_subdevice * s);
 /*
 ==============================================================================
 */
-static int pcl812_ai_insn_read(struct comedi_device * dev, comedi_subdevice * s,
+static int pcl812_ai_insn_read(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	int n;
@@ -467,7 +467,7 @@ static int pcl812_ai_insn_read(struct comedi_device * dev, comedi_subdevice * s,
 /*
 ==============================================================================
 */
-static int acl8216_ai_insn_read(struct comedi_device * dev, comedi_subdevice * s,
+static int acl8216_ai_insn_read(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	int n;
@@ -503,7 +503,7 @@ static int acl8216_ai_insn_read(struct comedi_device * dev, comedi_subdevice * s
 /*
 ==============================================================================
 */
-static int pcl812_ao_insn_write(struct comedi_device * dev, comedi_subdevice * s,
+static int pcl812_ao_insn_write(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	int chan = CR_CHAN(insn->chanspec);
@@ -523,7 +523,7 @@ static int pcl812_ao_insn_write(struct comedi_device * dev, comedi_subdevice * s
 /*
 ==============================================================================
 */
-static int pcl812_ao_insn_read(struct comedi_device * dev, comedi_subdevice * s,
+static int pcl812_ao_insn_read(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	int chan = CR_CHAN(insn->chanspec);
@@ -539,7 +539,7 @@ static int pcl812_ao_insn_read(struct comedi_device * dev, comedi_subdevice * s,
 /*
 ==============================================================================
 */
-static int pcl812_di_insn_bits(struct comedi_device * dev, comedi_subdevice * s,
+static int pcl812_di_insn_bits(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	if (insn->n != 2)
@@ -554,7 +554,7 @@ static int pcl812_di_insn_bits(struct comedi_device * dev, comedi_subdevice * s,
 /*
 ==============================================================================
 */
-static int pcl812_do_insn_bits(struct comedi_device * dev, comedi_subdevice * s,
+static int pcl812_do_insn_bits(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	if (insn->n != 2)
@@ -591,7 +591,7 @@ static void pcl812_cmdtest_out(int e, comedi_cmd * cmd)
 /*
 ==============================================================================
 */
-static int pcl812_ai_cmdtest(struct comedi_device * dev, comedi_subdevice * s,
+static int pcl812_ai_cmdtest(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_cmd * cmd)
 {
 	int err = 0;
@@ -770,7 +770,7 @@ static int pcl812_ai_cmdtest(struct comedi_device * dev, comedi_subdevice * s,
 /*
 ==============================================================================
 */
-static int pcl812_ai_cmd(struct comedi_device * dev, comedi_subdevice * s)
+static int pcl812_ai_cmd(struct comedi_device * dev, struct comedi_subdevice * s)
 {
 	unsigned int divisor1 = 0, divisor2 = 0, i, dma_flags, bytes;
 	comedi_cmd *cmd = &s->async->cmd;
@@ -923,7 +923,7 @@ static irqreturn_t interrupt_pcl812_ai_int(int irq, void *d)
 	char err = 1;
 	unsigned int mask, timeout;
 	struct comedi_device *dev = d;
-	comedi_subdevice *s = dev->subdevices + 0;
+	struct comedi_subdevice *s = dev->subdevices + 0;
 
 	s->async->events = 0;
 
@@ -980,7 +980,7 @@ static irqreturn_t interrupt_pcl812_ai_int(int irq, void *d)
 /*
 ==============================================================================
 */
-static void transfer_from_dma_buf(struct comedi_device * dev, comedi_subdevice * s,
+static void transfer_from_dma_buf(struct comedi_device * dev, struct comedi_subdevice * s,
 	short * ptr, unsigned int bufptr, unsigned int len)
 {
 	unsigned int i;
@@ -1009,7 +1009,7 @@ static void transfer_from_dma_buf(struct comedi_device * dev, comedi_subdevice *
 static irqreturn_t interrupt_pcl812_ai_dma(int irq, void *d)
 {
 	struct comedi_device *dev = d;
-	comedi_subdevice *s = dev->subdevices + 0;
+	struct comedi_subdevice *s = dev->subdevices + 0;
 	unsigned long dma_flags;
 	int len, bufptr;
 	short *ptr;
@@ -1075,7 +1075,7 @@ static irqreturn_t interrupt_pcl812(int irq, void *d PT_REGS_ARG)
 /*
 ==============================================================================
 */
-static int pcl812_ai_poll(struct comedi_device * dev, comedi_subdevice * s)
+static int pcl812_ai_poll(struct comedi_device * dev, struct comedi_subdevice * s)
 {
 	unsigned long flags;
 	unsigned int top1, top2, i;
@@ -1119,7 +1119,7 @@ static int pcl812_ai_poll(struct comedi_device * dev, comedi_subdevice * s)
 /*
 ==============================================================================
 */
-static void setup_range_channel(struct comedi_device * dev, comedi_subdevice * s,
+static void setup_range_channel(struct comedi_device * dev, struct comedi_subdevice * s,
 	unsigned int rangechan, char wait)
 {
 	unsigned char chan_reg = CR_CHAN(rangechan);	// normal board
@@ -1200,7 +1200,7 @@ static void free_resources(struct comedi_device * dev)
 /*
 ==============================================================================
 */
-static int pcl812_ai_cancel(struct comedi_device * dev, comedi_subdevice * s)
+static int pcl812_ai_cancel(struct comedi_device * dev, struct comedi_subdevice * s)
 {
 #ifdef PCL812_EXTDEBUG
 	rt_printk("pcl812 EDBG: BGN: pcl812_ai_cancel(...)\n");
@@ -1269,7 +1269,7 @@ static int pcl812_attach(struct comedi_device * dev, comedi_devconfig * it)
 	unsigned int irq;
 	unsigned int dma;
 	unsigned long pages;
-	comedi_subdevice *s;
+	struct comedi_subdevice *s;
 	int n_subdevices;
 
 	iobase = it->options[0];

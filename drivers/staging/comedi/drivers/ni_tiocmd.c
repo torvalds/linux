@@ -96,7 +96,7 @@ static void ni_tio_configure_dma(struct ni_gpct *counter, short enable,
 	}
 }
 
-static int ni_tio_input_inttrig(struct comedi_device * dev, comedi_subdevice * s,
+static int ni_tio_input_inttrig(struct comedi_device * dev, struct comedi_subdevice * s,
 	unsigned int trignum)
 {
 	unsigned long flags;
@@ -447,7 +447,7 @@ void ni_tio_acknowledge_and_confirm(struct ni_gpct *counter, int *gate_error,
 	}
 }
 
-void ni_tio_handle_interrupt(struct ni_gpct *counter, comedi_subdevice * s)
+void ni_tio_handle_interrupt(struct ni_gpct *counter, struct comedi_subdevice * s)
 {
 	unsigned gpct_mite_status;
 	unsigned long flags;

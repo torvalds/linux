@@ -224,15 +224,15 @@ typedef struct {
 } dt2801_private;
 #define devpriv ((dt2801_private *)dev->private)
 
-static int dt2801_ai_insn_read(struct comedi_device * dev, comedi_subdevice * s,
+static int dt2801_ai_insn_read(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data);
-static int dt2801_ao_insn_read(struct comedi_device * dev, comedi_subdevice * s,
+static int dt2801_ao_insn_read(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data);
-static int dt2801_ao_insn_write(struct comedi_device * dev, comedi_subdevice * s,
+static int dt2801_ao_insn_write(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data);
-static int dt2801_dio_insn_bits(struct comedi_device * dev, comedi_subdevice * s,
+static int dt2801_dio_insn_bits(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data);
-static int dt2801_dio_insn_config(struct comedi_device * dev, comedi_subdevice * s,
+static int dt2801_dio_insn_config(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data);
 
 /* These are the low-level routines:
@@ -480,7 +480,7 @@ static const comedi_lrange *ai_range_lkup(int type, int opt)
 */
 static int dt2801_attach(struct comedi_device * dev, comedi_devconfig * it)
 {
-	comedi_subdevice *s;
+	struct comedi_subdevice *s;
 	unsigned long iobase;
 	int board_code, type;
 	int ret = 0;
@@ -605,7 +605,7 @@ static int dt2801_error(struct comedi_device * dev, int stat)
 	return -EIO;
 }
 
-static int dt2801_ai_insn_read(struct comedi_device * dev, comedi_subdevice * s,
+static int dt2801_ai_insn_read(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	int d;
@@ -627,7 +627,7 @@ static int dt2801_ai_insn_read(struct comedi_device * dev, comedi_subdevice * s,
 	return i;
 }
 
-static int dt2801_ao_insn_read(struct comedi_device * dev, comedi_subdevice * s,
+static int dt2801_ao_insn_read(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	data[0] = devpriv->ao_readback[CR_CHAN(insn->chanspec)];
@@ -635,7 +635,7 @@ static int dt2801_ao_insn_read(struct comedi_device * dev, comedi_subdevice * s,
 	return 1;
 }
 
-static int dt2801_ao_insn_write(struct comedi_device * dev, comedi_subdevice * s,
+static int dt2801_ao_insn_write(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	dt2801_writecmd(dev, DT_C_WRITE_DAIM);
@@ -647,7 +647,7 @@ static int dt2801_ao_insn_write(struct comedi_device * dev, comedi_subdevice * s
 	return 1;
 }
 
-static int dt2801_dio_insn_bits(struct comedi_device * dev, comedi_subdevice * s,
+static int dt2801_dio_insn_bits(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	int which = 0;
@@ -671,7 +671,7 @@ static int dt2801_dio_insn_bits(struct comedi_device * dev, comedi_subdevice * s
 	return 2;
 }
 
-static int dt2801_dio_insn_config(struct comedi_device * dev, comedi_subdevice * s,
+static int dt2801_dio_insn_config(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	int which = 0;

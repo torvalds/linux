@@ -61,7 +61,7 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 
 /*
 +----------------------------------------------------------------------------+
-| INT	i_APCI1710_InsnConfigINCCPT(struct comedi_device *dev,comedi_subdevice *s,
+| INT	i_APCI1710_InsnConfigINCCPT(struct comedi_device *dev,struct comedi_subdevice *s,
 comedi_insn *insn,unsigned int *data)
 
 +----------------------------------------------------------------------------+
@@ -75,7 +75,7 @@ comedi_insn *insn,unsigned int *data)
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_InsnConfigINCCPT(struct comedi_device * dev, comedi_subdevice * s,
+INT i_APCI1710_InsnConfigINCCPT(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	UINT ui_ConfigType;
@@ -2002,7 +2002,7 @@ INT i_APCI1710_InitFrequencyMeasurement(struct comedi_device * dev,
 
 /*
 +----------------------------------------------------------------------------+
-| Function Name     :INT	i_APCI1710_InsnBitsINCCPT(struct comedi_device *dev,comedi_subdevice *s,
+| Function Name     :INT	i_APCI1710_InsnBitsINCCPT(struct comedi_device *dev,struct comedi_subdevice *s,
 comedi_insn *insn,unsigned int *data)                   |
 +----------------------------------------------------------------------------+
 | Task              : Set & Clear Functions for INC_CPT                                          |
@@ -2015,7 +2015,7 @@ comedi_insn *insn,unsigned int *data)                   |
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_InsnBitsINCCPT(struct comedi_device * dev, comedi_subdevice * s,
+INT i_APCI1710_InsnBitsINCCPT(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	UINT ui_BitsType;
@@ -2939,7 +2939,7 @@ INT i_APCI1710_SetDigitalChlOff(struct comedi_device * dev, BYTE b_ModulNbr)
 
 /*
 +----------------------------------------------------------------------------+
-| Function Name     :INT	i_APCI1710_InsnWriteINCCPT(struct comedi_device *dev,comedi_subdevice *s,
+| Function Name     :INT	i_APCI1710_InsnWriteINCCPT(struct comedi_device *dev,struct comedi_subdevice *s,
 comedi_insn *insn,unsigned int *data)                   |
 +----------------------------------------------------------------------------+
 | Task              : Enable Disable functions for INC_CPT                                       |
@@ -2951,7 +2951,7 @@ comedi_insn *insn,unsigned int *data)                   |
 | Return Value      :
 +----------------------------------------------------------------------------+
 */
-INT i_APCI1710_InsnWriteINCCPT(struct comedi_device * dev, comedi_subdevice * s,
+INT i_APCI1710_InsnWriteINCCPT(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	UINT ui_WriteType;
@@ -4037,7 +4037,7 @@ INT i_APCI1710_DisableFrequencyMeasurement(struct comedi_device * dev, BYTE b_Mo
 
 /*
 +----------------------------------------------------------------------------+
-| Function Name     :INT	i_APCI1710_InsnWriteINCCPT(struct comedi_device *dev,comedi_subdevice *s,
+| Function Name     :INT	i_APCI1710_InsnWriteINCCPT(struct comedi_device *dev,struct comedi_subdevice *s,
 comedi_insn *insn,unsigned int *data)                   |
 +----------------------------------------------------------------------------+
 | Task              : Read and Get functions for INC_CPT                                       |
@@ -4049,7 +4049,7 @@ comedi_insn *insn,unsigned int *data)                   |
 | Return Value      :
 +----------------------------------------------------------------------------+
 */
-INT i_APCI1710_InsnReadINCCPT(struct comedi_device * dev, comedi_subdevice * s,
+INT i_APCI1710_InsnReadINCCPT(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	UINT ui_ReadType;

@@ -226,15 +226,15 @@ static comedi_driver driver_dt2811 = {
 
 COMEDI_INITCLEANUP(driver_dt2811);
 
-static int dt2811_ai_insn(struct comedi_device * dev, comedi_subdevice * s,
+static int dt2811_ai_insn(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data);
-static int dt2811_ao_insn(struct comedi_device * dev, comedi_subdevice * s,
+static int dt2811_ao_insn(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data);
-static int dt2811_ao_insn_read(struct comedi_device * dev, comedi_subdevice * s,
+static int dt2811_ao_insn_read(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data);
-static int dt2811_di_insn_bits(struct comedi_device * dev, comedi_subdevice * s,
+static int dt2811_di_insn_bits(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data);
-static int dt2811_do_insn_bits(struct comedi_device * dev, comedi_subdevice * s,
+static int dt2811_do_insn_bits(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data);
 
 enum { card_2811_pgh, card_2811_pgl };
@@ -314,7 +314,7 @@ static int dt2811_attach(struct comedi_device * dev, comedi_devconfig * it)
 	//unsigned long irqs;
 	//long flags;
 	int ret;
-	comedi_subdevice *s;
+	struct comedi_subdevice *s;
 	unsigned long iobase;
 
 	iobase = it->options[0];
@@ -490,7 +490,7 @@ static int dt2811_detach(struct comedi_device * dev)
 	return 0;
 }
 
-static int dt2811_ai_insn(struct comedi_device * dev, comedi_subdevice * s,
+static int dt2811_ai_insn(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	int chan = CR_CHAN(insn->chanspec);
@@ -541,7 +541,7 @@ int dt2811_adtrig(kdev_t minor, comedi_adtrig * adtrig)
 }
 #endif
 
-static int dt2811_ao_insn(struct comedi_device * dev, comedi_subdevice * s,
+static int dt2811_ao_insn(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	int i;
@@ -559,7 +559,7 @@ static int dt2811_ao_insn(struct comedi_device * dev, comedi_subdevice * s,
 	return i;
 }
 
-static int dt2811_ao_insn_read(struct comedi_device * dev, comedi_subdevice * s,
+static int dt2811_ao_insn_read(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	int i;
@@ -574,7 +574,7 @@ static int dt2811_ao_insn_read(struct comedi_device * dev, comedi_subdevice * s,
 	return i;
 }
 
-static int dt2811_di_insn_bits(struct comedi_device * dev, comedi_subdevice * s,
+static int dt2811_di_insn_bits(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	if (insn->n != 2)
@@ -585,7 +585,7 @@ static int dt2811_di_insn_bits(struct comedi_device * dev, comedi_subdevice * s,
 	return 2;
 }
 
-static int dt2811_do_insn_bits(struct comedi_device * dev, comedi_subdevice * s,
+static int dt2811_do_insn_bits(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	if (insn->n != 2)

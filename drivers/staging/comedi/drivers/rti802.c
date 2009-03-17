@@ -68,7 +68,7 @@ typedef struct {
 
 #define devpriv ((rti802_private *)dev->private)
 
-static int rti802_ao_insn_read(struct comedi_device * dev, comedi_subdevice * s,
+static int rti802_ao_insn_read(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	int i;
@@ -79,7 +79,7 @@ static int rti802_ao_insn_read(struct comedi_device * dev, comedi_subdevice * s,
 	return i;
 }
 
-static int rti802_ao_insn_write(struct comedi_device * dev, comedi_subdevice * s,
+static int rti802_ao_insn_write(struct comedi_device * dev, struct comedi_subdevice * s,
 	comedi_insn * insn, unsigned int * data)
 {
 	int i, d;
@@ -98,7 +98,7 @@ static int rti802_ao_insn_write(struct comedi_device * dev, comedi_subdevice * s
 
 static int rti802_attach(struct comedi_device * dev, comedi_devconfig * it)
 {
-	comedi_subdevice *s;
+	struct comedi_subdevice *s;
 	int i;
 	unsigned long iobase;
 
