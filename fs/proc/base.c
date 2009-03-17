@@ -3082,7 +3082,7 @@ static int proc_task_readdir(struct file * filp, void * dirent, filldir_t filldi
 		goto out_no_task;
 	retval = 0;
 
-	switch (filp->f_pos) {
+	switch ((unsigned long)filp->f_pos) {
 	case 0:
 		ino = inode->i_ino;
 		if (filldir(dirent, ".", 1, filp->f_pos, ino, DT_DIR) < 0)
