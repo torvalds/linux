@@ -103,7 +103,7 @@ MODULE_DEVICE_TABLE(pci, pcidio_pci_table);
 /* this structure is for data unique to this hardware driver.  If
    several hardware drivers keep similar information in this structure,
    feel free to suggest moving the variable to the struct comedi_device struct.  */
-typedef struct {
+struct pcidio_private {
 	int data;		// curently unused
 
 	/* would be useful for a PCI device */
@@ -113,13 +113,13 @@ typedef struct {
 	unsigned int do_readback[4];	/* up to 4 unsigned int suffice to hold 96 bits for PCI-DIO96 */
 
 	unsigned long dio_reg_base;	// address of port A of the first 8255 chip on board
-} pcidio_private;
+};
 
 /*
  * most drivers define the following macro to make it easy to
  * access the private structure.
  */
-#define devpriv ((pcidio_private *)dev->private)
+#define devpriv ((struct pcidio_private *)dev->private)
 
 /*
  * The struct comedi_driver structure tells the Comedi core module
@@ -178,7 +178,7 @@ static int pcidio_attach(struct comedi_device * dev, struct comedi_devconfig * i
  * Allocate the private structure area.  alloc_private() is a
  * convenient macro defined in comedidev.h.
  */
-	if (alloc_private(dev, sizeof(pcidio_private)) < 0)
+	if (alloc_private(dev, sizeof(struct pcidio_private)) < 0)
 		return -ENOMEM;
 /*
  * If you can probe the device to determine what device in a series
