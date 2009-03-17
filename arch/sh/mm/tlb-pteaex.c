@@ -64,9 +64,6 @@ void update_mmu_cache(struct vm_area_struct * vma,
 	 * and PR bits, which are cleared) being written out in PTEL.
 	 */
 	__raw_writel(pte.pte_high, MMU_PTEA);
-#else
-	/* TODO: make this look less hacky */
-	__raw_writel(((pteval >> 28) & 0xe) | (pteval & 0x1), MMU_PTEA);
 #endif
 
 	/* Set PTEL register */
