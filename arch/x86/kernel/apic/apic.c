@@ -809,7 +809,7 @@ void clear_local_APIC(void)
 	u32 v;
 
 	/* APIC hasn't been mapped yet */
-	if (!apic_phys)
+	if (!x2apic && !apic_phys)
 		return;
 
 	maxlvt = lapic_get_maxlvt();
@@ -1523,12 +1523,10 @@ void __init early_init_lapic_mapping(void)
  */
 void __init init_apic_mappings(void)
 {
-#ifdef CONFIG_X86_X2APIC
 	if (x2apic) {
 		boot_cpu_physical_apicid = read_apic_id();
 		return;
 	}
-#endif
 
 	/*
 	 * If no local APIC can be found then set up a fake all
@@ -1972,12 +1970,9 @@ static int lapic_resume(struct sys_device *dev)
 
 	local_irq_save(flags);
 
-#ifdef CONFIG_X86_X2APIC
 	if (x2apic)
 		enable_x2apic();
-	else
-#endif
-	{
+	else {
 		/*
 		 * Make sure the APICBASE points to the right address
 		 *

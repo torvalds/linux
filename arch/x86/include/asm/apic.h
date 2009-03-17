@@ -184,6 +184,9 @@ static inline int x2apic_enabled(void)
 {
 	return 0;
 }
+
+#define	x2apic	0
+
 #endif
 
 extern int get_physical_broadcast(void);
