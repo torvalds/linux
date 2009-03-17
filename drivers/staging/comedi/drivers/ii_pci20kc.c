@@ -148,12 +148,14 @@ typedef union {
 	} pci20341;
 } pci20xxx_subdev_private;
 
-typedef struct {
+struct pci20xxx_private {
+
 	void *ioaddr;
 	pci20xxx_subdev_private subdev_private[PCI20000_MODULES];
-} pci20xxx_private;
+};
 
-#define devpriv ((pci20xxx_private *)dev->private)
+
+#define devpriv ((struct pci20xxx_private *)dev->private)
 #define CHAN (CR_CHAN(it->chanlist[0]))
 
 static int pci20xxx_attach(struct comedi_device * dev, struct comedi_devconfig * it);
@@ -209,7 +211,7 @@ static int pci20xxx_attach(struct comedi_device * dev, struct comedi_devconfig *
 
 	if ((ret = alloc_subdevices(dev, 1 + PCI20000_MODULES)) < 0)
 		return ret;
-	if ((ret = alloc_private(dev, sizeof(pci20xxx_private))) < 0)
+	if ((ret = alloc_private(dev, sizeof(struct pci20xxx_private))) < 0)
 		return ret;
 
 	devpriv->ioaddr = (void *)(unsigned long)it->options[0];
@@ -255,7 +257,7 @@ static int pci20xxx_attach(struct comedi_device * dev, struct comedi_devconfig *
 		}
 	}
 
-	/* initialize pci20xxx_private */
+	/* initialize struct pci20xxx_private */
 	pci20xxx_dio_init(dev, dev->subdevices + PCI20000_MODULES);
 
 	return 1;
@@ -449,7 +451,7 @@ static int pci20xxx_dio_insn_bits(struct comedi_device * dev, struct comedi_subd
 static int pci20xxx_dio_insn_config(struct comedi_device * dev, struct comedi_subdevice * s,
 	struct comedi_insn * insn, unsigned int * data);
 
-/* initialize pci20xxx_private */
+/* initialize struct pci20xxx_private */
 static int pci20xxx_dio_init(struct comedi_device * dev, struct comedi_subdevice * s)
 {
 
