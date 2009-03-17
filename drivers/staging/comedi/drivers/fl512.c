@@ -24,10 +24,12 @@ Configuration options:
 #include <linux/ioport.h>
 
 #define FL512_SIZE 16		/* the size of the used memory */
-typedef struct {
+struct fl512_private {
+
 	short ao_readback[2];
-} fl512_private;
-#define devpriv ((fl512_private *) dev->private)
+};
+
+#define devpriv ((struct fl512_private *) dev->private)
 
 static const struct comedi_lrange range_fl512 = { 4, {
 			BIP_RANGE(0.5),
@@ -138,7 +140,7 @@ static int fl512_attach(struct comedi_device * dev, struct comedi_devconfig * it
 	}
 	dev->iobase = iobase;
 	dev->board_name = "fl512";
-	if (alloc_private(dev, sizeof(fl512_private)) < 0)
+	if (alloc_private(dev, sizeof(struct fl512_private)) < 0)
 		return -ENOMEM;
 
 #if DEBUG
