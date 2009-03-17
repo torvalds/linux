@@ -355,7 +355,7 @@ static unsigned int das16_suggest_transfer_size(struct comedi_device * dev,
 
 static void reg_dump(struct comedi_device * dev);
 
-typedef struct das16_board_struct {
+struct das16_board {
 	const char *name;
 	void *ai;
 	unsigned int ai_nbits;
@@ -371,9 +371,9 @@ typedef struct das16_board_struct {
 
 	unsigned int size;
 	unsigned int id;
-} das16_board;
+};
 
-static const struct das16_board_struct das16_boards[] = {
+static const struct das16_board das16_boards[] = {
 	{
 	      name:	"das-16",
 	      ai:	das16_ai_rinsn,
@@ -696,7 +696,7 @@ static const struct das16_board_struct das16_boards[] = {
 #endif
 };
 
-#define n_das16_boards ((sizeof(das16_boards))/(sizeof(das16_board)))
+#define n_das16_boards ((sizeof(das16_boards))/(sizeof(struct das16_board)))
 
 static int das16_attach(struct comedi_device * dev, struct comedi_devconfig * it);
 static int das16_detach(struct comedi_device * dev);
@@ -740,7 +740,7 @@ struct das16_private_struct {
 	volatile short timer_mode;	// true if using timer mode
 };
 #define devpriv ((struct das16_private_struct *)(dev->private))
-#define thisboard ((struct das16_board_struct *)(dev->board_ptr))
+#define thisboard ((struct das16_board *)(dev->board_ptr))
 
 static int das16_cmd_test(struct comedi_device * dev, struct comedi_subdevice * s,
 	struct comedi_cmd * cmd)
