@@ -111,15 +111,17 @@ static struct comedi_driver driver_ni_65xx = {
       detach:ni_65xx_detach,
 };
 
-typedef struct {
+struct ni_65xx_board {
+
 	int dev_id;
 	const char *name;
 	unsigned num_dio_ports;
 	unsigned num_di_ports;
 	unsigned num_do_ports;
 	unsigned invert_outputs:1;
-} ni_65xx_board;
-static const ni_65xx_board ni_65xx_boards[] = {
+};
+
+static const struct ni_65xx_board ni_65xx_boards[] = {
 	{
 	      dev_id:	0x7085,
 	      name:	"pci-6509",
@@ -239,7 +241,7 @@ static const ni_65xx_board ni_65xx_boards[] = {
 };
 
 #define n_ni_65xx_boards (sizeof(ni_65xx_boards)/sizeof(ni_65xx_boards[0]))
-static inline const ni_65xx_board *board(struct comedi_device * dev)
+static inline const struct ni_65xx_board *board(struct comedi_device * dev)
 {
 	return dev->board_ptr;
 }
@@ -247,7 +249,7 @@ static inline unsigned ni_65xx_port_by_channel(unsigned channel)
 {
 	return channel / ni_65xx_channels_per_port;
 }
-static inline unsigned ni_65xx_total_num_ports(const ni_65xx_board * board)
+static inline unsigned ni_65xx_total_num_ports(const struct ni_65xx_board * board)
 {
 	return board->num_dio_ports + board->num_di_ports + board->num_do_ports;
 }
