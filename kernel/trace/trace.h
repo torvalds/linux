@@ -667,6 +667,7 @@ enum trace_iterator_flags {
 	TRACE_ITER_PRINTK_MSGONLY	= 0x10000,
 	TRACE_ITER_CONTEXT_INFO		= 0x20000, /* Print pid/cpu/time */
 	TRACE_ITER_LATENCY_FMT		= 0x40000,
+	TRACE_ITER_GLOBAL_CLK		= 0x80000,
 };
 
 /*
