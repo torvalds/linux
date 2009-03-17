@@ -305,12 +305,10 @@ enum comedi_support_level {
 #define COMEDI_INSNLIST _IOR(CIO, 11, struct comedi_insnlist)
 #define COMEDI_INSN _IOR(CIO, 12, struct comedi_insn)
 #define COMEDI_BUFCONFIG _IOR(CIO, 13, struct comedi_bufconfig)
-#define COMEDI_BUFINFO _IOWR(CIO, 14, comedi_bufinfo)
+#define COMEDI_BUFINFO _IOWR(CIO, 14, struct comedi_bufinfo)
 #define COMEDI_POLL _IO(CIO, 15)
 
 /* structures */
-
-typedef struct comedi_bufinfo_struct comedi_bufinfo;
 
 struct comedi_trig {
 	unsigned int subdev;	/* subdevice */
@@ -426,7 +424,7 @@ struct comedi_bufconfig {
 	unsigned int unused[4];
 };
 
-struct comedi_bufinfo_struct {
+struct comedi_bufinfo {
 	unsigned int subdevice;
 	unsigned int bytes_read;
 

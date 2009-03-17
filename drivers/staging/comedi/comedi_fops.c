@@ -556,11 +556,11 @@ static int do_chaninfo_ioctl(struct comedi_device *dev, struct comedi_chaninfo *
   */
 static int do_bufinfo_ioctl(struct comedi_device *dev, void *arg)
 {
-	comedi_bufinfo bi;
+	struct comedi_bufinfo bi;
 	struct comedi_subdevice *s;
 	struct comedi_async *async;
 
-	if (copy_from_user(&bi, arg, sizeof(comedi_bufinfo)))
+	if (copy_from_user(&bi, arg, sizeof(struct comedi_bufinfo)))
 		return -EFAULT;
 
 	if (bi.subdevice >= dev->n_subdevices || bi.subdevice < 0)
@@ -601,7 +601,7 @@ static int do_bufinfo_ioctl(struct comedi_device *dev, void *arg)
 	bi.buf_read_ptr = async->buf_read_ptr;
 
 copyback:
-	if (copy_to_user(arg, &bi, sizeof(comedi_bufinfo)))
+	if (copy_to_user(arg, &bi, sizeof(struct comedi_bufinfo)))
 		return -EFAULT;
 
 	return 0;
