@@ -181,7 +181,7 @@ static const struct comedi_lrange range_pci9118hg = { 8, {
 static int pci9118_attach(struct comedi_device * dev, struct comedi_devconfig * it);
 static int pci9118_detach(struct comedi_device * dev);
 
-typedef struct {
+struct boardtype {
 	const char *name;	// board name
 	int vendor_id;		// PCI vendor a device ID of card
 	int device_id;
@@ -200,7 +200,7 @@ typedef struct {
 	unsigned int ai_pacer_min;	// minimal pacer value (c1*c2 or c1 in burst)
 	int half_fifo_size;	// size of FIFO/2
 
-} boardtype;
+};
 
 static DEFINE_PCI_DEVICE_TABLE(pci9118_pci_table) = {
 	{PCI_VENDOR_ID_AMCC, 0x80d9, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
@@ -209,7 +209,7 @@ static DEFINE_PCI_DEVICE_TABLE(pci9118_pci_table) = {
 
 MODULE_DEVICE_TABLE(pci, pci9118_pci_table);
 
-static const boardtype boardtypes[] = {
+static const struct boardtype boardtypes[] = {
 	{"pci9118dg", PCI_VENDOR_ID_AMCC, 0x80d9,
 			AMCC_OP_REG_SIZE, IORANGE_9118,
 			16, 8, 256, PCI9118_CHANLEN, 2, 0x0fff, 0x0fff,
@@ -227,7 +227,7 @@ static const boardtype boardtypes[] = {
 		10000, 40, 512},
 };
 
-#define n_boardtypes (sizeof(boardtypes)/sizeof(boardtype))
+#define n_boardtypes (sizeof(boardtypes)/sizeof(struct boardtype))
 
 static struct comedi_driver driver_pci9118 = {
       driver_name:"adl_pci9118",
@@ -236,7 +236,7 @@ static struct comedi_driver driver_pci9118 = {
       detach:pci9118_detach,
       num_names:n_boardtypes,
       board_name:&boardtypes[0].name,
-      offset:sizeof(boardtype),
+      offset:sizeof(struct boardtype),
 };
 
 COMEDI_PCI_INITCLEANUP(driver_pci9118, pci9118_pci_table);
@@ -302,7 +302,7 @@ typedef struct {
 } pci9118_private;
 
 #define devpriv ((pci9118_private *)dev->private)
-#define this_board ((boardtype *)dev->board_ptr)
+#define this_board ((struct boardtype *)dev->board_ptr)
 
 /*
 ==============================================================================
