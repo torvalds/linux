@@ -45,8 +45,8 @@ Configuration options:
 #define DPRINTK(fmt, args...)
 #endif
 
-// hardware types of the cards
-typedef enum {
+/* hardware types of the cards */
+enum hw_cards_id {
 	TYPE_PCI1730, TYPE_PCI1733, TYPE_PCI1734, TYPE_PCI1736,
 	TYPE_PCI1750,
 	TYPE_PCI1751,
@@ -55,12 +55,12 @@ typedef enum {
 	TYPE_PCI1754, TYPE_PCI1756,
 	TYPE_PCI1760,
 	TYPE_PCI1762
-} hw_cards_id;
+};
 
-// which I/O instructions to use
-typedef enum {
+/* which I/O instructions to use */
+enum hw_io_access {
 	IO_8b, IO_16b
-} hw_io_access;
+};
 
 #define MAX_DI_SUBDEVS	2	/* max number of DI subdevices per card */
 #define MAX_DO_SUBDEVS	2	/* max number of DO subdevices per card */
@@ -198,12 +198,12 @@ typedef struct {
 	int vendor_id;		// vendor/device PCI ID
 	int device_id;
 	int main_pci_region;	// main I/O PCI region
-	hw_cards_id cardtype;	// {enum hw_cards_id_enum}
+	enum hw_cards_id cardtype;
 	diosubd_data sdi[MAX_DI_SUBDEVS];	// DI chans
 	diosubd_data sdo[MAX_DO_SUBDEVS];	// DO chans
 	diosubd_data sdio[MAX_DIO_SUBDEVG];	// DIO 8255 chans
 	diosubd_data boardid;	// card supports board ID switch
-	hw_io_access io_access;	// {enum hw_io_access_enum}
+	enum hw_io_access io_access;
 } boardtype;
 
 static DEFINE_PCI_DEVICE_TABLE(pci_dio_pci_table) = {
