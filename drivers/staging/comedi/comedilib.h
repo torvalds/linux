@@ -103,7 +103,7 @@ int comedi_get_rangetype(void *dev, unsigned int subdevice,
 unsigned int comedi_get_subdevice_flags(void *dev, unsigned int subdevice);
 int comedi_get_len_chanlist(void *dev, unsigned int subdevice);
 int comedi_get_krange(void *dev, unsigned int subdevice, unsigned int
-	chan, unsigned int range, comedi_krange *krange);
+	chan, unsigned int range, struct comedi_krange *krange);
 unsigned int comedi_get_buf_head_pos(void *dev, unsigned int subdevice);
 int comedi_set_user_int_count(void *dev, unsigned int subdevice,
 	unsigned int buf_user_count);
@@ -177,7 +177,7 @@ unsigned int comedi_get_subdevice_flags(unsigned int minor, unsigned int
 	subdevice);
 int comedi_get_len_chanlist(unsigned int minor, unsigned int subdevice);
 int comedi_get_krange(unsigned int minor, unsigned int subdevice, unsigned int
-	chan, unsigned int range, comedi_krange *krange);
+	chan, unsigned int range, struct comedi_krange *krange);
 unsigned int comedi_get_buf_head_pos(unsigned int minor, unsigned int
 	subdevice);
 int comedi_set_user_int_count(unsigned int minor, unsigned int subdevice,

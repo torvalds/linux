@@ -42,7 +42,7 @@ const struct comedi_lrange range_unknown = { 1, {{0, 1000000, UNIT_none}} };
 		range info structure
 
 	writes:
-		n comedi_krange structures to rangeinfo->range_ptr
+		n struct comedi_krange structures to rangeinfo->range_ptr
 */
 int do_rangeinfo_ioctl(struct comedi_device *dev, struct comedi_rangeinfo *arg)
 {
@@ -78,7 +78,7 @@ int do_rangeinfo_ioctl(struct comedi_device *dev, struct comedi_rangeinfo *arg)
 	}
 
 	if (copy_to_user(it.range_ptr, lr->range,
-			sizeof(comedi_krange) * lr->length))
+			sizeof(struct comedi_krange) * lr->length))
 		return -EFAULT;
 
 	return 0;

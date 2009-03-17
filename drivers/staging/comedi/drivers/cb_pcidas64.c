@@ -1203,7 +1203,7 @@ COMEDI_PCI_INITCLEANUP(driver_cb_pcidas, pcidas64_pci_table);
 static unsigned int ai_range_bits_6xxx(const struct comedi_device * dev,
 	unsigned int range_index)
 {
-	const comedi_krange *range =
+	const struct comedi_krange *range =
 		&board(dev)->ai_range_table->range[range_index];
 	unsigned int bits = 0;
 

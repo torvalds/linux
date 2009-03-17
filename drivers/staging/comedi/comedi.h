@@ -310,7 +310,6 @@ enum comedi_support_level {
 
 /* structures */
 
-typedef struct comedi_krange_struct comedi_krange;
 typedef struct comedi_bufconfig_struct comedi_bufconfig;
 typedef struct comedi_bufinfo_struct comedi_bufinfo;
 
@@ -382,7 +381,7 @@ struct comedi_rangeinfo {
 	void *range_ptr;
 };
 
-struct comedi_krange_struct {
+struct comedi_krange {
 	int min;	/* fixed point, multiply by 1e-6 */
 	int max;	/* fixed point, multiply by 1e-6 */
 	unsigned int flags;

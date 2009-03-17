@@ -2818,7 +2818,7 @@ static int ni_m_series_ao_config_chanlist(struct comedi_device * dev,
 		}
 	}
 	for (i = 0; i < n_chans; i++) {
-		const comedi_krange *krange;
+		const struct comedi_krange *krange;
 		chan = CR_CHAN(chanspec[i]);
 		range = CR_RANGE(chanspec[i]);
 		krange = s->range_table->range + range;

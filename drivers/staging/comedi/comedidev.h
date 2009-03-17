@@ -409,7 +409,7 @@ extern const struct comedi_lrange range_unknown;
 
 struct comedi_lrange {
 	int length;
-	comedi_krange range[GCC_ZERO_LENGTH_ARRAY];
+	struct comedi_krange range[GCC_ZERO_LENGTH_ARRAY];
 };
 
 /* some silly little inline functions */

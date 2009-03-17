@@ -442,7 +442,7 @@ static short fake_sawtooth(struct comedi_device *dev, unsigned int range_index,
 	struct comedi_subdevice *s = dev->read_subdev;
 	unsigned int offset = s->maxdata / 2;
 	u64 value;
-	const comedi_krange *krange = &s->range_table->range[range_index];
+	const struct comedi_krange *krange = &s->range_table->range[range_index];
 	u64 binary_amplitude;
 
 	binary_amplitude = s->maxdata;
@@ -463,7 +463,7 @@ static short fake_squarewave(struct comedi_device *dev, unsigned int range_index
 	struct comedi_subdevice *s = dev->read_subdev;
 	unsigned int offset = s->maxdata / 2;
 	u64 value;
-	const comedi_krange *krange = &s->range_table->range[range_index];
+	const struct comedi_krange *krange = &s->range_table->range[range_index];
 	current_time %= devpriv->usec_period;
 
 	value = s->maxdata;

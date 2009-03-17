@@ -1375,7 +1375,7 @@ static int das16_attach(struct comedi_device * dev, struct comedi_devconfig * it
 	unsigned int dma_chan;
 	int timer_mode;
 	unsigned long flags;
-	comedi_krange *user_ai_range, *user_ao_range;
+	struct comedi_krange *user_ai_range, *user_ao_range;
 
 	iobase = it->options[0];
 #if 0
@@ -1496,7 +1496,7 @@ static int das16_attach(struct comedi_device * dev, struct comedi_devconfig * it
 		(it->options[4] || it->options[5])) {
 		// allocate single-range range table
 		devpriv->user_ai_range_table =
-			kmalloc(sizeof(struct comedi_lrange) + sizeof(comedi_krange),
+			kmalloc(sizeof(struct comedi_lrange) + sizeof(struct comedi_krange),
 			GFP_KERNEL);
 		// initialize ai range
 		devpriv->user_ai_range_table->length = 1;
@@ -1509,7 +1509,7 @@ static int das16_attach(struct comedi_device * dev, struct comedi_devconfig * it
 	if (it->options[6] || it->options[7]) {
 		// allocate single-range range table
 		devpriv->user_ao_range_table =
-			kmalloc(sizeof(struct comedi_lrange) + sizeof(comedi_krange),
+			kmalloc(sizeof(struct comedi_lrange) + sizeof(struct comedi_krange),
 			GFP_KERNEL);
 		// initialize ao range
 		devpriv->user_ao_range_table->length = 1;

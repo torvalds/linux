@@ -156,7 +156,7 @@ typedef struct {
 	int model_no;
 	struct {
 		int length;
-		comedi_krange range;
+		struct comedi_krange range;
 	} range[9];
 	const struct comedi_lrange *range_table_list[8 * 7 + 2];
 	unsigned int maxdata_list[8 * 7 + 2];

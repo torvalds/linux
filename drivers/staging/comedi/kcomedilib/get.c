@@ -149,7 +149,7 @@ int comedi_get_n_ranges(void *d, unsigned int subdevice, unsigned int chan)
  * ALPHA (non-portable)
 */
 int comedi_get_krange(void *d, unsigned int subdevice, unsigned int chan,
-	unsigned int range, comedi_krange *krange)
+	unsigned int range, struct comedi_krange *krange)
 {
 	struct comedi_device *dev = (struct comedi_device *) d;
 	struct comedi_subdevice *s = dev->subdevices + subdevice;
@@ -163,7 +163,7 @@ int comedi_get_krange(void *d, unsigned int subdevice, unsigned int chan,
 	if (range >= lr->length)
 		return -EINVAL;
 
-	memcpy(krange, lr->range + range, sizeof(comedi_krange));
+	memcpy(krange, lr->range + range, sizeof(struct comedi_krange));
 
 	return 0;
 }

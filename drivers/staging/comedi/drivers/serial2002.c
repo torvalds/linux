@@ -63,7 +63,7 @@ static const serial2002_board serial2002_boards[] = {
 typedef struct {
 	// HACK...
 	int length;
-	comedi_krange range;
+	struct comedi_krange range;
 } serial2002_range_table_t;
 
 typedef struct {
