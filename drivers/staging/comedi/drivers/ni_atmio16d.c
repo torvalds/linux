@@ -103,11 +103,13 @@ Devices: [National Instruments] AT-MIO-16 (atmio16), AT-MIO-16D (atmio16d)
 #define devpriv ((atmio16d_private *)dev->private)
 #define ATMIO16D_TIMEOUT 10
 
-typedef struct {
+struct atmio16_board_t {
+
 	const char *name;
 	int has_8255;
-} atmio16_board_t;
-static const atmio16_board_t atmio16_boards[] = {
+};
+
+static const struct atmio16_board_t atmio16_boards[] = {
 	{
 	      name:	"atmio16",
 	      has_8255:0,
@@ -120,7 +122,7 @@ static const atmio16_board_t atmio16_boards[] = {
 
 #define n_atmio16_boards sizeof(atmio16_boards)/sizeof(atmio16_boards[0])
 
-#define boardtype ((const atmio16_board_t *)dev->board_ptr)
+#define boardtype ((const struct atmio16_board_t *)dev->board_ptr)
 
 /* function prototypes */
 static int atmio16d_attach(struct comedi_device * dev, struct comedi_devconfig * it);
@@ -141,7 +143,7 @@ static struct comedi_driver driver_atmio16d = {
       detach:atmio16d_detach,
       board_name:&atmio16_boards[0].name,
       num_names:n_atmio16_boards,
-      offset:sizeof(atmio16_board_t),
+      offset:sizeof(struct atmio16_board_t),
 };
 
 COMEDI_INITCLEANUP(driver_atmio16d);
