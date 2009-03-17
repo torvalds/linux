@@ -144,7 +144,7 @@ struct poll_delay_t {
 };
 
 
-typedef struct {
+struct jr3_pci_subdev_private {
 	volatile struct jr3_channel *channel;
 	unsigned long next_time_min;
 	unsigned long next_time_max;
@@ -166,7 +166,7 @@ typedef struct {
 	unsigned int maxdata_list[8 * 7 + 2];
 	u16 errors;
 	int retries;
-} jr3_pci_subdev_private;
+};
 
 static struct poll_delay_t poll_delay_min_max(int min, int max)
 {
@@ -277,7 +277,7 @@ static int jr3_pci_ai_insn_read(struct comedi_device * dev, struct comedi_subdev
 	struct comedi_insn * insn, unsigned int * data)
 {
 	int result;
-	jr3_pci_subdev_private *p;
+	struct jr3_pci_subdev_private *p;
 	int channel;
 
 	p = s->private;
@@ -396,7 +396,7 @@ static void jr3_pci_open(struct comedi_device * dev)
 
 	printk("jr3_pci_open\n");
 	for (i = 0; i < devpriv->n_channels; i++) {
-		jr3_pci_subdev_private *p;
+		struct jr3_pci_subdev_private *p;
 
 		p = dev->subdevices[i].private;
 		if (p) {
@@ -465,7 +465,7 @@ static int jr3_download_firmware(struct comedi_device * dev, const u8 * data,
 		struct jr3_pci_dev_private *p = dev->private;
 
 		for (i = 0; i < p->n_channels; i++) {
-			jr3_pci_subdev_private *sp;
+			struct jr3_pci_subdev_private *sp;
 
 			sp = dev->subdevices[i].private;
 			more = 1;
@@ -530,7 +530,7 @@ static int jr3_download_firmware(struct comedi_device * dev, const u8 * data,
 static struct poll_delay_t jr3_pci_poll_subdevice(struct comedi_subdevice * s)
 {
 	struct poll_delay_t result = poll_delay_min_max(1000, 2000);
-	jr3_pci_subdev_private *p = s->private;
+	struct jr3_pci_subdev_private *p = s->private;
 
 	if (p) {
 		volatile struct jr3_channel *channel = p->channel;
@@ -752,7 +752,7 @@ static void jr3_pci_poll_dev(unsigned long data)
 	now = jiffies;
 	// Poll all channels that are ready to be polled
 	for (i = 0; i < devpriv->n_channels; i++) {
-		jr3_pci_subdev_private *subdevpriv = dev->subdevices[i].private;
+		struct jr3_pci_subdev_private *subdevpriv = dev->subdevices[i].private;
 		if (now > subdevpriv->next_time_min) {
 			struct poll_delay_t sub_delay;
 
@@ -861,9 +861,9 @@ static int jr3_pci_attach(struct comedi_device * dev, struct comedi_devconfig * 
 		dev->subdevices[i].n_chan = 8 * 7 + 2;
 		dev->subdevices[i].insn_read = jr3_pci_ai_insn_read;
 		dev->subdevices[i].private =
-			kzalloc(sizeof(jr3_pci_subdev_private), GFP_KERNEL);
+			kzalloc(sizeof(struct jr3_pci_subdev_private), GFP_KERNEL);
 		if (dev->subdevices[i].private) {
-			jr3_pci_subdev_private *p;
+			struct jr3_pci_subdev_private *p;
 			int j;
 
 			p = dev->subdevices[i].private;
@@ -929,7 +929,7 @@ static int jr3_pci_attach(struct comedi_device * dev, struct comedi_devconfig * 
 
 	// Start card timer
 	for (i = 0; i < devpriv->n_channels; i++) {
-		jr3_pci_subdev_private *p = dev->subdevices[i].private;
+		struct jr3_pci_subdev_private *p = dev->subdevices[i].private;
 
 		p->next_time_min = jiffies + msecs_to_jiffies(500);
 		p->next_time_max = jiffies + msecs_to_jiffies(2000);
