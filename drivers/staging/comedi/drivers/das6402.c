@@ -109,12 +109,12 @@ static struct comedi_driver driver_das6402 = {
 
 COMEDI_INITCLEANUP(driver_das6402);
 
-typedef struct {
+struct das6402_private {
 	int ai_bytes_to_read;
 
 	int das6402_ignoreirq;
-} das6402_private;
-#define devpriv ((das6402_private *)dev->private)
+};
+#define devpriv ((struct das6402_private *)dev->private)
 
 static void das6402_ai_fifo_dregs(struct comedi_device * dev, struct comedi_subdevice * s);
 
@@ -331,7 +331,7 @@ static int das6402_attach(struct comedi_device * dev, struct comedi_devconfig * 
 	}
 	dev->irq = irq;
 
-	if ((ret = alloc_private(dev, sizeof(das6402_private))) < 0)
+	if ((ret = alloc_private(dev, sizeof(struct das6402_private))) < 0)
 		return ret;
 
 	if ((ret = alloc_subdevices(dev, 1)) < 0)
