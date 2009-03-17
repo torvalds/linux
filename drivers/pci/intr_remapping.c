@@ -386,7 +386,7 @@ int free_irte(int irq)
 
 	if (!irq_iommu->sub_handle) {
 		for (i = 0; i < (1 << irq_iommu->irte_mask); i++)
-			set_64bit((unsigned long *)irte, 0);
+			set_64bit((unsigned long *)(irte + i), 0);
 		rc = qi_flush_iec(iommu, index, irq_iommu->irte_mask);
 	}
 
