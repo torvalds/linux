@@ -3294,7 +3294,12 @@ static int msi_compose_msg(struct pci_dev *pdev, unsigned int irq, struct msi_ms
 	} else
 #endif
 	{
-		msg->address_hi = MSI_ADDR_BASE_HI;
+		if (x2apic_enabled())
+			msg->address_hi = MSI_ADDR_BASE_HI |
+					  MSI_ADDR_EXT_DEST_ID(dest);
+		else
+			msg->address_hi = MSI_ADDR_BASE_HI;
+
 		msg->address_lo =
 			MSI_ADDR_BASE_LO |
 			((apic->irq_dest_mode == 0) ?
@@ -3528,7 +3533,7 @@ void arch_teardown_msi_irq(unsigned int irq)
 	destroy_irq(irq);
 }
 
-#ifdef CONFIG_DMAR
+#if defined (CONFIG_DMAR) || defined (CONFIG_INTR_REMAP)
 #ifdef CONFIG_SMP
 static void dmar_msi_set_affinity(unsigned int irq, const struct cpumask *mask)
 {

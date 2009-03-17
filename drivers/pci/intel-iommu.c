@@ -1799,7 +1799,7 @@ static int __init init_dmars(void)
 	struct dmar_rmrr_unit *rmrr;
 	struct pci_dev *pdev;
 	struct intel_iommu *iommu;
-	int i, ret, unit = 0;
+	int i, ret;
 
 	/*
 	 * for each drhd
@@ -1921,7 +1921,6 @@ static int __init init_dmars(void)
 		if (drhd->ignored)
 			continue;
 		iommu = drhd->iommu;
-		sprintf (iommu->name, "dmar%d", unit++);
 
 		iommu_flush_write_buffer(iommu);
 

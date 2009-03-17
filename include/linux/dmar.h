@@ -49,6 +49,7 @@ extern int dmar_dev_scope_init(void);
 
 /* Intel IOMMU detection */
 extern void detect_intel_iommu(void);
+extern int enable_drhd_fault_handling(void);
 
 
 extern int parse_ioapics_under_ir(void);
@@ -116,9 +117,6 @@ extern struct intel_iommu *map_ioapic_to_ir(int apic);
 #define intr_remapping_enabled		(0)
 #endif
 
-#ifdef CONFIG_DMAR
-extern const char *dmar_get_fault_reason(u8 fault_reason);
-
 /* Can't use the common MSI interrupt functions
  * since DMAR is not a pci device
  */
@@ -129,6 +127,7 @@ extern void dmar_msi_write(int irq, struct msi_msg *msg);
 extern int dmar_set_interrupt(struct intel_iommu *iommu);
 extern int arch_setup_dmar_msi(unsigned int irq);
 
+#ifdef CONFIG_DMAR
 extern int iommu_detected, no_iommu;
 extern struct list_head dmar_rmrr_units;
 struct dmar_rmrr_unit {

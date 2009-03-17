@@ -47,6 +47,7 @@
 #define	 MSI_ADDR_DEST_ID_MASK		0x00ffff0
 #define  MSI_ADDR_DEST_ID(dest)		(((dest) << MSI_ADDR_DEST_ID_SHIFT) & \
 					 MSI_ADDR_DEST_ID_MASK)
+#define MSI_ADDR_EXT_DEST_ID(dest)	((dest) & 0xffffff00)
 
 #define MSI_ADDR_IR_EXT_INT		(1 << 4)
 #define MSI_ADDR_IR_SHV			(1 << 3)

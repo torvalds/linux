@@ -511,6 +511,7 @@ int alloc_iommu(struct dmar_drhd_unit *drhd)
 		return -ENOMEM;
 
 	iommu->seq_id = iommu_allocated++;
+	sprintf (iommu->name, "dmar%d", iommu->seq_id);
 
 	iommu->reg = ioremap(drhd->reg_base_addr, VTD_PAGE_SIZE);
 	if (!iommu->reg) {
@@ -817,7 +818,13 @@ int dmar_enable_qi(struct intel_iommu *iommu)
 
 /* iommu interrupt handling. Most stuff are MSI-like. */
 
-static const char *fault_reason_strings[] =
+enum faulttype {
+	DMA_REMAP,
+	INTR_REMAP,
+	UNKNOWN,
+};
+
+static const char *dma_remap_fault_reasons[] =
 {
 	"Software",
 	"Present bit in root entry is clear",
@@ -833,14 +840,33 @@ static const char *fault_reason_strings[] =
 	"non-zero reserved fields in CTP",
 	"non-zero reserved fields in PTE",
 };
+
+static const char *intr_remap_fault_reasons[] =
+{
+	"Detected reserved fields in the decoded interrupt-remapped request",
+	"Interrupt index exceeded the interrupt-remapping table size",
+	"Present field in the IRTE entry is clear",
+	"Error accessing interrupt-remapping table pointed by IRTA_REG",
+	"Detected reserved fields in the IRTE entry",
+	"Blocked a compatibility format interrupt request",
+	"Blocked an interrupt request due to source-id verification failure",
+};
+
 #define MAX_FAULT_REASON_IDX 	(ARRAY_SIZE(fault_reason_strings) - 1)
 
-const char *dmar_get_fault_reason(u8 fault_reason)
+const char *dmar_get_fault_reason(u8 fault_reason, int *fault_type)
 {
-	if (fault_reason > MAX_FAULT_REASON_IDX)
+	if (fault_reason >= 0x20 && (fault_reason <= 0x20 +
+				     ARRAY_SIZE(intr_remap_fault_reasons))) {
+		*fault_type = INTR_REMAP;
+		return intr_remap_fault_reasons[fault_reason - 0x20];
+	} else if (fault_reason < ARRAY_SIZE(dma_remap_fault_reasons)) {
+		*fault_type = DMA_REMAP;
+		return dma_remap_fault_reasons[fault_reason];
+	} else {
+		*fault_type = UNKNOWN;
 		return "Unknown";
-	else
-		return fault_reason_strings[fault_reason];
+	}
 }
 
 void dmar_msi_unmask(unsigned int irq)
@@ -897,16 +923,25 @@ static int dmar_fault_do_one(struct intel_iommu *iommu, int type,
 		u8 fault_reason, u16 source_id, unsigned long long addr)
 {
 	const char *reason;
+	int fault_type;
 
-	reason = dmar_get_fault_reason(fault_reason);
+	reason = dmar_get_fault_reason(fault_reason, &fault_type);
 
-	printk(KERN_ERR
-		"DMAR:[%s] Request device [%02x:%02x.%d] "
-		"fault addr %llx \n"
-		"DMAR:[fault reason %02d] %s\n",
-		(type ? "DMA Read" : "DMA Write"),
-		(source_id >> 8), PCI_SLOT(source_id & 0xFF),
-		PCI_FUNC(source_id & 0xFF), addr, fault_reason, reason);
+	if (fault_type == INTR_REMAP)
+		printk(KERN_ERR "INTR-REMAP: Request device [[%02x:%02x.%d] "
+		       "fault index %llx\n"
+			"INTR-REMAP:[fault reason %02d] %s\n",
+			(source_id >> 8), PCI_SLOT(source_id & 0xFF),
+			PCI_FUNC(source_id & 0xFF), addr >> 48,
+			fault_reason, reason);
+	else
+		printk(KERN_ERR
+		       "DMAR:[%s] Request device [%02x:%02x.%d] "
+		       "fault addr %llx \n"
+		       "DMAR:[fault reason %02d] %s\n",
+		       (type ? "DMA Read" : "DMA Write"),
+		       (source_id >> 8), PCI_SLOT(source_id & 0xFF),
+		       PCI_FUNC(source_id & 0xFF), addr, fault_reason, reason);
 	return 0;
 }
 
@@ -920,10 +955,13 @@ static irqreturn_t dmar_fault(int irq, void *dev_id)
 
 	spin_lock_irqsave(&iommu->register_lock, flag);
 	fault_status = readl(iommu->reg + DMAR_FSTS_REG);
+	if (fault_status)
+		printk(KERN_ERR "DRHD: handling fault status reg %x\n",
+		       fault_status);
 
 	/* TBD: ignore advanced fault log currently */
 	if (!(fault_status & DMA_FSTS_PPF))
-		goto clear_overflow;
+		goto clear_rest;
 
 	fault_index = dma_fsts_fault_record_index(fault_status);
 	reg = cap_fault_reg_offset(iommu->cap);
@@ -964,11 +1002,10 @@ static irqreturn_t dmar_fault(int irq, void *dev_id)
 			fault_index = 0;
 		spin_lock_irqsave(&iommu->register_lock, flag);
 	}
-clear_overflow:
-	/* clear primary fault overflow */
+clear_rest:
+	/* clear all the other faults */
 	fault_status = readl(iommu->reg + DMAR_FSTS_REG);
-	if (fault_status & DMA_FSTS_PFO)
-		writel(DMA_FSTS_PFO, iommu->reg + DMAR_FSTS_REG);
+	writel(fault_status, iommu->reg + DMAR_FSTS_REG);
 
 	spin_unlock_irqrestore(&iommu->register_lock, flag);
 	return IRQ_HANDLED;
@@ -977,6 +1014,12 @@ clear_overflow:
 int dmar_set_interrupt(struct intel_iommu *iommu)
 {
 	int irq, ret;
+
+	/*
+	 * Check if the fault interrupt is already initialized.
+	 */
+	if (iommu->irq)
+		return 0;
 
 	irq = create_irq();
 	if (!irq) {
@@ -1002,4 +1045,27 @@ int dmar_set_interrupt(struct intel_iommu *iommu)
 	if (ret)
 		printk(KERN_ERR "IOMMU: can't request irq\n");
 	return ret;
+}
+
+int __init enable_drhd_fault_handling(void)
+{
+	struct dmar_drhd_unit *drhd;
+
+	/*
+	 * Enable fault control interrupt.
+	 */
+	for_each_drhd_unit(drhd) {
+		int ret;
+		struct intel_iommu *iommu = drhd->iommu;
+		ret = dmar_set_interrupt(iommu);
+
+		if (ret) {
+			printk(KERN_ERR "DRHD %Lx: failed to enable fault, "
+			       " interrupt, ret %d\n",
+			       (unsigned long long)drhd->reg_base_addr, ret);
+			return -1;
+		}
+	}
+
+	return 0;
 }
