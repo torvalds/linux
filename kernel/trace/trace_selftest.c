@@ -315,6 +315,14 @@ trace_selftest_startup_irqsoff(struct tracer *trace, struct trace_array *tr)
 	local_irq_disable();
 	udelay(100);
 	local_irq_enable();
+
+	/*
+	 * Stop the tracer to avoid a warning subsequent
+	 * to buffer flipping failure because tracing_stop()
+	 * disables the tr and max buffers, making flipping impossible
+	 * in case of parallels max irqs off latencies.
+	 */
+	trace->stop(tr);
 	/* stop the tracing. */
 	tracing_stop();
 	/* check both trace buffers */
@@ -369,6 +377,14 @@ trace_selftest_startup_preemptoff(struct tracer *trace, struct trace_array *tr)
 	preempt_disable();
 	udelay(100);
 	preempt_enable();
+
+	/*
+	 * Stop the tracer to avoid a warning subsequent
+	 * to buffer flipping failure because tracing_stop()
+	 * disables the tr and max buffers, making flipping impossible
+	 * in case of parallels max preempt off latencies.
+	 */
+	trace->stop(tr);
 	/* stop the tracing. */
 	tracing_stop();
 	/* check both trace buffers */
@@ -428,6 +444,13 @@ trace_selftest_startup_preemptirqsoff(struct tracer *trace, struct trace_array *
 	/* reverse the order of preempt vs irqs */
 	local_irq_enable();
 
+	/*
+	 * Stop the tracer to avoid a warning subsequent
+	 * to buffer flipping failure because tracing_stop()
+	 * disables the tr and max buffers, making flipping impossible
+	 * in case of parallels max irqs/preempt off latencies.
+	 */
+	trace->stop(tr);
 	/* stop the tracing. */
 	tracing_stop();
 	/* check both trace buffers */
@@ -448,6 +471,8 @@ trace_selftest_startup_preemptirqsoff(struct tracer *trace, struct trace_array *
 	/* do the test by disabling interrupts first this time */
 	tracing_max_latency = 0;
 	tracing_start();
+	trace->start(tr);
+
 	preempt_disable();
 	local_irq_disable();
 	udelay(100);
@@ -455,6 +480,7 @@ trace_selftest_startup_preemptirqsoff(struct tracer *trace, struct trace_array *
 	/* reverse the order of preempt vs irqs */
 	local_irq_enable();
 
+	trace->stop(tr);
 	/* stop the tracing. */
 	tracing_stop();
 	/* check both trace buffers */
