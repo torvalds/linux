@@ -156,7 +156,7 @@ struct s526GPCTConfig {
  * boards in this way is optional, and completely driver-dependent.
  * Some drivers use arrays such as this, other do not.
  */
-typedef struct s526_board_struct {
+struct s526_board {
 	const char *name;
 	int gpct_chans;
 	int gpct_bits;
@@ -165,9 +165,9 @@ typedef struct s526_board_struct {
 	int da_chans;
 	int da_bits;
 	int have_dio;
-} s526_board;
+};
 
-static const s526_board s526_boards[] = {
+static const struct s526_board s526_boards[] = {
 	{
 	      name:	"s526",
 	      gpct_chans:4,
@@ -186,7 +186,7 @@ static const s526_board s526_boards[] = {
 /*
  * Useful for shorthand access to the particular board structure
  */
-#define thisboard ((const s526_board *)dev->board_ptr)
+#define thisboard ((const struct s526_board *)dev->board_ptr)
 
 /* this structure is for data unique to this hardware driver.  If
    several hardware drivers keep similar information in this structure,
@@ -243,8 +243,8 @@ static struct comedi_driver driver_s526 = {
 	 * devices are such boards.
 	 */
       board_name:&s526_boards[0].name,
-      offset:sizeof(s526_board),
-      num_names:sizeof(s526_boards) / sizeof(s526_board),
+      offset:sizeof(struct s526_board),
+      num_names:sizeof(s526_boards) / sizeof(struct s526_board),
 };
 
 static int s526_gpct_rinsn(struct comedi_device * dev, struct comedi_subdevice * s,
