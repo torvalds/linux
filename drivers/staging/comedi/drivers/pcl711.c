@@ -168,7 +168,8 @@ static struct comedi_driver driver_pcl711 = {
 
 COMEDI_INITCLEANUP(driver_pcl711);
 
-typedef struct {
+struct pcl711_private {
+
 	int board;
 	int adchan;
 	int ntrig;
@@ -177,9 +178,10 @@ typedef struct {
 	unsigned int ao_readback[2];
 	unsigned int divisor1;
 	unsigned int divisor2;
-} pcl711_private;
+};
 
-#define devpriv ((pcl711_private *)dev->private)
+
+#define devpriv ((struct pcl711_private *)dev->private)
 
 static irqreturn_t pcl711_interrupt(int irq, void *d PT_REGS_ARG)
 {
@@ -548,7 +550,7 @@ static int pcl711_attach(struct comedi_device * dev, struct comedi_devconfig * i
 
 	if ((ret = alloc_subdevices(dev, 4)) < 0)
 		return ret;
-	if ((ret = alloc_private(dev, sizeof(pcl711_private))) < 0)
+	if ((ret = alloc_private(dev, sizeof(struct pcl711_private))) < 0)
 		return ret;
 
 	s = dev->subdevices + 0;
