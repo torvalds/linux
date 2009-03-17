@@ -97,7 +97,7 @@ Configuration Options:
  * This is straight from skel.c -- I did this in case this source file
  * will someday support more than 1 board...
  */
-typedef struct board_struct {
+struct board_struct {
 	const char *name;
 	unsigned short device_id;
 	int ao_chans;
@@ -108,7 +108,7 @@ typedef struct board_struct {
 	int regs_badrindex;	/* IO Region for the control, analog output,
 				   and DIO registers */
 	int reg_sz;		/* number of bytes of registers in io region */
-} board;
+};
 
 enum DIO_METHODS {
 	DIO_NONE = 0,
@@ -116,7 +116,7 @@ enum DIO_METHODS {
 	DIO_INTERNAL		/* unimplemented */
 };
 
-static const board boards[] = {
+static const struct board_struct boards[] = {
 	{
 	      name:	"cb_pcimdda06-16",
 	      device_id:PCI_ID_PCIM_DDA06_16,
@@ -133,10 +133,10 @@ static const board boards[] = {
 /*
  * Useful for shorthand access to the particular board structure
  */
-#define thisboard    ((const board *)dev->board_ptr)
+#define thisboard    ((const struct board_struct *)dev->board_ptr)
 
 /* Number of boards in boards[] */
-#define N_BOARDS	(sizeof(boards) / sizeof(board))
+#define N_BOARDS	(sizeof(boards) / sizeof(struct board_struct))
 #define REG_SZ (thisboard->reg_sz)
 #define REGS_BADRINDEX (thisboard->regs_badrindex)
 
