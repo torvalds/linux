@@ -135,7 +135,8 @@ static const struct comedi_lrange range_dt2801_ai_pgl_unipolar = { 4, {
 	}
 };
 
-typedef struct {
+struct dt2801_board {
+
 	const char *name;
 	int boardcode;
 	int ad_diff;
@@ -143,12 +144,13 @@ typedef struct {
 	int adbits;
 	int adrangetype;
 	int dabits;
-} boardtype_t;
+};
+
 
 /* Typeid's for the different boards of the DT2801-series
    (taken from the test-software, that comes with the board)
    */
-static const boardtype_t boardtypes[] = {
+static const struct dt2801_board boardtypes[] = {
 	{
 	      name:	"dt2801",
 	      boardcode:0x09,
@@ -216,7 +218,7 @@ static const boardtype_t boardtypes[] = {
 };
 
 #define n_boardtypes ((sizeof(boardtypes))/(sizeof(boardtypes[0])))
-#define boardtype (*(const boardtype_t *)dev->board_ptr)
+#define boardtype (*(const struct dt2801_board *)dev->board_ptr)
 
 typedef struct {
 	const struct comedi_lrange *dac_range_types[2];
