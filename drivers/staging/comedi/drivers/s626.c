@@ -454,7 +454,7 @@ static enc_private enc_private_data[] = {
 
 /*  enab/disable a function or test status bit(s) that are accessed */
 /*  through Main Control Registers 1 or 2. */
-#define MC_ENABLE( REGADRS, CTRLWORD )	writel(  ( (uint32_t)( CTRLWORD ) << 16 ) | (uint32_t)( CTRLWORD ),devpriv->base_addr+( REGADRS ) )
+#define MC_ENABLE( REGADRS, CTRLWORD )	writel(  ( (uint32_t)( CTRLWORD ) << 16 ) | (uint32_t)( CTRLWORD ), devpriv->base_addr+( REGADRS ) )
 
 #define MC_DISABLE( REGADRS, CTRLWORD )	writel(  (uint32_t)( CTRLWORD ) << 16 , devpriv->base_addr+( REGADRS ) )
 
@@ -462,7 +462,7 @@ static enc_private enc_private_data[] = {
 
 /* #define WR7146(REGARDS,CTRLWORD)
     writel(CTRLWORD,(uint32_t)(devpriv->base_addr+(REGARDS))) */
-#define WR7146(REGARDS,CTRLWORD) writel(CTRLWORD,devpriv->base_addr+(REGARDS))
+#define WR7146(REGARDS, CTRLWORD) writel(CTRLWORD, devpriv->base_addr+(REGARDS))
 
 /* #define RR7146(REGARDS)
     readl((uint32_t)(devpriv->base_addr+(REGARDS))) */
@@ -475,9 +475,9 @@ static enc_private enc_private_data[] = {
 #define SETVECT( VECTNUM, VECTVAL )	WR7146(VECTPORT( VECTNUM ), (VECTVAL))
 
 /*  Code macros used for constructing I2C command bytes. */
-#define I2C_B2(ATTR,VAL)	( ( (ATTR) << 6 ) | ( (VAL) << 24 ) )
-#define I2C_B1(ATTR,VAL)	( ( (ATTR) << 4 ) | ( (VAL) << 16 ) )
-#define I2C_B0(ATTR,VAL)	( ( (ATTR) << 2 ) | ( (VAL) <<  8 ) )
+#define I2C_B2(ATTR, VAL)	( ( (ATTR) << 6 ) | ( (VAL) << 24 ) )
+#define I2C_B1(ATTR, VAL)	( ( (ATTR) << 4 ) | ( (VAL) << 16 ) )
+#define I2C_B0(ATTR, VAL)	( ( (ATTR) << 2 ) | ( (VAL) <<  8 ) )
 
 static const comedi_lrange s626_range_table = { 2, {
 			RANGE(-5, 5),

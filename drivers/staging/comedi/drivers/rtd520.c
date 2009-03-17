@@ -366,11 +366,11 @@ typedef struct {
 #define DMA1_ACTIVE	0x04	/* DMA1 is active */
 
 /* Macros for accessing channel list bit array */
-#define CHAN_ARRAY_TEST(array,index) \
+#define CHAN_ARRAY_TEST(array, index) \
 	(((array)[(index)/8] >> ((index) & 0x7)) & 0x1)
-#define CHAN_ARRAY_SET(array,index) \
+#define CHAN_ARRAY_SET(array, index) \
 	(((array)[(index)/8] |= 1 << ((index) & 0x7)))
-#define CHAN_ARRAY_CLEAR(array,index) \
+#define CHAN_ARRAY_CLEAR(array, index) \
 	(((array)[(index)/8] &= ~(1 << ((index) & 0x7))))
 
 /*
@@ -394,15 +394,15 @@ typedef struct {
     writel (0, devpriv->las0+LAS0_CGT_CLEAR)
 
 /* Reset channel gain table read and write pointers */
-#define RtdEnableCGT(dev,v) \
+#define RtdEnableCGT(dev, v) \
     writel ((v > 0) ? 1 : 0, devpriv->las0+LAS0_CGT_ENABLE)
 
 /* Write channel gain table entry */
-#define RtdWriteCGTable(dev,v) \
+#define RtdWriteCGTable(dev, v) \
     writel (v, devpriv->las0+LAS0_CGT_WRITE)
 
 /* Write Channel Gain Latch */
-#define RtdWriteCGLatch(dev,v) \
+#define RtdWriteCGLatch(dev, v) \
     writel (v, devpriv->las0+LAS0_CGL_WRITE)
 
 /* Reset ADC FIFO */
@@ -410,39 +410,39 @@ typedef struct {
     writel (0, devpriv->las0+LAS0_ADC_FIFO_CLEAR)
 
 /* Set ADC start conversion source select (write only) */
-#define RtdAdcConversionSource(dev,v) \
+#define RtdAdcConversionSource(dev, v) \
     writel (v, devpriv->las0+LAS0_ADC_CONVERSION)
 
 /* Set burst start source select (write only) */
-#define RtdBurstStartSource(dev,v) \
+#define RtdBurstStartSource(dev, v) \
     writel (v, devpriv->las0+LAS0_BURST_START)
 
 /* Set Pacer start source select (write only) */
-#define RtdPacerStartSource(dev,v) \
+#define RtdPacerStartSource(dev, v) \
     writel (v, devpriv->las0+LAS0_PACER_START)
 
 /* Set Pacer stop source select (write only) */
-#define RtdPacerStopSource(dev,v) \
+#define RtdPacerStopSource(dev, v) \
     writel (v, devpriv->las0+LAS0_PACER_STOP)
 
 /* Set Pacer clock source select (write only) 0=external 1=internal */
-#define RtdPacerClockSource(dev,v) \
+#define RtdPacerClockSource(dev, v) \
     writel ((v > 0) ? 1 : 0, devpriv->las0+LAS0_PACER_SELECT)
 
 /* Set sample counter source select (write only) */
-#define RtdAdcSampleCounterSource(dev,v) \
+#define RtdAdcSampleCounterSource(dev, v) \
     writel (v, devpriv->las0+LAS0_ADC_SCNT_SRC)
 
 /* Set Pacer trigger mode select (write only) 0=single cycle, 1=repeat */
-#define RtdPacerTriggerMode(dev,v) \
+#define RtdPacerTriggerMode(dev, v) \
     writel ((v > 0) ? 1 : 0, devpriv->las0+LAS0_PACER_REPEAT)
 
 /* Set About counter stop enable (write only) */
-#define RtdAboutStopEnable(dev,v) \
+#define RtdAboutStopEnable(dev, v) \
     writel ((v > 0) ? 1 : 0, devpriv->las0+LAS0_ACNT_STOP_ENABLE)
 
 /* Set external trigger polarity (write only) 0=positive edge, 1=negative */
-#define RtdTriggerPolarity(dev,v) \
+#define RtdTriggerPolarity(dev, v) \
     writel ((v > 0) ? 1 : 0, devpriv->las0+LAS0_ETRG_POLARITY)
 
 /* Start single ADC conversion */
@@ -473,15 +473,15 @@ typedef struct {
     readw (devpriv->las0+LAS0_IT)
 
 /* Interrupt mask */
-#define RtdInterruptMask(dev,v) \
-    writew ((devpriv->intMask = (v)),devpriv->las0+LAS0_IT)
+#define RtdInterruptMask(dev, v) \
+    writew ((devpriv->intMask = (v)), devpriv->las0+LAS0_IT)
 
 /* Interrupt status clear (only bits set in mask) */
 #define RtdInterruptClear(dev) \
     readw (devpriv->las0+LAS0_CLEAR)
 
 /* Interrupt clear mask */
-#define RtdInterruptClearMask(dev,v) \
+#define RtdInterruptClearMask(dev, v) \
     writew ((devpriv->intClearMask = (v)), devpriv->las0+LAS0_CLEAR)
 
 /* Interrupt overrun status */
@@ -495,92 +495,92 @@ typedef struct {
 /* Pacer counter, 24bit */
 #define RtdPacerCount(dev) \
     readl (devpriv->las0+LAS0_PCLK)
-#define RtdPacerCounter(dev,v) \
-    writel ((v) & 0xffffff,devpriv->las0+LAS0_PCLK)
+#define RtdPacerCounter(dev, v) \
+    writel ((v) & 0xffffff, devpriv->las0+LAS0_PCLK)
 
 /* Burst counter, 10bit */
 #define RtdBurstCount(dev) \
     readl (devpriv->las0+LAS0_BCLK)
-#define RtdBurstCounter(dev,v) \
-    writel ((v) & 0x3ff,devpriv->las0+LAS0_BCLK)
+#define RtdBurstCounter(dev, v) \
+    writel ((v) & 0x3ff, devpriv->las0+LAS0_BCLK)
 
 /* Delay counter, 16bit */
 #define RtdDelayCount(dev) \
     readl (devpriv->las0+LAS0_DCLK)
-#define RtdDelayCounter(dev,v) \
+#define RtdDelayCounter(dev, v) \
     writel ((v) & 0xffff, devpriv->las0+LAS0_DCLK)
 
 /* About counter, 16bit */
 #define RtdAboutCount(dev) \
     readl (devpriv->las0+LAS0_ACNT)
-#define RtdAboutCounter(dev,v) \
+#define RtdAboutCounter(dev, v) \
     writel ((v) & 0xffff, devpriv->las0+LAS0_ACNT)
 
 /* ADC sample counter, 10bit */
 #define RtdAdcSampleCount(dev) \
     readl (devpriv->las0+LAS0_ADC_SCNT)
-#define RtdAdcSampleCounter(dev,v) \
+#define RtdAdcSampleCounter(dev, v) \
     writel ((v) & 0x3ff, devpriv->las0+LAS0_ADC_SCNT)
 
 /* User Timer/Counter (8254) */
-#define RtdUtcCounterGet(dev,n) \
+#define RtdUtcCounterGet(dev, n) \
     readb (devpriv->las0 \
         + ((n <= 0) ? LAS0_UTC0 : ((1 == n) ? LAS0_UTC1 : LAS0_UTC2)))
 
-#define RtdUtcCounterPut(dev,n,v) \
+#define RtdUtcCounterPut(dev, n, v) \
     writeb ((v) & 0xff, devpriv->las0 \
         + ((n <= 0) ? LAS0_UTC0 : ((1 == n) ? LAS0_UTC1 : LAS0_UTC2)))
 
 /* Set UTC (8254) control byte  */
-#define RtdUtcCtrlPut(dev,n,v) \
+#define RtdUtcCtrlPut(dev, n, v) \
     writeb (devpriv->utcCtrl[(n) & 3] = (((n) & 3) << 6) | ((v) & 0x3f), \
       devpriv->las0 + LAS0_UTC_CTRL)
 
 /* Set UTCn clock source (write only) */
-#define RtdUtcClockSource(dev,n,v) \
+#define RtdUtcClockSource(dev, n, v) \
     writew (v, devpriv->las0 \
         + ((n <= 0) ? LAS0_UTC0_CLOCK : \
            ((1 == n) ? LAS0_UTC1_CLOCK : LAS0_UTC2_CLOCK)))
 
 /* Set UTCn gate source (write only) */
-#define RtdUtcGateSource(dev,n,v) \
+#define RtdUtcGateSource(dev, n, v) \
     writew (v, devpriv->las0 \
         + ((n <= 0) ? LAS0_UTC0_GATE : \
            ((1 == n) ? LAS0_UTC1_GATE : LAS0_UTC2_GATE)))
 
 /* User output N source select (write only) */
-#define RtdUsrOutSource(dev,n,v) \
-    writel (v,devpriv->las0+((n <= 0) ? LAS0_UOUT0_SELECT : LAS0_UOUT1_SELECT))
+#define RtdUsrOutSource(dev, n, v) \
+    writel (v, devpriv->las0+((n <= 0) ? LAS0_UOUT0_SELECT : LAS0_UOUT1_SELECT))
 
 /* Digital IO */
 #define RtdDio0Read(dev) \
     (readw (devpriv->las0+LAS0_DIO0) & 0xff)
-#define RtdDio0Write(dev,v) \
+#define RtdDio0Write(dev, v) \
     writew ((v) & 0xff, devpriv->las0+LAS0_DIO0)
 
 #define RtdDio1Read(dev) \
     (readw (devpriv->las0+LAS0_DIO1) & 0xff)
-#define RtdDio1Write(dev,v) \
+#define RtdDio1Write(dev, v) \
     writew ((v) & 0xff, devpriv->las0+LAS0_DIO1)
 
 #define RtdDioStatusRead(dev) \
     (readw (devpriv->las0+LAS0_DIO_STATUS) & 0xff)
-#define RtdDioStatusWrite(dev,v) \
+#define RtdDioStatusWrite(dev, v) \
     writew ((devpriv->dioStatus = (v)), devpriv->las0+LAS0_DIO_STATUS)
 
 #define RtdDio0CtrlRead(dev) \
     (readw (devpriv->las0+LAS0_DIO0_CTRL) & 0xff)
-#define RtdDio0CtrlWrite(dev,v) \
+#define RtdDio0CtrlWrite(dev, v) \
     writew ((v) & 0xff, devpriv->las0+LAS0_DIO0_CTRL)
 
 /* Digital to Analog converter */
 /* Write one data value (sign + 12bit + marker bits) */
 /* Note: matches what DMA would put.  Actual value << 3 */
-#define RtdDacFifoPut(dev,n,v) \
+#define RtdDacFifoPut(dev, n, v) \
     writew ((v), devpriv->las1 +(((n) == 0) ? LAS1_DAC1_FIFO : LAS1_DAC2_FIFO))
 
 /* Start single DAC conversion */
-#define RtdDacUpdate(dev,n) \
+#define RtdDacUpdate(dev, n) \
     writew (0, devpriv->las0 +(((n) == 0) ? LAS0_DAC1 : LAS0_DAC2))
 
 /* Start single DAC conversion on both DACs */
@@ -588,20 +588,20 @@ typedef struct {
     writew (0, devpriv->las0+LAS0_DAC)
 
 /* Set DAC output type and range */
-#define RtdDacRange(dev,n,v) \
+#define RtdDacRange(dev, n, v) \
     writew ((v) & 7, devpriv->las0 \
 	+(((n) == 0) ? LAS0_DAC1_CTRL : LAS0_DAC2_CTRL))
 
 /* Reset DAC FIFO */
-#define RtdDacClearFifo(dev,n) \
+#define RtdDacClearFifo(dev, n) \
     writel (0, devpriv->las0+(((n) == 0) ? LAS0_DAC1_RESET : LAS0_DAC2_RESET))
 
 /* Set source for DMA 0 (write only, shadow?) */
-#define RtdDma0Source(dev,n) \
+#define RtdDma0Source(dev, n) \
     writel ((n) & 0xf, devpriv->las0+LAS0_DMA0_SRC)
 
 /* Set source for DMA 1 (write only, shadow?) */
-#define RtdDma1Source(dev,n) \
+#define RtdDma1Source(dev, n) \
     writel ((n) & 0xf, devpriv->las0+LAS0_DMA1_SRC)
 
 /* Reset board state for DMA 0 */
@@ -615,51 +615,51 @@ typedef struct {
 /* PLX9080 interrupt mask and status */
 #define RtdPlxInterruptRead(dev) \
     readl (devpriv->lcfg+LCFG_ITCSR)
-#define RtdPlxInterruptWrite(dev,v) \
+#define RtdPlxInterruptWrite(dev, v) \
     writel (v, devpriv->lcfg+LCFG_ITCSR)
 
 /* Set  mode for DMA 0 */
-#define RtdDma0Mode(dev,m) \
+#define RtdDma0Mode(dev, m) \
     writel ((m), devpriv->lcfg+LCFG_DMAMODE0)
 
 /* Set PCI address for DMA 0 */
-#define RtdDma0PciAddr(dev,a) \
+#define RtdDma0PciAddr(dev, a) \
     writel ((a), devpriv->lcfg+LCFG_DMAPADR0)
 
 /* Set local address for DMA 0 */
-#define RtdDma0LocalAddr(dev,a) \
+#define RtdDma0LocalAddr(dev, a) \
     writel ((a), devpriv->lcfg+LCFG_DMALADR0)
 
 /* Set byte count for DMA 0 */
-#define RtdDma0Count(dev,c) \
+#define RtdDma0Count(dev, c) \
     writel ((c), devpriv->lcfg+LCFG_DMASIZ0)
 
 /* Set next descriptor for DMA 0 */
-#define RtdDma0Next(dev,a) \
+#define RtdDma0Next(dev, a) \
     writel ((a), devpriv->lcfg+LCFG_DMADPR0)
 
 /* Set  mode for DMA 1 */
-#define RtdDma1Mode(dev,m) \
+#define RtdDma1Mode(dev, m) \
     writel ((m), devpriv->lcfg+LCFG_DMAMODE1)
 
 /* Set PCI address for DMA 1 */
-#define RtdDma1PciAddr(dev,a) \
+#define RtdDma1PciAddr(dev, a) \
     writel ((a), devpriv->lcfg+LCFG_DMAADR1)
 
 /* Set local address for DMA 1 */
-#define RtdDma1LocalAddr(dev,a) \
+#define RtdDma1LocalAddr(dev, a) \
     writel ((a), devpriv->lcfg+LCFG_DMALADR1)
 
 /* Set byte count for DMA 1 */
-#define RtdDma1Count(dev,c) \
+#define RtdDma1Count(dev, c) \
     writel ((c), devpriv->lcfg+LCFG_DMASIZ1)
 
 /* Set next descriptor for DMA 1 */
-#define RtdDma1Next(dev,a) \
+#define RtdDma1Next(dev, a) \
     writel ((a), devpriv->lcfg+LCFG_DMADPR1)
 
 /* Set control for DMA 0 (write only, shadow?) */
-#define RtdDma0Control(dev,n) \
+#define RtdDma0Control(dev, n) \
     writeb (devpriv->dma0Control = (n), devpriv->lcfg+LCFG_DMACSR0)
 
 /* Get status for DMA 0 */
@@ -667,7 +667,7 @@ typedef struct {
     readb (devpriv->lcfg+LCFG_DMACSR0)
 
 /* Set control for DMA 1 (write only, shadow?) */
-#define RtdDma1Control(dev,n) \
+#define RtdDma1Control(dev, n) \
     writeb (devpriv->dma1Control = (n), devpriv->lcfg+LCFG_DMACSR1)
 
 /* Get status for DMA 1 */
