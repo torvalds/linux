@@ -299,7 +299,7 @@ enum comedi_support_level {
 #define COMEDI_LOCK _IO(CIO, 5)
 #define COMEDI_UNLOCK _IO(CIO, 6)
 #define COMEDI_CANCEL _IO(CIO, 7)
-#define COMEDI_RANGEINFO _IOR(CIO, 8, comedi_rangeinfo)
+#define COMEDI_RANGEINFO _IOR(CIO, 8, struct comedi_rangeinfo)
 #define COMEDI_CMD _IOR(CIO, 9, struct comedi_cmd)
 #define COMEDI_CMDTEST _IOR(CIO, 10, struct comedi_cmd)
 #define COMEDI_INSNLIST _IOR(CIO, 11, struct comedi_insnlist)
@@ -310,7 +310,6 @@ enum comedi_support_level {
 
 /* structures */
 
-typedef struct comedi_rangeinfo_struct comedi_rangeinfo;
 typedef struct comedi_krange_struct comedi_krange;
 typedef struct comedi_bufconfig_struct comedi_bufconfig;
 typedef struct comedi_bufinfo_struct comedi_bufinfo;
@@ -378,7 +377,7 @@ struct comedi_chaninfo {
 	unsigned int unused[4];
 };
 
-struct comedi_rangeinfo_struct {
+struct comedi_rangeinfo {
 	unsigned int range_type;
 	void *range_ptr;
 };

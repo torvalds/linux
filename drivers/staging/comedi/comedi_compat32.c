@@ -158,7 +158,7 @@ static int compat_chaninfo(struct file *file, unsigned long arg)
 /* Handle 32-bit COMEDI_RANGEINFO ioctl. */
 static int compat_rangeinfo(struct file *file, unsigned long arg)
 {
-	comedi_rangeinfo __user *rangeinfo;
+	struct comedi_rangeinfo __user *rangeinfo;
 	struct comedi32_rangeinfo_struct __user *rangeinfo32;
 	int err;
 	union {

@@ -44,14 +44,14 @@ const struct comedi_lrange range_unknown = { 1, {{0, 1000000, UNIT_none}} };
 	writes:
 		n comedi_krange structures to rangeinfo->range_ptr
 */
-int do_rangeinfo_ioctl(struct comedi_device *dev, comedi_rangeinfo *arg)
+int do_rangeinfo_ioctl(struct comedi_device *dev, struct comedi_rangeinfo *arg)
 {
-	comedi_rangeinfo it;
+	struct comedi_rangeinfo it;
 	int subd, chan;
 	const struct comedi_lrange *lr;
 	struct comedi_subdevice *s;
 
-	if (copy_from_user(&it, arg, sizeof(comedi_rangeinfo)))
+	if (copy_from_user(&it, arg, sizeof(struct comedi_rangeinfo)))
 		return -EFAULT;
 	subd = (it.range_type >> 24) & 0xf;
 	chan = (it.range_type >> 16) & 0xff;
