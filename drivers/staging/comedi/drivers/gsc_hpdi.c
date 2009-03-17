@@ -301,7 +301,8 @@ static inline struct hpdi_board *board(const struct comedi_device * dev)
 	return (struct hpdi_board *) dev->board_ptr;
 }
 
-typedef struct {
+struct hpdi_private {
+
 	struct pci_dev *hw_dev;	// pointer to board's pci_dev struct
 	// base addresses (physical)
 	resource_size_t plx9080_phys_iobase;
@@ -322,9 +323,10 @@ typedef struct {
 	volatile uint32_t bits[24];	// software copies of values written to hpdi registers
 	volatile unsigned int block_size;	// number of bytes at which to generate COMEDI_CB_BLOCK events
 	unsigned dio_config_output:1;
-} hpdi_private;
+};
 
-static inline hpdi_private *priv(struct comedi_device * dev)
+
+static inline struct hpdi_private *priv(struct comedi_device * dev)
 {
 	return dev->private;
 }
@@ -562,7 +564,7 @@ static int hpdi_attach(struct comedi_device * dev, struct comedi_devconfig * it)
 
 	printk("comedi%d: gsc_hpdi\n", dev->minor);
 
-	if (alloc_private(dev, sizeof(hpdi_private)) < 0)
+	if (alloc_private(dev, sizeof(struct hpdi_private)) < 0)
 		return -ENOMEM;
 
 	pcidev = NULL;
