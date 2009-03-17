@@ -53,9 +53,9 @@
 
 #define COMEDI_INITCLEANUP_NOMODULE(x)					\
 	static int __init x ## _init_module(void)			\
-		{return comedi_driver_register(&(x));}			\
+		{return comedi_driver_register(&(x)); }			\
 	static void __exit x ## _cleanup_module(void)			\
-		{comedi_driver_unregister(&(x));} 			\
+		{comedi_driver_unregister(&(x)); } 			\
 	module_init(x ## _init_module);					\
 	module_exit(x ## _cleanup_module);					\
 

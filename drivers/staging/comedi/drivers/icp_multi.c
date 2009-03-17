@@ -179,7 +179,7 @@ static comedi_driver driver_icp_multi = {
       attach : icp_multi_attach,
       detach : icp_multi_detach,
       num_names : n_boardtypes,
-      board_name:&boardtypes[0].name,
+      board_name : &boardtypes[0].name,
       offset : sizeof(boardtype),
 };
 
@@ -947,7 +947,7 @@ static int icp_multi_attach(comedi_device *dev, comedi_devconfig *it)
 		n_subdevices++;
 
 	ret = alloc_subdevices(dev, n_subdevices);
-	if ( ret < 0 )
+	if (ret < 0)
 		return ret;
 
 	icp_multi_reset(dev);

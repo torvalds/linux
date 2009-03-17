@@ -246,7 +246,7 @@ static struct pcilst_struct *select_and_alloc_pci_card(unsigned short vendor_id,
 
 	if ((pci_bus < 1) & (pci_slot < 1)) {	/* use autodetection */
 
-		card = find_free_pci_card_by_device(vendor_id,device_id);
+		card = find_free_pci_card_by_device(vendor_id, device_id);
 		if (card == NULL) {
 			rt_printk(" - Unused card not found in system!\n");
 			return NULL;
@@ -268,7 +268,7 @@ static struct pcilst_struct *select_and_alloc_pci_card(unsigned short vendor_id,
 	}
 
 	err = pci_card_alloc(card);
-	if ( err != 0) {
+	if (err != 0) {
 		if (err > 0)
 			rt_printk(" - Can't allocate card!\n");
 		/* else: error already printed. */

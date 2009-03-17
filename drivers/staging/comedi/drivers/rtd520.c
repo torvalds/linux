@@ -2155,7 +2155,7 @@ static int rtd_ao_winsn(comedi_device *dev,
 		/* VERIFY: comedi range and offset conversions */
 
 		if ((range > 1)	/* bipolar */
-			&&(data[i] < 2048)) {
+			&& (data[i] < 2048)) {
 			/* offset and sign extend */
 			val = (((int)data[i]) - 2048) << 3;
 		} else {	/* unipolor */

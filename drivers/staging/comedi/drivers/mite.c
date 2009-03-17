@@ -63,7 +63,7 @@
 
 MODULE_LICENSE("GPL");
 
-struct mite_struct *mite_devices = NULL;
+struct mite_struct *mite_devices;
 
 #define TOP_OF_PAGE(x) ((x)|(~(PAGE_MASK)))
 
