@@ -70,8 +70,6 @@ static struct fc_lport *fcoe_hostlist_lookup(const struct net_device *);
 static int fcoe_hostlist_add(const struct fc_lport *);
 static int fcoe_hostlist_remove(const struct fc_lport *);
 
-static struct Scsi_Host *fcoe_host_alloc(struct scsi_host_template *, int);
-
 static int fcoe_check_wait_queue(struct fc_lport *);
 static void fcoe_recv_flogi(struct fcoe_softc *, struct fc_frame *, u8 *);
 static int fcoe_device_notification(struct notifier_block *, ulong, void *);
@@ -464,8 +462,8 @@ static int fcoe_if_create(struct net_device *netdev)
 	if (lp)
 		return -EEXIST;
 
-	shost = fcoe_host_alloc(&fcoe_shost_template,
-				sizeof(struct fcoe_softc));
+	shost = libfc_host_alloc(&fcoe_shost_template,
+				 sizeof(struct fcoe_softc));
 	if (!shost) {
 		FC_DBG("Could not allocate host structure\n");
 		return -ENOMEM;
@@ -1714,33 +1712,6 @@ void fcoe_clean_pending_queue(struct fc_lport *lp)
 	spin_unlock_bh(&fc->fcoe_pending_queue.lock);
 }
 EXPORT_SYMBOL_GPL(fcoe_clean_pending_queue);
-
-/**
- * libfc_host_alloc() - Allocate a Scsi_Host with room for the fc_lport
- * @sht: ptr to the scsi host templ
- * @priv_size: size of private data after fc_lport
- *
- * Returns: ptr to Scsi_Host
- * TODO: to libfc?
- */
-static inline struct Scsi_Host *
-libfc_host_alloc(struct scsi_host_template *sht, int priv_size)
-{
-	return scsi_host_alloc(sht, sizeof(struct fc_lport) + priv_size);
-}
-
-/**
- * fcoe_host_alloc() - Allocate a Scsi_Host with room for the fcoe_softc
- * @sht: ptr to the scsi host templ
- * @priv_size: size of private data after fc_lport
- *
- * Returns: ptr to Scsi_Host
- */
-struct Scsi_Host *fcoe_host_alloc(struct scsi_host_template *sht, int priv_size)
-{
-	return libfc_host_alloc(sht, sizeof(struct fcoe_softc) + priv_size);
-}
-EXPORT_SYMBOL_GPL(fcoe_host_alloc);
 
 /**
  * fcoe_reset() - Resets the fcoe

@@ -696,11 +696,6 @@ struct fc_lport {
 /*
  * FC_LPORT HELPER FUNCTIONS
  *****************************/
-static inline void *lport_priv(const struct fc_lport *lp)
-{
-	return (void *)(lp + 1);
-}
-
 static inline int fc_lport_test_ready(struct fc_lport *lp)
 {
 	return lp->state == LPORT_ST_READY;
@@ -743,6 +738,23 @@ static inline struct fcoe_dev_stats *fc_lport_get_stats(struct fc_lport *lp)
 	return per_cpu_ptr(lp->dev_stats, smp_processor_id());
 }
 
+static inline void *lport_priv(const struct fc_lport *lp)
+{
+	return (void *)(lp + 1);
+}
+
+/**
+ * libfc_host_alloc() - Allocate a Scsi_Host with room for the fc_lport
+ * @sht: ptr to the scsi host templ
+ * @priv_size: size of private data after fc_lport
+ *
+ * Returns: ptr to Scsi_Host
+ */
+static inline struct Scsi_Host *
+libfc_host_alloc(struct scsi_host_template *sht, int priv_size)
+{
+	return scsi_host_alloc(sht, sizeof(struct fc_lport) + priv_size);
+}
 
 /*
  * LOCAL PORT LAYER
