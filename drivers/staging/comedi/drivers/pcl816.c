@@ -143,7 +143,7 @@ static const boardtype boardtypes[] = {
 };
 
 #define n_boardtypes (sizeof(boardtypes)/sizeof(boardtype))
-#define devpriv ((pcl816_private *)dev->private)
+#define devpriv ((struct pcl816_private *)dev->private)
 #define this_board ((const boardtype *)dev->board_ptr)
 
 static int pcl816_attach(struct comedi_device * dev, struct comedi_devconfig * it);
@@ -166,7 +166,8 @@ static struct comedi_driver driver_pcl816 = {
 
 COMEDI_INITCLEANUP(driver_pcl816);
 
-typedef struct {
+struct pcl816_private {
+
 	unsigned int dma;	// used DMA, 0=don't use DMA
 	int dma_rtc;		// 1=RTC used with DMA, 0=no RTC alloc
 #ifdef unused
@@ -204,7 +205,8 @@ typedef struct {
 	struct timer_list rtc_irq_timer;	// timer for RTC sanity check
 	unsigned long rtc_freq;	// RTC int freq
 #endif
-} pcl816_private;
+};
+
 
 /*
 ==============================================================================
@@ -1037,7 +1039,7 @@ static int pcl816_attach(struct comedi_device * dev, struct comedi_devconfig * i
 		return -EIO;
 	}
 
-	if ((ret = alloc_private(dev, sizeof(pcl816_private))) < 0)
+	if ((ret = alloc_private(dev, sizeof(struct pcl816_private))) < 0)
 		return ret;	/* Can't alloc mem */
 
 	/* set up some name stuff */
