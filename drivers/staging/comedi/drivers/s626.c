@@ -144,8 +144,8 @@ struct s626_private {
 	uint16_t CounterIntEnabs;
 	/* Counter interrupt enable  mask for MISC2 register. */
 	uint8_t AdcItems;	/* Number of items in ADC poll  list. */
-	DMABUF RPSBuf;		/* DMA buffer used to hold ADC (RPS1) program. */
-	DMABUF ANABuf;
+	struct bufferDMA RPSBuf;		/* DMA buffer used to hold ADC (RPS1) program. */
+	struct bufferDMA ANABuf;
 	/* DMA buffer used to receive ADC data and hold DAC data. */
 	uint32_t *pDacWBuf;
 	/* Pointer to logical adrs of DMA buffer used to hold DAC  data. */
@@ -275,7 +275,7 @@ static uint16_t DEBIread(struct comedi_device *dev, uint16_t addr);
 static void DEBIwrite(struct comedi_device *dev, uint16_t addr, uint16_t wdata);
 static void DEBIreplace(struct comedi_device *dev, uint16_t addr, uint16_t mask,
 	uint16_t wdata);
-static void CloseDMAB(struct comedi_device *dev, DMABUF *pdma, size_t bsize);
+static void CloseDMAB(struct comedi_device *dev, struct bufferDMA *pdma, size_t bsize);
 
 /*  COUNTER OBJECT ------------------------------------------------ */
 struct enc_private {
@@ -2733,7 +2733,7 @@ static void DEBIreplace(struct comedi_device *dev, uint16_t addr, uint16_t mask,
 	DEBItransfer(dev);	/*  Execute the DEBI Write transfer. */
 }
 
-static void CloseDMAB(struct comedi_device *dev, DMABUF *pdma, size_t bsize)
+static void CloseDMAB(struct comedi_device *dev, struct bufferDMA *pdma, size_t bsize)
 {
 	void *vbptr;
 	dma_addr_t vpptr;
