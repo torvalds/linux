@@ -81,7 +81,8 @@ static const struct comedi_lrange range_dt3000_ai_pgl = { 4, {
 	}
 };
 
-typedef struct {
+struct dt3k_boardtype {
+
 	const char *name;
 	unsigned int device_id;
 	int adchan;
@@ -90,9 +91,10 @@ typedef struct {
 	const struct comedi_lrange *adrange;
 	int dachan;
 	int dabits;
-} dt3k_boardtype;
+};
 
-static const dt3k_boardtype dt3k_boardtypes[] = {
+
+static const struct dt3k_boardtype dt3k_boardtypes[] = {
       {name:"dt3001",
 	      device_id:0x22,
 	      adchan:	16,
@@ -158,8 +160,8 @@ static const dt3k_boardtype dt3k_boardtypes[] = {
 		},
 };
 
-#define n_dt3k_boards sizeof(dt3k_boardtypes)/sizeof(dt3k_boardtype)
-#define this_board ((const dt3k_boardtype *)dev->board_ptr)
+#define n_dt3k_boards sizeof(dt3k_boardtypes)/sizeof(struct dt3k_boardtype)
+#define this_board ((const struct dt3k_boardtype *)dev->board_ptr)
 
 static DEFINE_PCI_DEVICE_TABLE(dt3k_pci_table) = {
 	{PCI_VENDOR_ID_DT, 0x0022, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
