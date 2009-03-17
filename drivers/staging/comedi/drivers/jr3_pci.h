@@ -50,7 +50,7 @@ struct raw_channel {
 /* The force_array structure shows the layout for the decoupled and
  * filtered force data.
  */
-typedef struct force_array {
+struct force_array {
 	s32 fx;
 	s32 fy;
 	s32 fz;
@@ -59,7 +59,7 @@ typedef struct force_array {
 	s32 mz;
 	s32 v1;
 	s32 v2;
-} force_array_t;
+};
 
 /* The six_axis_array structure shows the layout for the offsets and
  * the full scales.
@@ -375,7 +375,7 @@ typedef struct force_sensor_data {
 	 * axes used for each vector respectively.
 	 */
 
-	force_array_t full_scale;	/* offset 0x0080 */
+	struct force_array full_scale;	/* offset 0x0080 */
 
 	/* Offsets contains the sensor offsets. These values are subtracted from
 	 * the sensor data to obtain the decoupled data. The offsets are set a
@@ -432,7 +432,7 @@ typedef struct force_sensor_data {
 	 * calculated is specified by the variable rate_address (pg. 12).
 	 */
 
-	force_array_t rate_data;	/* offset 0x00c8 */
+	struct force_array rate_data;	/* offset 0x00c8 */
 
 	/* Minimum_data & maximum_data are the minimum and maximum (peak)
 	 * data values. The JR3 DSP can monitor any 8 contiguous data items
@@ -446,8 +446,8 @@ typedef struct force_sensor_data {
 	 * also lost when plugging in a new sensor.
 	 */
 
-	force_array_t minimum_data;	/* offset 0x00d0 */
-	force_array_t maximum_data;	/* offset 0x00d8 */
+	struct force_array minimum_data;	/* offset 0x00d0 */
+	struct force_array maximum_data;	/* offset 0x00d8 */
 
 	/* Near_sat_value & sat_value contain the value used to determine if
 	 * the raw sensor is saturated. Because of decoupling and offset

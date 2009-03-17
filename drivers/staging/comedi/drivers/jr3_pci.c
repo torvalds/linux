@@ -644,7 +644,7 @@ static poll_delay_t jr3_pci_poll_subdevice(struct comedi_subdevice * s)
 					printk("state_jr3_init_set_full_scale_complete complete = %d\n", is_complete(channel));
 					result = poll_delay_min_max(20, 100);
 				} else {
-					volatile force_array_t *full_scale;
+					volatile struct force_array *full_scale;
 
 					// Use ranges in kN or we will overflow arount 2000N!
 					full_scale = &channel->full_scale;
