@@ -2059,26 +2059,31 @@ static int __devinit check_position_fix(struct azx *chip, int fix)
 {
 	const struct snd_pci_quirk *q;
 
-	/* Check VIA HD Audio Controller exist */
-	if (chip->pci->vendor == PCI_VENDOR_ID_VIA &&
-	    chip->pci->device == VIA_HDAC_DEVICE_ID) {
+	switch (fix) {
+	case POS_FIX_LPIB:
+	case POS_FIX_POSBUF:
+		return fix;
+	}
+
+	/* Check VIA/ATI HD Audio Controller exist */
+	switch (chip->driver_type) {
+	case AZX_DRIVER_VIA:
+	case AZX_DRIVER_ATI:
 		chip->via_dmapos_patch = 1;
 		/* Use link position directly, avoid any transfer problem. */
 		return POS_FIX_LPIB;
 	}
 	chip->via_dmapos_patch = 0;
 
-	if (fix == POS_FIX_AUTO) {
-		q = snd_pci_quirk_lookup(chip->pci, position_fix_list);
-		if (q) {
-			printk(KERN_INFO
-				    "hda_intel: position_fix set to %d "
-				    "for device %04x:%04x\n",
-				    q->value, q->subvendor, q->subdevice);
-			return q->value;
-		}
+	q = snd_pci_quirk_lookup(chip->pci, position_fix_list);
+	if (q) {
+		printk(KERN_INFO
+		       "hda_intel: position_fix set to %d "
+		       "for device %04x:%04x\n",
+		       q->value, q->subvendor, q->subdevice);
+		return q->value;
 	}
-	return fix;
+	return POS_FIX_AUTO;
 }
 
 /*
