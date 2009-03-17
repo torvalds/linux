@@ -2222,10 +2222,6 @@ qla2x00_mem_alloc(struct qla_hw_data *ha, uint16_t req_len, uint16_t rsp_len,
 {
 	char	name[16];
 
-	ha->init_cb_size = sizeof(init_cb_t);
-	if (IS_QLA2XXX_MIDTYPE(ha))
-		ha->init_cb_size = sizeof(struct mid_init_cb_24xx);
-
 	ha->init_cb = dma_alloc_coherent(&ha->pdev->dev, ha->init_cb_size,
 		&ha->init_cb_dma, GFP_KERNEL);
 	if (!ha->init_cb)
@@ -2522,6 +2518,19 @@ qla2x00_post_aen_work(struct scsi_qla_host *vha, enum fc_host_event_code code,
 	return qla2x00_post_work(vha, e, 1);
 }
 
+int
+qla2x00_post_idc_ack_work(struct scsi_qla_host *vha, uint16_t *mb)
+{
+	struct qla_work_evt *e;
+
+	e = qla2x00_alloc_work(vha, QLA_EVT_IDC_ACK, 1);
+	if (!e)
+		return QLA_FUNCTION_FAILED;
+
+	memcpy(e->u.idc_ack.mb, mb, QLA_IDC_ACK_REGS * sizeof(uint16_t));
+	return qla2x00_post_work(vha, e, 1);
+}
+
 static void
 qla2x00_do_work(struct scsi_qla_host *vha)
 {
@@ -2539,6 +2548,9 @@ qla2x00_do_work(struct scsi_qla_host *vha)
 			fc_host_post_event(vha->host, fc_get_event_number(),
 			    e->u.aen.code, e->u.aen.data);
 			break;
+		case QLA_EVT_IDC_ACK:
+			qla81xx_idc_ack(vha, e->u.idc_ack.mb);
+			break;
 		}
 		if (e->flags & QLA_EVT_FLAG_FREE)
 			kfree(e);
@@ -2552,7 +2564,7 @@ qla2x00_do_work(struct scsi_qla_host *vha)
 void qla2x00_relogin(struct scsi_qla_host *vha)
 {
 	fc_port_t       *fcport;
-	uint8_t         status;
+	int status;
 	uint16_t        next_loopid = 0;
 	struct qla_hw_data *ha = vha->hw;
 

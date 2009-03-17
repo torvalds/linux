@@ -23,10 +23,20 @@ static int trace_test_buffer_cpu(struct trace_array *tr, int cpu)
 {
 	struct ring_buffer_event *event;
 	struct trace_entry *entry;
+	unsigned int loops = 0;
 
 	while ((event = ring_buffer_consume(tr->buffer, cpu, NULL))) {
 		entry = ring_buffer_event_data(event);
 
+		/*
+		 * The ring buffer is a size of trace_buf_size, if
+		 * we loop more than the size, there's something wrong
+		 * with the ring buffer.
+		 */
+		if (loops++ > trace_buf_size) {
+			printk(KERN_CONT ".. bad ring buffer ");
+			goto failed;
+		}
 		if (!trace_valid_entry(entry)) {
 			printk(KERN_CONT ".. invalid entry %d ",
 				entry->type);
@@ -57,11 +67,20 @@ static int trace_test_buffer(struct trace_array *tr, unsigned long *count)
 
 	cnt = ring_buffer_entries(tr->buffer);
 
+	/*
+	 * The trace_test_buffer_cpu runs a while loop to consume all data.
+	 * If the calling tracer is broken, and is constantly filling
+	 * the buffer, this will run forever, and hard lock the box.
+	 * We disable the ring buffer while we do this test to prevent
+	 * a hard lock up.
+	 */
+	tracing_off();
 	for_each_possible_cpu(cpu) {
 		ret = trace_test_buffer_cpu(tr, cpu);
 		if (ret)
 			break;
 	}
+	tracing_on();
 	__raw_spin_unlock(&ftrace_max_lock);
 	local_irq_restore(flags);
 

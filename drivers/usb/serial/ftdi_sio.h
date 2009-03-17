@@ -844,6 +844,9 @@
 #define TML_VID			0x1B91	/* Vendor ID */
 #define TML_USB_SERIAL_PID	0x0064	/* USB - Serial Converter */
 
+/* NDI Polaris System */
+#define FTDI_NDI_HUC_PID        0xDA70
+
 /* Propox devices */
 #define FTDI_PROPOX_JTAGCABLEII_PID	0xD738
 

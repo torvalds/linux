@@ -364,7 +364,8 @@ cxgb3i_session_create(struct iscsi_endpoint *ep, u16 cmds_max, u16 qdepth,
 
 	cls_session = iscsi_session_setup(&cxgb3i_iscsi_transport, shost,
 					  cmds_max,
-					  sizeof(struct iscsi_tcp_task),
+					  sizeof(struct iscsi_tcp_task) +
+					  sizeof(struct cxgb3i_task_data),
 					  initial_cmdsn, ISCSI_MAX_TARGET);
 	if (!cls_session)
 		return NULL;
@@ -402,17 +403,15 @@ static inline int cxgb3i_conn_max_xmit_dlength(struct iscsi_conn *conn)
 {
 	struct iscsi_tcp_conn *tcp_conn = conn->dd_data;
 	struct cxgb3i_conn *cconn = tcp_conn->dd_data;
-	unsigned int max = min_t(unsigned int, ULP2_MAX_PDU_PAYLOAD,
-				 cconn->hba->snic->tx_max_size -
-				 ISCSI_PDU_NONPAYLOAD_MAX);
+	unsigned int max = max(512 * MAX_SKB_FRAGS, SKB_TX_HEADROOM);
 
+	max = min(cconn->hba->snic->tx_max_size, max);
 	if (conn->max_xmit_dlength)
-		conn->max_xmit_dlength = min_t(unsigned int,
-						conn->max_xmit_dlength, max);
+		conn->max_xmit_dlength = min(conn->max_xmit_dlength, max);
 	else
 		conn->max_xmit_dlength = max;
 	align_pdu_size(conn->max_xmit_dlength);
-	cxgb3i_log_info("conn 0x%p, max xmit %u.\n",
+	cxgb3i_api_debug("conn 0x%p, max xmit %u.\n",
 			 conn, conn->max_xmit_dlength);
 	return 0;
 }
@@ -427,9 +426,7 @@ static inline int cxgb3i_conn_max_recv_dlength(struct iscsi_conn *conn)
 {
 	struct iscsi_tcp_conn *tcp_conn = conn->dd_data;
 	struct cxgb3i_conn *cconn = tcp_conn->dd_data;
-	unsigned int max = min_t(unsigned int, ULP2_MAX_PDU_PAYLOAD,
-				 cconn->hba->snic->rx_max_size -
-				 ISCSI_PDU_NONPAYLOAD_MAX);
+	unsigned int max = cconn->hba->snic->rx_max_size;
 
 	align_pdu_size(max);
 	if (conn->max_recv_dlength) {
@@ -439,8 +436,7 @@ static inline int cxgb3i_conn_max_recv_dlength(struct iscsi_conn *conn)
 					 conn->max_recv_dlength, max);
 			return -EINVAL;
 		}
-		conn->max_recv_dlength = min_t(unsigned int,
-						conn->max_recv_dlength, max);
+		conn->max_recv_dlength = min(conn->max_recv_dlength, max);
 		align_pdu_size(conn->max_recv_dlength);
 	} else
 		conn->max_recv_dlength = max;
@@ -844,7 +840,7 @@ static struct scsi_host_template cxgb3i_host_template = {
 	.proc_name		= "cxgb3i",
 	.queuecommand		= iscsi_queuecommand,
 	.change_queue_depth	= iscsi_change_queue_depth,
-	.can_queue		= 128 * (ISCSI_DEF_XMIT_CMDS_MAX - 1),
+	.can_queue		= CXGB3I_SCSI_QDEPTH_DFLT - 1,
 	.sg_tablesize		= SG_ALL,
 	.max_sectors		= 0xFFFF,
 	.cmd_per_lun		= ISCSI_DEF_CMD_PER_LUN,

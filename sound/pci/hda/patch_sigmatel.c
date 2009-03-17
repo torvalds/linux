@@ -1207,7 +1207,7 @@ static const char *slave_vols[] = {
 	"LFE Playback Volume",
 	"Side Playback Volume",
 	"Headphone Playback Volume",
-	"Headphone Playback Volume",
+	"Headphone2 Playback Volume",
 	"Speaker Playback Volume",
 	"External Speaker Playback Volume",
 	"Speaker2 Playback Volume",
@@ -1221,7 +1221,7 @@ static const char *slave_sws[] = {
 	"LFE Playback Switch",
 	"Side Playback Switch",
 	"Headphone Playback Switch",
-	"Headphone Playback Switch",
+	"Headphone2 Playback Switch",
 	"Speaker Playback Switch",
 	"External Speaker Playback Switch",
 	"Speaker2 Playback Switch",
@@ -1799,11 +1799,13 @@ static struct snd_pci_quirk stac92hd71bxx_cfg_tbl[] = {
 	SND_PCI_QUIRK(PCI_VENDOR_ID_HP, 0x30f2,
 		      "HP dv5", STAC_HP_M4),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_HP, 0x30f4,
-		      "HP dv7", STAC_HP_M4),
+		      "HP dv7", STAC_HP_DV5),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_HP, 0x30f7,
 		      "HP dv4", STAC_HP_DV5),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_HP, 0x30fc,
 		      "HP dv7", STAC_HP_M4),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_HP, 0x3600,
+		      "HP dv5", STAC_HP_DV5),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_HP, 0x3603,
 		      "HP dv5", STAC_HP_DV5),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_HP, 0x361a,
@@ -2440,6 +2442,14 @@ static int stac92xx_dig_playback_pcm_prepare(struct hda_pcm_stream *hinfo,
 					     stream_tag, format, substream);
 }
 
+static int stac92xx_dig_playback_pcm_cleanup(struct hda_pcm_stream *hinfo,
+					struct hda_codec *codec,
+					struct snd_pcm_substream *substream)
+{
+	struct sigmatel_spec *spec = codec->spec;
+	return snd_hda_multi_out_dig_cleanup(codec, &spec->multiout);
+}
+
 
 /*
  * Analog capture callbacks
@@ -2484,7 +2494,8 @@ static struct hda_pcm_stream stac92xx_pcm_digital_playback = {
 	.ops = {
 		.open = stac92xx_dig_playback_pcm_open,
 		.close = stac92xx_dig_playback_pcm_close,
-		.prepare = stac92xx_dig_playback_pcm_prepare
+		.prepare = stac92xx_dig_playback_pcm_prepare,
+		.cleanup = stac92xx_dig_playback_pcm_cleanup
 	},
 };
 
@@ -3505,6 +3516,7 @@ static int stac92xx_parse_auto_config(struct hda_codec *codec, hda_nid_t dig_out
 	if (! spec->autocfg.line_outs)
 		return 0; /* can't find valid pin config */
 
+#if 0 /* FIXME: temporarily disabled */
 	/* If we have no real line-out pin and multiple hp-outs, HPs should
 	 * be set up as multi-channel outputs.
 	 */
@@ -3524,6 +3536,7 @@ static int stac92xx_parse_auto_config(struct hda_codec *codec, hda_nid_t dig_out
 		spec->autocfg.line_out_type = AUTO_PIN_HP_OUT;
 		spec->autocfg.hp_outs = 0;
 	}
+#endif /* FIXME: temporarily disabled */
 	if (spec->autocfg.mono_out_pin) {
 		int dir = get_wcaps(codec, spec->autocfg.mono_out_pin) &
 			(AC_WCAP_OUT_AMP | AC_WCAP_IN_AMP);
@@ -4978,7 +4991,7 @@ again:
 	case STAC_DELL_M4_3:
 		spec->num_dmics = 1;
 		spec->num_smuxes = 0;
-		spec->num_dmuxes = 0;
+		spec->num_dmuxes = 1;
 		break;
 	default:
 		spec->num_dmics = STAC92HD71BXX_NUM_DMICS;

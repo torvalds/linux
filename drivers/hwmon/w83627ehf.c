@@ -1548,7 +1548,7 @@ static int __init sensors_w83627ehf_init(void)
 
 	err = acpi_check_resource_conflict(&res);
 	if (err)
-		goto exit;
+		goto exit_device_put;
 
 	err = platform_device_add_resources(pdev, &res, 1);
 	if (err) {

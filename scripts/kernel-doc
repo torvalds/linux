@@ -1827,6 +1827,40 @@ sub reset_state {
     $state = 0;
 }
 
+sub syscall_munge() {
+	my $void = 0;
+
+	$prototype =~ s@[\r\n\t]+@ @gos; # strip newlines/CR's/tabs
+##	if ($prototype =~ m/SYSCALL_DEFINE0\s*\(\s*(a-zA-Z0-9_)*\s*\)/) {
+	if ($prototype =~ m/SYSCALL_DEFINE0/) {
+		$void = 1;
+##		$prototype = "long sys_$1(void)";
+	}
+
+	$prototype =~ s/SYSCALL_DEFINE.*\(/long sys_/; # fix return type & func name
+	if ($prototype =~ m/long (sys_.*?),/) {
+		$prototype =~ s/,/\(/;
+	} elsif ($void) {
+		$prototype =~ s/\)/\(void\)/;
+	}
+
+	# now delete all of the odd-number commas in $prototype
+	# so that arg types & arg names don't have a comma between them
+	my $count = 0;
+	my $len = length($prototype);
+	if ($void) {
+		$len = 0;	# skip the for-loop
+	}
+	for (my $ix = 0; $ix < $len; $ix++) {
+		if (substr($prototype, $ix, 1) eq ',') {
+			$count++;
+			if ($count % 2 == 1) {
+				substr($prototype, $ix, 1) = ' ';
+			}
+		}
+	}
+}
+
 sub process_state3_function($$) {
     my $x = shift;
     my $file = shift;
@@ -1839,11 +1873,15 @@ sub process_state3_function($$) {
     elsif ($x =~ /([^\{]*)/) {
 	$prototype .= $1;
     }
+
     if (($x =~ /\{/) || ($x =~ /\#\s*define/) || ($x =~ /;/)) {
 	$prototype =~ s@/\*.*?\*/@@gos;	# strip comments.
 	$prototype =~ s@[\r\n]+@ @gos; # strip newlines/cr's.
 	$prototype =~ s@^\s+@@gos; # strip leading spaces
-	dump_function($prototype,$file);
+	if ($prototype =~ /SYSCALL_DEFINE/) {
+		syscall_munge();
+	}
+	dump_function($prototype, $file);
 	reset_state();
     }
 }

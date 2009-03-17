@@ -244,12 +244,6 @@ qla2x00_sysfs_write_optrom_ctl(struct kobject *kobj,
 		if (ha->optrom_state != QLA_SWAITING)
 			break;
 
-		if (start & 0xfff) {
-			qla_printk(KERN_WARNING, ha,
-			    "Invalid start region 0x%x/0x%x.\n", start, size);
-			return -EINVAL;
-		}
-
 		ha->optrom_region_start = start;
 		ha->optrom_region_size = start + size > ha->optrom_size ?
 		    ha->optrom_size - start : size;
@@ -303,8 +297,7 @@ qla2x00_sysfs_write_optrom_ctl(struct kobject *kobj,
 		else if (start == (ha->flt_region_boot * 4) ||
 		    start == (ha->flt_region_fw * 4))
 			valid = 1;
-		else if ((IS_QLA25XX(ha) || IS_QLA81XX(ha)) &&
-		    start == (ha->flt_region_vpd_nvram * 4))
+		else if (IS_QLA25XX(ha) || IS_QLA81XX(ha))
 		    valid = 1;
 		if (!valid) {
 			qla_printk(KERN_WARNING, ha,
@@ -1265,13 +1258,6 @@ qla24xx_vport_delete(struct fc_vport *fc_vport)
 	    test_bit(FCPORT_UPDATE_NEEDED, &vha->dpc_flags))
 		msleep(1000);
 
-	if (ha->mqenable) {
-		if (qla25xx_delete_queues(vha, 0) != QLA_SUCCESS)
-			qla_printk(KERN_WARNING, ha,
-				"Queue delete failed.\n");
-		vha->req_ques[0] = ha->req_q_map[0]->id;
-	}
-
 	qla24xx_disable_vp(vha);
 
 	fc_remove_host(vha->host);
@@ -1292,6 +1278,12 @@ qla24xx_vport_delete(struct fc_vport *fc_vport)
 		    "has stopped\n",
 		    vha->host_no, vha->vp_idx, vha));
         }
+
+	if (ha->mqenable) {
+		if (qla25xx_delete_queues(vha, 0) != QLA_SUCCESS)
+			qla_printk(KERN_WARNING, ha,
+				"Queue delete failed.\n");
+	}
 
 	scsi_host_put(vha->host);
 	qla_printk(KERN_INFO, ha, "vport %d deleted\n", id);

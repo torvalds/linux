@@ -36,10 +36,10 @@
 #include <linux/vmalloc.h>
 #include <linux/init.h>
 #include <linux/pci.h>
+#include <linux/hardirq.h>
 
 #include <asm/pgalloc.h>
 #include <asm/io.h>
-#include <asm/hardirq.h>
 #include <asm/mmu_context.h>
 #include <asm/pgtable.h>
 #include <asm/mmu.h>

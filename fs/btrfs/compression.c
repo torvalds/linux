@@ -32,7 +32,6 @@
 #include <linux/swap.h>
 #include <linux/writeback.h>
 #include <linux/bit_spinlock.h>
-#include <linux/version.h>
 #include <linux/pagevec.h>
 #include "compat.h"
 #include "ctree.h"

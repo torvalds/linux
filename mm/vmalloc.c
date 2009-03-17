@@ -323,6 +323,7 @@ static struct vmap_area *alloc_vmap_area(unsigned long size,
 	unsigned long addr;
 	int purged = 0;
 
+	BUG_ON(!size);
 	BUG_ON(size & ~PAGE_MASK);
 
 	va = kmalloc_node(sizeof(struct vmap_area),
@@ -334,6 +335,9 @@ retry:
 	addr = ALIGN(vstart, align);
 
 	spin_lock(&vmap_area_lock);
+	if (addr + size - 1 < addr)
+		goto overflow;
+
 	/* XXX: could have a last_hole cache */
 	n = vmap_area_root.rb_node;
 	if (n) {
@@ -365,6 +369,8 @@ retry:
 
 		while (addr + size > first->va_start && addr + size <= vend) {
 			addr = ALIGN(first->va_end + PAGE_SIZE, align);
+			if (addr + size - 1 < addr)
+				goto overflow;
 
 			n = rb_next(&first->rb_node);
 			if (n)
@@ -375,6 +381,7 @@ retry:
 	}
 found:
 	if (addr + size > vend) {
+overflow:
 		spin_unlock(&vmap_area_lock);
 		if (!purged) {
 			purge_vmap_area_lazy();
@@ -498,6 +505,7 @@ static void __purge_vmap_area_lazy(unsigned long *start, unsigned long *end,
 	static DEFINE_SPINLOCK(purge_lock);
 	LIST_HEAD(valist);
 	struct vmap_area *va;
+	struct vmap_area *n_va;
 	int nr = 0;
 
 	/*
@@ -537,7 +545,7 @@ static void __purge_vmap_area_lazy(unsigned long *start, unsigned long *end,
 
 	if (nr) {
 		spin_lock(&vmap_area_lock);
-		list_for_each_entry(va, &valist, purge_list)
+		list_for_each_entry_safe(va, n_va, &valist, purge_list)
 			__free_vmap_area(va);
 		spin_unlock(&vmap_area_lock);
 	}
@@ -1012,6 +1020,8 @@ void __init vmalloc_init(void)
 void unmap_kernel_range(unsigned long addr, unsigned long size)
 {
 	unsigned long end = addr + size;
+
+	flush_cache_vunmap(addr, end);
 	vunmap_page_range(addr, end);
 	flush_tlb_kernel_range(addr, end);
 }
@@ -1105,6 +1115,14 @@ struct vm_struct *__get_vm_area(unsigned long size, unsigned long flags,
 						__builtin_return_address(0));
 }
 EXPORT_SYMBOL_GPL(__get_vm_area);
+
+struct vm_struct *__get_vm_area_caller(unsigned long size, unsigned long flags,
+				       unsigned long start, unsigned long end,
+				       void *caller)
+{
+	return __get_vm_area_node(size, flags, start, end, -1, GFP_KERNEL,
+				  caller);
+}
 
 /**
  *	get_vm_area  -  reserve a contiguous kernel virtual area

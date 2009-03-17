@@ -1019,19 +1019,19 @@ mv_xor_xor_self_test(struct mv_xor_device *device)
 
 	for (src_idx = 0; src_idx < MV_XOR_NUM_SRC_TEST; src_idx++) {
 		xor_srcs[src_idx] = alloc_page(GFP_KERNEL);
-		if (!xor_srcs[src_idx])
-			while (src_idx--) {
+		if (!xor_srcs[src_idx]) {
+			while (src_idx--)
 				__free_page(xor_srcs[src_idx]);
-				return -ENOMEM;
-			}
+			return -ENOMEM;
+		}
 	}
 
 	dest = alloc_page(GFP_KERNEL);
-	if (!dest)
-		while (src_idx--) {
+	if (!dest) {
+		while (src_idx--)
 			__free_page(xor_srcs[src_idx]);
-			return -ENOMEM;
-		}
+		return -ENOMEM;
+	}
 
 	/* Fill in src buffers */
 	for (src_idx = 0; src_idx < MV_XOR_NUM_SRC_TEST; src_idx++) {
@@ -1287,7 +1287,7 @@ mv_xor_conf_mbus_windows(struct mv_xor_shared_private *msp,
 
 static struct platform_driver mv_xor_driver = {
 	.probe		= mv_xor_probe,
-	.remove		= mv_xor_remove,
+	.remove		= __devexit_p(mv_xor_remove),
 	.driver		= {
 		.owner	= THIS_MODULE,
 		.name	= MV_XOR_NAME,

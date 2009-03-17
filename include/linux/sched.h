@@ -453,23 +453,33 @@ struct task_cputime {
 	cputime_t utime;
 	cputime_t stime;
 	unsigned long long sum_exec_runtime;
-	spinlock_t lock;
 };
 /* Alternate field names when used to cache expirations. */
 #define prof_exp	stime
 #define virt_exp	utime
 #define sched_exp	sum_exec_runtime
 
+#define INIT_CPUTIME	\
+	(struct task_cputime) {					\
+		.utime = cputime_zero,				\
+		.stime = cputime_zero,				\
+		.sum_exec_runtime = 0,				\
+	}
+
 /**
- * struct thread_group_cputime - thread group interval timer counts
- * @totals:		thread group interval timers; substructure for
- *			uniprocessor kernel, per-cpu for SMP kernel.
+ * struct thread_group_cputimer - thread group interval timer counts
+ * @cputime:		thread group interval timers.
+ * @running:		non-zero when there are timers running and
+ * 			@cputime receives updates.
+ * @lock:		lock for fields in this struct.
  *
  * This structure contains the version of task_cputime, above, that is
- * used for thread group CPU clock calculations.
+ * used for thread group CPU timer calculations.
  */
-struct thread_group_cputime {
-	struct task_cputime totals;
+struct thread_group_cputimer {
+	struct task_cputime cputime;
+	int running;
+	spinlock_t lock;
 };
 
 /*
@@ -518,10 +528,10 @@ struct signal_struct {
 	cputime_t it_prof_incr, it_virt_incr;
 
 	/*
-	 * Thread group totals for process CPU clocks.
-	 * See thread_group_cputime(), et al, for details.
+	 * Thread group totals for process CPU timers.
+	 * See thread_group_cputimer(), et al, for details.
 	 */
-	struct thread_group_cputime cputime;
+	struct thread_group_cputimer cputimer;
 
 	/* Earliest-expiration cache. */
 	struct task_cputime cputime_expires;
@@ -558,13 +568,21 @@ struct signal_struct {
 	 * Live threads maintain their own counters and add to these
 	 * in __exit_signal, except for the group leader.
 	 */
-	cputime_t cutime, cstime;
+	cputime_t utime, stime, cutime, cstime;
 	cputime_t gtime;
 	cputime_t cgtime;
 	unsigned long nvcsw, nivcsw, cnvcsw, cnivcsw;
 	unsigned long min_flt, maj_flt, cmin_flt, cmaj_flt;
 	unsigned long inblock, oublock, cinblock, coublock;
 	struct task_io_accounting ioac;
+
+	/*
+	 * Cumulative ns of schedule CPU time fo dead threads in the
+	 * group, not including a zombie group leader, (This only differs
+	 * from jiffies_to_ns(utime + stime) if sched_clock uses something
+	 * other than jiffies.)
+	 */
+	unsigned long long sum_sched_runtime;
 
 	/*
 	 * We don't bother to synchronize most readers of this at all,
@@ -1401,6 +1419,9 @@ struct task_struct {
 #endif
 };
 
+/* Future-safe accessor for struct task_struct's cpus_allowed. */
+#define tsk_cpumask(tsk) (&(tsk)->cpus_allowed)
+
 /*
  * Priority of a process goes from 0..MAX_PRIO-1, valid RT
  * priority is 0..MAX_RT_PRIO-1, and SCHED_NORMAL/SCHED_BATCH
@@ -2182,27 +2203,14 @@ static inline int spin_needbreak(spinlock_t *lock)
 /*
  * Thread group CPU time accounting.
  */
-
-static inline
-void thread_group_cputime(struct task_struct *tsk, struct task_cputime *times)
-{
-	struct task_cputime *totals = &tsk->signal->cputime.totals;
-	unsigned long flags;
-
-	spin_lock_irqsave(&totals->lock, flags);
-	*times = *totals;
-	spin_unlock_irqrestore(&totals->lock, flags);
-}
+void thread_group_cputime(struct task_struct *tsk, struct task_cputime *times);
+void thread_group_cputimer(struct task_struct *tsk, struct task_cputime *times);
 
 static inline void thread_group_cputime_init(struct signal_struct *sig)
 {
-	sig->cputime.totals = (struct task_cputime){
-		.utime = cputime_zero,
-		.stime = cputime_zero,
-		.sum_exec_runtime = 0,
-	};
-
-	spin_lock_init(&sig->cputime.totals.lock);
+	sig->cputimer.cputime = INIT_CPUTIME;
+	spin_lock_init(&sig->cputimer.lock);
+	sig->cputimer.running = 0;
 }
 
 static inline void thread_group_cputime_free(struct signal_struct *sig)
@@ -2286,8 +2294,12 @@ extern long sched_group_rt_runtime(struct task_group *tg);
 extern int sched_group_set_rt_period(struct task_group *tg,
 				      long rt_period_us);
 extern long sched_group_rt_period(struct task_group *tg);
+extern int sched_rt_can_attach(struct task_group *tg, struct task_struct *tsk);
 #endif
 #endif
+
+extern int task_can_switch_user(struct user_struct *up,
+					struct task_struct *tsk);
 
 #ifdef CONFIG_TASK_XACCT
 static inline void add_rchar(struct task_struct *tsk, ssize_t amt)

@@ -734,15 +734,15 @@ xfs_close_devices(
 {
 	if (mp->m_logdev_targp && mp->m_logdev_targp != mp->m_ddev_targp) {
 		struct block_device *logdev = mp->m_logdev_targp->bt_bdev;
-		xfs_free_buftarg(mp->m_logdev_targp);
+		xfs_free_buftarg(mp, mp->m_logdev_targp);
 		xfs_blkdev_put(logdev);
 	}
 	if (mp->m_rtdev_targp) {
 		struct block_device *rtdev = mp->m_rtdev_targp->bt_bdev;
-		xfs_free_buftarg(mp->m_rtdev_targp);
+		xfs_free_buftarg(mp, mp->m_rtdev_targp);
 		xfs_blkdev_put(rtdev);
 	}
-	xfs_free_buftarg(mp->m_ddev_targp);
+	xfs_free_buftarg(mp, mp->m_ddev_targp);
 }
 
 /*
@@ -811,9 +811,9 @@ xfs_open_devices(
 
  out_free_rtdev_targ:
 	if (mp->m_rtdev_targp)
-		xfs_free_buftarg(mp->m_rtdev_targp);
+		xfs_free_buftarg(mp, mp->m_rtdev_targp);
  out_free_ddev_targ:
-	xfs_free_buftarg(mp->m_ddev_targp);
+	xfs_free_buftarg(mp, mp->m_ddev_targp);
  out_close_rtdev:
 	if (rtdev)
 		xfs_blkdev_put(rtdev);

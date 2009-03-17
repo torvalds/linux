@@ -386,11 +386,12 @@ int selinux_netlbl_inode_permission(struct inode *inode, int mask)
 	if (!S_ISSOCK(inode->i_mode) ||
 	    ((mask & (MAY_WRITE | MAY_APPEND)) == 0))
 		return 0;
-
 	sock = SOCKET_I(inode);
 	sk = sock->sk;
+	if (sk == NULL)
+		return 0;
 	sksec = sk->sk_security;
-	if (sksec->nlbl_state != NLBL_REQUIRE)
+	if (sksec == NULL || sksec->nlbl_state != NLBL_REQUIRE)
 		return 0;
 
 	local_bh_disable();
@@ -490,8 +491,10 @@ int selinux_netlbl_socket_setsockopt(struct socket *sock,
 		lock_sock(sk);
 		rc = netlbl_sock_getattr(sk, &secattr);
 		release_sock(sk);
-		if (rc == 0 && secattr.flags != NETLBL_SECATTR_NONE)
+		if (rc == 0)
 			rc = -EACCES;
+		else if (rc == -ENOMSG)
+			rc = 0;
 		netlbl_secattr_destroy(&secattr);
 	}
 

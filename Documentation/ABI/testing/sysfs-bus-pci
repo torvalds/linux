@@ -1,3 +1,46 @@
+What:		/sys/bus/pci/drivers/.../bind
+Date:		December 2003
+Contact:	linux-pci@vger.kernel.org
+Description:
+		Writing a device location to this file will cause
+		the driver to attempt to bind to the device found at
+		this location.	This is useful for overriding default
+		bindings.  The format for the location is: DDDD:BB:DD.F.
+		That is Domain:Bus:Device.Function and is the same as
+		found in /sys/bus/pci/devices/.  For example:
+		# echo 0000:00:19.0 > /sys/bus/pci/drivers/foo/bind
+		(Note: kernels before 2.6.28 may require echo -n).
+
+What:		/sys/bus/pci/drivers/.../unbind
+Date:		December 2003
+Contact:	linux-pci@vger.kernel.org
+Description:
+		Writing a device location to this file will cause the
+		driver to attempt to unbind from the device found at
+		this location.	This may be useful when overriding default
+		bindings.  The format for the location is: DDDD:BB:DD.F.
+		That is Domain:Bus:Device.Function and is the same as
+		found in /sys/bus/pci/devices/. For example:
+		# echo 0000:00:19.0 > /sys/bus/pci/drivers/foo/unbind
+		(Note: kernels before 2.6.28 may require echo -n).
+
+What:		/sys/bus/pci/drivers/.../new_id
+Date:		December 2003
+Contact:	linux-pci@vger.kernel.org
+Description:
+		Writing a device ID to this file will attempt to
+		dynamically add a new device ID to a PCI device driver.
+		This may allow the driver to support more hardware than
+		was included in the driver's static device ID support
+		table at compile time.  The format for the device ID is:
+		VVVV DDDD SVVV SDDD CCCC MMMM PPPP.  That is Vendor ID,
+		Device ID, Subsystem Vendor ID, Subsystem Device ID,
+		Class, Class Mask, and Private Driver Data.  The Vendor ID
+		and Device ID fields are required, the rest are optional.
+		Upon successfully adding an ID, the driver will probe
+		for the device and attempt to bind to it.  For example:
+		# echo "8086 10f5" > /sys/bus/pci/drivers/foo/new_id
+
 What:		/sys/bus/pci/devices/.../vpd
 Date:		February 2008
 Contact:	Ben Hutchings <bhutchings@solarflare.com>
