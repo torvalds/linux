@@ -137,10 +137,12 @@ struct jr3_pci_dev_private {
 };
 
 
-typedef struct {
+struct poll_delay_t {
+
 	int min;
 	int max;
-} poll_delay_t;
+};
+
 
 typedef struct {
 	volatile struct jr3_channel *channel;
@@ -166,9 +168,9 @@ typedef struct {
 	int retries;
 } jr3_pci_subdev_private;
 
-static poll_delay_t poll_delay_min_max(int min, int max)
+static struct poll_delay_t poll_delay_min_max(int min, int max)
 {
-	poll_delay_t result;
+	struct poll_delay_t result;
 
 	result.min = min;
 	result.max = max;
@@ -525,9 +527,9 @@ static int jr3_download_firmware(struct comedi_device * dev, const u8 * data,
 	return result;
 }
 
-static poll_delay_t jr3_pci_poll_subdevice(struct comedi_subdevice * s)
+static struct poll_delay_t jr3_pci_poll_subdevice(struct comedi_subdevice * s)
 {
-	poll_delay_t result = poll_delay_min_max(1000, 2000);
+	struct poll_delay_t result = poll_delay_min_max(1000, 2000);
 	jr3_pci_subdev_private *p = s->private;
 
 	if (p) {
@@ -752,7 +754,7 @@ static void jr3_pci_poll_dev(unsigned long data)
 	for (i = 0; i < devpriv->n_channels; i++) {
 		jr3_pci_subdev_private *subdevpriv = dev->subdevices[i].private;
 		if (now > subdevpriv->next_time_min) {
-			poll_delay_t sub_delay;
+			struct poll_delay_t sub_delay;
 
 			sub_delay = jr3_pci_poll_subdevice(&dev->subdevices[i]);
 			subdevpriv->next_time_min =
