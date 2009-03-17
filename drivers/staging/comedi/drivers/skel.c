@@ -88,13 +88,14 @@ Configuration Options:
  * boards in this way is optional, and completely driver-dependent.
  * Some drivers use arrays such as this, other do not.
  */
-typedef struct skel_board_struct {
+struct skel_board {
 	const char *name;
 	int ai_chans;
 	int ai_bits;
 	int have_dio;
-} skel_board;
-static const skel_board skel_boards[] = {
+};
+
+static const struct skel_board skel_boards[] = {
 	{
 	      name:	"skel-100",
 	      ai_chans:16,
@@ -125,7 +126,7 @@ MODULE_DEVICE_TABLE(pci, skel_pci_table);
 /*
  * Useful for shorthand access to the particular board structure
  */
-#define thisboard ((const skel_board *)dev->board_ptr)
+#define thisboard ((const struct skel_board *)dev->board_ptr)
 
 /* this structure is for data unique to this hardware driver.  If
    several hardware drivers keep similar information in this structure,
@@ -177,8 +178,8 @@ static struct comedi_driver driver_skel = {
 	 * devices are such boards.
 	 */
       board_name:&skel_boards[0].name,
-      offset:sizeof(skel_board),
-      num_names:sizeof(skel_boards) / sizeof(skel_board),
+      offset:sizeof(struct skel_board),
+      num_names:sizeof(skel_boards) / sizeof(struct skel_board),
 };
 
 static int skel_ai_rinsn(struct comedi_device * dev, struct comedi_subdevice * s,
