@@ -2497,7 +2497,8 @@ static int ext4_rename(struct inode *old_dir, struct dentry *old_dentry,
 		ext4_mark_inode_dirty(handle, new_inode);
 		if (!new_inode->i_nlink)
 			ext4_orphan_add(handle, new_inode);
-		force_da_alloc = 1;
+		if (!test_opt(new_dir->i_sb, NO_AUTO_DA_ALLOC))
+			force_da_alloc = 1;
 	}
 	retval = 0;
 

@@ -816,8 +816,6 @@ static int ext4_show_options(struct seq_file *seq, struct vfsmount *vfs)
 	if (!test_opt(sb, POSIX_ACL) && (def_mount_opts & EXT4_DEFM_ACL))
 		seq_puts(seq, ",noacl");
 #endif
-	if (!test_opt(sb, RESERVATION))
-		seq_puts(seq, ",noreservation");
 	if (sbi->s_commit_interval != JBD2_DEFAULT_MAX_COMMIT_AGE*HZ) {
 		seq_printf(seq, ",commit=%u",
 			   (unsigned) (sbi->s_commit_interval / HZ));
@@ -867,6 +865,9 @@ static int ext4_show_options(struct seq_file *seq, struct vfsmount *vfs)
 
 	if (test_opt(sb, DATA_ERR_ABORT))
 		seq_puts(seq, ",data_err=abort");
+
+	if (test_opt(sb, NO_AUTO_DA_ALLOC))
+		seq_puts(seq, ",auto_da_alloc=0");
 
 	ext4_show_quota_options(seq, sb);
 	return 0;
@@ -1017,7 +1018,7 @@ enum {
 	Opt_resgid, Opt_resuid, Opt_sb, Opt_err_cont, Opt_err_panic, Opt_err_ro,
 	Opt_nouid32, Opt_debug, Opt_oldalloc, Opt_orlov,
 	Opt_user_xattr, Opt_nouser_xattr, Opt_acl, Opt_noacl,
-	Opt_reservation, Opt_noreservation, Opt_noload, Opt_nobh, Opt_bh,
+	Opt_auto_da_alloc, Opt_noload, Opt_nobh, Opt_bh,
 	Opt_commit, Opt_min_batch_time, Opt_max_batch_time,
 	Opt_journal_update, Opt_journal_dev,
 	Opt_journal_checksum, Opt_journal_async_commit,
@@ -1052,8 +1053,6 @@ static const match_table_t tokens = {
 	{Opt_nouser_xattr, "nouser_xattr"},
 	{Opt_acl, "acl"},
 	{Opt_noacl, "noacl"},
-	{Opt_reservation, "reservation"},
-	{Opt_noreservation, "noreservation"},
 	{Opt_noload, "noload"},
 	{Opt_nobh, "nobh"},
 	{Opt_bh, "bh"},
@@ -1088,6 +1087,7 @@ static const match_table_t tokens = {
 	{Opt_nodelalloc, "nodelalloc"},
 	{Opt_inode_readahead_blks, "inode_readahead_blks=%u"},
 	{Opt_journal_ioprio, "journal_ioprio=%u"},
+	{Opt_auto_da_alloc, "auto_da_alloc=%u"},
 	{Opt_err, NULL},
 };
 
@@ -1220,12 +1220,6 @@ static int parse_options(char *options, struct super_block *sb,
 			       "not supported\n");
 			break;
 #endif
-		case Opt_reservation:
-			set_opt(sbi->s_mount_opt, RESERVATION);
-			break;
-		case Opt_noreservation:
-			clear_opt(sbi->s_mount_opt, RESERVATION);
-			break;
 		case Opt_journal_update:
 			/* @@@ FIXME */
 			/* Eventually we will want to be able to create
@@ -1490,6 +1484,14 @@ set_qf_format:
 				break;
 			*journal_ioprio = IOPRIO_PRIO_VALUE(IOPRIO_CLASS_BE,
 							    option);
+			break;
+		case Opt_auto_da_alloc:
+			if (match_int(&args[0], &option))
+				return 0;
+			if (option)
+				clear_opt(sbi->s_mount_opt, NO_AUTO_DA_ALLOC);
+			else
+				set_opt(sbi->s_mount_opt,NO_AUTO_DA_ALLOC);
 			break;
 		default:
 			printk(KERN_ERR
@@ -2306,7 +2308,6 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 	sbi->s_min_batch_time = EXT4_DEF_MIN_BATCH_TIME;
 	sbi->s_max_batch_time = EXT4_DEF_MAX_BATCH_TIME;
 
-	set_opt(sbi->s_mount_opt, RESERVATION);
 	set_opt(sbi->s_mount_opt, BARRIER);
 
 	/*
