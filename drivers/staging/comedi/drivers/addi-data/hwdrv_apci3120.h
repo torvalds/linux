@@ -199,41 +199,41 @@ void v_APCI3120_InterruptDma(int irq, void *d);
 // TIMER
 
 int i_APCI3120_InsnConfigTimer(struct comedi_device *dev, struct comedi_subdevice *s,
-			       comedi_insn *insn, unsigned int *data);
+			       struct comedi_insn *insn, unsigned int *data);
 int i_APCI3120_InsnWriteTimer(struct comedi_device *dev, struct comedi_subdevice *s,
-			      comedi_insn *insn, unsigned int *data);
+			      struct comedi_insn *insn, unsigned int *data);
 int i_APCI3120_InsnReadTimer(struct comedi_device *dev, struct comedi_subdevice *s,
-			     comedi_insn *insn, unsigned int *data);
+			     struct comedi_insn *insn, unsigned int *data);
 
 //DI
 // for di read
 
 int i_APCI3120_InsnBitsDigitalInput(struct comedi_device *dev, struct comedi_subdevice *s,
-				    comedi_insn *insn, unsigned int *data);
+				    struct comedi_insn *insn, unsigned int *data);
 int i_APCI3120_InsnReadDigitalInput(struct comedi_device *dev, struct comedi_subdevice *s,
-				    comedi_insn *insn, unsigned int *data);
+				    struct comedi_insn *insn, unsigned int *data);
 
 //DO
 //int i_APCI3120_WriteDigitalOutput(struct comedi_device *dev, BYTE data);
 int i_APCI3120_InsnConfigDigitalOutput(struct comedi_device *dev,
-				       struct comedi_subdevice *s, comedi_insn *insn,
+				       struct comedi_subdevice *s, struct comedi_insn *insn,
 				       unsigned int *data);
 int i_APCI3120_InsnBitsDigitalOutput(struct comedi_device *dev, struct comedi_subdevice *s,
-				     comedi_insn *insn, unsigned int *data);
+				     struct comedi_insn *insn, unsigned int *data);
 int i_APCI3120_InsnWriteDigitalOutput(struct comedi_device *dev, struct comedi_subdevice *s,
-				      comedi_insn *insn, unsigned int *data);
+				      struct comedi_insn *insn, unsigned int *data);
 
 //AO
 //int i_APCI3120_Write1AnalogValue(struct comedi_device *dev,UINT ui_Range,UINT ui_Channel,UINT data );
 int i_APCI3120_InsnWriteAnalogOutput(struct comedi_device *dev, struct comedi_subdevice *s,
-				     comedi_insn *insn, unsigned int *data);
+				     struct comedi_insn *insn, unsigned int *data);
 
 //AI HArdware layer
 
 int i_APCI3120_InsnConfigAnalogInput(struct comedi_device *dev, struct comedi_subdevice *s,
-				     comedi_insn *insn, unsigned int *data);
+				     struct comedi_insn *insn, unsigned int *data);
 int i_APCI3120_InsnReadAnalogInput(struct comedi_device *dev, struct comedi_subdevice *s,
-				   comedi_insn *insn, unsigned int *data);
+				   struct comedi_insn *insn, unsigned int *data);
 int i_APCI3120_CommandTestAnalogInput(struct comedi_device *dev, struct comedi_subdevice *s,
 				      struct comedi_cmd *cmd);
 int i_APCI3120_CommandAnalogInput(struct comedi_device *dev, struct comedi_subdevice *s);

@@ -91,7 +91,7 @@ struct comedi32_insn_struct {
 
 struct comedi32_insnlist_struct {
 	unsigned int n_insns;
-	compat_uptr_t insns;		/* 32-bit 'comedi_insn *' */
+	compat_uptr_t insns;		/* 32-bit 'struct comedi_insn *' */
 };
 
 /* Handle translated ioctl. */
@@ -329,7 +329,7 @@ static int compat_cmdtest(struct file *file, unsigned long arg)
 }
 
 /* Copy 32-bit insn structure to native insn structure. */
-static int get_compat_insn(comedi_insn __user *insn,
+static int get_compat_insn(struct comedi_insn __user *insn,
 		struct comedi32_insn_struct __user *insn32)
 {
 	int err;
@@ -362,7 +362,7 @@ static int compat_insnlist(struct file *file, unsigned long arg)
 {
 	struct combined_insnlist {
 		comedi_insnlist insnlist;
-		comedi_insn insn[1];
+		struct comedi_insn insn[1];
 	} __user *s;
 	struct comedi32_insnlist_struct __user *insnlist32;
 	struct comedi32_insn_struct __user *insn32;
@@ -410,7 +410,7 @@ static int compat_insnlist(struct file *file, unsigned long arg)
 /* Handle 32-bit COMEDI_INSN ioctl. */
 static int compat_insn(struct file *file, unsigned long arg)
 {
-	comedi_insn __user *insn;
+	struct comedi_insn __user *insn;
 	struct comedi32_insn_struct __user *insn32;
 	int rc;
 

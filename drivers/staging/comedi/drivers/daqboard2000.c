@@ -394,7 +394,7 @@ static void setup_sampling(struct comedi_device * dev, int chan, int gain)
 }
 
 static int daqboard2000_ai_insn_read(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	int i;
 	daqboard2000_hw *fpga = devpriv->daq;
@@ -451,7 +451,7 @@ static int daqboard2000_ai_insn_read(struct comedi_device * dev, struct comedi_s
 }
 
 static int daqboard2000_ao_insn_read(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	int i;
 	int chan = CR_CHAN(insn->chanspec);
@@ -464,7 +464,7 @@ static int daqboard2000_ao_insn_read(struct comedi_device * dev, struct comedi_s
 }
 
 static int daqboard2000_ao_insn_write(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	int i;
 	int chan = CR_CHAN(insn->chanspec);

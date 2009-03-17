@@ -323,7 +323,7 @@ static const unsigned int muxonechan[] = { 0x0000, 0x0101, 0x0202, 0x0303, 0x040
 ==============================================================================
 */
 static int pci171x_insn_read_ai(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	int n, timeout;
 #ifdef PCI171x_PARANOIDCHECK
@@ -391,7 +391,7 @@ static int pci171x_insn_read_ai(struct comedi_device * dev, struct comedi_subdev
 ==============================================================================
 */
 static int pci171x_insn_write_ao(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	int n, chan, range, ofs;
 
@@ -422,7 +422,7 @@ static int pci171x_insn_write_ao(struct comedi_device * dev, struct comedi_subde
 ==============================================================================
 */
 static int pci171x_insn_read_ao(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	int n, chan;
 
@@ -437,7 +437,7 @@ static int pci171x_insn_read_ao(struct comedi_device * dev, struct comedi_subdev
 ==============================================================================
 */
 static int pci171x_insn_bits_di(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	data[1] = inw(dev->iobase + PCI171x_DI);
 
@@ -448,7 +448,7 @@ static int pci171x_insn_bits_di(struct comedi_device * dev, struct comedi_subdev
 ==============================================================================
 */
 static int pci171x_insn_bits_do(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	if (data[0]) {
 		s->state &= ~data[0];
@@ -464,7 +464,7 @@ static int pci171x_insn_bits_do(struct comedi_device * dev, struct comedi_subdev
 ==============================================================================
 */
 static int pci171x_insn_counter_read(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	unsigned int msb, lsb, ccntrl;
 	int i;
@@ -486,7 +486,7 @@ static int pci171x_insn_counter_read(struct comedi_device * dev, struct comedi_s
 ==============================================================================
 */
 static int pci171x_insn_counter_write(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	uint msb, lsb, ccntrl, status;
 
@@ -513,7 +513,7 @@ static int pci171x_insn_counter_write(struct comedi_device * dev, struct comedi_
 ==============================================================================
 */
 static int pci171x_insn_counter_config(struct comedi_device * dev,
-	struct comedi_subdevice * s, comedi_insn * insn, unsigned int * data)
+	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data)
 {
 #ifdef unused
 	/* This doesn't work like a normal Comedi counter config */
@@ -549,7 +549,7 @@ static int pci171x_insn_counter_config(struct comedi_device * dev,
 ==============================================================================
 */
 static int pci1720_insn_write_ao(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	int n, rangereg, chan;
 

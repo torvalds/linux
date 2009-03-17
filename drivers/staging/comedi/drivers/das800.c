@@ -263,11 +263,11 @@ static int das800_ai_do_cmdtest(struct comedi_device * dev, struct comedi_subdev
 	struct comedi_cmd * cmd);
 static int das800_ai_do_cmd(struct comedi_device * dev, struct comedi_subdevice * s);
 static int das800_ai_rinsn(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data);
+	struct comedi_insn * insn, unsigned int * data);
 static int das800_di_rbits(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data);
+	struct comedi_insn * insn, unsigned int * data);
 static int das800_do_wbits(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data);
+	struct comedi_insn * insn, unsigned int * data);
 static int das800_probe(struct comedi_device * dev);
 static int das800_set_frequency(struct comedi_device * dev);
 
@@ -789,7 +789,7 @@ static int das800_ai_do_cmd(struct comedi_device * dev, struct comedi_subdevice 
 }
 
 static int das800_ai_rinsn(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	int i, n;
 	int chan;
@@ -843,7 +843,7 @@ static int das800_ai_rinsn(struct comedi_device * dev, struct comedi_subdevice *
 }
 
 static int das800_di_rbits(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	unsigned int bits;
 
@@ -856,7 +856,7 @@ static int das800_di_rbits(struct comedi_device * dev, struct comedi_subdevice *
 }
 
 static int das800_do_wbits(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	int wbits;
 	unsigned long irq_flags;

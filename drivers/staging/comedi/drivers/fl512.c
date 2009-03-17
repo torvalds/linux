@@ -53,17 +53,17 @@ static struct comedi_driver driver_fl512 = {
 COMEDI_INITCLEANUP(driver_fl512);
 
 static int fl512_ai_insn(struct comedi_device * dev,
-	struct comedi_subdevice * s, comedi_insn * insn, unsigned int * data);
+	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data);
 static int fl512_ao_insn(struct comedi_device * dev,
-	struct comedi_subdevice * s, comedi_insn * insn, unsigned int * data);
+	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data);
 static int fl512_ao_insn_readback(struct comedi_device * dev,
-	struct comedi_subdevice * s, comedi_insn * insn, unsigned int * data);
+	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data);
 
 /*
  * fl512_ai_insn : this is the analog input function
  */
 static int fl512_ai_insn(struct comedi_device * dev,
-	struct comedi_subdevice * s, comedi_insn * insn, unsigned int * data)
+	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data)
 {
 	int n;
 	unsigned int lo_byte, hi_byte;
@@ -88,7 +88,7 @@ static int fl512_ai_insn(struct comedi_device * dev,
  * fl512_ao_insn : used to write to a DA port n times
  */
 static int fl512_ao_insn(struct comedi_device * dev,
-	struct comedi_subdevice * s, comedi_insn * insn, unsigned int * data)
+	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data)
 {
 	int n;
 	int chan = CR_CHAN(insn->chanspec);	/* get chan to write */
@@ -109,7 +109,7 @@ static int fl512_ao_insn(struct comedi_device * dev,
  * DA port
  */
 static int fl512_ao_insn_readback(struct comedi_device * dev,
-	struct comedi_subdevice * s, comedi_insn * insn, unsigned int * data)
+	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data)
 {
 	int n;
 	int chan = CR_CHAN(insn->chanspec);

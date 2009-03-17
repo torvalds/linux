@@ -203,7 +203,7 @@ static int pci1723_reset(struct comedi_device * dev)
 }
 
 static int pci1723_insn_read_ao(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	int n, chan;
 
@@ -219,7 +219,7 @@ static int pci1723_insn_read_ao(struct comedi_device * dev, struct comedi_subdev
   analog data output;
 */
 static int pci1723_ao_write_winsn(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	int n, chan;
 	chan = CR_CHAN(insn->chanspec);
@@ -239,7 +239,7 @@ static int pci1723_ao_write_winsn(struct comedi_device * dev, struct comedi_subd
   digital i/o config/query
 */
 static int pci1723_dio_insn_config(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	unsigned int mask;
 	unsigned int bits;
@@ -279,7 +279,7 @@ static int pci1723_dio_insn_config(struct comedi_device * dev, struct comedi_sub
   digital i/o bits read/write
 */
 static int pci1723_dio_insn_bits(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	if (data[0]) {
 		s->state &= ~data[0];

@@ -49,7 +49,7 @@
 
 static int postconfig(struct comedi_device *dev);
 static int insn_rw_emulate_bits(struct comedi_device *dev, struct comedi_subdevice *s,
-	comedi_insn *insn, unsigned int *data);
+	struct comedi_insn *insn, unsigned int *data);
 static void *comedi_recognize(struct comedi_driver * driv, const char *name);
 static void comedi_report_boards(struct comedi_driver *driv);
 static int poll_invalid(struct comedi_device *dev, struct comedi_subdevice *s);
@@ -337,15 +337,15 @@ static int poll_invalid(struct comedi_device *dev, struct comedi_subdevice *s)
 }
 
 int insn_inval(struct comedi_device *dev, struct comedi_subdevice *s,
-	comedi_insn *insn, unsigned int *data)
+	struct comedi_insn *insn, unsigned int *data)
 {
 	return -EINVAL;
 }
 
 static int insn_rw_emulate_bits(struct comedi_device *dev, struct comedi_subdevice *s,
-	comedi_insn *insn, unsigned int *data)
+	struct comedi_insn *insn, unsigned int *data)
 {
-	comedi_insn new_insn;
+	struct comedi_insn new_insn;
 	int ret;
 	static const unsigned channels_per_bitfield = 32;
 

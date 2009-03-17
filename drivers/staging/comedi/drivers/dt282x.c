@@ -675,7 +675,7 @@ static void dt282x_load_changain(struct comedi_device * dev, int n,
  *      - trigger conversion and wait for it to finish
  */
 static int dt282x_ai_insn_read(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	int i;
 
@@ -938,7 +938,7 @@ static int dt282x_ns_to_timer(int *nanosec, int round_mode)
  *      data register, and performs the conversion.
  */
 static int dt282x_ao_insn_read(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	data[0] = devpriv->ao[CR_CHAN(insn->chanspec)];
 
@@ -946,7 +946,7 @@ static int dt282x_ao_insn_read(struct comedi_device * dev, struct comedi_subdevi
 }
 
 static int dt282x_ao_insn_write(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	short d;
 	unsigned int chan;
@@ -1146,7 +1146,7 @@ static int dt282x_ao_cancel(struct comedi_device * dev, struct comedi_subdevice 
 }
 
 static int dt282x_dio_insn_bits(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	if (data[0]) {
 		s->state &= ~data[0];
@@ -1160,7 +1160,7 @@ static int dt282x_dio_insn_bits(struct comedi_device * dev, struct comedi_subdev
 }
 
 static int dt282x_dio_insn_config(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	int mask;
 

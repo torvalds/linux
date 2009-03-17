@@ -311,7 +311,7 @@ static ni_65xx_subdevice_private *ni_65xx_alloc_subdevice_private(void)
 static int ni_65xx_find_device(struct comedi_device * dev, int bus, int slot);
 
 static int ni_65xx_config_filter(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	const unsigned chan = CR_CHAN(insn->chanspec);
 	const unsigned port =
@@ -350,7 +350,7 @@ static int ni_65xx_config_filter(struct comedi_device * dev, struct comedi_subde
 }
 
 static int ni_65xx_dio_insn_config(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	unsigned port;
 
@@ -389,7 +389,7 @@ static int ni_65xx_dio_insn_config(struct comedi_device * dev, struct comedi_sub
 }
 
 static int ni_65xx_dio_insn_bits(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	unsigned base_bitfield_channel;
 	const unsigned max_ports_per_bitfield = 5;
@@ -569,7 +569,7 @@ static int ni_65xx_intr_cancel(struct comedi_device * dev, struct comedi_subdevi
 }
 
 static int ni_65xx_intr_insn_bits(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	if (insn->n < 1)
 		return -EINVAL;
@@ -579,7 +579,7 @@ static int ni_65xx_intr_insn_bits(struct comedi_device * dev, struct comedi_subd
 }
 
 static int ni_65xx_intr_insn_config(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	if (insn->n < 1)
 		return -EINVAL;

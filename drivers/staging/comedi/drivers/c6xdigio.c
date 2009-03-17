@@ -339,14 +339,14 @@ static void C6X_encResetAll(unsigned long baseAddr)
 }
 
 static int c6xdigio_pwmo_insn_read(struct comedi_device * dev,
-	struct comedi_subdevice * s, comedi_insn * insn, unsigned int * data)
+	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data)
 {
 	printk("c6xdigio_pwmo_insn_read %x\n", insn->n);
 	return insn->n;
 }
 
 static int c6xdigio_pwmo_insn_write(struct comedi_device * dev,
-	struct comedi_subdevice * s, comedi_insn * insn, unsigned int * data)
+	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data)
 {
 	int i;
 	int chan = CR_CHAN(insn->chanspec);
@@ -361,7 +361,7 @@ static int c6xdigio_pwmo_insn_write(struct comedi_device * dev,
 
 //static int c6xdigio_ei_init_insn_read(struct comedi_device *dev,
 //                                 struct comedi_subdevice *s,
-//                                 comedi_insn *insn,
+//                                 struct comedi_insn *insn,
 //                                 unsigned int *data)
 //{
 //  printk("c6xdigio_ei_init_insn_read %x\n", insn->n);
@@ -370,7 +370,7 @@ static int c6xdigio_pwmo_insn_write(struct comedi_device * dev,
 
 //static int c6xdigio_ei_init_insn_write(struct comedi_device *dev,
 //                                 struct comedi_subdevice *s,
-//                                 comedi_insn *insn,
+//                                 struct comedi_insn *insn,
 //                                 unsigned int *data)
 //{
 //  int i;
@@ -382,7 +382,7 @@ static int c6xdigio_pwmo_insn_write(struct comedi_device * dev,
 //}
 
 static int c6xdigio_ei_insn_read(struct comedi_device * dev,
-	struct comedi_subdevice * s, comedi_insn * insn, unsigned int * data)
+	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data)
 {
 	//  printk("c6xdigio_ei__insn_read %x\n", insn->n);
 	int n;

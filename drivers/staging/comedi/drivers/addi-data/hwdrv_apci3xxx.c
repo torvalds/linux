@@ -82,7 +82,7 @@ int i_APCI3XXX_TestConversionStarted(struct comedi_device * dev)
 | Function Name     : INT   i_APCI3XXX_AnalogInputConfigOperatingMode        |
 |                          (struct comedi_device    *dev,                           |
 |                           struct comedi_subdevice *s,                             |
-|                           comedi_insn      *insn,                          |
+|                           struct comedi_insn      *insn,                          |
 |                           unsigned int         *data)                          |
 +----------------------------------------------------------------------------+
 | Task           Converting mode and convert time selection                  |
@@ -106,7 +106,7 @@ int i_APCI3XXX_TestConversionStarted(struct comedi_device * dev)
 */
 
 int i_APCI3XXX_AnalogInputConfigOperatingMode(struct comedi_device * dev,
-	struct comedi_subdevice * s, comedi_insn * insn, unsigned int * data)
+	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data)
 {
 	INT i_ReturnValue = insn->n;
 	BYTE b_TimeBase = 0;
@@ -276,7 +276,7 @@ int i_APCI3XXX_AnalogInputConfigOperatingMode(struct comedi_device * dev,
 | Function Name     : INT   i_APCI3XXX_InsnConfigAnalogInput                 |
 |                          (struct comedi_device    *dev,                           |
 |                           struct comedi_subdevice *s,                             |
-|                           comedi_insn      *insn,                          |
+|                           struct comedi_insn      *insn,                          |
 |                           unsigned int         *data)                          |
 +----------------------------------------------------------------------------+
 | Task           Converting mode and convert time selection                  |
@@ -296,7 +296,7 @@ int i_APCI3XXX_AnalogInputConfigOperatingMode(struct comedi_device * dev,
 */
 
 int i_APCI3XXX_InsnConfigAnalogInput(struct comedi_device * dev,
-	struct comedi_subdevice * s, comedi_insn * insn, unsigned int * data)
+	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data)
 {
 	INT i_ReturnValue = insn->n;
 
@@ -334,7 +334,7 @@ int i_APCI3XXX_InsnConfigAnalogInput(struct comedi_device * dev,
 | Function Name     : INT   i_APCI3XXX_InsnReadAnalogInput                   |
 |                          (struct comedi_device    *dev,                           |
 |                           struct comedi_subdevice *s,                             |
-|                           comedi_insn      *insn,                          |
+|                           struct comedi_insn      *insn,                          |
 |                           unsigned int         *data)                          |
 +----------------------------------------------------------------------------+
 | Task                Read 1 analog input                                    |
@@ -356,7 +356,7 @@ int i_APCI3XXX_InsnConfigAnalogInput(struct comedi_device * dev,
 */
 
 int i_APCI3XXX_InsnReadAnalogInput(struct comedi_device * dev,
-	struct comedi_subdevice * s, comedi_insn * insn, unsigned int * data)
+	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data)
 {
 	INT i_ReturnValue = insn->n;
 	BYTE b_Configuration = (BYTE) CR_RANGE(insn->chanspec);
@@ -665,7 +665,7 @@ void v_APCI3XXX_Interrupt(int irq, void *d)
 | Function Name     : INT   i_APCI3XXX_InsnWriteAnalogOutput                 |
 |                          (struct comedi_device    *dev,                           |
 |                           struct comedi_subdevice *s,                             |
-|                           comedi_insn      *insn,                          |
+|                           struct comedi_insn      *insn,                          |
 |                           unsigned int         *data)                          |
 +----------------------------------------------------------------------------+
 | Task                Read 1 analog input                                    |
@@ -685,7 +685,7 @@ void v_APCI3XXX_Interrupt(int irq, void *d)
 */
 
 int i_APCI3XXX_InsnWriteAnalogOutput(struct comedi_device * dev,
-	struct comedi_subdevice * s, comedi_insn * insn, unsigned int * data)
+	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data)
 {
 	BYTE b_Range = (BYTE) CR_RANGE(insn->chanspec);
 	BYTE b_Channel = (BYTE) CR_CHAN(insn->chanspec);
@@ -771,7 +771,7 @@ int i_APCI3XXX_InsnWriteAnalogOutput(struct comedi_device * dev,
 | Function Name     : INT   i_APCI3XXX_InsnConfigInitTTLIO                   |
 |                          (struct comedi_device    *dev,                           |
 |                           struct comedi_subdevice *s,                             |
-|                           comedi_insn      *insn,                          |
+|                           struct comedi_insn      *insn,                          |
 |                           unsigned int         *data)                          |
 +----------------------------------------------------------------------------+
 | Task           You must calling this function be                           |
@@ -792,7 +792,7 @@ int i_APCI3XXX_InsnWriteAnalogOutput(struct comedi_device * dev,
 */
 
 int i_APCI3XXX_InsnConfigInitTTLIO(struct comedi_device * dev,
-	struct comedi_subdevice * s, comedi_insn * insn, unsigned int * data)
+	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data)
 {
 	INT i_ReturnValue = insn->n;
 	BYTE b_Command = 0;
@@ -902,7 +902,7 @@ int i_APCI3XXX_InsnConfigInitTTLIO(struct comedi_device * dev,
 | Function Name     : INT     i_APCI3XXX_InsnBitsTTLIO                       |
 |                          (struct comedi_device    *dev,                           |
 |                           struct comedi_subdevice *s,                             |
-|                           comedi_insn      *insn,                          |
+|                           struct comedi_insn      *insn,                          |
 |                           unsigned int         *data)                          |
 +----------------------------------------------------------------------------+
 | Task              : Write the selected output mask and read the status from|
@@ -920,7 +920,7 @@ int i_APCI3XXX_InsnConfigInitTTLIO(struct comedi_device * dev,
 */
 
 int i_APCI3XXX_InsnBitsTTLIO(struct comedi_device * dev,
-	struct comedi_subdevice * s, comedi_insn * insn, unsigned int * data)
+	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data)
 {
 	INT i_ReturnValue = insn->n;
 	BYTE b_ChannelCpt = 0;
@@ -1059,7 +1059,7 @@ int i_APCI3XXX_InsnBitsTTLIO(struct comedi_device * dev,
 | Function Name     : INT i_APCI3XXX_InsnReadTTLIO                           |
 |                          (struct comedi_device    *dev,                           |
 |                           struct comedi_subdevice *s,                             |
-|                           comedi_insn      *insn,                          |
+|                           struct comedi_insn      *insn,                          |
 |                           unsigned int         *data)                          |
 +----------------------------------------------------------------------------+
 | Task              : Read the status from selected channel                  |
@@ -1075,7 +1075,7 @@ int i_APCI3XXX_InsnBitsTTLIO(struct comedi_device * dev,
 */
 
 int i_APCI3XXX_InsnReadTTLIO(struct comedi_device * dev,
-	struct comedi_subdevice * s, comedi_insn * insn, unsigned int * data)
+	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data)
 {
 	BYTE b_Channel = (BYTE) CR_CHAN(insn->chanspec);
 	INT i_ReturnValue = insn->n;
@@ -1171,7 +1171,7 @@ int i_APCI3XXX_InsnReadTTLIO(struct comedi_device * dev,
 | Function Name     : INT     i_APCI3XXX_InsnWriteTTLIO                      |
 |                          (struct comedi_device    *dev,                           |
 |                           struct comedi_subdevice *s,                             |
-|                           comedi_insn      *insn,                          |
+|                           struct comedi_insn      *insn,                          |
 |                           unsigned int         *data)                          |
 +----------------------------------------------------------------------------+
 | Task              : Set the state from TTL output channel                  |
@@ -1188,7 +1188,7 @@ int i_APCI3XXX_InsnReadTTLIO(struct comedi_device * dev,
 */
 
 int i_APCI3XXX_InsnWriteTTLIO(struct comedi_device * dev,
-	struct comedi_subdevice * s, comedi_insn * insn, unsigned int * data)
+	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data)
 {
 	INT i_ReturnValue = insn->n;
 	BYTE b_Channel = (BYTE) CR_CHAN(insn->chanspec);
@@ -1283,7 +1283,7 @@ int i_APCI3XXX_InsnWriteTTLIO(struct comedi_device * dev,
 | Function name     :int i_APCI3XXX_InsnReadDigitalInput                     |
 |                                          (struct comedi_device *dev,              |
 |                                           struct comedi_subdevice *s,             |
-|                                           comedi_insn *insn,               |
+|                                           struct comedi_insn *insn,               |
 |                                           unsigned int *data)                  |
 +----------------------------------------------------------------------------+
 | Task              : Reads the value of the specified Digital input channel |
@@ -1299,7 +1299,7 @@ int i_APCI3XXX_InsnWriteTTLIO(struct comedi_device * dev,
 */
 
 int i_APCI3XXX_InsnReadDigitalInput(struct comedi_device * dev,
-	struct comedi_subdevice * s, comedi_insn * insn, unsigned int * data)
+	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data)
 {
 	INT i_ReturnValue = insn->n;
 	BYTE b_Channel = (BYTE) CR_CHAN(insn->chanspec);
@@ -1342,7 +1342,7 @@ int i_APCI3XXX_InsnReadDigitalInput(struct comedi_device * dev,
 | Function name     :int i_APCI3XXX_InsnBitsDigitalInput                     |
 |                                          (struct comedi_device *dev,              |
 |                                           struct comedi_subdevice *s,             |
-|                                           comedi_insn *insn,               |
+|                                           struct comedi_insn *insn,               |
 |                                           unsigned int *data)                  |
 +----------------------------------------------------------------------------+
 | Task              : Reads the value of the Digital input Port i.e.4channels|
@@ -1357,7 +1357,7 @@ int i_APCI3XXX_InsnReadDigitalInput(struct comedi_device * dev,
 +----------------------------------------------------------------------------+
 */
 int i_APCI3XXX_InsnBitsDigitalInput(struct comedi_device * dev,
-	struct comedi_subdevice * s, comedi_insn * insn, unsigned int * data)
+	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data)
 {
 	INT i_ReturnValue = insn->n;
 	DWORD dw_Temp = 0;
@@ -1393,7 +1393,7 @@ int i_APCI3XXX_InsnBitsDigitalInput(struct comedi_device * dev,
 | Function name     :int i_APCI3XXX_InsnBitsDigitalOutput                    |
 |                                          (struct comedi_device *dev,              |
 |                                           struct comedi_subdevice *s,             |
-|                                           comedi_insn *insn,               |
+|                                           struct comedi_insn *insn,               |
 |                                           unsigned int *data)                  |
 +----------------------------------------------------------------------------+
 | Task              : Write the selected output mask and read the status from|
@@ -1410,7 +1410,7 @@ int i_APCI3XXX_InsnBitsDigitalInput(struct comedi_device * dev,
 +----------------------------------------------------------------------------+
 */
 int i_APCI3XXX_InsnBitsDigitalOutput(struct comedi_device * dev,
-	struct comedi_subdevice * s, comedi_insn * insn, unsigned int * data)
+	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data)
 {
 	INT i_ReturnValue = insn->n;
 	BYTE b_ChannelCpt = 0;
@@ -1489,7 +1489,7 @@ int i_APCI3XXX_InsnBitsDigitalOutput(struct comedi_device * dev,
 | Function name     :int i_APCI3XXX_InsnWriteDigitalOutput                   |
 |                                          (struct comedi_device *dev,              |
 |                                           struct comedi_subdevice *s,             |
-|                                           comedi_insn *insn,               |
+|                                           struct comedi_insn *insn,               |
 |                                           unsigned int *data)                  |
 +----------------------------------------------------------------------------+
 | Task              : Set the state from digital output channel              |
@@ -1506,7 +1506,7 @@ int i_APCI3XXX_InsnBitsDigitalOutput(struct comedi_device * dev,
 */
 
 int i_APCI3XXX_InsnWriteDigitalOutput(struct comedi_device * dev,
-	struct comedi_subdevice * s, comedi_insn * insn, unsigned int * data)
+	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data)
 {
 	INT i_ReturnValue = insn->n;
 	BYTE b_Channel = CR_CHAN(insn->chanspec);
@@ -1565,7 +1565,7 @@ int i_APCI3XXX_InsnWriteDigitalOutput(struct comedi_device * dev,
 | Function name     :int i_APCI3XXX_InsnReadDigitalOutput                    |
 |                                          (struct comedi_device *dev,              |
 |                                           struct comedi_subdevice *s,             |
-|                                           comedi_insn *insn,               |
+|                                           struct comedi_insn *insn,               |
 |                                           unsigned int *data)                  |
 +----------------------------------------------------------------------------+
 | Task              : Read the state from digital output channel             |
@@ -1581,7 +1581,7 @@ int i_APCI3XXX_InsnWriteDigitalOutput(struct comedi_device * dev,
 */
 
 int i_APCI3XXX_InsnReadDigitalOutput(struct comedi_device * dev,
-	struct comedi_subdevice * s, comedi_insn * insn, unsigned int * data)
+	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data)
 {
 	INT i_ReturnValue = insn->n;
 	BYTE b_Channel = CR_CHAN(insn->chanspec);

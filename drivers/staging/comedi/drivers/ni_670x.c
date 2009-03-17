@@ -125,13 +125,13 @@ static struct comedi_lrange range_0_20mA = { 1, {RANGE_mA(0, 20)} };
 static int ni_670x_find_device(struct comedi_device * dev, int bus, int slot);
 
 static int ni_670x_ao_winsn(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data);
+	struct comedi_insn * insn, unsigned int * data);
 static int ni_670x_ao_rinsn(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data);
+	struct comedi_insn * insn, unsigned int * data);
 static int ni_670x_dio_insn_bits(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data);
+	struct comedi_insn * insn, unsigned int * data);
 static int ni_670x_dio_insn_config(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data);
+	struct comedi_insn * insn, unsigned int * data);
 
 static int ni_670x_attach(struct comedi_device * dev, comedi_devconfig * it)
 {
@@ -219,7 +219,7 @@ static int ni_670x_detach(struct comedi_device * dev)
 }
 
 static int ni_670x_ao_winsn(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	int i;
 	int chan = CR_CHAN(insn->chanspec);
@@ -245,7 +245,7 @@ static int ni_670x_ao_winsn(struct comedi_device * dev, struct comedi_subdevice 
 }
 
 static int ni_670x_ao_rinsn(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	int i;
 	int chan = CR_CHAN(insn->chanspec);
@@ -257,7 +257,7 @@ static int ni_670x_ao_rinsn(struct comedi_device * dev, struct comedi_subdevice 
 }
 
 static int ni_670x_dio_insn_bits(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	if (insn->n != 2)
 		return -EINVAL;
@@ -279,7 +279,7 @@ static int ni_670x_dio_insn_bits(struct comedi_device * dev, struct comedi_subde
 }
 
 static int ni_670x_dio_insn_config(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	int chan = CR_CHAN(insn->chanspec);
 

@@ -92,7 +92,7 @@ unsigned int comedi_get_maxdata(void *dev, unsigned int subdevice, unsigned
 	int chan);
 int comedi_get_n_ranges(void *dev, unsigned int subdevice, unsigned int
 	chan);
-int comedi_do_insn(void *dev, comedi_insn *insn);
+int comedi_do_insn(void *dev, struct comedi_insn *insn);
 int comedi_poll(void *dev, unsigned int subdev);
 
 /* DEPRECATED functions */
@@ -165,7 +165,7 @@ unsigned int comedi_get_maxdata(unsigned int minor, unsigned int subdevice, unsi
 	int chan);
 int comedi_get_n_ranges(unsigned int minor, unsigned int subdevice, unsigned int
 	chan);
-int comedi_do_insn(unsigned int minor, comedi_insn *insn);
+int comedi_do_insn(unsigned int minor, struct comedi_insn *insn);
 int comedi_poll(unsigned int minor, unsigned int subdev);
 
 /* DEPRECATED functions */

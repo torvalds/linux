@@ -1231,7 +1231,7 @@ static int usbduxfast_ai_cmd(struct comedi_device *dev, struct comedi_subdevice 
  * Mode 0 is used to get a single conversion on demand.
  */
 static int usbduxfast_ai_insn_read(struct comedi_device *dev,
-	struct comedi_subdevice *s, comedi_insn *insn, unsigned int *data)
+	struct comedi_subdevice *s, struct comedi_insn *insn, unsigned int *data)
 {
 	int i, j, n, actual_length;
 	int chan, range, rngmask;

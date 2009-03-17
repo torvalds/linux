@@ -154,7 +154,7 @@ static int subdev_700_cb(int dir, int port, int data, unsigned long arg)
 }
 
 static int subdev_700_insn(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	if (data[0]) {
 		s->state &= ~data[0];
@@ -172,7 +172,7 @@ static int subdev_700_insn(struct comedi_device * dev, struct comedi_subdevice *
 }
 
 static int subdev_700_insn_config(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 
 	switch (data[0]) {

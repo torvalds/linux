@@ -139,9 +139,9 @@ static struct comedi_driver driver = {
 };
 
 static int ao_winsn(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data);
+	struct comedi_insn * insn, unsigned int * data);
 static int ao_rinsn(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data);
+	struct comedi_insn * insn, unsigned int * data);
 
 /*
  * Attach is called by the Comedi core to configure the driver
@@ -240,7 +240,7 @@ static void zero_chans(struct comedi_device * dev)
 }
 
 static int ao_winsn(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	int i;
 	int chan = CR_CHAN(insn->chanspec);
@@ -282,7 +282,7 @@ static int ao_winsn(struct comedi_device * dev, struct comedi_subdevice * s,
    This is useful for some control applications, I would imagine.
 */
 static int ao_rinsn(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	int i;
 	int chan = CR_CHAN(insn->chanspec);

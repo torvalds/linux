@@ -112,9 +112,9 @@ static int waveform_ai_cmdtest(struct comedi_device *dev, struct comedi_subdevic
 static int waveform_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s);
 static int waveform_ai_cancel(struct comedi_device *dev, struct comedi_subdevice *s);
 static int waveform_ai_insn_read(struct comedi_device *dev, struct comedi_subdevice *s,
-				 comedi_insn *insn, unsigned int *data);
+				 struct comedi_insn *insn, unsigned int *data);
 static int waveform_ao_insn_write(struct comedi_device *dev, struct comedi_subdevice *s,
-				  comedi_insn *insn, unsigned int *data);
+				  struct comedi_insn *insn, unsigned int *data);
 static short fake_sawtooth(struct comedi_device *dev, unsigned int range,
 			     unsigned long current_time);
 static short fake_squarewave(struct comedi_device *dev, unsigned int range,
@@ -505,7 +505,7 @@ static short fake_waveform(struct comedi_device *dev, unsigned int channel,
 }
 
 static int waveform_ai_insn_read(struct comedi_device *dev, struct comedi_subdevice *s,
-				 comedi_insn *insn, unsigned int *data)
+				 struct comedi_insn *insn, unsigned int *data)
 {
 	int i, chan = CR_CHAN(insn->chanspec);
 
@@ -516,7 +516,7 @@ static int waveform_ai_insn_read(struct comedi_device *dev, struct comedi_subdev
 }
 
 static int waveform_ao_insn_write(struct comedi_device *dev, struct comedi_subdevice *s,
-				  comedi_insn *insn, unsigned int *data)
+				  struct comedi_insn *insn, unsigned int *data)
 {
 	int i, chan = CR_CHAN(insn->chanspec);
 

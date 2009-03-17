@@ -36,7 +36,7 @@ See the source for configuration details.
 */
 /*
  * check_driver overrides:
- *   comedi_insn
+ *   struct comedi_insn
  */
 
 #include "../comedidev.h"

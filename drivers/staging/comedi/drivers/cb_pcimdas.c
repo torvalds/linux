@@ -185,11 +185,11 @@ static struct comedi_driver driver_cb_pcimdas = {
 };
 
 static int cb_pcimdas_ai_rinsn(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data);
+	struct comedi_insn * insn, unsigned int * data);
 static int cb_pcimdas_ao_winsn(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data);
+	struct comedi_insn * insn, unsigned int * data);
 static int cb_pcimdas_ao_rinsn(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data);
+	struct comedi_insn * insn, unsigned int * data);
 
 /*
  * Attach is called by the Comedi core to configure the driver
@@ -373,7 +373,7 @@ static int cb_pcimdas_detach(struct comedi_device * dev)
  * mode.
  */
 static int cb_pcimdas_ai_rinsn(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	int n, i;
 	unsigned int d;
@@ -438,7 +438,7 @@ static int cb_pcimdas_ai_rinsn(struct comedi_device * dev, struct comedi_subdevi
 }
 
 static int cb_pcimdas_ao_winsn(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	int i;
 	int chan = CR_CHAN(insn->chanspec);
@@ -466,7 +466,7 @@ static int cb_pcimdas_ao_winsn(struct comedi_device * dev, struct comedi_subdevi
 /* AO subdevices should have a read insn as well as a write insn.
  * Usually this means copying a value stored in devpriv. */
 static int cb_pcimdas_ao_rinsn(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	int i;
 	int chan = CR_CHAN(insn->chanspec);

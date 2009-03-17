@@ -270,7 +270,7 @@ static six_axis_t get_max_full_scales(volatile jr3_channel_t * channel)
 }
 
 static int jr3_pci_ai_insn_read(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	int result;
 	jr3_pci_subdev_private *p;

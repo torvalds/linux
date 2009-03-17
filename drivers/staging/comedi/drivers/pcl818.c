@@ -388,7 +388,7 @@ static int rtc_setfreq_irq(int freq);
    ANALOG INPUT MODE0, 818 cards, slow version
 */
 static int pcl818_ai_insn_read(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	int n;
 	int timeout;
@@ -435,7 +435,7 @@ static int pcl818_ai_insn_read(struct comedi_device * dev, struct comedi_subdevi
    only one sample per call is supported
 */
 static int pcl818_ao_insn_read(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	int n;
 	int chan = CR_CHAN(insn->chanspec);
@@ -448,7 +448,7 @@ static int pcl818_ao_insn_read(struct comedi_device * dev, struct comedi_subdevi
 }
 
 static int pcl818_ao_insn_write(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	int n;
 	int chan = CR_CHAN(insn->chanspec);
@@ -471,7 +471,7 @@ static int pcl818_ao_insn_write(struct comedi_device * dev, struct comedi_subdev
    only one sample per call is supported
 */
 static int pcl818_di_insn_bits(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	if (insn->n != 2)
 		return -EINVAL;
@@ -489,7 +489,7 @@ static int pcl818_di_insn_bits(struct comedi_device * dev, struct comedi_subdevi
    only one sample per call is supported
 */
 static int pcl818_do_insn_bits(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	if (insn->n != 2)
 		return -EINVAL;

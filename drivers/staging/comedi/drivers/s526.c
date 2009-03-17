@@ -246,23 +246,23 @@ static struct comedi_driver driver_s526 = {
 };
 
 static int s526_gpct_rinsn(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data);
+	struct comedi_insn * insn, unsigned int * data);
 static int s526_gpct_insn_config(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data);
+	struct comedi_insn * insn, unsigned int * data);
 static int s526_gpct_winsn(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data);
+	struct comedi_insn * insn, unsigned int * data);
 static int s526_ai_insn_config(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data);
+	struct comedi_insn * insn, unsigned int * data);
 static int s526_ai_rinsn(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data);
+	struct comedi_insn * insn, unsigned int * data);
 static int s526_ao_winsn(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data);
+	struct comedi_insn * insn, unsigned int * data);
 static int s526_ao_rinsn(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data);
+	struct comedi_insn * insn, unsigned int * data);
 static int s526_dio_insn_bits(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data);
+	struct comedi_insn * insn, unsigned int * data);
 static int s526_dio_insn_config(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data);
+	struct comedi_insn * insn, unsigned int * data);
 
 /*
  * Attach is called by the Comedi core to configure the driver
@@ -477,7 +477,7 @@ static int s526_detach(struct comedi_device * dev)
 }
 
 static int s526_gpct_rinsn(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	int i;			// counts the Data
 	int counter_channel = CR_CHAN(insn->chanspec);
@@ -501,7 +501,7 @@ static int s526_gpct_rinsn(struct comedi_device * dev, struct comedi_subdevice *
 }
 
 static int s526_gpct_insn_config(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	int subdev_channel = CR_CHAN(insn->chanspec);	// Unpack chanspec
 	int i;
@@ -726,7 +726,7 @@ static int s526_gpct_insn_config(struct comedi_device * dev, struct comedi_subde
 }
 
 static int s526_gpct_winsn(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	int subdev_channel = CR_CHAN(insn->chanspec);	// Unpack chanspec
 	short value;
@@ -785,7 +785,7 @@ static int s526_gpct_winsn(struct comedi_device * dev, struct comedi_subdevice *
 
 #define ISR_ADC_DONE 0x4
 static int s526_ai_insn_config(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	int result = -EINVAL;
 
@@ -818,7 +818,7 @@ static int s526_ai_insn_config(struct comedi_device * dev, struct comedi_subdevi
  * mode.
  */
 static int s526_ai_rinsn(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	int n, i;
 	int chan = CR_CHAN(insn->chanspec);
@@ -868,7 +868,7 @@ static int s526_ai_rinsn(struct comedi_device * dev, struct comedi_subdevice * s
 }
 
 static int s526_ao_winsn(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	int i;
 	int chan = CR_CHAN(insn->chanspec);
@@ -897,7 +897,7 @@ static int s526_ao_winsn(struct comedi_device * dev, struct comedi_subdevice * s
 /* AO subdevices should have a read insn as well as a write insn.
  * Usually this means copying a value stored in devpriv. */
 static int s526_ao_rinsn(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	int i;
 	int chan = CR_CHAN(insn->chanspec);
@@ -914,7 +914,7 @@ static int s526_ao_rinsn(struct comedi_device * dev, struct comedi_subdevice * s
  * This allows packed reading/writing of the DIO channels.  The
  * comedi core can convert between insn_bits and insn_read/write */
 static int s526_dio_insn_bits(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	if (insn->n != 2)
 		return -EINVAL;
@@ -939,7 +939,7 @@ static int s526_dio_insn_bits(struct comedi_device * dev, struct comedi_subdevic
 }
 
 static int s526_dio_insn_config(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	int chan = CR_CHAN(insn->chanspec);
 	short value;

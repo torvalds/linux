@@ -59,7 +59,7 @@ INT i_Flag = 1;
 +----------------------------------------------------------------------------+
 | Function   Name   : int i_APCI035_ConfigTimerWatchdog                      |
 |			  (struct comedi_device *dev,struct comedi_subdevice *s,               |
-|                      comedi_insn *insn,unsigned int *data)                     |
+|                      struct comedi_insn *insn,unsigned int *data)                     |
 +----------------------------------------------------------------------------+
 | Task              : Configures The Timer , Counter or Watchdog             |
 +----------------------------------------------------------------------------+
@@ -110,7 +110,7 @@ INT i_Flag = 1;
 +----------------------------------------------------------------------------+
 */
 INT i_APCI035_ConfigTimerWatchdog(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	UINT ui_Status = 0;
 	UINT ui_Command = 0;
@@ -255,7 +255,7 @@ INT i_APCI035_ConfigTimerWatchdog(struct comedi_device * dev, struct comedi_subd
 +----------------------------------------------------------------------------+
 | Function   Name   : int i_APCI035_StartStopWriteTimerWatchdog              |
 |			  (struct comedi_device *dev,struct comedi_subdevice *s,               |
-|                      comedi_insn *insn,unsigned int *data)                     |
+|                      struct comedi_insn *insn,unsigned int *data)                     |
 +----------------------------------------------------------------------------+
 | Task              : Start / Stop The Selected Timer , or Watchdog  |
 +----------------------------------------------------------------------------+
@@ -279,7 +279,7 @@ INT i_APCI035_ConfigTimerWatchdog(struct comedi_device * dev, struct comedi_subd
 +----------------------------------------------------------------------------+
 */
 INT i_APCI035_StartStopWriteTimerWatchdog(struct comedi_device * dev,
-	struct comedi_subdevice * s, comedi_insn * insn, unsigned int * data)
+	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data)
 {
 	UINT ui_Command = 0;
 	INT i_Count = 0;
@@ -368,7 +368,7 @@ INT i_APCI035_StartStopWriteTimerWatchdog(struct comedi_device * dev,
 +----------------------------------------------------------------------------+
 | Function   Name   : int i_APCI035_ReadTimerWatchdog                        |
 |			  (struct comedi_device *dev,struct comedi_subdevice *s,               |
-|                      comedi_insn *insn,unsigned int *data)                     |
+|                      struct comedi_insn *insn,unsigned int *data)                     |
 +----------------------------------------------------------------------------+
 | Task              : Read The Selected Timer , Counter or Watchdog          |
 +----------------------------------------------------------------------------+
@@ -392,7 +392,7 @@ INT i_APCI035_StartStopWriteTimerWatchdog(struct comedi_device * dev,
 +----------------------------------------------------------------------------+
 */
 INT i_APCI035_ReadTimerWatchdog(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	UINT ui_Status = 0;	// Status register
 	i_WatchdogNbr = insn->unused[0];
@@ -428,13 +428,13 @@ INT i_APCI035_ReadTimerWatchdog(struct comedi_device * dev, struct comedi_subdev
 +----------------------------------------------------------------------------+
 | Function   Name   : INT i_APCI035_ConfigAnalogInput                        |
 |			  (struct comedi_device *dev,struct comedi_subdevice *s,               |
-|                      comedi_insn *insn,unsigned int *data)                     |
+|                      struct comedi_insn *insn,unsigned int *data)                     |
 +----------------------------------------------------------------------------+
 | Task              : Configures The Analog Input Subdevice                  |
 +----------------------------------------------------------------------------+
 | Input Parameters  : struct comedi_device *dev      : Driver handle                |
 |                     struct comedi_subdevice *s     : Subdevice Pointer            |
-|                     comedi_insn *insn       : Insn Structure Pointer       |
+|                     struct comedi_insn *insn       : Insn Structure Pointer       |
 |                     unsigned int *data          : Data Pointer contains        |
 |                                          configuration parameters as below |
 |                     data[0]                  : Warning delay value
@@ -448,7 +448,7 @@ INT i_APCI035_ReadTimerWatchdog(struct comedi_device * dev, struct comedi_subdev
 +----------------------------------------------------------------------------+
 */
 INT i_APCI035_ConfigAnalogInput(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	devpriv->tsk_Current = current;
 	outl(0x200 | 0, devpriv->iobase + 128 + 0x4);
@@ -467,7 +467,7 @@ INT i_APCI035_ConfigAnalogInput(struct comedi_device * dev, struct comedi_subdev
 +----------------------------------------------------------------------------+
 | Function   Name   : int i_APCI035_ReadAnalogInput                          |
 |			          (struct comedi_device *dev,struct comedi_subdevice *s,       |
-|                     comedi_insn *insn,unsigned int *data)                      |
+|                     struct comedi_insn *insn,unsigned int *data)                      |
 +----------------------------------------------------------------------------+
 | Task              : Read  value  of the selected channel			         |
 +----------------------------------------------------------------------------+
@@ -485,7 +485,7 @@ INT i_APCI035_ConfigAnalogInput(struct comedi_device * dev, struct comedi_subdev
 +----------------------------------------------------------------------------+
 */
 INT i_APCI035_ReadAnalogInput(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	UINT ui_CommandRegister = 0;
 /******************/

@@ -69,7 +69,7 @@ typedef struct {
 #define devpriv ((rti802_private *)dev->private)
 
 static int rti802_ao_insn_read(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	int i;
 
@@ -80,7 +80,7 @@ static int rti802_ao_insn_read(struct comedi_device * dev, struct comedi_subdevi
 }
 
 static int rti802_ao_insn_write(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	int i, d;
 	int chan = CR_CHAN(insn->chanspec);

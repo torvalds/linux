@@ -62,7 +62,7 @@ int i_TimerCounter1Enabled = 0, i_TimerCounter2Enabled =
   +----------------------------------------------------------------------------+
 | Function   Name   : int i_APCI1500_ConfigDigitalInputEvent                 |
 |			  (struct comedi_device *dev,struct comedi_subdevice *s,               |
-|                      comedi_insn *insn,unsigned int *data)                     |
+|                      struct comedi_insn *insn,unsigned int *data)                     |
 +----------------------------------------------------------------------------+
 | Task              : An event can be generated for each port.               |
 |                     The first event is related to the first 8 channels     |
@@ -138,7 +138,7 @@ int i_TimerCounter1Enabled = 0, i_TimerCounter2Enabled =
 */
 
 INT i_APCI1500_ConfigDigitalInputEvent(struct comedi_device * dev,
-	struct comedi_subdevice * s, comedi_insn * insn, unsigned int * data)
+	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data)
 {
 	int i_PatternPolarity = 0, i_PatternTransition = 0, i_PatternMask = 0;
 	int i_MaxChannel = 0, i_Count = 0, i_EventMask = 0;
@@ -501,7 +501,7 @@ INT i_APCI1500_ConfigDigitalInputEvent(struct comedi_device * dev,
 +----------------------------------------------------------------------------+
 | Function   Name   : int i_APCI1500_StartStopInputEvent                     |
 |			  (struct comedi_device *dev,struct comedi_subdevice *s,               |
-|                      comedi_insn *insn,unsigned int *data)                     |
+|                      struct comedi_insn *insn,unsigned int *data)                     |
 +----------------------------------------------------------------------------+
 | Task              :  Allows or disallows a port event                      |
 +----------------------------------------------------------------------------+
@@ -520,7 +520,7 @@ INT i_APCI1500_ConfigDigitalInputEvent(struct comedi_device * dev,
 +----------------------------------------------------------------------------+
 */
 int i_APCI1500_StartStopInputEvent(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	int i_Event1InterruptStatus = 0, i_Event2InterruptStatus =
 		0, i_RegValue;
@@ -769,7 +769,7 @@ int i_APCI1500_StartStopInputEvent(struct comedi_device * dev, struct comedi_sub
 +----------------------------------------------------------------------------+
 | Function   Name   : int i_APCI1500_Initialisation                          |
 |			  (struct comedi_device *dev,struct comedi_subdevice *s,               |
-|                      comedi_insn *insn,unsigned int *data)                     |
+|                      struct comedi_insn *insn,unsigned int *data)                     |
 +----------------------------------------------------------------------------+
 | Task              : Return the status of the digital input                 |
 +----------------------------------------------------------------------------+
@@ -785,7 +785,7 @@ int i_APCI1500_StartStopInputEvent(struct comedi_device * dev, struct comedi_sub
 +----------------------------------------------------------------------------+
 */
 INT i_APCI1500_Initialisation(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	int i_DummyRead = 0;
     /******************/
@@ -938,7 +938,7 @@ INT i_APCI1500_Initialisation(struct comedi_device * dev, struct comedi_subdevic
 +----------------------------------------------------------------------------+
 | Function   Name   : int i_APCI1500_ReadMoreDigitalInput                    |
 |			  (struct comedi_device *dev,struct comedi_subdevice *s,               |
-|                     comedi_insn *insn,unsigned int *data)                      |
+|                     struct comedi_insn *insn,unsigned int *data)                      |
 +----------------------------------------------------------------------------+
 | Task              : Return the status of the Requested digital inputs      |
 +----------------------------------------------------------------------------+
@@ -958,7 +958,7 @@ INT i_APCI1500_Initialisation(struct comedi_device * dev, struct comedi_subdevic
 */
 
 INT i_APCI1500_ReadMoreDigitalInput(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	UINT ui_PortValue = data[1];
 	UINT ui_Mask = 0;
@@ -1015,7 +1015,7 @@ INT i_APCI1500_ReadMoreDigitalInput(struct comedi_device * dev, struct comedi_su
 /*
 +----------------------------------------------------------------------------+
 | Function   Name   : int i_APCI1500_ConfigDigitalOutputErrorInterrupt
-                      (struct comedi_device *dev,struct comedi_subdevice *s comedi_insn
+                      (struct comedi_device *dev,struct comedi_subdevice *s struct comedi_insn
                       *insn,unsigned int *data)                                  |
 |				                                                     |
 +----------------------------------------------------------------------------+
@@ -1026,7 +1026,7 @@ INT i_APCI1500_ReadMoreDigitalInput(struct comedi_device * dev, struct comedi_su
 |                     unsigned int *data         : Data Pointer contains         |
 |                                          configuration parameters as below |
 |                      struct comedi_subdevice *s,   :pointer to subdevice structure
-                       comedi_insn *insn      :pointer to insn structure                                                                                                                |
+                       struct comedi_insn *insn      :pointer to insn structure                                                                                                                |
 |					  data[0]  :1:Memory on                          |
 |					            0:Memory off                         |
                               data[1]  :1 Enable the voltage error interrupt
@@ -1041,7 +1041,7 @@ INT i_APCI1500_ReadMoreDigitalInput(struct comedi_device * dev, struct comedi_su
 +----------------------------------------------------------------------------+
 */
 int i_APCI1500_ConfigDigitalOutputErrorInterrupt(struct comedi_device * dev,
-	struct comedi_subdevice * s, comedi_insn * insn, unsigned int * data)
+	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data)
 {
 	devpriv->b_OutputMemoryStatus = data[0];
 	return insn->n;
@@ -1051,7 +1051,7 @@ int i_APCI1500_ConfigDigitalOutputErrorInterrupt(struct comedi_device * dev,
 +----------------------------------------------------------------------------+
 | Function   Name   : int i_APCI1500_WriteDigitalOutput                      |
 |			  (struct comedi_device *dev,struct comedi_subdevice *s,               |
-|                      comedi_insn *insn,unsigned int *data)                     |
+|                      struct comedi_insn *insn,unsigned int *data)                     |
 +----------------------------------------------------------------------------+
 | Task              : Writes port value  To the selected port                |
 +----------------------------------------------------------------------------+
@@ -1068,7 +1068,7 @@ int i_APCI1500_ConfigDigitalOutputErrorInterrupt(struct comedi_device * dev,
 */
 
 INT i_APCI1500_WriteDigitalOutput(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	static UINT ui_Temp = 0;
 	UINT ui_Temp1;
@@ -1215,14 +1215,14 @@ INT i_APCI1500_WriteDigitalOutput(struct comedi_device * dev, struct comedi_subd
 /*
 +----------------------------------------------------------------------------+
 | Function   Name   : int i_APCI1500_ConfigCounterTimerWatchdog(comedi_device
-                   *dev,struct comedi_subdevice *s,comedi_insn *insn,unsigned int *data)|
+                   *dev,struct comedi_subdevice *s,struct comedi_insn *insn,unsigned int *data)|
 |				                                                     |
 +----------------------------------------------------------------------------+
 | Task              : Configures The Watchdog                                |
 +----------------------------------------------------------------------------+
 | Input Parameters  : struct comedi_device *dev      : Driver handle                |
 |                     struct comedi_subdevice *s,   :pointer to subdevice structure
-                      comedi_insn *insn      :pointer to insn structure      |
+                      struct comedi_insn *insn      :pointer to insn structure      |
 |                     unsigned int *data         : Data Pointer to read status                                                       data[0]                : 2     APCI1500_1_8_KHZ
 |                                              1     APCI1500_3_6_KHZ        |
 |                                              0     APCI1500_115_KHZ
@@ -1262,7 +1262,7 @@ INT i_APCI1500_WriteDigitalOutput(struct comedi_device * dev, struct comedi_subd
 */
 
 int i_APCI1500_ConfigCounterTimerWatchdog(struct comedi_device * dev,
-	struct comedi_subdevice * s, comedi_insn * insn, unsigned int * data)
+	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data)
 {
 	int i_TimerCounterMode, i_MasterConfiguration;
 
@@ -1836,13 +1836,13 @@ int i_APCI1500_ConfigCounterTimerWatchdog(struct comedi_device * dev,
 +----------------------------------------------------------------------------+
 | Function   Name   : int i_APCI1500_StartStopTriggerTimerCounterWatchdog      |
 |				(struct comedi_device *dev,struct comedi_subdevice *s,
-                         comedi_insn *insn,unsigned int *data);                  |
+                         struct comedi_insn *insn,unsigned int *data);                  |
 +----------------------------------------------------------------------------+
 | Task              : Start / Stop or trigger the timer counter or Watchdog  |
 +----------------------------------------------------------------------------+
 | Input Parameters  : struct comedi_device *dev     : Driver handle                 |
 |                     struct comedi_subdevice *s,   :pointer to subdevice structure
-                      comedi_insn *insn      :pointer to insn structure      |
+                      struct comedi_insn *insn      :pointer to insn structure      |
 |                     unsigned int *data         : Data Pointer to read status   |
                       data[0]                : 0     Counter1/Timer1
                                                1     Counter2/Timer2
@@ -1861,7 +1861,7 @@ int i_APCI1500_ConfigCounterTimerWatchdog(struct comedi_device * dev,
 +----------------------------------------------------------------------------+
 */
 int i_APCI1500_StartStopTriggerTimerCounterWatchdog(struct comedi_device * dev,
-	struct comedi_subdevice * s, comedi_insn * insn, unsigned int * data)
+	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data)
 {
 	int i_CommandAndStatusValue;
 
@@ -2160,14 +2160,14 @@ int i_APCI1500_StartStopTriggerTimerCounterWatchdog(struct comedi_device * dev,
 /*
 +----------------------------------------------------------------------------+
 | Function   Name   : int i_APCI1500_ReadCounterTimerWatchdog                |
-|			(struct comedi_device *dev,struct comedi_subdevice *s,comedi_insn *insn,
+|			(struct comedi_device *dev,struct comedi_subdevice *s,struct comedi_insn *insn,
                     unsigned int *data); 	                                     |
 +----------------------------------------------------------------------------+
 | Task              : Read The Watchdog                                      |
 +----------------------------------------------------------------------------+
 | Input Parameters  :   struct comedi_device *dev      : Driver handle              |
 |                     struct comedi_subdevice *s,   :pointer to subdevice structure
-                      comedi_insn *insn      :pointer to insn structure      |
+                      struct comedi_insn *insn      :pointer to insn structure      |
 |                     unsigned int *data          : Data Pointer to read status  |
                       data[0]                : 0     Counter1/Timer1
                                                1     Counter2/Timer2
@@ -2183,7 +2183,7 @@ int i_APCI1500_StartStopTriggerTimerCounterWatchdog(struct comedi_device * dev,
 */
 
 int i_APCI1500_ReadCounterTimerWatchdog(struct comedi_device * dev,
-	struct comedi_subdevice * s, comedi_insn * insn, unsigned int * data)
+	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data)
 {
 	int i_CommandAndStatusValue;
 	switch (data[0]) {
@@ -2351,14 +2351,14 @@ int i_APCI1500_ReadCounterTimerWatchdog(struct comedi_device * dev,
 /*
 +----------------------------------------------------------------------------+
 | Function   Name   : int  i_APCI1500_ReadInterruptMask                      |
-|			(struct comedi_device *dev,struct comedi_subdevice *s,comedi_insn *insn,
+|			(struct comedi_device *dev,struct comedi_subdevice *s,struct comedi_insn *insn,
                     unsigned int *data); 	                                     |
 +----------------------------------------------------------------------------+
 | Task              : Read the interrupt mask                                |
 +----------------------------------------------------------------------------+
 | Input Parameters  :   struct comedi_device *dev      : Driver handle              |
 |                     struct comedi_subdevice *s,   :pointer to subdevice structure
-                      comedi_insn *insn      :pointer to insn structure      |
+                      struct comedi_insn *insn      :pointer to insn structure      |
 |                     unsigned int *data          : Data Pointer to read status  |
 
 
@@ -2371,7 +2371,7 @@ int i_APCI1500_ReadCounterTimerWatchdog(struct comedi_device * dev,
 +----------------------------------------------------------------------------+
 */
 int i_APCI1500_ReadInterruptMask(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	data[0] = i_InterruptMask;
 	data[1] = i_InputChannel;
@@ -2382,14 +2382,14 @@ int i_APCI1500_ReadInterruptMask(struct comedi_device * dev, struct comedi_subde
 /*
 +----------------------------------------------------------------------------+
 | Function   Name   : int  i_APCI1500_ConfigureInterrupt                     |
-|			(struct comedi_device *dev,struct comedi_subdevice *s,comedi_insn *insn,
+|			(struct comedi_device *dev,struct comedi_subdevice *s,struct comedi_insn *insn,
                     unsigned int *data); 	                                     |
 +----------------------------------------------------------------------------+
 | Task              : Configures the interrupt registers                     |
 +----------------------------------------------------------------------------+
 | Input Parameters  :   struct comedi_device *dev      : Driver handle              |
 |                     struct comedi_subdevice *s,   :pointer to subdevice structure
-                      comedi_insn *insn      :pointer to insn structure      |
+                      struct comedi_insn *insn      :pointer to insn structure      |
 |                     unsigned int *data          : Data Pointer                 |
 
 
@@ -2402,7 +2402,7 @@ int i_APCI1500_ReadInterruptMask(struct comedi_device * dev, struct comedi_subde
 +----------------------------------------------------------------------------+
 */
 int i_APCI1500_ConfigureInterrupt(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	UINT ui_Status;
 	int i_RegValue;

@@ -132,11 +132,11 @@ static const struct comedi_lrange range_das16m1 = { 9,
 };
 
 static int das16m1_do_wbits(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data);
+	struct comedi_insn * insn, unsigned int * data);
 static int das16m1_di_rbits(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data);
+	struct comedi_insn * insn, unsigned int * data);
 static int das16m1_ai_rinsn(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data);
+	struct comedi_insn * insn, unsigned int * data);
 
 static int das16m1_cmd_test(struct comedi_device * dev, struct comedi_subdevice * s,
 	struct comedi_cmd * cmd);
@@ -394,7 +394,7 @@ static int das16m1_cancel(struct comedi_device * dev, struct comedi_subdevice * 
 }
 
 static int das16m1_ai_rinsn(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	int i, n;
 	int byte;
@@ -431,7 +431,7 @@ static int das16m1_ai_rinsn(struct comedi_device * dev, struct comedi_subdevice 
 }
 
 static int das16m1_di_rbits(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	unsigned int bits;
 
@@ -443,7 +443,7 @@ static int das16m1_di_rbits(struct comedi_device * dev, struct comedi_subdevice 
 }
 
 static int das16m1_do_wbits(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	unsigned int wbits;
 

@@ -60,7 +60,7 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 | Function Name     : INT   i_APCI16XX_InsnConfigInitTTLIO                   |
 |                          (struct comedi_device    *dev,                           |
 |                           struct comedi_subdevice *s,                             |
-|                           comedi_insn      *insn,                          |
+|                           struct comedi_insn      *insn,                          |
 |                           unsigned int         *data)                          |
 +----------------------------------------------------------------------------+
 | Task           APCI16XX_TTL_INIT (using defaults)   :                      |
@@ -91,7 +91,7 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 */
 
 int i_APCI16XX_InsnConfigInitTTLIO(struct comedi_device * dev,
-	struct comedi_subdevice * s, comedi_insn * insn, unsigned int * data)
+	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data)
 {
 	INT i_ReturnValue = insn->n;
 	BYTE b_Command = 0;
@@ -253,7 +253,7 @@ int i_APCI16XX_InsnConfigInitTTLIO(struct comedi_device * dev,
 | Function Name     : INT     i_APCI16XX_InsnBitsReadTTLIO                   |
 |                          (struct comedi_device    *dev,                           |
 |                           struct comedi_subdevice *s,                             |
-|                           comedi_insn      *insn,                          |
+|                           struct comedi_insn      *insn,                          |
 |                           unsigned int         *data)                          |
 +----------------------------------------------------------------------------+
 | Task              : Read the status from selected TTL digital input        |
@@ -284,7 +284,7 @@ int i_APCI16XX_InsnConfigInitTTLIO(struct comedi_device * dev,
 */
 
 int i_APCI16XX_InsnBitsReadTTLIO(struct comedi_device * dev,
-	struct comedi_subdevice * s, comedi_insn * insn, unsigned int * data)
+	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data)
 {
 	INT i_ReturnValue = insn->n;
 	BYTE b_Command = 0;
@@ -413,7 +413,7 @@ int i_APCI16XX_InsnBitsReadTTLIO(struct comedi_device * dev,
 | Function Name     : INT i_APCI16XX_InsnReadTTLIOAllPortValue               |
 |                          (struct comedi_device    *dev,                           |
 |                           struct comedi_subdevice *s,                             |
-|                           comedi_insn      *insn,                          |
+|                           struct comedi_insn      *insn,                          |
 |                           unsigned int         *data)                          |
 +----------------------------------------------------------------------------+
 | Task              : Read the status from all digital input ports           |
@@ -431,7 +431,7 @@ int i_APCI16XX_InsnBitsReadTTLIO(struct comedi_device * dev,
 */
 
 int i_APCI16XX_InsnReadTTLIOAllPortValue(struct comedi_device * dev,
-	struct comedi_subdevice * s, comedi_insn * insn, unsigned int * data)
+	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data)
 {
 	BYTE b_Command = (BYTE) CR_AREF(insn->chanspec);
 	INT i_ReturnValue = insn->n;
@@ -538,7 +538,7 @@ int i_APCI16XX_InsnReadTTLIOAllPortValue(struct comedi_device * dev,
 | Function Name     : INT     i_APCI16XX_InsnBitsWriteTTLIO                  |
 |                          (struct comedi_device    *dev,                           |
 |                           struct comedi_subdevice *s,                             |
-|                           comedi_insn      *insn,                          |
+|                           struct comedi_insn      *insn,                          |
 |                           unsigned int         *data)                          |
 +----------------------------------------------------------------------------+
 | Task              : Set the state from selected TTL digital output         |
@@ -571,7 +571,7 @@ int i_APCI16XX_InsnReadTTLIOAllPortValue(struct comedi_device * dev,
 */
 
 int i_APCI16XX_InsnBitsWriteTTLIO(struct comedi_device * dev,
-	struct comedi_subdevice * s, comedi_insn * insn, unsigned int * data)
+	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data)
 {
 	INT i_ReturnValue = insn->n;
 	BYTE b_Command = 0;

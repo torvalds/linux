@@ -33,7 +33,7 @@
 |                                BYTE_   b_OutputLevel,                      |
 |                                BYTE_   b_HardwareGateLevel)
 INT i_InsnConfig_InitTimer(struct comedi_device *dev,struct comedi_subdevice *s,
-	comedi_insn *insn,unsigned int *data)
+	struct comedi_insn *insn,unsigned int *data)
 |
 +----------------------------------------------------------------------------+
 | Task              : Configure the Timer (b_TimerNbr) operating mode        |
@@ -220,7 +220,7 @@ INT i_InsnConfig_InitTimer(struct comedi_device *dev,struct comedi_subdevice *s,
 */
 
 INT i_APCI1710_InsnConfigInitTimer(struct comedi_device * dev, struct comedi_subdevice * s,
-				   comedi_insn * insn, unsigned int * data)
+				   struct comedi_insn * insn, unsigned int * data)
 {
 
 	INT i_ReturnValue = 0;
@@ -407,7 +407,7 @@ INT i_APCI1710_InsnConfigInitTimer(struct comedi_device * dev, struct comedi_sub
 |                                BYTE_ b_TimerNbr,                           |
 |                                BYTE_ b_InterruptEnable)
 INT i_APCI1710_InsnWriteEnableDisableTimer(struct comedi_device *dev,struct comedi_subdevice *s,
-	comedi_insn *insn,unsigned int *data)                |
+	struct comedi_insn *insn,unsigned int *data)                |
 +----------------------------------------------------------------------------+
 | Task              : Enable OR Disable the Timer (b_TimerNbr) from selected module     |
 |                     (b_ModulNbr). You must calling the                     |
@@ -450,7 +450,7 @@ i_ReturnValue=insn->n;
 
 INT i_APCI1710_InsnWriteEnableDisableTimer(struct comedi_device * dev,
 					   struct comedi_subdevice * s,
-					   comedi_insn * insn, unsigned int * data)
+					   struct comedi_insn * insn, unsigned int * data)
 {
 	INT i_ReturnValue = 0;
 	DWORD dw_DummyRead;
@@ -562,7 +562,7 @@ INT i_APCI1710_InsnWriteEnableDisableTimer(struct comedi_device * dev,
 |                                        BYTE_     b_ModulNbr,               |
 |                                        PULONG_ pul_TimerValueArray)
 INT i_APCI1710_InsnReadAllTimerValue(struct comedi_device *dev,struct comedi_subdevice *s,
-	comedi_insn *insn,unsigned int *data)        |
+	struct comedi_insn *insn,unsigned int *data)        |
 +----------------------------------------------------------------------------+
 | Task              : Return the all timer values from selected timer        |
 |                     module (b_ModulNbr).                                   |
@@ -591,7 +591,7 @@ INT i_APCI1710_InsnReadAllTimerValue(struct comedi_device *dev,struct comedi_sub
 */
 
 INT i_APCI1710_InsnReadAllTimerValue(struct comedi_device *dev, struct comedi_subdevice *s,
-				     comedi_insn *insn, unsigned int *data)
+				     struct comedi_insn *insn, unsigned int *data)
 {
 	INT i_ReturnValue = 0;
 	BYTE b_ModulNbr, b_ReadType;
@@ -669,7 +669,7 @@ INT i_APCI1710_InsnReadAllTimerValue(struct comedi_device *dev, struct comedi_su
 /*
 +----------------------------------------------------------------------------+
 | Function Name     :INT i_APCI1710_InsnBitsTimer(struct comedi_device *dev,
-struct comedi_subdevice *s,comedi_insn *insn,unsigned int *data)                   |
+struct comedi_subdevice *s,struct comedi_insn *insn,unsigned int *data)                   |
 +----------------------------------------------------------------------------+
 | Task              : Read write functions for Timer                                          |
 +----------------------------------------------------------------------------+
@@ -682,7 +682,7 @@ struct comedi_subdevice *s,comedi_insn *insn,unsigned int *data)                
 */
 
 INT i_APCI1710_InsnBitsTimer(struct comedi_device * dev, struct comedi_subdevice * s,
-			     comedi_insn * insn, unsigned int * data)
+			     struct comedi_insn * insn, unsigned int * data)
 {
 	BYTE b_BitsType;
 	INT i_ReturnValue = 0;

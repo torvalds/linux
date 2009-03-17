@@ -82,11 +82,11 @@ typedef struct unioxx5_subd_priv {
 
 static int unioxx5_attach(struct comedi_device * dev, comedi_devconfig * it);
 static int unioxx5_subdev_write(struct comedi_device * dev, struct comedi_subdevice * subdev,
-	comedi_insn * insn, unsigned int * data);
+	struct comedi_insn * insn, unsigned int * data);
 static int unioxx5_subdev_read(struct comedi_device * dev, struct comedi_subdevice * subdev,
-	comedi_insn * insn, unsigned int * data);
+	struct comedi_insn * insn, unsigned int * data);
 static int unioxx5_insn_config(struct comedi_device * dev, struct comedi_subdevice * subdev,
-	comedi_insn * insn, unsigned int * data);
+	struct comedi_insn * insn, unsigned int * data);
 static int unioxx5_detach(struct comedi_device * dev);
 static int __unioxx5_subdev_init(struct comedi_subdevice * subdev, int subdev_iobase,
 	int minor);
@@ -157,7 +157,7 @@ static int unioxx5_attach(struct comedi_device * dev, comedi_devconfig * it)
 }
 
 static int unioxx5_subdev_read(struct comedi_device * dev, struct comedi_subdevice * subdev,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	unioxx5_subd_priv *usp = subdev->private;
 	int channel, type;
@@ -177,7 +177,7 @@ static int unioxx5_subdev_read(struct comedi_device * dev, struct comedi_subdevi
 }
 
 static int unioxx5_subdev_write(struct comedi_device * dev, struct comedi_subdevice * subdev,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	unioxx5_subd_priv *usp = subdev->private;
 	int channel, type;
@@ -198,7 +198,7 @@ static int unioxx5_subdev_write(struct comedi_device * dev, struct comedi_subdev
 
 /* for digital modules only */
 static int unioxx5_insn_config(struct comedi_device * dev, struct comedi_subdevice * subdev,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	int channel_offset, flags, channel = CR_CHAN(insn->chanspec), type;
 	unioxx5_subd_priv *usp = subdev->private;

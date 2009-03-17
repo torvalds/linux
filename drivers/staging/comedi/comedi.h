@@ -303,14 +303,13 @@ enum comedi_support_level {
 #define COMEDI_CMD _IOR(CIO, 9, struct comedi_cmd)
 #define COMEDI_CMDTEST _IOR(CIO, 10, struct comedi_cmd)
 #define COMEDI_INSNLIST _IOR(CIO, 11, comedi_insnlist)
-#define COMEDI_INSN _IOR(CIO, 12, comedi_insn)
+#define COMEDI_INSN _IOR(CIO, 12, struct comedi_insn)
 #define COMEDI_BUFCONFIG _IOR(CIO, 13, comedi_bufconfig)
 #define COMEDI_BUFINFO _IOWR(CIO, 14, comedi_bufinfo)
 #define COMEDI_POLL _IO(CIO, 15)
 
 /* structures */
 
-typedef struct comedi_insn_struct comedi_insn;
 typedef struct comedi_insnlist_struct comedi_insnlist;
 typedef struct comedi_chaninfo_struct comedi_chaninfo;
 typedef struct comedi_subdinfo_struct comedi_subdinfo;
@@ -336,7 +335,7 @@ struct comedi_trig {
 	unsigned int unused[3];
 };
 
-struct comedi_insn_struct {
+struct comedi_insn {
 	unsigned int insn;
 	unsigned int n;
 	unsigned int *data;
@@ -347,7 +346,7 @@ struct comedi_insn_struct {
 
 struct comedi_insnlist_struct {
 	unsigned int n_insns;
-	comedi_insn *insns;
+	struct comedi_insn *insns;
 };
 
 struct comedi_cmd {

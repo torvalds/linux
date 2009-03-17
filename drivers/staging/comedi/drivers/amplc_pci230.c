@@ -616,11 +616,11 @@ static struct comedi_driver driver_amplc_pci230 = {
 COMEDI_PCI_INITCLEANUP(driver_amplc_pci230, pci230_pci_table);
 
 static int pci230_ai_rinsn(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data);
+	struct comedi_insn * insn, unsigned int * data);
 static int pci230_ao_winsn(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data);
+	struct comedi_insn * insn, unsigned int * data);
 static int pci230_ao_rinsn(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data);
+	struct comedi_insn * insn, unsigned int * data);
 static void pci230_ct_setup_ns_mode(struct comedi_device * dev, unsigned int ct,
 	unsigned int mode, uint64_t ns, unsigned int round);
 static void pci230_ns_to_single_timer(unsigned int *ns, unsigned int round);
@@ -1059,7 +1059,7 @@ static inline void put_all_resources(struct comedi_device * dev, unsigned char o
  *  COMEDI_SUBD_AI instruction;
  */
 static int pci230_ai_rinsn(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	unsigned int n, i;
 	unsigned int chan, range, aref;
@@ -1164,7 +1164,7 @@ static int pci230_ai_rinsn(struct comedi_device * dev, struct comedi_subdevice *
  *  COMEDI_SUBD_AO instructions;
  */
 static int pci230_ao_winsn(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	int i;
 	int chan, range;
@@ -1192,7 +1192,7 @@ static int pci230_ao_winsn(struct comedi_device * dev, struct comedi_subdevice *
 /* AO subdevices should have a read insn as well as a write insn.
  * Usually this means copying a value stored in devpriv. */
 static int pci230_ao_rinsn(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	int i;
 	int chan = CR_CHAN(insn->chanspec);

@@ -119,19 +119,19 @@ typedef struct {
 	/* ANALOG INPUT */
 	int (*i_hwdrv_InsnConfigAnalogInput)(struct comedi_device *dev,
 					     struct comedi_subdevice *s,
-					     comedi_insn *insn,
+					     struct comedi_insn *insn,
 					     unsigned int *data);
 	int (*i_hwdrv_InsnReadAnalogInput)(struct comedi_device *dev,
 					    struct comedi_subdevice *s,
-					    comedi_insn *insn,
+					    struct comedi_insn *insn,
 					    unsigned int *data);
 	int (*i_hwdrv_InsnWriteAnalogInput)(struct comedi_device *dev,
 					    struct comedi_subdevice *s,
-					    comedi_insn *insn,
+					    struct comedi_insn *insn,
 					    unsigned int *data);
 	int (*i_hwdrv_InsnBitsAnalogInput)(struct comedi_device *dev,
 					   struct comedi_subdevice *s,
-					   comedi_insn *insn,
+					   struct comedi_insn *insn,
 					   unsigned int *data);
 	int (*i_hwdrv_CommandTestAnalogInput)(struct comedi_device *dev,
 					      struct comedi_subdevice *s,
@@ -144,78 +144,78 @@ typedef struct {
 	/* Analog Output */
 	int (*i_hwdrv_InsnConfigAnalogOutput)(struct comedi_device *dev,
 					      struct comedi_subdevice *s,
-					      comedi_insn *insn,
+					      struct comedi_insn *insn,
 					      unsigned int *data);
 	int (*i_hwdrv_InsnWriteAnalogOutput)(struct comedi_device *dev,
 					     struct comedi_subdevice *s,
-					     comedi_insn *insn,
+					     struct comedi_insn *insn,
 					     unsigned int *data);
 	int (*i_hwdrv_InsnBitsAnalogOutput)(struct comedi_device *dev,
 					    struct comedi_subdevice *s,
-					    comedi_insn *insn,
+					    struct comedi_insn *insn,
 					    unsigned int *data);
 
 	/* Digital Input */
 	int (*i_hwdrv_InsnConfigDigitalInput) (struct comedi_device *dev,
 					       struct comedi_subdevice *s,
-					       comedi_insn *insn,
+					       struct comedi_insn *insn,
 					       unsigned int *data);
 	int (*i_hwdrv_InsnReadDigitalInput) (struct comedi_device *dev,
 					     struct comedi_subdevice *s,
-					     comedi_insn *insn,
+					     struct comedi_insn *insn,
 					     unsigned int *data);
 	int (*i_hwdrv_InsnWriteDigitalInput) (struct comedi_device *dev,
 					      struct comedi_subdevice *s,
-					      comedi_insn *insn,
+					      struct comedi_insn *insn,
 					      unsigned int *data);
 	int (*i_hwdrv_InsnBitsDigitalInput) (struct comedi_device *dev,
 					     struct comedi_subdevice *s,
-					     comedi_insn *insn,
+					     struct comedi_insn *insn,
 					     unsigned int *data);
 
 	/* Digital Output */
 	int (*i_hwdrv_InsnConfigDigitalOutput)(struct comedi_device *dev,
 					       struct comedi_subdevice *s,
-					       comedi_insn *insn,
+					       struct comedi_insn *insn,
 					       unsigned int *data);
 	int (*i_hwdrv_InsnWriteDigitalOutput)(struct comedi_device *dev,
 					      struct comedi_subdevice *s,
-					      comedi_insn *insn,
+					      struct comedi_insn *insn,
 					      unsigned int *data);
 	int (*i_hwdrv_InsnBitsDigitalOutput)(struct comedi_device *dev,
 					     struct comedi_subdevice *s,
-					     comedi_insn *insn,
+					     struct comedi_insn *insn,
 					     unsigned int *data);
 	int (*i_hwdrv_InsnReadDigitalOutput)(struct comedi_device *dev,
 					     struct comedi_subdevice *s,
-					     comedi_insn *insn,
+					     struct comedi_insn *insn,
 					     unsigned int *data);
 
 	/* TIMER */
 	int (*i_hwdrv_InsnConfigTimer)(struct comedi_device *dev,
 				       struct comedi_subdevice *s,
-				       comedi_insn *insn, unsigned int *data);
+				       struct comedi_insn *insn, unsigned int *data);
 	int (*i_hwdrv_InsnWriteTimer)(struct comedi_device *dev,
-				      struct comedi_subdevice *s, comedi_insn *insn,
+				      struct comedi_subdevice *s, struct comedi_insn *insn,
 				      unsigned int *data);
 	int (*i_hwdrv_InsnReadTimer)(struct comedi_device *dev, struct comedi_subdevice *s,
-				     comedi_insn *insn, unsigned int *data);
+				     struct comedi_insn *insn, unsigned int *data);
 	int (*i_hwdrv_InsnBitsTimer)(struct comedi_device *dev, struct comedi_subdevice *s,
-				     comedi_insn *insn, unsigned int *data);
+				     struct comedi_insn *insn, unsigned int *data);
 
 	/* TTL IO */
 	int (*i_hwdr_ConfigInitTTLIO)(struct comedi_device *dev,
-				      struct comedi_subdevice *s, comedi_insn *insn,
+				      struct comedi_subdevice *s, struct comedi_insn *insn,
 				      unsigned int *data);
 	int (*i_hwdr_ReadTTLIOBits)(struct comedi_device *dev, struct comedi_subdevice *s,
-				    comedi_insn *insn, unsigned int *data);
+				    struct comedi_insn *insn, unsigned int *data);
 	int (*i_hwdr_ReadTTLIOAllPortValue)(struct comedi_device *dev,
 					    struct comedi_subdevice *s,
-					    comedi_insn *insn,
+					    struct comedi_insn *insn,
 					    unsigned int *data);
 	int (*i_hwdr_WriteTTLIOChlOnOff)(struct comedi_device *dev,
 					 struct comedi_subdevice *s,
-					 comedi_insn *insn, unsigned int *data);
+					 struct comedi_insn *insn, unsigned int *data);
 } boardtype;
 
 //MODULE INFO STRUCTURE
@@ -462,4 +462,4 @@ static int i_ADDI_Reset(struct comedi_device *dev);
 
 static irqreturn_t v_ADDI_Interrupt(int irq, void *d PT_REGS_ARG);
 static int i_ADDIDATA_InsnReadEeprom(struct comedi_device *dev, struct comedi_subdevice *s,
-				     comedi_insn *insn, unsigned int *data);
+				     struct comedi_insn *insn, unsigned int *data);

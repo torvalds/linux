@@ -59,7 +59,7 @@ static struct comedi_driver driver_dt2817 = {
 COMEDI_INITCLEANUP(driver_dt2817);
 
 static int dt2817_dio_insn_config(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	int mask;
 	int chan;
@@ -97,7 +97,7 @@ static int dt2817_dio_insn_config(struct comedi_device * dev, struct comedi_subd
 }
 
 static int dt2817_dio_insn_bits(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	unsigned int changed;
 

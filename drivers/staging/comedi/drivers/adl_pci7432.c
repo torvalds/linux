@@ -70,10 +70,10 @@ static struct comedi_driver driver_adl_pci7432 = {
 /* Digital IO */
 
 static int adl_pci7432_di_insn_bits(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data);
+	struct comedi_insn * insn, unsigned int * data);
 
 static int adl_pci7432_do_insn_bits(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data);
+	struct comedi_insn * insn, unsigned int * data);
 
 /*            */
 
@@ -165,7 +165,7 @@ static int adl_pci7432_detach(struct comedi_device * dev)
 }
 
 static int adl_pci7432_do_insn_bits(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	printk("comedi: pci7432_do_insn_bits called\n");
 	printk("comedi: data0: %8x data1: %8x\n", data[0], data[1]);
@@ -185,7 +185,7 @@ static int adl_pci7432_do_insn_bits(struct comedi_device * dev, struct comedi_su
 }
 
 static int adl_pci7432_di_insn_bits(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	printk("comedi: pci7432_di_insn_bits called\n");
 	printk("comedi: data0: %8x data1: %8x\n", data[0], data[1]);

@@ -183,7 +183,7 @@ static int a2150_ai_cmdtest(struct comedi_device * dev, struct comedi_subdevice 
 	struct comedi_cmd * cmd);
 static int a2150_ai_cmd(struct comedi_device * dev, struct comedi_subdevice * s);
 static int a2150_ai_rinsn(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data);
+	struct comedi_insn * insn, unsigned int * data);
 static int a2150_get_timing(struct comedi_device * dev, unsigned int *period,
 	int flags);
 static int a2150_probe(struct comedi_device * dev);
@@ -727,7 +727,7 @@ static int a2150_ai_cmd(struct comedi_device * dev, struct comedi_subdevice * s)
 }
 
 static int a2150_ai_rinsn(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	unsigned int i, n;
 	static const int timeout = 100000;

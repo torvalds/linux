@@ -1072,7 +1072,7 @@ static irqreturn_t pci9111_interrupt(int irq, void *p_device PT_REGS_ARG)
 #undef AI_INSN_DEBUG
 
 static int pci9111_ai_insn_read(struct comedi_device * dev,
-	struct comedi_subdevice * subdevice, comedi_insn * insn, unsigned int * data)
+	struct comedi_subdevice * subdevice, struct comedi_insn * insn, unsigned int * data)
 {
 	int resolution =
 		((pci9111_board_struct *) dev->board_ptr)->ai_resolution;
@@ -1132,7 +1132,7 @@ static int pci9111_ai_insn_read(struct comedi_device * dev,
 
 static int
 pci9111_ao_insn_write(struct comedi_device * dev,
-	struct comedi_subdevice * s, comedi_insn * insn, unsigned int * data)
+	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data)
 {
 	int i;
 
@@ -1149,7 +1149,7 @@ pci9111_ao_insn_write(struct comedi_device * dev,
 //
 
 static int pci9111_ao_insn_read(struct comedi_device * dev,
-	struct comedi_subdevice * s, comedi_insn * insn, unsigned int * data)
+	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data)
 {
 	int i;
 
@@ -1171,7 +1171,7 @@ static int pci9111_ao_insn_read(struct comedi_device * dev,
 //
 
 static int pci9111_di_insn_bits(struct comedi_device * dev,
-	struct comedi_subdevice * subdevice, comedi_insn * insn, unsigned int * data)
+	struct comedi_subdevice * subdevice, struct comedi_insn * insn, unsigned int * data)
 {
 	unsigned int bits;
 
@@ -1186,7 +1186,7 @@ static int pci9111_di_insn_bits(struct comedi_device * dev,
 //
 
 static int pci9111_do_insn_bits(struct comedi_device * dev,
-	struct comedi_subdevice * subdevice, comedi_insn * insn, unsigned int * data)
+	struct comedi_subdevice * subdevice, struct comedi_insn * insn, unsigned int * data)
 {
 	unsigned int bits;
 

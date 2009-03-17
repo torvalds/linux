@@ -328,7 +328,7 @@ static void pci9118_calc_divisors(char mode, struct comedi_device * dev,
 ==============================================================================
 */
 static int pci9118_insn_read_ai(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 
 	int n, timeout;
@@ -378,7 +378,7 @@ static int pci9118_insn_read_ai(struct comedi_device * dev, struct comedi_subdev
 ==============================================================================
 */
 static int pci9118_insn_write_ao(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	int n, chanreg, ch;
 
@@ -401,7 +401,7 @@ static int pci9118_insn_write_ao(struct comedi_device * dev, struct comedi_subde
 ==============================================================================
 */
 static int pci9118_insn_read_ao(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	int n, chan;
 
@@ -416,7 +416,7 @@ static int pci9118_insn_read_ao(struct comedi_device * dev, struct comedi_subdev
 ==============================================================================
 */
 static int pci9118_insn_bits_di(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	data[1] = inl(dev->iobase + PCI9118_DI) & 0xf;
 
@@ -427,7 +427,7 @@ static int pci9118_insn_bits_di(struct comedi_device * dev, struct comedi_subdev
 ==============================================================================
 */
 static int pci9118_insn_bits_do(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	if (data[0]) {
 		s->state &= ~data[0];

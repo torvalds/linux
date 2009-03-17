@@ -1277,7 +1277,7 @@ static int usbdux_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 
 /* Mode 0 is used to get a single conversion on demand */
 static int usbdux_ai_insn_read(struct comedi_device *dev, struct comedi_subdevice *s,
-			       comedi_insn *insn, unsigned int *data)
+			       struct comedi_insn *insn, unsigned int *data)
 {
 	int i;
 	unsigned int one = 0;
@@ -1338,7 +1338,7 @@ static int usbdux_ai_insn_read(struct comedi_device *dev, struct comedi_subdevic
 /* analog out */
 
 static int usbdux_ao_insn_read(struct comedi_device *dev, struct comedi_subdevice *s,
-			       comedi_insn *insn, unsigned int *data)
+			       struct comedi_insn *insn, unsigned int *data)
 {
 	int i;
 	int chan = CR_CHAN(insn->chanspec);
@@ -1360,7 +1360,7 @@ static int usbdux_ao_insn_read(struct comedi_device *dev, struct comedi_subdevic
 }
 
 static int usbdux_ao_insn_write(struct comedi_device *dev, struct comedi_subdevice *s,
-				comedi_insn *insn, unsigned int *data)
+				struct comedi_insn *insn, unsigned int *data)
 {
 	int i, err;
 	int chan = CR_CHAN(insn->chanspec);
@@ -1698,7 +1698,7 @@ static int usbdux_ao_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 }
 
 static int usbdux_dio_insn_config(struct comedi_device *dev, struct comedi_subdevice *s,
-				  comedi_insn *insn, unsigned int *data)
+				  struct comedi_insn *insn, unsigned int *data)
 {
 	int chan = CR_CHAN(insn->chanspec);
 
@@ -1729,7 +1729,7 @@ static int usbdux_dio_insn_config(struct comedi_device *dev, struct comedi_subde
 }
 
 static int usbdux_dio_insn_bits(struct comedi_device *dev, struct comedi_subdevice *s,
-				comedi_insn *insn, unsigned int *data)
+				struct comedi_insn *insn, unsigned int *data)
 {
 
 	struct usbduxsub *this_usbduxsub = dev->private;
@@ -1776,7 +1776,7 @@ static int usbdux_dio_insn_bits(struct comedi_device *dev, struct comedi_subdevi
 
 /* reads the 4 counters, only two are used just now */
 static int usbdux_counter_read(struct comedi_device *dev, struct comedi_subdevice *s,
-			       comedi_insn *insn, unsigned int *data)
+			       struct comedi_insn *insn, unsigned int *data)
 {
 	struct usbduxsub *this_usbduxsub = dev->private;
 	int chan = insn->chanspec;
@@ -1810,7 +1810,7 @@ static int usbdux_counter_read(struct comedi_device *dev, struct comedi_subdevic
 }
 
 static int usbdux_counter_write(struct comedi_device *dev, struct comedi_subdevice *s,
-				comedi_insn *insn, unsigned int *data)
+				struct comedi_insn *insn, unsigned int *data)
 {
 	struct usbduxsub *this_usbduxsub = dev->private;
 	int err;
@@ -1840,7 +1840,7 @@ static int usbdux_counter_write(struct comedi_device *dev, struct comedi_subdevi
 }
 
 static int usbdux_counter_config(struct comedi_device *dev, struct comedi_subdevice *s,
-				 comedi_insn *insn, unsigned int *data)
+				 struct comedi_insn *insn, unsigned int *data)
 {
 	/* nothing to do so far */
 	return 2;
@@ -2098,7 +2098,7 @@ static int usbdux_pwm_pattern(struct comedi_device *dev, struct comedi_subdevice
 }
 
 static int usbdux_pwm_write(struct comedi_device *dev, struct comedi_subdevice *s,
-			    comedi_insn *insn, unsigned int *data)
+			    struct comedi_insn *insn, unsigned int *data)
 {
 	struct usbduxsub *this_usbduxsub = dev->private;
 
@@ -2123,7 +2123,7 @@ static int usbdux_pwm_write(struct comedi_device *dev, struct comedi_subdevice *
 }
 
 static int usbdux_pwm_read(struct comedi_device *x1, struct comedi_subdevice *x2,
-			   comedi_insn *x3, unsigned int *x4)
+			   struct comedi_insn *x3, unsigned int *x4)
 {
 	/* not needed */
 	return -EINVAL;
@@ -2131,7 +2131,7 @@ static int usbdux_pwm_read(struct comedi_device *x1, struct comedi_subdevice *x2
 
 /* switches on/off PWM */
 static int usbdux_pwm_config(struct comedi_device *dev, struct comedi_subdevice *s,
-			     comedi_insn *insn, unsigned int *data)
+			     struct comedi_insn *insn, unsigned int *data)
 {
 	struct usbduxsub *this_usbduxsub = dev->private;
 	switch (data[0]) {

@@ -198,9 +198,9 @@ MODULE_LICENSE("GPL");
 COMEDI_PCI_INITCLEANUP_NOMODULE(cb_pcimdda_driver, pci_table);
 
 static int ao_winsn(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data);
+	struct comedi_insn * insn, unsigned int * data);
 static int ao_rinsn(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data);
+	struct comedi_insn * insn, unsigned int * data);
 
 /*---------------------------------------------------------------------------
   HELPER FUNCTION DECLARATIONS
@@ -353,7 +353,7 @@ static int detach(struct comedi_device * dev)
 }
 
 static int ao_winsn(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	int i;
 	int chan = CR_CHAN(insn->chanspec);
@@ -392,7 +392,7 @@ static int ao_winsn(struct comedi_device * dev, struct comedi_subdevice * s,
    applications, I would imagine.
 */
 static int ao_rinsn(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	int i;
 	int chan = CR_CHAN(insn->chanspec);

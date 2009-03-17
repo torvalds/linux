@@ -32,7 +32,7 @@ static struct comedi_driver driver_pcl725 = {
 COMEDI_INITCLEANUP(driver_pcl725);
 
 static int pcl725_do_insn(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	if (insn->n != 2)
 		return -EINVAL;
@@ -49,7 +49,7 @@ static int pcl725_do_insn(struct comedi_device * dev, struct comedi_subdevice * 
 }
 
 static int pcl725_di_insn(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	if (insn->n != 2)
 		return -EINVAL;

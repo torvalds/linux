@@ -37,21 +37,21 @@
  */
 INT i_APCI1710_InsnConfigInitTorCounter(struct comedi_device *dev,
 					struct comedi_subdevice *s,
-					comedi_insn *insn, unsigned int *data);
+					struct comedi_insn *insn, unsigned int *data);
 
 INT i_APCI1710_InsnWriteEnableDisableTorCounter(struct comedi_device *dev,
 						struct comedi_subdevice *s,
-						comedi_insn *insn,
+						struct comedi_insn *insn,
 						unsigned int *data);
 
 INT i_APCI1710_InsnReadGetTorCounterInitialisation(struct comedi_device *dev,
 						   struct comedi_subdevice *s,
-						   comedi_insn *insn,
+						   struct comedi_insn *insn,
 						   unsigned int *data);
 /*
  * TOR_COUNTER READ FUNCTION
  */
 INT i_APCI1710_InsnBitsGetTorCounterProgressStatusAndValue(struct comedi_device *dev,
 							   struct comedi_subdevice *s,
-							   comedi_insn *insn,
+							   struct comedi_insn *insn,
 							   unsigned int *data);

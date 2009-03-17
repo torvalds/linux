@@ -227,7 +227,7 @@ static int pcl816_ai_cmd(struct comedi_device * dev, struct comedi_subdevice * s
    ANALOG INPUT MODE0, 816 cards, slow version
 */
 static int pcl816_ai_insn_read(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	int n;
 	int timeout;

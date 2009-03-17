@@ -140,13 +140,13 @@ Configuration Options:
 #define PAGE_INT_ID 3
 
 typedef int (*comedi_insn_fn_t) (struct comedi_device *, struct comedi_subdevice *,
-	comedi_insn *, unsigned int *);
+	struct comedi_insn *, unsigned int *);
 
-static int ai_rinsn(struct comedi_device *, struct comedi_subdevice *, comedi_insn *,
+static int ai_rinsn(struct comedi_device *, struct comedi_subdevice *, struct comedi_insn *,
 	unsigned int *);
-static int ao_rinsn(struct comedi_device *, struct comedi_subdevice *, comedi_insn *,
+static int ao_rinsn(struct comedi_device *, struct comedi_subdevice *, struct comedi_insn *,
 	unsigned int *);
-static int ao_winsn(struct comedi_device *, struct comedi_subdevice *, comedi_insn *,
+static int ao_winsn(struct comedi_device *, struct comedi_subdevice *, struct comedi_insn *,
 	unsigned int *);
 
 /*
@@ -296,9 +296,9 @@ static struct comedi_driver driver = {
 };
 
 static int pcmmio_dio_insn_bits(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data);
+	struct comedi_insn * insn, unsigned int * data);
 static int pcmmio_dio_insn_config(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data);
+	struct comedi_insn * insn, unsigned int * data);
 
 static irqreturn_t interrupt_pcmmio(int irq, void *d PT_REGS_ARG);
 static void pcmmio_stop_intr(struct comedi_device *, struct comedi_subdevice *);
@@ -551,7 +551,7 @@ static int pcmmio_detach(struct comedi_device * dev)
  * This allows packed reading/writing of the DIO channels.  The
  * comedi core can convert between insn_bits and insn_read/write */
 static int pcmmio_dio_insn_bits(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	int byte_no;
 	if (insn->n != 2)
@@ -625,7 +625,7 @@ static int pcmmio_dio_insn_bits(struct comedi_device * dev, struct comedi_subdev
  * contains the channel to be changed, and data[0] contains the
  * value COMEDI_INPUT or COMEDI_OUTPUT. */
 static int pcmmio_dio_insn_config(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	int chan = CR_CHAN(insn->chanspec), byte_no = chan / 8, bit_no =
 		chan % 8;
@@ -1195,7 +1195,7 @@ static int adc_wait_ready(unsigned long iobase)
 
 /* All this is for AI and AO */
 static int ai_rinsn(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	int n;
 	unsigned long iobase = subpriv->iobase;
@@ -1259,7 +1259,7 @@ static int ai_rinsn(struct comedi_device * dev, struct comedi_subdevice * s,
 }
 
 static int ao_rinsn(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	int n;
 	for (n = 0; n < insn->n; n++) {
@@ -1289,7 +1289,7 @@ static int wait_dac_ready(unsigned long iobase)
 }
 
 static int ao_winsn(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	int n;
 	unsigned iobase = subpriv->iobase, iooffset = 0;

@@ -526,7 +526,7 @@ static int atmio16d_ai_cancel(struct comedi_device * dev, struct comedi_subdevic
 
 /* Mode 0 is used to get a single conversion on demand */
 static int atmio16d_ai_insn_read(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	int i, t;
 	int chan;
@@ -585,7 +585,7 @@ static int atmio16d_ai_insn_read(struct comedi_device * dev, struct comedi_subde
 }
 
 static int atmio16d_ao_insn_read(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	int i;
 #ifdef DEBUG1
@@ -600,7 +600,7 @@ static int atmio16d_ao_insn_read(struct comedi_device * dev, struct comedi_subde
 }
 
 static int atmio16d_ao_insn_write(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	int i;
 	int chan;
@@ -635,7 +635,7 @@ static int atmio16d_ao_insn_write(struct comedi_device * dev, struct comedi_subd
 }
 
 static int atmio16d_dio_insn_bits(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	if (insn->n != 2)
 		return -EINVAL;
@@ -651,7 +651,7 @@ static int atmio16d_dio_insn_bits(struct comedi_device * dev, struct comedi_subd
 }
 
 static int atmio16d_dio_insn_config(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	int i;
 	int mask;

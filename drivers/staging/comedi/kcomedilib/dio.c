@@ -29,7 +29,7 @@
 int comedi_dio_config(void *dev, unsigned int subdev, unsigned int chan,
 	unsigned int io)
 {
-	comedi_insn insn;
+	struct comedi_insn insn;
 
 	memset(&insn, 0, sizeof(insn));
 	insn.insn = INSN_CONFIG;
@@ -44,7 +44,7 @@ int comedi_dio_config(void *dev, unsigned int subdev, unsigned int chan,
 int comedi_dio_read(void *dev, unsigned int subdev, unsigned int chan,
 	unsigned int *val)
 {
-	comedi_insn insn;
+	struct comedi_insn insn;
 
 	memset(&insn, 0, sizeof(insn));
 	insn.insn = INSN_READ;
@@ -59,7 +59,7 @@ int comedi_dio_read(void *dev, unsigned int subdev, unsigned int chan,
 int comedi_dio_write(void *dev, unsigned int subdev, unsigned int chan,
 	unsigned int val)
 {
-	comedi_insn insn;
+	struct comedi_insn insn;
 
 	memset(&insn, 0, sizeof(insn));
 	insn.insn = INSN_WRITE;
@@ -74,7 +74,7 @@ int comedi_dio_write(void *dev, unsigned int subdev, unsigned int chan,
 int comedi_dio_bitfield(void *dev, unsigned int subdev, unsigned int mask,
 	unsigned int *bits)
 {
-	comedi_insn insn;
+	struct comedi_insn insn;
 	unsigned int data[2];
 	int ret;
 

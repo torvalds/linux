@@ -691,15 +691,15 @@ static struct comedi_driver rtd520Driver = {
 };
 
 static int rtd_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
-	comedi_insn *insn, unsigned int *data);
+	struct comedi_insn *insn, unsigned int *data);
 static int rtd_ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
-	comedi_insn *insn, unsigned int *data);
+	struct comedi_insn *insn, unsigned int *data);
 static int rtd_ao_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
-	comedi_insn *insn, unsigned int *data);
+	struct comedi_insn *insn, unsigned int *data);
 static int rtd_dio_insn_bits(struct comedi_device *dev, struct comedi_subdevice *s,
-	comedi_insn *insn, unsigned int *data);
+	struct comedi_insn *insn, unsigned int *data);
 static int rtd_dio_insn_config(struct comedi_device *dev, struct comedi_subdevice *s,
-	comedi_insn *insn, unsigned int *data);
+	struct comedi_insn *insn, unsigned int *data);
 static int rtd_ai_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
 	struct comedi_cmd *cmd);
 static int rtd_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s);
@@ -1255,7 +1255,7 @@ static int rtd520_probe_fifo_depth(struct comedi_device *dev)
   select, delay, then read.
  */
 static int rtd_ai_rinsn(struct comedi_device *dev,
-	struct comedi_subdevice *s, comedi_insn *insn, unsigned int *data)
+	struct comedi_subdevice *s, struct comedi_insn *insn, unsigned int *data)
 {
 	int n, ii;
 	int stat;
@@ -2136,7 +2136,7 @@ static int rtd_ns_to_timer(unsigned int *ns, int round_mode)
   Output one (or more) analog values to a single port as fast as possible.
 */
 static int rtd_ao_winsn(struct comedi_device *dev,
-	struct comedi_subdevice *s, comedi_insn *insn, unsigned int *data)
+	struct comedi_subdevice *s, struct comedi_insn *insn, unsigned int *data)
 {
 	int i;
 	int chan = CR_CHAN(insn->chanspec);
@@ -2191,7 +2191,7 @@ static int rtd_ao_winsn(struct comedi_device *dev,
 /* AO subdevices should have a read insn as well as a write insn.
  * Usually this means copying a value stored in devpriv. */
 static int rtd_ao_rinsn(struct comedi_device *dev,
-	struct comedi_subdevice *s, comedi_insn *insn, unsigned int *data)
+	struct comedi_subdevice *s, struct comedi_insn *insn, unsigned int *data)
 {
 	int i;
 	int chan = CR_CHAN(insn->chanspec);
@@ -2214,7 +2214,7 @@ static int rtd_ao_rinsn(struct comedi_device *dev,
  * comedi core can convert between insn_bits and insn_read/write
  */
 static int rtd_dio_insn_bits(struct comedi_device *dev,
-	struct comedi_subdevice *s, comedi_insn *insn, unsigned int *data)
+	struct comedi_subdevice *s, struct comedi_insn *insn, unsigned int *data)
 {
 	if (insn->n != 2)
 		return -EINVAL;
@@ -2241,7 +2241,7 @@ static int rtd_dio_insn_bits(struct comedi_device *dev,
   Configure one bit on a IO port as Input or Output (hence the name :-).
 */
 static int rtd_dio_insn_config(struct comedi_device *dev,
-	struct comedi_subdevice *s, comedi_insn *insn, unsigned int *data)
+	struct comedi_subdevice *s, struct comedi_insn *insn, unsigned int *data)
 {
 	int chan = CR_CHAN(insn->chanspec);
 

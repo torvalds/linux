@@ -478,7 +478,7 @@ pci224_ao_set_data(struct comedi_device * dev, int chan, int range, unsigned int
  */
 static int
 pci224_ao_insn_write(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	int i;
 	int chan, range;
@@ -505,7 +505,7 @@ pci224_ao_insn_write(struct comedi_device * dev, struct comedi_subdevice * s,
  */
 static int
 pci224_ao_insn_read(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	int i;
 	int chan;

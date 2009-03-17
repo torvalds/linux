@@ -41,25 +41,25 @@
 
 //DO
 int i_APCI2016_ConfigDigitalOutput(struct comedi_device *dev, struct comedi_subdevice *s,
-				   comedi_insn *insn, unsigned int *data);
+				   struct comedi_insn *insn, unsigned int *data);
 
 int i_APCI2016_WriteDigitalOutput(struct comedi_device *dev, struct comedi_subdevice *s,
-				  comedi_insn *insn, unsigned int *data);
+				  struct comedi_insn *insn, unsigned int *data);
 
 int i_APCI2016_BitsDigitalOutput(struct comedi_device *dev, struct comedi_subdevice *s,
-				 comedi_insn *insn, unsigned int *data);
+				 struct comedi_insn *insn, unsigned int *data);
 
 // TIMER
 // timer value is passed as u seconds
 
 int i_APCI2016_ConfigWatchdog(struct comedi_device *dev, struct comedi_subdevice *s,
-			      comedi_insn *insn, unsigned int *data);
+			      struct comedi_insn *insn, unsigned int *data);
 
 int i_APCI2016_StartStopWriteWatchdog(struct comedi_device *dev, struct comedi_subdevice *s,
-				      comedi_insn *insn, unsigned int *data);
+				      struct comedi_insn *insn, unsigned int *data);
 
 int i_APCI2016_ReadWatchdog(struct comedi_device *dev, struct comedi_subdevice *s,
-			    comedi_insn *insn, unsigned int *data);
+			    struct comedi_insn *insn, unsigned int *data);
 
 // Interrupt functions.....
 

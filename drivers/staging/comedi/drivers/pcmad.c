@@ -93,7 +93,7 @@ COMEDI_INITCLEANUP(driver_pcmad);
 #define TIMEOUT	100
 
 static int pcmad_ai_insn_read(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	int i;
 	int chan;

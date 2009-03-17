@@ -56,9 +56,9 @@ static struct comedi_driver driver_mpc8260cpm = {
 COMEDI_INITCLEANUP(driver_mpc8260cpm);
 
 static int mpc8260cpm_dio_config(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data);
+	struct comedi_insn * insn, unsigned int * data);
 static int mpc8260cpm_dio_bits(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data);
+	struct comedi_insn * insn, unsigned int * data);
 
 static int mpc8260cpm_attach(struct comedi_device * dev, comedi_devconfig * it)
 {
@@ -113,7 +113,7 @@ static unsigned long *cpm_pdat(int port)
 }
 
 static int mpc8260cpm_dio_config(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	int n;
 	unsigned int d;
@@ -156,7 +156,7 @@ static int mpc8260cpm_dio_config(struct comedi_device * dev, struct comedi_subde
 }
 
 static int mpc8260cpm_dio_bits(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	int port;
 	unsigned long *p;

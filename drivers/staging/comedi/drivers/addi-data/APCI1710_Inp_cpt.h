@@ -23,11 +23,11 @@
 
 INT i_APCI1710_InsnConfigInitPulseEncoder(struct comedi_device *dev,
 					  struct comedi_subdevice *s,
-					  comedi_insn *insn, unsigned int *data);
+					  struct comedi_insn *insn, unsigned int *data);
 
 INT i_APCI1710_InsnWriteEnableDisablePulseEncoder(struct comedi_device *dev,
 						  struct comedi_subdevice *s,
-						  comedi_insn *insn,
+						  struct comedi_insn *insn,
 						  unsigned int *data);
 
 /*
@@ -35,7 +35,7 @@ INT i_APCI1710_InsnWriteEnableDisablePulseEncoder(struct comedi_device *dev,
  */
 INT i_APCI1710_InsnReadInterruptPulseEncoder(struct comedi_device *dev,
 					     struct comedi_subdevice *s,
-					     comedi_insn *insn,
+					     struct comedi_insn *insn,
 					     unsigned int *data);
 
 /*
@@ -43,5 +43,5 @@ INT i_APCI1710_InsnReadInterruptPulseEncoder(struct comedi_device *dev,
  */
 INT i_APCI1710_InsnBitsReadWritePulseEncoder(struct comedi_device *dev,
 					     struct comedi_subdevice *s,
-					     comedi_insn *insn,
+					     struct comedi_insn *insn,
 					     unsigned int *data);

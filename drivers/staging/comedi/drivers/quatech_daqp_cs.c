@@ -362,7 +362,7 @@ static void daqp_interrupt(int irq, void *dev_id PT_REGS_ARG)
 /* One-shot analog data acquisition routine */
 
 static int daqp_ai_insn_read(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	local_info_t *local = (local_info_t *) s->private;
 	int i;
@@ -794,7 +794,7 @@ static int daqp_ai_cmd(struct comedi_device * dev, struct comedi_subdevice * s)
 /* Single-shot analog output routine */
 
 static int daqp_ao_insn_write(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	local_info_t *local = (local_info_t *) s->private;
 	int d;
@@ -821,7 +821,7 @@ static int daqp_ao_insn_write(struct comedi_device * dev, struct comedi_subdevic
 /* Digital input routine */
 
 static int daqp_di_insn_read(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	local_info_t *local = (local_info_t *) s->private;
 
@@ -837,7 +837,7 @@ static int daqp_di_insn_read(struct comedi_device * dev, struct comedi_subdevice
 /* Digital output routine */
 
 static int daqp_do_insn_write(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	local_info_t *local = (local_info_t *) s->private;
 

@@ -30,7 +30,7 @@
 int comedi_data_write(void *dev, unsigned int subdev, unsigned int chan,
 	unsigned int range, unsigned int aref, unsigned int data)
 {
-	comedi_insn insn;
+	struct comedi_insn insn;
 
 	memset(&insn, 0, sizeof(insn));
 	insn.insn = INSN_WRITE;
@@ -45,7 +45,7 @@ int comedi_data_write(void *dev, unsigned int subdev, unsigned int chan,
 int comedi_data_read(void *dev, unsigned int subdev, unsigned int chan,
 	unsigned int range, unsigned int aref, unsigned int *data)
 {
-	comedi_insn insn;
+	struct comedi_insn insn;
 
 	memset(&insn, 0, sizeof(insn));
 	insn.insn = INSN_READ;
@@ -60,7 +60,7 @@ int comedi_data_read(void *dev, unsigned int subdev, unsigned int chan,
 int comedi_data_read_hint(void *dev, unsigned int subdev,
 	unsigned int chan, unsigned int range, unsigned int aref)
 {
-	comedi_insn insn;
+	struct comedi_insn insn;
 	unsigned int dummy_data;
 
 	memset(&insn, 0, sizeof(insn));

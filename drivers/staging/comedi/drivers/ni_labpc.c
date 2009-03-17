@@ -174,19 +174,19 @@ static int labpc_ai_cmdtest(struct comedi_device * dev, struct comedi_subdevice 
 	struct comedi_cmd * cmd);
 static int labpc_ai_cmd(struct comedi_device * dev, struct comedi_subdevice * s);
 static int labpc_ai_rinsn(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data);
+	struct comedi_insn * insn, unsigned int * data);
 static int labpc_ao_winsn(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data);
+	struct comedi_insn * insn, unsigned int * data);
 static int labpc_ao_rinsn(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data);
+	struct comedi_insn * insn, unsigned int * data);
 static int labpc_calib_read_insn(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data);
+	struct comedi_insn * insn, unsigned int * data);
 static int labpc_calib_write_insn(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data);
+	struct comedi_insn * insn, unsigned int * data);
 static int labpc_eeprom_read_insn(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data);
+	struct comedi_insn * insn, unsigned int * data);
 static int labpc_eeprom_write_insn(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data);
+	struct comedi_insn * insn, unsigned int * data);
 static unsigned int labpc_suggest_transfer_size(struct comedi_cmd cmd);
 static void labpc_adc_timing(struct comedi_device * dev, struct comedi_cmd * cmd);
 #ifdef CONFIG_COMEDI_PCI
@@ -1501,7 +1501,7 @@ static void labpc_drain_dregs(struct comedi_device * dev)
 }
 
 static int labpc_ai_rinsn(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	int i, n;
 	int chan, range;
@@ -1587,7 +1587,7 @@ static int labpc_ai_rinsn(struct comedi_device * dev, struct comedi_subdevice * 
 
 // analog output insn
 static int labpc_ao_winsn(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	int channel, range;
 	unsigned long flags;
@@ -1628,7 +1628,7 @@ static int labpc_ao_winsn(struct comedi_device * dev, struct comedi_subdevice * 
 
 // analog output readback insn
 static int labpc_ao_rinsn(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	data[0] = devpriv->ao_value[CR_CHAN(insn->chanspec)];
 
@@ -1636,7 +1636,7 @@ static int labpc_ao_rinsn(struct comedi_device * dev, struct comedi_subdevice * 
 }
 
 static int labpc_calib_read_insn(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	data[0] = devpriv->caldac[CR_CHAN(insn->chanspec)];
 
@@ -1644,7 +1644,7 @@ static int labpc_calib_read_insn(struct comedi_device * dev, struct comedi_subde
 }
 
 static int labpc_calib_write_insn(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	int channel = CR_CHAN(insn->chanspec);
 
@@ -1653,7 +1653,7 @@ static int labpc_calib_write_insn(struct comedi_device * dev, struct comedi_subd
 }
 
 static int labpc_eeprom_read_insn(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	data[0] = devpriv->eeprom_data[CR_CHAN(insn->chanspec)];
 
@@ -1661,7 +1661,7 @@ static int labpc_eeprom_read_insn(struct comedi_device * dev, struct comedi_subd
 }
 
 static int labpc_eeprom_write_insn(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	int channel = CR_CHAN(insn->chanspec);
 	int ret;

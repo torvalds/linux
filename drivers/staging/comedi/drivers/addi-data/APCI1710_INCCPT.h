@@ -133,16 +133,16 @@
 
 /************ Main Functions *************/
 INT i_APCI1710_InsnConfigINCCPT(struct comedi_device *dev, struct comedi_subdevice *s,
-				comedi_insn *insn, unsigned int * data);
+				struct comedi_insn *insn, unsigned int * data);
 
 INT i_APCI1710_InsnBitsINCCPT(struct comedi_device *dev, struct comedi_subdevice * s,
-			      comedi_insn *insn, unsigned int * data);
+			      struct comedi_insn *insn, unsigned int * data);
 
 INT i_APCI1710_InsnWriteINCCPT(struct comedi_device *dev, struct comedi_subdevice * s,
-			       comedi_insn *insn, unsigned int * data);
+			       struct comedi_insn *insn, unsigned int * data);
 
 INT i_APCI1710_InsnReadINCCPT(struct comedi_device *dev, struct comedi_subdevice * s,
-			      comedi_insn *insn, unsigned int * data);
+			      struct comedi_insn *insn, unsigned int * data);
 
 /*********** Supplementary Functions********/
 

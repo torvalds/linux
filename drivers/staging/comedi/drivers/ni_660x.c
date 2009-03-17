@@ -465,17 +465,17 @@ static int ni_660x_set_pfi_routing(struct comedi_device * dev, unsigned chan,
 
 /* Possible instructions for a GPCT */
 static int ni_660x_GPCT_rinsn(struct comedi_device * dev,
-	struct comedi_subdevice * s, comedi_insn * insn, unsigned int * data);
+	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data);
 static int ni_660x_GPCT_insn_config(struct comedi_device * dev,
-	struct comedi_subdevice * s, comedi_insn * insn, unsigned int * data);
+	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data);
 static int ni_660x_GPCT_winsn(struct comedi_device * dev,
-	struct comedi_subdevice * s, comedi_insn * insn, unsigned int * data);
+	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data);
 
 /* Possible instructions for Digital IO */
 static int ni_660x_dio_insn_config(struct comedi_device * dev,
-	struct comedi_subdevice * s, comedi_insn * insn, unsigned int * data);
+	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data);
 static int ni_660x_dio_insn_bits(struct comedi_device * dev,
-	struct comedi_subdevice * s, comedi_insn * insn, unsigned int * data);
+	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data);
 
 static inline unsigned ni_660x_num_counters(struct comedi_device * dev)
 {
@@ -1121,7 +1121,7 @@ static int ni_660x_detach(struct comedi_device * dev)
 
 static int
 ni_660x_GPCT_rinsn(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	return ni_tio_rinsn(subdev_to_counter(s), insn, data);
 }
@@ -1148,13 +1148,13 @@ static void init_tio_chip(struct comedi_device * dev, int chipset)
 
 static int
 ni_660x_GPCT_insn_config(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	return ni_tio_insn_config(subdev_to_counter(s), insn, data);
 }
 
 static int ni_660x_GPCT_winsn(struct comedi_device * dev,
-	struct comedi_subdevice * s, comedi_insn * insn, unsigned int * data)
+	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data)
 {
 	return ni_tio_winsn(subdev_to_counter(s), insn, data);
 }
@@ -1187,7 +1187,7 @@ static int ni_660x_find_device(struct comedi_device * dev, int bus, int slot)
 }
 
 static int ni_660x_dio_insn_bits(struct comedi_device * dev,
-	struct comedi_subdevice * s, comedi_insn * insn, unsigned int * data)
+	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data)
 {
 	unsigned base_bitfield_channel = CR_CHAN(insn->chanspec);
 
@@ -1280,7 +1280,7 @@ static void ni660x_config_filter(struct comedi_device * dev, unsigned pfi_channe
 }
 
 static int ni_660x_dio_insn_config(struct comedi_device * dev,
-	struct comedi_subdevice * s, comedi_insn * insn, unsigned int * data)
+	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data)
 {
 	int chan = CR_CHAN(insn->chanspec);
 

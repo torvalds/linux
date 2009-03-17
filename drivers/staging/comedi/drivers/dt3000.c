@@ -668,7 +668,7 @@ static int dt3k_ai_cancel(struct comedi_device * dev, struct comedi_subdevice * 
 }
 
 static int dt3k_ai_insn(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	int i;
 	unsigned int chan, gain, aref;
@@ -686,7 +686,7 @@ static int dt3k_ai_insn(struct comedi_device * dev, struct comedi_subdevice * s,
 }
 
 static int dt3k_ao_insn(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	int i;
 	unsigned int chan;
@@ -701,7 +701,7 @@ static int dt3k_ao_insn(struct comedi_device * dev, struct comedi_subdevice * s,
 }
 
 static int dt3k_ao_insn_read(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	int i;
 	unsigned int chan;
@@ -730,7 +730,7 @@ static void dt3k_dio_config(struct comedi_device * dev, int bits)
 }
 
 static int dt3k_dio_insn_config(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	int mask;
 
@@ -761,7 +761,7 @@ static int dt3k_dio_insn_config(struct comedi_device * dev, struct comedi_subdev
 }
 
 static int dt3k_dio_insn_bits(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	if (insn->n != 2)
 		return -EINVAL;
@@ -777,7 +777,7 @@ static int dt3k_dio_insn_bits(struct comedi_device * dev, struct comedi_subdevic
 }
 
 static int dt3k_mem_insn_read(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	unsigned int addr = CR_CHAN(insn->chanspec);
 	int i;

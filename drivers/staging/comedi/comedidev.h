@@ -155,13 +155,13 @@ struct comedi_subdevice {
 
 	unsigned int *chanlist;	/* driver-owned chanlist (not used) */
 
-	int (*insn_read) (struct comedi_device *, struct comedi_subdevice *, comedi_insn *,
+	int (*insn_read) (struct comedi_device *, struct comedi_subdevice *, struct comedi_insn *,
 		unsigned int *);
-	int (*insn_write) (struct comedi_device *, struct comedi_subdevice *, comedi_insn *,
+	int (*insn_write) (struct comedi_device *, struct comedi_subdevice *, struct comedi_insn *,
 		unsigned int *);
-	int (*insn_bits) (struct comedi_device *, struct comedi_subdevice *, comedi_insn *,
+	int (*insn_bits) (struct comedi_device *, struct comedi_subdevice *, struct comedi_insn *,
 		unsigned int *);
-	int (*insn_config) (struct comedi_device *, struct comedi_subdevice *, comedi_insn *,
+	int (*insn_config) (struct comedi_device *, struct comedi_subdevice *, struct comedi_insn *,
 		unsigned int *);
 
 	int (*do_cmd) (struct comedi_device *, struct comedi_subdevice *);
@@ -381,7 +381,7 @@ void comedi_set_subdevice_runflags(struct comedi_subdevice *s, unsigned mask,
 	unsigned bits);
 unsigned comedi_get_subdevice_runflags(struct comedi_subdevice *s);
 int insn_inval(struct comedi_device *dev, struct comedi_subdevice *s,
-	comedi_insn *insn, unsigned int *data);
+	struct comedi_insn *insn, unsigned int *data);
 
 /* range stuff */
 

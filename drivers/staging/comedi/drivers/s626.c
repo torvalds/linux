@@ -223,32 +223,32 @@ COMEDI_PCI_INITCLEANUP_NOMODULE(driver_s626, s626_pci_table);
 
 /* ioctl routines */
 static int s626_ai_insn_config(struct comedi_device *dev, struct comedi_subdevice *s,
-	comedi_insn *insn, unsigned int *data);
-/* static int s626_ai_rinsn(struct comedi_device *dev,struct comedi_subdevice *s,comedi_insn *insn,unsigned int *data); */
+	struct comedi_insn *insn, unsigned int *data);
+/* static int s626_ai_rinsn(struct comedi_device *dev,struct comedi_subdevice *s,struct comedi_insn *insn,unsigned int *data); */
 static int s626_ai_insn_read(struct comedi_device *dev, struct comedi_subdevice *s,
-	comedi_insn *insn, unsigned int *data);
+	struct comedi_insn *insn, unsigned int *data);
 static int s626_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s);
 static int s626_ai_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
 	struct comedi_cmd *cmd);
 static int s626_ai_cancel(struct comedi_device *dev, struct comedi_subdevice *s);
 static int s626_ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
-	comedi_insn *insn, unsigned int *data);
+	struct comedi_insn *insn, unsigned int *data);
 static int s626_ao_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
-	comedi_insn *insn, unsigned int *data);
+	struct comedi_insn *insn, unsigned int *data);
 static int s626_dio_insn_bits(struct comedi_device *dev, struct comedi_subdevice *s,
-	comedi_insn *insn, unsigned int *data);
+	struct comedi_insn *insn, unsigned int *data);
 static int s626_dio_insn_config(struct comedi_device *dev, struct comedi_subdevice *s,
-	comedi_insn *insn, unsigned int *data);
+	struct comedi_insn *insn, unsigned int *data);
 static int s626_dio_set_irq(struct comedi_device *dev, unsigned int chan);
 static int s626_dio_reset_irq(struct comedi_device *dev, unsigned int gruop,
 	unsigned int mask);
 static int s626_dio_clear_irq(struct comedi_device *dev);
 static int s626_enc_insn_config(struct comedi_device *dev, struct comedi_subdevice *s,
-	comedi_insn *insn, unsigned int *data);
+	struct comedi_insn *insn, unsigned int *data);
 static int s626_enc_insn_read(struct comedi_device *dev, struct comedi_subdevice *s,
-	comedi_insn *insn, unsigned int *data);
+	struct comedi_insn *insn, unsigned int *data);
 static int s626_enc_insn_write(struct comedi_device *dev, struct comedi_subdevice *s,
-	comedi_insn *insn, unsigned int *data);
+	struct comedi_insn *insn, unsigned int *data);
 static int s626_ns_to_timer(int *nanosec, int round_mode);
 static int s626_ai_load_polllist(uint8_t *ppl, struct comedi_cmd *cmd);
 static int s626_ai_inttrig(struct comedi_device *dev, struct comedi_subdevice *s,
@@ -1504,13 +1504,13 @@ void ResetADC(struct comedi_device *dev, uint8_t *ppl)
 
 /* TO COMPLETE, IF NECESSARY */
 static int s626_ai_insn_config(struct comedi_device *dev, struct comedi_subdevice *s,
-	comedi_insn *insn, unsigned int *data)
+	struct comedi_insn *insn, unsigned int *data)
 {
 
 	return -EINVAL;
 }
 
-/* static int s626_ai_rinsn(struct comedi_device *dev,struct comedi_subdevice *s,comedi_insn *insn,unsigned int *data) */
+/* static int s626_ai_rinsn(struct comedi_device *dev,struct comedi_subdevice *s,struct comedi_insn *insn,unsigned int *data) */
 /* { */
 /*   register uint8_t	i; */
 /*   register int32_t	*readaddr; */
@@ -1541,7 +1541,7 @@ static int s626_ai_insn_config(struct comedi_device *dev, struct comedi_subdevic
 /* } */
 
 static int s626_ai_insn_read(struct comedi_device *dev, struct comedi_subdevice *s,
-	comedi_insn *insn, unsigned int *data)
+	struct comedi_insn *insn, unsigned int *data)
 {
 	uint16_t chan = CR_CHAN(insn->chanspec);
 	uint16_t range = CR_RANGE(insn->chanspec);
@@ -2046,7 +2046,7 @@ static int s626_ns_to_timer(int *nanosec, int round_mode)
 }
 
 static int s626_ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
-	comedi_insn *insn, unsigned int *data)
+	struct comedi_insn *insn, unsigned int *data)
 {
 
 	int i;
@@ -2065,7 +2065,7 @@ static int s626_ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
 }
 
 static int s626_ao_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
-	comedi_insn *insn, unsigned int *data)
+	struct comedi_insn *insn, unsigned int *data)
 {
 	int i;
 
@@ -2111,7 +2111,7 @@ static void s626_dio_init(struct comedi_device *dev)
  * core can convert between insn_bits and insn_read/write */
 
 static int s626_dio_insn_bits(struct comedi_device *dev, struct comedi_subdevice *s,
-	comedi_insn *insn, unsigned int *data)
+	struct comedi_insn *insn, unsigned int *data)
 {
 
 	/* Length of data must be 2 (mask and new data, see below) */
@@ -2147,7 +2147,7 @@ static int s626_dio_insn_bits(struct comedi_device *dev, struct comedi_subdevice
 }
 
 static int s626_dio_insn_config(struct comedi_device *dev, struct comedi_subdevice *s,
-	comedi_insn *insn, unsigned int *data)
+	struct comedi_insn *insn, unsigned int *data)
 {
 
 	switch (data[0]) {
@@ -2252,7 +2252,7 @@ static int s626_dio_clear_irq(struct comedi_device *dev)
    and set the subdevice. To complete with trigger and interrupt
    configuration */
 static int s626_enc_insn_config(struct comedi_device *dev, struct comedi_subdevice *s,
-	comedi_insn *insn, unsigned int *data)
+	struct comedi_insn *insn, unsigned int *data)
 {
 	uint16_t Setup = (LOADSRC_INDX << BF_LOADSRC) |	/*  Preload upon */
 		/*  index. */
@@ -2282,7 +2282,7 @@ static int s626_enc_insn_config(struct comedi_device *dev, struct comedi_subdevi
 }
 
 static int s626_enc_insn_read(struct comedi_device *dev, struct comedi_subdevice *s,
-	comedi_insn *insn, unsigned int *data)
+	struct comedi_insn *insn, unsigned int *data)
 {
 
 	int n;
@@ -2300,7 +2300,7 @@ static int s626_enc_insn_read(struct comedi_device *dev, struct comedi_subdevice
 }
 
 static int s626_enc_insn_write(struct comedi_device *dev, struct comedi_subdevice *s,
-	comedi_insn *insn, unsigned int *data)
+	struct comedi_insn *insn, unsigned int *data)
 {
 
 	struct enc_private *k = &encpriv[CR_CHAN(insn->chanspec)];

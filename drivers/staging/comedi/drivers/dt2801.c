@@ -225,15 +225,15 @@ typedef struct {
 #define devpriv ((dt2801_private *)dev->private)
 
 static int dt2801_ai_insn_read(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data);
+	struct comedi_insn * insn, unsigned int * data);
 static int dt2801_ao_insn_read(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data);
+	struct comedi_insn * insn, unsigned int * data);
 static int dt2801_ao_insn_write(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data);
+	struct comedi_insn * insn, unsigned int * data);
 static int dt2801_dio_insn_bits(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data);
+	struct comedi_insn * insn, unsigned int * data);
 static int dt2801_dio_insn_config(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data);
+	struct comedi_insn * insn, unsigned int * data);
 
 /* These are the low-level routines:
    writecommand: write a command to the board
@@ -606,7 +606,7 @@ static int dt2801_error(struct comedi_device * dev, int stat)
 }
 
 static int dt2801_ai_insn_read(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	int d;
 	int stat;
@@ -628,7 +628,7 @@ static int dt2801_ai_insn_read(struct comedi_device * dev, struct comedi_subdevi
 }
 
 static int dt2801_ao_insn_read(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	data[0] = devpriv->ao_readback[CR_CHAN(insn->chanspec)];
 
@@ -636,7 +636,7 @@ static int dt2801_ao_insn_read(struct comedi_device * dev, struct comedi_subdevi
 }
 
 static int dt2801_ao_insn_write(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	dt2801_writecmd(dev, DT_C_WRITE_DAIM);
 	dt2801_writedata(dev, CR_CHAN(insn->chanspec));
@@ -648,7 +648,7 @@ static int dt2801_ao_insn_write(struct comedi_device * dev, struct comedi_subdev
 }
 
 static int dt2801_dio_insn_bits(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	int which = 0;
 
@@ -672,7 +672,7 @@ static int dt2801_dio_insn_bits(struct comedi_device * dev, struct comedi_subdev
 }
 
 static int dt2801_dio_insn_config(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	int which = 0;
 

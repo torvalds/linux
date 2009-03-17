@@ -25,7 +25,7 @@ Copy/pasted/hacked from pcm724.c
 */
 /*
  * check_driver overrides:
- *   comedi_insn
+ *   struct comedi_insn
  */
 
 #include "../comedidev.h"
@@ -215,7 +215,7 @@ static void enable_chan(struct comedi_device * dev, struct comedi_subdevice * s,
 
 /* overriding the 8255 insn config */
 static int subdev_3724_insn_config(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	unsigned int mask;
 	unsigned int bits;

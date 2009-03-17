@@ -292,7 +292,7 @@ static inline void sleep(unsigned sec)
  * ------------------------------------------------------------------
  */
 static int me_dio_insn_config(struct comedi_device *dev, struct comedi_subdevice *s,
-			      comedi_insn *insn, unsigned int *data)
+			      struct comedi_insn *insn, unsigned int *data)
 {
 	int bits;
 	int mask = 1 << CR_CHAN(insn->chanspec);
@@ -328,7 +328,7 @@ static int me_dio_insn_config(struct comedi_device *dev, struct comedi_subdevice
 
 /* Digital instant input/outputs */
 static int me_dio_insn_bits(struct comedi_device *dev, struct comedi_subdevice *s,
-			    comedi_insn *insn, unsigned int *data)
+			    struct comedi_insn *insn, unsigned int *data)
 {
 	unsigned int mask = data[0];
 	s->state &= ~mask;
@@ -364,7 +364,7 @@ static int me_dio_insn_bits(struct comedi_device *dev, struct comedi_subdevice *
 
 /* Analog instant input */
 static int me_ai_insn_read(struct comedi_device *dev, struct comedi_subdevice *subdevice,
-			   comedi_insn *insn, unsigned int *data)
+			   struct comedi_insn *insn, unsigned int *data)
 {
 	unsigned short value;
 	int chan = CR_CHAN((&insn->chanspec)[0]);
@@ -471,7 +471,7 @@ static int me_ai_do_cmd(struct comedi_device *dev, struct comedi_subdevice *subd
 
 /* Analog instant output */
 static int me_ao_insn_write(struct comedi_device *dev, struct comedi_subdevice *s,
-			    comedi_insn *insn, unsigned int *data)
+			    struct comedi_insn *insn, unsigned int *data)
 {
 	int chan;
 	int rang;
@@ -521,7 +521,7 @@ static int me_ao_insn_write(struct comedi_device *dev, struct comedi_subdevice *
 
 /* Analog output readback */
 static int me_ao_insn_read(struct comedi_device *dev, struct comedi_subdevice *s,
-			   comedi_insn *insn, unsigned int *data)
+			   struct comedi_insn *insn, unsigned int *data)
 {
 	int i;
 

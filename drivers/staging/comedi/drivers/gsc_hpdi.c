@@ -337,7 +337,7 @@ static struct comedi_driver driver_hpdi = {
 COMEDI_PCI_INITCLEANUP(driver_hpdi, hpdi_pci_table);
 
 static int dio_config_insn(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	switch (data[0]) {
 	case INSN_CONFIG_DIO_OUTPUT:

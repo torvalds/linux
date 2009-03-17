@@ -941,7 +941,7 @@ static void dt9812_comedi_open(struct comedi_device *dev)
 }
 
 static int dt9812_di_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
-			   comedi_insn *insn, unsigned int *data)
+			   struct comedi_insn *insn, unsigned int *data)
 {
 	int n;
 	u8 bits = 0;
@@ -953,7 +953,7 @@ static int dt9812_di_rinsn(struct comedi_device *dev, struct comedi_subdevice *s
 }
 
 static int dt9812_do_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
-			   comedi_insn *insn, unsigned int *data)
+			   struct comedi_insn *insn, unsigned int *data)
 {
 	int n;
 	u8 bits = 0;
@@ -971,7 +971,7 @@ static int dt9812_do_winsn(struct comedi_device *dev, struct comedi_subdevice *s
 }
 
 static int dt9812_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
-			   comedi_insn *insn, unsigned int *data)
+			   struct comedi_insn *insn, unsigned int *data)
 {
 	int n;
 
@@ -986,7 +986,7 @@ static int dt9812_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s
 }
 
 static int dt9812_ao_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
-			   comedi_insn *insn, unsigned int *data)
+			   struct comedi_insn *insn, unsigned int *data)
 {
 	int n;
 	u16 value;
@@ -1000,7 +1000,7 @@ static int dt9812_ao_rinsn(struct comedi_device *dev, struct comedi_subdevice *s
 }
 
 static int dt9812_ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
-			   comedi_insn *insn, unsigned int *data)
+			   struct comedi_insn *insn, unsigned int *data)
 {
 	int n;
 

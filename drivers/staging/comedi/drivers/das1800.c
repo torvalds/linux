@@ -200,13 +200,13 @@ static int das1800_ai_do_cmdtest(struct comedi_device * dev, struct comedi_subde
 	struct comedi_cmd * cmd);
 static int das1800_ai_do_cmd(struct comedi_device * dev, struct comedi_subdevice * s);
 static int das1800_ai_rinsn(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data);
+	struct comedi_insn * insn, unsigned int * data);
 static int das1800_ao_winsn(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data);
+	struct comedi_insn * insn, unsigned int * data);
 static int das1800_di_rbits(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data);
+	struct comedi_insn * insn, unsigned int * data);
 static int das1800_do_wbits(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data);
+	struct comedi_insn * insn, unsigned int * data);
 
 static int das1800_set_frequency(struct comedi_device * dev);
 static unsigned int burst_convert_arg(unsigned int convert_arg, int round_mode);
@@ -1553,7 +1553,7 @@ static int das1800_ai_do_cmd(struct comedi_device * dev, struct comedi_subdevice
 
 /* read analog input */
 static int das1800_ai_rinsn(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	int i, n;
 	int chan, range, aref, chan_range;
@@ -1613,7 +1613,7 @@ static int das1800_ai_rinsn(struct comedi_device * dev, struct comedi_subdevice 
 
 /* writes to an analog output channel */
 static int das1800_ao_winsn(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	int chan = CR_CHAN(insn->chanspec);
 //      int range = CR_RANGE(insn->chanspec);
@@ -1642,7 +1642,7 @@ static int das1800_ao_winsn(struct comedi_device * dev, struct comedi_subdevice 
 
 /* reads from digital input channels */
 static int das1800_di_rbits(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 
 	data[1] = inb(dev->iobase + DAS1800_DIGITAL) & 0xf;
@@ -1653,7 +1653,7 @@ static int das1800_di_rbits(struct comedi_device * dev, struct comedi_subdevice 
 
 /* writes to digital output channels */
 static int das1800_do_wbits(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	unsigned int wbits;
 

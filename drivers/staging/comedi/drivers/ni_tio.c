@@ -1534,7 +1534,7 @@ static int ni_tio_get_gate_src(struct ni_gpct *counter, unsigned gate_index,
 }
 
 int ni_tio_insn_config(struct ni_gpct *counter,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	switch (data[0]) {
 	case INSN_CONFIG_SET_COUNTER_MODE:
@@ -1578,7 +1578,7 @@ int ni_tio_insn_config(struct ni_gpct *counter,
 	return -EINVAL;
 }
 
-int ni_tio_rinsn(struct ni_gpct *counter, comedi_insn * insn, unsigned int * data)
+int ni_tio_rinsn(struct ni_gpct *counter, struct comedi_insn * insn, unsigned int * data)
 {
 	struct ni_gpct_device *counter_dev = counter->counter_dev;
 	const unsigned channel = CR_CHAN(insn->chanspec);
@@ -1642,7 +1642,7 @@ static unsigned ni_tio_next_load_register(struct ni_gpct *counter)
 	}
 }
 
-int ni_tio_winsn(struct ni_gpct *counter, comedi_insn * insn, unsigned int * data)
+int ni_tio_winsn(struct ni_gpct *counter, struct comedi_insn * insn, unsigned int * data)
 {
 	struct ni_gpct_device *counter_dev = counter->counter_dev;
 	const unsigned channel = CR_CHAN(insn->chanspec);

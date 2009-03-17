@@ -179,7 +179,7 @@ static irqreturn_t rti800_interrupt(int irq, void *dev PT_REGS_ARG)
 static const int gaindelay[] = { 10, 20, 40, 80 };
 
 static int rti800_ai_insn_read(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	int i, t;
 	int status;
@@ -232,7 +232,7 @@ static int rti800_ai_insn_read(struct comedi_device * dev, struct comedi_subdevi
 }
 
 static int rti800_ao_insn_read(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	int i;
 	int chan = CR_CHAN(insn->chanspec);
@@ -244,7 +244,7 @@ static int rti800_ao_insn_read(struct comedi_device * dev, struct comedi_subdevi
 }
 
 static int rti800_ao_insn_write(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	int chan = CR_CHAN(insn->chanspec);
 	int d;
@@ -264,7 +264,7 @@ static int rti800_ao_insn_write(struct comedi_device * dev, struct comedi_subdev
 }
 
 static int rti800_di_insn_bits(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	if (insn->n != 2)
 		return -EINVAL;
@@ -273,7 +273,7 @@ static int rti800_di_insn_bits(struct comedi_device * dev, struct comedi_subdevi
 }
 
 static int rti800_do_insn_bits(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	if (insn->n != 2)
 		return -EINVAL;

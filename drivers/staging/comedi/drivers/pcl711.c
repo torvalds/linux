@@ -241,7 +241,7 @@ static void pcl711_set_changain(struct comedi_device * dev, int chan)
 }
 
 static int pcl711_ai_insn(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	int i, n;
 	int hi, lo;
@@ -428,7 +428,7 @@ static int pcl711_ai_cmd(struct comedi_device * dev, struct comedi_subdevice * s
    analog output
 */
 static int pcl711_ao_insn(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	int n;
 	int chan = CR_CHAN(insn->chanspec);
@@ -446,7 +446,7 @@ static int pcl711_ao_insn(struct comedi_device * dev, struct comedi_subdevice * 
 }
 
 static int pcl711_ao_insn_read(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	int n;
 	int chan = CR_CHAN(insn->chanspec);
@@ -461,7 +461,7 @@ static int pcl711_ao_insn_read(struct comedi_device * dev, struct comedi_subdevi
 
 /* Digital port read - Untested on 8112 */
 static int pcl711_di_insn_bits(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	if (insn->n != 2)
 		return -EINVAL;
@@ -474,7 +474,7 @@ static int pcl711_di_insn_bits(struct comedi_device * dev, struct comedi_subdevi
 
 /* Digital port write - Untested on 8112 */
 static int pcl711_do_insn_bits(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	if (insn->n != 2)
 		return -EINVAL;

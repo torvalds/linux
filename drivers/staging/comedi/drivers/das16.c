@@ -327,13 +327,13 @@ struct munge_info {
 };
 
 static int das16_ao_winsn(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data);
+	struct comedi_insn * insn, unsigned int * data);
 static int das16_do_wbits(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data);
+	struct comedi_insn * insn, unsigned int * data);
 static int das16_di_rbits(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data);
+	struct comedi_insn * insn, unsigned int * data);
 static int das16_ai_rinsn(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data);
+	struct comedi_insn * insn, unsigned int * data);
 
 static int das16_cmd_test(struct comedi_device * dev, struct comedi_subdevice * s,
 	struct comedi_cmd * cmd);
@@ -1032,7 +1032,7 @@ static void das16_reset(struct comedi_device * dev)
 }
 
 static int das16_ai_rinsn(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	int i, n;
 	int range;
@@ -1080,7 +1080,7 @@ static int das16_ai_rinsn(struct comedi_device * dev, struct comedi_subdevice * 
 }
 
 static int das16_di_rbits(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	unsigned int bits;
 
@@ -1092,7 +1092,7 @@ static int das16_di_rbits(struct comedi_device * dev, struct comedi_subdevice * 
 }
 
 static int das16_do_wbits(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	unsigned int wbits;
 
@@ -1112,7 +1112,7 @@ static int das16_do_wbits(struct comedi_device * dev, struct comedi_subdevice * 
 }
 
 static int das16_ao_winsn(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	int i;
 	int lsb, msb;

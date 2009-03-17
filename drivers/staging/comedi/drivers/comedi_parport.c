@@ -109,7 +109,7 @@ struct parport_private {
 #define devpriv ((struct parport_private *)(dev->private))
 
 static int parport_insn_a(struct comedi_device *dev, struct comedi_subdevice *s,
-			  comedi_insn *insn, unsigned int *data)
+			  struct comedi_insn *insn, unsigned int *data)
 {
 	if (data[0]) {
 		devpriv->a_data &= ~data[0];
@@ -124,7 +124,7 @@ static int parport_insn_a(struct comedi_device *dev, struct comedi_subdevice *s,
 }
 
 static int parport_insn_config_a(struct comedi_device *dev, struct comedi_subdevice *s,
-				 comedi_insn *insn, unsigned int *data)
+				 struct comedi_insn *insn, unsigned int *data)
 {
 	if (data[0]) {
 		s->io_bits = 0xff;
@@ -139,7 +139,7 @@ static int parport_insn_config_a(struct comedi_device *dev, struct comedi_subdev
 }
 
 static int parport_insn_b(struct comedi_device *dev, struct comedi_subdevice *s,
-			  comedi_insn *insn, unsigned int *data)
+			  struct comedi_insn *insn, unsigned int *data)
 {
 	if (data[0]) {
 		/* should writes be ignored? */
@@ -152,7 +152,7 @@ static int parport_insn_b(struct comedi_device *dev, struct comedi_subdevice *s,
 }
 
 static int parport_insn_c(struct comedi_device *dev, struct comedi_subdevice *s,
-			  comedi_insn *insn, unsigned int *data)
+			  struct comedi_insn *insn, unsigned int *data)
 {
 	data[0] &= 0x0f;
 	if (data[0]) {
@@ -168,7 +168,7 @@ static int parport_insn_c(struct comedi_device *dev, struct comedi_subdevice *s,
 }
 
 static int parport_intr_insn(struct comedi_device *dev, struct comedi_subdevice *s,
-			     comedi_insn *insn, unsigned int *data)
+			     struct comedi_insn *insn, unsigned int *data)
 {
 	if (insn->n < 1)
 		return -EINVAL;

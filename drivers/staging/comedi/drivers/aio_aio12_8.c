@@ -89,7 +89,7 @@ typedef struct {
 #define devpriv	((aio12_8_private *) dev->private)
 
 static int aio_aio12_8_ai_read(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	int n;
 	unsigned char control =
@@ -123,7 +123,7 @@ static int aio_aio12_8_ai_read(struct comedi_device * dev, struct comedi_subdevi
 }
 
 static int aio_aio12_8_ao_read(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	int i;
 	int val = devpriv->ao_readback[CR_CHAN(insn->chanspec)];
@@ -134,7 +134,7 @@ static int aio_aio12_8_ao_read(struct comedi_device * dev, struct comedi_subdevi
 }
 
 static int aio_aio12_8_ao_write(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	int i;
 	int chan = CR_CHAN(insn->chanspec);

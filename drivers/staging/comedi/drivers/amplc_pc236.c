@@ -189,7 +189,7 @@ static void pc236_intr_disable(struct comedi_device * dev);
 static void pc236_intr_enable(struct comedi_device * dev);
 static int pc236_intr_check(struct comedi_device * dev);
 static int pc236_intr_insn(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data);
+	struct comedi_insn * insn, unsigned int * data);
 static int pc236_intr_cmdtest(struct comedi_device * dev, struct comedi_subdevice * s,
 	struct comedi_cmd * cmd);
 static int pc236_intr_cmd(struct comedi_device * dev, struct comedi_subdevice * s);
@@ -529,7 +529,7 @@ static int pc236_intr_check(struct comedi_device * dev)
  * Copied from the comedi_parport driver.
  */
 static int pc236_intr_insn(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	data[1] = 0;
 	return 2;

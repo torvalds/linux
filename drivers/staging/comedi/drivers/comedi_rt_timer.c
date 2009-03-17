@@ -397,9 +397,9 @@ static void timer_task_func(comedi_rt_task_context_t d)
 }
 
 static int timer_insn(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
-	comedi_insn xinsn = *insn;
+	struct comedi_insn xinsn = *insn;
 
 	xinsn.data = data;
 	xinsn.subdev = devpriv->subd;

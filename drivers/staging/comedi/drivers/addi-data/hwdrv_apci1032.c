@@ -60,7 +60,7 @@ UINT ui_InterruptStatus = 0;
 +----------------------------------------------------------------------------+
 | Function   Name   : int i_APCI1032_ConfigDigitalInput                      |
 |			  (struct comedi_device *dev,struct comedi_subdevice *s,               |
-|                      comedi_insn *insn,unsigned int *data)                     |
+|                      struct comedi_insn *insn,unsigned int *data)                     |
 +----------------------------------------------------------------------------+
 | Task              : Configures the digital input Subdevice                 |
 +----------------------------------------------------------------------------+
@@ -85,7 +85,7 @@ UINT ui_InterruptStatus = 0;
 */
 
 INT i_APCI1032_ConfigDigitalInput(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	UINT ui_TmpValue;
 
@@ -129,7 +129,7 @@ INT i_APCI1032_ConfigDigitalInput(struct comedi_device * dev, struct comedi_subd
 +----------------------------------------------------------------------------+
 | Function   Name   : int i_APCI1032_Read1DigitalInput                       |
 |			  (struct comedi_device *dev,struct comedi_subdevice *s,               |
-|                      comedi_insn *insn,unsigned int *data)                     |
+|                      struct comedi_insn *insn,unsigned int *data)                     |
 +----------------------------------------------------------------------------+
 | Task              : Return the status of the digital input                 |
 +----------------------------------------------------------------------------+
@@ -145,7 +145,7 @@ INT i_APCI1032_ConfigDigitalInput(struct comedi_device * dev, struct comedi_subd
 +----------------------------------------------------------------------------+
 */
 INT i_APCI1032_Read1DigitalInput(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	UINT ui_TmpValue = 0;
 	UINT ui_Channel;
@@ -167,7 +167,7 @@ INT i_APCI1032_Read1DigitalInput(struct comedi_device * dev, struct comedi_subde
 +----------------------------------------------------------------------------+
 | Function   Name   : int i_APCI1032_ReadMoreDigitalInput                    |
 |			  (struct comedi_device *dev,struct comedi_subdevice *s,               |
-|                     comedi_insn *insn,unsigned int *data)                      |
+|                     struct comedi_insn *insn,unsigned int *data)                      |
 +----------------------------------------------------------------------------+
 | Task              : Return the status of the Requested digital inputs      |
 +----------------------------------------------------------------------------+
@@ -184,7 +184,7 @@ INT i_APCI1032_Read1DigitalInput(struct comedi_device * dev, struct comedi_subde
 */
 
 INT i_APCI1032_ReadMoreDigitalInput(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	UINT ui_PortValue = data[0];
 	UINT ui_Mask = 0;

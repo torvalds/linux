@@ -607,7 +607,7 @@ copyback:
 	return 0;
 }
 
-static int parse_insn(struct comedi_device *dev, comedi_insn *insn, unsigned int *data,
+static int parse_insn(struct comedi_device *dev, struct comedi_insn *insn, unsigned int *data,
 		      void *file);
 /*
  * 	COMEDI_INSNLIST
@@ -629,7 +629,7 @@ static int parse_insn(struct comedi_device *dev, comedi_insn *insn, unsigned int
 static int do_insnlist_ioctl(struct comedi_device *dev, void *arg, void *file)
 {
 	comedi_insnlist insnlist;
-	comedi_insn *insns = NULL;
+	struct comedi_insn *insns = NULL;
 	unsigned int *data = NULL;
 	int i = 0;
 	int ret = 0;
@@ -644,7 +644,7 @@ static int do_insnlist_ioctl(struct comedi_device *dev, void *arg, void *file)
 		goto error;
 	}
 
-	insns = kmalloc(sizeof(comedi_insn) * insnlist.n_insns, GFP_KERNEL);
+	insns = kmalloc(sizeof(struct comedi_insn) * insnlist.n_insns, GFP_KERNEL);
 	if (!insns) {
 		DPRINTK("kmalloc failed\n");
 		ret = -ENOMEM;
@@ -652,7 +652,7 @@ static int do_insnlist_ioctl(struct comedi_device *dev, void *arg, void *file)
 	}
 
 	if (copy_from_user(insns, insnlist.insns,
-			   sizeof(comedi_insn) * insnlist.n_insns)) {
+			   sizeof(struct comedi_insn) * insnlist.n_insns)) {
 		DPRINTK("copy_from_user failed\n");
 		ret = -EFAULT;
 		goto error;
@@ -696,7 +696,7 @@ error:
 	return i;
 }
 
-static int check_insn_config_length(comedi_insn *insn, unsigned int *data)
+static int check_insn_config_length(struct comedi_insn *insn, unsigned int *data)
 {
 	if (insn->n < 1)
 		return -EINVAL;
@@ -757,7 +757,7 @@ static int check_insn_config_length(comedi_insn *insn, unsigned int *data)
 	return -EINVAL;
 }
 
-static int parse_insn(struct comedi_device *dev, comedi_insn *insn, unsigned int *data,
+static int parse_insn(struct comedi_device *dev, struct comedi_insn *insn, unsigned int *data,
 		      void *file)
 {
 	struct comedi_subdevice *s;
@@ -911,7 +911,7 @@ out:
  * 		pointer to insn
  *
  * 	reads:
- * 		comedi_insn struct at arg
+ * 		struct comedi_insn struct at arg
  * 		data (for writes)
  *
  * 	writes:
@@ -919,7 +919,7 @@ out:
  */
 static int do_insn_ioctl(struct comedi_device *dev, void *arg, void *file)
 {
-	comedi_insn insn;
+	struct comedi_insn insn;
 	unsigned int *data = NULL;
 	int ret = 0;
 
@@ -929,7 +929,7 @@ static int do_insn_ioctl(struct comedi_device *dev, void *arg, void *file)
 		goto error;
 	}
 
-	if (copy_from_user(&insn, arg, sizeof(comedi_insn))) {
+	if (copy_from_user(&insn, arg, sizeof(struct comedi_insn))) {
 		ret = -EFAULT;
 		goto error;
 	}

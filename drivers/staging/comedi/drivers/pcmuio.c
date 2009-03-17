@@ -254,9 +254,9 @@ static struct comedi_driver driver = {
 };
 
 static int pcmuio_dio_insn_bits(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data);
+	struct comedi_insn * insn, unsigned int * data);
 static int pcmuio_dio_insn_config(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data);
+	struct comedi_insn * insn, unsigned int * data);
 
 static irqreturn_t interrupt_pcmuio(int irq, void *d PT_REGS_ARG);
 static void pcmuio_stop_intr(struct comedi_device *, struct comedi_subdevice *);
@@ -475,7 +475,7 @@ static int pcmuio_detach(struct comedi_device * dev)
  * This allows packed reading/writing of the DIO channels.  The
  * comedi core can convert between insn_bits and insn_read/write */
 static int pcmuio_dio_insn_bits(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	int byte_no;
 	if (insn->n != 2)
@@ -549,7 +549,7 @@ static int pcmuio_dio_insn_bits(struct comedi_device * dev, struct comedi_subdev
  * contains the channel to be changed, and data[0] contains the
  * value COMEDI_INPUT or COMEDI_OUTPUT. */
 static int pcmuio_dio_insn_config(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	int chan = CR_CHAN(insn->chanspec), byte_no = chan / 8, bit_no =
 		chan % 8;

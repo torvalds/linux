@@ -434,7 +434,7 @@ static int pcl812_ai_cancel(struct comedi_device * dev, struct comedi_subdevice 
 ==============================================================================
 */
 static int pcl812_ai_insn_read(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	int n;
 	int timeout, hi;
@@ -468,7 +468,7 @@ static int pcl812_ai_insn_read(struct comedi_device * dev, struct comedi_subdevi
 ==============================================================================
 */
 static int acl8216_ai_insn_read(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	int n;
 	int timeout;
@@ -504,7 +504,7 @@ static int acl8216_ai_insn_read(struct comedi_device * dev, struct comedi_subdev
 ==============================================================================
 */
 static int pcl812_ao_insn_write(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	int chan = CR_CHAN(insn->chanspec);
 	int i;
@@ -524,7 +524,7 @@ static int pcl812_ao_insn_write(struct comedi_device * dev, struct comedi_subdev
 ==============================================================================
 */
 static int pcl812_ao_insn_read(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	int chan = CR_CHAN(insn->chanspec);
 	int i;
@@ -540,7 +540,7 @@ static int pcl812_ao_insn_read(struct comedi_device * dev, struct comedi_subdevi
 ==============================================================================
 */
 static int pcl812_di_insn_bits(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	if (insn->n != 2)
 		return -EINVAL;
@@ -555,7 +555,7 @@ static int pcl812_di_insn_bits(struct comedi_device * dev, struct comedi_subdevi
 ==============================================================================
 */
 static int pcl812_do_insn_bits(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	if (insn->n != 2)
 		return -EINVAL;

@@ -169,7 +169,7 @@ typedef struct {
 #define devpriv ((pcl726_private *)dev->private)
 
 static int pcl726_ao_insn(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	int hi, lo;
 	int n;
@@ -194,7 +194,7 @@ static int pcl726_ao_insn(struct comedi_device * dev, struct comedi_subdevice * 
 }
 
 static int pcl726_ao_insn_read(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	int chan = CR_CHAN(insn->chanspec);
 	int n;
@@ -206,7 +206,7 @@ static int pcl726_ao_insn_read(struct comedi_device * dev, struct comedi_subdevi
 }
 
 static int pcl726_di_insn_bits(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	if (insn->n != 2)
 		return -EINVAL;
@@ -218,7 +218,7 @@ static int pcl726_di_insn_bits(struct comedi_device * dev, struct comedi_subdevi
 }
 
 static int pcl726_do_insn_bits(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	if (insn->n != 2)
 		return -EINVAL;

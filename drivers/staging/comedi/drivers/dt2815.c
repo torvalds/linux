@@ -107,7 +107,7 @@ static int dt2815_wait_for_status(struct comedi_device * dev, int status)
 }
 
 static int dt2815_ao_insn_read(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	int i;
 	int chan = CR_CHAN(insn->chanspec);
@@ -120,7 +120,7 @@ static int dt2815_ao_insn_read(struct comedi_device * dev, struct comedi_subdevi
 }
 
 static int dt2815_ao_insn(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	int i;
 	int chan = CR_CHAN(insn->chanspec);

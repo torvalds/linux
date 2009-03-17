@@ -44,14 +44,14 @@ Configuration options:
 static int poc_attach(struct comedi_device * dev, comedi_devconfig * it);
 static int poc_detach(struct comedi_device * dev);
 static int readback_insn(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data);
+	struct comedi_insn * insn, unsigned int * data);
 
 static int dac02_ao_winsn(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data);
+	struct comedi_insn * insn, unsigned int * data);
 static int pcl733_insn_bits(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data);
+	struct comedi_insn * insn, unsigned int * data);
 static int pcl734_insn_bits(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data);
+	struct comedi_insn * insn, unsigned int * data);
 
 struct boarddef_struct {
 	const char *name;
@@ -60,11 +60,11 @@ struct boarddef_struct {
 	int type;
 	int n_chan;
 	int n_bits;
-	int (*winsn) (struct comedi_device *, struct comedi_subdevice *, comedi_insn *,
+	int (*winsn) (struct comedi_device *, struct comedi_subdevice *, struct comedi_insn *,
 		unsigned int *);
-	int (*rinsn) (struct comedi_device *, struct comedi_subdevice *, comedi_insn *,
+	int (*rinsn) (struct comedi_device *, struct comedi_subdevice *, struct comedi_insn *,
 		unsigned int *);
-	int (*insnbits) (struct comedi_device *, struct comedi_subdevice *, comedi_insn *,
+	int (*insnbits) (struct comedi_device *, struct comedi_subdevice *, struct comedi_insn *,
 		unsigned int *);
 	const struct comedi_lrange *range;
 };
@@ -171,7 +171,7 @@ static int poc_detach(struct comedi_device * dev)
 }
 
 static int readback_insn(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	int chan;
 
@@ -186,7 +186,7 @@ static int readback_insn(struct comedi_device * dev, struct comedi_subdevice * s
 #define DAC02_MSB(a)	(2 * a + 1)
 
 static int dac02_ao_winsn(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	int temp;
 	int chan;
@@ -209,7 +209,7 @@ static int dac02_ao_winsn(struct comedi_device * dev, struct comedi_subdevice * 
 }
 
 static int pcl733_insn_bits(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	if (insn->n != 2)
 		return -EINVAL;
@@ -223,7 +223,7 @@ static int pcl733_insn_bits(struct comedi_device * dev, struct comedi_subdevice 
 }
 
 static int pcl734_insn_bits(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	if (insn->n != 2)
 		return -EINVAL;

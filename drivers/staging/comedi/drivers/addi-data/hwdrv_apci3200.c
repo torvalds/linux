@@ -531,7 +531,7 @@ INT i_APCI3200_GetChannelCalibrationValue(struct comedi_device * dev,
   +----------------------------------------------------------------------------+
   | Function   Name   : int i_APCI3200_ReadDigitalInput                       |
   |			  (struct comedi_device *dev,struct comedi_subdevice *s,               |
-  |                      comedi_insn *insn,unsigned int *data)                     |
+  |                      struct comedi_insn *insn,unsigned int *data)                     |
   +----------------------------------------------------------------------------+
   | Task              : Read  value  of the selected channel or port           |
   +----------------------------------------------------------------------------+
@@ -551,7 +551,7 @@ INT i_APCI3200_GetChannelCalibrationValue(struct comedi_device * dev,
 */
 
 INT i_APCI3200_ReadDigitalInput(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	UINT ui_Temp = 0;
 	UINT ui_NoOfChannel = 0;
@@ -593,7 +593,7 @@ INT i_APCI3200_ReadDigitalInput(struct comedi_device * dev, struct comedi_subdev
   +----------------------------------------------------------------------------+
   | Function   Name   : int i_APCI3200_ConfigDigitalOutput                     |
   |			  (struct comedi_device *dev,struct comedi_subdevice *s,				 |
-  |                      comedi_insn *insn,unsigned int *data)                     |
+  |                      struct comedi_insn *insn,unsigned int *data)                     |
   +----------------------------------------------------------------------------+
   | Task              : Configures The Digital Output Subdevice.               |
   +----------------------------------------------------------------------------+
@@ -609,7 +609,7 @@ INT i_APCI3200_ReadDigitalInput(struct comedi_device * dev, struct comedi_subdev
   +----------------------------------------------------------------------------+
 */
 int i_APCI3200_ConfigDigitalOutput(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 
 	if ((data[0] != 0) && (data[0] != 1)) {
@@ -630,13 +630,13 @@ int i_APCI3200_ConfigDigitalOutput(struct comedi_device * dev, struct comedi_sub
   +----------------------------------------------------------------------------+
   | Function   Name   : int i_APCI3200_WriteDigitalOutput                      |
   |			  (struct comedi_device *dev,struct comedi_subdevice *s,				 |
-  |                      comedi_insn *insn,unsigned int *data)                     |
+  |                      struct comedi_insn *insn,unsigned int *data)                     |
   +----------------------------------------------------------------------------+
   | Task              : writes To the digital Output Subdevice                 |
   +----------------------------------------------------------------------------+
   | Input Parameters  : struct comedi_device *dev      : Driver handle                |
   |                     struct comedi_subdevice *s     : Subdevice Pointer            |
-  |                     comedi_insn *insn       : Insn Structure Pointer       |
+  |                     struct comedi_insn *insn       : Insn Structure Pointer       |
   |                     unsigned int *data          : Data Pointer contains        |
   |                                          configuration parameters as below |
   |                     data[0]             :Value to output
@@ -654,7 +654,7 @@ int i_APCI3200_ConfigDigitalOutput(struct comedi_device * dev, struct comedi_sub
   +----------------------------------------------------------------------------+
 */
 INT i_APCI3200_WriteDigitalOutput(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	UINT ui_Temp = 0, ui_Temp1 = 0;
 	UINT ui_NoOfChannel = CR_CHAN(insn->chanspec);	// get the channel
@@ -747,7 +747,7 @@ INT i_APCI3200_WriteDigitalOutput(struct comedi_device * dev, struct comedi_subd
   +----------------------------------------------------------------------------+
   | Function   Name   : int i_APCI3200_ReadDigitalOutput                       |
   |			  (struct comedi_device *dev,struct comedi_subdevice *s,               |
-  |                      comedi_insn *insn,unsigned int *data)                     |
+  |                      struct comedi_insn *insn,unsigned int *data)                     |
   +----------------------------------------------------------------------------+
   | Task              : Read  value  of the selected channel or port           |
   +----------------------------------------------------------------------------+
@@ -767,7 +767,7 @@ INT i_APCI3200_WriteDigitalOutput(struct comedi_device * dev, struct comedi_subd
   +----------------------------------------------------------------------------+
 */
 INT i_APCI3200_ReadDigitalOutput(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	UINT ui_Temp;
 	UINT ui_NoOfChannel;
@@ -808,13 +808,13 @@ INT i_APCI3200_ReadDigitalOutput(struct comedi_device * dev, struct comedi_subde
   +----------------------------------------------------------------------------+
   | Function   Name   : INT i_APCI3200_ConfigAnalogInput                       |
   |			  (struct comedi_device *dev,struct comedi_subdevice *s,               |
-  |                      comedi_insn *insn,unsigned int *data)                     |
+  |                      struct comedi_insn *insn,unsigned int *data)                     |
   +----------------------------------------------------------------------------+
   | Task              : Configures The Analog Input Subdevice                  |
   +----------------------------------------------------------------------------+
   | Input Parameters  : struct comedi_device *dev      : Driver handle                |
   |                     struct comedi_subdevice *s     : Subdevice Pointer            |
-  |                     comedi_insn *insn       : Insn Structure Pointer       |
+  |                     struct comedi_insn *insn       : Insn Structure Pointer       |
   |                     unsigned int *data          : Data Pointer contains        |
   |                                          configuration parameters as below |
   |                                                                            |
@@ -875,7 +875,7 @@ INT i_APCI3200_ReadDigitalOutput(struct comedi_device * dev, struct comedi_subde
   +----------------------------------------------------------------------------+
 */
 INT i_APCI3200_ConfigAnalogInput(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 
 	UINT ul_Config = 0, ul_Temp = 0;
@@ -1335,7 +1335,7 @@ INT i_APCI3200_ConfigAnalogInput(struct comedi_device * dev, struct comedi_subde
   +----------------------------------------------------------------------------+
   | Function   Name   : int i_APCI3200_ReadAnalogInput                         |
   |			          (struct comedi_device *dev,struct comedi_subdevice *s,       |
-  |                     comedi_insn *insn,unsigned int *data)                      |
+  |                     struct comedi_insn *insn,unsigned int *data)                      |
   +----------------------------------------------------------------------------+
   | Task              : Read  value  of the selected channel			         |
   +----------------------------------------------------------------------------+
@@ -1362,7 +1362,7 @@ INT i_APCI3200_ConfigAnalogInput(struct comedi_device * dev, struct comedi_subde
   +----------------------------------------------------------------------------+
 */
 INT i_APCI3200_ReadAnalogInput(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	UINT ui_DummyValue = 0;
 	int i_ConvertCJCCalibration;
@@ -1634,7 +1634,7 @@ INT i_APCI3200_ReadAnalogInput(struct comedi_device * dev, struct comedi_subdevi
   +----------------------------------------------------------------------------+
   | Function   Name   : int i_APCI3200_Read1AnalogInputChannel                 |
   |			          (struct comedi_device *dev,struct comedi_subdevice *s,       |
-  |                     comedi_insn *insn,unsigned int *data)                      |
+  |                     struct comedi_insn *insn,unsigned int *data)                      |
   +----------------------------------------------------------------------------+
   | Task              : Read  value  of the selected channel			         |
   +----------------------------------------------------------------------------+
@@ -1652,7 +1652,7 @@ INT i_APCI3200_ReadAnalogInput(struct comedi_device * dev, struct comedi_subdevi
   +----------------------------------------------------------------------------+
 */
 INT i_APCI3200_Read1AnalogInputChannel(struct comedi_device * dev,
-	struct comedi_subdevice * s, comedi_insn * insn, unsigned int * data)
+	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data)
 {
 	UINT ui_EOC = 0;
 	UINT ui_ChannelNo = 0;
@@ -1760,7 +1760,7 @@ INT i_APCI3200_Read1AnalogInputChannel(struct comedi_device * dev,
   +----------------------------------------------------------------------------+
   | Function   Name   : int i_APCI3200_ReadCalibrationOffsetValue              |
   |			          (struct comedi_device *dev,struct comedi_subdevice *s,       |
-  |                     comedi_insn *insn,unsigned int *data)                      |
+  |                     struct comedi_insn *insn,unsigned int *data)                      |
   +----------------------------------------------------------------------------+
   | Task              : Read calibration offset  value  of the selected channel|
   +----------------------------------------------------------------------------+
@@ -1896,7 +1896,7 @@ int i_APCI3200_ReadCalibrationOffsetValue(struct comedi_device * dev, UINT * dat
   +----------------------------------------------------------------------------+
   | Function   Name   : int i_APCI3200_ReadCalibrationGainValue                |
   |			          (struct comedi_device *dev,struct comedi_subdevice *s,       |
-  |                     comedi_insn *insn,unsigned int *data)                      |
+  |                     struct comedi_insn *insn,unsigned int *data)                      |
   +----------------------------------------------------------------------------+
   | Task              : Read calibration gain  value  of the selected channel  |
   +----------------------------------------------------------------------------+
@@ -2031,7 +2031,7 @@ int i_APCI3200_ReadCalibrationGainValue(struct comedi_device * dev, UINT * data)
   +----------------------------------------------------------------------------+
   | Function   Name   : int i_APCI3200_ReadCJCValue                            |
   |			          (struct comedi_device *dev,struct comedi_subdevice *s,       |
-  |                     comedi_insn *insn,unsigned int *data)                      |
+  |                     struct comedi_insn *insn,unsigned int *data)                      |
   +----------------------------------------------------------------------------+
   | Task              : Read CJC  value  of the selected channel               |
   +----------------------------------------------------------------------------+
@@ -2151,7 +2151,7 @@ int i_APCI3200_ReadCJCValue(struct comedi_device * dev, unsigned int * data)
   +----------------------------------------------------------------------------+
   | Function   Name   : int i_APCI3200_ReadCJCCalOffset                        |
   |			          (struct comedi_device *dev,struct comedi_subdevice *s,       |
-  |                     comedi_insn *insn,unsigned int *data)                      |
+  |                     struct comedi_insn *insn,unsigned int *data)                      |
   +----------------------------------------------------------------------------+
   | Task              : Read CJC calibration offset  value  of the selected channel
   +----------------------------------------------------------------------------+
@@ -2266,7 +2266,7 @@ int i_APCI3200_ReadCJCCalOffset(struct comedi_device * dev, unsigned int * data)
   +----------------------------------------------------------------------------+
   | Function   Name   : int i_APCI3200_ReadCJCGainValue                        |
   |			          (struct comedi_device *dev,struct comedi_subdevice *s,       |
-  |                     comedi_insn *insn,unsigned int *data)                      |
+  |                     struct comedi_insn *insn,unsigned int *data)                      |
   +----------------------------------------------------------------------------+
   | Task              : Read CJC calibration gain value
   +----------------------------------------------------------------------------+
@@ -2376,13 +2376,13 @@ int i_APCI3200_ReadCJCCalGain(struct comedi_device * dev, unsigned int * data)
   +----------------------------------------------------------------------------+
   | Function   Name   : int i_APCI3200_InsnBits_AnalogInput_Test               |
   |			  (struct comedi_device *dev,struct comedi_subdevice *s,               |
-  |                      comedi_insn *insn,unsigned int *data)                     |
+  |                      struct comedi_insn *insn,unsigned int *data)                     |
   +----------------------------------------------------------------------------+
   | Task              : Tests the Selected Anlog Input Channel                 |
   +----------------------------------------------------------------------------+
   | Input Parameters  : struct comedi_device *dev      : Driver handle                |
   |                     struct comedi_subdevice *s     : Subdevice Pointer            |
-  |                     comedi_insn *insn       : Insn Structure Pointer       |
+  |                     struct comedi_insn *insn       : Insn Structure Pointer       |
   |                     unsigned int *data          : Data Pointer contains        |
   |                                          configuration parameters as below |
   |
@@ -2405,7 +2405,7 @@ int i_APCI3200_ReadCJCCalGain(struct comedi_device * dev, unsigned int * data)
 */
 
 INT i_APCI3200_InsnBits_AnalogInput_Test(struct comedi_device * dev,
-	struct comedi_subdevice * s, comedi_insn * insn, unsigned int * data)
+	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data)
 {
 	UINT ui_Configuration = 0;
 	INT i_Temp;		//,i_TimeUnit;
@@ -2511,13 +2511,13 @@ INT i_APCI3200_InsnBits_AnalogInput_Test(struct comedi_device * dev,
   +----------------------------------------------------------------------------+
   | Function   Name   : int i_APCI3200_InsnWriteReleaseAnalogInput             |
   |			  (struct comedi_device *dev,struct comedi_subdevice *s,               |
-  |                      comedi_insn *insn,unsigned int *data)                     |
+  |                      struct comedi_insn *insn,unsigned int *data)                     |
   +----------------------------------------------------------------------------+
   | Task              :  Resets the channels                                                      |
   +----------------------------------------------------------------------------+
   | Input Parameters  : struct comedi_device *dev      : Driver handle                |
   |                     struct comedi_subdevice *s     : Subdevice Pointer            |
-  |                     comedi_insn *insn       : Insn Structure Pointer       |
+  |                     struct comedi_insn *insn       : Insn Structure Pointer       |
   |                     unsigned int *data          : Data Pointer
   +----------------------------------------------------------------------------+
   | Output Parameters :	--													 |
@@ -2530,7 +2530,7 @@ INT i_APCI3200_InsnBits_AnalogInput_Test(struct comedi_device * dev,
 */
 
 INT i_APCI3200_InsnWriteReleaseAnalogInput(struct comedi_device * dev,
-	struct comedi_subdevice * s, comedi_insn * insn, unsigned int * data)
+	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data)
 {
 	i_APCI3200_Reset(dev);
 	return insn->n;

@@ -573,7 +573,7 @@ dio200_request_region(unsigned minor, unsigned long from, unsigned long extent)
  */
 static int
 dio200_subdev_intr_insn_bits(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	dio200_subdev_intr *subpriv = s->private;
 
@@ -1034,7 +1034,7 @@ static irqreturn_t dio200_interrupt(int irq, void *d PT_REGS_ARG)
  */
 static int
 dio200_subdev_8254_read(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	dio200_subdev_8254 *subpriv = s->private;
 	int chan = CR_CHAN(insn->chanspec);
@@ -1049,7 +1049,7 @@ dio200_subdev_8254_read(struct comedi_device * dev, struct comedi_subdevice * s,
  */
 static int
 dio200_subdev_8254_write(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	dio200_subdev_8254 *subpriv = s->private;
 	int chan = CR_CHAN(insn->chanspec);
@@ -1143,7 +1143,7 @@ dio200_get_clock_src(dio200_subdev_8254 * subpriv, unsigned int counter_number,
  */
 static int
 dio200_subdev_8254_config(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	dio200_subdev_8254 *subpriv = s->private;
 	int ret;

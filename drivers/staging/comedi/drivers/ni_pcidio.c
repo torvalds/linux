@@ -703,7 +703,7 @@ static void debug_int(struct comedi_device * dev)
 #endif
 
 static int ni_pcidio_insn_config(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	if (insn->n != 1)
 		return -EINVAL;
@@ -730,7 +730,7 @@ static int ni_pcidio_insn_config(struct comedi_device * dev, struct comedi_subde
 }
 
 static int ni_pcidio_insn_bits(struct comedi_device * dev, struct comedi_subdevice * s,
-	comedi_insn * insn, unsigned int * data)
+	struct comedi_insn * insn, unsigned int * data)
 {
 	if (insn->n != 2)
 		return -EINVAL;
