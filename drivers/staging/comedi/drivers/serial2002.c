@@ -46,11 +46,11 @@ Status: in development
  * boards in this way is optional, and completely driver-dependent.
  * Some drivers use arrays such as this, other do not.
  */
-typedef struct serial2002_board_struct {
+struct serial2002_board {
 	const char *name;
-} serial2002_board;
+};
 
-static const serial2002_board serial2002_boards[] = {
+static const struct serial2002_board serial2002_boards[] = {
 	{
       name:	"serial2002"}
 };
@@ -58,7 +58,7 @@ static const serial2002_board serial2002_boards[] = {
 /*
  * Useful for shorthand access to the particular board structure
  */
-#define thisboard ((const serial2002_board *)dev->board_ptr)
+#define thisboard ((const struct serial2002_board *)dev->board_ptr)
 
 struct serial2002_range_table_t {
 
@@ -95,8 +95,8 @@ struct comedi_driver driver_serial2002 = {
       attach:serial2002_attach,
       detach:serial2002_detach,
       board_name:&serial2002_boards[0].name,
-      offset:sizeof(serial2002_board),
-      num_names:sizeof(serial2002_boards) / sizeof(serial2002_board),
+      offset:sizeof(struct serial2002_board),
+      num_names:sizeof(serial2002_boards) / sizeof(struct serial2002_board),
 };
 
 static int serial2002_di_rinsn(struct comedi_device * dev, struct comedi_subdevice * s,
