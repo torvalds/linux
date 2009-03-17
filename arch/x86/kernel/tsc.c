@@ -315,6 +315,15 @@ static unsigned long quick_pit_calibrate(void)
 	outb(0xff, 0x42);
 	outb(0xff, 0x42);
 
+	/*
+	 * The PIT starts counting at the next edge, so we
+	 * need to delay for a microsecond. The easiest way
+	 * to do that is to just read back the 16-bit counter
+	 * once from the PIT.
+	 */
+	inb(0x42);
+	inb(0x42);
+
 	if (pit_expect_msb(0xff)) {
 		int i;
 		u64 t1, t2, delta;
