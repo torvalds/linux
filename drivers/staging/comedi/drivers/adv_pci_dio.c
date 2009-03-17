@@ -193,7 +193,7 @@ struct diosubd_data {
 	unsigned int specflags;	// addon subdevice flags
 };
 
-typedef struct {
+struct dio_boardtype {
 	const char *name;	// board name
 	int vendor_id;		// vendor/device PCI ID
 	int device_id;
@@ -204,7 +204,7 @@ typedef struct {
 	struct diosubd_data sdio[MAX_DIO_SUBDEVG];	// DIO 8255 chans
 	struct diosubd_data boardid;	// card supports board ID switch
 	enum hw_io_access io_access;
-} boardtype;
+};
 
 static DEFINE_PCI_DEVICE_TABLE(pci_dio_pci_table) = {
 	{PCI_VENDOR_ID_ADVANTECH, 0x1730, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
@@ -224,7 +224,7 @@ static DEFINE_PCI_DEVICE_TABLE(pci_dio_pci_table) = {
 
 MODULE_DEVICE_TABLE(pci, pci_dio_pci_table);
 
-static const boardtype boardtypes[] = {
+static const struct dio_boardtype boardtypes[] = {
 	{"pci1730", PCI_VENDOR_ID_ADVANTECH, 0x1730, PCIDIO_MAINREG,
 			TYPE_PCI1730,
 			{{16, PCI1730_DI, 2, 0}, {16, PCI1730_IDI, 2, 0}},
@@ -320,7 +320,7 @@ static const boardtype boardtypes[] = {
 		IO_16b}
 };
 
-#define n_boardtypes (sizeof(boardtypes)/sizeof(boardtype))
+#define n_boardtypes (sizeof(boardtypes)/sizeof(struct dio_boardtype))
 
 static struct comedi_driver driver_pci_dio = {
       driver_name:"adv_pci_dio",
@@ -352,7 +352,7 @@ struct pci_dio_private_st {
 static pci_dio_private *pci_priv = NULL;	/* list of allocated cards */
 
 #define devpriv ((pci_dio_private *)dev->private)
-#define this_board ((const boardtype *)dev->board_ptr)
+#define this_board ((const struct dio_boardtype *)dev->board_ptr)
 
 /*
 ==============================================================================
