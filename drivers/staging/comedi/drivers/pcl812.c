@@ -386,7 +386,8 @@ static struct comedi_driver driver_pcl812 = {
 
 COMEDI_INITCLEANUP(driver_pcl812);
 
-typedef struct {
+struct pcl812_private {
+
 	unsigned char valid;	// =1 device is OK
 	unsigned char dma;	// >0 use dma ( usedDMA channel)
 	unsigned char use_diff;	// =1 diff inputs
@@ -418,9 +419,10 @@ typedef struct {
 	unsigned int last_dma_run;	// how many bytes to transfer on last DMA buffer
 	unsigned int max_812_ai_mode0_rangewait;	// setling time for gain
 	unsigned int ao_readback[2];	// data for AO readback
-} pcl812_private;
+};
 
-#define devpriv ((pcl812_private *)dev->private)
+
+#define devpriv ((struct pcl812_private *)dev->private)
 
 /*
 ==============================================================================
@@ -1282,7 +1284,7 @@ static int pcl812_attach(struct comedi_device * dev, struct comedi_devconfig * i
 	}
 	dev->iobase = iobase;
 
-	if ((ret = alloc_private(dev, sizeof(pcl812_private))) < 0) {
+	if ((ret = alloc_private(dev, sizeof(struct pcl812_private))) < 0) {
 		free_resources(dev);
 		return ret;	/* Can't alloc mem */
 	}
