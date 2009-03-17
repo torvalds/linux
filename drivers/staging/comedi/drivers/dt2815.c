@@ -88,12 +88,14 @@ COMEDI_INITCLEANUP(driver_dt2815);
 
 static void dt2815_free_resources(struct comedi_device * dev);
 
-typedef struct {
+struct dt2815_private {
+
 	const struct comedi_lrange *range_type_list[8];
 	unsigned int ao_readback[8];
-} dt2815_private;
+};
 
-#define devpriv ((dt2815_private *)dev->private)
+
+#define devpriv ((struct dt2815_private *)dev->private)
 
 static int dt2815_wait_for_status(struct comedi_device * dev, int status)
 {
@@ -196,7 +198,7 @@ static int dt2815_attach(struct comedi_device * dev, struct comedi_devconfig * i
 
 	if (alloc_subdevices(dev, 1) < 0)
 		return -ENOMEM;
-	if (alloc_private(dev, sizeof(dt2815_private)) < 0)
+	if (alloc_private(dev, sizeof(struct dt2815_private)) < 0)
 		return -ENOMEM;
 
 	s = dev->subdevices;
