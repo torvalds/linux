@@ -162,7 +162,7 @@ void mite_setregs(struct mite_struct *mite, unsigned long ll_start, int chan,
 void mite_prep_dma(struct mite_channel *mite_chan,
 	unsigned int num_device_bits, unsigned int num_memory_bits);
 int mite_buf_change(struct mite_dma_descriptor_ring *ring,
-	comedi_async * async);
+	comedi_async *async);
 
 #ifdef DEBUG_MITE
 void mite_print_chsr(unsigned int chsr);

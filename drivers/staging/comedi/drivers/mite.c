@@ -103,7 +103,7 @@ static void dump_chip_signature(u32 csigr_bits)
 	printk("mite: num channels = %i, write post fifo depth = %i, wins = %i, iowins = %i\n", mite_csigr_dmac(csigr_bits), mite_csigr_wpdep(csigr_bits), mite_csigr_wins(csigr_bits), mite_csigr_iowins(csigr_bits));
 }
 
-unsigned mite_fifo_size(struct mite_struct * mite, unsigned channel)
+unsigned mite_fifo_size(struct mite_struct *mite, unsigned channel)
 {
 	unsigned fcr_bits = readl(mite->mite_io_addr +
 		MITE_FCR(channel));
@@ -459,7 +459,7 @@ u32 mite_device_bytes_transferred(struct mite_channel *mite_chan)
 	return readl(mite->mite_io_addr + MITE_DAR(mite_chan->channel));
 }
 
-u32 mite_bytes_in_transit(struct mite_channel * mite_chan)
+u32 mite_bytes_in_transit(struct mite_channel *mite_chan)
 {
 	struct mite_struct *mite = mite_chan->mite;
 	return readl(mite->mite_io_addr +
@@ -467,7 +467,7 @@ u32 mite_bytes_in_transit(struct mite_channel * mite_chan)
 }
 
 /*  returns lower bound for number of bytes transferred from device to memory */
-u32 mite_bytes_written_to_memory_lb(struct mite_channel * mite_chan)
+u32 mite_bytes_written_to_memory_lb(struct mite_channel *mite_chan)
 {
 	u32 device_byte_count;
 
@@ -476,7 +476,7 @@ u32 mite_bytes_written_to_memory_lb(struct mite_channel * mite_chan)
 }
 
 /*  returns upper bound for number of bytes transferred from device to memory */
-u32 mite_bytes_written_to_memory_ub(struct mite_channel * mite_chan)
+u32 mite_bytes_written_to_memory_ub(struct mite_channel *mite_chan)
 {
 	u32 in_transit_count;
 
@@ -485,7 +485,7 @@ u32 mite_bytes_written_to_memory_ub(struct mite_channel * mite_chan)
 }
 
 /*  returns lower bound for number of bytes read from memory for transfer to device */
-u32 mite_bytes_read_from_memory_lb(struct mite_channel * mite_chan)
+u32 mite_bytes_read_from_memory_lb(struct mite_channel *mite_chan)
 {
 	u32 device_byte_count;
 
@@ -494,7 +494,7 @@ u32 mite_bytes_read_from_memory_lb(struct mite_channel * mite_chan)
 }
 
 /*  returns upper bound for number of bytes read from memory for transfer to device */
-u32 mite_bytes_read_from_memory_ub(struct mite_channel * mite_chan)
+u32 mite_bytes_read_from_memory_ub(struct mite_channel *mite_chan)
 {
 	u32 in_transit_count;
 

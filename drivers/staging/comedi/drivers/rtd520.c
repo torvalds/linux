@@ -680,8 +680,8 @@ typedef struct {
  * the board, and also about the kernel module that contains
  * the device code.
  */
-static int rtd_attach(comedi_device * dev, comedi_devconfig * it);
-static int rtd_detach(comedi_device * dev);
+static int rtd_attach(comedi_device *dev, comedi_devconfig *it);
+static int rtd_detach(comedi_device *dev);
 
 static comedi_driver rtd520Driver = {
       driver_name: DRV_NAME,
@@ -690,20 +690,20 @@ static comedi_driver rtd520Driver = {
       detach:rtd_detach,
 };
 
-static int rtd_ai_rinsn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
-static int rtd_ao_winsn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
-static int rtd_ao_rinsn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
-static int rtd_dio_insn_bits(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
-static int rtd_dio_insn_config(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
-static int rtd_ai_cmdtest(comedi_device * dev, comedi_subdevice * s,
-	comedi_cmd * cmd);
-static int rtd_ai_cmd(comedi_device * dev, comedi_subdevice * s);
-static int rtd_ai_cancel(comedi_device * dev, comedi_subdevice * s);
+static int rtd_ai_rinsn(comedi_device *dev, comedi_subdevice *s,
+	comedi_insn *insn, lsampl_t *data);
+static int rtd_ao_winsn(comedi_device *dev, comedi_subdevice *s,
+	comedi_insn *insn, lsampl_t *data);
+static int rtd_ao_rinsn(comedi_device *dev, comedi_subdevice *s,
+	comedi_insn *insn, lsampl_t *data);
+static int rtd_dio_insn_bits(comedi_device *dev, comedi_subdevice *s,
+	comedi_insn *insn, lsampl_t *data);
+static int rtd_dio_insn_config(comedi_device *dev, comedi_subdevice *s,
+	comedi_insn *insn, lsampl_t *data);
+static int rtd_ai_cmdtest(comedi_device *dev, comedi_subdevice *s,
+	comedi_cmd *cmd);
+static int rtd_ai_cmd(comedi_device *dev, comedi_subdevice *s);
+static int rtd_ai_cancel(comedi_device *dev, comedi_subdevice *s);
 /* static int rtd_ai_poll (comedi_device *dev,comedi_subdevice *s); */
 static int rtd_ns_to_timer(unsigned int *ns, int roundMode);
 static irqreturn_t rtd_interrupt(int irq, void *d PT_REGS_ARG);
@@ -715,7 +715,7 @@ static int rtd520_probe_fifo_depth(comedi_device *dev);
  * in the driver structure, dev->board_ptr contains that
  * address.
  */
-static int rtd_attach(comedi_device * dev, comedi_devconfig * it)
+static int rtd_attach(comedi_device *dev, comedi_devconfig *it)
 {				/* board name and options flags */
 	comedi_subdevice *s;
 	struct pci_dev *pcidev;
@@ -1057,7 +1057,7 @@ static int rtd_attach(comedi_device * dev, comedi_devconfig * it)
  * allocated by _attach().  dev->private and dev->subdevices are
  * deallocated automatically by the core.
  */
-static int rtd_detach(comedi_device * dev)
+static int rtd_detach(comedi_device *dev)
 {
 #ifdef USE_DMA
 	int index;
@@ -1137,7 +1137,7 @@ static int rtd_detach(comedi_device * dev)
 /*
   Convert a single comedi channel-gain entry to a RTD520 table entry
 */
-static unsigned short rtdConvertChanGain(comedi_device * dev,
+static unsigned short rtdConvertChanGain(comedi_device *dev,
 	unsigned int comediChan, int chanIndex)
 {				/* index in channel list */
 	unsigned int chan, range, aref;
@@ -1187,7 +1187,7 @@ static unsigned short rtdConvertChanGain(comedi_device * dev,
 /*
   Setup the channel-gain table from a comedi list
 */
-static void rtd_load_channelgain_list(comedi_device * dev,
+static void rtd_load_channelgain_list(comedi_device *dev,
 	unsigned int n_chan, unsigned int *list)
 {
 	if (n_chan > 1) {	/* setup channel gain table */
@@ -1251,8 +1251,8 @@ static int rtd520_probe_fifo_depth(comedi_device *dev)
   Note, we don't do any settling delays.  Use a instruction list to
   select, delay, then read.
  */
-static int rtd_ai_rinsn(comedi_device * dev,
-	comedi_subdevice * s, comedi_insn * insn, lsampl_t * data)
+static int rtd_ai_rinsn(comedi_device *dev,
+	comedi_subdevice *s, comedi_insn *insn, lsampl_t *data)
 {
 	int n, ii;
 	int stat;
@@ -1304,7 +1304,7 @@ static int rtd_ai_rinsn(comedi_device * dev,
 
   The manual claims that we can do a lword read, but it doesn't work here.
 */
-static int ai_read_n(comedi_device * dev, comedi_subdevice * s, int count)
+static int ai_read_n(comedi_device *dev, comedi_subdevice *s, int count)
 {
 	int ii;
 
@@ -1343,7 +1343,7 @@ static int ai_read_n(comedi_device * dev, comedi_subdevice * s, int count)
 /*
   unknown amout of data is waiting in fifo.
 */
-static int ai_read_dregs(comedi_device * dev, comedi_subdevice * s)
+static int ai_read_dregs(comedi_device *dev, comedi_subdevice *s)
 {
 	while (RtdFifoStatus(dev) & FS_ADC_NOT_EMPTY) {	/* 1 -> not empty */
 		sampl_t sample;
@@ -1372,7 +1372,7 @@ static int ai_read_dregs(comedi_device * dev, comedi_subdevice * s)
 /*
   Terminate a DMA transfer and wait for everything to quiet down
 */
-void abort_dma(comedi_device * dev, unsigned int channel)
+void abort_dma(comedi_device *dev, unsigned int channel)
 {				/* DMA channel 0, 1 */
 	unsigned long dma_cs_addr;	/* the control/status register */
 	uint8_t status;
@@ -1431,7 +1431,7 @@ void abort_dma(comedi_device * dev, unsigned int channel)
   Process what is in the DMA transfer buffer and pass to comedi
   Note: this is not re-entrant
 */
-static int ai_process_dma(comedi_device * dev, comedi_subdevice * s)
+static int ai_process_dma(comedi_device *dev, comedi_subdevice *s)
 {
 	int ii, n;
 	s16 *dp;
@@ -1645,7 +1645,7 @@ static irqreturn_t rtd_interrupt(int irq,	/* interrupt number (ignored) */
 /*
   return the number of samples available
 */
-static int rtd_ai_poll(comedi_device * dev, comedi_subdevice * s)
+static int rtd_ai_poll(comedi_device *dev, comedi_subdevice *s)
 {
 	/* TODO: This needs to mask interrupts, read_dregs, and then re-enable */
 	/* Not sure what to do if DMA is active */
@@ -1662,8 +1662,8 @@ static int rtd_ai_poll(comedi_device * dev, comedi_subdevice * s)
   the command passes.
 */
 
-static int rtd_ai_cmdtest(comedi_device * dev,
-	comedi_subdevice * s, comedi_cmd * cmd)
+static int rtd_ai_cmdtest(comedi_device *dev,
+	comedi_subdevice *s, comedi_cmd *cmd)
 {
 	int err = 0;
 	int tmp;
@@ -1867,7 +1867,7 @@ static int rtd_ai_cmdtest(comedi_device * dev,
   This is usually done by an interrupt handler.
   Userland gets to the data using read calls.
 */
-static int rtd_ai_cmd(comedi_device * dev, comedi_subdevice * s)
+static int rtd_ai_cmd(comedi_device *dev, comedi_subdevice *s)
 {
 	comedi_cmd *cmd = &s->async->cmd;
 	int timer;
@@ -2064,7 +2064,7 @@ static int rtd_ai_cmd(comedi_device * dev, comedi_subdevice * s)
 /*
   Stop a running data aquisition.
 */
-static int rtd_ai_cancel(comedi_device * dev, comedi_subdevice * s)
+static int rtd_ai_cancel(comedi_device *dev, comedi_subdevice *s)
 {
 	u16 status;
 
@@ -2132,8 +2132,8 @@ static int rtd_ns_to_timer(unsigned int *ns, int round_mode)
 /*
   Output one (or more) analog values to a single port as fast as possible.
 */
-static int rtd_ao_winsn(comedi_device * dev,
-	comedi_subdevice * s, comedi_insn * insn, lsampl_t * data)
+static int rtd_ao_winsn(comedi_device *dev,
+	comedi_subdevice *s, comedi_insn *insn, lsampl_t *data)
 {
 	int i;
 	int chan = CR_CHAN(insn->chanspec);
@@ -2187,8 +2187,8 @@ static int rtd_ao_winsn(comedi_device * dev,
 
 /* AO subdevices should have a read insn as well as a write insn.
  * Usually this means copying a value stored in devpriv. */
-static int rtd_ao_rinsn(comedi_device * dev,
-	comedi_subdevice * s, comedi_insn * insn, lsampl_t * data)
+static int rtd_ao_rinsn(comedi_device *dev,
+	comedi_subdevice *s, comedi_insn *insn, lsampl_t *data)
 {
 	int i;
 	int chan = CR_CHAN(insn->chanspec);
@@ -2210,8 +2210,8 @@ static int rtd_ao_rinsn(comedi_device * dev,
  * This allows packed reading/writing of the DIO channels.  The
  * comedi core can convert between insn_bits and insn_read/write
  */
-static int rtd_dio_insn_bits(comedi_device * dev,
-	comedi_subdevice * s, comedi_insn * insn, lsampl_t * data)
+static int rtd_dio_insn_bits(comedi_device *dev,
+	comedi_subdevice *s, comedi_insn *insn, lsampl_t *data)
 {
 	if (insn->n != 2)
 		return -EINVAL;
@@ -2237,8 +2237,8 @@ static int rtd_dio_insn_bits(comedi_device * dev,
 /*
   Configure one bit on a IO port as Input or Output (hence the name :-).
 */
-static int rtd_dio_insn_config(comedi_device * dev,
-	comedi_subdevice * s, comedi_insn * insn, lsampl_t * data)
+static int rtd_dio_insn_config(comedi_device *dev,
+	comedi_subdevice *s, comedi_insn *insn, lsampl_t *data)
 {
 	int chan = CR_CHAN(insn->chanspec);
 

@@ -44,7 +44,7 @@ const comedi_lrange range_unknown = { 1, {{0, 1000000, UNIT_none}} };
 	writes:
 		n comedi_krange structures to rangeinfo->range_ptr
 */
-int do_rangeinfo_ioctl(comedi_device * dev, comedi_rangeinfo * arg)
+int do_rangeinfo_ioctl(comedi_device *dev, comedi_rangeinfo *arg)
 {
 	comedi_rangeinfo it;
 	int subd, chan;
@@ -84,7 +84,7 @@ int do_rangeinfo_ioctl(comedi_device * dev, comedi_rangeinfo * arg)
 	return 0;
 }
 
-static int aref_invalid(comedi_subdevice * s, unsigned int chanspec)
+static int aref_invalid(comedi_subdevice *s, unsigned int chanspec)
 {
 	unsigned int aref;
 
@@ -120,7 +120,7 @@ static int aref_invalid(comedi_subdevice * s, unsigned int chanspec)
    This function checks each element in a channel/gain list to make
    make sure it is valid.
 */
-int check_chanlist(comedi_subdevice * s, int n, unsigned int *chanlist)
+int check_chanlist(comedi_subdevice *s, int n, unsigned int *chanlist)
 {
 	int i;
 	int chan;

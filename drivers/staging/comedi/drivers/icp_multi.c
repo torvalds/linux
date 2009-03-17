@@ -123,8 +123,8 @@ static const char range_codes_analog[] = { 0x00, 0x20, 0x10, 0x30 };
 	Forward declarations
 ==============================================================================
 */
-static int icp_multi_attach(comedi_device * dev, comedi_devconfig * it);
-static int icp_multi_detach(comedi_device * dev);
+static int icp_multi_attach(comedi_device *dev, comedi_devconfig *it);
+static int icp_multi_detach(comedi_device *dev);
 
 /*
 ==============================================================================
@@ -214,12 +214,12 @@ typedef struct {
 */
 
 #if 0
-static int check_channel_list(comedi_device * dev, comedi_subdevice * s,
+static int check_channel_list(comedi_device *dev, comedi_subdevice *s,
 	unsigned int *chanlist, unsigned int n_chan);
 #endif
-static void setup_channel_list(comedi_device * dev, comedi_subdevice * s,
+static void setup_channel_list(comedi_device *dev, comedi_subdevice *s,
 	unsigned int *chanlist, unsigned int n_chan);
-static int icp_multi_reset(comedi_device * dev);
+static int icp_multi_reset(comedi_device *dev);
 
 /*
 ==============================================================================
@@ -245,8 +245,8 @@ static int icp_multi_reset(comedi_device * dev);
 
 ==============================================================================
 */
-static int icp_multi_insn_read_ai(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+static int icp_multi_insn_read_ai(comedi_device *dev, comedi_subdevice *s,
+	comedi_insn *insn, lsampl_t *data)
 {
 	int n, timeout;
 
@@ -364,8 +364,8 @@ static int icp_multi_insn_read_ai(comedi_device * dev, comedi_subdevice * s,
 
 ==============================================================================
 */
-static int icp_multi_insn_write_ao(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+static int icp_multi_insn_write_ao(comedi_device *dev, comedi_subdevice *s,
+	comedi_insn *insn, lsampl_t *data)
 {
 	int n, chan, range, timeout;
 
@@ -472,8 +472,8 @@ static int icp_multi_insn_write_ao(comedi_device * dev, comedi_subdevice * s,
 
 ==============================================================================
 */
-static int icp_multi_insn_read_ao(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+static int icp_multi_insn_read_ao(comedi_device *dev, comedi_subdevice *s,
+	comedi_insn *insn, lsampl_t *data)
 {
 	int n, chan;
 
@@ -505,8 +505,8 @@ static int icp_multi_insn_read_ao(comedi_device * dev, comedi_subdevice * s,
 
 ==============================================================================
 */
-static int icp_multi_insn_bits_di(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+static int icp_multi_insn_bits_di(comedi_device *dev, comedi_subdevice *s,
+	comedi_insn *insn, lsampl_t *data)
 {
 	data[1] = readw(devpriv->io_addr + ICP_MULTI_DI);
 
@@ -531,8 +531,8 @@ static int icp_multi_insn_bits_di(comedi_device * dev, comedi_subdevice * s,
 
 ==============================================================================
 */
-static int icp_multi_insn_bits_do(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+static int icp_multi_insn_bits_do(comedi_device *dev, comedi_subdevice *s,
+	comedi_insn *insn, lsampl_t *data)
 {
 #ifdef ICP_MULTI_EXTDEBUG
 	printk("icp multi EDBG: BGN: icp_multi_insn_bits_do(...)\n");
@@ -573,8 +573,8 @@ static int icp_multi_insn_bits_do(comedi_device * dev, comedi_subdevice * s,
 
 ==============================================================================
 */
-static int icp_multi_insn_read_ctr(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+static int icp_multi_insn_read_ctr(comedi_device *dev, comedi_subdevice *s,
+	comedi_insn *insn, lsampl_t *data)
 {
 	return 0;
 }
@@ -597,8 +597,8 @@ static int icp_multi_insn_read_ctr(comedi_device * dev, comedi_subdevice * s,
 
 ==============================================================================
 */
-static int icp_multi_insn_write_ctr(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+static int icp_multi_insn_write_ctr(comedi_device *dev, comedi_subdevice *s,
+	comedi_insn *insn, lsampl_t *data)
 {
 	return 0;
 }
@@ -689,7 +689,7 @@ static irqreturn_t interrupt_service_icp_multi(int irq, void *d PT_REGS_ARG)
 
 ==============================================================================
 */
-static int check_channel_list(comedi_device * dev, comedi_subdevice * s,
+static int check_channel_list(comedi_device *dev, comedi_subdevice *s,
 	unsigned int *chanlist, unsigned int n_chan)
 {
 	unsigned int i;
@@ -743,7 +743,7 @@ static int check_channel_list(comedi_device * dev, comedi_subdevice * s,
 
 ==============================================================================
 */
-static void setup_channel_list(comedi_device * dev, comedi_subdevice * s,
+static void setup_channel_list(comedi_device *dev, comedi_subdevice *s,
 	unsigned int *chanlist, unsigned int n_chan)
 {
 	unsigned int i, range, chanprog;
@@ -812,7 +812,7 @@ static void setup_channel_list(comedi_device * dev, comedi_subdevice * s,
 
 ==============================================================================
 */
-static int icp_multi_reset(comedi_device * dev)
+static int icp_multi_reset(comedi_device *dev)
 {
 	unsigned int i;
 
@@ -870,7 +870,7 @@ static int icp_multi_reset(comedi_device * dev)
 
 ==============================================================================
 */
-static int icp_multi_attach(comedi_device * dev, comedi_devconfig * it)
+static int icp_multi_attach(comedi_device *dev, comedi_devconfig *it)
 {
 	comedi_subdevice *s;
 	int ret, subdev, n_subdevices;
@@ -1061,7 +1061,7 @@ static int icp_multi_attach(comedi_device * dev, comedi_devconfig * it)
 
 ==============================================================================
 */
-static int icp_multi_detach(comedi_device * dev)
+static int icp_multi_detach(comedi_device *dev)
 {
 
 	if (dev->private)

@@ -89,7 +89,7 @@ comedi_t *comedi_open_old(unsigned int minor)
 	return (comedi_t *) dev;
 }
 
-int comedi_close(comedi_t * d)
+int comedi_close(comedi_t *d)
 {
 	comedi_device *dev = (comedi_device *) d;
 
@@ -113,7 +113,7 @@ char *comedi_strerror(int err)
 	return "unknown error";
 }
 
-int comedi_fileno(comedi_t * d)
+int comedi_fileno(comedi_t *d)
 {
 	comedi_device *dev = (comedi_device *) d;
 
@@ -121,7 +121,7 @@ int comedi_fileno(comedi_t * d)
 	return dev->minor;
 }
 
-int comedi_command(comedi_t * d, comedi_cmd * cmd)
+int comedi_command(comedi_t *d, comedi_cmd *cmd)
 {
 	comedi_device *dev = (comedi_device *) d;
 	comedi_subdevice *s;
@@ -161,7 +161,7 @@ int comedi_command(comedi_t * d, comedi_cmd * cmd)
 	return s->do_cmd(dev, s);
 }
 
-int comedi_command_test(comedi_t * d, comedi_cmd * cmd)
+int comedi_command_test(comedi_t *d, comedi_cmd *cmd)
 {
 	comedi_device *dev = (comedi_device *) d;
 	comedi_subdevice *s;
@@ -183,7 +183,7 @@ int comedi_command_test(comedi_t * d, comedi_cmd * cmd)
  *	COMEDI_INSN
  *	perform an instruction
  */
-int comedi_do_insn(comedi_t * d, comedi_insn * insn)
+int comedi_do_insn(comedi_t *d, comedi_insn *insn)
 {
 	comedi_device *dev = (comedi_device *) d;
 	comedi_subdevice *s;
@@ -323,7 +323,7 @@ int comedi_do_insn(comedi_t * d, comedi_insn * insn)
 	- lock while subdevice being programmed
 
 */
-int comedi_lock(comedi_t * d, unsigned int subdevice)
+int comedi_lock(comedi_t *d, unsigned int subdevice)
 {
 	comedi_device *dev = (comedi_device *) d;
 	comedi_subdevice *s;
@@ -366,7 +366,7 @@ int comedi_lock(comedi_t * d, unsigned int subdevice)
 		none
 
 */
-int comedi_unlock(comedi_t * d, unsigned int subdevice)
+int comedi_unlock(comedi_t *d, unsigned int subdevice)
 {
 	comedi_device *dev = (comedi_device *) d;
 	comedi_subdevice *s;
@@ -418,7 +418,7 @@ int comedi_unlock(comedi_t * d, unsigned int subdevice)
 		nothing
 
 */
-int comedi_cancel(comedi_t * d, unsigned int subdevice)
+int comedi_cancel(comedi_t *d, unsigned int subdevice)
 {
 	comedi_device *dev = (comedi_device *) d;
 	comedi_subdevice *s;
@@ -461,7 +461,7 @@ int comedi_cancel(comedi_t * d, unsigned int subdevice)
 /*
    registration of callback functions
  */
-int comedi_register_callback(comedi_t * d, unsigned int subdevice,
+int comedi_register_callback(comedi_t *d, unsigned int subdevice,
 	unsigned int mask, int (*cb) (unsigned int, void *), void *arg)
 {
 	comedi_device *dev = (comedi_device *) d;
@@ -498,7 +498,7 @@ int comedi_register_callback(comedi_t * d, unsigned int subdevice,
 	return 0;
 }
 
-int comedi_poll(comedi_t * d, unsigned int subdevice)
+int comedi_poll(comedi_t *d, unsigned int subdevice)
 {
 	comedi_device *dev = (comedi_device *) d;
 	comedi_subdevice *s = dev->subdevices;
@@ -525,7 +525,7 @@ int comedi_poll(comedi_t * d, unsigned int subdevice)
 }
 
 /* WARNING: not portable */
-int comedi_map(comedi_t * d, unsigned int subdevice, void *ptr)
+int comedi_map(comedi_t *d, unsigned int subdevice, void *ptr)
 {
 	comedi_device *dev = (comedi_device *) d;
 	comedi_subdevice *s;
@@ -548,7 +548,7 @@ int comedi_map(comedi_t * d, unsigned int subdevice, void *ptr)
 }
 
 /* WARNING: not portable */
-int comedi_unmap(comedi_t * d, unsigned int subdevice)
+int comedi_unmap(comedi_t *d, unsigned int subdevice)
 {
 	comedi_device *dev = (comedi_device *) d;
 	comedi_subdevice *s;
