@@ -129,7 +129,7 @@ static const struct comedi_lrange cb_pcidda_ranges = {
  * boards in this way is optional, and completely driver-dependent.
  * Some drivers use arrays such as this, other do not.
  */
-typedef struct cb_pcidda_board_struct {
+struct cb_pcidda_board {
 	const char *name;
 	char status;		// Driver status:
 	// 0 - tested
@@ -139,8 +139,8 @@ typedef struct cb_pcidda_board_struct {
 	int ao_chans;
 	int ao_bits;
 	const struct comedi_lrange *ranges;
-} cb_pcidda_board;
-static const cb_pcidda_board cb_pcidda_boards[] = {
+};
+static const struct cb_pcidda_board cb_pcidda_boards[] = {
 	{
 	      name:	"pci-dda02/12",
 	      status:	1,
@@ -206,7 +206,7 @@ MODULE_DEVICE_TABLE(pci, cb_pcidda_pci_table);
 /*
  * Useful for shorthand access to the particular board structure
  */
-#define thisboard ((const cb_pcidda_board *)dev->board_ptr)
+#define thisboard ((const struct cb_pcidda_board *)dev->board_ptr)
 
 /* this structure is for data unique to this hardware driver.  If
    several hardware drivers keep similar information in this structure,
