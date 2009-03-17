@@ -252,7 +252,8 @@ static int RTC_lock = 0;	/* RTC lock */
 static int RTC_timer_lock = 0;	/* RTC int lock */
 #endif
 
-typedef struct {
+struct pcl818_board {
+
 	const char *name;	// driver name
 	int n_ranges;		// len of range list
 	int n_aichan_se;	// num of A/D chans in single ended  mode
@@ -270,9 +271,10 @@ typedef struct {
 	int ao_maxdata;		// maxdata for D/A
 	unsigned char fifo;	// 1=board has FIFO
 	int is_818;
-} boardtype;
+};
 
-static const boardtype boardtypes[] = {
+
+static const struct pcl818_board boardtypes[] = {
 	{"pcl818l", 4, 16, 8, 25000, 1, 16, 16, &range_pcl818l_l_ai,
 			&range_unipolar5, PCLx1x_RANGE, 0x00fc,
 		0x0a, 0xfff, 0xfff, 0, 1},
@@ -297,7 +299,7 @@ static const boardtype boardtypes[] = {
 		0x0a, 0xfff, 0xfff, 0, 1 /* XXX ? */ },
 };
 
-#define n_boardtypes (sizeof(boardtypes)/sizeof(boardtype))
+#define n_boardtypes (sizeof(boardtypes)/sizeof(struct pcl818_board))
 
 static struct comedi_driver driver_pcl818 = {
       driver_name:"pcl818",
@@ -306,7 +308,7 @@ static struct comedi_driver driver_pcl818 = {
       detach:pcl818_detach,
       board_name:&boardtypes[0].name,
       num_names:n_boardtypes,
-      offset:sizeof(boardtype),
+      offset:sizeof(struct pcl818_board),
 };
 
 COMEDI_INITCLEANUP(driver_pcl818);
@@ -363,7 +365,7 @@ static const unsigned int muxonechan[] = { 0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0
 };
 
 #define devpriv ((pcl818_private *)dev->private)
-#define this_board ((const boardtype *)dev->board_ptr)
+#define this_board ((const struct pcl818_board *)dev->board_ptr)
 
 /*
 ==============================================================================
