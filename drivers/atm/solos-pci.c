@@ -1206,10 +1206,28 @@ static void atm_remove(struct solos_card *card)
 
 	for (i = 0; i < card->nr_ports; i++) {
 		if (card->atmdev[i]) {
+			struct sk_buff *skb;
+
 			dev_info(&card->dev->dev, "Unregistering ATM device %d\n", card->atmdev[i]->number);
 
 			sysfs_remove_group(&card->atmdev[i]->class_dev.kobj, &solos_attr_group);
 			atm_dev_deregister(card->atmdev[i]);
+
+			skb = card->rx_skb[i];
+			if (skb) {
+				pci_unmap_single(card->dev, SKB_CB(skb)->dma_addr,
+						 RX_DMA_SIZE, PCI_DMA_FROMDEVICE);
+				dev_kfree_skb(skb);
+			}
+			skb = card->tx_skb[i];
+			if (skb) {
+				pci_unmap_single(card->dev, SKB_CB(skb)->dma_addr,
+						 skb->len, PCI_DMA_TODEVICE);
+				dev_kfree_skb(skb);
+			}
+			while ((skb = skb_dequeue(&card->tx_queue[i])))
+				dev_kfree_skb(skb);
+ 
 		}
 	}
 }
@@ -1217,12 +1235,22 @@ static void atm_remove(struct solos_card *card)
 static void fpga_remove(struct pci_dev *dev)
 {
 	struct solos_card *card = pci_get_drvdata(dev);
+	
+	/* Disable IRQs */
+	iowrite32(0, card->config_regs + IRQ_EN_ADDR);
+
+	/* Reset FPGA */
+	iowrite32(1, card->config_regs + FPGA_MODE);
+	(void)ioread32(card->config_regs + FPGA_MODE); 
 
 	atm_remove(card);
 
-	iowrite32(0, card->config_regs + IRQ_EN_ADDR);
 	free_irq(dev->irq, card);
 	tasklet_kill(&card->tlet);
+
+	/* Release device from reset */
+	iowrite32(0, card->config_regs + FPGA_MODE);
+	(void)ioread32(card->config_regs + FPGA_MODE); 
 
 	pci_iounmap(dev, card->buffers);
 	pci_iounmap(dev, card->config_regs);
