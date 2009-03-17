@@ -127,13 +127,15 @@ static DEFINE_PCI_DEVICE_TABLE(jr3_pci_pci_table) = {
 
 MODULE_DEVICE_TABLE(pci, jr3_pci_pci_table);
 
-typedef struct {
+struct jr3_pci_dev_private {
+
 	struct pci_dev *pci_dev;
 	int pci_enabled;
 	volatile struct jr3_t *iobase;
 	int n_channels;
 	struct timer_list timer;
-} jr3_pci_dev_private;
+};
+
 
 typedef struct {
 	int min;
@@ -388,7 +390,7 @@ static int jr3_pci_ai_insn_read(struct comedi_device * dev, struct comedi_subdev
 static void jr3_pci_open(struct comedi_device * dev)
 {
 	int i;
-	jr3_pci_dev_private *devpriv = dev->private;
+	struct jr3_pci_dev_private *devpriv = dev->private;
 
 	printk("jr3_pci_open\n");
 	for (i = 0; i < devpriv->n_channels; i++) {
@@ -458,7 +460,7 @@ static int jr3_download_firmware(struct comedi_device * dev, const u8 * data,
 		result = -ENODATA;
 	} else {
 		int i;
-		jr3_pci_dev_private *p = dev->private;
+		struct jr3_pci_dev_private *p = dev->private;
 
 		for (i = 0; i < p->n_channels; i++) {
 			jr3_pci_subdev_private *sp;
@@ -738,7 +740,7 @@ static void jr3_pci_poll_dev(unsigned long data)
 {
 	unsigned long flags;
 	struct comedi_device *dev = (struct comedi_device *) data;
-	jr3_pci_dev_private *devpriv = dev->private;
+	struct jr3_pci_dev_private *devpriv = dev->private;
 	unsigned long now;
 	int delay;
 	int i;
@@ -775,7 +777,7 @@ static int jr3_pci_attach(struct comedi_device * dev, struct comedi_devconfig * 
 	int result = 0;
 	struct pci_dev *card = NULL;
 	int opt_bus, opt_slot, i;
-	jr3_pci_dev_private *devpriv;
+	struct jr3_pci_dev_private *devpriv;
 
 	printk("comedi%d: jr3_pci\n", dev->minor);
 
@@ -788,7 +790,7 @@ static int jr3_pci_attach(struct comedi_device * dev, struct comedi_devconfig * 
 		return -EINVAL;
 	}
 
-	result = alloc_private(dev, sizeof(jr3_pci_dev_private));
+	result = alloc_private(dev, sizeof(struct jr3_pci_dev_private));
 	if (result < 0) {
 		return -ENOMEM;
 	}
@@ -943,7 +945,7 @@ static int jr3_pci_attach(struct comedi_device * dev, struct comedi_devconfig * 
 static int jr3_pci_detach(struct comedi_device * dev)
 {
 	int i;
-	jr3_pci_dev_private *devpriv = dev->private;
+	struct jr3_pci_dev_private *devpriv = dev->private;
 
 	printk("comedi%d: jr3_pci: remove\n", dev->minor);
 	if (devpriv) {
