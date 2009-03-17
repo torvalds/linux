@@ -200,7 +200,7 @@ static const struct pcmmio_board pcmmio_boards[] = {
 #define thisboard ((const struct pcmmio_board *)dev->board_ptr)
 
 /* this structure is for data unique to this subdevice.  */
-typedef struct {
+struct pcmmio_subdev_private {
 
 	union {
 		/* for DIO: mapping of halfwords (bytes) in port/chanarray to iobase */
@@ -233,7 +233,7 @@ typedef struct {
 			unsigned int shadow_samples[8];	/* the last unsigned int data written */
 		} ao;
 	};
-} pcmmio_subdev_private;
+};
 
 /* this structure is for data unique to this hardware driver.  If
    several hardware drivers keep similar information in this structure,
@@ -249,7 +249,7 @@ typedef struct {
 		unsigned int irq;
 		spinlock_t spinlock;
 	} asics[MAX_ASICS];
-	pcmmio_subdev_private *sprivs;
+	struct pcmmio_subdev_private *sprivs;
 } pcmmio_private;
 
 /*
@@ -257,7 +257,7 @@ typedef struct {
  * access the private structure.
  */
 #define devpriv ((pcmmio_private *)dev->private)
-#define subpriv ((pcmmio_subdev_private *)s->private)
+#define subpriv ((struct pcmmio_subdev_private *)s->private)
 /*
  * The struct comedi_driver structure tells the Comedi core module
  * which functions to call to configure/deconfigure (attach/detach)
@@ -372,7 +372,7 @@ static int pcmmio_attach(struct comedi_device * dev, struct comedi_devconfig * i
 	n_dio_subdevs = CALC_N_DIO_SUBDEVS(chans_left);
 	n_subdevs = n_dio_subdevs + 2;
 	devpriv->sprivs =
-		kcalloc(n_subdevs, sizeof(pcmmio_subdev_private), GFP_KERNEL);
+		kcalloc(n_subdevs, sizeof(struct pcmmio_subdev_private), GFP_KERNEL);
 	if (!devpriv->sprivs) {
 		printk("cannot allocate subdevice private data structures\n");
 		return -ENOMEM;
