@@ -132,7 +132,8 @@ static const struct comedi_lrange range_acl8112dg_ai = { 9, {
 
 static const int i8253_osc_base = 500;	/* 2 Mhz */
 
-typedef struct {
+struct pcl711_board {
+
 	const char *name;
 	int is_pcl711b;
 	int is_8112;
@@ -142,17 +143,18 @@ typedef struct {
 	int n_aochan;
 	int maxirq;
 	const struct comedi_lrange *ai_range_type;
-} boardtype;
+};
 
-static const boardtype boardtypes[] = {
+
+static const struct pcl711_board boardtypes[] = {
 	{"pcl711", 0, 0, 0, 5, 8, 1, 0, &range_bipolar5},
 	{"pcl711b", 1, 0, 0, 5, 8, 1, 7, &range_pcl711b_ai},
 	{"acl8112hg", 0, 1, 0, 12, 16, 2, 15, &range_acl8112hg_ai},
 	{"acl8112dg", 0, 1, 1, 9, 16, 2, 15, &range_acl8112dg_ai},
 };
 
-#define n_boardtypes (sizeof(boardtypes)/sizeof(boardtype))
-#define this_board ((const boardtype *)dev->board_ptr)
+#define n_boardtypes (sizeof(boardtypes)/sizeof(struct pcl711_board))
+#define this_board ((const struct pcl711_board *)dev->board_ptr)
 
 static int pcl711_attach(struct comedi_device * dev, struct comedi_devconfig * it);
 static int pcl711_detach(struct comedi_device * dev);
@@ -163,7 +165,7 @@ static struct comedi_driver driver_pcl711 = {
       detach:pcl711_detach,
       board_name:&boardtypes[0].name,
       num_names:n_boardtypes,
-      offset:sizeof(boardtype),
+      offset:sizeof(struct pcl711_board),
 };
 
 COMEDI_INITCLEANUP(driver_pcl711);
