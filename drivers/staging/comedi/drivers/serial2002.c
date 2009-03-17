@@ -60,11 +60,13 @@ static const serial2002_board serial2002_boards[] = {
  */
 #define thisboard ((const serial2002_board *)dev->board_ptr)
 
-typedef struct {
+struct serial2002_range_table_t {
+
 	// HACK...
 	int length;
 	struct comedi_krange range;
-} serial2002_range_table_t;
+};
+
 
 typedef struct {
 	int port;		// /dev/ttyS<port>
@@ -76,7 +78,7 @@ typedef struct {
 	unsigned char analog_in_mapping[32];
 	unsigned char analog_out_mapping[32];
 	unsigned char encoder_in_mapping[32];
-	serial2002_range_table_t in_range[32], out_range[32];
+	struct serial2002_range_table_t in_range[32], out_range[32];
 } serial2002_private;
 
 /*
@@ -554,7 +556,7 @@ static void serial_2002_open(struct comedi_device * dev)
 			// Fill in subdev data
 			config_t *c;
 			unsigned char *mapping = 0;
-			serial2002_range_table_t *range = 0;
+			struct serial2002_range_table_t *range = 0;
 			int kind = 0;
 
 			switch (i) {
@@ -623,7 +625,7 @@ static void serial_2002_open(struct comedi_device * dev)
 					s->range_table = 0;
 					s->range_table_list = range_table_list =
 						kmalloc(sizeof
-						(serial2002_range_table_t) *
+						(struct serial2002_range_table_t) *
 						s->n_chan, GFP_KERNEL);
 				}
 				for (chan = 0, j = 0; j < 32; j++) {
