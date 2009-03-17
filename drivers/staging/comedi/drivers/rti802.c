@@ -58,15 +58,15 @@ static struct comedi_driver driver_rti802 = {
 
 COMEDI_INITCLEANUP(driver_rti802);
 
-typedef struct {
+struct rti802_private {
 	enum {
 		dac_2comp, dac_straight
 	} dac_coding[8];
 	const struct comedi_lrange *range_type_list[8];
 	unsigned int ao_readback[8];
-} rti802_private;
+};
 
-#define devpriv ((rti802_private *)dev->private)
+#define devpriv ((struct rti802_private *)dev->private)
 
 static int rti802_ao_insn_read(struct comedi_device * dev, struct comedi_subdevice * s,
 	struct comedi_insn * insn, unsigned int * data)
@@ -113,7 +113,7 @@ static int rti802_attach(struct comedi_device * dev, struct comedi_devconfig * i
 	dev->board_name = "rti802";
 
 	if (alloc_subdevices(dev, 1) < 0
-		|| alloc_private(dev, sizeof(rti802_private))) {
+		|| alloc_private(dev, sizeof(struct rti802_private))) {
 		return -ENOMEM;
 	}
 
