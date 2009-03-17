@@ -489,10 +489,10 @@ static void pci9111_autoscan_set(struct comedi_device * dev, bool autoscan)
 	pci9111_trigger_and_autoscan_set(flags);
 }
 
-typedef enum {
+enum pci9111_ISC0_sources {
 	irq_on_eoc,
 	irq_on_fifo_half_full
-} pci9111_ISC0_sources;
+};
 
 typedef enum {
 	irq_on_timer_tick,
@@ -500,7 +500,7 @@ typedef enum {
 } pci9111_ISC1_sources;
 
 static void pci9111_interrupt_source_set(struct comedi_device * dev,
-	pci9111_ISC0_sources irq_0_source, pci9111_ISC1_sources irq_1_source)
+	enum pci9111_ISC0_sources irq_0_source, pci9111_ISC1_sources irq_1_source)
 {
 	int flags;
 
