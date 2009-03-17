@@ -82,7 +82,7 @@ MODULE_AUTHOR("Gianluca Palli <gpalli@deis.unibo.it>");
 MODULE_DESCRIPTION("Sensoray 626 Comedi driver module");
 MODULE_LICENSE("GPL");
 
-typedef struct s626_board_struct {
+struct s626_board {
 	const char *name;
 	int ai_chans;
 	int ai_bits;
@@ -91,9 +91,9 @@ typedef struct s626_board_struct {
 	int dio_chans;
 	int dio_banks;
 	int enc_chans;
-} s626_board;
+};
 
-static const s626_board s626_boards[] = {
+static const struct s626_board s626_boards[] = {
 	{
 	      name:	"s626",
 	      ai_chans : S626_ADC_CHANNELS,
@@ -106,7 +106,7 @@ static const s626_board s626_boards[] = {
 		}
 };
 
-#define thisboard ((const s626_board *)dev->board_ptr)
+#define thisboard ((const struct s626_board *)dev->board_ptr)
 #define PCI_VENDOR_ID_S626 0x1131
 #define PCI_DEVICE_ID_S626 0x7146
 
@@ -128,7 +128,7 @@ static comedi_driver driver_s626 = {
       detach : s626_detach,
 };
 
-typedef struct {
+struct s626_private {
 	struct pci_dev *pdev;
 	void *base_addr;
 	int got_regions;
@@ -158,9 +158,9 @@ typedef struct {
 	/* I2C device address for onboard EEPROM (board rev dependent). */
 	/*   short         I2Cards; */
 	lsampl_t ao_readback[S626_DAC_CHANNELS];
-} s626_private;
+};
 
-typedef struct {
+struct dio_private {
 	uint16_t RDDIn;
 	uint16_t WRDOut;
 	uint16_t RDEdgSel;
@@ -170,9 +170,9 @@ typedef struct {
 	uint16_t RDCapFlg;
 	uint16_t RDIntSel;
 	uint16_t WRIntSel;
-} dio_private;
+};
 
-static dio_private dio_private_A = {
+static struct dio_private dio_private_A = {
       RDDIn:LP_RDDINA,
       WRDOut : LP_WRDOUTA,
       RDEdgSel : LP_RDEDGSELA,
@@ -184,7 +184,7 @@ static dio_private dio_private_A = {
       WRIntSel : LP_WRINTSELA,
 };
 
-static dio_private dio_private_B = {
+static struct dio_private dio_private_B = {
       RDDIn:LP_RDDINB,
       WRDOut : LP_WRDOUTB,
       RDEdgSel : LP_RDEDGSELB,
@@ -196,7 +196,7 @@ static dio_private dio_private_B = {
       WRIntSel : LP_WRINTSELB,
 };
 
-static dio_private dio_private_C = {
+static struct dio_private dio_private_C = {
       RDDIn:LP_RDDINC,
       WRDOut : LP_WRDOUTC,
       RDEdgSel : LP_RDEDGSELC,
@@ -209,15 +209,15 @@ static dio_private dio_private_C = {
 };
 
 /* to group dio devices (48 bits mask and data are not allowed ???)
-static dio_private *dio_private_word[]={
+static struct dio_private *dio_private_word[]={
   &dio_private_A,
   &dio_private_B,
   &dio_private_C,
 };
 */
 
-#define devpriv ((s626_private *)dev->private)
-#define diopriv ((dio_private *)s->private)
+#define devpriv ((struct s626_private *)dev->private)
+#define diopriv ((struct dio_private *)s->private)
 
 COMEDI_PCI_INITCLEANUP_NOMODULE(driver_s626, s626_pci_table);
 
@@ -278,67 +278,67 @@ static void DEBIreplace(comedi_device *dev, uint16_t addr, uint16_t mask,
 static void CloseDMAB(comedi_device *dev, DMABUF *pdma, size_t bsize);
 
 /*  COUNTER OBJECT ------------------------------------------------ */
-typedef struct enc_private_struct {
+struct enc_private {
 	/*  Pointers to functions that differ for A and B counters: */
-	uint16_t(*GetEnable) (comedi_device *dev, struct enc_private_struct *);	/* Return clock enable. */
-	uint16_t(*GetIntSrc) (comedi_device *dev, struct enc_private_struct *);	/* Return interrupt source. */
-	uint16_t(*GetLoadTrig) (comedi_device *dev, struct enc_private_struct *);	/* Return preload trigger source. */
-	uint16_t(*GetMode) (comedi_device *dev, struct enc_private_struct *);	/* Return standardized operating mode. */
-	void (*PulseIndex) (comedi_device *dev, struct enc_private_struct *);	/* Generate soft index strobe. */
-	void (*SetEnable) (comedi_device *dev, struct enc_private_struct *, uint16_t enab);	/* Program clock enable. */
-	void (*SetIntSrc) (comedi_device *dev, struct enc_private_struct *, uint16_t IntSource);	/* Program interrupt source. */
-	void (*SetLoadTrig) (comedi_device *dev, struct enc_private_struct *, uint16_t Trig);	/* Program preload trigger source. */
-	void (*SetMode) (comedi_device *dev, struct enc_private_struct *, uint16_t Setup, uint16_t DisableIntSrc);	/* Program standardized operating mode. */
-	void (*ResetCapFlags) (comedi_device *dev, struct enc_private_struct *);	/* Reset event capture flags. */
+	uint16_t(*GetEnable) (comedi_device *dev, struct enc_private *);	/* Return clock enable. */
+	uint16_t(*GetIntSrc) (comedi_device *dev, struct enc_private *);	/* Return interrupt source. */
+	uint16_t(*GetLoadTrig) (comedi_device *dev, struct enc_private *);	/* Return preload trigger source. */
+	uint16_t(*GetMode) (comedi_device *dev, struct enc_private *);	/* Return standardized operating mode. */
+	void (*PulseIndex) (comedi_device *dev, struct enc_private *);	/* Generate soft index strobe. */
+	void (*SetEnable) (comedi_device *dev, struct enc_private *, uint16_t enab);	/* Program clock enable. */
+	void (*SetIntSrc) (comedi_device *dev, struct enc_private *, uint16_t IntSource);	/* Program interrupt source. */
+	void (*SetLoadTrig) (comedi_device *dev, struct enc_private *, uint16_t Trig);	/* Program preload trigger source. */
+	void (*SetMode) (comedi_device *dev, struct enc_private *, uint16_t Setup, uint16_t DisableIntSrc);	/* Program standardized operating mode. */
+	void (*ResetCapFlags) (comedi_device *dev, struct enc_private *);	/* Reset event capture flags. */
 
 	uint16_t MyCRA;		/*    Address of CRA register. */
 	uint16_t MyCRB;		/*    Address of CRB register. */
 	uint16_t MyLatchLsw;	/*    Address of Latch least-significant-word */
 	/*    register. */
 	uint16_t MyEventBits[4];	/*    Bit translations for IntSrc -->RDMISC2. */
-} enc_private;			/* counter object */
+};
 
-#define encpriv ((enc_private *)(dev->subdevices+5)->private)
+#define encpriv ((struct enc_private *)(dev->subdevices+5)->private)
 
 /* counters routines */
-static void s626_timer_load(comedi_device *dev, enc_private *k, int tick);
-static uint32_t ReadLatch(comedi_device *dev, enc_private *k);
-static void ResetCapFlags_A(comedi_device *dev, enc_private *k);
-static void ResetCapFlags_B(comedi_device *dev, enc_private *k);
-static uint16_t GetMode_A(comedi_device *dev, enc_private *k);
-static uint16_t GetMode_B(comedi_device *dev, enc_private *k);
-static void SetMode_A(comedi_device *dev, enc_private *k, uint16_t Setup,
+static void s626_timer_load(comedi_device *dev, struct enc_private *k, int tick);
+static uint32_t ReadLatch(comedi_device *dev, struct enc_private *k);
+static void ResetCapFlags_A(comedi_device *dev, struct enc_private *k);
+static void ResetCapFlags_B(comedi_device *dev, struct enc_private *k);
+static uint16_t GetMode_A(comedi_device *dev, struct enc_private *k);
+static uint16_t GetMode_B(comedi_device *dev, struct enc_private *k);
+static void SetMode_A(comedi_device *dev, struct enc_private *k, uint16_t Setup,
 	uint16_t DisableIntSrc);
-static void SetMode_B(comedi_device *dev, enc_private *k, uint16_t Setup,
+static void SetMode_B(comedi_device *dev, struct enc_private *k, uint16_t Setup,
 	uint16_t DisableIntSrc);
-static void SetEnable_A(comedi_device *dev, enc_private *k, uint16_t enab);
-static void SetEnable_B(comedi_device *dev, enc_private *k, uint16_t enab);
-static uint16_t GetEnable_A(comedi_device *dev, enc_private *k);
-static uint16_t GetEnable_B(comedi_device *dev, enc_private *k);
-static void SetLatchSource(comedi_device *dev, enc_private *k,
+static void SetEnable_A(comedi_device *dev, struct enc_private *k, uint16_t enab);
+static void SetEnable_B(comedi_device *dev, struct enc_private *k, uint16_t enab);
+static uint16_t GetEnable_A(comedi_device *dev, struct enc_private *k);
+static uint16_t GetEnable_B(comedi_device *dev, struct enc_private *k);
+static void SetLatchSource(comedi_device *dev, struct enc_private *k,
 	uint16_t value);
-/* static uint16_t GetLatchSource(comedi_device *dev, enc_private *k ); */
-static void SetLoadTrig_A(comedi_device *dev, enc_private *k, uint16_t Trig);
-static void SetLoadTrig_B(comedi_device *dev, enc_private *k, uint16_t Trig);
-static uint16_t GetLoadTrig_A(comedi_device *dev, enc_private *k);
-static uint16_t GetLoadTrig_B(comedi_device *dev, enc_private *k);
-static void SetIntSrc_B(comedi_device *dev, enc_private *k,
+/* static uint16_t GetLatchSource(comedi_device *dev, struct enc_private *k ); */
+static void SetLoadTrig_A(comedi_device *dev, struct enc_private *k, uint16_t Trig);
+static void SetLoadTrig_B(comedi_device *dev, struct enc_private *k, uint16_t Trig);
+static uint16_t GetLoadTrig_A(comedi_device *dev, struct enc_private *k);
+static uint16_t GetLoadTrig_B(comedi_device *dev, struct enc_private *k);
+static void SetIntSrc_B(comedi_device *dev, struct enc_private *k,
 	uint16_t IntSource);
-static void SetIntSrc_A(comedi_device *dev, enc_private *k,
+static void SetIntSrc_A(comedi_device *dev, struct enc_private *k,
 	uint16_t IntSource);
-static uint16_t GetIntSrc_A(comedi_device *dev, enc_private *k);
-static uint16_t GetIntSrc_B(comedi_device *dev, enc_private *k);
-/* static void SetClkMult(comedi_device *dev, enc_private *k, uint16_t value ) ; */
-/* static uint16_t GetClkMult(comedi_device *dev, enc_private *k ) ; */
-/* static void SetIndexPol(comedi_device *dev, enc_private *k, uint16_t value ); */
-/* static uint16_t GetClkPol(comedi_device *dev, enc_private *k ) ; */
-/* static void SetIndexSrc( comedi_device *dev,enc_private *k, uint16_t value );  */
-/* static uint16_t GetClkSrc( comedi_device *dev,enc_private *k );  */
-/* static void SetIndexSrc( comedi_device *dev,enc_private *k, uint16_t value );  */
-/* static uint16_t GetIndexSrc( comedi_device *dev,enc_private *k );  */
-static void PulseIndex_A(comedi_device *dev, enc_private *k);
-static void PulseIndex_B(comedi_device *dev, enc_private *k);
-static void Preload(comedi_device *dev, enc_private *k, uint32_t value);
+static uint16_t GetIntSrc_A(comedi_device *dev, struct enc_private *k);
+static uint16_t GetIntSrc_B(comedi_device *dev, struct enc_private *k);
+/* static void SetClkMult(comedi_device *dev, struct enc_private *k, uint16_t value ) ; */
+/* static uint16_t GetClkMult(comedi_device *dev, struct enc_private *k ) ; */
+/* static void SetIndexPol(comedi_device *dev, struct enc_private *k, uint16_t value ); */
+/* static uint16_t GetClkPol(comedi_device *dev, struct enc_private *k ) ; */
+/* static void SetIndexSrc( comedi_device *dev,struct enc_private *k, uint16_t value );  */
+/* static uint16_t GetClkSrc( comedi_device *dev,struct enc_private *k );  */
+/* static void SetIndexSrc( comedi_device *dev,struct enc_private *k, uint16_t value );  */
+/* static uint16_t GetIndexSrc( comedi_device *dev,struct enc_private *k );  */
+static void PulseIndex_A(comedi_device *dev, struct enc_private *k);
+static void PulseIndex_B(comedi_device *dev, struct enc_private *k);
+static void Preload(comedi_device *dev, struct enc_private *k, uint32_t value);
 static void CountersInit(comedi_device *dev);
 /* end internal routines */
 
@@ -352,8 +352,8 @@ static void CountersInit(comedi_device *dev);
 /*  Translation table to map IntSrc into equivalent RDMISC2 event flag  bits. */
 /* static const uint16_t EventBits[][4] = { EVBITS(0), EVBITS(1), EVBITS(2), EVBITS(3), EVBITS(4), EVBITS(5) }; */
 
-/* enc_private; */
-static enc_private enc_private_data[] = {
+/* struct enc_private; */
+static struct enc_private enc_private_data[] = {
 	{
 	      GetEnable:GetEnable_A,
 	      GetIntSrc : GetIntSrc_A,
@@ -500,7 +500,7 @@ static int s626_attach(comedi_device *dev, comedi_devconfig *it)
 	comedi_subdevice *s;
 	struct pci_dev *pdev;
 
-	if (alloc_private(dev, sizeof(s626_private)) < 0)
+	if (alloc_private(dev, sizeof(struct s626_private)) < 0)
 		return -ENOMEM;
 
 	for (pdev = pci_get_device(PCI_VENDOR_ID_S626, PCI_DEVICE_ID_S626,
@@ -973,7 +973,7 @@ static irqreturn_t s626_irq_handler(int irq, void *d PT_REGS_ARG)
 	comedi_device *dev = d;
 	comedi_subdevice *s;
 	comedi_cmd *cmd;
-	enc_private *k;
+	struct enc_private *k;
 	unsigned long flags;
 	int32_t *readaddr;
 	uint32_t irqtype, irqstatus;
@@ -1078,7 +1078,7 @@ static irqreturn_t s626_irq_handler(int irq, void *d PT_REGS_ARG)
 			irqbit = 0;
 			/* read interrupt type */
 			irqbit = DEBIread(dev,
-				((dio_private *) (dev->subdevices + 2 +
+				((struct dio_private *) (dev->subdevices + 2 +
 						group)->private)->RDCapFlg);
 
 			/* check if interrupt is generated from dio channels */
@@ -1678,7 +1678,7 @@ static int s626_ai_cmd(comedi_device *dev, comedi_subdevice *s)
 
 	uint8_t ppl[16];
 	comedi_cmd *cmd = &s->async->cmd;
-	enc_private *k;
+	struct enc_private *k;
 	int tick;
 
 	DEBUG("s626_ai_cmd: entering command function\n");
@@ -2187,18 +2187,18 @@ static int s626_dio_set_irq(comedi_device *dev, unsigned int chan)
 
 	/* set channel to capture positive edge */
 	status = DEBIread(dev,
-		((dio_private *) (dev->subdevices + 2 +
+		((struct dio_private *) (dev->subdevices + 2 +
 				group)->private)->RDEdgSel);
 	DEBIwrite(dev,
-		((dio_private *) (dev->subdevices + 2 +
+		((struct dio_private *) (dev->subdevices + 2 +
 				group)->private)->WREdgSel, bitmask | status);
 
 	/* enable interrupt on selected channel */
 	status = DEBIread(dev,
-		((dio_private *) (dev->subdevices + 2 +
+		((struct dio_private *) (dev->subdevices + 2 +
 				group)->private)->RDIntSel);
 	DEBIwrite(dev,
-		((dio_private *) (dev->subdevices + 2 +
+		((struct dio_private *) (dev->subdevices + 2 +
 				group)->private)->WRIntSel, bitmask | status);
 
 	/* enable edge capture write command */
@@ -2206,10 +2206,10 @@ static int s626_dio_set_irq(comedi_device *dev, unsigned int chan)
 
 	/* enable edge capture on selected channel */
 	status = DEBIread(dev,
-		((dio_private *) (dev->subdevices + 2 +
+		((struct dio_private *) (dev->subdevices + 2 +
 				group)->private)->RDCapSel);
 	DEBIwrite(dev,
-		((dio_private *) (dev->subdevices + 2 +
+		((struct dio_private *) (dev->subdevices + 2 +
 				group)->private)->WRCapSel, bitmask | status);
 
 	return 0;
@@ -2225,7 +2225,7 @@ static int s626_dio_reset_irq(comedi_device *dev, unsigned int group,
 
 	/* enable edge capture on selected channel */
 	DEBIwrite(dev,
-		((dio_private *) (dev->subdevices + 2 +
+		((struct dio_private *) (dev->subdevices + 2 +
 				group)->private)->WRCapSel, mask);
 
 	return 0;
@@ -2241,7 +2241,7 @@ static int s626_dio_clear_irq(comedi_device *dev)
 	for (group = 0; group < S626_DIO_BANKS; group++) {
 		/* clear pending events and interrupt */
 		DEBIwrite(dev,
-			((dio_private *) (dev->subdevices + 2 +
+			((struct dio_private *) (dev->subdevices + 2 +
 					group)->private)->WRCapSel, 0xffff);
 	}
 
@@ -2266,7 +2266,7 @@ static int s626_enc_insn_config(comedi_device *dev, comedi_subdevice *s,
 	/*  uint32_t Preloadvalue;              //Counter initial value */
 	uint16_t valueSrclatch = LATCHSRC_AB_READ;
 	uint16_t enab = CLKENAB_ALWAYS;
-	enc_private *k = &encpriv[CR_CHAN(insn->chanspec)];
+	struct enc_private *k = &encpriv[CR_CHAN(insn->chanspec)];
 
 	DEBUG("s626_enc_insn_config: encoder config\n");
 
@@ -2286,7 +2286,7 @@ static int s626_enc_insn_read(comedi_device *dev, comedi_subdevice *s,
 {
 
 	int n;
-	enc_private *k = &encpriv[CR_CHAN(insn->chanspec)];
+	struct enc_private *k = &encpriv[CR_CHAN(insn->chanspec)];
 
 	DEBUG("s626_enc_insn_read: encoder read channel %d \n",
 		CR_CHAN(insn->chanspec));
@@ -2303,7 +2303,7 @@ static int s626_enc_insn_write(comedi_device *dev, comedi_subdevice *s,
 	comedi_insn *insn, lsampl_t *data)
 {
 
-	enc_private *k = &encpriv[CR_CHAN(insn->chanspec)];
+	struct enc_private *k = &encpriv[CR_CHAN(insn->chanspec)];
 
 	DEBUG("s626_enc_insn_write: encoder write channel %d \n",
 		CR_CHAN(insn->chanspec));
@@ -2322,7 +2322,7 @@ static int s626_enc_insn_write(comedi_device *dev, comedi_subdevice *s,
 	return 1;
 }
 
-static void s626_timer_load(comedi_device *dev, enc_private *k, int tick)
+static void s626_timer_load(comedi_device *dev, struct enc_private *k, int tick)
 {
 	uint16_t Setup = (LOADSRC_INDX << BF_LOADSRC) |	/*  Preload upon */
 		/*  index. */
@@ -2768,7 +2768,7 @@ static void CloseDMAB(comedi_device *dev, DMABUF *pdma, size_t bsize)
 
 /*  Read a counter's output latch. */
 
-static uint32_t ReadLatch(comedi_device *dev, enc_private *k)
+static uint32_t ReadLatch(comedi_device *dev, struct enc_private *k)
 {
 	register uint32_t value;
 	/* DEBUG FIXME DEBUG("ReadLatch: Read Latch enter\n"); */
@@ -2787,13 +2787,13 @@ static uint32_t ReadLatch(comedi_device *dev, enc_private *k)
 
 /*  Reset a counter's index and overflow event capture flags. */
 
-static void ResetCapFlags_A(comedi_device *dev, enc_private *k)
+static void ResetCapFlags_A(comedi_device *dev, struct enc_private *k)
 {
 	DEBIreplace(dev, k->MyCRB, (uint16_t) (~CRBMSK_INTCTRL),
 		CRBMSK_INTRESETCMD | CRBMSK_INTRESET_A);
 }
 
-static void ResetCapFlags_B(comedi_device *dev, enc_private *k)
+static void ResetCapFlags_B(comedi_device *dev, struct enc_private *k)
 {
 	DEBIreplace(dev, k->MyCRB, (uint16_t) (~CRBMSK_INTCTRL),
 		CRBMSK_INTRESETCMD | CRBMSK_INTRESET_B);
@@ -2802,7 +2802,7 @@ static void ResetCapFlags_B(comedi_device *dev, enc_private *k)
 /*  Return counter setup in a format (COUNTER_SETUP) that is consistent */
 /*  for both A and B counters. */
 
-static uint16_t GetMode_A(comedi_device *dev, enc_private *k)
+static uint16_t GetMode_A(comedi_device *dev, struct enc_private *k)
 {
 	register uint16_t cra;
 	register uint16_t crb;
@@ -2840,7 +2840,7 @@ static uint16_t GetMode_A(comedi_device *dev, enc_private *k)
 	return setup;
 }
 
-static uint16_t GetMode_B(comedi_device *dev, enc_private *k)
+static uint16_t GetMode_B(comedi_device *dev, struct enc_private *k)
 {
 	register uint16_t cra;
 	register uint16_t crb;
@@ -2886,7 +2886,7 @@ static uint16_t GetMode_B(comedi_device *dev, enc_private *k)
  * ClkPol, ClkEnab, IndexSrc, IndexPol, LoadSrc.
  */
 
-static void SetMode_A(comedi_device *dev, enc_private *k, uint16_t Setup,
+static void SetMode_A(comedi_device *dev, struct enc_private *k, uint16_t Setup,
 	uint16_t DisableIntSrc)
 {
 	register uint16_t cra;
@@ -2944,7 +2944,7 @@ static void SetMode_A(comedi_device *dev, enc_private *k, uint16_t Setup,
 		(uint16_t) (~(CRBMSK_INTCTRL | CRBMSK_CLKENAB_A)), crb);
 }
 
-static void SetMode_B(comedi_device *dev, enc_private *k, uint16_t Setup,
+static void SetMode_B(comedi_device *dev, struct enc_private *k, uint16_t Setup,
 	uint16_t DisableIntSrc)
 {
 	register uint16_t cra;
@@ -3008,7 +3008,7 @@ static void SetMode_B(comedi_device *dev, enc_private *k, uint16_t Setup,
 
 /*  Return/set a counter's enable.  enab: 0=always enabled, 1=enabled by index. */
 
-static void SetEnable_A(comedi_device *dev, enc_private *k, uint16_t enab)
+static void SetEnable_A(comedi_device *dev, struct enc_private *k, uint16_t enab)
 {
 	DEBUG("SetEnable_A: SetEnable_A enter 3541\n");
 	DEBIreplace(dev, k->MyCRB,
@@ -3016,19 +3016,19 @@ static void SetEnable_A(comedi_device *dev, enc_private *k, uint16_t enab)
 		(uint16_t) (enab << CRBBIT_CLKENAB_A));
 }
 
-static void SetEnable_B(comedi_device *dev, enc_private *k, uint16_t enab)
+static void SetEnable_B(comedi_device *dev, struct enc_private *k, uint16_t enab)
 {
 	DEBIreplace(dev, k->MyCRB,
 		(uint16_t) (~(CRBMSK_INTCTRL | CRBMSK_CLKENAB_B)),
 		(uint16_t) (enab << CRBBIT_CLKENAB_B));
 }
 
-static uint16_t GetEnable_A(comedi_device *dev, enc_private *k)
+static uint16_t GetEnable_A(comedi_device *dev, struct enc_private *k)
 {
 	return (DEBIread(dev, k->MyCRB) >> CRBBIT_CLKENAB_A) & 1;
 }
 
-static uint16_t GetEnable_B(comedi_device *dev, enc_private *k)
+static uint16_t GetEnable_B(comedi_device *dev, struct enc_private *k)
 {
 	return (DEBIread(dev, k->MyCRB) >> CRBBIT_CLKENAB_B) & 1;
 }
@@ -3038,7 +3038,7 @@ static uint16_t GetEnable_B(comedi_device *dev, enc_private *k)
  * latches B.
  */
 
-static void SetLatchSource(comedi_device *dev, enc_private *k, uint16_t value)
+static void SetLatchSource(comedi_device *dev, struct enc_private *k, uint16_t value)
 {
 	DEBUG("SetLatchSource: SetLatchSource enter 3550 \n");
 	DEBIreplace(dev, k->MyCRB,
@@ -3049,7 +3049,7 @@ static void SetLatchSource(comedi_device *dev, enc_private *k, uint16_t value)
 }
 
 /*
- * static uint16_t GetLatchSource(comedi_device *dev, enc_private *k )
+ * static uint16_t GetLatchSource(comedi_device *dev, struct enc_private *k )
  * {
  * 	return ( DEBIread( dev, k->MyCRB) >> CRBBIT_LATCHSRC ) & 3;
  * }
@@ -3061,25 +3061,25 @@ static void SetLatchSource(comedi_device *dev, enc_private *k, uint16_t value)
  * 2=OverflowA (B counters only), 3=disabled.
  */
 
-static void SetLoadTrig_A(comedi_device *dev, enc_private *k, uint16_t Trig)
+static void SetLoadTrig_A(comedi_device *dev, struct enc_private *k, uint16_t Trig)
 {
 	DEBIreplace(dev, k->MyCRA, (uint16_t) (~CRAMSK_LOADSRC_A),
 		(uint16_t) (Trig << CRABIT_LOADSRC_A));
 }
 
-static void SetLoadTrig_B(comedi_device *dev, enc_private *k, uint16_t Trig)
+static void SetLoadTrig_B(comedi_device *dev, struct enc_private *k, uint16_t Trig)
 {
 	DEBIreplace(dev, k->MyCRB,
 		(uint16_t) (~(CRBMSK_LOADSRC_B | CRBMSK_INTCTRL)),
 		(uint16_t) (Trig << CRBBIT_LOADSRC_B));
 }
 
-static uint16_t GetLoadTrig_A(comedi_device *dev, enc_private *k)
+static uint16_t GetLoadTrig_A(comedi_device *dev, struct enc_private *k)
 {
 	return (DEBIread(dev, k->MyCRA) >> CRABIT_LOADSRC_A) & 3;
 }
 
-static uint16_t GetLoadTrig_B(comedi_device *dev, enc_private *k)
+static uint16_t GetLoadTrig_B(comedi_device *dev, struct enc_private *k)
 {
 	return (DEBIread(dev, k->MyCRB) >> CRBBIT_LOADSRC_B) & 3;
 }
@@ -3089,7 +3089,7 @@ static uint16_t GetLoadTrig_B(comedi_device *dev, enc_private *k)
  * 2=IndexOnly, 3=IndexAndOverflow.
  */
 
-static void SetIntSrc_A(comedi_device *dev, enc_private *k,
+static void SetIntSrc_A(comedi_device *dev, struct enc_private *k,
 	uint16_t IntSource)
 {
 	/*  Reset any pending counter overflow or index captures. */
@@ -3106,7 +3106,7 @@ static void SetIntSrc_A(comedi_device *dev, enc_private *k,
 		MyEventBits[IntSource];
 }
 
-static void SetIntSrc_B(comedi_device *dev, enc_private *k,
+static void SetIntSrc_B(comedi_device *dev, struct enc_private *k,
 	uint16_t IntSource)
 {
 	uint16_t crb;
@@ -3129,80 +3129,80 @@ static void SetIntSrc_B(comedi_device *dev, enc_private *k,
 		MyEventBits[IntSource];
 }
 
-static uint16_t GetIntSrc_A(comedi_device *dev, enc_private *k)
+static uint16_t GetIntSrc_A(comedi_device *dev, struct enc_private *k)
 {
 	return (DEBIread(dev, k->MyCRA) >> CRABIT_INTSRC_A) & 3;
 }
 
-static uint16_t GetIntSrc_B(comedi_device *dev, enc_private *k)
+static uint16_t GetIntSrc_B(comedi_device *dev, struct enc_private *k)
 {
 	return (DEBIread(dev, k->MyCRB) >> CRBBIT_INTSRC_B) & 3;
 }
 
 /*  Return/set the clock multiplier. */
 
-/* static void SetClkMult(comedi_device *dev, enc_private *k, uint16_t value )  */
+/* static void SetClkMult(comedi_device *dev, struct enc_private *k, uint16_t value )  */
 /* { */
 /*   k->SetMode(dev, k, (uint16_t)( ( k->GetMode(dev, k ) & ~STDMSK_CLKMULT ) | ( value << STDBIT_CLKMULT ) ), FALSE ); */
 /* } */
 
-/* static uint16_t GetClkMult(comedi_device *dev, enc_private *k )  */
+/* static uint16_t GetClkMult(comedi_device *dev, struct enc_private *k )  */
 /* { */
 /*   return ( k->GetMode(dev, k ) >> STDBIT_CLKMULT ) & 3; */
 /* } */
 
 /* Return/set the clock polarity. */
 
-/* static void SetClkPol( comedi_device *dev,enc_private *k, uint16_t value )  */
+/* static void SetClkPol( comedi_device *dev,struct enc_private *k, uint16_t value )  */
 /* { */
 /*   k->SetMode(dev, k, (uint16_t)( ( k->GetMode(dev, k ) & ~STDMSK_CLKPOL ) | ( value << STDBIT_CLKPOL ) ), FALSE ); */
 /* } */
 
-/* static uint16_t GetClkPol(comedi_device *dev, enc_private *k )  */
+/* static uint16_t GetClkPol(comedi_device *dev, struct enc_private *k )  */
 /* { */
 /*   return ( k->GetMode(dev, k ) >> STDBIT_CLKPOL ) & 1; */
 /* } */
 
 /* Return/set the clock source.  */
 
-/* static void SetClkSrc( comedi_device *dev,enc_private *k, uint16_t value )  */
+/* static void SetClkSrc( comedi_device *dev,struct enc_private *k, uint16_t value )  */
 /* { */
 /*   k->SetMode(dev, k, (uint16_t)( ( k->GetMode(dev, k ) & ~STDMSK_CLKSRC ) | ( value << STDBIT_CLKSRC ) ), FALSE ); */
 /* } */
 
-/* static uint16_t GetClkSrc( comedi_device *dev,enc_private *k )  */
+/* static uint16_t GetClkSrc( comedi_device *dev,struct enc_private *k )  */
 /* { */
 /*   return ( k->GetMode(dev, k ) >> STDBIT_CLKSRC ) & 3; */
 /* } */
 
 /* Return/set the index polarity. */
 
-/* static void SetIndexPol(comedi_device *dev, enc_private *k, uint16_t value )  */
+/* static void SetIndexPol(comedi_device *dev, struct enc_private *k, uint16_t value )  */
 /* { */
 /*   k->SetMode(dev, k, (uint16_t)( ( k->GetMode(dev, k ) & ~STDMSK_INDXPOL ) | ( (value != 0) << STDBIT_INDXPOL ) ), FALSE ); */
 /* } */
 
-/* static uint16_t GetIndexPol(comedi_device *dev, enc_private *k )  */
+/* static uint16_t GetIndexPol(comedi_device *dev, struct enc_private *k )  */
 /* { */
 /*   return ( k->GetMode(dev, k ) >> STDBIT_INDXPOL ) & 1; */
 /* } */
 
 /*  Return/set the index source. */
 
-/* static void SetIndexSrc(comedi_device *dev, enc_private *k, uint16_t value )  */
+/* static void SetIndexSrc(comedi_device *dev, struct enc_private *k, uint16_t value )  */
 /* { */
 /*   DEBUG("SetIndexSrc: set index src enter 3700\n"); */
 /*   k->SetMode(dev, k, (uint16_t)( ( k->GetMode(dev, k ) & ~STDMSK_INDXSRC ) | ( (value != 0) << STDBIT_INDXSRC ) ), FALSE ); */
 /* } */
 
-/* static uint16_t GetIndexSrc(comedi_device *dev, enc_private *k )  */
+/* static uint16_t GetIndexSrc(comedi_device *dev, struct enc_private *k )  */
 /* { */
 /*   return ( k->GetMode(dev, k ) >> STDBIT_INDXSRC ) & 1; */
 /* } */
 
 /*  Generate an index pulse. */
 
-static void PulseIndex_A(comedi_device *dev, enc_private *k)
+static void PulseIndex_A(comedi_device *dev, struct enc_private *k)
 {
 	register uint16_t cra;
 
@@ -3214,7 +3214,7 @@ static void PulseIndex_A(comedi_device *dev, enc_private *k)
 	DEBIwrite(dev, k->MyCRA, cra);
 }
 
-static void PulseIndex_B(comedi_device *dev, enc_private *k)
+static void PulseIndex_B(comedi_device *dev, struct enc_private *k)
 {
 	register uint16_t crb;
 
@@ -3225,7 +3225,7 @@ static void PulseIndex_B(comedi_device *dev, enc_private *k)
 
 /*  Write value into counter preload register. */
 
-static void Preload(comedi_device *dev, enc_private *k, uint32_t value)
+static void Preload(comedi_device *dev, struct enc_private *k, uint32_t value)
 {
 	DEBUG("Preload: preload enter\n");
 	DEBIwrite(dev, (uint16_t) (k->MyLatchLsw), (uint16_t) value);	/*  Write value to preload register. */
@@ -3237,7 +3237,7 @@ static void Preload(comedi_device *dev, enc_private *k, uint32_t value)
 static void CountersInit(comedi_device *dev)
 {
 	int chan;
-	enc_private *k;
+	struct enc_private *k;
 	uint16_t Setup = (LOADSRC_INDX << BF_LOADSRC) |	/*  Preload upon */
 		/*  index. */
 		(INDXSRC_SOFT << BF_INDXSRC) |	/*  Disable hardware index. */
