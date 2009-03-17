@@ -435,14 +435,14 @@ static void pci9111_timer_set(struct comedi_device * dev)
 	pci9111_8254_counter_1_set(dev_private->timer_divisor_1);
 }
 
-typedef enum {
+enum pci9111_trigger_sources {
 	software,
 	timer_pacer,
 	external
-} pci9111_trigger_sources;
+};
 
 static void pci9111_trigger_source_set(struct comedi_device * dev,
-	pci9111_trigger_sources source)
+	enum pci9111_trigger_sources source)
 {
 	int flags;
 
