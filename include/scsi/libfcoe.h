@@ -29,7 +29,7 @@
  * this percpu struct for fcoe
  */
 struct fcoe_percpu_s {
-	int		cpu;
+	unsigned int cpu;
 	struct task_struct *thread;
 	struct sk_buff_head fcoe_rx_list;
 	struct page *crc_eof_page;

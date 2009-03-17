@@ -97,7 +97,7 @@ static struct notifier_block fcoe_cpu_notifier = {
  *
  * Returns: none
  */
-static void fcoe_create_percpu_data(int cpu)
+static void fcoe_create_percpu_data(unsigned int cpu)
 {
 	struct fc_lport *lp;
 	struct fcoe_softc *fc;
@@ -121,7 +121,7 @@ static void fcoe_create_percpu_data(int cpu)
  *
  * Retuns: none
  */
-static void fcoe_destroy_percpu_data(int cpu)
+static void fcoe_destroy_percpu_data(unsigned int cpu)
 {
 	struct fc_lport *lp;
 	struct fcoe_softc *fc;
@@ -183,9 +183,9 @@ int fcoe_rcv(struct sk_buff *skb, struct net_device *dev,
 	struct fcoe_softc *fc;
 	struct fcoe_dev_stats *stats;
 	struct fc_frame_header *fh;
-	unsigned short oxid;
-	int cpu_idx;
 	struct fcoe_percpu_s *fps;
+	unsigned short oxid;
+	unsigned int cpu_idx;
 
 	fc = container_of(ptype, struct fcoe_softc, fcoe_packet_type);
 	lp = fc->lp;
@@ -292,7 +292,7 @@ static int fcoe_get_paged_crc_eof(struct sk_buff *skb, int tlen)
 {
 	struct fcoe_percpu_s *fps;
 	struct page *page;
-	int cpu_idx;
+	unsigned int cpu_idx;
 
 	cpu_idx = get_cpu();
 	fps = fcoe_percpu[cpu_idx];
@@ -1366,9 +1366,8 @@ EXPORT_SYMBOL_GPL(fcoe_libfc_config);
  */
 static int __init fcoe_init(void)
 {
-	int cpu;
+	unsigned int cpu;
 	struct fcoe_percpu_s *p;
-
 
 	INIT_LIST_HEAD(&fcoe_hostlist);
 	rwlock_init(&fcoe_hostlist_lock);
@@ -1376,6 +1375,12 @@ static int __init fcoe_init(void)
 #ifdef CONFIG_HOTPLUG_CPU
 	register_cpu_notifier(&fcoe_cpu_notifier);
 #endif /* CONFIG_HOTPLUG_CPU */
+
+	for_each_possible_cpu(cpu) {
+		p = fcoe_percpu[cpu];
+		p->cpu = cpu;
+		skb_queue_head_init(&p->fcoe_rx_list);
+	}
 
 	/*
 	 * initialize per CPU interrupt thread
@@ -1392,9 +1397,7 @@ static int __init fcoe_init(void)
 			 * initialize the semaphore and skb queue head
 			 */
 			if (likely(!IS_ERR(p->thread))) {
-				p->cpu = cpu;
 				fcoe_percpu[cpu] = p;
-				skb_queue_head_init(&p->fcoe_rx_list);
 				kthread_bind(p->thread, cpu);
 				wake_up_process(p->thread);
 			} else {
