@@ -294,7 +294,7 @@ MODULE_DEVICE_TABLE(pci, pci9111_pci_table);
 // Board specification structure
 //
 
-typedef struct {
+struct pci9111_board {
 	const char *name;	// driver name
 	int device_id;
 	int ai_channel_nbr;	// num of A/D chans
@@ -306,9 +306,9 @@ typedef struct {
 	const struct comedi_lrange *ai_range_list;	// rangelist for A/D
 	const struct comedi_lrange *ao_range_list;	// rangelist for D/A
 	unsigned int ai_acquisition_period_min_ns;
-} pci9111_board_struct;
+};
 
-static const pci9111_board_struct pci9111_boards[] = {
+static const struct pci9111_board pci9111_boards[] = {
 	{
 	      name:	"pci9111_hr",
 	      device_id:PCI9111_HR_DEVICE_ID,
@@ -324,7 +324,7 @@ static const pci9111_board_struct pci9111_boards[] = {
 };
 
 #define pci9111_board_nbr \
-  (sizeof(pci9111_boards)/sizeof(pci9111_board_struct))
+  (sizeof(pci9111_boards)/sizeof(struct pci9111_board))
 
 static struct comedi_driver pci9111_driver = {
       driver_name:PCI9111_DRIVER_NAME,
@@ -564,7 +564,7 @@ pci9111_ai_do_cmd_test(struct comedi_device * dev,
 	int error = 0;
 	int range, reference;
 	int i;
-	pci9111_board_struct *board = (pci9111_board_struct *) dev->board_ptr;
+	struct pci9111_board *board = (struct pci9111_board *) dev->board_ptr;
 
 	// Step 1 : check if trigger are trivialy valid
 
@@ -887,7 +887,7 @@ static void pci9111_ai_munge(struct comedi_device * dev, struct comedi_subdevice
 	unsigned int i, num_samples = num_bytes / sizeof(short);
 	short *array = data;
 	int resolution =
-		((pci9111_board_struct *) dev->board_ptr)->ai_resolution;
+		((struct pci9111_board *) dev->board_ptr)->ai_resolution;
 
 	for (i = 0; i < num_samples; i++) {
 		if (resolution == PCI9111_HR_AI_RESOLUTION)
@@ -1075,7 +1075,7 @@ static int pci9111_ai_insn_read(struct comedi_device * dev,
 	struct comedi_subdevice * subdevice, struct comedi_insn * insn, unsigned int * data)
 {
 	int resolution =
-		((pci9111_board_struct *) dev->board_ptr)->ai_resolution;
+		((struct pci9111_board *) dev->board_ptr)->ai_resolution;
 
 	int timeout, i;
 
@@ -1252,7 +1252,7 @@ static int pci9111_attach(struct comedi_device * dev, struct comedi_devconfig * 
 	unsigned long io_base, io_range, lcr_io_base, lcr_io_range;
 	struct pci_dev *pci_device;
 	int error, i;
-	const pci9111_board_struct *board;
+	const struct pci9111_board *board;
 
 	if (alloc_private(dev, sizeof(pci9111_private_data_struct)) < 0) {
 		return -ENOMEM;
@@ -1285,7 +1285,7 @@ static int pci9111_attach(struct comedi_device * dev, struct comedi_devconfig * 
 					}
 
 					dev->board_ptr = pci9111_boards + i;
-					board = (pci9111_board_struct *) dev->
+					board = (struct pci9111_board *) dev->
 						board_ptr;
 					dev_private->pci_device = pci_device;
 					goto found;
