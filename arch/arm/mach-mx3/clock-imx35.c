@@ -273,6 +273,19 @@ static unsigned long get_rate_csi(struct clk *clk)
 	return rate / get_3_3_div((pdr2 >> 16) & 0x3f);
 }
 
+static unsigned long get_rate_otg(struct clk *clk)
+{
+	unsigned long pdr4 = __raw_readl(CCM_BASE + CCM_PDR4);
+	unsigned long rate;
+
+	if (pdr4 & (1 << 9))
+		rate = get_rate_arm();
+	else
+		rate = get_rate_ppll();
+
+	return rate / get_3_3_div((pdr4 >> 22) & 0x3f);
+}
+
 static unsigned long get_rate_ipg_per(struct clk *clk)
 {
 	unsigned long pdr0 = __raw_readl(CCM_BASE + CCM_PDR0);
@@ -365,7 +378,7 @@ DEFINE_CLOCK(ssi2_clk,   1, CCM_CGR2, 14, get_rate_ssi, NULL);
 DEFINE_CLOCK(uart1_clk,  0, CCM_CGR2, 16, get_rate_uart, NULL);
 DEFINE_CLOCK(uart2_clk,  1, CCM_CGR2, 18, get_rate_uart, NULL);
 DEFINE_CLOCK(uart3_clk,  2, CCM_CGR2, 20, get_rate_uart, NULL);
-DEFINE_CLOCK(usbotg_clk, 0, CCM_CGR2, 22, NULL, NULL);
+DEFINE_CLOCK(usbotg_clk, 0, CCM_CGR2, 22, get_rate_otg, NULL);
 DEFINE_CLOCK(wdog_clk,   0, CCM_CGR2, 24, NULL, NULL);
 DEFINE_CLOCK(max_clk,    0, CCM_CGR2, 26, NULL, NULL);
 DEFINE_CLOCK(admux_clk,  0, CCM_CGR2, 30, NULL, NULL);
@@ -426,7 +439,10 @@ static struct clk_lookup lookups[] = {
 	_REGISTER_CLOCK("imx-uart.0", NULL, uart1_clk)
 	_REGISTER_CLOCK("imx-uart.1", NULL, uart2_clk)
 	_REGISTER_CLOCK("imx-uart.2", NULL, uart3_clk)
-	_REGISTER_CLOCK(NULL, "usbotg", usbotg_clk)
+	_REGISTER_CLOCK("mxc-ehci.0", "usb", usbotg_clk)
+	_REGISTER_CLOCK("mxc-ehci.1", "usb", usbotg_clk)
+	_REGISTER_CLOCK("mxc-ehci.2", "usb", usbotg_clk)
+	_REGISTER_CLOCK("fsl-usb2-udc", "usb", usbotg_clk)
 	_REGISTER_CLOCK("mxc_wdt.0", NULL, wdog_clk)
 	_REGISTER_CLOCK(NULL, "max", max_clk)
 	_REGISTER_CLOCK(NULL, "admux", admux_clk)
