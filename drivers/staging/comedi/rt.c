@@ -220,8 +220,7 @@ DECLARE_VOID_IRQ(21);
 DECLARE_VOID_IRQ(22);
 DECLARE_VOID_IRQ(23);
 
-typedef void (*V_FP_V) (void);
-static V_FP_V handle_void_irq_ptrs[] = {
+static void handle_void_irq_ptrs[] = {
 	handle_void_irq_0,
 	handle_void_irq_1,
 	handle_void_irq_2,
