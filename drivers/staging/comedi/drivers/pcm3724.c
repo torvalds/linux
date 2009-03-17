@@ -74,10 +74,11 @@ typedef struct {
 } boardtype;
 
 //used to track configured dios
-typedef struct {
+struct priv_pcm3724 {
 	int dio_1;
 	int dio_2;
-} priv_pcm3724;
+};
+
 static const boardtype boardtypes[] = {
 	{"pcm3724", 48, 2, 0x00fc, PCM3724_SIZE,},
 };
@@ -180,10 +181,10 @@ static void enable_chan(struct comedi_device * dev, struct comedi_subdevice * s,
 {
 	unsigned int mask;
 	int gatecfg;
-	priv_pcm3724 *priv;
+	struct priv_pcm3724 *priv;
 
 	gatecfg = 0;
-	priv = (priv_pcm3724 *) (dev->private);
+	priv = (struct priv_pcm3724 *) (dev->private);
 
 	mask = 1 << CR_CHAN(chanspec);
 	if (s == dev->subdevices) {	// subdev 0
@@ -259,11 +260,11 @@ static int pcm3724_attach(struct comedi_device * dev, struct comedi_devconfig * 
 
 	iobase = it->options[0];
 	iorange = this_board->io_range;
-	if ((ret = alloc_private(dev, sizeof(priv_pcm3724))) < 0)
+	if ((ret = alloc_private(dev, sizeof(struct priv_pcm3724))) < 0)
 		return -ENOMEM;
 
-	((priv_pcm3724 *) (dev->private))->dio_1 = 0;
-	((priv_pcm3724 *) (dev->private))->dio_2 = 0;
+	((struct priv_pcm3724 *) (dev->private))->dio_1 = 0;
+	((struct priv_pcm3724 *) (dev->private))->dio_2 = 0;
 
 	printk("comedi%d: pcm3724: board=%s, 0x%03lx ", dev->minor,
 		this_board->name, iobase);
