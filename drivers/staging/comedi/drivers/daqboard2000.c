@@ -325,7 +325,7 @@ static DEFINE_PCI_DEVICE_TABLE(daqboard2000_pci_table) = {
 
 MODULE_DEVICE_TABLE(pci, daqboard2000_pci_table);
 
-typedef struct {
+struct daqboard2000_private {
 	enum {
 		card_daqboard_2000
 	} card;
@@ -334,9 +334,9 @@ typedef struct {
 	void *plx;
 	int got_regions;
 	unsigned int ao_readback[2];
-} daqboard2000_private;
+};
 
-#define devpriv ((daqboard2000_private*)dev->private)
+#define devpriv ((struct daqboard2000_private *)dev->private)
 
 static void writeAcqScanListEntry(struct comedi_device * dev, u16 entry)
 {
@@ -731,7 +731,7 @@ static int daqboard2000_attach(struct comedi_device * dev, struct comedi_devconf
 	bus = it->options[0];
 	slot = it->options[1];
 
-	result = alloc_private(dev, sizeof(daqboard2000_private));
+	result = alloc_private(dev, sizeof(struct daqboard2000_private));
 	if (result < 0) {
 		return -ENOMEM;
 	}
