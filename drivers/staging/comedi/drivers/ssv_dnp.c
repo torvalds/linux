@@ -52,14 +52,14 @@ Status: unknown
 
 /* This data structure holds information about the supported boards -------- */
 
-typedef struct dnp_board_struct {
+struct dnp_board {
 	const char *name;
 	int ai_chans;
 	int ai_bits;
 	int have_dio;
-} dnp_board;
+};
 
-static const dnp_board dnp_boards[] = {	/* we only support one DNP 'board'   */
+static const struct dnp_board dnp_boards[] = {	/* we only support one DNP 'board'   */
 	{			/* variant at the moment             */
 	      name:	"dnp-1486",
 	      ai_chans:16,
@@ -69,7 +69,7 @@ static const dnp_board dnp_boards[] = {	/* we only support one DNP 'board'   */
 };
 
 /* Useful for shorthand access to the particular board structure ----------- */
-#define thisboard ((const dnp_board *)dev->board_ptr)
+#define thisboard ((const struct dnp_board *)dev->board_ptr)
 
 /* This structure is for data unique to the DNP driver --------------------- */
 struct dnp_private_data {
@@ -99,8 +99,8 @@ static struct comedi_driver driver_dnp = {
       detach:dnp_detach,
       board_name:&dnp_boards[0].name,
 	/* only necessary for non-PnP devs   */
-      offset:sizeof(dnp_board),/* like ISA-PnP, PCI or PCMCIA.      */
-      num_names:sizeof(dnp_boards) / sizeof(dnp_board),
+      offset:sizeof(struct dnp_board),/* like ISA-PnP, PCI or PCMCIA.      */
+      num_names:sizeof(dnp_boards) / sizeof(struct dnp_board),
 };
 
 COMEDI_INITCLEANUP(driver_dnp);
