@@ -220,13 +220,13 @@ struct thresh_struct {
  *    command.
  * 2. number_of_xx_thresholds specify how many GE/LE threshold there are.
  */
-typedef struct {
+struct le_struct {
 	s32 latch_bits;
 	s32 number_of_ge_thresholds;
 	s32 number_of_le_thresholds;
 	struct thresh_struct thresholds[4];
 	s32 reserved;
-} le_struct_t;
+};
 
 /*  LINK_TYPES */
 /* Link types is an enumerated value showing the different possible transform
@@ -652,7 +652,7 @@ typedef struct force_sensor_data {
 	 * le_struct structure (pg. 23).
 	 */
 
-	le_struct_t load_envelopes[0x10];	/* offset 0x0100 */
+	struct le_struct load_envelopes[0x10];	/* offset 0x0100 */
 
 	/* Transforms is a table containing the transform descriptions.
 	 * There are 16 possible transform slots in the table. The slots are
