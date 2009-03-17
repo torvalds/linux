@@ -250,7 +250,7 @@ enum fe_stv0900_error stv0900_initialize(struct stv0900_internal *i_params)
 			}
 
 			msleep(3);
-			for (i = 0; i < 180; i++)
+			for (i = 0; i < 182; i++)
 				stv0900_write_reg(i_params, STV0900_InitVal[i][0], STV0900_InitVal[i][1]);
 
 			if (stv0900_read_reg(i_params, R0900_MID) >= 0x20) {

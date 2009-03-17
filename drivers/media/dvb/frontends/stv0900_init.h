@@ -217,7 +217,7 @@ static const struct stv0900_short_frames_car_loop_optim FE_STV0900_S2ShortCarLoo
 	{ STV0900_32APSK,	0x1B,	0x1E,	0x1B,	0x1E,	0x1B,	0x1E,	0x3A,	0x3D,	0x2A,	0x2D }
 };
 
-static const u16 STV0900_InitVal[180][2] = {
+static const u16 STV0900_InitVal[182][2] = {
 	{ R0900_OUTCFG		, 0x00	},
 	{ R0900_MODECFG		, 0xff	},
 	{ R0900_AGCRF1CFG	, 0x11	},
@@ -396,6 +396,8 @@ static const u16 STV0900_InitVal[180][2] = {
 	{ R0900_DATA72CFG	, 0x52	},
 	{ R0900_P1_TSCFGM	, 0xc0	},
 	{ R0900_P2_TSCFGM	, 0xc0	},
+	{ R0900_P1_TSCFGH	, 0xe0	}, /* DVB-CI timings */
+	{ R0900_P2_TSCFGH	, 0xe0	}, /* DVB-CI timings */
 	{ R0900_P1_TSSPEED	, 0x40	},
 	{ R0900_P2_TSSPEED	, 0x40	},
 };
