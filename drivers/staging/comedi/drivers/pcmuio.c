@@ -146,14 +146,14 @@ Configuration Options:
  * boards in this way is optional, and completely driver-dependent.
  * Some drivers use arrays such as this, other do not.
  */
-typedef struct pcmuio_board_struct {
+struct pcmuio_board {
 	const char *name;
 	const int num_asics;
 	const int num_channels_per_port;
 	const int num_ports;
-} pcmuio_board;
+};
 
-static const pcmuio_board pcmuio_boards[] = {
+static const struct pcmuio_board pcmuio_boards[] = {
 	{
 	      name:	"pcmuio48",
 	      num_asics:1,
@@ -169,7 +169,7 @@ static const pcmuio_board pcmuio_boards[] = {
 /*
  * Useful for shorthand access to the particular board structure
  */
-#define thisboard ((const pcmuio_board *)dev->board_ptr)
+#define thisboard ((const struct pcmuio_board *)dev->board_ptr)
 
 /* this structure is for data unique to this subdevice.  */
 typedef struct {
@@ -249,8 +249,8 @@ static struct comedi_driver driver = {
 	 * devices are such boards.
 	 */
       board_name:&pcmuio_boards[0].name,
-      offset:sizeof(pcmuio_board),
-      num_names:sizeof(pcmuio_boards) / sizeof(pcmuio_board),
+      offset:sizeof(struct pcmuio_board),
+      num_names:sizeof(pcmuio_boards) / sizeof(struct pcmuio_board),
 };
 
 static int pcmuio_dio_insn_bits(struct comedi_device * dev, struct comedi_subdevice * s,
