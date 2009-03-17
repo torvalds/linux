@@ -146,15 +146,15 @@ static const struct adq12b_board adq12b_boards[] = {
 
 #define thisboard ((const struct adq12b_board *)dev->board_ptr)
 
-typedef struct{
+struct adq12b_private {
         int unipolar;          /* option 2 of comedi_config (1 is iobase) */
         int differential;      /* option 3 of comedi_config */
         int last_channel;
         int last_range;
         unsigned int digital_state;
- }adq12b_private;
+};
 
-#define devpriv ((adq12b_private *)dev->private)
+#define devpriv ((struct adq12b_private *)dev->private)
 
 /*
  * The struct comedi_driver structure tells the Comedi core module
@@ -219,7 +219,7 @@ static int adq12b_attach(struct comedi_device *dev,struct comedi_devconfig *it)
  * Allocate the private structure area.  alloc_private() is a
  * convenient macro defined in comedidev.h.
  */
-        if(alloc_private(dev, sizeof(adq12b_private)) < 0)
+        if(alloc_private(dev, sizeof(struct adq12b_private)) < 0)
           return -ENOMEM;
 
 /* fill in devpriv structure */
