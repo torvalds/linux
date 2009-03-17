@@ -120,11 +120,13 @@ Configuration Options:
 #define MPC624_SPEED_13_75_Hz   (MPC624_OSR4 | MPC624_OSR3                             | MPC624_OSR0)
 #define MPC624_SPEED_6_875_Hz   (MPC624_OSR4 | MPC624_OSR3 | MPC624_OSR2 | MPC624_OSR1 | MPC624_OSR0)
 //----------------------------------------------------------------------------
-typedef struct {
-	unsigned long int ulConvertionRate;	// set by mpc624_attach() from driver's parameters
-} skel_private;
+struct skel_private {
 
-#define devpriv ((skel_private *)dev->private)
+	unsigned long int ulConvertionRate;	// set by mpc624_attach() from driver's parameters
+};
+
+
+#define devpriv ((struct skel_private *)dev->private)
 //----------------------------------------------------------------------------
 static const struct comedi_lrange range_mpc624_bipolar1 = {
 	1,
@@ -174,7 +176,7 @@ static int mpc624_attach(struct comedi_device * dev, struct comedi_devconfig * i
 	dev->board_name = "mpc624";
 
 	// Private structure initialization
-	if (alloc_private(dev, sizeof(skel_private)) < 0)
+	if (alloc_private(dev, sizeof(struct skel_private)) < 0)
 		return -ENOMEM;
 
 	switch (it->options[1]) {
