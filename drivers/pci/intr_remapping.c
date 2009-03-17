@@ -447,12 +447,12 @@ static int setup_intr_remapping(struct intel_iommu *iommu, int mode)
 	struct page *pages;
 
 	ir_table = iommu->ir_table = kzalloc(sizeof(struct ir_table),
-					     GFP_KERNEL);
+					     GFP_ATOMIC);
 
 	if (!iommu->ir_table)
 		return -ENOMEM;
 
-	pages = alloc_pages(GFP_KERNEL | __GFP_ZERO, INTR_REMAP_PAGE_ORDER);
+	pages = alloc_pages(GFP_ATOMIC | __GFP_ZERO, INTR_REMAP_PAGE_ORDER);
 
 	if (!pages) {
 		printk(KERN_ERR "failed to allocate pages of order %d\n",

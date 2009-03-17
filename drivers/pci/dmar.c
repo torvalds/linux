@@ -809,20 +809,20 @@ int dmar_enable_qi(struct intel_iommu *iommu)
 	if (iommu->qi)
 		return 0;
 
-	iommu->qi = kmalloc(sizeof(*qi), GFP_KERNEL);
+	iommu->qi = kmalloc(sizeof(*qi), GFP_ATOMIC);
 	if (!iommu->qi)
 		return -ENOMEM;
 
 	qi = iommu->qi;
 
-	qi->desc = (void *)(get_zeroed_page(GFP_KERNEL));
+	qi->desc = (void *)(get_zeroed_page(GFP_ATOMIC));
 	if (!qi->desc) {
 		kfree(qi);
 		iommu->qi = 0;
 		return -ENOMEM;
 	}
 
-	qi->desc_status = kmalloc(QI_LENGTH * sizeof(int), GFP_KERNEL);
+	qi->desc_status = kmalloc(QI_LENGTH * sizeof(int), GFP_ATOMIC);
 	if (!qi->desc_status) {
 		free_page((unsigned long) qi->desc);
 		kfree(qi);
