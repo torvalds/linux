@@ -72,11 +72,13 @@ COMEDI_INITCLEANUP(driver_dt2814);
 
 static irqreturn_t dt2814_interrupt(int irq, void *dev PT_REGS_ARG);
 
-typedef struct {
+struct dt2814_private {
+
 	int ntrig;
 	int curadchan;
-} dt2814_private;
-#define devpriv ((dt2814_private *)dev->private)
+};
+
+#define devpriv ((struct dt2814_private *)dev->private)
 
 #define DT2814_TIMEOUT 10
 #define DT2814_MAX_SPEED 100000	/* Arbitrary 10 khz limit */
@@ -309,7 +311,7 @@ static int dt2814_attach(struct comedi_device * dev, struct comedi_devconfig * i
 
 	if ((ret = alloc_subdevices(dev, 1)) < 0)
 		return ret;
-	if ((ret = alloc_private(dev, sizeof(dt2814_private))) < 0)
+	if ((ret = alloc_private(dev, sizeof(struct dt2814_private))) < 0)
 		return ret;
 
 	s = dev->subdevices + 0;
