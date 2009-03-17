@@ -101,7 +101,8 @@ static const struct comedi_lrange range_pcl816 = { 8, {
 			UNI_RANGE(1.25),
 	}
 };
-typedef struct {
+struct pcl816_board {
+
 	const char *name;	// board name
 	int n_ranges;		// len of range list
 	int n_aichan;		// num of A/D chans in diferencial mode
@@ -119,9 +120,10 @@ typedef struct {
 	int ai_chanlist;	// allowed len of channel list A/D
 	int ao_chanlist;	// allowed len of channel list D/A
 	int i8254_osc_base;	// 1/frequency of on board oscilator in ns
-} boardtype;
+};
 
-static const boardtype boardtypes[] = {
+
+static const struct pcl816_board boardtypes[] = {
 	{"pcl816", 8, 16, 10000, 1, 16, 16, &range_pcl816,
 			&range_pcl816, PCLx1x_RANGE,
 			0x00fc,	// IRQ mask
@@ -142,9 +144,9 @@ static const boardtype boardtypes[] = {
 		100},
 };
 
-#define n_boardtypes (sizeof(boardtypes)/sizeof(boardtype))
+#define n_boardtypes (sizeof(boardtypes)/sizeof(struct pcl816_board))
 #define devpriv ((struct pcl816_private *)dev->private)
-#define this_board ((const boardtype *)dev->board_ptr)
+#define this_board ((const struct pcl816_board *)dev->board_ptr)
 
 static int pcl816_attach(struct comedi_device * dev, struct comedi_devconfig * it);
 static int pcl816_detach(struct comedi_device * dev);
@@ -161,7 +163,7 @@ static struct comedi_driver driver_pcl816 = {
       detach:pcl816_detach,
       board_name:&boardtypes[0].name,
       num_names:n_boardtypes,
-      offset:sizeof(boardtype),
+      offset:sizeof(struct pcl816_board),
 };
 
 COMEDI_INITCLEANUP(driver_pcl816);
