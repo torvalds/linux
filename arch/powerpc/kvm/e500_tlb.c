@@ -448,7 +448,7 @@ int kvmppc_e500_emul_tlbre(struct kvm_vcpu *vcpu)
 	esel = get_tlb_esel(vcpu_e500, tlbsel);
 
 	gtlbe = &vcpu_e500->guest_tlb[tlbsel][esel];
-	vcpu_e500->mas0 &= MAS0_NV(0);
+	vcpu_e500->mas0 &= ~MAS0_NV(~0);
 	vcpu_e500->mas0 |= MAS0_NV(vcpu_e500->guest_tlb_nv[tlbsel]);
 	vcpu_e500->mas1 = gtlbe->mas1;
 	vcpu_e500->mas2 = gtlbe->mas2;
