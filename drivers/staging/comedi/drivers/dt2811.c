@@ -191,13 +191,15 @@ static const struct comedi_lrange range_dt2811_pgl_ai_5_bipolar = { 4, {
 #define DT2811_INTENB   0x04
 #define DT2811_ADMODE   0x03
 
-typedef struct {
+struct dt2811_board {
+
 	const char *name;
 	const struct comedi_lrange *bip_5;
 	const struct comedi_lrange *bip_2_5;
 	const struct comedi_lrange *unip_5;
-} boardtype;
-static const boardtype boardtypes[] = {
+};
+
+static const struct dt2811_board boardtypes[] = {
 	{"dt2811-pgh",
 			&range_dt2811_pgh_ai_5_bipolar,
 			&range_dt2811_pgh_ai_2_5_bipolar,
@@ -210,7 +212,7 @@ static const boardtype boardtypes[] = {
 		},
 };
 
-#define this_board ((const boardtype *)dev->board_ptr)
+#define this_board ((const struct dt2811_board *)dev->board_ptr)
 
 static int dt2811_attach(struct comedi_device * dev, struct comedi_devconfig * it);
 static int dt2811_detach(struct comedi_device * dev);
@@ -220,8 +222,8 @@ static struct comedi_driver driver_dt2811 = {
       attach:dt2811_attach,
       detach:dt2811_detach,
       board_name:&boardtypes[0].name,
-      num_names:sizeof(boardtypes) / sizeof(boardtype),
-      offset:sizeof(boardtype),
+      num_names:sizeof(boardtypes) / sizeof(struct dt2811_board),
+      offset:sizeof(struct dt2811_board),
 };
 
 COMEDI_INITCLEANUP(driver_dt2811);
