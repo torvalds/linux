@@ -154,7 +154,7 @@ static int ao_winsn(struct comedi_device *, struct comedi_subdevice *, struct co
  * boards in this way is optional, and completely driver-dependent.
  * Some drivers use arrays such as this, other do not.
  */
-typedef struct pcmmio_board_struct {
+struct pcmmio_board {
 	const char *name;
 	const int dio_num_asics;
 	const int dio_num_ports;
@@ -165,7 +165,7 @@ typedef struct pcmmio_board_struct {
 	const int n_ao_chans;
 	const struct comedi_lrange *ai_range_table, *ao_range_table;
 	comedi_insn_fn_t ai_rinsn, ao_rinsn, ao_winsn;
-} pcmmio_board;
+};
 
 static const struct comedi_lrange ranges_ai =
 	{ 4, {RANGE(-5., 5.), RANGE(-10., 10.), RANGE(0., 5.), RANGE(0.,
@@ -177,7 +177,7 @@ static const struct comedi_lrange ranges_ao =
 	RANGE(-2.5, 2.5), RANGE(-2.5, 7.5)}
 };
 
-static const pcmmio_board pcmmio_boards[] = {
+static const struct pcmmio_board pcmmio_boards[] = {
 	{
 	      name:	"pcmmio",
 	      dio_num_asics:1,
@@ -197,7 +197,7 @@ static const pcmmio_board pcmmio_boards[] = {
 /*
  * Useful for shorthand access to the particular board structure
  */
-#define thisboard ((const pcmmio_board *)dev->board_ptr)
+#define thisboard ((const struct pcmmio_board *)dev->board_ptr)
 
 /* this structure is for data unique to this subdevice.  */
 typedef struct {
@@ -291,8 +291,8 @@ static struct comedi_driver driver = {
 	 * devices are such boards.
 	 */
       board_name:&pcmmio_boards[0].name,
-      offset:sizeof(pcmmio_board),
-      num_names:sizeof(pcmmio_boards) / sizeof(pcmmio_board),
+      offset:sizeof(struct pcmmio_board),
+      num_names:sizeof(pcmmio_boards) / sizeof(struct pcmmio_board),
 };
 
 static int pcmmio_dio_insn_bits(struct comedi_device * dev, struct comedi_subdevice * s,
