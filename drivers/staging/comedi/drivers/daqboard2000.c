@@ -306,17 +306,17 @@ static struct comedi_driver driver_daqboard2000 = {
       detach:daqboard2000_detach,
 };
 
-typedef struct {
+struct daq200_boardtype {
 	const char *name;
 	int id;
-} boardtype;
-static const boardtype boardtypes[] = {
+};
+static const struct daq200_boardtype boardtypes[] = {
 	{"ids2", DAQBOARD2000_SUBSYSTEM_IDS2},
 	{"ids4", DAQBOARD2000_SUBSYSTEM_IDS4},
 };
 
-#define n_boardtypes (sizeof(boardtypes)/sizeof(boardtype))
-#define this_board ((const boardtype *)dev->board_ptr)
+#define n_boardtypes (sizeof(boardtypes)/sizeof(struct daq200_boardtype))
+#define this_board ((const struct daq200_boardtype *)dev->board_ptr)
 
 static DEFINE_PCI_DEVICE_TABLE(daqboard2000_pci_table) = {
 	{0x1616, 0x0409, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
