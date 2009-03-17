@@ -232,15 +232,15 @@ static const struct das800_board das800_boards[] = {
  */
 #define thisboard ((const struct das800_board *)dev->board_ptr)
 
-typedef struct {
+struct das800_private {
 	volatile unsigned int count;	/* number of data points left to be taken */
 	volatile int forever;	/* flag indicating whether we should take data forever */
 	unsigned int divisor1;	/* value to load into board's counter 1 for timed conversions */
 	unsigned int divisor2;	/* value to load into board's counter 2 for timed conversions */
 	volatile int do_bits;	/* digital output bits */
-} das800_private;
+};
 
-#define devpriv ((das800_private *)dev->private)
+#define devpriv ((struct das800_private *)dev->private)
 
 static int das800_attach(struct comedi_device * dev, struct comedi_devconfig * it);
 static int das800_detach(struct comedi_device * dev);
@@ -456,7 +456,7 @@ static int das800_attach(struct comedi_device * dev, struct comedi_devconfig * i
 	printk("\n");
 
 	/* allocate and initialize dev->private */
-	if (alloc_private(dev, sizeof(das800_private)) < 0)
+	if (alloc_private(dev, sizeof(struct das800_private)) < 0)
 		return -ENOMEM;
 
 	if (iobase == 0) {
