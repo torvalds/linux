@@ -554,16 +554,12 @@ static void __target_IO_APIC_irq(unsigned int irq, unsigned int dest, struct irq
 
 		apic = entry->apic;
 		pin = entry->pin;
-#ifdef CONFIG_INTR_REMAP
 		/*
 		 * With interrupt-remapping, destination information comes
 		 * from interrupt-remapping table entry.
 		 */
 		if (!irq_remapped(irq))
 			io_apic_write(apic, 0x11 + pin*2, dest);
-#else
-		io_apic_write(apic, 0x11 + pin*2, dest);
-#endif
 		reg = io_apic_read(apic, 0x10 + pin*2);
 		reg &= ~IO_APIC_REDIR_VECTOR_MASK;
 		reg |= vector;
@@ -1419,9 +1415,8 @@ void __setup_vector_irq(int cpu)
 }
 
 static struct irq_chip ioapic_chip;
-#ifdef CONFIG_INTR_REMAP
 static struct irq_chip ir_ioapic_chip;
-#endif
+static struct irq_chip msi_ir_chip;
 
 #define IOAPIC_AUTO     -1
 #define IOAPIC_EDGE     0
@@ -1460,7 +1455,6 @@ static void ioapic_register_intr(int irq, struct irq_desc *desc, unsigned long t
 	else
 		desc->status &= ~IRQ_LEVEL;
 
-#ifdef CONFIG_INTR_REMAP
 	if (irq_remapped(irq)) {
 		desc->status |= IRQ_MOVE_PCNTXT;
 		if (trigger)
@@ -1472,7 +1466,7 @@ static void ioapic_register_intr(int irq, struct irq_desc *desc, unsigned long t
 						      handle_edge_irq, "edge");
 		return;
 	}
-#endif
+
 	if ((trigger == IOAPIC_AUTO && IO_APIC_irq_trigger(irq)) ||
 	    trigger == IOAPIC_LEVEL)
 		set_irq_chip_and_handler_name(irq, &ioapic_chip,
@@ -1493,7 +1487,6 @@ int setup_ioapic_entry(int apic_id, int irq,
 	 */
 	memset(entry,0,sizeof(*entry));
 
-#ifdef CONFIG_INTR_REMAP
 	if (intr_remapping_enabled) {
 		struct intel_iommu *iommu = map_ioapic_to_ir(apic_id);
 		struct irte irte;
@@ -1535,9 +1528,7 @@ int setup_ioapic_entry(int apic_id, int irq,
 		 * irq handler will do the explicit EOI to the io-apic.
 		 */
 		ir_entry->vector = pin;
-	} else
-#endif
-	{
+	} else {
 		entry->delivery_mode = apic->irq_delivery_mode;
 		entry->dest_mode = apic->irq_dest_mode;
 		entry->dest = destination;
@@ -1662,10 +1653,8 @@ static void __init setup_timer_IRQ0_pin(unsigned int apic_id, unsigned int pin,
 {
 	struct IO_APIC_route_entry entry;
 
-#ifdef CONFIG_INTR_REMAP
 	if (intr_remapping_enabled)
 		return;
-#endif
 
 	memset(&entry, 0, sizeof(entry));
 
@@ -2395,6 +2384,11 @@ static void set_ir_ioapic_affinity_irq(unsigned int irq,
 
 	set_ir_ioapic_affinity_irq_desc(desc, mask);
 }
+#else
+static inline void set_ir_ioapic_affinity_irq_desc(struct irq_desc *desc,
+						   const struct cpumask *mask)
+{
+}
 #endif
 
 asmlinkage void smp_irq_move_cleanup_interrupt(void)
@@ -2883,10 +2877,8 @@ static inline void __init check_timer(void)
 	 * 8259A.
 	 */
 	if (pin1 == -1) {
-#ifdef CONFIG_INTR_REMAP
 		if (intr_remapping_enabled)
 			panic("BIOS bug: timer not connected to IO-APIC");
-#endif
 		pin1 = pin2;
 		apic1 = apic2;
 		no_pin1 = 1;
@@ -2922,10 +2914,8 @@ static inline void __init check_timer(void)
 				clear_IO_APIC_pin(0, pin1);
 			goto out;
 		}
-#ifdef CONFIG_INTR_REMAP
 		if (intr_remapping_enabled)
 			panic("timer doesn't work through Interrupt-remapped IO-APIC");
-#endif
 		local_irq_disable();
 		clear_IO_APIC_pin(apic1, pin1);
 		if (!no_pin1)
@@ -3219,9 +3209,7 @@ void destroy_irq(unsigned int irq)
 	if (desc)
 		desc->chip_data = cfg;
 
-#ifdef CONFIG_INTR_REMAP
 	free_irte(irq);
-#endif
 	spin_lock_irqsave(&vector_lock, flags);
 	__clear_irq_vector(irq, cfg);
 	spin_unlock_irqrestore(&vector_lock, flags);
@@ -3247,7 +3235,6 @@ static int msi_compose_msg(struct pci_dev *pdev, unsigned int irq, struct msi_ms
 
 	dest = apic->cpu_mask_to_apicid_and(cfg->domain, apic->target_cpus());
 
-#ifdef CONFIG_INTR_REMAP
 	if (irq_remapped(irq)) {
 		struct irte irte;
 		int ir_index;
@@ -3273,9 +3260,7 @@ static int msi_compose_msg(struct pci_dev *pdev, unsigned int irq, struct msi_ms
 				  MSI_ADDR_IR_SHV |
 				  MSI_ADDR_IR_INDEX1(ir_index) |
 				  MSI_ADDR_IR_INDEX2(ir_index);
-	} else
-#endif
-	{
+	} else {
 		if (x2apic_enabled())
 			msg->address_hi = MSI_ADDR_BASE_HI |
 					  MSI_ADDR_EXT_DEST_ID(dest);
@@ -3392,6 +3377,7 @@ static struct irq_chip msi_ir_chip = {
 #endif
 	.retrigger	= ioapic_retrigger_irq,
 };
+#endif
 
 /*
  * Map the PCI dev to the corresponding remapping hardware unit
@@ -3419,7 +3405,6 @@ static int msi_alloc_irte(struct pci_dev *dev, int irq, int nvec)
 	}
 	return index;
 }
-#endif
 
 static int setup_msi_irq(struct pci_dev *dev, struct msi_desc *msidesc, int irq)
 {
@@ -3433,7 +3418,6 @@ static int setup_msi_irq(struct pci_dev *dev, struct msi_desc *msidesc, int irq)
 	set_irq_msi(irq, msidesc);
 	write_msi_msg(irq, &msg);
 
-#ifdef CONFIG_INTR_REMAP
 	if (irq_remapped(irq)) {
 		struct irq_desc *desc = irq_to_desc(irq);
 		/*
@@ -3442,7 +3426,6 @@ static int setup_msi_irq(struct pci_dev *dev, struct msi_desc *msidesc, int irq)
 		desc->status |= IRQ_MOVE_PCNTXT;
 		set_irq_chip_and_handler_name(irq, &msi_ir_chip, handle_edge_irq, "edge");
 	} else
-#endif
 		set_irq_chip_and_handler_name(irq, &msi_chip, handle_edge_irq, "edge");
 
 	dev_printk(KERN_DEBUG, &dev->dev, "irq %d for MSI/MSI-X\n", irq);
@@ -3456,11 +3439,8 @@ int arch_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 	int ret, sub_handle;
 	struct msi_desc *msidesc;
 	unsigned int irq_want;
-
-#ifdef CONFIG_INTR_REMAP
 	struct intel_iommu *iommu = 0;
 	int index = 0;
-#endif
 
 	irq_want = nr_irqs_gsi;
 	sub_handle = 0;
@@ -3469,7 +3449,6 @@ int arch_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 		if (irq == 0)
 			return -1;
 		irq_want = irq + 1;
-#ifdef CONFIG_INTR_REMAP
 		if (!intr_remapping_enabled)
 			goto no_ir;
 
@@ -3497,7 +3476,6 @@ int arch_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 			set_irte_irq(irq, iommu, index, sub_handle);
 		}
 no_ir:
-#endif
 		ret = setup_msi_irq(dev, msidesc, irq);
 		if (ret < 0)
 			goto error;
@@ -4032,11 +4010,9 @@ void __init setup_ioapic_dest(void)
 			else
 				mask = apic->target_cpus();
 
-#ifdef CONFIG_INTR_REMAP
 			if (intr_remapping_enabled)
 				set_ir_ioapic_affinity_irq_desc(desc, mask);
 			else
-#endif
 				set_ioapic_affinity_irq_desc(desc, mask);
 		}
 

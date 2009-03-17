@@ -26,9 +26,8 @@
 #include <linux/msi.h>
 #include <linux/irqreturn.h>
 
-#if defined(CONFIG_DMAR) || defined(CONFIG_INTR_REMAP)
 struct intel_iommu;
-
+#if defined(CONFIG_DMAR) || defined(CONFIG_INTR_REMAP)
 struct dmar_drhd_unit {
 	struct list_head list;		/* list of drhd units	*/
 	struct  acpi_dmar_header *hdr;	/* ACPI header		*/
@@ -52,7 +51,6 @@ extern int dmar_dev_scope_init(void);
 extern void detect_intel_iommu(void);
 extern int enable_drhd_fault_handling(void);
 
-
 extern int parse_ioapics_under_ir(void);
 extern int alloc_iommu(struct dmar_drhd_unit *);
 #else
@@ -65,11 +63,11 @@ static inline int dmar_table_init(void)
 {
 	return -ENODEV;
 }
+static inline int enable_drhd_fault_handling(void)
+{
+	return -1;
+}
 #endif /* !CONFIG_DMAR && !CONFIG_INTR_REMAP */
-
-#ifdef CONFIG_INTR_REMAP
-extern int intr_remapping_enabled;
-extern int enable_intr_remapping(int);
 
 struct irte {
 	union {
@@ -99,6 +97,10 @@ struct irte {
 		__u64 high;
 	};
 };
+#ifdef CONFIG_INTR_REMAP
+extern int intr_remapping_enabled;
+extern int enable_intr_remapping(int);
+
 extern int get_irte(int irq, struct irte *entry);
 extern int modify_irte(int irq, struct irte *irte_modified);
 extern int alloc_irte(struct intel_iommu *iommu, int irq, u16 count);
@@ -113,6 +115,35 @@ extern int irq_remapped(int irq);
 extern struct intel_iommu *map_dev_to_ir(struct pci_dev *dev);
 extern struct intel_iommu *map_ioapic_to_ir(int apic);
 #else
+static inline int alloc_irte(struct intel_iommu *iommu, int irq, u16 count)
+{
+	return -1;
+}
+static inline int modify_irte(int irq, struct irte *irte_modified)
+{
+	return -1;
+}
+static inline int free_irte(int irq)
+{
+	return -1;
+}
+static inline int map_irq_to_irte_handle(int irq, u16 *sub_handle)
+{
+	return -1;
+}
+static inline int set_irte_irq(int irq, struct intel_iommu *iommu, u16 index,
+			       u16 sub_handle)
+{
+	return -1;
+}
+static inline struct intel_iommu *map_dev_to_ir(struct pci_dev *dev)
+{
+	return NULL;
+}
+static inline struct intel_iommu *map_ioapic_to_ir(int apic)
+{
+	return NULL;
+}
 #define irq_remapped(irq)		(0)
 #define enable_intr_remapping(mode)	(-1)
 #define intr_remapping_enabled		(0)
