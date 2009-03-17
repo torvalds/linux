@@ -414,7 +414,7 @@ trace_selftest_startup_preemptirqsoff(struct tracer *trace, struct trace_array *
 	ret = tracer_init(trace, tr);
 	if (ret) {
 		warn_failed_init_tracer(trace, ret);
-		goto out;
+		goto out_no_start;
 	}
 
 	/* reset the max latency */
@@ -432,21 +432,16 @@ trace_selftest_startup_preemptirqsoff(struct tracer *trace, struct trace_array *
 	tracing_stop();
 	/* check both trace buffers */
 	ret = trace_test_buffer(tr, NULL);
-	if (ret) {
-		tracing_start();
+	if (ret)
 		goto out;
-	}
 
 	ret = trace_test_buffer(&max_tr, &count);
-	if (ret) {
-		tracing_start();
+	if (ret)
 		goto out;
-	}
 
 	if (!ret && !count) {
 		printk(KERN_CONT ".. no entries found ..");
 		ret = -1;
-		tracing_start();
 		goto out;
 	}
 
@@ -475,9 +470,10 @@ trace_selftest_startup_preemptirqsoff(struct tracer *trace, struct trace_array *
 		goto out;
 	}
 
- out:
-	trace->reset(tr);
+out:
 	tracing_start();
+out_no_start:
+	trace->reset(tr);
 	tracing_max_latency = save_max;
 
 	return ret;

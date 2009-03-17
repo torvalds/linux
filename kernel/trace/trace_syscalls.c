@@ -5,9 +5,13 @@
 #include "trace_output.h"
 #include "trace.h"
 
-static atomic_t refcount;
+/* Keep a counter of the syscall tracing users */
+static int refcount;
 
-/* Our two options */
+/* Prevent from races on thread flags toggling */
+static DEFINE_MUTEX(syscall_trace_lock);
+
+/* Option to display the parameters types */
 enum {
 	TRACE_SYSCALLS_OPT_TYPES = 0x1,
 };
@@ -18,7 +22,7 @@ static struct tracer_opt syscalls_opts[] = {
 };
 
 static struct tracer_flags syscalls_flags = {
-	.val = 0, /* By default: no args types */
+	.val = 0, /* By default: no parameters types */
 	.opts = syscalls_opts
 };
 
@@ -96,8 +100,11 @@ void start_ftrace_syscalls(void)
 	unsigned long flags;
 	struct task_struct *g, *t;
 
-	if (atomic_inc_return(&refcount) != 1)
-		goto out;
+	mutex_lock(&syscall_trace_lock);
+
+	/* Don't enable the flag on the tasks twice */
+	if (++refcount != 1)
+		goto unlock;
 
 	arch_init_ftrace_syscalls();
 	read_lock_irqsave(&tasklist_lock, flags);
@@ -107,8 +114,9 @@ void start_ftrace_syscalls(void)
 	} while_each_thread(g, t);
 
 	read_unlock_irqrestore(&tasklist_lock, flags);
-out:
-	atomic_dec(&refcount);
+
+unlock:
+	mutex_unlock(&syscall_trace_lock);
 }
 
 void stop_ftrace_syscalls(void)
@@ -116,8 +124,11 @@ void stop_ftrace_syscalls(void)
 	unsigned long flags;
 	struct task_struct *g, *t;
 
-	if (atomic_dec_return(&refcount))
-		goto out;
+	mutex_lock(&syscall_trace_lock);
+
+	/* There are perhaps still some users */
+	if (--refcount)
+		goto unlock;
 
 	read_lock_irqsave(&tasklist_lock, flags);
 
@@ -126,8 +137,9 @@ void stop_ftrace_syscalls(void)
 	} while_each_thread(g, t);
 
 	read_unlock_irqrestore(&tasklist_lock, flags);
-out:
-	atomic_inc(&refcount);
+
+unlock:
+	mutex_unlock(&syscall_trace_lock);
 }
 
 void ftrace_syscall_enter(struct pt_regs *regs)
@@ -137,11 +149,8 @@ void ftrace_syscall_enter(struct pt_regs *regs)
 	struct ring_buffer_event *event;
 	int size;
 	int syscall_nr;
-	int cpu;
 
 	syscall_nr = syscall_get_nr(current, regs);
-
-	cpu = raw_smp_processor_id();
 
 	sys_data = syscall_nr_to_meta(syscall_nr);
 	if (!sys_data)
@@ -168,11 +177,8 @@ void ftrace_syscall_exit(struct pt_regs *regs)
 	struct syscall_metadata *sys_data;
 	struct ring_buffer_event *event;
 	int syscall_nr;
-	int cpu;
 
 	syscall_nr = syscall_get_nr(current, regs);
-
-	cpu = raw_smp_processor_id();
 
 	sys_data = syscall_nr_to_meta(syscall_nr);
 	if (!sys_data)
@@ -201,6 +207,7 @@ static int init_syscall_tracer(struct trace_array *tr)
 static void reset_syscall_tracer(struct trace_array *tr)
 {
 	stop_ftrace_syscalls();
+	tracing_reset_online_cpus(tr);
 }
 
 static struct trace_event syscall_enter_event = {

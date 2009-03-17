@@ -2494,7 +2494,7 @@ static int tracing_set_tracer(const char *buf)
 	if (!ring_buffer_expanded) {
 		ret = tracing_resize_ring_buffer(trace_buf_size);
 		if (ret < 0)
-			return ret;
+			goto out;
 		ret = 0;
 	}
 
@@ -4125,7 +4125,8 @@ __init static int tracer_alloc_buffers(void)
 				       &trace_panic_notifier);
 
 	register_die_notifier(&trace_die_notifier);
-	ret = 0;
+
+	return 0;
 
 out_free_cpumask:
 	free_cpumask_var(tracing_reader_cpumask);
