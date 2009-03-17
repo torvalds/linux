@@ -260,13 +260,15 @@ uint32_t intr_active_high_bit(int interrupt_source)
 	return 0x1 << interrupt_source;
 }
 
-typedef struct {
+struct hpdi_board {
+
 	char *name;
 	int device_id;		// pci device id
 	int subdevice_id;	// pci subdevice id
-} hpdi_board;
+};
 
-static const hpdi_board hpdi_boards[] = {
+
+static const struct hpdi_board hpdi_boards[] = {
 	{
 	      name:	"pci-hpdi32",
 	      device_id:PCI_DEVICE_ID_PLX_9080,
@@ -283,7 +285,7 @@ static const hpdi_board hpdi_boards[] = {
 
 static inline unsigned int num_boards(void)
 {
-	return sizeof(hpdi_boards) / sizeof(hpdi_board);
+	return sizeof(hpdi_boards) / sizeof(struct hpdi_board);
 }
 
 static DEFINE_PCI_DEVICE_TABLE(hpdi_pci_table) = {
@@ -294,9 +296,9 @@ static DEFINE_PCI_DEVICE_TABLE(hpdi_pci_table) = {
 
 MODULE_DEVICE_TABLE(pci, hpdi_pci_table);
 
-static inline hpdi_board *board(const struct comedi_device * dev)
+static inline struct hpdi_board *board(const struct comedi_device * dev)
 {
-	return (hpdi_board *) dev->board_ptr;
+	return (struct hpdi_board *) dev->board_ptr;
 }
 
 typedef struct {
