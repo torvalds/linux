@@ -2210,9 +2210,17 @@ static int __devinit azx_create(struct snd_card *card, struct pci_dev *pci,
 	gcap = azx_readw(chip, GCAP);
 	snd_printdd("chipset global capabilities = 0x%x\n", gcap);
 
+	/* ATI chips seems buggy about 64bit DMA addresses */
+	if (chip->driver_type == AZX_DRIVER_ATI)
+		gcap &= ~0x01;
+
 	/* allow 64bit DMA address if supported by H/W */
 	if ((gcap & 0x01) && !pci_set_dma_mask(pci, DMA_64BIT_MASK))
 		pci_set_consistent_dma_mask(pci, DMA_64BIT_MASK);
+	else {
+		pci_set_dma_mask(pci, DMA_32BIT_MASK);
+		pci_set_consistent_dma_mask(pci, DMA_32BIT_MASK);
+	}
 
 	/* read number of streams from GCAP register instead of using
 	 * hardcoded value
