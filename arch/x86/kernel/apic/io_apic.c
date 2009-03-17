@@ -2040,8 +2040,13 @@ void disable_IO_APIC(void)
 	 * If the i8259 is routed through an IOAPIC
 	 * Put that IOAPIC in virtual wire mode
 	 * so legacy interrupts can be delivered.
+	 *
+	 * With interrupt-remapping, for now we will use virtual wire A mode,
+	 * as virtual wire B is little complex (need to configure both
+	 * IOAPIC RTE aswell as interrupt-remapping table entry).
+	 * As this gets called during crash dump, keep this simple for now.
 	 */
-	if (ioapic_i8259.pin != -1) {
+	if (ioapic_i8259.pin != -1 && !intr_remapping_enabled) {
 		struct IO_APIC_route_entry entry;
 
 		memset(&entry, 0, sizeof(entry));
@@ -2061,7 +2066,10 @@ void disable_IO_APIC(void)
 		ioapic_write_entry(ioapic_i8259.apic, ioapic_i8259.pin, entry);
 	}
 
-	disconnect_bsp_APIC(ioapic_i8259.pin != -1);
+	/*
+	 * Use virtual wire A mode when interrupt remapping is enabled.
+	 */
+	disconnect_bsp_APIC(!intr_remapping_enabled && ioapic_i8259.pin != -1);
 }
 
 #ifdef CONFIG_X86_32
