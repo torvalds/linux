@@ -185,7 +185,7 @@ static const struct comedi_lrange range_pci171x_da = { 2, {
 static int pci1710_attach(struct comedi_device * dev, struct comedi_devconfig * it);
 static int pci1710_detach(struct comedi_device * dev);
 
-typedef struct {
+struct boardtype {
 	const char *name;	// board name
 	int device_id;
 	int iorange;		// I/O range len
@@ -204,7 +204,7 @@ typedef struct {
 	const struct comedi_lrange *rangelist_ao;	// rangelist for D/A
 	unsigned int ai_ns_min;	// max sample speed of card v ns
 	unsigned int fifo_half_size;	// size of FIFO/2
-} boardtype;
+};
 
 static DEFINE_PCI_DEVICE_TABLE(pci1710_pci_table) = {
 	{PCI_VENDOR_ID_ADVANTECH, 0x1710, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
@@ -217,7 +217,7 @@ static DEFINE_PCI_DEVICE_TABLE(pci1710_pci_table) = {
 
 MODULE_DEVICE_TABLE(pci, pci1710_pci_table);
 
-static const boardtype boardtypes[] = {
+static const struct boardtype boardtypes[] = {
 	{"pci1710", 0x1710,
 		IORANGE_171x, 1, TYPE_PCI171X,
 		16, 8, 2, 16, 16, 1, 0x0fff, 0x0fff,
@@ -254,7 +254,7 @@ static const boardtype boardtypes[] = {
 	{.name = DRV_NAME},
 };
 
-#define n_boardtypes (sizeof(boardtypes)/sizeof(boardtype))
+#define n_boardtypes (sizeof(boardtypes)/sizeof(struct boardtype))
 
 static struct comedi_driver driver_pci1710 = {
 	.driver_name = DRV_NAME,
@@ -263,7 +263,7 @@ static struct comedi_driver driver_pci1710 = {
 	.detach = pci1710_detach,
 	.num_names = n_boardtypes,
 	.board_name = &boardtypes[0].name,
-	.offset = sizeof(boardtype),
+	.offset = sizeof(struct boardtype),
 };
 
 typedef struct {
@@ -298,7 +298,7 @@ typedef struct {
 } pci1710_private;
 
 #define devpriv ((pci1710_private *)dev->private)
-#define this_board ((const boardtype *)dev->board_ptr)
+#define this_board ((const struct boardtype *)dev->board_ptr)
 
 /*
 ==============================================================================
