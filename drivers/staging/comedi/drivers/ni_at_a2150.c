@@ -156,16 +156,18 @@ static const a2150_board a2150_boards[] = {
  */
 #define thisboard ((const a2150_board *)dev->board_ptr)
 
-typedef struct {
+struct a2150_private {
+
 	volatile unsigned int count;	/* number of data points left to be taken */
 	unsigned int dma;	// dma channel
 	s16 *dma_buffer;	// dma buffer
 	unsigned int dma_transfer_size;	// size in bytes of dma transfers
 	int irq_dma_bits;	// irq/dma register bits
 	int config_bits;	// config register bits
-} a2150_private;
+};
 
-#define devpriv ((a2150_private *)dev->private)
+
+#define devpriv ((struct a2150_private *)dev->private)
 
 static int a2150_attach(struct comedi_device * dev, struct comedi_devconfig * it);
 static int a2150_detach(struct comedi_device * dev);
@@ -346,7 +348,7 @@ static int a2150_attach(struct comedi_device * dev, struct comedi_devconfig * it
 	printk("\n");
 
 	/* allocate and initialize dev->private */
-	if (alloc_private(dev, sizeof(a2150_private)) < 0)
+	if (alloc_private(dev, sizeof(struct a2150_private)) < 0)
 		return -ENOMEM;
 
 	if (iobase == 0) {
