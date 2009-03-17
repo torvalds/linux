@@ -167,7 +167,7 @@ static const struct comedi_lrange range_daqboard2000_ao = { 1, {
 	}
 };
 
-typedef struct daqboard2000_hw {
+struct daqboard2000_hw {
 	volatile u16 acqControl;	// 0x00
 	volatile u16 acqScanListFIFO;	// 0x02
 	volatile u32 acqPacerClockDivLow;	// 0x04
@@ -215,7 +215,7 @@ typedef struct daqboard2000_hw {
 	volatile u16 trigDacs;	// 0xbc
 	volatile u16 fill14;	// 0xbe
 	volatile s16 dioP2ExpansionIO16Bit[32];	// 0xc0
-} daqboard2000_hw;
+};
 
 /* Scan Sequencer programming */
 #define DAQBOARD2000_SeqStartScanList            0x0011
@@ -340,7 +340,7 @@ typedef struct {
 
 static void writeAcqScanListEntry(struct comedi_device * dev, u16 entry)
 {
-	daqboard2000_hw *fpga = devpriv->daq;
+	struct daqboard2000_hw *fpga = devpriv->daq;
 
 //  comedi_udelay(4);
 	fpga->acqScanListFIFO = entry & 0x00ff;
@@ -397,7 +397,7 @@ static int daqboard2000_ai_insn_read(struct comedi_device * dev, struct comedi_s
 	struct comedi_insn * insn, unsigned int * data)
 {
 	int i;
-	daqboard2000_hw *fpga = devpriv->daq;
+	struct daqboard2000_hw *fpga = devpriv->daq;
 	int gain, chan, timeout;
 
 	fpga->acqControl =
@@ -468,7 +468,7 @@ static int daqboard2000_ao_insn_write(struct comedi_device * dev, struct comedi_
 {
 	int i;
 	int chan = CR_CHAN(insn->chanspec);
-	daqboard2000_hw *fpga = devpriv->daq;
+	struct daqboard2000_hw *fpga = devpriv->daq;
 	int timeout;
 
 	for (i = 0; i < insn->n; i++) {
@@ -620,7 +620,7 @@ static void daqboard2000_adcStopDmaTransfer(struct comedi_device * dev)
 
 static void daqboard2000_adcDisarm(struct comedi_device * dev)
 {
-	daqboard2000_hw *fpga = devpriv->daq;
+	struct daqboard2000_hw *fpga = devpriv->daq;
 
 	/* Disable hardware triggers */
 	comedi_udelay(2);
@@ -642,7 +642,7 @@ static void daqboard2000_adcDisarm(struct comedi_device * dev)
 
 static void daqboard2000_activateReferenceDacs(struct comedi_device * dev)
 {
-	daqboard2000_hw *fpga = devpriv->daq;
+	struct daqboard2000_hw *fpga = devpriv->daq;
 	int timeout;
 
 	// Set the + reference dac value in the FPGA
