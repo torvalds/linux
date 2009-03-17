@@ -29,19 +29,21 @@ The ACL-7130 card have an 8254 timer/counter not supported by this driver.
 static int pcl730_attach(struct comedi_device * dev, struct comedi_devconfig * it);
 static int pcl730_detach(struct comedi_device * dev);
 
-typedef struct {
+struct pcl730_board {
+
 	const char *name;	// board name
 	unsigned int io_range;	// len of I/O space
-} boardtype;
+};
 
-static const boardtype boardtypes[] = {
+
+static const struct pcl730_board boardtypes[] = {
 	{"pcl730", PCL730_SIZE,},
 	{"iso730", PCL730_SIZE,},
 	{"acl7130", ACL7130_SIZE,},
 };
 
-#define n_boardtypes (sizeof(boardtypes)/sizeof(boardtype))
-#define this_board ((const boardtype *)dev->board_ptr)
+#define n_boardtypes (sizeof(boardtypes)/sizeof(struct pcl730_board))
+#define this_board ((const struct pcl730_board *)dev->board_ptr)
 
 static struct comedi_driver driver_pcl730 = {
       driver_name:"pcl730",
@@ -50,7 +52,7 @@ static struct comedi_driver driver_pcl730 = {
       detach:pcl730_detach,
       board_name:&boardtypes[0].name,
       num_names:n_boardtypes,
-      offset:sizeof(boardtype),
+      offset:sizeof(struct pcl730_board),
 };
 
 COMEDI_INITCLEANUP(driver_pcl730);
