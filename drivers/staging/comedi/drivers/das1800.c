@@ -463,7 +463,7 @@ static const struct das1800_board das1800_boards[] = {
  */
 #define thisboard ((const struct das1800_board *)dev->board_ptr)
 
-typedef struct {
+struct das1800_private {
 	volatile unsigned int count;	/* number of data points left to be taken */
 	unsigned int divisor1;	/* value to load into board's counter 1 for timed conversions */
 	unsigned int divisor2;	/* value to load into board's counter 2 for timed conversions */
@@ -481,9 +481,9 @@ typedef struct {
 	unsigned int dma_transfer_size;	/* size of transfer currently used, in bytes */
 	unsigned long iobase2;	/* secondary io address used for analog out on 'ao' boards */
 	short ao_update_bits;	/* remembers the last write to the 'update' dac */
-} das1800_private;
+};
 
-#define devpriv ((das1800_private *)dev->private)
+#define devpriv ((struct das1800_private *)dev->private)
 
 // analog out range for boards with basic analog out
 static const struct comedi_lrange range_ao_1 = {
@@ -602,7 +602,7 @@ static int das1800_attach(struct comedi_device * dev, struct comedi_devconfig * 
 	int retval;
 
 	/* allocate and initialize dev->private */
-	if (alloc_private(dev, sizeof(das1800_private)) < 0)
+	if (alloc_private(dev, sizeof(struct das1800_private)) < 0)
 		return -ENOMEM;
 
 	printk("comedi%d: %s: io 0x%lx", dev->minor, driver_das1800.driver_name,
