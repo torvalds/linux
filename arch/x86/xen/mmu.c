@@ -1019,7 +1019,7 @@ static __init int xen_mark_pinned(struct mm_struct *mm, struct page *page,
 	return 0;
 }
 
-void __init xen_mark_init_mm_pinned(void)
+static void __init xen_mark_init_mm_pinned(void)
 {
 	xen_pgd_walk(&init_mm, xen_mark_pinned, FIXADDR_TOP);
 }
@@ -1470,9 +1470,28 @@ static __init void xen_set_pte_init(pte_t *ptep, pte_t pte)
 }
 #endif
 
+static void pin_pagetable_pfn(unsigned cmd, unsigned long pfn)
+{
+	struct mmuext_op op;
+	op.cmd = cmd;
+	op.arg1.mfn = pfn_to_mfn(pfn);
+	if (HYPERVISOR_mmuext_op(&op, 1, NULL, DOMID_SELF))
+		BUG();
+}
+
 /* Early in boot, while setting up the initial pagetable, assume
    everything is pinned. */
 static __init void xen_alloc_pte_init(struct mm_struct *mm, unsigned long pfn)
+{
+#ifdef CONFIG_FLATMEM
+	BUG_ON(mem_map);	/* should only be used early */
+#endif
+	make_lowmem_page_readonly(__va(PFN_PHYS(pfn)));
+	pin_pagetable_pfn(MMUEXT_PIN_L1_TABLE, pfn);
+}
+
+/* Used for pmd and pud */
+static __init void xen_alloc_pmd_init(struct mm_struct *mm, unsigned long pfn)
 {
 #ifdef CONFIG_FLATMEM
 	BUG_ON(mem_map);	/* should only be used early */
@@ -1482,18 +1501,15 @@ static __init void xen_alloc_pte_init(struct mm_struct *mm, unsigned long pfn)
 
 /* Early release_pte assumes that all pts are pinned, since there's
    only init_mm and anything attached to that is pinned. */
-static void xen_release_pte_init(unsigned long pfn)
+static __init void xen_release_pte_init(unsigned long pfn)
 {
+	pin_pagetable_pfn(MMUEXT_UNPIN_TABLE, pfn);
 	make_lowmem_page_readwrite(__va(PFN_PHYS(pfn)));
 }
 
-static void pin_pagetable_pfn(unsigned cmd, unsigned long pfn)
+static __init void xen_release_pmd_init(unsigned long pfn)
 {
-	struct mmuext_op op;
-	op.cmd = cmd;
-	op.arg1.mfn = pfn_to_mfn(pfn);
-	if (HYPERVISOR_mmuext_op(&op, 1, NULL, DOMID_SELF))
-		BUG();
+	make_lowmem_page_readwrite(__va(PFN_PHYS(pfn)));
 }
 
 /* This needs to make sure the new pte page is pinned iff its being
@@ -1874,9 +1890,9 @@ const struct pv_mmu_ops xen_mmu_ops __initdata = {
 
 	.alloc_pte = xen_alloc_pte_init,
 	.release_pte = xen_release_pte_init,
-	.alloc_pmd = xen_alloc_pte_init,
+	.alloc_pmd = xen_alloc_pmd_init,
 	.alloc_pmd_clone = paravirt_nop,
-	.release_pmd = xen_release_pte_init,
+	.release_pmd = xen_release_pmd_init,
 
 #ifdef CONFIG_HIGHPTE
 	.kmap_atomic_pte = xen_kmap_atomic_pte,
@@ -1914,8 +1930,8 @@ const struct pv_mmu_ops xen_mmu_ops __initdata = {
 	.make_pud = PV_CALLEE_SAVE(xen_make_pud),
 	.set_pgd = xen_set_pgd_hyper,
 
-	.alloc_pud = xen_alloc_pte_init,
-	.release_pud = xen_release_pte_init,
+	.alloc_pud = xen_alloc_pmd_init,
+	.release_pud = xen_release_pmd_init,
 #endif	/* PAGETABLE_LEVELS == 4 */
 
 	.activate_mm = xen_activate_mm,
