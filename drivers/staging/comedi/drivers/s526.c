@@ -112,7 +112,7 @@ static const int s526_ports[] = {
 	REG_EEC
 };
 
-typedef struct {
+struct counter_mode_register_t {
 	unsigned short coutSource:1;
 	unsigned short coutPolarity:1;
 	unsigned short autoLoadResetRcap:3;
@@ -124,10 +124,10 @@ typedef struct {
 	unsigned short outputRegLatchCtrl:1;
 	unsigned short preloadRegSel:1;
 	unsigned short reserved:1;
-} counter_mode_register_t;
+};
 
 union {
-	counter_mode_register_t reg;
+	struct counter_mode_register_t reg;
 	unsigned short value;
 } cmReg;
 
