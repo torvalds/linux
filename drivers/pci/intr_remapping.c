@@ -467,6 +467,33 @@ static int setup_intr_remapping(struct intel_iommu *iommu, int mode)
 	return 0;
 }
 
+/*
+ * Disable Interrupt Remapping.
+ */
+static void disable_intr_remapping(struct intel_iommu *iommu)
+{
+	unsigned long flags;
+	u32 sts;
+
+	if (!ecap_ir_support(iommu->ecap))
+		return;
+
+	spin_lock_irqsave(&iommu->register_lock, flags);
+
+	sts = dmar_readq(iommu->reg + DMAR_GSTS_REG);
+	if (!(sts & DMA_GSTS_IRES))
+		goto end;
+
+	iommu->gcmd &= ~DMA_GCMD_IRE;
+	writel(iommu->gcmd, iommu->reg + DMAR_GCMD_REG);
+
+	IOMMU_WAIT_OP(iommu, DMAR_GSTS_REG,
+		      readl, !(sts & DMA_GSTS_IRES), sts);
+
+end:
+	spin_unlock_irqrestore(&iommu->register_lock, flags);
+}
+
 int __init enable_intr_remapping(int eim)
 {
 	struct dmar_drhd_unit *drhd;

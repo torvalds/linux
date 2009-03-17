@@ -754,6 +754,42 @@ int qi_flush_iotlb(struct intel_iommu *iommu, u16 did, u64 addr,
 }
 
 /*
+ * Disable Queued Invalidation interface.
+ */
+void dmar_disable_qi(struct intel_iommu *iommu)
+{
+	unsigned long flags;
+	u32 sts;
+	cycles_t start_time = get_cycles();
+
+	if (!ecap_qis(iommu->ecap))
+		return;
+
+	spin_lock_irqsave(&iommu->register_lock, flags);
+
+	sts =  dmar_readq(iommu->reg + DMAR_GSTS_REG);
+	if (!(sts & DMA_GSTS_QIES))
+		goto end;
+
+	/*
+	 * Give a chance to HW to complete the pending invalidation requests.
+	 */
+	while ((readl(iommu->reg + DMAR_IQT_REG) !=
+		readl(iommu->reg + DMAR_IQH_REG)) &&
+		(DMAR_OPERATION_TIMEOUT > (get_cycles() - start_time)))
+		cpu_relax();
+
+	iommu->gcmd &= ~DMA_GCMD_QIE;
+
+	writel(iommu->gcmd, iommu->reg + DMAR_GCMD_REG);
+
+	IOMMU_WAIT_OP(iommu, DMAR_GSTS_REG, readl,
+		      !(sts & DMA_GSTS_QIES), sts);
+end:
+	spin_unlock_irqrestore(&iommu->register_lock, flags);
+}
+
+/*
  * Enable Queued Invalidation interface. This is a must to support
  * interrupt-remapping. Also used by DMA-remapping, which replaces
  * register based IOTLB invalidation.
