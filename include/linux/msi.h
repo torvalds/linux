@@ -20,13 +20,13 @@ extern void write_msi_msg(unsigned int irq, struct msi_msg *msg);
 
 struct msi_desc {
 	struct {
-		__u8	type	: 5; 	/* {0: unused, 5h:MSI, 11h:MSI-X} */
+		__u8	is_msix	: 1;
 		__u8	maskbit	: 1; 	/* mask-pending bit supported ?   */
 		__u8	masked	: 1;
 		__u8	is_64	: 1;	/* Address size: 0=32bit 1=64bit  */
 		__u8	pos;	 	/* Location of the msi capability */
-		__u32	maskbits_mask;  /* mask bits mask */
 		__u16	entry_nr;    	/* specific enabled entry 	  */
+		__u32	maskbits_mask;  /* mask bits mask */
 		unsigned default_irq;	/* default pre-assigned irq	  */
 	}msi_attrib;
 
