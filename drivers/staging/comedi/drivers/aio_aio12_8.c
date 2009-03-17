@@ -71,16 +71,16 @@ Notes:
 
 #define DAC_ENABLE			0x18
 
-typedef struct {
+struct aio12_8_boardtype {
 	const char *name;
-} board_type;
+};
 
-static const board_type board_types[] = {
+static const struct aio12_8_boardtype board_types[] = {
 	{
       name:	"aio_aio12_8"},
 };
 
-#define	thisboard	((const board_type *) dev->board_ptr)
+#define	thisboard	((const struct aio12_8_boardtype  *) dev->board_ptr)
 
 typedef struct {
 	unsigned int ao_readback[4];
@@ -220,7 +220,7 @@ static struct comedi_driver driver_aio_aio12_8 = {
       detach:aio_aio12_8_detach,
       board_name:&board_types[0].name,
       num_names:1,
-      offset:sizeof(board_type),
+      offset:sizeof(struct aio12_8_boardtype),
 };
 
 COMEDI_INITCLEANUP(driver_aio_aio12_8);
