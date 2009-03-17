@@ -192,14 +192,16 @@ static inline unsigned NI_660X_GPCT_SUBDEV(unsigned index)
 	return NI_660X_GPCT_SUBDEV_0 + index;
 }
 
-typedef struct {
+struct NI_660xRegisterData {
+
 	const char *name;	// Register Name
 	int offset;		// Offset from base address from GPCT chip
 	enum ni_660x_register_direction direction;
 	enum ni_660x_register_width size;	// 1 byte, 2 bytes, or 4 bytes
-} NI_660xRegisterData;
+};
 
-static const NI_660xRegisterData registerData[NumRegisters] = {
+
+static const struct NI_660xRegisterData registerData[NumRegisters] = {
 	{"G0 Interrupt Acknowledge", 0x004, NI_660x_WRITE, DATA_2B},
 	{"G0 Status Register", 0x004, NI_660x_READ, DATA_2B},
 	{"G1 Interrupt Acknowledge", 0x006, NI_660x_WRITE, DATA_2B},
