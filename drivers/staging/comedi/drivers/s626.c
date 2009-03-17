@@ -1290,18 +1290,15 @@ static int s626_detach(comedi_device *dev)
 			CloseDMAB(dev, &devpriv->ANABuf, DMABUF_SIZE);
 		}
 
-		if (dev->irq) {
+		if (dev->irq)
 			comedi_free_irq(dev->irq, dev);
-		}
 
-		if (devpriv->base_addr) {
+		if (devpriv->base_addr)
 			iounmap(devpriv->base_addr);
-		}
 
 		if (devpriv->pdev) {
-			if (devpriv->got_regions) {
+			if (devpriv->got_regions)
 				comedi_pci_disable(devpriv->pdev);
-			}
 			pci_dev_put(devpriv->pdev);
 		}
 	}
@@ -2072,9 +2069,8 @@ static int s626_ao_rinsn(comedi_device *dev, comedi_subdevice *s,
 {
 	int i;
 
-	for (i = 0; i < insn->n; i++) {
+	for (i = 0; i < insn->n; i++)
 		data[i] = devpriv->ao_readback[CR_CHAN(insn->chanspec)];
-	}
 
 	return i;
 }
@@ -2119,9 +2115,9 @@ static int s626_dio_insn_bits(comedi_device *dev, comedi_subdevice *s,
 {
 
 	/* Length of data must be 2 (mask and new data, see below) */
-	if (insn->n == 0) {
+	if (insn->n == 0)
 		return 0;
-	}
+
 	if (insn->n != 2) {
 		printk("comedi%d: s626: s626_dio_insn_bits(): Invalid instruction length\n", dev->minor);
 		return -EINVAL;

@@ -84,9 +84,9 @@ int comedi_request_irq(unsigned irq, irqreturn_t(*handler) (int,
 				("comedi: cannot get unshared interrupt, will not use RT interrupts.\n");
 			ret = request_irq(irq, handler, flags, device, dev_id);
 		}
-		if (ret < 0) {
+		if (ret < 0)
 			return ret;
-		}
+
 	} else {
 		it = kzalloc(sizeof(struct comedi_irq_struct), GFP_KERNEL);
 		if (!it)

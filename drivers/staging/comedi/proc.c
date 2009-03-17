@@ -67,9 +67,8 @@ int comedi_read_procmem(char *buf, char **start, off_t offset, int len,
 				dev->board_name, dev->n_subdevices);
 		}
 	}
-	if (!devices_q) {
+	if (!devices_q)
 		l += sprintf(buf + l, "no devices\n");
-	}
 
 	for (driv = comedi_drivers; driv; driv = driv->next) {
 		l += sprintf(buf + l, "%s:\n", driv->driver_name);
@@ -78,9 +77,8 @@ int comedi_read_procmem(char *buf, char **start, off_t offset, int len,
 				*(char **)((char *)driv->board_name +
 					i * driv->offset));
 		}
-		if (!driv->num_names) {
+		if (!driv->num_names)
 			l += sprintf(buf + l, " %s\n", driv->driver_name);
-		}
 	}
 
 	return l;

@@ -1080,9 +1080,8 @@ static int icp_multi_detach(comedi_device *dev)
 	if (dev->private && devpriv->card)
 		pci_card_free(devpriv->card);
 
-	if (--pci_list_builded == 0) {
+	if (--pci_list_builded == 0)
 		pci_card_list_cleanup(PCI_VENDOR_ID_ICP);
-	}
 
 	return 0;
 }

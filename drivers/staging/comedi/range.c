@@ -135,9 +135,8 @@ int check_chanlist(comedi_subdevice *s, int n, unsigned int *chanlist)
 					i, chanlist[i], s->n_chan,
 					s->range_table->length);
 #if 0
-				for (i = 0; i < n; i++) {
+				for (i = 0; i < n; i++)
 					printk("[%d]=0x%08x\n", i, chanlist[i]);
-				}
 #endif
 				return -EINVAL;
 			}

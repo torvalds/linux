@@ -331,9 +331,9 @@ int mite_buf_change(struct mite_dma_descriptor_ring *ring, comedi_async * async)
 	ring->descriptors_dma_addr = 0;
 	ring->n_links = 0;
 
-	if (async->prealloc_bufsz == 0) {
+	if (async->prealloc_bufsz == 0)
 		return 0;
-	}
+
 	n_links = async->prealloc_bufsz >> PAGE_SHIFT;
 
 	MDPRINTK("ring->hw_dev=%p, n_links=0x%04x\n", ring->hw_dev, n_links);
@@ -395,9 +395,9 @@ void mite_prep_dma(struct mite_channel *mite_chan,
 		   on e-series boards.  */
 		chcr |= CHCR_BYTE_SWAP_DEVICE | CHCR_BYTE_SWAP_MEMORY;
 	}
-	if (mite_chan->dir == COMEDI_INPUT) {
+	if (mite_chan->dir == COMEDI_INPUT)
 		chcr |= CHCR_DEV_TO_MEM;
-	}
+
 	writel(chcr, mite->mite_io_addr + MITE_CHCR(mite_chan->channel));
 
 	/* to/from memory */
@@ -547,9 +547,9 @@ int mite_sync_input_dma(struct mite_channel *mite_chan, comedi_async * async)
 	count = nbytes - async->buf_write_count;
 	/* it's possible count will be negative due to
 	 * conservative value returned by mite_bytes_written_to_memory_lb */
-	if (count <= 0) {
+	if (count <= 0)
 		return 0;
-	}
+
 	comedi_buf_write_free(async, count);
 
 	async->scan_progress += count;
@@ -586,9 +586,9 @@ int mite_sync_output_dma(struct mite_channel *mite_chan, comedi_async * async)
 		return -1;
 	}
 	count = nbytes_lb - async->buf_read_count;
-	if (count <= 0) {
+	if (count <= 0)
 		return 0;
-	}
+
 	if (count) {
 		comedi_buf_read_free(async, count);
 		async->events |= COMEDI_CB_BLOCK;
@@ -753,9 +753,8 @@ static void mite_decode(char **bit_str, unsigned int bits)
 	int i;
 
 	for (i = 31; i >= 0; i--) {
-		if (bits & (1 << i)) {
+		if (bits & (1 << i))
 			printk(" %s", bit_str[i]);
-		}
 	}
 	printk("\n");
 }

@@ -331,9 +331,9 @@ int comedi_lock(comedi_t *d, unsigned int subdevice)
 	unsigned long flags;
 	int ret = 0;
 
-	if (subdevice >= dev->n_subdevices) {
+	if (subdevice >= dev->n_subdevices)
 		return -EINVAL;
-	}
+
 	s = dev->subdevices + subdevice;
 
 	comedi_spin_lock_irqsave(&s->spin_lock, flags);
@@ -375,9 +375,9 @@ int comedi_unlock(comedi_t *d, unsigned int subdevice)
 	comedi_async *async;
 	int ret;
 
-	if (subdevice >= dev->n_subdevices) {
+	if (subdevice >= dev->n_subdevices)
 		return -EINVAL;
-	}
+
 	s = dev->subdevices + subdevice;
 
 	async = s->async;
@@ -425,9 +425,9 @@ int comedi_cancel(comedi_t *d, unsigned int subdevice)
 	comedi_subdevice *s;
 	int ret = 0;
 
-	if (subdevice >= dev->n_subdevices) {
+	if (subdevice >= dev->n_subdevices)
 		return -EINVAL;
-	}
+
 	s = dev->subdevices + subdevice;
 
 	if (s->lock && s->lock != d)
@@ -450,9 +450,9 @@ int comedi_cancel(comedi_t *d, unsigned int subdevice)
 		return ret;
 
 #ifdef CONFIG_COMEDI_RT
-	if (comedi_get_subdevice_runflags(s) & SRF_RT) {
+	if (comedi_get_subdevice_runflags(s) & SRF_RT)
 		comedi_switch_to_non_rt(dev);
-	}
+
 #endif
 	comedi_set_subdevice_runflags(s, SRF_RUNNING | SRF_RT, 0);
 	s->async->inttrig = NULL;
@@ -471,9 +471,9 @@ int comedi_register_callback(comedi_t *d, unsigned int subdevice,
 	comedi_subdevice *s;
 	comedi_async *async;
 
-	if (subdevice >= dev->n_subdevices) {
+	if (subdevice >= dev->n_subdevices)
 		return -EINVAL;
-	}
+
 	s = dev->subdevices + subdevice;
 
 	async = s->async;
@@ -507,9 +507,9 @@ int comedi_poll(comedi_t *d, unsigned int subdevice)
 	comedi_subdevice *s = dev->subdevices;
 	comedi_async *async;
 
-	if (subdevice >= dev->n_subdevices) {
+	if (subdevice >= dev->n_subdevices)
 		return -EINVAL;
-	}
+
 	s = dev->subdevices + subdevice;
 
 	async = s->async;
@@ -533,17 +533,16 @@ int comedi_map(comedi_t *d, unsigned int subdevice, void *ptr)
 	comedi_device *dev = (comedi_device *) d;
 	comedi_subdevice *s;
 
-	if (subdevice >= dev->n_subdevices) {
+	if (subdevice >= dev->n_subdevices)
 		return -EINVAL;
-	}
+
 	s = dev->subdevices + subdevice;
 
 	if (!s->async)
 		return -EINVAL;
 
-	if (ptr) {
+	if (ptr)
 		*((void **)ptr) = s->async->prealloc_buf;
-	}
 
 	/* XXX no reference counting */
 
@@ -556,9 +555,9 @@ int comedi_unmap(comedi_t *d, unsigned int subdevice)
 	comedi_device *dev = (comedi_device *) d;
 	comedi_subdevice *s;
 
-	if (subdevice >= dev->n_subdevices) {
+	if (subdevice >= dev->n_subdevices)
 		return -EINVAL;
-	}
+
 	s = dev->subdevices + subdevice;
 
 	if (!s->async)

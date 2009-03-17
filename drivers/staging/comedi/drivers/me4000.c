@@ -378,9 +378,9 @@ static int me4000_probe(comedi_device *dev, comedi_devconfig *it)
 	CALL_PDEBUG("In me4000_probe()\n");
 
 	/* Allocate private memory */
-	if (alloc_private(dev, sizeof(me4000_info_t)) < 0) {
+	if (alloc_private(dev, sizeof(me4000_info_t)) < 0)
 		return -ENOMEM;
-	}
+
 	/*
 	 * Probe the device to determine what device in the series it is.
 	 */
@@ -576,15 +576,13 @@ static int init_board_info(comedi_device *dev, struct pci_dev *pci_dev_p)
 
 	/* Get the serial number */
 	result = pci_read_config_dword(pci_dev_p, 0x2C, &info->serial_no);
-	if (result != PCIBIOS_SUCCESSFUL) {
+	if (result != PCIBIOS_SUCCESSFUL)
 		return result;
-	}
 
 	/* Get the hardware revision */
 	result = pci_read_config_byte(pci_dev_p, 0x08, &info->hw_revision);
-	if (result != PCIBIOS_SUCCESSFUL) {
+	if (result != PCIBIOS_SUCCESSFUL)
 		return result;
-	}
 
 	/* Get the vendor id */
 	info->vendor_id = pci_dev_p->vendor;
@@ -902,9 +900,8 @@ static int me4000_detach(comedi_device *dev)
 	if (info) {
 		if (info->pci_dev_p) {
 			reset_board(dev);
-			if (info->plx_regbase) {
+			if (info->plx_regbase)
 				comedi_pci_disable(info->pci_dev_p);
-			}
 			pci_dev_put(info->pci_dev_p);
 		}
 	}
@@ -1163,9 +1160,8 @@ static int ai_round_cmd_args(comedi_device *dev,
 		rest = (cmd->start_arg * 33) % 1000;
 
 		if (cmd->flags & TRIG_ROUND_NEAREST) {
-			if (rest > 33) {
+			if (rest > 33)
 				(*init_ticks)++;
-			}
 		} else if (cmd->flags & TRIG_ROUND_UP) {
 			if (rest)
 				(*init_ticks)++;
@@ -1177,9 +1173,8 @@ static int ai_round_cmd_args(comedi_device *dev,
 		rest = (cmd->scan_begin_arg * 33) % 1000;
 
 		if (cmd->flags & TRIG_ROUND_NEAREST) {
-			if (rest > 33) {
+			if (rest > 33)
 				(*scan_ticks)++;
-			}
 		} else if (cmd->flags & TRIG_ROUND_UP) {
 			if (rest)
 				(*scan_ticks)++;
@@ -1191,9 +1186,8 @@ static int ai_round_cmd_args(comedi_device *dev,
 		rest = (cmd->convert_arg * 33) % 1000;
 
 		if (cmd->flags & TRIG_ROUND_NEAREST) {
-			if (rest > 33) {
+			if (rest > 33)
 				(*chan_ticks)++;
-			}
 		} else if (cmd->flags & TRIG_ROUND_UP) {
 			if (rest)
 				(*chan_ticks)++;
@@ -1503,9 +1497,8 @@ static int me4000_ai_do_cmd_test(comedi_device *dev,
 		cmd->stop_src = TRIG_NONE;
 		err++;
 	}
-	if (err) {
+	if (err)
 		return 1;
-	}
 
 	/*
 	 * Stage 2. Check for trigger source conflicts.
@@ -1553,9 +1546,8 @@ static int me4000_ai_do_cmd_test(comedi_device *dev,
 		cmd->scan_end_src = TRIG_NONE;
 		err++;
 	}
-	if (err) {
+	if (err)
 		return 2;
-	}
 
 	/*
 	 * Stage 3. Check if arguments are generally valid.
@@ -1588,9 +1580,9 @@ static int me4000_ai_do_cmd_test(comedi_device *dev,
 		cmd->convert_arg = 2000;
 		err++;
 	}
-	if (err) {
+
+	if (err)
 		return 3;
-	}
 
 	/*
 	 * Stage 4. Check for argument conflicts.
@@ -1735,9 +1727,9 @@ static int me4000_ai_do_cmd_test(comedi_device *dev,
 			err++;
 		}
 	}
-	if (err) {
+
+	if (err)
 		return 4;
-	}
 
 	/*
 	 * Stage 5. Check the channel list.
@@ -1997,9 +1989,9 @@ static int me4000_dio_insn_bits(comedi_device *dev,
 	CALL_PDEBUG("In me4000_dio_insn_bits()\n");
 
 	/* Length of data must be 2 (mask and new data, see below) */
-	if (insn->n == 0) {
+	if (insn->n == 0)
 		return 0;
-	}
+
 	if (insn->n != 2) {
 		printk("comedi%d: me4000: me4000_dio_insn_bits(): Invalid instruction length\n", dev->minor);
 		return -EINVAL;
@@ -2274,9 +2266,9 @@ static int me4000_cnt_insn_read(comedi_device *dev,
 
 	CALL_PDEBUG("In me4000_cnt_insn_read()\n");
 
-	if (insn->n == 0) {
+	if (insn->n == 0)
 		return 0;
-	}
+
 	if (insn->n > 1) {
 		printk(KERN_ERR
 			"comedi%d: me4000: me4000_cnt_insn_read(): Invalid instruction length %d\n",

@@ -394,9 +394,9 @@ static inline int plx9080_abort_dma(void *iobase, unsigned int channel)
 
 	/*  abort dma transfer if necessary */
 	dma_status = readb(dma_cs_addr);
-	if ((dma_status & PLX_DMA_EN_BIT) == 0) {
+	if ((dma_status & PLX_DMA_EN_BIT) == 0)
 		return 0;
-	}
+
 	/*  wait to make sure done bit is zero */
 	for (i = 0; (dma_status & PLX_DMA_DONE_BIT) && i < timeout; i++) {
 		comedi_udelay(1);

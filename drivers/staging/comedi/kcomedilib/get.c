@@ -160,9 +160,9 @@ int comedi_get_krange(comedi_t *d, unsigned int subdevice, unsigned int chan,
 	} else {
 		lr = s->range_table;
 	}
-	if (range >= lr->length) {
+	if (range >= lr->length)
 		return -EINVAL;
-	}
+
 	memcpy(krange, lr->range + range, sizeof(comedi_krange));
 
 	return 0;
