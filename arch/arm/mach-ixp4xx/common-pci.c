@@ -501,7 +501,7 @@ int ixp4xx_setup(int nr, struct pci_sys_data *sys)
 	return 1;
 }
 
-struct pci_bus *ixp4xx_scan_bus(int nr, struct pci_sys_data *sys)
+struct pci_bus * __devinit ixp4xx_scan_bus(int nr, struct pci_sys_data *sys)
 {
 	return pci_scan_bus(sys->busnr, &ixp4xx_ops, sys);
 }
