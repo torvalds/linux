@@ -84,11 +84,13 @@ static struct comedi_driver driver_ni6527 = {
       detach:ni6527_detach,
 };
 
-typedef struct {
+struct ni6527_board {
+
 	int dev_id;
 	const char *name;
-} ni6527_board;
-static const ni6527_board ni6527_boards[] = {
+};
+
+static const struct ni6527_board ni6527_boards[] = {
 	{
 	      dev_id:	0x2b20,
 	      name:	"pci-6527",
@@ -100,7 +102,7 @@ static const ni6527_board ni6527_boards[] = {
 };
 
 #define n_ni6527_boards (sizeof(ni6527_boards)/sizeof(ni6527_boards[0]))
-#define this_board ((const ni6527_board *)dev->board_ptr)
+#define this_board ((const struct ni6527_board *)dev->board_ptr)
 
 static DEFINE_PCI_DEVICE_TABLE(ni6527_pci_table) = {
 	{PCI_VENDOR_ID_NATINST, 0x2b10, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
