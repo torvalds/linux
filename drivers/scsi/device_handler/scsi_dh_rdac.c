@@ -574,6 +574,12 @@ static int rdac_check_sense(struct scsi_device *sdev,
 			 * Just retry and wait.
 			 */
 			return ADD_TO_MLQUEUE;
+		if (sense_hdr->asc == 0xA1  && sense_hdr->ascq == 0x02)
+			/* LUN Not Ready - Quiescense in progress
+			 * or has been achieved
+			 * Just retry.
+			 */
+			return ADD_TO_MLQUEUE;
 		break;
 	case ILLEGAL_REQUEST:
 		if (sense_hdr->asc == 0x94 && sense_hdr->ascq == 0x01) {
