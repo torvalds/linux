@@ -1130,21 +1130,21 @@ netxen_validate_firmware(struct netxen_adapter *adapter, const char *fwname,
 	return 0;
 }
 
+static char *fw_name[] = { "nxromimg.bin", "nx3fwct.bin", "nx3fwmn.bin" };
+
 int netxen_load_firmware(struct netxen_adapter *adapter)
 {
 	u32 capability, flashed_ver;
 	const struct firmware *fw;
-	char *fw_name = NULL;
+	int fw_type;
 	struct pci_dev *pdev = adapter->pdev;
 	int rc = 0;
 
 	if (NX_IS_REVISION_P2(adapter->ahw.revision_id)) {
-		fw_name = NX_P2_MN_ROMIMAGE;
+		fw_type = NX_P2_MN_ROMIMAGE;
 		goto request_fw;
-	}
-
-	if (NX_IS_REVISION_P3(adapter->ahw.revision_id)) {
-		fw_name = NX_P3_CT_ROMIMAGE;
+	} else {
+		fw_type = NX_P3_CT_ROMIMAGE;
 		goto request_fw;
 	}
 
@@ -1157,15 +1157,15 @@ request_mn:
 		adapter->hw_read_wx(adapter,
 				NX_PEG_TUNE_CAPABILITY, &capability, 4);
 		if (capability & NX_PEG_TUNE_MN_PRESENT) {
-			fw_name = NX_P3_MN_ROMIMAGE;
+			fw_type = NX_P3_MN_ROMIMAGE;
 			goto request_fw;
 		}
 	}
 
 request_fw:
-	rc = request_firmware(&fw, fw_name, &pdev->dev);
+	rc = request_firmware(&fw, fw_name[fw_type], &pdev->dev);
 	if (rc != 0) {
-		if (fw_name == NX_P3_CT_ROMIMAGE) {
+		if (fw_type == NX_P3_CT_ROMIMAGE) {
 			msleep(1);
 			goto request_mn;
 		}
@@ -1174,11 +1174,11 @@ request_fw:
 		goto load_fw;
 	}
 
-	rc = netxen_validate_firmware(adapter, fw_name, fw);
+	rc = netxen_validate_firmware(adapter, fw_name[fw_type], fw);
 	if (rc != 0) {
 		release_firmware(fw);
 
-		if (fw_name == NX_P3_CT_ROMIMAGE) {
+		if (fw_type == NX_P3_CT_ROMIMAGE) {
 			msleep(1);
 			goto request_mn;
 		}
@@ -1187,7 +1187,7 @@ request_fw:
 	}
 
 load_fw:
-	rc = netxen_do_load_firmware(adapter, fw_name, fw);
+	rc = netxen_do_load_firmware(adapter, fw_name[fw_type], fw);
 
 	if (fw)
 		release_firmware(fw);

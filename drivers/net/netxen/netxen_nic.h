@@ -693,9 +693,9 @@ typedef enum {
 #define NX_BIOS_VERSION_OFFSET	(NETXEN_USER_START+0x83c)
 #define NX_FW_MAGIC_OFFSET	(NETXEN_BRDCFG_START+0x128)
 #define NX_FW_MIN_SIZE		(0x3fffff)
-#define NX_P2_MN_ROMIMAGE	"nxromimg.bin"
-#define NX_P3_CT_ROMIMAGE	"nx3fwct.bin"
-#define NX_P3_MN_ROMIMAGE	"nx3fwmn.bin"
+#define NX_P2_MN_ROMIMAGE	0
+#define NX_P3_CT_ROMIMAGE	1
+#define NX_P3_MN_ROMIMAGE	2
 
 #define NETXEN_USER_START_OLD NETXEN_PXE_START	/* for backward compatibility */
 
