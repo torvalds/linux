@@ -118,12 +118,12 @@ MODULE_DEVICE_TABLE(pci, pc263_pci_table);
    several hardware drivers keep similar information in this structure,
    feel free to suggest moving the variable to the struct comedi_device struct.  */
 #ifdef CONFIG_COMEDI_PCI
-typedef struct {
+struct pc263_private {
 	/* PCI device. */
 	struct pci_dev *pci_dev;
-} pc263_private;
+};
 
-#define devpriv ((pc263_private *)dev->private)
+#define devpriv ((struct pc263_private *)dev->private)
 #endif /* CONFIG_COMEDI_PCI */
 
 /*
@@ -236,7 +236,7 @@ static int pc263_attach(struct comedi_device * dev, struct comedi_devconfig * it
  * convenient macro defined in comedidev.h.
  */
 #ifdef CONFIG_COMEDI_PCI
-	if ((ret = alloc_private(dev, sizeof(pc263_private))) < 0) {
+	if ((ret = alloc_private(dev, sizeof(struct pc263_private))) < 0) {
 		printk(KERN_ERR "comedi%d: error! out of memory!\n",
 			dev->minor);
 		return ret;
