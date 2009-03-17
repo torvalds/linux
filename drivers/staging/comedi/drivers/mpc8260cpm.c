@@ -38,11 +38,13 @@ It is apparently missing some code.
 
 extern unsigned long mpc8260_dio_reserved[4];
 
-typedef struct {
+struct mpc8260cpm_private {
+
 	int data;
 
-} mpc8260cpm_private;
-#define devpriv ((mpc8260cpm_private *)dev->private)
+};
+
+#define devpriv ((struct mpc8260cpm_private *)dev->private)
 
 static int mpc8260cpm_attach(struct comedi_device * dev, struct comedi_devconfig * it);
 static int mpc8260cpm_detach(struct comedi_device * dev);
@@ -71,7 +73,7 @@ static int mpc8260cpm_attach(struct comedi_device * dev, struct comedi_devconfig
 
 	dev->board_name = thisboard->name;
 
-	if (alloc_private(dev, sizeof(mpc8260cpm_private)) < 0)
+	if (alloc_private(dev, sizeof(struct mpc8260cpm_private)) < 0)
 		return -ENOMEM;
 
 	if (alloc_subdevices(dev, 4) < 0)
