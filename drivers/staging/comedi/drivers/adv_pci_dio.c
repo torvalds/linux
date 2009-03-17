@@ -71,7 +71,7 @@ enum hw_io_access {
 #define PCIDIO_MAINREG	   2	/* main I/O region for all Advantech cards? */
 
 /* Register offset definitions */
-// Advantech PCI-1730/3/4
+/*  Advantech PCI-1730/3/4 */
 #define PCI1730_IDI	   0	/* R:   Isolated digital input  0-15 */
 #define PCI1730_IDO	   0	/* W:   Isolated digital output 0-15 */
 #define PCI1730_DI	   2	/* R:   Digital input  0-15 */
@@ -83,7 +83,7 @@ enum hw_io_access {
 #define PCI1734_IDO	   0	/* W:   Isolated digital output 0-31 */
 #define PCI173x_BOARDID	   4	/* R:   Board I/D switch for 1730/3/4 */
 
-// Advantech PCI-1736UP
+/*  Advantech PCI-1736UP */
 #define PCI1736_IDI        0    /* R:   Isolated digital input  0-15 */
 #define PCI1736_IDO        0    /* W:   Isolated digital output 0-15 */
 #define PCI1736_3_INT_EN        0x08    /* R/W: enable/disable interrupts */
@@ -92,13 +92,13 @@ enum hw_io_access {
 #define PCI1736_BOARDID    4            /* R:   Board I/D switch for 1736UP */
 #define PCI1736_MAINREG    0            /* Normal register (2) doesn't work */
 
-// Advantech PCI-1750
+/*  Advantech PCI-1750 */
 #define PCI1750_IDI	   0	/* R:   Isolated digital input  0-15 */
 #define PCI1750_IDO	   0	/* W:   Isolated digital output 0-15 */
 #define PCI1750_ICR	  32	/* W:   Interrupt control register */
 #define PCI1750_ISR	  32	/* R:   Interrupt status register */
 
-// Advantech PCI-1751/3/3E
+/*  Advantech PCI-1751/3/3E */
 #define PCI1751_DIO	   0	/* R/W: begin of 8255 registers block */
 #define PCI1751_ICR	  32	/* W:   Interrupt control register */
 #define PCI1751_ISR	  32	/* R:   Interrupt status register */
@@ -113,7 +113,7 @@ enum hw_io_access {
 #define PCI1753E_ICR2	  50	/* R/W: Interrupt control register group 2 */
 #define PCI1753E_ICR3	  51	/* R/W: Interrupt control register group 3 */
 
-// Advantech PCI-1752/4/6
+/*  Advantech PCI-1752/4/6 */
 #define PCI1752_IDO	   0	/* R/W: Digital output  0-31 */
 #define PCI1752_IDO2	   4	/* R/W: Digital output 32-63 */
 #define PCI1754_IDI	   0	/* R:   Digital input   0-31 */
@@ -127,14 +127,14 @@ enum hw_io_access {
 #define PCI1752_6_CFC	0x12	/* R/W: set/read channel freeze function */
 #define PCI175x_BOARDID	0x10	/* R:   Board I/D switch for 1752/4/6 */
 
-// Advantech PCI-1762 registers
+/*  Advantech PCI-1762 registers */
 #define PCI1762_RO	   0	/* R/W: Relays status/output */
 #define PCI1762_IDI	   2	/* R:   Isolated input status */
 #define PCI1762_BOARDID	   4	/* R:   Board I/D switch */
 #define PCI1762_ICR	   6	/* W:   Interrupt control register */
 #define PCI1762_ISR	   6	/* R:   Interrupt status register */
 
-// Advantech PCI-1760 registers
+/*  Advantech PCI-1760 registers */
 #define OMB0		0x0c	/* W:   Mailbox outgoing registers */
 #define OMB1		0x0d
 #define OMB2		0x0e
@@ -148,7 +148,7 @@ enum hw_io_access {
 #define INTCSR2		0x3a
 #define INTCSR3		0x3b
 
-// PCI-1760 mailbox commands
+/*  PCI-1760 mailbox commands */
 #define CMD_ClearIMB2		0x00	/* Clear IMB2 status and return actaul DI status in IMB3 */
 #define CMD_SetRelaysOutput	0x01	/* Set relay output from OMB0 */
 #define CMD_GetRelaysStatus	0x02	/* Get relay status to IMB0 */
@@ -187,22 +187,22 @@ static int pci_dio_attach(struct comedi_device * dev, struct comedi_devconfig * 
 static int pci_dio_detach(struct comedi_device * dev);
 
 struct diosubd_data {
-	int chans;		// num of chans
-	int addr;		// PCI address ofset
-	int regs;		// number of registers to read or 8255 subdevices
-	unsigned int specflags;	// addon subdevice flags
+	int chans;		/*  num of chans */
+	int addr;		/*  PCI address ofset */
+	int regs;		/*  number of registers to read or 8255 subdevices */
+	unsigned int specflags;	/*  addon subdevice flags */
 };
 
 struct dio_boardtype {
-	const char *name;	// board name
-	int vendor_id;		// vendor/device PCI ID
+	const char *name;	/*  board name */
+	int vendor_id;		/*  vendor/device PCI ID */
 	int device_id;
-	int main_pci_region;	// main I/O PCI region
+	int main_pci_region;	/*  main I/O PCI region */
 	enum hw_cards_id cardtype;
-	struct diosubd_data sdi[MAX_DI_SUBDEVS];	// DI chans
-	struct diosubd_data sdo[MAX_DO_SUBDEVS];	// DO chans
-	struct diosubd_data sdio[MAX_DIO_SUBDEVG];	// DIO 8255 chans
-	struct diosubd_data boardid;	// card supports board ID switch
+	struct diosubd_data sdi[MAX_DI_SUBDEVS];	/*  DI chans */
+	struct diosubd_data sdo[MAX_DO_SUBDEVS];	/*  DO chans */
+	struct diosubd_data sdio[MAX_DIO_SUBDEVG];	/*  DIO 8255 chans */
+	struct diosubd_data boardid;	/*  card supports board ID switch */
 	enum hw_io_access io_access;
 };
 
@@ -306,7 +306,7 @@ static const struct dio_boardtype boardtypes[] = {
 		IO_16b},
 	{"pci1760", PCI_VENDOR_ID_ADVANTECH, 0x1760, 0,
 			TYPE_PCI1760,
-			{{0, 0, 0, 0}, {0, 0, 0, 0}},	// This card have own setup work
+			{{0, 0, 0, 0}, {0, 0, 0, 0}},	/*  This card have own setup work */
 			{{0, 0, 0, 0}, {0, 0, 0, 0}},
 			{{0, 0, 0, 0}, {0, 0, 0, 0}},
 			{0, 0, 0, 0},
@@ -330,23 +330,23 @@ static struct comedi_driver driver_pci_dio = {
 };
 typedef struct pci_dio_private_st pci_dio_private;
 struct pci_dio_private_st {
-	pci_dio_private *prev;	// previous private struct
-	pci_dio_private *next;	// next private struct
-	struct pci_dev *pcidev;	// pointer to board's pci_dev
-	char valid;		// card is usable
-	char GlobalIrqEnabled;	// 1= any IRQ source is enabled
-	// PCI-1760 specific data
-	unsigned char IDICntEnable;	// counter's counting enable status
-	unsigned char IDICntOverEnable;	// counter's overflow interrupts enable status
-	unsigned char IDICntMatchEnable;	// counter's match interrupts enable status
-	unsigned char IDICntEdge;	// counter's count edge value (bit=0 - rising, =1 - falling)
-	unsigned short CntResValue[8];	// counters' reset value
-	unsigned short CntMatchValue[8];	// counters' match interrupt value
-	unsigned char IDIFiltersEn;	// IDI's digital filters enable status
-	unsigned char IDIPatMatchEn;	// IDI's pattern match enable status
-	unsigned char IDIPatMatchValue;	// IDI's pattern match value
-	unsigned short IDIFiltrLow[8];	// IDI's filter value low signal
-	unsigned short IDIFiltrHigh[8];	// IDI's filter value high signal
+	pci_dio_private *prev;	/*  previous private struct */
+	pci_dio_private *next;	/*  next private struct */
+	struct pci_dev *pcidev;	/*  pointer to board's pci_dev */
+	char valid;		/*  card is usable */
+	char GlobalIrqEnabled;	/*  1= any IRQ source is enabled */
+	/*  PCI-1760 specific data */
+	unsigned char IDICntEnable;	/*  counter's counting enable status */
+	unsigned char IDICntOverEnable;	/*  counter's overflow interrupts enable status */
+	unsigned char IDICntMatchEnable;	/*  counter's match interrupts enable status */
+	unsigned char IDICntEdge;	/*  counter's count edge value (bit=0 - rising, =1 - falling) */
+	unsigned short CntResValue[8];	/*  counters' reset value */
+	unsigned short CntMatchValue[8];	/*  counters' match interrupt value */
+	unsigned char IDIFiltersEn;	/*  IDI's digital filters enable status */
+	unsigned char IDIPatMatchEn;	/*  IDI's pattern match enable status */
+	unsigned char IDIPatMatchValue;	/*  IDI's pattern match value */
+	unsigned short IDIFiltrLow[8];	/*  IDI's filter value low signal */
+	unsigned short IDIFiltrHigh[8];	/*  IDI's filter value high signal */
 };
 
 static pci_dio_private *pci_priv = NULL;	/* list of allocated cards */
@@ -566,18 +566,18 @@ static int pci1760_insn_cnt_write(struct comedi_device * dev, struct comedi_subd
 	};
 	unsigned char imb[4];
 
-	if (devpriv->CntResValue[chan] != (data[0] & 0xffff)) {	// Set reset value if different
+	if (devpriv->CntResValue[chan] != (data[0] & 0xffff)) {	/*  Set reset value if different */
 		if (!(ret = pci1760_mbxrequest(dev, omb, imb)))
 			return ret;
 		devpriv->CntResValue[chan] = data[0] & 0xffff;
 	}
 
-	omb[0] = bitmask;	// reset counter to it reset value
+	omb[0] = bitmask;	/*  reset counter to it reset value */
 	omb[2] = CMD_ResetIDICounters;
 	if (!(ret = pci1760_mbxrequest(dev, omb, imb)))
 		return ret;
 
-	if (!(bitmask & devpriv->IDICntEnable)) {	// start counter if it don't run
+	if (!(bitmask & devpriv->IDICntEnable)) {	/*  start counter if it don't run */
 		omb[0] = bitmask;
 		omb[2] = CMD_EnableIDICounters;
 		if (!(ret = pci1760_mbxrequest(dev, omb, imb)))
@@ -596,34 +596,34 @@ static int pci1760_reset(struct comedi_device * dev)
 	unsigned char omb[4] = { 0x00, 0x00, 0x00, 0x00 };
 	unsigned char imb[4];
 
-	outb(0, dev->iobase + INTCSR0);	// disable IRQ
+	outb(0, dev->iobase + INTCSR0);	/*  disable IRQ */
 	outb(0, dev->iobase + INTCSR1);
 	outb(0, dev->iobase + INTCSR2);
 	outb(0, dev->iobase + INTCSR3);
 	devpriv->GlobalIrqEnabled = 0;
 
 	omb[0] = 0x00;
-	omb[2] = CMD_SetRelaysOutput;	// reset relay outputs
+	omb[2] = CMD_SetRelaysOutput;	/*  reset relay outputs */
 	pci1760_mbxrequest(dev, omb, imb);
 
 	omb[0] = 0x00;
-	omb[2] = CMD_EnableIDICounters;	// disable IDI up counters
+	omb[2] = CMD_EnableIDICounters;	/*  disable IDI up counters */
 	pci1760_mbxrequest(dev, omb, imb);
 	devpriv->IDICntEnable = 0;
 
 	omb[0] = 0x00;
-	omb[2] = CMD_OverflowIDICounters;	// disable counters overflow interrupts
+	omb[2] = CMD_OverflowIDICounters;	/*  disable counters overflow interrupts */
 	pci1760_mbxrequest(dev, omb, imb);
 	devpriv->IDICntOverEnable = 0;
 
 	omb[0] = 0x00;
-	omb[2] = CMD_MatchIntIDICounters;	// disable counters match value interrupts
+	omb[2] = CMD_MatchIntIDICounters;	/*  disable counters match value interrupts */
 	pci1760_mbxrequest(dev, omb, imb);
 	devpriv->IDICntMatchEnable = 0;
 
 	omb[0] = 0x00;
 	omb[1] = 0x80;
-	for (i = 0; i < 8; i++) {	// set IDI up counters match value
+	for (i = 0; i < 8; i++) {	/*  set IDI up counters match value */
 		omb[2] = CMD_SetIDI0CntMatchValue + i;
 		pci1760_mbxrequest(dev, omb, imb);
 		devpriv->CntMatchValue[i] = 0x8000;
@@ -631,33 +631,33 @@ static int pci1760_reset(struct comedi_device * dev)
 
 	omb[0] = 0x00;
 	omb[1] = 0x00;
-	for (i = 0; i < 8; i++) {	// set IDI up counters reset value
+	for (i = 0; i < 8; i++) {	/*  set IDI up counters reset value */
 		omb[2] = CMD_SetIDI0CntResetValue + i;
 		pci1760_mbxrequest(dev, omb, imb);
 		devpriv->CntResValue[i] = 0x0000;
 	}
 
 	omb[0] = 0xff;
-	omb[2] = CMD_ResetIDICounters;	// reset IDI up counters to reset values
+	omb[2] = CMD_ResetIDICounters;	/*  reset IDI up counters to reset values */
 	pci1760_mbxrequest(dev, omb, imb);
 
 	omb[0] = 0x00;
-	omb[2] = CMD_EdgeIDICounters;	// set IDI up counters count edge
+	omb[2] = CMD_EdgeIDICounters;	/*  set IDI up counters count edge */
 	pci1760_mbxrequest(dev, omb, imb);
 	devpriv->IDICntEdge = 0x00;
 
 	omb[0] = 0x00;
-	omb[2] = CMD_EnableIDIFilters;	// disable all digital in filters
+	omb[2] = CMD_EnableIDIFilters;	/*  disable all digital in filters */
 	pci1760_mbxrequest(dev, omb, imb);
 	devpriv->IDIFiltersEn = 0x00;
 
 	omb[0] = 0x00;
-	omb[2] = CMD_EnableIDIPatternMatch;	// disable pattern matching
+	omb[2] = CMD_EnableIDIPatternMatch;	/*  disable pattern matching */
 	pci1760_mbxrequest(dev, omb, imb);
 	devpriv->IDIPatMatchEn = 0x00;
 
 	omb[0] = 0x00;
-	omb[2] = CMD_SetIDIPatternMatch;	// set pattern match value
+	omb[2] = CMD_SetIDIPatternMatch;	/*  set pattern match value */
 	pci1760_mbxrequest(dev, omb, imb);
 	devpriv->IDIPatMatchValue = 0x00;
 
@@ -673,18 +673,18 @@ static int pci_dio_reset(struct comedi_device * dev)
 
 	switch (this_board->cardtype) {
 	case TYPE_PCI1730:
-		outb(0, dev->iobase + PCI1730_DO);	// clear outputs
+		outb(0, dev->iobase + PCI1730_DO);	/*  clear outputs */
 		outb(0, dev->iobase + PCI1730_DO + 1);
 		outb(0, dev->iobase + PCI1730_IDO);
 		outb(0, dev->iobase + PCI1730_IDO + 1);
 		/* NO break there! */
 	case TYPE_PCI1733:
-		outb(0, dev->iobase + PCI1730_3_INT_EN);	// disable interrupts
-		outb(0x0f, dev->iobase + PCI1730_3_INT_CLR);	// clear interrupts
-		outb(0, dev->iobase + PCI1730_3_INT_RF);	// set rising edge trigger
+		outb(0, dev->iobase + PCI1730_3_INT_EN);	/*  disable interrupts */
+		outb(0x0f, dev->iobase + PCI1730_3_INT_CLR);	/*  clear interrupts */
+		outb(0, dev->iobase + PCI1730_3_INT_RF);	/*  set rising edge trigger */
 		break;
 	case TYPE_PCI1734:
-		outb(0, dev->iobase + PCI1734_IDO);	// clear outputs
+		outb(0, dev->iobase + PCI1734_IDO);	/*  clear outputs */
 		outb(0, dev->iobase + PCI1734_IDO + 1);
 		outb(0, dev->iobase + PCI1734_IDO + 2);
 		outb(0, dev->iobase + PCI1734_IDO + 3);
@@ -693,52 +693,52 @@ static int pci_dio_reset(struct comedi_device * dev)
 	case TYPE_PCI1736:
 		outb(0, dev->iobase+PCI1736_IDO);
 		outb(0, dev->iobase+PCI1736_IDO+1);
-		outb(0, dev->iobase+PCI1736_3_INT_EN);  // disable interrupts
-		outb(0x0f, dev->iobase+PCI1736_3_INT_CLR);// clear interrupts
-		outb(0, dev->iobase+PCI1736_3_INT_RF);  // set rising edge trigger
+		outb(0, dev->iobase+PCI1736_3_INT_EN);  /*  disable interrupts */
+		outb(0x0f, dev->iobase+PCI1736_3_INT_CLR);/*  clear interrupts */
+		outb(0, dev->iobase+PCI1736_3_INT_RF);  /*  set rising edge trigger */
 		break;
 
 	case TYPE_PCI1750:
 	case TYPE_PCI1751:
-		outb(0x88, dev->iobase + PCI1750_ICR);	// disable & clear interrupts
+		outb(0x88, dev->iobase + PCI1750_ICR);	/*  disable & clear interrupts */
 		break;
 	case TYPE_PCI1752:
-		outw(0, dev->iobase + PCI1752_6_CFC);	// disable channel freeze function
-		outw(0, dev->iobase + PCI1752_IDO);	// clear outputs
+		outw(0, dev->iobase + PCI1752_6_CFC);	/*  disable channel freeze function */
+		outw(0, dev->iobase + PCI1752_IDO);	/*  clear outputs */
 		outw(0, dev->iobase + PCI1752_IDO + 2);
 		outw(0, dev->iobase + PCI1752_IDO2);
 		outw(0, dev->iobase + PCI1752_IDO2 + 2);
 		break;
 	case TYPE_PCI1753E:
-		outb(0x88, dev->iobase + PCI1753E_ICR0);	// disable & clear interrupts
+		outb(0x88, dev->iobase + PCI1753E_ICR0);	/*  disable & clear interrupts */
 		outb(0x80, dev->iobase + PCI1753E_ICR1);
 		outb(0x80, dev->iobase + PCI1753E_ICR2);
 		outb(0x80, dev->iobase + PCI1753E_ICR3);
 		/* NO break there! */
 	case TYPE_PCI1753:
-		outb(0x88, dev->iobase + PCI1753_ICR0);	// disable & clear interrupts
+		outb(0x88, dev->iobase + PCI1753_ICR0);	/*  disable & clear interrupts */
 		outb(0x80, dev->iobase + PCI1753_ICR1);
 		outb(0x80, dev->iobase + PCI1753_ICR2);
 		outb(0x80, dev->iobase + PCI1753_ICR3);
 		break;
 	case TYPE_PCI1754:
-		outw(0x08, dev->iobase + PCI1754_6_ICR0);	// disable and clear interrupts
+		outw(0x08, dev->iobase + PCI1754_6_ICR0);	/*  disable and clear interrupts */
 		outw(0x08, dev->iobase + PCI1754_6_ICR1);
 		outw(0x08, dev->iobase + PCI1754_ICR2);
 		outw(0x08, dev->iobase + PCI1754_ICR3);
 		break;
 	case TYPE_PCI1756:
-		outw(0, dev->iobase + PCI1752_6_CFC);	// disable channel freeze function
-		outw(0x08, dev->iobase + PCI1754_6_ICR0);	// disable and clear interrupts
+		outw(0, dev->iobase + PCI1752_6_CFC);	/*  disable channel freeze function */
+		outw(0x08, dev->iobase + PCI1754_6_ICR0);	/*  disable and clear interrupts */
 		outw(0x08, dev->iobase + PCI1754_6_ICR1);
-		outw(0, dev->iobase + PCI1756_IDO);	// clear outputs
+		outw(0, dev->iobase + PCI1756_IDO);	/*  clear outputs */
 		outw(0, dev->iobase + PCI1756_IDO + 2);
 		break;
 	case TYPE_PCI1760:
 		pci1760_reset(dev);
 		break;
 	case TYPE_PCI1762:
-		outw(0x0101, dev->iobase + PCI1762_ICR);	// disable & clear interrupts
+		outw(0x0101, dev->iobase + PCI1762_ICR);	/*  disable & clear interrupts */
 		break;
 	}
 
@@ -782,7 +782,7 @@ static int pci1760_attach(struct comedi_device * dev, struct comedi_devconfig * 
 	s->n_chan = 2;
 	s->maxdata = 0xffffffff;
 	s->len_chanlist = 2;
-//      s->insn_config=pci1760_insn_pwm_cfg;
+/*       s->insn_config=pci1760_insn_pwm_cfg; */
 	subdev++;
 
 	s = dev->subdevices + subdev;
@@ -793,7 +793,7 @@ static int pci1760_attach(struct comedi_device * dev, struct comedi_devconfig * 
 	s->len_chanlist = 8;
 	s->insn_read = pci1760_insn_cnt_read;
 	s->insn_write = pci1760_insn_cnt_write;
-//      s->insn_config=pci1760_insn_cnt_cfg;
+/*       s->insn_config=pci1760_insn_cnt_cfg; */
 	subdev++;
 
 	return 0;
@@ -864,7 +864,7 @@ static int CheckAndAllocCard(struct comedi_device * dev, struct comedi_devconfig
 
 	for (pr = pci_priv, prev = NULL; pr != NULL; prev = pr, pr = pr->next) {
 		if (pr->pcidev == pcidev) {
-			return 0;	// this card is used, look for another
+			return 0;	/*  this card is used, look for another */
 		}
 	}
 
@@ -900,15 +900,15 @@ static int pci_dio_attach(struct comedi_device * dev, struct comedi_devconfig * 
 	for (pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL);
 		pcidev != NULL;
 		pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pcidev)) {
-		// loop through cards supported by this driver
+		/*  loop through cards supported by this driver */
 		for (i = 0; i < n_boardtypes; ++i) {
 			if (boardtypes[i].vendor_id != pcidev->vendor)
 				continue;
 			if (boardtypes[i].device_id != pcidev->device)
 				continue;
-			// was a particular bus/slot requested?
+			/*  was a particular bus/slot requested? */
 			if (it->options[0] || it->options[1]) {
-				// are we on the wrong bus/slot?
+				/*  are we on the wrong bus/slot? */
 				if (pcidev->bus->number != it->options[0] ||
 					PCI_SLOT(pcidev->devfn) !=
 					it->options[1]) {
@@ -944,7 +944,7 @@ static int pci_dio_attach(struct comedi_device * dev, struct comedi_devconfig * 
 	dev->board_name = this_board->name;
 
 	if (this_board->cardtype == TYPE_PCI1760) {
-		n_subdevices = 4;	// 8 IDI, 8 IDO, 2 PWM, 8 CNT
+		n_subdevices = 4;	/*  8 IDI, 8 IDO, 2 PWM, 8 CNT */
 	} else {
 		n_subdevices = 0;
 		for (i = 0; i < MAX_DI_SUBDEVS; i++)
