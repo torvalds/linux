@@ -72,9 +72,11 @@ static const dnp_board dnp_boards[] = {	/* we only support one DNP 'board'   */
 #define thisboard ((const dnp_board *)dev->board_ptr)
 
 /* This structure is for data unique to the DNP driver --------------------- */
-typedef struct {
+struct dnp_private_data {
+
 	//
-} dnp_private_data;
+};
+
 
 /* Shorthand macro for faster access to the private data ------------------- */
 #define devpriv ((dnp_private *)dev->private)
@@ -131,7 +133,7 @@ static int dnp_attach(struct comedi_device * dev, struct comedi_devconfig * it)
 
 	/* Allocate the private structure area. alloc_private() is a convenient    */
 	/* macro defined in comedidev.h.                                           */
-	if (alloc_private(dev, sizeof(dnp_private_data)) < 0)
+	if (alloc_private(dev, sizeof(struct dnp_private_data)) < 0)
 		return -ENOMEM;
 
 	/* Allocate the subdevice structures. alloc_subdevice() is a convenient    */
