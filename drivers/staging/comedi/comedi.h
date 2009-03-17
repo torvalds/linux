@@ -310,7 +310,6 @@ enum comedi_support_level {
 
 /* structures */
 
-typedef struct comedi_trig_struct comedi_trig;
 typedef struct comedi_cmd_struct comedi_cmd;
 typedef struct comedi_insn_struct comedi_insn;
 typedef struct comedi_insnlist_struct comedi_insnlist;
@@ -323,7 +322,7 @@ typedef struct comedi_krange_struct comedi_krange;
 typedef struct comedi_bufconfig_struct comedi_bufconfig;
 typedef struct comedi_bufinfo_struct comedi_bufinfo;
 
-struct comedi_trig_struct {
+struct comedi_trig {
 	unsigned int subdev;	/* subdevice */
 	unsigned int mode;	/* mode */
 	unsigned int flags;

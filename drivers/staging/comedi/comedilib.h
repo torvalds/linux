@@ -62,8 +62,8 @@ int comedi_register_callback(void *dev, unsigned int subdev,
 
 int comedi_command(void *dev, comedi_cmd *cmd);
 int comedi_command_test(void *dev, comedi_cmd *cmd);
-int comedi_trigger(void *dev, unsigned int subdev, comedi_trig *it);
-int __comedi_trigger(void *dev, unsigned int subdev, comedi_trig *it);
+int comedi_trigger(void *dev, unsigned int subdev, struct comedi_trig *it);
+int __comedi_trigger(void *dev, unsigned int subdev, struct comedi_trig *it);
 int comedi_data_write(void *dev, unsigned int subdev, unsigned int chan,
 	unsigned int range, unsigned int aref, unsigned int data);
 int comedi_data_read(void *dev, unsigned int subdev, unsigned int chan,
@@ -139,8 +139,8 @@ int comedi_register_callback(unsigned int minor, unsigned int subdev,
 
 int comedi_command(unsigned int minor, comedi_cmd *cmd);
 int comedi_command_test(unsigned int minor, comedi_cmd *cmd);
-int comedi_trigger(unsigned int minor, unsigned int subdev, comedi_trig *it);
-int __comedi_trigger(unsigned int minor, unsigned int subdev, comedi_trig *it);
+int comedi_trigger(unsigned int minor, unsigned int subdev, struct comedi_trig *it);
+int __comedi_trigger(unsigned int minor, unsigned int subdev, struct comedi_trig *it);
 int comedi_data_write(unsigned int dev, unsigned int subdev, unsigned int chan,
 	unsigned int range, unsigned int aref, unsigned int data);
 int comedi_data_read(unsigned int dev, unsigned int subdev, unsigned int chan,
