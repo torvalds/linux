@@ -295,7 +295,8 @@ static const struct comedi_lrange range_a821pgh_ai = { 4, {
 static int pcl812_attach(struct comedi_device * dev, struct comedi_devconfig * it);
 static int pcl812_detach(struct comedi_device * dev);
 
-typedef struct {
+struct pcl812_board {
+
 	const char *name;	// board name
 	int board_type;		// type of this board
 	int n_aichan;		// num of AI chans in S.E.
@@ -312,9 +313,10 @@ typedef struct {
 	unsigned char DMAbits;	// allowed DMA chans
 	unsigned char io_range;	// iorange for this board
 	unsigned char haveMPC508;	// 1=board use MPC508A multiplexor
-} boardtype;
+};
 
-static const boardtype boardtypes[] = {
+
+static const struct pcl812_board boardtypes[] = {
 	{"pcl812", boardPCL812, 16, 0, 2, 16, 16, 0x0fff,
 			33000, 500, &range_bipolar10, &range_unipolar5,
 		0xdcfc, 0x0a, PCLx1x_IORANGE, 0},
@@ -371,8 +373,8 @@ static const boardtype boardtypes[] = {
 		0xdcfc, 0x0a, PCLx1x_IORANGE, 0},
 };
 
-#define n_boardtypes (sizeof(boardtypes)/sizeof(boardtype))
-#define this_board ((const boardtype *)dev->board_ptr)
+#define n_boardtypes (sizeof(boardtypes)/sizeof(struct pcl812_board))
+#define this_board ((const struct pcl812_board *)dev->board_ptr)
 
 static struct comedi_driver driver_pcl812 = {
       driver_name:"pcl812",
@@ -381,7 +383,7 @@ static struct comedi_driver driver_pcl812 = {
       detach:pcl812_detach,
       board_name:&boardtypes[0].name,
       num_names:n_boardtypes,
-      offset:sizeof(boardtype),
+      offset:sizeof(struct pcl812_board),
 };
 
 COMEDI_INITCLEANUP(driver_pcl812);
