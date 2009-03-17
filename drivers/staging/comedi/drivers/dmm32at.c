@@ -200,7 +200,7 @@ static const struct comedi_lrange dmm32at_aoranges = {
  * boards in this way is optional, and completely driver-dependent.
  * Some drivers use arrays such as this, other do not.
  */
-typedef struct dmm32at_board_struct {
+struct dmm32at_board {
 	const char *name;
 	int ai_chans;
 	int ai_bits;
@@ -210,8 +210,8 @@ typedef struct dmm32at_board_struct {
 	const struct comedi_lrange *ao_ranges;
 	int have_dio;
 	int dio_chans;
-} dmm32at_board;
-static const dmm32at_board dmm32at_boards[] = {
+};
+static const struct dmm32at_board dmm32at_boards[] = {
 	{
 	      name:	"dmm32at",
 	      ai_chans:32,
@@ -228,7 +228,7 @@ static const dmm32at_board dmm32at_boards[] = {
 /*
  * Useful for shorthand access to the particular board structure
  */
-#define thisboard ((const dmm32at_board *)dev->board_ptr)
+#define thisboard ((const struct dmm32at_board *)dev->board_ptr)
 
 /* this structure is for data unique to this hardware driver.  If
  * several hardware drivers keep similar information in this structure,
@@ -284,8 +284,8 @@ static struct comedi_driver driver_dmm32at = {
  * devices are such boards.
  */
       board_name:&dmm32at_boards[0].name,
-      offset:sizeof(dmm32at_board),
-      num_names:sizeof(dmm32at_boards) / sizeof(dmm32at_board),
+      offset:sizeof(struct dmm32at_board),
+      num_names:sizeof(dmm32at_boards) / sizeof(struct dmm32at_board),
 };
 
 /* prototypes for driver functions below */
