@@ -131,7 +131,8 @@ MODULE_DEVICE_TABLE(pci, skel_pci_table);
 /* this structure is for data unique to this hardware driver.  If
    several hardware drivers keep similar information in this structure,
    feel free to suggest moving the variable to the struct comedi_device struct.  */
-typedef struct {
+struct skel_private {
+
 	int data;
 
 	/* would be useful for a PCI device */
@@ -139,12 +140,13 @@ typedef struct {
 
 	/* Used for AO readback */
 	unsigned int ao_readback[2];
-} skel_private;
+};
+
 /*
  * most drivers define the following macro to make it easy to
  * access the private structure.
  */
-#define devpriv ((skel_private *)dev->private)
+#define devpriv ((struct skel_private *)dev->private)
 
 /*
  * The struct comedi_driver structure tells the Comedi core module
@@ -225,7 +227,7 @@ static int skel_attach(struct comedi_device * dev, struct comedi_devconfig * it)
  * Allocate the private structure area.  alloc_private() is a
  * convenient macro defined in comedidev.h.
  */
-	if (alloc_private(dev, sizeof(skel_private)) < 0)
+	if (alloc_private(dev, sizeof(struct skel_private)) < 0)
 		return -ENOMEM;
 
 /*
