@@ -191,7 +191,8 @@ static const s526_board s526_boards[] = {
 /* this structure is for data unique to this hardware driver.  If
    several hardware drivers keep similar information in this structure,
    feel free to suggest moving the variable to the struct comedi_device struct.  */
-typedef struct {
+struct s526_private {
+
 	int data;
 
 	/* would be useful for a PCI device */
@@ -202,12 +203,13 @@ typedef struct {
 
 	s526_gpct_config_t s526_gpct_config[4];
 	unsigned short s526_ai_config;
-} s526_private;
+};
+
 /*
  * most drivers define the following macro to make it easy to
  * access the private structure.
  */
-#define devpriv ((s526_private *)dev->private)
+#define devpriv ((struct s526_private *)dev->private)
 
 /*
  * The struct comedi_driver structure tells the Comedi core module
@@ -307,7 +309,7 @@ static int s526_attach(struct comedi_device * dev, struct comedi_devconfig * it)
  * Allocate the private structure area.  alloc_private() is a
  * convenient macro defined in comedidev.h.
  */
-	if (alloc_private(dev, sizeof(s526_private)) < 0)
+	if (alloc_private(dev, sizeof(struct s526_private)) < 0)
 		return -ENOMEM;
 
 /*
