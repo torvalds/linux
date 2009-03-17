@@ -99,7 +99,11 @@ static inline u32 e500_shadow_mas3_attrib(u32 mas3, int usermode)
 
 static inline u32 e500_shadow_mas2_attrib(u32 mas2, int usermode)
 {
+#ifdef CONFIG_SMP
+	return (mas2 & MAS2_ATTRIB_MASK) | MAS2_M;
+#else
 	return mas2 & MAS2_ATTRIB_MASK;
+#endif
 }
 
 /*
