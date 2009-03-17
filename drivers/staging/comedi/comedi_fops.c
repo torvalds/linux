@@ -2130,7 +2130,7 @@ int comedi_alloc_board_minor(struct device *hardware_device)
 {
 	unsigned long flags;
 	struct comedi_device_file_info *info;
-	device_create_result_type *csdev;
+	struct device *csdev;
 	unsigned i;
 
 	info = kzalloc(sizeof(struct comedi_device_file_info), GFP_KERNEL);
@@ -2197,7 +2197,7 @@ int comedi_alloc_subdevice_minor(struct comedi_device *dev, struct comedi_subdev
 {
 	unsigned long flags;
 	struct comedi_device_file_info *info;
-	device_create_result_type *csdev;
+	struct device *csdev;
 	unsigned i;
 
 	info = kmalloc(sizeof(struct comedi_device_file_info), GFP_KERNEL);

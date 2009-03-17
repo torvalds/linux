@@ -121,8 +121,6 @@
 #define COMEDI_NUM_BOARD_MINORS 0x30
 #define COMEDI_FIRST_SUBDEVICE_MINOR COMEDI_NUM_BOARD_MINORS
 
-typedef struct device device_create_result_type;
-
 #define COMEDI_DEVICE_CREATE(cs, parent, devt, drvdata, device, fmt...) \
 	device_create(cs, ((parent) ? (parent) : (device)), devt, drvdata, fmt)
 
@@ -183,7 +181,7 @@ struct comedi_subdevice {
 
 	unsigned int state;
 
-	device_create_result_type *class_dev;
+	struct device *class_dev;
 	int minor;
 };
 
@@ -256,7 +254,7 @@ struct comedi_device {
 	struct comedi_driver *driver;
 	void *private;
 
-	device_create_result_type *class_dev;
+	struct device *class_dev;
 	int minor;
 	/* hw_dev is passed to dma_alloc_coherent when allocating async buffers
 	 * for subdevices that have async_dma_dir set to something other than
