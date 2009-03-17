@@ -110,7 +110,7 @@ static void msix_flush_writes(struct irq_desc *desc)
 	struct msi_desc *entry;
 
 	entry = get_irq_desc_msi(desc);
-	BUG_ON(!entry || !entry->dev);
+	BUG_ON(!entry);
 	if (entry->msi_attrib.is_msix) {
 		int offset = entry->msi_attrib.entry_nr * PCI_MSIX_ENTRY_SIZE +
 			PCI_MSIX_ENTRY_VECTOR_CTRL_OFFSET;
@@ -132,7 +132,7 @@ static int msi_set_mask_bits(struct irq_desc *desc, u32 mask, u32 flag)
 	struct msi_desc *entry;
 
 	entry = get_irq_desc_msi(desc);
-	BUG_ON(!entry || !entry->dev);
+	BUG_ON(!entry);
 	if (entry->msi_attrib.is_msix) {
 		int offset = entry->msi_attrib.entry_nr * PCI_MSIX_ENTRY_SIZE +
 			PCI_MSIX_ENTRY_VECTOR_CTRL_OFFSET;
@@ -248,19 +248,16 @@ void unmask_msi_irq(unsigned int irq)
 
 static int msi_free_irqs(struct pci_dev* dev);
 
-static struct msi_desc* alloc_msi_entry(void)
+static struct msi_desc *alloc_msi_entry(struct pci_dev *dev)
 {
-	struct msi_desc *entry;
-
-	entry = kzalloc(sizeof(struct msi_desc), GFP_KERNEL);
-	if (!entry)
+	struct msi_desc *desc = kzalloc(sizeof(*desc), GFP_KERNEL);
+	if (!desc)
 		return NULL;
 
-	INIT_LIST_HEAD(&entry->list);
-	entry->irq = 0;
-	entry->dev = NULL;
+	INIT_LIST_HEAD(&desc->list);
+	desc->dev = dev;
 
-	return entry;
+	return desc;
 }
 
 static void pci_intx_for_msi(struct pci_dev *dev, int enable)
@@ -351,7 +348,7 @@ static int msi_capability_init(struct pci_dev *dev)
    	pos = pci_find_capability(dev, PCI_CAP_ID_MSI);
 	pci_read_config_word(dev, msi_control_reg(pos), &control);
 	/* MSI Entry Initialization */
-	entry = alloc_msi_entry();
+	entry = alloc_msi_entry(dev);
 	if (!entry)
 		return -ENOMEM;
 
@@ -362,7 +359,6 @@ static int msi_capability_init(struct pci_dev *dev)
 	entry->msi_attrib.masked = 1;
 	entry->msi_attrib.default_irq = dev->irq;	/* Save IOAPIC IRQ */
 	entry->msi_attrib.pos = pos;
-	entry->dev = dev;
 	if (entry->msi_attrib.maskbit) {
 		unsigned int base, maskbits, temp;
 
@@ -432,7 +428,7 @@ static int msix_capability_init(struct pci_dev *dev,
 
 	/* MSI-X Table Initialization */
 	for (i = 0; i < nvec; i++) {
-		entry = alloc_msi_entry();
+		entry = alloc_msi_entry(dev);
 		if (!entry)
 			break;
 
@@ -444,7 +440,6 @@ static int msix_capability_init(struct pci_dev *dev,
 		entry->msi_attrib.masked = 1;
 		entry->msi_attrib.default_irq = dev->irq;
 		entry->msi_attrib.pos = pos;
-		entry->dev = dev;
 		entry->mask_base = base;
 
 		list_add_tail(&entry->list, &dev->msi_list);
@@ -581,7 +576,7 @@ void pci_msi_shutdown(struct pci_dev* dev)
 		struct irq_desc *desc = irq_to_desc(dev->irq);
 		msi_set_mask_bits(desc, mask, ~mask);
 	}
-	if (!entry->dev || entry->msi_attrib.is_msix)
+	if (entry->msi_attrib.is_msix)
 		return;
 
 	/* Restore dev->irq to its default pin-assertion irq */
@@ -598,7 +593,7 @@ void pci_disable_msi(struct pci_dev* dev)
 	pci_msi_shutdown(dev);
 
 	entry = list_entry(dev->msi_list.next, struct msi_desc, list);
-	if (!entry->dev || entry->msi_attrib.is_msix)
+	if (entry->msi_attrib.is_msix)
 		return;
 
 	msi_free_irqs(dev);
