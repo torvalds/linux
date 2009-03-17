@@ -2335,10 +2335,10 @@ static int __devinit azx_probe(struct pci_dev *pci,
 		return -ENOENT;
 	}
 
-	card = snd_card_new(index[dev], id[dev], THIS_MODULE, 0);
-	if (!card) {
+	err = snd_card_create(index[dev], id[dev], THIS_MODULE, 0, &card);
+	if (err < 0) {
 		snd_printk(KERN_ERR SFX "Error creating card!\n");
-		return -ENOMEM;
+		return err;
 	}
 
 	err = azx_create(card, pci, dev, pci_id->driver_data, &chip);

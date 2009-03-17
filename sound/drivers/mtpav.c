@@ -698,9 +698,9 @@ static int __devinit snd_mtpav_probe(struct platform_device *dev)
 	int err;
 	struct mtpav *mtp_card;
 
-	card = snd_card_new(index, id, THIS_MODULE, sizeof(*mtp_card));
-	if (! card)
-		return -ENOMEM;
+	err = snd_card_create(index, id, THIS_MODULE, sizeof(*mtp_card), &card);
+	if (err < 0)
+		return err;
 
 	mtp_card = card->private_data;
 	spin_lock_init(&mtp_card->spinlock);

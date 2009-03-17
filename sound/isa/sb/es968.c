@@ -108,9 +108,10 @@ static int __devinit snd_card_es968_probe(int dev,
 	struct snd_card *card;
 	struct snd_card_es968 *acard;
 
-	if ((card = snd_card_new(index[dev], id[dev], THIS_MODULE,
-				 sizeof(struct snd_card_es968))) == NULL)
-		return -ENOMEM;
+	error = snd_card_create(index[dev], id[dev], THIS_MODULE,
+				sizeof(struct snd_card_es968), &card);
+	if (error < 0)
+		return error;
 	acard = card->private_data;
 	if ((error = snd_card_es968_pnp(dev, acard, pcard, pid))) {
 		snd_card_free(card);

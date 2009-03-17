@@ -122,9 +122,9 @@ static int __devinit snd_es1688_probe(struct device *dev, unsigned int n)
 	struct snd_pcm *pcm;
 	int error;
 
-	card = snd_card_new(index[n], id[n], THIS_MODULE, 0);
-	if (!card)
-		return -EINVAL;
+	error = snd_card_create(index[n], id[n], THIS_MODULE, 0, &card);
+	if (error < 0)
+		return error;
 
 	error = snd_es1688_legacy_create(card, dev, n, &chip);
 	if (error < 0)

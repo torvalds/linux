@@ -478,19 +478,21 @@ static bool us122l_create_card(struct snd_card *card)
 	return true;
 }
 
-static struct snd_card *usx2y_create_card(struct usb_device *device)
+static int usx2y_create_card(struct usb_device *device, struct snd_card **cardp)
 {
 	int		dev;
 	struct snd_card *card;
+	int err;
+
 	for (dev = 0; dev < SNDRV_CARDS; ++dev)
 		if (enable[dev] && !snd_us122l_card_used[dev])
 			break;
 	if (dev >= SNDRV_CARDS)
-		return NULL;
-	card = snd_card_new(index[dev], id[dev], THIS_MODULE,
-			    sizeof(struct us122l));
-	if (!card)
-		return NULL;
+		return -ENODEV;
+	err = snd_card_create(index[dev], id[dev], THIS_MODULE,
+			      sizeof(struct us122l), &card);
+	if (err < 0)
+		return err;
 	snd_us122l_card_used[US122L(card)->chip.index = dev] = 1;
 
 	US122L(card)->chip.dev = device;
@@ -509,46 +511,57 @@ static struct snd_card *usx2y_create_card(struct usb_device *device)
 		US122L(card)->chip.dev->devnum
 		);
 	snd_card_set_dev(card, &device->dev);
-	return card;
+	*cardp = card;
+	return 0;
 }
 
-static void *us122l_usb_probe(struct usb_interface *intf,
-			      const struct usb_device_id *device_id)
+static int us122l_usb_probe(struct usb_interface *intf,
+			    const struct usb_device_id *device_id,
+			    struct snd_card **cardp)
 {
 	struct usb_device *device = interface_to_usbdev(intf);
-	struct snd_card *card = usx2y_create_card(device);
+	struct snd_card *card;
+	int err;
 
-	if (!card)
-		return NULL;
+	err = usx2y_create_card(device, &card);
+	if (err < 0)
+		return err;
 
-	if (!us122l_create_card(card) ||
-	    snd_card_register(card) < 0) {
+	if (!us122l_create_card(card)) {
 		snd_card_free(card);
-		return NULL;
+		return -EINVAL;
+	}
+
+	err = snd_card_register(card);
+	if (err < 0) {
+		snd_card_free(card);
+		return err;
 	}
 
 	usb_get_dev(device);
-	return card;
+	*cardp = card;
+	return 0;
 }
 
 static int snd_us122l_probe(struct usb_interface *intf,
 			    const struct usb_device_id *id)
 {
 	struct snd_card *card;
+	int err;
+
 	snd_printdd(KERN_DEBUG"%p:%i\n",
 		    intf, intf->cur_altsetting->desc.bInterfaceNumber);
 	if (intf->cur_altsetting->desc.bInterfaceNumber != 1)
 		return 0;
 
-	card = us122l_usb_probe(usb_get_intf(intf), id);
-
-	if (card) {
-		usb_set_intfdata(intf, card);
-		return 0;
+	err = us122l_usb_probe(usb_get_intf(intf), id, &card);
+	if (err < 0) {
+		usb_put_intf(intf);
+		return err;
 	}
 
-	usb_put_intf(intf);
-	return -EIO;
+	usb_set_intfdata(intf, card);
+	return 0;
 }
 
 static void snd_us122l_disconnect(struct usb_interface *intf)

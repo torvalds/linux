@@ -4503,10 +4503,10 @@ static int __devinit snd_hdspm_probe(struct pci_dev *pci,
 		return -ENOENT;
 	}
 
-	card = snd_card_new(index[dev], id[dev],
-			    THIS_MODULE, sizeof(struct hdspm));
-	if (!card)
-		return -ENOMEM;
+	err = snd_card_create(index[dev], id[dev],
+			      THIS_MODULE, sizeof(struct hdspm), &card);
+	if (err < 0)
+		return err;
 
 	hdspm = card->private_data;
 	card->private_free = snd_hdspm_card_free;

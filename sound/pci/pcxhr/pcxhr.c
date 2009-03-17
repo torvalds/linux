@@ -1510,12 +1510,12 @@ static int __devinit pcxhr_probe(struct pci_dev *pci,
 
 		snprintf(tmpid, sizeof(tmpid), "%s-%d",
 			 id[dev] ? id[dev] : card_name, i);
-		card = snd_card_new(idx, tmpid, THIS_MODULE, 0);
+		err = snd_card_create(idx, tmpid, THIS_MODULE, 0, &card);
 
-		if (! card) {
+		if (err < 0) {
 			snd_printk(KERN_ERR "cannot allocate the card %d\n", i);
 			pcxhr_free(mgr);
-			return -ENOMEM;
+			return err;
 		}
 
 		strcpy(card->driver, DRIVER_NAME);
