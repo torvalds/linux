@@ -175,12 +175,12 @@ static const boardtype boardtypes[] = {
 
 static comedi_driver driver_icp_multi = {
       driver_name:"icp_multi",
-      module:THIS_MODULE,
-      attach:icp_multi_attach,
-      detach:icp_multi_detach,
-      num_names:n_boardtypes,
+      module : THIS_MODULE,
+      attach : icp_multi_attach,
+      detach : icp_multi_detach,
+      num_names : n_boardtypes,
       board_name:&boardtypes[0].name,
-      offset:sizeof(boardtype),
+      offset : sizeof(boardtype),
 };
 
 COMEDI_INITCLEANUP(driver_icp_multi);

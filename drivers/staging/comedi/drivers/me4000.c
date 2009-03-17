@@ -122,9 +122,9 @@ static int me4000_attach(comedi_device *dev, comedi_devconfig *it);
 static int me4000_detach(comedi_device *dev);
 static comedi_driver driver_me4000 = {
       driver_name:"me4000",
-      module:THIS_MODULE,
-      attach:me4000_attach,
-      detach:me4000_detach,
+      module : THIS_MODULE,
+      attach : me4000_attach,
+      detach : me4000_detach,
 };
 
 /*-----------------------------------------------------------------------------
