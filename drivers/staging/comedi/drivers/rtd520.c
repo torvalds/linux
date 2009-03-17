@@ -266,7 +266,7 @@ static const comedi_lrange rtd_ao_range = { 4, {
 /*
   Board descriptions
  */
-typedef struct rtdBoard_struct {
+struct rtdBoard {
 	const char *name;	/* must be first */
 	int device_id;
 	int aiChans;
@@ -274,9 +274,9 @@ typedef struct rtdBoard_struct {
 	int aiMaxGain;
 	int range10Start;	/* start of +-10V range */
 	int rangeUniStart;	/* start of +10V range */
-} rtdBoard;
+};
 
-static const rtdBoard rtd520Boards[] = {
+static const struct rtdBoard rtd520Boards[] = {
 	{
 	      name:	"DM7520",
 	      device_id : 0x7520,
@@ -308,13 +308,13 @@ MODULE_DEVICE_TABLE(pci, rtd520_pci_table);
 /*
  * Useful for shorthand access to the particular board structure
  */
-#define thisboard ((const rtdBoard *)dev->board_ptr)
+#define thisboard ((const struct rtdBoard *)dev->board_ptr)
 
 /*
    This structure is for data unique to this hardware driver.
    This is also unique for each board in the system.
 */
-typedef struct {
+struct rtdPrivate {
 	/* memory mapped board structures */
 	void *las0;
 	void *las1;
@@ -358,7 +358,7 @@ typedef struct {
 	u8 dma1Control;
 #endif				/* USE_DMA */
 	unsigned fifoLen;
-} rtdPrivate;
+};
 
 /* bit defines for "flags" */
 #define SEND_EOS	0x01	/* send End Of Scan events */
@@ -377,7 +377,7 @@ typedef struct {
  * most drivers define the following macro to make it easy to
  * access the private structure.
  */
-#define devpriv ((rtdPrivate *)dev->private)
+#define devpriv ((struct rtdPrivate *)dev->private)
 
 /* Macros to access registers */
 
@@ -739,7 +739,7 @@ static int rtd_attach(comedi_device *dev, comedi_devconfig *it)
 	 * Allocate the private structure area.  alloc_private() is a
 	 * convenient macro defined in comedidev.h.
 	 */
-	if (alloc_private(dev, sizeof(rtdPrivate)) < 0)
+	if (alloc_private(dev, sizeof(struct rtdPrivate)) < 0)
 		return -ENOMEM;
 
 	/*
