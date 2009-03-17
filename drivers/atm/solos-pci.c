@@ -1097,7 +1097,7 @@ static int fpga_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	dev_info(&dev->dev, "Solos FPGA Version %d.%02d svn-%d\n",
 		 major_ver, minor_ver, fpga_ver);
 
-	if (fpga_ver > 27)
+	if (0 && fpga_ver > 27)
 		card->using_dma = 1;
 	else {
 		/* Set RX empty flag for all ports */
