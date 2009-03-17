@@ -73,7 +73,7 @@ static int do_devconfig_ioctl(struct comedi_device *dev, comedi_devconfig *arg);
 static int do_bufconfig_ioctl(struct comedi_device *dev, void *arg);
 static int do_devinfo_ioctl(struct comedi_device *dev, comedi_devinfo *arg,
 			    struct file *file);
-static int do_subdinfo_ioctl(struct comedi_device *dev, comedi_subdinfo *arg,
+static int do_subdinfo_ioctl(struct comedi_device *dev, struct comedi_subdinfo *arg,
 			     void *file);
 static int do_chaninfo_ioctl(struct comedi_device *dev, struct comedi_chaninfo *arg);
 static int do_bufinfo_ioctl(struct comedi_device *dev, void *arg);
@@ -410,14 +410,14 @@ static int do_devinfo_ioctl(struct comedi_device *dev, comedi_devinfo *arg,
 		array of subdevice info structures at arg
 
 */
-static int do_subdinfo_ioctl(struct comedi_device *dev, comedi_subdinfo *arg,
+static int do_subdinfo_ioctl(struct comedi_device *dev, struct comedi_subdinfo *arg,
 			     void *file)
 {
 	int ret, i;
-	comedi_subdinfo *tmp, *us;
+	struct comedi_subdinfo *tmp, *us;
 	struct comedi_subdevice *s;
 
-	tmp = kcalloc(dev->n_subdevices, sizeof(comedi_subdinfo), GFP_KERNEL);
+	tmp = kcalloc(dev->n_subdevices, sizeof(struct comedi_subdinfo), GFP_KERNEL);
 	if (!tmp)
 		return -ENOMEM;
 
@@ -469,7 +469,7 @@ static int do_subdinfo_ioctl(struct comedi_device *dev, comedi_subdinfo *arg,
 	}
 
 	ret = copy_to_user(arg, tmp,
-			   dev->n_subdevices * sizeof(comedi_subdinfo));
+			   dev->n_subdevices * sizeof(struct comedi_subdinfo));
 
 	kfree(tmp);
 

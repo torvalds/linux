@@ -293,7 +293,7 @@ enum comedi_support_level {
 #define CIO 'd'
 #define COMEDI_DEVCONFIG _IOW(CIO, 0, comedi_devconfig)
 #define COMEDI_DEVINFO _IOR(CIO, 1, comedi_devinfo)
-#define COMEDI_SUBDINFO _IOR(CIO, 2, comedi_subdinfo)
+#define COMEDI_SUBDINFO _IOR(CIO, 2, struct comedi_subdinfo)
 #define COMEDI_CHANINFO _IOR(CIO, 3, struct comedi_chaninfo)
 #define COMEDI_TRIG _IOWR(CIO, 4, comedi_trig)
 #define COMEDI_LOCK _IO(CIO, 5)
@@ -310,7 +310,6 @@ enum comedi_support_level {
 
 /* structures */
 
-typedef struct comedi_subdinfo_struct comedi_subdinfo;
 typedef struct comedi_devinfo_struct comedi_devinfo;
 typedef struct comedi_devconfig_struct comedi_devconfig;
 typedef struct comedi_rangeinfo_struct comedi_rangeinfo;
@@ -393,7 +392,7 @@ struct comedi_krange_struct {
 };
 
 
-struct comedi_subdinfo_struct {
+struct comedi_subdinfo {
 	unsigned int type;
 	unsigned int n_chan;
 	unsigned int subd_flags;
