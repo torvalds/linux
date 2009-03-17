@@ -82,11 +82,11 @@ static const struct aio12_8_boardtype board_types[] = {
 
 #define	thisboard	((const struct aio12_8_boardtype  *) dev->board_ptr)
 
-typedef struct {
+struct aio12_8_private {
 	unsigned int ao_readback[4];
-} aio12_8_private;
+};
 
-#define devpriv	((aio12_8_private *) dev->private)
+#define devpriv	((struct aio12_8_private *) dev->private)
 
 static int aio_aio12_8_ai_read(struct comedi_device * dev, struct comedi_subdevice * s,
 	struct comedi_insn * insn, unsigned int * data)
@@ -176,7 +176,7 @@ static int aio_aio12_8_attach(struct comedi_device * dev, struct comedi_devconfi
 
 	dev->iobase = iobase;
 
-	if (alloc_private(dev, sizeof(aio12_8_private)) < 0)
+	if (alloc_private(dev, sizeof(struct aio12_8_private)) < 0)
 		return -ENOMEM;
 
 	if (alloc_subdevices(dev, 3) < 0)
