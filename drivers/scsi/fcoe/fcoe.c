@@ -37,6 +37,7 @@
 #include <net/rtnetlink.h>
 
 #include <scsi/fc/fc_encaps.h>
+#include <scsi/fc/fc_fip.h>
 
 #include <scsi/libfc.h>
 #include <scsi/fc_frame.h>
@@ -71,7 +72,6 @@ static int fcoe_hostlist_add(const struct fc_lport *);
 static int fcoe_hostlist_remove(const struct fc_lport *);
 
 static int fcoe_check_wait_queue(struct fc_lport *);
-static void fcoe_recv_flogi(struct fcoe_softc *, struct fc_frame *, u8 *);
 static int fcoe_device_notification(struct notifier_block *, ulong, void *);
 static void fcoe_dev_setup(void);
 static void fcoe_dev_cleanup(void);
@@ -185,7 +185,7 @@ static int fcoe_netdev_config(struct fc_lport *lp, struct net_device *netdev)
 
 	/* Setup lport private data to point to fcoe softc */
 	fc = lport_priv(lp);
-	fc->lp = lp;
+	fc->ctlr.lp = lp;
 	fc->real_dev = netdev;
 	fc->phys_dev = netdev;
 
@@ -209,9 +209,6 @@ static int fcoe_netdev_config(struct fc_lport *lp, struct net_device *netdev)
 				   sizeof(struct fcoe_crc_eof));
 	if (fc_set_mfs(lp, mfs))
 		return -EINVAL;
-
-	if (!fcoe_link_ok(lp))
-		lp->link_up = 1;
 
 	/* offload features support */
 	if (fc->real_dev->features & NETIF_F_SG)
@@ -242,7 +239,7 @@ static int fcoe_netdev_config(struct fc_lport *lp, struct net_device *netdev)
 	fc->fcoe_pending_queue_active = 0;
 
 	/* setup Source Mac Address */
-	memcpy(fc->ctl_src_addr, fc->real_dev->dev_addr,
+	memcpy(fc->ctlr.ctl_src_addr, fc->real_dev->dev_addr,
 	       fc->real_dev->addr_len);
 
 	wwnn = fcoe_wwn_from_mac(fc->real_dev->dev_addr, 1, 0);
@@ -358,6 +355,8 @@ static int fcoe_if_destroy(struct net_device *netdev)
 
 	/* Don't listen for Ethernet packets anymore */
 	dev_remove_pack(&fc->fcoe_packet_type);
+	dev_remove_pack(&fc->fip_packet_type);
+	fcoe_ctlr_destroy(&fc->ctlr);
 
 	/* Cleanup the fc_lport */
 	fc_lport_destroy(lp);
@@ -375,8 +374,10 @@ static int fcoe_if_destroy(struct net_device *netdev)
 	rtnl_lock();
 	memcpy(flogi_maddr, (u8[6]) FC_FCOE_FLOGI_MAC, ETH_ALEN);
 	dev_unicast_delete(fc->real_dev, flogi_maddr, ETH_ALEN);
-	if (compare_ether_addr(fc->data_src_addr, (u8[6]) { 0 }))
-		dev_unicast_delete(fc->real_dev, fc->data_src_addr, ETH_ALEN);
+	if (!is_zero_ether_addr(fc->ctlr.data_src_addr))
+		dev_unicast_delete(fc->real_dev,
+				   fc->ctlr.data_src_addr, ETH_ALEN);
+	dev_mc_delete(fc->real_dev, FIP_ALL_ENODE_MACS, ETH_ALEN, 0);
 	rtnl_unlock();
 
 	/* Free the per-CPU revieve threads */
@@ -438,6 +439,58 @@ static struct libfc_function_template fcoe_libfc_fcn_templ = {
 };
 
 /**
+ * fcoe_fip_recv - handle a received FIP frame.
+ * @skb: the receive skb
+ * @dev: associated &net_device
+ * @ptype: the &packet_type structure which was used to register this handler.
+ * @orig_dev: original receive &net_device, in case @dev is a bond.
+ *
+ * Returns: 0 for success
+ */
+static int fcoe_fip_recv(struct sk_buff *skb, struct net_device *dev,
+			 struct packet_type *ptype,
+			 struct net_device *orig_dev)
+{
+	struct fcoe_softc *fc;
+
+	fc = container_of(ptype, struct fcoe_softc, fip_packet_type);
+	fcoe_ctlr_recv(&fc->ctlr, skb);
+	return 0;
+}
+
+/**
+ * fcoe_fip_send() - send an Ethernet-encapsulated FIP frame.
+ * @fip: FCoE controller.
+ * @skb: FIP Packet.
+ */
+static void fcoe_fip_send(struct fcoe_ctlr *fip, struct sk_buff *skb)
+{
+	skb->dev = fcoe_from_ctlr(fip)->real_dev;
+	dev_queue_xmit(skb);
+}
+
+/**
+ * fcoe_update_src_mac() - Update Ethernet MAC filters.
+ * @fip: FCoE controller.
+ * @old: Unicast MAC address to delete if the MAC is non-zero.
+ * @new: Unicast MAC address to add.
+ *
+ * Remove any previously-set unicast MAC filter.
+ * Add secondary FCoE MAC address filter for our OUI.
+ */
+static void fcoe_update_src_mac(struct fcoe_ctlr *fip, u8 *old, u8 *new)
+{
+	struct fcoe_softc *fc;
+
+	fc = fcoe_from_ctlr(fip);
+	rtnl_lock();
+	if (!is_zero_ether_addr(old))
+		dev_unicast_delete(fc->real_dev, old, ETH_ALEN);
+	dev_unicast_add(fc->real_dev, new, ETH_ALEN);
+	rtnl_unlock();
+}
+
+/**
  * fcoe_if_create() - this function creates the fcoe interface
  * @netdev: pointer the associated netdevice
  *
@@ -485,6 +538,18 @@ static int fcoe_if_create(struct net_device *netdev)
 		goto out_host_put;
 	}
 
+	/*
+	 * Initialize FIP.
+	 */
+	fcoe_ctlr_init(&fc->ctlr);
+	fc->ctlr.send = fcoe_fip_send;
+	fc->ctlr.update_mac = fcoe_update_src_mac;
+
+	fc->fip_packet_type.func = fcoe_fip_recv;
+	fc->fip_packet_type.type = htons(ETH_P_FIP);
+	fc->fip_packet_type.dev = fc->real_dev;
+	dev_add_pack(&fc->fip_packet_type);
+
 	/* configure lport scsi host properties */
 	rc = fcoe_shost_config(lp, shost, &netdev->dev);
 	if (rc) {
@@ -512,6 +577,9 @@ static int fcoe_if_create(struct net_device *netdev)
 	lp->boot_time = jiffies;
 
 	fc_fabric_login(lp);
+
+	if (!fcoe_link_ok(lp))
+		fcoe_ctlr_link_up(&fc->ctlr);
 
 	dev_hold(netdev);
 
@@ -727,11 +795,13 @@ int fcoe_rcv(struct sk_buff *skb, struct net_device *dev,
 	unsigned int cpu = 0;
 
 	fc = container_of(ptype, struct fcoe_softc, fcoe_packet_type);
-	lp = fc->lp;
+	lp = fc->ctlr.lp;
 	if (unlikely(lp == NULL)) {
 		FC_DBG("cannot find hba structure");
 		goto err2;
 	}
+	if (!lp->link_up)
+		goto err2;
 
 	if (unlikely(debug_fcoe)) {
 		FC_DBG("skb_info: len:%d data_len:%d head:%p data:%p tail:%p "
@@ -929,7 +999,6 @@ int fcoe_xmit(struct fc_lport *lp, struct fc_frame *fp)
 	unsigned int hlen;		/* header length implies the version */
 	unsigned int tlen;		/* trailer length */
 	unsigned int elen;		/* eth header, may include vlan */
-	int flogi_in_progress = 0;
 	struct fcoe_softc *fc;
 	u8 sof, eof;
 	struct fcoe_hdr *hp;
@@ -937,31 +1006,19 @@ int fcoe_xmit(struct fc_lport *lp, struct fc_frame *fp)
 	WARN_ON((fr_len(fp) % sizeof(u32)) != 0);
 
 	fc = lport_priv(lp);
-	/*
-	 * if it is a flogi then we need to learn gw-addr
-	 * and my own fcid
-	 */
 	fh = fc_frame_header_get(fp);
-	if (unlikely(fh->fh_r_ctl == FC_RCTL_ELS_REQ)) {
-		if (fc_frame_payload_op(fp) == ELS_FLOGI) {
-			fc->flogi_oxid = ntohs(fh->fh_ox_id);
-			fc->address_mode = FCOE_FCOUI_ADDR_MODE;
-			fc->flogi_progress = 1;
-			flogi_in_progress = 1;
-		} else if (fc->flogi_progress && ntoh24(fh->fh_s_id) != 0) {
-			/*
-			 * Here we must've gotten an SID by accepting an FLOGI
-			 * from a point-to-point connection.  Switch to using
-			 * the source mac based on the SID.  The destination
-			 * MAC in this case would have been set by receving the
-			 * FLOGI.
-			 */
-			fc_fcoe_set_mac(fc->data_src_addr, fh->fh_s_id);
-			fc->flogi_progress = 0;
-		}
+	skb = fp_skb(fp);
+	wlen = skb->len / FCOE_WORD_TO_BYTE;
+
+	if (!lp->link_up) {
+		kfree(skb);
+		return 0;
 	}
 
-	skb = fp_skb(fp);
+	if (unlikely(fh->fh_r_ctl == FC_RCTL_ELS_REQ) &&
+	    fcoe_ctlr_els_send(&fc->ctlr, skb))
+		return 0;
+
 	sof = fr_sof(fp);
 	eof = fr_eof(fp);
 
@@ -1016,16 +1073,16 @@ int fcoe_xmit(struct fc_lport *lp, struct fc_frame *fp)
 	/* fill up mac and fcoe headers */
 	eh = eth_hdr(skb);
 	eh->h_proto = htons(ETH_P_FCOE);
-	if (fc->address_mode == FCOE_FCOUI_ADDR_MODE)
+	if (fc->ctlr.map_dest)
 		fc_fcoe_set_mac(eh->h_dest, fh->fh_d_id);
 	else
 		/* insert GW address */
-		memcpy(eh->h_dest, fc->dest_addr, ETH_ALEN);
+		memcpy(eh->h_dest, fc->ctlr.dest_addr, ETH_ALEN);
 
-	if (unlikely(flogi_in_progress))
-		memcpy(eh->h_source, fc->ctl_src_addr, ETH_ALEN);
+	if (unlikely(fc->ctlr.flogi_oxid != FC_XID_UNKNOWN))
+		memcpy(eh->h_source, fc->ctlr.ctl_src_addr, ETH_ALEN);
 	else
-		memcpy(eh->h_source, fc->data_src_addr, ETH_ALEN);
+		memcpy(eh->h_source, fc->ctlr.data_src_addr, ETH_ALEN);
 
 	hp = (struct fcoe_hdr *)(eh + 1);
 	memset(hp, 0, sizeof(*hp));
@@ -1125,11 +1182,9 @@ int fcoe_percpu_receive_thread(void *arg)
 		 * Save source MAC address before discarding header.
 		 */
 		fc = lport_priv(lp);
-		if (unlikely(fc->flogi_progress))
-			mac = eth_hdr(skb)->h_source;
-
 		if (skb_is_nonlinear(skb))
 			skb_linearize(skb);	/* not ideal */
+		mac = eth_hdr(skb)->h_source;
 
 		/*
 		 * Frame length checks and setting up the header pointers
@@ -1204,69 +1259,14 @@ int fcoe_percpu_receive_thread(void *arg)
 			}
 			fr_flags(fp) &= ~FCPHF_CRC_UNCHECKED;
 		}
-		/* non flogi and non data exchanges are handled here */
-		if (unlikely(fc->flogi_progress))
-			fcoe_recv_flogi(fc, fp, mac);
+		if (unlikely(fc->ctlr.flogi_oxid != FC_XID_UNKNOWN) &&
+		    fcoe_ctlr_recv_flogi(&fc->ctlr, fp, mac)) {
+			fc_frame_free(fp);
+			continue;
+		}
 		fc_exch_recv(lp, lp->emp, fp);
 	}
 	return 0;
-}
-
-/**
- * fcoe_recv_flogi() - flogi receive function
- * @fc: associated fcoe_softc
- * @fp: the recieved frame
- * @sa: the source address of this flogi
- *
- * This is responsible to parse the flogi response and sets the corresponding
- * mac address for the initiator, eitehr OUI based or GW based.
- *
- * Returns: none
- */
-static void fcoe_recv_flogi(struct fcoe_softc *fc, struct fc_frame *fp, u8 *sa)
-{
-	struct fc_frame_header *fh;
-	u8 op;
-
-	fh = fc_frame_header_get(fp);
-	if (fh->fh_type != FC_TYPE_ELS)
-		return;
-	op = fc_frame_payload_op(fp);
-	if (op == ELS_LS_ACC && fh->fh_r_ctl == FC_RCTL_ELS_REP &&
-	    fc->flogi_oxid == ntohs(fh->fh_ox_id)) {
-		/*
-		 * FLOGI accepted.
-		 * If the src mac addr is FC_OUI-based, then we mark the
-		 * address_mode flag to use FC_OUI-based Ethernet DA.
-		 * Otherwise we use the FCoE gateway addr
-		 */
-		if (!compare_ether_addr(sa, (u8[6]) FC_FCOE_FLOGI_MAC)) {
-			fc->address_mode = FCOE_FCOUI_ADDR_MODE;
-		} else {
-			memcpy(fc->dest_addr, sa, ETH_ALEN);
-			fc->address_mode = FCOE_GW_ADDR_MODE;
-		}
-
-		/*
-		 * Remove any previously-set unicast MAC filter.
-		 * Add secondary FCoE MAC address filter for our OUI.
-		 */
-		rtnl_lock();
-		if (compare_ether_addr(fc->data_src_addr, (u8[6]) { 0 }))
-			dev_unicast_delete(fc->real_dev, fc->data_src_addr,
-					   ETH_ALEN);
-		fc_fcoe_set_mac(fc->data_src_addr, fh->fh_d_id);
-		dev_unicast_add(fc->real_dev, fc->data_src_addr, ETH_ALEN);
-		rtnl_unlock();
-
-		fc->flogi_progress = 0;
-	} else if (op == ELS_FLOGI && fh->fh_r_ctl == FC_RCTL_ELS_REQ && sa) {
-		/*
-		 * Save source MAC for point-to-point responses.
-		 */
-		memcpy(fc->dest_addr, sa, ETH_ALEN);
-		fc->address_mode = FCOE_GW_ADDR_MODE;
-	}
 }
 
 /**
@@ -1285,8 +1285,8 @@ void fcoe_watchdog(ulong vp)
 
 	read_lock(&fcoe_hostlist_lock);
 	list_for_each_entry(fc, &fcoe_hostlist, list) {
-		if (fc->lp)
-			fcoe_check_wait_queue(fc->lp);
+		if (fc->ctlr.lp)
+			fcoe_check_wait_queue(fc->ctlr.lp);
 	}
 	read_unlock(&fcoe_hostlist_lock);
 
@@ -1387,14 +1387,14 @@ static int fcoe_device_notification(struct notifier_block *notifier,
 	struct net_device *real_dev = ptr;
 	struct fcoe_softc *fc;
 	struct fcoe_dev_stats *stats;
-	u32 new_link_up;
+	u32 link_possible = 1;
 	u32 mfs;
 	int rc = NOTIFY_OK;
 
 	read_lock(&fcoe_hostlist_lock);
 	list_for_each_entry(fc, &fcoe_hostlist, list) {
 		if (fc->real_dev == real_dev) {
-			lp = fc->lp;
+			lp = fc->ctlr.lp;
 			break;
 		}
 	}
@@ -1404,15 +1404,13 @@ static int fcoe_device_notification(struct notifier_block *notifier,
 		goto out;
 	}
 
-	new_link_up = lp->link_up;
 	switch (event) {
 	case NETDEV_DOWN:
 	case NETDEV_GOING_DOWN:
-		new_link_up = 0;
+		link_possible = 0;
 		break;
 	case NETDEV_UP:
 	case NETDEV_CHANGE:
-		new_link_up = !fcoe_link_ok(lp);
 		break;
 	case NETDEV_CHANGEMTU:
 		mfs = fc->real_dev->mtu -
@@ -1420,22 +1418,18 @@ static int fcoe_device_notification(struct notifier_block *notifier,
 			 sizeof(struct fcoe_crc_eof));
 		if (mfs >= FC_MIN_MAX_FRAME)
 			fc_set_mfs(lp, mfs);
-		new_link_up = !fcoe_link_ok(lp);
 		break;
 	case NETDEV_REGISTER:
 		break;
 	default:
-		FC_DBG("unknown event %ld call", event);
+		FC_DBG("Unknown event %ld from netdev netlink\n", event);
 	}
-	if (lp->link_up != new_link_up) {
-		if (new_link_up)
-			fc_linkup(lp);
-		else {
-			stats = fc_lport_get_stats(lp);
-			stats->LinkFailureCount++;
-			fc_linkdown(lp);
-			fcoe_clean_pending_queue(lp);
-		}
+	if (link_possible && !fcoe_link_ok(lp))
+		fcoe_ctlr_link_up(&fc->ctlr);
+	else if (fcoe_ctlr_link_down(&fc->ctlr)) {
+		stats = fc_lport_get_stats(lp);
+		stats->LinkFailureCount++;
+		fcoe_clean_pending_queue(lp);
 	}
 out:
 	return rc;
@@ -1761,7 +1755,7 @@ struct fc_lport *fcoe_hostlist_lookup(const struct net_device *netdev)
 
 	fc = fcoe_hostlist_lookup_softc(netdev);
 
-	return (fc) ? fc->lp : NULL;
+	return (fc) ? fc->ctlr.lp : NULL;
 }
 EXPORT_SYMBOL_GPL(fcoe_hostlist_lookup);
 

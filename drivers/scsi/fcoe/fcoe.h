@@ -26,10 +26,6 @@
 #define FCOE_MAX_QUEUE_DEPTH	256
 #define FCOE_LOW_QUEUE_DEPTH	32
 
-/* destination address mode */
-#define FCOE_GW_ADDR_MODE	0x00
-#define FCOE_FCOUI_ADDR_MODE	0x01
-
 #define FCOE_WORD_TO_BYTE	4
 
 #define FCOE_VERSION	"0.1"
@@ -59,23 +55,16 @@ struct fcoe_percpu_s {
  */
 struct fcoe_softc {
 	struct list_head list;
-	struct fc_lport *lp;
 	struct net_device *real_dev;
 	struct net_device *phys_dev;		/* device with ethtool_ops */
 	struct packet_type  fcoe_packet_type;
+	struct packet_type  fip_packet_type;
 	struct sk_buff_head fcoe_pending_queue;
 	u8	fcoe_pending_queue_active;
-
-	u8 dest_addr[ETH_ALEN];
-	u8 ctl_src_addr[ETH_ALEN];
-	u8 data_src_addr[ETH_ALEN];
-	/*
-	 * fcoe protocol address learning related stuff
-	 */
-	u16 flogi_oxid;
-	u8 flogi_progress;
-	u8 address_mode;
+	struct fcoe_ctlr ctlr;
 };
+
+#define fcoe_from_ctlr(fc) container_of(fc, struct fcoe_softc, ctlr)
 
 static inline struct net_device *fcoe_netdev(
 	const struct fc_lport *lp)
