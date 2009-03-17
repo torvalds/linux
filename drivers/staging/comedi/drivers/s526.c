@@ -146,10 +146,10 @@ enum S526_GPCT_APP_CLASS {
 /* Config struct for different GPCT subdevice Application Classes and
    their options
 */
-typedef struct s526GPCTConfig {
+struct s526GPCTConfig {
 	enum S526_GPCT_APP_CLASS app;
 	int data[MAX_GPCT_CONFIG_DATA];
-} s526_gpct_config_t;
+};
 
 /*
  * Board descriptions for two imaginary boards.  Describing the
@@ -201,7 +201,7 @@ struct s526_private {
 	/* Used for AO readback */
 	unsigned int ao_readback[2];
 
-	s526_gpct_config_t s526_gpct_config[4];
+	struct s526GPCTConfig s526_gpct_config[4];
 	unsigned short s526_ai_config;
 };
 
