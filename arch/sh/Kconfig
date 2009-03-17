@@ -365,6 +365,7 @@ config CPU_SUBTYPE_SH7786
 	bool "Support SH7786 processor"
 	select CPU_SH4A
 	select CPU_SHX3
+	select CPU_HAS_PTEAEX
 	select ARCH_SPARSEMEM_ENABLE
 	select SYS_SUPPORTS_NUMA
 
