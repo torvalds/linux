@@ -65,13 +65,13 @@ Copy/pasted/hacked from pcm724.c
 static int pcm3724_attach(struct comedi_device * dev, struct comedi_devconfig * it);
 static int pcm3724_detach(struct comedi_device * dev);
 
-typedef struct {
+struct pcm3724_board {
 	const char *name;	// driver name
 	int dio;		// num of DIO
 	int numofports;		// num of 8255 subdevices
 	unsigned int IRQbits;	// allowed interrupts
 	unsigned int io_range;	// len of IO space
-} boardtype;
+};
 
 //used to track configured dios
 struct priv_pcm3724 {
@@ -79,12 +79,12 @@ struct priv_pcm3724 {
 	int dio_2;
 };
 
-static const boardtype boardtypes[] = {
+static const struct pcm3724_board boardtypes[] = {
 	{"pcm3724", 48, 2, 0x00fc, PCM3724_SIZE,},
 };
 
-#define n_boardtypes (sizeof(boardtypes)/sizeof(boardtype))
-#define this_board ((const boardtype *)dev->board_ptr)
+#define n_boardtypes (sizeof(boardtypes)/sizeof(struct pcm3724_board))
+#define this_board ((const struct pcm3724_board *)dev->board_ptr)
 
 static struct comedi_driver driver_pcm3724 = {
       driver_name:"pcm3724",
@@ -93,7 +93,7 @@ static struct comedi_driver driver_pcm3724 = {
       detach:pcm3724_detach,
       board_name:&boardtypes[0].name,
       num_names:n_boardtypes,
-      offset:sizeof(boardtype),
+      offset:sizeof(struct pcm3724_board),
 };
 
 COMEDI_INITCLEANUP(driver_pcm3724);
