@@ -168,15 +168,17 @@ static const atao_board atao_boards[] = {
 
 #define thisboard ((atao_board *)dev->board_ptr)
 
-typedef struct {
+struct atao_private {
+
 	unsigned short cfg1;
 	unsigned short cfg2;
 	unsigned short cfg3;
 
 	/* Used for AO readback */
 	unsigned int ao_readback[10];
-} atao_private;
-#define devpriv ((atao_private *)dev->private)
+};
+
+#define devpriv ((struct atao_private *)dev->private)
 
 static int atao_attach(struct comedi_device * dev, struct comedi_devconfig * it);
 static int atao_detach(struct comedi_device * dev);
@@ -230,7 +232,7 @@ static int atao_attach(struct comedi_device * dev, struct comedi_devconfig * it)
 
 	dev->board_name = thisboard->name;
 
-	if (alloc_private(dev, sizeof(atao_private)) < 0)
+	if (alloc_private(dev, sizeof(struct atao_private)) < 0)
 		return -ENOMEM;
 
 	if (alloc_subdevices(dev, 4) < 0)
