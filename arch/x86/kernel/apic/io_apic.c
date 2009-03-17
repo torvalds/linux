@@ -2414,6 +2414,7 @@ asmlinkage void smp_irq_move_cleanup_interrupt(void)
 	me = smp_processor_id();
 	for (vector = FIRST_EXTERNAL_VECTOR; vector < NR_VECTORS; vector++) {
 		unsigned int irq;
+		unsigned int irr;
 		struct irq_desc *desc;
 		struct irq_cfg *cfg;
 		irq = __get_cpu_var(vector_irq)[vector];
@@ -2433,6 +2434,18 @@ asmlinkage void smp_irq_move_cleanup_interrupt(void)
 		if (vector == cfg->vector && cpumask_test_cpu(me, cfg->domain))
 			goto unlock;
 
+		irr = apic_read(APIC_IRR + (vector / 32 * 0x10));
+		/*
+		 * Check if the vector that needs to be cleanedup is
+		 * registered at the cpu's IRR. If so, then this is not
+		 * the best time to clean it up. Lets clean it up in the
+		 * next attempt by sending another IRQ_MOVE_CLEANUP_VECTOR
+		 * to myself.
+		 */
+		if (irr  & (1 << (vector % 32))) {
+			apic->send_IPI_self(IRQ_MOVE_CLEANUP_VECTOR);
+			goto unlock;
+		}
 		__get_cpu_var(vector_irq)[vector] = -1;
 		cfg->move_cleanup_count--;
 unlock:
