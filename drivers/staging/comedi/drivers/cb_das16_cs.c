@@ -54,12 +54,12 @@ Status: experimental
 #define DAS16CS_CTR_CONTROL		14
 #define DAS16CS_DIO			16
 
-typedef struct das16cs_board_struct {
+struct das16cs_board {
 	const char *name;
 	int device_id;
 	int n_ao_chans;
-} das16cs_board;
-static const das16cs_board das16cs_boards[] = {
+};
+static const struct das16cs_board das16cs_boards[] = {
 	{
 	      device_id:0x0000,/* unknown */
 	      name:	"PC-CARD DAS16/16",
@@ -78,7 +78,7 @@ static const das16cs_board das16cs_boards[] = {
 };
 
 #define n_boards (sizeof(das16cs_boards)/sizeof(das16cs_boards[0]))
-#define thisboard ((const das16cs_board *)dev->board_ptr)
+#define thisboard ((const struct das16cs_board *)dev->board_ptr)
 
 typedef struct {
 	struct pcmcia_device *link;
@@ -146,7 +146,7 @@ static int get_prodid(struct comedi_device * dev, struct pcmcia_device *link)
 	return prodid;
 }
 
-static const das16cs_board *das16cs_probe(struct comedi_device * dev,
+static const struct das16cs_board *das16cs_probe(struct comedi_device * dev,
 	struct pcmcia_device *link)
 {
 	int id;
