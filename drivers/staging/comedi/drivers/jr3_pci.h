@@ -41,11 +41,11 @@ static inline void set_s16(volatile s32 * p, s16 val)
  * varies with different sensors.
  */
 
-typedef struct raw_channel {
+struct raw_channel {
 	u32 raw_time;
 	s32 raw_data;
 	s32 reserved[2];
-} raw_channel_t;
+};
 
 /* The force_array structure shows the layout for the decoupled and
  * filtered force data.
@@ -267,7 +267,7 @@ typedef struct force_sensor_data {
 	/*  Raw_channels is the area used to store the raw data coming from */
 	/*  the sensor. */
 
-	raw_channel_t raw_channels[16];	/* offset 0x0000 */
+	struct raw_channel raw_channels[16];	/* offset 0x0000 */
 
 	/*  Copyright is a null terminated ASCII string containing the JR3 */
 	/*  copyright notice. */
