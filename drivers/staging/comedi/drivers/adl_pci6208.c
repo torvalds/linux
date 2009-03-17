@@ -57,13 +57,14 @@ References:
 #define PCI6208_DRIVER_NAME 	"adl_pci6208"
 
 /* Board descriptions */
-typedef struct {
+struct pci6208_board {
 	const char *name;
 	unsigned short dev_id;	/* `lspci` will show you this */
 	int ao_chans;
 	//int ao_bits;
-} pci6208_board;
-static const pci6208_board pci6208_boards[] = {
+};
+
+static const struct pci6208_board pci6208_boards[] = {
 	/*{
 	   name :  "pci6208v",
 	   dev_id       :  0x6208,      //not sure
@@ -96,7 +97,7 @@ static DEFINE_PCI_DEVICE_TABLE(pci6208_pci_table) = {
 MODULE_DEVICE_TABLE(pci, pci6208_pci_table);
 
 /* Will be initialized in pci6208_find device(). */
-#define thisboard ((const pci6208_board *)dev->board_ptr)
+#define thisboard ((const struct pci6208_board *)dev->board_ptr)
 
 typedef struct {
 	int data;
@@ -110,7 +111,7 @@ static int pci6208_attach(struct comedi_device * dev, struct comedi_devconfig * 
 static int pci6208_detach(struct comedi_device * dev);
 
 #define pci6208_board_nbr \
-	(sizeof(pci6208_boards) / sizeof(pci6208_board))
+	(sizeof(pci6208_boards) / sizeof(struct pci6208_board))
 
 static struct comedi_driver driver_pci6208 = {
       driver_name:PCI6208_DRIVER_NAME,
