@@ -114,7 +114,8 @@ static const struct comedi_lrange *const rangelist_728[] = {
 static int pcl726_attach(struct comedi_device * dev, struct comedi_devconfig * it);
 static int pcl726_detach(struct comedi_device * dev);
 
-typedef struct {
+struct pcl726_board {
+
 	const char *name;	// driver name
 	int n_aochan;		// num of D/A chans
 	int num_of_ranges;	// num of ranges
@@ -126,9 +127,10 @@ typedef struct {
 	int do_hi;
 	int do_lo;
 	const struct comedi_lrange *const *range_type_list;	// list of supported ranges
-} boardtype;
+};
 
-static const boardtype boardtypes[] = {
+
+static const struct pcl726_board boardtypes[] = {
 	{"pcl726", 6, 6, 0x0000, PCL726_SIZE, 1,
 			PCL726_DI_HI, PCL726_DI_LO, PCL726_DO_HI, PCL726_DO_LO,
 		&rangelist_726[0],},
@@ -146,8 +148,8 @@ static const boardtype boardtypes[] = {
 		&rangelist_728[0],},
 };
 
-#define n_boardtypes (sizeof(boardtypes)/sizeof(boardtype))
-#define this_board ((const boardtype *)dev->board_ptr)
+#define n_boardtypes (sizeof(boardtypes)/sizeof(struct pcl726_board))
+#define this_board ((const struct pcl726_board *)dev->board_ptr)
 
 static struct comedi_driver driver_pcl726 = {
       driver_name:"pcl726",
@@ -156,7 +158,7 @@ static struct comedi_driver driver_pcl726 = {
       detach:pcl726_detach,
       board_name:&boardtypes[0].name,
       num_names:n_boardtypes,
-      offset:sizeof(boardtype),
+      offset:sizeof(struct pcl726_board),
 };
 
 COMEDI_INITCLEANUP(driver_pcl726);
