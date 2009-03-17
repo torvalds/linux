@@ -446,7 +446,7 @@ struct dio200_private {
 
 #define devpriv ((struct dio200_private *)dev->private)
 
-typedef struct {
+struct dio200_subdev_8254 {
 	unsigned long iobase;	/* Counter base address */
 	unsigned long clk_sce_iobase;	/* CLK_SCE base address */
 	unsigned long gat_sce_iobase;	/* GAT_SCE base address */
@@ -454,7 +454,7 @@ typedef struct {
 	int has_clk_gat_sce;
 	unsigned clock_src[3];	/* Current clock sources */
 	unsigned gate_src[3];	/* Current gate sources */
-} dio200_subdev_8254;
+};
 
 typedef struct {
 	unsigned long iobase;
@@ -1036,7 +1036,7 @@ static int
 dio200_subdev_8254_read(struct comedi_device * dev, struct comedi_subdevice * s,
 	struct comedi_insn * insn, unsigned int * data)
 {
-	dio200_subdev_8254 *subpriv = s->private;
+	struct dio200_subdev_8254 *subpriv = s->private;
 	int chan = CR_CHAN(insn->chanspec);
 
 	data[0] = i8254_read(subpriv->iobase, 0, chan);
@@ -1051,7 +1051,7 @@ static int
 dio200_subdev_8254_write(struct comedi_device * dev, struct comedi_subdevice * s,
 	struct comedi_insn * insn, unsigned int * data)
 {
-	dio200_subdev_8254 *subpriv = s->private;
+	struct dio200_subdev_8254 *subpriv = s->private;
 	int chan = CR_CHAN(insn->chanspec);
 
 	i8254_write(subpriv->iobase, 0, chan, data[0]);
@@ -1063,7 +1063,7 @@ dio200_subdev_8254_write(struct comedi_device * dev, struct comedi_subdevice * s
  * Set gate source for an '8254' counter subdevice channel.
  */
 static int
-dio200_set_gate_src(dio200_subdev_8254 * subpriv, unsigned int counter_number,
+dio200_set_gate_src(struct dio200_subdev_8254 * subpriv, unsigned int counter_number,
 	unsigned int gate_src)
 {
 	unsigned char byte;
@@ -1086,7 +1086,7 @@ dio200_set_gate_src(dio200_subdev_8254 * subpriv, unsigned int counter_number,
  * Get gate source for an '8254' counter subdevice channel.
  */
 static int
-dio200_get_gate_src(dio200_subdev_8254 * subpriv, unsigned int counter_number)
+dio200_get_gate_src(struct dio200_subdev_8254 * subpriv, unsigned int counter_number)
 {
 	if (!subpriv->has_clk_gat_sce)
 		return -1;
@@ -1100,7 +1100,7 @@ dio200_get_gate_src(dio200_subdev_8254 * subpriv, unsigned int counter_number)
  * Set clock source for an '8254' counter subdevice channel.
  */
 static int
-dio200_set_clock_src(dio200_subdev_8254 * subpriv, unsigned int counter_number,
+dio200_set_clock_src(struct dio200_subdev_8254 * subpriv, unsigned int counter_number,
 	unsigned int clock_src)
 {
 	unsigned char byte;
@@ -1123,7 +1123,7 @@ dio200_set_clock_src(dio200_subdev_8254 * subpriv, unsigned int counter_number,
  * Get clock source for an '8254' counter subdevice channel.
  */
 static int
-dio200_get_clock_src(dio200_subdev_8254 * subpriv, unsigned int counter_number,
+dio200_get_clock_src(struct dio200_subdev_8254 * subpriv, unsigned int counter_number,
 	unsigned int * period_ns)
 {
 	unsigned clock_src;
@@ -1145,7 +1145,7 @@ static int
 dio200_subdev_8254_config(struct comedi_device * dev, struct comedi_subdevice * s,
 	struct comedi_insn * insn, unsigned int * data)
 {
-	dio200_subdev_8254 *subpriv = s->private;
+	struct dio200_subdev_8254 *subpriv = s->private;
 	int ret;
 	int chan = CR_CHAN(insn->chanspec);
 
@@ -1197,7 +1197,7 @@ static int
 dio200_subdev_8254_init(struct comedi_device * dev, struct comedi_subdevice * s,
 	unsigned long iobase, unsigned offset, int has_clk_gat_sce)
 {
-	dio200_subdev_8254 *subpriv;
+	struct dio200_subdev_8254 *subpriv;
 	unsigned int chan;
 
 	subpriv = kzalloc(sizeof(*subpriv), GFP_KERNEL);
