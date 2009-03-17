@@ -241,7 +241,7 @@ static struct comedi_driver driver_pci9118 = {
 
 COMEDI_PCI_INITCLEANUP(driver_pci9118, pci9118_pci_table);
 
-typedef struct {
+struct pci9118_private {
 	unsigned long iobase_a;	// base+size for AMCC chip
 	unsigned int master;	// master capable
 	struct pci_dev *pcidev;	// ptr to actual pcidev
@@ -299,9 +299,9 @@ typedef struct {
 	unsigned int ai_maskerr;	// which warning was printed
 	unsigned int ai_maskharderr;	// on which error bits stops
 	unsigned int ai_inttrig_start;	// TRIG_INT for start
-} pci9118_private;
+};
 
-#define devpriv ((pci9118_private *)dev->private)
+#define devpriv ((struct pci9118_private *)dev->private)
 #define this_board ((struct boardtype *)dev->board_ptr)
 
 /*
@@ -1859,7 +1859,7 @@ static int pci9118_attach(struct comedi_device * dev, struct comedi_devconfig * 
 		master = 1;
 	}
 
-	if ((ret = alloc_private(dev, sizeof(pci9118_private))) < 0) {
+	if ((ret = alloc_private(dev, sizeof(struct pci9118_private))) < 0) {
 		rt_printk(" - Allocation failed!\n");
 		return -ENOMEM;
 	}
