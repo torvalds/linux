@@ -91,11 +91,13 @@ static const dio24_board dio24_boards[] = {
  */
 #define thisboard ((const dio24_board *)dev->board_ptr)
 
-typedef struct {
-	int data;		/* number of data points left to be taken */
-} dio24_private;
+struct dio24_private {
 
-#define devpriv ((dio24_private *)dev->private)
+	int data;		/* number of data points left to be taken */
+};
+
+
+#define devpriv ((struct dio24_private *)dev->private)
 
 static struct comedi_driver driver_dio24 = {
       driver_name:"ni_daq_dio24",
@@ -117,7 +119,7 @@ static int dio24_attach(struct comedi_device * dev, struct comedi_devconfig * it
 	struct pcmcia_device *link;
 
 	/* allocate and initialize dev->private */
-	if (alloc_private(dev, sizeof(dio24_private)) < 0)
+	if (alloc_private(dev, sizeof(struct dio24_private)) < 0)
 		return -ENOMEM;
 
 	// get base address, irq etc. based on bustype
