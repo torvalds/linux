@@ -66,14 +66,14 @@ MODULE_DEVICE_TABLE(pci, contec_pci_table);
 
 #define thisboard ((const struct contec_board *)dev->board_ptr)
 
-typedef struct {
+struct contec_private {
 	int data;
 
 	struct pci_dev *pci_dev;
 
-} contec_private;
+};
 
-#define devpriv ((contec_private *)dev->private)
+#define devpriv ((struct contec_private *)dev->private)
 
 static int contec_attach(struct comedi_device * dev, struct comedi_devconfig * it);
 static int contec_detach(struct comedi_device * dev);
@@ -106,7 +106,7 @@ static int contec_attach(struct comedi_device * dev, struct comedi_devconfig * i
 
 	dev->board_name = thisboard->name;
 
-	if (alloc_private(dev, sizeof(contec_private)) < 0)
+	if (alloc_private(dev, sizeof(struct contec_private)) < 0)
 		return -ENOMEM;
 
 	if (alloc_subdevices(dev, 2) < 0)
