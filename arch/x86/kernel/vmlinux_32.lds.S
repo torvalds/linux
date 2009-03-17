@@ -199,7 +199,9 @@ SECTIONS
 	__brk_limit = . ;
   }
 
-  _end = . ;
+  .end : AT(ADDR(.end) - LOAD_OFFSET) {
+	_end = . ;
+  }
 
   /* Sections to be discarded */
   /DISCARD/ : {
