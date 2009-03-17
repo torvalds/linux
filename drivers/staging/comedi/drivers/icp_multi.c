@@ -882,7 +882,8 @@ static int icp_multi_attach(comedi_device *dev, comedi_devconfig *it)
 	printk("icp_multi EDBG: BGN: icp_multi_attach(...)\n");
 
 	/*  Alocate private data storage space */
-	if ((ret = alloc_private(dev, sizeof(icp_multi_private))) < 0)
+	ret = alloc_private(dev, sizeof(icp_multi_private));
+	if (ret < 0)
 		return ret;
 
 	/*  Initialise list of PCI cards in system, if not already done so */
@@ -899,9 +900,11 @@ static int icp_multi_attach(comedi_device *dev, comedi_devconfig *it)
 	printk("Anne's comedi%d: icp_multi: board=%s", dev->minor,
 		this_board->name);
 
-	if ((card = select_and_alloc_pci_card(PCI_VENDOR_ID_ICP,
-				this_board->device_id, it->options[0],
-				it->options[1])) == NULL)
+	card = select_and_alloc_pci_card(PCI_VENDOR_ID_ICP,
+					 this_board->device_id, it->options[0],
+					 it->options[1]);
+
+	if (card == NULL)
 		return -EIO;
 
 	devpriv->card = card;
@@ -943,9 +946,9 @@ static int icp_multi_attach(comedi_device *dev, comedi_devconfig *it)
 	if (this_board->n_ctrs)
 		n_subdevices++;
 
-	if ((ret = alloc_subdevices(dev, n_subdevices)) < 0) {
+	ret = alloc_subdevices(dev, n_subdevices);
+	if ( ret < 0 )
 		return ret;
-	}
 
 	icp_multi_reset(dev);
 

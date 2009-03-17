@@ -256,7 +256,8 @@ int comedi_do_insn(comedi_t *d, comedi_insn *insn)
 
 		/* XXX check lock */
 
-		if ((ret = check_chanlist(s, 1, &insn->chanspec)) < 0) {
+		ret = check_chanlist(s, 1, &insn->chanspec);
+		if (ret < 0) {
 			rt_printk("bad chanspec\n");
 			ret = -EINVAL;
 			goto error;
@@ -443,7 +444,9 @@ int comedi_cancel(comedi_t *d, unsigned int subdevice)
 	if (!s->cancel || !s->async)
 		return -EINVAL;
 
-	if ((ret = s->cancel(dev, s)))
+	ret = s->cancel(dev, s);
+
+	if (ret)
 		return ret;
 
 #ifdef CONFIG_COMEDI_RT

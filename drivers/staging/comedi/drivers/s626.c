@@ -525,7 +525,8 @@ static int s626_attach(comedi_device *dev, comedi_devconfig *it)
 		return -ENODEV;
 	}
 
-	if ((result = comedi_pci_enable(pdev, "s626")) < 0) {
+	result = comedi_pci_enable(pdev, "s626");
+	if (result < 0) {
 		printk("s626_attach: comedi_pci_enable fails\n");
 		return -ENODEV;
 	}
@@ -552,9 +553,10 @@ static int s626_attach(comedi_device *dev, comedi_devconfig *it)
 		/* adc buffer allocation */
 		devpriv->allocatedBuf = 0;
 
-		if ((devpriv->ANABuf.LogicalBase =
-				pci_alloc_consistent(devpriv->pdev, DMABUF_SIZE,
-					&appdma)) == NULL) {
+		devpriv->ANABuf.LogicalBase =
+			pci_alloc_consistent(devpriv->pdev, DMABUF_SIZE, &appdma);
+
+		if (devpriv->ANABuf.LogicalBase == NULL) {
 			printk("s626_attach: DMA Memory mapping error\n");
 			return -ENOMEM;
 		}
@@ -565,9 +567,10 @@ static int s626_attach(comedi_device *dev, comedi_devconfig *it)
 
 		devpriv->allocatedBuf++;
 
-		if ((devpriv->RPSBuf.LogicalBase =
-				pci_alloc_consistent(devpriv->pdev, DMABUF_SIZE,
-					&appdma)) == NULL) {
+		devpriv->RPSBuf.LogicalBase =
+			pci_alloc_consistent(devpriv->pdev, DMABUF_SIZE,  &appdma);
+
+		if (devpriv->RPSBuf.LogicalBase == NULL) {
 			printk("s626_attach: DMA Memory mapping error\n");
 			return -ENOMEM;
 		}
@@ -593,8 +596,10 @@ static int s626_attach(comedi_device *dev, comedi_devconfig *it)
 	if (dev->irq == 0) {
 		printk(" unknown irq (bad)\n");
 	} else {
-		if ((ret = comedi_request_irq(dev->irq, s626_irq_handler,
-					IRQF_SHARED, "s626", dev)) < 0) {
+		ret = comedi_request_irq(dev->irq, s626_irq_handler,
+					 IRQF_SHARED, "s626", dev);
+
+		if (ret < 0) {
 			printk(" irq not available\n");
 			dev->irq = 0;
 		}

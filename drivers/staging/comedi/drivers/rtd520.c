@@ -779,7 +779,8 @@ static int rtd_attach(comedi_device *dev, comedi_devconfig *it)
 	devpriv->pci_dev = pcidev;
 	dev->board_name = thisboard->name;
 
-	if ((ret = comedi_pci_enable(pcidev, DRV_NAME)) < 0) {
+	ret = comedi_pci_enable(pcidev, DRV_NAME);
+	if (ret < 0) {
 		printk("Failed to enable PCI device and request regions.\n");
 		return ret;
 	}
@@ -918,8 +919,10 @@ static int rtd_attach(comedi_device *dev, comedi_devconfig *it)
 	/* TODO: set user out source ??? */
 
 	/* check if our interrupt is available and get it */
-	if ((ret = comedi_request_irq(devpriv->pci_dev->irq, rtd_interrupt,
-				IRQF_SHARED, DRV_NAME, dev)) < 0) {
+	ret = comedi_request_irq(devpriv->pci_dev->irq, rtd_interrupt,
+				 IRQF_SHARED, DRV_NAME, dev);
+
+	if (ret < 0) {
 		printk("Could not get interrupt! (%u)\n",
 			devpriv->pci_dev->irq);
 		return ret;
