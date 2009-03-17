@@ -135,19 +135,19 @@ union {
 
 /* Different Application Classes for GPCT Subdevices */
 /* The list is not exhaustive and needs discussion! */
-typedef enum {
+enum S526_GPCT_APP_CLASS {
 	CountingAndTimeMeasurement,
 	SinglePulseGeneration,
 	PulseTrainGeneration,
 	PositionMeasurement,
 	Miscellaneous
-} S526_GPCT_APP_CLASS;
+};
 
 /* Config struct for different GPCT subdevice Application Classes and
    their options
 */
 typedef struct s526GPCTConfig {
-	S526_GPCT_APP_CLASS app;
+	enum S526_GPCT_APP_CLASS app;
 	int data[MAX_GPCT_CONFIG_DATA];
 } s526_gpct_config_t;
 
