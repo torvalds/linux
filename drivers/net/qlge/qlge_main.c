@@ -1533,7 +1533,6 @@ static void ql_process_mac_rx_intr(struct ql_adapter *qdev,
 		QPRINTK(qdev, RX_STATUS, DEBUG, "Promiscuous Packet.\n");
 	}
 
-
 	skb->protocol = eth_type_trans(skb, ndev);
 	skb->ip_summed = CHECKSUM_NONE;
 
@@ -3248,6 +3247,7 @@ static int ql_adapter_down(struct ql_adapter *qdev)
 		netif_napi_del(&qdev->rx_ring[i].napi);
 
 	ql_free_rx_buffers(qdev);
+
 	spin_lock(&qdev->hw_lock);
 	status = ql_adapter_reset(qdev);
 	if (status)
