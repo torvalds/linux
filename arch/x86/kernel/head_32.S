@@ -60,7 +60,8 @@
 #endif
 
 /* Enough space to fit pagetables for the low memory linear map */
-MAPPING_BEYOND_END = (PAGE_TABLE_SIZE(1 << (32 - PAGE_SHIFT)) * PAGE_SIZE)
+MAPPING_BEYOND_END = \
+	PAGE_TABLE_SIZE(((1<<32) - __PAGE_OFFSET) >> PAGE_SHIFT) << PAGE_SHIFT
 
 /*
  * Worst-case size of the kernel mapping we need to make:
