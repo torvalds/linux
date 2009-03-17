@@ -81,10 +81,8 @@ static void cleanup_device(comedi_device *dev)
 		dev->subdevices = NULL;
 		dev->n_subdevices = 0;
 	}
-	if (dev->private) {
-		kfree(dev->private);
-		dev->private = NULL;
-	}
+	kfree(dev->private);
+	dev->private = NULL;
 	dev->driver = 0;
 	dev->board_name = NULL;
 	dev->board_ptr = NULL;
