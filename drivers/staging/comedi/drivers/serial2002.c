@@ -401,16 +401,18 @@ static void serial_2002_open(struct comedi_device * dev)
 		printk("serial_2002: file open error = %ld\n",
 			PTR_ERR(devpriv->tty));
 	} else {
-		typedef struct {
+		struct config_t {
+
 			int kind;
 			int bits;
 			int min;
 			int max;
-		} config_t;
-		config_t dig_in_config[32];
-		config_t dig_out_config[32];
-		config_t chan_in_config[32];
-		config_t chan_out_config[32];
+		};
+
+		struct config_t dig_in_config[32];
+		struct config_t dig_out_config[32];
+		struct config_t chan_in_config[32];
+		struct config_t chan_out_config[32];
 		int i;
 
 		for (i = 0; i < 32; i++) {
@@ -443,7 +445,7 @@ static void serial_2002_open(struct comedi_device * dev)
 				break;
 			} else {
 				int command, channel, kind;
-				config_t *cur_config = 0;
+				struct config_t *cur_config = 0;
 
 				channel = data.value & 0x1f;
 				kind = (data.value >> 5) & 0x7;
@@ -554,7 +556,7 @@ static void serial_2002_open(struct comedi_device * dev)
 		}
 		for (i = 0; i <= 4; i++) {
 			// Fill in subdev data
-			config_t *c;
+			struct config_t *c;
 			unsigned char *mapping = 0;
 			struct serial2002_range_table_t *range = 0;
 			int kind = 0;
