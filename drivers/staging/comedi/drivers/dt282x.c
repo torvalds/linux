@@ -197,7 +197,7 @@ static const struct comedi_lrange range_dt282x_ai_hi_unipolar = { 4, {
 	}
 };
 
-typedef struct {
+struct dt282x_board {
 	const char *name;
 	int adbits;
 	int adchan_se;
@@ -206,9 +206,9 @@ typedef struct {
 	int ispgl;
 	int dachan;
 	int dabits;
-} boardtype_t;
+};
 
-static const boardtype_t boardtypes[] = {
+static const struct dt282x_board boardtypes[] = {
       {name:"dt2821",
 	      adbits:	12,
 	      adchan_se:16,
@@ -337,8 +337,8 @@ static const boardtype_t boardtypes[] = {
 		},
 };
 
-#define n_boardtypes sizeof(boardtypes)/sizeof(boardtype_t)
-#define this_board ((const boardtype_t *)dev->board_ptr)
+#define n_boardtypes sizeof(boardtypes)/sizeof(struct dt282x_board)
+#define this_board ((const struct dt282x_board *)dev->board_ptr)
 
 typedef struct {
 	int ad_2scomp;		/* we have 2's comp jumper set  */
@@ -368,7 +368,7 @@ typedef struct {
 } dt282x_private;
 
 #define devpriv ((dt282x_private *)dev->private)
-#define boardtype (*(const boardtype_t *)dev->board_ptr)
+#define boardtype (*(const struct dt282x_board *)dev->board_ptr)
 
 /*
  *    Some useless abstractions
@@ -403,7 +403,7 @@ static struct comedi_driver driver_dt282x = {
       detach:dt282x_detach,
       board_name:&boardtypes[0].name,
       num_names:n_boardtypes,
-      offset:sizeof(boardtype_t),
+      offset:sizeof(struct dt282x_board),
 };
 
 COMEDI_INITCLEANUP(driver_dt282x);
