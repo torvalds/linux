@@ -1179,7 +1179,7 @@ int iwl3945_hw_nic_init(struct iwl_priv *priv)
 	IWL_DEBUG_INFO(priv, "HW Revision ID = 0x%X\n", rev_id);
 
 	rc = priv->cfg->ops->lib->apm_ops.set_pwr_src(priv, IWL_PWR_SRC_VMAIN);
-	if(rc)
+	if (rc)
 		return rc;
 
 	priv->cfg->ops->lib->apm_ops.config(priv);
