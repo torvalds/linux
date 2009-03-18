@@ -57,11 +57,13 @@ struct pmc_x86_ops {
 	int		max_events;
 };
 
-static struct pmc_x86_ops *pmc_ops;
+static struct pmc_x86_ops *pmc_ops __read_mostly;
 
 static DEFINE_PER_CPU(struct cpu_hw_counters, cpu_hw_counters) = {
 	.enabled = 1,
 };
+
+static __read_mostly int intel_perfmon_version;
 
 /*
  * Intel PerfMon v3. Used on Core2 and later.
@@ -613,7 +615,7 @@ void perf_counter_print_debug(void)
 	cpu = smp_processor_id();
 	cpuc = &per_cpu(cpu_hw_counters, cpu);
 
-	if (boot_cpu_data.x86_vendor == X86_VENDOR_INTEL) {
+	if (intel_perfmon_version >= 2) {
 		rdmsrl(MSR_CORE_PERF_GLOBAL_CTRL, ctrl);
 		rdmsrl(MSR_CORE_PERF_GLOBAL_STATUS, status);
 		rdmsrl(MSR_CORE_PERF_GLOBAL_OVF_CTRL, overflow);
@@ -930,10 +932,10 @@ static struct pmc_x86_ops pmc_amd_ops = {
 
 static struct pmc_x86_ops *pmc_intel_init(void)
 {
-	union cpuid10_eax eax;
-	unsigned int ebx;
-	unsigned int unused;
 	union cpuid10_edx edx;
+	union cpuid10_eax eax;
+	unsigned int unused;
+	unsigned int ebx;
 
 	/*
 	 * Check whether the Architectural PerfMon supports
@@ -943,8 +945,12 @@ static struct pmc_x86_ops *pmc_intel_init(void)
 	if (eax.split.mask_length <= ARCH_PERFMON_BRANCH_MISSES_RETIRED)
 		return NULL;
 
+	intel_perfmon_version = eax.split.version_id;
+	if (intel_perfmon_version < 2)
+		return NULL;
+
 	pr_info("Intel Performance Monitoring support detected.\n");
-	pr_info("... version:         %d\n", eax.split.version_id);
+	pr_info("... version:         %d\n", intel_perfmon_version);
 	pr_info("... bit width:       %d\n", eax.split.bit_width);
 	pr_info("... mask length:     %d\n", eax.split.mask_length);
 
