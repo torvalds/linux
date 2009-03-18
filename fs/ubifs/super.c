@@ -421,8 +421,8 @@ static int ubifs_show_options(struct seq_file *s, struct vfsmount *mnt)
 		seq_printf(s, ",no_chk_data_crc");
 
 	if (c->mount_opts.override_compr) {
-		seq_printf(s, ",compr=");
-		seq_printf(s, ubifs_compr_name(c->mount_opts.compr_type));
+		seq_printf(s, ",compr=%s",
+			   ubifs_compr_name(c->mount_opts.compr_type));
 	}
 
 	return 0;
@@ -1204,7 +1204,7 @@ static int mount_ubifs(struct ubifs_info *c)
 			goto out_cbuf;
 
 		/* Create background thread */
-		c->bgt = kthread_create(ubifs_bg_thread, c, c->bgt_name);
+		c->bgt = kthread_create(ubifs_bg_thread, c, "%s", c->bgt_name);
 		if (IS_ERR(c->bgt)) {
 			err = PTR_ERR(c->bgt);
 			c->bgt = NULL;
@@ -1561,7 +1561,7 @@ static int ubifs_remount_rw(struct ubifs_info *c)
 	ubifs_create_buds_lists(c);
 
 	/* Create background thread */
-	c->bgt = kthread_create(ubifs_bg_thread, c, c->bgt_name);
+	c->bgt = kthread_create(ubifs_bg_thread, c, "%s", c->bgt_name);
 	if (IS_ERR(c->bgt)) {
 		err = PTR_ERR(c->bgt);
 		c->bgt = NULL;
