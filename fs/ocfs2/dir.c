@@ -2697,7 +2697,7 @@ static int ocfs2_dx_dir_index_block(struct inode *dir,
 				    u32 *num_dx_entries,
 				    struct buffer_head *dirent_bh)
 {
-	int ret, namelen, i;
+	int ret = 0, namelen, i;
 	char *de_buf, *limit;
 	struct ocfs2_dir_entry *de;
 	struct buffer_head *dx_leaf_bh;
