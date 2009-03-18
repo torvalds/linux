@@ -1511,6 +1511,8 @@ static int tvaudio_g_ctrl(struct v4l2_subdev *sd,
 
 	switch (ctrl->id) {
 	case V4L2_CID_AUDIO_MUTE:
+		if (!(desc->flags & CHIP_HAS_INPUTSEL))
+			break;
 		ctrl->value=chip->muted;
 		return 0;
 	case V4L2_CID_AUDIO_VOLUME:
@@ -1552,6 +1554,9 @@ static int tvaudio_s_ctrl(struct v4l2_subdev *sd,
 
 	switch (ctrl->id) {
 	case V4L2_CID_AUDIO_MUTE:
+		if (!(desc->flags & CHIP_HAS_INPUTSEL))
+			break;
+
 		if (ctrl->value < 0 || ctrl->value >= 2)
 			return -ERANGE;
 		chip->muted = ctrl->value;
@@ -1636,7 +1641,9 @@ static int tvaudio_queryctrl(struct v4l2_subdev *sd, struct v4l2_queryctrl *qc)
 
 	switch (qc->id) {
 	case V4L2_CID_AUDIO_MUTE:
-		return v4l2_ctrl_query_fill(qc, 0, 1, 1, 0);
+		if (desc->flags & CHIP_HAS_INPUTSEL)
+			return v4l2_ctrl_query_fill(qc, 0, 1, 1, 0);
+		break;
 	case V4L2_CID_AUDIO_VOLUME:
 		if (desc->flags & CHIP_HAS_VOLUME)
 			return v4l2_ctrl_query_fill(qc, 0, 65535, 65535 / 100, 58880);
@@ -1661,7 +1668,9 @@ static int tvaudio_s_routing(struct v4l2_subdev *sd, const struct v4l2_routing *
 	struct CHIPSTATE *chip = to_state(sd);
 	struct CHIPDESC *desc = chip->desc;
 
-	if (!(desc->flags & CHIP_HAS_INPUTSEL) || rt->input >= 4)
+	if (!(desc->flags & CHIP_HAS_INPUTSEL))
+		return 0;
+	if (rt->input >= 4)
 		return -EINVAL;
 	/* There are four inputs: tuner, radio, extern and intern. */
 	chip->input = rt->input;
@@ -1678,8 +1687,11 @@ static int tvaudio_s_tuner(struct v4l2_subdev *sd, struct v4l2_tuner *vt)
 	struct CHIPDESC *desc = chip->desc;
 	int mode = 0;
 
+	if (!desc->setmode)
+		return 0;
 	if (chip->radio)
 		return 0;
+
 	switch (vt->audmode) {
 	case V4L2_TUNER_MODE_MONO:
 	case V4L2_TUNER_MODE_STEREO:
@@ -1695,7 +1707,7 @@ static int tvaudio_s_tuner(struct v4l2_subdev *sd, struct v4l2_tuner *vt)
 	}
 	chip->audmode = vt->audmode;
 
-	if (desc->setmode && mode) {
+	if (mode) {
 		chip->watch_stereo = 0;
 		/* del_timer(&chip->wt); */
 		chip->mode = mode;
@@ -1710,15 +1722,17 @@ static int tvaudio_g_tuner(struct v4l2_subdev *sd, struct v4l2_tuner *vt)
 	struct CHIPDESC *desc = chip->desc;
 	int mode = V4L2_TUNER_MODE_MONO;
 
+	if (!desc->getmode)
+		return 0;
 	if (chip->radio)
 		return 0;
+
 	vt->audmode = chip->audmode;
 	vt->rxsubchans = 0;
 	vt->capability = V4L2_TUNER_CAP_STEREO |
 		V4L2_TUNER_CAP_LANG1 | V4L2_TUNER_CAP_LANG2;
 
-	if (desc->getmode)
-		mode = desc->getmode(chip);
+	mode = desc->getmode(chip);
 
 	if (mode & V4L2_TUNER_MODE_MONO)
 		vt->rxsubchans |= V4L2_TUNER_SUB_MONO;
