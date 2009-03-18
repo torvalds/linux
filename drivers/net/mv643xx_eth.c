@@ -2030,11 +2030,6 @@ static void port_start(struct mv643xx_eth_private *mp)
 	}
 
 	/*
-	 * Add configured unicast address to address filter table.
-	 */
-	mv643xx_eth_program_unicast_filter(mp->dev);
-
-	/*
 	 * Receive all unmatched unicast, TCP, UDP, BPDU and broadcast
 	 * frames to RX queue #0, and include the pseudo-header when
 	 * calculating receive checksums.
@@ -2045,6 +2040,11 @@ static void port_start(struct mv643xx_eth_private *mp)
 	 * Treat BPDUs as normal multicasts, and disable partition mode.
 	 */
 	wrlp(mp, PORT_CONFIG_EXT, 0x00000000);
+
+	/*
+	 * Add configured unicast addresses to address filter table.
+	 */
+	mv643xx_eth_program_unicast_filter(mp->dev);
 
 	/*
 	 * Enable the receive queues.
