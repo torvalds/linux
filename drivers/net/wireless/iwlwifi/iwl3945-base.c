@@ -3773,15 +3773,19 @@ static int iwl3945_mac_config(struct ieee80211_hw *hw, u32 changed)
 	}
 #endif
 
-	if (conf->radio_enabled && iwl_radio_kill_sw_enable_radio(priv)) {
-		IWL_DEBUG_MAC80211(priv, "leave - RF-KILL - waiting for uCode\n");
-		goto out;
-	}
+	if (changed & IEEE80211_CONF_CHANGE_RADIO_ENABLED) {
+		if (conf->radio_enabled &&
+		    iwl_radio_kill_sw_enable_radio(priv)) {
+			IWL_DEBUG_MAC80211(priv, "leave - RF-KILL - "
+						 "waiting for uCode\n");
+			goto out;
+		}
 
-	if (!conf->radio_enabled) {
-		iwl_radio_kill_sw_disable_radio(priv);
-		IWL_DEBUG_MAC80211(priv, "leave - radio disabled\n");
-		goto out;
+		if (!conf->radio_enabled) {
+			iwl_radio_kill_sw_disable_radio(priv);
+			IWL_DEBUG_MAC80211(priv, "leave - radio disabled\n");
+			goto out;
+		}
 	}
 
 	if (iwl_is_rfkill(priv)) {
