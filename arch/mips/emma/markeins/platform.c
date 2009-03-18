@@ -141,13 +141,6 @@ static struct  platform_device serial_emma = {
 	},
 };
 
-static struct platform_device *devices[] = {
-	&i2c_emma_devices[0],
-	&i2c_emma_devices[1],
-	&i2c_emma_devices[2],
-	&serial_emma,
-};
-
 static struct mtd_partition markeins_parts[] = {
 	[0] = {
 		.name = "RootFS",
@@ -181,11 +174,39 @@ static struct mtd_partition markeins_parts[] = {
 	},
 };
 
+static struct physmap_flash_data markeins_flash_data = {
+	.width		= 2,
+	.nr_parts	= ARRAY_SIZE(markeins_parts),
+	.parts		= markeins_parts
+};
+
+static struct resource markeins_flash_resource = {
+	.start		= 0x1e000000,
+	.end		= 0x02000000,
+	.flags		= IORESOURCE_MEM
+};
+
+static struct platform_device markeins_flash_device = {
+	.name		= "physmap-flash",
+	.id		= 0,
+	.dev		= {
+        	.platform_data  = &markeins_flash_data,
+	},
+	.num_resources	= 1,
+	.resource	= &markeins_flash_resource,
+};
+
+static struct platform_device *devices[] = {
+	i2c_emma_devices,
+	i2c_emma_devices + 1,
+	i2c_emma_devices + 2,
+	&serial_emma,
+	&markeins_flash_device,
+};
+
 static int __init platform_devices_setup(void)
 {
-	physmap_set_partitions(markeins_parts, ARRAY_SIZE(markeins_parts));
 	return platform_add_devices(devices, ARRAY_SIZE(devices));
 }
 
 arch_initcall(platform_devices_setup);
-

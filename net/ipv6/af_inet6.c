@@ -1192,6 +1192,9 @@ module_init(inet6_init);
 
 static void __exit inet6_exit(void)
 {
+	if (disable_ipv6)
+		return;
+
 	/* First of all disallow new sockets creation. */
 	sock_unregister(PF_INET6);
 	/* Disallow any further netlink messages */

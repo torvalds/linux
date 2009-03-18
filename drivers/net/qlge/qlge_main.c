@@ -1436,18 +1436,32 @@ static void ql_process_mac_rx_intr(struct ql_adapter *qdev,
 	if (ib_mac_rsp->flags2 & IB_MAC_IOCB_RSP_P) {
 		QPRINTK(qdev, RX_STATUS, DEBUG, "Promiscuous Packet.\n");
 	}
-	if (ib_mac_rsp->flags1 & (IB_MAC_IOCB_RSP_IE | IB_MAC_IOCB_RSP_TE)) {
-		QPRINTK(qdev, RX_STATUS, ERR,
-			"Bad checksum for this %s packet.\n",
-			((ib_mac_rsp->
-			  flags2 & IB_MAC_IOCB_RSP_T) ? "TCP" : "UDP"));
-		skb->ip_summed = CHECKSUM_NONE;
-	} else if (qdev->rx_csum &&
-		   ((ib_mac_rsp->flags2 & IB_MAC_IOCB_RSP_T) ||
-		    ((ib_mac_rsp->flags2 & IB_MAC_IOCB_RSP_U) &&
-		     !(ib_mac_rsp->flags1 & IB_MAC_IOCB_RSP_NU)))) {
-		QPRINTK(qdev, RX_STATUS, DEBUG, "RX checksum done!\n");
-		skb->ip_summed = CHECKSUM_UNNECESSARY;
+
+	skb->protocol = eth_type_trans(skb, ndev);
+	skb->ip_summed = CHECKSUM_NONE;
+
+	/* If rx checksum is on, and there are no
+	 * csum or frame errors.
+	 */
+	if (qdev->rx_csum &&
+		!(ib_mac_rsp->flags2 & IB_MAC_IOCB_RSP_ERR_MASK) &&
+		!(ib_mac_rsp->flags1 & IB_MAC_CSUM_ERR_MASK)) {
+		/* TCP frame. */
+		if (ib_mac_rsp->flags2 & IB_MAC_IOCB_RSP_T) {
+			QPRINTK(qdev, RX_STATUS, DEBUG,
+					"TCP checksum done!\n");
+			skb->ip_summed = CHECKSUM_UNNECESSARY;
+		} else if ((ib_mac_rsp->flags2 & IB_MAC_IOCB_RSP_U) &&
+				(ib_mac_rsp->flags3 & IB_MAC_IOCB_RSP_V4)) {
+		/* Unfragmented ipv4 UDP frame. */
+			struct iphdr *iph = (struct iphdr *) skb->data;
+			if (!(iph->frag_off &
+				cpu_to_be16(IP_MF|IP_OFFSET))) {
+				skb->ip_summed = CHECKSUM_UNNECESSARY;
+				QPRINTK(qdev, RX_STATUS, DEBUG,
+						"TCP checksum done!\n");
+			}
+		}
 	}
 	qdev->stats.rx_packets++;
 	qdev->stats.rx_bytes += skb->len;
@@ -1926,6 +1940,9 @@ static int qlge_send(struct sk_buff *skb, struct net_device *ndev)
 	u32 tx_ring_idx = (u32) QL_TXQ_IDX(qdev, skb);
 
 	tx_ring = &qdev->tx_ring[tx_ring_idx];
+
+	if (skb_padto(skb, ETH_ZLEN))
+		return NETDEV_TX_OK;
 
 	if (unlikely(atomic_read(&tx_ring->tx_count) < 2)) {
 		QPRINTK(qdev, TX_QUEUED, INFO,
@@ -2970,9 +2987,9 @@ static int ql_adapter_initialize(struct ql_adapter *qdev)
 	mask = value << 16;
 	ql_write32(qdev, SYS, mask | value);
 
-	/* Set the default queue. */
-	value = NIC_RCV_CFG_DFQ;
-	mask = NIC_RCV_CFG_DFQ_MASK;
+	/* Set the default queue, and VLAN behavior. */
+	value = NIC_RCV_CFG_DFQ | NIC_RCV_CFG_RV;
+	mask = NIC_RCV_CFG_DFQ_MASK | (NIC_RCV_CFG_RV << 16);
 	ql_write32(qdev, NIC_RCV_CFG, (mask | value));
 
 	/* Set the MPI interrupt to enabled. */
@@ -3148,6 +3165,11 @@ static int ql_adapter_down(struct ql_adapter *qdev)
 	ql_disable_interrupts(qdev);
 
 	ql_tx_ring_clean(qdev);
+
+	/* Call netif_napi_del() from common point.
+	 */
+	for (i = qdev->rss_ring_first_cq_id; i < qdev->rx_ring_count; i++)
+		netif_napi_del(&qdev->rx_ring[i].napi);
 
 	spin_lock(&qdev->hw_lock);
 	status = ql_adapter_reset(qdev);
@@ -3853,7 +3875,7 @@ static int qlge_suspend(struct pci_dev *pdev, pm_message_t state)
 {
 	struct net_device *ndev = pci_get_drvdata(pdev);
 	struct ql_adapter *qdev = netdev_priv(ndev);
-	int err, i;
+	int err;
 
 	netif_device_detach(ndev);
 
@@ -3862,9 +3884,6 @@ static int qlge_suspend(struct pci_dev *pdev, pm_message_t state)
 		if (!err)
 			return err;
 	}
-
-	for (i = qdev->rss_ring_first_cq_id; i < qdev->rx_ring_count; i++)
-		netif_napi_del(&qdev->rx_ring[i].napi);
 
 	err = pci_save_state(pdev);
 	if (err)

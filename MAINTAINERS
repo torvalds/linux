@@ -3350,10 +3350,8 @@ S:	Maintained
 PARISC ARCHITECTURE
 P:	Kyle McMartin
 M:	kyle@mcmartin.ca
-P:	Matthew Wilcox
-M:	matthew@wil.cx
-P:	Grant Grundler
-M:	grundler@parisc-linux.org
+P:	Helge Deller
+M:	deller@gmx.de
 L:	linux-parisc@vger.kernel.org
 W:	http://www.parisc-linux.org/
 T:	git kernel.org:/pub/scm/linux/kernel/git/kyle/parisc-2.6.git
@@ -3877,6 +3875,15 @@ M:	jgarzik@pobox.com
 L:	linux-ide@vger.kernel.org
 T:	git kernel.org:/pub/scm/linux/kernel/git/jgarzik/libata-dev.git
 S:	Supported
+
+SERVER ENGINES 10Gbps NIC - BladeEngine 2 DRIVER
+P:	Sathya Perla
+M:	sathyap@serverengines.com
+P:      Subbu Seetharaman
+M:      subbus@serverengines.com
+L:      netdev@vger.kernel.org
+W:      http://www.serverengines.com
+S:      Supported
 
 SFC NETWORK DRIVER
 P:	Steve Hodgson
