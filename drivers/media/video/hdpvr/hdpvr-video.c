@@ -524,56 +524,13 @@ static unsigned int hdpvr_poll(struct file *filp, poll_table *wait)
 }
 
 
-static long hdpvr_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
-{
-	struct hdpvr_fh *fh = (struct hdpvr_fh *)filp->private_data;
-	struct hdpvr_device *dev = fh->dev;
-	int res;
-
-	if (video_is_unregistered(dev->video_dev))
-		return -EIO;
-
-	mutex_lock(&dev->io_mutex);
-	switch (cmd) {
-	case VIDIOC_TRY_ENCODER_CMD:
-	case VIDIOC_ENCODER_CMD: {
-		struct v4l2_encoder_cmd *enc = (struct v4l2_encoder_cmd *)arg;
-		int try = cmd == VIDIOC_TRY_ENCODER_CMD;
-
-		memset(&enc->raw, 0, sizeof(enc->raw));
-		switch (enc->cmd) {
-		case V4L2_ENC_CMD_START:
-			enc->flags = 0;
-			if (try)
-				return 0;
-			res = hdpvr_start_streaming(dev);
-			break;
-		case V4L2_ENC_CMD_STOP:
-			if (try)
-				return 0;
-			res = hdpvr_stop_streaming(dev);
-			break;
-		default:
-			v4l2_dbg(MSG_INFO, hdpvr_debug, dev->video_dev,
-				 "Unsupported encoder cmd %d\n", enc->cmd);
-			return -EINVAL;
-		}
-		break;
-	}
-	default:
-		res = video_ioctl2(filp, cmd, arg);
-	}
-	mutex_unlock(&dev->io_mutex);
-	return res;
-}
-
 static const struct v4l2_file_operations hdpvr_fops = {
 	.owner		= THIS_MODULE,
 	.open		= hdpvr_open,
 	.release	= hdpvr_release,
 	.read		= hdpvr_read,
 	.poll		= hdpvr_poll,
-	.unlocked_ioctl	= hdpvr_ioctl,
+	.unlocked_ioctl	= video_ioctl2,
 };
 
 /*=======================================================================*/
@@ -1163,6 +1120,44 @@ static int vidioc_g_fmt_vid_cap(struct file *file, void *private_data,
 	return 0;
 }
 
+static int vidioc_encoder_cmd(struct file *filp, void *priv,
+			       struct v4l2_encoder_cmd *a)
+{
+	struct hdpvr_fh *fh = filp->private_data;
+	struct hdpvr_device *dev = fh->dev;
+	int res;
+
+	mutex_lock(&dev->io_mutex);
+
+	memset(&a->raw, 0, sizeof(a->raw));
+	switch (a->cmd) {
+	case V4L2_ENC_CMD_START:
+		a->flags = 0;
+		res = hdpvr_start_streaming(dev);
+		break;
+	case V4L2_ENC_CMD_STOP:
+		res = hdpvr_stop_streaming(dev);
+		break;
+	default:
+		v4l2_dbg(MSG_INFO, hdpvr_debug, dev->video_dev,
+			 "Unsupported encoder cmd %d\n", a->cmd);
+		return -EINVAL;
+	}
+	mutex_unlock(&dev->io_mutex);
+	return res;
+}
+
+static int vidioc_try_encoder_cmd(struct file *filp, void *priv,
+					struct v4l2_encoder_cmd *a)
+{
+	switch (a->cmd) {
+	case V4L2_ENC_CMD_START:
+	case V4L2_ENC_CMD_STOP:
+		return 0;
+	default:
+		return -EINVAL;
+	}
+}
 
 static const struct v4l2_ioctl_ops hdpvr_ioctl_ops = {
 	.vidioc_querycap	= vidioc_querycap,
@@ -1181,6 +1176,8 @@ static const struct v4l2_ioctl_ops hdpvr_ioctl_ops = {
 	.vidioc_try_ext_ctrls	= vidioc_try_ext_ctrls,
 	.vidioc_enum_fmt_vid_cap	= vidioc_enum_fmt_vid_cap,
 	.vidioc_g_fmt_vid_cap		= vidioc_g_fmt_vid_cap,
+	.vidioc_encoder_cmd	= vidioc_encoder_cmd,
+	.vidioc_try_encoder_cmd	= vidioc_try_encoder_cmd,
 };
 
 static void hdpvr_device_release(struct video_device *vdev)
