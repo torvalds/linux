@@ -251,6 +251,8 @@ int snd_usb_caiaq_set_audio_params (struct snd_usb_caiaqdev *dev,
 		
 	if (dev->audio_parm_answer != 1) 
 		debug("unable to set the device's audio params\n");
+	else
+		dev->bpp = bpp;
 
 	return dev->audio_parm_answer == 1 ? 0 : -EINVAL;
 }

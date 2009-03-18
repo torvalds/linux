@@ -377,6 +377,9 @@ static void read_in_urb_mode2(struct snd_usb_caiaqdev *dev,
 
 		for (stream = 0; stream < dev->n_streams; stream++, i++) {
 			sub = dev->sub_capture[stream];
+			if (dev->input_panic)
+				usb_buf[i] = 0;
+
 			if (sub) {
 				struct snd_pcm_runtime *rt = sub->runtime;
 				char *audio_buf = rt->dma_area;
@@ -396,6 +399,9 @@ static void read_in_urb(struct snd_usb_caiaqdev *dev,
 			const struct usb_iso_packet_descriptor *iso)
 {
 	if (!dev->streaming)
+		return;
+
+	if (iso->actual_length < dev->bpp)
 		return;
 
 	switch (dev->spec.data_alignment) {

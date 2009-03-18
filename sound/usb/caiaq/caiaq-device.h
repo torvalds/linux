@@ -91,7 +91,7 @@ struct snd_usb_caiaqdev {
 	int period_out_count[MAX_STREAMS];
 	int input_panic, output_panic, warned;
 	char *audio_in_buf, *audio_out_buf;
-	unsigned int samplerates;
+	unsigned int samplerates, bpp;
 
 	struct snd_pcm_substream *sub_playback[MAX_STREAMS];
 	struct snd_pcm_substream *sub_capture[MAX_STREAMS];
