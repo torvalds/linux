@@ -303,7 +303,7 @@ retry_loop:
 		outb(3, 0x22);
 	} else if ((pr != NULL) && pr->flags.bm_control) {
 		/* Disable bus master arbitration */
-		acpi_set_register(ACPI_BITREG_ARB_DISABLE, 1);
+		acpi_write_bit_register(ACPI_BITREG_ARB_DISABLE, 1);
 	}
 	switch (longhaul_version) {
 
@@ -326,7 +326,7 @@ retry_loop:
 	case TYPE_POWERSAVER:
 		if (longhaul_flags & USE_ACPI_C3) {
 			/* Don't allow wakeup */
-			acpi_set_register(ACPI_BITREG_BUS_MASTER_RLD, 0);
+			acpi_write_bit_register(ACPI_BITREG_BUS_MASTER_RLD, 0);
 			do_powersaver(cx->address, clock_ratio_index, dir);
 		} else {
 			do_powersaver(0, clock_ratio_index, dir);
@@ -339,7 +339,7 @@ retry_loop:
 		outb(0, 0x22);
 	} else if ((pr != NULL) && pr->flags.bm_control) {
 		/* Enable bus master arbitration */
-		acpi_set_register(ACPI_BITREG_ARB_DISABLE, 0);
+		acpi_write_bit_register(ACPI_BITREG_ARB_DISABLE, 0);
 	}
 	outb(pic2_mask,0xA1);	/* restore mask */
 	outb(pic1_mask,0x21);
