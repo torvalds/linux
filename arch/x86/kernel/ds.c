@@ -255,8 +255,13 @@ static inline struct ds_context *ds_get_context(struct task_struct *task)
 	struct ds_context *new_context = NULL;
 	unsigned long irq;
 
-	/* Chances are small that we already have a context. */
-	new_context = kzalloc(sizeof(*new_context), GFP_KERNEL);
+	/*
+	 * Chances are small that we already have a context.
+	 *
+	 * Contexts for per-cpu tracing are allocated using
+	 * smp_call_function(). We must not sleep.
+	 */
+	new_context = kzalloc(sizeof(*new_context), GFP_ATOMIC);
 	if (!new_context)
 		return NULL;
 
@@ -662,8 +667,12 @@ struct bts_tracer *ds_request_bts(struct task_struct *task,
 	if (ovfl)
 		goto out;
 
+	/*
+	 * Per-cpu tracing is typically requested using smp_call_function().
+	 * We must not sleep.
+	 */
 	error = -ENOMEM;
-	tracer = kzalloc(sizeof(*tracer), GFP_KERNEL);
+	tracer = kzalloc(sizeof(*tracer), GFP_ATOMIC);
 	if (!tracer)
 		goto out;
 	tracer->ovfl = ovfl;
@@ -722,8 +731,12 @@ struct pebs_tracer *ds_request_pebs(struct task_struct *task,
 	if (ovfl)
 		goto out;
 
+	/*
+	 * Per-cpu tracing is typically requested using smp_call_function().
+	 * We must not sleep.
+	 */
 	error = -ENOMEM;
-	tracer = kzalloc(sizeof(*tracer), GFP_KERNEL);
+	tracer = kzalloc(sizeof(*tracer), GFP_ATOMIC);
 	if (!tracer)
 		goto out;
 	tracer->ovfl = ovfl;
