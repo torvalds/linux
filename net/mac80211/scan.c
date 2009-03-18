@@ -409,6 +409,19 @@ int ieee80211_start_scan(struct ieee80211_sub_if_data *scan_sdata,
 		return 0;
 	}
 
+	/*
+	 * Hardware/driver doesn't support hw_scan, so use software
+	 * scanning instead. First send a nullfunc frame with power save
+	 * bit on so that AP will buffer the frames for us while we are not
+	 * listening, then send probe requests to each channel and wait for
+	 * the responses. After all channels are scanned, tune back to the
+	 * original channel and send a nullfunc frame with power save bit
+	 * off to trigger the AP to send us all the buffered frames.
+	 *
+	 * Note that while local->sw_scanning is true everything else but
+	 * nullfunc frames and probe requests will be dropped in
+	 * ieee80211_tx_h_check_assoc().
+	 */
 	local->sw_scanning = true;
 	if (local->ops->sw_scan_start)
 		local->ops->sw_scan_start(local_to_hw(local));
