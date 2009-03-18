@@ -50,7 +50,7 @@ void set_pte_vaddr(unsigned long vaddr, pte_t pteval)
 	}
 	pte = pte_offset_kernel(pmd, vaddr);
 	if (pte_val(pteval))
-		set_pte_present(&init_mm, vaddr, pte, pteval);
+		set_pte_at(&init_mm, vaddr, pte, pteval);
 	else
 		pte_clear(&init_mm, vaddr, pte);
 
