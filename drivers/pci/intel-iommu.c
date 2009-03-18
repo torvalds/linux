@@ -3158,6 +3158,17 @@ static phys_addr_t intel_iommu_iova_to_phys(struct iommu_domain *domain,
 	return phys;
 }
 
+static int intel_iommu_domain_has_cap(struct iommu_domain *domain,
+				      unsigned long cap)
+{
+	struct dmar_domain *dmar_domain = domain->priv;
+
+	if (cap == IOMMU_CAP_CACHE_COHERENCY)
+		return dmar_domain->iommu_snooping;
+
+	return 0;
+}
+
 static struct iommu_ops intel_iommu_ops = {
 	.domain_init	= intel_iommu_domain_init,
 	.domain_destroy = intel_iommu_domain_destroy,
@@ -3166,6 +3177,7 @@ static struct iommu_ops intel_iommu_ops = {
 	.map		= intel_iommu_map_range,
 	.unmap		= intel_iommu_unmap_range,
 	.iova_to_phys	= intel_iommu_iova_to_phys,
+	.domain_has_cap = intel_iommu_domain_has_cap,
 };
 
 static void __devinit quirk_iommu_rwbf(struct pci_dev *dev)
