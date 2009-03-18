@@ -33,6 +33,7 @@
 #include <linux/math64.h>
 
 #include <mach/imxfb.h>
+#include <mach/hardware.h>
 
 /*
  * Complain if VAR is out of range.
@@ -530,8 +531,24 @@ static int imxfb_activate_var(struct fb_var_screeninfo *var, struct fb_info *inf
 				lcd_clk / pcr);
 	}
 
+	switch (var->bits_per_pixel) {
+	case 32:
+		pcr |= PCR_BPIX_18;
+		break;
+	case 16:
+	default:
+		if (cpu_is_mx1())
+			pcr |= PCR_BPIX_12;
+		else
+			pcr |= PCR_BPIX_16;
+		break;
+	case 8:
+		pcr |= PCR_BPIX_8;
+		break;
+	}
+
 	/* add sync polarities */
-	pcr |= fbi->pcr & ~0x3F;
+	pcr |= fbi->pcr & ~(0x3f | (7 << 25));
 
 	writel(pcr, fbi->regs + LCDC_PCR);
 	writel(fbi->pwmr, fbi->regs + LCDC_PWMR);
