@@ -114,6 +114,7 @@ static int stream_start(struct snd_usb_caiaqdev *dev)
 	dev->output_panic = 0;
 	dev->first_packet = 1;
 	dev->streaming = 1;
+	dev->warned = 0;
 
 	for (i = 0; i < N_URBS; i++) {
 		ret = usb_submit_urb(dev->data_urbs_in[i], GFP_ATOMIC);
@@ -406,10 +407,11 @@ static void read_in_urb(struct snd_usb_caiaqdev *dev,
 		break;
 	}
 
-	if (dev->input_panic || dev->output_panic) {
+	if ((dev->input_panic || dev->output_panic) && !dev->warned) {
 		debug("streaming error detected %s %s\n", 
 				dev->input_panic ? "(input)" : "",
 				dev->output_panic ? "(output)" : "");
+		dev->warned = 1;
 	}
 }
 
