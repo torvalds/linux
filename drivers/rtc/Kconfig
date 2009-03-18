@@ -509,6 +509,15 @@ config RTC_DRV_M48T59
 	  This driver can also be built as a module, if so, the module
 	  will be called "rtc-m48t59".
 
+config RTC_DRV_MSM6242
+	tristate "Oki MSM6242"
+	help
+	  If you say yes here you get support for the Oki MSM6242
+	  timekeeping chip. It is used in some Amiga models (e.g. A2000).
+
+	  This driver can also be built as a module. If so, the module
+	  will be called rtc-msm6242.
+
 config RTC_MXC
 	tristate "Freescale MXC Real Time Clock"
 	depends on ARCH_MXC
