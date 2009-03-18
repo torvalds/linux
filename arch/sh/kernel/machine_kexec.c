@@ -110,23 +110,22 @@ void machine_kexec(struct kimage *image)
 	memcpy((void *)reboot_code_buffer, relocate_new_kernel,
 						relocate_new_kernel_size);
 
-        kexec_info(image);
+	kexec_info(image);
 	flush_cache_all();
 
-	set_bl_bit();
 #if defined(CONFIG_SH_STANDARD_BIOS)
 	asm volatile("ldc %0, vbr" :
 		     : "r" (((unsigned long) gdb_vbr_vector) - 0x100)
 		     : "memory");
 #endif
+
 	/* now call it */
 	rnk = (relocate_new_kernel_t) reboot_code_buffer;
 	(*rnk)(page_list, reboot_code_buffer, image->start);
 
 #ifdef CONFIG_KEXEC_JUMP
 	asm volatile("ldc %0, vbr" : : "r" (&vbr_base) : "memory");
-	local_irq_disable();
-	clear_bl_bit();
+
 	if (image->preserve_context)
 		restore_processor_state();
 
