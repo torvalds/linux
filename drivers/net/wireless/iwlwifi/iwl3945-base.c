@@ -485,14 +485,14 @@ static int iwl3945_set_ccmp_dynamic_key_info(struct iwl_priv *priv,
 	memcpy(priv->stations_39[sta_id].sta.key.key, keyconf->key,
 	       keyconf->keylen);
 
-	if ((priv->stations[sta_id].sta.key.key_flags & STA_KEY_FLG_ENCRYPT_MSK)
+	if ((priv->stations_39[sta_id].sta.key.key_flags & STA_KEY_FLG_ENCRYPT_MSK)
 			== STA_KEY_FLG_NO_ENC)
-		priv->stations[sta_id].sta.key.key_offset =
+		priv->stations_39[sta_id].sta.key.key_offset =
 				 iwl_get_free_ucode_key_index(priv);
 	/* else, we are overriding an existing key => no need to allocated room
 	* in uCode. */
 
-	WARN(priv->stations[sta_id].sta.key.key_offset == WEP_INVALID_OFFSET,
+	WARN(priv->stations_39[sta_id].sta.key.key_offset == WEP_INVALID_OFFSET,
 		"no space for a new key");
 
 	priv->stations_39[sta_id].sta.key.key_flags = key_flags;
