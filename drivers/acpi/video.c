@@ -162,6 +162,7 @@ struct acpi_video_device_cap {
 	u8 _BCL:1;		/*Query list of brightness control levels supported */
 	u8 _BCM:1;		/*Set the brightness level */
 	u8 _BQC:1;		/* Get current brightness level */
+	u8 _BCQ:1;		/* Some buggy BIOS uses _BCQ instead of _BQC */
 	u8 _DDC:1;		/*Return the EDID for this device */
 	u8 _DCS:1;		/*Return status of output device */
 	u8 _DGS:1;		/*Query graphics state */
@@ -523,8 +524,10 @@ acpi_video_device_lcd_get_level_current(struct acpi_video_device *device,
 {
 	acpi_status status = AE_OK;
 
-	if (device->cap._BQC) {
-		status = acpi_evaluate_integer(device->dev->handle, "_BQC",
+	if (device->cap._BQC || device->cap._BCQ) {
+		char *buf = device->cap._BQC ? "_BQC" : "_BCQ";
+
+		status = acpi_evaluate_integer(device->dev->handle, buf,
 						NULL, level);
 		if (ACPI_SUCCESS(status)) {
 			if (device->brightness->flags._BQC_use_index) {
@@ -544,8 +547,8 @@ acpi_video_device_lcd_get_level_current(struct acpi_video_device *device,
 			 * ACPI video backlight still works w/ buggy _BQC.
 			 * http://bugzilla.kernel.org/show_bug.cgi?id=12233
 			 */
-			ACPI_WARNING((AE_INFO, "Evaluating _BQC failed"));
-			device->cap._BQC = 0;
+			ACPI_WARNING((AE_INFO, "Evaluating %s failed", buf));
+			device->cap._BQC = device->cap._BCQ = 0;
 		}
 	}
 
@@ -861,6 +864,12 @@ static void acpi_video_device_find_cap(struct acpi_video_device *device)
 	}
 	if (ACPI_SUCCESS(acpi_get_handle(device->dev->handle,"_BQC",&h_dummy1)))
 		device->cap._BQC = 1;
+	else if (ACPI_SUCCESS(acpi_get_handle(device->dev->handle, "_BCQ",
+				&h_dummy1))) {
+		printk(KERN_WARNING FW_BUG "_BCQ is used instead of _BQC\n");
+		device->cap._BCQ = 1;
+	}
+
 	if (ACPI_SUCCESS(acpi_get_handle(device->dev->handle, "_DDC", &h_dummy1))) {
 		device->cap._DDC = 1;
 	}
