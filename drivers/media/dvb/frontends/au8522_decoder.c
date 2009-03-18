@@ -47,14 +47,11 @@ MODULE_LICENSE("GPL");
 
 static int au8522_analog_debug;
 
-static unsigned short normal_i2c[] = { 0x8e >> 1, I2C_CLIENT_END };
 
 module_param_named(analog_debug, au8522_analog_debug, int, 0644);
 
 MODULE_PARM_DESC(analog_debug,
 		 "Analog debugging messages [0=Off (default) 1=On]");
-
-I2C_CLIENT_INSMOD;
 
 struct au8522_register_config {
 	u16 reg_name;
