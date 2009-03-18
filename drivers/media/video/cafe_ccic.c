@@ -148,7 +148,8 @@ struct cafe_camera
 	struct pci_dev *pdev;
 	struct video_device vdev;
 	struct i2c_adapter i2c_adapter;
-	struct i2c_client *sensor;
+	struct v4l2_subdev *sensor;
+	unsigned short sensor_addr;
 
 	unsigned char __iomem *regs;
 	struct list_head dev_list;	/* link to other devices */
@@ -196,6 +197,8 @@ struct cafe_camera
 #define CF_DMA_ACTIVE	 3	/* A frame is incoming */
 #define CF_CONFIG_NEEDED 4	/* Must configure hardware */
 
+#define sensor_call(cam, o, f, args...) \
+	v4l2_subdev_call(cam->sensor, o, f, ##args)
 
 static inline struct cafe_camera *to_cam(struct v4l2_device *dev)
 {
@@ -440,14 +443,6 @@ static int cafe_smbus_xfer(struct i2c_adapter *adapter, u16 addr,
 	int ret = -EINVAL;
 
 	/*
-	 * Refuse to talk to anything but OV cam chips.  We should
-	 * never even see an attempt to do so, but one never knows.
-	 */
-	if (cam->sensor && addr != cam->sensor->addr) {
-		cam_err(cam, "funky smbus addr %d\n", addr);
-		return -EINVAL;
-	}
-	/*
 	 * This interface would appear to only do byte data ops.  OK
 	 * it can do word too, but the cam chip has no use for that.
 	 */
@@ -485,39 +480,8 @@ static struct i2c_algorithm cafe_smbus_algo = {
 };
 
 /* Somebody is on the bus */
-static int cafe_cam_init(struct cafe_camera *cam);
 static void cafe_ctlr_stop_dma(struct cafe_camera *cam);
 static void cafe_ctlr_power_down(struct cafe_camera *cam);
-
-static int cafe_smbus_attach(struct i2c_client *client)
-{
-	struct v4l2_device *v4l2_dev = i2c_get_adapdata(client->adapter);
-	struct cafe_camera *cam = to_cam(v4l2_dev);
-
-	/*
-	 * Don't talk to chips we don't recognize.
-	 */
-	if (client->driver->id == I2C_DRIVERID_OV7670) {
-		cam->sensor = client;
-		return cafe_cam_init(cam);
-	}
-	return -EINVAL;
-}
-
-static int cafe_smbus_detach(struct i2c_client *client)
-{
-	struct v4l2_device *v4l2_dev = i2c_get_adapdata(client->adapter);
-	struct cafe_camera *cam = to_cam(v4l2_dev);
-
-	if (cam->sensor == client) {
-		cafe_ctlr_stop_dma(cam);
-		cafe_ctlr_power_down(cam);
-		cam_err(cam, "lost the sensor!\n");
-		cam->sensor = NULL;  /* Bummer, no camera */
-		cam->state = S_NOTREADY;
-	}
-	return 0;
-}
 
 static int cafe_smbus_setup(struct cafe_camera *cam)
 {
@@ -527,8 +491,6 @@ static int cafe_smbus_setup(struct cafe_camera *cam)
 	cafe_smbus_enable_irq(cam);
 	adap->id = I2C_HW_SMBUS_CAFE;
 	adap->owner = THIS_MODULE;
-	adap->client_register = cafe_smbus_attach;
-	adap->client_unregister = cafe_smbus_detach;
 	adap->algo = &cafe_smbus_algo;
 	strcpy(adap->name, "cafe_ccic");
 	adap->dev.parent = &cam->pdev->dev;
@@ -790,23 +752,9 @@ static void cafe_ctlr_power_down(struct cafe_camera *cam)
  * Communications with the sensor.
  */
 
-static int __cafe_cam_cmd(struct cafe_camera *cam, int cmd, void *arg)
-{
-	struct i2c_client *sc = cam->sensor;
-	int ret;
-
-	if (sc == NULL || sc->driver == NULL || sc->driver->command == NULL)
-		return -EINVAL;
-	ret = sc->driver->command(sc, cmd, arg);
-	if (ret == -EPERM) /* Unsupported command */
-		return 0;
-	return ret;
-}
-
 static int __cafe_cam_reset(struct cafe_camera *cam)
 {
-	int zero = 0;
-	return __cafe_cam_cmd(cam, VIDIOC_INT_RESET, &zero);
+	return sensor_call(cam, core, reset, 0);
 }
 
 /*
@@ -826,14 +774,13 @@ static int cafe_cam_init(struct cafe_camera *cam)
 	if (ret)
 		goto out;
 	chip.match.type = V4L2_CHIP_MATCH_I2C_ADDR;
-	chip.match.addr = cam->sensor->addr;
-	ret = __cafe_cam_cmd(cam, VIDIOC_DBG_G_CHIP_IDENT, &chip);
+	chip.match.addr = cam->sensor_addr;
+	ret = sensor_call(cam, core, g_chip_ident, &chip);
 	if (ret)
 		goto out;
 	cam->sensor_type = chip.ident;
-/*	if (cam->sensor->addr != OV7xx0_SID) { */
 	if (cam->sensor_type != V4L2_IDENT_OV7670) {
-		cam_err(cam, "Unsupported sensor type %d", cam->sensor->addr);
+		cam_err(cam, "Unsupported sensor type 0x%x", cam->sensor_type);
 		ret = -EINVAL;
 		goto out;
 	}
@@ -857,21 +804,21 @@ static int cafe_cam_set_flip(struct cafe_camera *cam)
 	memset(&ctrl, 0, sizeof(ctrl));
 	ctrl.id = V4L2_CID_VFLIP;
 	ctrl.value = flip;
-	return __cafe_cam_cmd(cam, VIDIOC_S_CTRL, &ctrl);
+	return sensor_call(cam, core, s_ctrl, &ctrl);
 }
 
 
 static int cafe_cam_configure(struct cafe_camera *cam)
 {
 	struct v4l2_format fmt;
-	int ret, zero = 0;
+	int ret;
 
 	if (cam->state != S_IDLE)
 		return -EINVAL;
 	fmt.fmt.pix = cam->pix_format;
-	ret = __cafe_cam_cmd(cam, VIDIOC_INT_INIT, &zero);
+	ret = sensor_call(cam, core, init, 0);
 	if (ret == 0)
-		ret = __cafe_cam_cmd(cam, VIDIOC_S_FMT, &fmt);
+		ret = sensor_call(cam, video, s_fmt, &fmt);
 	/*
 	 * OV7670 does weird things if flip is set *before* format...
 	 */
@@ -1490,7 +1437,7 @@ static int cafe_vidioc_queryctrl(struct file *filp, void *priv,
 	int ret;
 
 	mutex_lock(&cam->s_mutex);
-	ret = __cafe_cam_cmd(cam, VIDIOC_QUERYCTRL, qc);
+	ret = sensor_call(cam, core, queryctrl, qc);
 	mutex_unlock(&cam->s_mutex);
 	return ret;
 }
@@ -1503,7 +1450,7 @@ static int cafe_vidioc_g_ctrl(struct file *filp, void *priv,
 	int ret;
 
 	mutex_lock(&cam->s_mutex);
-	ret = __cafe_cam_cmd(cam, VIDIOC_G_CTRL, ctrl);
+	ret = sensor_call(cam, core, g_ctrl, ctrl);
 	mutex_unlock(&cam->s_mutex);
 	return ret;
 }
@@ -1516,7 +1463,7 @@ static int cafe_vidioc_s_ctrl(struct file *filp, void *priv,
 	int ret;
 
 	mutex_lock(&cam->s_mutex);
-	ret = __cafe_cam_cmd(cam, VIDIOC_S_CTRL, ctrl);
+	ret = sensor_call(cam, core, s_ctrl, ctrl);
 	mutex_unlock(&cam->s_mutex);
 	return ret;
 }
@@ -1558,7 +1505,7 @@ static int cafe_vidioc_enum_fmt_vid_cap(struct file *filp,
 	if (fmt->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
 	mutex_lock(&cam->s_mutex);
-	ret = __cafe_cam_cmd(cam, VIDIOC_ENUM_FMT, fmt);
+	ret = sensor_call(cam, video, enum_fmt, fmt);
 	mutex_unlock(&cam->s_mutex);
 	return ret;
 }
@@ -1571,7 +1518,7 @@ static int cafe_vidioc_try_fmt_vid_cap(struct file *filp, void *priv,
 	int ret;
 
 	mutex_lock(&cam->s_mutex);
-	ret = __cafe_cam_cmd(cam, VIDIOC_TRY_FMT, fmt);
+	ret = sensor_call(cam, video, try_fmt, fmt);
 	mutex_unlock(&cam->s_mutex);
 	return ret;
 }
@@ -1680,7 +1627,7 @@ static int cafe_vidioc_g_parm(struct file *filp, void *priv,
 	int ret;
 
 	mutex_lock(&cam->s_mutex);
-	ret = __cafe_cam_cmd(cam, VIDIOC_G_PARM, parms);
+	ret = sensor_call(cam, video, g_parm, parms);
 	mutex_unlock(&cam->s_mutex);
 	parms->parm.capture.readbuffers = n_dma_bufs;
 	return ret;
@@ -1693,7 +1640,7 @@ static int cafe_vidioc_s_parm(struct file *filp, void *priv,
 	int ret;
 
 	mutex_lock(&cam->s_mutex);
-	ret = __cafe_cam_cmd(cam, VIDIOC_S_PARM, parms);
+	ret = sensor_call(cam, video, s_parm, parms);
 	mutex_unlock(&cam->s_mutex);
 	parms->parm.capture.readbuffers = n_dma_bufs;
 	return ret;
@@ -1973,7 +1920,7 @@ static ssize_t cafe_dfs_read_cam(struct file *file,
 	{
 		u8 v;
 
-		cafe_smbus_read_data(cam, cam->sensor->addr, offset, &v);
+		cafe_smbus_read_data(cam, cam->sensor_addr, offset, &v);
 		s += sprintf(s, "%02x: %02x\n", offset, v);
 	}
 	return simple_read_from_buffer(buf, count, ppos, cafe_debug_buf,
@@ -2089,6 +2036,18 @@ static int cafe_pci_probe(struct pci_dev *pdev,
 	ret = cafe_smbus_setup(cam);
 	if (ret)
 		goto out_freeirq;
+
+	cam->sensor_addr = 0x42;
+	cam->sensor = v4l2_i2c_new_subdev(&cam->i2c_adapter,
+			"ov7670", "ov7670", cam->sensor_addr);
+	if (cam->sensor == NULL) {
+		ret = -ENODEV;
+		goto out_smbus;
+	}
+	ret = cafe_cam_init(cam);
+	if (ret)
+		goto out_smbus;
+
 	/*
 	 * Get the v4l2 setup done.
 	 */
@@ -2263,7 +2222,6 @@ static int __init cafe_init(void)
 		printk(KERN_ERR "Unable to register cafe_ccic driver\n");
 		goto out;
 	}
-	request_module("ov7670");  /* FIXME want something more general */
 	ret = 0;
 
   out:
