@@ -1941,8 +1941,13 @@ int tracing_open_generic(struct inode *inode, struct file *filp)
 static int tracing_release(struct inode *inode, struct file *file)
 {
 	struct seq_file *m = (struct seq_file *)file->private_data;
-	struct trace_iterator *iter = m->private;
+	struct trace_iterator *iter;
 	int cpu;
+
+	if (!(file->f_mode & FMODE_READ))
+		return 0;
+
+	iter = m->private;
 
 	mutex_lock(&trace_types_lock);
 	for_each_tracing_cpu(cpu) {
@@ -1969,12 +1974,24 @@ static int tracing_open(struct inode *inode, struct file *file)
 	struct trace_iterator *iter;
 	int ret = 0;
 
-	iter = __tracing_open(inode, file);
-	if (IS_ERR(iter))
-		ret = PTR_ERR(iter);
-	else if (trace_flags & TRACE_ITER_LATENCY_FMT)
-		iter->iter_flags |= TRACE_FILE_LAT_FMT;
+	/* If this file was open for write, then erase contents */
+	if ((file->f_mode & FMODE_WRITE) &&
+	    !(file->f_flags & O_APPEND)) {
+		long cpu = (long) inode->i_private;
 
+		if (cpu == TRACE_PIPE_ALL_CPU)
+			tracing_reset_online_cpus(&global_trace);
+		else
+			tracing_reset(&global_trace, cpu);
+	}
+
+	if (file->f_mode & FMODE_READ) {
+		iter = __tracing_open(inode, file);
+		if (IS_ERR(iter))
+			ret = PTR_ERR(iter);
+		else if (trace_flags & TRACE_ITER_LATENCY_FMT)
+			iter->iter_flags |= TRACE_FILE_LAT_FMT;
+	}
 	return ret;
 }
 
@@ -2049,9 +2066,17 @@ static int show_traces_open(struct inode *inode, struct file *file)
 	return ret;
 }
 
+static ssize_t
+tracing_write_stub(struct file *filp, const char __user *ubuf,
+		   size_t count, loff_t *ppos)
+{
+	return count;
+}
+
 static const struct file_operations tracing_fops = {
 	.open		= tracing_open,
 	.read		= seq_read,
+	.write		= tracing_write_stub,
 	.llseek		= seq_lseek,
 	.release	= tracing_release,
 };
@@ -3576,7 +3601,7 @@ static void tracing_init_debugfs_percpu(long cpu)
 		pr_warning("Could not create debugfs 'trace_pipe' entry\n");
 
 	/* per cpu trace */
-	entry = debugfs_create_file("trace", 0444, d_cpu,
+	entry = debugfs_create_file("trace", 0644, d_cpu,
 				(void *) cpu, &tracing_fops);
 	if (!entry)
 		pr_warning("Could not create debugfs 'trace' entry\n");
@@ -3890,7 +3915,7 @@ static __init int tracer_init_debugfs(void)
 	if (!entry)
 		pr_warning("Could not create debugfs 'tracing_cpumask' entry\n");
 
-	entry = debugfs_create_file("trace", 0444, d_tracer,
+	entry = debugfs_create_file("trace", 0644, d_tracer,
 				 (void *) TRACE_PIPE_ALL_CPU, &tracing_fops);
 	if (!entry)
 		pr_warning("Could not create debugfs 'trace' entry\n");
