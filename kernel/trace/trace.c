@@ -633,6 +633,7 @@ void tracing_reset_online_cpus(struct trace_array *tr)
 }
 
 #define SAVED_CMDLINES 128
+#define NO_CMDLINE_MAP UINT_MAX
 static unsigned map_pid_to_cmdline[PID_MAX_DEFAULT+1];
 static unsigned map_cmdline_to_pid[SAVED_CMDLINES];
 static char saved_cmdlines[SAVED_CMDLINES][TASK_COMM_LEN];
@@ -644,8 +645,8 @@ static atomic_t trace_record_cmdline_disabled __read_mostly;
 
 static void trace_init_cmdlines(void)
 {
-	memset(&map_pid_to_cmdline, -1, sizeof(map_pid_to_cmdline));
-	memset(&map_cmdline_to_pid, -1, sizeof(map_cmdline_to_pid));
+	memset(&map_pid_to_cmdline, NO_CMDLINE_MAP, sizeof(map_pid_to_cmdline));
+	memset(&map_cmdline_to_pid, NO_CMDLINE_MAP, sizeof(map_cmdline_to_pid));
 	cmdline_idx = 0;
 }
 
@@ -753,12 +754,12 @@ static void trace_save_cmdline(struct task_struct *tsk)
 		return;
 
 	idx = map_pid_to_cmdline[tsk->pid];
-	if (idx >= SAVED_CMDLINES) {
+	if (idx == NO_CMDLINE_MAP) {
 		idx = (cmdline_idx + 1) % SAVED_CMDLINES;
 
 		map = map_cmdline_to_pid[idx];
-		if (map <= PID_MAX_DEFAULT)
-			map_pid_to_cmdline[map] = (unsigned)-1;
+		if (map != NO_CMDLINE_MAP)
+			map_pid_to_cmdline[map] = NO_CMDLINE_MAP;
 
 		map_pid_to_cmdline[tsk->pid] = idx;
 
@@ -786,7 +787,7 @@ void trace_find_cmdline(int pid, char comm[])
 
 	__raw_spin_lock(&trace_cmdline_lock);
 	map = map_pid_to_cmdline[pid];
-	if (map >= SAVED_CMDLINES)
+	if (map == NO_CMDLINE_MAP)
 		goto out;
 
 	strcpy(comm, saved_cmdlines[map]);
