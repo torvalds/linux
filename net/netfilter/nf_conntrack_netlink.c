@@ -1146,7 +1146,7 @@ ctnetlink_create_conntrack(struct nlattr *cda[],
 		return ERR_PTR(-ENOMEM);
 
 	if (!cda[CTA_TIMEOUT])
-		goto err;
+		goto err1;
 	ct->timeout.expires = ntohl(nla_get_be32(cda[CTA_TIMEOUT]));
 
 	ct->timeout.expires = jiffies + ct->timeout.expires * HZ;
@@ -1157,10 +1157,8 @@ ctnetlink_create_conntrack(struct nlattr *cda[],
  		char *helpname;
  
  		err = ctnetlink_parse_help(cda[CTA_HELP], &helpname);
- 		if (err < 0) {
-			rcu_read_unlock();
-			goto err;
-		}
+ 		if (err < 0)
+			goto err2;
 
 		helper = __nf_conntrack_helper_find_byname(helpname);
 		if (helper == NULL) {
@@ -1168,28 +1166,26 @@ ctnetlink_create_conntrack(struct nlattr *cda[],
 #ifdef CONFIG_MODULES
 			if (request_module("nfct-helper-%s", helpname) < 0) {
 				err = -EOPNOTSUPP;
-				goto err;
+				goto err1;
 			}
 
 			rcu_read_lock();
 			helper = __nf_conntrack_helper_find_byname(helpname);
 			if (helper) {
-				rcu_read_unlock();
 				err = -EAGAIN;
-				goto err;
+				goto err2;
 			}
 			rcu_read_unlock();
 #endif
 			err = -EOPNOTSUPP;
-			goto err;
+			goto err1;
 		} else {
 			struct nf_conn_help *help;
 
 			help = nf_ct_helper_ext_add(ct, GFP_ATOMIC);
 			if (help == NULL) {
-				rcu_read_unlock();
 				err = -ENOMEM;
-				goto err;
+				goto err2;
 			}
 
 			/* not in hash table yet so not strictly necessary */
@@ -1198,44 +1194,34 @@ ctnetlink_create_conntrack(struct nlattr *cda[],
 	} else {
 		/* try an implicit helper assignation */
 		err = __nf_ct_try_assign_helper(ct, GFP_ATOMIC);
-		if (err < 0) {
-			rcu_read_unlock();
-			goto err;
-		}
+		if (err < 0)
+			goto err2;
 	}
 
 	if (cda[CTA_STATUS]) {
 		err = ctnetlink_change_status(ct, cda);
-		if (err < 0) {
-			rcu_read_unlock();
-			goto err;
-		}
+		if (err < 0)
+			goto err2;
 	}
 
 	if (cda[CTA_NAT_SRC] || cda[CTA_NAT_DST]) {
 		err = ctnetlink_change_nat(ct, cda);
-		if (err < 0) {
-			rcu_read_unlock();
-			goto err;
-		}
+		if (err < 0)
+			goto err2;
 	}
 
 #ifdef CONFIG_NF_NAT_NEEDED
 	if (cda[CTA_NAT_SEQ_ADJ_ORIG] || cda[CTA_NAT_SEQ_ADJ_REPLY]) {
 		err = ctnetlink_change_nat_seq_adj(ct, cda);
-		if (err < 0) {
-			rcu_read_unlock();
-			goto err;
-		}
+		if (err < 0)
+			goto err2;
 	}
 #endif
 
 	if (cda[CTA_PROTOINFO]) {
 		err = ctnetlink_change_protoinfo(ct, cda);
-		if (err < 0) {
-			rcu_read_unlock();
-			goto err;
-		}
+		if (err < 0)
+			goto err2;
 	}
 
 	nf_ct_acct_ext_add(ct, GFP_ATOMIC);
@@ -1253,12 +1239,12 @@ ctnetlink_create_conntrack(struct nlattr *cda[],
 
 		err = ctnetlink_parse_tuple(cda, &master, CTA_TUPLE_MASTER, u3);
 		if (err < 0)
-			goto err;
+			goto err2;
 
 		master_h = __nf_conntrack_find(&init_net, &master);
 		if (master_h == NULL) {
 			err = -ENOENT;
-			goto err;
+			goto err2;
 		}
 		master_ct = nf_ct_tuplehash_to_ctrack(master_h);
 		nf_conntrack_get(&master_ct->ct_general);
@@ -1271,7 +1257,10 @@ ctnetlink_create_conntrack(struct nlattr *cda[],
 	rcu_read_unlock();
 
 	return ct;
-err:
+
+err2:
+	rcu_read_unlock();
+err1:
 	nf_conntrack_free(ct);
 	return ERR_PTR(err);
 }
