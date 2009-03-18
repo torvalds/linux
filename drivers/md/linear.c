@@ -101,6 +101,16 @@ static int linear_congested(void *data, int bits)
 	return ret;
 }
 
+static sector_t linear_size(mddev_t *mddev, sector_t sectors, int raid_disks)
+{
+	linear_conf_t *conf = mddev_to_conf(mddev);
+
+	WARN_ONCE(sectors || raid_disks,
+		  "%s does not support generic reshape\n", __func__);
+
+	return conf->array_sectors;
+}
+
 static linear_conf_t *linear_conf(mddev_t *mddev, int raid_disks)
 {
 	linear_conf_t *conf;
@@ -253,7 +263,7 @@ static int linear_run (mddev_t *mddev)
 	if (!conf)
 		return 1;
 	mddev->private = conf;
-	mddev->array_sectors = conf->array_sectors;
+	mddev->array_sectors = linear_size(mddev, 0, 0);
 
 	blk_queue_merge_bvec(mddev->queue, linear_mergeable_bvec);
 	mddev->queue->unplug_fn = linear_unplug;
@@ -287,7 +297,7 @@ static int linear_add(mddev_t *mddev, mdk_rdev_t *rdev)
 	newconf->prev = mddev_to_conf(mddev);
 	mddev->private = newconf;
 	mddev->raid_disks++;
-	mddev->array_sectors = newconf->array_sectors;
+	mddev->array_sectors = linear_size(mddev, 0, 0);
 	set_capacity(mddev->gendisk, mddev->array_sectors);
 	return 0;
 }
@@ -385,6 +395,7 @@ static struct mdk_personality linear_personality =
 	.stop		= linear_stop,
 	.status		= linear_status,
 	.hot_add_disk	= linear_add,
+	.size		= linear_size,
 };
 
 static int __init linear_init (void)

@@ -2023,6 +2023,25 @@ static sector_t sync_request(mddev_t *mddev, sector_t sector_nr, int *skipped, i
 	goto skipped;
 }
 
+static sector_t
+raid10_size(mddev_t *mddev, sector_t sectors, int raid_disks)
+{
+	sector_t size;
+	conf_t *conf = mddev_to_conf(mddev);
+
+	if (!raid_disks)
+		raid_disks = mddev->raid_disks;
+	if (!sectors)
+		sectors = mddev->dev_sectors;
+
+	size = sectors >> conf->chunk_shift;
+	sector_div(size, conf->far_copies);
+	size = size * raid_disks;
+	sector_div(size, conf->near_copies);
+
+	return size << conf->chunk_shift;
+}
+
 static int run(mddev_t *mddev)
 {
 	conf_t *conf;
@@ -2174,8 +2193,8 @@ static int run(mddev_t *mddev)
 	/*
 	 * Ok, everything is just fine now
 	 */
-	mddev->array_sectors = size << conf->chunk_shift;
-	mddev->resync_max_sectors = size << conf->chunk_shift;
+	mddev->array_sectors = raid10_size(mddev, 0, 0);
+	mddev->resync_max_sectors = mddev->array_sectors;
 
 	mddev->queue->unplug_fn = raid10_unplug;
 	mddev->queue->backing_dev_info.congested_fn = raid10_congested;
@@ -2261,6 +2280,7 @@ static struct mdk_personality raid10_personality =
 	.spare_active	= raid10_spare_active,
 	.sync_request	= sync_request,
 	.quiesce	= raid10_quiesce,
+	.size		= raid10_size,
 };
 
 static int __init raid_init(void)

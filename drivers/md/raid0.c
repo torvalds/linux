@@ -263,12 +263,25 @@ static int raid0_mergeable_bvec(struct request_queue *q,
 		return max;
 }
 
+static sector_t raid0_size(mddev_t *mddev, sector_t sectors, int raid_disks)
+{
+	sector_t array_sectors = 0;
+	mdk_rdev_t *rdev;
+
+	WARN_ONCE(sectors || raid_disks,
+		  "%s does not support generic reshape\n", __func__);
+
+	list_for_each_entry(rdev, &mddev->disks, same_set)
+		array_sectors += rdev->sectors;
+
+	return array_sectors;
+}
+
 static int raid0_run (mddev_t *mddev)
 {
 	unsigned  cur=0, i=0, nb_zone;
 	s64 sectors;
 	raid0_conf_t *conf;
-	mdk_rdev_t *rdev;
 
 	if (mddev->chunk_size == 0) {
 		printk(KERN_ERR "md/raid0: non-zero chunk size required.\n");
@@ -293,9 +306,7 @@ static int raid0_run (mddev_t *mddev)
 		goto out_free_conf;
 
 	/* calculate array device size */
-	mddev->array_sectors = 0;
-	list_for_each_entry(rdev, &mddev->disks, same_set)
-		mddev->array_sectors += rdev->sectors;
+	mddev->array_sectors = raid0_size(mddev, 0, 0);
 
 	printk(KERN_INFO "raid0 : md_size is %llu sectors.\n",
 		(unsigned long long)mddev->array_sectors);
@@ -511,6 +522,7 @@ static struct mdk_personality raid0_personality=
 	.run		= raid0_run,
 	.stop		= raid0_stop,
 	.status		= raid0_status,
+	.size		= raid0_size,
 };
 
 static int __init raid0_init (void)

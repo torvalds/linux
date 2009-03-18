@@ -1922,6 +1922,14 @@ static sector_t sync_request(mddev_t *mddev, sector_t sector_nr, int *skipped, i
 	return nr_sectors;
 }
 
+static sector_t raid1_size(mddev_t *mddev, sector_t sectors, int raid_disks)
+{
+	if (sectors)
+		return sectors;
+
+	return mddev->dev_sectors;
+}
+
 static int run(mddev_t *mddev)
 {
 	conf_t *conf;
@@ -2051,7 +2059,7 @@ static int run(mddev_t *mddev)
 	/*
 	 * Ok, everything is just fine now
 	 */
-	mddev->array_sectors = mddev->dev_sectors;
+	mddev->array_sectors = raid1_size(mddev, 0, 0);
 
 	mddev->queue->unplug_fn = raid1_unplug;
 	mddev->queue->backing_dev_info.congested_fn = raid1_congested;
@@ -2116,7 +2124,7 @@ static int raid1_resize(mddev_t *mddev, sector_t sectors)
 	 * any io in the removed space completes, but it hardly seems
 	 * worth it.
 	 */
-	mddev->array_sectors = sectors;
+	mddev->array_sectors = raid1_size(mddev, sectors, 0);
 	set_capacity(mddev->gendisk, mddev->array_sectors);
 	mddev->changed = 1;
 	if (mddev->array_sectors > mddev->dev_sectors &&
@@ -2270,6 +2278,7 @@ static struct mdk_personality raid1_personality =
 	.spare_active	= raid1_spare_active,
 	.sync_request	= sync_request,
 	.resize		= raid1_resize,
+	.size		= raid1_size,
 	.check_reshape	= raid1_reshape,
 	.quiesce	= raid1_quiesce,
 };
