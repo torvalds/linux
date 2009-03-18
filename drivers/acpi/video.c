@@ -168,10 +168,15 @@ struct acpi_video_device_cap {
 	u8 _DSS:1;		/*Device state set */
 };
 
+struct acpi_video_brightness_flags {
+	u8 _BCL_no_ac_battery_levels:1;	/* no AC/Battery levels in _BCL */
+};
+
 struct acpi_video_device_brightness {
 	int curr;
 	int count;
 	int *levels;
+	struct acpi_video_brightness_flags flags;
 };
 
 struct acpi_video_device {
@@ -682,7 +687,7 @@ static int
 acpi_video_init_brightness(struct acpi_video_device *device)
 {
 	union acpi_object *obj = NULL;
-	int i, max_level = 0, count = 0;
+	int i, max_level = 0, count = 0, level_ac_battery = 0;
 	union acpi_object *o;
 	struct acpi_video_device_brightness *br = NULL;
 
@@ -701,7 +706,7 @@ acpi_video_init_brightness(struct acpi_video_device *device)
 		goto out;
 	}
 
-	br->levels = kmalloc(obj->package.count * sizeof *(br->levels),
+	br->levels = kmalloc((obj->package.count + 2) * sizeof *(br->levels),
 				GFP_KERNEL);
 	if (!br->levels)
 		goto out_free;
@@ -719,16 +724,34 @@ acpi_video_init_brightness(struct acpi_video_device *device)
 		count++;
 	}
 
-	/* don't sort the first two brightness levels */
+	/*
+	 * some buggy BIOS don't export the levels
+	 * when machine is on AC/Battery in _BCL package.
+	 * In this case, the first two elements in _BCL packages
+	 * are also supported brightness levels that OS should take care of.
+	 */
+	for (i = 2; i < count; i++)
+		if (br->levels[i] == br->levels[0] ||
+		    br->levels[i] == br->levels[1])
+			level_ac_battery++;
+
+	if (level_ac_battery < 2) {
+		level_ac_battery = 2 - level_ac_battery;
+		br->flags._BCL_no_ac_battery_levels = 1;
+		for (i = (count - 1 + level_ac_battery); i >= 2; i--)
+			br->levels[i] = br->levels[i - level_ac_battery];
+		count += level_ac_battery;
+	} else if (level_ac_battery > 2)
+		ACPI_ERROR((AE_INFO, "Too many duplicates in _BCL package\n"));
+
+	/* sort all the supported brightness levels */
 	sort(&br->levels[2], count - 2, sizeof(br->levels[2]),
 		acpi_video_cmp_level, NULL);
 
-	if (count < 2)
-		goto out_free_levels;
-
 	br->count = count;
 	device->brightness = br;
-	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "found %d brightness levels\n", count));
+	ACPI_DEBUG_PRINT((ACPI_DB_INFO,
+			  "found %d brightness levels\n", count - 2));
 	kfree(obj);
 	return max_level;
 
