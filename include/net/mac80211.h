@@ -520,12 +520,6 @@ enum ieee80211_conf_flags {
 	IEEE80211_CONF_PS		= (1<<1),
 };
 
-/* XXX: remove all this once drivers stop trying to use it */
-static inline int __deprecated __IEEE80211_CONF_SHORT_SLOT_TIME(void)
-{
-	return 0;
-}
-#define IEEE80211_CONF_SHORT_SLOT_TIME (__IEEE80211_CONF_SHORT_SLOT_TIME())
 
 /**
  * enum ieee80211_conf_changed - denotes which configuration changed
