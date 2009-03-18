@@ -1076,8 +1076,7 @@ static int azx_setup_periods(struct azx *chip,
 	azx_sd_writel(azx_dev, SD_BDLPL, 0);
 	azx_sd_writel(azx_dev, SD_BDLPU, 0);
 
-	period_bytes = snd_pcm_lib_period_bytes(substream);
-	azx_dev->period_bytes = period_bytes;
+	period_bytes = azx_dev->period_bytes;
 	periods = azx_dev->bufsize / period_bytes;
 
 	/* program the initial BDL entries */
@@ -1124,9 +1123,6 @@ static int azx_setup_periods(struct azx *chip,
  error:
 	snd_printk(KERN_ERR "Too many BDL entries: buffer=%d, period=%d\n",
 		   azx_dev->bufsize, period_bytes);
-	/* reset */
-	azx_sd_writel(azx_dev, SD_BDLPL, 0);
-	azx_sd_writel(azx_dev, SD_BDLPU, 0);
 	return -EINVAL;
 }
 
@@ -1429,6 +1425,11 @@ static int azx_pcm_close(struct snd_pcm_substream *substream)
 static int azx_pcm_hw_params(struct snd_pcm_substream *substream,
 			     struct snd_pcm_hw_params *hw_params)
 {
+	struct azx_dev *azx_dev = get_azx_dev(substream);
+
+	azx_dev->bufsize = 0;
+	azx_dev->period_bytes = 0;
+	azx_dev->format_val = 0;
 	return snd_pcm_lib_malloc_pages(substream,
 					params_buffer_bytes(hw_params));
 }
@@ -1443,6 +1444,9 @@ static int azx_pcm_hw_free(struct snd_pcm_substream *substream)
 	azx_sd_writel(azx_dev, SD_BDLPL, 0);
 	azx_sd_writel(azx_dev, SD_BDLPU, 0);
 	azx_sd_writel(azx_dev, SD_CTL, 0);
+	azx_dev->bufsize = 0;
+	azx_dev->period_bytes = 0;
+	azx_dev->format_val = 0;
 
 	hinfo->ops.cleanup(hinfo, apcm->codec, substream);
 
@@ -1456,23 +1460,37 @@ static int azx_pcm_prepare(struct snd_pcm_substream *substream)
 	struct azx_dev *azx_dev = get_azx_dev(substream);
 	struct hda_pcm_stream *hinfo = apcm->hinfo[substream->stream];
 	struct snd_pcm_runtime *runtime = substream->runtime;
+	unsigned int bufsize, period_bytes, format_val;
+	int err;
 
-	azx_dev->bufsize = snd_pcm_lib_buffer_bytes(substream);
-	azx_dev->format_val = snd_hda_calc_stream_format(runtime->rate,
-							 runtime->channels,
-							 runtime->format,
-							 hinfo->maxbps);
-	if (!azx_dev->format_val) {
+	format_val = snd_hda_calc_stream_format(runtime->rate,
+						runtime->channels,
+						runtime->format,
+						hinfo->maxbps);
+	if (!format_val) {
 		snd_printk(KERN_ERR SFX
 			   "invalid format_val, rate=%d, ch=%d, format=%d\n",
 			   runtime->rate, runtime->channels, runtime->format);
 		return -EINVAL;
 	}
 
+	bufsize = snd_pcm_lib_buffer_bytes(substream);
+	period_bytes = snd_pcm_lib_period_bytes(substream);
+
 	snd_printdd("azx_pcm_prepare: bufsize=0x%x, format=0x%x\n",
-		    azx_dev->bufsize, azx_dev->format_val);
-	if (azx_setup_periods(chip, substream, azx_dev) < 0)
-		return -EINVAL;
+		    bufsize, format_val);
+
+	if (bufsize != azx_dev->bufsize ||
+	    period_bytes != azx_dev->period_bytes ||
+	    format_val != azx_dev->format_val) {
+		azx_dev->bufsize = bufsize;
+		azx_dev->period_bytes = period_bytes;
+		azx_dev->format_val = format_val;
+		err = azx_setup_periods(chip, substream, azx_dev);
+		if (err < 0)
+			return err;
+	}
+
 	azx_setup_controller(chip, azx_dev);
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
 		azx_dev->fifo_size = azx_sd_readw(azx_dev, SD_FIFOSIZE) + 1;
