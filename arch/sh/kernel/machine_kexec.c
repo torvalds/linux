@@ -14,20 +14,21 @@
 #include <linux/delay.h>
 #include <linux/reboot.h>
 #include <linux/numa.h>
+#include <linux/suspend.h>
 #include <asm/pgtable.h>
 #include <asm/pgalloc.h>
 #include <asm/mmu_context.h>
 #include <asm/io.h>
 #include <asm/cacheflush.h>
 
-typedef NORET_TYPE void (*relocate_new_kernel_t)(
-				unsigned long indirection_page,
-				unsigned long reboot_code_buffer,
-				unsigned long start_address) ATTRIB_NORET;
+typedef void (*relocate_new_kernel_t)(unsigned long indirection_page,
+				      unsigned long reboot_code_buffer,
+				      unsigned long start_address);
 
 extern const unsigned char relocate_new_kernel[];
 extern const unsigned int relocate_new_kernel_size;
 extern void *gdb_vbr_vector;
+extern void *vbr_base;
 
 void machine_shutdown(void)
 {
@@ -72,7 +73,6 @@ static void kexec_info(struct kimage *image)
  */
 void machine_kexec(struct kimage *image)
 {
-
 	unsigned long page_list;
 	unsigned long reboot_code_buffer;
 	relocate_new_kernel_t rnk;
@@ -91,6 +91,11 @@ void machine_kexec(struct kimage *image)
 		    *ptr & IND_DESTINATION)
 			*ptr = (unsigned long) phys_to_virt(*ptr);
 	}
+
+#ifdef CONFIG_KEXEC_JUMP
+	if (image->preserve_context)
+		save_processor_state();
+#endif
 
 	/* Interrupts aren't acceptable while we reboot */
 	local_irq_disable();
@@ -117,6 +122,23 @@ void machine_kexec(struct kimage *image)
 	/* now call it */
 	rnk = (relocate_new_kernel_t) reboot_code_buffer;
 	(*rnk)(page_list, reboot_code_buffer, image->start);
+
+#ifdef CONFIG_KEXEC_JUMP
+	asm volatile("ldc %0, vbr" : : "r" (&vbr_base) : "memory");
+	local_irq_disable();
+	clear_bl_bit();
+	if (image->preserve_context)
+		restore_processor_state();
+
+	/* Convert page list back to physical addresses, what a mess. */
+	for (ptr = &image->head; (entry = *ptr) && !(entry & IND_DONE);
+	     ptr = (*ptr & IND_INDIRECTION) ?
+	       phys_to_virt(*ptr & PAGE_MASK) : ptr + 1) {
+		if (*ptr & IND_SOURCE || *ptr & IND_INDIRECTION ||
+		    *ptr & IND_DESTINATION)
+			*ptr = virt_to_phys(*ptr);
+	}
+#endif
 }
 
 void arch_crash_save_vmcoreinfo(void)

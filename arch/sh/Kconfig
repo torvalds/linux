@@ -559,6 +559,13 @@ config CRASH_DUMP
 
 	  For more details see Documentation/kdump/kdump.txt
 
+config KEXEC_JUMP
+	bool "kexec jump (EXPERIMENTAL)"
+	depends on SUPERH32 && KEXEC && HIBERNATION && EXPERIMENTAL
+	help
+	  Jump between original kernel and kexeced kernel and invoke
+	  code via KEXEC
+
 config SECCOMP
 	bool "Enable seccomp to safely compute untrusted bytecode"
 	depends on PROC_FS
