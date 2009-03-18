@@ -859,13 +859,18 @@ static void azx_stream_start(struct azx *chip, struct azx_dev *azx_dev)
 		      SD_CTL_DMA_START | SD_INT_MASK);
 }
 
-/* stop a stream */
-static void azx_stream_stop(struct azx *chip, struct azx_dev *azx_dev)
+/* stop DMA */
+static void azx_stream_clear(struct azx *chip, struct azx_dev *azx_dev)
 {
-	/* stop DMA */
 	azx_sd_writeb(azx_dev, SD_CTL, azx_sd_readb(azx_dev, SD_CTL) &
 		      ~(SD_CTL_DMA_START | SD_INT_MASK));
 	azx_sd_writeb(azx_dev, SD_STS, SD_INT_MASK); /* to be sure */
+}
+
+/* stop a stream */
+static void azx_stream_stop(struct azx *chip, struct azx_dev *azx_dev)
+{
+	azx_stream_clear(chip, azx_dev);
 	/* disable SIE */
 	azx_writeb(chip, INTCTL,
 		   azx_readb(chip, INTCTL) & ~(1 << azx_dev->index));
@@ -1126,18 +1131,14 @@ static int azx_setup_periods(struct azx *chip,
 	return -EINVAL;
 }
 
-/*
- * set up the SD for streaming
- */
-static int azx_setup_controller(struct azx *chip, struct azx_dev *azx_dev)
+/* reset stream */
+static void azx_stream_reset(struct azx *chip, struct azx_dev *azx_dev)
 {
 	unsigned char val;
 	int timeout;
 
-	/* make sure the run bit is zero for SD */
-	azx_sd_writeb(azx_dev, SD_CTL, azx_sd_readb(azx_dev, SD_CTL) &
-		      ~SD_CTL_DMA_START);
-	/* reset stream */
+	azx_stream_clear(chip, azx_dev);
+
 	azx_sd_writeb(azx_dev, SD_CTL, azx_sd_readb(azx_dev, SD_CTL) |
 		      SD_CTL_STREAM_RESET);
 	udelay(3);
@@ -1154,7 +1155,15 @@ static int azx_setup_controller(struct azx *chip, struct azx_dev *azx_dev)
 	while (((val = azx_sd_readb(azx_dev, SD_CTL)) & SD_CTL_STREAM_RESET) &&
 	       --timeout)
 		;
+}
 
+/*
+ * set up the SD for streaming
+ */
+static int azx_setup_controller(struct azx *chip, struct azx_dev *azx_dev)
+{
+	/* make sure the run bit is zero for SD */
+	azx_stream_clear(chip, azx_dev);
 	/* program the stream_tag */
 	azx_sd_writel(azx_dev, SD_CTL,
 		      (azx_sd_readl(azx_dev, SD_CTL) & ~SD_CTL_STREAM_TAG_MASK)|
@@ -1399,6 +1408,8 @@ static int azx_pcm_open(struct snd_pcm_substream *substream)
 	runtime->private_data = azx_dev;
 	snd_pcm_set_sync(substream);
 	mutex_unlock(&chip->open_mutex);
+
+	azx_stream_reset(chip, azx_dev);
 	return 0;
 }
 
