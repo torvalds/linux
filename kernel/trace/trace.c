@@ -155,13 +155,6 @@ ns2usecs(cycle_t nsec)
 	return nsec;
 }
 
-cycle_t ftrace_now(int cpu)
-{
-	u64 ts = ring_buffer_time_stamp(cpu);
-	ring_buffer_normalize_time_stamp(cpu, &ts);
-	return ts;
-}
-
 /*
  * The global_trace is the descriptor that holds the tracing
  * buffers for the live tracing. For each CPU, it contains
@@ -177,6 +170,20 @@ cycle_t ftrace_now(int cpu)
 static struct trace_array	global_trace;
 
 static DEFINE_PER_CPU(struct trace_array_cpu, global_trace_cpu);
+
+cycle_t ftrace_now(int cpu)
+{
+	u64 ts;
+
+	/* Early boot up does not have a buffer yet */
+	if (!global_trace.buffer)
+		return trace_clock_local();
+
+	ts = ring_buffer_time_stamp(global_trace.buffer, cpu);
+	ring_buffer_normalize_time_stamp(global_trace.buffer, cpu, &ts);
+
+	return ts;
+}
 
 /*
  * The max_tr is used to snapshot the global_trace when a maximum
@@ -308,6 +315,7 @@ static const char *trace_options[] = {
 	"printk-msg-only",
 	"context-info",
 	"latency-format",
+	"global-clock",
 	NULL
 };
 
@@ -2244,6 +2252,34 @@ static int set_tracer_option(struct tracer *trace, char *cmp, int neg)
 	return 0;
 }
 
+static void set_tracer_flags(unsigned int mask, int enabled)
+{
+	/* do nothing if flag is already set */
+	if (!!(trace_flags & mask) == !!enabled)
+		return;
+
+	if (enabled)
+		trace_flags |= mask;
+	else
+		trace_flags &= ~mask;
+
+	if (mask == TRACE_ITER_GLOBAL_CLK) {
+		u64 (*func)(void);
+
+		if (enabled)
+			func = trace_clock_global;
+		else
+			func = trace_clock_local;
+
+		mutex_lock(&trace_types_lock);
+		ring_buffer_set_clock(global_trace.buffer, func);
+
+		if (max_tr.buffer)
+			ring_buffer_set_clock(max_tr.buffer, func);
+		mutex_unlock(&trace_types_lock);
+	}
+}
+
 static ssize_t
 tracing_trace_options_write(struct file *filp, const char __user *ubuf,
 			size_t cnt, loff_t *ppos)
@@ -2271,10 +2307,7 @@ tracing_trace_options_write(struct file *filp, const char __user *ubuf,
 		int len = strlen(trace_options[i]);
 
 		if (strncmp(cmp, trace_options[i], len) == 0) {
-			if (neg)
-				trace_flags &= ~(1 << i);
-			else
-				trace_flags |= (1 << i);
+			set_tracer_flags(1 << i, !neg);
 			break;
 		}
 	}

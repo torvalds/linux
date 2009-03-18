@@ -68,6 +68,7 @@ struct ftrace_branch_data {
 			unsigned long miss;
 			unsigned long hit;
 		};
+		unsigned long miss_hit[2];
 	};
 };
 
@@ -125,10 +126,7 @@ void ftrace_likely_update(struct ftrace_branch_data *f, int val, int expect);
 				.line = __LINE__,			\
 			};						\
 		______r = !!(cond);					\
-		if (______r)						\
-			______f.hit++;					\
-		else							\
-			______f.miss++;					\
+		______f.miss_hit[______r]++;					\
 		______r;						\
 	}))
 #endif /* CONFIG_PROFILE_ALL_BRANCHES */

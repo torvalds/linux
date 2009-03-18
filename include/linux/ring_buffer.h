@@ -118,8 +118,11 @@ unsigned long ring_buffer_overruns(struct ring_buffer *buffer);
 unsigned long ring_buffer_entries_cpu(struct ring_buffer *buffer, int cpu);
 unsigned long ring_buffer_overrun_cpu(struct ring_buffer *buffer, int cpu);
 
-u64 ring_buffer_time_stamp(int cpu);
-void ring_buffer_normalize_time_stamp(int cpu, u64 *ts);
+u64 ring_buffer_time_stamp(struct ring_buffer *buffer, int cpu);
+void ring_buffer_normalize_time_stamp(struct ring_buffer *buffer,
+				      int cpu, u64 *ts);
+void ring_buffer_set_clock(struct ring_buffer *buffer,
+			   u64 (*clock)(void));
 
 size_t ring_buffer_page_len(void *page);
 
