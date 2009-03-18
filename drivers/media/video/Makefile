@@ -119,6 +119,8 @@ obj-$(CONFIG_USB_PWC)           += pwc/
 obj-$(CONFIG_USB_ZC0301)        += zc0301/
 obj-$(CONFIG_USB_GSPCA)         += gspca/
 
+obj-$(CONFIG_VIDEO_HDPVR)	+= hdpvr/
+
 obj-$(CONFIG_USB_IBMCAM)        += usbvideo/
 obj-$(CONFIG_USB_KONICAWC)      += usbvideo/
 obj-$(CONFIG_USB_VICAM)         += usbvideo/
