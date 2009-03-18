@@ -170,6 +170,7 @@ struct acpi_video_device_cap {
 
 struct acpi_video_brightness_flags {
 	u8 _BCL_no_ac_battery_levels:1;	/* no AC/Battery levels in _BCL */
+	u8 _BCL_reversed:1;		/* _BCL package is in a reversed order*/
 };
 
 struct acpi_video_device_brightness {
@@ -744,9 +745,14 @@ acpi_video_init_brightness(struct acpi_video_device *device)
 	} else if (level_ac_battery > 2)
 		ACPI_ERROR((AE_INFO, "Too many duplicates in _BCL package\n"));
 
-	/* sort all the supported brightness levels */
-	sort(&br->levels[2], count - 2, sizeof(br->levels[2]),
-		acpi_video_cmp_level, NULL);
+	/* Check if the _BCL package is in a reversed order */
+	if (max_level == br->levels[2]) {
+		br->flags._BCL_reversed = 1;
+		sort(&br->levels[2], count - 2, sizeof(br->levels[2]),
+			acpi_video_cmp_level, NULL);
+	} else if (max_level != br->levels[count - 1])
+		ACPI_ERROR((AE_INFO,
+			    "Found unordered _BCL package\n"));
 
 	br->count = count;
 	device->brightness = br;
