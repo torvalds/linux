@@ -394,6 +394,15 @@ static struct dmi_system_id __initdata acpisleep_dmi_table[] = {
 		DMI_MATCH(DMI_PRODUCT_NAME, "Satellite L300"),
 		},
 	},
+	{
+	.callback = init_old_suspend_ordering,
+	.ident = "Panasonic CF51-2L",
+	.matches = {
+		DMI_MATCH(DMI_BOARD_VENDOR,
+				"Matsushita Electric Industrial Co.,Ltd."),
+		DMI_MATCH(DMI_BOARD_NAME, "CF51-2L"),
+		},
+	},
 	{},
 };
 #endif /* CONFIG_SUSPEND */
