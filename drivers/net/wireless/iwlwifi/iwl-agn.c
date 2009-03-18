@@ -2683,6 +2683,7 @@ static int iwl_mac_ampdu_action(struct ieee80211_hw *hw,
 			     struct ieee80211_sta *sta, u16 tid, u16 *ssn)
 {
 	struct iwl_priv *priv = hw->priv;
+	int ret;
 
 	IWL_DEBUG_HT(priv, "A-MPDU action on addr %pM tid %d\n",
 		     sta->addr, tid);
@@ -2696,13 +2697,21 @@ static int iwl_mac_ampdu_action(struct ieee80211_hw *hw,
 		return iwl_sta_rx_agg_start(priv, sta->addr, tid, *ssn);
 	case IEEE80211_AMPDU_RX_STOP:
 		IWL_DEBUG_HT(priv, "stop Rx\n");
-		return iwl_sta_rx_agg_stop(priv, sta->addr, tid);
+		ret = iwl_sta_rx_agg_stop(priv, sta->addr, tid);
+		if (test_bit(STATUS_EXIT_PENDING, &priv->status))
+			return 0;
+		else
+			return ret;
 	case IEEE80211_AMPDU_TX_START:
 		IWL_DEBUG_HT(priv, "start Tx\n");
 		return iwl_tx_agg_start(priv, sta->addr, tid, ssn);
 	case IEEE80211_AMPDU_TX_STOP:
 		IWL_DEBUG_HT(priv, "stop Tx\n");
-		return iwl_tx_agg_stop(priv, sta->addr, tid);
+		ret = iwl_tx_agg_stop(priv, sta->addr, tid);
+		if (test_bit(STATUS_EXIT_PENDING, &priv->status))
+			return 0;
+		else
+			return ret;
 	default:
 		IWL_DEBUG_HT(priv, "unknown\n");
 		return -EINVAL;
