@@ -1096,44 +1096,21 @@ static int wm8400_set_bias_level(struct snd_soc_codec *codec,
 			wm8400_write(codec, WM8400_POWER_MANAGEMENT_1,
 				     WM8400_CODEC_ENA | WM8400_SYSCLK_ENA);
 
-			/* Enable all output discharge bits */
-			wm8400_write(codec, WM8400_ANTIPOP1, WM8400_DIS_LLINE |
-				WM8400_DIS_RLINE | WM8400_DIS_OUT3 |
-				WM8400_DIS_OUT4 | WM8400_DIS_LOUT |
-				WM8400_DIS_ROUT);
-
 			/* Enable POBCTRL, SOFT_ST, VMIDTOG and BUFDCOPEN */
 			wm8400_write(codec, WM8400_ANTIPOP2, WM8400_SOFTST |
 				     WM8400_BUFDCOPEN | WM8400_POBCTRL);
 
-			msleep(500);
-
-			/* Enable outputs */
-			val = wm8400_read(codec, WM8400_POWER_MANAGEMENT_1);
-			val |= WM8400_SPK_ENA | WM8400_OUT3_ENA |
-				WM8400_OUT4_ENA | WM8400_LOUT_ENA |
-				WM8400_ROUT_ENA;
-			wm8400_write(codec, WM8400_POWER_MANAGEMENT_1, val);
-
-			/* disable all output discharge bits */
-			wm8400_write(codec, WM8400_ANTIPOP1, 0);
+			msleep(50);
 
 			/* Enable VREF & VMID at 2x50k */
+			val = wm8400_read(codec, WM8400_POWER_MANAGEMENT_1);
 			val |= 0x2 | WM8400_VREF_ENA;
 			wm8400_write(codec, WM8400_POWER_MANAGEMENT_1, val);
-
-			msleep(600);
 
 			/* Enable BUFIOEN */
 			wm8400_write(codec, WM8400_ANTIPOP2, WM8400_SOFTST |
 				     WM8400_BUFDCOPEN | WM8400_POBCTRL |
 				     WM8400_BUFIOEN);
-
-			/* Disable outputs */
-			val &= ~(WM8400_SPK_ENA | WM8400_OUT3_ENA |
-				 WM8400_OUT4_ENA | WM8400_LOUT_ENA |
-				 WM8400_ROUT_ENA);
-			wm8400_write(codec, WM8400_POWER_MANAGEMENT_1, val);
 
 			/* disable POBCTRL, SOFT_ST and BUFDCOPEN */
 			wm8400_write(codec, WM8400_ANTIPOP2, WM8400_BUFIOEN);
