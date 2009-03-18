@@ -28,10 +28,9 @@
 #include <linux/io.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
+#include <linux/uaccess.h>
 
 #include <asm/irq.h>
-#include <asm/uaccess.h>
-
 #include <asm/watchdog.h>
 
 #define DRIVER_NAME	"cpwd"
