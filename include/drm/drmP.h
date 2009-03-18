@@ -281,16 +281,16 @@ typedef int drm_ioctl_compat_t(struct file *filp, unsigned int cmd,
 
 struct drm_ioctl_desc {
 	unsigned int cmd;
-	drm_ioctl_t *func;
 	int flags;
+	drm_ioctl_t *func;
 };
 
 /**
  * Creates a driver or general drm_ioctl_desc array entry for the given
  * ioctl, for use by drm_ioctl().
  */
-#define DRM_IOCTL_DEF(ioctl, func, flags) \
-	[DRM_IOCTL_NR(ioctl)] = {ioctl, func, flags}
+#define DRM_IOCTL_DEF(ioctl, _func, _flags) \
+	[DRM_IOCTL_NR(ioctl)] = {.cmd = ioctl, .func = _func, .flags = _flags}
 
 struct drm_magic_entry {
 	struct list_head head;
