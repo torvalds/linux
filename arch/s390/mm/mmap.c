@@ -35,7 +35,7 @@
  * Leave an at least ~128 MB hole.
  */
 #define MIN_GAP (128*1024*1024)
-#define MAX_GAP (TASK_SIZE/6*5)
+#define MAX_GAP (STACK_TOP/6*5)
 
 static inline unsigned long mmap_base(void)
 {
@@ -46,7 +46,7 @@ static inline unsigned long mmap_base(void)
 	else if (gap > MAX_GAP)
 		gap = MAX_GAP;
 
-	return TASK_SIZE - (gap & PAGE_MASK);
+	return STACK_TOP - (gap & PAGE_MASK);
 }
 
 static inline int mmap_is_legacy(void)
