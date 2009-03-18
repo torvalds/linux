@@ -787,12 +787,11 @@ void trace_find_cmdline(int pid, char comm[])
 
 	__raw_spin_lock(&trace_cmdline_lock);
 	map = map_pid_to_cmdline[pid];
-	if (map == NO_CMDLINE_MAP)
-		goto out;
+	if (map != NO_CMDLINE_MAP)
+		strcpy(comm, saved_cmdlines[map]);
+	else
+		strcpy(comm, "<...>");
 
-	strcpy(comm, saved_cmdlines[map]);
-
- out:
 	__raw_spin_unlock(&trace_cmdline_lock);
 }
 
