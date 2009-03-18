@@ -25,7 +25,7 @@
 #include <linux/interrupt.h>
 #include <linux/spinlock.h>
 #include <linux/videodev2.h>
-#include <media/v4l2-common.h>
+#include <media/v4l2-device.h>
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-chip-ident.h>
 #include <linux/device.h>
@@ -136,6 +136,7 @@ struct cafe_sio_buffer {
  */
 struct cafe_camera
 {
+	struct v4l2_device v4l2_dev;
 	enum cafe_state state;
 	unsigned long flags;   		/* Buffer status, mainly (dev_lock) */
 	int users;			/* How many open FDs */
@@ -145,7 +146,7 @@ struct cafe_camera
 	 * Subsystem structures.
 	 */
 	struct pci_dev *pdev;
-	struct video_device v4ldev;
+	struct video_device vdev;
 	struct i2c_adapter i2c_adapter;
 	struct i2c_client *sensor;
 
@@ -196,6 +197,11 @@ struct cafe_camera
 #define CF_CONFIG_NEEDED 4	/* Must configure hardware */
 
 
+static inline struct cafe_camera *to_cam(struct v4l2_device *dev)
+{
+	return container_of(dev, struct cafe_camera, v4l2_dev);
+}
+
 
 /*
  * Start over with DMA buffers - dev_lock needed.
@@ -238,59 +244,7 @@ static void cafe_set_config_needed(struct cafe_camera *cam, int needed)
 
 
 /* ---------------------------------------------------------------------*/
-/*
- * We keep a simple list of known devices to search at open time.
- */
-static LIST_HEAD(cafe_dev_list);
-static DEFINE_MUTEX(cafe_dev_list_lock);
 
-static void cafe_add_dev(struct cafe_camera *cam)
-{
-	mutex_lock(&cafe_dev_list_lock);
-	list_add_tail(&cam->dev_list, &cafe_dev_list);
-	mutex_unlock(&cafe_dev_list_lock);
-}
-
-static void cafe_remove_dev(struct cafe_camera *cam)
-{
-	mutex_lock(&cafe_dev_list_lock);
-	list_del(&cam->dev_list);
-	mutex_unlock(&cafe_dev_list_lock);
-}
-
-static struct cafe_camera *cafe_find_dev(int minor)
-{
-	struct cafe_camera *cam;
-
-	mutex_lock(&cafe_dev_list_lock);
-	list_for_each_entry(cam, &cafe_dev_list, dev_list) {
-		if (cam->v4ldev.minor == minor)
-			goto done;
-	}
-	cam = NULL;
-  done:
-	mutex_unlock(&cafe_dev_list_lock);
-	return cam;
-}
-
-
-static struct cafe_camera *cafe_find_by_pdev(struct pci_dev *pdev)
-{
-	struct cafe_camera *cam;
-
-	mutex_lock(&cafe_dev_list_lock);
-	list_for_each_entry(cam, &cafe_dev_list, dev_list) {
-		if (cam->pdev == pdev)
-			goto done;
-	}
-	cam = NULL;
-  done:
-	mutex_unlock(&cafe_dev_list_lock);
-	return cam;
-}
-
-
-/* ------------------------------------------------------------------------ */
 /*
  * Device register I/O
  */
@@ -481,7 +435,8 @@ static int cafe_smbus_xfer(struct i2c_adapter *adapter, u16 addr,
 		unsigned short flags, char rw, u8 command,
 		int size, union i2c_smbus_data *data)
 {
-	struct cafe_camera *cam = i2c_get_adapdata(adapter);
+	struct v4l2_device *v4l2_dev = i2c_get_adapdata(adapter);
+	struct cafe_camera *cam = to_cam(v4l2_dev);
 	int ret = -EINVAL;
 
 	/*
@@ -536,7 +491,8 @@ static void cafe_ctlr_power_down(struct cafe_camera *cam);
 
 static int cafe_smbus_attach(struct i2c_client *client)
 {
-	struct cafe_camera *cam = i2c_get_adapdata(client->adapter);
+	struct v4l2_device *v4l2_dev = i2c_get_adapdata(client->adapter);
+	struct cafe_camera *cam = to_cam(v4l2_dev);
 
 	/*
 	 * Don't talk to chips we don't recognize.
@@ -550,7 +506,8 @@ static int cafe_smbus_attach(struct i2c_client *client)
 
 static int cafe_smbus_detach(struct i2c_client *client)
 {
-	struct cafe_camera *cam = i2c_get_adapdata(client->adapter);
+	struct v4l2_device *v4l2_dev = i2c_get_adapdata(client->adapter);
+	struct cafe_camera *cam = to_cam(v4l2_dev);
 
 	if (cam->sensor == client) {
 		cafe_ctlr_stop_dma(cam);
@@ -575,7 +532,7 @@ static int cafe_smbus_setup(struct cafe_camera *cam)
 	adap->algo = &cafe_smbus_algo;
 	strcpy(adap->name, "cafe_ccic");
 	adap->dev.parent = &cam->pdev->dev;
-	i2c_set_adapdata(adap, cam);
+	i2c_set_adapdata(adap, &cam->v4l2_dev);
 	ret = i2c_add_adapter(adap);
 	if (ret)
 		printk(KERN_ERR "Unable to register cafe i2c adapter\n");
@@ -809,9 +766,9 @@ static void cafe_ctlr_power_up(struct cafe_camera *cam)
 	 * Control 1 is power down, set to 0 to operate.
 	 */
 	cafe_reg_write(cam, REG_GPR, GPR_C1EN|GPR_C0EN); /* pwr up, reset */
-//	mdelay(1); /* Marvell says 1ms will do it */
+/*	mdelay(1); */ /* Marvell says 1ms will do it */
 	cafe_reg_write(cam, REG_GPR, GPR_C1EN|GPR_C0EN|GPR_C0);
-//	mdelay(1); /* Enough? */
+/*	mdelay(1); */ /* Enough? */
 	spin_unlock_irqrestore(&cam->dev_lock, flags);
 	msleep(5); /* Just to be sure */
 }
@@ -874,7 +831,7 @@ static int cafe_cam_init(struct cafe_camera *cam)
 	if (ret)
 		goto out;
 	cam->sensor_type = chip.ident;
-//	if (cam->sensor->addr != OV7xx0_SID) {
+/*	if (cam->sensor->addr != OV7xx0_SID) { */
 	if (cam->sensor_type != V4L2_IDENT_OV7670) {
 		cam_err(cam, "Unsupported sensor type %d", cam->sensor->addr);
 		ret = -EINVAL;
@@ -1474,11 +1431,8 @@ static int cafe_v4l_mmap(struct file *filp, struct vm_area_struct *vma)
 
 static int cafe_v4l_open(struct file *filp)
 {
-	struct cafe_camera *cam;
+	struct cafe_camera *cam = video_drvdata(filp);
 
-	cam = cafe_find_dev(video_devdata(filp)->minor);
-	if (cam == NULL)
-		return -ENODEV;
 	filp->private_data = cam;
 
 	mutex_lock(&cam->s_mutex);
@@ -1532,7 +1486,7 @@ static unsigned int cafe_v4l_poll(struct file *filp,
 static int cafe_vidioc_queryctrl(struct file *filp, void *priv,
 		struct v4l2_queryctrl *qc)
 {
-	struct cafe_camera *cam = filp->private_data;
+	struct cafe_camera *cam = priv;
 	int ret;
 
 	mutex_lock(&cam->s_mutex);
@@ -1545,7 +1499,7 @@ static int cafe_vidioc_queryctrl(struct file *filp, void *priv,
 static int cafe_vidioc_g_ctrl(struct file *filp, void *priv,
 		struct v4l2_control *ctrl)
 {
-	struct cafe_camera *cam = filp->private_data;
+	struct cafe_camera *cam = priv;
 	int ret;
 
 	mutex_lock(&cam->s_mutex);
@@ -1558,7 +1512,7 @@ static int cafe_vidioc_g_ctrl(struct file *filp, void *priv,
 static int cafe_vidioc_s_ctrl(struct file *filp, void *priv,
 		struct v4l2_control *ctrl)
 {
-	struct cafe_camera *cam = filp->private_data;
+	struct cafe_camera *cam = priv;
 	int ret;
 
 	mutex_lock(&cam->s_mutex);
@@ -1745,15 +1699,6 @@ static int cafe_vidioc_s_parm(struct file *filp, void *priv,
 	return ret;
 }
 
-
-static void cafe_v4l_dev_release(struct video_device *vd)
-{
-	struct cafe_camera *cam = container_of(vd, struct cafe_camera, v4ldev);
-
-	kfree(cam);
-}
-
-
 /*
  * This template device holds all of those v4l2 methods; we
  * clone it for specific real devices.
@@ -1800,13 +1745,8 @@ static struct video_device cafe_v4l_template = {
 
 	.fops = &cafe_v4l_fops,
 	.ioctl_ops = &cafe_v4l_ioctl_ops,
-	.release = cafe_v4l_dev_release,
+	.release = video_device_release_empty,
 };
-
-
-
-
-
 
 
 /* ---------------------------------------------------------------------- */
@@ -2054,10 +1994,10 @@ static void cafe_dfs_cam_setup(struct cafe_camera *cam)
 
 	if (!cafe_dfs_root)
 		return;
-	sprintf(fname, "regs-%d", cam->v4ldev.num);
+	sprintf(fname, "regs-%d", cam->vdev.num);
 	cam->dfs_regs = debugfs_create_file(fname, 0444, cafe_dfs_root,
 			cam, &cafe_dfs_reg_ops);
-	sprintf(fname, "cam-%d", cam->v4ldev.num);
+	sprintf(fname, "cam-%d", cam->vdev.num);
 	cam->dfs_cam_regs = debugfs_create_file(fname, 0444, cafe_dfs_root,
 			cam, &cafe_dfs_cam_ops);
 }
@@ -2100,6 +2040,10 @@ static int cafe_pci_probe(struct pci_dev *pdev,
 	cam = kzalloc(sizeof(struct cafe_camera), GFP_KERNEL);
 	if (cam == NULL)
 		goto out;
+	ret = v4l2_device_register(&pdev->dev, &cam->v4l2_dev);
+	if (ret)
+		goto out_free;
+
 	mutex_init(&cam->s_mutex);
 	mutex_lock(&cam->s_mutex);
 	spin_lock_init(&cam->dev_lock);
@@ -2118,14 +2062,14 @@ static int cafe_pci_probe(struct pci_dev *pdev,
 	 */
 	ret = pci_enable_device(pdev);
 	if (ret)
-		goto out_free;
+		goto out_unreg;
 	pci_set_master(pdev);
 
 	ret = -EIO;
 	cam->regs = pci_iomap(pdev, 0, 0);
 	if (! cam->regs) {
 		printk(KERN_ERR "Unable to ioremap cafe-ccic regs\n");
-		goto out_free;
+		goto out_unreg;
 	}
 	ret = request_irq(pdev->irq, cafe_irq, IRQF_SHARED, "cafe-ccic", cam);
 	if (ret)
@@ -2149,13 +2093,15 @@ static int cafe_pci_probe(struct pci_dev *pdev,
 	 * Get the v4l2 setup done.
 	 */
 	mutex_lock(&cam->s_mutex);
-	cam->v4ldev = cafe_v4l_template;
-	cam->v4ldev.debug = 0;
-//	cam->v4ldev.debug = V4L2_DEBUG_IOCTL_ARG;
-	cam->v4ldev.parent = &pdev->dev;
-	ret = video_register_device(&cam->v4ldev, VFL_TYPE_GRABBER, -1);
+	cam->vdev = cafe_v4l_template;
+	cam->vdev.debug = 0;
+/*	cam->vdev.debug = V4L2_DEBUG_IOCTL_ARG;*/
+	cam->vdev.v4l2_dev = &cam->v4l2_dev;
+	ret = video_register_device(&cam->vdev, VFL_TYPE_GRABBER, -1);
 	if (ret)
 		goto out_smbus;
+	video_set_drvdata(&cam->vdev, cam);
+
 	/*
 	 * If so requested, try to get our DMA buffers now.
 	 */
@@ -2167,19 +2113,20 @@ static int cafe_pci_probe(struct pci_dev *pdev,
 
 	cafe_dfs_cam_setup(cam);
 	mutex_unlock(&cam->s_mutex);
-	cafe_add_dev(cam);
 	return 0;
 
-  out_smbus:
+out_smbus:
 	cafe_smbus_shutdown(cam);
-  out_freeirq:
+out_freeirq:
 	cafe_ctlr_power_down(cam);
 	free_irq(pdev->irq, cam);
-  out_iounmap:
+out_iounmap:
 	pci_iounmap(pdev, cam->regs);
-  out_free:
+out_free:
+	v4l2_device_unregister(&cam->v4l2_dev);
+out_unreg:
 	kfree(cam);
-  out:
+out:
 	return ret;
 }
 
@@ -2194,21 +2141,20 @@ static void cafe_shutdown(struct cafe_camera *cam)
 	if (cam->n_sbufs > 0)
 		/* What if they are still mapped?  Shouldn't be, but... */
 		cafe_free_sio_buffers(cam);
-	cafe_remove_dev(cam);
 	cafe_ctlr_stop_dma(cam);
 	cafe_ctlr_power_down(cam);
 	cafe_smbus_shutdown(cam);
 	cafe_free_dma_bufs(cam);
 	free_irq(cam->pdev->irq, cam);
 	pci_iounmap(cam->pdev, cam->regs);
-	video_unregister_device(&cam->v4ldev);
-	/* kfree(cam); done in v4l_release () */
+	video_unregister_device(&cam->vdev);
 }
 
 
 static void cafe_pci_remove(struct pci_dev *pdev)
 {
-	struct cafe_camera *cam = cafe_find_by_pdev(pdev);
+	struct v4l2_device *v4l2_dev = dev_get_drvdata(&pdev->dev);
+	struct cafe_camera *cam = to_cam(v4l2_dev);
 
 	if (cam == NULL) {
 		printk(KERN_WARNING "pci_remove on unknown pdev %p\n", pdev);
@@ -2218,6 +2164,8 @@ static void cafe_pci_remove(struct pci_dev *pdev)
 	if (cam->users > 0)
 		cam_warn(cam, "Removing a device with users!\n");
 	cafe_shutdown(cam);
+	v4l2_device_unregister(&cam->v4l2_dev);
+	kfree(cam);
 /* No unlock - it no longer exists */
 }
 
@@ -2228,7 +2176,8 @@ static void cafe_pci_remove(struct pci_dev *pdev)
  */
 static int cafe_pci_suspend(struct pci_dev *pdev, pm_message_t state)
 {
-	struct cafe_camera *cam = cafe_find_by_pdev(pdev);
+	struct v4l2_device *v4l2_dev = dev_get_drvdata(&pdev->dev);
+	struct cafe_camera *cam = to_cam(v4l2_dev);
 	int ret;
 	enum cafe_state cstate;
 
@@ -2246,7 +2195,8 @@ static int cafe_pci_suspend(struct pci_dev *pdev, pm_message_t state)
 
 static int cafe_pci_resume(struct pci_dev *pdev)
 {
-	struct cafe_camera *cam = cafe_find_by_pdev(pdev);
+	struct v4l2_device *v4l2_dev = dev_get_drvdata(&pdev->dev);
+	struct cafe_camera *cam = to_cam(v4l2_dev);
 	int ret = 0;
 
 	ret = pci_restore_state(pdev);
