@@ -1095,7 +1095,8 @@ static void start_unlink_async (struct ehci_hcd *ehci, struct ehci_qh *qh)
 	prev->qh_next = qh->qh_next;
 	wmb ();
 
-	if (unlikely (ehci_to_hcd(ehci)->state == HC_STATE_HALT)) {
+	/* If the controller isn't running, we don't have to wait for it */
+	if (unlikely(!HC_IS_RUNNING(ehci_to_hcd(ehci)->state))) {
 		/* if (unlikely (qh->reclaim != 0))
 		 *	this will recurse, probably not much
 		 */
