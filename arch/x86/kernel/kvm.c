@@ -138,12 +138,6 @@ static void kvm_set_pte_atomic(pte_t *ptep, pte_t pte)
 	kvm_mmu_write(ptep, pte_val(pte));
 }
 
-static void kvm_set_pte_present(struct mm_struct *mm, unsigned long addr,
-				pte_t *ptep, pte_t pte)
-{
-	kvm_mmu_write(ptep, pte_val(pte));
-}
-
 static void kvm_pte_clear(struct mm_struct *mm,
 			  unsigned long addr, pte_t *ptep)
 {
@@ -220,7 +214,6 @@ static void paravirt_ops_setup(void)
 #if PAGETABLE_LEVELS >= 3
 #ifdef CONFIG_X86_PAE
 		pv_mmu_ops.set_pte_atomic = kvm_set_pte_atomic;
-		pv_mmu_ops.set_pte_present = kvm_set_pte_present;
 		pv_mmu_ops.pte_clear = kvm_pte_clear;
 		pv_mmu_ops.pmd_clear = kvm_pmd_clear;
 #endif
