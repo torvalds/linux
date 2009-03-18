@@ -79,11 +79,11 @@ static unsigned char *ftrace_call_replace(unsigned long ip, unsigned long addr)
  *
  * 1) Put the instruction pointer into the IP buffer
  *    and the new code into the "code" buffer.
- * 2) Set a flag that says we are modifying code
- * 3) Wait for any running NMIs to finish.
- * 4) Write the code
- * 5) clear the flag.
- * 6) Wait for any running NMIs to finish.
+ * 2) Wait for any running NMIs to finish and set a flag that says
+ *    we are modifying code, it is done in an atomic operation.
+ * 3) Write the code
+ * 4) clear the flag.
+ * 5) Wait for any running NMIs to finish.
  *
  * If an NMI is executed, the first thing it does is to call
  * "ftrace_nmi_enter". This will check if the flag is set to write
@@ -95,9 +95,9 @@ static unsigned char *ftrace_call_replace(unsigned long ip, unsigned long addr)
  * are the same as what exists.
  */
 
+#define MOD_CODE_WRITE_FLAG (1 << 31)	/* set when NMI should do the write */
 static atomic_t nmi_running = ATOMIC_INIT(0);
 static int mod_code_status;		/* holds return value of text write */
-static int mod_code_write;		/* set when NMI should do the write */
 static void *mod_code_ip;		/* holds the IP to write to */
 static void *mod_code_newcode;		/* holds the text to write to the IP */
 
@@ -114,6 +114,20 @@ int ftrace_arch_read_dyn_info(char *buf, int size)
 	return r;
 }
 
+static void clear_mod_flag(void)
+{
+	int old = atomic_read(&nmi_running);
+
+	for (;;) {
+		int new = old & ~MOD_CODE_WRITE_FLAG;
+
+		if (old == new)
+			break;
+
+		old = atomic_cmpxchg(&nmi_running, old, new);
+	}
+}
+
 static void ftrace_mod_code(void)
 {
 	/*
@@ -127,25 +141,37 @@ static void ftrace_mod_code(void)
 
 	/* if we fail, then kill any new writers */
 	if (mod_code_status)
-		mod_code_write = 0;
+		clear_mod_flag();
 }
 
 void ftrace_nmi_enter(void)
 {
-	atomic_inc(&nmi_running);
-	/* Must have nmi_running seen before reading write flag */
-	smp_mb();
-	if (mod_code_write) {
+	if (atomic_inc_return(&nmi_running) & MOD_CODE_WRITE_FLAG) {
+		smp_rmb();
 		ftrace_mod_code();
 		atomic_inc(&nmi_update_count);
 	}
+	/* Must have previous changes seen before executions */
+	smp_mb();
 }
 
 void ftrace_nmi_exit(void)
 {
 	/* Finish all executions before clearing nmi_running */
-	smp_wmb();
+	smp_mb();
 	atomic_dec(&nmi_running);
+}
+
+static void wait_for_nmi_and_set_mod_flag(void)
+{
+	if (!atomic_cmpxchg(&nmi_running, 0, MOD_CODE_WRITE_FLAG))
+		return;
+
+	do {
+		cpu_relax();
+	} while (atomic_cmpxchg(&nmi_running, 0, MOD_CODE_WRITE_FLAG));
+
+	nmi_wait_count++;
 }
 
 static void wait_for_nmi(void)
@@ -167,14 +193,9 @@ do_ftrace_mod_code(unsigned long ip, void *new_code)
 	mod_code_newcode = new_code;
 
 	/* The buffers need to be visible before we let NMIs write them */
-	smp_wmb();
-
-	mod_code_write = 1;
-
-	/* Make sure write bit is visible before we wait on NMIs */
 	smp_mb();
 
-	wait_for_nmi();
+	wait_for_nmi_and_set_mod_flag();
 
 	/* Make sure all running NMIs have finished before we write the code */
 	smp_mb();
@@ -182,13 +203,9 @@ do_ftrace_mod_code(unsigned long ip, void *new_code)
 	ftrace_mod_code();
 
 	/* Make sure the write happens before clearing the bit */
-	smp_wmb();
-
-	mod_code_write = 0;
-
-	/* make sure NMIs see the cleared bit */
 	smp_mb();
 
+	clear_mod_flag();
 	wait_for_nmi();
 
 	return mod_code_status;
