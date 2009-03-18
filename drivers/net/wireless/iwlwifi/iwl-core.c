@@ -1437,6 +1437,10 @@ int iwl_set_tx_power(struct iwl_priv *priv, s8 tx_power, bool force)
 
 	priv->tx_power_user_lmt = tx_power;
 
+	/* if nic is not up don't send command */
+	if (!iwl_is_ready_rf(priv))
+		return ret;
+
 	if (force && priv->cfg->ops->lib->send_tx_power)
 		ret = priv->cfg->ops->lib->send_tx_power(priv);
 
