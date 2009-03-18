@@ -1,4 +1,5 @@
 #include <linux/dma-mapping.h>
+#include <linux/dma-debug.h>
 #include <linux/dmar.h>
 #include <linux/bootmem.h>
 #include <linux/pci.h>
@@ -43,6 +44,9 @@ struct device x86_dma_fallback_dev = {
 	.dma_mask = &x86_dma_fallback_dev.coherent_dma_mask,
 };
 EXPORT_SYMBOL(x86_dma_fallback_dev);
+
+/* Number of entries preallocated for DMA-API debugging */
+#define PREALLOC_DMA_DEBUG_ENTRIES       32768
 
 int dma_set_mask(struct device *dev, u64 mask)
 {
@@ -265,6 +269,12 @@ EXPORT_SYMBOL(dma_supported);
 
 static int __init pci_iommu_init(void)
 {
+	dma_debug_init(PREALLOC_DMA_DEBUG_ENTRIES);
+
+#ifdef CONFIG_PCI
+	dma_debug_add_bus(&pci_bus_type);
+#endif
+
 	calgary_iommu_init();
 
 	intel_iommu_init();
