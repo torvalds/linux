@@ -754,11 +754,6 @@ static struct kobj_type ktype_cpufreq = {
 	.release	= cpufreq_sysfs_release,
 };
 
-static struct kobj_type ktype_empty_cpufreq = {
-	.sysfs_ops	= &sysfs_ops,
-	.release	= cpufreq_sysfs_release,
-};
-
 
 /**
  * cpufreq_add_dev - add a CPU device
@@ -892,36 +887,26 @@ static int cpufreq_add_dev(struct sys_device *sys_dev)
 	memcpy(&new_policy, policy, sizeof(struct cpufreq_policy));
 
 	/* prepare interface data */
-	if (!cpufreq_driver->hide_interface) {
-		ret = kobject_init_and_add(&policy->kobj, &ktype_cpufreq,
-					   &sys_dev->kobj, "cpufreq");
+	ret = kobject_init_and_add(&policy->kobj, &ktype_cpufreq, &sys_dev->kobj,
+				   "cpufreq");
+	if (ret)
+		goto err_out_driver_exit;
+
+	/* set up files for this cpu device */
+	drv_attr = cpufreq_driver->attr;
+	while ((drv_attr) && (*drv_attr)) {
+		ret = sysfs_create_file(&policy->kobj, &((*drv_attr)->attr));
 		if (ret)
 			goto err_out_driver_exit;
-
-		/* set up files for this cpu device */
-		drv_attr = cpufreq_driver->attr;
-		while ((drv_attr) && (*drv_attr)) {
-			ret = sysfs_create_file(&policy->kobj,
-						&((*drv_attr)->attr));
-			if (ret)
-				goto err_out_driver_exit;
-			drv_attr++;
-		}
-		if (cpufreq_driver->get) {
-			ret = sysfs_create_file(&policy->kobj,
-						&cpuinfo_cur_freq.attr);
-			if (ret)
-				goto err_out_driver_exit;
-		}
-		if (cpufreq_driver->target) {
-			ret = sysfs_create_file(&policy->kobj,
-						&scaling_cur_freq.attr);
-			if (ret)
-				goto err_out_driver_exit;
-		}
-	} else {
-		ret = kobject_init_and_add(&policy->kobj, &ktype_empty_cpufreq,
-					   &sys_dev->kobj, "cpufreq");
+		drv_attr++;
+	}
+	if (cpufreq_driver->get) {
+		ret = sysfs_create_file(&policy->kobj, &cpuinfo_cur_freq.attr);
+		if (ret)
+			goto err_out_driver_exit;
+	}
+	if (cpufreq_driver->target) {
+		ret = sysfs_create_file(&policy->kobj, &scaling_cur_freq.attr);
 		if (ret)
 			goto err_out_driver_exit;
 	}

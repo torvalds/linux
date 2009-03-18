@@ -1179,10 +1179,6 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 #endif
 	clear_all_latency_tracing(p);
 
-	/* Our parent execution domain becomes current domain
-	   These must match for thread signalling to apply */
-	p->parent_exec_id = p->self_exec_id;
-
 	/* ok, now we should be set up.. */
 	p->exit_signal = (clone_flags & CLONE_THREAD) ? -1 : (clone_flags & CSIGNAL);
 	p->pdeath_signal = 0;
@@ -1220,10 +1216,13 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 		set_task_cpu(p, smp_processor_id());
 
 	/* CLONE_PARENT re-uses the old parent */
-	if (clone_flags & (CLONE_PARENT|CLONE_THREAD))
+	if (clone_flags & (CLONE_PARENT|CLONE_THREAD)) {
 		p->real_parent = current->real_parent;
-	else
+		p->parent_exec_id = current->parent_exec_id;
+	} else {
 		p->real_parent = current;
+		p->parent_exec_id = current->self_exec_id;
+	}
 
 	spin_lock(&current->sighand->siglock);
 

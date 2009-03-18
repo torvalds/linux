@@ -1892,8 +1892,14 @@ static int nfs_do_access(struct inode *inode, struct rpc_cred *cred, int mask)
 	cache.cred = cred;
 	cache.jiffies = jiffies;
 	status = NFS_PROTO(inode)->access(inode, &cache);
-	if (status != 0)
+	if (status != 0) {
+		if (status == -ESTALE) {
+			nfs_zap_caches(inode);
+			if (!S_ISDIR(inode->i_mode))
+				set_bit(NFS_INO_STALE, &NFS_I(inode)->flags);
+		}
 		return status;
+	}
 	nfs_access_add_cache(inode, &cache);
 out:
 	if ((mask & ~cache.mask & (MAY_READ | MAY_WRITE | MAY_EXEC)) == 0)

@@ -46,6 +46,7 @@ struct fcoe_softc {
 	struct net_device *phys_dev;		/* device with ethtool_ops */
 	struct packet_type  fcoe_packet_type;
 	struct sk_buff_head fcoe_pending_queue;
+	u8	fcoe_pending_queue_active;
 
 	u8 dest_addr[ETH_ALEN];
 	u8 ctl_src_addr[ETH_ALEN];
@@ -58,16 +59,10 @@ struct fcoe_softc {
 	u8 address_mode;
 };
 
-static inline struct fcoe_softc *fcoe_softc(
-	const struct fc_lport *lp)
-{
-	return (struct fcoe_softc *)lport_priv(lp);
-}
-
 static inline struct net_device *fcoe_netdev(
 	const struct fc_lport *lp)
 {
-	return fcoe_softc(lp)->real_dev;
+	return ((struct fcoe_softc *)lport_priv(lp))->real_dev;
 }
 
 static inline struct fcoe_hdr *skb_fcoe_header(const struct sk_buff *skb)
