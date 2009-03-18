@@ -49,6 +49,9 @@ static struct regulator_bulk_data power[] = {
 		.supply = "DCVDD",
 	},
 	{
+		.supply = "AVDD",
+	},
+	{
 		.supply = "FLLVDD",
 	},
 	{
