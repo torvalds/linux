@@ -254,6 +254,11 @@ static int n810_aic33_init(struct snd_soc_codec *codec)
 	snd_soc_dapm_nc_pin(codec, "MONO_LOUT");
 	snd_soc_dapm_nc_pin(codec, "HPLCOM");
 	snd_soc_dapm_nc_pin(codec, "HPRCOM");
+	snd_soc_dapm_nc_pin(codec, "MIC3L");
+	snd_soc_dapm_nc_pin(codec, "MIC3R");
+	snd_soc_dapm_nc_pin(codec, "LINE1R");
+	snd_soc_dapm_nc_pin(codec, "LINE2L");
+	snd_soc_dapm_nc_pin(codec, "LINE2R");
 
 	/* Add N810 specific controls */
 	err = snd_soc_add_controls(codec, aic33_n810_controls,
