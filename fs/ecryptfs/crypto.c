@@ -946,6 +946,8 @@ static int ecryptfs_copy_mount_wide_sigs_to_inode_sigs(
 	list_for_each_entry(global_auth_tok,
 			    &mount_crypt_stat->global_auth_tok_list,
 			    mount_crypt_stat_list) {
+		if (global_auth_tok->flags & ECRYPTFS_AUTH_TOK_FNEK)
+			continue;
 		rc = ecryptfs_add_keysig(crypt_stat, global_auth_tok->sig);
 		if (rc) {
 			printk(KERN_ERR "Error adding keysig; rc = [%d]\n", rc);
