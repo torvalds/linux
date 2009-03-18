@@ -1180,6 +1180,36 @@ static int ov7670_g_chip_ident(struct v4l2_subdev *sd,
 	return v4l2_chip_ident_i2c_client(client, chip, V4L2_IDENT_OV7670, 0);
 }
 
+#ifdef CONFIG_VIDEO_ADV_DEBUG
+static int ov7670_g_register(struct v4l2_subdev *sd, struct v4l2_dbg_register *reg)
+{
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
+	unsigned char val = 0;
+	int ret;
+
+	if (!v4l2_chip_match_i2c_client(client, &reg->match))
+		return -EINVAL;
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
+	ret = ov7670_read(sd, reg->reg & 0xff, &val);
+	reg->val = val;
+	reg->size = 1;
+	return ret;
+}
+
+static int ov7670_s_register(struct v4l2_subdev *sd, struct v4l2_dbg_register *reg)
+{
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
+
+	if (!v4l2_chip_match_i2c_client(client, &reg->match))
+		return -EINVAL;
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
+	ov7670_write(sd, reg->reg & 0xff, reg->val & 0xff);
+	return 0;
+}
+#endif
+
 /* ----------------------------------------------------------------------- */
 
 static const struct v4l2_subdev_core_ops ov7670_core_ops = {
@@ -1189,6 +1219,10 @@ static const struct v4l2_subdev_core_ops ov7670_core_ops = {
 	.queryctrl = ov7670_queryctrl,
 	.reset = ov7670_reset,
 	.init = ov7670_init,
+#ifdef CONFIG_VIDEO_ADV_DEBUG
+	.g_register = ov7670_g_register,
+	.s_register = ov7670_s_register,
+#endif
 };
 
 static const struct v4l2_subdev_video_ops ov7670_video_ops = {
