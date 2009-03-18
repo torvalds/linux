@@ -70,18 +70,6 @@ source "drivers/hid/usbhid/Kconfig"
 menu "Special HID drivers"
 	depends on HID
 
-config HID_COMPAT
-	bool "Load all HID drivers on hid core load"
-	default y
-	---help---
-	Compatible option for older userspace. If you have system without udev
-	support of module loading through aliases and also old
-	module-init-tools which can't handle hid bus, choose Y here. Otherwise
-	say N. If you say N and your userspace is old enough, the only
-	functionality you lose is modules autoloading.
-
-	If unsure, say Y.
-
 config HID_A4TECH
 	tristate "A4 tech" if EMBEDDED
 	depends on USB_HID

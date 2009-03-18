@@ -61,5 +61,3 @@ static void ks_exit(void)
 module_init(ks_init);
 module_exit(ks_exit);
 MODULE_LICENSE("GPL");
-
-HID_COMPAT_LOAD_DRIVER(kensington);

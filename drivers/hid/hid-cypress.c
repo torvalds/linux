@@ -154,5 +154,3 @@ static void cp_exit(void)
 module_init(cp_init);
 module_exit(cp_exit);
 MODULE_LICENSE("GPL");
-
-HID_COMPAT_LOAD_DRIVER(cypress);

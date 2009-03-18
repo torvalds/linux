@@ -118,5 +118,3 @@ static void pl_exit(void)
 module_init(pl_init);
 module_exit(pl_exit);
 MODULE_LICENSE("GPL");
-
-HID_COMPAT_LOAD_DRIVER(petalynx);

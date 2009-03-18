@@ -78,5 +78,3 @@ static void ntrig_exit(void)
 module_init(ntrig_init);
 module_exit(ntrig_exit);
 MODULE_LICENSE("GPL");
-
-HID_COMPAT_LOAD_DRIVER(ntrig);

@@ -186,5 +186,3 @@ static void __exit dr_exit(void)
 module_init(dr_init);
 module_exit(dr_exit);
 MODULE_LICENSE("GPL");
-
-HID_COMPAT_LOAD_DRIVER(dragonrise);

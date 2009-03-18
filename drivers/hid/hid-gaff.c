@@ -181,5 +181,3 @@ static void __exit ga_exit(void)
 module_init(ga_init);
 module_exit(ga_exit);
 MODULE_LICENSE("GPL");
-
-HID_COMPAT_LOAD_DRIVER(greenasia);
