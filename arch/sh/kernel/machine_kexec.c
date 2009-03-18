@@ -14,6 +14,7 @@
 #include <linux/delay.h>
 #include <linux/reboot.h>
 #include <linux/numa.h>
+#include <linux/ftrace.h>
 #include <linux/suspend.h>
 #include <asm/pgtable.h>
 #include <asm/pgalloc.h>
@@ -78,6 +79,7 @@ void machine_kexec(struct kimage *image)
 	relocate_new_kernel_t rnk;
 	unsigned long entry;
 	unsigned long *ptr;
+	int save_ftrace_enabled;
 
 	/*
 	 * Nicked from the mips version of machine_kexec():
@@ -96,6 +98,8 @@ void machine_kexec(struct kimage *image)
 	if (image->preserve_context)
 		save_processor_state();
 #endif
+
+	save_ftrace_enabled = __ftrace_enabled_save();
 
 	/* Interrupts aren't acceptable while we reboot */
 	local_irq_disable();
@@ -138,6 +142,8 @@ void machine_kexec(struct kimage *image)
 			*ptr = virt_to_phys(*ptr);
 	}
 #endif
+
+	__ftrace_enabled_restore(save_ftrace_enabled);
 }
 
 void arch_crash_save_vmcoreinfo(void)
