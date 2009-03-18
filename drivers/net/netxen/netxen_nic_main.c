@@ -405,9 +405,6 @@ netxen_read_mac_addr(struct netxen_adapter *adapter)
 	struct net_device *netdev = adapter->netdev;
 	struct pci_dev *pdev = adapter->pdev;
 
-	if (netxen_is_flash_supported(adapter) != 0)
-		return -EIO;
-
 	if (NX_IS_REVISION_P3(adapter->ahw.revision_id)) {
 		if (netxen_p3_get_mac_addr(adapter, &mac_addr) != 0)
 			return -EIO;

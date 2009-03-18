@@ -1289,6 +1289,39 @@ static const int *__devinit piix_init_sata_map(struct pci_dev *pdev,
 	return map;
 }
 
+static bool piix_no_sidpr(struct ata_host *host)
+{
+	struct pci_dev *pdev = to_pci_dev(host->dev);
+
+	/*
+	 * Samsung DB-P70 only has three ATA ports exposed and
+	 * curiously the unconnected first port reports link online
+	 * while not responding to SRST protocol causing excessive
+	 * detection delay.
+	 *
+	 * Unfortunately, the system doesn't carry enough DMI
+	 * information to identify the machine but does have subsystem
+	 * vendor and device set.  As it's unclear whether the
+	 * subsystem vendor/device is used only for this specific
+	 * board, the port can't be disabled solely with the
+	 * information; however, turning off SIDPR access works around
+	 * the problem.  Turn it off.
+	 *
+	 * This problem is reported in bnc#441240.
+	 *
+	 * https://bugzilla.novell.com/show_bug.cgi?id=441420
+	 */
+	if (pdev->vendor == PCI_VENDOR_ID_INTEL && pdev->device == 0x2920 &&
+	    pdev->subsystem_vendor == PCI_VENDOR_ID_SAMSUNG &&
+	    pdev->subsystem_device == 0xb049) {
+		dev_printk(KERN_WARNING, host->dev,
+			   "Samsung DB-P70 detected, disabling SIDPR\n");
+		return true;
+	}
+
+	return false;
+}
+
 static int __devinit piix_init_sidpr(struct ata_host *host)
 {
 	struct pci_dev *pdev = to_pci_dev(host->dev);
@@ -1301,6 +1334,10 @@ static int __devinit piix_init_sidpr(struct ata_host *host)
 	for (i = 0; i < 4; i++)
 		if (hpriv->map[i] == IDE)
 			return 0;
+
+	/* is it blacklisted? */
+	if (piix_no_sidpr(host))
+		return 0;
 
 	if (!(host->ports[0]->flags & PIIX_FLAG_SIDPR))
 		return 0;

@@ -17,7 +17,8 @@ SECTIONS
 	.header		: { *(.header) }
 	.inittext	: { *(.inittext) }
 	.initdata	: { *(.initdata) }
-	.text		: { *(.text*) }
+	.text		: { *(.text) }
+	.text32		: { *(.text32) }
 
 	. = ALIGN(16);
 	.rodata		: { *(.rodata*) }

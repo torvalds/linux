@@ -314,8 +314,6 @@ const struct cpumask *uv_flush_tlb_others(const struct cpumask *cpumask,
 	int locals = 0;
 	struct bau_desc *bau_desc;
 
-	WARN_ON(!in_atomic());
-
 	cpumask_andnot(flush_mask, cpumask, cpumask_of(cpu));
 
 	uv_cpu = uv_blade_processor_id();
@@ -752,7 +750,7 @@ static int __init uv_bau_init(void)
 	int node;
 	int nblades;
 	int last_blade;
-	int cur_cpu = 0;
+	int cur_cpu;
 
 	if (!is_uv_system())
 		return 0;
@@ -762,6 +760,7 @@ static int __init uv_bau_init(void)
 	uv_mmask = (1UL << uv_hub_info->n_val) - 1;
 	nblades = 0;
 	last_blade = -1;
+	cur_cpu = 0;
 	for_each_online_node(node) {
 		blade = uv_node_to_blade_id(node);
 		if (blade == last_blade)

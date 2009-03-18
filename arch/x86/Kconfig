@@ -138,6 +138,9 @@ config ARCH_HAS_CACHE_LINE_SIZE
 config HAVE_SETUP_PER_CPU_AREA
 	def_bool y
 
+config HAVE_DYNAMIC_PER_CPU_AREA
+	def_bool y
+
 config HAVE_CPUMASK_OF_CPU_MAP
 	def_bool X86_64_SMP
 
@@ -165,6 +168,9 @@ config ARCH_SUPPORTS_OPTIMIZED_INLINING
 config GENERIC_HARDIRQS
 	bool
 	default y
+
+config GENERIC_HARDIRQS_NO__DO_IRQ
+       def_bool y
 
 config GENERIC_IRQ_PROBE
 	bool
@@ -780,6 +786,11 @@ config X86_MCE_AMD
 	   Additional support for AMD specific MCE features such as
 	   the DRAM Error Threshold.
 
+config X86_MCE_THRESHOLD
+	depends on X86_MCE_AMD || X86_MCE_INTEL
+	bool
+	default y
+
 config X86_MCE_NONFATAL
 	tristate "Check for non-fatal errors on AMD Athlon/Duron / Intel Pentium 4"
 	depends on X86_32 && X86_MCE
@@ -922,6 +933,12 @@ config X86_CPUID
 	  be executed on a specific processor.  It is a character device
 	  with major 203 and minors 0 to 31 for /dev/cpu/0/cpuid to
 	  /dev/cpu/31/cpuid.
+
+config X86_CPU_DEBUG
+	tristate "/sys/kernel/debug/x86/cpu/* - CPU Debug support"
+	---help---
+	  If you select this option, this will provide various x86 CPUs
+	  information through debugfs.
 
 choice
 	prompt "High Memory Support"
@@ -1115,7 +1132,7 @@ config NUMA_EMU
 
 config NODES_SHIFT
 	int "Maximum NUMA Nodes (as a power of 2)" if !MAXSMP
-	range 1 9   if X86_64
+	range 1 9
 	default "9" if MAXSMP
 	default "6" if X86_64
 	default "4" if X86_NUMAQ
@@ -1125,7 +1142,7 @@ config NODES_SHIFT
 	  Specify the maximum number of NUMA Nodes available on the target
 	  system.  Increases memory reserved to accomodate various tables.
 
-config HAVE_ARCH_BOOTMEM_NODE
+config HAVE_ARCH_BOOTMEM
 	def_bool y
 	depends on X86_32 && NUMA
 
@@ -1423,7 +1440,7 @@ config CRASH_DUMP
 config KEXEC_JUMP
 	bool "kexec jump (EXPERIMENTAL)"
 	depends on EXPERIMENTAL
-	depends on KEXEC && HIBERNATION && X86_32
+	depends on KEXEC && HIBERNATION
 	---help---
 	  Jump between original kernel and kexeced kernel and invoke
 	  code in physical address mode via KEXEC

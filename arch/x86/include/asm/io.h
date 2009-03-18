@@ -172,8 +172,6 @@ static inline void __iomem *ioremap(resource_size_t offset, unsigned long size)
 
 extern void iounmap(volatile void __iomem *addr);
 
-extern void __iomem *fix_ioremap(unsigned idx, unsigned long phys);
-
 
 #ifdef CONFIG_X86_32
 # include "io_32.h"
@@ -198,7 +196,6 @@ extern void early_ioremap_reset(void);
 extern void __iomem *early_ioremap(unsigned long offset, unsigned long size);
 extern void __iomem *early_memremap(unsigned long offset, unsigned long size);
 extern void early_iounmap(void __iomem *addr, unsigned long size);
-extern void __iomem *fix_ioremap(unsigned idx, unsigned long phys);
 
 #define IO_SPACE_LIMIT 0xffff
 

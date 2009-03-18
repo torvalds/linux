@@ -164,6 +164,7 @@ static inline pte_t __pte_ma(pteval_t x)
 
 
 xmaddr_t arbitrary_virt_to_machine(void *address);
+unsigned long arbitrary_virt_to_mfn(void *vaddr);
 void make_lowmem_page_readonly(void *vaddr);
 void make_lowmem_page_readwrite(void *vaddr);
 

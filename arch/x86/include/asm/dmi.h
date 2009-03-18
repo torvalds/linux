@@ -2,21 +2,11 @@
 #define _ASM_X86_DMI_H
 
 #include <asm/io.h>
+#include <asm/setup.h>
 
-#define DMI_MAX_DATA 2048
-
-extern int dmi_alloc_index;
-extern char dmi_alloc_data[DMI_MAX_DATA];
-
-/* This is so early that there is no good way to allocate dynamic memory.
-   Allocate data in an BSS array. */
 static inline void *dmi_alloc(unsigned len)
 {
-	int idx = dmi_alloc_index;
-	if ((dmi_alloc_index + len) > DMI_MAX_DATA)
-		return NULL;
-	dmi_alloc_index += len;
-	return dmi_alloc_data + idx;
+	return extend_brk(len, sizeof(int));
 }
 
 /* Use early IO mappings for DMI because it's initialized early */

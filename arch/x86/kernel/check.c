@@ -83,14 +83,14 @@ void __init setup_bios_corruption_check(void)
 		u64 size;
 		addr = find_e820_area_size(addr, &size, PAGE_SIZE);
 
-		if (addr == 0)
+		if (!(addr + 1))
+			break;
+
+		if (addr >= corruption_check_size)
 			break;
 
 		if ((addr + size) > corruption_check_size)
 			size = corruption_check_size - addr;
-
-		if (size == 0)
-			break;
 
 		e820_update_range(addr, size, E820_RAM, E820_RESERVED);
 		scan_areas[num_scan_areas].addr = addr;

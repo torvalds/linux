@@ -1469,8 +1469,6 @@ L:	linux-acpi@vger.kernel.org
 S:	Supported
 
 DOCUMENTATION (/Documentation directory)
-P:	Michael Kerrisk
-M:	mtk.manpages@gmail.com
 P:	Randy Dunlap
 M:	rdunlap@xenotime.net
 L:	linux-doc@vger.kernel.org
@@ -2879,7 +2877,7 @@ P:	Michael Kerrisk
 M:	mtk.manpages@gmail.com
 W:	http://www.kernel.org/doc/man-pages
 L:	linux-man@vger.kernel.org
-S:	Supported
+S:	Maintained
 
 MARVELL LIBERTAS WIRELESS DRIVER
 P:	Dan Williams
@@ -3352,10 +3350,8 @@ S:	Maintained
 PARISC ARCHITECTURE
 P:	Kyle McMartin
 M:	kyle@mcmartin.ca
-P:	Matthew Wilcox
-M:	matthew@wil.cx
-P:	Grant Grundler
-M:	grundler@parisc-linux.org
+P:	Helge Deller
+M:	deller@gmx.de
 L:	linux-parisc@vger.kernel.org
 W:	http://www.parisc-linux.org/
 T:	git kernel.org:/pub/scm/linux/kernel/git/kyle/parisc-2.6.git
@@ -3879,6 +3875,15 @@ M:	jgarzik@pobox.com
 L:	linux-ide@vger.kernel.org
 T:	git kernel.org:/pub/scm/linux/kernel/git/jgarzik/libata-dev.git
 S:	Supported
+
+SERVER ENGINES 10Gbps NIC - BladeEngine 2 DRIVER
+P:	Sathya Perla
+M:	sathyap@serverengines.com
+P:      Subbu Seetharaman
+M:      subbus@serverengines.com
+L:      netdev@vger.kernel.org
+W:      http://www.serverengines.com
+S:      Supported
 
 SFC NETWORK DRIVER
 P:	Steve Hodgson

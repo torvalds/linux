@@ -108,6 +108,16 @@ extern void native_apic_icr_write(u32 low, u32 id);
 extern u64 native_apic_icr_read(void);
 
 #ifdef CONFIG_X86_X2APIC
+/*
+ * Make previous memory operations globally visible before
+ * sending the IPI through x2apic wrmsr. We need a serializing instruction or
+ * mfence for this.
+ */
+static inline void x2apic_wrmsr_fence(void)
+{
+	asm volatile("mfence" : : : "memory");
+}
+
 static inline void native_apic_msr_write(u32 reg, u32 v)
 {
 	if (reg == APIC_DFR || reg == APIC_ID || reg == APIC_LDR ||
@@ -184,6 +194,9 @@ static inline int x2apic_enabled(void)
 {
 	return 0;
 }
+
+#define	x2apic	0
+
 #endif
 
 extern int get_physical_broadcast(void);
@@ -379,6 +392,7 @@ static inline u32 safe_apic_wait_icr_idle(void)
 
 static inline void ack_APIC_irq(void)
 {
+#ifdef CONFIG_X86_LOCAL_APIC
 	/*
 	 * ack_APIC_irq() actually gets compiled as a single instruction
 	 * ... yummie.
@@ -386,6 +400,7 @@ static inline void ack_APIC_irq(void)
 
 	/* Docs say use 0 for future compatibility */
 	apic_write(APIC_EOI, 0);
+#endif
 }
 
 static inline unsigned default_get_apic_id(unsigned long x)

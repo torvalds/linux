@@ -416,7 +416,7 @@ load-$(CONFIG_PNX8550_STB810)	+= 0xffffffff80060000
 #
 # Common NEC EMMAXXX
 #
-core-$(CONFIG_SOC_EMMA)		+= arch/mips/emma/common/
+core-$(CONFIG_SOC_EMMA2RH)	+= arch/mips/emma/common/
 cflags-$(CONFIG_SOC_EMMA2RH)	+= -I$(srctree)/arch/mips/include/asm/mach-emma2rh
 
 #

@@ -16,6 +16,7 @@
 #include <asm/processor.h>
 #include <asm/tlbflush.h>
 #include <asm/sections.h>
+#include <asm/setup.h>
 #include <asm/uaccess.h>
 #include <asm/pgalloc.h>
 #include <asm/proto.h>
@@ -95,7 +96,7 @@ static inline unsigned long highmap_start_pfn(void)
 
 static inline unsigned long highmap_end_pfn(void)
 {
-	return __pa(roundup((unsigned long)_end, PMD_SIZE)) >> PAGE_SHIFT;
+	return __pa(roundup(_brk_end, PMD_SIZE)) >> PAGE_SHIFT;
 }
 
 #endif
@@ -522,6 +523,17 @@ static int split_large_page(pte_t *kpte, unsigned long address)
 	 * primary protection behavior:
 	 */
 	__set_pmd_pte(kpte, address, mk_pte(base, __pgprot(_KERNPG_TABLE)));
+
+	/*
+	 * Intel Atom errata AAH41 workaround.
+	 *
+	 * The real fix should be in hw or in a microcode update, but
+	 * we also probabilistically try to reduce the window of having
+	 * a large TLB mixed with 4K TLBs while instruction fetches are
+	 * going on.
+	 */
+	__flush_tlb_all();
+
 	base = NULL;
 
 out_unlock:
@@ -700,7 +712,7 @@ static int cpa_process_alias(struct cpa_data *cpa)
 	 * No need to redo, when the primary call touched the high
 	 * mapping already:
 	 */
-	if (within(vaddr, (unsigned long) _text, (unsigned long) _end))
+	if (within(vaddr, (unsigned long) _text, _brk_end))
 		return 0;
 
 	/*
