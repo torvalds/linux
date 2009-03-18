@@ -33,7 +33,6 @@
 #include <linux/list.h>
 #include <linux/dma-mapping.h>
 #include <linux/delay.h>
-#include <linux/debugfs.h>
 #include <linux/jiffies.h>
 #include <linux/vmalloc.h>
 
@@ -182,10 +181,6 @@ struct cafe_camera
 	/* Misc */
 	wait_queue_head_t smbus_wait;	/* Waiting on i2c events */
 	wait_queue_head_t iowait;	/* Waiting on frame data */
-#ifdef CONFIG_VIDEO_ADV_DEBUG
-	struct dentry *dfs_regs;
-	struct dentry *dfs_cam_regs;
-#endif
 };
 
 /*
@@ -1646,6 +1641,47 @@ static int cafe_vidioc_s_parm(struct file *filp, void *priv,
 	return ret;
 }
 
+static int cafe_vidioc_g_chip_ident(struct file *file, void *priv,
+		struct v4l2_dbg_chip_ident *chip)
+{
+	struct cafe_camera *cam = priv;
+
+	chip->ident = V4L2_IDENT_NONE;
+	chip->revision = 0;
+	if (v4l2_chip_match_host(&chip->match)) {
+		chip->ident = V4L2_IDENT_CAFE;
+		return 0;
+	}
+	return sensor_call(cam, core, g_chip_ident, chip);
+}
+
+#ifdef CONFIG_VIDEO_ADV_DEBUG
+static int cafe_vidioc_g_register(struct file *file, void *priv,
+		struct v4l2_dbg_register *reg)
+{
+	struct cafe_camera *cam = priv;
+
+	if (v4l2_chip_match_host(&reg->match)) {
+		reg->val = cafe_reg_read(cam, reg->reg);
+		reg->size = 4;
+		return 0;
+	}
+	return sensor_call(cam, core, g_register, reg);
+}
+
+static int cafe_vidioc_s_register(struct file *file, void *priv,
+		struct v4l2_dbg_register *reg)
+{
+	struct cafe_camera *cam = priv;
+
+	if (v4l2_chip_match_host(&reg->match)) {
+		cafe_reg_write(cam, reg->reg, reg->val);
+		return 0;
+	}
+	return sensor_call(cam, core, s_register, reg);
+}
+#endif
+
 /*
  * This template device holds all of those v4l2 methods; we
  * clone it for specific real devices.
@@ -1682,6 +1718,11 @@ static const struct v4l2_ioctl_ops cafe_v4l_ioctl_ops = {
 	.vidioc_s_ctrl		= cafe_vidioc_s_ctrl,
 	.vidioc_g_parm		= cafe_vidioc_g_parm,
 	.vidioc_s_parm		= cafe_vidioc_s_parm,
+	.vidioc_g_chip_ident    = cafe_vidioc_g_chip_ident,
+#ifdef CONFIG_VIDEO_ADV_DEBUG
+	.vidioc_g_register 	= cafe_vidioc_g_register,
+	.vidioc_s_register 	= cafe_vidioc_s_register,
+#endif
 };
 
 static struct video_device cafe_v4l_template = {
@@ -1849,127 +1890,6 @@ static irqreturn_t cafe_irq(int irq, void *data)
 
 
 /* -------------------------------------------------------------------------- */
-#ifdef CONFIG_VIDEO_ADV_DEBUG
-/*
- * Debugfs stuff.
- */
-
-static char cafe_debug_buf[1024];
-static struct dentry *cafe_dfs_root;
-
-static void cafe_dfs_setup(void)
-{
-	cafe_dfs_root = debugfs_create_dir("cafe_ccic", NULL);
-	if (IS_ERR(cafe_dfs_root)) {
-		cafe_dfs_root = NULL;  /* Never mind */
-		printk(KERN_NOTICE "cafe_ccic unable to set up debugfs\n");
-	}
-}
-
-static void cafe_dfs_shutdown(void)
-{
-	if (cafe_dfs_root)
-		debugfs_remove(cafe_dfs_root);
-}
-
-static int cafe_dfs_open(struct inode *inode, struct file *file)
-{
-	file->private_data = inode->i_private;
-	return 0;
-}
-
-static ssize_t cafe_dfs_read_regs(struct file *file,
-		char __user *buf, size_t count, loff_t *ppos)
-{
-	struct cafe_camera *cam = file->private_data;
-	char *s = cafe_debug_buf;
-	int offset;
-
-	for (offset = 0; offset < 0x44; offset += 4)
-		s += sprintf(s, "%02x: %08x\n", offset,
-				cafe_reg_read(cam, offset));
-	for (offset = 0x88; offset <= 0x90; offset += 4)
-		s += sprintf(s, "%02x: %08x\n", offset,
-				cafe_reg_read(cam, offset));
-	for (offset = 0xb4; offset <= 0xbc; offset += 4)
-		s += sprintf(s, "%02x: %08x\n", offset,
-				cafe_reg_read(cam, offset));
-	for (offset = 0x3000; offset <= 0x300c; offset += 4)
-		s += sprintf(s, "%04x: %08x\n", offset,
-				cafe_reg_read(cam, offset));
-	return simple_read_from_buffer(buf, count, ppos, cafe_debug_buf,
-			s - cafe_debug_buf);
-}
-
-static const struct file_operations cafe_dfs_reg_ops = {
-	.owner = THIS_MODULE,
-	.read = cafe_dfs_read_regs,
-	.open = cafe_dfs_open
-};
-
-static ssize_t cafe_dfs_read_cam(struct file *file,
-		char __user *buf, size_t count, loff_t *ppos)
-{
-	struct cafe_camera *cam = file->private_data;
-	char *s = cafe_debug_buf;
-	int offset;
-
-	if (! cam->sensor)
-		return -EINVAL;
-	for (offset = 0x0; offset < 0x8a; offset++)
-	{
-		u8 v;
-
-		cafe_smbus_read_data(cam, cam->sensor_addr, offset, &v);
-		s += sprintf(s, "%02x: %02x\n", offset, v);
-	}
-	return simple_read_from_buffer(buf, count, ppos, cafe_debug_buf,
-			s - cafe_debug_buf);
-}
-
-static const struct file_operations cafe_dfs_cam_ops = {
-	.owner = THIS_MODULE,
-	.read = cafe_dfs_read_cam,
-	.open = cafe_dfs_open
-};
-
-
-
-static void cafe_dfs_cam_setup(struct cafe_camera *cam)
-{
-	char fname[40];
-
-	if (!cafe_dfs_root)
-		return;
-	sprintf(fname, "regs-%d", cam->vdev.num);
-	cam->dfs_regs = debugfs_create_file(fname, 0444, cafe_dfs_root,
-			cam, &cafe_dfs_reg_ops);
-	sprintf(fname, "cam-%d", cam->vdev.num);
-	cam->dfs_cam_regs = debugfs_create_file(fname, 0444, cafe_dfs_root,
-			cam, &cafe_dfs_cam_ops);
-}
-
-
-static void cafe_dfs_cam_shutdown(struct cafe_camera *cam)
-{
-	if (! IS_ERR(cam->dfs_regs))
-		debugfs_remove(cam->dfs_regs);
-	if (! IS_ERR(cam->dfs_cam_regs))
-		debugfs_remove(cam->dfs_cam_regs);
-}
-
-#else
-
-#define cafe_dfs_setup()
-#define cafe_dfs_shutdown()
-#define cafe_dfs_cam_setup(cam)
-#define cafe_dfs_cam_shutdown(cam)
-#endif    /* CONFIG_VIDEO_ADV_DEBUG */
-
-
-
-
-/* ------------------------------------------------------------------------*/
 /*
  * PCI interface stuff.
  */
@@ -2070,7 +1990,6 @@ static int cafe_pci_probe(struct pci_dev *pdev,
 					" will try again later.");
 	}
 
-	cafe_dfs_cam_setup(cam);
 	mutex_unlock(&cam->s_mutex);
 	return 0;
 
@@ -2096,7 +2015,6 @@ out:
 static void cafe_shutdown(struct cafe_camera *cam)
 {
 /* FIXME: Make sure we take care of everything here */
-	cafe_dfs_cam_shutdown(cam);
 	if (cam->n_sbufs > 0)
 		/* What if they are still mapped?  Shouldn't be, but... */
 		cafe_free_sio_buffers(cam);
@@ -2216,7 +2134,6 @@ static int __init cafe_init(void)
 
 	printk(KERN_NOTICE "Marvell M88ALP01 'CAFE' Camera Controller version %d\n",
 			CAFE_VERSION);
-	cafe_dfs_setup();
 	ret = pci_register_driver(&cafe_pci_driver);
 	if (ret) {
 		printk(KERN_ERR "Unable to register cafe_ccic driver\n");
@@ -2232,7 +2149,6 @@ static int __init cafe_init(void)
 static void __exit cafe_exit(void)
 {
 	pci_unregister_driver(&cafe_pci_driver);
-	cafe_dfs_shutdown();
 }
 
 module_init(cafe_init);

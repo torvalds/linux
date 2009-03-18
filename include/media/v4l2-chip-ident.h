@@ -146,20 +146,11 @@ enum {
 	/* module tda9840: just ident 9840 */
 	V4L2_IDENT_TDA9840 = 9840,
 
+	/* module cafe_ccic, just ident 8801 */
+	V4L2_IDENT_CAFE = 8801,
+
 	/* module tw9910: just ident 9910 */
 	V4L2_IDENT_TW9910 = 9910,
-
-	/* module cs53132a: just ident 53132 */
-	V4L2_IDENT_CS53l32A = 53132,
-
-	/* module upd64031a: just ident 64031 */
-	V4L2_IDENT_UPD64031A = 64031,
-
-	/* module upd64083: just ident 64083 */
-	V4L2_IDENT_UPD64083 = 64083,
-
-	/* module m52790: just ident 52790 */
-	V4L2_IDENT_M52790 = 52790,
 
 	/* module msp3400: reserved range 34000-34999 and 44000-44999 */
 	V4L2_IDENT_MSPX4XX  = 34000, /* generic MSPX4XX identifier, only
@@ -237,6 +228,18 @@ enum {
 	V4L2_IDENT_MT9V022IX7ATC	= 45010, /* No way to detect "normal" I77ATx */
 	V4L2_IDENT_MT9V022IX7ATM	= 45015, /* and "lead free" IA7ATx chips */
 	V4L2_IDENT_MT9T031		= 45020,
+
+	/* module cs53132a: just ident 53132 */
+	V4L2_IDENT_CS53l32A = 53132,
+
+	/* module upd64031a: just ident 64031 */
+	V4L2_IDENT_UPD64031A = 64031,
+
+	/* module upd64083: just ident 64083 */
+	V4L2_IDENT_UPD64083 = 64083,
+
+	/* module m52790: just ident 52790 */
+	V4L2_IDENT_M52790 = 52790,
 };
 
 #endif
