@@ -160,8 +160,9 @@ x86_get_mtrr_mem_range(struct res_range *range, int nr_range,
 		       unsigned long extra_remove_base,
 		       unsigned long extra_remove_size)
 {
-	unsigned long i, base, size;
+	unsigned long base, size;
 	mtrr_type type;
+	int i;
 
 	for (i = 0; i < num_var_ranges; i++) {
 		type = range_state[i].type;
