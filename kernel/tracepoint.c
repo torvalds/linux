@@ -278,10 +278,8 @@ tracepoint_update_probe_range(struct tracepoint *begin, struct tracepoint *end)
 	struct tracepoint *iter;
 	struct tracepoint_entry *mark_entry;
 
-	if (!begin) {
-		WARN_ON_ONCE(1);
+	if (!begin)
 		return;
-	}
 
 	mutex_lock(&tracepoints_mutex);
 	for (iter = begin; iter < end; iter++) {
