@@ -23,8 +23,7 @@
 typedef NORET_TYPE void (*relocate_new_kernel_t)(
 				unsigned long indirection_page,
 				unsigned long reboot_code_buffer,
-				unsigned long start_address,
-				unsigned long vbr_reg) ATTRIB_NORET;
+				unsigned long start_address) ATTRIB_NORET;
 
 extern const unsigned char relocate_new_kernel[];
 extern const unsigned int relocate_new_kernel_size;
@@ -76,14 +75,8 @@ void machine_kexec(struct kimage *image)
 
 	unsigned long page_list;
 	unsigned long reboot_code_buffer;
-	unsigned long vbr_reg;
 	relocate_new_kernel_t rnk;
 
-#if defined(CONFIG_SH_STANDARD_BIOS)
-	vbr_reg = ((unsigned long )gdb_vbr_vector) - 0x100;
-#else
-	vbr_reg = 0x80000000;  // dummy
-#endif
 	/* Interrupts aren't acceptable while we reboot */
 	local_irq_disable();
 
@@ -100,9 +93,15 @@ void machine_kexec(struct kimage *image)
         kexec_info(image);
 	flush_cache_all();
 
+	set_bl_bit();
+#if defined(CONFIG_SH_STANDARD_BIOS)
+	asm volatile("ldc %0, vbr" :
+		     : "r" (((unsigned long) gdb_vbr_vector) - 0x100)
+		     : "memory");
+#endif
 	/* now call it */
 	rnk = (relocate_new_kernel_t) reboot_code_buffer;
-	(*rnk)(page_list, reboot_code_buffer, P2SEGADDR(image->start), vbr_reg);
+	(*rnk)(page_list, reboot_code_buffer, P2SEGADDR(image->start));
 }
 
 void arch_crash_save_vmcoreinfo(void)

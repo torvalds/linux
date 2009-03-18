@@ -16,7 +16,6 @@ relocate_new_kernel:
 	/* r4 = indirection_page   */
 	/* r5 = reboot_code_buffer */
 	/* r6 = start_address      */
-	/* r7 = vbr_reg            */
 
 	mov.l	10f,r8	  /* PAGE_SIZE */
 	mov.l	11f,r9    /* P2SEG */
@@ -80,9 +79,6 @@ relocate_new_kernel:
 	bra	0b
 	nop
 6:
-#ifdef CONFIG_SH_STANDARD_BIOS
-	ldc   r7, vbr
-#endif
 	jmp @r6
 	nop
 
