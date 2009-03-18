@@ -164,7 +164,8 @@ static inline void context_clear_entry(struct context_entry *context)
  * 1: writable
  * 2-6: reserved
  * 7: super page
- * 8-11: available
+ * 8-10: available
+ * 11: snoop behavior
  * 12-63: Host physcial address
  */
 struct dma_pte {
@@ -184,6 +185,11 @@ static inline void dma_set_pte_readable(struct dma_pte *pte)
 static inline void dma_set_pte_writable(struct dma_pte *pte)
 {
 	pte->val |= DMA_PTE_WRITE;
+}
+
+static inline void dma_set_pte_snp(struct dma_pte *pte)
+{
+	pte->val |= DMA_PTE_SNP;
 }
 
 static inline void dma_set_pte_prot(struct dma_pte *pte, unsigned long prot)
@@ -1685,6 +1691,8 @@ domain_page_mapping(struct dmar_domain *domain, dma_addr_t iova,
 		BUG_ON(dma_pte_addr(pte));
 		dma_set_pte_addr(pte, start_pfn << VTD_PAGE_SHIFT);
 		dma_set_pte_prot(pte, prot);
+		if (prot & DMA_PTE_SNP)
+			dma_set_pte_snp(pte);
 		domain_flush_cache(domain, pte, sizeof(*pte));
 		start_pfn++;
 		index++;
@@ -3105,6 +3113,8 @@ static int intel_iommu_map_range(struct iommu_domain *domain,
 		prot |= DMA_PTE_READ;
 	if (iommu_prot & IOMMU_WRITE)
 		prot |= DMA_PTE_WRITE;
+	if ((iommu_prot & IOMMU_CACHE) && dmar_domain->iommu_snooping)
+		prot |= DMA_PTE_SNP;
 
 	max_addr = (iova & VTD_PAGE_MASK) + VTD_PAGE_ALIGN(size);
 	if (dmar_domain->max_addr < max_addr) {

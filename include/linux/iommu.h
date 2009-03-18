@@ -21,6 +21,7 @@
 
 #define IOMMU_READ	(1)
 #define IOMMU_WRITE	(2)
+#define IOMMU_CACHE	(4) /* DMA cache coherency */
 
 struct device;
 
