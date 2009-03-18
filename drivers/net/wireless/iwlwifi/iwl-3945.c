@@ -747,11 +747,6 @@ void iwl3945_hw_txq_free_tfd(struct iwl_priv *priv, struct iwl_tx_queue *txq)
 	int i;
 	int counter;
 
-	/* classify bd */
-	if (txq->q.id == IWL_CMD_QUEUE_NUM)
-		/* nothing to cleanup after for host commands */
-		return;
-
 	/* sanity check */
 	counter = TFD_CTL_COUNT_GET(le32_to_cpu(tfd->control_flags));
 	if (counter > NUM_TFD_CHUNKS) {
@@ -1240,7 +1235,11 @@ void iwl3945_hw_txq_ctx_free(struct iwl_priv *priv)
 
 	/* Tx queues */
 	for (txq_id = 0; txq_id <= priv->hw_params.max_txq_num; txq_id++)
-		iwl_tx_queue_free(priv, txq_id);
+		if (txq_id == IWL_CMD_QUEUE_NUM)
+			iwl_cmd_queue_free(priv);
+		else
+			iwl_tx_queue_free(priv, txq_id);
+
 }
 
 void iwl3945_hw_txq_ctx_stop(struct iwl_priv *priv)
