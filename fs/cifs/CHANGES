@@ -13,6 +13,9 @@ parameter to allow user to disable sending the (slow) SMB flush on
 fsync if desired (fsync still flushes all cached write data to the server).
 Posix file open support added (turned off after one attempt if server
 fails to support it properly, as with Samba server versions prior to 3.3.2)
+Fix "redzone overwritten" bug in cifs_put_tcon (CIFSTcon may allocate too
+little memory for the "nativeFileSystem" field returned by the server
+during mount). 
 
 Version 1.56
 ------------

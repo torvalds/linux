@@ -3674,7 +3674,7 @@ CIFSTCon(unsigned int xid, struct cifsSesInfo *ses,
 			    BCC(smb_buffer_response)) {
 				kfree(tcon->nativeFileSystem);
 				tcon->nativeFileSystem =
-				    kzalloc(length + 2, GFP_KERNEL);
+				    kzalloc(2*(length + 1), GFP_KERNEL);
 				if (tcon->nativeFileSystem)
 					cifs_strfromUCS_le(
 						tcon->nativeFileSystem,
