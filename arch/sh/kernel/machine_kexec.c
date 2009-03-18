@@ -76,6 +76,21 @@ void machine_kexec(struct kimage *image)
 	unsigned long page_list;
 	unsigned long reboot_code_buffer;
 	relocate_new_kernel_t rnk;
+	unsigned long entry;
+	unsigned long *ptr;
+
+	/*
+	 * Nicked from the mips version of machine_kexec():
+	 * The generic kexec code builds a page list with physical
+	 * addresses. Use phys_to_virt() to convert them to virtual.
+	 */
+	for (ptr = &image->head; (entry = *ptr) && !(entry & IND_DONE);
+	     ptr = (entry & IND_INDIRECTION) ?
+	       phys_to_virt(entry & PAGE_MASK) : ptr + 1) {
+		if (*ptr & IND_SOURCE || *ptr & IND_INDIRECTION ||
+		    *ptr & IND_DESTINATION)
+			*ptr = (unsigned long) phys_to_virt(*ptr);
+	}
 
 	/* Interrupts aren't acceptable while we reboot */
 	local_irq_disable();
@@ -101,7 +116,7 @@ void machine_kexec(struct kimage *image)
 #endif
 	/* now call it */
 	rnk = (relocate_new_kernel_t) reboot_code_buffer;
-	(*rnk)(page_list, reboot_code_buffer, P2SEGADDR(image->start));
+	(*rnk)(page_list, reboot_code_buffer, image->start);
 }
 
 void arch_crash_save_vmcoreinfo(void)

@@ -18,7 +18,6 @@ relocate_new_kernel:
 	/* r6 = start_address      */
 
 	mov.l	10f,r8	  /* PAGE_SIZE */
-	mov.l	11f,r9    /* P2SEG */
 
 	/*  stack setting */
 	add	r8,r5
@@ -29,9 +28,8 @@ relocate_new_kernel:
 0:
 	mov.l	@r4+,r0	  /* cmd = *ind++ */
 
-1:	/* addr = (cmd | P2SEG) & 0xfffffff0 */
+1:	/* addr = cmd & 0xfffffff0 */
 	mov	r0,r2
-	or	r9,r2
 	mov	#-16,r1
 	and	r1,r2
 
@@ -85,8 +83,6 @@ relocate_new_kernel:
 	.align 2
 10:
 	.long	PAGE_SIZE
-11:
-	.long	P2SEG
 
 relocate_new_kernel_end:
 
