@@ -738,8 +738,7 @@ void trace_stop_cmdline_recording(void);
 
 static void trace_save_cmdline(struct task_struct *tsk)
 {
-	unsigned map;
-	unsigned idx;
+	unsigned pid, idx;
 
 	if (!tsk->pid || unlikely(tsk->pid > PID_MAX_DEFAULT))
 		return;
@@ -757,10 +756,17 @@ static void trace_save_cmdline(struct task_struct *tsk)
 	if (idx == NO_CMDLINE_MAP) {
 		idx = (cmdline_idx + 1) % SAVED_CMDLINES;
 
-		map = map_cmdline_to_pid[idx];
-		if (map != NO_CMDLINE_MAP)
-			map_pid_to_cmdline[map] = NO_CMDLINE_MAP;
+		/*
+		 * Check whether the cmdline buffer at idx has a pid
+		 * mapped. We are going to overwrite that entry so we
+		 * need to clear the map_pid_to_cmdline. Otherwise we
+		 * would read the new comm for the old pid.
+		 */
+		pid = map_cmdline_to_pid[idx];
+		if (pid != NO_CMDLINE_MAP)
+			map_pid_to_cmdline[pid] = NO_CMDLINE_MAP;
 
+		map_cmdline_to_pid[idx] = tsk->pid;
 		map_pid_to_cmdline[tsk->pid] = idx;
 
 		cmdline_idx = idx;
