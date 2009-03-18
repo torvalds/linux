@@ -152,8 +152,8 @@ static void unmap_switcher(void)
  * code.  We have to check that the range is below the pfn_limit the Launcher
  * gave us.  We have to make sure that addr + len doesn't give us a false
  * positive by overflowing, too. */
-int lguest_address_ok(const struct lguest *lg,
-		      unsigned long addr, unsigned long len)
+bool lguest_address_ok(const struct lguest *lg,
+		       unsigned long addr, unsigned long len)
 {
 	return (addr+len) / PAGE_SIZE < lg->pfn_limit && (addr+len >= addr);
 }

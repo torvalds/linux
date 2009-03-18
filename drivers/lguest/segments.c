@@ -45,7 +45,7 @@
  * "Task State Segment" which controls all kinds of delicate things.  The
  * LGUEST_CS and LGUEST_DS entries are reserved for the Switcher, and the
  * the Guest can't be trusted to deal with double faults. */
-static int ignored_gdt(unsigned int num)
+static bool ignored_gdt(unsigned int num)
 {
 	return (num == GDT_ENTRY_TSS
 		|| num == GDT_ENTRY_LGUEST_CS

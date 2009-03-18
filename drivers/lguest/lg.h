@@ -109,8 +109,8 @@ struct lguest
 extern struct mutex lguest_lock;
 
 /* core.c: */
-int lguest_address_ok(const struct lguest *lg,
-		      unsigned long addr, unsigned long len);
+bool lguest_address_ok(const struct lguest *lg,
+		       unsigned long addr, unsigned long len);
 void __lgread(struct lg_cpu *, void *, unsigned long, unsigned);
 void __lgwrite(struct lg_cpu *, unsigned long, const void *, unsigned);
 
@@ -140,7 +140,7 @@ int run_guest(struct lg_cpu *cpu, unsigned long __user *user);
 
 /* interrupts_and_traps.c: */
 void maybe_do_interrupt(struct lg_cpu *cpu);
-int deliver_trap(struct lg_cpu *cpu, unsigned int num);
+bool deliver_trap(struct lg_cpu *cpu, unsigned int num);
 void load_guest_idt_entry(struct lg_cpu *cpu, unsigned int i,
 			  u32 low, u32 hi);
 void guest_set_stack(struct lg_cpu *cpu, u32 seg, u32 esp, unsigned int pages);
@@ -173,7 +173,7 @@ void guest_pagetable_flush_user(struct lg_cpu *cpu);
 void guest_set_pte(struct lg_cpu *cpu, unsigned long gpgdir,
 		   unsigned long vaddr, pte_t val);
 void map_switcher_in_guest(struct lg_cpu *cpu, struct lguest_pages *pages);
-int demand_page(struct lg_cpu *cpu, unsigned long cr2, int errcode);
+bool demand_page(struct lg_cpu *cpu, unsigned long cr2, int errcode);
 void pin_page(struct lg_cpu *cpu, unsigned long vaddr);
 unsigned long guest_pa(struct lg_cpu *cpu, unsigned long vaddr);
 void page_table_guest_data_init(struct lg_cpu *cpu);
