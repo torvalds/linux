@@ -247,7 +247,7 @@ static long rc32434_wdt_ioctl(struct file *file, unsigned int cmd,
 	return 0;
 }
 
-static struct file_operations rc32434_wdt_fops = {
+static const struct file_operations rc32434_wdt_fops = {
 	.owner		= THIS_MODULE,
 	.llseek		= no_llseek,
 	.write		= rc32434_wdt_write,

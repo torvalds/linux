@@ -602,7 +602,7 @@ static long hpwdt_ioctl(struct file *file, unsigned int cmd,
 /*
  *	Kernel interfaces
  */
-static struct file_operations hpwdt_fops = {
+static const struct file_operations hpwdt_fops = {
 	.owner = THIS_MODULE,
 	.llseek = no_llseek,
 	.write = hpwdt_write,
