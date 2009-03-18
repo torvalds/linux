@@ -231,6 +231,7 @@ struct dmar_domain {
 	int		flags;		/* flags to find out type of domain */
 
 	int		iommu_coherency;/* indicate coherency of iommu access */
+	int		iommu_snooping; /* indicate snooping control feature*/
 	int		iommu_count;	/* reference count of iommu */
 	spinlock_t	iommu_lock;	/* protect iommu set in domain */
 	u64		max_addr;	/* maximum mapped address */
@@ -421,7 +422,6 @@ static struct intel_iommu *domain_get_iommu(struct dmar_domain *domain)
 	return g_iommus[iommu_id];
 }
 
-/* "Coherency" capability may be different across iommus */
 static void domain_update_iommu_coherency(struct dmar_domain *domain)
 {
 	int i;
@@ -436,6 +436,29 @@ static void domain_update_iommu_coherency(struct dmar_domain *domain)
 		}
 		i = find_next_bit(&domain->iommu_bmp, g_num_of_iommus, i+1);
 	}
+}
+
+static void domain_update_iommu_snooping(struct dmar_domain *domain)
+{
+	int i;
+
+	domain->iommu_snooping = 1;
+
+	i = find_first_bit(&domain->iommu_bmp, g_num_of_iommus);
+	for (; i < g_num_of_iommus; ) {
+		if (!ecap_sc_support(g_iommus[i]->ecap)) {
+			domain->iommu_snooping = 0;
+			break;
+		}
+		i = find_next_bit(&domain->iommu_bmp, g_num_of_iommus, i+1);
+	}
+}
+
+/* Some capabilities may be different across iommus */
+static void domain_update_iommu_cap(struct dmar_domain *domain)
+{
+	domain_update_iommu_coherency(domain);
+	domain_update_iommu_snooping(domain);
 }
 
 static struct intel_iommu *device_to_iommu(u8 bus, u8 devfn)
@@ -1429,6 +1452,11 @@ static int domain_init(struct dmar_domain *domain, int guest_width)
 	else
 		domain->iommu_coherency = 0;
 
+	if (ecap_sc_support(iommu->ecap))
+		domain->iommu_snooping = 1;
+	else
+		domain->iommu_snooping = 0;
+
 	domain->iommu_count = 1;
 
 	/* always allocate the top pgd */
@@ -1557,7 +1585,7 @@ static int domain_context_mapping_one(struct dmar_domain *domain,
 	spin_lock_irqsave(&domain->iommu_lock, flags);
 	if (!test_and_set_bit(iommu->seq_id, &domain->iommu_bmp)) {
 		domain->iommu_count++;
-		domain_update_iommu_coherency(domain);
+		domain_update_iommu_cap(domain);
 	}
 	spin_unlock_irqrestore(&domain->iommu_lock, flags);
 	return 0;
@@ -2820,7 +2848,7 @@ static void vm_domain_remove_one_dev_info(struct dmar_domain *domain,
 		spin_lock_irqsave(&domain->iommu_lock, tmp_flags);
 		clear_bit(iommu->seq_id, &domain->iommu_bmp);
 		domain->iommu_count--;
-		domain_update_iommu_coherency(domain);
+		domain_update_iommu_cap(domain);
 		spin_unlock_irqrestore(&domain->iommu_lock, tmp_flags);
 	}
 
@@ -2848,13 +2876,13 @@ static void vm_domain_remove_all_dev_info(struct dmar_domain *domain)
 		iommu_detach_dev(iommu, info->bus, info->devfn);
 
 		/* clear this iommu in iommu_bmp, update iommu count
-		 * and coherency
+		 * and capabilities
 		 */
 		spin_lock_irqsave(&domain->iommu_lock, flags2);
 		if (test_and_clear_bit(iommu->seq_id,
 				       &domain->iommu_bmp)) {
 			domain->iommu_count--;
-			domain_update_iommu_coherency(domain);
+			domain_update_iommu_cap(domain);
 		}
 		spin_unlock_irqrestore(&domain->iommu_lock, flags2);
 

@@ -123,7 +123,7 @@ static inline void dmar_writeq(void __iomem *addr, u64 val)
 #define ecap_eim_support(e)	((e >> 4) & 0x1)
 #define ecap_ir_support(e)	((e >> 3) & 0x1)
 #define ecap_max_handle_mask(e) ((e >> 20) & 0xf)
-
+#define ecap_sc_support(e)	((e >> 7) & 0x1) /* Snooping Control */
 
 /* IOTLB_REG */
 #define DMA_TLB_FLUSH_GRANU_OFFSET  60
