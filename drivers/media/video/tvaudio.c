@@ -1047,6 +1047,116 @@ static int tda9874a_initialize(struct CHIPSTATE *chip)
 	return 0;
 }
 
+/* ---------------------------------------------------------------------- */
+/* audio chip description - defines+functions for tda9875                 */
+/* The TDA9875 is made by Philips Semiconductor
+ * http://www.semiconductors.philips.com
+ * TDA9875: I2C-bus controlled DSP audio processor, FM demodulator
+ *
+ */
+
+/* subaddresses for TDA9875 */
+#define TDA9875_MUT         0x12  /*General mute  (value --> 0b11001100*/
+#define TDA9875_CFG         0x01  /* Config register (value --> 0b00000000 */
+#define TDA9875_DACOS       0x13  /*DAC i/o select (ADC) 0b0000100*/
+#define TDA9875_LOSR        0x16  /*Line output select regirter 0b0100 0001*/
+
+#define TDA9875_CH1V        0x0c  /*Channel 1 volume (mute)*/
+#define TDA9875_CH2V        0x0d  /*Channel 2 volume (mute)*/
+#define TDA9875_SC1         0x14  /*SCART 1 in (mono)*/
+#define TDA9875_SC2         0x15  /*SCART 2 in (mono)*/
+
+#define TDA9875_ADCIS       0x17  /*ADC input select (mono) 0b0110 000*/
+#define TDA9875_AER         0x19  /*Audio effect (AVL+Pseudo) 0b0000 0110*/
+#define TDA9875_MCS         0x18  /*Main channel select (DAC) 0b0000100*/
+#define TDA9875_MVL         0x1a  /* Main volume gauche */
+#define TDA9875_MVR         0x1b  /* Main volume droite */
+#define TDA9875_MBA         0x1d  /* Main Basse */
+#define TDA9875_MTR         0x1e  /* Main treble */
+#define TDA9875_ACS         0x1f  /* Auxilary channel select (FM) 0b0000000*/
+#define TDA9875_AVL         0x20  /* Auxilary volume gauche */
+#define TDA9875_AVR         0x21  /* Auxilary volume droite */
+#define TDA9875_ABA         0x22  /* Auxilary Basse */
+#define TDA9875_ATR         0x23  /* Auxilary treble */
+
+#define TDA9875_MSR         0x02  /* Monitor select register */
+#define TDA9875_C1MSB       0x03  /* Carrier 1 (FM) frequency register MSB */
+#define TDA9875_C1MIB       0x04  /* Carrier 1 (FM) frequency register (16-8]b */
+#define TDA9875_C1LSB       0x05  /* Carrier 1 (FM) frequency register LSB */
+#define TDA9875_C2MSB       0x06  /* Carrier 2 (nicam) frequency register MSB */
+#define TDA9875_C2MIB       0x07  /* Carrier 2 (nicam) frequency register (16-8]b */
+#define TDA9875_C2LSB       0x08  /* Carrier 2 (nicam) frequency register LSB */
+#define TDA9875_DCR         0x09  /* Demodulateur configuration regirter*/
+#define TDA9875_DEEM        0x0a  /* FM de-emphasis regirter*/
+#define TDA9875_FMAT        0x0b  /* FM Matrix regirter*/
+
+/* values */
+#define TDA9875_MUTE_ON	    0xff /* general mute */
+#define TDA9875_MUTE_OFF    0xcc /* general no mute */
+
+static int tda9875_initialize(struct CHIPSTATE *chip)
+{
+	chip_write(chip, TDA9875_CFG, 0xd0); /*reg de config 0 (reset)*/
+	chip_write(chip, TDA9875_MSR, 0x03);    /* Monitor 0b00000XXX*/
+	chip_write(chip, TDA9875_C1MSB, 0x00);  /*Car1(FM) MSB XMHz*/
+	chip_write(chip, TDA9875_C1MIB, 0x00);  /*Car1(FM) MIB XMHz*/
+	chip_write(chip, TDA9875_C1LSB, 0x00);  /*Car1(FM) LSB XMHz*/
+	chip_write(chip, TDA9875_C2MSB, 0x00);  /*Car2(NICAM) MSB XMHz*/
+	chip_write(chip, TDA9875_C2MIB, 0x00);  /*Car2(NICAM) MIB XMHz*/
+	chip_write(chip, TDA9875_C2LSB, 0x00);  /*Car2(NICAM) LSB XMHz*/
+	chip_write(chip, TDA9875_DCR, 0x00);    /*Demod config 0x00*/
+	chip_write(chip, TDA9875_DEEM, 0x44);   /*DE-Emph 0b0100 0100*/
+	chip_write(chip, TDA9875_FMAT, 0x00);   /*FM Matrix reg 0x00*/
+	chip_write(chip, TDA9875_SC1, 0x00);    /* SCART 1 (SC1)*/
+	chip_write(chip, TDA9875_SC2, 0x01);    /* SCART 2 (sc2)*/
+
+	chip_write(chip, TDA9875_CH1V, 0x10);  /* Channel volume 1 mute*/
+	chip_write(chip, TDA9875_CH2V, 0x10);  /* Channel volume 2 mute */
+	chip_write(chip, TDA9875_DACOS, 0x02); /* sig DAC i/o(in:nicam)*/
+	chip_write(chip, TDA9875_ADCIS, 0x6f); /* sig ADC input(in:mono)*/
+	chip_write(chip, TDA9875_LOSR, 0x00);  /* line out (in:mono)*/
+	chip_write(chip, TDA9875_AER, 0x00);   /*06 Effect (AVL+PSEUDO) */
+	chip_write(chip, TDA9875_MCS, 0x44);   /* Main ch select (DAC) */
+	chip_write(chip, TDA9875_MVL, 0x03);   /* Vol Main left 10dB */
+	chip_write(chip, TDA9875_MVR, 0x03);   /* Vol Main right 10dB*/
+	chip_write(chip, TDA9875_MBA, 0x00);   /* Main Bass Main 0dB*/
+	chip_write(chip, TDA9875_MTR, 0x00);   /* Main Treble Main 0dB*/
+	chip_write(chip, TDA9875_ACS, 0x44);   /* Aux chan select (dac)*/
+	chip_write(chip, TDA9875_AVL, 0x00);   /* Vol Aux left 0dB*/
+	chip_write(chip, TDA9875_AVR, 0x00);   /* Vol Aux right 0dB*/
+	chip_write(chip, TDA9875_ABA, 0x00);   /* Aux Bass Main 0dB*/
+	chip_write(chip, TDA9875_ATR, 0x00);   /* Aux Aigus Main 0dB*/
+
+	chip_write(chip, TDA9875_MUT, 0xcc);   /* General mute  */
+	return 0;
+}
+
+static int tda9875_volume(int val) { return (unsigned char)(val / 602 - 84); }
+static int tda9875_bass(int val) { return (unsigned char)(max(-12, val / 2115 - 15)); }
+static int tda9875_treble(int val) { return (unsigned char)(val / 2622 - 12); }
+
+/* ----------------------------------------------------------------------- */
+
+
+/* *********************** *
+ * i2c interface functions *
+ * *********************** */
+
+static int tda9875_checkit(struct CHIPSTATE *chip)
+{
+	struct v4l2_subdev *sd = &chip->sd;
+	int dic, rev;
+
+	dic = chip_read2(chip, 254);
+	rev = chip_read2(chip, 255);
+
+	if (dic == 0 || dic == 2) { /* tda9875 and tda9875A */
+		v4l2_info(sd, "found tda9875%s rev. %d.\n",
+			dic == 0 ? "" : "A", rev);
+		return 1;
+	}
+	return 0;
+}
 
 /* ---------------------------------------------------------------------- */
 /* audio chip descriptions - defines+functions for tea6420                */
@@ -1280,6 +1390,7 @@ static int tda9850  = 1;
 static int tda9855  = 1;
 static int tda9873  = 1;
 static int tda9874a = 1;
+static int tda9875  = 1;
 static int tea6300;	/* default 0 - address clash with msp34xx */
 static int tea6320;	/* default 0 - address clash with msp34xx */
 static int tea6420  = 1;
@@ -1292,6 +1403,7 @@ module_param(tda9850, int, 0444);
 module_param(tda9855, int, 0444);
 module_param(tda9873, int, 0444);
 module_param(tda9874a, int, 0444);
+module_param(tda9875, int, 0444);
 module_param(tea6300, int, 0444);
 module_param(tea6320, int, 0444);
 module_param(tea6420, int, 0444);
@@ -1347,6 +1459,26 @@ static struct CHIPDESC chiplist[] = {
 		.checkit    = tda9874a_checkit,
 		.getmode    = tda9874a_getmode,
 		.setmode    = tda9874a_setmode,
+	},
+	{
+		.name       = "tda9875",
+		.insmodopt  = &tda9875,
+		.addr_lo    = I2C_ADDR_TDA9875 >> 1,
+		.addr_hi    = I2C_ADDR_TDA9875 >> 1,
+		.flags      = CHIP_HAS_VOLUME | CHIP_HAS_BASSTREBLE,
+
+		/* callbacks */
+		.initialize = tda9875_initialize,
+		.checkit    = tda9875_checkit,
+		.volfunc    = tda9875_volume,
+		.bassfunc   = tda9875_bass,
+		.treblefunc = tda9875_treble,
+		.leftreg    = TDA9875_MVL,
+		.rightreg   = TDA9875_MVR,
+		.bassreg    = TDA9875_MBA,
+		.treblereg  = TDA9875_MTR,
+		.leftinit   = 58880,
+		.rightinit  = 58880,
 	},
 	{
 		.name       = "tda9850",
