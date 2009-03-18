@@ -61,6 +61,7 @@ struct davinci_soc_info {
 	void __iomem			*gpio_base;
 	unsigned			gpio_num;
 	unsigned			gpio_irq;
+	struct platform_device		*serial_dev;
 };
 
 extern struct davinci_soc_info davinci_soc_info;

@@ -30,6 +30,6 @@ struct davinci_uart_config {
 	unsigned int enabled_uarts;
 };
 
-extern void davinci_serial_init(struct davinci_uart_config *);
+extern int davinci_serial_init(struct davinci_uart_config *);
 
 #endif /* __ASM_ARCH_SERIAL_H */

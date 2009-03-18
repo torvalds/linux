@@ -11,6 +11,7 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/clk.h>
+#include <linux/serial_8250.h>
 #include <linux/platform_device.h>
 #include <linux/gpio.h>
 
@@ -24,6 +25,7 @@
 #include <mach/psc.h>
 #include <mach/mux.h>
 #include <mach/time.h>
+#include <mach/serial.h>
 #include <mach/common.h>
 
 #include "clock.h"
@@ -573,6 +575,44 @@ struct davinci_timer_info dm644x_timer_info = {
 	.clocksource_id	= T0_TOP,
 };
 
+static struct plat_serial8250_port dm644x_serial_platform_data[] = {
+	{
+		.mapbase	= DAVINCI_UART0_BASE,
+		.irq		= IRQ_UARTINT0,
+		.flags		= UPF_BOOT_AUTOCONF | UPF_SKIP_TEST |
+				  UPF_IOREMAP,
+		.iotype		= UPIO_MEM,
+		.regshift	= 2,
+	},
+	{
+		.mapbase	= DAVINCI_UART1_BASE,
+		.irq		= IRQ_UARTINT1,
+		.flags		= UPF_BOOT_AUTOCONF | UPF_SKIP_TEST |
+				  UPF_IOREMAP,
+		.iotype		= UPIO_MEM,
+		.regshift	= 2,
+	},
+	{
+		.mapbase	= DAVINCI_UART2_BASE,
+		.irq		= IRQ_UARTINT2,
+		.flags		= UPF_BOOT_AUTOCONF | UPF_SKIP_TEST |
+				  UPF_IOREMAP,
+		.iotype		= UPIO_MEM,
+		.regshift	= 2,
+	},
+	{
+		.flags		= 0
+	},
+};
+
+static struct platform_device dm644x_serial_device = {
+	.name			= "serial8250",
+	.id			= PLAT8250_DEV_PLATFORM,
+	.dev			= {
+		.platform_data	= dm644x_serial_platform_data,
+	},
+};
+
 static struct davinci_soc_info davinci_soc_info_dm644x = {
 	.io_desc		= dm644x_io_desc,
 	.io_desc_num		= ARRAY_SIZE(dm644x_io_desc),
@@ -594,6 +634,7 @@ static struct davinci_soc_info davinci_soc_info_dm644x = {
 	.gpio_base		= IO_ADDRESS(DAVINCI_GPIO_BASE),
 	.gpio_num		= 71,
 	.gpio_irq		= IRQ_GPIOBNK0,
+	.serial_dev		= &dm644x_serial_device,
 };
 
 void __init dm644x_init(void)
