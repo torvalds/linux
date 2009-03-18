@@ -146,7 +146,8 @@ static long riowd_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	return 0;
 }
 
-static ssize_t riowd_write(struct file *file, const char __user *buf, size_t count, loff_t *ppos)
+static ssize_t riowd_write(struct file *file, const char __user *buf,
+						size_t count, loff_t *ppos)
 {
 	struct riowd *p = riowd_device;
 

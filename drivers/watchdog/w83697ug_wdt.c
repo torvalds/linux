@@ -2,7 +2,7 @@
  *	w83697ug/uf WDT driver
  *
  *	(c) Copyright 2008 Flemming Fransen <ff@nrvissing.net>
- *              reused original code to supoprt w83697ug/uf.
+ *		reused original code to support w83697ug/uf.
  *
  *	Based on w83627hf_wdt.c which is based on advantechwdt.c
  *	which is based on wdt.c.

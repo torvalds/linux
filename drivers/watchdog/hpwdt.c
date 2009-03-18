@@ -137,7 +137,8 @@ static struct pci_device_id hpwdt_devices[] = {
 };
 MODULE_DEVICE_TABLE(pci, hpwdt_devices);
 
-extern asmlinkage void asminline_call(struct cmn_registers *pi86Regs, unsigned long *pRomEntry);
+extern asmlinkage void asminline_call(struct cmn_registers *pi86Regs,
+						unsigned long *pRomEntry);
 
 #ifndef CONFIG_X86_64
 /* --32 Bit Bios------------------------------------------------------------ */

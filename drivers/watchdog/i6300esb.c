@@ -240,7 +240,8 @@ static ssize_t esb_write(struct file *file, const char __user *data,
 			 * five months ago... */
 			esb_expect_close = 0;
 
-			/* scan to see whether or not we got the magic character */
+			/* scan to see whether or not we got the
+			 * magic character */
 			for (i = 0; i != len; i++) {
 				char c;
 				if (get_user(c, data + i))
