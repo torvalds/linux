@@ -129,21 +129,38 @@
 			reg = <0x200 0x100>;
 		};
 
-		i2c@3000 {
+		sleep-nexus {
 			#address-cells = <1>;
-			#size-cells = <0>;
-			cell-index = <0>;
-			compatible = "fsl-i2c";
-			reg = <0x3000 0x100>;
-			interrupts = <14 0x8>;
-			interrupt-parent = <&ipic>;
-			dfsrr;
+			#size-cells = <1>;
+			compatible = "simple-bus";
+			sleep = <&pmc 0x0c000000>;
+			ranges;
 
-			rtc@68 {
-				compatible = "dallas,ds1374";
-				reg = <0x68>;
-				interrupts = <19 0x8>;
+			i2c@3000 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				cell-index = <0>;
+				compatible = "fsl-i2c";
+				reg = <0x3000 0x100>;
+				interrupts = <14 0x8>;
 				interrupt-parent = <&ipic>;
+				dfsrr;
+
+				rtc@68 {
+					compatible = "dallas,ds1374";
+					reg = <0x68>;
+					interrupts = <19 0x8>;
+					interrupt-parent = <&ipic>;
+				};
+			};
+
+			sdhci@2e000 {
+				compatible = "fsl,mpc8377-esdhc", "fsl,mpc8379-esdhc";
+				reg = <0x2e000 0x1000>;
+				interrupts = <42 0x8>;
+				interrupt-parent = <&ipic>;
+				/* Filled in by U-Boot */
+				clock-frequency = <0>;
 			};
 		};
 
@@ -176,6 +193,7 @@
 			interrupts = <38 0x8>;
 			dr_mode = "host";
 			phy_type = "ulpi";
+			sleep = <&pmc 0x00c00000>;
 		};
 
 		mdio@24520 {
@@ -226,6 +244,8 @@
 			interrupt-parent = <&ipic>;
 			tbi-handle = <&tbi0>;
 			phy-handle = <&phy2>;
+			sleep = <&pmc 0xc0000000>;
+			fsl,magic-packet;
 		};
 
 		enet1: ethernet@25000 {
@@ -240,6 +260,8 @@
 			interrupt-parent = <&ipic>;
 			tbi-handle = <&tbi1>;
 			phy-handle = <&phy3>;
+			sleep = <&pmc 0x30000000>;
+			fsl,magic-packet;
 		};
 
 		serial0: serial@4500 {
@@ -311,15 +333,7 @@
 			fsl,channel-fifo-len = <24>;
 			fsl,exec-units-mask = <0x9fe>;
 			fsl,descriptor-types-mask = <0x3ab0ebf>;
-		};
-
-		sdhci@2e000 {
-			compatible = "fsl,mpc8377-esdhc", "fsl,mpc8379-esdhc";
-			reg = <0x2e000 0x1000>;
-			interrupts = <42 0x8>;
-			interrupt-parent = <&ipic>;
-			/* Filled in by U-Boot */
-			clock-frequency = <0>;
+			sleep = <&pmc 0x03000000>;
 		};
 
 		sata@18000 {
@@ -327,6 +341,7 @@
 			reg = <0x18000 0x1000>;
 			interrupts = <44 0x8>;
 			interrupt-parent = <&ipic>;
+			sleep = <&pmc 0x000000c0>;
 		};
 
 		sata@19000 {
@@ -334,6 +349,7 @@
 			reg = <0x19000 0x1000>;
 			interrupts = <45 0x8>;
 			interrupt-parent = <&ipic>;
+			sleep = <&pmc 0x00000030>;
 		};
 
 		/* IPIC
@@ -348,6 +364,13 @@
 			#address-cells = <0>;
 			#interrupt-cells = <2>;
 			reg = <0x700 0x100>;
+		};
+
+		pmc: power@b00 {
+			compatible = "fsl,mpc8377-pmc", "fsl,mpc8349-pmc";
+			reg = <0xb00 0x100 0xa00 0x100>;
+			interrupts = <80 0x8>;
+			interrupt-parent = <&ipic>;
 		};
 	};
 
@@ -403,6 +426,7 @@
 		ranges = <0x02000000 0x0 0x90000000 0x90000000 0x0 0x10000000
 		          0x42000000 0x0 0x80000000 0x80000000 0x0 0x10000000
 		          0x01000000 0x0 0x00000000 0xe0300000 0x0 0x00100000>;
+		sleep = <&pmc 0x00010000>;
 		clock-frequency = <0>;
 		#interrupt-cells = <1>;
 		#size-cells = <2>;
@@ -428,6 +452,7 @@
 				 0 0 0 2 &ipic 1 8
 				 0 0 0 3 &ipic 1 8
 				 0 0 0 4 &ipic 1 8>;
+		sleep = <&pmc 0x00300000>;
 		clock-frequency = <0>;
 
 		pcie@0 {
@@ -459,6 +484,7 @@
 				 0 0 0 2 &ipic 2 8
 				 0 0 0 3 &ipic 2 8
 				 0 0 0 4 &ipic 2 8>;
+		sleep = <&pmc 0x000c0000>;
 		clock-frequency = <0>;
 
 		pcie@0 {
