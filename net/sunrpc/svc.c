@@ -896,37 +896,30 @@ int svc_register(const struct svc_serv *serv, const int family,
 	return error;
 }
 
-#ifdef CONFIG_SUNRPC_REGISTER_V4
-
-static void __svc_unregister(const u32 program, const u32 version,
-			     const char *progname)
-{
-	struct sockaddr_in6 sin6 = {
-		.sin6_family		= AF_INET6,
-		.sin6_addr		= IN6ADDR_ANY_INIT,
-		.sin6_port		= 0,
-	};
-	int error;
-
-	error = rpcb_v4_register(program, version,
-				(struct sockaddr *)&sin6, "");
-	dprintk("svc: %s(%sv%u), error %d\n",
-			__func__, progname, version, error);
-}
-
-#else	/* CONFIG_SUNRPC_REGISTER_V4 */
-
+/*
+ * If user space is running rpcbind, it should take the v4 UNSET
+ * and clear everything for this [program, version].  If user space
+ * is running portmap, it will reject the v4 UNSET, but won't have
+ * any "inet6" entries anyway.  So a PMAP_UNSET should be sufficient
+ * in this case to clear all existing entries for [program, version].
+ */
 static void __svc_unregister(const u32 program, const u32 version,
 			     const char *progname)
 {
 	int error;
 
-	error = rpcb_register(program, version, 0, 0);
+	error = rpcb_v4_register(program, version, NULL, "");
+
+	/*
+	 * User space didn't support rpcbind v4, so retry this
+	 * request with the legacy rpcbind v2 protocol.
+	 */
+	if (error == -EPROTONOSUPPORT)
+		error = rpcb_register(program, version, 0, 0);
+
 	dprintk("svc: %s(%sv%u), error %d\n",
 			__func__, progname, version, error);
 }
-
-#endif	/* CONFIG_SUNRPC_REGISTER_V4 */
 
 /*
  * All netids, bind addresses and ports registered for [program, version]
