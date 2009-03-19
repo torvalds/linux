@@ -53,6 +53,8 @@ enum hw_event_types {
 	PERF_COUNT_PAGE_FAULTS_MAJ	= -7,
 
 	PERF_SW_EVENTS_MIN		= -8,
+
+	PERF_TP_EVENTS_MIN		= -65536
 };
 
 /*
@@ -222,6 +224,7 @@ struct perf_counter {
 	struct perf_data		*usrdata;
 	struct perf_data		data[2];
 
+	void (*destroy)(struct perf_counter *);
 	struct rcu_head			rcu_head;
 #endif
 };

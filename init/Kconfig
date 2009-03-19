@@ -947,6 +947,11 @@ config PERF_COUNTERS
 
 	  Say Y if unsure.
 
+config EVENT_PROFILE
+	bool "Tracepoint profile sources"
+	depends on PERF_COUNTERS && EVENT_TRACER
+	default y
+
 endmenu
 
 config VM_EVENT_COUNTERS

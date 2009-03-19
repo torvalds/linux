@@ -1152,6 +1152,9 @@ static void free_counter_rcu(struct rcu_head *head)
 
 static void free_counter(struct perf_counter *counter)
 {
+	if (counter->destroy)
+		counter->destroy(counter);
+
 	call_rcu(&counter->rcu_head, free_counter_rcu);
 }
 
@@ -1727,6 +1730,45 @@ static const struct hw_perf_counter_ops perf_ops_cpu_migrations = {
 	.read		= cpu_migrations_perf_counter_read,
 };
 
+#ifdef CONFIG_EVENT_PROFILE
+void perf_tpcounter_event(int event_id)
+{
+	perf_swcounter_event(PERF_TP_EVENTS_MIN + event_id, 1, 1,
+			task_pt_regs(current));
+}
+
+extern int ftrace_profile_enable(int);
+extern void ftrace_profile_disable(int);
+
+static void tp_perf_counter_destroy(struct perf_counter *counter)
+{
+	int event_id = counter->hw_event.type - PERF_TP_EVENTS_MIN;
+
+	ftrace_profile_disable(event_id);
+}
+
+static const struct hw_perf_counter_ops *
+tp_perf_counter_init(struct perf_counter *counter)
+{
+	int event_id = counter->hw_event.type - PERF_TP_EVENTS_MIN;
+	int ret;
+
+	ret = ftrace_profile_enable(event_id);
+	if (ret)
+		return NULL;
+
+	counter->destroy = tp_perf_counter_destroy;
+
+	return &perf_ops_generic;
+}
+#else
+static const struct hw_perf_counter_ops *
+tp_perf_counter_init(struct perf_counter *counter)
+{
+	return NULL;
+}
+#endif
+
 static const struct hw_perf_counter_ops *
 sw_perf_counter_init(struct perf_counter *counter)
 {
@@ -1772,6 +1814,7 @@ sw_perf_counter_init(struct perf_counter *counter)
 			hw_ops = &perf_ops_cpu_migrations;
 		break;
 	default:
+		hw_ops = tp_perf_counter_init(counter);
 		break;
 	}
 
