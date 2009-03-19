@@ -1065,7 +1065,8 @@ struct ext_clock_info {
 };
 
 /* this structure is for data unique to this hardware driver. */
-typedef struct {
+struct pcidas64_private {
+
 	struct pci_dev *hw_dev;	// pointer to board's pci_dev struct
 	// base addresses (physical)
 	resource_size_t plx9080_phys_iobase;
@@ -1109,12 +1110,13 @@ typedef struct {
 	unsigned int ai_fifo_segment_length;
 	struct ext_clock_info ext_clock;
 	short ao_bounce_buffer[DAC_FIFO_SIZE];
-} pcidas64_private;
+};
+
 
 /* inline function that makes it easier to
  * access the private structure.
  */
-static inline pcidas64_private *priv(struct comedi_device * dev)
+static inline struct pcidas64_private *priv(struct comedi_device * dev)
 {
 	return dev->private;
 }
@@ -1685,7 +1687,7 @@ static int attach(struct comedi_device *dev, struct comedi_devconfig *it)
 /*
  * Allocate the private structure area.
  */
-	if (alloc_private(dev, sizeof(pcidas64_private)) < 0)
+	if (alloc_private(dev, sizeof(struct pcidas64_private)) < 0)
 		return -ENOMEM;
 
 /*
