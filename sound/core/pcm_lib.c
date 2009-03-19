@@ -194,7 +194,7 @@ static inline int snd_pcm_update_hw_ptr_post(struct snd_pcm_substream *substream
 	do {								\
 		if (xrun_debug(substream)) {				\
 			if (printk_ratelimit()) {			\
-				snd_printd("hda_codec: " fmt, ##args);	\
+				snd_printd("PCM: " fmt, ##args);	\
 			}						\
 			dump_stack_on_xrun(substream);			\
 		}							\
