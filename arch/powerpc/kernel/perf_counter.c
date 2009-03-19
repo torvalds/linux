@@ -663,41 +663,6 @@ void perf_counter_do_pending(void)
 }
 
 /*
- * Record data for an irq counter.
- * This function was lifted from the x86 code; maybe it should
- * go in the core?
- */
-static void perf_store_irq_data(struct perf_counter *counter, u64 data)
-{
-	struct perf_data *irqdata = counter->irqdata;
-
-	if (irqdata->len > PERF_DATA_BUFLEN - sizeof(u64)) {
-		irqdata->overrun++;
-	} else {
-		u64 *p = (u64 *) &irqdata->data[irqdata->len];
-
-		*p = data;
-		irqdata->len += sizeof(u64);
-	}
-}
-
-/*
- * Record all the values of the counters in a group
- */
-static void perf_handle_group(struct perf_counter *counter)
-{
-	struct perf_counter *leader, *sub;
-
-	leader = counter->group_leader;
-	list_for_each_entry(sub, &leader->sibling_list, list_entry) {
-		if (sub != counter)
-			sub->hw_ops->read(sub);
-		perf_store_irq_data(counter, sub->hw_event.event_config);
-		perf_store_irq_data(counter, atomic64_read(&sub->count));
-	}
-}
-
-/*
  * A counter has overflowed; update its count and record
  * things if requested.  Note that interrupts are hard-disabled
  * here so there is no possibility of being interrupted.
@@ -736,20 +701,8 @@ static void record_and_restart(struct perf_counter *counter, long val,
 	/*
 	 * Finally record data if requested.
 	 */
-	if (record) {
-		switch (counter->hw_event.record_type) {
-		case PERF_RECORD_SIMPLE:
-			break;
-		case PERF_RECORD_IRQ:
-			perf_store_irq_data(counter, instruction_pointer(regs));
-			counter->wakeup_pending = 1;
-			break;
-		case PERF_RECORD_GROUP:
-			perf_handle_group(counter);
-			counter->wakeup_pending = 1;
-			break;
-		}
-	}
+	if (record)
+		perf_counter_output(counter, 1, regs);
 }
 
 /*

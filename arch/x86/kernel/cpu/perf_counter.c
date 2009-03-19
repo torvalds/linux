@@ -674,20 +674,6 @@ static void pmc_generic_disable(struct perf_counter *counter)
 	x86_perf_counter_update(counter, hwc, idx);
 }
 
-static void perf_store_irq_data(struct perf_counter *counter, u64 data)
-{
-	struct perf_data *irqdata = counter->irqdata;
-
-	if (irqdata->len > PERF_DATA_BUFLEN - sizeof(u64)) {
-		irqdata->overrun++;
-	} else {
-		u64 *p = (u64 *) &irqdata->data[irqdata->len];
-
-		*p = data;
-		irqdata->len += sizeof(u64);
-	}
-}
-
 /*
  * Save and restart an expired counter. Called by NMI contexts,
  * so it has to be careful about preempting normal counter ops:
@@ -702,22 +688,6 @@ static void perf_save_and_restart(struct perf_counter *counter)
 
 	if (counter->state == PERF_COUNTER_STATE_ACTIVE)
 		__pmc_generic_enable(counter, hwc, idx);
-}
-
-static void
-perf_handle_group(struct perf_counter *sibling, u64 *status, u64 *overflown)
-{
-	struct perf_counter *counter, *group_leader = sibling->group_leader;
-
-	/*
-	 * Store sibling timestamps (if any):
-	 */
-	list_for_each_entry(counter, &group_leader->sibling_list, list_entry) {
-
-		x86_perf_counter_update(counter, &counter->hw, counter->hw.idx);
-		perf_store_irq_data(sibling, counter->hw_event.event_config);
-		perf_store_irq_data(sibling, atomic64_read(&counter->count));
-	}
 }
 
 /*
@@ -754,28 +724,7 @@ again:
 			continue;
 
 		perf_save_and_restart(counter);
-
-		switch (counter->hw_event.record_type) {
-		case PERF_RECORD_SIMPLE:
-			continue;
-		case PERF_RECORD_IRQ:
-			perf_store_irq_data(counter, instruction_pointer(regs));
-			break;
-		case PERF_RECORD_GROUP:
-			perf_handle_group(counter, &status, &ack);
-			break;
-		}
-		/*
-		 * From NMI context we cannot call into the scheduler to
-		 * do a task wakeup - but we mark these generic as
-		 * wakeup_pending and initate a wakeup callback:
-		 */
-		if (nmi) {
-			counter->wakeup_pending = 1;
-			set_tsk_thread_flag(current, TIF_PERF_COUNTERS);
-		} else {
-			wake_up(&counter->waitq);
-		}
+		perf_counter_output(counter, nmi, regs);
 	}
 
 	hw_perf_ack_status(ack);

@@ -1354,6 +1354,60 @@ static const struct file_operations perf_fops = {
 };
 
 /*
+ * Output
+ */
+
+static void perf_counter_store_irq(struct perf_counter *counter, u64 data)
+{
+	struct perf_data *irqdata = counter->irqdata;
+
+	if (irqdata->len > PERF_DATA_BUFLEN - sizeof(u64)) {
+		irqdata->overrun++;
+	} else {
+		u64 *p = (u64 *) &irqdata->data[irqdata->len];
+
+		*p = data;
+		irqdata->len += sizeof(u64);
+	}
+}
+
+static void perf_counter_handle_group(struct perf_counter *counter)
+{
+	struct perf_counter *leader, *sub;
+
+	leader = counter->group_leader;
+	list_for_each_entry(sub, &leader->sibling_list, list_entry) {
+		if (sub != counter)
+			sub->hw_ops->read(sub);
+		perf_counter_store_irq(counter, sub->hw_event.event_config);
+		perf_counter_store_irq(counter, atomic64_read(&sub->count));
+	}
+}
+
+void perf_counter_output(struct perf_counter *counter,
+			 int nmi, struct pt_regs *regs)
+{
+	switch (counter->hw_event.record_type) {
+	case PERF_RECORD_SIMPLE:
+		return;
+
+	case PERF_RECORD_IRQ:
+		perf_counter_store_irq(counter, instruction_pointer(regs));
+		break;
+
+	case PERF_RECORD_GROUP:
+		perf_counter_handle_group(counter);
+		break;
+	}
+
+	if (nmi) {
+		counter->wakeup_pending = 1;
+		set_perf_counter_pending();
+	} else
+		wake_up(&counter->waitq);
+}
+
+/*
  * Generic software counter infrastructure
  */
 
@@ -1395,54 +1449,6 @@ static void perf_swcounter_set_period(struct perf_counter *counter)
 	atomic64_set(&hwc->count, -left);
 }
 
-static void perf_swcounter_store_irq(struct perf_counter *counter, u64 data)
-{
-	struct perf_data *irqdata = counter->irqdata;
-
-	if (irqdata->len > PERF_DATA_BUFLEN - sizeof(u64)) {
-		irqdata->overrun++;
-	} else {
-		u64 *p = (u64 *) &irqdata->data[irqdata->len];
-
-		*p = data;
-		irqdata->len += sizeof(u64);
-	}
-}
-
-static void perf_swcounter_handle_group(struct perf_counter *sibling)
-{
-	struct perf_counter *counter, *group_leader = sibling->group_leader;
-
-	list_for_each_entry(counter, &group_leader->sibling_list, list_entry) {
-		counter->hw_ops->read(counter);
-		perf_swcounter_store_irq(sibling, counter->hw_event.event_config);
-		perf_swcounter_store_irq(sibling, atomic64_read(&counter->count));
-	}
-}
-
-static void perf_swcounter_interrupt(struct perf_counter *counter,
-				     int nmi, struct pt_regs *regs)
-{
-	switch (counter->hw_event.record_type) {
-	case PERF_RECORD_SIMPLE:
-		break;
-
-	case PERF_RECORD_IRQ:
-		perf_swcounter_store_irq(counter, instruction_pointer(regs));
-		break;
-
-	case PERF_RECORD_GROUP:
-		perf_swcounter_handle_group(counter);
-		break;
-	}
-
-	if (nmi) {
-		counter->wakeup_pending = 1;
-		set_perf_counter_pending();
-	} else
-		wake_up(&counter->waitq);
-}
-
 static enum hrtimer_restart perf_swcounter_hrtimer(struct hrtimer *hrtimer)
 {
 	struct perf_counter *counter;
@@ -1461,7 +1467,7 @@ static enum hrtimer_restart perf_swcounter_hrtimer(struct hrtimer *hrtimer)
 		regs = task_pt_regs(current);
 
 	if (regs)
-		perf_swcounter_interrupt(counter, 0, regs);
+		perf_counter_output(counter, 0, regs);
 
 	hrtimer_forward_now(hrtimer, ns_to_ktime(counter->hw.irq_period));
 
@@ -1473,7 +1479,7 @@ static void perf_swcounter_overflow(struct perf_counter *counter,
 {
 	perf_swcounter_update(counter);
 	perf_swcounter_set_period(counter);
-	perf_swcounter_interrupt(counter, nmi, regs);
+	perf_counter_output(counter, nmi, regs);
 }
 
 static int perf_swcounter_match(struct perf_counter *counter,
