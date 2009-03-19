@@ -100,7 +100,7 @@ Devices: [National Instruments] AT-MIO-16 (atmio16), AT-MIO-16D (atmio16d)
 #define CLOCK_100_HZ	0x8F25
 /* Other miscellaneous defines */
 #define ATMIO16D_SIZE	32	/* bus address range */
-#define devpriv ((atmio16d_private *)dev->private)
+#define devpriv ((struct atmio16d_private *)dev->private)
 #define ATMIO16D_TIMEOUT 10
 
 struct atmio16_board_t {
@@ -174,7 +174,7 @@ static const struct comedi_lrange range_atmio16d_ai_unipolar = { 4, {
 };
 
 /* private data struct */
-typedef struct {
+struct atmio16d_private {
 	enum { adc_diff, adc_singleended } adc_mux;
 	enum { adc_bipolar10, adc_bipolar5, adc_unipolar10 } adc_range;
 	enum { adc_2comp, adc_straight } adc_coding;
@@ -185,7 +185,7 @@ typedef struct {
 	unsigned int ao_readback[2];
 	unsigned int com_reg_1_state;	/* current state of command register 1 */
 	unsigned int com_reg_2_state;	/* current state of command register 2 */
-} atmio16d_private;
+};
 
 static void reset_counters(struct comedi_device * dev)
 {
@@ -728,7 +728,7 @@ static int atmio16d_attach(struct comedi_device * dev, struct comedi_devconfig *
 
 	if ((ret = alloc_subdevices(dev, 4)) < 0)
 		return ret;
-	if ((ret = alloc_private(dev, sizeof(atmio16d_private))) < 0)
+	if ((ret = alloc_private(dev, sizeof(struct atmio16d_private))) < 0)
 		return ret;
 
 	/* reset the atmio16d hardware */
