@@ -162,7 +162,7 @@ unsigned long __init mmu_mapin_ram(void)
 	phys_addr_t phys = memstart_addr;
 
 	while (cam[tlbcam_index] && tlbcam_index < ARRAY_SIZE(cam)) {
-		settlbcam(tlbcam_index, virt, phys, cam[tlbcam_index], _PAGE_KERNEL, 0);
+		settlbcam(tlbcam_index, virt, phys, cam[tlbcam_index], PAGE_KERNEL_X, 0);
 		virt += cam[tlbcam_index];
 		phys += cam[tlbcam_index];
 		tlbcam_index++;

@@ -81,11 +81,6 @@
  */
 #include <asm/pte-hash64.h>
 
-/* To make some generic powerpc code happy */
-#ifndef _PAGE_HWEXEC
-#define _PAGE_HWEXEC		0
-#endif
-
 /* Some other useful definitions */
 #define PTE_RPN_MAX	(1UL << (64 - PTE_RPN_SHIFT))
 #define PTE_RPN_MASK	(~((1UL<<PTE_RPN_SHIFT)-1))
@@ -96,28 +91,44 @@
 #define _PAGE_CHG_MASK	(PTE_RPN_MASK | _PAGE_HPTEFLAGS | _PAGE_DIRTY | \
                          _PAGE_ACCESSED | _PAGE_SPECIAL)
 
+#define _PAGE_BASE_NC	(_PAGE_PRESENT | _PAGE_ACCESSED | _PAGE_PSIZE)
+#define _PAGE_BASE	(_PAGE_BASE_NC | _PAGE_COHERENT)
 
 
-/* __pgprot defined in arch/powerpc/include/asm/page.h */
-#define PAGE_NONE	__pgprot(_PAGE_PRESENT | _PAGE_ACCESSED)
-
-#define PAGE_SHARED	__pgprot(_PAGE_BASE | _PAGE_RW | _PAGE_USER)
-#define PAGE_SHARED_X	__pgprot(_PAGE_BASE | _PAGE_RW | _PAGE_USER | _PAGE_EXEC)
+/* Permission masks used to generate the __P and __S table,
+ *
+ * Note:__pgprot is defined in arch/powerpc/include/asm/page.h
+ */
+#define PAGE_NONE	__pgprot(_PAGE_BASE)
+#define PAGE_SHARED	__pgprot(_PAGE_BASE | _PAGE_USER | _PAGE_RW)
+#define PAGE_SHARED_X	__pgprot(_PAGE_BASE | _PAGE_USER | _PAGE_RW | _PAGE_EXEC)
 #define PAGE_COPY	__pgprot(_PAGE_BASE | _PAGE_USER)
 #define PAGE_COPY_X	__pgprot(_PAGE_BASE | _PAGE_USER | _PAGE_EXEC)
 #define PAGE_READONLY	__pgprot(_PAGE_BASE | _PAGE_USER)
 #define PAGE_READONLY_X	__pgprot(_PAGE_BASE | _PAGE_USER | _PAGE_EXEC)
-#define PAGE_KERNEL	__pgprot(_PAGE_BASE | _PAGE_WRENABLE)
-#define PAGE_KERNEL_CI	__pgprot(_PAGE_PRESENT | _PAGE_ACCESSED | \
-			       _PAGE_WRENABLE | _PAGE_NO_CACHE | _PAGE_GUARDED)
-#define PAGE_KERNEL_EXEC __pgprot(_PAGE_BASE | _PAGE_WRENABLE | _PAGE_EXEC)
 
-#define PAGE_AGP	__pgprot(_PAGE_BASE | _PAGE_WRENABLE | _PAGE_NO_CACHE)
-#define HAVE_PAGE_AGP
+/* Permission masks used for kernel mappings */
+#define PAGE_KERNEL	__pgprot(_PAGE_BASE | _PAGE_KERNEL_RW)
+#define PAGE_KERNEL_NC	__pgprot(_PAGE_BASE_NC | _PAGE_KERNEL_RW | \
+				 _PAGE_NO_CACHE)
+#define PAGE_KERNEL_NCG	__pgprot(_PAGE_BASE_NC | _PAGE_KERNEL_RW | \
+				 _PAGE_NO_CACHE | _PAGE_GUARDED)
+#define PAGE_KERNEL_X __pgprot(_PAGE_BASE | _PAGE_KERNEL_RW | _PAGE_EXEC)
+#define PAGE_KERNEL_RO __pgprot(_PAGE_BASE | _PAGE_KERNEL_RO)
+#define PAGE_KERNEL_ROX __pgprot(_PAGE_BASE | _PAGE_KERNEL_RO | _PAGE_EXEC)
+
+/* Protection bits for use by pte_pgprot() */
+#define PAGE_PROT_BITS	(_PAGE_GUARDED | _PAGE_COHERENT | \
+			 _PAGE_NO_CACHE | _PAGE_WRITETHRU |		\
+			 _PAGE_4K_PFN | _PAGE_USER | _PAGE_RW |		\
+			 _PAGE_ACCESSED | _PAGE_DIRTY | _PAGE_EXEC)
+
 
 /* We always have _PAGE_SPECIAL on 64 bit */
 #define __HAVE_ARCH_PTE_SPECIAL
 
+/* Make modules code happy. We don't set RO yet */
+#define PAGE_KERNEL_EXEC	PAGE_KERNEL_X
 
 /*
  * POWER4 and newer have per page execute protection, older chips can only
@@ -395,7 +406,8 @@ static inline void pte_clear(struct mm_struct *mm, unsigned long addr,
 static inline void __ptep_set_access_flags(pte_t *ptep, pte_t entry)
 {
 	unsigned long bits = pte_val(entry) &
-		(_PAGE_DIRTY | _PAGE_ACCESSED | _PAGE_RW | _PAGE_EXEC);
+		(_PAGE_DIRTY | _PAGE_ACCESSED | _PAGE_RW |
+		 _PAGE_EXEC | _PAGE_HWEXEC);
 	unsigned long old, tmp;
 
 	__asm__ __volatile__(

@@ -8,9 +8,6 @@
 #define _PAGE_F_GIX     _PAGE_GROUP_IX
 #define _PAGE_SPECIAL	0x10000 /* software: special page */
 
-/* There is no 4K PFN hack on 4K pages */
-#define _PAGE_4K_PFN	0
-
 /* PTE flags to conserve for HPTE identification */
 #define _PAGE_HPTEFLAGS (_PAGE_BUSY | _PAGE_HASHPTE | \
 			 _PAGE_SECONDARY | _PAGE_GROUP_IX)

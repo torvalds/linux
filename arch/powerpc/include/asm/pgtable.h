@@ -25,6 +25,10 @@ static inline void assert_pte_locked(struct mm_struct *mm, unsigned long addr)
 #  include <asm/pgtable-ppc32.h>
 #endif
 
+/* Special mapping for AGP */
+#define PAGE_AGP	(PAGE_KERNEL_NC)
+#define HAVE_PAGE_AGP
+
 #ifndef __ASSEMBLY__
 
 /* Insert a PTE, top-level function is out of line. It uses an inline

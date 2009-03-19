@@ -59,6 +59,9 @@
 /* Until my rework is finished, 8xx still needs atomic PTE updates */
 #define PTE_ATOMIC_UPDATES	1
 
+/* We need to add _PAGE_SHARED to kernel pages */
+#define _PAGE_KERNEL_RO	(_PAGE_SHARED)
+#define _PAGE_KERNEL_RW	(_PAGE_DIRTY | _PAGE_RW | _PAGE_HWWRITE)
 
 #endif /* __KERNEL__ */
 #endif /*  _ASM_POWERPC_PTE_8xx_H */

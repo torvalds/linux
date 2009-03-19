@@ -144,6 +144,13 @@ extern int icache_44x_need_flush;
 #define PMD_PAGE_SIZE(pmd)	bad_call_to_PMD_PAGE_SIZE()
 #endif
 
+#ifndef _PAGE_KERNEL_RO
+#define _PAGE_KERNEL_RO	0
+#endif
+#ifndef _PAGE_KERNEL_RW
+#define _PAGE_KERNEL_RW	(_PAGE_DIRTY | _PAGE_RW | _PAGE_HWWRITE)
+#endif
+
 #define _PAGE_HPTEFLAGS _PAGE_HASHPTE
 
 /* Location of the PFN in the PTE. Most platforms use the same as _PAGE_SHIFT
@@ -186,30 +193,25 @@ extern int icache_44x_need_flush;
 #else
 #define _PAGE_BASE	(_PAGE_PRESENT | _PAGE_ACCESSED)
 #endif
-#define _PAGE_BASE_NC	(_PAGE_PRESENT | _PAGE_ACCESSED | _PAGE_NO_CACHE)
+#define _PAGE_BASE_NC	(_PAGE_PRESENT | _PAGE_ACCESSED)
 
-#define _PAGE_WRENABLE	(_PAGE_RW | _PAGE_DIRTY | _PAGE_HWWRITE)
-#define _PAGE_KERNEL	(_PAGE_BASE | _PAGE_SHARED | _PAGE_WRENABLE)
-#define _PAGE_KERNEL_NC	(_PAGE_BASE_NC | _PAGE_SHARED | _PAGE_WRENABLE)
-
-#ifdef CONFIG_PPC_STD_MMU
-/* On standard PPC MMU, no user access implies kernel read/write access,
- * so to write-protect kernel memory we must turn on user access */
-#define _PAGE_KERNEL_RO	(_PAGE_BASE | _PAGE_SHARED | _PAGE_USER)
-#else
-#define _PAGE_KERNEL_RO	(_PAGE_BASE | _PAGE_SHARED)
-#endif
-
-#define _PAGE_IO	(_PAGE_KERNEL_NC | _PAGE_GUARDED)
-#define _PAGE_RAM	(_PAGE_KERNEL | _PAGE_HWEXEC)
+/* Permission masks used for kernel mappings */
+#define PAGE_KERNEL	__pgprot(_PAGE_BASE | _PAGE_KERNEL_RW)
+#define PAGE_KERNEL_NC	__pgprot(_PAGE_BASE_NC | _PAGE_KERNEL_RW | \
+				 _PAGE_NO_CACHE)
+#define PAGE_KERNEL_NCG	__pgprot(_PAGE_BASE_NC | _PAGE_KERNEL_RW | \
+				 _PAGE_NO_CACHE | _PAGE_GUARDED)
+#define PAGE_KERNEL_X __pgprot(_PAGE_BASE | _PAGE_KERNEL_RW | _PAGE_EXEC)
+#define PAGE_KERNEL_RO __pgprot(_PAGE_BASE | _PAGE_KERNEL_RO)
+#define PAGE_KERNEL_ROX __pgprot(_PAGE_BASE | _PAGE_KERNEL_RO | _PAGE_EXEC)
 
 #if defined(CONFIG_KGDB) || defined(CONFIG_XMON) || defined(CONFIG_BDI_SWITCH) ||\
 	defined(CONFIG_KPROBES)
 /* We want the debuggers to be able to set breakpoints anywhere, so
  * don't write protect the kernel text */
-#define _PAGE_RAM_TEXT	_PAGE_RAM
+#define PAGE_KERNEL_TEXT	PAGE_KERNEL_X
 #else
-#define _PAGE_RAM_TEXT	(_PAGE_KERNEL_RO | _PAGE_HWEXEC)
+#define PAGE_KERNEL_TEXT	PAGE_KERNEL_ROX
 #endif
 
 #define PAGE_NONE	__pgprot(_PAGE_BASE)
@@ -219,9 +221,6 @@ extern int icache_44x_need_flush;
 #define PAGE_SHARED_X	__pgprot(_PAGE_BASE | _PAGE_USER | _PAGE_RW | _PAGE_EXEC)
 #define PAGE_COPY	__pgprot(_PAGE_BASE | _PAGE_USER)
 #define PAGE_COPY_X	__pgprot(_PAGE_BASE | _PAGE_USER | _PAGE_EXEC)
-
-#define PAGE_KERNEL		__pgprot(_PAGE_RAM)
-#define PAGE_KERNEL_NOCACHE	__pgprot(_PAGE_IO)
 
 /*
  * The PowerPC can only do execute protection on a segment (256MB) basis,

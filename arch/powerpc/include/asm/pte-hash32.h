@@ -44,6 +44,5 @@
 /* Hash table based platforms need atomic updates of the linux PTE */
 #define PTE_ATOMIC_UPDATES	1
 
-
 #endif /* __KERNEL__ */
 #endif /*  _ASM_POWERPC_PTE_HASH32_H */
