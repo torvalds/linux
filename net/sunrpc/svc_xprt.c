@@ -161,7 +161,9 @@ EXPORT_SYMBOL_GPL(svc_xprt_init);
 
 static struct svc_xprt *__svc_xpo_create(struct svc_xprt_class *xcl,
 					 struct svc_serv *serv,
-					 unsigned short port, int flags)
+					 const int family,
+					 const unsigned short port,
+					 int flags)
 {
 	struct sockaddr_in sin = {
 		.sin_family		= AF_INET,
@@ -176,12 +178,12 @@ static struct svc_xprt *__svc_xpo_create(struct svc_xprt_class *xcl,
 	struct sockaddr *sap;
 	size_t len;
 
-	switch (serv->sv_family) {
-	case AF_INET:
+	switch (family) {
+	case PF_INET:
 		sap = (struct sockaddr *)&sin;
 		len = sizeof(sin);
 		break;
-	case AF_INET6:
+	case PF_INET6:
 		sap = (struct sockaddr *)&sin6;
 		len = sizeof(sin6);
 		break;
@@ -192,7 +194,8 @@ static struct svc_xprt *__svc_xpo_create(struct svc_xprt_class *xcl,
 	return xcl->xcl_ops->xpo_create(serv, sap, len, flags);
 }
 
-int svc_create_xprt(struct svc_serv *serv, char *xprt_name, unsigned short port,
+int svc_create_xprt(struct svc_serv *serv, const char *xprt_name,
+		    const int family, const unsigned short port,
 		    int flags)
 {
 	struct svc_xprt_class *xcl;
@@ -209,7 +212,7 @@ int svc_create_xprt(struct svc_serv *serv, char *xprt_name, unsigned short port,
 			goto err;
 
 		spin_unlock(&svc_xprt_class_lock);
-		newxprt = __svc_xpo_create(xcl, serv, port, flags);
+		newxprt = __svc_xpo_create(xcl, serv, family, port, flags);
 		if (IS_ERR(newxprt)) {
 			module_put(xcl->xcl_owner);
 			return PTR_ERR(newxprt);

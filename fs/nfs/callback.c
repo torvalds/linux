@@ -122,8 +122,8 @@ int nfs_callback_up(void)
 	if (!serv)
 		goto out_err;
 
-	ret = svc_create_xprt(serv, "tcp", nfs_callback_set_tcpport,
-			      SVC_SOCK_ANONYMOUS);
+	ret = svc_create_xprt(serv, "tcp", nfs_callback_family,
+				nfs_callback_set_tcpport, SVC_SOCK_ANONYMOUS);
 	if (ret <= 0)
 		goto out_err;
 	nfs_callback_tcpport = ret;

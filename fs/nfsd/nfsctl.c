@@ -943,7 +943,7 @@ static ssize_t __write_ports(struct file *file, char *buf, size_t size)
 			err = nfsd_create_serv();
 			if (!err) {
 				err = svc_create_xprt(nfsd_serv,
-						      transport, port,
+						      transport, PF_INET, port,
 						      SVC_SOCK_ANONYMOUS);
 				if (err == -ENOENT)
 					/* Give a reasonable perror msg for
