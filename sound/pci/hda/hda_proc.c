@@ -399,8 +399,10 @@ static void print_conn_list(struct snd_info_buffer *buffer,
 {
 	int c, curr = -1;
 
-	if (conn_len > 1 && wid_type != AC_WID_AUD_MIX &&
-	    wid_type != AC_WID_VOL_KNB)
+	if (conn_len > 1 &&
+	    wid_type != AC_WID_AUD_MIX &&
+	    wid_type != AC_WID_VOL_KNB &&
+	    wid_type != AC_WID_POWER)
 		curr = snd_hda_codec_read(codec, nid, 0,
 					  AC_VERB_GET_CONNECT_SEL, 0);
 	snd_iprintf(buffer, "  Connection: %d\n", conn_len);
