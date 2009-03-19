@@ -124,12 +124,6 @@ static const struct sockaddr_in rpcb_inaddr_loopback = {
 	.sin_port		= htons(RPCBIND_PORT),
 };
 
-static const struct sockaddr_in6 rpcb_in6addr_loopback = {
-	.sin6_family		= AF_INET6,
-	.sin6_addr		= IN6ADDR_LOOPBACK_INIT,
-	.sin6_port		= htons(RPCBIND_PORT),
-};
-
 static struct rpc_clnt *rpcb_create_local(struct sockaddr *addr,
 					  size_t addrlen, u32 version)
 {
@@ -176,9 +170,10 @@ static struct rpc_clnt *rpcb_create(char *hostname, struct sockaddr *srvaddr,
 	return rpc_create(&args);
 }
 
-static int rpcb_register_call(struct sockaddr *addr, size_t addrlen,
-			      u32 version, struct rpc_message *msg)
+static int rpcb_register_call(u32 version, struct rpc_message *msg)
 {
+	struct sockaddr *addr = (struct sockaddr *)&rpcb_inaddr_loopback;
+	size_t addrlen = sizeof(rpcb_inaddr_loopback);
 	struct rpc_clnt *rpcb_clnt;
 	int result, error = 0;
 
@@ -254,9 +249,7 @@ int rpcb_register(u32 prog, u32 vers, int prot, unsigned short port)
 	if (port)
 		msg.rpc_proc = &rpcb_procedures2[RPCBPROC_SET];
 
-	return rpcb_register_call((struct sockaddr *)&rpcb_inaddr_loopback,
-					sizeof(rpcb_inaddr_loopback),
-					RPCBVERS_2, &msg);
+	return rpcb_register_call(RPCBVERS_2, &msg);
 }
 
 /*
@@ -284,9 +277,7 @@ static int rpcb_register_netid4(struct sockaddr_in *address_to_register,
 	if (port)
 		msg->rpc_proc = &rpcb_procedures4[RPCBPROC_SET];
 
-	return rpcb_register_call((struct sockaddr *)&rpcb_inaddr_loopback,
-					sizeof(rpcb_inaddr_loopback),
-					RPCBVERS_4, msg);
+	return rpcb_register_call(RPCBVERS_4, msg);
 }
 
 /*
@@ -318,9 +309,7 @@ static int rpcb_register_netid6(struct sockaddr_in6 *address_to_register,
 	if (port)
 		msg->rpc_proc = &rpcb_procedures4[RPCBPROC_SET];
 
-	return rpcb_register_call((struct sockaddr *)&rpcb_in6addr_loopback,
-					sizeof(rpcb_in6addr_loopback),
-					RPCBVERS_4, msg);
+	return rpcb_register_call(RPCBVERS_4, msg);
 }
 
 /**
