@@ -55,7 +55,7 @@ enum ni_660x_constants {
 #define MAX_DMA_CHANNEL 4
 
 /* See Register-Level Programmer Manual page 3.1 */
-typedef enum {
+enum NI_660x_Register {
 	G0InterruptAcknowledge,
 	G0StatusRegister,
 	G1InterruptAcknowledge,
@@ -155,7 +155,7 @@ typedef enum {
 	IOConfigReg36_37,
 	IOConfigReg38_39,
 	NumRegisters,
-} NI_660x_Register;
+};
 
 static inline unsigned IOConfigReg(unsigned pfi_channel)
 {
@@ -484,9 +484,9 @@ static inline unsigned ni_660x_num_counters(struct comedi_device * dev)
 	return board(dev)->n_chips * counters_per_chip;
 }
 
-static NI_660x_Register ni_gpct_to_660x_register(enum ni_gpct_register reg)
+static enum NI_660x_Register ni_gpct_to_660x_register(enum ni_gpct_register reg)
 {
-	NI_660x_Register ni_660x_register;
+	enum NI_660x_Register ni_660x_register;
 	switch (reg) {
 	case NITIO_G0_Autoincrement_Reg:
 		ni_660x_register = G0AutoincrementRegister;
@@ -703,7 +703,7 @@ static NI_660x_Register ni_gpct_to_660x_register(enum ni_gpct_register reg)
 }
 
 static inline void ni_660x_write_register(struct comedi_device * dev,
-	unsigned chip_index, unsigned bits, NI_660x_Register reg)
+	unsigned chip_index, unsigned bits, enum NI_660x_Register reg)
 {
 	void *const write_address =
 		private(dev)->mite->daq_io_addr + GPCT_OFFSET[chip_index] +
@@ -725,7 +725,7 @@ static inline void ni_660x_write_register(struct comedi_device * dev,
 }
 
 static inline unsigned ni_660x_read_register(struct comedi_device * dev,
-	unsigned chip_index, NI_660x_Register reg)
+	unsigned chip_index, enum NI_660x_Register reg)
 {
 	void *const read_address =
 		private(dev)->mite->daq_io_addr + GPCT_OFFSET[chip_index] +
@@ -751,7 +751,7 @@ static void ni_gpct_write_register(struct ni_gpct *counter, unsigned bits,
 	enum ni_gpct_register reg)
 {
 	struct comedi_device *dev = counter->counter_dev->dev;
-	NI_660x_Register ni_660x_register = ni_gpct_to_660x_register(reg);
+	enum NI_660x_Register ni_660x_register = ni_gpct_to_660x_register(reg);
 	ni_660x_write_register(dev, counter->chip_index, bits,
 		ni_660x_register);
 }
@@ -760,7 +760,7 @@ static unsigned ni_gpct_read_register(struct ni_gpct *counter,
 	enum ni_gpct_register reg)
 {
 	struct comedi_device *dev = counter->counter_dev->dev;
-	NI_660x_Register ni_660x_register = ni_gpct_to_660x_register(reg);
+	enum NI_660x_Register ni_660x_register = ni_gpct_to_660x_register(reg);
 	return ni_660x_read_register(dev, counter->chip_index,
 		ni_660x_register);
 }
