@@ -712,10 +712,12 @@ print_graph_return(struct ftrace_graph_ret *trace, struct trace_seq *s,
 }
 
 static enum print_line_t
-print_graph_comment(struct bprint_entry *trace, struct trace_seq *s,
-		   struct trace_entry *ent, struct trace_iterator *iter)
+print_graph_comment(struct trace_seq *s,  struct trace_entry *ent,
+		    struct trace_iterator *iter)
 {
+	unsigned long sym_flags = (trace_flags & TRACE_ITER_SYM_MASK);
 	struct fgraph_data *data = iter->private;
+	struct trace_event *event;
 	int depth = 0;
 	int ret;
 	int i;
@@ -751,9 +753,26 @@ print_graph_comment(struct bprint_entry *trace, struct trace_seq *s,
 	if (!ret)
 		return TRACE_TYPE_PARTIAL_LINE;
 
-	ret = trace_seq_bprintf(s, trace->fmt, trace->buf);
-	if (!ret)
-		return TRACE_TYPE_PARTIAL_LINE;
+	switch (iter->ent->type) {
+	case TRACE_BPRINT:
+		ret = trace_print_bprintk_msg_only(iter);
+		if (ret != TRACE_TYPE_HANDLED)
+			return ret;
+		break;
+	case TRACE_PRINT:
+		ret = trace_print_printk_msg_only(iter);
+		if (ret != TRACE_TYPE_HANDLED)
+			return ret;
+		break;
+	default:
+		event = ftrace_find_event(ent->type);
+		if (!event)
+			return TRACE_TYPE_UNHANDLED;
+
+		ret = event->trace(iter, sym_flags);
+		if (ret != TRACE_TYPE_HANDLED)
+			return ret;
+	}
 
 	/* Strip ending newline */
 	if (s->buffer[s->len - 1] == '\n') {
@@ -772,8 +791,8 @@ print_graph_comment(struct bprint_entry *trace, struct trace_seq *s,
 enum print_line_t
 print_graph_function(struct trace_iterator *iter)
 {
-	struct trace_seq *s = &iter->seq;
 	struct trace_entry *entry = iter->ent;
+	struct trace_seq *s = &iter->seq;
 
 	switch (entry->type) {
 	case TRACE_GRAPH_ENT: {
@@ -786,14 +805,11 @@ print_graph_function(struct trace_iterator *iter)
 		trace_assign_type(field, entry);
 		return print_graph_return(&field->ret, s, entry, iter);
 	}
-	case TRACE_BPRINT: {
-		struct bprint_entry *field;
-		trace_assign_type(field, entry);
-		return print_graph_comment(field, s, entry, iter);
-	}
 	default:
-		return TRACE_TYPE_UNHANDLED;
+		return print_graph_comment(s, entry, iter);
 	}
+
+	return TRACE_TYPE_HANDLED;
 }
 
 static void print_graph_headers(struct seq_file *s)
