@@ -12,4 +12,3 @@
 #include "trace_events_stage_2.h"
 #include "trace_events_stage_3.h"
 
-#include <trace/trace_event_types.h>

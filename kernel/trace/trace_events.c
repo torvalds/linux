@@ -19,11 +19,6 @@
 
 static DEFINE_MUTEX(event_mutex);
 
-#define events_for_each(event)						\
-	for (event = __start_ftrace_events;				\
-	     (unsigned long)event < (unsigned long)__stop_ftrace_events; \
-	     event++)
-
 static void ftrace_clear_events(void)
 {
 	struct ftrace_event_call *call = (void *)__start_ftrace_events;
@@ -90,7 +85,7 @@ static int ftrace_set_clr_event(char *buf, int set)
 	}
 
 	mutex_lock(&event_mutex);
-	events_for_each(call) {
+	for_each_event(call) {
 
 		if (!call->name || !call->regfunc)
 			continue;
@@ -628,7 +623,7 @@ static __init int event_trace_init(void)
 	if (!d_events)
 		return 0;
 
-	events_for_each(call) {
+	for_each_event(call) {
 		/* The linker may leave blanks */
 		if (!call->name)
 			continue;

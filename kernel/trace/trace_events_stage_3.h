@@ -109,6 +109,40 @@
 #undef TP_FMT
 #define TP_FMT(fmt, args...)	fmt "\n", ##args
 
+#ifdef CONFIG_EVENT_PROFILE
+#define _TRACE_PROFILE(call, proto, args)				\
+static void ftrace_profile_##call(proto)				\
+{									\
+	extern void perf_tpcounter_event(int);				\
+	perf_tpcounter_event(event_##call.id);				\
+}									\
+									\
+static int ftrace_profile_enable_##call(struct ftrace_event_call *call) \
+{									\
+	int ret = 0;							\
+									\
+	if (!atomic_inc_return(&call->profile_count))			\
+		ret = register_trace_##call(ftrace_profile_##call);	\
+									\
+	return ret;							\
+}									\
+									\
+static void ftrace_profile_disable_##call(struct ftrace_event_call *call) \
+{									\
+	if (atomic_add_negative(-1, &call->profile_count))		\
+		unregister_trace_##call(ftrace_profile_##call);		\
+}
+
+#define _TRACE_PROFILE_INIT(call)					\
+	.profile_count = ATOMIC_INIT(-1),				\
+	.profile_enable = ftrace_profile_enable_##call,			\
+	.profile_disable = ftrace_profile_disable_##call,
+
+#else
+#define _TRACE_PROFILE(call, proto, args)
+#define _TRACE_PROFILE_INIT(call)
+#endif
+
 #define _TRACE_FORMAT(call, proto, args, fmt)				\
 static void ftrace_event_##call(proto)					\
 {									\
@@ -147,6 +181,7 @@ static int ftrace_init_event_##call(void)				\
 #undef TRACE_FORMAT
 #define TRACE_FORMAT(call, proto, args, fmt)				\
 _TRACE_FORMAT(call, PARAMS(proto), PARAMS(args), PARAMS(fmt))		\
+_TRACE_PROFILE(call, PARAMS(proto), PARAMS(args))			\
 static struct ftrace_event_call __used					\
 __attribute__((__aligned__(4)))						\
 __attribute__((section("_ftrace_events"))) event_##call = {		\
@@ -155,6 +190,7 @@ __attribute__((section("_ftrace_events"))) event_##call = {		\
 	.raw_init		= ftrace_init_event_##call,		\
 	.regfunc		= ftrace_reg_event_##call,		\
 	.unregfunc		= ftrace_unreg_event_##call,		\
+	_TRACE_PROFILE_INIT(call)					\
 }
 
 #undef __entry
@@ -162,6 +198,7 @@ __attribute__((section("_ftrace_events"))) event_##call = {		\
 
 #undef TRACE_EVENT
 #define TRACE_EVENT(call, proto, args, tstruct, assign, print)		\
+_TRACE_PROFILE(call, PARAMS(proto), PARAMS(args))			\
 									\
 static struct ftrace_event_call event_##call;				\
 									\
@@ -227,4 +264,11 @@ __attribute__((section("_ftrace_events"))) event_##call = {		\
 	.regfunc		= ftrace_raw_reg_event_##call,		\
 	.unregfunc		= ftrace_raw_unreg_event_##call,	\
 	.show_format		= ftrace_format_##call,			\
+	_TRACE_PROFILE_INIT(call)					\
 }
+
+#include <trace/trace_event_types.h>
+
+#undef _TRACE_PROFILE
+#undef _TRACE_PROFILE_INIT
+

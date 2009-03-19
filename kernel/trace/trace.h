@@ -785,11 +785,22 @@ struct ftrace_event_call {
 	int		id;
 	int		(*raw_init)(void);
 	int		(*show_format)(struct trace_seq *s);
+
+#ifdef CONFIG_EVENT_PROFILE
+	atomic_t	profile_count;
+	int		(*profile_enable)(struct ftrace_event_call *);
+	void		(*profile_disable)(struct ftrace_event_call *);
+#endif
 };
 
 void event_trace_printk(unsigned long ip, const char *fmt, ...);
 extern struct ftrace_event_call __start_ftrace_events[];
 extern struct ftrace_event_call __stop_ftrace_events[];
+
+#define for_each_event(event)						\
+	for (event = __start_ftrace_events;				\
+	     (unsigned long)event < (unsigned long)__stop_ftrace_events; \
+	     event++)
 
 extern const char *__start___trace_bprintk_fmt[];
 extern const char *__stop___trace_bprintk_fmt[];
