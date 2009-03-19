@@ -359,7 +359,7 @@ static struct usb_configuration loopback_driver = {
  * loopback_add - add a loopback testing configuration to a device
  * @cdev: the device to support the loopback configuration
  */
-int __init loopback_add(struct usb_composite_dev *cdev)
+int __init loopback_add(struct usb_composite_dev *cdev, bool autoresume)
 {
 	int id;
 
@@ -371,6 +371,10 @@ int __init loopback_add(struct usb_composite_dev *cdev)
 
 	loopback_intf.iInterface = id;
 	loopback_driver.iConfiguration = id;
+
+	/* support autoresume for remote wakeup testing */
+	if (autoresume)
+		sourcesink_driver.bmAttributes |= USB_CONFIG_ATT_WAKEUP;
 
 	/* support OTG systems */
 	if (gadget_is_otg(cdev->gadget)) {
