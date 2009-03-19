@@ -60,13 +60,14 @@ Commands are not supported.
 
 /* Board description*/
 
-typedef struct ni_670x_board_struct {
+struct ni_670x_board {
 	unsigned short dev_id;
 	const char *name;
 	unsigned short ao_chans;
 	unsigned short ao_bits;
-} ni_670x_board;
-static const ni_670x_board ni_670x_boards[] = {
+};
+
+static const struct ni_670x_board ni_670x_boards[] = {
 	{
 	      dev_id:	0x2c90,
 	      name:	"PCI-6703",
@@ -96,7 +97,7 @@ static DEFINE_PCI_DEVICE_TABLE(ni_670x_pci_table) = {
 
 MODULE_DEVICE_TABLE(pci, ni_670x_pci_table);
 
-#define thisboard ((ni_670x_board *)dev->board_ptr)
+#define thisboard ((struct ni_670x_board *)dev->board_ptr)
 
 struct ni_670x_private {
 
