@@ -542,7 +542,7 @@ recent_mt_proc_write(struct file *file, const char __user *input,
 	struct recent_entry *e;
 	char buf[sizeof("+b335:1d35:1e55:dead:c0de:1715:5afe:c0de")];
 	const char *c = buf;
-	union nf_inet_addr addr;
+	union nf_inet_addr addr = {};
 	u_int16_t family;
 	bool add, succ;
 

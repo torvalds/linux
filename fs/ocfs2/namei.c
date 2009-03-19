@@ -532,7 +532,8 @@ static int ocfs2_mknod_locked(struct ocfs2_super *osb,
 
 		fe->i_dyn_features = cpu_to_le16(feat | OCFS2_INLINE_DATA_FL);
 
-		fe->id2.i_data.id_count = cpu_to_le16(ocfs2_max_inline_data(osb->sb));
+		fe->id2.i_data.id_count = cpu_to_le16(
+				ocfs2_max_inline_data_with_xattr(osb->sb, fe));
 	} else {
 		fel = &fe->id2.i_list;
 		fel->l_tree_depth = 0;

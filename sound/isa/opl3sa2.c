@@ -550,21 +550,27 @@ static int __devinit snd_opl3sa2_mixer(struct snd_card *card)
 #ifdef CONFIG_PM
 static int snd_opl3sa2_suspend(struct snd_card *card, pm_message_t state)
 {
-	struct snd_opl3sa2 *chip = card->private_data;
+	if (card) {
+		struct snd_opl3sa2 *chip = card->private_data;
 
-	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
-	chip->wss->suspend(chip->wss);
-	/* power down */
-	snd_opl3sa2_write(chip, OPL3SA2_PM_CTRL, OPL3SA2_PM_D3);
+		snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
+		chip->wss->suspend(chip->wss);
+		/* power down */
+		snd_opl3sa2_write(chip, OPL3SA2_PM_CTRL, OPL3SA2_PM_D3);
+	}
 
 	return 0;
 }
 
 static int snd_opl3sa2_resume(struct snd_card *card)
 {
-	struct snd_opl3sa2 *chip = card->private_data;
+	struct snd_opl3sa2 *chip;
 	int i;
 
+	if (!card)
+		return 0;
+
+	chip = card->private_data;
 	/* power up */
 	snd_opl3sa2_write(chip, OPL3SA2_PM_CTRL, OPL3SA2_PM_D0);
 

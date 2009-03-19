@@ -25,21 +25,10 @@
 #include "extent_io.h"
 #include "locking.h"
 
-/*
- * btrfs_header_level() isn't free, so don't call it when lockdep isn't
- * on
- */
-#ifdef CONFIG_DEBUG_LOCK_ALLOC
-static inline void spin_nested(struct extent_buffer *eb)
-{
-	spin_lock_nested(&eb->lock, BTRFS_MAX_LEVEL - btrfs_header_level(eb));
-}
-#else
 static inline void spin_nested(struct extent_buffer *eb)
 {
 	spin_lock(&eb->lock);
 }
-#endif
 
 /*
  * Setting a lock to blocking will drop the spinlock and set the
@@ -231,8 +220,8 @@ int btrfs_tree_unlock(struct extent_buffer *eb)
 	return 0;
 }
 
-int btrfs_tree_locked(struct extent_buffer *eb)
+void btrfs_assert_tree_locked(struct extent_buffer *eb)
 {
-	return test_bit(EXTENT_BUFFER_BLOCKING, &eb->bflags) ||
-			spin_is_locked(&eb->lock);
+	if (!test_bit(EXTENT_BUFFER_BLOCKING, &eb->bflags))
+		assert_spin_locked(&eb->lock);
 }

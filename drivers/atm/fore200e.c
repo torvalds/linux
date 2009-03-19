@@ -2519,8 +2519,8 @@ fore200e_load_and_start_fw(struct fore200e* fore200e)
 	return err;
 
     sprintf(buf, "%s%s", fore200e->bus->proc_name, FW_EXT);
-    if (request_firmware(&firmware, buf, device) == 1) {
-	printk(FORE200E "missing %s firmware image\n", fore200e->bus->model_name);
+    if ((err = request_firmware(&firmware, buf, device)) < 0) {
+	printk(FORE200E "problem loading firmware image %s\n", fore200e->bus->model_name);
 	return err;
     }
 

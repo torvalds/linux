@@ -114,7 +114,8 @@ static int __init_refok init_section_page_cgroup(unsigned long pfn)
 		nid = page_to_nid(pfn_to_page(pfn));
 		table_size = sizeof(struct page_cgroup) * PAGES_PER_SECTION;
 		if (slab_is_available()) {
-			base = kmalloc_node(table_size, GFP_KERNEL, nid);
+			base = kmalloc_node(table_size,
+					GFP_KERNEL | __GFP_NOWARN, nid);
 			if (!base)
 				base = vmalloc_node(table_size, nid);
 		} else {

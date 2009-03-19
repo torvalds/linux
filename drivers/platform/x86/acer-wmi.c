@@ -1026,7 +1026,7 @@ static void acer_rfkill_exit(void)
 	kfree(wireless_rfkill->data);
 	rfkill_unregister(wireless_rfkill);
 	if (has_cap(ACER_CAP_BLUETOOTH)) {
-		kfree(wireless_rfkill->data);
+		kfree(bluetooth_rfkill->data);
 		rfkill_unregister(bluetooth_rfkill);
 	}
 	return;
@@ -1297,7 +1297,7 @@ static int __init acer_wmi_init(void)
 
 	set_quirks();
 
-	if (!acpi_video_backlight_support() && has_cap(ACER_CAP_BRIGHTNESS)) {
+	if (acpi_video_backlight_support() && has_cap(ACER_CAP_BRIGHTNESS)) {
 		interface->capability &= ~ACER_CAP_BRIGHTNESS;
 		printk(ACER_INFO "Brightness must be controlled by "
 		       "generic video driver\n");

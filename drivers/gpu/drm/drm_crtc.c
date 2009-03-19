@@ -1741,9 +1741,8 @@ out:
  * RETURNS:
  * Zero on success, errno on failure.
  */
-void drm_fb_release(struct file *filp)
+void drm_fb_release(struct drm_file *priv)
 {
-	struct drm_file *priv = filp->private_data;
 	struct drm_device *dev = priv->minor->dev;
 	struct drm_framebuffer *fb, *tfb;
 

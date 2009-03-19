@@ -54,13 +54,13 @@ struct drm_crtc_helper_funcs {
 			   struct drm_display_mode *mode,
 			   struct drm_display_mode *adjusted_mode);
 	/* Actually set the mode */
-	void (*mode_set)(struct drm_crtc *crtc, struct drm_display_mode *mode,
-			 struct drm_display_mode *adjusted_mode, int x, int y,
-			 struct drm_framebuffer *old_fb);
+	int (*mode_set)(struct drm_crtc *crtc, struct drm_display_mode *mode,
+			struct drm_display_mode *adjusted_mode, int x, int y,
+			struct drm_framebuffer *old_fb);
 
 	/* Move the crtc on the current fb to the given position *optional* */
-	void (*mode_set_base)(struct drm_crtc *crtc, int x, int y,
-			      struct drm_framebuffer *old_fb);
+	int (*mode_set_base)(struct drm_crtc *crtc, int x, int y,
+			     struct drm_framebuffer *old_fb);
 };
 
 struct drm_encoder_helper_funcs {
@@ -76,6 +76,7 @@ struct drm_encoder_helper_funcs {
 	void (*mode_set)(struct drm_encoder *encoder,
 			 struct drm_display_mode *mode,
 			 struct drm_display_mode *adjusted_mode);
+	struct drm_crtc *(*get_crtc)(struct drm_encoder *encoder);
 	/* detect for DAC style encoders */
 	enum drm_connector_status (*detect)(struct drm_encoder *encoder,
 					    struct drm_connector *connector);

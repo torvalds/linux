@@ -285,6 +285,7 @@ void kvm_free_physmem(struct kvm *kvm);
 struct  kvm *kvm_arch_create_vm(void);
 void kvm_arch_destroy_vm(struct kvm *kvm);
 void kvm_free_all_assigned_devices(struct kvm *kvm);
+void kvm_arch_sync_events(struct kvm *kvm);
 
 int kvm_cpu_get_interrupt(struct kvm_vcpu *v);
 int kvm_cpu_has_interrupt(struct kvm_vcpu *v);

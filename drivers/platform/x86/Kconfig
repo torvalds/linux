@@ -15,8 +15,7 @@ menuconfig X86_PLATFORM_DEVICES
 if X86_PLATFORM_DEVICES
 
 config ACER_WMI
-	tristate "Acer WMI Laptop Extras (EXPERIMENTAL)"
-	depends on EXPERIMENTAL
+	tristate "Acer WMI Laptop Extras"
 	depends on ACPI
 	depends on LEDS_CLASS
 	depends on NEW_LEDS
@@ -39,9 +38,9 @@ config ASUS_LAPTOP
 	tristate "Asus Laptop Extras (EXPERIMENTAL)"
 	depends on ACPI
 	depends on EXPERIMENTAL && !ACPI_ASUS
-	depends on LEDS_CLASS
-	depends on NEW_LEDS
-	depends on BACKLIGHT_CLASS_DEVICE
+	select LEDS_CLASS
+	select NEW_LEDS
+	select BACKLIGHT_CLASS_DEVICE
 	depends on INPUT
 	---help---
 	  This is the new Linux driver for Asus laptops. It may also support some
@@ -62,6 +61,7 @@ config DELL_LAPTOP
 	depends on EXPERIMENTAL
 	depends on BACKLIGHT_CLASS_DEVICE
 	depends on RFKILL
+	depends on POWER_SUPPLY
 	default n
 	---help---
 	This driver adds support for rfkill and backlight control to Dell
@@ -184,11 +184,11 @@ config SONYPI_COMPAT
 config THINKPAD_ACPI
 	tristate "ThinkPad ACPI Laptop Extras"
 	depends on ACPI
+	depends on INPUT
 	select BACKLIGHT_LCD_SUPPORT
 	select BACKLIGHT_CLASS_DEVICE
 	select HWMON
 	select NVRAM
-	select INPUT
 	select NEW_LEDS
 	select LEDS_CLASS
 	select NET
@@ -301,6 +301,7 @@ config INTEL_MENLOW
 config EEEPC_LAPTOP
 	tristate "Eee PC Hotkey Driver (EXPERIMENTAL)"
 	depends on ACPI
+	depends on INPUT
 	depends on EXPERIMENTAL
 	select BACKLIGHT_CLASS_DEVICE
 	select HWMON
@@ -313,9 +314,8 @@ config EEEPC_LAPTOP
 
 
 config ACPI_WMI
-	tristate "WMI (EXPERIMENTAL)"
+	tristate "WMI"
 	depends on ACPI
-	depends on EXPERIMENTAL
 	help
 	  This driver adds support for the ACPI-WMI (Windows Management
 	  Instrumentation) mapper device (PNP0C14) found on some systems.

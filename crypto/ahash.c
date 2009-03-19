@@ -214,7 +214,7 @@ static void crypto_ahash_show(struct seq_file *m, struct crypto_alg *alg)
 	seq_printf(m, "async        : %s\n", alg->cra_flags & CRYPTO_ALG_ASYNC ?
 					     "yes" : "no");
 	seq_printf(m, "blocksize    : %u\n", alg->cra_blocksize);
-	seq_printf(m, "digestsize   : %u\n", alg->cra_hash.digestsize);
+	seq_printf(m, "digestsize   : %u\n", alg->cra_ahash.digestsize);
 }
 
 const struct crypto_type crypto_ahash_type = {

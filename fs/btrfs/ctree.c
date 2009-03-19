@@ -38,19 +38,12 @@ static int balance_node_right(struct btrfs_trans_handle *trans,
 static int del_ptr(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 		   struct btrfs_path *path, int level, int slot);
 
-inline void btrfs_init_path(struct btrfs_path *p)
-{
-	memset(p, 0, sizeof(*p));
-}
-
 struct btrfs_path *btrfs_alloc_path(void)
 {
 	struct btrfs_path *path;
-	path = kmem_cache_alloc(btrfs_path_cachep, GFP_NOFS);
-	if (path) {
-		btrfs_init_path(path);
+	path = kmem_cache_zalloc(btrfs_path_cachep, GFP_NOFS);
+	if (path)
 		path->reada = 1;
-	}
 	return path;
 }
 
@@ -69,14 +62,38 @@ noinline void btrfs_set_path_blocking(struct btrfs_path *p)
 
 /*
  * reset all the locked nodes in the patch to spinning locks.
+ *
+ * held is used to keep lockdep happy, when lockdep is enabled
+ * we set held to a blocking lock before we go around and
+ * retake all the spinlocks in the path.  You can safely use NULL
+ * for held
  */
-noinline void btrfs_clear_path_blocking(struct btrfs_path *p)
+noinline void btrfs_clear_path_blocking(struct btrfs_path *p,
+					struct extent_buffer *held)
 {
 	int i;
-	for (i = 0; i < BTRFS_MAX_LEVEL; i++) {
+
+#ifdef CONFIG_DEBUG_LOCK_ALLOC
+	/* lockdep really cares that we take all of these spinlocks
+	 * in the right order.  If any of the locks in the path are not
+	 * currently blocking, it is going to complain.  So, make really
+	 * really sure by forcing the path to blocking before we clear
+	 * the path blocking.
+	 */
+	if (held)
+		btrfs_set_lock_blocking(held);
+	btrfs_set_path_blocking(p);
+#endif
+
+	for (i = BTRFS_MAX_LEVEL - 1; i >= 0; i--) {
 		if (p->nodes[i] && p->locks[i])
 			btrfs_clear_lock_blocking(p->nodes[i]);
 	}
+
+#ifdef CONFIG_DEBUG_LOCK_ALLOC
+	if (held)
+		btrfs_clear_lock_blocking(held);
+#endif
 }
 
 /* this also releases the path */
@@ -260,7 +277,7 @@ static noinline int __btrfs_cow_block(struct btrfs_trans_handle *trans,
 	if (*cow_ret == buf)
 		unlock_orig = 1;
 
-	WARN_ON(!btrfs_tree_locked(buf));
+	btrfs_assert_tree_locked(buf);
 
 	if (parent)
 		parent_start = parent->start;
@@ -286,7 +303,7 @@ static noinline int __btrfs_cow_block(struct btrfs_trans_handle *trans,
 						  trans->transid, level, &ins);
 		BUG_ON(ret);
 		cow = btrfs_init_new_buffer(trans, root, prealloc_dest,
-					    buf->len);
+					    buf->len, level);
 	} else {
 		cow = btrfs_alloc_free_block(trans, root, buf->len,
 					     parent_start,
@@ -917,9 +934,9 @@ static noinline int balance_level(struct btrfs_trans_handle *trans,
 
 		/* promote the child to a root */
 		child = read_node_slot(root, mid, 0);
+		BUG_ON(!child);
 		btrfs_tree_lock(child);
 		btrfs_set_lock_blocking(child);
-		BUG_ON(!child);
 		ret = btrfs_cow_block(trans, root, child, mid, 0, &child, 0);
 		BUG_ON(ret);
 
@@ -1566,7 +1583,7 @@ cow_done:
 		if (!p->skip_locking)
 			p->locks[level] = 1;
 
-		btrfs_clear_path_blocking(p);
+		btrfs_clear_path_blocking(p, NULL);
 
 		/*
 		 * we have a lock on b and as long as we aren't changing
@@ -1605,7 +1622,7 @@ cow_done:
 
 				btrfs_set_path_blocking(p);
 				sret = split_node(trans, root, p, level);
-				btrfs_clear_path_blocking(p);
+				btrfs_clear_path_blocking(p, NULL);
 
 				BUG_ON(sret > 0);
 				if (sret) {
@@ -1625,7 +1642,7 @@ cow_done:
 
 				btrfs_set_path_blocking(p);
 				sret = balance_level(trans, root, p, level);
-				btrfs_clear_path_blocking(p);
+				btrfs_clear_path_blocking(p, NULL);
 
 				if (sret) {
 					ret = sret;
@@ -1688,13 +1705,13 @@ cow_done:
 			if (!p->skip_locking) {
 				int lret;
 
-				btrfs_clear_path_blocking(p);
+				btrfs_clear_path_blocking(p, NULL);
 				lret = btrfs_try_spin_lock(b);
 
 				if (!lret) {
 					btrfs_set_path_blocking(p);
 					btrfs_tree_lock(b);
-					btrfs_clear_path_blocking(p);
+					btrfs_clear_path_blocking(p, b);
 				}
 			}
 		} else {
@@ -1706,7 +1723,7 @@ cow_done:
 				btrfs_set_path_blocking(p);
 				sret = split_leaf(trans, root, key,
 						      p, ins_len, ret == 0);
-				btrfs_clear_path_blocking(p);
+				btrfs_clear_path_blocking(p, NULL);
 
 				BUG_ON(sret > 0);
 				if (sret) {
@@ -2348,7 +2365,7 @@ static int push_leaf_right(struct btrfs_trans_handle *trans, struct btrfs_root
 	if (slot >= btrfs_header_nritems(upper) - 1)
 		return 1;
 
-	WARN_ON(!btrfs_tree_locked(path->nodes[1]));
+	btrfs_assert_tree_locked(path->nodes[1]);
 
 	right = read_node_slot(root, upper, slot + 1);
 	btrfs_tree_lock(right);
@@ -2545,7 +2562,7 @@ static int push_leaf_left(struct btrfs_trans_handle *trans, struct btrfs_root
 	if (right_nritems == 0)
 		return 1;
 
-	WARN_ON(!btrfs_tree_locked(path->nodes[1]));
+	btrfs_assert_tree_locked(path->nodes[1]);
 
 	left = read_node_slot(root, path->nodes[1], slot - 1);
 	btrfs_tree_lock(left);
@@ -3926,7 +3943,6 @@ find_next_key:
 				btrfs_release_path(root, path);
 				goto again;
 			} else {
-				btrfs_clear_path_blocking(path);
 				goto out;
 			}
 		}
@@ -3946,7 +3962,7 @@ find_next_key:
 		path->locks[level - 1] = 1;
 		path->nodes[level - 1] = cur;
 		unlock_up(path, level, 1);
-		btrfs_clear_path_blocking(path);
+		btrfs_clear_path_blocking(path, NULL);
 	}
 out:
 	if (ret == 0)
@@ -4085,7 +4101,7 @@ int btrfs_next_leaf(struct btrfs_root *root, struct btrfs_path *path)
 
 		next = read_node_slot(root, c, slot);
 		if (!path->skip_locking) {
-			WARN_ON(!btrfs_tree_locked(c));
+			btrfs_assert_tree_locked(c);
 			btrfs_tree_lock(next);
 			btrfs_set_lock_blocking(next);
 		}
@@ -4110,7 +4126,7 @@ int btrfs_next_leaf(struct btrfs_root *root, struct btrfs_path *path)
 			reada_for_search(root, path, level, slot, 0);
 		next = read_node_slot(root, next, 0);
 		if (!path->skip_locking) {
-			WARN_ON(!btrfs_tree_locked(path->nodes[level]));
+			btrfs_assert_tree_locked(path->nodes[level]);
 			btrfs_tree_lock(next);
 			btrfs_set_lock_blocking(next);
 		}
