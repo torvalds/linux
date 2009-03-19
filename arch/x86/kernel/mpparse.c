@@ -319,23 +319,23 @@ static int __init smp_read_mpc(struct mpc_table *mpc, unsigned early)
 		case MP_PROCESSOR:
 			/* ACPI may have already provided this data */
 			if (!acpi_lapic)
-				MP_processor_info((struct mpc_cpu *)&mpt);
+				MP_processor_info((struct mpc_cpu *)mpt);
 			skip_entry(&mpt, &count, sizeof(struct mpc_cpu));
 			break;
 		case MP_BUS:
-			MP_bus_info((struct mpc_bus *)&mpt);
+			MP_bus_info((struct mpc_bus *)mpt);
 			skip_entry(&mpt, &count, sizeof(struct mpc_bus));
 			break;
 		case MP_IOAPIC:
-			MP_ioapic_info((struct mpc_ioapic *)&mpt);
+			MP_ioapic_info((struct mpc_ioapic *)mpt);
 			skip_entry(&mpt, &count, sizeof(struct mpc_ioapic));
 			break;
 		case MP_INTSRC:
-			MP_intsrc_info((struct mpc_intsrc *)&mpt);
+			MP_intsrc_info((struct mpc_intsrc *)mpt);
 			skip_entry(&mpt, &count, sizeof(struct mpc_intsrc));
 			break;
 		case MP_LINTSRC:
-			MP_lintsrc_info((struct mpc_lintsrc *)&mpt);
+			MP_lintsrc_info((struct mpc_lintsrc *)mpt);
 			skip_entry(&mpt, &count, sizeof(struct mpc_lintsrc));
 			break;
 		default:
@@ -902,7 +902,7 @@ static int  __init replace_intsrc_all(struct mpc_table *mpc,
 			skip_entry(&mpt, &count, sizeof(struct mpc_ioapic));
 			break;
 		case MP_INTSRC:
-			check_irq_src((struct mpc_intsrc *)&mpt, &nr_m_spare);
+			check_irq_src((struct mpc_intsrc *)mpt, &nr_m_spare);
 			skip_entry(&mpt, &count, sizeof(struct mpc_intsrc));
 			break;
 		case MP_LINTSRC:
