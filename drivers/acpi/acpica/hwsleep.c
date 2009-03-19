@@ -430,7 +430,7 @@ acpi_status asmlinkage acpi_enter_sleep_state_s4bios(void)
 
 	ACPI_FLUSH_CPU_CACHE();
 
-	status = acpi_os_write_port(acpi_gbl_FADT.smi_command,
+	status = acpi_hw_write_port(acpi_gbl_FADT.smi_command,
 				    (u32) acpi_gbl_FADT.S4bios_request, 8);
 
 	do {

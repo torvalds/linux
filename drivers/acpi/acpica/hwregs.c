@@ -222,7 +222,7 @@ acpi_hw_register_read(u32 register_id, u32 * return_value)
 	case ACPI_REGISTER_SMI_COMMAND_BLOCK:	/* 8-bit access */
 
 		status =
-		    acpi_os_read_port(acpi_gbl_FADT.smi_command, &value, 8);
+		    acpi_hw_read_port(acpi_gbl_FADT.smi_command, &value, 8);
 		break;
 
 	default:
@@ -356,7 +356,7 @@ acpi_status acpi_hw_register_write(u32 register_id, u32 value)
 		/* SMI_CMD is currently always in IO space */
 
 		status =
-		    acpi_os_write_port(acpi_gbl_FADT.smi_command, value, 8);
+		    acpi_hw_write_port(acpi_gbl_FADT.smi_command, value, 8);
 		break;
 
 	default:

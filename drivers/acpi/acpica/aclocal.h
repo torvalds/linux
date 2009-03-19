@@ -863,6 +863,30 @@ struct acpi_bit_register_info {
 
 #define ACPI_BITPOSITION_ARB_DISABLE            0x00
 
+/* Structs and definitions for _OSI support and I/O port validation */
+
+#define ACPI_OSI_WIN_2000               0x01
+#define ACPI_OSI_WIN_XP                 0x02
+#define ACPI_OSI_WIN_XP_SP1             0x03
+#define ACPI_OSI_WINSRV_2003            0x04
+#define ACPI_OSI_WIN_XP_SP2             0x05
+#define ACPI_OSI_WINSRV_2003_SP1        0x06
+#define ACPI_OSI_WIN_VISTA              0x07
+
+#define ACPI_ALWAYS_ILLEGAL             0x00
+
+struct acpi_interface_info {
+	char *name;
+	u8 value;
+};
+
+struct acpi_port_info {
+	char *name;
+	u16 start;
+	u16 end;
+	u8 osi_dependency;
+};
+
 /*****************************************************************************
  *
  * Resource descriptors

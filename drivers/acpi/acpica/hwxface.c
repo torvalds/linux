@@ -146,7 +146,7 @@ acpi_status acpi_read(u32 *value, struct acpi_generic_address *reg)
 	case ACPI_ADR_SPACE_SYSTEM_IO:
 
 		status =
-		    acpi_os_read_port((acpi_io_address) address, value, width);
+		    acpi_hw_read_port((acpi_io_address) address, value, width);
 		break;
 
 	default:
@@ -220,7 +220,7 @@ acpi_status acpi_write(u32 value, struct acpi_generic_address *reg)
 
 	case ACPI_ADR_SPACE_SYSTEM_IO:
 
-		status = acpi_os_write_port((acpi_io_address) address, value,
+		status = acpi_hw_write_port((acpi_io_address) address, value,
 					    width);
 		break;
 

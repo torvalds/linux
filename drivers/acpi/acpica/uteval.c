@@ -59,26 +59,35 @@ acpi_ut_translate_one_cid(union acpi_operand_object *obj_desc,
 
 /*
  * Strings supported by the _OSI predefined (internal) method.
+ *
+ * March 2009: Removed "Linux" as this host no longer wants to respond true
+ * for this string. Basically, the only safe OS strings are windows-related
+ * and in many or most cases represent the only test path within the
+ * BIOS-provided ASL code.
+ *
+ * The second element of each entry is used to track the newest version of
+ * Windows that the BIOS has requested.
  */
-static char *acpi_interfaces_supported[] = {
+static struct acpi_interface_info acpi_interfaces_supported[] = {
 	/* Operating System Vendor Strings */
 
-	"Windows 2000",		/* Windows 2000 */
-	"Windows 2001",		/* Windows XP */
-	"Windows 2001 SP1",	/* Windows XP SP1 */
-	"Windows 2001 SP2",	/* Windows XP SP2 */
-	"Windows 2001.1",	/* Windows Server 2003 */
-	"Windows 2001.1 SP1",	/* Windows Server 2003 SP1 - Added 03/2006 */
-	"Windows 2006",		/* Windows Vista - Added 03/2006 */
+	{"Windows 2000", ACPI_OSI_WIN_2000},	/* Windows 2000 */
+	{"Windows 2001", ACPI_OSI_WIN_XP},	/* Windows XP */
+	{"Windows 2001 SP1", ACPI_OSI_WIN_XP_SP1},	/* Windows XP SP1 */
+	{"Windows 2001.1", ACPI_OSI_WINSRV_2003},	/* Windows Server 2003 */
+	{"Windows 2001 SP2", ACPI_OSI_WIN_XP_SP2},	/* Windows XP SP2 */
+	{"Windows 2001.1 SP1", ACPI_OSI_WINSRV_2003_SP1},	/* Windows Server 2003 SP1 - Added 03/2006 */
+	{"Windows 2006", ACPI_OSI_WIN_VISTA},	/* Windows Vista - Added 03/2006 */
 
 	/* Feature Group Strings */
 
-	"Extended Address Space Descriptor"
-	    /*
-	     * All "optional" feature group strings (features that are implemented
-	     * by the host) should be implemented in the host version of
-	     * acpi_os_validate_interface and should not be added here.
-	     */
+	{"Extended Address Space Descriptor", 0}
+
+	/*
+	 * All "optional" feature group strings (features that are implemented
+	 * by the host) should be implemented in the host version of
+	 * acpi_os_validate_interface and should not be added here.
+	 */
 };
 
 /*******************************************************************************
@@ -125,9 +134,17 @@ acpi_status acpi_ut_osi_implementation(struct acpi_walk_state *walk_state)
 
 	for (i = 0; i < ACPI_ARRAY_LENGTH(acpi_interfaces_supported); i++) {
 		if (!ACPI_STRCMP(string_desc->string.pointer,
-				 acpi_interfaces_supported[i])) {
-
-			/* The interface is supported */
+				 acpi_interfaces_supported[i].name)) {
+			/*
+			 * The interface is supported.
+			 * Update the osi_data if necessary. We keep track of the latest
+			 * version of Windows that has been requested by the BIOS.
+			 */
+			if (acpi_interfaces_supported[i].value >
+			    acpi_gbl_osi_data) {
+				acpi_gbl_osi_data =
+				    acpi_interfaces_supported[i].value;
+			}
 
 			return_value = ACPI_UINT32_MAX;
 			goto exit;
@@ -176,8 +193,8 @@ acpi_status acpi_osi_invalidate(char *interface)
 	int i;
 
 	for (i = 0; i < ACPI_ARRAY_LENGTH(acpi_interfaces_supported); i++) {
-		if (!ACPI_STRCMP(interface, acpi_interfaces_supported[i])) {
-			*acpi_interfaces_supported[i] = '\0';
+		if (!ACPI_STRCMP(interface, acpi_interfaces_supported[i].name)) {
+			*acpi_interfaces_supported[i].name = '\0';
 			return AE_OK;
 		}
 	}

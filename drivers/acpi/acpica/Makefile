@@ -18,7 +18,7 @@ obj-y += exconfig.o  exfield.o  exnames.o   exoparg6.o  exresolv.o  exstorob.o\
 	 excreate.o  exmisc.o   exoparg2.o  exregion.o  exstore.o   exutils.o \
 	 exdump.o    exmutex.o  exoparg3.o  exresnte.o  exstoren.o
 
-obj-y += hwacpi.o  hwgpe.o  hwregs.o  hwsleep.o hwxface.o
+obj-y += hwacpi.o  hwgpe.o  hwregs.o  hwsleep.o hwxface.o hwvalid.o
 
 obj-$(ACPI_FUTURE_USAGE) += hwtimer.o
 

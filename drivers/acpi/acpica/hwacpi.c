@@ -96,7 +96,7 @@ acpi_status acpi_hw_set_mode(u32 mode)
 
 		/* BIOS should have disabled ALL fixed and GP events */
 
-		status = acpi_os_write_port(acpi_gbl_FADT.smi_command,
+		status = acpi_hw_write_port(acpi_gbl_FADT.smi_command,
 					    (u32) acpi_gbl_FADT.acpi_enable, 8);
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
 				  "Attempting to enable ACPI mode\n"));
@@ -108,7 +108,7 @@ acpi_status acpi_hw_set_mode(u32 mode)
 		 * BIOS should clear all fixed status bits and restore fixed event
 		 * enable bits to default
 		 */
-		status = acpi_os_write_port(acpi_gbl_FADT.smi_command,
+		status = acpi_hw_write_port(acpi_gbl_FADT.smi_command,
 					    (u32) acpi_gbl_FADT.acpi_disable,
 					    8);
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO,

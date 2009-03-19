@@ -73,6 +73,13 @@ acpi_status acpi_hw_register_write(u32 register_id, u32 value);
 acpi_status acpi_hw_clear_acpi_status(void);
 
 /*
+ * hwvalid - Port I/O with validation
+ */
+acpi_status acpi_hw_read_port(acpi_io_address address, u32 *value, u32 width);
+
+acpi_status acpi_hw_write_port(acpi_io_address address, u32 value, u32 width);
+
+/*
  * hwgpe - GPE support
  */
 acpi_status acpi_hw_low_disable_gpe(struct acpi_gpe_event_info *gpe_event_info);

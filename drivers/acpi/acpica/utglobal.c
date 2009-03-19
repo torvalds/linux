@@ -789,6 +789,7 @@ acpi_status acpi_ut_init_globals(void)
 	acpi_gbl_trace_dbg_layer = 0;
 	acpi_gbl_debugger_configuration = DEBUGGER_THREADING;
 	acpi_gbl_db_output_flags = ACPI_DB_CONSOLE_OUTPUT;
+	acpi_gbl_osi_data = 0;
 
 	/* Hardware oriented */
 
