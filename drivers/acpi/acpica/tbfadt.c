@@ -483,18 +483,22 @@ static void acpi_tb_validate_fadt(void)
 	    (acpi_gbl_FADT.Xfacs != (u64) acpi_gbl_FADT.facs)) {
 		ACPI_WARNING((AE_INFO,
 			      "32/64X FACS address mismatch in FADT - "
-			      "two FACS tables! %8.8X/%8.8X%8.8X",
+			      "%8.8X/%8.8X%8.8X, using 32",
 			      acpi_gbl_FADT.facs,
 			      ACPI_FORMAT_UINT64(acpi_gbl_FADT.Xfacs)));
+
+		acpi_gbl_FADT.Xfacs = (u64) acpi_gbl_FADT.facs;
 	}
 
 	if (acpi_gbl_FADT.dsdt &&
 	    (acpi_gbl_FADT.Xdsdt != (u64) acpi_gbl_FADT.dsdt)) {
 		ACPI_WARNING((AE_INFO,
 			      "32/64X DSDT address mismatch in FADT - "
-			      "two DSDT tables! %8.8X/%8.8X%8.8X",
+			      "%8.8X/%8.8X%8.8X, using 32",
 			      acpi_gbl_FADT.dsdt,
 			      ACPI_FORMAT_UINT64(acpi_gbl_FADT.Xdsdt)));
+
+		acpi_gbl_FADT.Xdsdt = (u64) acpi_gbl_FADT.dsdt;
 	}
 
 	/* Examine all of the 64-bit extended address fields (X fields) */
