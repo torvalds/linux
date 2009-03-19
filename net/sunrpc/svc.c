@@ -718,8 +718,6 @@ svc_exit_thread(struct svc_rqst *rqstp)
 }
 EXPORT_SYMBOL_GPL(svc_exit_thread);
 
-#ifdef CONFIG_SUNRPC_REGISTER_V4
-
 /*
  * Register an "inet" protocol family netid with the local
  * rpcbind daemon via an rpcbind v4 SET request.
@@ -734,12 +732,13 @@ static int __svc_rpcb_register4(const u32 program, const u32 version,
 				const unsigned short protocol,
 				const unsigned short port)
 {
-	struct sockaddr_in sin = {
+	const struct sockaddr_in sin = {
 		.sin_family		= AF_INET,
 		.sin_addr.s_addr	= htonl(INADDR_ANY),
 		.sin_port		= htons(port),
 	};
-	char *netid;
+	const char *netid;
+	int error;
 
 	switch (protocol) {
 	case IPPROTO_UDP:
@@ -752,10 +751,20 @@ static int __svc_rpcb_register4(const u32 program, const u32 version,
 		return -ENOPROTOOPT;
 	}
 
-	return rpcb_v4_register(program, version,
-				(struct sockaddr *)&sin, netid);
+	error = rpcb_v4_register(program, version,
+					(const struct sockaddr *)&sin, netid);
+
+	/*
+	 * User space didn't support rpcbind v4, so retry this
+	 * registration request with the legacy rpcbind v2 protocol.
+	 */
+	if (error == -EPROTONOSUPPORT)
+		error = rpcb_register(program, version, protocol, port);
+
+	return error;
 }
 
+#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
 /*
  * Register an "inet6" protocol family netid with the local
  * rpcbind daemon via an rpcbind v4 SET request.
@@ -770,12 +779,13 @@ static int __svc_rpcb_register6(const u32 program, const u32 version,
 				const unsigned short protocol,
 				const unsigned short port)
 {
-	struct sockaddr_in6 sin6 = {
+	const struct sockaddr_in6 sin6 = {
 		.sin6_family		= AF_INET6,
 		.sin6_addr		= IN6ADDR_ANY_INIT,
 		.sin6_port		= htons(port),
 	};
-	char *netid;
+	const char *netid;
+	int error;
 
 	switch (protocol) {
 	case IPPROTO_UDP:
@@ -788,9 +798,19 @@ static int __svc_rpcb_register6(const u32 program, const u32 version,
 		return -ENOPROTOOPT;
 	}
 
-	return rpcb_v4_register(program, version,
-				(struct sockaddr *)&sin6, netid);
+	error = rpcb_v4_register(program, version,
+					(const struct sockaddr *)&sin6, netid);
+
+	/*
+	 * User space didn't support rpcbind version 4, so we won't
+	 * use a PF_INET6 listener.
+	 */
+	if (error == -EPROTONOSUPPORT)
+		error = -EAFNOSUPPORT;
+
+	return error;
 }
+#endif	/* defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE) */
 
 /*
  * Register a kernel RPC service via rpcbind version 4.
@@ -809,47 +829,16 @@ static int __svc_register(const u32 program, const u32 version,
 	case PF_INET:
 		return __svc_rpcb_register4(program, version,
 						protocol, port);
+		break;
+#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
 	case PF_INET6:
-		error = __svc_rpcb_register6(program, version,
+		return__svc_rpcb_register6(program, version,
 						protocol, port);
-		if (error < 0)
-			return error;
-
-		/*
-		 * Work around bug in some versions of Linux rpcbind
-		 * which don't allow registration of both inet and
-		 * inet6 netids.
-		 *
-		 * Error return ignored for now.
-		 */
-		__svc_rpcb_register4(program, version,
-						protocol, port);
-		return 0;
+#endif	/* defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE) */
 	}
 
 	return -EAFNOSUPPORT;
 }
-
-#else	/* CONFIG_SUNRPC_REGISTER_V4 */
-
-/*
- * Register a kernel RPC service via rpcbind version 2.
- *
- * Returns zero on success; a negative errno value is returned
- * if any error occurs.
- */
-static int __svc_register(const u32 program, const u32 version,
-			  const int family,
-			  const unsigned short protocol,
-			  const unsigned short port)
-{
-	if (family != PF_INET)
-		return -EAFNOSUPPORT;
-
-	return rpcb_register(program, version, protocol, port);
-}
-
-#endif /* CONFIG_SUNRPC_REGISTER_V4 */
 
 /**
  * svc_register - register an RPC service with the local portmapper
