@@ -1745,7 +1745,7 @@ static irqreturn_t me4000_ai_isr(int irq, void *dev_id PT_REGS_ARG)
 	unsigned int tmp;
 	struct comedi_device *dev = dev_id;
 	struct comedi_subdevice *s = dev->subdevices;
-	me4000_ai_context_t *ai_context = &info->ai_context;
+	struct me4000_ai_context *ai_context = &info->ai_context;
 	int i;
 	int c = 0;
 	long lval;

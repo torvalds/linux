@@ -342,7 +342,7 @@ struct me4000_ao_context {
 	unsigned long preload_reg;
 };
 
-typedef struct me4000_ai_context {
+struct me4000_ai_context {
 	int irq;
 
 	unsigned long ctrl_reg;
@@ -358,7 +358,7 @@ typedef struct me4000_ai_context {
 	unsigned long start_reg;
 	unsigned long irq_status_reg;
 	unsigned long sample_counter_reg;
-} me4000_ai_context_t;
+};
 
 typedef struct me4000_dio_context {
 	unsigned long dir_reg;
