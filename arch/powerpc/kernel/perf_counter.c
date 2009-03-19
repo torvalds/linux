@@ -723,8 +723,6 @@ static void perf_counter_interrupt(struct pt_regs *regs)
 			/* counter has overflowed */
 			found = 1;
 			record_and_restart(counter, val, regs);
-			if (counter->wakeup_pending)
-				need_wakeup = 1;
 		}
 	}
 
@@ -754,17 +752,14 @@ static void perf_counter_interrupt(struct pt_regs *regs)
 	/*
 	 * If we need a wakeup, check whether interrupts were soft-enabled
 	 * when we took the interrupt.  If they were, we can wake stuff up
-	 * immediately; otherwise we'll have to set a flag and do the
-	 * wakeup when interrupts get soft-enabled.
+	 * immediately; otherwise we'll have do the wakeup when interrupts
+	 * get soft-enabled.
 	 */
-	if (need_wakeup) {
-		if (regs->softe) {
-			irq_enter();
-			perf_counter_do_pending();
-			irq_exit();
-		} else {
-			set_perf_counter_pending();
-		}
+	if (get_perf_counter_pending() && regs->softe) {
+		irq_enter();
+		clear_perf_counter_pending();
+		perf_counter_do_pending();
+		irq_exit();
 	}
 }
 
