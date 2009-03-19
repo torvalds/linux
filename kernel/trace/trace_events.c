@@ -412,6 +412,29 @@ event_format_read(struct file *filp, char __user *ubuf, size_t cnt,
 	return r;
 }
 
+static ssize_t
+event_id_read(struct file *filp, char __user *ubuf, size_t cnt, loff_t *ppos)
+{
+	struct ftrace_event_call *call = filp->private_data;
+	struct trace_seq *s;
+	int r;
+
+	if (*ppos)
+		return 0;
+
+	s = kmalloc(sizeof(*s), GFP_KERNEL);
+	if (!s)
+		return -ENOMEM;
+
+	trace_seq_init(s);
+	trace_seq_printf(s, "%d\n", call->id);
+
+	r = simple_read_from_buffer(ubuf, cnt, ppos,
+				    s->buffer, s->len);
+	kfree(s);
+	return r;
+}
+
 static const struct seq_operations show_event_seq_ops = {
 	.start = t_start,
 	.next = t_next,
@@ -450,6 +473,11 @@ static const struct file_operations ftrace_enable_fops = {
 static const struct file_operations ftrace_event_format_fops = {
 	.open = tracing_open_generic,
 	.read = event_format_read,
+};
+
+static const struct file_operations ftrace_event_id_fops = {
+	.open = tracing_open_generic,
+	.read = event_id_read,
 };
 
 static struct dentry *event_trace_events_dir(void)
@@ -548,6 +576,14 @@ event_create_dir(struct ftrace_event_call *call, struct dentry *d_events)
 		if (!entry)
 			pr_warning("Could not create debugfs "
 				   "'%s/enable' entry\n", call->name);
+	}
+
+	if (call->id) {
+		entry = debugfs_create_file("id", 0444, call->dir, call,
+				&ftrace_event_id_fops);
+		if (!entry)
+			pr_warning("Could not create debugfs '%s/id' entry\n",
+					call->name);
 	}
 
 	/* A trace may not want to export its format */
