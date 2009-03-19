@@ -807,4 +807,50 @@ void cfg80211_put_bss(struct cfg80211_bss *bss);
  */
 void cfg80211_unlink_bss(struct wiphy *wiphy, struct cfg80211_bss *bss);
 
+/**
+ * cfg80211_send_rx_auth - notification of processed authentication
+ * @dev: network device
+ * @buf: authentication frame (header + body)
+ * @len: length of the frame data
+ *
+ * This function is called whenever an authentication has been processed in
+ * station mode.
+ */
+void cfg80211_send_rx_auth(struct net_device *dev, const u8 *buf, size_t len);
+
+/**
+ * cfg80211_send_rx_assoc - notification of processed association
+ * @dev: network device
+ * @buf: (re)association response frame (header + body)
+ * @len: length of the frame data
+ *
+ * This function is called whenever a (re)association response has been
+ * processed in station mode.
+ */
+void cfg80211_send_rx_assoc(struct net_device *dev, const u8 *buf, size_t len);
+
+/**
+ * cfg80211_send_rx_deauth - notification of processed deauthentication
+ * @dev: network device
+ * @buf: deauthentication frame (header + body)
+ * @len: length of the frame data
+ *
+ * This function is called whenever deauthentication has been processed in
+ * station mode.
+ */
+void cfg80211_send_rx_deauth(struct net_device *dev, const u8 *buf,
+			     size_t len);
+
+/**
+ * cfg80211_send_rx_disassoc - notification of processed disassociation
+ * @dev: network device
+ * @buf: disassociation response frame (header + body)
+ * @len: length of the frame data
+ *
+ * This function is called whenever disassociation has been processed in
+ * station mode.
+ */
+void cfg80211_send_rx_disassoc(struct net_device *dev, const u8 *buf,
+			       size_t len);
+
 #endif /* __NET_CFG80211_H */

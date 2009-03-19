@@ -1085,11 +1085,13 @@ static void ieee80211_rx_mgmt_auth(struct ieee80211_sub_if_data *sdata,
 	case WLAN_AUTH_OPEN:
 	case WLAN_AUTH_LEAP:
 		ieee80211_auth_completed(sdata);
+		cfg80211_send_rx_auth(sdata->dev, (u8 *) mgmt, len);
 		break;
 	case WLAN_AUTH_SHARED_KEY:
-		if (ifmgd->auth_transaction == 4)
+		if (ifmgd->auth_transaction == 4) {
 			ieee80211_auth_completed(sdata);
-		else
+			cfg80211_send_rx_auth(sdata->dev, (u8 *) mgmt, len);
+		} else
 			ieee80211_auth_challenge(sdata, mgmt, len);
 		break;
 	}
@@ -1125,6 +1127,7 @@ static void ieee80211_rx_mgmt_deauth(struct ieee80211_sub_if_data *sdata,
 
 	ieee80211_set_disassoc(sdata, true, false, 0);
 	ifmgd->flags &= ~IEEE80211_STA_AUTHENTICATED;
+	cfg80211_send_rx_deauth(sdata->dev, (u8 *) mgmt, len);
 }
 
 
@@ -1154,6 +1157,7 @@ static void ieee80211_rx_mgmt_disassoc(struct ieee80211_sub_if_data *sdata,
 	}
 
 	ieee80211_set_disassoc(sdata, false, false, reason_code);
+	cfg80211_send_rx_disassoc(sdata->dev, (u8 *) mgmt, len);
 }
 
 
@@ -1370,6 +1374,7 @@ static void ieee80211_rx_mgmt_assoc_resp(struct ieee80211_sub_if_data *sdata,
 	ieee80211_set_associated(sdata, changed);
 
 	ieee80211_associated(sdata);
+	cfg80211_send_rx_assoc(sdata->dev, (u8 *) mgmt, len);
 }
 
 

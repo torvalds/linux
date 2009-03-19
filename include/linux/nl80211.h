@@ -161,6 +161,25 @@
  * 	%NL80211_REG_TYPE_COUNTRY the alpha2 to which we have moved on
  * 	to (%NL80211_ATTR_REG_ALPHA2).
  *
+ * @NL80211_CMD_AUTHENTICATE: authentication notification (on the "mlme"
+ *	multicast group). This event reports reception of an Authentication
+ *	frame in station and IBSS modes when the local MLME processed the
+ *	frame, i.e., it was for the local STA and was received in correct
+ *	state. This is similar to MLME-AUTHENTICATE.confirm primitive in the
+ *	MLME SAP interface (kernel providing MLME, userspace SME). The
+ *	included NL80211_ATTR_FRAME attribute contains the management frame
+ *	(including both the header and frame body, but not FCS).
+ * @NL80211_CMD_ASSOCIATE: association notification; like
+ *	NL80211_CMD_AUTHENTICATE but for Association Response and Reassociation
+ *	Response frames (similar to MLME-ASSOCIATE.confirm or
+ *	MLME-REASSOCIATE.confirm primitives).
+ * @NL80211_CMD_DEAUTHENTICATE: deauthentication notification; like
+ *	NL80211_CMD_AUTHENTICATE but for Deauthentication frames (similar to
+ *	MLME-DEAUTHENTICATE.indication primitive).
+ * @NL80211_CMD_DISASSOCIATE: disassociation notification; like
+ *	NL80211_CMD_AUTHENTICATE but for Disassociation frames (similar to
+ *	MLME-DISASSOCIATE.indication primitive).
+ *
  * @NL80211_CMD_MAX: highest used command number
  * @__NL80211_CMD_AFTER_LAST: internal use
  */
@@ -217,6 +236,11 @@ enum nl80211_commands {
 
 	NL80211_CMD_REG_CHANGE,
 
+	NL80211_CMD_AUTHENTICATE,
+	NL80211_CMD_ASSOCIATE,
+	NL80211_CMD_DEAUTHENTICATE,
+	NL80211_CMD_DISASSOCIATE,
+
 	/* add new commands above here */
 
 	/* used to define NL80211_CMD_MAX below */
@@ -230,8 +254,11 @@ enum nl80211_commands {
  */
 #define NL80211_CMD_SET_BSS NL80211_CMD_SET_BSS
 #define NL80211_CMD_SET_MGMT_EXTRA_IE NL80211_CMD_SET_MGMT_EXTRA_IE
-
 #define NL80211_CMD_REG_CHANGE NL80211_CMD_REG_CHANGE
+#define NL80211_CMD_AUTHENTICATE NL80211_CMD_AUTHENTICATE
+#define NL80211_CMD_ASSOCIATE NL80211_CMD_ASSOCIATE
+#define NL80211_CMD_DEAUTHENTICATE NL80211_CMD_DEAUTHENTICATE
+#define NL80211_CMD_DISASSOCIATE NL80211_CMD_DISASSOCIATE
 
 /**
  * enum nl80211_attrs - nl80211 netlink attributes
@@ -353,6 +380,10 @@ enum nl80211_commands {
  *	an array of command numbers (i.e. a mapping index to command number)
  *	that the driver for the given wiphy supports.
  *
+ * @NL80211_ATTR_FRAME: frame data (binary attribute), including frame header
+ *	and body, but not FCS; used, e.g., with NL80211_CMD_AUTHENTICATE and
+ *	NL80211_CMD_ASSOCIATE events
+ *
  * @NL80211_ATTR_MAX: highest attribute number currently defined
  * @__NL80211_ATTR_AFTER_LAST: internal use
  */
@@ -432,6 +463,8 @@ enum nl80211_attrs {
 
 	NL80211_ATTR_SUPPORTED_COMMANDS,
 
+	NL80211_ATTR_FRAME,
+
 	/* add attributes here, update the policy in nl80211.c */
 
 	__NL80211_ATTR_AFTER_LAST,
@@ -451,6 +484,7 @@ enum nl80211_attrs {
 #define NL80211_ATTR_IE NL80211_ATTR_IE
 #define NL80211_ATTR_REG_INITIATOR NL80211_ATTR_REG_INITIATOR
 #define NL80211_ATTR_REG_TYPE NL80211_ATTR_REG_TYPE
+#define NL80211_ATTR_FRAME NL80211_ATTR_FRAME
 
 #define NL80211_MAX_SUPP_RATES			32
 #define NL80211_MAX_SUPP_REG_RULES		32

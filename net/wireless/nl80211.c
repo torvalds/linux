@@ -2830,6 +2830,9 @@ static struct genl_ops nl80211_ops[] = {
 		.dumpit = nl80211_dump_scan,
 	},
 };
+static struct genl_multicast_group nl80211_mlme_mcgrp = {
+	.name = "mlme",
+};
 
 /* multicast groups */
 static struct genl_multicast_group nl80211_config_mcgrp = {
@@ -2975,6 +2978,71 @@ nla_put_failure:
 	nlmsg_free(msg);
 }
 
+static void nl80211_send_mlme_event(struct cfg80211_registered_device *rdev,
+				    struct net_device *netdev,
+				    const u8 *buf, size_t len,
+				    enum nl80211_commands cmd)
+{
+	struct sk_buff *msg;
+	void *hdr;
+
+	msg = nlmsg_new(NLMSG_GOODSIZE, GFP_KERNEL);
+	if (!msg)
+		return;
+
+	hdr = nl80211hdr_put(msg, 0, 0, 0, cmd);
+	if (!hdr) {
+		nlmsg_free(msg);
+		return;
+	}
+
+	NLA_PUT_U32(msg, NL80211_ATTR_WIPHY, rdev->wiphy_idx);
+	NLA_PUT_U32(msg, NL80211_ATTR_IFINDEX, netdev->ifindex);
+	NLA_PUT(msg, NL80211_ATTR_FRAME, len, buf);
+
+	if (genlmsg_end(msg, hdr) < 0) {
+		nlmsg_free(msg);
+		return;
+	}
+
+	genlmsg_multicast(msg, 0, nl80211_mlme_mcgrp.id, GFP_KERNEL);
+	return;
+
+ nla_put_failure:
+	genlmsg_cancel(msg, hdr);
+	nlmsg_free(msg);
+}
+
+void nl80211_send_rx_auth(struct cfg80211_registered_device *rdev,
+			  struct net_device *netdev, const u8 *buf, size_t len)
+{
+	nl80211_send_mlme_event(rdev, netdev, buf, len,
+				NL80211_CMD_AUTHENTICATE);
+}
+
+void nl80211_send_rx_assoc(struct cfg80211_registered_device *rdev,
+			   struct net_device *netdev, const u8 *buf,
+			   size_t len)
+{
+	nl80211_send_mlme_event(rdev, netdev, buf, len, NL80211_CMD_ASSOCIATE);
+}
+
+void nl80211_send_rx_deauth(struct cfg80211_registered_device *rdev,
+			    struct net_device *netdev, const u8 *buf,
+			    size_t len)
+{
+	nl80211_send_mlme_event(rdev, netdev, buf, len,
+				NL80211_CMD_DEAUTHENTICATE);
+}
+
+void nl80211_send_rx_disassoc(struct cfg80211_registered_device *rdev,
+			      struct net_device *netdev, const u8 *buf,
+			      size_t len)
+{
+	nl80211_send_mlme_event(rdev, netdev, buf, len,
+				NL80211_CMD_DISASSOCIATE);
+}
+
 /* initialisation/exit functions */
 
 int nl80211_init(void)
@@ -3000,6 +3068,10 @@ int nl80211_init(void)
 		goto err_out;
 
 	err = genl_register_mc_group(&nl80211_fam, &nl80211_regulatory_mcgrp);
+	if (err)
+		goto err_out;
+
+	err = genl_register_mc_group(&nl80211_fam, &nl80211_mlme_mcgrp);
 	if (err)
 		goto err_out;
 
