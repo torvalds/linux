@@ -703,11 +703,16 @@ static int rpcb_decode_getaddr(struct rpc_rqst *req, __be32 *p,
 	*portp = 0;
 	addr_len = ntohl(*p++);
 
+	if (addr_len == 0) {
+		dprintk("RPC:       rpcb_decode_getaddr: "
+					"service is not registered\n");
+		return 0;
+	}
+
 	/*
-	 * Simple sanity check.  The smallest possible universal
-	 * address is an IPv4 address string containing 11 bytes.
+	 * Simple sanity check.
 	 */
-	if (addr_len < 11 || addr_len > RPCBIND_MAXUADDRLEN)
+	if (addr_len > RPCBIND_MAXUADDRLEN)
 		goto out_err;
 
 	/*
