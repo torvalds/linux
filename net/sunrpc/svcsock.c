@@ -1122,7 +1122,7 @@ static struct svc_sock *svc_setup_socket(struct svc_serv *serv,
 
 	/* Register socket with portmapper */
 	if (*errp >= 0 && pmap_register)
-		*errp = svc_register(serv, serv->sv_family, inet->sk_protocol,
+		*errp = svc_register(serv, inet->sk_family, inet->sk_protocol,
 				     ntohs(inet_sk(inet)->sport));
 
 	if (*errp < 0) {
@@ -1145,13 +1145,13 @@ static struct svc_sock *svc_setup_socket(struct svc_serv *serv,
 
 	/*
 	 * We start one listener per sv_serv.  We want AF_INET
-	 * requests to be automatically shunted to our AF_INET6
+	 * requests to be automatically shunted to our PF_INET6
 	 * listener using a mapped IPv4 address.  Make sure
 	 * no-one starts an equivalent IPv4 listener, which
 	 * would steal our incoming connections.
 	 */
 	val = 0;
-	if (serv->sv_family == AF_INET6)
+	if (inet->sk_family == PF_INET6)
 		kernel_setsockopt(sock, SOL_IPV6, IPV6_V6ONLY,
 					(char *)&val, sizeof(val));
 
