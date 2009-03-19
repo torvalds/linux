@@ -374,7 +374,7 @@ int __devinit pxa2xx_ac97_hw_probe(struct platform_device *dev)
 		case -1:
 			break;
 		default:
-			dev_err(dev, "Invalid reset GPIO %d\n",
+			dev_err(&dev->dev, "Invalid reset GPIO %d\n",
 				pdata->reset_gpio);
 		}
 	} else {
