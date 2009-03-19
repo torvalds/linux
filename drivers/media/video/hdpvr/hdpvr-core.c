@@ -1,5 +1,5 @@
 /*
- * Hauppage HD PVR USB driver
+ * Hauppauge HD PVR USB driver
  *
  * Copyright (C) 2001-2004 Greg Kroah-Hartman (greg@kroah.com)
  * Copyright (C) 2008      Janne Grunau (j@jannau.net)

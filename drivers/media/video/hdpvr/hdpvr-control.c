@@ -1,5 +1,5 @@
 /*
- * Hauppage HD PVR USB driver - video 4 linux 2 interface
+ * Hauppauge HD PVR USB driver - video 4 linux 2 interface
  *
  * Copyright (C) 2008      Janne Grunau (j@jannau.net)
  *
