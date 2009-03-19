@@ -221,8 +221,11 @@ static int snd_pcm_update_hw_ptr_interrupt(struct snd_pcm_substream *substream)
 	new_hw_ptr = hw_base + pos;
 	hw_ptr_interrupt = runtime->hw_ptr_interrupt + runtime->period_size;
 	delta = new_hw_ptr - hw_ptr_interrupt;
-	if (hw_ptr_interrupt == runtime->boundary)
-		hw_ptr_interrupt = 0;
+	if (hw_ptr_interrupt >= runtime->boundary) {
+		hw_ptr_interrupt %= runtime->boundary;
+		if (!hw_base) /* hw_base was already lapped; recalc delta */
+			delta = new_hw_ptr - hw_ptr_interrupt;
+	}
 	if (delta < 0) {
 		delta += runtime->buffer_size;
 		if (delta < 0) {
@@ -233,6 +236,8 @@ static int snd_pcm_update_hw_ptr_interrupt(struct snd_pcm_substream *substream)
 				     (long)hw_ptr_interrupt);
 			/* rebase to interrupt position */
 			hw_base = new_hw_ptr = hw_ptr_interrupt;
+			/* align hw_base to buffer_size */
+			hw_base -= hw_base % runtime->buffer_size;
 			delta = 0;
 		} else {
 			hw_base += runtime->buffer_size;
