@@ -1194,7 +1194,7 @@ void trace_graph_return(struct ftrace_graph_ret *trace)
  * trace_vbprintk - write binary msg to tracing buffer
  *
  */
-int trace_vbprintk(unsigned long ip, int depth, const char *fmt, va_list args)
+int trace_vbprintk(unsigned long ip, const char *fmt, va_list args)
 {
 	static raw_spinlock_t trace_buf_lock =
 		(raw_spinlock_t)__RAW_SPIN_LOCK_UNLOCKED;
@@ -1236,7 +1236,6 @@ int trace_vbprintk(unsigned long ip, int depth, const char *fmt, va_list args)
 		goto out_unlock;
 	entry = ring_buffer_event_data(event);
 	entry->ip			= ip;
-	entry->depth			= depth;
 	entry->fmt			= fmt;
 
 	memcpy(entry->buf, trace_buf, sizeof(u32) * len);
@@ -1254,7 +1253,7 @@ out:
 }
 EXPORT_SYMBOL_GPL(trace_vbprintk);
 
-int trace_vprintk(unsigned long ip, int depth, const char *fmt, va_list args)
+int trace_vprintk(unsigned long ip, const char *fmt, va_list args)
 {
 	static raw_spinlock_t trace_buf_lock = __RAW_SPIN_LOCK_UNLOCKED;
 	static char trace_buf[TRACE_BUF_SIZE];
@@ -1291,7 +1290,6 @@ int trace_vprintk(unsigned long ip, int depth, const char *fmt, va_list args)
 		goto out_unlock;
 	entry = ring_buffer_event_data(event);
 	entry->ip			= ip;
-	entry->depth			= depth;
 
 	memcpy(&entry->buf, trace_buf, len);
 	entry->buf[len] = 0;
@@ -3140,7 +3138,7 @@ static int mark_printk(const char *fmt, ...)
 	int ret;
 	va_list args;
 	va_start(args, fmt);
-	ret = trace_vprintk(0, -1, fmt, args);
+	ret = trace_vprintk(0, fmt, args);
 	va_end(args);
 	return ret;
 }
