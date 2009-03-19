@@ -421,7 +421,7 @@ static DEFINE_PCI_DEVICE_TABLE(ni_660x_pci_table) = {
 
 MODULE_DEVICE_TABLE(pci, ni_660x_pci_table);
 
-typedef struct {
+struct ni_660x_private {
 	struct mite_struct *mite;
 	struct ni_gpct_device *counter_dev;
 	uint64_t pfi_direction_bits;
@@ -431,9 +431,9 @@ typedef struct {
 	unsigned dma_configuration_soft_copies[NI_660X_MAX_NUM_CHIPS];
 	spinlock_t soft_reg_copy_lock;
 	unsigned short pfi_output_selects[NUM_PFI_CHANNELS];
-} ni_660x_private;
+};
 
-static inline ni_660x_private *private(struct comedi_device * dev)
+static inline struct ni_660x_private *private(struct comedi_device * dev)
 {
 	return dev->private;
 }
@@ -765,7 +765,7 @@ static unsigned ni_gpct_read_register(struct ni_gpct *counter,
 		ni_660x_register);
 }
 
-static inline struct mite_dma_descriptor_ring *mite_ring(ni_660x_private * priv,
+static inline struct mite_dma_descriptor_ring *mite_ring(struct ni_660x_private * priv,
 	struct ni_gpct *counter)
 {
 	return priv->mite_rings[counter->chip_index][counter->counter_index];
@@ -943,7 +943,7 @@ static int ni_660x_allocate_private(struct comedi_device * dev)
 	int retval;
 	unsigned i;
 
-	if ((retval = alloc_private(dev, sizeof(ni_660x_private))) < 0)
+	if ((retval = alloc_private(dev, sizeof(struct ni_660x_private))) < 0)
 		return retval;
 	spin_lock_init(&private(dev)->mite_channel_lock);
 	spin_lock_init(&private(dev)->soft_reg_copy_lock);
