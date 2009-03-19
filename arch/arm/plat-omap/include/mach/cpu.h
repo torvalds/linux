@@ -355,13 +355,27 @@ IS_OMAP_TYPE(3430, 0x3430)
  * use omap_chip_is().
  *
  */
-#define CHIP_IS_OMAP2420       (1 << 0)
-#define CHIP_IS_OMAP2430       (1 << 1)
-#define CHIP_IS_OMAP3430       (1 << 2)
-#define CHIP_IS_OMAP3430ES1    (1 << 3)
-#define CHIP_IS_OMAP3430ES2    (1 << 4)
+#define CHIP_IS_OMAP2420		(1 << 0)
+#define CHIP_IS_OMAP2430		(1 << 1)
+#define CHIP_IS_OMAP3430		(1 << 2)
+#define CHIP_IS_OMAP3430ES1		(1 << 3)
+#define CHIP_IS_OMAP3430ES2		(1 << 4)
+#define CHIP_IS_OMAP3430ES3_0		(1 << 5)
+#define CHIP_IS_OMAP3430ES3_1		(1 << 6)
 
-#define CHIP_IS_OMAP24XX       (CHIP_IS_OMAP2420 | CHIP_IS_OMAP2430)
+#define CHIP_IS_OMAP24XX		(CHIP_IS_OMAP2420 | CHIP_IS_OMAP2430)
+
+/*
+ * "GE" here represents "greater than or equal to" in terms of ES
+ * levels.  So CHIP_GE_OMAP3430ES2 is intended to match all OMAP3430
+ * chips at ES2 and beyond, but not, for example, any OMAP lines after
+ * OMAP3.
+ */
+#define CHIP_GE_OMAP3430ES2		(CHIP_IS_OMAP3430ES2 | \
+					 CHIP_IS_OMAP3430ES3_0 | \
+					 CHIP_IS_OMAP3430ES3_1)
+#define CHIP_GE_OMAP3430ES3_1		(CHIP_IS_OMAP3430ES3_1)
+
 
 int omap_chip_is(struct omap_chip_id oci);
 int omap_type(void);
