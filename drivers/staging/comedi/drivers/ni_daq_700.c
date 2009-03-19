@@ -60,7 +60,7 @@ static int dio700_detach(struct comedi_device * dev);
 
 enum dio700_bustype { pcmcia_bustype };
 
-typedef struct dio700_board_struct {
+struct dio700_board {
 	const char *name;
 	int device_id;		// device id for pcmcia board
 	enum dio700_bustype bustype;	// PCMCIA
@@ -69,9 +69,9 @@ typedef struct dio700_board_struct {
 	// as appropriate
 	unsigned int (*read_byte) (unsigned int address);
 	void (*write_byte) (unsigned int byte, unsigned int address);
-} dio700_board;
+};
 
-static const dio700_board dio700_boards[] = {
+static const struct dio700_board dio700_boards[] = {
 	{
 	      name:	"daqcard-700",
 	      device_id:0x4743,// 0x10b is manufacturer id, 0x4743 is device id
@@ -89,7 +89,7 @@ static const dio700_board dio700_boards[] = {
 /*
  * Useful for shorthand access to the particular board structure
  */
-#define thisboard ((const dio700_board *)dev->board_ptr)
+#define thisboard ((const struct dio700_board *)dev->board_ptr)
 
 struct dio700_private {
 
@@ -104,9 +104,9 @@ static struct comedi_driver driver_dio700 = {
       module:THIS_MODULE,
       attach:dio700_attach,
       detach:dio700_detach,
-      num_names:sizeof(dio700_boards) / sizeof(dio700_board),
+      num_names:sizeof(dio700_boards) / sizeof(struct dio700_board),
       board_name:&dio700_boards[0].name,
-      offset:sizeof(dio700_board),
+      offset:sizeof(struct dio700_board),
 };
 
 /*	the real driver routines	*/
