@@ -265,6 +265,7 @@ static struct of_device_id mpc85xx_ids[] = {
 	{ .compatible = "simple-bus", },
 	{ .type = "qe", },
 	{ .compatible = "fsl,qe", },
+	{ .compatible = "gianfar", },
 	{},
 };
 
