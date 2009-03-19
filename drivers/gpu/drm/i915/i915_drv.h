@@ -659,7 +659,7 @@ extern int i915_restore_state(struct drm_device *dev);
 
 #ifdef CONFIG_ACPI
 /* i915_opregion.c */
-extern int intel_opregion_init(struct drm_device *dev);
+extern int intel_opregion_init(struct drm_device *dev, int resume);
 extern void intel_opregion_free(struct drm_device *dev);
 extern void opregion_asle_intr(struct drm_device *dev);
 extern void opregion_enable_asle(struct drm_device *dev);

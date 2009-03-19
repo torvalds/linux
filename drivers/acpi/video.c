@@ -37,6 +37,8 @@
 #include <linux/thermal.h>
 #include <linux/video_output.h>
 #include <linux/sort.h>
+#include <linux/pci.h>
+#include <linux/pci_ids.h>
 #include <asm/uaccess.h>
 
 #include <acpi/acpi_bus.h>
@@ -2251,7 +2253,27 @@ static int acpi_video_bus_remove(struct acpi_device *device, int type)
 	return 0;
 }
 
-static int __init acpi_video_init(void)
+static int __init intel_opregion_present(void)
+{
+#if defined(CONFIG_DRM_I915) || defined(CONFIG_DRM_I915_MODULE)
+	struct pci_dev *dev = NULL;
+	u32 address;
+
+	for_each_pci_dev(dev) {
+		if ((dev->class >> 8) != PCI_CLASS_DISPLAY_VGA)
+			continue;
+		if (dev->vendor != PCI_VENDOR_ID_INTEL)
+			continue;
+		pci_read_config_dword(dev, 0xfc, &address);
+		if (!address)
+			continue;
+		return 1;
+	}
+#endif
+	return 0;
+}
+
+int acpi_video_register(void)
 {
 	int result = 0;
 
@@ -2267,6 +2289,22 @@ static int __init acpi_video_init(void)
 	}
 
 	return 0;
+}
+EXPORT_SYMBOL(acpi_video_register);
+
+/*
+ * This is kind of nasty. Hardware using Intel chipsets may require
+ * the video opregion code to be run first in order to initialise
+ * state before any ACPI video calls are made. To handle this we defer
+ * registration of the video class until the opregion code has run.
+ */
+
+static int __init acpi_video_init(void)
+{
+	if (intel_opregion_present())
+		return 0;
+
+	return acpi_video_register();
 }
 
 static void __exit acpi_video_exit(void)
