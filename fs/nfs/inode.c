@@ -541,6 +541,32 @@ int nfs_getattr(struct vfsmount *mnt, struct dentry *dentry, struct kstat *stat)
 	return err;
 }
 
+/**
+ * nfs_close_context - Common close_context() routine NFSv2/v3
+ * @ctx: pointer to context
+ * @is_sync: is this a synchronous close
+ *
+ * always ensure that the attributes are up to date if we're mounted
+ * with close-to-open semantics
+ */
+void nfs_close_context(struct nfs_open_context *ctx, int is_sync)
+{
+	struct inode *inode;
+	struct nfs_server *server;
+
+	if (!(ctx->mode & FMODE_WRITE))
+		return;
+	if (!is_sync)
+		return;
+	inode = ctx->path.dentry->d_inode;
+	if (!list_empty(&NFS_I(inode)->open_files))
+		return;
+	server = NFS_SERVER(inode);
+	if (server->flags & NFS_MOUNT_NOCTO)
+		return;
+	nfs_revalidate_inode(server, inode);
+}
+
 static struct nfs_open_context *alloc_nfs_open_context(struct vfsmount *mnt, struct dentry *dentry, struct rpc_cred *cred)
 {
 	struct nfs_open_context *ctx;
@@ -567,24 +593,15 @@ struct nfs_open_context *get_nfs_open_context(struct nfs_open_context *ctx)
 	return ctx;
 }
 
-static void __put_nfs_open_context(struct nfs_open_context *ctx, int wait)
+static void __put_nfs_open_context(struct nfs_open_context *ctx, int is_sync)
 {
-	struct inode *inode;
+	struct inode *inode = ctx->path.dentry->d_inode;
 
-	if (ctx == NULL)
-		return;
-
-	inode = ctx->path.dentry->d_inode;
 	if (!atomic_dec_and_lock(&ctx->count, &inode->i_lock))
 		return;
 	list_del(&ctx->list);
 	spin_unlock(&inode->i_lock);
-	if (ctx->state != NULL) {
-		if (wait)
-			nfs4_close_sync(&ctx->path, ctx->state, ctx->mode);
-		else
-			nfs4_close_state(&ctx->path, ctx->state, ctx->mode);
-	}
+	NFS_PROTO(inode)->close_context(ctx, is_sync);
 	if (ctx->cred != NULL)
 		put_rpccred(ctx->cred);
 	path_put(&ctx->path);

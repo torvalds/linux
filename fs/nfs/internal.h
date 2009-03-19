@@ -152,6 +152,9 @@ extern __be32 *nfs4_decode_dirent(__be32 *p, struct nfs_entry *entry, int plus);
 extern struct rpc_procinfo nfs4_procedures[];
 #endif
 
+/* proc.c */
+void nfs_close_context(struct nfs_open_context *ctx, int is_sync);
+
 /* dir.c */
 extern int nfs_access_cache_shrinker(int nr_to_scan, gfp_t gfp_mask);
 

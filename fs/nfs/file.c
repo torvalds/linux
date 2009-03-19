@@ -137,9 +137,6 @@ nfs_file_release(struct inode *inode, struct file *filp)
 			dentry->d_parent->d_name.name,
 			dentry->d_name.name);
 
-	/* Ensure that dirty pages are flushed out with the right creds */
-	if (filp->f_mode & FMODE_WRITE)
-		nfs_wb_all(dentry->d_inode);
 	nfs_inc_stats(inode, NFSIOS_VFSRELEASE);
 	return nfs_release(inode, filp);
 }
@@ -231,7 +228,6 @@ nfs_file_flush(struct file *file, fl_owner_t id)
 	struct nfs_open_context *ctx = nfs_file_open_context(file);
 	struct dentry	*dentry = file->f_path.dentry;
 	struct inode	*inode = dentry->d_inode;
-	int		status;
 
 	dprintk("NFS: flush(%s/%s)\n",
 			dentry->d_parent->d_name.name,
@@ -241,11 +237,8 @@ nfs_file_flush(struct file *file, fl_owner_t id)
 		return 0;
 	nfs_inc_stats(inode, NFSIOS_VFSFLUSH);
 
-	/* Ensure that data+attribute caches are up to date after close() */
-	status = nfs_do_fsync(ctx, inode);
-	if (!status)
-		nfs_revalidate_inode(NFS_SERVER(inode), inode);
-	return status;
+	/* Flush writes to the server and return any errors */
+	return nfs_do_fsync(ctx, inode);
 }
 
 static ssize_t

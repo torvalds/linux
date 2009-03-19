@@ -1572,6 +1572,15 @@ out_drop:
 	return 0;
 }
 
+void nfs4_close_context(struct nfs_open_context *ctx, int is_sync)
+{
+	if (ctx->state == NULL)
+		return;
+	if (is_sync)
+		nfs4_close_sync(&ctx->path, ctx->state, ctx->mode);
+	else
+		nfs4_close_state(&ctx->path, ctx->state, ctx->mode);
+}
 
 static int _nfs4_server_capabilities(struct nfs_server *server, struct nfs_fh *fhandle)
 {
@@ -3776,6 +3785,7 @@ const struct nfs_rpc_ops nfs_v4_clientops = {
 	.commit_done	= nfs4_commit_done,
 	.lock		= nfs4_proc_lock,
 	.clear_acl_cache = nfs4_zap_acl_attr,
+	.close_context  = nfs4_close_context,
 };
 
 /*
