@@ -1427,6 +1427,7 @@ static int vidioc_streamoff(struct file *file, void *priv,
 	return 0;
 }
 
+#ifdef CONFIG_VIDEO_ADV_DEBUG
 static int vidioc_g_register(struct file *file, void *priv,
 			     struct v4l2_dbg_register *reg)
 {
@@ -1457,6 +1458,7 @@ static int vidioc_s_register(struct file *file, void *priv,
 	}
 	return 0;
 }
+#endif
 
 static int vidioc_reqbufs(struct file *file, void *priv,
 			  struct v4l2_requestbuffers *rb)
@@ -1578,8 +1580,8 @@ static const struct v4l2_ioctl_ops video_ioctl_ops = {
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	.vidioc_g_register          = vidioc_g_register,
 	.vidioc_s_register          = vidioc_s_register,
-	.vidioc_g_chip_ident        = vidioc_g_chip_ident,
 #endif
+	.vidioc_g_chip_ident        = vidioc_g_chip_ident,
 #ifdef CONFIG_VIDEO_V4L1_COMPAT
 	.vidiocgmbuf                = vidiocgmbuf,
 #endif
