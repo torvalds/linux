@@ -635,16 +635,16 @@ static void corgi_poweroff(void)
 		/* Green LED off tells the bootloader to halt */
 		gpio_set_value(CORGI_GPIO_LED_GREEN, 0);
 
-	arm_machine_restart('h');
+	arm_machine_restart('h', NULL);
 }
 
-static void corgi_restart(char mode)
+static void corgi_restart(char mode, const char *cmd)
 {
 	if (!machine_is_corgi())
 		/* Green LED on tells the bootloader to reboot */
 		gpio_set_value(CORGI_GPIO_LED_GREEN, 1);
 
-	arm_machine_restart('h');
+	arm_machine_restart('h', cmd);
 }
 
 static void __init corgi_init(void)

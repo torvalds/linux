@@ -46,7 +46,7 @@ void arch_idle(void)
 /*
  * Reset the system. It is called by machine_restart().
  */
-void arch_reset(char mode)
+void arch_reset(char mode, const char *cmd)
 {
 	struct clk *clk;
 

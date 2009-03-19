@@ -32,7 +32,7 @@ arch_idle(void)
 }
 
 static inline void
-arch_reset(char mode)
+arch_reset(char mode, const char *cmd)
 {
 	cpu_reset(0);
 }

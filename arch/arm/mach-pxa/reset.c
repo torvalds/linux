@@ -81,7 +81,7 @@ static void do_hw_reset(void)
 	OSMR3 = OSCR + 368640;	/* ... in 100 ms */
 }
 
-void arch_reset(char mode)
+void arch_reset(char mode, const char *cmd)
 {
 	clear_reset_status(RESET_STATUS_ALL);
 

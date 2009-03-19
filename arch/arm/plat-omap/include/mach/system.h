@@ -38,7 +38,7 @@ static inline void omap1_arch_reset(char mode)
 		omap_writew(1, ARM_RSTCT1);
 }
 
-static inline void arch_reset(char mode)
+static inline void arch_reset(char mode, const char *cmd)
 {
 	if (!cpu_class_is_omap2())
 		omap1_arch_reset(mode);

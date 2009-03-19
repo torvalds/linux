@@ -876,10 +876,10 @@ static struct platform_device *devices[] __initdata = {
 
 static void tosa_poweroff(void)
 {
-	arm_machine_restart('g');
+	arm_machine_restart('g', NULL);
 }
 
-static void tosa_restart(char mode)
+static void tosa_restart(char mode, const char *cmd)
 {
 	/* Bootloader magic for a reboot */
 	if((MSC0 & 0xffff0000) == 0x7ff00000)

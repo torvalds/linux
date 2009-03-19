@@ -26,7 +26,7 @@
 #define ROMCARD_SIZE            0x08000000
 #define ROMCARD_START           0x10000000
 
-void arch_reset(char mode)
+void arch_reset(char mode, const char *cmd)
 {
         short temp;
         local_irq_disable();
