@@ -1888,8 +1888,6 @@ int ieee80211_sta_commit(struct ieee80211_sub_if_data *sdata)
 {
 	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
 
-	ifmgd->flags &= ~IEEE80211_STA_PREV_BSSID_SET;
-
 	if (ifmgd->ssid_len)
 		ifmgd->flags |= IEEE80211_STA_SSID_SET;
 	else
@@ -1908,6 +1906,10 @@ int ieee80211_sta_set_ssid(struct ieee80211_sub_if_data *sdata, char *ssid, size
 	ifmgd = &sdata->u.mgd;
 
 	if (ifmgd->ssid_len != len || memcmp(ifmgd->ssid, ssid, len) != 0) {
+		/*
+		 * Do not use reassociation if SSID is changed (different ESS).
+		 */
+		ifmgd->flags &= ~IEEE80211_STA_PREV_BSSID_SET;
 		memset(ifmgd->ssid, 0, sizeof(ifmgd->ssid));
 		memcpy(ifmgd->ssid, ssid, len);
 		ifmgd->ssid_len = len;
