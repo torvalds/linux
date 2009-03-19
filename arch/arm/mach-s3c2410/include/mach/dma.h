@@ -15,7 +15,6 @@
 
 #include <plat/dma.h>
 #include <linux/sysdev.h>
-#include <mach/hardware.h>
 
 #define MAX_DMA_TRANSFER_SIZE   0x100000 /* Data Unit is half word  */
 
