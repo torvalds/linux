@@ -602,7 +602,7 @@ hw_perf_counter_init(struct perf_counter *counter)
 		return NULL;
 	if ((s64)counter->hw_event.irq_period < 0)
 		return NULL;
-	ev = counter->hw_event.type;
+	ev = counter->hw_event.event_id;
 	if (!counter->hw_event.raw) {
 		if (ev >= ppmu->n_generic ||
 		    ppmu->generic_events[ev] == 0)
@@ -692,7 +692,7 @@ static void perf_handle_group(struct perf_counter *counter)
 	list_for_each_entry(sub, &leader->sibling_list, list_entry) {
 		if (sub != counter)
 			sub->hw_ops->read(sub);
-		perf_store_irq_data(counter, sub->hw_event.type);
+		perf_store_irq_data(counter, sub->hw_event.event_config);
 		perf_store_irq_data(counter, atomic64_read(&sub->count));
 	}
 }

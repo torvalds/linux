@@ -1395,12 +1395,6 @@ static void perf_swcounter_set_period(struct perf_counter *counter)
 	atomic64_set(&hwc->count, -left);
 }
 
-static void perf_swcounter_save_and_restart(struct perf_counter *counter)
-{
-	perf_swcounter_update(counter);
-	perf_swcounter_set_period(counter);
-}
-
 static void perf_swcounter_store_irq(struct perf_counter *counter, u64 data)
 {
 	struct perf_data *irqdata = counter->irqdata;
@@ -1421,7 +1415,7 @@ static void perf_swcounter_handle_group(struct perf_counter *sibling)
 
 	list_for_each_entry(counter, &group_leader->sibling_list, list_entry) {
 		counter->hw_ops->read(counter);
-		perf_swcounter_store_irq(sibling, counter->hw_event.type);
+		perf_swcounter_store_irq(sibling, counter->hw_event.event_config);
 		perf_swcounter_store_irq(sibling, atomic64_read(&counter->count));
 	}
 }
@@ -1477,21 +1471,25 @@ static enum hrtimer_restart perf_swcounter_hrtimer(struct hrtimer *hrtimer)
 static void perf_swcounter_overflow(struct perf_counter *counter,
 				    int nmi, struct pt_regs *regs)
 {
-	perf_swcounter_save_and_restart(counter);
+	perf_swcounter_update(counter);
+	perf_swcounter_set_period(counter);
 	perf_swcounter_interrupt(counter, nmi, regs);
 }
 
 static int perf_swcounter_match(struct perf_counter *counter,
-				enum hw_event_types event,
-				struct pt_regs *regs)
+				enum perf_event_types type,
+				u32 event, struct pt_regs *regs)
 {
 	if (counter->state != PERF_COUNTER_STATE_ACTIVE)
 		return 0;
 
-	if (counter->hw_event.raw)
+	if (counter->hw_event.raw_type)
 		return 0;
 
-	if (counter->hw_event.type != event)
+	if (counter->hw_event.type != type)
+		return 0;
+
+	if (counter->hw_event.event_id != event)
 		return 0;
 
 	if (counter->hw_event.exclude_user && user_mode(regs))
@@ -1512,8 +1510,8 @@ static void perf_swcounter_add(struct perf_counter *counter, u64 nr,
 }
 
 static void perf_swcounter_ctx_event(struct perf_counter_context *ctx,
-				     enum hw_event_types event, u64 nr,
-				     int nmi, struct pt_regs *regs)
+				     enum perf_event_types type, u32 event,
+				     u64 nr, int nmi, struct pt_regs *regs)
 {
 	struct perf_counter *counter;
 
@@ -1522,22 +1520,29 @@ static void perf_swcounter_ctx_event(struct perf_counter_context *ctx,
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(counter, &ctx->event_list, event_entry) {
-		if (perf_swcounter_match(counter, event, regs))
+		if (perf_swcounter_match(counter, type, event, regs))
 			perf_swcounter_add(counter, nr, nmi, regs);
 	}
 	rcu_read_unlock();
 }
 
-void perf_swcounter_event(enum hw_event_types event, u64 nr,
-			  int nmi, struct pt_regs *regs)
+static void __perf_swcounter_event(enum perf_event_types type, u32 event,
+				   u64 nr, int nmi, struct pt_regs *regs)
 {
 	struct perf_cpu_context *cpuctx = &get_cpu_var(perf_cpu_context);
 
-	perf_swcounter_ctx_event(&cpuctx->ctx, event, nr, nmi, regs);
-	if (cpuctx->task_ctx)
-		perf_swcounter_ctx_event(cpuctx->task_ctx, event, nr, nmi, regs);
+	perf_swcounter_ctx_event(&cpuctx->ctx, type, event, nr, nmi, regs);
+	if (cpuctx->task_ctx) {
+		perf_swcounter_ctx_event(cpuctx->task_ctx, type, event,
+				nr, nmi, regs);
+	}
 
 	put_cpu_var(perf_cpu_context);
+}
+
+void perf_swcounter_event(u32 event, u64 nr, int nmi, struct pt_regs *regs)
+{
+	__perf_swcounter_event(PERF_TYPE_SOFTWARE, event, nr, nmi, regs);
 }
 
 static void perf_swcounter_read(struct perf_counter *counter)
@@ -1733,8 +1738,12 @@ static const struct hw_perf_counter_ops perf_ops_cpu_migrations = {
 #ifdef CONFIG_EVENT_PROFILE
 void perf_tpcounter_event(int event_id)
 {
-	perf_swcounter_event(PERF_TP_EVENTS_MIN + event_id, 1, 1,
-			task_pt_regs(current));
+	struct pt_regs *regs = get_irq_regs();
+
+	if (!regs)
+		regs = task_pt_regs(current);
+
+	__perf_swcounter_event(PERF_TYPE_TRACEPOINT, event_id, 1, 1, regs);
 }
 
 extern int ftrace_profile_enable(int);
@@ -1742,15 +1751,13 @@ extern void ftrace_profile_disable(int);
 
 static void tp_perf_counter_destroy(struct perf_counter *counter)
 {
-	int event_id = counter->hw_event.type - PERF_TP_EVENTS_MIN;
-
-	ftrace_profile_disable(event_id);
+	ftrace_profile_disable(counter->hw_event.event_id);
 }
 
 static const struct hw_perf_counter_ops *
 tp_perf_counter_init(struct perf_counter *counter)
 {
-	int event_id = counter->hw_event.type - PERF_TP_EVENTS_MIN;
+	int event_id = counter->hw_event.event_id;
 	int ret;
 
 	ret = ftrace_profile_enable(event_id);
@@ -1758,6 +1765,7 @@ tp_perf_counter_init(struct perf_counter *counter)
 		return NULL;
 
 	counter->destroy = tp_perf_counter_destroy;
+	counter->hw.irq_period = counter->hw_event.irq_period;
 
 	return &perf_ops_generic;
 }
@@ -1783,7 +1791,7 @@ sw_perf_counter_init(struct perf_counter *counter)
 	 * to be kernel events, and page faults are never hypervisor
 	 * events.
 	 */
-	switch (counter->hw_event.type) {
+	switch (counter->hw_event.event_id) {
 	case PERF_COUNT_CPU_CLOCK:
 		hw_ops = &perf_ops_cpu_clock;
 
@@ -1812,9 +1820,6 @@ sw_perf_counter_init(struct perf_counter *counter)
 	case PERF_COUNT_CPU_MIGRATIONS:
 		if (!counter->hw_event.exclude_kernel)
 			hw_ops = &perf_ops_cpu_migrations;
-		break;
-	default:
-		hw_ops = tp_perf_counter_init(counter);
 		break;
 	}
 
@@ -1870,10 +1875,22 @@ perf_counter_alloc(struct perf_counter_hw_event *hw_event,
 		counter->state = PERF_COUNTER_STATE_OFF;
 
 	hw_ops = NULL;
-	if (!hw_event->raw && hw_event->type < 0)
-		hw_ops = sw_perf_counter_init(counter);
-	else
+
+	if (hw_event->raw_type)
 		hw_ops = hw_perf_counter_init(counter);
+	else switch (hw_event->type) {
+	case PERF_TYPE_HARDWARE:
+		hw_ops = hw_perf_counter_init(counter);
+		break;
+
+	case PERF_TYPE_SOFTWARE:
+		hw_ops = sw_perf_counter_init(counter);
+		break;
+
+	case PERF_TYPE_TRACEPOINT:
+		hw_ops = tp_perf_counter_init(counter);
+		break;
+	}
 
 	if (!hw_ops) {
 		kfree(counter);

@@ -21,56 +21,81 @@
  */
 
 /*
- * Generalized performance counter event types, used by the hw_event.type
+ * hw_event.type
+ */
+enum perf_event_types {
+	PERF_TYPE_HARDWARE		= 0,
+	PERF_TYPE_SOFTWARE		= 1,
+	PERF_TYPE_TRACEPOINT		= 2,
+
+	/*
+	 * available TYPE space, raw is the max value.
+	 */
+
+	PERF_TYPE_RAW			= 128,
+};
+
+/*
+ * Generalized performance counter event types, used by the hw_event.event_id
  * parameter of the sys_perf_counter_open() syscall:
  */
-enum hw_event_types {
+enum hw_event_ids {
 	/*
 	 * Common hardware events, generalized by the kernel:
 	 */
-	PERF_COUNT_CPU_CYCLES		=  0,
-	PERF_COUNT_INSTRUCTIONS		=  1,
-	PERF_COUNT_CACHE_REFERENCES	=  2,
-	PERF_COUNT_CACHE_MISSES		=  3,
-	PERF_COUNT_BRANCH_INSTRUCTIONS	=  4,
-	PERF_COUNT_BRANCH_MISSES	=  5,
-	PERF_COUNT_BUS_CYCLES		=  6,
+	PERF_COUNT_CPU_CYCLES		= 0,
+	PERF_COUNT_INSTRUCTIONS		= 1,
+	PERF_COUNT_CACHE_REFERENCES	= 2,
+	PERF_COUNT_CACHE_MISSES		= 3,
+	PERF_COUNT_BRANCH_INSTRUCTIONS	= 4,
+	PERF_COUNT_BRANCH_MISSES	= 5,
+	PERF_COUNT_BUS_CYCLES		= 6,
 
-	PERF_HW_EVENTS_MAX		=  7,
+	PERF_HW_EVENTS_MAX		= 7,
+};
 
-	/*
-	 * Special "software" counters provided by the kernel, even if
-	 * the hardware does not support performance counters. These
-	 * counters measure various physical and sw events of the
-	 * kernel (and allow the profiling of them as well):
-	 */
-	PERF_COUNT_CPU_CLOCK		= -1,
-	PERF_COUNT_TASK_CLOCK		= -2,
-	PERF_COUNT_PAGE_FAULTS		= -3,
-	PERF_COUNT_CONTEXT_SWITCHES	= -4,
-	PERF_COUNT_CPU_MIGRATIONS	= -5,
-	PERF_COUNT_PAGE_FAULTS_MIN	= -6,
-	PERF_COUNT_PAGE_FAULTS_MAJ	= -7,
+/*
+ * Special "software" counters provided by the kernel, even if the hardware
+ * does not support performance counters. These counters measure various
+ * physical and sw events of the kernel (and allow the profiling of them as
+ * well):
+ */
+enum sw_event_ids {
+	PERF_COUNT_CPU_CLOCK		= 0,
+	PERF_COUNT_TASK_CLOCK		= 1,
+	PERF_COUNT_PAGE_FAULTS		= 2,
+	PERF_COUNT_CONTEXT_SWITCHES	= 3,
+	PERF_COUNT_CPU_MIGRATIONS	= 4,
+	PERF_COUNT_PAGE_FAULTS_MIN	= 5,
+	PERF_COUNT_PAGE_FAULTS_MAJ	= 6,
 
-	PERF_SW_EVENTS_MIN		= -8,
-
-	PERF_TP_EVENTS_MIN		= -65536
+	PERF_SW_EVENTS_MAX		= 7,
 };
 
 /*
  * IRQ-notification data record type:
  */
 enum perf_counter_record_type {
-	PERF_RECORD_SIMPLE		=  0,
-	PERF_RECORD_IRQ			=  1,
-	PERF_RECORD_GROUP		=  2,
+	PERF_RECORD_SIMPLE		= 0,
+	PERF_RECORD_IRQ			= 1,
+	PERF_RECORD_GROUP		= 2,
 };
 
 /*
  * Hardware event to monitor via a performance monitoring counter:
  */
 struct perf_counter_hw_event {
-	__s64			type;
+	union {
+		struct {
+			__u64			event_id	: 56,
+						type		:  8;
+		};
+		struct {
+			__u64			raw_event_id	: 63,
+						raw_type	:  1;
+		};
+		__u64		event_config;
+	};
 
 	__u64			irq_period;
 	__u64			record_type;
@@ -78,7 +103,6 @@ struct perf_counter_hw_event {
 
 	__u64			disabled       :  1, /* off by default        */
 				nmi	       :  1, /* NMI sampling          */
-				raw	       :  1, /* raw event type        */
 				inherit	       :  1, /* children inherit it   */
 				pinned	       :  1, /* must always be on PMU */
 				exclusive      :  1, /* only group on PMU     */
@@ -87,7 +111,7 @@ struct perf_counter_hw_event {
 				exclude_hv     :  1, /* ditto hypervisor      */
 				exclude_idle   :  1, /* don't count when idle */
 
-				__reserved_1   : 54;
+				__reserved_1   : 55;
 
 	__u32			extra_config_len;
 	__u32			__reserved_4;
@@ -298,10 +322,11 @@ extern int hw_perf_group_sched_in(struct perf_counter *group_leader,
  */
 static inline int is_software_counter(struct perf_counter *counter)
 {
-	return !counter->hw_event.raw && counter->hw_event.type < 0;
+	return !counter->hw_event.raw_type &&
+		counter->hw_event.type != PERF_TYPE_HARDWARE;
 }
 
-extern void perf_swcounter_event(enum hw_event_types, u64, int, struct pt_regs *);
+extern void perf_swcounter_event(u32, u64, int, struct pt_regs *);
 
 #else
 static inline void
@@ -320,7 +345,7 @@ static inline u64 hw_perf_save_disable(void)		      { return 0; }
 static inline int perf_counter_task_disable(void)	{ return -EINVAL; }
 static inline int perf_counter_task_enable(void)	{ return -EINVAL; }
 
-static inline void perf_swcounter_event(enum hw_event_types event, u64 nr,
+static inline void perf_swcounter_event(u32 event, u64 nr,
 					int nmi, struct pt_regs *regs)	{ }
 #endif
 

@@ -217,15 +217,15 @@ static int __hw_perf_counter_init(struct perf_counter *counter)
 	/*
 	 * Raw event type provide the config in the event structure
 	 */
-	if (hw_event->raw) {
-		hwc->config |= pmc_ops->raw_event(hw_event->type);
+	if (hw_event->raw_type) {
+		hwc->config |= pmc_ops->raw_event(hw_event->raw_event_id);
 	} else {
-		if (hw_event->type >= pmc_ops->max_events)
+		if (hw_event->event_id >= pmc_ops->max_events)
 			return -EINVAL;
 		/*
 		 * The generic map:
 		 */
-		hwc->config |= pmc_ops->event_map(hw_event->type);
+		hwc->config |= pmc_ops->event_map(hw_event->event_id);
 	}
 	counter->wakeup_pending = 0;
 
@@ -715,7 +715,7 @@ perf_handle_group(struct perf_counter *sibling, u64 *status, u64 *overflown)
 	list_for_each_entry(counter, &group_leader->sibling_list, list_entry) {
 
 		x86_perf_counter_update(counter, &counter->hw, counter->hw.idx);
-		perf_store_irq_data(sibling, counter->hw_event.type);
+		perf_store_irq_data(sibling, counter->hw_event.event_config);
 		perf_store_irq_data(sibling, atomic64_read(&counter->count));
 	}
 }
