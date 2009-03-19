@@ -46,6 +46,12 @@ void machine_crash_shutdown(struct pt_regs *regs)
  */
 int machine_kexec_prepare(struct kimage *image)
 {
+	/* older versions of kexec-tools are passing
+	 * the zImage entry point as a virtual address.
+	 */
+	if (image->start != PHYSADDR(image->start))
+		return -EINVAL; /* upgrade your kexec-tools */
+
 	return 0;
 }
 
@@ -125,7 +131,8 @@ void machine_kexec(struct kimage *image)
 
 	/* now call it */
 	rnk = (relocate_new_kernel_t) reboot_code_buffer;
-	(*rnk)(page_list, reboot_code_buffer, image->start);
+	(*rnk)(page_list, reboot_code_buffer,
+	       (unsigned long)phys_to_virt(image->start));
 
 #ifdef CONFIG_KEXEC_JUMP
 	asm volatile("ldc %0, vbr" : : "r" (&vbr_base) : "memory");
