@@ -25,7 +25,7 @@ use IO::Handle;
 		"tda10046lifeview", "av7110", "dec2000t", "dec2540t",
 		"dec3000s", "vp7041", "dibusb", "nxt2002", "nxt2004",
 		"or51211", "or51132_qam", "or51132_vsb", "bluebird",
-		"opera1");
+		"opera1", "cx231xx");
 
 # Check args
 syntax() if (scalar(@ARGV) != 1);
@@ -336,6 +336,19 @@ sub or51211 {
     my $fwfile = "dvb-fe-or51211.fw";
     my $url = "http://linuxtv.org/downloads/firmware/$fwfile";
     my $hash = "d830949c771a289505bf9eafc225d491";
+
+    checkstandard();
+
+    wgetfile($fwfile, $url);
+    verify($fwfile, $hash);
+
+    $fwfile;
+}
+
+sub cx231xx {
+    my $fwfile = "v4l-cx231xx-avcore-01.fw";
+    my $url = "http://linuxtv.org/downloads/firmware/$fwfile";
+    my $hash = "7d3bb956dc9df0eafded2b56ba57cc42";
 
     checkstandard();
 
