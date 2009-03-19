@@ -90,8 +90,12 @@ static struct snd_soc_jack hs_jack;
 /* Headset jack detection DAPM pins */
 static struct snd_soc_jack_pin hs_jack_pins[] = {
 	{
-		.pin = "Headset Jack",
-		.mask = SND_JACK_HEADSET,
+		.pin = "Headset Mic",
+		.mask = SND_JACK_MICROPHONE,
+	},
+	{
+		.pin = "Headset Stereophone",
+		.mask = SND_JACK_HEADPHONE,
 	},
 };
 
@@ -109,7 +113,8 @@ static struct snd_soc_jack_gpio hs_jack_gpios[] = {
 static const struct snd_soc_dapm_widget sdp3430_twl4030_dapm_widgets[] = {
 	SND_SOC_DAPM_MIC("Ext Mic", NULL),
 	SND_SOC_DAPM_SPK("Ext Spk", NULL),
-	SND_SOC_DAPM_HP("Headset Jack", NULL),
+	SND_SOC_DAPM_MIC("Headset Mic", NULL),
+	SND_SOC_DAPM_HP("Headset Stereophone", NULL),
 };
 
 static const struct snd_soc_dapm_route audio_map[] = {
@@ -123,11 +128,13 @@ static const struct snd_soc_dapm_route audio_map[] = {
 	{"Ext Spk", NULL, "HFL"},
 	{"Ext Spk", NULL, "HFR"},
 
-	/* Headset: HSMIC (with bias), HSOL, HSOR */
-	{"Headset Jack", NULL, "HSOL"},
-	{"Headset Jack", NULL, "HSOR"},
+	/* Headset Mic: HSMIC with bias */
 	{"HSMIC", NULL, "Headset Mic Bias"},
-	{"Headset Mic Bias", NULL, "Headset Jack"},
+	{"Headset Mic Bias", NULL, "Headset Mic"},
+
+	/* Headset Stereophone (Headphone): HSOL, HSOR */
+	{"Headset Stereophone", NULL, "HSOL"},
+	{"Headset Stereophone", NULL, "HSOR"},
 };
 
 static int sdp3430_twl4030_init(struct snd_soc_codec *codec)
@@ -146,7 +153,8 @@ static int sdp3430_twl4030_init(struct snd_soc_codec *codec)
 	/* SDP3430 connected pins */
 	snd_soc_dapm_enable_pin(codec, "Ext Mic");
 	snd_soc_dapm_enable_pin(codec, "Ext Spk");
-	snd_soc_dapm_disable_pin(codec, "Headset Jack");
+	snd_soc_dapm_disable_pin(codec, "Headset Mic");
+	snd_soc_dapm_disable_pin(codec, "Headset Stereophone");
 
 	/* TWL4030 not connected pins */
 	snd_soc_dapm_nc_pin(codec, "AUXL");
