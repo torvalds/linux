@@ -755,6 +755,7 @@ static int __devinit sh_rtc_probe(struct platform_device *pdev)
 		rtc_set_time(rtc->rtc_dev, &r);
 	}
 
+	device_init_wakeup(&pdev->dev, 1);
 	return 0;
 
 err_unmap:
