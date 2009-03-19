@@ -404,7 +404,8 @@ struct drm_i915_gem_object {
 	/** AGP memory structure for our GTT binding. */
 	DRM_AGP_MEM *agp_mem;
 
-	struct page **page_list;
+	struct page **pages;
+	int pages_refcount;
 
 	/**
 	 * Current offset of the object in GTT space.

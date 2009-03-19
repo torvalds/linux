@@ -43,8 +43,8 @@ static int i915_gem_object_set_cpu_read_domain_range(struct drm_gem_object *obj,
 						     uint64_t offset,
 						     uint64_t size);
 static void i915_gem_object_set_to_full_cpu_read_domain(struct drm_gem_object *obj);
-static int i915_gem_object_get_page_list(struct drm_gem_object *obj);
-static void i915_gem_object_free_page_list(struct drm_gem_object *obj);
+static int i915_gem_object_get_pages(struct drm_gem_object *obj);
+static void i915_gem_object_put_pages(struct drm_gem_object *obj);
 static int i915_gem_object_wait_rendering(struct drm_gem_object *obj);
 static int i915_gem_object_bind_to_gtt(struct drm_gem_object *obj,
 					   unsigned alignment);
@@ -928,29 +928,30 @@ i915_gem_mmap_gtt_ioctl(struct drm_device *dev, void *data,
 }
 
 static void
-i915_gem_object_free_page_list(struct drm_gem_object *obj)
+i915_gem_object_put_pages(struct drm_gem_object *obj)
 {
 	struct drm_i915_gem_object *obj_priv = obj->driver_private;
 	int page_count = obj->size / PAGE_SIZE;
 	int i;
 
-	if (obj_priv->page_list == NULL)
+	BUG_ON(obj_priv->pages_refcount == 0);
+
+	if (--obj_priv->pages_refcount != 0)
 		return;
 
-
 	for (i = 0; i < page_count; i++)
-		if (obj_priv->page_list[i] != NULL) {
+		if (obj_priv->pages[i] != NULL) {
 			if (obj_priv->dirty)
-				set_page_dirty(obj_priv->page_list[i]);
-			mark_page_accessed(obj_priv->page_list[i]);
-			page_cache_release(obj_priv->page_list[i]);
+				set_page_dirty(obj_priv->pages[i]);
+			mark_page_accessed(obj_priv->pages[i]);
+			page_cache_release(obj_priv->pages[i]);
 		}
 	obj_priv->dirty = 0;
 
-	drm_free(obj_priv->page_list,
+	drm_free(obj_priv->pages,
 		 page_count * sizeof(struct page *),
 		 DRM_MEM_DRIVER);
-	obj_priv->page_list = NULL;
+	obj_priv->pages = NULL;
 }
 
 static void
@@ -1402,7 +1403,7 @@ i915_gem_object_unbind(struct drm_gem_object *obj)
 	if (obj_priv->fence_reg != I915_FENCE_REG_NONE)
 		i915_gem_clear_fence_reg(obj);
 
-	i915_gem_object_free_page_list(obj);
+	i915_gem_object_put_pages(obj);
 
 	if (obj_priv->gtt_space) {
 		atomic_dec(&dev->gtt_count);
@@ -1521,7 +1522,7 @@ i915_gem_evict_everything(struct drm_device *dev)
 }
 
 static int
-i915_gem_object_get_page_list(struct drm_gem_object *obj)
+i915_gem_object_get_pages(struct drm_gem_object *obj)
 {
 	struct drm_i915_gem_object *obj_priv = obj->driver_private;
 	int page_count, i;
@@ -1530,18 +1531,19 @@ i915_gem_object_get_page_list(struct drm_gem_object *obj)
 	struct page *page;
 	int ret;
 
-	if (obj_priv->page_list)
+	if (obj_priv->pages_refcount++ != 0)
 		return 0;
 
 	/* Get the list of pages out of our struct file.  They'll be pinned
 	 * at this point until we release them.
 	 */
 	page_count = obj->size / PAGE_SIZE;
-	BUG_ON(obj_priv->page_list != NULL);
-	obj_priv->page_list = drm_calloc(page_count, sizeof(struct page *),
-					 DRM_MEM_DRIVER);
-	if (obj_priv->page_list == NULL) {
+	BUG_ON(obj_priv->pages != NULL);
+	obj_priv->pages = drm_calloc(page_count, sizeof(struct page *),
+				     DRM_MEM_DRIVER);
+	if (obj_priv->pages == NULL) {
 		DRM_ERROR("Faled to allocate page list\n");
+		obj_priv->pages_refcount--;
 		return -ENOMEM;
 	}
 
@@ -1552,10 +1554,10 @@ i915_gem_object_get_page_list(struct drm_gem_object *obj)
 		if (IS_ERR(page)) {
 			ret = PTR_ERR(page);
 			DRM_ERROR("read_mapping_page failed: %d\n", ret);
-			i915_gem_object_free_page_list(obj);
+			i915_gem_object_put_pages(obj);
 			return ret;
 		}
-		obj_priv->page_list[i] = page;
+		obj_priv->pages[i] = page;
 	}
 	return 0;
 }
@@ -1878,7 +1880,7 @@ i915_gem_object_bind_to_gtt(struct drm_gem_object *obj, unsigned alignment)
 	DRM_INFO("Binding object of size %d at 0x%08x\n",
 		 obj->size, obj_priv->gtt_offset);
 #endif
-	ret = i915_gem_object_get_page_list(obj);
+	ret = i915_gem_object_get_pages(obj);
 	if (ret) {
 		drm_mm_put_block(obj_priv->gtt_space);
 		obj_priv->gtt_space = NULL;
@@ -1890,12 +1892,12 @@ i915_gem_object_bind_to_gtt(struct drm_gem_object *obj, unsigned alignment)
 	 * into the GTT.
 	 */
 	obj_priv->agp_mem = drm_agp_bind_pages(dev,
-					       obj_priv->page_list,
+					       obj_priv->pages,
 					       page_count,
 					       obj_priv->gtt_offset,
 					       obj_priv->agp_type);
 	if (obj_priv->agp_mem == NULL) {
-		i915_gem_object_free_page_list(obj);
+		i915_gem_object_put_pages(obj);
 		drm_mm_put_block(obj_priv->gtt_space);
 		obj_priv->gtt_space = NULL;
 		return -ENOMEM;
@@ -1922,10 +1924,10 @@ i915_gem_clflush_object(struct drm_gem_object *obj)
 	 * to GPU, and we can ignore the cache flush because it'll happen
 	 * again at bind time.
 	 */
-	if (obj_priv->page_list == NULL)
+	if (obj_priv->pages == NULL)
 		return;
 
-	drm_clflush_pages(obj_priv->page_list, obj->size / PAGE_SIZE);
+	drm_clflush_pages(obj_priv->pages, obj->size / PAGE_SIZE);
 }
 
 /** Flushes any GPU write domain for the object if it's dirty. */
@@ -2270,7 +2272,7 @@ i915_gem_object_set_to_full_cpu_read_domain(struct drm_gem_object *obj)
 		for (i = 0; i <= (obj->size - 1) / PAGE_SIZE; i++) {
 			if (obj_priv->page_cpu_valid[i])
 				continue;
-			drm_clflush_pages(obj_priv->page_list + i, 1);
+			drm_clflush_pages(obj_priv->pages + i, 1);
 		}
 		drm_agp_chipset_flush(dev);
 	}
@@ -2336,7 +2338,7 @@ i915_gem_object_set_cpu_read_domain_range(struct drm_gem_object *obj,
 		if (obj_priv->page_cpu_valid[i])
 			continue;
 
-		drm_clflush_pages(obj_priv->page_list + i, 1);
+		drm_clflush_pages(obj_priv->pages + i, 1);
 
 		obj_priv->page_cpu_valid[i] = 1;
 	}
@@ -3304,7 +3306,7 @@ i915_gem_init_hws(struct drm_device *dev)
 
 	dev_priv->status_gfx_addr = obj_priv->gtt_offset;
 
-	dev_priv->hw_status_page = kmap(obj_priv->page_list[0]);
+	dev_priv->hw_status_page = kmap(obj_priv->pages[0]);
 	if (dev_priv->hw_status_page == NULL) {
 		DRM_ERROR("Failed to map status page.\n");
 		memset(&dev_priv->hws_map, 0, sizeof(dev_priv->hws_map));
@@ -3334,7 +3336,7 @@ i915_gem_cleanup_hws(struct drm_device *dev)
 	obj = dev_priv->hws_obj;
 	obj_priv = obj->driver_private;
 
-	kunmap(obj_priv->page_list[0]);
+	kunmap(obj_priv->pages[0]);
 	i915_gem_object_unpin(obj);
 	drm_gem_object_unreference(obj);
 	dev_priv->hws_obj = NULL;
@@ -3637,20 +3639,20 @@ void i915_gem_detach_phys_object(struct drm_device *dev,
 	if (!obj_priv->phys_obj)
 		return;
 
-	ret = i915_gem_object_get_page_list(obj);
+	ret = i915_gem_object_get_pages(obj);
 	if (ret)
 		goto out;
 
 	page_count = obj->size / PAGE_SIZE;
 
 	for (i = 0; i < page_count; i++) {
-		char *dst = kmap_atomic(obj_priv->page_list[i], KM_USER0);
+		char *dst = kmap_atomic(obj_priv->pages[i], KM_USER0);
 		char *src = obj_priv->phys_obj->handle->vaddr + (i * PAGE_SIZE);
 
 		memcpy(dst, src, PAGE_SIZE);
 		kunmap_atomic(dst, KM_USER0);
 	}
-	drm_clflush_pages(obj_priv->page_list, page_count);
+	drm_clflush_pages(obj_priv->pages, page_count);
 	drm_agp_chipset_flush(dev);
 out:
 	obj_priv->phys_obj->cur_obj = NULL;
@@ -3693,7 +3695,7 @@ i915_gem_attach_phys_object(struct drm_device *dev,
 	obj_priv->phys_obj = dev_priv->mm.phys_objs[id - 1];
 	obj_priv->phys_obj->cur_obj = obj;
 
-	ret = i915_gem_object_get_page_list(obj);
+	ret = i915_gem_object_get_pages(obj);
 	if (ret) {
 		DRM_ERROR("failed to get page list\n");
 		goto out;
@@ -3702,7 +3704,7 @@ i915_gem_attach_phys_object(struct drm_device *dev,
 	page_count = obj->size / PAGE_SIZE;
 
 	for (i = 0; i < page_count; i++) {
-		char *src = kmap_atomic(obj_priv->page_list[i], KM_USER0);
+		char *src = kmap_atomic(obj_priv->pages[i], KM_USER0);
 		char *dst = obj_priv->phys_obj->handle->vaddr + (i * PAGE_SIZE);
 
 		memcpy(dst, src, PAGE_SIZE);
