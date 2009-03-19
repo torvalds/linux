@@ -1300,6 +1300,142 @@ static int ieee80211_scan(struct wiphy *wiphy,
 	return ieee80211_request_scan(sdata, req);
 }
 
+static int ieee80211_auth(struct wiphy *wiphy, struct net_device *dev,
+			  struct cfg80211_auth_request *req)
+{
+	struct ieee80211_sub_if_data *sdata;
+
+	if (!netif_running(dev))
+		return -ENETDOWN;
+
+	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+
+	if (sdata->vif.type != NL80211_IFTYPE_STATION)
+		return -EOPNOTSUPP;
+
+	switch (req->auth_type) {
+	case NL80211_AUTHTYPE_OPEN_SYSTEM:
+		sdata->u.mgd.auth_algs = IEEE80211_AUTH_ALG_OPEN;
+		break;
+	case NL80211_AUTHTYPE_SHARED_KEY:
+		sdata->u.mgd.auth_algs = IEEE80211_AUTH_ALG_SHARED_KEY;
+		break;
+	case NL80211_AUTHTYPE_FT:
+		sdata->u.mgd.auth_algs = IEEE80211_AUTH_ALG_FT;
+		break;
+	case NL80211_AUTHTYPE_NETWORK_EAP:
+		sdata->u.mgd.auth_algs = IEEE80211_AUTH_ALG_LEAP;
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
+
+	memcpy(sdata->u.mgd.bssid, req->peer_addr, ETH_ALEN);
+	sdata->u.mgd.flags &= ~IEEE80211_STA_AUTO_BSSID_SEL;
+	sdata->u.mgd.flags |= IEEE80211_STA_BSSID_SET;
+
+	/* TODO: req->chan */
+	sdata->u.mgd.flags |= IEEE80211_STA_AUTO_CHANNEL_SEL;
+
+	if (req->ssid) {
+		sdata->u.mgd.flags |= IEEE80211_STA_SSID_SET;
+		memcpy(sdata->u.mgd.ssid, req->ssid, req->ssid_len);
+		sdata->u.mgd.ssid_len = req->ssid_len;
+		sdata->u.mgd.flags &= ~IEEE80211_STA_AUTO_SSID_SEL;
+	}
+
+	kfree(sdata->u.mgd.sme_auth_ie);
+	sdata->u.mgd.sme_auth_ie = NULL;
+	sdata->u.mgd.sme_auth_ie_len = 0;
+	if (req->ie) {
+		sdata->u.mgd.sme_auth_ie = kmalloc(req->ie_len, GFP_KERNEL);
+		if (sdata->u.mgd.sme_auth_ie == NULL)
+			return -ENOMEM;
+		memcpy(sdata->u.mgd.sme_auth_ie, req->ie, req->ie_len);
+		sdata->u.mgd.sme_auth_ie_len = req->ie_len;
+	}
+
+	sdata->u.mgd.flags |= IEEE80211_STA_EXT_SME;
+	sdata->u.mgd.state = IEEE80211_STA_MLME_DIRECT_PROBE;
+	ieee80211_sta_req_auth(sdata);
+	return 0;
+}
+
+static int ieee80211_assoc(struct wiphy *wiphy, struct net_device *dev,
+			   struct cfg80211_assoc_request *req)
+{
+	struct ieee80211_sub_if_data *sdata;
+	int ret;
+
+	if (!netif_running(dev))
+		return -ENETDOWN;
+
+	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+
+	if (sdata->vif.type != NL80211_IFTYPE_STATION)
+		return -EOPNOTSUPP;
+
+	if (memcmp(sdata->u.mgd.bssid, req->peer_addr, ETH_ALEN) != 0 ||
+	    !(sdata->u.mgd.flags & IEEE80211_STA_AUTHENTICATED))
+		return -ENOLINK; /* not authenticated */
+
+	sdata->u.mgd.flags &= ~IEEE80211_STA_AUTO_BSSID_SEL;
+	sdata->u.mgd.flags |= IEEE80211_STA_BSSID_SET;
+
+	/* TODO: req->chan */
+	sdata->u.mgd.flags |= IEEE80211_STA_AUTO_CHANNEL_SEL;
+
+	if (req->ssid) {
+		sdata->u.mgd.flags |= IEEE80211_STA_SSID_SET;
+		memcpy(sdata->u.mgd.ssid, req->ssid, req->ssid_len);
+		sdata->u.mgd.ssid_len = req->ssid_len;
+		sdata->u.mgd.flags &= ~IEEE80211_STA_AUTO_SSID_SEL;
+	} else
+		sdata->u.mgd.flags |= IEEE80211_STA_AUTO_SSID_SEL;
+
+	ret = ieee80211_sta_set_extra_ie(sdata, req->ie, req->ie_len);
+	if (ret)
+		return ret;
+
+	sdata->u.mgd.flags |= IEEE80211_STA_EXT_SME;
+	sdata->u.mgd.state = IEEE80211_STA_MLME_ASSOCIATE;
+	ieee80211_sta_req_auth(sdata);
+	return 0;
+}
+
+static int ieee80211_deauth(struct wiphy *wiphy, struct net_device *dev,
+			    struct cfg80211_deauth_request *req)
+{
+	struct ieee80211_sub_if_data *sdata;
+
+	if (!netif_running(dev))
+		return -ENETDOWN;
+
+	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+	if (sdata->vif.type != NL80211_IFTYPE_STATION)
+		return -EOPNOTSUPP;
+
+	/* TODO: req->ie */
+	return ieee80211_sta_deauthenticate(sdata, req->reason_code);
+}
+
+static int ieee80211_disassoc(struct wiphy *wiphy, struct net_device *dev,
+			      struct cfg80211_disassoc_request *req)
+{
+	struct ieee80211_sub_if_data *sdata;
+
+	if (!netif_running(dev))
+		return -ENETDOWN;
+
+	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+
+	if (sdata->vif.type != NL80211_IFTYPE_STATION)
+		return -EOPNOTSUPP;
+
+	/* TODO: req->ie */
+	return ieee80211_sta_disassociate(sdata, req->reason_code);
+}
+
 struct cfg80211_ops mac80211_config_ops = {
 	.add_virtual_intf = ieee80211_add_iface,
 	.del_virtual_intf = ieee80211_del_iface,
@@ -1333,4 +1469,8 @@ struct cfg80211_ops mac80211_config_ops = {
 	.suspend = ieee80211_suspend,
 	.resume = ieee80211_resume,
 	.scan = ieee80211_scan,
+	.auth = ieee80211_auth,
+	.assoc = ieee80211_assoc,
+	.deauth = ieee80211_deauth,
+	.disassoc = ieee80211_disassoc,
 };

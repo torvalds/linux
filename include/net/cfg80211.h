@@ -579,6 +579,105 @@ struct cfg80211_bss {
 };
 
 /**
+ * struct cfg80211_auth_request - Authentication request data
+ *
+ * This structure provides information needed to complete IEEE 802.11
+ * authentication.
+ * NOTE: This structure will likely change when more code from mac80211 is
+ * moved into cfg80211 so that non-mac80211 drivers can benefit from it, too.
+ * Before using this in a driver that does not use mac80211, it would be better
+ * to check the status of that work and better yet, volunteer to work on it.
+ *
+ * @chan: The channel to use or %NULL if not specified (auto-select based on
+ *	scan results)
+ * @peer_addr: The address of the peer STA (AP BSSID in infrastructure case);
+ *	this field is required to be present; if the driver wants to help with
+ *	BSS selection, it should use (yet to be added) MLME event to allow user
+ *	space SME to be notified of roaming candidate, so that the SME can then
+ *	use the authentication request with the recommended BSSID and whatever
+ *	other data may be needed for authentication/association
+ * @ssid: SSID or %NULL if not yet available
+ * @ssid_len: Length of ssid in octets
+ * @auth_type: Authentication type (algorithm)
+ * @ie: Extra IEs to add to Authentication frame or %NULL
+ * @ie_len: Length of ie buffer in octets
+ */
+struct cfg80211_auth_request {
+	struct ieee80211_channel *chan;
+	u8 *peer_addr;
+	const u8 *ssid;
+	size_t ssid_len;
+	enum nl80211_auth_type auth_type;
+	const u8 *ie;
+	size_t ie_len;
+};
+
+/**
+ * struct cfg80211_assoc_request - (Re)Association request data
+ *
+ * This structure provides information needed to complete IEEE 802.11
+ * (re)association.
+ * NOTE: This structure will likely change when more code from mac80211 is
+ * moved into cfg80211 so that non-mac80211 drivers can benefit from it, too.
+ * Before using this in a driver that does not use mac80211, it would be better
+ * to check the status of that work and better yet, volunteer to work on it.
+ *
+ * @chan: The channel to use or %NULL if not specified (auto-select based on
+ *	scan results)
+ * @peer_addr: The address of the peer STA (AP BSSID); this field is required
+ *	to be present and the STA must be in State 2 (authenticated) with the
+ *	peer STA
+ * @ssid: SSID
+ * @ssid_len: Length of ssid in octets
+ * @ie: Extra IEs to add to (Re)Association Request frame or %NULL
+ * @ie_len: Length of ie buffer in octets
+ */
+struct cfg80211_assoc_request {
+	struct ieee80211_channel *chan;
+	u8 *peer_addr;
+	const u8 *ssid;
+	size_t ssid_len;
+	const u8 *ie;
+	size_t ie_len;
+};
+
+/**
+ * struct cfg80211_deauth_request - Deauthentication request data
+ *
+ * This structure provides information needed to complete IEEE 802.11
+ * deauthentication.
+ *
+ * @peer_addr: The address of the peer STA (AP BSSID); this field is required
+ *	to be present and the STA must be authenticated with the peer STA
+ * @ie: Extra IEs to add to Deauthentication frame or %NULL
+ * @ie_len: Length of ie buffer in octets
+ */
+struct cfg80211_deauth_request {
+	u8 *peer_addr;
+	u16 reason_code;
+	const u8 *ie;
+	size_t ie_len;
+};
+
+/**
+ * struct cfg80211_disassoc_request - Disassociation request data
+ *
+ * This structure provides information needed to complete IEEE 802.11
+ * disassocation.
+ *
+ * @peer_addr: The address of the peer STA (AP BSSID); this field is required
+ *	to be present and the STA must be associated with the peer STA
+ * @ie: Extra IEs to add to Disassociation frame or %NULL
+ * @ie_len: Length of ie buffer in octets
+ */
+struct cfg80211_disassoc_request {
+	u8 *peer_addr;
+	u16 reason_code;
+	const u8 *ie;
+	size_t ie_len;
+};
+
+/**
  * struct cfg80211_ops - backend description for wireless configuration
  *
  * This struct is registered by fullmac card drivers and/or wireless stacks
@@ -650,6 +749,11 @@ struct cfg80211_bss {
  *	the driver, and will be valid until passed to cfg80211_scan_done().
  *	For scan results, call cfg80211_inform_bss(); you can call this outside
  *	the scan/scan_done bracket too.
+ *
+ * @auth: Request to authenticate with the specified peer
+ * @assoc: Request to (re)associate with the specified peer
+ * @deauth: Request to deauthenticate from the specified peer
+ * @disassoc: Request to disassociate from the specified peer
  */
 struct cfg80211_ops {
 	int	(*suspend)(struct wiphy *wiphy);
@@ -730,6 +834,15 @@ struct cfg80211_ops {
 
 	int	(*scan)(struct wiphy *wiphy, struct net_device *dev,
 			struct cfg80211_scan_request *request);
+
+	int	(*auth)(struct wiphy *wiphy, struct net_device *dev,
+			struct cfg80211_auth_request *req);
+	int	(*assoc)(struct wiphy *wiphy, struct net_device *dev,
+			 struct cfg80211_assoc_request *req);
+	int	(*deauth)(struct wiphy *wiphy, struct net_device *dev,
+			  struct cfg80211_deauth_request *req);
+	int	(*disassoc)(struct wiphy *wiphy, struct net_device *dev,
+			    struct cfg80211_disassoc_request *req);
 };
 
 /* temporary wext handlers */

@@ -730,6 +730,8 @@ static void ieee80211_authenticate(struct ieee80211_sub_if_data *sdata)
 {
 	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
 	struct ieee80211_local *local = sdata->local;
+	u8 *ies;
+	size_t ies_len;
 
 	ifmgd->auth_tries++;
 	if (ifmgd->auth_tries > IEEE80211_AUTH_MAX_TRIES) {
@@ -755,7 +757,14 @@ static void ieee80211_authenticate(struct ieee80211_sub_if_data *sdata)
 	printk(KERN_DEBUG "%s: authenticate with AP %pM\n",
 	       sdata->dev->name, ifmgd->bssid);
 
-	ieee80211_send_auth(sdata, 1, ifmgd->auth_alg, NULL, 0,
+	if (ifmgd->flags & IEEE80211_STA_EXT_SME) {
+		ies = ifmgd->sme_auth_ie;
+		ies_len = ifmgd->sme_auth_ie_len;
+	} else {
+		ies = NULL;
+		ies_len = 0;
+	}
+	ieee80211_send_auth(sdata, 1, ifmgd->auth_alg, ies, ies_len,
 			    ifmgd->bssid, 0);
 	ifmgd->auth_transaction = 2;
 
@@ -870,7 +879,8 @@ static int ieee80211_privacy_mismatch(struct ieee80211_sub_if_data *sdata)
 	int wep_privacy;
 	int privacy_invoked;
 
-	if (!ifmgd || (ifmgd->flags & IEEE80211_STA_MIXED_CELL))
+	if (!ifmgd || (ifmgd->flags & (IEEE80211_STA_MIXED_CELL |
+				       IEEE80211_STA_EXT_SME)))
 		return 0;
 
 	bss = ieee80211_rx_bss_get(local, ifmgd->bssid,
@@ -998,7 +1008,11 @@ static void ieee80211_auth_completed(struct ieee80211_sub_if_data *sdata)
 
 	printk(KERN_DEBUG "%s: authenticated\n", sdata->dev->name);
 	ifmgd->flags |= IEEE80211_STA_AUTHENTICATED;
-	ieee80211_associate(sdata);
+	if (ifmgd->flags & IEEE80211_STA_EXT_SME) {
+		/* Wait for SME to request association */
+		ifmgd->state = IEEE80211_STA_MLME_DISABLED;
+	} else
+		ieee80211_associate(sdata);
 }
 
 
@@ -1084,6 +1098,7 @@ static void ieee80211_rx_mgmt_auth(struct ieee80211_sub_if_data *sdata,
 	switch (ifmgd->auth_alg) {
 	case WLAN_AUTH_OPEN:
 	case WLAN_AUTH_LEAP:
+	case WLAN_AUTH_FT:
 		ieee80211_auth_completed(sdata);
 		cfg80211_send_rx_auth(sdata->dev, (u8 *) mgmt, len);
 		break;
@@ -1117,9 +1132,10 @@ static void ieee80211_rx_mgmt_deauth(struct ieee80211_sub_if_data *sdata,
 		printk(KERN_DEBUG "%s: deauthenticated (Reason: %u)\n",
 				sdata->dev->name, reason_code);
 
-	if (ifmgd->state == IEEE80211_STA_MLME_AUTHENTICATE ||
-	    ifmgd->state == IEEE80211_STA_MLME_ASSOCIATE ||
-	    ifmgd->state == IEEE80211_STA_MLME_ASSOCIATED) {
+	if (!(ifmgd->flags & IEEE80211_STA_EXT_SME) &&
+	    (ifmgd->state == IEEE80211_STA_MLME_AUTHENTICATE ||
+	     ifmgd->state == IEEE80211_STA_MLME_ASSOCIATE ||
+	     ifmgd->state == IEEE80211_STA_MLME_ASSOCIATED)) {
 		ifmgd->state = IEEE80211_STA_MLME_DIRECT_PROBE;
 		mod_timer(&ifmgd->timer, jiffies +
 				      IEEE80211_RETRY_AUTH_INTERVAL);
@@ -1150,7 +1166,8 @@ static void ieee80211_rx_mgmt_disassoc(struct ieee80211_sub_if_data *sdata,
 		printk(KERN_DEBUG "%s: disassociated (Reason: %u)\n",
 				sdata->dev->name, reason_code);
 
-	if (ifmgd->state == IEEE80211_STA_MLME_ASSOCIATED) {
+	if (!(ifmgd->flags & IEEE80211_STA_EXT_SME) &&
+	    ifmgd->state == IEEE80211_STA_MLME_ASSOCIATED) {
 		ifmgd->state = IEEE80211_STA_MLME_ASSOCIATE;
 		mod_timer(&ifmgd->timer, jiffies +
 				      IEEE80211_RETRY_AUTH_INTERVAL);
@@ -1664,6 +1681,8 @@ static void ieee80211_sta_reset_auth(struct ieee80211_sub_if_data *sdata)
 		ifmgd->auth_alg = WLAN_AUTH_SHARED_KEY;
 	else if (ifmgd->auth_algs & IEEE80211_AUTH_ALG_LEAP)
 		ifmgd->auth_alg = WLAN_AUTH_LEAP;
+	else if (ifmgd->auth_algs & IEEE80211_AUTH_ALG_FT)
+		ifmgd->auth_alg = WLAN_AUTH_FT;
 	else
 		ifmgd->auth_alg = WLAN_AUTH_OPEN;
 	ifmgd->auth_transaction = -1;
@@ -1687,7 +1706,8 @@ static int ieee80211_sta_config_auth(struct ieee80211_sub_if_data *sdata)
 	u16 capa_val = WLAN_CAPABILITY_ESS;
 	struct ieee80211_channel *chan = local->oper_channel;
 
-	if (ifmgd->flags & (IEEE80211_STA_AUTO_SSID_SEL |
+	if (!(ifmgd->flags & IEEE80211_STA_EXT_SME) &&
+	    ifmgd->flags & (IEEE80211_STA_AUTO_SSID_SEL |
 			    IEEE80211_STA_AUTO_BSSID_SEL |
 			    IEEE80211_STA_AUTO_CHANNEL_SEL)) {
 		capa_mask |= WLAN_CAPABILITY_PRIVACY;
@@ -1884,7 +1904,11 @@ void ieee80211_sta_req_auth(struct ieee80211_sub_if_data *sdata)
 			ieee80211_set_disassoc(sdata, true, true,
 					       WLAN_REASON_DEAUTH_LEAVING);
 
-		set_bit(IEEE80211_STA_REQ_AUTH, &ifmgd->request);
+		if (!(ifmgd->flags & IEEE80211_STA_EXT_SME) ||
+		    ifmgd->state != IEEE80211_STA_MLME_ASSOCIATE)
+			set_bit(IEEE80211_STA_REQ_AUTH, &ifmgd->request);
+		else if (ifmgd->flags & IEEE80211_STA_EXT_SME)
+			set_bit(IEEE80211_STA_REQ_RUN, &ifmgd->request);
 		queue_work(local->hw.workqueue, &ifmgd->work);
 	}
 }
@@ -1953,7 +1977,8 @@ int ieee80211_sta_set_bssid(struct ieee80211_sub_if_data *sdata, u8 *bssid)
 	return ieee80211_sta_commit(sdata);
 }
 
-int ieee80211_sta_set_extra_ie(struct ieee80211_sub_if_data *sdata, char *ie, size_t len)
+int ieee80211_sta_set_extra_ie(struct ieee80211_sub_if_data *sdata,
+			       const char *ie, size_t len)
 {
 	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
 
