@@ -309,9 +309,9 @@ struct me4000_dio_info {
 	int count;
 };
 
-typedef struct me4000_cnt_info {
+struct me4000_cnt_info {
 	int count;
-} me4000_cnt_info_t;
+};
 
 typedef struct me4000_board {
 	const char *name;
@@ -319,7 +319,7 @@ typedef struct me4000_board {
 	struct me4000_ao_info ao;
 	struct me4000_ai_info ai;
 	struct me4000_dio_info dio;
-	me4000_cnt_info_t cnt;
+	struct me4000_cnt_info cnt;
 } me4000_board_t;
 
 #define thisboard ((const me4000_board_t *)dev->board_ptr)
