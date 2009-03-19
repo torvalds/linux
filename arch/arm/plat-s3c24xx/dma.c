@@ -31,10 +31,10 @@
 #include <asm/irq.h>
 #include <mach/hardware.h>
 #include <mach/dma.h>
-
 #include <mach/map.h>
 
 #include <plat/dma-plat.h>
+#include <plat/regs-dma.h>
 
 /* io map for dma */
 static void __iomem *dma_base;
