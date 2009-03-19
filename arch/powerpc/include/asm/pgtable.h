@@ -25,11 +25,57 @@ static inline void assert_pte_locked(struct mm_struct *mm, unsigned long addr)
 #  include <asm/pgtable-ppc32.h>
 #endif
 
-/* Special mapping for AGP */
-#define PAGE_AGP	(PAGE_KERNEL_NC)
-#define HAVE_PAGE_AGP
-
 #ifndef __ASSEMBLY__
+
+/* Generic accessors to PTE bits */
+static inline int pte_write(pte_t pte)		{ return pte_val(pte) & _PAGE_RW; }
+static inline int pte_dirty(pte_t pte)		{ return pte_val(pte) & _PAGE_DIRTY; }
+static inline int pte_young(pte_t pte)		{ return pte_val(pte) & _PAGE_ACCESSED; }
+static inline int pte_file(pte_t pte)		{ return pte_val(pte) & _PAGE_FILE; }
+static inline int pte_special(pte_t pte)	{ return pte_val(pte) & _PAGE_SPECIAL; }
+static inline int pte_present(pte_t pte)	{ return pte_val(pte) & _PAGE_PRESENT; }
+static inline int pte_none(pte_t pte)		{ return (pte_val(pte) & ~_PTE_NONE_MASK) == 0; }
+static inline pgprot_t pte_pgprot(pte_t pte)	{ return __pgprot(pte_val(pte) & PAGE_PROT_BITS); }
+
+/* Conversion functions: convert a page and protection to a page entry,
+ * and a page entry and page directory to the page they refer to.
+ *
+ * Even if PTEs can be unsigned long long, a PFN is always an unsigned
+ * long for now.
+ */
+static inline pte_t pfn_pte(unsigned long pfn, pgprot_t pgprot) {
+	return __pte(((pte_basic_t)(pfn) << PTE_RPN_SHIFT) |
+		     pgprot_val(pgprot)); }
+static inline unsigned long pte_pfn(pte_t pte)	{
+	return pte_val(pte) >> PTE_RPN_SHIFT; }
+
+/* Keep these as a macros to avoid include dependency mess */
+#define pte_page(x)		pfn_to_page(pte_pfn(x))
+#define mk_pte(page, pgprot)	pfn_pte(page_to_pfn(page), (pgprot))
+
+/* Generic modifiers for PTE bits */
+static inline pte_t pte_wrprotect(pte_t pte) {
+	pte_val(pte) &= ~(_PAGE_RW | _PAGE_HWWRITE); return pte; }
+static inline pte_t pte_mkclean(pte_t pte) {
+	pte_val(pte) &= ~(_PAGE_DIRTY | _PAGE_HWWRITE); return pte; }
+static inline pte_t pte_mkold(pte_t pte) {
+	pte_val(pte) &= ~_PAGE_ACCESSED; return pte; }
+static inline pte_t pte_mkwrite(pte_t pte) {
+	pte_val(pte) |= _PAGE_RW; return pte; }
+static inline pte_t pte_mkdirty(pte_t pte) {
+	pte_val(pte) |= _PAGE_DIRTY; return pte; }
+static inline pte_t pte_mkyoung(pte_t pte) {
+	pte_val(pte) |= _PAGE_ACCESSED; return pte; }
+static inline pte_t pte_mkspecial(pte_t pte) {
+	pte_val(pte) |= _PAGE_SPECIAL; return pte; }
+static inline pte_t pte_mkhuge(pte_t pte) {
+	return pte; }
+static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
+{
+	pte_val(pte) = (pte_val(pte) & _PAGE_CHG_MASK) | pgprot_val(newprot);
+	return pte;
+}
+
 
 /* Insert a PTE, top-level function is out of line. It uses an inline
  * low level function in the respective pgtable-* files
