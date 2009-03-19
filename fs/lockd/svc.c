@@ -53,17 +53,6 @@ static struct svc_rqst		*nlmsvc_rqst;
 unsigned long			nlmsvc_timeout;
 
 /*
- * If the kernel has IPv6 support available, always listen for
- * both AF_INET and AF_INET6 requests.
- */
-#if (defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)) && \
-	defined(CONFIG_SUNRPC_REGISTER_V4)
-static const sa_family_t	nlmsvc_family = AF_INET6;
-#else	/* (CONFIG_IPV6 || CONFIG_IPV6_MODULE) && CONFIG_SUNRPC_REGISTER_V4 */
-static const sa_family_t	nlmsvc_family = AF_INET;
-#endif	/* (CONFIG_IPV6 || CONFIG_IPV6_MODULE) && CONFIG_SUNRPC_REGISTER_V4 */
-
-/*
  * These can be set at insmod time (useful for NFS as root filesystem),
  * and also changed through the sysctl interface.  -- Jamie Lokier, Aug 2003
  */
@@ -211,7 +200,7 @@ static int create_lockd_listener(struct svc_serv *serv, char *name,
 
 	xprt = svc_find_xprt(serv, name, 0, 0);
 	if (xprt == NULL)
-		return svc_create_xprt(serv, name, nlmsvc_family,
+		return svc_create_xprt(serv, name, PF_INET,
 					port, SVC_SOCK_DEFAULTS);
 
 	svc_xprt_put(xprt);
