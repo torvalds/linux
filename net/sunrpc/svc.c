@@ -800,17 +800,17 @@ static int __svc_rpcb_register6(const u32 program, const u32 version,
  * if any error occurs.
  */
 static int __svc_register(const u32 program, const u32 version,
-			  const sa_family_t family,
+			  const int family,
 			  const unsigned short protocol,
 			  const unsigned short port)
 {
 	int error;
 
 	switch (family) {
-	case AF_INET:
+	case PF_INET:
 		return __svc_rpcb_register4(program, version,
 						protocol, port);
-	case AF_INET6:
+	case PF_INET6:
 		error = __svc_rpcb_register6(program, version,
 						protocol, port);
 		if (error < 0)
@@ -840,11 +840,11 @@ static int __svc_register(const u32 program, const u32 version,
  * if any error occurs.
  */
 static int __svc_register(const u32 program, const u32 version,
-			  sa_family_t family,
+			  const int family,
 			  const unsigned short protocol,
 			  const unsigned short port)
 {
-	if (family != AF_INET)
+	if (family != PF_INET)
 		return -EAFNOSUPPORT;
 
 	return rpcb_register(program, version, protocol, port);
@@ -855,13 +855,14 @@ static int __svc_register(const u32 program, const u32 version,
 /**
  * svc_register - register an RPC service with the local portmapper
  * @serv: svc_serv struct for the service to register
+ * @family: protocol family of service's listener socket
  * @proto: transport protocol number to advertise
  * @port: port to advertise
  *
- * Service is registered for any address in serv's address family
+ * Service is registered for any address in the passed-in protocol family
  */
-int svc_register(const struct svc_serv *serv, const unsigned short proto,
-		 const unsigned short port)
+int svc_register(const struct svc_serv *serv, const int family,
+		 const unsigned short proto, const unsigned short port)
 {
 	struct svc_program	*progp;
 	unsigned int		i;
@@ -879,7 +880,7 @@ int svc_register(const struct svc_serv *serv, const unsigned short proto,
 					i,
 					proto == IPPROTO_UDP?  "udp" : "tcp",
 					port,
-					serv->sv_family,
+					family,
 					progp->pg_vers[i]->vs_hidden?
 						" (but not telling portmap)" : "");
 
@@ -887,7 +888,7 @@ int svc_register(const struct svc_serv *serv, const unsigned short proto,
 				continue;
 
 			error = __svc_register(progp->pg_prog, i,
-						serv->sv_family, proto, port);
+						family, proto, port);
 			if (error < 0)
 				break;
 		}
