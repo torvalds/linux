@@ -710,10 +710,13 @@ void perf_counter_task_sched_out(struct task_struct *task, int cpu)
 {
 	struct perf_cpu_context *cpuctx = &per_cpu(perf_cpu_context, cpu);
 	struct perf_counter_context *ctx = &task->perf_counter_ctx;
+	struct pt_regs *regs;
 
 	if (likely(!cpuctx->task_ctx))
 		return;
 
+	regs = task_pt_regs(task);
+	perf_swcounter_event(PERF_COUNT_CONTEXT_SWITCHES, 1, 1, regs);
 	__perf_counter_sched_out(ctx, cpuctx);
 
 	cpuctx->task_ctx = NULL;
@@ -1668,58 +1671,6 @@ static const struct hw_perf_counter_ops perf_ops_task_clock = {
 };
 
 /*
- * Software counter: context switches
- */
-
-static u64 get_context_switches(struct perf_counter *counter)
-{
-	struct task_struct *curr = counter->ctx->task;
-
-	if (curr)
-		return curr->nvcsw + curr->nivcsw;
-	return cpu_nr_switches(smp_processor_id());
-}
-
-static void context_switches_perf_counter_update(struct perf_counter *counter)
-{
-	u64 prev, now;
-	s64 delta;
-
-	prev = atomic64_read(&counter->hw.prev_count);
-	now = get_context_switches(counter);
-
-	atomic64_set(&counter->hw.prev_count, now);
-
-	delta = now - prev;
-
-	atomic64_add(delta, &counter->count);
-}
-
-static void context_switches_perf_counter_read(struct perf_counter *counter)
-{
-	context_switches_perf_counter_update(counter);
-}
-
-static int context_switches_perf_counter_enable(struct perf_counter *counter)
-{
-	if (counter->prev_state <= PERF_COUNTER_STATE_OFF)
-		atomic64_set(&counter->hw.prev_count,
-			     get_context_switches(counter));
-	return 0;
-}
-
-static void context_switches_perf_counter_disable(struct perf_counter *counter)
-{
-	context_switches_perf_counter_update(counter);
-}
-
-static const struct hw_perf_counter_ops perf_ops_context_switches = {
-	.enable		= context_switches_perf_counter_enable,
-	.disable	= context_switches_perf_counter_disable,
-	.read		= context_switches_perf_counter_read,
-};
-
-/*
  * Software counter: cpu migrations
  */
 
@@ -1808,11 +1759,8 @@ sw_perf_counter_init(struct perf_counter *counter)
 	case PERF_COUNT_PAGE_FAULTS:
 	case PERF_COUNT_PAGE_FAULTS_MIN:
 	case PERF_COUNT_PAGE_FAULTS_MAJ:
-		hw_ops = &perf_ops_generic;
-		break;
 	case PERF_COUNT_CONTEXT_SWITCHES:
-		if (!counter->hw_event.exclude_kernel)
-			hw_ops = &perf_ops_context_switches;
+		hw_ops = &perf_ops_generic;
 		break;
 	case PERF_COUNT_CPU_MIGRATIONS:
 		if (!counter->hw_event.exclude_kernel)

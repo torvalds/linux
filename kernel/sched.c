@@ -2900,14 +2900,8 @@ unsigned long nr_active(void)
 
 /*
  * Externally visible per-cpu scheduler statistics:
- * cpu_nr_switches(cpu) - number of context switches on that cpu
  * cpu_nr_migrations(cpu) - number of migrations into that cpu
  */
-u64 cpu_nr_switches(int cpu)
-{
-	return cpu_rq(cpu)->nr_switches;
-}
-
 u64 cpu_nr_migrations(int cpu)
 {
 	return cpu_rq(cpu)->nr_migrations_in;
