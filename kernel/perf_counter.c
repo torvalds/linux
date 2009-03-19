@@ -1150,6 +1150,11 @@ static void free_counter_rcu(struct rcu_head *head)
 	kfree(counter);
 }
 
+static void free_counter(struct perf_counter *counter)
+{
+	call_rcu(&counter->rcu_head, free_counter_rcu);
+}
+
 /*
  * Called when the last reference to the file is gone.
  */
@@ -1168,7 +1173,7 @@ static int perf_release(struct inode *inode, struct file *file)
 	mutex_unlock(&counter->mutex);
 	mutex_unlock(&ctx->mutex);
 
-	call_rcu(&counter->rcu_head, free_counter_rcu);
+	free_counter(counter);
 	put_context(ctx);
 
 	return 0;
@@ -2128,10 +2133,10 @@ __perf_counter_exit_task(struct task_struct *child,
 					 list_entry) {
 			if (sub->parent) {
 				sync_child_counter(sub, sub->parent);
-				kfree(sub);
+				free_counter(sub);
 			}
 		}
-		kfree(child_counter);
+		free_counter(child_counter);
 	}
 }
 
