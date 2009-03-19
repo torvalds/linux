@@ -1910,7 +1910,6 @@ static int __devinit smsc911x_drv_probe(struct platform_device *pdev)
 	unsigned int intcfg = 0;
 	int res_size, irq_flags;
 	int retval;
-	DECLARE_MAC_BUF(mac);
 
 	pr_info("%s: Driver version %s.\n", SMSC_CHIPNAME, SMSC_DRV_VERSION);
 
@@ -2045,8 +2044,7 @@ static int __devinit smsc911x_drv_probe(struct platform_device *pdev)
 
 	spin_unlock_irq(&pdata->mac_lock);
 
-	dev_info(&dev->dev, "MAC Address: %s\n",
-		 print_mac(mac, dev->dev_addr));
+	dev_info(&dev->dev, "MAC Address: %pM\n", dev->dev_addr);
 
 	return 0;
 
