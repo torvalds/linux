@@ -207,6 +207,13 @@ acpi_hw_register_read(u32 register_id, u32 * return_value)
 					       xpm1a_control_block,
 					       &acpi_gbl_FADT.
 					       xpm1b_control_block);
+
+		/*
+		 * Zero the write-only bits. From the ACPI specification, "Hardware
+		 * Write-Only Bits": "Upon reads to registers with write-only bits,
+		 * software masks out all write-only bits."
+		 */
+		value &= ~ACPI_PM1_CONTROL_WRITEONLY_BITS;
 		break;
 
 	case ACPI_REGISTER_PM2_CONTROL:	/* 8-bit access */

@@ -781,6 +781,10 @@ struct acpi_bit_register_info {
  */
 #define ACPI_PM1_STATUS_PRESERVED_BITS          0x0800	/* Bit 11 */
 
+/* Write-only bits must be zeroed by software */
+
+#define ACPI_PM1_CONTROL_WRITEONLY_BITS         0x2004	/* Bits 13, 2 */
+
 /* For control registers, both ignored and reserved bits must be preserved */
 
 #define ACPI_PM1_CONTROL_IGNORED_BITS           0x0201	/* Bits 9, 0(SCI_EN) */
