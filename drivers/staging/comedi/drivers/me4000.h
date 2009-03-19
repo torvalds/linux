@@ -328,7 +328,7 @@ struct me4000_board {
   Global board and subdevice information structures
   ===========================================================================*/
 
-typedef struct me4000_ao_context {
+struct me4000_ao_context {
 	int irq;
 
 	unsigned long mirror;	/*  Store the last written value */
@@ -340,7 +340,7 @@ typedef struct me4000_ao_context {
 	unsigned long timer_reg;
 	unsigned long irq_status_reg;
 	unsigned long preload_reg;
-} me4000_ao_context_t;
+};
 
 typedef struct me4000_ai_context {
 	int irq;
