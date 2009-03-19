@@ -320,29 +320,35 @@ void acpi_tb_create_local_fadt(struct acpi_table_header *table, u32 length)
  * RETURN:      None
  *
  * DESCRIPTION: Converts all versions of the FADT to a common internal format.
- *              Expand all 32-bit addresses to 64-bit.
+ *              Expand 32-bit addresses to 64-bit as necessary.
  *
  * NOTE:        acpi_gbl_FADT must be of size (struct acpi_table_fadt),
  *              and must contain a copy of the actual FADT.
  *
- * ACPICA will use the "X" fields of the FADT for all addresses.
+ * Notes on 64-bit register addresses:
  *
- * "X" fields are optional extensions to the original V1.0 fields. Even if
- * they are present in the structure, they can be optionally not used by
- * setting them to zero. Therefore, we must selectively expand V1.0 fields
- * if the corresponding X field is zero.
+ * After this FADT conversion, later ACPICA code will only use the 64-bit "X"
+ * fields of the FADT for all ACPI register addresses.
  *
- * For ACPI 1.0 FADTs, all address fields are expanded to the corresponding
- * "X" fields.
+ * The 64-bit "X" fields are optional extensions to the original 32-bit FADT
+ * V1.0 fields. Even if they are present in the FADT, they are optional and
+ * are unused if the BIOS sets them to zero. Therefore, we must copy/expand
+ * 32-bit V1.0 fields if the corresponding X field is zero.
  *
- * For ACPI 2.0 FADTs, any "X" fields that are NULL are filled in by
- * expanding the corresponding ACPI 1.0 field.
+ * For ACPI 1.0 FADTs, all 32-bit address fields are expanded to the
+ * corresponding "X" fields in the internal FADT.
+ *
+ * For ACPI 2.0+ FADTs, all valid (non-zero) 32-bit address fields are expanded
+ * to the corresponding 64-bit X fields. For compatibility with other ACPI
+ * implementations, we ignore the 64-bit field if the 32-bit field is valid,
+ * regardless of whether the host OS is 32-bit or 64-bit.
  *
  ******************************************************************************/
 
 static void acpi_tb_convert_fadt(void)
 {
-	struct acpi_generic_address *target64;
+	struct acpi_generic_address *address64;
+	u32 address32;
 	u32 i;
 
 	/* Update the local FADT table header length */
@@ -391,29 +397,51 @@ static void acpi_tb_convert_fadt(void)
 	 * Expand the ACPI 1.0 32-bit addresses to the ACPI 2.0 64-bit "X"
 	 * generic address structures as necessary. Later code will always use
 	 * the 64-bit address structures.
+	 *
+	 * March 2009:
+	 * We now always use the 32-bit address if it is valid (non-null). This
+	 * is not in accordance with the ACPI specification which states that
+	 * the 64-bit address supersedes the 32-bit version, but we do this for
+	 * compatibility with other ACPI implementations. Most notably, in the
+	 * case where both the 32 and 64 versions are non-null, we use the 32-bit
+	 * version. This is the only address that is guaranteed to have been
+	 * tested by the BIOS manufacturer.
 	 */
 	for (i = 0; i < ACPI_FADT_INFO_ENTRIES; i++) {
-		target64 =
-		    ACPI_ADD_PTR(struct acpi_generic_address, &acpi_gbl_FADT,
-				 fadt_info_table[i].address64);
+		address32 = *ACPI_ADD_PTR(u32,
+					  &acpi_gbl_FADT,
+					  fadt_info_table[i].address32);
 
-		/* Expand only if the 64-bit X target is null */
+		address64 = ACPI_ADD_PTR(struct acpi_generic_address,
+					 &acpi_gbl_FADT,
+					 fadt_info_table[i].address64);
 
-		if (!target64->address) {
+		/*
+		 * If both 32- and 64-bit addresses are valid (non-zero),
+		 * they must match.
+		 */
+		if (address64->address && address32 &&
+		    (address64->address != (u64) address32)) {
+			ACPI_ERROR((AE_INFO,
+				    "32/64X address mismatch in %s: %8.8X/%8.8X%8.8X, using 32",
+				    fadt_info_table[i].name, address32,
+				    ACPI_FORMAT_UINT64(address64->address)));
+		}
 
-			/* The space_id is always I/O for the 32-bit legacy address fields */
+		/* Always use 32-bit address if it is valid (non-null) */
 
-			acpi_tb_init_generic_address(target64,
+		if (address32) {
+			/*
+			 * Copy the 32-bit address to the 64-bit GAS structure. The
+			 * Space ID is always I/O for 32-bit legacy address fields
+			*/
+			acpi_tb_init_generic_address(address64,
 						     ACPI_ADR_SPACE_SYSTEM_IO,
 						     *ACPI_ADD_PTR(u8,
 								   &acpi_gbl_FADT,
 								   fadt_info_table
 								   [i].length),
-						     (u64) * ACPI_ADD_PTR(u32,
-									  &acpi_gbl_FADT,
-									  fadt_info_table
-									  [i].
-									  address32));
+						     address32);
 		}
 	}
 }
@@ -529,18 +557,6 @@ static void acpi_tb_validate_fadt(void)
 								 address),
 					      length));
 			}
-		}
-
-		/*
-		 * If both 32- and 64-bit addresses are valid (non-zero),
-		 * they must match
-		 */
-		if (address64->address && *address32 &&
-		    (address64->address != (u64) * address32)) {
-			ACPI_ERROR((AE_INFO,
-				    "32/64X address mismatch in %s: %8.8X/%8.8X%8.8X, using 64X",
-				    name, *address32,
-				    ACPI_FORMAT_UINT64(address64->address)));
 		}
 	}
 }
