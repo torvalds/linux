@@ -150,6 +150,13 @@ config S3C_GPIO_CFG_S3C64XX
 	  Internal configuration to enable S3C64XX style GPIO configuration
 	  functions.
 
+# DMA
+
+config S3C_DMA
+	bool
+	help
+	  Internal configuration for S3C DMA core
+
 # device definitions to compile in
 
 config S3C_DEV_HSMMC

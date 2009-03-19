@@ -44,8 +44,6 @@ static int dma_channels;
 
 static struct s3c24xx_dma_selection dma_sel;
 
-/* dma channel state information */
-struct s3c2410_dma_chan s3c2410_chans[S3C2410_DMA_CHANNELS];
 
 /* debugging functions */
 
@@ -135,21 +133,6 @@ dmadbg_showregs(const char *fname, int line, struct s3c2410_dma_chan *chan)
 #define dbg_showchan(chan) do { } while(0)
 #endif /* CONFIG_S3C2410_DMA_DEBUG */
 
-static struct s3c2410_dma_chan *dma_chan_map[DMACH_MAX];
-
-/* lookup_dma_channel
- *
- * change the dma channel number given into a real dma channel id
-*/
-
-static struct s3c2410_dma_chan *lookup_dma_channel(unsigned int channel)
-{
-	if (channel & DMACH_LOW_LEVEL)
-		return &s3c2410_chans[channel & ~DMACH_LOW_LEVEL];
-	else
-		return dma_chan_map[channel];
-}
-
 /* s3c2410_dma_stats_timeout
  *
  * Update DMA stats from timeout info
@@ -213,8 +196,6 @@ s3c2410_dma_waitforload(struct s3c2410_dma_chan *chan, int line)
 
 	return 0;
 }
-
-
 
 /* s3c2410_dma_loadbuffer
  *
@@ -453,7 +434,7 @@ s3c2410_dma_canload(struct s3c2410_dma_chan *chan)
 int s3c2410_dma_enqueue(unsigned int channel, void *id,
 			dma_addr_t data, int size)
 {
-	struct s3c2410_dma_chan *chan = lookup_dma_channel(channel);
+	struct s3c2410_dma_chan *chan = s3c_dma_lookup_channel(channel);
 	struct s3c2410_dma_buf *buf;
 	unsigned long flags;
 
@@ -804,7 +785,7 @@ EXPORT_SYMBOL(s3c2410_dma_request);
 
 int s3c2410_dma_free(unsigned int channel, struct s3c2410_dma_client *client)
 {
-	struct s3c2410_dma_chan *chan = lookup_dma_channel(channel);
+	struct s3c2410_dma_chan *chan = s3c_dma_lookup_channel(channel);
 	unsigned long flags;
 
 	if (chan == NULL)
@@ -836,7 +817,7 @@ int s3c2410_dma_free(unsigned int channel, struct s3c2410_dma_client *client)
 	chan->irq_claimed = 0;
 
 	if (!(channel & DMACH_LOW_LEVEL))
-		dma_chan_map[channel] = NULL;
+		s3c_dma_chan_map[channel] = NULL;
 
 	local_irq_restore(flags);
 
@@ -995,7 +976,7 @@ static int s3c2410_dma_started(struct s3c2410_dma_chan *chan)
 int
 s3c2410_dma_ctrl(unsigned int channel, enum s3c2410_chan_op op)
 {
-	struct s3c2410_dma_chan *chan = lookup_dma_channel(channel);
+	struct s3c2410_dma_chan *chan = s3c_dma_lookup_channel(channel);
 
 	if (chan == NULL)
 		return -EINVAL;
@@ -1043,7 +1024,7 @@ EXPORT_SYMBOL(s3c2410_dma_ctrl);
 int s3c2410_dma_config(unsigned int channel,
 		       int xferunit)
 {
-	struct s3c2410_dma_chan *chan = lookup_dma_channel(channel);
+	struct s3c2410_dma_chan *chan = s3c_dma_lookup_channel(channel);
 	unsigned int dcon;
 
 	pr_debug("%s: chan=%d, xfer_unit=%d, dcon=%08x\n",
@@ -1112,58 +1093,6 @@ int s3c2410_dma_config(unsigned int channel,
 
 EXPORT_SYMBOL(s3c2410_dma_config);
 
-int s3c2410_dma_setflags(unsigned int channel, unsigned int flags)
-{
-	struct s3c2410_dma_chan *chan = lookup_dma_channel(channel);
-
-	if (chan == NULL)
-		return -EINVAL;
-
-	pr_debug("%s: chan=%p, flags=%08x\n", __func__, chan, flags);
-
-	chan->flags = flags;
-
-	return 0;
-}
-
-EXPORT_SYMBOL(s3c2410_dma_setflags);
-
-
-/* do we need to protect the settings of the fields from
- * irq?
-*/
-
-int s3c2410_dma_set_opfn(unsigned int channel, s3c2410_dma_opfn_t rtn)
-{
-	struct s3c2410_dma_chan *chan = lookup_dma_channel(channel);
-
-	if (chan == NULL)
-		return -EINVAL;
-
-	pr_debug("%s: chan=%p, op rtn=%p\n", __func__, chan, rtn);
-
-	chan->op_fn = rtn;
-
-	return 0;
-}
-
-EXPORT_SYMBOL(s3c2410_dma_set_opfn);
-
-int s3c2410_dma_set_buffdone_fn(unsigned int channel, s3c2410_dma_cbfn_t rtn)
-{
-	struct s3c2410_dma_chan *chan = lookup_dma_channel(channel);
-
-	if (chan == NULL)
-		return -EINVAL;
-
-	pr_debug("%s: chan=%p, callback rtn=%p\n", __func__, chan, rtn);
-
-	chan->callback_fn = rtn;
-
-	return 0;
-}
-
-EXPORT_SYMBOL(s3c2410_dma_set_buffdone_fn);
 
 /* s3c2410_dma_devconfig
  *
@@ -1179,7 +1108,7 @@ int s3c2410_dma_devconfig(int channel,
 			  enum s3c2410_dmasrc source,
 			  unsigned long devaddr)
 {
-	struct s3c2410_dma_chan *chan = lookup_dma_channel(channel);
+	struct s3c2410_dma_chan *chan = s3c_dma_lookup_channel(channel);
 	unsigned int hwcfg;
 
 	if (chan == NULL)
@@ -1250,7 +1179,7 @@ EXPORT_SYMBOL(s3c2410_dma_devconfig);
 
 int s3c2410_dma_getposition(unsigned int channel, dma_addr_t *src, dma_addr_t *dst)
 {
- 	struct s3c2410_dma_chan *chan = lookup_dma_channel(channel);
+	struct s3c2410_dma_chan *chan = s3c_dma_lookup_channel(channel);
 
 	if (chan == NULL)
 		return -EINVAL;
@@ -1508,7 +1437,7 @@ static struct s3c2410_dma_chan *s3c2410_dma_map_channel(int channel)
 	dmach = &s3c2410_chans[ch];
 	dmach->map = ch_map;
 	dmach->req_ch = channel;
-	dma_chan_map[channel] = dmach;
+	s3c_dma_chan_map[channel] = dmach;
 
 	/* select the channel */
 

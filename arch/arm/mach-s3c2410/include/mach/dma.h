@@ -55,9 +55,9 @@ enum dma_ch {
 
 /* we have 4 dma channels */
 #ifndef CONFIG_CPU_S3C2443
-#define S3C2410_DMA_CHANNELS		(4)
+#define S3C_DMA_CHANNELS		(4)
 #else
-#define S3C2410_DMA_CHANNELS		(6)
+#define S3C_DMA_CHANNELS		(6)
 #endif
 
 /* types */
@@ -192,10 +192,6 @@ struct s3c2410_dma_chan {
 	struct sys_device	dev;
 };
 
-/* the currently allocated channel information */
-extern struct s3c2410_dma_chan s3c2410_chans[];
-
-/* note, we don't really use dma_device_t at the moment */
 typedef unsigned long dma_device_t;
 
 #endif /* __ASM_ARCH_DMA_H */

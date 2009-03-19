@@ -10,8 +10,10 @@
  * published by the Free Software Foundation.
 */
 
+#include <plat/dma-core.h>
+
 extern struct sysdev_class dma_sysclass;
-extern struct s3c2410_dma_chan s3c2410_chans[S3C2410_DMA_CHANNELS];
+extern struct s3c2410_dma_chan s3c2410_chans[S3C_DMA_CHANNELS];
 
 #define DMA_CH_VALID		(1<<31)
 #define DMA_CH_NEVER		(1<<30)
@@ -31,8 +33,8 @@ struct s3c24xx_dma_map {
 	const char		*name;
 	struct s3c24xx_dma_addr  hw_addr;
 
-	unsigned long		 channels[S3C2410_DMA_CHANNELS];
-	unsigned long		 channels_rx[S3C2410_DMA_CHANNELS];
+	unsigned long		 channels[S3C_DMA_CHANNELS];
+	unsigned long		 channels_rx[S3C_DMA_CHANNELS];
 };
 
 struct s3c24xx_dma_selection {
@@ -58,7 +60,7 @@ extern int s3c24xx_dma_init_map(struct s3c24xx_dma_selection *sel);
 */
 
 struct s3c24xx_dma_order_ch {
-	unsigned int	list[S3C2410_DMA_CHANNELS];	/* list of channels */
+	unsigned int	list[S3C_DMA_CHANNELS];	/* list of channels */
 	unsigned int	flags;				/* flags */
 };
 
