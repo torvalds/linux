@@ -79,6 +79,9 @@ static s32 ixgbe_get_invariants_82598(struct ixgbe_hw *hw)
 	s32 ret_val = 0;
 	u16 list_offset, data_offset;
 
+	/* Set the bus information prior to PHY identification */
+	mac->ops.get_bus_info(hw);
+
 	/* Call PHY identify routine to get the phy type */
 	ixgbe_identify_phy_generic(hw);
 
