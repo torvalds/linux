@@ -37,8 +37,6 @@
 #define SUCCESS	1
 
 /* variable type definition */
-typedef char CHAR, *PCHAR;
-typedef const CHAR *PCSTR;
 typedef unsigned char BYTE, *PBYTE;
 typedef short SHORT, *PSHORT;
 typedef unsigned short USHORT, *PUSHORT;
@@ -78,7 +76,7 @@ typedef const struct comedi_lrange *PCRANGE;
 
 /* structure for the boardtype */
 typedef struct {
-	PCSTR pc_DriverName;	// driver name
+	const char *pc_DriverName;	// driver name
 	INT i_VendorId;		//PCI vendor a device ID of card
 	INT i_DeviceId;
 	INT i_IorangeBase0;
@@ -86,7 +84,7 @@ typedef struct {
 	INT i_IorangeBase2;	//  base 2 range
 	INT i_IorangeBase3;	//  base 3 range
 	INT i_PCIEeprom;	// eeprom present or not
-	PCHAR pc_EepromChip;	// type of chip
+	char *pc_EepromChip;	// type of chip
 	INT i_NbrAiChannel;	// num of A/D chans
 	INT i_NbrAiChannelDiff;	// num of A/D chans in diff mode
 	INT i_AiChannelList;	// len of chanlist
