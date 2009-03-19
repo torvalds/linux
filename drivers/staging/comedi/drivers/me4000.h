@@ -376,7 +376,7 @@ struct me4000_cnt_context {
 	unsigned long counter_2_reg;
 };
 
-typedef struct me4000_info {
+struct me4000_info {
 	unsigned long plx_regbase;	/*  PLX configuration space base address */
 	unsigned long me4000_regbase;	/*  Base address of the ME4000 */
 	unsigned long timer_regbase;	/*  Base address of the timer circuit */
@@ -400,9 +400,9 @@ typedef struct me4000_info {
 	struct me4000_ao_context ao_context[4];	/*  Vector with analog output specific context */
 	struct me4000_dio_context dio_context;	/*  Digital I/O specific context */
 	struct me4000_cnt_context cnt_context;	/*  Counter specific context */
-} me4000_info_t;
+};
 
-#define info	((me4000_info_t *)dev->private)
+#define info	((struct me4000_info *)dev->private)
 
 /*-----------------------------------------------------------------------------
   Defines for analog input

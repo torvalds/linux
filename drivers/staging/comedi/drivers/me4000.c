@@ -378,7 +378,7 @@ static int me4000_probe(struct comedi_device *dev, struct comedi_devconfig *it)
 	CALL_PDEBUG("In me4000_probe()\n");
 
 	/* Allocate private memory */
-	if (alloc_private(dev, sizeof(me4000_info_t)) < 0)
+	if (alloc_private(dev, sizeof(struct me4000_info)) < 0)
 		return -ENOMEM;
 
 	/*
