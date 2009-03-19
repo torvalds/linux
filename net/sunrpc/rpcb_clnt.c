@@ -194,7 +194,7 @@ static int rpcb_register_call(const u32 version, struct rpc_message *msg)
 		error = PTR_ERR(rpcb_clnt);
 
 	if (error < 0) {
-		printk(KERN_WARNING "RPC: failed to contact local rpcbind "
+		dprintk("RPC:       failed to contact local rpcbind "
 				"server (errno %d).\n", -error);
 		return error;
 	}

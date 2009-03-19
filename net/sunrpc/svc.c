@@ -818,26 +818,30 @@ static int __svc_rpcb_register6(const u32 program, const u32 version,
  * Returns zero on success; a negative errno value is returned
  * if any error occurs.
  */
-static int __svc_register(const u32 program, const u32 version,
+static int __svc_register(const char *progname,
+			  const u32 program, const u32 version,
 			  const int family,
 			  const unsigned short protocol,
 			  const unsigned short port)
 {
-	int error;
+	int error = -EAFNOSUPPORT;
 
 	switch (family) {
 	case PF_INET:
-		return __svc_rpcb_register4(program, version,
+		error = __svc_rpcb_register4(program, version,
 						protocol, port);
 		break;
 #if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
 	case PF_INET6:
-		return__svc_rpcb_register6(program, version,
+		error = __svc_rpcb_register6(program, version,
 						protocol, port);
 #endif	/* defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE) */
 	}
 
-	return -EAFNOSUPPORT;
+	if (error < 0)
+		printk(KERN_WARNING "svc: failed to register %sv%u RPC "
+			"service (errno %d).\n", progname, version, -error);
+	return error;
 }
 
 /**
@@ -875,8 +879,8 @@ int svc_register(const struct svc_serv *serv, const int family,
 			if (progp->pg_vers[i]->vs_hidden)
 				continue;
 
-			error = __svc_register(progp->pg_prog, i,
-						family, proto, port);
+			error = __svc_register(progp->pg_name, progp->pg_prog,
+						i, family, proto, port);
 			if (error < 0)
 				break;
 		}
