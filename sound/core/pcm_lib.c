@@ -148,8 +148,9 @@ static void xrun(struct snd_pcm_substream *substream)
 	}
 }
 
-static inline snd_pcm_uframes_t snd_pcm_update_hw_ptr_pos(struct snd_pcm_substream *substream,
-							  struct snd_pcm_runtime *runtime)
+static snd_pcm_uframes_t
+snd_pcm_update_hw_ptr_pos(struct snd_pcm_substream *substream,
+			  struct snd_pcm_runtime *runtime)
 {
 	snd_pcm_uframes_t pos;
 
@@ -167,8 +168,8 @@ static inline snd_pcm_uframes_t snd_pcm_update_hw_ptr_pos(struct snd_pcm_substre
 	return pos;
 }
 
-static inline int snd_pcm_update_hw_ptr_post(struct snd_pcm_substream *substream,
-					     struct snd_pcm_runtime *runtime)
+static int snd_pcm_update_hw_ptr_post(struct snd_pcm_substream *substream,
+				      struct snd_pcm_runtime *runtime)
 {
 	snd_pcm_uframes_t avail;
 
@@ -200,7 +201,7 @@ static inline int snd_pcm_update_hw_ptr_post(struct snd_pcm_substream *substream
 		}							\
 	} while (0)
 
-static inline int snd_pcm_update_hw_ptr_interrupt(struct snd_pcm_substream *substream)
+static int snd_pcm_update_hw_ptr_interrupt(struct snd_pcm_substream *substream)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	snd_pcm_uframes_t pos;
