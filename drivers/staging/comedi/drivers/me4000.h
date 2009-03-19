@@ -298,12 +298,12 @@ struct me4000_ao_info {
 	int fifo_count;
 };
 
-typedef struct me4000_ai_info {
+struct me4000_ai_info {
 	int count;
 	int sh_count;
 	int diff_count;
 	int ex_trig_analog;
-} me4000_ai_info_t;
+};
 
 typedef struct me4000_dio_info {
 	int count;
@@ -317,7 +317,7 @@ typedef struct me4000_board {
 	const char *name;
 	unsigned short device_id;
 	struct me4000_ao_info ao;
-	me4000_ai_info_t ai;
+	struct me4000_ai_info ai;
 	me4000_dio_info_t dio;
 	me4000_cnt_info_t cnt;
 } me4000_board_t;
