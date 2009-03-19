@@ -534,12 +534,12 @@ enum register_layout {
 	LAYOUT_4020,
 };
 
-typedef struct hw_fifo_info_struct {
+struct hw_fifo_info {
 	unsigned int num_segments;
 	unsigned int max_segment_length;
 	unsigned int sample_packing_ratio;
 	uint16_t fifo_size_reg_mask;
-} hw_fifo_info_t;
+};
 
 typedef struct pcidas64_board_struct {
 	const char *name;
@@ -553,26 +553,26 @@ typedef struct pcidas64_board_struct {
 	int ao_scan_speed;	// analog output speed (for a scan, not conversion)
 	const struct comedi_lrange *ao_range_table;
 	const int *ao_range_code;
-	const hw_fifo_info_t *const ai_fifo;
+	const struct hw_fifo_info *const ai_fifo;
 	enum register_layout layout;	// different board families have slightly different registers
 	unsigned has_8255:1;
 } pcidas64_board;
 
-static const hw_fifo_info_t ai_fifo_4020 = {
+static const struct hw_fifo_info ai_fifo_4020 = {
       num_segments:2,
       max_segment_length:0x8000,
       sample_packing_ratio:2,
       fifo_size_reg_mask:0x7f,
 };
 
-static const hw_fifo_info_t ai_fifo_64xx = {
+static const struct hw_fifo_info ai_fifo_64xx = {
       num_segments:4,
       max_segment_length:0x800,
       sample_packing_ratio:1,
       fifo_size_reg_mask:0x3f,
 };
 
-static const hw_fifo_info_t ai_fifo_60xx = {
+static const struct hw_fifo_info ai_fifo_60xx = {
       num_segments:4,
       max_segment_length:0x800,
       sample_packing_ratio:1,
@@ -2041,7 +2041,7 @@ static int ai_config_calibration_source(struct comedi_device * dev, unsigned int
 static int ai_config_block_size(struct comedi_device * dev, unsigned int * data)
 {
 	int fifo_size;
-	const hw_fifo_info_t *const fifo = board(dev)->ai_fifo;
+	const struct hw_fifo_info *const fifo = board(dev)->ai_fifo;
 	unsigned int block_size, requested_block_size;
 	int retval;
 
@@ -3929,7 +3929,7 @@ static int set_ai_fifo_size(struct comedi_device * dev, unsigned int num_samples
 {
 	unsigned int num_fifo_entries;
 	int retval;
-	const hw_fifo_info_t *const fifo = board(dev)->ai_fifo;
+	const struct hw_fifo_info *const fifo = board(dev)->ai_fifo;
 
 	num_fifo_entries = num_samples / fifo->sample_packing_ratio;
 
@@ -3957,7 +3957,7 @@ static int set_ai_fifo_segment_length(struct comedi_device * dev,
 	unsigned int num_entries)
 {
 	static const int increment_size = 0x100;
-	const hw_fifo_info_t *const fifo = board(dev)->ai_fifo;
+	const struct hw_fifo_info *const fifo = board(dev)->ai_fifo;
 	unsigned int num_increments;
 	uint16_t bits;
 
