@@ -193,18 +193,28 @@ lockd(void *vrqstp)
 	return 0;
 }
 
-static int create_lockd_listener(struct svc_serv *serv, char *name,
-				 unsigned short port)
+static int create_lockd_listener(struct svc_serv *serv, const char *name,
+				 const int family, const unsigned short port)
 {
 	struct svc_xprt *xprt;
 
-	xprt = svc_find_xprt(serv, name, 0, 0);
+	xprt = svc_find_xprt(serv, name, family, 0);
 	if (xprt == NULL)
-		return svc_create_xprt(serv, name, PF_INET,
-					port, SVC_SOCK_DEFAULTS);
-
+		return svc_create_xprt(serv, name, family, port,
+						SVC_SOCK_DEFAULTS);
 	svc_xprt_put(xprt);
 	return 0;
+}
+
+static int create_lockd_family(struct svc_serv *serv, const int family)
+{
+	int err;
+
+	err = create_lockd_listener(serv, "udp", family, nlm_udpport);
+	if (err < 0)
+		return err;
+
+	return create_lockd_listener(serv, "tcp", family, nlm_tcpport);
 }
 
 /*
@@ -222,13 +232,15 @@ static int make_socks(struct svc_serv *serv)
 	static int warned;
 	int err;
 
-	err = create_lockd_listener(serv, "udp", nlm_udpport);
+	err = create_lockd_family(serv, PF_INET);
 	if (err < 0)
 		goto out_err;
 
-	err = create_lockd_listener(serv, "tcp", nlm_tcpport);
-	if (err < 0)
+#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+	err = create_lockd_family(serv, PF_INET6);
+	if (err < 0 && err != -EAFNOSUPPORT)
 		goto out_err;
+#endif	/* CONFIG_IPV6 || CONFIG_IPV6_MODULE */
 
 	warned = 0;
 	return 0;
