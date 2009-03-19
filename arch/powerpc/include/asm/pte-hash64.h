@@ -41,6 +41,8 @@
 #define _PTEIDX_SECONDARY	0x8
 #define _PTEIDX_GROUP_IX	0x7
 
+/* Hash table based platforms need atomic updates of the linux PTE */
+#define PTE_ATOMIC_UPDATES	1
 
 #ifdef CONFIG_PPC_64K_PAGES
 #include <asm/pte-hash64-64k.h>

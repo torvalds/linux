@@ -178,6 +178,7 @@ static inline unsigned long pte_update(struct mm_struct *mm,
 				       pte_t *ptep, unsigned long clr,
 				       int huge)
 {
+#ifdef PTE_ATOMIC_UPDATES
 	unsigned long old, tmp;
 
 	__asm__ __volatile__(
@@ -190,7 +191,10 @@ static inline unsigned long pte_update(struct mm_struct *mm,
 	: "=&r" (old), "=&r" (tmp), "=m" (*ptep)
 	: "r" (ptep), "r" (clr), "m" (*ptep), "i" (_PAGE_BUSY)
 	: "cc" );
-
+#else
+	unsigned long old = pte_val(*ptep);
+	*ptep = __pte(old & ~clr);
+#endif
 	/* huge pages use the old page table lock */
 	if (!huge)
 		assert_pte_locked(mm, addr);
@@ -278,6 +282,8 @@ static inline void __ptep_set_access_flags(pte_t *ptep, pte_t entry)
 	unsigned long bits = pte_val(entry) &
 		(_PAGE_DIRTY | _PAGE_ACCESSED | _PAGE_RW |
 		 _PAGE_EXEC | _PAGE_HWEXEC);
+
+#ifdef PTE_ATOMIC_UPDATES
 	unsigned long old, tmp;
 
 	__asm__ __volatile__(
@@ -290,6 +296,10 @@ static inline void __ptep_set_access_flags(pte_t *ptep, pte_t entry)
 	:"=&r" (old), "=&r" (tmp), "=m" (*ptep)
 	:"r" (bits), "r" (ptep), "m" (*ptep), "i" (_PAGE_BUSY)
 	:"cc");
+#else
+	unsigned long old = pte_val(*ptep);
+	*ptep = __pte(old | bits);
+#endif
 }
 
 #define __HAVE_ARCH_PTE_SAME
