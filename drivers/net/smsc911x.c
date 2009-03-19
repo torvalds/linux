@@ -895,22 +895,22 @@ static void smsc911x_tx_update_txcounters(struct net_device *dev)
 			SMSC_WARNING(HW,
 				"Packet tag reserved bit is high");
 		} else {
-			if (unlikely(tx_stat & 0x00008000)) {
+			if (unlikely(tx_stat & TX_STS_ES_)) {
 				dev->stats.tx_errors++;
 			} else {
 				dev->stats.tx_packets++;
 				dev->stats.tx_bytes += (tx_stat >> 16);
 			}
-			if (unlikely(tx_stat & 0x00000100)) {
+			if (unlikely(tx_stat & TX_STS_EXCESS_COL_)) {
 				dev->stats.collisions += 16;
 				dev->stats.tx_aborted_errors += 1;
 			} else {
 				dev->stats.collisions +=
 				    ((tx_stat >> 3) & 0xF);
 			}
-			if (unlikely(tx_stat & 0x00000800))
+			if (unlikely(tx_stat & TX_STS_LOST_CARRIER_))
 				dev->stats.tx_carrier_errors += 1;
-			if (unlikely(tx_stat & 0x00000200)) {
+			if (unlikely(tx_stat & TX_STS_LATE_COL_)) {
 				dev->stats.collisions++;
 				dev->stats.tx_aborted_errors++;
 			}
@@ -924,19 +924,17 @@ smsc911x_rx_counterrors(struct net_device *dev, unsigned int rxstat)
 {
 	int crc_err = 0;
 
-	if (unlikely(rxstat & 0x00008000)) {
+	if (unlikely(rxstat & RX_STS_ES_)) {
 		dev->stats.rx_errors++;
-		if (unlikely(rxstat & 0x00000002)) {
+		if (unlikely(rxstat & RX_STS_CRC_ERR_)) {
 			dev->stats.rx_crc_errors++;
 			crc_err = 1;
 		}
 	}
 	if (likely(!crc_err)) {
-		if (unlikely((rxstat & 0x00001020) == 0x00001020)) {
-			/* Frame type indicates length,
-			 * and length error is set */
+		if (unlikely((rxstat & RX_STS_FRAME_TYPE_) &&
+			     (rxstat & RX_STS_LENGTH_ERR_)))
 			dev->stats.rx_length_errors++;
-		}
 		if (rxstat & RX_STS_MCAST_)
 			dev->stats.multicast++;
 	}
