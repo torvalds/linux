@@ -593,9 +593,21 @@ BEGIN_FTR_SECTION
 	rlwinm	r1,r1,0,~_PAGE_COHERENT	/* clear M (coherence not required) */
 END_FTR_SECTION_IFCLR(CPU_FTR_NEED_COHERENT)
 	mtspr	SPRN_RPA,r1
+	mfspr	r2,SPRN_SRR1		/* Need to restore CR0 */
+	mtcrf	0x80,r2
+BEGIN_MMU_FTR_SECTION
+	li	r0,1
+	mfspr	r1,SPRN_SPRG4
+	rlwinm	r2,r3,20,27,31		/* Get Address bits 15:19 */
+	slw	r0,r0,r2
+	xor	r1,r0,r1
+	srw	r0,r1,r2
+	mtspr   SPRN_SPRG4,r1
+	mfspr	r2,SPRN_SRR1
+	rlwimi	r2,r0,31-14,14,14
+	mtspr   SPRN_SRR1,r2
+END_MMU_FTR_SECTION_IFSET(MMU_FTR_NEED_DTLB_SW_LRU)
 	tlbld	r3
-	mfspr	r3,SPRN_SRR1		/* Need to restore CR0 */
-	mtcrf	0x80,r3
 	rfi
 DataAddressInvalid:
 	mfspr	r3,SPRN_SRR1
@@ -661,9 +673,21 @@ BEGIN_FTR_SECTION
 	rlwinm	r1,r1,0,~_PAGE_COHERENT	/* clear M (coherence not required) */
 END_FTR_SECTION_IFCLR(CPU_FTR_NEED_COHERENT)
 	mtspr	SPRN_RPA,r1
+	mfspr	r2,SPRN_SRR1		/* Need to restore CR0 */
+	mtcrf	0x80,r2
+BEGIN_MMU_FTR_SECTION
+	li	r0,1
+	mfspr	r1,SPRN_SPRG4
+	rlwinm	r2,r3,20,27,31		/* Get Address bits 15:19 */
+	slw	r0,r0,r2
+	xor	r1,r0,r1
+	srw	r0,r1,r2
+	mtspr   SPRN_SPRG4,r1
+	mfspr	r2,SPRN_SRR1
+	rlwimi	r2,r0,31-14,14,14
+	mtspr   SPRN_SRR1,r2
+END_MMU_FTR_SECTION_IFSET(MMU_FTR_NEED_DTLB_SW_LRU)
 	tlbld	r3
-	mfspr	r3,SPRN_SRR1		/* Need to restore CR0 */
-	mtcrf	0x80,r3
 	rfi
 
 #ifndef CONFIG_ALTIVEC

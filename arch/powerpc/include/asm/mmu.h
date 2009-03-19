@@ -46,6 +46,12 @@
  */
 #define MMU_FTR_LOCK_BCAST_INVAL	ASM_CONST(0x00100000)
 
+/* This indicates that the processor doesn't handle way selection
+ * properly and needs SW to track and update the LRU state.  This
+ * is specific to an errata on e300c2/c3/c4 class parts
+ */
+#define MMU_FTR_NEED_DTLB_SW_LRU	ASM_CONST(0x00200000)
+
 #ifndef __ASSEMBLY__
 #include <asm/cputable.h>
 
