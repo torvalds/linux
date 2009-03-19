@@ -531,8 +531,11 @@ static void check_unmap(struct dma_debug_entry *ref)
 	struct hash_bucket *bucket;
 	unsigned long flags;
 
-	if (dma_mapping_error(ref->dev, ref->dev_addr))
+	if (dma_mapping_error(ref->dev, ref->dev_addr)) {
+		err_printk(ref->dev, NULL, "DMA-API: device driver tries "
+			   "to free an invalid DMA memory address\n");
 		return;
+	}
 
 	bucket = get_hash_bucket(ref, &flags);
 	entry = hash_bucket_find(bucket, ref);
