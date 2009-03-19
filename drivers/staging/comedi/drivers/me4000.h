@@ -305,9 +305,9 @@ struct me4000_ai_info {
 	int ex_trig_analog;
 };
 
-typedef struct me4000_dio_info {
+struct me4000_dio_info {
 	int count;
-} me4000_dio_info_t;
+};
 
 typedef struct me4000_cnt_info {
 	int count;
@@ -318,7 +318,7 @@ typedef struct me4000_board {
 	unsigned short device_id;
 	struct me4000_ao_info ao;
 	struct me4000_ai_info ai;
-	me4000_dio_info_t dio;
+	struct me4000_dio_info dio;
 	me4000_cnt_info_t cnt;
 } me4000_board_t;
 
