@@ -92,7 +92,7 @@ static DEFINE_PCI_DEVICE_TABLE(me4000_pci_table) = {
 
 MODULE_DEVICE_TABLE(pci, me4000_pci_table);
 
-static const me4000_board_t me4000_boards[] = {
+static const struct me4000_board me4000_boards[] = {
 	{"ME-4650", 0x4650, {0, 0}, {16, 0, 0, 0}, {4}, {0}},
 
 	{"ME-4660", 0x4660, {0, 0}, {32, 0, 16, 0}, {4}, {3}},
@@ -113,7 +113,7 @@ static const me4000_board_t me4000_boards[] = {
 	{0},
 };
 
-#define ME4000_BOARD_VERSIONS (sizeof(me4000_boards) / sizeof(me4000_board_t) - 1)
+#define ME4000_BOARD_VERSIONS (sizeof(me4000_boards) / sizeof(struct me4000_board) - 1)
 
 /*-----------------------------------------------------------------------------
   Comedi function prototypes
@@ -373,7 +373,7 @@ static int me4000_probe(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	struct pci_dev *pci_device;
 	int result, i;
-	me4000_board_t *board;
+	struct me4000_board *board;
 
 	CALL_PDEBUG("In me4000_probe()\n");
 
@@ -405,7 +405,7 @@ static int me4000_probe(struct comedi_device *dev, struct comedi_devconfig *it)
 						}
 					}
 					dev->board_ptr = me4000_boards + i;
-					board = (me4000_board_t *) dev->
+					board = (struct me4000_board *) dev->
 						board_ptr;
 					info->pci_dev_p = pci_device;
 					goto found;

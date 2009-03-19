@@ -313,16 +313,16 @@ struct me4000_cnt_info {
 	int count;
 };
 
-typedef struct me4000_board {
+struct me4000_board {
 	const char *name;
 	unsigned short device_id;
 	struct me4000_ao_info ao;
 	struct me4000_ai_info ai;
 	struct me4000_dio_info dio;
 	struct me4000_cnt_info cnt;
-} me4000_board_t;
+};
 
-#define thisboard ((const me4000_board_t *)dev->board_ptr)
+#define thisboard ((const struct me4000_board *)dev->board_ptr)
 
 /*=============================================================================
   Global board and subdevice information structures
