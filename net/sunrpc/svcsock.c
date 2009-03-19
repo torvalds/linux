@@ -1144,13 +1144,11 @@ static struct svc_sock *svc_setup_socket(struct svc_serv *serv,
 		svc_tcp_init(svsk, serv);
 
 	/*
-	 * We start one listener per sv_serv.  We want AF_INET
-	 * requests to be automatically shunted to our PF_INET6
-	 * listener using a mapped IPv4 address.  Make sure
-	 * no-one starts an equivalent IPv4 listener, which
-	 * would steal our incoming connections.
+	 * If this is a PF_INET6 listener, we want to avoid
+	 * getting requests from IPv4 remotes.  Those should
+	 * be shunted to a PF_INET listener via rpcbind.
 	 */
-	val = 0;
+	val = 1;
 	if (inet->sk_family == PF_INET6)
 		kernel_setsockopt(sock, SOL_IPV6, IPV6_V6ONLY,
 					(char *)&val, sizeof(val));
