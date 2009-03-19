@@ -243,7 +243,7 @@ INT i_APCI1032_ReadMoreDigitalInput(struct comedi_device * dev, struct comedi_su
 |			                                                     |
 +----------------------------------------------------------------------------+
 */
-static VOID v_APCI1032_Interrupt(int irq, void *d)
+static void v_APCI1032_Interrupt(int irq, void *d)
 {
 	struct comedi_device *dev = d;
 

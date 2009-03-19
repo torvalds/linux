@@ -2576,7 +2576,7 @@ int i_APCI1500_ConfigureInterrupt(struct comedi_device * dev, struct comedi_subd
 |			                                                         |
 +----------------------------------------------------------------------------+
 */
-static VOID v_APCI1500_Interrupt(int irq, void *d)
+static void v_APCI1500_Interrupt(int irq, void *d)
 {
 
 	struct comedi_device *dev = d;

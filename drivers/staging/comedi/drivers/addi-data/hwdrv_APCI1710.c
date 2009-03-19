@@ -196,7 +196,7 @@ void i_ADDI_AttachPCI1710(struct comedi_device * dev)
 }
 
 int i_APCI1710_Reset(struct comedi_device * dev);
-VOID v_APCI1710_Interrupt(int irq, void *d);
+void v_APCI1710_Interrupt(int irq, void *d);
 //for 1710
 
 int i_APCI1710_Reset(struct comedi_device * dev)
@@ -233,7 +233,7 @@ int i_APCI1710_Reset(struct comedi_device * dev)
 
 /*
 +----------------------------------------------------------------------------+
-| Function's Name   : __VOID__ v_APCI1710_InterruptFunction                  |
+| Function's Name   : __void__ v_APCI1710_InterruptFunction                  |
 |				(BYTE b_Interrupt, __CPPARGS)                |
 +----------------------------------------------------------------------------+
 | Task              : APCI-1710 interrupt function                           |
@@ -247,7 +247,7 @@ int i_APCI1710_Reset(struct comedi_device * dev)
 +----------------------------------------------------------------------------+
 */
 
-VOID v_APCI1710_Interrupt(int irq, void *d)
+void v_APCI1710_Interrupt(int irq, void *d)
 {
 	struct comedi_device *dev = d;
 	BYTE b_ModuleCpt = 0;

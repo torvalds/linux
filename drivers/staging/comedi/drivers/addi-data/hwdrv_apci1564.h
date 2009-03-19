@@ -113,7 +113,7 @@ int i_APCI1564_ReadTimerCounterWatchdog(struct comedi_device *dev,
 					struct comedi_insn *insn, unsigned int *data);
 
 // INTERRUPT
-static VOID v_APCI1564_Interrupt(int irq, void *d);
+static void v_APCI1564_Interrupt(int irq, void *d);
 
 // RESET
 INT i_APCI1564_Reset(struct comedi_device *dev);

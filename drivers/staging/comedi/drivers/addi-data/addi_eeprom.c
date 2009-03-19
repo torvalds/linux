@@ -148,12 +148,12 @@ INT i_EepromReadAnlogInputHeader(WORD w_PCIBoardEepromAddress,
 		/******************************************/
 WORD w_EepromReadWord(WORD w_PCIBoardEepromAddress, PCHAR pc_PCIChipInformation,
 	WORD w_EepromStartAddress);
-VOID v_EepromWaitBusy(WORD w_PCIBoardEepromAddress);
-VOID v_EepromClock76(DWORD dw_Address, DWORD dw_RegisterValue);
-VOID v_EepromWaitBusy(WORD w_PCIBoardEepromAddress);
-VOID v_EepromSendCommand76(DWORD dw_Address, DWORD dw_EepromCommand,
+void v_EepromWaitBusy(WORD w_PCIBoardEepromAddress);
+void v_EepromClock76(DWORD dw_Address, DWORD dw_RegisterValue);
+void v_EepromWaitBusy(WORD w_PCIBoardEepromAddress);
+void v_EepromSendCommand76(DWORD dw_Address, DWORD dw_EepromCommand,
 	BYTE b_DataLengthInBits);
-VOID v_EepromCs76Read(DWORD dw_Address, WORD w_offset, PWORD pw_Value);
+void v_EepromCs76Read(DWORD dw_Address, WORD w_offset, PWORD pw_Value);
 
 /*
 +----------------------------------------------------------------------------+
@@ -357,7 +357,7 @@ WORD w_EepromReadWord(WORD w_PCIBoardEepromAddress, PCHAR pc_PCIChipInformation,
 
 +----------------------------------------------------------------------------+
 
-| Function   Name   : VOID v_EepromWaitBusy                                  |
+| Function   Name   : void v_EepromWaitBusy                                  |
 
 |			(WORD	w_PCIBoardEepromAddress)                    	 |
 
@@ -381,7 +381,7 @@ WORD w_EepromReadWord(WORD w_PCIBoardEepromAddress, PCHAR pc_PCIChipInformation,
 
 */
 
-VOID v_EepromWaitBusy(WORD w_PCIBoardEepromAddress)
+void v_EepromWaitBusy(WORD w_PCIBoardEepromAddress)
 {
 
 	BYTE b_EepromBusy = 0;
@@ -421,7 +421,7 @@ VOID v_EepromWaitBusy(WORD w_PCIBoardEepromAddress)
 
 +---------------------------------------------------------------------------------+
 
-| Function   Name   : VOID v_EepromClock76(DWORD dw_Address,                      |
+| Function   Name   : void v_EepromClock76(DWORD dw_Address,                      |
 
 |					   DWORD dw_RegisterValue)                 			  |
 
@@ -447,7 +447,7 @@ VOID v_EepromWaitBusy(WORD w_PCIBoardEepromAddress)
 
 */
 
-VOID v_EepromClock76(DWORD dw_Address, DWORD dw_RegisterValue)
+void v_EepromClock76(DWORD dw_Address, DWORD dw_RegisterValue)
 {
 
    /************************/
@@ -488,7 +488,7 @@ VOID v_EepromClock76(DWORD dw_Address, DWORD dw_RegisterValue)
 
 +---------------------------------------------------------------------------------+
 
-| Function   Name   : VOID v_EepromSendCommand76(DWORD dw_Address,                |
+| Function   Name   : void v_EepromSendCommand76(DWORD dw_Address,                |
 
 |					   DWORD   dw_EepromCommand,                		  |
 
@@ -518,7 +518,7 @@ VOID v_EepromClock76(DWORD dw_Address, DWORD dw_RegisterValue)
 
 */
 
-VOID v_EepromSendCommand76(DWORD dw_Address, DWORD dw_EepromCommand,
+void v_EepromSendCommand76(DWORD dw_Address, DWORD dw_EepromCommand,
 	BYTE b_DataLengthInBits)
 {
 
@@ -623,7 +623,7 @@ VOID v_EepromSendCommand76(DWORD dw_Address, DWORD dw_EepromCommand,
 
 +---------------------------------------------------------------------------------+
 
-| Function   Name   : VOID v_EepromCs76Read(DWORD dw_Address,                     |
+| Function   Name   : void v_EepromCs76Read(DWORD dw_Address,                     |
 
 |					   WORD    w_offset,                      			  |
 
@@ -653,7 +653,7 @@ VOID v_EepromSendCommand76(DWORD dw_Address, DWORD dw_EepromCommand,
 
 */
 
-VOID v_EepromCs76Read(DWORD dw_Address, WORD w_offset, PWORD pw_Value)
+void v_EepromCs76Read(DWORD dw_Address, WORD w_offset, PWORD pw_Value)
 {
 
 	CHAR c_BitPos = 0;

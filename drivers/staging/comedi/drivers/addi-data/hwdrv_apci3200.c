@@ -247,7 +247,7 @@ INT i_AddiHeaderRW_ReadEeprom(INT i_NbOfWordsToRead,
 }
 
 /*+----------------------------------------------------------------------------+*/
-/*| Function   Name   : VOID v_GetAPCI3200EepromCalibrationValue (VOID)        |*/
+/*| Function   Name   : void v_GetAPCI3200EepromCalibrationValue (void)        |*/
 /*+----------------------------------------------------------------------------+*/
 /*| Task              : Read calibration value from the APCI-3200 eeprom.      |*/
 /*+----------------------------------------------------------------------------+*/
@@ -258,7 +258,7 @@ INT i_AddiHeaderRW_ReadEeprom(INT i_NbOfWordsToRead,
 /*| Return Value      : -                                                      |*/
 /*+----------------------------------------------------------------------------+*/
 
-VOID v_GetAPCI3200EepromCalibrationValue(DWORD dw_PCIBoardEepromAddress,
+void v_GetAPCI3200EepromCalibrationValue(DWORD dw_PCIBoardEepromAddress,
 	str_BoardInfos * BoardInformations)
 {
 	WORD w_AnalogInputMainHeaderAddress;

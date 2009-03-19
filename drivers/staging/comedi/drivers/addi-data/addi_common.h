@@ -37,7 +37,6 @@
 #define SUCCESS	1
 
 /* variable type definition */
-typedef void VOID, *PVOID;
 typedef char CHAR, *PCHAR;
 typedef const CHAR *PCSTR;
 typedef unsigned char BYTE, *PBYTE;

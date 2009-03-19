@@ -58,6 +58,6 @@ INT i_APCI1032_ReadMoreDigitalInput(struct comedi_device *dev, struct comedi_sub
 
 // Interrupt functions.....
 
-static VOID v_APCI1032_Interrupt(int irq, void *d);
+static void v_APCI1032_Interrupt(int irq, void *d);
 //Reset
 INT i_APCI1032_Reset(struct comedi_device *dev);

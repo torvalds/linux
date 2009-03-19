@@ -916,7 +916,7 @@ int i_APCI1564_ReadInterruptStatus(struct comedi_device * dev, struct comedi_sub
 |			                                                         |
 +----------------------------------------------------------------------------+
 */
-static VOID v_APCI1564_Interrupt(int irq, void *d)
+static void v_APCI1564_Interrupt(int irq, void *d)
 {
 	struct comedi_device *dev = d;
 	UINT ui_DO, ui_DI;
