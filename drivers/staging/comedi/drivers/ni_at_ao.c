@@ -151,11 +151,12 @@ Configuration options:
  * boards in this way is optional, and completely driver-dependent.
  * Some drivers use arrays such as this, other do not.
  */
-typedef struct atao_board_struct {
+struct atao_board {
 	const char *name;
 	int n_ao_chans;
-} atao_board;
-static const atao_board atao_boards[] = {
+};
+
+static const struct atao_board atao_boards[] = {
 	{
 	      name:	"ai-ao-6",
 	      n_ao_chans:6,
@@ -166,7 +167,7 @@ static const atao_board atao_boards[] = {
 		},
 };
 
-#define thisboard ((atao_board *)dev->board_ptr)
+#define thisboard ((struct atao_board *)dev->board_ptr)
 
 struct atao_private {
 
@@ -188,8 +189,8 @@ static struct comedi_driver driver_atao = {
       attach:atao_attach,
       detach:atao_detach,
       board_name:&atao_boards[0].name,
-      offset:sizeof(atao_board),
-      num_names:sizeof(atao_boards) / sizeof(atao_board),
+      offset:sizeof(struct atao_board),
+      num_names:sizeof(atao_boards) / sizeof(struct atao_board),
 };
 
 COMEDI_INITCLEANUP(driver_atao);
