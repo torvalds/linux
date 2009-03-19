@@ -50,7 +50,7 @@ resource_size_t isa_mem_base;
 unsigned int ppc_pci_flags = 0;
 
 
-static struct dma_mapping_ops *pci_dma_ops;
+static struct dma_mapping_ops *pci_dma_ops = &dma_direct_ops;
 
 void set_pci_dma_ops(struct dma_mapping_ops *dma_ops)
 {
