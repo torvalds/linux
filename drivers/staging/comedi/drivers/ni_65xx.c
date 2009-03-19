@@ -282,14 +282,15 @@ static DEFINE_PCI_DEVICE_TABLE(ni_65xx_pci_table) = {
 
 MODULE_DEVICE_TABLE(pci, ni_65xx_pci_table);
 
-typedef struct {
+struct ni_65xx_private {
 	struct mite_struct *mite;
 	unsigned int filter_interval;
 	unsigned short filter_enable[NI_65XX_MAX_NUM_PORTS];
 	unsigned short output_bits[NI_65XX_MAX_NUM_PORTS];
 	unsigned short dio_direction[NI_65XX_MAX_NUM_PORTS];
-} ni_65xx_private;
-static inline ni_65xx_private *private(struct comedi_device * dev)
+};
+
+static inline struct ni_65xx_private *private(struct comedi_device * dev)
 {
 	return dev->private;
 }
@@ -625,7 +626,7 @@ static int ni_65xx_attach(struct comedi_device * dev, struct comedi_devconfig * 
 
 	printk("comedi%d: ni_65xx:", dev->minor);
 
-	if ((ret = alloc_private(dev, sizeof(ni_65xx_private))) < 0)
+	if ((ret = alloc_private(dev, sizeof(struct ni_65xx_private))) < 0)
 		return ret;
 
 	ret = ni_65xx_find_device(dev, it->options[0], it->options[1]);
