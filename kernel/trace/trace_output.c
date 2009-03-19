@@ -481,6 +481,11 @@ int register_ftrace_event(struct trace_event *event)
 
 	mutex_lock(&trace_event_mutex);
 
+	if (!event) {
+		ret = next_event_type++;
+		goto out;
+	}
+
 	if (!event->type)
 		event->type = next_event_type++;
 	else if (event->type > __TRACE_LAST_TYPE) {

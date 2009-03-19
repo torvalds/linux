@@ -130,7 +130,19 @@ static void ftrace_unreg_event_##call(void)				\
 {									\
 	unregister_trace_##call(ftrace_event_##call);			\
 }									\
-
+									\
+static struct ftrace_event_call event_##call;				\
+									\
+static int ftrace_init_event_##call(void)				\
+{									\
+	int id;								\
+									\
+	id = register_ftrace_event(NULL);				\
+	if (!id)							\
+		return -ENODEV;						\
+	event_##call.id = id;						\
+	return 0;							\
+}
 
 #undef TRACE_FORMAT
 #define TRACE_FORMAT(call, proto, args, fmt)				\
@@ -140,6 +152,7 @@ __attribute__((__aligned__(4)))						\
 __attribute__((section("_ftrace_events"))) event_##call = {		\
 	.name			= #call,				\
 	.system			= __stringify(TRACE_SYSTEM),		\
+	.raw_init		= ftrace_init_event_##call,		\
 	.regfunc		= ftrace_reg_event_##call,		\
 	.unregfunc		= ftrace_unreg_event_##call,		\
 }
