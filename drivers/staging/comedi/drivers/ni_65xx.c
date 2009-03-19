@@ -295,17 +295,18 @@ static inline struct ni_65xx_private *private(struct comedi_device * dev)
 	return dev->private;
 }
 
-typedef struct {
+struct ni_65xx_subdevice_private {
 	unsigned base_port;
-} ni_65xx_subdevice_private;
-static inline ni_65xx_subdevice_private *sprivate(struct comedi_subdevice * subdev)
+};
+
+static inline struct ni_65xx_subdevice_private *sprivate(struct comedi_subdevice * subdev)
 {
 	return subdev->private;
 }
-static ni_65xx_subdevice_private *ni_65xx_alloc_subdevice_private(void)
+static struct ni_65xx_subdevice_private *ni_65xx_alloc_subdevice_private(void)
 {
-	ni_65xx_subdevice_private *subdev_private =
-		kzalloc(sizeof(ni_65xx_subdevice_private), GFP_KERNEL);
+	struct ni_65xx_subdevice_private *subdev_private =
+		kzalloc(sizeof(struct ni_65xx_subdevice_private), GFP_KERNEL);
 	if (subdev_private == NULL)
 		return NULL;
 	return subdev_private;
