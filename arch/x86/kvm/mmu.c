@@ -2638,14 +2638,6 @@ EXPORT_SYMBOL_GPL(kvm_disable_tdp);
 
 static void free_mmu_pages(struct kvm_vcpu *vcpu)
 {
-	struct kvm_mmu_page *sp;
-
-	while (!list_empty(&vcpu->kvm->arch.active_mmu_pages)) {
-		sp = container_of(vcpu->kvm->arch.active_mmu_pages.next,
-				  struct kvm_mmu_page, link);
-		kvm_mmu_zap_page(vcpu->kvm, sp);
-		cond_resched();
-	}
 	free_page((unsigned long)vcpu->arch.mmu.pae_root);
 }
 
