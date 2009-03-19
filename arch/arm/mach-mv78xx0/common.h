@@ -29,6 +29,8 @@ void mv78xx0_setup_pcie_io_win(int window, u32 base, u32 size,
 void mv78xx0_setup_pcie_mem_win(int window, u32 base, u32 size,
 				int maj, int min);
 
+void mv78xx0_pcie_id(u32 *dev, u32 *rev);
+
 void mv78xx0_ehci0_init(void);
 void mv78xx0_ehci1_init(void);
 void mv78xx0_ehci2_init(void);
@@ -42,6 +44,7 @@ void mv78xx0_uart0_init(void);
 void mv78xx0_uart1_init(void);
 void mv78xx0_uart2_init(void);
 void mv78xx0_uart3_init(void);
+void mv78xx0_i2c_init(void);
 
 extern struct sys_timer mv78xx0_timer;
 

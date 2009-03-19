@@ -22,7 +22,7 @@
  * instruction.  If your processor does not supply this, you have to write your
  * own copy_user_highpage that does the right thing.
  */
-static void __attribute__((naked))
+static void __naked
 v4wb_copy_user_page(void *kto, const void *kfrom)
 {
 	asm("\

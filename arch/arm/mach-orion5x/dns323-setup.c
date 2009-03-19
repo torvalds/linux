@@ -76,7 +76,7 @@ static int __init dns323_dev_id(void)
 
 static int __init dns323_pci_init(void)
 {
-	/* The 5182 doesn't really use it's PCI bus, and initialising PCI
+	/* The 5182 doesn't really use its PCI bus, and initialising PCI
 	 * gets in the way of initialising the SATA controller.
 	 */
 	if (machine_is_dns323() && dns323_dev_id() != MV88F5182_DEV_ID)
@@ -418,7 +418,7 @@ static void __init dns323_init(void)
 	orion5x_i2c_init();
 	orion5x_uart0_init();
 
-	/* The 5182 has it's SATA controller on-chip, and needs it's own little
+	/* The 5182 has its SATA controller on-chip, and needs its own little
 	 * init routine.
 	 */
 	if (dns323_dev_id() == MV88F5182_DEV_ID)

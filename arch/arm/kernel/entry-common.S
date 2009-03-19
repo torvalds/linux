@@ -115,6 +115,7 @@ ENTRY(mcount)
 	.globl mcount_call
 mcount_call:
 	bl ftrace_stub
+	ldr lr, [fp, #-4]			@ restore lr
 	ldmia sp!, {r0-r3, pc}
 
 ENTRY(ftrace_caller)
@@ -126,6 +127,7 @@ ENTRY(ftrace_caller)
 	.globl ftrace_call
 ftrace_call:
 	bl ftrace_stub
+	ldr lr, [fp, #-4]			@ restore lr
 	ldmia sp!, {r0-r3, pc}
 
 #else
@@ -137,6 +139,7 @@ ENTRY(mcount)
 	adr r0, ftrace_stub
 	cmp r0, r2
 	bne trace
+	ldr lr, [fp, #-4]			@ restore lr
 	ldmia sp!, {r0-r3, pc}
 
 trace:
@@ -145,6 +148,7 @@ trace:
 	sub r0, r0, #MCOUNT_INSN_SIZE
 	mov lr, pc
 	mov pc, r2
+	mov lr, r1				@ restore lr
 	ldmia sp!, {r0-r3, pc}
 
 #endif /* CONFIG_DYNAMIC_FTRACE */
