@@ -1033,7 +1033,13 @@ static struct svc_deferred_req *svc_deferred_dequeue(struct svc_xprt *xprt)
 	return dr;
 }
 
-/*
+/**
+ * svc_find_xprt - find an RPC transport instance
+ * @serv: pointer to svc_serv to search
+ * @xcl_name: C string containing transport's class name
+ * @af: Address family of transport's local address
+ * @port: transport's IP port number
+ *
  * Return the transport instance pointer for the endpoint accepting
  * connections/peer traffic from the specified transport class,
  * address family and port.
@@ -1042,14 +1048,14 @@ static struct svc_deferred_req *svc_deferred_dequeue(struct svc_xprt *xprt)
  * wild-card, and will result in matching the first transport in the
  * service's list that has a matching class name.
  */
-struct svc_xprt *svc_find_xprt(struct svc_serv *serv, char *xcl_name,
-			       int af, int port)
+struct svc_xprt *svc_find_xprt(struct svc_serv *serv, const char *xcl_name,
+			       const sa_family_t af, const unsigned short port)
 {
 	struct svc_xprt *xprt;
 	struct svc_xprt *found = NULL;
 
 	/* Sanity check the args */
-	if (!serv || !xcl_name)
+	if (serv == NULL || xcl_name == NULL)
 		return found;
 
 	spin_lock_bh(&serv->sv_lock);
@@ -1058,7 +1064,7 @@ struct svc_xprt *svc_find_xprt(struct svc_serv *serv, char *xcl_name,
 			continue;
 		if (af != AF_UNSPEC && af != xprt->xpt_local.ss_family)
 			continue;
-		if (port && port != svc_xprt_local_port(xprt))
+		if (port != 0 && port != svc_xprt_local_port(xprt))
 			continue;
 		found = xprt;
 		svc_xprt_get(xprt);

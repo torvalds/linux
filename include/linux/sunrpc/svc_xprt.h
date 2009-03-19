@@ -80,7 +80,8 @@ void	svc_close_xprt(struct svc_xprt *xprt);
 void	svc_delete_xprt(struct svc_xprt *xprt);
 int	svc_port_is_privileged(struct sockaddr *sin);
 int	svc_print_xprts(char *buf, int maxlen);
-struct	svc_xprt *svc_find_xprt(struct svc_serv *, char *, int, int);
+struct	svc_xprt *svc_find_xprt(struct svc_serv *serv, const char *xcl_name,
+			const sa_family_t af, const unsigned short port);
 int	svc_xprt_names(struct svc_serv *serv, char *buf, int buflen);
 
 static inline void svc_xprt_get(struct svc_xprt *xprt)
