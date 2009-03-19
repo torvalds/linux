@@ -62,6 +62,10 @@ static inline int mmu_has_feature(unsigned long feature)
 
 extern unsigned int __start___mmu_ftr_fixup, __stop___mmu_ftr_fixup;
 
+/* MMU initialization (64-bit only fo now) */
+extern void early_init_mmu(void);
+extern void early_init_mmu_secondary(void);
+
 #endif /* !__ASSEMBLY__ */
 
 

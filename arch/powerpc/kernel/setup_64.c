@@ -202,8 +202,6 @@ void __init early_setup(unsigned long dt_ptr)
 
 	/* Fix up paca fields required for the boot cpu */
 	get_paca()->cpu_start = 1;
-	get_paca()->stab_real = __pa((u64)&initial_stab);
-	get_paca()->stab_addr = (u64)&initial_stab;
 
 	/* Probe the machine type */
 	probe_machine();
@@ -212,20 +210,8 @@ void __init early_setup(unsigned long dt_ptr)
 
 	DBG("Found, Initializing memory management...\n");
 
-	/*
-	 * Initialize the MMU Hash table and create the linear mapping
-	 * of memory. Has to be done before stab/slb initialization as
-	 * this is currently where the page size encoding is obtained
-	 */
-	htab_initialize();
-
-	/*
-	 * Initialize stab / SLB management except on iSeries
-	 */
-	if (cpu_has_feature(CPU_FTR_SLB))
-		slb_initialize();
-	else if (!firmware_has_feature(FW_FEATURE_ISERIES))
-		stab_initialize(get_paca()->stab_real);
+	/* Initialize the hash table or TLB handling */
+	early_init_mmu();
 
 	DBG(" <- early_setup()\n");
 }
@@ -233,22 +219,11 @@ void __init early_setup(unsigned long dt_ptr)
 #ifdef CONFIG_SMP
 void early_setup_secondary(void)
 {
-	struct paca_struct *lpaca = get_paca();
-
 	/* Mark interrupts enabled in PACA */
-	lpaca->soft_enabled = 0;
+	get_paca()->soft_enabled = 0;
 
-	/* Initialize hash table for that CPU */
-	htab_initialize_secondary();
-
-	/* Initialize STAB/SLB. We use a virtual address as it works
-	 * in real mode on pSeries and we want a virutal address on
-	 * iSeries anyway
-	 */
-	if (cpu_has_feature(CPU_FTR_SLB))
-		slb_initialize();
-	else
-		stab_initialize(lpaca->stab_addr);
+	/* Initialize the hash table or TLB handling */
+	early_init_mmu_secondary();
 }
 
 #endif /* CONFIG_SMP */

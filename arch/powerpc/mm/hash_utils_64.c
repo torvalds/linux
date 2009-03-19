@@ -590,7 +590,7 @@ static void __init htab_finish_init(void)
 	make_bl(htab_call_hpte_updatepp, ppc_md.hpte_updatepp);
 }
 
-void __init htab_initialize(void)
+static void __init htab_initialize(void)
 {
 	unsigned long table;
 	unsigned long pteg_count;
@@ -732,11 +732,43 @@ void __init htab_initialize(void)
 #undef KB
 #undef MB
 
-void htab_initialize_secondary(void)
+void __init early_init_mmu(void)
 {
+	/* Setup initial STAB address in the PACA */
+	get_paca()->stab_real = __pa((u64)&initial_stab);
+	get_paca()->stab_addr = (u64)&initial_stab;
+
+	/* Initialize the MMU Hash table and create the linear mapping
+	 * of memory. Has to be done before stab/slb initialization as
+	 * this is currently where the page size encoding is obtained
+	 */
+	htab_initialize();
+
+	/* Initialize stab / SLB management except on iSeries
+	 */
+	if (cpu_has_feature(CPU_FTR_SLB))
+		slb_initialize();
+	else if (!firmware_has_feature(FW_FEATURE_ISERIES))
+		stab_initialize(get_paca()->stab_real);
+}
+
+#ifdef CONFIG_SMP
+void __init early_init_mmu_secondary(void)
+{
+	/* Initialize hash table for that CPU */
 	if (!firmware_has_feature(FW_FEATURE_LPAR))
 		mtspr(SPRN_SDR1, _SDR1);
+
+	/* Initialize STAB/SLB. We use a virtual address as it works
+	 * in real mode on pSeries and we want a virutal address on
+	 * iSeries anyway
+	 */
+	if (cpu_has_feature(CPU_FTR_SLB))
+		slb_initialize();
+	else
+		stab_initialize(get_paca()->stab_addr);
 }
+#endif /* CONFIG_SMP */
 
 /*
  * Called by asm hashtable.S for doing lazy icache flush

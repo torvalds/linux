@@ -284,8 +284,6 @@ extern void add_gpage(unsigned long addr, unsigned long page_size,
 			  unsigned long number_of_pages);
 extern void demote_segment_4k(struct mm_struct *mm, unsigned long addr);
 
-extern void htab_initialize(void);
-extern void htab_initialize_secondary(void);
 extern void hpte_init_native(void);
 extern void hpte_init_lpar(void);
 extern void hpte_init_iSeries(void);
