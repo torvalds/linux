@@ -293,10 +293,10 @@
   Information about the hardware capabilities
   ===========================================================================*/
 
-typedef struct me4000_ao_info {
+struct me4000_ao_info {
 	int count;
 	int fifo_count;
-} me4000_ao_info_t;
+};
 
 typedef struct me4000_ai_info {
 	int count;
@@ -316,7 +316,7 @@ typedef struct me4000_cnt_info {
 typedef struct me4000_board {
 	const char *name;
 	unsigned short device_id;
-	me4000_ao_info_t ao;
+	struct me4000_ao_info ao;
 	me4000_ai_info_t ai;
 	me4000_dio_info_t dio;
 	me4000_cnt_info_t cnt;
