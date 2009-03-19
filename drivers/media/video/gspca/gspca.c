@@ -474,14 +474,14 @@ static struct usb_host_endpoint *get_ep(struct gspca_dev *gspca_dev)
 	i = gspca_dev->alt;			/* previous alt setting */
 
 	/* try isoc */
-	while (--i > 0) {			/* alt 0 is unusable */
+	while (--i >= 0) {
 		ep = alt_xfer(&intf->altsetting[i],
 				USB_ENDPOINT_XFER_ISOC);
 		if (ep)
 			break;
 	}
 
-	/* if no isoc, try bulk */
+	/* if no isoc, try bulk (alt 0 only) */
 	if (ep == NULL) {
 		ep = alt_xfer(&intf->altsetting[0],
 				USB_ENDPOINT_XFER_BULK);
@@ -489,6 +489,8 @@ static struct usb_host_endpoint *get_ep(struct gspca_dev *gspca_dev)
 			err("no transfer endpoint found");
 			return NULL;
 		}
+		i = 0;
+		gspca_dev->bulk = 1;
 	}
 	PDEBUG(D_STREAM, "use alt %d ep 0x%02x",
 			i, ep->desc.bEndpointAddress);
@@ -515,7 +517,7 @@ static int create_urbs(struct gspca_dev *gspca_dev,
 	/* calculate the packet size and the number of packets */
 	psize = le16_to_cpu(ep->desc.wMaxPacketSize);
 
-	if (gspca_dev->alt != 0) {		/* isoc */
+	if (!gspca_dev->bulk) {			/* isoc */
 
 		/* See paragraph 5.9 / table 5-11 of the usb 2.0 spec. */
 		psize = (psize & 0x07ff) * (1 + ((psize >> 11) & 3));
@@ -615,7 +617,7 @@ static int gspca_init_transfer(struct gspca_dev *gspca_dev)
 			goto out;
 
 		/* clear the bulk endpoint */
-		if (gspca_dev->alt == 0)	/* if bulk transfer */
+		if (gspca_dev->bulk)
 			usb_clear_halt(gspca_dev->dev,
 					gspca_dev->urb[0]->pipe);
 
@@ -628,7 +630,7 @@ static int gspca_init_transfer(struct gspca_dev *gspca_dev)
 		gspca_dev->streaming = 1;
 
 		/* some bulk transfers are started by the subdriver */
-		if (gspca_dev->alt == 0 && gspca_dev->cam.bulk_nurbs == 0)
+		if (gspca_dev->bulk && gspca_dev->cam.bulk_nurbs == 0)
 			break;
 
 		/* submit the URBs */

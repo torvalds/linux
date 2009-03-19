@@ -167,6 +167,7 @@ struct gspca_dev {
 	__u8 iface;			/* USB interface number */
 	__u8 alt;			/* USB alternate setting */
 	__u8 nbalt;			/* number of USB alternate settings */
+	u8 bulk;			/* image transfer by 0:isoc / 1:bulk */
 };
 
 int gspca_dev_probe(struct usb_interface *intf,
