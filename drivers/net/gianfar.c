@@ -365,8 +365,10 @@ static int gfar_probe(struct of_device *ofdev,
 		return -ENOMEM;
 
 	priv = netdev_priv(dev);
-	priv->dev = dev;
+	priv->ndev = dev;
+	priv->ofdev = ofdev;
 	priv->node = ofdev->node;
+	SET_NETDEV_DEV(dev, &ofdev->dev);
 
 	err = gfar_of_init(dev);
 
@@ -538,7 +540,7 @@ static int gfar_remove(struct of_device *ofdev)
 	dev_set_drvdata(&ofdev->dev, NULL);
 
 	iounmap(priv->regs);
-	free_netdev(priv->dev);
+	free_netdev(priv->ndev);
 
 	return 0;
 }
@@ -870,7 +872,7 @@ void stop_gfar(struct net_device *dev)
 
 	free_skb_resources(priv);
 
-	dma_free_coherent(&dev->dev,
+	dma_free_coherent(&priv->ofdev->dev,
 			sizeof(struct txbd8)*priv->tx_ring_size
 			+ sizeof(struct rxbd8)*priv->rx_ring_size,
 			priv->tx_bd_base,
@@ -892,12 +894,12 @@ static void free_skb_resources(struct gfar_private *priv)
 		if (!priv->tx_skbuff[i])
 			continue;
 
-		dma_unmap_single(&priv->dev->dev, txbdp->bufPtr,
+		dma_unmap_single(&priv->ofdev->dev, txbdp->bufPtr,
 				txbdp->length, DMA_TO_DEVICE);
 		txbdp->lstatus = 0;
 		for (j = 0; j < skb_shinfo(priv->tx_skbuff[i])->nr_frags; j++) {
 			txbdp++;
-			dma_unmap_page(&priv->dev->dev, txbdp->bufPtr,
+			dma_unmap_page(&priv->ofdev->dev, txbdp->bufPtr,
 					txbdp->length, DMA_TO_DEVICE);
 		}
 		txbdp++;
@@ -914,7 +916,7 @@ static void free_skb_resources(struct gfar_private *priv)
 	if(priv->rx_skbuff != NULL) {
 		for (i = 0; i < priv->rx_ring_size; i++) {
 			if (priv->rx_skbuff[i]) {
-				dma_unmap_single(&priv->dev->dev, rxbdp->bufPtr,
+				dma_unmap_single(&priv->ofdev->dev, rxbdp->bufPtr,
 						priv->rx_buffer_size,
 						DMA_FROM_DEVICE);
 
@@ -980,7 +982,7 @@ int startup_gfar(struct net_device *dev)
 	gfar_write(&regs->imask, IMASK_INIT_CLEAR);
 
 	/* Allocate memory for the buffer descriptors */
-	vaddr = (unsigned long) dma_alloc_coherent(&dev->dev,
+	vaddr = (unsigned long) dma_alloc_coherent(&priv->ofdev->dev,
 			sizeof (struct txbd8) * priv->tx_ring_size +
 			sizeof (struct rxbd8) * priv->rx_ring_size,
 			&addr, GFP_KERNEL);
@@ -1192,7 +1194,7 @@ err_rxalloc_fail:
 rx_skb_fail:
 	free_skb_resources(priv);
 tx_skb_fail:
-	dma_free_coherent(&dev->dev,
+	dma_free_coherent(&priv->ofdev->dev,
 			sizeof(struct txbd8)*priv->tx_ring_size
 			+ sizeof(struct rxbd8)*priv->rx_ring_size,
 			priv->tx_bd_base,
@@ -1345,7 +1347,7 @@ static int gfar_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			if (i == nr_frags - 1)
 				lstatus |= BD_LFLAG(TXBD_LAST | TXBD_INTERRUPT);
 
-			bufaddr = dma_map_page(&dev->dev,
+			bufaddr = dma_map_page(&priv->ofdev->dev,
 					skb_shinfo(skb)->frags[i].page,
 					skb_shinfo(skb)->frags[i].page_offset,
 					length,
@@ -1377,7 +1379,7 @@ static int gfar_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	/* setup the TxBD length and buffer pointer for the first BD */
 	priv->tx_skbuff[priv->skb_curtx] = skb;
-	txbdp_start->bufPtr = dma_map_single(&dev->dev, skb->data,
+	txbdp_start->bufPtr = dma_map_single(&priv->ofdev->dev, skb->data,
 			skb_headlen(skb), DMA_TO_DEVICE);
 
 	lstatus |= BD_LFLAG(TXBD_CRC | TXBD_READY) | skb_headlen(skb);
@@ -1563,7 +1565,7 @@ static void gfar_reset_task(struct work_struct *work)
 {
 	struct gfar_private *priv = container_of(work, struct gfar_private,
 			reset_task);
-	struct net_device *dev = priv->dev;
+	struct net_device *dev = priv->ndev;
 
 	if (dev->flags & IFF_UP) {
 		stop_gfar(dev);
@@ -1610,7 +1612,7 @@ static int gfar_clean_tx_ring(struct net_device *dev)
 				(lstatus & BD_LENGTH_MASK))
 			break;
 
-		dma_unmap_single(&dev->dev,
+		dma_unmap_single(&priv->ofdev->dev,
 				bdp->bufPtr,
 				bdp->length,
 				DMA_TO_DEVICE);
@@ -1619,7 +1621,7 @@ static int gfar_clean_tx_ring(struct net_device *dev)
 		bdp = next_txbd(bdp, base, tx_ring_size);
 
 		for (i = 0; i < frags; i++) {
-			dma_unmap_page(&dev->dev,
+			dma_unmap_page(&priv->ofdev->dev,
 					bdp->bufPtr,
 					bdp->length,
 					DMA_TO_DEVICE);
@@ -1696,7 +1698,7 @@ static void gfar_new_rxbdp(struct net_device *dev, struct rxbd8 *bdp,
 	struct gfar_private *priv = netdev_priv(dev);
 	u32 lstatus;
 
-	bdp->bufPtr = dma_map_single(&dev->dev, skb->data,
+	bdp->bufPtr = dma_map_single(&priv->ofdev->dev, skb->data,
 			priv->rx_buffer_size, DMA_FROM_DEVICE);
 
 	lstatus = BD_LFLAG(RXBD_EMPTY | RXBD_INTERRUPT);
@@ -1856,7 +1858,7 @@ int gfar_clean_rx_ring(struct net_device *dev, int rx_work_limit)
 
 		skb = priv->rx_skbuff[priv->skb_currx];
 
-		dma_unmap_single(&priv->dev->dev, bdp->bufPtr,
+		dma_unmap_single(&priv->ofdev->dev, bdp->bufPtr,
 				priv->rx_buffer_size, DMA_FROM_DEVICE);
 
 		/* We drop the frame if we failed to allocate a new buffer */
@@ -1916,7 +1918,7 @@ int gfar_clean_rx_ring(struct net_device *dev, int rx_work_limit)
 static int gfar_poll(struct napi_struct *napi, int budget)
 {
 	struct gfar_private *priv = container_of(napi, struct gfar_private, napi);
-	struct net_device *dev = priv->dev;
+	struct net_device *dev = priv->ndev;
 	int tx_cleaned = 0;
 	int rx_cleaned = 0;
 	unsigned long flags;
