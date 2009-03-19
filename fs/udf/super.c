@@ -289,14 +289,8 @@ static int udf_show_options(struct seq_file *seq, struct vfsmount *mnt)
 		seq_printf(seq, ",session=%u", sbi->s_session);
 	if (UDF_QUERY_FLAG(sb, UDF_FLAG_LASTBLOCK_SET))
 		seq_printf(seq, ",lastblock=%u", sbi->s_last_block);
-	/*
-	 * s_anchor[2] could be zeroed out in case there is no anchor
-	 * in the specified block, but then the "anchor=N" option
-	 * originally given by the user wasn't effective, so it's OK
-	 * if we don't show it.
-	 */
-	if (sbi->s_anchor[2] != 0)
-		seq_printf(seq, ",anchor=%u", sbi->s_anchor[2]);
+	if (sbi->s_anchor != 0)
+		seq_printf(seq, ",anchor=%u", sbi->s_anchor);
 	/*
 	 * volume, partition, fileset and rootdir seem to be ignored
 	 * currently
@@ -608,22 +602,19 @@ static int udf_remount_fs(struct super_block *sb, int *flags, char *options)
 	return 0;
 }
 
-static loff_t udf_vrs(struct super_block *sb, int silent)
+/* Check Volume Structure Descriptors (ECMA 167 2/9.1) */
+/* We also check any "CD-ROM Volume Descriptor Set" (ECMA 167 2/8.3.1) */
+static loff_t udf_check_vsd(struct super_block *sb)
 {
 	struct volStructDesc *vsd = NULL;
 	loff_t sector = 32768;
 	int sectorsize;
 	struct buffer_head *bh = NULL;
-	int iso9660 = 0;
 	int nsr02 = 0;
 	int nsr03 = 0;
 	struct udf_sb_info *sbi;
 
-	/* Block size must be a multiple of 512 */
-	if (sb->s_blocksize & 511)
-		return 0;
 	sbi = UDF_SB(sb);
-
 	if (sb->s_blocksize < sizeof(struct volStructDesc))
 		sectorsize = sizeof(struct volStructDesc);
 	else
@@ -650,7 +641,6 @@ static loff_t udf_vrs(struct super_block *sb, int silent)
 			break;
 		} else if (!strncmp(vsd->stdIdent, VSD_STD_ID_CD001,
 				    VSD_STD_ID_LEN)) {
-			iso9660 = sector;
 			switch (vsd->structType) {
 			case 0:
 				udf_debug("ISO9660 Boot Record found\n");
@@ -700,143 +690,6 @@ static loff_t udf_vrs(struct super_block *sb, int silent)
 		return -1;
 	else
 		return 0;
-}
-
-/*
- * Check whether there is an anchor block in the given block
- */
-static int udf_check_anchor_block(struct super_block *sb, sector_t block)
-{
-	struct buffer_head *bh;
-	uint16_t ident;
-
-	if (UDF_QUERY_FLAG(sb, UDF_FLAG_VARCONV) &&
-	    udf_fixed_to_variable(block) >=
-	    sb->s_bdev->bd_inode->i_size >> sb->s_blocksize_bits)
-		return 0;
-
-	bh = udf_read_tagged(sb, block, block, &ident);
-	if (!bh)
-		return 0;
-	brelse(bh);
-
-	return ident == TAG_IDENT_AVDP;
-}
-
-/* Search for an anchor volume descriptor pointer */
-static sector_t udf_scan_anchors(struct super_block *sb, sector_t lastblock)
-{
-	sector_t last[6];
-	int i;
-	struct udf_sb_info *sbi = UDF_SB(sb);
-	int last_count = 0;
-
-	last[last_count++] = lastblock;
-	if (lastblock >= 1)
-		last[last_count++] = lastblock - 1;
-	last[last_count++] = lastblock + 1;
-	if (lastblock >= 2)
-		last[last_count++] = lastblock - 2;
-	if (lastblock >= 150)
-		last[last_count++] = lastblock - 150;
-	if (lastblock >= 152)
-		last[last_count++] = lastblock - 152;
-
-	/*  according to spec, anchor is in either:
-	 *     block 256
-	 *     lastblock-256
-	 *     lastblock
-	 *  however, if the disc isn't closed, it could be 512 */
-
-	for (i = 0; i < last_count; i++) {
-		if (last[i] >= sb->s_bdev->bd_inode->i_size >>
-				sb->s_blocksize_bits)
-			continue;
-
-		if (udf_check_anchor_block(sb, last[i])) {
-			sbi->s_anchor[0] = last[i];
-			sbi->s_anchor[1] = last[i] - 256;
-			return last[i];
-		}
-
-		if (last[i] < 256)
-			continue;
-
-		if (udf_check_anchor_block(sb, last[i] - 256)) {
-			sbi->s_anchor[1] = last[i] - 256;
-			return last[i];
-		}
-	}
-
-	if (udf_check_anchor_block(sb, sbi->s_session + 256)) {
-		sbi->s_anchor[0] = sbi->s_session + 256;
-		return last[0];
-	}
-	if (udf_check_anchor_block(sb, sbi->s_session + 512)) {
-		sbi->s_anchor[0] = sbi->s_session + 512;
-		return last[0];
-	}
-	return 0;
-}
-
-/*
- * Find an anchor volume descriptor. The function expects sbi->s_lastblock to
- * be the last block on the media.
- *
- * Return 1 if not found, 0 if ok
- *
- */
-static int udf_find_anchor(struct super_block *sb)
-{
-	sector_t lastblock;
-	struct buffer_head *bh = NULL;
-	uint16_t ident;
-	int i;
-	int anchor_found = 0;
-	struct udf_sb_info *sbi = UDF_SB(sb);
-
-	lastblock = udf_scan_anchors(sb, sbi->s_last_block);
-	if (lastblock)
-		goto check_anchor;
-
-	/* No anchor found? Try VARCONV conversion of block numbers */
-	UDF_SET_FLAG(sb, UDF_FLAG_VARCONV);
-	/* Firstly, we try to not convert number of the last block */
-	lastblock = udf_scan_anchors(sb,
-				udf_variable_to_fixed(sbi->s_last_block));
-	if (lastblock)
-		goto check_anchor;
-
-	/* Secondly, we try with converted number of the last block */
-	lastblock = udf_scan_anchors(sb, sbi->s_last_block);
-	if (!lastblock) {
-		/* VARCONV didn't help. Clear it. */
-		UDF_CLEAR_FLAG(sb, UDF_FLAG_VARCONV);
-	}
-
-check_anchor:
-	/*
-	 * Check located anchors and the anchor block supplied via
-	 * mount options
-	 */
-	for (i = 0; i < ARRAY_SIZE(sbi->s_anchor); i++) {
-		if (!sbi->s_anchor[i])
-			continue;
-		bh = udf_read_tagged(sb, sbi->s_anchor[i],
-					sbi->s_anchor[i], &ident);
-		if (!bh)
-			sbi->s_anchor[i] = 0;
-		else {
-			brelse(bh);
-			if (ident != TAG_IDENT_AVDP)
-				sbi->s_anchor[i] = 0;
-			else
-				anchor_found = 1;
-		}
-	}
-
-	sbi->s_last_block = lastblock;
-	return anchor_found;
 }
 
 static int udf_find_fileset(struct super_block *sb,
@@ -1699,33 +1552,167 @@ static noinline int udf_process_sequence(struct super_block *sb, long block,
 	return 0;
 }
 
-/*
- * udf_check_valid()
- */
-static int udf_check_valid(struct super_block *sb, int novrs, int silent)
+static int udf_load_sequence(struct super_block *sb, struct buffer_head *bh,
+			     struct kernel_lb_addr *fileset)
 {
-	loff_t block;
-	struct udf_sb_info *sbi = UDF_SB(sb);
+	struct anchorVolDescPtr *anchor;
+	long main_s, main_e, reserve_s, reserve_e;
+	struct udf_sb_info *sbi;
 
-	if (novrs) {
-		udf_debug("Validity check skipped because of novrs option\n");
-		return 0;
-	}
-	/* Check that it is NSR02 compliant */
-	/* Process any "CD-ROM Volume Descriptor Set" (ECMA 167 2/8.3.1) */
-	block = udf_vrs(sb, silent);
-	if (block == -1)
-		udf_debug("Failed to read byte 32768. Assuming open "
-			  "disc. Skipping validity check\n");
-	if (block && !sbi->s_last_block)
-		sbi->s_last_block = udf_get_last_block(sb);
-	return !!block;
+	sbi = UDF_SB(sb);
+	anchor = (struct anchorVolDescPtr *)bh->b_data;
+
+	/* Locate the main sequence */
+	main_s = le32_to_cpu(anchor->mainVolDescSeqExt.extLocation);
+	main_e = le32_to_cpu(anchor->mainVolDescSeqExt.extLength);
+	main_e = main_e >> sb->s_blocksize_bits;
+	main_e += main_s;
+
+	/* Locate the reserve sequence */
+	reserve_s = le32_to_cpu(anchor->reserveVolDescSeqExt.extLocation);
+	reserve_e = le32_to_cpu(anchor->reserveVolDescSeqExt.extLength);
+	reserve_e = reserve_e >> sb->s_blocksize_bits;
+	reserve_e += reserve_s;
+
+	/* Process the main & reserve sequences */
+	/* responsible for finding the PartitionDesc(s) */
+	if (!udf_process_sequence(sb, main_s, main_e, fileset))
+		return 1;
+	return !udf_process_sequence(sb, reserve_s, reserve_e, fileset);
 }
 
-static int udf_check_volume(struct super_block *sb,
-			    struct udf_options *uopt, int silent)
+/*
+ * Check whether there is an anchor block in the given block and
+ * load Volume Descriptor Sequence if so.
+ */
+static int udf_check_anchor_block(struct super_block *sb, sector_t block,
+				  struct kernel_lb_addr *fileset)
+{
+	struct buffer_head *bh;
+	uint16_t ident;
+	int ret;
+
+	if (UDF_QUERY_FLAG(sb, UDF_FLAG_VARCONV) &&
+	    udf_fixed_to_variable(block) >=
+	    sb->s_bdev->bd_inode->i_size >> sb->s_blocksize_bits)
+		return 0;
+
+	bh = udf_read_tagged(sb, block, block, &ident);
+	if (!bh)
+		return 0;
+	if (ident != TAG_IDENT_AVDP) {
+		brelse(bh);
+		return 0;
+	}
+	ret = udf_load_sequence(sb, bh, fileset);
+	brelse(bh);
+	return ret;
+}
+
+/* Search for an anchor volume descriptor pointer */
+static sector_t udf_scan_anchors(struct super_block *sb, sector_t lastblock,
+				 struct kernel_lb_addr *fileset)
+{
+	sector_t last[6];
+	int i;
+	struct udf_sb_info *sbi = UDF_SB(sb);
+	int last_count = 0;
+
+	/* First try user provided anchor */
+	if (sbi->s_anchor) {
+		if (udf_check_anchor_block(sb, sbi->s_anchor, fileset))
+			return lastblock;
+	}
+	/*
+	 * according to spec, anchor is in either:
+	 *     block 256
+	 *     lastblock-256
+	 *     lastblock
+	 *  however, if the disc isn't closed, it could be 512.
+	 */
+	if (udf_check_anchor_block(sb, sbi->s_session + 256, fileset))
+		return lastblock;
+	/*
+	 * The trouble is which block is the last one. Drives often misreport
+	 * this so we try various possibilities.
+	 */
+	last[last_count++] = lastblock;
+	if (lastblock >= 1)
+		last[last_count++] = lastblock - 1;
+	last[last_count++] = lastblock + 1;
+	if (lastblock >= 2)
+		last[last_count++] = lastblock - 2;
+	if (lastblock >= 150)
+		last[last_count++] = lastblock - 150;
+	if (lastblock >= 152)
+		last[last_count++] = lastblock - 152;
+
+	for (i = 0; i < last_count; i++) {
+		if (last[i] >= sb->s_bdev->bd_inode->i_size >>
+				sb->s_blocksize_bits)
+			continue;
+		if (udf_check_anchor_block(sb, last[i], fileset))
+			return last[i];
+		if (last[i] < 256)
+			continue;
+		if (udf_check_anchor_block(sb, last[i] - 256, fileset))
+			return last[i];
+	}
+
+	/* Finally try block 512 in case media is open */
+	if (udf_check_anchor_block(sb, sbi->s_session + 512, fileset))
+		return last[0];
+	return 0;
+}
+
+/*
+ * Find an anchor volume descriptor and load Volume Descriptor Sequence from
+ * area specified by it. The function expects sbi->s_lastblock to be the last
+ * block on the media.
+ *
+ * Return 1 if ok, 0 if not found.
+ *
+ */
+static int udf_find_anchor(struct super_block *sb,
+			   struct kernel_lb_addr *fileset)
+{
+	sector_t lastblock;
+	struct udf_sb_info *sbi = UDF_SB(sb);
+
+	lastblock = udf_scan_anchors(sb, sbi->s_last_block, fileset);
+	if (lastblock)
+		goto out;
+
+	/* No anchor found? Try VARCONV conversion of block numbers */
+	UDF_SET_FLAG(sb, UDF_FLAG_VARCONV);
+	/* Firstly, we try to not convert number of the last block */
+	lastblock = udf_scan_anchors(sb,
+				udf_variable_to_fixed(sbi->s_last_block),
+				fileset);
+	if (lastblock)
+		goto out;
+
+	/* Secondly, we try with converted number of the last block */
+	lastblock = udf_scan_anchors(sb, sbi->s_last_block, fileset);
+	if (!lastblock) {
+		/* VARCONV didn't help. Clear it. */
+		UDF_CLEAR_FLAG(sb, UDF_FLAG_VARCONV);
+		return 0;
+	}
+out:
+	sbi->s_last_block = lastblock;
+	return 1;
+}
+
+/*
+ * Check Volume Structure Descriptor, find Anchor block and load Volume
+ * Descriptor Sequence
+ */
+static int udf_load_vrs(struct super_block *sb, struct udf_options *uopt,
+			int silent, struct kernel_lb_addr *fileset)
 {
 	struct udf_sb_info *sbi = UDF_SB(sb);
+	loff_t nsr_off;
 
 	if (!sb_set_blocksize(sb, uopt->blocksize)) {
 		if (!silent)
@@ -1733,77 +1720,31 @@ static int udf_check_volume(struct super_block *sb,
 		return 0;
 	}
 	sbi->s_last_block = uopt->lastblock;
-	if (!udf_check_valid(sb, uopt->novrs, silent)) {
-		if (!silent)
-			printk(KERN_WARNING "UDF-fs: No VRS found\n");
-		return 0;
+	if (!uopt->novrs) {
+		/* Check that it is NSR02 compliant */
+		nsr_off = udf_check_vsd(sb);
+		if (!nsr_off) {
+			if (!silent)
+				printk(KERN_WARNING "UDF-fs: No VRS found\n");
+			return 0;
+		}
+		if (nsr_off == -1)
+			udf_debug("Failed to read byte 32768. Assuming open "
+				  "disc. Skipping validity check\n");
+		if (!sbi->s_last_block)
+			sbi->s_last_block = udf_get_last_block(sb);
+	} else {
+		udf_debug("Validity check skipped because of novrs option\n");
 	}
-	sbi->s_anchor[0] = sbi->s_anchor[1] = 0;
-	sbi->s_anchor[2] = uopt->anchor;
-	if (!udf_find_anchor(sb)) {
+
+	/* Look for anchor block and load Volume Descriptor Sequence */
+	sbi->s_anchor = uopt->anchor;
+	if (!udf_find_anchor(sb, fileset)) {
 		if (!silent)
 			printk(KERN_WARNING "UDF-fs: No anchor found\n");
 		return 0;
 	}
 	return 1;
-}
-
-static int udf_load_sequence(struct super_block *sb, struct kernel_lb_addr *fileset)
-{
-	struct anchorVolDescPtr *anchor;
-	uint16_t ident;
-	struct buffer_head *bh;
-	long main_s, main_e, reserve_s, reserve_e;
-	int i;
-	struct udf_sb_info *sbi;
-
-	if (!sb)
-		return 1;
-	sbi = UDF_SB(sb);
-
-	for (i = 0; i < ARRAY_SIZE(sbi->s_anchor); i++) {
-		if (!sbi->s_anchor[i])
-			continue;
-
-		bh = udf_read_tagged(sb, sbi->s_anchor[i], sbi->s_anchor[i],
-				     &ident);
-		if (!bh)
-			continue;
-
-		anchor = (struct anchorVolDescPtr *)bh->b_data;
-
-		/* Locate the main sequence */
-		main_s = le32_to_cpu(anchor->mainVolDescSeqExt.extLocation);
-		main_e = le32_to_cpu(anchor->mainVolDescSeqExt.extLength);
-		main_e = main_e >> sb->s_blocksize_bits;
-		main_e += main_s;
-
-		/* Locate the reserve sequence */
-		reserve_s = le32_to_cpu(
-				anchor->reserveVolDescSeqExt.extLocation);
-		reserve_e = le32_to_cpu(
-				anchor->reserveVolDescSeqExt.extLength);
-		reserve_e = reserve_e >> sb->s_blocksize_bits;
-		reserve_e += reserve_s;
-
-		brelse(bh);
-
-		/* Process the main & reserve sequences */
-		/* responsible for finding the PartitionDesc(s) */
-		if (!(udf_process_sequence(sb, main_s, main_e,
-					   fileset) &&
-		      udf_process_sequence(sb, reserve_s, reserve_e,
-					   fileset)))
-			break;
-	}
-
-	if (i == ARRAY_SIZE(sbi->s_anchor)) {
-		udf_debug("No Anchor block found\n");
-		return 1;
-	}
-	udf_debug("Using anchor in block %d\n", sbi->s_anchor[i]);
-
-	return 0;
 }
 
 static void udf_open_lvid(struct super_block *sb)
@@ -1916,7 +1857,7 @@ static void udf_free_partition(struct udf_part_map *map)
 static int udf_fill_super(struct super_block *sb, void *options, int silent)
 {
 	int i;
-	int found_anchor;
+	int ret;
 	struct inode *inode = NULL;
 	struct udf_options uopt;
 	struct kernel_lb_addr rootdir, fileset;
@@ -1976,23 +1917,6 @@ static int udf_fill_super(struct super_block *sb, void *options, int silent)
 
 	udf_debug("Multi-session=%d\n", sbi->s_session);
 
-	if (uopt.flags & (1 << UDF_FLAG_BLOCKSIZE_SET)) {
-		found_anchor = udf_check_volume(sb, &uopt, silent);
-	} else {
-		uopt.blocksize = bdev_hardsect_size(sb->s_bdev);
-		found_anchor = udf_check_volume(sb, &uopt, silent);
-		if (!found_anchor && uopt.blocksize != UDF_DEFAULT_BLOCKSIZE) {
-			if (!silent)
-				printk(KERN_NOTICE
-				       "UDF-fs: Rescanning with blocksize "
-				       "%d\n", UDF_DEFAULT_BLOCKSIZE);
-			uopt.blocksize = UDF_DEFAULT_BLOCKSIZE;
-			found_anchor = udf_check_volume(sb, &uopt, silent);
-		}
-	}
-	if (!found_anchor)
-		goto error_out;
-
 	/* Fill in the rest of the superblock */
 	sb->s_op = &udf_sb_ops;
 	sb->s_export_op = &udf_export_ops;
@@ -2001,7 +1925,21 @@ static int udf_fill_super(struct super_block *sb, void *options, int silent)
 	sb->s_magic = UDF_SUPER_MAGIC;
 	sb->s_time_gran = 1000;
 
-	if (udf_load_sequence(sb, &fileset)) {
+	if (uopt.flags & (1 << UDF_FLAG_BLOCKSIZE_SET)) {
+		ret = udf_load_vrs(sb, &uopt, silent, &fileset);
+	} else {
+		uopt.blocksize = bdev_hardsect_size(sb->s_bdev);
+		ret = udf_load_vrs(sb, &uopt, silent, &fileset);
+		if (!ret && uopt.blocksize != UDF_DEFAULT_BLOCKSIZE) {
+			if (!silent)
+				printk(KERN_NOTICE
+				       "UDF-fs: Rescanning with blocksize "
+				       "%d\n", UDF_DEFAULT_BLOCKSIZE);
+			uopt.blocksize = UDF_DEFAULT_BLOCKSIZE;
+			ret = udf_load_vrs(sb, &uopt, silent, &fileset);
+		}
+	}
+	if (!ret) {
 		printk(KERN_WARNING "UDF-fs: No partition found (1)\n");
 		goto error_out;
 	}
