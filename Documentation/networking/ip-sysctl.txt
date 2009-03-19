@@ -1043,7 +1043,9 @@ max_addresses - INTEGER
 	Default: 16
 
 disable_ipv6 - BOOLEAN
-	Disable IPv6 operation.
+	Disable IPv6 operation.  If accept_dad is set to 2, this value
+	will be dynamically set to TRUE if DAD fails for the link-local
+	address.
 	Default: FALSE (enable IPv6 operation)
 
 accept_dad - INTEGER
