@@ -46,9 +46,9 @@ MODULE_LICENSE("GPL");
 /* specific webcam descriptor */
 struct sd {
 	struct gspca_dev gspca_dev;	/* !! must be the first item */
-	__u32 last_fid;
 	__u32 last_pts;
-	int frame_rate;
+	u16 last_fid;
+	u8 frame_rate;
 };
 
 /* V4L2 controls supported by the driver */
@@ -428,76 +428,75 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev, struct gspca_frame *frame,
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	__u32 this_pts;
-	int this_fid;
+	u16 this_fid;
 	int remaining_len = len;
-	__u8 *next_data = data;
 
-scan_next:
-	if (remaining_len <= 0)
-		return;
+	do {
+		len = min(remaining_len, 2040);		/*fixme: was 2048*/
 
-	data = next_data;
-	len = min(remaining_len, 2048);
-	remaining_len -= len;
-	next_data += len;
+		/* Payloads are prefixed with a UVC-style header.  We
+		   consider a frame to start when the FID toggles, or the PTS
+		   changes.  A frame ends when EOF is set, and we've received
+		   the correct number of bytes. */
 
-	/* Payloads are prefixed with a UVC-style header.  We
-	   consider a frame to start when the FID toggles, or the PTS
-	   changes.  A frame ends when EOF is set, and we've received
-	   the correct number of bytes. */
-
-	/* Verify UVC header.  Header length is always 12 */
-	if (data[0] != 12 || len < 12) {
-		PDEBUG(D_PACK, "bad header");
-		goto discard;
-	}
-
-	/* Check errors */
-	if (data[1] & UVC_STREAM_ERR) {
-		PDEBUG(D_PACK, "payload error");
-		goto discard;
-	}
-
-	/* Extract PTS and FID */
-	if (!(data[1] & UVC_STREAM_PTS)) {
-		PDEBUG(D_PACK, "PTS not present");
-		goto discard;
-	}
-	this_pts = (data[5] << 24) | (data[4] << 16) | (data[3] << 8) | data[2];
-	this_fid = (data[1] & UVC_STREAM_FID) ? 1 : 0;
-
-	/* If PTS or FID has changed, start a new frame. */
-	if (this_pts != sd->last_pts || this_fid != sd->last_fid) {
-		gspca_frame_add(gspca_dev, FIRST_PACKET, frame, NULL, 0);
-		sd->last_pts = this_pts;
-		sd->last_fid = this_fid;
-	}
-
-	/* Add the data from this payload */
-	gspca_frame_add(gspca_dev, INTER_PACKET, frame,
-				data + 12, len - 12);
-
-	/* If this packet is marked as EOF, end the frame */
-	if (data[1] & UVC_STREAM_EOF) {
-		sd->last_pts = 0;
-
-		if ((frame->data_end - frame->data) !=
-		    (gspca_dev->width * gspca_dev->height * 2)) {
-			PDEBUG(D_PACK, "short frame");
+		/* Verify UVC header.  Header length is always 12 */
+		if (data[0] != 12 || len < 12) {
+			PDEBUG(D_PACK, "bad header");
 			goto discard;
 		}
 
-		frame = gspca_frame_add(gspca_dev, LAST_PACKET, frame,
-					NULL, 0);
+		/* Check errors */
+		if (data[1] & UVC_STREAM_ERR) {
+			PDEBUG(D_PACK, "payload error");
+			goto discard;
 		}
 
-	/* Done this payload */
-	goto scan_next;
+		/* Extract PTS and FID */
+		if (!(data[1] & UVC_STREAM_PTS)) {
+			PDEBUG(D_PACK, "PTS not present");
+			goto discard;
+		}
+		this_pts = (data[5] << 24) | (data[4] << 16)
+						| (data[3] << 8) | data[2];
+		this_fid = (data[1] & UVC_STREAM_FID) ? 1 : 0;
+
+		/* If PTS or FID has changed, start a new frame. */
+		if (this_pts != sd->last_pts || this_fid != sd->last_fid) {
+			gspca_frame_add(gspca_dev, FIRST_PACKET, frame,
+					NULL, 0);
+			sd->last_pts = this_pts;
+			sd->last_fid = this_fid;
+		}
+
+		/* Add the data from this payload */
+		gspca_frame_add(gspca_dev, INTER_PACKET, frame,
+					data + 12, len - 12);
+
+		/* If this packet is marked as EOF, end the frame */
+		if (data[1] & UVC_STREAM_EOF) {
+			sd->last_pts = 0;
+
+			if (frame->data_end - frame->data !=
+			    gspca_dev->width * gspca_dev->height * 2) {
+				PDEBUG(D_PACK, "short frame");
+				goto discard;
+			}
+
+			frame = gspca_frame_add(gspca_dev, LAST_PACKET, frame,
+						NULL, 0);
+		}
+
+		/* Done this payload */
+		goto scan_next;
 
 discard:
-	/* Discard data until a new frame starts. */
-	gspca_frame_add(gspca_dev, DISCARD_PACKET, frame, NULL, 0);
-	goto scan_next;
+		/* Discard data until a new frame starts. */
+		gspca_frame_add(gspca_dev, DISCARD_PACKET, frame, NULL, 0);
+
+scan_next:
+		remaining_len -= len;
+		data += len;
+	} while (remaining_len > 0);
 }
 
 /* get stream parameters (framerate) */
