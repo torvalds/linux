@@ -390,7 +390,7 @@ static DEFINE_PCI_DEVICE_TABLE(ni_pcidio_pci_table) = {
 
 MODULE_DEVICE_TABLE(pci, ni_pcidio_pci_table);
 
-typedef struct {
+struct nidio96_private {
 	struct mite_struct *mite;
 	int boardtype;
 	int dio;
@@ -398,8 +398,8 @@ typedef struct {
 	struct mite_channel *di_mite_chan;
 	struct mite_dma_descriptor_ring *di_mite_ring;
 	spinlock_t mite_channel_lock;
-} nidio96_private;
-#define devpriv ((nidio96_private *)dev->private)
+};
+#define devpriv ((struct nidio96_private *)dev->private)
 
 static int ni_pcidio_cmdtest(struct comedi_device * dev, struct comedi_subdevice * s,
 	struct comedi_cmd * cmd);
@@ -1161,7 +1161,7 @@ static int nidio_attach(struct comedi_device * dev, struct comedi_devconfig * it
 
 	printk("comedi%d: nidio:", dev->minor);
 
-	if ((ret = alloc_private(dev, sizeof(nidio96_private))) < 0)
+	if ((ret = alloc_private(dev, sizeof(struct nidio96_private))) < 0)
 		return ret;
 	spin_lock_init(&devpriv->mite_channel_lock);
 
