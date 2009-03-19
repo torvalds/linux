@@ -112,12 +112,13 @@ static DEFINE_PCI_DEVICE_TABLE(ni6527_pci_table) = {
 
 MODULE_DEVICE_TABLE(pci, ni6527_pci_table);
 
-typedef struct {
+struct ni6527_private {
 	struct mite_struct *mite;
 	unsigned int filter_interval;
 	unsigned int filter_enable;
-} ni6527_private;
-#define devpriv ((ni6527_private *)dev->private)
+};
+
+#define devpriv ((struct ni6527_private *)dev->private)
 
 static int ni6527_find_device(struct comedi_device * dev, int bus, int slot);
 
@@ -370,7 +371,7 @@ static int ni6527_attach(struct comedi_device * dev, struct comedi_devconfig * i
 
 	printk("comedi%d: ni6527:", dev->minor);
 
-	if ((ret = alloc_private(dev, sizeof(ni6527_private))) < 0)
+	if ((ret = alloc_private(dev, sizeof(struct ni6527_private))) < 0)
 		return ret;
 
 	ret = ni6527_find_device(dev, it->options[0], it->options[1]);
