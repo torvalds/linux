@@ -262,8 +262,8 @@ int rpcb_register(u32 prog, u32 vers, int prot, unsigned short port)
 /*
  * Fill in AF_INET family-specific arguments to register
  */
-static int rpcb_register_netid4(const struct sockaddr *sap,
-				struct rpc_message *msg)
+static int rpcb_register_inet4(const struct sockaddr *sap,
+			       struct rpc_message *msg)
 {
 	const struct sockaddr_in *sin = (const struct sockaddr_in *)sap;
 	struct rpcbind_args *map = msg->rpc_argp;
@@ -290,8 +290,8 @@ static int rpcb_register_netid4(const struct sockaddr *sap,
 /*
  * Fill in AF_INET6 family-specific arguments to register
  */
-static int rpcb_register_netid6(const struct sockaddr *sap,
-				struct rpc_message *msg)
+static int rpcb_register_inet6(const struct sockaddr *sap,
+			       struct rpc_message *msg)
 {
 	const struct sockaddr_in6 *sin6 = (const struct sockaddr_in6 *)sap;
 	struct rpcbind_args *map = msg->rpc_argp;
@@ -319,6 +319,20 @@ static int rpcb_register_netid6(const struct sockaddr *sap,
 	return rpcb_register_call(RPCBVERS_4, msg);
 }
 
+static int rpcb_unregister_all_protofamilies(struct rpc_message *msg)
+{
+	struct rpcbind_args *map = msg->rpc_argp;
+
+	dprintk("RPC:       unregistering [%u, %u, '%s'] with "
+		"local rpcbind\n",
+			map->r_prog, map->r_vers, map->r_netid);
+
+	map->r_addr = "";
+	msg->rpc_proc = &rpcb_procedures4[RPCBPROC_UNSET];
+
+	return rpcb_register_call(RPCBVERS_4, msg);
+}
+
 /**
  * rpcb_v4_register - set or unset a port registration with the local rpcbind
  * @program: RPC program number of service to (un)register
@@ -336,10 +350,11 @@ static int rpcb_register_netid6(const struct sockaddr *sap,
  * invoke this function once for each [program, version, address,
  * netid] tuple they wish to advertise.
  *
- * Callers may also unregister RPC services that are no longer
- * available by setting the port number in the passed-in address
- * to zero.  Callers pass a netid of "" to unregister all
- * transport netids associated with [program, version, address].
+ * Callers may also unregister RPC services that are registered at a
+ * specific address by setting the port number in @address to zero.
+ * They may unregister all registered protocol families at once for
+ * a service by passing a NULL @address argument.  If @netid is ""
+ * then all netids for [program, version, address] are unregistered.
  *
  * This function uses rpcbind protocol version 4 to contact the
  * local rpcbind daemon.  The local rpcbind daemon must support
@@ -374,11 +389,14 @@ int rpcb_v4_register(const u32 program, const u32 version,
 		.rpc_argp	= &map,
 	};
 
+	if (address == NULL)
+		return rpcb_unregister_all_protofamilies(&msg);
+
 	switch (address->sa_family) {
 	case AF_INET:
-		return rpcb_register_netid4(address, &msg);
+		return rpcb_register_inet4(address, &msg);
 	case AF_INET6:
-		return rpcb_register_netid6(address, &msg);
+		return rpcb_register_inet6(address, &msg);
 	}
 
 	return -EAFNOSUPPORT;
