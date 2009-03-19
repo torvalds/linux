@@ -1506,7 +1506,7 @@ static void perf_swcounter_ctx_event(struct perf_counter_context *ctx,
 {
 	struct perf_counter *counter;
 
-	if (list_empty(&ctx->event_list))
+	if (system_state != SYSTEM_RUNNING || list_empty(&ctx->event_list))
 		return;
 
 	rcu_read_lock();
