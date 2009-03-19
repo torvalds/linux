@@ -2050,6 +2050,7 @@ static int tvaudio_probe(struct i2c_client *client, const struct i2c_device_id *
 	}
 
 	chip->thread = NULL;
+	init_timer(&chip->wt);
 	if (desc->flags & CHIP_NEED_CHECKMODE) {
 		if (!desc->getmode || !desc->setmode) {
 			/* This shouldn't be happen. Warn user, but keep working
@@ -2059,7 +2060,6 @@ static int tvaudio_probe(struct i2c_client *client, const struct i2c_device_id *
 			return 0;
 		}
 		/* start async thread */
-		init_timer(&chip->wt);
 		chip->wt.function = chip_thread_wake;
 		chip->wt.data     = (unsigned long)chip;
 		chip->thread = kthread_run(chip_thread, chip, client->name);
