@@ -194,11 +194,15 @@ static int *create_irq_map(struct device_node *np)
 
 void fsl_pq_mdio_bus_name(char *name, struct device_node *np)
 {
-	const u32 *reg;
+	const u32 *addr;
+	u64 taddr = OF_BAD_ADDR;
 
-	reg = of_get_property(np, "reg", NULL);
+	addr = of_get_address(np, 0, NULL, NULL);
+	if (addr)
+		taddr = of_translate_address(np, addr);
 
-	snprintf(name, MII_BUS_ID_SIZE, "%s@%x", np->name, reg ? *reg : 0);
+	snprintf(name, MII_BUS_ID_SIZE, "%s@%llx", np->name,
+		(unsigned long long)taddr);
 }
 
 /* Scan the bus in reverse, looking for an empty spot */
