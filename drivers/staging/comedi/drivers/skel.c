@@ -215,7 +215,7 @@ static int skel_attach(struct comedi_device * dev, struct comedi_devconfig * it)
  * it is, this is the place to do it.  Otherwise, dev->board_ptr
  * should already be initialized.
  */
-	//dev->board_ptr = skel_probe(dev, it);
+	/* dev->board_ptr = skel_probe(dev, it); */
 
 /*
  * Initialize dev->board_name.  Note that we can use the "thisboard"
@@ -238,7 +238,7 @@ static int skel_attach(struct comedi_device * dev, struct comedi_devconfig * it)
 		return -ENOMEM;
 
 	s = dev->subdevices + 0;
-	//dev->read_subdev=s;
+	/* dev->read_subdev=s; */
 	/* analog input subdevice */
 	s->type = COMEDI_SUBD_AI;
 	/* we support single-ended (ground) and differential */
@@ -249,8 +249,10 @@ static int skel_attach(struct comedi_device * dev, struct comedi_devconfig * it)
 	s->len_chanlist = 16;	/* This is the maximum chanlist length that
 				   the board can handle */
 	s->insn_read = skel_ai_rinsn;
-//      s->subdev_flags |= SDF_CMD_READ;
-//      s->do_cmd = skel_ai_cmd;
+/*
+*       s->subdev_flags |= SDF_CMD_READ;
+*       s->do_cmd = skel_ai_cmd;
+*/
 	s->do_cmdtest = skel_ai_cmdtest;
 
 	s = dev->subdevices + 1;
@@ -311,20 +313,20 @@ static int skel_ai_rinsn(struct comedi_device * dev, struct comedi_subdevice * s
 	/* a typical programming sequence */
 
 	/* write channel to multiplexer */
-	//outw(chan,dev->iobase + SKEL_MUX);
+	/* outw(chan,dev->iobase + SKEL_MUX); */
 
 	/* don't wait for mux to settle */
 
 	/* convert n samples */
 	for (n = 0; n < insn->n; n++) {
 		/* trigger conversion */
-		//outw(0,dev->iobase + SKEL_CONVERT);
+		/* outw(0,dev->iobase + SKEL_CONVERT); */
 
 #define TIMEOUT 100
 		/* wait for conversion to end */
 		for (i = 0; i < TIMEOUT; i++) {
 			status = 1;
-			//status = inb(dev->iobase + SKEL_STATUS);
+			/* status = inb(dev->iobase + SKEL_STATUS); */
 			if (status)
 				break;
 		}
@@ -336,7 +338,7 @@ static int skel_ai_rinsn(struct comedi_device * dev, struct comedi_subdevice * s
 		}
 
 		/* read data */
-		//d = inw(dev->iobase + SKEL_AI_DATA);
+		/* d = inw(dev->iobase + SKEL_AI_DATA); */
 		d = 0;
 
 		/* mangle the data as necessary */
@@ -529,7 +531,7 @@ static int skel_ao_winsn(struct comedi_device * dev, struct comedi_subdevice * s
 	 * very useful, but that's how the interface is defined. */
 	for (i = 0; i < insn->n; i++) {
 		/* a typical programming sequence */
-		//outw(data[i],dev->iobase + SKEL_DA0 + chan);
+		/* outw(data[i],dev->iobase + SKEL_DA0 + chan); */
 		devpriv->ao_readback[chan] = data[i];
 	}
 
@@ -568,15 +570,15 @@ static int skel_dio_insn_bits(struct comedi_device * dev, struct comedi_subdevic
 		s->state &= ~data[0];
 		s->state |= data[0] & data[1];
 		/* Write out the new digital output lines */
-		//outw(s->state,dev->iobase + SKEL_DIO);
+		/* outw(s->state,dev->iobase + SKEL_DIO); */
 	}
 
 	/* on return, data[1] contains the value of the digital
 	 * input and output lines. */
-	//data[1]=inw(dev->iobase + SKEL_DIO);
+	/* data[1]=inw(dev->iobase + SKEL_DIO); */
 	/* or we could just return the software copy of the output values if
 	 * it was a purely digital output subdevice */
-	//data[1]=s->state;
+	/* data[1]=s->state; */
 
 	return 2;
 }
@@ -607,7 +609,7 @@ static int skel_dio_insn_config(struct comedi_device * dev, struct comedi_subdev
 		return -EINVAL;
 		break;
 	}
-	//outw(s->io_bits,dev->iobase + SKEL_DIO_CONFIG);
+	/* outw(s->io_bits,dev->iobase + SKEL_DIO_CONFIG); */
 
 	return insn->n;
 }
@@ -619,4 +621,4 @@ static int skel_dio_insn_config(struct comedi_device * dev, struct comedi_subdev
 COMEDI_INITCLEANUP(driver_skel);
 /* If you are writing a PCI driver you should use COMEDI_PCI_INITCLEANUP instead.
 */
-// COMEDI_PCI_INITCLEANUP(driver_skel, skel_pci_table)
+/* COMEDI_PCI_INITCLEANUP(driver_skel, skel_pci_table) */
