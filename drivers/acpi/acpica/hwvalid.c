@@ -63,24 +63,42 @@ acpi_hw_validate_io_request(acpi_io_address address, u32 bit_width);
  *
  * This provides ACPICA with the desired port protections and
  * Microsoft compatibility.
+ *
+ * Description of port entries:
+ *  DMA:   DMA controller
+ *  PIC0:  Programmable Interrupt Controller (8259_a)
+ *  PIT1:  System Timer 1
+ *  PIT2:  System Timer 2 failsafe
+ *  RTC:   Real-time clock
+ *  CMOS:  Extended CMOS
+ *  DMA1:  DMA 1 page registers
+ *  DMA1L: DMA 1 Ch 0 low page
+ *  DMA2:  DMA 2 page registers
+ *  DMA2L: DMA 2 low page refresh
+ *  ARBC:  Arbitration control
+ *  SETUP: Reserved system board setup
+ *  POS:   POS channel select
+ *  PIC1:  Cascaded PIC
+ *  IDMA:  ISA DMA
+ *  ELCR:  PIC edge/level registers
+ *  PCI:   PCI configuration space
  */
 static const struct acpi_port_info acpi_protected_ports[] = {
-	{"DMA1", 0x0000, 0x000F, ACPI_OSI_WIN_XP},
+	{"DMA", 0x0000, 0x000F, ACPI_OSI_WIN_XP},
 	{"PIC0", 0x0020, 0x0021, ACPI_ALWAYS_ILLEGAL},
 	{"PIT1", 0x0040, 0x0043, ACPI_OSI_WIN_XP},
 	{"PIT2", 0x0048, 0x004B, ACPI_OSI_WIN_XP},
 	{"RTC", 0x0070, 0x0071, ACPI_OSI_WIN_XP},
 	{"CMOS", 0x0074, 0x0076, ACPI_OSI_WIN_XP},
 	{"DMA1", 0x0081, 0x0083, ACPI_OSI_WIN_XP},
-	{"DMA1", 0x0087, 0x0087, ACPI_OSI_WIN_XP},
-	{"DMA2", 0x0089, 0x0089, ACPI_OSI_WIN_XP},
-	{"DMA2", 0x008A, 0x008B, ACPI_OSI_WIN_XP},
-	{"DMA2", 0x008F, 0x008F, ACPI_OSI_WIN_XP},
-	{"Arb", 0x0090, 0x0091, ACPI_OSI_WIN_XP},
-	{"Setup", 0x0093, 0x0094, ACPI_OSI_WIN_XP},
+	{"DMA1L", 0x0087, 0x0087, ACPI_OSI_WIN_XP},
+	{"DMA2", 0x0089, 0x008B, ACPI_OSI_WIN_XP},
+	{"DMA2L", 0x008F, 0x008F, ACPI_OSI_WIN_XP},
+	{"ARBC", 0x0090, 0x0091, ACPI_OSI_WIN_XP},
+	{"SETUP", 0x0093, 0x0094, ACPI_OSI_WIN_XP},
 	{"POS", 0x0096, 0x0097, ACPI_OSI_WIN_XP},
 	{"PIC1", 0x00A0, 0x00A1, ACPI_ALWAYS_ILLEGAL},
-	{"DMA", 0x00C0, 0x00DF, ACPI_OSI_WIN_XP},
+	{"IDMA", 0x00C0, 0x00DF, ACPI_OSI_WIN_XP},
 	{"ELCR", 0x04D0, 0x04D1, ACPI_ALWAYS_ILLEGAL},
 	{"PCI", 0x0CF8, 0x0D00, ACPI_OSI_WIN_XP}
 };
