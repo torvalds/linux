@@ -103,7 +103,7 @@ static void ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata)
 	u32 rates = 0;
 	size_t e_ies_len;
 
-	if (ifmgd->flags & IEEE80211_IBSS_PREV_BSSID_SET) {
+	if (ifmgd->flags & IEEE80211_STA_PREV_BSSID_SET) {
 		e_ies = sdata->u.mgd.ie_reassocreq;
 		e_ies_len = sdata->u.mgd.ie_reassocreq_len;
 	} else {
