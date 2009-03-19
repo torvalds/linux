@@ -360,14 +360,14 @@ struct me4000_ai_context {
 	unsigned long sample_counter_reg;
 };
 
-typedef struct me4000_dio_context {
+struct me4000_dio_context {
 	unsigned long dir_reg;
 	unsigned long ctrl_reg;
 	unsigned long port_0_reg;
 	unsigned long port_1_reg;
 	unsigned long port_2_reg;
 	unsigned long port_3_reg;
-} me4000_dio_context_t;
+};
 
 typedef struct me4000_cnt_context {
 	unsigned long ctrl_reg;
