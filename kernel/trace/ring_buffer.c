@@ -577,8 +577,17 @@ struct ring_buffer *ring_buffer_alloc(unsigned long size, unsigned flags)
 	if (buffer->pages == 1)
 		buffer->pages++;
 
+	/*
+	 * In case of non-hotplug cpu, if the ring-buffer is allocated
+	 * in early initcall, it will not be notified of secondary cpus.
+	 * In that off case, we need to allocate for all possible cpus.
+	 */
+#ifdef CONFIG_HOTPLUG_CPU
 	get_online_cpus();
 	cpumask_copy(buffer->cpumask, cpu_online_mask);
+#else
+	cpumask_copy(buffer->cpumask, cpu_possible_mask);
+#endif
 	buffer->cpus = nr_cpu_ids;
 
 	bsize = sizeof(void *) * nr_cpu_ids;
