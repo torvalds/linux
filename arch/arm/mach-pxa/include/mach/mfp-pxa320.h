@@ -38,6 +38,7 @@
 #define GPIO17_2_GPIO		MFP_CFG(GPIO17_2, AF0)
 
 /* Chip Select */
+#define GPIO3_nCS2		MFP_CFG(GPIO3, AF1)
 #define GPIO4_nCS3		MFP_CFG(GPIO4, AF1)
 
 /* AC97 */
