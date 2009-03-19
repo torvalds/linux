@@ -369,12 +369,12 @@ struct me4000_dio_context {
 	unsigned long port_3_reg;
 };
 
-typedef struct me4000_cnt_context {
+struct me4000_cnt_context {
 	unsigned long ctrl_reg;
 	unsigned long counter_0_reg;
 	unsigned long counter_1_reg;
 	unsigned long counter_2_reg;
-} me4000_cnt_context_t;
+};
 
 typedef struct me4000_info {
 	unsigned long plx_regbase;	/*  PLX configuration space base address */
