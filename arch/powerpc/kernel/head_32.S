@@ -475,12 +475,11 @@ SystemCall:
 	. = 0x1000
 InstructionTLBMiss:
 /*
- * r0:	stored ctr
+ * r0:	scratch
  * r1:	linux style pte ( later becomes ppc hardware pte )
  * r2:	ptr to linux-style pte
  * r3:	scratch
  */
-	mfctr	r0
 	/* Get PTE (linux-style) and check access */
 	mfspr	r3,SPRN_IMISS
 	lis	r1,PAGE_OFFSET@h		/* check if kernel address */
@@ -531,7 +530,6 @@ InstructionAddressInvalid:
 
 	addis	r1,r1,0x2000
 	mtspr	SPRN_DSISR,r1	/* (shouldn't be needed) */
-	mtctr	r0		/* Restore CTR */
 	andi.	r2,r3,0xFFFF	/* Clear upper bits of SRR1 */
 	or	r2,r2,r1
 	mtspr	SPRN_SRR1,r2
@@ -552,12 +550,11 @@ InstructionAddressInvalid:
 	. = 0x1100
 DataLoadTLBMiss:
 /*
- * r0:	stored ctr
+ * r0:	scratch
  * r1:	linux style pte ( later becomes ppc hardware pte )
  * r2:	ptr to linux-style pte
  * r3:	scratch
  */
-	mfctr	r0
 	/* Get PTE (linux-style) and check access */
 	mfspr	r3,SPRN_DMISS
 	lis	r1,PAGE_OFFSET@h		/* check if kernel address */
@@ -607,7 +604,6 @@ DataAddressInvalid:
 	rlwinm	r1,r3,9,6,6	/* Get load/store bit */
 	addis	r1,r1,0x2000
 	mtspr	SPRN_DSISR,r1
-	mtctr	r0		/* Restore CTR */
 	andi.	r2,r3,0xFFFF	/* Clear upper bits of SRR1 */
 	mtspr	SPRN_SRR1,r2
 	mfspr	r1,SPRN_DMISS	/* Get failing address */
@@ -627,12 +623,11 @@ DataAddressInvalid:
 	. = 0x1200
 DataStoreTLBMiss:
 /*
- * r0:	stored ctr
+ * r0:	scratch
  * r1:	linux style pte ( later becomes ppc hardware pte )
  * r2:	ptr to linux-style pte
  * r3:	scratch
  */
-	mfctr	r0
 	/* Get PTE (linux-style) and check access */
 	mfspr	r3,SPRN_DMISS
 	lis	r1,PAGE_OFFSET@h		/* check if kernel address */
