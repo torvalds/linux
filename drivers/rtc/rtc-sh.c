@@ -431,12 +431,7 @@ static int sh_rtc_read_time(struct device *dev, struct rtc_time *tm)
 		tm->tm_sec, tm->tm_min, tm->tm_hour,
 		tm->tm_mday, tm->tm_mon + 1, tm->tm_year, tm->tm_wday);
 
-	if (rtc_valid_tm(tm) < 0) {
-		dev_err(dev, "invalid date\n");
-		rtc_time_to_tm(0, tm);
-	}
-
-	return 0;
+	return rtc_valid_tm(tm);
 }
 
 static int sh_rtc_set_time(struct device *dev, struct rtc_time *tm)
@@ -641,6 +636,7 @@ static int __devinit sh_rtc_probe(struct platform_device *pdev)
 {
 	struct sh_rtc *rtc;
 	struct resource *res;
+	struct rtc_time r;
 	int ret;
 
 	rtc = kzalloc(sizeof(struct sh_rtc), GFP_KERNEL);
@@ -752,6 +748,13 @@ static int __devinit sh_rtc_probe(struct platform_device *pdev)
 	sh_rtc_setpie(&pdev->dev, 0);
 	sh_rtc_setaie(&pdev->dev, 0);
 	sh_rtc_setcie(&pdev->dev, 0);
+
+	/* reset rtc to epoch 0 if time is invalid */
+	if (rtc_read_time(rtc->rtc_dev, &r) < 0) {
+		rtc_time_to_tm(0, &r);
+		rtc_set_time(rtc->rtc_dev, &r);
+	}
+
 	return 0;
 
 err_unmap:
