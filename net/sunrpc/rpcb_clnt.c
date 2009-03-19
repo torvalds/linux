@@ -63,9 +63,16 @@ enum {
  * r_owner
  *
  * The "owner" is allowed to unset a service in the rpcbind database.
- * We always use the following (arbitrary) fixed string.
+ *
+ * For AF_LOCAL SET/UNSET requests, rpcbind treats this string as a
+ * UID which it maps to a local user name via a password lookup.
+ * In all other cases it is ignored.
+ *
+ * For SET/UNSET requests, user space provides a value, even for
+ * network requests, and GETADDR uses an empty string.  We follow
+ * those precedents here.
  */
-#define RPCB_OWNER_STRING	"rpcb"
+#define RPCB_OWNER_STRING	"0"
 #define RPCB_MAXOWNERLEN	sizeof(RPCB_OWNER_STRING)
 
 static void			rpcb_getport_done(struct rpc_task *, void *);
@@ -566,7 +573,7 @@ void rpcb_getport_async(struct rpc_task *task)
 	map->r_xprt = xprt_get(xprt);
 	map->r_netid = rpc_peeraddr2str(clnt, RPC_DISPLAY_NETID);
 	map->r_addr = rpc_peeraddr2str(rpcb_clnt, RPC_DISPLAY_UNIVERSAL_ADDR);
-	map->r_owner = RPCB_OWNER_STRING;	/* ignored for GETADDR */
+	map->r_owner = "";
 	map->r_status = -EIO;
 
 	child = rpcb_call_async(rpcb_clnt, map, proc);
