@@ -541,7 +541,7 @@ struct hw_fifo_info {
 	uint16_t fifo_size_reg_mask;
 };
 
-typedef struct pcidas64_board_struct {
+struct pcidas64_board {
 	const char *name;
 	int device_id;		// pci device id
 	int ai_se_chans;	// number of ai inputs in single-ended mode
@@ -556,7 +556,7 @@ typedef struct pcidas64_board_struct {
 	const struct hw_fifo_info *const ai_fifo;
 	enum register_layout layout;	// different board families have slightly different registers
 	unsigned has_8255:1;
-} pcidas64_board;
+};
 
 static const struct hw_fifo_info ai_fifo_4020 = {
       num_segments:2,
@@ -584,7 +584,7 @@ static const struct hw_fifo_info ai_fifo_60xx = {
 #define MAX_AI_DMA_RING_COUNT (0x80000 / DMA_BUFFER_SIZE)
 #define MIN_AI_DMA_RING_COUNT (0x10000 / DMA_BUFFER_SIZE)
 #define AO_DMA_RING_COUNT (0x10000 / DMA_BUFFER_SIZE)
-static inline unsigned int ai_dma_ring_count(pcidas64_board * board)
+static inline unsigned int ai_dma_ring_count(struct pcidas64_board * board)
 {
 	if (board->layout == LAYOUT_4020)
 		return MAX_AI_DMA_RING_COUNT;
@@ -594,7 +594,7 @@ static inline unsigned int ai_dma_ring_count(pcidas64_board * board)
 
 static const int bytes_in_sample = 2;
 
-static const pcidas64_board pcidas64_boards[] = {
+static const struct pcidas64_board pcidas64_boards[] = {
 	{
 	      name:	"pci-das6402/16",
 	      device_id:0x1d,
@@ -1016,7 +1016,7 @@ static const pcidas64_board pcidas64_boards[] = {
 // Number of boards in cb_pcidas_boards
 static inline unsigned int num_boards(void)
 {
-	return sizeof(pcidas64_boards) / sizeof(pcidas64_board);
+	return sizeof(pcidas64_boards) / sizeof(struct pcidas64_board);
 }
 
 static DEFINE_PCI_DEVICE_TABLE(pcidas64_pci_table) = {
@@ -1044,9 +1044,9 @@ static DEFINE_PCI_DEVICE_TABLE(pcidas64_pci_table) = {
 
 MODULE_DEVICE_TABLE(pci, pcidas64_pci_table);
 
-static inline pcidas64_board *board(const struct comedi_device * dev)
+static inline struct pcidas64_board *board(const struct comedi_device * dev)
 {
-	return (pcidas64_board *) dev->board_ptr;
+	return (struct pcidas64_board *) dev->board_ptr;
 }
 
 static inline unsigned short se_diff_bit_6xxx(struct comedi_device * dev,
@@ -1267,7 +1267,7 @@ static void set_dac_range_bits(struct comedi_device * dev, volatile uint16_t * b
 	*bits |= code << (2 * channel);
 };
 
-static inline int ao_cmd_is_supported(const pcidas64_board * board)
+static inline int ao_cmd_is_supported(const struct pcidas64_board * board)
 {
 	return board->ao_nchan && board->layout != LAYOUT_4020;
 }
