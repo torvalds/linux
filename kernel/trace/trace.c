@@ -1694,38 +1694,6 @@ static enum print_line_t print_hex_fmt(struct trace_iterator *iter)
 	return TRACE_TYPE_HANDLED;
 }
 
-static enum print_line_t print_bprintk_msg_only(struct trace_iterator *iter)
-{
-	struct trace_seq *s = &iter->seq;
-	struct trace_entry *entry = iter->ent;
-	struct bprint_entry *field;
-	int ret;
-
-	trace_assign_type(field, entry);
-
-	ret = trace_seq_bprintf(s, field->fmt, field->buf);
-	if (!ret)
-		return TRACE_TYPE_PARTIAL_LINE;
-
-	return TRACE_TYPE_HANDLED;
-}
-
-static enum print_line_t print_printk_msg_only(struct trace_iterator *iter)
-{
-	struct trace_seq *s = &iter->seq;
-	struct trace_entry *entry = iter->ent;
-	struct print_entry *field;
-	int ret;
-
-	trace_assign_type(field, entry);
-
-	ret = trace_seq_printf(s, "%s", field->buf);
-	if (!ret)
-		return TRACE_TYPE_PARTIAL_LINE;
-
-	return TRACE_TYPE_HANDLED;
-}
-
 static enum print_line_t print_bin_fmt(struct trace_iterator *iter)
 {
 	struct trace_seq *s = &iter->seq;
@@ -1787,12 +1755,12 @@ static enum print_line_t print_trace_line(struct trace_iterator *iter)
 	if (iter->ent->type == TRACE_BPRINT &&
 			trace_flags & TRACE_ITER_PRINTK &&
 			trace_flags & TRACE_ITER_PRINTK_MSGONLY)
-		return print_bprintk_msg_only(iter);
+		return trace_print_bprintk_msg_only(iter);
 
 	if (iter->ent->type == TRACE_PRINT &&
 			trace_flags & TRACE_ITER_PRINTK &&
 			trace_flags & TRACE_ITER_PRINTK_MSGONLY)
-		return print_printk_msg_only(iter);
+		return trace_print_printk_msg_only(iter);
 
 	if (trace_flags & TRACE_ITER_BIN)
 		return print_bin_fmt(iter);
