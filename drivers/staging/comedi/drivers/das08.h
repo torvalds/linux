@@ -30,7 +30,7 @@ enum das08_ai_encoding { das08_encode12, das08_encode16, das08_pcm_encode12 };
 enum das08_lrange { das08_pg_none, das08_bipolar5, das08_pgh, das08_pgl,
 		das08_pgm };
 
-typedef struct das08_board_struct {
+struct das08_board_struct {
 	const char *name;
 	unsigned int id;	// id for pci/pcmcia boards
 	enum das08_bustype bustype;
@@ -46,7 +46,7 @@ typedef struct das08_board_struct {
 	unsigned int i8255_offset;
 	unsigned int i8254_offset;
 	unsigned int iosize;	// number of ioports used
-} das08_board;
+};
 
 struct i8254_struct {
 	int channels;		// available channels. Some could be used internally.
