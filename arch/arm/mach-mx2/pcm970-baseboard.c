@@ -125,35 +125,64 @@ static struct imxmmc_platform_data sdhc_pdata = {
 	.exit = pcm970_sdhc2_exit,
 };
 
-/*
- * Connected is a portrait Sharp-QVGA display
- * of type: LQ035Q7DH06
- */
+static struct imx_fb_videomode pcm970_modes[] = {
+	{
+		.mode = {
+			.name		= "Sharp-LQ035Q7",
+			.refresh	= 60,
+			.xres		= 240,
+			.yres		= 320,
+			.pixclock	= 188679, /* in ps (5.3MHz) */
+			.hsync_len	= 7,
+			.left_margin	= 5,
+			.right_margin	= 16,
+			.vsync_len	= 1,
+			.upper_margin	= 7,
+			.lower_margin	= 9,
+		},
+		/*
+		 * - HSYNC active high
+		 * - VSYNC active high
+		 * - clk notenabled while idle
+		 * - clock not inverted
+		 * - data not inverted
+		 * - data enable low active
+		 * - enable sharp mode
+		 */
+		.pcr		= 0xF00080C0,
+		.bpp		= 16,
+	}, {
+		.mode = {
+			.name		= "TX090",
+			.refresh	= 60,
+			.xres		= 240,
+			.yres		= 320,
+			.pixclock	= 38255,
+			.left_margin	= 144,
+			.right_margin	= 0,
+			.upper_margin	= 7,
+			.lower_margin	= 40,
+			.hsync_len	= 96,
+			.vsync_len	= 1,
+		},
+		/*
+		 * - HSYNC active low (1 << 22)
+		 * - VSYNC active low (1 << 23)
+		 * - clk notenabled while idle
+		 * - clock not inverted
+		 * - data not inverted
+		 * - data enable low active
+		 * - enable sharp mode
+		 */
+		.pcr = 0xF0008080 | (1<<22) | (1<<23) | (1<<19),
+		.bpp = 32,
+	},
+};
+
 static struct imx_fb_platform_data pcm038_fb_data = {
-	.pixclock	= 188679, /* in ps (5.3MHz) */
-	.xres		= 240,
-	.yres		= 320,
+	.mode = pcm970_modes,
+	.num_modes = ARRAY_SIZE(pcm970_modes),
 
-	.bpp		= 16,
-	.hsync_len	= 7,
-	.left_margin	= 5,
-	.right_margin	= 16,
-
-	.vsync_len	= 1,
-	.upper_margin	= 7,
-	.lower_margin	= 9,
-	.fixed_screen_cpu = 0,
-
-	/*
-	 * - HSYNC active high
-	 * - VSYNC active high
-	 * - clk notenabled while idle
-	 * - clock not inverted
-	 * - data not inverted
-	 * - data enable low active
-	 * - enable sharp mode
-	 */
-	.pcr		= 0xFA0080C0,
 	.pwmr		= 0x00A903FF,
 	.lscr1		= 0x00120300,
 	.dmacr		= 0x00020010,

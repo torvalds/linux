@@ -183,20 +183,29 @@ void lcd_power(int on)
 		__raw_writew(PBC_BCTRL1_LCDON, PBC_BCTRL1_CLEAR_REG);
 }
 
+static struct imx_fb_videomode mx27ads_modes[] = {
+	{
+		.mode = {
+			.name		= "Sharp-LQ035Q7",
+			.refresh	= 60,
+			.xres		= 240,
+			.yres		= 320,
+			.pixclock	= 188679, /* in ps (5.3MHz) */
+			.hsync_len	= 1,
+			.left_margin	= 9,
+			.right_margin	= 16,
+			.vsync_len	= 1,
+			.upper_margin	= 7,
+			.lower_margin	= 9,
+		},
+		.bpp		= 16,
+		.pcr		= 0xFB008BC0,
+	},
+};
+
 static struct imx_fb_platform_data mx27ads_fb_data = {
-	.pixclock	= 188679,
-	.xres		= 240,
-	.yres		= 320,
-
-	.bpp		= 16,
-	.hsync_len	= 1,
-	.left_margin	= 9,
-	.right_margin	= 16,
-
-	.vsync_len	= 1,
-	.upper_margin	= 7,
-	.lower_margin	= 9,
-	.fixed_screen_cpu = 0,
+	.mode = mx27ads_modes,
+	.num_modes = ARRAY_SIZE(mx27ads_modes),
 
 	/*
 	 * - HSYNC active high
@@ -207,7 +216,6 @@ static struct imx_fb_platform_data mx27ads_fb_data = {
 	 * - data enable low active
 	 * - enable sharp mode
 	 */
-	.pcr		= 0xFB008BC0,
 	.pwmr		= 0x00A903FF,
 	.lscr1		= 0x00120300,
 	.dmacr		= 0x00020010,
