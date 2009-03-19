@@ -920,6 +920,20 @@ static inline int change_page_attr_clear(unsigned long *addr, int numpages,
 		(array ? CPA_ARRAY : 0), NULL);
 }
 
+static inline int cpa_set_pages_array(struct page **pages, int numpages,
+				       pgprot_t mask)
+{
+	return change_page_attr_set_clr(NULL, numpages, mask, __pgprot(0), 0,
+		CPA_PAGES_ARRAY, pages);
+}
+
+static inline int cpa_clear_pages_array(struct page **pages, int numpages,
+					 pgprot_t mask)
+{
+	return change_page_attr_set_clr(NULL, numpages, __pgprot(0), mask, 0,
+		CPA_PAGES_ARRAY, pages);
+}
+
 int _set_memory_uc(unsigned long addr, int numpages)
 {
 	/*
@@ -1076,6 +1090,35 @@ int set_pages_uc(struct page *page, int numpages)
 }
 EXPORT_SYMBOL(set_pages_uc);
 
+int set_pages_array_uc(struct page **pages, int addrinarray)
+{
+	unsigned long start;
+	unsigned long end;
+	int i;
+	int free_idx;
+
+	for (i = 0; i < addrinarray; i++) {
+		start = (unsigned long)page_address(pages[i]);
+		end = start + PAGE_SIZE;
+		if (reserve_memtype(start, end, _PAGE_CACHE_UC_MINUS, NULL))
+			goto err_out;
+	}
+
+	if (cpa_set_pages_array(pages, addrinarray,
+			__pgprot(_PAGE_CACHE_UC_MINUS)) == 0) {
+		return 0; /* Success */
+	}
+err_out:
+	free_idx = i;
+	for (i = 0; i < free_idx; i++) {
+		start = (unsigned long)page_address(pages[i]);
+		end = start + PAGE_SIZE;
+		free_memtype(start, end);
+	}
+	return -EINVAL;
+}
+EXPORT_SYMBOL(set_pages_array_uc);
+
 int set_pages_wb(struct page *page, int numpages)
 {
 	unsigned long addr = (unsigned long)page_address(page);
@@ -1083,6 +1126,26 @@ int set_pages_wb(struct page *page, int numpages)
 	return set_memory_wb(addr, numpages);
 }
 EXPORT_SYMBOL(set_pages_wb);
+
+int set_pages_array_wb(struct page **pages, int addrinarray)
+{
+	int retval;
+	unsigned long start;
+	unsigned long end;
+	int i;
+
+	retval = cpa_clear_pages_array(pages, addrinarray,
+			__pgprot(_PAGE_CACHE_MASK));
+
+	for (i = 0; i < addrinarray; i++) {
+		start = (unsigned long)page_address(pages[i]);
+		end = start + PAGE_SIZE;
+		free_memtype(start, end);
+	}
+
+	return retval;
+}
+EXPORT_SYMBOL(set_pages_array_wb);
 
 int set_pages_x(struct page *page, int numpages)
 {
