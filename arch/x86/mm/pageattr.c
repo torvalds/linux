@@ -787,7 +787,7 @@ static inline int cache_attr(pgprot_t attr)
 
 static int change_page_attr_set_clr(unsigned long *addr, int numpages,
 				    pgprot_t mask_set, pgprot_t mask_clr,
-				    int force_split, int array)
+				    int force_split, int in_flag)
 {
 	struct cpa_data cpa;
 	int ret, cache, checkalias;
@@ -802,7 +802,7 @@ static int change_page_attr_set_clr(unsigned long *addr, int numpages,
 		return 0;
 
 	/* Ensure we are PAGE_SIZE aligned */
-	if (!array) {
+	if (!(in_flag & CPA_ARRAY)) {
 		if (*addr & ~PAGE_MASK) {
 			*addr &= PAGE_MASK;
 			/*
@@ -840,7 +840,7 @@ static int change_page_attr_set_clr(unsigned long *addr, int numpages,
 	cpa.curpage = 0;
 	cpa.force_split = force_split;
 
-	if (array)
+	if (in_flag & CPA_ARRAY)
 		cpa.flags |= CPA_ARRAY;
 
 	/* No alias checking for _NX bit modifications */
@@ -889,14 +889,14 @@ static inline int change_page_attr_set(unsigned long *addr, int numpages,
 				       pgprot_t mask, int array)
 {
 	return change_page_attr_set_clr(addr, numpages, mask, __pgprot(0), 0,
-		array);
+		(array ? CPA_ARRAY : 0));
 }
 
 static inline int change_page_attr_clear(unsigned long *addr, int numpages,
 					 pgprot_t mask, int array)
 {
 	return change_page_attr_set_clr(addr, numpages, __pgprot(0), mask, 0,
-		array);
+		(array ? CPA_ARRAY : 0));
 }
 
 int _set_memory_uc(unsigned long addr, int numpages)
