@@ -38,6 +38,7 @@ static struct svc_program nfs4_callback_program;
 
 unsigned int nfs_callback_set_tcpport;
 unsigned short nfs_callback_tcpport;
+unsigned short nfs_callback_tcpport6;
 static const int nfs_set_port_min = 0;
 static const int nfs_set_port_max = 65535;
 
@@ -118,6 +119,17 @@ int nfs_callback_up(void)
 	nfs_callback_tcpport = ret;
 	dprintk("NFS: Callback listener port = %u (af %u)\n",
 			nfs_callback_tcpport, PF_INET);
+
+#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+	ret = svc_create_xprt(serv, "tcp", PF_INET6,
+				nfs_callback_set_tcpport, SVC_SOCK_ANONYMOUS);
+	if (ret > 0) {
+		nfs_callback_tcpport6 = ret;
+		dprintk("NFS: Callback listener port = %u (af %u)\n",
+				nfs_callback_tcpport6, PF_INET6);
+	} else if (ret != -EAFNOSUPPORT)
+		goto out_err;
+#endif	/* defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE) */
 
 	nfs_callback_info.rqst = svc_prepare_thread(serv, &serv->sv_pools[0]);
 	if (IS_ERR(nfs_callback_info.rqst)) {
