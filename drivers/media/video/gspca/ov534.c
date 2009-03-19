@@ -487,8 +487,9 @@ scan_next:
 			goto discard;
 		}
 
-		gspca_frame_add(gspca_dev, LAST_PACKET, frame, NULL, 0);
-	}
+		frame = gspca_frame_add(gspca_dev, LAST_PACKET, frame,
+					NULL, 0);
+		}
 
 	/* Done this payload */
 	goto scan_next;
