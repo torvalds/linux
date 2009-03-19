@@ -789,7 +789,7 @@ static void s3cmci_dma_setup(struct s3cmci_host *host,
 
 	last_source = source;
 
-	s3c2410_dma_devconfig(host->dma, source, 3,
+	s3c2410_dma_devconfig(host->dma, source,
 			      host->mem->start + host->sdidata);
 
 	if (!setup_ok) {

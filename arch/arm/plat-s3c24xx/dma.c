@@ -1038,14 +1038,13 @@ EXPORT_SYMBOL(s3c2410_dma_ctrl);
 /* s3c2410_dma_config
  *
  * xfersize:     size of unit in bytes (1,2,4)
- * dcon:         base value of the DCONx register
 */
 
 int s3c2410_dma_config(unsigned int channel,
-		       int xferunit,
-		       int dcon)
+		       int xferunit)
 {
 	struct s3c2410_dma_chan *chan = lookup_dma_channel(channel);
+	unsigned int dcon;
 
 	pr_debug("%s: chan=%d, xfer_unit=%d, dcon=%08x\n",
 		 __func__, channel, xferunit, dcon);
@@ -1055,9 +1054,32 @@ int s3c2410_dma_config(unsigned int channel,
 
 	pr_debug("%s: Initial dcon is %08x\n", __func__, dcon);
 
-	dcon |= chan->dcon & dma_sel.dcon_mask;
+	dcon = chan->dcon & dma_sel.dcon_mask;
 
 	pr_debug("%s: New dcon is %08x\n", __func__, dcon);
+
+	switch (chan->req_ch) {
+	case DMACH_I2S_IN:
+	case DMACH_I2S_OUT:
+	case DMACH_PCM_IN:
+	case DMACH_PCM_OUT:
+	case DMACH_MIC_IN:
+	default:
+		dcon |= S3C2410_DCON_HANDSHAKE;
+		dcon |= S3C2410_DCON_SYNC_PCLK;
+		break;
+
+	case DMACH_SDI:
+		/* note, ensure if need HANDSHAKE or not */
+		dcon |= S3C2410_DCON_SYNC_PCLK;
+		break;
+
+	case DMACH_XD0:
+	case DMACH_XD1:
+		dcon |= S3C2410_DCON_HANDSHAKE;
+		dcon |= S3C2410_DCON_SYNC_HCLK;
+		break;
+	}
 
 	switch (xferunit) {
 	case 1:
@@ -1150,29 +1172,38 @@ EXPORT_SYMBOL(s3c2410_dma_set_buffdone_fn);
  * source:    S3C2410_DMASRC_HW: source is hardware
  *            S3C2410_DMASRC_MEM: source is memory
  *
- * hwcfg:     the value for xxxSTCn register,
- *            bit 0: 0=increment pointer, 1=leave pointer
- *            bit 1: 0=source is AHB, 1=source is APB
- *
  * devaddr:   physical address of the source
 */
 
 int s3c2410_dma_devconfig(int channel,
 			  enum s3c2410_dmasrc source,
-			  int hwcfg,
 			  unsigned long devaddr)
 {
 	struct s3c2410_dma_chan *chan = lookup_dma_channel(channel);
+	unsigned int hwcfg;
 
 	if (chan == NULL)
 		return -EINVAL;
 
-	pr_debug("%s: source=%d, hwcfg=%08x, devaddr=%08lx\n",
-		 __func__, (int)source, hwcfg, devaddr);
+	pr_debug("%s: source=%d, devaddr=%08lx\n",
+		 __func__, (int)source, devaddr);
 
 	chan->source = source;
 	chan->dev_addr = devaddr;
-	chan->hw_cfg = hwcfg;
+
+	switch (chan->req_ch) {
+	case DMACH_XD0:
+	case DMACH_XD1:
+		hwcfg = 0; /* AHB */
+		break;
+
+	default:
+		hwcfg = S3C2410_DISRCC_APB;
+	}
+
+	/* always assume our peripheral desintation is a fixed
+	 * address in memory. */
+	 hwcfg |= S3C2410_DISRCC_INC;
 
 	switch (source) {
 	case S3C2410_DMASRC_HW:
@@ -1278,8 +1309,8 @@ static int s3c2410_dma_resume(struct sys_device *dev)
 
 	printk(KERN_INFO "dma%d: restoring configuration\n", cp->number);
 
-	s3c2410_dma_config(no, cp->xfer_unit, cp->dcon);
-	s3c2410_dma_devconfig(no, cp->source, cp->hw_cfg, cp->dev_addr);
+	s3c2410_dma_config(no, cp->xfer_unit);
+	s3c2410_dma_devconfig(no, cp->source, cp->dev_addr);
 
 	/* re-select the dma source for this channel */
 
@@ -1476,6 +1507,7 @@ static struct s3c2410_dma_chan *s3c2410_dma_map_channel(int channel)
  found:
 	dmach = &s3c2410_chans[ch];
 	dmach->map = ch_map;
+	dmach->req_ch = channel;
 	dma_chan_map[channel] = dmach;
 
 	/* select the channel */

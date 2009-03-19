@@ -206,10 +206,10 @@ struct s3c2410_dma_chan {
 
 	/* channel configuration */
 	enum s3c2410_dmasrc	 source;
+	enum dma_ch		 req_ch;
 	unsigned long		 dev_addr;
 	unsigned long		 load_timeout;
 	unsigned int		 flags;		/* channel flags */
-	unsigned int		 hw_cfg;	/* last hw config */
 
 	struct s3c24xx_dma_map	*map;		/* channel hw maps */
 
@@ -290,7 +290,7 @@ extern int s3c2410_dma_enqueue(unsigned int channel, void *id,
  * configure the dma channel
 */
 
-extern int s3c2410_dma_config(unsigned int channel, int xferunit, int dcon);
+extern int s3c2410_dma_config(unsigned int channel, int xferunit);
 
 /* s3c2410_dma_devconfig
  *
@@ -298,7 +298,7 @@ extern int s3c2410_dma_config(unsigned int channel, int xferunit, int dcon);
 */
 
 extern int s3c2410_dma_devconfig(int channel, enum s3c2410_dmasrc source,
-				 int hwcfg, unsigned long devaddr);
+				 unsigned long devaddr);
 
 /* s3c2410_dma_getposition
  *
