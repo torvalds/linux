@@ -8297,7 +8297,7 @@ void __init sched_init(void)
 	alloc_size *= 2;
 #endif
 #ifdef CONFIG_CPUMASK_OFFSTACK
-	alloc_size *= num_possible_cpus() * cpumask_size();
+	alloc_size += num_possible_cpus() * cpumask_size();
 #endif
 	/*
 	 * As sched_init() is called before page_alloc is setup,
