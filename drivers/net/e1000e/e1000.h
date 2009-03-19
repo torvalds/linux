@@ -101,6 +101,7 @@ enum e1000_boards {
 	board_82572,
 	board_82573,
 	board_82574,
+	board_82583,
 	board_80003es2lan,
 	board_ich8lan,
 	board_ich9lan,
@@ -399,6 +400,7 @@ extern struct e1000_info e1000_82571_info;
 extern struct e1000_info e1000_82572_info;
 extern struct e1000_info e1000_82573_info;
 extern struct e1000_info e1000_82574_info;
+extern struct e1000_info e1000_82583_info;
 extern struct e1000_info e1000_ich8_info;
 extern struct e1000_info e1000_ich9_info;
 extern struct e1000_info e1000_ich10_info;

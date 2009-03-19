@@ -40,6 +40,7 @@
  * 82573E Gigabit Ethernet Controller (Copper)
  * 82573L Gigabit Ethernet Controller
  * 82574L Gigabit Network Connection
+ * 82583V Gigabit Network Connection
  */
 
 #include <linux/netdevice.h>
@@ -100,6 +101,7 @@ static s32 e1000_init_phy_params_82571(struct e1000_hw *hw)
 		phy->type		 = e1000_phy_m88;
 		break;
 	case e1000_82574:
+	case e1000_82583:
 		phy->type		 = e1000_phy_bm;
 		break;
 	default:
@@ -122,6 +124,7 @@ static s32 e1000_init_phy_params_82571(struct e1000_hw *hw)
 			return -E1000_ERR_PHY;
 		break;
 	case e1000_82574:
+	case e1000_82583:
 		if (phy->id != BME1000_E_PHY_ID_R2)
 			return -E1000_ERR_PHY;
 		break;
@@ -165,6 +168,7 @@ static s32 e1000_init_nvm_params_82571(struct e1000_hw *hw)
 	switch (hw->mac.type) {
 	case e1000_82573:
 	case e1000_82574:
+	case e1000_82583:
 		if (((eecd >> 15) & 0x3) == 0x3) {
 			nvm->type = e1000_nvm_flash_hw;
 			nvm->word_size = 2048;
@@ -262,6 +266,7 @@ static s32 e1000_init_mac_params_82571(struct e1000_adapter *adapter)
 
 	switch (hw->mac.type) {
 	case e1000_82574:
+	case e1000_82583:
 		func->check_mng_mode = e1000_check_mng_mode_82574;
 		func->led_on = e1000_led_on_82574;
 		break;
@@ -375,6 +380,7 @@ static s32 e1000_get_phy_id_82571(struct e1000_hw *hw)
 		return e1000e_get_phy_id(hw);
 		break;
 	case e1000_82574:
+	case e1000_82583:
 		ret_val = e1e_rphy(hw, PHY_ID1, &phy_id);
 		if (ret_val)
 			return ret_val;
@@ -464,8 +470,15 @@ static s32 e1000_acquire_nvm_82571(struct e1000_hw *hw)
 	if (ret_val)
 		return ret_val;
 
-	if (hw->mac.type != e1000_82573 && hw->mac.type != e1000_82574)
+	switch (hw->mac.type) {
+	case e1000_82573:
+	case e1000_82574:
+	case e1000_82583:
+		break;
+	default:
 		ret_val = e1000e_acquire_nvm(hw);
+		break;
+	}
 
 	if (ret_val)
 		e1000_put_hw_semaphore_82571(hw);
@@ -505,6 +518,7 @@ static s32 e1000_write_nvm_82571(struct e1000_hw *hw, u16 offset, u16 words,
 	switch (hw->mac.type) {
 	case e1000_82573:
 	case e1000_82574:
+	case e1000_82583:
 		ret_val = e1000_write_nvm_eewr_82571(hw, offset, words, data);
 		break;
 	case e1000_82571:
@@ -779,7 +793,10 @@ static s32 e1000_reset_hw_82571(struct e1000_hw *hw)
 	 * Must acquire the MDIO ownership before MAC reset.
 	 * Ownership defaults to firmware after a reset.
 	 */
-	if (hw->mac.type == e1000_82573 || hw->mac.type == e1000_82574) {
+	switch (hw->mac.type) {
+	case e1000_82573:
+	case e1000_82574:
+	case e1000_82583:
 		extcnf_ctrl = er32(EXTCNF_CTRL);
 		extcnf_ctrl |= E1000_EXTCNF_CTRL_MDIO_SW_OWNERSHIP;
 
@@ -795,6 +812,9 @@ static s32 e1000_reset_hw_82571(struct e1000_hw *hw)
 			msleep(2);
 			i++;
 		} while (i < MDIO_OWNERSHIP_TIMEOUT);
+		break;
+	default:
+		break;
 	}
 
 	ctrl = er32(CTRL);
@@ -820,8 +840,16 @@ static s32 e1000_reset_hw_82571(struct e1000_hw *hw)
 	 * Need to wait for Phy configuration completion before accessing
 	 * NVM and Phy.
 	 */
-	if (hw->mac.type == e1000_82573 || hw->mac.type == e1000_82574)
+
+	switch (hw->mac.type) {
+	case e1000_82573:
+	case e1000_82574:
+	case e1000_82583:
 		msleep(25);
+		break;
+	default:
+		break;
+	}
 
 	/* Clear any pending interrupt events. */
 	ew32(IMC, 0xffffffff);
@@ -891,17 +919,22 @@ static s32 e1000_init_hw_82571(struct e1000_hw *hw)
 	ew32(TXDCTL(0), reg_data);
 
 	/* ...for both queues. */
-	if (mac->type != e1000_82573 && mac->type != e1000_82574) {
+	switch (mac->type) {
+	case e1000_82573:
+	case e1000_82574:
+	case e1000_82583:
+		e1000e_enable_tx_pkt_filtering(hw);
+		reg_data = er32(GCR);
+		reg_data |= E1000_GCR_L1_ACT_WITHOUT_L0S_RX;
+		ew32(GCR, reg_data);
+		break;
+	default:
 		reg_data = er32(TXDCTL(1));
 		reg_data = (reg_data & ~E1000_TXDCTL_WTHRESH) |
 			   E1000_TXDCTL_FULL_TX_DESC_WB |
 			   E1000_TXDCTL_COUNT_DESC;
 		ew32(TXDCTL(1), reg_data);
-	} else {
-		e1000e_enable_tx_pkt_filtering(hw);
-		reg_data = er32(GCR);
-		reg_data |= E1000_GCR_L1_ACT_WITHOUT_L0S_RX;
-		ew32(GCR, reg_data);
+		break;
 	}
 
 	/*
@@ -966,18 +999,30 @@ static void e1000_initialize_hw_bits_82571(struct e1000_hw *hw)
 	}
 
 	/* Device Control */
-	if (hw->mac.type == e1000_82573 || hw->mac.type == e1000_82574) {
+	switch (hw->mac.type) {
+	case e1000_82573:
+	case e1000_82574:
+	case e1000_82583:
 		reg = er32(CTRL);
 		reg &= ~(1 << 29);
 		ew32(CTRL, reg);
+		break;
+	default:
+		break;
 	}
 
 	/* Extended Device Control */
-	if (hw->mac.type == e1000_82573 || hw->mac.type == e1000_82574) {
+	switch (hw->mac.type) {
+	case e1000_82573:
+	case e1000_82574:
+	case e1000_82583:
 		reg = er32(CTRL_EXT);
 		reg &= ~(1 << 23);
 		reg |= (1 << 22);
 		ew32(CTRL_EXT, reg);
+		break;
+	default:
+		break;
 	}
 
 	if (hw->mac.type == e1000_82571) {
@@ -999,7 +1044,9 @@ static void e1000_initialize_hw_bits_82571(struct e1000_hw *hw)
 
 
 	/* PCI-Ex Control Registers */
-	if (hw->mac.type == e1000_82574) {
+	switch (hw->mac.type) {
+	case e1000_82574:
+	case e1000_82583:
 		reg = er32(GCR);
 		reg |= (1 << 22);
 		ew32(GCR, reg);
@@ -1007,6 +1054,9 @@ static void e1000_initialize_hw_bits_82571(struct e1000_hw *hw)
 		reg = er32(GCR2);
 		reg |= 1;
 		ew32(GCR2, reg);
+		break;
+	default:
+		break;
 	}
 
 	return;
@@ -1026,7 +1076,10 @@ void e1000e_clear_vfta(struct e1000_hw *hw)
 	u32 vfta_offset = 0;
 	u32 vfta_bit_in_reg = 0;
 
-	if (hw->mac.type == e1000_82573 || hw->mac.type == e1000_82574) {
+	switch (hw->mac.type) {
+	case e1000_82573:
+	case e1000_82574:
+	case e1000_82583:
 		if (hw->mng_cookie.vlan_id != 0) {
 			/*
 			 * The VFTA is a 4096b bit-field, each identifying
@@ -1041,6 +1094,9 @@ void e1000e_clear_vfta(struct e1000_hw *hw)
 			vfta_bit_in_reg = 1 << (hw->mng_cookie.vlan_id &
 					       E1000_VFTA_ENTRY_BIT_SHIFT_MASK);
 		}
+		break;
+	default:
+		break;
 	}
 	for (offset = 0; offset < E1000_VLAN_FILTER_TBL_SIZE; offset++) {
 		/*
@@ -1139,9 +1195,16 @@ static s32 e1000_setup_link_82571(struct e1000_hw *hw)
 	 * the default flow control setting, so we explicitly
 	 * set it to full.
 	 */
-	if ((hw->mac.type == e1000_82573 || hw->mac.type == e1000_82574) &&
-	    hw->fc.requested_mode == e1000_fc_default)
-		hw->fc.requested_mode = e1000_fc_full;
+	switch (hw->mac.type) {
+	case e1000_82573:
+	case e1000_82574:
+	case e1000_82583:
+		if (hw->fc.requested_mode == e1000_fc_default)
+			hw->fc.requested_mode = e1000_fc_full;
+		break;
+	default:
+		break;
+	}
 
 	return e1000e_setup_link(hw);
 }
@@ -1362,11 +1425,19 @@ static s32 e1000_valid_led_default_82571(struct e1000_hw *hw, u16 *data)
 		return ret_val;
 	}
 
-	if ((hw->mac.type == e1000_82573 || hw->mac.type == e1000_82574) &&
-	    *data == ID_LED_RESERVED_F746)
-		*data = ID_LED_DEFAULT_82573;
-	else if (*data == ID_LED_RESERVED_0000 || *data == ID_LED_RESERVED_FFFF)
-		*data = ID_LED_DEFAULT;
+	switch (hw->mac.type) {
+	case e1000_82573:
+	case e1000_82574:
+	case e1000_82583:
+		if (*data == ID_LED_RESERVED_F746)
+			*data = ID_LED_DEFAULT_82573;
+		break;
+	default:
+		if (*data == ID_LED_RESERVED_0000 ||
+		    *data == ID_LED_RESERVED_FFFF)
+			*data = ID_LED_DEFAULT;
+		break;
+	}
 
 	return 0;
 }
@@ -1646,6 +1717,22 @@ struct e1000_info e1000_82574_info = {
 	.flags			= FLAG_HAS_HW_VLAN_FILTER
 				  | FLAG_HAS_MSIX
 				  | FLAG_HAS_JUMBO_FRAMES
+				  | FLAG_HAS_WOL
+				  | FLAG_APME_IN_CTRL3
+				  | FLAG_RX_CSUM_ENABLED
+				  | FLAG_HAS_SMART_POWER_DOWN
+				  | FLAG_HAS_AMT
+				  | FLAG_HAS_CTRLEXT_ON_LOAD,
+	.pba			= 20,
+	.get_variants		= e1000_get_variants_82571,
+	.mac_ops		= &e82571_mac_ops,
+	.phy_ops		= &e82_phy_ops_bm,
+	.nvm_ops		= &e82571_nvm_ops,
+};
+
+struct e1000_info e1000_82583_info = {
+	.mac			= e1000_82583,
+	.flags			= FLAG_HAS_HW_VLAN_FILTER
 				  | FLAG_HAS_WOL
 				  | FLAG_APME_IN_CTRL3
 				  | FLAG_RX_CSUM_ENABLED

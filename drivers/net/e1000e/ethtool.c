@@ -790,6 +790,7 @@ static int e1000_reg_test(struct e1000_adapter *adapter, u64 *data)
 		break;
 	case e1000_82573:
 	case e1000_82574:
+	case e1000_82583:
 	case e1000_ich8lan:
 	case e1000_ich9lan:
 	case e1000_ich10lan:
