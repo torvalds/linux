@@ -109,18 +109,8 @@ static inline struct dma_mapping_ops *get_dma_ops(struct device *dev)
 	 * only ISA DMA device we support is the floppy and we have a hack
 	 * in the floppy driver directly to get a device for us.
 	 */
-
-	if (unlikely(dev == NULL) || dev->archdata.dma_ops == NULL) {
-#ifdef CONFIG_PPC64
+	if (unlikely(dev == NULL))
 		return NULL;
-#else
-		/* Use default on 32-bit if dma_ops is not set up */
-		/* TODO: Long term, we should fix drivers so that dev and
-		 * archdata dma_ops are set up for all buses.
-		 */
-		return &dma_direct_ops;
-#endif
-	}
 
 	return dev->archdata.dma_ops;
 }
