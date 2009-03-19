@@ -909,10 +909,48 @@ static void ixgbe_get_strings(struct net_device *netdev, u32 stringset,
 static void ixgbe_get_wol(struct net_device *netdev,
                           struct ethtool_wolinfo *wol)
 {
-	wol->supported = 0;
+	struct ixgbe_adapter *adapter = netdev_priv(netdev);
+
+	wol->supported = WAKE_UCAST | WAKE_MCAST |
+	                 WAKE_BCAST | WAKE_MAGIC;
 	wol->wolopts = 0;
 
+	if (!device_can_wakeup(&adapter->pdev->dev))
+		return;
+
+	if (adapter->wol & IXGBE_WUFC_EX)
+		wol->wolopts |= WAKE_UCAST;
+	if (adapter->wol & IXGBE_WUFC_MC)
+		wol->wolopts |= WAKE_MCAST;
+	if (adapter->wol & IXGBE_WUFC_BC)
+		wol->wolopts |= WAKE_BCAST;
+	if (adapter->wol & IXGBE_WUFC_MAG)
+		wol->wolopts |= WAKE_MAGIC;
+
 	return;
+}
+
+static int ixgbe_set_wol(struct net_device *netdev, struct ethtool_wolinfo *wol)
+{
+	struct ixgbe_adapter *adapter = netdev_priv(netdev);
+
+	if (wol->wolopts & (WAKE_PHY | WAKE_ARP | WAKE_MAGICSECURE))
+		return -EOPNOTSUPP;
+
+	adapter->wol = 0;
+
+	if (wol->wolopts & WAKE_UCAST)
+		adapter->wol |= IXGBE_WUFC_EX;
+	if (wol->wolopts & WAKE_MCAST)
+		adapter->wol |= IXGBE_WUFC_MC;
+	if (wol->wolopts & WAKE_BCAST)
+		adapter->wol |= IXGBE_WUFC_BC;
+	if (wol->wolopts & WAKE_MAGIC)
+		adapter->wol |= IXGBE_WUFC_MAG;
+
+	device_set_wakeup_enable(&adapter->pdev->dev, adapter->wol);
+
+	return 0;
 }
 
 static int ixgbe_nway_reset(struct net_device *netdev)
@@ -1031,6 +1069,7 @@ static const struct ethtool_ops ixgbe_ethtool_ops = {
 	.get_regs_len           = ixgbe_get_regs_len,
 	.get_regs               = ixgbe_get_regs,
 	.get_wol                = ixgbe_get_wol,
+	.set_wol                = ixgbe_set_wol,
 	.nway_reset             = ixgbe_nway_reset,
 	.get_link               = ethtool_op_get_link,
 	.get_eeprom_len         = ixgbe_get_eeprom_len,
