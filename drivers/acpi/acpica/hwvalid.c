@@ -100,7 +100,7 @@ static const struct acpi_port_info acpi_protected_ports[] = {
 	{"PIC1", 0x00A0, 0x00A1, ACPI_ALWAYS_ILLEGAL},
 	{"IDMA", 0x00C0, 0x00DF, ACPI_OSI_WIN_XP},
 	{"ELCR", 0x04D0, 0x04D1, ACPI_ALWAYS_ILLEGAL},
-	{"PCI", 0x0CF8, 0x0D00, ACPI_OSI_WIN_XP}
+	{"PCI", 0x0CF8, 0x0CFF, ACPI_OSI_WIN_XP}
 };
 
 #define ACPI_PORT_INFO_ENTRIES  ACPI_ARRAY_LENGTH (acpi_protected_ports)
