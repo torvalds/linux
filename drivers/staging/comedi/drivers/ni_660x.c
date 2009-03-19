@@ -379,13 +379,13 @@ static const unsigned GPCT_OFFSET[2] = { 0x0, 0x800 };	/* First chip is at base-
 							   0x00, etc. */
 
 /* Board description*/
-typedef struct {
+struct ni_660x_board {
 	unsigned short dev_id;	/* `lspci` will show you this */
 	const char *name;
 	unsigned n_chips;	/* total number of TIO chips */
-} ni_660x_board;
+};
 
-static const ni_660x_board ni_660x_boards[] = {
+static const struct ni_660x_board ni_660x_boards[] = {
 	{
 	      dev_id:	0x2c60,
 	      name:	"PCI-6601",
@@ -439,7 +439,7 @@ static inline ni_660x_private *private(struct comedi_device * dev)
 }
 
 /* initialized in ni_660x_find_device() */
-static inline const ni_660x_board *board(struct comedi_device * dev)
+static inline const struct ni_660x_board *board(struct comedi_device * dev)
 {
 	return dev->board_ptr;
 }
