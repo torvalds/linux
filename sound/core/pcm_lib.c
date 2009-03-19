@@ -159,11 +159,15 @@ snd_pcm_update_hw_ptr_pos(struct snd_pcm_substream *substream,
 	pos = substream->ops->pointer(substream);
 	if (pos == SNDRV_PCM_POS_XRUN)
 		return pos; /* XRUN */
-#ifdef CONFIG_SND_DEBUG
 	if (pos >= runtime->buffer_size) {
-		snd_printk(KERN_ERR  "BUG: stream = %i, pos = 0x%lx, buffer size = 0x%lx, period size = 0x%lx\n", substream->stream, pos, runtime->buffer_size, runtime->period_size);
+		if (printk_ratelimit()) {
+			snd_printd(KERN_ERR  "BUG: stream = %i, pos = 0x%lx, "
+				   "buffer size = 0x%lx, period size = 0x%lx\n",
+				   substream->stream, pos, runtime->buffer_size,
+				   runtime->period_size);
+		}
+		pos = 0;
 	}
-#endif
 	pos -= pos % runtime->min_align;
 	return pos;
 }
