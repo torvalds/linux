@@ -2464,7 +2464,7 @@ static void igb_set_multi(struct net_device *netdev)
 	struct e1000_hw *hw = &adapter->hw;
 	struct e1000_mac_info *mac = &hw->mac;
 	struct dev_mc_list *mc_ptr;
-	u8  *mta_list;
+	u8  *mta_list = NULL;
 	u32 rctl;
 	int i;
 
@@ -2485,16 +2485,14 @@ static void igb_set_multi(struct net_device *netdev)
 	}
 	wr32(E1000_RCTL, rctl);
 
-	if (!netdev->mc_count) {
-		/* nothing to program, so clear mc list */
-		igb_update_mc_addr_list(hw, NULL, 0, 1,
-					mac->rar_entry_count);
-		return;
+	if (netdev->mc_count) {
+		mta_list = kzalloc(netdev->mc_count * 6, GFP_ATOMIC);
+		if (!mta_list) {
+			dev_err(&adapter->pdev->dev,
+			        "failed to allocate multicast filter list\n");
+			return;
+		}
 	}
-
-	mta_list = kzalloc(netdev->mc_count * 6, GFP_ATOMIC);
-	if (!mta_list)
-		return;
 
 	/* The shared function expects a packed array of only addresses. */
 	mc_ptr = netdev->mc_list;
