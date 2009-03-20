@@ -155,13 +155,6 @@ MODULE_PARM_DESC(rx_xon_thresh_bytes, "RX fifo XON threshold");
 /* Dummy SRAM size code */
 #define SRM_NB_BSZ_ONCHIP_ONLY (-1)
 
-/* Be nice if these (or equiv.) were in linux/pci_regs.h, but they're not. */
-#define PCI_EXP_DEVCAP_PWR_VAL_LBN	18
-#define PCI_EXP_DEVCAP_PWR_SCL_LBN	26
-#define PCI_EXP_DEVCTL_PAYLOAD_LBN	5
-#define PCI_EXP_LNKSTA_LNK_WID		0x3f0
-#define PCI_EXP_LNKSTA_LNK_WID_LBN	4
-
 #define FALCON_IS_DUAL_FUNC(efx)		\
 	(falcon_rev(efx) < FALCON_REV_B0)
 
