@@ -2428,6 +2428,13 @@ static void hso_free_net_device(struct hso_device *hso_dev)
 	kfree(hso_dev);
 }
 
+static const struct net_device_ops hso_netdev_ops = {
+	.ndo_open	= hso_net_open,
+	.ndo_stop	= hso_net_close,
+	.ndo_start_xmit = hso_net_start_xmit,
+	.ndo_tx_timeout = hso_net_tx_timeout,
+};
+
 /* initialize the network interface */
 static void hso_net_init(struct net_device *net)
 {
@@ -2436,10 +2443,7 @@ static void hso_net_init(struct net_device *net)
 	D1("sizeof hso_net is %d", (int)sizeof(*hso_net));
 
 	/* fill in the other fields */
-	net->open = hso_net_open;
-	net->stop = hso_net_close;
-	net->hard_start_xmit = hso_net_start_xmit;
-	net->tx_timeout = hso_net_tx_timeout;
+	net->netdev_ops = &hso_netdev_ops;
 	net->watchdog_timeo = HSO_NET_TX_TIMEOUT;
 	net->flags = IFF_POINTOPOINT | IFF_NOARP | IFF_MULTICAST;
 	net->type = ARPHRD_NONE;
