@@ -4195,6 +4195,7 @@ static struct fc_function_template ibmvfc_transport_functions = {
 	.show_host_supported_classes = 1,
 	.show_host_port_type = 1,
 	.show_host_port_id = 1,
+	.show_host_maxframe_size = 1,
 
 	.get_host_port_state = ibmvfc_get_host_port_state,
 	.show_host_port_state = 1,
