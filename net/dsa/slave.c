@@ -48,6 +48,16 @@ void dsa_slave_mii_bus_init(struct dsa_switch *ds)
 
 
 /* slave device handling ****************************************************/
+static int dsa_slave_init(struct net_device *dev)
+{
+	struct dsa_slave_priv *p = netdev_priv(dev);
+	struct net_device *master = p->parent->master_netdev;
+
+	dev->iflink = master->ifindex;
+
+	return 0;
+}
+
 static int dsa_slave_open(struct net_device *dev)
 {
 	struct dsa_slave_priv *p = netdev_priv(dev);
@@ -288,6 +298,7 @@ static const struct ethtool_ops dsa_slave_ethtool_ops = {
 
 #ifdef CONFIG_NET_DSA_TAG_DSA
 static const struct net_device_ops dsa_netdev_ops = {
+	.ndo_init		= dsa_slave_init,
 	.ndo_open	 	= dsa_slave_open,
 	.ndo_stop		= dsa_slave_close,
 	.ndo_start_xmit		= dsa_xmit,
@@ -300,6 +311,7 @@ static const struct net_device_ops dsa_netdev_ops = {
 #endif
 #ifdef CONFIG_NET_DSA_TAG_EDSA
 static const struct net_device_ops edsa_netdev_ops = {
+	.ndo_init		= dsa_slave_init,
 	.ndo_open	 	= dsa_slave_open,
 	.ndo_stop		= dsa_slave_close,
 	.ndo_start_xmit		= edsa_xmit,
@@ -312,6 +324,7 @@ static const struct net_device_ops edsa_netdev_ops = {
 #endif
 #ifdef CONFIG_NET_DSA_TAG_TRAILER
 static const struct net_device_ops trailer_netdev_ops = {
+	.ndo_init		= dsa_slave_init,
 	.ndo_open	 	= dsa_slave_open,
 	.ndo_stop		= dsa_slave_close,
 	.ndo_start_xmit		= trailer_xmit,
