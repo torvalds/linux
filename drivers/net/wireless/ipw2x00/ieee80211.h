@@ -786,7 +786,6 @@ struct ieee80211_device {
 	struct ieee80211_security sec;
 
 	/* Bookkeeping structures */
-	struct net_device_stats stats;
 	struct ieee80211_stats ieee_stats;
 
 	struct ieee80211_geo geo;

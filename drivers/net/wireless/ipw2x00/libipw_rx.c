@@ -335,7 +335,6 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 	struct ieee80211_hdr_4addr *hdr;
 	size_t hdrlen;
 	u16 fc, type, stype, sc;
-	struct net_device_stats *stats;
 	unsigned int frag;
 	u8 *payload;
 	u16 ethertype;
@@ -354,8 +353,6 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 	int can_be_decrypted = 0;
 
 	hdr = (struct ieee80211_hdr_4addr *)skb->data;
-	stats = &ieee->stats;
-
 	if (skb->len < 10) {
 		printk(KERN_INFO "%s: SKB length < 10\n", dev->name);
 		goto rx_dropped;
@@ -412,8 +409,8 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 #endif
 
 	if (ieee->iw_mode == IW_MODE_MONITOR) {
-		stats->rx_packets++;
-		stats->rx_bytes += skb->len;
+		dev->stats.rx_packets++;
+		dev->stats.rx_bytes += skb->len;
 		ieee80211_monitor_rx(ieee, skb, rx_stats);
 		return 1;
 	}
@@ -769,8 +766,8 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 	}
 #endif
 
-	stats->rx_packets++;
-	stats->rx_bytes += skb->len;
+	dev->stats.rx_packets++;
+	dev->stats.rx_bytes += skb->len;
 
 #ifdef NOT_YET
 	if (ieee->iw_mode == IW_MODE_MASTER && !wds && ieee->ap->bridge_packets) {
@@ -812,7 +809,7 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 			 * in our stats. */
 			IEEE80211_DEBUG_DROP
 			    ("RX: netif_rx dropped the packet\n");
-			stats->rx_dropped++;
+			dev->stats.rx_dropped++;
 		}
 	}
 
@@ -824,7 +821,7 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 	return 1;
 
       rx_dropped:
-	stats->rx_dropped++;
+	dev->stats.rx_dropped++;
 
 	/* Returning 0 indicates to caller that we have not handled the SKB--
 	 * so it is still allocated and can be used again by underlying
@@ -919,7 +916,7 @@ void ieee80211_rx_any(struct ieee80211_device *ieee,
 
 drop_free:
 	dev_kfree_skb_irq(skb);
-	ieee->stats.rx_dropped++;
+	ieee->dev->stats.rx_dropped++;
 	return;
 }
 

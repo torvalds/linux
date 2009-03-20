@@ -7731,22 +7731,23 @@ static void ipw_handle_data_packet(struct ipw_priv *priv,
 				   struct ipw_rx_mem_buffer *rxb,
 				   struct ieee80211_rx_stats *stats)
 {
+	struct net_device *dev = priv->net_dev;
 	struct ieee80211_hdr_4addr *hdr;
 	struct ipw_rx_packet *pkt = (struct ipw_rx_packet *)rxb->skb->data;
 
 	/* We received data from the HW, so stop the watchdog */
-	priv->net_dev->trans_start = jiffies;
+	dev->trans_start = jiffies;
 
 	/* We only process data packets if the
 	 * interface is open */
 	if (unlikely((le16_to_cpu(pkt->u.frame.length) + IPW_RX_FRAME_SIZE) >
 		     skb_tailroom(rxb->skb))) {
-		priv->ieee->stats.rx_errors++;
+		dev->stats.rx_errors++;
 		priv->wstats.discard.misc++;
 		IPW_DEBUG_DROP("Corruption detected! Oh no!\n");
 		return;
 	} else if (unlikely(!netif_running(priv->net_dev))) {
-		priv->ieee->stats.rx_dropped++;
+		dev->stats.rx_dropped++;
 		priv->wstats.discard.misc++;
 		IPW_DEBUG_DROP("Dropping packet while interface is not up.\n");
 		return;
@@ -7768,7 +7769,7 @@ static void ipw_handle_data_packet(struct ipw_priv *priv,
 		ipw_rebuild_decrypted_skb(priv, rxb->skb);
 
 	if (!ieee80211_rx(priv->ieee, rxb->skb, stats))
-		priv->ieee->stats.rx_errors++;
+		dev->stats.rx_errors++;
 	else {			/* ieee80211_rx succeeded, so it now owns the SKB */
 		rxb->skb = NULL;
 		__ipw_led_activity_on(priv);
@@ -7780,6 +7781,7 @@ static void ipw_handle_data_packet_monitor(struct ipw_priv *priv,
 					   struct ipw_rx_mem_buffer *rxb,
 					   struct ieee80211_rx_stats *stats)
 {
+	struct net_device *dev = priv->net_dev;
 	struct ipw_rx_packet *pkt = (struct ipw_rx_packet *)rxb->skb->data;
 	struct ipw_rx_frame *frame = &pkt->u.frame;
 
@@ -7797,18 +7799,18 @@ static void ipw_handle_data_packet_monitor(struct ipw_priv *priv,
 	short len = le16_to_cpu(pkt->u.frame.length);
 
 	/* We received data from the HW, so stop the watchdog */
-	priv->net_dev->trans_start = jiffies;
+	dev->trans_start = jiffies;
 
 	/* We only process data packets if the
 	 * interface is open */
 	if (unlikely((le16_to_cpu(pkt->u.frame.length) + IPW_RX_FRAME_SIZE) >
 		     skb_tailroom(rxb->skb))) {
-		priv->ieee->stats.rx_errors++;
+		dev->stats.rx_errors++;
 		priv->wstats.discard.misc++;
 		IPW_DEBUG_DROP("Corruption detected! Oh no!\n");
 		return;
 	} else if (unlikely(!netif_running(priv->net_dev))) {
-		priv->ieee->stats.rx_dropped++;
+		dev->stats.rx_dropped++;
 		priv->wstats.discard.misc++;
 		IPW_DEBUG_DROP("Dropping packet while interface is not up.\n");
 		return;
@@ -7818,7 +7820,7 @@ static void ipw_handle_data_packet_monitor(struct ipw_priv *priv,
 	 * that now */
 	if (len > IPW_RX_BUF_SIZE - sizeof(struct ipw_rt_hdr)) {
 		/* FIXME: Should alloc bigger skb instead */
-		priv->ieee->stats.rx_dropped++;
+		dev->stats.rx_dropped++;
 		priv->wstats.discard.misc++;
 		IPW_DEBUG_DROP("Dropping too large packet in monitor\n");
 		return;
@@ -7924,7 +7926,7 @@ static void ipw_handle_data_packet_monitor(struct ipw_priv *priv,
 	IPW_DEBUG_RX("Rx packet of %d bytes.\n", rxb->skb->len);
 
 	if (!ieee80211_rx(priv->ieee, rxb->skb, stats))
-		priv->ieee->stats.rx_errors++;
+		dev->stats.rx_errors++;
 	else {			/* ieee80211_rx succeeded, so it now owns the SKB */
 		rxb->skb = NULL;
 		/* no LED during capture */
@@ -7956,6 +7958,7 @@ static void ipw_handle_promiscuous_rx(struct ipw_priv *priv,
 				      struct ipw_rx_mem_buffer *rxb,
 				      struct ieee80211_rx_stats *stats)
 {
+	struct net_device *dev = priv->prom_net_dev;
 	struct ipw_rx_packet *pkt = (struct ipw_rx_packet *)rxb->skb->data;
 	struct ipw_rx_frame *frame = &pkt->u.frame;
 	struct ipw_rt_hdr *ipw_rt;
@@ -7978,17 +7981,17 @@ static void ipw_handle_promiscuous_rx(struct ipw_priv *priv,
 		return;
 
 	/* We received data from the HW, so stop the watchdog */
-	priv->prom_net_dev->trans_start = jiffies;
+	dev->trans_start = jiffies;
 
 	if (unlikely((len + IPW_RX_FRAME_SIZE) > skb_tailroom(rxb->skb))) {
-		priv->prom_priv->ieee->stats.rx_errors++;
+		dev->stats.rx_errors++;
 		IPW_DEBUG_DROP("Corruption detected! Oh no!\n");
 		return;
 	}
 
 	/* We only process data packets if the interface is open */
-	if (unlikely(!netif_running(priv->prom_net_dev))) {
-		priv->prom_priv->ieee->stats.rx_dropped++;
+	if (unlikely(!netif_running(dev))) {
+		dev->stats.rx_dropped++;
 		IPW_DEBUG_DROP("Dropping packet while interface is not up.\n");
 		return;
 	}
@@ -7997,7 +8000,7 @@ static void ipw_handle_promiscuous_rx(struct ipw_priv *priv,
 	 * that now */
 	if (len > IPW_RX_BUF_SIZE - sizeof(struct ipw_rt_hdr)) {
 		/* FIXME: Should alloc bigger skb instead */
-		priv->prom_priv->ieee->stats.rx_dropped++;
+		dev->stats.rx_dropped++;
 		IPW_DEBUG_DROP("Dropping too large packet in monitor\n");
 		return;
 	}
@@ -8129,7 +8132,7 @@ static void ipw_handle_promiscuous_rx(struct ipw_priv *priv,
 	IPW_DEBUG_RX("Rx packet of %d bytes.\n", skb->len);
 
 	if (!ieee80211_rx(priv->prom_priv->ieee, skb, stats)) {
-		priv->prom_priv->ieee->stats.rx_errors++;
+		dev->stats.rx_errors++;
 		dev_kfree_skb_any(skb);
 	}
 }
@@ -8413,7 +8416,7 @@ static void ipw_rx(struct ipw_priv *priv)
 					IPW_DEBUG_DROP
 					    ("Received packet is too small. "
 					     "Dropping.\n");
-					priv->ieee->stats.rx_errors++;
+					priv->net_dev->stats.rx_errors++;
 					priv->wstats.discard.misc++;
 					break;
 				}
@@ -10484,15 +10487,6 @@ static int ipw_net_hard_start_xmit(struct ieee80211_txb *txb,
 	return ret;
 }
 
-static struct net_device_stats *ipw_net_get_stats(struct net_device *dev)
-{
-	struct ipw_priv *priv = ieee80211_priv(dev);
-
-	priv->ieee->stats.tx_packets = priv->tx_packets;
-	priv->ieee->stats.rx_packets = priv->rx_packets;
-	return &priv->ieee->stats;
-}
-
 static void ipw_net_set_multicast_list(struct net_device *dev)
 {
 
@@ -11535,12 +11529,6 @@ static int ipw_prom_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	return -EOPNOTSUPP;
 }
 
-static struct net_device_stats *ipw_prom_get_stats(struct net_device *dev)
-{
-	struct ipw_prom_priv *prom_priv = ieee80211_priv(dev);
-	return &prom_priv->ieee->stats;
-}
-
 static int ipw_prom_alloc(struct ipw_priv *priv)
 {
 	int rc = 0;
@@ -11562,7 +11550,6 @@ static int ipw_prom_alloc(struct ipw_priv *priv)
 	priv->prom_net_dev->type = ARPHRD_IEEE80211_RADIOTAP;
 	priv->prom_net_dev->open = ipw_prom_open;
 	priv->prom_net_dev->stop = ipw_prom_stop;
-	priv->prom_net_dev->get_stats = ipw_prom_get_stats;
 	priv->prom_net_dev->hard_start_xmit = ipw_prom_hard_start_xmit;
 
 	priv->prom_priv->ieee->iw_mode = IW_MODE_MONITOR;
@@ -11695,7 +11682,6 @@ static int __devinit ipw_pci_probe(struct pci_dev *pdev,
 	net_dev->open = ipw_net_open;
 	net_dev->stop = ipw_net_stop;
 	net_dev->init = ipw_net_init;
-	net_dev->get_stats = ipw_net_get_stats;
 	net_dev->set_multicast_list = ipw_net_set_multicast_list;
 	net_dev->set_mac_address = ipw_net_set_mac_address;
 	priv->wireless_data.spy_data = &priv->ieee->spy_data;

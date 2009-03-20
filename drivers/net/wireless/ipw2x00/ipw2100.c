@@ -2391,13 +2391,14 @@ static void ipw2100_corruption_detected(struct ipw2100_priv *priv, int i)
 #endif
 
 	priv->fatal_error = IPW2100_ERR_C3_CORRUPTION;
-	priv->ieee->stats.rx_errors++;
+	priv->net_dev->stats.rx_errors++;
 	schedule_reset(priv);
 }
 
 static void isr_rx(struct ipw2100_priv *priv, int i,
 			  struct ieee80211_rx_stats *stats)
 {
+	struct net_device *dev = priv->net_dev;
 	struct ipw2100_status *status = &priv->status_queue.drv[i];
 	struct ipw2100_rx_packet *packet = &priv->rx_buffers[i];
 
@@ -2406,14 +2407,14 @@ static void isr_rx(struct ipw2100_priv *priv, int i,
 	if (unlikely(status->frame_size > skb_tailroom(packet->skb))) {
 		IPW_DEBUG_INFO("%s: frame_size (%u) > skb_tailroom (%u)!"
 			       "  Dropping.\n",
-			       priv->net_dev->name,
+			       dev->name,
 			       status->frame_size, skb_tailroom(packet->skb));
-		priv->ieee->stats.rx_errors++;
+		dev->stats.rx_errors++;
 		return;
 	}
 
-	if (unlikely(!netif_running(priv->net_dev))) {
-		priv->ieee->stats.rx_errors++;
+	if (unlikely(!netif_running(dev))) {
+		dev->stats.rx_errors++;
 		priv->wstats.discard.misc++;
 		IPW_DEBUG_DROP("Dropping packet while interface is not up.\n");
 		return;
@@ -2443,10 +2444,10 @@ static void isr_rx(struct ipw2100_priv *priv, int i,
 	if (!ieee80211_rx(priv->ieee, packet->skb, stats)) {
 #ifdef IPW2100_RX_DEBUG
 		IPW_DEBUG_DROP("%s: Non consumed packet:\n",
-			       priv->net_dev->name);
+			       dev->name);
 		printk_buf(IPW_DL_DROP, packet_data, status->frame_size);
 #endif
-		priv->ieee->stats.rx_errors++;
+		dev->stats.rx_errors++;
 
 		/* ieee80211_rx failed, so it didn't free the SKB */
 		dev_kfree_skb_any(packet->skb);
@@ -2457,7 +2458,7 @@ static void isr_rx(struct ipw2100_priv *priv, int i,
 	if (unlikely(ipw2100_alloc_skb(priv, packet))) {
 		printk(KERN_WARNING DRV_NAME ": "
 		       "%s: Unable to allocate SKB onto RBD ring - disabling "
-		       "adapter.\n", priv->net_dev->name);
+		       "adapter.\n", dev->name);
 		/* TODO: schedule adapter shutdown */
 		IPW_DEBUG_INFO("TODO: Shutdown adapter...\n");
 	}
@@ -2471,6 +2472,7 @@ static void isr_rx(struct ipw2100_priv *priv, int i,
 static void isr_rx_monitor(struct ipw2100_priv *priv, int i,
 		   struct ieee80211_rx_stats *stats)
 {
+	struct net_device *dev = priv->net_dev;
 	struct ipw2100_status *status = &priv->status_queue.drv[i];
 	struct ipw2100_rx_packet *packet = &priv->rx_buffers[i];
 
@@ -2488,15 +2490,15 @@ static void isr_rx_monitor(struct ipw2100_priv *priv, int i,
 				sizeof(struct ipw_rt_hdr))) {
 		IPW_DEBUG_INFO("%s: frame_size (%u) > skb_tailroom (%u)!"
 			       "  Dropping.\n",
-			       priv->net_dev->name,
+			       dev->name,
 			       status->frame_size,
 			       skb_tailroom(packet->skb));
-		priv->ieee->stats.rx_errors++;
+		dev->stats.rx_errors++;
 		return;
 	}
 
-	if (unlikely(!netif_running(priv->net_dev))) {
-		priv->ieee->stats.rx_errors++;
+	if (unlikely(!netif_running(dev))) {
+		dev->stats.rx_errors++;
 		priv->wstats.discard.misc++;
 		IPW_DEBUG_DROP("Dropping packet while interface is not up.\n");
 		return;
@@ -2505,7 +2507,7 @@ static void isr_rx_monitor(struct ipw2100_priv *priv, int i,
 	if (unlikely(priv->config & CFG_CRC_CHECK &&
 		     status->flags & IPW_STATUS_FLAG_CRC_ERROR)) {
 		IPW_DEBUG_RX("CRC error in packet.  Dropping.\n");
-		priv->ieee->stats.rx_errors++;
+		dev->stats.rx_errors++;
 		return;
 	}
 
@@ -2527,7 +2529,7 @@ static void isr_rx_monitor(struct ipw2100_priv *priv, int i,
 	skb_put(packet->skb, status->frame_size + sizeof(struct ipw_rt_hdr));
 
 	if (!ieee80211_rx(priv->ieee, packet->skb, stats)) {
-		priv->ieee->stats.rx_errors++;
+		dev->stats.rx_errors++;
 
 		/* ieee80211_rx failed, so it didn't free the SKB */
 		dev_kfree_skb_any(packet->skb);
@@ -2538,7 +2540,7 @@ static void isr_rx_monitor(struct ipw2100_priv *priv, int i,
 	if (unlikely(ipw2100_alloc_skb(priv, packet))) {
 		IPW_DEBUG_WARNING(
 			"%s: Unable to allocate SKB onto RBD ring - disabling "
-			"adapter.\n", priv->net_dev->name);
+			"adapter.\n", dev->name);
 		/* TODO: schedule adapter shutdown */
 		IPW_DEBUG_INFO("TODO: Shutdown adapter...\n");
 	}
@@ -3340,7 +3342,7 @@ static int ipw2100_tx(struct ieee80211_txb *txb, struct net_device *dev,
 
 	if (!(priv->status & STATUS_ASSOCIATED)) {
 		IPW_DEBUG_INFO("Can not transmit when not connected.\n");
-		priv->ieee->stats.tx_carrier_errors++;
+		priv->net_dev->stats.tx_carrier_errors++;
 		netif_stop_queue(dev);
 		goto fail_unlock;
 	}
@@ -5836,7 +5838,7 @@ static void ipw2100_tx_timeout(struct net_device *dev)
 {
 	struct ipw2100_priv *priv = ieee80211_priv(dev);
 
-	priv->ieee->stats.tx_errors++;
+	dev->stats.tx_errors++;
 
 #ifdef CONFIG_IPW2100_MONITOR
 	if (priv->ieee->iw_mode == IW_MODE_MONITOR)
