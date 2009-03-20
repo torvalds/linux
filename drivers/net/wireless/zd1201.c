@@ -1717,6 +1717,18 @@ static const struct iw_handler_def zd1201_iw_handlers = {
 	.get_wireless_stats	= zd1201_get_wireless_stats,
 };
 
+static const struct net_device_ops zd1201_netdev_ops = {
+	.ndo_open		= zd1201_net_open,
+	.ndo_stop		= zd1201_net_stop,
+	.ndo_start_xmit		= zd1201_hard_start_xmit,
+	.ndo_tx_timeout		= zd1201_tx_timeout,
+	.ndo_set_multicast_list = zd1201_set_multicast,
+	.ndo_set_mac_address	= zd1201_set_mac_address,
+	.ndo_change_mtu		= eth_change_mtu,
+	.ndo_set_mac_address 	= eth_mac_addr,
+	.ndo_validate_addr	= eth_validate_addr,
+};
+
 static int zd1201_probe(struct usb_interface *interface,
 			const struct usb_device_id *id)
 {
@@ -1769,14 +1781,9 @@ static int zd1201_probe(struct usb_interface *interface,
 	if (err)
 		goto err_start;
 
-	dev->open = zd1201_net_open;
-	dev->stop = zd1201_net_stop;
+	dev->netdev_ops = &zd1201_netdev_ops;
 	dev->wireless_handlers = &zd1201_iw_handlers;
-	dev->hard_start_xmit = zd1201_hard_start_xmit;
 	dev->watchdog_timeo = ZD1201_TX_TIMEOUT;
-	dev->tx_timeout = zd1201_tx_timeout;
-	dev->set_multicast_list = zd1201_set_multicast;
-	dev->set_mac_address = zd1201_set_mac_address;
 	strcpy(dev->name, "wlan%d");
 
 	err = zd1201_getconfig(zd, ZD1201_RID_CNFOWNMACADDR, 
