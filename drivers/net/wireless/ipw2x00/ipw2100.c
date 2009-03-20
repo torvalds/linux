@@ -6008,6 +6008,17 @@ static void ipw2100_rf_kill(struct work_struct *work)
 
 static void ipw2100_irq_tasklet(struct ipw2100_priv *priv);
 
+static const struct net_device_ops ipw2100_netdev_ops = {
+	.ndo_open		= ipw2100_open,
+	.ndo_stop		= ipw2100_close,
+	.ndo_start_xmit		= ieee80211_xmit,
+	.ndo_change_mtu		= ieee80211_change_mtu,
+	.ndo_init		= ipw2100_net_init,
+	.ndo_tx_timeout		= ipw2100_tx_timeout,
+	.ndo_set_mac_address	= ipw2100_set_address,
+	.ndo_validate_addr	= eth_validate_addr,
+};
+
 /* Look into using netdev destructor to shutdown ieee80211? */
 
 static struct net_device *ipw2100_alloc_device(struct pci_dev *pci_dev,
@@ -6032,15 +6043,11 @@ static struct net_device *ipw2100_alloc_device(struct pci_dev *pci_dev,
 	priv->ieee->perfect_rssi = -20;
 	priv->ieee->worst_rssi = -85;
 
-	dev->open = ipw2100_open;
-	dev->stop = ipw2100_close;
-	dev->init = ipw2100_net_init;
+	dev->netdev_ops = &ipw2100_netdev_ops;
 	dev->ethtool_ops = &ipw2100_ethtool_ops;
-	dev->tx_timeout = ipw2100_tx_timeout;
 	dev->wireless_handlers = &ipw2100_wx_handler_def;
 	priv->wireless_data.ieee80211 = priv->ieee;
 	dev->wireless_data = &priv->wireless_data;
-	dev->set_mac_address = ipw2100_set_address;
 	dev->watchdog_timeo = 3 * HZ;
 	dev->irq = 0;
 
