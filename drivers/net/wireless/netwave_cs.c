@@ -355,6 +355,17 @@ static struct iw_statistics *netwave_get_wireless_stats(struct net_device *dev)
     return &priv->iw_stats;
 }
 
+static const struct net_device_ops netwave_netdev_ops = {
+	.ndo_open	 	= netwave_open,
+	.ndo_stop		= netwave_close,
+	.ndo_start_xmit		= netwave_start_xmit,
+	.ndo_set_multicast_list = set_multicast_list,
+	.ndo_tx_timeout		= netwave_watchdog,
+	.ndo_change_mtu		= eth_change_mtu,
+	.ndo_set_mac_address 	= eth_mac_addr,
+	.ndo_validate_addr	= eth_validate_addr,
+};
+
 /*
  * Function netwave_attach (void)
  *
@@ -403,16 +414,12 @@ static int netwave_probe(struct pcmcia_device *link)
     spin_lock_init(&priv->spinlock);
 
     /* Netwave specific entries in the device structure */
-    dev->hard_start_xmit = &netwave_start_xmit;
-    dev->set_multicast_list = &set_multicast_list;
+    dev->netdev_ops = &netwave_netdev_ops;
     /* wireless extensions */
-    dev->wireless_handlers = (struct iw_handler_def *)&netwave_handler_def;
+    dev->wireless_handlers = &netwave_handler_def;
 
-    dev->tx_timeout = &netwave_watchdog;
     dev->watchdog_timeo = TX_TIMEOUT;
 
-    dev->open = &netwave_open;
-    dev->stop = &netwave_close;
     link->irq.Instance = dev;
 
     return netwave_pcmcia_config( link);
