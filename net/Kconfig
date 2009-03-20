@@ -24,9 +24,6 @@ if NET
 
 menu "Networking options"
 
-config COMPAT_NET_DEV_OPS
-       def_bool y
-
 source "net/packet/Kconfig"
 source "net/unix/Kconfig"
 source "net/xfrm/Kconfig"
