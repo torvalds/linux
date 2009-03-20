@@ -303,13 +303,17 @@ static int lapbeth_close(struct net_device *dev)
 
 /* ------------------------------------------------------------------------ */
 
+static const struct net_device_ops lapbeth_netdev_ops = {
+	.ndo_open	     = lapbeth_open,
+	.ndo_stop	     = lapbeth_close,
+	.ndo_start_xmit	     = lapbeth_xmit,
+	.ndo_set_mac_address = lapbeth_set_mac_address,
+};
+
 static void lapbeth_setup(struct net_device *dev)
 {
-	dev->hard_start_xmit = lapbeth_xmit;
-	dev->open	     = lapbeth_open;
-	dev->stop	     = lapbeth_close;
+	dev->netdev_ops	     = &lapbeth_netdev_ops;
 	dev->destructor	     = free_netdev;
-	dev->set_mac_address = lapbeth_set_mac_address;
 	dev->type            = ARPHRD_X25;
 	dev->hard_header_len = 3;
 	dev->mtu             = 1000;
