@@ -1312,13 +1312,10 @@ static int __devinit igb_probe(struct pci_dev *pdev,
 		goto err_eeprom;
 	}
 
-	init_timer(&adapter->watchdog_timer);
-	adapter->watchdog_timer.function = &igb_watchdog;
-	adapter->watchdog_timer.data = (unsigned long) adapter;
-
-	init_timer(&adapter->phy_info_timer);
-	adapter->phy_info_timer.function = &igb_update_phy_info;
-	adapter->phy_info_timer.data = (unsigned long) adapter;
+	setup_timer(&adapter->watchdog_timer, &igb_watchdog,
+	            (unsigned long) adapter);
+	setup_timer(&adapter->phy_info_timer, &igb_update_phy_info,
+	            (unsigned long) adapter);
 
 	INIT_WORK(&adapter->reset_task, igb_reset_task);
 	INIT_WORK(&adapter->watchdog_task, igb_watchdog_task);
