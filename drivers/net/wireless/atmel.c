@@ -1495,6 +1495,17 @@ static int atmel_read_proc(char *page, char **start, off_t off,
 	return len;
 }
 
+static const struct net_device_ops atmel_netdev_ops = {
+	.ndo_open 		= atmel_open,
+	.ndo_stop		= atmel_close,
+	.ndo_change_mtu 	= atmel_change_mtu,
+	.ndo_set_mac_address 	= atmel_set_mac_address,
+	.ndo_start_xmit 	= start_tx,
+	.ndo_do_ioctl 		= atmel_ioctl,
+	.ndo_change_mtu		= eth_change_mtu,
+	.ndo_validate_addr	= eth_validate_addr,
+};
+
 struct net_device *init_atmel_card(unsigned short irq, unsigned long port,
 				   const AtmelFWType fw_type,
 				   struct device *sys_dev,
@@ -1579,13 +1590,8 @@ struct net_device *init_atmel_card(unsigned short irq, unsigned long port,
 	priv->management_timer.function = atmel_management_timer;
 	priv->management_timer.data = (unsigned long) dev;
 
-	dev->open = atmel_open;
-	dev->stop = atmel_close;
-	dev->change_mtu = atmel_change_mtu;
-	dev->set_mac_address = atmel_set_mac_address;
-	dev->hard_start_xmit = start_tx;
-	dev->wireless_handlers = (struct iw_handler_def *)&atmel_handler_def;
-	dev->do_ioctl = atmel_ioctl;
+	dev->netdev_ops = &atmel_netdev_ops;
+	dev->wireless_handlers = &atmel_handler_def;
 	dev->irq = irq;
 	dev->base_addr = port;
 
