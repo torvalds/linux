@@ -387,6 +387,9 @@ int do_perfstat(int argc, char *argv[])
 	argc -= optind;
 	argv += optind;
 
+	if (!argc)
+		display_help();
+
 	/*
 	 * Enable counters and exec the command:
 	 */
