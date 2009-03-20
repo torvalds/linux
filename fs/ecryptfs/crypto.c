@@ -2221,17 +2221,19 @@ int ecryptfs_decode_and_decrypt_filename(char **plaintext_name,
 					 struct dentry *ecryptfs_dir_dentry,
 					 const char *name, size_t name_size)
 {
+	struct ecryptfs_mount_crypt_stat *mount_crypt_stat =
+		&ecryptfs_superblock_to_private(
+			ecryptfs_dir_dentry->d_sb)->mount_crypt_stat;
 	char *decoded_name;
 	size_t decoded_name_size;
 	size_t packet_size;
 	int rc = 0;
 
-	if ((name_size > ECRYPTFS_FNEK_ENCRYPTED_FILENAME_PREFIX_SIZE)
+	if ((mount_crypt_stat->flags & ECRYPTFS_GLOBAL_ENCRYPT_FILENAMES)
+	    && !(mount_crypt_stat->flags & ECRYPTFS_ENCRYPTED_VIEW_ENABLED)
+	    && (name_size > ECRYPTFS_FNEK_ENCRYPTED_FILENAME_PREFIX_SIZE)
 	    && (strncmp(name, ECRYPTFS_FNEK_ENCRYPTED_FILENAME_PREFIX,
 			ECRYPTFS_FNEK_ENCRYPTED_FILENAME_PREFIX_SIZE) == 0)) {
-		struct ecryptfs_mount_crypt_stat *mount_crypt_stat =
-			&ecryptfs_superblock_to_private(
-				ecryptfs_dir_dentry->d_sb)->mount_crypt_stat;
 		const char *orig_name = name;
 		size_t orig_name_size = name_size;
 
