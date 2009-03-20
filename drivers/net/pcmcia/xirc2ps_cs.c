@@ -545,6 +545,19 @@ mii_wr(unsigned int ioaddr, u_char phyaddr, u_char phyreg, unsigned data,
 
 /*============= Main bulk of functions	=========================*/
 
+static const struct net_device_ops netdev_ops = {
+	.ndo_open		= do_open,
+	.ndo_stop		= do_stop,
+	.ndo_start_xmit		= do_start_xmit,
+	.ndo_tx_timeout 	= xirc_tx_timeout,
+	.ndo_set_config		= do_config,
+	.ndo_do_ioctl		= do_ioctl,
+	.ndo_set_multicast_list	= set_multicast_list,
+	.ndo_change_mtu		= eth_change_mtu,
+	.ndo_set_mac_address 	= eth_mac_addr,
+	.ndo_validate_addr	= eth_validate_addr,
+};
+
 /****************
  * xirc2ps_attach() creates an "instance" of the driver, allocating
  * local data structures for one device.  The device is registered
@@ -580,18 +593,10 @@ xirc2ps_probe(struct pcmcia_device *link)
     link->irq.Instance = dev;
 
     /* Fill in card specific entries */
-    dev->hard_start_xmit = &do_start_xmit;
-    dev->set_config = &do_config;
-    dev->do_ioctl = &do_ioctl;
-    SET_ETHTOOL_OPS(dev, &netdev_ethtool_ops);
-    dev->set_multicast_list = &set_multicast_list;
-    dev->open = &do_open;
-    dev->stop = &do_stop;
-#ifdef HAVE_TX_TIMEOUT
-    dev->tx_timeout = xirc_tx_timeout;
+    dev->netdev_ops = &netdev_ops;
+    dev->ethtool_ops = &netdev_ethtool_ops;
     dev->watchdog_timeo = TX_TIMEOUT;
     INIT_WORK(&local->tx_timeout_task, xirc2ps_tx_timeout_task);
-#endif
 
     return xirc2ps_config(link);
 } /* xirc2ps_attach */
