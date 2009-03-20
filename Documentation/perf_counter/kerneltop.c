@@ -3,7 +3,7 @@
 
    Build with:
 
-     cc -O6 -Wall `pkg-config --cflags --libs glib-2.0` -o kerneltop kerneltop.c
+     cc -O6 -Wall -lrt `pkg-config --cflags --libs glib-2.0` -o kerneltop kerneltop.c
 
    Sample output:
 
@@ -26,18 +26,40 @@
               12.00 - ffffffff804ffb7f : __ip_local_out
               11.97 - ffffffff804fc0c8 : ip_local_deliver_finish
                8.54 - ffffffff805001a3 : ip_queue_xmit
-
-  Started by Ingo Molnar <mingo@redhat.com>
-
-  Improvements and fixes by:
-
-    Arjan van de Ven <arjan@linux.intel.com>
-    Yanmin Zhang <yanmin.zhang@intel.com>
-    Mike Galbraith <efault@gmx.de>
-
-  Released under the GPL v2. (and only v2, not any later version)
-
  */
+
+/*
+ * perfstat:  /usr/bin/time -alike performance counter statistics utility
+
+          It summarizes the counter events of all tasks (and child tasks),
+          covering all CPUs that the command (or workload) executes on.
+          It only counts the per-task events of the workload started,
+          independent of how many other tasks run on those CPUs.
+
+   Sample output:
+
+   $ ./perfstat -e 1 -e 3 -e 5 ls -lR /usr/include/ >/dev/null
+
+   Performance counter stats for 'ls':
+
+           163516953 instructions
+                2295 cache-misses
+             2855182 branch-misses
+ */
+
+ /*
+  * Copyright (C) 2008, Red Hat Inc, Ingo Molnar <mingo@redhat.com>
+  *
+  * Improvements and fixes by:
+  *
+  *   Arjan van de Ven <arjan@linux.intel.com>
+  *   Yanmin Zhang <yanmin.zhang@intel.com>
+  *   Wu Fengguang <fengguang.wu@intel.com>
+  *   Mike Galbraith <efault@gmx.de>
+  *
+  * Released under the GPL v2. (and only v2, not any later version)
+  */
+
 #define _GNU_SOURCE
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -67,18 +89,22 @@
 
 #include "perfcounters.h"
 
-const unsigned int default_count[] = {
-	1000000,
-	1000000,
-	  10000,
-	  10000,
-	1000000,
-	  10000,
-};
+
+#define MAX_COUNTERS			64
+#define MAX_NR_CPUS			256
+
+#define DEF_PERFSTAT_EVENTS		{ -2, -5, -4, -3, 0, 1, 2, 3}
+
+static int			run_perfstat			=  0;
+static int			system_wide			=  0;
+
+static int			nr_counters			=  0;
+static long			event_id[MAX_COUNTERS]		= DEF_PERFSTAT_EVENTS;
+static int			event_raw[MAX_COUNTERS];
+static int			event_count[MAX_COUNTERS];
+static int			fd[MAX_NR_CPUS][MAX_COUNTERS];
 
 static __u64			count_filter		       = 100;
-
-static int			event_count[MAX_COUNTERS];
 
 static int			tid				= -1;
 static int			profile_cpu			= -1;
@@ -96,124 +122,334 @@ static int			delay_secs			=  2;
 static int			zero;
 static int			dump_symtab;
 
+static GList			*lines;
+
 struct source_line {
 	uint64_t		EIP;
 	unsigned long		count;
 	char			*line;
 };
 
-static GList			*lines;
+
+const unsigned int default_count[] = {
+	1000000,
+	1000000,
+	  10000,
+	  10000,
+	1000000,
+	  10000,
+};
+
+static char *hw_event_names[] = {
+	"CPU cycles",
+	"instructions",
+	"cache references",
+	"cache misses",
+	"branches",
+	"branch misses",
+	"bus cycles",
+};
+
+static char *sw_event_names[] = {
+	"cpu clock ticks",
+	"task clock ticks",
+	"pagefaults",
+	"context switches",
+	"CPU migrations",
+};
+
+struct event_symbol {
+	int event;
+	char *symbol;
+};
+
+static struct event_symbol event_symbols[] = {
+	{PERF_COUNT_CPU_CYCLES,			"cpu-cycles",		},
+	{PERF_COUNT_CPU_CYCLES,			"cycles",		},
+	{PERF_COUNT_INSTRUCTIONS,		"instructions",		},
+	{PERF_COUNT_CACHE_REFERENCES,		"cache-references",	},
+	{PERF_COUNT_CACHE_MISSES,		"cache-misses",		},
+	{PERF_COUNT_BRANCH_INSTRUCTIONS,	"branch-instructions",	},
+	{PERF_COUNT_BRANCH_INSTRUCTIONS,	"branches",		},
+	{PERF_COUNT_BRANCH_MISSES,		"branch-misses",	},
+	{PERF_COUNT_BUS_CYCLES,			"bus-cycles",		},
+	{PERF_COUNT_CPU_CLOCK,			"cpu-ticks",		},
+	{PERF_COUNT_CPU_CLOCK,			"ticks",		},
+	{PERF_COUNT_TASK_CLOCK,			"task-ticks",		},
+	{PERF_COUNT_PAGE_FAULTS,		"page-faults",		},
+	{PERF_COUNT_PAGE_FAULTS,		"faults",		},
+	{PERF_COUNT_CONTEXT_SWITCHES,		"context-switches",	},
+	{PERF_COUNT_CONTEXT_SWITCHES,		"cs",			},
+	{PERF_COUNT_CPU_MIGRATIONS,		"cpu-migrations",	},
+	{PERF_COUNT_CPU_MIGRATIONS,		"migrations",		},
+};
+
+static void display_events_help(void)
+{
+	unsigned int i;
+	int e;
+
+	printf(
+	" -e EVENT     --event=EVENT   #  symbolic-name        abbreviations");
+
+	for (i = 0, e = PERF_HW_EVENTS_MAX; i < ARRAY_SIZE(event_symbols); i++) {
+		if (e != event_symbols[i].event) {
+			e = event_symbols[i].event;
+			printf(
+	"\n                             %2d: %-20s", e, event_symbols[i].symbol);
+		} else
+			printf(" %s", event_symbols[i].symbol);
+	}
+
+	printf("\n"
+	"                           rNNN: raw PMU events (eventsel+umask)\n\n");
+}
+
+static void display_perfstat_help(void)
+{
+	printf(
+	"Usage: perfstat [<events...>] <cmd...>\n\n"
+	"PerfStat Options (up to %d event types can be specified):\n\n",
+		 MAX_COUNTERS);
+
+	display_events_help();
+
+	printf(
+	" -a                           # system-wide collection\n");
+	exit(0);
+}
 
 static void display_help(void)
 {
+	if (run_perfstat)
+		return display_perfstat_help();
+
 	printf(
-	"Usage: kerneltop [<options>]\n\n"
+	"Usage: kerneltop [<options>]\n"
+	"   Or: kerneltop -S [<options>] COMMAND [ARGS]\n\n"
 	"KernelTop Options (up to %d event types can be specified at once):\n\n",
 		 MAX_COUNTERS);
+
+	display_events_help();
+
 	printf(
-	" -e EID    --event=EID        # event type ID                    [default:  0]\n"
-	"                                   0: CPU cycles\n"
-	"                                   1: instructions\n"
-	"                                   2: cache accesses\n"
-	"                                   3: cache misses\n"
-	"                                   4: branch instructions\n"
-	"                                   5: branch prediction misses\n"
-	"                                   6: bus cycles\n\n"
-	"                                rNNN: raw PMU events (eventsel+umask)\n\n"
+	" -S        --stat             # perfstat COMMAND\n"
+	" -a                           # system-wide collection (for perfstat)\n\n"
 	" -c CNT    --count=CNT        # event period to sample\n\n"
 	" -C CPU    --cpu=CPU          # CPU (-1 for all)                 [default: -1]\n"
 	" -p PID    --pid=PID          # PID of sampled task (-1 for all) [default: -1]\n\n"
 	" -d delay  --delay=<seconds>  # sampling/display delay           [default:  2]\n"
-	" -f CNT --filter=CNT          # min-event-count filter          [default: 100]\n\n"
+	" -f CNT    --filter=CNT       # min-event-count filter          [default: 100]\n\n"
 	" -s symbol --symbol=<symbol>  # function to be showed annotated one-shot\n"
-	" -x path   --vmlinux=<path>   # the vmlinux binary, required for -s use:\n"
+	" -x path   --vmlinux=<path>   # the vmlinux binary, required for -s use\n"
 	" -z        --zero             # zero counts after display\n"
 	" -D        --dump_symtab      # dump symbol table to stderr on startup\n"
-	"\n");
+	);
 
 	exit(0);
 }
 
-static void process_options(int argc, char *argv[])
+static int type_valid(int type)
 {
-	int error = 0, counter;
+	if (type >= PERF_HW_EVENTS_MAX)
+		return 0;
+	if (type <= PERF_SW_EVENTS_MIN)
+		return 0;
 
-	for (;;) {
-		int option_index = 0;
-		/** Options for getopt */
-		static struct option long_options[] = {
-			{"count",	required_argument,	NULL, 'c'},
-			{"cpu",		required_argument,	NULL, 'C'},
-			{"delay",	required_argument,	NULL, 'd'},
-			{"dump_symtab",	no_argument,		NULL, 'D'},
-			{"event",	required_argument,	NULL, 'e'},
-			{"filter",	required_argument,	NULL, 'f'},
-			{"group",	required_argument,	NULL, 'g'},
-			{"help",	no_argument,		NULL, 'h'},
-			{"nmi",		required_argument,	NULL, 'n'},
-			{"pid",		required_argument,	NULL, 'p'},
-			{"vmlinux",	required_argument,	NULL, 'x'},
-			{"symbol",	required_argument,	NULL, 's'},
-			{"zero",	no_argument,		NULL, 'z'},
-			{NULL,		0,			NULL,  0 }
-		};
-		int c = getopt_long(argc, argv, "c:C:d:De:f:g:hn:p:s:x:z",
-				    long_options, &option_index);
-		if (c == -1)
-			break;
+	return 1;
+}
 
-		switch (c) {
-		case 'c':
-			event_count[nr_counters]	=   atoi(optarg); break;
-		case 'C':
-			/* CPU and PID are mutually exclusive */
-			if (tid != -1) {
-				printf("WARNING: CPU switch overriding PID\n");
-				sleep(1);
-				tid = -1;
+static char *event_name(int ctr)
+{
+	int type = event_id[ctr];
+	static char buf[32];
+
+	if (event_raw[ctr]) {
+		sprintf(buf, "raw 0x%x", type);
+		return buf;
+	}
+	if (!type_valid(type))
+		return "unknown";
+
+	if (type >= 0)
+		return hw_event_names[type];
+
+	return sw_event_names[-type-1];
+}
+
+/*
+ * Each event can have multiple symbolic names.
+ * Symbolic names are (almost) exactly matched.
+ */
+static int match_event_symbols(char *str)
+{
+	unsigned int i;
+
+	if (isdigit(str[0]) || str[0] == '-')
+		return atoi(str);
+
+	for (i = 0; i < ARRAY_SIZE(event_symbols); i++) {
+		if (!strncmp(str, event_symbols[i].symbol,
+			     strlen(event_symbols[i].symbol)))
+			return event_symbols[i].event;
+	}
+
+	return PERF_HW_EVENTS_MAX;
+}
+
+static int parse_events(char *str)
+{
+	int type, raw;
+
+again:
+	if (nr_counters == MAX_COUNTERS)
+		return -1;
+
+	raw = 0;
+	if (*str == 'r') {
+		raw = 1;
+		++str;
+		type = strtol(str, NULL, 16);
+	} else {
+		type = match_event_symbols(str);
+		if (!type_valid(type))
+			return -1;
+	}
+
+	event_id[nr_counters] = type;
+	event_raw[nr_counters] = raw;
+	nr_counters++;
+
+	str = strstr(str, ",");
+	if (str) {
+		str++;
+		goto again;
+	}
+
+	return 0;
+}
+
+
+/*
+ * perfstat
+ */
+
+char fault_here[1000000];
+
+static void create_perfstat_counter(int counter)
+{
+	struct perf_counter_hw_event hw_event;
+
+	memset(&hw_event, 0, sizeof(hw_event));
+	hw_event.type		= event_id[counter];
+	hw_event.raw		= event_raw[counter];
+	hw_event.record_type	= PERF_RECORD_SIMPLE;
+	hw_event.nmi		= 0;
+
+	if (system_wide) {
+		int cpu;
+		for (cpu = 0; cpu < nr_cpus; cpu ++) {
+			fd[cpu][counter] = sys_perf_counter_open(&hw_event, -1, cpu, -1, 0);
+			if (fd[cpu][counter] < 0) {
+				printf("perfstat error: syscall returned with %d (%s)\n",
+						fd[cpu][counter], strerror(errno));
+				exit(-1);
 			}
-			profile_cpu			=   atoi(optarg); break;
-		case 'd': delay_secs			=   atoi(optarg); break;
-		case 'D': dump_symtab			=              1; break;
+		}
+	} else {
+		hw_event.inherit	= 1;
+		hw_event.disabled	= 1;
 
-		case 'e': error				= parse_events(optarg); break;
-
-		case 'f': count_filter			=   atoi(optarg); break;
-		case 'g': group				=   atoi(optarg); break;
-		case 'h':      				  display_help(); break;
-		case 'n': nmi				=   atoi(optarg); break;
-		case 'p':
-			/* CPU and PID are mutually exclusive */
-			if (profile_cpu != -1) {
-				printf("WARNING: PID switch overriding CPU\n");
-				sleep(1);
-				profile_cpu = -1;
-			}
-			tid				=   atoi(optarg); break;
-		case 's': sym_filter			= strdup(optarg); break;
-		case 'x': vmlinux			= strdup(optarg); break;
-		case 'z': zero				=              1; break;
-		default: error = 1; break;
+		fd[0][counter] = sys_perf_counter_open(&hw_event, 0, -1, -1, 0);
+		if (fd[0][counter] < 0) {
+			printf("perfstat error: syscall returned with %d (%s)\n",
+					fd[0][counter], strerror(errno));
+			exit(-1);
 		}
 	}
-	if (error)
-		display_help();
+}
 
-	if (!nr_counters) {
-		nr_counters = 1;
-		event_id[0] = 0;
+int do_perfstat(int argc, char *argv[])
+{
+	unsigned long long t0, t1;
+	int counter;
+	ssize_t res;
+	int status;
+	int pid;
+
+	if (!system_wide)
+		nr_cpus = 1;
+
+	for (counter = 0; counter < nr_counters; counter++)
+		create_perfstat_counter(counter);
+
+	argc -= optind;
+	argv += optind;
+
+	/*
+	 * Enable counters and exec the command:
+	 */
+	t0 = rdclock();
+	prctl(PR_TASK_PERF_COUNTERS_ENABLE);
+
+	if ((pid = fork()) < 0)
+		perror("failed to fork");
+	if (!pid) {
+		if (execvp(argv[0], argv)) {
+			perror(argv[0]);
+			exit(-1);
+		}
 	}
+	while (wait(&status) >= 0)
+		;
+	prctl(PR_TASK_PERF_COUNTERS_DISABLE);
+	t1 = rdclock();
+
+	fflush(stdout);
+
+	fprintf(stderr, "\n");
+	fprintf(stderr, " Performance counter stats for \'%s\':\n",
+		argv[0]);
+	fprintf(stderr, "\n");
 
 	for (counter = 0; counter < nr_counters; counter++) {
-		if (event_count[counter])
-			continue;
+		int cpu;
+		__u64 count, single_count;
 
-		if (event_id[counter] < PERF_HW_EVENTS_MAX)
-			event_count[counter] = default_count[event_id[counter]];
-		else
-			event_count[counter] = 100000;
+		count = 0;
+		for (cpu = 0; cpu < nr_cpus; cpu ++) {
+			res = read(fd[cpu][counter],
+					(char *) &single_count, sizeof(single_count));
+			assert(res == sizeof(single_count));
+			count += single_count;
+		}
+
+		if (!event_raw[counter] &&
+		    (event_id[counter] == PERF_COUNT_CPU_CLOCK ||
+		     event_id[counter] == PERF_COUNT_TASK_CLOCK)) {
+
+			double msecs = (double)count / 1000000;
+
+			fprintf(stderr, " %14.6f  %-20s (msecs)\n",
+				msecs, event_name(counter));
+		} else {
+			fprintf(stderr, " %14Ld  %-20s (events)\n",
+				count, event_name(counter));
+		}
+		if (!counter)
+			fprintf(stderr, "\n");
 	}
+	fprintf(stderr, "\n");
+	fprintf(stderr, " Wall-clock time elapsed: %12.6f msecs\n",
+			(double)(t1-t0)/1e6);
+	fprintf(stderr, "\n");
+
+	return 0;
 }
+
+/*
+ * Symbols
+ */
 
 static uint64_t			min_ip;
 static uint64_t			max_ip = -1ll;
@@ -507,6 +743,9 @@ static void parse_symbols(void)
 	}
 }
 
+/*
+ * Source lines
+ */
 
 static void parse_vmlinux(char *filename)
 {
@@ -527,7 +766,7 @@ static void parse_vmlinux(char *filename)
 		char *c;
 
 		src = malloc(sizeof(struct source_line));
-		assert(src != NULL);	
+		assert(src != NULL);
 		memset(src, 0, sizeof(struct source_line));
 
 		if (getline(&src->line, &dummy, file) < 0)
@@ -706,11 +945,100 @@ static void process_event(uint64_t ip, int counter)
 	record_ip(ip, counter);
 }
 
+static void process_options(int argc, char *argv[])
+{
+	int error = 0, counter;
+
+	if (strstr(argv[0], "perfstat"))
+		run_perfstat = 1;
+
+	for (;;) {
+		int option_index = 0;
+		/** Options for getopt */
+		static struct option long_options[] = {
+			{"count",	required_argument,	NULL, 'c'},
+			{"cpu",		required_argument,	NULL, 'C'},
+			{"delay",	required_argument,	NULL, 'd'},
+			{"dump_symtab",	no_argument,		NULL, 'D'},
+			{"event",	required_argument,	NULL, 'e'},
+			{"filter",	required_argument,	NULL, 'f'},
+			{"group",	required_argument,	NULL, 'g'},
+			{"help",	no_argument,		NULL, 'h'},
+			{"nmi",		required_argument,	NULL, 'n'},
+			{"pid",		required_argument,	NULL, 'p'},
+			{"vmlinux",	required_argument,	NULL, 'x'},
+			{"symbol",	required_argument,	NULL, 's'},
+			{"stat",	no_argument,		NULL, 'S'},
+			{"zero",	no_argument,		NULL, 'z'},
+			{NULL,		0,			NULL,  0 }
+		};
+		int c = getopt_long(argc, argv, "+:ac:C:d:De:f:g:hn:p:s:Sx:z",
+				    long_options, &option_index);
+		if (c == -1)
+			break;
+
+		switch (c) {
+		case 'a': system_wide			=	       1; break;
+		case 'c': event_count[nr_counters]	=   atoi(optarg); break;
+		case 'C':
+			/* CPU and PID are mutually exclusive */
+			if (tid != -1) {
+				printf("WARNING: CPU switch overriding PID\n");
+				sleep(1);
+				tid = -1;
+			}
+			profile_cpu			=   atoi(optarg); break;
+		case 'd': delay_secs			=   atoi(optarg); break;
+		case 'D': dump_symtab			=              1; break;
+
+		case 'e': error				= parse_events(optarg); break;
+
+		case 'f': count_filter			=   atoi(optarg); break;
+		case 'g': group				=   atoi(optarg); break;
+		case 'h':      				  display_help(); break;
+		case 'n': nmi				=   atoi(optarg); break;
+		case 'p':
+			/* CPU and PID are mutually exclusive */
+			if (profile_cpu != -1) {
+				printf("WARNING: PID switch overriding CPU\n");
+				sleep(1);
+				profile_cpu = -1;
+			}
+			tid				=   atoi(optarg); break;
+		case 's': sym_filter			= strdup(optarg); break;
+		case 'S': run_perfstat			=	       1; break;
+		case 'x': vmlinux			= strdup(optarg); break;
+		case 'z': zero				=              1; break;
+		default: error = 1; break;
+		}
+	}
+	if (error)
+		display_help();
+
+	if (!nr_counters) {
+		if (run_perfstat)
+			nr_counters = 8;
+		else {
+			nr_counters = 1;
+			event_id[0] = 0;
+		}
+	}
+
+	for (counter = 0; counter < nr_counters; counter++) {
+		if (event_count[counter])
+			continue;
+
+		if (event_id[counter] < PERF_HW_EVENTS_MAX)
+			event_count[counter] = default_count[event_id[counter]];
+		else
+			event_count[counter] = 100000;
+	}
+}
+
 int main(int argc, char *argv[])
 {
 	struct pollfd event_array[MAX_NR_CPUS][MAX_COUNTERS];
 	struct perf_counter_hw_event hw_event;
-	int fd[MAX_NR_CPUS][MAX_COUNTERS];
 	int i, counter, group_fd;
 	unsigned int cpu;
 	uint64_t ip;
@@ -720,10 +1048,14 @@ int main(int argc, char *argv[])
 	process_options(argc, argv);
 
 	nr_cpus = sysconf(_SC_NPROCESSORS_ONLN);
+	assert(nr_cpus <= MAX_NR_CPUS);
+	assert(nr_cpus >= 0);
+
+	if (run_perfstat)
+		return do_perfstat(argc, argv);
+
 	if (tid != -1 || profile_cpu != -1)
 		nr_cpus = 1;
-
-	assert(nr_cpus <= MAX_NR_CPUS);
 
 	for (i = 0; i < nr_cpus; i++) {
 		group_fd = -1;
