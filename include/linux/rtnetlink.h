@@ -217,6 +217,7 @@ enum
 #define RTPROT_DNROUTED	13	/* DECnet routing daemon */
 #define RTPROT_XORP	14	/* XORP */
 #define RTPROT_NTK	15	/* Netsukuku */
+#define RTPROT_DHCP	16      /* DHCP client */
 
 /* rtm_scope
 
