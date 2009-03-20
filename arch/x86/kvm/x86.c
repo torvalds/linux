@@ -895,6 +895,8 @@ int kvm_get_msr_common(struct kvm_vcpu *vcpu, u32 msr, u64 *pdata)
 	case MSR_IA32_LASTINTFROMIP:
 	case MSR_IA32_LASTINTTOIP:
 	case MSR_VM_HSAVE_PA:
+	case MSR_P6_EVNTSEL0:
+	case MSR_P6_EVNTSEL1:
 		data = 0;
 		break;
 	case MSR_MTRRcap:
