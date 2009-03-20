@@ -1325,8 +1325,10 @@ i915_gem_object_move_to_active(struct drm_gem_object *obj, uint32_t seqno)
 		obj_priv->active = 1;
 	}
 	/* Move from whatever list we were on to the tail of execution. */
+	spin_lock(&dev_priv->mm.active_list_lock);
 	list_move_tail(&obj_priv->list,
 		       &dev_priv->mm.active_list);
+	spin_unlock(&dev_priv->mm.active_list_lock);
 	obj_priv->last_rendering_seqno = seqno;
 }
 
@@ -1468,6 +1470,7 @@ i915_gem_retire_request(struct drm_device *dev,
 	/* Move any buffers on the active list that are no longer referenced
 	 * by the ringbuffer to the flushing/inactive lists as appropriate.
 	 */
+	spin_lock(&dev_priv->mm.active_list_lock);
 	while (!list_empty(&dev_priv->mm.active_list)) {
 		struct drm_gem_object *obj;
 		struct drm_i915_gem_object *obj_priv;
@@ -1482,7 +1485,7 @@ i915_gem_retire_request(struct drm_device *dev,
 		 * this seqno.
 		 */
 		if (obj_priv->last_rendering_seqno != request->seqno)
-			return;
+			goto out;
 
 #if WATCH_LRU
 		DRM_INFO("%s: retire %d moves to inactive list %p\n",
@@ -1494,6 +1497,8 @@ i915_gem_retire_request(struct drm_device *dev,
 		else
 			i915_gem_object_move_to_inactive(obj);
 	}
+out:
+	spin_unlock(&dev_priv->mm.active_list_lock);
 }
 
 /**
@@ -2215,15 +2220,20 @@ i915_gem_object_bind_to_gtt(struct drm_gem_object *obj, unsigned alignment)
 		}
 	}
 	if (obj_priv->gtt_space == NULL) {
+		bool lists_empty;
+
 		/* If the gtt is empty and we're still having trouble
 		 * fitting our object in, we're out of memory.
 		 */
 #if WATCH_LRU
 		DRM_INFO("%s: GTT full, evicting something\n", __func__);
 #endif
-		if (list_empty(&dev_priv->mm.inactive_list) &&
-		    list_empty(&dev_priv->mm.flushing_list) &&
-		    list_empty(&dev_priv->mm.active_list)) {
+		spin_lock(&dev_priv->mm.active_list_lock);
+		lists_empty = (list_empty(&dev_priv->mm.inactive_list) &&
+			       list_empty(&dev_priv->mm.flushing_list) &&
+			       list_empty(&dev_priv->mm.active_list));
+		spin_unlock(&dev_priv->mm.active_list_lock);
+		if (lists_empty) {
 			DRM_ERROR("GTT full, but LRU list empty\n");
 			return -ENOMEM;
 		}
@@ -3679,6 +3689,7 @@ i915_gem_idle(struct drm_device *dev)
 
 	i915_gem_retire_requests(dev);
 
+	spin_lock(&dev_priv->mm.active_list_lock);
 	if (!dev_priv->mm.wedged) {
 		/* Active and flushing should now be empty as we've
 		 * waited for a sequence higher than any pending execbuffer
@@ -3705,6 +3716,7 @@ i915_gem_idle(struct drm_device *dev)
 		obj_priv->obj->write_domain &= ~I915_GEM_GPU_DOMAINS;
 		i915_gem_object_move_to_inactive(obj_priv->obj);
 	}
+	spin_unlock(&dev_priv->mm.active_list_lock);
 
 	while (!list_empty(&dev_priv->mm.flushing_list)) {
 		struct drm_i915_gem_object *obj_priv;
@@ -3953,7 +3965,10 @@ i915_gem_entervt_ioctl(struct drm_device *dev, void *data,
 	if (ret != 0)
 		return ret;
 
+	spin_lock(&dev_priv->mm.active_list_lock);
 	BUG_ON(!list_empty(&dev_priv->mm.active_list));
+	spin_unlock(&dev_priv->mm.active_list_lock);
+
 	BUG_ON(!list_empty(&dev_priv->mm.flushing_list));
 	BUG_ON(!list_empty(&dev_priv->mm.inactive_list));
 	BUG_ON(!list_empty(&dev_priv->mm.request_list));
@@ -3997,6 +4012,7 @@ i915_gem_load(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 
+	spin_lock_init(&dev_priv->mm.active_list_lock);
 	INIT_LIST_HEAD(&dev_priv->mm.active_list);
 	INIT_LIST_HEAD(&dev_priv->mm.flushing_list);
 	INIT_LIST_HEAD(&dev_priv->mm.inactive_list);

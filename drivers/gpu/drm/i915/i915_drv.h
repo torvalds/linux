@@ -300,6 +300,7 @@ typedef struct drm_i915_private {
 		 *
 		 * A reference is held on the buffer while on this list.
 		 */
+		spinlock_t active_list_lock;
 		struct list_head active_list;
 
 		/**
