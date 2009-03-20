@@ -265,6 +265,7 @@ struct pci_dev {
 	unsigned int	is_pcie:1;
 	unsigned int	state_saved:1;
 	unsigned int	is_physfn:1;
+	unsigned int	is_virtfn:1;
 	pci_dev_flags_t dev_flags;
 	atomic_t	enable_cnt;	/* pci_enable_device has been called */
 
@@ -279,7 +280,10 @@ struct pci_dev {
 #endif
 	struct pci_vpd *vpd;
 #ifdef CONFIG_PCI_IOV
-	struct pci_sriov *sriov;	/* SR-IOV capability related */
+	union {
+		struct pci_sriov *sriov;	/* SR-IOV capability related */
+		struct pci_dev *physfn;	/* the PF this VF is associated with */
+	};
 #endif
 };
 
@@ -1211,6 +1215,19 @@ static inline void pci_mmcfg_late_init(void) { }
 int pci_ext_cfg_avail(struct pci_dev *dev);
 
 void __iomem *pci_ioremap_bar(struct pci_dev *pdev, int bar);
+
+#ifdef CONFIG_PCI_IOV
+extern int pci_enable_sriov(struct pci_dev *dev, int nr_virtfn);
+extern void pci_disable_sriov(struct pci_dev *dev);
+#else
+static inline int pci_enable_sriov(struct pci_dev *dev, int nr_virtfn)
+{
+	return -ENODEV;
+}
+static inline void pci_disable_sriov(struct pci_dev *dev)
+{
+}
+#endif
 
 #endif /* __KERNEL__ */
 #endif /* LINUX_PCI_H */

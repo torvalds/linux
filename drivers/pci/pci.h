@@ -209,6 +209,8 @@ struct pci_sriov {
 	u32 cap;		/* SR-IOV Capabilities */
 	u16 ctrl;		/* SR-IOV Control */
 	u16 total;		/* total VFs associated with the PF */
+	u16 initial;		/* initial VFs associated with the PF */
+	u16 nr_virtfn;		/* number of VFs available */
 	u16 offset;		/* first VF Routing ID offset */
 	u16 stride;		/* following VF stride */
 	u32 pgsz;		/* page size for BAR alignment */
