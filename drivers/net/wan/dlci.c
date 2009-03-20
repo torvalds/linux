@@ -200,7 +200,7 @@ static int dlci_transmit(struct sk_buff *skb, struct net_device *dev)
 
 	netif_stop_queue(dev);
 	
-	ret = dlp->slave->hard_start_xmit(skb, dlp->slave);
+	ret = dlp->slave->netdev_ops->ndo_start_xmit(skb, dlp->slave);
 	switch (ret)
 	{
 		case DLCI_RET_OK:
@@ -295,11 +295,9 @@ static int dlci_dev_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 
 static int dlci_change_mtu(struct net_device *dev, int new_mtu)
 {
-	struct dlci_local *dlp;
+	struct dlci_local *dlp = netdev_priv(dev);
 
-	dlp = netdev_priv(dev);
-
-	return((*dlp->slave->change_mtu)(dlp->slave, new_mtu));
+	return dev_set_mtu(dlp->slave, new_mtu);
 }
 
 static int dlci_open(struct net_device *dev)
@@ -479,17 +477,21 @@ static const struct header_ops dlci_header_ops = {
 	.create	= dlci_header,
 };
 
+static const struct net_device_ops dlci_netdev_ops = {
+	.ndo_open	= dlci_open,
+	.ndo_stop	= dlci_close,
+	.ndo_do_ioctl	= dlci_dev_ioctl,
+	.ndo_start_xmit	= dlci_transmit,
+	.ndo_change_mtu	= dlci_change_mtu,
+};
+
 static void dlci_setup(struct net_device *dev)
 {
 	struct dlci_local *dlp = netdev_priv(dev);
 
 	dev->flags		= 0;
-	dev->open		= dlci_open;
-	dev->stop		= dlci_close;
-	dev->do_ioctl		= dlci_dev_ioctl;
-	dev->hard_start_xmit	= dlci_transmit;
 	dev->header_ops		= &dlci_header_ops;
-	dev->change_mtu		= dlci_change_mtu;
+	dev->netdev_ops		= &dlci_netdev_ops;
 	dev->destructor		= free_netdev;
 
 	dlp->receive		= dlci_receive;
