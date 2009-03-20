@@ -357,6 +357,15 @@ struct pci_bus {
 #define pci_bus_b(n)	list_entry(n, struct pci_bus, node)
 #define to_pci_bus(n)	container_of(n, struct pci_bus, dev)
 
+/*
+ * Returns true if the pci bus is root (behind host-pci bridge),
+ * false otherwise
+ */
+static inline bool pci_is_root_bus(struct pci_bus *pbus)
+{
+	return !(pbus->parent);
+}
+
 #ifdef CONFIG_PCI_MSI
 static inline bool pci_dev_msi_enabled(struct pci_dev *pci_dev)
 {
