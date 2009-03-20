@@ -804,8 +804,21 @@ static void islpci_ethtool_get_drvinfo(struct net_device *dev,
 	strcpy(info->version, DRV_VERSION);
 }
 
-static struct ethtool_ops islpci_ethtool_ops = {
+static const struct ethtool_ops islpci_ethtool_ops = {
 	.get_drvinfo = islpci_ethtool_get_drvinfo,
+};
+
+static const struct net_device_ops islpci_netdev_ops = {
+	.ndo_open 		= islpci_open,
+	.ndo_stop		= islpci_close,
+	.ndo_get_stats		= islpci_statistics,
+	.ndo_do_ioctl		= prism54_ioctl,
+	.ndo_start_xmit		= islpci_eth_transmit,
+	.ndo_tx_timeout		= islpci_eth_tx_timeout,
+	.ndo_set_mac_address 	= prism54_set_mac_address,
+	.ndo_change_mtu		= eth_change_mtu,
+	.ndo_set_mac_address 	= eth_mac_addr,
+	.ndo_validate_addr	= eth_validate_addr,
 };
 
 struct net_device *
@@ -827,25 +840,16 @@ islpci_setup(struct pci_dev *pdev)
 	ndev->irq = pdev->irq;
 
 	/* initialize the function pointers */
-	ndev->open = &islpci_open;
-	ndev->stop = &islpci_close;
-	ndev->get_stats = &islpci_statistics;
-	ndev->do_ioctl = &prism54_ioctl;
-	ndev->wireless_handlers =
-	    (struct iw_handler_def *) &prism54_handler_def;
+	ndev->netdev_ops = &islpci_netdev_ops;
+	ndev->wireless_handlers = &prism54_handler_def;
 	ndev->ethtool_ops = &islpci_ethtool_ops;
 
-	ndev->hard_start_xmit = &islpci_eth_transmit;
 	/* ndev->set_multicast_list = &islpci_set_multicast_list; */
 	ndev->addr_len = ETH_ALEN;
-	ndev->set_mac_address = &prism54_set_mac_address;
 	/* Get a non-zero dummy MAC address for nameif. Jean II */
 	memcpy(ndev->dev_addr, dummy_mac, 6);
 
-#ifdef HAVE_TX_TIMEOUT
 	ndev->watchdog_timeo = ISLPCI_TX_TIMEOUT;
-	ndev->tx_timeout = &islpci_eth_tx_timeout;
-#endif
 
 	/* allocate a private device structure to the network device  */
 	priv = netdev_priv(ndev);
