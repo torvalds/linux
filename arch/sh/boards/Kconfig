@@ -261,6 +261,13 @@ config SH_CAYMAN
 	depends on CPU_SUBTYPE_SH5_101 || CPU_SUBTYPE_SH5_103
 	select SYS_SUPPORTS_PCI
 
+config SH_POLARIS
+	bool "SMSC Polaris"
+	select CPU_HAS_IPR_IRQ
+	depends on CPU_SUBTYPE_SH7709
+	help
+	  Select if configuring for an SMSC Polaris development board
+
 endmenu
 
 source "arch/sh/boards/mach-r2d/Kconfig"
