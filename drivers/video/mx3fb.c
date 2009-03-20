@@ -1366,7 +1366,7 @@ static int init_fb_chan(struct mx3fb_data *mx3fb, struct idmac_channel *ichan)
 
 	mx3fb_blank(FB_BLANK_UNBLANK, fbi);
 
-	dev_info(dev, "mx3fb: fb registered, using mode %s\n", fb_mode);
+	dev_info(dev, "registered, using mode %s\n", fb_mode);
 
 	ret = register_framebuffer(fbi);
 	if (ret < 0)
