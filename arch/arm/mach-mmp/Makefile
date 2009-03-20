@@ -12,3 +12,4 @@ obj-$(CONFIG_CPU_PXA910)	+= pxa910.o
 obj-$(CONFIG_MACH_ASPENITE)	+= aspenite.o
 obj-$(CONFIG_MACH_ZYLONITE2)	+= aspenite.o
 obj-$(CONFIG_MACH_TAVOREVB)	+= tavorevb.o
+obj-$(CONFIG_MACH_TTC_DKB)	+= ttc_dkb.o
