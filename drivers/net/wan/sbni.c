@@ -206,15 +206,21 @@ sbni_isa_probe( struct net_device  *dev )
 	}
 }
 
+static const struct net_device_ops sbni_netdev_ops = {
+	.ndo_open		= sbni_open,
+	.ndo_stop		= sbni_close,
+	.ndo_start_xmit		= sbni_start_xmit,
+	.ndo_set_multicast_list	= set_multicast_list,
+	.ndo_do_ioctl		= sbni_ioctl,
+	.ndo_change_mtu		= eth_change_mtu,
+	.ndo_set_mac_address 	= eth_mac_addr,
+	.ndo_validate_addr	= eth_validate_addr,
+};
+
 static void __init sbni_devsetup(struct net_device *dev)
 {
 	ether_setup( dev );
-	dev->open		= &sbni_open;
-	dev->stop		= &sbni_close;
-	dev->hard_start_xmit	= &sbni_start_xmit;
-	dev->get_stats		= &sbni_get_stats;
-	dev->set_multicast_list	= &set_multicast_list;
-	dev->do_ioctl		= &sbni_ioctl;
+	dev->netdev_ops = &sbni_netdev_ops;
 }
 
 int __init sbni_probe(int unit)
@@ -226,6 +232,8 @@ int __init sbni_probe(int unit)
 	dev = alloc_netdev(sizeof(struct net_local), "sbni", sbni_devsetup);
 	if (!dev)
 		return -ENOMEM;
+
+	dev->netdev_ops = &sbni_netdev_ops;
 
 	sprintf(dev->name, "sbni%d", unit);
 	netdev_boot_setup_check(dev);
