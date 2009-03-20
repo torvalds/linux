@@ -52,6 +52,7 @@
 #include <asm/atomic.h>
 #include <linux/device.h>
 #include <linux/io.h>
+#include <linux/irqreturn.h>
 
 /* Include the ID list */
 #include <linux/pci_ids.h>
@@ -1219,6 +1220,7 @@ void __iomem *pci_ioremap_bar(struct pci_dev *pdev, int bar);
 #ifdef CONFIG_PCI_IOV
 extern int pci_enable_sriov(struct pci_dev *dev, int nr_virtfn);
 extern void pci_disable_sriov(struct pci_dev *dev);
+extern irqreturn_t pci_sriov_migration(struct pci_dev *dev);
 #else
 static inline int pci_enable_sriov(struct pci_dev *dev, int nr_virtfn)
 {
@@ -1226,6 +1228,10 @@ static inline int pci_enable_sriov(struct pci_dev *dev, int nr_virtfn)
 }
 static inline void pci_disable_sriov(struct pci_dev *dev)
 {
+}
+static inline irqreturn_t pci_sriov_migration(struct pci_dev *dev)
+{
+	return IRQ_NONE;
 }
 #endif
 
