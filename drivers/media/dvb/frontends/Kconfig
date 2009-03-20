@@ -437,7 +437,7 @@ config DVB_S5H1409
 
 config DVB_AU8522
 	tristate "Auvitek AU8522 based"
-	depends on DVB_CORE && I2C
+	depends on DVB_CORE && I2C && VIDEO_V4L2
 	default m if DVB_FE_CUSTOMISE
 	help
 	  An ATSC 8VSB and QAM64/256 tuner module. Say Y when you want
