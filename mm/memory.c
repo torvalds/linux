@@ -101,14 +101,6 @@ int randomize_va_space __read_mostly =
 					2;
 #endif
 
-/*
- * mutex protecting text section modification (dynamic code patching).
- * some users need to sleep (allocating memory...) while they hold this lock.
- *
- * NOT exported to modules - patching kernel text is a really delicate matter.
- */
-DEFINE_MUTEX(text_mutex);
-
 static int __init disable_randmaps(char *s)
 {
 	randomize_va_space = 0;
