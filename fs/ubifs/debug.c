@@ -1214,7 +1214,7 @@ static int dbg_check_znode(struct ubifs_info *c, struct ubifs_zbranch *zbr)
 
 			/*
 			 * Make sure the last key in our znode is less or
-			 * equivalent than the the key in zbranch which goes
+			 * equivalent than the key in the zbranch which goes
 			 * after our pointing zbranch.
 			 */
 			cmp = keys_cmp(c, max,

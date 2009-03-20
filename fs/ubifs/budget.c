@@ -322,8 +322,8 @@ static int can_use_rp(struct ubifs_info *c)
  *    be large, because UBIFS does not do any index consolidation as long as
  *    there is free space. IOW, the index may take a lot of LEBs, but the LEBs
  *    will contain a lot of dirt.
- * o @c->min_idx_lebs is the the index presumably takes. IOW, the index may be
- *   consolidated to take up to @c->min_idx_lebs LEBs.
+ * o @c->min_idx_lebs is the number of LEBS the index presumably takes. IOW,
+ *    the index may be consolidated to take up to @c->min_idx_lebs LEBs.
  *
  * This function returns zero in case of success, and %-ENOSPC in case of
  * failure.

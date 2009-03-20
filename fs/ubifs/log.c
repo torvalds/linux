@@ -239,7 +239,7 @@ int ubifs_add_bud_to_log(struct ubifs_info *c, int jhead, int lnum, int offs)
 	}
 
 	/*
-	 * Make sure the the amount of space in buds will not exceed
+	 * Make sure the amount of space in buds will not exceed the
 	 * 'c->max_bud_bytes' limit, because we want to guarantee mount time
 	 * limits.
 	 *

@@ -959,7 +959,7 @@ static int do_writepage(struct page *page, int len)
  * whole index and correct all inode sizes, which is long an unacceptable.
  *
  * To prevent situations like this, UBIFS writes pages back only if they are
- * within last synchronized inode size, i.e. the the size which has been
+ * within the last synchronized inode size, i.e. the size which has been
  * written to the flash media last time. Otherwise, UBIFS forces inode
  * write-back, thus making sure the on-flash inode contains current inode size,
  * and then keeps writing pages back.

@@ -1365,7 +1365,7 @@ out_ro:
  * @host: host inode
  *
  * This function writes the updated version of an extended attribute inode and
- * the host inode tho the journal (to the base head). The host inode is written
+ * the host inode to the journal (to the base head). The host inode is written
  * after the extended attribute inode in order to guarantee that the extended
  * attribute will be flushed when the inode is synchronized by 'fsync()' and
  * consequently, the write-buffer is synchronized. This function returns zero
