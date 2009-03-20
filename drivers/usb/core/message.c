@@ -804,18 +804,16 @@ int usb_string(struct usb_device *dev, int index, char *buf, size_t size)
 			dev_err(&dev->dev,
 				"string descriptor 0 read error: %d\n",
 				err);
-			goto errout;
 		} else if (err < 4) {
 			dev_err(&dev->dev, "string descriptor 0 too short\n");
-			err = -EINVAL;
-			goto errout;
 		} else {
-			dev->have_langid = 1;
 			dev->string_langid = tbuf[2] | (tbuf[3] << 8);
 			/* always use the first langid listed */
 			dev_dbg(&dev->dev, "default language 0x%04x\n",
 				dev->string_langid);
 		}
+
+		dev->have_langid = 1;
 	}
 
 	err = usb_string_sub(dev, dev->string_langid, index, tbuf);
