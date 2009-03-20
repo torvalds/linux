@@ -67,16 +67,6 @@
 
 #include "perfcounters.h"
 
-const char *event_types [] = {
-	"CPU cycles",
-	"instructions",
-	"cache-refs",
-	"cache-misses",
-	"branches",
-	"branch-misses",
-	"bus cycles"
-};
-
 const unsigned int default_count[] = {
 	1000000,
 	1000000,
@@ -304,10 +294,7 @@ static void print_sym_table(void)
 		if (counter)
 			printf("/");
 
-		if (event_id[counter] < PERF_HW_EVENTS_MAX)
-			printf( "%s", event_types[event_id[counter]]);
-		else
-			printf( "raw:%04lx", event_id[counter]);
+		printf("%s", event_name(counter));
 	}
 
 	printf( "], ");
