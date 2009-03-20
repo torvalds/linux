@@ -14,6 +14,18 @@
 #include "pci.h"
 
 
+static inline u8 virtfn_bus(struct pci_dev *dev, int id)
+{
+	return dev->bus->number + ((dev->devfn + dev->sriov->offset +
+				    dev->sriov->stride * id) >> 8);
+}
+
+static inline u8 virtfn_devfn(struct pci_dev *dev, int id)
+{
+	return (dev->devfn + dev->sriov->offset +
+		dev->sriov->stride * id) & 0xff;
+}
+
 static int sriov_init(struct pci_dev *dev, int pos)
 {
 	int i;
@@ -208,4 +220,28 @@ void pci_restore_iov_state(struct pci_dev *dev)
 {
 	if (dev->is_physfn)
 		sriov_restore_state(dev);
+}
+
+/**
+ * pci_iov_bus_range - find bus range used by Virtual Function
+ * @bus: the PCI bus
+ *
+ * Returns max number of buses (exclude current one) used by Virtual
+ * Functions.
+ */
+int pci_iov_bus_range(struct pci_bus *bus)
+{
+	int max = 0;
+	u8 busnr;
+	struct pci_dev *dev;
+
+	list_for_each_entry(dev, &bus->devices, bus_list) {
+		if (!dev->is_physfn)
+			continue;
+		busnr = virtfn_bus(dev, dev->sriov->total - 1);
+		if (busnr > max)
+			max = busnr;
+	}
+
+	return max ? max - bus->number : 0;
 }

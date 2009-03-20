@@ -223,6 +223,7 @@ extern void pci_iov_release(struct pci_dev *dev);
 extern int pci_iov_resource_bar(struct pci_dev *dev, int resno,
 				enum pci_bar_type *type);
 extern void pci_restore_iov_state(struct pci_dev *dev);
+extern int pci_iov_bus_range(struct pci_bus *bus);
 #else
 static inline int pci_iov_init(struct pci_dev *dev)
 {
@@ -239,6 +240,10 @@ static inline int pci_iov_resource_bar(struct pci_dev *dev, int resno,
 }
 static inline void pci_restore_iov_state(struct pci_dev *dev)
 {
+}
+static inline int pci_iov_bus_range(struct pci_bus *bus)
+{
+	return 0;
 }
 #endif /* CONFIG_PCI_IOV */
 
