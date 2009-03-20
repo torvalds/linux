@@ -1,6 +1,6 @@
 /*
- * net/dsa/mv88e6131.c - Marvell 88e6131 switch chip support
- * Copyright (c) 2008 Marvell Semiconductor
+ * net/dsa/mv88e6131.c - Marvell 88e6095/6095f/6131 switch chip support
+ * Copyright (c) 2008-2009 Marvell Semiconductor
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,6 +21,8 @@ static char *mv88e6131_probe(struct mii_bus *bus, int sw_addr)
 	ret = __mv88e6xxx_reg_read(bus, sw_addr, REG_PORT(0), 0x03);
 	if (ret >= 0) {
 		ret &= 0xfff0;
+		if (ret == 0x0950)
+			return "Marvell 88E6095/88E6095F";
 		if (ret == 0x1060)
 			return "Marvell 88E6131";
 	}
@@ -36,7 +38,7 @@ static int mv88e6131_switch_reset(struct dsa_switch *ds)
 	/*
 	 * Set all ports to the disabled state.
 	 */
-	for (i = 0; i < 8; i++) {
+	for (i = 0; i < 11; i++) {
 		ret = REG_READ(REG_PORT(i), 0x04);
 		REG_WRITE(REG_PORT(i), 0x04, ret & 0xfffc);
 	}
@@ -136,7 +138,7 @@ static int mv88e6131_setup_global(struct dsa_switch *ds)
 	 * Clear all trunk masks.
 	 */
 	for (i = 0; i < 8; i++)
-		REG_WRITE(REG_GLOBAL2, 0x07, 0x8000 | (i << 12) | 0xff);
+		REG_WRITE(REG_GLOBAL2, 0x07, 0x8000 | (i << 12) | 0x7ff);
 
 	/*
 	 * Clear all trunk mappings.
@@ -159,9 +161,13 @@ static int mv88e6131_setup_port(struct dsa_switch *ds, int p)
 
 	/*
 	 * MAC Forcing register: don't force link, speed, duplex
-	 * or flow control state to any particular values.
+	 * or flow control state to any particular values on physical
+	 * ports, but force the CPU port to 1000 Mb/s full duplex.
 	 */
-	REG_WRITE(addr, 0x01, 0x0003);
+	if (p == ds->cpu_port)
+		REG_WRITE(addr, 0x01, 0x003e);
+	else
+		REG_WRITE(addr, 0x01, 0x0003);
 
 	/*
 	 * Port Control: disable Core Tag, disable Drop-on-Lock,
@@ -268,7 +274,7 @@ static int mv88e6131_setup(struct dsa_switch *ds)
 	if (ret < 0)
 		return ret;
 
-	for (i = 0; i < 6; i++) {
+	for (i = 0; i < 11; i++) {
 		ret = mv88e6131_setup_port(ds, i);
 		if (ret < 0)
 			return ret;
@@ -279,7 +285,7 @@ static int mv88e6131_setup(struct dsa_switch *ds)
 
 static int mv88e6131_port_to_phy_addr(int port)
 {
-	if (port >= 0 && port != 3 && port <= 7)
+	if (port >= 0 && port <= 11)
 		return port;
 	return -1;
 }
