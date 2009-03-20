@@ -488,7 +488,7 @@ config ARCH_PXA
 	  Support for Intel/Marvell's PXA2xx/PXA3xx processor line.
 
 config ARCH_MMP
-	bool "Marvell PXA168"
+	bool "Marvell PXA168/910"
 	depends on MMU
 	select GENERIC_GPIO
 	select ARCH_REQUIRE_GPIOLIB
@@ -499,7 +499,7 @@ config ARCH_MMP
 	select TICK_ONESHOT
 	select PLAT_PXA
 	help
-	  Support for Marvell's PXA168 processor line.
+	  Support for Marvell's PXA168/910 processor line.
 
 config ARCH_RPC
 	bool "RiscPC"

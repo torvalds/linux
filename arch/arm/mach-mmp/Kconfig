@@ -1,6 +1,6 @@
 if ARCH_MMP
 
-menu "Marvell PXA168 Implmentations"
+menu "Marvell PXA168/910 Implmentations"
 
 config MACH_ASPENITE
 	bool "Marvell's PXA168 Aspenite Development Board"
@@ -23,5 +23,11 @@ config CPU_PXA168
 	select CPU_MOHAWK
 	help
 	  Select code specific to PXA168
+
+config CPU_PXA910
+	bool
+	select CPU_MOHAWK
+	help
+	  Select code specific to PXA910
 
 endif
