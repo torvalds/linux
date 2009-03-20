@@ -133,6 +133,16 @@ static int phy_flash_cfg;
 module_param(phy_flash_cfg, int, 0644);
 MODULE_PARM_DESC(phy_flash_cfg, "Set PHYs into reflash mode initially");
 
+static unsigned irq_adapt_low_thresh = 10000;
+module_param(irq_adapt_low_thresh, uint, 0644);
+MODULE_PARM_DESC(irq_adapt_low_thresh,
+		 "Threshold score for reducing IRQ moderation");
+
+static unsigned irq_adapt_high_thresh = 20000;
+module_param(irq_adapt_high_thresh, uint, 0644);
+MODULE_PARM_DESC(irq_adapt_high_thresh,
+		 "Threshold score for increasing IRQ moderation");
+
 /**************************************************************************
  *
  * Utility functions and prototypes
@@ -223,6 +233,35 @@ static int efx_poll(struct napi_struct *napi, int budget)
 	rx_packets = efx_process_channel(channel, budget);
 
 	if (rx_packets < budget) {
+		struct efx_nic *efx = channel->efx;
+
+		if (channel->used_flags & EFX_USED_BY_RX &&
+		    efx->irq_rx_adaptive &&
+		    unlikely(++channel->irq_count == 1000)) {
+			unsigned old_irq_moderation = channel->irq_moderation;
+
+			if (unlikely(channel->irq_mod_score <
+				     irq_adapt_low_thresh)) {
+				channel->irq_moderation =
+					max_t(int,
+					      channel->irq_moderation -
+					      FALCON_IRQ_MOD_RESOLUTION,
+					      FALCON_IRQ_MOD_RESOLUTION);
+			} else if (unlikely(channel->irq_mod_score >
+					    irq_adapt_high_thresh)) {
+				channel->irq_moderation =
+					min(channel->irq_moderation +
+					    FALCON_IRQ_MOD_RESOLUTION,
+					    efx->irq_rx_moderation);
+			}
+
+			if (channel->irq_moderation != old_irq_moderation)
+				falcon_set_int_moderation(channel);
+
+			channel->irq_count = 0;
+			channel->irq_mod_score = 0;
+		}
+
 		/* There is no race here; although napi_disable() will
 		 * only wait for napi_complete(), this isn't a problem
 		 * since efx_channel_processed() will have no effect if
@@ -991,7 +1030,7 @@ static int efx_probe_nic(struct efx_nic *efx)
 	efx_set_channels(efx);
 
 	/* Initialise the interrupt moderation settings */
-	efx_init_irq_moderation(efx, tx_irq_mod_usec, rx_irq_mod_usec);
+	efx_init_irq_moderation(efx, tx_irq_mod_usec, rx_irq_mod_usec, true);
 
 	return 0;
 }
@@ -1188,7 +1227,8 @@ void efx_flush_queues(struct efx_nic *efx)
  **************************************************************************/
 
 /* Set interrupt moderation parameters */
-void efx_init_irq_moderation(struct efx_nic *efx, int tx_usecs, int rx_usecs)
+void efx_init_irq_moderation(struct efx_nic *efx, int tx_usecs, int rx_usecs,
+			     bool rx_adaptive)
 {
 	struct efx_tx_queue *tx_queue;
 	struct efx_rx_queue *rx_queue;
@@ -1198,6 +1238,8 @@ void efx_init_irq_moderation(struct efx_nic *efx, int tx_usecs, int rx_usecs)
 	efx_for_each_tx_queue(tx_queue, efx)
 		tx_queue->channel->irq_moderation = tx_usecs;
 
+	efx->irq_rx_adaptive = rx_adaptive;
+	efx->irq_rx_moderation = rx_usecs;
 	efx_for_each_rx_queue(rx_queue, efx)
 		rx_queue->channel->irq_moderation = rx_usecs;
 }

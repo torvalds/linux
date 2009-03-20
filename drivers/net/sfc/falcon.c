@@ -729,6 +729,9 @@ static void falcon_handle_tx_event(struct efx_channel *channel,
 		tx_ev_desc_ptr = EFX_QWORD_FIELD(*event, TX_EV_DESC_PTR);
 		tx_ev_q_label = EFX_QWORD_FIELD(*event, TX_EV_Q_LABEL);
 		tx_queue = &efx->tx_queue[tx_ev_q_label];
+		channel->irq_mod_score +=
+			(tx_ev_desc_ptr - tx_queue->read_count) &
+			efx->type->txd_ring_mask;
 		efx_xmit_done(tx_queue, tx_ev_desc_ptr);
 	} else if (EFX_QWORD_FIELD(*event, TX_EV_WQ_FF_FULL)) {
 		/* Rewrite the FIFO write pointer */
@@ -897,6 +900,8 @@ static void falcon_handle_rx_event(struct efx_channel *channel,
 		if (unlikely(!rx_ev_mcast_hash_match))
 			discard = true;
 	}
+
+	channel->irq_mod_score += 2;
 
 	/* Handle received packet */
 	efx_rx_packet(rx_queue, rx_ev_desc_ptr, rx_ev_byte_cnt,
@@ -1075,14 +1080,15 @@ void falcon_set_int_moderation(struct efx_channel *channel)
 		 * program is based at 0.  So actual interrupt moderation
 		 * achieved is ((x + 1) * res).
 		 */
-		unsigned int res = 5;
-		channel->irq_moderation -= (channel->irq_moderation % res);
-		if (channel->irq_moderation < res)
-			channel->irq_moderation = res;
+		channel->irq_moderation -= (channel->irq_moderation %
+					    FALCON_IRQ_MOD_RESOLUTION);
+		if (channel->irq_moderation < FALCON_IRQ_MOD_RESOLUTION)
+			channel->irq_moderation = FALCON_IRQ_MOD_RESOLUTION;
 		EFX_POPULATE_DWORD_2(timer_cmd,
 				     TIMER_MODE, TIMER_MODE_INT_HLDOFF,
 				     TIMER_VAL,
-				     (channel->irq_moderation / res) - 1);
+				     channel->irq_moderation /
+				     FALCON_IRQ_MOD_RESOLUTION - 1);
 	} else {
 		EFX_POPULATE_DWORD_2(timer_cmd,
 				     TIMER_MODE, TIMER_MODE_DIS,

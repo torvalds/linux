@@ -604,7 +604,6 @@ static int efx_ethtool_get_coalesce(struct net_device *net_dev,
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
 	struct efx_tx_queue *tx_queue;
-	struct efx_rx_queue *rx_queue;
 	struct efx_channel *channel;
 
 	memset(coalesce, 0, sizeof(*coalesce));
@@ -622,14 +621,8 @@ static int efx_ethtool_get_coalesce(struct net_device *net_dev,
 		}
 	}
 
-	/* Find lowest IRQ moderation across all used RX queues */
-	coalesce->rx_coalesce_usecs_irq = ~((u32) 0);
-	efx_for_each_rx_queue(rx_queue, efx) {
-		channel = rx_queue->channel;
-		if (channel->irq_moderation < coalesce->rx_coalesce_usecs_irq)
-			coalesce->rx_coalesce_usecs_irq =
-				channel->irq_moderation;
-	}
+	coalesce->use_adaptive_rx_coalesce = efx->irq_rx_adaptive;
+	coalesce->rx_coalesce_usecs_irq = efx->irq_rx_moderation;
 
 	return 0;
 }
@@ -643,10 +636,9 @@ static int efx_ethtool_set_coalesce(struct net_device *net_dev,
 	struct efx_nic *efx = netdev_priv(net_dev);
 	struct efx_channel *channel;
 	struct efx_tx_queue *tx_queue;
-	unsigned tx_usecs, rx_usecs;
+	unsigned tx_usecs, rx_usecs, adaptive;
 
-	if (coalesce->use_adaptive_rx_coalesce ||
-	    coalesce->use_adaptive_tx_coalesce)
+	if (coalesce->use_adaptive_tx_coalesce)
 		return -EOPNOTSUPP;
 
 	if (coalesce->rx_coalesce_usecs || coalesce->tx_coalesce_usecs) {
@@ -657,6 +649,7 @@ static int efx_ethtool_set_coalesce(struct net_device *net_dev,
 
 	rx_usecs = coalesce->rx_coalesce_usecs_irq;
 	tx_usecs = coalesce->tx_coalesce_usecs_irq;
+	adaptive = coalesce->use_adaptive_rx_coalesce;
 
 	/* If the channel is shared only allow RX parameters to be set */
 	efx_for_each_tx_queue(tx_queue, efx) {
@@ -668,7 +661,7 @@ static int efx_ethtool_set_coalesce(struct net_device *net_dev,
 		}
 	}
 
-	efx_init_irq_moderation(efx, tx_usecs, rx_usecs);
+	efx_init_irq_moderation(efx, tx_usecs, rx_usecs, adaptive);
 
 	/* Reset channel to pick up new moderation value.  Note that
 	 * this may change the value of the irq_moderation field

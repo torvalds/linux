@@ -336,6 +336,8 @@ enum efx_rx_alloc_method {
  * @eventq_read_ptr: Event queue read pointer
  * @last_eventq_read_ptr: Last event queue read pointer value.
  * @eventq_magic: Event queue magic value for driver-generated test events
+ * @irq_count: Number of IRQs since last adaptive moderation decision
+ * @irq_mod_score: IRQ moderation score
  * @rx_alloc_level: Watermark based heuristic counter for pushing descriptors
  *	and diagnostic counters
  * @rx_alloc_push_pages: RX allocation method currently in use for pushing
@@ -363,6 +365,9 @@ struct efx_channel {
 	unsigned int eventq_read_ptr;
 	unsigned int last_eventq_read_ptr;
 	unsigned int eventq_magic;
+
+	unsigned int irq_count;
+	unsigned int irq_mod_score;
 
 	int rx_alloc_level;
 	int rx_alloc_push_pages;
@@ -703,6 +708,8 @@ union efx_multicast_hash {
  * @membase: Memory BAR value
  * @biu_lock: BIU (bus interface unit) lock
  * @interrupt_mode: Interrupt mode
+ * @irq_rx_adaptive: Adaptive IRQ moderation enabled for RX event queues
+ * @irq_rx_moderation: IRQ moderation time for RX event queues
  * @i2c_adap: I2C adapter
  * @board_info: Board-level information
  * @state: Device state flag. Serialised by the rtnl_lock.
@@ -784,6 +791,8 @@ struct efx_nic {
 	void __iomem *membase;
 	spinlock_t biu_lock;
 	enum efx_int_mode interrupt_mode;
+	bool irq_rx_adaptive;
+	unsigned int irq_rx_moderation;
 
 	struct i2c_adapter i2c_adap;
 	struct efx_board board_info;
