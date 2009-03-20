@@ -712,6 +712,14 @@ static int x25_asy_open_dev(struct net_device *dev)
 	return 0;
 }
 
+static const struct net_device_ops x25_asy_netdev_ops = {
+	.ndo_open	= x25_asy_open_dev,
+	.ndo_stop	= x25_asy_close,
+	.ndo_start_xmit	= x25_asy_xmit,
+	.ndo_tx_timeout	= x25_asy_timeout,
+	.ndo_change_mtu	= x25_asy_change_mtu,
+};
+
 /* Initialise the X.25 driver.  Called by the device init code */
 static void x25_asy_setup(struct net_device *dev)
 {
@@ -727,12 +735,8 @@ static void x25_asy_setup(struct net_device *dev)
 	 */
 
 	dev->mtu		= SL_MTU;
-	dev->hard_start_xmit	= x25_asy_xmit;
-	dev->tx_timeout		= x25_asy_timeout;
+	dev->netdev_ops		= &x25_asy_netdev_ops;
 	dev->watchdog_timeo	= HZ*20;
-	dev->open		= x25_asy_open_dev;
-	dev->stop		= x25_asy_close;
-	dev->change_mtu		= x25_asy_change_mtu;
 	dev->hard_header_len	= 0;
 	dev->addr_len		= 0;
 	dev->type		= ARPHRD_X25;
