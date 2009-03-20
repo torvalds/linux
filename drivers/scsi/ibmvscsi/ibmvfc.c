@@ -75,7 +75,7 @@ MODULE_PARM_DESC(max_lun, "Maximum allowed LUN. "
 module_param_named(max_targets, max_targets, uint, S_IRUGO);
 MODULE_PARM_DESC(max_targets, "Maximum allowed targets. "
 		 "[Default=" __stringify(IBMVFC_MAX_TARGETS) "]");
-module_param_named(disc_threads, disc_threads, uint, S_IRUGO | S_IWUSR);
+module_param_named(disc_threads, disc_threads, uint, S_IRUGO);
 MODULE_PARM_DESC(disc_threads, "Number of device discovery threads to use. "
 		 "[Default=" __stringify(IBMVFC_MAX_DISC_THREADS) "]");
 module_param_named(debug, ibmvfc_debug, uint, S_IRUGO | S_IWUSR);
