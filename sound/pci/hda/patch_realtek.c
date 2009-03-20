@@ -16725,26 +16725,58 @@ static int alc662_auto_create_extra_out(struct alc_spec *spec, hda_nid_t pin,
 	return 0;
 }
 
+/* return the index of the src widget from the connection list of the nid.
+ * return -1 if not found
+ */
+static int alc662_input_pin_idx(struct hda_codec *codec, hda_nid_t nid,
+				hda_nid_t src)
+{
+	hda_nid_t conn_list[HDA_MAX_CONNECTIONS];
+	int i, conns;
+
+	conns = snd_hda_get_connections(codec, nid, conn_list,
+					ARRAY_SIZE(conn_list));
+	if (conns < 0)
+		return -1;
+	for (i = 0; i < conns; i++)
+		if (conn_list[i] == src)
+			return i;
+	return -1;
+}
+
+static int alc662_is_input_pin(struct hda_codec *codec, hda_nid_t nid)
+{
+	unsigned int pincap = snd_hda_param_read(codec, nid, AC_PAR_PIN_CAP);
+	return (pincap & AC_PINCAP_IN) != 0;
+}
+
 /* create playback/capture controls for input pins */
-static int alc662_auto_create_analog_input_ctls(struct alc_spec *spec,
+static int alc662_auto_create_analog_input_ctls(struct hda_codec *codec,
 						const struct auto_pin_cfg *cfg)
 {
+	struct alc_spec *spec = codec->spec;
 	struct hda_input_mux *imux = &spec->private_imux[0];
 	int i, err, idx;
 
 	for (i = 0; i < AUTO_PIN_LAST; i++) {
-		if (alc880_is_input_pin(cfg->input_pins[i])) {
-			idx = alc880_input_pin_idx(cfg->input_pins[i]);
-			err = new_analog_input(spec, cfg->input_pins[i],
-					       auto_pin_cfg_labels[i],
-					       idx, 0x0b);
-			if (err < 0)
-				return err;
-			imux->items[imux->num_items].label =
-				auto_pin_cfg_labels[i];
-			imux->items[imux->num_items].index =
-				alc880_input_pin_idx(cfg->input_pins[i]);
-			imux->num_items++;
+		if (alc662_is_input_pin(codec, cfg->input_pins[i])) {
+			idx = alc662_input_pin_idx(codec, 0x0b,
+						   cfg->input_pins[i]);
+			if (idx >= 0) {
+				err = new_analog_input(spec, cfg->input_pins[i],
+						       auto_pin_cfg_labels[i],
+						       idx, 0x0b);
+				if (err < 0)
+					return err;
+			}
+			idx = alc662_input_pin_idx(codec, 0x22,
+						   cfg->input_pins[i]);
+			if (idx >= 0) {
+				imux->items[imux->num_items].label =
+					auto_pin_cfg_labels[i];
+				imux->items[imux->num_items].index = idx;
+				imux->num_items++;
+			}
 		}
 	}
 	return 0;
@@ -16794,7 +16826,6 @@ static void alc662_auto_init_hp_out(struct hda_codec *codec)
 		alc662_auto_set_output_and_unmute(codec, pin, PIN_OUT, 0);
 }
 
-#define alc662_is_input_pin(nid)	alc880_is_input_pin(nid)
 #define ALC662_PIN_CD_NID		ALC880_PIN_CD_NID
 
 static void alc662_auto_init_analog_input(struct hda_codec *codec)
@@ -16804,7 +16835,7 @@ static void alc662_auto_init_analog_input(struct hda_codec *codec)
 
 	for (i = 0; i < AUTO_PIN_LAST; i++) {
 		hda_nid_t nid = spec->autocfg.input_pins[i];
-		if (alc662_is_input_pin(nid)) {
+		if (alc662_is_input_pin(codec, nid)) {
 			alc_set_input_pin(codec, nid, i);
 			if (nid != ALC662_PIN_CD_NID)
 				snd_hda_codec_write(codec, nid, 0,
@@ -16844,7 +16875,7 @@ static int alc662_parse_auto_config(struct hda_codec *codec)
 					   "Headphone");
 	if (err < 0)
 		return err;
-	err = alc662_auto_create_analog_input_ctls(spec, &spec->autocfg);
+	err = alc662_auto_create_analog_input_ctls(codec, &spec->autocfg);
 	if (err < 0)
 		return err;
 
