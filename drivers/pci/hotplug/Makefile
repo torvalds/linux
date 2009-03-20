@@ -20,7 +20,7 @@ obj-$(CONFIG_HOTPLUG_PCI_RPA_DLPAR)	+= rpadlpar_io.o
 obj-$(CONFIG_HOTPLUG_PCI_SGI)		+= sgi_hotplug.o
 
 # Link this last so it doesn't claim devices that have a real hotplug driver
-obj-$(CONFIG_HOTPLUG_PCI_FAKE)		+= legacy_fakephp.o
+obj-$(CONFIG_HOTPLUG_PCI_FAKE)		+= fakephp.o
 
 pci_hotplug-objs	:=	pci_hotplug_core.o
 
