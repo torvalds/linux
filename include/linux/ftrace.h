@@ -153,6 +153,10 @@ struct dyn_ftrace {
 		unsigned long		flags;
 		struct dyn_ftrace	*newlist;
 	};
+#ifdef CONFIG_FUNCTION_PROFILER
+	unsigned long			counter;
+	struct hlist_node		node;
+#endif
 	struct dyn_arch_ftrace		arch;
 };
 
