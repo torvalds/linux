@@ -242,7 +242,6 @@
 #include <asm/io_generic.h>
 
 /* arch/sh/cchips/hd6446x/hd64461/setup.c */
-int hd64461_irq_demux(int irq);
 void hd64461_register_irq_demux(int irq,
 				int (*demux) (int irq, void *dev), void *dev);
 void hd64461_unregister_irq_demux(int irq);
