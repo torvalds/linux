@@ -29,7 +29,7 @@ static struct llc_sap *snap_sap;
 /*
  *	Find a snap client by matching the 5 bytes.
  */
-static struct datalink_proto *find_snap_client(unsigned char *desc)
+static struct datalink_proto *find_snap_client(const unsigned char *desc)
 {
 	struct datalink_proto *proto = NULL, *p;
 
@@ -122,7 +122,7 @@ module_exit(snap_exit);
 /*
  *	Register SNAP clients. We don't yet use this for IP.
  */
-struct datalink_proto *register_snap_client(unsigned char *desc,
+struct datalink_proto *register_snap_client(const unsigned char *desc,
 					    int (*rcvfunc)(struct sk_buff *,
 							   struct net_device *,
 							   struct packet_type *,
@@ -137,7 +137,7 @@ struct datalink_proto *register_snap_client(unsigned char *desc,
 
 	proto = kmalloc(sizeof(*proto), GFP_ATOMIC);
 	if (proto) {
-		memcpy(proto->type, desc,5);
+		memcpy(proto->type, desc, 5);
 		proto->rcvfunc		= rcvfunc;
 		proto->header_length	= 5 + 3; /* snap + 802.2 */
 		proto->request		= snap_request;
