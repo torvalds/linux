@@ -99,7 +99,7 @@ static int			run_perfstat			=  0;
 static int			system_wide			=  0;
 
 static int			nr_counters			=  0;
-static long			event_id[MAX_COUNTERS]		= DEF_PERFSTAT_EVENTS;
+static __s64			event_id[MAX_COUNTERS]		= DEF_PERFSTAT_EVENTS;
 static int			event_raw[MAX_COUNTERS];
 static int			event_count[MAX_COUNTERS];
 static int			fd[MAX_NR_CPUS][MAX_COUNTERS];
@@ -261,11 +261,11 @@ static int type_valid(int type)
 
 static char *event_name(int ctr)
 {
-	int type = event_id[ctr];
+	__s64 type = event_id[ctr];
 	static char buf[32];
 
 	if (event_raw[ctr]) {
-		sprintf(buf, "raw 0x%x", type);
+		sprintf(buf, "raw 0x%llx", (long long)type);
 		return buf;
 	}
 	if (!type_valid(type))
@@ -299,7 +299,8 @@ static int match_event_symbols(char *str)
 
 static int parse_events(char *str)
 {
-	int type, raw;
+	__s64 type;
+	int raw;
 
 again:
 	if (nr_counters == MAX_COUNTERS)
