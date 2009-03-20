@@ -136,6 +136,9 @@ static int sxg_register_interrupt(struct adapter_t *adapter);
 static void sxg_remove_isr(struct adapter_t *adapter);
 static irqreturn_t sxg_isr(int irq, void *dev_id);
 
+static void sxg_watchdog(unsigned long data);
+static void sxg_update_link_status (struct work_struct *work);
+
 #define XXXTODO 0
 
 #if XXXTODO
@@ -1122,6 +1125,12 @@ static int sxg_entry_probe(struct pci_dev *pcidev,
 
 	netif_napi_add(netdev, &adapter->napi,
 		sxg_poll, SXG_NETDEV_WEIGHT);
+	netdev->watchdog_timeo = 2 * HZ;
+	init_timer(&adapter->watchdog_timer);
+	adapter->watchdog_timer.function = &sxg_watchdog;
+	adapter->watchdog_timer.data = (unsigned long) adapter;
+	INIT_WORK(&adapter->update_link_status, sxg_update_link_status);
+
 	DBG_ERROR
 	    ("sxg: %s addr 0x%lx, irq %d, MAC addr \
 		%02X:%02X:%02X:%02X:%02X:%02X\n",
@@ -1441,7 +1450,10 @@ static int sxg_process_isr(struct adapter_t *adapter, u32 MessageId)
 	}
 	/* Link event */
 	if (Isr & SXG_ISR_LINK) {
-		sxg_link_event(adapter);
+		if (adapter->state != ADAPT_DOWN) {
+			adapter->link_status_changed = 1;
+			schedule_work(&adapter->update_link_status);
+		}
 	}
 	/* Debug - breakpoint hit */
 	if (Isr & SXG_ISR_BREAK) {
@@ -2260,6 +2272,7 @@ int sxg_second_open(struct net_device * dev)
 
 	sxg_register_intr(adapter);
 	spin_unlock_irqrestore(&sxg_global.driver_lock, sxg_global.flags);
+	mod_timer(&adapter->watchdog_timer, jiffies);
 	return (STATUS_SUCCESS);
 
 }
@@ -2312,27 +2325,28 @@ static int sxg_entry_halt(struct net_device *dev)
 
 	RssIds = SXG_RSS_CPU_COUNT(adapter);
 	IsrCount = adapter->msi_enabled ? RssIds : 1;
-
-	napi_disable(&adapter->napi);
+	/* Disable interrupts */
 	spin_lock_irqsave(&sxg_global.driver_lock, sxg_global.flags);
-	DBG_ERROR("sxg: %s (%s) ENTER\n", __func__, dev->name);
-
-	WRITE_REG(adapter->UcodeRegs[0].RcvCmd, 0, true);
-	netif_stop_queue(adapter->netdev);
+	SXG_DISABLE_ALL_INTERRUPTS(adapter);
 	adapter->state = ADAPT_DOWN;
 	adapter->linkstate = LINK_DOWN;
+
+	spin_unlock_irqrestore(&sxg_global.driver_lock, sxg_global.flags);
+	sxg_deregister_interrupt(adapter);
+	WRITE_REG(HwRegs->Reset, 0xDEAD, FLUSH);
+	mdelay(5000);
+
+	del_timer_sync(&adapter->watchdog_timer);
+	netif_stop_queue(dev);
+	netif_carrier_off(dev);
+
+	napi_disable(&adapter->napi);
+
+	WRITE_REG(adapter->UcodeRegs[0].RcvCmd, 0, true);
 	adapter->devflags_prev = 0;
 	DBG_ERROR("sxg: %s (%s) set adapter[%p] state to ADAPT_DOWN(%d)\n",
 		  __func__, dev->name, adapter, adapter->state);
 
-	/* Disable interrupts */
-	SXG_DISABLE_ALL_INTERRUPTS(adapter);
-
-	spin_unlock_irqrestore(&sxg_global.driver_lock, sxg_global.flags);
-
-	sxg_deregister_interrupt(adapter);
-	WRITE_REG(HwRegs->Reset, 0xDEAD, FLUSH);
-	mdelay(5000);
 	spin_lock(&adapter->RcvQLock);
 	/* Free all the blocks and the buffers, moved from remove() routine */
 	if (!(IsListEmpty(&adapter->AllRcvBlocks))) {
@@ -3013,6 +3027,8 @@ static void sxg_link_event(struct adapter_t *adapter)
 	int status;
 	u32 Value;
 
+	if (adapter->state == ADAPT_DOWN)
+		return;
 	SXG_TRACE(TRACE_SXG, SxgTraceBuffer, TRACE_NOISY, "LinkEvnt",
 		  adapter, 0, 0, 0);
 	DBG_ERROR("ENTER %s\n", __func__);
@@ -3053,10 +3069,13 @@ static void sxg_link_event(struct adapter_t *adapter)
 		sxg_link_state(adapter, LinkState);
 		DBG_ERROR("SXG: Link Alarm occurred.  Link is %s\n",
 			  ((LinkState == SXG_LINK_UP) ? "UP" : "DOWN"));
-		if (LinkState == SXG_LINK_UP)
+		if (LinkState == SXG_LINK_UP) {
 			netif_carrier_on(netdev);
-		else
+			netif_tx_start_all_queues(netdev);
+		} else {
+			netif_tx_stop_all_queues(netdev);
 			netif_carrier_off(netdev);
+		}
 	} else {
 		/*
 	 	 * XXXTODO - Assuming Link Attention is only being generated
@@ -4433,6 +4452,27 @@ static struct net_device_stats *sxg_get_stats(struct net_device * dev)
 
 	sxg_collect_statistics(adapter);
 	return (&adapter->stats);
+}
+
+static void sxg_watchdog(unsigned long data)
+{
+	struct adapter_t *adapter = (struct adapter_t *) data;
+
+	if (adapter->state != ADAPT_DOWN) {
+		sxg_link_event(adapter);
+		/* Reset the timer */
+		mod_timer(&adapter->watchdog_timer, round_jiffies(jiffies + 2 * HZ));
+	}
+}
+
+static void sxg_update_link_status (struct work_struct *work)
+{
+	struct adapter_t *adapter = (struct adapter_t *)container_of
+				(work, struct adapter_t, update_link_status);
+	if (likely(adapter->link_status_changed)) {
+		sxg_link_event(adapter);
+		adapter->link_status_changed = 0;
+	}
 }
 
 static struct pci_driver sxg_driver = {

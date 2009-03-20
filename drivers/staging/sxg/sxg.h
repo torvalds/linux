@@ -715,6 +715,9 @@ struct adapter_t {
 	/*MSI-X related data elements*/
 	u32 nr_msix_entries;
 	struct msix_entry *msi_entries;
+	struct timer_list watchdog_timer;
+	struct work_struct update_link_status;
+	u32 	link_status_changed;
 };
 
 #if SLIC_DUMP_ENABLED
