@@ -2614,6 +2614,14 @@ static int nl80211_dump_scan(struct sk_buff *skb,
 	return err;
 }
 
+static bool nl80211_valid_auth_type(enum nl80211_auth_type auth_type)
+{
+	return auth_type == NL80211_AUTHTYPE_OPEN_SYSTEM ||
+		auth_type == NL80211_AUTHTYPE_SHARED_KEY ||
+		auth_type == NL80211_AUTHTYPE_FT ||
+		auth_type == NL80211_AUTHTYPE_NETWORK_EAP;
+}
+
 static int nl80211_authenticate(struct sk_buff *skb, struct genl_info *info)
 {
 	struct cfg80211_registered_device *drv;
@@ -2666,6 +2674,10 @@ static int nl80211_authenticate(struct sk_buff *skb, struct genl_info *info)
 	if (info->attrs[NL80211_ATTR_AUTH_TYPE]) {
 		req.auth_type =
 			nla_get_u32(info->attrs[NL80211_ATTR_AUTH_TYPE]);
+		if (!nl80211_valid_auth_type(req.auth_type)) {
+			err = -EINVAL;
+			goto out;
+		}
 	}
 
 	err = drv->ops->auth(&drv->wiphy, dev, &req);
@@ -2718,10 +2730,6 @@ static int nl80211_associate(struct sk_buff *skb, struct genl_info *info)
 		}
 	}
 
-	if (nla_len(info->attrs[NL80211_ATTR_SSID]) > IEEE80211_MAX_SSID_LEN) {
-		err = -EINVAL;
-		goto out;
-	}
 	req.ssid = nla_data(info->attrs[NL80211_ATTR_SSID]);
 	req.ssid_len = nla_len(info->attrs[NL80211_ATTR_SSID]);
 
@@ -2769,9 +2777,15 @@ static int nl80211_deauthenticate(struct sk_buff *skb, struct genl_info *info)
 
 	req.peer_addr = nla_data(info->attrs[NL80211_ATTR_MAC]);
 
-	if (info->attrs[NL80211_ATTR_REASON_CODE])
+	if (info->attrs[NL80211_ATTR_REASON_CODE]) {
 		req.reason_code =
 			nla_get_u16(info->attrs[NL80211_ATTR_REASON_CODE]);
+		if (req.reason_code == 0) {
+			/* Reason Code 0 is reserved */
+			err = -EINVAL;
+			goto out;
+		}
+	}
 
 	if (info->attrs[NL80211_ATTR_IE]) {
 		req.ie = nla_data(info->attrs[NL80211_ATTR_IE]);
@@ -2817,9 +2831,15 @@ static int nl80211_disassociate(struct sk_buff *skb, struct genl_info *info)
 
 	req.peer_addr = nla_data(info->attrs[NL80211_ATTR_MAC]);
 
-	if (info->attrs[NL80211_ATTR_REASON_CODE])
+	if (info->attrs[NL80211_ATTR_REASON_CODE]) {
 		req.reason_code =
 			nla_get_u16(info->attrs[NL80211_ATTR_REASON_CODE]);
+		if (req.reason_code == 0) {
+			/* Reason Code 0 is reserved */
+			err = -EINVAL;
+			goto out;
+		}
+	}
 
 	if (info->attrs[NL80211_ATTR_IE]) {
 		req.ie = nla_data(info->attrs[NL80211_ATTR_IE]);
