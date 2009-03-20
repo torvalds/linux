@@ -154,6 +154,68 @@ static const char __init *pci_mmcfg_amd_fam10h(void)
 	return "AMD Family 10h NB";
 }
 
+static bool __initdata mcp55_checked;
+static const char __init *pci_mmcfg_nvidia_mcp55(void)
+{
+	int bus;
+	int mcp55_mmconf_found = 0;
+
+	static const u32 extcfg_regnum		= 0x90;
+	static const u32 extcfg_regsize		= 4;
+	static const u32 extcfg_enable_mask	= 1<<31;
+	static const u32 extcfg_start_mask	= 0xff<<16;
+	static const int extcfg_start_shift	= 16;
+	static const u32 extcfg_size_mask	= 0x3<<28;
+	static const int extcfg_size_shift	= 28;
+	static const int extcfg_sizebus[]	= {0x100, 0x80, 0x40, 0x20};
+	static const u32 extcfg_base_mask[]	= {0x7ff8, 0x7ffc, 0x7ffe, 0x7fff};
+	static const int extcfg_base_lshift	= 25;
+
+	/*
+	 * do check if amd fam10h already took over
+	 */
+	if (!acpi_disabled || pci_mmcfg_config_num || mcp55_checked)
+		return NULL;
+
+	mcp55_checked = true;
+	for (bus = 0; bus < 256; bus++) {
+		u64 base;
+		u32 l, extcfg;
+		u16 vendor, device;
+		int start, size_index, end;
+
+		raw_pci_ops->read(0, bus, PCI_DEVFN(0, 0), 0, 4, &l);
+		vendor = l & 0xffff;
+		device = (l >> 16) & 0xffff;
+
+		if (PCI_VENDOR_ID_NVIDIA != vendor || 0x0369 != device)
+			continue;
+
+		raw_pci_ops->read(0, bus, PCI_DEVFN(0, 0), extcfg_regnum,
+				  extcfg_regsize, &extcfg);
+
+		if (!(extcfg & extcfg_enable_mask))
+			continue;
+
+		if (extend_mmcfg(1) == -1)
+			continue;
+
+		size_index = (extcfg & extcfg_size_mask) >> extcfg_size_shift;
+		base = extcfg & extcfg_base_mask[size_index];
+		/* base could > 4G */
+		base <<= extcfg_base_lshift;
+		start = (extcfg & extcfg_start_mask) >> extcfg_start_shift;
+		end = start + extcfg_sizebus[size_index] - 1;
+		fill_one_mmcfg(base, 0, start, end);
+		mcp55_mmconf_found++;
+	}
+
+	if (!mcp55_mmconf_found)
+		return NULL;
+
+	return "nVidia MCP55";
+}
+
 struct pci_mmcfg_hostbridge_probe {
 	u32 bus;
 	u32 devfn;
@@ -171,6 +233,8 @@ static struct pci_mmcfg_hostbridge_probe pci_mmcfg_probes[] __initdata = {
 	  0x1200, pci_mmcfg_amd_fam10h },
 	{ 0xff, PCI_DEVFN(0, 0), PCI_VENDOR_ID_AMD,
 	  0x1200, pci_mmcfg_amd_fam10h },
+	{ 0, PCI_DEVFN(0, 0), PCI_VENDOR_ID_NVIDIA,
+	  0x0369, pci_mmcfg_nvidia_mcp55 },
 };
 
 static int __init pci_mmcfg_check_hostbridge(void)
