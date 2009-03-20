@@ -1043,35 +1043,27 @@ EXPORT_SYMBOL(pci_scan_single_device);
  * Scan a PCI slot on the specified PCI bus for devices, adding
  * discovered devices to the @bus->devices list.  New devices
  * will not have is_added set.
+ *
+ * Returns the number of new devices found.
  */
 int pci_scan_slot(struct pci_bus *bus, int devfn)
 {
-	int func, nr = 0;
-	int scan_all_fns;
+	int fn, nr = 0;
+	struct pci_dev *dev;
 
-	scan_all_fns = pcibios_scan_all_fns(bus, devfn);
+	dev = pci_scan_single_device(bus, devfn);
+	if (dev && !dev->is_added)	/* new device? */
+		nr++;
 
-	for (func = 0; func < 8; func++, devfn++) {
-		struct pci_dev *dev;
-
-		dev = pci_scan_single_device(bus, devfn);
-		if (dev) {
-			nr++;
-
-			/*
-		 	 * If this is a single function device,
-		 	 * don't scan past the first function.
-		 	 */
-			if (!dev->multifunction) {
-				if (func > 0) {
-					dev->multifunction = 1;
-				} else {
- 					break;
-				}
+	if ((dev && dev->multifunction) ||
+	    (!dev && pcibios_scan_all_fns(bus, devfn))) {
+		for (fn = 1; fn < 8; fn++) {
+			dev = pci_scan_single_device(bus, devfn + fn);
+			if (dev) {
+				if (!dev->is_added)
+					nr++;
+				dev->multifunction = 1;
 			}
-		} else {
-			if (func == 0 && !scan_all_fns)
-				break;
 		}
 	}
 
