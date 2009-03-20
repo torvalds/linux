@@ -2262,7 +2262,7 @@ void hostap_rx(struct net_device *dev, struct sk_buff *skb,
 	if (skb->len < 16)
 		goto drop;
 
-	local->stats.rx_packets++;
+	dev->stats.rx_packets++;
 
 	hdr = (struct ieee80211_hdr *) skb->data;
 

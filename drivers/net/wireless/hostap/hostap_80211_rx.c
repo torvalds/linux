@@ -207,13 +207,11 @@ hdr->f.status = s; hdr->f.len = l; hdr->f.data = d
 static void monitor_rx(struct net_device *dev, struct sk_buff *skb,
 		       struct hostap_80211_rx_status *rx_stats)
 {
-	struct net_device_stats *stats;
 	int len;
 
 	len = prism2_rx_80211(dev, skb, rx_stats, PRISM2_RX_MONITOR);
-	stats = hostap_get_stats(dev);
-	stats->rx_packets++;
-	stats->rx_bytes += len;
+	dev->stats.rx_packets++;
+	dev->stats.rx_bytes += len;
 }
 
 
@@ -724,7 +722,6 @@ void hostap_80211_rx(struct net_device *dev, struct sk_buff *skb,
 	size_t hdrlen;
 	u16 fc, type, stype, sc;
 	struct net_device *wds = NULL;
-	struct net_device_stats *stats;
 	unsigned int frag;
 	u8 *payload;
 	struct sk_buff *skb2 = NULL;
@@ -748,7 +745,6 @@ void hostap_80211_rx(struct net_device *dev, struct sk_buff *skb,
 	iface = netdev_priv(dev);
 
 	hdr = (struct ieee80211_hdr *) skb->data;
-	stats = hostap_get_stats(dev);
 
 	if (skb->len < 10)
 		goto rx_dropped;
@@ -866,10 +862,8 @@ void hostap_80211_rx(struct net_device *dev, struct sk_buff *skb,
 
 	if (hostap_rx_frame_wds(local, hdr, fc, &wds))
 		goto rx_dropped;
-	if (wds) {
+	if (wds)
 		skb->dev = dev = wds;
-		stats = hostap_get_stats(dev);
-	}
 
 	if (local->iw_mode == IW_MODE_MASTER && !wds &&
 	    (fc & (IEEE80211_FCTL_TODS | IEEE80211_FCTL_FROMDS)) ==
@@ -878,7 +872,6 @@ void hostap_80211_rx(struct net_device *dev, struct sk_buff *skb,
 	    memcmp(hdr->addr2, local->assoc_ap_addr, ETH_ALEN) == 0) {
 		/* Frame from BSSID of the AP for which we are a client */
 		skb->dev = dev = local->stadev;
-		stats = hostap_get_stats(dev);
 		from_assoc_ap = 1;
 	}
 
@@ -1069,8 +1062,8 @@ void hostap_80211_rx(struct net_device *dev, struct sk_buff *skb,
 		skb_trim(skb, skb->len - ETH_ALEN);
 	}
 
-	stats->rx_packets++;
-	stats->rx_bytes += skb->len;
+	dev->stats.rx_packets++;
+	dev->stats.rx_bytes += skb->len;
 
 	if (local->iw_mode == IW_MODE_MASTER && !wds &&
 	    local->ap->bridge_packets) {
@@ -1115,7 +1108,7 @@ void hostap_80211_rx(struct net_device *dev, struct sk_buff *skb,
  rx_dropped:
 	dev_kfree_skb(skb);
 
-	stats->rx_dropped++;
+	dev->stats.rx_dropped++;
 	goto rx_exit;
 }
 

@@ -1682,7 +1682,7 @@ static int prism2_get_txfid_idx(local_info_t *local)
 
 	PDEBUG(DEBUG_EXTRA2, "prism2_get_txfid_idx: no room in txfid buf: "
 	       "packet dropped\n");
-	local->stats.tx_dropped++;
+	local->dev->stats.tx_dropped++;
 
 	return -1;
 }
@@ -1787,11 +1787,9 @@ static int prism2_transmit(struct net_device *dev, int idx)
 		prism2_transmit_cb, (long) idx);
 
 	if (res) {
-		struct net_device_stats *stats;
 		printk(KERN_DEBUG "%s: prism2_transmit: CMDCODE_TRANSMIT "
 		       "failed (res=%d)\n", dev->name, res);
-		stats = hostap_get_stats(dev);
-		stats->tx_dropped++;
+		dev->stats.tx_dropped++;
 		netif_wake_queue(dev);
 		return -1;
 	}
@@ -1939,12 +1937,10 @@ static void prism2_rx(local_info_t *local)
 	struct net_device *dev = local->dev;
 	int res, rx_pending = 0;
 	u16 len, hdr_len, rxfid, status, macport;
-	struct net_device_stats *stats;
 	struct hfa384x_rx_frame rxdesc;
 	struct sk_buff *skb = NULL;
 
 	prism2_callback(local, PRISM2_CALLBACK_RX_START);
-	stats = hostap_get_stats(dev);
 
 	rxfid = prism2_read_fid_reg(dev, HFA384X_RXFID_OFF);
 #ifndef final_version
@@ -2031,7 +2027,7 @@ static void prism2_rx(local_info_t *local)
 	return;
 
  rx_dropped:
-	stats->rx_dropped++;
+	dev->stats.rx_dropped++;
 	if (skb)
 		dev_kfree_skb(skb);
 	goto rx_exit;
@@ -2335,7 +2331,7 @@ static void prism2_txexc(local_info_t *local)
 	struct hfa384x_tx_frame txdesc;
 
 	show_dump = local->frame_dump & PRISM2_DUMP_TXEXC_HDR;
-	local->stats.tx_errors++;
+	dev->stats.tx_errors++;
 
 	res = hostap_tx_compl_read(local, 1, &txdesc, &payload);
 	HFA384X_OUTW(HFA384X_EV_TXEXC, HFA384X_EVACK_OFF);

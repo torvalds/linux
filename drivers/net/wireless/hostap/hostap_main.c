@@ -607,14 +607,6 @@ int hostap_80211_get_hdrlen(__le16 fc)
 }
 
 
-struct net_device_stats *hostap_get_stats(struct net_device *dev)
-{
-	struct hostap_interface *iface;
-	iface = netdev_priv(dev);
-	return &iface->stats;
-}
-
-
 static int prism2_close(struct net_device *dev)
 {
 	struct hostap_interface *iface;
@@ -832,7 +824,6 @@ void hostap_setup_dev(struct net_device *dev, local_info_t *local,
 	ether_setup(dev);
 
 	/* kernel callbacks */
-	dev->get_stats = hostap_get_stats;
 	if (iface) {
 		/* Currently, we point to the proper spy_data only on
 		 * the main_dev. This could be fixed. Jean II */
@@ -1112,7 +1103,6 @@ EXPORT_SYMBOL(hostap_set_auth_algs);
 EXPORT_SYMBOL(hostap_dump_rx_header);
 EXPORT_SYMBOL(hostap_dump_tx_header);
 EXPORT_SYMBOL(hostap_80211_get_hdrlen);
-EXPORT_SYMBOL(hostap_get_stats);
 EXPORT_SYMBOL(hostap_setup_dev);
 EXPORT_SYMBOL(hostap_set_multicast_list_queue);
 EXPORT_SYMBOL(hostap_set_hostapd);
