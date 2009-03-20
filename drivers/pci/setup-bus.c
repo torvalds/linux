@@ -144,6 +144,9 @@ static void pci_setup_bridge(struct pci_bus *bus)
 	struct pci_bus_region region;
 	u32 l, bu, lu, io_upper16;
 
+	if (!pci_is_root_bus(bus) && bus->is_added)
+		return;
+
 	dev_info(&bridge->dev, "PCI bridge, secondary bus %04x:%02x\n",
 		 pci_domain_nr(bus), bus->number);
 
