@@ -613,7 +613,8 @@ extern void drm_fb_release(struct drm_file *file_priv);
 extern int drm_mode_group_init_legacy_group(struct drm_device *dev, struct drm_mode_group *group);
 extern struct edid *drm_get_edid(struct drm_connector *connector,
 				 struct i2c_adapter *adapter);
-extern unsigned char *drm_do_probe_ddc_edid(struct i2c_adapter *adapter);
+extern int drm_do_probe_ddc_edid(struct i2c_adapter *adapter,
+				 unsigned char *buf, int len);
 extern int drm_add_edid_modes(struct drm_connector *connector, struct edid *edid);
 extern void drm_mode_probed_add(struct drm_connector *connector, struct drm_display_mode *mode);
 extern void drm_mode_remove(struct drm_connector *connector, struct drm_display_mode *mode);
