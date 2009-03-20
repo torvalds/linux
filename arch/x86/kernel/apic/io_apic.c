@@ -4130,9 +4130,12 @@ static int __init ioapic_insert_resources(void)
 	struct resource *r = ioapic_resources;
 
 	if (!r) {
-		printk(KERN_ERR
-		       "IO APIC resources could be not be allocated.\n");
-		return -1;
+		if (nr_ioapics > 0) {
+			printk(KERN_ERR
+				"IO APIC resources couldn't be allocated.\n");
+			return -1;
+		}
+		return 0;
 	}
 
 	for (i = 0; i < nr_ioapics; i++) {
