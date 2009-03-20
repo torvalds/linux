@@ -1072,6 +1072,7 @@ int i915_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	case -EAGAIN:
 		return VM_FAULT_OOM;
 	case -EFAULT:
+	case -EINVAL:
 		return VM_FAULT_SIGBUS;
 	default:
 		return VM_FAULT_NOPAGE;
