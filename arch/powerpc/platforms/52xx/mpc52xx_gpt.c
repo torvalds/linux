@@ -335,44 +335,6 @@ static void
 mpc52xx_gpt_gpio_setup(struct mpc52xx_gpt_priv *p, struct device_node *np) { }
 #endif /* defined(CONFIG_GPIOLIB) */
 
-/***********************************************************************
- * SYSFS attributes
- */
-#if defined(CONFIG_SYSFS)
-static ssize_t mpc52xx_gpt_show_regs(struct device *dev,
-				     struct device_attribute *attr, char *buf)
-{
-	struct mpc52xx_gpt_priv *gpt = dev_get_drvdata(dev);
-	int i, len = 0;
-	u32 __iomem *regs = (void __iomem *) gpt->regs;
-
-	for (i = 0; i < 4; i++)
-		len += sprintf(buf + len, "%.8x ", in_be32(regs + i));
-	len += sprintf(buf + len, "\n");
-
-	return len;
-}
-
-static struct device_attribute mpc52xx_gpt_attrib[] = {
-	__ATTR(regs, S_IRUGO | S_IWUSR, mpc52xx_gpt_show_regs, NULL),
-};
-
-static void mpc52xx_gpt_create_attribs(struct mpc52xx_gpt_priv *gpt)
-{
-	int i, err = 0;
-
-	for (i = 0; i < ARRAY_SIZE(mpc52xx_gpt_attrib); i++) {
-		err = device_create_file(gpt->dev, &mpc52xx_gpt_attrib[i]);
-		if (err)
-			dev_err(gpt->dev, "error creating attribute %i\n", i);
-	}
-
-}
-
-#else /* defined(CONFIG_SYSFS) */
-static void mpc52xx_gpt_create_attribs(struct mpc52xx_gpt_priv *) { return 0; }
-#endif /* defined(CONFIG_SYSFS) */
-
 /* ---------------------------------------------------------------------
  * of_platform bus binding code
  */
@@ -395,7 +357,6 @@ static int __devinit mpc52xx_gpt_probe(struct of_device *ofdev,
 
 	dev_set_drvdata(&ofdev->dev, gpt);
 
-	mpc52xx_gpt_create_attribs(gpt);
 	mpc52xx_gpt_gpio_setup(gpt, ofdev->node);
 	mpc52xx_gpt_irq_setup(gpt, ofdev->node);
 
