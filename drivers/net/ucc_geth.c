@@ -3501,6 +3501,20 @@ static phy_interface_t to_phy_interface(const char *phy_connection_type)
 	return PHY_INTERFACE_MODE_MII;
 }
 
+static const struct net_device_ops ucc_geth_netdev_ops = {
+	.ndo_open		= ucc_geth_open,
+	.ndo_stop		= ucc_geth_close,
+	.ndo_start_xmit		= ucc_geth_start_xmit,
+	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_set_mac_address	= eth_mac_addr,
+	.ndo_change_mtu		= eth_change_mtu,
+	.ndo_set_multicast_list	= ucc_geth_set_multi,
+	.ndo_tx_timeout		= ucc_geth_timeout,
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	.ndo_poll_controller	= ucc_netpoll,
+#endif
+};
+
 static int ucc_geth_probe(struct of_device* ofdev, const struct of_device_id *match)
 {
 	struct device *device = &ofdev->dev;
@@ -3716,19 +3730,11 @@ static int ucc_geth_probe(struct of_device* ofdev, const struct of_device_id *ma
 
 	/* Fill in the dev structure */
 	uec_set_ethtool_ops(dev);
-	dev->open = ucc_geth_open;
-	dev->hard_start_xmit = ucc_geth_start_xmit;
-	dev->tx_timeout = ucc_geth_timeout;
+	dev->netdev_ops = &ucc_geth_netdev_ops;
 	dev->watchdog_timeo = TX_TIMEOUT;
 	INIT_WORK(&ugeth->timeout_work, ucc_geth_timeout_work);
 	netif_napi_add(dev, &ugeth->napi, ucc_geth_poll, UCC_GETH_DEV_WEIGHT);
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	dev->poll_controller = ucc_netpoll;
-#endif
-	dev->stop = ucc_geth_close;
-//    dev->change_mtu = ucc_geth_change_mtu;
 	dev->mtu = 1500;
-	dev->set_multicast_list = ucc_geth_set_multi;
 
 	ugeth->msg_enable = netif_msg_init(debug.msg_enable, UGETH_MSG_DEFAULT);
 	ugeth->phy_interface = phy_interface;
