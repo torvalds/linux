@@ -473,7 +473,7 @@ static int be_change_mtu(struct net_device *netdev, int new_mtu)
  * program them in BE.  If more than BE_NUM_VLANS_SUPPORTED are configured,
  * set the BE in promiscuous VLAN mode.
  */
-static void be_vids_config(struct net_device *netdev)
+static void be_vid_config(struct net_device *netdev)
 {
 	struct be_adapter *adapter = netdev_priv(netdev);
 	u16 vtag[BE_NUM_VLANS_SUPPORTED];
@@ -516,7 +516,7 @@ static void be_vlan_add_vid(struct net_device *netdev, u16 vid)
 	adapter->num_vlans++;
 	adapter->vlan_tag[vid] = 1;
 
-	be_vids_config(netdev);
+	be_vid_config(netdev);
 }
 
 static void be_vlan_rem_vid(struct net_device *netdev, u16 vid)
@@ -527,7 +527,7 @@ static void be_vlan_rem_vid(struct net_device *netdev, u16 vid)
 	adapter->vlan_tag[vid] = 0;
 
 	vlan_group_set_device(adapter->vlan_grp, vid, NULL);
-	be_vids_config(netdev);
+	be_vid_config(netdev);
 }
 
 static void be_set_multicast_filter(struct net_device *netdev)
@@ -1430,6 +1430,8 @@ static int be_open(struct net_device *netdev)
 	if (status != 0)
 		goto do_none;
 
+	be_vid_config(netdev);
+
 	status = be_cmd_set_flow_control(ctrl, true, true);
 	if (status != 0)
 		goto if_destroy;
@@ -1863,8 +1865,6 @@ static int be_resume(struct pci_dev *pdev)
 
 	pci_set_power_state(pdev, 0);
 	pci_restore_state(pdev);
-
-	be_vids_config(netdev);
 
 	if (netif_running(netdev)) {
 		rtnl_lock();
