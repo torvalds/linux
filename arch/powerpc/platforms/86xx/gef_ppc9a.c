@@ -1,5 +1,5 @@
 /*
- * GE Fanuc SBC310 board support
+ * GE Fanuc PPC9A board support
  *
  * Author: Martyn Welch <martyn.welch@gefanuc.com>
  *
@@ -44,14 +44,14 @@
 #undef DEBUG
 
 #ifdef DEBUG
-#define DBG (fmt...) do { printk(KERN_ERR "SBC310: " fmt); } while (0)
+#define DBG (fmt...) do { printk(KERN_ERR "PPC9A: " fmt); } while (0)
 #else
 #define DBG (fmt...) do { } while (0)
 #endif
 
-void __iomem *sbc310_regs;
+void __iomem *ppc9a_regs;
 
-static void __init gef_sbc310_init_irq(void)
+static void __init gef_ppc9a_init_irq(void)
 {
 	struct device_node *cascade_node = NULL;
 
@@ -61,9 +61,9 @@ static void __init gef_sbc310_init_irq(void)
 	 * There is a simple interrupt handler in the main FPGA, this needs
 	 * to be cascaded into the MPIC
 	 */
-	cascade_node = of_find_compatible_node(NULL, NULL, "gef,fpga-pic");
+	cascade_node = of_find_compatible_node(NULL, NULL, "gef,fpga-pic-1.00");
 	if (!cascade_node) {
-		printk(KERN_WARNING "SBC310: No FPGA PIC\n");
+		printk(KERN_WARNING "PPC9A: No FPGA PIC\n");
 		return;
 	}
 
@@ -71,7 +71,7 @@ static void __init gef_sbc310_init_irq(void)
 	of_node_put(cascade_node);
 }
 
-static void __init gef_sbc310_setup_arch(void)
+static void __init gef_ppc9a_setup_arch(void)
 {
 	struct device_node *regs;
 #ifdef CONFIG_PCI
@@ -82,92 +82,81 @@ static void __init gef_sbc310_setup_arch(void)
 	}
 #endif
 
-	printk(KERN_INFO "GE Fanuc Intelligent Platforms SBC310 6U VPX SBC\n");
+	printk(KERN_INFO "GE Fanuc Intelligent Platforms PPC9A 6U VME SBC\n");
 
 #ifdef CONFIG_SMP
 	mpc86xx_smp_init();
 #endif
 
 	/* Remap basic board registers */
-	regs = of_find_compatible_node(NULL, NULL, "gef,fpga-regs");
+	regs = of_find_compatible_node(NULL, NULL, "gef,ppc9a-fpga-regs");
 	if (regs) {
-		sbc310_regs = of_iomap(regs, 0);
-		if (sbc310_regs == NULL)
+		ppc9a_regs = of_iomap(regs, 0);
+		if (ppc9a_regs == NULL)
 			printk(KERN_WARNING "Unable to map board registers\n");
 		of_node_put(regs);
 	}
 }
 
 /* Return the PCB revision */
-static unsigned int gef_sbc310_get_board_id(void)
+static unsigned int gef_ppc9a_get_pcb_rev(void)
 {
 	unsigned int reg;
 
-	reg = ioread32(sbc310_regs);
-	return reg & 0xff;
-}
-
-/* Return the PCB revision */
-static unsigned int gef_sbc310_get_pcb_rev(void)
-{
-	unsigned int reg;
-
-	reg = ioread32(sbc310_regs);
+	reg = ioread32(ppc9a_regs);
 	return (reg >> 8) & 0xff;
 }
 
 /* Return the board (software) revision */
-static unsigned int gef_sbc310_get_board_rev(void)
+static unsigned int gef_ppc9a_get_board_rev(void)
 {
 	unsigned int reg;
 
-	reg = ioread32(sbc310_regs);
+	reg = ioread32(ppc9a_regs);
 	return (reg >> 16) & 0xff;
 }
 
 /* Return the FPGA revision */
-static unsigned int gef_sbc310_get_fpga_rev(void)
+static unsigned int gef_ppc9a_get_fpga_rev(void)
 {
 	unsigned int reg;
 
-	reg = ioread32(sbc310_regs);
+	reg = ioread32(ppc9a_regs);
 	return (reg >> 24) & 0xf;
 }
 
-static void gef_sbc310_show_cpuinfo(struct seq_file *m)
+static void gef_ppc9a_show_cpuinfo(struct seq_file *m)
 {
 	uint svid = mfspr(SPRN_SVR);
 
 	seq_printf(m, "Vendor\t\t: GE Fanuc Intelligent Platforms\n");
 
-	seq_printf(m, "Board ID\t: 0x%2.2x\n", gef_sbc310_get_board_id());
-	seq_printf(m, "Revision\t: %u%c\n", gef_sbc310_get_pcb_rev(),
-		('A' + gef_sbc310_get_board_rev() - 1));
-	seq_printf(m, "FPGA Revision\t: %u\n", gef_sbc310_get_fpga_rev());
+	seq_printf(m, "Revision\t: %u%c\n", gef_ppc9a_get_pcb_rev(),
+		('A' + gef_ppc9a_get_board_rev() - 1));
+	seq_printf(m, "FPGA Revision\t: %u\n", gef_ppc9a_get_fpga_rev());
 
 	seq_printf(m, "SVR\t\t: 0x%x\n", svid);
-
 }
 
-static void __init gef_sbc310_nec_fixup(struct pci_dev *pdev)
+static void __init gef_ppc9a_nec_fixup(struct pci_dev *pdev)
 {
 	unsigned int val;
 
 	/* Do not do the fixup on other platforms! */
-	if (!machine_is(gef_sbc310))
+	if (!machine_is(gef_ppc9a))
 		return;
 
 	printk(KERN_INFO "Running NEC uPD720101 Fixup\n");
 
-	/* Ensure only ports 1 & 2 are enabled */
+	/* Ensure ports 1, 2, 3, 4 & 5 are enabled */
 	pci_read_config_dword(pdev, 0xe0, &val);
-	pci_write_config_dword(pdev, 0xe0, (val & ~7) | 0x2);
+	pci_write_config_dword(pdev, 0xe0, (val & ~7) | 0x5);
 
 	/* System clock is 48-MHz Oscillator and EHCI Enabled. */
 	pci_write_config_dword(pdev, 0xe4, 1 << 5);
 }
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_NEC, PCI_DEVICE_ID_NEC_USB,
-	gef_sbc310_nec_fixup);
+	gef_ppc9a_nec_fixup);
 
 /*
  * Called very early, device-tree isn't unflattened
@@ -177,11 +166,11 @@ DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_NEC, PCI_DEVICE_ID_NEC_USB,
  * board. It is expected thati, in the future, a kernel may support multiple
  * boards.
  */
-static int __init gef_sbc310_probe(void)
+static int __init gef_ppc9a_probe(void)
 {
 	unsigned long root = of_get_flat_dt_root();
 
-	if (of_flat_dt_is_compatible(root, "gef,sbc310"))
+	if (of_flat_dt_is_compatible(root, "gef,ppc9a"))
 		return 1;
 
 	return 0;
@@ -215,14 +204,14 @@ static int __init declare_of_platform_devices(void)
 
 	return 0;
 }
-machine_device_initcall(gef_sbc310, declare_of_platform_devices);
+machine_device_initcall(gef_ppc9a, declare_of_platform_devices);
 
-define_machine(gef_sbc310) {
-	.name			= "GE Fanuc SBC310",
-	.probe			= gef_sbc310_probe,
-	.setup_arch		= gef_sbc310_setup_arch,
-	.init_IRQ		= gef_sbc310_init_irq,
-	.show_cpuinfo		= gef_sbc310_show_cpuinfo,
+define_machine(gef_ppc9a) {
+	.name			= "GE Fanuc PPC9A",
+	.probe			= gef_ppc9a_probe,
+	.setup_arch		= gef_ppc9a_setup_arch,
+	.init_IRQ		= gef_ppc9a_init_irq,
+	.show_cpuinfo		= gef_ppc9a_show_cpuinfo,
 	.get_irq		= mpic_get_irq,
 	.restart		= fsl_rstcr_restart,
 	.time_init		= mpc86xx_time_init,

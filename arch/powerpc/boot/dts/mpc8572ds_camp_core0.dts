@@ -227,7 +227,7 @@
 			device_type = "open-pic";
 			protected-sources = <
 			31 32 33 37 38 39       /* enet2 enet3 */
-			76 77 78 79 27 42	/* dma2 pci2 serial*/
+			76 77 78 79 26 42	/* dma2 pci2 serial*/
 			0xe0 0xe1 0xe2 0xe3     /* msi */
 			0xe4 0xe5 0xe6 0xe7
 			>;
