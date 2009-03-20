@@ -1228,13 +1228,13 @@ unsigned int __devinit pci_rescan_bus(struct pci_bus *bus)
 
 	max = pci_scan_child_bus(bus);
 
-	up_read(&pci_bus_sem);
+	down_read(&pci_bus_sem);
 	list_for_each_entry(dev, &bus->devices, bus_list)
 		if (dev->hdr_type == PCI_HEADER_TYPE_BRIDGE ||
 		    dev->hdr_type == PCI_HEADER_TYPE_CARDBUS)
 			if (dev->subordinate)
 				pci_bus_size_bridges(dev->subordinate);
-	down_read(&pci_bus_sem);
+	up_read(&pci_bus_sem);
 
 	pci_bus_assign_resources(bus);
 	pci_enable_bridges(bus);
