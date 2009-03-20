@@ -743,6 +743,18 @@ static int catc_stop(struct net_device *netdev)
 	return 0;
 }
 
+static const struct net_device_ops catc_netdev_ops = {
+	.ndo_open		= catc_open,
+	.ndo_stop		= catc_stop,
+	.ndo_start_xmit		= catc_start_xmit,
+
+	.ndo_tx_timeout		= catc_tx_timeout,
+	.ndo_set_multicast_list = catc_set_multicast_list,
+	.ndo_change_mtu		= eth_change_mtu,
+	.ndo_set_mac_address 	= eth_mac_addr,
+	.ndo_validate_addr	= eth_validate_addr,
+};
+
 /*
  * USB probe, disconnect.
  */
@@ -767,12 +779,8 @@ static int catc_probe(struct usb_interface *intf, const struct usb_device_id *id
 
 	catc = netdev_priv(netdev);
 
-	netdev->open = catc_open;
-	netdev->hard_start_xmit = catc_hard_start_xmit;
-	netdev->stop = catc_stop;
-	netdev->tx_timeout = catc_tx_timeout;
+	netdev->netdev_ops = &catc_netdev_ops;
 	netdev->watchdog_timeo = TX_TIMEOUT;
-	netdev->set_multicast_list = catc_set_multicast_list;
 	SET_ETHTOOL_OPS(netdev, &ops);
 
 	catc->usbdev = usbdev;
