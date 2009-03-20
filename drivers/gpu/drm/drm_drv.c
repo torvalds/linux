@@ -421,6 +421,7 @@ int drm_ioctl(struct inode *inode, struct file *filp,
 	drm_ioctl_t *func;
 	unsigned int nr = DRM_IOCTL_NR(cmd);
 	int retcode = -EINVAL;
+	char stack_kdata[128];
 	char *kdata = NULL;
 
 	atomic_inc(&dev->ioctl_count);
@@ -459,10 +460,14 @@ int drm_ioctl(struct inode *inode, struct file *filp,
 		retcode = -EACCES;
 	} else {
 		if (cmd & (IOC_IN | IOC_OUT)) {
-			kdata = kmalloc(_IOC_SIZE(cmd), GFP_KERNEL);
-			if (!kdata) {
-				retcode = -ENOMEM;
-				goto err_i1;
+			if (_IOC_SIZE(cmd) <= sizeof(stack_kdata)) {
+				kdata = stack_kdata;
+			} else {
+				kdata = kmalloc(_IOC_SIZE(cmd), GFP_KERNEL);
+				if (!kdata) {
+					retcode = -ENOMEM;
+					goto err_i1;
+				}
 			}
 		}
 
@@ -483,7 +488,7 @@ int drm_ioctl(struct inode *inode, struct file *filp,
 	}
 
       err_i1:
-	if (kdata)
+	if (kdata != stack_kdata)
 		kfree(kdata);
 	atomic_dec(&dev->ioctl_count);
 	if (retcode)
