@@ -511,20 +511,20 @@ int __devinit pci_scan_bridge(struct pci_bus *bus, struct pci_dev *dev, int max,
 
 		/*
 		 * If we already got to this bus through a different bridge,
-		 * ignore it.  This can happen with the i450NX chipset.
+		 * don't re-add it. This can happen with the i450NX chipset.
+		 *
+		 * However, we continue to descend down the hierarchy and
+		 * scan remaining child buses.
 		 */
-		if (pci_find_bus(pci_domain_nr(bus), busnr)) {
-			dev_info(&dev->dev, "bus %04x:%02x already known\n",
-				 pci_domain_nr(bus), busnr);
-			goto out;
+		child = pci_find_bus(pci_domain_nr(bus), busnr);
+		if (!child) {
+			child = pci_add_new_bus(bus, dev, busnr);
+			if (!child)
+				goto out;
+			child->primary = buses & 0xFF;
+			child->subordinate = (buses >> 16) & 0xFF;
+			child->bridge_ctl = bctl;
 		}
-
-		child = pci_add_new_bus(bus, dev, busnr);
-		if (!child)
-			goto out;
-		child->primary = buses & 0xFF;
-		child->subordinate = (buses >> 16) & 0xFF;
-		child->bridge_ctl = bctl;
 
 		cmax = pci_scan_child_bus(child);
 		if (cmax > max)
@@ -1092,8 +1092,14 @@ unsigned int __devinit pci_scan_child_bus(struct pci_bus *bus)
 	 * After performing arch-dependent fixup of the bus, look behind
 	 * all PCI-to-PCI bridges on this bus.
 	 */
-	pr_debug("PCI: Fixups for bus %04x:%02x\n", pci_domain_nr(bus), bus->number);
-	pcibios_fixup_bus(bus);
+	if (!bus->is_added) {
+		pr_debug("PCI: Fixups for bus %04x:%02x\n",
+			 pci_domain_nr(bus), bus->number);
+		pcibios_fixup_bus(bus);
+		if (pci_is_root_bus(bus))
+			bus->is_added = 1;
+	}
+
 	for (pass=0; pass < 2; pass++)
 		list_for_each_entry(dev, &bus->devices, bus_list) {
 			if (dev->hdr_type == PCI_HEADER_TYPE_BRIDGE ||
