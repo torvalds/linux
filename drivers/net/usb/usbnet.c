@@ -249,14 +249,6 @@ static int usbnet_change_mtu (struct net_device *net, int new_mtu)
 
 /*-------------------------------------------------------------------------*/
 
-static struct net_device_stats *usbnet_get_stats (struct net_device *net)
-{
-	struct usbnet	*dev = netdev_priv(net);
-	return &dev->stats;
-}
-
-/*-------------------------------------------------------------------------*/
-
 /* some LK 2.4 HCDs oopsed if we freed or resubmitted urbs from
  * completion callbacks.  2.5 should have fixed those bugs...
  */
@@ -1180,7 +1172,6 @@ usbnet_probe (struct usb_interface *udev, const struct usb_device_id *prod)
 #endif
 
 	net->change_mtu = usbnet_change_mtu;
-	net->get_stats = usbnet_get_stats;
 	net->hard_start_xmit = usbnet_start_xmit;
 	net->open = usbnet_open;
 	net->stop = usbnet_stop;
