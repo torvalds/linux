@@ -1435,6 +1435,7 @@ static irqreturn_t falcon_legacy_interrupt_b0(int irq, void *dev_id)
 {
 	struct efx_nic *efx = dev_id;
 	efx_oword_t *int_ker = efx->irq_status.addr;
+	irqreturn_t result = IRQ_NONE;
 	struct efx_channel *channel;
 	efx_dword_t reg;
 	u32 queues;
@@ -1449,23 +1450,24 @@ static irqreturn_t falcon_legacy_interrupt_b0(int irq, void *dev_id)
 	if (unlikely(syserr))
 		return falcon_fatal_interrupt(efx);
 
-	if (queues == 0)
-		return IRQ_NONE;
-
-	efx->last_irq_cpu = raw_smp_processor_id();
-	EFX_TRACE(efx, "IRQ %d on CPU %d status " EFX_DWORD_FMT "\n",
-		  irq, raw_smp_processor_id(), EFX_DWORD_VAL(reg));
-
 	/* Schedule processing of any interrupting queues */
-	channel = &efx->channel[0];
-	while (queues) {
-		if (queues & 0x01)
+	efx_for_each_channel(channel, efx) {
+		if ((queues & 1) ||
+		    falcon_event_present(
+			    falcon_event(channel, channel->eventq_read_ptr))) {
 			efx_schedule_channel(channel);
-		channel++;
+			result = IRQ_HANDLED;
+		}
 		queues >>= 1;
 	}
 
-	return IRQ_HANDLED;
+	if (result == IRQ_HANDLED) {
+		efx->last_irq_cpu = raw_smp_processor_id();
+		EFX_TRACE(efx, "IRQ %d on CPU %d status " EFX_DWORD_FMT "\n",
+			  irq, raw_smp_processor_id(), EFX_DWORD_VAL(reg));
+	}
+
+	return result;
 }
 
 
