@@ -739,10 +739,16 @@ static struct device_driver mac80211_hwsim_driver = {
 	.name = "mac80211_hwsim"
 };
 
+static const struct net_device_ops hwsim_netdev_ops = {
+	.ndo_start_xmit 	= hwsim_mon_xmit,
+	.ndo_change_mtu		= eth_change_mtu,
+	.ndo_set_mac_address 	= eth_mac_addr,
+	.ndo_validate_addr	= eth_validate_addr,
+};
 
 static void hwsim_mon_setup(struct net_device *dev)
 {
-	dev->hard_start_xmit = hwsim_mon_xmit;
+	dev->netdev_ops = &hwsim_netdev_ops;
 	dev->destructor = free_netdev;
 	ether_setup(dev);
 	dev->tx_queue_len = 0;
