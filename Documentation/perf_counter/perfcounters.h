@@ -16,6 +16,14 @@
 
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
 
+#define rdclock()					\
+({							\
+	struct timespec ts;				\
+							\
+	clock_gettime(CLOCK_MONOTONIC, &ts);		\
+	ts.tv_sec * 1000000000ULL + ts.tv_nsec;		\
+})
+
 /*
  * Pick up some kernel type conventions:
  */
@@ -133,5 +141,127 @@ asmlinkage int sys_perf_counter_open(
 	}
 #endif
 	return ret;
+}
+
+static char *hw_event_names [] = {
+	"CPU cycles",
+	"instructions",
+	"cache references",
+	"cache misses",
+	"branches",
+	"branch misses",
+	"bus cycles",
+};
+
+static char *sw_event_names [] = {
+	"cpu clock ticks",
+	"task clock ticks",
+	"pagefaults",
+	"context switches",
+	"CPU migrations",
+};
+
+struct event_symbol {
+	int event;
+	char *symbol;
+};
+
+static struct event_symbol event_symbols [] = {
+	{PERF_COUNT_CPU_CYCLES,			"cpu-cycles",		},
+	{PERF_COUNT_CPU_CYCLES,			"cycles",		},
+	{PERF_COUNT_INSTRUCTIONS,		"instructions",		},
+	{PERF_COUNT_CACHE_REFERENCES,		"cache-references",	},
+	{PERF_COUNT_CACHE_MISSES,		"cache-misses",		},
+	{PERF_COUNT_BRANCH_INSTRUCTIONS,	"branch-instructions",	},
+	{PERF_COUNT_BRANCH_INSTRUCTIONS,	"branches",		},
+	{PERF_COUNT_BRANCH_MISSES,		"branch-misses",	},
+	{PERF_COUNT_BUS_CYCLES,			"bus-cycles",		},
+	{PERF_COUNT_CPU_CLOCK,			"cpu-ticks",		},
+	{PERF_COUNT_CPU_CLOCK,			"ticks",		},
+	{PERF_COUNT_TASK_CLOCK,			"task-ticks",		},
+	{PERF_COUNT_PAGE_FAULTS,		"page-faults",		},
+	{PERF_COUNT_PAGE_FAULTS,		"faults",		},
+	{PERF_COUNT_CONTEXT_SWITCHES,		"context-switches",	},
+	{PERF_COUNT_CONTEXT_SWITCHES,		"cs",			},
+	{PERF_COUNT_CPU_MIGRATIONS,		"cpu-migrations",	},
+	{PERF_COUNT_CPU_MIGRATIONS,		"migrations",		},
+};
+
+static int type_valid(int type)
+{
+	if (type >= PERF_HW_EVENTS_MAX)
+		return 0;
+	if (type <= PERF_SW_EVENTS_MIN)
+		return 0;
+
+	return 1;
+}
+
+static char *event_name(int ctr)
+{
+	int type = event_id[ctr];
+	static char buf[32];
+
+	if (event_raw[ctr]) {
+		sprintf(buf, "raw 0x%x", type);
+		return buf;
+	}
+	if (!type_valid(type))
+		return "unknown";
+
+	if (type >= 0)
+		return hw_event_names[type];
+
+	return sw_event_names[-type-1];
+}
+
+/*
+ * Each event can have multiple symbolic names.
+ * Symbolic names are (almost) exactly matched.
+ */
+static int match_event_symbols(char *str)
+{
+	unsigned int i;
+
+	if (isdigit(str[0]) || str[0] == '-')
+		return atoi(str);
+
+	for (i = 0; i < ARRAY_SIZE(event_symbols); i++) {
+		if (!strncmp(str, event_symbols[i].symbol,
+			     strlen(event_symbols[i].symbol)))
+			return event_symbols[i].event;
+	}
+
+	return PERF_HW_EVENTS_MAX;
+}
+
+static void parse_events(char *str)
+{
+	int type, raw;
+
+again:
+	nr_counters++;
+	if (nr_counters == MAX_COUNTERS)
+		display_help();
+
+	raw = 0;
+	if (*str == 'r') {
+		raw = 1;
+		++str;
+		type = strtol(str, NULL, 16);
+	} else {
+		type = match_event_symbols(str);
+		if (!type_valid(type))
+			display_help();
+	}
+
+	event_id[nr_counters] = type;
+	event_raw[nr_counters] = raw;
+
+	str = strstr(str, ",");
+	if (str) {
+		str++;
+		goto again;
+	}
 }
 
