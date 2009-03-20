@@ -162,6 +162,14 @@ static int efx_enqueue_skb(struct efx_tx_queue *tx_queue,
 	/* Get size of the initial fragment */
 	len = skb_headlen(skb);
 
+	/* Pad if necessary */
+	if (EFX_WORKAROUND_15592(efx) && skb->len <= 32) {
+		EFX_BUG_ON_PARANOID(skb->data_len);
+		len = 32 + 1;
+		if (skb_pad(skb, len - skb->len))
+			return NETDEV_TX_OK;
+	}
+
 	fill_level = tx_queue->insert_count - tx_queue->old_read_count;
 	q_space = efx->type->txd_ring_mask - 1 - fill_level;
 
