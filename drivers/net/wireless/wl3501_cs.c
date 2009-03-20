@@ -1883,6 +1883,16 @@ static const struct iw_handler_def wl3501_handler_def = {
 	.get_wireless_stats = wl3501_get_wireless_stats,
 };
 
+static const struct net_device_ops wl3501_netdev_ops = {
+	.ndo_open		= wl3501_open,
+	.ndo_stop		= wl3501_close,
+	.ndo_start_xmit		= wl3501_hard_start_xmit,
+	.ndo_tx_timeout		= wl3501_tx_timeout,
+	.ndo_change_mtu		= eth_change_mtu,
+	.ndo_set_mac_address 	= eth_mac_addr,
+	.ndo_validate_addr	= eth_validate_addr,
+};
+
 /**
  * wl3501_attach - creates an "instance" of the driver
  *
@@ -1917,17 +1927,14 @@ static int wl3501_probe(struct pcmcia_device *p_dev)
 		goto out_link;
 
 
-	dev->open		= wl3501_open;
-	dev->stop		= wl3501_close;
-	dev->hard_start_xmit	= wl3501_hard_start_xmit;
-	dev->tx_timeout		= wl3501_tx_timeout;
+	dev->netdev_ops		= &wl3501_netdev_ops;
 	dev->watchdog_timeo	= 5 * HZ;
 
 	this = netdev_priv(dev);
 	this->wireless_data.spy_data = &this->spy_data;
 	this->p_dev = p_dev;
 	dev->wireless_data	= &this->wireless_data;
-	dev->wireless_handlers	= (struct iw_handler_def *)&wl3501_handler_def;
+	dev->wireless_handlers	= &wl3501_handler_def;
 	SET_ETHTOOL_OPS(dev, &ops);
 	netif_stop_queue(dev);
 	p_dev->priv = p_dev->irq.Instance = dev;
