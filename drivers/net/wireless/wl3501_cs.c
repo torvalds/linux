@@ -1000,7 +1000,7 @@ static inline void wl3501_md_ind_interrupt(struct net_device *dev,
 	if (!skb) {
 		printk(KERN_WARNING "%s: Can't alloc a sk_buff of size %d.\n",
 		       dev->name, pkt_len);
-		this->stats.rx_dropped++;
+		dev->stats.rx_dropped++;
 	} else {
 		skb->dev = dev;
 		skb_reserve(skb, 2); /* IP headers on 16 bytes boundaries */
@@ -1008,8 +1008,8 @@ static inline void wl3501_md_ind_interrupt(struct net_device *dev,
 		wl3501_receive(this, skb->data, pkt_len);
 		skb_put(skb, pkt_len);
 		skb->protocol	= eth_type_trans(skb, dev);
-		this->stats.rx_packets++;
-		this->stats.rx_bytes += skb->len;
+		dev->stats.rx_packets++;
+		dev->stats.rx_bytes += skb->len;
 		netif_rx(skb);
 	}
 }
@@ -1311,7 +1311,7 @@ out:
 static void wl3501_tx_timeout(struct net_device *dev)
 {
 	struct wl3501_card *this = netdev_priv(dev);
-	struct net_device_stats *stats = &this->stats;
+	struct net_device_stats *stats = &dev->stats;
 	unsigned long flags;
 	int rc;
 
@@ -1346,11 +1346,11 @@ static int wl3501_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (enabled)
 		wl3501_unblock_interrupt(this);
 	if (rc) {
-		++this->stats.tx_dropped;
+		++dev->stats.tx_dropped;
 		netif_stop_queue(dev);
 	} else {
-		++this->stats.tx_packets;
-		this->stats.tx_bytes += skb->len;
+		++dev->stats.tx_packets;
+		dev->stats.tx_bytes += skb->len;
 		kfree_skb(skb);
 
 		if (this->tx_buffer_cnt < 2)
@@ -1398,13 +1398,6 @@ out:
 fail:
 	printk(KERN_WARNING "%s: Can't initialize firmware!\n", dev->name);
 	goto out;
-}
-
-static struct net_device_stats *wl3501_get_stats(struct net_device *dev)
-{
-	struct wl3501_card *this = netdev_priv(dev);
-
-	return &this->stats;
 }
 
 static struct iw_statistics *wl3501_get_wireless_stats(struct net_device *dev)
@@ -1922,12 +1915,14 @@ static int wl3501_probe(struct pcmcia_device *p_dev)
 	dev = alloc_etherdev(sizeof(struct wl3501_card));
 	if (!dev)
 		goto out_link;
+
+
 	dev->open		= wl3501_open;
 	dev->stop		= wl3501_close;
 	dev->hard_start_xmit	= wl3501_hard_start_xmit;
 	dev->tx_timeout		= wl3501_tx_timeout;
 	dev->watchdog_timeo	= 5 * HZ;
-	dev->get_stats		= wl3501_get_stats;
+
 	this = netdev_priv(dev);
 	this->wireless_data.spy_data = &this->spy_data;
 	this->p_dev = p_dev;
