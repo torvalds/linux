@@ -295,13 +295,9 @@ struct ath_tx_control {
 	enum ath9k_internal_frame_type frame_type;
 };
 
-struct ath_xmit_status {
-	int retries;
-	int flags;
 #define ATH_TX_ERROR        0x01
 #define ATH_TX_XRETRY       0x02
 #define ATH_TX_BAR          0x04
-};
 
 /* All RSSI values are noise floor adjusted */
 struct ath_tx_stat {

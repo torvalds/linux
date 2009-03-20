@@ -1750,7 +1750,7 @@ exit:
 /*****************/
 
 static void ath_tx_complete(struct ath_softc *sc, struct sk_buff *skb,
-			    struct ath_xmit_status *tx_status)
+			    int tx_flags)
 {
 	struct ieee80211_hw *hw = sc->hw;
 	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(skb);
@@ -1771,12 +1771,10 @@ static void ath_tx_complete(struct ath_softc *sc, struct sk_buff *skb,
 		tx_info->rate_driver_data[0] = NULL;
 	}
 
-	if (tx_status->flags & ATH_TX_BAR) {
+	if (tx_flags & ATH_TX_BAR)
 		tx_info->flags |= IEEE80211_TX_STAT_AMPDU_NO_BACK;
-		tx_status->flags &= ~ATH_TX_BAR;
-	}
 
-	if (!(tx_status->flags & (ATH_TX_ERROR | ATH_TX_XRETRY))) {
+	if (!(tx_flags & (ATH_TX_ERROR | ATH_TX_XRETRY))) {
 		/* Frame was ACKed */
 		tx_info->flags |= IEEE80211_TX_STAT_ACK;
 	}
@@ -1803,29 +1801,22 @@ static void ath_tx_complete_buf(struct ath_softc *sc, struct ath_buf *bf,
 				int txok, int sendbar)
 {
 	struct sk_buff *skb = bf->bf_mpdu;
-	struct ath_xmit_status tx_status;
 	unsigned long flags;
+	int tx_flags = 0;
 
-	/*
-	 * Set retry information.
-	 * NB: Don't use the information in the descriptor, because the frame
-	 * could be software retried.
-	 */
-	tx_status.retries = bf->bf_retries;
-	tx_status.flags = 0;
 
 	if (sendbar)
-		tx_status.flags = ATH_TX_BAR;
+		tx_flags = ATH_TX_BAR;
 
 	if (!txok) {
-		tx_status.flags |= ATH_TX_ERROR;
+		tx_flags |= ATH_TX_ERROR;
 
 		if (bf_isxretried(bf))
-			tx_status.flags |= ATH_TX_XRETRY;
+			tx_flags |= ATH_TX_XRETRY;
 	}
 
 	dma_unmap_single(sc->dev, bf->bf_dmacontext, skb->len, DMA_TO_DEVICE);
-	ath_tx_complete(sc, skb, &tx_status);
+	ath_tx_complete(sc, skb, tx_flags);
 
 	/*
 	 * Return the list of ath_buf of this mpdu to free queue
