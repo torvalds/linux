@@ -1324,14 +1324,13 @@ static int ecryptfs_write_headers_virt(char *page_virt, size_t max,
 }
 
 static int
-ecryptfs_write_metadata_to_contents(struct ecryptfs_crypt_stat *crypt_stat,
-				    struct dentry *ecryptfs_dentry,
-				    char *virt)
+ecryptfs_write_metadata_to_contents(struct dentry *ecryptfs_dentry,
+				    char *virt, size_t virt_len)
 {
 	int rc;
 
 	rc = ecryptfs_write_lower(ecryptfs_dentry->d_inode, virt,
-				  0, crypt_stat->num_header_bytes_at_front);
+				  0, virt_len);
 	if (rc)
 		printk(KERN_ERR "%s: Error attempting to write header "
 		       "information to lower file; rc = [%d]\n", __func__,
@@ -1341,7 +1340,6 @@ ecryptfs_write_metadata_to_contents(struct ecryptfs_crypt_stat *crypt_stat,
 
 static int
 ecryptfs_write_metadata_to_xattr(struct dentry *ecryptfs_dentry,
-				 struct ecryptfs_crypt_stat *crypt_stat,
 				 char *page_virt, size_t size)
 {
 	int rc;
@@ -1349,6 +1347,17 @@ ecryptfs_write_metadata_to_xattr(struct dentry *ecryptfs_dentry,
 	rc = ecryptfs_setxattr(ecryptfs_dentry, ECRYPTFS_XATTR_NAME, page_virt,
 			       size, 0);
 	return rc;
+}
+
+static unsigned long ecryptfs_get_zeroed_pages(gfp_t gfp_mask,
+					       unsigned int order)
+{
+	struct page *page;
+
+	page = alloc_pages(gfp_mask | __GFP_ZERO, order);
+	if (page)
+		return (unsigned long) page_address(page);
+	return 0;
 }
 
 /**
@@ -1367,7 +1376,9 @@ int ecryptfs_write_metadata(struct dentry *ecryptfs_dentry)
 {
 	struct ecryptfs_crypt_stat *crypt_stat =
 		&ecryptfs_inode_to_private(ecryptfs_dentry->d_inode)->crypt_stat;
+	unsigned int order;
 	char *virt;
+	size_t virt_len;
 	size_t size = 0;
 	int rc = 0;
 
@@ -1383,33 +1394,35 @@ int ecryptfs_write_metadata(struct dentry *ecryptfs_dentry)
 		rc = -EINVAL;
 		goto out;
 	}
+	virt_len = crypt_stat->num_header_bytes_at_front;
+	order = get_order(virt_len);
 	/* Released in this function */
-	virt = (char *)get_zeroed_page(GFP_KERNEL);
+	virt = (char *)ecryptfs_get_zeroed_pages(GFP_KERNEL, order);
 	if (!virt) {
 		printk(KERN_ERR "%s: Out of memory\n", __func__);
 		rc = -ENOMEM;
 		goto out;
 	}
-	rc = ecryptfs_write_headers_virt(virt, PAGE_CACHE_SIZE, &size,
-					 crypt_stat, ecryptfs_dentry);
+	rc = ecryptfs_write_headers_virt(virt, virt_len, &size, crypt_stat,
+					 ecryptfs_dentry);
 	if (unlikely(rc)) {
 		printk(KERN_ERR "%s: Error whilst writing headers; rc = [%d]\n",
 		       __func__, rc);
 		goto out_free;
 	}
 	if (crypt_stat->flags & ECRYPTFS_METADATA_IN_XATTR)
-		rc = ecryptfs_write_metadata_to_xattr(ecryptfs_dentry,
-						      crypt_stat, virt, size);
+		rc = ecryptfs_write_metadata_to_xattr(ecryptfs_dentry, virt,
+						      size);
 	else
-		rc = ecryptfs_write_metadata_to_contents(crypt_stat,
-							 ecryptfs_dentry, virt);
+		rc = ecryptfs_write_metadata_to_contents(ecryptfs_dentry, virt,
+							 virt_len);
 	if (rc) {
 		printk(KERN_ERR "%s: Error writing metadata out to lower file; "
 		       "rc = [%d]\n", __func__, rc);
 		goto out_free;
 	}
 out_free:
-	free_page((unsigned long)virt);
+	free_pages((unsigned long)virt, order);
 out:
 	return rc;
 }
