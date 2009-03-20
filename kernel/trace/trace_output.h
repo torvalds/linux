@@ -15,6 +15,11 @@ struct trace_event {
 	trace_print_func	binary;
 };
 
+extern enum print_line_t
+trace_print_bprintk_msg_only(struct trace_iterator *iter);
+extern enum print_line_t
+trace_print_printk_msg_only(struct trace_iterator *iter);
+
 extern int trace_seq_printf(struct trace_seq *s, const char *fmt, ...)
 	__attribute__ ((format (printf, 2, 3)));
 extern int

@@ -123,7 +123,6 @@ struct userstack_entry {
 struct bprint_entry {
 	struct trace_entry	ent;
 	unsigned long		ip;
-	int			depth;
 	const char		*fmt;
 	u32			buf[];
 };
@@ -131,7 +130,6 @@ struct bprint_entry {
 struct print_entry {
 	struct trace_entry	ent;
 	unsigned long		ip;
-	int			depth;
 	char			buf[];
 };
 
@@ -598,9 +596,9 @@ extern int trace_selftest_startup_branch(struct tracer *trace,
 extern void *head_page(struct trace_array_cpu *data);
 extern long ns2usecs(cycle_t nsec);
 extern int
-trace_vbprintk(unsigned long ip, int depth, const char *fmt, va_list args);
+trace_vbprintk(unsigned long ip, const char *fmt, va_list args);
 extern int
-trace_vprintk(unsigned long ip, int depth, const char *fmt, va_list args);
+trace_vprintk(unsigned long ip, const char *fmt, va_list args);
 
 extern unsigned long trace_flags;
 

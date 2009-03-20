@@ -1201,7 +1201,7 @@ void trace_graph_return(struct ftrace_graph_ret *trace)
  * trace_vbprintk - write binary msg to tracing buffer
  *
  */
-int trace_vbprintk(unsigned long ip, int depth, const char *fmt, va_list args)
+int trace_vbprintk(unsigned long ip, const char *fmt, va_list args)
 {
 	static raw_spinlock_t trace_buf_lock =
 		(raw_spinlock_t)__RAW_SPIN_LOCK_UNLOCKED;
@@ -1243,7 +1243,6 @@ int trace_vbprintk(unsigned long ip, int depth, const char *fmt, va_list args)
 		goto out_unlock;
 	entry = ring_buffer_event_data(event);
 	entry->ip			= ip;
-	entry->depth			= depth;
 	entry->fmt			= fmt;
 
 	memcpy(entry->buf, trace_buf, sizeof(u32) * len);
@@ -1261,7 +1260,7 @@ out:
 }
 EXPORT_SYMBOL_GPL(trace_vbprintk);
 
-int trace_vprintk(unsigned long ip, int depth, const char *fmt, va_list args)
+int trace_vprintk(unsigned long ip, const char *fmt, va_list args)
 {
 	static raw_spinlock_t trace_buf_lock = __RAW_SPIN_LOCK_UNLOCKED;
 	static char trace_buf[TRACE_BUF_SIZE];
@@ -1298,7 +1297,6 @@ int trace_vprintk(unsigned long ip, int depth, const char *fmt, va_list args)
 		goto out_unlock;
 	entry = ring_buffer_event_data(event);
 	entry->ip			= ip;
-	entry->depth			= depth;
 
 	memcpy(&entry->buf, trace_buf, len);
 	entry->buf[len] = 0;
@@ -1701,38 +1699,6 @@ static enum print_line_t print_hex_fmt(struct trace_iterator *iter)
 	return TRACE_TYPE_HANDLED;
 }
 
-static enum print_line_t print_bprintk_msg_only(struct trace_iterator *iter)
-{
-	struct trace_seq *s = &iter->seq;
-	struct trace_entry *entry = iter->ent;
-	struct bprint_entry *field;
-	int ret;
-
-	trace_assign_type(field, entry);
-
-	ret = trace_seq_bprintf(s, field->fmt, field->buf);
-	if (!ret)
-		return TRACE_TYPE_PARTIAL_LINE;
-
-	return TRACE_TYPE_HANDLED;
-}
-
-static enum print_line_t print_printk_msg_only(struct trace_iterator *iter)
-{
-	struct trace_seq *s = &iter->seq;
-	struct trace_entry *entry = iter->ent;
-	struct print_entry *field;
-	int ret;
-
-	trace_assign_type(field, entry);
-
-	ret = trace_seq_printf(s, "%s", field->buf);
-	if (!ret)
-		return TRACE_TYPE_PARTIAL_LINE;
-
-	return TRACE_TYPE_HANDLED;
-}
-
 static enum print_line_t print_bin_fmt(struct trace_iterator *iter)
 {
 	struct trace_seq *s = &iter->seq;
@@ -1794,12 +1760,12 @@ static enum print_line_t print_trace_line(struct trace_iterator *iter)
 	if (iter->ent->type == TRACE_BPRINT &&
 			trace_flags & TRACE_ITER_PRINTK &&
 			trace_flags & TRACE_ITER_PRINTK_MSGONLY)
-		return print_bprintk_msg_only(iter);
+		return trace_print_bprintk_msg_only(iter);
 
 	if (iter->ent->type == TRACE_PRINT &&
 			trace_flags & TRACE_ITER_PRINTK &&
 			trace_flags & TRACE_ITER_PRINTK_MSGONLY)
-		return print_printk_msg_only(iter);
+		return trace_print_printk_msg_only(iter);
 
 	if (trace_flags & TRACE_ITER_BIN)
 		return print_bin_fmt(iter);
@@ -1948,8 +1914,13 @@ int tracing_open_generic(struct inode *inode, struct file *filp)
 static int tracing_release(struct inode *inode, struct file *file)
 {
 	struct seq_file *m = (struct seq_file *)file->private_data;
-	struct trace_iterator *iter = m->private;
+	struct trace_iterator *iter;
 	int cpu;
+
+	if (!(file->f_mode & FMODE_READ))
+		return 0;
+
+	iter = m->private;
 
 	mutex_lock(&trace_types_lock);
 	for_each_tracing_cpu(cpu) {
@@ -1976,12 +1947,24 @@ static int tracing_open(struct inode *inode, struct file *file)
 	struct trace_iterator *iter;
 	int ret = 0;
 
-	iter = __tracing_open(inode, file);
-	if (IS_ERR(iter))
-		ret = PTR_ERR(iter);
-	else if (trace_flags & TRACE_ITER_LATENCY_FMT)
-		iter->iter_flags |= TRACE_FILE_LAT_FMT;
+	/* If this file was open for write, then erase contents */
+	if ((file->f_mode & FMODE_WRITE) &&
+	    !(file->f_flags & O_APPEND)) {
+		long cpu = (long) inode->i_private;
 
+		if (cpu == TRACE_PIPE_ALL_CPU)
+			tracing_reset_online_cpus(&global_trace);
+		else
+			tracing_reset(&global_trace, cpu);
+	}
+
+	if (file->f_mode & FMODE_READ) {
+		iter = __tracing_open(inode, file);
+		if (IS_ERR(iter))
+			ret = PTR_ERR(iter);
+		else if (trace_flags & TRACE_ITER_LATENCY_FMT)
+			iter->iter_flags |= TRACE_FILE_LAT_FMT;
+	}
 	return ret;
 }
 
@@ -2056,9 +2039,17 @@ static int show_traces_open(struct inode *inode, struct file *file)
 	return ret;
 }
 
+static ssize_t
+tracing_write_stub(struct file *filp, const char __user *ubuf,
+		   size_t count, loff_t *ppos)
+{
+	return count;
+}
+
 static const struct file_operations tracing_fops = {
 	.open		= tracing_open,
 	.read		= seq_read,
+	.write		= tracing_write_stub,
 	.llseek		= seq_lseek,
 	.release	= tracing_release,
 };
@@ -3154,7 +3145,7 @@ static int mark_printk(const char *fmt, ...)
 	int ret;
 	va_list args;
 	va_start(args, fmt);
-	ret = trace_vprintk(0, -1, fmt, args);
+	ret = trace_vprintk(0, fmt, args);
 	va_end(args);
 	return ret;
 }
@@ -3583,7 +3574,7 @@ static void tracing_init_debugfs_percpu(long cpu)
 		pr_warning("Could not create debugfs 'trace_pipe' entry\n");
 
 	/* per cpu trace */
-	entry = debugfs_create_file("trace", 0444, d_cpu,
+	entry = debugfs_create_file("trace", 0644, d_cpu,
 				(void *) cpu, &tracing_fops);
 	if (!entry)
 		pr_warning("Could not create debugfs 'trace' entry\n");
@@ -3897,7 +3888,7 @@ static __init int tracer_init_debugfs(void)
 	if (!entry)
 		pr_warning("Could not create debugfs 'tracing_cpumask' entry\n");
 
-	entry = debugfs_create_file("trace", 0444, d_tracer,
+	entry = debugfs_create_file("trace", 0644, d_tracer,
 				 (void *) TRACE_PIPE_ALL_CPU, &tracing_fops);
 	if (!entry)
 		pr_warning("Could not create debugfs 'trace' entry\n");
