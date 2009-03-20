@@ -552,10 +552,13 @@ static int clip_setentry(struct atm_vcc *vcc, __be32 ip)
 	return error;
 }
 
+static const struct net_device_ops clip_netdev_ops = {
+	.ndo_start_xmit = clip_start_xmit,
+};
+
 static void clip_setup(struct net_device *dev)
 {
-	dev->hard_start_xmit = clip_start_xmit;
-	/* sg_xmit ... */
+	dev->netdev_ops = &clip_netdev_ops;
 	dev->type = ARPHRD_ATM;
 	dev->hard_header_len = RFC1483LLC_LEN;
 	dev->mtu = RFC1626_MTU;
@@ -615,7 +618,7 @@ static int clip_device_event(struct notifier_block *this, unsigned long event,
 	}
 
 	/* ignore non-CLIP devices */
-	if (dev->type != ARPHRD_ATM || dev->hard_start_xmit != clip_start_xmit)
+	if (dev->type != ARPHRD_ATM || dev->netdev_ops != &clip_netdev_ops)
 		return NOTIFY_DONE;
 
 	switch (event) {
