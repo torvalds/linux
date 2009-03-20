@@ -155,7 +155,6 @@ struct rtl8150 {
 	unsigned long flags;
 	struct usb_device *udev;
 	struct tasklet_struct tl;
-	struct net_device_stats stats;
 	struct net_device *netdev;
 	struct urb *rx_urb, *tx_urb, *intr_urb, *ctrl_urb;
 	struct sk_buff *tx_skb, *rx_skb;
@@ -463,8 +462,8 @@ static void read_bulk_callback(struct urb *urb)
 	skb_put(dev->rx_skb, pkt_len);
 	dev->rx_skb->protocol = eth_type_trans(dev->rx_skb, netdev);
 	netif_rx(dev->rx_skb);
-	dev->stats.rx_packets++;
-	dev->stats.rx_bytes += pkt_len;
+	netdev->stats.rx_packets++;
+	netdev->stats.rx_bytes += pkt_len;
 
 	spin_lock(&dev->rx_pool_lock);
 	skb = pull_skb(dev);
@@ -573,13 +572,13 @@ static void intr_callback(struct urb *urb)
 
 	d = urb->transfer_buffer;
 	if (d[0] & TSR_ERRORS) {
-		dev->stats.tx_errors++;
+		dev->netdev->stats.tx_errors++;
 		if (d[INT_TSR] & (TSR_ECOL | TSR_JBR))
-			dev->stats.tx_aborted_errors++;
+			dev->netdev->stats.tx_aborted_errors++;
 		if (d[INT_TSR] & TSR_LCOL)
-			dev->stats.tx_window_errors++;
+			dev->netdev->stats.tx_window_errors++;
 		if (d[INT_TSR] & TSR_LOSS_CRS)
-			dev->stats.tx_carrier_errors++;
+			dev->netdev->stats.tx_carrier_errors++;
 	}
 	/* Report link status changes to the network stack */
 	if ((d[INT_MSR] & MSR_LINK) == 0) {
@@ -697,17 +696,12 @@ static void disable_net_traffic(rtl8150_t * dev)
 	set_registers(dev, CR, 1, &cr);
 }
 
-static struct net_device_stats *rtl8150_netdev_stats(struct net_device *dev)
-{
-	return &((rtl8150_t *)netdev_priv(dev))->stats;
-}
-
 static void rtl8150_tx_timeout(struct net_device *netdev)
 {
 	rtl8150_t *dev = netdev_priv(netdev);
 	dev_warn(&netdev->dev, "Tx timeout.\n");
 	usb_unlink_urb(dev->tx_urb);
-	dev->stats.tx_errors++;
+	netdev->stats.tx_errors++;
 }
 
 static void rtl8150_set_multicast(struct net_device *netdev)
@@ -747,12 +741,12 @@ static int rtl8150_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 			netif_device_detach(dev->netdev);
 		else {
 			dev_warn(&netdev->dev, "failed tx_urb %d\n", res);
-			dev->stats.tx_errors++;
+			netdev->stats.tx_errors++;
 			netif_start_queue(netdev);
 		}
 	} else {
-		dev->stats.tx_packets++;
-		dev->stats.tx_bytes += skb->len;
+		netdev->stats.tx_packets++;
+		netdev->stats.tx_bytes += skb->len;
 		netdev->trans_start = jiffies;
 	}
 
@@ -931,7 +925,7 @@ static int rtl8150_probe(struct usb_interface *intf,
 	netdev->hard_start_xmit = rtl8150_start_xmit;
 	netdev->set_multicast_list = rtl8150_set_multicast;
 	netdev->set_mac_address = rtl8150_set_mac_address;
-	netdev->get_stats = rtl8150_netdev_stats;
+
 	SET_ETHTOOL_OPS(netdev, &ops);
 	dev->intr_interval = 100;	/* 100ms */
 
