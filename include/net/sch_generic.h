@@ -49,18 +49,10 @@ struct Qdisc
 	int			padded;
 	struct Qdisc_ops	*ops;
 	struct qdisc_size_table	*stab;
+	struct list_head	list;
 	u32			handle;
 	u32			parent;
 	atomic_t		refcnt;
-	unsigned long		state;
-	struct sk_buff		*gso_skb;
-	struct sk_buff_head	q;
-	struct netdev_queue	*dev_queue;
-	struct Qdisc		*next_sched;
-	struct list_head	list;
-
-	struct gnet_stats_basic	bstats;
-	struct gnet_stats_queue	qstats;
 	struct gnet_stats_rate_est	rate_est;
 	int			(*reshape_fail)(struct sk_buff *skb,
 					struct Qdisc *q);
@@ -71,6 +63,17 @@ struct Qdisc
 	 * and it will live until better solution will be invented.
 	 */
 	struct Qdisc		*__parent;
+	struct netdev_queue	*dev_queue;
+	struct Qdisc		*next_sched;
+
+	struct sk_buff		*gso_skb;
+	/*
+	 * For performance sake on SMP, we put highly modified fields at the end
+	 */
+	unsigned long		state;
+	struct sk_buff_head	q;
+	struct gnet_stats_basic bstats;
+	struct gnet_stats_queue	qstats;
 };
 
 struct Qdisc_class_ops
