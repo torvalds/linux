@@ -82,38 +82,23 @@ static int ieee80211_compatible_rates(struct ieee80211_bss *bss,
 
 /* frame sending functions */
 
-static void add_extra_ies(struct sk_buff *skb, u8 *ies, size_t ies_len)
-{
-	if (ies)
-		memcpy(skb_put(skb, ies_len), ies, ies_len);
-}
-
 static void ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata)
 {
 	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
 	struct ieee80211_local *local = sdata->local;
 	struct sk_buff *skb;
 	struct ieee80211_mgmt *mgmt;
-	u8 *pos, *ies, *ht_ie, *e_ies;
+	u8 *pos, *ies, *ht_ie;
 	int i, len, count, rates_len, supp_rates_len;
 	u16 capab;
 	struct ieee80211_bss *bss;
 	int wmm = 0;
 	struct ieee80211_supported_band *sband;
 	u32 rates = 0;
-	size_t e_ies_len;
-
-	if (ifmgd->flags & IEEE80211_STA_PREV_BSSID_SET) {
-		e_ies = sdata->u.mgd.ie_reassocreq;
-		e_ies_len = sdata->u.mgd.ie_reassocreq_len;
-	} else {
-		e_ies = sdata->u.mgd.ie_assocreq;
-		e_ies_len = sdata->u.mgd.ie_assocreq_len;
-	}
 
 	skb = dev_alloc_skb(local->hw.extra_tx_headroom +
 			    sizeof(*mgmt) + 200 + ifmgd->extra_ie_len +
-			    ifmgd->ssid_len + e_ies_len);
+			    ifmgd->ssid_len);
 	if (!skb) {
 		printk(KERN_DEBUG "%s: failed to allocate buffer for assoc "
 		       "frame\n", sdata->dev->name);
@@ -304,8 +289,6 @@ static void ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata)
 		memcpy(pos, &sband->ht_cap.mcs, sizeof(sband->ht_cap.mcs));
 	}
 
-	add_extra_ies(skb, e_ies, e_ies_len);
-
 	kfree(ifmgd->assocreq_ies);
 	ifmgd->assocreq_ies_len = (skb->data + skb->len) - ies;
 	ifmgd->assocreq_ies = kmalloc(ifmgd->assocreq_ies_len, GFP_KERNEL);
@@ -323,19 +306,8 @@ static void ieee80211_send_deauth_disassoc(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
 	struct sk_buff *skb;
 	struct ieee80211_mgmt *mgmt;
-	u8 *ies;
-	size_t ies_len;
 
-	if (stype == IEEE80211_STYPE_DEAUTH) {
-		ies = sdata->u.mgd.ie_deauth;
-		ies_len = sdata->u.mgd.ie_deauth_len;
-	} else {
-		ies = sdata->u.mgd.ie_disassoc;
-		ies_len = sdata->u.mgd.ie_disassoc_len;
-	}
-
-	skb = dev_alloc_skb(local->hw.extra_tx_headroom + sizeof(*mgmt) +
-			    ies_len);
+	skb = dev_alloc_skb(local->hw.extra_tx_headroom + sizeof(*mgmt));
 	if (!skb) {
 		printk(KERN_DEBUG "%s: failed to allocate buffer for "
 		       "deauth/disassoc frame\n", sdata->dev->name);
@@ -352,8 +324,6 @@ static void ieee80211_send_deauth_disassoc(struct ieee80211_sub_if_data *sdata,
 	skb_put(skb, 2);
 	/* u.deauth.reason_code == u.disassoc.reason_code */
 	mgmt->u.deauth.reason_code = cpu_to_le16(reason);
-
-	add_extra_ies(skb, ies, ies_len);
 
 	ieee80211_tx_skb(sdata, skb, ifmgd->flags & IEEE80211_STA_MFP_ENABLED);
 }

@@ -269,7 +269,6 @@ static int nl80211_send_wiphy(struct sk_buff *msg, u32 pid, u32 seq, int flags,
 	CMD(add_mpath, NEW_MPATH);
 	CMD(set_mesh_params, SET_MESH_PARAMS);
 	CMD(change_bss, SET_BSS);
-	CMD(set_mgmt_extra_ie, SET_MGMT_EXTRA_IE);
 	CMD(auth, AUTHENTICATE);
 	CMD(assoc, ASSOCIATE);
 	CMD(deauth, DEAUTHENTICATE);
@@ -2355,46 +2354,6 @@ static int nl80211_set_reg(struct sk_buff *skb, struct genl_info *info)
 	return -EINVAL;
 }
 
-static int nl80211_set_mgmt_extra_ie(struct sk_buff *skb,
-				     struct genl_info *info)
-{
-	struct cfg80211_registered_device *drv;
-	int err;
-	struct net_device *dev;
-	struct mgmt_extra_ie_params params;
-
-	memset(&params, 0, sizeof(params));
-
-	if (!info->attrs[NL80211_ATTR_MGMT_SUBTYPE])
-		return -EINVAL;
-	params.subtype = nla_get_u8(info->attrs[NL80211_ATTR_MGMT_SUBTYPE]);
-	if (params.subtype > 15)
-		return -EINVAL; /* FC Subtype field is 4 bits (0..15) */
-
-	if (info->attrs[NL80211_ATTR_IE]) {
-		params.ies = nla_data(info->attrs[NL80211_ATTR_IE]);
-		params.ies_len = nla_len(info->attrs[NL80211_ATTR_IE]);
-	}
-
-	rtnl_lock();
-
-	err = get_drv_dev_by_info_ifindex(info->attrs, &drv, &dev);
-	if (err)
-		goto out_rtnl;
-
-	if (drv->ops->set_mgmt_extra_ie)
-		err = drv->ops->set_mgmt_extra_ie(&drv->wiphy, dev, &params);
-	else
-		err = -EOPNOTSUPP;
-
-	cfg80211_put_dev(drv);
-	dev_put(dev);
- out_rtnl:
-	rtnl_unlock();
-
-	return err;
-}
-
 static int nl80211_trigger_scan(struct sk_buff *skb, struct genl_info *info)
 {
 	struct cfg80211_registered_device *drv;
@@ -3040,12 +2999,6 @@ static struct genl_ops nl80211_ops[] = {
 	{
 		.cmd = NL80211_CMD_SET_MESH_PARAMS,
 		.doit = nl80211_set_mesh_params,
-		.policy = nl80211_policy,
-		.flags = GENL_ADMIN_PERM,
-	},
-	{
-		.cmd = NL80211_CMD_SET_MGMT_EXTRA_IE,
-		.doit = nl80211_set_mgmt_extra_ie,
 		.policy = nl80211_policy,
 		.flags = GENL_ADMIN_PERM,
 	},

@@ -653,13 +653,6 @@ static void ieee80211_teardown_sdata(struct net_device *dev)
 		kfree(sdata->u.mgd.extra_ie);
 		kfree(sdata->u.mgd.assocreq_ies);
 		kfree(sdata->u.mgd.assocresp_ies);
-		kfree(sdata->u.mgd.ie_probereq);
-		kfree(sdata->u.mgd.ie_proberesp);
-		kfree(sdata->u.mgd.ie_auth);
-		kfree(sdata->u.mgd.ie_assocreq);
-		kfree(sdata->u.mgd.ie_reassocreq);
-		kfree(sdata->u.mgd.ie_deauth);
-		kfree(sdata->u.mgd.ie_disassoc);
 		kfree(sdata->u.mgd.sme_auth_ie);
 		break;
 	case NL80211_IFTYPE_WDS:

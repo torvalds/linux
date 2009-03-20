@@ -1181,91 +1181,6 @@ static int ieee80211_set_channel(struct wiphy *wiphy,
 	return ieee80211_hw_config(local, IEEE80211_CONF_CHANGE_CHANNEL);
 }
 
-static int set_mgmt_extra_ie_sta(struct ieee80211_sub_if_data *sdata,
-				 u8 subtype, u8 *ies, size_t ies_len)
-{
-	struct ieee80211_local *local = sdata->local;
-	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
-
-	switch (subtype) {
-	case IEEE80211_STYPE_PROBE_REQ >> 4:
-		if (local->ops->hw_scan)
-			break;
-		kfree(ifmgd->ie_probereq);
-		ifmgd->ie_probereq = ies;
-		ifmgd->ie_probereq_len = ies_len;
-		return 0;
-	case IEEE80211_STYPE_PROBE_RESP >> 4:
-		kfree(ifmgd->ie_proberesp);
-		ifmgd->ie_proberesp = ies;
-		ifmgd->ie_proberesp_len = ies_len;
-		return 0;
-	case IEEE80211_STYPE_AUTH >> 4:
-		kfree(ifmgd->ie_auth);
-		ifmgd->ie_auth = ies;
-		ifmgd->ie_auth_len = ies_len;
-		return 0;
-	case IEEE80211_STYPE_ASSOC_REQ >> 4:
-		kfree(ifmgd->ie_assocreq);
-		ifmgd->ie_assocreq = ies;
-		ifmgd->ie_assocreq_len = ies_len;
-		return 0;
-	case IEEE80211_STYPE_REASSOC_REQ >> 4:
-		kfree(ifmgd->ie_reassocreq);
-		ifmgd->ie_reassocreq = ies;
-		ifmgd->ie_reassocreq_len = ies_len;
-		return 0;
-	case IEEE80211_STYPE_DEAUTH >> 4:
-		kfree(ifmgd->ie_deauth);
-		ifmgd->ie_deauth = ies;
-		ifmgd->ie_deauth_len = ies_len;
-		return 0;
-	case IEEE80211_STYPE_DISASSOC >> 4:
-		kfree(ifmgd->ie_disassoc);
-		ifmgd->ie_disassoc = ies;
-		ifmgd->ie_disassoc_len = ies_len;
-		return 0;
-	}
-
-	return -EOPNOTSUPP;
-}
-
-static int ieee80211_set_mgmt_extra_ie(struct wiphy *wiphy,
-				       struct net_device *dev,
-				       struct mgmt_extra_ie_params *params)
-{
-	struct ieee80211_sub_if_data *sdata;
-	u8 *ies;
-	size_t ies_len;
-	int ret = -EOPNOTSUPP;
-
-	if (params->ies) {
-		ies = kmemdup(params->ies, params->ies_len, GFP_KERNEL);
-		if (ies == NULL)
-			return -ENOMEM;
-		ies_len = params->ies_len;
-	} else {
-		ies = NULL;
-		ies_len = 0;
-	}
-
-	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
-
-	switch (sdata->vif.type) {
-	case NL80211_IFTYPE_STATION:
-		ret = set_mgmt_extra_ie_sta(sdata, params->subtype,
-					    ies, ies_len);
-		break;
-	default:
-		ret = -EOPNOTSUPP;
-		break;
-	}
-
-	if (ret)
-		kfree(ies);
-	return ret;
-}
-
 #ifdef CONFIG_PM
 static int ieee80211_suspend(struct wiphy *wiphy)
 {
@@ -1465,7 +1380,6 @@ struct cfg80211_ops mac80211_config_ops = {
 	.change_bss = ieee80211_change_bss,
 	.set_txq_params = ieee80211_set_txq_params,
 	.set_channel = ieee80211_set_channel,
-	.set_mgmt_extra_ie = ieee80211_set_mgmt_extra_ie,
 	.suspend = ieee80211_suspend,
 	.resume = ieee80211_resume,
 	.scan = ieee80211_scan,

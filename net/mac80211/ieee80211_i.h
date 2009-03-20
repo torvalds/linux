@@ -323,21 +323,6 @@ struct ieee80211_if_managed {
 	int wmm_last_param_set;
 
 	/* Extra IE data for management frames */
-	u8 *ie_probereq;
-	size_t ie_probereq_len;
-	u8 *ie_proberesp;
-	size_t ie_proberesp_len;
-	u8 *ie_auth;
-	size_t ie_auth_len;
-	u8 *ie_assocreq;
-	size_t ie_assocreq_len;
-	u8 *ie_reassocreq;
-	size_t ie_reassocreq_len;
-	u8 *ie_deauth;
-	size_t ie_deauth_len;
-	u8 *ie_disassoc;
-	size_t ie_disassoc_len;
-
 	u8 *sme_auth_ie;
 	size_t sme_auth_ie_len;
 };

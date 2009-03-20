@@ -846,16 +846,9 @@ void ieee80211_send_auth(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_local *local = sdata->local;
 	struct sk_buff *skb;
 	struct ieee80211_mgmt *mgmt;
-	const u8 *ie_auth = NULL;
-	int ie_auth_len = 0;
-
-	if (sdata->vif.type == NL80211_IFTYPE_STATION) {
-		ie_auth_len = sdata->u.mgd.ie_auth_len;
-		ie_auth = sdata->u.mgd.ie_auth;
-	}
 
 	skb = dev_alloc_skb(local->hw.extra_tx_headroom +
-			    sizeof(*mgmt) + 6 + extra_len + ie_auth_len);
+			    sizeof(*mgmt) + 6 + extra_len);
 	if (!skb) {
 		printk(KERN_DEBUG "%s: failed to allocate buffer for auth "
 		       "frame\n", sdata->dev->name);
@@ -877,8 +870,6 @@ void ieee80211_send_auth(struct ieee80211_sub_if_data *sdata,
 	mgmt->u.auth.status_code = cpu_to_le16(0);
 	if (extra)
 		memcpy(skb_put(skb, extra_len), extra, extra_len);
-	if (ie_auth)
-		memcpy(skb_put(skb, ie_auth_len), ie_auth, ie_auth_len);
 
 	ieee80211_tx_skb(sdata, skb, encrypt);
 }
@@ -891,20 +882,11 @@ void ieee80211_send_probe_req(struct ieee80211_sub_if_data *sdata, u8 *dst,
 	struct ieee80211_supported_band *sband;
 	struct sk_buff *skb;
 	struct ieee80211_mgmt *mgmt;
-	u8 *pos, *supp_rates, *esupp_rates = NULL, *extra_preq_ie = NULL;
-	int i, extra_preq_ie_len = 0;
-
-	switch (sdata->vif.type) {
-	case NL80211_IFTYPE_STATION:
-		extra_preq_ie_len = sdata->u.mgd.ie_probereq_len;
-		extra_preq_ie = sdata->u.mgd.ie_probereq;
-		break;
-	default:
-		break;
-	}
+	u8 *pos, *supp_rates, *esupp_rates = NULL;
+	int i;
 
 	skb = dev_alloc_skb(local->hw.extra_tx_headroom + sizeof(*mgmt) + 200 +
-			    ie_len + extra_preq_ie_len);
+			    ie_len);
 	if (!skb) {
 		printk(KERN_DEBUG "%s: failed to allocate buffer for probe "
 		       "request\n", sdata->dev->name);
@@ -953,9 +935,6 @@ void ieee80211_send_probe_req(struct ieee80211_sub_if_data *sdata, u8 *dst,
 
 	if (ie)
 		memcpy(skb_put(skb, ie_len), ie, ie_len);
-	if (extra_preq_ie)
-		memcpy(skb_put(skb, extra_preq_ie_len), extra_preq_ie,
-		       extra_preq_ie_len);
 
 	ieee80211_tx_skb(sdata, skb, 0);
 }
