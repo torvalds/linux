@@ -378,6 +378,18 @@ Found in hex form in kernel source.
 
 --------------------------------------------------------------------------
 
+Driver: SXG - Alacritech IS-NIC products
+
+File: sxg/saharadownloadB.sys.ihex
+File: sxg/saharadbgdownloadB.sys.ihex
+
+Licence: Unknown
+
+Found in hex form in kernel source.
+Copyright 1997-2009 Alacritech, Inc. All rights reserved.
+
+--------------------------------------------------------------------------
+
 Driver: cxgb3 - Chelsio Terminator 3 1G/10G Ethernet adapter
 
 File: cxgb3/t3b_psram-1.1.0.bin.ihex

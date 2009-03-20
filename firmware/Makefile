@@ -53,6 +53,8 @@ fw-shipped-$(CONFIG_SLICOSS) += slicoss/gbdownload.sys slicoss/gbrcvucode.sys \
 				slicoss/oasisdbgdownload.sys \
 				slicoss/oasisdownload.sys \
 				slicoss/oasisrcvucode.sys
+fw-shipped-$(CONFIG_SXG) += sxg/saharadownloadB.sys \
+				sxg/saharadbgdownloadB.sys
 fw-shipped-$(CONFIG_SND_YMFPCI) += yamaha/ds1_ctrl.fw yamaha/ds1_dsp.fw \
 				   yamaha/ds1e_ctrl.fw
 fw-shipped-$(CONFIG_TEHUTI) += tehuti/bdx.bin

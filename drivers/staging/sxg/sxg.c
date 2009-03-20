@@ -48,6 +48,7 @@
 #include <linux/errno.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
+#include <linux/firmware.h>
 #include <linux/ioport.h>
 #include <linux/slab.h>
 #include <linux/interrupt.h>
@@ -74,22 +75,15 @@
 #define SXG_POWER_MANAGEMENT_ENABLED	0
 #define VPCI				0
 #define ATK_DEBUG			1
+#define SXG_UCODE_DEBUG		0
+
 
 #include "sxg_os.h"
 #include "sxghw.h"
 #include "sxghif.h"
 #include "sxg.h"
 #include "sxgdbg.h"
-
 #include "sxgphycode-1.2.h"
-#define SXG_UCODE_DBG			0	/* Turn on for debugging */
-#ifdef SXG_UCODE_DBG
-#include "saharadbgdownload-1.71.c"
-#include "saharadbgdownloadB-1.10.c"
-#else
-#include "saharadownload-1.55.c"
-#include "saharadownloadB-1.8.c"
-#endif
 
 static int sxg_allocate_buffer_memory(struct adapter_t *adapter, u32 Size,
 				      enum sxg_buffer_type BufferType);
@@ -384,7 +378,8 @@ void sxg_reset_interrupt_capability(struct adapter_t *adapter)
 /*
  * sxg_download_microcode
  *
- * Download Microcode to Sahara adapter
+ * Download Microcode to Sahara adapter using the Linux
+ * Firmware module to get the ucode.sys file.
  *
  * Arguments -
  *		adapter		- A pointer to our adapter structure
@@ -396,99 +391,114 @@ void sxg_reset_interrupt_capability(struct adapter_t *adapter)
 static bool sxg_download_microcode(struct adapter_t *adapter,
 						enum SXG_UCODE_SEL UcodeSel)
 {
+	const struct firmware *fw;
+	const char *file = "";
 	struct sxg_hw_regs *HwRegs = adapter->HwRegs;
+	int ret;
+	int ucode_start;
 	u32 Section;
 	u32 ThisSectionSize;
-	u32 *Instruction = NULL;
+	u32 instruction = 0;
 	u32 BaseAddress, AddressOffset, Address;
 	/* u32 Failure; */
 	u32 ValueRead;
 	u32 i;
-	u32 numSections = 0;
+	u32 index = 0;
+	u32 num_sections = 0;
 	u32 sectionSize[16];
 	u32 sectionStart[16];
 
 	SXG_TRACE(TRACE_SXG, SxgTraceBuffer, TRACE_NOISY, "DnldUcod",
 		  adapter, 0, 0, 0);
-	DBG_ERROR("sxg: %s ENTER\n", __func__);
 
-	switch (UcodeSel) {
-		case SXG_UCODE_SYSTEM:      // System (operational) ucode
-			switch (adapter->asictype) {
-				case SAHARA_REV_A:
-					DBG_ERROR("%s SAHARA CARD REVISION A\n",
-						 __func__);
-					numSections = SNumSections;
-					for (i = 0; i < numSections; i++) {
-						sectionSize[i] =
-							SSectionSize[i];
-						sectionStart[i] =
-							SSectionStart[i];
-					}
-					break;
-				case SAHARA_REV_B:
-					DBG_ERROR("%s SAHARA CARD REVISION B\n",
-						 __func__);
-					numSections = SBNumSections;
-					for (i = 0; i < numSections; i++) {
-						sectionSize[i] =
-							SBSectionSize[i];
-						sectionStart[i] =
-							SBSectionStart[i];
-					}
-					break;
-			}
-			break;
-		default:
-			printk(KERN_ERR KBUILD_MODNAME
-				": Woah, big error with the microcode!\n");
-			break;
+	/*
+	 *  This routine is only implemented to download the microcode
+	 *  for the Revision B Sahara chip.  Rev A and Diagnostic
+	 *  microcode is not supported at this time.  If Rev A or
+	 *  diagnostic ucode is required, this routine will obviously
+	 *  need to change.  Also, eventually need to add support for
+	 *  Rev B checked version of ucode.  That's easy enough once
+	 *  the free version of Rev B works.
+	 */
+	ASSERT(UcodeSel == SXG_UCODE_SYSTEM);
+	ASSERT(adapter->asictype == SAHARA_REV_B);
+#if SXG_UCODE_DEBUG
+	file = "sxg/saharadbgdownloadB.sys";
+#else
+	file = "sxg/saharadownloadB.sys";
+#endif
+	ret = request_firmware(&fw, file, &adapter->pcidev->dev);
+	if (ret) {
+		DBG_ERROR("%s SXG_NIC: Failed to load firmware %s\n", __func__,file);
+		return ret;
 	}
 
-	DBG_ERROR("sxg: RESET THE CARD\n");
+	/*
+	 *  The microcode .sys file contains starts with a 4 byte word containing
+	 *  the number of sections. That is followed by "num_sections" 4 byte
+	 *  words containing each "section" size.  That is followed num_sections
+	 *  4 byte words containing each section "start" address.
+	 *
+	 *  Following the above header, the .sys file contains num_sections,
+	 *  where each section size is specified, newline delineatetd 12 byte
+	 *  microcode instructions.
+	 */
+	num_sections = *(u32 *)(fw->data + index);
+	index += 4;
+	ASSERT(num_sections <= 3);
+	for (i = 0; i < num_sections; i++) {
+		sectionSize[i] = *(u32 *)(fw->data + index);
+		index += 4;
+	}
+	for (i = 0; i < num_sections; i++) {
+		sectionStart[i] = *(u32 *)(fw->data + index);
+		index += 4;
+	}
+
 	/* First, reset the card */
 	WRITE_REG(HwRegs->Reset, 0xDEAD, FLUSH);
 	udelay(50);
+	HwRegs = adapter->HwRegs;
 
 	/*
 	 * Download each section of the microcode as specified in
-	 * its download file.  The *download.c file is generated using
-	 * the saharaobjtoc facility which converts the metastep .obj
-	 * file to a .c file which contains a two dimentional array.
+	 * sectionSize[index] to sectionStart[index] address.  As
+	 * described above, the .sys file contains 12 byte word
+	 * microcode instructions. The *download.sys file is generated
+	 * using the objtosys.exe utility that was built for Sahara
+	 * microcode.
 	 */
-	for (Section = 0; Section < numSections; Section++) {
-		DBG_ERROR("sxg: SECTION # %d\n", Section);
-		switch (UcodeSel) {
-		case SXG_UCODE_SYSTEM:
-			switch (adapter->asictype) {
-				case SAHARA_REV_A:
-					Instruction = (u32 *) & SaharaUCode[Section][0];
-					break;
-				case SAHARA_REV_B:
-					Instruction = (u32 *) & SaharaUCodeB[Section][0];
-					break;
-			}
-			break;
-		default:
-			ASSERT(0);
-			break;
-		}
+	/* See usage of this below when we read back for parity */
+	ucode_start = index;
+	instruction = *(u32 *)(fw->data + index);
+	index += 4;
 
+	for (Section = 0; Section < num_sections; Section++) {
 		BaseAddress = sectionStart[Section];
 		/* Size in instructions */
 		ThisSectionSize = sectionSize[Section] / 12;
 		for (AddressOffset = 0; AddressOffset < ThisSectionSize;
 		     AddressOffset++) {
+			u32 first_instr = 0;  /* See comment below */
+
 			Address = BaseAddress + AddressOffset;
 			ASSERT((Address & ~MICROCODE_ADDRESS_MASK) == 0);
-			/* Write instruction bits 31 - 0 */
-			WRITE_REG(HwRegs->UcodeDataLow, *Instruction, FLUSH);
-			/* Write instruction bits 63-32 */
-			WRITE_REG(HwRegs->UcodeDataMiddle, *(Instruction + 1),
-				  FLUSH);
-			/* Write instruction bits 95-64 */
-			WRITE_REG(HwRegs->UcodeDataHigh, *(Instruction + 2),
-				  FLUSH);
+			/* Write instruction bits 31 - 0 (low) */
+			first_instr = instruction;
+			WRITE_REG(HwRegs->UcodeDataLow, instruction, FLUSH);
+			instruction = *(u32 *)(fw->data + index);
+			index += 4;  /* Advance to the "next" instruction */
+
+			/* Write instruction bits 63-32 (middle) */
+			WRITE_REG(HwRegs->UcodeDataMiddle, instruction, FLUSH);
+			instruction = *(u32 *)(fw->data + index);
+			index += 4;  /* Advance to the "next" instruction */
+
+			/* Write instruction bits 95-64 (high) */
+			WRITE_REG(HwRegs->UcodeDataHigh, instruction, FLUSH);
+			instruction = *(u32 *)(fw->data + index);
+			index += 4;  /* Advance to the "next" instruction */
+
 			/* Write instruction address with the WRITE bit set */
 			WRITE_REG(HwRegs->UcodeAddr,
 				  (Address | MICROCODE_ADDRESS_WRITE), FLUSH);
@@ -500,34 +510,16 @@ static bool sxg_download_microcode(struct adapter_t *adapter,
 			 * and write the data for the next instruction to DataLow.  That
 			 * write should succeed.
 			 */
-			WRITE_REG(HwRegs->UcodeDataLow, *Instruction, TRUE);
-			/* Advance 3 u32S to start of next instruction */
-			Instruction += 3;
+			WRITE_REG(HwRegs->UcodeDataLow, first_instr, FLUSH);
 		}
 	}
 	/*
 	 * Now repeat the entire operation reading the instruction back and
 	 * checking for parity errors
 	 */
-	for (Section = 0; Section < numSections; Section++) {
-		DBG_ERROR("sxg: check SECTION # %d\n", Section);
-		switch (UcodeSel) {
-			case SXG_UCODE_SYSTEM:
-				switch (adapter->asictype) {
-					case SAHARA_REV_A:
-						Instruction = (u32 *) &
-						    SaharaUCode[Section][0];
-						break;
-					case SAHARA_REV_B:
-						Instruction = (u32 *) &
-						    SaharaUCodeB[Section][0];
-						break;
-				}
-				break;
-			default:
-				ASSERT(0);
-				break;
-		}
+	index = ucode_start;
+
+	for (Section = 0; Section < num_sections; Section++) {
 		BaseAddress = sectionStart[Section];
 		/* Size in instructions */
 		ThisSectionSize = sectionSize[Section] / 12;
@@ -547,29 +539,36 @@ static bool sxg_download_microcode(struct adapter_t *adapter,
 			}
 			ASSERT((ValueRead & MICROCODE_ADDRESS_MASK) == Address);
 			/* Read the instruction back and compare */
+			/* First instruction */
+			instruction = *(u32 *)(fw->data + index);
+			index += 4;
 			READ_REG(HwRegs->UcodeDataLow, ValueRead);
-			if (ValueRead != *Instruction) {
+			if (ValueRead != instruction) {
 				DBG_ERROR("sxg: %s MISCOMPARE LOW\n",
 					  __func__);
 				return FALSE;	/* Miscompare */
 			}
+			instruction = *(u32 *)(fw->data + index);
+			index += 4;
 			READ_REG(HwRegs->UcodeDataMiddle, ValueRead);
-			if (ValueRead != *(Instruction + 1)) {
+			if (ValueRead != instruction) {
 				DBG_ERROR("sxg: %s MISCOMPARE MIDDLE\n",
 					  __func__);
 				return FALSE;	/* Miscompare */
 			}
+			instruction = *(u32 *)(fw->data + index);
+			index += 4;
 			READ_REG(HwRegs->UcodeDataHigh, ValueRead);
-			if (ValueRead != *(Instruction + 2)) {
+			if (ValueRead != instruction) {
 				DBG_ERROR("sxg: %s MISCOMPARE HIGH\n",
 					  __func__);
 				return FALSE;	/* Miscompare */
 			}
-			/* Advance 3 u32S to start of next instruction */
-			Instruction += 3;
 		}
 	}
 
+	/* download finished */
+	release_firmware(fw);
 	/* Everything OK, Go. */
 	WRITE_REG(HwRegs->UcodeAddr, MICROCODE_ADDRESS_GO, FLUSH);
 
@@ -581,12 +580,11 @@ static bool sxg_download_microcode(struct adapter_t *adapter,
 		udelay(50);
 		READ_REG(adapter->UcodeRegs[0].CardUp, ValueRead);
 		if (ValueRead == 0xCAFE) {
-			DBG_ERROR("sxg: %s BOO YA 0xCAFE\n", __func__);
 			break;
 		}
 	}
 	if (i == 10000) {
-		DBG_ERROR("sxg: %s TIMEOUT\n", __func__);
+		DBG_ERROR("sxg: %s TIMEOUT bringing up card - verify MICROCODE\n", __func__);
 
 		return FALSE;	/* Timeout */
 	}
@@ -601,8 +599,6 @@ static bool sxg_download_microcode(struct adapter_t *adapter,
 
 	SXG_TRACE(TRACE_SXG, SxgTraceBuffer, TRACE_NOISY, "XDnldUcd",
 		  adapter, 0, 0, 0);
-	DBG_ERROR("sxg: %s EXIT\n", __func__);
-
 	return (TRUE);
 }
 
