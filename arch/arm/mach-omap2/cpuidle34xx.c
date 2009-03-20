@@ -22,6 +22,7 @@
  * published by the Free Software Foundation.
  */
 
+#include <linux/sched.h>
 #include <linux/cpuidle.h>
 
 #include <plat/prcm.h>
@@ -113,7 +114,7 @@ static int omap3_enter_idle(struct cpuidle_device *dev,
 	pwrdm_set_next_pwrst(mpu_pd, mpu_state);
 	pwrdm_set_next_pwrst(core_pd, core_state);
 
-	if (omap_irq_pending())
+	if (omap_irq_pending() || need_resched())
 		goto return_sleep_time;
 
 	if (cx->type == OMAP3_STATE_C1) {
