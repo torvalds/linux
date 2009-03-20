@@ -468,15 +468,15 @@ int do_blk_trace_setup(struct request_queue *q, char *name, dev_t dev,
 	bt->pid = buts->pid;
 	bt->trace_state = Blktrace_setup;
 
-	if (atomic_add_return(1, &blk_probes_ref) == 1)
-		blk_register_tracepoints();
-
 	ret = -EBUSY;
 	old_bt = xchg(&q->blk_trace, bt);
 	if (old_bt) {
 		(void) xchg(&q->blk_trace, old_bt);
 		goto err;
 	}
+
+	if (atomic_add_return(1, &blk_probes_ref) == 1)
+		blk_register_tracepoints();
 
 	return 0;
 err:
