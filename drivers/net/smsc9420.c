@@ -807,7 +807,7 @@ static void smsc9420_rx_handoff(struct smsc9420_pdata *pd, const int index,
 	if (pd->rx_csum) {
 		u16 hw_csum = get_unaligned_le16(skb_tail_pointer(skb) +
 			NET_IP_ALIGN + packet_length + 4);
-		put_unaligned_le16(cpu_to_le16(hw_csum), &skb->csum);
+		put_unaligned_le16(hw_csum, &skb->csum);
 		skb->ip_summed = CHECKSUM_COMPLETE;
 	}
 
