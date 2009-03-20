@@ -21,7 +21,6 @@
 #include <linux/dma-mapping.h>
 #include <linux/platform_device.h>
 #include <linux/phy.h>
-#include <linux/platform_device.h>
 
 #include "dnet.h"
 
