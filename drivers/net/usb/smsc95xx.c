@@ -1008,6 +1008,18 @@ static int smsc95xx_reset(struct usbnet *dev)
 	return 0;
 }
 
+static const struct net_device_ops smsc95xx_netdev_ops = {
+	.ndo_open		= usbnet_open,
+	.ndo_stop		= usbnet_stop,
+	.ndo_start_xmit		= usbnet_start_xmit,
+	.ndo_tx_timeout		= usbnet_tx_timeout,
+	.ndo_change_mtu		= usbnet_change_mtu,
+	.ndo_set_mac_address 	= eth_mac_addr,
+	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_do_ioctl 		= smsc95xx_ioctl,
+	.ndo_set_multicast_list = smsc95xx_set_multicast,
+};
+
 static int smsc95xx_bind(struct usbnet *dev, struct usb_interface *intf)
 {
 	struct smsc95xx_priv *pdata = NULL;
@@ -1038,9 +1050,8 @@ static int smsc95xx_bind(struct usbnet *dev, struct usb_interface *intf)
 	/* Init all registers */
 	ret = smsc95xx_reset(dev);
 
-	dev->net->do_ioctl = smsc95xx_ioctl;
+	dev->net->netdev_ops = &smsc95xx_netdev_ops;
 	dev->net->ethtool_ops = &smsc95xx_ethtool_ops;
-	dev->net->set_multicast_list = smsc95xx_set_multicast;
 	dev->net->flags |= IFF_MULTICAST;
 	dev->net->hard_header_len += SMSC95XX_TX_OVERHEAD;
 	return 0;
