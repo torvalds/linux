@@ -29,8 +29,8 @@
 #include "viosrp.h"
 
 #define IBMVFC_NAME	"ibmvfc"
-#define IBMVFC_DRIVER_VERSION		"1.0.4"
-#define IBMVFC_DRIVER_DATE		"(November 14, 2008)"
+#define IBMVFC_DRIVER_VERSION		"1.0.5"
+#define IBMVFC_DRIVER_DATE		"(March 19, 2009)"
 
 #define IBMVFC_DEFAULT_TIMEOUT	60
 #define IBMVFC_ADISC_CANCEL_TIMEOUT	45
