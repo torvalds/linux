@@ -219,14 +219,17 @@ static struct platform_device orion5x_switch_device = {
 
 void __init orion5x_eth_switch_init(struct dsa_platform_data *d, int irq)
 {
+	int i;
+
 	if (irq != NO_IRQ) {
 		orion5x_switch_resources[0].start = irq;
 		orion5x_switch_resources[0].end = irq;
 		orion5x_switch_device.num_resources = 1;
 	}
 
-	d->mii_bus = &orion5x_eth_shared.dev;
 	d->netdev = &orion5x_eth.dev;
+	for (i = 0; i < d->nr_chips; i++)
+		d->chip[i].mii_bus = &orion5x_eth_shared.dev;
 	orion5x_switch_device.dev.platform_data = d;
 
 	platform_device_register(&orion5x_switch_device);
