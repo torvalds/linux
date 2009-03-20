@@ -641,6 +641,7 @@ void tracing_reset_online_cpus(struct trace_array *tr)
 }
 
 #define SAVED_CMDLINES 128
+#define NO_CMDLINE_MAP UINT_MAX
 static unsigned map_pid_to_cmdline[PID_MAX_DEFAULT+1];
 static unsigned map_cmdline_to_pid[SAVED_CMDLINES];
 static char saved_cmdlines[SAVED_CMDLINES][TASK_COMM_LEN];
@@ -652,8 +653,8 @@ static atomic_t trace_record_cmdline_disabled __read_mostly;
 
 static void trace_init_cmdlines(void)
 {
-	memset(&map_pid_to_cmdline, -1, sizeof(map_pid_to_cmdline));
-	memset(&map_cmdline_to_pid, -1, sizeof(map_cmdline_to_pid));
+	memset(&map_pid_to_cmdline, NO_CMDLINE_MAP, sizeof(map_pid_to_cmdline));
+	memset(&map_cmdline_to_pid, NO_CMDLINE_MAP, sizeof(map_cmdline_to_pid));
 	cmdline_idx = 0;
 }
 
@@ -745,8 +746,7 @@ void trace_stop_cmdline_recording(void);
 
 static void trace_save_cmdline(struct task_struct *tsk)
 {
-	unsigned map;
-	unsigned idx;
+	unsigned pid, idx;
 
 	if (!tsk->pid || unlikely(tsk->pid > PID_MAX_DEFAULT))
 		return;
@@ -761,13 +761,20 @@ static void trace_save_cmdline(struct task_struct *tsk)
 		return;
 
 	idx = map_pid_to_cmdline[tsk->pid];
-	if (idx >= SAVED_CMDLINES) {
+	if (idx == NO_CMDLINE_MAP) {
 		idx = (cmdline_idx + 1) % SAVED_CMDLINES;
 
-		map = map_cmdline_to_pid[idx];
-		if (map <= PID_MAX_DEFAULT)
-			map_pid_to_cmdline[map] = (unsigned)-1;
+		/*
+		 * Check whether the cmdline buffer at idx has a pid
+		 * mapped. We are going to overwrite that entry so we
+		 * need to clear the map_pid_to_cmdline. Otherwise we
+		 * would read the new comm for the old pid.
+		 */
+		pid = map_cmdline_to_pid[idx];
+		if (pid != NO_CMDLINE_MAP)
+			map_pid_to_cmdline[pid] = NO_CMDLINE_MAP;
 
+		map_cmdline_to_pid[idx] = tsk->pid;
 		map_pid_to_cmdline[tsk->pid] = idx;
 
 		cmdline_idx = idx;
@@ -794,18 +801,18 @@ void trace_find_cmdline(int pid, char comm[])
 
 	__raw_spin_lock(&trace_cmdline_lock);
 	map = map_pid_to_cmdline[pid];
-	if (map >= SAVED_CMDLINES)
-		goto out;
+	if (map != NO_CMDLINE_MAP)
+		strcpy(comm, saved_cmdlines[map]);
+	else
+		strcpy(comm, "<...>");
 
-	strcpy(comm, saved_cmdlines[map]);
-
- out:
 	__raw_spin_unlock(&trace_cmdline_lock);
 }
 
 void tracing_record_cmdline(struct task_struct *tsk)
 {
-	if (atomic_read(&trace_record_cmdline_disabled) || !tracing_is_on())
+	if (atomic_read(&trace_record_cmdline_disabled) || !tracer_enabled ||
+	    !tracing_is_on())
 		return;
 
 	trace_save_cmdline(tsk);
