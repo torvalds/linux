@@ -2258,7 +2258,6 @@ int sxg_second_open(struct net_device * dev)
         /* Re-enable interrupts */
         SXG_ENABLE_ALL_INTERRUPTS(adapter);
 
-	netif_carrier_on(dev);
 	sxg_register_intr(adapter);
 	spin_unlock_irqrestore(&sxg_global.driver_lock, sxg_global.flags);
 	return (STATUS_SUCCESS);
@@ -2329,7 +2328,6 @@ static int sxg_entry_halt(struct net_device *dev)
 	/* Disable interrupts */
 	SXG_DISABLE_ALL_INTERRUPTS(adapter);
 
-	netif_carrier_off(dev);
 	spin_unlock_irqrestore(&sxg_global.driver_lock, sxg_global.flags);
 
 	sxg_deregister_interrupt(adapter);
