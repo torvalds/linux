@@ -525,9 +525,9 @@ DEFINE_CLOCK(ckil_clk,    0, NULL,          0, clk_ckil_get_rate, NULL, NULL);
 
 static struct clk_lookup lookups[] = {
 	_REGISTER_CLOCK(NULL, "emi", emi_clk)
-	_REGISTER_CLOCK(NULL, "cspi", cspi1_clk)
-	_REGISTER_CLOCK(NULL, "cspi", cspi2_clk)
-	_REGISTER_CLOCK(NULL, "cspi", cspi3_clk)
+	_REGISTER_CLOCK("spi_imx.0", NULL, cspi1_clk)
+	_REGISTER_CLOCK("spi_imx.1", NULL, cspi2_clk)
+	_REGISTER_CLOCK("spi_imx.2", NULL, cspi3_clk)
 	_REGISTER_CLOCK(NULL, "gpt", gpt_clk)
 	_REGISTER_CLOCK(NULL, "pwm", pwm_clk)
 	_REGISTER_CLOCK(NULL, "wdog", wdog_clk)
