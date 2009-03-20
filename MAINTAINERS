@@ -3543,6 +3543,13 @@ L:	linux-arm-kernel@lists.arm.linux.org.uk	(subscribers-only)
 T:	git kernel.org:/pub/scm/linux/kernel/git/ycmiao/pxa-linux-2.6.git
 S:	Supported
 
+PXA910 SUPPORT
+P:	Eric Miao
+M:	eric.miao@marvell.com
+L:	linux-arm-kernel@lists.arm.linux.org.uk	(subscribers-only)
+T:	git kernel.org:/pub/scm/linux/kernel/git/ycmiao/pxa-linux-2.6.git
+S:	Supported
+
 PXA MMCI DRIVER
 S:	Orphan
 
