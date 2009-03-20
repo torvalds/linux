@@ -68,3 +68,30 @@ Description:
 		that some devices may have malformatted data.  If the
 		underlying VPD has a writable section then the
 		corresponding section of this file will be writable.
+
+What:		/sys/bus/pci/devices/.../virtfnN
+Date:		March 2009
+Contact:	Yu Zhao <yu.zhao@intel.com>
+Description:
+		This symbolic link appears when hardware supports the SR-IOV
+		capability and the Physical Function driver has enabled it.
+		The symbolic link points to the PCI device sysfs entry of the
+		Virtual Function whose index is N (0...MaxVFs-1).
+
+What:		/sys/bus/pci/devices/.../dep_link
+Date:		March 2009
+Contact:	Yu Zhao <yu.zhao@intel.com>
+Description:
+		This symbolic link appears when hardware supports the SR-IOV
+		capability and the Physical Function driver has enabled it,
+		and this device has vendor specific dependencies with others.
+		The symbolic link points to the PCI device sysfs entry of
+		Physical Function this device depends on.
+
+What:		/sys/bus/pci/devices/.../physfn
+Date:		March 2009
+Contact:	Yu Zhao <yu.zhao@intel.com>
+Description:
+		This symbolic link appears when a device is a Virtual Function.
+		The symbolic link points to the PCI device sysfs entry of the
+		Physical Function this device associates with.
