@@ -182,10 +182,6 @@ struct igb_ring {
 	char name[IFNAMSIZ + 5];
 };
 
-#define IGB_DESC_UNUSED(R) \
-	((((R)->next_to_clean > (R)->next_to_use) ? 0 : (R)->count) + \
-	(R)->next_to_clean - (R)->next_to_use - 1)
-
 #define E1000_RX_DESC_ADV(R, i)	    \
 	(&(((union e1000_adv_rx_desc *)((R).desc))[i]))
 #define E1000_TX_DESC_ADV(R, i)	    \

@@ -278,6 +278,17 @@ static char *igb_get_time_str(struct igb_adapter *adapter,
 #endif
 
 /**
+ * igb_desc_unused - calculate if we have unused descriptors
+ **/
+static int igb_desc_unused(struct igb_ring *ring)
+{
+	if (ring->next_to_clean > ring->next_to_use)
+		return ring->next_to_clean - ring->next_to_use - 1;
+
+	return ring->count + ring->next_to_clean - ring->next_to_use - 1;
+}
+
+/**
  * igb_init_module - Driver Registration Routine
  *
  * igb_init_module is the first routine called when the driver is
@@ -873,12 +884,12 @@ static void igb_configure(struct igb_adapter *adapter)
 
 	igb_rx_fifo_flush_82575(&adapter->hw);
 
-	/* call IGB_DESC_UNUSED which always leaves
+	/* call igb_desc_unused which always leaves
 	 * at least 1 descriptor unused to make sure
 	 * next_to_use != next_to_clean */
 	for (i = 0; i < adapter->num_rx_queues; i++) {
 		struct igb_ring *ring = &adapter->rx_ring[i];
-		igb_alloc_rx_buffers_adv(ring, IGB_DESC_UNUSED(ring));
+		igb_alloc_rx_buffers_adv(ring, igb_desc_unused(ring));
 	}
 
 
@@ -2661,7 +2672,7 @@ link_up:
 	igb_update_adaptive(&adapter->hw);
 
 	if (!netif_carrier_ok(netdev)) {
-		if (IGB_DESC_UNUSED(tx_ring) + 1 < tx_ring->count) {
+		if (igb_desc_unused(tx_ring) + 1 < tx_ring->count) {
 			/* We've lost link, so the controller stops DMA,
 			 * but we've got queued Tx work that's never going
 			 * to get done, so reset controller to flush Tx.
@@ -3199,7 +3210,7 @@ static int __igb_maybe_stop_tx(struct net_device *netdev,
 
 	/* We need to check again in a case another CPU has just
 	 * made room available. */
-	if (IGB_DESC_UNUSED(tx_ring) < size)
+	if (igb_desc_unused(tx_ring) < size)
 		return -EBUSY;
 
 	/* A reprieve! */
@@ -3211,7 +3222,7 @@ static int __igb_maybe_stop_tx(struct net_device *netdev,
 static int igb_maybe_stop_tx(struct net_device *netdev,
 			     struct igb_ring *tx_ring, int size)
 {
-	if (IGB_DESC_UNUSED(tx_ring) >= size)
+	if (igb_desc_unused(tx_ring) >= size)
 		return 0;
 	return __igb_maybe_stop_tx(netdev, tx_ring, size);
 }
@@ -4310,7 +4321,7 @@ static bool igb_clean_tx_irq(struct igb_ring *tx_ring)
 
 	if (unlikely(count &&
 		     netif_carrier_ok(netdev) &&
-		     IGB_DESC_UNUSED(tx_ring) >= IGB_TX_QUEUE_WAKE)) {
+		     igb_desc_unused(tx_ring) >= IGB_TX_QUEUE_WAKE)) {
 		/* Make sure that anybody stopping the queue after this
 		 * sees the new next_to_clean.
 		 */
@@ -4587,7 +4598,7 @@ next_desc:
 	}
 
 	rx_ring->next_to_clean = i;
-	cleaned_count = IGB_DESC_UNUSED(rx_ring);
+	cleaned_count = igb_desc_unused(rx_ring);
 
 	if (cleaned_count)
 		igb_alloc_rx_buffers_adv(rx_ring, cleaned_count);
