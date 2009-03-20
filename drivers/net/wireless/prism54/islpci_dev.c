@@ -43,7 +43,6 @@
 
 static int prism54_bring_down(islpci_private *);
 static int islpci_alloc_memory(islpci_private *);
-static struct net_device_stats *islpci_statistics(struct net_device *);
 
 /* Temporary dummy MAC address to use until firmware is loaded.
  * The idea there is that some tools (such as nameif) may query
@@ -614,18 +613,6 @@ islpci_reset(islpci_private *priv, int reload_firmware)
 	return rc;
 }
 
-static struct net_device_stats *
-islpci_statistics(struct net_device *ndev)
-{
-	islpci_private *priv = netdev_priv(ndev);
-
-#if VERBOSE > SHOW_ERROR_MESSAGES
-	DEBUG(SHOW_FUNCTION_CALLS, "islpci_statistics\n");
-#endif
-
-	return &priv->statistics;
-}
-
 /******************************************************************************
     Network device configuration functions
 ******************************************************************************/
@@ -811,7 +798,6 @@ static const struct ethtool_ops islpci_ethtool_ops = {
 static const struct net_device_ops islpci_netdev_ops = {
 	.ndo_open 		= islpci_open,
 	.ndo_stop		= islpci_close,
-	.ndo_get_stats		= islpci_statistics,
 	.ndo_do_ioctl		= prism54_ioctl,
 	.ndo_start_xmit		= islpci_eth_transmit,
 	.ndo_tx_timeout		= islpci_eth_tx_timeout,

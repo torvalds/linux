@@ -231,8 +231,8 @@ islpci_eth_transmit(struct sk_buff *skb, struct net_device *ndev)
 
 	/* set the transmission time */
 	ndev->trans_start = jiffies;
-	priv->statistics.tx_packets++;
-	priv->statistics.tx_bytes += skb->len;
+	ndev->stats.tx_packets++;
+	ndev->stats.tx_bytes += skb->len;
 
 	/* trigger the device */
 	islpci_trigger(priv);
@@ -243,7 +243,7 @@ islpci_eth_transmit(struct sk_buff *skb, struct net_device *ndev)
 	return 0;
 
       drop_free:
-	priv->statistics.tx_dropped++;
+	ndev->stats.tx_dropped++;
 	spin_unlock_irqrestore(&priv->slock, flags);
 	dev_kfree_skb(skb);
 	return err;
@@ -408,8 +408,8 @@ islpci_eth_receive(islpci_private *priv)
 		skb->protocol = eth_type_trans(skb, ndev);
 	}
 	skb->ip_summed = CHECKSUM_NONE;
-	priv->statistics.rx_packets++;
-	priv->statistics.rx_bytes += size;
+	ndev->stats.rx_packets++;
+	ndev->stats.rx_bytes += size;
 
 	/* deliver the skb to the network layer */
 #ifdef ISLPCI_ETH_DEBUG
@@ -497,10 +497,9 @@ void
 islpci_eth_tx_timeout(struct net_device *ndev)
 {
 	islpci_private *priv = netdev_priv(ndev);
-	struct net_device_stats *statistics = &priv->statistics;
 
 	/* increment the transmit error counter */
-	statistics->tx_errors++;
+	ndev->stats.tx_errors++;
 
 	if (!priv->reset_task_pending) {
 		printk(KERN_WARNING
