@@ -640,6 +640,7 @@ static void ibmvfc_release_crq_queue(struct ibmvfc_host *vhost)
 
 	ibmvfc_dbg(vhost, "Releasing CRQ\n");
 	free_irq(vdev->irq, vhost);
+	tasklet_kill(&vhost->tasklet);
 	do {
 		rc = plpar_hcall_norets(H_FREE_CRQ, vdev->unit_address);
 	} while (rc == H_BUSY || H_IS_LONG_BUSY(rc));
@@ -2699,6 +2700,25 @@ static struct ibmvfc_crq *ibmvfc_next_crq(struct ibmvfc_host *vhost)
 static irqreturn_t ibmvfc_interrupt(int irq, void *dev_instance)
 {
 	struct ibmvfc_host *vhost = (struct ibmvfc_host *)dev_instance;
+	unsigned long flags;
+
+	spin_lock_irqsave(vhost->host->host_lock, flags);
+	vio_disable_interrupts(to_vio_dev(vhost->dev));
+	tasklet_schedule(&vhost->tasklet);
+	spin_unlock_irqrestore(vhost->host->host_lock, flags);
+	return IRQ_HANDLED;
+}
+
+/**
+ * ibmvfc_tasklet - Interrupt handler tasklet
+ * @data:		ibmvfc host struct
+ *
+ * Returns:
+ *	Nothing
+ **/
+static void ibmvfc_tasklet(void *data)
+{
+	struct ibmvfc_host *vhost = data;
 	struct vio_dev *vdev = to_vio_dev(vhost->dev);
 	struct ibmvfc_crq *crq;
 	struct ibmvfc_async_crq *async;
@@ -2706,7 +2726,6 @@ static irqreturn_t ibmvfc_interrupt(int irq, void *dev_instance)
 	int done = 0;
 
 	spin_lock_irqsave(vhost->host->host_lock, flags);
-	vio_disable_interrupts(to_vio_dev(vhost->dev));
 	while (!done) {
 		/* Pull all the valid messages off the CRQ */
 		while ((crq = ibmvfc_next_crq(vhost)) != NULL) {
@@ -2734,7 +2753,6 @@ static irqreturn_t ibmvfc_interrupt(int irq, void *dev_instance)
 	}
 
 	spin_unlock_irqrestore(vhost->host->host_lock, flags);
-	return IRQ_HANDLED;
 }
 
 /**
@@ -3859,6 +3877,8 @@ static int ibmvfc_init_crq(struct ibmvfc_host *vhost)
 
 	retrc = 0;
 
+	tasklet_init(&vhost->tasklet, (void *)ibmvfc_tasklet, (unsigned long)vhost);
+
 	if ((rc = request_irq(vdev->irq, ibmvfc_interrupt, 0, IBMVFC_NAME, vhost))) {
 		dev_err(dev, "Couldn't register irq 0x%x. rc=%d\n", vdev->irq, rc);
 		goto req_irq_failed;
@@ -3874,6 +3894,7 @@ static int ibmvfc_init_crq(struct ibmvfc_host *vhost)
 	return retrc;
 
 req_irq_failed:
+	tasklet_kill(&vhost->tasklet);
 	do {
 		rc = plpar_hcall_norets(H_FREE_CRQ, vdev->unit_address);
 	} while (rc == H_BUSY || H_IS_LONG_BUSY(rc));

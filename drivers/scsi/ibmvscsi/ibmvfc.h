@@ -684,6 +684,7 @@ struct ibmvfc_host {
 	char partition_name[97];
 	void (*job_step) (struct ibmvfc_host *);
 	struct task_struct *work_thread;
+	struct tasklet_struct tasklet;
 	wait_queue_head_t init_wait_q;
 	wait_queue_head_t work_wait_q;
 };
