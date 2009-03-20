@@ -834,14 +834,15 @@ static void sxg_config_pci(struct pci_dev *pcidev)
 static inline int sxg_read_config(struct adapter_t *adapter)
 {
 	/* struct sxg_config	data; */
+  	struct sxg_config	*config;
 	struct sw_cfg_data	*data;
 	dma_addr_t		p_addr;
 	unsigned long		status;
 	unsigned long		i;
+ 	config = pci_alloc_consistent(adapter->pcidev,
+ 					sizeof(struct sxg_config), &p_addr);
 
-	data = pci_alloc_consistent(adapter->pcidev,
-					sizeof(struct sw_cfg_data), &p_addr);
-	if(!data) {
+  	if(!config) {
 		/*
 		 * We cant get even this much memory. Raise a hell
  		 * Get out of here
@@ -851,8 +852,12 @@ static inline int sxg_read_config(struct adapter_t *adapter)
 		return -ENOMEM;
 	}
 
+	data = &config->SwCfg;
+
+    /* Initialize (reflective memory) status register */
 	WRITE_REG(adapter->UcodeRegs[0].ConfigStat, SXG_CFG_TIMEOUT, TRUE);
 
+    /* Send request to fetch configuration data */
 	WRITE_REG64(adapter, adapter->UcodeRegs[0].Config, p_addr, 0);
 	for(i=0; i<1000; i++) {
 		READ_REG(adapter->UcodeRegs[0].ConfigStat, status);
@@ -866,12 +871,12 @@ static inline int sxg_read_config(struct adapter_t *adapter)
 	case SXG_CFG_LOAD_EEPROM:
 	/* Config read from Flash succeeded */
 	case SXG_CFG_LOAD_FLASH:
-	/* Copy the MAC address to adapter structure */
-		/* TODO: We are not doing the remaining part : FRU,
-		 * etc
+		/*
+		 * Copy the MAC address to adapter structure
+		 * TODO: We are not doing the remaining part : FRU, etc
 		 */
 		memcpy(adapter->macaddr, data->MacAddr[0].MacAddr,
-        	              sizeof(struct sxg_config_mac));
+			sizeof(struct sxg_config_mac));
 		break;
 	case SXG_CFG_TIMEOUT:
 	case SXG_CFG_LOAD_INVALID:

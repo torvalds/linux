@@ -944,15 +944,6 @@ struct sxg_config {
 	struct sw_cfg_data	SwCfg;
 };
 
-/* EEPROM/Flash Format (Sahara rev A) */
-struct sxg_config_a {
-	/* H/W Section - Read by Sahara hardware (256 bytes)  */
-	struct hw_cfg_data		HwCfg[NUM_HW_CFG_ENTRIES_A];
-
-	/* S/W Section - Other configuration data (128 bytes) */
-	struct sw_cfg_data		SwCfg;
-};
-
 #ifdef WINDOWS_COMPILER
 /*
  *  The following macro is something of a kludge, but it is the only way
