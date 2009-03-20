@@ -93,6 +93,12 @@ enum {
 	/* #6: expansion ROM resource */
 	PCI_ROM_RESOURCE,
 
+	/* device specific resources */
+#ifdef CONFIG_PCI_IOV
+	PCI_IOV_RESOURCES,
+	PCI_IOV_RESOURCE_END = PCI_IOV_RESOURCES + PCI_SRIOV_NUM_BARS - 1,
+#endif
+
 	/* resources assigned to buses behind the bridge */
 #define PCI_BRIDGE_RESOURCE_NUM 4
 
@@ -180,6 +186,7 @@ struct pci_cap_saved_state {
 
 struct pcie_link_state;
 struct pci_vpd;
+struct pci_sriov;
 
 /*
  * The pci_dev structure is used to describe PCI devices.
@@ -257,6 +264,7 @@ struct pci_dev {
 	unsigned int	is_managed:1;
 	unsigned int	is_pcie:1;
 	unsigned int	state_saved:1;
+	unsigned int	is_physfn:1;
 	pci_dev_flags_t dev_flags;
 	atomic_t	enable_cnt;	/* pci_enable_device has been called */
 
@@ -270,6 +278,9 @@ struct pci_dev {
 	struct list_head msi_list;
 #endif
 	struct pci_vpd *vpd;
+#ifdef CONFIG_PCI_IOV
+	struct pci_sriov *sriov;	/* SR-IOV capability related */
+#endif
 };
 
 extern struct pci_dev *alloc_pci_dev(void);

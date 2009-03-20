@@ -785,6 +785,7 @@ static int pci_setup_device(struct pci_dev * dev)
 static void pci_release_capabilities(struct pci_dev *dev)
 {
 	pci_vpd_release(dev);
+	pci_iov_release(dev);
 }
 
 /**
@@ -979,6 +980,9 @@ static void pci_init_capabilities(struct pci_dev *dev)
 
 	/* Alternative Routing-ID Forwarding */
 	pci_enable_ari(dev);
+
+	/* Single Root I/O Virtualization */
+	pci_iov_init(dev);
 }
 
 void pci_device_add(struct pci_dev *dev, struct pci_bus *bus)
