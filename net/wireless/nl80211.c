@@ -1049,6 +1049,11 @@ static int nl80211_addset_beacon(struct sk_buff *skb, struct genl_info *info)
 	if (err)
 		goto unlock_rtnl;
 
+	if (dev->ieee80211_ptr->iftype != NL80211_IFTYPE_AP) {
+		err = -EOPNOTSUPP;
+		goto out;
+	}
+
 	switch (info->genlhdr->cmd) {
 	case NL80211_CMD_NEW_BEACON:
 		/* these are required for NEW_BEACON */
@@ -1136,6 +1141,10 @@ static int nl80211_del_beacon(struct sk_buff *skb, struct genl_info *info)
 		goto out;
 	}
 
+	if (dev->ieee80211_ptr->iftype != NL80211_IFTYPE_AP) {
+		err = -EOPNOTSUPP;
+		goto out;
+	}
 	err = drv->ops->del_beacon(&drv->wiphy, dev);
 
  out:
@@ -1324,7 +1333,7 @@ static int nl80211_dump_station(struct sk_buff *skb,
 	}
 
 	if (!dev->ops->dump_station) {
-		err = -ENOSYS;
+		err = -EOPNOTSUPP;
 		goto out_err;
 	}
 
@@ -1698,8 +1707,13 @@ static int nl80211_dump_mpath(struct sk_buff *skb,
 	}
 
 	if (!dev->ops->dump_mpath) {
-		err = -ENOSYS;
+		err = -EOPNOTSUPP;
 		goto out_err;
+	}
+
+	if (netdev->ieee80211_ptr->iftype != NL80211_IFTYPE_MESH_POINT) {
+		err = -EOPNOTSUPP;
+		goto out;
 	}
 
 	while (1) {
@@ -1759,6 +1773,11 @@ static int nl80211_get_mpath(struct sk_buff *skb, struct genl_info *info)
 		goto out;
 	}
 
+	if (dev->ieee80211_ptr->iftype != NL80211_IFTYPE_MESH_POINT) {
+		err = -EOPNOTSUPP;
+		goto out;
+	}
+
 	err = drv->ops->get_mpath(&drv->wiphy, dev, dst, next_hop, &pinfo);
 	if (err)
 		goto out;
@@ -1813,6 +1832,11 @@ static int nl80211_set_mpath(struct sk_buff *skb, struct genl_info *info)
 		goto out;
 	}
 
+	if (dev->ieee80211_ptr->iftype != NL80211_IFTYPE_MESH_POINT) {
+		err = -EOPNOTSUPP;
+		goto out;
+	}
+
 	if (!netif_running(dev)) {
 		err = -ENETDOWN;
 		goto out;
@@ -1852,6 +1876,11 @@ static int nl80211_new_mpath(struct sk_buff *skb, struct genl_info *info)
 		goto out_rtnl;
 
 	if (!drv->ops->add_mpath) {
+		err = -EOPNOTSUPP;
+		goto out;
+	}
+
+	if (dev->ieee80211_ptr->iftype != NL80211_IFTYPE_MESH_POINT) {
 		err = -EOPNOTSUPP;
 		goto out;
 	}
@@ -1940,6 +1969,11 @@ static int nl80211_set_bss(struct sk_buff *skb, struct genl_info *info)
 		goto out_rtnl;
 
 	if (!drv->ops->change_bss) {
+		err = -EOPNOTSUPP;
+		goto out;
+	}
+
+	if (dev->ieee80211_ptr->iftype != NL80211_IFTYPE_AP) {
 		err = -EOPNOTSUPP;
 		goto out;
 	}
@@ -2661,6 +2695,11 @@ static int nl80211_authenticate(struct sk_buff *skb, struct genl_info *info)
 		goto out;
 	}
 
+	if (dev->ieee80211_ptr->iftype != NL80211_IFTYPE_STATION) {
+		err = -EOPNOTSUPP;
+		goto out;
+	}
+
 	if (!netif_running(dev)) {
 		err = -ENETDOWN;
 		goto out;
@@ -2734,6 +2773,11 @@ static int nl80211_associate(struct sk_buff *skb, struct genl_info *info)
 		goto out;
 	}
 
+	if (dev->ieee80211_ptr->iftype != NL80211_IFTYPE_STATION) {
+		err = -EOPNOTSUPP;
+		goto out;
+	}
+
 	if (!netif_running(dev)) {
 		err = -ENETDOWN;
 		goto out;
@@ -2797,6 +2841,11 @@ static int nl80211_deauthenticate(struct sk_buff *skb, struct genl_info *info)
 		goto out;
 	}
 
+	if (dev->ieee80211_ptr->iftype != NL80211_IFTYPE_STATION) {
+		err = -EOPNOTSUPP;
+		goto out;
+	}
+
 	if (!netif_running(dev)) {
 		err = -ENETDOWN;
 		goto out;
@@ -2852,6 +2901,11 @@ static int nl80211_disassociate(struct sk_buff *skb, struct genl_info *info)
 		goto unlock_rtnl;
 
 	if (!drv->ops->disassoc) {
+		err = -EOPNOTSUPP;
+		goto out;
+	}
+
+	if (dev->ieee80211_ptr->iftype != NL80211_IFTYPE_STATION) {
 		err = -EOPNOTSUPP;
 		goto out;
 	}
