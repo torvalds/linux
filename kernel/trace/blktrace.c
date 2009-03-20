@@ -1260,12 +1260,10 @@ static int blk_trace_remove_queue(struct request_queue *q)
 static int blk_trace_setup_queue(struct request_queue *q, dev_t dev)
 {
 	struct blk_trace *old_bt, *bt = NULL;
-	int ret;
 
-	ret = -ENOMEM;
 	bt = kzalloc(sizeof(*bt), GFP_KERNEL);
 	if (!bt)
-		goto err;
+		return -ENOMEM;
 
 	bt->dev = dev;
 	bt->act_mask = (u16)-1;
@@ -1276,11 +1274,10 @@ static int blk_trace_setup_queue(struct request_queue *q, dev_t dev)
 	if (old_bt != NULL) {
 		(void)xchg(&q->blk_trace, old_bt);
 		kfree(bt);
-		ret = -EBUSY;
+		return -EBUSY;
 	}
+
 	return 0;
-err:
-	return ret;
 }
 
 /*
