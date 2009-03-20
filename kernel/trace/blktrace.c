@@ -30,7 +30,7 @@
 static unsigned int blktrace_seq __read_mostly = 1;
 
 static struct trace_array *blk_tr;
-static int __read_mostly  blk_tracer_enabled;
+static bool blk_tracer_enabled __read_mostly;
 
 /* Select an alternative, minimalistic output than the original one */
 #define TRACE_BLK_OPT_CLASSIC	0x1
@@ -1111,9 +1111,7 @@ static int blk_tracer_init(struct trace_array *tr)
 {
 	blk_tr = tr;
 	blk_tracer_start(tr);
-	mutex_lock(&blk_probe_mutex);
-	blk_tracer_enabled++;
-	mutex_unlock(&blk_probe_mutex);
+	blk_tracer_enabled = true;
 	return 0;
 }
 
@@ -1131,11 +1129,7 @@ static void blk_tracer_reset(struct trace_array *tr)
 	if (!atomic_read(&blk_probes_ref))
 		return;
 
-	mutex_lock(&blk_probe_mutex);
-	blk_tracer_enabled--;
-	WARN_ON(blk_tracer_enabled < 0);
-	mutex_unlock(&blk_probe_mutex);
-
+	blk_tracer_enabled = false;
 	blk_tracer_stop(tr);
 }
 
