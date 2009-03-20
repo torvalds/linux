@@ -1225,6 +1225,10 @@ static int smsc911x_open(struct net_device *dev)
 	dev_info(&dev->dev, "SMSC911x/921x identified at %#08lx, IRQ: %d\n",
 		 (unsigned long)pdata->ioaddr, dev->irq);
 
+	/* Reset the last known duplex and carrier */
+	pdata->last_duplex = -1;
+	pdata->last_carrier = -1;
+
 	/* Bring the PHY up */
 	phy_start(pdata->phy_dev);
 

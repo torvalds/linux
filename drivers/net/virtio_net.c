@@ -953,6 +953,7 @@ static int virtnet_probe(struct virtio_device *vdev)
 
 	vi->status = VIRTIO_NET_S_LINK_UP;
 	virtnet_update_status(vi);
+	netif_carrier_on(dev);
 
 	pr_debug("virtnet: registered device %s\n", dev->name);
 	return 0;
