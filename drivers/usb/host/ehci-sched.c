@@ -1536,7 +1536,7 @@ itd_link_urb (
 					struct ehci_itd, itd_list);
 			list_move_tail (&itd->itd_list, &stream->td_list);
 			itd->stream = iso_stream_get (stream);
-			itd->urb = usb_get_urb (urb);
+			itd->urb = urb;
 			itd_init (ehci, stream, itd);
 		}
 
@@ -1645,7 +1645,7 @@ itd_complete (
 	(void) disable_periodic(ehci);
 	ehci_to_hcd(ehci)->self.bandwidth_isoc_reqs--;
 
-	if (unlikely (list_empty (&stream->td_list))) {
+	if (unlikely(list_is_singular(&stream->td_list))) {
 		ehci_to_hcd(ehci)->self.bandwidth_allocated
 				-= stream->bandwidth;
 		ehci_vdbg (ehci,
@@ -1656,7 +1656,6 @@ itd_complete (
 	iso_stream_put (ehci, stream);
 
 done:
-	usb_put_urb(urb);
 	itd->urb = NULL;
 	if (ehci->clock_frame != itd->frame || itd->index[7] != -1) {
 		/* OK to recycle this ITD now. */
@@ -1949,7 +1948,7 @@ sitd_link_urb (
 				struct ehci_sitd, sitd_list);
 		list_move_tail (&sitd->sitd_list, &stream->td_list);
 		sitd->stream = iso_stream_get (stream);
-		sitd->urb = usb_get_urb (urb);
+		sitd->urb = urb;
 
 		sitd_patch(ehci, stream, sitd, sched, packet);
 		sitd_link (ehci, (next_uframe >> 3) % ehci->periodic_size,
@@ -2034,7 +2033,7 @@ sitd_complete (
 	(void) disable_periodic(ehci);
 	ehci_to_hcd(ehci)->self.bandwidth_isoc_reqs--;
 
-	if (list_empty (&stream->td_list)) {
+	if (list_is_singular(&stream->td_list)) {
 		ehci_to_hcd(ehci)->self.bandwidth_allocated
 				-= stream->bandwidth;
 		ehci_vdbg (ehci,
@@ -2045,7 +2044,6 @@ sitd_complete (
 	iso_stream_put (ehci, stream);
 	/* OK to recycle this SITD now that its completion callback ran. */
 done:
-	usb_put_urb(urb);
 	sitd->urb = NULL;
 	sitd->stream = NULL;
 	list_move(&sitd->sitd_list, &stream->free_list);

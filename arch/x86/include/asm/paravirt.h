@@ -317,8 +317,6 @@ struct pv_mmu_ops {
 #if PAGETABLE_LEVELS >= 3
 #ifdef CONFIG_X86_PAE
 	void (*set_pte_atomic)(pte_t *ptep, pte_t pteval);
-	void (*set_pte_present)(struct mm_struct *mm, unsigned long addr,
-				pte_t *ptep, pte_t pte);
 	void (*pte_clear)(struct mm_struct *mm, unsigned long addr,
 			  pte_t *ptep);
 	void (*pmd_clear)(pmd_t *pmdp);
@@ -1365,13 +1363,6 @@ static inline void set_pte_atomic(pte_t *ptep, pte_t pte)
 		    pte.pte, pte.pte >> 32);
 }
 
-static inline void set_pte_present(struct mm_struct *mm, unsigned long addr,
-				   pte_t *ptep, pte_t pte)
-{
-	/* 5 arg words */
-	pv_mmu_ops.set_pte_present(mm, addr, ptep, pte);
-}
-
 static inline void pte_clear(struct mm_struct *mm, unsigned long addr,
 			     pte_t *ptep)
 {
@@ -1384,12 +1375,6 @@ static inline void pmd_clear(pmd_t *pmdp)
 }
 #else  /* !CONFIG_X86_PAE */
 static inline void set_pte_atomic(pte_t *ptep, pte_t pte)
-{
-	set_pte(ptep, pte);
-}
-
-static inline void set_pte_present(struct mm_struct *mm, unsigned long addr,
-				   pte_t *ptep, pte_t pte)
 {
 	set_pte(ptep, pte);
 }

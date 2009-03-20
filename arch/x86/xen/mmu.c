@@ -1870,7 +1870,6 @@ const struct pv_mmu_ops xen_mmu_ops __initdata = {
 
 #ifdef CONFIG_X86_PAE
 	.set_pte_atomic = xen_set_pte_atomic,
-	.set_pte_present = xen_set_pte_at,
 	.pte_clear = xen_pte_clear,
 	.pmd_clear = xen_pmd_clear,
 #endif	/* CONFIG_X86_PAE */

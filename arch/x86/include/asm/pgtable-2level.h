@@ -26,13 +26,6 @@ static inline void native_set_pte_atomic(pte_t *ptep, pte_t pte)
 	native_set_pte(ptep, pte);
 }
 
-static inline void native_set_pte_present(struct mm_struct *mm,
-					  unsigned long addr,
-					  pte_t *ptep, pte_t pte)
-{
-	native_set_pte(ptep, pte);
-}
-
 static inline void native_pmd_clear(pmd_t *pmdp)
 {
 	native_set_pmd(pmdp, __pmd(0));

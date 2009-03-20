@@ -31,8 +31,6 @@ extern struct list_head pgd_list;
 #define set_pte(ptep, pte)		native_set_pte(ptep, pte)
 #define set_pte_at(mm, addr, ptep, pte)	native_set_pte_at(mm, addr, ptep, pte)
 
-#define set_pte_present(mm, addr, ptep, pte)				\
-	native_set_pte_present(mm, addr, ptep, pte)
 #define set_pte_atomic(ptep, pte)					\
 	native_set_pte_atomic(ptep, pte)
 
