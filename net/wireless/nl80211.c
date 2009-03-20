@@ -1556,6 +1556,11 @@ static int nl80211_new_station(struct sk_buff *skb, struct genl_info *info)
 		goto out;
 	}
 
+	if (!netif_running(dev)) {
+		err = -ENETDOWN;
+		goto out;
+	}
+
 	err = drv->ops->add_station(&drv->wiphy, dev, mac_addr, &params);
 
  out:
@@ -1808,6 +1813,11 @@ static int nl80211_set_mpath(struct sk_buff *skb, struct genl_info *info)
 		goto out;
 	}
 
+	if (!netif_running(dev)) {
+		err = -ENETDOWN;
+		goto out;
+	}
+
 	err = drv->ops->change_mpath(&drv->wiphy, dev, dst, next_hop);
 
  out:
@@ -1843,6 +1853,11 @@ static int nl80211_new_mpath(struct sk_buff *skb, struct genl_info *info)
 
 	if (!drv->ops->add_mpath) {
 		err = -EOPNOTSUPP;
+		goto out;
+	}
+
+	if (!netif_running(dev)) {
+		err = -ENETDOWN;
 		goto out;
 	}
 
@@ -2380,6 +2395,11 @@ static int nl80211_trigger_scan(struct sk_buff *skb, struct genl_info *info)
 		goto out;
 	}
 
+	if (!netif_running(dev)) {
+		err = -ENETDOWN;
+		goto out;
+	}
+
 	if (drv->scan_req) {
 		err = -EBUSY;
 		goto out;
@@ -2641,6 +2661,11 @@ static int nl80211_authenticate(struct sk_buff *skb, struct genl_info *info)
 		goto out;
 	}
 
+	if (!netif_running(dev)) {
+		err = -ENETDOWN;
+		goto out;
+	}
+
 	if (!info->attrs[NL80211_ATTR_MAC]) {
 		err = -EINVAL;
 		goto out;
@@ -2709,6 +2734,11 @@ static int nl80211_associate(struct sk_buff *skb, struct genl_info *info)
 		goto out;
 	}
 
+	if (!netif_running(dev)) {
+		err = -ENETDOWN;
+		goto out;
+	}
+
 	if (!info->attrs[NL80211_ATTR_MAC] ||
 	    !info->attrs[NL80211_ATTR_SSID]) {
 		err = -EINVAL;
@@ -2767,6 +2797,11 @@ static int nl80211_deauthenticate(struct sk_buff *skb, struct genl_info *info)
 		goto out;
 	}
 
+	if (!netif_running(dev)) {
+		err = -ENETDOWN;
+		goto out;
+	}
+
 	if (!info->attrs[NL80211_ATTR_MAC]) {
 		err = -EINVAL;
 		goto out;
@@ -2818,6 +2853,11 @@ static int nl80211_disassociate(struct sk_buff *skb, struct genl_info *info)
 
 	if (!drv->ops->disassoc) {
 		err = -EOPNOTSUPP;
+		goto out;
+	}
+
+	if (!netif_running(dev)) {
+		err = -ENETDOWN;
 		goto out;
 	}
 

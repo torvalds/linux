@@ -728,10 +728,6 @@ static int ieee80211_add_station(struct wiphy *wiphy, struct net_device *dev,
 	int err;
 	int layer2_update;
 
-	/* Prevent a race with changing the rate control algorithm */
-	if (!netif_running(dev))
-		return -ENETDOWN;
-
 	if (params->vlan) {
 		sdata = IEEE80211_DEV_TO_SUB_IF(params->vlan);
 
@@ -860,9 +856,6 @@ static int ieee80211_add_mpath(struct wiphy *wiphy, struct net_device *dev,
 	struct sta_info *sta;
 	int err;
 
-	if (!netif_running(dev))
-		return -ENETDOWN;
-
 	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 
 	if (sdata->vif.type != NL80211_IFTYPE_MESH_POINT)
@@ -912,9 +905,6 @@ static int ieee80211_change_mpath(struct wiphy *wiphy,
 	struct ieee80211_sub_if_data *sdata;
 	struct mesh_path *mpath;
 	struct sta_info *sta;
-
-	if (!netif_running(dev))
-		return -ENETDOWN;
 
 	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 
@@ -1202,9 +1192,6 @@ static int ieee80211_scan(struct wiphy *wiphy,
 {
 	struct ieee80211_sub_if_data *sdata;
 
-	if (!netif_running(dev))
-		return -ENETDOWN;
-
 	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 
 	if (sdata->vif.type != NL80211_IFTYPE_STATION &&
@@ -1219,9 +1206,6 @@ static int ieee80211_auth(struct wiphy *wiphy, struct net_device *dev,
 			  struct cfg80211_auth_request *req)
 {
 	struct ieee80211_sub_if_data *sdata;
-
-	if (!netif_running(dev))
-		return -ENETDOWN;
 
 	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 
@@ -1282,9 +1266,6 @@ static int ieee80211_assoc(struct wiphy *wiphy, struct net_device *dev,
 	struct ieee80211_sub_if_data *sdata;
 	int ret;
 
-	if (!netif_running(dev))
-		return -ENETDOWN;
-
 	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 
 	if (sdata->vif.type != NL80211_IFTYPE_STATION)
@@ -1323,9 +1304,6 @@ static int ieee80211_deauth(struct wiphy *wiphy, struct net_device *dev,
 {
 	struct ieee80211_sub_if_data *sdata;
 
-	if (!netif_running(dev))
-		return -ENETDOWN;
-
 	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 	if (sdata->vif.type != NL80211_IFTYPE_STATION)
 		return -EOPNOTSUPP;
@@ -1338,9 +1316,6 @@ static int ieee80211_disassoc(struct wiphy *wiphy, struct net_device *dev,
 			      struct cfg80211_disassoc_request *req)
 {
 	struct ieee80211_sub_if_data *sdata;
-
-	if (!netif_running(dev))
-		return -ENETDOWN;
 
 	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 
