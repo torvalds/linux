@@ -129,6 +129,25 @@ static void sriov_release(struct pci_dev *dev)
 	dev->sriov = NULL;
 }
 
+static void sriov_restore_state(struct pci_dev *dev)
+{
+	int i;
+	u16 ctrl;
+	struct pci_sriov *iov = dev->sriov;
+
+	pci_read_config_word(dev, iov->pos + PCI_SRIOV_CTRL, &ctrl);
+	if (ctrl & PCI_SRIOV_CTRL_VFE)
+		return;
+
+	for (i = PCI_IOV_RESOURCES; i <= PCI_IOV_RESOURCE_END; i++)
+		pci_update_resource(dev, i);
+
+	pci_write_config_dword(dev, iov->pos + PCI_SRIOV_SYS_PGSIZE, iov->pgsz);
+	pci_write_config_word(dev, iov->pos + PCI_SRIOV_CTRL, iov->ctrl);
+	if (iov->ctrl & PCI_SRIOV_CTRL_VFE)
+		msleep(100);
+}
+
 /**
  * pci_iov_init - initialize the IOV capability
  * @dev: the PCI device
@@ -179,4 +198,14 @@ int pci_iov_resource_bar(struct pci_dev *dev, int resno,
 
 	return dev->sriov->pos + PCI_SRIOV_BAR +
 		4 * (resno - PCI_IOV_RESOURCES);
+}
+
+/**
+ * pci_restore_iov_state - restore the state of the IOV capability
+ * @dev: the PCI device
+ */
+void pci_restore_iov_state(struct pci_dev *dev)
+{
+	if (dev->is_physfn)
+		sriov_restore_state(dev);
 }

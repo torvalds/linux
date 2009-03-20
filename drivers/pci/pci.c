@@ -775,6 +775,7 @@ pci_restore_state(struct pci_dev *dev)
 	}
 	pci_restore_pcix_state(dev);
 	pci_restore_msi_state(dev);
+	pci_restore_iov_state(dev);
 
 	return 0;
 }
