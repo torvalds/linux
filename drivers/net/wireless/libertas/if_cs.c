@@ -421,7 +421,7 @@ static struct sk_buff *if_cs_receive_data(struct lbs_private *priv)
 	len = if_cs_read16(priv->card, IF_CS_READ_LEN);
 	if (len == 0 || len > MRVDRV_ETH_RX_PACKET_BUFFER_SIZE) {
 		lbs_pr_err("card data buffer has invalid # of bytes (%d)\n", len);
-		priv->stats.rx_dropped++;
+		priv->dev->stats.rx_dropped++;
 		goto dat_err;
 	}
 

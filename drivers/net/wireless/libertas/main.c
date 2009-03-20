@@ -582,20 +582,6 @@ void lbs_host_to_card_done(struct lbs_private *priv)
 }
 EXPORT_SYMBOL_GPL(lbs_host_to_card_done);
 
-/**
- *  @brief This function returns the network statistics
- *
- *  @param dev     A pointer to struct lbs_private structure
- *  @return 	   A pointer to net_device_stats structure
- */
-static struct net_device_stats *lbs_get_stats(struct net_device *dev)
-{
-	struct lbs_private *priv = dev->ml_priv;
-
-	lbs_deb_enter(LBS_DEB_NET);
-	return &priv->stats;
-}
-
 static int lbs_set_mac_address(struct net_device *dev, void *addr)
 {
 	int ret = 0;
@@ -1201,7 +1187,7 @@ struct lbs_private *lbs_add_card(void *card, struct device *dmdev)
 	dev->stop = lbs_eth_stop;
 	dev->set_mac_address = lbs_set_mac_address;
 	dev->tx_timeout = lbs_tx_timeout;
-	dev->get_stats = lbs_get_stats;
+
 	dev->watchdog_timeo = 5 * HZ;
 	dev->ethtool_ops = &lbs_ethtool_ops;
 #ifdef	WIRELESS_EXT
@@ -1443,7 +1429,6 @@ static int lbs_add_mesh(struct lbs_private *priv)
 	mesh_dev->open = lbs_dev_open;
 	mesh_dev->hard_start_xmit = lbs_hard_start_xmit;
 	mesh_dev->stop = lbs_mesh_stop;
-	mesh_dev->get_stats = lbs_get_stats;
 	mesh_dev->set_mac_address = lbs_set_mac_address;
 	mesh_dev->ethtool_ops = &lbs_ethtool_ops;
 	memcpy(mesh_dev->dev_addr, priv->dev->dev_addr,
@@ -1648,14 +1633,6 @@ static int lbs_rtap_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	return NETDEV_TX_BUSY;
 }
 
-static struct net_device_stats *lbs_rtap_get_stats(struct net_device *dev)
-{
-	struct lbs_private *priv = dev->ml_priv;
-	lbs_deb_enter(LBS_DEB_NET);
-	return &priv->stats;
-}
-
-
 static void lbs_remove_rtap(struct lbs_private *priv)
 {
 	lbs_deb_enter(LBS_DEB_MAIN);
@@ -1689,7 +1666,6 @@ static int lbs_add_rtap(struct lbs_private *priv)
 	rtap_dev->type = ARPHRD_IEEE80211_RADIOTAP;
 	rtap_dev->open = lbs_rtap_open;
 	rtap_dev->stop = lbs_rtap_stop;
-	rtap_dev->get_stats = lbs_rtap_get_stats;
 	rtap_dev->hard_start_xmit = lbs_rtap_hard_start_xmit;
 	rtap_dev->ml_priv = priv;
 	SET_NETDEV_DEV(rtap_dev, priv->dev->dev.parent);
