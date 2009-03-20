@@ -4436,6 +4436,19 @@ wavelan_close(struct net_device *	dev)
   return 0;
 }
 
+static const struct net_device_ops wavelan_netdev_ops = {
+	.ndo_open 		= wavelan_open,
+	.ndo_stop		= wavelan_close,
+	.ndo_start_xmit		= wavelan_packet_xmit,
+	.ndo_set_multicast_list = wavelan_set_multicast_list,
+#ifdef SET_MAC_ADDRESS
+	.ndo_set_mac_address	= wavelan_set_mac_address,
+#endif
+	.ndo_tx_timeout		= wavelan_watchdog,
+	.ndo_change_mtu		= eth_change_mtu,
+	.ndo_validate_addr	= eth_validate_addr,
+};
+
 /*------------------------------------------------------------------*/
 /*
  * wavelan_attach() creates an "instance" of the driver, allocating
@@ -4496,16 +4509,7 @@ wavelan_probe(struct pcmcia_device *p_dev)
   lp->dev = dev;
 
   /* wavelan NET3 callbacks */
-  dev->open = &wavelan_open;
-  dev->stop = &wavelan_close;
-  dev->hard_start_xmit = &wavelan_packet_xmit;
-  dev->set_multicast_list = &wavelan_set_multicast_list;
-#ifdef SET_MAC_ADDRESS
-  dev->set_mac_address = &wavelan_set_mac_address;
-#endif	/* SET_MAC_ADDRESS */
-
-  /* Set the watchdog timer */
-  dev->tx_timeout	= &wavelan_watchdog;
+  dev->netdev_ops = &wavelan_netdev_ops;
   dev->watchdog_timeo	= WATCHDOG_JIFFIES;
   SET_ETHTOOL_OPS(dev, &ops);
 
