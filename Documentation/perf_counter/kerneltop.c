@@ -473,7 +473,7 @@ static struct sym_entry		sym_table[MAX_SYMS];
 static void show_details(struct sym_entry *sym);
 
 /*
- * Ordering weight: count-1 * count-1 * ... / count-n
+ * Ordering weight: count-1 * count-2 * ... / count-n
  */
 static double sym_weight(const struct sym_entry *sym)
 {
