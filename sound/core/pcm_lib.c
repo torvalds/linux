@@ -222,8 +222,9 @@ static int snd_pcm_update_hw_ptr_interrupt(struct snd_pcm_substream *substream)
 	hw_ptr_interrupt = runtime->hw_ptr_interrupt + runtime->period_size;
 	delta = new_hw_ptr - hw_ptr_interrupt;
 	if (hw_ptr_interrupt >= runtime->boundary) {
-		hw_ptr_interrupt %= runtime->boundary;
-		if (!hw_base) /* hw_base was already lapped; recalc delta */
+		hw_ptr_interrupt -= runtime->boundary;
+		if (hw_base < runtime->boundary / 2)
+			/* hw_base was already lapped; recalc delta */
 			delta = new_hw_ptr - hw_ptr_interrupt;
 	}
 	if (delta < 0) {
@@ -241,7 +242,7 @@ static int snd_pcm_update_hw_ptr_interrupt(struct snd_pcm_substream *substream)
 			delta = 0;
 		} else {
 			hw_base += runtime->buffer_size;
-			if (hw_base == runtime->boundary)
+			if (hw_base >= runtime->boundary)
 				hw_base = 0;
 			new_hw_ptr = hw_base + pos;
 		}
@@ -296,7 +297,7 @@ int snd_pcm_update_hw_ptr(struct snd_pcm_substream *substream)
 			return 0;
 		}
 		hw_base += runtime->buffer_size;
-		if (hw_base == runtime->boundary)
+		if (hw_base >= runtime->boundary)
 			hw_base = 0;
 		new_hw_ptr = hw_base + pos;
 	}
