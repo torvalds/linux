@@ -432,7 +432,7 @@ int do_blk_trace_setup(struct request_queue *q, char *name, dev_t dev,
 	if (!blk_tree_root) {
 		blk_tree_root = debugfs_create_dir("block", NULL);
 		if (!blk_tree_root)
-			return -ENOMEM;
+			goto err;
 	}
 
 	dir = debugfs_create_dir(buts->name, blk_tree_root);
