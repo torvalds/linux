@@ -273,26 +273,6 @@ static void be_rx_eqd_update(struct be_adapter *adapter)
 	rx_eq->cur_eqd = eqd;
 }
 
-static void be_worker(struct work_struct *work)
-{
-	struct be_adapter *adapter =
-		container_of(work, struct be_adapter, work.work);
-	int status;
-
-	/* Check link */
-	be_link_status_update(adapter);
-
-	/* Get Stats */
-	status = be_cmd_get_stats(&adapter->ctrl, &adapter->stats.cmd);
-	if (!status)
-		netdev_stats_update(adapter);
-
-	/* Set EQ delay */
-	be_rx_eqd_update(adapter);
-
-	schedule_delayed_work(&adapter->work, msecs_to_jiffies(1000));
-}
-
 static struct net_device_stats *be_get_stats(struct net_device *dev)
 {
 	struct be_adapter *adapter = netdev_priv(dev);
@@ -900,8 +880,11 @@ static void be_post_rx_frags(struct be_adapter *adapter)
 		page_info->last_page_user = true;
 
 	if (posted) {
-		be_rxq_notify(&adapter->ctrl, rxq->id, posted);
 		atomic_add(posted, &rxq->used);
+		be_rxq_notify(&adapter->ctrl, rxq->id, posted);
+	} else if (atomic_read(&rxq->used) == 0) {
+		/* Let be_worker replenish when memory is available */
+		adapter->rx_post_starved = true;
 	}
 
 	return;
@@ -1303,6 +1286,31 @@ int be_poll_tx(struct napi_struct *napi, int budget)
 	drvr_stats(adapter)->be_tx_compl += num_cmpl;
 
 	return 1;
+}
+
+static void be_worker(struct work_struct *work)
+{
+	struct be_adapter *adapter =
+		container_of(work, struct be_adapter, work.work);
+	int status;
+
+	/* Check link */
+	be_link_status_update(adapter);
+
+	/* Get Stats */
+	status = be_cmd_get_stats(&adapter->ctrl, &adapter->stats.cmd);
+	if (!status)
+		netdev_stats_update(adapter);
+
+	/* Set EQ delay */
+	be_rx_eqd_update(adapter);
+
+	if (adapter->rx_post_starved) {
+		adapter->rx_post_starved = false;
+		be_post_rx_frags(adapter);
+	}
+
+	schedule_delayed_work(&adapter->work, msecs_to_jiffies(1000));
 }
 
 static void be_msix_enable(struct be_adapter *adapter)
