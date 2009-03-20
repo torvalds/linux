@@ -143,6 +143,10 @@ asmlinkage int sys_perf_counter_open(
 	return ret;
 }
 
+static int			nr_counters			= 0;
+static long			event_id[MAX_COUNTERS]		= { -2, -5, -4, -3, 0, 1, 2, 3};
+static int			event_raw[MAX_COUNTERS];
+
 static char *hw_event_names [] = {
 	"CPU cycles",
 	"instructions",
@@ -235,14 +239,13 @@ static int match_event_symbols(char *str)
 	return PERF_HW_EVENTS_MAX;
 }
 
-static void parse_events(char *str)
+static int parse_events(char *str)
 {
 	int type, raw;
 
 again:
-	nr_counters++;
 	if (nr_counters == MAX_COUNTERS)
-		display_help();
+		return -1;
 
 	raw = 0;
 	if (*str == 'r') {
@@ -252,16 +255,18 @@ again:
 	} else {
 		type = match_event_symbols(str);
 		if (!type_valid(type))
-			display_help();
+			return -1;
 	}
 
 	event_id[nr_counters] = type;
 	event_raw[nr_counters] = raw;
+	nr_counters++;
 
 	str = strstr(str, ",");
 	if (str) {
 		str++;
 		goto again;
 	}
-}
 
+	return 0;
+}

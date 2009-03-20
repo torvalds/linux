@@ -86,13 +86,9 @@ const unsigned int default_count[] = {
 	  10000,
 };
 
-static int			nr_counters			= -1;
-
 static __u64			count_filter		       = 100;
 
 static int			event_count[MAX_COUNTERS];
-static unsigned long		event_id[MAX_COUNTERS];
-static int			event_raw[MAX_COUNTERS];
 
 static int			tid				= -1;
 static int			profile_cpu			= -1;
@@ -125,7 +121,7 @@ static void display_help(void)
 	"KernelTop Options (up to %d event types can be specified at once):\n\n",
 		 MAX_COUNTERS);
 	printf(
-	" -e EID    --event_id=EID     # event type ID                    [default:  0]\n"
+	" -e EID    --event=EID        # event type ID                    [default:  0]\n"
 	"                                   0: CPU cycles\n"
 	"                                   1: instructions\n"
 	"                                   2: cache accesses\n"
@@ -160,7 +156,7 @@ static void process_options(int argc, char *argv[])
 			{"cpu",		required_argument,	NULL, 'C'},
 			{"delay",	required_argument,	NULL, 'd'},
 			{"dump_symtab",	no_argument,		NULL, 'D'},
-			{"event_id",	required_argument,	NULL, 'e'},
+			{"event",	required_argument,	NULL, 'e'},
 			{"filter",	required_argument,	NULL, 'f'},
 			{"group",	required_argument,	NULL, 'g'},
 			{"help",	no_argument,		NULL, 'h'},
@@ -178,8 +174,6 @@ static void process_options(int argc, char *argv[])
 
 		switch (c) {
 		case 'c':
-			if (nr_counters == -1)
-				nr_counters = 0;
 			event_count[nr_counters]	=   atoi(optarg); break;
 		case 'C':
 			/* CPU and PID are mutually exclusive */
@@ -192,18 +186,7 @@ static void process_options(int argc, char *argv[])
 		case 'd': delay_secs			=   atoi(optarg); break;
 		case 'D': dump_symtab			=              1; break;
 
-		case 'e':
-			nr_counters++;
-			if (nr_counters == MAX_COUNTERS) {
-				error = 1;
-				break;
-			}
-			if (*optarg == 'r') {
-				event_raw[nr_counters] = 1;
-				++optarg;
-			}
-			event_id[nr_counters] = strtol(optarg, NULL, 16);
-			break;
+		case 'e': error				= parse_events(optarg); break;
 
 		case 'f': count_filter			=   atoi(optarg); break;
 		case 'g': group				=   atoi(optarg); break;
@@ -226,9 +209,10 @@ static void process_options(int argc, char *argv[])
 	if (error)
 		display_help();
 
-	nr_counters++;
-	if (nr_counters < 1)
+	if (!nr_counters) {
 		nr_counters = 1;
+		event_id[0] = 0;
+	}
 
 	for (counter = 0; counter < nr_counters; counter++) {
 		if (event_count[counter])

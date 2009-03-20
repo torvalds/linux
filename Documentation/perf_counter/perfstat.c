@@ -54,13 +54,7 @@
 
 #include "perfcounters.h"
 
-static int			nr_counters		= 0;
 static int			nr_cpus			= 0;
-
-static int			event_id[MAX_COUNTERS]	=
-					 { -2, -5, -4, -3, 0, 1, 2, 3};
-
-static int			event_raw[MAX_COUNTERS];
 
 static int			system_wide		= 0;
 
@@ -127,8 +121,6 @@ static void process_options(int argc, char *argv[])
 
 	if (!nr_counters)
 		nr_counters = 8;
-	else
-		nr_counters++;
 	return;
 
 err:
