@@ -3222,7 +3222,6 @@ while (0)
 
 	hostap_setup_dev(dev, local, HOSTAP_INTERFACE_MASTER);
 
-	dev->hard_start_xmit = hostap_master_start_xmit;
 	dev->type = ARPHRD_IEEE80211;
 	dev->header_ops = &hostap_80211_ops;
 
