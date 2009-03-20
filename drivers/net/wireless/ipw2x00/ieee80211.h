@@ -1016,6 +1016,7 @@ static inline int ieee80211_is_cck_rate(u8 rate)
 /* ieee80211.c */
 extern void free_ieee80211(struct net_device *dev);
 extern struct net_device *alloc_ieee80211(int sizeof_priv);
+extern int ieee80211_change_mtu(struct net_device *dev, int new_mtu);
 
 extern void ieee80211_networks_age(struct ieee80211_device *ieee,
 				   unsigned long age_secs);
