@@ -84,6 +84,7 @@ static struct shash_alg sha384_alg = {
 		.cra_driver_name=	"sha384-s390",
 		.cra_priority	=	CRYPT_S390_PRIORITY,
 		.cra_flags	=	CRYPTO_ALG_TYPE_SHASH,
+		.cra_blocksize	=	SHA384_BLOCK_SIZE,
 		.cra_ctxsize	=	sizeof(struct s390_sha_ctx),
 		.cra_module	=	THIS_MODULE,
 	}
