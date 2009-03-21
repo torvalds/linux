@@ -1041,6 +1041,9 @@ static int __init init_mac80211_hwsim(void)
 			break;
 		}
 
+		/* give the regulatory workqueue a chance to run */
+		if (regtest)
+			schedule_timeout_interruptible(1);
 		err = ieee80211_register_hw(hw);
 		if (err < 0) {
 			printk(KERN_DEBUG "mac80211_hwsim: "
