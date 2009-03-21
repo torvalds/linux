@@ -213,8 +213,7 @@ void emma2rh_irq_dispatch(void)
 		    emma2rh_in32(EMMA2RH_BHIF_INT_EN_0);
 
 #ifdef EMMA2RH_SW_CASCADE
-	if (intStatus &
-	    (1 << ((EMMA2RH_SW_CASCADE - EMMA2RH_IRQ_INT0) & (32 - 1)))) {
+	if (intStatus & (1UL << EMMA2RH_SW_CASCADE)) {
 		u32 swIntStatus;
 		swIntStatus = emma2rh_in32(EMMA2RH_BHIF_SW_INT)
 		    & emma2rh_in32(EMMA2RH_BHIF_SW_INT_EN);
@@ -225,6 +224,8 @@ void emma2rh_irq_dispatch(void)
 			}
 		}
 	}
+	/* Skip S/W interrupt */
+	intStatus &= ~(1UL << EMMA2RH_SW_CASCADE);
 #endif
 
 	for (i = 0, bitmask = 1; i < 32; i++, bitmask <<= 1) {
@@ -238,8 +239,7 @@ void emma2rh_irq_dispatch(void)
 		    emma2rh_in32(EMMA2RH_BHIF_INT_EN_1);
 
 #ifdef EMMA2RH_GPIO_CASCADE
-	if (intStatus &
-	    (1 << ((EMMA2RH_GPIO_CASCADE - EMMA2RH_IRQ_INT0) & (32 - 1)))) {
+	if (intStatus & (1UL << (EMMA2RH_GPIO_CASCADE % 32))) {
 		u32 gpioIntStatus;
 		gpioIntStatus = emma2rh_in32(EMMA2RH_GPIO_INT_ST)
 		    & emma2rh_in32(EMMA2RH_GPIO_INT_MASK);
@@ -250,6 +250,8 @@ void emma2rh_irq_dispatch(void)
 			}
 		}
 	}
+	/* Skip GPIO interrupt */
+	intStatus &= ~(1UL << (EMMA2RH_GPIO_CASCADE % 32));
 #endif
 
 	for (i = 32, bitmask = 1; i < 64; i++, bitmask <<= 1) {
