@@ -122,9 +122,14 @@ static const struct ieee80211_regdomain *cfg80211_world_regdom =
 
 #ifdef CONFIG_WIRELESS_OLD_REGULATORY
 static char *ieee80211_regdom = "US";
+#else
+static char *ieee80211_regdom = "00";
+#endif
+
 module_param(ieee80211_regdom, charp, 0444);
 MODULE_PARM_DESC(ieee80211_regdom, "IEEE 802.11 regulatory domain code");
 
+#ifdef CONFIG_WIRELESS_OLD_REGULATORY
 /*
  * We assume 40 MHz bandwidth for the old regulatory work.
  * We make emphasis we are using the exact same frequencies
@@ -2152,7 +2157,7 @@ int regulatory_init(void)
 #else
 	cfg80211_regdomain = cfg80211_world_regdom;
 
-	err = regulatory_hint_core("00");
+	err = regulatory_hint_core(ieee80211_regdom);
 #endif
 	if (err) {
 		if (err == -ENOMEM)
