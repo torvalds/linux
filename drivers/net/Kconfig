@@ -1042,7 +1042,7 @@ config NI65
 
 config DNET
 	tristate "Dave ethernet support (DNET)"
-	depends on NET_ETHERNET
+	depends on NET_ETHERNET && HAS_IOMEM
 	select PHYLIB
 	help
 	  The Dave ethernet interface (DNET) is found on Qong Board FPGA.
