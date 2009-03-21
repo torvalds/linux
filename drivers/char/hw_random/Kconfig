@@ -22,7 +22,7 @@ config HW_RANDOM
 
 config HW_RANDOM_TIMERIOMEM
 	tristate "Timer IOMEM HW Random Number Generator support"
-	depends on HW_RANDOM
+	depends on HW_RANDOM && HAS_IOMEM
 	---help---
 	  This driver provides kernel-side support for a generic Random
 	  Number Generator used by reading a 'dumb' iomem address that
