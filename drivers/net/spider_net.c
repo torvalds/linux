@@ -2259,6 +2259,22 @@ spider_net_tx_timeout(struct net_device *netdev)
 	card->spider_stats.tx_timeouts++;
 }
 
+static const struct net_device_ops spider_net_ops = {
+	.ndo_open		= spider_net_open;
+	.ndo_stop		= spider_net_stop;
+	.ndo_start_xmit		= spider_net_xmit;
+	.ndo_set_multicast_list	= spider_net_set_multi;
+	.ndo_set_mac_address	= spider_net_set_mac;
+	.ndo_change_mtu		= spider_net_change_mtu;
+	.ndo_do_ioctl		= spider_net_do_ioctl;
+	.ndo_tx_timeout		= spider_net_tx_timeout;
+	/* HW VLAN */
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	/* poll controller */
+	.ndo_poll_controller	= spider_net_poll_controller;
+#endif /* CONFIG_NET_POLL_CONTROLLER */
+};
+
 /**
  * spider_net_setup_netdev_ops - initialization of net_device operations
  * @netdev: net_device structure
@@ -2268,21 +2284,8 @@ spider_net_tx_timeout(struct net_device *netdev)
 static void
 spider_net_setup_netdev_ops(struct net_device *netdev)
 {
-	netdev->open = &spider_net_open;
-	netdev->stop = &spider_net_stop;
-	netdev->hard_start_xmit = &spider_net_xmit;
-	netdev->set_multicast_list = &spider_net_set_multi;
-	netdev->set_mac_address = &spider_net_set_mac;
-	netdev->change_mtu = &spider_net_change_mtu;
-	netdev->do_ioctl = &spider_net_do_ioctl;
-	/* tx watchdog */
-	netdev->tx_timeout = &spider_net_tx_timeout;
+	netdev->netdev_ops = &spider_net_ops;
 	netdev->watchdog_timeo = SPIDER_NET_WATCHDOG_TIMEOUT;
-	/* HW VLAN */
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	/* poll controller */
-	netdev->poll_controller = &spider_net_poll_controller;
-#endif /* CONFIG_NET_POLL_CONTROLLER */
 	/* ethtool ops */
 	netdev->ethtool_ops = &spider_net_ethtool_ops;
 }
