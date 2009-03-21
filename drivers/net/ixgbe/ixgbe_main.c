@@ -4321,6 +4321,16 @@ static int ixgbe_maybe_stop_tx(struct net_device *netdev,
 	return __ixgbe_maybe_stop_tx(netdev, tx_ring, size);
 }
 
+static u16 ixgbe_select_queue(struct net_device *dev, struct sk_buff *skb)
+{
+	struct ixgbe_adapter *adapter = netdev_priv(dev);
+
+	if (adapter->flags & IXGBE_FLAG_DCB_ENABLED)
+		return 0;  /* All traffic should default to class 0 */
+
+	return skb_tx_hash(dev, skb);
+}
+
 static int ixgbe_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
@@ -4450,6 +4460,7 @@ static const struct net_device_ops ixgbe_netdev_ops = {
 	.ndo_open 		= ixgbe_open,
 	.ndo_stop		= ixgbe_close,
 	.ndo_start_xmit		= ixgbe_xmit_frame,
+	.ndo_select_queue	= ixgbe_select_queue,
 	.ndo_get_stats		= ixgbe_get_stats,
 	.ndo_set_rx_mode        = ixgbe_set_rx_mode,
 	.ndo_set_multicast_list	= ixgbe_set_rx_mode,

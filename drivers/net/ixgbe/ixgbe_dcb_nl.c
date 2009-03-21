@@ -102,12 +102,6 @@ static u8 ixgbe_dcbnl_get_state(struct net_device *netdev)
 	return !!(adapter->flags & IXGBE_FLAG_DCB_ENABLED);
 }
 
-static u16 ixgbe_dcb_select_queue(struct net_device *dev, struct sk_buff *skb)
-{
-	/* All traffic should default to class 0 */
-	return 0;
-}
-
 static u8 ixgbe_dcbnl_set_state(struct net_device *netdev, u8 state)
 {
 	u8 err = 0;
@@ -135,7 +129,6 @@ static u8 ixgbe_dcbnl_set_state(struct net_device *netdev, u8 state)
 		kfree(adapter->rx_ring);
 		adapter->tx_ring = NULL;
 		adapter->rx_ring = NULL;
-		netdev->select_queue = &ixgbe_dcb_select_queue;
 
 		adapter->flags &= ~IXGBE_FLAG_RSS_ENABLED;
 		adapter->flags |= IXGBE_FLAG_DCB_ENABLED;
@@ -154,7 +147,6 @@ static u8 ixgbe_dcbnl_set_state(struct net_device *netdev, u8 state)
 			kfree(adapter->rx_ring);
 			adapter->tx_ring = NULL;
 			adapter->rx_ring = NULL;
-			netdev->select_queue = NULL;
 
 			adapter->flags &= ~IXGBE_FLAG_DCB_ENABLED;
 			adapter->flags |= IXGBE_FLAG_RSS_ENABLED;
