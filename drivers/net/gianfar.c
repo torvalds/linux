@@ -549,7 +549,7 @@ static int gfar_remove(struct of_device *ofdev)
 static int gfar_suspend(struct of_device *ofdev, pm_message_t state)
 {
 	struct gfar_private *priv = dev_get_drvdata(&ofdev->dev);
-	struct net_device *dev = priv->dev;
+	struct net_device *dev = priv->ndev;
 	unsigned long flags;
 	u32 tempval;
 
@@ -598,7 +598,7 @@ static int gfar_suspend(struct of_device *ofdev, pm_message_t state)
 static int gfar_resume(struct of_device *ofdev)
 {
 	struct gfar_private *priv = dev_get_drvdata(&ofdev->dev);
-	struct net_device *dev = priv->dev;
+	struct net_device *dev = priv->ndev;
 	unsigned long flags;
 	u32 tempval;
 	int magic_packet = priv->wol_en &&
