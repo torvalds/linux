@@ -555,6 +555,55 @@ static unsigned long __init get_mpc_size(unsigned long physptr)
 	return size;
 }
 
+static int __init check_physptr(struct mpf_intel *mpf, unsigned int early)
+{
+	struct mpc_table *mpc;
+	unsigned long size;
+
+	size = get_mpc_size(mpf->physptr);
+	mpc = early_ioremap(mpf->physptr, size);
+	/*
+	 * Read the physical hardware table.  Anything here will
+	 * override the defaults.
+	 */
+	if (!smp_read_mpc(mpc, early)) {
+#ifdef CONFIG_X86_LOCAL_APIC
+		smp_found_config = 0;
+#endif
+		printk(KERN_ERR "BIOS bug, MP table errors detected!...\n"
+			"... disabling SMP support. (tell your hw vendor)\n");
+		early_iounmap(mpc, size);
+		return -1;
+	}
+	early_iounmap(mpc, size);
+
+	if (early)
+		return -1;
+
+#ifdef CONFIG_X86_IO_APIC
+	/*
+	 * If there are no explicit MP IRQ entries, then we are
+	 * broken.  We set up most of the low 16 IO-APIC pins to
+	 * ISA defaults and hope it will work.
+	 */
+	if (!mp_irq_entries) {
+		struct mpc_bus bus;
+
+		printk(KERN_ERR "BIOS bug, no explicit IRQ entries, "
+		       "using default mptable. (tell your hw vendor)\n");
+
+		bus.type = MP_BUS;
+		bus.busid = 0;
+		memcpy(bus.bustype, "ISA   ", 6);
+		MP_bus_info(&bus);
+
+		construct_default_ioirq_mptable(0);
+	}
+#endif
+
+	return 0;
+}
+
 /*
  * Scan the memory blocks for an SMP configuration block.
  */
@@ -608,51 +657,8 @@ static void __init __get_smp_config(unsigned int early)
 		construct_default_ISA_mptable(mpf->feature1);
 
 	} else if (mpf->physptr) {
-		struct mpc_table *mpc;
-		unsigned long size;
-
-		size = get_mpc_size(mpf->physptr);
-		mpc = early_ioremap(mpf->physptr, size);
-		/*
-		 * Read the physical hardware table.  Anything here will
-		 * override the defaults.
-		 */
-		if (!smp_read_mpc(mpc, early)) {
-#ifdef CONFIG_X86_LOCAL_APIC
-			smp_found_config = 0;
-#endif
-			printk(KERN_ERR
-			       "BIOS bug, MP table errors detected!...\n");
-			printk(KERN_ERR "... disabling SMP support. "
-			       "(tell your hw vendor)\n");
-			early_iounmap(mpc, size);
+		if (check_physptr(mpf, early))
 			return;
-		}
-		early_iounmap(mpc, size);
-
-		if (early)
-			return;
-#ifdef CONFIG_X86_IO_APIC
-		/*
-		 * If there are no explicit MP IRQ entries, then we are
-		 * broken.  We set up most of the low 16 IO-APIC pins to
-		 * ISA defaults and hope it will work.
-		 */
-		if (!mp_irq_entries) {
-			struct mpc_bus bus;
-
-			printk(KERN_ERR "BIOS bug, no explicit IRQ entries, "
-			       "using default mptable. "
-			       "(tell your hw vendor)\n");
-
-			bus.type = MP_BUS;
-			bus.busid = 0;
-			memcpy(bus.bustype, "ISA   ", 6);
-			MP_bus_info(&bus);
-
-			construct_default_ioirq_mptable(0);
-		}
-#endif
 	} else
 		BUG();
 
