@@ -40,6 +40,7 @@
 
 #include <linux/errno.h>
 #include <linux/types.h>
+#include <linux/kernel.h>
 #include <linux/socket.h>
 #include <linux/sockios.h>
 #include <linux/net.h>
@@ -1215,16 +1216,12 @@ int ipv6_dev_get_saddr(struct net *net, struct net_device *dst_dev,
 					}
 					break;
 				} else if (minihiscore < miniscore) {
-					struct ipv6_saddr_score *tmp;
-
 					if (hiscore->ifa)
 						in6_ifa_put(hiscore->ifa);
 
 					in6_ifa_hold(score->ifa);
 
-					tmp = hiscore;
-					hiscore = score;
-					score = tmp;
+					swap(hiscore, score);
 
 					/* restore our iterator */
 					score->ifa = hiscore->ifa;

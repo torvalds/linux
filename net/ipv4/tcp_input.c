@@ -64,6 +64,7 @@
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/sysctl.h>
+#include <linux/kernel.h>
 #include <net/dst.h>
 #include <net/tcp.h>
 #include <net/inet_common.h>
@@ -1802,11 +1803,7 @@ tcp_sacktag_write_queue(struct sock *sk, struct sk_buff *ack_skb,
 	for (i = used_sacks - 1; i > 0; i--) {
 		for (j = 0; j < i; j++) {
 			if (after(sp[j].start_seq, sp[j + 1].start_seq)) {
-				struct tcp_sack_block tmp;
-
-				tmp = sp[j];
-				sp[j] = sp[j + 1];
-				sp[j + 1] = tmp;
+				swap(sp[j], sp[j + 1]);
 
 				/* Track where the first SACK block goes to */
 				if (j == first_sack_index)
@@ -4156,20 +4153,6 @@ static void tcp_sack_maybe_coalesce(struct tcp_sock *tp)
 	}
 }
 
-static inline void tcp_sack_swap(struct tcp_sack_block *sack1,
-				 struct tcp_sack_block *sack2)
-{
-	__u32 tmp;
-
-	tmp = sack1->start_seq;
-	sack1->start_seq = sack2->start_seq;
-	sack2->start_seq = tmp;
-
-	tmp = sack1->end_seq;
-	sack1->end_seq = sack2->end_seq;
-	sack2->end_seq = tmp;
-}
-
 static void tcp_sack_new_ofo_skb(struct sock *sk, u32 seq, u32 end_seq)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
@@ -4184,7 +4167,7 @@ static void tcp_sack_new_ofo_skb(struct sock *sk, u32 seq, u32 end_seq)
 		if (tcp_sack_extend(sp, seq, end_seq)) {
 			/* Rotate this_sack to the first one. */
 			for (; this_sack > 0; this_sack--, sp--)
-				tcp_sack_swap(sp, sp - 1);
+				swap(*sp, *(sp - 1));
 			if (cur_sacks > 1)
 				tcp_sack_maybe_coalesce(tp);
 			return;

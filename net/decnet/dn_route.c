@@ -380,7 +380,6 @@ static int dn_return_short(struct sk_buff *skb)
 	unsigned char *ptr;
 	__le16 *src;
 	__le16 *dst;
-	__le16 tmp;
 
 	/* Add back headers */
 	skb_push(skb, skb->data - skb_network_header(skb));
@@ -399,10 +398,7 @@ static int dn_return_short(struct sk_buff *skb)
 	ptr += 2;
 	*ptr = 0; /* Zero hop count */
 
-	/* Swap source and destination */
-	tmp  = *src;
-	*src = *dst;
-	*dst = tmp;
+	swap(*src, *dst);
 
 	skb->pkt_type = PACKET_OUTGOING;
 	dn_rt_finish_output(skb, NULL, NULL);
