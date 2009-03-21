@@ -713,7 +713,6 @@ int pci_setup_device(struct pci_dev *dev)
 	dev->dev.bus = &pci_bus_type;
 	dev->hdr_type = hdr_type & 0x7f;
 	dev->multifunction = !!(hdr_type & 0x80);
-	dev->cfg_size = pci_cfg_space_size(dev);
 	dev->error_state = pci_channel_io_normal;
 	set_pcie_port_type(dev);
 
@@ -737,6 +736,9 @@ int pci_setup_device(struct pci_dev *dev)
 
 	dev_dbg(&dev->dev, "found [%04x:%04x] class %06x header type %02x\n",
 		 dev->vendor, dev->device, class, dev->hdr_type);
+
+	/* need to have dev->class ready */
+	dev->cfg_size = pci_cfg_space_size(dev);
 
 	/* "Unknown power state" */
 	dev->current_state = PCI_UNKNOWN;
@@ -958,9 +960,6 @@ static struct pci_dev *pci_scan_device(struct pci_bus *bus, int devfn)
 		kfree(dev);
 		return NULL;
 	}
-
-	/* need to have dev->class ready */
-	dev->cfg_size = pci_cfg_space_size(dev);
 
 	return dev;
 }
