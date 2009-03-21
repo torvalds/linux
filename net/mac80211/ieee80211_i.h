@@ -247,8 +247,9 @@ struct mesh_preq_queue {
 #define IEEE80211_STA_ASSOCIATED	BIT(4)
 #define IEEE80211_STA_PROBEREQ_POLL	BIT(5)
 #define IEEE80211_STA_CREATE_IBSS	BIT(6)
-#define IEEE80211_STA_MIXED_CELL	BIT(7)
+/* hole at 7, please re-use */
 #define IEEE80211_STA_WMM_ENABLED	BIT(8)
+/* hole at 9, please re-use */
 #define IEEE80211_STA_AUTO_SSID_SEL	BIT(10)
 #define IEEE80211_STA_AUTO_BSSID_SEL	BIT(11)
 #define IEEE80211_STA_AUTO_CHANNEL_SEL	BIT(12)
@@ -411,7 +412,6 @@ struct ieee80211_if_mesh {
  *
  * @IEEE80211_SDATA_ALLMULTI: interface wants all multicast packets
  * @IEEE80211_SDATA_PROMISC: interface is promisc
- * @IEEE80211_SDATA_USERSPACE_MLME: userspace MLME is active
  * @IEEE80211_SDATA_OPERATING_GMODE: operating in G-only mode
  * @IEEE80211_SDATA_DONT_BRIDGE_PACKETS: bridge packets between
  *	associated stations and deliver multicast frames both
@@ -420,9 +420,8 @@ struct ieee80211_if_mesh {
 enum ieee80211_sub_if_data_flags {
 	IEEE80211_SDATA_ALLMULTI		= BIT(0),
 	IEEE80211_SDATA_PROMISC			= BIT(1),
-	IEEE80211_SDATA_USERSPACE_MLME		= BIT(2),
-	IEEE80211_SDATA_OPERATING_GMODE		= BIT(3),
-	IEEE80211_SDATA_DONT_BRIDGE_PACKETS	= BIT(4),
+	IEEE80211_SDATA_OPERATING_GMODE		= BIT(2),
+	IEEE80211_SDATA_DONT_BRIDGE_PACKETS	= BIT(3),
 };
 
 struct ieee80211_sub_if_data {

@@ -849,8 +849,7 @@ static int ieee80211_privacy_mismatch(struct ieee80211_sub_if_data *sdata)
 	int wep_privacy;
 	int privacy_invoked;
 
-	if (!ifmgd || (ifmgd->flags & (IEEE80211_STA_MIXED_CELL |
-				       IEEE80211_STA_EXT_SME)))
+	if (!ifmgd || (ifmgd->flags & IEEE80211_STA_EXT_SME))
 		return 0;
 
 	bss = ieee80211_rx_bss_get(local, ifmgd->bssid,

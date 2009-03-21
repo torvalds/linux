@@ -261,8 +261,7 @@ static int ieee80211_open(struct net_device *dev)
 		ieee80211_bss_info_change_notify(sdata, changed);
 		ieee80211_enable_keys(sdata);
 
-		if (sdata->vif.type == NL80211_IFTYPE_STATION &&
-		    !(sdata->flags & IEEE80211_SDATA_USERSPACE_MLME))
+		if (sdata->vif.type == NL80211_IFTYPE_STATION)
 			netif_carrier_off(dev);
 		else
 			netif_carrier_on(dev);

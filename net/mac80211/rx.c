@@ -1877,18 +1877,13 @@ ieee80211_rx_h_mgmt(struct ieee80211_rx_data *rx)
 	if (ieee80211_vif_is_mesh(&sdata->vif))
 		return ieee80211_mesh_rx_mgmt(sdata, rx->skb, rx->status);
 
-	if (sdata->vif.type != NL80211_IFTYPE_STATION &&
-	    sdata->vif.type != NL80211_IFTYPE_ADHOC)
-		return RX_DROP_MONITOR;
+	if (sdata->vif.type != NL80211_IFTYPE_ADHOC)
+		return ieee80211_ibss_rx_mgmt(sdata, rx->skb, rx->status);
 
-
-	if (sdata->vif.type == NL80211_IFTYPE_STATION) {
-		if (sdata->flags & IEEE80211_SDATA_USERSPACE_MLME)
-			return RX_DROP_MONITOR;
+	if (sdata->vif.type == NL80211_IFTYPE_STATION)
 		return ieee80211_sta_rx_mgmt(sdata, rx->skb, rx->status);
-	}
 
-	return ieee80211_ibss_rx_mgmt(sdata, rx->skb, rx->status);
+	return RX_DROP_MONITOR;
 }
 
 static void ieee80211_rx_michael_mic_report(struct net_device *dev,

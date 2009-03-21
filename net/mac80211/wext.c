@@ -129,9 +129,6 @@ static int ieee80211_ioctl_siwgenie(struct net_device *dev,
 
 	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 
-	if (sdata->flags & IEEE80211_SDATA_USERSPACE_MLME)
-		return -EOPNOTSUPP;
-
 	if (sdata->vif.type == NL80211_IFTYPE_STATION) {
 		int ret = ieee80211_sta_set_extra_ie(sdata, extra, data->length);
 		if (ret)
@@ -208,14 +205,6 @@ static int ieee80211_ioctl_siwessid(struct net_device *dev,
 
 	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 	if (sdata->vif.type == NL80211_IFTYPE_STATION) {
-		if (sdata->flags & IEEE80211_SDATA_USERSPACE_MLME) {
-			if (len > IEEE80211_MAX_SSID_LEN)
-				return -EINVAL;
-			memcpy(sdata->u.mgd.ssid, ssid, len);
-			sdata->u.mgd.ssid_len = len;
-			return 0;
-		}
-
 		if (data->flags)
 			sdata->u.mgd.flags &= ~IEEE80211_STA_AUTO_SSID_SEL;
 		else
@@ -274,11 +263,7 @@ static int ieee80211_ioctl_siwap(struct net_device *dev,
 	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 	if (sdata->vif.type == NL80211_IFTYPE_STATION) {
 		int ret;
-		if (sdata->flags & IEEE80211_SDATA_USERSPACE_MLME) {
-			memcpy(sdata->u.mgd.bssid, (u8 *) &ap_addr->sa_data,
-			       ETH_ALEN);
-			return 0;
-		}
+
 		if (is_zero_ether_addr((u8 *) &ap_addr->sa_data))
 			sdata->u.mgd.flags |= IEEE80211_STA_AUTO_BSSID_SEL |
 				IEEE80211_STA_AUTO_CHANNEL_SEL;
