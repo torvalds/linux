@@ -1420,16 +1420,6 @@ new_request:
 		return r;
 	}
 
-	/*
-	 * Note: When CONFIG_WIRELESS_OLD_REGULATORY is enabled
-	 * AND if CRDA is NOT present nothing will happen, if someone
-	 * wants to bother with 11d with OLD_REG you can add a timer.
-	 * If after x amount of time nothing happens you can call:
-	 *
-	 * return set_regdom(country_ie_regdomain);
-	 *
-	 * to intersect with the static rd
-	 */
 	return call_crda(last_request->alpha2);
 }
 
@@ -2033,28 +2023,21 @@ static int __set_regdom(const struct ieee80211_regdomain *rd)
 	 */
 
 	BUG_ON(!country_ie_regdomain);
+	BUG_ON(rd == country_ie_regdomain);
 
-	if (rd != country_ie_regdomain) {
-		/*
-		 * Intersect what CRDA returned and our what we
-		 * had built from the Country IE received
-		 */
+	/*
+	 * Intersect what CRDA returned and our what we
+	 * had built from the Country IE received
+	 */
 
-		intersected_rd = regdom_intersect(rd, country_ie_regdomain);
+	intersected_rd = regdom_intersect(rd, country_ie_regdomain);
 
-		reg_country_ie_process_debug(rd, country_ie_regdomain,
-			intersected_rd);
+	reg_country_ie_process_debug(rd,
+				     country_ie_regdomain,
+				     intersected_rd);
 
-		kfree(country_ie_regdomain);
-		country_ie_regdomain = NULL;
-	} else {
-		/*
-		 * This would happen when CRDA was not present and
-		 * OLD_REGULATORY was enabled. We intersect our Country
-		 * IE rd and what was set on cfg80211 originally
-		 */
-		intersected_rd = regdom_intersect(rd, cfg80211_regdomain);
-	}
+	kfree(country_ie_regdomain);
+	country_ie_regdomain = NULL;
 
 	if (!intersected_rd)
 		return -EINVAL;
