@@ -406,8 +406,6 @@ davinci_evm_map_io(void)
 
 static __init void davinci_evm_init(void)
 {
-	davinci_psc_init();
-
 #if defined(CONFIG_BLK_DEV_PALMCHIP_BK3710) || \
     defined(CONFIG_BLK_DEV_PALMCHIP_BK3710_MODULE)
 #if defined(CONFIG_MTD_PHYSMAP) || \
