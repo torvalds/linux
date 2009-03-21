@@ -282,6 +282,14 @@ static void skip_entry(unsigned char **ptr, int *count, int size)
 	*count += size;
 }
 
+static void __init smp_dump_mptable(struct mpc_table *mpc, unsigned char *mpt)
+{
+	printk(KERN_ERR "Your mptable is wrong, contact your HW vendor!\n"
+		"type %x\n", *mpt);
+	print_hex_dump(KERN_ERR, "  ", DUMP_PREFIX_ADDRESS, 16,
+			1, mpc, mpc->length, 1);
+}
+
 static int __init smp_read_mpc(struct mpc_table *mpc, unsigned early)
 {
 	char str[16];
@@ -340,10 +348,7 @@ static int __init smp_read_mpc(struct mpc_table *mpc, unsigned early)
 			break;
 		default:
 			/* wrong mptable */
-			printk(KERN_ERR "Your mptable is wrong, contact your HW vendor!\n");
-			printk(KERN_ERR "type %x\n", *mpt);
-			print_hex_dump(KERN_ERR, "  ", DUMP_PREFIX_ADDRESS, 16,
-					1, mpc, mpc->length, 1);
+			smp_dump_mptable(mpc, mpt);
 			count = mpc->length;
 			break;
 		}
@@ -910,10 +915,7 @@ static int  __init replace_intsrc_all(struct mpc_table *mpc,
 			break;
 		default:
 			/* wrong mptable */
-			printk(KERN_ERR "Your mptable is wrong, contact your HW vendor!\n");
-			printk(KERN_ERR "type %x\n", *mpt);
-			print_hex_dump(KERN_ERR, "  ", DUMP_PREFIX_ADDRESS, 16,
-					1, mpc, mpc->length, 1);
+			smp_dump_mptable(mpc, mpt);
 			goto out;
 		}
 	}
