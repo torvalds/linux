@@ -23,11 +23,15 @@
 #define _CX231XX_H
 
 #include <linux/videodev2.h>
-#include <media/videobuf-vmalloc.h>
-
+#include <linux/types.h>
+#include <linux/ioctl.h>
 #include <linux/i2c.h>
 #include <linux/i2c-algo-bit.h>
 #include <linux/mutex.h>
+
+
+#include <media/videobuf-vmalloc.h>
+#include <media/v4l2-device.h>
 #include <media/ir-kbd-i2c.h>
 #if defined(CONFIG_VIDEO_CX231XX_DVB) || \
 	defined(CONFIG_VIDEO_CX231XX_DVB_MODULE)
@@ -447,6 +451,10 @@ struct cx231xx {
 
 	struct cx231xx_fmt *format;
 
+	struct v4l2_device v4l2_dev;
+	struct v4l2_subdev *sd_cx25840;
+	struct v4l2_subdev *sd_tuner;
+
 	struct cx231xx_IR *ir;
 
 	struct list_head devlist;
@@ -544,6 +552,13 @@ struct cx231xx {
 
 };
 
+#define cx25840_call(cx231xx, o, f, args...) \
+	v4l2_subdev_call(cx231xx->sd_cx25840, o, f, ##args)
+#define tuner_call(cx231xx, o, f, args...) \
+	v4l2_subdev_call(cx231xx->sd_tuner, o, f, ##args)
+#define call_all(dev, o, f, args...) \
+	v4l2_device_call_until_err(&dev->v4l2_dev, 0, o, f, ##args)
+
 struct cx231xx_ops {
 	struct list_head next;
 	char *name;
@@ -557,8 +572,6 @@ int cx231xx_set_analog_freq(struct cx231xx *dev, u32 freq);
 int cx231xx_reset_analog_tuner(struct cx231xx *dev);
 
 /* Provided by cx231xx-i2c.c */
-void cx231xx_i2c_call_clients(struct cx231xx_i2c *bus, unsigned int cmd,
-			      void *arg);
 void cx231xx_do_i2c_scan(struct cx231xx *dev, struct i2c_client *c);
 int cx231xx_i2c_register(struct cx231xx_i2c *bus);
 int cx231xx_i2c_unregister(struct cx231xx_i2c *bus);

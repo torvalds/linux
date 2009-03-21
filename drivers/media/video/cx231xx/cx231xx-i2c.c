@@ -435,18 +435,6 @@ static int attach_inform(struct i2c_client *client)
 	struct cx231xx *dev = bus->dev;
 
 	switch (client->addr << 1) {
-	case 0x32:
-		dprintk1(1, "attach_inform: Geminit III detected.\n");
-		break;
-	case 0x02:
-		dprintk1(1, "attach_inform: Acquarius detected.\n");
-		break;
-	case 0xa0:
-		dprintk1(1, "attach_inform: eeprom detected.\n");
-		break;
-	case 0x60:
-		dprintk1(1, "attach_inform: Colibri detected.\n");
-		break;
 	case 0x8e:
 		{
 			struct IR_i2c *ir = i2c_get_clientdata(client);
@@ -455,25 +443,12 @@ static int attach_inform(struct i2c_client *client)
 			cx231xx_set_ir(dev, ir);
 			break;
 		}
-	case 0x80:
-	case 0x88:
-		dprintk1(1, "attach_inform: Hammerhead detected.\n");
 		break;
 
 	default:
-		if (!dev->tuner_addr)
-			dev->tuner_addr = client->addr;
-
-		dprintk1(1, "attach inform: detected I2C address %x\n",
-			 client->addr << 1);
+		break;
 	}
 
-	return 0;
-}
-
-static int detach_inform(struct i2c_client *client)
-{
-	dprintk1(1, "i2c detach [client=%s]\n", client->name);
 	return 0;
 }
 
@@ -484,12 +459,10 @@ static struct i2c_algorithm cx231xx_algo = {
 
 static struct i2c_adapter cx231xx_adap_template = {
 	.owner = THIS_MODULE,
-	.class = I2C_CLASS_TV_ANALOG,
 	.name = "cx231xx",
 	.id = I2C_HW_B_CX231XX,
 	.algo = &cx231xx_algo,
 	.client_register = attach_inform,
-	.client_unregister = detach_inform,
 };
 
 static struct i2c_client cx231xx_client_template = {
@@ -536,19 +509,6 @@ void cx231xx_do_i2c_scan(struct cx231xx *dev, struct i2c_client *c)
 }
 
 /*
- * cx231xx_i2c_call_clients()
- * send commands to all attached i2c devices
- */
-void cx231xx_i2c_call_clients(struct cx231xx_i2c *bus, unsigned int cmd,
-			      void *arg)
-{
-	/* struct cx231xx *dev = bus->dev; */
-
-	BUG_ON(NULL == bus->i2c_adap.algo_data);
-	i2c_clients_command(&bus->i2c_adap, cmd, arg);
-}
-
-/*
  * cx231xx_i2c_register()
  * register i2c bus
  */
@@ -571,7 +531,7 @@ int cx231xx_i2c_register(struct cx231xx_i2c *bus)
 
 	bus->i2c_algo.data = bus;
 	bus->i2c_adap.algo_data = bus;
-	i2c_set_adapdata(&bus->i2c_adap, bus);
+	i2c_set_adapdata(&bus->i2c_adap, &dev->v4l2_dev);
 	i2c_add_adapter(&bus->i2c_adap);
 
 	bus->i2c_client.adapter = &bus->i2c_adap;

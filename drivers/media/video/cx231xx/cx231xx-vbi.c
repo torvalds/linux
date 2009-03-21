@@ -187,10 +187,6 @@ vbi_buffer_setup(struct videobuf_queue *vq, unsigned int *count,
 	if (*count < CX231XX_MIN_BUF)
 		*count = CX231XX_MIN_BUF;
 
-	/* call VBI setup if required */
-	/* cx231xx_i2c_call_clients(&dev->i2c_bus[1], VIDIOC_S_FREQUENCY, &f);
-	 */
-
 	return 0;
 }
 

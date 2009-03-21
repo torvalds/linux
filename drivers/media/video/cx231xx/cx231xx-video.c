@@ -704,7 +704,7 @@ buffer_setup(struct videobuf_queue *vq, unsigned int *count, unsigned int *size)
 	f.frequency = dev->ctl_freq;
 	f.type = fh->radio ? V4L2_TUNER_RADIO : V4L2_TUNER_ANALOG_TV;
 
-	cx231xx_i2c_call_clients(&dev->i2c_bus[1], VIDIOC_S_FREQUENCY, &f);
+	call_all(dev, tuner, s_frequency, &f);
 
 	return 0;
 }
@@ -830,8 +830,7 @@ void video_mux(struct cx231xx *dev, int index)
 
 	cx231xx_set_video_input_mux(dev, index);
 
-	cx231xx_i2c_call_clients(&dev->i2c_bus[0], VIDIOC_INT_S_VIDEO_ROUTING,
-				 &route);
+	cx25840_call(dev, video, s_routing, &route);
 
 	cx231xx_set_audio_input(dev, dev->ctl_ainput);
 
@@ -1045,7 +1044,7 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 	dev->format = fmt;
 	get_scale(dev, dev->width, dev->height, &dev->hscale, &dev->vscale);
 
-	cx231xx_i2c_call_clients(&dev->i2c_bus[0], VIDIOC_S_FMT, f);
+	call_all(dev, video, s_fmt, f);
 
 	/* Set the correct alternate setting for this resolution */
 	cx231xx_resolution_set(dev);
@@ -1064,7 +1063,7 @@ static int vidioc_g_std(struct file *file, void *priv, v4l2_std_id * id)
 	return 0;
 }
 
-static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id * norm)
+static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id *norm)
 {
 	struct cx231xx_fh *fh = priv;
 	struct cx231xx *dev = fh->dev;
@@ -1090,7 +1089,7 @@ static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id * norm)
 	dev->height = f.fmt.pix.height;
 	get_scale(dev, dev->width, dev->height, &dev->hscale, &dev->vscale);
 
-	cx231xx_i2c_call_clients(&dev->i2c_bus[0], VIDIOC_S_STD, &dev->norm);
+	call_all(dev, tuner, s_std, dev->norm);
 
 	mutex_unlock(&dev->lock);
 
@@ -1244,7 +1243,7 @@ static int vidioc_queryctrl(struct file *file, void *priv,
 	*qc = cx231xx_ctls[i].v;
 
 	mutex_lock(&dev->lock);
-	cx231xx_i2c_call_clients(&dev->i2c_bus[0], VIDIOC_QUERYCTRL, qc);
+	call_all(dev, core, queryctrl, qc);
 	mutex_unlock(&dev->lock);
 
 	if (qc->type)
@@ -1265,9 +1264,7 @@ static int vidioc_g_ctrl(struct file *file, void *priv,
 		return rc;
 
 	mutex_lock(&dev->lock);
-
-	cx231xx_i2c_call_clients(&dev->i2c_bus[0], VIDIOC_G_CTRL, ctrl);
-
+	call_all(dev, core, g_ctrl, ctrl);
 	mutex_unlock(&dev->lock);
 	return rc;
 }
@@ -1284,9 +1281,7 @@ static int vidioc_s_ctrl(struct file *file, void *priv,
 		return rc;
 
 	mutex_lock(&dev->lock);
-
-	cx231xx_i2c_call_clients(&dev->i2c_bus[0], VIDIOC_S_CTRL, ctrl);
-
+	call_all(dev, core, s_ctrl, ctrl);
 	mutex_unlock(&dev->lock);
 	return rc;
 }
@@ -1328,9 +1323,7 @@ static int vidioc_s_tuner(struct file *file, void *priv, struct v4l2_tuner *t)
 		return -EINVAL;
 #if 0
 	mutex_lock(&dev->lock);
-
-	cx231xx_i2c_call_clients(&dev->i2c_bus[1], VIDIOC_S_TUNER, t);
-
+	call_all(dev, tuner, s_tuner, t);
 	mutex_unlock(&dev->lock);
 #endif
 	return 0;
@@ -1346,7 +1339,7 @@ static int vidioc_g_frequency(struct file *file, void *priv,
 	f->type = fh->radio ? V4L2_TUNER_RADIO : V4L2_TUNER_ANALOG_TV;
 	f->frequency = dev->ctl_freq;
 
-	cx231xx_i2c_call_clients(&dev->i2c_bus[1], VIDIOC_G_FREQUENCY, f);
+	call_all(dev, tuner, g_frequency, f);
 
 	mutex_unlock(&dev->lock);
 
@@ -1382,10 +1375,8 @@ static int vidioc_s_frequency(struct file *file, void *priv,
 	if (dev->tuner_type == TUNER_XC5000) {
 		if (dev->cx231xx_set_analog_freq != NULL)
 			dev->cx231xx_set_analog_freq(dev, f->frequency);
-	} else {
-		cx231xx_i2c_call_clients(&dev->i2c_bus[1],
-					 VIDIOC_S_FREQUENCY, f);
-	}
+	} else
+		call_all(dev, tuner, s_frequency, f);
 
 	mutex_unlock(&dev->lock);
 
@@ -1467,8 +1458,7 @@ static int vidioc_g_register(struct file *file, void *priv,
 		return ret < 0 ? ret : 0;
 
 	case V4L2_CHIP_MATCH_I2C_DRIVER:
-		cx231xx_i2c_call_clients(&dev->i2c_bus[0],
-					 VIDIOC_DBG_G_REGISTER, reg);
+		call_all(dev, core, g_register, reg);
 		return 0;
 	case V4L2_CHIP_MATCH_I2C_ADDR:
 		/* Not supported yet */
@@ -1479,7 +1469,7 @@ static int vidioc_g_register(struct file *file, void *priv,
 	}
 
 	mutex_lock(&dev->lock);
-	cx231xx_i2c_call_clients(&dev->i2c_bus[0], VIDIOC_DBG_G_REGISTER, reg);
+	call_all(dev, core, g_register, reg);
 	mutex_unlock(&dev->lock);
 
 	return ret;
@@ -1562,9 +1552,7 @@ static int vidioc_s_register(struct file *file, void *priv,
 	}
 
 	mutex_lock(&dev->lock);
-
-	cx231xx_i2c_call_clients(&dev->i2c_bus[0], VIDIOC_DBG_S_REGISTER, reg);
-
+	call_all(dev, core, s_register, reg);
 	mutex_unlock(&dev->lock);
 
 	return ret;
@@ -1608,6 +1596,8 @@ static int vidioc_streamon(struct file *file, void *priv,
 	if (likely(rc >= 0))
 		rc = videobuf_streamon(&fh->vb_vidq);
 
+	call_all(dev, video, s_stream, 1);
+
 	mutex_unlock(&dev->lock);
 
 	return rc;
@@ -1632,6 +1622,8 @@ static int vidioc_streamoff(struct file *file, void *priv,
 
 	mutex_lock(&dev->lock);
 
+	cx25840_call(dev, video, s_stream, 0);
+
 	videobuf_streamoff(&fh->vb_vidq);
 	res_free(fh);
 
@@ -1648,7 +1640,7 @@ static int vidioc_querycap(struct file *file, void *priv,
 
 	strlcpy(cap->driver, "cx231xx", sizeof(cap->driver));
 	strlcpy(cap->card, cx231xx_boards[dev->model].name, sizeof(cap->card));
-	strlcpy(cap->bus_info, dev_name(&dev->udev->dev),
+	strlcpy(cap->bus_info, dev->v4l2_dev.name,
 		sizeof(cap->bus_info));
 
 	cap->version = CX231XX_VERSION_CODE;
@@ -1696,7 +1688,7 @@ static int vidioc_g_fmt_sliced_vbi_cap(struct file *file, void *priv,
 
 	f->fmt.sliced.service_set = 0;
 
-	cx231xx_i2c_call_clients(&dev->i2c_bus[0], VIDIOC_G_FMT, f);
+	call_all(dev, video, g_fmt, f);
 
 	if (f->fmt.sliced.service_set == 0)
 		rc = -EINVAL;
@@ -1717,7 +1709,7 @@ static int vidioc_try_set_sliced_vbi_cap(struct file *file, void *priv,
 		return rc;
 
 	mutex_lock(&dev->lock);
-	cx231xx_i2c_call_clients(&dev->i2c_bus[0], VIDIOC_G_FMT, f);
+	call_all(dev, video, g_fmt, f);
 	mutex_unlock(&dev->lock);
 
 	if (f->fmt.sliced.service_set == 0)
@@ -1872,7 +1864,7 @@ static int radio_g_tuner(struct file *file, void *priv, struct v4l2_tuner *t)
 	t->type = V4L2_TUNER_RADIO;
 
 	mutex_lock(&dev->lock);
-	cx231xx_i2c_call_clients(&dev->i2c_bus[1], VIDIOC_G_TUNER, t);
+	call_all(dev, tuner, s_tuner, t);
 	mutex_unlock(&dev->lock);
 
 	return 0;
@@ -1905,7 +1897,7 @@ static int radio_s_tuner(struct file *file, void *priv, struct v4l2_tuner *t)
 		return -EINVAL;
 
 	mutex_lock(&dev->lock);
-	cx231xx_i2c_call_clients(&dev->i2c_bus[1], VIDIOC_S_TUNER, t);
+	call_all(dev, tuner, s_tuner, t);
 	mutex_unlock(&dev->lock);
 
 	return 0;
@@ -2011,8 +2003,7 @@ static int cx231xx_v4l2_open(struct file *filp)
 
 		/* cx231xx_start_radio(dev); */
 
-		cx231xx_i2c_call_clients(&dev->i2c_bus[1], AUDC_SET_RADIO,
-					 NULL);
+		call_all(dev, tuner, s_radio);
 	}
 
 	dev->users++;
@@ -2135,8 +2126,7 @@ static int cx231xx_v4l2_close(struct file *filp)
 		}
 
 		/* Save some power by putting tuner to sleep */
-		cx231xx_i2c_call_clients(&dev->i2c_bus[1], TUNER_SET_STANDBY,
-					 NULL);
+		call_all(dev, core, s_standby, 0);
 
 		/* do this before setting alternate! */
 		cx231xx_uninit_isoc(dev);
@@ -2350,7 +2340,7 @@ static struct video_device *cx231xx_vdev_init(struct cx231xx *dev,
 
 	*vfd = *template;
 	vfd->minor = -1;
-	vfd->parent = &dev->udev->dev;
+	vfd->v4l2_dev = &dev->v4l2_dev;
 	vfd->release = video_device_release;
 	vfd->debug = video_debug;
 

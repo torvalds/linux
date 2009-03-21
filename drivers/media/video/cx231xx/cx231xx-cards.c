@@ -243,8 +243,6 @@ void cx231xx_pre_card_setup(struct cx231xx *dev)
 
 }
 
-#if 0
-
 static void cx231xx_config_tuner(struct cx231xx *dev)
 {
 	struct tuner_setup tun_setup;
@@ -258,8 +256,8 @@ static void cx231xx_config_tuner(struct cx231xx *dev)
 	tun_setup.addr = dev->tuner_addr;
 	tun_setup.tuner_callback = cx231xx_tuner_callback;
 
-	cx231xx_i2c_call_clients(&dev->i2c_bus[1], TUNER_SET_TYPE_ADDR,
-				 &tun_setup);
+	tuner_call(dev, tuner, s_type_addr, &tun_setup);
+
 #if 0
 	if (tun_setup.type == TUNER_XC5000) {
 		static struct xc2028_ctrl ctrl = {
@@ -271,20 +269,17 @@ static void cx231xx_config_tuner(struct cx231xx *dev)
 			.tuner = dev->tuner_type,
 			.priv = &ctrl,
 		};
-		cx231xx_i2c_call_clients(&dev->i2c_bus[1], TUNER_SET_CONFIG,
-					 &cfg);
+		tuner_call(dev, tuner, s_config, &cfg);
 	}
 #endif
-
 	/* configure tuner */
 	f.tuner = 0;
 	f.type = V4L2_TUNER_ANALOG_TV;
 	f.frequency = 9076;	/* just a magic number */
 	dev->ctl_freq = f.frequency;
-	cx231xx_i2c_call_clients(&dev->i2c_bus[1], VIDIOC_S_FREQUENCY, &f);
-}
+	call_all(dev, tuner, s_frequency, &f);
 
-#endif
+}
 
 /* ----------------------------------------------------------------------- */
 void cx231xx_set_ir(struct cx231xx *dev, struct IR_i2c *ir)
@@ -308,6 +303,7 @@ void cx231xx_set_ir(struct cx231xx *dev, struct IR_i2c *ir)
 
 void cx231xx_card_setup(struct cx231xx *dev)
 {
+
 	cx231xx_set_model(dev);
 
 	dev->tuner_type = cx231xx_boards[dev->model].tuner_type;
@@ -332,16 +328,29 @@ void cx231xx_card_setup(struct cx231xx *dev)
 	/* request some modules */
 	if (dev->board.decoder == CX231XX_AVDECODER) {
 		cx231xx_info(": Requesting cx25840 module\n");
-		request_module("cx25840");
+		dev->sd_cx25840 =
+			v4l2_i2c_new_subdev(&dev->i2c_bus[0].i2c_adap,
+				"cx25840", "cx25840", 0x88 >> 1);
+		if (dev->sd_cx25840 == NULL)
+			cx231xx_info("cx25840 subdev registration failure\n");
+		cx25840_call(dev, core, init, 0);
+
 	}
-#if 0
+
 	if (dev->board.tuner_type != TUNER_ABSENT) {
 		cx231xx_info(": Requesting Tuner module\n");
-		request_module("tuner");
+		dev->sd_tuner =
+			v4l2_i2c_new_subdev(&dev->i2c_bus[1].i2c_adap,
+				"tuner", "tuner", 0xc2 >> 1);
+		if (dev->sd_tuner == NULL)
+			cx231xx_info("tuner subdev registration failure\n");
+
+		cx231xx_config_tuner(dev);
 	}
 
 	cx231xx_config_tuner(dev);
 
+#if 0
 	/* TBD  IR will be added later */
 	cx231xx_ir_init(dev);
 #endif
@@ -371,7 +380,7 @@ void cx231xx_config_i2c(struct cx231xx *dev)
 	route.input = INPUT(dev->video_input)->vmux;
 	route.output = 0;
 
-	cx231xx_i2c_call_clients(&dev->i2c_bus[0], VIDIOC_STREAMON, NULL);
+	call_all(dev, video, s_stream, 1);
 }
 
 /*
@@ -549,7 +558,7 @@ static int cx231xx_usb_probe(struct usb_interface *interface,
 	udev = usb_get_dev(interface_to_usbdev(interface));
 	ifnum = interface->altsetting[0].desc.bInterfaceNumber;
 
-	cx231xx_info(": Interface Number %d\n", ifnum);
+	printk(DRIVER_NAME ": Interface Number %d\n", ifnum);
 
 	/* Interface number 0 - IR interface */
 	if (ifnum == 0) {
@@ -689,12 +698,25 @@ static int cx231xx_usb_probe(struct usb_interface *interface,
 	/* AV device initialization */
 	if ((dev->interface_count - 1) == dev->max_iad_interface_count) {
 		cx231xx_info(" Calling init_dev\n");
+
+		/* Create v4l2 device */
+		snprintf(dev->v4l2_dev.name, sizeof(dev->v4l2_dev.name),
+					"%s-%03d", "cx231xx", nr);
+		retval = v4l2_device_register(&udev->dev, &dev->v4l2_dev);
+		if (retval) {
+			printk(KERN_ERR "%s() v4l2_device_register failed\n",
+			       __func__);
+			cx231xx_devused &= ~(1 << nr);
+			kfree(dev);
+			return -EIO;
+		}
+
 		/* allocate device struct */
 		retval = cx231xx_init_dev(&dev, udev, nr);
 		if (retval) {
 			cx231xx_devused &= ~(1 << dev->devno);
+			v4l2_device_unregister(&dev->v4l2_dev);
 			kfree(dev);
-
 			return retval;
 		}
 
@@ -718,6 +740,7 @@ static int cx231xx_usb_probe(struct usb_interface *interface,
 		if (dev->video_mode.alt_max_pkt_size == NULL) {
 			cx231xx_errdev("out of memory!\n");
 			cx231xx_devused &= ~(1 << nr);
+			v4l2_device_unregister(&dev->v4l2_dev);
 			kfree(dev);
 			return -ENOMEM;
 		}
@@ -752,6 +775,7 @@ static int cx231xx_usb_probe(struct usb_interface *interface,
 		if (dev->vbi_mode.alt_max_pkt_size == NULL) {
 			cx231xx_errdev("out of memory!\n");
 			cx231xx_devused &= ~(1 << nr);
+			v4l2_device_unregister(&dev->v4l2_dev);
 			kfree(dev);
 			return -ENOMEM;
 		}
@@ -786,6 +810,7 @@ static int cx231xx_usb_probe(struct usb_interface *interface,
 		if (dev->sliced_cc_mode.alt_max_pkt_size == NULL) {
 			cx231xx_errdev("out of memory!\n");
 			cx231xx_devused &= ~(1 << nr);
+			v4l2_device_unregister(&dev->v4l2_dev);
 			kfree(dev);
 			return -ENOMEM;
 		}
@@ -824,6 +849,7 @@ static int cx231xx_usb_probe(struct usb_interface *interface,
 			if (dev->ts1_mode.alt_max_pkt_size == NULL) {
 				cx231xx_errdev("out of memory!\n");
 				cx231xx_devused &= ~(1 << nr);
+				v4l2_device_unregister(&dev->v4l2_dev);
 				kfree(dev);
 				return -ENOMEM;
 			}
@@ -875,6 +901,9 @@ static void cx231xx_usb_disconnect(struct usb_interface *interface)
 
 	if (!dev)
 		return;
+
+	/* delete v4l2 device */
+	v4l2_device_unregister(&dev->v4l2_dev);
 
 	/* wait until all current v4l2 io is finished then deallocate
 	   resources */
