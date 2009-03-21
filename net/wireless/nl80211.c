@@ -607,6 +607,7 @@ static int nl80211_set_interface(struct sk_buff *skb, struct genl_info *info)
 	enum nl80211_iftype type;
 	struct net_device *dev;
 	u32 _flags, *flags = NULL;
+	bool change = false;
 
 	memset(&params, 0, sizeof(params));
 
@@ -620,11 +621,17 @@ static int nl80211_set_interface(struct sk_buff *skb, struct genl_info *info)
 	type = dev->ieee80211_ptr->iftype;
 	dev_put(dev);
 
-	err = -EINVAL;
 	if (info->attrs[NL80211_ATTR_IFTYPE]) {
-		type = nla_get_u32(info->attrs[NL80211_ATTR_IFTYPE]);
-		if (type > NL80211_IFTYPE_MAX)
+		enum nl80211_iftype ntype;
+
+		ntype = nla_get_u32(info->attrs[NL80211_ATTR_IFTYPE]);
+		if (type != ntype)
+			change = true;
+		type = ntype;
+		if (type > NL80211_IFTYPE_MAX) {
+			err = -EINVAL;
 			goto unlock;
+		}
 	}
 
 	if (!drv->ops->change_virtual_intf ||
@@ -640,6 +647,7 @@ static int nl80211_set_interface(struct sk_buff *skb, struct genl_info *info)
 		}
 		params.mesh_id = nla_data(info->attrs[NL80211_ATTR_MESH_ID]);
 		params.mesh_id_len = nla_len(info->attrs[NL80211_ATTR_MESH_ID]);
+		change = true;
 	}
 
 	if (info->attrs[NL80211_ATTR_MNTR_FLAGS]) {
@@ -649,12 +657,18 @@ static int nl80211_set_interface(struct sk_buff *skb, struct genl_info *info)
 		}
 		err = parse_monitor_flags(info->attrs[NL80211_ATTR_MNTR_FLAGS],
 					  &_flags);
-		if (!err)
-			flags = &_flags;
+		if (err)
+			goto unlock;
+
+		flags = &_flags;
+		change = true;
 	}
 
-	err = drv->ops->change_virtual_intf(&drv->wiphy, ifindex,
-					    type, flags, &params);
+	if (change)
+		err = drv->ops->change_virtual_intf(&drv->wiphy, ifindex,
+						    type, flags, &params);
+	else
+		err = 0;
 
 	dev = __dev_get_by_index(&init_net, ifindex);
 	WARN_ON(!dev || (!err && dev->ieee80211_ptr->iftype != type));
