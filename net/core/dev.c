@@ -1725,7 +1725,7 @@ out_kfree_skb:
 
 static u32 skb_tx_hashrnd;
 
-static u16 skb_tx_hash(struct net_device *dev, struct sk_buff *skb)
+u16 skb_tx_hash(const struct net_device *dev, const struct sk_buff *skb)
 {
 	u32 hash;
 
@@ -1740,6 +1740,7 @@ static u16 skb_tx_hash(struct net_device *dev, struct sk_buff *skb)
 
 	return (u16) (((u64) hash * dev->real_num_tx_queues) >> 32);
 }
+EXPORT_SYMBOL(skb_tx_hash);
 
 static struct netdev_queue *dev_pick_tx(struct net_device *dev,
 					struct sk_buff *skb)

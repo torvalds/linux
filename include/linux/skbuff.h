@@ -1969,7 +1969,7 @@ static inline void skb_set_queue_mapping(struct sk_buff *skb, u16 queue_mapping)
 	skb->queue_mapping = queue_mapping;
 }
 
-static inline u16 skb_get_queue_mapping(struct sk_buff *skb)
+static inline u16 skb_get_queue_mapping(const struct sk_buff *skb)
 {
 	return skb->queue_mapping;
 }
@@ -1984,15 +1984,18 @@ static inline void skb_record_rx_queue(struct sk_buff *skb, u16 rx_queue)
 	skb->queue_mapping = rx_queue + 1;
 }
 
-static inline u16 skb_get_rx_queue(struct sk_buff *skb)
+static inline u16 skb_get_rx_queue(const struct sk_buff *skb)
 {
 	return skb->queue_mapping - 1;
 }
 
-static inline bool skb_rx_queue_recorded(struct sk_buff *skb)
+static inline bool skb_rx_queue_recorded(const struct sk_buff *skb)
 {
 	return (skb->queue_mapping != 0);
 }
+
+extern u16 skb_tx_hash(const struct net_device *dev,
+		       const struct sk_buff *skb);
 
 #ifdef CONFIG_XFRM
 static inline struct sec_path *skb_sec_path(struct sk_buff *skb)
