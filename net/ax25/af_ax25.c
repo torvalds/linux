@@ -1435,6 +1435,11 @@ static int ax25_sendmsg(struct kiocb *iocb, struct socket *sock,
 	size_t size;
 	int lv, err, addr_len = msg->msg_namelen;
 
+	/* AX.25 empty data frame has no meaning : don't send */
+	if (len == 0) {
+		return (0);
+	}
+
 	if (msg->msg_flags & ~(MSG_DONTWAIT|MSG_EOR|MSG_CMSG_COMPAT))
 		return -EINVAL;
 
@@ -1633,6 +1638,13 @@ static int ax25_recvmsg(struct kiocb *iocb, struct socket *sock,
 
 	skb_reset_transport_header(skb);
 	copied = skb->len;
+
+	/* AX.25 empty data frame has no meaning : ignore it */
+	if (copied == 0) {
+		err = copied;
+		skb_free_datagram(sk, skb);
+		goto out;
+	}
 
 	if (copied > size) {
 		copied = size;
