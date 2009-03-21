@@ -70,7 +70,8 @@ static void ath_beacon_setup(struct ath_softc *sc, struct ath_vif *avp,
 	ds = bf->bf_desc;
 	flags = ATH9K_TXDESC_NOACK;
 
-	if (sc->sc_ah->opmode == NL80211_IFTYPE_ADHOC &&
+	if (((sc->sc_ah->opmode == NL80211_IFTYPE_ADHOC) ||
+	     (sc->sc_ah->opmode == NL80211_IFTYPE_MESH_POINT)) &&
 	    (ah->caps.hw_caps & ATH9K_HW_CAP_VEOL)) {
 		ds->ds_link = bf->bf_daddr; /* self-linked */
 		flags |= ATH9K_TXDESC_VEOL;
@@ -728,6 +729,7 @@ void ath_beacon_config(struct ath_softc *sc, struct ieee80211_vif *vif)
 			ath_beacon_config_ap(sc, &conf, avp);
 			break;
 		case NL80211_IFTYPE_ADHOC:
+		case NL80211_IFTYPE_MESH_POINT:
 			ath_beacon_config_adhoc(sc, &conf, avp, vif);
 			break;
 		case NL80211_IFTYPE_STATION:

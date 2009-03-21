@@ -1599,7 +1599,8 @@ void ath_set_hw_capab(struct ath_softc *sc, struct ieee80211_hw *hw)
 	hw->wiphy->interface_modes =
 		BIT(NL80211_IFTYPE_AP) |
 		BIT(NL80211_IFTYPE_STATION) |
-		BIT(NL80211_IFTYPE_ADHOC);
+		BIT(NL80211_IFTYPE_ADHOC) |
+		BIT(NL80211_IFTYPE_MESH_POINT);
 
 	hw->wiphy->reg_notifier = ath9k_reg_notifier;
 	hw->wiphy->strict_regulatory = true;
@@ -2207,18 +2208,13 @@ static int ath9k_add_interface(struct ieee80211_hw *hw,
 		ic_opmode = NL80211_IFTYPE_STATION;
 		break;
 	case NL80211_IFTYPE_ADHOC:
-		if (sc->nbcnvifs >= ATH_BCBUF) {
-			ret = -ENOBUFS;
-			goto out;
-		}
-		ic_opmode = NL80211_IFTYPE_ADHOC;
-		break;
 	case NL80211_IFTYPE_AP:
+	case NL80211_IFTYPE_MESH_POINT:
 		if (sc->nbcnvifs >= ATH_BCBUF) {
 			ret = -ENOBUFS;
 			goto out;
 		}
-		ic_opmode = NL80211_IFTYPE_AP;
+		ic_opmode = conf->type;
 		break;
 	default:
 		DPRINTF(sc, ATH_DBG_FATAL,
@@ -2254,7 +2250,8 @@ static int ath9k_add_interface(struct ieee80211_hw *hw,
 	 * Note we only do this (at the moment) for station mode.
 	 */
 	if ((conf->type == NL80211_IFTYPE_STATION) ||
-	    (conf->type == NL80211_IFTYPE_ADHOC)) {
+	    (conf->type == NL80211_IFTYPE_ADHOC) ||
+	    (conf->type == NL80211_IFTYPE_MESH_POINT)) {
 		if (ath9k_hw_phycounters(sc->sc_ah))
 			sc->imask |= ATH9K_INT_MIB;
 		sc->imask |= ATH9K_INT_TSFOOR;
@@ -2301,8 +2298,9 @@ static void ath9k_remove_interface(struct ieee80211_hw *hw,
 	del_timer_sync(&sc->ani.timer);
 
 	/* Reclaim beacon resources */
-	if (sc->sc_ah->opmode == NL80211_IFTYPE_AP ||
-	    sc->sc_ah->opmode == NL80211_IFTYPE_ADHOC) {
+	if ((sc->sc_ah->opmode == NL80211_IFTYPE_AP) ||
+	    (sc->sc_ah->opmode == NL80211_IFTYPE_ADHOC) ||
+	    (sc->sc_ah->opmode == NL80211_IFTYPE_MESH_POINT)) {
 		ath9k_hw_stoptxdma(sc->sc_ah, sc->beacon.beaconq);
 		ath_beacon_return(sc, avp);
 	}
@@ -2435,6 +2433,7 @@ static int ath9k_config_interface(struct ieee80211_hw *hw,
 		switch (vif->type) {
 		case NL80211_IFTYPE_STATION:
 		case NL80211_IFTYPE_ADHOC:
+		case NL80211_IFTYPE_MESH_POINT:
 			/* Set BSSID */
 			memcpy(sc->curbssid, conf->bssid, ETH_ALEN);
 			memcpy(avp->bssid, conf->bssid, ETH_ALEN);
@@ -2458,7 +2457,8 @@ static int ath9k_config_interface(struct ieee80211_hw *hw,
 	}
 
 	if ((vif->type == NL80211_IFTYPE_ADHOC) ||
-	    (vif->type == NL80211_IFTYPE_AP)) {
+	    (vif->type == NL80211_IFTYPE_AP) ||
+	    (vif->type == NL80211_IFTYPE_MESH_POINT)) {
 		if ((conf->changed & IEEE80211_IFCC_BEACON) ||
 		    (conf->changed & IEEE80211_IFCC_BEACON_ENABLED &&
 		     conf->enable_beacon)) {

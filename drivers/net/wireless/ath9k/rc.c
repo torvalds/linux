@@ -1619,6 +1619,7 @@ static void ath_rate_init(void *priv, struct ieee80211_supported_band *sband,
 	/* Choose rate table first */
 
 	if ((sc->sc_ah->opmode == NL80211_IFTYPE_STATION) ||
+	    (sc->sc_ah->opmode == NL80211_IFTYPE_MESH_POINT) ||
 	    (sc->sc_ah->opmode == NL80211_IFTYPE_ADHOC)) {
 		rate_table = ath_choose_rate_table(sc, sband->band,
 						   sta->ht_cap.ht_supported,
