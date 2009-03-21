@@ -49,12 +49,9 @@
 #include <linux/ipv6.h>
 #include <linux/init.h>
 #include <net/inet_ecn.h>
+#include <net/ip.h>
 #include <net/icmp.h>
 #include <net/net_namespace.h>
-
-#ifndef TEST_FRAME
-#include <net/tcp.h>
-#endif /* TEST_FRAME (not defined) */
 
 #include <linux/socket.h> /* for sa_family_t */
 #include <net/sock.h>

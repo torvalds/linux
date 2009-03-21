@@ -62,13 +62,6 @@
  *   and will continue to evolve.
  */
 
-
-
-#ifdef TEST_FRAME
-#undef CONFIG_SCTP_DBG_OBJCNT
-#undef CONFIG_SYSCTL
-#endif /* TEST_FRAME */
-
 #include <linux/types.h>
 #include <linux/slab.h>
 #include <linux/in.h>
