@@ -765,6 +765,14 @@ L:	linux-wireless@vger.kernel.org
 L:	ath9k-devel@lists.ath9k.org
 S:	Supported
 
+ATHEROS AR9170 WIRELESS DRIVER
+P:	Christian Lamparter
+M:	chunkeey@web.de
+L:	linux-wireless@vger.kernel.org
+W:	http://wireless.kernel.org/en/users/Drivers/ar9170
+S:	Maintained
+F:	drivers/net/wireless/ar9170/
+
 ATI_REMOTE2 DRIVER
 P:	Ville Syrjala
 M:	syrjala@sci.fi

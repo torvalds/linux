@@ -1,0 +1,28 @@
+config AR9170_COMMON
+	tristate "Atheros AR9170 support"
+	depends on WLAN_80211 && MAC80211 && EXPERIMENTAL
+	help
+	  This is common code for AR9170 based devices.
+	  This module does nothing by itself - the USB/(SPI) frontends
+	  also need to be enabled in order to support any devices.
+
+	  Say Y if you have the hardware, or M to build a module called
+	  ar9170common.
+
+config AR9170_USB
+	tristate "Atheros AR9170 USB support"
+	depends on AR9170_COMMON && USB
+	select FW_LOADER
+	help
+	  This is a driver for the Atheros "otus" 802.11n USB devices.
+
+	  These devices require additional firmware (2 files).
+	  For now, these files can be downloaded from here:
+	  http://wireless.kernel.org/en/users/Drivers/ar9170
+
+	  If you choose to build a module, it'll be called ar9170usb.
+
+config AR9170_LEDS
+	bool
+	depends on AR9170_COMMON && MAC80211_LEDS && (LEDS_CLASS = y || LEDS_CLASS = AR9170_COMMON)
+	default y
