@@ -80,9 +80,9 @@ void emma2rh_irq_init(void)
 	u32 i;
 
 	for (i = 0; i < NUM_EMMA2RH_IRQ; i++)
-		set_irq_chip_and_handler(EMMA2RH_IRQ_BASE + i,
-					 &emma2rh_irq_controller,
-					 handle_level_irq);
+		set_irq_chip_and_handler_name(EMMA2RH_IRQ_BASE + i,
+					      &emma2rh_irq_controller,
+					      handle_level_irq, "level");
 }
 
 static void emma2rh_sw_irq_enable(unsigned int irq)
@@ -120,9 +120,9 @@ void emma2rh_sw_irq_init(void)
 	u32 i;
 
 	for (i = 0; i < NUM_EMMA2RH_IRQ_SW; i++)
-		set_irq_chip_and_handler(EMMA2RH_SW_IRQ_BASE + i,
-					 &emma2rh_sw_irq_controller,
-					 handle_level_irq);
+		set_irq_chip_and_handler_name(EMMA2RH_SW_IRQ_BASE + i,
+					      &emma2rh_sw_irq_controller,
+					      handle_level_irq, "level");
 }
 
 static void emma2rh_gpio_irq_enable(unsigned int irq)
