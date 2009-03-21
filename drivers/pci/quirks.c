@@ -2147,6 +2147,65 @@ DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_NVIDIA,
 			PCI_DEVICE_ID_NVIDIA_NVENET_15,
 			nvenet_msi_disable);
 
+static int __devinit ht_check_msi_mapping(struct pci_dev *dev)
+{
+	int pos, ttl = 48;
+	int found = 0;
+
+	/* check if there is HT MSI cap or enabled on this device */
+	pos = pci_find_ht_capability(dev, HT_CAPTYPE_MSI_MAPPING);
+	while (pos && ttl--) {
+		u8 flags;
+
+		if (found < 1)
+			found = 1;
+		if (pci_read_config_byte(dev, pos + HT_MSI_FLAGS,
+					 &flags) == 0) {
+			if (flags & HT_MSI_FLAGS_ENABLE) {
+				if (found < 2) {
+					found = 2;
+					break;
+				}
+			}
+		}
+		pos = pci_find_next_ht_capability(dev, pos,
+						  HT_CAPTYPE_MSI_MAPPING);
+	}
+
+	return found;
+}
+
+static int __devinit host_bridge_with_leaf(struct pci_dev *host_bridge)
+{
+	struct pci_dev *dev;
+	int pos;
+	int i, dev_no;
+	int found = 0;
+
+	dev_no = host_bridge->devfn >> 3;
+	for (i = dev_no + 1; i < 0x20; i++) {
+		dev = pci_get_slot(host_bridge->bus, PCI_DEVFN(i, 0));
+		if (!dev)
+			continue;
+
+		/* found next host bridge ?*/
+		pos = pci_find_ht_capability(dev, HT_CAPTYPE_SLAVE);
+		if (pos != 0) {
+			pci_dev_put(dev);
+			break;
+		}
+
+		if (ht_check_msi_mapping(dev)) {
+			found = 1;
+			pci_dev_put(dev);
+			break;
+		}
+		pci_dev_put(dev);
+	}
+
+	return found;
+}
+
 static void __devinit nv_ht_enable_msi_mapping(struct pci_dev *dev)
 {
 	struct pci_dev *host_bridge;
@@ -2170,6 +2229,10 @@ static void __devinit nv_ht_enable_msi_mapping(struct pci_dev *dev)
 
 	if (!found)
 		return;
+
+	/* don't enable host_bridge with leaf directly here */
+	if (host_bridge == dev && host_bridge_with_leaf(host_bridge))
+		goto out;
 
 	/* root did that ! */
 	if (msi_ht_cap_enabled(host_bridge))
@@ -2201,43 +2264,11 @@ static void __devinit ht_disable_msi_mapping(struct pci_dev *dev)
 	}
 }
 
-static int __devinit ht_check_msi_mapping(struct pci_dev *dev)
-{
-	int pos, ttl = 48;
-	int found = 0;
-
-	/* check if there is HT MSI cap or enabled on this device */
-	pos = pci_find_ht_capability(dev, HT_CAPTYPE_MSI_MAPPING);
-	while (pos && ttl--) {
-		u8 flags;
-
-		if (found < 1)
-			found = 1;
-		if (pci_read_config_byte(dev, pos + HT_MSI_FLAGS,
-					 &flags) == 0) {
-			if (flags & HT_MSI_FLAGS_ENABLE) {
-				if (found < 2) {
-					found = 2;
-					break;
-				}
-			}
-		}
-		pos = pci_find_next_ht_capability(dev, pos,
-						  HT_CAPTYPE_MSI_MAPPING);
-	}
-
-	return found;
-}
-
-static void __devinit nv_msi_ht_cap_quirk(struct pci_dev *dev)
+static void __devinit __nv_msi_ht_cap_quirk(struct pci_dev *dev, int all)
 {
 	struct pci_dev *host_bridge;
 	int pos;
 	int found;
-
-	/* Enabling HT MSI mapping on this device breaks MCP51 */
-	if (dev->device == 0x270)
-		return;
 
 	/* check if there is HT MSI cap or enabled on this device */
 	found = ht_check_msi_mapping(dev);
@@ -2262,7 +2293,10 @@ static void __devinit nv_msi_ht_cap_quirk(struct pci_dev *dev)
 		/* Host bridge is to HT */
 		if (found == 1) {
 			/* it is not enabled, try to enable it */
-			nv_ht_enable_msi_mapping(dev);
+			if (all)
+				ht_enable_msi_mapping(dev);
+			else
+				nv_ht_enable_msi_mapping(dev);
 		}
 		return;
 	}
@@ -2274,8 +2308,20 @@ static void __devinit nv_msi_ht_cap_quirk(struct pci_dev *dev)
 	/* Host bridge is not to HT, disable HT MSI mapping on this device */
 	ht_disable_msi_mapping(dev);
 }
-DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_NVIDIA, PCI_ANY_ID, nv_msi_ht_cap_quirk);
-DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_AL, PCI_ANY_ID, nv_msi_ht_cap_quirk);
+
+static void __devinit nv_msi_ht_cap_quirk_all(struct pci_dev *dev)
+{
+	return __nv_msi_ht_cap_quirk(dev, 1);
+}
+
+static void __devinit nv_msi_ht_cap_quirk_leaf(struct pci_dev *dev)
+{
+	return __nv_msi_ht_cap_quirk(dev, 0);
+}
+
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_NVIDIA, PCI_ANY_ID, nv_msi_ht_cap_quirk_leaf);
+
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_AL, PCI_ANY_ID, nv_msi_ht_cap_quirk_all);
 
 static void __devinit quirk_msi_intx_disable_bug(struct pci_dev *dev)
 {
