@@ -6,8 +6,14 @@
  */
 enum fpga_ids {
 	/* Technologic Systems */
-	TS7800_REV_B2 = FPGAID(0x00b480, 0x02),
-	TS7800_REV_B3 = FPGAID(0x00b480, 0x03),
+	TS7800_REV_1	= FPGAID(0x00b480, 0x01),
+	TS7800_REV_2	= FPGAID(0x00b480, 0x02),
+	TS7800_REV_3	= FPGAID(0x00b480, 0x03),
+	TS7800_REV_4	= FPGAID(0x00b480, 0x04),
+	TS7800_REV_5	= FPGAID(0x00b480, 0x05),
+
+	/* Unaffordable & Expensive */
+	UAE_DUMMY	= FPGAID(0xffffff, 0x01),
 };
 
 struct fpga_device {
