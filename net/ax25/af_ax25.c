@@ -1529,10 +1529,8 @@ static int ax25_sendmsg(struct kiocb *iocb, struct socket *sock,
 		dp = ax25->digipeat;
 	}
 
-	SOCK_DEBUG(sk, "AX.25: sendto: Addresses built.\n");
-
 	/* Build a packet */
-	SOCK_DEBUG(sk, "AX.25: sendto: building packet.\n");
+	SOCK_DEBUG(sk, "AX.25: sendto: Addresses built. Building packet.\n");
 
 	/* Assume the worst case */
 	size = len + ax25->ax25_dev->dev->hard_header_len;
