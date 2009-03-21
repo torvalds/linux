@@ -15,6 +15,7 @@
 
 #include <linux/types.h>
 #include <linux/ioctl.h>
+#include <asm/byteorder.h>
 
 /*
  * User-space ABI bits:
@@ -86,6 +87,7 @@ enum perf_counter_record_type {
  */
 struct perf_counter_hw_event {
 	union {
+#ifndef __BIG_ENDIAN_BITFIELD
 		struct {
 			__u64			event_id	: 56,
 						type		:  8;
@@ -94,6 +96,16 @@ struct perf_counter_hw_event {
 			__u64			raw_event_id	: 63,
 						raw_type	:  1;
 		};
+#else
+		struct {
+			__u64			type		:  8,
+						event_id	: 56;
+		};
+		struct {
+			__u64			raw_type	:  1,
+						raw_event_id	: 63;
+		};
+#endif /* __BIT_ENDIAN_BITFIELD */
 		__u64		event_config;
 	};
 
