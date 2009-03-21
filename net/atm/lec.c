@@ -502,7 +502,7 @@ static int lec_atm_send(struct atm_vcc *vcc, struct sk_buff *skb)
 		priv->lane2_ops = NULL;
 		if (priv->lane_version > 1)
 			priv->lane2_ops = &lane2_ops;
-		if (dev->change_mtu(dev, mesg->content.config.mtu))
+		if (dev_set_mtu(dev, mesg->content.config.mtu))
 			printk("%s: change_mtu to %d failed\n", dev->name,
 			       mesg->content.config.mtu);
 		priv->is_proxy = mesg->content.config.is_proxy;
