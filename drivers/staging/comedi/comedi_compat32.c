@@ -37,16 +37,16 @@
 #include <linux/ioctl32.h>	/* for (un)register_ioctl32_conversion */
 #endif
 
-#define COMEDI32_CHANINFO _IOR(CIO, 3, comedi32_chaninfo)
-#define COMEDI32_RANGEINFO _IOR(CIO, 8, (struct comedi32_rangeinfo_struct))
+#define COMEDI32_CHANINFO _IOR(CIO, 3, struct comedi32_chaninfo_struct)
+#define COMEDI32_RANGEINFO _IOR(CIO, 8, struct comedi32_rangeinfo_struct)
 /* N.B. COMEDI32_CMD and COMEDI_CMD ought to use _IOWR, not _IOR.
  * It's too late to change it now, but it only affects the command number. */
-#define COMEDI32_CMD _IOR(CIO, 9, (struct comedi32_cmd_struct))
+#define COMEDI32_CMD _IOR(CIO, 9, struct comedi32_cmd_struct)
 /* N.B. COMEDI32_CMDTEST and COMEDI_CMDTEST ought to use _IOWR, not _IOR.
  * It's too late to change it now, but it only affects the command number. */
-#define COMEDI32_CMDTEST _IOR(CIO, 10, (struct comedi32_cmd_struct))
-#define COMEDI32_INSNLIST _IOR(CIO, 11, (struct comedi32_insnlist_struct))
-#define COMEDI32_INSN _IOR(CIO, 12, (struct comedi32_insn_struct))
+#define COMEDI32_CMDTEST _IOR(CIO, 10, struct comedi32_cmd_struct)
+#define COMEDI32_INSNLIST _IOR(CIO, 11, struct comedi32_insnlist_struct)
+#define COMEDI32_INSN _IOR(CIO, 12, struct comedi32_insn_struct)
 
 struct comedi32_chaninfo_struct {
 	unsigned int subdev;
@@ -123,7 +123,7 @@ static int translated_ioctl(struct file *file, unsigned int cmd,
 /* Handle 32-bit COMEDI_CHANINFO ioctl. */
 static int compat_chaninfo(struct file *file, unsigned long arg)
 {
-	struct comedi_chaninfo_struct __user *chaninfo;
+	struct comedi_chaninfo __user *chaninfo;
 	struct comedi32_chaninfo_struct __user *chaninfo32;
 	int err;
 	union {
