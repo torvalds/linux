@@ -75,7 +75,7 @@ static int stat_seq_init(struct tracer_stat_session *session)
 {
 	struct trace_stat_list *iter_entry, *new_entry;
 	struct tracer_stat *ts = session->ts;
-	void *prev_stat;
+	void *stat;
 	int ret = 0;
 	int i;
 
@@ -84,6 +84,10 @@ static int stat_seq_init(struct tracer_stat_session *session)
 
 	if (!ts->stat_cmp)
 		ts->stat_cmp = dummy_cmp;
+
+	stat = ts->stat_start();
+	if (!stat)
+		goto exit;
 
 	/*
 	 * The first entry. Actually this is the second, but the first
@@ -99,14 +103,19 @@ static int stat_seq_init(struct tracer_stat_session *session)
 
 	list_add(&new_entry->list, &session->stat_list);
 
-	new_entry->stat = ts->stat_start();
-	prev_stat = new_entry->stat;
+	new_entry->stat = stat;
 
 	/*
 	 * Iterate over the tracer stat entries and store them in a sorted
 	 * list.
 	 */
 	for (i = 1; ; i++) {
+		stat = ts->stat_next(stat, i);
+
+		/* End of insertion */
+		if (!stat)
+			break;
+
 		new_entry = kmalloc(sizeof(struct trace_stat_list), GFP_KERNEL);
 		if (!new_entry) {
 			ret = -ENOMEM;
@@ -114,11 +123,7 @@ static int stat_seq_init(struct tracer_stat_session *session)
 		}
 
 		INIT_LIST_HEAD(&new_entry->list);
-		new_entry->stat = ts->stat_next(prev_stat, i);
-
-		/* End of insertion */
-		if (!new_entry->stat)
-			break;
+		new_entry->stat = stat;
 
 		list_for_each_entry(iter_entry, &session->stat_list, list) {
 
@@ -137,8 +142,6 @@ static int stat_seq_init(struct tracer_stat_session *session)
 				break;
 			}
 		}
-
-		prev_stat = new_entry->stat;
 	}
 exit:
 	mutex_unlock(&session->stat_mutex);
