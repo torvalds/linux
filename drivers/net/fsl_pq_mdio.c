@@ -321,6 +321,7 @@ static int fsl_pq_mdio_probe(struct of_device *ofdev,
 	dev_set_drvdata(&ofdev->dev, new_bus);
 
 	if (of_device_is_compatible(np, "fsl,gianfar-mdio") ||
+			of_device_is_compatible(np, "fsl,gianfar-tbi") ||
 			of_device_is_compatible(np, "gianfar")) {
 #ifdef CONFIG_GIANFAR
 		tbipa = get_gfar_tbipa(regs);
