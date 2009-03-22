@@ -39,4 +39,22 @@
 #define L2_CONFIG_REG		(BRIDGE_VIRT_BASE | 0x0128)
 #define L2_WRITETHROUGH		0x00000010
 
+#define CLOCK_GATING_CTRL	(BRIDGE_VIRT_BASE | 0x11c)
+#define CGC_GE0			(1 << 0)
+#define CGC_PEX0		(1 << 2)
+#define CGC_USB0		(1 << 3)
+#define CGC_SDIO		(1 << 4)
+#define CGC_TSU			(1 << 5)
+#define CGC_DUNIT		(1 << 6)
+#define CGC_RUNIT		(1 << 7)
+#define CGC_XOR0		(1 << 8)
+#define CGC_AUDIO		(1 << 9)
+#define CGC_SATA0		(1 << 14)
+#define CGC_SATA1		(1 << 15)
+#define CGC_XOR1		(1 << 16)
+#define CGC_CRYPTO		(1 << 17)
+#define CGC_GE1			(1 << 19)
+#define CGC_TDM			(1 << 20)
+#define CGC_RESERVED		((1 << 18) | (0x6 << 21))
+
 #endif
