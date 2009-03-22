@@ -804,6 +804,18 @@ struct ftrace_event_call {
 #endif
 };
 
+struct event_subsystem {
+	struct list_head	list;
+	const char		*name;
+	struct dentry		*entry;
+	struct filter_pred	**preds;
+};
+
+#define events_for_each(event)						\
+	for (event = __start_ftrace_events;				\
+	     (unsigned long)event < (unsigned long)__stop_ftrace_events; \
+	     event++)
+
 #define MAX_FILTER_PRED 8
 
 struct filter_pred;
@@ -832,6 +844,9 @@ extern int filter_add_pred(struct ftrace_event_call *call,
 			   struct filter_pred *pred);
 extern void filter_free_preds(struct ftrace_event_call *call);
 extern int filter_match_preds(struct ftrace_event_call *call, void *rec);
+extern void filter_free_subsystem_preds(struct event_subsystem *system);
+extern int filter_add_subsystem_pred(struct event_subsystem *system,
+				     struct filter_pred *pred);
 
 void event_trace_printk(unsigned long ip, const char *fmt, ...);
 extern struct ftrace_event_call __start_ftrace_events[];

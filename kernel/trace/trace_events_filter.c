@@ -181,6 +181,27 @@ void filter_free_preds(struct ftrace_event_call *call)
 	}
 }
 
+void filter_free_subsystem_preds(struct event_subsystem *system)
+{
+	struct ftrace_event_call *call = __start_ftrace_events;
+	int i;
+
+	if (system->preds) {
+		for (i = 0; i < MAX_FILTER_PRED; i++)
+			filter_free_pred(system->preds[i]);
+		kfree(system->preds);
+		system->preds = NULL;
+	}
+
+	events_for_each(call) {
+		if (!call->name || !call->regfunc)
+			continue;
+
+		if (!strcmp(call->system, system->name))
+			filter_free_preds(call);
+	}
+}
+
 static int __filter_add_pred(struct ftrace_event_call *call,
 			     struct filter_pred *pred)
 {
@@ -248,6 +269,65 @@ int filter_add_pred(struct ftrace_event_call *call, struct filter_pred *pred)
 	}
 
 	return __filter_add_pred(call, pred);
+}
+
+static struct filter_pred *copy_pred(struct filter_pred *pred)
+{
+	struct filter_pred *new_pred = kmalloc(sizeof(*pred), GFP_KERNEL);
+	if (!new_pred)
+		return NULL;
+
+	memcpy(new_pred, pred, sizeof(*pred));
+	if (pred->str_val) {
+		new_pred->str_val = kstrdup(pred->str_val, GFP_KERNEL);
+		new_pred->field_name = kstrdup(pred->field_name, GFP_KERNEL);
+		if (!new_pred->str_val) {
+			kfree(new_pred);
+			return NULL;
+		}
+	}
+
+	return new_pred;
+}
+
+int filter_add_subsystem_pred(struct event_subsystem *system,
+			      struct filter_pred *pred)
+{
+	struct ftrace_event_call *call = __start_ftrace_events;
+	struct filter_pred *event_pred;
+	int i;
+
+	if (system->preds && !pred->compound)
+		filter_free_subsystem_preds(system);
+
+	if (!system->preds) {
+		system->preds = kzalloc(MAX_FILTER_PRED * sizeof(pred),
+					GFP_KERNEL);
+		if (!system->preds)
+			return -ENOMEM;
+	}
+
+	for (i = 0; i < MAX_FILTER_PRED; i++) {
+		if (!system->preds[i]) {
+			system->preds[i] = pred;
+			break;
+		}
+		if (i == MAX_FILTER_PRED - 1)
+			return -EINVAL;
+	}
+
+	events_for_each(call) {
+		if (!call->name || !call->regfunc)
+			continue;
+
+		if (!strcmp(call->system, system->name)) {
+			event_pred = copy_pred(pred);
+			if (event_pred)
+				filter_add_pred(call, event_pred);
+		}
+	}
+
+	return 0;
 }
 
 int filter_parse(char **pbuf, struct filter_pred *pred)

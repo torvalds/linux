@@ -524,6 +524,71 @@ event_filter_write(struct file *filp, const char __user *ubuf, size_t cnt,
 	return cnt;
 }
 
+static ssize_t
+subsystem_filter_read(struct file *filp, char __user *ubuf, size_t cnt,
+		      loff_t *ppos)
+{
+	struct event_subsystem *system = filp->private_data;
+	struct trace_seq *s;
+	int r;
+
+	if (*ppos)
+		return 0;
+
+	s = kmalloc(sizeof(*s), GFP_KERNEL);
+	if (!s)
+		return -ENOMEM;
+
+	trace_seq_init(s);
+
+	r = filter_print_preds(system->preds, s->buffer);
+	r = simple_read_from_buffer(ubuf, cnt, ppos, s->buffer, r);
+
+	kfree(s);
+
+	return r;
+}
+
+static ssize_t
+subsystem_filter_write(struct file *filp, const char __user *ubuf, size_t cnt,
+		       loff_t *ppos)
+{
+	struct event_subsystem *system = filp->private_data;
+	char buf[64], *pbuf = buf;
+	struct filter_pred *pred;
+	int err;
+
+	if (cnt >= sizeof(buf))
+		return -EINVAL;
+
+	if (copy_from_user(&buf, ubuf, cnt))
+		return -EFAULT;
+
+	pred = kzalloc(sizeof(*pred), GFP_KERNEL);
+	if (!pred)
+		return -ENOMEM;
+
+	err = filter_parse(&pbuf, pred);
+	if (err < 0) {
+		filter_free_pred(pred);
+		return err;
+	}
+
+	if (pred->clear) {
+		filter_free_subsystem_preds(system);
+		return cnt;
+	}
+
+	if (filter_add_subsystem_pred(system, pred)) {
+		filter_free_pred(pred);
+		return -EINVAL;
+	}
+
+	*ppos += cnt;
+
+	return cnt;
+}
+
 static const struct seq_operations show_event_seq_ops = {
 	.start = t_start,
 	.next = t_next,
@@ -575,6 +640,12 @@ static const struct file_operations ftrace_event_filter_fops = {
 	.write = event_filter_write,
 };
 
+static const struct file_operations ftrace_subsystem_filter_fops = {
+	.open = tracing_open_generic,
+	.read = subsystem_filter_read,
+	.write = subsystem_filter_write,
+};
+
 static struct dentry *event_trace_events_dir(void)
 {
 	static struct dentry *d_tracer;
@@ -595,18 +666,13 @@ static struct dentry *event_trace_events_dir(void)
 	return d_events;
 }
 
-struct event_subsystem {
-	struct list_head	list;
-	const char		*name;
-	struct dentry		*entry;
-};
-
 static LIST_HEAD(event_subsystems);
 
 static struct dentry *
 event_subsystem_dir(const char *name, struct dentry *d_events)
 {
 	struct event_subsystem *system;
+	struct dentry *entry;
 
 	/* First see if we did not already create this dir */
 	list_for_each_entry(system, &event_subsystems, list) {
@@ -632,6 +698,14 @@ event_subsystem_dir(const char *name, struct dentry *d_events)
 
 	system->name = name;
 	list_add(&system->list, &event_subsystems);
+
+	system->preds = NULL;
+
+	entry = debugfs_create_file("filter", 0444, system->entry, system,
+				    &ftrace_subsystem_filter_fops);
+	if (!entry)
+		pr_warning("Could not create debugfs "
+			   "'%s/filter' entry\n", name);
 
 	return system->entry;
 }
