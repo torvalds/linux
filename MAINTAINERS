@@ -3034,8 +3034,9 @@ S:	Maintained
 
 MULTIFUNCTION DEVICES (MFD)
 P:	Samuel Ortiz
-M:	sameo@openedhand.com
+M:	sameo@linux.intel.com
 L:	linux-kernel@vger.kernel.org
+T:	git kernel.org:/pub/scm/linux/kernel/git/sameo/mfd-2.6.git
 S:	Supported
 
 MULTIMEDIA CARD (MMC), SECURE DIGITAL (SD) AND SDIO SUBSYSTEM
