@@ -248,6 +248,28 @@ trace_selftest_startup_function(struct tracer *trace, struct trace_array *tr)
 
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
+
+/* Maximum number of functions to trace before diagnosing a hang */
+#define GRAPH_MAX_FUNC_TEST	100000000
+
+static void __ftrace_dump(bool disable_tracing);
+static unsigned int graph_hang_thresh;
+
+/* Wrap the real function entry probe to avoid possible hanging */
+static int trace_graph_entry_watchdog(struct ftrace_graph_ent *trace)
+{
+	/* This is harmlessly racy, we want to approximately detect a hang */
+	if (unlikely(++graph_hang_thresh > GRAPH_MAX_FUNC_TEST)) {
+		ftrace_graph_stop();
+		printk(KERN_WARNING "BUG: Function graph tracer hang!\n");
+		if (ftrace_dump_on_oops)
+			__ftrace_dump(false);
+		return 0;
+	}
+
+	return trace_graph_entry(trace);
+}
+
 /*
  * Pretty much the same than for the function tracer from which the selftest
  * has been borrowed.
@@ -259,14 +281,28 @@ trace_selftest_startup_function_graph(struct tracer *trace,
 	int ret;
 	unsigned long count;
 
-	ret = tracer_init(trace, tr);
+	/*
+	 * Simulate the init() callback but we attach a watchdog callback
+	 * to detect and recover from possible hangs
+	 */
+	tracing_reset_online_cpus(tr);
+	ret = register_ftrace_graph(&trace_graph_return,
+				    &trace_graph_entry_watchdog);
 	if (ret) {
 		warn_failed_init_tracer(trace, ret);
 		goto out;
 	}
+	tracing_start_cmdline_record();
 
 	/* Sleep for a 1/10 of a second */
 	msleep(100);
+
+	/* Have we just recovered from a hang? */
+	if (graph_hang_thresh > GRAPH_MAX_FUNC_TEST) {
+		trace->reset(tr);
+		ret = -1;
+		goto out;
+	}
 
 	tracing_stop();
 

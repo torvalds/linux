@@ -4018,11 +4018,12 @@ trace_printk_seq(struct trace_seq *s)
 	trace_seq_init(s);
 }
 
-void ftrace_dump(void)
+static void __ftrace_dump(bool disable_tracing)
 {
 	static DEFINE_SPINLOCK(ftrace_dump_lock);
 	/* use static because iter can be a bit big for the stack */
 	static struct trace_iterator iter;
+	unsigned int old_userobj;
 	static int dump_ran;
 	unsigned long flags;
 	int cnt = 0, cpu;
@@ -4034,13 +4035,16 @@ void ftrace_dump(void)
 
 	dump_ran = 1;
 
-	/* No turning back! */
 	tracing_off();
-	ftrace_kill();
+
+	if (disable_tracing)
+		ftrace_kill();
 
 	for_each_tracing_cpu(cpu) {
 		atomic_inc(&global_trace.data[cpu]->disabled);
 	}
+
+	old_userobj = trace_flags & TRACE_ITER_SYM_USEROBJ;
 
 	/* don't look at user memory in panic mode */
 	trace_flags &= ~TRACE_ITER_SYM_USEROBJ;
@@ -4086,8 +4090,24 @@ void ftrace_dump(void)
 	else
 		printk(KERN_TRACE "---------------------------------\n");
 
+	/* Re-enable tracing if requested */
+	if (!disable_tracing) {
+		trace_flags |= old_userobj;
+
+		for_each_tracing_cpu(cpu) {
+			atomic_dec(&global_trace.data[cpu]->disabled);
+		}
+		tracing_on();
+	}
+
  out:
 	spin_unlock_irqrestore(&ftrace_dump_lock, flags);
+}
+
+/* By default: disable tracing after the dump */
+void ftrace_dump(void)
+{
+	__ftrace_dump(true);
 }
 
 __init static int tracer_alloc_buffers(void)
