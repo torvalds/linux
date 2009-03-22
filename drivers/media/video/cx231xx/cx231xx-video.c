@@ -2353,8 +2353,6 @@ int cx231xx_register_analog_devices(struct cx231xx *dev)
 {
 	int ret;
 
-	cx231xx_info("%s()\n", __func__);
-
 	cx231xx_info("%s: v4l2 driver version %d.%d.%d\n",
 		     dev->name,
 		     (CX231XX_VERSION_CODE >> 16) & 0xff,

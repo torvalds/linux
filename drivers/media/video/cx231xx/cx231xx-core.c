@@ -125,7 +125,7 @@ int cx231xx_register_extension(struct cx231xx_ops *ops)
 		if (dev)
 			ops->init(dev);
 	}
-	cx231xx_info("Cx231xx: Initialized (%s) extension\n", ops->name);
+	printk(KERN_INFO DRIVER_NAME ": %s initialized\n", ops->name);
 	mutex_unlock(&cx231xx_extension_devlist_lock);
 	mutex_unlock(&cx231xx_devlist_mutex);
 	return 0;
@@ -143,7 +143,7 @@ void cx231xx_unregister_extension(struct cx231xx_ops *ops)
 	}
 
 	mutex_lock(&cx231xx_extension_devlist_lock);
-	cx231xx_info("Cx231xx: Removed (%s) extension\n", ops->name);
+	printk(KERN_INFO DRIVER_NAME ": %s removed\n", ops->name);
 	list_del(&ops->next);
 	mutex_unlock(&cx231xx_extension_devlist_lock);
 	mutex_unlock(&cx231xx_devlist_mutex);

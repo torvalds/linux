@@ -518,8 +518,6 @@ int cx231xx_i2c_register(struct cx231xx_i2c *bus)
 
 	BUG_ON(!dev->cx231xx_send_usb_command);
 
-	cx231xx_info("%s(bus = %d)\n", __func__, bus->nr);
-
 	memcpy(&bus->i2c_adap, &cx231xx_adap_template, sizeof(bus->i2c_adap));
 	memcpy(&bus->i2c_algo, &cx231xx_algo, sizeof(bus->i2c_algo));
 	memcpy(&bus->i2c_client, &cx231xx_client_template,
@@ -537,7 +535,6 @@ int cx231xx_i2c_register(struct cx231xx_i2c *bus)
 	bus->i2c_client.adapter = &bus->i2c_adap;
 
 	if (0 == bus->i2c_rc) {
-		cx231xx_info("%s: i2c bus %d registered\n", dev->name, bus->nr);
 		if (i2c_scan)
 			cx231xx_do_i2c_scan(dev, &bus->i2c_client);
 	} else

@@ -224,7 +224,6 @@ void cx231xx_pre_card_setup(struct cx231xx *dev)
 	cx231xx_info("Identified as %s (card=%d)\n",
 		     dev->board.name, dev->model);
 
-	cx231xx_info("Precard: Board is %s\n", dev->board.name);
 	/* set the direction for GPIO pins */
 	cx231xx_set_gpio_direction(dev, dev->board.tuner_gpio->bit, 1);
 	cx231xx_set_gpio_value(dev, dev->board.tuner_gpio->bit, 1);
@@ -310,27 +309,11 @@ void cx231xx_card_setup(struct cx231xx *dev)
 	if (cx231xx_boards[dev->model].tuner_addr)
 		dev->tuner_addr = cx231xx_boards[dev->model].tuner_addr;
 
-	cx231xx_info(": tuner type %d, tuner address %d \n",
-		     dev->tuner_type, dev->tuner_addr);
-
-	/* Do card specific if any */
-	switch (dev->model) {
-	case CX231XX_BOARD_CNXT_RDE_250:
-		/* do card specific GPIO settings if required */
-		cx231xx_info("Board is Conexant RDE 250\n");
-		break;
-	case CX231XX_BOARD_CNXT_RDU_250:
-		/* do card specific GPIO settings if required */
-		cx231xx_info("Board is Conexant RDU 250\n");
-		break;
-	}
-
 	/* request some modules */
 	if (dev->board.decoder == CX231XX_AVDECODER) {
-		cx231xx_info(": Requesting cx25840 module\n");
 		dev->sd_cx25840 =
 			v4l2_i2c_new_subdev(&dev->i2c_bus[0].i2c_adap,
-				"cx25840", "cx25840", 0x88 >> 1);
+					"cx25840", "cx25840", 0x88 >> 1);
 		if (dev->sd_cx25840 == NULL)
 			cx231xx_info("cx25840 subdev registration failure\n");
 		cx25840_call(dev, core, init, 0);
@@ -338,7 +321,6 @@ void cx231xx_card_setup(struct cx231xx *dev)
 	}
 
 	if (dev->board.tuner_type != TUNER_ABSENT) {
-		cx231xx_info(": Requesting Tuner module\n");
 		dev->sd_tuner =
 			v4l2_i2c_new_subdev(&dev->i2c_bus[1].i2c_adap,
 				"tuner", "tuner", 0xc2 >> 1);
