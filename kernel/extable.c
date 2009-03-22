@@ -16,6 +16,7 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 #include <linux/ftrace.h>
+#include <linux/memory.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/init.h>
