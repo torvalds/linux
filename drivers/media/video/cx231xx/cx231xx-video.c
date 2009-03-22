@@ -1640,8 +1640,7 @@ static int vidioc_querycap(struct file *file, void *priv,
 
 	strlcpy(cap->driver, "cx231xx", sizeof(cap->driver));
 	strlcpy(cap->card, cx231xx_boards[dev->model].name, sizeof(cap->card));
-	strlcpy(cap->bus_info, dev->v4l2_dev.name,
-		sizeof(cap->bus_info));
+	usb_make_path(dev->udev, cap->bus_info, sizeof(cap->bus_info));
 
 	cap->version = CX231XX_VERSION_CODE;
 
