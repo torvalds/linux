@@ -2346,15 +2346,7 @@ static void kvm_reput_irq(struct vcpu_svm *svm)
 
 static void svm_do_inject_vector(struct vcpu_svm *svm)
 {
-	struct kvm_vcpu *vcpu = &svm->vcpu;
-	int word_index = __ffs(vcpu->arch.irq_summary);
-	int bit_index = __ffs(vcpu->arch.irq_pending[word_index]);
-	int irq = word_index * BITS_PER_LONG + bit_index;
-
-	clear_bit(bit_index, &vcpu->arch.irq_pending[word_index]);
-	if (!vcpu->arch.irq_pending[word_index])
-		clear_bit(word_index, &vcpu->arch.irq_summary);
-	svm_inject_irq(svm, irq);
+	svm_inject_irq(svm, pop_irq(&svm->vcpu));
 }
 
 static void do_interrupt_requests(struct kvm_vcpu *vcpu,
