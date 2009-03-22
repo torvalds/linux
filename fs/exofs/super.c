@@ -37,6 +37,7 @@
 #include <linux/parser.h>
 #include <linux/vfs.h>
 #include <linux/random.h>
+#include <linux/exportfs.h>
 
 #include "exofs.h"
 
@@ -194,6 +195,7 @@ static void destroy_inodecache(void)
  * SUPERBLOCK FUNCTIONS
  *****************************************************************************/
 static const struct super_operations exofs_sops;
+static const struct export_operations exofs_export_ops;
 
 /*
  * Write the superblock to the OSD
@@ -358,6 +360,7 @@ static int exofs_fill_super(struct super_block *sb, void *data, int silent)
 
 	/* set up operation vectors */
 	sb->s_op = &exofs_sops;
+	sb->s_export_op = &exofs_export_ops;
 	root = exofs_iget(sb, EXOFS_ROOT_ID - EXOFS_OBJ_OFF);
 	if (IS_ERR(root)) {
 		EXOFS_ERR("ERROR: exofs_iget failed\n");
@@ -482,6 +485,56 @@ static const struct super_operations exofs_sops = {
 	.put_super      = exofs_put_super,
 	.write_super    = exofs_write_super,
 	.statfs         = exofs_statfs,
+};
+
+/******************************************************************************
+ * EXPORT OPERATIONS
+ *****************************************************************************/
+
+struct dentry *exofs_get_parent(struct dentry *child)
+{
+	unsigned long ino = exofs_parent_ino(child);
+
+	if (!ino)
+		return NULL;
+
+	return d_obtain_alias(exofs_iget(child->d_inode->i_sb, ino));
+}
+
+static struct inode *exofs_nfs_get_inode(struct super_block *sb,
+		u64 ino, u32 generation)
+{
+	struct inode *inode;
+
+	inode = exofs_iget(sb, ino);
+	if (IS_ERR(inode))
+		return ERR_CAST(inode);
+	if (generation && inode->i_generation != generation) {
+		/* we didn't find the right inode.. */
+		iput(inode);
+		return ERR_PTR(-ESTALE);
+	}
+	return inode;
+}
+
+static struct dentry *exofs_fh_to_dentry(struct super_block *sb,
+				struct fid *fid, int fh_len, int fh_type)
+{
+	return generic_fh_to_dentry(sb, fid, fh_len, fh_type,
+				    exofs_nfs_get_inode);
+}
+
+static struct dentry *exofs_fh_to_parent(struct super_block *sb,
+				struct fid *fid, int fh_len, int fh_type)
+{
+	return generic_fh_to_parent(sb, fid, fh_len, fh_type,
+				    exofs_nfs_get_inode);
+}
+
+static const struct export_operations exofs_export_ops = {
+	.fh_to_dentry = exofs_fh_to_dentry,
+	.fh_to_parent = exofs_fh_to_parent,
+	.get_parent = exofs_get_parent,
 };
 
 /******************************************************************************

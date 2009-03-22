@@ -152,6 +152,7 @@ struct exofs_dir_entry *exofs_find_entry(struct inode *, struct dentry *,
 					 struct page **);
 int exofs_empty_dir(struct inode *);
 struct exofs_dir_entry *exofs_dotdot(struct inode *, struct page **);
+ino_t exofs_parent_ino(struct dentry *child);
 int exofs_set_link(struct inode *, struct exofs_dir_entry *, struct page *,
 		    struct inode *);
 

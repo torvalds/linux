@@ -381,6 +381,21 @@ struct exofs_dir_entry *exofs_dotdot(struct inode *dir, struct page **p)
 	return de;
 }
 
+ino_t exofs_parent_ino(struct dentry *child)
+{
+	struct page *page;
+	struct exofs_dir_entry *de;
+	ino_t ino;
+
+	de = exofs_dotdot(child->d_inode, &page);
+	if (!de)
+		return 0;
+
+	ino = le64_to_cpu(de->inode_no);
+	exofs_put_page(page);
+	return ino;
+}
+
 ino_t exofs_inode_by_name(struct inode *dir, struct dentry *dentry)
 {
 	ino_t res = 0;
