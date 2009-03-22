@@ -90,13 +90,13 @@
 
 #define MPP10_GPO		MPP( 10, 0x0, 0, 1, 1,   1,   1,   1    )
 #define MPP10_SPI_SCK		MPP( 10, 0x2, 0, 1, 1,   1,   1,   1    )
-#define MPP10_UArt0_TXD		MPP( 10, 0X3, 0, 1, 1,   1,   1,   1    )
+#define MPP10_UART0_TXD		MPP( 10, 0X3, 0, 1, 1,   1,   1,   1    )
 #define MPP10_SATA1_ACTn	MPP( 10, 0x5, 0, 1, 0,   0,   1,   1    )
 #define MPP10_PTP_TRIG_GEN	MPP( 10, 0xc, 0, 1, 1,   1,   1,   1    )
 
 #define MPP11_GPIO		MPP( 11, 0x0, 1, 1, 1,   1,   1,   1    )
 #define MPP11_SPI_MISO		MPP( 11, 0x2, 1, 0, 1,   1,   1,   1    )
-#define MPP11_UArt0_RXD		MPP( 11, 0x3, 1, 0, 1,   1,   1,   1    )
+#define MPP11_UART0_RXD		MPP( 11, 0x3, 1, 0, 1,   1,   1,   1    )
 #define MPP11_PTP_EVENT_REQ	MPP( 11, 0x4, 1, 0, 1,   1,   1,   1    )
 #define MPP11_PTP_TRIG_GEN	MPP( 11, 0xc, 0, 1, 1,   1,   1,   1    )
 #define MPP11_PTP_CLK		MPP( 11, 0xd, 1, 0, 1,   1,   1,   1    )
