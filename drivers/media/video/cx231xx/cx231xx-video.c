@@ -1421,36 +1421,36 @@ static int vidioc_g_register(struct file *file, void *priv,
 			reg->val = value[0] | value[1] << 8 |
 				   value[2] << 16 | value[3] << 24;
 			break;
-		case 1:	/* Colibri - read byte */
-			ret = cx231xx_read_i2c_data(dev, Colibri_DEVICE_ADDRESS,
+		case 1:	/* AFE - read byte */
+			ret = cx231xx_read_i2c_data(dev, AFE_DEVICE_ADDRESS,
 						  (u16)reg->reg, 2, &data, 1);
 			reg->val = le32_to_cpu(data & 0xff);
 			break;
-		case 14:	/* Colibri - read dword */
-			ret = cx231xx_read_i2c_data(dev, Colibri_DEVICE_ADDRESS,
+		case 14: /* AFE - read dword */
+			ret = cx231xx_read_i2c_data(dev, AFE_DEVICE_ADDRESS,
 						  (u16)reg->reg, 2, &data, 4);
 			reg->val = le32_to_cpu(data);
 			break;
-		case 2:	/* Hammerhead - read byte */
-			ret = cx231xx_read_i2c_data(dev, HAMMERHEAD_I2C_ADDRESS,
+		case 2:	/* Video Block - read byte */
+			ret = cx231xx_read_i2c_data(dev, VID_BLK_I2C_ADDRESS,
 						  (u16)reg->reg, 2, &data, 1);
 			reg->val = le32_to_cpu(data & 0xff);
 			break;
-		case 24:	/* Hammerhead - read dword */
-			ret = cx231xx_read_i2c_data(dev, HAMMERHEAD_I2C_ADDRESS,
+		case 24: /* Video Block - read dword */
+			ret = cx231xx_read_i2c_data(dev, VID_BLK_I2C_ADDRESS,
 						  (u16)reg->reg, 2, &data, 4);
 			reg->val = le32_to_cpu(data);
 			break;
-		case 3:	/* flatiron - read byte */
+		case 3:	/* I2S block - read byte */
 			ret = cx231xx_read_i2c_data(dev,
-						    Flatrion_DEVICE_ADDRESS,
+						    I2S_BLK_DEVICE_ADDRESS,
 						    (u16)reg->reg, 1,
 						    &data, 1);
 			reg->val = le32_to_cpu(data & 0xff);
 			break;
-		case 34:	/* flatiron - read dword */
+		case 34: /* I2S Block - read dword */
 			ret =
-			    cx231xx_read_i2c_data(dev, Flatrion_DEVICE_ADDRESS,
+			    cx231xx_read_i2c_data(dev, I2S_BLK_DEVICE_ADDRESS,
 						  (u16)reg->reg, 1, &data, 4);
 			reg->val = le32_to_cpu(data);
 			break;
@@ -1503,43 +1503,43 @@ static int vidioc_s_register(struct file *file, void *priv,
 							   (u16)reg->reg, data,
 							   4);
 				break;
-			case 1:	/* Colibri - read byte */
+			case 1:	/* AFE - read byte */
 				ret = cx231xx_write_i2c_data(dev,
-							Colibri_DEVICE_ADDRESS,
+							AFE_DEVICE_ADDRESS,
 							(u16)reg->reg, 2,
 							value, 1);
 				break;
-			case 14:	/* Colibri - read dword */
+			case 14: /* AFE - read dword */
 				ret = cx231xx_write_i2c_data(dev,
-							Colibri_DEVICE_ADDRESS,
+							AFE_DEVICE_ADDRESS,
 							(u16)reg->reg, 2,
 							value, 4);
 				break;
-			case 2:	/* Hammerhead - read byte */
+			case 2:	/* Video Block - read byte */
 				ret =
 				    cx231xx_write_i2c_data(dev,
-							HAMMERHEAD_I2C_ADDRESS,
+							VID_BLK_I2C_ADDRESS,
 							(u16)reg->reg, 2,
 							value, 1);
 				break;
-			case 24:	/* Hammerhead - read dword */
+			case 24: /* Video Block - read dword */
 				ret =
 				    cx231xx_write_i2c_data(dev,
-							HAMMERHEAD_I2C_ADDRESS,
+							VID_BLK_I2C_ADDRESS,
 							(u16)reg->reg, 2,
 							value, 4);
 				break;
-			case 3:	/* flatiron - read byte */
+			case 3:	/* I2S block - read byte */
 				ret =
 				    cx231xx_write_i2c_data(dev,
-							Flatrion_DEVICE_ADDRESS,
+							I2S_BLK_DEVICE_ADDRESS,
 							(u16)reg->reg, 1,
 							value, 1);
 				break;
-			case 34:	/* flatiron - read dword */
+			case 34: /* I2S block - read dword */
 				ret =
 				    cx231xx_write_i2c_data(dev,
-							Flatrion_DEVICE_ADDRESS,
+							I2S_BLK_DEVICE_ADDRESS,
 							(u16)reg->reg, 1,
 							value, 4);
 				break;

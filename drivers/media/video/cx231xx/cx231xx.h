@@ -46,9 +46,9 @@
 #define PWR_SLEEP_INTERVAL              5
 
 /* I2C addresses for control block in Cx231xx */
-#define     Colibri_DEVICE_ADDRESS      0x60
-#define     Flatrion_DEVICE_ADDRESS     0x98
-#define     HAMMERHEAD_I2C_ADDRESS      0x88
+#define     AFE_DEVICE_ADDRESS		0x60
+#define     I2S_BLK_DEVICE_ADDRESS	0x98
+#define     VID_BLK_I2C_ADDRESS		0x88
 #define     DIF_USE_BASEBAND            0xFFFFFFFF
 
 /* Boards supported by driver */
@@ -540,9 +540,9 @@ struct cx231xx {
 	/* Power Modes */
 	int power_mode;
 
-	/* colibri parameters */
-	enum AFE_MODE colibri_mode;
-	u32 colibri_ref_count;
+	/* afe parameters */
+	enum AFE_MODE afe_mode;
+	u32 afe_ref_count;
 
 	/* video related parameters */
 	u32 video_input;
@@ -588,21 +588,21 @@ int cx231xx_read_modify_write_i2c_dword(struct cx231xx *dev, u8 dev_addr,
 					u16 saddr, u32 mask, u32 value);
 u32 cx231xx_set_field(u32 field_mask, u32 data);
 
-/* Colibri related functions */
-int cx231xx_colibri_init_super_block(struct cx231xx *dev, u32 ref_count);
-int cx231xx_colibri_init_channels(struct cx231xx *dev);
-int cx231xx_colibri_setup_AFE_for_baseband(struct cx231xx *dev);
-int cx231xx_colibri_set_input_mux(struct cx231xx *dev, u32 input_mux);
-int cx231xx_colibri_set_mode(struct cx231xx *dev, enum AFE_MODE mode);
-int cx231xx_colibri_update_power_control(struct cx231xx *dev,
+/* afe related functions */
+int cx231xx_afe_init_super_block(struct cx231xx *dev, u32 ref_count);
+int cx231xx_afe_init_channels(struct cx231xx *dev);
+int cx231xx_afe_setup_AFE_for_baseband(struct cx231xx *dev);
+int cx231xx_afe_set_input_mux(struct cx231xx *dev, u32 input_mux);
+int cx231xx_afe_set_mode(struct cx231xx *dev, enum AFE_MODE mode);
+int cx231xx_afe_update_power_control(struct cx231xx *dev,
 					enum AV_MODE avmode);
-int cx231xx_colibri_adjust_ref_count(struct cx231xx *dev, u32 video_input);
+int cx231xx_afe_adjust_ref_count(struct cx231xx *dev, u32 video_input);
 
-/* flatiron related functions */
-int cx231xx_flatiron_initialize(struct cx231xx *dev);
-int cx231xx_flatiron_update_power_control(struct cx231xx *dev,
+/* i2s block related functions */
+int cx231xx_i2s_blk_initialize(struct cx231xx *dev);
+int cx231xx_i2s_blk_update_power_control(struct cx231xx *dev,
 					enum AV_MODE avmode);
-int cx231xx_flatiron_set_audio_input(struct cx231xx *dev, u8 audio_input);
+int cx231xx_i2s_blk_set_audio_input(struct cx231xx *dev, u8 audio_input);
 
 /* DIF related functions */
 int cx231xx_dif_configure_C2HH_for_low_IF(struct cx231xx *dev, u32 mode,

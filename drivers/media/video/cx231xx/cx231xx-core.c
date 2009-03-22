@@ -883,7 +883,7 @@ int cx231xx_dev_init(struct cx231xx *dev)
 
 	/* init hardware */
 	/* Note : with out calling set power mode function,
-	colibri can not be set up correctly */
+	afe can not be set up correctly */
 	errCode = cx231xx_set_power_mode(dev, POLARIS_AVMODE_ANALOGT_TV);
 	if (errCode < 0) {
 		cx231xx_errdev
@@ -893,17 +893,17 @@ int cx231xx_dev_init(struct cx231xx *dev)
 	}
 
 	/* initialize Colibri block */
-	errCode = cx231xx_colibri_init_super_block(dev, 0x23c);
+	errCode = cx231xx_afe_init_super_block(dev, 0x23c);
 	if (errCode < 0) {
 		cx231xx_errdev
-		    ("%s: cx231xx_colibri init super block - errCode [%d]!\n",
+		    ("%s: cx231xx_afe init super block - errCode [%d]!\n",
 		     __func__, errCode);
 		return errCode;
 	}
-	errCode = cx231xx_colibri_init_channels(dev);
+	errCode = cx231xx_afe_init_channels(dev);
 	if (errCode < 0) {
 		cx231xx_errdev
-		    ("%s: cx231xx_colibri init channels - errCode [%d]!\n",
+		    ("%s: cx231xx_afe init channels - errCode [%d]!\n",
 		     __func__, errCode);
 		return errCode;
 	}
@@ -917,11 +917,11 @@ int cx231xx_dev_init(struct cx231xx *dev)
 		return errCode;
 	}
 
-	/* flatiron related functions */
-	errCode = cx231xx_flatiron_initialize(dev);
+	/* I2S block related functions */
+	errCode = cx231xx_i2s_blk_initialize(dev);
 	if (errCode < 0) {
 		cx231xx_errdev
-		    ("%s: cx231xx_flatiron initialize - errCode [%d]!\n",
+		    ("%s: cx231xx_i2s block initialize - errCode [%d]!\n",
 		     __func__, errCode);
 		return errCode;
 	}

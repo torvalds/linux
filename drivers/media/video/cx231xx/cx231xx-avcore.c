@@ -40,54 +40,77 @@
 #include "cx231xx.h"
 
 /******************************************************************************
- *            C O L I B R I - B L O C K    C O N T R O L   functions          *
+			-: BLOCK ARRANGEMENT :-
+	I2S block ----------------------|
+	[I2S audio]			|
+					|
+	Analog Front End --> Direct IF -|-> Cx25840 --> Audio
+	[video & audio]			|   [Audio]
+					|
+					|-> Cx25840 --> Video
+					    [Video]
+
+*******************************************************************************/
+
+/******************************************************************************
+ *                    A F E - B L O C K    C O N T R O L   functions          *
+ * 				[ANALOG FRONT END]			      *
  ******************************************************************************/
-int cx231xx_colibri_init_super_block(struct cx231xx *dev, u32 ref_count)
+static int afe_write_byte(struct cx231xx *dev, u16 saddr, u8 data)
+{
+	return cx231xx_write_i2c_data(dev, AFE_DEVICE_ADDRESS,
+					saddr, 2, data, 1);
+}
+
+static int afe_read_byte(struct cx231xx *dev, u16 saddr, u8 *data)
+{
+	int status;
+	u32 temp = 0;
+
+	status = cx231xx_read_i2c_data(dev, AFE_DEVICE_ADDRESS,
+					saddr, 2, &temp, 1);
+	*data = (u8) temp;
+	return status;
+}
+
+int cx231xx_afe_init_super_block(struct cx231xx *dev, u32 ref_count)
 {
 	int status = 0;
 	u8 temp = 0;
-	u32 colibri_power_status = 0;
+	u8 afe_power_status = 0;
 	int i = 0;
 
 	/* super block initialize */
 	temp = (u8) (ref_count & 0xff);
-	status = cx231xx_write_i2c_data(dev, Colibri_DEVICE_ADDRESS,
-					SUP_BLK_TUNE2, 2, temp, 1);
+	status = afe_write_byte(dev, SUP_BLK_TUNE2, temp);
 	if (status < 0)
 		return status;
 
-	status = cx231xx_read_i2c_data(dev, Colibri_DEVICE_ADDRESS,
-				       SUP_BLK_TUNE2, 2,
-				       &colibri_power_status, 1);
+	status = afe_read_byte(dev, SUP_BLK_TUNE2, &afe_power_status);
 	if (status < 0)
 		return status;
 
 	temp = (u8) ((ref_count & 0x300) >> 8);
 	temp |= 0x40;
-	status = cx231xx_write_i2c_data(dev, Colibri_DEVICE_ADDRESS,
-					SUP_BLK_TUNE1, 2, temp, 1);
+	status = afe_write_byte(dev, SUP_BLK_TUNE1, temp);
 	if (status < 0)
 		return status;
 
-	status = cx231xx_write_i2c_data(dev, Colibri_DEVICE_ADDRESS,
-					SUP_BLK_PLL2, 2, 0x0f, 1);
+	status = afe_write_byte(dev, SUP_BLK_PLL2, 0x0f);
 	if (status < 0)
 		return status;
 
 	/* enable pll     */
-	while (colibri_power_status != 0x18) {
-		status = cx231xx_write_i2c_data(dev, Colibri_DEVICE_ADDRESS,
-						SUP_BLK_PWRDN, 2, 0x18, 1);
+	while (afe_power_status != 0x18) {
+		status = afe_write_byte(dev, SUP_BLK_PWRDN, 0x18);
 		if (status < 0) {
 			cx231xx_info(
 			": Init Super Block failed in send cmd\n");
 			break;
 		}
 
-		status = cx231xx_read_i2c_data(dev, Colibri_DEVICE_ADDRESS,
-					       SUP_BLK_PWRDN, 2,
-					       &colibri_power_status, 1);
-		colibri_power_status &= 0xff;
+		status = afe_read_byte(dev, SUP_BLK_PWRDN, &afe_power_status);
+		afe_power_status &= 0xff;
 		if (status < 0) {
 			cx231xx_info(
 			": Init Super Block failed in receive cmd\n");
@@ -106,101 +129,75 @@ int cx231xx_colibri_init_super_block(struct cx231xx *dev, u32 ref_count)
 		return status;
 
 	/* start tuning filter */
-	status = cx231xx_write_i2c_data(dev, Colibri_DEVICE_ADDRESS,
-					SUP_BLK_TUNE3, 2, 0x40, 1);
+	status = afe_write_byte(dev, SUP_BLK_TUNE3, 0x40);
 	if (status < 0)
 		return status;
 
 	msleep(5);
 
 	/* exit tuning */
-	status =
-	    cx231xx_write_i2c_data(dev, Colibri_DEVICE_ADDRESS, SUP_BLK_TUNE3,
-				   2, 0x00, 1);
+	status = afe_write_byte(dev, SUP_BLK_TUNE3, 0x00);
 
 	return status;
 }
 
-int cx231xx_colibri_init_channels(struct cx231xx *dev)
+int cx231xx_afe_init_channels(struct cx231xx *dev)
 {
 	int status = 0;
 
 	/* power up all 3 channels, clear pd_buffer */
-	status = cx231xx_write_i2c_data(dev, Colibri_DEVICE_ADDRESS,
-				   ADC_PWRDN_CLAMP_CH1, 2, 0x00, 1);
-	status = cx231xx_write_i2c_data(dev, Colibri_DEVICE_ADDRESS,
-				   ADC_PWRDN_CLAMP_CH2, 2, 0x00, 1);
-	status = cx231xx_write_i2c_data(dev, Colibri_DEVICE_ADDRESS,
-				   ADC_PWRDN_CLAMP_CH3, 2, 0x00, 1);
+	status = afe_write_byte(dev, ADC_PWRDN_CLAMP_CH1, 0x00);
+	status = afe_write_byte(dev, ADC_PWRDN_CLAMP_CH2, 0x00);
+	status = afe_write_byte(dev, ADC_PWRDN_CLAMP_CH3, 0x00);
 
 	/* Enable quantizer calibration */
-	status = cx231xx_write_i2c_data(dev, Colibri_DEVICE_ADDRESS,
-					ADC_COM_QUANT, 2, 0x02, 1);
+	status = afe_write_byte(dev, ADC_COM_QUANT, 0x02);
 
 	/* channel initialize, force modulator (fb) reset */
-	status = cx231xx_write_i2c_data(dev, Colibri_DEVICE_ADDRESS,
-				   ADC_FB_FRCRST_CH1, 2, 0x17, 1);
-	status = cx231xx_write_i2c_data(dev, Colibri_DEVICE_ADDRESS,
-				   ADC_FB_FRCRST_CH2, 2, 0x17, 1);
-	status = cx231xx_write_i2c_data(dev, Colibri_DEVICE_ADDRESS,
-				   ADC_FB_FRCRST_CH3, 2, 0x17, 1);
+	status = afe_write_byte(dev, ADC_FB_FRCRST_CH1, 0x17);
+	status = afe_write_byte(dev, ADC_FB_FRCRST_CH2, 0x17);
+	status = afe_write_byte(dev, ADC_FB_FRCRST_CH3, 0x17);
 
 	/* start quantilizer calibration  */
-	status = cx231xx_write_i2c_data(dev, Colibri_DEVICE_ADDRESS,
-				   ADC_CAL_ATEST_CH1, 2, 0x10, 1);
-	status = cx231xx_write_i2c_data(dev, Colibri_DEVICE_ADDRESS,
-				   ADC_CAL_ATEST_CH2, 2, 0x10, 1);
-	status = cx231xx_write_i2c_data(dev, Colibri_DEVICE_ADDRESS,
-				   ADC_CAL_ATEST_CH3, 2, 0x10, 1);
+	status = afe_write_byte(dev, ADC_CAL_ATEST_CH1, 0x10);
+	status = afe_write_byte(dev, ADC_CAL_ATEST_CH2, 0x10);
+	status = afe_write_byte(dev, ADC_CAL_ATEST_CH3, 0x10);
 	msleep(5);
 
 	/* exit modulator (fb) reset */
-	status = cx231xx_write_i2c_data(dev, Colibri_DEVICE_ADDRESS,
-				   ADC_FB_FRCRST_CH1, 2, 0x07, 1);
-	status =  cx231xx_write_i2c_data(dev, Colibri_DEVICE_ADDRESS,
-				   ADC_FB_FRCRST_CH2, 2, 0x07, 1);
-	status = cx231xx_write_i2c_data(dev, Colibri_DEVICE_ADDRESS,
-				   ADC_FB_FRCRST_CH3, 2, 0x07, 1);
+	status = afe_write_byte(dev, ADC_FB_FRCRST_CH1, 0x07);
+	status = afe_write_byte(dev, ADC_FB_FRCRST_CH2, 0x07);
+	status = afe_write_byte(dev, ADC_FB_FRCRST_CH3, 0x07);
 
 	/* enable the pre_clamp in each channel for single-ended input */
-	status = cx231xx_write_i2c_data(dev, Colibri_DEVICE_ADDRESS,
-				   ADC_NTF_PRECLMP_EN_CH1, 2, 0xf0, 1);
-	status = cx231xx_write_i2c_data(dev, Colibri_DEVICE_ADDRESS,
-				   ADC_NTF_PRECLMP_EN_CH2, 2, 0xf0, 1);
-	status = cx231xx_write_i2c_data(dev, Colibri_DEVICE_ADDRESS,
-				   ADC_NTF_PRECLMP_EN_CH3, 2, 0xf0, 1);
+	status = afe_write_byte(dev, ADC_NTF_PRECLMP_EN_CH1, 0xf0);
+	status = afe_write_byte(dev, ADC_NTF_PRECLMP_EN_CH2, 0xf0);
+	status = afe_write_byte(dev, ADC_NTF_PRECLMP_EN_CH3, 0xf0);
 
 	/* use diode instead of resistor, so set term_en to 0, res_en to 0  */
-	status = cx231xx_reg_mask_write(dev, Colibri_DEVICE_ADDRESS, 8,
+	status = cx231xx_reg_mask_write(dev, AFE_DEVICE_ADDRESS, 8,
 				   ADC_QGAIN_RES_TRM_CH1, 3, 7, 0x00);
-	status = cx231xx_reg_mask_write(dev, Colibri_DEVICE_ADDRESS, 8,
+	status = cx231xx_reg_mask_write(dev, AFE_DEVICE_ADDRESS, 8,
 				   ADC_QGAIN_RES_TRM_CH2, 3, 7, 0x00);
-	status = cx231xx_reg_mask_write(dev, Colibri_DEVICE_ADDRESS, 8,
+	status = cx231xx_reg_mask_write(dev, AFE_DEVICE_ADDRESS, 8,
 				   ADC_QGAIN_RES_TRM_CH3, 3, 7, 0x00);
 
 	/* dynamic element matching off */
-	status = cx231xx_write_i2c_data(dev, Colibri_DEVICE_ADDRESS,
-				   ADC_DCSERVO_DEM_CH1, 2, 0x03, 1);
-	status = cx231xx_write_i2c_data(dev, Colibri_DEVICE_ADDRESS,
-				   ADC_DCSERVO_DEM_CH2, 2, 0x03, 1);
-	status = cx231xx_write_i2c_data(dev, Colibri_DEVICE_ADDRESS,
-				   ADC_DCSERVO_DEM_CH3, 2, 0x03, 1);
+	status = afe_write_byte(dev, ADC_DCSERVO_DEM_CH1, 0x03);
+	status = afe_write_byte(dev, ADC_DCSERVO_DEM_CH2, 0x03);
+	status = afe_write_byte(dev, ADC_DCSERVO_DEM_CH3, 0x03);
 
 	return status;
 }
 
-int cx231xx_colibri_setup_AFE_for_baseband(struct cx231xx *dev)
+int cx231xx_afe_setup_AFE_for_baseband(struct cx231xx *dev)
 {
-	u32 c_value = 0;
+	u8 c_value = 0;
 	int status = 0;
 
-	status =
-	    cx231xx_read_i2c_data(dev, Colibri_DEVICE_ADDRESS,
-				  ADC_PWRDN_CLAMP_CH2, 2, &c_value, 1);
+	status = afe_read_byte(dev, ADC_PWRDN_CLAMP_CH2, &c_value);
 	c_value &= (~(0x50));
-	status =
-	    cx231xx_write_i2c_data(dev, Colibri_DEVICE_ADDRESS,
-				   ADC_PWRDN_CLAMP_CH2, 2, c_value, 1);
+	status = afe_write_byte(dev, ADC_PWRDN_CLAMP_CH2, c_value);
 
 	return status;
 }
@@ -214,52 +211,44 @@ int cx231xx_colibri_setup_AFE_for_baseband(struct cx231xx *dev)
 	channel 2 ----- pin 5  to pin8(in reg is 5-8)
 	channel 3 ----- pin 9 to pin 12(in reg is 9-11)
 */
-int cx231xx_colibri_set_input_mux(struct cx231xx *dev, u32 input_mux)
+int cx231xx_afe_set_input_mux(struct cx231xx *dev, u32 input_mux)
 {
 	u8 ch1_setting = (u8) input_mux;
 	u8 ch2_setting = (u8) (input_mux >> 8);
 	u8 ch3_setting = (u8) (input_mux >> 16);
 	int status = 0;
-	u32 value = 0;
+	u8 value = 0;
 
 	if (ch1_setting != 0) {
-		status =
-		    cx231xx_read_i2c_data(dev, Colibri_DEVICE_ADDRESS,
-					  ADC_INPUT_CH1, 2, &value, 1);
+		status = afe_read_byte(dev, ADC_INPUT_CH1, &value);
 		value &= (!INPUT_SEL_MASK);
 		value |= (ch1_setting - 1) << 4;
 		value &= 0xff;
-		status = cx231xx_write_i2c_data(dev, Colibri_DEVICE_ADDRESS,
-					   ADC_INPUT_CH1, 2, value, 1);
+		status = afe_write_byte(dev, ADC_INPUT_CH1, value);
 	}
 
 	if (ch2_setting != 0) {
-		status =
-		    cx231xx_read_i2c_data(dev, Colibri_DEVICE_ADDRESS,
-					  ADC_INPUT_CH2, 2, &value, 1);
+		status = afe_read_byte(dev, ADC_INPUT_CH2, &value);
 		value &= (!INPUT_SEL_MASK);
 		value |= (ch2_setting - 1) << 4;
 		value &= 0xff;
-		status = cx231xx_write_i2c_data(dev, Colibri_DEVICE_ADDRESS,
-					   ADC_INPUT_CH2, 2, value, 1);
+		status = afe_write_byte(dev, ADC_INPUT_CH2, value);
 	}
 
 	/* For ch3_setting, the value to put in the register is
 	   7 less than the input number */
 	if (ch3_setting != 0) {
-		status = cx231xx_read_i2c_data(dev, Colibri_DEVICE_ADDRESS,
-					  ADC_INPUT_CH3, 2, &value, 1);
+		status = afe_read_byte(dev, ADC_INPUT_CH3, &value);
 		value &= (!INPUT_SEL_MASK);
 		value |= (ch3_setting - 1) << 4;
 		value &= 0xff;
-		status = cx231xx_write_i2c_data(dev, Colibri_DEVICE_ADDRESS,
-					   ADC_INPUT_CH3, 2, value, 1);
+		status = afe_write_byte(dev, ADC_INPUT_CH3, value);
 	}
 
 	return status;
 }
 
-int cx231xx_colibri_set_mode(struct cx231xx *dev, enum AFE_MODE mode)
+int cx231xx_afe_set_mode(struct cx231xx *dev, enum AFE_MODE mode)
 {
 	int status = 0;
 
@@ -273,7 +262,7 @@ int cx231xx_colibri_set_mode(struct cx231xx *dev, enum AFE_MODE mode)
 		/* SetupAFEforLowIF();  */
 		break;
 	case AFE_MODE_BASEBAND:
-		status = cx231xx_colibri_setup_AFE_for_baseband(dev);
+		status = cx231xx_afe_setup_AFE_for_baseband(dev);
 		break;
 	case AFE_MODE_EU_HI_IF:
 		/* SetupAFEforEuHiIF(); */
@@ -286,110 +275,76 @@ int cx231xx_colibri_set_mode(struct cx231xx *dev, enum AFE_MODE mode)
 		break;
 	}
 
-	if ((mode != dev->colibri_mode) &&
+	if ((mode != dev->afe_mode) &&
 		(dev->video_input == CX231XX_VMUX_TELEVISION))
-		status = cx231xx_colibri_adjust_ref_count(dev,
+		status = cx231xx_afe_adjust_ref_count(dev,
 						     CX231XX_VMUX_TELEVISION);
 
-	dev->colibri_mode = mode;
+	dev->afe_mode = mode;
 
 	return status;
 }
 
-int cx231xx_colibri_update_power_control(struct cx231xx *dev,
+int cx231xx_afe_update_power_control(struct cx231xx *dev,
 					enum AV_MODE avmode)
 {
-	u32 colibri_power_status = 0;
+	u8 afe_power_status = 0;
 	int status = 0;
 
 	switch (dev->model) {
 	case CX231XX_BOARD_CNXT_RDE_250:
 	case CX231XX_BOARD_CNXT_RDU_250:
 		if (avmode == POLARIS_AVMODE_ANALOGT_TV) {
-			while (colibri_power_status != (FLD_PWRDN_TUNING_BIAS |
+			while (afe_power_status != (FLD_PWRDN_TUNING_BIAS |
 						FLD_PWRDN_ENABLE_PLL)) {
-				status = cx231xx_write_i2c_data(dev,
-							Colibri_DEVICE_ADDRESS,
-							SUP_BLK_PWRDN, 2,
+				status = afe_write_byte(dev, SUP_BLK_PWRDN,
 							FLD_PWRDN_TUNING_BIAS |
-							FLD_PWRDN_ENABLE_PLL,
-							1);
-				status |= cx231xx_read_i2c_data(dev,
-							Colibri_DEVICE_ADDRESS,
-							SUP_BLK_PWRDN, 2,
-							&colibri_power_status,
-							1);
+							FLD_PWRDN_ENABLE_PLL);
+				status |= afe_read_byte(dev, SUP_BLK_PWRDN,
+							&afe_power_status);
 				if (status < 0)
 					break;
 			}
 
-			status = cx231xx_write_i2c_data(dev,
-						   Colibri_DEVICE_ADDRESS,
-						   ADC_PWRDN_CLAMP_CH1, 2, 0x00,
-						   1);
-			status |= cx231xx_write_i2c_data(dev,
-						   Colibri_DEVICE_ADDRESS,
-						   ADC_PWRDN_CLAMP_CH2, 2, 0x00,
-						   1);
-			status |= cx231xx_write_i2c_data(dev,
-						   Colibri_DEVICE_ADDRESS,
-						   ADC_PWRDN_CLAMP_CH3, 2, 0x00,
-						   1);
+			status = afe_write_byte(dev, ADC_PWRDN_CLAMP_CH1,
+							0x00);
+			status |= afe_write_byte(dev, ADC_PWRDN_CLAMP_CH2,
+							0x00);
+			status |= afe_write_byte(dev, ADC_PWRDN_CLAMP_CH3,
+							0x00);
 		} else if (avmode == POLARIS_AVMODE_DIGITAL) {
-			status = cx231xx_write_i2c_data(dev,
-						   Colibri_DEVICE_ADDRESS,
-						   ADC_PWRDN_CLAMP_CH1, 2, 0x70,
-						   1);
-			status |= cx231xx_write_i2c_data(dev,
-						   Colibri_DEVICE_ADDRESS,
-						   ADC_PWRDN_CLAMP_CH2, 2, 0x70,
-						   1);
-			status |= cx231xx_write_i2c_data(dev,
-						   Colibri_DEVICE_ADDRESS,
-						   ADC_PWRDN_CLAMP_CH3, 2, 0x70,
-						   1);
+			status = afe_write_byte(dev, ADC_PWRDN_CLAMP_CH1,
+							0x70);
+			status |= afe_write_byte(dev, ADC_PWRDN_CLAMP_CH2,
+							0x70);
+			status |= afe_write_byte(dev, ADC_PWRDN_CLAMP_CH3,
+							0x70);
 
-			status |= cx231xx_read_i2c_data(dev,
-						  Colibri_DEVICE_ADDRESS,
-						  SUP_BLK_PWRDN, 2,
-						  &colibri_power_status, 1);
-			colibri_power_status |= FLD_PWRDN_PD_BANDGAP |
+			status |= afe_read_byte(dev, SUP_BLK_PWRDN,
+						  &afe_power_status);
+			afe_power_status |= FLD_PWRDN_PD_BANDGAP |
 						FLD_PWRDN_PD_BIAS |
 						FLD_PWRDN_PD_TUNECK;
-			status |= cx231xx_write_i2c_data(dev,
-						   Colibri_DEVICE_ADDRESS,
-						   SUP_BLK_PWRDN, 2,
-						   colibri_power_status, 1);
+			status |= afe_write_byte(dev, SUP_BLK_PWRDN,
+						   afe_power_status);
 		} else if (avmode == POLARIS_AVMODE_ENXTERNAL_AV) {
-			while (colibri_power_status != (FLD_PWRDN_TUNING_BIAS |
+			while (afe_power_status != (FLD_PWRDN_TUNING_BIAS |
 						FLD_PWRDN_ENABLE_PLL)) {
-				status = cx231xx_write_i2c_data(dev,
-							Colibri_DEVICE_ADDRESS,
-							SUP_BLK_PWRDN, 2,
+				status = afe_write_byte(dev, SUP_BLK_PWRDN,
 							FLD_PWRDN_TUNING_BIAS |
-							FLD_PWRDN_ENABLE_PLL,
-							1);
-				status |= cx231xx_read_i2c_data(dev,
-							Colibri_DEVICE_ADDRESS,
-							SUP_BLK_PWRDN, 2,
-							&colibri_power_status,
-							1);
+							FLD_PWRDN_ENABLE_PLL);
+				status |= afe_read_byte(dev, SUP_BLK_PWRDN,
+							&afe_power_status);
 				if (status < 0)
 					break;
 			}
 
-			status |= cx231xx_write_i2c_data(dev,
-						   Colibri_DEVICE_ADDRESS,
-						   ADC_PWRDN_CLAMP_CH1, 2, 0x00,
-						   1);
-			status |= cx231xx_write_i2c_data(dev,
-						   Colibri_DEVICE_ADDRESS,
-						   ADC_PWRDN_CLAMP_CH2, 2, 0x00,
-						   1);
-			status |= cx231xx_write_i2c_data(dev,
-						   Colibri_DEVICE_ADDRESS,
-						   ADC_PWRDN_CLAMP_CH3, 2, 0x00,
-						   1);
+			status |= afe_write_byte(dev, ADC_PWRDN_CLAMP_CH1,
+						0x00);
+			status |= afe_write_byte(dev, ADC_PWRDN_CLAMP_CH2,
+						0x00);
+			status |= afe_write_byte(dev, ADC_PWRDN_CLAMP_CH3,
+						0x00);
 		} else {
 			cx231xx_info("Invalid AV mode input\n");
 			status = -1;
@@ -397,92 +352,56 @@ int cx231xx_colibri_update_power_control(struct cx231xx *dev,
 		break;
 	default:
 		if (avmode == POLARIS_AVMODE_ANALOGT_TV) {
-			while (colibri_power_status != (FLD_PWRDN_TUNING_BIAS |
+			while (afe_power_status != (FLD_PWRDN_TUNING_BIAS |
 						FLD_PWRDN_ENABLE_PLL)) {
-				status = cx231xx_write_i2c_data(dev,
-							Colibri_DEVICE_ADDRESS,
-							SUP_BLK_PWRDN, 2,
+				status = afe_write_byte(dev, SUP_BLK_PWRDN,
 							FLD_PWRDN_TUNING_BIAS |
-							FLD_PWRDN_ENABLE_PLL,
-							1);
-				status |= cx231xx_read_i2c_data(dev,
-							Colibri_DEVICE_ADDRESS,
-							SUP_BLK_PWRDN, 2,
-							&colibri_power_status,
-							1);
+							FLD_PWRDN_ENABLE_PLL);
+				status |= afe_read_byte(dev, SUP_BLK_PWRDN,
+							&afe_power_status);
 				if (status < 0)
 					break;
 			}
 
-			status |= cx231xx_write_i2c_data(dev,
-							Colibri_DEVICE_ADDRESS,
-							ADC_PWRDN_CLAMP_CH1, 2,
-							0x40, 1);
-			status |= cx231xx_write_i2c_data(dev,
-							Colibri_DEVICE_ADDRESS,
-							ADC_PWRDN_CLAMP_CH2, 2,
-							0x40, 1);
-			status |= cx231xx_write_i2c_data(dev,
-							Colibri_DEVICE_ADDRESS,
-							ADC_PWRDN_CLAMP_CH3, 2,
-							0x00, 1);
+			status |= afe_write_byte(dev, ADC_PWRDN_CLAMP_CH1,
+							0x40);
+			status |= afe_write_byte(dev, ADC_PWRDN_CLAMP_CH2,
+							0x40);
+			status |= afe_write_byte(dev, ADC_PWRDN_CLAMP_CH3,
+							0x00);
 		} else if (avmode == POLARIS_AVMODE_DIGITAL) {
-			status = cx231xx_write_i2c_data(dev,
-							Colibri_DEVICE_ADDRESS,
-							ADC_PWRDN_CLAMP_CH1, 2,
-							0x70, 1);
-			status |= cx231xx_write_i2c_data(dev,
-							Colibri_DEVICE_ADDRESS,
-							ADC_PWRDN_CLAMP_CH2, 2,
-							0x70, 1);
-			status |= cx231xx_write_i2c_data(dev,
-							Colibri_DEVICE_ADDRESS,
-							ADC_PWRDN_CLAMP_CH3, 2,
-							0x70, 1);
+			status = afe_write_byte(dev, ADC_PWRDN_CLAMP_CH1,
+							0x70);
+			status |= afe_write_byte(dev, ADC_PWRDN_CLAMP_CH2,
+							0x70);
+			status |= afe_write_byte(dev, ADC_PWRDN_CLAMP_CH3,
+							0x70);
 
-			status |= cx231xx_read_i2c_data(dev,
-						       Colibri_DEVICE_ADDRESS,
-						       SUP_BLK_PWRDN, 2,
-						       &colibri_power_status,
-						       1);
-			colibri_power_status |= FLD_PWRDN_PD_BANDGAP |
+			status |= afe_read_byte(dev, SUP_BLK_PWRDN,
+						       &afe_power_status);
+			afe_power_status |= FLD_PWRDN_PD_BANDGAP |
 						FLD_PWRDN_PD_BIAS |
 						FLD_PWRDN_PD_TUNECK;
-			status |= cx231xx_write_i2c_data(dev,
-							Colibri_DEVICE_ADDRESS,
-							SUP_BLK_PWRDN, 2,
-							colibri_power_status,
-							1);
+			status |= afe_write_byte(dev, SUP_BLK_PWRDN,
+							afe_power_status);
 		} else if (avmode == POLARIS_AVMODE_ENXTERNAL_AV) {
-			while (colibri_power_status != (FLD_PWRDN_TUNING_BIAS |
+			while (afe_power_status != (FLD_PWRDN_TUNING_BIAS |
 						FLD_PWRDN_ENABLE_PLL)) {
-				status = cx231xx_write_i2c_data(dev,
-							Colibri_DEVICE_ADDRESS,
-							SUP_BLK_PWRDN, 2,
+				status = afe_write_byte(dev, SUP_BLK_PWRDN,
 							FLD_PWRDN_TUNING_BIAS |
-							FLD_PWRDN_ENABLE_PLL,
-							1);
-				status |= cx231xx_read_i2c_data(dev,
-							Colibri_DEVICE_ADDRESS,
-							SUP_BLK_PWRDN, 2,
-							&colibri_power_status,
-							1);
+							FLD_PWRDN_ENABLE_PLL);
+				status |= afe_read_byte(dev, SUP_BLK_PWRDN,
+							&afe_power_status);
 				if (status < 0)
 					break;
 			}
 
-			status |= cx231xx_write_i2c_data(dev,
-							Colibri_DEVICE_ADDRESS,
-							ADC_PWRDN_CLAMP_CH1, 2,
-							0x00, 1);
-			status |= cx231xx_write_i2c_data(dev,
-							Colibri_DEVICE_ADDRESS,
-							ADC_PWRDN_CLAMP_CH2, 2,
-							0x00, 1);
-			status |= cx231xx_write_i2c_data(dev,
-							Colibri_DEVICE_ADDRESS,
-							ADC_PWRDN_CLAMP_CH3, 2,
-							0x40, 1);
+			status |= afe_write_byte(dev, ADC_PWRDN_CLAMP_CH1,
+							0x00);
+			status |= afe_write_byte(dev, ADC_PWRDN_CLAMP_CH2,
+							0x00);
+			status |= afe_write_byte(dev, ADC_PWRDN_CLAMP_CH3,
+							0x40);
 		} else {
 			cx231xx_info("Invalid AV mode input\n");
 			status = -1;
@@ -492,48 +411,44 @@ int cx231xx_colibri_update_power_control(struct cx231xx *dev,
 	return status;
 }
 
-int cx231xx_colibri_adjust_ref_count(struct cx231xx *dev, u32 video_input)
+int cx231xx_afe_adjust_ref_count(struct cx231xx *dev, u32 video_input)
 {
-	u32 input_mode = 0;
-	u32 ntf_mode = 0;
+	u8 input_mode = 0;
+	u8 ntf_mode = 0;
 	int status = 0;
 
 	dev->video_input = video_input;
 
 	if (video_input == CX231XX_VMUX_TELEVISION) {
-		status = cx231xx_read_i2c_data(dev, Colibri_DEVICE_ADDRESS,
-					  ADC_INPUT_CH3, 2, &input_mode, 1);
-		status = cx231xx_read_i2c_data(dev, Colibri_DEVICE_ADDRESS,
-					  ADC_NTF_PRECLMP_EN_CH3, 2, &ntf_mode,
-					  1);
+		status = afe_read_byte(dev, ADC_INPUT_CH3, &input_mode);
+		status = afe_read_byte(dev, ADC_NTF_PRECLMP_EN_CH3,
+					&ntf_mode);
 	} else {
-		status = cx231xx_read_i2c_data(dev, Colibri_DEVICE_ADDRESS,
-					  ADC_INPUT_CH1, 2, &input_mode, 1);
-		status = cx231xx_read_i2c_data(dev, Colibri_DEVICE_ADDRESS,
-					  ADC_NTF_PRECLMP_EN_CH1, 2, &ntf_mode,
-					  1);
+		status = afe_read_byte(dev, ADC_INPUT_CH1, &input_mode);
+		status = afe_read_byte(dev, ADC_NTF_PRECLMP_EN_CH1,
+					&ntf_mode);
 	}
 
 	input_mode = (ntf_mode & 0x3) | ((input_mode & 0x6) << 1);
 
 	switch (input_mode) {
 	case SINGLE_ENDED:
-		dev->colibri_ref_count = 0x23C;
+		dev->afe_ref_count = 0x23C;
 		break;
 	case LOW_IF:
-		dev->colibri_ref_count = 0x24C;
+		dev->afe_ref_count = 0x24C;
 		break;
 	case EU_IF:
-		dev->colibri_ref_count = 0x258;
+		dev->afe_ref_count = 0x258;
 		break;
 	case US_IF:
-		dev->colibri_ref_count = 0x260;
+		dev->afe_ref_count = 0x260;
 		break;
 	default:
 		break;
 	}
 
-	status = cx231xx_colibri_init_super_block(dev, dev->colibri_ref_count);
+	status = cx231xx_afe_init_super_block(dev, dev->afe_ref_count);
 
 	return status;
 }
@@ -541,6 +456,35 @@ int cx231xx_colibri_adjust_ref_count(struct cx231xx *dev, u32 video_input)
 /******************************************************************************
  *     V I D E O / A U D I O    D E C O D E R    C O N T R O L   functions    *
  ******************************************************************************/
+static int vid_blk_write_byte(struct cx231xx *dev, u16 saddr, u8 data)
+{
+	return cx231xx_write_i2c_data(dev, VID_BLK_I2C_ADDRESS,
+					saddr, 2, data, 1);
+}
+
+static int vid_blk_read_byte(struct cx231xx *dev, u16 saddr, u8 *data)
+{
+	int status;
+	u32 temp = 0;
+
+	status = cx231xx_read_i2c_data(dev, VID_BLK_I2C_ADDRESS,
+					saddr, 2, &temp, 1);
+	*data = (u8) temp;
+	return status;
+}
+
+static int vid_blk_write_word(struct cx231xx *dev, u16 saddr, u32 data)
+{
+	return cx231xx_write_i2c_data(dev, VID_BLK_I2C_ADDRESS,
+					saddr, 2, data, 4);
+}
+
+static int vid_blk_read_word(struct cx231xx *dev, u16 saddr, u32 *data)
+{
+	return cx231xx_read_i2c_data(dev, VID_BLK_I2C_ADDRESS,
+					saddr, 2, data, 4);
+}
+
 int cx231xx_set_video_input_mux(struct cx231xx *dev, u8 input)
 {
 	int status = 0;
@@ -601,29 +545,27 @@ int cx231xx_set_decoder_video_input(struct cx231xx *dev,
 	u32 value = 0;
 
 	if (pin_type != dev->video_input) {
-		status = cx231xx_colibri_adjust_ref_count(dev, pin_type);
+		status = cx231xx_afe_adjust_ref_count(dev, pin_type);
 		if (status < 0) {
 			cx231xx_errdev("%s: adjust_ref_count :Failed to set"
-				"Colibri input mux - errCode [%d]!\n",
+				"AFE input mux - errCode [%d]!\n",
 				__func__, status);
 			return status;
 		}
 	}
 
-	/* call colibri block to set video inputs */
-	status = cx231xx_colibri_set_input_mux(dev, input);
+	/* call afe block to set video inputs */
+	status = cx231xx_afe_set_input_mux(dev, input);
 	if (status < 0) {
 		cx231xx_errdev("%s: set_input_mux :Failed to set"
-				" Colibri input mux - errCode [%d]!\n",
+				" AFE input mux - errCode [%d]!\n",
 				__func__, status);
 		return status;
 	}
 
 	switch (pin_type) {
 	case CX231XX_VMUX_COMPOSITE1:
-		status = cx231xx_read_i2c_data(dev,
-						HAMMERHEAD_I2C_ADDRESS,
-						AFE_CTRL, 2, &value, 4);
+		status = vid_blk_read_word(dev, AFE_CTRL, &value);
 		value |= (0 << 13) | (1 << 4);
 		value &= ~(1 << 5);
 
@@ -631,18 +573,15 @@ int cx231xx_set_decoder_video_input(struct cx231xx *dev,
 		value &= (~(0x1ff8000));
 		/* set FUNC_MODE[24:23] = 2 IF_MOD[22:15] = 0  */
 		value |= 0x1000000;
-		status = cx231xx_write_i2c_data(dev, HAMMERHEAD_I2C_ADDRESS,
-						AFE_CTRL, 2, value, 4);
+		status = vid_blk_write_word(dev, AFE_CTRL, value);
 
-		status = cx231xx_read_i2c_data(dev, HAMMERHEAD_I2C_ADDRESS,
-						OUT_CTRL1, 2, &value, 4);
+		status = vid_blk_read_word(dev, OUT_CTRL1, &value);
 		value |= (1 << 7);
-		status = cx231xx_write_i2c_data(dev, HAMMERHEAD_I2C_ADDRESS,
-						OUT_CTRL1, 2, value, 4);
+		status = vid_blk_write_word(dev, OUT_CTRL1, value);
 
 		/* Set vip 1.1 output mode */
 		status = cx231xx_read_modify_write_i2c_dword(dev,
-							HAMMERHEAD_I2C_ADDRESS,
+							VID_BLK_I2C_ADDRESS,
 							OUT_CTRL1,
 							FLD_OUT_MODE,
 							OUT_MODE_VIP11);
@@ -657,8 +596,7 @@ int cx231xx_set_decoder_video_input(struct cx231xx *dev,
 		}
 
 		/* Read the DFE_CTRL1 register */
-		status = cx231xx_read_i2c_data(dev, HAMMERHEAD_I2C_ADDRESS,
-						DFE_CTRL1, 2, &value, 4);
+		status = vid_blk_read_word(dev, DFE_CTRL1, &value);
 
 		/* enable the VBI_GATE_EN */
 		value |= FLD_VBI_GATE_EN;
@@ -667,35 +605,31 @@ int cx231xx_set_decoder_video_input(struct cx231xx *dev,
 		value |= FLD_VGA_AUTO_EN;
 
 		/* Write it back */
-		status = cx231xx_write_i2c_data(dev, HAMMERHEAD_I2C_ADDRESS,
-						DFE_CTRL1, 2, value, 4);
+		status = vid_blk_write_word(dev, DFE_CTRL1, value);
 
 		/* Disable auto config of registers */
 		status = cx231xx_read_modify_write_i2c_dword(dev,
-					HAMMERHEAD_I2C_ADDRESS,
+					VID_BLK_I2C_ADDRESS,
 					MODE_CTRL, FLD_ACFG_DIS,
 					cx231xx_set_field(FLD_ACFG_DIS, 1));
 
 		/* Set CVBS input mode */
 		status = cx231xx_read_modify_write_i2c_dword(dev,
-			HAMMERHEAD_I2C_ADDRESS,
+			VID_BLK_I2C_ADDRESS,
 			MODE_CTRL, FLD_INPUT_MODE,
 			cx231xx_set_field(FLD_INPUT_MODE, INPUT_MODE_CVBS_0));
 		break;
 	case CX231XX_VMUX_SVIDEO:
 		/* Disable the use of  DIF */
 
-		status = cx231xx_read_i2c_data(dev, HAMMERHEAD_I2C_ADDRESS,
-					       AFE_CTRL, 2, &value, 4);
+		status = vid_blk_read_word(dev, AFE_CTRL, &value);
 
 		/* set [24:23] [22:15] to 0 */
 		value &= (~(0x1ff8000));
 		/* set FUNC_MODE[24:23] = 2
 		IF_MOD[22:15] = 0 DCR_BYP_CH2[4:4] = 1; */
 		value |= 0x1000010;
-		status = cx231xx_write_i2c_data(dev,
-						HAMMERHEAD_I2C_ADDRESS,
-						AFE_CTRL, 2, value, 4);
+		status = vid_blk_write_word(dev, AFE_CTRL, value);
 
 		/* Tell DIF object to go to baseband mode */
 		status = cx231xx_dif_set_standard(dev, DIF_USE_BASEBAND);
@@ -707,9 +641,7 @@ int cx231xx_set_decoder_video_input(struct cx231xx *dev,
 		}
 
 		/* Read the DFE_CTRL1 register */
-		status = cx231xx_read_i2c_data(dev,
-					       HAMMERHEAD_I2C_ADDRESS,
-					       DFE_CTRL1, 2, &value, 4);
+		status = vid_blk_read_word(dev, DFE_CTRL1, &value);
 
 		/* enable the VBI_GATE_EN */
 		value |= FLD_VBI_GATE_EN;
@@ -718,27 +650,23 @@ int cx231xx_set_decoder_video_input(struct cx231xx *dev,
 		value |= FLD_VGA_AUTO_EN;
 
 		/* Write it back */
-		status = cx231xx_write_i2c_data(dev,
-						HAMMERHEAD_I2C_ADDRESS,
-						DFE_CTRL1, 2, value, 4);
+		status = vid_blk_write_word(dev, DFE_CTRL1, value);
 
 		/* Disable auto config of registers  */
 		status =  cx231xx_read_modify_write_i2c_dword(dev,
-					HAMMERHEAD_I2C_ADDRESS,
+					VID_BLK_I2C_ADDRESS,
 					MODE_CTRL, FLD_ACFG_DIS,
 					cx231xx_set_field(FLD_ACFG_DIS, 1));
 
 		/* Set YC input mode */
 		status = cx231xx_read_modify_write_i2c_dword(dev,
-			HAMMERHEAD_I2C_ADDRESS,
+			VID_BLK_I2C_ADDRESS,
 			MODE_CTRL,
 			FLD_INPUT_MODE,
 			cx231xx_set_field(FLD_INPUT_MODE, INPUT_MODE_YC_1));
 
 		/* Chroma to ADC2 */
-		status = cx231xx_read_i2c_data(dev,
-						HAMMERHEAD_I2C_ADDRESS,
-						AFE_CTRL, 2, &value, 4);
+		status = vid_blk_read_word(dev, AFE_CTRL, &value);
 		value |= FLD_CHROMA_IN_SEL;	/* set the chroma in select */
 
 		/* Clear VGA_SEL_CH2 and VGA_SEL_CH3 (bits 7 and 8)
@@ -746,11 +674,9 @@ int cx231xx_set_decoder_video_input(struct cx231xx *dev,
 		   rather than audio.  Only one of the two will be in use. */
 		value &= ~(FLD_VGA_SEL_CH2 | FLD_VGA_SEL_CH3);
 
-		status = cx231xx_write_i2c_data(dev,
-						HAMMERHEAD_I2C_ADDRESS,
-						AFE_CTRL, 2, value, 4);
+		status = vid_blk_write_word(dev, AFE_CTRL, value);
 
-		status = cx231xx_colibri_set_mode(dev, AFE_MODE_BASEBAND);
+		status = cx231xx_afe_set_mode(dev, AFE_MODE_BASEBAND);
 		break;
 	case CX231XX_VMUX_TELEVISION:
 	case CX231XX_VMUX_CABLE:
@@ -760,10 +686,7 @@ int cx231xx_set_decoder_video_input(struct cx231xx *dev,
 		case CX231XX_BOARD_CNXT_RDU_250:
 			/* Disable the use of  DIF   */
 
-			status = cx231xx_read_i2c_data(dev,
-						       HAMMERHEAD_I2C_ADDRESS,
-						       AFE_CTRL, 2,
-						       &value, 4);
+			status = vid_blk_read_word(dev, AFE_CTRL, &value);
 			value |= (0 << 13) | (1 << 4);
 			value &= ~(1 << 5);
 
@@ -771,24 +694,15 @@ int cx231xx_set_decoder_video_input(struct cx231xx *dev,
 			value &= (~(0x1FF8000));
 			/* set FUNC_MODE[24:23] = 2 IF_MOD[22:15] = 0 */
 			value |= 0x1000000;
-			status = cx231xx_write_i2c_data(dev,
-							HAMMERHEAD_I2C_ADDRESS,
-							AFE_CTRL, 2,
-							value, 4);
+			status = vid_blk_write_word(dev, AFE_CTRL, value);
 
-			status = cx231xx_read_i2c_data(dev,
-						       HAMMERHEAD_I2C_ADDRESS,
-						       OUT_CTRL1, 2,
-						       &value, 4);
+			status = vid_blk_read_word(dev, OUT_CTRL1, &value);
 			value |= (1 << 7);
-			status = cx231xx_write_i2c_data(dev,
-							HAMMERHEAD_I2C_ADDRESS,
-							OUT_CTRL1, 2,
-							value, 4);
+			status = vid_blk_write_word(dev, OUT_CTRL1, value);
 
 			/* Set vip 1.1 output mode */
 			status = cx231xx_read_modify_write_i2c_dword(dev,
-							HAMMERHEAD_I2C_ADDRESS,
+							VID_BLK_I2C_ADDRESS,
 							OUT_CTRL1, FLD_OUT_MODE,
 							OUT_MODE_VIP11);
 
@@ -803,10 +717,7 @@ int cx231xx_set_decoder_video_input(struct cx231xx *dev,
 			}
 
 			/* Read the DFE_CTRL1 register */
-			status = cx231xx_read_i2c_data(dev,
-						       HAMMERHEAD_I2C_ADDRESS,
-						       DFE_CTRL1, 2,
-						       &value, 4);
+			status = vid_blk_read_word(dev, DFE_CTRL1, &value);
 
 			/* enable the VBI_GATE_EN */
 			value |= FLD_VBI_GATE_EN;
@@ -815,20 +726,17 @@ int cx231xx_set_decoder_video_input(struct cx231xx *dev,
 			value |= FLD_VGA_AUTO_EN;
 
 			/* Write it back */
-			status = cx231xx_write_i2c_data(dev,
-							HAMMERHEAD_I2C_ADDRESS,
-							DFE_CTRL1, 2,
-							value, 4);
+			status = vid_blk_write_word(dev, DFE_CTRL1, value);
 
 			/* Disable auto config of registers */
 			status = cx231xx_read_modify_write_i2c_dword(dev,
-					HAMMERHEAD_I2C_ADDRESS,
+					VID_BLK_I2C_ADDRESS,
 					MODE_CTRL, FLD_ACFG_DIS,
 					cx231xx_set_field(FLD_ACFG_DIS, 1));
 
 			/* Set CVBS input mode */
 			status = cx231xx_read_modify_write_i2c_dword(dev,
-				HAMMERHEAD_I2C_ADDRESS,
+				VID_BLK_I2C_ADDRESS,
 				MODE_CTRL, FLD_INPUT_MODE,
 				cx231xx_set_field(FLD_INPUT_MODE,
 						INPUT_MODE_CVBS_0));
@@ -846,25 +754,16 @@ int cx231xx_set_decoder_video_input(struct cx231xx *dev,
 			}
 
 			/* Make sure bypass is cleared */
-			status = cx231xx_read_i2c_data(dev,
-						      HAMMERHEAD_I2C_ADDRESS,
-						      DIF_MISC_CTRL,
-						      2, &value, 4);
+			status = vid_blk_read_word(dev, DIF_MISC_CTRL, &value);
 
 			/* Clear the bypass bit */
 			value &= ~FLD_DIF_DIF_BYPASS;
 
 			/* Enable the use of the DIF block */
-			status = cx231xx_write_i2c_data(dev,
-							HAMMERHEAD_I2C_ADDRESS,
-							DIF_MISC_CTRL,
-							2, value, 4);
+			status = vid_blk_write_word(dev, DIF_MISC_CTRL, value);
 
 			/* Read the DFE_CTRL1 register */
-			status = cx231xx_read_i2c_data(dev,
-							HAMMERHEAD_I2C_ADDRESS,
-							DFE_CTRL1, 2,
-							&value, 4);
+			status = vid_blk_read_word(dev, DFE_CTRL1, &value);
 
 			/* Disable the VBI_GATE_EN */
 			value &= ~FLD_VBI_GATE_EN;
@@ -874,10 +773,7 @@ int cx231xx_set_decoder_video_input(struct cx231xx *dev,
 			value |= FLD_VGA_AUTO_EN | FLD_AGC_AUTO_EN | 0x00200000;
 
 			/* Write it back */
-			status = cx231xx_write_i2c_data(dev,
-							HAMMERHEAD_I2C_ADDRESS,
-							DFE_CTRL1, 2,
-							value, 4);
+			status = vid_blk_write_word(dev, DFE_CTRL1, value);
 
 			/* Wait until AGC locks up */
 			msleep(1);
@@ -886,39 +782,30 @@ int cx231xx_set_decoder_video_input(struct cx231xx *dev,
 			value &= ~(FLD_VGA_AUTO_EN);
 
 			/* Write it back */
-			status = cx231xx_write_i2c_data(dev,
-							HAMMERHEAD_I2C_ADDRESS,
-							DFE_CTRL1, 2,
-							value, 4);
+			status = vid_blk_write_word(dev, DFE_CTRL1, value);
 
 			/* Enable Polaris B0 AGC output */
-			status = cx231xx_read_i2c_data(dev,
-							HAMMERHEAD_I2C_ADDRESS,
-							PIN_CTRL, 2,
-							&value, 4);
+			status = vid_blk_read_word(dev, PIN_CTRL, &value);
 			value |= (FLD_OEF_AGC_RF) |
 				 (FLD_OEF_AGC_IFVGA) |
 				 (FLD_OEF_AGC_IF);
-			status = cx231xx_write_i2c_data(dev,
-							HAMMERHEAD_I2C_ADDRESS,
-							PIN_CTRL, 2,
-							value, 4);
+			status = vid_blk_write_word(dev, PIN_CTRL, value);
 
 			/* Set vip 1.1 output mode */
 			status = cx231xx_read_modify_write_i2c_dword(dev,
-						HAMMERHEAD_I2C_ADDRESS,
+						VID_BLK_I2C_ADDRESS,
 						OUT_CTRL1, FLD_OUT_MODE,
 						OUT_MODE_VIP11);
 
 			/* Disable auto config of registers */
 			status = cx231xx_read_modify_write_i2c_dword(dev,
-					HAMMERHEAD_I2C_ADDRESS,
+					VID_BLK_I2C_ADDRESS,
 					MODE_CTRL, FLD_ACFG_DIS,
 					cx231xx_set_field(FLD_ACFG_DIS, 1));
 
 			/* Set CVBS input mode */
 			status = cx231xx_read_modify_write_i2c_dword(dev,
-				HAMMERHEAD_I2C_ADDRESS,
+				VID_BLK_I2C_ADDRESS,
 				MODE_CTRL, FLD_INPUT_MODE,
 				cx231xx_set_field(FLD_INPUT_MODE,
 						INPUT_MODE_CVBS_0));
@@ -928,17 +815,11 @@ int cx231xx_set_decoder_video_input(struct cx231xx *dev,
 			/* Clear clamp for channels 2 and 3      (bit 16-17) */
 			/* Clear droop comp                      (bit 19-20) */
 			/* Set VGA_SEL (for audio control)       (bit 7-8) */
-			status = cx231xx_read_i2c_data(dev,
-							HAMMERHEAD_I2C_ADDRESS,
-							AFE_CTRL, 2,
-							&value, 4);
+			status = vid_blk_read_word(dev, AFE_CTRL, &value);
 
 			value |= FLD_VGA_SEL_CH3 | FLD_VGA_SEL_CH2;
 
-			status = cx231xx_write_i2c_data(dev,
-							HAMMERHEAD_I2C_ADDRESS,
-							AFE_CTRL, 2,
-							value, 4);
+			status = vid_blk_write_word(dev, AFE_CTRL, value);
 			break;
 
 		}
@@ -947,17 +828,14 @@ int cx231xx_set_decoder_video_input(struct cx231xx *dev,
 
 	/* Set raw VBI mode */
 	status = cx231xx_read_modify_write_i2c_dword(dev,
-				HAMMERHEAD_I2C_ADDRESS,
+				VID_BLK_I2C_ADDRESS,
 				OUT_CTRL1, FLD_VBIHACTRAW_EN,
 				cx231xx_set_field(FLD_VBIHACTRAW_EN, 1));
 
-	status = cx231xx_read_i2c_data(dev, HAMMERHEAD_I2C_ADDRESS,
-				       OUT_CTRL1, 2,
-				       &value, 4);
+	status = vid_blk_read_word(dev, OUT_CTRL1, &value);
 	if (value & 0x02) {
 		value |= (1 << 19);
-		status = cx231xx_write_i2c_data(dev, HAMMERHEAD_I2C_ADDRESS,
-					   OUT_CTRL1, 2, value, 4);
+		status = vid_blk_write_word(dev, OUT_CTRL1, value);
 	}
 
 	return status;
@@ -976,9 +854,7 @@ int cx231xx_do_mode_ctrl_overrides(struct cx231xx *dev)
 		     (unsigned int)dev->norm);
 
 	/* Change the DFE_CTRL3 bp_percent to fix flagging */
-	status = cx231xx_write_i2c_data(dev, HAMMERHEAD_I2C_ADDRESS,
-					DFE_CTRL3, 2,
-					0xCD3F0280, 4);
+	status = vid_blk_write_word(dev, DFE_CTRL3, 0xCD3F0280);
 
 	if (dev->norm & (V4L2_STD_NTSC | V4L2_STD_PAL_M)) {
 		cx231xx_info("do_mode_ctrl_overrides NTSC\n");
@@ -986,22 +862,22 @@ int cx231xx_do_mode_ctrl_overrides(struct cx231xx *dev)
 		/* Move the close caption lines out of active video,
 		   adjust the active video start point */
 		status = cx231xx_read_modify_write_i2c_dword(dev,
-							HAMMERHEAD_I2C_ADDRESS,
+							VID_BLK_I2C_ADDRESS,
 							VERT_TIM_CTRL,
 							FLD_VBLANK_CNT, 0x18);
 		status = cx231xx_read_modify_write_i2c_dword(dev,
-							HAMMERHEAD_I2C_ADDRESS,
+							VID_BLK_I2C_ADDRESS,
 							VERT_TIM_CTRL,
 							FLD_VACTIVE_CNT,
 							0x1E6000);
 		status = cx231xx_read_modify_write_i2c_dword(dev,
-							HAMMERHEAD_I2C_ADDRESS,
+							VID_BLK_I2C_ADDRESS,
 							VERT_TIM_CTRL,
 							FLD_V656BLANK_CNT,
 							0x1E000000);
 
 		status = cx231xx_read_modify_write_i2c_dword(dev,
-							HAMMERHEAD_I2C_ADDRESS,
+							VID_BLK_I2C_ADDRESS,
 							HORIZ_TIM_CTRL,
 							FLD_HBLANK_CNT,
 							cx231xx_set_field
@@ -1009,12 +885,12 @@ int cx231xx_do_mode_ctrl_overrides(struct cx231xx *dev)
 	} else if (dev->norm & V4L2_STD_SECAM) {
 		cx231xx_info("do_mode_ctrl_overrides SECAM\n");
 		status =  cx231xx_read_modify_write_i2c_dword(dev,
-							HAMMERHEAD_I2C_ADDRESS,
+							VID_BLK_I2C_ADDRESS,
 							VERT_TIM_CTRL,
 							FLD_VBLANK_CNT, 0x24);
 		/* Adjust the active video horizontal start point */
 		status = cx231xx_read_modify_write_i2c_dword(dev,
-							HAMMERHEAD_I2C_ADDRESS,
+							VID_BLK_I2C_ADDRESS,
 							HORIZ_TIM_CTRL,
 							FLD_HBLANK_CNT,
 							cx231xx_set_field
@@ -1022,12 +898,12 @@ int cx231xx_do_mode_ctrl_overrides(struct cx231xx *dev)
 	} else {
 		cx231xx_info("do_mode_ctrl_overrides PAL\n");
 		status = cx231xx_read_modify_write_i2c_dword(dev,
-							HAMMERHEAD_I2C_ADDRESS,
+							VID_BLK_I2C_ADDRESS,
 							VERT_TIM_CTRL,
 							FLD_VBLANK_CNT, 0x24);
 		/* Adjust the active video horizontal start point */
 		status = cx231xx_read_modify_write_i2c_dword(dev,
-							HAMMERHEAD_I2C_ADDRESS,
+							VID_BLK_I2C_ADDRESS,
 							HORIZ_TIM_CTRL,
 							FLD_HBLANK_CNT,
 							cx231xx_set_field
@@ -1047,7 +923,7 @@ int cx231xx_set_audio_input(struct cx231xx *dev, u8 input)
 		ainput = AUDIO_INPUT_TUNER_TV;
 		break;
 	case CX231XX_AMUX_LINE_IN:
-		status = cx231xx_flatiron_set_audio_input(dev, input);
+		status = cx231xx_i2s_blk_set_audio_input(dev, input);
 		ainput = AUDIO_INPUT_LINE;
 		break;
 	default:
@@ -1064,71 +940,55 @@ int cx231xx_set_audio_decoder_input(struct cx231xx *dev,
 {
 	u32 dwval;
 	int status;
-	u32 gen_ctrl;
+	u8 gen_ctrl;
 	u32 value = 0;
 
 	/* Put it in soft reset   */
-	status = cx231xx_read_i2c_data(dev, HAMMERHEAD_I2C_ADDRESS,
-				       GENERAL_CTL, 2, &gen_ctrl, 1);
+	status = vid_blk_read_byte(dev, GENERAL_CTL, &gen_ctrl);
 	gen_ctrl |= 1;
-	status = cx231xx_write_i2c_data(dev, HAMMERHEAD_I2C_ADDRESS,
-					GENERAL_CTL, 2, gen_ctrl, 1);
+	status = vid_blk_write_byte(dev, GENERAL_CTL, gen_ctrl);
 
 	switch (audio_input) {
 	case AUDIO_INPUT_LINE:
 		/* setup AUD_IO control from Merlin paralle output */
 		value = cx231xx_set_field(FLD_AUD_CHAN1_SRC,
 					  AUD_CHAN_SRC_PARALLEL);
-		status = cx231xx_write_i2c_data(dev,
-						HAMMERHEAD_I2C_ADDRESS,
-						AUD_IO_CTRL, 2, value, 4);
+		status = vid_blk_write_word(dev, AUD_IO_CTRL, value);
 
 		/* setup input to Merlin, SRC2 connect to AC97
 		   bypass upsample-by-2, slave mode, sony mode, left justify
 		   adr 091c, dat 01000000 */
-		status = cx231xx_read_i2c_data(dev, HAMMERHEAD_I2C_ADDRESS,
-					       AC97_CTL,
-					  2, &dwval, 4);
+		status = vid_blk_read_word(dev, AC97_CTL, &dwval);
 
-		status = cx231xx_write_i2c_data(dev, HAMMERHEAD_I2C_ADDRESS,
-					   AC97_CTL, 2,
-					   (dwval | FLD_AC97_UP2X_BYPASS), 4);
+		status = vid_blk_write_word(dev, AC97_CTL,
+					   (dwval | FLD_AC97_UP2X_BYPASS));
 
 		/* select the parallel1 and SRC3 */
-		status = cx231xx_write_i2c_data(dev, HAMMERHEAD_I2C_ADDRESS,
-				BAND_OUT_SEL, 2,
+		status = vid_blk_write_word(dev, BAND_OUT_SEL,
 				cx231xx_set_field(FLD_SRC3_IN_SEL, 0x0) |
 				cx231xx_set_field(FLD_SRC3_CLK_SEL, 0x0) |
-				cx231xx_set_field(FLD_PARALLEL1_SRC_SEL, 0x0),
-				4);
+				cx231xx_set_field(FLD_PARALLEL1_SRC_SEL, 0x0));
 
 		/* unmute all, AC97 in, independence mode
 		   adr 08d0, data 0x00063073 */
-		status = cx231xx_write_i2c_data(dev, HAMMERHEAD_I2C_ADDRESS,
-					   PATH1_CTL1, 2, 0x00063073, 4);
+		status = vid_blk_write_word(dev, PATH1_CTL1, 0x00063073);
 
 		/* set AVC maximum threshold, adr 08d4, dat ffff0024 */
-		status = cx231xx_read_i2c_data(dev, HAMMERHEAD_I2C_ADDRESS,
-					  PATH1_VOL_CTL, 2, &dwval, 4);
-		status = cx231xx_write_i2c_data(dev, HAMMERHEAD_I2C_ADDRESS,
-					   PATH1_VOL_CTL, 2,
-					   (dwval | FLD_PATH1_AVC_THRESHOLD),
-					   4);
+		status = vid_blk_read_word(dev, PATH1_VOL_CTL, &dwval);
+		status = vid_blk_write_word(dev, PATH1_VOL_CTL,
+					   (dwval | FLD_PATH1_AVC_THRESHOLD));
 
 		/* set SC maximum threshold, adr 08ec, dat ffffb3a3 */
-		status = cx231xx_read_i2c_data(dev, HAMMERHEAD_I2C_ADDRESS,
-					  PATH1_SC_CTL, 2, &dwval, 4);
-		status =  cx231xx_write_i2c_data(dev, HAMMERHEAD_I2C_ADDRESS,
-					   PATH1_SC_CTL, 2,
-					   (dwval | FLD_PATH1_SC_THRESHOLD), 4);
+		status = vid_blk_read_word(dev, PATH1_SC_CTL, &dwval);
+		status = vid_blk_write_word(dev, PATH1_SC_CTL,
+					   (dwval | FLD_PATH1_SC_THRESHOLD));
 		break;
 
 	case AUDIO_INPUT_TUNER_TV:
 	default:
 
 		/* Setup SRC sources and clocks */
-		status = cx231xx_write_i2c_data(dev, HAMMERHEAD_I2C_ADDRESS,
-			BAND_OUT_SEL, 2,
+		status = vid_blk_write_word(dev, BAND_OUT_SEL,
 			cx231xx_set_field(FLD_SRC6_IN_SEL, 0x00)         |
 			cx231xx_set_field(FLD_SRC6_CLK_SEL, 0x01)        |
 			cx231xx_set_field(FLD_SRC5_IN_SEL, 0x00)         |
@@ -1141,29 +1001,26 @@ int cx231xx_set_audio_decoder_input(struct cx231xx *dev,
 			cx231xx_set_field(FLD_AC97_SRC_SEL, 0x03)        |
 			cx231xx_set_field(FLD_I2S_SRC_SEL, 0x00)         |
 			cx231xx_set_field(FLD_PARALLEL2_SRC_SEL, 0x02)   |
-			cx231xx_set_field(FLD_PARALLEL1_SRC_SEL, 0x01), 4);
+			cx231xx_set_field(FLD_PARALLEL1_SRC_SEL, 0x01));
 
 		/* Setup the AUD_IO control */
-		status = cx231xx_write_i2c_data(dev, HAMMERHEAD_I2C_ADDRESS,
-			AUD_IO_CTRL, 2,
+		status = vid_blk_write_word(dev, AUD_IO_CTRL,
 			cx231xx_set_field(FLD_I2S_PORT_DIR, 0x00)  |
 			cx231xx_set_field(FLD_I2S_OUT_SRC, 0x00)   |
 			cx231xx_set_field(FLD_AUD_CHAN3_SRC, 0x00) |
 			cx231xx_set_field(FLD_AUD_CHAN2_SRC, 0x00) |
-			cx231xx_set_field(FLD_AUD_CHAN1_SRC, 0x03), 4);
+			cx231xx_set_field(FLD_AUD_CHAN1_SRC, 0x03));
 
-		status = cx231xx_write_i2c_data(dev, HAMMERHEAD_I2C_ADDRESS,
-					   PATH1_CTL1, 2, 0x1F063870, 4);
+		status = vid_blk_write_word(dev, PATH1_CTL1, 0x1F063870);
 
 		/* setAudioStandard(_audio_standard); */
 
-		status = cx231xx_write_i2c_data(dev, HAMMERHEAD_I2C_ADDRESS,
-					   PATH1_CTL1, 2, 0x00063870, 4);
+		status = vid_blk_write_word(dev, PATH1_CTL1, 0x00063870);
 		switch (dev->model) {
 		case CX231XX_BOARD_CNXT_RDE_250:
 		case CX231XX_BOARD_CNXT_RDU_250:
 			status = cx231xx_read_modify_write_i2c_dword(dev,
-					HAMMERHEAD_I2C_ADDRESS,
+					VID_BLK_I2C_ADDRESS,
 					CHIP_CTRL,
 					FLD_SIF_EN,
 					cx231xx_set_field(FLD_SIF_EN, 1));
@@ -1181,17 +1038,14 @@ int cx231xx_set_audio_decoder_input(struct cx231xx *dev,
 		break;
 
 	case AUDIO_INPUT_MUTE:
-		status = cx231xx_write_i2c_data(dev, HAMMERHEAD_I2C_ADDRESS,
-					   PATH1_CTL1, 2, 0x1F011012, 4);
+		status = vid_blk_write_word(dev, PATH1_CTL1, 0x1F011012);
 		break;
 	}
 
 	/* Take it out of soft reset */
-	status = cx231xx_read_i2c_data(dev, HAMMERHEAD_I2C_ADDRESS,
-				       GENERAL_CTL, 2,  &gen_ctrl, 1);
+	status = vid_blk_read_byte(dev, GENERAL_CTL, &gen_ctrl);
 	gen_ctrl &= ~1;
-	status = cx231xx_write_i2c_data(dev, HAMMERHEAD_I2C_ADDRESS,
-					GENERAL_CTL, 2, gen_ctrl, 1);
+	status = vid_blk_write_byte(dev, GENERAL_CTL, gen_ctrl);
 
 	return status;
 }
@@ -1209,12 +1063,10 @@ int cx231xx_resolution_set(struct cx231xx *dev)
 	get_scale(dev, width, height, &hscale, &vscale);
 
 	/* set horzontal scale */
-	status = cx231xx_write_i2c_data(dev, HAMMERHEAD_I2C_ADDRESS,
-					HSCALE_CTRL, 2, hscale, 4);
+	status = vid_blk_write_word(dev, HSCALE_CTRL, hscale);
 
 	/* set vertical scale */
-	status = cx231xx_write_i2c_data(dev, HAMMERHEAD_I2C_ADDRESS,
-					VSCALE_CTRL, 2, vscale, 4);
+	status = vid_blk_write_word(dev, VSCALE_CTRL, vscale);
 
 	return status;
 }
@@ -1227,11 +1079,9 @@ int cx231xx_init_ctrl_pin_status(struct cx231xx *dev)
 	u32 value;
 	int status = 0;
 
-	status = cx231xx_read_i2c_data(dev, HAMMERHEAD_I2C_ADDRESS, PIN_CTRL,
-				       2, &value, 4);
+	status = vid_blk_read_word(dev, PIN_CTRL, &value);
 	value |= (~dev->board.ctl_pin_status_mask);
-	status = cx231xx_write_i2c_data(dev, HAMMERHEAD_I2C_ADDRESS, PIN_CTRL,
-					2, value, 4);
+	status = vid_blk_write_word(dev, PIN_CTRL, value);
 
 	return status;
 }
@@ -1296,82 +1146,82 @@ int cx231xx_dif_configure_C2HH_for_low_IF(struct cx231xx *dev, u32 mode,
 		/* C2HH */
 		/* lo if big signal */
 		status = cx231xx_reg_mask_write(dev,
-				HAMMERHEAD_I2C_ADDRESS, 32,
+				VID_BLK_I2C_ADDRESS, 32,
 				AFE_CTRL_C2HH_SRC_CTRL, 30, 31, 0x1);
 		/* FUNC_MODE = DIF */
 		status = cx231xx_reg_mask_write(dev,
-				HAMMERHEAD_I2C_ADDRESS, 32,
+				VID_BLK_I2C_ADDRESS, 32,
 				AFE_CTRL_C2HH_SRC_CTRL, 23, 24, function_mode);
 		/* IF_MODE */
 		status = cx231xx_reg_mask_write(dev,
-				HAMMERHEAD_I2C_ADDRESS, 32,
+				VID_BLK_I2C_ADDRESS, 32,
 				AFE_CTRL_C2HH_SRC_CTRL, 15, 22, 0xFF);
 		/* no inv */
 		status = cx231xx_reg_mask_write(dev,
-				HAMMERHEAD_I2C_ADDRESS, 32,
+				VID_BLK_I2C_ADDRESS, 32,
 				AFE_CTRL_C2HH_SRC_CTRL, 9, 9, 0x1);
 	} else if (standard != DIF_USE_BASEBAND) {
 		if (standard & V4L2_STD_MN) {
 			/* lo if big signal */
 			status = cx231xx_reg_mask_write(dev,
-					HAMMERHEAD_I2C_ADDRESS, 32,
+					VID_BLK_I2C_ADDRESS, 32,
 					AFE_CTRL_C2HH_SRC_CTRL, 30, 31, 0x1);
 			/* FUNC_MODE = DIF */
 			status = cx231xx_reg_mask_write(dev,
-					HAMMERHEAD_I2C_ADDRESS, 32,
+					VID_BLK_I2C_ADDRESS, 32,
 					AFE_CTRL_C2HH_SRC_CTRL, 23, 24,
 					function_mode);
 			/* IF_MODE */
 			status = cx231xx_reg_mask_write(dev,
-					HAMMERHEAD_I2C_ADDRESS, 32,
+					VID_BLK_I2C_ADDRESS, 32,
 					AFE_CTRL_C2HH_SRC_CTRL, 15, 22, 0xb);
 			/* no inv */
 			status = cx231xx_reg_mask_write(dev,
-					HAMMERHEAD_I2C_ADDRESS, 32,
+					VID_BLK_I2C_ADDRESS, 32,
 					AFE_CTRL_C2HH_SRC_CTRL, 9, 9, 0x1);
 			/* 0x124, AUD_CHAN1_SRC = 0x3 */
 			status = cx231xx_reg_mask_write(dev,
-					HAMMERHEAD_I2C_ADDRESS, 32,
+					VID_BLK_I2C_ADDRESS, 32,
 					AUD_IO_CTRL, 0, 31, 0x00000003);
 		} else if ((standard == V4L2_STD_PAL_I) |
 			(standard & V4L2_STD_SECAM)) {
 			/* C2HH setup */
 			/* lo if big signal */
 			status = cx231xx_reg_mask_write(dev,
-					HAMMERHEAD_I2C_ADDRESS, 32,
+					VID_BLK_I2C_ADDRESS, 32,
 					AFE_CTRL_C2HH_SRC_CTRL, 30, 31, 0x1);
 			/* FUNC_MODE = DIF */
 			status = cx231xx_reg_mask_write(dev,
-					HAMMERHEAD_I2C_ADDRESS, 32,
+					VID_BLK_I2C_ADDRESS, 32,
 					AFE_CTRL_C2HH_SRC_CTRL, 23, 24,
 					function_mode);
 			/* IF_MODE */
 			status = cx231xx_reg_mask_write(dev,
-					HAMMERHEAD_I2C_ADDRESS, 32,
+					VID_BLK_I2C_ADDRESS, 32,
 					AFE_CTRL_C2HH_SRC_CTRL, 15, 22, 0xF);
 			/* no inv */
 			status = cx231xx_reg_mask_write(dev,
-					HAMMERHEAD_I2C_ADDRESS, 32,
+					VID_BLK_I2C_ADDRESS, 32,
 					AFE_CTRL_C2HH_SRC_CTRL, 9, 9, 0x1);
 		} else {
 			/* default PAL BG */
 			/* C2HH setup */
 			/* lo if big signal */
 			status = cx231xx_reg_mask_write(dev,
-					HAMMERHEAD_I2C_ADDRESS, 32,
+					VID_BLK_I2C_ADDRESS, 32,
 					AFE_CTRL_C2HH_SRC_CTRL, 30, 31, 0x1);
 			/* FUNC_MODE = DIF */
 			status = cx231xx_reg_mask_write(dev,
-					HAMMERHEAD_I2C_ADDRESS, 32,
+					VID_BLK_I2C_ADDRESS, 32,
 					AFE_CTRL_C2HH_SRC_CTRL, 23, 24,
 					function_mode);
 			/* IF_MODE */
 			status = cx231xx_reg_mask_write(dev,
-					HAMMERHEAD_I2C_ADDRESS, 32,
+					VID_BLK_I2C_ADDRESS, 32,
 					AFE_CTRL_C2HH_SRC_CTRL, 15, 22, 0xE);
 			/* no inv */
 			status = cx231xx_reg_mask_write(dev,
-					HAMMERHEAD_I2C_ADDRESS, 32,
+					VID_BLK_I2C_ADDRESS, 32,
 					AFE_CTRL_C2HH_SRC_CTRL, 9, 9, 0x1);
 		}
 	}
@@ -1387,9 +1237,7 @@ int cx231xx_dif_set_standard(struct cx231xx *dev, u32 standard)
 
 	cx231xx_info("%s: setStandard to %x\n", __func__, standard);
 
-	status = cx231xx_read_i2c_data(dev, HAMMERHEAD_I2C_ADDRESS,
-				       DIF_MISC_CTRL, 2, &dif_misc_ctrl_value,
-				       4);
+	status = vid_blk_read_word(dev, DIF_MISC_CTRL, &dif_misc_ctrl_value);
 	if (standard != DIF_USE_BASEBAND)
 		dev->norm = standard;
 
@@ -1408,182 +1256,154 @@ int cx231xx_dif_set_standard(struct cx231xx *dev, u32 standard)
 	if (standard == DIF_USE_BASEBAND) {	/* base band */
 		/* There is a different SRC_PHASE_INC value
 		   for baseband vs. DIF */
-		status = cx231xx_write_i2c_data(dev, HAMMERHEAD_I2C_ADDRESS,
-						DIF_SRC_PHASE_INC, 2, 0xDF7DF83,
-						4);
-		status = cx231xx_read_i2c_data(dev, HAMMERHEAD_I2C_ADDRESS,
-					       DIF_MISC_CTRL, 2,
-					       &dif_misc_ctrl_value, 4);
+		status = vid_blk_write_word(dev, DIF_SRC_PHASE_INC, 0xDF7DF83);
+		status = vid_blk_read_word(dev, DIF_MISC_CTRL,
+						&dif_misc_ctrl_value);
 		dif_misc_ctrl_value |= FLD_DIF_DIF_BYPASS;
-		status = cx231xx_write_i2c_data(dev, HAMMERHEAD_I2C_ADDRESS,
-						DIF_MISC_CTRL, 2,
-						dif_misc_ctrl_value, 4);
+		status = vid_blk_write_word(dev, DIF_MISC_CTRL,
+						dif_misc_ctrl_value);
 	} else if (standard & V4L2_STD_PAL_D) {
-		status = cx231xx_reg_mask_write(dev, HAMMERHEAD_I2C_ADDRESS, 32,
+		status = cx231xx_reg_mask_write(dev, VID_BLK_I2C_ADDRESS, 32,
 					   DIF_PLL_CTRL, 0, 31, 0x6503bc0c);
-		status = cx231xx_reg_mask_write(dev, HAMMERHEAD_I2C_ADDRESS, 32,
+		status = cx231xx_reg_mask_write(dev, VID_BLK_I2C_ADDRESS, 32,
 					   DIF_PLL_CTRL1, 0, 31, 0xbd038c85);
-		status = cx231xx_reg_mask_write(dev, HAMMERHEAD_I2C_ADDRESS, 32,
+		status = cx231xx_reg_mask_write(dev, VID_BLK_I2C_ADDRESS, 32,
 					   DIF_PLL_CTRL2, 0, 31, 0x1db4640a);
-		status = cx231xx_reg_mask_write(dev, HAMMERHEAD_I2C_ADDRESS, 32,
+		status = cx231xx_reg_mask_write(dev, VID_BLK_I2C_ADDRESS, 32,
 					   DIF_PLL_CTRL3, 0, 31, 0x00008800);
-		status = cx231xx_reg_mask_write(dev, HAMMERHEAD_I2C_ADDRESS, 32,
+		status = cx231xx_reg_mask_write(dev, VID_BLK_I2C_ADDRESS, 32,
 					   DIF_AGC_IF_REF, 0, 31, 0x444C1380);
-		status = cx231xx_reg_mask_write(dev, HAMMERHEAD_I2C_ADDRESS, 32,
+		status = cx231xx_reg_mask_write(dev, VID_BLK_I2C_ADDRESS, 32,
 					   DIF_AGC_CTRL_IF, 0, 31, 0xDA302600);
-		status = cx231xx_reg_mask_write(dev, HAMMERHEAD_I2C_ADDRESS, 32,
+		status = cx231xx_reg_mask_write(dev, VID_BLK_I2C_ADDRESS, 32,
 					   DIF_AGC_CTRL_INT, 0, 31, 0xDA261700);
-		status = cx231xx_reg_mask_write(dev, HAMMERHEAD_I2C_ADDRESS, 32,
+		status = cx231xx_reg_mask_write(dev, VID_BLK_I2C_ADDRESS, 32,
 					   DIF_AGC_CTRL_RF, 0, 31, 0xDA262600);
-		status = cx231xx_reg_mask_write(dev, HAMMERHEAD_I2C_ADDRESS, 32,
+		status = cx231xx_reg_mask_write(dev, VID_BLK_I2C_ADDRESS, 32,
 					   DIF_AGC_IF_INT_CURRENT, 0, 31,
 					   0x26001700);
-		status = cx231xx_reg_mask_write(dev, HAMMERHEAD_I2C_ADDRESS, 32,
+		status = cx231xx_reg_mask_write(dev, VID_BLK_I2C_ADDRESS, 32,
 					   DIF_AGC_RF_CURRENT, 0, 31,
 					   0x00002660);
-		status = cx231xx_reg_mask_write(dev, HAMMERHEAD_I2C_ADDRESS, 32,
+		status = cx231xx_reg_mask_write(dev, VID_BLK_I2C_ADDRESS, 32,
 					   DIF_VIDEO_AGC_CTRL, 0, 31,
 					   0x72500800);
-		status = cx231xx_reg_mask_write(dev, HAMMERHEAD_I2C_ADDRESS, 32,
+		status = cx231xx_reg_mask_write(dev, VID_BLK_I2C_ADDRESS, 32,
 					   DIF_VID_AUD_OVERRIDE, 0, 31,
 					   0x27000100);
-		status = cx231xx_reg_mask_write(dev, HAMMERHEAD_I2C_ADDRESS, 32,
+		status = cx231xx_reg_mask_write(dev, VID_BLK_I2C_ADDRESS, 32,
 					   DIF_AV_SEP_CTRL, 0, 31, 0x3F3934EA);
-		status = cx231xx_reg_mask_write(dev, HAMMERHEAD_I2C_ADDRESS, 32,
+		status = cx231xx_reg_mask_write(dev, VID_BLK_I2C_ADDRESS, 32,
 					   DIF_COMP_FLT_CTRL, 0, 31,
 					   0x00000000);
-		status = cx231xx_reg_mask_write(dev, HAMMERHEAD_I2C_ADDRESS, 32,
+		status = cx231xx_reg_mask_write(dev, VID_BLK_I2C_ADDRESS, 32,
 					   DIF_SRC_PHASE_INC, 0, 31,
 					   0x1befbf06);
-		status = cx231xx_reg_mask_write(dev, HAMMERHEAD_I2C_ADDRESS, 32,
+		status = cx231xx_reg_mask_write(dev, VID_BLK_I2C_ADDRESS, 32,
 					   DIF_SRC_GAIN_CONTROL, 0, 31,
 					   0x000035e8);
-		status = cx231xx_reg_mask_write(dev, HAMMERHEAD_I2C_ADDRESS, 32,
+		status = cx231xx_reg_mask_write(dev, VID_BLK_I2C_ADDRESS, 32,
 					   DIF_RPT_VARIANCE, 0, 31, 0x00000000);
 		/* Save the Spec Inversion value */
 		dif_misc_ctrl_value &= FLD_DIF_SPEC_INV;
 		dif_misc_ctrl_value |= 0x3a023F11;
 	} else if (standard & V4L2_STD_PAL_I) {
-		status = cx231xx_reg_mask_write(dev, HAMMERHEAD_I2C_ADDRESS, 32,
+		status = cx231xx_reg_mask_write(dev, VID_BLK_I2C_ADDRESS, 32,
 					   DIF_PLL_CTRL, 0, 31, 0x6503bc0c);
-		status = cx231xx_reg_mask_write(dev, HAMMERHEAD_I2C_ADDRESS, 32,
+		status = cx231xx_reg_mask_write(dev, VID_BLK_I2C_ADDRESS, 32,
 					   DIF_PLL_CTRL1, 0, 31, 0xbd038c85);
-		status = cx231xx_reg_mask_write(dev, HAMMERHEAD_I2C_ADDRESS, 32,
+		status = cx231xx_reg_mask_write(dev, VID_BLK_I2C_ADDRESS, 32,
 					   DIF_PLL_CTRL2, 0, 31, 0x1db4640a);
-		status = cx231xx_reg_mask_write(dev, HAMMERHEAD_I2C_ADDRESS, 32,
+		status = cx231xx_reg_mask_write(dev, VID_BLK_I2C_ADDRESS, 32,
 					   DIF_PLL_CTRL3, 0, 31, 0x00008800);
-		status = cx231xx_reg_mask_write(dev, HAMMERHEAD_I2C_ADDRESS, 32,
+		status = cx231xx_reg_mask_write(dev, VID_BLK_I2C_ADDRESS, 32,
 					   DIF_AGC_IF_REF, 0, 31, 0x444C1380);
-		status = cx231xx_reg_mask_write(dev, HAMMERHEAD_I2C_ADDRESS, 32,
+		status = cx231xx_reg_mask_write(dev, VID_BLK_I2C_ADDRESS, 32,
 					   DIF_AGC_CTRL_IF, 0, 31, 0xDA302600);
-		status = cx231xx_reg_mask_write(dev, HAMMERHEAD_I2C_ADDRESS, 32,
+		status = cx231xx_reg_mask_write(dev, VID_BLK_I2C_ADDRESS, 32,
 					   DIF_AGC_CTRL_INT, 0, 31, 0xDA261700);
-		status = cx231xx_reg_mask_write(dev, HAMMERHEAD_I2C_ADDRESS, 32,
+		status = cx231xx_reg_mask_write(dev, VID_BLK_I2C_ADDRESS, 32,
 					   DIF_AGC_CTRL_RF, 0, 31, 0xDA262600);
-		status = cx231xx_reg_mask_write(dev, HAMMERHEAD_I2C_ADDRESS, 32,
+		status = cx231xx_reg_mask_write(dev, VID_BLK_I2C_ADDRESS, 32,
 					   DIF_AGC_IF_INT_CURRENT, 0, 31,
 					   0x26001700);
-		status = cx231xx_reg_mask_write(dev, HAMMERHEAD_I2C_ADDRESS, 32,
+		status = cx231xx_reg_mask_write(dev, VID_BLK_I2C_ADDRESS, 32,
 					   DIF_AGC_RF_CURRENT, 0, 31,
 					   0x00002660);
-		status = cx231xx_reg_mask_write(dev, HAMMERHEAD_I2C_ADDRESS, 32,
+		status = cx231xx_reg_mask_write(dev, VID_BLK_I2C_ADDRESS, 32,
 					   DIF_VIDEO_AGC_CTRL, 0, 31,
 					   0x72500800);
-		status = cx231xx_reg_mask_write(dev, HAMMERHEAD_I2C_ADDRESS, 32,
+		status = cx231xx_reg_mask_write(dev, VID_BLK_I2C_ADDRESS, 32,
 					   DIF_VID_AUD_OVERRIDE, 0, 31,
 					   0x27000100);
-		status = cx231xx_reg_mask_write(dev, HAMMERHEAD_I2C_ADDRESS, 32,
+		status = cx231xx_reg_mask_write(dev, VID_BLK_I2C_ADDRESS, 32,
 					   DIF_AV_SEP_CTRL, 0, 31, 0x5F39A934);
-		status = cx231xx_reg_mask_write(dev, HAMMERHEAD_I2C_ADDRESS, 32,
+		status = cx231xx_reg_mask_write(dev, VID_BLK_I2C_ADDRESS, 32,
 					   DIF_COMP_FLT_CTRL, 0, 31,
 					   0x00000000);
-		status = cx231xx_reg_mask_write(dev, HAMMERHEAD_I2C_ADDRESS, 32,
+		status = cx231xx_reg_mask_write(dev, VID_BLK_I2C_ADDRESS, 32,
 					   DIF_SRC_PHASE_INC, 0, 31,
 					   0x1befbf06);
-		status = cx231xx_reg_mask_write(dev, HAMMERHEAD_I2C_ADDRESS, 32,
+		status = cx231xx_reg_mask_write(dev, VID_BLK_I2C_ADDRESS, 32,
 					   DIF_SRC_GAIN_CONTROL, 0, 31,
 					   0x000035e8);
-		status = cx231xx_reg_mask_write(dev, HAMMERHEAD_I2C_ADDRESS, 32,
+		status = cx231xx_reg_mask_write(dev, VID_BLK_I2C_ADDRESS, 32,
 					   DIF_RPT_VARIANCE, 0, 31, 0x00000000);
 		/* Save the Spec Inversion value */
 		dif_misc_ctrl_value &= FLD_DIF_SPEC_INV;
 		dif_misc_ctrl_value |= 0x3a033F11;
 	} else if (standard & V4L2_STD_PAL_M) {
 		/* improved Low Frequency Phase Noise */
-		status = cx231xx_write_i2c_data(dev, HAMMERHEAD_I2C_ADDRESS,
-						DIF_PLL_CTRL, 2, 0xFF01FF0C, 4);
-		status = cx231xx_write_i2c_data(dev, HAMMERHEAD_I2C_ADDRESS,
-						DIF_PLL_CTRL1, 2, 0xbd038c85,
-						4);
-		status = cx231xx_write_i2c_data(dev, HAMMERHEAD_I2C_ADDRESS,
-					   DIF_PLL_CTRL2, 2, 0x1db4640a, 4);
-		status = cx231xx_write_i2c_data(dev, HAMMERHEAD_I2C_ADDRESS,
-					   DIF_PLL_CTRL3, 2, 0x00008800, 4);
-		status = cx231xx_write_i2c_data(dev, HAMMERHEAD_I2C_ADDRESS,
-					   DIF_AGC_IF_REF, 2, 0x444C1380, 4);
-		status = cx231xx_write_i2c_data(dev, HAMMERHEAD_I2C_ADDRESS,
-					   DIF_AGC_IF_INT_CURRENT, 2,
-					   0x26001700, 4);
-		status = cx231xx_write_i2c_data(dev, HAMMERHEAD_I2C_ADDRESS,
-					   DIF_AGC_RF_CURRENT, 2, 0x00002660,
-					   4);
-		status = cx231xx_write_i2c_data(dev, HAMMERHEAD_I2C_ADDRESS,
-					   DIF_VIDEO_AGC_CTRL, 2, 0x72500800,
-					   4);
-		status = cx231xx_write_i2c_data(dev, HAMMERHEAD_I2C_ADDRESS,
-					   DIF_VID_AUD_OVERRIDE, 2, 0x27000100,
-					   4);
-		status = cx231xx_write_i2c_data(dev, HAMMERHEAD_I2C_ADDRESS,
-					   DIF_AV_SEP_CTRL, 2, 0x012c405d, 4);
-		status = cx231xx_write_i2c_data(dev, HAMMERHEAD_I2C_ADDRESS,
-					   DIF_COMP_FLT_CTRL, 2, 0x009f50c1, 4);
-		status = cx231xx_write_i2c_data(dev, HAMMERHEAD_I2C_ADDRESS,
-					   DIF_SRC_PHASE_INC, 2, 0x1befbf06, 4);
-		status = cx231xx_write_i2c_data(dev, HAMMERHEAD_I2C_ADDRESS,
-					   DIF_SRC_GAIN_CONTROL, 2, 0x000035e8,
-					   4);
-		status = cx231xx_write_i2c_data(dev, HAMMERHEAD_I2C_ADDRESS,
-					   DIF_SOFT_RST_CTRL_REVB, 2,
-					   0x00000000, 4);
+		status = vid_blk_write_word(dev, DIF_PLL_CTRL, 0xFF01FF0C);
+		status = vid_blk_write_word(dev, DIF_PLL_CTRL1, 0xbd038c85);
+		status = vid_blk_write_word(dev, DIF_PLL_CTRL2, 0x1db4640a);
+		status = vid_blk_write_word(dev, DIF_PLL_CTRL3, 0x00008800);
+		status = vid_blk_write_word(dev, DIF_AGC_IF_REF, 0x444C1380);
+		status = vid_blk_write_word(dev, DIF_AGC_IF_INT_CURRENT,
+						0x26001700);
+		status = vid_blk_write_word(dev, DIF_AGC_RF_CURRENT,
+						0x00002660);
+		status = vid_blk_write_word(dev, DIF_VIDEO_AGC_CTRL,
+						0x72500800);
+		status = vid_blk_write_word(dev, DIF_VID_AUD_OVERRIDE,
+						0x27000100);
+		status = vid_blk_write_word(dev, DIF_AV_SEP_CTRL, 0x012c405d);
+		status = vid_blk_write_word(dev, DIF_COMP_FLT_CTRL,
+						0x009f50c1);
+		status = vid_blk_write_word(dev, DIF_SRC_PHASE_INC,
+						0x1befbf06);
+		status = vid_blk_write_word(dev, DIF_SRC_GAIN_CONTROL,
+						0x000035e8);
+		status = vid_blk_write_word(dev, DIF_SOFT_RST_CTRL_REVB,
+						0x00000000);
 		/* Save the Spec Inversion value */
 		dif_misc_ctrl_value &= FLD_DIF_SPEC_INV;
 		dif_misc_ctrl_value |= 0x3A0A3F10;
 	} else if (standard & (V4L2_STD_PAL_N | V4L2_STD_PAL_Nc)) {
 		/* improved Low Frequency Phase Noise */
-		status = cx231xx_write_i2c_data(dev, HAMMERHEAD_I2C_ADDRESS,
-					   DIF_PLL_CTRL, 2, 0xFF01FF0C, 4);
-		status = cx231xx_write_i2c_data(dev, HAMMERHEAD_I2C_ADDRESS,
-					   DIF_PLL_CTRL1, 2, 0xbd038c85, 4);
-		status = cx231xx_write_i2c_data(dev, HAMMERHEAD_I2C_ADDRESS,
-					   DIF_PLL_CTRL2, 2, 0x1db4640a, 4);
-		status = cx231xx_write_i2c_data(dev, HAMMERHEAD_I2C_ADDRESS,
-					   DIF_PLL_CTRL3, 2, 0x00008800, 4);
-		status = cx231xx_write_i2c_data(dev, HAMMERHEAD_I2C_ADDRESS,
-					   DIF_AGC_IF_REF, 2, 0x444C1380, 4);
-		status = cx231xx_write_i2c_data(dev, HAMMERHEAD_I2C_ADDRESS,
-					   DIF_AGC_IF_INT_CURRENT, 2,
-					   0x26001700, 4);
-		status = cx231xx_write_i2c_data(dev, HAMMERHEAD_I2C_ADDRESS,
-					   DIF_AGC_RF_CURRENT, 2, 0x00002660,
-					   4);
-		status = cx231xx_write_i2c_data(dev, HAMMERHEAD_I2C_ADDRESS,
-					   DIF_VIDEO_AGC_CTRL, 2, 0x72500800,
-					   4);
-		status = cx231xx_write_i2c_data(dev, HAMMERHEAD_I2C_ADDRESS,
-					   DIF_VID_AUD_OVERRIDE, 2, 0x27000100,
-					   4);
-		status = cx231xx_write_i2c_data(dev, HAMMERHEAD_I2C_ADDRESS,
-					   DIF_AV_SEP_CTRL, 2, 0x012c405d, 4);
-		status = cx231xx_write_i2c_data(dev, HAMMERHEAD_I2C_ADDRESS,
-					   DIF_COMP_FLT_CTRL, 2, 0x009f50c1, 4);
-		status = cx231xx_write_i2c_data(dev, HAMMERHEAD_I2C_ADDRESS,
-					   DIF_SRC_PHASE_INC, 2, 0x1befbf06, 4);
-		status = cx231xx_write_i2c_data(dev, HAMMERHEAD_I2C_ADDRESS,
-					   DIF_SRC_GAIN_CONTROL, 2, 0x000035e8,
-					   4);
-		status = cx231xx_write_i2c_data(dev, HAMMERHEAD_I2C_ADDRESS,
-					   DIF_SOFT_RST_CTRL_REVB, 2,
-					   0x00000000, 4);
+		status = vid_blk_write_word(dev, DIF_PLL_CTRL, 0xFF01FF0C);
+		status = vid_blk_write_word(dev, DIF_PLL_CTRL1, 0xbd038c85);
+		status = vid_blk_write_word(dev, DIF_PLL_CTRL2, 0x1db4640a);
+		status = vid_blk_write_word(dev, DIF_PLL_CTRL3, 0x00008800);
+		status = vid_blk_write_word(dev, DIF_AGC_IF_REF, 0x444C1380);
+		status = vid_blk_write_word(dev, DIF_AGC_IF_INT_CURRENT,
+						0x26001700);
+		status = vid_blk_write_word(dev, DIF_AGC_RF_CURRENT,
+						0x00002660);
+		status = vid_blk_write_word(dev, DIF_VIDEO_AGC_CTRL,
+						0x72500800);
+		status = vid_blk_write_word(dev, DIF_VID_AUD_OVERRIDE,
+						0x27000100);
+		status = vid_blk_write_word(dev, DIF_AV_SEP_CTRL,
+						0x012c405d);
+		status = vid_blk_write_word(dev, DIF_COMP_FLT_CTRL,
+						0x009f50c1);
+		status = vid_blk_write_word(dev, DIF_SRC_PHASE_INC,
+						0x1befbf06);
+		status = vid_blk_write_word(dev, DIF_SRC_GAIN_CONTROL,
+						0x000035e8);
+		status = vid_blk_write_word(dev, DIF_SOFT_RST_CTRL_REVB,
+						0x00000000);
 		/* Save the Spec Inversion value */
 		dif_misc_ctrl_value &= FLD_DIF_SPEC_INV;
 		dif_misc_ctrl_value = 0x3A093F10;
@@ -1591,45 +1411,45 @@ int cx231xx_dif_set_standard(struct cx231xx *dev, u32 standard)
 		  (V4L2_STD_SECAM_B | V4L2_STD_SECAM_D | V4L2_STD_SECAM_G |
 		   V4L2_STD_SECAM_K | V4L2_STD_SECAM_K1)) {
 
-		status = cx231xx_reg_mask_write(dev, HAMMERHEAD_I2C_ADDRESS, 32,
+		status = cx231xx_reg_mask_write(dev, VID_BLK_I2C_ADDRESS, 32,
 					   DIF_PLL_CTRL, 0, 31, 0x6503bc0c);
-		status = cx231xx_reg_mask_write(dev, HAMMERHEAD_I2C_ADDRESS, 32,
+		status = cx231xx_reg_mask_write(dev, VID_BLK_I2C_ADDRESS, 32,
 					   DIF_PLL_CTRL1, 0, 31, 0xbd038c85);
-		status = cx231xx_reg_mask_write(dev, HAMMERHEAD_I2C_ADDRESS, 32,
+		status = cx231xx_reg_mask_write(dev, VID_BLK_I2C_ADDRESS, 32,
 					   DIF_PLL_CTRL2, 0, 31, 0x1db4640a);
-		status = cx231xx_reg_mask_write(dev, HAMMERHEAD_I2C_ADDRESS, 32,
+		status = cx231xx_reg_mask_write(dev, VID_BLK_I2C_ADDRESS, 32,
 					   DIF_PLL_CTRL3, 0, 31, 0x00008800);
-		status = cx231xx_reg_mask_write(dev, HAMMERHEAD_I2C_ADDRESS, 32,
+		status = cx231xx_reg_mask_write(dev, VID_BLK_I2C_ADDRESS, 32,
 					   DIF_AGC_IF_REF, 0, 31, 0x888C0380);
-		status = cx231xx_reg_mask_write(dev, HAMMERHEAD_I2C_ADDRESS, 32,
+		status = cx231xx_reg_mask_write(dev, VID_BLK_I2C_ADDRESS, 32,
 					   DIF_AGC_CTRL_IF, 0, 31, 0xe0262600);
-		status = cx231xx_reg_mask_write(dev, HAMMERHEAD_I2C_ADDRESS, 32,
+		status = cx231xx_reg_mask_write(dev, VID_BLK_I2C_ADDRESS, 32,
 					   DIF_AGC_CTRL_INT, 0, 31, 0xc2171700);
-		status = cx231xx_reg_mask_write(dev, HAMMERHEAD_I2C_ADDRESS, 32,
+		status = cx231xx_reg_mask_write(dev, VID_BLK_I2C_ADDRESS, 32,
 					   DIF_AGC_CTRL_RF, 0, 31, 0xc2262600);
-		status = cx231xx_reg_mask_write(dev, HAMMERHEAD_I2C_ADDRESS, 32,
+		status = cx231xx_reg_mask_write(dev, VID_BLK_I2C_ADDRESS, 32,
 					   DIF_AGC_IF_INT_CURRENT, 0, 31,
 					   0x26001700);
-		status = cx231xx_reg_mask_write(dev, HAMMERHEAD_I2C_ADDRESS, 32,
+		status = cx231xx_reg_mask_write(dev, VID_BLK_I2C_ADDRESS, 32,
 					   DIF_AGC_RF_CURRENT, 0, 31,
 					   0x00002660);
-		status = cx231xx_reg_mask_write(dev, HAMMERHEAD_I2C_ADDRESS, 32,
+		status = cx231xx_reg_mask_write(dev, VID_BLK_I2C_ADDRESS, 32,
 					   DIF_VID_AUD_OVERRIDE, 0, 31,
 					   0x27000100);
-		status = cx231xx_reg_mask_write(dev, HAMMERHEAD_I2C_ADDRESS, 32,
+		status = cx231xx_reg_mask_write(dev, VID_BLK_I2C_ADDRESS, 32,
 					   DIF_AV_SEP_CTRL, 0, 31, 0x3F3530ec);
-		status = cx231xx_reg_mask_write(dev, HAMMERHEAD_I2C_ADDRESS, 32,
+		status = cx231xx_reg_mask_write(dev, VID_BLK_I2C_ADDRESS, 32,
 					   DIF_COMP_FLT_CTRL, 0, 31,
 					   0x00000000);
-		status = cx231xx_reg_mask_write(dev, HAMMERHEAD_I2C_ADDRESS, 32,
+		status = cx231xx_reg_mask_write(dev, VID_BLK_I2C_ADDRESS, 32,
 					   DIF_SRC_PHASE_INC, 0, 31,
 					   0x1befbf06);
-		status = cx231xx_reg_mask_write(dev, HAMMERHEAD_I2C_ADDRESS, 32,
+		status = cx231xx_reg_mask_write(dev, VID_BLK_I2C_ADDRESS, 32,
 					   DIF_SRC_GAIN_CONTROL, 0, 31,
 					   0x000035e8);
-		status = cx231xx_reg_mask_write(dev, HAMMERHEAD_I2C_ADDRESS, 32,
+		status = cx231xx_reg_mask_write(dev, VID_BLK_I2C_ADDRESS, 32,
 					   DIF_RPT_VARIANCE, 0, 31, 0x00000000);
-		status = cx231xx_reg_mask_write(dev, HAMMERHEAD_I2C_ADDRESS, 32,
+		status = cx231xx_reg_mask_write(dev, VID_BLK_I2C_ADDRESS, 32,
 					   DIF_VIDEO_AGC_CTRL, 0, 31,
 					   0xf4000000);
 
@@ -1638,45 +1458,45 @@ int cx231xx_dif_set_standard(struct cx231xx *dev, u32 standard)
 		dif_misc_ctrl_value |= 0x3a023F11;
 	} else if (standard & (V4L2_STD_SECAM_L | V4L2_STD_SECAM_LC)) {
 		/* Is it SECAM_L1? */
-		status = cx231xx_reg_mask_write(dev, HAMMERHEAD_I2C_ADDRESS, 32,
+		status = cx231xx_reg_mask_write(dev, VID_BLK_I2C_ADDRESS, 32,
 					   DIF_PLL_CTRL, 0, 31, 0x6503bc0c);
-		status = cx231xx_reg_mask_write(dev, HAMMERHEAD_I2C_ADDRESS, 32,
+		status = cx231xx_reg_mask_write(dev, VID_BLK_I2C_ADDRESS, 32,
 					   DIF_PLL_CTRL1, 0, 31, 0xbd038c85);
-		status = cx231xx_reg_mask_write(dev, HAMMERHEAD_I2C_ADDRESS, 32,
+		status = cx231xx_reg_mask_write(dev, VID_BLK_I2C_ADDRESS, 32,
 					   DIF_PLL_CTRL2, 0, 31, 0x1db4640a);
-		status = cx231xx_reg_mask_write(dev, HAMMERHEAD_I2C_ADDRESS, 32,
+		status = cx231xx_reg_mask_write(dev, VID_BLK_I2C_ADDRESS, 32,
 					   DIF_PLL_CTRL3, 0, 31, 0x00008800);
-		status = cx231xx_reg_mask_write(dev, HAMMERHEAD_I2C_ADDRESS, 32,
+		status = cx231xx_reg_mask_write(dev, VID_BLK_I2C_ADDRESS, 32,
 					   DIF_AGC_IF_REF, 0, 31, 0x888C0380);
-		status = cx231xx_reg_mask_write(dev, HAMMERHEAD_I2C_ADDRESS, 32,
+		status = cx231xx_reg_mask_write(dev, VID_BLK_I2C_ADDRESS, 32,
 					   DIF_AGC_CTRL_IF, 0, 31, 0xe0262600);
-		status = cx231xx_reg_mask_write(dev, HAMMERHEAD_I2C_ADDRESS, 32,
+		status = cx231xx_reg_mask_write(dev, VID_BLK_I2C_ADDRESS, 32,
 					   DIF_AGC_CTRL_INT, 0, 31, 0xc2171700);
-		status = cx231xx_reg_mask_write(dev, HAMMERHEAD_I2C_ADDRESS, 32,
+		status = cx231xx_reg_mask_write(dev, VID_BLK_I2C_ADDRESS, 32,
 					   DIF_AGC_CTRL_RF, 0, 31, 0xc2262600);
-		status = cx231xx_reg_mask_write(dev, HAMMERHEAD_I2C_ADDRESS, 32,
+		status = cx231xx_reg_mask_write(dev, VID_BLK_I2C_ADDRESS, 32,
 					   DIF_AGC_IF_INT_CURRENT, 0, 31,
 					   0x26001700);
-		status = cx231xx_reg_mask_write(dev, HAMMERHEAD_I2C_ADDRESS, 32,
+		status = cx231xx_reg_mask_write(dev, VID_BLK_I2C_ADDRESS, 32,
 					   DIF_AGC_RF_CURRENT, 0, 31,
 					   0x00002660);
-		status = cx231xx_reg_mask_write(dev, HAMMERHEAD_I2C_ADDRESS, 32,
+		status = cx231xx_reg_mask_write(dev, VID_BLK_I2C_ADDRESS, 32,
 					   DIF_VID_AUD_OVERRIDE, 0, 31,
 					   0x27000100);
-		status = cx231xx_reg_mask_write(dev, HAMMERHEAD_I2C_ADDRESS, 32,
+		status = cx231xx_reg_mask_write(dev, VID_BLK_I2C_ADDRESS, 32,
 					   DIF_AV_SEP_CTRL, 0, 31, 0x3F3530ec);
-		status = cx231xx_reg_mask_write(dev, HAMMERHEAD_I2C_ADDRESS, 32,
+		status = cx231xx_reg_mask_write(dev, VID_BLK_I2C_ADDRESS, 32,
 					   DIF_COMP_FLT_CTRL, 0, 31,
 					   0x00000000);
-		status = cx231xx_reg_mask_write(dev, HAMMERHEAD_I2C_ADDRESS, 32,
+		status = cx231xx_reg_mask_write(dev, VID_BLK_I2C_ADDRESS, 32,
 					   DIF_SRC_PHASE_INC, 0, 31,
 					   0x1befbf06);
-		status = cx231xx_reg_mask_write(dev, HAMMERHEAD_I2C_ADDRESS, 32,
+		status = cx231xx_reg_mask_write(dev, VID_BLK_I2C_ADDRESS, 32,
 					   DIF_SRC_GAIN_CONTROL, 0, 31,
 					   0x000035e8);
-		status = cx231xx_reg_mask_write(dev, HAMMERHEAD_I2C_ADDRESS, 32,
+		status = cx231xx_reg_mask_write(dev, VID_BLK_I2C_ADDRESS, 32,
 					   DIF_RPT_VARIANCE, 0, 31, 0x00000000);
-		status = cx231xx_reg_mask_write(dev, HAMMERHEAD_I2C_ADDRESS, 32,
+		status = cx231xx_reg_mask_write(dev, VID_BLK_I2C_ADDRESS, 32,
 					   DIF_VIDEO_AGC_CTRL, 0, 31,
 					   0xf2560000);
 
@@ -1694,91 +1514,78 @@ int cx231xx_dif_set_standard(struct cx231xx *dev, u32 standard)
 		   the pll freq word is 0x03420c49
 		 */
 
-		status = cx231xx_write_i2c_data(dev, HAMMERHEAD_I2C_ADDRESS,
-					   DIF_PLL_CTRL, 2, 0x6503BC0C, 4);
-		status = cx231xx_write_i2c_data(dev, HAMMERHEAD_I2C_ADDRESS,
-					   DIF_PLL_CTRL1, 2, 0xBD038C85, 4);
-		status = cx231xx_write_i2c_data(dev, HAMMERHEAD_I2C_ADDRESS,
-					   DIF_PLL_CTRL2, 2, 0x1DB4640A, 4);
-		status = cx231xx_write_i2c_data(dev, HAMMERHEAD_I2C_ADDRESS,
-					   DIF_PLL_CTRL3, 2, 0x00008800, 4);
-		status = cx231xx_write_i2c_data(dev, HAMMERHEAD_I2C_ADDRESS,
-					   DIF_AGC_IF_REF, 2, 0x444C0380, 4);
-		status = cx231xx_write_i2c_data(dev, HAMMERHEAD_I2C_ADDRESS,
-					   DIF_AGC_IF_INT_CURRENT, 2,
-					   0x26001700, 4);
-		status = cx231xx_write_i2c_data(dev, HAMMERHEAD_I2C_ADDRESS,
-					   DIF_AGC_RF_CURRENT, 2, 0x00002660,
-					   4);
-		status = cx231xx_write_i2c_data(dev, HAMMERHEAD_I2C_ADDRESS,
-					   DIF_VIDEO_AGC_CTRL, 2, 0x04000800,
-					   4);
-		status = cx231xx_write_i2c_data(dev, HAMMERHEAD_I2C_ADDRESS,
-					   DIF_VID_AUD_OVERRIDE, 2, 0x27000100,
-					   4);
-		status = cx231xx_write_i2c_data(dev, HAMMERHEAD_I2C_ADDRESS,
-					   DIF_AV_SEP_CTRL, 2, 0x01296e1f, 4);
+		status = vid_blk_write_word(dev, DIF_PLL_CTRL, 0x6503BC0C);
+		status = vid_blk_write_word(dev, DIF_PLL_CTRL1, 0xBD038C85);
+		status = vid_blk_write_word(dev, DIF_PLL_CTRL2, 0x1DB4640A);
+		status = vid_blk_write_word(dev, DIF_PLL_CTRL3, 0x00008800);
+		status = vid_blk_write_word(dev, DIF_AGC_IF_REF, 0x444C0380);
+		status = vid_blk_write_word(dev, DIF_AGC_IF_INT_CURRENT,
+						0x26001700);
+		status = vid_blk_write_word(dev, DIF_AGC_RF_CURRENT,
+						0x00002660);
+		status = vid_blk_write_word(dev, DIF_VIDEO_AGC_CTRL,
+						0x04000800);
+		status = vid_blk_write_word(dev, DIF_VID_AUD_OVERRIDE,
+						0x27000100);
+		status = vid_blk_write_word(dev, DIF_AV_SEP_CTRL, 0x01296e1f);
 
-		status = cx231xx_write_i2c_data(dev, HAMMERHEAD_I2C_ADDRESS,
-					   DIF_COMP_FLT_CTRL, 2, 0x009f50c1, 4);
-		status = cx231xx_write_i2c_data(dev, HAMMERHEAD_I2C_ADDRESS,
-					   DIF_SRC_PHASE_INC, 2, 0x1befbf06, 4);
-		status = cx231xx_write_i2c_data(dev, HAMMERHEAD_I2C_ADDRESS,
-					   DIF_SRC_GAIN_CONTROL, 2, 0x000035e8,
-					   4);
+		status = vid_blk_write_word(dev, DIF_COMP_FLT_CTRL,
+						0x009f50c1);
+		status = vid_blk_write_word(dev, DIF_SRC_PHASE_INC,
+						0x1befbf06);
+		status = vid_blk_write_word(dev, DIF_SRC_GAIN_CONTROL,
+						0x000035e8);
 
-		status = cx231xx_write_i2c_data(dev, HAMMERHEAD_I2C_ADDRESS,
-					   DIF_AGC_CTRL_IF, 2, 0xC2262600, 4);
-		status = cx231xx_write_i2c_data(dev, HAMMERHEAD_I2C_ADDRESS,
-					   DIF_AGC_CTRL_INT, 2, 0xC2262600, 4);
-		status = cx231xx_write_i2c_data(dev, HAMMERHEAD_I2C_ADDRESS,
-					   DIF_AGC_CTRL_RF, 2, 0xC2262600, 4);
+		status = vid_blk_write_word(dev, DIF_AGC_CTRL_IF, 0xC2262600);
+		status = vid_blk_write_word(dev, DIF_AGC_CTRL_INT,
+						0xC2262600);
+		status = vid_blk_write_word(dev, DIF_AGC_CTRL_RF, 0xC2262600);
 
 		/* Save the Spec Inversion value */
 		dif_misc_ctrl_value &= FLD_DIF_SPEC_INV;
 		dif_misc_ctrl_value |= 0x3a003F10;
 	} else {
 		/* default PAL BG */
-		status = cx231xx_reg_mask_write(dev, HAMMERHEAD_I2C_ADDRESS, 32,
+		status = cx231xx_reg_mask_write(dev, VID_BLK_I2C_ADDRESS, 32,
 					   DIF_PLL_CTRL, 0, 31, 0x6503bc0c);
-		status = cx231xx_reg_mask_write(dev, HAMMERHEAD_I2C_ADDRESS, 32,
+		status = cx231xx_reg_mask_write(dev, VID_BLK_I2C_ADDRESS, 32,
 					   DIF_PLL_CTRL1, 0, 31, 0xbd038c85);
-		status = cx231xx_reg_mask_write(dev, HAMMERHEAD_I2C_ADDRESS, 32,
+		status = cx231xx_reg_mask_write(dev, VID_BLK_I2C_ADDRESS, 32,
 					   DIF_PLL_CTRL2, 0, 31, 0x1db4640a);
-		status = cx231xx_reg_mask_write(dev, HAMMERHEAD_I2C_ADDRESS, 32,
+		status = cx231xx_reg_mask_write(dev, VID_BLK_I2C_ADDRESS, 32,
 					   DIF_PLL_CTRL3, 0, 31, 0x00008800);
-		status = cx231xx_reg_mask_write(dev, HAMMERHEAD_I2C_ADDRESS, 32,
+		status = cx231xx_reg_mask_write(dev, VID_BLK_I2C_ADDRESS, 32,
 					   DIF_AGC_IF_REF, 0, 31, 0x444C1380);
-		status = cx231xx_reg_mask_write(dev, HAMMERHEAD_I2C_ADDRESS, 32,
+		status = cx231xx_reg_mask_write(dev, VID_BLK_I2C_ADDRESS, 32,
 					   DIF_AGC_CTRL_IF, 0, 31, 0xDA302600);
-		status = cx231xx_reg_mask_write(dev, HAMMERHEAD_I2C_ADDRESS, 32,
+		status = cx231xx_reg_mask_write(dev, VID_BLK_I2C_ADDRESS, 32,
 					   DIF_AGC_CTRL_INT, 0, 31, 0xDA261700);
-		status = cx231xx_reg_mask_write(dev, HAMMERHEAD_I2C_ADDRESS, 32,
+		status = cx231xx_reg_mask_write(dev, VID_BLK_I2C_ADDRESS, 32,
 					   DIF_AGC_CTRL_RF, 0, 31, 0xDA262600);
-		status = cx231xx_reg_mask_write(dev, HAMMERHEAD_I2C_ADDRESS, 32,
+		status = cx231xx_reg_mask_write(dev, VID_BLK_I2C_ADDRESS, 32,
 					   DIF_AGC_IF_INT_CURRENT, 0, 31,
 					   0x26001700);
-		status = cx231xx_reg_mask_write(dev, HAMMERHEAD_I2C_ADDRESS, 32,
+		status = cx231xx_reg_mask_write(dev, VID_BLK_I2C_ADDRESS, 32,
 					   DIF_AGC_RF_CURRENT, 0, 31,
 					   0x00002660);
-		status = cx231xx_reg_mask_write(dev, HAMMERHEAD_I2C_ADDRESS, 32,
+		status = cx231xx_reg_mask_write(dev, VID_BLK_I2C_ADDRESS, 32,
 					   DIF_VIDEO_AGC_CTRL, 0, 31,
 					   0x72500800);
-		status = cx231xx_reg_mask_write(dev, HAMMERHEAD_I2C_ADDRESS, 32,
+		status = cx231xx_reg_mask_write(dev, VID_BLK_I2C_ADDRESS, 32,
 					   DIF_VID_AUD_OVERRIDE, 0, 31,
 					   0x27000100);
-		status = cx231xx_reg_mask_write(dev, HAMMERHEAD_I2C_ADDRESS, 32,
+		status = cx231xx_reg_mask_write(dev, VID_BLK_I2C_ADDRESS, 32,
 					   DIF_AV_SEP_CTRL, 0, 31, 0x3F3530EC);
-		status = cx231xx_reg_mask_write(dev, HAMMERHEAD_I2C_ADDRESS, 32,
+		status = cx231xx_reg_mask_write(dev, VID_BLK_I2C_ADDRESS, 32,
 					   DIF_COMP_FLT_CTRL, 0, 31,
 					   0x00A653A8);
-		status = cx231xx_reg_mask_write(dev, HAMMERHEAD_I2C_ADDRESS, 32,
+		status = cx231xx_reg_mask_write(dev, VID_BLK_I2C_ADDRESS, 32,
 					   DIF_SRC_PHASE_INC, 0, 31,
 					   0x1befbf06);
-		status = cx231xx_reg_mask_write(dev, HAMMERHEAD_I2C_ADDRESS, 32,
+		status = cx231xx_reg_mask_write(dev, VID_BLK_I2C_ADDRESS, 32,
 					   DIF_SRC_GAIN_CONTROL, 0, 31,
 					   0x000035e8);
-		status = cx231xx_reg_mask_write(dev, HAMMERHEAD_I2C_ADDRESS, 32,
+		status = cx231xx_reg_mask_write(dev, VID_BLK_I2C_ADDRESS, 32,
 					   DIF_RPT_VARIANCE, 0, 31, 0x00000000);
 		/* Save the Spec Inversion value */
 		dif_misc_ctrl_value &= FLD_DIF_SPEC_INV;
@@ -1796,9 +1603,7 @@ int cx231xx_dif_set_standard(struct cx231xx *dev, u32 standard)
 		dif_misc_ctrl_value = 0x7a080000;
 
 	/* Write the calculated value for misc ontrol register      */
-	status =
-	    cx231xx_write_i2c_data(dev, HAMMERHEAD_I2C_ADDRESS, DIF_MISC_CTRL,
-				   2, dif_misc_ctrl_value, 4);
+	status = vid_blk_write_word(dev, DIF_MISC_CTRL, dif_misc_ctrl_value);
 
 	return status;
 }
@@ -1809,13 +1614,11 @@ int cx231xx_tuner_pre_channel_change(struct cx231xx *dev)
 	u32 dwval;
 
 	/* Set the RF and IF k_agc values to 3 */
-	status = cx231xx_read_i2c_data(dev, HAMMERHEAD_I2C_ADDRESS,
-				       DIF_AGC_IF_REF, 2, &dwval, 4);
+	status = vid_blk_read_word(dev, DIF_AGC_IF_REF, &dwval);
 	dwval &= ~(FLD_DIF_K_AGC_RF | FLD_DIF_K_AGC_IF);
 	dwval |= 0x33000000;
 
-	status = cx231xx_write_i2c_data(dev, HAMMERHEAD_I2C_ADDRESS,
-					DIF_AGC_IF_REF, 2, dwval, 4);
+	status = vid_blk_write_word(dev, DIF_AGC_IF_REF, dwval);
 
 	return status;
 }
@@ -1827,8 +1630,7 @@ int cx231xx_tuner_post_channel_change(struct cx231xx *dev)
 
 	/* Set the RF and IF k_agc values to 4 for PAL/NTSC and 8 for
 	 * SECAM L/B/D standards */
-	status = cx231xx_read_i2c_data(dev, HAMMERHEAD_I2C_ADDRESS,
-				       DIF_AGC_IF_REF, 2, &dwval, 4);
+	status = vid_blk_read_word(dev, DIF_AGC_IF_REF, &dwval);
 	dwval &= ~(FLD_DIF_K_AGC_RF | FLD_DIF_K_AGC_IF);
 
 	if (dev->norm & (V4L2_STD_SECAM_L | V4L2_STD_SECAM_B |
@@ -1837,63 +1639,62 @@ int cx231xx_tuner_post_channel_change(struct cx231xx *dev)
 	else
 		dwval |= 0x44000000;
 
-	status = cx231xx_write_i2c_data(dev, HAMMERHEAD_I2C_ADDRESS,
-					DIF_AGC_IF_REF, 2, dwval, 4);
+	status = vid_blk_write_word(dev, DIF_AGC_IF_REF, dwval);
 
 	return status;
 }
 
 /******************************************************************************
- *        F L A T I R O N - B L O C K    C O N T R O L   functions            *
+ *        	    I 2 S - B L O C K    C O N T R O L   functions            *
  ******************************************************************************/
-int cx231xx_flatiron_initialize(struct cx231xx *dev)
+int cx231xx_i2s_blk_initialize(struct cx231xx *dev)
 {
 	int status = 0;
 	u32 value;
 
-	status = cx231xx_read_i2c_data(dev, Flatrion_DEVICE_ADDRESS,
+	status = cx231xx_read_i2c_data(dev, I2S_BLK_DEVICE_ADDRESS,
 				       CH_PWR_CTRL1, 1, &value, 1);
 	/* enables clock to delta-sigma and decimation filter */
 	value |= 0x80;
-	status = cx231xx_write_i2c_data(dev, Flatrion_DEVICE_ADDRESS,
+	status = cx231xx_write_i2c_data(dev, I2S_BLK_DEVICE_ADDRESS,
 					CH_PWR_CTRL1, 1, value, 1);
 	/* power up all channel */
-	status = cx231xx_write_i2c_data(dev, Flatrion_DEVICE_ADDRESS,
+	status = cx231xx_write_i2c_data(dev, I2S_BLK_DEVICE_ADDRESS,
 					CH_PWR_CTRL2, 1, 0x00, 1);
 
 	return status;
 }
 
-int cx231xx_flatiron_update_power_control(struct cx231xx *dev,
+int cx231xx_i2s_blk_update_power_control(struct cx231xx *dev,
 					enum AV_MODE avmode)
 {
 	int status = 0;
 	u32 value = 0;
 
 	if (avmode != POLARIS_AVMODE_ENXTERNAL_AV) {
-		status = cx231xx_read_i2c_data(dev, Flatrion_DEVICE_ADDRESS,
+		status = cx231xx_read_i2c_data(dev, I2S_BLK_DEVICE_ADDRESS,
 					  CH_PWR_CTRL2, 1, &value, 1);
 		value |= 0xfe;
-		status = cx231xx_write_i2c_data(dev, Flatrion_DEVICE_ADDRESS,
+		status = cx231xx_write_i2c_data(dev, I2S_BLK_DEVICE_ADDRESS,
 						CH_PWR_CTRL2, 1, value, 1);
 	} else {
-		status = cx231xx_write_i2c_data(dev, Flatrion_DEVICE_ADDRESS,
+		status = cx231xx_write_i2c_data(dev, I2S_BLK_DEVICE_ADDRESS,
 						CH_PWR_CTRL2, 1, 0x00, 1);
 	}
 
 	return status;
 }
 
-/* set flatiron for audio input types */
-int cx231xx_flatiron_set_audio_input(struct cx231xx *dev, u8 audio_input)
+/* set i2s_blk for audio input types */
+int cx231xx_i2s_blk_set_audio_input(struct cx231xx *dev, u8 audio_input)
 {
 	int status = 0;
 
 	switch (audio_input) {
 	case CX231XX_AMUX_LINE_IN:
-		status = cx231xx_write_i2c_data(dev, Flatrion_DEVICE_ADDRESS,
+		status = cx231xx_write_i2c_data(dev, I2S_BLK_DEVICE_ADDRESS,
 						CH_PWR_CTRL2, 1, 0x00, 1);
-		status = cx231xx_write_i2c_data(dev, Flatrion_DEVICE_ADDRESS,
+		status = cx231xx_write_i2c_data(dev, I2S_BLK_DEVICE_ADDRESS,
 						CH_PWR_CTRL1, 1, 0x80, 1);
 		break;
 	case CX231XX_AMUX_VIDEO:
@@ -2114,11 +1915,11 @@ int cx231xx_set_power_mode(struct cx231xx *dev, enum AV_MODE mode)
 		msleep(PWR_SLEEP_INTERVAL);
 	}
 
-	/* update power control for colibri */
-	status = cx231xx_colibri_update_power_control(dev, mode);
+	/* update power control for afe */
+	status = cx231xx_afe_update_power_control(dev, mode);
 
-	/* update power control for flatiron */
-	status = cx231xx_flatiron_update_power_control(dev, mode);
+	/* update power control for i2s_blk */
+	status = cx231xx_i2s_blk_update_power_control(dev, mode);
 
 	status = cx231xx_read_ctrl_reg(dev, VRT_GET_REGISTER, PWR_CTL_EN, value,
 				       4);

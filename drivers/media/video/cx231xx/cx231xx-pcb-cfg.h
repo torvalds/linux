@@ -91,10 +91,10 @@ enum TS_PORT{
 #define EAVP_MASK       0x8
 enum EAV_PRESENT{
 	NO_EXTERNAL_AV = 0x0,	/* 0: No External A/V inputs
-						(no need for Flatiron),
+						(no need for i2s blcok),
 						Analog Tuner must be present */
 	EXTERNAL_AV = 0x8	/* 1: External A/V inputs
-						present (requires Flatiron) */
+						present (requires i2s blk) */
 };
 
 #define ATM_MASK        0x30
@@ -123,10 +123,6 @@ enum AVDEC_STATUS{
 };
 
 #define BO_1_MASK       0x100
-enum HAMMERHEAD__STATUS{
-	HAMMERHEAD_ONLY = 0x0,	/* 0:Hammerhead Only */
-	HAMMERHEAD_SC = 0x100	/* 1:Hammerhead and SC */
-};
 
 #define BUSPOWER_MASK   0xC4	/* for Polaris spec 0.8 */
 #define SELFPOWER_MASK  0x86
