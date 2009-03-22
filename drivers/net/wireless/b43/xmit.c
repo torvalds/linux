@@ -50,7 +50,7 @@ static int b43_plcp_get_bitrate_idx_cck(struct b43_plcp_hdr6 *plcp)
 }
 
 /* Extract the bitrate index out of an OFDM PLCP header. */
-static u8 b43_plcp_get_bitrate_idx_ofdm(struct b43_plcp_hdr6 *plcp, bool aphy)
+static int b43_plcp_get_bitrate_idx_ofdm(struct b43_plcp_hdr6 *plcp, bool aphy)
 {
 	int base = aphy ? 0 : 4;
 
