@@ -882,6 +882,10 @@ enum ieee80211_tkip_key_type {
  *
  * @IEEE80211_HW_MFP_CAPABLE:
  *	Hardware supports management frame protection (MFP, IEEE 802.11w).
+ *
+ * @IEEE80211_HW_BEACON_FILTER:
+ *	Hardware supports dropping of irrelevant beacon frames to
+ *	avoid waking up cpu.
  */
 enum ieee80211_hw_flags {
 	IEEE80211_HW_RX_INCLUDES_FCS			= 1<<1,
@@ -897,6 +901,7 @@ enum ieee80211_hw_flags {
 	IEEE80211_HW_PS_NULLFUNC_STACK			= 1<<11,
 	IEEE80211_HW_SUPPORTS_DYNAMIC_PS		= 1<<12,
 	IEEE80211_HW_MFP_CAPABLE			= 1<<13,
+	IEEE80211_HW_BEACON_FILTER			= 1<<14,
 };
 
 /**
@@ -1118,6 +1123,24 @@ ieee80211_get_alt_retry_rate(const struct ieee80211_hw *hw,
  * to the next wakeup. This can either be supported by hardware, in which case
  * the driver needs to look at the @dynamic_ps_timeout hardware configuration
  * value, or by the stack if all nullfunc handling is in the stack.
+ */
+
+/**
+ * DOC: Beacon filter support
+ *
+ * Some hardware have beacon filter support to reduce host cpu wakeups
+ * which will reduce system power consumption. It usuallly works so that
+ * the firmware creates a checksum of the beacon but omits all constantly
+ * changing elements (TSF, TIM etc). Whenever the checksum changes the
+ * beacon is forwarded to the host, otherwise it will be just dropped. That
+ * way the host will only receive beacons where some relevant information
+ * (for example ERP protection or WMM settings) have changed.
+ *
+ * Beacon filter support is informed with %IEEE80211_HW_BEACON_FILTER flag.
+ * The driver needs to enable beacon filter support whenever power save is
+ * enabled, that is %IEEE80211_CONF_PS is set. When power save is enabled,
+ * the stack will not check for beacon miss at all and the driver needs to
+ * notify about complete loss of beacons with ieee80211_beacon_loss().
  */
 
 /**
@@ -1970,6 +1993,16 @@ void ieee80211_stop_tx_ba_cb_irqsafe(struct ieee80211_hw *hw, const u8 *ra,
 struct ieee80211_sta *ieee80211_find_sta(struct ieee80211_hw *hw,
 					 const u8 *addr);
 
+/**
+ * ieee80211_beacon_loss - inform hardware does not receive beacons
+ *
+ * @vif: &struct ieee80211_vif pointer from &struct ieee80211_if_init_conf.
+ *
+ * When beacon filtering is enabled with IEEE80211_HW_BEACON_FILTERING and
+ * IEEE80211_CONF_PS is set, the driver needs to inform whenever the
+ * hardware is not receiving beacons with this function.
+ */
+void ieee80211_beacon_loss(struct ieee80211_vif *vif);
 
 /* Rate control API */
 

@@ -477,6 +477,9 @@ static int ieee80211_stop(struct net_device *dev)
 		 */
 		cancel_work_sync(&sdata->u.mgd.work);
 		cancel_work_sync(&sdata->u.mgd.chswitch_work);
+
+		cancel_work_sync(&sdata->u.mgd.beacon_loss_work);
+
 		/*
 		 * When we get here, the interface is marked down.
 		 * Call synchronize_rcu() to wait for the RX path
