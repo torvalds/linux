@@ -30,7 +30,7 @@ config XEN_DEV_EVTCHN
 	  If in doubt, say yes.
 
 config XEN_BACKEND
-	tristate "Backend driver support"
+	bool "Backend driver support"
 	depends on XEN_DOM0
 	default y
 	help
