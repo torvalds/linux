@@ -22,6 +22,10 @@
 #include "cx231xx.h"
 #include "cx231xx-conf-reg.h"
 
+static unsigned int pcb_debug;
+module_param(pcb_debug, int, 0644);
+MODULE_PARM_DESC(pcb_debug, "enable pcb config debug messages [video]");
+
 /******************************************************************************/
 
 struct pcb_config cx231xx_Scenario[] = {
@@ -659,10 +663,7 @@ u32 initialize_cx231xx(struct cx231xx *dev)
 	u32 ts1_source = 0;
 	u32 ts2_source = 0;
 	u32 analog_source = 0;
-	u8 tmp = 0;
 	u8 _current_scenario_idx = 0xff;
-
-	cx231xx_info("PcbConfig::initialize \n");
 
 	ts1_source = SOURCE_TS_BDA;
 	ts2_source = SOURCE_TS_BDA;
@@ -672,7 +673,6 @@ u32 initialize_cx231xx(struct cx231xx *dev)
 	cx231xx_read_ctrl_reg(dev, VRT_GET_REGISTER, BOARD_CFG_STAT, data, 4);
 
 	config_info = *((u32 *) data);
-	cx231xx_info("SC(0x00) register = 0x%x\n", config_info);
 	usb_speed = (u8) (config_info & 0x1);
 
 	/* Verify this device belongs to Bus power or Self power device */
@@ -776,18 +776,20 @@ u32 initialize_cx231xx(struct cx231xx *dev)
 	memcpy(&dev->current_pcb_config, p_pcb_info,
 		   sizeof(struct pcb_config));
 
-    /*******************************************************************/
-	tmp = (dev->current_pcb_config.index) + 1;
-
-	cx231xx_info("scenario %d\n", tmp);
-	cx231xx_info("type=%x\n", dev->current_pcb_config.type);
-	cx231xx_info("mode=%x\n", dev->current_pcb_config.mode);
-	cx231xx_info("speed=%x\n", dev->current_pcb_config.speed);
-	cx231xx_info("ts1_source=%x\n", dev->current_pcb_config.ts1_source);
-	cx231xx_info("ts2_source=%x\n", dev->current_pcb_config.ts2_source);
-	cx231xx_info("analog_source=%x\n",
-		     dev->current_pcb_config.analog_source);
-    /*******************************************************************/
+	if (pcb_debug) {
+		cx231xx_info("SC(0x00) register = 0x%x\n", config_info);
+		cx231xx_info("scenario %d\n",
+			    (dev->current_pcb_config.index) + 1);
+		cx231xx_info("type=%x\n", dev->current_pcb_config.type);
+		cx231xx_info("mode=%x\n", dev->current_pcb_config.mode);
+		cx231xx_info("speed=%x\n", dev->current_pcb_config.speed);
+		cx231xx_info("ts1_source=%x\n",
+			     dev->current_pcb_config.ts1_source);
+		cx231xx_info("ts2_source=%x\n",
+			     dev->current_pcb_config.ts2_source);
+		cx231xx_info("analog_source=%x\n",
+			     dev->current_pcb_config.analog_source);
+	}
 
 	return 0;
 }
