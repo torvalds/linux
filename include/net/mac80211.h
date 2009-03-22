@@ -1307,11 +1307,13 @@ enum ieee80211_ampdu_mlme_action {
  *
  * @hw_scan: Ask the hardware to service the scan request, no need to start
  *	the scan state machine in stack. The scan must honour the channel
- *	configuration done by the regulatory agent in the wiphy's registered
- *	bands. When the scan finishes, ieee80211_scan_completed() must be
- *	called; note that it also must be called when the scan cannot finish
- *	because the hardware is turned off! Anything else is a bug!
- *	Returns a negative error code which will be seen in userspace.
+ *	configuration done by the regulatory agent in the wiphy's
+ *	registered bands. The hardware (or the driver) needs to make sure
+ *	that power save is disabled. When the scan finishes,
+ *	ieee80211_scan_completed() must be called; note that it also must
+ *	be called when the scan cannot finish because the hardware is
+ *	turned off! Anything else is a bug! Returns a negative error code
+ *	which will be seen in userspace.
  *
  * @sw_scan_start: Notifier function that is called just before a software scan
  *	is started. Can be NULL, if the driver doesn't need this notification.
