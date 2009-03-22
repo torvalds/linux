@@ -706,7 +706,7 @@ event_subsystem_dir(const char *name, struct dentry *d_events)
 
 	system->preds = NULL;
 
-	entry = debugfs_create_file("filter", 0444, system->entry, system,
+	entry = debugfs_create_file("filter", 0644, system->entry, system,
 				    &ftrace_subsystem_filter_fops);
 	if (!entry)
 		pr_warning("Could not create debugfs "
@@ -769,7 +769,7 @@ event_create_dir(struct ftrace_event_call *call, struct dentry *d_events)
 		}
 	}
 
-	entry = debugfs_create_file("filter", 0444, call->dir, call,
+	entry = debugfs_create_file("filter", 0644, call->dir, call,
 				    &ftrace_event_filter_fops);
 	if (!entry)
 		pr_warning("Could not create debugfs "
