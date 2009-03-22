@@ -459,6 +459,71 @@ event_id_read(struct file *filp, char __user *ubuf, size_t cnt, loff_t *ppos)
 	return r;
 }
 
+static ssize_t
+event_filter_read(struct file *filp, char __user *ubuf, size_t cnt,
+		  loff_t *ppos)
+{
+	struct ftrace_event_call *call = filp->private_data;
+	struct trace_seq *s;
+	int r;
+
+	if (*ppos)
+		return 0;
+
+	s = kmalloc(sizeof(*s), GFP_KERNEL);
+	if (!s)
+		return -ENOMEM;
+
+	trace_seq_init(s);
+
+	r = filter_print_preds(call->preds, s->buffer);
+	r = simple_read_from_buffer(ubuf, cnt, ppos, s->buffer, r);
+
+	kfree(s);
+
+	return r;
+}
+
+static ssize_t
+event_filter_write(struct file *filp, const char __user *ubuf, size_t cnt,
+		   loff_t *ppos)
+{
+	struct ftrace_event_call *call = filp->private_data;
+	char buf[64], *pbuf = buf;
+	struct filter_pred *pred;
+	int err;
+
+	if (cnt >= sizeof(buf))
+		return -EINVAL;
+
+	if (copy_from_user(&buf, ubuf, cnt))
+		return -EFAULT;
+
+	pred = kzalloc(sizeof(*pred), GFP_KERNEL);
+	if (!pred)
+		return -ENOMEM;
+
+	err = filter_parse(&pbuf, pred);
+	if (err < 0) {
+		filter_free_pred(pred);
+		return err;
+	}
+
+	if (pred->clear) {
+		filter_free_preds(call);
+		return cnt;
+	}
+
+	if (filter_add_pred(call, pred)) {
+		filter_free_pred(pred);
+		return -EINVAL;
+	}
+
+	*ppos += cnt;
+
+	return cnt;
+}
+
 static const struct seq_operations show_event_seq_ops = {
 	.start = t_start,
 	.next = t_next,
@@ -502,6 +567,12 @@ static const struct file_operations ftrace_event_format_fops = {
 static const struct file_operations ftrace_event_id_fops = {
 	.open = tracing_open_generic,
 	.read = event_id_read,
+};
+
+static const struct file_operations ftrace_event_filter_fops = {
+	.open = tracing_open_generic,
+	.read = event_filter_read,
+	.write = event_filter_write,
 };
 
 static struct dentry *event_trace_events_dir(void)
@@ -618,6 +689,12 @@ event_create_dir(struct ftrace_event_call *call, struct dentry *d_events)
 			return ret;
 		}
 	}
+
+	entry = debugfs_create_file("filter", 0444, call->dir, call,
+				    &ftrace_event_filter_fops);
+	if (!entry)
+		pr_warning("Could not create debugfs "
+			   "'%s/filter' entry\n", call->name);
 
 	/* A trace may not want to export its format */
 	if (!call->show_format)

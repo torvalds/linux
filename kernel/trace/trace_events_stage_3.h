@@ -204,6 +204,7 @@ static struct ftrace_event_call event_##call;				\
 									\
 static void ftrace_raw_event_##call(proto)				\
 {									\
+	struct ftrace_event_call *call = &event_##call;			\
 	struct ring_buffer_event *event;				\
 	struct ftrace_raw_##call *entry;				\
 	unsigned long irq_flags;					\
@@ -222,6 +223,9 @@ static void ftrace_raw_event_##call(proto)				\
 	assign;								\
 									\
 	trace_current_buffer_unlock_commit(event, irq_flags, pc);	\
+									\
+	if (call->preds && !filter_match_preds(call, entry))		\
+		ring_buffer_event_discard(event);			\
 }									\
 									\
 static int ftrace_raw_reg_event_##call(void)				\

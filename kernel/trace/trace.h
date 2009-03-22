@@ -795,6 +795,7 @@ struct ftrace_event_call {
 	int			(*show_format)(struct trace_seq *s);
 	int			(*define_fields)(void);
 	struct list_head	fields;
+	struct filter_pred	**preds;
 
 #ifdef CONFIG_EVENT_PROFILE
 	atomic_t	profile_count;
@@ -803,8 +804,35 @@ struct ftrace_event_call {
 #endif
 };
 
+#define MAX_FILTER_PRED 8
+
+struct filter_pred;
+
+typedef int (*filter_pred_fn_t) (struct filter_pred *pred, void *event);
+
+struct filter_pred {
+	filter_pred_fn_t fn;
+	u64 val;
+	char *str_val;
+	int str_len;
+	char *field_name;
+	int offset;
+	int not;
+	int or;
+	int compound;
+	int clear;
+};
+
 int trace_define_field(struct ftrace_event_call *call, char *type,
 		       char *name, int offset, int size);
+extern void filter_free_pred(struct filter_pred *pred);
+extern int filter_print_preds(struct filter_pred **preds, char *buf);
+extern int filter_parse(char **pbuf, struct filter_pred *pred);
+extern int filter_add_pred(struct ftrace_event_call *call,
+			   struct filter_pred *pred);
+extern void filter_free_preds(struct ftrace_event_call *call);
+extern int filter_match_preds(struct ftrace_event_call *call, void *rec);
+
 void event_trace_printk(unsigned long ip, const char *fmt, ...);
 extern struct ftrace_event_call __start_ftrace_events[];
 extern struct ftrace_event_call __stop_ftrace_events[];
