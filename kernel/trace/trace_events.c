@@ -24,26 +24,31 @@ int trace_define_field(struct ftrace_event_call *call, char *type,
 {
 	struct ftrace_event_field *field;
 
-	field = kmalloc(sizeof(*field), GFP_KERNEL);
+	field = kzalloc(sizeof(*field), GFP_KERNEL);
 	if (!field)
 		goto err;
+
 	field->name = kstrdup(name, GFP_KERNEL);
 	if (!field->name)
 		goto err;
+
 	field->type = kstrdup(type, GFP_KERNEL);
 	if (!field->type)
 		goto err;
+
 	field->offset = offset;
 	field->size = size;
 	list_add(&field->link, &call->fields);
 
 	return 0;
+
 err:
 	if (field) {
 		kfree(field->name);
 		kfree(field->type);
 	}
 	kfree(field);
+
 	return -ENOMEM;
 }
 
