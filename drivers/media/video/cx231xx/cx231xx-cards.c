@@ -567,7 +567,7 @@ static int cx231xx_usb_probe(struct usb_interface *interface,
 		cx231xx_devused |= 1 << nr;
 
 		if (nr >= CX231XX_MAXBOARDS) {
-			cx231xx_info(": Supports only %i cx231xx boards.\n",
+			cx231xx_err(DRIVER_NAME ": Supports only %i cx231xx boards.\n",
 				     CX231XX_MAXBOARDS);
 			cx231xx_devused &= ~(1 << nr);
 			return -ENOMEM;
