@@ -382,7 +382,7 @@ ssize_t trace_seq_to_user(struct trace_seq *s, char __user *ubuf, size_t cnt)
 	return cnt;
 }
 
-ssize_t trace_seq_to_buffer(struct trace_seq *s, void *buf, size_t cnt)
+static ssize_t trace_seq_to_buffer(struct trace_seq *s, void *buf, size_t cnt)
 {
 	int len;
 	void *ret;
