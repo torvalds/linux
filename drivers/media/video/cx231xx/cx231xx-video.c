@@ -1614,7 +1614,7 @@ static int vidioc_streamoff(struct file *file, void *priv,
 	if (rc < 0)
 		return rc;
 
-	if ((fh->type != V4L2_BUF_TYPE_VIDEO_CAPTURE) ||
+	if ((fh->type != V4L2_BUF_TYPE_VIDEO_CAPTURE) &&
 	    (fh->type != V4L2_BUF_TYPE_VBI_CAPTURE))
 		return -EINVAL;
 	if (type != fh->type)
