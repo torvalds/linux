@@ -1207,7 +1207,6 @@ static void hid_cease_io(struct usbhid_device *usbhid)
 	usb_kill_urb(usbhid->urbin);
 	usb_kill_urb(usbhid->urbctrl);
 	usb_kill_urb(usbhid->urbout);
-	flush_scheduled_work();
 }
 
 /* Treat USB reset pretty much the same as suspend/resume */
@@ -1219,6 +1218,7 @@ static int hid_pre_reset(struct usb_interface *intf)
 	spin_lock_irq(&usbhid->lock);
 	set_bit(HID_RESET_PENDING, &usbhid->iofl);
 	spin_unlock_irq(&usbhid->lock);
+	cancel_work_sync(&usbhid->restart_work);
 	hid_cease_io(usbhid);
 
 	return 0;
