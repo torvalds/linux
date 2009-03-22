@@ -41,6 +41,7 @@ void kirkwood_i2c_init(void);
 void kirkwood_uart0_init(void);
 void kirkwood_uart1_init(void);
 
+extern int kirkwood_tclk;
 extern struct sys_timer kirkwood_timer;
 
 
