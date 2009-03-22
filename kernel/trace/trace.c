@@ -860,15 +860,25 @@ static void ftrace_trace_stack(struct trace_array *tr,
 static void ftrace_trace_userstack(struct trace_array *tr,
 				   unsigned long flags, int pc);
 
-void trace_buffer_unlock_commit(struct trace_array *tr,
-				struct ring_buffer_event *event,
-				unsigned long flags, int pc)
+static inline void __trace_buffer_unlock_commit(struct trace_array *tr,
+					struct ring_buffer_event *event,
+					unsigned long flags, int pc,
+					int wake)
 {
 	ring_buffer_unlock_commit(tr->buffer, event);
 
 	ftrace_trace_stack(tr, flags, 6, pc);
 	ftrace_trace_userstack(tr, flags, pc);
-	trace_wake_up();
+
+	if (wake)
+		trace_wake_up();
+}
+
+void trace_buffer_unlock_commit(struct trace_array *tr,
+					struct ring_buffer_event *event,
+					unsigned long flags, int pc)
+{
+	__trace_buffer_unlock_commit(tr, event, flags, pc, 1);
 }
 
 struct ring_buffer_event *
@@ -882,7 +892,13 @@ trace_current_buffer_lock_reserve(unsigned char type, unsigned long len,
 void trace_current_buffer_unlock_commit(struct ring_buffer_event *event,
 					unsigned long flags, int pc)
 {
-	return trace_buffer_unlock_commit(&global_trace, event, flags, pc);
+	return __trace_buffer_unlock_commit(&global_trace, event, flags, pc, 1);
+}
+
+void trace_nowake_buffer_unlock_commit(struct ring_buffer_event *event,
+					unsigned long flags, int pc)
+{
+	return __trace_buffer_unlock_commit(&global_trace, event, flags, pc, 0);
 }
 
 void
