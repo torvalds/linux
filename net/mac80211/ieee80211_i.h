@@ -308,6 +308,7 @@ struct ieee80211_if_managed {
 	unsigned long request;
 
 	unsigned long last_probe;
+	unsigned long last_beacon;
 
 	unsigned int flags;
 
