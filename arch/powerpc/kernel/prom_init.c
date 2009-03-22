@@ -2283,7 +2283,7 @@ unsigned long __init prom_init(unsigned long r3, unsigned long r4,
 	 */
 	prom_init_stdout();
 
-	prom_printf("Preparing to boot %s", PTRRELOC((char *)linux_banner));
+	prom_printf("Preparing to boot %s", RELOC(linux_banner));
 
 	/*
 	 * Get default machine type. At this point, we do not differentiate
