@@ -3464,7 +3464,7 @@ int arch_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 	int ret, sub_handle;
 	struct msi_desc *msidesc;
 	unsigned int irq_want;
-	struct intel_iommu *iommu = 0;
+	struct intel_iommu *iommu = NULL;
 	int index = 0;
 
 	irq_want = nr_irqs_gsi;
@@ -3599,7 +3599,7 @@ static void hpet_msi_set_affinity(unsigned int irq, const struct cpumask *mask)
 
 #endif /* CONFIG_SMP */
 
-struct irq_chip hpet_msi_type = {
+static struct irq_chip hpet_msi_type = {
 	.name = "HPET_MSI",
 	.unmask = hpet_msi_unmask,
 	.mask = hpet_msi_mask,
