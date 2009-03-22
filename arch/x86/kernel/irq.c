@@ -133,23 +133,15 @@ int show_interrupts(struct seq_file *p, void *v)
 		return 0;
 
 	spin_lock_irqsave(&desc->lock, flags);
-#ifndef CONFIG_SMP
-	any_count = kstat_irqs(i);
-#else
 	for_each_online_cpu(j)
 		any_count |= kstat_irqs_cpu(i, j);
-#endif
 	action = desc->action;
 	if (!action && !any_count)
 		goto out;
 
 	seq_printf(p, "%*d: ", prec, i);
-#ifndef CONFIG_SMP
-	seq_printf(p, "%10u ", kstat_irqs(i));
-#else
 	for_each_online_cpu(j)
 		seq_printf(p, "%10u ", kstat_irqs_cpu(i, j));
-#endif
 	seq_printf(p, " %8s", desc->chip->name);
 	seq_printf(p, "-%-8s", desc->name);
 
