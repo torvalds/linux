@@ -19,6 +19,34 @@
 
 static DEFINE_MUTEX(event_mutex);
 
+int trace_define_field(struct ftrace_event_call *call, char *type,
+		       char *name, int offset, int size)
+{
+	struct ftrace_event_field *field;
+
+	field = kmalloc(sizeof(*field), GFP_KERNEL);
+	if (!field)
+		goto err;
+	field->name = kstrdup(name, GFP_KERNEL);
+	if (!field->name)
+		goto err;
+	field->type = kstrdup(type, GFP_KERNEL);
+	if (!field->type)
+		goto err;
+	field->offset = offset;
+	field->size = size;
+	list_add(&field->link, &call->fields);
+
+	return 0;
+err:
+	if (field) {
+		kfree(field->name);
+		kfree(field->type);
+	}
+	kfree(field);
+	return -ENOMEM;
+}
+
 static void ftrace_clear_events(void)
 {
 	struct ftrace_event_call *call = (void *)__start_ftrace_events;
@@ -343,7 +371,8 @@ event_enable_write(struct file *filp, const char __user *ubuf, size_t cnt,
 
 #undef FIELD
 #define FIELD(type, name)						\
-	#type, #name, offsetof(typeof(field), name), sizeof(field.name)
+	#type, "common_" #name, offsetof(typeof(field), name),		\
+		sizeof(field.name)
 
 static int trace_write_header(struct trace_seq *s)
 {
@@ -579,6 +608,15 @@ event_create_dir(struct ftrace_event_call *call, struct dentry *d_events)
 		if (!entry)
 			pr_warning("Could not create debugfs '%s/id' entry\n",
 					call->name);
+	}
+
+	if (call->define_fields) {
+		ret = call->define_fields();
+		if (ret < 0) {
+			pr_warning("Could not initialize trace point"
+				   " events/%s\n", call->name);
+			return ret;
+		}
 	}
 
 	/* A trace may not want to export its format */

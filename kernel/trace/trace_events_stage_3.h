@@ -252,6 +252,7 @@ static int ftrace_raw_init_event_##call(void)				\
 	if (!id)							\
 		return -ENODEV;						\
 	event_##call.id = id;						\
+	INIT_LIST_HEAD(&event_##call.fields);				\
 	return 0;							\
 }									\
 									\
@@ -264,6 +265,7 @@ __attribute__((section("_ftrace_events"))) event_##call = {		\
 	.regfunc		= ftrace_raw_reg_event_##call,		\
 	.unregfunc		= ftrace_raw_unreg_event_##call,	\
 	.show_format		= ftrace_format_##call,			\
+	.define_fields		= ftrace_define_fields_##call,		\
 	_TRACE_PROFILE_INIT(call)					\
 }
 

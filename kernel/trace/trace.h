@@ -775,16 +775,26 @@ enum {
 	TRACE_EVENT_TYPE_RAW		= 2,
 };
 
+struct ftrace_event_field {
+	struct list_head	link;
+	char			*name;
+	char			*type;
+	int			offset;
+	int			size;
+};
+
 struct ftrace_event_call {
-	char		*name;
-	char		*system;
-	struct dentry	*dir;
-	int		enabled;
-	int		(*regfunc)(void);
-	void		(*unregfunc)(void);
-	int		id;
-	int		(*raw_init)(void);
-	int		(*show_format)(struct trace_seq *s);
+	char			*name;
+	char			*system;
+	struct dentry		*dir;
+	int			enabled;
+	int			(*regfunc)(void);
+	void			(*unregfunc)(void);
+	int			id;
+	int			(*raw_init)(void);
+	int			(*show_format)(struct trace_seq *s);
+	int			(*define_fields)(void);
+	struct list_head	fields;
 
 #ifdef CONFIG_EVENT_PROFILE
 	atomic_t	profile_count;
@@ -793,6 +803,8 @@ struct ftrace_event_call {
 #endif
 };
 
+int trace_define_field(struct ftrace_event_call *call, char *type,
+		       char *name, int offset, int size);
 void event_trace_printk(unsigned long ip, const char *fmt, ...);
 extern struct ftrace_event_call __start_ftrace_events[];
 extern struct ftrace_event_call __stop_ftrace_events[];
