@@ -535,8 +535,8 @@ static void rb_free_cpu_buffer(struct ring_buffer_per_cpu *cpu_buffer)
 extern int ring_buffer_page_too_big(void);
 
 #ifdef CONFIG_HOTPLUG_CPU
-static int __cpuinit rb_cpu_notify(struct notifier_block *self,
-				   unsigned long action, void *hcpu);
+static int rb_cpu_notify(struct notifier_block *self,
+			 unsigned long action, void *hcpu);
 #endif
 
 /**
@@ -2784,8 +2784,8 @@ static __init int rb_init_debugfs(void)
 fs_initcall(rb_init_debugfs);
 
 #ifdef CONFIG_HOTPLUG_CPU
-static int __cpuinit rb_cpu_notify(struct notifier_block *self,
-				   unsigned long action, void *hcpu)
+static int rb_cpu_notify(struct notifier_block *self,
+			 unsigned long action, void *hcpu)
 {
 	struct ring_buffer *buffer =
 		container_of(self, struct ring_buffer, cpu_notify);
