@@ -539,6 +539,7 @@ enum cfg80211_signal_type {
  *	is no guarantee that these are well-formed!)
  * @len_information_elements: total length of the information elements
  * @signal: signal strength value (type depends on the wiphy's signal_type)
+ * @hold: BSS should not expire
  * @free_priv: function pointer to free private data
  * @priv: private area for driver use, has at least wiphy->bss_priv_size bytes
  */
@@ -939,5 +940,22 @@ void cfg80211_send_rx_deauth(struct net_device *dev, const u8 *buf,
  */
 void cfg80211_send_rx_disassoc(struct net_device *dev, const u8 *buf,
 			       size_t len);
+
+/**
+ * cfg80211_hold_bss - exclude bss from expiration
+ * @bss: bss which should not expire
+ *
+ * In a case when the BSS is not updated but it shouldn't expire this
+ * function can be used to mark the BSS to be excluded from expiration.
+ */
+void cfg80211_hold_bss(struct cfg80211_bss *bss);
+
+/**
+ * cfg80211_unhold_bss - remove expiration exception from the BSS
+ * @bss: bss which can expire again
+ *
+ * This function marks the BSS to be expirable again.
+ */
+void cfg80211_unhold_bss(struct cfg80211_bss *bss);
 
 #endif /* __NET_CFG80211_H */
