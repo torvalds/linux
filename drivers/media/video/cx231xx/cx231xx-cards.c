@@ -558,10 +558,10 @@ static int cx231xx_usb_probe(struct usb_interface *interface,
 	udev = usb_get_dev(interface_to_usbdev(interface));
 	ifnum = interface->altsetting[0].desc.bInterfaceNumber;
 
-	printk(DRIVER_NAME ": Interface Number %d\n", ifnum);
-
-	/* Interface number 0 - IR interface */
-	if (ifnum == 0) {
+	if (!ifnum) {
+		/*
+		 * Interface number 0 - IR interface
+		 */
 		/* Check to see next free device and mark as used */
 		nr = find_first_zero_bit(&cx231xx_devused, CX231XX_MAXBOARDS);
 		cx231xx_devused |= 1 << nr;
@@ -600,289 +600,252 @@ static int cx231xx_usb_probe(struct usb_interface *interface,
 		/* get maximum no.of IAD interfaces */
 		assoc_desc = udev->actconfig->intf_assoc[0];
 		dev->max_iad_interface_count = assoc_desc->bInterfaceCount;
-		cx231xx_info("Found IAD interface count %d\n",
-			     dev->max_iad_interface_count);
 
 		/* init CIR module TBD */
 
 		/* store the current interface */
 		lif = interface;
 
-	} else if (ifnum == 1) {
-
-		/* Get dev structure first */
-		dev = usb_get_intfdata(udev->actconfig->interface[0]);
-		if (dev == NULL) {
-			cx231xx_err(DRIVER_NAME ": out of first interface!\n");
-			return -ENODEV;
+		switch (udev->speed) {
+		case USB_SPEED_LOW:
+			speed = "1.5";
+			break;
+		case USB_SPEED_UNKNOWN:
+		case USB_SPEED_FULL:
+			speed = "12";
+			break;
+		case USB_SPEED_HIGH:
+			speed = "480";
+			break;
+		default:
+			speed = "unknown";
 		}
 
-		/* store the interface 0 back */
-		lif = udev->actconfig->interface[0];
+		if (udev->manufacturer)
+			strlcpy(descr, udev->manufacturer, sizeof(descr));
 
-		/* increment interface count */
-		dev->interface_count++;
-
-		/* get device number */
-		nr = dev->devno;
-
-		assoc_desc = udev->actconfig->intf_assoc[0];
-		if (assoc_desc->bFirstInterface == ifnum) {
-			cx231xx_info
-			("Found IAD interface match: AV Desc Start!! \n");
-		} else {
-			cx231xx_err(" Not found matching interface\n");
-			return -ENODEV;
+		if (udev->product) {
+			if (*descr)
+				strlcat(descr, " ", sizeof(descr));
+			strlcat(descr, udev->product, sizeof(descr));
 		}
-
-	} else if (ifnum >= 2) {
-		/* Get dev structure first */
-		dev = usb_get_intfdata(udev->actconfig->interface[0]);
-		if (dev == NULL) {
-			cx231xx_err(DRIVER_NAME ": out of first interface!\n");
-			return -ENODEV;
-		}
-
-		/* store the interface 0 back */
-		lif = udev->actconfig->interface[0];
-
-		/* increment interface count */
-		dev->interface_count++;
-
-		/* get device number */
-		nr = dev->devno;
-
-		/* set skip interface */
-		if ((dev->interface_count - 1) != dev->max_iad_interface_count)
-			skip_interface = 1;	/* set skipping */
-		else {
-			cx231xx_info
-			("Found IAD interface no. match with AV Device no.!\n");
-		}
-	}
-
-	switch (udev->speed) {
-	case USB_SPEED_LOW:
-		speed = "1.5";
-		break;
-	case USB_SPEED_UNKNOWN:
-	case USB_SPEED_FULL:
-		speed = "12";
-		break;
-	case USB_SPEED_HIGH:
-		speed = "480";
-		break;
-	default:
-		speed = "unknown";
-	}
-
-	if (udev->manufacturer)
-		strlcpy(descr, udev->manufacturer, sizeof(descr));
-
-	if (udev->product) {
 		if (*descr)
 			strlcat(descr, " ", sizeof(descr));
-		strlcat(descr, udev->product, sizeof(descr));
-	}
-	if (*descr)
-		strlcat(descr, " ", sizeof(descr));
 
-	cx231xx_info("New device %s@ %s Mbps "
-		     "(%04x:%04x, interface %d, class %d)\n",
+		cx231xx_info("New device %s@ %s Mbps "
+		     "(%04x:%04x) with %d interfaces\n",
 		     descr,
 		     speed,
 		     le16_to_cpu(udev->descriptor.idVendor),
 		     le16_to_cpu(udev->descriptor.idProduct),
-		     ifnum, interface->altsetting->desc.bInterfaceNumber);
-
-	/* AV device initialization */
-	if ((dev->interface_count - 1) == dev->max_iad_interface_count) {
-		cx231xx_info(" Calling init_dev\n");
-
-		/* Create v4l2 device */
-		snprintf(dev->v4l2_dev.name, sizeof(dev->v4l2_dev.name),
-					"%s-%03d", "cx231xx", nr);
-		retval = v4l2_device_register(&udev->dev, &dev->v4l2_dev);
-		if (retval) {
-			printk(KERN_ERR "%s() v4l2_device_register failed\n",
-			       __func__);
-			cx231xx_devused &= ~(1 << nr);
-			kfree(dev);
-			return -EIO;
+		     dev->max_iad_interface_count);
+	} else {
+		/* Get dev structure first */
+		dev = usb_get_intfdata(udev->actconfig->interface[0]);
+		if (dev == NULL) {
+			cx231xx_err(DRIVER_NAME ": out of first interface!\n");
+			return -ENODEV;
 		}
 
-		/* allocate device struct */
-		retval = cx231xx_init_dev(&dev, udev, nr);
-		if (retval) {
-			cx231xx_devused &= ~(1 << dev->devno);
-			v4l2_device_unregister(&dev->v4l2_dev);
-			kfree(dev);
-			return retval;
-		}
+		/* store the interface 0 back */
+		lif = udev->actconfig->interface[0];
 
-		/* compute alternate max packet sizes for video */
-		uif =
-		    udev->actconfig->interface[dev->current_pcb_config.
-					       hs_config_info[0].interface_info.
-					       video_index + 1];
+		/* increment interface count */
+		dev->interface_count++;
 
-		dev->video_mode.end_point_addr =
-		    le16_to_cpu(uif->altsetting[0].endpoint[isoc_pipe].desc.
-				bEndpointAddress);
+		/* get device number */
+		nr = dev->devno;
 
-		dev->video_mode.num_alt = uif->num_altsetting;
-		cx231xx_info(": EndPoint Addr 0x%x, Alternate settings: %i\n",
-			     dev->video_mode.end_point_addr,
-			     dev->video_mode.num_alt);
-		dev->video_mode.alt_max_pkt_size =
-		    kmalloc(32 * dev->video_mode.num_alt, GFP_KERNEL);
+		/*
+		 * set skip interface, for all interfaces but
+		 * interface 1 and the last one
+		 */
+		if ((ifnum != 1) && ((dev->interface_count - 1)
+				     != dev->max_iad_interface_count))
+			skip_interface = 1;
 
-		if (dev->video_mode.alt_max_pkt_size == NULL) {
-			cx231xx_errdev("out of memory!\n");
-			cx231xx_devused &= ~(1 << nr);
-			v4l2_device_unregister(&dev->v4l2_dev);
-			kfree(dev);
-			return -ENOMEM;
-		}
-
-		for (i = 0; i < dev->video_mode.num_alt; i++) {
-			u16 tmp =
-			    le16_to_cpu(uif->altsetting[i].endpoint[isoc_pipe].
-					desc.wMaxPacketSize);
-			dev->video_mode.alt_max_pkt_size[i] =
-			    (tmp & 0x07ff) * (((tmp & 0x1800) >> 11) + 1);
-			cx231xx_info("Alternate setting %i, max size= %i\n", i,
-				     dev->video_mode.alt_max_pkt_size[i]);
-		}
-
-		/* compute alternate max packet sizes for vbi */
-		uif =
-		    udev->actconfig->interface[dev->current_pcb_config.
-					       hs_config_info[0].interface_info.
-					       vanc_index + 1];
-
-		dev->vbi_mode.end_point_addr =
-		    le16_to_cpu(uif->altsetting[0].endpoint[isoc_pipe].desc.
-				bEndpointAddress);
-
-		dev->vbi_mode.num_alt = uif->num_altsetting;
-		cx231xx_info(": EndPoint Addr 0x%x, Alternate settings: %i\n",
-			     dev->vbi_mode.end_point_addr,
-			     dev->vbi_mode.num_alt);
-		dev->vbi_mode.alt_max_pkt_size =
-		    kmalloc(32 * dev->vbi_mode.num_alt, GFP_KERNEL);
-
-		if (dev->vbi_mode.alt_max_pkt_size == NULL) {
-			cx231xx_errdev("out of memory!\n");
-			cx231xx_devused &= ~(1 << nr);
-			v4l2_device_unregister(&dev->v4l2_dev);
-			kfree(dev);
-			return -ENOMEM;
-		}
-
-		for (i = 0; i < dev->vbi_mode.num_alt; i++) {
-			u16 tmp =
-			    le16_to_cpu(uif->altsetting[i].endpoint[isoc_pipe].
-					desc.wMaxPacketSize);
-			dev->vbi_mode.alt_max_pkt_size[i] =
-			    (tmp & 0x07ff) * (((tmp & 0x1800) >> 11) + 1);
-			cx231xx_info("Alternate setting %i, max size= %i\n", i,
-				     dev->vbi_mode.alt_max_pkt_size[i]);
-		}
-
-		/* compute alternate max packet sizes for sliced CC */
-		uif =
-		    udev->actconfig->interface[dev->current_pcb_config.
-					       hs_config_info[0].interface_info.
-					       hanc_index + 1];
-
-		dev->sliced_cc_mode.end_point_addr =
-		    le16_to_cpu(uif->altsetting[0].endpoint[isoc_pipe].desc.
-				bEndpointAddress);
-
-		dev->sliced_cc_mode.num_alt = uif->num_altsetting;
-		cx231xx_info(": EndPoint Addr 0x%x, Alternate settings: %i\n",
-			     dev->sliced_cc_mode.end_point_addr,
-			     dev->sliced_cc_mode.num_alt);
-		dev->sliced_cc_mode.alt_max_pkt_size =
-		    kmalloc(32 * dev->sliced_cc_mode.num_alt, GFP_KERNEL);
-
-		if (dev->sliced_cc_mode.alt_max_pkt_size == NULL) {
-			cx231xx_errdev("out of memory!\n");
-			cx231xx_devused &= ~(1 << nr);
-			v4l2_device_unregister(&dev->v4l2_dev);
-			kfree(dev);
-			return -ENOMEM;
-		}
-
-		for (i = 0; i < dev->sliced_cc_mode.num_alt; i++) {
-			u16 tmp =
-			    le16_to_cpu(uif->altsetting[i].endpoint[isoc_pipe].
-					desc.wMaxPacketSize);
-			dev->sliced_cc_mode.alt_max_pkt_size[i] =
-			    (tmp & 0x07ff) * (((tmp & 0x1800) >> 11) + 1);
-			cx231xx_info("Alternate setting %i, max size= %i\n", i,
-				     dev->sliced_cc_mode.alt_max_pkt_size[i]);
-		}
-
-		if (dev->current_pcb_config.ts1_source != 0xff) {
-
-			/* compute alternate max packet sizes for TS1 */
-			uif =
-			    udev->actconfig->interface[dev->current_pcb_config.
-						       hs_config_info[0].
-						       interface_info.
-						       ts1_index + 1];
-
-			dev->ts1_mode.end_point_addr =
-			    le16_to_cpu(uif->altsetting[0].endpoint[isoc_pipe].
-					desc.bEndpointAddress);
-
-			dev->ts1_mode.num_alt = uif->num_altsetting;
-			cx231xx_info
-			    (": EndPoint Addr 0x%x, Alternate settings: %i\n",
-			     dev->ts1_mode.end_point_addr,
-			     dev->ts1_mode.num_alt);
-			dev->ts1_mode.alt_max_pkt_size =
-			    kmalloc(32 * dev->ts1_mode.num_alt, GFP_KERNEL);
-
-			if (dev->ts1_mode.alt_max_pkt_size == NULL) {
-				cx231xx_errdev("out of memory!\n");
-				cx231xx_devused &= ~(1 << nr);
-				v4l2_device_unregister(&dev->v4l2_dev);
-				kfree(dev);
-				return -ENOMEM;
-			}
-
-			for (i = 0; i < dev->ts1_mode.num_alt; i++) {
-				u16 tmp =
-				    le16_to_cpu(uif->altsetting[i].
-						endpoint[isoc_pipe].desc.
-						wMaxPacketSize);
-				dev->ts1_mode.alt_max_pkt_size[i] =
-				    (tmp & 0x07ff) * (((tmp & 0x1800) >> 11) +
-						      1);
-				cx231xx_info
-				    ("Alternate setting %i, max size= %i\n", i,
-				     dev->ts1_mode.alt_max_pkt_size[i]);
+		if (ifnum == 1) {
+			assoc_desc = udev->actconfig->intf_assoc[0];
+			if (assoc_desc->bFirstInterface != ifnum) {
+				cx231xx_err(DRIVER_NAME ": Not found "
+					    "matching IAD interface\n");
+				return -ENODEV;
 			}
 		}
-
 	}
+
+	if (skip_interface)
+		return -ENODEV;
+
+	cx231xx_info("registering interface %d\n", ifnum);
 
 	/* save our data pointer in this interface device */
 	usb_set_intfdata(lif, dev);
 
-	/* load other modules required */
-	if ((dev->interface_count - 1) == dev->max_iad_interface_count) {
-		cx231xx_info("Calling request modules\n");
-		request_modules(dev);
+	if ((dev->interface_count - 1) != dev->max_iad_interface_count)
+		return 0;
+
+	/*
+	 * AV device initialization - only done at the last interface
+	 */
+
+	/* Create v4l2 device */
+	snprintf(dev->v4l2_dev.name, sizeof(dev->v4l2_dev.name),
+					"%s-%03d", "cx231xx", nr);
+	retval = v4l2_device_register(&udev->dev, &dev->v4l2_dev);
+	if (retval) {
+		cx231xx_errdev("v4l2_device_register failed\n");
+		cx231xx_devused &= ~(1 << nr);
+		kfree(dev);
+		return -EIO;
 	}
 
-	if (skip_interface) {
-		cx231xx_info("Skipping the interface\n");
-		return -ENODEV;
+	/* allocate device struct */
+	retval = cx231xx_init_dev(&dev, udev, nr);
+	if (retval) {
+		cx231xx_devused &= ~(1 << dev->devno);
+		v4l2_device_unregister(&dev->v4l2_dev);
+		kfree(dev);
+		return retval;
 	}
+
+	/* compute alternate max packet sizes for video */
+	uif = udev->actconfig->interface[dev->current_pcb_config.
+		       hs_config_info[0].interface_info.video_index + 1];
+
+	dev->video_mode.end_point_addr = le16_to_cpu(uif->altsetting[0].
+			endpoint[isoc_pipe].desc.bEndpointAddress);
+
+	dev->video_mode.num_alt = uif->num_altsetting;
+	cx231xx_info("EndPoint Addr 0x%x, Alternate settings: %i\n",
+		     dev->video_mode.end_point_addr,
+		     dev->video_mode.num_alt);
+	dev->video_mode.alt_max_pkt_size =
+		kmalloc(32 * dev->video_mode.num_alt, GFP_KERNEL);
+
+	if (dev->video_mode.alt_max_pkt_size == NULL) {
+		cx231xx_errdev("out of memory!\n");
+		cx231xx_devused &= ~(1 << nr);
+		v4l2_device_unregister(&dev->v4l2_dev);
+		kfree(dev);
+		return -ENOMEM;
+	}
+
+	for (i = 0; i < dev->video_mode.num_alt; i++) {
+		u16 tmp = le16_to_cpu(uif->altsetting[i].endpoint[isoc_pipe].
+				desc.wMaxPacketSize);
+		dev->video_mode.alt_max_pkt_size[i] =
+		    (tmp & 0x07ff) * (((tmp & 0x1800) >> 11) + 1);
+		cx231xx_info("Alternate setting %i, max size= %i\n", i,
+			     dev->video_mode.alt_max_pkt_size[i]);
+	}
+
+	/* compute alternate max packet sizes for vbi */
+	uif = udev->actconfig->interface[dev->current_pcb_config.
+				       hs_config_info[0].interface_info.
+				       vanc_index + 1];
+
+	dev->vbi_mode.end_point_addr =
+	    le16_to_cpu(uif->altsetting[0].endpoint[isoc_pipe].desc.
+			bEndpointAddress);
+
+	dev->vbi_mode.num_alt = uif->num_altsetting;
+	cx231xx_info("EndPoint Addr 0x%x, Alternate settings: %i\n",
+		     dev->vbi_mode.end_point_addr,
+		     dev->vbi_mode.num_alt);
+	dev->vbi_mode.alt_max_pkt_size =
+	    kmalloc(32 * dev->vbi_mode.num_alt, GFP_KERNEL);
+
+	if (dev->vbi_mode.alt_max_pkt_size == NULL) {
+		cx231xx_errdev("out of memory!\n");
+		cx231xx_devused &= ~(1 << nr);
+		v4l2_device_unregister(&dev->v4l2_dev);
+		kfree(dev);
+		return -ENOMEM;
+	}
+
+	for (i = 0; i < dev->vbi_mode.num_alt; i++) {
+		u16 tmp =
+		    le16_to_cpu(uif->altsetting[i].endpoint[isoc_pipe].
+				desc.wMaxPacketSize);
+		dev->vbi_mode.alt_max_pkt_size[i] =
+		    (tmp & 0x07ff) * (((tmp & 0x1800) >> 11) + 1);
+		cx231xx_info("Alternate setting %i, max size= %i\n", i,
+			     dev->vbi_mode.alt_max_pkt_size[i]);
+	}
+
+	/* compute alternate max packet sizes for sliced CC */
+	uif = udev->actconfig->interface[dev->current_pcb_config.
+				       hs_config_info[0].interface_info.
+				       hanc_index + 1];
+
+	dev->sliced_cc_mode.end_point_addr =
+	    le16_to_cpu(uif->altsetting[0].endpoint[isoc_pipe].desc.
+			bEndpointAddress);
+
+	dev->sliced_cc_mode.num_alt = uif->num_altsetting;
+	cx231xx_info("EndPoint Addr 0x%x, Alternate settings: %i\n",
+		     dev->sliced_cc_mode.end_point_addr,
+		     dev->sliced_cc_mode.num_alt);
+	dev->sliced_cc_mode.alt_max_pkt_size =
+		kmalloc(32 * dev->sliced_cc_mode.num_alt, GFP_KERNEL);
+
+	if (dev->sliced_cc_mode.alt_max_pkt_size == NULL) {
+		cx231xx_errdev("out of memory!\n");
+		cx231xx_devused &= ~(1 << nr);
+		v4l2_device_unregister(&dev->v4l2_dev);
+		kfree(dev);
+		return -ENOMEM;
+	}
+
+	for (i = 0; i < dev->sliced_cc_mode.num_alt; i++) {
+		u16 tmp = le16_to_cpu(uif->altsetting[i].endpoint[isoc_pipe].
+				desc.wMaxPacketSize);
+		dev->sliced_cc_mode.alt_max_pkt_size[i] =
+		    (tmp & 0x07ff) * (((tmp & 0x1800) >> 11) + 1);
+		cx231xx_info("Alternate setting %i, max size= %i\n", i,
+			     dev->sliced_cc_mode.alt_max_pkt_size[i]);
+	}
+
+	if (dev->current_pcb_config.ts1_source != 0xff) {
+		/* compute alternate max packet sizes for TS1 */
+		uif = udev->actconfig->interface[dev->current_pcb_config.
+					       hs_config_info[0].
+					       interface_info.
+					       ts1_index + 1];
+
+		dev->ts1_mode.end_point_addr =
+		    le16_to_cpu(uif->altsetting[0].endpoint[isoc_pipe].
+				desc.bEndpointAddress);
+
+		dev->ts1_mode.num_alt = uif->num_altsetting;
+		cx231xx_info("EndPoint Addr 0x%x, Alternate settings: %i\n",
+			     dev->ts1_mode.end_point_addr,
+			     dev->ts1_mode.num_alt);
+		dev->ts1_mode.alt_max_pkt_size =
+			kmalloc(32 * dev->ts1_mode.num_alt, GFP_KERNEL);
+
+		if (dev->ts1_mode.alt_max_pkt_size == NULL) {
+			cx231xx_errdev("out of memory!\n");
+			cx231xx_devused &= ~(1 << nr);
+			v4l2_device_unregister(&dev->v4l2_dev);
+			kfree(dev);
+			return -ENOMEM;
+		}
+
+		for (i = 0; i < dev->ts1_mode.num_alt; i++) {
+			u16 tmp = le16_to_cpu(uif->altsetting[i].
+						endpoint[isoc_pipe].desc.
+						wMaxPacketSize);
+			dev->ts1_mode.alt_max_pkt_size[i] =
+			    (tmp & 0x07ff) * (((tmp & 0x1800) >> 11) + 1);
+			cx231xx_info("Alternate setting %i, max size= %i\n", i,
+				     dev->ts1_mode.alt_max_pkt_size[i]);
+		}
+	}
+
+	/* load other modules required */
+	request_modules(dev);
 
 	return 0;
 }
@@ -900,6 +863,9 @@ static void cx231xx_usb_disconnect(struct usb_interface *interface)
 	usb_set_intfdata(interface, NULL);
 
 	if (!dev)
+		return;
+
+	if (!dev->udev)
 		return;
 
 	/* delete v4l2 device */
