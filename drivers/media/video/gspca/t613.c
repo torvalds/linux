@@ -679,7 +679,7 @@ static int sd_init(struct gspca_dev *gspca_dev)
 
 	sensor_id = (reg_r(gspca_dev, 0x06) << 8)
 			| reg_r(gspca_dev, 0x07);
-	switch (sensor_id) {
+	switch (sensor_id & 0xff0f) {
 	case 0x0801:
 		PDEBUG(D_PROBE, "sensor tas5130a");
 		sd->sensor = SENSOR_TAS5130A;
