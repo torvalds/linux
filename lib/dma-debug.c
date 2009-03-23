@@ -722,10 +722,11 @@ void debug_dma_map_page(struct device *dev, struct page *page, size_t offset,
 	entry->size      = size;
 	entry->direction = direction;
 
-	if (map_single) {
-		void *addr = ((char *)page_address(page)) + offset;
-
+	if (map_single)
 		entry->type = dma_debug_single;
+
+	if (!PageHighMem(page)) {
+		void *addr = ((char *)page_address(page)) + offset;
 		check_for_stack(dev, addr);
 		check_for_illegal_area(dev, addr, size);
 	}
@@ -779,8 +780,10 @@ void debug_dma_map_sg(struct device *dev, struct scatterlist *sg,
 		entry->sg_call_ents   = nents;
 		entry->sg_mapped_ents = mapped_ents;
 
-		check_for_stack(dev, sg_virt(s));
-		check_for_illegal_area(dev, sg_virt(s), s->length);
+		if (!PageHighMem(sg_page(s))) {
+			check_for_stack(dev, sg_virt(s));
+			check_for_illegal_area(dev, sg_virt(s), s->length);
+		}
 
 		add_dma_entry(entry);
 	}
