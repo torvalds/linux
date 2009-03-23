@@ -1,0 +1,12 @@
+BINS = kerneltop perfstat
+
+all: $(BINS)
+
+kerneltop: kerneltop.c perfcounters.h
+	cc -O6 -Wall -lrt `pkg-config --cflags --libs glib-2.0` -o $@ $<
+
+perfstat: kerneltop
+	ln -sf kerneltop perfstat
+
+clean:
+	rm $(BINS)
