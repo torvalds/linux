@@ -2268,6 +2268,7 @@ static const struct net_device_ops spider_net_ops = {
 	.ndo_change_mtu		= spider_net_change_mtu,
 	.ndo_do_ioctl		= spider_net_do_ioctl,
 	.ndo_tx_timeout		= spider_net_tx_timeout,
+	.ndo_validate_addr	= eth_validate_addr,
 	/* HW VLAN */
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	/* poll controller */
