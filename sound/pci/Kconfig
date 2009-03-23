@@ -400,6 +400,26 @@ config SND_INDIGODJ
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-indigodj
 
+config SND_INDIGOIOX
+	tristate "(Echoaudio) Indigo IOx"
+	select FW_LOADER
+	select SND_PCM
+	help
+	  Say 'Y' or 'M' to include support for Echoaudio Indigo IOx.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called snd-indigoiox
+
+config SND_INDIGODJX
+	tristate "(Echoaudio) Indigo DJx"
+	select FW_LOADER
+	select SND_PCM
+	help
+	  Say 'Y' or 'M' to include support for Echoaudio Indigo DJx.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called snd-indigodjx
+
 config SND_EMU10K1
 	tristate "Emu10k1 (SB Live!, Audigy, E-mu APS)"
 	select FW_LOADER
