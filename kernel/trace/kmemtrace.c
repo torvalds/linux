@@ -52,6 +52,7 @@ static inline void kmemtrace_alloc(enum kmemtrace_type_id type_id,
 	tracing_generic_entry_update(&entry->ent, 0, 0);
 
 	entry->ent.type = TRACE_KMEM_ALLOC;
+	entry->type_id = type_id;
 	entry->call_site = call_site;
 	entry->ptr = ptr;
 	entry->bytes_req = bytes_req;
