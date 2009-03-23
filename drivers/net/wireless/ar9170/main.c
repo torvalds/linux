@@ -277,54 +277,6 @@ static struct sk_buff *ar9170_find_skb_in_queue(struct ar9170 *ar,
 	return NULL;
 }
 
-static struct sk_buff *ar9170_find_skb_in_queue_by_mac(struct ar9170 *ar,
-						       const u8 *mac,
-						       struct sk_buff_head *q)
-{
-	unsigned long flags;
-	struct sk_buff *skb;
-
-	spin_lock_irqsave(&q->lock, flags);
-	skb_queue_walk(q, skb) {
-		struct ar9170_tx_control *txc = (void *) skb->data;
-		struct ieee80211_hdr *hdr = (void *) txc->frame_data;
-
-		if (compare_ether_addr(ieee80211_get_DA(hdr), mac))
-			continue;
-
-		__skb_unlink(skb, q);
-		spin_unlock_irqrestore(&q->lock, flags);
-		return skb;
-	}
-	spin_unlock_irqrestore(&q->lock, flags);
-	return NULL;
-}
-
-static struct sk_buff *ar9170_find_skb_in_queue_by_txcq(struct ar9170 *ar,
-							const u32 queue,
-							struct sk_buff_head *q)
-{
-	unsigned long flags;
-	struct sk_buff *skb;
-
-	spin_lock_irqsave(&q->lock, flags);
-	skb_queue_walk(q, skb) {
-		struct ar9170_tx_control *txc = (void *) skb->data;
-		u32 txc_queue = (le32_to_cpu(txc->phy_control) &
-				AR9170_TX_PHY_QOS_MASK) >>
-				AR9170_TX_PHY_QOS_SHIFT;
-
-		if (queue != txc_queue)
-			continue;
-
-		__skb_unlink(skb, q);
-		spin_unlock_irqrestore(&q->lock, flags);
-		return skb;
-	}
-	spin_unlock_irqrestore(&q->lock, flags);
-	return NULL;
-}
-
 static struct sk_buff *ar9170_find_queued_skb(struct ar9170 *ar, const u8 *mac,
 					      const u32 queue)
 {
@@ -344,21 +296,21 @@ static struct sk_buff *ar9170_find_queued_skb(struct ar9170 *ar, const u8 *mac,
 
 	if (likely(sta)) {
 		struct ar9170_sta_info *sta_priv = (void *) sta->drv_priv;
-		skb = ar9170_find_skb_in_queue_by_txcq(ar, queue,
-						       &sta_priv->tx_status);
-	} else {
-		/* STA is not in database (yet/anymore). */
+		skb = skb_dequeue(&sta_priv->tx_status[queue]);
+		rcu_read_unlock();
+		if (likely(skb))
+			return skb;
+	} else
+		rcu_read_unlock();
 
-		/* scan the waste bin for likely candidates */
+	/* scan the waste queue for candidates */
+	skb = ar9170_find_skb_in_queue(ar, mac, queue,
+				       &ar->global_tx_status_waste);
+	if (!skb) {
+		/* so it still _must_ be in the global list. */
 		skb = ar9170_find_skb_in_queue(ar, mac, queue,
-					       &ar->global_tx_status_waste);
-		if (!skb) {
-			/* so it still _must_ be in the global list. */
-			skb = ar9170_find_skb_in_queue(ar, mac, queue,
-						       &ar->global_tx_status);
-		}
+					       &ar->global_tx_status);
 	}
-	rcu_read_unlock();
 
 #ifdef AR9170_QUEUE_DEBUG
 	if (unlikely((!skb) && net_ratelimit())) {
@@ -367,7 +319,6 @@ static struct sk_buff *ar9170_find_queued_skb(struct ar9170 *ar, const u8 *mac,
 				wiphy_name(ar->hw->wiphy), mac, queue);
 	}
 #endif /* AR9170_QUEUE_DEBUG */
-
 	return skb;
 }
 
@@ -381,9 +332,13 @@ static struct sk_buff *ar9170_find_queued_skb(struct ar9170 *ar, const u8 *mac,
 static void ar9170_tx_status_janitor(struct work_struct *work)
 {
 	struct ar9170 *ar = container_of(work, struct ar9170,
-					 filter_config_work);
+					 tx_status_janitor.work);
 	struct sk_buff *skb;
 
+	if (unlikely(!IS_STARTED(ar)))
+		return ;
+
+	mutex_lock(&ar->mutex);
 	/* recycle the garbage back to mac80211... one by one. */
 	while ((skb = skb_dequeue(&ar->global_tx_status_waste))) {
 #ifdef AR9170_QUEUE_DEBUG
@@ -394,8 +349,6 @@ static void ar9170_tx_status_janitor(struct work_struct *work)
 		ar9170_handle_tx_status(ar, skb, false,
 					AR9170_TX_STATUS_FAILED);
 	}
-
-
 
 	while ((skb = skb_dequeue(&ar->global_tx_status))) {
 #ifdef AR9170_QUEUE_DEBUG
@@ -411,6 +364,8 @@ static void ar9170_tx_status_janitor(struct work_struct *work)
 	if (skb_queue_len(&ar->global_tx_status_waste) > 0)
 		queue_delayed_work(ar->hw->workqueue, &ar->tx_status_janitor,
 				   msecs_to_jiffies(100));
+
+	mutex_unlock(&ar->mutex);
 }
 
 static void ar9170_handle_command_response(struct ar9170 *ar,
@@ -1012,7 +967,7 @@ int ar9170_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 
 		if (info->control.sta) {
 			sta_info = (void *) info->control.sta->drv_priv;
-			skb_queue_tail(&sta_info->tx_status, skb);
+			skb_queue_tail(&sta_info->tx_status[queue], skb);
 		} else {
 			skb_queue_tail(&ar->global_tx_status, skb);
 
@@ -1025,7 +980,7 @@ int ar9170_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 	err = ar->tx(ar, skb, tx_status, 0);
 	if (unlikely(tx_status && err)) {
 		if (info->control.sta)
-			skb_unlink(skb, &sta_info->tx_status);
+			skb_unlink(skb, &sta_info->tx_status[queue]);
 		else
 			skb_unlink(skb, &ar->global_tx_status);
 	}
@@ -1479,55 +1434,35 @@ static void ar9170_sta_notify(struct ieee80211_hw *hw,
 	struct ar9170 *ar = hw->priv;
 	struct ar9170_sta_info *info = (void *) sta->drv_priv;
 	struct sk_buff *skb;
+	unsigned int i;
 
 	switch (cmd) {
 	case STA_NOTIFY_ADD:
-		skb_queue_head_init(&info->tx_status);
-
-		/*
-		 * do we already have a frame that needs tx_status
-		 * from this station in our queue?
-		 * If so then transfer them to the new station queue.
-		 */
-
-		/* preserve the correct order - check the waste bin first */
-		while ((skb = ar9170_find_skb_in_queue_by_mac(ar, sta->addr,
-				&ar->global_tx_status_waste)))
-			skb_queue_tail(&info->tx_status, skb);
-
-		/* now the still pending frames */
-		while ((skb = ar9170_find_skb_in_queue_by_mac(ar, sta->addr,
-				&ar->global_tx_status)))
-			skb_queue_tail(&info->tx_status, skb);
-
-#ifdef AR9170_QUEUE_DEBUG
-		printk(KERN_DEBUG "%s: STA[%pM] has %d queued frames =>\n",
-		       wiphy_name(ar->hw->wiphy), sta->addr,
-		       skb_queue_len(&info->tx_status));
-
-		ar9170_dump_station_tx_status_queue(ar, &info->tx_status);
-#endif /* AR9170_QUEUE_DEBUG */
-
-
+		for (i = 0; i < ar->hw->queues; i++)
+			skb_queue_head_init(&info->tx_status[i]);
 		break;
 
 	case STA_NOTIFY_REMOVE:
 
 		/*
 		 * transfer all outstanding frames that need a tx_status
-		 * reports to the fallback queue
+		 * reports to the global tx_status queue
 		 */
 
-		while ((skb = skb_dequeue(&ar->global_tx_status))) {
+		for (i = 0; i < ar->hw->queues; i++) {
+			while ((skb = skb_dequeue(&info->tx_status[i]))) {
 #ifdef AR9170_QUEUE_DEBUG
-			printk(KERN_DEBUG "%s: queueing frame in global "
-					  "tx_status queue =>\n",
-			       wiphy_name(ar->hw->wiphy));
+				printk(KERN_DEBUG "%s: queueing frame in "
+					  "global tx_status queue =>\n",
+				       wiphy_name(ar->hw->wiphy));
 
-			ar9170_print_txheader(ar, skb);
+				ar9170_print_txheader(ar, skb);
 #endif /* AR9170_QUEUE_DEBUG */
-			skb_queue_tail(&ar->global_tx_status_waste, skb);
+				skb_queue_tail(&ar->global_tx_status, skb);
+			}
 		}
+		queue_delayed_work(ar->hw->workqueue, &ar->tx_status_janitor,
+				   msecs_to_jiffies(100));
 		break;
 
 	default:
@@ -1571,7 +1506,7 @@ static int ar9170_conf_tx(struct ieee80211_hw *hw, u16 queue,
 	int ret;
 
 	mutex_lock(&ar->mutex);
-	if ((param) && !(queue > 4)) {
+	if ((param) && !(queue > ar->hw->queues)) {
 		memcpy(&ar->edcf[ar9170_qos_hwmap[queue]],
 		       param, sizeof(*param));
 
@@ -1635,7 +1570,7 @@ void *ar9170_alloc(size_t priv_size)
 			 IEEE80211_HW_SIGNAL_DBM |
 			 IEEE80211_HW_NOISE_DBM;
 
-	ar->hw->queues = 4;
+	ar->hw->queues = __AR9170_NUM_TXQ;
 	ar->hw->extra_tx_headroom = 8;
 	ar->hw->sta_data_size = sizeof(struct ar9170_sta_info);
 

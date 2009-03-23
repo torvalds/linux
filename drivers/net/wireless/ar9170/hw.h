@@ -397,10 +397,21 @@ struct ar9170_cmd_response {
 	};
 } __packed;
 
+/* QoS */
+
 /* mac80211 queue to HW/FW map */
 static const u8 ar9170_qos_hwmap[4] = { 3, 2, 0, 1 };
 
 /* HW/FW queue to mac80211 map */
 static const u8 ar9170_qos_mac80211map[4] = { 2, 3, 1, 0 };
+
+enum ar9170_txq {
+	AR9170_TXQ_BE,
+	AR9170_TXQ_BK,
+	AR9170_TXQ_VI,
+	AR9170_TXQ_VO,
+
+	__AR9170_NUM_TXQ,
+};
 
 #endif /* __AR9170_HW_H */

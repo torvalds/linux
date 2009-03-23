@@ -159,7 +159,7 @@ struct ar9170 {
 };
 
 struct ar9170_sta_info {
-	struct sk_buff_head tx_status;
+	struct sk_buff_head tx_status[__AR9170_NUM_TXQ];
 };
 
 #define IS_STARTED(a)		(a->state >= AR9170_STARTED)
