@@ -739,6 +739,7 @@ struct hda_codec {
 	hda_nid_t mfg;	/* MFG node id */
 
 	/* ids */
+	u32 function_id;
 	u32 vendor_id;
 	u32 subsystem_id;
 	u32 revision_id;

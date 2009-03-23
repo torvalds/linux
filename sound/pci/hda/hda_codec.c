@@ -647,9 +647,9 @@ static void /*__devinit*/ setup_fg_nodes(struct hda_codec *codec)
 
 	total_nodes = snd_hda_get_sub_nodes(codec, AC_NODE_ROOT, &nid);
 	for (i = 0; i < total_nodes; i++, nid++) {
-		unsigned int func;
-		func = snd_hda_param_read(codec, nid, AC_PAR_FUNCTION_TYPE);
-		switch (func & 0xff) {
+		codec->function_id = snd_hda_param_read(codec, nid,
+						AC_PAR_FUNCTION_TYPE) & 0xff;
+		switch (codec->function_id) {
 		case AC_GRP_AUDIO_FUNCTION:
 			codec->afg = nid;
 			break;
