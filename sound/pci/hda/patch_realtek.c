@@ -1595,8 +1595,7 @@ static int alc_cap_sw_put(struct snd_kcontrol *kcontrol,
 				     snd_hda_mixer_amp_switch_put);
 }
 
-#define DEFINE_CAPMIX(num) \
-static struct snd_kcontrol_new alc_capture_mixer ## num[] = { \
+#define _DEFINE_CAPMIX(num) \
 	{ \
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER, \
 		.name = "Capture Switch", \
@@ -1617,7 +1616,9 @@ static struct snd_kcontrol_new alc_capture_mixer ## num[] = { \
 		.get = alc_cap_vol_get, \
 		.put = alc_cap_vol_put, \
 		.tlv = { .c = alc_cap_vol_tlv }, \
-	}, \
+	}
+
+#define _DEFINE_CAPSRC(num) \
 	{ \
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER, \
 		/* .name = "Capture Source", */ \
@@ -1626,15 +1627,28 @@ static struct snd_kcontrol_new alc_capture_mixer ## num[] = { \
 		.info = alc_mux_enum_info, \
 		.get = alc_mux_enum_get, \
 		.put = alc_mux_enum_put, \
-	}, \
-	{ } /* end */ \
+	}
+
+#define DEFINE_CAPMIX(num) \
+static struct snd_kcontrol_new alc_capture_mixer ## num[] = { \
+	_DEFINE_CAPMIX(num),				      \
+	_DEFINE_CAPSRC(num),				      \
+	{ } /* end */					      \
+}
+
+#define DEFINE_CAPMIX_NOSRC(num) \
+static struct snd_kcontrol_new alc_capture_mixer_nosrc ## num[] = { \
+	_DEFINE_CAPMIX(num),					    \
+	{ } /* end */						    \
 }
 
 /* up to three ADCs */
 DEFINE_CAPMIX(1);
 DEFINE_CAPMIX(2);
 DEFINE_CAPMIX(3);
-
+DEFINE_CAPMIX_NOSRC(1);
+DEFINE_CAPMIX_NOSRC(2);
+DEFINE_CAPMIX_NOSRC(3);
 
 /*
  * ALC880 5-stack model
@@ -4298,13 +4312,22 @@ static void alc880_auto_init(struct hda_codec *codec)
 
 static void set_capture_mixer(struct alc_spec *spec)
 {
-	static struct snd_kcontrol_new *caps[3] = {
-		alc_capture_mixer1,
-		alc_capture_mixer2,
-		alc_capture_mixer3,
+	static struct snd_kcontrol_new *caps[2][3] = {
+		{ alc_capture_mixer_nosrc1,
+		  alc_capture_mixer_nosrc2,
+		  alc_capture_mixer_nosrc3 },
+		{ alc_capture_mixer1,
+		  alc_capture_mixer2,
+		  alc_capture_mixer3 },
 	};
-	if (spec->num_adc_nids > 0 && spec->num_adc_nids <= 3)
-		spec->cap_mixer = caps[spec->num_adc_nids - 1];
+	if (spec->num_adc_nids > 0 && spec->num_adc_nids <= 3) {
+		int mux;
+		if (spec->input_mux && spec->input_mux->num_items > 1)
+			mux = 1;
+		else
+			mux = 0;
+		spec->cap_mixer = caps[mux][spec->num_adc_nids - 1];
+	}
 }
 
 #define set_beep_amp(spec, nid, idx, dir) \
