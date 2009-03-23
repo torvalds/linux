@@ -16750,6 +16750,12 @@ static int alc662_is_input_pin(struct hda_codec *codec, hda_nid_t nid)
 	return (pincap & AC_PINCAP_IN) != 0;
 }
 
+static int alc662_is_output_pin(struct hda_codec *codec, hda_nid_t nid)
+{
+	unsigned int pincap = snd_hda_param_read(codec, nid, AC_PAR_PIN_CAP);
+	return (pincap & AC_PINCAP_OUT) != 0;
+}
+
 /* create playback/capture controls for input pins */
 static int alc662_auto_create_analog_input_ctls(struct hda_codec *codec,
 						const struct auto_pin_cfg *cfg)
@@ -16837,7 +16843,8 @@ static void alc662_auto_init_analog_input(struct hda_codec *codec)
 		hda_nid_t nid = spec->autocfg.input_pins[i];
 		if (alc662_is_input_pin(codec, nid)) {
 			alc_set_input_pin(codec, nid, i);
-			if (nid != ALC662_PIN_CD_NID)
+			if (nid != ALC662_PIN_CD_NID &&
+			    alc662_is_output_pin(codec, nid))
 				snd_hda_codec_write(codec, nid, 0,
 						    AC_VERB_SET_AMP_GAIN_MUTE,
 						    AMP_OUT_MUTE);
