@@ -170,7 +170,7 @@ static void snd_interwave_i2c_setlines(struct snd_i2c_bus *bus, int ctrl, int da
 	unsigned long port = bus->private_value;
 
 #if 0
-	printk("i2c_setlines - 0x%lx <- %i,%i\n", port, ctrl, data);
+	printk(KERN_DEBUG "i2c_setlines - 0x%lx <- %i,%i\n", port, ctrl, data);
 #endif
 	outb((data << 1) | ctrl, port);
 	udelay(10);
@@ -183,7 +183,7 @@ static int snd_interwave_i2c_getclockline(struct snd_i2c_bus *bus)
 
 	res = inb(port) & 1;
 #if 0
-	printk("i2c_getclockline - 0x%lx -> %i\n", port, res);
+	printk(KERN_DEBUG "i2c_getclockline - 0x%lx -> %i\n", port, res);
 #endif
 	return res;
 }
@@ -197,7 +197,7 @@ static int snd_interwave_i2c_getdataline(struct snd_i2c_bus *bus, int ack)
 		udelay(10);
 	res = (inb(port) & 2) >> 1;
 #if 0
-	printk("i2c_getdataline - 0x%lx -> %i\n", port, res);
+	printk(KERN_DEBUG "i2c_getdataline - 0x%lx -> %i\n", port, res);
 #endif
 	return res;
 }
@@ -342,7 +342,8 @@ static void __devinit snd_interwave_bank_sizes(struct snd_gus_card * gus, int *s
 			snd_gf1_poke(gus, local, d);
 			snd_gf1_poke(gus, local + 1, d + 1);
 #if 0
-			printk("d = 0x%x, local = 0x%x, local + 1 = 0x%x, idx << 22 = 0x%x\n",
+			printk(KERN_DEBUG "d = 0x%x, local = 0x%x, "
+			       "local + 1 = 0x%x, idx << 22 = 0x%x\n",
 			       d,
 			       snd_gf1_peek(gus, local),
 			       snd_gf1_peek(gus, local + 1),
@@ -356,7 +357,8 @@ static void __devinit snd_interwave_bank_sizes(struct snd_gus_card * gus, int *s
 		}
 	}
 #if 0
-	printk("sizes: %i %i %i %i\n", sizes[0], sizes[1], sizes[2], sizes[3]);
+	printk(KERN_DEBUG "sizes: %i %i %i %i\n",
+	       sizes[0], sizes[1], sizes[2], sizes[3]);
 #endif
 }
 
@@ -410,12 +412,12 @@ static void __devinit snd_interwave_detect_memory(struct snd_gus_card * gus)
 		lmct = (psizes[3] << 24) | (psizes[2] << 16) |
 		    (psizes[1] << 8) | psizes[0];
 #if 0
-		printk("lmct = 0x%08x\n", lmct);
+		printk(KERN_DEBUG "lmct = 0x%08x\n", lmct);
 #endif
 		for (i = 0; i < ARRAY_SIZE(lmc); i++)
 			if (lmct == lmc[i]) {
 #if 0
-				printk("found !!! %i\n", i);
+				printk(KERN_DEBUG "found !!! %i\n", i);
 #endif
 				snd_gf1_write16(gus, SNDRV_GF1_GW_MEMORY_CONFIG, (snd_gf1_look16(gus, SNDRV_GF1_GW_MEMORY_CONFIG) & 0xfff0) | i);
 				snd_interwave_bank_sizes(gus, psizes);

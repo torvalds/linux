@@ -156,6 +156,7 @@ static int __devinit snd_card_ad1816a_probe(int dev, struct pnp_card_link *pcard
 	struct snd_card_ad1816a *acard;
 	struct snd_ad1816a *chip;
 	struct snd_opl3 *opl3;
+	struct snd_timer *timer;
 
 	error = snd_card_create(index[dev], id[dev], THIS_MODULE,
 				sizeof(struct snd_card_ad1816a), &card);
@@ -195,6 +196,12 @@ static int __devinit snd_card_ad1816a_probe(int dev, struct pnp_card_link *pcard
 		return error;
 	}
 
+	error = snd_ad1816a_timer(chip, 0, &timer);
+	if (error < 0) {
+		snd_card_free(card);
+		return error;
+	}
+
 	if (mpu_port[dev] > 0) {
 		if (snd_mpu401_uart_new(card, 0, MPU401_HW_MPU401,
 					mpu_port[dev], 0, mpu_irq[dev], IRQF_DISABLED,
@@ -208,11 +215,8 @@ static int __devinit snd_card_ad1816a_probe(int dev, struct pnp_card_link *pcard
 				    OPL3_HW_AUTO, 0, &opl3) < 0) {
 			printk(KERN_ERR PFX "no OPL device at 0x%lx-0x%lx.\n", fm_port[dev], fm_port[dev] + 2);
 		} else {
-			if ((error = snd_opl3_timer_new(opl3, 1, 2)) < 0) {
-				snd_card_free(card);
-				return error;
-			}
-			if ((error = snd_opl3_hwdep_new(opl3, 0, 1, NULL)) < 0) {
+			error = snd_opl3_hwdep_new(opl3, 0, 1, NULL);
+			if (error < 0) {
 				snd_card_free(card);
 				return error;
 			}

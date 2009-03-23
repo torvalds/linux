@@ -346,6 +346,9 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     sbirq	- IRQ # for CMI8330 chip (SB16)
     sbdma8	- 8bit DMA # for CMI8330 chip (SB16)
     sbdma16	- 16bit DMA # for CMI8330 chip (SB16)
+    fmport	- (optional) OPL3 I/O port
+    mpuport	- (optional) MPU401 I/O port
+    mpuirq	- (optional) MPU401 irq #
 
     This module supports multiple cards and autoprobe.
 
@@ -388,34 +391,11 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 
     The power-management is supported.
     
-  Module snd-cs4232
-  -----------------
-
-    Module for sound cards based on CS4232/CS4232A ISA chips.
-
-    isapnp	- ISA PnP detection - 0 = disable, 1 = enable (default)
-
-    with isapnp=0, the following options are available:
-
-    port	- port # for CS4232 chip (PnP setup - 0x534)
-    cport	- control port # for CS4232 chip (PnP setup - 0x120,0x210,0xf00)
-    mpu_port	- port # for MPU-401 UART (PnP setup - 0x300), -1 = disable
-    fm_port	- FM port # for CS4232 chip (PnP setup - 0x388), -1 = disable
-    irq		- IRQ # for CS4232 chip (5,7,9,11,12,15)
-    mpu_irq	- IRQ # for MPU-401 UART (9,11,12,15)
-    dma1	- first DMA # for CS4232 chip (0,1,3)
-    dma2	- second DMA # for Yamaha CS4232 chip (0,1,3), -1 = disable
-    
-    This module supports multiple cards. This module does not support autoprobe
-    (if ISA PnP is not used) thus main port must be specified!!! Other ports are
-    optional.
-
-    The power-management is supported.
-    
   Module snd-cs4236
   -----------------
 
-    Module for sound cards based on CS4235/CS4236/CS4236B/CS4237B/
+    Module for sound cards based on CS4232/CS4232A,
+    	       	     	   	   CS4235/CS4236/CS4236B/CS4237B/
                                    CS4238B/CS4239 ISA chips.
 
     isapnp	- ISA PnP detection - 0 = disable, 1 = enable (default)
@@ -436,6 +416,9 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     specified!!! Other ports are optional.
 
     The power-management is supported.
+
+    This module is aliased as snd-cs4232 since it provides the old
+    snd-cs4232 functionality, too.
 
   Module snd-cs4281
   -----------------
@@ -606,6 +589,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     Module for ESS AudioDrive ES-1688 and ES-688 sound cards.
 
     port	- port # for ES-1688 chip (0x220,0x240,0x260)
+    fm_port	- port # for OPL3 (option; share the same port as default)
     mpu_port	- port # for MPU-401 port (0x300,0x310,0x320,0x330), -1 = disable (default)
     irq		- IRQ # for ES-1688 chip (5,7,9,10)
     mpu_irq	- IRQ # for MPU-401 port (5,7,9,10)

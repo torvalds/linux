@@ -56,8 +56,8 @@ config SND_AD1848
 	  Say Y here to include support for AD1848 (Analog Devices) or
 	  CS4248 (Cirrus Logic - Crystal Semiconductors) chips.
 	  
-	  For newer chips from Cirrus Logic, use the CS4231, CS4232 or
-	  CS4236+ drivers.
+	  For newer chips from Cirrus Logic, use the CS4231 or CS4232+
+	  drivers.
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-ad1848.
@@ -94,6 +94,8 @@ config SND_CMI8330
 	tristate "C-Media CMI8330"
 	select SND_WSS_LIB
 	select SND_SB16_DSP
+	select SND_OPL3_LIB
+	select SND_MPU401_UART
 	help
 	  Say Y here to include support for soundcards based on the
 	  C-Media CMI8330 chip.
@@ -112,26 +114,15 @@ config SND_CS4231
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-cs4231.
 
-config SND_CS4232
-	tristate "Generic Cirrus Logic CS4232 driver"
-	select SND_OPL3_LIB
-	select SND_MPU401_UART
-	select SND_WSS_LIB
-	help
-	  Say Y here to include support for CS4232 chips from Cirrus
-	  Logic - Crystal Semiconductors.
-
-	  To compile this driver as a module, choose M here: the module
-	  will be called snd-cs4232.
-
 config SND_CS4236
-	tristate "Generic Cirrus Logic CS4236+ driver"
+	tristate "Generic Cirrus Logic CS4232/CS4236+ driver"
 	select SND_OPL3_LIB
 	select SND_MPU401_UART
 	select SND_WSS_LIB
 	help
-	  Say Y to include support for CS4235,CS4236,CS4237B,CS4238B,
-	  CS4239 chips from Cirrus Logic - Crystal Semiconductors.
+	  Say Y to include support for CS4232,CS4235,CS4236,CS4237B,
+	  CS4238B,CS4239 chips from Cirrus Logic - Crystal
+	  Semiconductors.
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-cs4236.

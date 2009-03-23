@@ -169,5 +169,7 @@ extern int snd_ad1816a_create(struct snd_card *card, unsigned long port,
 
 extern int snd_ad1816a_pcm(struct snd_ad1816a *chip, int device, struct snd_pcm **rpcm);
 extern int snd_ad1816a_mixer(struct snd_ad1816a *chip);
+extern int snd_ad1816a_timer(struct snd_ad1816a *chip, int device,
+			     struct snd_timer **rtimer);
 
 #endif	/* __SOUND_AD1816A_H */
