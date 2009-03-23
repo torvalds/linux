@@ -147,34 +147,16 @@ static struct arm_ahb_div clk_consumer[] = {
 	{ .arm = 0, .ahb = 0, .sel = 0},
 };
 
-static struct arm_ahb_div clk_automotive[] = {
-	{ .arm = 1, .ahb = 3, .sel = 0},
-	{ .arm = 1, .ahb = 2, .sel = 1},
-	{ .arm = 2, .ahb = 1, .sel = 1},
-	{ .arm = 0, .ahb = 0, .sel = 0},
-	{ .arm = 1, .ahb = 6, .sel = 0},
-	{ .arm = 1, .ahb = 4, .sel = 1},
-	{ .arm = 2, .ahb = 2, .sel = 1},
-	{ .arm = 0, .ahb = 0, .sel = 0},
-};
-
 static unsigned long get_rate_arm(void)
 {
 	unsigned long pdr0 = __raw_readl(CCM_BASE + CCM_PDR0);
 	struct arm_ahb_div *aad;
 	unsigned long fref = get_rate_mpll();
 
-	if (pdr0 & 1) {
-		/* consumer path */
-		aad = &clk_consumer[(pdr0 >> 16) & 0xf];
-		if (aad->sel)
-			fref = fref * 2 / 3;
-	} else {
-		/* auto path */
-		aad = &clk_automotive[(pdr0 >> 9) & 0x7];
-		if (aad->sel)
-			fref = fref * 3 / 4;
-	}
+	aad = &clk_consumer[(pdr0 >> 16) & 0xf];
+	if (aad->sel)
+		fref = fref * 2 / 3;
+
 	return fref / aad->arm;
 }
 
@@ -184,12 +166,7 @@ static unsigned long get_rate_ahb(struct clk *clk)
 	struct arm_ahb_div *aad;
 	unsigned long fref = get_rate_mpll();
 
-	if (pdr0 & 1)
-		/* consumer path */
-		aad = &clk_consumer[(pdr0 >> 16) & 0xf];
-	else
-		/* auto path */
-		aad = &clk_automotive[(pdr0 >> 9) & 0x7];
+	aad = &clk_consumer[(pdr0 >> 16) & 0xf];
 
 	return fref / aad->ahb;
 }
