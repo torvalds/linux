@@ -23,6 +23,7 @@
 #include <linux/mm.h>
 #include <linux/vmstat.h>
 #include <linux/rculist.h>
+#include <linux/hardirq.h>
 
 #include <asm/irq_regs.h>
 
@@ -1532,10 +1533,31 @@ static void perf_swcounter_ctx_event(struct perf_counter_context *ctx,
 	rcu_read_unlock();
 }
 
+static int *perf_swcounter_recursion_context(struct perf_cpu_context *cpuctx)
+{
+	if (in_nmi())
+		return &cpuctx->recursion[3];
+
+	if (in_irq())
+		return &cpuctx->recursion[2];
+
+	if (in_softirq())
+		return &cpuctx->recursion[1];
+
+	return &cpuctx->recursion[0];
+}
+
 static void __perf_swcounter_event(enum perf_event_types type, u32 event,
 				   u64 nr, int nmi, struct pt_regs *regs)
 {
 	struct perf_cpu_context *cpuctx = &get_cpu_var(perf_cpu_context);
+	int *recursion = perf_swcounter_recursion_context(cpuctx);
+
+	if (*recursion)
+		goto out;
+
+	(*recursion)++;
+	barrier();
 
 	perf_swcounter_ctx_event(&cpuctx->ctx, type, event, nr, nmi, regs);
 	if (cpuctx->task_ctx) {
@@ -1543,6 +1565,10 @@ static void __perf_swcounter_event(enum perf_event_types type, u32 event,
 				nr, nmi, regs);
 	}
 
+	barrier();
+	(*recursion)--;
+
+out:
 	put_cpu_var(perf_cpu_context);
 }
 

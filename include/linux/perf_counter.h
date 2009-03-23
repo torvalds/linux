@@ -328,6 +328,13 @@ struct perf_cpu_context {
 	int				active_oncpu;
 	int				max_pertask;
 	int				exclusive;
+
+	/*
+	 * Recursion avoidance:
+	 *
+	 * task, softirq, irq, nmi context
+	 */
+	int			recursion[4];
 };
 
 /*
