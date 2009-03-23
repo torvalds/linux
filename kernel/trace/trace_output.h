@@ -33,6 +33,7 @@ int trace_seq_puts(struct trace_seq *s, const char *str);
 int trace_seq_putc(struct trace_seq *s, unsigned char c);
 int trace_seq_putmem(struct trace_seq *s, void *mem, size_t len);
 int trace_seq_putmem_hex(struct trace_seq *s, void *mem, size_t len);
+void *trace_seq_reserve(struct trace_seq *s, size_t len);
 int trace_seq_path(struct trace_seq *s, struct path *path);
 int seq_print_userip_objs(const struct userstack_entry *entry,
 			  struct trace_seq *s, unsigned long sym_flags);

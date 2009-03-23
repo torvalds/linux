@@ -167,6 +167,19 @@ int trace_seq_putmem_hex(struct trace_seq *s, void *mem, size_t len)
 	return trace_seq_putmem(s, hex, j);
 }
 
+void *trace_seq_reserve(struct trace_seq *s, size_t len)
+{
+	void *ret;
+
+	if (len > ((PAGE_SIZE - 1) - s->len))
+		return NULL;
+
+	ret = s->buffer + s->len;
+	s->len += len;
+
+	return ret;
+}
+
 int trace_seq_path(struct trace_seq *s, struct path *path)
 {
 	unsigned char *p;
