@@ -222,9 +222,6 @@
 #ifndef FALSE
 #define FALSE 0x00
 #endif
-#ifndef NULL
-#define NULL ((void *) 0)
-#endif
 #ifndef _TIME_OF_DAY_DEFINED_
 typedef struct {
 	unsigned long int m_dwMs;
