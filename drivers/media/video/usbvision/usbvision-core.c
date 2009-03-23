@@ -2503,7 +2503,7 @@ int usbvision_init_isoc(struct usb_usbvision *usbvision)
 		urb->dev = dev;
 		urb->context = usbvision;
 		urb->pipe = usb_rcvisocpipe(dev, usbvision->video_endp);
-		urb->transfer_flags = URB_ISO_ASAP;
+		urb->transfer_flags = URB_ISO_ASAP | URB_NO_TRANSFER_DMA_MAP;
 		urb->interval = 1;
 		urb->transfer_buffer = usbvision->sbuf[bufIdx].data;
 		urb->complete = usbvision_isocIrq;
