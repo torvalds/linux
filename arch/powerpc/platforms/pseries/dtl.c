@@ -107,6 +107,10 @@ static int dtl_enable(struct dtl *dtl)
 	/* set our initial buffer indices */
 	dtl->last_idx = lppaca[dtl->cpu].dtl_idx = 0;
 
+	/* ensure that our updates to the lppaca fields have occurred before
+	 * we actually enable the logging */
+	smp_wmb();
+
 	/* enable event logging */
 	lppaca[dtl->cpu].dtl_enable_mask = dtl_event_mask;
 
