@@ -1,8 +1,8 @@
 VERSION = 2
 PATCHLEVEL = 6
 SUBLEVEL = 29
-EXTRAVERSION = -rc8
-NAME = Erotic Pickled Herring
+EXTRAVERSION =
+NAME = Temporary Tasmanian Devil
 
 # *DOCUMENTATION*
 # To see a list of typical targets execute "make help"
