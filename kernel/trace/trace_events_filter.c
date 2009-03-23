@@ -276,11 +276,19 @@ static struct filter_pred *copy_pred(struct filter_pred *pred)
 		return NULL;
 
 	memcpy(new_pred, pred, sizeof(*pred));
+
+	if (pred->field_name) {
+		new_pred->field_name = kstrdup(pred->field_name, GFP_KERNEL);
+		if (!new_pred->field_name) {
+			kfree(new_pred);
+			return NULL;
+		}
+	}
+
 	if (pred->str_val) {
 		new_pred->str_val = kstrdup(pred->str_val, GFP_KERNEL);
-		new_pred->field_name = kstrdup(pred->field_name, GFP_KERNEL);
 		if (!new_pred->str_val) {
-			kfree(new_pred);
+			filter_free_pred(new_pred);
 			return NULL;
 		}
 	}
