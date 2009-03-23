@@ -147,11 +147,9 @@ int filter_print_preds(struct filter_pred **preds, char *buf)
 static struct ftrace_event_field *
 find_event_field(struct ftrace_event_call *call, char *name)
 {
-	struct ftrace_event_field *field;
-	struct list_head *entry, *tmp;
+	struct ftrace_event_field *field, *next;
 
-	list_for_each_safe(entry, tmp, &call->fields) {
-		field = list_entry(entry, struct ftrace_event_field, link);
+	list_for_each_entry_safe(field, next, &call->fields, link) {
 		if (!strcmp(field->name, name))
 			return field;
 	}
