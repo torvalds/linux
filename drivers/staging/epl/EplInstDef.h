@@ -99,7 +99,6 @@ typedef BYTE tEplInstanceHdl;
     //--------------------------------------------------------------------------------------
 
     // memory attributes for instance table
-#define INST_NEAR		// faster access to variables
 #define INST_FAR		// variables wich have to located in xdata
 #define STATIC			// prevent warnings for variables with same name
 
@@ -254,7 +253,6 @@ typedef BYTE tEplInstanceHdl;
 #else // only one instance is used
 
     // Memory attributes for instance table.
-#define INST_NEAR   NEAR	// faster access to variables
 #define INST_FAR    MEM		// variables wich have to located in xdata
 #define STATIC      static	// prevent warnings for variables with same name
 

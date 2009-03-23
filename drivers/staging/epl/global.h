@@ -35,10 +35,6 @@
 
 #define MEM			// Memory attribute to optimize speed and code of pointer access.
 
-#ifndef NEAR
-#define NEAR			// variables mapped to internal data storage location
-#endif
-
 #ifndef FAR
 #define FAR			// variables mapped to external data storage location
 #endif

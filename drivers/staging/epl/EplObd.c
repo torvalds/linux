@@ -102,7 +102,7 @@
 INSTANCE_TYPE_BEGIN EPL_MCO_DECL_INSTANCE_MEMBER()
 
 STATIC tEplObdInitParam INST_FAR m_ObdInitParam;
-STATIC tEplObdStoreLoadObjCallback INST_NEAR m_fpStoreLoadObjCallback;
+STATIC tEplObdStoreLoadObjCallback m_fpStoreLoadObjCallback;
 
 INSTANCE_TYPE_END
 // decomposition of float
