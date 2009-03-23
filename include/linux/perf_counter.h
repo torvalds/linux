@@ -152,6 +152,8 @@ struct perf_counter_mmap_page {
 	__u32	lock;			/* seqlock for synchronization */
 	__u32	index;			/* hardware counter identifier */
 	__s64	offset;			/* add to hardware counter value */
+
+	__u32   data_head;		/* head in the data section */
 };
 
 #ifdef __KERNEL__
@@ -218,21 +220,6 @@ struct hw_perf_counter {
 #endif
 };
 
-/*
- * Hardcoded buffer length limit for now, for IRQ-fed events:
- */
-#define PERF_DATA_BUFLEN		2048
-
-/**
- * struct perf_data - performance counter IRQ data sampling ...
- */
-struct perf_data {
-	int				len;
-	int				rd_idx;
-	int				overrun;
-	u8				data[PERF_DATA_BUFLEN];
-};
-
 struct perf_counter;
 
 /**
@@ -255,6 +242,14 @@ enum perf_counter_active_state {
 };
 
 struct file;
+
+struct perf_mmap_data {
+	struct rcu_head			rcu_head;
+	int				nr_pages;
+	atomic_t			head;
+	struct perf_counter_mmap_page   *user_page;
+	void 				*data_pages[0];
+};
 
 /**
  * struct perf_counter - performance counter kernel representation:
@@ -289,16 +284,15 @@ struct perf_counter {
 	int				oncpu;
 	int				cpu;
 
-	/* pointer to page shared with userspace via mmap */
-	unsigned long			user_page;
+	/* mmap bits */
+	struct mutex			mmap_mutex;
+	atomic_t			mmap_count;
+	struct perf_mmap_data		*data;
 
-	/* read() / irq related data */
+	/* poll related */
 	wait_queue_head_t		waitq;
 	/* optional: for NMIs */
 	int				wakeup_pending;
-	struct perf_data		*irqdata;
-	struct perf_data		*usrdata;
-	struct perf_data		data[2];
 
 	void (*destroy)(struct perf_counter *);
 	struct rcu_head			rcu_head;

@@ -417,8 +417,7 @@ void hw_perf_restore(u64 disable)
 		atomic64_set(&counter->hw.prev_count, val);
 		counter->hw.idx = hwc_index[i] + 1;
 		write_pmc(counter->hw.idx, val);
-		if (counter->user_page)
-			perf_counter_update_userpage(counter);
+		perf_counter_update_userpage(counter);
 	}
 	mb();
 	cpuhw->mmcr[0] |= MMCR0_PMXE | MMCR0_FCECE;
@@ -574,8 +573,7 @@ static void power_perf_disable(struct perf_counter *counter)
 			ppmu->disable_pmc(counter->hw.idx - 1, cpuhw->mmcr);
 			write_pmc(counter->hw.idx, 0);
 			counter->hw.idx = 0;
-			if (counter->user_page)
-				perf_counter_update_userpage(counter);
+			perf_counter_update_userpage(counter);
 			break;
 		}
 	}
@@ -702,8 +700,7 @@ static void record_and_restart(struct perf_counter *counter, long val,
 	write_pmc(counter->hw.idx, val);
 	atomic64_set(&counter->hw.prev_count, val);
 	atomic64_set(&counter->hw.period_left, left);
-	if (counter->user_page)
-		perf_counter_update_userpage(counter);
+	perf_counter_update_userpage(counter);
 
 	/*
 	 * Finally record data if requested.

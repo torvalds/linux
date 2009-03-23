@@ -4,7 +4,8 @@
  *  Copyright(C) 2008 Thomas Gleixner <tglx@linutronix.de>
  *  Copyright(C) 2008 Red Hat, Inc., Ingo Molnar
  *
- *  For licencing details see kernel-base/COPYING
+ *
+ *  For licensing details see kernel-base/COPYING
  */
 
 #include <linux/fs.h>
@@ -1022,66 +1023,6 @@ static u64 perf_counter_read(struct perf_counter *counter)
 	return atomic64_read(&counter->count);
 }
 
-/*
- * Cross CPU call to switch performance data pointers
- */
-static void __perf_switch_irq_data(void *info)
-{
-	struct perf_cpu_context *cpuctx = &__get_cpu_var(perf_cpu_context);
-	struct perf_counter *counter = info;
-	struct perf_counter_context *ctx = counter->ctx;
-	struct perf_data *oldirqdata = counter->irqdata;
-
-	/*
-	 * If this is a task context, we need to check whether it is
-	 * the current task context of this cpu. If not it has been
-	 * scheduled out before the smp call arrived.
-	 */
-	if (ctx->task) {
-		if (cpuctx->task_ctx != ctx)
-			return;
-		spin_lock(&ctx->lock);
-	}
-
-	/* Change the pointer NMI safe */
-	atomic_long_set((atomic_long_t *)&counter->irqdata,
-			(unsigned long) counter->usrdata);
-	counter->usrdata = oldirqdata;
-
-	if (ctx->task)
-		spin_unlock(&ctx->lock);
-}
-
-static struct perf_data *perf_switch_irq_data(struct perf_counter *counter)
-{
-	struct perf_counter_context *ctx = counter->ctx;
-	struct perf_data *oldirqdata = counter->irqdata;
-	struct task_struct *task = ctx->task;
-
-	if (!task) {
-		smp_call_function_single(counter->cpu,
-					 __perf_switch_irq_data,
-					 counter, 1);
-		return counter->usrdata;
-	}
-
-retry:
-	spin_lock_irq(&ctx->lock);
-	if (counter->state != PERF_COUNTER_STATE_ACTIVE) {
-		counter->irqdata = counter->usrdata;
-		counter->usrdata = oldirqdata;
-		spin_unlock_irq(&ctx->lock);
-		return oldirqdata;
-	}
-	spin_unlock_irq(&ctx->lock);
-	task_oncpu_function_call(task, __perf_switch_irq_data, counter);
-	/* Might have failed, because task was scheduled out */
-	if (counter->irqdata == oldirqdata)
-		goto retry;
-
-	return counter->usrdata;
-}
-
 static void put_context(struct perf_counter_context *ctx)
 {
 	if (ctx->task)
@@ -1177,7 +1118,6 @@ static int perf_release(struct inode *inode, struct file *file)
 	mutex_unlock(&counter->mutex);
 	mutex_unlock(&ctx->mutex);
 
-	free_page(counter->user_page);
 	free_counter(counter);
 	put_context(ctx);
 
@@ -1192,7 +1132,7 @@ perf_read_hw(struct perf_counter *counter, char __user *buf, size_t count)
 {
 	u64 cntval;
 
-	if (count != sizeof(cntval))
+	if (count < sizeof(cntval))
 		return -EINVAL;
 
 	/*
@@ -1211,120 +1151,19 @@ perf_read_hw(struct perf_counter *counter, char __user *buf, size_t count)
 }
 
 static ssize_t
-perf_copy_usrdata(struct perf_data *usrdata, char __user *buf, size_t count)
-{
-	if (!usrdata->len)
-		return 0;
-
-	count = min(count, (size_t)usrdata->len);
-	if (copy_to_user(buf, usrdata->data + usrdata->rd_idx, count))
-		return -EFAULT;
-
-	/* Adjust the counters */
-	usrdata->len -= count;
-	if (!usrdata->len)
-		usrdata->rd_idx = 0;
-	else
-		usrdata->rd_idx += count;
-
-	return count;
-}
-
-static ssize_t
-perf_read_irq_data(struct perf_counter	*counter,
-		   char __user		*buf,
-		   size_t		count,
-		   int			nonblocking)
-{
-	struct perf_data *irqdata, *usrdata;
-	DECLARE_WAITQUEUE(wait, current);
-	ssize_t res, res2;
-
-	irqdata = counter->irqdata;
-	usrdata = counter->usrdata;
-
-	if (usrdata->len + irqdata->len >= count)
-		goto read_pending;
-
-	if (nonblocking)
-		return -EAGAIN;
-
-	spin_lock_irq(&counter->waitq.lock);
-	__add_wait_queue(&counter->waitq, &wait);
-	for (;;) {
-		set_current_state(TASK_INTERRUPTIBLE);
-		if (usrdata->len + irqdata->len >= count)
-			break;
-
-		if (signal_pending(current))
-			break;
-
-		if (counter->state == PERF_COUNTER_STATE_ERROR)
-			break;
-
-		spin_unlock_irq(&counter->waitq.lock);
-		schedule();
-		spin_lock_irq(&counter->waitq.lock);
-	}
-	__remove_wait_queue(&counter->waitq, &wait);
-	__set_current_state(TASK_RUNNING);
-	spin_unlock_irq(&counter->waitq.lock);
-
-	if (usrdata->len + irqdata->len < count &&
-	    counter->state != PERF_COUNTER_STATE_ERROR)
-		return -ERESTARTSYS;
-read_pending:
-	mutex_lock(&counter->mutex);
-
-	/* Drain pending data first: */
-	res = perf_copy_usrdata(usrdata, buf, count);
-	if (res < 0 || res == count)
-		goto out;
-
-	/* Switch irq buffer: */
-	usrdata = perf_switch_irq_data(counter);
-	res2 = perf_copy_usrdata(usrdata, buf + res, count - res);
-	if (res2 < 0) {
-		if (!res)
-			res = -EFAULT;
-	} else {
-		res += res2;
-	}
-out:
-	mutex_unlock(&counter->mutex);
-
-	return res;
-}
-
-static ssize_t
 perf_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 {
 	struct perf_counter *counter = file->private_data;
 
-	switch (counter->hw_event.record_type) {
-	case PERF_RECORD_SIMPLE:
-		return perf_read_hw(counter, buf, count);
-
-	case PERF_RECORD_IRQ:
-	case PERF_RECORD_GROUP:
-		return perf_read_irq_data(counter, buf, count,
-					  file->f_flags & O_NONBLOCK);
-	}
-	return -EINVAL;
+	return perf_read_hw(counter, buf, count);
 }
 
 static unsigned int perf_poll(struct file *file, poll_table *wait)
 {
 	struct perf_counter *counter = file->private_data;
-	unsigned int events = 0;
-	unsigned long flags;
+	unsigned int events = POLLIN;
 
 	poll_wait(file, &counter->waitq, wait);
-
-	spin_lock_irqsave(&counter->waitq.lock, flags);
-	if (counter->usrdata->len || counter->irqdata->len)
-		events |= POLLIN;
-	spin_unlock_irqrestore(&counter->waitq.lock, flags);
 
 	return events;
 }
@@ -1347,78 +1186,207 @@ static long perf_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	return err;
 }
 
-void perf_counter_update_userpage(struct perf_counter *counter)
+static void __perf_counter_update_userpage(struct perf_counter *counter,
+					   struct perf_mmap_data *data)
 {
-	struct perf_counter_mmap_page *userpg;
+	struct perf_counter_mmap_page *userpg = data->user_page;
 
-	if (!counter->user_page)
-		return;
-	userpg = (struct perf_counter_mmap_page *) counter->user_page;
-
+	/*
+	 * Disable preemption so as to not let the corresponding user-space
+	 * spin too long if we get preempted.
+	 */
+	preempt_disable();
 	++userpg->lock;
 	smp_wmb();
 	userpg->index = counter->hw.idx;
 	userpg->offset = atomic64_read(&counter->count);
 	if (counter->state == PERF_COUNTER_STATE_ACTIVE)
 		userpg->offset -= atomic64_read(&counter->hw.prev_count);
+
+	userpg->data_head = atomic_read(&data->head);
 	smp_wmb();
 	++userpg->lock;
+	preempt_enable();
+}
+
+void perf_counter_update_userpage(struct perf_counter *counter)
+{
+	struct perf_mmap_data *data;
+
+	rcu_read_lock();
+	data = rcu_dereference(counter->data);
+	if (data)
+		__perf_counter_update_userpage(counter, data);
+	rcu_read_unlock();
 }
 
 static int perf_mmap_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 {
 	struct perf_counter *counter = vma->vm_file->private_data;
+	struct perf_mmap_data *data;
+	int ret = VM_FAULT_SIGBUS;
 
-	if (!counter->user_page)
-		return VM_FAULT_SIGBUS;
+	rcu_read_lock();
+	data = rcu_dereference(counter->data);
+	if (!data)
+		goto unlock;
 
-	vmf->page = virt_to_page(counter->user_page);
+	if (vmf->pgoff == 0) {
+		vmf->page = virt_to_page(data->user_page);
+	} else {
+		int nr = vmf->pgoff - 1;
+
+		if ((unsigned)nr > data->nr_pages)
+			goto unlock;
+
+		vmf->page = virt_to_page(data->data_pages[nr]);
+	}
 	get_page(vmf->page);
+	ret = 0;
+unlock:
+	rcu_read_unlock();
+
+	return ret;
+}
+
+static int perf_mmap_data_alloc(struct perf_counter *counter, int nr_pages)
+{
+	struct perf_mmap_data *data;
+	unsigned long size;
+	int i;
+
+	WARN_ON(atomic_read(&counter->mmap_count));
+
+	size = sizeof(struct perf_mmap_data);
+	size += nr_pages * sizeof(void *);
+
+	data = kzalloc(size, GFP_KERNEL);
+	if (!data)
+		goto fail;
+
+	data->user_page = (void *)get_zeroed_page(GFP_KERNEL);
+	if (!data->user_page)
+		goto fail_user_page;
+
+	for (i = 0; i < nr_pages; i++) {
+		data->data_pages[i] = (void *)get_zeroed_page(GFP_KERNEL);
+		if (!data->data_pages[i])
+			goto fail_data_pages;
+	}
+
+	data->nr_pages = nr_pages;
+
+	rcu_assign_pointer(counter->data, data);
+
 	return 0;
+
+fail_data_pages:
+	for (i--; i >= 0; i--)
+		free_page((unsigned long)data->data_pages[i]);
+
+	free_page((unsigned long)data->user_page);
+
+fail_user_page:
+	kfree(data);
+
+fail:
+	return -ENOMEM;
+}
+
+static void __perf_mmap_data_free(struct rcu_head *rcu_head)
+{
+	struct perf_mmap_data *data = container_of(rcu_head,
+			struct perf_mmap_data, rcu_head);
+	int i;
+
+	free_page((unsigned long)data->user_page);
+	for (i = 0; i < data->nr_pages; i++)
+		free_page((unsigned long)data->data_pages[i]);
+	kfree(data);
+}
+
+static void perf_mmap_data_free(struct perf_counter *counter)
+{
+	struct perf_mmap_data *data = counter->data;
+
+	WARN_ON(atomic_read(&counter->mmap_count));
+
+	rcu_assign_pointer(counter->data, NULL);
+	call_rcu(&data->rcu_head, __perf_mmap_data_free);
+}
+
+static void perf_mmap_open(struct vm_area_struct *vma)
+{
+	struct perf_counter *counter = vma->vm_file->private_data;
+
+	atomic_inc(&counter->mmap_count);
+}
+
+static void perf_mmap_close(struct vm_area_struct *vma)
+{
+	struct perf_counter *counter = vma->vm_file->private_data;
+
+	if (atomic_dec_and_mutex_lock(&counter->mmap_count,
+				      &counter->mmap_mutex)) {
+		perf_mmap_data_free(counter);
+		mutex_unlock(&counter->mmap_mutex);
+	}
 }
 
 static struct vm_operations_struct perf_mmap_vmops = {
+	.open = perf_mmap_open,
+	.close = perf_mmap_close,
 	.fault = perf_mmap_fault,
 };
 
 static int perf_mmap(struct file *file, struct vm_area_struct *vma)
 {
 	struct perf_counter *counter = file->private_data;
-	unsigned long userpg;
+	unsigned long vma_size;
+	unsigned long nr_pages;
+	unsigned long locked, lock_limit;
+	int ret = 0;
 
 	if (!(vma->vm_flags & VM_SHARED) || (vma->vm_flags & VM_WRITE))
 		return -EINVAL;
-	if (vma->vm_end - vma->vm_start != PAGE_SIZE)
+
+	vma_size = vma->vm_end - vma->vm_start;
+	nr_pages = (vma_size / PAGE_SIZE) - 1;
+
+	if (nr_pages == 0 || !is_power_of_2(nr_pages))
 		return -EINVAL;
 
-	/*
-	 * For now, restrict to the case of a hardware counter
-	 * on the current task.
-	 */
-	if (is_software_counter(counter) || counter->task != current)
+	if (vma_size != PAGE_SIZE * (1 + nr_pages))
 		return -EINVAL;
 
-	userpg = counter->user_page;
-	if (!userpg) {
-		userpg = get_zeroed_page(GFP_KERNEL);
-		mutex_lock(&counter->mutex);
-		if (counter->user_page) {
-			free_page(userpg);
-			userpg = counter->user_page;
-		} else {
-			counter->user_page = userpg;
-		}
-		mutex_unlock(&counter->mutex);
-		if (!userpg)
-			return -ENOMEM;
-	}
+	if (vma->vm_pgoff != 0)
+		return -EINVAL;
 
-	perf_counter_update_userpage(counter);
+	locked = vma_size >>  PAGE_SHIFT;
+	locked += vma->vm_mm->locked_vm;
+
+	lock_limit = current->signal->rlim[RLIMIT_MEMLOCK].rlim_cur;
+	lock_limit >>= PAGE_SHIFT;
+
+	if ((locked > lock_limit) && !capable(CAP_IPC_LOCK))
+		return -EPERM;
+
+	mutex_lock(&counter->mmap_mutex);
+	if (atomic_inc_not_zero(&counter->mmap_count))
+		goto out;
+
+	WARN_ON(counter->data);
+	ret = perf_mmap_data_alloc(counter, nr_pages);
+	if (!ret)
+		atomic_set(&counter->mmap_count, 1);
+out:
+	mutex_unlock(&counter->mmap_mutex);
 
 	vma->vm_flags &= ~VM_MAYWRITE;
 	vma->vm_flags |= VM_RESERVED;
 	vma->vm_ops = &perf_mmap_vmops;
-	return 0;
+
+	return ret;
 }
 
 static const struct file_operations perf_fops = {
@@ -1434,30 +1402,94 @@ static const struct file_operations perf_fops = {
  * Output
  */
 
-static void perf_counter_store_irq(struct perf_counter *counter, u64 data)
+static int perf_output_write(struct perf_counter *counter, int nmi,
+			     void *buf, ssize_t size)
 {
-	struct perf_data *irqdata = counter->irqdata;
+	struct perf_mmap_data *data;
+	unsigned int offset, head, nr;
+	unsigned int len;
+	int ret, wakeup;
 
-	if (irqdata->len > PERF_DATA_BUFLEN - sizeof(u64)) {
-		irqdata->overrun++;
-	} else {
-		u64 *p = (u64 *) &irqdata->data[irqdata->len];
+	rcu_read_lock();
+	ret = -ENOSPC;
+	data = rcu_dereference(counter->data);
+	if (!data)
+		goto out;
 
-		*p = data;
-		irqdata->len += sizeof(u64);
+	if (!data->nr_pages)
+		goto out;
+
+	ret = -EINVAL;
+	if (size > PAGE_SIZE)
+		goto out;
+
+	do {
+		offset = head = atomic_read(&data->head);
+		head += sizeof(u64);
+	} while (atomic_cmpxchg(&data->head, offset, head) != offset);
+
+	wakeup = (offset >> PAGE_SHIFT) != (head >> PAGE_SHIFT);
+
+	nr = (offset >> PAGE_SHIFT) & (data->nr_pages - 1);
+	offset &= PAGE_SIZE - 1;
+
+	len = min_t(unsigned int, PAGE_SIZE - offset, size);
+	memcpy(data->data_pages[nr] + offset, buf, len);
+	size -= len;
+
+	if (size) {
+		nr = (nr + 1) & (data->nr_pages - 1);
+		memcpy(data->data_pages[nr], buf + len, size);
 	}
+
+	/*
+	 * generate a poll() wakeup for every page boundary crossed
+	 */
+	if (wakeup) {
+		__perf_counter_update_userpage(counter, data);
+		if (nmi) {
+			counter->wakeup_pending = 1;
+			set_perf_counter_pending();
+		} else
+			wake_up(&counter->waitq);
+	}
+	ret = 0;
+out:
+	rcu_read_unlock();
+
+	return ret;
 }
 
-static void perf_counter_handle_group(struct perf_counter *counter)
+static void perf_output_simple(struct perf_counter *counter,
+			       int nmi, struct pt_regs *regs)
+{
+	u64 entry;
+
+	entry = instruction_pointer(regs);
+
+	perf_output_write(counter, nmi, &entry, sizeof(entry));
+}
+
+struct group_entry {
+	u64 event;
+	u64 counter;
+};
+
+static void perf_output_group(struct perf_counter *counter, int nmi)
 {
 	struct perf_counter *leader, *sub;
 
 	leader = counter->group_leader;
 	list_for_each_entry(sub, &leader->sibling_list, list_entry) {
+		struct group_entry entry;
+
 		if (sub != counter)
 			sub->hw_ops->read(sub);
-		perf_counter_store_irq(counter, sub->hw_event.config);
-		perf_counter_store_irq(counter, atomic64_read(&sub->count));
+
+		entry.event = sub->hw_event.config;
+		entry.counter = atomic64_read(&sub->count);
+
+		perf_output_write(counter, nmi, &entry, sizeof(entry));
 	}
 }
 
@@ -1469,19 +1501,13 @@ void perf_counter_output(struct perf_counter *counter,
 		return;
 
 	case PERF_RECORD_IRQ:
-		perf_counter_store_irq(counter, instruction_pointer(regs));
+		perf_output_simple(counter, nmi, regs);
 		break;
 
 	case PERF_RECORD_GROUP:
-		perf_counter_handle_group(counter);
+		perf_output_group(counter, nmi);
 		break;
 	}
-
-	if (nmi) {
-		counter->wakeup_pending = 1;
-		set_perf_counter_pending();
-	} else
-		wake_up(&counter->waitq);
 }
 
 /*
@@ -1967,10 +1993,10 @@ perf_counter_alloc(struct perf_counter_hw_event *hw_event,
 	INIT_LIST_HEAD(&counter->sibling_list);
 	init_waitqueue_head(&counter->waitq);
 
+	mutex_init(&counter->mmap_mutex);
+
 	INIT_LIST_HEAD(&counter->child_list);
 
-	counter->irqdata		= &counter->data[0];
-	counter->usrdata		= &counter->data[1];
 	counter->cpu			= cpu;
 	counter->hw_event		= *hw_event;
 	counter->wakeup_pending		= 0;
