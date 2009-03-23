@@ -936,11 +936,11 @@ static int vmx_set_msr(struct kvm_vcpu *vcpu, u32 msr_index, u64 data)
 	int ret = 0;
 
 	switch (msr_index) {
-#ifdef CONFIG_X86_64
 	case MSR_EFER:
 		vmx_load_host_state(vmx);
 		ret = kvm_set_msr_common(vcpu, msr_index, data);
 		break;
+#ifdef CONFIG_X86_64
 	case MSR_FS_BASE:
 		vmcs_writel(GUEST_FS_BASE, data);
 		break;
