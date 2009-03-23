@@ -397,6 +397,7 @@ void __init twl4030_mmc_init(struct twl4030_hsmmc_info *controllers)
 			break;
 		default:
 			pr_err("MMC%d configuration not supported!\n", c->mmc);
+			kfree(mmc);
 			continue;
 		}
 		hsmmc_data[c->mmc - 1] = mmc;
