@@ -1311,6 +1311,14 @@ static const struct ethtool_ops sparc_lance_ethtool_ops = {
 	.get_link		= sparc_lance_get_link,
 };
 
+static const struct net_device_ops sparc_lance_ops = {
+	.ndo_open		= lance_open,
+	.ndo_stop		= lance_close,
+	.ndo_start_xmit		= lance_start_xmit,
+	.ndo_set_multicast_list	= lance_set_multicast,
+	.ndo_tx_timeout		= lance_tx_timeout,
+};
+
 static int __devinit sparc_lance_probe_one(struct of_device *op,
 					   struct of_device *ledma,
 					   struct of_device *lebuffer)
@@ -1462,13 +1470,9 @@ no_link_test:
 
 	lp->dev = dev;
 	SET_NETDEV_DEV(dev, &op->dev);
-	dev->open = &lance_open;
-	dev->stop = &lance_close;
-	dev->hard_start_xmit = &lance_start_xmit;
-	dev->tx_timeout = &lance_tx_timeout;
 	dev->watchdog_timeo = 5*HZ;
-	dev->set_multicast_list = &lance_set_multicast;
 	dev->ethtool_ops = &sparc_lance_ethtool_ops;
+	dev->netdev_ops = &sparc_lance_ops;
 
 	dev->irq = op->irqs[0];
 
