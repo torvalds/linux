@@ -639,6 +639,14 @@ struct ieee80211_local {
 	struct sk_buff_head pending[IEEE80211_MAX_QUEUES];
 	struct tasklet_struct tx_pending_tasklet;
 
+	/*
+	 * This lock is used to prevent concurrent A-MPDU
+	 * session start/stop processing, this thus also
+	 * synchronises the ->ampdu_action() callback to
+	 * drivers and limits it to one at a time.
+	 */
+	spinlock_t ampdu_lock;
+
 	/* number of interfaces with corresponding IFF_ flags */
 	atomic_t iff_allmultis, iff_promiscs;
 

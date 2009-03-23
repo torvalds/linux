@@ -132,16 +132,6 @@ static int ___ieee80211_stop_tx_ba_session(struct sta_info *sta, u16 tid,
 	state = &sta->ampdu_mlme.tid_state_tx[tid];
 
 	if (local->hw.ampdu_queues) {
-		if (initiator) {
-			/*
-			 * Stop the AC queue to avoid issues where we send
-			 * unaggregated frames already before the delba.
-			 */
-			ieee80211_stop_queue_by_reason(&local->hw,
-				local->hw.queues + sta->tid_to_tx_q[tid],
-				IEEE80211_QUEUE_STOP_REASON_AGGREGATION);
-		}
-
 		/*
 		 * Pretend the driver woke the queue, just in case
 		 * it disabled it before the session was stopped.
@@ -158,6 +148,10 @@ static int ___ieee80211_stop_tx_ba_session(struct sta_info *sta, u16 tid,
 	/* HW shall not deny going back to legacy */
 	if (WARN_ON(ret)) {
 		*state = HT_AGG_STATE_OPERATIONAL;
+		/*
+		 * We may have pending packets get stuck in this case...
+		 * Not bothering with a workaround for now.
+		 */
 	}
 
 	return ret;
@@ -226,13 +220,6 @@ int ieee80211_start_tx_ba_session(struct ieee80211_hw *hw, u8 *ra, u16 tid)
 	       ra, tid);
 #endif /* CONFIG_MAC80211_HT_DEBUG */
 
-	if (hw->ampdu_queues && ieee80211_ac_from_tid(tid) == 0) {
-#ifdef CONFIG_MAC80211_HT_DEBUG
-		printk(KERN_DEBUG "rejecting on voice AC\n");
-#endif
-		return -EINVAL;
-	}
-
 	rcu_read_lock();
 
 	sta = sta_info_get(local, ra);
@@ -267,6 +254,7 @@ int ieee80211_start_tx_ba_session(struct ieee80211_hw *hw, u8 *ra, u16 tid)
 	}
 
 	spin_lock_bh(&sta->lock);
+	spin_lock(&local->ampdu_lock);
 
 	sdata = sta->sdata;
 
@@ -308,20 +296,18 @@ int ieee80211_start_tx_ba_session(struct ieee80211_hw *hw, u8 *ra, u16 tid)
 			ret = -ENOSPC;
 			goto err_unlock_sta;
 		}
-
-		/*
-		 * If we successfully allocate the session, we can't have
-		 * anything going on on the queue this TID maps into, so
-		 * stop it for now. This is a "virtual" stop using the same
-		 * mechanism that drivers will use.
-		 *
-		 * XXX: queue up frames for this session in the sta_info
-		 *	struct instead to avoid hitting all other STAs.
-		 */
-		ieee80211_stop_queue_by_reason(
-			&local->hw, hw->queues + qn,
-			IEEE80211_QUEUE_STOP_REASON_AGGREGATION);
 	}
+
+	/*
+	 * While we're asking the driver about the aggregation,
+	 * stop the AC queue so that we don't have to worry
+	 * about frames that came in while we were doing that,
+	 * which would require us to put them to the AC pending
+	 * afterwards which just makes the code more complex.
+	 */
+	ieee80211_stop_queue_by_reason(
+		&local->hw, ieee80211_ac_from_tid(tid),
+		IEEE80211_QUEUE_STOP_REASON_AGGREGATION);
 
 	/* prepare A-MPDU MLME for Tx aggregation */
 	sta->ampdu_mlme.tid_tx[tid] =
@@ -335,6 +321,8 @@ int ieee80211_start_tx_ba_session(struct ieee80211_hw *hw, u8 *ra, u16 tid)
 		ret = -ENOMEM;
 		goto err_return_queue;
 	}
+
+	skb_queue_head_init(&sta->ampdu_mlme.tid_tx[tid]->pending);
 
 	/* Tx timer */
 	sta->ampdu_mlme.tid_tx[tid]->addba_resp_timer.function =
@@ -362,6 +350,12 @@ int ieee80211_start_tx_ba_session(struct ieee80211_hw *hw, u8 *ra, u16 tid)
 	}
 	sta->tid_to_tx_q[tid] = qn;
 
+	/* Driver vetoed or OKed, but we can take packets again now */
+	ieee80211_wake_queue_by_reason(
+		&local->hw, ieee80211_ac_from_tid(tid),
+		IEEE80211_QUEUE_STOP_REASON_AGGREGATION);
+
+	spin_unlock(&local->ampdu_lock);
 	spin_unlock_bh(&sta->lock);
 
 	/* send an addBA request */
@@ -388,15 +382,16 @@ int ieee80211_start_tx_ba_session(struct ieee80211_hw *hw, u8 *ra, u16 tid)
 	sta->ampdu_mlme.tid_tx[tid] = NULL;
  err_return_queue:
 	if (qn >= 0) {
-		/* We failed, so start queue again right away. */
-		ieee80211_wake_queue_by_reason(hw, hw->queues + qn,
-			IEEE80211_QUEUE_STOP_REASON_AGGREGATION);
 		/* give queue back to pool */
 		spin_lock(&local->queue_stop_reason_lock);
 		local->ampdu_ac_queue[qn] = -1;
 		spin_unlock(&local->queue_stop_reason_lock);
 	}
+	ieee80211_wake_queue_by_reason(
+		&local->hw, ieee80211_ac_from_tid(tid),
+		IEEE80211_QUEUE_STOP_REASON_AGGREGATION);
  err_unlock_sta:
+	spin_unlock(&local->ampdu_lock);
 	spin_unlock_bh(&sta->lock);
  unlock:
 	rcu_read_unlock();
@@ -404,6 +399,45 @@ int ieee80211_start_tx_ba_session(struct ieee80211_hw *hw, u8 *ra, u16 tid)
 }
 EXPORT_SYMBOL(ieee80211_start_tx_ba_session);
 
+/*
+ * splice packets from the STA's pending to the local pending,
+ * requires a call to ieee80211_agg_splice_finish and holding
+ * local->ampdu_lock across both calls.
+ */
+static void ieee80211_agg_splice_packets(struct ieee80211_local *local,
+					 struct sta_info *sta, u16 tid)
+{
+	unsigned long flags;
+	u16 queue = ieee80211_ac_from_tid(tid);
+
+	ieee80211_stop_queue_by_reason(
+		&local->hw, queue,
+		IEEE80211_QUEUE_STOP_REASON_AGGREGATION);
+
+	if (!skb_queue_empty(&sta->ampdu_mlme.tid_tx[tid]->pending)) {
+		spin_lock_irqsave(&local->queue_stop_reason_lock, flags);
+		/* mark queue as pending, it is stopped already */
+		__set_bit(IEEE80211_QUEUE_STOP_REASON_PENDING,
+			  &local->queue_stop_reasons[queue]);
+		/* copy over remaining packets */
+		skb_queue_splice_tail_init(
+			&sta->ampdu_mlme.tid_tx[tid]->pending,
+			&local->pending[queue]);
+		spin_unlock_irqrestore(&local->queue_stop_reason_lock, flags);
+	}
+}
+
+static void ieee80211_agg_splice_finish(struct ieee80211_local *local,
+					struct sta_info *sta, u16 tid)
+{
+	u16 queue = ieee80211_ac_from_tid(tid);
+
+	ieee80211_wake_queue_by_reason(
+		&local->hw, queue,
+		IEEE80211_QUEUE_STOP_REASON_AGGREGATION);
+}
+
+/* caller must hold sta->lock */
 static void ieee80211_agg_tx_operational(struct ieee80211_local *local,
 					 struct sta_info *sta, u16 tid)
 {
@@ -411,15 +445,16 @@ static void ieee80211_agg_tx_operational(struct ieee80211_local *local,
 	printk(KERN_DEBUG "Aggregation is on for tid %d \n", tid);
 #endif
 
-	if (local->hw.ampdu_queues) {
-		/*
-		 * Wake up the A-MPDU queue, we stopped it earlier,
-		 * this will in turn wake the entire AC.
-		 */
-		ieee80211_wake_queue_by_reason(&local->hw,
-			local->hw.queues + sta->tid_to_tx_q[tid],
-			IEEE80211_QUEUE_STOP_REASON_AGGREGATION);
-	}
+	spin_lock(&local->ampdu_lock);
+	ieee80211_agg_splice_packets(local, sta, tid);
+	/*
+	 * NB: we rely on sta->lock being taken in the TX
+	 * processing here when adding to the pending queue,
+	 * otherwise we could only change the state of the
+	 * session to OPERATIONAL _here_.
+	 */
+	ieee80211_agg_splice_finish(local, sta, tid);
+	spin_unlock(&local->ampdu_lock);
 
 	local->ops->ampdu_action(&local->hw, IEEE80211_AMPDU_TX_OPERATIONAL,
 				 &sta->sta, tid, NULL);
@@ -602,22 +637,19 @@ void ieee80211_stop_tx_ba_cb(struct ieee80211_hw *hw, u8 *ra, u8 tid)
 			WLAN_BACK_INITIATOR, WLAN_REASON_QSTA_NOT_USE);
 
 	spin_lock_bh(&sta->lock);
+	spin_lock(&local->ampdu_lock);
 
-	if (*state & HT_AGG_STATE_INITIATOR_MSK &&
-	    hw->ampdu_queues) {
-		/*
-		 * Wake up this queue, we stopped it earlier,
-		 * this will in turn wake the entire AC.
-		 */
-		ieee80211_wake_queue_by_reason(hw,
-			hw->queues + sta->tid_to_tx_q[tid],
-			IEEE80211_QUEUE_STOP_REASON_AGGREGATION);
-	}
+	ieee80211_agg_splice_packets(local, sta, tid);
 
 	*state = HT_AGG_STATE_IDLE;
+	/* from now on packets are no longer put onto sta->pending */
 	sta->ampdu_mlme.addba_req_num[tid] = 0;
 	kfree(sta->ampdu_mlme.tid_tx[tid]);
 	sta->ampdu_mlme.tid_tx[tid] = NULL;
+
+	ieee80211_agg_splice_finish(local, sta, tid);
+
+	spin_unlock(&local->ampdu_lock);
 	spin_unlock_bh(&sta->lock);
 
 	rcu_read_unlock();

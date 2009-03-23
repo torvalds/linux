@@ -239,6 +239,11 @@ void sta_info_destroy(struct sta_info *sta)
 		tid_tx = sta->ampdu_mlme.tid_tx[i];
 		if (tid_tx) {
 			del_timer_sync(&tid_tx->addba_resp_timer);
+			/*
+			 * STA removed while aggregation session being
+			 * started? Bit odd, but purge frames anyway.
+			 */
+			skb_queue_purge(&tid_tx->pending);
 			kfree(tid_tx);
 		}
 	}

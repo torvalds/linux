@@ -73,11 +73,13 @@ enum ieee80211_sta_info_flags {
  * struct tid_ampdu_tx - TID aggregation information (Tx).
  *
  * @addba_resp_timer: timer for peer's response to addba request
+ * @pending: pending frames queue -- use sta's spinlock to protect
  * @ssn: Starting Sequence Number expected to be aggregated.
  * @dialog_token: dialog token for aggregation session
  */
 struct tid_ampdu_tx {
 	struct timer_list addba_resp_timer;
+	struct sk_buff_head pending;
 	u16 ssn;
 	u8 dialog_token;
 };

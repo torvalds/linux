@@ -984,9 +984,9 @@ __ieee80211_tx_prepare(struct ieee80211_tx_data *tx,
 	struct ieee80211_hdr *hdr;
 	struct ieee80211_sub_if_data *sdata;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
-
 	int hdrlen, tid;
 	u8 *qc, *state;
+	bool queued = false;
 
 	memset(tx, 0, sizeof(*tx));
 	tx->skb = skb;
@@ -1013,20 +1013,53 @@ __ieee80211_tx_prepare(struct ieee80211_tx_data *tx,
 		 */
 	}
 
+	/*
+	 * If this flag is set to true anywhere, and we get here,
+	 * we are doing the needed processing, so remove the flag
+	 * now.
+	 */
+	info->flags &= ~IEEE80211_TX_INTFL_NEED_TXPROCESSING;
+
 	hdr = (struct ieee80211_hdr *) skb->data;
 
 	tx->sta = sta_info_get(local, hdr->addr1);
 
-	if (tx->sta && ieee80211_is_data_qos(hdr->frame_control)) {
+	if (tx->sta && ieee80211_is_data_qos(hdr->frame_control) &&
+	    (local->hw.flags & IEEE80211_HW_AMPDU_AGGREGATION)) {
 		unsigned long flags;
+		struct tid_ampdu_tx *tid_tx;
+
 		qc = ieee80211_get_qos_ctl(hdr);
 		tid = *qc & IEEE80211_QOS_CTL_TID_MASK;
 
 		spin_lock_irqsave(&tx->sta->lock, flags);
+		/*
+		 * XXX: This spinlock could be fairly expensive, but see the
+		 *	comment in agg-tx.c:ieee80211_agg_tx_operational().
+		 *	One way to solve this would be to do something RCU-like
+		 *	for managing the tid_tx struct and using atomic bitops
+		 *	for the actual state -- by introducing an actual
+		 *	'operational' bit that would be possible. It would
+		 *	require changing ieee80211_agg_tx_operational() to
+		 *	set that bit, and changing the way tid_tx is managed
+		 *	everywhere, including races between that bit and
+		 *	tid_tx going away (tid_tx being added can be easily
+		 *	committed to memory before the 'operational' bit).
+		 */
+		tid_tx = tx->sta->ampdu_mlme.tid_tx[tid];
 		state = &tx->sta->ampdu_mlme.tid_state_tx[tid];
-		if (*state == HT_AGG_STATE_OPERATIONAL)
+		if (*state == HT_AGG_STATE_OPERATIONAL) {
 			info->flags |= IEEE80211_TX_CTL_AMPDU;
+		} else if (*state != HT_AGG_STATE_IDLE) {
+			/* in progress */
+			queued = true;
+			info->flags |= IEEE80211_TX_INTFL_NEED_TXPROCESSING;
+			__skb_queue_tail(&tid_tx->pending, skb);
+		}
 		spin_unlock_irqrestore(&tx->sta->lock, flags);
+
+		if (unlikely(queued))
+			return TX_QUEUED;
 	}
 
 	if (is_multicast_ether_addr(hdr->addr1)) {
@@ -1077,7 +1110,14 @@ static int ieee80211_tx_prepare(struct ieee80211_local *local,
 	}
 	if (unlikely(!dev))
 		return -ENODEV;
-	/* initialises tx with control */
+	/*
+	 * initialises tx with control
+	 *
+	 * return value is safe to ignore here because this function
+	 * can only be invoked for multicast frames
+	 *
+	 * XXX: clean up
+	 */
 	__ieee80211_tx_prepare(tx, skb, dev);
 	dev_put(dev);
 	return 0;
@@ -1188,7 +1228,8 @@ static int invoke_tx_handlers(struct ieee80211_tx_data *tx)
 	return 0;
 }
 
-static int ieee80211_tx(struct net_device *dev, struct sk_buff *skb)
+static void ieee80211_tx(struct net_device *dev, struct sk_buff *skb,
+			 bool txpending)
 {
 	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
 	struct sta_info *sta;
@@ -1202,11 +1243,11 @@ static int ieee80211_tx(struct net_device *dev, struct sk_buff *skb)
 
 	queue = skb_get_queue_mapping(skb);
 
-	WARN_ON(!skb_queue_empty(&local->pending[queue]));
+	WARN_ON(!txpending && !skb_queue_empty(&local->pending[queue]));
 
 	if (unlikely(skb->len < 10)) {
 		dev_kfree_skb(skb);
-		return 0;
+		return;
 	}
 
 	rcu_read_lock();
@@ -1214,10 +1255,13 @@ static int ieee80211_tx(struct net_device *dev, struct sk_buff *skb)
 	/* initialises tx */
 	res_prepare = __ieee80211_tx_prepare(&tx, skb, dev);
 
-	if (res_prepare == TX_DROP) {
+	if (unlikely(res_prepare == TX_DROP)) {
 		dev_kfree_skb(skb);
 		rcu_read_unlock();
-		return 0;
+		return;
+	} else if (unlikely(res_prepare == TX_QUEUED)) {
+		rcu_read_unlock();
+		return;
 	}
 
 	sta = tx.sta;
@@ -1251,7 +1295,12 @@ static int ieee80211_tx(struct net_device *dev, struct sk_buff *skb)
 			do {
 				next = skb->next;
 				skb->next = NULL;
-				skb_queue_tail(&local->pending[queue], skb);
+				if (unlikely(txpending))
+					skb_queue_head(&local->pending[queue],
+						       skb);
+				else
+					skb_queue_tail(&local->pending[queue],
+						       skb);
 			} while ((skb = next));
 
 			/*
@@ -1276,7 +1325,7 @@ static int ieee80211_tx(struct net_device *dev, struct sk_buff *skb)
 	}
  out:
 	rcu_read_unlock();
-	return 0;
+	return;
 
  drop:
 	rcu_read_unlock();
@@ -1287,7 +1336,6 @@ static int ieee80211_tx(struct net_device *dev, struct sk_buff *skb)
 		dev_kfree_skb(skb);
 		skb = next;
 	}
-	return 0;
 }
 
 /* device xmit handlers */
@@ -1346,7 +1394,6 @@ int ieee80211_master_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		FOUND_SDATA,
 		UNKNOWN_ADDRESS,
 	} monitor_iface = NOT_MONITOR;
-	int ret;
 
 	if (skb->iif)
 		odev = dev_get_by_index(&init_net, skb->iif);
@@ -1360,7 +1407,7 @@ int ieee80211_master_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		       "originating device\n", dev->name);
 #endif
 		dev_kfree_skb(skb);
-		return 0;
+		return NETDEV_TX_OK;
 	}
 
 	if ((local->hw.flags & IEEE80211_HW_PS_NULLFUNC_STACK) &&
@@ -1389,7 +1436,7 @@ int ieee80211_master_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		else
 			if (mesh_nexthop_lookup(skb, osdata)) {
 				dev_put(odev);
-				return 0;
+				return NETDEV_TX_OK;
 			}
 		if (memcmp(odev->dev_addr, hdr->addr4, ETH_ALEN) != 0)
 			IEEE80211_IFSTA_MESH_CTR_INC(&osdata->u.mesh,
@@ -1451,7 +1498,7 @@ int ieee80211_master_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (ieee80211_skb_resize(osdata->local, skb, headroom, may_encrypt)) {
 		dev_kfree_skb(skb);
 		dev_put(odev);
-		return 0;
+		return NETDEV_TX_OK;
 	}
 
 	if (osdata->vif.type == NL80211_IFTYPE_AP_VLAN)
@@ -1460,10 +1507,11 @@ int ieee80211_master_start_xmit(struct sk_buff *skb, struct net_device *dev)
 				      u.ap);
 	if (likely(monitor_iface != UNKNOWN_ADDRESS))
 		info->control.vif = &osdata->vif;
-	ret = ieee80211_tx(odev, skb);
+
+	ieee80211_tx(odev, skb, false);
 	dev_put(odev);
 
-	return ret;
+	return NETDEV_TX_OK;
 }
 
 int ieee80211_monitor_start_xmit(struct sk_buff *skb,
@@ -1827,6 +1875,54 @@ void ieee80211_clear_tx_pending(struct ieee80211_local *local)
 		skb_queue_purge(&local->pending[i]);
 }
 
+static bool ieee80211_tx_pending_skb(struct ieee80211_local *local,
+				     struct sk_buff *skb)
+{
+	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
+	struct ieee80211_sub_if_data *sdata;
+	struct sta_info *sta;
+	struct ieee80211_hdr *hdr;
+	struct net_device *dev;
+	int ret;
+	bool result = true;
+
+	/* does interface still exist? */
+	dev = dev_get_by_index(&init_net, skb->iif);
+	if (!dev) {
+		dev_kfree_skb(skb);
+		return true;
+	}
+
+	/* validate info->control.vif against skb->iif */
+	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+	if (sdata->vif.type == NL80211_IFTYPE_AP_VLAN)
+		sdata = container_of(sdata->bss,
+				     struct ieee80211_sub_if_data,
+				     u.ap);
+
+	if (unlikely(info->control.vif && info->control.vif != &sdata->vif)) {
+		dev_kfree_skb(skb);
+		result = true;
+		goto out;
+	}
+
+	if (info->flags & IEEE80211_TX_INTFL_NEED_TXPROCESSING) {
+		ieee80211_tx(dev, skb, true);
+	} else {
+		hdr = (struct ieee80211_hdr *)skb->data;
+		sta = sta_info_get(local, hdr->addr1);
+
+		ret = __ieee80211_tx(local, &skb, sta);
+		if (ret != IEEE80211_TX_OK)
+			result = false;
+	}
+
+ out:
+	dev_put(dev);
+
+	return result;
+}
+
 /*
  * Transmit all pending packets. Called from tasklet, locks master device
  * TX lock so that no new packets can come in.
@@ -1835,9 +1931,8 @@ void ieee80211_tx_pending(unsigned long data)
 {
 	struct ieee80211_local *local = (struct ieee80211_local *)data;
 	struct net_device *dev = local->mdev;
-	struct ieee80211_hdr *hdr;
 	unsigned long flags;
-	int i, ret;
+	int i;
 	bool next;
 
 	rcu_read_lock();
@@ -1868,13 +1963,8 @@ void ieee80211_tx_pending(unsigned long data)
 
 		while (!skb_queue_empty(&local->pending[i])) {
 			struct sk_buff *skb = skb_dequeue(&local->pending[i]);
-			struct sta_info *sta;
 
-			hdr = (struct ieee80211_hdr *)skb->data;
-			sta = sta_info_get(local, hdr->addr1);
-
-			ret = __ieee80211_tx(local, &skb, sta);
-			if (ret != IEEE80211_TX_OK) {
+			if (!ieee80211_tx_pending_skb(local, skb)) {
 				skb_queue_head(&local->pending[i], skb);
 				break;
 			}

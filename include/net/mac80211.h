@@ -248,6 +248,9 @@ struct ieee80211_bss_conf {
  * @IEEE80211_TX_INTFL_RCALGO: mac80211 internal flag, do not test or
  *	set this flag in the driver; indicates that the rate control
  *	algorithm was used and should be notified of TX status
+ * @IEEE80211_TX_INTFL_NEED_TXPROCESSING: completely internal to mac80211,
+ *	used to indicate that a pending frame requires TX processing before
+ *	it can be sent out.
  */
 enum mac80211_tx_control_flags {
 	IEEE80211_TX_CTL_REQ_TX_STATUS		= BIT(0),
@@ -264,6 +267,7 @@ enum mac80211_tx_control_flags {
 	IEEE80211_TX_STAT_AMPDU_NO_BACK		= BIT(11),
 	IEEE80211_TX_CTL_RATE_CTRL_PROBE	= BIT(12),
 	IEEE80211_TX_INTFL_RCALGO		= BIT(13),
+	IEEE80211_TX_INTFL_NEED_TXPROCESSING	= BIT(14),
 };
 
 /**
