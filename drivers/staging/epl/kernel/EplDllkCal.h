@@ -74,14 +74,6 @@
 #include "../EplDll.h"
 #include "../EplEvent.h"
 
-//---------------------------------------------------------------------------
-// const defines
-//---------------------------------------------------------------------------
-
-//---------------------------------------------------------------------------
-// typedef
-//---------------------------------------------------------------------------
-
 typedef struct {
 	unsigned long m_ulCurTxFrameCountGen;
 	unsigned long m_ulCurTxFrameCountNmt;
@@ -91,10 +83,6 @@ typedef struct {
 	unsigned long m_ulMaxRxFrameCount;
 
 } tEplDllkCalStatistics;
-
-//---------------------------------------------------------------------------
-// function prototypes
-//---------------------------------------------------------------------------
 
 #if(((EPL_MODULE_INTEGRATION) & (EPL_MODULE_DLLK)) != 0)
 

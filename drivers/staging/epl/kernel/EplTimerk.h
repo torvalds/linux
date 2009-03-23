@@ -68,19 +68,16 @@
 
 ****************************************************************************/
 
-#include "../EplTimer.h"
-#include "../user/EplEventu.h"
-
 #ifndef _EPLTIMERK_H_
 #define _EPLTIMERK_H_
+
+#include "../EplTimer.h"
+#include "../user/EplEventu.h"
 
 #if EPL_TIMER_USE_USER != FALSE
 #include "../user/EplTimeru.h"
 #endif
 
-//---------------------------------------------------------------------------
-// const defines
-//---------------------------------------------------------------------------
 
 #if EPL_TIMER_USE_USER != FALSE
 #define EplTimerkInit           EplTimeruInit
@@ -91,13 +88,6 @@
 #define EplTimerkDeleteTimer    EplTimeruDeleteTimer
 #endif
 
-//---------------------------------------------------------------------------
-// typedef
-//---------------------------------------------------------------------------
-
-//---------------------------------------------------------------------------
-// function prototypes
-//---------------------------------------------------------------------------
 #if EPL_TIMER_USE_USER == FALSE
 tEplKernel EplTimerkInit(void);
 
