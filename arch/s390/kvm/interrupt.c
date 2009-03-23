@@ -318,6 +318,12 @@ int kvm_cpu_has_interrupt(struct kvm_vcpu *vcpu)
 	return rc;
 }
 
+int kvm_arch_interrupt_allowed(struct kvm_vcpu *vcpu)
+{
+	/* do real check here */
+	return 1;
+}
+
 int kvm_cpu_has_pending_timer(struct kvm_vcpu *vcpu)
 {
 	return 0;

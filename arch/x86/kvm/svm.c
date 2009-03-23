@@ -2270,6 +2270,15 @@ static void update_cr8_intercept(struct kvm_vcpu *vcpu)
 		vmcb->control.intercept_cr_write |= INTERCEPT_CR8_MASK;
 }
 
+static int svm_interrupt_allowed(struct kvm_vcpu *vcpu)
+{
+	struct vcpu_svm *svm = to_svm(vcpu);
+	struct vmcb *vmcb = svm->vmcb;
+	return (vmcb->save.rflags & X86_EFLAGS_IF) &&
+		!(vmcb->control.int_state & SVM_INTERRUPT_SHADOW_MASK) &&
+		(svm->vcpu.arch.hflags & HF_GIF_MASK);
+}
+
 static void svm_intr_assist(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
@@ -2649,6 +2658,7 @@ static struct kvm_x86_ops svm_x86_ops = {
 	.exception_injected = svm_exception_injected,
 	.inject_pending_irq = svm_intr_assist,
 	.inject_pending_vectors = do_interrupt_requests,
+	.interrupt_allowed = svm_interrupt_allowed,
 
 	.set_tss_addr = svm_set_tss_addr,
 	.get_tdp_level = get_npt_level,

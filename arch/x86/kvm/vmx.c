@@ -2490,6 +2490,12 @@ static void vmx_update_window_states(struct kvm_vcpu *vcpu)
 				 GUEST_INTR_STATE_MOV_SS)));
 }
 
+static int vmx_interrupt_allowed(struct kvm_vcpu *vcpu)
+{
+	vmx_update_window_states(vcpu);
+	return vcpu->arch.interrupt_window_open;
+}
+
 static void do_interrupt_requests(struct kvm_vcpu *vcpu,
 				       struct kvm_run *kvm_run)
 {
@@ -3691,7 +3697,7 @@ static struct kvm_x86_ops vmx_x86_ops = {
 	.exception_injected = vmx_exception_injected,
 	.inject_pending_irq = vmx_intr_assist,
 	.inject_pending_vectors = do_interrupt_requests,
-
+	.interrupt_allowed = vmx_interrupt_allowed,
 	.set_tss_addr = vmx_set_tss_addr,
 	.get_tdp_level = get_ept_level,
 	.get_mt_mask_shift = vmx_get_mt_mask_shift,

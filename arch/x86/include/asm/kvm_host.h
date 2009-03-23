@@ -521,7 +521,7 @@ struct kvm_x86_ops {
 	void (*inject_pending_irq)(struct kvm_vcpu *vcpu);
 	void (*inject_pending_vectors)(struct kvm_vcpu *vcpu,
 				       struct kvm_run *run);
-
+	int (*interrupt_allowed)(struct kvm_vcpu *vcpu);
 	int (*set_tss_addr)(struct kvm *kvm, unsigned int addr);
 	int (*get_tdp_level)(void);
 	int (*get_mt_mask_shift)(void);
