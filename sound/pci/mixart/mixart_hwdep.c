@@ -345,8 +345,8 @@ static int mixart_dsp_load(struct mixart_mgr* mgr, int index, const struct firmw
 	status_daught = readl_be( MIXART_MEM( mgr,MIXART_PSEUDOREG_DXLX_STATUS_OFFSET ));
 
 	/* motherboard xilinx status 5 will say that the board is performing a reset */
-	if( status_xilinx == 5 ) {
-		snd_printk( KERN_ERR "miXart is resetting !\n");
+	if (status_xilinx == 5) {
+		snd_printk(KERN_ERR "miXart is resetting !\n");
 		return -EAGAIN; /* try again later */
 	}
 
@@ -354,13 +354,14 @@ static int mixart_dsp_load(struct mixart_mgr* mgr, int index, const struct firmw
 	case MIXART_MOTHERBOARD_XLX_INDEX:
 
 		/* xilinx already loaded ? */ 
-		if( status_xilinx == 4 ) {
-			snd_printk( KERN_DEBUG "xilinx is already loaded !\n");
+		if (status_xilinx == 4) {
+			snd_printk(KERN_DEBUG "xilinx is already loaded !\n");
 			return 0;
 		}
 		/* the status should be 0 == "idle" */
-		if( status_xilinx != 0 ) {
-			snd_printk( KERN_ERR "xilinx load error ! status = %d\n", status_xilinx);
+		if (status_xilinx != 0) {
+			snd_printk(KERN_ERR "xilinx load error ! status = %d\n",
+				   status_xilinx);
 			return -EIO; /* modprob -r may help ? */
 		}
 
@@ -389,21 +390,23 @@ static int mixart_dsp_load(struct mixart_mgr* mgr, int index, const struct firmw
 
 	case MIXART_MOTHERBOARD_ELF_INDEX:
 
-		if( status_elf == 4 ) {
-			snd_printk( KERN_DEBUG "elf file already loaded !\n");
+		if (status_elf == 4) {
+			snd_printk(KERN_DEBUG "elf file already loaded !\n");
 			return 0;
 		}
 
 		/* the status should be 0 == "idle" */
-		if( status_elf != 0 ) {
-			snd_printk( KERN_ERR "elf load error ! status = %d\n", status_elf);
+		if (status_elf != 0) {
+			snd_printk(KERN_ERR "elf load error ! status = %d\n",
+				   status_elf);
 			return -EIO; /* modprob -r may help ? */
 		}
 
 		/* wait for xilinx status == 4 */
 		err = mixart_wait_nice_for_register_value( mgr, MIXART_PSEUDOREG_MXLX_STATUS_OFFSET, 1, 4, 500); /* 5sec */
 		if (err < 0) {
-			snd_printk( KERN_ERR "xilinx was not loaded or could not be started\n");
+			snd_printk(KERN_ERR "xilinx was not loaded or "
+				   "could not be started\n");
 			return err;
 		}
 
@@ -424,7 +427,7 @@ static int mixart_dsp_load(struct mixart_mgr* mgr, int index, const struct firmw
 		/* wait for elf status == 4 */
 		err = mixart_wait_nice_for_register_value( mgr, MIXART_PSEUDOREG_ELF_STATUS_OFFSET, 1, 4, 300); /* 3sec */
 		if (err < 0) {
-			snd_printk( KERN_ERR "elf could not be started\n");
+			snd_printk(KERN_ERR "elf could not be started\n");
 			return err;
 		}
 
@@ -437,15 +440,16 @@ static int mixart_dsp_load(struct mixart_mgr* mgr, int index, const struct firmw
 	default:
 
 		/* elf and xilinx should be loaded */
-		if( (status_elf != 4) || (status_xilinx != 4) ) {
-			printk( KERN_ERR "xilinx or elf not successfully loaded\n");
+		if (status_elf != 4 || status_xilinx != 4) {
+			printk(KERN_ERR "xilinx or elf not "
+			       "successfully loaded\n");
 			return -EIO; /* modprob -r may help ? */
 		}
 
 		/* wait for daughter detection != 0 */
 		err = mixart_wait_nice_for_register_value( mgr, MIXART_PSEUDOREG_DBRD_PRESENCE_OFFSET, 0, 0, 30); /* 300msec */
 		if (err < 0) {
-			snd_printk( KERN_ERR "error starting elf file\n");
+			snd_printk(KERN_ERR "error starting elf file\n");
 			return err;
 		}
 
@@ -460,8 +464,9 @@ static int mixart_dsp_load(struct mixart_mgr* mgr, int index, const struct firmw
 			return -EINVAL;
 
 		/* daughter should be idle */
-		if( status_daught != 0 ) {
-			printk( KERN_ERR "daughter load error ! status = %d\n", status_daught);
+		if (status_daught != 0) {
+			printk(KERN_ERR "daughter load error ! status = %d\n",
+			       status_daught);
 			return -EIO; /* modprob -r may help ? */
 		}
  
@@ -480,7 +485,7 @@ static int mixart_dsp_load(struct mixart_mgr* mgr, int index, const struct firmw
 		/* wait for status == 2 */
 		err = mixart_wait_nice_for_register_value( mgr, MIXART_PSEUDOREG_DXLX_STATUS_OFFSET, 1, 2, 30); /* 300msec */
 		if (err < 0) {
-			snd_printk( KERN_ERR "daughter board load error\n");
+			snd_printk(KERN_ERR "daughter board load error\n");
 			return err;
 		}
 
@@ -502,7 +507,8 @@ static int mixart_dsp_load(struct mixart_mgr* mgr, int index, const struct firmw
         /* wait for daughter status == 3 */
         err = mixart_wait_nice_for_register_value( mgr, MIXART_PSEUDOREG_DXLX_STATUS_OFFSET, 1, 3, 300); /* 3sec */
         if (err < 0) {
-		snd_printk( KERN_ERR "daughter board could not be initialised\n");
+		snd_printk(KERN_ERR
+			   "daughter board could not be initialised\n");
 		return err;
 	}
 
@@ -512,7 +518,7 @@ static int mixart_dsp_load(struct mixart_mgr* mgr, int index, const struct firmw
 	/* first communication with embedded */
 	err = mixart_first_init(mgr);
         if (err < 0) {
-		snd_printk( KERN_ERR "miXart could not be set up\n");
+		snd_printk(KERN_ERR "miXart could not be set up\n");
 		return err;
 	}
 

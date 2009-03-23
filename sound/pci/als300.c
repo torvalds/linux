@@ -91,7 +91,7 @@
 #define DEBUG_PLAY_REC	0
 
 #if DEBUG_CALLS
-#define snd_als300_dbgcalls(format, args...) printk(format, ##args)
+#define snd_als300_dbgcalls(format, args...) printk(KERN_DEBUG format, ##args)
 #define snd_als300_dbgcallenter() printk(KERN_ERR "--> %s\n", __func__)
 #define snd_als300_dbgcallleave() printk(KERN_ERR "<-- %s\n", __func__)
 #else

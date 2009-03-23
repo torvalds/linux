@@ -915,7 +915,7 @@ static int __devinit sa11xx_uda1341_probe(struct platform_device *devptr)
 	snd_card_set_dev(card, &devptr->dev);
 
 	if ((err = snd_card_register(card)) == 0) {
-		printk( KERN_INFO "iPAQ audio support initialized\n" );
+		printk(KERN_INFO "iPAQ audio support initialized\n");
 		platform_set_drvdata(devptr, card);
 		return 0;
 	}

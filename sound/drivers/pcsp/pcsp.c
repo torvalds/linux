@@ -57,7 +57,7 @@ static int __devinit snd_pcsp_create(struct snd_card *card)
 	else
 		min_div = MAX_DIV;
 #if PCSP_DEBUG
-	printk("PCSP: lpj=%li, min_div=%i, res=%li\n",
+	printk(KERN_DEBUG "PCSP: lpj=%li, min_div=%i, res=%li\n",
 	       loops_per_jiffy, min_div, tp.tv_nsec);
 #endif
 

@@ -2142,7 +2142,7 @@ static int __devinit snd_ali_resources(struct snd_ali *codec)
 {
 	int err;
 
-	snd_ali_printk("resouces allocation ...\n");
+	snd_ali_printk("resources allocation ...\n");
 	err = pci_request_regions(codec->pci, "ALI 5451");
 	if (err < 0)
 		return err;
@@ -2154,7 +2154,7 @@ static int __devinit snd_ali_resources(struct snd_ali *codec)
 		return -EBUSY;
 	}
 	codec->irq = codec->pci->irq;
-	snd_ali_printk("resouces allocated.\n");
+	snd_ali_printk("resources allocated.\n");
 	return 0;
 }
 static int snd_ali_dev_free(struct snd_device *device)
