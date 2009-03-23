@@ -381,6 +381,29 @@ sub cx18 {
     $allfiles;
 }
 
+sub cx23885 {
+    my $url = "http://linuxtv.org/downloads/firmware/";
+
+    my %files = (
+	'v4l-cx23885-avcore-01.fw' => 'a9f8f5d901a7fb42f552e1ee6384f3bb',
+	'v4l-cx23885-enc.fw'       => 'a9f8f5d901a7fb42f552e1ee6384f3bb',
+	'v4l-cx25840.fw'           => 'dadb79e9904fc8af96e8111d9cb59320',
+    );
+
+    checkstandard();
+
+    my $allfiles;
+    foreach my $fwfile (keys %files) {
+	wgetfile($fwfile, "$url/$fwfile");
+	verify($fwfile, $files{$fwfile});
+	$allfiles .= " $fwfile";
+    }
+
+    $allfiles =~ s/^\s//;
+
+    $allfiles;
+}
+
 sub or51132_qam {
     my $fwfile = "dvb-fe-or51132-qam.fw";
     my $url = "http://linuxtv.org/downloads/firmware/$fwfile";
