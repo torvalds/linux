@@ -3162,7 +3162,7 @@ static const int kvm_vmx_max_exit_handlers =
  * The guest has exited.  See if we can fix it or if we need userspace
  * assistance.
  */
-static int kvm_handle_exit(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
+static int vmx_handle_exit(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 {
 	u32 exit_reason = vmcs_read32(VM_EXIT_REASON);
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
@@ -3681,7 +3681,7 @@ static struct kvm_x86_ops vmx_x86_ops = {
 	.tlb_flush = vmx_flush_tlb,
 
 	.run = vmx_vcpu_run,
-	.handle_exit = kvm_handle_exit,
+	.handle_exit = vmx_handle_exit,
 	.skip_emulated_instruction = skip_emulated_instruction,
 	.patch_hypercall = vmx_patch_hypercall,
 	.get_irq = vmx_get_irq,
