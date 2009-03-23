@@ -99,7 +99,7 @@ struct _tEplDllkNodeInfo {
 	u32 m_dwPresTimeout;
 	unsigned long m_ulDllErrorEvents;
 	tEplNmtState m_NmtState;
-	WORD m_wPresPayloadLimit;
+	u16 m_wPresPayloadLimit;
 	u8 m_be_abMacAddr[6];
 	u8 m_bSoaFlag1;
 	BOOL m_fSoftDelete;	// delete node after error and ignore error

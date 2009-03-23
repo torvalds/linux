@@ -84,12 +84,12 @@
 typedef tEplKernel(* tEplNmtMnuCbNodeEvent) (unsigned int uiNodeId_p,
 					     tEplNmtNodeEvent NodeEvent_p,
 					     tEplNmtState NmtState_p,
-					     WORD wErrorCode_p,
+					     u16 wErrorCode_p,
 					     BOOL fMandatory_p);
 
 typedef tEplKernel(* tEplNmtMnuCbBootEvent) (tEplNmtBootEvent BootEvent_p,
 					     tEplNmtState NmtState_p,
-					     WORD wErrorCode_p);
+					     u16 wErrorCode_p);
 
 //---------------------------------------------------------------------------
 // function prototypes
@@ -122,7 +122,7 @@ tEplKernel EplNmtMnuGetDiagnosticInfo(unsigned int
 					     *puiMandatorySlaveCount_p,
 					     unsigned int
 					     *puiSignalSlaveCount_p,
-					     WORD * pwFlags_p);
+					     u16 * pwFlags_p);
 
 #endif
 

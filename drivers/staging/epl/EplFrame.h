@@ -146,7 +146,7 @@ typedef struct {
 	// Offset 21
 	u8 m_le_bRes2;	// reserved
 	// Offset 22
-	WORD m_le_wSize;
+	u16 m_le_wSize;
 	// Offset 24
 	u8 m_le_abPayload[256 /*D_NMT_IsochrRxMaxPayload_U16 */ ];
 
@@ -164,7 +164,7 @@ typedef struct {
 	// Offset 21
 	u8 m_le_bRes2;	// reserved
 	// Offset 22
-	WORD m_le_wSize;
+	u16 m_le_wSize;
 	// Offset 24
 	u8 m_le_abPayload[256	/*D_NMT_IsochrRxMaxPayload_U16
 				   / D_NMT_IsochrTxMaxPayload_U16 */ ];
@@ -188,8 +188,8 @@ typedef struct {
 } PACK_STRUCT tEplSoaFrame;
 
 typedef struct {
-	WORD m_wEntryType;
-	WORD m_wErrorCode;
+	u16 m_wEntryType;
+	u16 m_wErrorCode;
 	tEplNetTime m_TimeStamp;
 	u8 m_abAddInfo[8];
 
@@ -215,11 +215,11 @@ typedef struct {
 	u8 m_le_bEplProfileVersion;
 	u8 m_le_bRes1;
 	u32 m_le_dwFeatureFlags;	// NMT_FeatureFlags_U32
-	WORD m_le_wMtu;		// NMT_CycleTiming_REC.AsyncMTU_U16: C_IP_MIN_MTU - C_IP_MAX_MTU
-	WORD m_le_wPollInSize;	// NMT_CycleTiming_REC.PReqActPayload_U16
-	WORD m_le_wPollOutSize;	// NMT_CycleTiming_REC.PResActPayload_U16
+	u16 m_le_wMtu;		// NMT_CycleTiming_REC.AsyncMTU_U16: C_IP_MIN_MTU - C_IP_MAX_MTU
+	u16 m_le_wPollInSize;	// NMT_CycleTiming_REC.PReqActPayload_U16
+	u16 m_le_wPollOutSize;	// NMT_CycleTiming_REC.PResActPayload_U16
 	u32 m_le_dwResponseTime;	// NMT_CycleTiming_REC.PResMaxLatency_U32
-	WORD m_le_wRes2;
+	u16 m_le_wRes2;
 	u32 m_le_dwDeviceType;	// NMT_DeviceType_U32
 	u32 m_le_dwVendorId;	// NMT_IdentityObject_REC.VendorId_U32
 	u32 m_le_dwProductCode;	// NMT_IdentityObject_REC.ProductCode_U32
@@ -251,8 +251,8 @@ typedef struct {
 	u8 m_le_bTransactionId;
 	u8 m_le_bFlags;
 	u8 m_le_bCommandId;
-	WORD m_le_wSegmentSize;
-	WORD m_le_wReserved;
+	u16 m_le_wSegmentSize;
+	u16 m_le_wReserved;
 	u8 m_le_abCommandData[8];	// just reserve a minimum number of bytes as a placeholder
 
 } PACK_STRUCT tEplAsySdoCom;
@@ -310,7 +310,7 @@ typedef struct {
 	// Offset 6
 	u8 m_be_abSrcMac[6];	// MAC address of the transmitting node
 	// Offset 12
-	WORD m_be_wEtherType;	// Ethernet message type (big endian)
+	u16 m_be_wEtherType;	// Ethernet message type (big endian)
 	// Offset 14
 	u8 m_le_bMessageType;	// EPL message type
 	// Offset 15

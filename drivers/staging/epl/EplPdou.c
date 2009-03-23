@@ -237,7 +237,7 @@ tEplKernel EplPdouCbObdAccess(tEplObdCbParam *pParam_p)
 	tEplObdAccess AccessType;
 	u8 bMappSubindex;
 	unsigned int uiCurPdoSize;
-	WORD wMaxPdoSize;
+	u16 wMaxPdoSize;
 	unsigned int uiSubIndex;
 
 	// fetch PDO ID

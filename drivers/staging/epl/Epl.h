@@ -89,7 +89,7 @@ typedef struct {
 	unsigned int m_uiNodeId;
 	tEplNmtState m_NmtState;
 	tEplNmtNodeEvent m_NodeEvent;
-	WORD m_wErrorCode;	// EPL error code if m_NodeEvent == kEplNmtNodeEventError
+	u16 m_wErrorCode;	// EPL error code if m_NodeEvent == kEplNmtNodeEventError
 	BOOL m_fMandatory;
 
 } tEplApiEventNode;
@@ -97,7 +97,7 @@ typedef struct {
 typedef struct {
 	tEplNmtState m_NmtState;	// local NMT state
 	tEplNmtBootEvent m_BootEvent;
-	WORD m_wErrorCode;	// EPL error code if m_BootEvent == kEplNmtBootEventError
+	u16 m_wErrorCode;	// EPL error code if m_BootEvent == kEplNmtBootEventError
 
 } tEplApiEventBoot;
 

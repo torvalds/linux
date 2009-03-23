@@ -110,9 +110,9 @@ extern "C" {
 #define AmiSetByteToBe(pAddr_p, bByteVal_p)  {*(u8 *)(pAddr_p) = (bByteVal_p);}
 #define AmiSetByteToLe(pAddr_p, bByteVal_p)  {*(u8 *)(pAddr_p) = (bByteVal_p);}
 
-void AmiSetWordToBe(void *pAddr_p, WORD wWordVal_p);
+void AmiSetWordToBe(void *pAddr_p, u16 wWordVal_p);
 void AmiSetDwordToBe(void *pAddr_p, u32 dwDwordVal_p);
-void AmiSetWordToLe(void *pAddr_p, WORD wWordVal_p);
+void AmiSetWordToLe(void *pAddr_p, u16 wWordVal_p);
 void AmiSetDwordToLe(void *pAddr_p, u32 dwDwordVal_p);
 
 //---------------------------------------------------------------------------
@@ -126,9 +126,9 @@ void AmiSetDwordToLe(void *pAddr_p, u32 dwDwordVal_p);
 #define AmiGetByteFromBe(pAddr_p)  (*(u8 *)(pAddr_p))
 #define AmiGetByteFromLe(pAddr_p)  (*(u8 *)(pAddr_p))
 
-WORD AmiGetWordFromBe(void *pAddr_p);
+u16 AmiGetWordFromBe(void *pAddr_p);
 u32 AmiGetDwordFromBe(void *pAddr_p);
-WORD AmiGetWordFromLe(void *pAddr_p);
+u16 AmiGetWordFromLe(void *pAddr_p);
 u32 AmiGetDwordFromLe(void *pAddr_p);
 
 //---------------------------------------------------------------------------

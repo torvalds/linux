@@ -84,6 +84,6 @@
 //---------------------------------------------------------------------------
 
 void EdrvRxInterruptHandler(u8 bBufferInFrame_p, u8 * pbEthernetData_p,
-			    WORD wDataLen_p);
+			    u16 wDataLen_p);
 
 #endif // #ifndef _EDRVSIM_H_

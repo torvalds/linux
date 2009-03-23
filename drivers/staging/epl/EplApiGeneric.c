@@ -183,11 +183,11 @@ static tEplKernel EplApiCbSdoCon(tEplSdoComFinished *pSdoComFinished_p);
 static tEplKernel EplApiCbNodeEvent(unsigned int uiNodeId_p,
 				    tEplNmtNodeEvent NodeEvent_p,
 				    tEplNmtState NmtState_p,
-				    WORD wErrorCode_p, BOOL fMandatory_p);
+				    u16 wErrorCode_p, BOOL fMandatory_p);
 
 static tEplKernel EplApiCbBootEvent(tEplNmtBootEvent BootEvent_p,
 				    tEplNmtState NmtState_p,
-				    WORD wErrorCode_p);
+				    u16 wErrorCode_p);
 #endif
 
 #if (((EPL_MODULE_INTEGRATION) & (EPL_MODULE_LEDU)) != 0)
@@ -1412,7 +1412,7 @@ static tEplKernel EplApiUpdateDllConfig(BOOL fUpdateIdentity_p)
 	tEplDllConfigParam DllConfigParam;
 	tEplDllIdentParam DllIdentParam;
 	tEplObdSize ObdSize;
-	WORD wTemp;
+	u16 wTemp;
 	u8 bTemp;
 
 	// configure Dll
@@ -1632,7 +1632,7 @@ static tEplKernel EplApiUpdateDllConfig(BOOL fUpdateIdentity_p)
 static tEplKernel EplApiUpdateObd(void)
 {
 	tEplKernel Ret = kEplSuccessful;
-	WORD wTemp;
+	u16 wTemp;
 	u8 bTemp;
 
 	// set node id in OD
@@ -1675,14 +1675,14 @@ static tEplKernel EplApiUpdateObd(void)
 		   } */
 	}
 
-	wTemp = (WORD) EplApiInstance_g.m_InitParam.m_uiIsochrTxMaxPayload;
+	wTemp = (u16) EplApiInstance_g.m_InitParam.m_uiIsochrTxMaxPayload;
 	Ret = EplObdWriteEntry(0x1F98, 1, &wTemp, 2);
 /*    if(Ret != kEplSuccessful)
     {
         goto Exit;
     }*/
 
-	wTemp = (WORD) EplApiInstance_g.m_InitParam.m_uiIsochrRxMaxPayload;
+	wTemp = (u16) EplApiInstance_g.m_InitParam.m_uiIsochrRxMaxPayload;
 	Ret = EplObdWriteEntry(0x1F98, 2, &wTemp, 2);
 /*    if(Ret != kEplSuccessful)
     {
@@ -1701,7 +1701,7 @@ static tEplKernel EplApiUpdateObd(void)
 	if (EplApiInstance_g.m_InitParam.m_uiPreqActPayloadLimit <=
 	    EPL_C_DLL_ISOCHR_MAX_PAYL) {
 		wTemp =
-		    (WORD) EplApiInstance_g.m_InitParam.m_uiPreqActPayloadLimit;
+		    (u16) EplApiInstance_g.m_InitParam.m_uiPreqActPayloadLimit;
 		Ret = EplObdWriteEntry(0x1F98, 4, &wTemp, 2);
 /*    if(Ret != kEplSuccessful)
     {
@@ -1712,7 +1712,7 @@ static tEplKernel EplApiUpdateObd(void)
 	if (EplApiInstance_g.m_InitParam.m_uiPresActPayloadLimit <=
 	    EPL_C_DLL_ISOCHR_MAX_PAYL) {
 		wTemp =
-		    (WORD) EplApiInstance_g.m_InitParam.m_uiPresActPayloadLimit;
+		    (u16) EplApiInstance_g.m_InitParam.m_uiPresActPayloadLimit;
 		Ret = EplObdWriteEntry(0x1F98, 5, &wTemp, 2);
 /*    if(Ret != kEplSuccessful)
     {
@@ -1740,7 +1740,7 @@ static tEplKernel EplApiUpdateObd(void)
 
 	if (EplApiInstance_g.m_InitParam.m_uiAsyncMtu <=
 	    EPL_C_DLL_MAX_ASYNC_MTU) {
-		wTemp = (WORD) EplApiInstance_g.m_InitParam.m_uiAsyncMtu;
+		wTemp = (u16) EplApiInstance_g.m_InitParam.m_uiAsyncMtu;
 		Ret = EplObdWriteEntry(0x1F98, 8, &wTemp, 2);
 /*    if(Ret != kEplSuccessful)
     {
@@ -1749,7 +1749,7 @@ static tEplKernel EplApiUpdateObd(void)
 	}
 
 	if (EplApiInstance_g.m_InitParam.m_uiPrescaler <= 1000) {
-		wTemp = (WORD) EplApiInstance_g.m_InitParam.m_uiPrescaler;
+		wTemp = (u16) EplApiInstance_g.m_InitParam.m_uiPrescaler;
 		Ret = EplObdWriteEntry(0x1F98, 9, &wTemp, 2);
 		// ignore return code
 		Ret = kEplSuccessful;
@@ -1944,7 +1944,7 @@ static tEplKernel EplApiCbSdoCon(tEplSdoComFinished *pSdoComFinished_p)
 static tEplKernel EplApiCbNodeEvent(unsigned int uiNodeId_p,
 				    tEplNmtNodeEvent NodeEvent_p,
 				    tEplNmtState NmtState_p,
-				    WORD wErrorCode_p, BOOL fMandatory_p)
+				    u16 wErrorCode_p, BOOL fMandatory_p)
 {
 	tEplKernel Ret;
 	tEplApiEventArg EventArg;
@@ -1987,7 +1987,7 @@ static tEplKernel EplApiCbNodeEvent(unsigned int uiNodeId_p,
 
 static tEplKernel EplApiCbBootEvent(tEplNmtBootEvent BootEvent_p,
 				    tEplNmtState NmtState_p,
-				    WORD wErrorCode_p)
+				    u16 wErrorCode_p)
 {
 	tEplKernel Ret;
 	tEplApiEventArg EventArg;

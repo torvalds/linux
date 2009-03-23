@@ -148,7 +148,7 @@ typedef struct {
 	u32 m_dwCntObjectInDcf;	// number of Objects in DCF
 	tEplCfgMaIndexType m_SkipCfg;	// TRUE if a adsitional Configurationprocess
 	// have to insert e.g. PDO-mapping
-	WORD m_wTimeOutCnt;	// Timeout Counter, break configuration is
+	u16 m_wTimeOutCnt;	// Timeout Counter, break configuration is
 	// m_wTimeOutCnt == CFGMA_MAX_TIMEOUT
 
 } tEplCfgMaNode;

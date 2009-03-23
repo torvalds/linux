@@ -120,7 +120,7 @@ typedef struct _tEdrvRxBuffer {
 } tEdrvRxBuffer;
 
 //typedef void (*tEdrvRxHandler) (u8 bBufferInFrame_p, tBufferDescr * pbBuffer_p);
-//typedef void (*tEdrvRxHandler) (u8 bBufferInFrame_p, u8 * pbEthernetData_p, WORD wDataLen_p);
+//typedef void (*tEdrvRxHandler) (u8 bBufferInFrame_p, u8 * pbEthernetData_p, u16 wDataLen_p);
 typedef void (*tEdrvRxHandler) (tEdrvRxBuffer * pRxBuffer_p);
 typedef void (*tEdrvTxHandler) (tEdrvTxBuffer * pTxBuffer_p);
 
@@ -130,7 +130,7 @@ typedef struct {
 
 //    u8            m_bNoOfRxBuffDescr;     // number of entries in rx bufferdescriptor table
 //    tBufferDescr *  m_pRxBuffDescrTable;    // rx bufferdescriptor table
-//    WORD            m_wRxBufferSize;        // size of the whole rx buffer
+//    u16            m_wRxBufferSize;        // size of the whole rx buffer
 
 	tEdrvRxHandler m_pfnRxHandler;
 	tEdrvTxHandler m_pfnTxHandler;

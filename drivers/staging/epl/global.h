@@ -26,9 +26,6 @@
 #define TRACE  printk
 
 // --- logic types ---
-#ifndef WORD
-#define WORD unsigned short int
-#endif
 #ifndef BOOL
 #define BOOL unsigned char
 #endif

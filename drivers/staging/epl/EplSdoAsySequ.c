@@ -2422,8 +2422,8 @@ static tEplKernel EplSdoAsyReadFromHistory(tEplAsySdoSeqCon * pAsySdoSeqCon_p,
 	// check if entries are available for reading
 	if ((pHistory->m_bFreeEntries < EPL_SDO_HISTORY_SIZE)
 	    && (pHistory->m_bWrite != pHistory->m_bRead)) {
-//        PRINTF4("EplSdoAsyReadFromHistory(): init = %d, read = %u, write = %u, ack = %u", (int) fInitRead_p, (WORD)pHistory->m_bRead, (WORD)pHistory->m_bWrite, (WORD)pHistory->m_bAck);
-//        PRINTF2(", free entries = %u, next frame size = %u\n", (WORD)pHistory->m_bFreeEntries, pHistory->m_auiFrameSize[pHistory->m_bRead]);
+//        PRINTF4("EplSdoAsyReadFromHistory(): init = %d, read = %u, write = %u, ack = %u", (int) fInitRead_p, (u16)pHistory->m_bRead, (u16)pHistory->m_bWrite, (u16)pHistory->m_bAck);
+//        PRINTF2(", free entries = %u, next frame size = %u\n", (u16)pHistory->m_bFreeEntries, pHistory->m_auiFrameSize[pHistory->m_bRead]);
 
 		// return pointer to stored frame
 		*ppFrame_p =
@@ -2439,7 +2439,7 @@ static tEplKernel EplSdoAsyReadFromHistory(tEplAsySdoSeqCon * pAsySdoSeqCon_p,
 		}
 
 	} else {
-//        PRINTF3("EplSdoAsyReadFromHistory(): read = %u, ack = %u, free entries = %u, no frame\n", (WORD)pHistory->m_bRead, (WORD)pHistory->m_bAck, (WORD)pHistory->m_bFreeEntries);
+//        PRINTF3("EplSdoAsyReadFromHistory(): read = %u, ack = %u, free entries = %u, no frame\n", (u16)pHistory->m_bRead, (u16)pHistory->m_bAck, (u16)pHistory->m_bFreeEntries);
 
 		// no more frames to send
 		// return null pointer

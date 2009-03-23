@@ -96,8 +96,8 @@
 
 // Rx and Tx buffer descriptor format
 typedef struct {
-	WORD m_wStatus;		// control / status  ---  used by edrv, do not change in application
-	WORD m_wLength;		// transfer length
+	u16 m_wStatus;		// control / status  ---  used by edrv, do not change in application
+	u16 m_wLength;		// transfer length
 	u8 *m_pbData;		// buffer address
 } tBufferDescr;
 

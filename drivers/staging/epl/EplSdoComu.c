@@ -814,7 +814,7 @@ tEplKernel EplSdoComReceiveCb(tEplSdoSeqConHdl SdoSeqConHdl_p,
 
 	EPL_DBGLVL_SDO_TRACE3
 	    ("EplSdoComReceiveCb SdoSeqConHdl: 0x%X, First Byte of pAsySdoCom_p: 0x%02X, uiDataSize_p: 0x%04X\n",
-	     SdoSeqConHdl_p, (WORD) pAsySdoCom_p->m_le_abCommandData[0],
+	     SdoSeqConHdl_p, (u16) pAsySdoCom_p->m_le_abCommandData[0],
 	     uiDataSize_p);
 
 	return Ret;
@@ -2166,7 +2166,7 @@ static tEplKernel EplSdoComServerSendFrameIntern(tEplSdoComCon * pSdoComCon_p,
 				// set size of frame
 				AmiSetWordToLe(&pCommandFrame->
 					       m_le_wSegmentSize,
-					       (WORD) pSdoComCon_p->
+					       (u16) pSdoComCon_p->
 					       m_uiTransSize);
 
 				// correct byte-counter
@@ -2296,7 +2296,7 @@ static tEplKernel EplSdoComServerSendFrameIntern(tEplSdoComCon * pSdoComCon_p,
 					// set segment size
 					AmiSetWordToLe(&pCommandFrame->
 						       m_le_wSegmentSize,
-						       (WORD) pSdoComCon_p->
+						       (u16) pSdoComCon_p->
 						       m_uiTransSize);
 
 					// send frame
@@ -2679,7 +2679,7 @@ static tEplKernel EplSdoComClientSend(tEplSdoComCon * pSdoComCon_p)
 
 					// create command header
 					AmiSetWordToLe(pbPayload,
-						       (WORD) pSdoComCon_p->
+						       (u16) pSdoComCon_p->
 						       m_uiTargetIndex);
 					pbPayload += 2;
 					AmiSetByteToLe(pbPayload,
@@ -2720,7 +2720,7 @@ static tEplKernel EplSdoComClientSend(tEplSdoComCon * pSdoComCon_p)
 							       bFlags);
 						// create command header
 						AmiSetWordToLe(pbPayload,
-							       (WORD)
+							       (u16)
 							       pSdoComCon_p->
 							       m_uiTargetIndex);
 						pbPayload += 2;
@@ -2759,7 +2759,7 @@ static tEplKernel EplSdoComClientSend(tEplSdoComCon * pSdoComCon_p)
 
 						// create command header
 						AmiSetWordToLe(pbPayload,
-							       (WORD)
+							       (u16)
 							       pSdoComCon_p->
 							       m_uiTargetIndex);
 						pbPayload += 2;
@@ -2783,7 +2783,7 @@ static tEplKernel EplSdoComClientSend(tEplSdoComCon * pSdoComCon_p)
 						// fill rest of header
 						AmiSetWordToLe(&pCommandFrame->
 							       m_le_wSegmentSize,
-							       (WORD) (4 +
+							       (u16) (4 +
 								       pSdoComCon_p->
 								       m_uiTransSize));
 
@@ -2854,7 +2854,7 @@ static tEplKernel EplSdoComClientSend(tEplSdoComCon * pSdoComCon_p)
 							AmiSetWordToLe
 							    (&pCommandFrame->
 							     m_le_wSegmentSize,
-							     (WORD)
+							     (u16)
 							     pSdoComCon_p->
 							     m_uiTransSize);
 							bFlags = 0x30;

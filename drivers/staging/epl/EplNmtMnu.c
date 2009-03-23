@@ -212,7 +212,7 @@ typedef struct {
 	tEplTimerHdl m_TimerHdlLonger;	// 2nd timer for NMT command EnableReadyToOp and CheckCommunication
 	tEplNmtMnuNodeState m_NodeState;	// internal node state (kind of sub state of NMT state)
 	u32 m_dwNodeCfg;	// subindex from 0x1F81
-	WORD m_wFlags;		// flags: CN is being accessed isochronously
+	u16 m_wFlags;		// flags: CN is being accessed isochronously
 
 } tEplNmtMnuNodeInfo;
 
@@ -224,7 +224,7 @@ typedef struct {
 	unsigned long m_ulStatusRequestDelay;	// in [ms] (object 0x1006 * EPL_C_NMT_STATREQ_CYCLE)
 	unsigned long m_ulTimeoutReadyToOp;	// in [ms] (object 0x1F89/5)
 	unsigned long m_ulTimeoutCheckCom;	// in [ms] (object 0x1006 * MultiplexedCycleCount)
-	WORD m_wFlags;		// global flags
+	u16 m_wFlags;		// global flags
 	u32 m_dwNmtStartup;	// object 0x1F80 NMT_StartUp_U32
 	tEplNmtMnuCbNodeEvent m_pfnCbNodeEvent;
 	tEplNmtMnuCbBootEvent m_pfnCbBootEvent;
@@ -252,7 +252,7 @@ static tEplKernel EplNmtMnuCbStatusResponse(unsigned int uiNodeId_p,
 static tEplKernel EplNmtMnuCheckNmtState(unsigned int uiNodeId_p,
 					 tEplNmtMnuNodeInfo * pNodeInfo_p,
 					 tEplNmtState NodeNmtState_p,
-					 WORD wErrorCode_p,
+					 u16 wErrorCode_p,
 					 tEplNmtState LocalNmtState_p);
 
 static tEplKernel EplNmtMnuStartBootStep1(void);
@@ -271,7 +271,7 @@ static tEplKernel EplNmtMnuStartNodes(void);
 
 static tEplKernel EplNmtMnuProcessInternalEvent(unsigned int uiNodeId_p,
 						tEplNmtState NodeNmtState_p,
-						WORD wErrorCode_p,
+						u16 wErrorCode_p,
 						tEplNmtMnuIntNodeEvent
 						NodeEvent_p);
 
@@ -573,7 +573,7 @@ tEplKernel EplNmtMnuTriggerStateChange(unsigned int uiNodeId_p,
 	tEplNmtMnuIntNodeEvent NodeEvent;
 	tEplObdSize ObdSize;
 	u8 bNmtState;
-	WORD wErrorCode = EPL_E_NO_ERROR;
+	u16 wErrorCode = EPL_E_NO_ERROR;
 
 	if ((uiNodeId_p == 0) || (uiNodeId_p >= EPL_C_ADR_BROADCAST)) {
 		Ret = kEplInvalidNodeId;
@@ -1257,7 +1257,7 @@ EPLDLLEXPORT tEplKernel EplNmtMnuProcessEvent(tEplEvent *pEvent_p)
 
 tEplKernel EplNmtMnuGetDiagnosticInfo(unsigned int *puiMandatorySlaveCount_p,
 				      unsigned int *puiSignalSlaveCount_p,
-				      WORD *pwFlags_p)
+				      u16 *pwFlags_p)
 {
 	tEplKernel Ret = kEplSuccessful;
 
@@ -1377,7 +1377,7 @@ static tEplKernel EplNmtMnuCbIdentResponse(unsigned int uiNodeId_p,
 	} else {		// node answered IdentRequest
 		tEplObdSize ObdSize;
 		u32 dwDevType;
-		WORD wErrorCode = EPL_E_NO_ERROR;
+		u16 wErrorCode = EPL_E_NO_ERROR;
 		tEplNmtState NmtState =
 		    (tEplNmtState) (AmiGetByteFromLe
 				    (&pIdentResponse_p->
@@ -1909,7 +1909,7 @@ static tEplKernel EplNmtMnuStartNodes(void)
 
 static tEplKernel EplNmtMnuProcessInternalEvent(unsigned int uiNodeId_p,
 						tEplNmtState NodeNmtState_p,
-						WORD wErrorCode_p,
+						u16 wErrorCode_p,
 						tEplNmtMnuIntNodeEvent
 						NodeEvent_p)
 {
@@ -2623,7 +2623,7 @@ static tEplKernel EplNmtMnuProcessInternalEvent(unsigned int uiNodeId_p,
 static tEplKernel EplNmtMnuCheckNmtState(unsigned int uiNodeId_p,
 					 tEplNmtMnuNodeInfo * pNodeInfo_p,
 					 tEplNmtState NodeNmtState_p,
-					 WORD wErrorCode_p,
+					 u16 wErrorCode_p,
 					 tEplNmtState LocalNmtState_p)
 {
 	tEplKernel Ret = kEplSuccessful;
@@ -2699,7 +2699,7 @@ static tEplKernel EplNmtMnuCheckNmtState(unsigned int uiNodeId_p,
 	} else if ((ExpNmtState != NodeNmtState_p)
 		   && !((ExpNmtState == kEplNmtCsPreOperational1)
 			&& (NodeNmtState_p == kEplNmtCsPreOperational2))) {	// CN is not in expected NMT state (without the exceptions above)
-		WORD wbeErrorCode;
+		u16 wbeErrorCode;
 
 		if ((pNodeInfo_p->
 		     m_wFlags & EPL_NMTMNU_NODE_FLAG_NOT_SCANNED) != 0) {

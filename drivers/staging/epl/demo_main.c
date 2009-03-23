@@ -810,7 +810,7 @@ tEplKernel AppCbSync(void)
 		bVarOut1Old_l = bVarOut1_l;
 		// set LEDs
 
-//        printk("bVarIn = 0x%02X bVarOut = 0x%02X\n", (WORD) bVarIn_l, (WORD) bVarOut_l);
+//        printk("bVarIn = 0x%02X bVarOut = 0x%02X\n", (u16) bVarIn_l, (u16) bVarOut_l);
 	}
 	if (uiNodeId_g != EPL_C_ADR_MN_DEF_NODE_ID) {
 		bVarIn1_l++;

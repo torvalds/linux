@@ -79,7 +79,7 @@
 //---------------------------------------------------------------------------
 
 typedef struct {
-	WORD m_wWord;
+	u16 m_wWord;
 
 } twStruct;
 
@@ -125,15 +125,15 @@ void AmiSetByteToBe (void *pAddr_p, u8 bByteVal_p)
 }
 */
 
-//------------< write WORD in big endian >--------------------------
+//------------< write u16 in big endian >--------------------------
 
-void AmiSetWordToBe(void * pAddr_p, WORD wWordVal_p)
+void AmiSetWordToBe(void * pAddr_p, u16 wWordVal_p)
 {
 	twStruct *pwStruct;
 	twStruct wValue;
 
-	wValue.m_wWord = (WORD) ((wWordVal_p & 0x00FF) << 8);	//LSB to MSB
-	wValue.m_wWord |= (WORD) ((wWordVal_p & 0xFF00) >> 8);	//MSB to LSB
+	wValue.m_wWord = (u16) ((wWordVal_p & 0x00FF) << 8);	//LSB to MSB
+	wValue.m_wWord |= (u16) ((wWordVal_p & 0xFF00) >> 8);	//MSB to LSB
 
 	pwStruct = (twStruct *) pAddr_p;
 	pwStruct->m_wWord = wValue.m_wWord;
@@ -183,9 +183,9 @@ void AmiSetByteToLe (void *pAddr_p, u8 bByteVal_p)
 }
 */
 
-//------------< write WORD in little endian >--------------------------
+//------------< write u16 in little endian >--------------------------
 
-void AmiSetWordToLe(void *pAddr_p, WORD wWordVal_p)
+void AmiSetWordToLe(void *pAddr_p, u16 wWordVal_p)
 {
 	twStruct *pwStruct;
 
@@ -230,17 +230,17 @@ u8 AmiGetByteFromBe (void *pAddr_p)
 }
 */
 
-//------------< read WORD in big endian >---------------------------
+//------------< read u16 in big endian >---------------------------
 
-WORD AmiGetWordFromBe(void *pAddr_p)
+u16 AmiGetWordFromBe(void *pAddr_p)
 {
 	twStruct *pwStruct;
 	twStruct wValue;
 
 	pwStruct = (twStruct *) pAddr_p;
 
-	wValue.m_wWord = (WORD) ((pwStruct->m_wWord & 0x00FF) << 8);	//LSB to MSB
-	wValue.m_wWord |= (WORD) ((pwStruct->m_wWord & 0xFF00) >> 8);	//MSB to LSB
+	wValue.m_wWord = (u16) ((pwStruct->m_wWord & 0x00FF) << 8);	//LSB to MSB
+	wValue.m_wWord |= (u16) ((pwStruct->m_wWord & 0xFF00) >> 8);	//MSB to LSB
 
 	return (wValue.m_wWord);
 
@@ -289,9 +289,9 @@ u8 AmiGetByteFromLe (void *pAddr_p)
 }
 */
 
-//------------< read WORD in little endian >---------------------------
+//------------< read u16 in little endian >---------------------------
 
-WORD AmiGetWordFromLe(void *pAddr_p)
+u16 AmiGetWordFromLe(void *pAddr_p)
 {
 	twStruct *pwStruct;
 
@@ -649,7 +649,7 @@ void AmiSetQword48ToLe(void *pAddr_p, u64 qwQwordVal_p)
 {
 
 	((u32 *) pAddr_p)[0] = ((u32 *) & qwQwordVal_p)[0];
-	((WORD *) pAddr_p)[2] = ((WORD *) & qwQwordVal_p)[2];
+	((u16 *) pAddr_p)[2] = ((u16 *) & qwQwordVal_p)[2];
 
 }
 
@@ -752,7 +752,7 @@ void AmiSetQword56ToLe(void *pAddr_p, u64 qwQwordVal_p)
 {
 
 	((u32 *) pAddr_p)[0] = ((u32 *) & qwQwordVal_p)[0];
-	((WORD *) pAddr_p)[2] = ((WORD *) & qwQwordVal_p)[2];
+	((u16 *) pAddr_p)[2] = ((u16 *) & qwQwordVal_p)[2];
 	((u8 *) pAddr_p)[6] = ((u8 *) & qwQwordVal_p)[6];
 
 }

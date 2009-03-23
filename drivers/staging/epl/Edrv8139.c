@@ -464,9 +464,9 @@ tEplKernel EdrvDefineRxMacAddrEntry(u8 * pbMacAddr_p)
     dwData = ether_crc(6, pbMacAddr_p);
 
     printk("EdrvDefineRxMacAddrEntry('%02X:%02X:%02X:%02X:%02X:%02X') hash = %u / %u  ether_crc = 0x%08lX\n",
-        (WORD) pbMacAddr_p[0], (WORD) pbMacAddr_p[1], (WORD) pbMacAddr_p[2],
-        (WORD) pbMacAddr_p[3], (WORD) pbMacAddr_p[4], (WORD) pbMacAddr_p[5],
-        (WORD) bHash, (WORD) (dwData >> 26), dwData);
+        (u16) pbMacAddr_p[0], (u16) pbMacAddr_p[1], (u16) pbMacAddr_p[2],
+        (u16) pbMacAddr_p[3], (u16) pbMacAddr_p[4], (u16) pbMacAddr_p[5],
+        (u16) bHash, (u16) (dwData >> 26), dwData);
 */
 	if (bHash > 31) {
 		dwData = EDRV_REGDW_READ(EDRV_REGDW_MAR4);
@@ -624,7 +624,7 @@ tEplKernel EdrvSendTxMsg(tEdrvTxBuffer * pBuffer_p)
 		printk("%s InvOp TSD%u = 0x%08X", __func__,
 		       EdrvInstance_l.m_uiCurTxDesc, dwTemp);
 		printk("  Cmd = 0x%02X\n",
-		       (WORD) EDRV_REGB_READ(EDRV_REGB_COMMAND));
+		       (u16) EDRV_REGB_READ(EDRV_REGB_COMMAND));
 		goto Exit;
 	}
 	// save pointer to buffer structure for TxHandler
@@ -761,10 +761,10 @@ static int TgtEthIsr(int nIrqNum_p, void *ppDevInstData_p,
 //    EdrvInterruptHandler();
 	tEdrvRxBuffer RxBuffer;
 	tEdrvTxBuffer *pTxBuffer;
-	WORD wStatus;
+	u16 wStatus;
 	u32 dwTxStatus;
 	u32 dwRxStatus;
-	WORD wCurRx;
+	u16 wCurRx;
 	u8 *pbRxBuf;
 	unsigned int uiLength;
 	int iHandled = IRQ_HANDLED;
@@ -898,7 +898,7 @@ static int TgtEthIsr(int nIrqNum_p, void *ppDevInstData_p,
 
 			// calulate new offset (u32 aligned)
 			wCurRx =
-			    (WORD) ((wCurRx + uiLength + sizeof(dwRxStatus) +
+			    (u16) ((wCurRx + uiLength + sizeof(dwRxStatus) +
 				     3) & ~0x3);
 			EDRV_TRACE_CAPR(wCurRx - 0x10);
 			EDRV_REGW_WRITE(EDRV_REGW_CAPR, wCurRx - 0x10);
@@ -1087,7 +1087,7 @@ static int EdrvInitOne(struct pci_dev *pPciDev, const struct pci_device_id *pId)
 	dwTemp = EDRV_REGDW_READ(EDRV_REGDW_TSAD3);
 
 	printk("    Command = 0x%02X\n",
-	       (WORD) EDRV_REGB_READ(EDRV_REGB_COMMAND));
+	       (u16) EDRV_REGB_READ(EDRV_REGB_COMMAND));
 
 	// set pointer for receive buffer in controller
 	printk("%s set pointer to Rx buffer\n", __func__);
@@ -1098,7 +1098,7 @@ static int EdrvInitOne(struct pci_dev *pPciDev, const struct pci_device_id *pId)
 	EDRV_REGB_WRITE(EDRV_REGB_COMMAND,
 			(EDRV_REGB_COMMAND_RE | EDRV_REGB_COMMAND_TE));
 	printk("  Command = 0x%02X\n",
-	       (WORD) EDRV_REGB_READ(EDRV_REGB_COMMAND));
+	       (u16) EDRV_REGB_READ(EDRV_REGB_COMMAND));
 
 	// clear missed packet counter to enable Rx/Tx process
 	EDRV_REGDW_WRITE(EDRV_REGDW_MPC, 0);
@@ -1123,7 +1123,7 @@ static int EdrvInitOne(struct pci_dev *pPciDev, const struct pci_device_id *pId)
     // enable transmitter and receiver
     printk("%s enable Tx and Rx", __func__);
     EDRV_REGB_WRITE(EDRV_REGB_COMMAND, (EDRV_REGB_COMMAND_RE | EDRV_REGB_COMMAND_TE));
-    printk("  Command = 0x%02X\n", (WORD) EDRV_REGB_READ(EDRV_REGB_COMMAND));
+    printk("  Command = 0x%02X\n", (u16) EDRV_REGB_READ(EDRV_REGB_COMMAND));
 */
 	// disable early interrupts
 	EDRV_REGW_WRITE(EDRV_REGW_MULINT, 0);

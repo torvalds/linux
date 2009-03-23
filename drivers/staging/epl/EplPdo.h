@@ -90,8 +90,8 @@
 
 typedef struct {
 	void *m_pVar;
-	WORD m_wOffset;		// in Bits
-	WORD m_wSize;		// in Bits
+	u16 m_wOffset;		// in Bits
+	u16 m_wSize;		// in Bits
 	BOOL m_fNumeric;	// numeric value -> use AMI functions
 
 } tEplPdoMapping;

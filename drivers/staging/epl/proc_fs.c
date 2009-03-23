@@ -263,7 +263,7 @@ static int EplLinProcRead(char *pcBuffer_p,
 	// ---- EPL state ----
 	nSize += snprintf(pcBuffer_p + nSize, nBufferSize_p - nSize,
 			  "NMT state:                  0x%04X\n",
-			  (WORD) EplNmtkGetNmtState());
+			  (u16) EplNmtkGetNmtState());
 
 	EplDllkCalGetStatistics(&pDllkCalStats);
 
@@ -286,7 +286,7 @@ static int EplLinProcRead(char *pcBuffer_p,
 	{
 		unsigned int uiMandatorySlaveCount;
 		unsigned int uiSignalSlaveCount;
-		WORD wFlags;
+		u16 wFlags;
 
 		EplNmtMnuGetDiagnosticInfo(&uiMandatorySlaveCount,
 					   &uiSignalSlaveCount, &wFlags);

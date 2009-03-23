@@ -1080,7 +1080,7 @@ EPLDLLEXPORT tEplKernel EplObdReadEntryToLe(EPL_MCO_DECL_INSTANCE_PTR_ unsigned 
 	case kEplObdTypInt16:
 	case kEplObdTypUInt16:
 		{
-			AmiSetWordToLe(pDstData_p, *((WORD *) pSrcData));
+			AmiSetWordToLe(pDstData_p, *((u16 *) pSrcData));
 			break;
 		}
 
@@ -1230,7 +1230,7 @@ EPLDLLEXPORT tEplKernel EplObdWriteEntryFromLe(EPL_MCO_DECL_INSTANCE_PTR_ unsign
 	case kEplObdTypInt16:
 	case kEplObdTypUInt16:
 		{
-			*((WORD *) pBuffer) = AmiGetWordFromLe(pSrcData_p);
+			*((u16 *) pBuffer) = AmiGetWordFromLe(pSrcData_p);
 			break;
 		}
 
@@ -2094,7 +2094,7 @@ static tEplKernel EplObdWriteEntryPost(EPL_MCO_DECL_INSTANCE_PTR_ tEplObdEntryPt
 // Function:    EplObdGetObjectSize()
 //
 // Description: function to get size of object
-//              The function determines if an object type an fixed data type (u8, WORD, ...)
+//              The function determines if an object type an fixed data type (u8, u16, ...)
 //              or non fixed object (string, domain). This information is used to decide
 //              if download data are stored temporary or not. For objects with fixed data length
 //              and types a value range checking can process.

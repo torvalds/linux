@@ -206,7 +206,7 @@ typedef unsigned int tEplObdSize;	// For all objects as objects size are used an
 // -------------------------------------------------------------------------
 
 // types of objects in object dictionary
-// DS-301 defines these types as WORD
+// DS-301 defines these types as u16
 typedef enum {
 // types which are always supported
 	kEplObdTypBool = 0x0001,
@@ -431,7 +431,7 @@ typedef struct {
 	unsigned int m_uiUpperObjIndex;	// upper limit of ObjIndex
 	tInitTabEntryCallback m_fpInitTabEntry;	// will be called if ObjIndex was found
 	void *m_pTabBase;	// base address of table
-	unsigned int m_uiEntrySize;	// size of table entry      // 25-feb-2005 r.d.: expansion from u8 to WORD necessary for PDO bit mapping
+	unsigned int m_uiEntrySize;	// size of table entry      // 25-feb-2005 r.d.: expansion from u8 to u16 necessary for PDO bit mapping
 	unsigned int m_uiMaxEntries;	// max. tabel entries
 
 } tEplObdModulTabParam;

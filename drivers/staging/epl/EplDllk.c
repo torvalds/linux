@@ -720,18 +720,18 @@ tEplKernel EplDllkProcess(tEplEvent * pEvent_p)
 			// MTU
 			AmiSetWordToLe(&pTxFrame->m_Data.m_Asnd.m_Payload.
 				       m_IdentResponse.m_le_wMtu,
-				       (WORD) EplDllkInstance_g.
+				       (u16) EplDllkInstance_g.
 				       m_DllConfigParam.m_uiAsyncMtu);
 			// PollInSize
 			AmiSetWordToLe(&pTxFrame->m_Data.m_Asnd.m_Payload.
 				       m_IdentResponse.m_le_wPollInSize,
-				       (WORD) EplDllkInstance_g.
+				       (u16) EplDllkInstance_g.
 				       m_DllConfigParam.
 				       m_uiPreqActPayloadLimit);
 			// PollOutSize
 			AmiSetWordToLe(&pTxFrame->m_Data.m_Asnd.m_Payload.
 				       m_IdentResponse.m_le_wPollOutSize,
-				       (WORD) EplDllkInstance_g.
+				       (u16) EplDllkInstance_g.
 				       m_DllConfigParam.
 				       m_uiPresActPayloadLimit);
 			// ResponseTime / PresMaxLatency
@@ -935,7 +935,7 @@ tEplKernel EplDllkProcess(tEplEvent * pEvent_p)
 //                    EplDllkInstance_g.m_aNodeInfo[uiIndex].m_uiNodeId = uiIndex + 1;
 					EplDllkInstance_g.m_aNodeInfo[uiIndex].
 					    m_wPresPayloadLimit =
-					    (WORD) EplDllkInstance_g.
+					    (u16) EplDllkInstance_g.
 					    m_DllConfigParam.
 					    m_uiIsochrRxMaxPayload;
 				}
@@ -3484,7 +3484,7 @@ static tEplKernel EplDllkCheckFrame(tEplFrame * pFrame_p,
 				    unsigned int uiFrameSize_p)
 {
 	tEplMsgType MsgType;
-	WORD wEtherType;
+	u16 wEtherType;
 
 	// check frame
 	if (pFrame_p != NULL) {
