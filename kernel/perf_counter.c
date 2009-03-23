@@ -1177,6 +1177,7 @@ static int perf_release(struct inode *inode, struct file *file)
 	mutex_unlock(&counter->mutex);
 	mutex_unlock(&ctx->mutex);
 
+	free_page(counter->user_page);
 	free_counter(counter);
 	put_context(ctx);
 
@@ -1346,12 +1347,87 @@ static long perf_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	return err;
 }
 
+void perf_counter_update_userpage(struct perf_counter *counter)
+{
+	struct perf_counter_mmap_page *userpg;
+
+	if (!counter->user_page)
+		return;
+	userpg = (struct perf_counter_mmap_page *) counter->user_page;
+
+	++userpg->lock;
+	smp_wmb();
+	userpg->index = counter->hw.idx;
+	userpg->offset = atomic64_read(&counter->count);
+	if (counter->state == PERF_COUNTER_STATE_ACTIVE)
+		userpg->offset -= atomic64_read(&counter->hw.prev_count);
+	smp_wmb();
+	++userpg->lock;
+}
+
+static int perf_mmap_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
+{
+	struct perf_counter *counter = vma->vm_file->private_data;
+
+	if (!counter->user_page)
+		return VM_FAULT_SIGBUS;
+
+	vmf->page = virt_to_page(counter->user_page);
+	get_page(vmf->page);
+	return 0;
+}
+
+static struct vm_operations_struct perf_mmap_vmops = {
+	.fault = perf_mmap_fault,
+};
+
+static int perf_mmap(struct file *file, struct vm_area_struct *vma)
+{
+	struct perf_counter *counter = file->private_data;
+	unsigned long userpg;
+
+	if (!(vma->vm_flags & VM_SHARED) || (vma->vm_flags & VM_WRITE))
+		return -EINVAL;
+	if (vma->vm_end - vma->vm_start != PAGE_SIZE)
+		return -EINVAL;
+
+	/*
+	 * For now, restrict to the case of a hardware counter
+	 * on the current task.
+	 */
+	if (is_software_counter(counter) || counter->task != current)
+		return -EINVAL;
+
+	userpg = counter->user_page;
+	if (!userpg) {
+		userpg = get_zeroed_page(GFP_KERNEL);
+		mutex_lock(&counter->mutex);
+		if (counter->user_page) {
+			free_page(userpg);
+			userpg = counter->user_page;
+		} else {
+			counter->user_page = userpg;
+		}
+		mutex_unlock(&counter->mutex);
+		if (!userpg)
+			return -ENOMEM;
+	}
+
+	perf_counter_update_userpage(counter);
+
+	vma->vm_flags &= ~VM_MAYWRITE;
+	vma->vm_flags |= VM_RESERVED;
+	vma->vm_ops = &perf_mmap_vmops;
+	return 0;
+}
+
 static const struct file_operations perf_fops = {
 	.release		= perf_release,
 	.read			= perf_read,
 	.poll			= perf_poll,
 	.unlocked_ioctl		= perf_ioctl,
 	.compat_ioctl		= perf_ioctl,
+	.mmap			= perf_mmap,
 };
 
 /*

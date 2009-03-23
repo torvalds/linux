@@ -143,6 +143,17 @@ struct perf_counter_hw_event {
 #define PERF_COUNTER_IOC_ENABLE		_IO('$', 0)
 #define PERF_COUNTER_IOC_DISABLE	_IO('$', 1)
 
+/*
+ * Structure of the page that can be mapped via mmap
+ */
+struct perf_counter_mmap_page {
+	__u32	version;		/* version number of this structure */
+	__u32	compat_version;		/* lowest version this is compat with */
+	__u32	lock;			/* seqlock for synchronization */
+	__u32	index;			/* hardware counter identifier */
+	__s64	offset;			/* add to hardware counter value */
+};
+
 #ifdef __KERNEL__
 /*
  * Kernel-internal data types and definitions:
@@ -278,6 +289,9 @@ struct perf_counter {
 	int				oncpu;
 	int				cpu;
 
+	/* pointer to page shared with userspace via mmap */
+	unsigned long			user_page;
+
 	/* read() / irq related data */
 	wait_queue_head_t		waitq;
 	/* optional: for NMIs */
@@ -361,6 +375,7 @@ extern int perf_counter_task_enable(void);
 extern int hw_perf_group_sched_in(struct perf_counter *group_leader,
 	       struct perf_cpu_context *cpuctx,
 	       struct perf_counter_context *ctx, int cpu);
+extern void perf_counter_update_userpage(struct perf_counter *counter);
 
 extern void perf_counter_output(struct perf_counter *counter,
 				int nmi, struct pt_regs *regs);
