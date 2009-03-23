@@ -55,24 +55,16 @@ static mfp_cfg_t colibri_pxa300_pin_config[] __initdata = {
  */
 static struct ax_plat_data colibri_asix_platdata = {
 	.flags		= AXFLG_MAC_FROMDEV,
-	.wordlength	= 2,
-	.dcr_val	= 0x01,
-	.rcr_val	= 0x0e,
-	.gpoc_val	= 0x19
+	.wordlength	= 2
 };
 
 static struct resource colibri_asix_resource[] = {
 	[0] = {
 		.start = PXA3xx_CS2_PHYS,
-		.end   = PXA3xx_CS2_PHYS + (0x18 * 0x2) - 1,
+		.end   = PXA3xx_CS2_PHYS + (0x20 * 2) - 1,
 		.flags = IORESOURCE_MEM,
 	},
 	[1] = {
-		.start = PXA3xx_CS2_PHYS + (1 << 11),
-		.end   = PXA3xx_CS2_PHYS + (1 << 11) + 0x3fff,
-		.flags = IORESOURCE_MEM,
-	},
-	[2] = {
 		.start = COLIBRI_PXA300_ETH_IRQ,
 		.end   = COLIBRI_PXA300_ETH_IRQ,
 		.flags = IORESOURCE_IRQ
