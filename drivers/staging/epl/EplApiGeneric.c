@@ -196,7 +196,7 @@ static tEplKernel EplApiCbLedStateChange(tEplLedType LedType_p, BOOL fOn_p);
 #endif
 
 // OD initialization function (implemented in Objdict.c)
-tEplKernel EplObdInitRam(tEplObdInitParam MEM *pInitParam_p);
+tEplKernel EplObdInitRam(tEplObdInitParam *pInitParam_p);
 
 //=========================================================================//
 //                                                                         //
@@ -558,7 +558,7 @@ tEplKernel EplApiLinkObject(unsigned int uiObjIndex_p,
 {
 	BYTE bVarEntries;
 	BYTE bIndexEntries;
-	BYTE MEM *pbData;
+	BYTE *pbData;
 	unsigned int uiSubindex;
 	tEplVarParam VarParam;
 	tEplObdSize EntrySize;
@@ -574,7 +574,7 @@ tEplKernel EplApiLinkObject(unsigned int uiObjIndex_p,
 		goto Exit;
 	}
 
-	pbData = (BYTE MEM *) pVar_p;
+	pbData = (BYTE *)pVar_p;
 	bVarEntries = (BYTE) * puiVarEntries_p;
 	UsedSize = 0;
 
@@ -962,7 +962,7 @@ tEplKernel EplApiMnTriggerStateChange(unsigned int uiNodeId_p,
 //
 //---------------------------------------------------------------------------
 
-tEplKernel EplApiCbObdAccess(tEplObdCbParam MEM *pParam_p)
+tEplKernel EplApiCbObdAccess(tEplObdCbParam *pParam_p)
 {
 	tEplKernel Ret = kEplSuccessful;
 

@@ -149,7 +149,7 @@
 // local function prototypes
 //---------------------------------------------------------------------------
 
-static tEplKernel EplPdouCheckPdoValidity(tEplObdCbParam MEM * pParam_p,
+static tEplKernel EplPdouCheckPdoValidity(tEplObdCbParam *pParam_p,
 					  unsigned int uiIndex_p);
 
 static void EplPdouDecodeObjectMapping(QWORD qwObjectMapping_p,
@@ -226,7 +226,7 @@ tEplKernel EplPdouDelInstance(void)
 //
 //---------------------------------------------------------------------------
 
-tEplKernel EplPdouCbObdAccess(tEplObdCbParam MEM *pParam_p)
+tEplKernel EplPdouCbObdAccess(tEplObdCbParam *pParam_p)
 {
 	tEplKernel Ret = kEplSuccessful;
 	unsigned int uiPdoId;
@@ -394,7 +394,7 @@ tEplKernel EplPdouCbObdAccess(tEplObdCbParam MEM *pParam_p)
 //
 //---------------------------------------------------------------------------
 
-static tEplKernel EplPdouCheckPdoValidity(tEplObdCbParam MEM * pParam_p,
+static tEplKernel EplPdouCheckPdoValidity(tEplObdCbParam *pParam_p,
 					  unsigned int uiIndex_p)
 {
 	tEplKernel Ret = kEplSuccessful;

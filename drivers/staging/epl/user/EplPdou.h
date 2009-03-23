@@ -89,7 +89,7 @@ tEplKernel EplPdouAddInstance(void);
 tEplKernel EplPdouDelInstance(void);
 
 #if (((EPL_MODULE_INTEGRATION) & (EPL_MODULE_PDOU)) != 0)
-tEplKernel EplPdouCbObdAccess(tEplObdCbParam MEM * pParam_p);
+tEplKernel EplPdouCbObdAccess(tEplObdCbParam *pParam_p);
 #else
 #define EplPdouCbObdAccess		NULL
 #endif

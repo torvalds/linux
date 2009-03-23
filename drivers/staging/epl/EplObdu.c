@@ -201,7 +201,7 @@ EPLDLLEXPORT tEplKernel EplObduAccessOdPart(tEplObdPart ObdPart_p,
 // State:
 //
 //---------------------------------------------------------------------------
-EPLDLLEXPORT tEplKernel EplObduDefineVar(tEplVarParam MEM *pVarParam_p)
+EPLDLLEXPORT tEplKernel EplObduDefineVar(tEplVarParam *pVarParam_p)
 {
 	tEplKernel Ret;
 
@@ -274,7 +274,7 @@ EPLDLLEXPORT tEplKernel EplObduRegisterUserOd(tEplObdEntryPtr pUserOd_p)
 // State:
 //
 //---------------------------------------------------------------------------
-EPLDLLEXPORT void EplObduInitVarEntry(tEplObdVarEntry MEM *pVarEntry_p,
+EPLDLLEXPORT void EplObduInitVarEntry(tEplObdVarEntry *pVarEntry_p,
 				      BYTE bType_p, tEplObdSize ObdSize_p)
 {
 	EplObduCalInitVarEntry(pVarEntry_p, bType_p, ObdSize_p);
@@ -473,7 +473,7 @@ EPLDLLEXPORT tEplKernel EplObduWriteEntryFromLe(unsigned int uiIndex_p,
 //---------------------------------------------------------------------------
 EPLDLLEXPORT tEplKernel EplObduSearchVarEntry(EPL_MCO_DECL_INSTANCE_PTR_ unsigned int uiIndex_p,
 					      unsigned int uiSubindex_p,
-					      tEplObdVarEntry MEM **ppVarEntry_p)
+					      tEplObdVarEntry **ppVarEntry_p)
 {
 	tEplKernel Ret;
 

@@ -27,12 +27,6 @@
 #define QWORD long long int
 #endif
 
-    // ------------------ GNUC for I386 ---------------------------------------------
-
-#define HWACC			// hardware access through external memory (i.e. CAN)
-
-#define MEM			// Memory attribute to optimize speed and code of pointer access.
-
 #ifndef CONST
 #define CONST const		// variables mapped to ROM (i.e. flash)
 #endif

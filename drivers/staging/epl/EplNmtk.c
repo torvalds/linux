@@ -107,12 +107,12 @@ void TgtDbgPostTraceValue(DWORD dwTraceValue_p);
 // struct for instance table
 INSTANCE_TYPE_BEGIN EPL_MCO_DECL_INSTANCE_MEMBER()
 
-STATIC volatile tEplNmtState INST_FAR m_NmtState;
-STATIC volatile BOOL INST_FAR m_fEnableReadyToOperate;
-STATIC volatile BOOL INST_FAR m_fAppReadyToOperate;
-STATIC volatile BOOL INST_FAR m_fTimerMsPreOp2;
-STATIC volatile BOOL INST_FAR m_fAllMandatoryCNIdent;
-STATIC volatile BOOL INST_FAR m_fFrozen;
+STATIC volatile tEplNmtState m_NmtState;
+STATIC volatile BOOL m_fEnableReadyToOperate;
+STATIC volatile BOOL m_fAppReadyToOperate;
+STATIC volatile BOOL m_fTimerMsPreOp2;
+STATIC volatile BOOL m_fAllMandatoryCNIdent;
+STATIC volatile BOOL m_fFrozen;
 
 INSTANCE_TYPE_END
 //---------------------------------------------------------------------------
@@ -121,7 +121,7 @@ INSTANCE_TYPE_END
 // This macro replace the unspecific pointer to an instance through
 // the modul specific type for the local instance table. This macro
 // must defined in each modul.
-//#define tEplPtrInstance             tEplInstanceInfo MEM*
+//#define tEplPtrInstance             tEplInstanceInfo*
 EPL_MCO_DECL_INSTANCE_VAR()
 //---------------------------------------------------------------------------
 // local function prototypes

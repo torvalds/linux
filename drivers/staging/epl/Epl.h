@@ -244,7 +244,7 @@ tEplKernel EplApiWriteLocalObject(unsigned int uiIndex_p,
 				  void *pSrcData_p,
 				  unsigned int uiSize_p);
 
-tEplKernel EplApiCbObdAccess(tEplObdCbParam MEM *pParam_p);
+tEplKernel EplApiCbObdAccess(tEplObdCbParam *pParam_p);
 
 tEplKernel EplApiLinkObject(unsigned int uiObjIndex_p,
 			    void *pVar_p,

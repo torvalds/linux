@@ -107,7 +107,7 @@ EPLDLLEXPORT tEplKernel EplObduAccessOdPart(tEplObdPart ObdPart_p,
 					    tEplObdDir Direction_p);
 
 // ---------------------------------------------------------------------
-EPLDLLEXPORT tEplKernel EplObduDefineVar(tEplVarParam MEM * pVarParam_p);
+EPLDLLEXPORT tEplKernel EplObduDefineVar(tEplVarParam *pVarParam_p);
 
 // ---------------------------------------------------------------------
 EPLDLLEXPORT void *EplObduGetObjectDataPtr(unsigned int uiIndex_p,
@@ -116,7 +116,7 @@ EPLDLLEXPORT void *EplObduGetObjectDataPtr(unsigned int uiIndex_p,
 EPLDLLEXPORT tEplKernel EplObduRegisterUserOd(tEplObdEntryPtr pUserOd_p);
 
 // ---------------------------------------------------------------------
-EPLDLLEXPORT void EplObduInitVarEntry(tEplObdVarEntry MEM * pVarEntry_p,
+EPLDLLEXPORT void EplObduInitVarEntry(tEplObdVarEntry *pVarEntry_p,
 				      BYTE bType_p, tEplObdSize ObdSize_p);
 
 // ---------------------------------------------------------------------
@@ -148,7 +148,7 @@ EPLDLLEXPORT tEplKernel EplObduWriteEntryFromLe(unsigned int uiIndex_p,
 EPLDLLEXPORT tEplKernel EplObduSearchVarEntry(EPL_MCO_DECL_INSTANCE_PTR_
 					      unsigned int uiIndex_p,
 					      unsigned int uiSubindex_p,
-					      tEplObdVarEntry MEM **ppVarEntry_p);
+					      tEplObdVarEntry **ppVarEntry_p);
 
 #elif EPL_OBD_USE_KERNEL != FALSE
 #include "../kernel/EplObdk.h"

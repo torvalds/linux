@@ -188,7 +188,7 @@ module_param_named(cyclelen, uiCycleLen_g, uint, 0);
 // this function prototype here. If you want to use more than one Epl
 // instances then the function name of each object dictionary has to differ.
 
-tEplKernel EplObdInitRam(tEplObdInitParam MEM * pInitParam_p);
+tEplKernel EplObdInitRam(tEplObdInitParam *pInitParam_p);
 
 tEplKernel AppCbEvent(tEplApiEventType EventType_p,	// IN: event type (enum)
 		      tEplApiEventArg *pEventArg_p,	// IN: event argument (union)

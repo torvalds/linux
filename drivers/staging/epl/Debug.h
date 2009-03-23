@@ -634,13 +634,13 @@
 extern "C" {
 #endif
 
-	void DumpData(char *szStr_p, BYTE MEM * pbData_p, WORD wSize_p);
+	void DumpData(char *szStr_p, BYTE *pbData_p, WORD wSize_p);
 
 #ifdef __cplusplus
 }				// von extern "C"
 #endif
 #define DEBUG_DUMP_DATA(lvl,str,ptr,siz)    if ((DEBUG_GLB_LVL() & (lvl))==(lvl)) \
-                                                    DumpData (str, (BYTE MEM*) (ptr), (WORD) (siz));
+                                                    DumpData (str, (BYTE *)(ptr), (WORD)(siz));
 #else
 
 #define DEBUG_DUMP_DATA(lvl,str,ptr,siz)

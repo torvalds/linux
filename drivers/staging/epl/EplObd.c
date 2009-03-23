@@ -101,7 +101,7 @@
 // struct for instance table
 INSTANCE_TYPE_BEGIN EPL_MCO_DECL_INSTANCE_MEMBER()
 
-STATIC tEplObdInitParam INST_FAR m_ObdInitParam;
+STATIC tEplObdInitParam m_ObdInitParam;
 STATIC tEplObdStoreLoadObjCallback m_fpStoreLoadObjCallback;
 
 INSTANCE_TYPE_END
@@ -119,11 +119,11 @@ typedef union {
 // This macro replace the unspecific pointer to an instance through
 // the modul specific type for the local instance table. This macro
 // must defined in each modul.
-//#define tEplPtrInstance             tEplInstanceInfo MEM*
+//#define tEplPtrInstance             tEplInstanceInfo *
 
 EPL_MCO_DECL_INSTANCE_VAR()
 
-BYTE MEM abEplObdTrashObject_g[8];
+BYTE abEplObdTrashObject_g[8];
 
 //---------------------------------------------------------------------------
 // local function prototypes
@@ -133,7 +133,7 @@ EPL_MCO_DEFINE_INSTANCE_FCT()
 
 static tEplKernel EplObdCallObjectCallback(EPL_MCO_DECL_INSTANCE_PTR_
 					   tEplObdCallback fpCallback_p,
-					   tEplObdCbParam MEM * pCbParam_p);
+					   tEplObdCbParam *pCbParam_p);
 
 static tEplObdSize EplObdGetDataSizeIntern(tEplObdSubEntryPtr pSubIndexEntry_p);
 
@@ -146,7 +146,7 @@ static tEplKernel EplObdCheckObjectRange(tEplObdSubEntryPtr pSubindexEntry_p,
 #endif
 
 static tEplKernel EplObdGetVarEntry(tEplObdSubEntryPtr pSubindexEntry_p,
-				    tEplObdVarEntry MEM ** ppVarEntry_p);
+				    tEplObdVarEntry **ppVarEntry_p);
 
 static tEplKernel EplObdGetEntry(EPL_MCO_DECL_INSTANCE_PTR_
 				 unsigned int uiIndex_p,
@@ -156,7 +156,7 @@ static tEplKernel EplObdGetEntry(EPL_MCO_DECL_INSTANCE_PTR_
 
 static tEplObdSize EplObdGetObjectSize(tEplObdSubEntryPtr pSubIndexEntry_p);
 
-static tEplKernel EplObdGetIndexIntern(tEplObdInitParam MEM * pInitParam_p,
+static tEplKernel EplObdGetIndexIntern(tEplObdInitParam *pInitParam_p,
 				       unsigned int uiIndex_p,
 				       tEplObdEntryPtr * ppObdEntry_p);
 
@@ -170,17 +170,15 @@ static tEplKernel EplObdAccessOdPartIntern(EPL_MCO_DECL_INSTANCE_PTR_
 					   tEplObdDir Direction_p);
 
 static void *EplObdGetObjectDefaultPtr(tEplObdSubEntryPtr pSubIndexEntry_p);
-static void MEM *EplObdGetObjectCurrentPtr(tEplObdSubEntryPtr pSubIndexEntry_p);
+static void *EplObdGetObjectCurrentPtr(tEplObdSubEntryPtr pSubIndexEntry_p);
 
 #if (EPL_OBD_USE_STORE_RESTORE != FALSE)
 
-static tEplKernel EplObdCallStoreCallback(EPL_MCO_DECL_INSTANCE_PTR_
-					  tEplObdCbStoreParam MEM *
-					  pCbStoreParam_p);
+static tEplKernel EplObdCallStoreCallback(EPL_MCO_DECL_INSTANCE_PTR_ tEplObdCbStoreParam *pCbStoreParam_p);
 
 #endif // (EPL_OBD_USE_STORE_RESTORE != FALSE)
 
-static void EplObdCopyObjectData(void MEM * pDstData_p,
+static void EplObdCopyObjectData(void *pDstData_p,
 				 void *pSrcData_p,
 				 tEplObdSize ObjSize_p, tEplObdType ObjType_p);
 
@@ -196,12 +194,12 @@ static tEplKernel EplObdWriteEntryPre(EPL_MCO_DECL_INSTANCE_PTR_ unsigned int ui
 				      tEplObdSize Size_p,
 				      tEplObdEntryPtr *ppObdEntry_p,
 				      tEplObdSubEntryPtr *ppSubEntry_p,
-				      tEplObdCbParam MEM *pCbParam_p,
+				      tEplObdCbParam *pCbParam_p,
 				      tEplObdSize *pObdSize_p);
 
 static tEplKernel EplObdWriteEntryPost(EPL_MCO_DECL_INSTANCE_PTR_ tEplObdEntryPtr pObdEntry_p,
 				       tEplObdSubEntryPtr pSubEntry_p,
-				       tEplObdCbParam MEM *pCbParam_p,
+				       tEplObdCbParam *pCbParam_p,
 				       void *pSrcData_p,
 				       void *pDstData_p,
 				       tEplObdSize ObdSize_p);
@@ -226,7 +224,7 @@ static tEplKernel EplObdWriteEntryPost(EPL_MCO_DECL_INSTANCE_PTR_ tEplObdEntryPt
 //
 //---------------------------------------------------------------------------
 
-EPLDLLEXPORT tEplKernel EplObdInit(EPL_MCO_DECL_PTR_INSTANCE_PTR_ tEplObdInitParam MEM *pInitParam_p)
+EPLDLLEXPORT tEplKernel EplObdInit(EPL_MCO_DECL_PTR_INSTANCE_PTR_ tEplObdInitParam *pInitParam_p)
 {
 
 	tEplKernel Ret;
@@ -258,7 +256,7 @@ EPLDLLEXPORT tEplKernel EplObdInit(EPL_MCO_DECL_PTR_INSTANCE_PTR_ tEplObdInitPar
 //
 //---------------------------------------------------------------------------
 
-EPLDLLEXPORT tEplKernel EplObdAddInstance(EPL_MCO_DECL_PTR_INSTANCE_PTR_ tEplObdInitParam MEM *pInitParam_p)
+EPLDLLEXPORT tEplKernel EplObdAddInstance(EPL_MCO_DECL_PTR_INSTANCE_PTR_ tEplObdInitParam *pInitParam_p)
 {
 
 	EPL_MCO_DECL_INSTANCE_PTR_LOCAL tEplKernel Ret;
@@ -345,8 +343,8 @@ EPLDLLEXPORT tEplKernel EplObdWriteEntry(EPL_MCO_DECL_INSTANCE_PTR_ unsigned int
 	tEplKernel Ret;
 	tEplObdEntryPtr pObdEntry;
 	tEplObdSubEntryPtr pSubEntry;
-	tEplObdCbParam MEM CbParam;
-	void MEM *pDstData;
+	tEplObdCbParam CbParam;
+	void *pDstData;
 	tEplObdSize ObdSize;
 
 	Ret = EplObdWriteEntryPre(EPL_MCO_INSTANCE_PTR_
@@ -405,7 +403,7 @@ EPLDLLEXPORT tEplKernel EplObdReadEntry(EPL_MCO_DECL_INSTANCE_PTR_ unsigned int 
 	tEplKernel Ret;
 	tEplObdEntryPtr pObdEntry;
 	tEplObdSubEntryPtr pSubEntry;
-	tEplObdCbParam MEM CbParam;
+	tEplObdCbParam CbParam;
 	void *pSrcData;
 	tEplObdSize ObdSize;
 
@@ -579,11 +577,11 @@ EPLDLLEXPORT tEplKernel EplObdAccessOdPart(EPL_MCO_DECL_INSTANCE_PTR_ tEplObdPar
 //
 //---------------------------------------------------------------------------
 
-EPLDLLEXPORT tEplKernel EplObdDefineVar(EPL_MCO_DECL_INSTANCE_PTR_ tEplVarParam MEM *pVarParam_p)
+EPLDLLEXPORT tEplKernel EplObdDefineVar(EPL_MCO_DECL_INSTANCE_PTR_ tEplVarParam *pVarParam_p)
 {
 
 	tEplKernel Ret;
-	tEplObdVarEntry MEM *pVarEntry;
+	tEplObdVarEntry *pVarEntry;
 	tEplVarParamValid VarValid;
 	tEplObdSubEntryPtr pSubindexEntry;
 
@@ -738,7 +736,7 @@ EPLDLLEXPORT tEplKernel EplObdRegisterUserOd(EPL_MCO_DECL_INSTANCE_PTR_ tEplObdE
 //
 //---------------------------------------------------------------------------
 
-EPLDLLEXPORT void EplObdInitVarEntry(EPL_MCO_DECL_INSTANCE_PTR_ tEplObdVarEntry MEM *pVarEntry_p,
+EPLDLLEXPORT void EplObdInitVarEntry(EPL_MCO_DECL_INSTANCE_PTR_ tEplObdVarEntry *pVarEntry_p,
 				     tEplObdType Type_p, tEplObdSize ObdSize_p)
 {
 /*
@@ -1010,7 +1008,7 @@ EPLDLLEXPORT tEplKernel EplObdReadEntryToLe(EPL_MCO_DECL_INSTANCE_PTR_ unsigned 
 	tEplKernel Ret;
 	tEplObdEntryPtr pObdEntry;
 	tEplObdSubEntryPtr pSubEntry;
-	tEplObdCbParam MEM CbParam;
+	tEplObdCbParam CbParam;
 	void *pSrcData;
 	tEplObdSize ObdSize;
 
@@ -1190,8 +1188,8 @@ EPLDLLEXPORT tEplKernel EplObdWriteEntryFromLe(EPL_MCO_DECL_INSTANCE_PTR_ unsign
 	tEplKernel Ret;
 	tEplObdEntryPtr pObdEntry;
 	tEplObdSubEntryPtr pSubEntry;
-	tEplObdCbParam MEM CbParam;
-	void MEM *pDstData;
+	tEplObdCbParam CbParam;
+	void *pDstData;
 	tEplObdSize ObdSize;
 	QWORD qwBuffer;
 	void *pBuffer = &qwBuffer;
@@ -1371,7 +1369,7 @@ EPLDLLEXPORT tEplKernel EplObdGetAccessType(EPL_MCO_DECL_INSTANCE_PTR_ unsigned 
 
 tEplKernel EplObdSearchVarEntry(EPL_MCO_DECL_INSTANCE_PTR_ unsigned int uiIndex_p,
 				unsigned int uiSubindex_p,
-				tEplObdVarEntry MEM **ppVarEntry_p)
+				tEplObdVarEntry **ppVarEntry_p)
 {
 
 	tEplKernel Ret;
@@ -1415,11 +1413,11 @@ EPL_MCO_DECL_INSTANCE_FCT()
 //---------------------------------------------------------------------------
 static tEplKernel EplObdCallObjectCallback(EPL_MCO_DECL_INSTANCE_PTR_
 					   tEplObdCallback fpCallback_p,
-					   tEplObdCbParam MEM * pCbParam_p)
+					   tEplObdCbParam *pCbParam_p)
 {
 
 	tEplKernel Ret;
-	tEplObdCallback MEM fpCallback;
+	tEplObdCallback fpCallback;
 
 	// check for all API function if instance is valid
 	EPL_MCO_CHECK_INSTANCE_STATE();
@@ -1461,7 +1459,7 @@ static tEplObdSize EplObdGetDataSizeIntern(tEplObdSubEntryPtr pSubIndexEntry_p)
 {
 
 	tEplObdSize DataSize;
-	void MEM *pData;
+	void *pData;
 
 	// If OD entry is defined by macro EPL_OBD_SUBINDEX_ROM_VSTRING
 	// then the current pointer is always NULL. The function
@@ -1470,8 +1468,7 @@ static tEplObdSize EplObdGetDataSizeIntern(tEplObdSubEntryPtr pSubIndexEntry_p)
 
 	if (pSubIndexEntry_p->m_Type == kEplObdTypVString) {
 		// The pointer to current value can be received from EplObdGetObjectCurrentPtr()
-		pData =
-		    ((void MEM *)EplObdGetObjectCurrentPtr(pSubIndexEntry_p));
+		pData = ((void *)EplObdGetObjectCurrentPtr(pSubIndexEntry_p));
 		if (pData != NULL) {
 			DataSize =
 			    EplObdGetStrLen((void *)pData, DataSize,
@@ -1857,7 +1854,7 @@ static tEplKernel EplObdWriteEntryPre(EPL_MCO_DECL_INSTANCE_PTR_ unsigned int ui
 				      tEplObdSize Size_p,
 				      tEplObdEntryPtr *ppObdEntry_p,
 				      tEplObdSubEntryPtr *ppSubEntry_p,
-				      tEplObdCbParam MEM *pCbParam_p,
+				      tEplObdCbParam *pCbParam_p,
 				      tEplObdSize *pObdSize_p)
 {
 
@@ -1865,13 +1862,13 @@ static tEplKernel EplObdWriteEntryPre(EPL_MCO_DECL_INSTANCE_PTR_ unsigned int ui
 	tEplObdEntryPtr pObdEntry;
 	tEplObdSubEntryPtr pSubEntry;
 	tEplObdAccess Access;
-	void MEM *pDstData;
+	void *pDstData;
 	tEplObdSize ObdSize;
 	BOOL fEntryNumerical;
 
 #if (EPL_OBD_USE_STRING_DOMAIN_IN_RAM != FALSE)
-	tEplObdVStringDomain MEM MemVStringDomain;
-	void MEM *pCurrData;
+	tEplObdVStringDomain MemVStringDomain;
+	void *pCurrData;
 #endif
 
 	// check for all API function if instance is valid
@@ -1887,7 +1884,7 @@ static tEplKernel EplObdWriteEntryPre(EPL_MCO_DECL_INSTANCE_PTR_ unsigned int ui
 		goto Exit;
 	}
 	// get pointer to object data
-	pDstData = (void MEM *)EplObdGetObjectDataPtrIntern(pSubEntry);
+	pDstData = (void *)EplObdGetObjectDataPtrIntern(pSubEntry);
 
 	Access = (tEplObdAccess) pSubEntry->m_Access;
 
@@ -1912,7 +1909,7 @@ static tEplKernel EplObdWriteEntryPre(EPL_MCO_DECL_INSTANCE_PTR_ unsigned int ui
 	// adapted by user callback function, re-read
 	// this values.
 	ObdSize = EplObdGetObjectSize(pSubEntry);
-	pDstData = (void MEM *)EplObdGetObjectDataPtrIntern(pSubEntry);
+	pDstData = (void *)EplObdGetObjectDataPtrIntern(pSubEntry);
 
 	// 09-dec-2004 r.d.:
 	//      Function EplObdWriteEntry() calls new event kEplObdEvWrStringDomain
@@ -1946,23 +1943,19 @@ static tEplKernel EplObdWriteEntryPre(EPL_MCO_DECL_INSTANCE_PTR_ unsigned int ui
 		pCurrData = pSubEntry->m_pCurrent;
 		if ((pSubEntry->m_Type == kEplObdTypVString)
 		    || (pSubEntry->m_Type == kEplObdTypOString)) {
-			((tEplObdVString MEM *) pCurrData)->m_Size =
-			    MemVStringDomain.m_ObjSize;
-			((tEplObdVString MEM *) pCurrData)->m_pString =
-			    MemVStringDomain.m_pData;
+			((tEplObdVString *)pCurrData)->m_Size = MemVStringDomain.m_ObjSize;
+			((tEplObdVString *)pCurrData)->m_pString = MemVStringDomain.m_pData;
 		} else		// if (pSdosTableEntry_p->m_bObjType == kEplObdTypDomain)
 		{
-			((tEplObdVarEntry MEM *) pCurrData)->m_Size =
-			    MemVStringDomain.m_ObjSize;
-			((tEplObdVarEntry MEM *) pCurrData)->m_pData =
-			    (void MEM *)MemVStringDomain.m_pData;
+			((tEplObdVarEntry *)pCurrData)->m_Size = MemVStringDomain.m_ObjSize;
+			((tEplObdVarEntry *)pCurrData)->m_pData = (void *)MemVStringDomain.m_pData;
 		}
 
 		// Because object size and object pointer are
 		// adapted by user callback function, re-read
 		// this values.
 		ObdSize = MemVStringDomain.m_ObjSize;
-		pDstData = (void MEM *)MemVStringDomain.m_pData;
+		pDstData = (void *)MemVStringDomain.m_pData;
 	}
 #endif //#if (OBD_USE_STRING_DOMAIN_IN_RAM != FALSE)
 
@@ -1983,7 +1976,7 @@ static tEplKernel EplObdWriteEntryPre(EPL_MCO_DECL_INSTANCE_PTR_ unsigned int ui
 	}
 
 	if (pSubEntry->m_Type == kEplObdTypVString) {
-		if (((char MEM *)pSrcData_p)[Size_p - 1] == '\0') {	// last byte of source string contains null character
+		if (((char *)pSrcData_p)[Size_p - 1] == '\0') {	// last byte of source string contains null character
 
 			// reserve one byte in destination for 0-termination
 			Size_p -= 1;
@@ -2045,7 +2038,7 @@ static tEplKernel EplObdWriteEntryPre(EPL_MCO_DECL_INSTANCE_PTR_ unsigned int ui
 
 static tEplKernel EplObdWriteEntryPost(EPL_MCO_DECL_INSTANCE_PTR_ tEplObdEntryPtr pObdEntry_p,
 				       tEplObdSubEntryPtr pSubEntry_p,
-				       tEplObdCbParam MEM *pCbParam_p,
+				       tEplObdCbParam *pCbParam_p,
 				       void *pSrcData_p,
 				       void *pDstData_p,
 				       tEplObdSize ObdSize_p)
@@ -2081,7 +2074,7 @@ static tEplKernel EplObdWriteEntryPost(EPL_MCO_DECL_INSTANCE_PTR_ tEplObdEntryPt
 
 	// terminate string with 0
 	if (pSubEntry_p->m_Type == kEplObdTypVString) {
-		((char MEM *)pDstData_p)[ObdSize_p] = '\0';
+		((char *)pDstData_p)[ObdSize_p] = '\0';
 	}
 	// write address of destination to structure of callback parameters
 	// so callback function can change data subsequently
@@ -2170,8 +2163,8 @@ static tEplObdSize EplObdGetObjectSize(tEplObdSubEntryPtr pSubIndexEntry_p)
 	case kEplObdTypDomain:
 
 		pData = (void *)pSubIndexEntry_p->m_pCurrent;
-		if ((void MEM *)pData != (void MEM *)NULL) {
-			DataSize = ((tEplObdVarEntry MEM *) pData)->m_Size;
+		if ((void *)pData != (void *)NULL) {
+			DataSize = ((tEplObdVarEntry *) pData)->m_Size;
 		}
 		break;
 
@@ -2183,11 +2176,11 @@ static tEplObdSize EplObdGetObjectSize(tEplObdSubEntryPtr pSubIndexEntry_p)
 		// then the current pointer is always NULL. The function
 		// returns the length of default string.
 		pData = (void *)pSubIndexEntry_p->m_pCurrent;
-		if ((void MEM *)pData != (void MEM *)NULL) {
+		if ((void *)pData != (void *)NULL) {
 			// The max. size of strings defined by STRING-Macro is stored in
 			// tEplObdVString of current value.
 			// (types tEplObdVString, tEplObdOString and tEplObdUString has the same members)
-			DataSize = ((tEplObdVString MEM *) pData)->m_Size;
+			DataSize = ((tEplObdVString *) pData)->m_Size;
 		} else {
 			// The current position is not decleared. The string
 			// is located in ROM, therefor use default pointer.
@@ -2207,11 +2200,11 @@ static tEplObdSize EplObdGetObjectSize(tEplObdSubEntryPtr pSubIndexEntry_p)
 	case kEplObdTypOString:
 
 		pData = (void *)pSubIndexEntry_p->m_pCurrent;
-		if ((void MEM *)pData != (void MEM *)NULL) {
+		if ((void *)pData != (void *)NULL) {
 			// The max. size of strings defined by STRING-Macro is stored in
 			// tEplObdVString of current value.
 			// (types tEplObdVString, tEplObdOString and tEplObdUString has the same members)
-			DataSize = ((tEplObdOString MEM *) pData)->m_Size;
+			DataSize = ((tEplObdOString *) pData)->m_Size;
 		} else {
 			// The current position is not decleared. The string
 			// is located in ROM, therefor use default pointer.
@@ -2344,7 +2337,7 @@ static void *EplObdGetObjectDefaultPtr(tEplObdSubEntryPtr pSubIndexEntry_p)
 //---------------------------------------------------------------------------
 
 static tEplKernel EplObdGetVarEntry(tEplObdSubEntryPtr pSubindexEntry_p,
-				    tEplObdVarEntry MEM ** ppVarEntry_p)
+				    tEplObdVarEntry **ppVarEntry_p)
 {
 
 	tEplKernel Ret = kEplObdVarEntryNotExist;
@@ -2356,13 +2349,9 @@ static tEplKernel EplObdGetVarEntry(tEplObdSubEntryPtr pSubindexEntry_p,
 	if ((pSubindexEntry_p->m_Access & kEplObdAccVar) != 0) {
 		// check if object is an array
 		if ((pSubindexEntry_p->m_Access & kEplObdAccArray) != 0) {
-			*ppVarEntry_p =
-			    &((tEplObdVarEntry MEM *) pSubindexEntry_p->
-			      m_pCurrent)[pSubindexEntry_p->m_uiSubIndex - 1];
+			*ppVarEntry_p = &((tEplObdVarEntry *)pSubindexEntry_p->m_pCurrent)[pSubindexEntry_p->m_uiSubIndex - 1];
 		} else {
-			*ppVarEntry_p =
-			    (tEplObdVarEntry MEM *) pSubindexEntry_p->
-			    m_pCurrent;
+			*ppVarEntry_p = (tEplObdVarEntry *)pSubindexEntry_p->m_pCurrent;
 		}
 
 		Ret = kEplSuccessful;
@@ -2398,7 +2387,7 @@ static tEplKernel EplObdGetEntry(EPL_MCO_DECL_INSTANCE_PTR_
 {
 
 	tEplObdEntryPtr pObdEntry;
-	tEplObdCbParam MEM CbParam;
+	tEplObdCbParam CbParam;
 	tEplKernel Ret;
 
 	// check for all API function if instance is valid
@@ -2452,16 +2441,16 @@ static tEplKernel EplObdGetEntry(EPL_MCO_DECL_INSTANCE_PTR_
 //
 // Parameters:  pSubIndexEntry_p
 //
-// Return:      void MEM*
+// Return:      void *
 //
 // State:
 //
 //---------------------------------------------------------------------------
 
-static void MEM *EplObdGetObjectCurrentPtr(tEplObdSubEntryPtr pSubIndexEntry_p)
+static void *EplObdGetObjectCurrentPtr(tEplObdSubEntryPtr pSubIndexEntry_p)
 {
 
-	void MEM *pData;
+	void *pData;
 	unsigned int uiArrayIndex;
 	tEplObdSize Size;
 
@@ -2478,24 +2467,21 @@ static void MEM *EplObdGetObjectCurrentPtr(tEplObdSubEntryPtr pSubIndexEntry_p)
 			} else {
 				Size = EplObdGetObjectSize(pSubIndexEntry_p);
 			}
-			pData = ((BYTE MEM *) pData) + (Size * uiArrayIndex);
+			pData = ((BYTE *) pData) + (Size * uiArrayIndex);
 		}
 		// check if VarEntry
 		if ((pSubIndexEntry_p->m_Access & kEplObdAccVar) != 0) {
 			// The data pointer is stored in VarEntry->pData
-			pData = ((tEplObdVarEntry MEM *) pData)->m_pData;
+			pData = ((tEplObdVarEntry *) pData)->m_pData;
 		}
 		// the default pointer is stored for strings in tEplObdVString
 		else if ((pSubIndexEntry_p->m_Type == kEplObdTypVString)	/* ||
 										   (pSubIndexEntry_p->m_Type == kEplObdTypUString)    */
 			 ) {
-			pData =
-			    (void MEM *)((tEplObdVString MEM *) pData)->
-			    m_pString;
+			pData = (void *)((tEplObdVString *)pData)->m_pString;
 		} else if (pSubIndexEntry_p->m_Type == kEplObdTypOString) {
 			pData =
-			    (void MEM *)((tEplObdOString MEM *) pData)->
-			    m_pString;
+			    (void *)((tEplObdOString *)pData)->m_pString;
 		}
 	}
 
@@ -2519,7 +2505,7 @@ static void MEM *EplObdGetObjectCurrentPtr(tEplObdSubEntryPtr pSubIndexEntry_p)
 //
 //---------------------------------------------------------------------------
 
-static tEplKernel EplObdGetIndexIntern(tEplObdInitParam MEM * pInitParam_p,
+static tEplKernel EplObdGetIndexIntern(tEplObdInitParam *pInitParam_p,
 				       unsigned int uiIndex_p,
 				       tEplObdEntryPtr * ppObdEntry_p)
 {
@@ -2778,12 +2764,12 @@ static tEplKernel EplObdAccessOdPartIntern(EPL_MCO_DECL_INSTANCE_PTR_
 	tEplObdSubEntryPtr pSubIndex;
 	unsigned int nSubIndexCount;
 	tEplObdAccess Access;
-	void MEM *pDstData;
+	void *pDstData;
 	void *pDefault;
 	tEplObdSize ObjSize;
 	tEplKernel Ret;
-	tEplObdCbStoreParam MEM CbStore;
-	tEplObdVarEntry MEM *pVarEntry;
+	tEplObdCbStoreParam CbStore;
+	tEplObdVarEntry *pVarEntry;
 
 	ASSERT(pObdEnty_p != NULL);
 
@@ -2866,7 +2852,7 @@ static tEplKernel EplObdAccessOdPartIntern(EPL_MCO_DECL_INSTANCE_PTR_
                             }
                             else
                             {
-                                EplObdInitVarEntry ((tEplObdVarEntry MEM*) (((BYTE MEM*) pSubIndex->m_pCurrent) + (sizeof (tEplObdVarEntry) * pSubIndex->m_uiSubIndex)),
+                                EplObdInitVarEntry ((tEplObdVarEntry *) (((BYTE *) pSubIndex->m_pCurrent) + (sizeof (tEplObdVarEntry) * pSubIndex->m_uiSubIndex)),
                                     pSubIndex->m_Type, ObjSize);
                             }
 */
@@ -2893,11 +2879,11 @@ static tEplKernel EplObdAccessOdPartIntern(EPL_MCO_DECL_INSTANCE_PTR_
 
 							// For copying data we have to set the destination pointer to the real RAM string. This
 							// pointer to RAM string is located in default string info structure. (translated r.d.)
-							pDstData = (void MEM *)((tEplObdVStringDef*) pSubIndex->m_pDefault)->m_pString;
+							pDstData = (void *)((tEplObdVStringDef*) pSubIndex->m_pDefault)->m_pString;
 							ObjSize = ((tEplObdVStringDef *)pSubIndex->m_pDefault)->m_Size;
 
-							((tEplObdVString MEM *)pSubIndex->m_pCurrent)->m_pString = pDstData;
-							((tEplObdVString MEM *)pSubIndex->m_pCurrent)->m_Size = ObjSize;
+							((tEplObdVString *)pSubIndex->m_pCurrent)->m_pString = pDstData;
+							((tEplObdVString *)pSubIndex->m_pCurrent)->m_Size = ObjSize;
 						}
 
 					} else if (pSubIndex->m_Type ==
@@ -2912,11 +2898,11 @@ static tEplKernel EplObdAccessOdPartIntern(EPL_MCO_DECL_INSTANCE_PTR_
 
 							// For copying data we have to set the destination pointer to the real RAM string. This
 							// pointer to RAM string is located in default string info structure. (translated r.d.)
-							pDstData = (void MEM *)((tEplObdOStringDef *) pSubIndex->m_pDefault)->m_pString;
+							pDstData = (void *)((tEplObdOStringDef *) pSubIndex->m_pDefault)->m_pString;
 							ObjSize = ((tEplObdOStringDef *)pSubIndex->m_pDefault)->m_Size;
 
-							((tEplObdOString MEM *)pSubIndex->m_pCurrent)->m_pString = pDstData;
-							((tEplObdOString MEM *)pSubIndex->m_pCurrent)->m_Size = ObjSize;
+							((tEplObdOString *)pSubIndex->m_pCurrent)->m_pString = pDstData;
+							((tEplObdOString *)pSubIndex->m_pCurrent)->m_Size = ObjSize;
 						}
 
 					}
@@ -3056,7 +3042,7 @@ static tEplKernel EplObdAccessOdPartIntern(EPL_MCO_DECL_INSTANCE_PTR_
 // Returns:     tEplKernel              = error code
 // ----------------------------------------------------------------------------
 
-static void EplObdCopyObjectData(void MEM * pDstData_p,
+static void EplObdCopyObjectData(void *pDstData_p,
 				 void *pSrcData_p,
 				 tEplObdSize ObjSize_p, tEplObdType ObjType_p)
 {
@@ -3087,7 +3073,7 @@ static void EplObdCopyObjectData(void MEM * pDstData_p,
 			EPL_MEMCPY(pDstData_p, pSrcData_p, ObjSize_p);
 
 			if (ObjType_p == kEplObdTypVString) {
-				((char MEM *)pDstData_p)[StrSize] = '\0';
+				((char *)pDstData_p)[StrSize] = '\0';
 			}
 		}
 	}
@@ -3148,7 +3134,7 @@ static tEplKernel EplObdIsNumericalIntern(tEplObdSubEntryPtr pObdSubEntry_p,
 // ----------------------------------------------------------------------------
 #if (EPL_OBD_USE_STORE_RESTORE != FALSE)
 static tEplKernel EplObdCallStoreCallback(EPL_MCO_DECL_INSTANCE_PTR_
-					  tEplObdCbStoreParam MEM *
+					  tEplObdCbStoreParam *
 					  pCbStoreParam_p)
 {
 

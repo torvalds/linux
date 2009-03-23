@@ -290,14 +290,14 @@ typedef struct {
 	unsigned int m_uiIndex;
 	unsigned int m_uiSubindex;
 	tEplObdSize m_Size;
-	void MEM *m_pData;
+	void *m_pData;
 //    tEplVarCallback     m_fpCallback;
 //    void *       m_pArg;
 
 } tEplVarParam;
 
 typedef struct {
-	void MEM *m_pData;
+	void *m_pData;
 	tEplObdSize m_Size;
 /*
     #if (EPL_PDO_USE_STATIC_MAPPING == FALSE)
@@ -353,7 +353,7 @@ typedef struct {
 	tEplObdType m_Type;
 	tEplObdAccess m_Access;
 	void *m_pDefault;
-	void MEM *m_pCurrent;	// points always to RAM
+	void *m_pCurrent;	// points always to RAM
 
 } tEplObdSubEntry;
 
@@ -375,7 +375,7 @@ typedef struct {
 } tEplObdCbParam;
 
 // define type for callback function: pParam_p points to tEplObdCbParam
-typedef tEplKernel(*tEplObdCallback) (CCM_DECL_INSTANCE_HDL_ tEplObdCbParam MEM * pParam_p);
+typedef tEplKernel(*tEplObdCallback) (CCM_DECL_INSTANCE_HDL_ tEplObdCbParam *pParam_p);
 
 // do not change the order for this struct!!!
 
@@ -414,15 +414,14 @@ typedef struct {
 typedef struct {
 	tEplObdCommand m_bCommand;
 	tEplObdPart m_bCurrentOdPart;
-	void MEM *m_pData;
+	void *m_pData;
 	tEplObdSize m_ObjSize;
 
 } tEplObdCbStoreParam;
 
-typedef tEplKernel(*tInitTabEntryCallback) (void MEM * pTabEntry_p,
-						unsigned int uiObjIndex_p);
+typedef tEplKernel(*tInitTabEntryCallback) (void *pTabEntry_p, unsigned int uiObjIndex_p);
 
-typedef tEplKernel(*tEplObdStoreLoadObjCallback) (CCM_DECL_INSTANCE_HDL_ tEplObdCbStoreParam MEM *pCbStoreParam_p);
+typedef tEplKernel(*tEplObdStoreLoadObjCallback) (CCM_DECL_INSTANCE_HDL_ tEplObdCbStoreParam *pCbStoreParam_p);
 
 // -------------------------------------------------------------------------
 // this stucture is used for parameters for function ObdInitModuleTab()
@@ -431,7 +430,7 @@ typedef struct {
 	unsigned int m_uiLowerObjIndex;	// lower limit of ObjIndex
 	unsigned int m_uiUpperObjIndex;	// upper limit of ObjIndex
 	tInitTabEntryCallback m_fpInitTabEntry;	// will be called if ObjIndex was found
-	void MEM *m_pTabBase;	// base address of table
+	void *m_pTabBase;	// base address of table
 	unsigned int m_uiEntrySize;	// size of table entry      // 25-feb-2005 r.d.: expansion from BYTE to WORD necessary for PDO bit mapping
 	unsigned int m_uiMaxEntries;	// max. tabel entries
 

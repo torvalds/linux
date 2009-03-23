@@ -85,17 +85,17 @@
 // global variables
 //---------------------------------------------------------------------------
 
-extern BYTE MEM abEplObdTrashObject_g[8];
+extern BYTE abEplObdTrashObject_g[8];
 
 //---------------------------------------------------------------------------
 // function prototypes
 //---------------------------------------------------------------------------
 #if(((EPL_MODULE_INTEGRATION) & (EPL_MODULE_OBDK)) != 0)
 // ---------------------------------------------------------------------
-EPLDLLEXPORT tEplKernel EplObdInit(EPL_MCO_DECL_PTR_INSTANCE_PTR_ tEplObdInitParam MEM *pInitParam_p);
+EPLDLLEXPORT tEplKernel EplObdInit(EPL_MCO_DECL_PTR_INSTANCE_PTR_ tEplObdInitParam *pInitParam_p);
 
 // ---------------------------------------------------------------------
-EPLDLLEXPORT tEplKernel EplObdAddInstance(EPL_MCO_DECL_PTR_INSTANCE_PTR_ tEplObdInitParam MEM *pInitParam_p);
+EPLDLLEXPORT tEplKernel EplObdAddInstance(EPL_MCO_DECL_PTR_INSTANCE_PTR_ tEplObdInitParam *pInitParam_p);
 
 // ---------------------------------------------------------------------
 EPLDLLEXPORT tEplKernel EplObdDeleteInstance(EPL_MCO_DECL_INSTANCE_PTR);
@@ -120,7 +120,7 @@ EPLDLLEXPORT tEplKernel EplObdAccessOdPart(EPL_MCO_DECL_INSTANCE_PTR_ tEplObdPar
 					   tEplObdDir Direction_p);
 
 // ---------------------------------------------------------------------
-EPLDLLEXPORT tEplKernel EplObdDefineVar(EPL_MCO_DECL_INSTANCE_PTR_ tEplVarParam MEM *pVarParam_p);
+EPLDLLEXPORT tEplKernel EplObdDefineVar(EPL_MCO_DECL_INSTANCE_PTR_ tEplVarParam *pVarParam_p);
 
 // ---------------------------------------------------------------------
 EPLDLLEXPORT void *EplObdGetObjectDataPtr(EPL_MCO_DECL_INSTANCE_PTR_ unsigned int uiIndex_p,
@@ -129,7 +129,7 @@ EPLDLLEXPORT void *EplObdGetObjectDataPtr(EPL_MCO_DECL_INSTANCE_PTR_ unsigned in
 EPLDLLEXPORT tEplKernel EplObdRegisterUserOd(EPL_MCO_DECL_INSTANCE_PTR_ tEplObdEntryPtr pUserOd_p);
 
 // ---------------------------------------------------------------------
-EPLDLLEXPORT void EplObdInitVarEntry(EPL_MCO_DECL_INSTANCE_PTR_ tEplObdVarEntry MEM *pVarEntry_p,
+EPLDLLEXPORT void EplObdInitVarEntry(EPL_MCO_DECL_INSTANCE_PTR_ tEplObdVarEntry *pVarEntry_p,
 				     tEplObdType Type_p,
 				     tEplObdSize ObdSize_p);
 
@@ -168,7 +168,7 @@ EPLDLLEXPORT tEplKernel EplObdGetAccessType(EPL_MCO_DECL_INSTANCE_PTR_ unsigned 
 // ---------------------------------------------------------------------
 EPLDLLEXPORT tEplKernel EplObdSearchVarEntry(EPL_MCO_DECL_INSTANCE_PTR_ unsigned int uiIndex_p,
 					     unsigned int uiSubindex_p,
-					     tEplObdVarEntry MEM **ppVarEntry_p);
+					     tEplObdVarEntry **ppVarEntry_p);
 
 #endif // end of #if(((EPL_MODULE_INTEGRATION) & (EPL_MODULE_OBDK)) != 0)
 
