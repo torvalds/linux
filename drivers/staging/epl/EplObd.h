@@ -283,7 +283,7 @@ typedef enum {
 	kVarValidAll = 0x03	// currently only size and data are implemented and used
 } tEplVarParamValid;
 
-typedef tEplKernel(ROM *tEplVarCallback) (CCM_DECL_INSTANCE_HDL_ void *pParam_p);
+typedef tEplKernel(*tEplVarCallback) (CCM_DECL_INSTANCE_HDL_ void *pParam_p);
 
 typedef struct {
 	tEplVarParamValid m_ValidFlag;
@@ -375,7 +375,7 @@ typedef struct {
 } tEplObdCbParam;
 
 // define type for callback function: pParam_p points to tEplObdCbParam
-typedef tEplKernel(ROM *tEplObdCallback) (CCM_DECL_INSTANCE_HDL_ tEplObdCbParam MEM * pParam_p);
+typedef tEplKernel(*tEplObdCallback) (CCM_DECL_INSTANCE_HDL_ tEplObdCbParam MEM * pParam_p);
 
 // do not change the order for this struct!!!
 
@@ -419,10 +419,10 @@ typedef struct {
 
 } tEplObdCbStoreParam;
 
-typedef tEplKernel(ROM *tInitTabEntryCallback) (void MEM * pTabEntry_p,
+typedef tEplKernel(*tInitTabEntryCallback) (void MEM * pTabEntry_p,
 						unsigned int uiObjIndex_p);
 
-typedef tEplKernel(ROM * tEplObdStoreLoadObjCallback) (CCM_DECL_INSTANCE_HDL_ tEplObdCbStoreParam MEM *pCbStoreParam_p);
+typedef tEplKernel(*tEplObdStoreLoadObjCallback) (CCM_DECL_INSTANCE_HDL_ tEplObdCbStoreParam MEM *pCbStoreParam_p);
 
 // -------------------------------------------------------------------------
 // this stucture is used for parameters for function ObdInitModuleTab()

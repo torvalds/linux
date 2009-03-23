@@ -2192,11 +2192,11 @@ static tEplObdSize EplObdGetObjectSize(tEplObdSubEntryPtr pSubIndexEntry_p)
 			// The current position is not decleared. The string
 			// is located in ROM, therefor use default pointer.
 			pData = (void *)pSubIndexEntry_p->m_pDefault;
-			if ((CONST void ROM *)pData != (CONST void ROM *)NULL) {
+			if ((CONST void *)pData != (CONST void *)NULL) {
 				// The max. size of strings defined by STRING-Macro is stored in
 				// tEplObdVString of default value.
 				DataSize =
-				    ((CONST tEplObdVString ROM *) pData)->
+				    ((CONST tEplObdVString *) pData)->
 				    m_Size;
 			}
 		}
@@ -2216,11 +2216,11 @@ static tEplObdSize EplObdGetObjectSize(tEplObdSubEntryPtr pSubIndexEntry_p)
 			// The current position is not decleared. The string
 			// is located in ROM, therefor use default pointer.
 			pData = (void *)pSubIndexEntry_p->m_pDefault;
-			if ((CONST void ROM *)pData != (CONST void ROM *)NULL) {
+			if ((CONST void *)pData != (CONST void *)NULL) {
 				// The max. size of strings defined by STRING-Macro is stored in
 				// tEplObdVString of default value.
 				DataSize =
-				    ((CONST tEplObdOString ROM *) pData)->
+				    ((CONST tEplObdOString *) pData)->
 				    m_Size;
 			}
 		}
@@ -2887,29 +2887,17 @@ static tEplKernel EplObdAccessOdPartIntern(EPL_MCO_DECL_INSTANCE_PTR_
 						    pSubIndex->m_pCurrent;
 						if (pDstData != NULL) {
 							// 08-dec-2004: code optimization !!!
-							//              entries ((tEplObdVStringDef ROM*) pSubIndex->m_pDefault)->m_pString
-							//              and ((tEplObdVStringDef ROM*) pSubIndex->m_pDefault)->m_Size were read
+							//              entries ((tEplObdVStringDef*) pSubIndex->m_pDefault)->m_pString
+							//              and ((tEplObdVStringDef*) pSubIndex->m_pDefault)->m_Size were read
 							//              twice. thats not necessary!
 
 							// For copying data we have to set the destination pointer to the real RAM string. This
 							// pointer to RAM string is located in default string info structure. (translated r.d.)
-							pDstData =
-							    (void MEM
-							     *)((tEplObdVStringDef ROM *) pSubIndex->m_pDefault)->m_pString;
-							ObjSize =
-							    ((tEplObdVStringDef
-							      ROM *) pSubIndex->
-							     m_pDefault)->
-							    m_Size;
+							pDstData = (void MEM *)((tEplObdVStringDef*) pSubIndex->m_pDefault)->m_pString;
+							ObjSize = ((tEplObdVStringDef *)pSubIndex->m_pDefault)->m_Size;
 
-							((tEplObdVString MEM *)
-							 pSubIndex->
-							 m_pCurrent)->
-				     m_pString = pDstData;
-							((tEplObdVString MEM *)
-							 pSubIndex->
-							 m_pCurrent)->m_Size =
-				     ObjSize;
+							((tEplObdVString MEM *)pSubIndex->m_pCurrent)->m_pString = pDstData;
+							((tEplObdVString MEM *)pSubIndex->m_pCurrent)->m_Size = ObjSize;
 						}
 
 					} else if (pSubIndex->m_Type ==
@@ -2918,29 +2906,17 @@ static tEplKernel EplObdAccessOdPartIntern(EPL_MCO_DECL_INSTANCE_PTR_
 						    pSubIndex->m_pCurrent;
 						if (pDstData != NULL) {
 							// 08-dec-2004: code optimization !!!
-							//              entries ((tEplObdOStringDef ROM*) pSubIndex->m_pDefault)->m_pString
-							//              and ((tEplObdOStringDef ROM*) pSubIndex->m_pDefault)->m_Size were read
+							//              entries ((tEplObdOStringDef*) pSubIndex->m_pDefault)->m_pString
+							//              and ((tEplObdOStringDef*) pSubIndex->m_pDefault)->m_Size were read
 							//              twice. thats not necessary!
 
 							// For copying data we have to set the destination pointer to the real RAM string. This
 							// pointer to RAM string is located in default string info structure. (translated r.d.)
-							pDstData =
-							    (void MEM
-							     *)((tEplObdOStringDef ROM *) pSubIndex->m_pDefault)->m_pString;
-							ObjSize =
-							    ((tEplObdOStringDef
-							      ROM *) pSubIndex->
-							     m_pDefault)->
-							    m_Size;
+							pDstData = (void MEM *)((tEplObdOStringDef *) pSubIndex->m_pDefault)->m_pString;
+							ObjSize = ((tEplObdOStringDef *)pSubIndex->m_pDefault)->m_Size;
 
-							((tEplObdOString MEM *)
-							 pSubIndex->
-							 m_pCurrent)->
-				     m_pString = pDstData;
-							((tEplObdOString MEM *)
-							 pSubIndex->
-							 m_pCurrent)->m_Size =
-				     ObjSize;
+							((tEplObdOString MEM *)pSubIndex->m_pCurrent)->m_pString = pDstData;
+							((tEplObdOString MEM *)pSubIndex->m_pCurrent)->m_Size = ObjSize;
 						}
 
 					}

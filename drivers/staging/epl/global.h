@@ -29,8 +29,6 @@
 
     // ------------------ GNUC for I386 ---------------------------------------------
 
-#define ROM			// code or variables mapped to ROM (i.e. flash)
-					// usage: CONST BYTE ROM foo = 0x00;
 #define HWACC			// hardware access through external memory (i.e. CAN)
 
 #define MEM			// Memory attribute to optimize speed and code of pointer access.
