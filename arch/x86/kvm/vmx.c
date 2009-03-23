@@ -265,7 +265,7 @@ static inline int cpu_has_vmx_ept(void)
 
 static inline int vm_need_ept(void)
 {
-	return (cpu_has_vmx_ept() && enable_ept);
+	return enable_ept;
 }
 
 static inline int vm_need_virtualize_apic_accesses(struct kvm *kvm)
@@ -1204,6 +1204,9 @@ static __init int setup_vmcs_config(struct vmcs_config *vmcs_conf)
 
 	if (!cpu_has_vmx_vpid())
 		enable_vpid = 0;
+
+	if (!cpu_has_vmx_ept())
+		enable_ept = 0;
 
 	min = 0;
 #ifdef CONFIG_X86_64
