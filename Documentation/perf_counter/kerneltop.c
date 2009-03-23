@@ -212,7 +212,7 @@ struct source_line {
 
 
 const unsigned int default_count[] = {
-	  10000,
+	1000000,
 	1000000,
 	  10000,
 	  10000,
