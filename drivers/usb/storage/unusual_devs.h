@@ -226,7 +226,7 @@ UNUSUAL_DEV(  0x0421, 0x047c, 0x0370, 0x0610,
 		US_FL_MAX_SECTORS_64 ),
 
 /* Reported by Manuel Osdoba <manuel.osdoba@tu-ilmenau.de> */
-UNUSUAL_DEV( 0x0421, 0x0492, 0x0452, 0x0452,
+UNUSUAL_DEV( 0x0421, 0x0492, 0x0452, 0x9999,
 		"Nokia",
 		"Nokia 6233",
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
@@ -951,7 +951,9 @@ UNUSUAL_DEV( 0x066f, 0x8000, 0x0001, 0x0001,
 		US_FL_FIX_CAPACITY ),
 
 /* Reported by Richard -=[]=- <micro_flyer@hotmail.com> */
-UNUSUAL_DEV( 0x067b, 0x2507, 0x0100, 0x0100,
+/* Change to bcdDeviceMin (0x0100 to 0x0001) reported by
+ * Thomas Bartosik <tbartdev@gmx-topmail.de> */
+UNUSUAL_DEV( 0x067b, 0x2507, 0x0001, 0x0100,
 		"Prolific Technology Inc.",
 		"Mass Storage Device",
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
@@ -1387,6 +1389,16 @@ UNUSUAL_DEV(  0x0af0, 0x6971, 0x0000, 0x9999,
 UNUSUAL_DEV( 0x0af0, 0x7401, 0x0000, 0x0000,
 		"Option",
 		"GI 0401 SD-Card",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		0 ),
+
+/* Reported by Jan Dumon <j.dumon@option.com>
+ * This device (wrongly) has a vendor-specific device descriptor.
+ * The entry is needed so usb-storage can bind to it's mass-storage
+ * interface as an interface driver */
+UNUSUAL_DEV( 0x0af0, 0x7501, 0x0000, 0x0000,
+		"Option",
+		"GI 0431 SD-Card",
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		0 ),
 

@@ -5,6 +5,8 @@
  *
  */
 
+#include <asm/asm-offsets.h>
+
 #ifndef CONFIG_64BIT
 .globl _mcount
 _mcount:
@@ -14,7 +16,7 @@ _mcount:
 	ahi	%r15,-96
 	l	%r3,100(%r15)
 	la	%r2,0(%r14)
-	st	%r1,0(%r15)
+	st	%r1,__SF_BACKCHAIN(%r15)
 	la	%r3,0(%r3)
 	bras	%r14,0f
 	.long	ftrace_trace_function
@@ -38,7 +40,7 @@ _mcount:
 	stg	%r14,112(%r15)
 	lgr	%r1,%r15
 	aghi	%r15,-160
-	stg	%r1,0(%r15)
+	stg	%r1,__SF_BACKCHAIN(%r15)
 	lgr	%r2,%r14
 	lg	%r3,168(%r15)
 	larl	%r14,ftrace_trace_function
