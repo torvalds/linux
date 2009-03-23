@@ -171,7 +171,7 @@ Where the supported parameter are:
   
   led
 	Can be used to turn on experimental LED code.
-	0 = Off, 1 = On.  Default is 0.
+	0 = Off, 1 = On.  Default is 1.
 
   mode
 	Can be used to set the default mode of the adapter.  
