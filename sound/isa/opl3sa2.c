@@ -623,7 +623,7 @@ static void snd_opl3sa2_free(struct snd_card *card)
 {
 	struct snd_opl3sa2 *chip = card->private_data;
 	if (chip->irq >= 0)
-		free_irq(chip->irq, (void *)chip);
+		free_irq(chip->irq, card);
 	release_and_free_resource(chip->res_port);
 }
 
@@ -638,7 +638,7 @@ static int snd_opl3sa2_card_new(int dev, struct snd_card **cardp)
 	if (err < 0)
 		return err;
 	strcpy(card->driver, "OPL3SA2");
-	strcpy(card->shortname, "Yamaha OPL3-SA2");
+	strcpy(card->shortname, "Yamaha OPL3-SA");
 	chip = card->private_data;
 	spin_lock_init(&chip->reg_lock);
 	chip->irq = -1;
