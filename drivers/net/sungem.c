@@ -2998,8 +2998,11 @@ static const struct net_device_ops gem_netdev_ops = {
 	.ndo_do_ioctl		= gem_ioctl,
 	.ndo_tx_timeout		= gem_tx_timeout,
 	.ndo_change_mtu		= gem_change_mtu,
-	.ndo_set_mac_address 	= eth_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_set_mac_address    = gem_set_mac_address,
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	.ndo_poll_controller    = gem_poll_controller,
+#endif
 };
 
 static int __devinit gem_init_one(struct pci_dev *pdev,
@@ -3161,10 +3164,6 @@ static int __devinit gem_init_one(struct pci_dev *pdev,
 	dev->watchdog_timeo = 5 * HZ;
 	dev->irq = pdev->irq;
 	dev->dma = 0;
-	dev->set_mac_address = gem_set_mac_address;
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	dev->poll_controller = gem_poll_controller;
-#endif
 
 	/* Set that now, in case PM kicks in now */
 	pci_set_drvdata(pdev, dev);
