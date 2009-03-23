@@ -97,9 +97,9 @@
 //---------------------------------------------------------------------------
 
 typedef struct {
-	DWORD m_dwCumulativeCnt;	// subindex 1
-	DWORD m_dwThresholdCnt;	// subindex 2
-	DWORD m_dwThreshold;	// subindex 3
+	u32 m_dwCumulativeCnt;	// subindex 1
+	u32 m_dwThresholdCnt;	// subindex 2
+	u32 m_dwThreshold;	// subindex 3
 
 } tEplErrorHandlerkErrorCounter;
 
@@ -112,9 +112,9 @@ typedef struct {
 #if (((EPL_MODULE_INTEGRATION) & (EPL_MODULE_NMT_MN)) != 0)
 	tEplErrorHandlerkErrorCounter m_MnCrcErr;	// object 0x1C00
 	tEplErrorHandlerkErrorCounter m_MnCycTimeExceed;	// object 0x1C02
-	DWORD m_adwMnCnLossPresCumCnt[254];	// object 0x1C07
-	DWORD m_adwMnCnLossPresThrCnt[254];	// object 0x1C08
-	DWORD m_adwMnCnLossPresThreshold[254];	// object 0x1C09
+	u32 m_adwMnCnLossPresCumCnt[254];	// object 0x1C07
+	u32 m_adwMnCnLossPresThrCnt[254];	// object 0x1C08
+	u32 m_adwMnCnLossPresThreshold[254];	// object 0x1C09
 	BOOL m_afMnCnLossPresEvent[254];
 #endif
 
@@ -135,7 +135,7 @@ static tEplKernel EplErrorHandlerkLinkErrorCounter(tEplErrorHandlerkErrorCounter
 						   unsigned int uiIndex_p);
 
 #if (((EPL_MODULE_INTEGRATION) & (EPL_MODULE_NMT_MN)) != 0)
-static tEplKernel EplErrorHandlerkLinkArray(DWORD * pdwValue_p,
+static tEplKernel EplErrorHandlerkLinkArray(u32 * pdwValue_p,
 					    unsigned int uiValueCount_p,
 					    unsigned int uiIndex_p);
 #endif
@@ -713,7 +713,7 @@ static tEplKernel EplErrorHandlerkLinkErrorCounter(tEplErrorHandlerkErrorCounter
 	tEplVarParam VarParam;
 
 	VarParam.m_pData = &pErrorCounter_p->m_dwCumulativeCnt;
-	VarParam.m_Size = sizeof(DWORD);
+	VarParam.m_Size = sizeof(u32);
 	VarParam.m_uiIndex = uiIndex_p;
 	VarParam.m_uiSubindex = 0x01;
 	VarParam.m_ValidFlag = kVarValidAll;
@@ -723,7 +723,7 @@ static tEplKernel EplErrorHandlerkLinkErrorCounter(tEplErrorHandlerkErrorCounter
 	}
 
 	VarParam.m_pData = &pErrorCounter_p->m_dwThresholdCnt;
-	VarParam.m_Size = sizeof(DWORD);
+	VarParam.m_Size = sizeof(u32);
 	VarParam.m_uiIndex = uiIndex_p;
 	VarParam.m_uiSubindex = 0x02;
 	VarParam.m_ValidFlag = kVarValidAll;
@@ -733,7 +733,7 @@ static tEplKernel EplErrorHandlerkLinkErrorCounter(tEplErrorHandlerkErrorCounter
 	}
 
 	VarParam.m_pData = &pErrorCounter_p->m_dwThreshold;
-	VarParam.m_Size = sizeof(DWORD);
+	VarParam.m_Size = sizeof(u32);
 	VarParam.m_uiIndex = uiIndex_p;
 	VarParam.m_uiSubindex = 0x03;
 	VarParam.m_ValidFlag = kVarValidAll;
@@ -763,7 +763,7 @@ static tEplKernel EplErrorHandlerkLinkErrorCounter(tEplErrorHandlerkErrorCounter
 //---------------------------------------------------------------------------
 
 #if (((EPL_MODULE_INTEGRATION) & (EPL_MODULE_NMT_MN)) != 0)
-static tEplKernel EplErrorHandlerkLinkArray(DWORD * pdwValue_p,
+static tEplKernel EplErrorHandlerkLinkArray(u32 * pdwValue_p,
 					    unsigned int uiValueCount_p,
 					    unsigned int uiIndex_p)
 {
@@ -786,7 +786,7 @@ static tEplKernel EplErrorHandlerkLinkArray(DWORD * pdwValue_p,
 		uiValueCount_p = bIndexEntries;
 	}
 
-	VarParam.m_Size = sizeof(DWORD);
+	VarParam.m_Size = sizeof(u32);
 	VarParam.m_uiIndex = uiIndex_p;
 	VarParam.m_ValidFlag = kVarValidAll;
 

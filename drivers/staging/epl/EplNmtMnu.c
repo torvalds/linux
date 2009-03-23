@@ -95,7 +95,7 @@
 // TracePoint support for realtime-debugging
 #ifdef _DBG_TRACE_POINTS_
 void TgtDbgSignalTracePoint(u8 bTracePointNumber_p);
-void TgtDbgPostTraceValue(DWORD dwTraceValue_p);
+void TgtDbgPostTraceValue(u32 dwTraceValue_p);
 #define TGT_DBG_SIGNAL_TRACE_POINT(p)   TgtDbgSignalTracePoint(p)
 #define TGT_DBG_POST_TRACE_VALUE(v)     TgtDbgPostTraceValue(v)
 #else
@@ -211,7 +211,7 @@ typedef struct {
 	tEplTimerHdl m_TimerHdlStatReq;	// timer to delay StatusRequests and IdentRequests
 	tEplTimerHdl m_TimerHdlLonger;	// 2nd timer for NMT command EnableReadyToOp and CheckCommunication
 	tEplNmtMnuNodeState m_NodeState;	// internal node state (kind of sub state of NMT state)
-	DWORD m_dwNodeCfg;	// subindex from 0x1F81
+	u32 m_dwNodeCfg;	// subindex from 0x1F81
 	WORD m_wFlags;		// flags: CN is being accessed isochronously
 
 } tEplNmtMnuNodeInfo;
@@ -225,7 +225,7 @@ typedef struct {
 	unsigned long m_ulTimeoutReadyToOp;	// in [ms] (object 0x1F89/5)
 	unsigned long m_ulTimeoutCheckCom;	// in [ms] (object 0x1006 * MultiplexedCycleCount)
 	WORD m_wFlags;		// global flags
-	DWORD m_dwNmtStartup;	// object 0x1F80 NMT_StartUp_U32
+	u32 m_dwNmtStartup;	// object 0x1F80 NMT_StartUp_U32
 	tEplNmtMnuCbNodeEvent m_pfnCbNodeEvent;
 	tEplNmtMnuCbBootEvent m_pfnCbBootEvent;
 
@@ -673,7 +673,7 @@ tEplKernel EplNmtMnuCbNmtStateChange(tEplEventNmtStateChange NmtStateChange_p)
 		// build the configuration with infos from OD
 	case kEplNmtGsResetConfiguration:
 		{
-			DWORD dwTimeout;
+			u32 dwTimeout;
 			tEplObdSize ObdSize;
 
 			// read object 0x1F80 NMT_StartUp_U32
@@ -785,7 +785,7 @@ tEplKernel EplNmtMnuCbNmtStateChange(tEplEventNmtStateChange NmtStateChange_p)
 		// node processes only async frames
 	case kEplNmtMsPreOperational1:
 		{
-			DWORD dwTimeout;
+			u32 dwTimeout;
 			tEplTimerArg TimerArg;
 			tEplObdSize ObdSize;
 			tEplEvent Event;
@@ -1291,7 +1291,7 @@ tEplKernel EplNmtMnuGetDiagnosticInfo(unsigned int *puiMandatorySlaveCount_p,
 //
 //---------------------------------------------------------------------------
 /*
-DWORD EplNmtMnuGetRunningTimerStatReq(void)
+u32 EplNmtMnuGetRunningTimerStatReq(void)
 {
 tEplKernel      Ret = kEplSuccessful;
 unsigned int    uiIndex;
@@ -1376,7 +1376,7 @@ static tEplKernel EplNmtMnuCbIdentResponse(unsigned int uiNodeId_p,
 						    kEplNmtMnuIntNodeEventNoIdentResponse);
 	} else {		// node answered IdentRequest
 		tEplObdSize ObdSize;
-		DWORD dwDevType;
+		u32 dwDevType;
 		WORD wErrorCode = EPL_E_NO_ERROR;
 		tEplNmtState NmtState =
 		    (tEplNmtState) (AmiGetByteFromLe
@@ -1466,7 +1466,7 @@ static tEplKernel EplNmtMnuStartBootStep1(void)
 	tEplKernel Ret = kEplSuccessful;
 	unsigned int uiSubIndex;
 	unsigned int uiLocalNodeId;
-	DWORD dwNodeCfg;
+	u32 dwNodeCfg;
 	tEplObdSize ObdSize;
 
 	// $$$ d.k.: save current time for 0x1F89/2 MNTimeoutPreOp1_U32
@@ -1626,7 +1626,7 @@ static tEplKernel EplNmtMnuNodeBootStep2(unsigned int uiNodeId_p,
 {
 	tEplKernel Ret = kEplSuccessful;
 	tEplDllNodeInfo DllNodeInfo;
-	DWORD dwNodeCfg;
+	u32 dwNodeCfg;
 	tEplObdSize ObdSize;
 	tEplTimerArg TimerArg;
 
@@ -1775,7 +1775,7 @@ static tEplKernel EplNmtMnuNodeCheckCom(unsigned int uiNodeId_p,
 					tEplNmtMnuNodeInfo * pNodeInfo_p)
 {
 	tEplKernel Ret = kEplSuccessful;
-	DWORD dwNodeCfg;
+	u32 dwNodeCfg;
 	tEplTimerArg TimerArg;
 
 	dwNodeCfg = pNodeInfo_p->m_dwNodeCfg;

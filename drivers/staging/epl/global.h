@@ -29,9 +29,6 @@
 #ifndef WORD
 #define WORD unsigned short int
 #endif
-#ifndef DWORD
-#define DWORD unsigned long int
-#endif
 #ifndef BOOL
 #define BOOL unsigned char
 #endif

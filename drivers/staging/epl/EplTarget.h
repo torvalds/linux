@@ -128,7 +128,7 @@
 // currently no Timer functions are needed by EPL stack
 // so they are not implemented yet
 //void  TgtTimerInit(void);
-//DWORD TgtGetTickCount(void);
+//u32 TgtGetTickCount(void);
 //void TgtGetNetTime(tEplNetTime * pNetTime_p);
 
 // functions for ethernet driver

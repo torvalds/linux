@@ -122,7 +122,7 @@
 // TracePoint support for realtime-debugging
 #ifdef _DBG_TRACE_POINTS_
 void TgtDbgSignalTracePoint(u8 bTracePointNumber_p);
-void TgtDbgPostTraceValue(DWORD dwTraceValue_p);
+void TgtDbgPostTraceValue(u32 dwTraceValue_p);
 #define TGT_DBG_SIGNAL_TRACE_POINT(p)   TgtDbgSignalTracePoint(p)
 #define TGT_DBG_POST_TRACE_VALUE(v)     TgtDbgPostTraceValue(v)
 #else
@@ -3154,7 +3154,7 @@ static void EplDllkCbFrameReceived(tEdrvRxBuffer * pRxBuffer_p)
 
       Exit:
 	if (Ret != kEplSuccessful) {
-		DWORD dwArg;
+		u32 dwArg;
 
 		BENCHMARK_MOD_02_TOGGLE(9);
 
@@ -3448,7 +3448,7 @@ static void EplDllkCbFrameTransmitted(tEdrvTxBuffer * pTxBuffer_p)
 
       Exit:
 	if (Ret != kEplSuccessful) {
-		DWORD dwArg;
+		u32 dwArg;
 
 		BENCHMARK_MOD_02_TOGGLE(9);
 
@@ -3582,7 +3582,7 @@ static tEplKernel EplDllkCbCnTimer(tEplTimerEventArg *pEventArg_p)
 
       Exit:
 	if (Ret != kEplSuccessful) {
-		DWORD dwArg;
+		u32 dwArg;
 
 		BENCHMARK_MOD_02_TOGGLE(9);
 
@@ -3638,7 +3638,7 @@ static tEplKernel EplDllkCbMnTimerCycle(tEplTimerEventArg *pEventArg_p)
 
       Exit:
 	if (Ret != kEplSuccessful) {
-		DWORD dwArg;
+		u32 dwArg;
 
 		BENCHMARK_MOD_02_TOGGLE(9);
 
@@ -3691,7 +3691,7 @@ static tEplKernel EplDllkCbMnTimerResponse(tEplTimerEventArg *pEventArg_p)
 
       Exit:
 	if (Ret != kEplSuccessful) {
-		DWORD dwArg;
+		u32 dwArg;
 
 		BENCHMARK_MOD_02_TOGGLE(9);
 

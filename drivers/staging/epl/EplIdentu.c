@@ -386,9 +386,9 @@ tEplKernel EplIdentuRequestIdentResponse(unsigned int uiNodeId_p,
 //
 //---------------------------------------------------------------------------
 
-EPLDLLEXPORT DWORD EplIdentuGetRunningRequests(void)
+EPLDLLEXPORT u32 EplIdentuGetRunningRequests(void)
 {
-	DWORD dwReqs = 0;
+	u32 dwReqs = 0;
 	unsigned int uiIndex;
 
 	for (uiIndex = 0; uiIndex < 32; uiIndex++) {

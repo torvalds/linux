@@ -129,8 +129,8 @@
 
 #ifdef _DBG_TRACE_POINTS_
 atomic_t aatmDbgTracePoint_l[DBG_TRACE_POINTS];
-DWORD adwDbgTraceValue_l[DBG_TRACE_VALUES];
-DWORD dwDbgTraceValueOld_l;
+u32 adwDbgTraceValue_l[DBG_TRACE_VALUES];
+u32 dwDbgTraceValueOld_l;
 unsigned int uiDbgTraceValuePos_l;
 spinlock_t spinlockDbgTraceValue_l;
 unsigned long ulDbTraceValueFlags_l;
@@ -146,9 +146,9 @@ static int EplLinProcWrite(struct file *file, const char __user * buffer,
 			   unsigned long count, void *data);
 
 void TgtDbgSignalTracePoint(u8 bTracePointNumber_p);
-void TgtDbgPostTraceValue(DWORD dwTraceValue_p);
+void TgtDbgPostTraceValue(u32 dwTraceValue_p);
 
-EPLDLLEXPORT DWORD EplIdentuGetRunningRequests(void);
+EPLDLLEXPORT u32 EplIdentuGetRunningRequests(void);
 
 //=========================================================================//
 //                                                                         //
@@ -207,7 +207,7 @@ void TgtDbgSignalTracePoint(u8 bTracePointNumber_p)
 
 }
 
-void TgtDbgPostTraceValue(DWORD dwTraceValue_p)
+void TgtDbgPostTraceValue(u32 dwTraceValue_p)
 {
 
 	spin_lock_irqsave(&spinlockDbgTraceValue_l, ulDbTraceValueFlags_l);
@@ -279,7 +279,7 @@ static int EplLinProcRead(char *pcBuffer_p,
 #if (((EPL_MODULE_INTEGRATION) & (EPL_MODULE_NMT_MN)) != 0)
 	// fetch running IdentRequests
 	nSize += snprintf(pcBuffer_p + nSize, nBufferSize_p - nSize,
-			  "running IdentRequests:      0x%08lX\n",
+			  "running IdentRequests:      0x%08X\n",
 			  EplIdentuGetRunningRequests());
 
 	// fetch state of NmtMnu module

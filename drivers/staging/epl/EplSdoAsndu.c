@@ -321,7 +321,7 @@ tEplKernel EplSdoAsnduInitCon(tEplSdoConHdl *pSdoConHandle_p,
 //---------------------------------------------------------------------------
 tEplKernel EplSdoAsnduSendData(tEplSdoConHdl SdoConHandle_p,
 			       tEplFrame *pSrcData_p,
-			       DWORD dwDataSize_p)
+			       u32 dwDataSize_p)
 {
 	tEplKernel Ret;
 	unsigned int uiArray;

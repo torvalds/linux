@@ -108,7 +108,7 @@ tEplKernel EplSdoComGetState(tEplSdoComConHdl SdoComConHdl_p,
 			     tEplSdoComFinished *pSdoComFinished_p);
 
 tEplKernel EplSdoComSdoAbort(tEplSdoComConHdl SdoComConHdl_p,
-			     DWORD dwAbortCode_p);
+			     u32 dwAbortCode_p);
 
 #endif
 

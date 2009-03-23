@@ -214,25 +214,25 @@ typedef struct {
 	u8 m_le_bIdentRespFlags;	// Flags: FW
 	u8 m_le_bEplProfileVersion;
 	u8 m_le_bRes1;
-	DWORD m_le_dwFeatureFlags;	// NMT_FeatureFlags_U32
+	u32 m_le_dwFeatureFlags;	// NMT_FeatureFlags_U32
 	WORD m_le_wMtu;		// NMT_CycleTiming_REC.AsyncMTU_U16: C_IP_MIN_MTU - C_IP_MAX_MTU
 	WORD m_le_wPollInSize;	// NMT_CycleTiming_REC.PReqActPayload_U16
 	WORD m_le_wPollOutSize;	// NMT_CycleTiming_REC.PResActPayload_U16
-	DWORD m_le_dwResponseTime;	// NMT_CycleTiming_REC.PResMaxLatency_U32
+	u32 m_le_dwResponseTime;	// NMT_CycleTiming_REC.PResMaxLatency_U32
 	WORD m_le_wRes2;
-	DWORD m_le_dwDeviceType;	// NMT_DeviceType_U32
-	DWORD m_le_dwVendorId;	// NMT_IdentityObject_REC.VendorId_U32
-	DWORD m_le_dwProductCode;	// NMT_IdentityObject_REC.ProductCode_U32
-	DWORD m_le_dwRevisionNumber;	// NMT_IdentityObject_REC.RevisionNo_U32
-	DWORD m_le_dwSerialNumber;	// NMT_IdentityObject_REC.SerialNo_U32
+	u32 m_le_dwDeviceType;	// NMT_DeviceType_U32
+	u32 m_le_dwVendorId;	// NMT_IdentityObject_REC.VendorId_U32
+	u32 m_le_dwProductCode;	// NMT_IdentityObject_REC.ProductCode_U32
+	u32 m_le_dwRevisionNumber;	// NMT_IdentityObject_REC.RevisionNo_U32
+	u32 m_le_dwSerialNumber;	// NMT_IdentityObject_REC.SerialNo_U32
 	u64 m_le_qwVendorSpecificExt1;
-	DWORD m_le_dwVerifyConfigurationDate;	// CFM_VerifyConfiguration_REC.ConfDate_U32
-	DWORD m_le_dwVerifyConfigurationTime;	// CFM_VerifyConfiguration_REC.ConfTime_U32
-	DWORD m_le_dwApplicationSwDate;	// PDL_LocVerApplSw_REC.ApplSwDate_U32 on programmable device or date portion of NMT_ManufactSwVers_VS on non-programmable device
-	DWORD m_le_dwApplicationSwTime;	// PDL_LocVerApplSw_REC.ApplSwTime_U32 on programmable device or time portion of NMT_ManufactSwVers_VS on non-programmable device
-	DWORD m_le_dwIpAddress;
-	DWORD m_le_dwSubnetMask;
-	DWORD m_le_dwDefaultGateway;
+	u32 m_le_dwVerifyConfigurationDate;	// CFM_VerifyConfiguration_REC.ConfDate_U32
+	u32 m_le_dwVerifyConfigurationTime;	// CFM_VerifyConfiguration_REC.ConfTime_U32
+	u32 m_le_dwApplicationSwDate;	// PDL_LocVerApplSw_REC.ApplSwDate_U32 on programmable device or date portion of NMT_ManufactSwVers_VS on non-programmable device
+	u32 m_le_dwApplicationSwTime;	// PDL_LocVerApplSw_REC.ApplSwTime_U32 on programmable device or time portion of NMT_ManufactSwVers_VS on non-programmable device
+	u32 m_le_dwIpAddress;
+	u32 m_le_dwSubnetMask;
+	u32 m_le_dwDefaultGateway;
 	u8 m_le_sHostname[32];
 	u8 m_le_abVendorSpecificExt2[48];
 

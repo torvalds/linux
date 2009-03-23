@@ -101,7 +101,7 @@
 // TracePoint support for realtime-debugging
 #ifdef _DBG_TRACE_POINTS_
 void TgtDbgSignalTracePoint(u8 bTracePointNumber_p);
-void TgtDbgPostTraceValue(DWORD dwTraceValue_p);
+void TgtDbgPostTraceValue(u32 dwTraceValue_p);
 #define TGT_DBG_SIGNAL_TRACE_POINT(p)   TgtDbgSignalTracePoint(p)
 #define TGT_DBG_POST_TRACE_VALUE(v)     TgtDbgPostTraceValue(v)
 #else

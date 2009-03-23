@@ -666,7 +666,7 @@ extern "C" {
                                                     DEBUG_LVL_ASSERT_TRACE4 ( \
                                                         "Assertion failed: line %d file '%s'\n" \
                                                         "    -> '%s'\n" \
-                                                        "    -> 0x%08lX\n", __LINE__, __FILE__, str, (DWORD) p1); \
+                                                        "    -> 0x%08lX\n", __LINE__, __FILE__, str, (u32) p1); \
                                                     while (1); }
 
 

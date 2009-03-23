@@ -111,9 +111,9 @@ extern "C" {
 #define AmiSetByteToLe(pAddr_p, bByteVal_p)  {*(u8 *)(pAddr_p) = (bByteVal_p);}
 
 void AmiSetWordToBe(void *pAddr_p, WORD wWordVal_p);
-void AmiSetDwordToBe(void *pAddr_p, DWORD dwDwordVal_p);
+void AmiSetDwordToBe(void *pAddr_p, u32 dwDwordVal_p);
 void AmiSetWordToLe(void *pAddr_p, WORD wWordVal_p);
-void AmiSetDwordToLe(void *pAddr_p, DWORD dwDwordVal_p);
+void AmiSetDwordToLe(void *pAddr_p, u32 dwDwordVal_p);
 
 //---------------------------------------------------------------------------
 //
@@ -127,9 +127,9 @@ void AmiSetDwordToLe(void *pAddr_p, DWORD dwDwordVal_p);
 #define AmiGetByteFromLe(pAddr_p)  (*(u8 *)(pAddr_p))
 
 WORD AmiGetWordFromBe(void *pAddr_p);
-DWORD AmiGetDwordFromBe(void *pAddr_p);
+u32 AmiGetDwordFromBe(void *pAddr_p);
 WORD AmiGetWordFromLe(void *pAddr_p);
-DWORD AmiGetDwordFromLe(void *pAddr_p);
+u32 AmiGetDwordFromLe(void *pAddr_p);
 
 //---------------------------------------------------------------------------
 //
@@ -144,8 +144,8 @@ DWORD AmiGetDwordFromLe(void *pAddr_p);
 //
 //---------------------------------------------------------------------------
 
-void AmiSetDword24ToBe(void *pAddr_p, DWORD dwDwordVal_p);
-void AmiSetDword24ToLe(void *pAddr_p, DWORD dwDwordVal_p);
+void AmiSetDword24ToBe(void *pAddr_p, u32 dwDwordVal_p);
+void AmiSetDword24ToLe(void *pAddr_p, u32 dwDwordVal_p);
 
 //---------------------------------------------------------------------------
 //
@@ -155,12 +155,12 @@ void AmiSetDword24ToLe(void *pAddr_p, DWORD dwDwordVal_p);
 //
 // Parameters:  pAddr_p         = pointer to source buffer
 //
-// Return:      DWORD           = read value
+// Return:      u32           = read value
 //
 //---------------------------------------------------------------------------
 
-DWORD AmiGetDword24FromBe(void *pAddr_p);
-DWORD AmiGetDword24FromLe(void *pAddr_p);
+u32 AmiGetDword24FromBe(void *pAddr_p);
+u32 AmiGetDword24FromLe(void *pAddr_p);
 
 //#ifdef USE_VAR64
 

@@ -160,7 +160,7 @@ static void EplPdouDecodeObjectMapping(u64 qwObjectMapping_p,
 
 static tEplKernel EplPdouCheckObjectMapping(u64 qwObjectMapping_p,
 					    tEplObdAccess AccessType_p,
-					    DWORD * pdwAbortCode_p,
+					    u32 * pdwAbortCode_p,
 					    unsigned int *puiPdoSize_p);
 
 //=========================================================================//
@@ -482,7 +482,7 @@ static void EplPdouDecodeObjectMapping(u64 qwObjectMapping_p,
 
 static tEplKernel EplPdouCheckObjectMapping(u64 qwObjectMapping_p,
 					    tEplObdAccess AccessType_p,
-					    DWORD * pdwAbortCode_p,
+					    u32 * pdwAbortCode_p,
 					    unsigned int *puiPdoSize_p)
 {
 	tEplKernel Ret = kEplSuccessful;

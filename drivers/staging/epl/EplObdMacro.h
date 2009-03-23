@@ -80,7 +80,7 @@
 
 //        #pragma message ("EPL_OBD_CREATE_ROM_DATA")
 
-#define EPL_OBD_BEGIN()                                                         static  DWORD  dwObd_OBK_g = 0x0000;
+#define EPL_OBD_BEGIN()                                                         static  u32  dwObd_OBK_g = 0x0000;
 #define EPL_OBD_END()
 
 	//---------------------------------------------------------------------------------------

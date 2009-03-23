@@ -1088,7 +1088,7 @@ EPLDLLEXPORT tEplKernel EplObdReadEntryToLe(EPL_MCO_DECL_INSTANCE_PTR_ unsigned 
 	case kEplObdTypInt24:
 	case kEplObdTypUInt24:
 		{
-			AmiSetDword24ToLe(pDstData_p, *((DWORD *) pSrcData));
+			AmiSetDword24ToLe(pDstData_p, *((u32 *) pSrcData));
 			break;
 		}
 
@@ -1097,7 +1097,7 @@ EPLDLLEXPORT tEplKernel EplObdReadEntryToLe(EPL_MCO_DECL_INSTANCE_PTR_ unsigned 
 	case kEplObdTypUInt32:
 	case kEplObdTypReal32:
 		{
-			AmiSetDwordToLe(pDstData_p, *((DWORD *) pSrcData));
+			AmiSetDwordToLe(pDstData_p, *((u32 *) pSrcData));
 			break;
 		}
 
@@ -1238,7 +1238,7 @@ EPLDLLEXPORT tEplKernel EplObdWriteEntryFromLe(EPL_MCO_DECL_INSTANCE_PTR_ unsign
 	case kEplObdTypInt24:
 	case kEplObdTypUInt24:
 		{
-			*((DWORD *) pBuffer) = AmiGetDword24FromLe(pSrcData_p);
+			*((u32 *) pBuffer) = AmiGetDword24FromLe(pSrcData_p);
 			break;
 		}
 
@@ -1247,7 +1247,7 @@ EPLDLLEXPORT tEplKernel EplObdWriteEntryFromLe(EPL_MCO_DECL_INSTANCE_PTR_ unsign
 	case kEplObdTypUInt32:
 	case kEplObdTypReal32:
 		{
-			*((DWORD *) pBuffer) = AmiGetDwordFromLe(pSrcData_p);
+			*((u32 *) pBuffer) = AmiGetDwordFromLe(pSrcData_p);
 			break;
 		}
 

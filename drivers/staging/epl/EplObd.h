@@ -370,7 +370,7 @@ typedef struct {
 	unsigned int m_uiIndex;
 	unsigned int m_uiSubIndex;
 	void *m_pArg;
-	DWORD m_dwAbortCode;
+	u32 m_dwAbortCode;
 
 } tEplObdCbParam;
 

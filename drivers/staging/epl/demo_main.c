@@ -156,12 +156,12 @@ u8 bVarOut1Old_l;
 u8 bModeSelect_l;		// state of the pushbuttons to select the mode
 u8 bSpeedSelect_l;		// state of the pushbuttons to increase/decrease the speed
 u8 bSpeedSelectOld_l;		// old state of the pushbuttons
-DWORD dwLeds_l;			// current state of all LEDs
+u32 dwLeds_l;			// current state of all LEDs
 u8 bLedsRow1_l;		// current state of the LEDs in row 1
 u8 bLedsRow2_l;		// current state of the LEDs in row 2
 u8 abSelect_l[3];		// pushbuttons from CNs
 
-DWORD dwMode_l;			// current mode
+u32 dwMode_l;			// current mode
 int iCurCycleCount_l;		// current cycle count
 int iMaxCycleCount_l;		// maximum cycle count (i.e. number of cycles until next light movement step)
 int iToggle;			// indicates the light movement direction
@@ -171,7 +171,7 @@ u8 abDomain_l[3000];
 static wait_queue_head_t WaitQueueShutdown_g;	// wait queue for tEplNmtEventSwitchOff
 static atomic_t AtomicShutdown_g = ATOMIC_INIT(FALSE);
 
-static DWORD dw_le_CycleLen_g;
+static u32 dw_le_CycleLen_g;
 
 static uint uiNodeId_g = EPL_C_ADR_INVALID;
 module_param_named(nodeid, uiNodeId_g, uint, 0);
@@ -401,7 +401,7 @@ static int __init EplLinInit(void)
 
 	// configure IP address of virtual network interface
 	// for TCP/IP communication over the POWERLINK network
-	sprintf(sBuffer, "%lu.%lu.%lu.%lu",
+	sprintf(sBuffer, "%u.%u.%u.%u",
 		(EplApiInitParam.m_dwIpAddress >> 24),
 		((EplApiInitParam.m_dwIpAddress >> 16) & 0xFF),
 		((EplApiInitParam.m_dwIpAddress >> 8) & 0xFF),
@@ -515,7 +515,7 @@ tEplKernel AppCbEvent(tEplApiEventType EventType_p,	// IN: event type (enum)
 
 			case kEplNmtGsResetCommunication:
 				{
-					DWORD dwBuffer;
+					u32 dwBuffer;
 
 					// configure OD for MN in state ResetComm after reseting the OD
 					// TODO: setup your own network configuration here
@@ -677,8 +677,8 @@ tEplKernel AppCbEvent(tEplApiEventType EventType_p,	// IN: event type (enum)
 
 			case kEplEventSourceDllk:
 				{	// error occured within the data link layer (e.g. interrupt processing)
-					// the DWORD argument contains the DLL state and the NMT event
-					printk(" val=%lX\n",
+					// the u32 argument contains the DLL state and the NMT event
+					printk(" val=%X\n",
 					       pEventArg_p->m_InternalError.
 					       m_Arg.m_dwArg);
 					break;

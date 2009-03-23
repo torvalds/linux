@@ -207,7 +207,7 @@ typedef enum {
 typedef struct {
 	tEplSdoComConHdl m_SdoComConHdl;
 	tEplSdoComConState m_SdoComConState;
-	DWORD m_dwAbortCode;
+	u32 m_dwAbortCode;
 	tEplSdoAccessType m_SdoAccessType;
 	unsigned int m_uiNodeId;	// NodeId of the target
 	unsigned int m_uiTargetIndex;	// index which was accessed

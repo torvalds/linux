@@ -382,7 +382,7 @@ EPLDLLEXPORT tEplKernel EplNmtuProcessEvent(tEplEvent *pEplEvent_p)
 					// node listens for EPL-Frames and check timeout
 				case kEplNmtCsNotActive:
 					{
-						DWORD dwBuffer;
+						u32 dwBuffer;
 						tEplObdSize ObdSize;
 						tEplTimerArg TimerArg;
 
@@ -475,7 +475,7 @@ EPLDLLEXPORT tEplKernel EplNmtuProcessEvent(tEplEvent *pEplEvent_p)
 					// node listens for EPL-Frames and check timeout
 				case kEplNmtMsNotActive:
 					{
-						DWORD dwBuffer;
+						u32 dwBuffer;
 						tEplObdSize ObdSize;
 						tEplTimerArg TimerArg;
 
@@ -544,7 +544,7 @@ EPLDLLEXPORT tEplKernel EplNmtuProcessEvent(tEplEvent *pEplEvent_p)
 					// node processes only async frames
 				case kEplNmtMsPreOperational1:
 					{
-						DWORD dwBuffer = 0;
+						u32 dwBuffer = 0;
 						tEplObdSize ObdSize;
 						tEplTimerArg TimerArg;
 

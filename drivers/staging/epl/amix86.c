@@ -84,7 +84,7 @@ typedef struct {
 } twStruct;
 
 typedef struct {
-	DWORD m_dwDword;
+	u32 m_dwDword;
 
 } tdwStruct;
 
@@ -140,9 +140,9 @@ void AmiSetWordToBe(void * pAddr_p, WORD wWordVal_p)
 
 }
 
-//------------< write DWORD in big endian >-------------------------
+//------------< write u32 in big endian >-------------------------
 
-void AmiSetDwordToBe(void *pAddr_p, DWORD dwDwordVal_p)
+void AmiSetDwordToBe(void *pAddr_p, u32 dwDwordVal_p)
 {
 	tdwStruct *pdwStruct;
 	tdwStruct dwValue;
@@ -194,9 +194,9 @@ void AmiSetWordToLe(void *pAddr_p, WORD wWordVal_p)
 
 }
 
-//------------< write DWORD in little endian >-------------------------
+//------------< write u32 in little endian >-------------------------
 
-void AmiSetDwordToLe(void *pAddr_p, DWORD dwDwordVal_p)
+void AmiSetDwordToLe(void *pAddr_p, u32 dwDwordVal_p)
 {
 	tdwStruct *pdwStruct;
 
@@ -246,9 +246,9 @@ WORD AmiGetWordFromBe(void *pAddr_p)
 
 }
 
-//------------< read DWORD in big endian >--------------------------
+//------------< read u32 in big endian >--------------------------
 
-DWORD AmiGetDwordFromBe(void *pAddr_p)
+u32 AmiGetDwordFromBe(void *pAddr_p)
 {
 	tdwStruct *pdwStruct;
 	tdwStruct dwValue;
@@ -299,9 +299,9 @@ WORD AmiGetWordFromLe(void *pAddr_p)
 	return (pwStruct->m_wWord);
 }
 
-//------------< read DWORD in little endian >--------------------------
+//------------< read u32 in little endian >--------------------------
 
-DWORD AmiGetDwordFromLe(void *pAddr_p)
+u32 AmiGetDwordFromLe(void *pAddr_p)
 {
 	tdwStruct *pdwStruct;
 
@@ -324,7 +324,7 @@ DWORD AmiGetDwordFromLe(void *pAddr_p)
 //
 //---------------------------------------------------------------------------
 
-void AmiSetDword24ToBe(void *pAddr_p, DWORD dwDwordVal_p)
+void AmiSetDword24ToBe(void *pAddr_p, u32 dwDwordVal_p)
 {
 	((u8 *) pAddr_p)[0] = ((u8 *) & dwDwordVal_p)[2];
 	((u8 *) pAddr_p)[1] = ((u8 *) & dwDwordVal_p)[1];
@@ -346,7 +346,7 @@ void AmiSetDword24ToBe(void *pAddr_p, DWORD dwDwordVal_p)
 //
 //---------------------------------------------------------------------------
 
-void AmiSetDword24ToLe(void *pAddr_p, DWORD dwDwordVal_p)
+void AmiSetDword24ToLe(void *pAddr_p, u32 dwDwordVal_p)
 {
 	((u8 *) pAddr_p)[0] = ((u8 *) & dwDwordVal_p)[0];
 	((u8 *) pAddr_p)[1] = ((u8 *) & dwDwordVal_p)[1];
@@ -361,12 +361,12 @@ void AmiSetDword24ToLe(void *pAddr_p, DWORD dwDwordVal_p)
 //
 // Parameters:  pAddr_p         = pointer to source buffer
 //
-// Return:      DWORD           = read value
+// Return:      u32           = read value
 //
 // State:       not tested
 //
 //---------------------------------------------------------------------------
-DWORD AmiGetDword24FromBe(void *pAddr_p)
+u32 AmiGetDword24FromBe(void *pAddr_p)
 {
 	tdwStruct dwStruct;
 
@@ -384,12 +384,12 @@ DWORD AmiGetDword24FromBe(void *pAddr_p)
 //
 // Parameters:  pAddr_p         = pointer to source buffer
 //
-// Return:      DWORD           = read value
+// Return:      u32           = read value
 //
 // State:       not tested
 //
 //---------------------------------------------------------------------------
-DWORD AmiGetDword24FromLe(void *pAddr_p)
+u32 AmiGetDword24FromLe(void *pAddr_p)
 {
 	tdwStruct dwStruct;
 
@@ -546,7 +546,7 @@ void AmiSetQword40ToBe(void *pAddr_p, u64 qwQwordVal_p)
 void AmiSetQword40ToLe(void *pAddr_p, u64 qwQwordVal_p)
 {
 
-	((DWORD *) pAddr_p)[0] = ((DWORD *) & qwQwordVal_p)[0];
+	((u32 *) pAddr_p)[0] = ((u32 *) & qwQwordVal_p)[0];
 	((u8 *) pAddr_p)[4] = ((u8 *) & qwQwordVal_p)[4];
 
 }
@@ -648,7 +648,7 @@ void AmiSetQword48ToBe(void *pAddr_p, u64 qwQwordVal_p)
 void AmiSetQword48ToLe(void *pAddr_p, u64 qwQwordVal_p)
 {
 
-	((DWORD *) pAddr_p)[0] = ((DWORD *) & qwQwordVal_p)[0];
+	((u32 *) pAddr_p)[0] = ((u32 *) & qwQwordVal_p)[0];
 	((WORD *) pAddr_p)[2] = ((WORD *) & qwQwordVal_p)[2];
 
 }
@@ -751,7 +751,7 @@ void AmiSetQword56ToBe(void *pAddr_p, u64 qwQwordVal_p)
 void AmiSetQword56ToLe(void *pAddr_p, u64 qwQwordVal_p)
 {
 
-	((DWORD *) pAddr_p)[0] = ((DWORD *) & qwQwordVal_p)[0];
+	((u32 *) pAddr_p)[0] = ((u32 *) & qwQwordVal_p)[0];
 	((WORD *) pAddr_p)[2] = ((WORD *) & qwQwordVal_p)[2];
 	((u8 *) pAddr_p)[6] = ((u8 *) & qwQwordVal_p)[6];
 

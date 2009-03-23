@@ -249,7 +249,7 @@ typedef struct {
 	tEplKernel m_EplError;	// EPL error which occured
 	union {
 		u8 m_bArg;
-		DWORD m_dwArg;
+		u32 m_dwArg;
 		tEplEventSource m_EventSource;	// from Eventk/u module (originating error source)
 		tEplEventObdError m_ObdError;	// from Obd module
 //        tEplErrHistoryEntry     m_HistoryEntry; // from Nmtk/u module

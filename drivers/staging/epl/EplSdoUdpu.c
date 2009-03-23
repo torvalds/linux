@@ -431,7 +431,7 @@ tEplKernel EplSdoUdpuInitCon(tEplSdoConHdl *pSdoConHandle_p,
 //
 //---------------------------------------------------------------------------
 tEplKernel EplSdoUdpuSendData(tEplSdoConHdl SdoConHandle_p,
-			      tEplFrame *pSrcData_p, DWORD dwDataSize_p)
+			      tEplFrame *pSrcData_p, u32 dwDataSize_p)
 {
 	tEplKernel Ret;
 	int iError;
@@ -536,7 +536,7 @@ tEplKernel EplSdoUdpuDelCon(tEplSdoConHdl SdoConHandle_p)
 // Parameters:      lpParameter = pointer to parameter type tEplSdoUdpThreadPara
 //
 //
-// Returns:         DWORD   =   errorcode
+// Returns:         u32   =   errorcode
 //
 //
 // State:

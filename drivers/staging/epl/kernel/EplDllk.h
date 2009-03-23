@@ -96,7 +96,7 @@ struct _tEplDllkNodeInfo {
 	struct _tEplDllkNodeInfo *m_pNextNodeInfo;
 	struct _tEdrvTxBuffer *m_pPreqTxBuffer;
 	unsigned int m_uiNodeId;
-	DWORD m_dwPresTimeout;
+	u32 m_dwPresTimeout;
 	unsigned long m_ulDllErrorEvents;
 	tEplNmtState m_NmtState;
 	WORD m_wPresPayloadLimit;

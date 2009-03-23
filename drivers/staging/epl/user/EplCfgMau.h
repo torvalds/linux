@@ -131,13 +131,13 @@ typedef enum {
 typedef struct {
 	tEplCfgState m_CfgState;	// state of the configuration state maschine
 	tEplSdoComConHdl m_SdoComConHdl;	// handle for sdo connection
-	DWORD m_dwLastAbortCode;
+	u32 m_dwLastAbortCode;
 	unsigned int m_uiLastIndex;	// last index of configuration, to compair with actual index
 	u8 *m_pbConcise;	// Ptr to concise DCF
 	u8 *m_pbActualIndex;	// Ptr to actual index in the DCF segment
 	tfpEplCfgMaCb m_pfnCfgMaCb;	// Ptr to CfgMa Callback, is call if configuration finished
 	tEplKernel m_EplKernelError;	// errorcode
-	DWORD m_dwNumValueCopy;	// numeric values are copied in this variable
+	u32 m_dwNumValueCopy;	// numeric values are copied in this variable
 	unsigned int m_uiPdoNodeId;	// buffer for PDO node id
 	u8 m_bNrOfMappedObject;	// number of mapped objects
 	unsigned int m_uiNodeId;	// Epl node addresse
@@ -145,7 +145,7 @@ typedef struct {
 	unsigned int m_uiLastSubIndex;	// last subindex of configuration
 	BOOL m_fOneTranferOk;	// atleased one transfer was successful
 	u8 m_bEventFlag;	// for Eventsignaling to the State Maschine
-	DWORD m_dwCntObjectInDcf;	// number of Objects in DCF
+	u32 m_dwCntObjectInDcf;	// number of Objects in DCF
 	tEplCfgMaIndexType m_SkipCfg;	// TRUE if a adsitional Configurationprocess
 	// have to insert e.g. PDO-mapping
 	WORD m_wTimeOutCnt;	// Timeout Counter, break configuration is

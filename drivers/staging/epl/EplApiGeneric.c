@@ -997,8 +997,8 @@ tEplKernel EplApiCbObdAccess(tEplObdCbParam *pParam_p)
 		{
 			if ((pParam_p->m_ObdEvent == kEplObdEvPostWrite)
 			    && (pParam_p->m_uiSubIndex == 3)
-			    && (*((DWORD *) pParam_p->m_pArg) != 0)) {
-				DWORD dwVerifyConfInvalid = 0;
+			    && (*((u32 *) pParam_p->m_pArg) != 0)) {
+				u32 dwVerifyConfInvalid = 0;
 				// set CFM_VerifyConfiguration_REC.VerifyConfInvalid_U32 to 0
 				Ret =
 				    EplObdWriteEntry(0x1020, 4,

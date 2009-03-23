@@ -99,7 +99,7 @@ tEplKernel EplSdoUdpuInitCon(tEplSdoConHdl *pSdoConHandle_p,
 			     unsigned int uiTargetNodeId_p);
 
 tEplKernel EplSdoUdpuSendData(tEplSdoConHdl SdoConHandle_p,
-			      tEplFrame *pSrcData_p, DWORD dwDataSize_p);
+			      tEplFrame *pSrcData_p, u32 dwDataSize_p);
 
 tEplKernel EplSdoUdpuDelCon(tEplSdoConHdl SdoConHandle_p);
 

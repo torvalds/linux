@@ -174,7 +174,7 @@ typedef struct {
 	//    the SDO transfer
 	void *m_pUserArg;	// user definable argument pointer
 
-	DWORD m_dwLastAbortCode;	// save the last abort code
+	u32 m_dwLastAbortCode;	// save the last abort code
 #if(((EPL_MODULE_INTEGRATION) & (EPL_MODULE_SDOC)) != 0)
 	// only for client
 	unsigned int m_uiTargetIndex;	// index to access
@@ -246,7 +246,7 @@ static tEplKernel EplSdoComClientProcessFrame(tEplSdoComConHdl SdoComCon_p,
 					      tEplAsySdoCom * pAsySdoCom_p);
 
 static tEplKernel EplSdoComClientSendAbort(tEplSdoComCon * pSdoComCon_p,
-					   DWORD dwAbortCode_p);
+					   u32 dwAbortCode_p);
 #endif
 
 /***************************************************************************/
@@ -747,7 +747,7 @@ tEplKernel EplSdoComGetState(tEplSdoComConHdl SdoComConHdl_p,
 //---------------------------------------------------------------------------
 #if(((EPL_MODULE_INTEGRATION) & (EPL_MODULE_SDOC)) != 0)
 tEplKernel EplSdoComSdoAbort(tEplSdoComConHdl SdoComConHdl_p,
-			     DWORD dwAbortCode_p)
+			     u32 dwAbortCode_p)
 {
 	tEplKernel Ret;
 	tEplSdoComCon *pSdoComCon;
@@ -1001,7 +1001,7 @@ static tEplKernel EplSdoComProcessIntern(tEplSdoComConHdl SdoComCon_p,
 	u8 bFlag;
 
 #if(((EPL_MODULE_INTEGRATION) & (EPL_MODULE_SDOS)) != 0)
-	DWORD dwAbortCode;
+	u32 dwAbortCode;
 	unsigned int uiSize;
 #endif
 
@@ -1666,7 +1666,7 @@ static tEplKernel EplSdoComProcessIntern(tEplSdoComConHdl SdoComCon_p,
 			case kEplSdoComConEventAbort:
 				{
 					EplSdoComClientSendAbort(pSdoComCon,
-								 *((DWORD *)
+								 *((u32 *)
 								   pSdoComCon->
 								   m_pData));
 
@@ -1674,7 +1674,7 @@ static tEplKernel EplSdoComProcessIntern(tEplSdoComConHdl SdoComCon_p,
 					pSdoComCon->m_bTransactionId++;
 					// call callback of application
 					pSdoComCon->m_dwLastAbortCode =
-					    *((DWORD *) pSdoComCon->m_pData);
+					    *((u32 *) pSdoComCon->m_pData);
 					Ret =
 					    EplSdoComTransferFinished
 					    (SdoComCon_p, pSdoComCon,
@@ -1868,7 +1868,7 @@ static tEplKernel EplSdoComProcessIntern(tEplSdoComConHdl SdoComCon_p,
 			case kEplSdoComConEventAbort:
 				{
 					EplSdoComClientSendAbort(pSdoComCon,
-								 *((DWORD *)
+								 *((u32 *)
 								   pSdoComCon->
 								   m_pData));
 
@@ -1879,7 +1879,7 @@ static tEplKernel EplSdoComProcessIntern(tEplSdoComConHdl SdoComCon_p,
 					    kEplSdoComStateClientConnected;
 					// call callback of application
 					pSdoComCon->m_dwLastAbortCode =
-					    *((DWORD *) pSdoComCon->m_pData);
+					    *((u32 *) pSdoComCon->m_pData);
 					Ret =
 					    EplSdoComTransferFinished
 					    (SdoComCon_p, pSdoComCon,
@@ -1964,7 +1964,7 @@ static tEplKernel EplSdoComServerInitReadByIndex(tEplSdoComCon * pSdoComCon_p,
 	unsigned int uiSubindex;
 	tEplObdSize EntrySize;
 	tEplObdAccess AccessType;
-	DWORD dwAbortCode;
+	u32 dwAbortCode;
 
 	dwAbortCode = 0;
 
@@ -2323,18 +2323,18 @@ static tEplKernel EplSdoComServerSendFrameIntern(tEplSdoComCon * pSdoComCon_p,
 
 			// copy abortcode to frame
 			AmiSetDwordToLe(&pCommandFrame->m_le_abCommandData[0],
-					*((DWORD *) pSdoComCon_p->m_pData));
+					*((u32 *) pSdoComCon_p->m_pData));
 
 			// set size of segment
 			AmiSetWordToLe(&pCommandFrame->m_le_wSegmentSize,
-				       sizeof(DWORD));
+				       sizeof(u32));
 
 			// update counter
-			pSdoComCon_p->m_uiTransferredByte = sizeof(DWORD);
+			pSdoComCon_p->m_uiTransferredByte = sizeof(u32);
 			pSdoComCon_p->m_uiTransSize = 0;
 
 			// calc framesize
-			uiSizeOfFrame += sizeof(DWORD);
+			uiSizeOfFrame += sizeof(u32);
 			Ret = EplSdoAsySeqSendData(pSdoComCon_p->m_SdoSeqConHdl,
 						   uiSizeOfFrame, pFrame);
 			break;
@@ -2372,7 +2372,7 @@ static tEplKernel EplSdoComServerInitWriteByIndex(tEplSdoComCon * pSdoComCon_p,
 	unsigned int uiBytesToTransfer;
 	tEplObdSize EntrySize;
 	tEplObdAccess AccessType;
-	DWORD dwAbortCode;
+	u32 dwAbortCode;
 	u8 *pbSrcData;
 
 	dwAbortCode = 0;
@@ -3216,7 +3216,7 @@ static tEplKernel EplSdoComClientProcessFrame(tEplSdoComConHdl SdoComCon_p,
 //---------------------------------------------------------------------------
 #if(((EPL_MODULE_INTEGRATION) & (EPL_MODULE_SDOC)) != 0)
 static tEplKernel EplSdoComClientSendAbort(tEplSdoComCon * pSdoComCon_p,
-					   DWORD dwAbortCode_p)
+					   u32 dwAbortCode_p)
 {
 	tEplKernel Ret;
 	u8 abFrame[EPL_MAX_SDO_FRAME_SIZE];
@@ -3249,14 +3249,14 @@ static tEplKernel EplSdoComClientSendAbort(tEplSdoComCon * pSdoComCon_p,
 	AmiSetDwordToLe(&pCommandFrame->m_le_abCommandData[0], dwAbortCode_p);
 
 	// set size of segment
-	AmiSetWordToLe(&pCommandFrame->m_le_wSegmentSize, sizeof(DWORD));
+	AmiSetWordToLe(&pCommandFrame->m_le_wSegmentSize, sizeof(u32));
 
 	// update counter
-	pSdoComCon_p->m_uiTransferredByte = sizeof(DWORD);
+	pSdoComCon_p->m_uiTransferredByte = sizeof(u32);
 	pSdoComCon_p->m_uiTransSize = 0;
 
 	// calc framesize
-	uiSizeOfFrame += sizeof(DWORD);
+	uiSizeOfFrame += sizeof(u32);
 
 	// save abort code
 	pSdoComCon_p->m_dwLastAbortCode = dwAbortCode_p;
