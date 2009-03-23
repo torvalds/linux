@@ -127,23 +127,10 @@
 //  definitions for function inlining
 //---------------------------------------------------------------------------
 
-#define INLINE_FUNCTION		// empty define
-#undef  INLINE_ENABLED		// disable actual inlining of functions
-#undef  INLINE_FUNCTION_DEF	// disable inlining for all compilers per default
-
-
 #define LINUX_SYSTEM		// define 'LINUX_SYSTEM' uniform for all Linux based systems
 	// r.d.: We will need an other solution here! There are two sections here which do check the preproc-definitions:
 	//     LINUX and __linux__ . The first one was Linux for PC, the second one is this section for embedded Linux (MCF5xxx).
 	//     But Linux for PC does not need the definitions for embedded Linux.
-
-    // GNU C compiler supports function inlining
-#define INLINE_FUNCTION_DEF extern inline
-
-    // to actually enable inlining just include the following three lines
-    // #undef INLINE_FUNCTION
-    // #define INLINE_FUNCTION     INLINE_FUNCTION_DEF
-    // #define INLINE_ENABLED      TRUE
 
 #define TARGET_SYSTEM       _LINUX_	// Linux definition
 #define DEV_SYSTEM          _DEV_LINUX_

@@ -104,18 +104,6 @@
 extern "C" {
 #endif
 
-#if (TARGET_SYSTEM == _LINUX_)
-#if defined(__m68k__)		// it is an big endian machine
-#if defined(INLINE_FUNCTION_DEF)
-#undef  INLINE_FUNCTION
-#define INLINE_FUNCTION     INLINE_FUNCTION_DEF
-#define INLINE_ENABLED      TRUE
-#define EPL_AMI_INLINED
-#include "../EplStack/amibe.c"
-#endif
-#endif
-#endif
-
 //---------------------------------------------------------------------------
 //
 // write functions
@@ -127,12 +115,10 @@ extern "C" {
 #define AmiSetByteToBe(pAddr_p, bByteVal_p)  {*(BYTE FAR*)(pAddr_p) = (bByteVal_p);}
 #define AmiSetByteToLe(pAddr_p, bByteVal_p)  {*(BYTE FAR*)(pAddr_p) = (bByteVal_p);}
 
-#if !defined(INLINE_ENABLED)
 void AmiSetWordToBe(void FAR *pAddr_p, WORD wWordVal_p);
 void AmiSetDwordToBe(void FAR *pAddr_p, DWORD dwDwordVal_p);
 void AmiSetWordToLe(void FAR *pAddr_p, WORD wWordVal_p);
 void AmiSetDwordToLe(void FAR *pAddr_p, DWORD dwDwordVal_p);
-#endif
 
 //---------------------------------------------------------------------------
 //
@@ -144,8 +130,6 @@ void AmiSetDwordToLe(void FAR *pAddr_p, DWORD dwDwordVal_p);
 
 #define AmiGetByteFromBe(pAddr_p)  (*(BYTE FAR*)(pAddr_p))
 #define AmiGetByteFromLe(pAddr_p)  (*(BYTE FAR*)(pAddr_p))
-
-#if !defined(INLINE_ENABLED)
 
 WORD AmiGetWordFromBe(void FAR *pAddr_p);
 DWORD AmiGetDwordFromBe(void FAR *pAddr_p);
@@ -336,11 +320,6 @@ void AmiSetTimeOfDay(void FAR *pAddr_p, tTimeOfDay FAR *pTimeOfDay_p);
 //
 //---------------------------------------------------------------------------
 void AmiGetTimeOfDay(void FAR *pAddr_p, tTimeOfDay FAR *pTimeOfDay_p);
-
-#endif
-
-#undef  INLINE_ENABLED		// disable actual inlining of functions
-#define EPL_AMI_INCLUDED
 
 #ifdef __cplusplus
 }
