@@ -113,5 +113,7 @@ source "drivers/staging/heci/Kconfig"
 
 source "drivers/staging/line6/Kconfig"
 
+source "drivers/staging/serqt_usb/Kconfig"
+
 endif # !STAGING_EXCLUDE_BUILD
 endif # STAGING
