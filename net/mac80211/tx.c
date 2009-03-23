@@ -34,8 +34,7 @@
 
 #define IEEE80211_TX_OK		0
 #define IEEE80211_TX_AGAIN	1
-#define IEEE80211_TX_FRAG_AGAIN	2
-#define IEEE80211_TX_PENDING	3
+#define IEEE80211_TX_PENDING	2
 
 /* misc utils */
 
@@ -702,17 +701,62 @@ ieee80211_tx_h_sequence(struct ieee80211_tx_data *tx)
 	return TX_CONTINUE;
 }
 
+static int ieee80211_fragment(struct ieee80211_local *local,
+			      struct sk_buff *skb, int hdrlen,
+			      int frag_threshold)
+{
+	struct sk_buff *tail = skb, *tmp;
+	int per_fragm = frag_threshold - hdrlen - FCS_LEN;
+	int pos = hdrlen + per_fragm;
+	int rem = skb->len - hdrlen - per_fragm;
+
+	if (WARN_ON(rem < 0))
+		return -EINVAL;
+
+	while (rem) {
+		int fraglen = per_fragm;
+
+		if (fraglen > rem)
+			fraglen = rem;
+		rem -= fraglen;
+		tmp = dev_alloc_skb(local->tx_headroom +
+				    frag_threshold +
+				    IEEE80211_ENCRYPT_HEADROOM +
+				    IEEE80211_ENCRYPT_TAILROOM);
+		if (!tmp)
+			return -ENOMEM;
+		tail->next = tmp;
+		tail = tmp;
+		skb_reserve(tmp, local->tx_headroom +
+				 IEEE80211_ENCRYPT_HEADROOM);
+		/* copy control information */
+		memcpy(tmp->cb, skb->cb, sizeof(tmp->cb));
+		skb_copy_queue_mapping(tmp, skb);
+		tmp->priority = skb->priority;
+		tmp->do_not_encrypt = skb->do_not_encrypt;
+		tmp->dev = skb->dev;
+		tmp->iif = skb->iif;
+
+		/* copy header and data */
+		memcpy(skb_put(tmp, hdrlen), skb->data, hdrlen);
+		memcpy(skb_put(tmp, fraglen), skb->data + pos, fraglen);
+
+		pos += fraglen;
+	}
+
+	skb->len = hdrlen + per_fragm;
+	return 0;
+}
+
 static ieee80211_tx_result debug_noinline
 ieee80211_tx_h_fragment(struct ieee80211_tx_data *tx)
 {
-	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(tx->skb);
-	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)tx->skb->data;
-	size_t hdrlen, per_fragm, num_fragm, payload_len, left;
-	struct sk_buff **frags, *first, *frag;
-	int i;
-	u16 seq;
-	u8 *pos;
+	struct sk_buff *skb = tx->skb;
+	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
+	struct ieee80211_hdr *hdr = (void *)skb->data;
 	int frag_threshold = tx->local->fragmentation_threshold;
+	int hdrlen;
+	int fragnum;
 
 	if (!(tx->flags & IEEE80211_TX_FRAGMENTED))
 		return TX_CONTINUE;
@@ -725,58 +769,35 @@ ieee80211_tx_h_fragment(struct ieee80211_tx_data *tx)
 	if (WARN_ON(info->flags & IEEE80211_TX_CTL_AMPDU))
 		return TX_DROP;
 
-	first = tx->skb;
-
 	hdrlen = ieee80211_hdrlen(hdr->frame_control);
-	payload_len = first->len - hdrlen;
-	per_fragm = frag_threshold - hdrlen - FCS_LEN;
-	num_fragm = DIV_ROUND_UP(payload_len, per_fragm);
 
-	frags = kzalloc(num_fragm * sizeof(struct sk_buff *), GFP_ATOMIC);
-	if (!frags)
-		goto fail;
+	/* internal error, why is TX_FRAGMENTED set? */
+	if (WARN_ON(skb->len <= frag_threshold))
+		return TX_DROP;
 
-	hdr->frame_control |= cpu_to_le16(IEEE80211_FCTL_MOREFRAGS);
-	seq = le16_to_cpu(hdr->seq_ctrl) & IEEE80211_SCTL_SEQ;
-	pos = first->data + hdrlen + per_fragm;
-	left = payload_len - per_fragm;
-	for (i = 0; i < num_fragm - 1; i++) {
-		struct ieee80211_hdr *fhdr;
-		size_t copylen;
+	/*
+	 * Now fragment the frame. This will allocate all the fragments and
+	 * chain them (using skb as the first fragment) to skb->next.
+	 * During transmission, we will remove the successfully transmitted
+	 * fragments from this list. When the low-level driver rejects one
+	 * of the fragments then we will simply pretend to accept the skb
+	 * but store it away as pending.
+	 */
+	if (ieee80211_fragment(tx->local, skb, hdrlen, frag_threshold))
+		return TX_DROP;
 
-		if (left <= 0)
-			goto fail;
+	/* update duration/seq/flags of fragments */
+	fragnum = 0;
+	do {
+		int next_len;
+		const __le16 morefrags = cpu_to_le16(IEEE80211_FCTL_MOREFRAGS);
 
-		/* reserve enough extra head and tail room for possible
-		 * encryption */
-		frag = frags[i] =
-			dev_alloc_skb(tx->local->tx_headroom +
-				      frag_threshold +
-				      IEEE80211_ENCRYPT_HEADROOM +
-				      IEEE80211_ENCRYPT_TAILROOM);
-		if (!frag)
-			goto fail;
+		hdr = (void *)skb->data;
+		info = IEEE80211_SKB_CB(skb);
 
-		/* Make sure that all fragments use the same priority so
-		 * that they end up using the same TX queue */
-		frag->priority = first->priority;
-
-		skb_reserve(frag, tx->local->tx_headroom +
-				  IEEE80211_ENCRYPT_HEADROOM);
-
-		/* copy TX information */
-		info = IEEE80211_SKB_CB(frag);
-		memcpy(info, first->cb, sizeof(frag->cb));
-
-		/* copy/fill in 802.11 header */
-		fhdr = (struct ieee80211_hdr *) skb_put(frag, hdrlen);
-		memcpy(fhdr, first->data, hdrlen);
-		fhdr->seq_ctrl = cpu_to_le16(seq | ((i + 1) & IEEE80211_SCTL_FRAG));
-
-		if (i == num_fragm - 2) {
-			/* clear MOREFRAGS bit for the last fragment */
-			fhdr->frame_control &= cpu_to_le16(~IEEE80211_FCTL_MOREFRAGS);
-		} else {
+		if (skb->next) {
+			hdr->frame_control |= morefrags;
+			next_len = skb->next->len;
 			/*
 			 * No multi-rate retries for fragmented frames, that
 			 * would completely throw off the NAV at other STAs.
@@ -787,37 +808,16 @@ ieee80211_tx_h_fragment(struct ieee80211_tx_data *tx)
 			info->control.rates[4].idx = -1;
 			BUILD_BUG_ON(IEEE80211_TX_MAX_RATES != 5);
 			info->flags &= ~IEEE80211_TX_CTL_RATE_CTRL_PROBE;
+		} else {
+			hdr->frame_control &= ~morefrags;
+			next_len = 0;
 		}
-
-		/* copy data */
-		copylen = left > per_fragm ? per_fragm : left;
-		memcpy(skb_put(frag, copylen), pos, copylen);
-
-		skb_copy_queue_mapping(frag, first);
-
-		frag->do_not_encrypt = first->do_not_encrypt;
-		frag->dev = first->dev;
-		frag->iif = first->iif;
-
-		pos += copylen;
-		left -= copylen;
-	}
-	skb_trim(first, hdrlen + per_fragm);
-
-	tx->num_extra_frag = num_fragm - 1;
-	tx->extra_frag = frags;
+		hdr->duration_id = ieee80211_duration(tx, 0, next_len);
+		hdr->seq_ctrl |= cpu_to_le16(fragnum & IEEE80211_SCTL_FRAG);
+		fragnum++;
+	} while ((skb = skb->next));
 
 	return TX_CONTINUE;
-
- fail:
-	if (frags) {
-		for (i = 0; i < num_fragm - 1; i++)
-			if (frags[i])
-				dev_kfree_skb(frags[i]);
-		kfree(frags);
-	}
-	I802_DEBUG_INC(tx->local->tx_handlers_drop_fragment);
-	return TX_DROP;
 }
 
 static ieee80211_tx_result debug_noinline
@@ -845,27 +845,19 @@ ieee80211_tx_h_encrypt(struct ieee80211_tx_data *tx)
 static ieee80211_tx_result debug_noinline
 ieee80211_tx_h_calculate_duration(struct ieee80211_tx_data *tx)
 {
-	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)tx->skb->data;
-	int next_len, i;
-	int group_addr = is_multicast_ether_addr(hdr->addr1);
+	struct sk_buff *skb = tx->skb;
+	struct ieee80211_hdr *hdr;
+	int next_len;
+	bool group_addr;
 
-	if (!(tx->flags & IEEE80211_TX_FRAGMENTED)) {
-		hdr->duration_id = ieee80211_duration(tx, group_addr, 0);
-		return TX_CONTINUE;
-	}
+	do {
+		hdr = (void *) skb->data;
+		next_len = skb->next ? skb->next->len : 0;
+		group_addr = is_multicast_ether_addr(hdr->addr1);
 
-	hdr->duration_id = ieee80211_duration(tx, group_addr,
-					      tx->extra_frag[0]->len);
-
-	for (i = 0; i < tx->num_extra_frag; i++) {
-		if (i + 1 < tx->num_extra_frag)
-			next_len = tx->extra_frag[i + 1]->len;
-		else
-			next_len = 0;
-
-		hdr = (struct ieee80211_hdr *)tx->extra_frag[i]->data;
-		hdr->duration_id = ieee80211_duration(tx, 0, next_len);
-	}
+		hdr->duration_id =
+			ieee80211_duration(tx, group_addr, next_len);
+	} while ((skb = skb->next));
 
 	return TX_CONTINUE;
 }
@@ -873,19 +865,16 @@ ieee80211_tx_h_calculate_duration(struct ieee80211_tx_data *tx)
 static ieee80211_tx_result debug_noinline
 ieee80211_tx_h_stats(struct ieee80211_tx_data *tx)
 {
-	int i;
+	struct sk_buff *skb = tx->skb;
 
 	if (!tx->sta)
 		return TX_CONTINUE;
 
 	tx->sta->tx_packets++;
-	tx->sta->tx_fragments++;
-	tx->sta->tx_bytes += tx->skb->len;
-	if (tx->extra_frag) {
-		tx->sta->tx_fragments += tx->num_extra_frag;
-		for (i = 0; i < tx->num_extra_frag; i++)
-			tx->sta->tx_bytes += tx->extra_frag[i]->len;
-	}
+	do {
+		tx->sta->tx_fragments++;
+		tx->sta->tx_bytes += skb->len;
+	} while ((skb = skb->next));
 
 	return TX_CONTINUE;
 }
@@ -1099,45 +1088,36 @@ static int ieee80211_tx_prepare(struct ieee80211_local *local,
 	return 0;
 }
 
-static int __ieee80211_tx(struct ieee80211_local *local, struct sk_buff *skb,
+static int __ieee80211_tx(struct ieee80211_local *local,
 			  struct ieee80211_tx_data *tx)
 {
+	struct sk_buff *skb = tx->skb, *next;
 	struct ieee80211_tx_info *info;
-	int ret, i;
+	int ret;
+	bool fragm = false;
 
-	if (skb) {
+	local->mdev->trans_start = jiffies;
+
+	while (skb) {
 		if (ieee80211_queue_stopped(&local->hw,
 					    skb_get_queue_mapping(skb)))
 			return IEEE80211_TX_PENDING;
 
-		ret = local->ops->tx(local_to_hw(local), skb);
-		if (ret)
-			return IEEE80211_TX_AGAIN;
-		local->mdev->trans_start = jiffies;
-		ieee80211_led_tx(local, 1);
-	}
-	if (tx->extra_frag) {
-		for (i = 0; i < tx->num_extra_frag; i++) {
-			if (!tx->extra_frag[i])
-				continue;
-			info = IEEE80211_SKB_CB(tx->extra_frag[i]);
+		if (fragm) {
+			info = IEEE80211_SKB_CB(skb);
 			info->flags &= ~(IEEE80211_TX_CTL_CLEAR_PS_FILT |
 					 IEEE80211_TX_CTL_FIRST_FRAGMENT);
-			if (ieee80211_queue_stopped(&local->hw,
-					skb_get_queue_mapping(tx->extra_frag[i])))
-				return IEEE80211_TX_FRAG_AGAIN;
-
-			ret = local->ops->tx(local_to_hw(local),
-					    tx->extra_frag[i]);
-			if (ret)
-				return IEEE80211_TX_FRAG_AGAIN;
-			local->mdev->trans_start = jiffies;
-			ieee80211_led_tx(local, 1);
-			tx->extra_frag[i] = NULL;
 		}
-		kfree(tx->extra_frag);
-		tx->extra_frag = NULL;
+
+		next = skb->next;
+		ret = local->ops->tx(local_to_hw(local), skb);
+		if (ret != NETDEV_TX_OK)
+			return IEEE80211_TX_AGAIN;
+		tx->skb = skb = next;
+		ieee80211_led_tx(local, 1);
+		fragm = true;
 	}
+
 	return IEEE80211_TX_OK;
 }
 
@@ -1149,7 +1129,6 @@ static int invoke_tx_handlers(struct ieee80211_tx_data *tx)
 {
 	struct sk_buff *skb = tx->skb;
 	ieee80211_tx_result res = TX_DROP;
-	int i;
 
 #define CALL_TXH(txh)		\
 	res = txh(tx);		\
@@ -1173,11 +1152,13 @@ static int invoke_tx_handlers(struct ieee80211_tx_data *tx)
  txh_done:
 	if (unlikely(res == TX_DROP)) {
 		I802_DEBUG_INC(tx->local->tx_handlers_drop);
-		dev_kfree_skb(skb);
-		for (i = 0; i < tx->num_extra_frag; i++)
-			if (tx->extra_frag[i])
-				dev_kfree_skb(tx->extra_frag[i]);
-		kfree(tx->extra_frag);
+		while (skb) {
+			struct sk_buff *next;
+
+			next = skb->next;
+			dev_kfree_skb(skb);
+			skb = next;
+		}
 		return -1;
 	} else if (unlikely(res == TX_QUEUED)) {
 		I802_DEBUG_INC(tx->local->tx_handlers_queued);
@@ -1194,7 +1175,7 @@ static int ieee80211_tx(struct net_device *dev, struct sk_buff *skb)
 	struct ieee80211_tx_data tx;
 	ieee80211_tx_result res_prepare;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
-	int ret, i;
+	int ret;
 	u16 queue;
 
 	queue = skb_get_queue_mapping(skb);
@@ -1225,7 +1206,7 @@ static int ieee80211_tx(struct net_device *dev, struct sk_buff *skb)
 		goto out;
 
 retry:
-	ret = __ieee80211_tx(local, skb, &tx);
+	ret = __ieee80211_tx(local, &tx);
 	if (ret) {
 		struct ieee80211_tx_stored_packet *store;
 
@@ -1239,9 +1220,6 @@ retry:
 				goto drop;
 
 		store = &local->pending_packet[queue];
-
-		if (ret == IEEE80211_TX_FRAG_AGAIN)
-			skb = NULL;
 
 		set_bit(queue, local->queues_pending);
 		smp_mb();
@@ -1260,22 +1238,23 @@ retry:
 			clear_bit(queue, local->queues_pending);
 			goto retry;
 		}
-		store->skb = skb;
-		store->extra_frag = tx.extra_frag;
-		store->num_extra_frag = tx.num_extra_frag;
+		store->skb = tx.skb;
 	}
  out:
 	rcu_read_unlock();
 	return 0;
 
  drop:
-	if (skb)
-		dev_kfree_skb(skb);
-	for (i = 0; i < tx.num_extra_frag; i++)
-		if (tx.extra_frag[i])
-			dev_kfree_skb(tx.extra_frag[i]);
-	kfree(tx.extra_frag);
 	rcu_read_unlock();
+
+	skb = tx.skb;
+	while (skb) {
+		struct sk_buff *next;
+
+		next = skb->next;
+		dev_kfree_skb(skb);
+		skb = next;
+	}
 	return 0;
 }
 
@@ -1810,17 +1789,21 @@ int ieee80211_subif_start_xmit(struct sk_buff *skb,
  */
 void ieee80211_clear_tx_pending(struct ieee80211_local *local)
 {
-	int i, j;
-	struct ieee80211_tx_stored_packet *store;
+	struct sk_buff *skb;
+	int i;
 
 	for (i = 0; i < local->hw.queues; i++) {
 		if (!test_bit(i, local->queues_pending))
 			continue;
-		store = &local->pending_packet[i];
-		kfree_skb(store->skb);
-		for (j = 0; j < store->num_extra_frag; j++)
-			kfree_skb(store->extra_frag[j]);
-		kfree(store->extra_frag);
+
+		skb = local->pending_packet[i].skb;
+		while (skb) {
+			struct sk_buff *next;
+
+			next = skb->next;
+			dev_kfree_skb(skb);
+			skb = next;
+		}
 		clear_bit(i, local->queues_pending);
 	}
 }
@@ -1854,14 +1837,11 @@ void ieee80211_tx_pending(unsigned long data)
 		netif_start_subqueue(local->mdev, i);
 
 		store = &local->pending_packet[i];
-		tx.extra_frag = store->extra_frag;
-		tx.num_extra_frag = store->num_extra_frag;
 		tx.flags = 0;
-		ret = __ieee80211_tx(local, store->skb, &tx);
-		if (ret) {
-			if (ret == IEEE80211_TX_FRAG_AGAIN)
-				store->skb = NULL;
-		} else {
+		tx.skb = store->skb;
+		ret = __ieee80211_tx(local, &tx);
+		store->skb = tx.skb;
+		if (!ret) {
 			clear_bit(i, local->queues_pending);
 			ieee80211_wake_queue(&local->hw, i);
 		}

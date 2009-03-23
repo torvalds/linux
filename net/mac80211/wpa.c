@@ -196,19 +196,13 @@ ieee80211_tx_result
 ieee80211_crypto_tkip_encrypt(struct ieee80211_tx_data *tx)
 {
 	struct sk_buff *skb = tx->skb;
-	int i;
 
 	ieee80211_tx_set_protected(tx);
 
-	if (tkip_encrypt_skb(tx, skb) < 0)
-		return TX_DROP;
-
-	if (tx->extra_frag) {
-		for (i = 0; i < tx->num_extra_frag; i++) {
-			if (tkip_encrypt_skb(tx, tx->extra_frag[i]))
-				return TX_DROP;
-		}
-	}
+	do {
+		if (tkip_encrypt_skb(tx, skb) < 0)
+			return TX_DROP;
+	} while ((skb = skb->next));
 
 	return TX_CONTINUE;
 }
@@ -428,19 +422,13 @@ ieee80211_tx_result
 ieee80211_crypto_ccmp_encrypt(struct ieee80211_tx_data *tx)
 {
 	struct sk_buff *skb = tx->skb;
-	int i;
 
 	ieee80211_tx_set_protected(tx);
 
-	if (ccmp_encrypt_skb(tx, skb) < 0)
-		return TX_DROP;
-
-	if (tx->extra_frag) {
-		for (i = 0; i < tx->num_extra_frag; i++) {
-			if (ccmp_encrypt_skb(tx, tx->extra_frag[i]))
-				return TX_DROP;
-		}
-	}
+	do {
+		if (ccmp_encrypt_skb(tx, skb) < 0)
+			return TX_DROP;
+	} while ((skb = skb->next));
 
 	return TX_CONTINUE;
 }
