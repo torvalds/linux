@@ -1604,7 +1604,7 @@ tShbError ShbTraceDump(const unsigned char *pabStartAddr_p,
 	ulBuffSize = ulDataSize_p;
 
 	if (pszInfoText_p != NULL) {
-		TRACE0(pszInfoText_p);
+		TRACE1("%s", pszInfoText_p);
 	}
 	// dump buffer contents
 	for (nRow = 0;; nRow++) {
