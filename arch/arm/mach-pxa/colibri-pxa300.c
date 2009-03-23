@@ -144,12 +144,36 @@ static void __init colibri_pxa300_init_lcd(void)
 static inline void colibri_pxa300_init_lcd(void) {}
 #endif /* CONFIG_FB_PXA || CONFIG_FB_PXA_MODULE */
 
+#if defined(SND_AC97_CODEC) || defined(SND_AC97_CODEC_MODULE)
+static mfp_cfg_t colibri_pxa310_ac97_pin_config[] __initdata = {
+	GPIO24_AC97_SYSCLK,
+	GPIO23_AC97_nACRESET,
+	GPIO25_AC97_SDATA_IN_0,
+	GPIO27_AC97_SDATA_OUT,
+	GPIO28_AC97_SYNC,
+	GPIO29_AC97_BITCLK
+};
+
+static inline void __init colibri_pxa310_init_ac97(void)
+{
+	/* no AC97 codec on Colibri PXA300 */
+	if (!cpu_is_pxa310())
+		return;
+
+	pxa3xx_mfp_config(ARRAY_AND_SIZE(colibri_pxa310_ac97_pin_config));
+	pxa_set_ac97_info(NULL);
+}
+#else
+static inline void colibri_pxa310_init_ac97(void) {}
+#endif
+
 void __init colibri_pxa300_init(void)
 {
 	colibri_pxa300_init_eth();
 	colibri_pxa300_init_ohci();
 	colibri_pxa300_init_lcd();
 	colibri_pxa3xx_init_lcd(mfp_to_gpio(GPIO49_GPIO));
+	colibri_pxa310_init_ac97();
 	colibri_pxa3xx_init_mmc(ARRAY_AND_SIZE(colibri_pxa300_mmc_pin_config),
 				mfp_to_gpio(MFP_PIN_GPIO13));
 }

@@ -145,12 +145,32 @@ static void __init colibri_pxa320_init_lcd(void)
 static inline void colibri_pxa320_init_lcd(void) {}
 #endif
 
+#if defined(SND_AC97_CODEC) || defined(SND_AC97_CODEC_MODULE)
+static mfp_cfg_t colibri_pxa320_ac97_pin_config[] __initdata = {
+	GPIO34_AC97_SYSCLK,
+	GPIO35_AC97_SDATA_IN_0,
+	GPIO37_AC97_SDATA_OUT,
+	GPIO38_AC97_SYNC,
+	GPIO39_AC97_BITCLK,
+	GPIO40_AC97_nACRESET
+};
+
+static inline void __init colibri_pxa320_init_ac97(void)
+{
+	pxa3xx_mfp_config(ARRAY_AND_SIZE(colibri_pxa320_ac97_pin_config));
+	pxa_set_ac97_info(NULL);
+}
+#else
+static inline void colibri_pxa320_init_ac97(void) {}
+#endif
+
 void __init colibri_pxa320_init(void)
 {
 	colibri_pxa320_init_eth();
 	colibri_pxa320_init_ohci();
 	colibri_pxa320_init_lcd();
 	colibri_pxa3xx_init_lcd(mfp_to_gpio(GPIO39_GPIO));
+	colibri_pxa320_init_ac97();
 	colibri_pxa3xx_init_mmc(ARRAY_AND_SIZE(colibri_pxa320_mmc_pin_config),
 				mfp_to_gpio(MFP_PIN_GPIO28));
 }
