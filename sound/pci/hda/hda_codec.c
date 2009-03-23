@@ -2321,8 +2321,7 @@ static void hda_set_power_state(struct hda_codec *codec, hda_nid_t fg,
 				 * don't power down the widget if it controls
 				 * eapd and EAPD_BTLENABLE is set.
 				 */
-				pincap = snd_hda_param_read(codec, nid,
-							    AC_PAR_PIN_CAP);
+				pincap = snd_hda_query_pin_caps(codec, nid);
 				if (pincap & AC_PINCAP_EAPD) {
 					int eapd = snd_hda_codec_read(codec,
 						nid, 0,

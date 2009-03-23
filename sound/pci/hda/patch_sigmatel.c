@@ -2869,8 +2869,7 @@ static hda_nid_t get_unassigned_dac(struct hda_codec *codec, hda_nid_t nid)
 	conn_len = snd_hda_get_connections(codec, nid, conn,
 					   HDA_MAX_CONNECTIONS);
 	for (j = 0; j < conn_len; j++) {
-		wcaps = snd_hda_param_read(codec, conn[j],
-					   AC_PAR_AUDIO_WIDGET_CAP);
+		wcaps = get_wcaps(codec, conn[j]);
 		wtype = (wcaps & AC_WCAP_TYPE) >> AC_WCAP_TYPE_SHIFT;
 		/* we check only analog outputs */
 		if (wtype != AC_WID_AUD_OUT || (wcaps & AC_WCAP_DIGITAL))
