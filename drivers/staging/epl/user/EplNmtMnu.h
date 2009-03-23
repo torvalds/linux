@@ -105,7 +105,7 @@ tEplKernel EplNmtMnuAddInstance(tEplNmtMnuCbNodeEvent pfnCbNodeEvent_p,
 
 tEplKernel EplNmtMnuDelInstance(void);
 
-EPLDLLEXPORT tEplKernel EplNmtMnuProcessEvent(tEplEvent * pEvent_p);
+tEplKernel EplNmtMnuProcessEvent(tEplEvent *pEvent_p);
 
 tEplKernel EplNmtMnuSendNmtCommand(unsigned int uiNodeId_p,
 				   tEplNmtCommand NmtCommand_p);

@@ -119,7 +119,7 @@
 // State:
 //
 //---------------------------------------------------------------------------
-EPLDLLEXPORT tEplNmtState EplNmtkCalGetNmtState(void)
+tEplNmtState EplNmtkCalGetNmtState(void)
 {
 	tEplNmtState NmtState;
 	// for test direkt call for EplNmtkGetNmtState()

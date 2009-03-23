@@ -132,7 +132,7 @@ static tEplNmtuInstance EplNmtuInstance_g;
 // State:
 //
 //---------------------------------------------------------------------------
-EPLDLLEXPORT tEplKernel EplNmtuInit(void)
+tEplKernel EplNmtuInit(void)
 {
 	tEplKernel Ret;
 
@@ -158,7 +158,7 @@ EPLDLLEXPORT tEplKernel EplNmtuInit(void)
 // State:
 //
 //---------------------------------------------------------------------------
-EPLDLLEXPORT tEplKernel EplNmtuAddInstance(void)
+tEplKernel EplNmtuAddInstance(void)
 {
 	tEplKernel Ret;
 
@@ -187,7 +187,7 @@ EPLDLLEXPORT tEplKernel EplNmtuAddInstance(void)
 // State:
 //
 //---------------------------------------------------------------------------
-EPLDLLEXPORT tEplKernel EplNmtuDelInstance(void)
+tEplKernel EplNmtuDelInstance(void)
 {
 	tEplKernel Ret;
 
@@ -219,7 +219,7 @@ EPLDLLEXPORT tEplKernel EplNmtuDelInstance(void)
 // State:
 //
 //---------------------------------------------------------------------------
-EPLDLLEXPORT tEplKernel EplNmtuNmtEvent(tEplNmtEvent NmtEvent_p)
+tEplKernel EplNmtuNmtEvent(tEplNmtEvent NmtEvent_p)
 {
 	tEplKernel Ret;
 	tEplEvent Event;
@@ -253,7 +253,7 @@ EPLDLLEXPORT tEplKernel EplNmtuNmtEvent(tEplNmtEvent NmtEvent_p)
 // State:
 //
 //---------------------------------------------------------------------------
-EPLDLLEXPORT tEplNmtState EplNmtuGetNmtState(void)
+tEplNmtState EplNmtuGetNmtState(void)
 {
 	tEplNmtState NmtState;
 
@@ -284,7 +284,7 @@ EPLDLLEXPORT tEplNmtState EplNmtuGetNmtState(void)
 // State:
 //
 //---------------------------------------------------------------------------
-EPLDLLEXPORT tEplKernel EplNmtuProcessEvent(tEplEvent *pEplEvent_p)
+tEplKernel EplNmtuProcessEvent(tEplEvent *pEplEvent_p)
 {
 	tEplKernel Ret;
 
@@ -664,7 +664,7 @@ EPLDLLEXPORT tEplKernel EplNmtuProcessEvent(tEplEvent *pEplEvent_p)
 // State:
 //
 //---------------------------------------------------------------------------
-EPLDLLEXPORT tEplKernel EplNmtuRegisterStateChangeCb(tEplNmtuStateChangeCallback pfnEplNmtStateChangeCb_p)
+tEplKernel EplNmtuRegisterStateChangeCb(tEplNmtuStateChangeCallback pfnEplNmtStateChangeCb_p)
 {
 	tEplKernel Ret;
 

@@ -92,83 +92,79 @@ extern u8 abEplObdTrashObject_g[8];
 //---------------------------------------------------------------------------
 #if(((EPL_MODULE_INTEGRATION) & (EPL_MODULE_OBDK)) != 0)
 // ---------------------------------------------------------------------
-EPLDLLEXPORT tEplKernel EplObdInit(EPL_MCO_DECL_PTR_INSTANCE_PTR_ tEplObdInitParam *pInitParam_p);
+tEplKernel EplObdInit(EPL_MCO_DECL_PTR_INSTANCE_PTR_ tEplObdInitParam *pInitParam_p);
 
 // ---------------------------------------------------------------------
-EPLDLLEXPORT tEplKernel EplObdAddInstance(EPL_MCO_DECL_PTR_INSTANCE_PTR_ tEplObdInitParam *pInitParam_p);
+tEplKernel EplObdAddInstance(EPL_MCO_DECL_PTR_INSTANCE_PTR_ tEplObdInitParam *pInitParam_p);
 
 // ---------------------------------------------------------------------
-EPLDLLEXPORT tEplKernel EplObdDeleteInstance(EPL_MCO_DECL_INSTANCE_PTR);
+tEplKernel EplObdDeleteInstance(EPL_MCO_DECL_INSTANCE_PTR);
 
 // ---------------------------------------------------------------------
-EPLDLLEXPORT tEplKernel EplObdWriteEntry(EPL_MCO_DECL_INSTANCE_PTR_ unsigned int uiIndex_p,
-					 unsigned int uiSubIndex_p,
-					 void *pSrcData_p,
-					 tEplObdSize Size_p);
+tEplKernel EplObdWriteEntry(EPL_MCO_DECL_INSTANCE_PTR_ unsigned int uiIndex_p,
+			    unsigned int uiSubIndex_p,
+			    void *pSrcData_p, tEplObdSize Size_p);
 
 // ---------------------------------------------------------------------
-EPLDLLEXPORT tEplKernel EplObdReadEntry(EPL_MCO_DECL_INSTANCE_PTR_ unsigned int uiIndex_p,
-					unsigned int uiSubIndex_p,
-					void *pDstData_p,
-					tEplObdSize *pSize_p);
+tEplKernel EplObdReadEntry(EPL_MCO_DECL_INSTANCE_PTR_ unsigned int uiIndex_p,
+			   unsigned int uiSubIndex_p,
+			   void *pDstData_p, tEplObdSize *pSize_p);
 
 // ---------------------------------------------------------------------
-EPLDLLEXPORT tEplKernel EplObdSetStoreLoadObjCallback(EPL_MCO_DECL_INSTANCE_PTR_ tEplObdStoreLoadObjCallback fpCallback_p);
+tEplKernel EplObdSetStoreLoadObjCallback(EPL_MCO_DECL_INSTANCE_PTR_ tEplObdStoreLoadObjCallback fpCallback_p);
 
 // ---------------------------------------------------------------------
-EPLDLLEXPORT tEplKernel EplObdAccessOdPart(EPL_MCO_DECL_INSTANCE_PTR_ tEplObdPart ObdPart_p,
-					   tEplObdDir Direction_p);
+tEplKernel EplObdAccessOdPart(EPL_MCO_DECL_INSTANCE_PTR_ tEplObdPart ObdPart_p,
+			      tEplObdDir Direction_p);
 
 // ---------------------------------------------------------------------
-EPLDLLEXPORT tEplKernel EplObdDefineVar(EPL_MCO_DECL_INSTANCE_PTR_ tEplVarParam *pVarParam_p);
+tEplKernel EplObdDefineVar(EPL_MCO_DECL_INSTANCE_PTR_ tEplVarParam *pVarParam_p);
 
 // ---------------------------------------------------------------------
-EPLDLLEXPORT void *EplObdGetObjectDataPtr(EPL_MCO_DECL_INSTANCE_PTR_ unsigned int uiIndex_p,
-					  unsigned int uiSubIndex_p);
+void *EplObdGetObjectDataPtr(EPL_MCO_DECL_INSTANCE_PTR_ unsigned int uiIndex_p,
+			     unsigned int uiSubIndex_p);
 // ---------------------------------------------------------------------
-EPLDLLEXPORT tEplKernel EplObdRegisterUserOd(EPL_MCO_DECL_INSTANCE_PTR_ tEplObdEntryPtr pUserOd_p);
+tEplKernel EplObdRegisterUserOd(EPL_MCO_DECL_INSTANCE_PTR_ tEplObdEntryPtr pUserOd_p);
 
 // ---------------------------------------------------------------------
-EPLDLLEXPORT void EplObdInitVarEntry(EPL_MCO_DECL_INSTANCE_PTR_ tEplObdVarEntry *pVarEntry_p,
-				     tEplObdType Type_p,
-				     tEplObdSize ObdSize_p);
+void EplObdInitVarEntry(EPL_MCO_DECL_INSTANCE_PTR_ tEplObdVarEntry *pVarEntry_p,
+			tEplObdType Type_p, tEplObdSize ObdSize_p);
 
 // ---------------------------------------------------------------------
-EPLDLLEXPORT tEplObdSize EplObdGetDataSize(EPL_MCO_DECL_INSTANCE_PTR_ unsigned int uiIndex_p,
-					   unsigned int uiSubIndex_p);
+tEplObdSize EplObdGetDataSize(EPL_MCO_DECL_INSTANCE_PTR_ unsigned int uiIndex_p,
+			      unsigned int uiSubIndex_p);
 
 // ---------------------------------------------------------------------
-EPLDLLEXPORT unsigned int EplObdGetNodeId(EPL_MCO_DECL_INSTANCE_PTR);
+unsigned int EplObdGetNodeId(EPL_MCO_DECL_INSTANCE_PTR);
 
 // ---------------------------------------------------------------------
-EPLDLLEXPORT tEplKernel EplObdSetNodeId(EPL_MCO_DECL_INSTANCE_PTR_ unsigned int uiNodeId_p,
-					tEplObdNodeIdType NodeIdType_p);
+tEplKernel EplObdSetNodeId(EPL_MCO_DECL_INSTANCE_PTR_ unsigned int uiNodeId_p,
+			   tEplObdNodeIdType NodeIdType_p);
 
 // ---------------------------------------------------------------------
-EPLDLLEXPORT tEplKernel EplObdIsNumerical(EPL_MCO_DECL_INSTANCE_PTR_ unsigned int uiIndex_p,
-					  unsigned int uiSubIndex_p,
-					  BOOL *pfEntryNumerical);
+tEplKernel EplObdIsNumerical(EPL_MCO_DECL_INSTANCE_PTR_ unsigned int uiIndex_p,
+			     unsigned int uiSubIndex_p, BOOL *pfEntryNumerical);
 // ---------------------------------------------------------------------
-EPLDLLEXPORT tEplKernel EplObdWriteEntryFromLe(EPL_MCO_DECL_INSTANCE_PTR_ unsigned int uiIndex_p,
-					       unsigned int uiSubIndex_p,
-					       void *pSrcData_p,
-					       tEplObdSize Size_p);
+tEplKernel EplObdWriteEntryFromLe(EPL_MCO_DECL_INSTANCE_PTR_ unsigned int uiIndex_p,
+				  unsigned int uiSubIndex_p,
+				  void *pSrcData_p,
+				  tEplObdSize Size_p);
 
 // ---------------------------------------------------------------------
-EPLDLLEXPORT tEplKernel EplObdReadEntryToLe(EPL_MCO_DECL_INSTANCE_PTR_ unsigned int uiIndex_p,
-					    unsigned int uiSubIndex_p,
-					    void *pDstData_p,
-					    tEplObdSize *pSize_p);
+tEplKernel EplObdReadEntryToLe(EPL_MCO_DECL_INSTANCE_PTR_ unsigned int uiIndex_p,
+			       unsigned int uiSubIndex_p,
+			       void *pDstData_p,
+			       tEplObdSize *pSize_p);
 
 // ---------------------------------------------------------------------
-EPLDLLEXPORT tEplKernel EplObdGetAccessType(EPL_MCO_DECL_INSTANCE_PTR_ unsigned int uiIndex_p,
-					    unsigned int uiSubIndex_p,
-					    tEplObdAccess *pAccessTyp_p);
+tEplKernel EplObdGetAccessType(EPL_MCO_DECL_INSTANCE_PTR_ unsigned int uiIndex_p,
+			       unsigned int uiSubIndex_p,
+			       tEplObdAccess *pAccessTyp_p);
 
 // ---------------------------------------------------------------------
-EPLDLLEXPORT tEplKernel EplObdSearchVarEntry(EPL_MCO_DECL_INSTANCE_PTR_ unsigned int uiIndex_p,
-					     unsigned int uiSubindex_p,
-					     tEplObdVarEntry **ppVarEntry_p);
+tEplKernel EplObdSearchVarEntry(EPL_MCO_DECL_INSTANCE_PTR_ unsigned int uiIndex_p,
+				unsigned int uiSubindex_p,
+				tEplObdVarEntry **ppVarEntry_p);
 
 #endif // end of #if(((EPL_MODULE_INTEGRATION) & (EPL_MODULE_OBDK)) != 0)
 

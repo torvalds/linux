@@ -224,7 +224,7 @@ static tEplKernel EplObdWriteEntryPost(EPL_MCO_DECL_INSTANCE_PTR_ tEplObdEntryPt
 //
 //---------------------------------------------------------------------------
 
-EPLDLLEXPORT tEplKernel EplObdInit(EPL_MCO_DECL_PTR_INSTANCE_PTR_ tEplObdInitParam *pInitParam_p)
+tEplKernel EplObdInit(EPL_MCO_DECL_PTR_INSTANCE_PTR_ tEplObdInitParam *pInitParam_p)
 {
 
 	tEplKernel Ret;
@@ -256,7 +256,7 @@ EPLDLLEXPORT tEplKernel EplObdInit(EPL_MCO_DECL_PTR_INSTANCE_PTR_ tEplObdInitPar
 //
 //---------------------------------------------------------------------------
 
-EPLDLLEXPORT tEplKernel EplObdAddInstance(EPL_MCO_DECL_PTR_INSTANCE_PTR_ tEplObdInitParam *pInitParam_p)
+tEplKernel EplObdAddInstance(EPL_MCO_DECL_PTR_INSTANCE_PTR_ tEplObdInitParam *pInitParam_p)
 {
 
 	EPL_MCO_DECL_INSTANCE_PTR_LOCAL tEplKernel Ret;
@@ -301,7 +301,7 @@ EPLDLLEXPORT tEplKernel EplObdAddInstance(EPL_MCO_DECL_PTR_INSTANCE_PTR_ tEplObd
 //
 //---------------------------------------------------------------------------
 #if (EPL_USE_DELETEINST_FUNC != FALSE)
-EPLDLLEXPORT tEplKernel EplObdDeleteInstance(EPL_MCO_DECL_INSTANCE_PTR)
+tEplKernel EplObdDeleteInstance(EPL_MCO_DECL_INSTANCE_PTR)
 {
 	// check for all API function if instance is valid
 	EPL_MCO_CHECK_INSTANCE_STATE();
@@ -334,10 +334,9 @@ EPLDLLEXPORT tEplKernel EplObdDeleteInstance(EPL_MCO_DECL_INSTANCE_PTR)
 //
 //---------------------------------------------------------------------------
 
-EPLDLLEXPORT tEplKernel EplObdWriteEntry(EPL_MCO_DECL_INSTANCE_PTR_ unsigned int uiIndex_p,
-					 unsigned int uiSubIndex_p,
-					 void *pSrcData_p,
-					 tEplObdSize Size_p)
+tEplKernel EplObdWriteEntry(EPL_MCO_DECL_INSTANCE_PTR_ unsigned int uiIndex_p,
+			    unsigned int uiSubIndex_p,
+			    void *pSrcData_p, tEplObdSize Size_p)
 {
 
 	tEplKernel Ret;
@@ -394,10 +393,9 @@ EPLDLLEXPORT tEplKernel EplObdWriteEntry(EPL_MCO_DECL_INSTANCE_PTR_ unsigned int
 //
 //---------------------------------------------------------------------------
 
-EPLDLLEXPORT tEplKernel EplObdReadEntry(EPL_MCO_DECL_INSTANCE_PTR_ unsigned int uiIndex_p,
-					unsigned int uiSubIndex_p,
-					void *pDstData_p,
-					tEplObdSize *pSize_p)
+tEplKernel EplObdReadEntry(EPL_MCO_DECL_INSTANCE_PTR_ unsigned int uiIndex_p,
+			   unsigned int uiSubIndex_p,
+			   void *pDstData_p, tEplObdSize *pSize_p)
 {
 
 	tEplKernel Ret;
@@ -478,8 +476,8 @@ EPLDLLEXPORT tEplKernel EplObdReadEntry(EPL_MCO_DECL_INSTANCE_PTR_ unsigned int 
 //
 //---------------------------------------------------------------------------
 
-EPLDLLEXPORT tEplKernel EplObdAccessOdPart(EPL_MCO_DECL_INSTANCE_PTR_ tEplObdPart ObdPart_p,
-					   tEplObdDir Direction_p)
+tEplKernel EplObdAccessOdPart(EPL_MCO_DECL_INSTANCE_PTR_ tEplObdPart ObdPart_p,
+			      tEplObdDir Direction_p)
 {
 
 	tEplKernel Ret = kEplSuccessful;
@@ -577,7 +575,7 @@ EPLDLLEXPORT tEplKernel EplObdAccessOdPart(EPL_MCO_DECL_INSTANCE_PTR_ tEplObdPar
 //
 //---------------------------------------------------------------------------
 
-EPLDLLEXPORT tEplKernel EplObdDefineVar(EPL_MCO_DECL_INSTANCE_PTR_ tEplVarParam *pVarParam_p)
+tEplKernel EplObdDefineVar(EPL_MCO_DECL_INSTANCE_PTR_ tEplVarParam *pVarParam_p)
 {
 
 	tEplKernel Ret;
@@ -663,8 +661,8 @@ EPLDLLEXPORT tEplKernel EplObdDefineVar(EPL_MCO_DECL_INSTANCE_PTR_ tEplVarParam 
 //
 //---------------------------------------------------------------------------
 
-EPLDLLEXPORT void *EplObdGetObjectDataPtr(EPL_MCO_DECL_INSTANCE_PTR_ unsigned int uiIndex_p,
-					  unsigned int uiSubIndex_p)
+void *EplObdGetObjectDataPtr(EPL_MCO_DECL_INSTANCE_PTR_ unsigned int uiIndex_p,
+			     unsigned int uiSubIndex_p)
 {
 	tEplKernel Ret;
 	void *pData;
@@ -707,7 +705,7 @@ EPLDLLEXPORT void *EplObdGetObjectDataPtr(EPL_MCO_DECL_INSTANCE_PTR_ unsigned in
 // State:
 //
 //---------------------------------------------------------------------------
-EPLDLLEXPORT tEplKernel EplObdRegisterUserOd(EPL_MCO_DECL_INSTANCE_PTR_ tEplObdEntryPtr pUserOd_p)
+tEplKernel EplObdRegisterUserOd(EPL_MCO_DECL_INSTANCE_PTR_ tEplObdEntryPtr pUserOd_p)
 {
 
 	EPL_MCO_CHECK_INSTANCE_STATE();
@@ -736,8 +734,8 @@ EPLDLLEXPORT tEplKernel EplObdRegisterUserOd(EPL_MCO_DECL_INSTANCE_PTR_ tEplObdE
 //
 //---------------------------------------------------------------------------
 
-EPLDLLEXPORT void EplObdInitVarEntry(EPL_MCO_DECL_INSTANCE_PTR_ tEplObdVarEntry *pVarEntry_p,
-				     tEplObdType Type_p, tEplObdSize ObdSize_p)
+void EplObdInitVarEntry(EPL_MCO_DECL_INSTANCE_PTR_ tEplObdVarEntry *pVarEntry_p,
+			tEplObdType Type_p, tEplObdSize ObdSize_p)
 {
 /*
     #if (EPL_PDO_USE_STATIC_MAPPING == FALSE)
@@ -788,8 +786,8 @@ EPLDLLEXPORT void EplObdInitVarEntry(EPL_MCO_DECL_INSTANCE_PTR_ tEplObdVarEntry 
 // State:
 //
 //---------------------------------------------------------------------------
-EPLDLLEXPORT tEplObdSize EplObdGetDataSize(EPL_MCO_DECL_INSTANCE_PTR_ unsigned int uiIndex_p,
-					   unsigned int uiSubIndex_p)
+tEplObdSize EplObdGetDataSize(EPL_MCO_DECL_INSTANCE_PTR_ unsigned int uiIndex_p,
+			      unsigned int uiSubIndex_p)
 {
 	tEplKernel Ret;
 	tEplObdSize ObdSize;
@@ -829,7 +827,7 @@ EPLDLLEXPORT tEplObdSize EplObdGetDataSize(EPL_MCO_DECL_INSTANCE_PTR_ unsigned i
 // State:
 //
 //---------------------------------------------------------------------------
-EPLDLLEXPORT unsigned int EplObdGetNodeId(EPL_MCO_DECL_INSTANCE_PTR)
+unsigned int EplObdGetNodeId(EPL_MCO_DECL_INSTANCE_PTR)
 {
 	tEplKernel Ret;
 	tEplObdSize ObdSize;
@@ -866,8 +864,8 @@ EPLDLLEXPORT unsigned int EplObdGetNodeId(EPL_MCO_DECL_INSTANCE_PTR)
 // State:
 //
 //---------------------------------------------------------------------------
-EPLDLLEXPORT tEplKernel EplObdSetNodeId(EPL_MCO_DECL_PTR_INSTANCE_PTR_ unsigned int uiNodeId_p,
-					tEplObdNodeIdType NodeIdType_p)
+tEplKernel EplObdSetNodeId(EPL_MCO_DECL_PTR_INSTANCE_PTR_ unsigned int uiNodeId_p,
+			   tEplObdNodeIdType NodeIdType_p)
 {
 	tEplKernel Ret;
 	tEplObdSize ObdSize;
@@ -949,9 +947,9 @@ EPLDLLEXPORT tEplKernel EplObdSetNodeId(EPL_MCO_DECL_PTR_INSTANCE_PTR_ unsigned 
 // State:
 //
 //---------------------------------------------------------------------------
-EPLDLLEXPORT tEplKernel EplObdIsNumerical(EPL_MCO_DECL_INSTANCE_PTR_ unsigned int uiIndex_p,
-					  unsigned int uiSubIndex_p,
-					  BOOL *pfEntryNumerical_p)
+tEplKernel EplObdIsNumerical(EPL_MCO_DECL_INSTANCE_PTR_ unsigned int uiIndex_p,
+			     unsigned int uiSubIndex_p,
+			     BOOL *pfEntryNumerical_p)
 {
 	tEplKernel Ret;
 	tEplObdEntryPtr pObdEntry;
@@ -1000,10 +998,9 @@ EPLDLLEXPORT tEplKernel EplObdIsNumerical(EPL_MCO_DECL_INSTANCE_PTR_ unsigned in
 // State:
 //
 //---------------------------------------------------------------------------
-EPLDLLEXPORT tEplKernel EplObdReadEntryToLe(EPL_MCO_DECL_INSTANCE_PTR_ unsigned int uiIndex_p,
-					    unsigned int uiSubIndex_p,
-					    void *pDstData_p,
-					    tEplObdSize *pSize_p)
+tEplKernel EplObdReadEntryToLe(EPL_MCO_DECL_INSTANCE_PTR_ unsigned int uiIndex_p,
+			       unsigned int uiSubIndex_p,
+			       void *pDstData_p, tEplObdSize *pSize_p)
 {
 	tEplKernel Ret;
 	tEplObdEntryPtr pObdEntry;
@@ -1180,10 +1177,9 @@ EPLDLLEXPORT tEplKernel EplObdReadEntryToLe(EPL_MCO_DECL_INSTANCE_PTR_ unsigned 
 // State:
 //
 //---------------------------------------------------------------------------
-EPLDLLEXPORT tEplKernel EplObdWriteEntryFromLe(EPL_MCO_DECL_INSTANCE_PTR_ unsigned int uiIndex_p,
-					       unsigned int uiSubIndex_p,
-					       void *pSrcData_p,
-					       tEplObdSize Size_p)
+tEplKernel EplObdWriteEntryFromLe(EPL_MCO_DECL_INSTANCE_PTR_ unsigned int uiIndex_p,
+				  unsigned int uiSubIndex_p,
+				  void *pSrcData_p, tEplObdSize Size_p)
 {
 	tEplKernel Ret;
 	tEplObdEntryPtr pObdEntry;
@@ -1325,9 +1321,9 @@ EPLDLLEXPORT tEplKernel EplObdWriteEntryFromLe(EPL_MCO_DECL_INSTANCE_PTR_ unsign
 // State:
 //
 //---------------------------------------------------------------------------
-EPLDLLEXPORT tEplKernel EplObdGetAccessType(EPL_MCO_DECL_INSTANCE_PTR_ unsigned int uiIndex_p,
-					    unsigned int uiSubIndex_p,
-					    tEplObdAccess *pAccessTyp_p)
+tEplKernel EplObdGetAccessType(EPL_MCO_DECL_INSTANCE_PTR_ unsigned int uiIndex_p,
+			       unsigned int uiSubIndex_p,
+			       tEplObdAccess *pAccessTyp_p)
 {
 	tEplKernel Ret;
 	tEplObdEntryPtr pObdEntry;
@@ -2722,7 +2718,7 @@ static tEplKernel EplObdGetSubindexIntern(tEplObdEntryPtr pObdEntry_p,
 //
 //---------------------------------------------------------------------------
 #if (EPL_OBD_USE_STORE_RESTORE != FALSE)
-EPLDLLEXPORT tEplKernel EplObdSetStoreLoadObjCallback(EPL_MCO_DECL_INSTANCE_PTR_ tEplObdStoreLoadObjCallback fpCallback_p)
+tEplKernel EplObdSetStoreLoadObjCallback(EPL_MCO_DECL_INSTANCE_PTR_ tEplObdStoreLoadObjCallback fpCallback_p)
 {
 
 	EPL_MCO_CHECK_INSTANCE_STATE();

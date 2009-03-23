@@ -131,19 +131,19 @@ typedef tEplKernel(* tEplNmtuCheckEventCallback) (tEplNmtEvent NmtEvent_p);
 
 #if(((EPL_MODULE_INTEGRATION) & (EPL_MODULE_NMTU)) != 0)
 
-EPLDLLEXPORT tEplKernel EplNmtuInit(void);
+tEplKernel EplNmtuInit(void);
 
-EPLDLLEXPORT tEplKernel EplNmtuAddInstance(void);
+tEplKernel EplNmtuAddInstance(void);
 
-EPLDLLEXPORT tEplKernel EplNmtuDelInstance(void);
+tEplKernel EplNmtuDelInstance(void);
 
-EPLDLLEXPORT tEplKernel EplNmtuNmtEvent(tEplNmtEvent NmtEvent_p);
+tEplKernel EplNmtuNmtEvent(tEplNmtEvent NmtEvent_p);
 
-EPLDLLEXPORT tEplNmtState EplNmtuGetNmtState(void);
+tEplNmtState EplNmtuGetNmtState(void);
 
-EPLDLLEXPORT tEplKernel EplNmtuProcessEvent(tEplEvent * pEplEvent_p);
+tEplKernel EplNmtuProcessEvent(tEplEvent *pEplEvent_p);
 
-EPLDLLEXPORT tEplKernel EplNmtuRegisterStateChangeCb(tEplNmtuStateChangeCallback pfnEplNmtStateChangeCb_p);
+tEplKernel EplNmtuRegisterStateChangeCb(tEplNmtuStateChangeCallback pfnEplNmtStateChangeCb_p);
 
 #endif // #if(((EPL_MODULE_INTEGRATION) & (EPL_MODULE_NMTU)) != 0)
 

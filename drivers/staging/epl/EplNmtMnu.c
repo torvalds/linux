@@ -946,7 +946,7 @@ tEplKernel EplNmtMnuCbCheckEvent(tEplNmtEvent NmtEvent_p)
 //
 //---------------------------------------------------------------------------
 
-EPLDLLEXPORT tEplKernel EplNmtMnuProcessEvent(tEplEvent *pEvent_p)
+tEplKernel EplNmtMnuProcessEvent(tEplEvent *pEvent_p)
 {
 	tEplKernel Ret;
 

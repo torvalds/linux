@@ -163,7 +163,7 @@ EPL_MCO_DEFINE_INSTANCE_FCT()
 // State:
 //
 //---------------------------------------------------------------------------
-EPLDLLEXPORT tEplKernel EplNmtkInit(EPL_MCO_DECL_PTR_INSTANCE_PTR)
+tEplKernel EplNmtkInit(EPL_MCO_DECL_PTR_INSTANCE_PTR)
 {
 	tEplKernel Ret;
 
@@ -189,7 +189,7 @@ EPLDLLEXPORT tEplKernel EplNmtkInit(EPL_MCO_DECL_PTR_INSTANCE_PTR)
 // State:
 //
 //---------------------------------------------------------------------------
-EPLDLLEXPORT tEplKernel EplNmtkAddInstance(EPL_MCO_DECL_PTR_INSTANCE_PTR)
+tEplKernel EplNmtkAddInstance(EPL_MCO_DECL_PTR_INSTANCE_PTR)
 {
 	EPL_MCO_DECL_INSTANCE_PTR_LOCAL tEplKernel Ret;
 //tEplEvent               Event;
@@ -258,7 +258,7 @@ EPLDLLEXPORT tEplKernel EplNmtkAddInstance(EPL_MCO_DECL_PTR_INSTANCE_PTR)
 //
 //---------------------------------------------------------------------------
 #if (EPL_USE_DELETEINST_FUNC != FALSE)
-EPLDLLEXPORT tEplKernel EplNmtkDelInstance(EPL_MCO_DECL_PTR_INSTANCE_PTR)
+tEplKernel EplNmtkDelInstance(EPL_MCO_DECL_PTR_INSTANCE_PTR)
 {
 	tEplKernel Ret = kEplSuccessful;
 	// check for all API function if instance is valid
@@ -296,7 +296,7 @@ EPLDLLEXPORT tEplKernel EplNmtkDelInstance(EPL_MCO_DECL_PTR_INSTANCE_PTR)
 // State:
 //
 //---------------------------------------------------------------------------
-EPLDLLEXPORT tEplKernel EplNmtkProcess(EPL_MCO_DECL_PTR_INSTANCE_PTR_ tEplEvent *pEvent_p)
+tEplKernel EplNmtkProcess(EPL_MCO_DECL_PTR_INSTANCE_PTR_ tEplEvent *pEvent_p)
 {
 	tEplKernel Ret;
 	tEplNmtState OldNmtState;
@@ -1803,7 +1803,7 @@ EPLDLLEXPORT tEplKernel EplNmtkProcess(EPL_MCO_DECL_PTR_INSTANCE_PTR_ tEplEvent 
 // State:
 //
 //---------------------------------------------------------------------------
-EPLDLLEXPORT tEplNmtState EplNmtkGetNmtState(EPL_MCO_DECL_PTR_INSTANCE_PTR)
+tEplNmtState EplNmtkGetNmtState(EPL_MCO_DECL_PTR_INSTANCE_PTR)
 {
 	tEplNmtState NmtState;
 

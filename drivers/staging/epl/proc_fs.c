@@ -149,7 +149,7 @@ static int EplLinProcWrite(struct file *file, const char __user * buffer,
 void TgtDbgSignalTracePoint(u8 bTracePointNumber_p);
 void TgtDbgPostTraceValue(u32 dwTraceValue_p);
 
-EPLDLLEXPORT u32 EplIdentuGetRunningRequests(void);
+extern u32 EplIdentuGetRunningRequests(void);
 
 //=========================================================================//
 //                                                                         //

@@ -89,18 +89,15 @@
 
 #if(((EPL_MODULE_INTEGRATION) & (EPL_MODULE_NMT_CN)) != 0)
 
-EPLDLLEXPORT tEplKernel EplNmtCnuInit(unsigned int uiNodeId_p);
+tEplKernel EplNmtCnuInit(unsigned int uiNodeId_p);
 
-EPLDLLEXPORT tEplKernel EplNmtCnuAddInstance(unsigned int uiNodeId_p);
+tEplKernel EplNmtCnuAddInstance(unsigned int uiNodeId_p);
 
-EPLDLLEXPORT tEplKernel EplNmtCnuDelInstance(void);
+tEplKernel EplNmtCnuDelInstance(void);
 
-EPLDLLEXPORT tEplKernel EplNmtCnuSendNmtRequest(unsigned int uiNodeId_p,
-						tEplNmtCommand NmtCommand_p);
+tEplKernel EplNmtCnuSendNmtRequest(unsigned int uiNodeId_p, tEplNmtCommand NmtCommand_p);
 
-EPLDLLEXPORT tEplKernel
-EplNmtCnuRegisterCheckEventCb(tEplNmtuCheckEventCallback
-			      pfnEplNmtCheckEventCb_p);
+tEplKernel EplNmtCnuRegisterCheckEventCb(tEplNmtuCheckEventCallback pfnEplNmtCheckEventCb_p);
 
 #endif // #if(((EPL_MODULE_INTEGRATION) & (EPL_MODULE_NMT_CN)) != 0)
 
