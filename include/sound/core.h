@@ -97,9 +97,9 @@ struct snd_device {
 
 struct snd_monitor_file {
 	struct file *file;
-	struct snd_monitor_file *next;
 	const struct file_operations *disconnected_f_op;
-	struct list_head shutdown_list;
+	struct list_head shutdown_list;	/* still need to shutdown */
+	struct list_head list;	/* link of monitor files */
 };
 
 /* main structure for soundcard */
@@ -134,7 +134,7 @@ struct snd_card {
 	struct snd_info_entry *proc_id;	/* the card id */
 	struct proc_dir_entry *proc_root_link;	/* number link to real id */
 
-	struct snd_monitor_file *files; /* all files associated to this card */
+	struct list_head files_list;	/* all files associated to this card */
 	struct snd_shutdown_f_ops *s_f_ops; /* file operations in the shutdown
 								state */
 	spinlock_t files_lock;		/* lock the files for this card */
