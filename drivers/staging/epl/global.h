@@ -31,8 +31,6 @@
 #define CONST const		// variables mapped to ROM (i.e. flash)
 #endif
 
-#define REENTRANT
-
 #define TRACE  printk
 
 #ifndef SHORT

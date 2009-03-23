@@ -355,18 +355,6 @@ typedef BYTE tEplInstanceHdl;
 
 #endif
 
-/*
-#if (CDRV_MAX_INSTANCES > 1)
-
-    #define CDRV_REENTRANT                          REENTRANT
-
-#else
-
-    #define CDRV_REENTRANT
-
-#endif
-*/
-
 #endif // _EPLINSTDEF_H_
 
 // Die letzte Zeile muﬂ unbedingt eine leere Zeile sein, weil manche Compiler
