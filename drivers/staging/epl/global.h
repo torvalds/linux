@@ -33,25 +33,7 @@
 
 #define TRACE  printk
 
-#ifndef SHORT
-#define SHORT short int
-#endif
-#ifndef USHORT
-#define USHORT unsigned short int
-#endif
-#ifndef INT
-#define INT int
-#endif
-#ifndef UINT
-#define UINT unsigned int
-#endif
-#ifndef LONG
-#define LONG long int
-#endif
-#ifndef ULONG
-#define ULONG unsigned long int
-#endif
-    // --- logic types ---
+// --- logic types ---
 #ifndef BYTE
 #define BYTE unsigned char
 #endif
@@ -64,7 +46,8 @@
 #ifndef BOOL
 #define BOOL unsigned char
 #endif
-    // --- alias types ---
+
+// --- alias types ---
 #ifndef TRUE
 #define TRUE  0xFF
 #endif
