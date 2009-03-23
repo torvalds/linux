@@ -2260,18 +2260,18 @@ spider_net_tx_timeout(struct net_device *netdev)
 }
 
 static const struct net_device_ops spider_net_ops = {
-	.ndo_open		= spider_net_open;
-	.ndo_stop		= spider_net_stop;
-	.ndo_start_xmit		= spider_net_xmit;
-	.ndo_set_multicast_list	= spider_net_set_multi;
-	.ndo_set_mac_address	= spider_net_set_mac;
-	.ndo_change_mtu		= spider_net_change_mtu;
-	.ndo_do_ioctl		= spider_net_do_ioctl;
-	.ndo_tx_timeout		= spider_net_tx_timeout;
+	.ndo_open		= spider_net_open,
+	.ndo_stop		= spider_net_stop,
+	.ndo_start_xmit		= spider_net_xmit,
+	.ndo_set_multicast_list	= spider_net_set_multi,
+	.ndo_set_mac_address	= spider_net_set_mac,
+	.ndo_change_mtu		= spider_net_change_mtu,
+	.ndo_do_ioctl		= spider_net_do_ioctl,
+	.ndo_tx_timeout		= spider_net_tx_timeout,
 	/* HW VLAN */
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	/* poll controller */
-	.ndo_poll_controller	= spider_net_poll_controller;
+	.ndo_poll_controller	= spider_net_poll_controller,
 #endif /* CONFIG_NET_POLL_CONTROLLER */
 };
 
