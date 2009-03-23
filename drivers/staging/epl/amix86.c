@@ -115,12 +115,12 @@ typedef struct {
 //
 //---------------------------------------------------------------------------
 
-//------------< write BYTE in big endian >--------------------------
+//------------< write u8 in big endian >--------------------------
 /*
-void AmiSetByteToBe (void *pAddr_p, BYTE bByteVal_p)
+void AmiSetByteToBe (void *pAddr_p, u8 bByteVal_p)
 {
 
-	*(BYTE *)pAddr_p = bByteVal_p;
+	*(u8 *)pAddr_p = bByteVal_p;
 
 }
 */
@@ -173,12 +173,12 @@ void AmiSetDwordToBe(void *pAddr_p, DWORD dwDwordVal_p)
 //
 //---------------------------------------------------------------------------
 
-//------------< write BYTE in little endian >--------------------------
+//------------< write u8 in little endian >--------------------------
 /*
-void AmiSetByteToLe (void *pAddr_p, BYTE bByteVal_p)
+void AmiSetByteToLe (void *pAddr_p, u8 bByteVal_p)
 {
 
-	*(BYTE *)pAddr_p = bByteVal_p;
+	*(u8 *)pAddr_p = bByteVal_p;
 
 }
 */
@@ -220,12 +220,12 @@ void AmiSetDwordToLe(void *pAddr_p, DWORD dwDwordVal_p)
 //
 //---------------------------------------------------------------------------
 
-//------------< read BYTE in big endian >---------------------------
+//------------< read u8 in big endian >---------------------------
 /*
-BYTE AmiGetByteFromBe (void *pAddr_p)
+u8 AmiGetByteFromBe (void *pAddr_p)
 {
 
-	return ( *(BYTE *)pAddr_p );
+	return ( *(u8 *)pAddr_p );
 
 }
 */
@@ -279,12 +279,12 @@ DWORD AmiGetDwordFromBe(void *pAddr_p)
 //
 //---------------------------------------------------------------------------
 
-//------------< read BYTE in little endian >---------------------------
+//------------< read u8 in little endian >---------------------------
 /*
-BYTE AmiGetByteFromLe (void *pAddr_p)
+u8 AmiGetByteFromLe (void *pAddr_p)
 {
 
-	return ( *(BYTE *)pAddr_p );
+	return ( *(u8 *)pAddr_p );
 
 }
 */
@@ -326,9 +326,9 @@ DWORD AmiGetDwordFromLe(void *pAddr_p)
 
 void AmiSetDword24ToBe(void *pAddr_p, DWORD dwDwordVal_p)
 {
-	((BYTE *) pAddr_p)[0] = ((BYTE *) & dwDwordVal_p)[2];
-	((BYTE *) pAddr_p)[1] = ((BYTE *) & dwDwordVal_p)[1];
-	((BYTE *) pAddr_p)[2] = ((BYTE *) & dwDwordVal_p)[0];
+	((u8 *) pAddr_p)[0] = ((u8 *) & dwDwordVal_p)[2];
+	((u8 *) pAddr_p)[1] = ((u8 *) & dwDwordVal_p)[1];
+	((u8 *) pAddr_p)[2] = ((u8 *) & dwDwordVal_p)[0];
 }
 
 //---------------------------------------------------------------------------
@@ -348,9 +348,9 @@ void AmiSetDword24ToBe(void *pAddr_p, DWORD dwDwordVal_p)
 
 void AmiSetDword24ToLe(void *pAddr_p, DWORD dwDwordVal_p)
 {
-	((BYTE *) pAddr_p)[0] = ((BYTE *) & dwDwordVal_p)[0];
-	((BYTE *) pAddr_p)[1] = ((BYTE *) & dwDwordVal_p)[1];
-	((BYTE *) pAddr_p)[2] = ((BYTE *) & dwDwordVal_p)[2];
+	((u8 *) pAddr_p)[0] = ((u8 *) & dwDwordVal_p)[0];
+	((u8 *) pAddr_p)[1] = ((u8 *) & dwDwordVal_p)[1];
+	((u8 *) pAddr_p)[2] = ((u8 *) & dwDwordVal_p)[2];
 }
 
 //---------------------------------------------------------------------------
@@ -417,14 +417,14 @@ DWORD AmiGetDword24FromLe(void *pAddr_p)
 //---------------------------------------------------------------------------
 void AmiSetQword64ToBe(void *pAddr_p, QWORD qwQwordVal_p)
 {
-	((BYTE *) pAddr_p)[0] = ((BYTE *) & qwQwordVal_p)[7];
-	((BYTE *) pAddr_p)[1] = ((BYTE *) & qwQwordVal_p)[6];
-	((BYTE *) pAddr_p)[2] = ((BYTE *) & qwQwordVal_p)[5];
-	((BYTE *) pAddr_p)[3] = ((BYTE *) & qwQwordVal_p)[4];
-	((BYTE *) pAddr_p)[4] = ((BYTE *) & qwQwordVal_p)[3];
-	((BYTE *) pAddr_p)[5] = ((BYTE *) & qwQwordVal_p)[2];
-	((BYTE *) pAddr_p)[6] = ((BYTE *) & qwQwordVal_p)[1];
-	((BYTE *) pAddr_p)[7] = ((BYTE *) & qwQwordVal_p)[0];
+	((u8 *) pAddr_p)[0] = ((u8 *) & qwQwordVal_p)[7];
+	((u8 *) pAddr_p)[1] = ((u8 *) & qwQwordVal_p)[6];
+	((u8 *) pAddr_p)[2] = ((u8 *) & qwQwordVal_p)[5];
+	((u8 *) pAddr_p)[3] = ((u8 *) & qwQwordVal_p)[4];
+	((u8 *) pAddr_p)[4] = ((u8 *) & qwQwordVal_p)[3];
+	((u8 *) pAddr_p)[5] = ((u8 *) & qwQwordVal_p)[2];
+	((u8 *) pAddr_p)[6] = ((u8 *) & qwQwordVal_p)[1];
+	((u8 *) pAddr_p)[7] = ((u8 *) & qwQwordVal_p)[0];
 }
 
 //---------------------------------------------------------------------------
@@ -466,14 +466,14 @@ QWORD AmiGetQword64FromBe(void *pAddr_p)
 {
 	tqwStruct qwStruct;
 
-	((BYTE *) & qwStruct.m_qwQword)[0] = ((BYTE *) pAddr_p)[7];
-	((BYTE *) & qwStruct.m_qwQword)[1] = ((BYTE *) pAddr_p)[6];
-	((BYTE *) & qwStruct.m_qwQword)[2] = ((BYTE *) pAddr_p)[5];
-	((BYTE *) & qwStruct.m_qwQword)[3] = ((BYTE *) pAddr_p)[4];
-	((BYTE *) & qwStruct.m_qwQword)[4] = ((BYTE *) pAddr_p)[3];
-	((BYTE *) & qwStruct.m_qwQword)[5] = ((BYTE *) pAddr_p)[2];
-	((BYTE *) & qwStruct.m_qwQword)[6] = ((BYTE *) pAddr_p)[1];
-	((BYTE *) & qwStruct.m_qwQword)[7] = ((BYTE *) pAddr_p)[0];
+	((u8 *) & qwStruct.m_qwQword)[0] = ((u8 *) pAddr_p)[7];
+	((u8 *) & qwStruct.m_qwQword)[1] = ((u8 *) pAddr_p)[6];
+	((u8 *) & qwStruct.m_qwQword)[2] = ((u8 *) pAddr_p)[5];
+	((u8 *) & qwStruct.m_qwQword)[3] = ((u8 *) pAddr_p)[4];
+	((u8 *) & qwStruct.m_qwQword)[4] = ((u8 *) pAddr_p)[3];
+	((u8 *) & qwStruct.m_qwQword)[5] = ((u8 *) pAddr_p)[2];
+	((u8 *) & qwStruct.m_qwQword)[6] = ((u8 *) pAddr_p)[1];
+	((u8 *) & qwStruct.m_qwQword)[7] = ((u8 *) pAddr_p)[0];
 
 	return (qwStruct.m_qwQword);
 }
@@ -520,11 +520,11 @@ QWORD AmiGetQword64FromLe(void *pAddr_p)
 void AmiSetQword40ToBe(void *pAddr_p, QWORD qwQwordVal_p)
 {
 
-	((BYTE *) pAddr_p)[0] = ((BYTE *) & qwQwordVal_p)[4];
-	((BYTE *) pAddr_p)[1] = ((BYTE *) & qwQwordVal_p)[3];
-	((BYTE *) pAddr_p)[2] = ((BYTE *) & qwQwordVal_p)[2];
-	((BYTE *) pAddr_p)[3] = ((BYTE *) & qwQwordVal_p)[1];
-	((BYTE *) pAddr_p)[4] = ((BYTE *) & qwQwordVal_p)[0];
+	((u8 *) pAddr_p)[0] = ((u8 *) & qwQwordVal_p)[4];
+	((u8 *) pAddr_p)[1] = ((u8 *) & qwQwordVal_p)[3];
+	((u8 *) pAddr_p)[2] = ((u8 *) & qwQwordVal_p)[2];
+	((u8 *) pAddr_p)[3] = ((u8 *) & qwQwordVal_p)[1];
+	((u8 *) pAddr_p)[4] = ((u8 *) & qwQwordVal_p)[0];
 
 }
 
@@ -547,7 +547,7 @@ void AmiSetQword40ToLe(void *pAddr_p, QWORD qwQwordVal_p)
 {
 
 	((DWORD *) pAddr_p)[0] = ((DWORD *) & qwQwordVal_p)[0];
-	((BYTE *) pAddr_p)[4] = ((BYTE *) & qwQwordVal_p)[4];
+	((u8 *) pAddr_p)[4] = ((u8 *) & qwQwordVal_p)[4];
 
 }
 
@@ -621,12 +621,12 @@ QWORD AmiGetQword40FromLe(void *pAddr_p)
 void AmiSetQword48ToBe(void *pAddr_p, QWORD qwQwordVal_p)
 {
 
-	((BYTE *) pAddr_p)[0] = ((BYTE *) & qwQwordVal_p)[5];
-	((BYTE *) pAddr_p)[1] = ((BYTE *) & qwQwordVal_p)[4];
-	((BYTE *) pAddr_p)[2] = ((BYTE *) & qwQwordVal_p)[3];
-	((BYTE *) pAddr_p)[3] = ((BYTE *) & qwQwordVal_p)[2];
-	((BYTE *) pAddr_p)[4] = ((BYTE *) & qwQwordVal_p)[1];
-	((BYTE *) pAddr_p)[5] = ((BYTE *) & qwQwordVal_p)[0];
+	((u8 *) pAddr_p)[0] = ((u8 *) & qwQwordVal_p)[5];
+	((u8 *) pAddr_p)[1] = ((u8 *) & qwQwordVal_p)[4];
+	((u8 *) pAddr_p)[2] = ((u8 *) & qwQwordVal_p)[3];
+	((u8 *) pAddr_p)[3] = ((u8 *) & qwQwordVal_p)[2];
+	((u8 *) pAddr_p)[4] = ((u8 *) & qwQwordVal_p)[1];
+	((u8 *) pAddr_p)[5] = ((u8 *) & qwQwordVal_p)[0];
 
 }
 
@@ -723,13 +723,13 @@ QWORD AmiGetQword48FromLe(void *pAddr_p)
 void AmiSetQword56ToBe(void *pAddr_p, QWORD qwQwordVal_p)
 {
 
-	((BYTE *) pAddr_p)[0] = ((BYTE *) & qwQwordVal_p)[6];
-	((BYTE *) pAddr_p)[1] = ((BYTE *) & qwQwordVal_p)[5];
-	((BYTE *) pAddr_p)[2] = ((BYTE *) & qwQwordVal_p)[4];
-	((BYTE *) pAddr_p)[3] = ((BYTE *) & qwQwordVal_p)[3];
-	((BYTE *) pAddr_p)[4] = ((BYTE *) & qwQwordVal_p)[2];
-	((BYTE *) pAddr_p)[5] = ((BYTE *) & qwQwordVal_p)[1];
-	((BYTE *) pAddr_p)[6] = ((BYTE *) & qwQwordVal_p)[0];
+	((u8 *) pAddr_p)[0] = ((u8 *) & qwQwordVal_p)[6];
+	((u8 *) pAddr_p)[1] = ((u8 *) & qwQwordVal_p)[5];
+	((u8 *) pAddr_p)[2] = ((u8 *) & qwQwordVal_p)[4];
+	((u8 *) pAddr_p)[3] = ((u8 *) & qwQwordVal_p)[3];
+	((u8 *) pAddr_p)[4] = ((u8 *) & qwQwordVal_p)[2];
+	((u8 *) pAddr_p)[5] = ((u8 *) & qwQwordVal_p)[1];
+	((u8 *) pAddr_p)[6] = ((u8 *) & qwQwordVal_p)[0];
 
 }
 
@@ -753,7 +753,7 @@ void AmiSetQword56ToLe(void *pAddr_p, QWORD qwQwordVal_p)
 
 	((DWORD *) pAddr_p)[0] = ((DWORD *) & qwQwordVal_p)[0];
 	((WORD *) pAddr_p)[2] = ((WORD *) & qwQwordVal_p)[2];
-	((BYTE *) pAddr_p)[6] = ((BYTE *) & qwQwordVal_p)[6];
+	((u8 *) pAddr_p)[6] = ((u8 *) & qwQwordVal_p)[6];
 
 }
 
@@ -827,8 +827,8 @@ QWORD AmiGetQword56FromLe(void *pAddr_p)
 void AmiSetTimeOfDay(void *pAddr_p, tTimeOfDay *pTimeOfDay_p)
 {
 
-	AmiSetDwordToLe(((BYTE *) pAddr_p), pTimeOfDay_p->m_dwMs & 0x0FFFFFFF);
-	AmiSetWordToLe(((BYTE *) pAddr_p) + 4, pTimeOfDay_p->m_wDays);
+	AmiSetDwordToLe(((u8 *) pAddr_p), pTimeOfDay_p->m_dwMs & 0x0FFFFFFF);
+	AmiSetWordToLe(((u8 *) pAddr_p) + 4, pTimeOfDay_p->m_wDays);
 
 }
 
@@ -850,8 +850,8 @@ void AmiSetTimeOfDay(void *pAddr_p, tTimeOfDay *pTimeOfDay_p)
 void AmiGetTimeOfDay(void *pAddr_p, tTimeOfDay *pTimeOfDay_p)
 {
 
-	pTimeOfDay_p->m_dwMs = AmiGetDwordFromLe(((BYTE *) pAddr_p)) & 0x0FFFFFFF;
-	pTimeOfDay_p->m_wDays = AmiGetWordFromLe(((BYTE *) pAddr_p) + 4);
+	pTimeOfDay_p->m_dwMs = AmiGetDwordFromLe(((u8 *) pAddr_p)) & 0x0FFFFFFF;
+	pTimeOfDay_p->m_wDays = AmiGetWordFromLe(((u8 *) pAddr_p) + 4);
 
 }
 

@@ -122,11 +122,11 @@
 
 typedef struct {
 	// Offset 17
-	BYTE m_le_bRes1;	// reserved
+	u8 m_le_bRes1;	// reserved
 	// Offset 18
-	BYTE m_le_bFlag1;	// Flags: MC, PS
+	u8 m_le_bFlag1;	// Flags: MC, PS
 	// Offset 19
-	BYTE m_le_bFlag2;	// Flags: res
+	u8 m_le_bFlag2;	// Flags: res
 	// Offset 20
 	tEplNetTime m_le_NetTime;	// supported if D_NMT_NetTimeIsRealTime_BOOL is set
 	// Offset 28
@@ -136,54 +136,54 @@ typedef struct {
 
 typedef struct {
 	// Offset 17
-	BYTE m_le_bRes1;	// reserved
+	u8 m_le_bRes1;	// reserved
 	// Offset 18
-	BYTE m_le_bFlag1;	// Flags: MS, EA, RD
+	u8 m_le_bFlag1;	// Flags: MS, EA, RD
 	// Offset 19
-	BYTE m_le_bFlag2;	// Flags: res
+	u8 m_le_bFlag2;	// Flags: res
 	// Offset 20
-	BYTE m_le_bPdoVersion;
+	u8 m_le_bPdoVersion;
 	// Offset 21
-	BYTE m_le_bRes2;	// reserved
+	u8 m_le_bRes2;	// reserved
 	// Offset 22
 	WORD m_le_wSize;
 	// Offset 24
-	BYTE m_le_abPayload[256 /*D_NMT_IsochrRxMaxPayload_U16 */ ];
+	u8 m_le_abPayload[256 /*D_NMT_IsochrRxMaxPayload_U16 */ ];
 
 } PACK_STRUCT tEplPreqFrame;
 
 typedef struct {
 	// Offset 17
-	BYTE m_le_bNmtStatus;	// NMT state
+	u8 m_le_bNmtStatus;	// NMT state
 	// Offset 18
-	BYTE m_le_bFlag1;	// Flags: MS, EN, RD
+	u8 m_le_bFlag1;	// Flags: MS, EN, RD
 	// Offset 19
-	BYTE m_le_bFlag2;	// Flags: PR, RS
+	u8 m_le_bFlag2;	// Flags: PR, RS
 	// Offset 20
-	BYTE m_le_bPdoVersion;
+	u8 m_le_bPdoVersion;
 	// Offset 21
-	BYTE m_le_bRes2;	// reserved
+	u8 m_le_bRes2;	// reserved
 	// Offset 22
 	WORD m_le_wSize;
 	// Offset 24
-	BYTE m_le_abPayload[256	/*D_NMT_IsochrRxMaxPayload_U16
+	u8 m_le_abPayload[256	/*D_NMT_IsochrRxMaxPayload_U16
 				   / D_NMT_IsochrTxMaxPayload_U16 */ ];
 
 } PACK_STRUCT tEplPresFrame;
 
 typedef struct {
 	// Offset 17
-	BYTE m_le_bNmtStatus;	// NMT state
+	u8 m_le_bNmtStatus;	// NMT state
 	// Offset 18
-	BYTE m_le_bFlag1;	// Flags: EA, ER
+	u8 m_le_bFlag1;	// Flags: EA, ER
 	// Offset 19
-	BYTE m_le_bFlag2;	// Flags: res
+	u8 m_le_bFlag2;	// Flags: res
 	// Offset 20
-	BYTE m_le_bReqServiceId;
+	u8 m_le_bReqServiceId;
 	// Offset 21
-	BYTE m_le_bReqServiceTarget;
+	u8 m_le_bReqServiceTarget;
 	// Offset 22
-	BYTE m_le_bEplVersion;
+	u8 m_le_bEplVersion;
 
 } PACK_STRUCT tEplSoaFrame;
 
@@ -191,16 +191,16 @@ typedef struct {
 	WORD m_wEntryType;
 	WORD m_wErrorCode;
 	tEplNetTime m_TimeStamp;
-	BYTE m_abAddInfo[8];
+	u8 m_abAddInfo[8];
 
 } PACK_STRUCT tEplErrHistoryEntry;
 
 typedef struct {
 	// Offset 18
-	BYTE m_le_bFlag1;	// Flags: EN, EC
-	BYTE m_le_bFlag2;	// Flags: PR, RS
-	BYTE m_le_bNmtStatus;	// NMT state
-	BYTE m_le_bRes1[3];
+	u8 m_le_bFlag1;	// Flags: EN, EC
+	u8 m_le_bFlag2;	// Flags: PR, RS
+	u8 m_le_bNmtStatus;	// NMT state
+	u8 m_le_bRes1[3];
 	QWORD m_le_qwStaticError;	// static error bit field
 	tEplErrHistoryEntry m_le_aErrHistoryEntry[14];
 
@@ -208,12 +208,12 @@ typedef struct {
 
 typedef struct {
 	// Offset 18
-	BYTE m_le_bFlag1;	// Flags: res
-	BYTE m_le_bFlag2;	// Flags: PR, RS
-	BYTE m_le_bNmtStatus;	// NMT state
-	BYTE m_le_bIdentRespFlags;	// Flags: FW
-	BYTE m_le_bEplProfileVersion;
-	BYTE m_le_bRes1;
+	u8 m_le_bFlag1;	// Flags: res
+	u8 m_le_bFlag2;	// Flags: PR, RS
+	u8 m_le_bNmtStatus;	// NMT state
+	u8 m_le_bIdentRespFlags;	// Flags: FW
+	u8 m_le_bEplProfileVersion;
+	u8 m_le_bRes1;
 	DWORD m_le_dwFeatureFlags;	// NMT_FeatureFlags_U32
 	WORD m_le_wMtu;		// NMT_CycleTiming_REC.AsyncMTU_U16: C_IP_MIN_MTU - C_IP_MAX_MTU
 	WORD m_le_wPollInSize;	// NMT_CycleTiming_REC.PReqActPayload_U16
@@ -233,44 +233,44 @@ typedef struct {
 	DWORD m_le_dwIpAddress;
 	DWORD m_le_dwSubnetMask;
 	DWORD m_le_dwDefaultGateway;
-	BYTE m_le_sHostname[32];
-	BYTE m_le_abVendorSpecificExt2[48];
+	u8 m_le_sHostname[32];
+	u8 m_le_abVendorSpecificExt2[48];
 
 } PACK_STRUCT tEplIdentResponse;
 
 typedef struct {
 	// Offset 18
-	BYTE m_le_bNmtCommandId;
-	BYTE m_le_bRes1;
-	BYTE m_le_abNmtCommandData[32];
+	u8 m_le_bNmtCommandId;
+	u8 m_le_bRes1;
+	u8 m_le_abNmtCommandData[32];
 
 } PACK_STRUCT tEplNmtCommandService;
 
 typedef struct {
-	BYTE m_le_bReserved;
-	BYTE m_le_bTransactionId;
-	BYTE m_le_bFlags;
-	BYTE m_le_bCommandId;
+	u8 m_le_bReserved;
+	u8 m_le_bTransactionId;
+	u8 m_le_bFlags;
+	u8 m_le_bCommandId;
 	WORD m_le_wSegmentSize;
 	WORD m_le_wReserved;
-	BYTE m_le_abCommandData[8];	// just reserve a minimum number of bytes as a placeholder
+	u8 m_le_abCommandData[8];	// just reserve a minimum number of bytes as a placeholder
 
 } PACK_STRUCT tEplAsySdoCom;
 
 // asynchronous SDO Sequence Header
 typedef struct {
-	BYTE m_le_bRecSeqNumCon;
-	BYTE m_le_bSendSeqNumCon;
-	BYTE m_le_abReserved[2];
+	u8 m_le_bRecSeqNumCon;
+	u8 m_le_bSendSeqNumCon;
+	u8 m_le_abReserved[2];
 	tEplAsySdoCom m_le_abSdoSeqPayload;
 
 } PACK_STRUCT tEplAsySdoSeq;
 
 typedef struct {
 	// Offset 18
-	BYTE m_le_bNmtCommandId;
-	BYTE m_le_bTargetNodeId;
-	BYTE m_le_abNmtCommandData[32];
+	u8 m_le_bNmtCommandId;
+	u8 m_le_bTargetNodeId;
+	u8 m_le_abNmtCommandData[32];
 
 } PACK_STRUCT tEplNmtRequestService;
 
@@ -281,14 +281,14 @@ typedef union {
 	tEplNmtCommandService m_NmtCommandService;
 	tEplNmtRequestService m_NmtRequestService;
 	tEplAsySdoSeq m_SdoSequenceFrame;
-	BYTE m_le_abPayload[256	/*D_NMT_ASndTxMaxPayload_U16
+	u8 m_le_abPayload[256	/*D_NMT_ASndTxMaxPayload_U16
 				   / D_NMT_ASndRxMaxPayload_U16 */ ];
 
 } tEplAsndPayload;
 
 typedef struct {
 	// Offset 17
-	BYTE m_le_bServiceId;
+	u8 m_le_bServiceId;
 	// Offset 18
 	tEplAsndPayload m_Payload;
 
@@ -306,17 +306,17 @@ typedef union {
 
 typedef struct {
 	// Offset 0
-	BYTE m_be_abDstMac[6];	// MAC address of the addressed nodes
+	u8 m_be_abDstMac[6];	// MAC address of the addressed nodes
 	// Offset 6
-	BYTE m_be_abSrcMac[6];	// MAC address of the transmitting node
+	u8 m_be_abSrcMac[6];	// MAC address of the transmitting node
 	// Offset 12
 	WORD m_be_wEtherType;	// Ethernet message type (big endian)
 	// Offset 14
-	BYTE m_le_bMessageType;	// EPL message type
+	u8 m_le_bMessageType;	// EPL message type
 	// Offset 15
-	BYTE m_le_bDstNodeId;	// EPL node ID of the addressed nodes
+	u8 m_le_bDstNodeId;	// EPL node ID of the addressed nodes
 	// Offset 16
-	BYTE m_le_bSrcNodeId;	// EPL node ID of the transmitting node
+	u8 m_le_bSrcNodeId;	// EPL node ID of the transmitting node
 	// Offset 17
 	tEplFrameData m_Data;
 

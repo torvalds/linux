@@ -275,7 +275,7 @@ EPLDLLEXPORT tEplKernel EplObduRegisterUserOd(tEplObdEntryPtr pUserOd_p)
 //
 //---------------------------------------------------------------------------
 EPLDLLEXPORT void EplObduInitVarEntry(tEplObdVarEntry *pVarEntry_p,
-				      BYTE bType_p, tEplObdSize ObdSize_p)
+				      u8 bType_p, tEplObdSize ObdSize_p)
 {
 	EplObduCalInitVarEntry(pVarEntry_p, bType_p, ObdSize_p);
 }

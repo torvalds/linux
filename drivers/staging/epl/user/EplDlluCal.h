@@ -110,7 +110,7 @@ tEplKernel EplDlluCalDeleteNode(unsigned int uiNodeId_p);
 tEplKernel EplDlluCalSoftDeleteNode(unsigned int uiNodeId_p);
 
 tEplKernel EplDlluCalIssueRequest(tEplDllReqServiceId Service_p,
-				  unsigned int uiNodeId_p, BYTE bSoaFlag1_p);
+				  unsigned int uiNodeId_p, u8 bSoaFlag1_p);
 
 #endif
 

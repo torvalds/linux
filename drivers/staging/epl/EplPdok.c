@@ -319,14 +319,14 @@ tEplKernel EplPdokProcess(tEplEvent * pEvent_p)
 	WORD wBitSize;
 	WORD wVarSize;
 	QWORD qwObjectMapping;
-	BYTE bMappSubindex;
-	BYTE bObdSubindex;
+	u8 bMappSubindex;
+	u8 bObdSubindex;
 	WORD wObdMappIndex;
 	WORD wObdCommIndex;
 	WORD wPdoId;
-	BYTE bObdData;
-	BYTE bObjectCount;
-	BYTE bFrameData;
+	u8 bObdData;
+	u8 bObjectCount;
+	u8 bFrameData;
 	BOOL fValid;
 	tEplObdSize ObdSize;
 	tEplFrame *pFrame;
@@ -441,7 +441,7 @@ tEplKernel EplPdokProcess(tEplEvent * pEvent_p)
 				    (WORD) (qwObjectMapping &
 					    0x000000000000FFFFLL);
 				bObdSubindex =
-				    (BYTE) ((qwObjectMapping &
+				    (u8) ((qwObjectMapping &
 					     0x0000000000FF0000LL) >> 16);
 				wBitOffset =
 				    (WORD) ((qwObjectMapping &
@@ -571,7 +571,7 @@ tEplKernel EplPdokProcess(tEplEvent * pEvent_p)
 				    (WORD) (qwObjectMapping &
 					    0x000000000000FFFFLL);
 				bObdSubindex =
-				    (BYTE) ((qwObjectMapping &
+				    (u8) ((qwObjectMapping &
 					     0x0000000000FF0000LL) >> 16);
 				wBitOffset =
 				    (WORD) ((qwObjectMapping &

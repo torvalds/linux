@@ -677,7 +677,7 @@ void *ShbIpcGetShMemPtr(tShbInstance pShbInstance_p)
 	pShbMemHeader =
 	    ShbIpcGetShbMemHeader(ShbIpcGetShbMemInst(pShbInstance_p));
 	if (pShbMemHeader != NULL) {
-		pShbShMemPtr = (BYTE *) pShbMemHeader + sizeof(tShbMemHeader);
+		pShbShMemPtr = (u8 *) pShbMemHeader + sizeof(tShbMemHeader);
 	} else {
 		pShbShMemPtr = NULL;
 	}

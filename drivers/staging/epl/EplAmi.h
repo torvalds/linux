@@ -69,7 +69,7 @@
 
    16.09.2002  -as
                To save code space the functions AmiSetByte and AmiGetByte
-               are replaced by macros. For targets which assign BYTE by
+               are replaced by macros. For targets which assign u8 by
                an 16Bit type, the definition of macros must changed to
                functions.
 
@@ -105,10 +105,10 @@ extern "C" {
 //
 // To save code space the function AmiSetByte is replaced by
 // an macro.
-// void  AmiSetByte  (void * pAddr_p, BYTE bByteVal_p);
+// void  AmiSetByte  (void * pAddr_p, u8 bByteVal_p);
 
-#define AmiSetByteToBe(pAddr_p, bByteVal_p)  {*(BYTE *)(pAddr_p) = (bByteVal_p);}
-#define AmiSetByteToLe(pAddr_p, bByteVal_p)  {*(BYTE *)(pAddr_p) = (bByteVal_p);}
+#define AmiSetByteToBe(pAddr_p, bByteVal_p)  {*(u8 *)(pAddr_p) = (bByteVal_p);}
+#define AmiSetByteToLe(pAddr_p, bByteVal_p)  {*(u8 *)(pAddr_p) = (bByteVal_p);}
 
 void AmiSetWordToBe(void *pAddr_p, WORD wWordVal_p);
 void AmiSetDwordToBe(void *pAddr_p, DWORD dwDwordVal_p);
@@ -121,10 +121,10 @@ void AmiSetDwordToLe(void *pAddr_p, DWORD dwDwordVal_p);
 //
 // To save code space the function AmiGetByte is replaced by
 // an macro.
-// BYTE   AmiGetByte  (void * pAddr_p);
+// u8   AmiGetByte  (void * pAddr_p);
 
-#define AmiGetByteFromBe(pAddr_p)  (*(BYTE *)(pAddr_p))
-#define AmiGetByteFromLe(pAddr_p)  (*(BYTE *)(pAddr_p))
+#define AmiGetByteFromBe(pAddr_p)  (*(u8 *)(pAddr_p))
+#define AmiGetByteFromLe(pAddr_p)  (*(u8 *)(pAddr_p))
 
 WORD AmiGetWordFromBe(void *pAddr_p);
 DWORD AmiGetDwordFromBe(void *pAddr_p);

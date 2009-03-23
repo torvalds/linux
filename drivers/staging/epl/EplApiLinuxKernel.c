@@ -139,7 +139,7 @@ MODULE_DESCRIPTION("EPL API driver");
 
 // TracePoint support for realtime-debugging
 #ifdef _DBG_TRACE_POINTS_
-void TgtDbgSignalTracePoint(BYTE bTracePointNumber_p);
+void TgtDbgSignalTracePoint(u8 bTracePointNumber_p);
 #define TGT_DBG_SIGNAL_TRACE_POINT(p)   TgtDbgSignalTracePoint(p)
 #else
 #define TGT_DBG_SIGNAL_TRACE_POINT(p)

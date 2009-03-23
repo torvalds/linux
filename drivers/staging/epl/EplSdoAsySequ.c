@@ -128,11 +128,11 @@ typedef enum {
 
 // structure for History-Buffer
 typedef struct {
-	BYTE m_bFreeEntries;
-	BYTE m_bWrite;		// index of the next free buffer entry
-	BYTE m_bAck;		// index of the next message which should become acknowledged
-	BYTE m_bRead;		// index between m_bAck and m_bWrite to the next message for retransmission
-	BYTE m_aabHistoryFrame[EPL_SDO_HISTORY_SIZE]
+	u8 m_bFreeEntries;
+	u8 m_bWrite;		// index of the next free buffer entry
+	u8 m_bAck;		// index of the next message which should become acknowledged
+	u8 m_bRead;		// index between m_bAck and m_bWrite to the next message for retransmission
+	u8 m_aabHistoryFrame[EPL_SDO_HISTORY_SIZE]
 	    [EPL_SEQ_HISTROY_FRAME_SIZE];
 	unsigned int m_auiFrameSize[EPL_SDO_HISTORY_SIZE];
 
@@ -152,8 +152,8 @@ typedef enum {
 typedef struct {
 	tEplSdoConHdl m_ConHandle;
 	tEplAsySdoState m_SdoState;
-	BYTE m_bRecSeqNum;	// name from view of the communication partner
-	BYTE m_bSendSeqNum;	// name from view of the communication partner
+	u8 m_bRecSeqNum;	// name from view of the communication partner
+	u8 m_bSendSeqNum;	// name from view of the communication partner
 	tEplAsySdoConHistory m_SdoConHistory;
 	tEplTimerHdl m_EplTimerHdl;
 	unsigned int m_uiRetryCount;	// retry counter
@@ -214,7 +214,7 @@ static tEplKernel EplSdoAsyAddFrameToHistory(tEplAsySdoSeqCon * pAsySdoSeqCon_p,
 					     unsigned int uiSize_p);
 
 static tEplKernel EplSdoAsyAckFrameToHistory(tEplAsySdoSeqCon * pAsySdoSeqCon_p,
-					     BYTE bRecSeqNumber_p);
+					     u8 bRecSeqNumber_p);
 
 static tEplKernel EplSdoAsyReadFromHistory(tEplAsySdoSeqCon * pAsySdoSeqCon_p,
 					   tEplFrame ** ppFrame_p,
@@ -1498,7 +1498,7 @@ static tEplKernel EplSdoAsySeqProcess(unsigned int uiHandle_p,
 				// frame received
 			case kAsySdoSeqEventFrameRec:
 				{
-					BYTE bSendSeqNumCon =
+					u8 bSendSeqNumCon =
 					    AmiGetByteFromLe(&pRecFrame_p->
 							     m_le_bSendSeqNumCon);
 
@@ -2016,7 +2016,7 @@ static tEplKernel EplSdoAsySeqSendIntern(tEplAsySdoSeqCon * pAsySdoSeqCon_p,
 					 BOOL fFrameInHistory_p)
 {
 	tEplKernel Ret;
-	BYTE abFrame[EPL_SEQ_FRAME_SIZE];
+	u8 abFrame[EPL_SEQ_FRAME_SIZE];
 	tEplFrame *pEplFrame;
 	unsigned int uiFreeEntries;
 
@@ -2154,7 +2154,7 @@ tEplKernel EplSdoAsyReceiveCb(tEplSdoConHdl ConHdl_p,
 #endif
 
 	EPL_DBGLVL_SDO_TRACE2("Handle: 0x%x , First Databyte 0x%x\n", ConHdl_p,
-			      ((BYTE *) pSdoSeqData_p)[0]);
+			      ((u8 *) pSdoSeqData_p)[0]);
 
 	// search controll structure for this connection
 	pAsySdoSeqCon = &AsySdoSequInstance_g.m_AsySdoConnection[uiCount];
@@ -2328,12 +2328,12 @@ static tEplKernel EplSdoAsyAddFrameToHistory(tEplAsySdoSeqCon * pAsySdoSeqCon_p,
 //
 //---------------------------------------------------------------------------
 static tEplKernel EplSdoAsyAckFrameToHistory(tEplAsySdoSeqCon * pAsySdoSeqCon_p,
-					     BYTE bRecSeqNumber_p)
+					     u8 bRecSeqNumber_p)
 {
 	tEplKernel Ret;
 	tEplAsySdoConHistory *pHistory;
-	BYTE bAckIndex;
-	BYTE bCurrentSeqNum;
+	u8 bAckIndex;
+	u8 bCurrentSeqNum;
 
 	Ret = kEplSuccessful;
 

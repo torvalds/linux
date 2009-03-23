@@ -98,7 +98,7 @@
 typedef struct {
 	WORD m_wStatus;		// control / status  ---  used by edrv, do not change in application
 	WORD m_wLength;		// transfer length
-	BYTE *m_pbData;		// buffer address
+	u8 *m_pbData;		// buffer address
 } tBufferDescr;
 
 #if ((TARGET_HARDWARE & TGT_CPU_MASK_) == TGT_CPU_5282)

@@ -133,18 +133,18 @@ typedef struct {
 	tEplSdoComConHdl m_SdoComConHdl;	// handle for sdo connection
 	DWORD m_dwLastAbortCode;
 	unsigned int m_uiLastIndex;	// last index of configuration, to compair with actual index
-	BYTE *m_pbConcise;	// Ptr to concise DCF
-	BYTE *m_pbActualIndex;	// Ptr to actual index in the DCF segment
+	u8 *m_pbConcise;	// Ptr to concise DCF
+	u8 *m_pbActualIndex;	// Ptr to actual index in the DCF segment
 	tfpEplCfgMaCb m_pfnCfgMaCb;	// Ptr to CfgMa Callback, is call if configuration finished
 	tEplKernel m_EplKernelError;	// errorcode
 	DWORD m_dwNumValueCopy;	// numeric values are copied in this variable
 	unsigned int m_uiPdoNodeId;	// buffer for PDO node id
-	BYTE m_bNrOfMappedObject;	// number of mapped objects
+	u8 m_bNrOfMappedObject;	// number of mapped objects
 	unsigned int m_uiNodeId;	// Epl node addresse
 	tEplSdocState m_SdocState;	// bitcoded state of the SDO transfer
 	unsigned int m_uiLastSubIndex;	// last subindex of configuration
 	BOOL m_fOneTranferOk;	// atleased one transfer was successful
-	BYTE m_bEventFlag;	// for Eventsignaling to the State Maschine
+	u8 m_bEventFlag;	// for Eventsignaling to the State Maschine
 	DWORD m_dwCntObjectInDcf;	// number of Objects in DCF
 	tEplCfgMaIndexType m_SkipCfg;	// TRUE if a adsitional Configurationprocess
 	// have to insert e.g. PDO-mapping
@@ -199,13 +199,13 @@ tEplKernel plCfgMaDelInstance(void);
 // Parameters:  uiNodeId_p              = NodeId of the node to configure
 //              pbConcise_p             = pointer to DCF
 //              fpCfgMaCb_p             = pointer to callback function (should not be NULL)
-//              SizeOfConcise_p         = size of DCF in BYTE -> for future use
+//              SizeOfConcise_p         = size of DCF in u8 -> for future use
 //              DcfType_p               = type of the DCF
 //
 // Returns:     tCopKernel              = error code
 //---------------------------------------------------------------------------
 tEplKernel EplCfgMaStartConfig(unsigned int uiNodeId_p,
-			       BYTE * pbConcise_p,
+			       u8 * pbConcise_p,
 			       tfpEplCfgMaCb fpCfgMaCb_p,
 			       tEplObdSize SizeOfConcise_p,
 			       tEplCfgMaDcfTyp DcfType_p);
@@ -235,13 +235,13 @@ tEplKernel EplCfgMaStartConfigNode(unsigned int uiNodeId_p,
 // Parameters:  uiNodeId_p              = NodeId of the node to configure
 //              pbConcise_p             = pointer to DCF
 //              fpCfgMaCb_p             = pointer to callback function (should not be NULL)
-//              SizeOfConcise_p         = size of DCF in BYTE -> for future use
+//              SizeOfConcise_p         = size of DCF in u8 -> for future use
 //              DcfType_p               = type of the DCF
 //
 // Returns:     tCopKernel              = error code
 //---------------------------------------------------------------------------
 tEplKernel EplCfgMaStartConfigNodeDcf(unsigned int uiNodeId_p,
-				      BYTE * pbConcise_p,
+				      u8 * pbConcise_p,
 				      tfpEplCfgMaCb fpCfgMaCb_p,
 				      tEplObdSize SizeOfConcise_p,
 				      tEplCfgMaDcfTyp DcfType_p);
@@ -253,13 +253,13 @@ tEplKernel EplCfgMaStartConfigNodeDcf(unsigned int uiNodeId_p,
 //
 // Parameters:  uiNodeId_p              = NodeId of the node to configure
 //              pbConcise_p             = pointer to DCF
-//              SizeOfConcise_p        = size of DCF in BYTE -> for future use
+//              SizeOfConcise_p        = size of DCF in u8 -> for future use
 //              DcfType_p               = type of the DCF
 //
 // Returns:     tCopKernel              = error code
 //---------------------------------------------------------------------------
 tEplKernel EplCfgMaLinkDcf(unsigned int uiNodeId_p,
-			   BYTE * pbConcise_p,
+			   u8 * pbConcise_p,
 			   tEplObdSize SizeOfConcise_p,
 			   tEplCfgMaDcfTyp DcfType_p);
 

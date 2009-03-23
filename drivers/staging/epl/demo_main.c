@@ -118,7 +118,7 @@ MODULE_DESCRIPTION("EPL MN demo");
 
 // TracePoint support for realtime-debugging
 #ifdef _DBG_TRACE_POINTS_
-void TgtDbgSignalTracePoint(BYTE bTracePointNumber_p);
+void TgtDbgSignalTracePoint(u8 bTracePointNumber_p);
 #define TGT_DBG_SIGNAL_TRACE_POINT(p)   TgtDbgSignalTracePoint(p)
 #else
 #define TGT_DBG_SIGNAL_TRACE_POINT(p)
@@ -148,25 +148,25 @@ void TgtDbgSignalTracePoint(BYTE bTracePointNumber_p);
 // modul globale vars
 //---------------------------------------------------------------------------
 
-const BYTE abMacAddr[] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+const u8 abMacAddr[] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
 
-BYTE bVarIn1_l;
-BYTE bVarOut1_l;
-BYTE bVarOut1Old_l;
-BYTE bModeSelect_l;		// state of the pushbuttons to select the mode
-BYTE bSpeedSelect_l;		// state of the pushbuttons to increase/decrease the speed
-BYTE bSpeedSelectOld_l;		// old state of the pushbuttons
+u8 bVarIn1_l;
+u8 bVarOut1_l;
+u8 bVarOut1Old_l;
+u8 bModeSelect_l;		// state of the pushbuttons to select the mode
+u8 bSpeedSelect_l;		// state of the pushbuttons to increase/decrease the speed
+u8 bSpeedSelectOld_l;		// old state of the pushbuttons
 DWORD dwLeds_l;			// current state of all LEDs
-BYTE bLedsRow1_l;		// current state of the LEDs in row 1
-BYTE bLedsRow2_l;		// current state of the LEDs in row 2
-BYTE abSelect_l[3];		// pushbuttons from CNs
+u8 bLedsRow1_l;		// current state of the LEDs in row 1
+u8 bLedsRow2_l;		// current state of the LEDs in row 2
+u8 abSelect_l[3];		// pushbuttons from CNs
 
 DWORD dwMode_l;			// current mode
 int iCurCycleCount_l;		// current cycle count
 int iMaxCycleCount_l;		// maximum cycle count (i.e. number of cycles until next light movement step)
 int iToggle;			// indicates the light movement direction
 
-BYTE abDomain_l[3000];
+u8 abDomain_l[3000];
 
 static wait_queue_head_t WaitQueueShutdown_g;	// wait queue for tEplNmtEventSwitchOff
 static atomic_t AtomicShutdown_g = ATOMIC_INIT(FALSE);
@@ -263,7 +263,7 @@ static int __init EplLinInit(void)
 	EplApiInitParam.m_uiSizeOfStruct = sizeof(EplApiInitParam);
 	EPL_MEMCPY(EplApiInitParam.m_abMacAddress, abMacAddr,
 		   sizeof(EplApiInitParam.m_abMacAddress));
-//    EplApiInitParam.m_abMacAddress[5] = (BYTE) EplApiInitParam.m_uiNodeId;
+//	EplApiInitParam.m_abMacAddress[5] = (u8) EplApiInitParam.m_uiNodeId;
 	EplApiInitParam.m_dwFeatureFlags = -1;
 	EplApiInitParam.m_dwCycleLen = uiCycleLen_g;	// required for error detection
 	EplApiInitParam.m_uiIsochrTxMaxPayload = 100;	// const

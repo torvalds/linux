@@ -145,7 +145,7 @@ static int EplLinProcRead(char *pcBuffer_p, char **ppcStart_p, off_t Offset_p,
 static int EplLinProcWrite(struct file *file, const char __user * buffer,
 			   unsigned long count, void *data);
 
-void TgtDbgSignalTracePoint(BYTE bTracePointNumber_p);
+void TgtDbgSignalTracePoint(u8 bTracePointNumber_p);
 void TgtDbgPostTraceValue(DWORD dwTraceValue_p);
 
 EPLDLLEXPORT DWORD EplIdentuGetRunningRequests(void);
@@ -191,7 +191,7 @@ tEplKernel EplLinProcFree(void)
 //---------------------------------------------------------------------------
 
 #ifdef _DBG_TRACE_POINTS_
-void TgtDbgSignalTracePoint(BYTE bTracePointNumber_p)
+void TgtDbgSignalTracePoint(u8 bTracePointNumber_p)
 {
 
 	if (bTracePointNumber_p >=

@@ -770,7 +770,7 @@ static tEplKernel EplErrorHandlerkLinkArray(DWORD * pdwValue_p,
 	tEplKernel Ret = kEplSuccessful;
 	tEplVarParam VarParam;
 	tEplObdSize EntrySize;
-	BYTE bIndexEntries;
+	u8 bIndexEntries;
 
 	EntrySize = (tEplObdSize) sizeof(bIndexEntries);
 	Ret = EplObdReadEntry(uiIndex_p,

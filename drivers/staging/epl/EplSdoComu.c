@@ -156,14 +156,14 @@ typedef enum {
 typedef struct {
 	tEplSdoSeqConHdl m_SdoSeqConHdl;	// if != 0 -> entry used
 	tEplSdoComState m_SdoComState;
-	BYTE m_bTransactionId;
+	u8 m_bTransactionId;
 	unsigned int m_uiNodeId;	// NodeId of the target
 	// -> needed to reinit connection
 	//    after timeout
 	tEplSdoTransType m_SdoTransType;	// Auto, Expedited, Segmented
 	tEplSdoServiceType m_SdoServiceType;	// WriteByIndex, ReadByIndex
 	tEplSdoType m_SdoProtType;	// protocol layer: Auto, Udp, Asnd, Pdo
-	BYTE *m_pData;		// pointer to data
+	u8 *m_pData;		// pointer to data
 	unsigned int m_uiTransSize;	// number of bytes
 	// to transfer
 	unsigned int m_uiTransferredByte;	// number of bytes
@@ -765,7 +765,7 @@ tEplKernel EplSdoComSdoAbort(tEplSdoComConHdl SdoComConHdl_p,
 		goto Exit;
 	}
 	// save pointer to abort code
-	pSdoComCon->m_pData = (BYTE *) & dwAbortCode_p;
+	pSdoComCon->m_pData = (u8 *) & dwAbortCode_p;
 
 	Ret = EplSdoComProcessIntern(SdoComConHdl_p,
 				     kEplSdoComConEventAbort,
@@ -998,7 +998,7 @@ static tEplKernel EplSdoComProcessIntern(tEplSdoComConHdl SdoComCon_p,
 {
 	tEplKernel Ret;
 	tEplSdoComCon *pSdoComCon;
-	BYTE bFlag;
+	u8 bFlag;
 
 #if(((EPL_MODULE_INTEGRATION) & (EPL_MODULE_SDOS)) != 0)
 	DWORD dwAbortCode;
@@ -1137,7 +1137,7 @@ static tEplKernel EplSdoComProcessIntern(tEplSdoComConHdl SdoComCon_p,
 									pSdoComCon->
 									    m_pData
 									    =
-									    (BYTE
+									    (u8
 									     *)
 									    &
 									    dwAbortCode;
@@ -1282,7 +1282,7 @@ static tEplKernel EplSdoComProcessIntern(tEplSdoComConHdl SdoComCon_p,
 							if (pSdoComCon->
 							    m_dwLastAbortCode ==
 							    0) {
-								( /*(BYTE*) */
+								( /*(u8*) */
 								 pSdoComCon->
 								 m_pData) +=
 						      uiSize;
@@ -1320,7 +1320,7 @@ static tEplKernel EplSdoComProcessIntern(tEplSdoComConHdl SdoComCon_p,
 									pSdoComCon->
 									    m_pData
 									    =
-									    (BYTE
+									    (u8
 									     *)
 									    &
 									    pSdoComCon->
@@ -1986,7 +1986,7 @@ static tEplKernel EplSdoComServerInitReadByIndex(tEplSdoComCon * pSdoComCon_p,
 	if (Ret == kEplObdSubindexNotExist) {	// subentry doesn't exist
 		dwAbortCode = EPL_SDOAC_SUB_INDEX_NOT_EXIST;
 		// send abort
-		pSdoComCon_p->m_pData = (BYTE *) & dwAbortCode;
+		pSdoComCon_p->m_pData = (u8 *) & dwAbortCode;
 		Ret = EplSdoComServerSendFrameIntern(pSdoComCon_p,
 						     uiIndex,
 						     uiSubindex,
@@ -1995,7 +1995,7 @@ static tEplKernel EplSdoComServerInitReadByIndex(tEplSdoComCon * pSdoComCon_p,
 	} else if (Ret != kEplSuccessful) {	// entry doesn't exist
 		dwAbortCode = EPL_SDOAC_OBJECT_NOT_EXIST;
 		// send abort
-		pSdoComCon_p->m_pData = (BYTE *) & dwAbortCode;
+		pSdoComCon_p->m_pData = (u8 *) & dwAbortCode;
 		Ret = EplSdoComServerSendFrameIntern(pSdoComCon_p,
 						     uiIndex,
 						     uiSubindex,
@@ -2013,7 +2013,7 @@ static tEplKernel EplSdoComServerInitReadByIndex(tEplSdoComCon * pSdoComCon_p,
 			dwAbortCode = EPL_SDOAC_UNSUPPORTED_ACCESS;
 		}
 		// send abort
-		pSdoComCon_p->m_pData = (BYTE *) & dwAbortCode;
+		pSdoComCon_p->m_pData = (u8 *) & dwAbortCode;
 		Ret = EplSdoComServerSendFrameIntern(pSdoComCon_p,
 						     uiIndex,
 						     uiSubindex,
@@ -2050,7 +2050,7 @@ static tEplKernel EplSdoComServerInitReadByIndex(tEplSdoComCon * pSdoComCon_p,
 		// error -> abort
 		dwAbortCode = EPL_SDOAC_GENERAL_ERROR;
 		// send abort
-		pSdoComCon_p->m_pData = (BYTE *) & dwAbortCode;
+		pSdoComCon_p->m_pData = (u8 *) & dwAbortCode;
 		Ret = EplSdoComServerSendFrameIntern(pSdoComCon_p,
 						     uiIndex,
 						     uiSubindex,
@@ -2089,11 +2089,11 @@ static tEplKernel EplSdoComServerSendFrameIntern(tEplSdoComCon * pSdoComCon_p,
 						 tEplSdoComSendType SendType_p)
 {
 	tEplKernel Ret;
-	BYTE abFrame[EPL_MAX_SDO_FRAME_SIZE];
+	u8 abFrame[EPL_MAX_SDO_FRAME_SIZE];
 	tEplFrame *pFrame;
 	tEplAsySdoCom *pCommandFrame;
 	unsigned int uiSizeOfFrame;
-	BYTE bFlag;
+	u8 bFlag;
 
 	Ret = kEplSuccessful;
 
@@ -2373,7 +2373,7 @@ static tEplKernel EplSdoComServerInitWriteByIndex(tEplSdoComCon * pSdoComCon_p,
 	tEplObdSize EntrySize;
 	tEplObdAccess AccessType;
 	DWORD dwAbortCode;
-	BYTE *pbSrcData;
+	u8 *pbSrcData;
 
 	dwAbortCode = 0;
 
@@ -2426,7 +2426,7 @@ static tEplKernel EplSdoComServerInitWriteByIndex(tEplSdoComCon * pSdoComCon_p,
 		pSdoComCon_p->m_dwLastAbortCode = EPL_SDOAC_SUB_INDEX_NOT_EXIST;
 		// send abort
 		// d.k. This is wrong: k.t. not needed send abort on end of write
-		/*pSdoComCon_p->m_pData = (BYTE*)pSdoComCon_p->m_dwLastAbortCode;
+		/*pSdoComCon_p->m_pData = (u8*)pSdoComCon_p->m_dwLastAbortCode;
 		   Ret = EplSdoComServerSendFrameIntern(pSdoComCon_p,
 		   uiIndex,
 		   uiSubindex,
@@ -2437,7 +2437,7 @@ static tEplKernel EplSdoComServerInitWriteByIndex(tEplSdoComCon * pSdoComCon_p,
 		// send abort
 		// d.k. This is wrong: k.t. not needed send abort on end of write
 		/*
-		   pSdoComCon_p->m_pData = (BYTE*)&dwAbortCode;
+		   pSdoComCon_p->m_pData = (u8*)&dwAbortCode;
 		   Ret = EplSdoComServerSendFrameIntern(pSdoComCon_p,
 		   uiIndex,
 		   uiSubindex,
@@ -2457,7 +2457,7 @@ static tEplKernel EplSdoComServerInitWriteByIndex(tEplSdoComCon * pSdoComCon_p,
 		}
 		// send abort
 		// d.k. This is wrong: k.t. not needed send abort on end of write
-		/*pSdoComCon_p->m_pData = (BYTE*)&dwAbortCode;
+		/*pSdoComCon_p->m_pData = (u8*)&dwAbortCode;
 		   Ret = EplSdoComServerSendFrameIntern(pSdoComCon_p,
 		   uiIndex,
 		   uiSubindex,
@@ -2548,7 +2548,7 @@ static tEplKernel EplSdoComServerInitWriteByIndex(tEplSdoComCon * pSdoComCon_p,
 			    EPL_SDOAC_DATA_TYPE_LENGTH_TOO_HIGH;
 			// send abort
 			// d.k. This is wrong: k.t. not needed send abort on end of write
-			/*pSdoComCon_p->m_pData = (BYTE*)&dwAbortCode;
+			/*pSdoComCon_p->m_pData = (u8*)&dwAbortCode;
 			   Ret = EplSdoComServerSendFrameIntern(pSdoComCon_p,
 			   uiIndex,
 			   uiSubindex,
@@ -2570,7 +2570,7 @@ static tEplKernel EplSdoComServerInitWriteByIndex(tEplSdoComCon * pSdoComCon_p,
 			    EPL_SDOAC_GENERAL_ERROR;
 			// send abort
 			// d.k. This is wrong: k.t. not needed send abort on end of write
-/*            pSdoComCon_p->m_pData = (BYTE*)&pSdoComCon_p->m_dwLastAbortCode;
+/*            pSdoComCon_p->m_pData = (u8*)&pSdoComCon_p->m_dwLastAbortCode;
             Ret = EplSdoComServerSendFrameIntern(pSdoComCon_p,
                                         uiIndex,
                                         uiSubindex,
@@ -2585,7 +2585,7 @@ static tEplKernel EplSdoComServerInitWriteByIndex(tEplSdoComCon * pSdoComCon_p,
 		pSdoComCon_p->m_uiTransSize -= uiBytesToTransfer;
 
 		// update target pointer
-		( /*(BYTE*) */ pSdoComCon_p->m_pData) += uiBytesToTransfer;
+		( /*(u8*) */ pSdoComCon_p->m_pData) += uiBytesToTransfer;
 
 		// send acknowledge without any Command layer data
 		Ret = EplSdoAsySeqSendData(pSdoComCon_p->m_SdoSeqConHdl,
@@ -2597,7 +2597,7 @@ static tEplKernel EplSdoComServerInitWriteByIndex(tEplSdoComCon * pSdoComCon_p,
 	if (pSdoComCon_p->m_dwLastAbortCode != 0) {
 		// send abort
 		pSdoComCon_p->m_pData =
-		    (BYTE *) & pSdoComCon_p->m_dwLastAbortCode;
+		    (u8 *) & pSdoComCon_p->m_dwLastAbortCode;
 		Ret =
 		    EplSdoComServerSendFrameIntern(pSdoComCon_p, uiIndex,
 						   uiSubindex,
@@ -2634,12 +2634,12 @@ static tEplKernel EplSdoComServerInitWriteByIndex(tEplSdoComCon * pSdoComCon_p,
 static tEplKernel EplSdoComClientSend(tEplSdoComCon * pSdoComCon_p)
 {
 	tEplKernel Ret;
-	BYTE abFrame[EPL_MAX_SDO_FRAME_SIZE];
+	u8 abFrame[EPL_MAX_SDO_FRAME_SIZE];
 	tEplFrame *pFrame;
 	tEplAsySdoCom *pCommandFrame;
 	unsigned int uiSizeOfFrame;
-	BYTE bFlags;
-	BYTE *pbPayload;
+	u8 bFlags;
+	u8 *pbPayload;
 
 	Ret = kEplSuccessful;
 
@@ -2683,7 +2683,7 @@ static tEplKernel EplSdoComClientSend(tEplSdoComCon * pSdoComCon_p)
 						       m_uiTargetIndex);
 					pbPayload += 2;
 					AmiSetByteToLe(pbPayload,
-						       (BYTE) pSdoComCon_p->
+						       (u8) pSdoComCon_p->
 						       m_uiTargetSubIndex);
 					// calc size
 					uiSizeOfFrame += 4;
@@ -2725,7 +2725,7 @@ static tEplKernel EplSdoComClientSend(tEplSdoComCon * pSdoComCon_p)
 							       m_uiTargetIndex);
 						pbPayload += 2;
 						AmiSetByteToLe(pbPayload,
-							       (BYTE)
+							       (u8)
 							       pSdoComCon_p->
 							       m_uiTargetSubIndex);
 						// on byte for reserved
@@ -2764,7 +2764,7 @@ static tEplKernel EplSdoComClientSend(tEplSdoComCon * pSdoComCon_p)
 							       m_uiTargetIndex);
 						pbPayload += 2;
 						AmiSetByteToLe(pbPayload,
-							       (BYTE)
+							       (u8)
 							       pSdoComCon_p->
 							       m_uiTargetSubIndex);
 						// + 2 -> one byte for subindex and one byte reserved
@@ -2943,7 +2943,7 @@ static tEplKernel EplSdoComClientProcessFrame(tEplSdoComConHdl SdoComCon_p,
 					      tEplAsySdoCom * pAsySdoCom_p)
 {
 	tEplKernel Ret;
-	BYTE bBuffer;
+	u8 bBuffer;
 	unsigned int uiBuffer;
 	unsigned int uiDataSize;
 	unsigned long ulBuffer;
@@ -3219,7 +3219,7 @@ static tEplKernel EplSdoComClientSendAbort(tEplSdoComCon * pSdoComCon_p,
 					   DWORD dwAbortCode_p)
 {
 	tEplKernel Ret;
-	BYTE abFrame[EPL_MAX_SDO_FRAME_SIZE];
+	u8 abFrame[EPL_MAX_SDO_FRAME_SIZE];
 	tEplFrame *pFrame;
 	tEplAsySdoCom *pCommandFrame;
 	unsigned int uiSizeOfFrame;

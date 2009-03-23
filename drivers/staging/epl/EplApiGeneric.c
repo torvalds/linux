@@ -556,9 +556,9 @@ tEplKernel EplApiLinkObject(unsigned int uiObjIndex_p,
 			    tEplObdSize *pEntrySize_p,
 			    unsigned int uiFirstSubindex_p)
 {
-	BYTE bVarEntries;
-	BYTE bIndexEntries;
-	BYTE *pbData;
+	u8 bVarEntries;
+	u8 bIndexEntries;
+	u8 *pbData;
 	unsigned int uiSubindex;
 	tEplVarParam VarParam;
 	tEplObdSize EntrySize;
@@ -574,8 +574,8 @@ tEplKernel EplApiLinkObject(unsigned int uiObjIndex_p,
 		goto Exit;
 	}
 
-	pbData = (BYTE *)pVar_p;
-	bVarEntries = (BYTE) * puiVarEntries_p;
+	pbData = (u8 *)pVar_p;
+	bVarEntries = (u8) * puiVarEntries_p;
 	UsedSize = 0;
 
 	// init VarParam structure with default values
@@ -607,7 +607,7 @@ tEplKernel EplApiLinkObject(unsigned int uiObjIndex_p,
 	// object actually has.
 	if ((bIndexEntries > (bVarEntries + uiFirstSubindex_p - 1)) &&
 	    (bVarEntries != 0x00)) {
-		bIndexEntries = (BYTE) (bVarEntries + uiFirstSubindex_p - 1);
+		bIndexEntries = (u8) (bVarEntries + uiFirstSubindex_p - 1);
 	}
 	// map entries
 	for (uiSubindex = uiFirstSubindex_p; uiSubindex <= bIndexEntries;
@@ -1012,9 +1012,9 @@ tEplKernel EplApiCbObdAccess(tEplObdCbParam *pParam_p)
 	case 0x1F9E:		// NMT_ResetCmd_U8
 		{
 			if (pParam_p->m_ObdEvent == kEplObdEvPreWrite) {
-				BYTE bNmtCommand;
+				u8 bNmtCommand;
 
-				bNmtCommand = *((BYTE *) pParam_p->m_pArg);
+				bNmtCommand = *((u8 *) pParam_p->m_pArg);
 				// check value range
 				switch ((tEplNmtCommand) bNmtCommand) {
 				case kEplNmtCmdResetNode:
@@ -1032,9 +1032,9 @@ tEplKernel EplApiCbObdAccess(tEplObdCbParam *pParam_p)
 					break;
 				}
 			} else if (pParam_p->m_ObdEvent == kEplObdEvPostWrite) {
-				BYTE bNmtCommand;
+				u8 bNmtCommand;
 
-				bNmtCommand = *((BYTE *) pParam_p->m_pArg);
+				bNmtCommand = *((u8 *) pParam_p->m_pArg);
 				// check value range
 				switch ((tEplNmtCommand) bNmtCommand) {
 				case kEplNmtCmdResetNode:
@@ -1187,11 +1187,11 @@ static tEplKernel EplApiProcessEvent(tEplEvent *pEplEvent_p)
 static tEplKernel EplApiCbNmtStateChange(tEplEventNmtStateChange NmtStateChange_p)
 {
 	tEplKernel Ret = kEplSuccessful;
-	BYTE bNmtState;
+	u8 bNmtState;
 	tEplApiEventArg EventArg;
 
 	// save NMT state in OD
-	bNmtState = (BYTE) NmtStateChange_p.m_NewNmtState;
+	bNmtState = (u8) NmtStateChange_p.m_NewNmtState;
 	Ret = EplObdWriteEntry(0x1F8C, 0, &bNmtState, 1);
 	if (Ret != kEplSuccessful) {
 		goto Exit;
@@ -1270,7 +1270,7 @@ static tEplKernel EplApiCbNmtStateChange(tEplEventNmtStateChange NmtStateChange_
 	case kEplNmtCsNotActive:
 		{
 			// indicate completion of reset in NMT_ResetCmd_U8
-			bNmtState = (BYTE) kEplNmtCmdInvalidService;
+			bNmtState = (u8) kEplNmtCmdInvalidService;
 			Ret = EplObdWriteEntry(0x1F9E, 0, &bNmtState, 1);
 			if (Ret != kEplSuccessful) {
 				goto Exit;
@@ -1413,7 +1413,7 @@ static tEplKernel EplApiUpdateDllConfig(BOOL fUpdateIdentity_p)
 	tEplDllIdentParam DllIdentParam;
 	tEplObdSize ObdSize;
 	WORD wTemp;
-	BYTE bTemp;
+	u8 bTemp;
 
 	// configure Dll
 	EPL_MEMSET(&DllConfigParam, 0, sizeof(DllConfigParam));
@@ -1633,7 +1633,7 @@ static tEplKernel EplApiUpdateObd(void)
 {
 	tEplKernel Ret = kEplSuccessful;
 	WORD wTemp;
-	BYTE bTemp;
+	u8 bTemp;
 
 	// set node id in OD
 	Ret = EplObdSetNodeId(EplApiInstance_g.m_InitParam.m_uiNodeId,	// node id
@@ -1730,7 +1730,7 @@ static tEplKernel EplApiUpdateObd(void)
     }*/
 
 	if (EplApiInstance_g.m_InitParam.m_uiMultiplCycleCnt <= 0xFF) {
-		bTemp = (BYTE) EplApiInstance_g.m_InitParam.m_uiMultiplCycleCnt;
+		bTemp = (u8) EplApiInstance_g.m_InitParam.m_uiMultiplCycleCnt;
 		Ret = EplObdWriteEntry(0x1F98, 7, &bTemp, 1);
 /*    if(Ret != kEplSuccessful)
     {

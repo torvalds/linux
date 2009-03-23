@@ -232,10 +232,10 @@ tEplKernel EplPdouCbObdAccess(tEplObdCbParam *pParam_p)
 	unsigned int uiPdoId;
 	unsigned int uiIndexType;
 	tEplObdSize ObdSize;
-	BYTE bObjectCount;
+	u8 bObjectCount;
 	QWORD qwObjectMapping;
 	tEplObdAccess AccessType;
-	BYTE bMappSubindex;
+	u8 bMappSubindex;
 	unsigned int uiCurPdoSize;
 	WORD wMaxPdoSize;
 	unsigned int uiSubIndex;
@@ -293,7 +293,7 @@ tEplKernel EplPdouCbObdAccess(tEplObdCbParam *pParam_p)
 	if (pParam_p->m_uiSubIndex == 0) {	// object mapping count accessed
 
 		// PDO is enabled or disabled
-		bObjectCount = *((BYTE *) pParam_p->m_pArg);
+		bObjectCount = *((u8 *) pParam_p->m_pArg);
 
 		if (bObjectCount == 0) {	// PDO shall be disabled
 
@@ -399,7 +399,7 @@ static tEplKernel EplPdouCheckPdoValidity(tEplObdCbParam *pParam_p,
 {
 	tEplKernel Ret = kEplSuccessful;
 	tEplObdSize ObdSize;
-	BYTE bObjectCount;
+	u8 bObjectCount;
 
 	ObdSize = 1;
 	// read number of mapped objects from OD; this indicates if the PDO is valid

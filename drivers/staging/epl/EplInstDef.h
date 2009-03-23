@@ -71,6 +71,8 @@
 #ifndef _EPLINSTDEF_H_
 #define _EPLINSTDEF_H_
 
+#include <linux/kernel.h>
+
 // =========================================================================
 // types and macros for generating instances
 // =========================================================================
@@ -84,7 +86,7 @@ typedef enum {
 //------------------------------------------------------------------------------------------
 
 typedef void *tEplPtrInstance;
-typedef BYTE tEplInstanceHdl;
+typedef u8 tEplInstanceHdl;
 
 // define const for illegale values
 #define CCM_ILLINSTANCE      NULL
@@ -214,8 +216,8 @@ typedef BYTE tEplInstanceHdl;
         tFastByte            InstNumber      = 0;                          \
         tFastByte            i               = EPL_MAX_INSTANCES;          \
         do {                                                               \
-            pInstance->m_InstState = (BYTE) kStateUnused;                  \
-            pInstance->m_bInstIndex = (BYTE) InstNumber;                   \
+            pInstance->m_InstState = (u8) kStateUnused;                  \
+            pInstance->m_bInstIndex = (u8) InstNumber;                   \
             pInstance++; InstNumber++; i--;                                \
         } while (i != 0);                                                  \
     }
@@ -243,8 +245,8 @@ typedef BYTE tEplInstanceHdl;
     // this macro defines member variables in instance table which are needed in
     // all modules of Epl stack
 #define EPL_MCO_DECL_INSTANCE_MEMBER() \
-        STATIC  BYTE                            m_InstState; \
-        STATIC  BYTE                            m_bInstIndex;
+        STATIC  u8                            m_InstState; \
+        STATIC  u8                            m_bInstIndex;
 
 #define EPL_MCO_INSTANCE_PARAM_IDX_()           EPL_MCO_INSTANCE_PARAM_ (EPL_MCO_GLB_VAR (m_bInstIndex))
 #define EPL_MCO_INSTANCE_PARAM_IDX()            EPL_MCO_INSTANCE_PARAM (EPL_MCO_GLB_VAR (m_bInstIndex))

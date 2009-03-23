@@ -104,7 +104,7 @@ typedef struct {
 	//               TPDO: 0x00=PRes, MN: CnNodeId=PReq
 
 	BOOL m_fTxRx;
-	BYTE m_bMappingVersion;
+	u8 m_bMappingVersion;
 	unsigned int m_uiMaxMappingEntries;	// maximum number of mapping entries, i.e. size of m_aPdoMapping
 	tEplPdoMapping m_aPdoMapping[1];
 

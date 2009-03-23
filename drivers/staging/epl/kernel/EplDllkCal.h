@@ -124,7 +124,7 @@ tEplKernel EplDllkCalProcess(tEplEvent * pEvent_p);
 tEplKernel EplDllkCalAsyncClearQueues(void);
 
 tEplKernel EplDllkCalIssueRequest(tEplDllReqServiceId Service_p,
-				  unsigned int uiNodeId_p, BYTE bSoaFlag1_p);
+				  unsigned int uiNodeId_p, u8 bSoaFlag1_p);
 
 tEplKernel EplDllkCalAsyncGetSoaRequest(tEplDllReqServiceId * pReqServiceId_p,
 					unsigned int *puiNodeId_p);

@@ -185,8 +185,8 @@ typedef struct {
 	DWORD m_dwIpAddress;
 	DWORD m_dwSubnetMask;
 	DWORD m_dwDefaultGateway;
-	BYTE m_sHostname[32];
-	BYTE m_abVendorSpecificExt2[48];
+	u8 m_sHostname[32];
+	u8 m_abVendorSpecificExt2[48];
 
 } tEplDllIdentParam;
 

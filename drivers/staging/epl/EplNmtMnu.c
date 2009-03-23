@@ -94,7 +94,7 @@
 
 // TracePoint support for realtime-debugging
 #ifdef _DBG_TRACE_POINTS_
-void TgtDbgSignalTracePoint(BYTE bTracePointNumber_p);
+void TgtDbgSignalTracePoint(u8 bTracePointNumber_p);
 void TgtDbgPostTraceValue(DWORD dwTraceValue_p);
 #define TGT_DBG_SIGNAL_TRACE_POINT(p)   TgtDbgSignalTracePoint(p)
 #define TGT_DBG_POST_TRACE_VALUE(v)     TgtDbgPostTraceValue(v)
@@ -417,7 +417,7 @@ tEplKernel EplNmtMnuSendNmtCommandEx(unsigned int uiNodeId_p,
 {
 	tEplKernel Ret = kEplSuccessful;
 	tEplFrameInfo FrameInfo;
-	BYTE abBuffer[EPL_C_DLL_MINSIZE_NMTCMDEXT];
+	u8 abBuffer[EPL_C_DLL_MINSIZE_NMTCMDEXT];
 	tEplFrame *pFrame = (tEplFrame *) abBuffer;
 	BOOL fSoftDeleteNode = FALSE;
 
@@ -437,11 +437,11 @@ tEplKernel EplNmtMnuSendNmtCommandEx(unsigned int uiNodeId_p,
 
 	// build frame
 	EPL_MEMSET(pFrame, 0x00, sizeof(abBuffer));
-	AmiSetByteToLe(&pFrame->m_le_bDstNodeId, (BYTE) uiNodeId_p);
+	AmiSetByteToLe(&pFrame->m_le_bDstNodeId, (u8) uiNodeId_p);
 	AmiSetByteToLe(&pFrame->m_Data.m_Asnd.m_le_bServiceId,
-		       (BYTE) kEplDllAsndNmtCommand);
+		       (u8) kEplDllAsndNmtCommand);
 	AmiSetByteToLe(&pFrame->m_Data.m_Asnd.m_Payload.m_NmtCommandService.
-		       m_le_bNmtCommandId, (BYTE) NmtCommand_p);
+		       m_le_bNmtCommandId, (u8) NmtCommand_p);
 	if ((pNmtCommandData_p != NULL) && (uiDataSize_p > 0)) {	// copy command data to frame
 		EPL_MEMCPY(&pFrame->m_Data.m_Asnd.m_Payload.m_NmtCommandService.
 			   m_le_abNmtCommandData[0], pNmtCommandData_p,
@@ -572,7 +572,7 @@ tEplKernel EplNmtMnuTriggerStateChange(unsigned int uiNodeId_p,
 	tEplKernel Ret = kEplSuccessful;
 	tEplNmtMnuIntNodeEvent NodeEvent;
 	tEplObdSize ObdSize;
-	BYTE bNmtState;
+	u8 bNmtState;
 	WORD wErrorCode = EPL_E_NO_ERROR;
 
 	if ((uiNodeId_p == 0) || (uiNodeId_p >= EPL_C_ADR_BROADCAST)) {
@@ -967,7 +967,7 @@ EPLDLLEXPORT tEplKernel EplNmtMnuProcessEvent(tEplEvent *pEvent_p)
 					   EPL_NMTMNU_TIMERARG_NODE_MASK);
 			if (uiNodeId != 0) {
 				tEplObdSize ObdSize;
-				BYTE bNmtState;
+				u8 bNmtState;
 				tEplNmtMnuNodeInfo *pNodeInfo;
 
 				pNodeInfo = EPL_NMTMNU_GET_NODEINFO(uiNodeId);
@@ -1147,7 +1147,7 @@ EPLDLLEXPORT tEplKernel EplNmtMnuProcessEvent(tEplEvent *pEvent_p)
 			tEplFrame *pFrame = (tEplFrame *) pEvent_p->m_pArg;
 			unsigned int uiNodeId;
 			tEplNmtCommand NmtCommand;
-			BYTE bNmtState;
+			u8 bNmtState;
 
 			uiNodeId = AmiGetByteFromLe(&pFrame->m_le_bDstNodeId);
 			NmtCommand =
@@ -1159,30 +1159,30 @@ EPLDLLEXPORT tEplKernel EplNmtMnuProcessEvent(tEplEvent *pEvent_p)
 			switch (NmtCommand) {
 			case kEplNmtCmdStartNode:
 				bNmtState =
-				    (BYTE) (kEplNmtCsOperational & 0xFF);
+				    (u8) (kEplNmtCsOperational & 0xFF);
 				break;
 
 			case kEplNmtCmdStopNode:
-				bNmtState = (BYTE) (kEplNmtCsStopped & 0xFF);
+				bNmtState = (u8) (kEplNmtCsStopped & 0xFF);
 				break;
 
 			case kEplNmtCmdEnterPreOperational2:
 				bNmtState =
-				    (BYTE) (kEplNmtCsPreOperational2 & 0xFF);
+				    (u8) (kEplNmtCsPreOperational2 & 0xFF);
 				break;
 
 			case kEplNmtCmdEnableReadyToOperate:
 				// d.k. do not change expected node state, because of DS 1.0.0 7.3.1.2.1 Plain NMT State Command
 				//      and because node may not change NMT state within EPL_C_NMT_STATE_TOLERANCE
 				bNmtState =
-				    (BYTE) (kEplNmtCsPreOperational2 & 0xFF);
+				    (u8) (kEplNmtCsPreOperational2 & 0xFF);
 				break;
 
 			case kEplNmtCmdResetNode:
 			case kEplNmtCmdResetCommunication:
 			case kEplNmtCmdResetConfiguration:
 			case kEplNmtCmdSwReset:
-				bNmtState = (BYTE) (kEplNmtCsNotActive & 0xFF);
+				bNmtState = (u8) (kEplNmtCsNotActive & 0xFF);
 				// EplNmtMnuProcessInternalEvent() sets internal node state to kEplNmtMnuNodeStateUnknown
 				// after next unresponded IdentRequest/StatusRequest
 				break;
@@ -1927,7 +1927,7 @@ static tEplKernel EplNmtMnuProcessInternalEvent(unsigned int uiNodeId_p,
 	switch (NodeEvent_p) {
 	case kEplNmtMnuIntNodeEventIdentResponse:
 		{
-			BYTE bNmtState;
+			u8 bNmtState;
 
 			EPL_NMTMNU_DBG_POST_TRACE_VALUE(NodeEvent_p,
 							uiNodeId_p,
@@ -1954,7 +1954,7 @@ static tEplKernel EplNmtMnuProcessInternalEvent(unsigned int uiNodeId_p,
 				    ~EPL_NMTMNU_NODE_FLAG_NOT_SCANNED;
 			}
 			// update object 0x1F8F NMT_MNNodeExpState_AU8 to PreOp1 (even if local state >= PreOp2)
-			bNmtState = (BYTE) (kEplNmtCsPreOperational1 & 0xFF);
+			bNmtState = (u8) (kEplNmtCsPreOperational1 & 0xFF);
 			Ret =
 			    EplObduWriteEntry(0x1F8F, uiNodeId_p, &bNmtState,
 					      1);
@@ -2434,11 +2434,11 @@ static tEplKernel EplNmtMnuProcessInternalEvent(unsigned int uiNodeId_p,
 
 	case kEplNmtMnuIntNodeEventNmtCmdSent:
 		{
-			BYTE bNmtState;
+			u8 bNmtState;
 
 			// update expected NMT state with the one that results
 			// from the sent NMT command
-			bNmtState = (BYTE) (NodeNmtState_p & 0xFF);
+			bNmtState = (u8) (NodeNmtState_p & 0xFF);
 
 			// write object 0x1F8F NMT_MNNodeExpState_AU8
 			Ret =
@@ -2628,8 +2628,8 @@ static tEplKernel EplNmtMnuCheckNmtState(unsigned int uiNodeId_p,
 {
 	tEplKernel Ret = kEplSuccessful;
 	tEplObdSize ObdSize;
-	BYTE bNmtState;
-	BYTE bNmtStatePrev;
+	u8 bNmtState;
+	u8 bNmtStatePrev;
 	tEplNmtState ExpNmtState;
 
 	ObdSize = 1;
@@ -2640,8 +2640,8 @@ static tEplKernel EplNmtMnuCheckNmtState(unsigned int uiNodeId_p,
 	}
 	// compute expected NMT state
 	ExpNmtState = (tEplNmtState) (bNmtState | EPL_NMT_TYPE_CS);
-	// compute BYTE of current NMT state
-	bNmtState = ((BYTE) NodeNmtState_p & 0xFF);
+	// compute u8 of current NMT state
+	bNmtState = ((u8) NodeNmtState_p & 0xFF);
 
 	if (ExpNmtState == kEplNmtCsNotActive) {	// ignore the current state, because the CN shall be not active
 		Ret = kEplReject;

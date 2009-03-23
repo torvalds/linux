@@ -105,8 +105,8 @@
 #define EPL_OBD_SUBINDEX_RAM_VSTRING(ind,sub,acc,name,size,val)                 static char  szCur##ind##_##sub##_g[size+1]; \
                                                                                         static  tEplObdVStringDef  xDef##ind##_##sub##_g = {size, val, szCur##ind##_##sub##_g};
 
-#define EPL_OBD_SUBINDEX_RAM_OSTRING(ind,sub,acc,name,size)                     static  BYTE  bCur##ind##_##sub##_g[size]; \
-                                                                                        static  tEplObdOStringDef  xDef##ind##_##sub##_g = {size, ((BYTE*)""), bCur##ind##_##sub##_g};
+#define EPL_OBD_SUBINDEX_RAM_OSTRING(ind,sub,acc,name,size)                     static  u8  bCur##ind##_##sub##_g[size]; \
+                                                                                        static  tEplObdOStringDef  xDef##ind##_##sub##_g = {size, ((u8*)""), bCur##ind##_##sub##_g};
 #define EPL_OBD_SUBINDEX_RAM_DOMAIN(ind,sub,acc,name)
 #define EPL_OBD_SUBINDEX_RAM_USERDEF(ind,sub,typ,acc,dtyp,name,val)             static  dtyp  xDef##ind##_##sub##_g        = val;
 #define EPL_OBD_SUBINDEX_RAM_USERDEF_RG(ind,sub,typ,acc,dtyp,name,val,low,high) static  dtyp  xDef##ind##_##sub##_g[3]     = {val,low,high};

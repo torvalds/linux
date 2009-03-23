@@ -139,7 +139,7 @@ typedef struct {
 	unsigned int m_uiSizeOfStruct;
 	BOOL m_fAsyncOnly;	// do not need to register PRes
 	unsigned int m_uiNodeId;	// local node ID
-	BYTE m_abMacAddress[6];	// local MAC address
+	u8 m_abMacAddress[6];	// local MAC address
 
 	// 0x1F82: NMT_FeatureFlags_U32
 	DWORD m_dwFeatureFlags;
@@ -189,8 +189,8 @@ typedef struct {
 	DWORD m_dwIpAddress;
 	DWORD m_dwSubnetMask;
 	DWORD m_dwDefaultGateway;
-	BYTE m_sHostname[32];
-	BYTE m_abVendorSpecificExt2[48];
+	u8 m_sHostname[32];
+	u8 m_abVendorSpecificExt2[48];
 
 	char *m_pszDevName;	// NMT_ManufactDevName_VS (0x1008/0 local OD)
 	char *m_pszHwVersion;	// NMT_ManufactHwVers_VS  (0x1009/0 local OD)

@@ -134,8 +134,8 @@
 // functions for ethernet driver
 tEplKernel TgtInitEthIsr(void);
 void TgtFreeEthIsr(void);
-void TgtEnableGlobalInterrupt(BYTE fEnable_p);
-void TgtEnableEthInterrupt0(BYTE fEnable_p, unsigned int uiInterruptMask_p);
-void TgtEnableEthInterrupt1(BYTE fEnable_p, unsigned int uiInterruptMask_p);
+void TgtEnableGlobalInterrupt(u8 fEnable_p);
+void TgtEnableEthInterrupt0(u8 fEnable_p, unsigned int uiInterruptMask_p);
+void TgtEnableEthInterrupt1(u8 fEnable_p, unsigned int uiInterruptMask_p);
 
 #endif // #ifndef _EPLTARGET_H_

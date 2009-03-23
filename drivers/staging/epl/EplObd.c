@@ -123,7 +123,7 @@ typedef union {
 
 EPL_MCO_DECL_INSTANCE_VAR()
 
-BYTE abEplObdTrashObject_g[8];
+u8 abEplObdTrashObject_g[8];
 
 //---------------------------------------------------------------------------
 // local function prototypes
@@ -833,7 +833,7 @@ EPLDLLEXPORT unsigned int EplObdGetNodeId(EPL_MCO_DECL_INSTANCE_PTR)
 {
 	tEplKernel Ret;
 	tEplObdSize ObdSize;
-	BYTE bNodeId;
+	u8 bNodeId;
 
 	bNodeId = 0;
 	ObdSize = sizeof(bNodeId);
@@ -871,16 +871,16 @@ EPLDLLEXPORT tEplKernel EplObdSetNodeId(EPL_MCO_DECL_PTR_INSTANCE_PTR_ unsigned 
 {
 	tEplKernel Ret;
 	tEplObdSize ObdSize;
-	BYTE fHwBool;
-	BYTE bNodeId;
+	u8 fHwBool;
+	u8 bNodeId;
 
 	// check Node Id
 	if (uiNodeId_p == EPL_C_ADR_INVALID) {
 		Ret = kEplInvalidNodeId;
 		goto Exit;
 	}
-	bNodeId = (BYTE) uiNodeId_p;
-	ObdSize = sizeof(BYTE);
+	bNodeId = (u8) uiNodeId_p;
+	ObdSize = sizeof(u8);
 	// write NodeId to OD entry
 	Ret = EplObdWriteEntry(EPL_MCO_PTR_INSTANCE_PTR_
 			       EPL_OBD_NODE_ID_INDEX,
@@ -1072,7 +1072,7 @@ EPLDLLEXPORT tEplKernel EplObdReadEntryToLe(EPL_MCO_DECL_INSTANCE_PTR_ unsigned 
 	case kEplObdTypInt8:
 	case kEplObdTypUInt8:
 		{
-			AmiSetByteToLe(pDstData_p, *((BYTE *) pSrcData));
+			AmiSetByteToLe(pDstData_p, *((u8 *) pSrcData));
 			break;
 		}
 
@@ -1222,7 +1222,7 @@ EPLDLLEXPORT tEplKernel EplObdWriteEntryFromLe(EPL_MCO_DECL_INSTANCE_PTR_ unsign
 	case kEplObdTypInt8:
 	case kEplObdTypUInt8:
 		{
-			*((BYTE *) pBuffer) = AmiGetByteFromLe(pSrcData_p);
+			*((u8 *) pBuffer) = AmiGetByteFromLe(pSrcData_p);
 			break;
 		}
 
@@ -1503,7 +1503,7 @@ static tEplObdSize EplObdGetStrLen(void *pObjData_p,
 {
 
 	tEplObdSize StrLen = 0;
-	BYTE *pbString;
+	u8 *pbString;
 
 	if (pObjData_p == NULL) {
 		goto Exit;
@@ -2094,7 +2094,7 @@ static tEplKernel EplObdWriteEntryPost(EPL_MCO_DECL_INSTANCE_PTR_ tEplObdEntryPt
 // Function:    EplObdGetObjectSize()
 //
 // Description: function to get size of object
-//              The function determines if an object type an fixed data type (BYTE, WORD, ...)
+//              The function determines if an object type an fixed data type (u8, WORD, ...)
 //              or non fixed object (string, domain). This information is used to decide
 //              if download data are stored temporary or not. For objects with fixed data length
 //              and types a value range checking can process.
@@ -2463,7 +2463,7 @@ static void *EplObdGetObjectCurrentPtr(tEplObdSubEntryPtr pSubIndexEntry_p)
 			} else {
 				Size = EplObdGetObjectSize(pSubIndexEntry_p);
 			}
-			pData = ((BYTE *) pData) + (Size * uiArrayIndex);
+			pData = ((u8 *) pData) + (Size * uiArrayIndex);
 		}
 		// check if VarEntry
 		if ((pSubIndexEntry_p->m_Access & kEplObdAccVar) != 0) {
@@ -2772,14 +2772,14 @@ static tEplKernel EplObdAccessOdPartIntern(EPL_MCO_DECL_INSTANCE_PTR_
 	Ret = kEplSuccessful;
 
 	// prepare structure for STORE RESTORE callback function
-	CbStore.m_bCurrentOdPart = (BYTE) CurrentOdPart_p;
+	CbStore.m_bCurrentOdPart = (u8) CurrentOdPart_p;
 	CbStore.m_pData = NULL;
 	CbStore.m_ObjSize = 0;
 
 	// command of first action depends on direction to access
 #if (EPL_OBD_USE_STORE_RESTORE != FALSE)
 	if (Direction_p == kEplObdDirLoad) {
-		CbStore.m_bCommand = (BYTE) kEplObdCommOpenRead;
+		CbStore.m_bCommand = (u8) kEplObdCommOpenRead;
 
 		// call callback function for previous command
 		Ret = EplObdCallStoreCallback(EPL_MCO_INSTANCE_PTR_ & CbStore);
@@ -2787,9 +2787,9 @@ static tEplKernel EplObdAccessOdPartIntern(EPL_MCO_DECL_INSTANCE_PTR_
 			goto Exit;
 		}
 		// set command for index and subindex loop
-		CbStore.m_bCommand = (BYTE) kEplObdCommReadObj;
+		CbStore.m_bCommand = (u8) kEplObdCommReadObj;
 	} else if (Direction_p == kEplObdDirStore) {
-		CbStore.m_bCommand = (BYTE) kEplObdCommOpenWrite;
+		CbStore.m_bCommand = (u8) kEplObdCommOpenWrite;
 
 		// call callback function for previous command
 		Ret = EplObdCallStoreCallback(EPL_MCO_INSTANCE_PTR_ & CbStore);
@@ -2797,7 +2797,7 @@ static tEplKernel EplObdAccessOdPartIntern(EPL_MCO_DECL_INSTANCE_PTR_
 			goto Exit;
 		}
 		// set command for index and subindex loop
-		CbStore.m_bCommand = (BYTE) kEplObdCommWriteObj;
+		CbStore.m_bCommand = (u8) kEplObdCommWriteObj;
 	}
 #endif // (EPL_OBD_USE_STORE_RESTORE != FALSE)
 
@@ -2848,7 +2848,7 @@ static tEplKernel EplObdAccessOdPartIntern(EPL_MCO_DECL_INSTANCE_PTR_
                             }
                             else
                             {
-                                EplObdInitVarEntry ((tEplObdVarEntry *) (((BYTE *) pSubIndex->m_pCurrent) + (sizeof (tEplObdVarEntry) * pSubIndex->m_uiSubIndex)),
+                                EplObdInitVarEntry ((tEplObdVarEntry *) (((u8 *) pSubIndex->m_pCurrent) + (sizeof (tEplObdVarEntry) * pSubIndex->m_uiSubIndex)),
                                     pSubIndex->m_Type, ObjSize);
                             }
 */
@@ -3003,11 +3003,11 @@ static tEplKernel EplObdAccessOdPartIntern(EPL_MCO_DECL_INSTANCE_PTR_
 #if (EPL_OBD_USE_STORE_RESTORE != FALSE)
 	else {
 		if (Direction_p == kEplObdDirLoad) {
-			CbStore.m_bCommand = (BYTE) kEplObdCommCloseRead;
+			CbStore.m_bCommand = (u8) kEplObdCommCloseRead;
 		} else if (Direction_p == kEplObdDirStore) {
-			CbStore.m_bCommand = (BYTE) kEplObdCommCloseWrite;
+			CbStore.m_bCommand = (u8) kEplObdCommCloseWrite;
 		} else if (Direction_p == kEplObdDirRestore) {
-			CbStore.m_bCommand = (BYTE) kEplObdCommClear;
+			CbStore.m_bCommand = (u8) kEplObdCommClear;
 		} else {
 			goto Exit;
 		}

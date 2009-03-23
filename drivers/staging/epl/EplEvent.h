@@ -248,7 +248,7 @@ typedef struct {
 	tEplEventSource m_EventSource;	// module which posted this error event
 	tEplKernel m_EplError;	// EPL error which occured
 	union {
-		BYTE m_bArg;
+		u8 m_bArg;
 		DWORD m_dwArg;
 		tEplEventSource m_EventSource;	// from Eventk/u module (originating error source)
 		tEplEventObdError m_ObdError;	// from Obd module

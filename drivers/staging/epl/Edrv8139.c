@@ -234,7 +234,7 @@
 
 // TracePoint support for realtime-debugging
 #ifdef _DBG_TRACE_POINTS_
-void TgtDbgSignalTracePoint(BYTE bTracePointNumber_p);
+void TgtDbgSignalTracePoint(u8 bTracePointNumber_p);
 void TgtDbgPostTraceValue(DWORD dwTraceValue_p);
 #define TGT_DBG_SIGNAL_TRACE_POINT(p)   TgtDbgSignalTracePoint(p)
 #define TGT_DBG_POST_TRACE_VALUE(v)     TgtDbgPostTraceValue(v)
@@ -282,9 +282,9 @@ typedef struct
 typedef struct {
 	struct pci_dev *m_pPciDev;	// pointer to PCI device structure
 	void *m_pIoAddr;	// pointer to register space of Ethernet controller
-	BYTE *m_pbRxBuf;	// pointer to Rx buffer
+	u8 *m_pbRxBuf;	// pointer to Rx buffer
 	dma_addr_t m_pRxBufDma;
-	BYTE *m_pbTxBuf;	// pointer to Tx buffer
+	u8 *m_pbTxBuf;	// pointer to Tx buffer
 	dma_addr_t m_pTxBufDma;
 	BOOL m_afTxBufUsed[EDRV_MAX_TX_BUFFERS];
 	unsigned int m_uiCurTxDesc;
@@ -359,7 +359,7 @@ static struct pci_driver EdrvDriver = {
 // local function prototypes
 //---------------------------------------------------------------------------
 
-static BYTE EdrvCalcHash(BYTE * pbMAC_p);
+static u8 EdrvCalcHash(u8 * pbMAC_p);
 
 //---------------------------------------------------------------------------
 //
@@ -453,11 +453,11 @@ tEplKernel EdrvShutdown(void)
 // State:
 //
 //---------------------------------------------------------------------------
-tEplKernel EdrvDefineRxMacAddrEntry(BYTE * pbMacAddr_p)
+tEplKernel EdrvDefineRxMacAddrEntry(u8 * pbMacAddr_p)
 {
 	tEplKernel Ret = kEplSuccessful;
 	DWORD dwData;
-	BYTE bHash;
+	u8 bHash;
 
 	bHash = EdrvCalcHash(pbMacAddr_p);
 /*
@@ -494,11 +494,11 @@ tEplKernel EdrvDefineRxMacAddrEntry(BYTE * pbMacAddr_p)
 // State:
 //
 //---------------------------------------------------------------------------
-tEplKernel EdrvUndefineRxMacAddrEntry(BYTE * pbMacAddr_p)
+tEplKernel EdrvUndefineRxMacAddrEntry(u8 * pbMacAddr_p)
 {
 	tEplKernel Ret = kEplSuccessful;
 	DWORD dwData;
-	BYTE bHash;
+	u8 bHash;
 
 	bHash = EdrvCalcHash(pbMacAddr_p);
 
@@ -720,7 +720,7 @@ tEplKernel EdrvTxMsgStart(tEdrvTxBuffer * pBuffer_p)
 //---------------------------------------------------------------------------
 static void EdrvReinitRx(void)
 {
-	BYTE bCmd;
+	u8 bCmd;
 
 	// simply switch off and on the receiver
 	// this will reset the CAPR register
@@ -765,7 +765,7 @@ static int TgtEthIsr(int nIrqNum_p, void *ppDevInstData_p,
 	DWORD dwTxStatus;
 	DWORD dwRxStatus;
 	WORD wCurRx;
-	BYTE *pbRxBuf;
+	u8 *pbRxBuf;
 	unsigned int uiLength;
 	int iHandled = IRQ_HANDLED;
 
@@ -1215,15 +1215,15 @@ static void EdrvRemoveOne(struct pci_dev *pPciDev)
 //#define CRC32_POLY    0xEDB88320  //
 // G(x) = x32 + x26 + x23 + x22 + x16 + x12 + x11 + x10 + x8 + x7 + x5 + x4 + x2 + x + 1
 
-static BYTE EdrvCalcHash(BYTE * pbMAC_p)
+static u8 EdrvCalcHash(u8 * pbMAC_p)
 {
 	DWORD dwByteCounter;
 	DWORD dwBitCounter;
 	DWORD dwData;
 	DWORD dwCrc;
 	DWORD dwCarry;
-	BYTE *pbData;
-	BYTE bHash;
+	u8 *pbData;
+	u8 bHash;
 
 	pbData = pbMAC_p;
 
@@ -1246,7 +1246,7 @@ static BYTE EdrvCalcHash(BYTE * pbMAC_p)
 //    printk("MyCRC = 0x%08lX\n", dwCrc);
 	// only upper 6 bits (HASH_BITS) are used
 	// which point to specific bit in the hash registers
-	bHash = (BYTE) ((dwCrc >> (32 - HASH_BITS)) & 0x3f);
+	bHash = (u8) ((dwCrc >> (32 - HASH_BITS)) & 0x3f);
 
 	return bHash;
 }

@@ -126,10 +126,10 @@
 #if ((EPL_API_PROCESS_IMAGE_SIZE_IN > 0) || (EPL_API_PROCESS_IMAGE_SIZE_OUT > 0))
 typedef struct {
 #if EPL_API_PROCESS_IMAGE_SIZE_IN > 0
-	BYTE m_abProcessImageInput[EPL_API_PROCESS_IMAGE_SIZE_IN];
+	u8 m_abProcessImageInput[EPL_API_PROCESS_IMAGE_SIZE_IN];
 #endif
 #if EPL_API_PROCESS_IMAGE_SIZE_OUT > 0
-	BYTE m_abProcessImageOutput[EPL_API_PROCESS_IMAGE_SIZE_OUT];
+	u8 m_abProcessImageOutput[EPL_API_PROCESS_IMAGE_SIZE_OUT];
 #endif
 
 } tEplApiProcessImageInstance;

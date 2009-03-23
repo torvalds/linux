@@ -85,7 +85,7 @@
 // global variables
 //---------------------------------------------------------------------------
 
-extern BYTE abEplObdTrashObject_g[8];
+extern u8 abEplObdTrashObject_g[8];
 
 //---------------------------------------------------------------------------
 // function prototypes

@@ -550,7 +550,7 @@ static int EplSdoUdpThread(void *pArg_p)
 	int iError;
 	int iCount;
 	int iFreeEntry;
-	BYTE abBuffer[EPL_MAX_SDO_REC_FRAME_SIZE];
+	u8 abBuffer[EPL_MAX_SDO_REC_FRAME_SIZE];
 	unsigned int uiSize;
 	tEplSdoConHdl SdoConHdl;
 

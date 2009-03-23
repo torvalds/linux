@@ -309,7 +309,7 @@ typedef struct {
 
 typedef struct {
 	tEplObdSize m_Size;
-	BYTE *m_pString;
+	u8 *m_pString;
 
 } tEplObdOString;		// 000C
 
@@ -327,8 +327,8 @@ typedef struct {
 
 typedef struct {
 	tEplObdSize m_Size;
-	BYTE *m_pDefString;	// $$$ d.k. it is unused, so we could delete it
-	BYTE *m_pString;
+	u8 *m_pDefString;	// $$$ d.k. it is unused, so we could delete it
+	u8 *m_pString;
 
 } tEplObdOStringDef;
 
@@ -431,7 +431,7 @@ typedef struct {
 	unsigned int m_uiUpperObjIndex;	// upper limit of ObjIndex
 	tInitTabEntryCallback m_fpInitTabEntry;	// will be called if ObjIndex was found
 	void *m_pTabBase;	// base address of table
-	unsigned int m_uiEntrySize;	// size of table entry      // 25-feb-2005 r.d.: expansion from BYTE to WORD necessary for PDO bit mapping
+	unsigned int m_uiEntrySize;	// size of table entry      // 25-feb-2005 r.d.: expansion from u8 to WORD necessary for PDO bit mapping
 	unsigned int m_uiMaxEntries;	// max. tabel entries
 
 } tEplObdModulTabParam;

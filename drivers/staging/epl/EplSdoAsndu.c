@@ -339,10 +339,10 @@ tEplKernel EplSdoAsnduSendData(tEplSdoConHdl SdoConHandle_p,
 	// own node id not needed -> filled by DLL
 
 	// set message type
-	AmiSetByteToLe(&pSrcData_p->m_le_bMessageType, (BYTE) kEplMsgTypeAsnd);	// ASnd == 0x06
+	AmiSetByteToLe(&pSrcData_p->m_le_bMessageType, (u8) kEplMsgTypeAsnd);	// ASnd == 0x06
 	// target node id
 	AmiSetByteToLe(&pSrcData_p->m_le_bDstNodeId,
-		       (BYTE) SdoAsndInstance_g.
+		       (u8) SdoAsndInstance_g.
 		       m_auiSdoAsndConnection[uiArray]);
 	// set source-nodeid (filled by DLL 0)
 	AmiSetByteToLe(&pSrcData_p->m_le_bSrcNodeId, 0x00);

@@ -100,7 +100,7 @@
 
 // TracePoint support for realtime-debugging
 #ifdef _DBG_TRACE_POINTS_
-void TgtDbgSignalTracePoint(BYTE bTracePointNumber_p);
+void TgtDbgSignalTracePoint(u8 bTracePointNumber_p);
 void TgtDbgPostTraceValue(DWORD dwTraceValue_p);
 #define TGT_DBG_SIGNAL_TRACE_POINT(p)   TgtDbgSignalTracePoint(p)
 #define TGT_DBG_POST_TRACE_VALUE(v)     TgtDbgPostTraceValue(v)
@@ -760,7 +760,7 @@ tEplKernel EplEventkPostError(tEplEventSource EventSource_p,
 			      unsigned int uiArgSize_p, void *pArg_p)
 {
 	tEplKernel Ret;
-	BYTE abBuffer[EPL_MAX_EVENT_ARG_SIZE];
+	u8 abBuffer[EPL_MAX_EVENT_ARG_SIZE];
 	tEplEventError *pEventError = (tEplEventError *) abBuffer;
 	tEplEvent EplEvent;
 
@@ -814,7 +814,7 @@ static void EplEventkRxSignalHandlerCb(tShbInstance pShbRxInstance_p,
 	tShbError ShbError;
 //unsigned long   ulBlockCount;
 //unsigned long   ulDataSize;
-	BYTE abDataBuffer[sizeof(tEplEvent) + EPL_MAX_EVENT_ARG_SIZE];
+	u8 abDataBuffer[sizeof(tEplEvent) + EPL_MAX_EVENT_ARG_SIZE];
 	// d.k.: abDataBuffer contains the complete tEplEvent structure
 	//       and behind this the argument
 

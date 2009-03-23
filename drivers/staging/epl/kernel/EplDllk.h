@@ -85,7 +85,7 @@
 typedef tEplKernel(*tEplDllkCbAsync) (tEplFrameInfo * pFrameInfo_p);
 
 typedef struct {
-	BYTE m_be_abSrcMac[6];
+	u8 m_be_abSrcMac[6];
 
 } tEplDllkInitParam;
 
@@ -100,8 +100,8 @@ struct _tEplDllkNodeInfo {
 	unsigned long m_ulDllErrorEvents;
 	tEplNmtState m_NmtState;
 	WORD m_wPresPayloadLimit;
-	BYTE m_be_abMacAddr[6];
-	BYTE m_bSoaFlag1;
+	u8 m_be_abMacAddr[6];
+	u8 m_bSoaFlag1;
 	BOOL m_fSoftDelete;	// delete node after error and ignore error
 
 };
@@ -154,7 +154,7 @@ tEplKernel EplDllkDeleteNode(unsigned int uiNodeId_p);
 
 tEplKernel EplDllkSoftDeleteNode(unsigned int uiNodeId_p);
 
-tEplKernel EplDllkSetFlag1OfNode(unsigned int uiNodeId_p, BYTE bSoaFlag1_p);
+tEplKernel EplDllkSetFlag1OfNode(unsigned int uiNodeId_p, u8 bSoaFlag1_p);
 
 tEplKernel EplDllkGetFirstNodeInfo(tEplDllkNodeInfo ** ppNodeInfo_p);
 
