@@ -245,6 +245,9 @@ struct ieee80211_bss_conf {
  * @IEEE80211_TX_CTL_RATE_CTRL_PROBE: internal to mac80211, can be
  *	set by rate control algorithms to indicate probe rate, will
  *	be cleared for fragmented frames (except on the last fragment)
+ * @IEEE80211_TX_INTFL_RCALGO: mac80211 internal flag, do not test or
+ *	set this flag in the driver; indicates that the rate control
+ *	algorithm was used and should be notified of TX status
  */
 enum mac80211_tx_control_flags {
 	IEEE80211_TX_CTL_REQ_TX_STATUS		= BIT(0),
@@ -260,6 +263,7 @@ enum mac80211_tx_control_flags {
 	IEEE80211_TX_STAT_AMPDU			= BIT(10),
 	IEEE80211_TX_STAT_AMPDU_NO_BACK		= BIT(11),
 	IEEE80211_TX_CTL_RATE_CTRL_PROBE	= BIT(12),
+	IEEE80211_TX_INTFL_RCALGO		= BIT(13),
 };
 
 /**
