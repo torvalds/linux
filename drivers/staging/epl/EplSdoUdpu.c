@@ -110,12 +110,7 @@ typedef struct {
 	tEplSequLayerReceiveCb m_fpSdoAsySeqCb;
 	SOCKET m_UdpSocket;
 
-#if (TARGET_SYSTEM == _WIN32_)
-	HANDLE m_ThreadHandle;
-	LPCRITICAL_SECTION m_pCriticalSection;
-	CRITICAL_SECTION m_CriticalSection;
-
-#elif (TARGET_SYSTEM == _LINUX_) && defined(__KERNEL__)
+#if (TARGET_SYSTEM == _LINUX_) && defined(__KERNEL__)
 	struct completion m_CompletionUdpThread;
 	int m_ThreadHandle;
 	int m_iTerminateThread;
@@ -133,10 +128,7 @@ static tEplSdoUdpInstance SdoUdpInstance_g;
 // local function prototypes
 //---------------------------------------------------------------------------
 
-#if (TARGET_SYSTEM == _WIN32_)
-static DWORD EplSdoUdpThread(LPVOID lpParameter);
-
-#elif (TARGET_SYSTEM == _LINUX_) && defined(__KERNEL__)
+#if (TARGET_SYSTEM == _LINUX_) && defined(__KERNEL__)
 static int EplSdoUdpThread(void *pArg_p);
 #endif
 
@@ -209,12 +201,6 @@ tEplKernel EplSdoUdpuAddInstance(tEplSequLayerReceiveCb fpReceiveCb_p)
 {
 	tEplKernel Ret;
 
-#if (TARGET_SYSTEM == _WIN32_)
-	int iError;
-	WSADATA Wsa;
-
-#endif
-
 	// set instance variables to 0
 	EPL_MEMSET(&SdoUdpInstance_g, 0x00, sizeof(SdoUdpInstance_g));
 
@@ -228,20 +214,7 @@ tEplKernel EplSdoUdpuAddInstance(tEplSequLayerReceiveCb fpReceiveCb_p)
 		goto Exit;
 	}
 
-#if (TARGET_SYSTEM == _WIN32_)
-	// start winsock2 for win32
-	// windows specific start of socket
-	iError = WSAStartup(MAKEWORD(2, 0), &Wsa);
-	if (iError != 0) {
-		Ret = kEplSdoUdpNoSocket;
-		goto Exit;
-	}
-	// create critical section for acccess of instnace variables
-	SdoUdpInstance_g.m_pCriticalSection =
-	    &SdoUdpInstance_g.m_CriticalSection;
-	InitializeCriticalSection(SdoUdpInstance_g.m_pCriticalSection);
-
-#elif (TARGET_SYSTEM == _LINUX_) && defined(__KERNEL__)
+#if (TARGET_SYSTEM == _LINUX_) && defined(__KERNEL__)
 	init_completion(&SdoUdpInstance_g.m_CompletionUdpThread);
 	SdoUdpInstance_g.m_iTerminateThread = 0;
 #endif
@@ -277,22 +250,11 @@ tEplKernel EplSdoUdpuDelInstance(void)
 {
 	tEplKernel Ret;
 
-#if (TARGET_SYSTEM == _WIN32_)
-	BOOL fTermError;
-#endif
-
 	Ret = kEplSuccessful;
 
 	if (SdoUdpInstance_g.m_ThreadHandle != 0) {	// listen thread was started
 		// close thread
-#if (TARGET_SYSTEM == _WIN32_)
-		fTermError =
-		    TerminateThread(SdoUdpInstance_g.m_ThreadHandle, 0);
-		if (fTermError == FALSE) {
-			Ret = kEplSdoUdpThreadError;
-			goto Exit;
-		}
-#elif (TARGET_SYSTEM == _LINUX_) && defined(__KERNEL__)
+#if (TARGET_SYSTEM == _LINUX_) && defined(__KERNEL__)
 		SdoUdpInstance_g.m_iTerminateThread = 1;
 		/* kill_proc(SdoUdpInstance_g.m_ThreadHandle, SIGTERM, 1 ); */
 		send_sig(SIGTERM, SdoUdpInstance_g.m_ThreadHandle, 1);
@@ -307,19 +269,6 @@ tEplKernel EplSdoUdpuDelInstance(void)
 		closesocket(SdoUdpInstance_g.m_UdpSocket);
 		SdoUdpInstance_g.m_UdpSocket = INVALID_SOCKET;
 	}
-#if (TARGET_SYSTEM == _WIN32_)
-	// delete critical section
-	DeleteCriticalSection(SdoUdpInstance_g.m_pCriticalSection);
-#endif
-
-#if (TARGET_SYSTEM == _WIN32_)
-	// for win 32
-	WSACleanup();
-#endif
-
-#if (TARGET_SYSTEM == _WIN32_)
-      Exit:
-#endif
 	return Ret;
 }
 
@@ -346,11 +295,6 @@ tEplKernel EplSdoUdpuConfig(unsigned long ulIpAddr_p, unsigned int uiPort_p)
 	struct sockaddr_in Addr;
 	int iError;
 
-#if (TARGET_SYSTEM == _WIN32_)
-	BOOL fTermError;
-	unsigned long ulThreadId;
-#endif
-
 	Ret = kEplSuccessful;
 
 	if (uiPort_p == 0) {	// set UDP port to default port number
@@ -363,14 +307,7 @@ tEplKernel EplSdoUdpuConfig(unsigned long ulIpAddr_p, unsigned int uiPort_p)
 	if (SdoUdpInstance_g.m_ThreadHandle != 0) {	// listen thread was started
 
 		// close old thread
-#if (TARGET_SYSTEM == _WIN32_)
-		fTermError =
-		    TerminateThread(SdoUdpInstance_g.m_ThreadHandle, 0);
-		if (fTermError == FALSE) {
-			Ret = kEplSdoUdpThreadError;
-			goto Exit;
-		}
-#elif (TARGET_SYSTEM == _LINUX_) && defined(__KERNEL__)
+#if (TARGET_SYSTEM == _LINUX_) && defined(__KERNEL__)
 		SdoUdpInstance_g.m_iTerminateThread = 1;
 		/* kill_proc(SdoUdpInstance_g.m_ThreadHandle, SIGTERM, 1 ); */
 		send_sig(SIGTERM, SdoUdpInstance_g.m_ThreadHandle, 1);
@@ -412,20 +349,7 @@ tEplKernel EplSdoUdpuConfig(unsigned long ulIpAddr_p, unsigned int uiPort_p)
 		goto Exit;
 	}
 	// create Listen-Thread
-#if (TARGET_SYSTEM == _WIN32_)
-	// for win32
-
-	// create thread
-	SdoUdpInstance_g.m_ThreadHandle = CreateThread(NULL,
-						       0,
-						       EplSdoUdpThread,
-						       &SdoUdpInstance_g,
-						       0, &ulThreadId);
-	if (SdoUdpInstance_g.m_ThreadHandle == NULL) {
-		Ret = kEplSdoUdpThreadError;
-		goto Exit;
-	}
-#elif (TARGET_SYSTEM == _LINUX_) && defined(__KERNEL__)
+#if (TARGET_SYSTEM == _LINUX_) && defined(__KERNEL__)
 
 	SdoUdpInstance_g.m_ThreadHandle =
 	    kernel_thread(EplSdoUdpThread, &SdoUdpInstance_g, CLONE_KERNEL);
@@ -552,21 +476,11 @@ tEplKernel EplSdoUdpuSendData(tEplSdoConHdl SdoConHandle_p,
 
 	// call sendto
 	Addr.sin_family = AF_INET;
-#if (TARGET_SYSTEM == _WIN32_)
-	// enter  critical section for process function
-	EnterCriticalSection(SdoUdpInstance_g.m_pCriticalSection);
-#endif
-
 	Addr.sin_port =
 	    (unsigned short)SdoUdpInstance_g.m_aSdoAbsUdpConnection[uiArray].
 	    m_uiPort;
 	Addr.sin_addr.s_addr =
 	    SdoUdpInstance_g.m_aSdoAbsUdpConnection[uiArray].m_ulIpAddr;
-
-#if (TARGET_SYSTEM == _WIN32_)
-	// leave critical section for process function
-	LeaveCriticalSection(SdoUdpInstance_g.m_pCriticalSection);
-#endif
 
 	iError = sendto(SdoUdpInstance_g.m_UdpSocket,	// sockethandle
 			(const char *)&pSrcData_p->m_le_bMessageType,	// data to send
@@ -647,11 +561,7 @@ tEplKernel EplSdoUdpuDelCon(tEplSdoConHdl SdoConHandle_p)
 // State:
 //
 //---------------------------------------------------------------------------
-#if (TARGET_SYSTEM == _WIN32_)
-static DWORD EplSdoUdpThread(LPVOID lpParameter)
-#elif (TARGET_SYSTEM == _LINUX_) && defined(__KERNEL__)
 static int EplSdoUdpThread(void *pArg_p)
-#endif
 {
 
 	tEplSdoUdpInstance *pInstance;
@@ -663,11 +573,7 @@ static int EplSdoUdpThread(void *pArg_p)
 	unsigned int uiSize;
 	tEplSdoConHdl SdoConHdl;
 
-#if (TARGET_SYSTEM == _WIN32_)
-	pInstance = (tEplSdoUdpInstance *) lpParameter;
-
-	for (;;)
-#elif (TARGET_SYSTEM == _LINUX_) && defined(__KERNEL__)
+#if (TARGET_SYSTEM == _LINUX_) && defined(__KERNEL__)
 	pInstance = (tEplSdoUdpInstance *) pArg_p;
 	daemonize("EplSdoUdpThread");
 	allow_signal(SIGTERM);
@@ -693,11 +599,6 @@ static int EplSdoUdpThread(void *pArg_p)
 			// get handle for higher layer
 			iCount = 0;
 			iFreeEntry = 0xFFFF;
-#if (TARGET_SYSTEM == _WIN32_)
-			// enter  critical section for process function
-			EnterCriticalSection(SdoUdpInstance_g.
-					     m_pCriticalSection);
-#endif
 			while (iCount < EPL_SDO_MAX_CONNECTION_UDP) {
 				// check if this connection is already known
 				if ((pInstance->m_aSdoAbsUdpConnection[iCount].
@@ -733,11 +634,6 @@ static int EplSdoUdpThread(void *pArg_p)
 					pInstance->
 					    m_aSdoAbsUdpConnection[iFreeEntry].
 					    m_uiPort = RemoteAddr.sin_port;
-#if (TARGET_SYSTEM == _WIN32_)
-					// leave critical section for process function
-					LeaveCriticalSection(SdoUdpInstance_g.
-							     m_pCriticalSection);
-#endif
 					// call callback
 					SdoConHdl = iFreeEntry;
 					SdoConHdl |= EPL_SDO_UDP_HANDLE;
@@ -751,11 +647,6 @@ static int EplSdoUdpThread(void *pArg_p)
 				} else {
 					EPL_DBGLVL_SDO_TRACE0
 					    ("Error in EplSdoUdpThread() no free handle\n");
-#if (TARGET_SYSTEM == _WIN32_)
-					// leave critical section for process function
-					LeaveCriticalSection(SdoUdpInstance_g.
-							     m_pCriticalSection);
-#endif
 				}
 
 			} else {
@@ -763,11 +654,6 @@ static int EplSdoUdpThread(void *pArg_p)
 				// call callback with correct handle
 				SdoConHdl = iCount;
 				SdoConHdl |= EPL_SDO_UDP_HANDLE;
-#if (TARGET_SYSTEM == _WIN32_)
-				// leave critical section for process function
-				LeaveCriticalSection(SdoUdpInstance_g.
-						     m_pCriticalSection);
-#endif
 				// offset 4 -> start of SDO Sequence header
 				pInstance->m_fpSdoAsySeqCb(SdoConHdl,
 							   (tEplAsySdoSeq *) &

@@ -65,16 +65,7 @@ typedef int (*tSigHndlrNewData) (tShbInstance pShbInstance_p);
 typedef void (*tSigHndlrJobReady) (tShbInstance pShbInstance_p,
 				   unsigned int fTimeOut_p);
 
-#if (TARGET_SYSTEM == _WIN32_)
-#if defined(INLINE_FUNCTION_DEF)
-#undef  INLINE_FUNCTION
-#define INLINE_FUNCTION     INLINE_FUNCTION_DEF
-#define SHBIPC_INLINE_ENABLED      TRUE
-#define SHBIPC_INLINED
-#include "ShbIpc-Win32.c"
-#endif
-
-#elif (TARGET_SYSTEM == _LINUX_)
+#if (TARGET_SYSTEM == _LINUX_)
 #if defined(INLINE_FUNCTION_DEF)
 #undef  INLINE_FUNCTION
 #define INLINE_FUNCTION     INLINE_FUNCTION_DEF

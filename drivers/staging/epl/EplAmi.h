@@ -104,16 +104,7 @@
 extern "C" {
 #endif
 
-#if (TARGET_SYSTEM == _WIN32_)
-#if defined(INLINE_FUNCTION_DEF)
-#undef  INLINE_FUNCTION
-#define INLINE_FUNCTION     INLINE_FUNCTION_DEF
-#define INLINE_ENABLED      TRUE
-#define EPL_AMI_INLINED
-#include "../EplStack/amix86.c"
-#endif
-
-#elif (TARGET_SYSTEM == _LINUX_)
+#if (TARGET_SYSTEM == _LINUX_)
 #if defined(__m68k__)		// it is an big endian machine
 #if defined(INLINE_FUNCTION_DEF)
 #undef  INLINE_FUNCTION

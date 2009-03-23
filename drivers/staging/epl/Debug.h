@@ -163,25 +163,6 @@
 #endif
 
 //---------------------------------------------------------------------------
-#if (DEV_SYSTEM == _DEV_WIN32_) && defined (TRACE_MSG)
-
-    // For WIN32 the macro DEBUG_TRACE0 can be defined as function call TraceLvl()
-    // or as macro TRACE().
-    //
-    // Here the parameter 'lvl' can be used with more than one
-    // debug-level (using OR).
-    //
-    // Example: DEBUG_TRACE1(DEBUG_LVL_30 | DEBUG_LVL_02, "Hello %d", bCount);
-
-#define DEBUG_TRACE0(lvl,str)               TraceLvl((lvl),str)
-#define DEBUG_TRACE1(lvl,str,p1)            TraceLvl((lvl),str,p1)
-#define DEBUG_TRACE2(lvl,str,p1,p2)         TraceLvl((lvl),str,p1,p2)
-#define DEBUG_TRACE3(lvl,str,p1,p2,p3)      TraceLvl((lvl),str,p1,p2,p3)
-#define DEBUG_TRACE4(lvl,str,p1,p2,p3,p4)   TraceLvl((lvl),str,p1,p2,p3,p4)
-#define DEBUG_GLB_LVL()                     dwDebugLevel_g
-
-#else
-
     // At microcontrollers we do reduce the memory usage by deleting DEBUG_TRACE-lines
     // (compiler does delete the lines).
     //
@@ -642,8 +623,6 @@
 #define DEBUG_TRACE2(lvl,str,p1,p2)                     lvl##_TRACE2(str,p1,p2)
 #define DEBUG_TRACE3(lvl,str,p1,p2,p3)                  lvl##_TRACE3(str,p1,p2,p3)
 #define DEBUG_TRACE4(lvl,str,p1,p2,p3,p4)               lvl##_TRACE4(str,p1,p2,p3,p4)
-
-#endif
 
 //---------------------------------------------------------------------------
 // The macro DEBUG_DUMP_DATA() can be used with the same debug-levels to dump
