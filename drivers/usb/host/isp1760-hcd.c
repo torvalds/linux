@@ -819,6 +819,13 @@ static void enqueue_an_ATL_packet(struct usb_hcd *hcd, struct isp1760_qh *qh,
 	u32 atl_regs, payload;
 	u32 buffstatus;
 
+	/*
+	 * When this function is called from the interrupt handler to enqueue
+	 * a follow-up packet, the SKIP register gets written and read back
+	 * almost immediately. With ISP1761, this register requires a delay of
+	 * 195ns between a write and subsequent read (see section 15.1.1.3).
+	 */
+	ndelay(195);
 	skip_map = isp1760_readl(hcd->regs + HC_ATL_PTD_SKIPMAP_REG);
 
 	BUG_ON(!skip_map);
@@ -853,6 +860,13 @@ static void enqueue_an_INT_packet(struct usb_hcd *hcd, struct isp1760_qh *qh,
 	u32 int_regs, payload;
 	u32 buffstatus;
 
+	/*
+	 * When this function is called from the interrupt handler to enqueue
+	 * a follow-up packet, the SKIP register gets written and read back
+	 * almost immediately. With ISP1761, this register requires a delay of
+	 * 195ns between a write and subsequent read (see section 15.1.1.3).
+	 */
+	ndelay(195);
 	skip_map = isp1760_readl(hcd->regs + HC_INT_PTD_SKIPMAP_REG);
 
 	BUG_ON(!skip_map);
