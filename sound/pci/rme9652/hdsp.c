@@ -4413,13 +4413,6 @@ static int snd_hdsp_capture_release(struct snd_pcm_substream *substream)
 	return 0;
 }
 
-static int snd_hdsp_hwdep_dummy_op(struct snd_hwdep *hw, struct file *file)
-{
-	/* we have nothing to initialize but the call is required */
-	return 0;
-}
-
-
 /* helper functions for copying meter values */
 static inline int copy_u32_le(void __user *dest, void __iomem *src)
 {
@@ -4738,9 +4731,7 @@ static int snd_hdsp_create_hwdep(struct snd_card *card, struct hdsp *hdsp)
 	hw->private_data = hdsp;
 	strcpy(hw->name, "HDSP hwdep interface");
 
-	hw->ops.open = snd_hdsp_hwdep_dummy_op;
 	hw->ops.ioctl = snd_hdsp_hwdep_ioctl;
-	hw->ops.release = snd_hdsp_hwdep_dummy_op;
 		
 	return 0;
 }
