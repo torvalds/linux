@@ -378,7 +378,7 @@ tEplKernel EplNmtMnuAddInstance(tEplNmtMnuCbNodeEvent pfnCbNodeEvent_p,
 //
 //---------------------------------------------------------------------------
 
-tEplKernel EplNmtMnuDelInstance()
+tEplKernel EplNmtMnuDelInstance(void)
 {
 	tEplKernel Ret;
 

@@ -202,7 +202,7 @@ static tEplDllkCalInstance EplDllkCalInstance_g;
 //
 //---------------------------------------------------------------------------
 
-tEplKernel EplDllkCalAddInstance()
+tEplKernel EplDllkCalAddInstance(void)
 {
 	tEplKernel Ret = kEplSuccessful;
 #ifndef EPL_NO_FIFO
@@ -279,7 +279,7 @@ tEplKernel EplDllkCalAddInstance()
 //
 //---------------------------------------------------------------------------
 
-tEplKernel EplDllkCalDelInstance()
+tEplKernel EplDllkCalDelInstance(void)
 {
 	tEplKernel Ret = kEplSuccessful;
 #ifndef EPL_NO_FIFO

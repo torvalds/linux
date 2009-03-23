@@ -173,7 +173,7 @@ static tEplKernel EplDlluCalSetAsndServiceIdFilter(tEplDllAsndServiceId
 //
 //---------------------------------------------------------------------------
 
-tEplKernel EplDlluCalAddInstance()
+tEplKernel EplDlluCalAddInstance(void)
 {
 	tEplKernel Ret = kEplSuccessful;
 
@@ -198,7 +198,7 @@ tEplKernel EplDlluCalAddInstance()
 //
 //---------------------------------------------------------------------------
 
-tEplKernel EplDlluCalDelInstance()
+tEplKernel EplDlluCalDelInstance(void)
 {
 	tEplKernel Ret = kEplSuccessful;
 
