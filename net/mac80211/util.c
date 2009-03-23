@@ -365,16 +365,16 @@ static void __ieee80211_wake_queue(struct ieee80211_hw *hw, int queue,
 
 	__clear_bit(reason, &local->queue_stop_reasons[queue]);
 
+	if (!skb_queue_empty(&local->pending[queue]) &&
+	    local->queue_stop_reasons[queue] ==
+				BIT(IEEE80211_QUEUE_STOP_REASON_PENDING))
+		tasklet_schedule(&local->tx_pending_tasklet);
+
 	if (local->queue_stop_reasons[queue] != 0)
 		/* someone still has this queue stopped */
 		return;
 
-	if (test_bit(queue, local->queues_pending)) {
-		set_bit(queue, local->queues_pending_run);
-		tasklet_schedule(&local->tx_pending_tasklet);
-	} else {
-		netif_wake_subqueue(local->mdev, queue);
-	}
+	netif_wake_subqueue(local->mdev, queue);
 }
 
 void ieee80211_wake_queue_by_reason(struct ieee80211_hw *hw, int queue,
@@ -420,9 +420,15 @@ static void __ieee80211_stop_queue(struct ieee80211_hw *hw, int queue,
 		reason = IEEE80211_QUEUE_STOP_REASON_AGGREGATION;
 	}
 
-	__set_bit(reason, &local->queue_stop_reasons[queue]);
+	/*
+	 * Only stop if it was previously running, this is necessary
+	 * for correct pending packets handling because there we may
+	 * start (but not wake) the queue and rely on that.
+	 */
+	if (!local->queue_stop_reasons[queue])
+		netif_stop_subqueue(local->mdev, queue);
 
-	netif_stop_subqueue(local->mdev, queue);
+	__set_bit(reason, &local->queue_stop_reasons[queue]);
 }
 
 void ieee80211_stop_queue_by_reason(struct ieee80211_hw *hw, int queue,

@@ -1189,12 +1189,14 @@ static int ieee80211_tx(struct net_device *dev, struct sk_buff *skb)
 	struct ieee80211_tx_data tx;
 	ieee80211_tx_result res_prepare;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
-	int ret;
+	struct sk_buff *next;
+	unsigned long flags;
+	int ret, retries;
 	u16 queue;
 
 	queue = skb_get_queue_mapping(skb);
 
-	WARN_ON(test_bit(queue, local->queues_pending));
+	WARN_ON(!skb_queue_empty(&local->pending[queue]));
 
 	if (unlikely(skb->len < 10)) {
 		dev_kfree_skb(skb);
@@ -1219,40 +1221,52 @@ static int ieee80211_tx(struct net_device *dev, struct sk_buff *skb)
 	if (invoke_tx_handlers(&tx))
 		goto out;
 
-retry:
+	retries = 0;
+ retry:
 	ret = __ieee80211_tx(local, &tx);
-	if (ret) {
-		struct ieee80211_tx_stored_packet *store;
-
+	switch (ret) {
+	case IEEE80211_TX_OK:
+		break;
+	case IEEE80211_TX_AGAIN:
 		/*
 		 * Since there are no fragmented frames on A-MPDU
 		 * queues, there's no reason for a driver to reject
 		 * a frame there, warn and drop it.
 		 */
-		if (ret != IEEE80211_TX_PENDING)
-			if (WARN_ON(info->flags & IEEE80211_TX_CTL_AMPDU))
+		if (WARN_ON(info->flags & IEEE80211_TX_CTL_AMPDU))
+			goto drop;
+		/* fall through */
+	case IEEE80211_TX_PENDING:
+		skb = tx.skb;
+
+		spin_lock_irqsave(&local->queue_stop_reason_lock, flags);
+
+		if (__netif_subqueue_stopped(local->mdev, queue)) {
+			do {
+				next = skb->next;
+				skb->next = NULL;
+				skb_queue_tail(&local->pending[queue], skb);
+			} while ((skb = next));
+
+			/*
+			 * Make sure nobody will enable the queue on us
+			 * (without going through the tasklet) nor disable the
+			 * netdev queue underneath the pending handling code.
+			 */
+			__set_bit(IEEE80211_QUEUE_STOP_REASON_PENDING,
+				  &local->queue_stop_reasons[queue]);
+
+			spin_unlock_irqrestore(&local->queue_stop_reason_lock,
+					       flags);
+		} else {
+			spin_unlock_irqrestore(&local->queue_stop_reason_lock,
+					       flags);
+
+			retries++;
+			if (WARN(retries > 10, "tx refused but queue active"))
 				goto drop;
-
-		store = &local->pending_packet[queue];
-
-		set_bit(queue, local->queues_pending);
-		smp_mb();
-		/*
-		 * When the driver gets out of buffers during sending of
-		 * fragments and calls ieee80211_stop_queue, the netif
-		 * subqueue is stopped. There is, however, a small window
-		 * in which the PENDING bit is not yet set. If a buffer
-		 * gets available in that window (i.e. driver calls
-		 * ieee80211_wake_queue), we would end up with ieee80211_tx
-		 * called with the PENDING bit still set. Prevent this by
-		 * continuing transmitting here when that situation is
-		 * possible to have happened.
-		 */
-		if (!__netif_subqueue_stopped(local->mdev, queue)) {
-			clear_bit(queue, local->queues_pending);
 			goto retry;
 		}
-		store->skb = tx.skb;
 	}
  out:
 	rcu_read_unlock();
@@ -1263,8 +1277,6 @@ retry:
 
 	skb = tx.skb;
 	while (skb) {
-		struct sk_buff *next;
-
 		next = skb->next;
 		dev_kfree_skb(skb);
 		skb = next;
@@ -1803,23 +1815,10 @@ int ieee80211_subif_start_xmit(struct sk_buff *skb,
  */
 void ieee80211_clear_tx_pending(struct ieee80211_local *local)
 {
-	struct sk_buff *skb;
 	int i;
 
-	for (i = 0; i < local->hw.queues; i++) {
-		if (!test_bit(i, local->queues_pending))
-			continue;
-
-		skb = local->pending_packet[i].skb;
-		while (skb) {
-			struct sk_buff *next;
-
-			next = skb->next;
-			dev_kfree_skb(skb);
-			skb = next;
-		}
-		clear_bit(i, local->queues_pending);
-	}
+	for (i = 0; i < local->hw.queues; i++)
+		skb_queue_purge(&local->pending[i]);
 }
 
 /*
@@ -1830,40 +1829,57 @@ void ieee80211_tx_pending(unsigned long data)
 {
 	struct ieee80211_local *local = (struct ieee80211_local *)data;
 	struct net_device *dev = local->mdev;
-	struct ieee80211_tx_stored_packet *store;
 	struct ieee80211_hdr *hdr;
+	unsigned long flags;
 	struct ieee80211_tx_data tx;
 	int i, ret;
+	bool next;
 
 	rcu_read_lock();
 	netif_tx_lock_bh(dev);
+
 	for (i = 0; i < local->hw.queues; i++) {
-		/* Check that this queue is ok */
-		if (__netif_subqueue_stopped(local->mdev, i) &&
-		    !test_bit(i, local->queues_pending_run))
+		/*
+		 * If queue is stopped by something other than due to pending
+		 * frames, or we have no pending frames, proceed to next queue.
+		 */
+		spin_lock_irqsave(&local->queue_stop_reason_lock, flags);
+		next = false;
+		if (local->queue_stop_reasons[i] !=
+			BIT(IEEE80211_QUEUE_STOP_REASON_PENDING) ||
+		    skb_queue_empty(&local->pending[i]))
+			next = true;
+		spin_unlock_irqrestore(&local->queue_stop_reason_lock, flags);
+
+		if (next)
 			continue;
 
-		if (!test_bit(i, local->queues_pending)) {
-			clear_bit(i, local->queues_pending_run);
-			ieee80211_wake_queue(&local->hw, i);
-			continue;
-		}
-
-		clear_bit(i, local->queues_pending_run);
+		/*
+		 * start the queue now to allow processing our packets,
+		 * we're under the tx lock here anyway so nothing will
+		 * happen as a result of this
+		 */
 		netif_start_subqueue(local->mdev, i);
 
-		store = &local->pending_packet[i];
-		tx.flags = 0;
-		tx.skb = store->skb;
-		hdr = (struct ieee80211_hdr *)tx.skb->data;
-		tx.sta = sta_info_get(local, hdr->addr1);
-		ret = __ieee80211_tx(local, &tx);
-		store->skb = tx.skb;
-		if (!ret) {
-			clear_bit(i, local->queues_pending);
-			ieee80211_wake_queue(&local->hw, i);
+		while (!skb_queue_empty(&local->pending[i])) {
+			tx.flags = 0;
+			tx.skb = skb_dequeue(&local->pending[i]);
+			hdr = (struct ieee80211_hdr *)tx.skb->data;
+			tx.sta = sta_info_get(local, hdr->addr1);
+
+			ret = __ieee80211_tx(local, &tx);
+			if (ret != IEEE80211_TX_OK) {
+				skb_queue_head(&local->pending[i], tx.skb);
+				break;
+			}
 		}
+
+		/* Start regular packet processing again. */
+		if (skb_queue_empty(&local->pending[i]))
+			ieee80211_wake_queue_by_reason(&local->hw, i,
+					IEEE80211_QUEUE_STOP_REASON_PENDING);
 	}
+
 	netif_tx_unlock_bh(dev);
 	rcu_read_unlock();
 }

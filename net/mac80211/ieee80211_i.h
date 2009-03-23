@@ -184,10 +184,6 @@ struct ieee80211_rx_data {
 	u16 tkip_iv16;
 };
 
-struct ieee80211_tx_stored_packet {
-	struct sk_buff *skb;
-};
-
 struct beacon_data {
 	u8 *head, *tail;
 	int head_len, tail_len;
@@ -583,6 +579,7 @@ enum queue_stop_reason {
 	IEEE80211_QUEUE_STOP_REASON_CSA,
 	IEEE80211_QUEUE_STOP_REASON_AGGREGATION,
 	IEEE80211_QUEUE_STOP_REASON_SUSPEND,
+	IEEE80211_QUEUE_STOP_REASON_PENDING,
 };
 
 struct ieee80211_master_priv {
@@ -639,9 +636,7 @@ struct ieee80211_local {
 	struct sta_info *sta_hash[STA_HASH_SIZE];
 	struct timer_list sta_cleanup;
 
-	unsigned long queues_pending[BITS_TO_LONGS(IEEE80211_MAX_QUEUES)];
-	unsigned long queues_pending_run[BITS_TO_LONGS(IEEE80211_MAX_QUEUES)];
-	struct ieee80211_tx_stored_packet pending_packet[IEEE80211_MAX_QUEUES];
+	struct sk_buff_head pending[IEEE80211_MAX_QUEUES];
 	struct tasklet_struct tx_pending_tasklet;
 
 	/* number of interfaces with corresponding IFF_ flags */
