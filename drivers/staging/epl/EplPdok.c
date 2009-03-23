@@ -73,11 +73,6 @@
 #include "kernel/EplEventk.h"
 #include "kernel/EplObdk.h"
 
-#if (DEV_SYSTEM == _DEV_GNU_CF548X_)
-#include "plccore.h"
-#define PDO_LED 0x08
-#endif
-
 #if (((EPL_MODULE_INTEGRATION) & (EPL_MODULE_PDOK)) != 0)
 
 #if (((EPL_MODULE_INTEGRATION) & (EPL_MODULE_DLLK)) == 0)
@@ -226,22 +221,12 @@ tEplKernel EplPdokCbPdoReceived(tEplFrameInfo * pFrameInfo_p)
 	tEplKernel Ret = kEplSuccessful;
 	tEplEvent Event;
 
-#if (DEV_SYSTEM == _DEV_GNU_CF548X_)
-	// reset LED
-//    MCF_GPIO_PODR_PCIBG &= ~PDO_LED;  // Level
-#endif
-
 	Event.m_EventSink = kEplEventSinkPdok;
 	Event.m_EventType = kEplEventTypePdoRx;
 	// limit copied data to size of PDO (because from some CNs the frame is larger than necessary)
 	Event.m_uiSize = AmiGetWordFromLe(&pFrameInfo_p->m_pFrame->m_Data.m_Pres.m_le_wSize) + 24;	// pFrameInfo_p->m_uiFrameSize;
 	Event.m_pArg = pFrameInfo_p->m_pFrame;
 	Ret = EplEventkPost(&Event);
-
-#if (DEV_SYSTEM == _DEV_GNU_CF548X_)
-	// set LED
-//    MCF_GPIO_PODR_PCIBG |= PDO_LED;  // Level
-#endif
 
 	return Ret;
 }
@@ -269,21 +254,11 @@ tEplKernel EplPdokCbPdoTransmitted(tEplFrameInfo * pFrameInfo_p)
 	tEplKernel Ret = kEplSuccessful;
 	tEplEvent Event;
 
-#if (DEV_SYSTEM == _DEV_GNU_CF548X_)
-	// reset LED
-	MCF_GPIO_PODR_PCIBG &= ~PDO_LED;	// Level
-#endif
-
 	Event.m_EventSink = kEplEventSinkPdok;
 	Event.m_EventType = kEplEventTypePdoTx;
 	Event.m_uiSize = sizeof(tEplFrameInfo);
 	Event.m_pArg = pFrameInfo_p;
 	Ret = EplEventkPost(&Event);
-
-#if (DEV_SYSTEM == _DEV_GNU_CF548X_)
-	// set LED
-	MCF_GPIO_PODR_PCIBG |= PDO_LED;	// Level
-#endif
 
 	return Ret;
 }

@@ -96,17 +96,9 @@
 // To prevent unused memory in subindex tables we need this macro.
 // But not all compilers support to preset the last struct value followed by a comma.
 // Compilers which does not support a comma after last struct value has to place in a dummy subindex.
-#if ((DEV_SYSTEM & _DEV_COMMA_EXT_) != 0)
-
-#define EPL_OBD_END_SUBINDEX()
-#define EPL_OBD_MAX_ARRAY_SUBENTRIES    2
-
-#else
-
 #define EPL_OBD_END_SUBINDEX()          {0,0,0,NULL,NULL}
 #define EPL_OBD_MAX_ARRAY_SUBENTRIES    3
 
-#endif
 
 //---------------------------------------------------------------------------
 //---------------------------------------------------------------------------

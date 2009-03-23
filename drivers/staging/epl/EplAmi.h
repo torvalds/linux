@@ -86,11 +86,6 @@
 #ifndef _EPLAMI_H_
 #define _EPLAMI_H_
 
-#if ((DEV_SYSTEM & _DEV_64BIT_SUPPORT_) == 0)
-//    #ifdef USE_VAR64
-#error 'ERROR: development system does not support 64 bit operations!'
-//    #endif
-#endif
 
 //---------------------------------------------------------------------------
 //  types

@@ -241,15 +241,7 @@ typedef struct {
 //---------------------------------------------------------------------------
 
 // definitions for DLL export
-#if ((DEV_SYSTEM == _DEV_WIN32_) || (DEV_SYSTEM == _DEV_WIN_CE_)) && defined (COP_LIB)
-
-#define EPLDLLEXPORT    __declspec (dllexport)
-
-#else
-
 #define EPLDLLEXPORT
-
-#endif
 
 // ============================================================================
 // common debug macros
