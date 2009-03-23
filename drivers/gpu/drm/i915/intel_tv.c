@@ -1570,6 +1570,8 @@ intel_tv_set_property(struct drm_connector *connector, struct drm_property *prop
 	struct drm_device *dev = connector->dev;
 	struct intel_output *intel_output = to_intel_output(connector);
 	struct intel_tv_priv *tv_priv = intel_output->dev_priv;
+	struct drm_encoder *encoder = &intel_output->enc;
+	struct drm_crtc *crtc = encoder->crtc;
 	int ret = 0;
 	bool changed = false;
 
@@ -1608,8 +1610,9 @@ intel_tv_set_property(struct drm_connector *connector, struct drm_property *prop
 		goto out;
 	}
 
-	if (changed)
-		intel_tv_mode_set(&intel_output->enc, NULL, NULL);
+	if (changed && crtc)
+		drm_crtc_helper_set_mode(crtc, &crtc->mode, crtc->x,
+				crtc->y, crtc->fb);
 out:
 	return ret;
 }
