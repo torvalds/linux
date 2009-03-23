@@ -492,9 +492,9 @@
           }
 
           /* (2) */
-          card = snd_card_new(index[dev], id[dev], THIS_MODULE, 0);
-          if (card == NULL)
-                  return -ENOMEM;
+          err = snd_card_create(index[dev], id[dev], THIS_MODULE, 0, &card);
+          if (err < 0)
+                  return err;
 
           /* (3) */
           err = snd_mychip_create(card, pci, &chip);
@@ -590,8 +590,9 @@
             <programlisting>
 <![CDATA[
   struct snd_card *card;
+  int err;
   ....
-  card = snd_card_new(index[dev], id[dev], THIS_MODULE, 0);
+  err = snd_card_create(index[dev], id[dev], THIS_MODULE, 0, &card);
 ]]>
             </programlisting>
           </informalexample>
@@ -809,26 +810,28 @@
 
       <para>
         As mentioned above, to create a card instance, call
-      <function>snd_card_new()</function>.
+      <function>snd_card_create()</function>.
 
         <informalexample>
           <programlisting>
 <![CDATA[
   struct snd_card *card;
-  card = snd_card_new(index, id, module, extra_size);
+  int err;
+  err = snd_card_create(index, id, module, extra_size, &card);
 ]]>
           </programlisting>
         </informalexample>
       </para>
 
       <para>
-        The function takes four arguments, the card-index number, the
+        The function takes five arguments, the card-index number, the
         id string, the module pointer (usually
         <constant>THIS_MODULE</constant>),
-        and the size of extra-data space.  The last argument is used to
+        the size of extra-data space, and the pointer to return the
+        card instance.  The extra_size argument is used to
         allocate card-&gt;private_data for the
         chip-specific data.  Note that these data
-        are allocated by <function>snd_card_new()</function>.
+        are allocated by <function>snd_card_create()</function>.
       </para>
     </section>
 
@@ -915,15 +918,16 @@
       </para>
 
       <section id="card-management-chip-specific-snd-card-new">
-        <title>1. Allocating via <function>snd_card_new()</function>.</title>
+        <title>1. Allocating via <function>snd_card_create()</function>.</title>
         <para>
           As mentioned above, you can pass the extra-data-length
-	  to the 4th argument of <function>snd_card_new()</function>, i.e.
+	  to the 4th argument of <function>snd_card_create()</function>, i.e.
 
           <informalexample>
             <programlisting>
 <![CDATA[
-  card = snd_card_new(index[dev], id[dev], THIS_MODULE, sizeof(struct mychip));
+  err = snd_card_create(index[dev], id[dev], THIS_MODULE,
+                        sizeof(struct mychip), &card);
 ]]>
             </programlisting>
           </informalexample>
@@ -952,8 +956,8 @@
 
         <para>
           After allocating a card instance via
-          <function>snd_card_new()</function> (with
-          <constant>NULL</constant> on the 4th arg), call
+          <function>snd_card_create()</function> (with
+          <constant>0</constant> on the 4th arg), call
           <function>kzalloc()</function>. 
 
           <informalexample>
@@ -961,7 +965,7 @@
 <![CDATA[
   struct snd_card *card;
   struct mychip *chip;
-  card = snd_card_new(index[dev], id[dev], THIS_MODULE, NULL);
+  err = snd_card_create(index[dev], id[dev], THIS_MODULE, 0, &card);
   .....
   chip = kzalloc(sizeof(*chip), GFP_KERNEL);
 ]]>
@@ -5750,8 +5754,9 @@ struct _snd_pcm_runtime {
           ....
           struct snd_card *card;
           struct mychip *chip;
+          int err;
           ....
-          card = snd_card_new(index[dev], id[dev], THIS_MODULE, NULL);
+          err = snd_card_create(index[dev], id[dev], THIS_MODULE, 0, &card);
           ....
           chip = kzalloc(sizeof(*chip), GFP_KERNEL);
           ....
@@ -5763,7 +5768,7 @@ struct _snd_pcm_runtime {
       </informalexample>
 
 	When you created the chip data with
-	<function>snd_card_new()</function>, it's anyway accessible
+	<function>snd_card_create()</function>, it's anyway accessible
 	via <structfield>private_data</structfield> field.
 
       <informalexample>
@@ -5775,9 +5780,10 @@ struct _snd_pcm_runtime {
           ....
           struct snd_card *card;
           struct mychip *chip;
+          int err;
           ....
-          card = snd_card_new(index[dev], id[dev], THIS_MODULE,
-                              sizeof(struct mychip));
+          err = snd_card_create(index[dev], id[dev], THIS_MODULE,
+                                sizeof(struct mychip), &card);
           ....
           chip = card->private_data;
           ....

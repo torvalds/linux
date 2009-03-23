@@ -3466,10 +3466,10 @@ static int snd_usb_audio_create(struct usb_device *dev, int idx,
 		return -ENXIO;
 	}
 
-	card = snd_card_new(index[idx], id[idx], THIS_MODULE, 0);
-	if (card == NULL) {
+	err = snd_card_create(index[idx], id[idx], THIS_MODULE, 0, &card);
+	if (err < 0) {
 		snd_printk(KERN_ERR "cannot create card instance %d\n", idx);
-		return -ENOMEM;
+		return err;
 	}
 
 	chip = kzalloc(sizeof(*chip), GFP_KERNEL);

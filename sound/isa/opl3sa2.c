@@ -623,21 +623,24 @@ static void snd_opl3sa2_free(struct snd_card *card)
 	release_and_free_resource(chip->res_port);
 }
 
-static struct snd_card *snd_opl3sa2_card_new(int dev)
+static int snd_opl3sa2_card_new(int dev, struct snd_card **cardp)
 {
 	struct snd_card *card;
 	struct snd_opl3sa2 *chip;
+	int err;
 
-	card = snd_card_new(index[dev], id[dev], THIS_MODULE, sizeof(struct snd_opl3sa2));
-	if (card == NULL)
-		return NULL;
+	err = snd_card_create(index[dev], id[dev], THIS_MODULE,
+			      sizeof(struct snd_opl3sa2), &card);
+	if (err < 0)
+		return err;
 	strcpy(card->driver, "OPL3SA2");
 	strcpy(card->shortname, "Yamaha OPL3-SA2");
 	chip = card->private_data;
 	spin_lock_init(&chip->reg_lock);
 	chip->irq = -1;
 	card->private_free = snd_opl3sa2_free;
-	return card;
+	*cardp = card;
+	return 0;
 }
 
 static int __devinit snd_opl3sa2_probe(struct snd_card *card, int dev)
@@ -729,9 +732,9 @@ static int __devinit snd_opl3sa2_pnp_detect(struct pnp_dev *pdev,
 	if (dev >= SNDRV_CARDS)
 		return -ENODEV;
 
-	card = snd_opl3sa2_card_new(dev);
-	if (! card)
-		return -ENOMEM;
+	err = snd_opl3sa2_card_new(dev, &card);
+	if (err < 0)
+		return err;
 	if ((err = snd_opl3sa2_pnp(dev, card->private_data, pdev)) < 0) {
 		snd_card_free(card);
 		return err;
@@ -795,9 +798,9 @@ static int __devinit snd_opl3sa2_pnp_cdetect(struct pnp_card_link *pcard,
 	if (dev >= SNDRV_CARDS)
 		return -ENODEV;
 
-	card = snd_opl3sa2_card_new(dev);
-	if (! card)
-		return -ENOMEM;
+	err = snd_opl3sa2_card_new(dev, &card);
+	if (err < 0)
+		return err;
 	if ((err = snd_opl3sa2_pnp(dev, card->private_data, pdev)) < 0) {
 		snd_card_free(card);
 		return err;
@@ -876,9 +879,9 @@ static int __devinit snd_opl3sa2_isa_probe(struct device *pdev,
 	struct snd_card *card;
 	int err;
 
-	card = snd_opl3sa2_card_new(dev);
-	if (! card)
-		return -ENOMEM;
+	err = snd_opl3sa2_card_new(dev, &card);
+	if (err < 0)
+		return err;
 	snd_card_set_dev(card, pdev);
 	if ((err = snd_opl3sa2_probe(card, dev)) < 0) {
 		snd_card_free(card);

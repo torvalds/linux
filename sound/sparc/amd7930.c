@@ -1018,9 +1018,10 @@ static int __devinit amd7930_sbus_probe(struct of_device *op, const struct of_de
 		return -ENOENT;
 	}
 
-	card = snd_card_new(index[dev_num], id[dev_num], THIS_MODULE, 0);
-	if (card == NULL)
-		return -ENOMEM;
+	err = snd_card_create(index[dev_num], id[dev_num], THIS_MODULE, 0,
+			      &card);
+	if (err < 0)
+		return err;
 
 	strcpy(card->driver, "AMD7930");
 	strcpy(card->shortname, "Sun AMD7930");

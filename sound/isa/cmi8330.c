@@ -467,20 +467,22 @@ static int snd_cmi8330_resume(struct snd_card *card)
 
 #define PFX	"cmi8330: "
 
-static struct snd_card *snd_cmi8330_card_new(int dev)
+static int snd_cmi8330_card_new(int dev, struct snd_card **cardp)
 {
 	struct snd_card *card;
 	struct snd_cmi8330 *acard;
+	int err;
 
-	card = snd_card_new(index[dev], id[dev], THIS_MODULE,
-			    sizeof(struct snd_cmi8330));
-	if (card == NULL) {
+	err = snd_card_create(index[dev], id[dev], THIS_MODULE,
+			      sizeof(struct snd_cmi8330), &card);
+	if (err < 0) {
 		snd_printk(KERN_ERR PFX "could not get a new card\n");
-		return NULL;
+		return err;
 	}
 	acard = card->private_data;
 	acard->card = card;
-	return card;
+	*cardp = card;
+	return 0;
 }
 
 static int __devinit snd_cmi8330_probe(struct snd_card *card, int dev)
@@ -564,9 +566,9 @@ static int __devinit snd_cmi8330_isa_probe(struct device *pdev,
 	struct snd_card *card;
 	int err;
 
-	card = snd_cmi8330_card_new(dev);
-	if (! card)
-		return -ENOMEM;
+	err = snd_cmi8330_card_new(dev, &card);
+	if (err < 0)
+		return err;
 	snd_card_set_dev(card, pdev);
 	if ((err = snd_cmi8330_probe(card, dev)) < 0) {
 		snd_card_free(card);
@@ -628,9 +630,9 @@ static int __devinit snd_cmi8330_pnp_detect(struct pnp_card_link *pcard,
 	if (dev >= SNDRV_CARDS)
 		return -ENODEV;
 			       
-	card = snd_cmi8330_card_new(dev);
-	if (! card)
-		return -ENOMEM;
+	res = snd_cmi8330_card_new(dev, &card);
+	if (res < 0)
+		return res;
 	if ((res = snd_cmi8330_pnp(dev, card->private_data, pcard, pid)) < 0) {
 		snd_printk(KERN_ERR PFX "PnP detection failed\n");
 		snd_card_free(card);
