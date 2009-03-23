@@ -37,6 +37,7 @@ obj-$(CONFIG_ARCH_PXA_IDP)	+= idp.o
 obj-$(CONFIG_MACH_TRIZEPS4)	+= trizeps4.o
 obj-$(CONFIG_MACH_COLIBRI)	+= colibri-pxa270.o
 obj-$(CONFIG_MACH_COLIBRI300)	+= colibri-pxa3xx.o colibri-pxa300.o
+obj-$(CONFIG_MACH_COLIBRI320)	+= colibri-pxa3xx.o colibri-pxa320.o
 obj-$(CONFIG_MACH_H5000)	+= h5000.o
 obj-$(CONFIG_PXA_SHARP_C7xx)	+= corgi.o sharpsl_pm.o corgi_pm.o
 obj-$(CONFIG_PXA_SHARP_Cxx00)	+= spitz.o sharpsl_pm.o spitz_pm.o

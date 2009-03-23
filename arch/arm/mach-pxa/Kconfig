@@ -270,6 +270,11 @@ config MACH_COLIBRI300
 	select PXA3xx
 	select CPU_PXA300
 
+config MACH_COLIBRI320
+	bool "Toradex Colibri PXA320"
+	select PXA3xx
+	select CPU_PXA320
+
 config MACH_ZYLONITE
 	bool "PXA3xx Development Platform (aka Zylonite)"
 	select PXA3xx
