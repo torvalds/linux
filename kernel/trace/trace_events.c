@@ -585,6 +585,7 @@ subsystem_filter_write(struct file *filp, const char __user *ubuf, size_t cnt,
 	}
 
 	if (filter_add_subsystem_pred(system, pred)) {
+		filter_free_subsystem_preds(system);
 		filter_free_pred(pred);
 		return -EINVAL;
 	}

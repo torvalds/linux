@@ -318,22 +318,39 @@ int filter_add_subsystem_pred(struct event_subsystem *system,
 			system->preds[i] = pred;
 			break;
 		}
-		if (i == MAX_FILTER_PRED - 1)
-			return -EINVAL;
 	}
 
+	if (i == MAX_FILTER_PRED)
+		return -EINVAL;
+
 	events_for_each(call) {
+		int err;
+
 		if (!call->name || !call->regfunc)
 			continue;
 
-		if (!strcmp(call->system, system->name)) {
-			event_pred = copy_pred(pred);
-			if (event_pred)
-				filter_add_pred(call, event_pred);
-		}
+		if (strcmp(call->system, system->name))
+			continue;
+
+		if (!find_event_field(call, pred->field_name))
+			continue;
+
+		event_pred = copy_pred(pred);
+		if (!event_pred)
+			goto oom;
+
+		err = filter_add_pred(call, event_pred);
+		if (err)
+			filter_free_pred(event_pred);
+		if (err == -ENOMEM)
+			goto oom;
 	}
 
 	return 0;
+
+oom:
+	system->preds[i] = NULL;
+	return -ENOMEM;
 }
 
 int filter_parse(char **pbuf, struct filter_pred *pred)
