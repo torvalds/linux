@@ -27,10 +27,6 @@
 #define QWORD long long int
 #endif
 
-#ifndef CONST
-#define CONST const		// variables mapped to ROM (i.e. flash)
-#endif
-
 #define TRACE  printk
 
 // --- logic types ---

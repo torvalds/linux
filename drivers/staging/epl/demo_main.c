@@ -148,7 +148,7 @@ void TgtDbgSignalTracePoint(BYTE bTracePointNumber_p);
 // modul globale vars
 //---------------------------------------------------------------------------
 
-CONST BYTE abMacAddr[] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+const BYTE abMacAddr[] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
 
 BYTE bVarIn1_l;
 BYTE bVarOut1_l;

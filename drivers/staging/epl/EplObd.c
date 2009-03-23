@@ -2185,12 +2185,10 @@ static tEplObdSize EplObdGetObjectSize(tEplObdSubEntryPtr pSubIndexEntry_p)
 			// The current position is not decleared. The string
 			// is located in ROM, therefor use default pointer.
 			pData = (void *)pSubIndexEntry_p->m_pDefault;
-			if ((CONST void *)pData != (CONST void *)NULL) {
+			if ((const void *)pData != (const void *)NULL) {
 				// The max. size of strings defined by STRING-Macro is stored in
 				// tEplObdVString of default value.
-				DataSize =
-				    ((CONST tEplObdVString *) pData)->
-				    m_Size;
+				DataSize = ((const tEplObdVString *)pData)->m_Size;
 			}
 		}
 
@@ -2209,12 +2207,10 @@ static tEplObdSize EplObdGetObjectSize(tEplObdSubEntryPtr pSubIndexEntry_p)
 			// The current position is not decleared. The string
 			// is located in ROM, therefor use default pointer.
 			pData = (void *)pSubIndexEntry_p->m_pDefault;
-			if ((CONST void *)pData != (CONST void *)NULL) {
+			if ((const void *)pData != (const void *)NULL) {
 				// The max. size of strings defined by STRING-Macro is stored in
 				// tEplObdVString of default value.
-				DataSize =
-				    ((CONST tEplObdOString *) pData)->
-				    m_Size;
+				DataSize = ((const tEplObdOString *)pData)->m_Size;
 			}
 		}
 		break;
