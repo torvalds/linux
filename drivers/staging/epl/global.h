@@ -288,14 +288,7 @@ typedef struct {
 //---------------------------------------------------------------------------
 
 #ifndef ASSERT
-#if !defined (__linux__) && !defined (__KERNEL__)
-#include <assert.h>
-#ifndef ASSERT
-#define ASSERT(p)    assert(p)
-#endif
-#else
 #define ASSERT(p)
-#endif
 #endif
 
 //---------------------------------------------------------------------------

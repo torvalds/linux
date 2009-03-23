@@ -72,11 +72,9 @@
 
 #if (((EPL_MODULE_INTEGRATION) & (EPL_MODULE_SDO_UDP)) != 0)
 
-#if (TARGET_SYSTEM == _LINUX_) && defined(__KERNEL__)
 #include "SocketLinuxKernel.h"
 #include <linux/completion.h>
 #include <linux/sched.h>
-#endif
 
 /***************************************************************************/
 /*                                                                         */
@@ -110,12 +108,9 @@ typedef struct {
 	tEplSequLayerReceiveCb m_fpSdoAsySeqCb;
 	SOCKET m_UdpSocket;
 
-#if (TARGET_SYSTEM == _LINUX_) && defined(__KERNEL__)
 	struct completion m_CompletionUdpThread;
 	int m_ThreadHandle;
 	int m_iTerminateThread;
-#endif
-
 } tEplSdoUdpInstance;
 
 //---------------------------------------------------------------------------
@@ -128,9 +123,7 @@ static tEplSdoUdpInstance SdoUdpInstance_g;
 // local function prototypes
 //---------------------------------------------------------------------------
 
-#if (TARGET_SYSTEM == _LINUX_) && defined(__KERNEL__)
 static int EplSdoUdpThread(void *pArg_p);
-#endif
 
 /***************************************************************************/
 /*                                                                         */
@@ -214,11 +207,8 @@ tEplKernel EplSdoUdpuAddInstance(tEplSequLayerReceiveCb fpReceiveCb_p)
 		goto Exit;
 	}
 
-#if (TARGET_SYSTEM == _LINUX_) && defined(__KERNEL__)
 	init_completion(&SdoUdpInstance_g.m_CompletionUdpThread);
 	SdoUdpInstance_g.m_iTerminateThread = 0;
-#endif
-
 	SdoUdpInstance_g.m_ThreadHandle = 0;
 	SdoUdpInstance_g.m_UdpSocket = INVALID_SOCKET;
 
@@ -254,13 +244,10 @@ tEplKernel EplSdoUdpuDelInstance(void)
 
 	if (SdoUdpInstance_g.m_ThreadHandle != 0) {	// listen thread was started
 		// close thread
-#if (TARGET_SYSTEM == _LINUX_) && defined(__KERNEL__)
 		SdoUdpInstance_g.m_iTerminateThread = 1;
 		/* kill_proc(SdoUdpInstance_g.m_ThreadHandle, SIGTERM, 1 ); */
 		send_sig(SIGTERM, SdoUdpInstance_g.m_ThreadHandle, 1);
 		wait_for_completion(&SdoUdpInstance_g.m_CompletionUdpThread);
-#endif
-
 		SdoUdpInstance_g.m_ThreadHandle = 0;
 	}
 
@@ -307,14 +294,11 @@ tEplKernel EplSdoUdpuConfig(unsigned long ulIpAddr_p, unsigned int uiPort_p)
 	if (SdoUdpInstance_g.m_ThreadHandle != 0) {	// listen thread was started
 
 		// close old thread
-#if (TARGET_SYSTEM == _LINUX_) && defined(__KERNEL__)
 		SdoUdpInstance_g.m_iTerminateThread = 1;
 		/* kill_proc(SdoUdpInstance_g.m_ThreadHandle, SIGTERM, 1 ); */
 		send_sig(SIGTERM, SdoUdpInstance_g.m_ThreadHandle, 1);
 		wait_for_completion(&SdoUdpInstance_g.m_CompletionUdpThread);
 		SdoUdpInstance_g.m_iTerminateThread = 0;
-#endif
-
 		SdoUdpInstance_g.m_ThreadHandle = 0;
 	}
 
@@ -349,15 +333,12 @@ tEplKernel EplSdoUdpuConfig(unsigned long ulIpAddr_p, unsigned int uiPort_p)
 		goto Exit;
 	}
 	// create Listen-Thread
-#if (TARGET_SYSTEM == _LINUX_) && defined(__KERNEL__)
-
 	SdoUdpInstance_g.m_ThreadHandle =
 	    kernel_thread(EplSdoUdpThread, &SdoUdpInstance_g, CLONE_KERNEL);
 	if (SdoUdpInstance_g.m_ThreadHandle == 0) {
 		Ret = kEplSdoUdpThreadError;
 		goto Exit;
 	}
-#endif
 
       Exit:
 	return Ret;
@@ -573,13 +554,11 @@ static int EplSdoUdpThread(void *pArg_p)
 	unsigned int uiSize;
 	tEplSdoConHdl SdoConHdl;
 
-#if (TARGET_SYSTEM == _LINUX_) && defined(__KERNEL__)
 	pInstance = (tEplSdoUdpInstance *) pArg_p;
 	daemonize("EplSdoUdpThread");
 	allow_signal(SIGTERM);
 
 	for (; pInstance->m_iTerminateThread == 0;)
-#endif
 
 	{
 		// wait for data
@@ -590,11 +569,9 @@ static int EplSdoUdpThread(void *pArg_p)
 				  0,	// flags
 				  (struct sockaddr *)&RemoteAddr,
 				  (int *)&uiSize);
-#if (TARGET_SYSTEM == _LINUX_) && defined(__KERNEL__)
 		if (iError == -ERESTARTSYS) {
 			break;
 		}
-#endif
 		if (iError > 0) {
 			// get handle for higher layer
 			iCount = 0;
@@ -663,10 +640,7 @@ static int EplSdoUdpThread(void *pArg_p)
 		}		// end of  if(iError!=SOCKET_ERROR)
 	}			// end of for(;;)
 
-#if (TARGET_SYSTEM == _LINUX_) && defined(__KERNEL__)
 	complete_and_exit(&SdoUdpInstance_g.m_CompletionUdpThread, 0);
-#endif
-
 	return 0;
 }
 

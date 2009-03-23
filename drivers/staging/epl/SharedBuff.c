@@ -85,15 +85,8 @@
 #include "SharedBuff.h"
 #include "ShbIpc.h"
 
-// d.k. Linux kernel modules needs other header files for memcpy()
-#if (TARGET_SYSTEM == _LINUX_) && defined(__KERNEL__)
 #include <linux/string.h>
 #include <linux/kernel.h>
-#else
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#endif
 
 /***************************************************************************/
 /*                                                                         */

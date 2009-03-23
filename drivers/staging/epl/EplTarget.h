@@ -83,18 +83,12 @@
 // applications needs to use one common library function (e.g. memcpy()). So
 // you can set (or change) it here.
 
-#ifndef __KERNEL__
-#include <stdlib.h>
-#include <stdio.h>
-#else
-//        #include <linux/config.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/errno.h>
 #include <linux/major.h>
 #include <linux/version.h>
-#endif
 
     //29.11.2004 f.j. sonst ist memcpy und memset unbekannt
 //    #include <string.h>
@@ -102,13 +96,8 @@
 #define EPL_MEMCPY(dst,src,siz)     memcpy((void*)(dst),(const void*)(src),(size_t)(siz));
 #define EPL_MEMSET(dst,val,siz)     memset((void*)(dst),(int)(val),(size_t)(siz));
 
-#ifndef __KERNEL__
-#define EPL_MALLOC(siz)             malloc((size_t)(siz))
-#define EPL_FREE(ptr)               free((void *)ptr)
-#else
 #define EPL_MALLOC(siz)             kmalloc((size_t)(siz), GFP_KERNEL)
 #define EPL_FREE(ptr)               kfree((void *)ptr)
-#endif
 
 #ifndef PRINTF0
 #define PRINTF                      TRACE
