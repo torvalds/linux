@@ -1,8 +1,10 @@
 /*
  *  arch/arm/mach-pxa/colibri-pxa300.c
  *
- *  Support for Toradex PXA300 based Colibri module
+ *  Support for Toradex PXA300/310 based Colibri module
+ *
  *  Daniel Mack <daniel@caiaq.de>
+ *  Matthias Meier <matthias.j.meier@gmx.net>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2 as
@@ -16,40 +18,19 @@
 #include <net/ax88796.h>
 
 #include <asm/mach-types.h>
+#include <asm/sizes.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/irq.h>
 
 #include <mach/pxa300.h>
 #include <mach/colibri.h>
-#include <mach/mmc.h>
 #include <mach/ohci.h>
 
 #include "generic.h"
 #include "devices.h"
 
-/*
- * GPIO configuration
- */
-static mfp_cfg_t colibri_pxa300_pin_config[] __initdata = {
-	GPIO1_nCS2,			/* AX88796 chip select */
-	GPIO26_GPIO | MFP_PULL_HIGH,	/* AX88796 IRQ */
-
-#if defined(CONFIG_MMC_PXA) || defined(CONFIG_MMC_PXA_MODULE)
-	GPIO7_MMC1_CLK,
-	GPIO14_MMC1_CMD,
-	GPIO3_MMC1_DAT0,
-	GPIO4_MMC1_DAT1,
-	GPIO5_MMC1_DAT2,
-	GPIO6_MMC1_DAT3,
-#endif
-
-#if defined (CONFIG_USB_OHCI_HCD) || defined(CONFIG_USB_OHCI_HCD_MODULE)
-        GPIO0_2_USBH_PEN,
-        GPIO1_2_USBH_PWR,
-#endif
-};
-
 #if defined(CONFIG_AX88796)
+#define COLIBRI_ETH_IRQ_GPIO	mfp_to_gpio(GPIO26_GPIO)
 /*
  * Asix AX88796 Ethernet
  */
@@ -65,8 +46,8 @@ static struct resource colibri_asix_resource[] = {
 		.flags = IORESOURCE_MEM,
 	},
 	[1] = {
-		.start = COLIBRI_PXA300_ETH_IRQ,
-		.end   = COLIBRI_PXA300_ETH_IRQ,
+		.start = gpio_to_irq(COLIBRI_ETH_IRQ_GPIO),
+		.end   = gpio_to_irq(COLIBRI_ETH_IRQ_GPIO),
 		.flags = IORESOURCE_IRQ
 	}
 };
@@ -80,82 +61,57 @@ static struct platform_device asix_device = {
 		.platform_data = &colibri_asix_platdata
 	}
 };
+
+static mfp_cfg_t colibri_pxa300_eth_pin_config[] __initdata = {
+	GPIO1_nCS2,			/* AX88796 chip select */
+	GPIO26_GPIO | MFP_PULL_HIGH	/* AX88796 IRQ */
+};
+
+static void __init colibri_pxa300_init_eth(void)
+{
+	pxa3xx_mfp_config(ARRAY_AND_SIZE(colibri_pxa300_eth_pin_config));
+	set_irq_type(gpio_to_irq(COLIBRI_ETH_IRQ_GPIO), IRQ_TYPE_EDGE_FALLING);
+	platform_device_register(&asix_device);
+}
+#else
+static inline void __init colibri_pxa300_init_eth(void) {}
 #endif /* CONFIG_AX88796 */
 
-static struct platform_device *colibri_pxa300_devices[] __initdata = {
-#if defined(CONFIG_AX88796)
-	&asix_device
-#endif
-};
-
-#if defined(CONFIG_MMC_PXA) || defined(CONFIG_MMC_PXA_MODULE)
-#define MMC_DETECT_PIN   mfp_to_gpio(MFP_PIN_GPIO13)
-
-static int colibri_pxa300_mci_init(struct device *dev,
-				   irq_handler_t colibri_mmc_detect_int,
-				   void *data)
-{
-	int ret;
-
-	ret = gpio_request(MMC_DETECT_PIN, "mmc card detect");
-	if (ret)
-		return ret;
-
-	gpio_direction_input(MMC_DETECT_PIN);
-	ret = request_irq(gpio_to_irq(MMC_DETECT_PIN), colibri_mmc_detect_int,
-			  IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
-			  "MMC card detect", data);
-	if (ret) {
-		gpio_free(MMC_DETECT_PIN);
-		return ret;
-	}
-
-	return 0;
-}
-
-static void colibri_pxa300_mci_exit(struct device *dev, void *data)
-{
-	free_irq(MMC_DETECT_PIN, data);
-	gpio_free(gpio_to_irq(MMC_DETECT_PIN));
-}
-
-static struct pxamci_platform_data colibri_pxa300_mci_platform_data = {
-	.detect_delay	= 20,
-	.ocr_mask	= MMC_VDD_32_33 | MMC_VDD_33_34,
-	.init		= colibri_pxa300_mci_init,
-	.exit		= colibri_pxa300_mci_exit,
-};
-
-static void __init colibri_pxa300_init_mmc(void)
-{
-	pxa_set_mci_info(&colibri_pxa300_mci_platform_data);
-}
-
-#else
-static inline void colibri_pxa300_init_mmc(void) {}
-#endif /* CONFIG_MMC_PXA */
-
 #if defined(CONFIG_USB_OHCI_HCD) || defined(CONFIG_USB_OHCI_HCD_MODULE)
+static mfp_cfg_t colibri_pxa300_usb_pin_config[] __initdata = {
+	GPIO0_2_USBH_PEN,
+	GPIO1_2_USBH_PWR,
+};
+
 static struct pxaohci_platform_data colibri_pxa300_ohci_info = {
 	.port_mode	= PMM_GLOBAL_MODE,
 	.flags		= ENABLE_PORT1 | POWER_CONTROL_LOW | POWER_SENSE_LOW,
 };
 
-static void __init colibri_pxa300_init_ohci(void)
+void __init colibri_pxa300_init_ohci(void)
 {
+	pxa3xx_mfp_config(ARRAY_AND_SIZE(colibri_pxa300_usb_pin_config));
 	pxa_set_ohci_info(&colibri_pxa300_ohci_info);
 }
 #else
 static inline void colibri_pxa300_init_ohci(void) {}
 #endif /* CONFIG_USB_OHCI_HCD || CONFIG_USB_OHCI_HCD_MODULE */
 
-static void __init colibri_pxa300_init(void)
+static mfp_cfg_t colibri_pxa300_mmc_pin_config[] __initdata = {
+	GPIO7_MMC1_CLK,
+	GPIO14_MMC1_CMD,
+	GPIO3_MMC1_DAT0,
+	GPIO4_MMC1_DAT1,
+	GPIO5_MMC1_DAT2,
+	GPIO6_MMC1_DAT3,
+};
+
+void __init colibri_pxa300_init(void)
 {
-	set_irq_type(COLIBRI_PXA300_ETH_IRQ, IRQ_TYPE_EDGE_FALLING);
-	pxa3xx_mfp_config(ARRAY_AND_SIZE(colibri_pxa300_pin_config));
-	platform_add_devices(ARRAY_AND_SIZE(colibri_pxa300_devices));
-	colibri_pxa300_init_mmc();
+	colibri_pxa300_init_eth();
 	colibri_pxa300_init_ohci();
+	colibri_pxa3xx_init_mmc(ARRAY_AND_SIZE(colibri_pxa300_mmc_pin_config),
+				mfp_to_gpio(MFP_PIN_GPIO13));
 }
 
 MACHINE_START(COLIBRI300, "Toradex Colibri PXA300")

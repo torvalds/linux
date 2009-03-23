@@ -266,7 +266,7 @@ config MACH_COLIBRI
 	select PXA27x
 
 config MACH_COLIBRI300
-	bool "Toradex Colibri PXA300"
+	bool "Toradex Colibri PXA300/310"
 	select PXA3xx
 	select CPU_PXA300
 

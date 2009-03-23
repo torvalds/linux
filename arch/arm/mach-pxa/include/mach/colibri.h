@@ -4,6 +4,12 @@
  * common settings for all modules
  */
 
+#if defined(CONFIG_MMC_PXA) || defined(CONFIG_MMC_PXA_MODULE)
+extern void colibri_pxa3xx_init_mmc(mfp_cfg_t *pins, int len, int detect_pin);
+#else
+static inline void colibri_pxa3xx_init_mmc(mfp_cfg_t *, int, int) {}
+#endif
+
 /* physical memory regions */
 #define COLIBRI_SDRAM_BASE	0xa0000000      /* SDRAM region */
 
@@ -14,18 +20,6 @@
 #define COLIBRI_PXA270_ETH_IRQ_GPIO	114
 #define COLIBRI_PXA270_ETH_IRQ		\
 	gpio_to_irq(mfp_to_gpio(COLIBRI_PXA270_ETH_IRQ_GPIO))
-
-/* definitions for Colibri PXA300 */
-
-#define COLIBRI_PXA300_ETH_IRQ_GPIO     26
-#define COLIBRI_PXA300_ETH_IRQ          \
-	gpio_to_irq(mfp_to_gpio(COLIBRI_PXA300_ETH_IRQ_GPIO))
-
-/* definitions for Colibri PXA320 */
-
-#define COLIBRI_PXA320_ETH_IRQ_GPIO     36
-#define COLIBRI_PXA320_ETH_IRQ          \
-	gpio_to_irq(mfp_to_gpio(COLIBRI_PXA320_ETH_IRQ_GPIO))
 
 #endif /* _COLIBRI_H_ */
 
