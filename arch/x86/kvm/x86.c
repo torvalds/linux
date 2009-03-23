@@ -3133,9 +3133,6 @@ static int vcpu_enter_guest(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 		}
 	}
 
-	clear_bit(KVM_REQ_PENDING_TIMER, &vcpu->requests);
-	kvm_inject_pending_timer_irqs(vcpu);
-
 	preempt_disable();
 
 	kvm_x86_ops->prepare_guest_switch(vcpu);
@@ -3235,6 +3232,7 @@ out:
 	return r;
 }
 
+
 static int __vcpu_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 {
 	int r;
@@ -3261,29 +3259,42 @@ static int __vcpu_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 			kvm_vcpu_block(vcpu);
 			down_read(&vcpu->kvm->slots_lock);
 			if (test_and_clear_bit(KVM_REQ_UNHALT, &vcpu->requests))
-				if (vcpu->arch.mp_state == KVM_MP_STATE_HALTED)
+			{
+				switch(vcpu->arch.mp_state) {
+				case KVM_MP_STATE_HALTED:
 					vcpu->arch.mp_state =
-							KVM_MP_STATE_RUNNABLE;
-			if (vcpu->arch.mp_state != KVM_MP_STATE_RUNNABLE)
-				r = -EINTR;
+						KVM_MP_STATE_RUNNABLE;
+				case KVM_MP_STATE_RUNNABLE:
+					break;
+				case KVM_MP_STATE_SIPI_RECEIVED:
+				default:
+					r = -EINTR;
+					break;
+				}
+			}
 		}
 
-		if (r > 0) {
-			if (dm_request_for_irq_injection(vcpu, kvm_run)) {
-				r = -EINTR;
-				kvm_run->exit_reason = KVM_EXIT_INTR;
-				++vcpu->stat.request_irq_exits;
-			}
-			if (signal_pending(current)) {
-				r = -EINTR;
-				kvm_run->exit_reason = KVM_EXIT_INTR;
-				++vcpu->stat.signal_exits;
-			}
-			if (need_resched()) {
-				up_read(&vcpu->kvm->slots_lock);
-				kvm_resched(vcpu);
-				down_read(&vcpu->kvm->slots_lock);
-			}
+		if (r <= 0)
+			break;
+
+		clear_bit(KVM_REQ_PENDING_TIMER, &vcpu->requests);
+		if (kvm_cpu_has_pending_timer(vcpu))
+			kvm_inject_pending_timer_irqs(vcpu);
+
+		if (dm_request_for_irq_injection(vcpu, kvm_run)) {
+			r = -EINTR;
+			kvm_run->exit_reason = KVM_EXIT_INTR;
+			++vcpu->stat.request_irq_exits;
+		}
+		if (signal_pending(current)) {
+			r = -EINTR;
+			kvm_run->exit_reason = KVM_EXIT_INTR;
+			++vcpu->stat.signal_exits;
+		}
+		if (need_resched()) {
+			up_read(&vcpu->kvm->slots_lock);
+			kvm_resched(vcpu);
+			down_read(&vcpu->kvm->slots_lock);
 		}
 	}
 

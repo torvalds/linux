@@ -488,10 +488,10 @@ int kvm_emulate_halt(struct kvm_vcpu *vcpu)
 		hrtimer_cancel(p_ht);
 		vcpu->arch.ht_active = 0;
 
-		if (test_and_clear_bit(KVM_REQ_UNHALT, &vcpu->requests))
+		if (test_and_clear_bit(KVM_REQ_UNHALT, &vcpu->requests) ||
+				kvm_cpu_has_pending_timer(vcpu))
 			if (vcpu->arch.mp_state == KVM_MP_STATE_HALTED)
-				vcpu->arch.mp_state =
-					KVM_MP_STATE_RUNNABLE;
+				vcpu->arch.mp_state = KVM_MP_STATE_RUNNABLE;
 
 		if (vcpu->arch.mp_state != KVM_MP_STATE_RUNNABLE)
 			return -EINTR;
