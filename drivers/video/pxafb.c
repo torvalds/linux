@@ -882,9 +882,20 @@ static void __devinit init_pxafb_overlay(struct pxafb_info *fbi,
 	init_completion(&ofb->branch_done);
 }
 
+static inline int pxafb_overlay_supported(void)
+{
+	if (cpu_is_pxa27x() || cpu_is_pxa3xx())
+		return 1;
+
+	return 0;
+}
+
 static int __devinit pxafb_overlay_init(struct pxafb_info *fbi)
 {
 	int i, ret;
+
+	if (!pxafb_overlay_supported())
+		return 0;
 
 	for (i = 0; i < 2; i++) {
 		init_pxafb_overlay(fbi, &fbi->overlay[i], i);
@@ -907,6 +918,9 @@ static int __devinit pxafb_overlay_init(struct pxafb_info *fbi)
 static void __devexit pxafb_overlay_exit(struct pxafb_info *fbi)
 {
 	int i;
+
+	if (!pxafb_overlay_supported())
+		return;
 
 	for (i = 0; i < 2; i++)
 		unregister_framebuffer(&fbi->overlay[i].fb);

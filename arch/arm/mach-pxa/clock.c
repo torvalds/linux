@@ -87,7 +87,7 @@ void clks_register(struct clk_lookup *clks, size_t num)
 		clkdev_add(&clks[i]);
 }
 
-int clk_add_alias(char *alias, struct device *alias_dev, char *id,
+int clk_add_alias(const char *alias, const char *alias_dev_name, char *id,
 	struct device *dev)
 {
 	struct clk *r = clk_get(dev, id);
@@ -96,7 +96,7 @@ int clk_add_alias(char *alias, struct device *alias_dev, char *id,
 	if (!r)
 		return -ENODEV;
 
-	l = clkdev_alloc(r, alias, alias_dev ? dev_name(alias_dev) : NULL);
+	l = clkdev_alloc(r, alias, alias_dev_name);
 	clk_put(r);
 	if (!l)
 		return -ENODEV;
