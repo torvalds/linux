@@ -357,8 +357,37 @@ irqreturn_t handle_IRQ_event(unsigned int irq, struct irqaction *action)
 
 	do {
 		ret = action->handler(irq, action->dev_id);
-		if (ret == IRQ_HANDLED)
+
+		switch (ret) {
+		case IRQ_WAKE_THREAD:
+			/*
+			 * Wake up the handler thread for this
+			 * action. In case the thread crashed and was
+			 * killed we just pretend that we handled the
+			 * interrupt. The hardirq handler above has
+			 * disabled the device interrupt, so no irq
+			 * storm is lurking.
+			 */
+			if (likely(!test_bit(IRQTF_DIED,
+					     &action->thread_flags))) {
+				set_bit(IRQTF_RUNTHREAD, &action->thread_flags);
+				wake_up_process(action->thread);
+			}
+
+			/*
+			 * Set it to handled so the spurious check
+			 * does not trigger.
+			 */
+			ret = IRQ_HANDLED;
+			/* Fall through to add to randomness */
+		case IRQ_HANDLED:
 			status |= action->flags;
+			break;
+
+		default:
+			break;
+		}
+
 		retval |= ret;
 		action = action->next;
 	} while (action);
