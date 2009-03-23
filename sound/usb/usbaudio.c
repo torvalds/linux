@@ -107,7 +107,7 @@ MODULE_PARM_DESC(ignore_ctl_error,
 #define MAX_PACKS_HS	(MAX_PACKS * 8)	/* in high speed mode */
 #define MAX_URBS	8
 #define SYNC_URBS	4	/* always four urbs for sync */
-#define MIN_PACKS_URB	1	/* minimum 1 packet per urb */
+#define MAX_QUEUE	24	/* try not to exceed this queue length, in ms */
 
 struct audioformat {
 	struct list_head list;
@@ -525,7 +525,7 @@ static int snd_usb_audio_next_packet_size(struct snd_usb_substream *subs)
 /*
  * Prepare urb for streaming before playback starts or when paused.
  *
- * We don't have any data, so we send a frame of silence.
+ * We don't have any data, so we send silence.
  */
 static int prepare_nodata_playback_urb(struct snd_usb_substream *subs,
 				       struct snd_pcm_runtime *runtime,
@@ -537,13 +537,13 @@ static int prepare_nodata_playback_urb(struct snd_usb_substream *subs,
 
 	offs = 0;
 	urb->dev = ctx->subs->dev;
-	urb->number_of_packets = subs->packs_per_ms;
-	for (i = 0; i < subs->packs_per_ms; ++i) {
+	for (i = 0; i < ctx->packets; ++i) {
 		counts = snd_usb_audio_next_packet_size(subs);
 		urb->iso_frame_desc[i].offset = offs * stride;
 		urb->iso_frame_desc[i].length = counts * stride;
 		offs += counts;
 	}
+	urb->number_of_packets = ctx->packets;
 	urb->transfer_buffer_length = offs * stride;
 	memset(urb->transfer_buffer,
 	       subs->cur_audiofmt->format == SNDRV_PCM_FORMAT_U8 ? 0x80 : 0,
@@ -1034,9 +1034,9 @@ static void release_substream_urbs(struct snd_usb_substream *subs, int force)
 static int init_substream_urbs(struct snd_usb_substream *subs, unsigned int period_bytes,
 			       unsigned int rate, unsigned int frame_bits)
 {
-	unsigned int maxsize, n, i;
+	unsigned int maxsize, i;
 	int is_playback = subs->direction == SNDRV_PCM_STREAM_PLAYBACK;
-	unsigned int npacks[MAX_URBS], urb_packs, total_packs, packs_per_ms;
+	unsigned int urb_packs, total_packs, packs_per_ms;
 
 	/* calculate the frequency in 16.16 format */
 	if (snd_usb_get_speed(subs->dev) == USB_SPEED_FULL)
@@ -1070,8 +1070,7 @@ static int init_substream_urbs(struct snd_usb_substream *subs, unsigned int peri
 	subs->packs_per_ms = packs_per_ms;
 
 	if (is_playback) {
-		urb_packs = nrpacks;
-		urb_packs = max(urb_packs, (unsigned int)MIN_PACKS_URB);
+		urb_packs = max(nrpacks, 1);
 		urb_packs = min(urb_packs, (unsigned int)MAX_PACKS);
 	} else
 		urb_packs = 1;
@@ -1079,7 +1078,7 @@ static int init_substream_urbs(struct snd_usb_substream *subs, unsigned int peri
 
 	/* decide how many packets to be used */
 	if (is_playback) {
-		unsigned int minsize;
+		unsigned int minsize, maxpacks;
 		/* determine how small a packet can be */
 		minsize = (subs->freqn >> (16 - subs->datainterval))
 			  * (frame_bits >> 3);
@@ -1092,8 +1091,13 @@ static int init_substream_urbs(struct snd_usb_substream *subs, unsigned int peri
 		total_packs = (total_packs + packs_per_ms - 1)
 				& ~(packs_per_ms - 1);
 		/* we need at least two URBs for queueing */
-		if (total_packs < 2 * MIN_PACKS_URB * packs_per_ms)
-			total_packs = 2 * MIN_PACKS_URB * packs_per_ms;
+		if (total_packs < 2 * packs_per_ms) {
+			total_packs = 2 * packs_per_ms;
+		} else {
+			/* and we don't want too long a queue either */
+			maxpacks = max(MAX_QUEUE * packs_per_ms, urb_packs * 2);
+			total_packs = min(total_packs, maxpacks);
+		}
 	} else {
 		total_packs = MAX_URBS * urb_packs;
 	}
@@ -1102,31 +1106,11 @@ static int init_substream_urbs(struct snd_usb_substream *subs, unsigned int peri
 		/* too much... */
 		subs->nurbs = MAX_URBS;
 		total_packs = MAX_URBS * urb_packs;
-	}
-	n = total_packs;
-	for (i = 0; i < subs->nurbs; i++) {
-		npacks[i] = n > urb_packs ? urb_packs : n;
-		n -= urb_packs;
-	}
-	if (subs->nurbs <= 1) {
+	} else if (subs->nurbs < 2) {
 		/* too little - we need at least two packets
 		 * to ensure contiguous playback/capture
 		 */
 		subs->nurbs = 2;
-		npacks[0] = (total_packs + 1) / 2;
-		npacks[1] = total_packs - npacks[0];
-	} else if (npacks[subs->nurbs-1] < MIN_PACKS_URB * packs_per_ms) {
-		/* the last packet is too small.. */
-		if (subs->nurbs > 2) {
-			/* merge to the first one */
-			npacks[0] += npacks[subs->nurbs - 1];
-			subs->nurbs--;
-		} else {
-			/* divide to two */
-			subs->nurbs = 2;
-			npacks[0] = (total_packs + 1) / 2;
-			npacks[1] = total_packs - npacks[0];
-		}
 	}
 
 	/* allocate and initialize data urbs */
@@ -1134,7 +1118,8 @@ static int init_substream_urbs(struct snd_usb_substream *subs, unsigned int peri
 		struct snd_urb_ctx *u = &subs->dataurb[i];
 		u->index = i;
 		u->subs = subs;
-		u->packets = npacks[i];
+		u->packets = (i + 1) * total_packs / subs->nurbs
+			- i * total_packs / subs->nurbs;
 		u->buffer_size = maxsize * u->packets;
 		if (subs->fmt_type == USB_FORMAT_TYPE_II)
 			u->packets++; /* for transfer delimiter */
@@ -1292,14 +1277,14 @@ static int init_usb_sample_rate(struct usb_device *dev, int iface,
 		if ((err = snd_usb_ctl_msg(dev, usb_sndctrlpipe(dev, 0), SET_CUR,
 					   USB_TYPE_CLASS|USB_RECIP_ENDPOINT|USB_DIR_OUT,
 					   SAMPLING_FREQ_CONTROL << 8, ep, data, 3, 1000)) < 0) {
-			snd_printk(KERN_ERR "%d:%d:%d: cannot set freq %d to ep 0x%x\n",
+			snd_printk(KERN_ERR "%d:%d:%d: cannot set freq %d to ep %#x\n",
 				   dev->devnum, iface, fmt->altsetting, rate, ep);
 			return err;
 		}
 		if ((err = snd_usb_ctl_msg(dev, usb_rcvctrlpipe(dev, 0), GET_CUR,
 					   USB_TYPE_CLASS|USB_RECIP_ENDPOINT|USB_DIR_IN,
 					   SAMPLING_FREQ_CONTROL << 8, ep, data, 3, 1000)) < 0) {
-			snd_printk(KERN_WARNING "%d:%d:%d: cannot get freq at ep 0x%x\n",
+			snd_printk(KERN_WARNING "%d:%d:%d: cannot get freq at ep %#x\n",
 				   dev->devnum, iface, fmt->altsetting, ep);
 			return 0; /* some devices don't support reading */
 		}
@@ -1431,9 +1416,11 @@ static int set_format(struct snd_usb_substream *subs, struct audioformat *fmt)
 	subs->cur_audiofmt = fmt;
 
 #if 0
-	printk("setting done: format = %d, rate = %d..%d, channels = %d\n",
+	printk(KERN_DEBUG
+	       "setting done: format = %d, rate = %d..%d, channels = %d\n",
 	       fmt->format, fmt->rate_min, fmt->rate_max, fmt->channels);
-	printk("  datapipe = 0x%0x, syncpipe = 0x%0x\n",
+	printk(KERN_DEBUG
+	       "  datapipe = 0x%0x, syncpipe = 0x%0x\n",
 	       subs->datapipe, subs->syncpipe);
 #endif
 
@@ -1468,7 +1455,7 @@ static int snd_usb_hw_params(struct snd_pcm_substream *substream,
 	channels = params_channels(hw_params);
 	fmt = find_format(subs, format, rate, channels);
 	if (!fmt) {
-		snd_printd(KERN_DEBUG "cannot set format: format = 0x%x, rate = %d, channels = %d\n",
+		snd_printd(KERN_DEBUG "cannot set format: format = %#x, rate = %d, channels = %d\n",
 			   format, rate, channels);
 		return -EINVAL;
 	}
@@ -1795,7 +1782,7 @@ static int check_hw_params_convention(struct snd_usb_substream *subs)
 			if (rates[f->format] && rates[f->format] != f->rates)
 				goto __out;
 		}
-		channels[f->format] |= (1 << f->channels);
+		channels[f->format] |= 1 << (f->channels - 1);
 		rates[f->format] |= f->rates;
 		/* needs knot? */
 		if (f->rates & SNDRV_PCM_RATE_KNOT)
@@ -1822,7 +1809,7 @@ static int check_hw_params_convention(struct snd_usb_substream *subs)
 			continue;
 		for (i = 0; i < 32; i++) {
 			if (f->rates & (1 << i))
-				channels[i] |= (1 << f->channels);
+				channels[i] |= 1 << (f->channels - 1);
 		}
 	}
 	cmaster = 0;
@@ -1919,7 +1906,7 @@ static int setup_hw_info(struct snd_pcm_runtime *runtime, struct snd_usb_substre
 	 * in the current code assume the 1ms period.
 	 */
 	snd_pcm_hw_constraint_minmax(runtime, SNDRV_PCM_HW_PARAM_PERIOD_TIME,
-				     1000 * MIN_PACKS_URB,
+				     1000,
 				     /*(nrpacks * MAX_URBS) * 1000*/ UINT_MAX);
 
 	err = check_hw_params_convention(subs);
@@ -2160,7 +2147,7 @@ static void proc_dump_substream_formats(struct snd_usb_substream *subs, struct s
 		fp = list_entry(p, struct audioformat, list);
 		snd_iprintf(buffer, "  Interface %d\n", fp->iface);
 		snd_iprintf(buffer, "    Altset %d\n", fp->altsetting);
-		snd_iprintf(buffer, "    Format: 0x%x\n", fp->format);
+		snd_iprintf(buffer, "    Format: %#x\n", fp->format);
 		snd_iprintf(buffer, "    Channels: %d\n", fp->channels);
 		snd_iprintf(buffer, "    Endpoint: %d %s (%s)\n",
 			    fp->endpoint & USB_ENDPOINT_NUMBER_MASK,
@@ -2180,7 +2167,7 @@ static void proc_dump_substream_formats(struct snd_usb_substream *subs, struct s
 			snd_iprintf(buffer, "\n");
 		}
 		// snd_iprintf(buffer, "    Max Packet Size = %d\n", fp->maxpacksize);
-		// snd_iprintf(buffer, "    EP Attribute = 0x%x\n", fp->attributes);
+		// snd_iprintf(buffer, "    EP Attribute = %#x\n", fp->attributes);
 	}
 }
 
@@ -2621,7 +2608,7 @@ static int parse_audio_format_ii(struct snd_usb_audio *chip, struct audioformat 
 		fp->format = SNDRV_PCM_FORMAT_MPEG;
 		break;
 	default:
-		snd_printd(KERN_INFO "%d:%u:%d : unknown format tag 0x%x is detected.  processed as MPEG.\n",
+		snd_printd(KERN_INFO "%d:%u:%d : unknown format tag %#x is detected.  processed as MPEG.\n",
 			   chip->dev->devnum, fp->iface, fp->altsetting, format);
 		fp->format = SNDRV_PCM_FORMAT_MPEG;
 		break;
@@ -2819,7 +2806,7 @@ static int parse_audio_endpoints(struct snd_usb_audio *chip, int iface_no)
 			continue;
 		}
 
-		snd_printdd(KERN_INFO "%d:%u:%d: add audio endpoint 0x%x\n", dev->devnum, iface_no, altno, fp->endpoint);
+		snd_printdd(KERN_INFO "%d:%u:%d: add audio endpoint %#x\n", dev->devnum, iface_no, altno, fp->endpoint);
 		err = add_audio_endpoint(chip, stream, fp);
 		if (err < 0) {
 			kfree(fp->rate_table);
@@ -3766,7 +3753,7 @@ static int usb_audio_resume(struct usb_interface *intf)
 
 static int __init snd_usb_audio_init(void)
 {
-	if (nrpacks < MIN_PACKS_URB || nrpacks > MAX_PACKS) {
+	if (nrpacks < 1 || nrpacks > MAX_PACKS) {
 		printk(KERN_WARNING "invalid nrpacks value.\n");
 		return -EINVAL;
 	}
