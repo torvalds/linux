@@ -83,7 +83,6 @@ static unsigned short triggered; /* The status of the watchdog upon boot */
 static char esb_expect_close;
 static struct platform_device *esb_platform_device;
 
-
 /* module parameters */
 /* 30 sec default heartbeat (1 < heartbeat < 2*1023) */
 #define WATCHDOG_HEARTBEAT 30
@@ -116,13 +115,18 @@ static inline void esb_unlock_registers(void)
 	writeb(ESB_UNLOCK2, ESB_RELOAD_REG);
 }
 
-static void esb_timer_start(void)
+static int esb_timer_start(void)
 {
 	u8 val;
 
+	spin_lock(&esb_lock);
+	esb_unlock_registers();
+	writew(ESB_WDT_RELOAD, ESB_RELOAD_REG);
 	/* Enable or Enable + Lock? */
 	val = 0x02 | (nowayout ? 0x01 : 0x00);
 	pci_write_config_byte(esb_pci, ESB_LOCK_REG, val);
+	spin_unlock(&esb_lock);
+	return 0;
 }
 
 static int esb_timer_stop(void)
@@ -209,7 +213,6 @@ static int esb_open(struct inode *inode, struct file *file)
 		return -EBUSY;
 
 	/* Reload and activate timer */
-	esb_timer_keepalive();
 	esb_timer_start();
 
 	return nonseekable_open(inode, file);
@@ -295,7 +298,6 @@ static long esb_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		}
 
 		if (new_options & WDIOS_ENABLECARD) {
-			esb_timer_keepalive();
 			esb_timer_start();
 			retval = 0;
 		}
