@@ -933,7 +933,6 @@ static int __init init_mac80211_hwsim(void)
 			BIT(NL80211_IFTYPE_STATION) |
 			BIT(NL80211_IFTYPE_AP) |
 			BIT(NL80211_IFTYPE_MESH_POINT);
-		hw->ampdu_queues = 1;
 
 		hw->flags = IEEE80211_HW_MFP_CAPABLE;
 

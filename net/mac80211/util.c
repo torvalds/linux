@@ -339,29 +339,8 @@ static void __ieee80211_wake_queue(struct ieee80211_hw *hw, int queue,
 {
 	struct ieee80211_local *local = hw_to_local(hw);
 
-	if (queue >= hw->queues) {
-		if (local->ampdu_ac_queue[queue - hw->queues] < 0)
-			return;
-
-		/*
-		 * for virtual aggregation queues, we need to refcount the
-		 * internal mac80211 disable (multiple times!), keep track of
-		 * driver disable _and_ make sure the regular queue is
-		 * actually enabled.
-		 */
-		if (reason == IEEE80211_QUEUE_STOP_REASON_AGGREGATION)
-			local->amdpu_ac_stop_refcnt[queue - hw->queues]--;
-		else
-			__clear_bit(reason, &local->queue_stop_reasons[queue]);
-
-		if (local->queue_stop_reasons[queue] ||
-		    local->amdpu_ac_stop_refcnt[queue - hw->queues])
-			return;
-
-		/* now go on to treat the corresponding regular queue */
-		queue = local->ampdu_ac_queue[queue - hw->queues];
-		reason = IEEE80211_QUEUE_STOP_REASON_AGGREGATION;
-	}
+	if (WARN_ON(queue >= hw->queues))
+		return;
 
 	__clear_bit(reason, &local->queue_stop_reasons[queue]);
 
@@ -400,25 +379,8 @@ static void __ieee80211_stop_queue(struct ieee80211_hw *hw, int queue,
 {
 	struct ieee80211_local *local = hw_to_local(hw);
 
-	if (queue >= hw->queues) {
-		if (local->ampdu_ac_queue[queue - hw->queues] < 0)
-			return;
-
-		/*
-		 * for virtual aggregation queues, we need to refcount the
-		 * internal mac80211 disable (multiple times!), keep track of
-		 * driver disable _and_ make sure the regular queue is
-		 * actually enabled.
-		 */
-		if (reason == IEEE80211_QUEUE_STOP_REASON_AGGREGATION)
-			local->amdpu_ac_stop_refcnt[queue - hw->queues]++;
-		else
-			__set_bit(reason, &local->queue_stop_reasons[queue]);
-
-		/* now go on to treat the corresponding regular queue */
-		queue = local->ampdu_ac_queue[queue - hw->queues];
-		reason = IEEE80211_QUEUE_STOP_REASON_AGGREGATION;
-	}
+	if (WARN_ON(queue >= hw->queues))
+		return;
 
 	/*
 	 * Only stop if it was previously running, this is necessary
@@ -474,15 +436,9 @@ EXPORT_SYMBOL(ieee80211_stop_queues);
 int ieee80211_queue_stopped(struct ieee80211_hw *hw, int queue)
 {
 	struct ieee80211_local *local = hw_to_local(hw);
-	unsigned long flags;
 
-	if (queue >= hw->queues) {
-		spin_lock_irqsave(&local->queue_stop_reason_lock, flags);
-		queue = local->ampdu_ac_queue[queue - hw->queues];
-		spin_unlock_irqrestore(&local->queue_stop_reason_lock, flags);
-		if (queue < 0)
-			return true;
-	}
+	if (WARN_ON(queue >= hw->queues))
+		return true;
 
 	return __netif_subqueue_stopped(local->mdev, queue);
 }
@@ -497,7 +453,7 @@ void ieee80211_wake_queues_by_reason(struct ieee80211_hw *hw,
 
 	spin_lock_irqsave(&local->queue_stop_reason_lock, flags);
 
-	for (i = 0; i < hw->queues + hw->ampdu_queues; i++)
+	for (i = 0; i < hw->queues; i++)
 		__ieee80211_wake_queue(hw, i, reason);
 
 	spin_unlock_irqrestore(&local->queue_stop_reason_lock, flags);

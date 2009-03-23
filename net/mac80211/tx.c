@@ -1145,25 +1145,6 @@ static int __ieee80211_tx(struct ieee80211_local *local,
 			info->flags &= ~(IEEE80211_TX_CTL_CLEAR_PS_FILT |
 					 IEEE80211_TX_CTL_FIRST_FRAGMENT);
 
-		/*
-		 * Internally, we need to have the queue mapping point to
-		 * the real AC queue, not the virtual A-MPDU queue. This
-		 * now finally sets the queue to what the driver wants.
-		 * We will later move this down into the only driver that
-		 * needs it, iwlwifi.
-		 */
-		if (sta && local->hw.ampdu_queues &&
-		    info->flags & IEEE80211_TX_CTL_AMPDU) {
-			unsigned long flags;
-			u8 *qc = ieee80211_get_qos_ctl((void *) skb->data);
-			int tid = *qc & IEEE80211_QOS_CTL_TID_MASK;
-
-			spin_lock_irqsave(&sta->lock, flags);
-			skb_set_queue_mapping(skb, local->hw.queues +
-						   sta->tid_to_tx_q[tid]);
-			spin_unlock_irqrestore(&sta->lock, flags);
-		}
-
 		next = skb->next;
 		len = skb->len;
 		ret = local->ops->tx(local_to_hw(local), skb);

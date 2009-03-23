@@ -594,12 +594,7 @@ struct ieee80211_local {
 
 	const struct ieee80211_ops *ops;
 
-	/* AC queue corresponding to each AMPDU queue */
-	s8 ampdu_ac_queue[IEEE80211_MAX_AMPDU_QUEUES];
-	unsigned int amdpu_ac_stop_refcnt[IEEE80211_MAX_AMPDU_QUEUES];
-
-	unsigned long queue_stop_reasons[IEEE80211_MAX_QUEUES +
-					 IEEE80211_MAX_AMPDU_QUEUES];
+	unsigned long queue_stop_reasons[IEEE80211_MAX_QUEUES];
 	/* also used to protect ampdu_ac_queue and amdpu_ac_stop_refcnt */
 	spinlock_t queue_stop_reason_lock;
 

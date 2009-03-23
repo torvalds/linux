@@ -1168,7 +1168,7 @@ static int iwl3945_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 			spin_unlock_irqrestore(&priv->lock, flags);
 		}
 
-		ieee80211_stop_queue(priv->hw, skb_get_queue_mapping(skb));
+		iwl_stop_queue(priv, skb_get_queue_mapping(skb));
 	}
 
 	return 0;

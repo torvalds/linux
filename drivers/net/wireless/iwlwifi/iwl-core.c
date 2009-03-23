@@ -1309,9 +1309,6 @@ int iwl_setup_mac(struct iwl_priv *priv)
 
 	/* Default value; 4 EDCA QOS priorities */
 	hw->queues = 4;
-	/* queues to support 11n aggregation */
-	if (priv->cfg->sku & IWL_SKU_N)
-		hw->ampdu_queues = priv->cfg->mod_params->num_of_ampdu_queues;
 
 	hw->conf.beacon_int = 100;
 	hw->max_listen_interval = IWL_CONN_MAX_LISTEN_INTERVAL;

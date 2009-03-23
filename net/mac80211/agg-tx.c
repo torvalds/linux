@@ -131,14 +131,6 @@ static int ___ieee80211_stop_tx_ba_session(struct sta_info *sta, u16 tid,
 
 	state = &sta->ampdu_mlme.tid_state_tx[tid];
 
-	if (local->hw.ampdu_queues) {
-		/*
-		 * Pretend the driver woke the queue, just in case
-		 * it disabled it before the session was stopped.
-		 */
-		ieee80211_wake_queue(
-			&local->hw, local->hw.queues + sta->tid_to_tx_q[tid]);
-	}
 	*state = HT_AGG_STATE_REQ_STOP_BA_MSK |
 		(initiator << HT_AGG_STATE_INITIATOR_SHIFT);
 
@@ -206,7 +198,7 @@ int ieee80211_start_tx_ba_session(struct ieee80211_hw *hw, u8 *ra, u16 tid)
 	struct sta_info *sta;
 	struct ieee80211_sub_if_data *sdata;
 	u8 *state;
-	int i, qn = -1, ret = 0;
+	int ret = 0;
 	u16 start_seq_num;
 
 	if (WARN_ON(!local->ops->ampdu_action))
@@ -275,29 +267,6 @@ int ieee80211_start_tx_ba_session(struct ieee80211_hw *hw, u8 *ra, u16 tid)
 		goto err_unlock_sta;
 	}
 
-	if (hw->ampdu_queues) {
-		spin_lock(&local->queue_stop_reason_lock);
-		/* reserve a new queue for this session */
-		for (i = 0; i < local->hw.ampdu_queues; i++) {
-			if (local->ampdu_ac_queue[i] < 0) {
-				qn = i;
-				local->ampdu_ac_queue[qn] =
-					ieee80211_ac_from_tid(tid);
-				break;
-			}
-		}
-		spin_unlock(&local->queue_stop_reason_lock);
-
-		if (qn < 0) {
-#ifdef CONFIG_MAC80211_HT_DEBUG
-			printk(KERN_DEBUG "BA request denied - "
-			       "queue unavailable for tid %d\n", tid);
-#endif /* CONFIG_MAC80211_HT_DEBUG */
-			ret = -ENOSPC;
-			goto err_unlock_sta;
-		}
-	}
-
 	/*
 	 * While we're asking the driver about the aggregation,
 	 * stop the AC queue so that we don't have to worry
@@ -319,7 +288,7 @@ int ieee80211_start_tx_ba_session(struct ieee80211_hw *hw, u8 *ra, u16 tid)
 					tid);
 #endif
 		ret = -ENOMEM;
-		goto err_return_queue;
+		goto err_wake_queue;
 	}
 
 	skb_queue_head_init(&sta->ampdu_mlme.tid_tx[tid]->pending);
@@ -348,7 +317,6 @@ int ieee80211_start_tx_ba_session(struct ieee80211_hw *hw, u8 *ra, u16 tid)
 		*state = HT_AGG_STATE_IDLE;
 		goto err_free;
 	}
-	sta->tid_to_tx_q[tid] = qn;
 
 	/* Driver vetoed or OKed, but we can take packets again now */
 	ieee80211_wake_queue_by_reason(
@@ -380,13 +348,7 @@ int ieee80211_start_tx_ba_session(struct ieee80211_hw *hw, u8 *ra, u16 tid)
  err_free:
 	kfree(sta->ampdu_mlme.tid_tx[tid]);
 	sta->ampdu_mlme.tid_tx[tid] = NULL;
- err_return_queue:
-	if (qn >= 0) {
-		/* give queue back to pool */
-		spin_lock(&local->queue_stop_reason_lock);
-		local->ampdu_ac_queue[qn] = -1;
-		spin_unlock(&local->queue_stop_reason_lock);
-	}
+ err_wake_queue:
 	ieee80211_wake_queue_by_reason(
 		&local->hw, ieee80211_ac_from_tid(tid),
 		IEEE80211_QUEUE_STOP_REASON_AGGREGATION);

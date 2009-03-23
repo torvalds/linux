@@ -93,12 +93,9 @@ struct ieee80211_ht_bss_info {
  * enum ieee80211_max_queues - maximum number of queues
  *
  * @IEEE80211_MAX_QUEUES: Maximum number of regular device queues.
- * @IEEE80211_MAX_AMPDU_QUEUES: Maximum number of queues usable
- *	for A-MPDU operation.
  */
 enum ieee80211_max_queues {
 	IEEE80211_MAX_QUEUES =		4,
-	IEEE80211_MAX_AMPDU_QUEUES =	16,
 };
 
 /**
@@ -952,12 +949,6 @@ enum ieee80211_hw_flags {
  *	data packets. WMM/QoS requires at least four, these
  *	queues need to have configurable access parameters.
  *
- * @ampdu_queues: number of available hardware transmit queues
- *	for A-MPDU packets, these have no access parameters
- *	because they're used only for A-MPDU frames. Note that
- *	mac80211 will not currently use any of the regular queues
- *	for aggregation.
- *
  * @rate_control_algorithm: rate control algorithm for this hardware.
  *	If unset (NULL), the default algorithm will be used. Must be
  *	set before calling ieee80211_register_hw().
@@ -982,7 +973,6 @@ struct ieee80211_hw {
 	int vif_data_size;
 	int sta_data_size;
 	u16 queues;
-	u16 ampdu_queues;
 	u16 max_listen_interval;
 	s8 max_signal;
 	u8 max_rates;
@@ -1372,8 +1362,8 @@ enum ieee80211_ampdu_mlme_action {
  * @get_tx_stats: Get statistics of the current TX queue status. This is used
  *	to get number of currently queued packets (queue length), maximum queue
  *	size (limit), and total number of packets sent using each TX queue
- *	(count). The 'stats' pointer points to an array that has hw->queues +
- *	hw->ampdu_queues items.
+ *	(count). The 'stats' pointer points to an array that has hw->queues
+ *	items.
  *
  * @get_tsf: Get the current TSF timer value from firmware/hardware. Currently,
  *	this is only used for IBSS mode BSSID merging and debugging. Is not a
