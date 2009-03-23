@@ -404,6 +404,27 @@ int ieee80211_start_tx_ba_session(struct ieee80211_hw *hw, u8 *ra, u16 tid)
 }
 EXPORT_SYMBOL(ieee80211_start_tx_ba_session);
 
+static void ieee80211_agg_tx_operational(struct ieee80211_local *local,
+					 struct sta_info *sta, u16 tid)
+{
+#ifdef CONFIG_MAC80211_HT_DEBUG
+	printk(KERN_DEBUG "Aggregation is on for tid %d \n", tid);
+#endif
+
+	if (local->hw.ampdu_queues) {
+		/*
+		 * Wake up the A-MPDU queue, we stopped it earlier,
+		 * this will in turn wake the entire AC.
+		 */
+		ieee80211_wake_queue_by_reason(&local->hw,
+			local->hw.queues + sta->tid_to_tx_q[tid],
+			IEEE80211_QUEUE_STOP_REASON_AGGREGATION);
+	}
+
+	local->ops->ampdu_action(&local->hw, IEEE80211_AMPDU_TX_OPERATIONAL,
+				 &sta->sta, tid, NULL);
+}
+
 void ieee80211_start_tx_ba_cb(struct ieee80211_hw *hw, u8 *ra, u16 tid)
 {
 	struct ieee80211_local *local = hw_to_local(hw);
@@ -446,20 +467,8 @@ void ieee80211_start_tx_ba_cb(struct ieee80211_hw *hw, u8 *ra, u16 tid)
 
 	*state |= HT_ADDBA_DRV_READY_MSK;
 
-	if (*state == HT_AGG_STATE_OPERATIONAL) {
-#ifdef CONFIG_MAC80211_HT_DEBUG
-		printk(KERN_DEBUG "Aggregation is on for tid %d \n", tid);
-#endif
-		if (hw->ampdu_queues) {
-			/*
-			 * Wake up this queue, we stopped it earlier,
-			 * this will in turn wake the entire AC.
-			 */
-			ieee80211_wake_queue_by_reason(hw,
-				hw->queues + sta->tid_to_tx_q[tid],
-				IEEE80211_QUEUE_STOP_REASON_AGGREGATION);
-		}
-	}
+	if (*state == HT_AGG_STATE_OPERATIONAL)
+		ieee80211_agg_tx_operational(local, sta, tid);
 
  out:
 	spin_unlock_bh(&sta->lock);
@@ -646,9 +655,7 @@ void ieee80211_process_addba_resp(struct ieee80211_local *local,
 				  struct ieee80211_mgmt *mgmt,
 				  size_t len)
 {
-	struct ieee80211_hw *hw = &local->hw;
-	u16 capab;
-	u16 tid, start_seq_num;
+	u16 capab, tid;
 	u8 *state;
 
 	capab = le16_to_cpu(mgmt->u.action.u.addba_resp.capab);
@@ -682,26 +689,10 @@ void ieee80211_process_addba_resp(struct ieee80211_local *local,
 
 		*state |= HT_ADDBA_RECEIVED_MSK;
 
-		if (hw->ampdu_queues && *state != curstate &&
-		    *state == HT_AGG_STATE_OPERATIONAL) {
-			/*
-			 * Wake up this queue, we stopped it earlier,
-			 * this will in turn wake the entire AC.
-			 */
-			ieee80211_wake_queue_by_reason(hw,
-				hw->queues + sta->tid_to_tx_q[tid],
-				IEEE80211_QUEUE_STOP_REASON_AGGREGATION);
-		}
-		sta->ampdu_mlme.addba_req_num[tid] = 0;
+		if (*state != curstate && *state == HT_AGG_STATE_OPERATIONAL)
+			ieee80211_agg_tx_operational(local, sta, tid);
 
-		if (local->ops->ampdu_action) {
-			(void)local->ops->ampdu_action(hw,
-					       IEEE80211_AMPDU_TX_RESUME,
-					       &sta->sta, tid, &start_seq_num);
-		}
-#ifdef CONFIG_MAC80211_HT_DEBUG
-		printk(KERN_DEBUG "Resuming TX aggregation for tid %d\n", tid);
-#endif /* CONFIG_MAC80211_HT_DEBUG */
+		sta->ampdu_mlme.addba_req_num[tid] = 0;
 	} else {
 		sta->ampdu_mlme.addba_req_num[tid]++;
 		___ieee80211_stop_tx_ba_session(sta, tid, WLAN_BACK_INITIATOR);

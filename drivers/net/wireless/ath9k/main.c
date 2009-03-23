@@ -2730,7 +2730,7 @@ static int ath9k_ampdu_action(struct ieee80211_hw *hw,
 
 		ieee80211_stop_tx_ba_cb_irqsafe(hw, sta->addr, tid);
 		break;
-	case IEEE80211_AMPDU_TX_RESUME:
+	case IEEE80211_AMPDU_TX_OPERATIONAL:
 		ath_tx_aggr_resume(sc, sta, tid);
 		break;
 	default:

@@ -1236,14 +1236,14 @@ enum ieee80211_filter_flags {
  * @IEEE80211_AMPDU_RX_STOP: stop Rx aggregation
  * @IEEE80211_AMPDU_TX_START: start Tx aggregation
  * @IEEE80211_AMPDU_TX_STOP: stop Tx aggregation
- * @IEEE80211_AMPDU_TX_RESUME: resume TX aggregation
+ * @IEEE80211_AMPDU_TX_OPERATIONAL: TX aggregation has become operational
  */
 enum ieee80211_ampdu_mlme_action {
 	IEEE80211_AMPDU_RX_START,
 	IEEE80211_AMPDU_RX_STOP,
 	IEEE80211_AMPDU_TX_START,
 	IEEE80211_AMPDU_TX_STOP,
-	IEEE80211_AMPDU_TX_RESUME,
+	IEEE80211_AMPDU_TX_OPERATIONAL,
 };
 
 /**
