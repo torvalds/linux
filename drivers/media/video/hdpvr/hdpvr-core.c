@@ -348,6 +348,14 @@ static int hdpvr_probe(struct usb_interface *interface,
 		goto error;
 	}
 
+#ifdef CONFIG_I2C
+	/* until i2c is working properly */
+	retval = 0; /* hdpvr_register_i2c_adapter(dev); */
+	if (retval < 0) {
+		err("registering i2c adapter failed");
+		goto error;
+	}
+#endif /* CONFIG_I2C */
 
 	/* save our data pointer in this interface device */
 	usb_set_intfdata(interface, dev);
@@ -389,12 +397,14 @@ static void hdpvr_disconnect(struct usb_interface *interface)
 	mutex_unlock(&dev->io_mutex);
 
 	/* deregister I2C adapter */
+#ifdef CONFIG_I2C
 	mutex_lock(&dev->i2c_mutex);
 	if (dev->i2c_adapter)
 		i2c_del_adapter(dev->i2c_adapter);
 	kfree(dev->i2c_adapter);
 	dev->i2c_adapter = NULL;
 	mutex_unlock(&dev->i2c_mutex);
+#endif /* CONFIG_I2C */
 
 	atomic_dec(&dev_nr);
 
