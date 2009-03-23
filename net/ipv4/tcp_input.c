@@ -3585,14 +3585,17 @@ static int tcp_ack(struct sock *sk, struct sk_buff *skb, int flag)
 	int prior_packets;
 	int frto_cwnd = 0;
 
-	/* If the ack is newer than sent or older than previous acks
+	/* If the ack is older than previous acks
 	 * then we can probably ignore it.
 	 */
-	if (after(ack, tp->snd_nxt))
-		goto uninteresting_ack;
-
 	if (before(ack, prior_snd_una))
 		goto old_ack;
+
+	/* If the ack includes data we haven't sent yet, discard
+	 * this segment (RFC793 Section 3.9).
+	 */
+	if (after(ack, tp->snd_nxt))
+		goto invalid_ack;
 
 	if (after(ack, prior_snd_una))
 		flag |= FLAG_SND_UNA_ADVANCED;
@@ -3683,6 +3686,10 @@ no_queue:
 		tcp_ack_probe(sk);
 	return 1;
 
+invalid_ack:
+	SOCK_DEBUG(sk, "Ack %u after %u:%u\n", ack, tp->snd_una, tp->snd_nxt);
+	return -1;
+
 old_ack:
 	if (TCP_SKB_CB(skb)->sacked) {
 		tcp_sacktag_write_queue(sk, skb, prior_snd_una);
@@ -3690,8 +3697,7 @@ old_ack:
 			tcp_try_keep_open(sk);
 	}
 
-uninteresting_ack:
-	SOCK_DEBUG(sk, "Ack %u out of %u:%u\n", ack, tp->snd_una, tp->snd_nxt);
+	SOCK_DEBUG(sk, "Ack %u before %u:%u\n", ack, tp->snd_una, tp->snd_nxt);
 	return 0;
 }
 
@@ -5141,7 +5147,8 @@ int tcp_rcv_established(struct sock *sk, struct sk_buff *skb,
 	 */
 
 	if ((tcp_flag_word(th) & TCP_HP_BITS) == tp->pred_flags &&
-	    TCP_SKB_CB(skb)->seq == tp->rcv_nxt) {
+	    TCP_SKB_CB(skb)->seq == tp->rcv_nxt &&
+	    !after(TCP_SKB_CB(skb)->ack_seq, tp->snd_nxt)) {
 		int tcp_header_len = tp->tcp_header_len;
 
 		/* Timestamp header prediction: tcp_header_len
@@ -5294,8 +5301,8 @@ slow_path:
 		return -res;
 
 step5:
-	if (th->ack)
-		tcp_ack(sk, skb, FLAG_SLOWPATH);
+	if (th->ack && tcp_ack(sk, skb, FLAG_SLOWPATH) < 0)
+		goto discard;
 
 	tcp_rcv_rtt_measure_ts(sk, skb);
 
@@ -5632,7 +5639,7 @@ int tcp_rcv_state_process(struct sock *sk, struct sk_buff *skb,
 
 	/* step 5: check the ACK field */
 	if (th->ack) {
-		int acceptable = tcp_ack(sk, skb, FLAG_SLOWPATH);
+		int acceptable = tcp_ack(sk, skb, FLAG_SLOWPATH) > 0;
 
 		switch (sk->sk_state) {
 		case TCP_SYN_RECV:
