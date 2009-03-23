@@ -35,10 +35,6 @@
 
 #define MEM			// Memory attribute to optimize speed and code of pointer access.
 
-#ifndef FAR
-#define FAR			// variables mapped to external data storage location
-#endif
-
 #ifndef CONST
 #define CONST const		// variables mapped to ROM (i.e. flash)
 #endif
