@@ -924,7 +924,7 @@ trace_function(struct trace_array *tr,
 }
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
-static void __trace_graph_entry(struct trace_array *tr,
+static int __trace_graph_entry(struct trace_array *tr,
 				struct ftrace_graph_ent *trace,
 				unsigned long flags,
 				int pc)
@@ -933,15 +933,17 @@ static void __trace_graph_entry(struct trace_array *tr,
 	struct ftrace_graph_ent_entry *entry;
 
 	if (unlikely(local_read(&__get_cpu_var(ftrace_cpu_disabled))))
-		return;
+		return 0;
 
 	event = trace_buffer_lock_reserve(&global_trace, TRACE_GRAPH_ENT,
 					  sizeof(*entry), flags, pc);
 	if (!event)
-		return;
+		return 0;
 	entry	= ring_buffer_event_data(event);
 	entry->graph_ent			= *trace;
 	ring_buffer_unlock_commit(global_trace.buffer, event);
+
+	return 1;
 }
 
 static void __trace_graph_return(struct trace_array *tr,
@@ -1162,6 +1164,7 @@ int trace_graph_entry(struct ftrace_graph_ent *trace)
 	struct trace_array_cpu *data;
 	unsigned long flags;
 	long disabled;
+	int ret;
 	int cpu;
 	int pc;
 
@@ -1177,15 +1180,18 @@ int trace_graph_entry(struct ftrace_graph_ent *trace)
 	disabled = atomic_inc_return(&data->disabled);
 	if (likely(disabled == 1)) {
 		pc = preempt_count();
-		__trace_graph_entry(tr, trace, flags, pc);
+		ret = __trace_graph_entry(tr, trace, flags, pc);
+	} else {
+		ret = 0;
 	}
 	/* Only do the atomic if it is not already set */
 	if (!test_tsk_trace_graph(current))
 		set_tsk_trace_graph(current);
+
 	atomic_dec(&data->disabled);
 	local_irq_restore(flags);
 
-	return 1;
+	return ret;
 }
 
 void trace_graph_return(struct ftrace_graph_ret *trace)
