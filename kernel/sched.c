@@ -9654,12 +9654,17 @@ static void cpuacct_charge(struct task_struct *tsk, u64 cputime)
 		return;
 
 	cpu = task_cpu(tsk);
+
+	rcu_read_lock();
+
 	ca = task_ca(tsk);
 
 	for (; ca; ca = ca->parent) {
 		u64 *cpuusage = percpu_ptr(ca->cpuusage, cpu);
 		*cpuusage += cputime;
 	}
+
+	rcu_read_unlock();
 }
 
 struct cgroup_subsys cpuacct_subsys = {
