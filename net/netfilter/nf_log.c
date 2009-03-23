@@ -14,6 +14,7 @@
    LOG target modules */
 
 #define NF_LOG_PREFIXLEN		128
+#define NFLOGGER_NAME_LEN		64
 
 static const struct nf_logger *nf_loggers[NFPROTO_NUMPROTO] __read_mostly;
 static struct list_head nf_loggers_l[NFPROTO_NUMPROTO] __read_mostly;
@@ -207,17 +208,99 @@ static const struct file_operations nflog_file_ops = {
 	.release = seq_release,
 };
 
+
 #endif /* PROC_FS */
 
+#ifdef CONFIG_SYSCTL
+struct ctl_path nf_log_sysctl_path[] = {
+	{ .procname = "net", .ctl_name = CTL_NET, },
+	{ .procname = "netfilter", .ctl_name = NET_NETFILTER, },
+	{ .procname = "nf_log", .ctl_name = CTL_UNNUMBERED, },
+	{ }
+};
+
+static char nf_log_sysctl_fnames[NFPROTO_NUMPROTO-NFPROTO_UNSPEC][3];
+static struct ctl_table nf_log_sysctl_table[NFPROTO_NUMPROTO+1];
+static struct ctl_table_header *nf_log_dir_header;
+
+static int nf_log_proc_dostring(ctl_table *table, int write, struct file *filp,
+			 void *buffer, size_t *lenp, loff_t *ppos)
+{
+	const struct nf_logger *logger;
+	int r = 0;
+	int tindex = (unsigned long)table->extra1;
+
+	if (write) {
+		if (!strcmp(buffer, "NONE")) {
+			nf_log_unbind_pf(tindex);
+			return 0;
+		}
+		mutex_lock(&nf_log_mutex);
+		logger = __find_logger(tindex, buffer);
+		if (logger == NULL) {
+			mutex_unlock(&nf_log_mutex);
+			return -ENOENT;
+		}
+		rcu_assign_pointer(nf_loggers[tindex], logger);
+		mutex_unlock(&nf_log_mutex);
+	} else {
+		rcu_read_lock();
+		logger = rcu_dereference(nf_loggers[tindex]);
+		if (!logger)
+			table->data = "NONE";
+		else
+			table->data = logger->name;
+		r = proc_dostring(table, write, filp, buffer, lenp, ppos);
+		rcu_read_unlock();
+	}
+
+	return r;
+}
+
+static __init int netfilter_log_sysctl_init(void)
+{
+	int i;
+
+	for (i = NFPROTO_UNSPEC; i < NFPROTO_NUMPROTO; i++) {
+		snprintf(nf_log_sysctl_fnames[i-NFPROTO_UNSPEC], 3, "%d", i);
+		nf_log_sysctl_table[i].ctl_name	= CTL_UNNUMBERED;
+		nf_log_sysctl_table[i].procname	=
+			nf_log_sysctl_fnames[i-NFPROTO_UNSPEC];
+		nf_log_sysctl_table[i].data = NULL;
+		nf_log_sysctl_table[i].maxlen =
+			NFLOGGER_NAME_LEN * sizeof(char);
+		nf_log_sysctl_table[i].mode = 0644;
+		nf_log_sysctl_table[i].proc_handler = nf_log_proc_dostring;
+		nf_log_sysctl_table[i].extra1 = (void *)(unsigned long) i;
+	}
+
+	nf_log_dir_header = register_sysctl_paths(nf_log_sysctl_path,
+				       nf_log_sysctl_table);
+	if (!nf_log_dir_header)
+		return -ENOMEM;
+
+	return 0;
+}
+#else
+static __init int netfilter_log_sysctl_init(void)
+{
+	return 0;
+}
+#endif /* CONFIG_SYSCTL */
 
 int __init netfilter_log_init(void)
 {
-	int i;
+	int i, r;
 #ifdef CONFIG_PROC_FS
 	if (!proc_create("nf_log", S_IRUGO,
 			 proc_net_netfilter, &nflog_file_ops))
 		return -1;
 #endif
+
+	/* Errors will trigger panic, unroll on error is unnecessary. */
+	r = netfilter_log_sysctl_init();
+	if (r < 0)
+		return r;
 
 	for (i = NFPROTO_UNSPEC; i < NFPROTO_NUMPROTO; i++)
 		INIT_LIST_HEAD(&(nf_loggers_l[i]));
