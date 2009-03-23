@@ -19,6 +19,7 @@
 #include "irq.h"
 #include "mmu.h"
 #include "kvm_cache_regs.h"
+#include "x86.h"
 
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -130,24 +131,6 @@ static u32 msrpm_ranges[] = {0, 0xc0000000, 0xc0010000};
 static inline u32 svm_has(u32 feat)
 {
 	return svm_features & feat;
-}
-
-static inline u8 pop_irq(struct kvm_vcpu *vcpu)
-{
-	int word_index = __ffs(vcpu->arch.irq_summary);
-	int bit_index = __ffs(vcpu->arch.irq_pending[word_index]);
-	int irq = word_index * BITS_PER_LONG + bit_index;
-
-	clear_bit(bit_index, &vcpu->arch.irq_pending[word_index]);
-	if (!vcpu->arch.irq_pending[word_index])
-		clear_bit(word_index, &vcpu->arch.irq_summary);
-	return irq;
-}
-
-static inline void push_irq(struct kvm_vcpu *vcpu, u8 irq)
-{
-	set_bit(irq, vcpu->arch.irq_pending);
-	set_bit(irq / BITS_PER_LONG, &vcpu->arch.irq_summary);
 }
 
 static inline void clgi(void)
@@ -1116,7 +1099,7 @@ static int pf_interception(struct vcpu_svm *svm, struct kvm_run *kvm_run)
 	if (!irqchip_in_kernel(kvm) &&
 	    is_external_interrupt(exit_int_info)) {
 		event_injection = true;
-		push_irq(&svm->vcpu, exit_int_info & SVM_EVTINJ_VEC_MASK);
+		kvm_push_irq(&svm->vcpu, exit_int_info & SVM_EVTINJ_VEC_MASK);
 	}
 
 	fault_address  = svm->vmcb->control.exit_info_2;
@@ -2336,7 +2319,7 @@ static void kvm_reput_irq(struct vcpu_svm *svm)
 	if ((control->int_ctl & V_IRQ_MASK)
 	    && !irqchip_in_kernel(svm->vcpu.kvm)) {
 		control->int_ctl &= ~V_IRQ_MASK;
-		push_irq(&svm->vcpu, control->int_vector);
+		kvm_push_irq(&svm->vcpu, control->int_vector);
 	}
 
 	svm->vcpu.arch.interrupt_window_open =
@@ -2346,7 +2329,7 @@ static void kvm_reput_irq(struct vcpu_svm *svm)
 
 static void svm_do_inject_vector(struct vcpu_svm *svm)
 {
-	svm_inject_irq(svm, pop_irq(&svm->vcpu));
+	svm_inject_irq(svm, kvm_pop_irq(&svm->vcpu));
 }
 
 static void do_interrupt_requests(struct kvm_vcpu *vcpu,

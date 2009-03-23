@@ -2489,18 +2489,6 @@ static void vmx_update_window_states(struct kvm_vcpu *vcpu)
 				 GUEST_INTR_STATE_MOV_SS)));
 }
 
-static void kvm_do_inject_irq(struct kvm_vcpu *vcpu)
-{
-	int word_index = __ffs(vcpu->arch.irq_summary);
-	int bit_index = __ffs(vcpu->arch.irq_pending[word_index]);
-	int irq = word_index * BITS_PER_LONG + bit_index;
-
-	clear_bit(bit_index, &vcpu->arch.irq_pending[word_index]);
-	if (!vcpu->arch.irq_pending[word_index])
-		clear_bit(word_index, &vcpu->arch.irq_summary);
-	kvm_queue_interrupt(vcpu, irq);
-}
-
 static void do_interrupt_requests(struct kvm_vcpu *vcpu,
 				       struct kvm_run *kvm_run)
 {
@@ -2534,7 +2522,7 @@ static void do_interrupt_requests(struct kvm_vcpu *vcpu,
 
 	if (vcpu->arch.interrupt_window_open) {
 		if (vcpu->arch.irq_summary && !vcpu->arch.interrupt.pending)
-			kvm_do_inject_irq(vcpu);
+			kvm_queue_interrupt(vcpu, kvm_pop_irq(vcpu));
 
 		if (vcpu->arch.interrupt.pending)
 			vmx_inject_irq(vcpu, vcpu->arch.interrupt.nr);
@@ -2619,8 +2607,7 @@ static int handle_exception(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 
 	if (!irqchip_in_kernel(vcpu->kvm) && is_external_interrupt(vect_info)) {
 		int irq = vect_info & VECTORING_INFO_VECTOR_MASK;
-		set_bit(irq, vcpu->arch.irq_pending);
-		set_bit(irq / BITS_PER_LONG, &vcpu->arch.irq_summary);
+		kvm_push_irq(vcpu, irq);
 	}
 
 	if ((intr_info & INTR_INFO_INTR_TYPE_MASK) == INTR_TYPE_NMI_INTR)
