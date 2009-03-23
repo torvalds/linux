@@ -69,19 +69,16 @@
 
 ****************************************************************************/
 
-#include "../EplInc.h"
-
 #ifndef _EPLCFGMA_H_
 #define _EPLCFGMA_H_
+
+#include "../EplInc.h"
 
 #if (((EPL_MODULE_INTEGRATION) & (EPL_MODULE_CFGMA)) != 0)
 
 #include "EplObdu.h"
 #include "EplSdoComu.h"
 
-//---------------------------------------------------------------------------
-// typedef
-//---------------------------------------------------------------------------
 //define max number of timeouts for configuration of 1 device
 #define EPL_CFGMA_MAX_TIMEOUT   3
 
@@ -152,10 +149,6 @@ typedef struct {
 	// m_wTimeOutCnt == CFGMA_MAX_TIMEOUT
 
 } tEplCfgMaNode;
-
-//---------------------------------------------------------------------------
-// function prototypes
-//---------------------------------------------------------------------------
 
 //---------------------------------------------------------------------------
 // Function:    EplCfgMaInit()

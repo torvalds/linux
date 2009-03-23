@@ -68,26 +68,15 @@
 
 ****************************************************************************/
 
+#ifndef _EPLSDOASYSEQU_H_
+#define _EPLSDOASYSEQU_H_
+
 #include "../EplSdo.h"
 #include "EplSdoUdpu.h"
 #include "EplSdoAsndu.h"
 #include "../EplEvent.h"
 #include "EplTimeru.h"
 
-#ifndef _EPLSDOASYSEQU_H_
-#define _EPLSDOASYSEQU_H_
-
-//---------------------------------------------------------------------------
-// const defines
-//---------------------------------------------------------------------------
-
-//---------------------------------------------------------------------------
-// typedef
-//---------------------------------------------------------------------------
-
-//---------------------------------------------------------------------------
-// function prototypes
-//---------------------------------------------------------------------------
 tEplKernel EplSdoAsySeqInit(tEplSdoComReceiveCb fpSdoComCb_p,
 			    tEplSdoComConCb fpSdoComConCb_p);
 

@@ -68,18 +68,10 @@
 
 ****************************************************************************/
 
-#include "EplNmtu.h"
-
 #ifndef _EPLNMTMNU_H_
 #define _EPLNMTMNU_H_
 
-//---------------------------------------------------------------------------
-// const defines
-//---------------------------------------------------------------------------
-
-//---------------------------------------------------------------------------
-// typedef
-//---------------------------------------------------------------------------
+#include "EplNmtu.h"
 
 typedef tEplKernel(* tEplNmtMnuCbNodeEvent) (unsigned int uiNodeId_p,
 					     tEplNmtNodeEvent NodeEvent_p,
@@ -90,10 +82,6 @@ typedef tEplKernel(* tEplNmtMnuCbNodeEvent) (unsigned int uiNodeId_p,
 typedef tEplKernel(* tEplNmtMnuCbBootEvent) (tEplNmtBootEvent BootEvent_p,
 					     tEplNmtState NmtState_p,
 					     u16 wErrorCode_p);
-
-//---------------------------------------------------------------------------
-// function prototypes
-//---------------------------------------------------------------------------
 
 #if(((EPL_MODULE_INTEGRATION) & (EPL_MODULE_NMT_MN)) != 0)
 

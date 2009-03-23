@@ -68,19 +68,12 @@
 
 ****************************************************************************/
 
-#include "../EplNmt.h"
-#include "EplEventu.h"
-
 #ifndef _EPLNMTU_H_
 #define _EPLNMTU_H_
 
-//---------------------------------------------------------------------------
-// const defines
-//---------------------------------------------------------------------------
+#include "../EplNmt.h"
+#include "EplEventu.h"
 
-//---------------------------------------------------------------------------
-// typedef
-//---------------------------------------------------------------------------
 // nmt commands
 typedef enum {
 	// requestable ASnd ServiceIds    0x01..0x1F
@@ -124,10 +117,6 @@ typedef enum {
 typedef tEplKernel(* tEplNmtuStateChangeCallback) (tEplEventNmtStateChange NmtStateChange_p);
 
 typedef tEplKernel(* tEplNmtuCheckEventCallback) (tEplNmtEvent NmtEvent_p);
-
-//---------------------------------------------------------------------------
-// function prototypes
-//---------------------------------------------------------------------------
 
 #if(((EPL_MODULE_INTEGRATION) & (EPL_MODULE_NMTU)) != 0)
 
