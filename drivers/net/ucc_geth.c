@@ -3641,14 +3641,9 @@ static int ucc_geth_probe(struct of_device* ofdev, const struct of_device_id *ma
 		if (err)
 			return -1;
 
-<<<<<<< HEAD:drivers/net/ucc_geth.c
-		snprintf(ug_info->mdio_bus, MII_BUS_ID_SIZE, "%x",
-				res.start&0xfffff);
-=======
 		uec_mdio_bus_name(bus_name, mdio);
 		snprintf(ug_info->phy_bus_id, sizeof(ug_info->phy_bus_id),
 			"%s:%02x", bus_name, *prop);
->>>>>>> 61fa9dcf9329cb92c220f7b656410fbe5e72f933:drivers/net/ucc_geth.c
 	}
 
 	/* get the phy interface type, or default to MII */
