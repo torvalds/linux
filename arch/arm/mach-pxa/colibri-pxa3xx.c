@@ -23,6 +23,7 @@
 #include <mach/mfp-pxa300.h>
 #include <mach/colibri.h>
 #include <mach/mmc.h>
+#include <mach/pxafb.h>
 
 #include "generic.h"
 #include "devices.h"
@@ -72,4 +73,49 @@ void __init colibri_pxa3xx_init_mmc(mfp_cfg_t *pins, int len, int detect_pin)
 	pxa_set_mci_info(&colibri_pxa3xx_mci_platform_data);
 }
 #endif /* CONFIG_MMC_PXA || CONFIG_MMC_PXA_MODULE */
+
+#if defined(CONFIG_FB_PXA) || defined(CONFIG_FB_PXA_MODULE)
+static int lcd_bl_pin;
+
+/*
+ * LCD panel (Sharp LQ043T3DX02)
+ */
+static void colibri_lcd_backlight(int on)
+{
+	gpio_set_value(lcd_bl_pin, !!on);
+}
+
+static struct pxafb_mode_info sharp_lq43_mode = {
+	.pixclock	= 101936,
+	.xres		= 480,
+	.yres		= 272,
+	.bpp		= 32,
+	.depth		= 18,
+	.hsync_len      = 41,
+	.left_margin    = 2,
+	.right_margin   = 2,
+	.vsync_len      = 10,
+	.upper_margin   = 2,
+	.lower_margin   = 2,
+	.sync	   	= 0,
+	.cmap_greyscale = 0,
+};
+
+static struct pxafb_mach_info sharp_lq43_info = {
+	.modes		= &sharp_lq43_mode,
+	.num_modes	= 1,
+	.cmap_inverse	= 0,
+	.cmap_static	= 0,
+	.lcd_conn	= LCD_COLOR_TFT_18BPP,
+	.pxafb_backlight_power = colibri_lcd_backlight,
+};
+
+void __init colibri_pxa3xx_init_lcd(int bl_pin)
+{
+	lcd_bl_pin = bl_pin;
+	gpio_request(bl_pin, "lcd backlight");
+	gpio_direction_output(bl_pin, 0);
+	set_pxa_fb_info(&sharp_lq43_info);
+}
+#endif
 

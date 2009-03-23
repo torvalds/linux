@@ -25,6 +25,7 @@
 #include <mach/pxa3xx-regs.h>
 #include <mach/mfp-pxa320.h>
 #include <mach/colibri.h>
+#include <mach/pxafb.h>
 #include <mach/ohci.h>
 
 #include "generic.h"
@@ -108,10 +109,48 @@ static mfp_cfg_t colibri_pxa320_mmc_pin_config[] __initdata = {
 	GPIO21_MMC1_DAT3
 };
 
+#if defined(CONFIG_FB_PXA) || defined(CONFIG_FB_PXA_MODULE)
+static mfp_cfg_t colibri_pxa320_lcd_pin_config[] __initdata = {
+	GPIO6_2_LCD_LDD_0,
+	GPIO7_2_LCD_LDD_1,
+	GPIO8_2_LCD_LDD_2,
+	GPIO9_2_LCD_LDD_3,
+	GPIO10_2_LCD_LDD_4,
+	GPIO11_2_LCD_LDD_5,
+	GPIO12_2_LCD_LDD_6,
+	GPIO13_2_LCD_LDD_7,
+	GPIO63_LCD_LDD_8,
+	GPIO64_LCD_LDD_9,
+	GPIO65_LCD_LDD_10,
+	GPIO66_LCD_LDD_11,
+	GPIO67_LCD_LDD_12,
+	GPIO68_LCD_LDD_13,
+	GPIO69_LCD_LDD_14,
+	GPIO70_LCD_LDD_15,
+	GPIO71_LCD_LDD_16,
+	GPIO72_LCD_LDD_17,
+	GPIO73_LCD_CS_N,
+	GPIO74_LCD_VSYNC,
+	GPIO14_2_LCD_FCLK,
+	GPIO15_2_LCD_LCLK,
+	GPIO16_2_LCD_PCLK,
+	GPIO17_2_LCD_BIAS,
+};
+
+static void __init colibri_pxa320_init_lcd(void)
+{
+	pxa3xx_mfp_config(ARRAY_AND_SIZE(colibri_pxa320_lcd_pin_config));
+}
+#else
+static inline void colibri_pxa320_init_lcd(void) {}
+#endif
+
 void __init colibri_pxa320_init(void)
 {
 	colibri_pxa320_init_eth();
 	colibri_pxa320_init_ohci();
+	colibri_pxa320_init_lcd();
+	colibri_pxa3xx_init_lcd(mfp_to_gpio(GPIO39_GPIO));
 	colibri_pxa3xx_init_mmc(ARRAY_AND_SIZE(colibri_pxa320_mmc_pin_config),
 				mfp_to_gpio(MFP_PIN_GPIO28));
 }

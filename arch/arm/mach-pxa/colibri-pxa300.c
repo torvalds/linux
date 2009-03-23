@@ -25,6 +25,7 @@
 #include <mach/pxa300.h>
 #include <mach/colibri.h>
 #include <mach/ohci.h>
+#include <mach/pxafb.h>
 
 #include "generic.h"
 #include "devices.h"
@@ -106,10 +107,49 @@ static mfp_cfg_t colibri_pxa300_mmc_pin_config[] __initdata = {
 	GPIO6_MMC1_DAT3,
 };
 
+#if defined(CONFIG_FB_PXA) || defined(CONFIG_FB_PXA_MODULE)
+static mfp_cfg_t colibri_pxa300_lcd_pin_config[] __initdata = {
+	GPIO54_LCD_LDD_0,
+	GPIO55_LCD_LDD_1,
+	GPIO56_LCD_LDD_2,
+	GPIO57_LCD_LDD_3,
+	GPIO58_LCD_LDD_4,
+	GPIO59_LCD_LDD_5,
+	GPIO60_LCD_LDD_6,
+	GPIO61_LCD_LDD_7,
+	GPIO62_LCD_LDD_8,
+	GPIO63_LCD_LDD_9,
+	GPIO64_LCD_LDD_10,
+	GPIO65_LCD_LDD_11,
+	GPIO66_LCD_LDD_12,
+	GPIO67_LCD_LDD_13,
+	GPIO68_LCD_LDD_14,
+	GPIO69_LCD_LDD_15,
+	GPIO70_LCD_LDD_16,
+	GPIO71_LCD_LDD_17,
+	GPIO62_LCD_CS_N,
+	GPIO72_LCD_FCLK,
+	GPIO73_LCD_LCLK,
+	GPIO74_LCD_PCLK,
+	GPIO75_LCD_BIAS,
+	GPIO76_LCD_VSYNC,
+};
+
+static void __init colibri_pxa300_init_lcd(void)
+{
+	pxa3xx_mfp_config(ARRAY_AND_SIZE(colibri_pxa300_lcd_pin_config));
+}
+
+#else
+static inline void colibri_pxa300_init_lcd(void) {}
+#endif /* CONFIG_FB_PXA || CONFIG_FB_PXA_MODULE */
+
 void __init colibri_pxa300_init(void)
 {
 	colibri_pxa300_init_eth();
 	colibri_pxa300_init_ohci();
+	colibri_pxa300_init_lcd();
+	colibri_pxa3xx_init_lcd(mfp_to_gpio(GPIO49_GPIO));
 	colibri_pxa3xx_init_mmc(ARRAY_AND_SIZE(colibri_pxa300_mmc_pin_config),
 				mfp_to_gpio(MFP_PIN_GPIO13));
 }
