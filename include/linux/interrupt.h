@@ -123,9 +123,20 @@ extern void free_irq(unsigned int, void *);
 
 struct device;
 
-extern int __must_check devm_request_irq(struct device *dev, unsigned int irq,
-			    irq_handler_t handler, unsigned long irqflags,
-			    const char *devname, void *dev_id);
+extern int __must_check
+devm_request_threaded_irq(struct device *dev, unsigned int irq,
+			  irq_handler_t handler, irq_handler_t thread_fn,
+			  unsigned long irqflags, const char *devname,
+			  void *dev_id);
+
+static inline int __must_check
+devm_request_irq(struct device *dev, unsigned int irq, irq_handler_t handler,
+		 unsigned long irqflags, const char *devname, void *dev_id)
+{
+	return devm_request_threaded_irq(dev, irq, handler, NULL, irqflags,
+					 devname, dev_id);
+}
+
 extern void devm_free_irq(struct device *dev, unsigned int irq, void *dev_id);
 
 /*
