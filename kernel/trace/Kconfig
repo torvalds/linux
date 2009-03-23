@@ -379,19 +379,15 @@ config DYNAMIC_FTRACE
 
 config FUNCTION_PROFILER
 	bool "Kernel function profiler"
-	depends on DYNAMIC_FTRACE
+	depends on FUNCTION_TRACER
 	default n
 	help
-	 This option enables the kernel function profiler. When the dynamic
-	 function tracing is enabled, a counter is added into the function
-	 records used by the dynamic function tracer. A file is created in
-	 debugfs called function_profile_enabled which defaults to zero.
+	 This option enables the kernel function profiler. A file is created
+	 in debugfs called function_profile_enabled which defaults to zero.
 	 When a 1 is echoed into this file profiling begins, and when a
 	 zero is entered, profiling stops. A file in the trace_stats
 	 directory called functions, that show the list of functions that
 	 have been hit and their counters.
-
-	 This takes up around 320K more memory.
 
 	 If in doubt, say N
 
