@@ -241,8 +241,11 @@ static int bin_page_mkwrite(struct vm_area_struct *vma, struct page *page)
 	struct sysfs_dirent *attr_sd = file->f_path.dentry->d_fsdata;
 	int ret;
 
-	if (!bb->vm_ops || !bb->vm_ops->page_mkwrite)
+	if (!bb->vm_ops)
 		return -EINVAL;
+
+	if (!bb->vm_ops->page_mkwrite)
+		return 0;
 
 	if (!sysfs_get_active_two(attr_sd))
 		return -EINVAL;
@@ -273,12 +276,78 @@ static int bin_access(struct vm_area_struct *vma, unsigned long addr,
 	return ret;
 }
 
+#ifdef CONFIG_NUMA
+static int bin_set_policy(struct vm_area_struct *vma, struct mempolicy *new)
+{
+	struct file *file = vma->vm_file;
+	struct bin_buffer *bb = file->private_data;
+	struct sysfs_dirent *attr_sd = file->f_path.dentry->d_fsdata;
+	int ret;
+
+	if (!bb->vm_ops || !bb->vm_ops->set_policy)
+		return 0;
+
+	if (!sysfs_get_active_two(attr_sd))
+		return -EINVAL;
+
+	ret = bb->vm_ops->set_policy(vma, new);
+
+	sysfs_put_active_two(attr_sd);
+	return ret;
+}
+
+static struct mempolicy *bin_get_policy(struct vm_area_struct *vma,
+					unsigned long addr)
+{
+	struct file *file = vma->vm_file;
+	struct bin_buffer *bb = file->private_data;
+	struct sysfs_dirent *attr_sd = file->f_path.dentry->d_fsdata;
+	struct mempolicy *pol;
+
+	if (!bb->vm_ops || !bb->vm_ops->get_policy)
+		return vma->vm_policy;
+
+	if (!sysfs_get_active_two(attr_sd))
+		return vma->vm_policy;
+
+	pol = bb->vm_ops->get_policy(vma, addr);
+
+	sysfs_put_active_two(attr_sd);
+	return pol;
+}
+
+static int bin_migrate(struct vm_area_struct *vma, const nodemask_t *from,
+			const nodemask_t *to, unsigned long flags)
+{
+	struct file *file = vma->vm_file;
+	struct bin_buffer *bb = file->private_data;
+	struct sysfs_dirent *attr_sd = file->f_path.dentry->d_fsdata;
+	int ret;
+
+	if (!bb->vm_ops || !bb->vm_ops->migrate)
+		return 0;
+
+	if (!sysfs_get_active_two(attr_sd))
+		return 0;
+
+	ret = bb->vm_ops->migrate(vma, from, to, flags);
+
+	sysfs_put_active_two(attr_sd);
+	return ret;
+}
+#endif
+
 static struct vm_operations_struct bin_vm_ops = {
 	.open		= bin_vma_open,
 	.close		= bin_vma_close,
 	.fault		= bin_fault,
 	.page_mkwrite	= bin_page_mkwrite,
 	.access		= bin_access,
+#ifdef CONFIG_NUMA
+	.set_policy	= bin_set_policy,
+	.get_policy	= bin_get_policy,
+	.migrate	= bin_migrate,
+#endif
 };
 
 static int mmap(struct file *file, struct vm_area_struct *vma)
@@ -287,7 +356,6 @@ static int mmap(struct file *file, struct vm_area_struct *vma)
 	struct sysfs_dirent *attr_sd = file->f_path.dentry->d_fsdata;
 	struct bin_attribute *attr = attr_sd->s_bin_attr.bin_attr;
 	struct kobject *kobj = attr_sd->s_parent->s_dir.kobj;
-	struct vm_operations_struct *vm_ops;
 	int rc;
 
 	mutex_lock(&bb->mutex);
@@ -302,24 +370,25 @@ static int mmap(struct file *file, struct vm_area_struct *vma)
 		goto out_put;
 
 	rc = attr->mmap(kobj, attr, vma);
-	vm_ops = vma->vm_ops;
-	vma->vm_ops = &bin_vm_ops;
 	if (rc)
+		goto out_put;
+
+	/*
+	 * PowerPC's pci_mmap of legacy_mem uses shmem_zero_setup()
+	 * to satisfy versions of X which crash if the mmap fails: that
+	 * substitutes a new vm_file, and we don't then want bin_vm_ops.
+	 */
+	if (vma->vm_file != file)
 		goto out_put;
 
 	rc = -EINVAL;
 	if (bb->mmapped && bb->vm_ops != vma->vm_ops)
 		goto out_put;
 
-#ifdef CONFIG_NUMA
-	rc = -EINVAL;
-	if (vm_ops && ((vm_ops->set_policy || vm_ops->get_policy || vm_ops->migrate)))
-		goto out_put;
-#endif
-
 	rc = 0;
 	bb->mmapped = 1;
-	bb->vm_ops = vm_ops;
+	bb->vm_ops = vma->vm_ops;
+	vma->vm_ops = &bin_vm_ops;
 out_put:
 	sysfs_put_active_two(attr_sd);
 out_unlock:
