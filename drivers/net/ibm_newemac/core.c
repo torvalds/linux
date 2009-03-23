@@ -2594,6 +2594,9 @@ static int __devinit emac_init_config(struct emac_instance *dev)
 		if (of_device_is_compatible(np, "ibm,emac-460ex") ||
 		    of_device_is_compatible(np, "ibm,emac-460gt"))
 			dev->features |= EMAC_FTR_460EX_PHY_CLK_FIX;
+		if (of_device_is_compatible(np, "ibm,emac-405ex") ||
+		    of_device_is_compatible(np, "ibm,emac-405exr"))
+			dev->features |= EMAC_FTR_440EP_PHY_CLK_FIX;
 	} else if (of_device_is_compatible(np, "ibm,emac4")) {
 		dev->features |= EMAC_FTR_EMAC4;
 		if (of_device_is_compatible(np, "ibm,emac-440gx"))

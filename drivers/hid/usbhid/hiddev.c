@@ -306,7 +306,7 @@ static int hiddev_open(struct inode *inode, struct file *file)
 	return 0;
 bail:
 	file->private_data = NULL;
-	kfree(list->hiddev);
+	kfree(list);
 	return res;
 }
 
@@ -323,7 +323,7 @@ static ssize_t hiddev_write(struct file * file, const char __user * buffer, size
  */
 static ssize_t hiddev_read(struct file * file, char __user * buffer, size_t count, loff_t *ppos)
 {
-	DECLARE_WAITQUEUE(wait, current);
+	DEFINE_WAIT(wait);
 	struct hiddev_list *list = file->private_data;
 	int event_size;
 	int retval;

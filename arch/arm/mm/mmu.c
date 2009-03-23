@@ -693,7 +693,8 @@ static void __init sanity_check_meminfo(void)
 		 * Check whether this memory bank would entirely overlap
 		 * the vmalloc area.
 		 */
-		if (__va(bank->start) >= VMALLOC_MIN) {
+		if (__va(bank->start) >= VMALLOC_MIN ||
+		    __va(bank->start) < PAGE_OFFSET) {
 			printk(KERN_NOTICE "Ignoring RAM at %.8lx-%.8lx "
 			       "(vmalloc region overlap).\n",
 			       bank->start, bank->start + bank->size - 1);

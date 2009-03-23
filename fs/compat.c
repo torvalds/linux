@@ -1408,7 +1408,7 @@ int compat_do_execve(char * filename,
 	bprm->cred = prepare_exec_creds();
 	if (!bprm->cred)
 		goto out_unlock;
-	check_unsafe_exec(bprm);
+	check_unsafe_exec(bprm, current->files);
 
 	file = open_exec(filename);
 	retval = PTR_ERR(file);

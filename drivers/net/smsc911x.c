@@ -1225,6 +1225,10 @@ static int smsc911x_open(struct net_device *dev)
 	dev_info(&dev->dev, "SMSC911x/921x identified at %#08lx, IRQ: %d\n",
 		 (unsigned long)pdata->ioaddr, dev->irq);
 
+	/* Reset the last known duplex and carrier */
+	pdata->last_duplex = -1;
+	pdata->last_carrier = -1;
+
 	/* Bring the PHY up */
 	phy_start(pdata->phy_dev);
 
@@ -1624,7 +1628,7 @@ static int smsc911x_eeprom_send_cmd(struct smsc911x_data *pdata, u32 op)
 	do {
 		msleep(1);
 		e2cmd = smsc911x_reg_read(pdata, E2P_CMD);
-	} while ((e2cmd & E2P_CMD_EPC_BUSY_) && (timeout--));
+	} while ((e2cmd & E2P_CMD_EPC_BUSY_) && (--timeout));
 
 	if (!timeout) {
 		SMSC_TRACE(DRV, "TIMED OUT");

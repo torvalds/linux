@@ -467,7 +467,7 @@ void __init efi_enter_virtual_mode(void)
 	efi_memory_desc_t *md;
 	efi_status_t status;
 	unsigned long size;
-	u64 end, systab, addr, npages;
+	u64 end, systab, addr, npages, end_pfn;
 	void *p, *va;
 
 	efi.systab = NULL;
@@ -479,7 +479,10 @@ void __init efi_enter_virtual_mode(void)
 		size = md->num_pages << EFI_PAGE_SHIFT;
 		end = md->phys_addr + size;
 
-		if (PFN_UP(end) <= max_low_pfn_mapped)
+		end_pfn = PFN_UP(end);
+		if (end_pfn <= max_low_pfn_mapped
+		    || (end_pfn > (1UL << (32 - PAGE_SHIFT))
+			&& end_pfn <= max_pfn_mapped))
 			va = __va(md->phys_addr);
 		else
 			va = efi_ioremap(md->phys_addr, size);

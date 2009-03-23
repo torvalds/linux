@@ -222,7 +222,7 @@ u8 lbs_data_rate_to_fw_index(u32 rate)
 static ssize_t lbs_anycast_get(struct device *dev,
 		struct device_attribute *attr, char * buf)
 {
-	struct lbs_private *priv = netdev_priv(to_net_dev(dev));
+	struct lbs_private *priv = to_net_dev(dev)->ml_priv;
 	struct cmd_ds_mesh_access mesh_access;
 	int ret;
 
@@ -241,7 +241,7 @@ static ssize_t lbs_anycast_get(struct device *dev,
 static ssize_t lbs_anycast_set(struct device *dev,
 		struct device_attribute *attr, const char * buf, size_t count)
 {
-	struct lbs_private *priv = netdev_priv(to_net_dev(dev));
+	struct lbs_private *priv = to_net_dev(dev)->ml_priv;
 	struct cmd_ds_mesh_access mesh_access;
 	uint32_t datum;
 	int ret;
@@ -263,7 +263,7 @@ static ssize_t lbs_anycast_set(struct device *dev,
 static ssize_t lbs_prb_rsp_limit_get(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
-	struct lbs_private *priv = netdev_priv(to_net_dev(dev));
+	struct lbs_private *priv = to_net_dev(dev)->ml_priv;
 	struct cmd_ds_mesh_access mesh_access;
 	int ret;
 	u32 retry_limit;
@@ -286,7 +286,7 @@ static ssize_t lbs_prb_rsp_limit_get(struct device *dev,
 static ssize_t lbs_prb_rsp_limit_set(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
 {
-	struct lbs_private *priv = netdev_priv(to_net_dev(dev));
+	struct lbs_private *priv = to_net_dev(dev)->ml_priv;
 	struct cmd_ds_mesh_access mesh_access;
 	int ret;
 	unsigned long retry_limit;
@@ -321,7 +321,7 @@ static void lbs_remove_mesh(struct lbs_private *priv);
 static ssize_t lbs_rtap_get(struct device *dev,
 		struct device_attribute *attr, char * buf)
 {
-	struct lbs_private *priv = netdev_priv(to_net_dev(dev));
+	struct lbs_private *priv = to_net_dev(dev)->ml_priv;
 	return snprintf(buf, 5, "0x%X\n", priv->monitormode);
 }
 
@@ -332,7 +332,7 @@ static ssize_t lbs_rtap_set(struct device *dev,
 		struct device_attribute *attr, const char * buf, size_t count)
 {
 	int monitor_mode;
-	struct lbs_private *priv = netdev_priv(to_net_dev(dev));
+	struct lbs_private *priv = to_net_dev(dev)->ml_priv;
 
 	sscanf(buf, "%x", &monitor_mode);
 	if (monitor_mode) {
@@ -383,7 +383,7 @@ static DEVICE_ATTR(lbs_rtap, 0644, lbs_rtap_get, lbs_rtap_set );
 static ssize_t lbs_mesh_get(struct device *dev,
 		struct device_attribute *attr, char * buf)
 {
-	struct lbs_private *priv = netdev_priv(to_net_dev(dev));
+	struct lbs_private *priv = to_net_dev(dev)->ml_priv;
 	return snprintf(buf, 5, "0x%X\n", !!priv->mesh_dev);
 }
 
@@ -393,7 +393,7 @@ static ssize_t lbs_mesh_get(struct device *dev,
 static ssize_t lbs_mesh_set(struct device *dev,
 		struct device_attribute *attr, const char * buf, size_t count)
 {
-	struct lbs_private *priv = netdev_priv(to_net_dev(dev));
+	struct lbs_private *priv = to_net_dev(dev)->ml_priv;
 	int enable;
 	int ret, action = CMD_ACT_MESH_CONFIG_STOP;
 
@@ -452,7 +452,7 @@ static struct attribute_group lbs_mesh_attr_group = {
  */
 static int lbs_dev_open(struct net_device *dev)
 {
-	struct lbs_private *priv = netdev_priv(dev) ;
+	struct lbs_private *priv = dev->ml_priv;
 	int ret = 0;
 
 	lbs_deb_enter(LBS_DEB_NET);
@@ -521,7 +521,7 @@ static int lbs_mesh_stop(struct net_device *dev)
  */
 static int lbs_eth_stop(struct net_device *dev)
 {
-	struct lbs_private *priv = netdev_priv(dev);
+	struct lbs_private *priv = dev->ml_priv;
 
 	lbs_deb_enter(LBS_DEB_NET);
 
@@ -538,7 +538,7 @@ static int lbs_eth_stop(struct net_device *dev)
 
 static void lbs_tx_timeout(struct net_device *dev)
 {
-	struct lbs_private *priv = netdev_priv(dev);
+	struct lbs_private *priv = dev->ml_priv;
 
 	lbs_deb_enter(LBS_DEB_TX);
 
@@ -590,7 +590,7 @@ EXPORT_SYMBOL_GPL(lbs_host_to_card_done);
  */
 static struct net_device_stats *lbs_get_stats(struct net_device *dev)
 {
-	struct lbs_private *priv = netdev_priv(dev);
+	struct lbs_private *priv = dev->ml_priv;
 
 	lbs_deb_enter(LBS_DEB_NET);
 	return &priv->stats;
@@ -599,7 +599,7 @@ static struct net_device_stats *lbs_get_stats(struct net_device *dev)
 static int lbs_set_mac_address(struct net_device *dev, void *addr)
 {
 	int ret = 0;
-	struct lbs_private *priv = netdev_priv(dev);
+	struct lbs_private *priv = dev->ml_priv;
 	struct sockaddr *phwaddr = addr;
 	struct cmd_ds_802_11_mac_address cmd;
 
@@ -732,7 +732,7 @@ static void lbs_set_mcast_worker(struct work_struct *work)
 
 static void lbs_set_multicast_list(struct net_device *dev)
 {
-	struct lbs_private *priv = netdev_priv(dev);
+	struct lbs_private *priv = dev->ml_priv;
 
 	schedule_work(&priv->mcast_work);
 }
@@ -748,7 +748,7 @@ static void lbs_set_multicast_list(struct net_device *dev)
 static int lbs_thread(void *data)
 {
 	struct net_device *dev = data;
-	struct lbs_private *priv = netdev_priv(dev);
+	struct lbs_private *priv = dev->ml_priv;
 	wait_queue_t wait;
 
 	lbs_deb_enter(LBS_DEB_THREAD);
@@ -1184,6 +1184,7 @@ struct lbs_private *lbs_add_card(void *card, struct device *dmdev)
 		goto done;
 	}
 	priv = netdev_priv(dev);
+	dev->ml_priv = priv;
 
 	if (lbs_init_adapter(priv)) {
 		lbs_pr_err("failed to initialize adapter structure.\n");

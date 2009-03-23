@@ -499,6 +499,7 @@ static int mdc800_usb_probe (struct usb_interface *intf,
 	retval = usb_register_dev(intf, &mdc800_class);
 	if (retval) {
 		dev_err(&intf->dev, "Not able to get a minor for this device.\n");
+		mutex_unlock(&mdc800->io_lock);
 		return -ENODEV;
 	}
 

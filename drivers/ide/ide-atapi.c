@@ -140,6 +140,12 @@ static void ide_queue_pc_head(ide_drive_t *drive, struct gendisk *disk,
 	rq->cmd_flags |= REQ_PREEMPT;
 	rq->buffer = (char *)pc;
 	rq->rq_disk = disk;
+
+	if (pc->req_xfer) {
+		rq->data = pc->buf;
+		rq->data_len = pc->req_xfer;
+	}
+
 	memcpy(rq->cmd, pc->c, 12);
 	if (drive->media == ide_tape)
 		rq->cmd[13] = REQ_IDETAPE_PC1;
@@ -159,6 +165,12 @@ int ide_queue_pc_tail(ide_drive_t *drive, struct gendisk *disk,
 	rq = blk_get_request(drive->queue, READ, __GFP_WAIT);
 	rq->cmd_type = REQ_TYPE_SPECIAL;
 	rq->buffer = (char *)pc;
+
+	if (pc->req_xfer) {
+		rq->data = pc->buf;
+		rq->data_len = pc->req_xfer;
+	}
+
 	memcpy(rq->cmd, pc->c, 12);
 	if (drive->media == ide_tape)
 		rq->cmd[13] = REQ_IDETAPE_PC1;

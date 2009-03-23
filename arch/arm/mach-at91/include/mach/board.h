@@ -56,6 +56,9 @@ struct at91_cf_data {
 	u8	vcc_pin;		/* power switching */
 	u8	rst_pin;		/* card reset */
 	u8	chipselect;		/* EBI Chip Select number */
+	u8	flags;
+#define AT91_CF_TRUE_IDE	0x01
+#define AT91_IDE_SWAP_A0_A2	0x02
 };
 extern void __init at91_add_device_cf(struct at91_cf_data *data);
 
@@ -93,6 +96,7 @@ struct atmel_nand_data {
 	u8		enable_pin;	/* chip enable */
 	u8		det_pin;	/* card detect */
 	u8		rdy_pin;	/* ready/busy */
+	u8              rdy_pin_active_low;     /* rdy_pin value is inverted */
 	u8		ale;		/* address line number connected to ALE */
 	u8		cle;		/* address line number connected to CLE */
 	u8		bus_width_16;	/* buswidth is 16 bit */

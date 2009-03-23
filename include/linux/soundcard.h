@@ -1045,50 +1045,36 @@ typedef struct mixer_vol_table {
  */
 #define LOCL_STARTAUDIO		1
 
-#if (!defined(__KERNEL__) && !defined(KERNEL) && !defined(INKERNEL) && !defined(_KERNEL)) || defined(USE_SEQ_MACROS) 
+#if !defined(__KERNEL__) || defined(USE_SEQ_MACROS)
 /*
  *	Some convenience macros to simplify programming of the
  *	/dev/sequencer interface
  *
- *	These macros define the API which should be used when possible.
+ *	This is a legacy interface for applications written against
+ *	the OSSlib-3.8 style interface. It is no longer possible
+ *	to actually link against OSSlib with this header, but we
+ *	still provide these macros for programs using them.
+ *
+ *	If you want to use OSSlib, it is recommended that you get
+ *	the GPL version of OSS-4.x and build against that version
+ *	of the header.
+ *
+ *	We redefine the extern keyword so that make headers_check
+ *	does not complain about SEQ_USE_EXTBUF.
  */
 #define SEQ_DECLAREBUF()		SEQ_USE_EXTBUF()
 
 void seqbuf_dump(void);	/* This function must be provided by programs */
 
-extern int OSS_init(int seqfd, int buflen);
-extern void OSS_seqbuf_dump(int fd, unsigned char *buf, int buflen);
-extern void OSS_seq_advbuf(int len, int fd, unsigned char *buf, int buflen);
-extern void OSS_seq_needbuf(int len, int fd, unsigned char *buf, int buflen);
-extern void OSS_patch_caching(int dev, int chn, int patch,
-			      int fd, unsigned char *buf, int buflen);
-extern void OSS_drum_caching(int dev, int chn, int patch,
-			      int fd, unsigned char *buf, int buflen);
-extern void OSS_write_patch(int fd, unsigned char *buf, int len);
-extern int OSS_write_patch2(int fd, unsigned char *buf, int len);
-
 #define SEQ_PM_DEFINES int __foo_bar___
-#ifdef OSSLIB
-#  define SEQ_USE_EXTBUF() \
-		extern unsigned char *_seqbuf; \
-		extern int _seqbuflen;extern int _seqbufptr
-#  define SEQ_DEFINEBUF(len) SEQ_USE_EXTBUF();static int _requested_seqbuflen=len
-#  define _SEQ_ADVBUF(len) OSS_seq_advbuf(len, seqfd, _seqbuf, _seqbuflen)
-#  define _SEQ_NEEDBUF(len) OSS_seq_needbuf(len, seqfd, _seqbuf, _seqbuflen)
-#  define SEQ_DUMPBUF() OSS_seqbuf_dump(seqfd, _seqbuf, _seqbuflen)
 
-#  define SEQ_LOAD_GMINSTR(dev, instr) \
-		OSS_patch_caching(dev, -1, instr, seqfd, _seqbuf, _seqbuflen)
-#  define SEQ_LOAD_GMDRUM(dev, drum) \
-		OSS_drum_caching(dev, -1, drum, seqfd, _seqbuf, _seqbuflen)
-#else /* !OSSLIB */
+#define SEQ_LOAD_GMINSTR(dev, instr)
+#define SEQ_LOAD_GMDRUM(dev, drum)
 
-#  define SEQ_LOAD_GMINSTR(dev, instr)
-#  define SEQ_LOAD_GMDRUM(dev, drum)
-
-#  define SEQ_USE_EXTBUF() \
-		extern unsigned char _seqbuf[]; \
-		extern int _seqbuflen;extern int _seqbufptr
+#define _SEQ_EXTERN extern
+#define SEQ_USE_EXTBUF() \
+		_SEQ_EXTERN unsigned char _seqbuf[]; \
+		_SEQ_EXTERN int _seqbuflen; _SEQ_EXTERN int _seqbufptr
 
 #ifndef USE_SIMPLE_MACROS
 /* Sample seqbuf_dump() implementation:
@@ -1131,7 +1117,6 @@ extern int OSS_write_patch2(int fd, unsigned char *buf, int len);
  */
 #define _SEQ_NEEDBUF(len)	/* empty */
 #endif
-#endif /* !OSSLIB */
 
 #define SEQ_VOLUME_MODE(dev, mode)	{_SEQ_NEEDBUF(8);\
 					_seqbuf[_seqbufptr] = SEQ_EXTENDED;\
@@ -1215,14 +1200,8 @@ extern int OSS_write_patch2(int fd, unsigned char *buf, int len);
 		_CHN_COMMON(dev, MIDI_CHN_PRESSURE, chn, pressure, 0, 0)
 
 #define SEQ_SET_PATCH SEQ_PGM_CHANGE
-#ifdef OSSLIB
-#   define SEQ_PGM_CHANGE(dev, chn, patch) \
-		{OSS_patch_caching(dev, chn, patch, seqfd, _seqbuf, _seqbuflen); \
-		 _CHN_COMMON(dev, MIDI_PGM_CHANGE, chn, patch, 0, 0);}
-#else
-#   define SEQ_PGM_CHANGE(dev, chn, patch) \
+#define SEQ_PGM_CHANGE(dev, chn, patch) \
 		_CHN_COMMON(dev, MIDI_PGM_CHANGE, chn, patch, 0, 0)
-#endif
 
 #define SEQ_CONTROL(dev, chn, controller, value) \
 		_CHN_COMMON(dev, MIDI_CTL_CHANGE, chn, controller, 0, value)
@@ -1300,19 +1279,12 @@ extern int OSS_write_patch2(int fd, unsigned char *buf, int len);
 /*
  * Patch loading.
  */
-#ifdef OSSLIB
-#   define SEQ_WRPATCH(patchx, len) \
-		OSS_write_patch(seqfd, (char*)(patchx), len)
-#   define SEQ_WRPATCH2(patchx, len) \
-		OSS_write_patch2(seqfd, (char*)(patchx), len)
-#else
-#   define SEQ_WRPATCH(patchx, len) \
+#define SEQ_WRPATCH(patchx, len) \
 		{if (_seqbufptr) SEQ_DUMPBUF();\
 		 if (write(seqfd, (char*)(patchx), len)==-1) \
 		    perror("Write patch: /dev/sequencer");}
-#   define SEQ_WRPATCH2(patchx, len) \
+#define SEQ_WRPATCH2(patchx, len) \
 		(SEQ_DUMPBUF(), write(seqfd, (char*)(patchx), len))
-#endif
 
 #endif
 #endif

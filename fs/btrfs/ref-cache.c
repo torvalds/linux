@@ -17,6 +17,7 @@
  */
 
 #include <linux/sched.h>
+#include <linux/sort.h>
 #include "ctree.h"
 #include "ref-cache.h"
 #include "transaction.h"

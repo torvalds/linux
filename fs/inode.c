@@ -369,6 +369,7 @@ static int invalidate_list(struct list_head *head, struct list_head *dispose)
 		invalidate_inode_buffers(inode);
 		if (!atomic_read(&inode->i_count)) {
 			list_move(&inode->i_list, dispose);
+			WARN_ON(inode->i_state & I_NEW);
 			inode->i_state |= I_FREEING;
 			count++;
 			continue;
@@ -470,6 +471,7 @@ static void prune_icache(int nr_to_scan)
 				continue;
 		}
 		list_move(&inode->i_list, &freeable);
+		WARN_ON(inode->i_state & I_NEW);
 		inode->i_state |= I_FREEING;
 		nr_pruned++;
 	}
@@ -666,6 +668,7 @@ void unlock_new_inode(struct inode *inode)
 	 * just created it (so there can be no old holders
 	 * that haven't tested I_LOCK).
 	 */
+	WARN_ON((inode->i_state & (I_LOCK|I_NEW)) != (I_LOCK|I_NEW));
 	inode->i_state &= ~(I_LOCK|I_NEW);
 	wake_up_inode(inode);
 }
@@ -1155,6 +1158,7 @@ void generic_delete_inode(struct inode *inode)
 
 	list_del_init(&inode->i_list);
 	list_del_init(&inode->i_sb_list);
+	WARN_ON(inode->i_state & I_NEW);
 	inode->i_state |= I_FREEING;
 	inodes_stat.nr_inodes--;
 	spin_unlock(&inode_lock);
@@ -1196,16 +1200,19 @@ static void generic_forget_inode(struct inode *inode)
 			spin_unlock(&inode_lock);
 			return;
 		}
+		WARN_ON(inode->i_state & I_NEW);
 		inode->i_state |= I_WILL_FREE;
 		spin_unlock(&inode_lock);
 		write_inode_now(inode, 1);
 		spin_lock(&inode_lock);
+		WARN_ON(inode->i_state & I_NEW);
 		inode->i_state &= ~I_WILL_FREE;
 		inodes_stat.nr_unused--;
 		hlist_del_init(&inode->i_hash);
 	}
 	list_del_init(&inode->i_list);
 	list_del_init(&inode->i_sb_list);
+	WARN_ON(inode->i_state & I_NEW);
 	inode->i_state |= I_FREEING;
 	inodes_stat.nr_inodes--;
 	spin_unlock(&inode_lock);

@@ -421,19 +421,21 @@ static struct ata_port_operations nv_generic_ops = {
 	.hardreset		= ATA_OP_NULL,
 };
 
-/* OSDL bz3352 reports that nf2/3 controllers can't determine device
- * signature reliably.  Also, the following thread reports detection
- * failure on cold boot with the standard debouncing timing.
+/* nf2 is ripe with hardreset related problems.
+ *
+ * kernel bz#3352 reports nf2/3 controllers can't determine device
+ * signature reliably.  The following thread reports detection failure
+ * on cold boot with the standard debouncing timing.
  *
  * http://thread.gmane.org/gmane.linux.ide/34098
  *
- * Debounce with hotplug timing and request follow-up SRST.
+ * And bz#12176 reports that hardreset simply doesn't work on nf2.
+ * Give up on it and just don't do hardreset.
  */
 static struct ata_port_operations nv_nf2_ops = {
-	.inherits		= &nv_common_ops,
+	.inherits		= &nv_generic_ops,
 	.freeze			= nv_nf2_freeze,
 	.thaw			= nv_nf2_thaw,
-	.hardreset		= nv_noclassify_hardreset,
 };
 
 /* For initial probing after boot and hot plugging, hardreset mostly
@@ -2521,7 +2523,7 @@ static void __exit nv_exit(void)
 module_init(nv_init);
 module_exit(nv_exit);
 module_param_named(adma, adma_enabled, bool, 0444);
-MODULE_PARM_DESC(adma, "Enable use of ADMA (Default: true)");
+MODULE_PARM_DESC(adma, "Enable use of ADMA (Default: false)");
 module_param_named(swncq, swncq_enabled, bool, 0444);
 MODULE_PARM_DESC(swncq, "Enable use of SWNCQ (Default: true)");
 

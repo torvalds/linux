@@ -119,11 +119,6 @@ static void i915_save_vga(struct drm_device *dev)
 
 	/* VGA color palette registers */
 	dev_priv->saveDACMASK = I915_READ8(VGA_DACMASK);
-	/* DACCRX automatically increments during read */
-	I915_WRITE8(VGA_DACRX, 0);
-	/* Read 3 bytes of color data from each index */
-	for (i = 0; i < 256 * 3; i++)
-		dev_priv->saveDACDATA[i] = I915_READ8(VGA_DACDATA);
 
 	/* MSR bits */
 	dev_priv->saveMSR = I915_READ8(VGA_MSR_READ);
@@ -225,12 +220,6 @@ static void i915_restore_vga(struct drm_device *dev)
 
 	/* VGA color palette registers */
 	I915_WRITE8(VGA_DACMASK, dev_priv->saveDACMASK);
-	/* DACCRX automatically increments during read */
-	I915_WRITE8(VGA_DACWX, 0);
-	/* Read 3 bytes of color data from each index */
-	for (i = 0; i < 256 * 3; i++)
-		I915_WRITE8(VGA_DACDATA, dev_priv->saveDACDATA[i]);
-
 }
 
 int i915_save_state(struct drm_device *dev)

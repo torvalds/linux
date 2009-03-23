@@ -1203,7 +1203,7 @@ typedef struct {
 #define NETXEN_IS_MSI_FAMILY(adapter) \
 	((adapter)->flags & (NETXEN_NIC_MSI_ENABLED | NETXEN_NIC_MSIX_ENABLED))
 
-#define MSIX_ENTRIES_PER_ADAPTER	8
+#define MSIX_ENTRIES_PER_ADAPTER	1
 #define NETXEN_MSIX_TBL_SPACE		8192
 #define NETXEN_PCI_REG_MSIX_TBL		0x44
 
@@ -1595,7 +1595,6 @@ dma_watchdog_wakeup(struct netxen_adapter *adapter)
 }
 
 
-int netxen_is_flash_supported(struct netxen_adapter *adapter);
 int netxen_get_flash_mac_addr(struct netxen_adapter *adapter, __le64 *mac);
 int netxen_p3_get_mac_addr(struct netxen_adapter *adapter, __le64 *mac);
 extern void netxen_change_ringparam(struct netxen_adapter *adapter);

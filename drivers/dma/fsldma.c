@@ -158,7 +158,8 @@ static void dma_start(struct fsl_dma_chan *fsl_chan)
 
 static void dma_halt(struct fsl_dma_chan *fsl_chan)
 {
-	int i = 0;
+	int i;
+
 	DMA_OUT(fsl_chan, &fsl_chan->reg_base->mr,
 		DMA_IN(fsl_chan, &fsl_chan->reg_base->mr, 32) | FSL_DMA_MR_CA,
 		32);
@@ -166,8 +167,11 @@ static void dma_halt(struct fsl_dma_chan *fsl_chan)
 		DMA_IN(fsl_chan, &fsl_chan->reg_base->mr, 32) & ~(FSL_DMA_MR_CS
 		| FSL_DMA_MR_EMS_EN | FSL_DMA_MR_CA), 32);
 
-	while (!dma_is_idle(fsl_chan) && (i++ < 100))
+	for (i = 0; i < 100; i++) {
+		if (dma_is_idle(fsl_chan))
+			break;
 		udelay(10);
+	}
 	if (i >= 100 && !dma_is_idle(fsl_chan))
 		dev_err(fsl_chan->dev, "DMA halt timeout!\n");
 }

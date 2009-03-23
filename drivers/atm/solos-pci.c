@@ -685,6 +685,7 @@ static int fpga_probe(struct pci_dev *dev, const struct pci_device_id *id)
  out_release_regions:
 	pci_release_regions(dev);
  out:
+	kfree(card);
 	return err;
 }
 
