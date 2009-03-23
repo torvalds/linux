@@ -194,6 +194,7 @@ struct be_adapter {
 	struct be_eq_obj rx_eq;
 	struct be_rx_obj rx_obj;
 	u32 big_page_size;	/* Compounded page size shared by rx wrbs */
+	bool rx_post_starved;	/* Zero rx frags have been posted to BE */
 
 	struct vlan_group *vlan_grp;
 	u16 num_vlans;

@@ -57,8 +57,8 @@
 
 #define DRV_MODULE_NAME		"bnx2"
 #define PFX DRV_MODULE_NAME	": "
-#define DRV_MODULE_VERSION	"1.9.2"
-#define DRV_MODULE_RELDATE	"Feb 11, 2009"
+#define DRV_MODULE_VERSION	"1.9.3"
+#define DRV_MODULE_RELDATE	"March 17, 2009"
 
 #define RUN_AT(x) (jiffies + (x))
 
@@ -5843,9 +5843,6 @@ bnx2_enable_msix(struct bnx2 *bp, int msix_vecs)
 	for (i = 0; i < BNX2_MAX_MSIX_VEC; i++) {
 		msix_ent[i].entry = i;
 		msix_ent[i].vector = 0;
-
-		snprintf(bp->irq_tbl[i].name, len, "%s-%d", dev->name, i);
-		bp->irq_tbl[i].handler = bnx2_msi_1shot;
 	}
 
 	rc = pci_enable_msix(bp->pdev, msix_ent, BNX2_MAX_MSIX_VEC);
@@ -5854,8 +5851,11 @@ bnx2_enable_msix(struct bnx2 *bp, int msix_vecs)
 
 	bp->irq_nvecs = msix_vecs;
 	bp->flags |= BNX2_FLAG_USING_MSIX | BNX2_FLAG_ONE_SHOT_MSI;
-	for (i = 0; i < BNX2_MAX_MSIX_VEC; i++)
+	for (i = 0; i < BNX2_MAX_MSIX_VEC; i++) {
 		bp->irq_tbl[i].vector = msix_ent[i].vector;
+		snprintf(bp->irq_tbl[i].name, len, "%s-%d", dev->name, i);
+		bp->irq_tbl[i].handler = bnx2_msi_1shot;
+	}
 }
 
 static void
