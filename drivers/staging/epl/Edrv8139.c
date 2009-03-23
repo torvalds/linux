@@ -81,7 +81,6 @@
 #include <linux/init.h>
 #include <linux/errno.h>
 #include <linux/major.h>
-#include <linux/version.h>
 #include <asm/io.h>
 #include <asm/uaccess.h>
 #include <asm/atomic.h>
@@ -751,12 +750,7 @@ void EdrvInterruptHandler(void)
 }
 #endif
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,19)
 static int TgtEthIsr(int nIrqNum_p, void *ppDevInstData_p)
-#else
-static int TgtEthIsr(int nIrqNum_p, void *ppDevInstData_p,
-		     struct pt_regs *ptRegs_p)
-#endif
 {
 //    EdrvInterruptHandler();
 	tEdrvRxBuffer RxBuffer;

@@ -83,7 +83,6 @@
 #include <linux/init.h>
 #include <linux/errno.h>
 #include <linux/major.h>
-#include <linux/version.h>
 #include <asm/io.h>
 #include <asm/uaccess.h>
 #include <asm/atomic.h>

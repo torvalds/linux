@@ -88,7 +88,6 @@
 #include <linux/init.h>
 #include <linux/errno.h>
 #include <linux/major.h>
-#include <linux/version.h>
 
     //29.11.2004 f.j. sonst ist memcpy und memset unbekannt
 //    #include <string.h>

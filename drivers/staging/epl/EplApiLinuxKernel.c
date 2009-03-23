@@ -72,9 +72,6 @@
 
 // kernel modul and driver
 
-//#include <linux/version.h>
-//#include <linux/config.h>
-
 #include <linux/module.h>
 #include <linux/fs.h>
 #include <linux/cdev.h>
@@ -102,15 +99,6 @@
 //#include "kernel/EplPdokCal.h"
 #include "proc_fs.h"
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
-    // remove ("make invisible") obsolete symbols for kernel versions 2.6
-    // and higher
-#define MOD_INC_USE_COUNT
-#define MOD_DEC_USE_COUNT
-#define EXPORT_NO_SYMBOLS
-#else
-#error "This driver needs a 2.6.x kernel or higher"
-#endif
 
 /***************************************************************************/
 /*                                                                         */
@@ -225,8 +213,6 @@ static int EplLinIoctl(struct inode *pDeviceFile_p, struct file *pInstance_p,
 //---------------------------------------------------------------------------
 //  Kernel Module specific Data Structures
 //---------------------------------------------------------------------------
-
-EXPORT_NO_SYMBOLS;
 
 module_init(EplLinInit);
 module_exit(EplLinExit);
@@ -416,8 +402,6 @@ static int EplLinOpen(struct inode *pDeviceFile_p,	// information about the devi
 
 	TRACE0("EPL: + EplLinOpen...\n");
 
-	MOD_INC_USE_COUNT;
-
 	if (uiEplState_g != EPL_STATE_NOTOPEN) {	// stack already initialized
 		iRet = -EALREADY;
 	} else {
@@ -489,8 +473,6 @@ static int EplLinRelease(struct inode *pDeviceFile_p,	// information about the d
 
 	uiEplState_g = EPL_STATE_NOTOPEN;
 	iRet = 0;
-
-	MOD_DEC_USE_COUNT;
 
 	TRACE1("EPL: - EplLinRelease (iRet=%d)\n", iRet);
 	return (iRet);
