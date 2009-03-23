@@ -1089,7 +1089,7 @@ static int __ieee80211_tx(struct ieee80211_local *local,
 {
 	struct sk_buff *skb = *skbp, *next;
 	struct ieee80211_tx_info *info;
-	int ret;
+	int ret, len;
 	bool fragm = false;
 
 	local->mdev->trans_start = jiffies;
@@ -1125,7 +1125,12 @@ static int __ieee80211_tx(struct ieee80211_local *local,
 		}
 
 		next = skb->next;
+		len = skb->len;
 		ret = local->ops->tx(local_to_hw(local), skb);
+		if (WARN_ON(ret != NETDEV_TX_OK && skb->len != len)) {
+			dev_kfree_skb(skb);
+			ret = NETDEV_TX_OK;
+		}
 		if (ret != NETDEV_TX_OK)
 			return IEEE80211_TX_AGAIN;
 		*skbp = skb = next;
