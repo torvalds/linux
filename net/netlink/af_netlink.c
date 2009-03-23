@@ -1106,6 +1106,7 @@ void netlink_set_err(struct sock *ssk, u32 pid, u32 group, int code)
 
 	read_unlock(&nl_table_lock);
 }
+EXPORT_SYMBOL(netlink_set_err);
 
 /* must be called with netlink table grabbed */
 static void netlink_update_socket_mc(struct netlink_sock *nlk,
