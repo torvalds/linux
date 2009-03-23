@@ -815,6 +815,7 @@ static int asus_setkeycode(struct input_dev *dev, int scancode, int keycode)
 static void asus_hotk_notify(acpi_handle handle, u32 event, void *data)
 {
 	static struct key_entry *key;
+	u16 count;
 
 	/* TODO Find a better way to handle events count. */
 	if (!hotk)
@@ -832,9 +833,11 @@ static void asus_hotk_notify(acpi_handle handle, u32 event, void *data)
 		lcd_blank(FB_BLANK_POWERDOWN);
 	}
 
+	count = hotk->event_count[event % 128]++;
+	acpi_bus_generate_proc_event(hotk->device, event, count);
 	acpi_bus_generate_netlink_event(hotk->device->pnp.device_class,
 					dev_name(&hotk->device->dev), event,
-					hotk->event_count[event % 128]++);
+					count);
 
 	if (hotk->inputdev) {
 		key = asus_get_entry_by_scancode(event);

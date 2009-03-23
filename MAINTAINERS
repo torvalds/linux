@@ -3876,6 +3876,15 @@ L:	linux-ide@vger.kernel.org
 T:	git kernel.org:/pub/scm/linux/kernel/git/jgarzik/libata-dev.git
 S:	Supported
 
+SERVER ENGINES 10Gbps NIC - BladeEngine 2 DRIVER
+P:	Sathya Perla
+M:	sathyap@serverengines.com
+P:      Subbu Seetharaman
+M:      subbus@serverengines.com
+L:      netdev@vger.kernel.org
+W:      http://www.serverengines.com
+S:      Supported
+
 SFC NETWORK DRIVER
 P:	Steve Hodgson
 P:	Ben Hutchings

@@ -73,8 +73,6 @@ source "drivers/staging/rt2860/Kconfig"
 
 source "drivers/staging/rt2870/Kconfig"
 
-source "drivers/staging/benet/Kconfig"
-
 source "drivers/staging/comedi/Kconfig"
 
 source "drivers/staging/asus_oled/Kconfig"
