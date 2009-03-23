@@ -835,6 +835,9 @@ static const struct net_device_ops qec_ops = {
 	.ndo_start_xmit		= qe_start_xmit,
 	.ndo_set_multicast_list	= qe_set_multicast,
 	.ndo_tx_timeout		= qe_tx_timeout,
+	.ndo_change_mtu		= eth_change_mtu,
+	.ndo_set_mac_address	= eth_mac_addr,
+	.ndo_validate_addr	= eth_validate_addr,
 };
 
 static int __devinit qec_ether_init(struct of_device *op)

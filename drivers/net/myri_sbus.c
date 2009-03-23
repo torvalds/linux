@@ -903,6 +903,8 @@ static const struct net_device_ops myri_ops = {
 	.ndo_set_multicast_list	= myri_set_multicast,
 	.ndo_tx_timeout		= myri_tx_timeout,
 	.ndo_change_mtu		= myri_change_mtu,
+	.ndo_set_mac_address	= eth_mac_addr,
+	.ndo_validate_addr	= eth_validate_addr,
 };
 
 static int __devinit myri_sbus_probe(struct of_device *op, const struct of_device_id *match)
