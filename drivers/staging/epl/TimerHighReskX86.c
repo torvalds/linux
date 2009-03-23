@@ -97,10 +97,6 @@
 
 #define PROVE_OVERRUN
 
-#ifndef CONFIG_HIGH_RES_TIMERS
-#error "Kernel symbol CONFIG_HIGH_RES_TIMERS is required."
-#endif
-
 // TracePoint support for realtime-debugging
 #ifdef _DBG_TRACE_POINTS_
 void TgtDbgSignalTracePoint(u8 bTracePointNumber_p);
@@ -205,13 +201,6 @@ tEplKernel EplTimerHighReskAddInstance(void)
 
 	EPL_MEMSET(&EplTimerHighReskInstance_l, 0,
 		   sizeof(EplTimerHighReskInstance_l));
-
-#ifndef CONFIG_HIGH_RES_TIMERS
-	printk
-	    ("EplTimerHighResk: Kernel symbol CONFIG_HIGH_RES_TIMERS is required.\n");
-	Ret = kEplNoResource;
-	return Ret;
-#endif
 
 	/*
 	 * Initialize hrtimer structures for all usable timers.
