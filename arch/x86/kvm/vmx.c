@@ -39,19 +39,19 @@ MODULE_AUTHOR("Qumranet");
 MODULE_LICENSE("GPL");
 
 static int bypass_guest_pf = 1;
-module_param(bypass_guest_pf, bool, 0);
+module_param(bypass_guest_pf, bool, S_IRUGO);
 
 static int enable_vpid = 1;
-module_param(enable_vpid, bool, 0);
+module_param(enable_vpid, bool, 0444);
 
 static int flexpriority_enabled = 1;
-module_param(flexpriority_enabled, bool, 0);
+module_param(flexpriority_enabled, bool, S_IRUGO);
 
 static int enable_ept = 1;
-module_param(enable_ept, bool, 0);
+module_param(enable_ept, bool, S_IRUGO);
 
 static int emulate_invalid_guest_state = 0;
-module_param(emulate_invalid_guest_state, bool, 0);
+module_param(emulate_invalid_guest_state, bool, S_IRUGO);
 
 struct vmcs {
 	u32 revision_id;
