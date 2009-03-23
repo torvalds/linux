@@ -29,24 +29,16 @@
 #include <mach/regs-clock.h>
 #include <mach/regs-gpio.h>
 #include <mach/hardware.h>
-#include <mach/audio.h>
+#include <plat/audio.h>
 #include <linux/io.h>
 #include <mach/spi-gpio.h>
 
-#include <asm/plat-s3c24xx/regs-iis.h>
+#include <plat/regs-iis.h>
 
 #include "../codecs/wm8753.h"
 #include "lm4857.h"
 #include "s3c24xx-pcm.h"
 #include "s3c24xx-i2s.h"
-
-/* Debugging stuff */
-#define S3C24XX_SOC_NEO1973_WM8753_DEBUG 0
-#if S3C24XX_SOC_NEO1973_WM8753_DEBUG
-#define DBG(x...) printk(KERN_DEBUG "s3c24xx-soc-neo1973-wm8753: " x)
-#else
-#define DBG(x...)
-#endif
 
 /* define the scenarios */
 #define NEO_AUDIO_OFF			0
@@ -72,7 +64,7 @@ static int neo1973_hifi_hw_params(struct snd_pcm_substream *substream,
 	int ret = 0;
 	unsigned long iis_clkrate;
 
-	DBG("Entered %s\n", __func__);
+	pr_debug("Entered %s\n", __func__);
 
 	iis_clkrate = s3c24xx_i2s_get_clockrate();
 
@@ -158,7 +150,7 @@ static int neo1973_hifi_hw_free(struct snd_pcm_substream *substream)
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_dai *codec_dai = rtd->dai->codec_dai;
 
-	DBG("Entered %s\n", __func__);
+	pr_debug("Entered %s\n", __func__);
 
 	/* disable the PLL */
 	return snd_soc_dai_set_pll(codec_dai, WM8753_PLL1, 0, 0);
@@ -181,7 +173,7 @@ static int neo1973_voice_hw_params(struct snd_pcm_substream *substream,
 	int ret = 0;
 	unsigned long iis_clkrate;
 
-	DBG("Entered %s\n", __func__);
+	pr_debug("Entered %s\n", __func__);
 
 	iis_clkrate = s3c24xx_i2s_get_clockrate();
 
@@ -224,7 +216,7 @@ static int neo1973_voice_hw_free(struct snd_pcm_substream *substream)
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_dai *codec_dai = rtd->dai->codec_dai;
 
-	DBG("Entered %s\n", __func__);
+	pr_debug("Entered %s\n", __func__);
 
 	/* disable the PLL */
 	return snd_soc_dai_set_pll(codec_dai, WM8753_PLL2, 0, 0);
@@ -246,7 +238,7 @@ static int neo1973_get_scenario(struct snd_kcontrol *kcontrol,
 
 static int set_scenario_endpoints(struct snd_soc_codec *codec, int scenario)
 {
-	DBG("Entered %s\n", __func__);
+	pr_debug("Entered %s\n", __func__);
 
 	switch (neo1973_scenario) {
 	case NEO_AUDIO_OFF:
@@ -330,7 +322,7 @@ static int neo1973_set_scenario(struct snd_kcontrol *kcontrol,
 {
 	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
 
-	DBG("Entered %s\n", __func__);
+	pr_debug("Entered %s\n", __func__);
 
 	if (neo1973_scenario == ucontrol->value.integer.value[0])
 		return 0;
@@ -344,7 +336,7 @@ static u8 lm4857_regs[4] = {0x00, 0x40, 0x80, 0xC0};
 
 static void lm4857_write_regs(void)
 {
-	DBG("Entered %s\n", __func__);
+	pr_debug("Entered %s\n", __func__);
 
 	if (i2c_master_send(i2c, lm4857_regs, 4) != 4)
 		printk(KERN_ERR "lm4857: i2c write failed\n");
@@ -357,7 +349,7 @@ static int lm4857_get_reg(struct snd_kcontrol *kcontrol,
 	int shift = (kcontrol->private_value >> 8) & 0x0F;
 	int mask = (kcontrol->private_value >> 16) & 0xFF;
 
-	DBG("Entered %s\n", __func__);
+	pr_debug("Entered %s\n", __func__);
 
 	ucontrol->value.integer.value[0] = (lm4857_regs[reg] >> shift) & mask;
 	return 0;
@@ -385,7 +377,7 @@ static int lm4857_get_mode(struct snd_kcontrol *kcontrol,
 {
 	u8 value = lm4857_regs[LM4857_CTRL] & 0x0F;
 
-	DBG("Entered %s\n", __func__);
+	pr_debug("Entered %s\n", __func__);
 
 	if (value)
 		value -= 5;
@@ -399,7 +391,7 @@ static int lm4857_set_mode(struct snd_kcontrol *kcontrol,
 {
 	u8 value = ucontrol->value.integer.value[0];
 
-	DBG("Entered %s\n", __func__);
+	pr_debug("Entered %s\n", __func__);
 
 	if (value)
 		value += 5;
@@ -506,9 +498,9 @@ static const struct snd_kcontrol_new wm8753_neo1973_controls[] = {
  */
 static int neo1973_wm8753_init(struct snd_soc_codec *codec)
 {
-	int i, err;
+	int err;
 
-	DBG("Entered %s\n", __func__);
+	pr_debug("Entered %s\n", __func__);
 
 	/* set up NC codec pins */
 	snd_soc_dapm_nc_pin(codec, "LOUT2");
@@ -526,13 +518,10 @@ static int neo1973_wm8753_init(struct snd_soc_codec *codec)
 	set_scenario_endpoints(codec, NEO_AUDIO_OFF);
 
 	/* add neo1973 specific controls */
-	for (i = 0; i < ARRAY_SIZE(wm8753_neo1973_controls); i++) {
-		err = snd_ctl_add(codec->card,
-				snd_soc_cnew(&wm8753_neo1973_controls[i],
-				codec, NULL));
-		if (err < 0)
-			return err;
-	}
+	err = snd_soc_add_controls(codec, wm8753_neo1973_controls,
+				ARRAY_SIZE(8753_neo1973_controls));
+	if (err < 0)
+		return err;
 
 	/* set up neo1973 specific audio routes */
 	err = snd_soc_dapm_add_routes(codec, dapm_routes,
@@ -585,21 +574,15 @@ static struct snd_soc_card neo1973 = {
 	.num_links = ARRAY_SIZE(neo1973_dai),
 };
 
-static struct wm8753_setup_data neo1973_wm8753_setup = {
-	.i2c_bus = 0,
-	.i2c_address = 0x1a,
-};
-
 static struct snd_soc_device neo1973_snd_devdata = {
 	.card = &neo1973,
 	.codec_dev = &soc_codec_dev_wm8753,
-	.codec_data = &neo1973_wm8753_setup,
 };
 
 static int lm4857_i2c_probe(struct i2c_client *client,
 			    const struct i2c_device_id *id)
 {
-	DBG("Entered %s\n", __func__);
+	pr_debug("Entered %s\n", __func__);
 
 	i2c = client;
 
@@ -609,7 +592,7 @@ static int lm4857_i2c_probe(struct i2c_client *client,
 
 static int lm4857_i2c_remove(struct i2c_client *client)
 {
-	DBG("Entered %s\n", __func__);
+	pr_debug("Entered %s\n", __func__);
 
 	i2c = NULL;
 
@@ -620,7 +603,7 @@ static u8 lm4857_state;
 
 static int lm4857_suspend(struct i2c_client *dev, pm_message_t state)
 {
-	DBG("Entered %s\n", __func__);
+	pr_debug("Entered %s\n", __func__);
 
 	dev_dbg(&dev->dev, "lm4857_suspend\n");
 	lm4857_state = lm4857_regs[LM4857_CTRL] & 0xf;
@@ -633,7 +616,7 @@ static int lm4857_suspend(struct i2c_client *dev, pm_message_t state)
 
 static int lm4857_resume(struct i2c_client *dev)
 {
-	DBG("Entered %s\n", __func__);
+	pr_debug("Entered %s\n", __func__);
 
 	if (lm4857_state) {
 		lm4857_regs[LM4857_CTRL] |= (lm4857_state & 0x0f);
@@ -644,7 +627,7 @@ static int lm4857_resume(struct i2c_client *dev)
 
 static void lm4857_shutdown(struct i2c_client *dev)
 {
-	DBG("Entered %s\n", __func__);
+	pr_debug("Entered %s\n", __func__);
 
 	dev_dbg(&dev->dev, "lm4857_shutdown\n");
 	lm4857_regs[LM4857_CTRL] &= 0xf0;
@@ -675,7 +658,7 @@ static int __init neo1973_init(void)
 {
 	int ret;
 
-	DBG("Entered %s\n", __func__);
+	pr_debug("Entered %s\n", __func__);
 
 	if (!machine_is_neo1973_gta01()) {
 		printk(KERN_INFO
@@ -706,7 +689,7 @@ static int __init neo1973_init(void)
 
 static void __exit neo1973_exit(void)
 {
-	DBG("Entered %s\n", __func__);
+	pr_debug("Entered %s\n", __func__);
 
 	i2c_del_driver(&lm4857_i2c_driver);
 	platform_device_unregister(neo1973_snd_device);
