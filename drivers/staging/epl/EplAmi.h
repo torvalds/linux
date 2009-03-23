@@ -177,8 +177,8 @@ DWORD AmiGetDword24FromLe(void *pAddr_p);
 //
 //---------------------------------------------------------------------------
 
-void AmiSetQword40ToBe(void *pAddr_p, QWORD qwQwordVal_p);
-void AmiSetQword40ToLe(void *pAddr_p, QWORD qwQwordVal_p);
+void AmiSetQword40ToBe(void *pAddr_p, u64 qwQwordVal_p);
+void AmiSetQword40ToLe(void *pAddr_p, u64 qwQwordVal_p);
 
 //---------------------------------------------------------------------------
 //
@@ -188,12 +188,12 @@ void AmiSetQword40ToLe(void *pAddr_p, QWORD qwQwordVal_p);
 //
 // Parameters:  pAddr_p         = pointer to source buffer
 //
-// Return:      QWORD
+// Return:      u64
 //
 //---------------------------------------------------------------------------
 
-QWORD AmiGetQword40FromBe(void *pAddr_p);
-QWORD AmiGetQword40FromLe(void *pAddr_p);
+u64 AmiGetQword40FromBe(void *pAddr_p);
+u64 AmiGetQword40FromLe(void *pAddr_p);
 
 //---------------------------------------------------------------------------
 //
@@ -208,8 +208,8 @@ QWORD AmiGetQword40FromLe(void *pAddr_p);
 //
 //---------------------------------------------------------------------------
 
-void AmiSetQword48ToBe(void *pAddr_p, QWORD qwQwordVal_p);
-void AmiSetQword48ToLe(void *pAddr_p, QWORD qwQwordVal_p);
+void AmiSetQword48ToBe(void *pAddr_p, u64 qwQwordVal_p);
+void AmiSetQword48ToLe(void *pAddr_p, u64 qwQwordVal_p);
 
 //---------------------------------------------------------------------------
 //
@@ -219,12 +219,12 @@ void AmiSetQword48ToLe(void *pAddr_p, QWORD qwQwordVal_p);
 //
 // Parameters:  pAddr_p         = pointer to source buffer
 //
-// Return:      QWORD
+// Return:      u64
 //
 //---------------------------------------------------------------------------
 
-QWORD AmiGetQword48FromBe(void *pAddr_p);
-QWORD AmiGetQword48FromLe(void *pAddr_p);
+u64 AmiGetQword48FromBe(void *pAddr_p);
+u64 AmiGetQword48FromLe(void *pAddr_p);
 
 //---------------------------------------------------------------------------
 //
@@ -239,8 +239,8 @@ QWORD AmiGetQword48FromLe(void *pAddr_p);
 //
 //---------------------------------------------------------------------------
 
-void AmiSetQword56ToBe(void *pAddr_p, QWORD qwQwordVal_p);
-void AmiSetQword56ToLe(void *pAddr_p, QWORD qwQwordVal_p);
+void AmiSetQword56ToBe(void *pAddr_p, u64 qwQwordVal_p);
+void AmiSetQword56ToLe(void *pAddr_p, u64 qwQwordVal_p);
 
 //---------------------------------------------------------------------------
 //
@@ -250,12 +250,12 @@ void AmiSetQword56ToLe(void *pAddr_p, QWORD qwQwordVal_p);
 //
 // Parameters:  pAddr_p         = pointer to source buffer
 //
-// Return:      QWORD
+// Return:      u64
 //
 //---------------------------------------------------------------------------
 
-QWORD AmiGetQword56FromBe(void *pAddr_p);
-QWORD AmiGetQword56FromLe(void *pAddr_p);
+u64 AmiGetQword56FromBe(void *pAddr_p);
+u64 AmiGetQword56FromLe(void *pAddr_p);
 
 //---------------------------------------------------------------------------
 //
@@ -270,8 +270,8 @@ QWORD AmiGetQword56FromLe(void *pAddr_p);
 //
 //---------------------------------------------------------------------------
 
-void AmiSetQword64ToBe(void *pAddr_p, QWORD qwQwordVal_p);
-void AmiSetQword64ToLe(void *pAddr_p, QWORD qwQwordVal_p);
+void AmiSetQword64ToBe(void *pAddr_p, u64 qwQwordVal_p);
+void AmiSetQword64ToLe(void *pAddr_p, u64 qwQwordVal_p);
 
 //---------------------------------------------------------------------------
 //
@@ -285,8 +285,8 @@ void AmiSetQword64ToLe(void *pAddr_p, QWORD qwQwordVal_p);
 //
 //---------------------------------------------------------------------------
 
-QWORD AmiGetQword64FromBe(void *pAddr_p);
-QWORD AmiGetQword64FromLe(void *pAddr_p);
+u64 AmiGetQword64FromBe(void *pAddr_p);
+u64 AmiGetQword64FromLe(void *pAddr_p);
 
 //---------------------------------------------------------------------------
 //

@@ -23,10 +23,6 @@
 #define _GLOBAL_H_
 
 
-#ifndef QWORD
-#define QWORD long long int
-#endif
-
 #define TRACE  printk
 
 // --- logic types ---

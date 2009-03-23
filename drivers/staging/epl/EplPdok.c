@@ -318,7 +318,7 @@ tEplKernel EplPdokProcess(tEplEvent * pEvent_p)
 	WORD wBitOffset;
 	WORD wBitSize;
 	WORD wVarSize;
-	QWORD qwObjectMapping;
+	u64 qwObjectMapping;
 	u8 bMappSubindex;
 	u8 bObdSubindex;
 	WORD wObdMappIndex;
@@ -423,7 +423,7 @@ tEplKernel EplPdokProcess(tEplEvent * pEvent_p)
 			// process mapping
 			for (bMappSubindex = 1; bMappSubindex <= bObjectCount;
 			     bMappSubindex++) {
-				ObdSize = 8;	// QWORD
+				ObdSize = 8;	// u64
 				// read object mapping from OD
 				Ret =
 				    EplObdReadEntry(wObdMappIndex,
@@ -553,7 +553,7 @@ tEplKernel EplPdokProcess(tEplEvent * pEvent_p)
 			// process mapping
 			for (bMappSubindex = 1; bMappSubindex <= bObjectCount;
 			     bMappSubindex++) {
-				ObdSize = 8;	// QWORD
+				ObdSize = 8;	// u64
 				// read object mapping from OD
 				Ret =
 				    EplObdReadEntry(wObdMappIndex,

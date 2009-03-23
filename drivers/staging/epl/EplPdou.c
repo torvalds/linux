@@ -152,13 +152,13 @@
 static tEplKernel EplPdouCheckPdoValidity(tEplObdCbParam *pParam_p,
 					  unsigned int uiIndex_p);
 
-static void EplPdouDecodeObjectMapping(QWORD qwObjectMapping_p,
+static void EplPdouDecodeObjectMapping(u64 qwObjectMapping_p,
 				       unsigned int *puiIndex_p,
 				       unsigned int *puiSubIndex_p,
 				       unsigned int *puiBitOffset_p,
 				       unsigned int *puiBitSize_p);
 
-static tEplKernel EplPdouCheckObjectMapping(QWORD qwObjectMapping_p,
+static tEplKernel EplPdouCheckObjectMapping(u64 qwObjectMapping_p,
 					    tEplObdAccess AccessType_p,
 					    DWORD * pdwAbortCode_p,
 					    unsigned int *puiPdoSize_p);
@@ -233,7 +233,7 @@ tEplKernel EplPdouCbObdAccess(tEplObdCbParam *pParam_p)
 	unsigned int uiIndexType;
 	tEplObdSize ObdSize;
 	u8 bObjectCount;
-	QWORD qwObjectMapping;
+	u64 qwObjectMapping;
 	tEplObdAccess AccessType;
 	u8 bMappSubindex;
 	unsigned int uiCurPdoSize;
@@ -326,7 +326,7 @@ tEplKernel EplPdouCbObdAccess(tEplObdCbParam *pParam_p)
 		for (bMappSubindex = 1; bMappSubindex <= bObjectCount;
 		     bMappSubindex++) {
 			// read object mapping from OD
-			ObdSize = sizeof(qwObjectMapping);	// QWORD
+			ObdSize = sizeof(qwObjectMapping);	// u64
 			Ret = EplObduReadEntry(pParam_p->m_uiIndex,
 					       bMappSubindex, &qwObjectMapping,
 					       &ObdSize);
@@ -360,7 +360,7 @@ tEplKernel EplPdouCbObdAccess(tEplObdCbParam *pParam_p)
 		}
 		// check existence of object and validity of object length
 
-		qwObjectMapping = *((QWORD *) pParam_p->m_pArg);
+		qwObjectMapping = *((u64 *) pParam_p->m_pArg);
 
 		Ret = EplPdouCheckObjectMapping(qwObjectMapping,
 						AccessType,
@@ -439,7 +439,7 @@ static tEplKernel EplPdouCheckPdoValidity(tEplObdCbParam *pParam_p,
 //
 //---------------------------------------------------------------------------
 
-static void EplPdouDecodeObjectMapping(QWORD qwObjectMapping_p,
+static void EplPdouDecodeObjectMapping(u64 qwObjectMapping_p,
 				       unsigned int *puiIndex_p,
 				       unsigned int *puiSubIndex_p,
 				       unsigned int *puiBitOffset_p,
@@ -480,7 +480,7 @@ static void EplPdouDecodeObjectMapping(QWORD qwObjectMapping_p,
 //
 //---------------------------------------------------------------------------
 
-static tEplKernel EplPdouCheckObjectMapping(QWORD qwObjectMapping_p,
+static tEplKernel EplPdouCheckObjectMapping(u64 qwObjectMapping_p,
 					    tEplObdAccess AccessType_p,
 					    DWORD * pdwAbortCode_p,
 					    unsigned int *puiPdoSize_p)

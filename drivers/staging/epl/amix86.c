@@ -89,7 +89,7 @@ typedef struct {
 } tdwStruct;
 
 typedef struct {
-	QWORD m_qwQword;
+	u64 m_qwQword;
 
 } tqwStruct;
 
@@ -415,7 +415,7 @@ DWORD AmiGetDword24FromLe(void *pAddr_p)
 // State:       not tested
 //
 //---------------------------------------------------------------------------
-void AmiSetQword64ToBe(void *pAddr_p, QWORD qwQwordVal_p)
+void AmiSetQword64ToBe(void *pAddr_p, u64 qwQwordVal_p)
 {
 	((u8 *) pAddr_p)[0] = ((u8 *) & qwQwordVal_p)[7];
 	((u8 *) pAddr_p)[1] = ((u8 *) & qwQwordVal_p)[6];
@@ -441,11 +441,11 @@ void AmiSetQword64ToBe(void *pAddr_p, QWORD qwQwordVal_p)
 // State:       not tested
 //
 //---------------------------------------------------------------------------
-void AmiSetQword64ToLe(void *pAddr_p, QWORD qwQwordVal_p)
+void AmiSetQword64ToLe(void *pAddr_p, u64 qwQwordVal_p)
 {
-	QWORD *pqwDst;
+	u64 *pqwDst;
 
-	pqwDst = (QWORD *) pAddr_p;
+	pqwDst = (u64 *) pAddr_p;
 	*pqwDst = qwQwordVal_p;
 }
 
@@ -462,7 +462,7 @@ void AmiSetQword64ToLe(void *pAddr_p, QWORD qwQwordVal_p)
 // State:       not tested
 //
 //---------------------------------------------------------------------------
-QWORD AmiGetQword64FromBe(void *pAddr_p)
+u64 AmiGetQword64FromBe(void *pAddr_p)
 {
 	tqwStruct qwStruct;
 
@@ -491,7 +491,7 @@ QWORD AmiGetQword64FromBe(void *pAddr_p)
 // State:       not tested
 //
 //---------------------------------------------------------------------------
-QWORD AmiGetQword64FromLe(void *pAddr_p)
+u64 AmiGetQword64FromLe(void *pAddr_p)
 {
 	tqwStruct *pqwStruct;
 	tqwStruct qwStruct;
@@ -517,7 +517,7 @@ QWORD AmiGetQword64FromLe(void *pAddr_p)
 //
 //---------------------------------------------------------------------------
 
-void AmiSetQword40ToBe(void *pAddr_p, QWORD qwQwordVal_p)
+void AmiSetQword40ToBe(void *pAddr_p, u64 qwQwordVal_p)
 {
 
 	((u8 *) pAddr_p)[0] = ((u8 *) & qwQwordVal_p)[4];
@@ -543,7 +543,7 @@ void AmiSetQword40ToBe(void *pAddr_p, QWORD qwQwordVal_p)
 //
 //---------------------------------------------------------------------------
 
-void AmiSetQword40ToLe(void *pAddr_p, QWORD qwQwordVal_p)
+void AmiSetQword40ToLe(void *pAddr_p, u64 qwQwordVal_p)
 {
 
 	((DWORD *) pAddr_p)[0] = ((DWORD *) & qwQwordVal_p)[0];
@@ -559,13 +559,13 @@ void AmiSetQword40ToLe(void *pAddr_p, QWORD qwQwordVal_p)
 //
 // Parameters:  pAddr_p         = pointer to source buffer
 //
-// Return:      QWORD
+// Return:      u64
 //
 // State:       not tested
 //
 //---------------------------------------------------------------------------
 
-QWORD AmiGetQword40FromBe(void *pAddr_p)
+u64 AmiGetQword40FromBe(void *pAddr_p)
 {
 
 	tqwStruct qwStruct;
@@ -585,13 +585,13 @@ QWORD AmiGetQword40FromBe(void *pAddr_p)
 //
 // Parameters:  pAddr_p         = pointer to source buffer
 //
-// Return:      QWORD
+// Return:      u64
 //
 // State:       not tested
 //
 //---------------------------------------------------------------------------
 
-QWORD AmiGetQword40FromLe(void *pAddr_p)
+u64 AmiGetQword40FromLe(void *pAddr_p)
 {
 
 	tqwStruct qwStruct;
@@ -618,7 +618,7 @@ QWORD AmiGetQword40FromLe(void *pAddr_p)
 //
 //---------------------------------------------------------------------------
 
-void AmiSetQword48ToBe(void *pAddr_p, QWORD qwQwordVal_p)
+void AmiSetQword48ToBe(void *pAddr_p, u64 qwQwordVal_p)
 {
 
 	((u8 *) pAddr_p)[0] = ((u8 *) & qwQwordVal_p)[5];
@@ -645,7 +645,7 @@ void AmiSetQword48ToBe(void *pAddr_p, QWORD qwQwordVal_p)
 //
 //---------------------------------------------------------------------------
 
-void AmiSetQword48ToLe(void *pAddr_p, QWORD qwQwordVal_p)
+void AmiSetQword48ToLe(void *pAddr_p, u64 qwQwordVal_p)
 {
 
 	((DWORD *) pAddr_p)[0] = ((DWORD *) & qwQwordVal_p)[0];
@@ -661,13 +661,13 @@ void AmiSetQword48ToLe(void *pAddr_p, QWORD qwQwordVal_p)
 //
 // Parameters:  pAddr_p         = pointer to source buffer
 //
-// Return:      QWORD
+// Return:      u64
 //
 // State:       not tested
 //
 //---------------------------------------------------------------------------
 
-QWORD AmiGetQword48FromBe(void *pAddr_p)
+u64 AmiGetQword48FromBe(void *pAddr_p)
 {
 
 	tqwStruct qwStruct;
@@ -687,13 +687,13 @@ QWORD AmiGetQword48FromBe(void *pAddr_p)
 //
 // Parameters:  pAddr_p         = pointer to source buffer
 //
-// Return:      QWORD
+// Return:      u64
 //
 // State:       not tested
 //
 //---------------------------------------------------------------------------
 
-QWORD AmiGetQword48FromLe(void *pAddr_p)
+u64 AmiGetQword48FromLe(void *pAddr_p)
 {
 
 	tqwStruct qwStruct;
@@ -720,7 +720,7 @@ QWORD AmiGetQword48FromLe(void *pAddr_p)
 //
 //---------------------------------------------------------------------------
 
-void AmiSetQword56ToBe(void *pAddr_p, QWORD qwQwordVal_p)
+void AmiSetQword56ToBe(void *pAddr_p, u64 qwQwordVal_p)
 {
 
 	((u8 *) pAddr_p)[0] = ((u8 *) & qwQwordVal_p)[6];
@@ -748,7 +748,7 @@ void AmiSetQword56ToBe(void *pAddr_p, QWORD qwQwordVal_p)
 //
 //---------------------------------------------------------------------------
 
-void AmiSetQword56ToLe(void *pAddr_p, QWORD qwQwordVal_p)
+void AmiSetQword56ToLe(void *pAddr_p, u64 qwQwordVal_p)
 {
 
 	((DWORD *) pAddr_p)[0] = ((DWORD *) & qwQwordVal_p)[0];
@@ -765,13 +765,13 @@ void AmiSetQword56ToLe(void *pAddr_p, QWORD qwQwordVal_p)
 //
 // Parameters:  pAddr_p         = pointer to source buffer
 //
-// Return:      QWORD
+// Return:      u64
 //
 // State:       not tested
 //
 //---------------------------------------------------------------------------
 
-QWORD AmiGetQword56FromBe(void *pAddr_p)
+u64 AmiGetQword56FromBe(void *pAddr_p)
 {
 
 	tqwStruct qwStruct;
@@ -791,13 +791,13 @@ QWORD AmiGetQword56FromBe(void *pAddr_p)
 //
 // Parameters:  pAddr_p         = pointer to source buffer
 //
-// Return:      QWORD
+// Return:      u64
 //
 // State:       not tested
 //
 //---------------------------------------------------------------------------
 
-QWORD AmiGetQword56FromLe(void *pAddr_p)
+u64 AmiGetQword56FromLe(void *pAddr_p)
 {
 
 	tqwStruct qwStruct;

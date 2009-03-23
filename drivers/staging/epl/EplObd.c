@@ -1105,7 +1105,7 @@ EPLDLLEXPORT tEplKernel EplObdReadEntryToLe(EPL_MCO_DECL_INSTANCE_PTR_ unsigned 
 	case kEplObdTypInt40:
 	case kEplObdTypUInt40:
 		{
-			AmiSetQword40ToLe(pDstData_p, *((QWORD *) pSrcData));
+			AmiSetQword40ToLe(pDstData_p, *((u64 *) pSrcData));
 			break;
 		}
 
@@ -1113,7 +1113,7 @@ EPLDLLEXPORT tEplKernel EplObdReadEntryToLe(EPL_MCO_DECL_INSTANCE_PTR_ unsigned 
 	case kEplObdTypInt48:
 	case kEplObdTypUInt48:
 		{
-			AmiSetQword48ToLe(pDstData_p, *((QWORD *) pSrcData));
+			AmiSetQword48ToLe(pDstData_p, *((u64 *) pSrcData));
 			break;
 		}
 
@@ -1121,7 +1121,7 @@ EPLDLLEXPORT tEplKernel EplObdReadEntryToLe(EPL_MCO_DECL_INSTANCE_PTR_ unsigned 
 	case kEplObdTypInt56:
 	case kEplObdTypUInt56:
 		{
-			AmiSetQword56ToLe(pDstData_p, *((QWORD *) pSrcData));
+			AmiSetQword56ToLe(pDstData_p, *((u64 *) pSrcData));
 			break;
 		}
 
@@ -1130,7 +1130,7 @@ EPLDLLEXPORT tEplKernel EplObdReadEntryToLe(EPL_MCO_DECL_INSTANCE_PTR_ unsigned 
 	case kEplObdTypUInt64:
 	case kEplObdTypReal64:
 		{
-			AmiSetQword64ToLe(pDstData_p, *((QWORD *) pSrcData));
+			AmiSetQword64ToLe(pDstData_p, *((u64 *) pSrcData));
 			break;
 		}
 
@@ -1191,7 +1191,7 @@ EPLDLLEXPORT tEplKernel EplObdWriteEntryFromLe(EPL_MCO_DECL_INSTANCE_PTR_ unsign
 	tEplObdCbParam CbParam;
 	void *pDstData;
 	tEplObdSize ObdSize;
-	QWORD qwBuffer;
+	u64 qwBuffer;
 	void *pBuffer = &qwBuffer;
 
 	Ret = EplObdWriteEntryPre(EPL_MCO_INSTANCE_PTR_
@@ -1255,7 +1255,7 @@ EPLDLLEXPORT tEplKernel EplObdWriteEntryFromLe(EPL_MCO_DECL_INSTANCE_PTR_ unsign
 	case kEplObdTypInt40:
 	case kEplObdTypUInt40:
 		{
-			*((QWORD *) pBuffer) = AmiGetQword40FromLe(pSrcData_p);
+			*((u64 *) pBuffer) = AmiGetQword40FromLe(pSrcData_p);
 			break;
 		}
 
@@ -1263,7 +1263,7 @@ EPLDLLEXPORT tEplKernel EplObdWriteEntryFromLe(EPL_MCO_DECL_INSTANCE_PTR_ unsign
 	case kEplObdTypInt48:
 	case kEplObdTypUInt48:
 		{
-			*((QWORD *) pBuffer) = AmiGetQword48FromLe(pSrcData_p);
+			*((u64 *) pBuffer) = AmiGetQword48FromLe(pSrcData_p);
 			break;
 		}
 
@@ -1271,7 +1271,7 @@ EPLDLLEXPORT tEplKernel EplObdWriteEntryFromLe(EPL_MCO_DECL_INSTANCE_PTR_ unsign
 	case kEplObdTypInt56:
 	case kEplObdTypUInt56:
 		{
-			*((QWORD *) pBuffer) = AmiGetQword56FromLe(pSrcData_p);
+			*((u64 *) pBuffer) = AmiGetQword56FromLe(pSrcData_p);
 			break;
 		}
 
@@ -1280,7 +1280,7 @@ EPLDLLEXPORT tEplKernel EplObdWriteEntryFromLe(EPL_MCO_DECL_INSTANCE_PTR_ unsign
 	case kEplObdTypUInt64:
 	case kEplObdTypReal64:
 		{
-			*((QWORD *) pBuffer) = AmiGetQword64FromLe(pSrcData_p);
+			*((u64 *) pBuffer) = AmiGetQword64FromLe(pSrcData_p);
 			break;
 		}
 
@@ -1740,18 +1740,18 @@ static tEplKernel EplObdCheckObjectRange(tEplObdSubEntryPtr pSubindexEntry_p,
 	case kEplObdTypInt64:
 
 		// switch to lower limit
-		pRangeData = ((signed QWORD *)pRangeData) + 1;
+		pRangeData = ((signed u64 *)pRangeData) + 1;
 
 		// check if value is to low
-		if (*((signed QWORD *)pData_p) < *((signed QWORD *)pRangeData)) {
+		if (*((signed u64 *)pData_p) < *((signed u64 *)pRangeData)) {
 			Ret = kEplObdValueTooLow;
 			break;
 		}
 		// switch to higher limit
-		pRangeData = ((signed QWORD *)pRangeData) + 1;
+		pRangeData = ((signed u64 *)pRangeData) + 1;
 
 		// check if value is to high
-		if (*((signed QWORD *)pData_p) > *((signed QWORD *)pRangeData)) {
+		if (*((signed u64 *)pData_p) > *((signed u64 *)pRangeData)) {
 			Ret = kEplObdValueTooHigh;
 		}
 
@@ -1764,20 +1764,20 @@ static tEplKernel EplObdCheckObjectRange(tEplObdSubEntryPtr pSubindexEntry_p,
 	case kEplObdTypUInt64:
 
 		// switch to lower limit
-		pRangeData = ((unsigned QWORD *)pRangeData) + 1;
+		pRangeData = ((unsigned u64 *)pRangeData) + 1;
 
 		// check if value is to low
-		if (*((unsigned QWORD *)pData_p) <
-		    *((unsigned QWORD *)pRangeData)) {
+		if (*((unsigned u64 *)pData_p) <
+		    *((unsigned u64 *)pRangeData)) {
 			Ret = kEplObdValueTooLow;
 			break;
 		}
 		// switch to higher limit
-		pRangeData = ((unsigned QWORD *)pRangeData) + 1;
+		pRangeData = ((unsigned u64 *)pRangeData) + 1;
 
 		// check if value is to high
-		if (*((unsigned QWORD *)pData_p) >
-		    *((unsigned QWORD *)pRangeData)) {
+		if (*((unsigned u64 *)pData_p) >
+		    *((unsigned u64 *)pRangeData)) {
 			Ret = kEplObdValueTooHigh;
 		}
 

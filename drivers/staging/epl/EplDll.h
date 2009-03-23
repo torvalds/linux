@@ -177,7 +177,7 @@ typedef struct {
 	DWORD m_dwProductCode;	// NMT_IdentityObject_REC.ProductCode_U32
 	DWORD m_dwRevisionNumber;	// NMT_IdentityObject_REC.RevisionNo_U32
 	DWORD m_dwSerialNumber;	// NMT_IdentityObject_REC.SerialNo_U32
-	QWORD m_qwVendorSpecificExt1;
+	u64 m_qwVendorSpecificExt1;
 	DWORD m_dwVerifyConfigurationDate;	// CFM_VerifyConfiguration_REC.ConfDate_U32
 	DWORD m_dwVerifyConfigurationTime;	// CFM_VerifyConfiguration_REC.ConfTime_U32
 	DWORD m_dwApplicationSwDate;	// PDL_LocVerApplSw_REC.ApplSwDate_U32 on programmable device or date portion of NMT_ManufactSwVers_VS on non-programmable device

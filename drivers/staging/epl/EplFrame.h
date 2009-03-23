@@ -130,7 +130,7 @@ typedef struct {
 	// Offset 20
 	tEplNetTime m_le_NetTime;	// supported if D_NMT_NetTimeIsRealTime_BOOL is set
 	// Offset 28
-	QWORD m_le_RelativeTime;	// in us (supported if D_NMT_RelativeTime_BOOL is set)
+	u64 m_le_RelativeTime;	// in us (supported if D_NMT_RelativeTime_BOOL is set)
 
 } PACK_STRUCT tEplSocFrame;
 
@@ -201,7 +201,7 @@ typedef struct {
 	u8 m_le_bFlag2;	// Flags: PR, RS
 	u8 m_le_bNmtStatus;	// NMT state
 	u8 m_le_bRes1[3];
-	QWORD m_le_qwStaticError;	// static error bit field
+	u64 m_le_qwStaticError;	// static error bit field
 	tEplErrHistoryEntry m_le_aErrHistoryEntry[14];
 
 } PACK_STRUCT tEplStatusResponse;
@@ -225,7 +225,7 @@ typedef struct {
 	DWORD m_le_dwProductCode;	// NMT_IdentityObject_REC.ProductCode_U32
 	DWORD m_le_dwRevisionNumber;	// NMT_IdentityObject_REC.RevisionNo_U32
 	DWORD m_le_dwSerialNumber;	// NMT_IdentityObject_REC.SerialNo_U32
-	QWORD m_le_qwVendorSpecificExt1;
+	u64 m_le_qwVendorSpecificExt1;
 	DWORD m_le_dwVerifyConfigurationDate;	// CFM_VerifyConfiguration_REC.ConfDate_U32
 	DWORD m_le_dwVerifyConfigurationTime;	// CFM_VerifyConfiguration_REC.ConfTime_U32
 	DWORD m_le_dwApplicationSwDate;	// PDL_LocVerApplSw_REC.ApplSwDate_U32 on programmable device or date portion of NMT_ManufactSwVers_VS on non-programmable device

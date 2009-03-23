@@ -68,10 +68,10 @@
 
 ****************************************************************************/
 
-#include "EplInc.h"
-
 #ifndef _EPLOBD_H_
 #define _EPLOBD_H_
+
+#include "EplInc.h"
 
 // ============================================================================
 // defines
@@ -255,15 +255,15 @@ typedef unsigned char tEplObdDomain;	// 000F
 typedef signed long tEplObdInteger24;	// 0010
 typedef unsigned long tEplObdUnsigned24;	// 0016
 
-typedef signed QWORD tEplObdInteger40;	// 0012
-typedef signed QWORD tEplObdInteger48;	// 0013
-typedef signed QWORD tEplObdInteger56;	// 0014
-typedef signed QWORD tEplObdInteger64;	// 0015
+typedef s64 tEplObdInteger40;	// 0012
+typedef s64 tEplObdInteger48;	// 0013
+typedef s64 tEplObdInteger56;	// 0014
+typedef s64 tEplObdInteger64;	// 0015
 
-typedef unsigned QWORD tEplObdUnsigned40;	// 0018
-typedef unsigned QWORD tEplObdUnsigned48;	// 0019
-typedef unsigned QWORD tEplObdUnsigned56;	// 001A
-typedef unsigned QWORD tEplObdUnsigned64;	// 001B
+typedef u64 tEplObdUnsigned40;	// 0018
+typedef u64 tEplObdUnsigned48;	// 0019
+typedef u64 tEplObdUnsigned56;	// 001A
+typedef u64 tEplObdUnsigned64;	// 001B
 
 typedef double tEplObdReal64;	// 0011
 
