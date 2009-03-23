@@ -34,6 +34,7 @@ MODULE_AUTHOR("Clemens Ladisch <clemens@ladisch.de>");
 MODULE_DESCRIPTION("C-Media CMI8788 helper library");
 MODULE_LICENSE("GPL v2");
 
+#define DRIVER "oxygen"
 
 static inline int oxygen_uart_input_ready(struct oxygen *chip)
 {
@@ -243,6 +244,62 @@ static void oxygen_proc_init(struct oxygen *chip)
 #define oxygen_proc_init(chip)
 #endif
 
+static const struct pci_device_id *
+oxygen_search_pci_id(struct oxygen *chip, const struct pci_device_id ids[])
+{
+	u16 subdevice;
+
+	/*
+	 * Make sure the EEPROM pins are available, i.e., not used for SPI.
+	 * (This function is called before we initialize or use SPI.)
+	 */
+	oxygen_clear_bits8(chip, OXYGEN_FUNCTION,
+			   OXYGEN_FUNCTION_ENABLE_SPI_4_5);
+	/*
+	 * Read the subsystem device ID directly from the EEPROM, because the
+	 * chip didn't if the first EEPROM word was overwritten.
+	 */
+	subdevice = oxygen_read_eeprom(chip, 2);
+	/*
+	 * We use only the subsystem device ID for searching because it is
+	 * unique even without the subsystem vendor ID, which may have been
+	 * overwritten in the EEPROM.
+	 */
+	for (; ids->vendor; ++ids)
+		if (ids->subdevice == subdevice &&
+		    ids->driver_data != BROKEN_EEPROM_DRIVER_DATA)
+			return ids;
+	return NULL;
+}
+
+static void oxygen_restore_eeprom(struct oxygen *chip,
+				  const struct pci_device_id *id)
+{
+	if (oxygen_read_eeprom(chip, 0) != OXYGEN_EEPROM_ID) {
+		/*
+		 * This function gets called only when a known card model has
+		 * been detected, i.e., we know there is a valid subsystem
+		 * product ID at index 2 in the EEPROM.  Therefore, we have
+		 * been able to deduce the correct subsystem vendor ID, and
+		 * this is enough information to restore the original EEPROM
+		 * contents.
+		 */
+		oxygen_write_eeprom(chip, 1, id->subvendor);
+		oxygen_write_eeprom(chip, 0, OXYGEN_EEPROM_ID);
+
+		oxygen_set_bits8(chip, OXYGEN_MISC,
+				 OXYGEN_MISC_WRITE_PCI_SUBID);
+		pci_write_config_word(chip->pci, PCI_SUBSYSTEM_VENDOR_ID,
+				      id->subvendor);
+		pci_write_config_word(chip->pci, PCI_SUBSYSTEM_ID,
+				      id->subdevice);
+		oxygen_clear_bits8(chip, OXYGEN_MISC,
+				   OXYGEN_MISC_WRITE_PCI_SUBID);
+
+		snd_printk(KERN_INFO "EEPROM ID restored\n");
+	}
+}
+
 static void oxygen_init(struct oxygen *chip)
 {
 	unsigned int i;
@@ -446,21 +503,26 @@ static void oxygen_card_free(struct snd_card *card)
 		free_irq(chip->irq, chip);
 	flush_scheduled_work();
 	chip->model.cleanup(chip);
+	kfree(chip->model_data);
 	mutex_destroy(&chip->mutex);
 	pci_release_regions(chip->pci);
 	pci_disable_device(chip->pci);
 }
 
 int oxygen_pci_probe(struct pci_dev *pci, int index, char *id,
-		     const struct oxygen_model *model,
-		     unsigned long driver_data)
+		     struct module *owner,
+		     const struct pci_device_id *ids,
+		     int (*get_model)(struct oxygen *chip,
+				      const struct pci_device_id *id
+				     )
+		    )
 {
 	struct snd_card *card;
 	struct oxygen *chip;
+	const struct pci_device_id *pci_id;
 	int err;
 
-	err = snd_card_create(index, id, model->owner,
-			      sizeof(*chip) + model->model_data_size, &card);
+	err = snd_card_create(index, id, owner, sizeof(*chip), &card);
 	if (err < 0)
 		return err;
 
@@ -468,8 +530,6 @@ int oxygen_pci_probe(struct pci_dev *pci, int index, char *id,
 	chip->card = card;
 	chip->pci = pci;
 	chip->irq = -1;
-	chip->model = *model;
-	chip->model_data = chip + 1;
 	spin_lock_init(&chip->reg_lock);
 	mutex_init(&chip->mutex);
 	INIT_WORK(&chip->spdif_input_bits_work,
@@ -481,7 +541,7 @@ int oxygen_pci_probe(struct pci_dev *pci, int index, char *id,
 	if (err < 0)
 		goto err_card;
 
-	err = pci_request_regions(pci, model->chip);
+	err = pci_request_regions(pci, DRIVER);
 	if (err < 0) {
 		snd_printk(KERN_ERR "cannot reserve PCI resources\n");
 		goto err_pci_enable;
@@ -495,20 +555,34 @@ int oxygen_pci_probe(struct pci_dev *pci, int index, char *id,
 	}
 	chip->addr = pci_resource_start(pci, 0);
 
+	pci_id = oxygen_search_pci_id(chip, ids);
+	if (!pci_id) {
+		err = -ENODEV;
+		goto err_pci_regions;
+	}
+	oxygen_restore_eeprom(chip, pci_id);
+	err = get_model(chip, pci_id);
+	if (err < 0)
+		goto err_pci_regions;
+
+	if (chip->model.model_data_size) {
+		chip->model_data = kzalloc(chip->model.model_data_size,
+					   GFP_KERNEL);
+		if (!chip->model_data) {
+			err = -ENOMEM;
+			goto err_pci_regions;
+		}
+	}
+
 	pci_set_master(pci);
 	snd_card_set_dev(card, &pci->dev);
 	card->private_free = oxygen_card_free;
 
-	if (chip->model.probe) {
-		err = chip->model.probe(chip, driver_data);
-		if (err < 0)
-			goto err_card;
-	}
 	oxygen_init(chip);
 	chip->model.init(chip);
 
 	err = request_irq(pci->irq, oxygen_interrupt, IRQF_SHARED,
-			  chip->model.chip, chip);
+			  DRIVER, chip);
 	if (err < 0) {
 		snd_printk(KERN_ERR "cannot grab interrupt %d\n", pci->irq);
 		goto err_card;
