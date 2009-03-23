@@ -338,7 +338,6 @@ static int gfs2_lock_fs_check_clean(struct gfs2_sbd *sdp,
 				    struct gfs2_holder *t_gh)
 {
 	struct gfs2_inode *ip;
-	struct gfs2_holder ji_gh;
 	struct gfs2_jdesc *jd;
 	struct lfcc *lfcc;
 	LIST_HEAD(list);
@@ -386,7 +385,6 @@ out:
 		gfs2_glock_dq_uninit(&lfcc->gh);
 		kfree(lfcc);
 	}
-	gfs2_glock_dq_uninit(&ji_gh);
 	return error;
 }
 
