@@ -217,15 +217,15 @@ static int __hw_perf_counter_init(struct perf_counter *counter)
 	/*
 	 * Raw event type provide the config in the event structure
 	 */
-	if (hw_event->raw_type) {
-		hwc->config |= pmc_ops->raw_event(hw_event->raw_event_id);
+	if (perf_event_raw(hw_event)) {
+		hwc->config |= pmc_ops->raw_event(perf_event_config(hw_event));
 	} else {
-		if (hw_event->event_id >= pmc_ops->max_events)
+		if (perf_event_id(hw_event) >= pmc_ops->max_events)
 			return -EINVAL;
 		/*
 		 * The generic map:
 		 */
-		hwc->config |= pmc_ops->event_map(hw_event->event_id);
+		hwc->config |= pmc_ops->event_map(perf_event_id(hw_event));
 	}
 	counter->wakeup_pending = 0;
 

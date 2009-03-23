@@ -602,13 +602,13 @@ hw_perf_counter_init(struct perf_counter *counter)
 		return NULL;
 	if ((s64)counter->hw_event.irq_period < 0)
 		return NULL;
-	if (!counter->hw_event.raw_type) {
-		ev = counter->hw_event.event_id;
+	if (!perf_event_raw(&counter->hw_event)) {
+		ev = perf_event_id(&counter->hw_event);
 		if (ev >= ppmu->n_generic || ppmu->generic_events[ev] == 0)
 			return NULL;
 		ev = ppmu->generic_events[ev];
 	} else {
-		ev = counter->hw_event.raw_event_id;
+		ev = perf_event_config(&counter->hw_event);
 	}
 	counter->hw.config_base = ev;
 	counter->hw.idx = 0;

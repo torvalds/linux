@@ -1379,7 +1379,7 @@ static void perf_counter_handle_group(struct perf_counter *counter)
 	list_for_each_entry(sub, &leader->sibling_list, list_entry) {
 		if (sub != counter)
 			sub->hw_ops->read(sub);
-		perf_counter_store_irq(counter, sub->hw_event.event_config);
+		perf_counter_store_irq(counter, sub->hw_event.config);
 		perf_counter_store_irq(counter, atomic64_read(&sub->count));
 	}
 }
@@ -1489,13 +1489,13 @@ static int perf_swcounter_match(struct perf_counter *counter,
 	if (counter->state != PERF_COUNTER_STATE_ACTIVE)
 		return 0;
 
-	if (counter->hw_event.raw_type)
+	if (perf_event_raw(&counter->hw_event))
 		return 0;
 
-	if (counter->hw_event.type != type)
+	if (perf_event_type(&counter->hw_event) != type)
 		return 0;
 
-	if (counter->hw_event.event_id != event)
+	if (perf_event_id(&counter->hw_event) != event)
 		return 0;
 
 	if (counter->hw_event.exclude_user && user_mode(regs))
@@ -1757,13 +1757,13 @@ extern void ftrace_profile_disable(int);
 
 static void tp_perf_counter_destroy(struct perf_counter *counter)
 {
-	ftrace_profile_disable(counter->hw_event.event_id);
+	ftrace_profile_disable(perf_event_id(&counter->hw_event));
 }
 
 static const struct hw_perf_counter_ops *
 tp_perf_counter_init(struct perf_counter *counter)
 {
-	int event_id = counter->hw_event.event_id;
+	int event_id = perf_event_id(&counter->hw_event);
 	int ret;
 
 	ret = ftrace_profile_enable(event_id);
@@ -1797,7 +1797,7 @@ sw_perf_counter_init(struct perf_counter *counter)
 	 * to be kernel events, and page faults are never hypervisor
 	 * events.
 	 */
-	switch (counter->hw_event.event_id) {
+	switch (perf_event_id(&counter->hw_event)) {
 	case PERF_COUNT_CPU_CLOCK:
 		hw_ops = &perf_ops_cpu_clock;
 
@@ -1882,9 +1882,12 @@ perf_counter_alloc(struct perf_counter_hw_event *hw_event,
 
 	hw_ops = NULL;
 
-	if (hw_event->raw_type)
+	if (perf_event_raw(hw_event)) {
 		hw_ops = hw_perf_counter_init(counter);
-	else switch (hw_event->type) {
+		goto done;
+	}
+
+	switch (perf_event_type(hw_event)) {
 	case PERF_TYPE_HARDWARE:
 		hw_ops = hw_perf_counter_init(counter);
 		break;
@@ -1902,6 +1905,7 @@ perf_counter_alloc(struct perf_counter_hw_event *hw_event,
 		kfree(counter);
 		return NULL;
 	}
+done:
 	counter->hw_ops = hw_ops;
 
 	return counter;
