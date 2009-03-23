@@ -1002,7 +1002,7 @@ static void record_ip(uint64_t ip, int counter)
 		assert(left <= middle && middle <= right);
 		if (!(left <= ip && ip <= right)) {
 			printf(" left: %016lx\n", left);
-			printf("   ip: %016llx\n", ip);
+			printf("   ip: %016lx\n", (unsigned long)ip);
 			printf("right: %016lx\n", right);
 		}
 		assert(left <= ip && ip <= right);
