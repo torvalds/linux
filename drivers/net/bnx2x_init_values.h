@@ -1,7 +1,23 @@
 #ifndef __BNX2X_INIT_VALUES_H__
 #define __BNX2X_INIT_VALUES_H__
 
-/* This array contains the list of operations needed to initialize the chip.
+/* bnx2x_init_values.h: Broadcom NX2 10G network driver.
+ *
+ * Copyright (c) 2007-2009 Broadcom Corporation
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, except as noted below.
+ *
+ * This file contains firmware data derived from proprietary unpublished
+ * source code, Copyright (c) 2007-2009 Broadcom Corporation.
+ *
+ * Permission is hereby granted for the distribution of this firmware data
+ * in hexadecimal or equivalent format, provided this copyright notice is
+ * accompanying it.
+ *
+ *
+ * This array contains the list of operations needed to initialize the chip.
  *
  * For each block in the chip there are three init stages:
  * common - HW used by both ports,
