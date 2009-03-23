@@ -88,7 +88,7 @@
 
 #include <linux/unistd.h>
 
-#include "include/linux/perf_counter.h"
+#include "../../include/linux/perf_counter.h"
 
 
 /*
