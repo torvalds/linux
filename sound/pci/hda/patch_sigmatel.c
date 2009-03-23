@@ -2537,8 +2537,7 @@ static int stac92xx_build_pcms(struct hda_codec *codec)
 
 static unsigned int stac92xx_get_vref(struct hda_codec *codec, hda_nid_t nid)
 {
-	unsigned int pincap = snd_hda_param_read(codec, nid,
-						 AC_PAR_PIN_CAP);
+	unsigned int pincap = snd_hda_query_pin_caps(codec, nid);
 	pincap = (pincap & AC_PINCAP_VREF) >> AC_PINCAP_VREF_SHIFT;
 	if (pincap & AC_PINCAP_VREF_100)
 		return AC_PINCTL_VREF_100;
@@ -2799,7 +2798,7 @@ static hda_nid_t check_line_out_switch(struct hda_codec *codec)
 	if (cfg->line_out_type != AUTO_PIN_LINE_OUT)
 		return 0;
 	nid = cfg->input_pins[AUTO_PIN_LINE];
-	pincap = snd_hda_param_read(codec, nid, AC_PAR_PIN_CAP);
+	pincap = snd_hda_query_pin_caps(codec, nid);
 	if (pincap & AC_PINCAP_OUT)
 		return nid;
 	return 0;
@@ -2822,7 +2821,7 @@ static hda_nid_t check_mic_out_switch(struct hda_codec *codec)
 		/* some laptops have an internal analog microphone
 		 * which can't be used as a output */
 		if (get_defcfg_connect(def_conf) != AC_JACK_PORT_FIXED) {
-			pincap = snd_hda_param_read(codec, nid, AC_PAR_PIN_CAP);
+			pincap = snd_hda_query_pin_caps(codec, nid);
 			if (pincap & AC_PINCAP_OUT)
 				return nid;
 		}
