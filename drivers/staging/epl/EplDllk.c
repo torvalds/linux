@@ -121,8 +121,8 @@
 
 // TracePoint support for realtime-debugging
 #ifdef _DBG_TRACE_POINTS_
-void PUBLIC TgtDbgSignalTracePoint(BYTE bTracePointNumber_p);
-void PUBLIC TgtDbgPostTraceValue(DWORD dwTraceValue_p);
+void TgtDbgSignalTracePoint(BYTE bTracePointNumber_p);
+void TgtDbgPostTraceValue(DWORD dwTraceValue_p);
 #define TGT_DBG_SIGNAL_TRACE_POINT(p)   TgtDbgSignalTracePoint(p)
 #define TGT_DBG_POST_TRACE_VALUE(v)     TgtDbgPostTraceValue(v)
 #else
@@ -257,7 +257,7 @@ static tEplKernel EplDllkCheckFrame(tEplFrame * pFrame_p,
 
 // called by high resolution timer module to monitor EPL cycle as CN
 #if EPL_TIMER_USE_HIGHRES != FALSE
-static tEplKernel PUBLIC EplDllkCbCnTimer(tEplTimerEventArg * pEventArg_p);
+static tEplKernel EplDllkCbCnTimer(tEplTimerEventArg *pEventArg_p);
 #endif
 
 #if (((EPL_MODULE_INTEGRATION) & (EPL_MODULE_NMT_MN)) != 0)
@@ -278,10 +278,9 @@ static tEplKernel EplDllkAsyncFrameNotReceived(tEplDllReqServiceId
 					       ReqServiceId_p,
 					       unsigned int uiNodeId_p);
 
-static tEplKernel PUBLIC EplDllkCbMnTimerCycle(tEplTimerEventArg * pEventArg_p);
+static tEplKernel EplDllkCbMnTimerCycle(tEplTimerEventArg *pEventArg_p);
 
-static tEplKernel PUBLIC EplDllkCbMnTimerResponse(tEplTimerEventArg *
-						  pEventArg_p);
+static tEplKernel EplDllkCbMnTimerResponse(tEplTimerEventArg *pEventArg_p);
 
 #endif
 
@@ -3546,7 +3545,7 @@ static tEplKernel EplDllkCheckFrame(tEplFrame * pFrame_p,
 //---------------------------------------------------------------------------
 
 #if EPL_TIMER_USE_HIGHRES != FALSE
-static tEplKernel PUBLIC EplDllkCbCnTimer(tEplTimerEventArg * pEventArg_p)
+static tEplKernel EplDllkCbCnTimer(tEplTimerEventArg *pEventArg_p)
 {
 	tEplKernel Ret = kEplSuccessful;
 	tEplNmtState NmtState;
@@ -3617,7 +3616,7 @@ static tEplKernel PUBLIC EplDllkCbCnTimer(tEplTimerEventArg * pEventArg_p)
 //
 //---------------------------------------------------------------------------
 
-static tEplKernel PUBLIC EplDllkCbMnTimerCycle(tEplTimerEventArg * pEventArg_p)
+static tEplKernel EplDllkCbMnTimerCycle(tEplTimerEventArg *pEventArg_p)
 {
 	tEplKernel Ret = kEplSuccessful;
 	tEplNmtState NmtState;
@@ -3670,8 +3669,7 @@ static tEplKernel PUBLIC EplDllkCbMnTimerCycle(tEplTimerEventArg * pEventArg_p)
 //
 //---------------------------------------------------------------------------
 
-static tEplKernel PUBLIC EplDllkCbMnTimerResponse(tEplTimerEventArg *
-						  pEventArg_p)
+static tEplKernel EplDllkCbMnTimerResponse(tEplTimerEventArg *pEventArg_p)
 {
 	tEplKernel Ret = kEplSuccessful;
 	tEplNmtState NmtState;

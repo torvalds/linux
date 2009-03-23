@@ -145,10 +145,10 @@ static int EplLinProcRead(char *pcBuffer_p, char **ppcStart_p, off_t Offset_p,
 static int EplLinProcWrite(struct file *file, const char __user * buffer,
 			   unsigned long count, void *data);
 
-void PUBLIC TgtDbgSignalTracePoint(BYTE bTracePointNumber_p);
-void PUBLIC TgtDbgPostTraceValue(DWORD dwTraceValue_p);
+void TgtDbgSignalTracePoint(BYTE bTracePointNumber_p);
+void TgtDbgPostTraceValue(DWORD dwTraceValue_p);
 
-EPLDLLEXPORT DWORD PUBLIC EplIdentuGetRunningRequests(void);
+EPLDLLEXPORT DWORD EplIdentuGetRunningRequests(void);
 
 //=========================================================================//
 //                                                                         //
@@ -191,7 +191,7 @@ tEplKernel EplLinProcFree(void)
 //---------------------------------------------------------------------------
 
 #ifdef _DBG_TRACE_POINTS_
-void PUBLIC TgtDbgSignalTracePoint(BYTE bTracePointNumber_p)
+void TgtDbgSignalTracePoint(BYTE bTracePointNumber_p)
 {
 
 	if (bTracePointNumber_p >=
@@ -207,7 +207,7 @@ void PUBLIC TgtDbgSignalTracePoint(BYTE bTracePointNumber_p)
 
 }
 
-void PUBLIC TgtDbgPostTraceValue(DWORD dwTraceValue_p)
+void TgtDbgPostTraceValue(DWORD dwTraceValue_p)
 {
 
 	spin_lock_irqsave(&spinlockDbgTraceValue_l, ulDbTraceValueFlags_l);

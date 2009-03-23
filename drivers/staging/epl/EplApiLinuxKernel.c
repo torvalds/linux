@@ -139,7 +139,7 @@ MODULE_DESCRIPTION("EPL API driver");
 
 // TracePoint support for realtime-debugging
 #ifdef _DBG_TRACE_POINTS_
-void PUBLIC TgtDbgSignalTracePoint(BYTE bTracePointNumber_p);
+void TgtDbgSignalTracePoint(BYTE bTracePointNumber_p);
 #define TGT_DBG_SIGNAL_TRACE_POINT(p)   TgtDbgSignalTracePoint(p)
 #else
 #define TGT_DBG_SIGNAL_TRACE_POINT(p)
@@ -204,11 +204,11 @@ typedef struct {
 //  Prototypes of internal functions
 //---------------------------------------------------------------------------
 
-tEplKernel PUBLIC EplLinCbEvent(tEplApiEventType EventType_p,	// IN: event type (enum)
-				tEplApiEventArg * pEventArg_p,	// IN: event argument (union)
-				void GENERIC * pUserArg_p);
+tEplKernel EplLinCbEvent(tEplApiEventType EventType_p,	// IN: event type (enum)
+			 tEplApiEventArg *pEventArg_p,	// IN: event argument (union)
+			 void GENERIC *pUserArg_p);
 
-tEplKernel PUBLIC EplLinCbSync(void);
+tEplKernel EplLinCbSync(void);
 
 static int __init EplLinInit(void);
 static void __exit EplLinExit(void);
@@ -1158,9 +1158,9 @@ static int EplLinIoctl(struct inode *pDeviceFile_p,	// information about the dev
 //                                                                         //
 //=========================================================================//
 
-tEplKernel PUBLIC EplLinCbEvent(tEplApiEventType EventType_p,	// IN: event type (enum)
-				tEplApiEventArg * pEventArg_p,	// IN: event argument (union)
-				void GENERIC * pUserArg_p)
+tEplKernel EplLinCbEvent(tEplApiEventType EventType_p,	// IN: event type (enum)
+			 tEplApiEventArg *pEventArg_p,	// IN: event argument (union)
+			 void GENERIC *pUserArg_p)
 {
 	tEplKernel EplRet = kEplSuccessful;
 	int iErr;
@@ -1224,7 +1224,7 @@ tEplKernel PUBLIC EplLinCbEvent(tEplApiEventType EventType_p,	// IN: event type 
 	return EplRet;
 }
 
-tEplKernel PUBLIC EplLinCbSync(void)
+tEplKernel EplLinCbSync(void)
 {
 	tEplKernel EplRet = kEplSuccessful;
 	int iErr;

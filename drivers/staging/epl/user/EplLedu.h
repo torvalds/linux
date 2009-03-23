@@ -83,7 +83,7 @@
 // typedef
 //---------------------------------------------------------------------------
 
-typedef tEplKernel(PUBLIC * tEplLeduStateChangeCallback) (tEplLedType LedType_p,
+typedef tEplKernel(* tEplLeduStateChangeCallback) (tEplLedType LedType_p,
 							  BOOL fOn_p);
 
 //---------------------------------------------------------------------------
@@ -92,17 +92,15 @@ typedef tEplKernel(PUBLIC * tEplLeduStateChangeCallback) (tEplLedType LedType_p,
 
 #if (((EPL_MODULE_INTEGRATION) & (EPL_MODULE_LEDU)) != 0)
 
-tEplKernel PUBLIC EplLeduInit(tEplLeduStateChangeCallback pfnCbStateChange_p);
+tEplKernel EplLeduInit(tEplLeduStateChangeCallback pfnCbStateChange_p);
 
-tEplKernel PUBLIC EplLeduAddInstance(tEplLeduStateChangeCallback
-				     pfnCbStateChange_p);
+tEplKernel EplLeduAddInstance(tEplLeduStateChangeCallback pfnCbStateChange_p);
 
-tEplKernel PUBLIC EplLeduDelInstance(void);
+tEplKernel EplLeduDelInstance(void);
 
-tEplKernel PUBLIC EplLeduCbNmtStateChange(tEplEventNmtStateChange
-					  NmtStateChange_p);
+tEplKernel EplLeduCbNmtStateChange(tEplEventNmtStateChange NmtStateChange_p);
 
-tEplKernel PUBLIC EplLeduProcessEvent(tEplEvent * pEplEvent_p);
+tEplKernel EplLeduProcessEvent(tEplEvent * pEplEvent_p);
 
 #endif // #if (((EPL_MODULE_INTEGRATION) & (EPL_MODULE_LEDU)) != 0)
 

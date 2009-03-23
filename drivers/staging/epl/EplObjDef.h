@@ -165,8 +165,7 @@
 //
 // ----------------------------------------------------------------------------
 
-EPLDLLEXPORT tEplKernel PUBLIC EPL_OBD_INIT_RAM_NAME(tEplObdInitParam MEM *
-						     pInitParam_p)
+EPLDLLEXPORT tEplKernel EPL_OBD_INIT_RAM_NAME(tEplObdInitParam MEM *pInitParam_p)
 {
 
 	tEplObdInitParam MEM *pInitParam = pInitParam_p;

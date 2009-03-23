@@ -88,24 +88,24 @@
 //---------------------------------------------------------------------------
 // function prototypes
 //---------------------------------------------------------------------------
-tEplKernel PUBLIC EplSdoAsySeqInit(tEplSdoComReceiveCb fpSdoComCb_p,
+tEplKernel EplSdoAsySeqInit(tEplSdoComReceiveCb fpSdoComCb_p,
+			    tEplSdoComConCb fpSdoComConCb_p);
+
+tEplKernel EplSdoAsySeqAddInstance(tEplSdoComReceiveCb fpSdoComCb_p,
 				   tEplSdoComConCb fpSdoComConCb_p);
 
-tEplKernel PUBLIC EplSdoAsySeqAddInstance(tEplSdoComReceiveCb fpSdoComCb_p,
-					  tEplSdoComConCb fpSdoComConCb_p);
+tEplKernel EplSdoAsySeqDelInstance(void);
 
-tEplKernel PUBLIC EplSdoAsySeqDelInstance(void);
+tEplKernel EplSdoAsySeqInitCon(tEplSdoSeqConHdl *pSdoSeqConHdl_p,
+			       unsigned int uiNodeId_p,
+			       tEplSdoType SdoType);
 
-tEplKernel PUBLIC EplSdoAsySeqInitCon(tEplSdoSeqConHdl * pSdoSeqConHdl_p,
-				      unsigned int uiNodeId_p,
-				      tEplSdoType SdoType);
+tEplKernel EplSdoAsySeqSendData(tEplSdoSeqConHdl SdoSeqConHdl_p,
+				unsigned int uiDataSize_p,
+				tEplFrame *pData_p);
 
-tEplKernel PUBLIC EplSdoAsySeqSendData(tEplSdoSeqConHdl SdoSeqConHdl_p,
-				       unsigned int uiDataSize_p,
-				       tEplFrame * pData_p);
+tEplKernel EplSdoAsySeqProcessEvent(tEplEvent *pEvent_p);
 
-tEplKernel PUBLIC EplSdoAsySeqProcessEvent(tEplEvent * pEvent_p);
-
-tEplKernel PUBLIC EplSdoAsySeqDelCon(tEplSdoSeqConHdl SdoSeqConHdl_p);
+tEplKernel EplSdoAsySeqDelCon(tEplSdoSeqConHdl SdoSeqConHdl_p);
 
 #endif // #ifndef _EPLSDOASYSEQU_H_

@@ -285,7 +285,7 @@ static tEplKernel VEthRecvFrame(tEplFrameInfo * pFrameInfo_p)
 	return Ret;
 }
 
-tEplKernel PUBLIC VEthAddInstance(tEplDllkInitParam * pInitParam_p)
+tEplKernel VEthAddInstance(tEplDllkInitParam *pInitParam_p)
 {
 	tEplKernel Ret = kEplSuccessful;
 
@@ -324,7 +324,7 @@ tEplKernel PUBLIC VEthAddInstance(tEplDllkInitParam * pInitParam_p)
 	return Ret;
 }
 
-tEplKernel PUBLIC VEthDelInstance(void)
+tEplKernel VEthDelInstance(void)
 {
 	tEplKernel Ret = kEplSuccessful;
 

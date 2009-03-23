@@ -226,7 +226,7 @@ tEplKernel EplPdouDelInstance(void)
 //
 //---------------------------------------------------------------------------
 
-tEplKernel PUBLIC EplPdouCbObdAccess(tEplObdCbParam MEM * pParam_p)
+tEplKernel EplPdouCbObdAccess(tEplObdCbParam MEM *pParam_p)
 {
 	tEplKernel Ret = kEplSuccessful;
 	unsigned int uiPdoId;

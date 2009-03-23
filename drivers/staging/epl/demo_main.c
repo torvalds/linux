@@ -118,7 +118,7 @@ MODULE_DESCRIPTION("EPL MN demo");
 
 // TracePoint support for realtime-debugging
 #ifdef _DBG_TRACE_POINTS_
-void PUBLIC TgtDbgSignalTracePoint(BYTE bTracePointNumber_p);
+void TgtDbgSignalTracePoint(BYTE bTracePointNumber_p);
 #define TGT_DBG_SIGNAL_TRACE_POINT(p)   TgtDbgSignalTracePoint(p)
 #else
 #define TGT_DBG_SIGNAL_TRACE_POINT(p)
@@ -188,13 +188,13 @@ module_param_named(cyclelen, uiCycleLen_g, uint, 0);
 // this function prototype here. If you want to use more than one Epl
 // instances then the function name of each object dictionary has to differ.
 
-tEplKernel PUBLIC EplObdInitRam(tEplObdInitParam MEM * pInitParam_p);
+tEplKernel EplObdInitRam(tEplObdInitParam MEM * pInitParam_p);
 
-tEplKernel PUBLIC AppCbEvent(tEplApiEventType EventType_p,	// IN: event type (enum)
-			     tEplApiEventArg * pEventArg_p,	// IN: event argument (union)
-			     void GENERIC * pUserArg_p);
+tEplKernel AppCbEvent(tEplApiEventType EventType_p,	// IN: event type (enum)
+		      tEplApiEventArg *pEventArg_p,	// IN: event argument (union)
+		      void GENERIC *pUserArg_p);
 
-tEplKernel PUBLIC AppCbSync(void);
+tEplKernel AppCbSync(void);
 
 static int __init EplLinInit(void);
 static void __exit EplLinExit(void);
@@ -484,9 +484,9 @@ static void __exit EplLinExit(void)
 //
 //---------------------------------------------------------------------------
 
-tEplKernel PUBLIC AppCbEvent(tEplApiEventType EventType_p,	// IN: event type (enum)
-			     tEplApiEventArg * pEventArg_p,	// IN: event argument (union)
-			     void GENERIC * pUserArg_p)
+tEplKernel AppCbEvent(tEplApiEventType EventType_p,	// IN: event type (enum)
+		      tEplApiEventArg *pEventArg_p,	// IN: event argument (union)
+		      void GENERIC *pUserArg_p)
 {
 	tEplKernel EplRet = kEplSuccessful;
 
@@ -802,7 +802,7 @@ tEplKernel PUBLIC AppCbEvent(tEplApiEventType EventType_p,	// IN: event type (en
 //
 //---------------------------------------------------------------------------
 
-tEplKernel PUBLIC AppCbSync(void)
+tEplKernel AppCbSync(void)
 {
 	tEplKernel EplRet = kEplSuccessful;
 

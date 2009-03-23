@@ -267,10 +267,10 @@ typedef struct {
 } tEplErrorHandlerkEvent;
 
 // callback function to get informed about sync event
-typedef tEplKernel(PUBLIC * tEplSyncCb) (void);
+typedef tEplKernel(*tEplSyncCb) (void);
 
 // callback function for generic events
-typedef tEplKernel(PUBLIC * tEplProcessEventCb) (tEplEvent * pEplEvent_p);
+typedef tEplKernel(*tEplProcessEventCb) (tEplEvent *pEplEvent_p);
 
 //---------------------------------------------------------------------------
 // function prototypes

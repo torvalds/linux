@@ -203,9 +203,9 @@ static tEplKernel EplSdoAsySeqSendLowerLayer(tEplAsySdoSeqCon * pAsySdoSeqCon_p,
 					     unsigned int uiDataSize_p,
 					     tEplFrame * pEplFrame_p);
 
-tEplKernel PUBLIC EplSdoAsyReceiveCb(tEplSdoConHdl ConHdl_p,
-				     tEplAsySdoSeq * pSdoSeqData_p,
-				     unsigned int uiDataSize_p);
+tEplKernel EplSdoAsyReceiveCb(tEplSdoConHdl ConHdl_p,
+			      tEplAsySdoSeq *pSdoSeqData_p,
+			      unsigned int uiDataSize_p);
 
 static tEplKernel EplSdoAsyInitHistory(void);
 
@@ -267,8 +267,8 @@ static tEplKernel EplSdoAsySeqSetTimer(tEplAsySdoSeqCon * pAsySdoSeqCon_p,
 // State:
 //
 //---------------------------------------------------------------------------
-tEplKernel PUBLIC EplSdoAsySeqInit(tEplSdoComReceiveCb fpSdoComCb_p,
-				   tEplSdoComConCb fpSdoComConCb_p)
+tEplKernel EplSdoAsySeqInit(tEplSdoComReceiveCb fpSdoComCb_p,
+			    tEplSdoComConCb fpSdoComConCb_p)
 {
 	tEplKernel Ret;
 
@@ -297,8 +297,8 @@ tEplKernel PUBLIC EplSdoAsySeqInit(tEplSdoComReceiveCb fpSdoComCb_p,
 // State:
 //
 //---------------------------------------------------------------------------
-tEplKernel PUBLIC EplSdoAsySeqAddInstance(tEplSdoComReceiveCb fpSdoComCb_p,
-					  tEplSdoComConCb fpSdoComConCb_p)
+tEplKernel EplSdoAsySeqAddInstance(tEplSdoComReceiveCb fpSdoComCb_p,
+				   tEplSdoComConCb fpSdoComConCb_p)
 {
 	tEplKernel Ret;
 
@@ -380,7 +380,7 @@ tEplKernel PUBLIC EplSdoAsySeqAddInstance(tEplSdoComReceiveCb fpSdoComCb_p,
 // State:
 //
 //---------------------------------------------------------------------------
-tEplKernel PUBLIC EplSdoAsySeqDelInstance()
+tEplKernel EplSdoAsySeqDelInstance(void)
 {
 	tEplKernel Ret;
 	unsigned int uiCount;
@@ -439,9 +439,9 @@ tEplKernel PUBLIC EplSdoAsySeqDelInstance()
 // State:
 //
 //---------------------------------------------------------------------------
-tEplKernel PUBLIC EplSdoAsySeqInitCon(tEplSdoSeqConHdl * pSdoSeqConHdl_p,
-				      unsigned int uiNodeId_p,
-				      tEplSdoType SdoType)
+tEplKernel EplSdoAsySeqInitCon(tEplSdoSeqConHdl *pSdoSeqConHdl_p,
+			       unsigned int uiNodeId_p,
+			       tEplSdoType SdoType)
 {
 	tEplKernel Ret;
 	unsigned int uiCount;
@@ -594,9 +594,9 @@ tEplKernel PUBLIC EplSdoAsySeqInitCon(tEplSdoSeqConHdl * pSdoSeqConHdl_p,
 // State:
 //
 //---------------------------------------------------------------------------
-tEplKernel PUBLIC EplSdoAsySeqSendData(tEplSdoSeqConHdl SdoSeqConHdl_p,
-				       unsigned int uiDataSize_p,
-				       tEplFrame * pabData_p)
+tEplKernel EplSdoAsySeqSendData(tEplSdoSeqConHdl SdoSeqConHdl_p,
+				unsigned int uiDataSize_p,
+				tEplFrame *pabData_p)
 {
 	tEplKernel Ret;
 	unsigned int uiHandle;
@@ -640,7 +640,7 @@ tEplKernel PUBLIC EplSdoAsySeqSendData(tEplSdoSeqConHdl SdoSeqConHdl_p,
 // State:
 //
 //---------------------------------------------------------------------------
-tEplKernel PUBLIC EplSdoAsySeqProcessEvent(tEplEvent * pEvent_p)
+tEplKernel EplSdoAsySeqProcessEvent(tEplEvent *pEvent_p)
 {
 	tEplKernel Ret;
 	tEplTimerEventArg *pTimerEventArg;
@@ -714,7 +714,7 @@ tEplKernel PUBLIC EplSdoAsySeqProcessEvent(tEplEvent * pEvent_p)
 // State:
 //
 //---------------------------------------------------------------------------
-tEplKernel PUBLIC EplSdoAsySeqDelCon(tEplSdoSeqConHdl SdoSeqConHdl_p)
+tEplKernel EplSdoAsySeqDelCon(tEplSdoSeqConHdl SdoSeqConHdl_p)
 {
 	tEplKernel Ret = kEplSuccessful;
 	unsigned int uiHandle;
@@ -2139,9 +2139,9 @@ static tEplKernel EplSdoAsySeqSendLowerLayer(tEplAsySdoSeqCon * pAsySdoSeqCon_p,
 // State:
 //
 //---------------------------------------------------------------------------
-tEplKernel PUBLIC EplSdoAsyReceiveCb(tEplSdoConHdl ConHdl_p,
-				     tEplAsySdoSeq * pSdoSeqData_p,
-				     unsigned int uiDataSize_p)
+tEplKernel EplSdoAsyReceiveCb(tEplSdoConHdl ConHdl_p,
+			      tEplAsySdoSeq *pSdoSeqData_p,
+			      unsigned int uiDataSize_p)
 {
 	tEplKernel Ret;
 	unsigned int uiCount = 0;

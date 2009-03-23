@@ -110,7 +110,7 @@ static tEplNmtCommand EplNmtCnuGetNmtCommand(tEplFrameInfo * pFrameInfo_p);
 
 static BOOL EplNmtCnuNodeIdList(BYTE * pbNmtCommandDate_p);
 
-static tEplKernel PUBLIC EplNmtCnuCommandCb(tEplFrameInfo * pFrameInfo_p);
+static tEplKernel EplNmtCnuCommandCb(tEplFrameInfo *pFrameInfo_p);
 
 //=========================================================================//
 //                                                                         //
@@ -135,7 +135,7 @@ static tEplKernel PUBLIC EplNmtCnuCommandCb(tEplFrameInfo * pFrameInfo_p);
 // State:
 //
 //---------------------------------------------------------------------------
-EPLDLLEXPORT tEplKernel PUBLIC EplNmtCnuInit(unsigned int uiNodeId_p)
+EPLDLLEXPORT tEplKernel EplNmtCnuInit(unsigned int uiNodeId_p)
 {
 	tEplKernel Ret;
 
@@ -161,7 +161,7 @@ EPLDLLEXPORT tEplKernel PUBLIC EplNmtCnuInit(unsigned int uiNodeId_p)
 // State:
 //
 //---------------------------------------------------------------------------
-EPLDLLEXPORT tEplKernel PUBLIC EplNmtCnuAddInstance(unsigned int uiNodeId_p)
+EPLDLLEXPORT tEplKernel EplNmtCnuAddInstance(unsigned int uiNodeId_p)
 {
 	tEplKernel Ret;
 
@@ -201,7 +201,7 @@ EPLDLLEXPORT tEplKernel PUBLIC EplNmtCnuAddInstance(unsigned int uiNodeId_p)
 // State:
 //
 //---------------------------------------------------------------------------
-EPLDLLEXPORT tEplKernel PUBLIC EplNmtCnuDelInstance()
+EPLDLLEXPORT tEplKernel EplNmtCnuDelInstance(void)
 {
 	tEplKernel Ret;
 
@@ -234,9 +234,8 @@ EPLDLLEXPORT tEplKernel PUBLIC EplNmtCnuDelInstance()
 // State:
 //
 //---------------------------------------------------------------------------
-EPLDLLEXPORT tEplKernel PUBLIC EplNmtCnuSendNmtRequest(unsigned int uiNodeId_p,
-						       tEplNmtCommand
-						       NmtCommand_p)
+EPLDLLEXPORT tEplKernel EplNmtCnuSendNmtRequest(unsigned int uiNodeId_p,
+						tEplNmtCommand NmtCommand_p)
 {
 	tEplKernel Ret;
 	tEplFrameInfo NmtRequestFrameInfo;
@@ -297,9 +296,7 @@ EPLDLLEXPORT tEplKernel PUBLIC EplNmtCnuSendNmtRequest(unsigned int uiNodeId_p,
 //
 //---------------------------------------------------------------------------
 
-EPLDLLEXPORT tEplKernel PUBLIC
-EplNmtCnuRegisterCheckEventCb(tEplNmtuCheckEventCallback
-			      pfnEplNmtCheckEventCb_p)
+EPLDLLEXPORT tEplKernel EplNmtCnuRegisterCheckEventCb(tEplNmtuCheckEventCallback pfnEplNmtCheckEventCb_p)
 {
 	tEplKernel Ret;
 
@@ -335,7 +332,7 @@ EplNmtCnuRegisterCheckEventCb(tEplNmtuCheckEventCallback
 // State:
 //
 //---------------------------------------------------------------------------
-static tEplKernel PUBLIC EplNmtCnuCommandCb(tEplFrameInfo * pFrameInfo_p)
+static tEplKernel EplNmtCnuCommandCb(tEplFrameInfo *pFrameInfo_p)
 {
 	tEplKernel Ret = kEplSuccessful;
 	tEplNmtCommand NmtCommand;

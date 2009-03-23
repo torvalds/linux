@@ -81,24 +81,22 @@
 // typedef
 //---------------------------------------------------------------------------
 
-typedef tEplKernel(PUBLIC * tEplStatusuCbResponse) (unsigned int uiNodeId_p,
-						    tEplStatusResponse *
-						    pStatusResponse_p);
+typedef tEplKernel(* tEplStatusuCbResponse) (unsigned int uiNodeId_p,
+					     tEplStatusResponse *pStatusResponse_p);
 
 //---------------------------------------------------------------------------
 // function prototypes
 //---------------------------------------------------------------------------
 
-tEplKernel PUBLIC EplStatusuInit(void);
+tEplKernel EplStatusuInit(void);
 
-tEplKernel PUBLIC EplStatusuAddInstance(void);
+tEplKernel EplStatusuAddInstance(void);
 
-tEplKernel PUBLIC EplStatusuDelInstance(void);
+tEplKernel EplStatusuDelInstance(void);
 
-tEplKernel PUBLIC EplStatusuReset(void);
+tEplKernel EplStatusuReset(void);
 
-tEplKernel PUBLIC EplStatusuRequestStatusResponse(unsigned int uiNodeId_p,
-						  tEplStatusuCbResponse
-						  pfnCbResponse_p);
+tEplKernel EplStatusuRequestStatusResponse(unsigned int uiNodeId_p,
+					   tEplStatusuCbResponse pfnCbResponse_p);
 
 #endif // #ifndef _EPLSTATUSU_H_

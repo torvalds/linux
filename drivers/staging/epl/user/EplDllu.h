@@ -81,7 +81,7 @@
 // typedef
 //---------------------------------------------------------------------------
 
-typedef tEplKernel(PUBLIC * tEplDlluCbAsnd) (tEplFrameInfo * pFrameInfo_p);
+typedef tEplKernel(* tEplDlluCbAsnd) (tEplFrameInfo * pFrameInfo_p);
 
 //---------------------------------------------------------------------------
 // function prototypes

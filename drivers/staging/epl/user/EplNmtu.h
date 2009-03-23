@@ -121,12 +121,9 @@ typedef enum {
 	kEplNmtCmdInvalidService = 0xFF
 } tEplNmtCommand;
 
-typedef tEplKernel(PUBLIC *
-		   tEplNmtuStateChangeCallback) (tEplEventNmtStateChange
-						 NmtStateChange_p);
+typedef tEplKernel(* tEplNmtuStateChangeCallback) (tEplEventNmtStateChange NmtStateChange_p);
 
-typedef tEplKernel(PUBLIC *
-		   tEplNmtuCheckEventCallback) (tEplNmtEvent NmtEvent_p);
+typedef tEplKernel(* tEplNmtuCheckEventCallback) (tEplNmtEvent NmtEvent_p);
 
 //---------------------------------------------------------------------------
 // function prototypes
@@ -134,21 +131,19 @@ typedef tEplKernel(PUBLIC *
 
 #if(((EPL_MODULE_INTEGRATION) & (EPL_MODULE_NMTU)) != 0)
 
-EPLDLLEXPORT tEplKernel PUBLIC EplNmtuInit(void);
+EPLDLLEXPORT tEplKernel EplNmtuInit(void);
 
-EPLDLLEXPORT tEplKernel PUBLIC EplNmtuAddInstance(void);
+EPLDLLEXPORT tEplKernel EplNmtuAddInstance(void);
 
-EPLDLLEXPORT tEplKernel PUBLIC EplNmtuDelInstance(void);
+EPLDLLEXPORT tEplKernel EplNmtuDelInstance(void);
 
-EPLDLLEXPORT tEplKernel PUBLIC EplNmtuNmtEvent(tEplNmtEvent NmtEvent_p);
+EPLDLLEXPORT tEplKernel EplNmtuNmtEvent(tEplNmtEvent NmtEvent_p);
 
-EPLDLLEXPORT tEplNmtState PUBLIC EplNmtuGetNmtState(void);
+EPLDLLEXPORT tEplNmtState EplNmtuGetNmtState(void);
 
-EPLDLLEXPORT tEplKernel PUBLIC EplNmtuProcessEvent(tEplEvent * pEplEvent_p);
+EPLDLLEXPORT tEplKernel EplNmtuProcessEvent(tEplEvent * pEplEvent_p);
 
-EPLDLLEXPORT tEplKernel PUBLIC
-EplNmtuRegisterStateChangeCb(tEplNmtuStateChangeCallback
-			     pfnEplNmtStateChangeCb_p);
+EPLDLLEXPORT tEplKernel EplNmtuRegisterStateChangeCb(tEplNmtuStateChangeCallback pfnEplNmtStateChangeCb_p);
 
 #endif // #if(((EPL_MODULE_INTEGRATION) & (EPL_MODULE_NMTU)) != 0)
 

@@ -217,17 +217,15 @@ void trace(const char *fmt, ...);
 
 // currently no Timer functions are needed by EPL stack
 // so they are not implemented yet
-//void  PUBLIC TgtTimerInit(void);
-//DWORD PUBLIC TgtGetTickCount(void);
-//void PUBLIC TgtGetNetTime(tEplNetTime * pNetTime_p);
+//void  TgtTimerInit(void);
+//DWORD TgtGetTickCount(void);
+//void TgtGetNetTime(tEplNetTime * pNetTime_p);
 
 // functions for ethernet driver
-tEplKernel PUBLIC TgtInitEthIsr(void);
-void PUBLIC TgtFreeEthIsr(void);
-void PUBLIC TgtEnableGlobalInterrupt(BYTE fEnable_p);
-void PUBLIC TgtEnableEthInterrupt0(BYTE fEnable_p,
-				   unsigned int uiInterruptMask_p);
-void PUBLIC TgtEnableEthInterrupt1(BYTE fEnable_p,
-				   unsigned int uiInterruptMask_p);
+tEplKernel TgtInitEthIsr(void);
+void TgtFreeEthIsr(void);
+void TgtEnableGlobalInterrupt(BYTE fEnable_p);
+void TgtEnableEthInterrupt0(BYTE fEnable_p, unsigned int uiInterruptMask_p);
+void TgtEnableEthInterrupt1(BYTE fEnable_p, unsigned int uiInterruptMask_p);
 
 #endif // #ifndef _EPLTARGET_H_

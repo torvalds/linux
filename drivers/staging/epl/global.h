@@ -180,7 +180,6 @@
 #endif
 
 #define REENTRANT
-#define PUBLIC
 
 #define TRACE  printk
 

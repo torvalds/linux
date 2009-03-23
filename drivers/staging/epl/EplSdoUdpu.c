@@ -134,7 +134,7 @@ static tEplSdoUdpInstance SdoUdpInstance_g;
 //---------------------------------------------------------------------------
 
 #if (TARGET_SYSTEM == _WIN32_)
-static DWORD PUBLIC EplSdoUdpThread(LPVOID lpParameter);
+static DWORD EplSdoUdpThread(LPVOID lpParameter);
 
 #elif (TARGET_SYSTEM == _LINUX_) && defined(__KERNEL__)
 static int EplSdoUdpThread(void *pArg_p);
@@ -177,7 +177,7 @@ static int EplSdoUdpThread(void *pArg_p);
 // State:
 //
 //---------------------------------------------------------------------------
-tEplKernel PUBLIC EplSdoUdpuInit(tEplSequLayerReceiveCb fpReceiveCb_p)
+tEplKernel EplSdoUdpuInit(tEplSequLayerReceiveCb fpReceiveCb_p)
 {
 	tEplKernel Ret;
 
@@ -205,7 +205,7 @@ tEplKernel PUBLIC EplSdoUdpuInit(tEplSequLayerReceiveCb fpReceiveCb_p)
 // State:
 //
 //---------------------------------------------------------------------------
-tEplKernel PUBLIC EplSdoUdpuAddInstance(tEplSequLayerReceiveCb fpReceiveCb_p)
+tEplKernel EplSdoUdpuAddInstance(tEplSequLayerReceiveCb fpReceiveCb_p)
 {
 	tEplKernel Ret;
 
@@ -273,7 +273,7 @@ tEplKernel PUBLIC EplSdoUdpuAddInstance(tEplSequLayerReceiveCb fpReceiveCb_p)
 // State:
 //
 //---------------------------------------------------------------------------
-tEplKernel PUBLIC EplSdoUdpuDelInstance()
+tEplKernel EplSdoUdpuDelInstance(void)
 {
 	tEplKernel Ret;
 
@@ -340,8 +340,7 @@ tEplKernel PUBLIC EplSdoUdpuDelInstance()
 // State:
 //
 //---------------------------------------------------------------------------
-tEplKernel PUBLIC EplSdoUdpuConfig(unsigned long ulIpAddr_p,
-				   unsigned int uiPort_p)
+tEplKernel EplSdoUdpuConfig(unsigned long ulIpAddr_p, unsigned int uiPort_p)
 {
 	tEplKernel Ret;
 	struct sockaddr_in Addr;
@@ -459,8 +458,8 @@ tEplKernel PUBLIC EplSdoUdpuConfig(unsigned long ulIpAddr_p,
 // State:
 //
 //---------------------------------------------------------------------------
-tEplKernel PUBLIC EplSdoUdpuInitCon(tEplSdoConHdl * pSdoConHandle_p,
-				    unsigned int uiTargetNodeId_p)
+tEplKernel EplSdoUdpuInitCon(tEplSdoConHdl *pSdoConHandle_p,
+			     unsigned int uiTargetNodeId_p)
 {
 	tEplKernel Ret;
 	unsigned int uiCount;
@@ -526,8 +525,8 @@ tEplKernel PUBLIC EplSdoUdpuInitCon(tEplSdoConHdl * pSdoConHandle_p,
 // State:
 //
 //---------------------------------------------------------------------------
-tEplKernel PUBLIC EplSdoUdpuSendData(tEplSdoConHdl SdoConHandle_p,
-				     tEplFrame * pSrcData_p, DWORD dwDataSize_p)
+tEplKernel EplSdoUdpuSendData(tEplSdoConHdl SdoConHandle_p,
+			      tEplFrame *pSrcData_p, DWORD dwDataSize_p)
 {
 	tEplKernel Ret;
 	int iError;
@@ -603,7 +602,7 @@ tEplKernel PUBLIC EplSdoUdpuSendData(tEplSdoConHdl SdoConHandle_p,
 // State:
 //
 //---------------------------------------------------------------------------
-tEplKernel PUBLIC EplSdoUdpuDelCon(tEplSdoConHdl SdoConHandle_p)
+tEplKernel EplSdoUdpuDelCon(tEplSdoConHdl SdoConHandle_p)
 {
 	tEplKernel Ret;
 	unsigned int uiArray;
@@ -649,7 +648,7 @@ tEplKernel PUBLIC EplSdoUdpuDelCon(tEplSdoConHdl SdoConHandle_p)
 //
 //---------------------------------------------------------------------------
 #if (TARGET_SYSTEM == _WIN32_)
-static DWORD PUBLIC EplSdoUdpThread(LPVOID lpParameter)
+static DWORD EplSdoUdpThread(LPVOID lpParameter)
 #elif (TARGET_SYSTEM == _LINUX_) && defined(__KERNEL__)
 static int EplSdoUdpThread(void *pArg_p)
 #endif

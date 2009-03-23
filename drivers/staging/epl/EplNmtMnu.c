@@ -94,8 +94,8 @@
 
 // TracePoint support for realtime-debugging
 #ifdef _DBG_TRACE_POINTS_
-void PUBLIC TgtDbgSignalTracePoint(BYTE bTracePointNumber_p);
-void PUBLIC TgtDbgPostTraceValue(DWORD dwTraceValue_p);
+void TgtDbgSignalTracePoint(BYTE bTracePointNumber_p);
+void TgtDbgPostTraceValue(DWORD dwTraceValue_p);
 #define TGT_DBG_SIGNAL_TRACE_POINT(p)   TgtDbgSignalTracePoint(p)
 #define TGT_DBG_POST_TRACE_VALUE(v)     TgtDbgPostTraceValue(v)
 #else
@@ -241,15 +241,13 @@ static tEplNmtMnuInstance EplNmtMnuInstance_g;
 // local function prototypes
 //---------------------------------------------------------------------------
 
-static tEplKernel PUBLIC EplNmtMnuCbNmtRequest(tEplFrameInfo * pFrameInfo_p);
+static tEplKernel EplNmtMnuCbNmtRequest(tEplFrameInfo *pFrameInfo_p);
 
-static tEplKernel PUBLIC EplNmtMnuCbIdentResponse(unsigned int uiNodeId_p,
-						  tEplIdentResponse *
-						  pIdentResponse_p);
+static tEplKernel EplNmtMnuCbIdentResponse(unsigned int uiNodeId_p,
+					   tEplIdentResponse *pIdentResponse_p);
 
-static tEplKernel PUBLIC EplNmtMnuCbStatusResponse(unsigned int uiNodeId_p,
-						   tEplStatusResponse *
-						   pStatusResponse_p);
+static tEplKernel EplNmtMnuCbStatusResponse(unsigned int uiNodeId_p,
+					    tEplStatusResponse *pStatusResponse_p);
 
 static tEplKernel EplNmtMnuCheckNmtState(unsigned int uiNodeId_p,
 					 tEplNmtMnuNodeInfo * pNodeInfo_p,
@@ -645,8 +643,7 @@ tEplKernel EplNmtMnuTriggerStateChange(unsigned int uiNodeId_p,
 //
 //---------------------------------------------------------------------------
 
-tEplKernel PUBLIC EplNmtMnuCbNmtStateChange(tEplEventNmtStateChange
-					    NmtStateChange_p)
+tEplKernel EplNmtMnuCbNmtStateChange(tEplEventNmtStateChange NmtStateChange_p)
 {
 	tEplKernel Ret = kEplSuccessful;
 
@@ -928,7 +925,7 @@ tEplKernel PUBLIC EplNmtMnuCbNmtStateChange(tEplEventNmtStateChange
 //
 //---------------------------------------------------------------------------
 
-tEplKernel PUBLIC EplNmtMnuCbCheckEvent(tEplNmtEvent NmtEvent_p)
+tEplKernel EplNmtMnuCbCheckEvent(tEplNmtEvent NmtEvent_p)
 {
 	tEplKernel Ret = kEplSuccessful;
 
@@ -949,7 +946,7 @@ tEplKernel PUBLIC EplNmtMnuCbCheckEvent(tEplNmtEvent NmtEvent_p)
 //
 //---------------------------------------------------------------------------
 
-EPLDLLEXPORT tEplKernel PUBLIC EplNmtMnuProcessEvent(tEplEvent * pEvent_p)
+EPLDLLEXPORT tEplKernel EplNmtMnuProcessEvent(tEplEvent *pEvent_p)
 {
 	tEplKernel Ret;
 
@@ -1258,11 +1255,9 @@ EPLDLLEXPORT tEplKernel PUBLIC EplNmtMnuProcessEvent(tEplEvent * pEvent_p)
 //
 //---------------------------------------------------------------------------
 
-tEplKernel PUBLIC EplNmtMnuGetDiagnosticInfo(unsigned int
-					     *puiMandatorySlaveCount_p,
-					     unsigned int
-					     *puiSignalSlaveCount_p,
-					     WORD * pwFlags_p)
+tEplKernel EplNmtMnuGetDiagnosticInfo(unsigned int *puiMandatorySlaveCount_p,
+				      unsigned int *puiSignalSlaveCount_p,
+				      WORD *pwFlags_p)
 {
 	tEplKernel Ret = kEplSuccessful;
 
@@ -1347,7 +1342,7 @@ Exit:
 //
 //---------------------------------------------------------------------------
 
-static tEplKernel PUBLIC EplNmtMnuCbNmtRequest(tEplFrameInfo * pFrameInfo_p)
+static tEplKernel EplNmtMnuCbNmtRequest(tEplFrameInfo *pFrameInfo_p)
 {
 	tEplKernel Ret = kEplSuccessful;
 
@@ -1371,9 +1366,8 @@ static tEplKernel PUBLIC EplNmtMnuCbNmtRequest(tEplFrameInfo * pFrameInfo_p)
 //
 //---------------------------------------------------------------------------
 
-static tEplKernel PUBLIC EplNmtMnuCbIdentResponse(unsigned int uiNodeId_p,
-						  tEplIdentResponse *
-						  pIdentResponse_p)
+static tEplKernel EplNmtMnuCbIdentResponse(unsigned int uiNodeId_p,
+					   tEplIdentResponse *pIdentResponse_p)
 {
 	tEplKernel Ret = kEplSuccessful;
 
@@ -1431,9 +1425,8 @@ static tEplKernel PUBLIC EplNmtMnuCbIdentResponse(unsigned int uiNodeId_p,
 //
 //---------------------------------------------------------------------------
 
-static tEplKernel PUBLIC EplNmtMnuCbStatusResponse(unsigned int uiNodeId_p,
-						   tEplStatusResponse *
-						   pStatusResponse_p)
+static tEplKernel EplNmtMnuCbStatusResponse(unsigned int uiNodeId_p,
+					    tEplStatusResponse *pStatusResponse_p)
 {
 	tEplKernel Ret = kEplSuccessful;
 

@@ -99,20 +99,20 @@
 // function prototypes
 //---------------------------------------------------------------------------
 #if EPL_TIMER_USE_USER == FALSE
-tEplKernel PUBLIC EplTimerkInit(void);
+tEplKernel EplTimerkInit(void);
 
-tEplKernel PUBLIC EplTimerkAddInstance(void);
+tEplKernel EplTimerkAddInstance(void);
 
-tEplKernel PUBLIC EplTimerkDelInstance(void);
+tEplKernel EplTimerkDelInstance(void);
 
-tEplKernel PUBLIC EplTimerkSetTimerMs(tEplTimerHdl * pTimerHdl_p,
-				      unsigned long ulTime_p,
-				      tEplTimerArg Argument_p);
+tEplKernel EplTimerkSetTimerMs(tEplTimerHdl *pTimerHdl_p,
+			       unsigned long ulTime_p,
+			       tEplTimerArg Argument_p);
 
-tEplKernel PUBLIC EplTimerkModifyTimerMs(tEplTimerHdl * pTimerHdl_p,
-					 unsigned long ulTime_p,
-					 tEplTimerArg Argument_p);
+tEplKernel EplTimerkModifyTimerMs(tEplTimerHdl *pTimerHdl_p,
+				  unsigned long ulTime_p,
+				  tEplTimerArg Argument_p);
 
-tEplKernel PUBLIC EplTimerkDeleteTimer(tEplTimerHdl * pTimerHdl_p);
+tEplKernel EplTimerkDeleteTimer(tEplTimerHdl *pTimerHdl_p);
 #endif
 #endif // #ifndef _EPLTIMERK_H_

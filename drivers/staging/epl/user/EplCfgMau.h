@@ -86,8 +86,8 @@
 #define EPL_CFGMA_MAX_TIMEOUT   3
 
 //callbackfunction, called if configuration is finished
-typedef void (PUBLIC * tfpEplCfgMaCb) (unsigned int uiNodeId_p,
-				       tEplKernel Errorstate_p);
+typedef void (* tfpEplCfgMaCb)(unsigned int uiNodeId_p,
+			       tEplKernel Errorstate_p);
 
 //State for configuartion manager Statemachine
 typedef enum {
@@ -166,7 +166,7 @@ typedef struct {
 //
 // Returns:     tEplKernel              = error code
 //---------------------------------------------------------------------------
-tEplKernel PUBLIC EplCfgMaInit();
+tEplKernel EplCfgMaInit(void);
 
 //---------------------------------------------------------------------------
 // Function:    EplCfgMaAddInstance()
@@ -177,7 +177,7 @@ tEplKernel PUBLIC EplCfgMaInit();
 //
 // Returns:     tEplKernel              = error code
 //---------------------------------------------------------------------------
-tEplKernel PUBLIC EplCfgMaAddInstance();
+tEplKernel EplCfgMaAddInstance(void);
 
 //---------------------------------------------------------------------------
 // Function:    EplCfgMaDelInstance()
@@ -188,7 +188,7 @@ tEplKernel PUBLIC EplCfgMaAddInstance();
 //
 // Returns:     tEplKernel              = error code
 //---------------------------------------------------------------------------
-tEplKernel PUBLIC EplCfgMaDelInstance();
+tEplKernel plCfgMaDelInstance(void);
 
 //---------------------------------------------------------------------------
 // Function:    EplCfgMaStartConfig()
@@ -204,11 +204,11 @@ tEplKernel PUBLIC EplCfgMaDelInstance();
 //
 // Returns:     tCopKernel              = error code
 //---------------------------------------------------------------------------
-tEplKernel PUBLIC EplCfgMaStartConfig(unsigned int uiNodeId_p,
-				      BYTE * pbConcise_p,
-				      tfpEplCfgMaCb fpCfgMaCb_p,
-				      tEplObdSize SizeOfConcise_p,
-				      tEplCfgMaDcfTyp DcfType_p);
+tEplKernel EplCfgMaStartConfig(unsigned int uiNodeId_p,
+			       BYTE * pbConcise_p,
+			       tfpEplCfgMaCb fpCfgMaCb_p,
+			       tEplObdSize SizeOfConcise_p,
+			       tEplCfgMaDcfTyp DcfType_p);
 
 //---------------------------------------------------------------------------
 // Function:    CfgMaStartConfigurationNode()
@@ -222,9 +222,9 @@ tEplKernel PUBLIC EplCfgMaStartConfig(unsigned int uiNodeId_p,
 //
 // Returns:     tCopKernel              = error code
 //---------------------------------------------------------------------------
-tEplKernel PUBLIC EplCfgMaStartConfigNode(unsigned int uiNodeId_p,
-					  tfpEplCfgMaCb fpCfgMaCb_p,
-					  tEplCfgMaDcfTyp DcfType_p);
+tEplKernel EplCfgMaStartConfigNode(unsigned int uiNodeId_p,
+				   tfpEplCfgMaCb fpCfgMaCb_p,
+				   tEplCfgMaDcfTyp DcfType_p);
 
 //---------------------------------------------------------------------------
 // Function:    EplCfgMaStartConfigNodeDcf()
@@ -240,11 +240,11 @@ tEplKernel PUBLIC EplCfgMaStartConfigNode(unsigned int uiNodeId_p,
 //
 // Returns:     tCopKernel              = error code
 //---------------------------------------------------------------------------
-tEplKernel PUBLIC EplCfgMaStartConfigNodeDcf(unsigned int uiNodeId_p,
-					     BYTE * pbConcise_p,
-					     tfpEplCfgMaCb fpCfgMaCb_p,
-					     tEplObdSize SizeOfConcise_p,
-					     tEplCfgMaDcfTyp DcfType_p);
+tEplKernel EplCfgMaStartConfigNodeDcf(unsigned int uiNodeId_p,
+				      BYTE * pbConcise_p,
+				      tfpEplCfgMaCb fpCfgMaCb_p,
+				      tEplObdSize SizeOfConcise_p,
+				      tEplCfgMaDcfTyp DcfType_p);
 
 //---------------------------------------------------------------------------
 // Function:    EplCfgMaLinkDcf()
@@ -258,10 +258,10 @@ tEplKernel PUBLIC EplCfgMaStartConfigNodeDcf(unsigned int uiNodeId_p,
 //
 // Returns:     tCopKernel              = error code
 //---------------------------------------------------------------------------
-tEplKernel PUBLIC EplCfgMaLinkDcf(unsigned int uiNodeId_p,
-				  BYTE * pbConcise_p,
-				  tEplObdSize SizeOfConcise_p,
-				  tEplCfgMaDcfTyp DcfType_p);
+tEplKernel EplCfgMaLinkDcf(unsigned int uiNodeId_p,
+			   BYTE * pbConcise_p,
+			   tEplObdSize SizeOfConcise_p,
+			   tEplCfgMaDcfTyp DcfType_p);
 
 //---------------------------------------------------------------------------
 // Function:    EplCfgMaCheckDcf()
@@ -274,8 +274,7 @@ tEplKernel PUBLIC EplCfgMaLinkDcf(unsigned int uiNodeId_p,
 //
 // Returns:     tCopKernel              = error code
 //---------------------------------------------------------------------------
-tEplKernel PUBLIC EplCfgMaCheckDcf(unsigned int uiNodeId_p,
-				   tEplCfgMaDcfTyp DcfType_p);
+tEplKernel EplCfgMaCheckDcf(unsigned int uiNodeId_p, tEplCfgMaDcfTyp DcfType_p);
 
 #endif // #if (((EPL_MODULE_INTEGRATION) & (EPL_MODULE_CFGMA)) != 0)
 

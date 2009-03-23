@@ -91,68 +91,64 @@
 #error "EPL OBDu module enabled, but OBD_USE_KERNEL == TRUE"
 #endif
 
-EPLDLLEXPORT tEplKernel PUBLIC EplObduWriteEntry(unsigned int uiIndex_p,
-						 unsigned int uiSubIndex_p,
-						 void *pSrcData_p,
-						 tEplObdSize Size_p);
+EPLDLLEXPORT tEplKernel EplObduWriteEntry(unsigned int uiIndex_p,
+					  unsigned int uiSubIndex_p,
+					  void *pSrcData_p,
+					  tEplObdSize Size_p);
 
 // ---------------------------------------------------------------------
-EPLDLLEXPORT tEplKernel PUBLIC EplObduReadEntry(unsigned int uiIndex_p,
+EPLDLLEXPORT tEplKernel EplObduReadEntry(unsigned int uiIndex_p,
+					 unsigned int uiSubIndex_p,
+					 void *pDstData_p,
+					 tEplObdSize *pSize_p);
+
+// ---------------------------------------------------------------------
+EPLDLLEXPORT tEplKernel EplObduAccessOdPart(tEplObdPart ObdPart_p,
+					    tEplObdDir Direction_p);
+
+// ---------------------------------------------------------------------
+EPLDLLEXPORT tEplKernel EplObduDefineVar(tEplVarParam MEM * pVarParam_p);
+
+// ---------------------------------------------------------------------
+EPLDLLEXPORT void *EplObduGetObjectDataPtr(unsigned int uiIndex_p,
+					   unsigned int uiSubIndex_p);
+// ---------------------------------------------------------------------
+EPLDLLEXPORT tEplKernel EplObduRegisterUserOd(tEplObdEntryPtr pUserOd_p);
+
+// ---------------------------------------------------------------------
+EPLDLLEXPORT void EplObduInitVarEntry(tEplObdVarEntry MEM * pVarEntry_p,
+				      BYTE bType_p, tEplObdSize ObdSize_p);
+
+// ---------------------------------------------------------------------
+EPLDLLEXPORT tEplObdSize EplObduGetDataSize(unsigned int uiIndex_p,
+					    unsigned int uiSubIndex_p);
+
+// ---------------------------------------------------------------------
+EPLDLLEXPORT unsigned int EplObduGetNodeId(void);
+
+// ---------------------------------------------------------------------
+EPLDLLEXPORT tEplKernel EplObduSetNodeId(unsigned int uiNodeId_p,
+					 tEplObdNodeIdType NodeIdType_p);
+// ---------------------------------------------------------------------
+EPLDLLEXPORT tEplKernel EplObduGetAccessType(unsigned int uiIndex_p,
+					     unsigned int uiSubIndex_p,
+					     tEplObdAccess *pAccessTyp_p);
+// ---------------------------------------------------------------------
+EPLDLLEXPORT tEplKernel EplObduReadEntryToLe(unsigned int uiIndex_p,
+					     unsigned int uiSubIndex_p,
+					     void *pDstData_p,
+					     tEplObdSize *pSize_p);
+// ---------------------------------------------------------------------
+EPLDLLEXPORT tEplKernel EplObduWriteEntryFromLe(unsigned int uiIndex_p,
 						unsigned int uiSubIndex_p,
-						void *pDstData_p,
-						tEplObdSize * pSize_p);
+						void *pSrcData_p,
+						tEplObdSize Size_p);
 
 // ---------------------------------------------------------------------
-EPLDLLEXPORT tEplKernel PUBLIC EplObduAccessOdPart(tEplObdPart ObdPart_p,
-						   tEplObdDir Direction_p);
-
-// ---------------------------------------------------------------------
-EPLDLLEXPORT tEplKernel PUBLIC EplObduDefineVar(tEplVarParam MEM * pVarParam_p);
-
-// ---------------------------------------------------------------------
-EPLDLLEXPORT void *PUBLIC EplObduGetObjectDataPtr(unsigned int uiIndex_p,
-						  unsigned int uiSubIndex_p);
-// ---------------------------------------------------------------------
-EPLDLLEXPORT tEplKernel PUBLIC EplObduRegisterUserOd(tEplObdEntryPtr pUserOd_p);
-
-// ---------------------------------------------------------------------
-EPLDLLEXPORT void PUBLIC EplObduInitVarEntry(tEplObdVarEntry MEM * pVarEntry_p,
-					     BYTE bType_p,
-					     tEplObdSize ObdSize_p);
-
-// ---------------------------------------------------------------------
-EPLDLLEXPORT tEplObdSize PUBLIC EplObduGetDataSize(unsigned int uiIndex_p,
-						   unsigned int uiSubIndex_p);
-
-// ---------------------------------------------------------------------
-EPLDLLEXPORT unsigned int PUBLIC EplObduGetNodeId(void);
-
-// ---------------------------------------------------------------------
-EPLDLLEXPORT tEplKernel PUBLIC EplObduSetNodeId(unsigned int uiNodeId_p,
-						tEplObdNodeIdType NodeIdType_p);
-// ---------------------------------------------------------------------
-EPLDLLEXPORT tEplKernel PUBLIC EplObduGetAccessType(unsigned int uiIndex_p,
-						    unsigned int uiSubIndex_p,
-						    tEplObdAccess *
-						    pAccessTyp_p);
-// ---------------------------------------------------------------------
-EPLDLLEXPORT tEplKernel PUBLIC EplObduReadEntryToLe(unsigned int uiIndex_p,
-						    unsigned int uiSubIndex_p,
-						    void *pDstData_p,
-						    tEplObdSize * pSize_p);
-// ---------------------------------------------------------------------
-EPLDLLEXPORT tEplKernel PUBLIC EplObduWriteEntryFromLe(unsigned int uiIndex_p,
-						       unsigned int
-						       uiSubIndex_p,
-						       void *pSrcData_p,
-						       tEplObdSize Size_p);
-
-// ---------------------------------------------------------------------
-EPLDLLEXPORT tEplKernel PUBLIC EplObduSearchVarEntry(EPL_MCO_DECL_INSTANCE_PTR_
-						     unsigned int uiIndex_p,
-						     unsigned int uiSubindex_p,
-						     tEplObdVarEntry MEM **
-						     ppVarEntry_p);
+EPLDLLEXPORT tEplKernel EplObduSearchVarEntry(EPL_MCO_DECL_INSTANCE_PTR_
+					      unsigned int uiIndex_p,
+					      unsigned int uiSubindex_p,
+					      tEplObdVarEntry MEM **ppVarEntry_p);
 
 #elif EPL_OBD_USE_KERNEL != FALSE
 #include "../kernel/EplObdk.h"

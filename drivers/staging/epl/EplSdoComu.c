@@ -205,12 +205,12 @@ static tEplSdoComInstance SdoComInstance_g;
 //---------------------------------------------------------------------------
 // local function prototypes
 //---------------------------------------------------------------------------
-tEplKernel PUBLIC EplSdoComReceiveCb(tEplSdoSeqConHdl SdoSeqConHdl_p,
-				     tEplAsySdoCom * pAsySdoCom_p,
-				     unsigned int uiDataSize_p);
+tEplKernel EplSdoComReceiveCb(tEplSdoSeqConHdl SdoSeqConHdl_p,
+			      tEplAsySdoCom *pAsySdoCom_p,
+			      unsigned int uiDataSize_p);
 
-tEplKernel PUBLIC EplSdoComConCb(tEplSdoSeqConHdl SdoSeqConHdl_p,
-				 tEplAsySdoConState AsySdoConState_p);
+tEplKernel EplSdoComConCb(tEplSdoSeqConHdl SdoSeqConHdl_p,
+			  tEplAsySdoConState AsySdoConState_p);
 
 static tEplKernel EplSdoComSearchConIntern(tEplSdoSeqConHdl SdoSeqConHdl_p,
 					   tEplSdoComConEvent SdoComConEvent_p,
@@ -285,7 +285,7 @@ static tEplKernel EplSdoComClientSendAbort(tEplSdoComCon * pSdoComCon_p,
 // State:
 //
 //---------------------------------------------------------------------------
-tEplKernel PUBLIC EplSdoComInit(void)
+tEplKernel EplSdoComInit(void)
 {
 	tEplKernel Ret;
 
@@ -312,7 +312,7 @@ tEplKernel PUBLIC EplSdoComInit(void)
 // State:
 //
 //---------------------------------------------------------------------------
-tEplKernel PUBLIC EplSdoComAddInstance(void)
+tEplKernel EplSdoComAddInstance(void)
 {
 	tEplKernel Ret;
 
@@ -354,7 +354,7 @@ tEplKernel PUBLIC EplSdoComAddInstance(void)
 // State:
 //
 //---------------------------------------------------------------------------
-tEplKernel PUBLIC EplSdoComDelInstance(void)
+tEplKernel EplSdoComDelInstance(void)
 {
 	tEplKernel Ret;
 
@@ -398,9 +398,9 @@ tEplKernel PUBLIC EplSdoComDelInstance(void)
 //
 //---------------------------------------------------------------------------
 #if(((EPL_MODULE_INTEGRATION) & (EPL_MODULE_SDOC)) != 0)
-tEplKernel PUBLIC EplSdoComDefineCon(tEplSdoComConHdl * pSdoComConHdl_p,
-				     unsigned int uiTargetNodeId_p,
-				     tEplSdoType ProtType_p)
+tEplKernel EplSdoComDefineCon(tEplSdoComConHdl *pSdoComConHdl_p,
+			      unsigned int uiTargetNodeId_p,
+			      tEplSdoType ProtType_p)
 {
 	tEplKernel Ret;
 	unsigned int uiCount;
@@ -511,8 +511,7 @@ tEplKernel PUBLIC EplSdoComDefineCon(tEplSdoComConHdl * pSdoComConHdl_p,
 //
 //---------------------------------------------------------------------------
 #if(((EPL_MODULE_INTEGRATION) & (EPL_MODULE_SDOC)) != 0)
-tEplKernel PUBLIC EplSdoComInitTransferByIndex(tEplSdoComTransParamByIndex *
-					       pSdoComTransParam_p)
+tEplKernel EplSdoComInitTransferByIndex(tEplSdoComTransParamByIndex *pSdoComTransParam_p)
 {
 	tEplKernel Ret;
 	tEplSdoComCon *pSdoComCon;
@@ -603,7 +602,7 @@ tEplKernel PUBLIC EplSdoComInitTransferByIndex(tEplSdoComTransParamByIndex *
 //
 //---------------------------------------------------------------------------
 #if(((EPL_MODULE_INTEGRATION) & (EPL_MODULE_SDOC)) != 0)
-tEplKernel PUBLIC EplSdoComUndefineCon(tEplSdoComConHdl SdoComConHdl_p)
+tEplKernel EplSdoComUndefineCon(tEplSdoComConHdl SdoComConHdl_p)
 {
 	tEplKernel Ret;
 	tEplSdoComCon *pSdoComCon;
@@ -669,8 +668,8 @@ tEplKernel PUBLIC EplSdoComUndefineCon(tEplSdoComConHdl SdoComConHdl_p)
 //
 //---------------------------------------------------------------------------
 #if(((EPL_MODULE_INTEGRATION) & (EPL_MODULE_SDOC)) != 0)
-tEplKernel PUBLIC EplSdoComGetState(tEplSdoComConHdl SdoComConHdl_p,
-				    tEplSdoComFinished * pSdoComFinished_p)
+tEplKernel EplSdoComGetState(tEplSdoComConHdl SdoComConHdl_p,
+			     tEplSdoComFinished *pSdoComFinished_p)
 {
 	tEplKernel Ret;
 	tEplSdoComCon *pSdoComCon;
@@ -747,8 +746,8 @@ tEplKernel PUBLIC EplSdoComGetState(tEplSdoComConHdl SdoComConHdl_p,
 //
 //---------------------------------------------------------------------------
 #if(((EPL_MODULE_INTEGRATION) & (EPL_MODULE_SDOC)) != 0)
-tEplKernel PUBLIC EplSdoComSdoAbort(tEplSdoComConHdl SdoComConHdl_p,
-				    DWORD dwAbortCode_p)
+tEplKernel EplSdoComSdoAbort(tEplSdoComConHdl SdoComConHdl_p,
+			     DWORD dwAbortCode_p)
 {
 	tEplKernel Ret;
 	tEplSdoComCon *pSdoComCon;
@@ -803,9 +802,9 @@ tEplKernel PUBLIC EplSdoComSdoAbort(tEplSdoComConHdl SdoComConHdl_p,
 // State:
 //
 //---------------------------------------------------------------------------
-tEplKernel PUBLIC EplSdoComReceiveCb(tEplSdoSeqConHdl SdoSeqConHdl_p,
-				     tEplAsySdoCom * pAsySdoCom_p,
-				     unsigned int uiDataSize_p)
+tEplKernel EplSdoComReceiveCb(tEplSdoSeqConHdl SdoSeqConHdl_p,
+			      tEplAsySdoCom *pAsySdoCom_p,
+			      unsigned int uiDataSize_p)
 {
 	tEplKernel Ret;
 
@@ -840,8 +839,8 @@ tEplKernel PUBLIC EplSdoComReceiveCb(tEplSdoSeqConHdl SdoSeqConHdl_p,
 // State:
 //
 //---------------------------------------------------------------------------
-tEplKernel PUBLIC EplSdoComConCb(tEplSdoSeqConHdl SdoSeqConHdl_p,
-				 tEplAsySdoConState AsySdoConState_p)
+tEplKernel EplSdoComConCb(tEplSdoSeqConHdl SdoSeqConHdl_p,
+			  tEplAsySdoConState AsySdoConState_p)
 {
 	tEplKernel Ret;
 	tEplSdoComConEvent SdoComConEvent = kEplSdoComConEventSendFirst;

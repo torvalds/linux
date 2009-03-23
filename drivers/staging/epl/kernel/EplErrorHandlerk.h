@@ -86,15 +86,15 @@
 //---------------------------------------------------------------------------
 
 // init function
-tEplKernel PUBLIC EplErrorHandlerkInit(void);
+tEplKernel EplErrorHandlerkInit(void);
 
 // add instance
-tEplKernel PUBLIC EplErrorHandlerkAddInstance(void);
+tEplKernel EplErrorHandlerkAddInstance(void);
 
 // delete instance
-tEplKernel PUBLIC EplErrorHandlerkDelInstance(void);
+tEplKernel EplErrorHandlerkDelInstance(void);
 
 // processes error events
-tEplKernel PUBLIC EplErrorHandlerkProcess(tEplEvent * pEvent_p);
+tEplKernel EplErrorHandlerkProcess(tEplEvent *pEvent_p);
 
 #endif // #ifndef _EPL_ERRORHANDLERK_H_

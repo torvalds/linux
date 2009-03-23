@@ -162,44 +162,41 @@ static tEplApiInstance EplApiInstance_g;
 //---------------------------------------------------------------------------
 
 // NMT state change event callback function
-static tEplKernel PUBLIC EplApiCbNmtStateChange(tEplEventNmtStateChange
-						NmtStateChange_p);
+static tEplKernel EplApiCbNmtStateChange(tEplEventNmtStateChange NmtStateChange_p);
 
 // update DLL configuration from OD
-static tEplKernel PUBLIC EplApiUpdateDllConfig(BOOL fUpdateIdentity_p);
+static tEplKernel EplApiUpdateDllConfig(BOOL fUpdateIdentity_p);
 
 // update OD from init param
-static tEplKernel PUBLIC EplApiUpdateObd(void);
+static tEplKernel EplApiUpdateObd(void);
 
 // process events from user event queue
-static tEplKernel PUBLIC EplApiProcessEvent(tEplEvent * pEplEvent_p);
+static tEplKernel EplApiProcessEvent(tEplEvent *pEplEvent_p);
 
 #if (((EPL_MODULE_INTEGRATION) & (EPL_MODULE_SDOC)) != 0)
 // callback function of SDO module
-static tEplKernel PUBLIC EplApiCbSdoCon(tEplSdoComFinished * pSdoComFinished_p);
+static tEplKernel EplApiCbSdoCon(tEplSdoComFinished *pSdoComFinished_p);
 #endif
 
 #if (((EPL_MODULE_INTEGRATION) & (EPL_MODULE_NMT_MN)) != 0)
 // callback functions of NmtMnu module
-static tEplKernel PUBLIC EplApiCbNodeEvent(unsigned int uiNodeId_p,
-					   tEplNmtNodeEvent NodeEvent_p,
-					   tEplNmtState NmtState_p,
-					   WORD wErrorCode_p,
-					   BOOL fMandatory_p);
+static tEplKernel EplApiCbNodeEvent(unsigned int uiNodeId_p,
+				    tEplNmtNodeEvent NodeEvent_p,
+				    tEplNmtState NmtState_p,
+				    WORD wErrorCode_p, BOOL fMandatory_p);
 
-static tEplKernel PUBLIC EplApiCbBootEvent(tEplNmtBootEvent BootEvent_p,
-					   tEplNmtState NmtState_p,
-					   WORD wErrorCode_p);
+static tEplKernel EplApiCbBootEvent(tEplNmtBootEvent BootEvent_p,
+				    tEplNmtState NmtState_p,
+				    WORD wErrorCode_p);
 #endif
 
 #if (((EPL_MODULE_INTEGRATION) & (EPL_MODULE_LEDU)) != 0)
 // callback function of Ledu module
-static tEplKernel PUBLIC EplApiCbLedStateChange(tEplLedType LedType_p,
-						BOOL fOn_p);
+static tEplKernel EplApiCbLedStateChange(tEplLedType LedType_p, BOOL fOn_p);
 #endif
 
 // OD initialization function (implemented in Objdict.c)
-tEplKernel PUBLIC EplObdInitRam(tEplObdInitParam MEM * pInitParam_p);
+tEplKernel EplObdInitRam(tEplObdInitParam MEM *pInitParam_p);
 
 //=========================================================================//
 //                                                                         //
@@ -226,7 +223,7 @@ tEplKernel PUBLIC EplObdInitRam(tEplObdInitParam MEM * pInitParam_p);
 //
 //---------------------------------------------------------------------------
 
-tEplKernel PUBLIC EplApiInitialize(tEplApiInitParam * pInitParam_p)
+tEplKernel EplApiInitialize(tEplApiInitParam *pInitParam_p)
 {
 	tEplKernel Ret = kEplSuccessful;
 	tEplObdInitParam ObdInitParam;
@@ -415,7 +412,7 @@ tEplKernel PUBLIC EplApiInitialize(tEplApiInitParam * pInitParam_p)
 //
 //---------------------------------------------------------------------------
 
-tEplKernel PUBLIC EplApiShutdown(void)
+tEplKernel EplApiShutdown(void)
 {
 	tEplKernel Ret = kEplSuccessful;
 
@@ -523,7 +520,7 @@ tEplKernel PUBLIC EplApiShutdown(void)
 // State:
 //----------------------------------------------------------------------------
 
-tEplKernel PUBLIC EplApiExecNmtCommand(tEplNmtEvent NmtEvent_p)
+tEplKernel EplApiExecNmtCommand(tEplNmtEvent NmtEvent_p)
 {
 	tEplKernel Ret = kEplSuccessful;
 
@@ -553,11 +550,11 @@ tEplKernel PUBLIC EplApiExecNmtCommand(tEplNmtEvent NmtEvent_p)
 // State:
 //----------------------------------------------------------------------------
 
-tEplKernel PUBLIC EplApiLinkObject(unsigned int uiObjIndex_p,
-				   void *pVar_p,
-				   unsigned int *puiVarEntries_p,
-				   tEplObdSize * pEntrySize_p,
-				   unsigned int uiFirstSubindex_p)
+tEplKernel EplApiLinkObject(unsigned int uiObjIndex_p,
+			    void *pVar_p,
+			    unsigned int *puiVarEntries_p,
+			    tEplObdSize *pEntrySize_p,
+			    unsigned int uiFirstSubindex_p)
 {
 	BYTE bVarEntries;
 	BYTE bIndexEntries;
@@ -677,13 +674,13 @@ tEplKernel PUBLIC EplApiLinkObject(unsigned int uiObjIndex_p,
 //
 // ----------------------------------------------------------------------------
 
-tEplKernel PUBLIC EplApiReadObject(tEplSdoComConHdl * pSdoComConHdl_p,
-				   unsigned int uiNodeId_p,
-				   unsigned int uiIndex_p,
-				   unsigned int uiSubindex_p,
-				   void *pDstData_le_p,
-				   unsigned int *puiSize_p,
-				   tEplSdoType SdoType_p, void *pUserArg_p)
+tEplKernel EplApiReadObject(tEplSdoComConHdl *pSdoComConHdl_p,
+			    unsigned int uiNodeId_p,
+			    unsigned int uiIndex_p,
+			    unsigned int uiSubindex_p,
+			    void *pDstData_le_p,
+			    unsigned int *puiSize_p,
+			    tEplSdoType SdoType_p, void *pUserArg_p)
 {
 	tEplKernel Ret = kEplSuccessful;
 
@@ -765,13 +762,13 @@ tEplKernel PUBLIC EplApiReadObject(tEplSdoComConHdl * pSdoComConHdl_p,
 //
 // ----------------------------------------------------------------------------
 
-tEplKernel PUBLIC EplApiWriteObject(tEplSdoComConHdl * pSdoComConHdl_p,
-				    unsigned int uiNodeId_p,
-				    unsigned int uiIndex_p,
-				    unsigned int uiSubindex_p,
-				    void *pSrcData_le_p,
-				    unsigned int uiSize_p,
-				    tEplSdoType SdoType_p, void *pUserArg_p)
+tEplKernel EplApiWriteObject(tEplSdoComConHdl *pSdoComConHdl_p,
+			     unsigned int uiNodeId_p,
+			     unsigned int uiIndex_p,
+			     unsigned int uiSubindex_p,
+			     void *pSrcData_le_p,
+			     unsigned int uiSize_p,
+			     tEplSdoType SdoType_p, void *pUserArg_p)
 {
 	tEplKernel Ret = kEplSuccessful;
 
@@ -850,7 +847,7 @@ tEplKernel PUBLIC EplApiWriteObject(tEplSdoComConHdl * pSdoComConHdl_p,
 //
 // ----------------------------------------------------------------------------
 
-tEplKernel PUBLIC EplApiFreeSdoChannel(tEplSdoComConHdl SdoComConHdl_p)
+tEplKernel EplApiFreeSdoChannel(tEplSdoComConHdl SdoComConHdl_p)
 {
 	tEplKernel Ret = kEplSuccessful;
 
@@ -881,10 +878,9 @@ tEplKernel PUBLIC EplApiFreeSdoChannel(tEplSdoComConHdl SdoComConHdl_p)
 //
 // ----------------------------------------------------------------------------
 
-tEplKernel PUBLIC EplApiReadLocalObject(unsigned int uiIndex_p,
-					unsigned int uiSubindex_p,
-					void *pDstData_p,
-					unsigned int *puiSize_p)
+tEplKernel EplApiReadLocalObject(unsigned int uiIndex_p,
+				 unsigned int uiSubindex_p,
+				 void *pDstData_p, unsigned int *puiSize_p)
 {
 	tEplKernel Ret = kEplSuccessful;
 	tEplObdSize ObdSize;
@@ -911,10 +907,10 @@ tEplKernel PUBLIC EplApiReadLocalObject(unsigned int uiIndex_p,
 //
 // ----------------------------------------------------------------------------
 
-tEplKernel PUBLIC EplApiWriteLocalObject(unsigned int uiIndex_p,
-					 unsigned int uiSubindex_p,
-					 void *pSrcData_p,
-					 unsigned int uiSize_p)
+tEplKernel EplApiWriteLocalObject(unsigned int uiIndex_p,
+				  unsigned int uiSubindex_p,
+				  void *pSrcData_p,
+				  unsigned int uiSize_p)
 {
 	tEplKernel Ret = kEplSuccessful;
 
@@ -939,8 +935,8 @@ tEplKernel PUBLIC EplApiWriteLocalObject(unsigned int uiIndex_p,
 //
 // ----------------------------------------------------------------------------
 
-tEplKernel PUBLIC EplApiMnTriggerStateChange(unsigned int uiNodeId_p,
-					     tEplNmtNodeCommand NodeCommand_p)
+tEplKernel EplApiMnTriggerStateChange(unsigned int uiNodeId_p,
+				      tEplNmtNodeCommand NodeCommand_p)
 {
 	tEplKernel Ret = kEplSuccessful;
 
@@ -966,7 +962,7 @@ tEplKernel PUBLIC EplApiMnTriggerStateChange(unsigned int uiNodeId_p,
 //
 //---------------------------------------------------------------------------
 
-tEplKernel PUBLIC EplApiCbObdAccess(tEplObdCbParam MEM * pParam_p)
+tEplKernel EplApiCbObdAccess(tEplObdCbParam MEM *pParam_p)
 {
 	tEplKernel Ret = kEplSuccessful;
 
@@ -1115,7 +1111,7 @@ tEplKernel PUBLIC EplApiCbObdAccess(tEplObdCbParam MEM * pParam_p)
 //
 //---------------------------------------------------------------------------
 
-static tEplKernel PUBLIC EplApiProcessEvent(tEplEvent * pEplEvent_p)
+static tEplKernel EplApiProcessEvent(tEplEvent *pEplEvent_p)
 {
 	tEplKernel Ret;
 	tEplEventError *pEventError;
@@ -1188,8 +1184,7 @@ static tEplKernel PUBLIC EplApiProcessEvent(tEplEvent * pEplEvent_p)
 //
 //---------------------------------------------------------------------------
 
-static tEplKernel PUBLIC EplApiCbNmtStateChange(tEplEventNmtStateChange
-						NmtStateChange_p)
+static tEplKernel EplApiCbNmtStateChange(tEplEventNmtStateChange NmtStateChange_p)
 {
 	tEplKernel Ret = kEplSuccessful;
 	BYTE bNmtState;
@@ -1411,7 +1406,7 @@ static tEplKernel PUBLIC EplApiCbNmtStateChange(tEplEventNmtStateChange
 //
 //---------------------------------------------------------------------------
 
-static tEplKernel PUBLIC EplApiUpdateDllConfig(BOOL fUpdateIdentity_p)
+static tEplKernel EplApiUpdateDllConfig(BOOL fUpdateIdentity_p)
 {
 	tEplKernel Ret = kEplSuccessful;
 	tEplDllConfigParam DllConfigParam;
@@ -1634,7 +1629,7 @@ static tEplKernel PUBLIC EplApiUpdateDllConfig(BOOL fUpdateIdentity_p)
 //
 //---------------------------------------------------------------------------
 
-static tEplKernel PUBLIC EplApiUpdateObd(void)
+static tEplKernel EplApiUpdateObd(void)
 {
 	tEplKernel Ret = kEplSuccessful;
 	WORD wTemp;
@@ -1905,7 +1900,7 @@ static tEplKernel PUBLIC EplApiUpdateObd(void)
 //---------------------------------------------------------------------------
 
 #if (((EPL_MODULE_INTEGRATION) & (EPL_MODULE_SDOC)) != 0)
-static tEplKernel PUBLIC EplApiCbSdoCon(tEplSdoComFinished * pSdoComFinished_p)
+static tEplKernel EplApiCbSdoCon(tEplSdoComFinished *pSdoComFinished_p)
 {
 	tEplKernel Ret;
 	tEplApiEventArg EventArg;
@@ -1946,10 +1941,10 @@ static tEplKernel PUBLIC EplApiCbSdoCon(tEplSdoComFinished * pSdoComFinished_p)
 //
 //---------------------------------------------------------------------------
 
-static tEplKernel PUBLIC EplApiCbNodeEvent(unsigned int uiNodeId_p,
-					   tEplNmtNodeEvent NodeEvent_p,
-					   tEplNmtState NmtState_p,
-					   WORD wErrorCode_p, BOOL fMandatory_p)
+static tEplKernel EplApiCbNodeEvent(unsigned int uiNodeId_p,
+				    tEplNmtNodeEvent NodeEvent_p,
+				    tEplNmtState NmtState_p,
+				    WORD wErrorCode_p, BOOL fMandatory_p)
 {
 	tEplKernel Ret;
 	tEplApiEventArg EventArg;
@@ -1990,9 +1985,9 @@ static tEplKernel PUBLIC EplApiCbNodeEvent(unsigned int uiNodeId_p,
 //
 //---------------------------------------------------------------------------
 
-static tEplKernel PUBLIC EplApiCbBootEvent(tEplNmtBootEvent BootEvent_p,
-					   tEplNmtState NmtState_p,
-					   WORD wErrorCode_p)
+static tEplKernel EplApiCbBootEvent(tEplNmtBootEvent BootEvent_p,
+				    tEplNmtState NmtState_p,
+				    WORD wErrorCode_p)
 {
 	tEplKernel Ret;
 	tEplApiEventArg EventArg;
@@ -2033,8 +2028,7 @@ static tEplKernel PUBLIC EplApiCbBootEvent(tEplNmtBootEvent BootEvent_p,
 //
 //---------------------------------------------------------------------------
 
-static tEplKernel PUBLIC EplApiCbLedStateChange(tEplLedType LedType_p,
-						BOOL fOn_p)
+static tEplKernel EplApiCbLedStateChange(tEplLedType LedType_p, BOOL fOn_p)
 {
 	tEplKernel Ret;
 	tEplApiEventArg EventArg;

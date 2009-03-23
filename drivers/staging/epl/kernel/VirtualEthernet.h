@@ -87,9 +87,9 @@
 
 #if(((EPL_MODULE_INTEGRATION) & (EPL_MODULE_VETH)) != 0)
 
-tEplKernel PUBLIC VEthAddInstance(tEplDllkInitParam * pInitParam_p);
+tEplKernel VEthAddInstance(tEplDllkInitParam *pInitParam_p);
 
-tEplKernel PUBLIC VEthDelInstance(void);
+tEplKernel VEthDelInstance(void);
 
 #endif // #if(((EPL_MODULE_INTEGRATION) & (EPL_MODULE_VETH)) != 0)
 

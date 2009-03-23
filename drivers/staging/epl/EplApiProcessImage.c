@@ -169,7 +169,7 @@ static tEplApiProcessImageInstance EplApiProcessImageInstance_g;
 //
 //---------------------------------------------------------------------------
 
-tEplKernel PUBLIC EplApiProcessImageSetup(void)
+tEplKernel EplApiProcessImageSetup(void)
 {
 	tEplKernel Ret = kEplSuccessful;
 #if ((EPL_API_PROCESS_IMAGE_SIZE_IN > 0) || (EPL_API_PROCESS_IMAGE_SIZE_OUT > 0))
@@ -280,7 +280,7 @@ tEplKernel PUBLIC EplApiProcessImageSetup(void)
 // State:
 //----------------------------------------------------------------------------
 
-tEplKernel PUBLIC EplApiProcessImageExchangeIn(tEplApiProcessImage * pPI_p)
+tEplKernel EplApiProcessImageExchangeIn(tEplApiProcessImage *pPI_p)
 {
 	tEplKernel Ret = kEplSuccessful;
 
@@ -315,7 +315,7 @@ tEplKernel PUBLIC EplApiProcessImageExchangeIn(tEplApiProcessImage * pPI_p)
 // State:
 //----------------------------------------------------------------------------
 
-tEplKernel PUBLIC EplApiProcessImageExchangeOut(tEplApiProcessImage * pPI_p)
+tEplKernel EplApiProcessImageExchangeOut(tEplApiProcessImage *pPI_p)
 {
 	tEplKernel Ret = kEplSuccessful;
 

@@ -176,7 +176,7 @@ static tEplKernel EplErrorHandlerkLinkArray(DWORD * pdwValue_p,
 // State:
 //
 //---------------------------------------------------------------------------
-tEplKernel PUBLIC EplErrorHandlerkInit(void)
+tEplKernel EplErrorHandlerkInit(void)
 {
 	tEplKernel Ret;
 
@@ -203,7 +203,7 @@ tEplKernel PUBLIC EplErrorHandlerkInit(void)
 // State:
 //
 //---------------------------------------------------------------------------
-tEplKernel PUBLIC EplErrorHandlerkAddInstance(void)
+tEplKernel EplErrorHandlerkAddInstance(void)
 {
 	tEplKernel Ret;
 
@@ -306,7 +306,7 @@ tEplKernel PUBLIC EplErrorHandlerkAddInstance(void)
 // State:
 //
 //---------------------------------------------------------------------------
-tEplKernel PUBLIC EplErrorHandlerkDelInstance()
+tEplKernel EplErrorHandlerkDelInstance(void)
 {
 	tEplKernel Ret;
 
@@ -333,7 +333,7 @@ tEplKernel PUBLIC EplErrorHandlerkDelInstance()
 // State:
 //
 //---------------------------------------------------------------------------
-tEplKernel PUBLIC EplErrorHandlerkProcess(tEplEvent * pEvent_p)
+tEplKernel EplErrorHandlerkProcess(tEplEvent *pEvent_p)
 {
 	tEplKernel Ret;
 	unsigned long ulDllErrorEvents;

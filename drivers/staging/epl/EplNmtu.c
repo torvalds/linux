@@ -132,7 +132,7 @@ static tEplNmtuInstance EplNmtuInstance_g;
 // State:
 //
 //---------------------------------------------------------------------------
-EPLDLLEXPORT tEplKernel PUBLIC EplNmtuInit()
+EPLDLLEXPORT tEplKernel EplNmtuInit(void)
 {
 	tEplKernel Ret;
 
@@ -158,7 +158,7 @@ EPLDLLEXPORT tEplKernel PUBLIC EplNmtuInit()
 // State:
 //
 //---------------------------------------------------------------------------
-EPLDLLEXPORT tEplKernel PUBLIC EplNmtuAddInstance()
+EPLDLLEXPORT tEplKernel EplNmtuAddInstance(void)
 {
 	tEplKernel Ret;
 
@@ -187,7 +187,7 @@ EPLDLLEXPORT tEplKernel PUBLIC EplNmtuAddInstance()
 // State:
 //
 //---------------------------------------------------------------------------
-EPLDLLEXPORT tEplKernel PUBLIC EplNmtuDelInstance()
+EPLDLLEXPORT tEplKernel EplNmtuDelInstance(void)
 {
 	tEplKernel Ret;
 
@@ -219,7 +219,7 @@ EPLDLLEXPORT tEplKernel PUBLIC EplNmtuDelInstance()
 // State:
 //
 //---------------------------------------------------------------------------
-EPLDLLEXPORT tEplKernel PUBLIC EplNmtuNmtEvent(tEplNmtEvent NmtEvent_p)
+EPLDLLEXPORT tEplKernel EplNmtuNmtEvent(tEplNmtEvent NmtEvent_p)
 {
 	tEplKernel Ret;
 	tEplEvent Event;
@@ -253,7 +253,7 @@ EPLDLLEXPORT tEplKernel PUBLIC EplNmtuNmtEvent(tEplNmtEvent NmtEvent_p)
 // State:
 //
 //---------------------------------------------------------------------------
-EPLDLLEXPORT tEplNmtState PUBLIC EplNmtuGetNmtState()
+EPLDLLEXPORT tEplNmtState EplNmtuGetNmtState(void)
 {
 	tEplNmtState NmtState;
 
@@ -284,7 +284,7 @@ EPLDLLEXPORT tEplNmtState PUBLIC EplNmtuGetNmtState()
 // State:
 //
 //---------------------------------------------------------------------------
-EPLDLLEXPORT tEplKernel PUBLIC EplNmtuProcessEvent(tEplEvent * pEplEvent_p)
+EPLDLLEXPORT tEplKernel EplNmtuProcessEvent(tEplEvent *pEplEvent_p)
 {
 	tEplKernel Ret;
 
@@ -664,9 +664,7 @@ EPLDLLEXPORT tEplKernel PUBLIC EplNmtuProcessEvent(tEplEvent * pEplEvent_p)
 // State:
 //
 //---------------------------------------------------------------------------
-EPLDLLEXPORT tEplKernel PUBLIC
-EplNmtuRegisterStateChangeCb(tEplNmtuStateChangeCallback
-			     pfnEplNmtStateChangeCb_p)
+EPLDLLEXPORT tEplKernel EplNmtuRegisterStateChangeCb(tEplNmtuStateChangeCallback pfnEplNmtStateChangeCb_p)
 {
 	tEplKernel Ret;
 

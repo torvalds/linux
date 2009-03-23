@@ -86,6 +86,6 @@
 //---------------------------------------------------------------------------
 // function prototypes
 //---------------------------------------------------------------------------
-EPLDLLEXPORT tEplNmtState PUBLIC EplNmtkCalGetNmtState(void);
+EPLDLLEXPORT tEplNmtState EplNmtkCalGetNmtState(void);
 
 #endif // #ifndef _EPLNMTUCAL_H_

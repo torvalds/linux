@@ -86,19 +86,15 @@
 // function prototypes
 //---------------------------------------------------------------------------
 #if(((EPL_MODULE_INTEGRATION) & (EPL_MODULE_NMTK)) != 0)
-EPLDLLEXPORT tEplKernel PUBLIC EplNmtkInit(EPL_MCO_DECL_PTR_INSTANCE_PTR);
+EPLDLLEXPORT tEplKernel EplNmtkInit(EPL_MCO_DECL_PTR_INSTANCE_PTR);
 
-EPLDLLEXPORT tEplKernel PUBLIC
-EplNmtkAddInstance(EPL_MCO_DECL_PTR_INSTANCE_PTR);
+EPLDLLEXPORT tEplKernel EplNmtkAddInstance(EPL_MCO_DECL_PTR_INSTANCE_PTR);
 
-EPLDLLEXPORT tEplKernel PUBLIC
-EplNmtkDelInstance(EPL_MCO_DECL_PTR_INSTANCE_PTR);
+EPLDLLEXPORT tEplKernel EplNmtkDelInstance(EPL_MCO_DECL_PTR_INSTANCE_PTR);
 
-EPLDLLEXPORT tEplKernel PUBLIC EplNmtkProcess(EPL_MCO_DECL_PTR_INSTANCE_PTR_
-					      tEplEvent * pEvent_p);
+EPLDLLEXPORT tEplKernel EplNmtkProcess(EPL_MCO_DECL_PTR_INSTANCE_PTR_ tEplEvent *pEvent_p);
 
-EPLDLLEXPORT tEplNmtState PUBLIC
-EplNmtkGetNmtState(EPL_MCO_DECL_PTR_INSTANCE_PTR);
+EPLDLLEXPORT tEplNmtState EplNmtkGetNmtState(EPL_MCO_DECL_PTR_INSTANCE_PTR);
 
 #endif // #if(((EPL_MODULE_INTEGRATION) & (EPL_MODULE_NMTK)) != 0)
 
