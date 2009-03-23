@@ -192,7 +192,7 @@ tEplKernel EplObdInitRam(tEplObdInitParam MEM * pInitParam_p);
 
 tEplKernel AppCbEvent(tEplApiEventType EventType_p,	// IN: event type (enum)
 		      tEplApiEventArg *pEventArg_p,	// IN: event argument (union)
-		      void GENERIC *pUserArg_p);
+		      void *pUserArg_p);
 
 tEplKernel AppCbSync(void);
 
@@ -486,7 +486,7 @@ static void __exit EplLinExit(void)
 
 tEplKernel AppCbEvent(tEplApiEventType EventType_p,	// IN: event type (enum)
 		      tEplApiEventArg *pEventArg_p,	// IN: event argument (union)
-		      void GENERIC *pUserArg_p)
+		      void *pUserArg_p)
 {
 	tEplKernel EplRet = kEplSuccessful;
 

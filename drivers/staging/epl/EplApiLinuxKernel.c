@@ -206,7 +206,7 @@ typedef struct {
 
 tEplKernel EplLinCbEvent(tEplApiEventType EventType_p,	// IN: event type (enum)
 			 tEplApiEventArg *pEventArg_p,	// IN: event argument (union)
-			 void GENERIC *pUserArg_p);
+			 void *pUserArg_p);
 
 tEplKernel EplLinCbSync(void);
 
@@ -1160,7 +1160,7 @@ static int EplLinIoctl(struct inode *pDeviceFile_p,	// information about the dev
 
 tEplKernel EplLinCbEvent(tEplApiEventType EventType_p,	// IN: event type (enum)
 			 tEplApiEventArg *pEventArg_p,	// IN: event argument (union)
-			 void GENERIC *pUserArg_p)
+			 void *pUserArg_p)
 {
 	tEplKernel EplRet = kEplSuccessful;
 	int iErr;

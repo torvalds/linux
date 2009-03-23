@@ -774,7 +774,7 @@ static tEplKernel EplErrorHandlerkLinkArray(DWORD * pdwValue_p,
 
 	EntrySize = (tEplObdSize) sizeof(bIndexEntries);
 	Ret = EplObdReadEntry(uiIndex_p,
-			      0x00, (void GENERIC *)&bIndexEntries, &EntrySize);
+			      0x00, (void *)&bIndexEntries, &EntrySize);
 
 	if ((Ret != kEplSuccessful) || (bIndexEntries == 0x00)) {
 		// Object doesn't exist or invalid entry number

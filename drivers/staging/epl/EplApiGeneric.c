@@ -588,7 +588,7 @@ tEplKernel EplApiLinkObject(unsigned int uiObjIndex_p,
 		EntrySize = (tEplObdSize) sizeof(bIndexEntries);
 		RetCode = EplObdReadEntry(uiObjIndex_p,
 					  0x00,
-					  (void GENERIC *)&bIndexEntries,
+					  (void *)&bIndexEntries,
 					  &EntrySize);
 
 		if ((RetCode != kEplSuccessful) || (bIndexEntries == 0x00)) {
@@ -1839,7 +1839,7 @@ static tEplKernel EplApiUpdateObd(void)
 		// write Device Name (0x1008)
 		Ret =
 		    EplObdWriteEntry(0x1008, 0,
-				     (void GENERIC *)EplApiInstance_g.
+				     (void *)EplApiInstance_g.
 				     m_InitParam.m_pszDevName,
 				     (tEplObdSize) strlen(EplApiInstance_g.
 							  m_InitParam.
@@ -1854,7 +1854,7 @@ static tEplKernel EplApiUpdateObd(void)
 		// write Hardware version (0x1009)
 		Ret =
 		    EplObdWriteEntry(0x1009, 0,
-				     (void GENERIC *)EplApiInstance_g.
+				     (void *)EplApiInstance_g.
 				     m_InitParam.m_pszHwVersion,
 				     (tEplObdSize) strlen(EplApiInstance_g.
 							  m_InitParam.
@@ -1869,7 +1869,7 @@ static tEplKernel EplApiUpdateObd(void)
 		// write Software version (0x100A)
 		Ret =
 		    EplObdWriteEntry(0x100A, 0,
-				     (void GENERIC *)EplApiInstance_g.
+				     (void *)EplApiInstance_g.
 				     m_InitParam.m_pszSwVersion,
 				     (tEplObdSize) strlen(EplApiInstance_g.
 							  m_InitParam.

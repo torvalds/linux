@@ -133,7 +133,7 @@ typedef union {
 
 typedef tEplKernel(ROM *tEplApiCbEvent) (tEplApiEventType EventType_p,	// IN: event type (enum)
 					 tEplApiEventArg *pEventArg_p,	// IN: event argument (union)
-					 void GENERIC *pUserArg_p);
+					 void *pUserArg_p);
 
 typedef struct {
 	unsigned int m_uiSizeOfStruct;
