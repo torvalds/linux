@@ -67,7 +67,7 @@ static struct threshold_block threshold_defaults = {
 struct threshold_bank {
 	struct kobject *kobj;
 	struct threshold_block *blocks;
-	cpumask_t cpus;
+	cpumask_var_t cpus;
 };
 static DEFINE_PER_CPU(struct threshold_bank *, threshold_banks[NR_BANKS]);
 
@@ -78,6 +78,8 @@ static unsigned char shared_bank[NR_BANKS] = {
 #endif
 
 static DEFINE_PER_CPU(unsigned char, bank_map);	/* see which banks are on */
+
+static void amd_threshold_interrupt(void);
 
 /*
  * CPU Initialization
@@ -174,6 +176,8 @@ void mce_amd_feature_init(struct cpuinfo_x86 *c)
 			tr.reset = 0;
 			tr.old_limit = 0;
 			threshold_restart_bank(&tr);
+
+			mce_threshold_vector = amd_threshold_interrupt;
 		}
 	}
 }
@@ -187,19 +191,13 @@ void mce_amd_feature_init(struct cpuinfo_x86 *c)
  * the interrupt goes off when error_count reaches threshold_limit.
  * the handler will simply log mcelog w/ software defined bank number.
  */
-asmlinkage void mce_threshold_interrupt(void)
+static void amd_threshold_interrupt(void)
 {
 	unsigned int bank, block;
 	struct mce m;
 	u32 low = 0, high = 0, address = 0;
 
-	ack_APIC_irq();
-	exit_idle();
-	irq_enter();
-
-	memset(&m, 0, sizeof(m));
-	rdtscll(m.tsc);
-	m.cpu = smp_processor_id();
+	mce_setup(&m);
 
 	/* assume first bank caused it */
 	for (bank = 0; bank < NR_BANKS; ++bank) {
@@ -233,7 +231,8 @@ asmlinkage void mce_threshold_interrupt(void)
 
 			/* Log the machine check that caused the threshold
 			   event. */
-			do_machine_check(NULL, 0);
+			machine_check_poll(MCP_TIMESTAMP,
+					&__get_cpu_var(mce_poll_banks));
 
 			if (high & MASK_OVERFLOW_HI) {
 				rdmsrl(address, m.misc);
@@ -243,13 +242,10 @@ asmlinkage void mce_threshold_interrupt(void)
 				       + bank * NR_BLOCKS
 				       + block;
 				mce_log(&m);
-				goto out;
+				return;
 			}
 		}
 	}
-out:
-	inc_irq_stat(irq_threshold_count);
-	irq_exit();
 }
 
 /*
@@ -481,7 +477,7 @@ static __cpuinit int threshold_create_bank(unsigned int cpu, unsigned int bank)
 
 #ifdef CONFIG_SMP
 	if (cpu_data(cpu).cpu_core_id && shared_bank[bank]) {	/* symlink */
-		i = first_cpu(per_cpu(cpu_core_map, cpu));
+		i = cpumask_first(cpu_core_mask(cpu));
 
 		/* first core not up yet */
 		if (cpu_data(i).cpu_core_id)
@@ -501,7 +497,7 @@ static __cpuinit int threshold_create_bank(unsigned int cpu, unsigned int bank)
 		if (err)
 			goto out;
 
-		b->cpus = per_cpu(cpu_core_map, cpu);
+		cpumask_copy(b->cpus, cpu_core_mask(cpu));
 		per_cpu(threshold_banks, cpu)[bank] = b;
 		goto out;
 	}
@@ -512,15 +508,20 @@ static __cpuinit int threshold_create_bank(unsigned int cpu, unsigned int bank)
 		err = -ENOMEM;
 		goto out;
 	}
+	if (!alloc_cpumask_var(&b->cpus, GFP_KERNEL)) {
+		kfree(b);
+		err = -ENOMEM;
+		goto out;
+	}
 
 	b->kobj = kobject_create_and_add(name, &per_cpu(device_mce, cpu).kobj);
 	if (!b->kobj)
 		goto out_free;
 
 #ifndef CONFIG_SMP
-	b->cpus = CPU_MASK_ALL;
+	cpumask_setall(b->cpus);
 #else
-	b->cpus = per_cpu(cpu_core_map, cpu);
+	cpumask_copy(b->cpus, cpu_core_mask(cpu));
 #endif
 
 	per_cpu(threshold_banks, cpu)[bank] = b;
@@ -529,7 +530,7 @@ static __cpuinit int threshold_create_bank(unsigned int cpu, unsigned int bank)
 	if (err)
 		goto out_free;
 
-	for_each_cpu_mask_nr(i, b->cpus) {
+	for_each_cpu(i, b->cpus) {
 		if (i == cpu)
 			continue;
 
@@ -545,6 +546,7 @@ static __cpuinit int threshold_create_bank(unsigned int cpu, unsigned int bank)
 
 out_free:
 	per_cpu(threshold_banks, cpu)[bank] = NULL;
+	free_cpumask_var(b->cpus);
 	kfree(b);
 out:
 	return err;
@@ -619,7 +621,7 @@ static void threshold_remove_bank(unsigned int cpu, int bank)
 #endif
 
 	/* remove all sibling symlinks before unregistering */
-	for_each_cpu_mask_nr(i, b->cpus) {
+	for_each_cpu(i, b->cpus) {
 		if (i == cpu)
 			continue;
 
@@ -632,6 +634,7 @@ static void threshold_remove_bank(unsigned int cpu, int bank)
 free_out:
 	kobject_del(b->kobj);
 	kobject_put(b->kobj);
+	free_cpumask_var(b->cpus);
 	kfree(b);
 	per_cpu(threshold_banks, cpu)[bank] = NULL;
 }

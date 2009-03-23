@@ -19,6 +19,21 @@ DEF_NATIVE(pv_cpu_ops, usergs_sysret64, "swapgs; sysretq");
 DEF_NATIVE(pv_cpu_ops, usergs_sysret32, "swapgs; sysretl");
 DEF_NATIVE(pv_cpu_ops, swapgs, "swapgs");
 
+DEF_NATIVE(, mov32, "mov %edi, %eax");
+DEF_NATIVE(, mov64, "mov %rdi, %rax");
+
+unsigned paravirt_patch_ident_32(void *insnbuf, unsigned len)
+{
+	return paravirt_patch_insns(insnbuf, len,
+				    start__mov32, end__mov32);
+}
+
+unsigned paravirt_patch_ident_64(void *insnbuf, unsigned len)
+{
+	return paravirt_patch_insns(insnbuf, len,
+				    start__mov64, end__mov64);
+}
+
 unsigned native_patch(u8 type, u16 clobbers, void *ibuf,
 		      unsigned long addr, unsigned len)
 {

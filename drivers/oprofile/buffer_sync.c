@@ -38,7 +38,7 @@
 
 static LIST_HEAD(dying_tasks);
 static LIST_HEAD(dead_tasks);
-static cpumask_t marked_cpus = CPU_MASK_NONE;
+static cpumask_var_t marked_cpus;
 static DEFINE_SPINLOCK(task_mortuary);
 static void process_task_mortuary(void);
 
@@ -154,6 +154,10 @@ int sync_start(void)
 {
 	int err;
 
+	if (!alloc_cpumask_var(&marked_cpus, GFP_KERNEL))
+		return -ENOMEM;
+	cpumask_clear(marked_cpus);
+
 	start_cpu_work();
 
 	err = task_handoff_register(&task_free_nb);
@@ -179,6 +183,7 @@ out2:
 	task_handoff_unregister(&task_free_nb);
 out1:
 	end_sync();
+	free_cpumask_var(marked_cpus);
 	goto out;
 }
 
@@ -190,6 +195,7 @@ void sync_stop(void)
 	profile_event_unregister(PROFILE_TASK_EXIT, &task_exit_nb);
 	task_handoff_unregister(&task_free_nb);
 	end_sync();
+	free_cpumask_var(marked_cpus);
 }
 
 
@@ -456,10 +462,10 @@ static void mark_done(int cpu)
 {
 	int i;
 
-	cpu_set(cpu, marked_cpus);
+	cpumask_set_cpu(cpu, marked_cpus);
 
 	for_each_online_cpu(i) {
-		if (!cpu_isset(i, marked_cpus))
+		if (!cpumask_test_cpu(i, marked_cpus))
 			return;
 	}
 
@@ -468,7 +474,7 @@ static void mark_done(int cpu)
 	 */
 	process_task_mortuary();
 
-	cpus_clear(marked_cpus);
+	cpumask_clear(marked_cpus);
 }
 
 

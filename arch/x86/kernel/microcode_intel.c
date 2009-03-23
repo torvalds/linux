@@ -70,28 +70,28 @@
  *		Fix sigmatch() macro to handle old CPUs with pf == 0.
  *		Thanks to Stuart Swales for pointing out this bug.
  */
-#include <linux/capability.h>
-#include <linux/kernel.h>
-#include <linux/init.h>
-#include <linux/sched.h>
-#include <linux/smp_lock.h>
-#include <linux/cpumask.h>
-#include <linux/module.h>
-#include <linux/slab.h>
-#include <linux/vmalloc.h>
-#include <linux/miscdevice.h>
-#include <linux/spinlock.h>
-#include <linux/mm.h>
-#include <linux/fs.h>
-#include <linux/mutex.h>
-#include <linux/cpu.h>
-#include <linux/firmware.h>
 #include <linux/platform_device.h>
+#include <linux/capability.h>
+#include <linux/miscdevice.h>
+#include <linux/firmware.h>
+#include <linux/smp_lock.h>
+#include <linux/spinlock.h>
+#include <linux/cpumask.h>
+#include <linux/uaccess.h>
+#include <linux/vmalloc.h>
+#include <linux/kernel.h>
+#include <linux/module.h>
+#include <linux/mutex.h>
+#include <linux/sched.h>
+#include <linux/init.h>
+#include <linux/slab.h>
+#include <linux/cpu.h>
+#include <linux/fs.h>
+#include <linux/mm.h>
 
-#include <asm/msr.h>
-#include <asm/uaccess.h>
-#include <asm/processor.h>
 #include <asm/microcode.h>
+#include <asm/processor.h>
+#include <asm/msr.h>
 
 MODULE_DESCRIPTION("Microcode Update Driver");
 MODULE_AUTHOR("Tigran Aivazian <tigran@aivazian.fsnet.co.uk>");
@@ -129,12 +129,13 @@ struct extended_sigtable {
 	struct extended_signature sigs[0];
 };
 
-#define DEFAULT_UCODE_DATASIZE 	(2000)
+#define DEFAULT_UCODE_DATASIZE	(2000)
 #define MC_HEADER_SIZE		(sizeof(struct microcode_header_intel))
 #define DEFAULT_UCODE_TOTALSIZE (DEFAULT_UCODE_DATASIZE + MC_HEADER_SIZE)
 #define EXT_HEADER_SIZE		(sizeof(struct extended_sigtable))
 #define EXT_SIGNATURE_SIZE	(sizeof(struct extended_signature))
 #define DWSIZE			(sizeof(u32))
+
 #define get_totalsize(mc) \
 	(((struct microcode_intel *)mc)->hdr.totalsize ? \
 	 ((struct microcode_intel *)mc)->hdr.totalsize : \
@@ -196,31 +197,32 @@ static inline int update_match_cpu(struct cpu_signature *csig, int sig, int pf)
 	return (!sigmatch(sig, csig->sig, pf, csig->pf)) ? 0 : 1;
 }
 
-static inline int 
-update_match_revision(struct microcode_header_intel *mc_header,	int rev)
+static inline int
+update_match_revision(struct microcode_header_intel *mc_header, int rev)
 {
 	return (mc_header->rev <= rev) ? 0 : 1;
 }
 
 static int microcode_sanity_check(void *mc)
 {
+	unsigned long total_size, data_size, ext_table_size;
 	struct microcode_header_intel *mc_header = mc;
 	struct extended_sigtable *ext_header = NULL;
-	struct extended_signature *ext_sig;
-	unsigned long total_size, data_size, ext_table_size;
 	int sum, orig_sum, ext_sigcount = 0, i;
+	struct extended_signature *ext_sig;
 
 	total_size = get_totalsize(mc_header);
 	data_size = get_datasize(mc_header);
+
 	if (data_size + MC_HEADER_SIZE > total_size) {
 		printk(KERN_ERR "microcode: error! "
-			"Bad data size in microcode data file\n");
+				"Bad data size in microcode data file\n");
 		return -EINVAL;
 	}
 
 	if (mc_header->ldrver != 1 || mc_header->hdrver != 1) {
 		printk(KERN_ERR "microcode: error! "
-			"Unknown microcode update format\n");
+				"Unknown microcode update format\n");
 		return -EINVAL;
 	}
 	ext_table_size = total_size - (MC_HEADER_SIZE + data_size);
@@ -318,11 +320,15 @@ get_matching_microcode(struct cpu_signature *cpu_sig, void *mc, int rev)
 
 static void apply_microcode(int cpu)
 {
+	struct microcode_intel *mc_intel;
+	struct ucode_cpu_info *uci;
 	unsigned long flags;
 	unsigned int val[2];
-	int cpu_num = raw_smp_processor_id();
-	struct ucode_cpu_info *uci = ucode_cpu_info + cpu;
-	struct microcode_intel *mc_intel = uci->mc;
+	int cpu_num;
+
+	cpu_num = raw_smp_processor_id();
+	uci = ucode_cpu_info + cpu;
+	mc_intel = uci->mc;
 
 	/* We should bind the task to the CPU */
 	BUG_ON(cpu_num != cpu);
@@ -348,15 +354,17 @@ static void apply_microcode(int cpu)
 	spin_unlock_irqrestore(&microcode_update_lock, flags);
 	if (val[1] != mc_intel->hdr.rev) {
 		printk(KERN_ERR "microcode: CPU%d update from revision "
-			"0x%x to 0x%x failed\n", cpu_num, uci->cpu_sig.rev, val[1]);
+				"0x%x to 0x%x failed\n",
+			cpu_num, uci->cpu_sig.rev, val[1]);
 		return;
 	}
 	printk(KERN_INFO "microcode: CPU%d updated from revision "
-	       "0x%x to 0x%x, date = %04x-%02x-%02x \n",
+			 "0x%x to 0x%x, date = %04x-%02x-%02x \n",
 		cpu_num, uci->cpu_sig.rev, val[1],
 		mc_intel->hdr.date & 0xffff,
 		mc_intel->hdr.date >> 24,
 		(mc_intel->hdr.date >> 16) & 0xff);
+
 	uci->cpu_sig.rev = val[1];
 }
 
@@ -404,18 +412,23 @@ static int generic_load_microcode(int cpu, void *data, size_t size,
 		leftover  -= mc_size;
 	}
 
-	if (new_mc) {
-		if (!leftover) {
-			if (uci->mc)
-				vfree(uci->mc);
-			uci->mc = (struct microcode_intel *)new_mc;
-			pr_debug("microcode: CPU%d found a matching microcode update with"
-				 " version 0x%x (current=0x%x)\n",
-				cpu, new_rev, uci->cpu_sig.rev);
-		} else
-			vfree(new_mc);
+	if (!new_mc)
+		goto out;
+
+	if (leftover) {
+		vfree(new_mc);
+		goto out;
 	}
 
+	if (uci->mc)
+		vfree(uci->mc);
+	uci->mc = (struct microcode_intel *)new_mc;
+
+	pr_debug("microcode: CPU%d found a matching microcode update with"
+		 " version 0x%x (current=0x%x)\n",
+			cpu, new_rev, uci->cpu_sig.rev);
+
+ out:
 	return (int)leftover;
 }
 
@@ -442,8 +455,8 @@ static int request_microcode_fw(int cpu, struct device *device)
 		return ret;
 	}
 
-	ret = generic_load_microcode(cpu, (void*)firmware->data, firmware->size,
-			&get_ucode_fw);
+	ret = generic_load_microcode(cpu, (void *)firmware->data,
+				     firmware->size, &get_ucode_fw);
 
 	release_firmware(firmware);
 
@@ -460,7 +473,7 @@ static int request_microcode_user(int cpu, const void __user *buf, size_t size)
 	/* We should bind the task to the CPU */
 	BUG_ON(cpu != raw_smp_processor_id());
 
-	return generic_load_microcode(cpu, (void*)buf, size, &get_ucode_user);
+	return generic_load_microcode(cpu, (void *)buf, size, &get_ucode_user);
 }
 
 static void microcode_fini_cpu(int cpu)

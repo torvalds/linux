@@ -793,7 +793,7 @@ __cpuinit int unsynchronized_tsc(void)
 	if (!cpu_has_tsc || tsc_unstable)
 		return 1;
 
-#ifdef CONFIG_X86_SMP
+#ifdef CONFIG_SMP
 	if (apic_is_clustered_box())
 		return 1;
 #endif

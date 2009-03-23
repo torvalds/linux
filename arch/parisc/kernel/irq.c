@@ -138,7 +138,7 @@ static void cpu_set_affinity_irq(unsigned int irq, const struct cpumask *dest)
 	if (cpu_dest < 0)
 		return;
 
-	cpumask_copy(&irq_desc[irq].affinity, &cpumask_of_cpu(cpu_dest));
+	cpumask_copy(&irq_desc[irq].affinity, dest);
 }
 #endif
 
