@@ -636,7 +636,7 @@ P:	Dirk Opfer
 M:	dirk@opfer-online.de
 S:	Maintained
 
-ARM/PALMTX,PALMT5,PALMLD SUPPORT
+ARM/PALMTX,PALMT5,PALMLD,PALMTE2 SUPPORT
 P:	Marek Vasut
 M:	marek.vasut@gmail.com
 W:	http://hackndev.com
