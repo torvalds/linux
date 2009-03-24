@@ -1499,7 +1499,6 @@ qla24xx_mbx_completion(scsi_qla_host_t *vha, uint16_t mb0)
 void
 qla24xx_process_response_queue(struct rsp_que *rsp)
 {
-	struct qla_hw_data *ha = rsp->hw;
 	struct sts_entry_24xx *pkt;
 	struct scsi_qla_host *vha;
 
@@ -1553,7 +1552,7 @@ qla24xx_process_response_queue(struct rsp_que *rsp)
 	}
 
 	/* Adjust ring index */
-	ha->isp_ops->wrt_rsp_reg(ha, rsp->id, rsp->ring_index);
+	WRT_REG_DWORD(rsp->rsp_q_out, rsp->ring_index);
 }
 
 static void
@@ -2117,18 +2116,3 @@ int qla25xx_request_irq(struct rsp_que *rsp)
 	msix->rsp = rsp;
 	return ret;
 }
-
-void
-qla25xx_wrt_rsp_reg(struct qla_hw_data *ha, uint16_t id, uint16_t index)
-{
-	device_reg_t __iomem *reg = (void *) ha->mqiobase + QLA_QUE_PAGE * id;
-	WRT_REG_DWORD(&reg->isp25mq.rsp_q_out, index);
-}
-
-void
-qla24xx_wrt_rsp_reg(struct qla_hw_data *ha, uint16_t id, uint16_t index)
-{
-	device_reg_t __iomem *reg = (void *) ha->iobase;
-	WRT_REG_DWORD(&reg->isp24.rsp_q_out, index);
-}
-

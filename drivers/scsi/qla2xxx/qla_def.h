@@ -372,10 +372,10 @@ struct device_reg_2xxx {
 };
 
 struct device_reg_25xxmq {
-	volatile uint32_t req_q_in;
-	volatile uint32_t req_q_out;
-	volatile uint32_t rsp_q_in;
-	volatile uint32_t rsp_q_out;
+	uint32_t req_q_in;
+	uint32_t req_q_out;
+	uint32_t rsp_q_in;
+	uint32_t rsp_q_out;
 };
 
 typedef union {
@@ -2102,9 +2102,6 @@ struct isp_operations {
 
 	int (*get_flash_version) (struct scsi_qla_host *, void *);
 	int (*start_scsi) (srb_t *);
-	void (*wrt_req_reg) (struct qla_hw_data *, uint16_t, uint16_t);
-	void (*wrt_rsp_reg) (struct qla_hw_data *, uint16_t, uint16_t);
-	uint16_t (*rd_req_reg) (struct qla_hw_data *, uint16_t);
 };
 
 /* MSI-X Support *************************************************************/
@@ -2200,6 +2197,8 @@ struct rsp_que {
 	dma_addr_t  dma;
 	response_t *ring;
 	response_t *ring_ptr;
+	uint32_t __iomem *rsp_q_in;	/* FWI2-capable only. */
+	uint32_t __iomem *rsp_q_out;
 	uint16_t  ring_index;
 	uint16_t  out_ptr;
 	uint16_t  length;
@@ -2217,6 +2216,8 @@ struct req_que {
 	dma_addr_t  dma;
 	request_t *ring;
 	request_t *ring_ptr;
+	uint32_t __iomem *req_q_in;	/* FWI2-capable only. */
+	uint32_t __iomem *req_q_out;
 	uint16_t  ring_index;
 	uint16_t  in_ptr;
 	uint16_t  cnt;
@@ -2277,7 +2278,7 @@ struct qla_hw_data {
 
 #define MIN_IOBASE_LEN          0x100
 /* Multi queue data structs */
-	device_reg_t    *mqiobase;
+	device_reg_t __iomem *mqiobase;
 	uint16_t        msix_count;
 	uint8_t         mqenable;
 	struct req_que **req_q_map;

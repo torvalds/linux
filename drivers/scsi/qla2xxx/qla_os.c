@@ -1351,9 +1351,6 @@ static struct isp_operations qla2100_isp_ops = {
 	.write_optrom		= qla2x00_write_optrom_data,
 	.get_flash_version	= qla2x00_get_flash_version,
 	.start_scsi		= qla2x00_start_scsi,
-	.wrt_req_reg		= NULL,
-	.wrt_rsp_reg		= NULL,
-	.rd_req_reg		= NULL,
 };
 
 static struct isp_operations qla2300_isp_ops = {
@@ -1389,9 +1386,6 @@ static struct isp_operations qla2300_isp_ops = {
 	.write_optrom		= qla2x00_write_optrom_data,
 	.get_flash_version	= qla2x00_get_flash_version,
 	.start_scsi		= qla2x00_start_scsi,
-	.wrt_req_reg		= NULL,
-	.wrt_rsp_reg		= NULL,
-	.rd_req_reg		= NULL,
 };
 
 static struct isp_operations qla24xx_isp_ops = {
@@ -1427,9 +1421,6 @@ static struct isp_operations qla24xx_isp_ops = {
 	.write_optrom		= qla24xx_write_optrom_data,
 	.get_flash_version	= qla24xx_get_flash_version,
 	.start_scsi		= qla24xx_start_scsi,
-	.wrt_req_reg		= qla24xx_wrt_req_reg,
-	.wrt_rsp_reg		= qla24xx_wrt_rsp_reg,
-	.rd_req_reg		= qla24xx_rd_req_reg,
 };
 
 static struct isp_operations qla25xx_isp_ops = {
@@ -1465,9 +1456,6 @@ static struct isp_operations qla25xx_isp_ops = {
 	.write_optrom		= qla24xx_write_optrom_data,
 	.get_flash_version	= qla24xx_get_flash_version,
 	.start_scsi		= qla24xx_start_scsi,
-	.wrt_req_reg		= qla24xx_wrt_req_reg,
-	.wrt_rsp_reg		= qla24xx_wrt_rsp_reg,
-	.rd_req_reg		= qla24xx_rd_req_reg,
 };
 
 static struct isp_operations qla81xx_isp_ops = {
@@ -1503,9 +1491,6 @@ static struct isp_operations qla81xx_isp_ops = {
 	.write_optrom		= qla24xx_write_optrom_data,
 	.get_flash_version	= qla24xx_get_flash_version,
 	.start_scsi		= qla24xx_start_scsi,
-	.wrt_req_reg		= qla24xx_wrt_req_reg,
-	.wrt_rsp_reg		= qla24xx_wrt_rsp_reg,
-	.rd_req_reg		= qla24xx_rd_req_reg,
 };
 
 static inline void
@@ -1927,10 +1912,16 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	ha->rsp_q_map[0] = rsp;
 	ha->req_q_map[0] = req;
 
+	/* FWI2-capable only. */
+	req->req_q_in = &ha->iobase->isp24.req_q_in;
+	req->req_q_out = &ha->iobase->isp24.req_q_out;
+	rsp->rsp_q_in = &ha->iobase->isp24.rsp_q_in;
+	rsp->rsp_q_out = &ha->iobase->isp24.rsp_q_out;
 	if (ha->mqenable) {
-		ha->isp_ops->wrt_req_reg = qla25xx_wrt_req_reg;
-		ha->isp_ops->wrt_rsp_reg = qla25xx_wrt_rsp_reg;
-		ha->isp_ops->rd_req_reg = qla25xx_rd_req_reg;
+		req->req_q_in = &ha->mqiobase->isp25mq.req_q_in;
+		req->req_q_out = &ha->mqiobase->isp25mq.req_q_out;
+		rsp->rsp_q_in = &ha->mqiobase->isp25mq.rsp_q_in;
+		rsp->rsp_q_out =  &ha->mqiobase->isp25mq.rsp_q_out;
 	}
 
 	if (qla2x00_initialize_adapter(base_vha)) {
