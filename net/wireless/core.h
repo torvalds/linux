@@ -99,6 +99,9 @@ struct cfg80211_internal_bss {
 struct cfg80211_registered_device *cfg80211_drv_by_wiphy_idx(int wiphy_idx);
 int get_wiphy_idx(struct wiphy *wiphy);
 
+struct cfg80211_registered_device *
+__cfg80211_drv_from_info(struct genl_info *info);
+
 /*
  * This function returns a pointer to the driver
  * that the genl_info item that is passed refers to.
