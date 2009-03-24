@@ -6,3 +6,12 @@
 # Licensed under GPLv2
 
 # Currently nothing here, this will be added later
+
+# machine support
+
+config MACH_SMDK6400
+       bool "SMDK6400"
+	select CPU_S3C6410
+	select S3C_DEV_HSMMC
+	help
+	  Machine support for the Samsung SMDK6400

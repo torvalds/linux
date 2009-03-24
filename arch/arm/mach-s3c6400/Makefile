@@ -13,3 +13,7 @@ obj-				:=
 # Core support for S3C6400 system
 
 obj-n				+= blank.o
+
+# Machine support
+
+obj-$(CONFIG_MACH_SMDK6400)	+= mach-smdk6400.o
