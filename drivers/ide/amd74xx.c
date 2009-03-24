@@ -183,14 +183,6 @@ static u8 amd_cable_detect(ide_hwif_t *hwif)
 		return ATA_CBL_PATA40;
 }
 
-static void __devinit init_hwif_amd74xx(ide_hwif_t *hwif)
-{
-	struct pci_dev *dev = to_pci_dev(hwif->dev);
-
-	if (ide_pci_is_in_compatibility_mode(dev))
-		hwif->irq = pci_get_legacy_ide_irq(dev, hwif->channel);
-}
-
 static const struct ide_port_ops amd_port_ops = {
 	.set_pio_mode		= amd_set_pio_mode,
 	.set_dma_mode		= amd_set_drive,
@@ -207,7 +199,6 @@ static const struct ide_port_ops amd_port_ops = {
 	{								\
 		.name		= DRV_NAME,				\
 		.init_chipset	= init_chipset_amd74xx,			\
-		.init_hwif	= init_hwif_amd74xx,			\
 		.enablebits	= {{0x40,0x02,0x02}, {0x40,0x01,0x01}},	\
 		.port_ops	= &amd_port_ops,			\
 		.host_flags	= IDE_HFLAGS_AMD,			\
@@ -221,7 +212,6 @@ static const struct ide_port_ops amd_port_ops = {
 	{								\
 		.name		= DRV_NAME,				\
 		.init_chipset	= init_chipset_amd74xx,			\
-		.init_hwif	= init_hwif_amd74xx,			\
 		.enablebits	= {{0x50,0x02,0x02}, {0x50,0x01,0x01}},	\
 		.port_ops	= &amd_port_ops,			\
 		.host_flags	= IDE_HFLAGS_AMD,			\
