@@ -684,7 +684,7 @@ static void intel_sdvo_get_dtd_from_mode(struct intel_sdvo_dtd *dtd,
 	dtd->part1.v_high = (((height >> 8) & 0xf) << 4) |
 		((v_blank_len >> 8) & 0xf);
 
-	dtd->part2.h_sync_off = h_sync_offset;
+	dtd->part2.h_sync_off = h_sync_offset & 0xff;
 	dtd->part2.h_sync_width = h_sync_len & 0xff;
 	dtd->part2.v_sync_off_width = (v_sync_offset & 0xf) << 4 |
 		(v_sync_len & 0xf);
@@ -706,27 +706,10 @@ static void intel_sdvo_get_dtd_from_mode(struct intel_sdvo_dtd *dtd,
 static void intel_sdvo_get_mode_from_dtd(struct drm_display_mode * mode,
 					 struct intel_sdvo_dtd *dtd)
 {
-	uint16_t width, height;
-	uint16_t h_blank_len, h_sync_len, v_blank_len, v_sync_len;
-	uint16_t h_sync_offset, v_sync_offset;
-
-	width = mode->crtc_hdisplay;
-	height = mode->crtc_vdisplay;
-
-	/* do some mode translations */
-	h_blank_len = mode->crtc_hblank_end - mode->crtc_hblank_start;
-	h_sync_len = mode->crtc_hsync_end - mode->crtc_hsync_start;
-
-	v_blank_len = mode->crtc_vblank_end - mode->crtc_vblank_start;
-	v_sync_len = mode->crtc_vsync_end - mode->crtc_vsync_start;
-
-	h_sync_offset = mode->crtc_hsync_start - mode->crtc_hblank_start;
-	v_sync_offset = mode->crtc_vsync_start - mode->crtc_vblank_start;
-
 	mode->hdisplay = dtd->part1.h_active;
 	mode->hdisplay += ((dtd->part1.h_high >> 4) & 0x0f) << 8;
 	mode->hsync_start = mode->hdisplay + dtd->part2.h_sync_off;
-	mode->hsync_start += (dtd->part2.sync_off_width_high & 0xa0) << 2;
+	mode->hsync_start += (dtd->part2.sync_off_width_high & 0xc0) << 2;
 	mode->hsync_end = mode->hsync_start + dtd->part2.h_sync_width;
 	mode->hsync_end += (dtd->part2.sync_off_width_high & 0x30) << 4;
 	mode->htotal = mode->hdisplay + dtd->part1.h_blank;
@@ -736,7 +719,7 @@ static void intel_sdvo_get_mode_from_dtd(struct drm_display_mode * mode,
 	mode->vdisplay += ((dtd->part1.v_high >> 4) & 0x0f) << 8;
 	mode->vsync_start = mode->vdisplay;
 	mode->vsync_start += (dtd->part2.v_sync_off_width >> 4) & 0xf;
-	mode->vsync_start += (dtd->part2.sync_off_width_high & 0x0a) << 2;
+	mode->vsync_start += (dtd->part2.sync_off_width_high & 0x0c) << 2;
 	mode->vsync_start += dtd->part2.v_sync_off_high & 0xc0;
 	mode->vsync_end = mode->vsync_start +
 		(dtd->part2.v_sync_off_width & 0xf);
@@ -746,7 +729,7 @@ static void intel_sdvo_get_mode_from_dtd(struct drm_display_mode * mode,
 
 	mode->clock = dtd->part1.clock * 10;
 
-	mode->flags &= (DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_PVSYNC);
+	mode->flags &= ~(DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_PVSYNC);
 	if (dtd->part2.dtd_flags & 0x2)
 		mode->flags |= DRM_MODE_FLAG_PHSYNC;
 	if (dtd->part2.dtd_flags & 0x4)
