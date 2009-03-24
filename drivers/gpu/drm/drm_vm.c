@@ -227,7 +227,7 @@ static void drm_vm_shm_close(struct vm_area_struct *vma)
 			found_maps++;
 		if (pt->vma == vma) {
 			list_del(&pt->head);
-			drm_free(pt, sizeof(*pt), DRM_MEM_VMAS);
+			kfree(pt);
 		}
 	}
 
@@ -273,7 +273,7 @@ static void drm_vm_shm_close(struct vm_area_struct *vma)
 				DRM_ERROR("tried to rmmap GEM object\n");
 				break;
 			}
-			drm_free(map, sizeof(*map), DRM_MEM_MAPS);
+			kfree(map);
 		}
 	}
 	mutex_unlock(&dev->struct_mutex);
@@ -414,7 +414,7 @@ void drm_vm_open_locked(struct vm_area_struct *vma)
 		  vma->vm_start, vma->vm_end - vma->vm_start);
 	atomic_inc(&dev->vma_count);
 
-	vma_entry = drm_alloc(sizeof(*vma_entry), DRM_MEM_VMAS);
+	vma_entry = kmalloc(sizeof(*vma_entry), GFP_KERNEL);
 	if (vma_entry) {
 		vma_entry->vma = vma;
 		vma_entry->pid = current->pid;
@@ -454,7 +454,7 @@ static void drm_vm_close(struct vm_area_struct *vma)
 	list_for_each_entry_safe(pt, temp, &dev->vmalist, head) {
 		if (pt->vma == vma) {
 			list_del(&pt->head);
-			drm_free(pt, sizeof(*pt), DRM_MEM_VMAS);
+			kfree(pt);
 			break;
 		}
 	}

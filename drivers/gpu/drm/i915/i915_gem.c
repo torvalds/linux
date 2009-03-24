@@ -1207,8 +1207,7 @@ i915_gem_create_mmap_offset(struct drm_gem_object *obj)
 
 	/* Set the object up for mmap'ing */
 	list = &obj->map_list;
-	list->map = drm_calloc(1, sizeof(struct drm_map_list),
-			       DRM_MEM_DRIVER);
+	list->map = kzalloc(sizeof(struct drm_map_list), GFP_KERNEL);
 	if (!list->map)
 		return -ENOMEM;
 
@@ -1248,7 +1247,7 @@ i915_gem_create_mmap_offset(struct drm_gem_object *obj)
 out_free_mm:
 	drm_mm_put_block(list->file_offset_node);
 out_free_list:
-	drm_free(list->map, sizeof(struct drm_map_list), DRM_MEM_DRIVER);
+	kfree(list->map);
 
 	return ret;
 }
@@ -1270,7 +1269,7 @@ i915_gem_free_mmap_offset(struct drm_gem_object *obj)
 	}
 
 	if (list->map) {
-		drm_free(list->map, sizeof(struct drm_map), DRM_MEM_DRIVER);
+		kfree(list->map);
 		list->map = NULL;
 	}
 
@@ -1493,7 +1492,7 @@ i915_add_request(struct drm_device *dev, struct drm_file *file_priv,
 	if (file_priv != NULL)
 		i915_file_priv = file_priv->driver_priv;
 
-	request = drm_calloc(1, sizeof(*request), DRM_MEM_DRIVER);
+	request = kzalloc(sizeof(*request), GFP_KERNEL);
 	if (request == NULL)
 		return 0;
 
@@ -1675,7 +1674,7 @@ i915_gem_retire_requests(struct drm_device *dev)
 
 			list_del(&request->list);
 			list_del(&request->client_list);
-			drm_free(request, sizeof(*request), DRM_MEM_DRIVER);
+			kfree(request);
 		} else
 			break;
 	}
@@ -2833,8 +2832,7 @@ i915_gem_object_set_to_full_cpu_read_domain(struct drm_gem_object *obj)
 	/* Free the page_cpu_valid mappings which are now stale, whether
 	 * or not we've got I915_GEM_DOMAIN_CPU.
 	 */
-	drm_free(obj_priv->page_cpu_valid, obj->size / PAGE_SIZE,
-		 DRM_MEM_DRIVER);
+	kfree(obj_priv->page_cpu_valid);
 	obj_priv->page_cpu_valid = NULL;
 }
 
@@ -2876,8 +2874,8 @@ i915_gem_object_set_cpu_read_domain_range(struct drm_gem_object *obj,
 	 * newly adding I915_GEM_DOMAIN_CPU
 	 */
 	if (obj_priv->page_cpu_valid == NULL) {
-		obj_priv->page_cpu_valid = drm_calloc(1, obj->size / PAGE_SIZE,
-						      DRM_MEM_DRIVER);
+		obj_priv->page_cpu_valid = kzalloc(obj->size / PAGE_SIZE,
+						   GFP_KERNEL);
 		if (obj_priv->page_cpu_valid == NULL)
 			return -ENOMEM;
 	} else if ((obj->read_domains & I915_GEM_DOMAIN_CPU) == 0)
@@ -3300,8 +3298,8 @@ i915_gem_execbuffer(struct drm_device *dev, void *data,
 	}
 
 	if (args->num_cliprects != 0) {
-		cliprects = drm_calloc(args->num_cliprects, sizeof(*cliprects),
-				       DRM_MEM_DRIVER);
+		cliprects = kcalloc(args->num_cliprects, sizeof(*cliprects),
+				    GFP_KERNEL);
 		if (cliprects == NULL)
 			goto pre_mutex_err;
 
@@ -3554,8 +3552,7 @@ err:
 pre_mutex_err:
 	drm_free_large(object_list);
 	drm_free_large(exec_list);
-	drm_free(cliprects, sizeof(*cliprects) * args->num_cliprects,
-		 DRM_MEM_DRIVER);
+	kfree(cliprects);
 
 	return ret;
 }
@@ -3772,7 +3769,7 @@ int i915_gem_init_object(struct drm_gem_object *obj)
 {
 	struct drm_i915_gem_object *obj_priv;
 
-	obj_priv = drm_calloc(1, sizeof(*obj_priv), DRM_MEM_DRIVER);
+	obj_priv = kzalloc(sizeof(*obj_priv), GFP_KERNEL);
 	if (obj_priv == NULL)
 		return -ENOMEM;
 
@@ -3810,9 +3807,9 @@ void i915_gem_free_object(struct drm_gem_object *obj)
 
 	i915_gem_free_mmap_offset(obj);
 
-	drm_free(obj_priv->page_cpu_valid, 1, DRM_MEM_DRIVER);
+	kfree(obj_priv->page_cpu_valid);
 	kfree(obj_priv->bit_17);
-	drm_free(obj->driver_private, 1, DRM_MEM_DRIVER);
+	kfree(obj->driver_private);
 }
 
 /** Unbinds all objects that are on the given buffer list. */
@@ -4266,7 +4263,7 @@ int i915_gem_init_phys_object(struct drm_device *dev,
 	if (dev_priv->mm.phys_objs[id - 1] || !size)
 		return 0;
 
-	phys_obj = drm_calloc(1, sizeof(struct drm_i915_gem_phys_object), DRM_MEM_DRIVER);
+	phys_obj = kzalloc(sizeof(struct drm_i915_gem_phys_object), GFP_KERNEL);
 	if (!phys_obj)
 		return -ENOMEM;
 
@@ -4285,7 +4282,7 @@ int i915_gem_init_phys_object(struct drm_device *dev,
 
 	return 0;
 kfree_obj:
-	drm_free(phys_obj, sizeof(struct drm_i915_gem_phys_object), DRM_MEM_DRIVER);
+	kfree(phys_obj);
 	return ret;
 }
 

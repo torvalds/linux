@@ -36,15 +36,6 @@
 #include <linux/highmem.h>
 #include "drmP.h"
 
-#ifdef DEBUG_MEMORY
-#include "drm_memory_debug.h"
-#else
-
-/** No-op. */
-void drm_mem_init(void)
-{
-}
-
 /**
  * Called when "/proc/dri/%dev%/mem" is read.
  *
@@ -62,20 +53,6 @@ int drm_mem_info(char *buf, char **start, off_t offset,
 		 int len, int *eof, void *data)
 {
 	return 0;
-}
-
-/** Wrapper around kmalloc() and kfree() */
-void *drm_realloc(void *oldpt, size_t oldsize, size_t size, int area)
-{
-	void *pt;
-
-	if (!(pt = kmalloc(size, GFP_KERNEL)))
-		return NULL;
-	if (oldpt && oldsize) {
-		memcpy(pt, oldpt, oldsize);
-		kfree(oldpt);
-	}
-	return pt;
 }
 
 #if __OS_HAS_AGP
@@ -156,8 +133,6 @@ static inline void *agp_remap(unsigned long offset, unsigned long size,
 }
 
 #endif				/* agp */
-
-#endif				/* debug_memory */
 
 void drm_core_ioremap(struct drm_local_map *map, struct drm_device *dev)
 {

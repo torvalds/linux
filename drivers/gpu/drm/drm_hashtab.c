@@ -46,8 +46,7 @@ int drm_ht_create(struct drm_open_hash *ht, unsigned int order)
 	ht->table = NULL;
 	ht->use_vmalloc = ((ht->size * sizeof(*ht->table)) > PAGE_SIZE);
 	if (!ht->use_vmalloc) {
-		ht->table = drm_calloc(ht->size, sizeof(*ht->table),
-				       DRM_MEM_HASHTAB);
+		ht->table = kcalloc(ht->size, sizeof(*ht->table), GFP_KERNEL);
 	}
 	if (!ht->table) {
 		ht->use_vmalloc = 1;
@@ -200,8 +199,7 @@ void drm_ht_remove(struct drm_open_hash *ht)
 		if (ht->use_vmalloc)
 			vfree(ht->table);
 		else
-			drm_free(ht->table, ht->size * sizeof(*ht->table),
-				 DRM_MEM_HASHTAB);
+			kfree(ht->table);
 		ht->table = NULL;
 	}
 }
