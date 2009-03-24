@@ -250,7 +250,7 @@ err_misc:
 }
 
 /**
- *	actual_try_to_identify	-	send ata/atapi identify
+ *	try_to_identify	-	send ATA/ATAPI identify
  *	@drive: drive to identify
  *	@cmd: command to use
  *
@@ -262,7 +262,7 @@ err_misc:
  *			2  device aborted the command (refused to identify itself)
  */
 
-static int actual_try_to_identify (ide_drive_t *drive, u8 cmd)
+static int try_to_identify(ide_drive_t *drive, u8 cmd)
 {
 	ide_hwif_t *hwif = drive->hwif;
 	struct ide_io_ports *io_ports = &hwif->io_ports;
@@ -270,6 +270,13 @@ static int actual_try_to_identify (ide_drive_t *drive, u8 cmd)
 	int use_altstatus = 0, rc;
 	unsigned long timeout;
 	u8 s = 0, a = 0;
+
+	/*
+	 * Disable device IRQ.  Otherwise we'll get spurious interrupts
+	 * during the identify phase that the IRQ handler isn't expecting.
+	 */
+	if (io_ports->ctl_addr)
+		tp_ops->set_irq(hwif, 0);
 
 	/* take a deep breath */
 	msleep(50);
@@ -325,29 +332,6 @@ static int actual_try_to_identify (ide_drive_t *drive, u8 cmd)
 		rc = 2;
 	}
 	return rc;
-}
-
-/**
- *	try_to_identify	-	try to identify a drive
- *	@drive: drive to probe
- *	@cmd: command to use
- *
- *	Issue the identify command.
- */
- 
-static int try_to_identify (ide_drive_t *drive, u8 cmd)
-{
-	ide_hwif_t *hwif = drive->hwif;
-	const struct ide_tp_ops *tp_ops = hwif->tp_ops;
-
-	/*
-	 * Disable device IRQ.  Otherwise we'll get spurious interrupts
-	 * during the identify phase that the IRQ handler isn't expecting.
-	 */
-	if (hwif->io_ports.ctl_addr)
-		tp_ops->set_irq(hwif, 0);
-
-	return actual_try_to_identify(drive, cmd);
 }
 
 int ide_busy_sleep(ide_hwif_t *hwif, unsigned long timeout, int altstatus)
