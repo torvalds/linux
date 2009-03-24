@@ -4,6 +4,13 @@ config ARM_GIC
 config ARM_VIC
 	bool
 
+config ARM_VIC_NR
+	int
+	default 2
+	help
+	  The maximum number of VICs available in the system, for
+	  power management.
+
 config ICST525
 	bool
 

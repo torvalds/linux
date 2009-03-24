@@ -21,6 +21,7 @@
 #include <linux/init.h>
 #include <linux/list.h>
 #include <linux/io.h>
+#include <linux/sysdev.h>
 
 #include <asm/mach/irq.h>
 #include <asm/hardware/vic.h>
@@ -39,11 +40,219 @@ static void vic_unmask_irq(unsigned int irq)
 	writel(1 << irq, base + VIC_INT_ENABLE);
 }
 
+/**
+ * vic_init2 - common initialisation code
+ * @base: Base of the VIC.
+ *
+ * Common initialisation code for registeration
+ * and resume.
+*/
+static void vic_init2(void __iomem *base)
+{
+	int i;
+
+	for (i = 0; i < 16; i++) {
+		void __iomem *reg = base + VIC_VECT_CNTL0 + (i * 4);
+		writel(VIC_VECT_CNTL_ENABLE | i, reg);
+	}
+
+	writel(32, base + VIC_PL190_DEF_VECT_ADDR);
+}
+
+#if defined(CONFIG_PM)
+/**
+ * struct vic_device - VIC PM device
+ * @sysdev: The system device which is registered.
+ * @irq: The IRQ number for the base of the VIC.
+ * @base: The register base for the VIC.
+ * @resume_sources: A bitmask of interrupts for resume.
+ * @resume_irqs: The IRQs enabled for resume.
+ * @int_select: Save for VIC_INT_SELECT.
+ * @int_enable: Save for VIC_INT_ENABLE.
+ * @soft_int: Save for VIC_INT_SOFT.
+ * @protect: Save for VIC_PROTECT.
+ */
+struct vic_device {
+	struct sys_device sysdev;
+
+	void __iomem	*base;
+	int		irq;
+	u32		resume_sources;
+	u32		resume_irqs;
+	u32		int_select;
+	u32		int_enable;
+	u32		soft_int;
+	u32		protect;
+};
+
+/* we cannot allocate memory when VICs are initially registered */
+static struct vic_device vic_devices[CONFIG_ARM_VIC_NR];
+
+static inline struct vic_device *to_vic(struct sys_device *sys)
+{
+	return container_of(sys, struct vic_device, sysdev);
+}
+
+static int vic_id;
+
+static int vic_class_resume(struct sys_device *dev)
+{
+	struct vic_device *vic = to_vic(dev);
+	void __iomem *base = vic->base;
+
+	printk(KERN_DEBUG "%s: resuming vic at %p\n", __func__, base);
+
+	/* re-initialise static settings */
+	vic_init2(base);
+
+	writel(vic->int_select, base + VIC_INT_SELECT);
+	writel(vic->protect, base + VIC_PROTECT);
+
+	/* set the enabled ints and then clear the non-enabled */
+	writel(vic->int_enable, base + VIC_INT_ENABLE);
+	writel(~vic->int_enable, base + VIC_INT_ENABLE_CLEAR);
+
+	/* and the same for the soft-int register */
+
+	writel(vic->soft_int, base + VIC_INT_SOFT);
+	writel(~vic->soft_int, base + VIC_INT_SOFT_CLEAR);
+
+	return 0;
+}
+
+static int vic_class_suspend(struct sys_device *dev, pm_message_t state)
+{
+	struct vic_device *vic = to_vic(dev);
+	void __iomem *base = vic->base;
+
+	printk(KERN_DEBUG "%s: suspending vic at %p\n", __func__, base);
+
+	vic->int_select = readl(base + VIC_INT_SELECT);
+	vic->int_enable = readl(base + VIC_INT_ENABLE);
+	vic->soft_int = readl(base + VIC_INT_SOFT);
+	vic->protect = readl(base + VIC_PROTECT);
+
+	/* set the interrupts (if any) that are used for
+	 * resuming the system */
+
+	writel(vic->resume_irqs, base + VIC_INT_ENABLE);
+	writel(~vic->resume_irqs, base + VIC_INT_ENABLE_CLEAR);
+
+	return 0;
+}
+
+struct sysdev_class vic_class = {
+	.name		= "vic",
+	.suspend	= vic_class_suspend,
+	.resume		= vic_class_resume,
+};
+
+/**
+ * vic_pm_register - Register a VIC for later power management control
+ * @base: The base address of the VIC.
+ * @irq: The base IRQ for the VIC.
+ * @resume_sources: bitmask of interrupts allowed for resume sources.
+ *
+ * Register the VIC with the system device tree so that it can be notified
+ * of suspend and resume requests and ensure that the correct actions are
+ * taken to re-instate the settings on resume.
+ */
+static void __init vic_pm_register(void __iomem *base, unsigned int irq, u32 resume_sources)
+{
+	struct vic_device *v;
+
+	if (vic_id >= ARRAY_SIZE(vic_devices))
+		printk(KERN_ERR "%s: too few VICs, increase CONFIG_ARM_VIC_NR\n", __func__);
+	else {
+		v = &vic_devices[vic_id];
+		v->base = base;
+		v->resume_sources = resume_sources;
+		v->irq = irq;
+		vic_id++;
+	}
+}
+
+/**
+ * vic_pm_init - initicall to register VIC pm
+ *
+ * This is called via late_initcall() to register
+ * the resources for the VICs due to the early
+ * nature of the VIC's registration.
+*/
+static int __init vic_pm_init(void)
+{
+	struct vic_device *dev = vic_devices;
+	int err;
+	int id;
+
+	if (vic_id == 0)
+		return 0;
+
+	err = sysdev_class_register(&vic_class);
+	if (err) {
+		printk(KERN_ERR "%s: cannot register class\n", __func__);
+		return err;
+	}
+
+	for (id = 0; id < vic_id; id++, dev++) {
+		dev->sysdev.id = id;
+		dev->sysdev.cls = &vic_class;
+
+		err = sysdev_register(&dev->sysdev);
+		if (err) {
+			printk(KERN_ERR "%s: failed to register device\n",
+			       __func__);
+			return err;
+		}
+	}
+
+	return 0;
+}
+
+late_initcall(vic_pm_init);
+
+static struct vic_device *vic_from_irq(unsigned int irq)
+{
+        struct vic_device *v = vic_devices;
+	unsigned int base_irq = irq & ~31;
+	int id;
+
+	for (id = 0; id < vic_id; id++, v++) {
+		if (v->irq == base_irq)
+			return v;
+	}
+
+	return NULL;
+}
+
+static int vic_set_wake(unsigned int irq, unsigned int on)
+{
+	struct vic_device *v = vic_from_irq(irq);
+	unsigned int off = irq & 31;
+
+	if (!v)
+		return -EINVAL;
+
+	if (on)
+		v->resume_irqs |= 1 << off;
+	else
+		v->resume_irqs &= ~(1 << off);
+
+	return 0;
+}
+
+#else
+static inline void vic_pm_register(void __iomem *base, unsigned int irq, u32 arg1) { }
+
+#define vic_set_wake NULL
+#endif /* CONFIG_PM */
+
 static struct irq_chip vic_chip = {
 	.name	= "VIC",
 	.ack	= vic_mask_irq,
 	.mask	= vic_mask_irq,
 	.unmask	= vic_unmask_irq,
+	.set_wake = vic_set_wake,
 };
 
 /**
@@ -51,9 +260,10 @@ static struct irq_chip vic_chip = {
  * @base: iomem base address
  * @irq_start: starting interrupt number, must be muliple of 32
  * @vic_sources: bitmask of interrupt sources to allow
+ * @resume_sources: bitmask of interrupt sources to allow for resume
  */
 void __init vic_init(void __iomem *base, unsigned int irq_start,
-		     u32 vic_sources)
+		     u32 vic_sources, u32 resume_sources)
 {
 	unsigned int i;
 
@@ -77,12 +287,7 @@ void __init vic_init(void __iomem *base, unsigned int irq_start,
 		writel(value, base + VIC_PL190_VECT_ADDR);
 	}
 
-	for (i = 0; i < 16; i++) {
-		void __iomem *reg = base + VIC_VECT_CNTL0 + (i * 4);
-		writel(VIC_VECT_CNTL_ENABLE | i, reg);
-	}
-
-	writel(32, base + VIC_PL190_DEF_VECT_ADDR);
+	vic_init2(base);
 
 	for (i = 0; i < 32; i++) {
 		if (vic_sources & (1 << i)) {
@@ -94,4 +299,6 @@ void __init vic_init(void __iomem *base, unsigned int irq_start,
 			set_irq_flags(irq, IRQF_VALID | IRQF_PROBE);
 		}
 	}
+
+	vic_pm_register(base, irq_start, resume_sources);
 }
