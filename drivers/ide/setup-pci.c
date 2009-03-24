@@ -305,7 +305,6 @@ static int ide_pci_check_iomem(struct pci_dev *dev, const struct ide_port_info *
  *	@dev: PCI device holding interface
  *	@d: IDE port info
  *	@port: port number
- *	@irq: PCI IRQ
  *	@hw: hw_regs_t instance corresponding to this port
  *
  *	Perform the initial set up for the hardware interface structure. This
@@ -316,7 +315,7 @@ static int ide_pci_check_iomem(struct pci_dev *dev, const struct ide_port_info *
  */
 
 static int ide_hw_configure(struct pci_dev *dev, const struct ide_port_info *d,
-			    unsigned int port, int irq, hw_regs_t *hw)
+			    unsigned int port, hw_regs_t *hw)
 {
 	unsigned long ctl = 0, base = 0;
 
@@ -344,7 +343,6 @@ static int ide_hw_configure(struct pci_dev *dev, const struct ide_port_info *d,
 	}
 
 	memset(hw, 0, sizeof(*hw));
-	hw->irq = irq;
 	hw->dev = &dev->dev;
 	hw->chipset = d->chipset ? d->chipset : ide_pci;
 	ide_std_init_ports(hw, base, ctl | 2);
@@ -448,7 +446,6 @@ out:
  *	ide_pci_setup_ports	-	configure ports/devices on PCI IDE
  *	@dev: PCI device
  *	@d: IDE port info
- *	@pciirq: IRQ line
  *	@hw: hw_regs_t instances corresponding to this PCI IDE device
  *	@hws: hw_regs_t pointers table to update
  *
@@ -462,7 +459,7 @@ out:
  */
 
 void ide_pci_setup_ports(struct pci_dev *dev, const struct ide_port_info *d,
-			 int pciirq, hw_regs_t *hw, hw_regs_t **hws)
+			 hw_regs_t *hw, hw_regs_t **hws)
 {
 	int channels = (d->host_flags & IDE_HFLAG_SINGLE) ? 1 : 2, port;
 	u8 tmp;
@@ -481,7 +478,7 @@ void ide_pci_setup_ports(struct pci_dev *dev, const struct ide_port_info *d,
 			continue;	/* port not enabled */
 		}
 
-		if (ide_hw_configure(dev, d, port, pciirq, hw + port))
+		if (ide_hw_configure(dev, d, port, hw + port))
 			continue;
 
 		*(hws + port) = hw + port;
@@ -549,7 +546,7 @@ int ide_pci_init_one(struct pci_dev *dev, const struct ide_port_info *d,
 	if (ret < 0)
 		goto out;
 
-	ide_pci_setup_ports(dev, d, 0, &hw[0], &hws[0]);
+	ide_pci_setup_ports(dev, d, &hw[0], &hws[0]);
 
 	host = ide_host_alloc(d, hws);
 	if (host == NULL) {
@@ -595,7 +592,7 @@ int ide_pci_init_two(struct pci_dev *dev1, struct pci_dev *dev2,
 		if (ret < 0)
 			goto out;
 
-		ide_pci_setup_ports(pdev[i], d, 0, &hw[i*2], &hws[i*2]);
+		ide_pci_setup_ports(pdev[i], d, &hw[i*2], &hws[i*2]);
 	}
 
 	host = ide_host_alloc(d, hws);

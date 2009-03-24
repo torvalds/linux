@@ -1265,7 +1265,7 @@ static inline int ide_pci_is_in_compatibility_mode(struct pci_dev *dev)
 	return 0;
 }
 
-void ide_pci_setup_ports(struct pci_dev *, const struct ide_port_info *, int,
+void ide_pci_setup_ports(struct pci_dev *, const struct ide_port_info *,
 			 hw_regs_t *, hw_regs_t **);
 void ide_setup_pci_noise(struct pci_dev *, const struct ide_port_info *);
 
