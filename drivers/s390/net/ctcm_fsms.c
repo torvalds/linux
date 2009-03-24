@@ -410,9 +410,8 @@ static void chx_rx(fsm_instance *fi, int event, void *arg)
 		priv->stats.rx_length_errors++;
 						goto again;
 	}
-	block_len -= 2;
-	if (block_len > 0) {
-		*((__u16 *)skb->data) = block_len;
+	if (block_len > 2) {
+		*((__u16 *)skb->data) = block_len - 2;
 		ctcm_unpack_skb(ch, skb);
 	}
  again:

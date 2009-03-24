@@ -105,7 +105,8 @@ void ctcm_unpack_skb(struct channel *ch, struct sk_buff *pskb)
 			return;
 		}
 		pskb->protocol = ntohs(header->type);
-		if (header->length <= LL_HEADER_LENGTH) {
+		if ((header->length <= LL_HEADER_LENGTH) ||
+		    (len <= LL_HEADER_LENGTH)) {
 			if (!(ch->logflags & LOG_FLAG_ILLEGALSIZE)) {
 				CTCM_DBF_TEXT_(ERROR, CTC_DBF_ERROR,
 					"%s(%s): Illegal packet size %d(%d,%d)"
