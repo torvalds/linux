@@ -53,7 +53,7 @@ struct omap_mbox {
 
 	mbox_msg_t		seq_snd, seq_rcv;
 
-	struct device		dev;
+	struct device		*dev;
 
 	struct omap_mbox	*next;
 	void			*priv;
@@ -67,7 +67,7 @@ void omap_mbox_init_seq(struct omap_mbox *);
 struct omap_mbox *omap_mbox_get(const char *);
 void omap_mbox_put(struct omap_mbox *);
 
-int omap_mbox_register(struct omap_mbox *);
+int omap_mbox_register(struct device *parent, struct omap_mbox *);
 int omap_mbox_unregister(struct omap_mbox *);
 
 #endif /* MAILBOX_H */
