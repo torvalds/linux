@@ -1316,51 +1316,75 @@ struct attribute_group blk_trace_attr_group = {
 	.attrs = blk_trace_attrs,
 };
 
-static int blk_str2act_mask(const char *str)
+static const struct {
+	int mask;
+	const char *str;
+} mask_maps[] = {
+	{ BLK_TC_READ,		"read"		},
+	{ BLK_TC_WRITE,		"write"		},
+	{ BLK_TC_BARRIER,	"barrier"	},
+	{ BLK_TC_SYNC,		"sync"		},
+	{ BLK_TC_QUEUE,		"queue"		},
+	{ BLK_TC_REQUEUE,	"requeue"	},
+	{ BLK_TC_ISSUE,		"issue"		},
+	{ BLK_TC_COMPLETE,	"complete"	},
+	{ BLK_TC_FS,		"fs"		},
+	{ BLK_TC_PC,		"pc"		},
+	{ BLK_TC_AHEAD,		"ahead"		},
+	{ BLK_TC_META,		"meta"		},
+	{ BLK_TC_DISCARD,	"discard"	},
+	{ BLK_TC_DRV_DATA,	"drv_data"	},
+};
+
+static int blk_trace_str2mask(const char *str)
 {
+	int i;
 	int mask = 0;
-	char *copy = kstrdup(str, GFP_KERNEL), *s;
+	char *s, *token;
 
-	if (copy == NULL)
+	s = kstrdup(str, GFP_KERNEL);
+	if (s == NULL)
 		return -ENOMEM;
-
-	s = strstrip(copy);
+	s = strstrip(s);
 
 	while (1) {
-		char *sep = strchr(s, ',');
-
-		if (sep != NULL)
-			*sep = '\0';
-
-		if (strcasecmp(s, "barrier") == 0)
-			mask |= BLK_TC_BARRIER;
-		else if (strcasecmp(s, "complete") == 0)
-			mask |= BLK_TC_COMPLETE;
-		else if (strcasecmp(s, "fs") == 0)
-			mask |= BLK_TC_FS;
-		else if (strcasecmp(s, "issue") == 0)
-			mask |= BLK_TC_ISSUE;
-		else if (strcasecmp(s, "pc") == 0)
-			mask |= BLK_TC_PC;
-		else if (strcasecmp(s, "queue") == 0)
-			mask |= BLK_TC_QUEUE;
-		else if (strcasecmp(s, "read") == 0)
-			mask |= BLK_TC_READ;
-		else if (strcasecmp(s, "requeue") == 0)
-			mask |= BLK_TC_REQUEUE;
-		else if (strcasecmp(s, "sync") == 0)
-			mask |= BLK_TC_SYNC;
-		else if (strcasecmp(s, "write") == 0)
-			mask |= BLK_TC_WRITE;
-
-		if (sep == NULL)
+		token = strsep(&s, ",");
+		if (token == NULL)
 			break;
 
-		s = sep + 1;
+		if (*token == '\0')
+			continue;
+
+		for (i = 0; i < ARRAY_SIZE(mask_maps); i++) {
+			if (strcasecmp(token, mask_maps[i].str) == 0) {
+				mask |= mask_maps[i].mask;
+				break;
+			}
+		}
+		if (i == ARRAY_SIZE(mask_maps)) {
+			mask = -EINVAL;
+			break;
+		}
 	}
-	kfree(copy);
+	kfree(s);
 
 	return mask;
+}
+
+static ssize_t blk_trace_mask2str(char *buf, int mask)
+{
+	int i;
+	char *p = buf;
+
+	for (i = 0; i < ARRAY_SIZE(mask_maps); i++) {
+		if (mask & mask_maps[i].mask) {
+			p += sprintf(p, "%s%s",
+				    (p == buf) ? "" : ",", mask_maps[i].str);
+		}
+	}
+	*p++ = '\n';
+
+	return p - buf;
 }
 
 static struct request_queue *blk_trace_get_queue(struct block_device *bdev)
@@ -1399,7 +1423,7 @@ static ssize_t sysfs_blk_trace_attr_show(struct device *dev,
 	if (q->blk_trace == NULL)
 		ret = sprintf(buf, "disabled\n");
 	else if (attr == &dev_attr_act_mask)
-		ret = sprintf(buf, "%#x\n", q->blk_trace->act_mask);
+		ret = blk_trace_mask2str(buf, q->blk_trace->act_mask);
 	else if (attr == &dev_attr_pid)
 		ret = sprintf(buf, "%u\n", q->blk_trace->pid);
 	else if (attr == &dev_attr_start_lba)
@@ -1424,7 +1448,7 @@ static ssize_t sysfs_blk_trace_attr_store(struct device *dev,
 	struct request_queue *q;
 	struct hd_struct *p;
 	u64 value;
-	ssize_t ret = -ENXIO;
+	ssize_t ret = -EINVAL;
 
 	if (count == 0)
 		goto out;
@@ -1432,12 +1456,15 @@ static ssize_t sysfs_blk_trace_attr_store(struct device *dev,
 	if (attr == &dev_attr_act_mask) {
 		if (sscanf(buf, "%llx", &value) != 1) {
 			/* Assume it is a list of trace category names */
-			value = blk_str2act_mask(buf);
-			if (value < 0)
+			ret = blk_trace_str2mask(buf);
+			if (ret < 0)
 				goto out;
+			value = ret;
 		}
 	} else if (sscanf(buf, "%llu", &value) != 1)
 		goto out;
+
+	ret = -ENXIO;
 
 	lock_kernel();
 	p = dev_to_part(dev);
