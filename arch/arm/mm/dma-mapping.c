@@ -490,26 +490,30 @@ core_initcall(consistent_init);
  */
 void dma_cache_maint(const void *start, size_t size, int direction)
 {
-	const void *end = start + size;
+	void (*inner_op)(const void *, const void *);
+	void (*outer_op)(unsigned long, unsigned long);
 
-	BUG_ON(!virt_addr_valid(start) || !virt_addr_valid(end - 1));
+	BUG_ON(!virt_addr_valid(start) || !virt_addr_valid(start + size - 1));
 
 	switch (direction) {
 	case DMA_FROM_DEVICE:		/* invalidate only */
-		dmac_inv_range(start, end);
-		outer_inv_range(__pa(start), __pa(end));
+		inner_op = dmac_inv_range;
+		outer_op = outer_inv_range;
 		break;
 	case DMA_TO_DEVICE:		/* writeback only */
-		dmac_clean_range(start, end);
-		outer_clean_range(__pa(start), __pa(end));
+		inner_op = dmac_clean_range;
+		outer_op = outer_clean_range;
 		break;
 	case DMA_BIDIRECTIONAL:		/* writeback and invalidate */
-		dmac_flush_range(start, end);
-		outer_flush_range(__pa(start), __pa(end));
+		inner_op = dmac_flush_range;
+		outer_op = outer_flush_range;
 		break;
 	default:
 		BUG();
 	}
+
+	inner_op(start, start + size);
+	outer_op(__pa(start), __pa(start) + size);
 }
 EXPORT_SYMBOL(dma_cache_maint);
 

@@ -2218,11 +2218,12 @@ static irqreturn_t mv_interrupt(int irq, void *dev_instance)
 		else
 			handled = mv_host_intr(host, pending_irqs);
 	}
-	spin_unlock(&host->lock);
 
 	/* for MSI: unmask; interrupt cause bits will retrigger now */
 	if (using_msi)
 		writel(hpriv->main_irq_mask, hpriv->main_irq_mask_addr);
+
+	spin_unlock(&host->lock);
 
 	return IRQ_RETVAL(handled);
 }

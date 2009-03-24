@@ -161,7 +161,7 @@ static struct fc_fcp_pkt *fc_fcp_pkt_alloc(struct fc_lport *lp, gfp_t gfp)
 }
 
 /**
- * fc_fcp_pkt_release - release hold on scsi_pkt packet
+ * fc_fcp_pkt_release() - release hold on scsi_pkt packet
  * @fsp:	fcp packet struct
  *
  * This is used by upper layer scsi driver.
@@ -183,8 +183,7 @@ static void fc_fcp_pkt_hold(struct fc_fcp_pkt *fsp)
 }
 
 /**
- * fc_fcp_pkt_destory - release hold on scsi_pkt packet
- *
+ * fc_fcp_pkt_destory() - release hold on scsi_pkt packet
  * @seq:		exchange sequence
  * @fsp:	fcp packet struct
  *
@@ -199,7 +198,7 @@ static void fc_fcp_pkt_destroy(struct fc_seq *seq, void *fsp)
 }
 
 /**
- * fc_fcp_lock_pkt - lock a packet and get a ref to it.
+ * fc_fcp_lock_pkt() - lock a packet and get a ref to it.
  * @fsp:	fcp packet
  *
  * We should only return error if we return a command to scsi-ml before
@@ -291,9 +290,7 @@ static void fc_fcp_recv_data(struct fc_fcp_pkt *fsp, struct fc_frame *fp)
 	buf = fc_frame_payload_get(fp, 0);
 
 	if (offset + len > fsp->data_len) {
-		/*
-		 * this should never happen
-		 */
+		/* this should never happen */
 		if ((fr_flags(fp) & FCPHF_CRC_UNCHECKED) &&
 		    fc_frame_crc_check(fp))
 			goto crc_err;
@@ -387,8 +384,8 @@ crc_err:
 		fc_fcp_complete_locked(fsp);
 }
 
-/*
- * fc_fcp_send_data -  Send SCSI data to target.
+/**
+ * fc_fcp_send_data() -  Send SCSI data to target.
  * @fsp: ptr to fc_fcp_pkt
  * @sp: ptr to this sequence
  * @offset: starting offset for this data request
@@ -610,8 +607,8 @@ static void fc_fcp_abts_resp(struct fc_fcp_pkt *fsp, struct fc_frame *fp)
 	}
 }
 
-/*
- * fc_fcp_reduce_can_queue - drop can_queue
+/**
+ * fc_fcp_reduce_can_queue() - drop can_queue
  * @lp: lport to drop queueing for
  *
  * If we are getting memory allocation failures, then we may
@@ -642,9 +639,11 @@ done:
 	spin_unlock_irqrestore(lp->host->host_lock, flags);
 }
 
-/*
- * exch mgr calls this routine to process scsi
- * exchanges.
+/**
+ * fc_fcp_recv() - Reveive FCP frames
+ * @seq: The sequence the frame is on
+ * @fp: The FC frame
+ * @arg: The related FCP packet
  *
  * Return   : None
  * Context  : called from Soft IRQ context
@@ -832,7 +831,7 @@ err:
 }
 
 /**
- * fc_fcp_complete_locked - complete processing of a fcp packet
+ * fc_fcp_complete_locked() - complete processing of a fcp packet
  * @fsp:	fcp packet
  *
  * This function may sleep if a timer is pending. The packet lock must be
@@ -900,7 +899,7 @@ static void fc_fcp_cleanup_cmd(struct fc_fcp_pkt *fsp, int error)
 }
 
 /**
- * fc_fcp_cleanup_each_cmd - run fn on each active command
+ * fc_fcp_cleanup_each_cmd() - Cleanup active commads
  * @lp:		logical port
  * @id:		target id
  * @lun:	lun
@@ -952,7 +951,7 @@ static void fc_fcp_abort_io(struct fc_lport *lp)
 }
 
 /**
- * fc_fcp_pkt_send - send a fcp packet to the lower level.
+ * fc_fcp_pkt_send() - send a fcp packet to the lower level.
  * @lp:		fc lport
  * @fsp:	fc packet.
  *
@@ -1621,7 +1620,7 @@ out:
 static inline int fc_fcp_lport_queue_ready(struct fc_lport *lp)
 {
 	/* lock ? */
-	return (lp->state == LPORT_ST_READY) && (lp->link_status & FC_LINK_UP);
+	return (lp->state == LPORT_ST_READY) && lp->link_up && !lp->qfull;
 }
 
 /**
@@ -1727,7 +1726,7 @@ out:
 EXPORT_SYMBOL(fc_queuecommand);
 
 /**
- * fc_io_compl -  Handle responses for completed commands
+ * fc_io_compl() -  Handle responses for completed commands
  * @fsp:	scsi packet
  *
  * Translates a error to a Linux SCSI error.
@@ -1810,12 +1809,12 @@ static void fc_io_compl(struct fc_fcp_pkt *fsp)
 		sc_cmd->result = DID_ERROR << 16;
 		break;
 	case FC_DATA_UNDRUN:
-		if (fsp->cdb_status == 0) {
+		if ((fsp->cdb_status == 0) && !(fsp->req_flags & FC_SRB_READ)) {
 			/*
 			 * scsi status is good but transport level
-			 * underrun. for read it should be an error??
+			 * underrun.
 			 */
-			sc_cmd->result = (DID_OK << 16) | fsp->cdb_status;
+			sc_cmd->result = DID_OK << 16;
 		} else {
 			/*
 			 * scsi got underrun, this is an error
@@ -1857,7 +1856,7 @@ static void fc_io_compl(struct fc_fcp_pkt *fsp)
 }
 
 /**
- * fc_fcp_complete - complete processing of a fcp packet
+ * fc_fcp_complete() - complete processing of a fcp packet
  * @fsp:	fcp packet
  *
  * This function may sleep if a fsp timer is pending.
@@ -1874,9 +1873,10 @@ void fc_fcp_complete(struct fc_fcp_pkt *fsp)
 EXPORT_SYMBOL(fc_fcp_complete);
 
 /**
- * fc_eh_abort - Abort a command...from scsi host template
+ * fc_eh_abort() - Abort a command
  * @sc_cmd:	scsi command to abort
  *
+ * From scsi host template.
  * send ABTS to the target device  and wait for the response
  * sc_cmd is the pointer to the command to be aborted.
  */
@@ -1890,7 +1890,7 @@ int fc_eh_abort(struct scsi_cmnd *sc_cmd)
 	lp = shost_priv(sc_cmd->device->host);
 	if (lp->state != LPORT_ST_READY)
 		return rc;
-	else if (!(lp->link_status & FC_LINK_UP))
+	else if (!lp->link_up)
 		return rc;
 
 	spin_lock_irqsave(lp->host->host_lock, flags);
@@ -1920,7 +1920,7 @@ release_pkt:
 EXPORT_SYMBOL(fc_eh_abort);
 
 /**
- * fc_eh_device_reset: Reset a single LUN
+ * fc_eh_device_reset() Reset a single LUN
  * @sc_cmd:	scsi command
  *
  * Set from scsi host template to send tm cmd to the target and wait for the
@@ -1973,7 +1973,7 @@ out:
 EXPORT_SYMBOL(fc_eh_device_reset);
 
 /**
- * fc_eh_host_reset - The reset function will reset the ports on the host.
+ * fc_eh_host_reset() - The reset function will reset the ports on the host.
  * @sc_cmd:	scsi command
  */
 int fc_eh_host_reset(struct scsi_cmnd *sc_cmd)
@@ -1999,7 +1999,7 @@ int fc_eh_host_reset(struct scsi_cmnd *sc_cmd)
 EXPORT_SYMBOL(fc_eh_host_reset);
 
 /**
- * fc_slave_alloc - configure queue depth
+ * fc_slave_alloc() - configure queue depth
  * @sdev:	scsi device
  *
  * Configures queue depth based on host's cmd_per_len. If not set

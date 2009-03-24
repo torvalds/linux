@@ -1595,7 +1595,6 @@ dma_watchdog_wakeup(struct netxen_adapter *adapter)
 }
 
 
-int netxen_is_flash_supported(struct netxen_adapter *adapter);
 int netxen_get_flash_mac_addr(struct netxen_adapter *adapter, __le64 *mac);
 int netxen_p3_get_mac_addr(struct netxen_adapter *adapter, __le64 *mac);
 extern void netxen_change_ringparam(struct netxen_adapter *adapter);

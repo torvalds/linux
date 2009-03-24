@@ -193,6 +193,9 @@ static int __kprobes can_boost(kprobe_opcode_t *opcodes)
 	kprobe_opcode_t opcode;
 	kprobe_opcode_t *orig_opcodes = opcodes;
 
+	if (search_exception_tables(opcodes))
+		return 0;	/* Page fault may occur on this address. */
+
 retry:
 	if (opcodes - orig_opcodes > MAX_INSN_SIZE - 1)
 		return 0;

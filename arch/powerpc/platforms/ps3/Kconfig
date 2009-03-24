@@ -128,6 +128,13 @@ config PS3_FLASH
 	  be disabled on the kernel command line using "ps3flash=off", to
 	  not allocate this fixed buffer.
 
+config PS3_VRAM
+	tristate "PS3 Video RAM Storage Driver"
+	depends on FB_PS3=y && BLOCK && m
+	help
+	  This driver allows you to use excess PS3 video RAM as volatile
+	  storage or system swap.
+
 config PS3_LPM
 	tristate "PS3 Logical Performance Monitor support"
 	depends on PPC_PS3
