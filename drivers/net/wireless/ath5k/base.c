@@ -2562,7 +2562,7 @@ ath5k_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 		if (skb_headroom(skb) < padsize) {
 			ATH5K_ERR(sc, "tx hdrlen not %%4: %d not enough"
 				  " headroom to pad %d\n", hdrlen, padsize);
-			return NETDEV_TX_BUSY;
+			goto drop_packet;
 		}
 		skb_push(skb, padsize);
 		memmove(skb->data, skb->data+padsize, hdrlen);
@@ -2573,7 +2573,7 @@ ath5k_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 		ATH5K_ERR(sc, "no further txbuf available, dropping packet\n");
 		spin_unlock_irqrestore(&sc->txbuflock, flags);
 		ieee80211_stop_queue(hw, skb_get_queue_mapping(skb));
-		return NETDEV_TX_BUSY;
+		goto drop_packet;
 	}
 	bf = list_first_entry(&sc->txbuf, struct ath5k_buf, list);
 	list_del(&bf->list);
@@ -2590,10 +2590,12 @@ ath5k_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 		list_add_tail(&bf->list, &sc->txbuf);
 		sc->txbuf_len++;
 		spin_unlock_irqrestore(&sc->txbuflock, flags);
-		dev_kfree_skb_any(skb);
-		return NETDEV_TX_OK;
+		goto drop_packet;
 	}
+	return NETDEV_TX_OK;
 
+drop_packet:
+	dev_kfree_skb_any(skb);
 	return NETDEV_TX_OK;
 }
 
