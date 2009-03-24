@@ -395,22 +395,10 @@ static int acpi_device_remove(struct device * dev)
 	return 0;
 }
 
-static void acpi_device_shutdown(struct device *dev)
-{
-	struct acpi_device *acpi_dev = to_acpi_device(dev);
-	struct acpi_driver *acpi_drv = acpi_dev->driver;
-
-	if (acpi_drv && acpi_drv->ops.shutdown)
-		acpi_drv->ops.shutdown(acpi_dev);
-
-	return ;
-}
-
 struct bus_type acpi_bus_type = {
 	.name		= "acpi",
 	.suspend	= acpi_device_suspend,
 	.resume		= acpi_device_resume,
-	.shutdown	= acpi_device_shutdown,
 	.match		= acpi_bus_match,
 	.probe		= acpi_device_probe,
 	.remove		= acpi_device_remove,
