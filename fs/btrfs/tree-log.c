@@ -2835,6 +2835,17 @@ static noinline int check_parent_dirs_for_sync(struct btrfs_trans_handle *trans,
 	int ret = 0;
 	struct btrfs_root *root;
 
+	/*
+	 * for regular files, if its inode is already on disk, we don't
+	 * have to worry about the parents at all.  This is because
+	 * we can use the last_unlink_trans field to record renames
+	 * and other fun in this file.
+	 */
+	if (S_ISREG(inode->i_mode) &&
+	    BTRFS_I(inode)->generation <= last_committed &&
+	    BTRFS_I(inode)->last_unlink_trans <= last_committed)
+			goto out;
+
 	if (!S_ISDIR(inode->i_mode)) {
 		if (!parent || !parent->d_inode || sb != parent->d_inode->i_sb)
 			goto out;
@@ -2904,8 +2915,19 @@ int btrfs_log_inode_parent(struct btrfs_trans_handle *trans,
 
 	ret = btrfs_log_inode(trans, root, inode, inode_only);
 	BUG_ON(ret);
-	inode_only = LOG_INODE_EXISTS;
 
+	/*
+	 * for regular files, if its inode is already on disk, we don't
+	 * have to worry about the parents at all.  This is because
+	 * we can use the last_unlink_trans field to record renames
+	 * and other fun in this file.
+	 */
+	if (S_ISREG(inode->i_mode) &&
+	    BTRFS_I(inode)->generation <= last_committed &&
+	    BTRFS_I(inode)->last_unlink_trans <= last_committed)
+			goto no_parent;
+
+	inode_only = LOG_INODE_EXISTS;
 	while (1) {
 		if (!parent || !parent->d_inode || sb != parent->d_inode->i_sb)
 			break;
@@ -2921,6 +2943,7 @@ int btrfs_log_inode_parent(struct btrfs_trans_handle *trans,
 
 		parent = parent->d_parent;
 	}
+no_parent:
 	ret = 0;
 	btrfs_end_log_trans(root);
 end_no_trans:
@@ -3070,6 +3093,19 @@ void btrfs_record_unlink_dir(struct btrfs_trans_handle *trans,
 			     int for_rename)
 {
 	/*
+	 * when we're logging a file, if it hasn't been renamed
+	 * or unlinked, and its inode is fully committed on disk,
+	 * we don't have to worry about walking up the directory chain
+	 * to log its parents.
+	 *
+	 * So, we use the last_unlink_trans field to put this transid
+	 * into the file.  When the file is logged we check it and
+	 * don't log the parents if the file is fully on disk.
+	 */
+	if (S_ISREG(inode->i_mode))
+		BTRFS_I(inode)->last_unlink_trans = trans->transid;
+
+	/*
 	 * if this directory was already logged any new
 	 * names for this file/dir will get recorded
 	 */
@@ -3113,6 +3149,13 @@ int btrfs_log_new_name(struct btrfs_trans_handle *trans,
 			struct dentry *parent)
 {
 	struct btrfs_root * root = BTRFS_I(inode)->root;
+
+	/*
+	 * this will force the logging code to walk the dentry chain
+	 * up for the file
+	 */
+	if (S_ISREG(inode->i_mode))
+		BTRFS_I(inode)->last_unlink_trans = trans->transid;
 
 	/*
 	 * if this inode hasn't been logged and directory we're renaming it
