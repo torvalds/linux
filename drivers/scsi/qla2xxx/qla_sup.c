@@ -2240,11 +2240,7 @@ qla24xx_write_optrom_data(struct scsi_qla_host *vha, uint8_t *buf,
 	rval = qla24xx_write_flash_data(vha, (uint32_t *)buf, offset >> 2,
 	    length >> 2);
 
-	/* Resume HBA -- RISC reset needed. */
 	clear_bit(MBX_UPDATE_FLASH_ACTIVE, &ha->mbx_cmd_flags);
-	set_bit(ISP_ABORT_NEEDED, &vha->dpc_flags);
-	qla2xxx_wake_dpc(vha);
-	qla2x00_wait_for_hba_online(vha);
 	scsi_unblock_requests(vha->host);
 
 	return rval;

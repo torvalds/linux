@@ -391,6 +391,7 @@ qla2x00_sysfs_write_vpd(struct kobject *kobj,
 	struct scsi_qla_host *vha = shost_priv(dev_to_shost(container_of(kobj,
 	    struct device, kobj)));
 	struct qla_hw_data *ha = vha->hw;
+	uint8_t *tmp_data;
 
 	if (!capable(CAP_SYS_ADMIN) || off != 0 || count != ha->vpd_size)
 		return 0;
@@ -405,6 +406,19 @@ qla2x00_sysfs_write_vpd(struct kobject *kobj,
 	ha->isp_ops->write_nvram(vha, (uint8_t *)buf, ha->vpd_base, count);
 	ha->isp_ops->read_nvram(vha, (uint8_t *)ha->vpd, ha->vpd_base, count);
 
+	/* Update flash version information for 4Gb & above. */
+	if (!IS_FWI2_CAPABLE(ha))
+		goto done;
+
+	tmp_data = vmalloc(256);
+	if (!tmp_data) {
+		qla_printk(KERN_WARNING, ha,
+		    "Unable to allocate memory for VPD information update.\n");
+		goto done;
+	}
+	ha->isp_ops->get_flash_version(vha, tmp_data);
+	vfree(tmp_data);
+done:
 	return count;
 }
 
