@@ -928,6 +928,16 @@ qla2x00_phy_version_show(struct device *dev, struct device_attribute *attr,
 	    ha->phy_version[0], ha->phy_version[1], ha->phy_version[2]);
 }
 
+static ssize_t
+qla2x00_flash_block_size_show(struct device *dev,
+			      struct device_attribute *attr, char *buf)
+{
+	scsi_qla_host_t *vha = shost_priv(class_to_shost(dev));
+	struct qla_hw_data *ha = vha->hw;
+
+	return snprintf(buf, PAGE_SIZE, "0x%x\n", ha->fdt_block_size);
+}
+
 static DEVICE_ATTR(driver_version, S_IRUGO, qla2x00_drvr_version_show, NULL);
 static DEVICE_ATTR(fw_version, S_IRUGO, qla2x00_fw_version_show, NULL);
 static DEVICE_ATTR(serial_num, S_IRUGO, qla2x00_serial_num_show, NULL);
@@ -954,6 +964,8 @@ static DEVICE_ATTR(total_isp_aborts, S_IRUGO, qla2x00_total_isp_aborts_show,
 		   NULL);
 static DEVICE_ATTR(mpi_version, S_IRUGO, qla2x00_mpi_version_show, NULL);
 static DEVICE_ATTR(phy_version, S_IRUGO, qla2x00_phy_version_show, NULL);
+static DEVICE_ATTR(flash_block_size, S_IRUGO, qla2x00_flash_block_size_show,
+		   NULL);
 
 struct device_attribute *qla2x00_host_attrs[] = {
 	&dev_attr_driver_version,
@@ -975,6 +987,7 @@ struct device_attribute *qla2x00_host_attrs[] = {
 	&dev_attr_total_isp_aborts,
 	&dev_attr_mpi_version,
 	&dev_attr_phy_version,
+	&dev_attr_flash_block_size,
 	NULL,
 };
 
