@@ -145,9 +145,15 @@ enum {
 };
 
 struct dyn_ftrace {
-	unsigned long		ip; /* address of mcount call-site */
-	unsigned long		flags;
-	struct dyn_arch_ftrace	arch;
+	union {
+		unsigned long		ip; /* address of mcount call-site */
+		struct dyn_ftrace	*freelist;
+	};
+	union {
+		unsigned long		flags;
+		struct dyn_ftrace	*newlist;
+	};
+	struct dyn_arch_ftrace		arch;
 };
 
 int ftrace_force_update(void);

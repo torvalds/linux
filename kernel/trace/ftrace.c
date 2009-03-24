@@ -341,7 +341,7 @@ static inline int record_frozen(struct dyn_ftrace *rec)
 
 static void ftrace_free_rec(struct dyn_ftrace *rec)
 {
-	rec->ip = (unsigned long)ftrace_free_records;
+	rec->freelist = ftrace_free_records;
 	ftrace_free_records = rec;
 	rec->flags |= FTRACE_FL_FREE;
 }
@@ -379,7 +379,7 @@ static struct dyn_ftrace *ftrace_alloc_dyn_node(unsigned long ip)
 			return NULL;
 		}
 
-		ftrace_free_records = (void *)rec->ip;
+		ftrace_free_records = rec->freelist;
 		memset(rec, 0, sizeof(*rec));
 		return rec;
 	}
@@ -411,7 +411,7 @@ ftrace_record_ip(unsigned long ip)
 		return NULL;
 
 	rec->ip = ip;
-	rec->flags = (unsigned long)ftrace_new_addrs;
+	rec->newlist = ftrace_new_addrs;
 	ftrace_new_addrs = rec;
 
 	return rec;
@@ -731,7 +731,7 @@ static int ftrace_update_code(struct module *mod)
 			return -1;
 
 		p = ftrace_new_addrs;
-		ftrace_new_addrs = (struct dyn_ftrace *)p->flags;
+		ftrace_new_addrs = p->newlist;
 		p->flags = 0L;
 
 		/* convert record (i.e, patch mcount-call with NOP) */
