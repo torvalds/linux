@@ -881,6 +881,7 @@ static int __init acpi_init(void)
 
 	acpi_scan_init();
 	acpi_ec_init();
+	acpi_power_init();
 	return result;
 }
 
