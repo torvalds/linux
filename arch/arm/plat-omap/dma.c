@@ -123,6 +123,7 @@ static struct dma_link_info *dma_linked_lch;
 
 static int dma_lch_count;
 static int dma_chan_count;
+static int omap_dma_reserve_channels;
 
 static spinlock_t dma_chan_lock;
 static struct omap_dma_lch *dma_chan;
@@ -2321,6 +2322,10 @@ static int __init omap_init_dma(void)
 		return -ENODEV;
 	}
 
+	if (cpu_class_is_omap2() && omap_dma_reserve_channels
+			&& (omap_dma_reserve_channels <= dma_lch_count))
+		dma_lch_count = omap_dma_reserve_channels;
+
 	dma_chan = kzalloc(sizeof(struct omap_dma_lch) * dma_lch_count,
 				GFP_KERNEL);
 	if (!dma_chan)
@@ -2371,7 +2376,7 @@ static int __init omap_init_dma(void)
 		u8 revision = dma_read(REVISION) & 0xff;
 		printk(KERN_INFO "OMAP DMA hardware revision %d.%d\n",
 		       revision >> 4, revision & 0xf);
-		dma_chan_count = OMAP_DMA4_LOGICAL_DMA_CH_COUNT;
+		dma_chan_count = dma_lch_count;
 	} else {
 		dma_chan_count = 0;
 		return 0;
@@ -2436,5 +2441,18 @@ static int __init omap_init_dma(void)
 }
 
 arch_initcall(omap_init_dma);
+
+/*
+ * Reserve the omap SDMA channels using cmdline bootarg
+ * "omap_dma_reserve_ch=". The valid range is 1 to 32
+ */
+static int __init omap_dma_cmdline_reserve_ch(char *str)
+{
+	if (get_option(&str, &omap_dma_reserve_channels) != 1)
+		omap_dma_reserve_channels = 0;
+	return 1;
+}
+
+__setup("omap_dma_reserve_ch=", omap_dma_cmdline_reserve_ch);
 
 
