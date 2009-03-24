@@ -286,9 +286,6 @@ static void print_cpu(struct seq_file *m, int cpu)
 #ifdef CONFIG_SCHEDSTATS
 #define P(n) SEQ_printf(m, "  .%-30s: %d\n", #n, rq->n);
 
-	P(yld_exp_empty);
-	P(yld_act_empty);
-	P(yld_both_empty);
 	P(yld_count);
 
 	P(sched_switch);
@@ -313,7 +310,7 @@ static int sched_debug_show(struct seq_file *m, void *v)
 	u64 now = ktime_to_ns(ktime_get());
 	int cpu;
 
-	SEQ_printf(m, "Sched Debug Version: v0.08, %s %.*s\n",
+	SEQ_printf(m, "Sched Debug Version: v0.09, %s %.*s\n",
 		init_utsname()->release,
 		(int)strcspn(init_utsname()->version, " "),
 		init_utsname()->version);

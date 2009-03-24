@@ -638,9 +638,6 @@ struct rq {
 	/* could above be rq->cfs_rq.exec_clock + rq->rt_rq.rt_runtime ? */
 
 	/* sys_sched_yield() stats */
-	unsigned int yld_exp_empty;
-	unsigned int yld_act_empty;
-	unsigned int yld_both_empty;
 	unsigned int yld_count;
 
 	/* schedule() stats */
