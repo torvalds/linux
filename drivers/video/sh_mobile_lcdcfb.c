@@ -687,7 +687,7 @@ static int __init sh_mobile_lcdc_probe(struct platform_device *pdev)
 	}
 
 	error = request_irq(i, sh_mobile_lcdc_irq, IRQF_DISABLED,
-			    pdev->dev.bus_id, priv);
+			    dev_name(&pdev->dev), priv);
 	if (error) {
 		dev_err(&pdev->dev, "unable to request irq\n");
 		goto err1;
