@@ -1467,6 +1467,7 @@ static inline int config_drive_for_dma(ide_drive_t *drive) { return 0; }
 
 void ide_dma_lost_irq(ide_drive_t *);
 void ide_dma_timeout(ide_drive_t *);
+ide_startstop_t ide_dma_timeout_retry(ide_drive_t *, int);
 
 #else
 static inline int ide_id_dma_bug(ide_drive_t *drive) { return 0; }
@@ -1478,6 +1479,7 @@ static inline void ide_dma_on(ide_drive_t *drive) { ; }
 static inline void ide_dma_verbose(ide_drive_t *drive) { ; }
 static inline int ide_set_dma(ide_drive_t *drive) { return 1; }
 static inline void ide_check_dma_crc(ide_drive_t *drive) { ; }
+static inline ide_startstop_t ide_dma_timeout_retry(ide_drive_t *drive, int error) { return ide_stopped; }
 static inline void ide_release_dma_engine(ide_hwif_t *hwif) { ; }
 #endif /* CONFIG_BLK_DEV_IDEDMA */
 

@@ -819,63 +819,6 @@ plug_device_2:
 		blk_plug_device(q);
 }
 
-/*
- * un-busy the port etc, and clear any pending DMA status. we want to
- * retry the current request in pio mode instead of risking tossing it
- * all away
- */
-static ide_startstop_t ide_dma_timeout_retry(ide_drive_t *drive, int error)
-{
-	ide_hwif_t *hwif = drive->hwif;
-	struct request *rq;
-	ide_startstop_t ret = ide_stopped;
-
-	/*
-	 * end current dma transaction
-	 */
-
-	if (error < 0) {
-		printk(KERN_WARNING "%s: DMA timeout error\n", drive->name);
-		(void)hwif->dma_ops->dma_end(drive);
-		ret = ide_error(drive, "dma timeout error",
-				hwif->tp_ops->read_status(hwif));
-	} else {
-		printk(KERN_WARNING "%s: DMA timeout retry\n", drive->name);
-		hwif->dma_ops->dma_timeout(drive);
-	}
-
-	/*
-	 * disable dma for now, but remember that we did so because of
-	 * a timeout -- we'll reenable after we finish this next request
-	 * (or rather the first chunk of it) in pio.
-	 */
-	drive->dev_flags |= IDE_DFLAG_DMA_PIO_RETRY;
-	drive->retry_pio++;
-	ide_dma_off_quietly(drive);
-
-	/*
-	 * un-busy drive etc and make sure request is sane
-	 */
-
-	rq = hwif->rq;
-	if (!rq)
-		goto out;
-
-	hwif->rq = NULL;
-
-	rq->errors = 0;
-
-	if (!rq->bio)
-		goto out;
-
-	rq->sector = rq->bio->bi_sector;
-	rq->current_nr_sectors = bio_iovec(rq->bio)->bv_len >> 9;
-	rq->hard_cur_sectors = rq->current_nr_sectors;
-	rq->buffer = bio_data(rq->bio);
-out:
-	return ret;
-}
-
 static void ide_plug_device(ide_drive_t *drive)
 {
 	struct request_queue *q = drive->queue;
