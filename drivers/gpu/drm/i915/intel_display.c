@@ -1106,6 +1106,26 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 		return -EINVAL;
 	}
 
+	/* SDVO TV has fixed PLL values depend on its clock range,
+	   this mirrors vbios setting. */
+	if (is_sdvo && is_tv) {
+		if (adjusted_mode->clock >= 100000
+				&& adjusted_mode->clock < 140500) {
+			clock.p1 = 2;
+			clock.p2 = 10;
+			clock.n = 3;
+			clock.m1 = 16;
+			clock.m2 = 8;
+		} else if (adjusted_mode->clock >= 140500
+				&& adjusted_mode->clock <= 200000) {
+			clock.p1 = 1;
+			clock.p2 = 10;
+			clock.n = 6;
+			clock.m1 = 12;
+			clock.m2 = 8;
+		}
+	}
+
 	if (IS_IGD(dev))
 		fp = (1 << clock.n) << 16 | clock.m1 << 8 | clock.m2;
 	else
