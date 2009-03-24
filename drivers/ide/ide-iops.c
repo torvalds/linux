@@ -293,8 +293,8 @@ int ide_driveid_update(ide_drive_t *drive)
 	const struct ide_tp_ops *tp_ops = hwif->tp_ops;
 	u16 *id;
 	unsigned long flags;
-	int rc;
-	u8 uninitialized_var(s);
+	int use_altstatus = 0, rc;
+	u8 a, uninitialized_var(s);
 
 	id = kmalloc(SECTOR_SIZE, GFP_ATOMIC);
 	if (id == NULL)
@@ -308,9 +308,24 @@ int ide_driveid_update(ide_drive_t *drive)
 	SELECT_MASK(drive, 1);
 	tp_ops->set_irq(hwif, 0);
 	msleep(50);
+
+	if (hwif->io_ports.ctl_addr &&
+	    (hwif->host_flags & IDE_HFLAG_BROKEN_ALTSTATUS) == 0) {
+		a = tp_ops->read_altstatus(hwif);
+		s = tp_ops->read_status(hwif);
+		if ((a ^ s) & ~ATA_IDX)
+			/* ancient Seagate drives, broken interfaces */
+			printk(KERN_INFO "%s: probing with STATUS(0x%02x) "
+					 "instead of ALTSTATUS(0x%02x)\n",
+					 drive->name, s, a);
+		else
+			/* use non-intrusive polling */
+			use_altstatus = 1;
+	}
+
 	tp_ops->exec_command(hwif, ATA_CMD_ID_ATA);
 
-	if (ide_busy_sleep(hwif, WAIT_WORSTCASE, 1)) {
+	if (ide_busy_sleep(hwif, WAIT_WORSTCASE, use_altstatus)) {
 		rc = 1;
 		goto out_err;
 	}
