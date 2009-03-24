@@ -314,10 +314,6 @@
 #include "board-apollon.h"
 #endif
 
-#ifdef CONFIG_MACH_OMAP_OSK
-#include "board-osk.h"
-#endif
-
 #ifdef CONFIG_MACH_VOICEBLUE
 #include "board-voiceblue.h"
 #endif
