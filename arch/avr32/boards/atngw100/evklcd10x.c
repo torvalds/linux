@@ -11,6 +11,7 @@
 
 #include <linux/init.h>
 #include <linux/linkage.h>
+#include <linux/gpio.h>
 #include <linux/fb.h>
 #include <linux/platform_device.h>
 
@@ -19,6 +20,7 @@
 #include <asm/setup.h>
 
 #include <mach/at32ap700x.h>
+#include <mach/portmux.h>
 #include <mach/board.h>
 
 static struct ac97c_platform_data __initdata ac97c0_data = {
@@ -144,13 +146,29 @@ static struct atmel_lcdfb_info __initdata atevklcd10x_lcdc_data = {
 };
 #endif
 
+static void atevklcd10x_lcdc_power_control(int on)
+{
+	gpio_set_value(GPIO_PIN_PB(15), on);
+}
+
 static int __init atevklcd10x_init(void)
 {
-	at32_add_device_ac97c(0, &ac97c0_data);
+	/* PB15 is connected to the enable line on the boost regulator
+	 * controlling the backlight for the LCD panel.
+	 */
+	at32_select_gpio(GPIO_PIN_PB(15), AT32_GPIOF_OUTPUT);
+	gpio_request(GPIO_PIN_PB(15), "backlight");
+	gpio_direction_output(GPIO_PIN_PB(15), 0);
+
+	atevklcd10x_lcdc_data.atmel_lcdfb_power_control =
+		atevklcd10x_lcdc_power_control;
 
 	at32_add_device_lcdc(0, &atevklcd10x_lcdc_data,
 			fbmem_start, fbmem_size,
 			ATMEL_LCDC_ALT_18BIT | ATMEL_LCDC_PE_DVAL);
+
+	at32_add_device_ac97c(0, &ac97c0_data);
+
 	return 0;
 }
 postcore_initcall(atevklcd10x_init);
