@@ -2643,6 +2643,12 @@ int register_ftrace_graph(trace_func_graph_ret_t retfunc,
 
 	mutex_lock(&ftrace_lock);
 
+	/* we currently allow only one tracer registered at a time */
+	if (atomic_read(&ftrace_graph_active)) {
+		ret = -EBUSY;
+		goto out;
+	}
+
 	ftrace_suspend_notifier.notifier_call = ftrace_suspend_notifier_call;
 	register_pm_notifier(&ftrace_suspend_notifier);
 
