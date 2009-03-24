@@ -969,11 +969,18 @@ static int loop_clr_fd(struct loop_device *lo, struct block_device *bdev)
 		bd_set_size(bdev, 0);
 	mapping_set_gfp_mask(filp->f_mapping, gfp);
 	lo->lo_state = Lo_unbound;
-	fput(filp);
 	/* This is safe: open() is still holding a reference. */
 	module_put(THIS_MODULE);
 	if (max_part > 0)
 		ioctl_by_bdev(bdev, BLKRRPART, 0);
+	mutex_unlock(&lo->lo_ctl_mutex);
+	/*
+	 * Need not hold lo_ctl_mutex to fput backing file.
+	 * Calling fput holding lo_ctl_mutex triggers a circular
+	 * lock dependency possibility warning as fput can take
+	 * bd_mutex which is usually taken before lo_ctl_mutex.
+	 */
+	fput(filp);
 	return 0;
 }
 
@@ -1191,7 +1198,7 @@ static int lo_ioctl(struct block_device *bdev, fmode_t mode,
 	struct loop_device *lo = bdev->bd_disk->private_data;
 	int err;
 
-	mutex_lock(&lo->lo_ctl_mutex);
+	mutex_lock_nested(&lo->lo_ctl_mutex, 1);
 	switch (cmd) {
 	case LOOP_SET_FD:
 		err = loop_set_fd(lo, mode, bdev, arg);
@@ -1200,7 +1207,10 @@ static int lo_ioctl(struct block_device *bdev, fmode_t mode,
 		err = loop_change_fd(lo, bdev, arg);
 		break;
 	case LOOP_CLR_FD:
+		/* loop_clr_fd would have unlocked lo_ctl_mutex on success */
 		err = loop_clr_fd(lo, bdev);
+		if (!err)
+			goto out_unlocked;
 		break;
 	case LOOP_SET_STATUS:
 		err = loop_set_status_old(lo, (struct loop_info __user *) arg);
@@ -1218,6 +1228,8 @@ static int lo_ioctl(struct block_device *bdev, fmode_t mode,
 		err = lo->ioctl ? lo->ioctl(lo, cmd, arg) : -EINVAL;
 	}
 	mutex_unlock(&lo->lo_ctl_mutex);
+
+out_unlocked:
 	return err;
 }
 
