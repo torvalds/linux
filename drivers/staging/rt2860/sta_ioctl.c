@@ -1360,7 +1360,7 @@ int rt_ioctl_giwscan(struct net_device *dev,
             iwe.u.data.length = (pAdapter->ScanTab.BssEntry[i].WpaIE.IELen * 2) + 7;
             NdisMoveMemory(custom, "wpa_ie=", 7);
             for (idx = 0; idx < pAdapter->ScanTab.BssEntry[i].WpaIE.IELen; idx++)
-                sprintf(custom, "%s%02x", custom, pAdapter->ScanTab.BssEntry[i].WpaIE.IE[idx]);
+                sprintf(custom + strlen(custom), "%02x", pAdapter->ScanTab.BssEntry[i].WpaIE.IE[idx]);
             previous_ev = current_ev;
     		current_ev = IWE_STREAM_ADD_POINT(info, current_ev, end_buf, &iwe,  custom);
             if (current_ev == previous_ev)
@@ -1380,7 +1380,7 @@ int rt_ioctl_giwscan(struct net_device *dev,
             iwe.u.data.length = (pAdapter->ScanTab.BssEntry[i].RsnIE.IELen * 2) + 7;
             NdisMoveMemory(custom, "rsn_ie=", 7);
 			for (idx = 0; idx < pAdapter->ScanTab.BssEntry[i].RsnIE.IELen; idx++)
-                sprintf(custom, "%s%02x", custom, pAdapter->ScanTab.BssEntry[i].RsnIE.IE[idx]);
+                sprintf(custom + strlen(custom), "%02x", pAdapter->ScanTab.BssEntry[i].RsnIE.IE[idx]);
             previous_ev = current_ev;
     		current_ev = IWE_STREAM_ADD_POINT(info, current_ev, end_buf, &iwe,  custom);
             if (current_ev == previous_ev)
@@ -2022,8 +2022,7 @@ void	getBaInfo(
 		if (((pEntry->ValidAsCLI || pEntry->ValidAsApCli) && (pEntry->Sst == SST_ASSOC))
 			|| (pEntry->ValidAsWDS) || (pEntry->ValidAsMesh))
 		{
-			sprintf(pOutBuf, "%s\n%02X:%02X:%02X:%02X:%02X:%02X (Aid = %d) (AP) -\n",
-                pOutBuf,
+			sprintf(pOutBuf + strlen(pOutBuf), "\n%02X:%02X:%02X:%02X:%02X:%02X (Aid = %d) (AP) -\n",
 				pEntry->Addr[0], pEntry->Addr[1], pEntry->Addr[2],
 				pEntry->Addr[3], pEntry->Addr[4], pEntry->Addr[5], pEntry->Aid);
 
@@ -2033,7 +2032,7 @@ void	getBaInfo(
 				if (pEntry->BARecWcidArray[j] != 0)
 				{
 					pRecBAEntry =&pAd->BATable.BARecEntry[pEntry->BARecWcidArray[j]];
-					sprintf(pOutBuf, "%sTID=%d, BAWinSize=%d, LastIndSeq=%d, ReorderingPkts=%d\n", pOutBuf, j, pRecBAEntry->BAWinSize, pRecBAEntry->LastIndSeq, pRecBAEntry->list.qlen);
+					sprintf(pOutBuf + strlen(pOutBuf), "TID=%d, BAWinSize=%d, LastIndSeq=%d, ReorderingPkts=%d\n", j, pRecBAEntry->BAWinSize, pRecBAEntry->LastIndSeq, pRecBAEntry->list.qlen);
 				}
 			}
 			sprintf(pOutBuf, "%s\n", pOutBuf);
@@ -2044,7 +2043,7 @@ void	getBaInfo(
 				if (pEntry->BAOriWcidArray[j] != 0)
 				{
 					pOriBAEntry =&pAd->BATable.BAOriEntry[pEntry->BAOriWcidArray[j]];
-					sprintf(pOutBuf, "%sTID=%d, BAWinSize=%d, StartSeq=%d, CurTxSeq=%d\n", pOutBuf, j, pOriBAEntry->BAWinSize, pOriBAEntry->Sequence, pEntry->TxSeq[j]);
+					sprintf(pOutBuf + strlen(pOutBuf), "TID=%d, BAWinSize=%d, StartSeq=%d, CurTxSeq=%d\n", j, pOriBAEntry->BAWinSize, pOriBAEntry->Sequence, pEntry->TxSeq[j]);
 				}
 			}
 			sprintf(pOutBuf, "%s\n\n", pOutBuf);

@@ -1791,7 +1791,7 @@ int wext_notify_event_assoc(
         wrqu.data.length = (pAd->StaCfg.ReqVarIELen*2) + 17;
         sprintf(custom, "ASSOCINFO(ReqIEs=");
         for (idx=0; idx<pAd->StaCfg.ReqVarIELen; idx++)
-                sprintf(custom, "%s%02x", custom, pAd->StaCfg.ReqVarIEs[idx]);
+                sprintf(custom + strlen(custom), "%02x", pAd->StaCfg.ReqVarIEs[idx]);
         wireless_send_event(pAd->net_dev, IWEVCUSTOM, &wrqu, custom);
     }
     else
