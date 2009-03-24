@@ -1011,7 +1011,7 @@ static int __init dw_probe(struct platform_device *pdev)
 	dma_writel(dw, CFG, DW_CFG_DMA_EN);
 
 	printk(KERN_INFO "%s: DesignWare DMA Controller, %d channels\n",
-			pdev->dev.bus_id, dw->dma.chancnt);
+			dev_name(&pdev->dev), dw->dma.chancnt);
 
 	dma_async_device_register(&dw->dma);
 
