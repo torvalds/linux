@@ -273,20 +273,20 @@ static void intel_sdvo_debug_write(struct intel_output *intel_output, u8 cmd,
 	struct intel_sdvo_priv *sdvo_priv = intel_output->dev_priv;
 	int i;
 
-	DRM_DEBUG("%s: W: %02X ", SDVO_NAME(sdvo_priv), cmd);
+	printk(KERN_DEBUG "%s: W: %02X ", SDVO_NAME(sdvo_priv), cmd);
 	for (i = 0; i < args_len; i++)
-		printk("%02X ", ((u8 *)args)[i]);
+		printk(KERN_DEBUG "%02X ", ((u8 *)args)[i]);
 	for (; i < 8; i++)
-		printk("   ");
+		printk(KERN_DEBUG "   ");
 	for (i = 0; i < sizeof(sdvo_cmd_names) / sizeof(sdvo_cmd_names[0]); i++) {
 		if (cmd == sdvo_cmd_names[i].cmd) {
-			printk("(%s)", sdvo_cmd_names[i].name);
+			printk(KERN_DEBUG "(%s)", sdvo_cmd_names[i].name);
 			break;
 		}
 	}
 	if (i == sizeof(sdvo_cmd_names)/ sizeof(sdvo_cmd_names[0]))
-		printk("(%02X)",cmd);
-	printk("\n");
+		printk(KERN_DEBUG "(%02X)", cmd);
+	printk(KERN_DEBUG "\n");
 }
 #else
 #define intel_sdvo_debug_write(o, c, a, l)
@@ -323,17 +323,18 @@ static void intel_sdvo_debug_response(struct intel_output *intel_output,
 				      u8 status)
 {
 	struct intel_sdvo_priv *sdvo_priv = intel_output->dev_priv;
+	int i;
 
-	DRM_DEBUG("%s: R: ", SDVO_NAME(sdvo_priv));
+	printk(KERN_DEBUG "%s: R: ", SDVO_NAME(sdvo_priv));
 	for (i = 0; i < response_len; i++)
-		printk("%02X ", ((u8 *)response)[i]);
+		printk(KERN_DEBUG "%02X ", ((u8 *)response)[i]);
 	for (; i < 8; i++)
-		printk("   ");
+		printk(KERN_DEBUG "   ");
 	if (status <= SDVO_CMD_STATUS_SCALING_NOT_SUPP)
-		printk("(%s)", cmd_status_names[status]);
+		printk(KERN_DEBUG "(%s)", cmd_status_names[status]);
 	else
-		printk("(??? %d)", status);
-	printk("\n");
+		printk(KERN_DEBUG "(??? %d)", status);
+	printk(KERN_DEBUG "\n");
 }
 #else
 #define intel_sdvo_debug_response(o, r, l, s)
