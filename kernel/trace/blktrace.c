@@ -922,23 +922,24 @@ static void blk_unregister_tracepoints(void)
 static void fill_rwbs(char *rwbs, const struct blk_io_trace *t)
 {
 	int i = 0;
+	int tc = t->action >> BLK_TC_SHIFT;
 
-	if (t->action & BLK_TC_DISCARD)
+	if (tc & BLK_TC_DISCARD)
 		rwbs[i++] = 'D';
-	else if (t->action & BLK_TC_WRITE)
+	else if (tc & BLK_TC_WRITE)
 		rwbs[i++] = 'W';
 	else if (t->bytes)
 		rwbs[i++] = 'R';
 	else
 		rwbs[i++] = 'N';
 
-	if (t->action & BLK_TC_AHEAD)
+	if (tc & BLK_TC_AHEAD)
 		rwbs[i++] = 'A';
-	if (t->action & BLK_TC_BARRIER)
+	if (tc & BLK_TC_BARRIER)
 		rwbs[i++] = 'B';
-	if (t->action & BLK_TC_SYNC)
+	if (tc & BLK_TC_SYNC)
 		rwbs[i++] = 'S';
-	if (t->action & BLK_TC_META)
+	if (tc & BLK_TC_META)
 		rwbs[i++] = 'M';
 
 	rwbs[i] = '\0';
