@@ -1753,7 +1753,7 @@ at32_add_device_usba(unsigned int id, struct usba_platform_data *data)
 	if (platform_device_add_data(pdev, data, sizeof(usba_data)))
 		goto out_free_pdev;
 
-	if (data->vbus_pin >= 0)
+	if (gpio_is_valid(data->vbus_pin))
 		at32_select_gpio(data->vbus_pin, 0);
 
 	usba0_pclk.dev = &pdev->dev;
