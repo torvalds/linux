@@ -968,7 +968,7 @@ static inline unsigned long long t_sector(const struct trace_entry *ent)
 
 static inline __u16 t_error(const struct trace_entry *ent)
 {
-	return te_blk_io_trace(ent)->sector;
+	return te_blk_io_trace(ent)->error;
 }
 
 static __u64 get_pdu_int(const struct trace_entry *ent)
