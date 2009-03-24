@@ -489,10 +489,19 @@ static inline int default_apic_id_registered(void)
 	return physid_isset(read_apic_id(), phys_cpu_present_map);
 }
 
+static inline int default_phys_pkg_id(int cpuid_apic, int index_msb)
+{
+	return cpuid_apic >> index_msb;
+}
+
+extern int default_apicid_to_node(int logical_apicid);
+
+#endif
+
 static inline unsigned int
 default_cpu_mask_to_apicid(const struct cpumask *cpumask)
 {
-	return cpumask_bits(cpumask)[0];
+	return cpumask_bits(cpumask)[0] & APIC_ALL_CPUS;
 }
 
 static inline unsigned int
@@ -505,15 +514,6 @@ default_cpu_mask_to_apicid_and(const struct cpumask *cpumask,
 
 	return (unsigned int)(mask1 & mask2 & mask3);
 }
-
-static inline int default_phys_pkg_id(int cpuid_apic, int index_msb)
-{
-	return cpuid_apic >> index_msb;
-}
-
-extern int default_apicid_to_node(int logical_apicid);
-
-#endif
 
 static inline unsigned long default_check_apicid_used(physid_mask_t bitmap, int apicid)
 {

@@ -159,20 +159,6 @@ static int flat_apic_id_registered(void)
 	return physid_isset(read_xapic_id(), phys_cpu_present_map);
 }
 
-static unsigned int flat_cpu_mask_to_apicid(const struct cpumask *cpumask)
-{
-	return cpumask_bits(cpumask)[0] & APIC_ALL_CPUS;
-}
-
-static unsigned int flat_cpu_mask_to_apicid_and(const struct cpumask *cpumask,
-						const struct cpumask *andmask)
-{
-	unsigned long mask1 = cpumask_bits(cpumask)[0] & APIC_ALL_CPUS;
-	unsigned long mask2 = cpumask_bits(andmask)[0] & APIC_ALL_CPUS;
-
-	return mask1 & mask2;
-}
-
 static int flat_phys_pkg_id(int initial_apic_id, int index_msb)
 {
 	return hard_smp_processor_id() >> index_msb;
@@ -213,8 +199,8 @@ struct apic apic_flat =  {
 	.set_apic_id			= set_apic_id,
 	.apic_id_mask			= 0xFFu << 24,
 
-	.cpu_mask_to_apicid		= flat_cpu_mask_to_apicid,
-	.cpu_mask_to_apicid_and		= flat_cpu_mask_to_apicid_and,
+	.cpu_mask_to_apicid		= default_cpu_mask_to_apicid,
+	.cpu_mask_to_apicid_and		= default_cpu_mask_to_apicid_and,
 
 	.send_IPI_mask			= flat_send_IPI_mask,
 	.send_IPI_mask_allbutself	= flat_send_IPI_mask_allbutself,
