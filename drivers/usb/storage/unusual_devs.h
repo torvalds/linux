@@ -975,12 +975,14 @@ UNUSUAL_DEV(  0x07c4, 0xa400, 0x0000, 0xffff,
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_FIX_INQUIRY | US_FL_FIX_CAPACITY ),
 
-/* Reported by Rauch Wolke <rauchwolke@gmx.net> */
+/* Reported by Rauch Wolke <rauchwolke@gmx.net>
+ * and augmented by binbin <binbinsh@gmail.com> (Bugzilla #12882)
+ */
 UNUSUAL_DEV(  0x07c4, 0xa4a5, 0x0000, 0xffff,
 		"Simple Tech/Datafab",
 		"CF+SM Reader",
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
-		US_FL_IGNORE_RESIDUE ),
+		US_FL_IGNORE_RESIDUE | US_FL_MAX_SECTORS_64 ),
 
 /* Casio QV 2x00/3x00/4000/8000 digital still cameras are not conformant
  * to the USB storage specification in two ways:
