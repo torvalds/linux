@@ -1146,11 +1146,14 @@ int generic_ide_ioctl(ide_drive_t *, struct block_device *, unsigned, unsigned l
 extern int ide_vlb_clk;
 extern int ide_pci_clk;
 
-extern int ide_end_request (ide_drive_t *drive, int uptodate, int nrsecs);
-int ide_end_dequeued_request(ide_drive_t *drive, struct request *rq,
-			     int uptodate, int nr_sectors);
+int ide_end_request(ide_drive_t *, int, int);
+int ide_end_dequeued_request(ide_drive_t *, struct request *, int, int);
+void ide_kill_rq(ide_drive_t *, struct request *);
 
-extern void ide_set_handler (ide_drive_t *drive, ide_handler_t *handler, unsigned int timeout, ide_expiry_t *expiry);
+void __ide_set_handler(ide_drive_t *, ide_handler_t *, unsigned int,
+		       ide_expiry_t *);
+void ide_set_handler(ide_drive_t *, ide_handler_t *, unsigned int,
+		     ide_expiry_t *);
 
 void ide_execute_command(ide_drive_t *, u8, ide_handler_t *, unsigned int,
 			 ide_expiry_t *);
