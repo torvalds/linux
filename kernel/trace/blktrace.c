@@ -147,8 +147,8 @@ static int act_log_check(struct blk_trace *bt, u32 what, sector_t sector,
 /*
  * Data direction bit lookup
  */
-static u32 ddir_act[2] __read_mostly = { BLK_TC_ACT(BLK_TC_READ),
-					 BLK_TC_ACT(BLK_TC_WRITE) };
+static const u32 ddir_act[2] = { BLK_TC_ACT(BLK_TC_READ),
+				 BLK_TC_ACT(BLK_TC_WRITE) };
 
 /* The ilog2() calls fall out because they're constant */
 #define MASK_TC_BIT(rw, __name) ((rw & (1 << BIO_RW_ ## __name)) << \
@@ -1116,10 +1116,10 @@ static void blk_tracer_reset(struct trace_array *tr)
 	blk_tracer_stop(tr);
 }
 
-static struct {
+static const struct {
 	const char *act[2];
 	int	   (*print)(struct trace_seq *s, const struct trace_entry *ent);
-} what2act[] __read_mostly = {
+} what2act[] = {
 	[__BLK_TA_QUEUE]	= {{  "Q", "queue" },	   blk_log_generic },
 	[__BLK_TA_BACKMERGE]	= {{  "M", "backmerge" },  blk_log_generic },
 	[__BLK_TA_FRONTMERGE]	= {{  "F", "frontmerge" }, blk_log_generic },
