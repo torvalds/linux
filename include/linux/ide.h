@@ -26,7 +26,7 @@
 #include <asm/io.h>
 #include <asm/mutex.h>
 
-#if defined(CONFIG_CRIS) || defined(CONFIG_FRV)
+#if defined(CONFIG_CRIS) || defined(CONFIG_FRV) || defined(CONFIG_MN10300)
 # define SUPPORT_VLB_SYNC 0
 #else
 # define SUPPORT_VLB_SYNC 1
@@ -194,8 +194,7 @@ static inline void ide_std_init_ports(hw_regs_t *hw,
 }
 
 #if defined(CONFIG_ARM) || defined(CONFIG_M68K) || defined(CONFIG_MIPS) || \
-    defined(CONFIG_MN10300) || defined(CONFIG_PARISC) \
-    || defined(CONFIG_PPC) || defined(CONFIG_SPARC) || defined(CONFIG_SPARC64)
+    defined(CONFIG_PARISC) || defined(CONFIG_PPC) || defined(CONFIG_SPARC)
 #include <asm/ide.h>
 #else
 #include <asm-generic/ide_iops.h>
