@@ -886,6 +886,7 @@ static int __init acpi_init(void)
 	acpi_system_init();
 	acpi_debug_init();
 	acpi_sleep_proc_init();
+	acpi_wakeup_device_init();
 	return result;
 }
 
