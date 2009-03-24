@@ -1676,7 +1676,7 @@ int qeth_send_control_data(struct qeth_card *card, int len,
 	int rc;
 	unsigned long flags;
 	struct qeth_reply *reply = NULL;
-	unsigned long timeout;
+	unsigned long timeout, event_timeout;
 	struct qeth_ipa_cmd *cmd;
 
 	QETH_DBF_TEXT(TRACE, 2, "sendctl");
@@ -1701,9 +1701,10 @@ int qeth_send_control_data(struct qeth_card *card, int len,
 	qeth_prepare_control_data(card, len, iob);
 
 	if (IS_IPA(iob->data))
-		timeout = jiffies + QETH_IPA_TIMEOUT;
+		event_timeout = QETH_IPA_TIMEOUT;
 	else
-		timeout = jiffies + QETH_TIMEOUT;
+		event_timeout = QETH_TIMEOUT;
+	timeout = jiffies + event_timeout;
 
 	QETH_DBF_TEXT(TRACE, 6, "noirqpnd");
 	spin_lock_irqsave(get_ccwdev_lock(card->write.ccwdev), flags);
@@ -1731,7 +1732,7 @@ int qeth_send_control_data(struct qeth_card *card, int len,
 	if ((cmd->hdr.command == IPA_CMD_SETIP) &&
 	    (cmd->hdr.prot_version == QETH_PROT_IPV4)) {
 		if (!wait_event_timeout(reply->wait_q,
-		    atomic_read(&reply->received), timeout))
+		    atomic_read(&reply->received), event_timeout))
 			goto time_err;
 	} else {
 		while (!atomic_read(&reply->received)) {
