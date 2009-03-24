@@ -58,6 +58,11 @@ static int show_other_interrupts(struct seq_file *p, int prec)
 	for_each_online_cpu(j)
 		seq_printf(p, "%10u ", irq_stats(j)->apic_timer_irqs);
 	seq_printf(p, "  Local timer interrupts\n");
+
+	seq_printf(p, "%*s: ", prec, "SPU");
+	for_each_online_cpu(j)
+		seq_printf(p, "%10u ", irq_stats(j)->irq_spurious_count);
+	seq_printf(p, "  Spurious interrupts\n");
 #endif
 	if (generic_interrupt_extension) {
 		seq_printf(p, "PLT: ");
@@ -90,12 +95,6 @@ static int show_other_interrupts(struct seq_file *p, int prec)
 		seq_printf(p, "%10u ", irq_stats(j)->irq_threshold_count);
 	seq_printf(p, "  Threshold APIC interrupts\n");
 # endif
-#endif
-#ifdef CONFIG_X86_LOCAL_APIC
-	seq_printf(p, "%*s: ", prec, "SPU");
-	for_each_online_cpu(j)
-		seq_printf(p, "%10u ", irq_stats(j)->irq_spurious_count);
-	seq_printf(p, "  Spurious interrupts\n");
 #endif
 	seq_printf(p, "%*s: %10u\n", prec, "ERR", atomic_read(&irq_err_count));
 #if defined(CONFIG_X86_IO_APIC)
@@ -133,23 +132,15 @@ int show_interrupts(struct seq_file *p, void *v)
 		return 0;
 
 	spin_lock_irqsave(&desc->lock, flags);
-#ifndef CONFIG_SMP
-	any_count = kstat_irqs(i);
-#else
 	for_each_online_cpu(j)
 		any_count |= kstat_irqs_cpu(i, j);
-#endif
 	action = desc->action;
 	if (!action && !any_count)
 		goto out;
 
 	seq_printf(p, "%*d: ", prec, i);
-#ifndef CONFIG_SMP
-	seq_printf(p, "%10u ", kstat_irqs(i));
-#else
 	for_each_online_cpu(j)
 		seq_printf(p, "%10u ", kstat_irqs_cpu(i, j));
-#endif
 	seq_printf(p, " %8s", desc->chip->name);
 	seq_printf(p, "-%-8s", desc->name);
 
@@ -174,6 +165,7 @@ u64 arch_irq_stat_cpu(unsigned int cpu)
 
 #ifdef CONFIG_X86_LOCAL_APIC
 	sum += irq_stats(cpu)->apic_timer_irqs;
+	sum += irq_stats(cpu)->irq_spurious_count;
 #endif
 	if (generic_interrupt_extension)
 		sum += irq_stats(cpu)->generic_irqs;
@@ -187,9 +179,6 @@ u64 arch_irq_stat_cpu(unsigned int cpu)
 # ifdef CONFIG_X86_64
 	sum += irq_stats(cpu)->irq_threshold_count;
 #endif
-#endif
-#ifdef CONFIG_X86_LOCAL_APIC
-	sum += irq_stats(cpu)->irq_spurious_count;
 #endif
 	return sum;
 }

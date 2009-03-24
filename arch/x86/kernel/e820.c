@@ -233,7 +233,7 @@ void __init e820_print_map(char *who)
  */
 
 int __init sanitize_e820_map(struct e820entry *biosmap, int max_nr_map,
-				int *pnr_map)
+			     u32 *pnr_map)
 {
 	struct change_member {
 		struct e820entry *pbios; /* pointer to original bios entry */
@@ -552,7 +552,7 @@ u64 __init e820_remove_range(u64 start, u64 size, unsigned old_type,
 
 void __init update_e820(void)
 {
-	int nr_map;
+	u32 nr_map;
 
 	nr_map = e820.nr_map;
 	if (sanitize_e820_map(e820.map, ARRAY_SIZE(e820.map), &nr_map))
@@ -563,7 +563,7 @@ void __init update_e820(void)
 }
 static void __init update_e820_saved(void)
 {
-	int nr_map;
+	u32 nr_map;
 
 	nr_map = e820_saved.nr_map;
 	if (sanitize_e820_map(e820_saved.map, ARRAY_SIZE(e820_saved.map), &nr_map))
@@ -1303,7 +1303,7 @@ early_param("memmap", parse_memmap_opt);
 void __init finish_e820_parsing(void)
 {
 	if (userdef) {
-		int nr = e820.nr_map;
+		u32 nr = e820.nr_map;
 
 		if (sanitize_e820_map(e820.map, ARRAY_SIZE(e820.map), &nr) < 0)
 			early_panic("Invalid user supplied memory map");
@@ -1386,7 +1386,7 @@ void __init e820_reserve_resources_late(void)
 char *__init default_machine_specific_memory_setup(void)
 {
 	char *who = "BIOS-e820";
-	int new_nr;
+	u32 new_nr;
 	/*
 	 * Try to copy the BIOS-supplied E820-map.
 	 *
