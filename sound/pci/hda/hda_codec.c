@@ -174,14 +174,23 @@ unsigned int snd_hda_codec_read(struct hda_codec *codec, hda_nid_t nid,
 				unsigned int verb, unsigned int parm)
 {
 	struct hda_bus *bus = codec->bus;
-	unsigned int res;
+	unsigned int cmd, res;
+	int repeated = 0;
 
-	res = make_codec_cmd(codec, nid, direct, verb, parm);
+	cmd = make_codec_cmd(codec, nid, direct, verb, parm);
 	snd_hda_power_up(codec);
 	mutex_lock(&bus->cmd_mutex);
-	if (!bus->ops.command(bus, res))
+ again:
+	if (!bus->ops.command(bus, cmd)) {
 		res = bus->ops.get_response(bus);
-	else
+		if (res == -1 && bus->rirb_error) {
+			if (repeated++ < 1) {
+				snd_printd(KERN_WARNING "hda_codec: "
+					   "Trying verb 0x%08x again\n", cmd);
+				goto again;
+			}
+		}
+	} else
 		res = (unsigned int)-1;
 	mutex_unlock(&bus->cmd_mutex);
 	snd_hda_power_down(codec);
