@@ -327,6 +327,10 @@ static void qeth_l2_vlan_rx_add_vid(struct net_device *dev, unsigned short vid)
 	struct qeth_vlan_vid *id;
 
 	QETH_DBF_TEXT_(TRACE, 4, "aid:%d", vid);
+	if (qeth_wait_for_threads(card, QETH_RECOVER_THREAD)) {
+		QETH_DBF_TEXT(TRACE, 3, "aidREC");
+		return;
+	}
 	id = kmalloc(sizeof(struct qeth_vlan_vid), GFP_ATOMIC);
 	if (id) {
 		id->vid = vid;
@@ -343,6 +347,10 @@ static void qeth_l2_vlan_rx_kill_vid(struct net_device *dev, unsigned short vid)
 	struct qeth_card *card = dev->ml_priv;
 
 	QETH_DBF_TEXT_(TRACE, 4, "kid:%d", vid);
+	if (qeth_wait_for_threads(card, QETH_RECOVER_THREAD)) {
+		QETH_DBF_TEXT(TRACE, 3, "kidREC");
+		return;
+	}
 	spin_lock_bh(&card->vlanlock);
 	list_for_each_entry(id, &card->vid_list, list) {
 		if (id->vid == vid) {
@@ -594,6 +602,10 @@ static int qeth_l2_set_mac_address(struct net_device *dev, void *p)
 	}
 	QETH_DBF_TEXT_(TRACE, 3, "%s", CARD_BUS_ID(card));
 	QETH_DBF_HEX(TRACE, 3, addr->sa_data, OSA_ADDR_LEN);
+	if (qeth_wait_for_threads(card, QETH_RECOVER_THREAD)) {
+		QETH_DBF_TEXT(TRACE, 3, "setmcREC");
+		return -ERESTARTSYS;
+	}
 	rc = qeth_l2_send_delmac(card, &card->dev->dev_addr[0]);
 	if (!rc)
 		rc = qeth_l2_send_setmac(card, addr->sa_data);
@@ -609,6 +621,9 @@ static void qeth_l2_set_multicast_list(struct net_device *dev)
 		return ;
 
 	QETH_DBF_TEXT(TRACE, 3, "setmulti");
+	if (qeth_threads_running(card, QETH_RECOVER_THREAD) &&
+	    (card->state != CARD_STATE_UP))
+		return;
 	qeth_l2_del_all_mc(card);
 	spin_lock_bh(&card->mclock);
 	for (dm = dev->mc_list; dm; dm = dm->next)

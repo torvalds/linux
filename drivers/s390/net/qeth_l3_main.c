@@ -1838,6 +1838,10 @@ static void qeth_l3_vlan_rx_kill_vid(struct net_device *dev, unsigned short vid)
 	unsigned long flags;
 
 	QETH_DBF_TEXT_(TRACE, 4, "kid:%d", vid);
+	if (qeth_wait_for_threads(card, QETH_RECOVER_THREAD)) {
+		QETH_DBF_TEXT(TRACE, 3, "kidREC");
+		return;
+	}
 	spin_lock_irqsave(&card->vlanlock, flags);
 	/* unregister IP addresses of vlan device */
 	qeth_l3_free_vlan_addresses(card, vid);
@@ -2101,6 +2105,9 @@ static void qeth_l3_set_multicast_list(struct net_device *dev)
 	struct qeth_card *card = dev->ml_priv;
 
 	QETH_DBF_TEXT(TRACE, 3, "setmulti");
+	if (qeth_threads_running(card, QETH_RECOVER_THREAD) &&
+	    (card->state != CARD_STATE_UP))
+		return;
 	qeth_l3_delete_mc_addresses(card);
 	qeth_l3_add_multicast_ipv4(card);
 #ifdef CONFIG_QETH_IPV6
