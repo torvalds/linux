@@ -592,8 +592,9 @@ set_desc_affinity(struct irq_desc *desc, const struct cpumask *mask)
 	if (assign_irq_vector(irq, cfg, mask))
 		return BAD_APICID;
 
-	cpumask_and(desc->affinity, cfg->domain, mask);
+	/* check that before desc->addinity get updated */
 	set_extra_move_desc(desc, mask);
+	cpumask_and(desc->affinity, cfg->domain, mask);
 
 	return apic->cpu_mask_to_apicid_and(desc->affinity, cpu_online_mask);
 }
