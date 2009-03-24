@@ -45,6 +45,9 @@ qla2x00_mailbox_command(scsi_qla_host_t *vha, mbx_cmd_t *mcp)
 	struct qla_hw_data *ha = vha->hw;
 	scsi_qla_host_t *base_vha = pci_get_drvdata(ha->pdev);
 
+	if (ha->pdev->error_state > pci_channel_io_frozen)
+		return QLA_FUNCTION_TIMEOUT;
+
 	reg = ha->iobase;
 	io_lock_on = base_vha->flags.init_done;
 

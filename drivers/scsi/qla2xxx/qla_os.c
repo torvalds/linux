@@ -407,7 +407,10 @@ qla2xxx_queuecommand(struct scsi_cmnd *cmd, void (*done)(struct scsi_cmnd *))
 	int rval;
 
 	if (unlikely(pci_channel_offline(ha->pdev))) {
-		cmd->result = DID_REQUEUE << 16;
+		if (ha->pdev->error_state == pci_channel_io_frozen)
+			cmd->result = DID_REQUEUE << 16;
+		else
+			cmd->result = DID_NO_CONNECT << 16;
 		goto qc24_fail_command;
 	}
 
@@ -2990,6 +2993,8 @@ qla2x00_release_firmware(void)
 static pci_ers_result_t
 qla2xxx_pci_error_detected(struct pci_dev *pdev, pci_channel_state_t state)
 {
+	scsi_qla_host_t *base_vha = pci_get_drvdata(pdev);
+
 	switch (state) {
 	case pci_channel_io_normal:
 		return PCI_ERS_RESULT_CAN_RECOVER;
@@ -2997,7 +3002,7 @@ qla2xxx_pci_error_detected(struct pci_dev *pdev, pci_channel_state_t state)
 		pci_disable_device(pdev);
 		return PCI_ERS_RESULT_NEED_RESET;
 	case pci_channel_io_perm_failure:
-		qla2x00_remove_one(pdev);
+		qla2x00_abort_all_cmds(base_vha, DID_NO_CONNECT << 16);
 		return PCI_ERS_RESULT_DISCONNECT;
 	}
 	return PCI_ERS_RESULT_NEED_RESET;

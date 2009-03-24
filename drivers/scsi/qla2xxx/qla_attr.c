@@ -1282,7 +1282,10 @@ qla2x00_dev_loss_tmo_callbk(struct fc_rport *rport)
 	if (!fcport)
 		return;
 
-	qla2x00_abort_fcport_cmds(fcport);
+	if (unlikely(pci_channel_offline(fcport->vha->hw->pdev)))
+		qla2x00_abort_all_cmds(fcport->vha, DID_NO_CONNECT << 16);
+	else
+		qla2x00_abort_fcport_cmds(fcport);
 
 	/*
 	 * Transport has effectively 'deleted' the rport, clear
@@ -1302,6 +1305,10 @@ qla2x00_terminate_rport_io(struct fc_rport *rport)
 	if (!fcport)
 		return;
 
+	if (unlikely(pci_channel_offline(fcport->vha->hw->pdev))) {
+		qla2x00_abort_all_cmds(fcport->vha, DID_NO_CONNECT << 16);
+		return;
+	}
 	/*
 	 * At this point all fcport's software-states are cleared.  Perform any
 	 * final cleanup of firmware resources (PCBs and XCBs).
