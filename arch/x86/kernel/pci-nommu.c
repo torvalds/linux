@@ -1,14 +1,14 @@
 /* Fallback functions when the main IOMMU code is not compiled in. This
    code is roughly equivalent to i386. */
-#include <linux/mm.h>
-#include <linux/init.h>
-#include <linux/pci.h>
-#include <linux/string.h>
 #include <linux/dma-mapping.h>
 #include <linux/scatterlist.h>
+#include <linux/string.h>
+#include <linux/init.h>
+#include <linux/pci.h>
+#include <linux/mm.h>
 
-#include <asm/iommu.h>
 #include <asm/processor.h>
+#include <asm/iommu.h>
 #include <asm/dma.h>
 
 static int
@@ -79,11 +79,11 @@ static void nommu_free_coherent(struct device *dev, size_t size, void *vaddr,
 }
 
 struct dma_mapping_ops nommu_dma_ops = {
-	.alloc_coherent = dma_generic_alloc_coherent,
-	.free_coherent = nommu_free_coherent,
-	.map_single = nommu_map_single,
-	.map_sg = nommu_map_sg,
-	.is_phys = 1,
+	.alloc_coherent	= dma_generic_alloc_coherent,
+	.free_coherent	= nommu_free_coherent,
+	.map_single	= nommu_map_single,
+	.map_sg		= nommu_map_sg,
+	.is_phys	= 1,
 };
 
 void __init no_iommu_init(void)

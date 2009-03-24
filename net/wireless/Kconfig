@@ -102,3 +102,13 @@ config LIB80211_CRYPT_CCMP
 
 config LIB80211_CRYPT_TKIP
 	tristate
+
+config LIB80211_DEBUG
+	bool "lib80211 debugging messages"
+	depends on LIB80211
+	default n
+	---help---
+	  You can enable this if you want verbose debugging messages
+	  from lib80211.
+
+	  If unsure, say N.

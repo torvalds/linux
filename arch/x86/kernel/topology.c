@@ -25,10 +25,10 @@
  *
  * Send feedback to <colpatch@us.ibm.com>
  */
-#include <linux/init.h>
-#include <linux/smp.h>
 #include <linux/nodemask.h>
 #include <linux/mmzone.h>
+#include <linux/init.h>
+#include <linux/smp.h>
 #include <asm/cpu.h>
 
 static DEFINE_PER_CPU(struct x86_cpu, cpu_devices);
@@ -47,6 +47,7 @@ int __ref arch_register_cpu(int num)
 	 */
 	if (num)
 		per_cpu(cpu_devices, num).cpu.hotpluggable = 1;
+
 	return register_cpu(&per_cpu(cpu_devices, num).cpu, num);
 }
 EXPORT_SYMBOL(arch_register_cpu);
@@ -56,12 +57,13 @@ void arch_unregister_cpu(int num)
 	unregister_cpu(&per_cpu(cpu_devices, num).cpu);
 }
 EXPORT_SYMBOL(arch_unregister_cpu);
-#else
+#else /* CONFIG_HOTPLUG_CPU */
+
 static int __init arch_register_cpu(int num)
 {
 	return register_cpu(&per_cpu(cpu_devices, num).cpu, num);
 }
-#endif /*CONFIG_HOTPLUG_CPU*/
+#endif /* CONFIG_HOTPLUG_CPU */
 
 static int __init topology_init(void)
 {
@@ -70,11 +72,11 @@ static int __init topology_init(void)
 #ifdef CONFIG_NUMA
 	for_each_online_node(i)
 		register_one_node(i);
-#endif /* CONFIG_NUMA */
+#endif
 
 	for_each_present_cpu(i)
 		arch_register_cpu(i);
+
 	return 0;
 }
-
 subsys_initcall(topology_init);
