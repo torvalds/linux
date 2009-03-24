@@ -1192,26 +1192,6 @@ void ide_do_drive_cmd(ide_drive_t *drive, struct request *rq)
 }
 EXPORT_SYMBOL(ide_do_drive_cmd);
 
-void ide_pktcmd_tf_load(ide_drive_t *drive, u32 tf_flags, u16 bcount, u8 dma)
-{
-	ide_hwif_t *hwif = drive->hwif;
-	ide_task_t task;
-
-	memset(&task, 0, sizeof(task));
-	task.tf_flags = IDE_TFLAG_OUT_LBAH | IDE_TFLAG_OUT_LBAM |
-			IDE_TFLAG_OUT_FEATURE | tf_flags;
-	task.tf.feature = dma;		/* Use PIO/DMA */
-	task.tf.lbam    = bcount & 0xff;
-	task.tf.lbah    = (bcount >> 8) & 0xff;
-
-	ide_tf_dump(drive->name, &task.tf);
-	hwif->tp_ops->set_irq(hwif, 1);
-	SELECT_MASK(drive, 0);
-	hwif->tp_ops->tf_load(drive, &task);
-}
-
-EXPORT_SYMBOL_GPL(ide_pktcmd_tf_load);
-
 void ide_pad_transfer(ide_drive_t *drive, int write, int len)
 {
 	ide_hwif_t *hwif = drive->hwif;

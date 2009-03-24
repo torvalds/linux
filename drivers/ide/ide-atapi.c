@@ -456,6 +456,25 @@ next_irq:
 	return ide_started;
 }
 
+static void ide_pktcmd_tf_load(ide_drive_t *drive, u32 tf_flags, u16 bcount)
+{
+	ide_hwif_t *hwif = drive->hwif;
+	ide_task_t task;
+	u8 dma = drive->dma;
+
+	memset(&task, 0, sizeof(task));
+	task.tf_flags = IDE_TFLAG_OUT_LBAH | IDE_TFLAG_OUT_LBAM |
+			IDE_TFLAG_OUT_FEATURE | tf_flags;
+	task.tf.feature = dma;		/* Use PIO/DMA */
+	task.tf.lbam    = bcount & 0xff;
+	task.tf.lbah    = (bcount >> 8) & 0xff;
+
+	ide_tf_dump(drive->name, &task.tf);
+	hwif->tp_ops->set_irq(hwif, 1);
+	SELECT_MASK(drive, 0);
+	hwif->tp_ops->tf_load(drive, &task);
+}
+
 static u8 ide_read_ireason(ide_drive_t *drive)
 {
 	ide_task_t task;
@@ -629,7 +648,7 @@ ide_startstop_t ide_issue_pc(ide_drive_t *drive)
 						       : WAIT_TAPE_CMD;
 	}
 
-	ide_pktcmd_tf_load(drive, tf_flags, bcount, drive->dma);
+	ide_pktcmd_tf_load(drive, tf_flags, bcount);
 
 	/* Issue the packet command */
 	if (drive->atapi_flags & IDE_AFLAG_DRQ_INTERRUPT) {
