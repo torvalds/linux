@@ -33,14 +33,14 @@ static struct ac97c_platform_data __initdata ac97c0_data = {
 #ifdef CONFIG_BOARD_ATNGW100_EVKLCD10X_VGA
 static struct fb_videomode __initdata tcg057vglad_modes[] = {
 	{
-		.name		= "640x480 @ 60",
-		.refresh	= 60,
+		.name		= "640x480 @ 50",
+		.refresh	= 50,
 		.xres		= 640,		.yres		= 480,
 		.pixclock	= KHZ2PICOS(25180),
 
-		.left_margin	= 64,		.right_margin	= 31,
-		.upper_margin	= 34,		.lower_margin	= 2,
-		.hsync_len	= 96,		.vsync_len	= 4,
+		.left_margin	= 64,		.right_margin	= 96,
+		.upper_margin	= 34,		.lower_margin	= 11,
+		.hsync_len	= 64,		.vsync_len	= 15,
 
 		.sync		= 0,
 		.vmode		= FB_VMODE_NONINTERLACED,
@@ -71,14 +71,14 @@ static struct atmel_lcdfb_info __initdata atevklcd10x_lcdc_data = {
 #elif CONFIG_BOARD_ATNGW100_EVKLCD10X_QVGA
 static struct fb_videomode __initdata tcg057qvlad_modes[] = {
 	{
-		.name		= "320x240 @ 60",
-		.refresh	= 60,
+		.name		= "320x240 @ 50",
+		.refresh	= 50,
 		.xres		= 320,		.yres		= 240,
 		.pixclock	= KHZ2PICOS(6300),
 
-		.left_margin	= 52,		.right_margin	= 28,
-		.upper_margin	= 7,		.lower_margin	= 2,
-		.hsync_len	= 96,		.vsync_len	= 4,
+		.left_margin	= 34,		.right_margin	= 46,
+		.upper_margin	= 7,		.lower_margin	= 15,
+		.hsync_len	= 64,		.vsync_len	= 12,
 
 		.sync		= 0,
 		.vmode		= FB_VMODE_NONINTERLACED,
