@@ -994,7 +994,8 @@ qla2x00_setup_chip(scsi_qla_host_t *vha)
 				    &ha->fw_minor_version,
 				    &ha->fw_subminor_version,
 				    &ha->fw_attributes, &ha->fw_memory_size,
-				    ha->mpi_version, &ha->mpi_capabilities);
+				    ha->mpi_version, &ha->mpi_capabilities,
+				    ha->phy_version);
 				ha->flags.npiv_supported = 0;
 				if (IS_QLA2XXX_MIDTYPE(ha) &&
 					 (ha->fw_attributes & BIT_2)) {

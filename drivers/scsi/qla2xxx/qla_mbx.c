@@ -408,7 +408,7 @@ qla2x00_execute_fw(scsi_qla_host_t *vha, uint32_t risc_addr)
 void
 qla2x00_get_fw_version(scsi_qla_host_t *vha, uint16_t *major, uint16_t *minor,
     uint16_t *subminor, uint16_t *attributes, uint32_t *memory, uint8_t *mpi,
-    uint32_t *mpi_caps)
+    uint32_t *mpi_caps, uint8_t *phy)
 {
 	int		rval;
 	mbx_cmd_t	mc;
@@ -420,7 +420,7 @@ qla2x00_get_fw_version(scsi_qla_host_t *vha, uint16_t *major, uint16_t *minor,
 	mcp->out_mb = MBX_0;
 	mcp->in_mb = MBX_6|MBX_5|MBX_4|MBX_3|MBX_2|MBX_1|MBX_0;
 	if (IS_QLA81XX(vha->hw))
-		mcp->in_mb |= MBX_13|MBX_12|MBX_11|MBX_10;
+		mcp->in_mb |= MBX_13|MBX_12|MBX_11|MBX_10|MBX_9|MBX_8;
 	mcp->flags = 0;
 	mcp->tov = MBX_TOV_SECONDS;
 	rval = qla2x00_mailbox_command(vha, mcp);
@@ -435,11 +435,13 @@ qla2x00_get_fw_version(scsi_qla_host_t *vha, uint16_t *major, uint16_t *minor,
 	else
 		*memory = (mcp->mb[5] << 16) | mcp->mb[4];
 	if (IS_QLA81XX(vha->hw)) {
-		mpi[0] = mcp->mb[10] >> 8;
-		mpi[1] = mcp->mb[10] & 0xff;
-		mpi[2] = mcp->mb[11] >> 8;
-		mpi[3] = mcp->mb[11] & 0xff;
+		mpi[0] = mcp->mb[10] & 0xff;
+		mpi[1] = mcp->mb[11] >> 8;
+		mpi[2] = mcp->mb[11] & 0xff;
 		*mpi_caps = (mcp->mb[12] << 16) | mcp->mb[13];
+		phy[0] = mcp->mb[8] & 0xff;
+		phy[1] = mcp->mb[9] >> 8;
+		phy[2] = mcp->mb[9] & 0xff;
 	}
 
 	if (rval != QLA_SUCCESS) {

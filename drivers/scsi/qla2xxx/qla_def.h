@@ -2481,8 +2481,9 @@ struct qla_hw_data {
 	uint8_t		fw_seriallink_options[4];
 	uint16_t	fw_seriallink_options24[4];
 
-	uint8_t		mpi_version[4];
+	uint8_t		mpi_version[3];
 	uint32_t	mpi_capabilities;
+	uint8_t		phy_version[3];
 
 	/* Firmware dump information. */
 	struct qla2xxx_fw_dump *fw_dump;
