@@ -1173,8 +1173,11 @@ out_nolock:
 			ret = btrfs_log_dentry_safe(trans, root,
 						    file->f_dentry);
 			if (ret == 0) {
-				btrfs_sync_log(trans, root);
-				btrfs_end_transaction(trans, root);
+				ret = btrfs_sync_log(trans, root);
+				if (ret == 0)
+					btrfs_end_transaction(trans, root);
+				else
+					btrfs_commit_transaction(trans, root);
 			} else {
 				btrfs_commit_transaction(trans, root);
 			}
@@ -1266,8 +1269,11 @@ int btrfs_sync_file(struct file *file, struct dentry *dentry, int datasync)
 	if (ret > 0) {
 		ret = btrfs_commit_transaction(trans, root);
 	} else {
-		btrfs_sync_log(trans, root);
-		ret = btrfs_end_transaction(trans, root);
+		ret = btrfs_sync_log(trans, root);
+		if (ret == 0)
+			ret = btrfs_end_transaction(trans, root);
+		else
+			ret = btrfs_commit_transaction(trans, root);
 	}
 	mutex_lock(&dentry->d_inode->i_mutex);
 out:

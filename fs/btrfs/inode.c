@@ -2246,8 +2246,6 @@ int btrfs_unlink_inode(struct btrfs_trans_handle *trans,
 	ret = btrfs_del_inode_ref_in_log(trans, root, name, name_len,
 					 inode, dir->i_ino);
 	BUG_ON(ret != 0 && ret != -ENOENT);
-	if (ret != -ENOENT)
-		BTRFS_I(dir)->log_dirty_trans = trans->transid;
 
 	ret = btrfs_del_dir_entries_in_log(trans, root, name, name_len,
 					   dir, index);
@@ -2280,6 +2278,9 @@ static int btrfs_unlink(struct inode *dir, struct dentry *dentry)
 	trans = btrfs_start_transaction(root, 1);
 
 	btrfs_set_trans_block_group(trans, dir);
+
+	btrfs_record_unlink_dir(trans, dir, dentry->d_inode, 0);
+
 	ret = btrfs_unlink_inode(trans, root, dir, dentry->d_inode,
 				 dentry->d_name.name, dentry->d_name.len);
 
@@ -3042,7 +3043,7 @@ static noinline void init_btrfs_i(struct inode *inode)
 	bi->disk_i_size = 0;
 	bi->flags = 0;
 	bi->index_cnt = (u64)-1;
-	bi->log_dirty_trans = 0;
+	bi->last_unlink_trans = 0;
 	extent_map_tree_init(&BTRFS_I(inode)->extent_tree, GFP_NOFS);
 	extent_io_tree_init(&BTRFS_I(inode)->io_tree,
 			     inode->i_mapping, GFP_NOFS);
@@ -3786,6 +3787,8 @@ static int btrfs_link(struct dentry *old_dentry, struct inode *dir,
 		drop_inode = 1;
 
 	nr = trans->blocks_used;
+
+	btrfs_log_new_name(trans, inode, NULL, dentry->d_parent);
 	btrfs_end_transaction_throttle(trans, root);
 fail:
 	if (drop_inode) {
@@ -4666,12 +4669,24 @@ static int btrfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 
 	trans = btrfs_start_transaction(root, 1);
 
+	/*
+	 * this is an ugly little race, but the rename is required to make
+	 * sure that if we crash, the inode is either at the old name
+	 * or the new one.  pinning the log transaction lets us make sure
+	 * we don't allow a log commit to come in after we unlink the
+	 * name but before we add the new name back in.
+	 */
+	btrfs_pin_log_trans(root);
+
 	btrfs_set_trans_block_group(trans, new_dir);
 
 	btrfs_inc_nlink(old_dentry->d_inode);
 	old_dir->i_ctime = old_dir->i_mtime = ctime;
 	new_dir->i_ctime = new_dir->i_mtime = ctime;
 	old_inode->i_ctime = ctime;
+
+	if (old_dentry->d_parent != new_dentry->d_parent)
+		btrfs_record_unlink_dir(trans, old_dir, old_inode, 1);
 
 	ret = btrfs_unlink_inode(trans, root, old_dir, old_dentry->d_inode,
 				 old_dentry->d_name.name,
@@ -4704,7 +4719,14 @@ static int btrfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	if (ret)
 		goto out_fail;
 
+	btrfs_log_new_name(trans, old_inode, old_dir,
+				       new_dentry->d_parent);
 out_fail:
+
+	/* this btrfs_end_log_trans just allows the current
+	 * log-sub transaction to complete
+	 */
+	btrfs_end_log_trans(root);
 	btrfs_end_transaction_throttle(trans, root);
 out_unlock:
 	return ret;

@@ -695,7 +695,12 @@ struct btrfs_fs_info {
 
 	u64 generation;
 	u64 last_trans_committed;
-	u64 last_trans_new_blockgroup;
+
+	/*
+	 * this is updated to the current trans every time a full commit
+	 * is required instead of the faster short fsync log commits
+	 */
+	u64 last_trans_log_full_commit;
 	u64 open_ioctl_trans;
 	unsigned long mount_opt;
 	u64 max_extent;

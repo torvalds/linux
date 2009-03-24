@@ -5897,7 +5897,7 @@ int btrfs_make_block_group(struct btrfs_trans_handle *trans,
 
 	extent_root = root->fs_info->extent_root;
 
-	root->fs_info->last_trans_new_blockgroup = trans->transid;
+	root->fs_info->last_trans_log_full_commit = trans->transid;
 
 	cache = kzalloc(sizeof(*cache), GFP_NOFS);
 	if (!cache)
