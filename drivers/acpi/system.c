@@ -571,12 +571,9 @@ static int acpi_system_procfs_init(void)
 }
 #endif
 
-static int __init acpi_system_init(void)
+int __init acpi_system_init(void)
 {
-	int result = 0;
-
-	if (acpi_disabled)
-		return 0;
+	int result;
 
 	result = acpi_system_procfs_init();
 	if (result)
@@ -586,5 +583,3 @@ static int __init acpi_system_init(void)
 
 	return result;
 }
-
-subsys_initcall(acpi_system_init);
