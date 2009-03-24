@@ -1890,6 +1890,16 @@ probe_init_failed:
 	ha->max_queues = 0;
 
 probe_failed:
+	if (base_vha->timer_active)
+		qla2x00_stop_timer(base_vha);
+	base_vha->flags.online = 0;
+	if (ha->dpc_thread) {
+		struct task_struct *t = ha->dpc_thread;
+
+		ha->dpc_thread = NULL;
+		kthread_stop(t);
+	}
+
 	qla2x00_free_device(base_vha);
 
 	scsi_host_put(base_vha->host);
@@ -1923,9 +1933,29 @@ qla2x00_remove_one(struct pci_dev *pdev)
 
 	set_bit(UNLOADING, &base_vha->dpc_flags);
 
+	qla2x00_abort_all_cmds(base_vha, DID_NO_CONNECT << 16);
+
 	qla2x00_dfs_remove(base_vha);
 
 	qla84xx_put_chip(base_vha);
+
+	/* Disable timer */
+	if (base_vha->timer_active)
+		qla2x00_stop_timer(base_vha);
+
+	base_vha->flags.online = 0;
+
+	/* Kill the kernel thread for this host */
+	if (ha->dpc_thread) {
+		struct task_struct *t = ha->dpc_thread;
+
+		/*
+		 * qla2xxx_wake_dpc checks for ->dpc_thread
+		 * so we need to zero it out.
+		 */
+		ha->dpc_thread = NULL;
+		kthread_stop(t);
+	}
 
 	qla2x00_free_sysfs_attr(base_vha);
 
@@ -1955,25 +1985,6 @@ static void
 qla2x00_free_device(scsi_qla_host_t *vha)
 {
 	struct qla_hw_data *ha = vha->hw;
-	qla2x00_abort_all_cmds(vha, DID_NO_CONNECT << 16);
-
-	/* Disable timer */
-	if (vha->timer_active)
-		qla2x00_stop_timer(vha);
-
-	vha->flags.online = 0;
-
-	/* Kill the kernel thread for this host */
-	if (ha->dpc_thread) {
-		struct task_struct *t = ha->dpc_thread;
-
-		/*
-		 * qla2xxx_wake_dpc checks for ->dpc_thread
-		 * so we need to zero it out.
-		 */
-		ha->dpc_thread = NULL;
-		kthread_stop(t);
-	}
 
 	if (ha->flags.fce_enabled)
 		qla2x00_disable_fce_trace(vha, NULL, NULL);
