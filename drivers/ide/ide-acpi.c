@@ -89,12 +89,8 @@ static const struct dmi_system_id ide_acpi_dmi_table[] = {
 	{ }	/* terminate list */
 };
 
-static int ide_acpi_blacklist(void)
+int ide_acpi_init(void)
 {
-	static int done;
-	if (done)
-		return 0;
-	done = 1;
 	dmi_check_system(ide_acpi_dmi_table);
 	return 0;
 }
@@ -624,7 +620,7 @@ void ide_acpi_set_state(ide_hwif_t *hwif, int on)
 }
 
 /**
- * ide_acpi_init - initialize the ACPI link for an IDE interface
+ * ide_acpi_init_port - initialize the ACPI link for an IDE interface
  * @hwif: target IDE interface (channel)
  *
  * The ACPI spec is not quite clear when the drive identify buffer
@@ -634,10 +630,8 @@ void ide_acpi_set_state(ide_hwif_t *hwif, int on)
  * So we get the information during startup; but this means that
  * any changes during run-time will be lost after resume.
  */
-void ide_acpi_init(ide_hwif_t *hwif)
+void ide_acpi_init_port(ide_hwif_t *hwif)
 {
-	ide_acpi_blacklist();
-
 	hwif->acpidata = kzalloc(sizeof(struct ide_acpi_hwif_link), GFP_KERNEL);
 	if (!hwif->acpidata)
 		return;

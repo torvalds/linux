@@ -1543,7 +1543,7 @@ int ide_host_register(struct ide_host *host, const struct ide_port_info *d,
 
 		j++;
 
-		ide_acpi_init(hwif);
+		ide_acpi_init_port(hwif);
 
 		if (hwif->present)
 			ide_acpi_port_init_devices(hwif);

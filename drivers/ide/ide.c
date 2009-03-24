@@ -527,6 +527,8 @@ static int __init ide_init(void)
 		goto out_port_class;
 	}
 
+	ide_acpi_init();
+
 	proc_ide_create();
 
 	return 0;
