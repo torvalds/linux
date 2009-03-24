@@ -293,7 +293,12 @@ int ide_driveid_update(ide_drive_t *drive)
 	const struct ide_tp_ops *tp_ops = hwif->tp_ops;
 	u16 *id;
 	unsigned long flags;
-	u8 stat;
+	int rc;
+	u8 uninitialized_var(s);
+
+	id = kmalloc(SECTOR_SIZE, GFP_ATOMIC);
+	if (id == NULL)
+		return 0;
 
 	/*
 	 * Re-read drive->id for possible DMA mode
@@ -306,25 +311,21 @@ int ide_driveid_update(ide_drive_t *drive)
 	tp_ops->exec_command(hwif, ATA_CMD_ID_ATA);
 
 	if (ide_busy_sleep(hwif, WAIT_WORSTCASE, 1)) {
-		SELECT_MASK(drive, 0);
-		return 0;
+		rc = 1;
+		goto out_err;
 	}
 
 	msleep(50);	/* wait for IRQ and ATA_DRQ */
-	stat = tp_ops->read_status(hwif);
 
-	if (!OK_STAT(stat, ATA_DRQ, BAD_R_STAT)) {
-		SELECT_MASK(drive, 0);
-		printk("%s: CHECK for good STATUS\n", drive->name);
-		return 0;
+	s = tp_ops->read_status(hwif);
+
+	if (!OK_STAT(s, ATA_DRQ, BAD_R_STAT)) {
+		rc = 2;
+		goto out_err;
 	}
+
 	local_irq_save(flags);
 	SELECT_MASK(drive, 0);
-	id = kmalloc(SECTOR_SIZE, GFP_ATOMIC);
-	if (!id) {
-		local_irq_restore(flags);
-		return 0;
-	}
 	tp_ops->input_data(drive, NULL, id, SECTOR_SIZE);
 	(void)tp_ops->read_status(hwif);	/* clear drive IRQ */
 	local_irq_enable();
@@ -342,6 +343,12 @@ int ide_driveid_update(ide_drive_t *drive)
 		ide_dma_off(drive);
 
 	return 1;
+out_err:
+	SELECT_MASK(drive, 0);
+	if (rc == 2)
+		printk(KERN_ERR "%s: %s: bad status\n", drive->name, __func__);
+	kfree(id);
+	return 0;
 }
 
 int ide_config_drive_speed(ide_drive_t *drive, u8 speed)
