@@ -608,17 +608,17 @@ void ide_acpi_set_state(ide_hwif_t *hwif, int on)
 		DEBPRINT("no ACPI data for %s\n", hwif->name);
 		return;
 	}
+
 	/* channel first and then drives for power on and verse versa for power off */
 	if (on)
 		acpi_bus_set_power(hwif->acpidata->obj_handle, ACPI_STATE_D0);
 
-	ide_port_for_each_dev(i, drive, hwif) {
-		if (drive->acpidata->obj_handle &&
-		    (drive->dev_flags & IDE_DFLAG_PRESENT)) {
+	ide_port_for_each_present_dev(i, drive, hwif) {
+		if (drive->acpidata->obj_handle)
 			acpi_bus_set_power(drive->acpidata->obj_handle,
-				on? ACPI_STATE_D0: ACPI_STATE_D3);
-		}
+					   on ? ACPI_STATE_D0 : ACPI_STATE_D3);
 	}
+
 	if (!on)
 		acpi_bus_set_power(hwif->acpidata->obj_handle, ACPI_STATE_D3);
 }
@@ -667,11 +667,8 @@ void ide_acpi_port_init_devices(ide_hwif_t *hwif)
 	hwif->devices[1]->acpidata = &hwif->acpidata->slave;
 
 	/* get _ADR info for each device */
-	ide_port_for_each_dev(i, drive, hwif) {
+	ide_port_for_each_present_dev(i, drive, hwif) {
 		acpi_handle dev_handle;
-
-		if ((drive->dev_flags & IDE_DFLAG_PRESENT) == 0)
-			continue;
 
 		DEBPRINT("ENTER: %s at channel#: %d port#: %d\n",
 			 drive->name, hwif->channel, drive->dn & 1);
@@ -685,13 +682,8 @@ void ide_acpi_port_init_devices(ide_hwif_t *hwif)
 		drive->acpidata->obj_handle = dev_handle;
 	}
 
-	/*
-	 * Send IDENTIFY for each drive
-	 */
-	ide_port_for_each_dev(i, drive, hwif) {
-		if ((drive->dev_flags & IDE_DFLAG_PRESENT) == 0)
-			continue;
-
+	/* send IDENTIFY for each device */
+	ide_port_for_each_present_dev(i, drive, hwif) {
 		err = taskfile_lib_get_identify(drive, drive->acpidata->idbuff);
 		if (err)
 			DEBPRINT("identify device %s failed (%d)\n",
@@ -711,9 +703,7 @@ void ide_acpi_port_init_devices(ide_hwif_t *hwif)
 	ide_acpi_get_timing(hwif);
 	ide_acpi_push_timing(hwif);
 
-	ide_port_for_each_dev(i, drive, hwif) {
-		if (drive->dev_flags & IDE_DFLAG_PRESENT)
-			/* Execute ACPI startup code */
-			ide_acpi_exec_tfs(drive);
+	ide_port_for_each_present_dev(i, drive, hwif) {
+		ide_acpi_exec_tfs(drive);
 	}
 }

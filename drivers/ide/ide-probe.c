@@ -825,22 +825,18 @@ static void ide_port_tune_devices(ide_hwif_t *hwif)
 	ide_drive_t *drive;
 	int i;
 
-	ide_port_for_each_dev(i, drive, hwif) {
-		if (drive->dev_flags & IDE_DFLAG_PRESENT) {
-			if (port_ops && port_ops->quirkproc)
-				port_ops->quirkproc(drive);
-		}
+	ide_port_for_each_present_dev(i, drive, hwif) {
+		if (port_ops && port_ops->quirkproc)
+			port_ops->quirkproc(drive);
 	}
 
-	ide_port_for_each_dev(i, drive, hwif) {
-		if (drive->dev_flags & IDE_DFLAG_PRESENT) {
-			ide_set_max_pio(drive);
+	ide_port_for_each_present_dev(i, drive, hwif) {
+		ide_set_max_pio(drive);
 
-			drive->dev_flags |= IDE_DFLAG_NICE1;
+		drive->dev_flags |= IDE_DFLAG_NICE1;
 
-			if (hwif->dma_ops)
-				ide_set_dma(drive);
-		}
+		if (hwif->dma_ops)
+			ide_set_dma(drive);
 	}
 }
 
@@ -911,10 +907,7 @@ static int ide_port_setup_devices(ide_hwif_t *hwif)
 	int i, j = 0;
 
 	mutex_lock(&ide_cfg_mtx);
-	ide_port_for_each_dev(i, drive, hwif) {
-		if ((drive->dev_flags & IDE_DFLAG_PRESENT) == 0)
-			continue;
-
+	ide_port_for_each_present_dev(i, drive, hwif) {
 		if (ide_init_queue(drive)) {
 			printk(KERN_ERR "ide: failed to init %s\n",
 					drive->name);
@@ -1139,12 +1132,9 @@ static void hwif_register_devices(ide_hwif_t *hwif)
 	ide_drive_t *drive;
 	unsigned int i;
 
-	ide_port_for_each_dev(i, drive, hwif) {
+	ide_port_for_each_present_dev(i, drive, hwif) {
 		struct device *dev = &drive->gendev;
 		int ret;
-
-		if ((drive->dev_flags & IDE_DFLAG_PRESENT) == 0)
-			continue;
 
 		dev_set_name(dev, "%u.%u", hwif->index, i);
 		dev->parent = &hwif->gendev;
@@ -1610,11 +1600,9 @@ static void __ide_port_unregister_devices(ide_hwif_t *hwif)
 	ide_drive_t *drive;
 	int i;
 
-	ide_port_for_each_dev(i, drive, hwif) {
-		if (drive->dev_flags & IDE_DFLAG_PRESENT) {
-			device_unregister(&drive->gendev);
-			wait_for_completion(&drive->gendev_rel_comp);
-		}
+	ide_port_for_each_present_dev(i, drive, hwif) {
+		device_unregister(&drive->gendev);
+		wait_for_completion(&drive->gendev_rel_comp);
 	}
 }
 
