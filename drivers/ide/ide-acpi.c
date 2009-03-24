@@ -20,9 +20,6 @@
 #include <acpi/acpi_bus.h>
 
 #define REGS_PER_GTF		7
-struct taskfile_array {
-	u8	tfa[REGS_PER_GTF];	/* regs. 0x1f1 - 0x1f7 */
-};
 
 struct GTM_buffer {
 	u32	PIO_speed0;
@@ -285,43 +282,6 @@ out:
 }
 
 /**
- * taskfile_load_raw - send taskfile registers to drive
- * @drive: drive to which output is sent
- * @gtf: raw ATA taskfile register set (0x1f1 - 0x1f7)
- *
- * Outputs IDE taskfile to the drive.
- */
-static int taskfile_load_raw(ide_drive_t *drive,
-			      const struct taskfile_array *gtf)
-{
-	ide_task_t args;
-	int err = 0;
-
-	DEBPRINT("(0x1f1-1f7): hex: "
-	       "%02x %02x %02x %02x %02x %02x %02x\n",
-	       gtf->tfa[0], gtf->tfa[1], gtf->tfa[2],
-	       gtf->tfa[3], gtf->tfa[4], gtf->tfa[5], gtf->tfa[6]);
-
-	memset(&args, 0, sizeof(ide_task_t));
-
-	/* convert gtf to IDE Taskfile */
-	memcpy(&args.tf_array[7], &gtf->tfa, 7);
-	args.tf_flags = IDE_TFLAG_TF | IDE_TFLAG_DEVICE;
-
-	if (!ide_acpigtf) {
-		DEBPRINT("_GTF execution disabled\n");
-		return err;
-	}
-
-	err = ide_no_data_taskfile(drive, &args);
-	if (err)
-		printk(KERN_ERR "%s: ide_no_data_taskfile failed: %u\n",
-		       __func__, err);
-
-	return err;
-}
-
-/**
  * do_drive_set_taskfiles - write the drive taskfile settings from _GTF
  * @drive: the drive to which the taskfile command should be sent
  * @gtf_length: total number of bytes of _GTF taskfiles
@@ -337,19 +297,36 @@ static int do_drive_set_taskfiles(ide_drive_t *drive,
 	int			rc = 0, err;
 	int			gtf_count = gtf_length / REGS_PER_GTF;
 	int			ix;
-	struct taskfile_array	*gtf;
 
 	DEBPRINT("total GTF bytes=%u (0x%x), gtf_count=%d, addr=0x%lx\n",
 		 gtf_length, gtf_length, gtf_count, gtf_address);
 
+	/* send all taskfile registers (0x1f1-0x1f7) *in*that*order* */
 	for (ix = 0; ix < gtf_count; ix++) {
-		gtf = (struct taskfile_array *)
-			(gtf_address + ix * REGS_PER_GTF);
+		u8 *gtf = (u8 *)(gtf_address + ix * REGS_PER_GTF);
+		ide_task_t task;
 
-		/* send all TaskFile registers (0x1f1-0x1f7) *in*that*order* */
-		err = taskfile_load_raw(drive, gtf);
-		if (err)
+		DEBPRINT("(0x1f1-1f7): "
+			 "hex: %02x %02x %02x %02x %02x %02x %02x\n",
+			 gtf[0], gtf[1], gtf[2],
+			 gtf[3], gtf[4], gtf[5], gtf[6]);
+
+		if (!ide_acpigtf) {
+			DEBPRINT("_GTF execution disabled\n");
+			continue;
+		}
+
+		/* convert GTF to taskfile */
+		memset(&task, 0, sizeof(ide_task_t));
+		memcpy(&task.tf_array[7], gtf, REGS_PER_GTF);
+		task.tf_flags = IDE_TFLAG_TF | IDE_TFLAG_DEVICE;
+
+		err = ide_no_data_taskfile(drive, &task);
+		if (err) {
+			printk(KERN_ERR "%s: ide_no_data_taskfile failed: %u\n",
+					__func__, err);
 			rc = err;
+		}
 	}
 
 	return rc;
