@@ -88,14 +88,10 @@ struct mci_platform_data;
 struct platform_device *
 at32_add_device_mci(unsigned int id, struct mci_platform_data *data);
 
-struct ac97c_platform_data {
-	unsigned short dma_rx_periph_id;
-	unsigned short dma_tx_periph_id;
-	unsigned short dma_controller_id;
-	int reset_pin;
-};
+struct ac97c_platform_data;
 struct platform_device *
-at32_add_device_ac97c(unsigned int id, struct ac97c_platform_data *data);
+at32_add_device_ac97c(unsigned int id, struct ac97c_platform_data *data,
+		      unsigned int flags);
 
 struct atmel_abdac_pdata;
 struct platform_device *

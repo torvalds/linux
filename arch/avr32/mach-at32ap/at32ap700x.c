@@ -27,6 +27,7 @@
 #include <mach/sram.h>
 
 #include <sound/atmel-abdac.h>
+#include <sound/atmel-ac97c.h>
 
 #include <video/atmel_lcdc.h>
 
@@ -1982,11 +1983,14 @@ static struct clk atmel_ac97c0_pclk = {
 };
 
 struct platform_device *__init
-at32_add_device_ac97c(unsigned int id, struct ac97c_platform_data *data)
+at32_add_device_ac97c(unsigned int id, struct ac97c_platform_data *data,
+		      unsigned int flags)
 {
-	struct platform_device *pdev;
-	struct ac97c_platform_data _data;
-	u32 pin_mask;
+	struct platform_device		*pdev;
+	struct dw_dma_slave		*rx_dws;
+	struct dw_dma_slave		*tx_dws;
+	struct ac97c_platform_data	_data;
+	u32				pin_mask;
 
 	if (id != 0)
 		return NULL;
@@ -1997,37 +2001,52 @@ at32_add_device_ac97c(unsigned int id, struct ac97c_platform_data *data)
 
 	if (platform_device_add_resources(pdev, atmel_ac97c0_resource,
 				ARRAY_SIZE(atmel_ac97c0_resource)))
-		goto fail;
+		goto out_free_resources;
 
 	if (!data) {
 		data = &_data;
 		memset(data, 0, sizeof(struct ac97c_platform_data));
-		data->reset_pin = GPIO_PIN_NONE;
+		data->reset_pin = -ENODEV;
 	}
 
-	data->dma_rx_periph_id = 3;
-	data->dma_tx_periph_id = 4;
-	data->dma_controller_id = 0;
+	rx_dws = &data->rx_dws;
+	tx_dws = &data->tx_dws;
+
+	/* Check if DMA slave interface for capture should be configured. */
+	if (flags & AC97C_CAPTURE) {
+		rx_dws->dma_dev = &dw_dmac0_device.dev;
+		rx_dws->reg_width = DW_DMA_SLAVE_WIDTH_16BIT;
+		rx_dws->cfg_hi = DWC_CFGH_SRC_PER(3);
+		rx_dws->cfg_lo &= ~(DWC_CFGL_HS_DST_POL | DWC_CFGL_HS_SRC_POL);
+	}
+
+	/* Check if DMA slave interface for playback should be configured. */
+	if (flags & AC97C_PLAYBACK) {
+		tx_dws->dma_dev = &dw_dmac0_device.dev;
+		tx_dws->reg_width = DW_DMA_SLAVE_WIDTH_16BIT;
+		tx_dws->cfg_hi = DWC_CFGH_DST_PER(4);
+		tx_dws->cfg_lo &= ~(DWC_CFGL_HS_DST_POL | DWC_CFGL_HS_SRC_POL);
+	}
 
 	if (platform_device_add_data(pdev, data,
 				sizeof(struct ac97c_platform_data)))
-		goto fail;
+		goto out_free_resources;
 
-	pin_mask  = (1 << 20) | (1 << 21);	/* SDO & SYNC */
-	pin_mask |= (1 << 22) | (1 << 23);	/* SCLK & SDI */
+	/* SDO | SYNC | SCLK | SDI */
+	pin_mask = (1 << 20) | (1 << 21) | (1 << 22) | (1 << 23);
 
 	select_peripheral(PIOB, pin_mask, PERIPH_B, 0);
 
-	/* TODO: gpio_is_valid(data->reset_pin) with kernel 2.6.26. */
-	if (data->reset_pin != GPIO_PIN_NONE)
-		at32_select_gpio(data->reset_pin, 0);
+	if (gpio_is_valid(data->reset_pin))
+		at32_select_gpio(data->reset_pin, AT32_GPIOF_OUTPUT
+				| AT32_GPIOF_HIGH);
 
 	atmel_ac97c0_pclk.dev = &pdev->dev;
 
 	platform_device_add(pdev);
 	return pdev;
 
-fail:
+out_free_resources:
 	platform_device_put(pdev);
 	return NULL;
 }

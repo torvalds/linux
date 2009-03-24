@@ -23,11 +23,10 @@
 #include <mach/portmux.h>
 #include <mach/board.h>
 
+#include <sound/atmel-ac97c.h>
+
 static struct ac97c_platform_data __initdata ac97c0_data = {
-	.dma_rx_periph_id	= 3,
-	.dma_tx_periph_id	= 4,
-	.dma_controller_id	= 0,
-	.reset_pin		= GPIO_PIN_PB(19),
+	.reset_pin = GPIO_PIN_PB(19),
 };
 
 #ifdef CONFIG_BOARD_ATNGW100_EVKLCD10X_VGA
@@ -167,7 +166,7 @@ static int __init atevklcd10x_init(void)
 			fbmem_start, fbmem_size,
 			ATMEL_LCDC_ALT_18BIT | ATMEL_LCDC_PE_DVAL);
 
-	at32_add_device_ac97c(0, &ac97c0_data);
+	at32_add_device_ac97c(0, &ac97c0_data, AC97C_BOTH);
 
 	return 0;
 }
