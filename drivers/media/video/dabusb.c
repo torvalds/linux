@@ -673,8 +673,9 @@ static int dabusb_release (struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int dabusb_ioctl (struct inode *inode, struct file *file, unsigned int cmd, unsigned long arg)
+static long dabusb_ioctl (struct file *file, unsigned int cmd, unsigned long arg)
 {
+	lock_kernel();
 	pdabusb_t s = (pdabusb_t) file->private_data;
 	pbulk_transfer_t pbulk;
 	int ret = 0;
@@ -682,13 +683,16 @@ static int dabusb_ioctl (struct inode *inode, struct file *file, unsigned int cm
 
 	dbg("dabusb_ioctl");
 
-	if (s->remove_pending)
+	if (s->remove_pending) {
+		unlock_kernel();
 		return -EIO;
+	}
 
 	mutex_lock(&s->mutex);
 
 	if (!s->usbdev) {
 		mutex_unlock(&s->mutex);
+		unlock_kernel();
 		return -EIO;
 	}
 
@@ -729,6 +733,7 @@ static int dabusb_ioctl (struct inode *inode, struct file *file, unsigned int cm
 		break;
 	}
 	mutex_unlock(&s->mutex);
+	unlock_kernel();
 	return ret;
 }
 
@@ -737,7 +742,7 @@ static const struct file_operations dabusb_fops =
 	.owner =	THIS_MODULE,
 	.llseek =	no_llseek,
 	.read =		dabusb_read,
-	.ioctl =	dabusb_ioctl,
+	.unlocked_ioctl =	dabusb_ioctl,
 	.open =		dabusb_open,
 	.release =	dabusb_release,
 };

@@ -552,8 +552,10 @@ free_mem_and_exit:
 	return result;
 }
 
-static int dst_ca_ioctl(struct inode *inode, struct file *file, unsigned int cmd, unsigned long ioctl_arg)
+static long dst_ca_ioctl(struct file *file, unsigned int cmd, unsigned long ioctl_arg)
 {
+	lock_kernel();
+
 	struct dvb_device* dvbdev = (struct dvb_device*) file->private_data;
 	struct dst_state* state = (struct dst_state*) dvbdev->priv;
 	struct ca_slot_info *p_ca_slot_info;
@@ -647,6 +649,7 @@ static int dst_ca_ioctl(struct inode *inode, struct file *file, unsigned int cmd
 	kfree (p_ca_slot_info);
 	kfree (p_ca_caps);
 
+	unlock_kernel();
 	return result;
 }
 
@@ -684,7 +687,7 @@ static ssize_t dst_ca_write(struct file *file, const char __user *buffer, size_t
 
 static const struct file_operations dst_ca_fops = {
 	.owner = THIS_MODULE,
-	.ioctl = dst_ca_ioctl,
+	.unlocked_ioctl = dst_ca_ioctl,
 	.open = dst_ca_open,
 	.release = dst_ca_release,
 	.read = dst_ca_read,
