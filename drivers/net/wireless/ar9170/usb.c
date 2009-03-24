@@ -47,9 +47,10 @@
 #include "hw.h"
 #include "usb.h"
 
+MODULE_AUTHOR("Johannes Berg <johannes@sipsolutions.net>");
 MODULE_AUTHOR("Christian Lamparter <chunkeey@web.de>");
 MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION("USB Driver for Atheros AR9170 based devices");
+MODULE_DESCRIPTION("Atheros AR9170 802.11n USB wireless");
 MODULE_FIRMWARE("ar9170-1.fw");
 MODULE_FIRMWARE("ar9170-2.fw");
 

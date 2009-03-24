@@ -37,14 +37,6 @@
  *    OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/*
- * BIG FAT TODO:
- *
- * By the looks of things: these devices share a lot of things like
- * EEPROM layout/design and PHY code with other Atheros WIFI products.
- * So this driver/library will eventually become ath9k code... or vice versa ;-)
- */
-
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/etherdevice.h>
@@ -56,9 +48,6 @@
 static int modparam_nohwcrypt;
 module_param_named(nohwcrypt, modparam_nohwcrypt, bool, S_IRUGO);
 MODULE_PARM_DESC(nohwcrypt, "Disable hardware encryption.");
-MODULE_AUTHOR("Johannes Berg <johannes@sipsolutions.net>");
-MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION("Atheros shared code for AR9170 wireless devices");
 
 #define RATE(_bitrate, _hw_rate, _txpidx, _flags) {	\
 	.bitrate	= (_bitrate),			\
@@ -247,7 +236,6 @@ void ar9170_handle_tx_status(struct ar9170 *ar, struct sk_buff *skb,
 	skb_pull(skb, sizeof(struct ar9170_tx_control));
 	ieee80211_tx_status_irqsafe(ar->hw, skb);
 }
-EXPORT_SYMBOL_GPL(ar9170_handle_tx_status);
 
 static struct sk_buff *ar9170_find_skb_in_queue(struct ar9170 *ar,
 						const u8 *mac,
@@ -630,13 +618,6 @@ static void ar9170_handle_mpdu(struct ar9170 *ar, u8 *buf, int len)
 	ieee80211_rx_irqsafe(ar->hw, skb, &status);
 }
 
-/*
- * TODO:
- * It looks like AR9170 supports more than just the USB transport interface.
- * Unfortunately, there is no available information what parts of the
- * precendent and following code fragments is device specific and what not.
- * For now, everything stays here, until some SPI chips pop up.
- */
 void ar9170_rx(struct ar9170 *ar, struct sk_buff *skb)
 {
 	unsigned int i, tlen, resplen;
@@ -694,7 +675,6 @@ void ar9170_rx(struct ar9170 *ar, struct sk_buff *skb)
 		printk(KERN_ERR "%s: buffer remains!\n",
 		       wiphy_name(ar->hw->wiphy));
 }
-EXPORT_SYMBOL_GPL(ar9170_rx);
 
 #define AR9170_FILL_QUEUE(queue, ai_fs, cwmin, cwmax, _txop)		\
 do {									\
@@ -1582,7 +1562,6 @@ void *ar9170_alloc(size_t priv_size)
 
 	return ar;
 }
-EXPORT_SYMBOL_GPL(ar9170_alloc);
 
 static int ar9170_read_eeprom(struct ar9170 *ar)
 {
@@ -1680,7 +1659,6 @@ err_unreg:
 err_out:
 	return err;
 }
-EXPORT_SYMBOL_GPL(ar9170_register);
 
 void ar9170_unregister(struct ar9170 *ar)
 {
@@ -1691,21 +1669,3 @@ void ar9170_unregister(struct ar9170 *ar)
 	ieee80211_unregister_hw(ar->hw);
 	mutex_destroy(&ar->mutex);
 }
-EXPORT_SYMBOL_GPL(ar9170_unregister);
-
-static int __init ar9170_init(void)
-{
-	if (modparam_nohwcrypt)
-		printk(KERN_INFO "ar9170: cryptographic acceleration "
-				 "disabled.\n");
-
-	return 0;
-}
-
-static void __exit ar9170_exit(void)
-{
-
-}
-
-module_init(ar9170_init);
-module_exit(ar9170_exit);
