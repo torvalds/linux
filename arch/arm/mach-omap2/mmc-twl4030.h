@@ -13,6 +13,7 @@ struct twl4030_hsmmc_info {
 	bool	ext_clock;	/* use external pin for input clock */
 	int	gpio_cd;	/* or -EINVAL */
 	int	gpio_wp;	/* or -EINVAL */
+	struct device *dev;	/* returned: pointer to mmc adapter */
 };
 
 #if	defined(CONFIG_TWL4030_CORE) && \
