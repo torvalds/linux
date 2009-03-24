@@ -737,7 +737,7 @@ int omap_request_dma(int dev_id, const char *dev_name,
 		 * id.
 		 */
 		dma_write(dev_id | (1 << 10), CCR(free_ch));
-	} else if (cpu_is_omap730() || cpu_is_omap15xx()) {
+	} else if (cpu_is_omap7xx() || cpu_is_omap15xx()) {
 		dma_write(dev_id, CCR(free_ch));
 	}
 
@@ -2339,7 +2339,7 @@ static int __init omap_init_dma(void)
 		printk(KERN_INFO "DMA support for OMAP15xx initialized\n");
 		dma_chan_count = 9;
 		enable_1510_mode = 1;
-	} else if (cpu_is_omap16xx() || cpu_is_omap730()) {
+	} else if (cpu_is_omap16xx() || cpu_is_omap7xx()) {
 		printk(KERN_INFO "OMAP DMA hardware version %d\n",
 		       dma_read(HW_ID));
 		printk(KERN_INFO "DMA capabilities: %08x:%08x:%04x:%04x:%04x\n",
