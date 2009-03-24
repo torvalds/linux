@@ -103,6 +103,7 @@ struct irqaction {
 
 extern irqreturn_t no_action(int cpl, void *dev_id);
 
+#ifdef CONFIG_GENERIC_HARDIRQS
 extern int __must_check
 request_threaded_irq(unsigned int irq, irq_handler_t handler,
 		     irq_handler_t thread_fn,
@@ -115,9 +116,13 @@ request_irq(unsigned int irq, irq_handler_t handler, unsigned long flags,
 	return request_threaded_irq(irq, handler, NULL, flags, name, dev);
 }
 
-#ifdef CONFIG_GENERIC_HARDIRQS
 extern void exit_irq_thread(void);
 #else
+
+extern int __must_check
+request_irq(unsigned int irq, irq_handler_t handler, unsigned long flags,
+	    const char *name, void *dev);
+
 static inline void exit_irq_thread(void) { }
 #endif
 
