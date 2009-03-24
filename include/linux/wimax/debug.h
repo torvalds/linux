@@ -178,7 +178,7 @@ void __d_head(char *head, size_t head_size,
 		WARN_ON(1);
 	} else
 		snprintf(head, head_size, "%s %s: ",
-			 dev_driver_string(dev), dev->bus_id);
+			 dev_driver_string(dev), dev_name(dev));
 }
 
 

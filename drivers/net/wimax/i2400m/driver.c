@@ -613,7 +613,7 @@ int i2400m_setup(struct i2400m *i2400m, enum i2400m_bri bm_flags)
 	d_fnstart(3, dev, "(i2400m %p)\n", i2400m);
 
 	snprintf(wimax_dev->name, sizeof(wimax_dev->name),
-		 "i2400m-%s:%s", dev->bus->name, dev->bus_id);
+		 "i2400m-%s:%s", dev->bus->name, dev_name(dev));
 
 	i2400m->bm_cmd_buf = kzalloc(I2400M_BM_CMD_BUF_SIZE, GFP_KERNEL);
 	if (i2400m->bm_cmd_buf == NULL) {
