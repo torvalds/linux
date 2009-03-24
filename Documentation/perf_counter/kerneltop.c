@@ -1157,10 +1157,10 @@ static void mmap_read(struct mmap_data *md)
 
 int main(int argc, char *argv[])
 {
-	struct pollfd event_array[MAX_NR_CPUS][MAX_COUNTERS];
+	struct pollfd event_array[MAX_NR_CPUS * MAX_COUNTERS];
 	struct mmap_data mmap_array[MAX_NR_CPUS][MAX_COUNTERS];
 	struct perf_counter_hw_event hw_event;
-	int i, counter, group_fd;
+	int i, counter, group_fd, nr_poll = 0;
 	unsigned int cpu;
 	int ret;
 
@@ -1214,8 +1214,9 @@ int main(int argc, char *argv[])
 			if (group && group_fd == -1)
 				group_fd = fd[i][counter];
 
-			event_array[i][counter].fd = fd[i][counter];
-			event_array[i][counter].events = POLLIN;
+			event_array[nr_poll].fd = fd[i][counter];
+			event_array[nr_poll].events = POLLIN;
+			nr_poll++;
 
 			mmap_array[i][counter].counter = counter;
 			mmap_array[i][counter].prev = 0;
@@ -1247,7 +1248,7 @@ int main(int argc, char *argv[])
 		}
 
 		if (hits == events)
-			ret = poll(event_array[0], nr_cpus, 1000);
+			ret = poll(event_array, nr_poll, 1000);
 		hits = events;
 	}
 
