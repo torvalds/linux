@@ -3,7 +3,7 @@ BINS = kerneltop perfstat
 all: $(BINS)
 
 kerneltop: kerneltop.c ../../include/linux/perf_counter.h
-	cc -O6 -Wall -lrt `pkg-config --cflags --libs glib-2.0` -o $@ $<
+	cc -O6 -Wall -lrt -o $@ $<
 
 perfstat: kerneltop
 	ln -sf kerneltop perfstat
