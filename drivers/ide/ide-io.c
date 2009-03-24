@@ -887,6 +887,29 @@ static void ide_plug_device(ide_drive_t *drive)
 	spin_unlock_irqrestore(q->queue_lock, flags);
 }
 
+static int drive_is_ready(ide_drive_t *drive)
+{
+	ide_hwif_t *hwif = drive->hwif;
+	u8 stat = 0;
+
+	if (drive->waiting_for_dma)
+		return hwif->dma_ops->dma_test_irq(drive);
+
+	if (hwif->io_ports.ctl_addr &&
+	    (hwif->host_flags & IDE_HFLAG_BROKEN_ALTSTATUS) == 0)
+		stat = hwif->tp_ops->read_altstatus(hwif);
+	else
+		/* Note: this may clear a pending IRQ!! */
+		stat = hwif->tp_ops->read_status(hwif);
+
+	if (stat & ATA_BUSY)
+		/* drive busy: definitely not interrupting */
+		return 0;
+
+	/* drive ready: *might* be interrupting */
+	return 1;
+}
+
 /**
  *	ide_timer_expiry	-	handle lack of an IDE interrupt
  *	@data: timer callback magic (hwif)

@@ -438,31 +438,6 @@ void ide_fixstring (u8 *s, const int bytecount, const int byteswap)
 
 EXPORT_SYMBOL(ide_fixstring);
 
-int drive_is_ready (ide_drive_t *drive)
-{
-	ide_hwif_t *hwif	= drive->hwif;
-	u8 stat			= 0;
-
-	if (drive->waiting_for_dma)
-		return hwif->dma_ops->dma_test_irq(drive);
-
-	if (hwif->io_ports.ctl_addr &&
-	    (hwif->host_flags & IDE_HFLAG_BROKEN_ALTSTATUS) == 0)
-		stat = hwif->tp_ops->read_altstatus(hwif);
-	else
-		/* Note: this may clear a pending IRQ!! */
-		stat = hwif->tp_ops->read_status(hwif);
-
-	if (stat & ATA_BUSY)
-		/* drive busy:  definitely not interrupting */
-		return 0;
-
-	/* drive ready: *might* be interrupting */
-	return 1;
-}
-
-EXPORT_SYMBOL(drive_is_ready);
-
 /*
  * This routine busy-waits for the drive status to be not "busy".
  * It then checks the status for all of the "good" bits and none
