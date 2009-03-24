@@ -374,7 +374,6 @@ static struct omap_uart_config sx1_uart_config __initdata = {
 };
 
 static struct omap_board_config_kernel sx1_config[] __initdata = {
-	{ OMAP_TAG_USB,	&sx1_usb_config },
 	{ OMAP_TAG_LCD,	&sx1_lcd_config },
 	{ OMAP_TAG_UART,	&sx1_uart_config },
 };
@@ -389,6 +388,7 @@ static void __init omap_sx1_init(void)
 	omap_board_config_size = ARRAY_SIZE(sx1_config);
 	omap_serial_init();
 	omap_register_i2c_bus(1, 100, NULL, 0);
+	omap_usb_init(&sx1_usb_config);
 	sx1_mmc_init();
 
 	/* turn on USB power */

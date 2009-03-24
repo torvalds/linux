@@ -304,7 +304,6 @@ static struct omap_lcd_config osk_lcd_config __initdata = {
 #endif
 
 static struct omap_board_config_kernel osk_config[] __initdata = {
-	{ OMAP_TAG_USB,           &osk_usb_config },
 	{ OMAP_TAG_UART,		&osk_uart_config },
 #ifdef	CONFIG_OMAP_OSK_MISTRAL
 	{ OMAP_TAG_LCD,			&osk_lcd_config },
@@ -554,6 +553,8 @@ static void __init osk_init(void)
 	l = omap_readl(USB_TRANSCEIVER_CTRL);
 	l |= (3 << 1);
 	omap_writel(l, USB_TRANSCEIVER_CTRL);
+
+	omap_usb_init(&osk_usb_config);
 
 	/* irq for tps65010 chip */
 	/* bootloader effectively does:  omap_cfg_reg(U19_1610_MPUIO1); */
