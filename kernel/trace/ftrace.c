@@ -2264,7 +2264,7 @@ ftrace_pid_read(struct file *file, char __user *ubuf,
 	if (ftrace_pid_trace == ftrace_swapper_pid)
 		r = sprintf(buf, "swapper tasks\n");
 	else if (ftrace_pid_trace)
-		r = sprintf(buf, "%u\n", pid_nr(ftrace_pid_trace));
+		r = sprintf(buf, "%u\n", pid_vnr(ftrace_pid_trace));
 	else
 		r = sprintf(buf, "no pid\n");
 
