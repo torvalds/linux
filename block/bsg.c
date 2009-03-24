@@ -353,6 +353,8 @@ static void bsg_rq_end_io(struct request *rq, int uptodate)
 static void bsg_add_command(struct bsg_device *bd, struct request_queue *q,
 			    struct bsg_command *bc, struct request *rq)
 {
+	int at_head = (0 == (bc->hdr.flags & BSG_FLAG_Q_AT_TAIL));
+
 	/*
 	 * add bc command to busy queue and submit rq for io
 	 */
@@ -368,7 +370,7 @@ static void bsg_add_command(struct bsg_device *bd, struct request_queue *q,
 	dprintk("%s: queueing rq %p, bc %p\n", bd->name, rq, bc);
 
 	rq->end_io_data = bc;
-	blk_execute_rq_nowait(q, NULL, rq, 1, bsg_rq_end_io);
+	blk_execute_rq_nowait(q, NULL, rq, at_head, bsg_rq_end_io);
 }
 
 static struct bsg_command *bsg_next_done_cmd(struct bsg_device *bd)
@@ -924,6 +926,7 @@ static long bsg_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		struct request *rq;
 		struct bio *bio, *bidi_bio = NULL;
 		struct sg_io_v4 hdr;
+		int at_head;
 		u8 sense[SCSI_SENSE_BUFFERSIZE];
 
 		if (copy_from_user(&hdr, uarg, sizeof(hdr)))
@@ -936,7 +939,9 @@ static long bsg_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		bio = rq->bio;
 		if (rq->next_rq)
 			bidi_bio = rq->next_rq->bio;
-		blk_execute_rq(bd->queue, NULL, rq, 0);
+
+		at_head = (0 == (hdr.flags & BSG_FLAG_Q_AT_TAIL));
+		blk_execute_rq(bd->queue, NULL, rq, at_head);
 		ret = blk_complete_sgv4_hdr_rq(rq, &hdr, bio, bidi_bio);
 
 		if (copy_to_user(uarg, &hdr, sizeof(hdr)))
