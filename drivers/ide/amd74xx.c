@@ -187,7 +187,7 @@ static void __devinit init_hwif_amd74xx(ide_hwif_t *hwif)
 {
 	struct pci_dev *dev = to_pci_dev(hwif->dev);
 
-	if (hwif->irq == 0) /* 0 is bogus but will do for now */
+	if (ide_pci_is_in_compatibility_mode(dev))
 		hwif->irq = pci_get_legacy_ide_irq(dev, hwif->channel);
 }
 
