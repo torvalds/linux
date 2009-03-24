@@ -30,6 +30,9 @@
 #define MAILBOX_IRQ_NEWMSG(u)		(1 << (2 * (u)))
 #define MAILBOX_IRQ_NOTFULL(u)		(1 << (2 * (u) + 1))
 
+#define MBOX_REG_SIZE			0x120
+#define MBOX_NR_REGS			(MBOX_REG_SIZE / sizeof(u32))
+
 static void __iomem *mbox_base;
 
 struct omap_mbox2_fifo {
@@ -45,6 +48,7 @@ struct omap_mbox2_priv {
 	unsigned long irqstatus;
 	u32 newmsg_bit;
 	u32 notfull_bit;
+	u32 ctx[MBOX_NR_REGS];
 };
 
 static struct clk *mbox_ick_handle;
@@ -165,6 +169,32 @@ static int omap2_mbox_is_irq(struct omap_mbox *mbox,
 	return (enable & status & bit);
 }
 
+static void omap2_mbox_save_ctx(struct omap_mbox *mbox)
+{
+	int i;
+	struct omap_mbox2_priv *p = mbox->priv;
+
+	for (i = 0; i < MBOX_NR_REGS; i++) {
+		p->ctx[i] = mbox_read_reg(i * sizeof(u32));
+
+		dev_dbg(mbox->dev, "%s: [%02x] %08x\n", __func__,
+			i, p->ctx[i]);
+	}
+}
+
+static void omap2_mbox_restore_ctx(struct omap_mbox *mbox)
+{
+	int i;
+	struct omap_mbox2_priv *p = mbox->priv;
+
+	for (i = 0; i < MBOX_NR_REGS; i++) {
+		mbox_write_reg(p->ctx[i], i * sizeof(u32));
+
+		dev_dbg(mbox->dev, "%s: [%02x] %08x\n", __func__,
+			i, p->ctx[i]);
+	}
+}
+
 static struct omap_mbox_ops omap2_mbox_ops = {
 	.type		= OMAP_MBOX_TYPE2,
 	.startup	= omap2_mbox_startup,
@@ -177,6 +207,8 @@ static struct omap_mbox_ops omap2_mbox_ops = {
 	.disable_irq	= omap2_mbox_disable_irq,
 	.ack_irq	= omap2_mbox_ack_irq,
 	.is_irq		= omap2_mbox_is_irq,
+	.save_ctx	= omap2_mbox_save_ctx,
+	.restore_ctx	= omap2_mbox_restore_ctx,
 };
 
 /*
