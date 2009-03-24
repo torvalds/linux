@@ -612,8 +612,8 @@ qla2xxx_find_flt_start(scsi_qla_host_t *vha, uint32_t *start)
 
 	/* Good data.  Use specified location. */
 	loc = locations[1];
-	*start = le16_to_cpu(fltl->start_hi) << 16 |
-	    le16_to_cpu(fltl->start_lo);
+	*start = (le16_to_cpu(fltl->start_hi) << 16 |
+	    le16_to_cpu(fltl->start_lo)) >> 2;
 end:
 	DEBUG2(qla_printk(KERN_DEBUG, ha, "FLTL[%s] = 0x%x.\n", loc, *start));
 	return QLA_SUCCESS;
