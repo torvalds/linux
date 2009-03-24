@@ -1152,7 +1152,7 @@ static enum print_line_t blk_trace_event_print(struct trace_iterator *iter,
 	if (!trace_print_context(iter))
 		return TRACE_TYPE_PARTIAL_LINE;
 
-	if (unlikely(what == 0 || what > ARRAY_SIZE(what2act)))
+	if (unlikely(what == 0 || what >= ARRAY_SIZE(what2act)))
 		ret = trace_seq_printf(s, "Bad pc action %x\n", what);
 	else {
 		const bool long_act = !!(trace_flags & TRACE_ITER_VERBOSE);
@@ -1199,7 +1199,7 @@ static enum print_line_t blk_tracer_print_line(struct trace_iterator *iter)
 	t = (const struct blk_io_trace *)iter->ent;
 	what = t->action & ((1 << BLK_TC_SHIFT) - 1);
 
-	if (unlikely(what == 0 || what > ARRAY_SIZE(what2act)))
+	if (unlikely(what == 0 || what >= ARRAY_SIZE(what2act)))
 		ret = trace_seq_printf(&iter->seq, "Bad pc action %x\n", what);
 	else {
 		const bool long_act = !!(trace_flags & TRACE_ITER_VERBOSE);
