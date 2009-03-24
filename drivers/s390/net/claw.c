@@ -1033,7 +1033,7 @@ static int
 pages_to_order_of_mag(int num_of_pages)
 {
 	int	order_of_mag=1;		/* assume 2 pages */
-	int	nump=2;
+	int	nump;
 
 	CLAW_DBF_TEXT_(5, trace, "pages%d", num_of_pages);
 	if (num_of_pages == 1)   {return 0; }  /* magnitude of 0 = 1 page */
@@ -1187,37 +1187,31 @@ ccw_check_unit_check(struct chbk * p_ch, unsigned char sense )
 	dev_warn(dev, "The communication peer of %s disconnected\n",
 		ndev->name);
 
-        if (sense & 0x40) {
-                if (sense & 0x01) {
+	if (sense & 0x40) {
+		if (sense & 0x01) {
 			dev_warn(dev, "The remote channel adapter for"
 				" %s has been reset\n",
 				ndev->name);
-                }
-        }
-        else if (sense & 0x20) {
-                if (sense & 0x04) {
+		}
+	} else if (sense & 0x20) {
+		if (sense & 0x04) {
 			dev_warn(dev, "A data streaming timeout occurred"
 				" for %s\n",
 				ndev->name);
-                }
-                else  {
-			dev_warn(dev, "A data transfer parity error occurred"
-				" for %s\n",
-				ndev->name);
-                }
-        }
-        else if (sense & 0x10) {
-                if (sense & 0x20) {
+		} else if (sense & 0x10) {
 			dev_warn(dev, "The remote channel adapter for %s"
 				" is faulty\n",
 				ndev->name);
-                }
-                else {
-			dev_warn(dev, "A read data parity error occurred"
+		} else {
+			dev_warn(dev, "A data transfer parity error occurred"
 				" for %s\n",
 				ndev->name);
-                }
-        }
+		}
+	} else if (sense & 0x10) {
+		dev_warn(dev, "A read data parity error occurred"
+			" for %s\n",
+			ndev->name);
+	}
 
 }   /*    end of ccw_check_unit_check    */
 
@@ -1254,7 +1248,7 @@ find_link(struct net_device *dev, char *host_name, char *ws_name )
 			break;
 	}
 
-        return 0;
+	return rc;
 }    /*    end of find_link    */
 
 /*-------------------------------------------------------------------*
@@ -1366,7 +1360,10 @@ claw_hw_tx(struct sk_buff *skb, struct net_device *dev, long linkid)
                 privptr->p_write_free_chain=p_this_ccw->next;
                 p_this_ccw->next=NULL;
                 --privptr->write_free_count; /* -1 */
-                bytesInThisBuffer=len_of_data;
+		if (len_of_data >= privptr->p_env->write_size)
+			bytesInThisBuffer = privptr->p_env->write_size;
+		else
+			bytesInThisBuffer = len_of_data;
                 memcpy( p_this_ccw->p_buffer,pDataAddress, bytesInThisBuffer);
                 len_of_data-=bytesInThisBuffer;
                 pDataAddress+=(unsigned long)bytesInThisBuffer;
@@ -2517,7 +2514,6 @@ unpack_read(struct net_device *dev )
 	p_dev = &privptr->channel[READ].cdev->dev;
 	p_env = privptr->p_env;
         p_this_ccw=privptr->p_read_active_first;
-        i=0;
 	while (p_this_ccw!=NULL && p_this_ccw->header.flag!=CLAW_PENDING) {
 		pack_off = 0;
 		p = 0;
