@@ -340,12 +340,14 @@ int ide_driveid_update(ide_drive_t *drive)
 	}
 
 	local_irq_save(flags);
-	SELECT_MASK(drive, 0);
 	tp_ops->input_data(drive, NULL, id, SECTOR_SIZE);
 	(void)tp_ops->read_status(hwif);	/* clear drive IRQ */
 	local_irq_enable();
 	local_irq_restore(flags);
+
 	ide_fix_driveid(id);
+
+	SELECT_MASK(drive, 0);
 
 	drive->id[ATA_ID_UDMA_MODES]  = id[ATA_ID_UDMA_MODES];
 	drive->id[ATA_ID_MWDMA_MODES] = id[ATA_ID_MWDMA_MODES];
