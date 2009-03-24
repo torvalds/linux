@@ -86,6 +86,7 @@ struct netlink_sock {
 #define NETLINK_KERNEL_SOCKET	0x1
 #define NETLINK_RECV_PKTINFO	0x2
 #define NETLINK_BROADCAST_SEND_ERROR	0x4
+#define NETLINK_RECV_NO_ENOBUFS	0x8
 
 static inline struct netlink_sock *nlk_sk(struct sock *sk)
 {
@@ -717,10 +718,15 @@ static int netlink_getname(struct socket *sock, struct sockaddr *addr,
 
 static void netlink_overrun(struct sock *sk)
 {
-	if (!test_and_set_bit(0, &nlk_sk(sk)->state)) {
-		sk->sk_err = ENOBUFS;
-		sk->sk_error_report(sk);
+	struct netlink_sock *nlk = nlk_sk(sk);
+
+	if (!(nlk->flags & NETLINK_RECV_NO_ENOBUFS)) {
+		if (!test_and_set_bit(0, &nlk_sk(sk)->state)) {
+			sk->sk_err = ENOBUFS;
+			sk->sk_error_report(sk);
+		}
 	}
+	atomic_inc(&sk->sk_drops);
 }
 
 static struct sock *netlink_getsockbypid(struct sock *ssk, u32 pid)
@@ -1182,6 +1188,15 @@ static int netlink_setsockopt(struct socket *sock, int level, int optname,
 			nlk->flags &= ~NETLINK_BROADCAST_SEND_ERROR;
 		err = 0;
 		break;
+	case NETLINK_NO_ENOBUFS:
+		if (val) {
+			nlk->flags |= NETLINK_RECV_NO_ENOBUFS;
+			clear_bit(0, &nlk->state);
+			wake_up_interruptible(&nlk->wait);
+		} else
+			nlk->flags &= ~NETLINK_RECV_NO_ENOBUFS;
+		err = 0;
+		break;
 	default:
 		err = -ENOPROTOOPT;
 	}
@@ -1219,6 +1234,16 @@ static int netlink_getsockopt(struct socket *sock, int level, int optname,
 			return -EINVAL;
 		len = sizeof(int);
 		val = nlk->flags & NETLINK_BROADCAST_SEND_ERROR ? 1 : 0;
+		if (put_user(len, optlen) ||
+		    put_user(val, optval))
+			return -EFAULT;
+		err = 0;
+		break;
+	case NETLINK_NO_ENOBUFS:
+		if (len < sizeof(int))
+			return -EINVAL;
+		len = sizeof(int);
+		val = nlk->flags & NETLINK_RECV_NO_ENOBUFS ? 1 : 0;
 		if (put_user(len, optlen) ||
 		    put_user(val, optval))
 			return -EFAULT;
@@ -1879,12 +1904,12 @@ static int netlink_seq_show(struct seq_file *seq, void *v)
 	if (v == SEQ_START_TOKEN)
 		seq_puts(seq,
 			 "sk       Eth Pid    Groups   "
-			 "Rmem     Wmem     Dump     Locks\n");
+			 "Rmem     Wmem     Dump     Locks     Drops\n");
 	else {
 		struct sock *s = v;
 		struct netlink_sock *nlk = nlk_sk(s);
 
-		seq_printf(seq, "%p %-3d %-6d %08x %-8d %-8d %p %d\n",
+		seq_printf(seq, "%p %-3d %-6d %08x %-8d %-8d %p %-8d %-8d\n",
 			   s,
 			   s->sk_protocol,
 			   nlk->pid,
@@ -1892,7 +1917,8 @@ static int netlink_seq_show(struct seq_file *seq, void *v)
 			   atomic_read(&s->sk_rmem_alloc),
 			   atomic_read(&s->sk_wmem_alloc),
 			   nlk->cb,
-			   atomic_read(&s->sk_refcnt)
+			   atomic_read(&s->sk_refcnt),
+			   atomic_read(&s->sk_drops)
 			);
 
 	}
