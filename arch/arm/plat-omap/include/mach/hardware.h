@@ -302,14 +302,6 @@
 #include "board-h2.h"
 #endif
 
-#ifdef CONFIG_MACH_OMAP_PERSEUS2
-#include "board-perseus2.h"
-#endif
-
-#ifdef CONFIG_MACH_OMAP_FSAMPLE
-#include "board-fsample.h"
-#endif
-
 #ifdef CONFIG_MACH_OMAP_H3
 #include "board-h3.h"
 #endif
