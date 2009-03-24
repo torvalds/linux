@@ -126,6 +126,14 @@ void __init s3c64xx_init_io(struct map_desc *mach_desc, int size)
 	iotable_init(mach_desc, size);
 
 	idcode = __raw_readl(S3C_VA_SYS + 0x118);
+	if (!idcode) {
+		/* S3C6400 has the ID register in a different place,
+		 * and needs a write before it can be read. */
+
+		__raw_writel(0x0, S3C_VA_SYS + 0xA1C);
+		idcode = __raw_readl(S3C_VA_SYS + 0xA1C);
+	}
+
 	s3c_init_cpu(idcode, cpu_ids, ARRAY_SIZE(cpu_ids));
 }
 
