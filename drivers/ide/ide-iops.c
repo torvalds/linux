@@ -438,9 +438,6 @@ void ide_fixstring (u8 *s, const int bytecount, const int byteswap)
 
 EXPORT_SYMBOL(ide_fixstring);
 
-/*
- * Needed for PCI irq sharing
- */
 int drive_is_ready (ide_drive_t *drive)
 {
 	ide_hwif_t *hwif	= drive->hwif;
@@ -449,12 +446,6 @@ int drive_is_ready (ide_drive_t *drive)
 	if (drive->waiting_for_dma)
 		return hwif->dma_ops->dma_test_irq(drive);
 
-	/*
-	 * We do a passive status test under shared PCI interrupts on
-	 * cards that truly share the ATA side interrupt, but may also share
-	 * an interrupt with another pci card/device.  We make no assumptions
-	 * about possible isa-pnp and pci-pnp issues yet.
-	 */
 	if (hwif->io_ports.ctl_addr &&
 	    (hwif->host_flags & IDE_HFLAG_BROKEN_ALTSTATUS) == 0)
 		stat = hwif->tp_ops->read_altstatus(hwif);
