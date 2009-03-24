@@ -175,9 +175,6 @@ static int __init omap3_beagle_i2c_init(void)
 {
 	omap_register_i2c_bus(1, 2600, beagle_i2c_boardinfo,
 			ARRAY_SIZE(beagle_i2c_boardinfo));
-#ifdef CONFIG_I2C2_OMAP_BEAGLE
-	omap_register_i2c_bus(2, 400, NULL, 0);
-#endif
 	/* Bus 3 is attached to the DVI port where devices like the pico DLP
 	 * projector don't work reliably with 400kHz */
 	omap_register_i2c_bus(3, 100, NULL, 0);
