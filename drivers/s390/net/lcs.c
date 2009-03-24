@@ -1562,7 +1562,7 @@ __lcs_start_xmit(struct lcs_card *card, struct sk_buff *skb,
 	if (skb == NULL) {
 		card->stats.tx_dropped++;
 		card->stats.tx_errors++;
-		return -EIO;
+		return 0;
 	}
 	if (card->state != DEV_STATE_UP) {
 		dev_kfree_skb(skb);
@@ -1587,7 +1587,7 @@ __lcs_start_xmit(struct lcs_card *card, struct sk_buff *skb,
 		card->tx_buffer = lcs_get_buffer(&card->write);
 		if (card->tx_buffer == NULL) {
 			card->stats.tx_dropped++;
-			rc = -EBUSY;
+			rc = NETDEV_TX_BUSY;
 			goto out;
 		}
 		card->tx_buffer->callback = lcs_txbuffer_cb;
