@@ -348,6 +348,8 @@ claw_tx(struct sk_buff *skb, struct net_device *dev)
         rc=claw_hw_tx( skb, dev, 1 );
         spin_unlock_irqrestore(get_ccwdev_lock(p_ch->cdev), saveflags);
 	CLAW_DBF_TEXT_(4, trace, "clawtx%d", rc);
+	if (rc)
+		rc = NETDEV_TX_BUSY;
         return rc;
 }   /*  end of claw_tx */
 
