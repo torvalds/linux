@@ -852,9 +852,6 @@ qla2x00_process_completed_request(struct scsi_qla_host *vha,
 		/* Free outstanding command slot. */
 		req->outstanding_cmds[index] = NULL;
 
-		CMD_COMPL_STATUS(sp->cmd) = 0L;
-		CMD_SCSI_STATUS(sp->cmd) = 0L;
-
 		/* Save ISP completion status */
 		sp->cmd->result = DID_OK << 16;
 
@@ -955,7 +952,6 @@ qla2x00_handle_sense(srb_t *sp, uint8_t *sense_data, uint32_t sense_len)
 	if (sense_len >= SCSI_SENSE_BUFFERSIZE)
 		sense_len = SCSI_SENSE_BUFFERSIZE;
 
-	CMD_ACTUAL_SNSLEN(cp) = sense_len;
 	sp->request_sense_length = sense_len;
 	sp->request_sense_ptr = cp->sense_buffer;
 	if (sp->request_sense_length > 32)
@@ -973,8 +969,7 @@ qla2x00_handle_sense(srb_t *sp, uint8_t *sense_data, uint32_t sense_len)
 	    cp->device->channel, cp->device->id, cp->device->lun, cp,
 	    cp->serial_number));
 	if (sense_len)
-		DEBUG5(qla2x00_dump_buffer(cp->sense_buffer,
-		    CMD_ACTUAL_SNSLEN(cp)));
+		DEBUG5(qla2x00_dump_buffer(cp->sense_buffer, sense_len));
 }
 
 /**
@@ -1043,9 +1038,6 @@ qla2x00_status_entry(scsi_qla_host_t *vha, struct rsp_que *rsp, void *pkt)
 	}
 
   	lscsi_status = scsi_status & STATUS_MASK;
-	CMD_ENTRY_STATUS(cp) = sts->entry_status;
-	CMD_COMPL_STATUS(cp) = comp_status;
-	CMD_SCSI_STATUS(cp) = scsi_status;
 
 	fcport = sp->fcport;
 
@@ -1104,7 +1096,6 @@ qla2x00_status_entry(scsi_qla_host_t *vha, struct rsp_que *rsp, void *pkt)
 		if (scsi_status & (SS_RESIDUAL_UNDER | SS_RESIDUAL_OVER)) {
 			resid = resid_len;
 			scsi_set_resid(cp, resid);
-			CMD_RESID_LEN(cp) = resid;
 
 			if (!lscsi_status &&
 			    ((unsigned)(scsi_bufflen(cp) - resid) <
@@ -1160,7 +1151,6 @@ qla2x00_status_entry(scsi_qla_host_t *vha, struct rsp_que *rsp, void *pkt)
 
 		if (scsi_status & SS_RESIDUAL_UNDER) {
 			scsi_set_resid(cp, resid);
-			CMD_RESID_LEN(cp) = resid;
 		} else {
 			DEBUG2(printk(KERN_INFO
 			    "scsi(%ld:%d:%d) UNDERRUN status detected "

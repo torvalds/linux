@@ -2856,19 +2856,11 @@ qla2x00_timer(scsi_qla_host_t *vha)
 				spin_unlock_irqrestore(&ha->hardware_lock,
 								cpu_flags);
 			}
-			set_bit(ABORT_QUEUES_NEEDED, &vha->dpc_flags);
 			start_dpc++;
 		}
 
 		/* if the loop has been down for 4 minutes, reinit adapter */
 		if (atomic_dec_and_test(&vha->loop_down_timer) != 0) {
-			DEBUG(printk("scsi(%ld): Loop down exceed 4 mins - "
-			    "restarting queues.\n",
-			    vha->host_no));
-
-			set_bit(RESTART_QUEUES_NEEDED, &vha->dpc_flags);
-			start_dpc++;
-
 			if (!(vha->device_flags & DFLG_NO_CABLE) &&
 			    !vha->vp_idx) {
 				DEBUG(printk("scsi(%ld): Loop down - "

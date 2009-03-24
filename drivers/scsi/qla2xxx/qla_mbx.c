@@ -1197,10 +1197,6 @@ qla2x00_get_port_database(scsi_qla_host_t *vha, fc_port_t *fcport, uint8_t opt)
 		fcport->d_id.b.al_pa = pd->port_id[2];
 		fcport->d_id.b.rsvd_1 = 0;
 
-		/* Check for device require authentication. */
-		pd->common_features & BIT_5 ? (fcport->flags |= FCF_AUTH_REQ) :
-		    (fcport->flags &= ~FCF_AUTH_REQ);
-
 		/* If not target must be initiator or unknown type. */
 		if ((pd->prli_svc_param_word_3[0] & BIT_4) == 0)
 			fcport->port_type = FCT_INITIATOR;

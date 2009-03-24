@@ -72,7 +72,6 @@ qla2x00_initialize_adapter(scsi_qla_host_t *vha)
 	vha->dpc_flags = 0;
 	vha->flags.management_server_logged_in = 0;
 	vha->marker_needed = 0;
-	ha->mbx_flags = 0;
 	ha->isp_abort_cnt = 0;
 	ha->beacon_blink_led = 0;
 	set_bit(REGISTER_FDMI_NEEDED, &vha->dpc_flags);
@@ -515,7 +514,6 @@ qla2x00_reset_chip(scsi_qla_host_t *vha)
 static inline void
 qla24xx_reset_risc(scsi_qla_host_t *vha)
 {
-	int hw_evt = 0;
 	unsigned long flags = 0;
 	struct qla_hw_data *ha = vha->hw;
 	struct device_reg_24xx __iomem *reg = &ha->iobase->isp24;
@@ -545,8 +543,6 @@ qla24xx_reset_risc(scsi_qla_host_t *vha)
 		d2 = (uint32_t) RD_REG_WORD(&reg->mailbox0);
 		barrier();
 	}
-	if (cnt == 0)
-		hw_evt = 1;
 
 	/* Wait for soft-reset to complete. */
 	d2 = RD_REG_DWORD(&reg->ctrl_status);
@@ -2011,7 +2007,6 @@ qla2x00_alloc_fcport(scsi_qla_host_t *vha, gfp_t flags)
 	fcport->port_type = FCT_UNKNOWN;
 	fcport->loop_id = FC_NO_LOOP_ID;
 	atomic_set(&fcport->state, FCS_UNCONFIGURED);
-	fcport->flags = FCF_RLC_SUPPORT;
 	fcport->supported_classes = FC_COS_UNSPECIFIED;
 
 	return fcport;
@@ -2193,7 +2188,6 @@ qla2x00_configure_local_loop(scsi_qla_host_t *vha)
 			    vha->host_no, fcport->loop_id));
 
 			atomic_set(&fcport->state, FCS_DEVICE_LOST);
-			fcport->flags &= ~FCF_FARP_DONE;
 		}
 	}
 
@@ -2250,8 +2244,7 @@ qla2x00_configure_local_loop(scsi_qla_host_t *vha)
 			    WWN_SIZE))
 				continue;
 
-			fcport->flags &= ~(FCF_FABRIC_DEVICE |
-			    FCF_PERSISTENT_BOUND);
+			fcport->flags &= ~FCF_FABRIC_DEVICE;
 			fcport->loop_id = new_fcport->loop_id;
 			fcport->port_type = new_fcport->port_type;
 			fcport->d_id.b24 = new_fcport->d_id.b24;
@@ -2264,7 +2257,6 @@ qla2x00_configure_local_loop(scsi_qla_host_t *vha)
 
 		if (!found) {
 			/* New device, add to fcports list. */
-			new_fcport->flags &= ~FCF_PERSISTENT_BOUND;
 			if (vha->vp_idx) {
 				new_fcport->vha = vha;
 				new_fcport->vp_idx = vha->vp_idx;
@@ -2295,11 +2287,6 @@ cleanup_allocation:
 	if (rval != QLA_SUCCESS) {
 		DEBUG2(printk("scsi(%ld): Configure local loop error exit: "
 		    "rval=%x\n", vha->host_no, rval));
-	}
-
-	if (found_devs) {
-		vha->device_flags |= DFLG_LOCAL_DEVICES;
-		vha->device_flags &= ~DFLG_RETRY_LOCAL_DEVICES;
 	}
 
 	return (rval);
@@ -2787,7 +2774,6 @@ qla2x00_find_all_fabric_devs(scsi_qla_host_t *vha,
 				fcport->loop_id = FC_NO_LOOP_ID;
 				fcport->flags |= (FCF_FABRIC_DEVICE |
 				    FCF_LOGIN_NEEDED);
-				fcport->flags &= ~FCF_PERSISTENT_BOUND;
 				break;
 			}
 
@@ -2829,9 +2815,6 @@ qla2x00_find_all_fabric_devs(scsi_qla_host_t *vha,
 
 	kfree(swl);
 	kfree(new_fcport);
-
-	if (!list_empty(new_fcports))
-		vha->device_flags |= DFLG_FABRIC_DEVICES;
 
 	return (rval);
 }
@@ -3015,7 +2998,6 @@ qla2x00_device_resync(scsi_qla_host_t *vha)
 					    0, 0);
 				}
 			}
-			fcport->flags &= ~FCF_FARP_DONE;
 		}
 	}
 	return (rval);

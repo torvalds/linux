@@ -201,20 +201,7 @@ typedef struct srb {
 /*
  * SRB flag definitions
  */
-#define SRB_TIMEOUT		BIT_0	/* Command timed out */
-#define SRB_DMA_VALID		BIT_1	/* Command sent to ISP */
-#define SRB_WATCHDOG		BIT_2	/* Command on watchdog list */
-#define SRB_ABORT_PENDING	BIT_3	/* Command abort sent to device */
-
-#define SRB_ABORTED		BIT_4	/* Command aborted command already */
-#define SRB_RETRY		BIT_5	/* Command needs retrying */
-#define SRB_GOT_SENSE		BIT_6	/* Command has sense data */
-#define SRB_FAILOVER		BIT_7	/* Command in failover state */
-
-#define SRB_BUSY		BIT_8	/* Command is in busy retry state */
-#define SRB_FO_CANCEL		BIT_9	/* Command don't need to do failover */
-#define SRB_IOCTL		BIT_10	/* IOCTL command. */
-#define SRB_TAPE		BIT_11	/* FCP2 (Tape) command. */
+#define SRB_DMA_VALID		BIT_0	/* Command sent to ISP */
 
 /*
  * ISP I/O Register Set structure definitions.
@@ -1570,39 +1557,13 @@ typedef struct fc_port {
 #define FCS_DEVICE_DEAD		2
 #define FCS_DEVICE_LOST		3
 #define FCS_ONLINE		4
-#define FCS_NOT_SUPPORTED	5
-#define FCS_FAILOVER		6
-#define FCS_FAILOVER_FAILED	7
 
 /*
  * FC port flags.
  */
 #define FCF_FABRIC_DEVICE	BIT_0
 #define FCF_LOGIN_NEEDED	BIT_1
-#define FCF_FO_MASKED		BIT_2
-#define FCF_FAILOVER_NEEDED	BIT_3
-#define FCF_RESET_NEEDED	BIT_4
-#define FCF_PERSISTENT_BOUND	BIT_5
-#define FCF_TAPE_PRESENT	BIT_6
-#define FCF_FARP_DONE		BIT_7
-#define FCF_FARP_FAILED		BIT_8
-#define FCF_FARP_REPLY_NEEDED	BIT_9
-#define FCF_AUTH_REQ		BIT_10
-#define FCF_SEND_AUTH_REQ	BIT_11
-#define FCF_RECEIVE_AUTH_REQ	BIT_12
-#define FCF_AUTH_SUCCESS	BIT_13
-#define FCF_RLC_SUPPORT		BIT_14
-#define FCF_CONFIG		BIT_15	/* Needed? */
-#define FCF_RESCAN_NEEDED	BIT_16
-#define FCF_XP_DEVICE		BIT_17
-#define FCF_MSA_DEVICE		BIT_18
-#define FCF_EVA_DEVICE		BIT_19
-#define FCF_MSA_PORT_ACTIVE	BIT_20
-#define FCF_FAILBACK_DISABLE	BIT_21
-#define FCF_FAILOVER_DISABLE	BIT_22
-#define FCF_DSXXX_DEVICE	BIT_23
-#define FCF_AA_EVA_DEVICE	BIT_24
-#define FCF_AA_MSA_DEVICE	BIT_25
+#define FCF_TAPE_PRESENT	BIT_2
 
 /* No loop ID flag. */
 #define FC_NO_LOOP_ID		0x1000
@@ -2257,7 +2218,6 @@ struct qla_hw_data {
 		uint32_t	msix_enabled		:1;
 		uint32_t	disable_serdes		:1;
 		uint32_t	gpsc_supported		:1;
-		uint32_t	vsan_enabled		:1;
 		uint32_t	npiv_supported		:1;
 		uint32_t	fce_enabled		:1;
 		uint32_t	fac_supported		:1;
@@ -2302,7 +2262,6 @@ struct qla_hw_data {
 	uint16_t	max_loop_id;
 
 	uint16_t	fb_rev;
-	uint16_t	max_public_loop_ids;
 	uint16_t	min_external_loopid;    /* First external loop Id */
 
 #define PORT_SPEED_UNKNOWN 0xFFFF
@@ -2458,15 +2417,6 @@ struct qla_hw_data {
 	struct completion mbx_cmd_comp; /* Serialize mbx access */
 	struct completion mbx_intr_comp;  /* Used for completion notification */
 
-	uint32_t	mbx_flags;
-#define  MBX_IN_PROGRESS	BIT_0
-#define  MBX_BUSY		BIT_1   /* Got the Access */
-#define  MBX_SLEEPING_ON_SEM	BIT_2
-#define  MBX_POLLING_FOR_COMP	BIT_3
-#define  MBX_COMPLETED		BIT_4
-#define  MBX_TIMEDOUT		BIT_5
-#define  MBX_ACCESS_TIMEDOUT	BIT_6
-
 	/* Basic firmware related information. */
 	uint16_t	fw_major_version;
 	uint16_t	fw_minor_version;
@@ -2619,36 +2569,19 @@ typedef struct scsi_qla_host {
 #define LOOP_RESYNC_ACTIVE	5
 #define LOCAL_LOOP_UPDATE	6	/* Perform a local loop update. */
 #define RSCN_UPDATE		7	/* Perform an RSCN update. */
-#define MAILBOX_RETRY		8
-#define ISP_RESET_NEEDED	9	/* Initiate a ISP reset. */
-#define FAILOVER_EVENT_NEEDED	10
-#define FAILOVER_EVENT		11
-#define FAILOVER_NEEDED		12
-#define SCSI_RESTART_NEEDED	13	/* Processes SCSI retry queue. */
-#define PORT_RESTART_NEEDED	14	/* Processes Retry queue. */
-#define RESTART_QUEUES_NEEDED	15	/* Restarts the Lun queue. */
-#define ABORT_QUEUES_NEEDED	16
-#define RELOGIN_NEEDED		17
-#define LOGIN_RETRY_NEEDED	18	/* Initiate required fabric logins. */
-#define REGISTER_FC4_NEEDED	19	/* SNS FC4 registration required. */
-#define ISP_ABORT_RETRY		20	/* ISP aborted. */
-#define FCPORT_RESCAN_NEEDED	21	/* IO descriptor processing needed */
-#define IODESC_PROCESS_NEEDED	22	/* IO descriptor processing needed */
-#define IOCTL_ERROR_RECOVERY	23
-#define LOOP_RESET_NEEDED	24
-#define BEACON_BLINK_NEEDED	25
-#define REGISTER_FDMI_NEEDED	26
-#define FCPORT_UPDATE_NEEDED	27
-#define VP_DPC_NEEDED		28	/* wake up for VP dpc handling */
-#define UNLOADING		29
-#define NPIV_CONFIG_NEEDED	30
+#define RELOGIN_NEEDED		8
+#define REGISTER_FC4_NEEDED	9	/* SNS FC4 registration required. */
+#define ISP_ABORT_RETRY		10	/* ISP aborted. */
+#define BEACON_BLINK_NEEDED	11
+#define REGISTER_FDMI_NEEDED	12
+#define FCPORT_UPDATE_NEEDED	13
+#define VP_DPC_NEEDED		14	/* wake up for VP dpc handling */
+#define UNLOADING		15
+#define NPIV_CONFIG_NEEDED	16
 
 	uint32_t	device_flags;
-#define DFLG_LOCAL_DEVICES		BIT_0
-#define DFLG_RETRY_LOCAL_DEVICES	BIT_1
-#define DFLG_FABRIC_DEVICES		BIT_2
-#define SWITCH_FOUND			BIT_3
-#define DFLG_NO_CABLE			BIT_4
+#define SWITCH_FOUND		BIT_0
+#define DFLG_NO_CABLE		BIT_1
 
 	srb_t		*status_srb;	/* Status continuation entry. */
 
@@ -2761,10 +2694,5 @@ typedef struct scsi_qla_host {
 #include "qla_inline.h"
 
 #define CMD_SP(Cmnd)		((Cmnd)->SCp.ptr)
-#define CMD_COMPL_STATUS(Cmnd)  ((Cmnd)->SCp.this_residual)
-#define CMD_RESID_LEN(Cmnd)	((Cmnd)->SCp.buffers_residual)
-#define CMD_SCSI_STATUS(Cmnd)	((Cmnd)->SCp.Status)
-#define CMD_ACTUAL_SNSLEN(Cmnd)	((Cmnd)->SCp.Message)
-#define CMD_ENTRY_STATUS(Cmnd)	((Cmnd)->SCp.have_data_in)
 
 #endif
