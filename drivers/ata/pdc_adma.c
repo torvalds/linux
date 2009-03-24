@@ -148,6 +148,8 @@ static struct scsi_host_template adma_ata_sht = {
 static struct ata_port_operations adma_ata_ops = {
 	.inherits		= &ata_sff_port_ops,
 
+	.lost_interrupt		= ATA_OP_NULL,
+
 	.check_atapi_dma	= adma_check_atapi_dma,
 	.qc_prep		= adma_qc_prep,
 	.qc_issue		= adma_qc_issue,
