@@ -481,8 +481,8 @@ event_filter_read(struct file *filp, char __user *ubuf, size_t cnt,
 
 	trace_seq_init(s);
 
-	r = filter_print_preds(call->preds, s->buffer);
-	r = simple_read_from_buffer(ubuf, cnt, ppos, s->buffer, r);
+	filter_print_preds(call->preds, s);
+	r = simple_read_from_buffer(ubuf, cnt, ppos, s->buffer, s->len);
 
 	kfree(s);
 
@@ -547,8 +547,8 @@ subsystem_filter_read(struct file *filp, char __user *ubuf, size_t cnt,
 
 	trace_seq_init(s);
 
-	r = filter_print_preds(system->preds, s->buffer);
-	r = simple_read_from_buffer(ubuf, cnt, ppos, s->buffer, r);
+	filter_print_preds(system->preds, s);
+	r = simple_read_from_buffer(ubuf, cnt, ppos, s->buffer, s->len);
 
 	kfree(s);
 

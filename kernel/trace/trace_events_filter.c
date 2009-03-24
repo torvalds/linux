@@ -24,6 +24,7 @@
 #include <linux/ctype.h>
 
 #include "trace.h"
+#include "trace_output.h"
 
 static int filter_pred_64(struct filter_pred *pred, void *event)
 {
@@ -108,16 +109,15 @@ int filter_match_preds(struct ftrace_event_call *call, void *rec)
 	return 1;
 }
 
-int filter_print_preds(struct filter_pred **preds, char *buf)
+void filter_print_preds(struct filter_pred **preds, struct trace_seq *s)
 {
-	ssize_t this_len = 0;
 	char *field_name;
 	struct filter_pred *pred;
 	int i;
 
 	if (!preds) {
-		this_len += sprintf(buf + this_len, "none\n");
-		return this_len;
+		trace_seq_printf(s, "none\n");
+		return;
 	}
 
 	for (i = 0; i < MAX_FILTER_PRED; i++) {
@@ -125,23 +125,16 @@ int filter_print_preds(struct filter_pred **preds, char *buf)
 			pred = preds[i];
 			field_name = pred->field_name;
 			if (i)
-				this_len += sprintf(buf + this_len,
-					    pred->or ? "|| " : "&& ");
-			this_len += sprintf(buf + this_len,
-					    "%s ", field_name);
-			this_len += sprintf(buf + this_len,
-					    pred->not ? "!= " : "== ");
+				trace_seq_printf(s, pred->or ? "|| " : "&& ");
+			trace_seq_printf(s, "%s ", field_name);
+			trace_seq_printf(s, pred->not ? "!= " : "== ");
 			if (pred->str_val)
-				this_len += sprintf(buf + this_len,
-						    "%s\n", pred->str_val);
+				trace_seq_printf(s, "%s\n", pred->str_val);
 			else
-				this_len += sprintf(buf + this_len,
-						    "%llu\n", pred->val);
+				trace_seq_printf(s, "%llu\n", pred->val);
 		} else
 			break;
 	}
-
-	return this_len;
 }
 
 static struct ftrace_event_field *

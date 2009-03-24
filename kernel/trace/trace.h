@@ -840,7 +840,8 @@ struct filter_pred {
 int trace_define_field(struct ftrace_event_call *call, char *type,
 		       char *name, int offset, int size);
 extern void filter_free_pred(struct filter_pred *pred);
-extern int filter_print_preds(struct filter_pred **preds, char *buf);
+extern void filter_print_preds(struct filter_pred **preds,
+			       struct trace_seq *s);
 extern int filter_parse(char **pbuf, struct filter_pred *pred);
 extern int filter_add_pred(struct ftrace_event_call *call,
 			   struct filter_pred *pred);
