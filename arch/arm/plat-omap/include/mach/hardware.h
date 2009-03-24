@@ -318,18 +318,6 @@
 #include "board-voiceblue.h"
 #endif
 
-#ifdef CONFIG_MACH_OMAP_PALMTE
-#include "board-palmte.h"
-#endif
-
-#ifdef CONFIG_MACH_OMAP_PALMZ71
-#include "board-palmz71.h"
-#endif
-
-#ifdef CONFIG_MACH_OMAP_PALMTT
-#include "board-palmtt.h"
-#endif
-
 #ifdef CONFIG_MACH_SX1
 #include "board-sx1.h"
 #endif

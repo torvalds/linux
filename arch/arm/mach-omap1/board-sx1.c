@@ -41,6 +41,7 @@
 #include <mach/board.h>
 #include <mach/common.h>
 #include <mach/keypad.h>
+#include <mach/board-sx1.h>
 
 /* Write to I2C device */
 int sx1_i2c_write_byte(u8 devaddr, u8 regoffset, u8 value)
