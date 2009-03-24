@@ -906,11 +906,11 @@ static int ctcm_tx(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	if (ctcm_test_and_set_busy(dev))
-		return -EBUSY;
+		return NETDEV_TX_BUSY;
 
 	dev->trans_start = jiffies;
 	if (ctcm_transmit_skb(priv->channel[WRITE], skb) != 0)
-		return 1;
+		return NETDEV_TX_BUSY;
 	return 0;
 }
 
