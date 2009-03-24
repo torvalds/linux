@@ -294,10 +294,6 @@
  * ---------------------------------------------------------------------------
  */
 
-#ifdef CONFIG_MACH_OMAP_INNOVATOR
-#include "board-innovator.h"
-#endif
-
 #ifdef CONFIG_MACH_OMAP_H4
 #include "board-h4.h"
 #endif

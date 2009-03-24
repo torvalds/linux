@@ -39,6 +39,9 @@
 #include <mach/common.h>
 #include <mach/mmc.h>
 
+/* At OMAP1610 Innovator the Ethernet is directly connected to CS1 */
+#define INNOVATOR1610_ETHR_START	0x04000300
+
 static int innovator_keymap[] = {
 	KEY(0, 0, KEY_F1),
 	KEY(0, 3, KEY_DOWN),
