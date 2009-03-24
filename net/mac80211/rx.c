@@ -1884,7 +1884,7 @@ ieee80211_rx_h_mgmt(struct ieee80211_rx_data *rx)
 	if (ieee80211_vif_is_mesh(&sdata->vif))
 		return ieee80211_mesh_rx_mgmt(sdata, rx->skb, rx->status);
 
-	if (sdata->vif.type != NL80211_IFTYPE_ADHOC)
+	if (sdata->vif.type == NL80211_IFTYPE_ADHOC)
 		return ieee80211_ibss_rx_mgmt(sdata, rx->skb, rx->status);
 
 	if (sdata->vif.type == NL80211_IFTYPE_STATION)
