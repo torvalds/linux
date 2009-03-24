@@ -96,7 +96,9 @@ qla2x00_sysfs_read_nvram(struct kobject *kobj,
 	if (!capable(CAP_SYS_ADMIN))
 		return 0;
 
-	/* Read NVRAM data from cache. */
+	if (IS_NOCACHE_VPD_TYPE(ha))
+		ha->isp_ops->read_optrom(vha, ha->vpd, ha->flt_region_nvram << 2,
+		    ha->nvram_size);
 	return memory_read_from_buffer(buf, count, &off, ha->nvram,
 					ha->nvram_size);
 }
@@ -380,7 +382,9 @@ qla2x00_sysfs_read_vpd(struct kobject *kobj,
 	if (!capable(CAP_SYS_ADMIN))
 		return 0;
 
-	/* Read NVRAM data from cache. */
+	if (IS_NOCACHE_VPD_TYPE(ha))
+		ha->isp_ops->read_optrom(vha, ha->vpd, ha->flt_region_vpd << 2,
+		    ha->vpd_size);
 	return memory_read_from_buffer(buf, count, &off, ha->vpd, ha->vpd_size);
 }
 
