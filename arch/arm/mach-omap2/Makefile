@@ -39,3 +39,7 @@ obj-$(CONFIG_MACH_OVERO)		+= board-overo.o \
 obj-$(CONFIG_MACH_OMAP3_PANDORA)	+= board-omap3pandora.o \
 					   mmc-twl4030.o
 
+# Platform specific device init code
+ifeq ($(CONFIG_USB_MUSB_SOC),y)
+obj-y					+= usb-musb.o
+endif

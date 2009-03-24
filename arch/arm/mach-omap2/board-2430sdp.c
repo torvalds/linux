@@ -35,6 +35,7 @@
 #include <mach/board.h>
 #include <mach/common.h>
 #include <mach/gpmc.h>
+#include <mach/usb.h>
 
 #include "mmc-twl4030.h"
 
@@ -254,6 +255,7 @@ static void __init omap_2430sdp_init(void)
 	omap_board_config_size = ARRAY_SIZE(sdp2430_config);
 	omap_serial_init();
 	twl4030_mmc_init(mmc);
+	usb_musb_init();
 }
 
 static void __init omap_2430sdp_map_io(void)

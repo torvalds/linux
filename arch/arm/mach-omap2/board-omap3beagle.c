@@ -41,6 +41,7 @@
 #include <mach/gpmc.h>
 #include <mach/nand.h>
 #include <mach/mux.h>
+#include <mach/usb.h>
 
 #include "mmc-twl4030.h"
 
@@ -313,6 +314,7 @@ static void __init omap3_beagle_init(void)
 	/* REVISIT leave DVI powered down until it's needed ... */
 	gpio_direction_output(170, true);
 
+	usb_musb_init();
 	omap3beagle_flash_init();
 }
 

@@ -37,6 +37,7 @@
 #include <asm/io.h>
 #include <asm/delay.h>
 #include <mach/control.h>
+#include <mach/usb.h>
 
 #include "mmc-twl4030.h"
 
@@ -164,6 +165,7 @@ static void __init omap_ldp_init(void)
 	omap_board_config_size = ARRAY_SIZE(ldp_config);
 	omap_serial_init();
 	twl4030_mmc_init(mmc);
+	usb_musb_init();
 }
 
 static void __init omap_ldp_map_io(void)

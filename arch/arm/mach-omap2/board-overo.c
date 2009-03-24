@@ -43,6 +43,7 @@
 #include <mach/gpmc.h>
 #include <mach/hardware.h>
 #include <mach/nand.h>
+#include <mach/usb.h>
 
 #include "mmc-twl4030.h"
 
@@ -228,6 +229,7 @@ static void __init overo_init(void)
 	omap_serial_init();
 	twl4030_mmc_init(mmc);
 	overo_flash_init();
+	usb_musb_init();
 
 	if ((gpio_request(OVERO_GPIO_W2W_NRESET,
 			  "OVERO_GPIO_W2W_NRESET") == 0) &&

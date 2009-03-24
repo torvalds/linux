@@ -34,6 +34,7 @@
 #include <mach/gpio.h>
 #include <mach/hardware.h>
 #include <mach/mcspi.h>
+#include <mach/usb.h>
 
 #include "mmc-twl4030.h"
 
@@ -200,6 +201,7 @@ static void __init omap3pandora_init(void)
 	spi_register_board_info(omap3pandora_spi_board_info,
 			ARRAY_SIZE(omap3pandora_spi_board_info));
 	omap3pandora_ads7846_init();
+	usb_musb_init();
 }
 
 static void __init omap3pandora_map_io(void)
