@@ -1,5 +1,5 @@
 /*
- *  linux/arch/arm/mach-pxa/dma.c
+ *  linux/arch/arm/plat-pxa/dma.c
  *
  *  PXA DMA registration and IRQ dispatching
  *
@@ -34,8 +34,8 @@ static struct dma_channel *dma_channels;
 static int num_dma_channels;
 
 int pxa_request_dma (char *name, pxa_dma_prio prio,
-			 void (*irq_handler)(int, void *),
-		 	 void *data)
+			void (*irq_handler)(int, void *),
+			void *data)
 {
 	unsigned long flags;
 	int i, found = 0;

@@ -69,6 +69,6 @@ extern void clk_pxa3xx_cken_disable(struct clk *);
 #endif
 
 void clks_register(struct clk_lookup *clks, size_t num);
-int clk_add_alias(char *alias, struct device *alias_dev, char *id,
+int clk_add_alias(const char *alias, const char *alias_name, char *id,
 	struct device *dev);
 

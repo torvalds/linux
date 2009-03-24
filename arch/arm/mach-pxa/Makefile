@@ -3,8 +3,8 @@
 #
 
 # Common support (must be linked before board specific support)
-obj-y				+= clock.o devices.o generic.o irq.o dma.o \
-				   time.o gpio.o reset.o
+obj-y				+= clock.o devices.o generic.o irq.o \
+				   time.o reset.o
 obj-$(CONFIG_PM)		+= pm.o sleep.o standby.o
 
 ifeq ($(CONFIG_CPU_FREQ),y)
@@ -35,7 +35,9 @@ obj-$(CONFIG_MACH_MAINSTONE)	+= mainstone.o
 obj-$(CONFIG_MACH_MP900C)	+= mp900.o
 obj-$(CONFIG_ARCH_PXA_IDP)	+= idp.o
 obj-$(CONFIG_MACH_TRIZEPS4)	+= trizeps4.o
-obj-$(CONFIG_MACH_COLIBRI)	+= colibri.o
+obj-$(CONFIG_MACH_COLIBRI)	+= colibri-pxa270.o
+obj-$(CONFIG_MACH_COLIBRI300)	+= colibri-pxa3xx.o colibri-pxa300.o
+obj-$(CONFIG_MACH_COLIBRI320)	+= colibri-pxa3xx.o colibri-pxa320.o
 obj-$(CONFIG_MACH_H5000)	+= h5000.o
 obj-$(CONFIG_PXA_SHARP_C7xx)	+= corgi.o sharpsl_pm.o corgi_pm.o
 obj-$(CONFIG_PXA_SHARP_Cxx00)	+= spitz.o sharpsl_pm.o spitz_pm.o
