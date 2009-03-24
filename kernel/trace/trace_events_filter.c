@@ -237,9 +237,14 @@ int filter_add_pred(struct ftrace_event_call *call, struct filter_pred *pred)
 	pred->offset = field->offset;
 
 	if (is_string_field(field->type)) {
+		if (!pred->str_val)
+			return -EINVAL;
 		pred->fn = filter_pred_string;
 		pred->str_len = field->size;
 		return __filter_add_pred(call, pred);
+	} else {
+		if (pred->str_val)
+			return -EINVAL;
 	}
 
 	switch (field->size) {
