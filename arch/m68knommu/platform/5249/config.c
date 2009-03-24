@@ -32,7 +32,8 @@ static struct mcf_platform_uart m5249_uart_platform[] = {
 	{
 		.mapbase 	= MCF_MBAR + MCFUART_BASE2,
 		.irq		= 74,
-	}
+	},
+	{ },
 };
 
 static struct platform_device m5249_uart = {
