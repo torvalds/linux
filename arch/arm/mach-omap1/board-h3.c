@@ -50,6 +50,11 @@
 #include <mach/dma.h>
 #include <mach/common.h>
 
+#include "board-h3.h"
+
+/* In OMAP1710 H3 the Ethernet is directly connected to CS1 */
+#define OMAP1710_ETHR_START		0x04000300
+
 #define H3_TS_GPIO	48
 
 static int h3_keymap[] = {
