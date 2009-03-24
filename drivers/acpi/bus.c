@@ -869,6 +869,10 @@ static int __init acpi_init(void)
 		}
 	} else
 		disable_acpi();
+
+	if (acpi_disabled)
+		return result;
+
 	/*
 	 * If the laptop falls into the DMI check table, the power state check
 	 * will be disabled in the course of device power transistion.
