@@ -474,10 +474,35 @@ static int do_bio_filebacked(struct loop_device *lo, struct bio *bio)
 	int ret;
 
 	pos = ((loff_t) bio->bi_sector << 9) + lo->lo_offset;
-	if (bio_rw(bio) == WRITE)
+
+	if (bio_rw(bio) == WRITE) {
+		int barrier = bio_barrier(bio);
+		struct file *file = lo->lo_backing_file;
+
+		if (barrier) {
+			if (unlikely(!file->f_op->fsync)) {
+				ret = -EOPNOTSUPP;
+				goto out;
+			}
+
+			ret = vfs_fsync(file, file->f_path.dentry, 0);
+			if (unlikely(ret)) {
+				ret = -EIO;
+				goto out;
+			}
+		}
+
 		ret = lo_send(lo, bio, pos);
-	else
+
+		if (barrier && !ret) {
+			ret = vfs_fsync(file, file->f_path.dentry, 0);
+			if (unlikely(ret))
+				ret = -EIO;
+		}
+	} else
 		ret = lo_receive(lo, bio, lo->lo_blocksize, pos);
+
+out:
 	return ret;
 }
 
@@ -825,6 +850,9 @@ static int loop_set_fd(struct loop_device *lo, fmode_t mode,
 	blk_queue_make_request(lo->lo_queue, loop_make_request);
 	lo->lo_queue->queuedata = lo;
 	lo->lo_queue->unplug_fn = loop_unplug;
+
+	if (!(lo_flags & LO_FLAGS_READ_ONLY) && file->f_op->fsync)
+		blk_queue_ordered(lo->lo_queue, QUEUE_ORDERED_DRAIN, NULL);
 
 	set_capacity(lo->lo_disk, size);
 	bd_set_size(bdev, size << 9);
