@@ -1170,6 +1170,7 @@ int ide_busy_sleep(ide_hwif_t *, unsigned long, int);
 int ide_wait_stat(ide_startstop_t *, ide_drive_t *, u8, u8, unsigned long);
 
 ide_startstop_t ide_do_park_unpark(ide_drive_t *, struct request *);
+ide_startstop_t ide_do_devset(ide_drive_t *, struct request *);
 
 extern ide_startstop_t ide_do_reset (ide_drive_t *);
 
