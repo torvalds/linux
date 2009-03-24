@@ -712,8 +712,6 @@ void ide_acpi_port_init_devices(ide_hwif_t *hwif)
 	 * Send IDENTIFY for each drive
 	 */
 	ide_port_for_each_dev(i, drive, hwif) {
-		memset(drive->acpidata, 0, sizeof(*drive->acpidata));
-
 		if ((drive->dev_flags & IDE_DFLAG_PRESENT) == 0)
 			continue;
 
