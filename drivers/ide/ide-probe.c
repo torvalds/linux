@@ -255,9 +255,7 @@ err_misc:
  *	@cmd: command to use
  *
  *	try_to_identify() sends an ATA(PI) IDENTIFY request to a drive
- *	and waits for a response.  It also monitors irqs while this is
- *	happening, in hope of automatically determining which one is
- *	being used by the interface.
+ *	and waits for a response.
  *
  *	Returns:	0  device was identified
  *			1  device timed-out (no response to identify request)
@@ -334,56 +332,22 @@ static int actual_try_to_identify (ide_drive_t *drive, u8 cmd)
  *	@drive: drive to probe
  *	@cmd: command to use
  *
- *	Issue the identify command and then do IRQ probing to
- *	complete the identification when needed by finding the
- *	IRQ the drive is attached to
+ *	Issue the identify command.
  */
  
 static int try_to_identify (ide_drive_t *drive, u8 cmd)
 {
 	ide_hwif_t *hwif = drive->hwif;
 	const struct ide_tp_ops *tp_ops = hwif->tp_ops;
-	int retval;
-	int autoprobe = 0;
-	unsigned long cookie = 0;
 
 	/*
-	 * Disable device irq unless we need to
-	 * probe for it. Otherwise we'll get spurious
-	 * interrupts during the identify-phase that
-	 * the irq handler isn't expecting.
+	 * Disable device IRQ.  Otherwise we'll get spurious interrupts
+	 * during the identify phase that the IRQ handler isn't expecting.
 	 */
-	if (hwif->io_ports.ctl_addr) {
-		if (!hwif->irq) {
-			autoprobe = 1;
-			cookie = probe_irq_on();
-		}
-		tp_ops->set_irq(hwif, autoprobe);
-	}
-
-	retval = actual_try_to_identify(drive, cmd);
-
-	if (autoprobe) {
-		int irq;
-
+	if (hwif->io_ports.ctl_addr)
 		tp_ops->set_irq(hwif, 0);
-		/* clear drive IRQ */
-		(void)tp_ops->read_status(hwif);
-		udelay(5);
-		irq = probe_irq_off(cookie);
-		if (!hwif->irq) {
-			if (irq > 0) {
-				hwif->irq = irq;
-			} else {
-				/* Mmmm.. multiple IRQs..
-				 * don't know which was ours
-				 */
-				printk(KERN_ERR "%s: IRQ probe failed (0x%lx)\n",
-					drive->name, cookie);
-			}
-		}
-	}
-	return retval;
+
+	return actual_try_to_identify(drive, cmd);
 }
 
 int ide_busy_sleep(ide_hwif_t *hwif, unsigned long timeout, int altstatus)
