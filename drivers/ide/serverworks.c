@@ -175,7 +175,7 @@ static void svwks_set_dma_mode(ide_drive_t *drive, const u8 speed)
 	pci_write_config_byte(dev, 0x54, ultra_enable);
 }
 
-static unsigned int init_chipset_svwks(struct pci_dev *dev)
+static int init_chipset_svwks(struct pci_dev *dev)
 {
 	unsigned int reg;
 	u8 btr;
@@ -270,7 +270,7 @@ static unsigned int init_chipset_svwks(struct pci_dev *dev)
 		pci_write_config_byte(dev, 0x5A, btr);
 	}
 
-	return dev->irq;
+	return 0;
 }
 
 static u8 ata66_svwks_svwks(ide_hwif_t *hwif)

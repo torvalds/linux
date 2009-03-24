@@ -267,7 +267,7 @@ static void via_cable_detect(struct via82cxxx_dev *vdev, u32 u)
  *	and initialize its drive independent registers.
  */
 
-static unsigned int init_chipset_via82cxxx(struct pci_dev *dev)
+static int init_chipset_via82cxxx(struct pci_dev *dev)
 {
 	struct ide_host *host = pci_get_drvdata(dev);
 	struct via82cxxx_dev *vdev = host->host_priv;

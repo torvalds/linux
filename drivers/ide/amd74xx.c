@@ -140,7 +140,7 @@ static void amd7411_cable_detect(struct pci_dev *dev)
  * The initialization callback.  Initialize drive independent registers.
  */
 
-static unsigned int init_chipset_amd74xx(struct pci_dev *dev)
+static int init_chipset_amd74xx(struct pci_dev *dev)
 {
 	u8 t = 0, offset = amd_offset(dev);
 
@@ -172,7 +172,7 @@ static unsigned int init_chipset_amd74xx(struct pci_dev *dev)
 		t |= 0xf0;
 	pci_write_config_byte(dev, AMD_IDE_CONFIG + offset, t);
 
-	return dev->irq;
+	return 0;
 }
 
 static u8 amd_cable_detect(ide_hwif_t *hwif)

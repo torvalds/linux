@@ -524,7 +524,7 @@ static int do_ide_setup_pci_device(struct pci_dev *dev,
 		if (noisy)
 			printk(KERN_INFO "%s %s: not 100%% native mode: will "
 				"probe irqs later\n", d->name, pci_name(dev));
-		pciirq = ret;
+		pciirq = 0;
 	} else if (!pciirq && noisy) {
 		printk(KERN_WARNING "%s %s: bad irq (%d): will probe later\n",
 			d->name, pci_name(dev), pciirq);

@@ -135,7 +135,7 @@ static void cs5530_set_dma_mode(ide_drive_t *drive, const u8 mode)
  *	Initialize the cs5530 bridge for reliable IDE DMA operation.
  */
 
-static unsigned int init_chipset_cs5530(struct pci_dev *dev)
+static int init_chipset_cs5530(struct pci_dev *dev)
 {
 	struct pci_dev *master_0 = NULL, *cs5530_0 = NULL;
 

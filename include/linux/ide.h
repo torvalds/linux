@@ -851,7 +851,7 @@ struct ide_host {
 	ide_hwif_t	*ports[MAX_HOST_PORTS + 1];
 	unsigned int	n_ports;
 	struct device	*dev[2];
-	unsigned int	(*init_chipset)(struct pci_dev *);
+	int		(*init_chipset)(struct pci_dev *);
 	irq_handler_t	irq_handler;
 	unsigned long	host_flags;
 	void		*host_priv;
@@ -1361,7 +1361,7 @@ enum {
 
 struct ide_port_info {
 	char			*name;
-	unsigned int		(*init_chipset)(struct pci_dev *);
+	int			(*init_chipset)(struct pci_dev *);
 	void			(*init_iops)(ide_hwif_t *);
 	void                    (*init_hwif)(ide_hwif_t *);
 	int			(*init_dma)(ide_hwif_t *,
