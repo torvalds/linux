@@ -98,17 +98,7 @@ typedef int (*acpi_op_unbind) (struct acpi_device * device);
 
 struct acpi_bus_ops {
 	u32 acpi_op_add:1;
-	u32 acpi_op_remove:1;
-	u32 acpi_op_lock:1;
 	u32 acpi_op_start:1;
-	u32 acpi_op_stop:1;
-	u32 acpi_op_suspend:1;
-	u32 acpi_op_resume:1;
-	u32 acpi_op_scan:1;
-	u32 acpi_op_bind:1;
-	u32 acpi_op_unbind:1;
-	u32 acpi_op_shutdown:1;
-	u32 reserved:21;
 };
 
 struct acpi_device_ops {
