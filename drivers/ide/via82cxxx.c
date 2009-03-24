@@ -443,16 +443,6 @@ static int __devinit via_init_one(struct pci_dev *dev, const struct pci_device_i
 	if ((via_config->flags & VIA_NO_UNMASK) == 0)
 		d.host_flags |= IDE_HFLAG_UNMASK_IRQS;
 
-#ifdef CONFIG_PPC_CHRP
-	if (machine_is(chrp) && _chrp_type == _CHRP_Pegasos)
-		d.host_flags |= IDE_HFLAG_FORCE_LEGACY_IRQS;
-#endif
-
-#ifdef CONFIG_AMIGAONE
-	if (machine_is(amigaone))
-		d.host_flags |= IDE_HFLAG_FORCE_LEGACY_IRQS;
-#endif
-
 	d.udma_mask = via_config->udma_mask;
 
 	vdev = kzalloc(sizeof(*vdev), GFP_KERNEL);
