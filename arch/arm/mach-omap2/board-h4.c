@@ -47,6 +47,8 @@
 #define H4_FLASH_CS	0
 #define H4_SMC91X_CS	1
 
+#define H4_ETHR_GPIO_IRQ		92
+
 static unsigned int row_gpios[6] = { 88, 89, 124, 11, 6, 96 };
 static unsigned int col_gpios[7] = { 90, 91, 100, 36, 12, 97, 98 };
 
@@ -341,7 +343,7 @@ static inline void __init h4_init_debug(void)
 	udelay(100);
 
 	omap_cfg_reg(M15_24XX_GPIO92);
-	if (debug_card_init(cs_mem_base, OMAP24XX_ETHR_GPIO_IRQ) < 0)
+	if (debug_card_init(cs_mem_base, H4_ETHR_GPIO_IRQ) < 0)
 		gpmc_cs_free(eth_cs);
 
 out:

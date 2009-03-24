@@ -294,10 +294,6 @@
  * ---------------------------------------------------------------------------
  */
 
-#ifdef CONFIG_MACH_OMAP_H4
-#include "board-h4.h"
-#endif
-
 #ifdef CONFIG_MACH_OMAP3_BEAGLE
 #include "board-omap3beagle.h"
 #endif
