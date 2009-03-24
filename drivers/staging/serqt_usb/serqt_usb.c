@@ -13,12 +13,11 @@
 #include <linux/wait.h>
 #include <linux/types.h>
 #include <linux/version.h>
-
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 /* Use our own dbg macro */
-//#define DEBUG_ON
-//#undef dbg
+/* #define DEBUG_ON */
+/* #undef dbg */
 #ifdef DEBUG_ON
 #define  mydbg(const...)    printk(const)
 #else
@@ -34,14 +33,14 @@
 #define PREFUFF_LEVEL_CONSERVATIVE  128
 #define ATC_DISABLED                0x00
 
-#define RR_BITS             0x03	//for clearing clock bits
+#define RR_BITS             0x03	/* for clearing clock bits */
 #define DUPMODE_BITS        0xc0
 
 #define RS232_MODE          0x00
 #define RTSCTS_TO_CONNECTOR 0x40
-#define CLKS_X4             0x02	///
+#define CLKS_X4             0x02
 
-#define LOOPMODE_BITS       0x41	//LOOP1 = b6, LOOP0 = b0 (PORT B)
+#define LOOPMODE_BITS       0x41	/* LOOP1 = b6, LOOP0 = b0 (PORT B) */
 #define ALL_LOOPBACK        0x01
 #define MODEM_CTRL          0x40
 
@@ -50,8 +49,9 @@
 #define THIRDCHAR                  data[i + 2]
 #define FOURTHCHAR                  data[i + 3]
 
-//*************************************************
-// Useful defintions for port A, Port B and Port C
+/*
+ * Useful defintions for port A, Port B and Port C
+ */
 #define FULLPWRBIT          0x00000080
 #define NEXT_BOARD_POWER_BIT        0x00000004
 
@@ -113,7 +113,7 @@
 #define SERIALQT_GET_THIS_UNIT _IOR(SERIALQT_PCI_IOC_MAGIC, 3, void *)
 #define SERIALQT_READ_QOPR _IOR(SERIALQT_PCI_IOC_MAGIC, 4, int)
 #define SERIALQT_READ_QMCR _IOR(SERIALQT_PCI_IOC_MAGIC, 5, int)
-#define SERIALQT_IS422_EXTENDED _IOR(SERIALQT_PCI_IOC_MAGIC, 6, int)	//returns successful if 422 extended
+#define SERIALQT_IS422_EXTENDED _IOR(SERIALQT_PCI_IOC_MAGIC, 6, int)	/* returns successful if 422 extended */
 
 #define USBD_TRANSFER_DIRECTION_IN    0xc0
 #define USBD_TRANSFER_DIRECTION_OUT   0x40
@@ -122,7 +122,7 @@
 #define ATC_RTS_ENABLED                 0x02
 #define ATC_DTR_ENABLED                 0x01
 
-#define RR_BITS             0x03	//for clearing clock bits
+#define RR_BITS             0x03	/* for clearing clock bits */
 #define DUPMODE_BITS        0xc0
 
 #define FULL_DUPLEX         0x00
@@ -304,7 +304,7 @@ static int BoxOPenCloseChannel(struct usb_serial *serial, __u16 Uart_Number,
 			       struct qt_open_channel_data *pDeviceData);
 static void qt_close(struct usb_serial_port *port, struct file *filp);
 static int BoxGetRegister(struct usb_serial *serial, unsigned short Uart_Number,
-			  unsigned short Register_Num, __u8 * pValue);
+			  unsigned short Register_Num, __u8 *pValue);
 static int BoxSetRegister(struct usb_serial *serial, unsigned short Uart_Number,
 			  unsigned short Register_Num, unsigned short Value);
 static void qt_write_bulk_callback(struct urb *urb);
@@ -323,7 +323,7 @@ static int BoxDisable_SW_FlowCtrl(struct usb_serial *serial, __u16 UartNumber);
 static int EmulateWriteQMCR_Reg(int index, unsigned uc_value);
 static int EmulateReadQMCR_Reg(int index, unsigned *uc_value);
 static struct usb_serial *find_the_box(unsigned int index);
-int ioctl_serial_usb(struct inode *innod, struct file *filp, unsigned int cmd,
+static int ioctl_serial_usb(struct inode *innod, struct file *filp, unsigned int cmd,
 		     unsigned long arg);
 
 static int BoxSetSW_FlowCtrl(struct usb_serial *serial, __u16 Uart,
@@ -348,25 +348,25 @@ static int qt_tiocmget(struct usb_serial_port *port, struct file *file);
 #define DRIVER_AUTHOR "Tim Gobeli, Quatech, Inc"
 #define DRIVER_DESC "Quatech USB to Serial Driver"
 
-#define	USB_VENDOR_ID_QUATECH			0x061d	// Quatech VID
-#define DEVICE_ID_QUATECH_RS232_SINGLE_PORT	0xC020	//SSU100
-#define DEVICE_ID_QUATECH_RS422_SINGLE_PORT	0xC030	//SSU200
-#define DEVICE_ID_QUATECH_RS232_DUAL_PORT	0xC040	//DSU100
-#define DEVICE_ID_QUATECH_RS422_DUAL_PORT	0xC050	//DSU200
-#define DEVICE_ID_QUATECH_RS232_FOUR_PORT	0xC060	//QSU100
-#define DEVICE_ID_QUATECH_RS422_FOUR_PORT	0xC070	//QSU200
-#define DEVICE_ID_QUATECH_RS232_EIGHT_PORT_A	0xC080	//ESU100A
-#define DEVICE_ID_QUATECH_RS232_EIGHT_PORT_B	0xC081	//ESU100B
-#define DEVICE_ID_QUATECH_RS422_EIGHT_PORT_A	0xC0A0	//ESU200A
-#define DEVICE_ID_QUATECH_RS422_EIGHT_PORT_B	0xC0A1	//ESU200B
-#define DEVICE_ID_QUATECH_RS232_16_PORT_A	0xC090	//HSU100A
-#define DEVICE_ID_QUATECH_RS232_16_PORT_B	0xC091	//HSU100B
-#define DEVICE_ID_QUATECH_RS232_16_PORT_C	0xC092	//HSU100C
-#define DEVICE_ID_QUATECH_RS232_16_PORT_D	0xC093	//HSU100D
-#define DEVICE_ID_QUATECH_RS422_16_PORT_A	0xC0B0	//HSU200A
-#define DEVICE_ID_QUATECH_RS422_16_PORT_B	0xC0B1	//HSU200B
-#define DEVICE_ID_QUATECH_RS422_16_PORT_C	0xC0B2	//HSU200C
-#define DEVICE_ID_QUATECH_RS422_16_PORT_D	0xC0B3	//HSU200D
+#define	USB_VENDOR_ID_QUATECH			0x061d	/* Quatech VID */
+#define DEVICE_ID_QUATECH_RS232_SINGLE_PORT	0xC020	/* SSU100 */
+#define DEVICE_ID_QUATECH_RS422_SINGLE_PORT	0xC030	/* SSU200 */
+#define DEVICE_ID_QUATECH_RS232_DUAL_PORT	0xC040	/* DSU100 */
+#define DEVICE_ID_QUATECH_RS422_DUAL_PORT	0xC050	/* DSU200 */
+#define DEVICE_ID_QUATECH_RS232_FOUR_PORT	0xC060	/* QSU100 */
+#define DEVICE_ID_QUATECH_RS422_FOUR_PORT	0xC070	/* QSU200 */
+#define DEVICE_ID_QUATECH_RS232_EIGHT_PORT_A	0xC080	/* ESU100A */
+#define DEVICE_ID_QUATECH_RS232_EIGHT_PORT_B	0xC081	/* ESU100B */
+#define DEVICE_ID_QUATECH_RS422_EIGHT_PORT_A	0xC0A0	/* ESU200A */
+#define DEVICE_ID_QUATECH_RS422_EIGHT_PORT_B	0xC0A1	/* ESU200B */
+#define DEVICE_ID_QUATECH_RS232_16_PORT_A	0xC090	/* HSU100A */
+#define DEVICE_ID_QUATECH_RS232_16_PORT_B	0xC091	/* HSU100B */
+#define DEVICE_ID_QUATECH_RS232_16_PORT_C	0xC092	/* HSU100C */
+#define DEVICE_ID_QUATECH_RS232_16_PORT_D	0xC093	/* HSU100D */
+#define DEVICE_ID_QUATECH_RS422_16_PORT_A	0xC0B0	/* HSU200A */
+#define DEVICE_ID_QUATECH_RS422_16_PORT_B	0xC0B1	/* HSU200B */
+#define DEVICE_ID_QUATECH_RS422_16_PORT_C	0xC0B2	/* HSU200C */
+#define DEVICE_ID_QUATECH_RS422_16_PORT_D	0xC0B3	/* HSU200D */
 
 /* table of Quatech devices  */
 static struct usb_device_id serqt_table[] = {
@@ -465,10 +465,9 @@ static struct tty_driver serial_tty_driver = {
 	    ISIG | ICANON | ECHO | ECHOE | ECHOK | ECHOCTL | ECHOKE | IEXTEN,
 };
 
-//fops for parent device
-static struct file_operations serialqt_usb_fops = {
+/* fops for parent device */
+static const struct file_operations serialqt_usb_fops = {
 	.ioctl = ioctl_serial_usb,
-
 };
 
  /**
@@ -499,7 +498,7 @@ static int serqt_probe(struct usb_interface *interface,
 	struct qt_get_device_data DeviceData;
 	int status;
 
-	mydbg("In %s\n", __FUNCTION__);
+	mydbg("In %s\n", __func__);
 
 	/* let's find the endpoints needed */
 	/* check out the endpoints */
@@ -605,10 +604,9 @@ static int serqt_probe(struct usb_interface *interface,
 
 	}
 
-	//For us numb of bulkin  or out = number of ports
-
+	/* For us numb of bulkin  or out = number of ports */
 	mydbg("%s - setting up %d port structures for this device\n",
-	      __FUNCTION__, num_bulk_in);
+	      __func__, num_bulk_in);
 	for (i = 0; i < num_bulk_in; ++i) {
 		port = &serial->port[i];
 		port->number = i + serial->minor;
@@ -643,16 +641,18 @@ static int serqt_probe(struct usb_interface *interface,
 			 serial->port[i].number, serial->port[i].number);
 	}
 
-	//usb_serial_console_init (debug, minor);
+	/* usb_serial_console_init (debug, minor); */
 
-	///***********TAG add start next board here ****///
+	/***********TAG add start next board here ****/
 	status = box_get_device(serial, &DeviceData);
 	if (status < 0) {
 		mydbg(__FILE__ "box_get_device failed");
 		goto probe_error;
 	}
-	//*****************and before we power up lets initialiaze parnent device stuff here before
-	//*****************we set thmem via any other method such as the property pages
+	/*
+	 * and before we power up lets initialiaze parnent device stuff here before
+	 * we set thmem via any other method such as the property pages
+	 */
 	switch (serial->product) {
 	case DEVICE_ID_QUATECH_RS232_SINGLE_PORT:
 	case DEVICE_ID_QUATECH_RS232_DUAL_PORT:
@@ -691,7 +691,7 @@ static int serqt_probe(struct usb_interface *interface,
 		break;
 
 	}
-	status = BoxSetPrebufferLevel(serial);	//sets to default vaue
+	status = BoxSetPrebufferLevel(serial);	/* sets to default vaue */
 	if (status < 0) {
 		mydbg(__FILE__ "BoxSetPrebufferLevel failed\n");
 		goto probe_error;
@@ -702,7 +702,7 @@ static int serqt_probe(struct usb_interface *interface,
 		mydbg(__FILE__ "BoxSetATC failed\n");
 		goto probe_error;
 	}
-	//****************************************************************************
+	/**********************************************************/
 	mydbg(__FILE__ "DeviceData.portb = 0x%x", DeviceData.portb);
 
 	DeviceData.portb |= NEXT_BOARD_POWER_BIT;
@@ -714,7 +714,7 @@ static int serqt_probe(struct usb_interface *interface,
 		goto probe_error;
 	}
 
-	mydbg("Exit Success %s\n", __FUNCTION__);
+	mydbg("Exit Success %s\n", __func__);
 
 	usb_set_intfdata(interface, serial);
 	return 0;
@@ -723,69 +723,64 @@ probe_error:
 
 	for (i = 0; i < num_bulk_in; ++i) {
 		port = &serial->port[i];
-		if (port->read_urb)
-			usb_free_urb(port->read_urb);
-		if (port->bulk_in_buffer)
-			kfree(port->bulk_in_buffer);
+		usb_free_urb(port->read_urb);
+		kfree(port->bulk_in_buffer);
 	}
 	for (i = 0; i < num_bulk_out; ++i) {
 		port = &serial->port[i];
-		if (port->write_urb)
-			usb_free_urb(port->write_urb);
-		if (port->bulk_out_buffer)
-			kfree(port->bulk_out_buffer);
-
-		if (port->xfer_to_tty_buffer)
-			kfree(port->xfer_to_tty_buffer);
+		usb_free_urb(port->write_urb);
+		kfree(port->bulk_out_buffer);
+		kfree(port->xfer_to_tty_buffer);
 	}
 	for (i = 0; i < num_interrupt_in; ++i) {
 		port = &serial->port[i];
-		if (port->interrupt_in_urb)
-			usb_free_urb(port->interrupt_in_urb);
-		if (port->interrupt_in_buffer)
-			kfree(port->interrupt_in_buffer);
+		usb_free_urb(port->interrupt_in_urb);
+		kfree(port->interrupt_in_buffer);
 	}
 
 	/* return the minor range that this device had */
 	return_serial(serial);
-	mydbg("Exit fail %s\n", __FUNCTION__);
+	mydbg("Exit fail %s\n", __func__);
 
 	/* free up any memory that we allocated */
 	kfree(serial);
 	return -EIO;
 }
 
-//returns the serial_table array pointers that are taken
-//up in consecutive positions for each port to a common usb_serial structure
-//back to NULL
+/*
+ * returns the serial_table array pointers that are taken
+ * up in consecutive positions for each port to a common usb_serial structure
+ * back to NULL
+ */
 static void return_serial(struct usb_serial *serial)
 {
 	int i;
 
-	mydbg("%s\n", __FUNCTION__);
+	mydbg("%s\n", __func__);
 
 	if (serial == NULL)
 		return;
 
-	for (i = 0; i < serial->num_ports; ++i) {
+	for (i = 0; i < serial->num_ports; ++i)
 		serial_table[serial->minor + i] = NULL;
-	}
 
 	return;
 }
 
-//Finds the first locatio int the serial_table array where it can fit
-//num_ports number of consecutive points to a common usb_serial structure
-//,allocates a stucture points to it in all the structures, and returns the index
-//to the first location in the array in the "minor" variable.
-
+/*
+ * Finds the first locatio int the serial_table array where it can fit
+ * num_ports number of consecutive points to a common usb_serial
+ * structure,allocates a stucture points to it in all the structures, and
+ * returns the index to the first location in the array in the "minor"
+ * variable.
+ */
 static struct usb_serial *get_free_serial(int num_ports, int *minor)
 {
 	struct usb_serial *serial = NULL;
 	int i, j;
 	int good_spot;
 
-	mydbg("%s %d\n", __FUNCTION__, num_ports);
+	mydbg("%s %d\n", __func__, num_ports);
 
 	*minor = 0;
 	for (i = 0; i < SERIAL_TTY_MINORS; ++i) {
@@ -793,25 +788,31 @@ static struct usb_serial *get_free_serial(int num_ports, int *minor)
 			continue;
 
 		good_spot = 1;
-		//find a spot in the array where you can fit consecutive positions
-		//to put the pointers to the usb_serail allocated structure for all
-		//the minor numbers (ie. ports)
+		/*
+		 * find a spot in the array where you can fit consecutive
+		 * positions to put the pointers to the usb_serail allocated
+		 * structure for all the minor numbers (ie. ports)
+		 */
 		for (j = 1; j <= num_ports - 1; ++j)
 			if (serial_table[i + j])
 				good_spot = 0;
 		if (good_spot == 0)
 			continue;
 
-		if (!(serial = kmalloc(sizeof(struct usb_serial), GFP_KERNEL))) {
-			err("%s - Out of memory", __FUNCTION__);
+		serial = kmalloc(sizeof(struct usb_serial), GFP_KERNEL);
+		if (!serial) {
+			err("%s - Out of memory", __func__);
 			return NULL;
 		}
 		memset(serial, 0, sizeof(struct usb_serial));
 		serial_table[i] = serial;
 		*minor = i;
-		mydbg("%s - minor base = %d\n", __FUNCTION__, *minor);
-		//copy in the pointer into the array starting a the *minor position
-		//*minor is the index into the array
+		mydbg("%s - minor base = %d\n", __func__, *minor);
+
+		/*
+		 * copy in the pointer into the array starting a the *minor
+		 * position minor is the index into the array.
+		 */
 		for (i = *minor + 1;
 		     (i < (*minor + num_ports)) && (i < SERIAL_TTY_MINORS); ++i)
 			serial_table[i] = serial;
@@ -828,11 +829,11 @@ static int flip_that(struct tty_struct *tty, __u16 UartNumber,
 	return 0;
 }
 
-//Handles processing and moving data to the tty layer
+/* Handles processing and moving data to the tty layer */
 static void port_sofrint(void *private)
 {
 	struct usb_serial_port *port = (struct usb_serial_port *)private;
-	struct usb_serial *serial = get_usb_serial(port, __FUNCTION__);
+	struct usb_serial *serial = get_usb_serial(port, __func__);
 	struct tty_struct *tty = port->tty;
 	unsigned char *data = port->read_urb->transfer_buffer;
 	unsigned int UartNumber;
@@ -841,30 +842,34 @@ static void port_sofrint(void *private)
 	int i, result;
 	int flag, flag_data;
 
-	//UartNumber = MINOR(port->tty->device) - serial->minor;
+	/* UartNumber = MINOR(port->tty->device) - serial->minor; */
 	UartNumber = tty->index - serial->minor;
 
-	mydbg("%s - port %d\n", __FUNCTION__, port->number);
-	mydbg("%s - port->RxHolding = %d\n", __FUNCTION__, port->RxHolding);
+	mydbg("%s - port %d\n", __func__, port->number);
+	mydbg("%s - port->RxHolding = %d\n", __func__, port->RxHolding);
 
-	if (port_paranoia_check(port, __FUNCTION__) != 0) {
-		mydbg("%s - port_paranoia_check, exiting\n", __FUNCTION__);
+	if (port_paranoia_check(port, __func__) != 0) {
+		mydbg("%s - port_paranoia_check, exiting\n", __func__);
 		port->ReadBulkStopped = 1;
 		return;
 	}
 
 	if (!serial) {
-		mydbg("%s - bad serial pointer, exiting\n", __FUNCTION__);
+		mydbg("%s - bad serial pointer, exiting\n", __func__);
 		return;
 	}
-	if (port->closePending == 1)	//Were closing , stop reading
-	{
-		mydbg("%s - (port->closepending == 1\n", __FUNCTION__);
+	if (port->closePending == 1) {
+		/* Were closing , stop reading */
+		mydbg("%s - (port->closepending == 1\n", __func__);
 		port->ReadBulkStopped = 1;
 		return;
 	}
-	//RxHolding is asserted by throttle, if we assert it, we're not receiving any more
-	//characters and let the box handle the flow control
+
+	/*
+	 * RxHolding is asserted by throttle, if we assert it, we're not
+	 * receiving any more characters and let the box handle the flow
+	 * control
+	 */
 	if (port->RxHolding == 1) {
 		port->ReadBulkStopped = 1;
 		return;
@@ -874,27 +879,25 @@ static void port_sofrint(void *private)
 		port->ReadBulkStopped = 1;
 
 		mydbg("%s - nonzero read bulk status received: %d\n",
-		      __FUNCTION__, urb->status);
+		      __func__, urb->status);
 		return;
 	}
 
 	tty = port->tty;
-	mydbg("%s - port %d, tty =0x%p\n", __FUNCTION__, port->number, tty);
+	mydbg("%s - port %d, tty =0x%p\n", __func__, port->number, tty);
 
 	if (tty && RxCount) {
 		flag_data = 0;
 		for (i = 0; i < RxCount; ++i) {
-			//Look ahead code here
-
+			/* Look ahead code here */
 			if ((i <= (RxCount - 3)) && (THISCHAR == 0x1b)
 			    && (NEXTCHAR == 0x1b)) {
 				flag = 0;
 				switch (THIRDCHAR) {
 				case 0x00:
-					//Line status change 4th byte must follow
+					/* Line status change 4th byte must follow */
 					if (i > (RxCount - 4)) {
-						mydbg
-						    ("Illegal escape sequences in received data\n");
+						mydbg("Illegal escape sequences in received data\n");
 						break;
 					}
 					ProcessLineStatus(port, FOURTHCHAR);
@@ -903,9 +906,8 @@ static void port_sofrint(void *private)
 					break;
 
 				case 0x01:
-					//Modem status status change 4th byte must follow
+					/* Modem status status change 4th byte must follow */
 					mydbg("Modem status status. \n");
-
 					if (i > (RxCount - 4)) {
 						mydbg
 						    ("Illegal escape sequences in received data\n");
@@ -922,22 +924,19 @@ static void port_sofrint(void *private)
 					ProcessRxChar(port, NEXTCHAR);
 					i += 2;
 					break;
-
-				}	//end switch
+				}
 				if (flag == 1)
 					continue;
-			}	//endif
+			}
 
 			if (tty && urb->actual_length) {
 				tty_buffer_request_room(tty, 1);
 				tty_insert_flip_string(tty, (data + i), 1);
 			}
 
-		}		//endfor
-
+		}
 		tty_flip_buffer_push(tty);
-
-	}			//endif
+	}
 
 	/* Continue trying to always read  */
 	usb_fill_bulk_urb(port->read_urb, serial->dev,
@@ -949,7 +948,7 @@ static void port_sofrint(void *private)
 	result = usb_submit_urb(port->read_urb, GFP_ATOMIC);
 	if (result)
 		mydbg("%s - failed resubmitting read urb, error %d",
-		      __FUNCTION__, result);
+		      __func__, result);
 	else {
 		if (tty && RxCount)
 			flip_that(tty, UartNumber, serial);
@@ -965,10 +964,9 @@ static void qt_read_bulk_callback(struct urb *urb)
 	struct usb_serial_port *port = (struct usb_serial_port *)urb->context;
 
 	if (urb->status) {
-
 		port->ReadBulkStopped = 1;
 		mydbg("%s - nonzero write bulk status received: %d\n",
-		      __FUNCTION__, urb->status);
+		      __func__, urb->status);
 		return;
 	}
 
@@ -986,8 +984,7 @@ static void ProcessRxChar(struct usb_serial_port *port, unsigned char Data)
 	if (tty && urb->actual_length) {
 		tty_buffer_request_room(tty, 1);
 		tty_insert_flip_string(tty, &Data, 1);
-		//tty_flip_buffer_push(tty);
-
+		/* tty_flip_buffer_push(tty); */
 	}
 
 	return;
@@ -1015,11 +1012,11 @@ static void ProcessModemStatus(struct usb_serial_port *port,
 static void serqt_usb_disconnect(struct usb_interface *interface)
 {
 	struct usb_serial *serial = usb_get_intfdata(interface);
-	//struct device *dev = &interface->dev;
+	/* struct device *dev = &interface->dev; */
 	struct usb_serial_port *port;
 	int i;
 
-	mydbg("%s\n", __FUNCTION__);
+	mydbg("%s\n", __func__);
 	if (serial) {
 
 		serial->dev = NULL;
@@ -1029,31 +1026,22 @@ static void serqt_usb_disconnect(struct usb_interface *interface)
 
 		for (i = 0; i < serial->num_bulk_in; ++i) {
 			port = &serial->port[i];
-			if (port->read_urb) {
-				usb_unlink_urb(port->read_urb);
-				usb_free_urb(port->read_urb);
-			}
-			if (port->bulk_in_buffer)
-				kfree(port->bulk_in_buffer);
+			usb_unlink_urb(port->read_urb);
+			usb_free_urb(port->read_urb);
+			kfree(port->bulk_in_buffer);
 		}
 		for (i = 0; i < serial->num_bulk_out; ++i) {
 			port = &serial->port[i];
-			if (port->write_urb) {
-				usb_unlink_urb(port->write_urb);
-				usb_free_urb(port->write_urb);
-			}
-			if (port->bulk_out_buffer)
-				kfree(port->bulk_out_buffer);
+			usb_unlink_urb(port->write_urb);
+			usb_free_urb(port->write_urb);
+			kfree(port->bulk_out_buffer);
 		}
 		for (i = 0; i < serial->num_interrupt_in; ++i) {
 			port = &serial->port[i];
-			if (port->interrupt_in_urb) {
-				usb_unlink_urb(port->interrupt_in_urb);
-				usb_free_urb(port->interrupt_in_urb);
-			}
-			if (port->interrupt_in_buffer)
-				kfree(port->interrupt_in_buffer);
-		}
+			usb_unlink_urb(port->interrupt_in_urb);
+			usb_free_urb(port->interrupt_in_urb);
+			kfree(port->interrupt_in_buffer);
+	}
 
 		/* return the minor range that this device had */
 		return_serial(serial);
@@ -1082,18 +1070,18 @@ static int serial_open(struct tty_struct *tty, struct file *filp)
 	unsigned int portNumber;
 	int retval = 0;
 
-	mydbg("%s\n", __FUNCTION__);
+	mydbg("%s\n", __func__);
 
 	/* initialize the pointer incase something fails */
 	tty->driver_data = NULL;
 
 	/* get the serial object associated with this tty pointer */
-	//serial = get_serial_by_minor (MINOR(tty->device));
+	/* serial = get_serial_by_minor (MINOR(tty->device)); */
 
 	/* get the serial object associated with this tty pointer */
 	serial = get_serial_by_minor(tty->index);
 
-	if (serial_paranoia_check(serial, __FUNCTION__))
+	if (serial_paranoia_check(serial, __func__))
 		return -ENODEV;
 
 	/* set up our port structure making the tty driver remember our port object, and us it */
@@ -1107,18 +1095,17 @@ static int serial_open(struct tty_struct *tty, struct file *filp)
 	++port->open_count;
 	if (port->open_count == 1) {
 		port->closePending = 0;
-		mydbg("%s port->closepending = 0\n", __FUNCTION__);
+		mydbg("%s port->closepending = 0\n", __func__);
 
 		port->RxHolding = 0;
-		mydbg("%s port->RxHolding = 0\n", __FUNCTION__);
+		mydbg("%s port->RxHolding = 0\n", __func__);
 
 		retval = qt_open(port, filp);
 	}
 
-	if (retval) {
+	if (retval)
 		port->open_count = 0;
-	}
-	mydbg("%s returning port->closePending  = %d\n", __FUNCTION__,
+	mydbg("%s returning port->closePending  = %d\n", __func__,
 	      port->closePending);
 
 	up(&port->sem);
@@ -1135,14 +1122,14 @@ static int qt_open(struct usb_serial_port *port, struct file *filp)
 	unsigned int UartNumber;
 	struct qt_get_device_data DeviceData;
 	struct qt_open_channel_data ChannelData;
-	unsigned short default_divisor = 0x30;	//gives 9600 baud rate
-	unsigned char default_LCR = SERIAL_8_DATA;	// 8, none , 1
+	unsigned short default_divisor = 0x30;		/* gives 9600 baud rate */
+	unsigned char default_LCR = SERIAL_8_DATA;	/* 8, none , 1 */
 	int status = 0;
 
-	if (port_paranoia_check(port, __FUNCTION__))
+	if (port_paranoia_check(port, __func__))
 		return -ENODEV;
 
-	mydbg("%s - port %d\n", __FUNCTION__, port->number);
+	mydbg("%s - port %d\n", __func__, port->number);
 
 	/* force low_latency on so that our tty_push actually forces the data through,
 	   otherwise it is scheduled, and with high data rates (like with OHCI) data
@@ -1158,11 +1145,11 @@ static int qt_open(struct usb_serial_port *port, struct file *filp)
 		return status;
 	}
 	serial->num_OpenCount++;
-	mydbg("%s serial->num_OpenCount  = %d\n", __FUNCTION__,
+	mydbg("%s serial->num_OpenCount  = %d\n", __func__,
 	      serial->num_OpenCount);
-	//Open uart channel
+	/* Open uart channel */
 
-	//Port specific setups
+	/* Port specific setups */
 	status = BoxOPenCloseChannel(serial, UartNumber, 1, &ChannelData);
 	if (status < 0) {
 		mydbg(__FILE__ "BoxOPenCloseChannel failed\n");
@@ -1176,7 +1163,7 @@ static int qt_open(struct usb_serial_port *port, struct file *filp)
 	port->shadowMSR = ChannelData.modem_status &
 	    (SERIAL_MSR_CTS | SERIAL_MSR_DSR | SERIAL_MSR_RI | SERIAL_MSR_CD);
 
-	//Set Baud rate to default and turn off (default)flow control here
+	/* Set Baud rate to default and turn off (default)flow control here */
 	status = BoxSetUart(serial, UartNumber, default_divisor, default_LCR);
 	if (status < 0) {
 		mydbg(__FILE__ "BoxSetUart failed\n");
@@ -1184,10 +1171,10 @@ static int qt_open(struct usb_serial_port *port, struct file *filp)
 	}
 	mydbg(__FILE__ "BoxSetUart completed.\n");
 
-	//Put this here to make it responsive to stty and defauls set by the tty layer
+	/* Put this here to make it responsive to stty and defauls set by the tty layer */
 	qt_set_termios(port, NULL);
 
-	//Initialize the wait que head
+	/* Initialize the wait que head */
 	init_waitqueue_head(&(port->wait));
 
 	/* if we have a bulk endpoint, start reading from it */
@@ -1207,7 +1194,7 @@ static int qt_open(struct usb_serial_port *port, struct file *filp)
 
 		if (result) {
 			err("%s - failed resubmitting read urb, error %d\n",
-			    __FUNCTION__, result);
+			    __func__, result);
 			port->ReadBulkStopped = 1;
 		}
 
@@ -1220,26 +1207,26 @@ static void serial_close(struct tty_struct *tty, struct file *filp)
 {
 	struct usb_serial_port *port =
 	    (struct usb_serial_port *)tty->driver_data;
-	struct usb_serial *serial = get_usb_serial(port, __FUNCTION__);
+	struct usb_serial *serial = get_usb_serial(port, __func__);
 
 	if (!serial)
 		return;
 
 	down(&port->sem);
 
-	mydbg("%s - port %d\n", __FUNCTION__, port->number);
+	mydbg("%s - port %d\n", __func__, port->number);
 
 	/* if disconnect beat us to the punch here, there's nothing to do */
 	if (tty->driver_data) {
 		if (!port->open_count) {
-			mydbg("%s - port not opened\n", __FUNCTION__);
+			mydbg("%s - port not opened\n", __func__);
 			goto exit;
 		}
 
 		--port->open_count;
 		if (port->open_count <= 0) {
 			port->closePending = 1;
-			mydbg("%s - port->closePending = 1\n", __FUNCTION__);
+			mydbg("%s - port->closePending = 1\n", __func__);
 
 			if (serial->dev) {
 				qt_close(port, filp);
@@ -1252,7 +1239,7 @@ static void serial_close(struct tty_struct *tty, struct file *filp)
 exit:
 	up(&port->sem);
 
-	mydbg("%s - %d return\n", __FUNCTION__, port->number);
+	mydbg("%s - %d return\n", __func__, port->number);
 
 }
 
@@ -1268,7 +1255,7 @@ static void qt_close(struct usb_serial_port *port, struct file *filp)
 	status = 0;
 	LSR_Value = 0;
 
-	mydbg("%s - port %d\n", __FUNCTION__, port->number);
+	mydbg("%s - port %d\n", __func__, port->number);
 	UartNumber = port->tty->index - serial->minor;
 
 	/* shutdown any bulk reads that might be going on */
@@ -1277,11 +1264,9 @@ static void qt_close(struct usb_serial_port *port, struct file *filp)
 	if (serial->num_bulk_in)
 		usb_unlink_urb(port->read_urb);
 
-	//wait up to 30 seconds for transmitter to empty
+	/* wait up to 30 seconds for transmitter to empty */
 	do {
-		status =
-		    BoxGetRegister(serial, UartNumber, LINE_STATUS_REGISTER,
-				   &LSR_Value);
+		status = BoxGetRegister(serial, UartNumber, LINE_STATUS_REGISTER, &LSR_Value);
 		if (status < 0) {
 			mydbg(__FILE__ "box_get_device failed\n");
 			break;
@@ -1293,14 +1278,15 @@ static void qt_close(struct usb_serial_port *port, struct file *filp)
 		schedule();
 
 	}
-	while (jiffies <= jift);
+	while (jiffies <= jift)
+		;
 
 	if (jiffies > jift)
 		mydbg("%s - port %d timout of checking transmitter empty\n",
-		      __FUNCTION__, port->number);
+		      __func__, port->number);
 	else
 		mydbg("%s - port %d checking transmitter empty succeded\n",
-		      __FUNCTION__, port->number);
+		      __func__, port->number);
 
 	status =
 	    BoxGetRegister(serial, UartNumber, MODEM_CONTROL_REGISTER,
@@ -1309,14 +1295,14 @@ static void qt_close(struct usb_serial_port *port, struct file *filp)
 
 	if (status >= 0) {
 		MCR_Value &= ~(SERIAL_MCR_DTR | SERIAL_MCR_RTS);
-//        status = BoxSetRegister(serial, UartNumber, MODEM_CONTROL_REGISTER, MCR_Value);
+		/* status = BoxSetRegister(serial, UartNumber, MODEM_CONTROL_REGISTER, MCR_Value); */
 	}
 
-	//Close uart channel
+	/* Close uart channel */
 	status = BoxOPenCloseChannel(serial, UartNumber, 0, &ChannelData);
 	if (status < 0)
 		mydbg("%s - port %d BoxOPenCloseChannel failed.\n",
-		      __FUNCTION__, port->number);
+		      __func__, port->number);
 
 	serial->num_OpenCount--;
 
@@ -1332,20 +1318,19 @@ static int serial_write(struct tty_struct *tty, const unsigned char *buf,
 	unsigned int UartNumber;
 	int from_user = 0;
 
-	serial = get_usb_serial(port, __FUNCTION__);
+	serial = get_usb_serial(port, __func__);
 	if (serial == NULL)
 		return -ENODEV;
-	//This can happen if we get disconnected a
-	if (port->open_count == 0) {
+	/* This can happen if we get disconnected a */
+	if (port->open_count == 0)
 		return -ENODEV;
-	}
 	UartNumber = port->tty->index - serial->minor;
 
-	mydbg("%s - port %d, %d byte(s)\n", __FUNCTION__, port->number, count);
-	mydbg("%s - port->RxHolding =  %d\n", __FUNCTION__, port->RxHolding);
+	mydbg("%s - port %d, %d byte(s)\n", __func__, port->number, count);
+	mydbg("%s - port->RxHolding =  %d\n", __func__, port->RxHolding);
 
 	if (!port->open_count) {
-		mydbg("%s - port not opened\n", __FUNCTION__);
+		mydbg("%s - port not opened\n", __func__);
 		goto exit;
 	}
 
@@ -1361,23 +1346,23 @@ static int qt_write(struct usb_serial_port *port, int from_user,
 	int result;
 	unsigned int UartNumber;
 
-	struct usb_serial *serial = get_usb_serial(port, __FUNCTION__);
+	struct usb_serial *serial = get_usb_serial(port, __func__);
 	if (serial == NULL)
 		return -ENODEV;
 
-	mydbg("%s - port %d\n", __FUNCTION__, port->number);
+	mydbg("%s - port %d\n", __func__, port->number);
 
 	if (count == 0) {
-		mydbg("%s - write request of 0 bytes\n", __FUNCTION__);
-		return (0);
+		mydbg("%s - write request of 0 bytes\n", __func__);
+		return 0;
 	}
 
 	UartNumber = port->tty->index - serial->minor;
 	/* only do something if we have a bulk out endpoint */
 	if (serial->num_bulk_out) {
 		if (port->write_urb->status == -EINPROGRESS) {
-			mydbg("%s - already writing\n", __FUNCTION__);
-			return (0);
+			mydbg("%s - already writing\n", __func__);
+			return 0;
 		}
 
 		count =
@@ -1391,7 +1376,7 @@ static int qt_write(struct usb_serial_port *port, int from_user,
 			memcpy(port->write_urb->transfer_buffer, buf, count);
 		}
 
-		//usb_serial_debug_data(__FILE__, __FUNCTION__, count, port->write_urb->transfer_buffer);
+		/* usb_serial_debug_data(__FILE__, __func__, count, port->write_urb->transfer_buffer); */
 
 		/* set up our urb */
 
@@ -1406,7 +1391,7 @@ static int qt_write(struct usb_serial_port *port, int from_user,
 		result = usb_submit_urb(port->write_urb, GFP_ATOMIC);
 		if (result)
 			mydbg("%s - failed submitting write urb, error %d\n",
-			      __FUNCTION__, result);
+			      __func__, result);
 		else
 			result = count;
 
@@ -1414,27 +1399,26 @@ static int qt_write(struct usb_serial_port *port, int from_user,
 	}
 
 	/* no bulk out, so return 0 bytes written */
-	return (0);
+	return 0;
 }
 
 static void qt_write_bulk_callback(struct urb *urb)
 {
 	struct usb_serial_port *port = (struct usb_serial_port *)urb->context;
-	struct usb_serial *serial = get_usb_serial(port, __FUNCTION__);
+	struct usb_serial *serial = get_usb_serial(port, __func__);
 
-	mydbg("%s - port %d\n", __FUNCTION__, port->number);
+	mydbg("%s - port %d\n", __func__, port->number);
 
 	if (!serial) {
-		mydbg("%s - bad serial pointer, exiting\n", __FUNCTION__);
+		mydbg("%s - bad serial pointer, exiting\n", __func__);
 		return;
 	}
 
 	if (urb->status) {
 		mydbg("%s - nonzero write bulk status received: %d\n",
-		      __FUNCTION__, urb->status);
+		      __func__, urb->status);
 		return;
 	}
-	//
 	port_softint(&port->work);
 	schedule_work(&port->work);
 
@@ -1445,10 +1429,10 @@ static void port_softint(struct work_struct *work)
 {
 	struct usb_serial_port *port =
 	    container_of(work, struct usb_serial_port, work);
-	struct usb_serial *serial = get_usb_serial(port, __FUNCTION__);
+	struct usb_serial *serial = get_usb_serial(port, __func__);
 	struct tty_struct *tty;
 
-	mydbg("%s - port %d\n", __FUNCTION__, port->number);
+	mydbg("%s - port %d\n", __func__, port->number);
 
 	if (!serial)
 		return;
@@ -1459,7 +1443,7 @@ static void port_softint(struct work_struct *work)
 #if 0
 	if ((tty->flags & (1 << TTY_DO_WRITE_WAKEUP))
 	    && tty->ldisc.write_wakeup) {
-		mydbg("%s - write wakeup call.\n", __FUNCTION__);
+		mydbg("%s - write wakeup call.\n", __func__);
 		(tty->ldisc.write_wakeup) (tty);
 	}
 #endif
@@ -1470,7 +1454,7 @@ static int serial_write_room(struct tty_struct *tty)
 {
 	struct usb_serial_port *port =
 	    (struct usb_serial_port *)tty->driver_data;
-	struct usb_serial *serial = get_usb_serial(port, __FUNCTION__);
+	struct usb_serial *serial = get_usb_serial(port, __func__);
 	int retval = -EINVAL;
 
 	if (!serial)
@@ -1478,10 +1462,10 @@ static int serial_write_room(struct tty_struct *tty)
 
 	down(&port->sem);
 
-	mydbg("%s - port %d\n", __FUNCTION__, port->number);
+	mydbg("%s - port %d\n", __func__, port->number);
 
 	if (!port->open_count) {
-		mydbg("%s - port not open\n", __FUNCTION__);
+		mydbg("%s - port not open\n", __func__);
 		goto exit;
 	}
 
@@ -1496,25 +1480,25 @@ static int qt_write_room(struct usb_serial_port *port)
 	struct usb_serial *serial = port->serial;
 	int room = 0;
 	if (port->closePending == 1) {
-		mydbg("%s - port->closePending == 1\n", __FUNCTION__);
+		mydbg("%s - port->closePending == 1\n", __func__);
 		return -ENODEV;
 	}
 
-	mydbg("%s - port %d\n", __FUNCTION__, port->number);
+	mydbg("%s - port %d\n", __func__, port->number);
 
 	if (serial->num_bulk_out) {
 		if (port->write_urb->status != -EINPROGRESS)
 			room = port->bulk_out_size;
 	}
 
-	mydbg("%s - returns %d\n", __FUNCTION__, room);
-	return (room);
+	mydbg("%s - returns %d\n", __func__, room);
+	return room;
 }
 static int serial_chars_in_buffer(struct tty_struct *tty)
 {
 	struct usb_serial_port *port =
 	    (struct usb_serial_port *)tty->driver_data;
-	struct usb_serial *serial = get_usb_serial(port, __FUNCTION__);
+	struct usb_serial *serial = get_usb_serial(port, __func__);
 	int retval = -EINVAL;
 
 	if (!serial)
@@ -1522,10 +1506,10 @@ static int serial_chars_in_buffer(struct tty_struct *tty)
 
 	down(&port->sem);
 
-	mydbg("%s = port %d\n", __FUNCTION__, port->number);
+	mydbg("%s = port %d\n", __func__, port->number);
 
 	if (!port->open_count) {
-		mydbg("%s - port not open\n", __FUNCTION__);
+		mydbg("%s - port not open\n", __func__);
 		goto exit;
 	}
 
@@ -1541,15 +1525,15 @@ static int qt_chars_in_buffer(struct usb_serial_port *port)
 	struct usb_serial *serial = port->serial;
 	int chars = 0;
 
-	mydbg("%s - port %d\n", __FUNCTION__, port->number);
+	mydbg("%s - port %d\n", __func__, port->number);
 
 	if (serial->num_bulk_out) {
 		if (port->write_urb->status == -EINPROGRESS)
 			chars = port->write_urb->transfer_buffer_length;
 	}
 
-	mydbg("%s - returns %d\n", __FUNCTION__, chars);
-	return (chars);
+	mydbg("%s - returns %d\n", __func__, chars);
+	return chars;
 }
 
 static int serial_tiocmset(struct tty_struct *tty, struct file *file,
@@ -1558,10 +1542,10 @@ static int serial_tiocmset(struct tty_struct *tty, struct file *file,
 
 	struct usb_serial_port *port =
 	    (struct usb_serial_port *)tty->driver_data;
-	struct usb_serial *serial = get_usb_serial(port, __FUNCTION__);
+	struct usb_serial *serial = get_usb_serial(port, __func__);
 	int retval = -ENODEV;
 	unsigned int UartNumber;
-	mydbg("In %s \n", __FUNCTION__);
+	mydbg("In %s \n", __func__);
 
 	if (!serial)
 		return -ENODEV;
@@ -1570,11 +1554,11 @@ static int serial_tiocmset(struct tty_struct *tty, struct file *file,
 
 	down(&port->sem);
 
-	mydbg("%s - port %d \n", __FUNCTION__, port->number);
-	mydbg("%s - port->RxHolding = %d\n", __FUNCTION__, port->RxHolding);
+	mydbg("%s - port %d \n", __func__, port->number);
+	mydbg("%s - port->RxHolding = %d\n", __func__, port->RxHolding);
 
 	if (!port->open_count) {
-		mydbg("%s - port not open\n", __FUNCTION__);
+		mydbg("%s - port not open\n", __func__);
 		goto exit;
 	}
 
@@ -1593,11 +1577,11 @@ static int qt_tiocmset(struct usb_serial_port *port, struct file *file,
 	int status;
 	unsigned int UartNumber;
 
-	struct usb_serial *serial = get_usb_serial(port, __FUNCTION__);
+	struct usb_serial *serial = get_usb_serial(port, __func__);
 	if (serial == NULL)
 		return -ENODEV;
 
-	mydbg("%s - port %d\n", __FUNCTION__, port->number);
+	mydbg("%s - port %d\n", __func__, port->number);
 
     /**************************************************************************************/
     /**  TIOCMGET
@@ -1609,8 +1593,10 @@ static int qt_tiocmset(struct usb_serial_port *port, struct file *file,
 	if (status < 0)
 		return -ESPIPE;
 
-	//Turn off the RTS and DTR and loopbcck and then only
-	//trun on what was asked for
+	/*
+	 * Turn off the RTS and DTR and loopbcck and then only turn on what was
+	 * asked for
+	 */
 	MCR_Value &= ~(SERIAL_MCR_RTS | SERIAL_MCR_DTR | SERIAL_MCR_LOOP);
 	if (value & TIOCM_RTS)
 		MCR_Value |= SERIAL_MCR_RTS;
@@ -1634,10 +1620,10 @@ static int serial_tiocmget(struct tty_struct *tty, struct file *file)
 	struct usb_serial_port *port =
 	    (struct usb_serial_port *)tty->driver_data;
 
-	struct usb_serial *serial = get_usb_serial(port, __FUNCTION__);
+	struct usb_serial *serial = get_usb_serial(port, __func__);
 	int retval = -ENODEV;
 	unsigned int UartNumber;
-	mydbg("In %s \n", __FUNCTION__);
+	mydbg("In %s \n", __func__);
 
 	if (!serial)
 		return -ENODEV;
@@ -1646,11 +1632,11 @@ static int serial_tiocmget(struct tty_struct *tty, struct file *file)
 
 	down(&port->sem);
 
-	mydbg("%s - port %d\n", __FUNCTION__, port->number);
-	mydbg("%s - port->RxHolding = %d\n", __FUNCTION__, port->RxHolding);
+	mydbg("%s - port %d\n", __func__, port->number);
+	mydbg("%s - port->RxHolding = %d\n", __func__, port->RxHolding);
 
 	if (!port->open_count) {
-		mydbg("%s - port not open\n", __FUNCTION__);
+		mydbg("%s - port not open\n", __func__);
 		goto exit;
 	}
 
@@ -1671,12 +1657,12 @@ static int qt_tiocmget(struct usb_serial_port *port, struct file *file)
 	unsigned int UartNumber;
 	struct tty_struct *tty;
 
-	struct usb_serial *serial = get_usb_serial(port, __FUNCTION__);
+	struct usb_serial *serial = get_usb_serial(port, __func__);
 	if (serial == NULL)
 		return -ENODEV;
 	tty = port->tty;
 
-	mydbg("%s - port %d, tty =0x%p\n", __FUNCTION__, port->number, tty);
+	mydbg("%s - port %d, tty =0x%p\n", __func__, port->number, tty);
 
     /**************************************************************************************/
     /**  TIOCMGET
@@ -1694,22 +1680,21 @@ static int qt_tiocmget(struct usb_serial_port *port, struct file *file)
 
 	if (status >= 0) {
 		result = ((MCR_Value & SERIAL_MCR_DTR) ? TIOCM_DTR : 0)
-		    //DTR IS SET
+		    /* DTR IS SET */
 		    | ((MCR_Value & SERIAL_MCR_RTS) ? TIOCM_RTS : 0)
-		    //RTS IS SET
+		    /* RTS IS SET */
 		    | ((MSR_Value & SERIAL_MSR_CTS) ? TIOCM_CTS : 0)
-		    //CTS is set
+		    /* CTS is set */
 		    | ((MSR_Value & SERIAL_MSR_CD) ? TIOCM_CAR : 0)
-		    //Carrier detect is set
+		    /* Carrier detect is set */
 		    | ((MSR_Value & SERIAL_MSR_RI) ? TIOCM_RI : 0)
-		    //Ring indicator set
+		    /* Ring indicator set */
 		    | ((MSR_Value & SERIAL_MSR_DSR) ? TIOCM_DSR : 0);
-		//DSR is set
+		/* DSR is set */
 		return result;
 
 	} else
 		return -ESPIPE;
-	//endif tatus => 0
 }
 
 static int serial_ioctl(struct tty_struct *tty, struct file *file,
@@ -1718,10 +1703,10 @@ static int serial_ioctl(struct tty_struct *tty, struct file *file,
 
 	struct usb_serial_port *port =
 	    (struct usb_serial_port *)tty->driver_data;
-	struct usb_serial *serial = get_usb_serial(port, __FUNCTION__);
+	struct usb_serial *serial = get_usb_serial(port, __func__);
 	int retval = -ENODEV;
 	unsigned int UartNumber;
-	mydbg("In %s \n", __FUNCTION__);
+	mydbg("In %s \n", __func__);
 
 	if (!serial)
 		return -ENODEV;
@@ -1730,11 +1715,11 @@ static int serial_ioctl(struct tty_struct *tty, struct file *file,
 
 	down(&port->sem);
 
-	mydbg("%s - port %d, cmd 0x%.4x\n", __FUNCTION__, port->number, cmd);
-	mydbg("%s - port->RxHolding = %d\n", __FUNCTION__, port->RxHolding);
+	mydbg("%s - port %d, cmd 0x%.4x\n", __func__, port->number, cmd);
+	mydbg("%s - port->RxHolding = %d\n", __func__, port->RxHolding);
 
 	if (!port->open_count) {
-		mydbg("%s - port not open\n", __FUNCTION__);
+		mydbg("%s - port not open\n", __func__);
 		goto exit;
 	}
 
@@ -1755,16 +1740,14 @@ static int qt_ioctl(struct usb_serial_port *port, struct file *file,
 	unsigned int UartNumber;
 	struct tty_struct *tty;
 
-	struct usb_serial *serial = get_usb_serial(port, __FUNCTION__);
+	struct usb_serial *serial = get_usb_serial(port, __func__);
 	if (serial == NULL)
 		return -ENODEV;
 	tty = port->tty;
 
-	mydbg("%s - port %d, tty =0x%p\n", __FUNCTION__, port->number, tty);
+	mydbg("%s - port %d, tty =0x%p\n", __func__, port->number, tty);
 
-    /**************************************************************************************/
-    /**  TIOCMGET
-     */
+	/* TIOCMGET */
 	UartNumber = port->tty->index - serial->minor;
 
 	if (cmd == TIOCMGET) {
@@ -1773,34 +1756,27 @@ static int qt_ioctl(struct usb_serial_port *port, struct file *file,
 
 		{
 			result = ((MCR_Value & SERIAL_MCR_DTR) ? TIOCM_DTR : 0)
-			    //DTR IS SET
+			    /* DTR IS SET */
 			    | ((MCR_Value & SERIAL_MCR_RTS) ? TIOCM_RTS : 0)
-			    //RTS IS SET
+			    /* RTS IS SET */
 			    | ((MSR_Value & SERIAL_MSR_CTS) ? TIOCM_CTS : 0)
-			    //CTS is set
+			    /* CTS is set */
 			    | ((MSR_Value & SERIAL_MSR_CD) ? TIOCM_CAR : 0)
-			    //Carrier detect is set
+			    /* Carrier detect is set */
 			    | ((MSR_Value & SERIAL_MSR_RI) ? TIOCM_RI : 0)
-			    //Ring indicator set
+			    /* Ring indicator set */
 			    | ((MSR_Value & SERIAL_MSR_DSR) ? TIOCM_DSR : 0);
-			//DSR is set
+			/* DSR is set */
 			if (copy_to_user
 			    ((unsigned int *)arg, &result,
 			     sizeof(unsigned int)))
 				return -EFAULT;
 			return 0;
 
-		}		//endif tatus => 0
+		}
+	}
 
-	}			//endif(cmd == TIOCMGET)
-    /**************************************************************************************/
-   /**  End TIOCMGET
-   */
-    /**************************************************************************************/
-    /**  TIOCMBIS, TIOCMBIC, AND TIOCMSET     */
-
-    /**************************************************************************************/
-
+	/* TIOCMBIS, TIOCMBIC, AND TIOCMSET */
 	if (cmd == TIOCMBIS || cmd == TIOCMBIC || cmd == TIOCMSET) {
 		status =
 		    BoxGetRegister(port->serial, UartNumber,
@@ -1829,8 +1805,10 @@ static int qt_ioctl(struct usb_serial_port *port, struct file *file,
 				MCR_Value &= ~SERIAL_MCR_LOOP;
 			break;
 		case TIOCMSET:
-			//Turn off the RTS and DTR and loopbcck and then only
-			//trun on what was asked for
+			/*
+			 * Turn off the RTS and DTR and loopbcck and then only
+			 * turn on what was asked for
+			 */
 			MCR_Value &=
 			    ~(SERIAL_MCR_RTS | SERIAL_MCR_DTR |
 			      SERIAL_MCR_LOOP);
@@ -1874,7 +1852,7 @@ static int qt_ioctl(struct usb_serial_port *port, struct file *file,
 				return -ERESTARTSYS;
 			MSR_Value = port->shadowMSR & SERIAL_MSR_MASK;
 			if (MSR_Value == Prev_MSR_Value)
-				return -EIO;	//no change error
+				return -EIO;	/* no change error */
 
 			if ((arg & TIOCM_RNG
 			     && ((Prev_MSR_Value & SERIAL_MSR_RI) ==
@@ -1891,10 +1869,10 @@ static int qt_ioctl(struct usb_serial_port *port, struct file *file,
 				return 0;
 			}
 
-		}		//endwhile
+		}
 
 	}
-	mydbg("%s -No ioctl for that one.  port = %d\n", __FUNCTION__,
+	mydbg("%s -No ioctl for that one.  port = %d\n", __func__,
 	      port->number);
 
 	return -ENOIOCTLCMD;
@@ -1904,17 +1882,17 @@ static void serial_set_termios(struct tty_struct *tty, struct ktermios *old)
 {
 	struct usb_serial_port *port =
 	    (struct usb_serial_port *)tty->driver_data;
-	struct usb_serial *serial = get_usb_serial(port, __FUNCTION__);
+	struct usb_serial *serial = get_usb_serial(port, __func__);
 
 	if (!serial)
 		return;
 
 	down(&port->sem);
 
-	mydbg("%s - port %d\n", __FUNCTION__, port->number);
+	mydbg("%s - port %d\n", __func__, port->number);
 
 	if (!port->open_count) {
-		mydbg("%s - port not open\n", __FUNCTION__);
+		mydbg("%s - port not open\n", __func__);
 		goto exit;
 	}
 
@@ -1937,14 +1915,14 @@ static void qt_set_termios(struct usb_serial_port *port,
 	__u16 UartNumber;
 	__u16 tmp, tmp2;
 
-	mydbg("%s - port %d\n", __FUNCTION__, port->number);
+	mydbg("%s - port %d\n", __func__, port->number);
 
 	tmp = port->tty->index;
-	mydbg("%s - MINOR(port->tty->index) =  %d\n", __FUNCTION__, tmp);
+	mydbg("%s - MINOR(port->tty->index) =  %d\n", __func__, tmp);
 
 	serial = port->serial;
 	tmp2 = serial->minor;
-	mydbg("%s - serial->minor =  %d\n", __FUNCTION__, tmp2);
+	mydbg("%s - serial->minor =  %d\n", __func__, tmp2);
 
 	UartNumber = port->tty->index - serial->minor;
 
@@ -1956,13 +1934,13 @@ static void qt_set_termios(struct usb_serial_port *port,
 		if ((cflag == old_termios->c_cflag)
 		    && (RELEVANT_IFLAG(tty->termios->c_iflag) ==
 			RELEVANT_IFLAG(old_termios->c_iflag))) {
-			mydbg("%s - Nothing to change\n", __FUNCTION__);
+			mydbg("%s - Nothing to change\n", __func__);
 			return;
 		}
 
 	}
 
-	mydbg("%s - 3\n", __FUNCTION__);
+	mydbg("%s - 3\n", __func__);
 
 	switch (cflag) {
 	case CS5:
@@ -1980,7 +1958,7 @@ static void qt_set_termios(struct usb_serial_port *port,
 		break;
 	}
 
-	//Parity stuff
+	/* Parity stuff */
 	if (cflag & PARENB) {
 		if (cflag & PARODD)
 			LCR_change_to |= SERIAL_ODD_PARITY;
@@ -1992,23 +1970,25 @@ static void qt_set_termios(struct usb_serial_port *port,
 	else
 		LCR_change_to |= SERIAL_TWO_STOPB;
 
-	mydbg("%s - 4\n", __FUNCTION__);
-	//Thats the LCR stuff, go ahead and set it
+	mydbg("%s - 4\n", __func__);
+	/* Thats the LCR stuff, go ahead and set it */
 	baud = tty_get_baud_rate(tty);
 	if (!baud) {
 		/* pick a default, any default... */
 		baud = 9600;
 	}
 
-	mydbg("%s - got baud = %d\n", __FUNCTION__, baud);
+	mydbg("%s - got baud = %d\n", __func__, baud);
 
 	divisor = MAX_BAUD_RATE / baud;
 	remainder = MAX_BAUD_RATE % baud;
-	//Round to nearest divisor
+	/* Round to nearest divisor */
 	if (((remainder * 2) >= baud) && (baud != 110))
 		divisor++;
 
-	//Set Baud rate to default and turn off (default)flow control here
+	/*
+	 * Set Baud rate to default and turn off (default)flow control here
+	 */
 	status =
 	    BoxSetUart(serial, UartNumber, (unsigned short)divisor,
 		       LCR_change_to);
@@ -2016,13 +1996,13 @@ static void qt_set_termios(struct usb_serial_port *port,
 		mydbg(__FILE__ "BoxSetUart failed\n");
 		return;
 	}
-	//************************Now determine flow control
 
+	/* Now determine flow control */
 	if (cflag & CRTSCTS) {
-		mydbg("%s - Enabling HW flow control port %d\n", __FUNCTION__,
+		mydbg("%s - Enabling HW flow control port %d\n", __func__,
 		      port->number);
 
-		//Enable  RTS/CTS flow control
+		/* Enable RTS/CTS flow control */
 		status = BoxSetHW_FlowCtrl(serial, UartNumber, 1);
 
 		if (status < 0) {
@@ -2030,8 +2010,8 @@ static void qt_set_termios(struct usb_serial_port *port,
 			return;
 		}
 	} else {
-		//Disable RTS/CTS flow control
-		mydbg("%s - disabling HW flow control port %d\n", __FUNCTION__,
+		/* Disable RTS/CTS flow control */
+		mydbg("%s - disabling HW flow control port %d\n", __func__,
 		      port->number);
 
 		status = BoxSetHW_FlowCtrl(serial, UartNumber, 0);
@@ -2042,8 +2022,8 @@ static void qt_set_termios(struct usb_serial_port *port,
 
 	}
 
-	//*************************************************
-	/* if we are implementing XON/XOFF, set the start and stop character in the device */
+	/* if we are implementing XON/XOFF, set the start and stop character in
+	 * the device */
 	if (I_IXOFF(tty) || I_IXON(tty)) {
 		unsigned char stop_char = STOP_CHAR(tty);
 		unsigned char start_char = START_CHAR(tty);
@@ -2054,7 +2034,7 @@ static void qt_set_termios(struct usb_serial_port *port,
 			mydbg(__FILE__ "BoxSetSW_FlowCtrl (enabled) failed\n");
 
 	} else {
-		//disable SW flow control
+		/* disable SW flow control */
 		status = BoxDisable_SW_FlowCtrl(serial, UartNumber);
 		if (status < 0)
 			mydbg(__FILE__ "BoxSetSW_FlowCtrl (diabling) failed\n");
@@ -2069,7 +2049,7 @@ static void qt_set_termios(struct usb_serial_port *port,
 *	If successful, fills in the  pValue with the register value asked for
 ****************************************************************************/
 static int BoxGetRegister(struct usb_serial *serial, unsigned short Uart_Number,
-			  unsigned short Register_Num, __u8 * pValue)
+			  unsigned short Register_Num, __u8 *pValue)
 {
 	int result;
 	__u16 current_length;
@@ -2099,8 +2079,11 @@ static int BoxSetRegister(struct usb_serial *serial, unsigned short Uart_Number,
 	RegAndByte = RegAndByte << 8;
 	RegAndByte = RegAndByte + Register_Num;
 
-//    result = usb_control_msg (serial->dev, usb_sndctrlpipe(serial->dev, 0), QT_GET_SET_REGISTER,
-//                           0xC0, Register_Num, Uart_Number, NULL, 0, 300);
+/*
+	result = usb_control_msg(serial->dev, usb_sndctrlpipe(serial->dev, 0),
+				 QT_GET_SET_REGISTER, 0xC0, Register_Num,
+				 Uart_Number, NULL, 0, 300);
+*/
 
 	result =
 	    usb_control_msg(serial->dev, usb_sndctrlpipe(serial->dev, 0),
@@ -2156,7 +2139,7 @@ static int box_set_device(struct usb_serial *serial,
 	PortSettings += ((__u16) (device_data->porta));
 
 	length = sizeof(struct qt_get_device_data);
-	mydbg("%s - PortSettings = 0x%x\n", __FUNCTION__, PortSettings);
+	mydbg("%s - PortSettings = 0x%x\n", __func__, PortSettings);
 
 	result = usb_control_msg(serial->dev, usb_sndctrlpipe(serial->dev, 0),
 				 QT_SET_GET_DEVICE, 0x40, PortSettings,
@@ -2180,8 +2163,8 @@ static int BoxOPenCloseChannel(struct usb_serial *serial, __u16 Uart_Number,
 	unsigned int pipe;
 	length = sizeof(struct qt_open_channel_data);
 
-	if (OpenClose == 1)	//IF OPENING
-	{
+	/* if opening... */
+	if (OpenClose == 1) {
 		Direcion = USBD_TRANSFER_DIRECTION_IN;
 		pipe = usb_rcvctrlpipe(serial->dev, 0);
 		result =
@@ -2268,18 +2251,23 @@ static int BoxSetHW_FlowCtrl(struct usb_serial *serial, unsigned int UartNumber,
 	port = serial->port;
 
 	if (bSet == 1) {
-		MCR_Value = SERIAL_MCR_RTS;	//flow control, box will clear RTS line to prevent remote
-	}			//device from xmitting more chars
-	else {			//no flow control to remote device
+		/* flow control, box will clear RTS line to prevent remote */
+		MCR_Value = SERIAL_MCR_RTS;
+	}			/* device from xmitting more chars */
+	else {
+		/* no flow control to remote device */
 		MCR_Value = 0;
 
 	}
 	MOUT_Value = MCR_Value << 8;
 
 	if (bSet == 1) {
-		MSR_Value = SERIAL_MSR_CTS;	//flow control, box will inhibit xmit data if CTS line is asserted
+		/* flow control, box will inhibit xmit data if CTS line is
+		 * asserted */
+		MSR_Value = SERIAL_MSR_CTS;
 	} else {
-		MSR_Value = 0;	//Box will not inhimbe xmit data due to CTS line
+		/* Box will not inhimbe xmit data due to CTS line */
+		MSR_Value = 0;
 	}
 	MOUT_Value |= MSR_Value;
 
@@ -2319,18 +2307,12 @@ static int BoxDisable_SW_FlowCtrl(struct usb_serial *serial, __u16 UartNumber)
 
 }
 
-/*****************************************************************************
- * SerialThrottle
- *	this function is called by the tty driver when it wants to stop the data
- *	being read from the port.
- *****************************************************************************/
-
 static void serial_throttle(struct tty_struct *tty)
 {
 	struct usb_serial_port *port =
 	    (struct usb_serial_port *)tty->driver_data;
-	struct usb_serial *serial = get_usb_serial(port, __FUNCTION__);
-	mydbg("%s - port %d\n", __FUNCTION__, port->number);
+	struct usb_serial *serial = get_usb_serial(port, __func__);
+	mydbg("%s - port %d\n", __func__, port->number);
 
 	if (!serial)
 		return;
@@ -2338,14 +2320,14 @@ static void serial_throttle(struct tty_struct *tty)
 	down(&port->sem);
 
 	if (!port->open_count) {
-		mydbg("%s - port not open\n", __FUNCTION__);
+		mydbg("%s - port not open\n", __func__);
 		goto exit;
 	}
-	//shut down any bulk reads that may be going on
-//	usb_unlink_urb (port->read_urb);
+	/* shut down any bulk reads that may be going on */
+/*	usb_unlink_urb (port->read_urb); */
 	/* pass on to the driver specific version of this function */
 	port->RxHolding = 1;
-	mydbg("%s - port->RxHolding = 1\n", __FUNCTION__);
+	mydbg("%s - port->RxHolding = 1\n", __func__);
 
 exit:
 	up(&port->sem);
@@ -2356,25 +2338,25 @@ static void serial_unthrottle(struct tty_struct *tty)
 {
 	struct usb_serial_port *port =
 	    (struct usb_serial_port *)tty->driver_data;
-	struct usb_serial *serial = get_usb_serial(port, __FUNCTION__);
+	struct usb_serial *serial = get_usb_serial(port, __func__);
 	unsigned int result;
 
 	if (!serial)
 		return;
 	down(&port->sem);
 
-	mydbg("%s - port %d\n", __FUNCTION__, port->number);
+	mydbg("%s - port %d\n", __func__, port->number);
 
 	if (!port->open_count) {
-		mydbg("%s - port not open\n", __FUNCTION__);
+		mydbg("%s - port not open\n", __func__);
 		goto exit;
 	}
 
 	if (port->RxHolding == 1) {
-		mydbg("%s -port->RxHolding == 1\n", __FUNCTION__);
+		mydbg("%s -port->RxHolding == 1\n", __func__);
 
 		port->RxHolding = 0;
-		mydbg("%s - port->RxHolding = 0\n", __FUNCTION__);
+		mydbg("%s - port->RxHolding = 0\n", __func__);
 
 		/* if we have a bulk endpoint, start it up */
 		if ((serial->num_bulk_in) && (port->ReadBulkStopped == 1)) {
@@ -2390,7 +2372,7 @@ static void serial_unthrottle(struct tty_struct *tty)
 			result = usb_submit_urb(port->read_urb, GFP_ATOMIC);
 			if (result)
 				err("%s - failed restarting read urb, error %d",
-				    __FUNCTION__, result);
+				    __func__, result);
 		}
 	}
 exit:
@@ -2403,7 +2385,7 @@ static int serial_break(struct tty_struct *tty, int break_state)
 {
 	struct usb_serial_port *port =
 	    (struct usb_serial_port *)tty->driver_data;
-	struct usb_serial *serial = get_usb_serial(port, __FUNCTION__);
+	struct usb_serial *serial = get_usb_serial(port, __func__);
 	__u16 UartNumber, Break_Value;
 	unsigned int result;
 
@@ -2418,10 +2400,10 @@ static int serial_break(struct tty_struct *tty, int break_state)
 
 	down(&port->sem);
 
-	mydbg("%s - port %d\n", __FUNCTION__, port->number);
+	mydbg("%s - port %d\n", __func__, port->number);
 
 	if (!port->open_count) {
-		mydbg("%s - port not open\n", __FUNCTION__);
+		mydbg("%s - port not open\n", __func__);
 		goto exit;
 	}
 
@@ -2443,7 +2425,7 @@ static int serial_read_proc(char *page, char **start, off_t off, int count,
 	int i;
 	off_t begin = 0;
 
-	mydbg("%s\n", __FUNCTION__);
+	mydbg("%s\n", __func__);
 	length += sprintf(page, "usbserinfo:1.0 driver:%s\n", DRIVER_VERSION);
 	for (i = 0; i < SERIAL_TTY_MINORS && length < PAGE_SIZE; ++i) {
 		serial = get_serial_by_minor(i);
@@ -2460,8 +2442,10 @@ static int serial_read_proc(char *page, char **start, off_t off, int count,
 		length +=
 		    sprintf(page + length, " port:%d\n", i - serial->minor + 1);
 
-//              usb_make_path(serial->dev, tmp, sizeof(tmp));
-//              length += sprintf (page+length, " path:%s", tmp);
+/*
+		usb_make_path(serial->dev, tmp, sizeof(tmp));
+		length += sprintf (page+length, " path:%s", tmp);
+*/
 
 		length += sprintf(page + length, "\n");
 		if ((length + begin) > (off + count))
@@ -2479,7 +2463,7 @@ done:
 	return ((count < begin + length - off) ? count : begin + length - off);
 }
 
-int ioctl_serial_usb(struct inode *innod, struct file *filp, unsigned int cmd,
+static int ioctl_serial_usb(struct inode *innod, struct file *filp, unsigned int cmd,
 		     unsigned long arg)
 {
 
@@ -2500,7 +2484,7 @@ int ioctl_serial_usb(struct inode *innod, struct file *filp, unsigned int cmd,
 	switch (cmd) {
 
 	case SERIALQT_WRITE_QMCR:
-		err = -ENOTTY;	//initialize as error so if we don't find this one we give//an error.
+		err = -ENOTTY;
 		index = arg >> 16;
 		counts = 0;
 
@@ -2510,34 +2494,33 @@ int ioctl_serial_usb(struct inode *innod, struct file *filp, unsigned int cmd,
 		break;
 
 	case SERIALQT_READ_QMCR:
-		err = -ENOTTY;	//initialize as error so if we don't find this one we give
-		//an error.
+		err = -ENOTTY;
 		p_QMCR_Value = (int *)arg;
 		index = arg >> 16;
 		counts = 0;
 
 		err = EmulateReadQMCR_Reg(index, &uc_Value);
-		if (err == 0) {
+		if (err == 0)
 			err = put_user(uc_Value, p_QMCR_Value);
-		}
 		break;
 
 	case SERIALQT_GET_NUMOF_UNITS:
 		p_Num_of_adapters = (int *)arg;
-		counts = 0;	//Initialize counts to zero
-		//struct usb_serial    *lastserial = serial_table[0], *serial;
+		counts = 0;	/* Initialize counts to zero */
+		/* struct usb_serial *lastserial = serial_table[0], *serial; */
 		lastserial = serial_table[0];
 
 		mydbg(KERN_DEBUG "SERIALQT_GET_NUMOF_UNITS \n");
-		//if first pointer is nonull, we at least have one box
+		/* if first pointer is nonull, we at least have one box */
 		if (lastserial)
-			counts = 1;	//we at least have one box
+			counts = 1;	/* we at least have one box */
 
 		for (index = 1; index < SERIAL_TTY_MINORS; index++) {
 			serial = serial_table[index];
 			if (serial) {
 				if (serial != lastserial) {
-					//we had a change in the array, hence another box is there
+					/* we had a change in the array, hence
+					 * another box is there */
 					lastserial = serial;
 					counts++;
 				}
@@ -2554,15 +2537,14 @@ int ioctl_serial_usb(struct inode *innod, struct file *filp, unsigned int cmd,
 	case SERIALQT_GET_THIS_UNIT:
 		counts = 0;
 		p_Identity_of = (struct identity *)arg;
-		//copy user structure to local variable
+		/* copy user structure to local variable */
 		get_user(Identity_of.index, &p_Identity_of->index);
 		mydbg(KERN_DEBUG "SERIALQT_GET_THIS_UNIT Identity_of.index\n");
 		mydbg(KERN_DEBUG
 		      "SERIALQT_GET_THIS_UNIT Identity_of.index= 0x%x\n",
 		      Identity_of.index);
 
-		err = -ENOTTY;	//initialize as error so if we don't find this one we give
-		//an error.
+		err = -ENOTTY;
 		serial = find_the_box(Identity_of.index);
 		if (serial) {
 			err =
@@ -2573,9 +2555,8 @@ int ioctl_serial_usb(struct inode *innod, struct file *filp, unsigned int cmd,
 		break;
 
 	case SERIALQT_IS422_EXTENDED:
-		err = -ENOTTY;	//initialize as error so if we don't find this one we give
+		err = -ENOTTY;
 		mydbg(KERN_DEBUG "SERIALQT_IS422_EXTENDED \n");
-		//an error.
 		index = arg >> 16;
 
 		counts = 0;
@@ -2585,20 +2566,20 @@ int ioctl_serial_usb(struct inode *innod, struct file *filp, unsigned int cmd,
 		      index);
 		serial = find_the_box(index);
 		if (serial) {
-			mydbg("%s index = 0x%x, serial = 0x%p\n", __FUNCTION__,
+			mydbg("%s index = 0x%x, serial = 0x%p\n", __func__,
 			      index, serial);
 			for (counts = 0; serqt_422_table[counts] != 0; counts++) {
 
 				mydbg
 				    ("%s serial->product = = 0x%x, serqt_422_table[counts] = 0x%x\n",
-				     __FUNCTION__, serial->product,
+				     __func__, serial->product,
 				     serqt_422_table[counts]);
 				if (serial->product == serqt_422_table[counts]) {
 					err = 0;
 
 					mydbg
 					    ("%s found match for 422extended\n",
-					     __FUNCTION__);
+					     __func__);
 					break;
 				}
 			}
@@ -2607,10 +2588,9 @@ int ioctl_serial_usb(struct inode *innod, struct file *filp, unsigned int cmd,
 
 	default:
 		err = -ENOTTY;
+	}
 
-	}			//End switch
-
-	mydbg("%s returning err = 0x%x\n", __FUNCTION__, err);
+	mydbg("%s returning err = 0x%x\n", __func__, err);
 	return err;
 }
 
@@ -2624,33 +2604,32 @@ static struct usb_serial *find_the_box(unsigned int index)
 		serial = serial_table[index2];
 
 		mydbg("%s index = 0x%x, index2 = 0x%x, serial = 0x%p\n",
-		      __FUNCTION__, index, index2, serial);
+		      __func__, index, index2, serial);
 
 		if (serial) {
-			//first see if this is the unit we'er looking for
+			/* first see if this is the unit we'er looking for */
 			mydbg
 			    ("%s inside if(serial) counts = 0x%x , index = 0x%x\n",
-			     __FUNCTION__, counts, index);
+			     __func__, counts, index);
 			if (counts == index) {
-				//we found the one we're looking for, copythe product Id to user
-
-				mydbg
-				    ("%s we found the one we're looking for serial = 0x%p\n",
-				     __FUNCTION__, serial);
+				/* we found the one we're looking for, copythe
+				 * product Id to user */
+				mydbg("%s we found the one we're looking for serial = 0x%p\n",
+				     __func__, serial);
 				foundserial = serial;
 				break;
 			}
 
 			if (serial != lastserial) {
-				//when we have a change in the pointer
+				/* when we have a change in the pointer */
 				lastserial = serial;
 				counts++;
 			}
 		} else
-			break;	// no matches
+			break;	/* no matches */
 	}
 
-	mydbg("%s returning foundserial = 0x%p\n", __FUNCTION__, foundserial);
+	mydbg("%s returning foundserial = 0x%p\n", __func__, foundserial);
 	return foundserial;
 }
 
@@ -2662,12 +2641,12 @@ static int EmulateWriteQMCR_Reg(int index, unsigned uc_value)
 	int status;
 	struct qt_get_device_data DeviceData;
 	unsigned uc_temp = 0;
-	mydbg("Inside %s, uc_value = 0x%x\n", __FUNCTION__, uc_value);
+	mydbg("Inside %s, uc_value = 0x%x\n", __func__, uc_value);
 
 	DeviceData.porta = 0;
 	DeviceData.portb = 0;
 	serial = find_the_box(index);
-	//Determine Duplex mode
+	/* Determine Duplex mode */
 	if (!(serial))
 		return -ENOTTY;
 	status = box_get_device(serial, &DeviceData);
@@ -2700,11 +2679,11 @@ static int EmulateWriteQMCR_Reg(int index, unsigned uc_value)
 	uc_temp = uc_value & QMCR_CONNECTOR_MASK;
 	switch (uc_temp) {
 	case QMCR_MODEM_CONTROL:
-		DeviceData.portb &= ~LOOPMODE_BITS;	//reset connection bits
+		DeviceData.portb &= ~LOOPMODE_BITS;	/* reset connection bits */
 		DeviceData.portb |= MODEM_CTRL;
 		break;
 	case QMCR_ALL_LOOPBACK:
-		DeviceData.portb &= ~LOOPMODE_BITS;	//reset connection bits
+		DeviceData.portb &= ~LOOPMODE_BITS;	/* reset connection bits */
 		DeviceData.portb |= ALL_LOOPBACK;
 		break;
 	}
@@ -2716,8 +2695,9 @@ static int EmulateWriteQMCR_Reg(int index, unsigned uc_value)
 		return status;
 	}
 
-	if (uc_value & QMCR_RX_EN_MASK)	//This bit (otherwise unused) i'll used  to detect whether ATC is selected
-	{
+	/* This bit (otherwise unused) i'll used  to detect whether ATC is
+	 * selected */
+	if (uc_value & QMCR_RX_EN_MASK) {
 
 		mydbg(__FILE__
 		      "calling BoxsetATC with DeviceData.porta = 0x%x and DeviceData.portb = 0x%x\n",
@@ -2776,7 +2756,8 @@ static int EmulateReadQMCR_Reg(int index, unsigned *uc_value)
 		break;
 	}
 
-	uc_temp = DeviceData.portb & LOOPMODE_BITS;	//I use this for ATC control se
+	/* I use this for ATC control se */
+	uc_temp = DeviceData.portb & LOOPMODE_BITS;
 
 	switch (uc_temp) {
 	case ALL_LOOPBACK:
@@ -2798,7 +2779,7 @@ static int __init serqt_usb_init(void)
 	int i, result;
 	int status = 0;
 
-	mydbg("%s\n", __FUNCTION__);
+	mydbg("%s\n", __func__);
 	tty_set_operations(&serial_tty_driver, &serial_ops);
 	result = tty_register_driver(&serial_tty_driver);
 	if (result) {
@@ -2817,7 +2798,7 @@ static int __init serqt_usb_init(void)
 		    " driver. Error number %d", result);
 		return result;
 	}
-	status = 0;		// Dynamic assignment of major number
+	status = 0;		/* Dynamic assignment of major number */
 	major_number =
 	    register_chrdev(status, "SerialQT_USB", &serialqt_usb_fops);
 	if (major_number < 0) {
