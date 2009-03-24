@@ -246,6 +246,7 @@ struct file;
 struct perf_mmap_data {
 	struct rcu_head			rcu_head;
 	int				nr_pages;
+	atomic_t			wakeup;
 	atomic_t			head;
 	struct perf_counter_mmap_page   *user_page;
 	void 				*data_pages[0];

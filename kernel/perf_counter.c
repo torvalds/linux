@@ -1161,7 +1161,16 @@ perf_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 static unsigned int perf_poll(struct file *file, poll_table *wait)
 {
 	struct perf_counter *counter = file->private_data;
-	unsigned int events = POLLIN;
+	struct perf_mmap_data *data;
+	unsigned int events;
+
+	rcu_read_lock();
+	data = rcu_dereference(counter->data);
+	if (data)
+		events = atomic_xchg(&data->wakeup, 0);
+	else
+		events = POLL_HUP;
+	rcu_read_unlock();
 
 	poll_wait(file, &counter->waitq, wait);
 
@@ -1425,7 +1434,7 @@ static int perf_output_write(struct perf_counter *counter, int nmi,
 
 	do {
 		offset = head = atomic_read(&data->head);
-		head += sizeof(u64);
+		head += size;
 	} while (atomic_cmpxchg(&data->head, offset, head) != offset);
 
 	wakeup = (offset >> PAGE_SHIFT) != (head >> PAGE_SHIFT);
@@ -1446,6 +1455,7 @@ static int perf_output_write(struct perf_counter *counter, int nmi,
 	 * generate a poll() wakeup for every page boundary crossed
 	 */
 	if (wakeup) {
+		atomic_xchg(&data->wakeup, POLL_IN);
 		__perf_counter_update_userpage(counter, data);
 		if (nmi) {
 			counter->wakeup_pending = 1;
