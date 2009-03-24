@@ -779,7 +779,6 @@ EXPORT_SYMBOL_GPL(ide_undecoded_slave);
 static int ide_probe_port(ide_hwif_t *hwif)
 {
 	ide_drive_t *drive;
-	unsigned long flags;
 	unsigned int irqd;
 	int i, rc = -ENODEV;
 
@@ -797,9 +796,6 @@ static int ide_probe_port(ide_hwif_t *hwif)
 	if (irqd)
 		disable_irq(hwif->irq);
 
-	local_save_flags(flags);
-	local_irq_enable_in_hardirq();
-
 	if (ide_port_wait_ready(hwif) == -EBUSY)
 		printk(KERN_DEBUG "%s: Wait for ready failed before probe !\n", hwif->name);
 
@@ -812,8 +808,6 @@ static int ide_probe_port(ide_hwif_t *hwif)
 		if (drive->dev_flags & IDE_DFLAG_PRESENT)
 			rc = 0;
 	}
-
-	local_irq_restore(flags);
 
 	/*
 	 * Use cached IRQ number. It might be (and is...) changed by probe
