@@ -2518,7 +2518,7 @@ qla24xx_get_flash_version(scsi_qla_host_t *vha, void *mbuf)
 	dcode = mbuf;
 
 	/* Begin with first PCI expansion ROM header. */
-	pcihdr = ha->flt_region_boot;
+	pcihdr = ha->flt_region_boot << 2;
 	last_image = 1;
 	do {
 		/* Verify PCI expansion ROM header. */
