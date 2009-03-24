@@ -594,9 +594,10 @@ set_desc_affinity(struct irq_desc *desc, const struct cpumask *mask)
 
 	/* check that before desc->addinity get updated */
 	set_extra_move_desc(desc, mask);
-	cpumask_and(desc->affinity, cfg->domain, mask);
 
-	return apic->cpu_mask_to_apicid_and(desc->affinity, cpu_online_mask);
+	cpumask_copy(desc->affinity, mask);
+
+	return apic->cpu_mask_to_apicid_and(desc->affinity, cfg->domain);
 }
 
 static void
