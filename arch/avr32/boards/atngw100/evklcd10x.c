@@ -149,7 +149,8 @@ static int __init atevklcd10x_init(void)
 	at32_add_device_ac97c(0, &ac97c0_data);
 
 	at32_add_device_lcdc(0, &atevklcd10x_lcdc_data,
-			fbmem_start, fbmem_size, 1);
+			fbmem_start, fbmem_size,
+			ATMEL_LCDC_ALT_18BIT | ATMEL_LCDC_PE_DVAL);
 	return 0;
 }
 postcore_initcall(atevklcd10x_init);
