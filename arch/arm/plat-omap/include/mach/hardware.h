@@ -298,10 +298,6 @@
 #include "board-innovator.h"
 #endif
 
-#ifdef CONFIG_MACH_OMAP_H2
-#include "board-h2.h"
-#endif
-
 #ifdef CONFIG_MACH_OMAP_H3
 #include "board-h3.h"
 #endif

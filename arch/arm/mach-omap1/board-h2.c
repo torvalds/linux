@@ -46,6 +46,11 @@
 #include <mach/keypad.h>
 #include <mach/common.h>
 
+#include "board-h2.h"
+
+/* At OMAP1610 Innovator the Ethernet is directly connected to CS1 */
+#define OMAP1610_ETHR_START		0x04000300
+
 static int h2_keymap[] = {
 	KEY(0, 0, KEY_LEFT),
 	KEY(0, 1, KEY_RIGHT),
