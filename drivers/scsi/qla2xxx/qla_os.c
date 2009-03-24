@@ -2203,9 +2203,19 @@ qla2x00_mem_alloc(struct qla_hw_data *ha, uint16_t req_len, uint16_t rsp_len,
 	} else
 		ha->npiv_info = NULL;
 
+	/* Get consistent memory allocated for EX-INIT-CB. */
+	if (IS_QLA81XX(ha)) {
+		ha->ex_init_cb = dma_pool_alloc(ha->s_dma_pool, GFP_KERNEL,
+		    &ha->ex_init_cb_dma);
+		if (!ha->ex_init_cb)
+			goto fail_ex_init_cb;
+	}
+
 	INIT_LIST_HEAD(&ha->vp_list);
 	return 1;
 
+fail_ex_init_cb:
+	kfree(ha->npiv_info);
 fail_npiv_info:
 	dma_free_coherent(&ha->pdev->dev, ((*rsp)->length + 1) *
 		sizeof(response_t), (*rsp)->ring, (*rsp)->dma);
@@ -2291,14 +2301,15 @@ qla2x00_mem_free(struct qla_hw_data *ha)
 	if (ha->ms_iocb)
 		dma_pool_free(ha->s_dma_pool, ha->ms_iocb, ha->ms_iocb_dma);
 
+	if (ha->ex_init_cb)
+		dma_pool_free(ha->s_dma_pool, ha->ex_init_cb, ha->ex_init_cb_dma);
+
 	if (ha->s_dma_pool)
 		dma_pool_destroy(ha->s_dma_pool);
-
 
 	if (ha->gid_list)
 		dma_free_coherent(&ha->pdev->dev, GID_LIST_SIZE, ha->gid_list,
 		ha->gid_list_dma);
-
 
 	if (ha->init_cb)
 		dma_free_coherent(&ha->pdev->dev, ha->init_cb_size,
@@ -2318,6 +2329,8 @@ qla2x00_mem_free(struct qla_hw_data *ha)
 	ha->ms_iocb_dma = 0;
 	ha->init_cb = NULL;
 	ha->init_cb_dma = 0;
+	ha->ex_init_cb = NULL;
+	ha->ex_init_cb_dma = 0;
 
 	ha->s_dma_pool = NULL;
 

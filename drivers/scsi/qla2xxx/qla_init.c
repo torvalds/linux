@@ -4455,6 +4455,9 @@ qla81xx_nvram_config(scsi_qla_host_t *vha)
 		icb->enode_mac[5] = 0x06 + PCI_FUNC(ha->pdev->devfn);
 	}
 
+	/* Use extended-initialization control block. */
+	memcpy(ha->ex_init_cb, &nv->ex_version, sizeof(*ha->ex_init_cb));
+
 	/*
 	 * Setup driver NVRAM options.
 	 */

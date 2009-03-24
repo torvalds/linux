@@ -1440,7 +1440,17 @@ struct nvram_81xx {
 	uint16_t reserved_6[24];
 
 	/* Offset 128. */
-	uint16_t reserved_7[64];
+	uint16_t ex_version;
+	uint8_t prio_fcf_matching_flags;
+	uint8_t reserved_6_1[3];
+	uint16_t pri_fcf_vlan_id;
+	uint8_t pri_fcf_fabric_name[8];
+	uint16_t reserved_6_2[7];
+	uint8_t spma_mac_addr[6];
+	uint16_t reserved_6_3[14];
+
+	/* Offset 192. */
+	uint16_t reserved_7[32];
 
 	/*
 	 * BIT 0  = Enable spinup delay
@@ -1662,6 +1672,17 @@ struct mid_init_cb_81xx {
 	uint16_t options;
 
 	struct mid_conf_entry_24xx entries[MAX_MULTI_ID_FABRIC];
+};
+
+struct ex_init_cb_81xx {
+	uint16_t ex_version;
+	uint8_t prio_fcf_matching_flags;
+	uint8_t reserved_1[3];
+	uint16_t pri_fcf_vlan_id;
+	uint8_t pri_fcf_fabric_name[8];
+	uint16_t reserved_2[7];
+	uint8_t spma_mac_addr[6];
+	uint16_t reserved_3[14];
 };
 
 #define FARX_ACCESS_FLASH_CONF_81XX	0x7FFD0000

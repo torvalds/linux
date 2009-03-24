@@ -2440,6 +2440,8 @@ struct qla_hw_data {
 	dma_addr_t	init_cb_dma;
 	init_cb_t	*init_cb;
 	int		init_cb_size;
+	dma_addr_t	ex_init_cb_dma;
+	struct ex_init_cb_81xx *ex_init_cb;
 
 	/* These are used by mailbox operations. */
 	volatile uint16_t mailbox_out[MAILBOX_REGISTER_COUNT];

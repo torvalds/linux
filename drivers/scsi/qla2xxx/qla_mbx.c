@@ -1043,14 +1043,22 @@ qla2x00_init_firmware(scsi_qla_host_t *vha, uint16_t size)
 	else
 		mcp->mb[0] = MBC_INITIALIZE_FIRMWARE;
 
+	mcp->mb[1] = 0;
 	mcp->mb[2] = MSW(ha->init_cb_dma);
 	mcp->mb[3] = LSW(ha->init_cb_dma);
-	mcp->mb[4] = 0;
-	mcp->mb[5] = 0;
 	mcp->mb[6] = MSW(MSD(ha->init_cb_dma));
 	mcp->mb[7] = LSW(MSD(ha->init_cb_dma));
-	mcp->out_mb = MBX_7|MBX_6|MBX_3|MBX_2|MBX_0;
-	mcp->in_mb = MBX_5|MBX_4|MBX_0;
+	mcp->out_mb = MBX_7|MBX_6|MBX_3|MBX_2|MBX_1|MBX_0;
+	if (IS_QLA81XX(ha) && ha->ex_init_cb->ex_version) {
+		mcp->mb[1] = BIT_0;
+		mcp->mb[10] = MSW(ha->ex_init_cb_dma);
+		mcp->mb[11] = LSW(ha->ex_init_cb_dma);
+		mcp->mb[12] = MSW(MSD(ha->ex_init_cb_dma));
+		mcp->mb[13] = LSW(MSD(ha->ex_init_cb_dma));
+		mcp->mb[14] = sizeof(*ha->ex_init_cb);
+		mcp->out_mb |= MBX_14|MBX_13|MBX_12|MBX_11|MBX_10;
+	}
+	mcp->in_mb = MBX_0;
 	mcp->buf_size = size;
 	mcp->flags = MBX_DMA_OUT;
 	mcp->tov = MBX_TOV_SECONDS;
