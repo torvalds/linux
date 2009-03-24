@@ -29,6 +29,8 @@
 #include <linux/list.h>
 #include <linux/hash.h>
 
+#include <trace/sched.h>
+
 #include <asm/ftrace.h>
 
 #include "trace.h"
@@ -2590,6 +2592,31 @@ free:
 	return ret;
 }
 
+static void
+ftrace_graph_probe_sched_switch(struct rq *__rq, struct task_struct *prev,
+				struct task_struct *next)
+{
+	unsigned long long timestamp;
+	int index;
+
+	timestamp = trace_clock_local();
+
+	prev->ftrace_timestamp = timestamp;
+
+	/* only process tasks that we timestamped */
+	if (!next->ftrace_timestamp)
+		return;
+
+	/*
+	 * Update all the counters in next to make up for the
+	 * time next was sleeping.
+	 */
+	timestamp -= next->ftrace_timestamp;
+
+	for (index = next->curr_ret_stack; index >= 0; index--)
+		next->ret_stack[index].calltime += timestamp;
+}
+
 /* Allocate a return stack for each task */
 static int start_graph_tracing(void)
 {
@@ -2610,6 +2637,13 @@ static int start_graph_tracing(void)
 	do {
 		ret = alloc_retstack_tasklist(ret_stack_list);
 	} while (ret == -EAGAIN);
+
+	if (!ret) {
+		ret = register_trace_sched_switch(ftrace_graph_probe_sched_switch);
+		if (ret)
+			pr_info("ftrace_graph: Couldn't activate tracepoint"
+				" probe to kernel_sched_switch\n");
+	}
 
 	kfree(ret_stack_list);
 	return ret;
@@ -2674,6 +2708,7 @@ void unregister_ftrace_graph(void)
 	mutex_lock(&ftrace_lock);
 
 	atomic_dec(&ftrace_graph_active);
+	unregister_trace_sched_switch(ftrace_graph_probe_sched_switch);
 	ftrace_graph_return = (trace_func_graph_ret_t)ftrace_stub;
 	ftrace_graph_entry = ftrace_graph_entry_stub;
 	ftrace_shutdown(FTRACE_STOP_FUNC_RET);
@@ -2694,6 +2729,7 @@ void ftrace_graph_init_task(struct task_struct *t)
 		t->curr_ret_stack = -1;
 		atomic_set(&t->tracing_graph_pause, 0);
 		atomic_set(&t->trace_overrun, 0);
+		t->ftrace_timestamp = 0;
 	} else
 		t->ret_stack = NULL;
 }
