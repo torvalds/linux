@@ -12,7 +12,7 @@ obj-				:=
 
 # Core support for S3C6400 system
 
-obj-n				+= blank.o
+obj-$(CONFIG_CPU_S3C6400)	+= s3c6400.o
 
 # Machine support
 

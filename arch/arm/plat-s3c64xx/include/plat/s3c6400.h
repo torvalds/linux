@@ -21,6 +21,7 @@ extern void s3c6400_setup_clocks(void);
 #ifdef CONFIG_CPU_S3C6400
 
 extern  int s3c6400_init(void);
+extern void s3c6400_init_irq(void);
 extern void s3c6400_map_io(void);
 extern void s3c6400_init_clocks(int xtal);
 
