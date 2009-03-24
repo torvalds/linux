@@ -51,6 +51,7 @@
 
 #define APOLLON_FLASH_CS	0
 #define APOLLON_ETH_CS		1
+#define APOLLON_ETHR_GPIO_IRQ	74
 
 static struct mtd_partition apollon_partitions[] = {
 	{

@@ -306,10 +306,6 @@
 #include "board-ldp.h"
 #endif
 
-#ifdef CONFIG_MACH_OMAP_APOLLON
-#include "board-apollon.h"
-#endif
-
 #ifdef CONFIG_MACH_VOICEBLUE
 #include "board-voiceblue.h"
 #endif
