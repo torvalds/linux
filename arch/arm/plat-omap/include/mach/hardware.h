@@ -298,10 +298,6 @@
 #include "board-omap3beagle.h"
 #endif
 
-#ifdef CONFIG_MACH_OMAP_LDP
-#include "board-ldp.h"
-#endif
-
 #ifdef CONFIG_MACH_VOICEBLUE
 #include "board-voiceblue.h"
 #endif
