@@ -855,6 +855,7 @@ static int __init acpi_init(void)
 		acpi_kobj = NULL;
 	}
 
+	init_acpi_device_notify();
 	result = acpi_bus_init();
 
 	if (!result) {

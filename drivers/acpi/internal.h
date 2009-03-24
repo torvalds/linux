@@ -1,5 +1,6 @@
 /* For use by Linux/ACPI infrastructure, not drivers */
 
+int init_acpi_device_notify(void);
 int acpi_scan_init(void);
 int acpi_system_init(void);
 
