@@ -62,7 +62,7 @@ static struct twl_mmc_controller {
 	u8		twl_vmmc_dev_grp;
 	u8		twl_mmc_dedicated;
 	char		name[HSMMC_NAME_LEN + 1];
-} hsmmc[] = {
+} hsmmc[OMAP34XX_NR_MMC] = {
 	{
 		.twl_vmmc_dev_grp		= VMMC1_DEV_GRP,
 		.twl_mmc_dedicated		= VMMC1_DEDICATED,
@@ -347,6 +347,16 @@ static int twl_mmc2_set_power(struct device *dev, int slot, int power_on, int vd
 	return ret;
 }
 
+static int twl_mmc3_set_power(struct device *dev, int slot, int power_on,
+		int vdd)
+{
+	/*
+	 * Assume MMC3 has self-powered device connected, for example on-board
+	 * chip with external power source.
+	 */
+	return 0;
+}
+
 static struct omap_mmc_platform_data *hsmmc_data[OMAP34XX_NR_MMC] __initdata;
 
 void __init twl4030_mmc_init(struct twl4030_hsmmc_info *controllers)
@@ -415,7 +425,7 @@ void __init twl4030_mmc_init(struct twl4030_hsmmc_info *controllers)
 
 		/* NOTE:  we assume OMAP's MMC1 and MMC2 use
 		 * the TWL4030's VMMC1 and VMMC2, respectively;
-		 * and that OMAP's MMC3 isn't used.
+		 * and that MMC3 device has it's own power source.
 		 */
 
 		switch (c->mmc) {
@@ -430,8 +440,13 @@ void __init twl4030_mmc_init(struct twl4030_hsmmc_info *controllers)
 			else
 				mmc->slots[0].ocr_mask = MMC_VDD_165_195;
 			break;
+		case 3:
+			mmc->slots[0].set_power = twl_mmc3_set_power;
+			mmc->slots[0].ocr_mask = MMC_VDD_165_195;
+			break;
 		default:
 			pr_err("MMC%d configuration not supported!\n", c->mmc);
+			kfree(mmc);
 			continue;
 		}
 		hsmmc_data[c->mmc - 1] = mmc;
