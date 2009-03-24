@@ -1183,10 +1183,6 @@ static void ide_init_port(ide_hwif_t *hwif, unsigned int port,
 	if (d->init_iops)
 		d->init_iops(hwif);
 
-	if ((!hwif->irq && (d->host_flags & IDE_HFLAG_LEGACY_IRQS)) ||
-	    (d->host_flags & IDE_HFLAG_FORCE_LEGACY_IRQS))
-		hwif->irq = port ? 15 : 14;
-
 	/* ->host_flags may be set by ->init_iops (or even earlier...) */
 	hwif->host_flags |= d->host_flags;
 	hwif->pio_mask = d->pio_mask;

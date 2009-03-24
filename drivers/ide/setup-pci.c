@@ -570,6 +570,12 @@ int ide_pci_init_one(struct pci_dev *dev, const struct ide_port_info *d,
 	/* fixup IRQ */
 	hw[1].irq = hw[0].irq = ret;
 
+	if ((ret == 0 && (d->host_flags & IDE_HFLAG_LEGACY_IRQS)) ||
+	    (d->host_flags & IDE_HFLAG_FORCE_LEGACY_IRQS)) {
+		hw[0].irq = 14;
+		hw[1].irq = 15;
+	}
+
 	ret = ide_host_register(host, d, hws);
 	if (ret)
 		ide_host_free(host);
@@ -620,6 +626,12 @@ int ide_pci_init_two(struct pci_dev *dev1, struct pci_dev *dev2,
 
 		/* fixup IRQ */
 		hw[i*2 + 1].irq = hw[i*2].irq = ret;
+
+		if ((ret == 0 && (d->host_flags & IDE_HFLAG_LEGACY_IRQS)) ||
+		    (d->host_flags & IDE_HFLAG_FORCE_LEGACY_IRQS)) {
+			hw[i*2].irq = 14;
+			hw[i*2 + 1].irq = 15;
+		}
 	}
 
 	ret = ide_host_register(host, d, hws);
