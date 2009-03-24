@@ -263,7 +263,7 @@ static int branch_stat_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static void *annotated_branch_stat_start(void)
+static void *annotated_branch_stat_start(struct tracer_stat *trace)
 {
 	return __start_annotated_branch_profile;
 }
@@ -338,7 +338,7 @@ static int all_branch_stat_headers(struct seq_file *m)
 	return 0;
 }
 
-static void *all_branch_stat_start(void)
+static void *all_branch_stat_start(struct tracer_stat *trace)
 {
 	return __start_branch_profile;
 }

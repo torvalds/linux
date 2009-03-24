@@ -152,7 +152,7 @@ static struct cpu_workqueue_stats *workqueue_stat_start_cpu(int cpu)
 	return ret;
 }
 
-static void *workqueue_stat_start(void)
+static void *workqueue_stat_start(struct tracer_stat *trace)
 {
 	int cpu;
 	void *ret = NULL;

@@ -85,7 +85,7 @@ static int stat_seq_init(struct tracer_stat_session *session)
 	if (!ts->stat_cmp)
 		ts->stat_cmp = dummy_cmp;
 
-	stat = ts->stat_start();
+	stat = ts->stat_start(ts);
 	if (!stat)
 		goto exit;
 
