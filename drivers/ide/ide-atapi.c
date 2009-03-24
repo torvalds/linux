@@ -149,7 +149,10 @@ static void ide_queue_pc_head(ide_drive_t *drive, struct gendisk *disk,
 	memcpy(rq->cmd, pc->c, 12);
 	if (drive->media == ide_tape)
 		rq->cmd[13] = REQ_IDETAPE_PC1;
-	ide_do_drive_cmd(drive, rq);
+
+	drive->hwif->rq = NULL;
+
+	elv_add_request(drive->queue, rq, ELEVATOR_INSERT_FRONT, 0);
 }
 
 /*

@@ -1129,34 +1129,6 @@ out_early:
 }
 EXPORT_SYMBOL_GPL(ide_intr);
 
-/**
- *	ide_do_drive_cmd	-	issue IDE special command
- *	@drive: device to issue command
- *	@rq: request to issue
- *
- *	This function issues a special IDE device request
- *	onto the request queue.
- *
- *	the rq is queued at the head of the request queue, displacing
- *	the currently-being-processed request and this function
- *	returns immediately without waiting for the new rq to be
- *	completed.  This is VERY DANGEROUS, and is intended for
- *	careful use by the ATAPI tape/cdrom driver code.
- */
-
-void ide_do_drive_cmd(ide_drive_t *drive, struct request *rq)
-{
-	struct request_queue *q = drive->queue;
-	unsigned long flags;
-
-	drive->hwif->rq = NULL;
-
-	spin_lock_irqsave(q->queue_lock, flags);
-	__elv_add_request(q, rq, ELEVATOR_INSERT_FRONT, 0);
-	spin_unlock_irqrestore(q->queue_lock, flags);
-}
-EXPORT_SYMBOL(ide_do_drive_cmd);
-
 void ide_pad_transfer(ide_drive_t *drive, int write, int len)
 {
 	ide_hwif_t *hwif = drive->hwif;
