@@ -963,6 +963,7 @@ qla2x00_setup_chip(scsi_qla_host_t *vha)
 	struct qla_hw_data *ha = vha->hw;
 	struct device_reg_2xxx __iomem *reg = &ha->iobase->isp;
 	unsigned long flags;
+	uint16_t fw_major_version;
 
 	if (!IS_FWI2_CAPABLE(ha) && !IS_QLA2100(ha) && !IS_QLA2200(ha)) {
 		/* Disable SRAM, Instruction RAM and GP RAM parity.  */
@@ -986,7 +987,8 @@ qla2x00_setup_chip(scsi_qla_host_t *vha)
 
 			rval = qla2x00_execute_fw(vha, srisc_address);
 			/* Retrieve firmware information. */
-			if (rval == QLA_SUCCESS && ha->fw_major_version == 0) {
+			if (rval == QLA_SUCCESS) {
+				fw_major_version = ha->fw_major_version;
 				qla2x00_get_fw_version(vha,
 				    &ha->fw_major_version,
 				    &ha->fw_minor_version,
@@ -1003,10 +1005,11 @@ qla2x00_setup_chip(scsi_qla_host_t *vha)
 						ha->max_npiv_vports =
 						    MIN_MULTI_ID_FABRIC - 1;
 				}
-				qla2x00_resize_request_q(vha);
-
-				if (ql2xallocfwdump)
-					qla2x00_alloc_fw_dump(vha);
+				if (!fw_major_version) {
+					qla2x00_resize_request_q(vha);
+					if (ql2xallocfwdump)
+						qla2x00_alloc_fw_dump(vha);
+				}
 			}
 		} else {
 			DEBUG2(printk(KERN_INFO
