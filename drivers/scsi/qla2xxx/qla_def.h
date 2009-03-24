@@ -607,6 +607,7 @@ typedef struct {
 #define MBC_GET_TIMEOUT_PARAMS		0x22	/* Get FW timeouts. */
 #define MBC_TRACE_CONTROL		0x27	/* Trace control command. */
 #define MBC_GEN_SYSTEM_ERROR		0x2a	/* Generate System Error. */
+#define MBC_WRITE_SFP			0x30	/* Write SFP Data. */
 #define MBC_READ_SFP			0x31	/* Read SFP Data. */
 #define MBC_SET_TIMEOUT_PARAMS		0x32	/* Set FW timeouts. */
 #define MBC_MID_INITIALIZE_FIRMWARE	0x48	/* MID Initialize firmware. */
@@ -2386,6 +2387,10 @@ struct qla_hw_data {
 #define SFP_BLOCK_SIZE  64
 	void		*sfp_data;
 	dma_addr_t	sfp_data_dma;
+
+	uint8_t		*edc_data;
+	dma_addr_t	edc_data_dma;
+	uint16_t	edc_data_len;
 
 	struct task_struct	*dpc_thread;
 	uint8_t dpc_active;                  /* DPC routine is active */

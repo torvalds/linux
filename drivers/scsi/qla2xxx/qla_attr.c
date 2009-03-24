@@ -548,6 +548,144 @@ static struct bin_attribute sysfs_reset_attr = {
 	.write = qla2x00_sysfs_write_reset,
 };
 
+static ssize_t
+qla2x00_sysfs_write_edc(struct kobject *kobj,
+			struct bin_attribute *bin_attr,
+			char *buf, loff_t off, size_t count)
+{
+	struct scsi_qla_host *vha = shost_priv(dev_to_shost(container_of(kobj,
+	    struct device, kobj)));
+	struct qla_hw_data *ha = vha->hw;
+	uint16_t dev, adr, opt, len;
+	int rval;
+
+	ha->edc_data_len = 0;
+
+	if (!capable(CAP_SYS_ADMIN) || off != 0 || count < 8)
+		return 0;
+
+	if (!ha->edc_data) {
+		ha->edc_data = dma_pool_alloc(ha->s_dma_pool, GFP_KERNEL,
+		    &ha->edc_data_dma);
+		if (!ha->edc_data) {
+			DEBUG2(qla_printk(KERN_INFO, ha,
+			    "Unable to allocate memory for EDC write.\n"));
+			return 0;
+		}
+	}
+
+	dev = le16_to_cpup((void *)&buf[0]);
+	adr = le16_to_cpup((void *)&buf[2]);
+	opt = le16_to_cpup((void *)&buf[4]);
+	len = le16_to_cpup((void *)&buf[6]);
+
+	if (!(opt & BIT_0))
+		if (len == 0 || len > DMA_POOL_SIZE || len > count - 8)
+			return -EINVAL;
+
+	memcpy(ha->edc_data, &buf[8], len);
+
+	rval = qla2x00_write_edc(vha, dev, adr, ha->edc_data_dma,
+	    ha->edc_data, len, opt);
+	if (rval != QLA_SUCCESS) {
+		DEBUG2(qla_printk(KERN_INFO, ha,
+		    "Unable to write EDC (%x) %02x:%02x:%04x:%02x:%02x.\n",
+		    rval, dev, adr, opt, len, *buf));
+		return 0;
+	}
+
+	return count;
+}
+
+static struct bin_attribute sysfs_edc_attr = {
+	.attr = {
+		.name = "edc",
+		.mode = S_IWUSR,
+	},
+	.size = 0,
+	.write = qla2x00_sysfs_write_edc,
+};
+
+static ssize_t
+qla2x00_sysfs_write_edc_status(struct kobject *kobj,
+			struct bin_attribute *bin_attr,
+			char *buf, loff_t off, size_t count)
+{
+	struct scsi_qla_host *vha = shost_priv(dev_to_shost(container_of(kobj,
+	    struct device, kobj)));
+	struct qla_hw_data *ha = vha->hw;
+	uint16_t dev, adr, opt, len;
+	int rval;
+
+	ha->edc_data_len = 0;
+
+	if (!capable(CAP_SYS_ADMIN) || off != 0 || count < 8)
+		return 0;
+
+	if (!ha->edc_data) {
+		ha->edc_data = dma_pool_alloc(ha->s_dma_pool, GFP_KERNEL,
+		    &ha->edc_data_dma);
+		if (!ha->edc_data) {
+			DEBUG2(qla_printk(KERN_INFO, ha,
+			    "Unable to allocate memory for EDC status.\n"));
+			return 0;
+		}
+	}
+
+	dev = le16_to_cpup((void *)&buf[0]);
+	adr = le16_to_cpup((void *)&buf[2]);
+	opt = le16_to_cpup((void *)&buf[4]);
+	len = le16_to_cpup((void *)&buf[6]);
+
+	if (!(opt & BIT_0))
+		if (len == 0 || len > DMA_POOL_SIZE)
+			return -EINVAL;
+
+	memset(ha->edc_data, 0, len);
+	rval = qla2x00_read_edc(vha, dev, adr, ha->edc_data_dma,
+	    ha->edc_data, len, opt);
+	if (rval != QLA_SUCCESS) {
+		DEBUG2(qla_printk(KERN_INFO, ha,
+		    "Unable to write EDC status (%x) %02x:%02x:%04x:%02x.\n",
+		    rval, dev, adr, opt, len));
+		return 0;
+	}
+
+	ha->edc_data_len = len;
+
+	return count;
+}
+
+static ssize_t
+qla2x00_sysfs_read_edc_status(struct kobject *kobj,
+			   struct bin_attribute *bin_attr,
+			   char *buf, loff_t off, size_t count)
+{
+	struct scsi_qla_host *vha = shost_priv(dev_to_shost(container_of(kobj,
+	    struct device, kobj)));
+	struct qla_hw_data *ha = vha->hw;
+
+	if (!capable(CAP_SYS_ADMIN) || off != 0 || count == 0)
+		return 0;
+
+	if (!ha->edc_data || ha->edc_data_len == 0 || ha->edc_data_len > count)
+		return -EINVAL;
+
+	memcpy(buf, ha->edc_data, ha->edc_data_len);
+
+	return ha->edc_data_len;
+}
+
+static struct bin_attribute sysfs_edc_status_attr = {
+	.attr = {
+		.name = "edc_status",
+		.mode = S_IRUSR | S_IWUSR,
+	},
+	.size = 0,
+	.write = qla2x00_sysfs_write_edc_status,
+	.read = qla2x00_sysfs_read_edc_status,
+};
+
 static struct sysfs_entry {
 	char *name;
 	struct bin_attribute *attr;
@@ -560,6 +698,8 @@ static struct sysfs_entry {
 	{ "vpd", &sysfs_vpd_attr, 1 },
 	{ "sfp", &sysfs_sfp_attr, 1 },
 	{ "reset", &sysfs_reset_attr, },
+	{ "edc", &sysfs_edc_attr, 2 },
+	{ "edc_status", &sysfs_edc_status_attr, 2 },
 	{ NULL },
 };
 
@@ -572,6 +712,8 @@ qla2x00_alloc_sysfs_attr(scsi_qla_host_t *vha)
 
 	for (iter = bin_file_entries; iter->name; iter++) {
 		if (iter->is4GBp_only && !IS_FWI2_CAPABLE(vha->hw))
+			continue;
+		if (iter->is4GBp_only == 2 && !IS_QLA25XX(vha->hw))
 			continue;
 
 		ret = sysfs_create_bin_file(&host->shost_gendev.kobj,
@@ -592,6 +734,8 @@ qla2x00_free_sysfs_attr(scsi_qla_host_t *vha)
 
 	for (iter = bin_file_entries; iter->name; iter++) {
 		if (iter->is4GBp_only && !IS_FWI2_CAPABLE(ha))
+			continue;
+		if (iter->is4GBp_only == 2 && !IS_QLA25XX(ha))
 			continue;
 
 		sysfs_remove_bin_file(&host->shost_gendev.kobj,

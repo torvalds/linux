@@ -265,6 +265,14 @@ extern int
 qla2x00_read_sfp(scsi_qla_host_t *, dma_addr_t, uint16_t, uint16_t, uint16_t);
 
 extern int
+qla2x00_read_edc(scsi_qla_host_t *, uint16_t, uint16_t, dma_addr_t,
+    uint8_t *, uint16_t, uint16_t);
+
+extern int
+qla2x00_write_edc(scsi_qla_host_t *, uint16_t, uint16_t, dma_addr_t,
+    uint8_t *, uint16_t, uint16_t);
+
+extern int
 qla2x00_set_idma_speed(scsi_qla_host_t *, uint16_t, uint16_t, uint16_t *);
 
 extern int qla84xx_verify_chip(struct scsi_qla_host *, uint16_t *);
