@@ -2599,6 +2599,13 @@ ftrace_graph_probe_sched_switch(struct rq *__rq, struct task_struct *prev,
 	unsigned long long timestamp;
 	int index;
 
+	/*
+	 * Does the user want to count the time a function was asleep.
+	 * If so, do not update the time stamps.
+	 */
+	if (trace_flags & TRACE_ITER_SLEEP_TIME)
+		return;
+
 	timestamp = trace_clock_local();
 
 	prev->ftrace_timestamp = timestamp;
