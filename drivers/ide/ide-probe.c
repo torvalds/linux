@@ -1070,14 +1070,9 @@ static void drive_release_dev (struct device *dev)
 
 static int hwif_init(ide_hwif_t *hwif)
 {
-	int old_irq;
-
 	if (!hwif->irq) {
-		hwif->irq = __ide_default_irq(hwif->io_ports.data_addr);
-		if (!hwif->irq) {
-			printk(KERN_ERR "%s: disabled, no IRQ\n", hwif->name);
-			return 0;
-		}
+		printk(KERN_ERR "%s: disabled, no IRQ\n", hwif->name);
+		return 0;
 	}
 
 	if (register_blkdev(hwif->major, hwif->name))
@@ -1095,29 +1090,12 @@ static int hwif_init(ide_hwif_t *hwif)
 
 	sg_init_table(hwif->sg_table, hwif->sg_max_nents);
 	
-	if (init_irq(hwif) == 0)
-		goto done;
-
-	old_irq = hwif->irq;
-	/*
-	 *	It failed to initialise. Find the default IRQ for 
-	 *	this port and try that.
-	 */
-	hwif->irq = __ide_default_irq(hwif->io_ports.data_addr);
-	if (!hwif->irq) {
-		printk(KERN_ERR "%s: disabled, unable to get IRQ %d\n",
-			hwif->name, old_irq);
-		goto out;
-	}
 	if (init_irq(hwif)) {
-		printk(KERN_ERR "%s: probed IRQ %d and default IRQ %d failed\n",
-			hwif->name, old_irq, hwif->irq);
+		printk(KERN_ERR "%s: disabled, unable to get IRQ %d\n",
+			hwif->name, hwif->irq);
 		goto out;
 	}
-	printk(KERN_WARNING "%s: probed IRQ %d failed, using default\n",
-		hwif->name, hwif->irq);
 
-done:
 	blk_register_region(MKDEV(hwif->major, 0), MAX_DRIVES << PARTN_BITS,
 			    THIS_MODULE, ata_probe, ata_lock, hwif);
 	return 1;
