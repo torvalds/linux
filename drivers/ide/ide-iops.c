@@ -549,7 +549,7 @@ static ide_startstop_t atapi_reset_pollfunc (ide_drive_t *drive)
 	stat = hwif->tp_ops->read_status(hwif);
 
 	if (OK_STAT(stat, 0, ATA_BUSY))
-		printk("%s: ATAPI reset complete\n", drive->name);
+		printk(KERN_INFO "%s: ATAPI reset complete\n", drive->name);
 	else {
 		if (time_before(jiffies, hwif->poll_timeout)) {
 			ide_set_handler(drive, &atapi_reset_pollfunc, HZ/20, NULL);
@@ -558,8 +558,8 @@ static ide_startstop_t atapi_reset_pollfunc (ide_drive_t *drive)
 		}
 		/* end of polling */
 		hwif->polling = 0;
-		printk("%s: ATAPI reset timed-out, status=0x%02x\n",
-				drive->name, stat);
+		printk(KERN_ERR "%s: ATAPI reset timed-out, status=0x%02x\n",
+			drive->name, stat);
 		/* do it the old fashioned way */
 		return do_reset1(drive, 1);
 	}
@@ -618,7 +618,8 @@ static ide_startstop_t reset_pollfunc (ide_drive_t *drive)
 			/* continue polling */
 			return ide_started;
 		}
-		printk("%s: reset timed-out, status=0x%02x\n", hwif->name, tmp);
+		printk(KERN_ERR "%s: reset timed-out, status=0x%02x\n",
+			hwif->name, tmp);
 		drive->failures++;
 		err = -EIO;
 	} else  {
