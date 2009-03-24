@@ -516,6 +516,7 @@ event_filter_write(struct file *filp, const char __user *ubuf, size_t cnt,
 
 	if (pred->clear) {
 		filter_free_preds(call);
+		filter_free_pred(pred);
 		return cnt;
 	}
 
@@ -581,6 +582,7 @@ subsystem_filter_write(struct file *filp, const char __user *ubuf, size_t cnt,
 
 	if (pred->clear) {
 		filter_free_subsystem_preds(system);
+		filter_free_pred(pred);
 		return cnt;
 	}
 
