@@ -769,7 +769,7 @@ static int smsc911x_mii_probe(struct net_device *dev)
 		return -ENODEV;
 	}
 
-	phydev = phy_connect(dev, phydev->dev.bus_id,
+	phydev = phy_connect(dev, dev_name(&phydev->dev),
 		&smsc911x_phy_adjust_link, 0, pdata->config.phy_interface);
 
 	if (IS_ERR(phydev)) {
@@ -778,7 +778,8 @@ static int smsc911x_mii_probe(struct net_device *dev)
 	}
 
 	pr_info("%s: attached PHY driver [%s] (mii_bus:phy_addr=%s, irq=%d)\n",
-		dev->name, phydev->drv->name, phydev->dev.bus_id, phydev->irq);
+		dev->name, phydev->drv->name,
+		dev_name(&phydev->dev), phydev->irq);
 
 	/* mask with MAC supported features */
 	phydev->supported &= (PHY_BASIC_FEATURES | SUPPORTED_Pause |
@@ -1549,7 +1550,7 @@ static void smsc911x_ethtool_getdrvinfo(struct net_device *dev,
 {
 	strlcpy(info->driver, SMSC_CHIPNAME, sizeof(info->driver));
 	strlcpy(info->version, SMSC_DRV_VERSION, sizeof(info->version));
-	strlcpy(info->bus_info, dev->dev.parent->bus_id,
+	strlcpy(info->bus_info, dev_name(dev->dev.parent),
 		sizeof(info->bus_info));
 }
 
