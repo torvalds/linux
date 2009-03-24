@@ -276,6 +276,8 @@ int inet6_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 
 	/* Check if the address belongs to the host. */
 	if (addr_type == IPV6_ADDR_MAPPED) {
+		int chk_addr_ret;
+
 		/* Binding to v4-mapped address on a v6-only socket
 		 * makes no sense
 		 */
@@ -283,11 +285,17 @@ int inet6_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 			err = -EINVAL;
 			goto out;
 		}
+
+		/* Reproduce AF_INET checks to make the bindings consitant */
 		v4addr = addr->sin6_addr.s6_addr32[3];
-		if (inet_addr_type(net, v4addr) != RTN_LOCAL) {
-			err = -EADDRNOTAVAIL;
+		chk_addr_ret = inet_addr_type(net, v4addr);
+		if (!sysctl_ip_nonlocal_bind &&
+		    !(inet->freebind || inet->transparent) &&
+		    v4addr != htonl(INADDR_ANY) &&
+		    chk_addr_ret != RTN_LOCAL &&
+		    chk_addr_ret != RTN_MULTICAST &&
+		    chk_addr_ret != RTN_BROADCAST)
 			goto out;
-		}
 	} else {
 		if (addr_type != IPV6_ADDR_ANY) {
 			struct net_device *dev = NULL;
