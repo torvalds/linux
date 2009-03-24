@@ -276,6 +276,13 @@ int inet6_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 
 	/* Check if the address belongs to the host. */
 	if (addr_type == IPV6_ADDR_MAPPED) {
+		/* Binding to v4-mapped address on a v6-only socket
+		 * makes no sense
+		 */
+		if (np->ipv6only) {
+			err = -EINVAL;
+			goto out;
+		}
 		v4addr = addr->sin6_addr.s6_addr32[3];
 		if (inet_addr_type(net, v4addr) != RTN_LOCAL) {
 			err = -EADDRNOTAVAIL;
