@@ -218,9 +218,6 @@ bsg_validate_sgv4_hdr(struct request_queue *q, struct sg_io_v4 *hdr, int *rw)
 
 	if (hdr->guard != 'Q')
 		return -EINVAL;
-	if (hdr->dout_xfer_len > (q->max_sectors << 9) ||
-	    hdr->din_xfer_len > (q->max_sectors << 9))
-		return -EIO;
 
 	switch (hdr->protocol) {
 	case BSG_PROTOCOL_SCSI:
