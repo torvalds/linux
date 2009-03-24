@@ -4311,6 +4311,11 @@ L:	tlinux-users@tce.toshiba-dme.co.jp
 W:	http://www.buzzard.org.uk/toshiba/
 S:	Maintained
 
+TMIO MMC DRIVER
+P:	Ian Molton
+M:	ian@mnementh.co.uk
+S:	Maintained
+
 TPM DEVICE DRIVER
 P:	Debora Velarde
 M:	debora@linux.vnet.ibm.com
