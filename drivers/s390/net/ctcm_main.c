@@ -168,11 +168,9 @@ void ctcm_unpack_skb(struct channel *ch, struct sk_buff *pskb)
 		if (len > 0) {
 			skb_pull(pskb, header->length);
 			if (skb_tailroom(pskb) < LL_HEADER_LENGTH) {
-				if (!(ch->logflags & LOG_FLAG_OVERRUN)) {
-					CTCM_DBF_DEV_NAME(TRACE, dev,
-						"Overrun in ctcm_unpack_skb");
-					ch->logflags |= LOG_FLAG_OVERRUN;
-				}
+				CTCM_DBF_DEV_NAME(TRACE, dev,
+					"Overrun in ctcm_unpack_skb");
+				ch->logflags |= LOG_FLAG_OVERRUN;
 				return;
 			}
 			skb_put(pskb, LL_HEADER_LENGTH);
