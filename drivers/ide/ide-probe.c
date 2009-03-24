@@ -465,37 +465,6 @@ static int do_probe (ide_drive_t *drive, u8 cmd)
 	return rc;
 }
 
-/*
- *
- */
-static void enable_nest (ide_drive_t *drive)
-{
-	ide_hwif_t *hwif = drive->hwif;
-	const struct ide_tp_ops *tp_ops = hwif->tp_ops;
-	u8 stat;
-
-	printk(KERN_INFO "%s: enabling %s -- ",
-		hwif->name, (char *)&drive->id[ATA_ID_PROD]);
-
-	SELECT_DRIVE(drive);
-	msleep(50);
-	tp_ops->exec_command(hwif, ATA_EXABYTE_ENABLE_NEST);
-
-	if (ide_busy_sleep(hwif, WAIT_WORSTCASE, 0)) {
-		printk(KERN_CONT "failed (timeout)\n");
-		return;
-	}
-
-	msleep(50);
-
-	stat = tp_ops->read_status(hwif);
-
-	if (!OK_STAT(stat, 0, BAD_STAT))
-		printk(KERN_CONT "failed (status = 0x%02x)\n", stat);
-	else
-		printk(KERN_CONT "success\n");
-}
-
 /**
  *	probe_for_drives	-	upper level drive probe
  *	@drive: drive to probe for
@@ -534,7 +503,6 @@ static u8 probe_for_drive(ide_drive_t *drive)
 
 	/* skip probing? */
 	if ((drive->dev_flags & IDE_DFLAG_NOPROBE) == 0) {
-retry:
 		/* if !(success||timed-out) */
 		if (do_probe(drive, ATA_CMD_ID_ATA) >= 2)
 			/* look for ATAPI device */
@@ -543,11 +511,6 @@ retry:
 		if ((drive->dev_flags & IDE_DFLAG_PRESENT) == 0)
 			/* drive not found */
 			return 0;
-
-		if (strstr(m, "E X A B Y T E N E S T")) {
-			enable_nest(drive);
-			goto retry;
-		}
 
 		/* identification failed? */
 		if ((drive->dev_flags & IDE_DFLAG_ID_READ) == 0) {

@@ -244,8 +244,6 @@ enum {
 	ATA_CMD_MEDIA_UNLOCK	= 0xDF,
 	/* marked obsolete in the ATA/ATAPI-7 spec */
 	ATA_CMD_RESTORE		= 0x10,
-	/* EXABYTE specific */
-	ATA_EXABYTE_ENABLE_NEST	= 0xF0,
 
 	/* READ_LOG_EXT pages */
 	ATA_LOG_SATA_NCQ	= 0x10,
