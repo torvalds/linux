@@ -880,6 +880,7 @@ static int __init acpi_init(void)
 	dmi_check_system(power_nocheck_dmi_table);
 
 	acpi_scan_init();
+	acpi_ec_init();
 	return result;
 }
 
