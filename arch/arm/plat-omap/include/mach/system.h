@@ -11,6 +11,8 @@
 
 #ifndef CONFIG_MACH_VOICEBLUE
 #define voiceblue_reset()		do {} while (0)
+#else
+extern void voiceblue_reset(void);
 #endif
 
 extern void omap_prcm_arch_reset(char mode);

@@ -286,26 +286,4 @@
 #include "omap24xx.h"
 #include "omap34xx.h"
 
-#ifndef __ASSEMBLER__
-
-/*
- * ---------------------------------------------------------------------------
- * Board specific defines
- * ---------------------------------------------------------------------------
- */
-
-#ifdef CONFIG_MACH_OMAP3_BEAGLE
-#include "board-omap3beagle.h"
-#endif
-
-#ifdef CONFIG_MACH_VOICEBLUE
-#include "board-voiceblue.h"
-#endif
-
-#ifdef CONFIG_MACH_SX1
-#include "board-sx1.h"
-#endif
-
-#endif /* !__ASSEMBLER__ */
-
 #endif	/* __ASM_ARCH_OMAP_HARDWARE_H */
