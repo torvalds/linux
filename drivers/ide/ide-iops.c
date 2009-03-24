@@ -325,7 +325,7 @@ int ide_driveid_update(ide_drive_t *drive)
 
 	tp_ops->exec_command(hwif, ATA_CMD_ID_ATA);
 
-	if (ide_busy_sleep(hwif, WAIT_WORSTCASE, use_altstatus)) {
+	if (ide_busy_sleep(hwif, WAIT_WORSTCASE / 2, use_altstatus)) {
 		rc = 1;
 		goto out_err;
 	}
