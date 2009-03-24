@@ -76,6 +76,7 @@ static inline int arp_devaddr_compare(const struct arpt_devaddr_info *ap,
 /*
  * Unfortunatly, _b and _mask are not aligned to an int (or long int)
  * Some arches dont care, unrolling the loop is a win on them.
+ * For other arches, we only have a 16bit alignement.
  */
 static unsigned long ifname_compare(const char *_a, const char *_b, const char *_mask)
 {
@@ -95,10 +96,13 @@ static unsigned long ifname_compare(const char *_a, const char *_b, const char *
 	BUILD_BUG_ON(IFNAMSIZ > 4 * sizeof(unsigned long));
 #else
 	unsigned long ret = 0;
+	const u16 *a = (const u16 *)_a;
+	const u16 *b = (const u16 *)_b;
+	const u16 *mask = (const u16 *)_mask;
 	int i;
 
-	for (i = 0; i < IFNAMSIZ; i++)
-		ret |= (_a[i] ^ _b[i]) & _mask[i];
+	for (i = 0; i < IFNAMSIZ/sizeof(u16); i++)
+		ret |= (a[i] ^ b[i]) & mask[i];
 #endif
 	return ret;
 }
