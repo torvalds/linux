@@ -28,13 +28,14 @@
 #include <mach/eac.h>
 #include <mach/mmc.h>
 
-#if defined(CONFIG_OMAP_DSP) || defined(CONFIG_OMAP_DSP_MODULE)
-#define OMAP2_MBOX_BASE		IO_ADDRESS(OMAP24XX_MAILBOX_BASE)
+#if defined(CONFIG_OMAP_MBOX_FWK) || defined(CONFIG_OMAP_MBOX_FWK_MODULE)
 
-static struct resource mbox_resources[] = {
+#define MBOX_REG_SIZE	0x120
+
+static struct resource omap2_mbox_resources[] = {
 	{
-		.start		= OMAP2_MBOX_BASE,
-		.end		= OMAP2_MBOX_BASE + 0x11f,
+		.start		= OMAP24XX_MAILBOX_BASE,
+		.end		= OMAP24XX_MAILBOX_BASE + MBOX_REG_SIZE - 1,
 		.flags		= IORESOURCE_MEM,
 	},
 	{
@@ -47,20 +48,40 @@ static struct resource mbox_resources[] = {
 	},
 };
 
+static struct resource omap3_mbox_resources[] = {
+	{
+		.start		= OMAP34XX_MAILBOX_BASE,
+		.end		= OMAP34XX_MAILBOX_BASE + MBOX_REG_SIZE - 1,
+		.flags		= IORESOURCE_MEM,
+	},
+	{
+		.start		= INT_24XX_MAIL_U0_MPU,
+		.flags		= IORESOURCE_IRQ,
+	},
+};
+
 static struct platform_device mbox_device = {
 	.name		= "mailbox",
 	.id		= -1,
-	.num_resources	= ARRAY_SIZE(mbox_resources),
-	.resource	= mbox_resources,
 };
 
 static inline void omap_init_mbox(void)
 {
+	if (cpu_is_omap2420()) {
+		mbox_device.num_resources = ARRAY_SIZE(omap2_mbox_resources);
+		mbox_device.resource = omap2_mbox_resources;
+	} else if (cpu_is_omap3430()) {
+		mbox_device.num_resources = ARRAY_SIZE(omap3_mbox_resources);
+		mbox_device.resource = omap3_mbox_resources;
+	} else {
+		pr_err("%s: platform not supported\n", __func__);
+		return;
+	}
 	platform_device_register(&mbox_device);
 }
 #else
 static inline void omap_init_mbox(void) { }
-#endif
+#endif /* CONFIG_OMAP_MBOX_FWK */
 
 #if defined(CONFIG_OMAP_STI)
 
