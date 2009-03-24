@@ -948,8 +948,9 @@ qla2x00_setup_chip(scsi_qla_host_t *vha)
 						ha->max_npiv_vports =
 						    MIN_MULTI_ID_FABRIC - 1;
 				}
-				qla2x00_get_resource_cnts(vha, NULL, NULL,
-				    NULL, NULL, &ha->max_npiv_vports);
+				qla2x00_get_resource_cnts(vha, NULL,
+				    &ha->fw_xcb_count, NULL, NULL,
+				    &ha->max_npiv_vports);
 
 				if (!fw_major_version && ql2xallocfwdump)
 					qla2x00_alloc_fw_dump(vha);
@@ -1275,8 +1276,11 @@ qla2x00_init_rings(scsi_qla_host_t *vha)
 		mid_init_cb->count = cpu_to_le16(ha->max_npiv_vports);
 	}
 
-
-	mid_init_cb->options = __constant_cpu_to_le16(BIT_1);
+	if (IS_FWI2_CAPABLE(ha)) {
+		mid_init_cb->options = __constant_cpu_to_le16(BIT_1);
+		mid_init_cb->init_cb.execution_throttle =
+		    cpu_to_le16(ha->fw_xcb_count);
+	}
 
 	rval = qla2x00_init_firmware(vha, ha->init_cb_size);
 	if (rval) {
