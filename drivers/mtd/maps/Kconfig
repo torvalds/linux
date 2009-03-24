@@ -529,12 +529,6 @@ config MTD_DMV182
         help
           Map driver for Dy-4 SVME/DMV-182 board.
 
-config MTD_SHARP_SL
-	tristate "ROM mapped on Sharp SL Series"
-	depends on ARCH_PXA
-	help
-	  This enables access to the flash chip on the Sharp SL Series of PDAs.
-
 config MTD_INTEL_VR_NOR
 	tristate "NOR flash on Intel Vermilion Range Expansion Bus CS0"
 	depends on PCI
