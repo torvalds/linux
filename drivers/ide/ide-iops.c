@@ -341,9 +341,9 @@ int ide_driveid_update(ide_drive_t *drive)
 
 	local_irq_save(flags);
 	tp_ops->input_data(drive, NULL, id, SECTOR_SIZE);
-	(void)tp_ops->read_status(hwif);	/* clear drive IRQ */
-	local_irq_enable();
 	local_irq_restore(flags);
+
+	(void)tp_ops->read_status(hwif); /* clear drive IRQ */
 
 	ide_fix_driveid(id);
 
