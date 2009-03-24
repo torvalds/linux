@@ -622,6 +622,16 @@ config SND_KORG1212
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-korg1212.
 
+config SND_LX6464ES
+	tristate "Digigram LX6464ES"
+	select SND_PCM
+	help
+	  Say Y here to include support for Digigram LX6464ES boards.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called snd-lx6464es.
+
+
 config SND_MAESTRO3
 	tristate "ESS Allegro/Maestro3"
 	select SND_AC97_CODEC
