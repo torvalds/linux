@@ -1351,7 +1351,7 @@ static void m_series_stc_writew(struct comedi_device * dev, uint16_t data, int r
 	case DIO_Control_Register:
 		rt_printk
 			("%s: FIXME: register 0x%x does not map cleanly on to m-series boards.\n",
-			__FUNCTION__, reg);
+			__func__, reg);
 		return;
 		break;
 	case G_Autoincrement_Register(0):
@@ -1412,7 +1412,7 @@ static void m_series_stc_writew(struct comedi_device * dev, uint16_t data, int r
 		   and M_Offset_SCXI_Serial_Data_Out (8 bit) */
 	default:
 		rt_printk("%s: bug! unhandled register=0x%x in switch.\n",
-			__FUNCTION__, reg);
+			__func__, reg);
 		BUG();
 		return;
 		break;
@@ -1447,7 +1447,7 @@ static uint16_t m_series_stc_readw(struct comedi_device * dev, int reg)
 		break;
 	default:
 		rt_printk("%s: bug! unhandled register=0x%x in switch.\n",
-			__FUNCTION__, reg);
+			__func__, reg);
 		BUG();
 		return 0;
 		break;
@@ -1488,7 +1488,7 @@ static void m_series_stc_writel(struct comedi_device * dev, uint32_t data, int r
 		break;
 	default:
 		rt_printk("%s: bug! unhandled register=0x%x in switch.\n",
-			__FUNCTION__, reg);
+			__func__, reg);
 		BUG();
 		return;
 		break;
@@ -1514,7 +1514,7 @@ static uint32_t m_series_stc_readl(struct comedi_device * dev, int reg)
 		break;
 	default:
 		rt_printk("%s: bug! unhandled register=0x%x in switch.\n",
-			__FUNCTION__, reg);
+			__func__, reg);
 		BUG();
 		return 0;
 		break;

@@ -397,7 +397,7 @@ static inline void ni_set_bitfield(struct comedi_device * dev, int reg,
 		break;
 	default:
 		rt_printk("Warning %s() called with invalid register\n",
-			__FUNCTION__);
+			__func__);
 		rt_printk("reg is %d\n", reg);
 		break;
 	}
@@ -2845,7 +2845,7 @@ static int ni_m_series_ao_config_chanlist(struct comedi_device * dev,
 			break;
 		default:
 			rt_printk("%s: bug! unhandled ao reference voltage\n",
-				__FUNCTION__);
+				__func__);
 			break;
 		}
 		switch (krange->max + krange->min) {
@@ -2857,7 +2857,7 @@ static int ni_m_series_ao_config_chanlist(struct comedi_device * dev,
 			break;
 		default:
 			rt_printk("%s: bug! unhandled ao offset voltage\n",
-				__FUNCTION__);
+				__func__);
 			break;
 		}
 		if (timed)
@@ -4104,7 +4104,7 @@ static unsigned ni_gpct_to_stc_register(enum ni_gpct_register reg)
 		break;
 	default:
 		rt_printk("%s: unhandled register 0x%x in switch.\n",
-			__FUNCTION__, reg);
+			__func__, reg);
 		BUG();
 		return 0;
 		break;
@@ -5229,7 +5229,7 @@ static unsigned ni_old_get_pfi_routing(struct comedi_device * dev, unsigned chan
 		return NI_PFI_OUTPUT_G_GATE0;
 		break;
 	default:
-		rt_printk("%s: bug, unhandled case in switch.\n", __FUNCTION__);
+		rt_printk("%s: bug, unhandled case in switch.\n", __func__);
 		break;
 	}
 	return 0;
@@ -5396,7 +5396,7 @@ static int ni_mseries_get_pll_parameters(unsigned reference_period_ns,
 	}
 	if (best_period_picosec == 0) {
 		rt_printk("%s: bug, failed to find pll parameters\n",
-			__FUNCTION__);
+			__func__);
 		return -EIO;
 	}
 	*freq_divider = best_div;
@@ -5432,7 +5432,7 @@ static int ni_mseries_set_pll_master_clock(struct comedi_device * dev, unsigned 
 	if (period_ns < min_period_ns || period_ns > max_period_ns) {
 		rt_printk
 			("%s: you must specify an input clock frequency between %i and %i nanosec "
-			"for the phased-lock loop.\n", __FUNCTION__,
+			"for the phased-lock loop.\n", __func__,
 			min_period_ns, max_period_ns);
 		return -EINVAL;
 	}
@@ -5506,7 +5506,7 @@ static int ni_mseries_set_pll_master_clock(struct comedi_device * dev, unsigned 
 	if (i == timeout) {
 		rt_printk
 			("%s: timed out waiting for PLL to lock to reference clock source %i with period %i ns.\n",
-			__FUNCTION__, source, period_ns);
+			__func__, source, period_ns);
 		return -ETIMEDOUT;
 	}
 	return 3;
@@ -5543,7 +5543,7 @@ static int ni_set_master_clock(struct comedi_device * dev, unsigned source,
 				if (period_ns == 0) {
 					rt_printk
 						("%s: we don't handle an unspecified clock period correctly yet, returning error.\n",
-						__FUNCTION__);
+						__func__);
 					return -EINVAL;
 				} else {
 					devpriv->clock_ns = period_ns;
@@ -5566,7 +5566,7 @@ static int ni_valid_rtsi_output_source(struct comedi_device * dev, unsigned chan
 			else {
 				rt_printk
 					("%s: invalid source for channel=%i, channel %i is always the RTSI clock for pre-m-series boards.\n",
-					__FUNCTION__, chan,
+					__func__, chan,
 					old_RTSI_clock_channel);
 				return 0;
 			}
@@ -5629,7 +5629,7 @@ static unsigned ni_get_rtsi_routing(struct comedi_device * dev, unsigned chan)
 	} else {
 		if (chan == old_RTSI_clock_channel)
 			return NI_RTSI_OUTPUT_RTSI_OSC;
-		rt_printk("%s: bug! should never get here?\n", __FUNCTION__);
+		rt_printk("%s: bug! should never get here?\n", __func__);
 		return 0;
 	}
 }
@@ -5724,7 +5724,7 @@ static int cs5529_wait_for_idle(struct comedi_device * dev)
 	}
 /* printk("looped %i times waiting for idle\n", i); */
 	if (i == timeout) {
-		rt_printk("%s: %s: timeout\n", __FILE__, __FUNCTION__);
+		rt_printk("%s: %s: timeout\n", __FILE__, __func__);
 		return -ETIME;
 	}
 	return 0;

@@ -696,7 +696,7 @@ static enum NI_660x_Register ni_gpct_to_660x_register(enum ni_gpct_register reg)
 		break;
 	default:
 		rt_printk("%s: unhandled register 0x%x in switch.\n",
-			__FUNCTION__, reg);
+			__func__, reg);
 		BUG();
 		return 0;
 		break;
@@ -720,7 +720,7 @@ static inline void ni_660x_write_register(struct comedi_device * dev,
 		break;
 	default:
 		rt_printk("%s: %s: bug! unhandled case (reg=0x%x) in switch.\n",
-			__FILE__, __FUNCTION__, reg);
+			__FILE__, __func__, reg);
 		BUG();
 		break;
 	}
@@ -742,7 +742,7 @@ static inline unsigned ni_660x_read_register(struct comedi_device * dev,
 		break;
 	default:
 		rt_printk("%s: %s: bug! unhandled case (reg=0x%x) in switch.\n",
-			__FILE__, __FUNCTION__, reg);
+			__FILE__, __func__, reg);
 		BUG();
 		break;
 	}
