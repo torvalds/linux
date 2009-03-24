@@ -816,7 +816,7 @@ qla2x00_alloc_fw_dump(scsi_qla_host_t *vha)
 		qla_printk(KERN_INFO, ha, "Allocated (%d KB) for FCE...\n",
 		    FCE_SIZE / 1024);
 
-		fce_size = sizeof(struct qla2xxx_fce_chain) + EFT_SIZE;
+		fce_size = sizeof(struct qla2xxx_fce_chain) + FCE_SIZE;
 		ha->flags.fce_enabled = 1;
 		ha->fce_dma = tc_dma;
 		ha->fce = tc;
