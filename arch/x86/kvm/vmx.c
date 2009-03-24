@@ -237,9 +237,7 @@ static inline int cpu_has_secondary_exec_ctrls(void)
 
 static inline bool cpu_has_vmx_virtualize_apic_accesses(void)
 {
-	return flexpriority_enabled
-		&& (vmcs_config.cpu_based_2nd_exec_ctrl &
-		    SECONDARY_EXEC_VIRTUALIZE_APIC_ACCESSES);
+	return flexpriority_enabled;
 }
 
 static inline int cpu_has_vmx_invept_individual_addr(void)
@@ -1202,6 +1200,9 @@ static __init int setup_vmcs_config(struct vmcs_config *vmcs_conf)
 
 	if (!cpu_has_vmx_ept())
 		enable_ept = 0;
+
+	if (!(vmcs_config.cpu_based_2nd_exec_ctrl & SECONDARY_EXEC_VIRTUALIZE_APIC_ACCESSES))
+		flexpriority_enabled = 0;
 
 	min = 0;
 #ifdef CONFIG_X86_64
