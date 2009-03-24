@@ -334,32 +334,14 @@ static int do_drive_set_taskfiles(ide_drive_t *drive,
 				  unsigned int gtf_length,
 				  unsigned long gtf_address)
 {
-	int			rc = -ENODEV, err;
+	int			rc = 0, err;
 	int			gtf_count = gtf_length / REGS_PER_GTF;
 	int			ix;
 	struct taskfile_array	*gtf;
 
-	if (ide_noacpi)
-		return 0;
-
-	DEBPRINT("ENTER: %s, hard_port#: %d\n", drive->name, drive->dn);
-
-	if ((drive->dev_flags & IDE_DFLAG_PRESENT) == 0)
-		goto out;
-
-	if (!gtf_count)		/* shouldn't be here */
-		goto out;
-
 	DEBPRINT("total GTF bytes=%u (0x%x), gtf_count=%d, addr=0x%lx\n",
 		 gtf_length, gtf_length, gtf_count, gtf_address);
 
-	if (gtf_length % REGS_PER_GTF) {
-		printk(KERN_ERR "%s: unexpected GTF length (%d)\n",
-		       __func__, gtf_length);
-		goto out;
-	}
-
-	rc = 0;
 	for (ix = 0; ix < gtf_count; ix++) {
 		gtf = (struct taskfile_array *)
 			(gtf_address + ix * REGS_PER_GTF);
@@ -370,7 +352,6 @@ static int do_drive_set_taskfiles(ide_drive_t *drive,
 			rc = err;
 	}
 
-out:
 	return rc;
 }
 
