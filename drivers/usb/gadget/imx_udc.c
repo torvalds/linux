@@ -1186,8 +1186,8 @@ static struct imx_udc_struct controller = {
 		.ep0		= &controller.imx_ep[0].ep,
 		.name		= driver_name,
 		.dev = {
-			 .bus_id	= "gadget",
-		 },
+			.init_name	= "gadget",
+		},
 	},
 
 	.imx_ep[0] = {
