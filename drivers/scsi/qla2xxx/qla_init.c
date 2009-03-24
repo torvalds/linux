@@ -4344,23 +4344,17 @@ qla81xx_nvram_config(scsi_qla_host_t *vha)
 
 	/* Determine NVRAM starting address. */
 	ha->nvram_size = sizeof(struct nvram_81xx);
-	ha->nvram_base = FA_NVRAM_FUNC0_ADDR;
 	ha->vpd_size = FA_NVRAM_VPD_SIZE;
-	ha->vpd_base = FA_NVRAM_VPD0_ADDR;
-	if (PCI_FUNC(ha->pdev->devfn) & 1) {
-		ha->nvram_base = FA_NVRAM_FUNC1_ADDR;
-		ha->vpd_base = FA_NVRAM_VPD1_ADDR;
-	}
 
 	/* Get VPD data into cache */
 	ha->vpd = ha->nvram + VPD_OFFSET;
-	ha->isp_ops->read_nvram(vha, (uint8_t *)ha->vpd,
-	    ha->nvram_base - FA_NVRAM_FUNC0_ADDR, FA_NVRAM_VPD_SIZE * 4);
+	ha->isp_ops->read_optrom(vha, ha->vpd, ha->flt_region_vpd << 2,
+	    ha->vpd_size);
 
 	/* Get NVRAM data into cache and calculate checksum. */
-	dptr = (uint32_t *)nv;
-	ha->isp_ops->read_nvram(vha, (uint8_t *)dptr, ha->nvram_base,
+	ha->isp_ops->read_optrom(vha, ha->nvram, ha->flt_region_nvram << 2,
 	    ha->nvram_size);
+	dptr = (uint32_t *)nv;
 	for (cnt = 0, chksum = 0; cnt < ha->nvram_size >> 2; cnt++)
 		chksum += le32_to_cpu(*dptr++);
 

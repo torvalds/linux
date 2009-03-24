@@ -629,6 +629,14 @@ qla2xxx_get_flt_info(scsi_qla_host_t *vha, uint32_t flt_addr)
 		{ FA_BOOT_CODE_ADDR, FA_BOOT_CODE_ADDR, FA_BOOT_CODE_ADDR_81 };
 	const uint32_t def_vpd_nvram[] =
 		{ FA_VPD_NVRAM_ADDR, FA_VPD_NVRAM_ADDR, FA_VPD_NVRAM_ADDR_81 };
+	const uint32_t def_vpd0[] =
+		{ 0, 0, FA_VPD0_ADDR_81 };
+	const uint32_t def_vpd1[] =
+		{ 0, 0, FA_VPD1_ADDR_81 };
+	const uint32_t def_nvram0[] =
+		{ 0, 0, FA_NVRAM0_ADDR_81 };
+	const uint32_t def_nvram1[] =
+		{ 0, 0, FA_NVRAM1_ADDR_81 };
 	const uint32_t def_fdt[] =
 		{ FA_FLASH_DESCR_ADDR_24, FA_FLASH_DESCR_ADDR,
 			FA_FLASH_DESCR_ADDR_81 };
@@ -693,6 +701,20 @@ qla2xxx_get_flt_info(scsi_qla_host_t *vha, uint32_t flt_addr)
 			break;
 		case FLT_REG_VPD_0:
 			ha->flt_region_vpd_nvram = start;
+			if (!(PCI_FUNC(ha->pdev->devfn) & 1))
+				ha->flt_region_vpd = start;
+			break;
+		case FLT_REG_VPD_1:
+			if (PCI_FUNC(ha->pdev->devfn) & 1)
+				ha->flt_region_vpd = start;
+			break;
+		case FLT_REG_NVRAM_0:
+			if (!(PCI_FUNC(ha->pdev->devfn) & 1))
+				ha->flt_region_nvram = start;
+			break;
+		case FLT_REG_NVRAM_1:
+			if (PCI_FUNC(ha->pdev->devfn) & 1)
+				ha->flt_region_nvram = start;
 			break;
 		case FLT_REG_FDT:
 			ha->flt_region_fdt = start;
@@ -722,13 +744,18 @@ no_flash_data:
 	ha->flt_region_fw = def_fw[def];
 	ha->flt_region_boot = def_boot[def];
 	ha->flt_region_vpd_nvram = def_vpd_nvram[def];
+	ha->flt_region_vpd = !(PCI_FUNC(ha->pdev->devfn) & 1) ?
+	    def_vpd0[def]: def_vpd1[def];
+	ha->flt_region_nvram = !(PCI_FUNC(ha->pdev->devfn) & 1) ?
+	    def_nvram0[def]: def_nvram1[def];
 	ha->flt_region_fdt = def_fdt[def];
 	ha->flt_region_npiv_conf = !(PCI_FUNC(ha->pdev->devfn) & 1) ?
 	    def_npiv_conf0[def]: def_npiv_conf1[def];
 done:
 	DEBUG2(qla_printk(KERN_DEBUG, ha, "FLT[%s]: boot=0x%x fw=0x%x "
-	    "vpd_nvram=0x%x fdt=0x%x flt=0x%x npiv=0x%x.\n", loc,
-	    ha->flt_region_boot, ha->flt_region_fw, ha->flt_region_vpd_nvram,
+	    "vpd_nvram=0x%x vpd=0x%x nvram=0x%x fdt=0x%x flt=0x%x "
+	    "npiv=0x%x.\n", loc, ha->flt_region_boot, ha->flt_region_fw,
+	    ha->flt_region_vpd_nvram, ha->flt_region_vpd, ha->flt_region_nvram,
 	    ha->flt_region_fdt, ha->flt_region_flt, ha->flt_region_npiv_conf));
 }
 

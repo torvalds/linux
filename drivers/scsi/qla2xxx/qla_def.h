@@ -2506,6 +2506,8 @@ struct qla_hw_data {
 	uint32_t        flt_region_boot;
 	uint32_t        flt_region_fw;
 	uint32_t        flt_region_vpd_nvram;
+	uint32_t        flt_region_vpd;
+	uint32_t        flt_region_nvram;
 	uint32_t        flt_region_npiv_conf;
 
 	/* Needed for BEACON */

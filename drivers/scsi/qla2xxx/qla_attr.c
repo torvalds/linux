@@ -111,7 +111,8 @@ qla2x00_sysfs_write_nvram(struct kobject *kobj,
 	struct qla_hw_data *ha = vha->hw;
 	uint16_t	cnt;
 
-	if (!capable(CAP_SYS_ADMIN) || off != 0 || count != ha->nvram_size)
+	if (!capable(CAP_SYS_ADMIN) || off != 0 || count != ha->nvram_size ||
+	    !ha->isp_ops->write_nvram)
 		return 0;
 
 	/* Checksum NVRAM. */
@@ -393,7 +394,8 @@ qla2x00_sysfs_write_vpd(struct kobject *kobj,
 	struct qla_hw_data *ha = vha->hw;
 	uint8_t *tmp_data;
 
-	if (!capable(CAP_SYS_ADMIN) || off != 0 || count != ha->vpd_size)
+	if (!capable(CAP_SYS_ADMIN) || off != 0 || count != ha->vpd_size ||
+	    !ha->isp_ops->write_nvram)
 		return 0;
 
 	if (qla2x00_wait_for_hba_online(vha) != QLA_SUCCESS) {
