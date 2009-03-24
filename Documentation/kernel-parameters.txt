@@ -831,6 +831,8 @@ and is between 256 and 4096 characters. It is defined in the file
 			       terminal devices. Valid values: 0..8
 
 	i2c_bus=	[HW] Override the default board specific I2C bus speed
+			     or register an additional I2C bus that is not
+			     registered from board initialization code.
 			     Format:
 			     <bus_id>,<clkrate>
 
