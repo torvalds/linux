@@ -101,7 +101,7 @@ config IP6_NF_MATCH_HL
 	---help---
 	This is a backwards-compat option for the user's convenience
 	(e.g. when running oldconfig). It selects
-	COFNIG_NETFILTER_XT_MATCH_HL.
+	CONFIG_NETFILTER_XT_MATCH_HL.
 
 config IP6_NF_MATCH_IPV6HEADER
 	tristate '"ipv6header" IPv6 Extension Headers Match'
@@ -137,7 +137,7 @@ config IP6_NF_TARGET_HL
 	---help---
 	This is a backwards-compat option for the user's convenience
 	(e.g. when running oldconfig). It selects
-	COFNIG_NETFILTER_XT_TARGET_HL.
+	CONFIG_NETFILTER_XT_TARGET_HL.
 
 config IP6_NF_TARGET_LOG
 	tristate "LOG target support"
