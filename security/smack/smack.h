@@ -18,6 +18,8 @@
 #include <linux/security.h>
 #include <linux/in.h>
 #include <net/netlabel.h>
+#include <linux/list.h>
+#include <linux/rculist.h>
 
 /*
  * Why 23? CIPSO is constrained to 30, so a 32 byte buffer is
@@ -59,17 +61,10 @@ struct inode_smack {
  * A label access rule.
  */
 struct smack_rule {
-	char	*smk_subject;
-	char	*smk_object;
-	int	smk_access;
-};
-
-/*
- * An entry in the table of permitted label accesses.
- */
-struct smk_list_entry {
-	struct smk_list_entry	*smk_next;
-	struct smack_rule	smk_rule;
+	struct list_head	list;
+	char			*smk_subject;
+	char			*smk_object;
+	int			smk_access;
 };
 
 /*
@@ -85,7 +80,7 @@ struct smack_cipso {
  * An entry in the table identifying hosts.
  */
 struct smk_netlbladdr {
-	struct smk_netlbladdr	*smk_next;
+	struct list_head	list;
 	struct sockaddr_in	smk_host;	/* network address */
 	struct in_addr		smk_mask;	/* network mask */
 	char			*smk_label;	/* label */
@@ -113,7 +108,7 @@ struct smk_netlbladdr {
  * the cipso direct mapping in used internally.
  */
 struct smack_known {
-	struct smack_known	*smk_next;
+	struct list_head	list;
 	char			smk_known[SMK_LABELLEN];
 	u32			smk_secid;
 	struct smack_cipso	*smk_cipso;
@@ -206,7 +201,6 @@ extern int smack_cipso_direct;
 extern char *smack_net_ambient;
 extern char *smack_onlycap;
 
-extern struct smack_known *smack_known;
 extern struct smack_known smack_known_floor;
 extern struct smack_known smack_known_hat;
 extern struct smack_known smack_known_huh;
@@ -214,8 +208,10 @@ extern struct smack_known smack_known_invalid;
 extern struct smack_known smack_known_star;
 extern struct smack_known smack_known_web;
 
-extern struct smk_list_entry *smack_list;
-extern struct smk_netlbladdr *smack_netlbladdrs;
+extern struct list_head smack_known_list;
+extern struct list_head smack_rule_list;
+extern struct list_head smk_netlbladdr_list;
+
 extern struct security_operations smack_ops;
 
 /*

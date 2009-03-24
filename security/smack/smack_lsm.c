@@ -1508,7 +1508,8 @@ static char *smack_host_label(struct sockaddr_in *sip)
 	if (siap->s_addr == 0)
 		return NULL;
 
-	for (snp = smack_netlbladdrs; snp != NULL; snp = snp->smk_next) {
+	rcu_read_lock();
+	list_for_each_entry_rcu(snp, &smk_netlbladdr_list, list) {
 		/*
 		 * we break after finding the first match because
 		 * the list is sorted from longest to shortest mask
@@ -1516,10 +1517,11 @@ static char *smack_host_label(struct sockaddr_in *sip)
 		 */
 		if ((&snp->smk_host.sin_addr)->s_addr  ==
 			(siap->s_addr & (&snp->smk_mask)->s_addr)) {
+			rcu_read_unlock();
 			return snp->smk_label;
 		}
 	}
-
+	rcu_read_unlock();
 	return NULL;
 }
 
@@ -2930,6 +2932,17 @@ struct security_operations smack_ops = {
 	.release_secctx = 		smack_release_secctx,
 };
 
+
+static __init void init_smack_know_list(void)
+{
+	list_add(&smack_known_huh.list, &smack_known_list);
+	list_add(&smack_known_hat.list, &smack_known_list);
+	list_add(&smack_known_star.list, &smack_known_list);
+	list_add(&smack_known_floor.list, &smack_known_list);
+	list_add(&smack_known_invalid.list, &smack_known_list);
+	list_add(&smack_known_web.list, &smack_known_list);
+}
+
 /**
  * smack_init - initialize the smack system
  *
@@ -2950,6 +2963,8 @@ static __init int smack_init(void)
 	cred = (struct cred *) current->cred;
 	cred->security = &smack_known_floor.smk_known;
 
+	/* initilize the smack_know_list */
+	init_smack_know_list();
 	/*
 	 * Initialize locks
 	 */
