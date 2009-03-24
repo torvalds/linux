@@ -219,38 +219,11 @@ static int do_drive_get_GTF(ide_drive_t *drive,
 	acpi_status			status;
 	struct acpi_buffer		output;
 	union acpi_object 		*out_obj;
-	ide_hwif_t			*hwif = drive->hwif;
-	struct device			*dev = hwif->gendev.parent;
 	int				err = -ENODEV;
-	int				port;
 
 	*gtf_length = 0;
 	*gtf_address = 0UL;
 	*obj_loc = 0UL;
-
-	if (ide_noacpi)
-		return 0;
-
-	if (!dev) {
-		DEBPRINT("no PCI device for %s\n", hwif->name);
-		goto out;
-	}
-
-	if (!hwif->acpidata) {
-		DEBPRINT("no ACPI data for %s\n", hwif->name);
-		goto out;
-	}
-
-	port = hwif->channel ? drive->dn - 2: drive->dn;
-
-	DEBPRINT("ENTER: %s at %s, port#: %d, hard_port#: %d\n",
-		 hwif->name, dev_name(dev), port, hwif->channel);
-
-	if ((drive->dev_flags & IDE_DFLAG_PRESENT) == 0) {
-		DEBPRINT("%s drive %d:%d not present\n",
-			 hwif->name, hwif->channel, port);
-		goto out;
-	}
 
 	if (!drive->acpidata->obj_handle) {
 		DEBPRINT("No ACPI object found for %s\n", drive->name);
