@@ -198,7 +198,7 @@ static int __devinit cell_edac_probe(struct platform_device *pdev)
 	mci->edac_cap = EDAC_FLAG_EC | EDAC_FLAG_SECDED;
 	mci->mod_name = "cell_edac";
 	mci->ctl_name = "MIC";
-	mci->dev_name = pdev->dev.bus_id;
+	mci->dev_name = dev_name(&pdev->dev);
 	mci->edac_check = cell_edac_check;
 	cell_edac_init_csrows(mci);
 
