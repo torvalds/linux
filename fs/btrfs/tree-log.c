@@ -1532,6 +1532,17 @@ static int replay_one_buffer(struct btrfs_root *log, struct extent_buffer *eb,
 					root, inode, inode->i_size,
 					BTRFS_EXTENT_DATA_KEY);
 				BUG_ON(ret);
+
+				/* if the nlink count is zero here, the iput
+				 * will free the inode.  We bump it to make
+				 * sure it doesn't get freed until the link
+				 * count fixup is done
+				 */
+				if (inode->i_nlink == 0) {
+					btrfs_inc_nlink(inode);
+					btrfs_update_inode(wc->trans,
+							   root, inode);
+				}
 				iput(inode);
 			}
 			ret = link_to_fixup_dir(wc->trans, root,
