@@ -15,10 +15,20 @@
  * must not be used by drivers.
  */
 #ifndef __arch_page_to_dma
+
+#if !defined(CONFIG_HIGHMEM)
 static inline dma_addr_t page_to_dma(struct device *dev, struct page *page)
 {
 	return (dma_addr_t)__virt_to_bus((unsigned long)page_address(page));
 }
+#elif defined(__pfn_to_bus)
+static inline dma_addr_t page_to_dma(struct device *dev, struct page *page)
+{
+	return (dma_addr_t)__pfn_to_bus(page_to_pfn(page));
+}
+#else
+#error "this machine class needs to define __arch_page_to_dma to use HIGHMEM"
+#endif
 
 static inline void *dma_to_virt(struct device *dev, dma_addr_t addr)
 {
@@ -57,6 +67,8 @@ static inline dma_addr_t virt_to_dma(struct device *dev, void *addr)
  * Use the driver DMA support - see dma-mapping.h (dma_sync_*)
  */
 extern void dma_cache_maint(const void *kaddr, size_t size, int rw);
+extern void dma_cache_maint_page(struct page *page, unsigned long offset,
+				 size_t size, int rw);
 
 /*
  * Return whether the given device DMA address mask can be supported
@@ -316,7 +328,7 @@ static inline dma_addr_t dma_map_page(struct device *dev, struct page *page,
 	BUG_ON(!valid_dma_direction(dir));
 
 	if (!arch_is_coherent())
-		dma_cache_maint(page_address(page) + offset, size, dir);
+		dma_cache_maint_page(page, offset, size, dir);
 
 	return page_to_dma(dev, page) + offset;
 }
