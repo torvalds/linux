@@ -202,40 +202,6 @@ static acpi_handle ide_acpi_hwif_get_handle(ide_hwif_t *hwif)
 }
 
 /**
- * ide_acpi_drive_get_handle - Get ACPI object handle for a given drive
- * @drive: device to locate
- *
- * Retrieves the object handle of a given drive. According to the ACPI
- * spec the drive is a child of the hwif.
- *
- * Returns handle on success, 0 on error.
- */
-static acpi_handle ide_acpi_drive_get_handle(ide_drive_t *drive)
-{
-	ide_hwif_t	*hwif = drive->hwif;
-	int		 port;
-	acpi_handle	 drive_handle;
-
-	if (!hwif->acpidata)
-		return NULL;
-
-	if (!hwif->acpidata->obj_handle)
-		return NULL;
-
-	port = hwif->channel ? drive->dn - 2: drive->dn;
-
-	DEBPRINT("ENTER: %s at channel#: %d port#: %d\n",
-		 drive->name, hwif->channel, port);
-
-
-	/* TBD: could also check ACPI object VALID bits */
-	drive_handle = acpi_get_child(hwif->acpidata->obj_handle, port);
-	DEBPRINT("drive %s handle 0x%p\n", drive->name, drive_handle);
-
-	return drive_handle;
-}
-
-/**
  * do_drive_get_GTF - get the drive bootup default taskfile settings
  * @drive: the drive for which the taskfile settings should be retrieved
  * @gtf_length: number of bytes of _GTF data returned at @gtf_address
@@ -290,14 +256,9 @@ static int do_drive_get_GTF(ide_drive_t *drive,
 		goto out;
 	}
 
-	/* Get this drive's _ADR info. if not already known. */
 	if (!drive->acpidata->obj_handle) {
-		drive->acpidata->obj_handle = ide_acpi_drive_get_handle(drive);
-		if (!drive->acpidata->obj_handle) {
-			DEBPRINT("No ACPI object found for %s\n",
-				 drive->name);
-			goto out;
-		}
+		DEBPRINT("No ACPI object found for %s\n", drive->name);
+		goto out;
 	}
 
 	/* Setting up output buffer */
@@ -652,9 +613,6 @@ void ide_acpi_set_state(ide_hwif_t *hwif, int on)
 		acpi_bus_set_power(hwif->acpidata->obj_handle, ACPI_STATE_D0);
 
 	ide_port_for_each_dev(i, drive, hwif) {
-		if (!drive->acpidata->obj_handle)
-			drive->acpidata->obj_handle = ide_acpi_drive_get_handle(drive);
-
 		if (drive->acpidata->obj_handle &&
 		    (drive->dev_flags & IDE_DFLAG_PRESENT)) {
 			acpi_bus_set_power(drive->acpidata->obj_handle,
@@ -707,6 +665,25 @@ void ide_acpi_port_init_devices(ide_hwif_t *hwif)
 	 */
 	hwif->devices[0]->acpidata = &hwif->acpidata->master;
 	hwif->devices[1]->acpidata = &hwif->acpidata->slave;
+
+	/* get _ADR info for each device */
+	ide_port_for_each_dev(i, drive, hwif) {
+		acpi_handle dev_handle;
+
+		if ((drive->dev_flags & IDE_DFLAG_PRESENT) == 0)
+			continue;
+
+		DEBPRINT("ENTER: %s at channel#: %d port#: %d\n",
+			 drive->name, hwif->channel, drive->dn & 1);
+
+		/* TBD: could also check ACPI object VALID bits */
+		dev_handle = acpi_get_child(hwif->acpidata->obj_handle,
+					    drive->dn & 1);
+
+		DEBPRINT("drive %s handle 0x%p\n", drive->name, dev_handle);
+
+		drive->acpidata->obj_handle = dev_handle;
+	}
 
 	/*
 	 * Send IDENTIFY for each drive
