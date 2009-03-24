@@ -21,15 +21,11 @@
  *
  */
 
-#include <linux/init.h>
 #include <linux/module.h>
-#include <linux/sched.h>
 #include <linux/interrupt.h>
 #include <linux/device.h>
-#include <linux/blkdev.h>
-#include <linux/err.h>
 #include <linux/delay.h>
-#include <linux/io.h>
+
 #include <mach/mailbox.h>
 
 static int enable_seq_bit;
