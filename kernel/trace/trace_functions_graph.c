@@ -426,8 +426,8 @@ print_graph_irq(struct trace_iterator *iter, unsigned long addr,
 	return TRACE_TYPE_HANDLED;
 }
 
-static enum print_line_t
-print_graph_duration(unsigned long long duration, struct trace_seq *s)
+enum print_line_t
+trace_print_graph_duration(unsigned long long duration, struct trace_seq *s)
 {
 	unsigned long nsecs_rem = do_div(duration, 1000);
 	/* log10(ULONG_MAX) + '\0' */
@@ -464,12 +464,23 @@ print_graph_duration(unsigned long long duration, struct trace_seq *s)
 		if (!ret)
 			return TRACE_TYPE_PARTIAL_LINE;
 	}
+	return TRACE_TYPE_HANDLED;
+}
+
+static enum print_line_t
+print_graph_duration(unsigned long long duration, struct trace_seq *s)
+{
+	int ret;
+
+	ret = trace_print_graph_duration(duration, s);
+	if (ret != TRACE_TYPE_HANDLED)
+		return ret;
 
 	ret = trace_seq_printf(s, "|  ");
 	if (!ret)
 		return TRACE_TYPE_PARTIAL_LINE;
-	return TRACE_TYPE_HANDLED;
 
+	return TRACE_TYPE_HANDLED;
 }
 
 /* Case of a leaf function on its call entry */

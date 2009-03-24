@@ -33,7 +33,7 @@
 
 #include <asm/ftrace.h>
 
-#include "trace.h"
+#include "trace_output.h"
 #include "trace_stat.h"
 
 #define FTRACE_WARN_ON(cond)			\
@@ -246,6 +246,9 @@ struct ftrace_profile {
 	struct hlist_node		node;
 	unsigned long			ip;
 	unsigned long			counter;
+#ifdef CONFIG_FUNCTION_GRAPH_TRACER
+	unsigned long long		time;
+#endif
 };
 
 struct ftrace_profile_page {
@@ -303,6 +306,22 @@ static void *function_stat_start(struct tracer_stat *trace)
 	return function_stat_next(&profile_pages_start->records[0], 0);
 }
 
+#ifdef CONFIG_FUNCTION_GRAPH_TRACER
+/* function graph compares on total time */
+static int function_stat_cmp(void *p1, void *p2)
+{
+	struct ftrace_profile *a = p1;
+	struct ftrace_profile *b = p2;
+
+	if (a->time < b->time)
+		return -1;
+	if (a->time > b->time)
+		return 1;
+	else
+		return 0;
+}
+#else
+/* not function graph compares against hits */
 static int function_stat_cmp(void *p1, void *p2)
 {
 	struct ftrace_profile *a = p1;
@@ -315,11 +334,17 @@ static int function_stat_cmp(void *p1, void *p2)
 	else
 		return 0;
 }
+#endif
 
 static int function_stat_headers(struct seq_file *m)
 {
+#ifdef CONFIG_FUNCTION_GRAPH_TRACER
+	seq_printf(m, "  Function                               Hit    Time\n"
+		      "  --------                               ---    ----\n");
+#else
 	seq_printf(m, "  Function                               Hit\n"
 		      "  --------                               ---\n");
+#endif
 	return 0;
 }
 
@@ -327,10 +352,25 @@ static int function_stat_show(struct seq_file *m, void *v)
 {
 	struct ftrace_profile *rec = v;
 	char str[KSYM_SYMBOL_LEN];
+#ifdef CONFIG_FUNCTION_GRAPH_TRACER
+	static struct trace_seq s;
+	static DEFINE_MUTEX(mutex);
+
+	mutex_lock(&mutex);
+	trace_seq_init(&s);
+	trace_print_graph_duration(rec->time, &s);
+#endif
 
 	kallsyms_lookup(rec->ip, NULL, NULL, NULL, str);
+	seq_printf(m, "  %-30.30s  %10lu", str, rec->counter);
 
-	seq_printf(m, "  %-30.30s  %10lu\n", str, rec->counter);
+#ifdef CONFIG_FUNCTION_GRAPH_TRACER
+	seq_printf(m, "    ");
+	trace_print_seq(m, &s);
+	mutex_unlock(&mutex);
+#endif
+	seq_putc(m, '\n');
+
 	return 0;
 }
 
@@ -534,10 +574,51 @@ function_profile_call(unsigned long ip, unsigned long parent_ip)
 	local_irq_restore(flags);
 }
 
+#ifdef CONFIG_FUNCTION_GRAPH_TRACER
+static int profile_graph_entry(struct ftrace_graph_ent *trace)
+{
+	function_profile_call(trace->func, 0);
+	return 1;
+}
+
+static void profile_graph_return(struct ftrace_graph_ret *trace)
+{
+	unsigned long flags;
+	struct ftrace_profile *rec;
+
+	local_irq_save(flags);
+	rec = ftrace_find_profiled_func(trace->func);
+	if (rec)
+		rec->time += trace->rettime - trace->calltime;
+	local_irq_restore(flags);
+}
+
+static int register_ftrace_profiler(void)
+{
+	return register_ftrace_graph(&profile_graph_return,
+				     &profile_graph_entry);
+}
+
+static void unregister_ftrace_profiler(void)
+{
+	unregister_ftrace_graph();
+}
+#else
 static struct ftrace_ops ftrace_profile_ops __read_mostly =
 {
 	.func = function_profile_call,
 };
+
+static int register_ftrace_profiler(void)
+{
+	return register_ftrace_function(&ftrace_profile_ops);
+}
+
+static void unregister_ftrace_profiler(void)
+{
+	unregister_ftrace_function(&ftrace_profile_ops);
+}
+#endif /* CONFIG_FUNCTION_GRAPH_TRACER */
 
 static ssize_t
 ftrace_profile_write(struct file *filp, const char __user *ubuf,
@@ -570,11 +651,15 @@ ftrace_profile_write(struct file *filp, const char __user *ubuf,
 				goto out;
 			}
 
-			register_ftrace_function(&ftrace_profile_ops);
+			ret = register_ftrace_profiler();
+			if (ret < 0) {
+				cnt = ret;
+				goto out;
+			}
 			ftrace_profile_enabled = 1;
 		} else {
 			ftrace_profile_enabled = 0;
-			unregister_ftrace_function(&ftrace_profile_ops);
+			unregister_ftrace_profiler();
 		}
 	}
  out:
