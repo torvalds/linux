@@ -246,7 +246,6 @@ out:
  */
 int ecryptfs_lookup_and_interpose_lower(struct dentry *ecryptfs_dentry,
 					struct dentry *lower_dentry,
-					struct ecryptfs_crypt_stat *crypt_stat,
 					struct inode *ecryptfs_dir_inode,
 					struct nameidata *ecryptfs_nd)
 {
@@ -254,6 +253,7 @@ int ecryptfs_lookup_and_interpose_lower(struct dentry *ecryptfs_dentry,
 	struct vfsmount *lower_mnt;
 	struct inode *lower_inode;
 	struct ecryptfs_mount_crypt_stat *mount_crypt_stat;
+	struct ecryptfs_crypt_stat *crypt_stat;
 	char *page_virt = NULL;
 	u64 file_size;
 	int rc = 0;
@@ -314,6 +314,11 @@ int ecryptfs_lookup_and_interpose_lower(struct dentry *ecryptfs_dentry,
 			goto out_free_kmem;
 		}
 	}
+	crypt_stat = &ecryptfs_inode_to_private(
+					ecryptfs_dentry->d_inode)->crypt_stat;
+	/* TODO: lock for crypt_stat comparison */
+	if (!(crypt_stat->flags & ECRYPTFS_POLICY_APPLIED))
+			ecryptfs_set_default_sizes(crypt_stat);
 	rc = ecryptfs_read_and_validate_header_region(page_virt,
 						      ecryptfs_dentry->d_inode);
 	if (rc) {
@@ -362,9 +367,7 @@ static struct dentry *ecryptfs_lookup(struct inode *ecryptfs_dir_inode,
 {
 	char *encrypted_and_encoded_name = NULL;
 	size_t encrypted_and_encoded_name_size;
-	struct ecryptfs_crypt_stat *crypt_stat = NULL;
 	struct ecryptfs_mount_crypt_stat *mount_crypt_stat = NULL;
-	struct ecryptfs_inode_info *inode_info;
 	struct dentry *lower_dir_dentry, *lower_dentry;
 	int rc = 0;
 
@@ -388,26 +391,15 @@ static struct dentry *ecryptfs_lookup(struct inode *ecryptfs_dir_inode,
 	}
 	if (lower_dentry->d_inode)
 		goto lookup_and_interpose;
-	inode_info =  ecryptfs_inode_to_private(ecryptfs_dentry->d_inode);
-	if (inode_info) {
-		crypt_stat = &inode_info->crypt_stat;
-		/* TODO: lock for crypt_stat comparison */
-		if (!(crypt_stat->flags & ECRYPTFS_POLICY_APPLIED))
-			ecryptfs_set_default_sizes(crypt_stat);
-	}
-	if (crypt_stat)
-		mount_crypt_stat = crypt_stat->mount_crypt_stat;
-	else
-		mount_crypt_stat = &ecryptfs_superblock_to_private(
-			ecryptfs_dentry->d_sb)->mount_crypt_stat;
-	if (!(crypt_stat && (crypt_stat->flags & ECRYPTFS_ENCRYPT_FILENAMES))
-	    && !(mount_crypt_stat && (mount_crypt_stat->flags
-				     & ECRYPTFS_GLOBAL_ENCRYPT_FILENAMES)))
+	mount_crypt_stat = &ecryptfs_superblock_to_private(
+				ecryptfs_dentry->d_sb)->mount_crypt_stat;
+	if (!(mount_crypt_stat
+	    && (mount_crypt_stat->flags & ECRYPTFS_GLOBAL_ENCRYPT_FILENAMES)))
 		goto lookup_and_interpose;
 	dput(lower_dentry);
 	rc = ecryptfs_encrypt_and_encode_filename(
 		&encrypted_and_encoded_name, &encrypted_and_encoded_name_size,
-		crypt_stat, mount_crypt_stat, ecryptfs_dentry->d_name.name,
+		NULL, mount_crypt_stat, ecryptfs_dentry->d_name.name,
 		ecryptfs_dentry->d_name.len);
 	if (rc) {
 		printk(KERN_ERR "%s: Error attempting to encrypt and encode "
@@ -426,7 +418,7 @@ static struct dentry *ecryptfs_lookup(struct inode *ecryptfs_dir_inode,
 	}
 lookup_and_interpose:
 	rc = ecryptfs_lookup_and_interpose_lower(ecryptfs_dentry, lower_dentry,
-						 crypt_stat, ecryptfs_dir_inode,
+						 ecryptfs_dir_inode,
 						 ecryptfs_nd);
 	goto out;
 out_d_drop:

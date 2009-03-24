@@ -376,7 +376,8 @@ Implementations for:
 Windows 95/98/NT/2000	http://www.chrysocome.net/explore2fs
 Windows 95 (*)		http://www.yipton.net/content.html#FSDEXT2
 DOS client (*)		ftp://metalab.unc.edu/pub/Linux/system/filesystems/ext2/
-OS/2 (*)		ftp://metalab.unc.edu/pub/Linux/system/filesystems/ext2/
+OS/2 (+)		ftp://metalab.unc.edu/pub/Linux/system/filesystems/ext2/
 RISC OS client		http://www.esw-heim.tu-clausthal.de/~marco/smorbrod/IscaFS/
 
-(*) no longer actively developed/supported (as of Mar 2009)
+(*) no longer actively developed/supported (as of Apr 2001)
+(+) no longer actively developed/supported (as of Mar 2009)

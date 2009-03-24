@@ -1,8 +1,8 @@
 VERSION = 2
 PATCHLEVEL = 6
 SUBLEVEL = 29
-EXTRAVERSION = -rc8
-NAME = Erotic Pickled Herring
+EXTRAVERSION =
+NAME = Temporary Tasmanian Devil
 
 # *DOCUMENTATION*
 # To see a list of typical targets execute "make help"
@@ -565,6 +565,12 @@ KBUILD_CFLAGS += $(call cc-option,-Wdeclaration-after-statement,)
 
 # disable pointer signed / unsigned warnings in gcc 4.0
 KBUILD_CFLAGS += $(call cc-option,-Wno-pointer-sign,)
+
+# disable invalid "can't wrap" optimzations for signed / pointers
+KBUILD_CFLAGS	+= $(call cc-option,-fwrapv)
+
+# revert to pre-gcc-4.4 behaviour of .eh_frame
+KBUILD_CFLAGS	+= $(call cc-option,-fno-dwarf2-cfi-asm)
 
 # Add user supplied CPPFLAGS, AFLAGS and CFLAGS as the last assignments
 # But warn user when we do so
