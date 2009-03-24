@@ -940,8 +940,6 @@ static int init_irq (ide_hwif_t *hwif)
 	irq_handler_t irq_handler;
 	int sa = 0;
 
-	mutex_lock(&ide_cfg_mtx);
-
 	irq_handler = hwif->host->irq_handler;
 	if (irq_handler == NULL)
 		irq_handler = ide_intr;
@@ -979,10 +977,8 @@ static int init_irq (ide_hwif_t *hwif)
 		printk(KERN_CONT " (serialized)");
 	printk(KERN_CONT "\n");
 
-	mutex_unlock(&ide_cfg_mtx);
 	return 0;
 out_up:
-	mutex_unlock(&ide_cfg_mtx);
 	return 1;
 }
 
