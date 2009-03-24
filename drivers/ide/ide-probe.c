@@ -233,16 +233,6 @@ static void do_identify(ide_drive_t *drive, u8 cmd)
 	drive->dev_flags |= IDE_DFLAG_PRESENT;
 	drive->dev_flags &= ~IDE_DFLAG_DEAD;
 
-	/*
-	 * Check for an ATAPI device
-	 */
-	if (cmd == ATA_CMD_ID_ATAPI)
-		ide_classify_atapi_dev(drive);
-	else
-	/*
-	 * Not an ATAPI device: looks like a "regular" hard disk
-	 */
-		ide_classify_ata_dev(drive);
 	return;
 err_misc:
 	kfree(id);
@@ -480,6 +470,8 @@ static int do_probe (ide_drive_t *drive, u8 cmd)
 static u8 probe_for_drive(ide_drive_t *drive)
 {
 	char *m;
+	int rc;
+	u8 cmd;
 
 	/*
 	 *	In order to keep things simple we have an id
@@ -504,9 +496,13 @@ static u8 probe_for_drive(ide_drive_t *drive)
 	/* skip probing? */
 	if ((drive->dev_flags & IDE_DFLAG_NOPROBE) == 0) {
 		/* if !(success||timed-out) */
-		if (do_probe(drive, ATA_CMD_ID_ATA) >= 2)
+		cmd = ATA_CMD_ID_ATA;
+		rc = do_probe(drive, cmd);
+		if (rc >= 2) {
 			/* look for ATAPI device */
-			(void)do_probe(drive, ATA_CMD_ID_ATAPI);
+			cmd = ATA_CMD_ID_ATAPI;
+			rc = do_probe(drive, cmd);
+		}
 
 		if ((drive->dev_flags & IDE_DFLAG_PRESENT) == 0)
 			/* drive not found */
@@ -525,8 +521,12 @@ static u8 probe_for_drive(ide_drive_t *drive)
 				printk(KERN_WARNING "%s: Unknown device on bus refused identification. Ignoring.\n", drive->name);
 				drive->dev_flags &= ~IDE_DFLAG_PRESENT;
 			}
+		} else {
+			if (cmd == ATA_CMD_ID_ATAPI)
+				ide_classify_atapi_dev(drive);
+			else
+				ide_classify_ata_dev(drive);
 		}
-		/* drive was found */
 	}
 
 	if ((drive->dev_flags & IDE_DFLAG_PRESENT) == 0)
