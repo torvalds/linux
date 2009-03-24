@@ -568,13 +568,11 @@ int ide_pci_init_one(struct pci_dev *dev, const struct ide_port_info *d,
 		goto out;
 
 	/* fixup IRQ */
-	hw[1].irq = hw[0].irq = ret;
-
-	if ((ret == 0 && (d->host_flags & IDE_HFLAG_LEGACY_IRQS)) ||
-	    (d->host_flags & IDE_HFLAG_FORCE_LEGACY_IRQS)) {
+	if (ide_pci_is_in_compatibility_mode(dev)) {
 		hw[0].irq = pci_get_legacy_ide_irq(dev, 0);
 		hw[1].irq = pci_get_legacy_ide_irq(dev, 1);
-	}
+	} else
+		hw[1].irq = hw[0].irq = ret;
 
 	ret = ide_host_register(host, d, hws);
 	if (ret)
@@ -625,13 +623,11 @@ int ide_pci_init_two(struct pci_dev *dev1, struct pci_dev *dev2,
 			goto out;
 
 		/* fixup IRQ */
-		hw[i*2 + 1].irq = hw[i*2].irq = ret;
-
-		if ((ret == 0 && (d->host_flags & IDE_HFLAG_LEGACY_IRQS)) ||
-		    (d->host_flags & IDE_HFLAG_FORCE_LEGACY_IRQS)) {
+		if (ide_pci_is_in_compatibility_mode(pdev[i])) {
 			hw[i*2].irq = pci_get_legacy_ide_irq(pdev[i], 0);
 			hw[i*2 + 1].irq = pci_get_legacy_ide_irq(pdev[i], 1);
-		}
+		} else
+			hw[i*2 + 1].irq = hw[i*2].irq = ret;
 	}
 
 	ret = ide_host_register(host, d, hws);
