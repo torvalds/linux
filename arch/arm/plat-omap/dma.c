@@ -1901,7 +1901,7 @@ static int omap2_dma_handle_ch(int ch)
 /* STATUS register count is from 1-32 while our is 0-31 */
 static irqreturn_t omap2_dma_irq_handler(int irq, void *dev_id)
 {
-	u32 val;
+	u32 val, enable_reg;
 	int i;
 
 	val = dma_read(IRQSTATUS_L0);
@@ -1910,6 +1910,8 @@ static irqreturn_t omap2_dma_irq_handler(int irq, void *dev_id)
 			printk(KERN_WARNING "Spurious DMA IRQ\n");
 		return IRQ_HANDLED;
 	}
+	enable_reg = dma_read(IRQENABLE_L0);
+	val &= enable_reg; /* Dispatch only relevant interrupts */
 	for (i = 0; i < dma_lch_count && val != 0; i++) {
 		if (val & 1)
 			omap2_dma_handle_ch(i);
