@@ -289,65 +289,19 @@ no_80w:
 
 int ide_driveid_update(ide_drive_t *drive)
 {
-	ide_hwif_t *hwif = drive->hwif;
-	const struct ide_tp_ops *tp_ops = hwif->tp_ops;
 	u16 *id;
-	unsigned long flags;
-	int use_altstatus = 0, rc;
-	u8 a, uninitialized_var(s);
+	int rc;
 
 	id = kmalloc(SECTOR_SIZE, GFP_ATOMIC);
 	if (id == NULL)
 		return 0;
 
-	/*
-	 * Re-read drive->id for possible DMA mode
-	 * change (copied from ide-probe.c)
-	 */
-
 	SELECT_MASK(drive, 1);
-	tp_ops->set_irq(hwif, 0);
-	msleep(50);
-
-	if (hwif->io_ports.ctl_addr &&
-	    (hwif->host_flags & IDE_HFLAG_BROKEN_ALTSTATUS) == 0) {
-		a = tp_ops->read_altstatus(hwif);
-		s = tp_ops->read_status(hwif);
-		if ((a ^ s) & ~ATA_IDX)
-			/* ancient Seagate drives, broken interfaces */
-			printk(KERN_INFO "%s: probing with STATUS(0x%02x) "
-					 "instead of ALTSTATUS(0x%02x)\n",
-					 drive->name, s, a);
-		else
-			/* use non-intrusive polling */
-			use_altstatus = 1;
-	}
-
-	tp_ops->exec_command(hwif, ATA_CMD_ID_ATA);
-
-	if (ide_busy_sleep(hwif, WAIT_WORSTCASE / 2, use_altstatus)) {
-		rc = 1;
-		goto out_err;
-	}
-
-	msleep(50);	/* wait for IRQ and ATA_DRQ */
-
-	s = tp_ops->read_status(hwif);
-
-	if (!OK_STAT(s, ATA_DRQ, BAD_R_STAT)) {
-		rc = 2;
-		goto out_err;
-	}
-
-	local_irq_save(flags);
-	tp_ops->input_data(drive, NULL, id, SECTOR_SIZE);
-	local_irq_restore(flags);
-
-	(void)tp_ops->read_status(hwif); /* clear drive IRQ */
-
-	ide_fix_driveid(id);
-
+	rc = ide_dev_read_id(drive, ATA_CMD_ID_ATA, id);
 	SELECT_MASK(drive, 0);
+
+	if (rc)
+		goto out_err;
 
 	drive->id[ATA_ID_UDMA_MODES]  = id[ATA_ID_UDMA_MODES];
 	drive->id[ATA_ID_MWDMA_MODES] = id[ATA_ID_MWDMA_MODES];

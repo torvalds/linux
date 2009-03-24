@@ -181,16 +181,16 @@ static void ide_classify_atapi_dev(ide_drive_t *drive)
  *	do_identify	-	identify a drive
  *	@drive: drive to identify 
  *	@cmd: command used
+ *	@id: buffer for IDENTIFY data
  *
  *	Called when we have issued a drive identify command to
  *	read and parse the results. This function is run with
  *	interrupts disabled. 
  */
 
-static void do_identify(ide_drive_t *drive, u8 cmd)
+static void do_identify(ide_drive_t *drive, u8 cmd, u16 *id)
 {
 	ide_hwif_t *hwif = drive->hwif;
-	u16 *id = drive->id;
 	char *m = (char *)&id[ATA_ID_PROD];
 	unsigned long flags;
 	int bswap = 1;
@@ -240,19 +240,19 @@ err_misc:
 }
 
 /**
- *	try_to_identify	-	send ATA/ATAPI identify
+ *	ide_dev_read_id	-	send ATA/ATAPI IDENTIFY command
  *	@drive: drive to identify
  *	@cmd: command to use
+ *	@id: buffer for IDENTIFY data
  *
- *	try_to_identify() sends an ATA(PI) IDENTIFY request to a drive
- *	and waits for a response.
+ *	Sends an ATA(PI) IDENTIFY request to a drive and waits for a response.
  *
  *	Returns:	0  device was identified
  *			1  device timed-out (no response to identify request)
  *			2  device aborted the command (refused to identify itself)
  */
 
-static int try_to_identify(ide_drive_t *drive, u8 cmd)
+int ide_dev_read_id(ide_drive_t *drive, u8 cmd, u16 *id)
 {
 	ide_hwif_t *hwif = drive->hwif;
 	struct ide_io_ports *io_ports = &hwif->io_ports;
@@ -312,7 +312,7 @@ static int try_to_identify(ide_drive_t *drive, u8 cmd)
 
 	if (OK_STAT(s, ATA_DRQ, BAD_R_STAT)) {
 		/* drive returned ID */
-		do_identify(drive, cmd);
+		do_identify(drive, cmd, id);
 		/* drive responded with ID */
 		rc = 0;
 		/* clear drive IRQ */
@@ -378,6 +378,7 @@ static int do_probe (ide_drive_t *drive, u8 cmd)
 {
 	ide_hwif_t *hwif = drive->hwif;
 	const struct ide_tp_ops *tp_ops = hwif->tp_ops;
+	u16 *id = drive->id;
 	int rc;
 	u8 present = !!(drive->dev_flags & IDE_DFLAG_PRESENT), stat;
 
@@ -413,11 +414,10 @@ static int do_probe (ide_drive_t *drive, u8 cmd)
 
 	if (OK_STAT(stat, ATA_DRDY, ATA_BUSY) ||
 	    present || cmd == ATA_CMD_ID_ATAPI) {
-		/* send cmd and wait */
-		if ((rc = try_to_identify(drive, cmd))) {
+		rc = ide_dev_read_id(drive, cmd, id);
+		if (rc)
 			/* failed: try again */
-			rc = try_to_identify(drive,cmd);
-		}
+			rc = ide_dev_read_id(drive, cmd, id);
 
 		stat = tp_ops->read_status(hwif);
 
@@ -432,7 +432,7 @@ static int do_probe (ide_drive_t *drive, u8 cmd)
 			msleep(50);
 			tp_ops->exec_command(hwif, ATA_CMD_DEV_RESET);
 			(void)ide_busy_sleep(hwif, WAIT_WORSTCASE, 0);
-			rc = try_to_identify(drive, cmd);
+			rc = ide_dev_read_id(drive, cmd, id);
 		}
 
 		/* ensure drive IRQ is clear */
