@@ -378,7 +378,8 @@ static int qeth_l2_stop_card(struct qeth_card *card, int recovery_mode)
 			dev_close(card->dev);
 			rtnl_unlock();
 		}
-		if (!card->use_hard_stop) {
+		if (!card->use_hard_stop ||
+			recovery_mode) {
 			__u8 *mac = &card->dev->dev_addr[0];
 			rc = qeth_l2_send_delmac(card, mac);
 			QETH_DBF_TEXT_(SETUP, 2, "Lerr%d", rc);
@@ -387,7 +388,8 @@ static int qeth_l2_stop_card(struct qeth_card *card, int recovery_mode)
 	}
 	if (card->state == CARD_STATE_SOFTSETUP) {
 		qeth_l2_process_vlans(card, 1);
-		if (!card->use_hard_stop)
+		if (!card->use_hard_stop ||
+			recovery_mode)
 			qeth_l2_del_all_mc(card);
 		qeth_clear_ipacmd_list(card);
 		card->state = CARD_STATE_HARDSETUP;
