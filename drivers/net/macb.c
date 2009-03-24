@@ -513,7 +513,6 @@ static int macb_rx(struct macb *bp, int budget)
 static int macb_poll(struct napi_struct *napi, int budget)
 {
 	struct macb *bp = container_of(napi, struct macb, napi);
-	struct net_device *dev = bp->dev;
 	int work_done;
 	u32 status;
 
