@@ -878,6 +878,8 @@ static int __init acpi_init(void)
 	 * will be disabled in the course of device power transistion.
 	 */
 	dmi_check_system(power_nocheck_dmi_table);
+
+	acpi_scan_init();
 	return result;
 }
 
