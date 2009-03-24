@@ -416,7 +416,7 @@ INT Set_ChMovingTime_Proc(
 
 	pAd->CommonCfg.RadarDetect.ChMovingTime = Value;
 
-	DBGPRINT(RT_DEBUG_TRACE, ("%s:: %d\n", __FUNCTION__,
+	DBGPRINT(RT_DEBUG_TRACE, ("%s:: %d\n", __func__,
 		pAd->CommonCfg.RadarDetect.ChMovingTime));
 
 	return TRUE;
@@ -432,7 +432,7 @@ INT Set_LongPulseRadarTh_Proc(
 
 	pAd->CommonCfg.RadarDetect.LongPulseRadarTh = Value;
 
-	DBGPRINT(RT_DEBUG_TRACE, ("%s:: %d\n", __FUNCTION__,
+	DBGPRINT(RT_DEBUG_TRACE, ("%s:: %d\n", __func__,
 		pAd->CommonCfg.RadarDetect.LongPulseRadarTh));
 
 	return TRUE;

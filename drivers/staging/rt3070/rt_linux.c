@@ -408,7 +408,7 @@ NDIS_STATUS RTMPAllocateNdisPacket(
  	skb_put(GET_OS_PKT_TYPE(pPacket), HeaderLen+DataLen);
 
 	RTMP_SET_PACKET_SOURCE(pPacket, PKTSRC_NDIS);
-//	printk("%s : pPacket = %p, len = %d\n", __FUNCTION__, pPacket, GET_OS_PKT_LEN(pPacket));
+//	printk("%s : pPacket = %p, len = %d\n", __func__, pPacket, GET_OS_PKT_LEN(pPacket));
 	*ppPacket = pPacket;
 	return NDIS_STATUS_SUCCESS;
 }
@@ -782,13 +782,13 @@ VOID RTMPSendWirelessEvent(
 
 	if (event_table_len == 0)
 	{
-		DBGPRINT(RT_DEBUG_ERROR, ("%s : The type(%0x02x) is not valid.\n", __FUNCTION__, type));
+		DBGPRINT(RT_DEBUG_ERROR, ("%s : The type(%0x02x) is not valid.\n", __func__, type));
 		return;
 	}
 
 	if (event >= event_table_len)
 	{
-		DBGPRINT(RT_DEBUG_ERROR, ("%s : The event(%0x02x) is not valid.\n", __FUNCTION__, event));
+		DBGPRINT(RT_DEBUG_ERROR, ("%s : The event(%0x02x) is not valid.\n", __func__, event));
 		return;
 	}
 
@@ -826,14 +826,14 @@ VOID RTMPSendWirelessEvent(
 		//send wireless event
 	    wireless_send_event(pAd->net_dev, IWEVCUSTOM, &wrqu, pBuf);
 
-		//DBGPRINT(RT_DEBUG_TRACE, ("%s : %s\n", __FUNCTION__, pBuf));
+		//DBGPRINT(RT_DEBUG_TRACE, ("%s : %s\n", __func__, pBuf));
 
 		kfree(pBuf);
 	}
 	else
-		DBGPRINT(RT_DEBUG_ERROR, ("%s : Can't allocate memory for wireless event.\n", __FUNCTION__));
+		DBGPRINT(RT_DEBUG_ERROR, ("%s : Can't allocate memory for wireless event.\n", __func__));
 #else
-	DBGPRINT(RT_DEBUG_ERROR, ("%s : The Wireless Extension MUST be v15 or newer.\n", __FUNCTION__));
+	DBGPRINT(RT_DEBUG_ERROR, ("%s : The Wireless Extension MUST be v15 or newer.\n", __func__));
 #endif  /* WIRELESS_EXT >= 15 */
 }
 
@@ -857,13 +857,13 @@ void send_monitor_packets(
     ASSERT(pRxBlk->pRxPacket);
     if (pRxBlk->DataSize < 10)
     {
-        DBGPRINT(RT_DEBUG_ERROR, ("%s : Size is too small! (%d)\n", __FUNCTION__, pRxBlk->DataSize));
+        DBGPRINT(RT_DEBUG_ERROR, ("%s : Size is too small! (%d)\n", __func__, pRxBlk->DataSize));
 		goto err_free_sk_buff;
     }
 
     if (pRxBlk->DataSize + sizeof(wlan_ng_prism2_header) > RX_BUFFER_AGGRESIZE)
     {
-        DBGPRINT(RT_DEBUG_ERROR, ("%s : Size is too large! (%d)\n", __FUNCTION__, pRxBlk->DataSize + sizeof(wlan_ng_prism2_header)));
+        DBGPRINT(RT_DEBUG_ERROR, ("%s : Size is too large! (%d)\n", __func__, pRxBlk->DataSize + sizeof(wlan_ng_prism2_header)));
 		goto err_free_sk_buff;
     }
 
@@ -919,7 +919,7 @@ void send_monitor_packets(
 
     if (skb_headroom(pOSPkt) < (sizeof(wlan_ng_prism2_header)+ header_len)) {
         if (pskb_expand_head(pOSPkt, (sizeof(wlan_ng_prism2_header) + header_len), 0, GFP_ATOMIC)) {
-	        DBGPRINT(RT_DEBUG_ERROR, ("%s : Reallocate header size of sk_buff fail!\n", __FUNCTION__));
+	        DBGPRINT(RT_DEBUG_ERROR, ("%s : Reallocate header size of sk_buff fail!\n", __func__));
 			goto err_free_sk_buff;
 	    } //end if
     } //end if

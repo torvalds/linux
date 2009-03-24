@@ -592,7 +592,7 @@ VOID BAOriSessionAdd(
 
 		pBAEntry->ORIBATimer.TimerValue = 0;	//pFrame->TimeOutValue;
 
-		DBGPRINT(RT_DEBUG_TRACE,("%s : TXBAbitmap = %x, BAWinSize = %d, TimeOut = %ld\n", __FUNCTION__, pEntry->TXBAbitmap,
+		DBGPRINT(RT_DEBUG_TRACE,("%s : TXBAbitmap = %x, BAWinSize = %d, TimeOut = %ld\n", __func__, pEntry->TXBAbitmap,
 								 pBAEntry->BAWinSize, pBAEntry->ORIBATimer.TimerValue));
 
 		// SEND BAR ;
@@ -666,7 +666,7 @@ BOOLEAN BARecSessionAdd(
 		ba_refresh_reordering_mpdus(pAd, pBAEntry);
 	}
 
-	DBGPRINT(RT_DEBUG_TRACE,("%s(%ld): Idx = %d, BAWinSize(req %d) = %d\n", __FUNCTION__, pAd->BATable.numAsRecipient, Idx,
+	DBGPRINT(RT_DEBUG_TRACE,("%s(%ld): Idx = %d, BAWinSize(req %d) = %d\n", __func__, pAd->BATable.numAsRecipient, Idx,
 							 pFrame->BaParm.BufSize, BAWinSize));
 
 	// Start fill in parameters.
@@ -904,7 +904,7 @@ VOID BAOriSessionTearDown(
 		return;
 	}
 
-	DBGPRINT(RT_DEBUG_TRACE,("%s===>Wcid=%d.TID=%d \n", __FUNCTION__, Wcid, TID));
+	DBGPRINT(RT_DEBUG_TRACE,("%s===>Wcid=%d.TID=%d \n", __func__, Wcid, TID));
 
 	pBAEntry = &pAd->BATable.BAOriEntry[Idx];
 	DBGPRINT(RT_DEBUG_TRACE,("\t===>Idx = %ld, Wcid=%d.TID=%d, ORI_BA_Status = %d \n", Idx, Wcid, TID, pBAEntry->ORI_BA_Status));
@@ -963,7 +963,7 @@ VOID BARecSessionTearDown(
 	if (Idx == 0)
 		return;
 
-	DBGPRINT(RT_DEBUG_TRACE,("%s===>Wcid=%d.TID=%d \n", __FUNCTION__, Wcid, TID));
+	DBGPRINT(RT_DEBUG_TRACE,("%s===>Wcid=%d.TID=%d \n", __func__, Wcid, TID));
 
 
 	pBAEntry = &pAd->BATable.BARecEntry[Idx];
@@ -1180,7 +1180,7 @@ VOID PeerAddBAReqAction(
 	PULONG      ptemp;
 	PMAC_TABLE_ENTRY	pMacEntry;
 
-	DBGPRINT(RT_DEBUG_TRACE, ("%s ==> (Wcid = %d)\n", __FUNCTION__, Elem->Wcid));
+	DBGPRINT(RT_DEBUG_TRACE, ("%s ==> (Wcid = %d)\n", __func__, Elem->Wcid));
 
 	//hex_dump("AddBAReq", Elem->Msg, Elem->MsgLen);
 
@@ -1259,7 +1259,7 @@ VOID PeerAddBAReqAction(
 	MiniportMMRequest(pAd, QID_AC_BE, pOutBuffer, FrameLen);
 	MlmeFreeMemory(pAd, pOutBuffer);
 
-	DBGPRINT(RT_DEBUG_TRACE, ("%s(%d): TID(%d), BufSize(%d) <== \n", __FUNCTION__, Elem->Wcid, ADDframe.BaParm.TID,
+	DBGPRINT(RT_DEBUG_TRACE, ("%s(%d): TID(%d), BufSize(%d) <== \n", __func__, Elem->Wcid, ADDframe.BaParm.TID,
 							  ADDframe.BaParm.BufSize));
 }
 
@@ -1278,7 +1278,7 @@ VOID PeerAddBARspAction(
 	if (Elem->Wcid >= MAX_LEN_OF_MAC_TABLE)
 		return;
 
-	DBGPRINT(RT_DEBUG_TRACE, ("%s ==> Wcid(%d)\n", __FUNCTION__, Elem->Wcid));
+	DBGPRINT(RT_DEBUG_TRACE, ("%s ==> Wcid(%d)\n", __func__, Elem->Wcid));
 
 	//hex_dump("PeerAddBARspAction()", Elem->Msg, Elem->MsgLen);
 
@@ -1319,7 +1319,7 @@ VOID PeerDelBAAction(
 	//PUCHAR				pOutBuffer = NULL;
 	PFRAME_DELBA_REQ    pDelFrame = NULL;
 
-	DBGPRINT(RT_DEBUG_TRACE,("%s ==>\n", __FUNCTION__));
+	DBGPRINT(RT_DEBUG_TRACE,("%s ==>\n", __func__));
 	//DELBA Request from unknown peer, ignore this.
 	if (PeerDelBAActionSanity(pAd, Elem->Wcid, Elem->Msg, Elem->MsgLen))
 	{
@@ -1356,7 +1356,7 @@ BOOLEAN CntlEnqueueForRecv(
 
 	TID = (UCHAR)pFrame->BARControl.TID;
 
-	DBGPRINT(RT_DEBUG_TRACE, ("%s(): BAR-Wcid(%ld), Tid (%d)\n", __FUNCTION__, Wcid, TID));
+	DBGPRINT(RT_DEBUG_TRACE, ("%s(): BAR-Wcid(%ld), Tid (%d)\n", __func__, Wcid, TID));
 	//hex_dump("BAR", (PCHAR) pFrame, MsgLen);
 	// Do nothing if the driver is starting halt state.
 	// This might happen when timer already been fired before cancel timer with mlmehalt

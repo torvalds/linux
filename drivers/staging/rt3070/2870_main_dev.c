@@ -269,7 +269,7 @@ INT MlmeThread(
 	 * This is important in preemption kernels, which transfer the flow
 	 * of execution immediately upon a complete().
 	 */
-	DBGPRINT(RT_DEBUG_TRACE,( "<---%s\n",__FUNCTION__));
+	DBGPRINT(RT_DEBUG_TRACE,( "<---%s\n",__func__));
 
 	pObj->MLMEThr_pid = NULL;
 
@@ -471,7 +471,7 @@ INT TimerQThread(
 	 * This is important in preemption kernels, which transfer the flow
 	 * of execution immediately upon a complete().
 	 */
-	DBGPRINT(RT_DEBUG_TRACE,( "<---%s\n",__FUNCTION__));
+	DBGPRINT(RT_DEBUG_TRACE,( "<---%s\n",__func__));
 
 	pObj->TimerQThr_pid = NULL;
 
@@ -1267,7 +1267,7 @@ BOOLEAN RT28XXProbePostConfig(
 
 	if (!(pAd->BulkInEpAddr && pAd->BulkOutEpAddr[0]))
 	{
-		printk("%s: Could not find both bulk-in and bulk-out endpoints\n", __FUNCTION__);
+		printk("%s: Could not find both bulk-in and bulk-out endpoints\n", __func__);
 		return FALSE;
 	}
 

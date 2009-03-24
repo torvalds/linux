@@ -2011,7 +2011,7 @@ VOID RTMPIoctlGetMacTable(
 	wrq->u.data.length = sizeof(RT_802_11_MAC_TABLE);
 	if (copy_to_user(wrq->u.data.pointer, &MacTab, wrq->u.data.length))
 	{
-		DBGPRINT(RT_DEBUG_TRACE, ("%s: copy_to_user() fail\n", __FUNCTION__));
+		DBGPRINT(RT_DEBUG_TRACE, ("%s: copy_to_user() fail\n", __func__));
 	}
 
 	msg = (CHAR *) kmalloc(sizeof(CHAR)*(MAX_LEN_OF_MAC_TABLE*MAC_LINE_LEN), MEM_ALLOC_FLAG);

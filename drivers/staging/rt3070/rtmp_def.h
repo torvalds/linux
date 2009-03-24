@@ -356,7 +356,7 @@
 /* sanity check for apidx */
 #define MBSS_MR_APIDX_SANITY_CHECK(apidx) \
     { if (apidx > MAX_MBSSID_NUM) { \
-          printk("%s> Error! apidx = %d > MAX_MBSSID_NUM!\n", __FUNCTION__, apidx); \
+          printk("%s> Error! apidx = %d > MAX_MBSSID_NUM!\n", __func__, apidx); \
 	  apidx = MAIN_MBSSID; } }
 
 #define VALID_WCID(_wcid)	((_wcid) > 0 && (_wcid) < MAX_LEN_OF_MAC_TABLE )

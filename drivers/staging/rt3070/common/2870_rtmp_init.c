@@ -1075,7 +1075,7 @@ PNDIS_PACKET GetPacketFromRxRing(
 	if (pRxWI->MPDUtotalByteCount > ThisFrameLen)
 	{
 		DBGPRINT(RT_DEBUG_ERROR, ("%s():pRxWIMPDUtotalByteCount(%d) large than RxDMALen(%ld)\n",
-									__FUNCTION__, pRxWI->MPDUtotalByteCount, ThisFrameLen));
+									__func__, pRxWI->MPDUtotalByteCount, ThisFrameLen));
 		goto label_null;
 	}
 #ifdef RT_BIG_ENDIAN
@@ -1086,7 +1086,7 @@ PNDIS_PACKET GetPacketFromRxRing(
 	pSkb = dev_alloc_skb(ThisFrameLen);
 	if (pSkb == NULL)
 	{
-		DBGPRINT(RT_DEBUG_ERROR,("%s():Cannot Allocate sk buffer for this Bulk-In buffer!\n", __FUNCTION__));
+		DBGPRINT(RT_DEBUG_ERROR,("%s():Cannot Allocate sk buffer for this Bulk-In buffer!\n", __func__));
 		goto label_null;
 	}
 

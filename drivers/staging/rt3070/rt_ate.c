@@ -326,7 +326,7 @@ static INT ATETxPwrHandler(
 				Bbp94 = BBPR94_DEFAULT;
 			}
 
-			ATEDBGPRINT(RT_DEBUG_TRACE, ("%s (TxPower=%d, R=%ld, BBP_R94=%d)\n", __FUNCTION__, TxPower, R, Bbp94));
+			ATEDBGPRINT(RT_DEBUG_TRACE, ("%s (TxPower=%d, R=%ld, BBP_R94=%d)\n", __func__, TxPower, R, Bbp94));
 		}
 		else// 5.5 GHz
 		{
@@ -353,7 +353,7 @@ static INT ATETxPwrHandler(
 				R = (ULONG) TxPower;
 			}
 
-			ATEDBGPRINT(RT_DEBUG_TRACE, ("%s (TxPower=%d, R=%lu)\n", __FUNCTION__, TxPower, R));
+			ATEDBGPRINT(RT_DEBUG_TRACE, ("%s (TxPower=%d, R=%lu)\n", __func__, TxPower, R));
 		}
 //2008/09/10:KH adds to support 3070 ATE TX Power tunning real time<--
 #ifdef RT30xx
@@ -364,7 +364,7 @@ static INT ATETxPwrHandler(
 					RT30xxReadRFRegister(pAd, RF_R12, (PUCHAR)&RFValue);
 					RFValue = (RFValue & 0xE0) | TxPower;
 					RT30xxWriteRFRegister(pAd, RF_R12, (UCHAR)RFValue);
-					ATEDBGPRINT(RT_DEBUG_TRACE, ("3070 or 2070:%s (TxPower=%d, RFValue=%x)\n", __FUNCTION__, TxPower, RFValue));
+					ATEDBGPRINT(RT_DEBUG_TRACE, ("3070 or 2070:%s (TxPower=%d, RFValue=%x)\n", __func__, TxPower, RFValue));
 
 		}
 		else
@@ -481,7 +481,7 @@ static INT ATETxPwrHandler(
 		Bbp94 = BBPR94_DEFAULT;
 	}
 
-	ATEDBGPRINT(RT_DEBUG_TRACE, ("%s (TxPower=%d, R3=%ld, BBP_R94=%d)\n", __FUNCTION__, TxPower, R, Bbp94));
+	ATEDBGPRINT(RT_DEBUG_TRACE, ("%s (TxPower=%d, R3=%ld, BBP_R94=%d)\n", __func__, TxPower, R, Bbp94));
 
 		if (pAd->ate.Channel <= 14)
 		{
@@ -2458,7 +2458,7 @@ INT Set_ATE_Load_E2P_Proc(
 	UINT32			FileLength = 0;
 	UINT32 			value = simple_strtol(arg, 0, 10);
 
-	ATEDBGPRINT(RT_DEBUG_ERROR, ("===> %s (value=%d)\n\n", __FUNCTION__, value));
+	ATEDBGPRINT(RT_DEBUG_ERROR, ("===> %s (value=%d)\n\n", __func__, value));
 
 	if (value > 0)
 	{
@@ -2482,14 +2482,14 @@ INT Set_ATE_Load_E2P_Proc(
 
 			if (IS_ERR(srcf))
 			{
-				ate_print("%s - Error %ld opening %s\n", __FUNCTION__, -PTR_ERR(srcf), src);
+				ate_print("%s - Error %ld opening %s\n", __func__, -PTR_ERR(srcf), src);
 				break;
 			}
 
 			/* the object must have a read method */
 			if ((srcf->f_op == NULL) || (srcf->f_op->read == NULL))
 			{
-				ate_print("%s - %s does not have a read method\n", __FUNCTION__, src);
+				ate_print("%s - %s does not have a read method\n", __func__, src);
 				break;
 			}
 
@@ -2502,7 +2502,7 @@ INT Set_ATE_Load_E2P_Proc(
 			if (FileLength != EEPROM_SIZE)
 			{
 				ate_print("%s: error file length (=%d) in e2p.bin\n",
-					   __FUNCTION__, FileLength);
+					   __func__, FileLength);
 				break;
 			}
 			else
@@ -2534,7 +2534,7 @@ INT Set_ATE_Load_E2P_Proc(
 		current->fsuid = orgfsuid;
 		current->fsgid = orgfsgid;
 	}
-    ATEDBGPRINT(RT_DEBUG_ERROR, ("<=== %s (ret=%d)\n", __FUNCTION__, ret));
+    ATEDBGPRINT(RT_DEBUG_ERROR, ("<=== %s (ret=%d)\n", __func__, ret));
 
     return ret;
 
@@ -2547,12 +2547,12 @@ INT Set_ATE_Load_E2P_Proc(
 	USHORT 			WriteEEPROM[(EEPROM_SIZE/2)];
 	struct iwreq	*wrq = (struct iwreq *)arg;
 
-	ATEDBGPRINT(RT_DEBUG_TRACE, ("===> %s (wrq->u.data.length = %d)\n\n", __FUNCTION__, wrq->u.data.length));
+	ATEDBGPRINT(RT_DEBUG_TRACE, ("===> %s (wrq->u.data.length = %d)\n\n", __func__, wrq->u.data.length));
 
 	if (wrq->u.data.length != EEPROM_SIZE)
 	{
 		ate_print("%s: error length (=%d) from host\n",
-			   __FUNCTION__, wrq->u.data.length);
+			   __func__, wrq->u.data.length);
 		return FALSE;
 	}
 	else/* (wrq->u.data.length == EEPROM_SIZE) */
@@ -2571,7 +2571,7 @@ INT Set_ATE_Load_E2P_Proc(
 		} while(FALSE);
 		}
 
-    ATEDBGPRINT(RT_DEBUG_TRACE, ("<=== %s\n", __FUNCTION__));
+    ATEDBGPRINT(RT_DEBUG_TRACE, ("<=== %s\n", __func__));
 
     return TRUE;
 
@@ -4344,7 +4344,7 @@ VOID RtmpDoAte(
 
 	Command_Id = ntohs(pRaCfg->command_id);
 
-	ATEDBGPRINT(RT_DEBUG_TRACE,("\n%s: Command_Id = 0x%04x !\n", __FUNCTION__, Command_Id));
+	ATEDBGPRINT(RT_DEBUG_TRACE,("\n%s: Command_Id = 0x%04x !\n", __func__, Command_Id));
 
 	switch (Command_Id)
 	{
@@ -6350,7 +6350,7 @@ BOOLEAN SyncTxRxConfig(PRTMP_ADAPTER pAd, USHORT offset, UCHAR value)
 					pAd->ate.TxAntennaSel = 2;
 		            break;
 		        default:
-		            DBGPRINT(RT_DEBUG_TRACE, ("%s -- Sth. wrong!  : return FALSE; \n", __FUNCTION__));
+		            DBGPRINT(RT_DEBUG_TRACE, ("%s -- Sth. wrong!  : return FALSE; \n", __func__));
 		            return FALSE;
 		    }
 			break;/* case BBP_R1 */
@@ -6388,13 +6388,13 @@ BOOLEAN SyncTxRxConfig(PRTMP_ADAPTER pAd, USHORT offset, UCHAR value)
 					pAd->ate.RxAntennaSel = 3;
 		            break;
 		        default:
-		            DBGPRINT(RT_DEBUG_ERROR, ("%s -- Impossible!  : return FALSE; \n", __FUNCTION__));
+		            DBGPRINT(RT_DEBUG_ERROR, ("%s -- Impossible!  : return FALSE; \n", __func__));
 		            return FALSE;
 		    }
 			break;/* case BBP_R3 */
 
         default:
-            DBGPRINT(RT_DEBUG_ERROR, ("%s -- Sth. wrong!  : return FALSE; \n", __FUNCTION__));
+            DBGPRINT(RT_DEBUG_ERROR, ("%s -- Sth. wrong!  : return FALSE; \n", __func__));
             return FALSE;
 
 	}

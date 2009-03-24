@@ -2930,7 +2930,7 @@ NDIS_STATUS NICLoadFirmware(
 #ifdef BIN_IN_FILE
 #define NICLF_DEFAULT_USE()	\
 	flg_default_firm_use = TRUE; \
-	printk("%s - Use default firmware!\n", __FUNCTION__);
+	printk("%s - Use default firmware!\n", __func__);
 
 	NDIS_STATUS		Status = NDIS_STATUS_SUCCESS;
 	PUCHAR			src;
@@ -2945,7 +2945,7 @@ NDIS_STATUS NICLoadFirmware(
 	BOOLEAN			flg_default_firm_use = FALSE;
 
 
-	DBGPRINT(RT_DEBUG_TRACE, ("===> %s\n", __FUNCTION__));
+	DBGPRINT(RT_DEBUG_TRACE, ("===> %s\n", __func__));
 
 	/* init */
 	pFirmwareImage = NULL;
@@ -2968,7 +2968,7 @@ NDIS_STATUS NICLoadFirmware(
     if (pFirmwareImage == NULL)
 	{
 		/* allocate fail, use default firmware array in firmware.h */
-		printk("%s - Allocate memory fail!\n", __FUNCTION__);
+		printk("%s - Allocate memory fail!\n", __func__);
 		NICLF_DEFAULT_USE();
     }
 	else
@@ -2989,7 +2989,7 @@ NDIS_STATUS NICLoadFirmware(
 			if (IS_ERR(srcf))
 			{
 				printk("%s - Error %ld opening %s\n",
-					   __FUNCTION__, -PTR_ERR(srcf), src);
+					   __func__, -PTR_ERR(srcf), src);
 				NICLF_DEFAULT_USE();
 				break;
 			} /* End of if */
@@ -2997,7 +2997,7 @@ NDIS_STATUS NICLoadFirmware(
 			/* the object must have a read method */
 			if ((srcf->f_op == NULL) || (srcf->f_op->read == NULL))
 			{
-				printk("%s - %s does not have a write method\n", __FUNCTION__, src);
+				printk("%s - %s does not have a write method\n", __func__, src);
 				NICLF_DEFAULT_USE();
 				break;
 			} /* End of if */
@@ -3011,7 +3011,7 @@ NDIS_STATUS NICLoadFirmware(
 			if (FileLength != MAX_FIRMWARE_IMAGE_SIZE)
 			{
 				printk("%s: error file length (=%d) in RT2860AP.BIN\n",
-					   __FUNCTION__, FileLength);
+					   __func__, FileLength);
 				NICLF_DEFAULT_USE();
 				break;
 			}
@@ -3034,7 +3034,7 @@ NDIS_STATUS NICLoadFirmware(
 					/* CRC fail */
 					printk("%s: CRC = 0x%02x 0x%02x "
 						   "error, should be 0x%02x 0x%02x\n",
-						   __FUNCTION__,
+						   __func__,
 						   pFirmwareImage[MAX_FIRMWARE_IMAGE_SIZE-2],
 						   pFirmwareImage[MAX_FIRMWARE_IMAGE_SIZE-1],
 						   (UCHAR)(crc>>8), (UCHAR)(crc));
@@ -3053,7 +3053,7 @@ NDIS_STATUS NICLoadFirmware(
 											((FIRMWARE_MAJOR_VERSION << 8) +
 									  	 	 FIRMWARE_MINOR_VERSION))
 					{
-						printk("%s: firmware version too old!\n", __FUNCTION__);
+						printk("%s: firmware version too old!\n", __func__);
 						NICLF_DEFAULT_USE();
 						break;
 					} /* End of if */
@@ -3188,7 +3188,7 @@ NDIS_STATUS NICLoadFirmware(
 	} /* End of if */
 
     DBGPRINT(RT_DEBUG_TRACE,
-			 ("<=== %s (status=%d)\n", __FUNCTION__, Status));
+			 ("<=== %s (status=%d)\n", __func__, Status));
     return Status;
 } /* End of NICLoadFirmware */
 

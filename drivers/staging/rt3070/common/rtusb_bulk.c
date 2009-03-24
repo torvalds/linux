@@ -409,7 +409,7 @@ VOID	RTUSBBulkOutDataPacket(
 		{
 		if (pTxInfo->QSEL != FIFO_EDCA)
 		{
-			printk("%s(): ====> pTxInfo->QueueSel(%d)!= FIFO_EDCA!!!!\n", __FUNCTION__, pTxInfo->QSEL);
+			printk("%s(): ====> pTxInfo->QueueSel(%d)!= FIFO_EDCA!!!!\n", __func__, pTxInfo->QSEL);
 			printk("\tCWPos=%ld, NBPos=%ld, ENBPos=%ld, bCopy=%d!\n", pHTTXContext->CurWritePosition, pHTTXContext->NextBulkOutPosition, pHTTXContext->ENextBulkOutPosition, pHTTXContext->bCopySavePad);
 			hex_dump("Wrong QSel Pkt:", (PUCHAR)&pWirelessPkt[TmpBulkEndPos], (pHTTXContext->CurWritePosition - pHTTXContext->NextBulkOutPosition));
 		}
