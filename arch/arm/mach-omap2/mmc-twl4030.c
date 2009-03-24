@@ -100,6 +100,14 @@ static int twl_mmc_get_ro(struct device *dev, int slot)
 	return gpio_get_value_cansleep(mmc->slots[0].gpio_wp);
 }
 
+static int twl_mmc_get_cover_state(struct device *dev, int slot)
+{
+	struct omap_mmc_platform_data *mmc = dev->platform_data;
+
+	/* NOTE: assumes card detect signal is active-low */
+	return !gpio_get_value_cansleep(mmc->slots[0].switch_pin);
+}
+
 /*
  * MMC Slot Initialization.
  */
@@ -411,7 +419,10 @@ void __init twl4030_mmc_init(struct twl4030_hsmmc_info *controllers)
 
 			mmc->slots[0].switch_pin = c->gpio_cd;
 			mmc->slots[0].card_detect_irq = gpio_to_irq(c->gpio_cd);
-			mmc->slots[0].card_detect = twl_mmc_card_detect;
+			if (c->cover_only)
+				mmc->slots[0].get_cover_state = twl_mmc_get_cover_state;
+			else
+				mmc->slots[0].card_detect = twl_mmc_card_detect;
 		} else
 			mmc->slots[0].switch_pin = -EINVAL;
 
