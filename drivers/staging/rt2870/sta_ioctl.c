@@ -1356,7 +1356,7 @@ int rt_ioctl_giwscan(struct net_device *dev,
             iwe.u.data.length = (pAdapter->ScanTab.BssEntry[i].WpaIE.IELen * 2) + 7;
             NdisMoveMemory(custom, "wpa_ie=", 7);
             for (idx = 0; idx < pAdapter->ScanTab.BssEntry[i].WpaIE.IELen; idx++)
-                sprintf(custom, "%s%02x", custom, pAdapter->ScanTab.BssEntry[i].WpaIE.IE[idx]);
+                sprintf(custom + strlen(custom), "%02x", pAdapter->ScanTab.BssEntry[i].WpaIE.IE[idx]);
             previous_ev = current_ev;
     		current_ev = IWE_STREAM_ADD_POINT(info, current_ev, end_buf, &iwe,  custom);
             if (current_ev == previous_ev)
@@ -1376,7 +1376,7 @@ int rt_ioctl_giwscan(struct net_device *dev,
             iwe.u.data.length = (pAdapter->ScanTab.BssEntry[i].RsnIE.IELen * 2) + 7;
             NdisMoveMemory(custom, "rsn_ie=", 7);
 			for (idx = 0; idx < pAdapter->ScanTab.BssEntry[i].RsnIE.IELen; idx++)
-                sprintf(custom, "%s%02x", custom, pAdapter->ScanTab.BssEntry[i].RsnIE.IE[idx]);
+                sprintf(custom + strlen(custom), "%02x", pAdapter->ScanTab.BssEntry[i].RsnIE.IE[idx]);
             previous_ev = current_ev;
     		current_ev = IWE_STREAM_ADD_POINT(info, current_ev, end_buf, &iwe,  custom);
             if (current_ev == previous_ev)
@@ -2029,8 +2029,7 @@ void	getBaInfo(
 		if (((pEntry->ValidAsCLI || pEntry->ValidAsApCli) && (pEntry->Sst == SST_ASSOC))
 			|| (pEntry->ValidAsWDS) || (pEntry->ValidAsMesh))
 		{
-			sprintf(pOutBuf, "%s\n%02X:%02X:%02X:%02X:%02X:%02X (Aid = %d) (AP) -\n",
-                pOutBuf,
+			sprintf(pOutBuf + strlen(pOutBuf), "\n%02X:%02X:%02X:%02X:%02X:%02X (Aid = %d) (AP) -\n",
 				pEntry->Addr[0], pEntry->Addr[1], pEntry->Addr[2],
 				pEntry->Addr[3], pEntry->Addr[4], pEntry->Addr[5], pEntry->Aid);
 
@@ -2040,7 +2039,7 @@ void	getBaInfo(
 				if (pEntry->BARecWcidArray[j] != 0)
 				{
 					pRecBAEntry =&pAd->BATable.BARecEntry[pEntry->BARecWcidArray[j]];
-					sprintf(pOutBuf, "%sTID=%d, BAWinSize=%d, LastIndSeq=%d, ReorderingPkts=%d\n", pOutBuf, j, pRecBAEntry->BAWinSize, pRecBAEntry->LastIndSeq, pRecBAEntry->list.qlen);
+					sprintf(pOutBuf + strlen(pOutBuf), "TID=%d, BAWinSize=%d, LastIndSeq=%d, ReorderingPkts=%d\n", j, pRecBAEntry->BAWinSize, pRecBAEntry->LastIndSeq, pRecBAEntry->list.qlen);
 				}
 			}
 			sprintf(pOutBuf, "%s\n", pOutBuf);
@@ -2051,7 +2050,7 @@ void	getBaInfo(
 				if (pEntry->BAOriWcidArray[j] != 0)
 				{
 					pOriBAEntry =&pAd->BATable.BAOriEntry[pEntry->BAOriWcidArray[j]];
-					sprintf(pOutBuf, "%sTID=%d, BAWinSize=%d, StartSeq=%d, CurTxSeq=%d\n", pOutBuf, j, pOriBAEntry->BAWinSize, pOriBAEntry->Sequence, pEntry->TxSeq[j]);
+					sprintf(pOutBuf + strlen(pOutBuf), "TID=%d, BAWinSize=%d, StartSeq=%d, CurTxSeq=%d\n", j, pOriBAEntry->BAWinSize, pOriBAEntry->Sequence, pEntry->TxSeq[j]);
 				}
 			}
 			sprintf(pOutBuf, "%s\n\n", pOutBuf);
@@ -7029,10 +7028,10 @@ INT	Show_Adhoc_MacTable_Proc(
 	sprintf(extra, "\n");
 
 #ifdef DOT11_N_SUPPORT
-	sprintf(extra, "%sHT Operating Mode : %d\n", extra, pAd->CommonCfg.AddHTInfo.AddHtInfo2.OperaionMode);
+	sprintf(extra + strlen(extra), "HT Operating Mode : %d\n", pAd->CommonCfg.AddHTInfo.AddHtInfo2.OperaionMode);
 #endif // DOT11_N_SUPPORT //
 
-	sprintf(extra, "%s\n%-19s%-4s%-4s%-7s%-7s%-7s%-10s%-6s%-6s%-6s%-6s\n", extra,
+	sprintf(extra + strlen(extra), "\n%-19s%-4s%-4s%-7s%-7s%-7s%-10s%-6s%-6s%-6s%-6s\n",
 			"MAC", "AID", "BSS", "RSSI0", "RSSI1", "RSSI2", "PhMd", "BW", "MCS", "SGI", "STBC");
 
 	for (i=1; i<MAX_LEN_OF_MAC_TABLE; i++)
@@ -7043,20 +7042,20 @@ INT	Show_Adhoc_MacTable_Proc(
 		    break;
 		if ((pEntry->ValidAsCLI || pEntry->ValidAsApCli) && (pEntry->Sst == SST_ASSOC))
 		{
-			sprintf(extra, "%s%02X:%02X:%02X:%02X:%02X:%02X  ", extra,
+			sprintf(extra + strlen(extra), "%02X:%02X:%02X:%02X:%02X:%02X  ",
 				pEntry->Addr[0], pEntry->Addr[1], pEntry->Addr[2],
 				pEntry->Addr[3], pEntry->Addr[4], pEntry->Addr[5]);
-			sprintf(extra, "%s%-4d", extra, (int)pEntry->Aid);
-			sprintf(extra, "%s%-4d", extra, (int)pEntry->apidx);
-			sprintf(extra, "%s%-7d", extra, pEntry->RssiSample.AvgRssi0);
-			sprintf(extra, "%s%-7d", extra, pEntry->RssiSample.AvgRssi1);
-			sprintf(extra, "%s%-7d", extra, pEntry->RssiSample.AvgRssi2);
-			sprintf(extra, "%s%-10s", extra, GetPhyMode(pEntry->HTPhyMode.field.MODE));
-			sprintf(extra, "%s%-6s", extra, GetBW(pEntry->HTPhyMode.field.BW));
-			sprintf(extra, "%s%-6d", extra, pEntry->HTPhyMode.field.MCS);
-			sprintf(extra, "%s%-6d", extra, pEntry->HTPhyMode.field.ShortGI);
-			sprintf(extra, "%s%-6d", extra, pEntry->HTPhyMode.field.STBC);
-			sprintf(extra, "%s%-10d, %d, %d%%\n", extra, pEntry->DebugFIFOCount, pEntry->DebugTxCount,
+			sprintf(extra + strlen(extra), "%-4d", (int)pEntry->Aid);
+			sprintf(extra + strlen(extra), "%-4d", (int)pEntry->apidx);
+			sprintf(extra + strlen(extra), "%-7d", pEntry->RssiSample.AvgRssi0);
+			sprintf(extra + strlen(extra), "%-7d", pEntry->RssiSample.AvgRssi1);
+			sprintf(extra + strlen(extra), "%-7d", pEntry->RssiSample.AvgRssi2);
+			sprintf(extra + strlen(extra), "%-10s", GetPhyMode(pEntry->HTPhyMode.field.MODE));
+			sprintf(extra + strlen(extra), "%-6s", GetBW(pEntry->HTPhyMode.field.BW));
+			sprintf(extra + strlen(extra), "%-6d", pEntry->HTPhyMode.field.MCS);
+			sprintf(extra + strlen(extra), "%-6d", pEntry->HTPhyMode.field.ShortGI);
+			sprintf(extra + strlen(extra), "%-6d", pEntry->HTPhyMode.field.STBC);
+			sprintf(extra + strlen(extra), "%-10d, %d, %d%%\n", pEntry->DebugFIFOCount, pEntry->DebugTxCount,
 						(pEntry->DebugTxCount) ? ((pEntry->DebugTxCount-pEntry->DebugFIFOCount)*100/pEntry->DebugTxCount) : 0);
 			sprintf(extra, "%s\n", extra);
 		}

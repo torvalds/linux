@@ -3212,7 +3212,7 @@ INT RTMPShowCfgValue(
 	{
 		sprintf(pBuf, "\n");
 		for (PRTMP_PRIVATE_STA_SHOW_CFG_VALUE_PROC = RTMP_PRIVATE_STA_SHOW_CFG_VALUE_PROC; PRTMP_PRIVATE_STA_SHOW_CFG_VALUE_PROC->name; PRTMP_PRIVATE_STA_SHOW_CFG_VALUE_PROC++)
-			sprintf(pBuf, "%s%s\n", pBuf, PRTMP_PRIVATE_STA_SHOW_CFG_VALUE_PROC->name);
+			sprintf(pBuf + strlen(pBuf), "%s\n", PRTMP_PRIVATE_STA_SHOW_CFG_VALUE_PROC->name);
 	}
 
 	return Status;
