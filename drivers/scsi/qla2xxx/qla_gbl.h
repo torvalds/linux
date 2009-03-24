@@ -82,7 +82,7 @@ extern void qla2x00_relogin(struct scsi_qla_host *);
 /*
  * Global Functions in qla_mid.c source file.
  */
-extern struct scsi_host_template qla24xx_driver_template;
+extern struct scsi_host_template qla2xxx_driver_template;
 extern struct scsi_transport_template *qla2xxx_transport_vport_template;
 extern void qla2x00_timer(scsi_qla_host_t *);
 extern void qla2x00_start_timer(scsi_qla_host_t *, void *, unsigned long);
