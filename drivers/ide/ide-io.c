@@ -527,30 +527,6 @@ static ide_startstop_t ide_do_devset(ide_drive_t *drive, struct request *rq)
 	return ide_stopped;
 }
 
-static ide_startstop_t ide_do_park_unpark(ide_drive_t *drive, struct request *rq)
-{
-	ide_task_t task;
-	struct ide_taskfile *tf = &task.tf;
-
-	memset(&task, 0, sizeof(task));
-	if (rq->cmd[0] == REQ_PARK_HEADS) {
-		drive->sleep = *(unsigned long *)rq->special;
-		drive->dev_flags |= IDE_DFLAG_SLEEPING;
-		tf->command = ATA_CMD_IDLEIMMEDIATE;
-		tf->feature = 0x44;
-		tf->lbal = 0x4c;
-		tf->lbam = 0x4e;
-		tf->lbah = 0x55;
-		task.tf_flags |= IDE_TFLAG_CUSTOM_HANDLER;
-	} else		/* cmd == REQ_UNPARK_HEADS */
-		tf->command = ATA_CMD_CHK_POWER;
-
-	task.tf_flags |= IDE_TFLAG_TF | IDE_TFLAG_DEVICE;
-	task.rq = rq;
-	drive->hwif->data_phase = task.data_phase = TASKFILE_NO_DATA;
-	return do_rw_taskfile(drive, &task);
-}
-
 static ide_startstop_t ide_special_rq(ide_drive_t *drive, struct request *rq)
 {
 	u8 cmd = rq->cmd[0];
