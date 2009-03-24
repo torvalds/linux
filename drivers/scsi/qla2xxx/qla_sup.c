@@ -931,10 +931,14 @@ done:
 	ha->npiv_info = NULL;
 }
 
-static void
-qla24xx_unprotect_flash(struct qla_hw_data *ha)
+static int
+qla24xx_unprotect_flash(scsi_qla_host_t *vha)
 {
+	struct qla_hw_data *ha = vha->hw;
 	struct device_reg_24xx __iomem *reg = &ha->iobase->isp24;
+
+	if (ha->flags.fac_supported)
+		return qla81xx_fac_do_write_enable(vha, 1);
 
 	/* Enable flash write. */
 	WRT_REG_DWORD(&reg->ctrl_status,
@@ -942,19 +946,25 @@ qla24xx_unprotect_flash(struct qla_hw_data *ha)
 	RD_REG_DWORD(&reg->ctrl_status);	/* PCI Posting. */
 
 	if (!ha->fdt_wrt_disable)
-		return;
+		goto done;
 
 	/* Disable flash write-protection, first clear SR protection bit */
 	qla24xx_write_flash_dword(ha, flash_conf_addr(ha, 0x101), 0);
 	/* Then write zero again to clear remaining SR bits.*/
 	qla24xx_write_flash_dword(ha, flash_conf_addr(ha, 0x101), 0);
+done:
+	return QLA_SUCCESS;
 }
 
-static void
-qla24xx_protect_flash(struct qla_hw_data *ha)
+static int
+qla24xx_protect_flash(scsi_qla_host_t *vha)
 {
 	uint32_t cnt;
+	struct qla_hw_data *ha = vha->hw;
 	struct device_reg_24xx __iomem *reg = &ha->iobase->isp24;
+
+	if (ha->flags.fac_supported)
+		return qla81xx_fac_do_write_enable(vha, 0);
 
 	if (!ha->fdt_wrt_disable)
 		goto skip_wrt_protect;
@@ -973,6 +983,26 @@ skip_wrt_protect:
 	WRT_REG_DWORD(&reg->ctrl_status,
 	    RD_REG_DWORD(&reg->ctrl_status) & ~CSRX_FLASH_ENABLE);
 	RD_REG_DWORD(&reg->ctrl_status);	/* PCI Posting. */
+
+	return QLA_SUCCESS;
+}
+
+static int
+qla24xx_erase_sector(scsi_qla_host_t *vha, uint32_t fdata)
+{
+	struct qla_hw_data *ha = vha->hw;
+	uint32_t start, finish;
+
+	if (ha->flags.fac_supported) {
+		start = fdata >> 2;
+		finish = start + (ha->fdt_block_size >> 2) - 1;
+		return qla81xx_fac_erase_sector(vha, flash_data_addr(ha,
+		    start), flash_data_addr(ha, finish));
+	}
+
+	return qla24xx_write_flash_dword(ha, ha->fdt_erase_cmd,
+	    (fdata & 0xff00) | ((fdata << 16) & 0xff0000) |
+	    ((fdata >> 16) & 0xff));
 }
 
 static int
@@ -986,8 +1016,6 @@ qla24xx_write_flash_data(scsi_qla_host_t *vha, uint32_t *dwptr, uint32_t faddr,
 	dma_addr_t optrom_dma;
 	void *optrom = NULL;
 	struct qla_hw_data *ha = vha->hw;
-
-	ret = QLA_SUCCESS;
 
 	/* Prepare burst-capable write on supported ISPs. */
 	if ((IS_QLA25XX(ha) || IS_QLA81XX(ha)) && !(faddr & 0xfff) &&
@@ -1004,7 +1032,12 @@ qla24xx_write_flash_data(scsi_qla_host_t *vha, uint32_t *dwptr, uint32_t faddr,
 	rest_addr = (ha->fdt_block_size >> 2) - 1;
 	sec_mask = ~rest_addr;
 
-	qla24xx_unprotect_flash(ha);
+	ret = qla24xx_unprotect_flash(vha);
+	if (ret != QLA_SUCCESS) {
+		qla_printk(KERN_WARNING, ha,
+		    "Unable to unprotect flash for update.\n");
+		goto done;
+	}
 
 	for (liter = 0; liter < dwords; liter++, faddr++, dwptr++) {
 		fdata = (faddr & sec_mask) << 2;
@@ -1017,9 +1050,7 @@ qla24xx_write_flash_data(scsi_qla_host_t *vha, uint32_t *dwptr, uint32_t faddr,
 				    ha->fdt_unprotect_sec_cmd,
 				    (fdata & 0xff00) | ((fdata << 16) &
 				    0xff0000) | ((fdata >> 16) & 0xff));
-			ret = qla24xx_write_flash_dword(ha, ha->fdt_erase_cmd,
-			    (fdata & 0xff00) |((fdata << 16) &
-			    0xff0000) | ((fdata >> 16) & 0xff));
+			ret = qla24xx_erase_sector(vha, fdata);
 			if (ret != QLA_SUCCESS) {
 				DEBUG9(qla_printk("Unable to erase sector: "
 				    "address=%x.\n", faddr));
@@ -1073,8 +1104,11 @@ qla24xx_write_flash_data(scsi_qla_host_t *vha, uint32_t *dwptr, uint32_t faddr,
 			    0xff0000) | ((fdata >> 16) & 0xff));
 	}
 
-	qla24xx_protect_flash(ha);
-
+	ret = qla24xx_protect_flash(vha);
+	if (ret != QLA_SUCCESS)
+		qla_printk(KERN_WARNING, ha,
+		    "Unable to protect flash after update.\n");
+done:
 	if (optrom)
 		dma_free_coherent(&ha->pdev->dev,
 		    OPTROM_BURST_SIZE, optrom, optrom_dma);

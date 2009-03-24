@@ -269,6 +269,15 @@ extern int qla84xx_verify_chip(struct scsi_qla_host *, uint16_t *);
 
 extern int qla81xx_idc_ack(scsi_qla_host_t *, uint16_t *);
 
+extern int
+qla81xx_fac_get_sector_size(scsi_qla_host_t *, uint32_t *);
+
+extern int
+qla81xx_fac_do_write_enable(scsi_qla_host_t *, int);
+
+extern int
+qla81xx_fac_erase_sector(scsi_qla_host_t *, uint32_t, uint32_t);
+
 /*
  * Global Function Prototypes in qla_isr.c source file.
  */

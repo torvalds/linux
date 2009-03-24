@@ -1403,6 +1403,20 @@ struct access_chip_rsp_84xx {
 #define MBA_IDC_TIME_EXT	0x8102
 
 #define MBC_IDC_ACK		0x101
+#define MBC_FLASH_ACCESS_CTRL	0x3e	/* Control flash access. */
+
+/* Flash access control option field bit definitions */
+#define FAC_OPT_FORCE_SEMAPHORE		BIT_15
+#define FAC_OPT_REQUESTOR_ID		BIT_14
+#define FAC_OPT_CMD_SUBCODE		0xff
+
+/* Flash access control command subcodes */
+#define FAC_OPT_CMD_WRITE_PROTECT	0x00
+#define FAC_OPT_CMD_WRITE_ENABLE	0x01
+#define FAC_OPT_CMD_ERASE_SECTOR	0x02
+#define FAC_OPT_CMD_LOCK_SEMAPHORE	0x03
+#define FAC_OPT_CMD_UNLOCK_SEMAPHORE	0x04
+#define FAC_OPT_CMD_GET_SECTOR_SIZE	0x05
 
 struct nvram_81xx {
 	/* NVRAM header. */

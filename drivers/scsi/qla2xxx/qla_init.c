@@ -1032,6 +1032,21 @@ qla2x00_setup_chip(scsi_qla_host_t *vha)
 		spin_unlock_irqrestore(&ha->hardware_lock, flags);
 	}
 
+	if (rval == QLA_SUCCESS && IS_FAC_REQUIRED(ha)) {
+		uint32_t size;
+
+		rval = qla81xx_fac_get_sector_size(vha, &size);
+		if (rval == QLA_SUCCESS) {
+			ha->flags.fac_supported = 1;
+			ha->fdt_block_size = size << 2;
+		} else {
+			qla_printk(KERN_ERR, ha,
+			    "Unsupported FAC firmware (%d.%02d.%02d).\n",
+			    ha->fw_major_version, ha->fw_minor_version,
+			    ha->fw_subminor_version);
+		}
+	}
+
 	if (rval) {
 		DEBUG2_3(printk("scsi(%ld): Setup chip **** FAILED ****.\n",
 		    vha->host_no));
