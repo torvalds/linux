@@ -589,9 +589,12 @@ intel_sdvo_create_preferred_input_timing(struct intel_output *output,
 	struct intel_sdvo_preferred_input_timing_args args;
 	uint8_t status;
 
+	memset(&args, 0, sizeof(args));
 	args.clock = clock;
 	args.width = width;
 	args.height = height;
+	args.interlace = 0;
+	args.scaled = 0;
 	intel_sdvo_write_cmd(output, SDVO_CMD_CREATE_PREFERRED_INPUT_TIMING,
 			     &args, sizeof(args));
 	status = intel_sdvo_read_response(output, NULL, 0);
