@@ -883,6 +883,7 @@ static int __init acpi_init(void)
 	acpi_ec_init();
 	acpi_power_init();
 	acpi_system_init();
+	acpi_debug_init();
 	return result;
 }
 
