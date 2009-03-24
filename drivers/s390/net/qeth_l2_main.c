@@ -707,8 +707,11 @@ static int qeth_l2_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	if ((large_send == QETH_LARGE_SEND_NO) &&
-	    (skb->ip_summed == CHECKSUM_PARTIAL))
+	    (skb->ip_summed == CHECKSUM_PARTIAL)) {
 		qeth_tx_csum(new_skb);
+		if (card->options.performance_stats)
+			card->perf_stats.tx_csum++;
+	}
 
 	if (card->info.type != QETH_CARD_TYPE_IQD)
 		rc = qeth_do_send_packet(card, queue, new_skb, hdr,

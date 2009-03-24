@@ -4327,6 +4327,7 @@ static struct {
 /* 30 */{"tx count"},
 	{"tx do_QDIO time"},
 	{"tx do_QDIO count"},
+	{"tx csum"},
 };
 
 int qeth_core_get_stats_count(struct net_device *dev)
@@ -4378,6 +4379,7 @@ void qeth_core_get_ethtool_stats(struct net_device *dev,
 	data[30] = card->perf_stats.outbound_cnt;
 	data[31] = card->perf_stats.outbound_do_qdio_time;
 	data[32] = card->perf_stats.outbound_do_qdio_cnt;
+	data[33] = card->perf_stats.tx_csum;
 }
 EXPORT_SYMBOL_GPL(qeth_core_get_ethtool_stats);
 

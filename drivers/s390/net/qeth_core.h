@@ -134,6 +134,7 @@ struct qeth_perf_stats {
 	unsigned int sg_skbs_rx;
 	unsigned int sg_frags_rx;
 	unsigned int sg_alloc_page_rx;
+	unsigned int tx_csum;
 };
 
 /* Routing stuff */
