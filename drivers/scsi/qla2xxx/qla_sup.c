@@ -1949,7 +1949,7 @@ qla2x00_resume_hba(struct scsi_qla_host *vha)
 	clear_bit(MBX_UPDATE_FLASH_ACTIVE, &ha->mbx_cmd_flags);
 	set_bit(ISP_ABORT_NEEDED, &vha->dpc_flags);
 	qla2xxx_wake_dpc(vha);
-	qla2x00_wait_for_hba_online(vha);
+	qla2x00_wait_for_chip_reset(vha);
 	scsi_unblock_requests(vha->host);
 }
 

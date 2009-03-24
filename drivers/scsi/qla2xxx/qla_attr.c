@@ -137,12 +137,21 @@ qla2x00_sysfs_write_nvram(struct kobject *kobj,
 		*iter = chksum;
 	}
 
+	if (qla2x00_wait_for_hba_online(vha) != QLA_SUCCESS) {
+		qla_printk(KERN_WARNING, ha,
+		    "HBA not online, failing NVRAM update.\n");
+		return -EAGAIN;
+	}
+
 	/* Write NVRAM. */
 	ha->isp_ops->write_nvram(vha, (uint8_t *)buf, ha->nvram_base, count);
 	ha->isp_ops->read_nvram(vha, (uint8_t *)ha->nvram, ha->nvram_base,
 	    count);
 
+	/* NVRAM settings take effect immediately. */
 	set_bit(ISP_ABORT_NEEDED, &vha->dpc_flags);
+	qla2xxx_wake_dpc(vha);
+	qla2x00_wait_for_chip_reset(vha);
 
 	return (count);
 }
@@ -330,6 +339,12 @@ qla2x00_sysfs_write_optrom_ctl(struct kobject *kobj,
 		if (ha->optrom_state != QLA_SWRITING)
 			break;
 
+		if (qla2x00_wait_for_hba_online(vha) != QLA_SUCCESS) {
+			qla_printk(KERN_WARNING, ha,
+			    "HBA not online, failing flash update.\n");
+			return -EAGAIN;
+		}
+
 		DEBUG2(qla_printk(KERN_INFO, ha,
 		    "Writing flash region -- 0x%x/0x%x.\n",
 		    ha->optrom_region_start, ha->optrom_region_size));
@@ -379,6 +394,12 @@ qla2x00_sysfs_write_vpd(struct kobject *kobj,
 
 	if (!capable(CAP_SYS_ADMIN) || off != 0 || count != ha->vpd_size)
 		return 0;
+
+	if (qla2x00_wait_for_hba_online(vha) != QLA_SUCCESS) {
+		qla_printk(KERN_WARNING, ha,
+		    "HBA not online, failing VPD update.\n");
+		return -EAGAIN;
+	}
 
 	/* Write NVRAM. */
 	ha->isp_ops->write_nvram(vha, (uint8_t *)buf, ha->vpd_base, count);

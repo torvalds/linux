@@ -2261,6 +2261,7 @@ struct qla_hw_data {
 		uint32_t	npiv_supported		:1;
 		uint32_t	fce_enabled		:1;
 		uint32_t	fac_supported		:1;
+		uint32_t	chip_reset_done		:1;
 	} flags;
 
 	/* This spinlock is used to protect "io transactions", you must

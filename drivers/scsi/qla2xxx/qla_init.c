@@ -61,8 +61,10 @@ qla2x00_initialize_adapter(scsi_qla_host_t *vha)
 	int	rval;
 	struct qla_hw_data *ha = vha->hw;
 	struct req_que *req = ha->req_q_map[0];
+
 	/* Clear adapter flags. */
 	vha->flags.online = 0;
+	ha->flags.chip_reset_done = 0;
 	vha->flags.reset_active = 0;
 	atomic_set(&vha->loop_down_timer, LOOP_DOWN_TIME);
 	atomic_set(&vha->loop_state, LOOP_DOWN);
@@ -131,6 +133,7 @@ qla2x00_initialize_adapter(scsi_qla_host_t *vha)
 		}
 	}
 	rval = qla2x00_init_rings(vha);
+	ha->flags.chip_reset_done = 1;
 
 	return (rval);
 }
@@ -3321,6 +3324,7 @@ qla2x00_abort_isp(scsi_qla_host_t *vha)
 
 	if (vha->flags.online) {
 		vha->flags.online = 0;
+		ha->flags.chip_reset_done = 0;
 		clear_bit(ISP_ABORT_NEEDED, &vha->dpc_flags);
 		ha->qla_stats.total_isp_aborts++;
 
@@ -3470,6 +3474,7 @@ qla2x00_restart_isp(scsi_qla_host_t *vha)
 
 	if (!status && !(status = qla2x00_init_rings(vha))) {
 		clear_bit(RESET_MARKER_NEEDED, &vha->dpc_flags);
+		ha->flags.chip_reset_done = 1;
 		/* Initialize the queues in use */
 		qla25xx_init_queues(ha);
 

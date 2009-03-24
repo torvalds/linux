@@ -110,6 +110,7 @@ extern void qla2x00_mark_all_devices_lost(scsi_qla_host_t *, int);
 extern struct fw_blob *qla2x00_request_firmware(scsi_qla_host_t *);
 
 extern int qla2x00_wait_for_hba_online(scsi_qla_host_t *);
+extern int qla2x00_wait_for_chip_reset(scsi_qla_host_t *);
 
 extern void qla2xxx_wake_dpc(struct scsi_qla_host *);
 extern void qla2x00_alert_all_vps(struct rsp_que *, uint16_t *);

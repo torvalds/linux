@@ -535,6 +535,34 @@ qla2x00_wait_for_hba_online(scsi_qla_host_t *vha)
 	return (return_status);
 }
 
+int
+qla2x00_wait_for_chip_reset(scsi_qla_host_t *vha)
+{
+	int		return_status;
+	unsigned long	wait_reset;
+	struct qla_hw_data *ha = vha->hw;
+	scsi_qla_host_t *base_vha = pci_get_drvdata(ha->pdev);
+
+	wait_reset = jiffies + (MAX_LOOP_TIMEOUT * HZ);
+	while (((test_bit(ISP_ABORT_NEEDED, &base_vha->dpc_flags)) ||
+	    test_bit(ABORT_ISP_ACTIVE, &base_vha->dpc_flags) ||
+	    test_bit(ISP_ABORT_RETRY, &base_vha->dpc_flags) ||
+	    ha->dpc_active) && time_before(jiffies, wait_reset)) {
+
+		msleep(1000);
+
+		if (!test_bit(ISP_ABORT_NEEDED, &base_vha->dpc_flags) &&
+		    ha->flags.chip_reset_done)
+			break;
+	}
+	if (ha->flags.chip_reset_done)
+		return_status = QLA_SUCCESS;
+	else
+		return_status = QLA_FUNCTION_FAILED;
+
+	return return_status;
+}
+
 /*
  * qla2x00_wait_for_loop_ready
  *    Wait for MAX_LOOP_TIMEOUT(5 min) value for loop
