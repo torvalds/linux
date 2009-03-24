@@ -338,6 +338,15 @@ irqreturn_t no_action(int cpl, void *dev_id)
 	return IRQ_NONE;
 }
 
+static void warn_no_thread(unsigned int irq, struct irqaction *action)
+{
+	if (test_and_set_bit(IRQTF_WARNED, &action->thread_flags))
+		return;
+
+	printk(KERN_WARNING "IRQ %d device %s returned IRQ_WAKE_THREAD "
+	       "but no thread function available.", irq, action->name);
+}
+
 /**
  * handle_IRQ_event - irq action chain handler
  * @irq:	the interrupt number
@@ -361,6 +370,21 @@ irqreturn_t handle_IRQ_event(unsigned int irq, struct irqaction *action)
 		switch (ret) {
 		case IRQ_WAKE_THREAD:
 			/*
+			 * Set result to handled so the spurious check
+			 * does not trigger.
+			 */
+			ret = IRQ_HANDLED;
+
+			/*
+			 * Catch drivers which return WAKE_THREAD but
+			 * did not set up a thread function
+			 */
+			if (unlikely(!action->thread_fn)) {
+				warn_no_thread(irq, action);
+				break;
+			}
+
+			/*
 			 * Wake up the handler thread for this
 			 * action. In case the thread crashed and was
 			 * killed we just pretend that we handled the
@@ -374,11 +398,6 @@ irqreturn_t handle_IRQ_event(unsigned int irq, struct irqaction *action)
 				wake_up_process(action->thread);
 			}
 
-			/*
-			 * Set it to handled so the spurious check
-			 * does not trigger.
-			 */
-			ret = IRQ_HANDLED;
 			/* Fall through to add to randomness */
 		case IRQ_HANDLED:
 			status |= action->flags;

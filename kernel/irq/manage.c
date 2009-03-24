@@ -407,20 +407,17 @@ int __irq_set_trigger(struct irq_desc *desc, unsigned int irq,
 	return ret;
 }
 
-static inline int irq_thread_should_run(struct irqaction *action)
-{
-	return test_and_clear_bit(IRQTF_RUNTHREAD, &action->thread_flags);
-}
-
 static int irq_wait_for_interrupt(struct irqaction *action)
 {
 	while (!kthread_should_stop()) {
 		set_current_state(TASK_INTERRUPTIBLE);
-		if (irq_thread_should_run(action)) {
+
+		if (test_and_clear_bit(IRQTF_RUNTHREAD,
+				       &action->thread_flags)) {
 			__set_current_state(TASK_RUNNING);
 			return 0;
-		} else
-			schedule();
+		}
+		schedule();
 	}
 	return -1;
 }
@@ -820,8 +817,8 @@ EXPORT_SYMBOL(free_irq);
  *	@irq: Interrupt line to allocate
  *	@handler: Function to be called when the IRQ occurs.
  *		  Primary handler for threaded interrupts
- *      @thread_fn: Function called from the irq handler thread
- *                  If NULL, no irq thread is created
+ *	@thread_fn: Function called from the irq handler thread
+ *		    If NULL, no irq thread is created
  *	@irqflags: Interrupt type flags
  *	@devname: An ascii name for the claiming device
  *	@dev_id: A cookie passed back to the handler function
