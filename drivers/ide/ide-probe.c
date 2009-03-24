@@ -848,13 +848,6 @@ static void ide_port_tune_devices(ide_hwif_t *hwif)
 				ide_set_dma(drive);
 		}
 	}
-
-	ide_port_for_each_dev(i, drive, hwif) {
-		if (hwif->host_flags & IDE_HFLAG_NO_IO_32BIT)
-			drive->dev_flags |= IDE_DFLAG_NO_IO_32BIT;
-		else
-			drive->dev_flags &= ~IDE_DFLAG_NO_IO_32BIT;
-	}
 }
 
 /*
@@ -1192,6 +1185,8 @@ static void ide_port_init_devices(ide_hwif_t *hwif)
 
 		if (hwif->host_flags & IDE_HFLAG_IO_32BIT)
 			drive->io_32bit = 1;
+		if (hwif->host_flags & IDE_HFLAG_NO_IO_32BIT)
+			drive->dev_flags |= IDE_DFLAG_NO_IO_32BIT;
 		if (hwif->host_flags & IDE_HFLAG_UNMASK_IRQS)
 			drive->dev_flags |= IDE_DFLAG_UNMASK;
 		if (hwif->host_flags & IDE_HFLAG_NO_UNMASK_IRQS)
