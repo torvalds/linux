@@ -687,7 +687,6 @@ extern void r600_page_table_cleanup(struct drm_device *dev, struct drm_ati_pciga
 /* pipe config regs */
 #define R400_GB_PIPE_SELECT             0x402c
 #define R500_DYN_SCLK_PWMEM_PIPE        0x000d /* PLL */
-#define R500_SU_REG_DEST                0x42c8
 #define R300_GB_TILE_CONFIG             0x4018
 #       define R300_ENABLE_TILING       (1 << 0)
 #       define R300_PIPE_COUNT_RV350    (0 << 1)

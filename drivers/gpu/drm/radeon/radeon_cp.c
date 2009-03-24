@@ -434,7 +434,7 @@ static void radeon_init_pipes(drm_radeon_private_t *dev_priv)
 
 	if ((dev_priv->flags & RADEON_FAMILY_MASK) >= CHIP_RV515) {
 		RADEON_WRITE_PLL(R500_DYN_SCLK_PWMEM_PIPE, (1 | ((gb_pipe_sel >> 8) & 0xf) << 4));
-		RADEON_WRITE(R500_SU_REG_DEST, ((1 << dev_priv->num_gb_pipes) - 1));
+		RADEON_WRITE(R300_SU_REG_DEST, ((1 << dev_priv->num_gb_pipes) - 1));
 	}
 	RADEON_WRITE(R300_GB_TILE_CONFIG, gb_tile_config);
 	radeon_do_wait_for_idle(dev_priv);
