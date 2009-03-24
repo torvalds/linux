@@ -9,9 +9,10 @@
 struct twl4030_hsmmc_info {
 	u8	mmc;		/* controller 1/2/3 */
 	u8	wires;		/* 1/4/8 wires */
+	bool	transceiver;	/* MMC-2 option */
+	bool	ext_clock;	/* use external pin for input clock */
 	int	gpio_cd;	/* or -EINVAL */
 	int	gpio_wp;	/* or -EINVAL */
-	int	ext_clock:1;	/* use external pin for input clock */
 };
 
 #if	defined(CONFIG_TWL4030_CORE) && \

@@ -53,6 +53,7 @@ static struct twl4030_hsmmc_info omap3pandora_mmc[] = {
 		.gpio_cd	= -EINVAL,
 		.gpio_wp	= 127,
 		.ext_clock	= 1,
+		.transceiver	= true,
 	},
 	{}	/* Terminator */
 };
