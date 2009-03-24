@@ -1063,7 +1063,7 @@ qla2x00_abort_all_cmds(scsi_qla_host_t *vha, int res)
 			continue;
 		for (cnt = 1; cnt < MAX_OUTSTANDING_COMMANDS; cnt++) {
 			sp = req->outstanding_cmds[cnt];
-			if (sp && sp->fcport->vha == vha) {
+			if (sp) {
 				req->outstanding_cmds[cnt] = NULL;
 				sp->cmd->result = res;
 				qla2x00_sp_compl(ha, sp);
