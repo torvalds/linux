@@ -5,7 +5,8 @@
 EXTRA_CFLAGS				+= -Idrivers/ide
 
 ide-core-y += ide.o ide-ioctls.o ide-io.o ide-iops.o ide-lib.o ide-probe.o \
-	      ide-taskfile.o ide-pm.o ide-park.o ide-sysfs.o ide-devsets.o
+	      ide-taskfile.o ide-pm.o ide-park.o ide-sysfs.o ide-devsets.o \
+	      ide-io-std.o
 
 # core IDE code
 ide-core-$(CONFIG_IDE_XFER_MODE)	+= ide-pio-blacklist.o ide-xfer-mode.o
