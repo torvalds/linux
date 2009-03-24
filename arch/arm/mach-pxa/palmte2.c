@@ -20,8 +20,11 @@
 #include <linux/irq.h>
 #include <linux/gpio_keys.h>
 #include <linux/input.h>
+#include <linux/pda_power.h>
 #include <linux/pwm_backlight.h>
 #include <linux/gpio.h>
+#include <linux/wm97xx_batt.h>
+#include <linux/power_supply.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -32,6 +35,8 @@
 #include <mach/mmc.h>
 #include <mach/pxafb.h>
 #include <mach/mfp-pxa25x.h>
+#include <mach/irda.h>
+#include <mach/udc.h>
 
 #include "generic.h"
 #include "devices.h"
@@ -56,6 +61,15 @@ static unsigned long palmte2_pin_config[] __initdata = {
 	/* PWM */
 	GPIO16_PWM0_OUT,
 
+	/* USB */
+	GPIO15_GPIO,	/* usb detect */
+	GPIO53_GPIO,	/* usb power */
+
+	/* IrDA */
+	GPIO48_GPIO,	/* ir disable */
+	GPIO46_FICP_RXD,
+	GPIO47_FICP_TXD,
+
 	/* LCD */
 	GPIO58_LCD_LDD_0,
 	GPIO59_LCD_LDD_1,
@@ -76,6 +90,7 @@ static unsigned long palmte2_pin_config[] __initdata = {
 	GPIO74_LCD_FCLK,
 	GPIO75_LCD_LCLK,
 	GPIO76_LCD_PCLK,
+	GPIO77_LCD_BIAS,
 
 	/* GPIO KEYS */
 	GPIO5_GPIO,	/* notes */
@@ -90,6 +105,10 @@ static unsigned long palmte2_pin_config[] __initdata = {
 
 	/* MISC */
 	GPIO1_RST,	/* reset */
+	GPIO4_GPIO,	/* Hotsync button */
+	GPIO9_GPIO,	/* power detect */
+	GPIO37_GPIO,	/* LCD power */
+	GPIO56_GPIO,	/* Backlight power */
 };
 
 /******************************************************************************
@@ -205,11 +224,53 @@ static struct platform_device palmte2_pxa_keys = {
 /******************************************************************************
  * Backlight
  ******************************************************************************/
+static int palmte2_backlight_init(struct device *dev)
+{
+	int ret;
+
+	ret = gpio_request(GPIO_NR_PALMTE2_BL_POWER, "BL POWER");
+	if (ret)
+		goto err;
+	ret = gpio_direction_output(GPIO_NR_PALMTE2_BL_POWER, 0);
+	if (ret)
+		goto err2;
+	ret = gpio_request(GPIO_NR_PALMTE2_LCD_POWER, "LCD POWER");
+	if (ret)
+		goto err2;
+	ret = gpio_direction_output(GPIO_NR_PALMTE2_LCD_POWER, 0);
+	if (ret)
+		goto err3;
+
+	return 0;
+err3:
+	gpio_free(GPIO_NR_PALMTE2_LCD_POWER);
+err2:
+	gpio_free(GPIO_NR_PALMTE2_BL_POWER);
+err:
+	return ret;
+}
+
+static int palmte2_backlight_notify(int brightness)
+{
+	gpio_set_value(GPIO_NR_PALMTE2_BL_POWER, brightness);
+	gpio_set_value(GPIO_NR_PALMTE2_LCD_POWER, brightness);
+	return brightness;
+}
+
+static void palmte2_backlight_exit(struct device *dev)
+{
+	gpio_free(GPIO_NR_PALMTE2_BL_POWER);
+	gpio_free(GPIO_NR_PALMTE2_LCD_POWER);
+}
+
 static struct platform_pwm_backlight_data palmte2_backlight_data = {
 	.pwm_id		= 0,
 	.max_brightness	= PALMTE2_MAX_INTENSITY,
 	.dft_brightness	= PALMTE2_MAX_INTENSITY,
 	.pwm_period_ns	= PALMTE2_PERIOD_NS,
+	.init		= palmte2_backlight_init,
+	.notify		= palmte2_backlight_notify,
+	.exit		= palmte2_backlight_exit,
 };
 
 static struct platform_device palmte2_backlight = {
@@ -218,6 +279,119 @@ static struct platform_device palmte2_backlight = {
 		.parent		= &pxa25x_device_pwm0.dev,
 		.platform_data	= &palmte2_backlight_data,
 	},
+};
+
+/******************************************************************************
+ * IrDA
+ ******************************************************************************/
+static int palmte2_irda_startup(struct device *dev)
+{
+	int err;
+	err = gpio_request(GPIO_NR_PALMTE2_IR_DISABLE, "IR DISABLE");
+	if (err)
+		goto err;
+	err = gpio_direction_output(GPIO_NR_PALMTE2_IR_DISABLE, 1);
+	if (err)
+		gpio_free(GPIO_NR_PALMTE2_IR_DISABLE);
+err:
+	return err;
+}
+
+static void palmte2_irda_shutdown(struct device *dev)
+{
+	gpio_free(GPIO_NR_PALMTE2_IR_DISABLE);
+}
+
+static void palmte2_irda_transceiver_mode(struct device *dev, int mode)
+{
+	gpio_set_value(GPIO_NR_PALMTE2_IR_DISABLE, mode & IR_OFF);
+	pxa2xx_transceiver_mode(dev, mode);
+}
+
+static struct pxaficp_platform_data palmte2_ficp_platform_data = {
+	.startup		= palmte2_irda_startup,
+	.shutdown		= palmte2_irda_shutdown,
+	.transceiver_cap	= IR_SIRMODE | IR_FIRMODE | IR_OFF,
+	.transceiver_mode	= palmte2_irda_transceiver_mode,
+};
+
+/******************************************************************************
+ * UDC
+ ******************************************************************************/
+static struct pxa2xx_udc_mach_info palmte2_udc_info __initdata = {
+	.gpio_vbus		= GPIO_NR_PALMTE2_USB_DETECT_N,
+	.gpio_vbus_inverted	= 1,
+	.gpio_pullup		= GPIO_NR_PALMTE2_USB_PULLUP,
+	.gpio_pullup_inverted	= 0,
+};
+
+/******************************************************************************
+ * Power supply
+ ******************************************************************************/
+static int power_supply_init(struct device *dev)
+{
+	int ret;
+
+	ret = gpio_request(GPIO_NR_PALMTE2_POWER_DETECT, "CABLE_STATE_AC");
+	if (ret)
+		goto err1;
+	ret = gpio_direction_input(GPIO_NR_PALMTE2_POWER_DETECT);
+	if (ret)
+		goto err2;
+
+	return 0;
+
+err2:
+	gpio_free(GPIO_NR_PALMTE2_POWER_DETECT);
+err1:
+	return ret;
+}
+
+static int palmte2_is_ac_online(void)
+{
+	return gpio_get_value(GPIO_NR_PALMTE2_POWER_DETECT);
+}
+
+static void power_supply_exit(struct device *dev)
+{
+	gpio_free(GPIO_NR_PALMTE2_POWER_DETECT);
+}
+
+static char *palmte2_supplicants[] = {
+	"main-battery",
+};
+
+static struct pda_power_pdata power_supply_info = {
+	.init            = power_supply_init,
+	.is_ac_online    = palmte2_is_ac_online,
+	.exit            = power_supply_exit,
+	.supplied_to     = palmte2_supplicants,
+	.num_supplicants = ARRAY_SIZE(palmte2_supplicants),
+};
+
+static struct platform_device power_supply = {
+	.name = "pda-power",
+	.id   = -1,
+	.dev  = {
+		.platform_data = &power_supply_info,
+	},
+};
+
+/******************************************************************************
+ * WM97xx battery
+ ******************************************************************************/
+static struct wm97xx_batt_info wm97xx_batt_pdata = {
+	.batt_aux	= WM97XX_AUX_ID3,
+	.temp_aux	= WM97XX_AUX_ID2,
+	.charge_gpio	= -1,
+	.max_voltage	= PALMTE2_BAT_MAX_VOLTAGE,
+	.min_voltage	= PALMTE2_BAT_MIN_VOLTAGE,
+	.batt_mult	= 1000,
+	.batt_div	= 414,
+	.temp_mult	= 1,
+	.temp_div	= 1,
+	.batt_tech	= POWER_SUPPLY_TECHNOLOGY_LIPO,
+	.batt_name	= "main-batt",
 };
 
 /******************************************************************************
@@ -254,7 +428,17 @@ static struct platform_device *devices[] __initdata = {
 	&palmte2_pxa_keys,
 #endif
 	&palmte2_backlight,
+	&power_supply,
 };
+
+/* setup udc GPIOs initial state */
+static void __init palmte2_udc_init(void)
+{
+	if (!gpio_request(GPIO_NR_PALMTE2_USB_PULLUP, "UDC Vbus")) {
+		gpio_direction_output(GPIO_NR_PALMTE2_USB_PULLUP, 1);
+		gpio_free(GPIO_NR_PALMTE2_USB_PULLUP);
+	}
+}
 
 static void __init palmte2_init(void)
 {
@@ -262,7 +446,11 @@ static void __init palmte2_init(void)
 
 	set_pxa_fb_info(&palmte2_lcd_screen);
 	pxa_set_mci_info(&palmte2_mci_platform_data);
+	palmte2_udc_init();
+	pxa_set_udc_info(&palmte2_udc_info);
 	pxa_set_ac97_info(NULL);
+	pxa_set_ficp_info(&palmte2_ficp_platform_data);
+	wm97xx_bat_set_pdata(&wm97xx_batt_pdata);
 
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 }
