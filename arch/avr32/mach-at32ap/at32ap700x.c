@@ -26,6 +26,8 @@
 #include <mach/portmux.h>
 #include <mach/sram.h>
 
+#include <sound/atmel-abdac.h>
+
 #include <video/atmel_lcdc.h>
 
 #include "clock.h"
@@ -2053,21 +2055,34 @@ static struct clk abdac0_sample_clk = {
 	.index		= 6,
 };
 
-struct platform_device *__init at32_add_device_abdac(unsigned int id)
+struct platform_device *__init
+at32_add_device_abdac(unsigned int id, struct atmel_abdac_pdata *data)
 {
-	struct platform_device *pdev;
-	u32 pin_mask;
+	struct platform_device	*pdev;
+	struct dw_dma_slave	*dws;
+	u32			pin_mask;
 
-	if (id != 0)
+	if (id != 0 || !data)
 		return NULL;
 
-	pdev = platform_device_alloc("abdac", id);
+	pdev = platform_device_alloc("atmel_abdac", id);
 	if (!pdev)
 		return NULL;
 
 	if (platform_device_add_resources(pdev, abdac0_resource,
 				ARRAY_SIZE(abdac0_resource)))
-		goto err_add_resources;
+		goto out_free_resources;
+
+	dws = &data->dws;
+
+	dws->dma_dev = &dw_dmac0_device.dev;
+	dws->reg_width = DW_DMA_SLAVE_WIDTH_32BIT;
+	dws->cfg_hi = DWC_CFGH_DST_PER(2);
+	dws->cfg_lo &= ~(DWC_CFGL_HS_DST_POL | DWC_CFGL_HS_SRC_POL);
+
+	if (platform_device_add_data(pdev, data,
+				sizeof(struct atmel_abdac_pdata)))
+		goto out_free_resources;
 
 	pin_mask  = (1 << 20) | (1 << 22);	/* DATA1 & DATAN1 */
 	pin_mask |= (1 << 21) | (1 << 23);	/* DATA0 & DATAN0 */
@@ -2080,7 +2095,7 @@ struct platform_device *__init at32_add_device_abdac(unsigned int id)
 	platform_device_add(pdev);
 	return pdev;
 
-err_add_resources:
+out_free_resources:
 	platform_device_put(pdev);
 	return NULL;
 }
