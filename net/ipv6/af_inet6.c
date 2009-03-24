@@ -346,8 +346,11 @@ int inet6_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 		goto out;
 	}
 
-	if (addr_type != IPV6_ADDR_ANY)
+	if (addr_type != IPV6_ADDR_ANY) {
 		sk->sk_userlocks |= SOCK_BINDADDR_LOCK;
+		if (addr_type != IPV6_ADDR_MAPPED)
+			np->ipv6only = 1;
+	}
 	if (snum)
 		sk->sk_userlocks |= SOCK_BINDPORT_LOCK;
 	inet->sport = htons(inet->num);
