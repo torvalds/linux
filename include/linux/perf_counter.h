@@ -103,6 +103,16 @@ enum perf_counter_record_type {
 #define PERF_COUNTER_EVENT_MASK		__PERF_COUNTER_MASK(EVENT)
 
 /*
+ * Bits that can be set in hw_event.read_format to request that
+ * reads on the counter should return the indicated quantities,
+ * in increasing order of bit value, after the counter value.
+ */
+enum perf_counter_read_format {
+	PERF_FORMAT_TOTAL_TIME_ENABLED	=  1,
+	PERF_FORMAT_TOTAL_TIME_RUNNING	=  2,
+};
+
+/*
  * Hardware event to monitor via a performance monitoring counter:
  */
 struct perf_counter_hw_event {
@@ -281,6 +291,32 @@ struct perf_counter {
 	enum perf_counter_active_state	prev_state;
 	atomic64_t			count;
 
+	/*
+	 * These are the total time in nanoseconds that the counter
+	 * has been enabled (i.e. eligible to run, and the task has
+	 * been scheduled in, if this is a per-task counter)
+	 * and running (scheduled onto the CPU), respectively.
+	 *
+	 * They are computed from tstamp_enabled, tstamp_running and
+	 * tstamp_stopped when the counter is in INACTIVE or ACTIVE state.
+	 */
+	u64				total_time_enabled;
+	u64				total_time_running;
+
+	/*
+	 * These are timestamps used for computing total_time_enabled
+	 * and total_time_running when the counter is in INACTIVE or
+	 * ACTIVE state, measured in nanoseconds from an arbitrary point
+	 * in time.
+	 * tstamp_enabled: the notional time when the counter was enabled
+	 * tstamp_running: the notional time when the counter was scheduled on
+	 * tstamp_stopped: in INACTIVE state, the notional time when the
+	 *	counter was scheduled off.
+	 */
+	u64				tstamp_enabled;
+	u64				tstamp_running;
+	u64				tstamp_stopped;
+
 	struct perf_counter_hw_event	hw_event;
 	struct hw_perf_counter		hw;
 
@@ -290,6 +326,13 @@ struct perf_counter {
 
 	struct perf_counter		*parent;
 	struct list_head		child_list;
+
+	/*
+	 * These accumulate total time (in nanoseconds) that children
+	 * counters have been enabled and running, respectively.
+	 */
+	atomic64_t			child_total_time_enabled;
+	atomic64_t			child_total_time_running;
 
 	/*
 	 * Protect attach/detach and child_list:
@@ -339,6 +382,16 @@ struct perf_counter_context {
 	int			nr_active;
 	int			is_active;
 	struct task_struct	*task;
+
+	/*
+	 * time_now is the current time in nanoseconds since an arbitrary
+	 * point in the past.  For per-task counters, this is based on the
+	 * task clock, and for per-cpu counters it is based on the cpu clock.
+	 * time_lost is an offset from the task/cpu clock, used to make it
+	 * appear that time only passes while the context is scheduled in.
+	 */
+	u64			time_now;
+	u64			time_lost;
 #endif
 };
 
