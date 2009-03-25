@@ -345,7 +345,7 @@ union str_ModuleInfo {
 };
 
 /* Private structure for the addi_apci3120 driver */
-typedef struct {
+struct addi_private {
 
 	int iobase;
 	int i_IobaseAmcc;	// base+size for AMCC chip
@@ -434,7 +434,7 @@ typedef struct {
 	union str_ModuleInfo s_ModuleInfo[4];
 	unsigned int ul_TTLPortConfiguration[10];
 
-} addi_private;
+};
 
 static unsigned short pci_list_builded;	/* set to 1 when list of card is known */
 

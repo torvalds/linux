@@ -72,7 +72,7 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 //Update-0.7.57->0.7.68MODULE_DESCRIPTION("Comedi ADDI-DATA module");
 //Update-0.7.57->0.7.68MODULE_LICENSE("GPL");
 
-#define devpriv ((addi_private *)dev->private)
+#define devpriv ((struct addi_private *)dev->private)
 #define this_board ((struct addi_board *)dev->board_ptr)
 
 #if defined(CONFIG_APCI_1710) || defined(CONFIG_APCI_3200) || defined(CONFIG_APCI_3300)
@@ -2575,7 +2575,7 @@ static int i_ADDI_Attach(struct comedi_device * dev, struct comedi_devconfig * i
 	sprintf(c_Identifier, "Addi-Data GmbH Comedi %s",
 		this_board->pc_DriverName);
 
-	if ((ret = alloc_private(dev, sizeof(addi_private))) < 0) {
+	if ((ret = alloc_private(dev, sizeof(struct addi_private))) < 0) {
 	  	return -ENOMEM;
 	}
 
