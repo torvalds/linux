@@ -960,16 +960,12 @@ ahc_pci_config(struct ahc_softc *ahc, const struct ahc_pci_identity *entry)
 	error = ahc_init(ahc);
 	if (error != 0)
 		return (error);
+	ahc->init_level++;
 
 	/*
 	 * Allow interrupts now that we are completely setup.
 	 */
-	error = ahc_pci_map_int(ahc);
-	if (error != 0)
-		return (error);
-
-	ahc->init_level++;
-	return (0);
+	return ahc_pci_map_int(ahc);
 }
 
 /*

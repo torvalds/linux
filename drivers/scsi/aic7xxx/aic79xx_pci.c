@@ -377,14 +377,12 @@ ahd_pci_config(struct ahd_softc *ahd, const struct ahd_pci_identity *entry)
 	error = ahd_init(ahd);
 	if (error != 0)
 		return (error);
+	ahd->init_level++;
 
 	/*
 	 * Allow interrupts now that we are completely setup.
 	 */
-	error = ahd_pci_map_int(ahd);
-	if (!error)
-		ahd->init_level++;
-	return error;
+	return ahd_pci_map_int(ahd);
 }
 
 #ifdef CONFIG_PM
