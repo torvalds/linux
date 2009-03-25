@@ -7,7 +7,7 @@ be removed from this file.
 ---------------------------
 
 What:	The ieee80211_regdom module parameter
-When:	March 2010
+When:	March 2010 / desktop catchup
 
 Why:	This was inherited by the CONFIG_WIRELESS_OLD_REGULATORY code,
 	and currently serves as an option for users to define an
@@ -30,18 +30,23 @@ Who:	Luis R. Rodriguez <lrodriguez@atheros.com>
 
 ---------------------------
 
-What:	old static regulatory information
-When:	2.6.29
+What:	CONFIG_WIRELESS_OLD_REGULATORY - old static regulatory information
+When:	March 2010 / desktop catchup
+
 Why:	The old regulatory infrastructure has been replaced with a new one
 	which does not require statically defined regulatory domains. We do
 	not want to keep static regulatory domains in the kernel due to the
 	the dynamic nature of regulatory law and localization. We kept around
 	the old static definitions for the regulatory domains of:
+
 		* US
 		* JP
 		* EU
+
 	and used by default the US when CONFIG_WIRELESS_OLD_REGULATORY was
-	set.
+	set. We will remove this option once the standard Linux desktop catches
+	up with the new userspace APIs we have implemented.
+
 Who:	Luis R. Rodriguez <lrodriguez@atheros.com>
 
 ---------------------------
