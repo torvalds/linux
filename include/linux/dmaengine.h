@@ -23,9 +23,6 @@
 
 #include <linux/device.h>
 #include <linux/uio.h>
-#include <linux/kref.h>
-#include <linux/completion.h>
-#include <linux/rcupdate.h>
 #include <linux/dma-mapping.h>
 
 /**
