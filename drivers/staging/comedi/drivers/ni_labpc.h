@@ -32,7 +32,7 @@ enum labpc_register_layout { labpc_plus_layout, labpc_1200_layout };
 enum transfer_type { fifo_not_empty_transfer, fifo_half_full_transfer,
 		isa_dma_transfer };
 
-typedef struct labpc_board_struct {
+struct labpc_board_struct {
 	const char *name;
 	int device_id;		// device id for pci and pcmcia boards
 	int ai_speed;		// maximum input speed in nanoseconds
@@ -44,7 +44,7 @@ typedef struct labpc_board_struct {
 	const int *ai_range_is_unipolar;
 	unsigned ai_scan_up:1;	// board can auto scan up in ai channels, not just down
 	unsigned memory_mapped_io:1;	/* uses memory mapped io instead of ioports */
-} labpc_board;
+};
 
 typedef struct {
 	struct mite_struct *mite;	// for mite chip on pci-1200

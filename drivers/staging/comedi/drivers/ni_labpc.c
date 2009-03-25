@@ -360,7 +360,7 @@ static inline void labpc_writeb(unsigned int byte, unsigned long address)
 	writeb(byte, (void *)address);
 }
 
-static const labpc_board labpc_boards[] = {
+static const struct labpc_board_struct labpc_boards[] = {
 	{
 	      name:	"lab-pc-1200",
 	      ai_speed:10000,
@@ -422,7 +422,7 @@ static const labpc_board labpc_boards[] = {
 /*
  * Useful for shorthand access to the particular board structure
  */
-#define thisboard ((labpc_board *)dev->board_ptr)
+#define thisboard ((struct labpc_board_struct *)dev->board_ptr)
 
 static const int dma_buffer_size = 0xff00;	// size in bytes of dma buffer
 static const int sample_size = 2;	// 2 bytes per sample
@@ -434,9 +434,9 @@ static struct comedi_driver driver_labpc = {
 	.module = THIS_MODULE,
 	.attach = labpc_attach,
 	.detach = labpc_common_detach,
-	.num_names = sizeof(labpc_boards) / sizeof(labpc_board),
+	.num_names = sizeof(labpc_boards) / sizeof(struct labpc_board_struct),
 	.board_name = &labpc_boards[0].name,
-	.offset = sizeof(labpc_board),
+	.offset = sizeof(struct labpc_board_struct),
 };
 
 #ifdef CONFIG_COMEDI_PCI

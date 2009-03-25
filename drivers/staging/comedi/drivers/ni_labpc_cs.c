@@ -81,7 +81,7 @@ static struct pcmcia_device *pcmcia_cur_dev = NULL;
 
 static int labpc_attach(struct comedi_device * dev, struct comedi_devconfig * it);
 
-static const labpc_board labpc_cs_boards[] = {
+static const struct labpc_board_struct labpc_cs_boards[] = {
 	{
 	      name:	"daqcard-1200",
 	      device_id:0x103,	// 0x10b is manufacturer id, 0x103 is device id
@@ -114,16 +114,16 @@ static const labpc_board labpc_cs_boards[] = {
 /*
  * Useful for shorthand access to the particular board structure
  */
-#define thisboard ((const labpc_board *)dev->board_ptr)
+#define thisboard ((const struct labpc_board_struct *)dev->board_ptr)
 
 static struct comedi_driver driver_labpc_cs = {
 	.driver_name = "ni_labpc_cs",
 	.module = THIS_MODULE,
 	.attach = &labpc_attach,
 	.detach = &labpc_common_detach,
-	.num_names = sizeof(labpc_cs_boards) / sizeof(labpc_board),
+	.num_names = sizeof(labpc_cs_boards) / sizeof(struct labpc_board_struct),
 	.board_name = &labpc_cs_boards[0].name,
-	.offset = sizeof(labpc_board),
+	.offset = sizeof(struct labpc_board_struct),
 };
 
 static int labpc_attach(struct comedi_device * dev, struct comedi_devconfig * it)
