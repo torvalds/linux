@@ -2615,7 +2615,9 @@ static int sxg_dumb_sgl(struct sxg_x64_sgl *pSgl,
                 struct iphdr *ip;
 
                 ip = ip_hdr(skb);
-		if ((ip->protocol == IPPROTO_TCP)&&(DataLength >= sizeof(
+		if (ip->protocol != IPPROTO_TCP	|| !tcp_hdr(skb))
+			queue_id = 0;
+		else if ((ip->protocol == IPPROTO_TCP)&&(DataLength >= sizeof(
 							struct tcphdr))){
 			queue_id = ((ntohs(tcp_hdr(skb)->dest) == ISCSI_PORT) ?
 					(ntohs (tcp_hdr(skb)->source) &
@@ -2624,8 +2626,10 @@ static int sxg_dumb_sgl(struct sxg_x64_sgl *pSgl,
 						SXG_LARGE_SEND_QUEUE_MASK));
 		}
 	} else if (skb->protocol == htons(ETH_P_IPV6)) {
-		if ((ipv6_hdr(skb)->nexthdr == IPPROTO_TCP) && (DataLength >=
-						 sizeof(struct tcphdr)) ) {
+		if (ipv6_hdr(skb)->nexthdr != IPPROTO_TCP || !tcp_hdr(skb))
+			queue_id = 0;
+		else if ((ipv6_hdr(skb)->nexthdr == IPPROTO_TCP) && (DataLength
+						>= sizeof(struct tcphdr)) ) {
 			queue_id = ((ntohs(tcp_hdr(skb)->dest) == ISCSI_PORT) ?
 					(ntohs (tcp_hdr(skb)->source) &
 					SXG_LARGE_SEND_QUEUE_MASK):
