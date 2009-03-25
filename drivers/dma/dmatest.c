@@ -196,6 +196,11 @@ static unsigned int dmatest_verify(u8 **bufs, unsigned int start,
 	return error_count;
 }
 
+static void dmatest_callback(void *completion)
+{
+	complete(completion);
+}
+
 /*
  * This function repeatedly tests DMA transfers of various lengths and
  * offsets for a given operation type until it is told to exit by
@@ -261,13 +266,17 @@ static int dmatest_func(void *data)
 	}
 	thread->dsts[i] = NULL;
 
-	flags = DMA_CTRL_ACK | DMA_COMPL_SKIP_DEST_UNMAP;
+	set_user_nice(current, 10);
+
+	flags = DMA_CTRL_ACK | DMA_COMPL_SKIP_DEST_UNMAP | DMA_PREP_INTERRUPT;
 
 	while (!kthread_should_stop()) {
 		struct dma_device *dev = chan->device;
 		struct dma_async_tx_descriptor *tx = NULL;
 		dma_addr_t dma_srcs[src_cnt];
 		dma_addr_t dma_dsts[dst_cnt];
+		struct completion cmp;
+		unsigned long tmo = msecs_to_jiffies(3000);
 
 		total_tests++;
 
@@ -318,7 +327,10 @@ static int dmatest_func(void *data)
 			failed_tests++;
 			continue;
 		}
-		tx->callback = NULL;
+
+		init_completion(&cmp);
+		tx->callback = dmatest_callback;
+		tx->callback_param = &cmp;
 		cookie = tx->tx_submit(tx);
 
 		if (dma_submit_error(cookie)) {
@@ -332,18 +344,23 @@ static int dmatest_func(void *data)
 		}
 		dma_async_issue_pending(chan);
 
-		do {
-			msleep(1);
-			status = dma_async_is_tx_complete(
-					chan, cookie, NULL, NULL);
-		} while (status == DMA_IN_PROGRESS);
+		tmo = wait_for_completion_timeout(&cmp, tmo);
+		status = dma_async_is_tx_complete(chan, cookie, NULL, NULL);
 
-		if (status == DMA_ERROR) {
-			pr_warning("%s: #%u: error during copy\n",
-					thread_name, total_tests - 1);
+		if (tmo == 0) {
+			pr_warning("%s: #%u: test timed out\n",
+				   thread_name, total_tests - 1);
+			failed_tests++;
+			continue;
+		} else if (status != DMA_SUCCESS) {
+			pr_warning("%s: #%u: got completion callback,"
+				   " but status is \'%s\'\n",
+				   thread_name, total_tests - 1,
+				   status == DMA_ERROR ? "error" : "in progress");
 			failed_tests++;
 			continue;
 		}
+
 		/* Unmap by myself (see DMA_COMPL_SKIP_DEST_UNMAP above) */
 		for (i = 0; i < dst_cnt; i++)
 			dma_unmap_single(dev->dev, dma_dsts[i], test_buf_size,
