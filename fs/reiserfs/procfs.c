@@ -492,7 +492,6 @@ int reiserfs_proc_info_init(struct super_block *sb)
 	spin_lock_init(&__PINFO(sb).lock);
 	REISERFS_SB(sb)->procdir = proc_mkdir(b, proc_info_root);
 	if (REISERFS_SB(sb)->procdir) {
-		REISERFS_SB(sb)->procdir->owner = THIS_MODULE;
 		REISERFS_SB(sb)->procdir->data = sb;
 		add_file(sb, "version", show_version);
 		add_file(sb, "super", show_super);
@@ -556,9 +555,7 @@ int reiserfs_proc_info_global_init(void)
 {
 	if (proc_info_root == NULL) {
 		proc_info_root = proc_mkdir(proc_info_root_name, NULL);
-		if (proc_info_root) {
-			proc_info_root->owner = THIS_MODULE;
-		} else {
+		if (!proc_info_root) {
 			reiserfs_warning(NULL, "cannot create /proc/%s",
 					 proc_info_root_name);
 			return 1;

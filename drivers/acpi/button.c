@@ -200,12 +200,10 @@ static int acpi_button_add_fs(struct acpi_device *device)
 
 	if (!entry)
 		return -ENODEV;
-	entry->owner = THIS_MODULE;
 
 	acpi_device_dir(device) = proc_mkdir(acpi_device_bid(device), entry);
 	if (!acpi_device_dir(device))
 		return -ENODEV;
-	acpi_device_dir(device)->owner = THIS_MODULE;
 
 	/* 'info' [R] */
 	entry = proc_create_data(ACPI_BUTTON_FILE_INFO,
@@ -522,7 +520,6 @@ static int __init acpi_button_init(void)
 	acpi_button_dir = proc_mkdir(ACPI_BUTTON_CLASS, acpi_root_dir);
 	if (!acpi_button_dir)
 		return -ENODEV;
-	acpi_button_dir->owner = THIS_MODULE;
 	result = acpi_bus_register_driver(&acpi_button_driver);
 	if (result < 0) {
 		remove_proc_entry(ACPI_BUTTON_CLASS, acpi_root_dir);

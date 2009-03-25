@@ -4494,7 +4494,6 @@ static int setup_proc_entry( struct net_device *dev,
 		goto fail;
 	apriv->proc_entry->uid = proc_uid;
 	apriv->proc_entry->gid = proc_gid;
-	apriv->proc_entry->owner = THIS_MODULE;
 
 	/* Setup the StatsDelta */
 	entry = proc_create_data("StatsDelta",

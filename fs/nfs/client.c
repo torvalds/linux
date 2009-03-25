@@ -1606,8 +1606,6 @@ int __init nfs_fs_proc_init(void)
 	if (!proc_fs_nfs)
 		goto error_0;
 
-	proc_fs_nfs->owner = THIS_MODULE;
-
 	/* a file of servers with which we're dealing */
 	p = proc_create("servers", S_IFREG|S_IRUGO,
 			proc_fs_nfs, &nfs_server_list_fops);
