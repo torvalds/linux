@@ -612,6 +612,7 @@ static struct ethtool_ops virtnet_ethtool_ops = {
 	.set_tx_csum = virtnet_set_tx_csum,
 	.set_sg = ethtool_op_set_sg,
 	.set_tso = ethtool_op_set_tso,
+	.get_link = ethtool_op_get_link,
 };
 
 #define MIN_MTU 68
@@ -738,6 +739,8 @@ static int virtnet_probe(struct virtio_device *vdev)
 		err = -ENOMEM;
 		goto unregister;
 	}
+
+	netif_carrier_on(dev);
 
 	pr_debug("virtnet: registered device %s\n", dev->name);
 	return 0;

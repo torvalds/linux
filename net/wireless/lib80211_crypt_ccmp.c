@@ -337,6 +337,7 @@ static int lib80211_ccmp_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	pos += 8;
 
 	if (ccmp_replay_check(pn, key->rx_pn)) {
+#ifdef CONFIG_LIB80211_DEBUG
 		if (net_ratelimit()) {
 			printk(KERN_DEBUG "CCMP: replay detected: STA=%pM "
 				 "previous PN %02x%02x%02x%02x%02x%02x "
@@ -346,6 +347,7 @@ static int lib80211_ccmp_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 				 key->rx_pn[3], key->rx_pn[4], key->rx_pn[5],
 				 pn[0], pn[1], pn[2], pn[3], pn[4], pn[5]);
 		}
+#endif
 		key->dot11RSNAStatsCCMPReplays++;
 		return -4;
 	}

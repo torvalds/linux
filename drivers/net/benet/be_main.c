@@ -273,26 +273,6 @@ static void be_rx_eqd_update(struct be_adapter *adapter)
 	rx_eq->cur_eqd = eqd;
 }
 
-static void be_worker(struct work_struct *work)
-{
-	struct be_adapter *adapter =
-		container_of(work, struct be_adapter, work.work);
-	int status;
-
-	/* Check link */
-	be_link_status_update(adapter);
-
-	/* Get Stats */
-	status = be_cmd_get_stats(&adapter->ctrl, &adapter->stats.cmd);
-	if (!status)
-		netdev_stats_update(adapter);
-
-	/* Set EQ delay */
-	be_rx_eqd_update(adapter);
-
-	schedule_delayed_work(&adapter->work, msecs_to_jiffies(1000));
-}
-
 static struct net_device_stats *be_get_stats(struct net_device *dev)
 {
 	struct be_adapter *adapter = netdev_priv(dev);
@@ -493,7 +473,7 @@ static int be_change_mtu(struct net_device *netdev, int new_mtu)
  * program them in BE.  If more than BE_NUM_VLANS_SUPPORTED are configured,
  * set the BE in promiscuous VLAN mode.
  */
-static void be_vids_config(struct net_device *netdev)
+static void be_vid_config(struct net_device *netdev)
 {
 	struct be_adapter *adapter = netdev_priv(netdev);
 	u16 vtag[BE_NUM_VLANS_SUPPORTED];
@@ -536,7 +516,7 @@ static void be_vlan_add_vid(struct net_device *netdev, u16 vid)
 	adapter->num_vlans++;
 	adapter->vlan_tag[vid] = 1;
 
-	be_vids_config(netdev);
+	be_vid_config(netdev);
 }
 
 static void be_vlan_rem_vid(struct net_device *netdev, u16 vid)
@@ -547,7 +527,7 @@ static void be_vlan_rem_vid(struct net_device *netdev, u16 vid)
 	adapter->vlan_tag[vid] = 0;
 
 	vlan_group_set_device(adapter->vlan_grp, vid, NULL);
-	be_vids_config(netdev);
+	be_vid_config(netdev);
 }
 
 static void be_set_multicast_filter(struct net_device *netdev)
@@ -900,8 +880,11 @@ static void be_post_rx_frags(struct be_adapter *adapter)
 		page_info->last_page_user = true;
 
 	if (posted) {
-		be_rxq_notify(&adapter->ctrl, rxq->id, posted);
 		atomic_add(posted, &rxq->used);
+		be_rxq_notify(&adapter->ctrl, rxq->id, posted);
+	} else if (atomic_read(&rxq->used) == 0) {
+		/* Let be_worker replenish when memory is available */
+		adapter->rx_post_starved = true;
 	}
 
 	return;
@@ -1305,6 +1288,31 @@ int be_poll_tx(struct napi_struct *napi, int budget)
 	return 1;
 }
 
+static void be_worker(struct work_struct *work)
+{
+	struct be_adapter *adapter =
+		container_of(work, struct be_adapter, work.work);
+	int status;
+
+	/* Check link */
+	be_link_status_update(adapter);
+
+	/* Get Stats */
+	status = be_cmd_get_stats(&adapter->ctrl, &adapter->stats.cmd);
+	if (!status)
+		netdev_stats_update(adapter);
+
+	/* Set EQ delay */
+	be_rx_eqd_update(adapter);
+
+	if (adapter->rx_post_starved) {
+		adapter->rx_post_starved = false;
+		be_post_rx_frags(adapter);
+	}
+
+	schedule_delayed_work(&adapter->work, msecs_to_jiffies(1000));
+}
+
 static void be_msix_enable(struct be_adapter *adapter)
 {
 	int i, status;
@@ -1421,6 +1429,8 @@ static int be_open(struct net_device *netdev)
 			&adapter->pmac_id);
 	if (status != 0)
 		goto do_none;
+
+	be_vid_config(netdev);
 
 	status = be_cmd_set_flow_control(ctrl, true, true);
 	if (status != 0)
@@ -1855,8 +1865,6 @@ static int be_resume(struct pci_dev *pdev)
 
 	pci_set_power_state(pdev, 0);
 	pci_restore_state(pdev);
-
-	be_vids_config(netdev);
 
 	if (netif_running(netdev)) {
 		rtnl_lock();
