@@ -288,6 +288,24 @@ static inline void net_dmaengine_put(void)
 }
 #endif
 
+#ifdef CONFIG_ASYNC_TX_DMA
+#define async_dmaengine_get()	dmaengine_get()
+#define async_dmaengine_put()	dmaengine_put()
+#define async_dma_find_channel(type) dma_find_channel(type)
+#else
+static inline void async_dmaengine_get(void)
+{
+}
+static inline void async_dmaengine_put(void)
+{
+}
+static inline struct dma_chan *
+async_dma_find_channel(enum dma_transaction_type type)
+{
+	return NULL;
+}
+#endif
+
 dma_cookie_t dma_async_memcpy_buf_to_buf(struct dma_chan *chan,
 	void *dest, void *src, size_t len);
 dma_cookie_t dma_async_memcpy_buf_to_pg(struct dma_chan *chan,

@@ -30,7 +30,7 @@
 #ifdef CONFIG_DMA_ENGINE
 static int __init async_tx_init(void)
 {
-	dmaengine_get();
+	async_dmaengine_get();
 
 	printk(KERN_INFO "async_tx: api initialized (async)\n");
 
@@ -39,7 +39,7 @@ static int __init async_tx_init(void)
 
 static void __exit async_tx_exit(void)
 {
-	dmaengine_put();
+	async_dmaengine_put();
 }
 
 /**
@@ -56,7 +56,7 @@ __async_tx_find_channel(struct dma_async_tx_descriptor *depend_tx,
 	if (depend_tx &&
 	    dma_has_cap(tx_type, depend_tx->chan->device->cap_mask))
 		return depend_tx->chan;
-	return dma_find_channel(tx_type);
+	return async_dma_find_channel(tx_type);
 }
 EXPORT_SYMBOL_GPL(__async_tx_find_channel);
 #else
