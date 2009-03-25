@@ -1794,6 +1794,12 @@ static int perf_mmap_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	struct perf_mmap_data *data;
 	int ret = VM_FAULT_SIGBUS;
 
+	if (vmf->flags & FAULT_FLAG_MKWRITE) {
+		if (vmf->pgoff == 0)
+			ret = 0;
+		return ret;
+	}
+
 	rcu_read_lock();
 	data = rcu_dereference(counter->data);
 	if (!data)
@@ -1807,9 +1813,16 @@ static int perf_mmap_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 		if ((unsigned)nr > data->nr_pages)
 			goto unlock;
 
+		if (vmf->flags & FAULT_FLAG_WRITE)
+			goto unlock;
+
 		vmf->page = virt_to_page(data->data_pages[nr]);
 	}
+
 	get_page(vmf->page);
+	vmf->page->mapping = vma->vm_file->f_mapping;
+	vmf->page->index   = vmf->pgoff;
+
 	ret = 0;
 unlock:
 	rcu_read_unlock();
@@ -1862,6 +1875,14 @@ fail:
 	return -ENOMEM;
 }
 
+static void perf_mmap_free_page(unsigned long addr)
+{
+	struct page *page = virt_to_page(addr);
+
+	page->mapping = NULL;
+	__free_page(page);
+}
+
 static void __perf_mmap_data_free(struct rcu_head *rcu_head)
 {
 	struct perf_mmap_data *data;
@@ -1869,9 +1890,10 @@ static void __perf_mmap_data_free(struct rcu_head *rcu_head)
 
 	data = container_of(rcu_head, struct perf_mmap_data, rcu_head);
 
-	free_page((unsigned long)data->user_page);
+	perf_mmap_free_page((unsigned long)data->user_page);
 	for (i = 0; i < data->nr_pages; i++)
-		free_page((unsigned long)data->data_pages[i]);
+		perf_mmap_free_page((unsigned long)data->data_pages[i]);
+
 	kfree(data);
 }
 
@@ -1908,9 +1930,10 @@ static void perf_mmap_close(struct vm_area_struct *vma)
 }
 
 static struct vm_operations_struct perf_mmap_vmops = {
-	.open  = perf_mmap_open,
-	.close = perf_mmap_close,
-	.fault = perf_mmap_fault,
+	.open		= perf_mmap_open,
+	.close		= perf_mmap_close,
+	.fault		= perf_mmap_fault,
+	.page_mkwrite	= perf_mmap_fault,
 };
 
 static int perf_mmap(struct file *file, struct vm_area_struct *vma)
@@ -1924,7 +1947,7 @@ static int perf_mmap(struct file *file, struct vm_area_struct *vma)
 	long user_extra, extra;
 	int ret = 0;
 
-	if (!(vma->vm_flags & VM_SHARED) || (vma->vm_flags & VM_WRITE))
+	if (!(vma->vm_flags & VM_SHARED))
 		return -EINVAL;
 
 	vma_size = vma->vm_end - vma->vm_start;
@@ -1983,10 +2006,12 @@ static int perf_mmap(struct file *file, struct vm_area_struct *vma)
 	atomic_long_add(user_extra, &user->locked_vm);
 	vma->vm_mm->locked_vm += extra;
 	counter->data->nr_locked = extra;
+	if (vma->vm_flags & VM_WRITE)
+		counter->data->writable = 1;
+
 unlock:
 	mutex_unlock(&counter->mmap_mutex);
 
-	vma->vm_flags &= ~VM_MAYWRITE;
 	vma->vm_flags |= VM_RESERVED;
 	vma->vm_ops = &perf_mmap_vmops;
 
@@ -2163,10 +2188,37 @@ struct perf_output_handle {
 	unsigned long		head;
 	unsigned long		offset;
 	int			nmi;
-	int			overflow;
+	int			sample;
 	int			locked;
 	unsigned long		flags;
 };
+
+static bool perf_output_space(struct perf_mmap_data *data,
+			      unsigned int offset, unsigned int head)
+{
+	unsigned long tail;
+	unsigned long mask;
+
+	if (!data->writable)
+		return true;
+
+	mask = (data->nr_pages << PAGE_SHIFT) - 1;
+	/*
+	 * Userspace could choose to issue a mb() before updating the tail
+	 * pointer. So that all reads will be completed before the write is
+	 * issued.
+	 */
+	tail = ACCESS_ONCE(data->user_page->data_tail);
+	smp_rmb();
+
+	offset = (offset - tail) & mask;
+	head   = (head   - tail) & mask;
+
+	if ((int)(head - offset) < 0)
+		return false;
+
+	return true;
+}
 
 static void perf_output_wakeup(struct perf_output_handle *handle)
 {
@@ -2258,55 +2310,6 @@ out:
 	local_irq_restore(handle->flags);
 }
 
-static int perf_output_begin(struct perf_output_handle *handle,
-			     struct perf_counter *counter, unsigned int size,
-			     int nmi, int overflow)
-{
-	struct perf_mmap_data *data;
-	unsigned int offset, head;
-
-	/*
-	 * For inherited counters we send all the output towards the parent.
-	 */
-	if (counter->parent)
-		counter = counter->parent;
-
-	rcu_read_lock();
-	data = rcu_dereference(counter->data);
-	if (!data)
-		goto out;
-
-	handle->data	 = data;
-	handle->counter	 = counter;
-	handle->nmi	 = nmi;
-	handle->overflow = overflow;
-
-	if (!data->nr_pages)
-		goto fail;
-
-	perf_output_lock(handle);
-
-	do {
-		offset = head = atomic_long_read(&data->head);
-		head += size;
-	} while (atomic_long_cmpxchg(&data->head, offset, head) != offset);
-
-	handle->offset	= offset;
-	handle->head	= head;
-
-	if ((offset >> PAGE_SHIFT) != (head >> PAGE_SHIFT))
-		atomic_set(&data->wakeup, 1);
-
-	return 0;
-
-fail:
-	perf_output_wakeup(handle);
-out:
-	rcu_read_unlock();
-
-	return -ENOSPC;
-}
-
 static void perf_output_copy(struct perf_output_handle *handle,
 			     const void *buf, unsigned int len)
 {
@@ -2346,6 +2349,78 @@ static void perf_output_copy(struct perf_output_handle *handle,
 #define perf_output_put(handle, x) \
 	perf_output_copy((handle), &(x), sizeof(x))
 
+static int perf_output_begin(struct perf_output_handle *handle,
+			     struct perf_counter *counter, unsigned int size,
+			     int nmi, int sample)
+{
+	struct perf_mmap_data *data;
+	unsigned int offset, head;
+	int have_lost;
+	struct {
+		struct perf_event_header header;
+		u64			 id;
+		u64			 lost;
+	} lost_event;
+
+	/*
+	 * For inherited counters we send all the output towards the parent.
+	 */
+	if (counter->parent)
+		counter = counter->parent;
+
+	rcu_read_lock();
+	data = rcu_dereference(counter->data);
+	if (!data)
+		goto out;
+
+	handle->data	= data;
+	handle->counter	= counter;
+	handle->nmi	= nmi;
+	handle->sample	= sample;
+
+	if (!data->nr_pages)
+		goto fail;
+
+	have_lost = atomic_read(&data->lost);
+	if (have_lost)
+		size += sizeof(lost_event);
+
+	perf_output_lock(handle);
+
+	do {
+		offset = head = atomic_long_read(&data->head);
+		head += size;
+		if (unlikely(!perf_output_space(data, offset, head)))
+			goto fail;
+	} while (atomic_long_cmpxchg(&data->head, offset, head) != offset);
+
+	handle->offset	= offset;
+	handle->head	= head;
+
+	if ((offset >> PAGE_SHIFT) != (head >> PAGE_SHIFT))
+		atomic_set(&data->wakeup, 1);
+
+	if (have_lost) {
+		lost_event.header.type = PERF_EVENT_LOST;
+		lost_event.header.misc = 0;
+		lost_event.header.size = sizeof(lost_event);
+		lost_event.id          = counter->id;
+		lost_event.lost        = atomic_xchg(&data->lost, 0);
+
+		perf_output_put(handle, lost_event);
+	}
+
+	return 0;
+
+fail:
+	atomic_inc(&data->lost);
+	perf_output_unlock(handle);
+out:
+	rcu_read_unlock();
+
+	return -ENOSPC;
+}
+
 static void perf_output_end(struct perf_output_handle *handle)
 {
 	struct perf_counter *counter = handle->counter;
@@ -2353,7 +2428,7 @@ static void perf_output_end(struct perf_output_handle *handle)
 
 	int wakeup_events = counter->attr.wakeup_events;
 
-	if (handle->overflow && wakeup_events) {
+	if (handle->sample && wakeup_events) {
 		int events = atomic_inc_return(&data->events);
 		if (events >= wakeup_events) {
 			atomic_sub(wakeup_events, &data->events);
@@ -2958,7 +3033,7 @@ static void perf_log_throttle(struct perf_counter *counter, int enable)
 }
 
 /*
- * Generic counter overflow handling.
+ * Generic counter overflow handling, sampling.
  */
 
 int perf_counter_overflow(struct perf_counter *counter, int nmi,

@@ -236,10 +236,16 @@ struct perf_counter_mmap_page {
 	/*
 	 * Control data for the mmap() data buffer.
 	 *
-	 * User-space reading this value should issue an rmb(), on SMP capable
-	 * platforms, after reading this value -- see perf_counter_wakeup().
+	 * User-space reading the @data_head value should issue an rmb(), on
+	 * SMP capable platforms, after reading this value -- see
+	 * perf_counter_wakeup().
+	 *
+	 * When the mapping is PROT_WRITE the @data_tail value should be
+	 * written by userspace to reflect the last read data. In this case
+	 * the kernel will not over-write unread data.
 	 */
 	__u64   data_head;		/* head in the data section */
+	__u64	data_tail;		/* user-space written tail */
 };
 
 #define PERF_EVENT_MISC_CPUMODE_MASK		(3 << 0)
@@ -272,6 +278,15 @@ enum perf_event_type {
 	 * };
 	 */
 	PERF_EVENT_MMAP			= 1,
+
+	/*
+	 * struct {
+	 * 	struct perf_event_header	header;
+	 * 	u64				id;
+	 * 	u64				lost;
+	 * };
+	 */
+	PERF_EVENT_LOST			= 2,
 
 	/*
 	 * struct {
@@ -313,26 +328,26 @@ enum perf_event_type {
 
 	/*
 	 * When header.misc & PERF_EVENT_MISC_OVERFLOW the event_type field
-	 * will be PERF_RECORD_*
+	 * will be PERF_SAMPLE_*
 	 *
 	 * struct {
 	 *	struct perf_event_header	header;
 	 *
-	 *	{ u64			ip;	  } && PERF_RECORD_IP
-	 *	{ u32			pid, tid; } && PERF_RECORD_TID
-	 *	{ u64			time;     } && PERF_RECORD_TIME
-	 *	{ u64			addr;     } && PERF_RECORD_ADDR
-	 *	{ u64			config;   } && PERF_RECORD_CONFIG
-	 *	{ u32			cpu, res; } && PERF_RECORD_CPU
+	 *	{ u64			ip;	  } && PERF_SAMPLE_IP
+	 *	{ u32			pid, tid; } && PERF_SAMPLE_TID
+	 *	{ u64			time;     } && PERF_SAMPLE_TIME
+	 *	{ u64			addr;     } && PERF_SAMPLE_ADDR
+	 *	{ u64			config;   } && PERF_SAMPLE_CONFIG
+	 *	{ u32			cpu, res; } && PERF_SAMPLE_CPU
 	 *
 	 *	{ u64			nr;
-	 *	  { u64 id, val; }	cnt[nr];  } && PERF_RECORD_GROUP
+	 *	  { u64 id, val; }	cnt[nr];  } && PERF_SAMPLE_GROUP
 	 *
 	 *	{ u16			nr,
 	 *				hv,
 	 *				kernel,
 	 *				user;
-	 *	  u64			ips[nr];  } && PERF_RECORD_CALLCHAIN
+	 *	  u64			ips[nr];  } && PERF_SAMPLE_CALLCHAIN
 	 * };
 	 */
 };
@@ -424,6 +439,7 @@ struct file;
 struct perf_mmap_data {
 	struct rcu_head			rcu_head;
 	int				nr_pages;	/* nr of data pages  */
+	int				writable;	/* are we writable   */
 	int				nr_locked;	/* nr pages mlocked  */
 
 	atomic_t			poll;		/* POLL_ for wakeups */
@@ -433,8 +449,8 @@ struct perf_mmap_data {
 	atomic_long_t			done_head;	/* completed head    */
 
 	atomic_t			lock;		/* concurrent writes */
-
 	atomic_t			wakeup;		/* needs a wakeup    */
+	atomic_t			lost;		/* nr records lost   */
 
 	struct perf_counter_mmap_page   *user_page;
 	void				*data_pages[0];
