@@ -276,10 +276,12 @@ static const int ni_irqpin[] =
 
 #define NI_E_IRQ_FLAGS		0
 
-typedef struct {
+struct ni_private {
 	struct pnp_dev *isapnp_dev;
- NI_PRIVATE_COMMON} ni_private;
-#define devpriv ((ni_private *)dev->private)
+         NI_PRIVATE_COMMON
+};
+
+#define devpriv ((struct ni_private *)dev->private)
 
 /* How we access registers */
 

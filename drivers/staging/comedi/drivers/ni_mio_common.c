@@ -4278,7 +4278,7 @@ static int ni_alloc_private(struct comedi_device * dev)
 {
 	int ret;
 
-	ret = alloc_private(dev, sizeof(ni_private));
+	ret = alloc_private(dev, sizeof(struct ni_private));
 	if (ret < 0)
 		return ret;
 

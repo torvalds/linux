@@ -1218,9 +1218,11 @@ static struct comedi_driver driver_pcimio = {
 
 COMEDI_PCI_INITCLEANUP(driver_pcimio, ni_pci_table)
 
-typedef struct {
-NI_PRIVATE_COMMON} ni_private;
-#define devpriv ((ni_private *)dev->private)
+struct ni_private {
+NI_PRIVATE_COMMON
+};
+
+#define devpriv ((struct ni_private *)dev->private)
 
 /* How we access registers */
 
