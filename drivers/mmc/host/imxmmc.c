@@ -307,13 +307,6 @@ static void imxmci_setup_data(struct imxmci_host *host, struct mmc_data *data)
 
 	wmb();
 
-	if (host->actual_bus_width == MMC_BUS_WIDTH_4)
-		BLR(host->dma) = 0;	/* burst 64 byte read / 64 bytes write */
-	else
-		BLR(host->dma) = 16;	/* burst 16 byte read / 16 bytes write */
-
-	RSSR(host->dma) = DMA_REQ_SDHC;
-
 	set_bit(IMXMCI_PEND_DMA_DATA_b, &host->pending_events);
 	clear_bit(IMXMCI_PEND_CPU_DATA_b, &host->pending_events);
 
@@ -818,9 +811,11 @@ static void imxmci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	if (ios->bus_width == MMC_BUS_WIDTH_4) {
 		host->actual_bus_width = MMC_BUS_WIDTH_4;
 		imx_gpio_mode(PB11_PF_SD_DAT3);
+		BLR(host->dma) = 0;	/* burst 64 byte read/write */
 	} else {
 		host->actual_bus_width = MMC_BUS_WIDTH_1;
 		imx_gpio_mode(GPIO_PORTB | GPIO_IN | GPIO_PUEN | 11);
+		BLR(host->dma) = 16;	/* burst 16 byte read/write */
 	}
 
 	if (host->power_mode != ios->power_mode) {
@@ -1034,6 +1029,7 @@ static int __init imxmci_probe(struct platform_device *pdev)
 	}
 	host->dma_allocated = 1;
 	imx_dma_setup_handlers(host->dma, imxmci_dma_irq, NULL, host);
+	RSSR(host->dma) = DMA_REQ_SDHC;
 
 	tasklet_init(&host->tasklet, imxmci_tasklet_fnc, (unsigned long)host);
 	host->status_reg=0;
