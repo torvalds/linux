@@ -3484,6 +3484,71 @@ group_next:
 	} while (group != sd->groups);
 
 }
+
+/**
+ * fix_small_imbalance - Calculate the minor imbalance that exists
+ * 			amongst the groups of a sched_domain, during
+ * 			load balancing.
+ * @sds: Statistics of the sched_domain whose imbalance is to be calculated.
+ * @this_cpu: The cpu at whose sched_domain we're performing load-balance.
+ * @imbalance: Variable to store the imbalance.
+ */
+static inline void fix_small_imbalance(struct sd_lb_stats *sds,
+				int this_cpu, unsigned long *imbalance)
+{
+	unsigned long tmp, pwr_now = 0, pwr_move = 0;
+	unsigned int imbn = 2;
+
+	if (sds->this_nr_running) {
+		sds->this_load_per_task /= sds->this_nr_running;
+		if (sds->busiest_load_per_task >
+				sds->this_load_per_task)
+			imbn = 1;
+	} else
+		sds->this_load_per_task =
+			cpu_avg_load_per_task(this_cpu);
+
+	if (sds->max_load - sds->this_load + sds->busiest_load_per_task >=
+			sds->busiest_load_per_task * imbn) {
+		*imbalance = sds->busiest_load_per_task;
+		return;
+	}
+
+	/*
+	 * OK, we don't have enough imbalance to justify moving tasks,
+	 * however we may be able to increase total CPU power used by
+	 * moving them.
+	 */
+
+	pwr_now += sds->busiest->__cpu_power *
+			min(sds->busiest_load_per_task, sds->max_load);
+	pwr_now += sds->this->__cpu_power *
+			min(sds->this_load_per_task, sds->this_load);
+	pwr_now /= SCHED_LOAD_SCALE;
+
+	/* Amount of load we'd subtract */
+	tmp = sg_div_cpu_power(sds->busiest,
+			sds->busiest_load_per_task * SCHED_LOAD_SCALE);
+	if (sds->max_load > tmp)
+		pwr_move += sds->busiest->__cpu_power *
+			min(sds->busiest_load_per_task, sds->max_load - tmp);
+
+	/* Amount of load we'd add */
+	if (sds->max_load * sds->busiest->__cpu_power <
+		sds->busiest_load_per_task * SCHED_LOAD_SCALE)
+		tmp = sg_div_cpu_power(sds->this,
+			sds->max_load * sds->busiest->__cpu_power);
+	else
+		tmp = sg_div_cpu_power(sds->this,
+			sds->busiest_load_per_task * SCHED_LOAD_SCALE);
+	pwr_move += sds->this->__cpu_power *
+			min(sds->this_load_per_task, sds->this_load + tmp);
+	pwr_move /= SCHED_LOAD_SCALE;
+
+	/* Move if we gain throughput */
+	if (pwr_move > pwr_now)
+		*imbalance = sds->busiest_load_per_task;
+}
 /******* find_busiest_group() helpers end here *********************/
 
 /*
@@ -3547,7 +3612,8 @@ find_busiest_group(struct sched_domain *sd, int this_cpu,
 	 */
 	if (sds.max_load < sds.avg_load) {
 		*imbalance = 0;
-		goto small_imbalance;
+		fix_small_imbalance(&sds, this_cpu, imbalance);
+		goto ret_busiest;
 	}
 
 	/* Don't want to pull so many tasks that a group would go idle */
@@ -3565,67 +3631,10 @@ find_busiest_group(struct sched_domain *sd, int this_cpu,
 	 * a think about bumping its value to force at least one task to be
 	 * moved
 	 */
-	if (*imbalance < sds.busiest_load_per_task) {
-		unsigned long tmp, pwr_now, pwr_move;
-		unsigned int imbn;
+	if (*imbalance < sds.busiest_load_per_task)
+		fix_small_imbalance(&sds, this_cpu, imbalance);
 
-small_imbalance:
-		pwr_move = pwr_now = 0;
-		imbn = 2;
-		if (sds.this_nr_running) {
-			sds.this_load_per_task /= sds.this_nr_running;
-			if (sds.busiest_load_per_task >
-					sds.this_load_per_task)
-				imbn = 1;
-		} else
-			sds.this_load_per_task =
-				cpu_avg_load_per_task(this_cpu);
-
-		if (sds.max_load - sds.this_load +
-			sds.busiest_load_per_task >=
-				sds.busiest_load_per_task * imbn) {
-			*imbalance = sds.busiest_load_per_task;
-			return sds.busiest;
-		}
-
-		/*
-		 * OK, we don't have enough imbalance to justify moving tasks,
-		 * however we may be able to increase total CPU power used by
-		 * moving them.
-		 */
-
-		pwr_now += sds.busiest->__cpu_power *
-				min(sds.busiest_load_per_task, sds.max_load);
-		pwr_now += sds.this->__cpu_power *
-				min(sds.this_load_per_task, sds.this_load);
-		pwr_now /= SCHED_LOAD_SCALE;
-
-		/* Amount of load we'd subtract */
-		tmp = sg_div_cpu_power(sds.busiest,
-				sds.busiest_load_per_task * SCHED_LOAD_SCALE);
-		if (sds.max_load > tmp)
-			pwr_move += sds.busiest->__cpu_power *
-				min(sds.busiest_load_per_task,
-						sds.max_load - tmp);
-
-		/* Amount of load we'd add */
-		if (sds.max_load * sds.busiest->__cpu_power <
-				sds.busiest_load_per_task * SCHED_LOAD_SCALE)
-			tmp = sg_div_cpu_power(sds.this,
-				sds.max_load * sds.busiest->__cpu_power);
-		else
-			tmp = sg_div_cpu_power(sds.this,
-				sds.busiest_load_per_task * SCHED_LOAD_SCALE);
-		pwr_move += sds.this->__cpu_power *
-				min(sds.this_load_per_task,
-					sds.this_load + tmp);
-		pwr_move /= SCHED_LOAD_SCALE;
-
-		/* Move if we gain throughput */
-		if (pwr_move > pwr_now)
-			*imbalance = sds.busiest_load_per_task;
-	}
-
+ret_busiest:
 	return sds.busiest;
 
 out_balanced:
