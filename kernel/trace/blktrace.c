@@ -110,7 +110,7 @@ void __trace_note_message(struct blk_trace *bt, const char *fmt, ...)
 	unsigned long flags;
 	char *buf;
 
-	if (blk_tr) {
+	if (blk_tracer_enabled) {
 		va_start(args, fmt);
 		ftrace_vprintk(fmt, args);
 		va_end(args);
@@ -169,7 +169,7 @@ static void __blk_add_trace(struct blk_trace *bt, sector_t sector, int bytes,
 	pid_t pid;
 	int cpu, pc = 0;
 
-	if (unlikely(bt->trace_state != Blktrace_running ||
+	if (unlikely(bt->trace_state != Blktrace_running &&
 		     !blk_tracer_enabled))
 		return;
 
@@ -185,7 +185,7 @@ static void __blk_add_trace(struct blk_trace *bt, sector_t sector, int bytes,
 		return;
 	cpu = raw_smp_processor_id();
 
-	if (blk_tr) {
+	if (blk_tracer_enabled) {
 		tracing_record_cmdline(current);
 
 		pc = preempt_count();
@@ -235,7 +235,7 @@ record_it:
 		if (pdu_len)
 			memcpy((void *) t + sizeof(*t), pdu_data, pdu_len);
 
-		if (blk_tr) {
+		if (blk_tracer_enabled) {
 			trace_buffer_unlock_commit(blk_tr, event, 0, pc);
 			return;
 		}
@@ -267,8 +267,7 @@ int blk_trace_remove(struct request_queue *q)
 	if (!bt)
 		return -EINVAL;
 
-	if (bt->trace_state == Blktrace_setup ||
-	    bt->trace_state == Blktrace_stopped)
+	if (bt->trace_state != Blktrace_running)
 		blk_trace_cleanup(bt);
 
 	return 0;
@@ -1273,7 +1272,6 @@ static int blk_trace_setup_queue(struct request_queue *q, dev_t dev)
 	bt->dev = dev;
 	bt->act_mask = (u16)-1;
 	bt->end_lba = -1ULL;
-	bt->trace_state = Blktrace_running;
 
 	old_bt = xchg(&q->blk_trace, bt);
 	if (old_bt != NULL) {
