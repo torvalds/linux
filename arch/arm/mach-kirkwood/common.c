@@ -14,6 +14,7 @@
 #include <linux/serial_8250.h>
 #include <linux/mbus.h>
 #include <linux/mv643xx_eth.h>
+#include <linux/mv643xx_i2c.h>
 #include <linux/ata_platform.h>
 #include <linux/spi/orion_spi.h>
 #include <net/dsa.h>
@@ -367,6 +368,45 @@ static struct platform_device kirkwood_spi = {
 void __init kirkwood_spi_init()
 {
 	platform_device_register(&kirkwood_spi);
+}
+
+
+/*****************************************************************************
+ * I2C
+ ****************************************************************************/
+static struct mv64xxx_i2c_pdata kirkwood_i2c_pdata = {
+	.freq_m		= 8, /* assumes 166 MHz TCLK */
+	.freq_n		= 3,
+	.timeout	= 1000, /* Default timeout of 1 second */
+};
+
+static struct resource kirkwood_i2c_resources[] = {
+	{
+		.name	= "i2c",
+		.start	= I2C_PHYS_BASE,
+		.end	= I2C_PHYS_BASE + 0x1f,
+		.flags	= IORESOURCE_MEM,
+	}, {
+		.name	= "i2c",
+		.start	= IRQ_KIRKWOOD_TWSI,
+		.end	= IRQ_KIRKWOOD_TWSI,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device kirkwood_i2c = {
+	.name		= MV64XXX_I2C_CTLR_NAME,
+	.id		= 0,
+	.num_resources	= ARRAY_SIZE(kirkwood_i2c_resources),
+	.resource	= kirkwood_i2c_resources,
+	.dev		= {
+		.platform_data	= &kirkwood_i2c_pdata,
+	},
+};
+
+void __init kirkwood_i2c_init(void)
+{
+	platform_device_register(&kirkwood_i2c);
 }
 
 
