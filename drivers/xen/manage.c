@@ -68,14 +68,14 @@ static int xen_suspend(void *data)
 	gnttab_resume();
 	xen_mm_unpin_all();
 
-	sysdev_resume();
-	device_power_up(PMSG_RESUME);
-
 	if (!*cancelled) {
 		xen_irq_resume();
 		xen_console_resume();
 		xen_timer_resume();
 	}
+
+	sysdev_resume();
+	device_power_up(PMSG_RESUME);
 
 	return 0;
 }
