@@ -3403,14 +3403,14 @@ find_busiest_group(struct sched_domain *sd, int this_cpu,
 		 * capacity but still has some space to pick up some load
 		 * from other group and save more power
 		 */
-		if (sum_nr_running <= group_capacity - 1) {
-			if (sum_nr_running > leader_nr_running ||
-			    (sum_nr_running == leader_nr_running &&
-			     group_first_cpu(group) <
-			     group_first_cpu(group_leader))) {
-				group_leader = group;
-				leader_nr_running = sum_nr_running;
-			}
+		if (sum_nr_running > group_capacity - 1)
+			goto group_next;
+
+		if (sum_nr_running > leader_nr_running ||
+		    (sum_nr_running == leader_nr_running &&
+		     group_first_cpu(group) < group_first_cpu(group_leader))) {
+			group_leader = group;
+			leader_nr_running = sum_nr_running;
 		}
 group_next:
 #endif
@@ -3531,14 +3531,16 @@ out_balanced:
 	if (idle == CPU_NOT_IDLE || !(sd->flags & SD_POWERSAVINGS_BALANCE))
 		goto ret;
 
-	if (this == group_leader && group_leader != group_min) {
-		*imbalance = min_load_per_task;
-		if (sched_mc_power_savings >= POWERSAVINGS_BALANCE_WAKEUP) {
-			cpu_rq(this_cpu)->rd->sched_mc_preferred_wakeup_cpu =
-				group_first_cpu(group_leader);
-		}
-		return group_min;
+	if (this != group_leader || group_leader == group_min)
+		goto ret;
+
+	*imbalance = min_load_per_task;
+	if (sched_mc_power_savings >= POWERSAVINGS_BALANCE_WAKEUP) {
+		cpu_rq(this_cpu)->rd->sched_mc_preferred_wakeup_cpu =
+			group_first_cpu(group_leader);
 	}
+	return group_min;
+
 #endif
 ret:
 	*imbalance = 0;
