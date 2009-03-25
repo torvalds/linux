@@ -75,8 +75,10 @@ list_add_counter(struct perf_counter *counter, struct perf_counter_context *ctx)
 	 */
 	if (counter->group_leader == counter)
 		list_add_tail(&counter->list_entry, &ctx->counter_list);
-	else
+	else {
 		list_add_tail(&counter->list_entry, &group_leader->sibling_list);
+		group_leader->nr_siblings++;
+	}
 
 	list_add_rcu(&counter->event_entry, &ctx->event_list);
 }
@@ -88,6 +90,9 @@ list_del_counter(struct perf_counter *counter, struct perf_counter_context *ctx)
 
 	list_del_init(&counter->list_entry);
 	list_del_rcu(&counter->event_entry);
+
+	if (counter->group_leader != counter)
+		counter->group_leader->nr_siblings--;
 
 	/*
 	 * If this was a group counter with sibling counters then
@@ -381,9 +386,11 @@ static int is_software_only_group(struct perf_counter *leader)
 
 	if (!is_software_counter(leader))
 		return 0;
+
 	list_for_each_entry(counter, &leader->sibling_list, list_entry)
 		if (!is_software_counter(counter))
 			return 0;
+
 	return 1;
 }
 
@@ -1480,6 +1487,9 @@ static void perf_output_copy(struct perf_output_handle *handle,
 	handle->offset = offset;
 }
 
+#define perf_output_put(handle, x) \
+	perf_output_copy((handle), &(x), sizeof(x))
+
 static void perf_output_end(struct perf_output_handle *handle, int nmi)
 {
 	if (handle->wakeup) {
@@ -1514,34 +1524,53 @@ out:
 static void perf_output_simple(struct perf_counter *counter,
 			       int nmi, struct pt_regs *regs)
 {
-	u64 entry;
+	struct {
+		struct perf_event_header header;
+		u64 ip;
+	} event;
 
-	entry = instruction_pointer(regs);
+	event.header.type = PERF_EVENT_IP;
+	event.header.size = sizeof(event);
+	event.ip = instruction_pointer(regs);
 
-	perf_output_write(counter, nmi, &entry, sizeof(entry));
+	perf_output_write(counter, nmi, &event, sizeof(event));
 }
-
-struct group_entry {
-	u64 event;
-	u64 counter;
-};
 
 static void perf_output_group(struct perf_counter *counter, int nmi)
 {
+	struct perf_output_handle handle;
+	struct perf_event_header header;
 	struct perf_counter *leader, *sub;
+	unsigned int size;
+	struct {
+		u64 event;
+		u64 counter;
+	} entry;
+	int ret;
+
+	size = sizeof(header) + counter->nr_siblings * sizeof(entry);
+
+	ret = perf_output_begin(&handle, counter, size);
+	if (ret)
+		return;
+
+	header.type = PERF_EVENT_GROUP;
+	header.size = size;
+
+	perf_output_put(&handle, header);
 
 	leader = counter->group_leader;
 	list_for_each_entry(sub, &leader->sibling_list, list_entry) {
-		struct group_entry entry;
-
 		if (sub != counter)
 			sub->hw_ops->read(sub);
 
 		entry.event = sub->hw_event.config;
 		entry.counter = atomic64_read(&sub->count);
 
-		perf_output_write(counter, nmi, &entry, sizeof(entry));
+		perf_output_put(&handle, entry);
 	}
+
+	perf_output_end(&handle, nmi);
 }
 
 void perf_counter_output(struct perf_counter *counter,

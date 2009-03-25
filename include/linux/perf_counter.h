@@ -156,6 +156,16 @@ struct perf_counter_mmap_page {
 	__u32   data_head;		/* head in the data section */
 };
 
+struct perf_event_header {
+	__u32	type;
+	__u32	size;
+};
+
+enum perf_event_type {
+	PERF_EVENT_IP		= 0,
+	PERF_EVENT_GROUP	= 1,
+};
+
 #ifdef __KERNEL__
 /*
  * Kernel-internal data types and definitions:
@@ -260,6 +270,7 @@ struct perf_counter {
 	struct list_head		list_entry;
 	struct list_head		event_entry;
 	struct list_head		sibling_list;
+	int 				nr_siblings;
 	struct perf_counter		*group_leader;
 	const struct hw_perf_counter_ops *hw_ops;
 
