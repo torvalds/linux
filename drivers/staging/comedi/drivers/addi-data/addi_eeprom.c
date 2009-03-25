@@ -76,9 +76,11 @@ struct str_DigitalInputHeader {
 	unsigned short w_NinterruptLogic;
 };
 
-typedef struct {
+struct str_DigitalOutputHeader {
+
 	unsigned short w_Nchannel;
-} str_DigitalOutputHeader;
+};
+
 
 // used for timer as well as watchdog
 
@@ -121,7 +123,7 @@ int i_EepromReadDigitalInputHeader(unsigned short w_PCIBoardEepromAddress,
 
 int i_EepromReadDigitalOutputHeader(unsigned short w_PCIBoardEepromAddress,
 	char *pc_PCIChipInformation, unsigned short w_Address,
-	str_DigitalOutputHeader * s_Header);
+	struct str_DigitalOutputHeader * s_Header);
 
 int i_EepromReadTimerHeader(unsigned short w_PCIBoardEepromAddress,
 	char *pc_PCIChipInformation, unsigned short w_Address,
@@ -803,7 +805,7 @@ int i_EepromReadMainHeader(unsigned short w_PCIBoardEepromAddress,
 	unsigned int ui_Temp;
 	struct str_MainHeader s_MainHeader;
 	struct str_DigitalInputHeader s_DigitalInputHeader;
-	str_DigitalOutputHeader s_DigitalOutputHeader;
+	struct str_DigitalOutputHeader s_DigitalOutputHeader;
 	//str_TimerMainHeader     s_TimerMainHeader,s_WatchdogMainHeader;
 	str_AnalogOutputHeader s_AnalogOutputHeader;
 	str_AnalogInputHeader s_AnalogInputHeader;
@@ -959,7 +961,7 @@ int i_EepromReadDigitalInputHeader(unsigned short w_PCIBoardEepromAddress,
 +----------------------------------------------------------------------------+
 | Function Name  : int i_EepromReadDigitalOutputHeader(unsigned short 				 |
 |			w_PCIBoardEepromAddress,char *pc_PCIChipInformation,	 |
-|			unsigned short w_Address,str_DigitalOutputHeader *s_Header)	     |
+|			unsigned short w_Address,struct str_DigitalOutputHeader *s_Header)	     |
 |																	 |
 +----------------------------------------------------------------------------+
 | Task              : Read Digital Output Header                             |
@@ -968,7 +970,7 @@ int i_EepromReadDigitalInputHeader(unsigned short w_PCIBoardEepromAddress,
 |																	 |
 |		      char *pc_PCIChipInformation  : PCI Chip Type.          |
 |																	 |
-|			 str_DigitalOutputHeader *s_Header: Digital Output Header|
+|			 struct str_DigitalOutputHeader *s_Header: Digital Output Header|
 |											   Pointer				 |
 +----------------------------------------------------------------------------+
 | Output Parameters : -                                                      |
@@ -978,7 +980,7 @@ int i_EepromReadDigitalInputHeader(unsigned short w_PCIBoardEepromAddress,
 */
 int i_EepromReadDigitalOutputHeader(unsigned short w_PCIBoardEepromAddress,
 	char *pc_PCIChipInformation, unsigned short w_Address,
-	str_DigitalOutputHeader * s_Header)
+	struct str_DigitalOutputHeader * s_Header)
 {
 // Read Nbr channels
 	s_Header->w_Nchannel =
