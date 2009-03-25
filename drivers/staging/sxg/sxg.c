@@ -2254,6 +2254,8 @@ static int sxg_entry_open(struct net_device *dev)
 	DBG_ERROR("sxg: %s EXIT\n", __func__);
 
 	spin_unlock_irqrestore(&sxg_global.driver_lock, sxg_global.flags);
+	mod_timer(&adapter->watchdog_timer, jiffies);
+
 	return STATUS_SUCCESS;
 }
 
