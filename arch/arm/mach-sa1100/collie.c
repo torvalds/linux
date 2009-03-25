@@ -146,7 +146,8 @@ static struct locomo_driver collie_uart_driver = {
 	.remove	= collie_uart_remove,
 };
 
-static int __init collie_uart_init(void) {
+static int __init collie_uart_init(void)
+{
 	return locomo_driver_register(&collie_uart_driver);
 }
 device_initcall(collie_uart_init);
@@ -198,8 +199,7 @@ static struct mtd_partition collie_partitions[] = {
 
 static int collie_flash_init(void)
 {
-	int rc;
-	rc = gpio_request(COLLIE_GPIO_VPEN, "flash Vpp enable");
+	int rc = gpio_request(COLLIE_GPIO_VPEN, "flash Vpp enable");
 	if (rc)
 		return rc;
 
@@ -219,6 +219,7 @@ static void collie_flash_exit(void)
 {
 	gpio_free(COLLIE_GPIO_VPEN);
 }
+
 static struct flash_platform_data collie_flash_data = {
 	.map_name	= "cfi_probe",
 	.init		= collie_flash_init,
