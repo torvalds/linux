@@ -299,9 +299,6 @@ s32 ixgbe_dcb_config_pfc_82599(struct ixgbe_hw *hw,
 		goto out;
 	}
 
-	/* PFC is mutually exclusive with link flow control */
-	hw->fc.current_mode = ixgbe_fc_none;
-
 	/* Configure PFC Tx thresholds per TC */
 	for (i = 0; i < MAX_TRAFFIC_CLASS; i++) {
 		/* Config and remember Tx */

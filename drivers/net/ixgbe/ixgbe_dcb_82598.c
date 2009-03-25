@@ -298,7 +298,6 @@ s32 ixgbe_dcb_config_pfc_82598(struct ixgbe_hw *hw,
 	reg = IXGBE_READ_REG(hw, IXGBE_RMCS);
 	reg &= ~IXGBE_RMCS_TFCE_802_3X;
 	/* correct the reporting of our flow control status */
-	hw->fc.current_mode = ixgbe_fc_none;
 	reg |= IXGBE_RMCS_TFCE_PRIORITY;
 	IXGBE_WRITE_REG(hw, IXGBE_RMCS, reg);
 

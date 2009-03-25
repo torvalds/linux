@@ -1654,9 +1654,10 @@ s32 ixgbe_fc_enable(struct ixgbe_hw *hw, s32 packetbuf_num)
 	 * 0: Flow control is completely disabled
 	 * 1: Rx flow control is enabled (we can receive pause frames,
 	 *    but not send pause frames).
-	 * 2:  Tx flow control is enabled (we can send pause frames but
-	 *     we do not support receiving pause frames).
+	 * 2: Tx flow control is enabled (we can send pause frames but
+	 *    we do not support receiving pause frames).
 	 * 3: Both Rx and Tx flow control (symmetric) are enabled.
+	 * 4: Priority Flow Control is enabled.
 	 * other: Invalid.
 	 */
 	switch (hw->fc.current_mode) {
@@ -1686,6 +1687,11 @@ s32 ixgbe_fc_enable(struct ixgbe_hw *hw, s32 packetbuf_num)
 		mflcn_reg |= IXGBE_MFLCN_RFCE;
 		fccfg_reg |= IXGBE_FCCFG_TFCE_802_3X;
 		break;
+#ifdef CONFIG_DCB
+	case ixgbe_fc_pfc:
+		goto out;
+		break;
+#endif
 	default:
 		hw_dbg(hw, "Flow control param set incorrectly\n");
 		ret_val = -IXGBE_ERR_CONFIG;
@@ -1746,6 +1752,7 @@ s32 ixgbe_fc_autoneg(struct ixgbe_hw *hw)
 	 * 2:  Tx flow control is enabled (we can send pause frames but
 	 *     we do not support receiving pause frames).
 	 * 3:  Both Rx and Tx flow control (symmetric) are enabled.
+	 * 4:  Priority Flow Control is enabled.
 	 * other: Invalid.
 	 */
 	switch (hw->fc.current_mode) {
@@ -1776,6 +1783,11 @@ s32 ixgbe_fc_autoneg(struct ixgbe_hw *hw)
 		/* Flow control (both Rx and Tx) is enabled by SW override. */
 		reg |= (IXGBE_PCS1GANA_SYM_PAUSE | IXGBE_PCS1GANA_ASM_PAUSE);
 		break;
+#ifdef CONFIG_DCB
+	case ixgbe_fc_pfc:
+		goto out;
+		break;
+#endif
 	default:
 		hw_dbg(hw, "Flow control param set incorrectly\n");
 		ret_val = -IXGBE_ERR_CONFIG;
@@ -1874,6 +1886,13 @@ s32 ixgbe_setup_fc_generic(struct ixgbe_hw *hw, s32 packetbuf_num)
 	ixgbe_link_speed speed;
 	bool link_up;
 
+#ifdef CONFIG_DCB
+	if (hw->fc.requested_mode == ixgbe_fc_pfc) {
+		hw->fc.current_mode = hw->fc.requested_mode;
+		goto out;
+	}
+
+#endif
 	/* Validate the packetbuf configuration */
 	if (packetbuf_num < 0 || packetbuf_num > 7) {
 		hw_dbg(hw, "Invalid packet buffer number [%d], expected range "

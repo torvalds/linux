@@ -130,6 +130,7 @@ static u8 ixgbe_dcbnl_set_state(struct net_device *netdev, u8 state)
 		adapter->tx_ring = NULL;
 		adapter->rx_ring = NULL;
 
+		adapter->hw.fc.requested_mode = ixgbe_fc_pfc;
 		adapter->flags &= ~IXGBE_FLAG_RSS_ENABLED;
 		adapter->flags |= IXGBE_FLAG_DCB_ENABLED;
 		ixgbe_init_interrupt_scheme(adapter);
@@ -138,6 +139,7 @@ static u8 ixgbe_dcbnl_set_state(struct net_device *netdev, u8 state)
 	} else {
 		/* Turn off DCB */
 		if (adapter->flags & IXGBE_FLAG_DCB_ENABLED) {
+			adapter->hw.fc.requested_mode = ixgbe_fc_default;
 			if (netif_running(netdev))
 				netdev->netdev_ops->ndo_stop(netdev);
 			ixgbe_reset_interrupt_capability(adapter);
