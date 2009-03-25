@@ -2400,33 +2400,19 @@ static int vc032x_probe_sensor(struct gspca_dev *gspca_dev)
 }
 
 static void i2c_write(struct gspca_dev *gspca_dev,
-			__u8 reg, const __u8 *val, __u8 size)
+			u8 reg, const u8 *val,
+			u8 size)		/* 1 or 2 */
 {
 	struct usb_device *dev = gspca_dev->dev;
 	int retry;
 
-#ifdef GSPCA_DEBUG
-	if (size > 3 || size < 1)
-		return;
-#endif
 	reg_r(gspca_dev, 0xa1, 0xb33f, 1);
+/*fixme:should check if (!(gspca_dev->usb_buf[0] & 0x02)) error*/
 	reg_w(dev, 0xa0, size, 0xb334);
 	reg_w(dev, 0xa0, reg, 0xb33a);
-	switch (size) {
-	case 1:
-		reg_w(dev, 0xa0, val[0], 0xb336);
-		break;
-	case 2:
-		reg_w(dev, 0xa0, val[0], 0xb336);
+	reg_w(dev, 0xa0, val[0], 0xb336);
+	if (size > 1)
 		reg_w(dev, 0xa0, val[1], 0xb337);
-		break;
-	default:
-/*	case 3: */
-		reg_w(dev, 0xa0, val[0], 0xb336);
-		reg_w(dev, 0xa0, val[1], 0xb337);
-		reg_w(dev, 0xa0, val[2], 0xb338);
-		break;
-	}
 	reg_w(dev, 0xa0, 0x01, 0xb339);
 	retry = 4;
 	do {
