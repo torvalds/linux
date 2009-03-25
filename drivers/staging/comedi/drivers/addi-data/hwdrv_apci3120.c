@@ -745,7 +745,7 @@ int i_APCI3120_CyclicAnalogInput(int mode, struct comedi_device * dev,
 	//COMMENT JK 07.05.04: Followings calls are in i_APCI3120_StartAnalogInputAcquisition
 
    /****************************/
-	/* Clear Timer Write TC INT */
+	/* Clear Timer Write TC int */
    /****************************/
 	outl(APCI3120_CLEAR_WRITE_TC_INT,
 		devpriv->i_IobaseAmcc + APCI3120_AMCC_OP_REG_INTCSR);
@@ -936,7 +936,7 @@ int i_APCI3120_CyclicAnalogInput(int mode, struct comedi_device * dev,
 			outw(devpriv->us_OutputRegister,
 				dev->iobase + APCI3120_WR_ADDRESS);
 
-			// DISABLE TIMER INTERRUPT
+			// DISABLE TIMER intERRUPT
 			devpriv->b_ModeSelectRegister =
 				devpriv->
 				b_ModeSelectRegister &
@@ -1139,7 +1139,7 @@ int i_APCI3120_CyclicAnalogInput(int mode, struct comedi_device * dev,
 		//7
 		//initialise end of dma interrupt  AINT_WRITE_COMPL = ENABLE_WRITE_TC_INT(ADDI)
 		/***************************************************/
-		/* A2P FIFO CONFIGURATE, END OF DMA INTERRUPT INIT */
+		/* A2P FIFO CONFIGURATE, END OF DMA intERRUPT INIT */
 		/***************************************************/
 		outl((APCI3120_FIFO_ADVANCE_ON_BYTE_2 |
 				APCI3120_ENABLE_WRITE_TC_INT),
@@ -1196,7 +1196,7 @@ int i_APCI3120_CyclicAnalogInput(int mode, struct comedi_device * dev,
 
 /*
 +----------------------------------------------------------------------------+
-| 			INTERNAL FUNCTIONS						                 |
+| 			intERNAL FUNCTIONS						                 |
 +----------------------------------------------------------------------------+
 */
 
@@ -1394,7 +1394,7 @@ int i_APCI3120_ExttrigDisable(struct comedi_device * dev)
 
 /*
 +----------------------------------------------------------------------------+
-|                    INTERRUPT FUNCTIONS		    		                 |
+|                    intERRUPT FUNCTIONS		    		                 |
 +----------------------------------------------------------------------------+
 */
 
@@ -1432,7 +1432,7 @@ void v_APCI3120_Interrupt(int irq, void *d)
 	ui_Check = 1;
 
 	int_daq = inw(dev->iobase + APCI3120_RD_STATUS) & 0xf000;	// get IRQ reasons
-	int_amcc = inl(devpriv->i_IobaseAmcc + AMCC_OP_REG_INTCSR);	// get AMCC INT register
+	int_amcc = inl(devpriv->i_IobaseAmcc + AMCC_OP_REG_INTCSR);	// get AMCC int register
 
 	if ((!int_daq) && (!(int_amcc & ANY_S593X_INT))) {
 		comedi_error(dev, "IRQ from unknow source");
@@ -1585,7 +1585,7 @@ void v_APCI3120_Interrupt(int irq, void *d)
 		if (devpriv->b_AiCyclicAcquisition == APCI3120_ENABLE) {
 
 			/****************************/
-			/* Clear Timer Write TC INT */
+			/* Clear Timer Write TC int */
 			/****************************/
 
 			outl(APCI3120_CLEAR_WRITE_TC_INT,

@@ -137,7 +137,7 @@ int i_TimerCounter1Enabled = 0, i_TimerCounter2Enabled =
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1500_ConfigDigitalInputEvent(struct comedi_device * dev,
+int i_APCI1500_ConfigDigitalInputEvent(struct comedi_device * dev,
 	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data)
 {
 	int i_PatternPolarity = 0, i_PatternTransition = 0, i_PatternMask = 0;
@@ -784,7 +784,7 @@ int i_APCI1500_StartStopInputEvent(struct comedi_device * dev, struct comedi_sub
 |			                                                         |
 +----------------------------------------------------------------------------+
 */
-INT i_APCI1500_Initialisation(struct comedi_device * dev, struct comedi_subdevice * s,
+int i_APCI1500_Initialisation(struct comedi_device * dev, struct comedi_subdevice * s,
 	struct comedi_insn * insn, unsigned int * data)
 {
 	int i_DummyRead = 0;
@@ -957,7 +957,7 @@ INT i_APCI1500_Initialisation(struct comedi_device * dev, struct comedi_subdevic
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1500_ReadMoreDigitalInput(struct comedi_device * dev, struct comedi_subdevice * s,
+int i_APCI1500_ReadMoreDigitalInput(struct comedi_device * dev, struct comedi_subdevice * s,
 	struct comedi_insn * insn, unsigned int * data)
 {
 	UINT ui_PortValue = data[1];
@@ -1067,7 +1067,7 @@ int i_APCI1500_ConfigDigitalOutputErrorInterrupt(struct comedi_device * dev,
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1500_WriteDigitalOutput(struct comedi_device * dev, struct comedi_subdevice * s,
+int i_APCI1500_WriteDigitalOutput(struct comedi_device * dev, struct comedi_subdevice * s,
 	struct comedi_insn * insn, unsigned int * data)
 {
 	static UINT ui_Temp = 0;
@@ -2822,7 +2822,7 @@ static void v_APCI1500_Interrupt(int irq, void *d)
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1500_Reset(struct comedi_device * dev)
+int i_APCI1500_Reset(struct comedi_device * dev)
 {
 	int i_DummyRead = 0;
 	i_TimerCounter1Init = 0;

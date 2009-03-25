@@ -133,10 +133,10 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_InsnConfigInitSSI(struct comedi_device * dev, struct comedi_subdevice * s,
+int i_APCI1710_InsnConfigInitSSI(struct comedi_device * dev, struct comedi_subdevice * s,
 	struct comedi_insn * insn, unsigned int * data)
 {
-	INT i_ReturnValue = 0;
+	int i_ReturnValue = 0;
 	UINT ui_TimerValue;
 	unsigned char b_ModulNbr, b_SSIProfile, b_PositionTurnLength, b_TurnCptLength,
 		b_PCIInputClock, b_SSICountingMode;
@@ -362,7 +362,7 @@ INT i_APCI1710_InsnConfigInitSSI(struct comedi_device * dev, struct comedi_subde
 |                                unsigned char_     b_SelectedSSI,                    |
 |                                PULONG_ pul_Position,                       |
 |                                PULONG_ pul_TurnCpt)
- INT i_APCI1710_ReadSSIValue(struct comedi_device *dev,struct comedi_subdevice *s,
+ int i_APCI1710_ReadSSIValue(struct comedi_device *dev,struct comedi_subdevice *s,
 	struct comedi_insn *insn,unsigned int *data)                       |
 +----------------------------------------------------------------------------+
 | Task              :
@@ -400,10 +400,10 @@ pul_Position	=	(PULONG) &data[0];
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_InsnReadSSIValue(struct comedi_device * dev, struct comedi_subdevice * s,
+int i_APCI1710_InsnReadSSIValue(struct comedi_device * dev, struct comedi_subdevice * s,
 	struct comedi_insn * insn, unsigned int * data)
 {
-	INT i_ReturnValue = 0;
+	int i_ReturnValue = 0;
 	unsigned char b_Cpt;
 	unsigned char b_Length;
 	unsigned char b_Schift;
@@ -735,10 +735,10 @@ INT i_APCI1710_InsnReadSSIValue(struct comedi_device * dev, struct comedi_subdev
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_InsnBitsSSIDigitalIO(struct comedi_device * dev, struct comedi_subdevice * s,
+int i_APCI1710_InsnBitsSSIDigitalIO(struct comedi_device * dev, struct comedi_subdevice * s,
 	struct comedi_insn * insn, unsigned int * data)
 {
-	INT i_ReturnValue = 0;
+	int i_ReturnValue = 0;
 	DWORD dw_StatusReg;
 	unsigned char b_ModulNbr;
 	unsigned char b_InputChannel;

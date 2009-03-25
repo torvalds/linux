@@ -26,10 +26,10 @@
 #define APCI1710_PWM_ENABLE		1
 #define APCI1710_PWM_NEWTIMING		2
 
-INT i_APCI1710_InsnConfigPWM(struct comedi_device *dev, struct comedi_subdevice *s,
+int i_APCI1710_InsnConfigPWM(struct comedi_device *dev, struct comedi_subdevice *s,
 			     struct comedi_insn *insn, unsigned int *data);
 
-INT i_APCI1710_InitPWM(struct comedi_device *dev,
+int i_APCI1710_InitPWM(struct comedi_device *dev,
 		       unsigned char b_ModulNbr,
 		       unsigned char b_PWM,
 		       unsigned char b_ClockSelection,
@@ -38,7 +38,7 @@ INT i_APCI1710_InitPWM(struct comedi_device *dev,
 		       ULONG ul_HighTiming,
 		       PULONG pul_RealLowTiming, PULONG pul_RealHighTiming);
 
-INT i_APCI1710_GetPWMInitialisation(struct comedi_device *dev,
+int i_APCI1710_GetPWMInitialisation(struct comedi_device *dev,
 				    unsigned char b_ModulNbr,
 				    unsigned char b_PWM,
 				    unsigned char * pb_TimingUnit,
@@ -50,10 +50,10 @@ INT i_APCI1710_GetPWMInitialisation(struct comedi_device *dev,
 				    unsigned char * pb_ExternGate,
 				    unsigned char * pb_InterruptEnable, unsigned char * pb_Enable);
 
-INT i_APCI1710_InsnWritePWM(struct comedi_device *dev, struct comedi_subdevice *s,
+int i_APCI1710_InsnWritePWM(struct comedi_device *dev, struct comedi_subdevice *s,
 			    struct comedi_insn *insn, unsigned int *data);
 
-INT i_APCI1710_EnablePWM(struct comedi_device *dev,
+int i_APCI1710_EnablePWM(struct comedi_device *dev,
 			 unsigned char b_ModulNbr,
 			 unsigned char b_PWM,
 			 unsigned char b_StartLevel,
@@ -61,16 +61,16 @@ INT i_APCI1710_EnablePWM(struct comedi_device *dev,
 			 unsigned char b_StopLevel, unsigned char b_ExternGate,
 			 unsigned char b_InterruptEnable);
 
-INT i_APCI1710_SetNewPWMTiming(struct comedi_device *dev,
+int i_APCI1710_SetNewPWMTiming(struct comedi_device *dev,
 			       unsigned char b_ModulNbr,
 			       unsigned char b_PWM, unsigned char b_TimingUnit,
 			       ULONG ul_LowTiming, ULONG ul_HighTiming);
 
-INT i_APCI1710_DisablePWM(struct comedi_device *dev, unsigned char b_ModulNbr, unsigned char b_PWM);
+int i_APCI1710_DisablePWM(struct comedi_device *dev, unsigned char b_ModulNbr, unsigned char b_PWM);
 
-INT i_APCI1710_InsnReadGetPWMStatus(struct comedi_device *dev, struct comedi_subdevice *s,
+int i_APCI1710_InsnReadGetPWMStatus(struct comedi_device *dev, struct comedi_subdevice *s,
 				    struct comedi_insn *insn, unsigned int *data);
 
-INT i_APCI1710_InsnBitsReadPWMInterrupt(struct comedi_device *dev,
+int i_APCI1710_InsnBitsReadPWMInterrupt(struct comedi_device *dev,
 					struct comedi_subdevice *s,
 					struct comedi_insn *insn, unsigned int *data);

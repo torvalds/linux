@@ -37,7 +37,6 @@
 #define SUCCESS	1
 
 /* variable type definition */
-typedef int INT, *PINT;;
 typedef unsigned int UINT, *PUINT;
 typedef int LONG, *PLONG;		/* 32-bit */
 typedef unsigned int ULONG, *PULONG;	/* 32-bit */
@@ -73,32 +72,32 @@ typedef const struct comedi_lrange *PCRANGE;
 /* structure for the boardtype */
 typedef struct {
 	const char *pc_DriverName;	// driver name
-	INT i_VendorId;		//PCI vendor a device ID of card
-	INT i_DeviceId;
-	INT i_IorangeBase0;
-	INT i_IorangeBase1;
-	INT i_IorangeBase2;	//  base 2 range
-	INT i_IorangeBase3;	//  base 3 range
-	INT i_PCIEeprom;	// eeprom present or not
+	int i_VendorId;		//PCI vendor a device ID of card
+	int i_DeviceId;
+	int i_IorangeBase0;
+	int i_IorangeBase1;
+	int i_IorangeBase2;	//  base 2 range
+	int i_IorangeBase3;	//  base 3 range
+	int i_PCIEeprom;	// eeprom present or not
 	char *pc_EepromChip;	// type of chip
-	INT i_NbrAiChannel;	// num of A/D chans
-	INT i_NbrAiChannelDiff;	// num of A/D chans in diff mode
-	INT i_AiChannelList;	// len of chanlist
-	INT i_NbrAoChannel;	// num of D/A chans
-	INT i_AiMaxdata;	// resolution of A/D
-	INT i_AoMaxdata;	// resolution of D/A
+	int i_NbrAiChannel;	// num of A/D chans
+	int i_NbrAiChannelDiff;	// num of A/D chans in diff mode
+	int i_AiChannelList;	// len of chanlist
+	int i_NbrAoChannel;	// num of D/A chans
+	int i_AiMaxdata;	// resolution of A/D
+	int i_AoMaxdata;	// resolution of D/A
 	PCRANGE pr_AiRangelist;	// rangelist for A/D
 	PCRANGE pr_AoRangelist;	// rangelist for D/A
 
-	INT i_NbrDiChannel;	// Number of DI channels
-	INT i_NbrDoChannel;	// Number of DO channels
-	INT i_DoMaxdata;	// data to set all chanels high
+	int i_NbrDiChannel;	// Number of DI channels
+	int i_NbrDoChannel;	// Number of DO channels
+	int i_DoMaxdata;	// data to set all chanels high
 
-	INT i_NbrTTLChannel;	// Number of TTL channels
+	int i_NbrTTLChannel;	// Number of TTL channels
 	PCRANGE pr_TTLRangelist;	// rangelist for TTL
 
-	INT i_Dma;		// dma present or not
-	INT i_Timer;		//   timer subdevice present or not
+	int i_Dma;		// dma present or not
+	int i_Timer;		//   timer subdevice present or not
 	unsigned char b_AvailableConvertUnit;
 	UINT ui_MinAcquisitiontimeNs;	// Minimum Acquisition in Nano secs
 	UINT ui_MinDelaytimeNs;	// Minimum Delay in Nano secs
@@ -357,10 +356,10 @@ typedef union {
 /* Private structure for the addi_apci3120 driver */
 typedef struct {
 
-	INT iobase;
-	INT i_IobaseAmcc;	// base+size for AMCC chip
-	INT i_IobaseAddon;	//addon base address
-	INT i_IobaseReserved;
+	int iobase;
+	int i_IobaseAmcc;	// base+size for AMCC chip
+	int i_IobaseAddon;	//addon base address
+	int i_IobaseReserved;
 	ULONG_PTR dw_AiBase;
 	struct pcilst_struct *amcc;	// ptr too AMCC data
 	unsigned char allocated;		// we have blocked card

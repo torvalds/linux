@@ -82,26 +82,26 @@
 
 //DI
 // for di read
-INT i_APCI1564_ConfigDigitalInput(struct comedi_device *dev, struct comedi_subdevice *s,
+int i_APCI1564_ConfigDigitalInput(struct comedi_device *dev, struct comedi_subdevice *s,
 				  struct comedi_insn *insn, unsigned int *data);
-INT i_APCI1564_Read1DigitalInput(struct comedi_device *dev, struct comedi_subdevice *s,
+int i_APCI1564_Read1DigitalInput(struct comedi_device *dev, struct comedi_subdevice *s,
 				 struct comedi_insn *insn, unsigned int *data);
-INT i_APCI1564_ReadMoreDigitalInput(struct comedi_device *dev, struct comedi_subdevice *s,
+int i_APCI1564_ReadMoreDigitalInput(struct comedi_device *dev, struct comedi_subdevice *s,
 				    struct comedi_insn *insn, unsigned int *data);
 
 //DO
 int i_APCI1564_ConfigDigitalOutput(struct comedi_device *dev, struct comedi_subdevice *s,
 				   struct comedi_insn *insn, unsigned int *data);
-INT i_APCI1564_WriteDigitalOutput(struct comedi_device *dev, struct comedi_subdevice *s,
+int i_APCI1564_WriteDigitalOutput(struct comedi_device *dev, struct comedi_subdevice *s,
 				  struct comedi_insn *insn, unsigned int *data);
-INT i_APCI1564_ReadDigitalOutput(struct comedi_device *dev, struct comedi_subdevice *s,
+int i_APCI1564_ReadDigitalOutput(struct comedi_device *dev, struct comedi_subdevice *s,
 				 struct comedi_insn *insn, unsigned int *data);
 int i_APCI1564_ReadInterruptStatus(struct comedi_device *dev, struct comedi_subdevice *s,
 				   struct comedi_insn *insn, unsigned int *data);
 
 // TIMER
 // timer value is passed as u seconds
-INT i_APCI1564_ConfigTimerCounterWatchdog(struct comedi_device *dev,
+int i_APCI1564_ConfigTimerCounterWatchdog(struct comedi_device *dev,
 					  struct comedi_subdevice *s,
 					  struct comedi_insn *insn, unsigned int *data);
 int i_APCI1564_StartStopWriteTimerCounterWatchdog(struct comedi_device *dev,
@@ -112,8 +112,8 @@ int i_APCI1564_ReadTimerCounterWatchdog(struct comedi_device *dev,
 					struct comedi_subdevice *s,
 					struct comedi_insn *insn, unsigned int *data);
 
-// INTERRUPT
+// intERRUPT
 static void v_APCI1564_Interrupt(int irq, void *d);
 
 // RESET
-INT i_APCI1564_Reset(struct comedi_device *dev);
+int i_APCI1564_Reset(struct comedi_device *dev);

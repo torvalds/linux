@@ -49,15 +49,15 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 #include "addi_amcc_S5920.h"
 
 /*+----------------------------------------------------------------------------+*/
-/*| Function   Name   : INT i_AddiHeaderRW_ReadEeprom                          |*/
-/*|                               (INT    i_NbOfWordsToRead,                   |*/
+/*| Function   Name   : int i_AddiHeaderRW_ReadEeprom                          |*/
+/*|                               (int    i_NbOfWordsToRead,                   |*/
 /*|                                DWORD dw_PCIBoardEepromAddress,             |*/
 /*|                                unsigned short   w_EepromStartAddress,                |*/
 /*|                                unsigned short * pw_DataRead)                          |*/
 /*+----------------------------------------------------------------------------+*/
 /*| Task              : Read word from the 5920 eeprom.                        |*/
 /*+----------------------------------------------------------------------------+*/
-/*| Input Parameters  : INT    i_NbOfWordsToRead : Nbr. of word to read        |*/
+/*| Input Parameters  : int    i_NbOfWordsToRead : Nbr. of word to read        |*/
 /*|                     DWORD dw_PCIBoardEepromAddress : Address of the eeprom |*/
 /*|                     unsigned short   w_EepromStartAddress : Eeprom strat address     |*/
 /*+----------------------------------------------------------------------------+*/
@@ -66,14 +66,14 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 /*| Return Value      : -                                                      |*/
 /*+----------------------------------------------------------------------------+*/
 
-INT i_AddiHeaderRW_ReadEeprom(INT i_NbOfWordsToRead,
+int i_AddiHeaderRW_ReadEeprom(int i_NbOfWordsToRead,
 	DWORD dw_PCIBoardEepromAddress,
 	unsigned short w_EepromStartAddress, unsigned short * pw_DataRead)
 {
 	DWORD dw_eeprom_busy = 0;
-	INT i_Counter = 0;
-	INT i_WordCounter;
-	INT i;
+	int i_Counter = 0;
+	int i_WordCounter;
+	int i;
 	unsigned char pb_ReadByte[1];
 	unsigned char b_ReadLowByte = 0;
 	unsigned char b_ReadHighByte = 0;

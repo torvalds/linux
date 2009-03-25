@@ -84,7 +84,7 @@ UINT ui_InterruptStatus = 0;
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1032_ConfigDigitalInput(struct comedi_device * dev, struct comedi_subdevice * s,
+int i_APCI1032_ConfigDigitalInput(struct comedi_device * dev, struct comedi_subdevice * s,
 	struct comedi_insn * insn, unsigned int * data)
 {
 	UINT ui_TmpValue;
@@ -144,7 +144,7 @@ INT i_APCI1032_ConfigDigitalInput(struct comedi_device * dev, struct comedi_subd
 |			                                                         |
 +----------------------------------------------------------------------------+
 */
-INT i_APCI1032_Read1DigitalInput(struct comedi_device * dev, struct comedi_subdevice * s,
+int i_APCI1032_Read1DigitalInput(struct comedi_device * dev, struct comedi_subdevice * s,
 	struct comedi_insn * insn, unsigned int * data)
 {
 	UINT ui_TmpValue = 0;
@@ -183,7 +183,7 @@ INT i_APCI1032_Read1DigitalInput(struct comedi_device * dev, struct comedi_subde
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1032_ReadMoreDigitalInput(struct comedi_device * dev, struct comedi_subdevice * s,
+int i_APCI1032_ReadMoreDigitalInput(struct comedi_device * dev, struct comedi_subdevice * s,
 	struct comedi_insn * insn, unsigned int * data)
 {
 	UINT ui_PortValue = data[0];
@@ -275,7 +275,7 @@ static void v_APCI1032_Interrupt(int irq, void *d)
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1032_Reset(struct comedi_device * dev)
+int i_APCI1032_Reset(struct comedi_device * dev)
 {
 	outl(0x0, devpriv->iobase + APCI1032_DIGITAL_IP_IRQ);	//disable the interrupts
 	inl(devpriv->iobase + APCI1032_DIGITAL_IP_INTERRUPT_STATUS);	//Reset the interrupt status register

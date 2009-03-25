@@ -67,4 +67,4 @@ int i_APCI2016_ReadWatchdog(struct comedi_device *dev, struct comedi_subdevice *
 
  //void v_APCI2016_Interrupt(int irq, void *d);
 // RESET
-INT i_APCI2016_Reset(struct comedi_device *dev);
+int i_APCI2016_Reset(struct comedi_device *dev);

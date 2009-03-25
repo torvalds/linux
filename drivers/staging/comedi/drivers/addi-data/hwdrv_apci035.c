@@ -52,9 +52,9 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 +----------------------------------------------------------------------------+
 */
 #include "hwdrv_apci035.h"
-INT i_WatchdogNbr = 0;
-INT i_Temp = 0;
-INT i_Flag = 1;
+int i_WatchdogNbr = 0;
+int i_Temp = 0;
+int i_Flag = 1;
 /*
 +----------------------------------------------------------------------------+
 | Function   Name   : int i_APCI035_ConfigTimerWatchdog                      |
@@ -109,7 +109,7 @@ INT i_Flag = 1;
 |			                                                         |
 +----------------------------------------------------------------------------+
 */
-INT i_APCI035_ConfigTimerWatchdog(struct comedi_device * dev, struct comedi_subdevice * s,
+int i_APCI035_ConfigTimerWatchdog(struct comedi_device * dev, struct comedi_subdevice * s,
 	struct comedi_insn * insn, unsigned int * data)
 {
 	UINT ui_Status = 0;
@@ -278,11 +278,11 @@ INT i_APCI035_ConfigTimerWatchdog(struct comedi_device * dev, struct comedi_subd
 |					                                                 |
 +----------------------------------------------------------------------------+
 */
-INT i_APCI035_StartStopWriteTimerWatchdog(struct comedi_device * dev,
+int i_APCI035_StartStopWriteTimerWatchdog(struct comedi_device * dev,
 	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data)
 {
 	UINT ui_Command = 0;
-	INT i_Count = 0;
+	int i_Count = 0;
 	if (data[0] == 1) {
 		ui_Command =
 			inl(devpriv->iobase + ((i_WatchdogNbr - 1) * 32) + 12);
@@ -391,7 +391,7 @@ INT i_APCI035_StartStopWriteTimerWatchdog(struct comedi_device * dev,
 |			                                                         |
 +----------------------------------------------------------------------------+
 */
-INT i_APCI035_ReadTimerWatchdog(struct comedi_device * dev, struct comedi_subdevice * s,
+int i_APCI035_ReadTimerWatchdog(struct comedi_device * dev, struct comedi_subdevice * s,
 	struct comedi_insn * insn, unsigned int * data)
 {
 	UINT ui_Status = 0;	// Status register
@@ -426,7 +426,7 @@ INT i_APCI035_ReadTimerWatchdog(struct comedi_device * dev, struct comedi_subdev
 
 /*
 +----------------------------------------------------------------------------+
-| Function   Name   : INT i_APCI035_ConfigAnalogInput                        |
+| Function   Name   : int i_APCI035_ConfigAnalogInput                        |
 |			  (struct comedi_device *dev,struct comedi_subdevice *s,               |
 |                      struct comedi_insn *insn,unsigned int *data)                     |
 +----------------------------------------------------------------------------+
@@ -447,7 +447,7 @@ INT i_APCI035_ReadTimerWatchdog(struct comedi_device * dev, struct comedi_subdev
 |			                                                         |
 +----------------------------------------------------------------------------+
 */
-INT i_APCI035_ConfigAnalogInput(struct comedi_device * dev, struct comedi_subdevice * s,
+int i_APCI035_ConfigAnalogInput(struct comedi_device * dev, struct comedi_subdevice * s,
 	struct comedi_insn * insn, unsigned int * data)
 {
 	devpriv->tsk_Current = current;
@@ -484,7 +484,7 @@ INT i_APCI035_ConfigAnalogInput(struct comedi_device * dev, struct comedi_subdev
 |			                                                         |
 +----------------------------------------------------------------------------+
 */
-INT i_APCI035_ReadAnalogInput(struct comedi_device * dev, struct comedi_subdevice * s,
+int i_APCI035_ReadAnalogInput(struct comedi_device * dev, struct comedi_subdevice * s,
 	struct comedi_insn * insn, unsigned int * data)
 {
 	UINT ui_CommandRegister = 0;
@@ -519,9 +519,9 @@ INT i_APCI035_ReadAnalogInput(struct comedi_device * dev, struct comedi_subdevic
 |			                                                                 |
 +----------------------------------------------------------------------------+
 */
-INT i_APCI035_Reset(struct comedi_device * dev)
+int i_APCI035_Reset(struct comedi_device * dev)
 {
-	INT i_Count = 0;
+	int i_Count = 0;
 	for (i_Count = 1; i_Count <= 4; i_Count++) {
 		i_WatchdogNbr = i_Count;
 		outl(0x0, devpriv->iobase + ((i_WatchdogNbr - 1) * 32) + 0);	//stop all timers

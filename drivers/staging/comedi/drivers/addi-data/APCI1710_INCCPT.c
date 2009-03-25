@@ -61,7 +61,7 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 
 /*
 +----------------------------------------------------------------------------+
-| INT	i_APCI1710_InsnConfigINCCPT(struct comedi_device *dev,struct comedi_subdevice *s,
+| int	i_APCI1710_InsnConfigINCCPT(struct comedi_device *dev,struct comedi_subdevice *s,
 struct comedi_insn *insn,unsigned int *data)
 
 +----------------------------------------------------------------------------+
@@ -75,11 +75,11 @@ struct comedi_insn *insn,unsigned int *data)
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_InsnConfigINCCPT(struct comedi_device * dev, struct comedi_subdevice * s,
+int i_APCI1710_InsnConfigINCCPT(struct comedi_device * dev, struct comedi_subdevice * s,
 	struct comedi_insn * insn, unsigned int * data)
 {
 	UINT ui_ConfigType;
-	INT i_ReturnValue = 0;
+	int i_ReturnValue = 0;
 	ui_ConfigType = CR_CHAN(insn->chanspec);
 
 	printk("\nINC_CPT");
@@ -299,14 +299,14 @@ INT i_APCI1710_InsnConfigINCCPT(struct comedi_device * dev, struct comedi_subdev
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_InitCounter(struct comedi_device * dev,
+int i_APCI1710_InitCounter(struct comedi_device * dev,
 	unsigned char b_ModulNbr,
 	unsigned char b_CounterRange,
 	unsigned char b_FirstCounterModus,
 	unsigned char b_FirstCounterOption,
 	unsigned char b_SecondCounterModus, unsigned char b_SecondCounterOption)
 {
-	INT i_ReturnValue = 0;
+	int i_ReturnValue = 0;
 
 	/*******************************/
 	/* Test if incremental counter */
@@ -545,10 +545,10 @@ INT i_APCI1710_InitCounter(struct comedi_device * dev,
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_CounterAutoTest(struct comedi_device * dev, unsigned char * pb_TestStatus)
+int i_APCI1710_CounterAutoTest(struct comedi_device * dev, unsigned char * pb_TestStatus)
 {
 	unsigned char b_ModulCpt = 0;
-	INT i_ReturnValue = 0;
+	int i_ReturnValue = 0;
 	DWORD dw_LathchValue;
 
 	*pb_TestStatus = 0;
@@ -708,12 +708,12 @@ INT i_APCI1710_CounterAutoTest(struct comedi_device * dev, unsigned char * pb_Te
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_InitIndex(struct comedi_device * dev,
+int i_APCI1710_InitIndex(struct comedi_device * dev,
 	unsigned char b_ModulNbr,
 	unsigned char b_ReferenceAction,
 	unsigned char b_IndexOperation, unsigned char b_AutoMode, unsigned char b_InterruptEnable)
 {
-	INT i_ReturnValue = 0;
+	int i_ReturnValue = 0;
 
 	/**************************/
 	/* Test the module number */
@@ -1152,10 +1152,10 @@ INT i_APCI1710_InitIndex(struct comedi_device * dev,
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_InitReference(struct comedi_device * dev,
+int i_APCI1710_InitReference(struct comedi_device * dev,
 	unsigned char b_ModulNbr, unsigned char b_ReferenceLevel)
 {
-	INT i_ReturnValue = 0;
+	int i_ReturnValue = 0;
 
 	/**************************/
 	/* Test the module number */
@@ -1277,10 +1277,10 @@ INT i_APCI1710_InitReference(struct comedi_device * dev,
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_InitExternalStrobe(struct comedi_device * dev,
+int i_APCI1710_InitExternalStrobe(struct comedi_device * dev,
 	unsigned char b_ModulNbr, unsigned char b_ExternalStrobe, unsigned char b_ExternalStrobeLevel)
 {
-	INT i_ReturnValue = 0;
+	int i_ReturnValue = 0;
 
 	/**************************/
 	/* Test the module number */
@@ -1391,10 +1391,10 @@ INT i_APCI1710_InitExternalStrobe(struct comedi_device * dev,
 	   +----------------------------------------------------------------------------+
 	 */
 
-INT i_APCI1710_InitCompareLogic(struct comedi_device * dev,
+int i_APCI1710_InitCompareLogic(struct comedi_device * dev,
 	unsigned char b_ModulNbr, UINT ui_CompareValue)
 {
-	INT i_ReturnValue = 0;
+	int i_ReturnValue = 0;
 
 	/**************************/
 	/* Test the module number */
@@ -1487,13 +1487,13 @@ INT i_APCI1710_InitCompareLogic(struct comedi_device * dev,
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_InitFrequencyMeasurement(struct comedi_device * dev,
+int i_APCI1710_InitFrequencyMeasurement(struct comedi_device * dev,
 	unsigned char b_ModulNbr,
 	unsigned char b_PCIInputClock,
 	unsigned char b_TimingUnity,
 	ULONG ul_TimingInterval, PULONG pul_RealTimingInterval)
 {
-	INT i_ReturnValue = 0;
+	int i_ReturnValue = 0;
 	ULONG ul_TimerValue = 0;
 	double d_RealTimingInterval;
 	DWORD dw_Status = 0;
@@ -2015,11 +2015,11 @@ struct comedi_insn *insn,unsigned int *data)                   |
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_InsnBitsINCCPT(struct comedi_device * dev, struct comedi_subdevice * s,
+int i_APCI1710_InsnBitsINCCPT(struct comedi_device * dev, struct comedi_subdevice * s,
 	struct comedi_insn * insn, unsigned int * data)
 {
 	UINT ui_BitsType;
-	INT i_ReturnValue = 0;
+	int i_ReturnValue = 0;
 	ui_BitsType = CR_CHAN(insn->chanspec);
 	devpriv->tsk_Current = current;	// Save the current process task structure
 
@@ -2091,9 +2091,9 @@ INT i_APCI1710_InsnBitsINCCPT(struct comedi_device * dev, struct comedi_subdevic
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_ClearCounterValue(struct comedi_device * dev, unsigned char b_ModulNbr)
+int i_APCI1710_ClearCounterValue(struct comedi_device * dev, unsigned char b_ModulNbr)
 {
-	INT i_ReturnValue = 0;
+	int i_ReturnValue = 0;
 
 	/**************************/
 	/* Test the module number */
@@ -2151,10 +2151,10 @@ INT i_APCI1710_ClearCounterValue(struct comedi_device * dev, unsigned char b_Mod
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_ClearAllCounterValue(struct comedi_device * dev)
+int i_APCI1710_ClearAllCounterValue(struct comedi_device * dev)
 {
 	unsigned char b_ModulCpt = 0;
-	INT i_ReturnValue = 0;
+	int i_ReturnValue = 0;
 
 	/********************************/
 	/* Test if counter module found */
@@ -2297,10 +2297,10 @@ INT i_APCI1710_ClearAllCounterValue(struct comedi_device * dev)
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_SetInputFilter(struct comedi_device * dev,
+int i_APCI1710_SetInputFilter(struct comedi_device * dev,
 	unsigned char b_ModulNbr, unsigned char b_PCIInputClock, unsigned char b_Filter)
 {
-	INT i_ReturnValue = 0;
+	int i_ReturnValue = 0;
 	DWORD dw_Status = 0;
 
 	/**************************/
@@ -2561,10 +2561,10 @@ INT i_APCI1710_SetInputFilter(struct comedi_device * dev,
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_LatchCounter(struct comedi_device * dev,
+int i_APCI1710_LatchCounter(struct comedi_device * dev,
 	unsigned char b_ModulNbr, unsigned char b_LatchReg)
 {
-	INT i_ReturnValue = 0;
+	int i_ReturnValue = 0;
 
 	/**************************/
 	/* Test the module number */
@@ -2658,10 +2658,10 @@ INT i_APCI1710_LatchCounter(struct comedi_device * dev,
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_SetIndexAndReferenceSource(struct comedi_device * dev,
+int i_APCI1710_SetIndexAndReferenceSource(struct comedi_device * dev,
 	unsigned char b_ModulNbr, unsigned char b_SourceSelection)
 {
-	INT i_ReturnValue = 0;
+	int i_ReturnValue = 0;
 
 	/**************************/
 	/* Test the module number */
@@ -2795,9 +2795,9 @@ INT i_APCI1710_SetIndexAndReferenceSource(struct comedi_device * dev,
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_SetDigitalChlOn(struct comedi_device * dev, unsigned char b_ModulNbr)
+int i_APCI1710_SetDigitalChlOn(struct comedi_device * dev, unsigned char b_ModulNbr)
 {
-	INT i_ReturnValue = 0;
+	int i_ReturnValue = 0;
 
 	/**************************/
 	/* Test the module number */
@@ -2875,9 +2875,9 @@ INT i_APCI1710_SetDigitalChlOn(struct comedi_device * dev, unsigned char b_Modul
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_SetDigitalChlOff(struct comedi_device * dev, unsigned char b_ModulNbr)
+int i_APCI1710_SetDigitalChlOff(struct comedi_device * dev, unsigned char b_ModulNbr)
 {
-	INT i_ReturnValue = 0;
+	int i_ReturnValue = 0;
 
 	/**************************/
 	/* Test the module number */
@@ -2951,11 +2951,11 @@ struct comedi_insn *insn,unsigned int *data)                   |
 | Return Value      :
 +----------------------------------------------------------------------------+
 */
-INT i_APCI1710_InsnWriteINCCPT(struct comedi_device * dev, struct comedi_subdevice * s,
+int i_APCI1710_InsnWriteINCCPT(struct comedi_device * dev, struct comedi_subdevice * s,
 	struct comedi_insn * insn, unsigned int * data)
 {
 	UINT ui_WriteType;
-	INT i_ReturnValue = 0;
+	int i_ReturnValue = 0;
 
 	ui_WriteType = CR_CHAN(insn->chanspec);
 	devpriv->tsk_Current = current;	// Save the current process task structure
@@ -3047,9 +3047,9 @@ INT i_APCI1710_InsnWriteINCCPT(struct comedi_device * dev, struct comedi_subdevi
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_EnableLatchInterrupt(struct comedi_device * dev, unsigned char b_ModulNbr)
+int i_APCI1710_EnableLatchInterrupt(struct comedi_device * dev, unsigned char b_ModulNbr)
 {
-	INT i_ReturnValue = 0;
+	int i_ReturnValue = 0;
 
 	/**************************/
 	/* Test the module number */
@@ -3133,9 +3133,9 @@ INT i_APCI1710_EnableLatchInterrupt(struct comedi_device * dev, unsigned char b_
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_DisableLatchInterrupt(struct comedi_device * dev, unsigned char b_ModulNbr)
+int i_APCI1710_DisableLatchInterrupt(struct comedi_device * dev, unsigned char b_ModulNbr)
 {
-	INT i_ReturnValue = 0;
+	int i_ReturnValue = 0;
 
 	/**************************/
 	/* Test the module number */
@@ -3231,10 +3231,10 @@ INT i_APCI1710_DisableLatchInterrupt(struct comedi_device * dev, unsigned char b
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_Write16BitCounterValue(struct comedi_device * dev,
+int i_APCI1710_Write16BitCounterValue(struct comedi_device * dev,
 	unsigned char b_ModulNbr, unsigned char b_SelectedCounter, UINT ui_WriteValue)
 {
-	INT i_ReturnValue = 0;
+	int i_ReturnValue = 0;
 
 	/**************************/
 	/* Test the module number */
@@ -3316,10 +3316,10 @@ INT i_APCI1710_Write16BitCounterValue(struct comedi_device * dev,
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_Write32BitCounterValue(struct comedi_device * dev,
+int i_APCI1710_Write32BitCounterValue(struct comedi_device * dev,
 	unsigned char b_ModulNbr, ULONG ul_WriteValue)
 {
-	INT i_ReturnValue = 0;
+	int i_ReturnValue = 0;
 
 	/**************************/
 	/* Test the module number */
@@ -3383,9 +3383,9 @@ INT i_APCI1710_Write32BitCounterValue(struct comedi_device * dev,
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_EnableIndex(struct comedi_device * dev, unsigned char b_ModulNbr)
+int i_APCI1710_EnableIndex(struct comedi_device * dev, unsigned char b_ModulNbr)
 {
-	INT i_ReturnValue = 0;
+	int i_ReturnValue = 0;
 	ULONG ul_InterruptLatchReg;
 
 	/**************************/
@@ -3481,9 +3481,9 @@ INT i_APCI1710_EnableIndex(struct comedi_device * dev, unsigned char b_ModulNbr)
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_DisableIndex(struct comedi_device * dev, unsigned char b_ModulNbr)
+int i_APCI1710_DisableIndex(struct comedi_device * dev, unsigned char b_ModulNbr)
 {
-	INT i_ReturnValue = 0;
+	int i_ReturnValue = 0;
 
 	/**************************/
 	/* Test the module number */
@@ -3580,9 +3580,9 @@ INT i_APCI1710_DisableIndex(struct comedi_device * dev, unsigned char b_ModulNbr
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_EnableCompareLogic(struct comedi_device * dev, unsigned char b_ModulNbr)
+int i_APCI1710_EnableCompareLogic(struct comedi_device * dev, unsigned char b_ModulNbr)
 {
-	INT i_ReturnValue = 0;
+	int i_ReturnValue = 0;
 
 	/**************************/
 	/* Test the module number */
@@ -3680,9 +3680,9 @@ INT i_APCI1710_EnableCompareLogic(struct comedi_device * dev, unsigned char b_Mo
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_DisableCompareLogic(struct comedi_device * dev, unsigned char b_ModulNbr)
+int i_APCI1710_DisableCompareLogic(struct comedi_device * dev, unsigned char b_ModulNbr)
 {
-	INT i_ReturnValue = 0;
+	int i_ReturnValue = 0;
 
 	/**************************/
 	/* Test the module number */
@@ -3789,10 +3789,10 @@ INT i_APCI1710_DisableCompareLogic(struct comedi_device * dev, unsigned char b_M
 	   +----------------------------------------------------------------------------+
 	 */
 
-INT i_APCI1710_EnableFrequencyMeasurement(struct comedi_device * dev,
+int i_APCI1710_EnableFrequencyMeasurement(struct comedi_device * dev,
 	unsigned char b_ModulNbr, unsigned char b_InterruptEnable)
 {
-	INT i_ReturnValue = 0;
+	int i_ReturnValue = 0;
 
 	/**************************/
 	/* Test the module number */
@@ -3936,9 +3936,9 @@ INT i_APCI1710_EnableFrequencyMeasurement(struct comedi_device * dev,
 	   +----------------------------------------------------------------------------+
 	 */
 
-INT i_APCI1710_DisableFrequencyMeasurement(struct comedi_device * dev, unsigned char b_ModulNbr)
+int i_APCI1710_DisableFrequencyMeasurement(struct comedi_device * dev, unsigned char b_ModulNbr)
 {
-	INT i_ReturnValue = 0;
+	int i_ReturnValue = 0;
 
 	/**************************/
 	/* Test the module number */
@@ -4049,11 +4049,11 @@ struct comedi_insn *insn,unsigned int *data)                   |
 | Return Value      :
 +----------------------------------------------------------------------------+
 */
-INT i_APCI1710_InsnReadINCCPT(struct comedi_device * dev, struct comedi_subdevice * s,
+int i_APCI1710_InsnReadINCCPT(struct comedi_device * dev, struct comedi_subdevice * s,
 	struct comedi_insn * insn, unsigned int * data)
 {
 	UINT ui_ReadType;
-	INT i_ReturnValue = 0;
+	int i_ReturnValue = 0;
 
 	ui_ReadType = CR_CHAN(insn->chanspec);
 
@@ -4193,10 +4193,10 @@ INT i_APCI1710_InsnReadINCCPT(struct comedi_device * dev, struct comedi_subdevic
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_ReadLatchRegisterStatus(struct comedi_device * dev,
+int i_APCI1710_ReadLatchRegisterStatus(struct comedi_device * dev,
 	unsigned char b_ModulNbr, unsigned char b_LatchReg, unsigned char * pb_LatchStatus)
 {
-	INT i_ReturnValue = 0;
+	int i_ReturnValue = 0;
 	DWORD dw_LatchReg;
 
 	/**************************/
@@ -4280,10 +4280,10 @@ INT i_APCI1710_ReadLatchRegisterStatus(struct comedi_device * dev,
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_ReadLatchRegisterValue(struct comedi_device * dev,
+int i_APCI1710_ReadLatchRegisterValue(struct comedi_device * dev,
 	unsigned char b_ModulNbr, unsigned char b_LatchReg, PULONG pul_LatchValue)
 {
-	INT i_ReturnValue = 0;
+	int i_ReturnValue = 0;
 
 	/**************************/
 	/* Test the module number */
@@ -4364,10 +4364,10 @@ INT i_APCI1710_ReadLatchRegisterValue(struct comedi_device * dev,
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_Read16BitCounterValue(struct comedi_device * dev,
+int i_APCI1710_Read16BitCounterValue(struct comedi_device * dev,
 	unsigned char b_ModulNbr, unsigned char b_SelectedCounter, PUINT pui_CounterValue)
 {
-	INT i_ReturnValue = 0;
+	int i_ReturnValue = 0;
 	DWORD dw_LathchValue = 0;
 
 	/**************************/
@@ -4459,10 +4459,10 @@ INT i_APCI1710_Read16BitCounterValue(struct comedi_device * dev,
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_Read32BitCounterValue(struct comedi_device * dev,
+int i_APCI1710_Read32BitCounterValue(struct comedi_device * dev,
 	unsigned char b_ModulNbr, PULONG pul_CounterValue)
 {
-	INT i_ReturnValue = 0;
+	int i_ReturnValue = 0;
 
 	/**************************/
 	/* Test the module number */
@@ -4535,10 +4535,10 @@ INT i_APCI1710_Read32BitCounterValue(struct comedi_device * dev,
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_GetIndexStatus(struct comedi_device * dev,
+int i_APCI1710_GetIndexStatus(struct comedi_device * dev,
 	unsigned char b_ModulNbr, unsigned char * pb_IndexStatus)
 {
-	INT i_ReturnValue = 0;
+	int i_ReturnValue = 0;
 	DWORD dw_StatusReg = 0;
 
 	/**************************/
@@ -4619,10 +4619,10 @@ INT i_APCI1710_GetIndexStatus(struct comedi_device * dev,
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_GetReferenceStatus(struct comedi_device * dev,
+int i_APCI1710_GetReferenceStatus(struct comedi_device * dev,
 	unsigned char b_ModulNbr, unsigned char * pb_ReferenceStatus)
 {
-	INT i_ReturnValue = 0;
+	int i_ReturnValue = 0;
 	DWORD dw_StatusReg = 0;
 
 	/**************************/
@@ -4703,10 +4703,10 @@ INT i_APCI1710_GetReferenceStatus(struct comedi_device * dev,
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_GetUASStatus(struct comedi_device * dev,
+int i_APCI1710_GetUASStatus(struct comedi_device * dev,
 	unsigned char b_ModulNbr, unsigned char * pb_UASStatus)
 {
-	INT i_ReturnValue = 0;
+	int i_ReturnValue = 0;
 	DWORD dw_StatusReg = 0;
 
 	/**************************/
@@ -4771,10 +4771,10 @@ INT i_APCI1710_GetUASStatus(struct comedi_device * dev,
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_GetCBStatus(struct comedi_device * dev,
+int i_APCI1710_GetCBStatus(struct comedi_device * dev,
 	unsigned char b_ModulNbr, unsigned char * pb_CBStatus)
 {
-	INT i_ReturnValue = 0;
+	int i_ReturnValue = 0;
 	DWORD dw_StatusReg = 0;
 
 	/**************************/
@@ -4853,10 +4853,10 @@ INT i_APCI1710_GetCBStatus(struct comedi_device * dev,
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_Get16BitCBStatus(struct comedi_device * dev,
+int i_APCI1710_Get16BitCBStatus(struct comedi_device * dev,
 	unsigned char b_ModulNbr, unsigned char * pb_CBStatusCounter0, unsigned char * pb_CBStatusCounter1)
 {
-	INT i_ReturnValue = 0;
+	int i_ReturnValue = 0;
 	DWORD dw_StatusReg = 0;
 
 	/**************************/
@@ -4966,10 +4966,10 @@ INT i_APCI1710_Get16BitCBStatus(struct comedi_device * dev,
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_GetUDStatus(struct comedi_device * dev,
+int i_APCI1710_GetUDStatus(struct comedi_device * dev,
 	unsigned char b_ModulNbr, unsigned char * pb_UDStatus)
 {
-	INT i_ReturnValue = 0;
+	int i_ReturnValue = 0;
 	DWORD dw_StatusReg = 0;
 
 	/**************************/
@@ -5040,10 +5040,10 @@ INT i_APCI1710_GetUDStatus(struct comedi_device * dev,
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_GetInterruptUDLatchedStatus(struct comedi_device * dev,
+int i_APCI1710_GetInterruptUDLatchedStatus(struct comedi_device * dev,
 	unsigned char b_ModulNbr, unsigned char * pb_UDStatus)
 {
-	INT i_ReturnValue = 0;
+	int i_ReturnValue = 0;
 	DWORD dw_StatusReg = 0;
 
 	/**************************/
@@ -5145,11 +5145,11 @@ INT i_APCI1710_GetInterruptUDLatchedStatus(struct comedi_device * dev,
 	   +----------------------------------------------------------------------------+
 	 */
 
-INT i_APCI1710_ReadFrequencyMeasurement(struct comedi_device * dev,
+int i_APCI1710_ReadFrequencyMeasurement(struct comedi_device * dev,
 	unsigned char b_ModulNbr,
 	unsigned char * pb_Status, unsigned char * pb_UDStatus, PULONG pul_ReadValue)
 {
-	INT i_ReturnValue = 0;
+	int i_ReturnValue = 0;
 	UINT ui_16BitValue;
 	DWORD dw_StatusReg;
 

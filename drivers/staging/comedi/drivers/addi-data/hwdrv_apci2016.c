@@ -450,7 +450,7 @@ int i_APCI2016_ReadWatchdog(struct comedi_device * dev, struct comedi_subdevice 
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI2016_Reset(struct comedi_device * dev)
+int i_APCI2016_Reset(struct comedi_device * dev)
 {
 	outw(0x0, devpriv->iobase + APCI2016_DIGITAL_OP);	// Resets the digital output channels
 	outw(0x0, devpriv->i_IobaseAddon + APCI2016_WATCHDOG_ENABLEDISABLE);

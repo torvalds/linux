@@ -32,7 +32,7 @@
 |                                unsigned char_   b_InputClockLevel,                  |
 |                                unsigned char_   b_OutputLevel,                      |
 |                                unsigned char_   b_HardwareGateLevel)
-INT i_InsnConfig_InitTimer(struct comedi_device *dev,struct comedi_subdevice *s,
+int i_InsnConfig_InitTimer(struct comedi_device *dev,struct comedi_subdevice *s,
 	struct comedi_insn *insn,unsigned int *data)
 |
 +----------------------------------------------------------------------------+
@@ -219,11 +219,11 @@ INT i_InsnConfig_InitTimer(struct comedi_device *dev,struct comedi_subdevice *s,
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_InsnConfigInitTimer(struct comedi_device * dev, struct comedi_subdevice * s,
+int i_APCI1710_InsnConfigInitTimer(struct comedi_device * dev, struct comedi_subdevice * s,
 				   struct comedi_insn * insn, unsigned int * data)
 {
 
-	INT i_ReturnValue = 0;
+	int i_ReturnValue = 0;
 	unsigned char b_ModulNbr;
 	unsigned char b_TimerNbr;
 	unsigned char b_TimerMode;
@@ -406,7 +406,7 @@ INT i_APCI1710_InsnConfigInitTimer(struct comedi_device * dev, struct comedi_sub
 |                                unsigned char_ b_ModulNbr,                           |
 |                                unsigned char_ b_TimerNbr,                           |
 |                                unsigned char_ b_InterruptEnable)
-INT i_APCI1710_InsnWriteEnableDisableTimer(struct comedi_device *dev,struct comedi_subdevice *s,
+int i_APCI1710_InsnWriteEnableDisableTimer(struct comedi_device *dev,struct comedi_subdevice *s,
 	struct comedi_insn *insn,unsigned int *data)                |
 +----------------------------------------------------------------------------+
 | Task              : Enable OR Disable the Timer (b_TimerNbr) from selected module     |
@@ -448,11 +448,11 @@ i_ReturnValue=insn->n;
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_InsnWriteEnableDisableTimer(struct comedi_device * dev,
+int i_APCI1710_InsnWriteEnableDisableTimer(struct comedi_device * dev,
 					   struct comedi_subdevice * s,
 					   struct comedi_insn * insn, unsigned int * data)
 {
-	INT i_ReturnValue = 0;
+	int i_ReturnValue = 0;
 	DWORD dw_DummyRead;
 	unsigned char b_ModulNbr;
 	unsigned char b_TimerNbr;
@@ -561,7 +561,7 @@ INT i_APCI1710_InsnWriteEnableDisableTimer(struct comedi_device * dev,
 |                                       (unsigned char_     b_BoardHandle,            |
 |                                        unsigned char_     b_ModulNbr,               |
 |                                        PULONG_ pul_TimerValueArray)
-INT i_APCI1710_InsnReadAllTimerValue(struct comedi_device *dev,struct comedi_subdevice *s,
+int i_APCI1710_InsnReadAllTimerValue(struct comedi_device *dev,struct comedi_subdevice *s,
 	struct comedi_insn *insn,unsigned int *data)        |
 +----------------------------------------------------------------------------+
 | Task              : Return the all timer values from selected timer        |
@@ -590,10 +590,10 @@ INT i_APCI1710_InsnReadAllTimerValue(struct comedi_device *dev,struct comedi_sub
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_InsnReadAllTimerValue(struct comedi_device *dev, struct comedi_subdevice *s,
+int i_APCI1710_InsnReadAllTimerValue(struct comedi_device *dev, struct comedi_subdevice *s,
 				     struct comedi_insn *insn, unsigned int *data)
 {
-	INT i_ReturnValue = 0;
+	int i_ReturnValue = 0;
 	unsigned char b_ModulNbr, b_ReadType;
 	PULONG pul_TimerValueArray;
 
@@ -681,11 +681,11 @@ struct comedi_subdevice *s,struct comedi_insn *insn,unsigned int *data)         
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_InsnBitsTimer(struct comedi_device * dev, struct comedi_subdevice * s,
+int i_APCI1710_InsnBitsTimer(struct comedi_device * dev, struct comedi_subdevice * s,
 			     struct comedi_insn * insn, unsigned int * data)
 {
 	unsigned char b_BitsType;
-	INT i_ReturnValue = 0;
+	int i_ReturnValue = 0;
 	b_BitsType = data[0];
 
 	printk("\n82X54");
@@ -760,11 +760,11 @@ INT i_APCI1710_InsnBitsTimer(struct comedi_device * dev, struct comedi_subdevice
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_ReadTimerValue(struct comedi_device * dev,
+int i_APCI1710_ReadTimerValue(struct comedi_device * dev,
 			      unsigned char b_ModulNbr, unsigned char b_TimerNbr,
 			      PULONG pul_TimerValue)
 {
-	INT i_ReturnValue = 0;
+	int i_ReturnValue = 0;
 
 	/* Test the module number */
 	if (b_ModulNbr < 4) {
@@ -848,11 +848,11 @@ INT i_APCI1710_ReadTimerValue(struct comedi_device * dev,
 	   +----------------------------------------------------------------------------+
 	 */
 
-INT i_APCI1710_GetTimerOutputLevel(struct comedi_device * dev,
+int i_APCI1710_GetTimerOutputLevel(struct comedi_device * dev,
 				   unsigned char b_ModulNbr, unsigned char b_TimerNbr,
 				   unsigned char * pb_OutputLevel)
 {
-	INT i_ReturnValue = 0;
+	int i_ReturnValue = 0;
 	DWORD dw_TimerStatus;
 
 	/* Test the module number */
@@ -927,11 +927,11 @@ INT i_APCI1710_GetTimerOutputLevel(struct comedi_device * dev,
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_GetTimerProgressStatus(struct comedi_device *dev,
+int i_APCI1710_GetTimerProgressStatus(struct comedi_device *dev,
 				      unsigned char b_ModulNbr, unsigned char b_TimerNbr,
 				      unsigned char * pb_TimerStatus)
 {
-	INT i_ReturnValue = 0;
+	int i_ReturnValue = 0;
 	DWORD dw_TimerStatus;
 
 	/* Test the module number */
@@ -1006,11 +1006,11 @@ INT i_APCI1710_GetTimerProgressStatus(struct comedi_device *dev,
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_WriteTimerValue(struct comedi_device * dev,
+int i_APCI1710_WriteTimerValue(struct comedi_device * dev,
 			       unsigned char b_ModulNbr, unsigned char b_TimerNbr,
 			       ULONG ul_WriteValue)
 {
-	INT i_ReturnValue = 0;
+	int i_ReturnValue = 0;
 
 	/* Test the module number */
 	if (b_ModulNbr < 4) {

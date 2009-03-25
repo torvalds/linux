@@ -61,7 +61,7 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 
 /*
 +----------------------------------------------------------------------------+
-| Function Name     : INT i_APCI1710_InsnConfigDigitalIO(struct comedi_device *dev, |
+| Function Name     : int i_APCI1710_InsnConfigDigitalIO(struct comedi_device *dev, |
 |						struct comedi_subdevice *s,struct comedi_insn *insn,unsigned int *data)|
 +----------------------------------------------------------------------------+
 | Task              : Configure the digital I/O operating mode from selected |
@@ -99,12 +99,12 @@ Activates and deactivates the digital output memory.
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_InsnConfigDigitalIO(struct comedi_device * dev, struct comedi_subdevice * s,
+int i_APCI1710_InsnConfigDigitalIO(struct comedi_device * dev, struct comedi_subdevice * s,
 	struct comedi_insn * insn, unsigned int * data)
 {
 	unsigned char b_ModulNbr, b_ChannelAMode, b_ChannelBMode;
 	unsigned char b_MemoryOnOff, b_ConfigType;
-	INT i_ReturnValue = 0;
+	int i_ReturnValue = 0;
 	DWORD dw_WriteConfig = 0;
 
 	b_ModulNbr = (unsigned char) CR_AREF(insn->chanspec);
@@ -293,10 +293,10 @@ INT i_APCI1710_InsnConfigDigitalIO(struct comedi_device * dev, struct comedi_sub
 //                                             unsigned char_    b_InputChannel,
 //
 //                                             unsigned char *_  pb_ChannelStatus)
-INT i_APCI1710_InsnReadDigitalIOChlValue(struct comedi_device * dev,
+int i_APCI1710_InsnReadDigitalIOChlValue(struct comedi_device * dev,
 	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data)
 {
-	INT i_ReturnValue = 0;
+	int i_ReturnValue = 0;
 	DWORD dw_StatusReg;
 	unsigned char b_ModulNbr, b_InputChannel;
 	unsigned char * pb_ChannelStatus;
@@ -445,7 +445,7 @@ INT i_APCI1710_InsnReadDigitalIOChlValue(struct comedi_device * dev,
 
 /*
 +----------------------------------------------------------------------------+
-| Function Name     : INT i_APCI1710_InsnWriteDigitalIOChlOnOff(comedi_device
+| Function Name     : int i_APCI1710_InsnWriteDigitalIOChlOnOff(comedi_device
 |*dev,struct comedi_subdevice *s,struct comedi_insn *insn,unsigned int *data)
 
 +----------------------------------------------------------------------------+
@@ -481,10 +481,10 @@ INT i_APCI1710_InsnReadDigitalIOChlValue(struct comedi_device * dev,
 //_INT_   i_APCI1710_SetDigitalIOChlOn    (unsigned char_ b_BoardHandle,
 //                                       unsigned char_ b_ModulNbr,
 //                                       unsigned char_ b_OutputChannel)
-INT i_APCI1710_InsnWriteDigitalIOChlOnOff(struct comedi_device * dev,
+int i_APCI1710_InsnWriteDigitalIOChlOnOff(struct comedi_device * dev,
 	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data)
 {
-	INT i_ReturnValue = 0;
+	int i_ReturnValue = 0;
 	DWORD dw_WriteValue = 0;
 	unsigned char b_ModulNbr, b_OutputChannel;
 	i_ReturnValue = insn->n;
@@ -728,10 +728,10 @@ INT i_APCI1710_InsnWriteDigitalIOChlOnOff(struct comedi_device * dev,
 //_INT_   i_APCI1710_SetDigitalIOPortOn   (unsigned char_ b_BoardHandle,
 //                                       unsigned char_ b_ModulNbr,
 //                                       unsigned char_ b_PortValue)
-INT i_APCI1710_InsnBitsDigitalIOPortOnOff(struct comedi_device * dev,
+int i_APCI1710_InsnBitsDigitalIOPortOnOff(struct comedi_device * dev,
 	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data)
 {
-	INT i_ReturnValue = 0;
+	int i_ReturnValue = 0;
 	DWORD dw_WriteValue = 0;
 	DWORD dw_StatusReg;
 	unsigned char b_ModulNbr, b_PortValue;

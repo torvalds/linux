@@ -65,26 +65,26 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 
 //BEGIN JK 06.07.04: Management of sevrals boards
 /*
-  INT i_CJCAvailable=1;
-  INT i_CJCPolarity=0;
-  INT i_CJCGain=2;//changed from 0 to 2
-  INT i_InterruptFlag=0;
-  INT i_ADDIDATAPolarity;
-  INT i_ADDIDATAGain;
-  INT i_AutoCalibration=0;   //: auto calibration
-  INT i_ADDIDATAConversionTime;
-  INT i_ADDIDATAConversionTimeUnit;
-  INT i_ADDIDATAType;
-  INT i_ChannelNo;
-  INT i_ChannelCount=0;
-  INT i_ScanType;
-  INT i_FirstChannel;
-  INT i_LastChannel;
-  INT i_Sum=0;
-  INT i_Offset;
+  int i_CJCAvailable=1;
+  int i_CJCPolarity=0;
+  int i_CJCGain=2;//changed from 0 to 2
+  int i_InterruptFlag=0;
+  int i_ADDIDATAPolarity;
+  int i_ADDIDATAGain;
+  int i_AutoCalibration=0;   //: auto calibration
+  int i_ADDIDATAConversionTime;
+  int i_ADDIDATAConversionTimeUnit;
+  int i_ADDIDATAType;
+  int i_ChannelNo;
+  int i_ChannelCount=0;
+  int i_ScanType;
+  int i_FirstChannel;
+  int i_LastChannel;
+  int i_Sum=0;
+  int i_Offset;
   UINT ui_Channel_num=0;
   static int i_Count=0;
-  INT i_Initialised=0;
+  int i_Initialised=0;
   UINT ui_InterruptChannelValue[96]; //Buffer
 */
 str_BoardInfos s_BoardInfos[100];	// 100 will be the max number of boards to be used
@@ -93,15 +93,15 @@ str_BoardInfos s_BoardInfos[100];	// 100 will be the max number of boards to be 
 //Begin JK 21.10.2004: APCI-3200 / APCI-3300 Reading of EEPROM values
 
 /*+----------------------------------------------------------------------------+*/
-/*| Function   Name   : INT i_AddiHeaderRW_ReadEeprom                          |*/
-/*|                               (INT    i_NbOfWordsToRead,                   |*/
+/*| Function   Name   : int i_AddiHeaderRW_ReadEeprom                          |*/
+/*|                               (int    i_NbOfWordsToRead,                   |*/
 /*|                                DWORD dw_PCIBoardEepromAddress,             |*/
 /*|                                unsigned short   w_EepromStartAddress,                |*/
 /*|                                unsigned short * pw_DataRead)                          |*/
 /*+----------------------------------------------------------------------------+*/
 /*| Task              : Read word from the 5920 eeprom.                        |*/
 /*+----------------------------------------------------------------------------+*/
-/*| Input Parameters  : INT    i_NbOfWordsToRead : Nbr. of word to read        |*/
+/*| Input Parameters  : int    i_NbOfWordsToRead : Nbr. of word to read        |*/
 /*|                     DWORD dw_PCIBoardEepromAddress : Address of the eeprom |*/
 /*|                     unsigned short   w_EepromStartAddress : Eeprom strat address     |*/
 /*+----------------------------------------------------------------------------+*/
@@ -110,14 +110,14 @@ str_BoardInfos s_BoardInfos[100];	// 100 will be the max number of boards to be 
 /*| Return Value      : -                                                      |*/
 /*+----------------------------------------------------------------------------+*/
 
-INT i_AddiHeaderRW_ReadEeprom(INT i_NbOfWordsToRead,
+int i_AddiHeaderRW_ReadEeprom(int i_NbOfWordsToRead,
 	DWORD dw_PCIBoardEepromAddress,
 	unsigned short w_EepromStartAddress, unsigned short * pw_DataRead)
 {
 	DWORD dw_eeprom_busy = 0;
-	INT i_Counter = 0;
-	INT i_WordCounter;
-	INT i;
+	int i_Counter = 0;
+	int i_WordCounter;
+	int i;
 	unsigned char pb_ReadByte[1];
 	unsigned char b_ReadLowByte = 0;
 	unsigned char b_ReadHighByte = 0;
@@ -453,7 +453,7 @@ void v_GetAPCI3200EepromCalibrationValue(DWORD dw_PCIBoardEepromAddress,
 	}
 }
 
-INT i_APCI3200_GetChannelCalibrationValue(struct comedi_device * dev,
+int i_APCI3200_GetChannelCalibrationValue(struct comedi_device * dev,
 	unsigned int ui_Channel_num, unsigned int * CJCCurrentSource,
 	unsigned int * ChannelCurrentSource, unsigned int * ChannelGainFactor)
 {
@@ -550,7 +550,7 @@ INT i_APCI3200_GetChannelCalibrationValue(struct comedi_device * dev,
   +----------------------------------------------------------------------------+
 */
 
-INT i_APCI3200_ReadDigitalInput(struct comedi_device * dev, struct comedi_subdevice * s,
+int i_APCI3200_ReadDigitalInput(struct comedi_device * dev, struct comedi_subdevice * s,
 	struct comedi_insn * insn, unsigned int * data)
 {
 	UINT ui_Temp = 0;
@@ -653,7 +653,7 @@ int i_APCI3200_ConfigDigitalOutput(struct comedi_device * dev, struct comedi_sub
   |			                                                         |
   +----------------------------------------------------------------------------+
 */
-INT i_APCI3200_WriteDigitalOutput(struct comedi_device * dev, struct comedi_subdevice * s,
+int i_APCI3200_WriteDigitalOutput(struct comedi_device * dev, struct comedi_subdevice * s,
 	struct comedi_insn * insn, unsigned int * data)
 {
 	UINT ui_Temp = 0, ui_Temp1 = 0;
@@ -766,7 +766,7 @@ INT i_APCI3200_WriteDigitalOutput(struct comedi_device * dev, struct comedi_subd
   |			                                                         |
   +----------------------------------------------------------------------------+
 */
-INT i_APCI3200_ReadDigitalOutput(struct comedi_device * dev, struct comedi_subdevice * s,
+int i_APCI3200_ReadDigitalOutput(struct comedi_device * dev, struct comedi_subdevice * s,
 	struct comedi_insn * insn, unsigned int * data)
 {
 	UINT ui_Temp;
@@ -806,7 +806,7 @@ INT i_APCI3200_ReadDigitalOutput(struct comedi_device * dev, struct comedi_subde
 
 /*
   +----------------------------------------------------------------------------+
-  | Function   Name   : INT i_APCI3200_ConfigAnalogInput                       |
+  | Function   Name   : int i_APCI3200_ConfigAnalogInput                       |
   |			  (struct comedi_device *dev,struct comedi_subdevice *s,               |
   |                      struct comedi_insn *insn,unsigned int *data)                     |
   +----------------------------------------------------------------------------+
@@ -874,19 +874,19 @@ INT i_APCI3200_ReadDigitalOutput(struct comedi_device * dev, struct comedi_subde
   |			                                                         |
   +----------------------------------------------------------------------------+
 */
-INT i_APCI3200_ConfigAnalogInput(struct comedi_device * dev, struct comedi_subdevice * s,
+int i_APCI3200_ConfigAnalogInput(struct comedi_device * dev, struct comedi_subdevice * s,
 	struct comedi_insn * insn, unsigned int * data)
 {
 
 	UINT ul_Config = 0, ul_Temp = 0;
 	UINT ui_ChannelNo = 0;
 	UINT ui_Dummy = 0;
-	INT i_err = 0;
+	int i_err = 0;
 
 	//Begin JK 21.10.2004: APCI-3200 / APCI-3300 Reading of EEPROM values
 
 #ifdef PRINT_INFO
-	INT i = 0, i2 = 0;
+	int i = 0, i2 = 0;
 #endif
 	//End JK 21.10.2004: APCI-3200 / APCI-3300 Reading of EEPROM values
 
@@ -1361,7 +1361,7 @@ INT i_APCI3200_ConfigAnalogInput(struct comedi_device * dev, struct comedi_subde
   |			                                                         |
   +----------------------------------------------------------------------------+
 */
-INT i_APCI3200_ReadAnalogInput(struct comedi_device * dev, struct comedi_subdevice * s,
+int i_APCI3200_ReadAnalogInput(struct comedi_device * dev, struct comedi_subdevice * s,
 	struct comedi_insn * insn, unsigned int * data)
 {
 	UINT ui_DummyValue = 0;
@@ -1651,7 +1651,7 @@ INT i_APCI3200_ReadAnalogInput(struct comedi_device * dev, struct comedi_subdevi
   |			                                                         |
   +----------------------------------------------------------------------------+
 */
-INT i_APCI3200_Read1AnalogInputChannel(struct comedi_device * dev,
+int i_APCI3200_Read1AnalogInputChannel(struct comedi_device * dev,
 	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data)
 {
 	UINT ui_EOC = 0;
@@ -1915,7 +1915,7 @@ int i_APCI3200_ReadCalibrationOffsetValue(struct comedi_device * dev, UINT * dat
 int i_APCI3200_ReadCalibrationGainValue(struct comedi_device * dev, UINT * data)
 {
 	UINT ui_EOC = 0;
-	INT ui_CommandRegister = 0;
+	int ui_CommandRegister = 0;
 
 	//while (((inl(devpriv->iobase+i_Offset+12)>>19) & 1) != 1);
 	while (((inl(devpriv->iobase + s_BoardInfos[dev->minor].i_Offset +
@@ -2051,7 +2051,7 @@ int i_APCI3200_ReadCalibrationGainValue(struct comedi_device * dev, UINT * data)
 int i_APCI3200_ReadCJCValue(struct comedi_device * dev, unsigned int * data)
 {
 	UINT ui_EOC = 0;
-	INT ui_CommandRegister = 0;
+	int ui_CommandRegister = 0;
 
   /******************************/
 	/*Set the converting time unit */
@@ -2170,7 +2170,7 @@ int i_APCI3200_ReadCJCValue(struct comedi_device * dev, unsigned int * data)
 int i_APCI3200_ReadCJCCalOffset(struct comedi_device * dev, unsigned int * data)
 {
 	UINT ui_EOC = 0;
-	INT ui_CommandRegister = 0;
+	int ui_CommandRegister = 0;
   /*******************************************/
 	/*Read calibration offset value for the CJC */
   /*******************************************/
@@ -2286,7 +2286,7 @@ int i_APCI3200_ReadCJCCalOffset(struct comedi_device * dev, unsigned int * data)
 int i_APCI3200_ReadCJCCalGain(struct comedi_device * dev, unsigned int * data)
 {
 	UINT ui_EOC = 0;
-	INT ui_CommandRegister = 0;
+	int ui_CommandRegister = 0;
   /*******************************/
 	/* Set the convert timing unit */
   /*******************************/
@@ -2404,11 +2404,11 @@ int i_APCI3200_ReadCJCCalGain(struct comedi_device * dev, unsigned int * data)
   +----------------------------------------------------------------------------+
 */
 
-INT i_APCI3200_InsnBits_AnalogInput_Test(struct comedi_device * dev,
+int i_APCI3200_InsnBits_AnalogInput_Test(struct comedi_device * dev,
 	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data)
 {
 	UINT ui_Configuration = 0;
-	INT i_Temp;		//,i_TimeUnit;
+	int i_Temp;		//,i_TimeUnit;
 	//if(i_Initialised==0)
 
 	if (s_BoardInfos[dev->minor].i_Initialised == 0) {
@@ -2529,7 +2529,7 @@ INT i_APCI3200_InsnBits_AnalogInput_Test(struct comedi_device * dev,
   +----------------------------------------------------------------------------+
 */
 
-INT i_APCI3200_InsnWriteReleaseAnalogInput(struct comedi_device * dev,
+int i_APCI3200_InsnWriteReleaseAnalogInput(struct comedi_device * dev,
 	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data)
 {
 	i_APCI3200_Reset(dev);
@@ -2570,10 +2570,10 @@ int i_APCI3200_CommandTestAnalogInput(struct comedi_device * dev, struct comedi_
 	UINT ui_ConvertTimeBase = 0;
 	UINT ui_DelayTime = 0;
 	UINT ui_DelayTimeBase = 0;
-	INT i_Triggermode = 0;
-	INT i_TriggerEdge = 0;
-	INT i_NbrOfChannel = 0;
-	INT i_Cpt = 0;
+	int i_Triggermode = 0;
+	int i_TriggerEdge = 0;
+	int i_NbrOfChannel = 0;
+	int i_Cpt = 0;
 	double d_ConversionTimeForAllChannels = 0.0;
 	double d_SCANTimeNewUnit = 0.0;
 	// step 1: make sure trigger sources are trivially valid
@@ -3003,7 +3003,7 @@ int i_APCI3200_CommandAnalogInput(struct comedi_device * dev, struct comedi_subd
 
 int i_APCI3200_Reset(struct comedi_device * dev)
 {
-	INT i_Temp;
+	int i_Temp;
 	DWORD dw_Dummy;
 	//i_InterruptFlag=0;
 	//i_Initialised==0;
@@ -3062,8 +3062,8 @@ void v_APCI3200_Interrupt(int irq, void *d)
 	struct comedi_device *dev = d;
 	UINT ui_StatusRegister = 0;
 	UINT ui_ChannelNumber = 0;
-	INT i_CalibrationFlag = 0;
-	INT i_CJCFlag = 0;
+	int i_CalibrationFlag = 0;
+	int i_CJCFlag = 0;
 	UINT ui_DummyValue = 0;
 	UINT ui_DigitalTemperature = 0;
 	UINT ui_DigitalInput = 0;

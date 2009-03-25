@@ -54,7 +54,7 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 
 /*
 +----------------------------------------------------------------------------+
-| Function Name     : INT   i_APCI3XXX_TestConversionStarted                 |
+| Function Name     : int   i_APCI3XXX_TestConversionStarted                 |
 |                          (struct comedi_device    *dev)                           |
 +----------------------------------------------------------------------------+
 | Task                Test if any conversion started                         |
@@ -79,7 +79,7 @@ int i_APCI3XXX_TestConversionStarted(struct comedi_device * dev)
 
 /*
 +----------------------------------------------------------------------------+
-| Function Name     : INT   i_APCI3XXX_AnalogInputConfigOperatingMode        |
+| Function Name     : int   i_APCI3XXX_AnalogInputConfigOperatingMode        |
 |                          (struct comedi_device    *dev,                           |
 |                           struct comedi_subdevice *s,                             |
 |                           struct comedi_insn      *insn,                          |
@@ -108,7 +108,7 @@ int i_APCI3XXX_TestConversionStarted(struct comedi_device * dev)
 int i_APCI3XXX_AnalogInputConfigOperatingMode(struct comedi_device * dev,
 	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data)
 {
-	INT i_ReturnValue = insn->n;
+	int i_ReturnValue = insn->n;
 	unsigned char b_TimeBase = 0;
 	unsigned char b_SingleDiff = 0;
 	DWORD dw_ReloadValue = 0;
@@ -273,7 +273,7 @@ int i_APCI3XXX_AnalogInputConfigOperatingMode(struct comedi_device * dev,
 
 /*
 +----------------------------------------------------------------------------+
-| Function Name     : INT   i_APCI3XXX_InsnConfigAnalogInput                 |
+| Function Name     : int   i_APCI3XXX_InsnConfigAnalogInput                 |
 |                          (struct comedi_device    *dev,                           |
 |                           struct comedi_subdevice *s,                             |
 |                           struct comedi_insn      *insn,                          |
@@ -298,7 +298,7 @@ int i_APCI3XXX_AnalogInputConfigOperatingMode(struct comedi_device * dev,
 int i_APCI3XXX_InsnConfigAnalogInput(struct comedi_device * dev,
 	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data)
 {
-	INT i_ReturnValue = insn->n;
+	int i_ReturnValue = insn->n;
 
 	/************************/
 	/* Test the buffer size */
@@ -331,7 +331,7 @@ int i_APCI3XXX_InsnConfigAnalogInput(struct comedi_device * dev,
 
 /*
 +----------------------------------------------------------------------------+
-| Function Name     : INT   i_APCI3XXX_InsnReadAnalogInput                   |
+| Function Name     : int   i_APCI3XXX_InsnReadAnalogInput                   |
 |                          (struct comedi_device    *dev,                           |
 |                           struct comedi_subdevice *s,                             |
 |                           struct comedi_insn      *insn,                          |
@@ -358,7 +358,7 @@ int i_APCI3XXX_InsnConfigAnalogInput(struct comedi_device * dev,
 int i_APCI3XXX_InsnReadAnalogInput(struct comedi_device * dev,
 	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data)
 {
-	INT i_ReturnValue = insn->n;
+	int i_ReturnValue = insn->n;
 	unsigned char b_Configuration = (unsigned char) CR_RANGE(insn->chanspec);
 	unsigned char b_Channel = (unsigned char) CR_CHAN(insn->chanspec);
 	DWORD dw_Temp = 0;
@@ -662,7 +662,7 @@ void v_APCI3XXX_Interrupt(int irq, void *d)
 
 /*
 +----------------------------------------------------------------------------+
-| Function Name     : INT   i_APCI3XXX_InsnWriteAnalogOutput                 |
+| Function Name     : int   i_APCI3XXX_InsnWriteAnalogOutput                 |
 |                          (struct comedi_device    *dev,                           |
 |                           struct comedi_subdevice *s,                             |
 |                           struct comedi_insn      *insn,                          |
@@ -690,7 +690,7 @@ int i_APCI3XXX_InsnWriteAnalogOutput(struct comedi_device * dev,
 	unsigned char b_Range = (unsigned char) CR_RANGE(insn->chanspec);
 	unsigned char b_Channel = (unsigned char) CR_CHAN(insn->chanspec);
 	DWORD dw_Status = 0;
-	INT i_ReturnValue = insn->n;
+	int i_ReturnValue = insn->n;
 
 	/************************/
 	/* Test the buffer size */
@@ -768,7 +768,7 @@ int i_APCI3XXX_InsnWriteAnalogOutput(struct comedi_device * dev,
 
 /*
 +----------------------------------------------------------------------------+
-| Function Name     : INT   i_APCI3XXX_InsnConfigInitTTLIO                   |
+| Function Name     : int   i_APCI3XXX_InsnConfigInitTTLIO                   |
 |                          (struct comedi_device    *dev,                           |
 |                           struct comedi_subdevice *s,                             |
 |                           struct comedi_insn      *insn,                          |
@@ -794,7 +794,7 @@ int i_APCI3XXX_InsnWriteAnalogOutput(struct comedi_device * dev,
 int i_APCI3XXX_InsnConfigInitTTLIO(struct comedi_device * dev,
 	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data)
 {
-	INT i_ReturnValue = insn->n;
+	int i_ReturnValue = insn->n;
 	unsigned char b_Command = 0;
 
 	/************************/
@@ -899,7 +899,7 @@ int i_APCI3XXX_InsnConfigInitTTLIO(struct comedi_device * dev,
 
 /*
 +----------------------------------------------------------------------------+
-| Function Name     : INT     i_APCI3XXX_InsnBitsTTLIO                       |
+| Function Name     : int     i_APCI3XXX_InsnBitsTTLIO                       |
 |                          (struct comedi_device    *dev,                           |
 |                           struct comedi_subdevice *s,                             |
 |                           struct comedi_insn      *insn,                          |
@@ -922,7 +922,7 @@ int i_APCI3XXX_InsnConfigInitTTLIO(struct comedi_device * dev,
 int i_APCI3XXX_InsnBitsTTLIO(struct comedi_device * dev,
 	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data)
 {
-	INT i_ReturnValue = insn->n;
+	int i_ReturnValue = insn->n;
 	unsigned char b_ChannelCpt = 0;
 	DWORD dw_ChannelMask = 0;
 	DWORD dw_BitMask = 0;
@@ -1056,7 +1056,7 @@ int i_APCI3XXX_InsnBitsTTLIO(struct comedi_device * dev,
 
 /*
 +----------------------------------------------------------------------------+
-| Function Name     : INT i_APCI3XXX_InsnReadTTLIO                           |
+| Function Name     : int i_APCI3XXX_InsnReadTTLIO                           |
 |                          (struct comedi_device    *dev,                           |
 |                           struct comedi_subdevice *s,                             |
 |                           struct comedi_insn      *insn,                          |
@@ -1078,7 +1078,7 @@ int i_APCI3XXX_InsnReadTTLIO(struct comedi_device * dev,
 	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data)
 {
 	unsigned char b_Channel = (unsigned char) CR_CHAN(insn->chanspec);
-	INT i_ReturnValue = insn->n;
+	int i_ReturnValue = insn->n;
 	unsigned int *pls_ReadData = data;
 
 	/************************/
@@ -1168,7 +1168,7 @@ int i_APCI3XXX_InsnReadTTLIO(struct comedi_device * dev,
 
 /*
 +----------------------------------------------------------------------------+
-| Function Name     : INT     i_APCI3XXX_InsnWriteTTLIO                      |
+| Function Name     : int     i_APCI3XXX_InsnWriteTTLIO                      |
 |                          (struct comedi_device    *dev,                           |
 |                           struct comedi_subdevice *s,                             |
 |                           struct comedi_insn      *insn,                          |
@@ -1190,7 +1190,7 @@ int i_APCI3XXX_InsnReadTTLIO(struct comedi_device * dev,
 int i_APCI3XXX_InsnWriteTTLIO(struct comedi_device * dev,
 	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data)
 {
-	INT i_ReturnValue = insn->n;
+	int i_ReturnValue = insn->n;
 	unsigned char b_Channel = (unsigned char) CR_CHAN(insn->chanspec);
 	unsigned char b_State = 0;
 	DWORD dw_Status = 0;
@@ -1301,7 +1301,7 @@ int i_APCI3XXX_InsnWriteTTLIO(struct comedi_device * dev,
 int i_APCI3XXX_InsnReadDigitalInput(struct comedi_device * dev,
 	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data)
 {
-	INT i_ReturnValue = insn->n;
+	int i_ReturnValue = insn->n;
 	unsigned char b_Channel = (unsigned char) CR_CHAN(insn->chanspec);
 	DWORD dw_Temp = 0;
 
@@ -1359,7 +1359,7 @@ int i_APCI3XXX_InsnReadDigitalInput(struct comedi_device * dev,
 int i_APCI3XXX_InsnBitsDigitalInput(struct comedi_device * dev,
 	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data)
 {
-	INT i_ReturnValue = insn->n;
+	int i_ReturnValue = insn->n;
 	DWORD dw_Temp = 0;
 
 	/************************/
@@ -1412,7 +1412,7 @@ int i_APCI3XXX_InsnBitsDigitalInput(struct comedi_device * dev,
 int i_APCI3XXX_InsnBitsDigitalOutput(struct comedi_device * dev,
 	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data)
 {
-	INT i_ReturnValue = insn->n;
+	int i_ReturnValue = insn->n;
 	unsigned char b_ChannelCpt = 0;
 	DWORD dw_ChannelMask = 0;
 	DWORD dw_BitMask = 0;
@@ -1508,7 +1508,7 @@ int i_APCI3XXX_InsnBitsDigitalOutput(struct comedi_device * dev,
 int i_APCI3XXX_InsnWriteDigitalOutput(struct comedi_device * dev,
 	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data)
 {
-	INT i_ReturnValue = insn->n;
+	int i_ReturnValue = insn->n;
 	unsigned char b_Channel = CR_CHAN(insn->chanspec);
 	unsigned char b_State = 0;
 	DWORD dw_Status = 0;
@@ -1583,7 +1583,7 @@ int i_APCI3XXX_InsnWriteDigitalOutput(struct comedi_device * dev,
 int i_APCI3XXX_InsnReadDigitalOutput(struct comedi_device * dev,
 	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data)
 {
-	INT i_ReturnValue = insn->n;
+	int i_ReturnValue = insn->n;
 	unsigned char b_Channel = CR_CHAN(insn->chanspec);
 	DWORD dw_Status = 0;
 

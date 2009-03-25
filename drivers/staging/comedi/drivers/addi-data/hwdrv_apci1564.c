@@ -86,7 +86,7 @@ UINT ui_InterruptData, ui_Type;
 |			                                                         |
 +----------------------------------------------------------------------------+
 */
-INT i_APCI1564_ConfigDigitalInput(struct comedi_device * dev, struct comedi_subdevice * s,
+int i_APCI1564_ConfigDigitalInput(struct comedi_device * dev, struct comedi_subdevice * s,
 	struct comedi_insn * insn, unsigned int * data)
 {
 	devpriv->tsk_Current = current;
@@ -147,7 +147,7 @@ INT i_APCI1564_ConfigDigitalInput(struct comedi_device * dev, struct comedi_subd
 |			                                                         |
 +----------------------------------------------------------------------------+
 */
-INT i_APCI1564_Read1DigitalInput(struct comedi_device * dev, struct comedi_subdevice * s,
+int i_APCI1564_Read1DigitalInput(struct comedi_device * dev, struct comedi_subdevice * s,
 	struct comedi_insn * insn, unsigned int * data)
 {
 	UINT ui_TmpValue = 0;
@@ -187,7 +187,7 @@ INT i_APCI1564_Read1DigitalInput(struct comedi_device * dev, struct comedi_subde
 |			                                                         |
 +----------------------------------------------------------------------------+
 */
-INT i_APCI1564_ReadMoreDigitalInput(struct comedi_device * dev, struct comedi_subdevice * s,
+int i_APCI1564_ReadMoreDigitalInput(struct comedi_device * dev, struct comedi_subdevice * s,
 	struct comedi_insn * insn, unsigned int * data)
 {
 	UINT ui_PortValue = data[0];
@@ -255,7 +255,7 @@ INT i_APCI1564_ReadMoreDigitalInput(struct comedi_device * dev, struct comedi_su
 |			                                                         |
 +----------------------------------------------------------------------------+
 */
-INT i_APCI1564_ConfigDigitalOutput(struct comedi_device * dev, struct comedi_subdevice * s,
+int i_APCI1564_ConfigDigitalOutput(struct comedi_device * dev, struct comedi_subdevice * s,
 	struct comedi_insn * insn, unsigned int * data)
 {
 	ULONG ul_Command = 0;
@@ -312,7 +312,7 @@ INT i_APCI1564_ConfigDigitalOutput(struct comedi_device * dev, struct comedi_sub
 |			                                                         |
 +----------------------------------------------------------------------------+
 */
-INT i_APCI1564_WriteDigitalOutput(struct comedi_device * dev, struct comedi_subdevice * s,
+int i_APCI1564_WriteDigitalOutput(struct comedi_device * dev, struct comedi_subdevice * s,
 	struct comedi_insn * insn, unsigned int * data)
 {
 	UINT ui_Temp, ui_Temp1;
@@ -486,7 +486,7 @@ INT i_APCI1564_WriteDigitalOutput(struct comedi_device * dev, struct comedi_subd
 |			                                                         |
 +----------------------------------------------------------------------------+
 */
-INT i_APCI1564_ReadDigitalOutput(struct comedi_device * dev, struct comedi_subdevice * s,
+int i_APCI1564_ReadDigitalOutput(struct comedi_device * dev, struct comedi_subdevice * s,
 	struct comedi_insn * insn, unsigned int * data)
 {
 	UINT ui_Temp;
@@ -564,7 +564,7 @@ INT i_APCI1564_ReadDigitalOutput(struct comedi_device * dev, struct comedi_subde
 |			                                                         |
 +----------------------------------------------------------------------------+
 */
-INT i_APCI1564_ConfigTimerCounterWatchdog(struct comedi_device * dev,
+int i_APCI1564_ConfigTimerCounterWatchdog(struct comedi_device * dev,
 	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data)
 {
 	ULONG ul_Command1 = 0;
@@ -718,7 +718,7 @@ INT i_APCI1564_ConfigTimerCounterWatchdog(struct comedi_device * dev,
 |			                                                         |
 +----------------------------------------------------------------------------+
 */
-INT i_APCI1564_StartStopWriteTimerCounterWatchdog(struct comedi_device * dev,
+int i_APCI1564_StartStopWriteTimerCounterWatchdog(struct comedi_device * dev,
 	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data)
 {
 	ULONG ul_Command1 = 0;
@@ -813,7 +813,7 @@ INT i_APCI1564_StartStopWriteTimerCounterWatchdog(struct comedi_device * dev,
 |			                                                         |
 +----------------------------------------------------------------------------+
 */
-INT i_APCI1564_ReadTimerCounterWatchdog(struct comedi_device * dev,
+int i_APCI1564_ReadTimerCounterWatchdog(struct comedi_device * dev,
 	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data)
 {
 	ULONG ul_Command1 = 0;
@@ -1081,7 +1081,7 @@ static void v_APCI1564_Interrupt(int irq, void *d)
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1564_Reset(struct comedi_device * dev)
+int i_APCI1564_Reset(struct comedi_device * dev)
 {
 	outl(0x0, devpriv->i_IobaseAmcc + APCI1564_DIGITAL_IP_IRQ);	//disable the interrupts
 	inl(devpriv->i_IobaseAmcc + APCI1564_DIGITAL_IP_INTERRUPT_STATUS);	//Reset the interrupt status register

@@ -134,7 +134,7 @@ int i_APCI2032_ConfigDigitalOutput(struct comedi_device * dev, struct comedi_sub
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI2032_WriteDigitalOutput(struct comedi_device * dev, struct comedi_subdevice * s,
+int i_APCI2032_WriteDigitalOutput(struct comedi_device * dev, struct comedi_subdevice * s,
 	struct comedi_insn * insn, unsigned int * data)
 {
 	UINT ui_Temp, ui_Temp1;
@@ -313,7 +313,7 @@ INT i_APCI2032_WriteDigitalOutput(struct comedi_device * dev, struct comedi_subd
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI2032_ReadDigitalOutput(struct comedi_device * dev, struct comedi_subdevice * s,
+int i_APCI2032_ReadDigitalOutput(struct comedi_device * dev, struct comedi_subdevice * s,
 	struct comedi_insn * insn, unsigned int * data)
 {
 	UINT ui_Temp;
@@ -362,7 +362,7 @@ INT i_APCI2032_ReadDigitalOutput(struct comedi_device * dev, struct comedi_subde
 
 /*
 +----------------------------------------------------------------------------+
-| Function   Name   : INT i_APCI2032_ConfigWatchdog(comedi_device
+| Function   Name   : int i_APCI2032_ConfigWatchdog(comedi_device
                    *dev,struct comedi_subdevice *s,struct comedi_insn *insn,unsigned int *data)|
 |				                                                     |
 +----------------------------------------------------------------------------+
@@ -380,7 +380,7 @@ INT i_APCI2032_ReadDigitalOutput(struct comedi_device * dev, struct comedi_subde
 |			                                                         |
 +----------------------------------------------------------------------------+
 */
-INT i_APCI2032_ConfigWatchdog(struct comedi_device * dev, struct comedi_subdevice * s,
+int i_APCI2032_ConfigWatchdog(struct comedi_device * dev, struct comedi_subdevice * s,
 	struct comedi_insn * insn, unsigned int * data)
 {
 	if (data[0] == 0) {

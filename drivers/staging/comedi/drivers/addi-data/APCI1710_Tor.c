@@ -130,10 +130,10 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_InsnConfigInitTorCounter(struct comedi_device * dev,
+int i_APCI1710_InsnConfigInitTorCounter(struct comedi_device * dev,
 	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data)
 {
-	INT i_ReturnValue = 0;
+	int i_ReturnValue = 0;
 	ULONG ul_TimerValue = 0;
 	DWORD dw_Command;
 	double d_RealTimingInterval = 0;
@@ -987,10 +987,10 @@ INT i_APCI1710_InsnConfigInitTorCounter(struct comedi_device * dev,
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_InsnWriteEnableDisableTorCounter(struct comedi_device * dev,
+int i_APCI1710_InsnWriteEnableDisableTorCounter(struct comedi_device * dev,
 	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data)
 {
-	INT i_ReturnValue = 0;
+	int i_ReturnValue = 0;
 	DWORD dw_Status;
 	DWORD dw_DummyRead;
 	DWORD dw_ConfigReg;
@@ -1460,10 +1460,10 @@ INT i_APCI1710_InsnWriteEnableDisableTorCounter(struct comedi_device * dev,
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_InsnReadGetTorCounterInitialisation(struct comedi_device * dev,
+int i_APCI1710_InsnReadGetTorCounterInitialisation(struct comedi_device * dev,
 	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data)
 {
-	INT i_ReturnValue = 0;
+	int i_ReturnValue = 0;
 	DWORD dw_Status;
 	unsigned char b_ModulNbr;
 	unsigned char b_TorCounter;
@@ -1700,10 +1700,10 @@ INT i_APCI1710_InsnReadGetTorCounterInitialisation(struct comedi_device * dev,
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_InsnBitsGetTorCounterProgressStatusAndValue(struct comedi_device * dev,
+int i_APCI1710_InsnBitsGetTorCounterProgressStatusAndValue(struct comedi_device * dev,
 	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data)
 {
-	INT i_ReturnValue = 0;
+	int i_ReturnValue = 0;
 	DWORD dw_Status;
 	DWORD dw_TimeOut = 0;
 

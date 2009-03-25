@@ -73,7 +73,7 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI3501_ReadDigitalInput(struct comedi_device * dev, struct comedi_subdevice * s,
+int i_APCI3501_ReadDigitalInput(struct comedi_device * dev, struct comedi_subdevice * s,
 	struct comedi_insn * insn, unsigned int * data)
 {
 	UINT ui_Temp;
@@ -161,7 +161,7 @@ int i_APCI3501_ConfigDigitalOutput(struct comedi_device * dev, struct comedi_sub
 |			                                                         |
 +----------------------------------------------------------------------------+
 */
-INT i_APCI3501_WriteDigitalOutput(struct comedi_device * dev, struct comedi_subdevice * s,
+int i_APCI3501_WriteDigitalOutput(struct comedi_device * dev, struct comedi_subdevice * s,
 	struct comedi_insn * insn, unsigned int * data)
 {
 	UINT ui_Temp, ui_Temp1;
@@ -248,7 +248,7 @@ INT i_APCI3501_WriteDigitalOutput(struct comedi_device * dev, struct comedi_subd
 |			                                                         |
 +----------------------------------------------------------------------------+
 */
-INT i_APCI3501_ReadDigitalOutput(struct comedi_device * dev, struct comedi_subdevice * s,
+int i_APCI3501_ReadDigitalOutput(struct comedi_device * dev, struct comedi_subdevice * s,
 	struct comedi_insn * insn, unsigned int * data)
 {
 	UINT ui_Temp;
@@ -298,7 +298,7 @@ INT i_APCI3501_ReadDigitalOutput(struct comedi_device * dev, struct comedi_subde
 |			                                                         |
 +----------------------------------------------------------------------------+
 */
-INT i_APCI3501_ConfigAnalogOutput(struct comedi_device * dev, struct comedi_subdevice * s,
+int i_APCI3501_ConfigAnalogOutput(struct comedi_device * dev, struct comedi_subdevice * s,
 	struct comedi_insn * insn, unsigned int * data)
 {
 	outl(data[0],
@@ -336,7 +336,7 @@ INT i_APCI3501_ConfigAnalogOutput(struct comedi_device * dev, struct comedi_subd
 |			                                                         |
 +----------------------------------------------------------------------------+
 */
-INT i_APCI3501_WriteAnalogOutput(struct comedi_device * dev, struct comedi_subdevice * s,
+int i_APCI3501_WriteAnalogOutput(struct comedi_device * dev, struct comedi_subdevice * s,
 	struct comedi_insn * insn, unsigned int * data)
 {
 	ULONG ul_Command1 = 0, ul_Channel_no, ul_Polarity, ul_DAC_Ready = 0;;
@@ -410,7 +410,7 @@ INT i_APCI3501_WriteAnalogOutput(struct comedi_device * dev, struct comedi_subde
 |			                                                         |
 +----------------------------------------------------------------------------+
 */
-INT i_APCI3501_ConfigTimerCounterWatchdog(struct comedi_device * dev,
+int i_APCI3501_ConfigTimerCounterWatchdog(struct comedi_device * dev,
 	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data)
 {
 	ULONG ul_Command1 = 0;

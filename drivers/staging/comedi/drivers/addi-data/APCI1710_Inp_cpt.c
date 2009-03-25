@@ -123,10 +123,10 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_InsnConfigInitPulseEncoder(struct comedi_device * dev,
+int i_APCI1710_InsnConfigInitPulseEncoder(struct comedi_device * dev,
 	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data)
 {
-	INT i_ReturnValue = 0;
+	int i_ReturnValue = 0;
 	DWORD dw_IntRegister;
 
 	unsigned char b_ModulNbr;
@@ -414,10 +414,10 @@ INT i_APCI1710_InsnConfigInitPulseEncoder(struct comedi_device * dev,
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_InsnWriteEnableDisablePulseEncoder(struct comedi_device * dev,
+int i_APCI1710_InsnWriteEnableDisablePulseEncoder(struct comedi_device * dev,
 	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data)
 {
-	INT i_ReturnValue = 0;
+	int i_ReturnValue = 0;
 	unsigned char b_ModulNbr;
 	unsigned char b_PulseEncoderNbr;
 	unsigned char b_CycleSelection;
@@ -708,10 +708,10 @@ INT i_APCI1710_InsnWriteEnableDisablePulseEncoder(struct comedi_device * dev,
 
 						 unsigned char *_ pb_Status)
 						 */
-INT i_APCI1710_InsnBitsReadWritePulseEncoder(struct comedi_device * dev,
+int i_APCI1710_InsnBitsReadWritePulseEncoder(struct comedi_device * dev,
 	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data)
 {
-	INT i_ReturnValue = 0;
+	int i_ReturnValue = 0;
 	DWORD dw_StatusRegister;
 	unsigned char b_ModulNbr;
 	unsigned char b_PulseEncoderNbr;
@@ -834,7 +834,7 @@ INT i_APCI1710_InsnBitsReadWritePulseEncoder(struct comedi_device * dev,
 	return (i_ReturnValue);
 }
 
-INT i_APCI1710_InsnReadInterruptPulseEncoder(struct comedi_device * dev,
+int i_APCI1710_InsnReadInterruptPulseEncoder(struct comedi_device * dev,
 	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data)
 {
 

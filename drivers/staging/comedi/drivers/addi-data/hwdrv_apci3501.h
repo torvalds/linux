@@ -55,29 +55,29 @@ struct comedi_lrange range_apci3501_ao = { 2, {
 // Hardware Layer  functions for Apci3501
 
 //AO
-INT i_APCI3501_ConfigAnalogOutput(struct comedi_device *dev, struct comedi_subdevice *s,
+int i_APCI3501_ConfigAnalogOutput(struct comedi_device *dev, struct comedi_subdevice *s,
 				  struct comedi_insn *insn, unsigned int *data);
-INT i_APCI3501_WriteAnalogOutput(struct comedi_device *dev, struct comedi_subdevice *s,
+int i_APCI3501_WriteAnalogOutput(struct comedi_device *dev, struct comedi_subdevice *s,
 				 struct comedi_insn *insn, unsigned int *data);
 
 //DI
 // for di read
 //INT i_APCI3501_ReadDigitalInput(struct comedi_device *dev,struct comedi_subdevice *s,struct comedi_insn *insn,unsigned int *data);
 
-INT i_APCI3501_ReadDigitalInput(struct comedi_device *dev, struct comedi_subdevice *s,
+int i_APCI3501_ReadDigitalInput(struct comedi_device *dev, struct comedi_subdevice *s,
 				struct comedi_insn *insn, unsigned int *data);
 
 //DO
 int i_APCI3501_ConfigDigitalOutput(struct comedi_device *dev, struct comedi_subdevice *s,
 				   struct comedi_insn *insn, unsigned int *data);
-INT i_APCI3501_WriteDigitalOutput(struct comedi_device *dev, struct comedi_subdevice *s,
+int i_APCI3501_WriteDigitalOutput(struct comedi_device *dev, struct comedi_subdevice *s,
 				  struct comedi_insn *insn, unsigned int *data);
-INT i_APCI3501_ReadDigitalOutput(struct comedi_device *dev, struct comedi_subdevice *s,
+int i_APCI3501_ReadDigitalOutput(struct comedi_device *dev, struct comedi_subdevice *s,
 				 struct comedi_insn *insn, unsigned int *data);
 
 // TIMER
 // timer value is passed as u seconds
-INT i_APCI3501_ConfigTimerCounterWatchdog(struct comedi_device *dev,
+int i_APCI3501_ConfigTimerCounterWatchdog(struct comedi_device *dev,
 					  struct comedi_subdevice *s,
 					  struct comedi_insn *insn, unsigned int *data);
 int i_APCI3501_StartStopWriteTimerCounterWatchdog(struct comedi_device *dev,

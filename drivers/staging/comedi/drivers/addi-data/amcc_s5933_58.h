@@ -85,7 +85,7 @@
 #define AMCC_OP_REG_MRTC         0x30
 #define AMCC_OP_REG_MBEF         0x34
 #define AMCC_OP_REG_INTCSR       0x38
-#define  AMCC_OP_REG_INTCSR_SRC  (AMCC_OP_REG_INTCSR + 2)	/* INT source */
+#define  AMCC_OP_REG_INTCSR_SRC  (AMCC_OP_REG_INTCSR + 2)	/* int source */
 #define  AMCC_OP_REG_INTCSR_FEC  (AMCC_OP_REG_INTCSR + 3)	/* FIFO ctrl */
 #define AMCC_OP_REG_MCSR         0x3c
 #define  AMCC_OP_REG_MCSR_NVDATA (AMCC_OP_REG_MCSR + 2)	/* Data in byte 2 */

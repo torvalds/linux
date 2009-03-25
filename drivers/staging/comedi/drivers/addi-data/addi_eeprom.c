@@ -118,26 +118,26 @@ typedef struct {
 		/*            Read Header Functions              */
 		/*****************************************/
 
-INT i_EepromReadMainHeader(unsigned short w_PCIBoardEepromAddress,
+int i_EepromReadMainHeader(unsigned short w_PCIBoardEepromAddress,
 	char *pc_PCIChipInformation, struct comedi_device *dev);
 
-INT i_EepromReadDigitalInputHeader(unsigned short w_PCIBoardEepromAddress,
+int i_EepromReadDigitalInputHeader(unsigned short w_PCIBoardEepromAddress,
 	char *pc_PCIChipInformation, unsigned short w_Address,
 	str_DigitalInputHeader * s_Header);
 
-INT i_EepromReadDigitalOutputHeader(unsigned short w_PCIBoardEepromAddress,
+int i_EepromReadDigitalOutputHeader(unsigned short w_PCIBoardEepromAddress,
 	char *pc_PCIChipInformation, unsigned short w_Address,
 	str_DigitalOutputHeader * s_Header);
 
-INT i_EepromReadTimerHeader(unsigned short w_PCIBoardEepromAddress,
+int i_EepromReadTimerHeader(unsigned short w_PCIBoardEepromAddress,
 	char *pc_PCIChipInformation, unsigned short w_Address,
 	str_TimerMainHeader * s_Header);
 
-INT i_EepromReadAnlogOutputHeader(unsigned short w_PCIBoardEepromAddress,
+int i_EepromReadAnlogOutputHeader(unsigned short w_PCIBoardEepromAddress,
 	char *pc_PCIChipInformation, unsigned short w_Address,
 	str_AnalogOutputHeader * s_Header);
 
-INT i_EepromReadAnlogInputHeader(unsigned short w_PCIBoardEepromAddress,
+int i_EepromReadAnlogInputHeader(unsigned short w_PCIBoardEepromAddress,
 	char *pc_PCIChipInformation, unsigned short w_Address,
 	str_AnalogInputHeader * s_Header);
 
@@ -784,7 +784,7 @@ void v_EepromCs76Read(DWORD dw_Address, unsigned short w_offset, unsigned short 
 
 /*
 +----------------------------------------------------------------------------+
-| Function Name  : INT i_EepromReadMainHeader(unsigned short w_PCIBoardEepromAddress,  |
+| Function Name  : int i_EepromReadMainHeader(unsigned short w_PCIBoardEepromAddress,  |
 |				char *	pc_PCIChipInformation,struct comedi_device *dev)    |
 +----------------------------------------------------------------------------+
 | Task              : Read from eeprom Main Header                           |
@@ -802,7 +802,7 @@ void v_EepromCs76Read(DWORD dw_Address, unsigned short w_offset, unsigned short 
 +----------------------------------------------------------------------------+
 */
 
-INT i_EepromReadMainHeader(unsigned short w_PCIBoardEepromAddress,
+int i_EepromReadMainHeader(unsigned short w_PCIBoardEepromAddress,
 	char *pc_PCIChipInformation, struct comedi_device *dev)
 {
 	unsigned short w_Temp, i, w_Count = 0;
@@ -918,7 +918,7 @@ INT i_EepromReadMainHeader(unsigned short w_PCIBoardEepromAddress,
 
 /*
 +----------------------------------------------------------------------------+
-| Function Name  : INT i_EepromReadDigitalInputHeader(unsigned short 					 |
+| Function Name  : int i_EepromReadDigitalInputHeader(unsigned short 					 |
 |			w_PCIBoardEepromAddress,char *pc_PCIChipInformation,	 |
 |			unsigned short w_Address,str_DigitalInputHeader *s_Header)		 |
 |																	 |
@@ -937,7 +937,7 @@ INT i_EepromReadMainHeader(unsigned short w_PCIBoardEepromAddress,
 | Return Value      : 0							                             |
 +----------------------------------------------------------------------------+
 */
-INT i_EepromReadDigitalInputHeader(unsigned short w_PCIBoardEepromAddress,
+int i_EepromReadDigitalInputHeader(unsigned short w_PCIBoardEepromAddress,
 	char *pc_PCIChipInformation, unsigned short w_Address,
 	str_DigitalInputHeader * s_Header)
 {
@@ -963,7 +963,7 @@ INT i_EepromReadDigitalInputHeader(unsigned short w_PCIBoardEepromAddress,
 
 /*
 +----------------------------------------------------------------------------+
-| Function Name  : INT i_EepromReadDigitalOutputHeader(unsigned short 				 |
+| Function Name  : int i_EepromReadDigitalOutputHeader(unsigned short 				 |
 |			w_PCIBoardEepromAddress,char *pc_PCIChipInformation,	 |
 |			unsigned short w_Address,str_DigitalOutputHeader *s_Header)	     |
 |																	 |
@@ -982,7 +982,7 @@ INT i_EepromReadDigitalInputHeader(unsigned short w_PCIBoardEepromAddress,
 | Return Value      : 0							                             |
 +----------------------------------------------------------------------------+
 */
-INT i_EepromReadDigitalOutputHeader(unsigned short w_PCIBoardEepromAddress,
+int i_EepromReadDigitalOutputHeader(unsigned short w_PCIBoardEepromAddress,
 	char *pc_PCIChipInformation, unsigned short w_Address,
 	str_DigitalOutputHeader * s_Header)
 {
@@ -995,7 +995,7 @@ INT i_EepromReadDigitalOutputHeader(unsigned short w_PCIBoardEepromAddress,
 
 /*
 +----------------------------------------------------------------------------+
-| Function Name  : INT i_EepromReadTimerHeader(unsigned short w_PCIBoardEepromAddress, |
+| Function Name  : int i_EepromReadTimerHeader(unsigned short w_PCIBoardEepromAddress, |
 |			char *pc_PCIChipInformation,WORD w_Address,				 |
 |			str_TimerMainHeader *s_Header)							 |
 +----------------------------------------------------------------------------+
@@ -1013,7 +1013,7 @@ INT i_EepromReadDigitalOutputHeader(unsigned short w_PCIBoardEepromAddress,
 | Return Value      : 0							                             |
 +----------------------------------------------------------------------------+
 */
-INT i_EepromReadTimerHeader(unsigned short w_PCIBoardEepromAddress,
+int i_EepromReadTimerHeader(unsigned short w_PCIBoardEepromAddress,
 	char *pc_PCIChipInformation, unsigned short w_Address,
 	str_TimerMainHeader * s_Header)
 {
@@ -1060,7 +1060,7 @@ INT i_EepromReadTimerHeader(unsigned short w_PCIBoardEepromAddress,
 
 /*
 +----------------------------------------------------------------------------+
-| Function Name  : INT i_EepromReadAnlogOutputHeader(unsigned short 					 |
+| Function Name  : int i_EepromReadAnlogOutputHeader(unsigned short 					 |
 |			w_PCIBoardEepromAddress,char *pc_PCIChipInformation,	 |
 |			unsigned short w_Address,str_AnalogOutputHeader *s_Header)         |
 +----------------------------------------------------------------------------+
@@ -1079,7 +1079,7 @@ INT i_EepromReadTimerHeader(unsigned short w_PCIBoardEepromAddress,
 +----------------------------------------------------------------------------+
 */
 
-INT i_EepromReadAnlogOutputHeader(unsigned short w_PCIBoardEepromAddress,
+int i_EepromReadAnlogOutputHeader(unsigned short w_PCIBoardEepromAddress,
 	char *pc_PCIChipInformation, unsigned short w_Address,
 	str_AnalogOutputHeader * s_Header)
 {
@@ -1097,7 +1097,7 @@ INT i_EepromReadAnlogOutputHeader(unsigned short w_PCIBoardEepromAddress,
 
 /*
 +----------------------------------------------------------------------------+
-| Function Name  : INT i_EepromReadAnlogInputHeader(unsigned short 					 |
+| Function Name  : int i_EepromReadAnlogInputHeader(unsigned short 					 |
 |			w_PCIBoardEepromAddress,char *pc_PCIChipInformation,     |
 |			unsigned short w_Address,str_AnalogInputHeader *s_Header)          |
 +----------------------------------------------------------------------------+
@@ -1117,7 +1117,7 @@ INT i_EepromReadAnlogOutputHeader(unsigned short w_PCIBoardEepromAddress,
 */
 
 // Reads only for ONE  hardware component
-INT i_EepromReadAnlogInputHeader(unsigned short w_PCIBoardEepromAddress,
+int i_EepromReadAnlogInputHeader(unsigned short w_PCIBoardEepromAddress,
 	char *pc_PCIChipInformation, unsigned short w_Address,
 	str_AnalogInputHeader * s_Header)
 {

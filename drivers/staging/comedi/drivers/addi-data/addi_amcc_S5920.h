@@ -22,6 +22,6 @@
 #define NVCMD_BEGIN_READ	(0x7 << 5)	/* nvRam begin read command */
 #define NVCMD_BEGIN_WRITE	(0x6 << 5)	/* EEPROM begin write command */
 
-INT i_AddiHeaderRW_ReadEeprom(INT i_NbOfWordsToRead,
+int i_AddiHeaderRW_ReadEeprom(int i_NbOfWordsToRead,
 			      DWORD dw_PCIBoardEepromAddress,
 			      unsigned short w_EepromStartAddress, unsigned short * pw_DataRead);

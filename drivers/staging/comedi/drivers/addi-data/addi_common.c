@@ -2624,18 +2624,18 @@ static int i_ADDI_Attach(struct comedi_device * dev, struct comedi_devconfig * i
 
 		dev->board_name = this_board->pc_DriverName;
 		devpriv->amcc = card;
-		devpriv->iobase = (INT) dev->iobase;
-		devpriv->i_IobaseAmcc = (INT) iobase_a;	//AMCC base address...
-		devpriv->i_IobaseAddon = (INT) iobase_addon;	//ADD ON base address....
-		devpriv->i_IobaseReserved = (INT) iobase_reserved;
+		devpriv->iobase = (int) dev->iobase;
+		devpriv->i_IobaseAmcc = (int) iobase_a;	//AMCC base address...
+		devpriv->i_IobaseAddon = (int) iobase_addon;	//ADD ON base address....
+		devpriv->i_IobaseReserved = (int) iobase_reserved;
 		devpriv->ps_BoardInfo = this_board;
 	} else {
 		dev->board_name = this_board->pc_DriverName;
 		dev->iobase = (unsigned long)io_addr[2];
 		devpriv->amcc = card;
-		devpriv->iobase = (INT) io_addr[2];
+		devpriv->iobase = (int) io_addr[2];
 		devpriv->ps_BoardInfo = this_board;
-		devpriv->i_IobaseReserved = (INT) io_addr[3];
+		devpriv->i_IobaseReserved = (int) io_addr[3];
 		printk("\nioremap begin");
 		devpriv->dw_AiBase =
 			(ULONG_PTR) ioremap(io_addr[3],

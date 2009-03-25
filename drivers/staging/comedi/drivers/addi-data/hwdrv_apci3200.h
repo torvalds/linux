@@ -21,16 +21,16 @@
 
 int MODULE_NO;
 struct {
-	INT i_Gain;
-	INT i_Polarity;
-	INT i_OffsetRange;
-	INT i_Coupling;
-	INT i_SingleDiff;
-	INT i_AutoCalibration;
+	int i_Gain;
+	int i_Polarity;
+	int i_OffsetRange;
+	int i_Coupling;
+	int i_SingleDiff;
+	int i_AutoCalibration;
 	UINT ui_ReloadValue;
 	UINT ui_TimeUnitReloadVal;
-	INT i_Interrupt;
-	INT i_ModuleSelection;
+	int i_Interrupt;
+	int i_ModuleSelection;
 } Config_Parameters_Module1, Config_Parameters_Module2,
     Config_Parameters_Module3, Config_Parameters_Module4;
 
@@ -115,26 +115,26 @@ typedef struct {
 
 //BEGIN JK 06.07.04: Management of sevrals boards
 typedef struct {
-	INT i_CJCAvailable;
-	INT i_CJCPolarity;
-	INT i_CJCGain;
-	INT i_InterruptFlag;
-	INT i_ADDIDATAPolarity;
-	INT i_ADDIDATAGain;
-	INT i_AutoCalibration;
-	INT i_ADDIDATAConversionTime;
-	INT i_ADDIDATAConversionTimeUnit;
-	INT i_ADDIDATAType;
-	INT i_ChannelNo;
-	INT i_ChannelCount;
-	INT i_ScanType;
-	INT i_FirstChannel;
-	INT i_LastChannel;
-	INT i_Sum;
-	INT i_Offset;
+	int i_CJCAvailable;
+	int i_CJCPolarity;
+	int i_CJCGain;
+	int i_InterruptFlag;
+	int i_ADDIDATAPolarity;
+	int i_ADDIDATAGain;
+	int i_AutoCalibration;
+	int i_ADDIDATAConversionTime;
+	int i_ADDIDATAConversionTimeUnit;
+	int i_ADDIDATAType;
+	int i_ChannelNo;
+	int i_ChannelCount;
+	int i_ScanType;
+	int i_FirstChannel;
+	int i_LastChannel;
+	int i_Sum;
+	int i_Offset;
 	UINT ui_Channel_num;
-	INT i_Count;
-	INT i_Initialised;
+	int i_Count;
+	int i_Initialised;
 	//UINT ui_InterruptChannelValue[96]; //Buffer
 	UINT ui_InterruptChannelValue[144];	//Buffer
 	unsigned char b_StructInitialized;
@@ -143,8 +143,8 @@ typedef struct {
 	//End JK 19.10.2004: APCI-3200 Driver update 0.7.57 -> 0.7.68
 
 	//Begin JK 21.10.2004: APCI-3200 / APCI-3300 Reading of EEPROM values
-	INT i_ConnectionType;
-	INT i_NbrOfModule;
+	int i_ConnectionType;
+	int i_NbrOfModule;
 	str_Module s_Module[MAX_MODULE];
 	//End JK 21.10.2004: APCI-3200 / APCI-3300 Reading of EEPROM values
 } str_BoardInfos;
@@ -154,28 +154,28 @@ typedef struct {
 
 //AI
 
-INT i_APCI3200_ConfigAnalogInput(struct comedi_device *dev, struct comedi_subdevice *s,
+int i_APCI3200_ConfigAnalogInput(struct comedi_device *dev, struct comedi_subdevice *s,
 				 struct comedi_insn *insn, unsigned int *data);
-INT i_APCI3200_ReadAnalogInput(struct comedi_device *dev, struct comedi_subdevice *s,
+int i_APCI3200_ReadAnalogInput(struct comedi_device *dev, struct comedi_subdevice *s,
 			       struct comedi_insn *insn, unsigned int *data);
-INT i_APCI3200_InsnWriteReleaseAnalogInput(struct comedi_device *dev,
+int i_APCI3200_InsnWriteReleaseAnalogInput(struct comedi_device *dev,
 					   struct comedi_subdevice *s,
 					   struct comedi_insn *insn, unsigned int *data);
-INT i_APCI3200_InsnBits_AnalogInput_Test(struct comedi_device *dev,
+int i_APCI3200_InsnBits_AnalogInput_Test(struct comedi_device *dev,
 					 struct comedi_subdevice *s,
 					 struct comedi_insn *insn, unsigned int *data);
-INT i_APCI3200_StopCyclicAcquisition(struct comedi_device *dev, struct comedi_subdevice *s);
-INT i_APCI3200_InterruptHandleEos(struct comedi_device *dev);
-INT i_APCI3200_CommandTestAnalogInput(struct comedi_device *dev, struct comedi_subdevice *s,
+int i_APCI3200_StopCyclicAcquisition(struct comedi_device *dev, struct comedi_subdevice *s);
+int i_APCI3200_InterruptHandleEos(struct comedi_device *dev);
+int i_APCI3200_CommandTestAnalogInput(struct comedi_device *dev, struct comedi_subdevice *s,
 				      struct comedi_cmd *cmd);
-INT i_APCI3200_CommandAnalogInput(struct comedi_device *dev, struct comedi_subdevice *s);
-INT i_APCI3200_ReadDigitalInput(struct comedi_device *dev, struct comedi_subdevice *s,
+int i_APCI3200_CommandAnalogInput(struct comedi_device *dev, struct comedi_subdevice *s);
+int i_APCI3200_ReadDigitalInput(struct comedi_device *dev, struct comedi_subdevice *s,
 				struct comedi_insn *insn, unsigned int *data);
 //Interrupt
 void v_APCI3200_Interrupt(int irq, void *d);
 int i_APCI3200_InterruptHandleEos(struct comedi_device *dev);
 //Reset functions
-INT i_APCI3200_Reset(struct comedi_device *dev);
+int i_APCI3200_Reset(struct comedi_device *dev);
 
 int i_APCI3200_ReadCJCCalOffset(struct comedi_device *dev, unsigned int *data);
 int i_APCI3200_ReadCJCValue(struct comedi_device *dev, unsigned int *data);

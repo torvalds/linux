@@ -57,7 +57,7 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 
 /*
 +----------------------------------------------------------------------------+
-| Function Name     : INT   i_APCI16XX_InsnConfigInitTTLIO                   |
+| Function Name     : int   i_APCI16XX_InsnConfigInitTTLIO                   |
 |                          (struct comedi_device    *dev,                           |
 |                           struct comedi_subdevice *s,                             |
 |                           struct comedi_insn      *insn,                          |
@@ -93,7 +93,7 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 int i_APCI16XX_InsnConfigInitTTLIO(struct comedi_device * dev,
 	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data)
 {
-	INT i_ReturnValue = insn->n;
+	int i_ReturnValue = insn->n;
 	unsigned char b_Command = 0;
 	unsigned char b_Cpt = 0;
 	unsigned char b_NumberOfPort =
@@ -182,8 +182,8 @@ int i_APCI16XX_InsnConfigInitTTLIO(struct comedi_device * dev,
 		 /************************/
 
 				printk("\nPort %d direction selection error",
-					(INT) b_Cpt);
-				i_ReturnValue = -(INT) b_Cpt;
+					(int) b_Cpt);
+				i_ReturnValue = -(int) b_Cpt;
 			}
 
 	      /**************************/
@@ -250,7 +250,7 @@ int i_APCI16XX_InsnConfigInitTTLIO(struct comedi_device * dev,
 
 /*
 +----------------------------------------------------------------------------+
-| Function Name     : INT     i_APCI16XX_InsnBitsReadTTLIO                   |
+| Function Name     : int     i_APCI16XX_InsnBitsReadTTLIO                   |
 |                          (struct comedi_device    *dev,                           |
 |                           struct comedi_subdevice *s,                             |
 |                           struct comedi_insn      *insn,                          |
@@ -286,7 +286,7 @@ int i_APCI16XX_InsnConfigInitTTLIO(struct comedi_device * dev,
 int i_APCI16XX_InsnBitsReadTTLIO(struct comedi_device * dev,
 	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data)
 {
-	INT i_ReturnValue = insn->n;
+	int i_ReturnValue = insn->n;
 	unsigned char b_Command = 0;
 	unsigned char b_NumberOfPort =
 		(unsigned char) (devpriv->ps_BoardInfo->i_NbrTTLChannel / 8);
@@ -410,7 +410,7 @@ int i_APCI16XX_InsnBitsReadTTLIO(struct comedi_device * dev,
 
 /*
 +----------------------------------------------------------------------------+
-| Function Name     : INT i_APCI16XX_InsnReadTTLIOAllPortValue               |
+| Function Name     : int i_APCI16XX_InsnReadTTLIOAllPortValue               |
 |                          (struct comedi_device    *dev,                           |
 |                           struct comedi_subdevice *s,                             |
 |                           struct comedi_insn      *insn,                          |
@@ -434,7 +434,7 @@ int i_APCI16XX_InsnReadTTLIOAllPortValue(struct comedi_device * dev,
 	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data)
 {
 	unsigned char b_Command = (unsigned char) CR_AREF(insn->chanspec);
-	INT i_ReturnValue = insn->n;
+	int i_ReturnValue = insn->n;
 	unsigned char b_Cpt = 0;
 	unsigned char b_NumberOfPort = 0;
 	unsigned int *pls_ReadData = data;
@@ -535,7 +535,7 @@ int i_APCI16XX_InsnReadTTLIOAllPortValue(struct comedi_device * dev,
 
 /*
 +----------------------------------------------------------------------------+
-| Function Name     : INT     i_APCI16XX_InsnBitsWriteTTLIO                  |
+| Function Name     : int     i_APCI16XX_InsnBitsWriteTTLIO                  |
 |                          (struct comedi_device    *dev,                           |
 |                           struct comedi_subdevice *s,                             |
 |                           struct comedi_insn      *insn,                          |
@@ -573,7 +573,7 @@ int i_APCI16XX_InsnReadTTLIOAllPortValue(struct comedi_device * dev,
 int i_APCI16XX_InsnBitsWriteTTLIO(struct comedi_device * dev,
 	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data)
 {
-	INT i_ReturnValue = insn->n;
+	int i_ReturnValue = insn->n;
 	unsigned char b_Command = 0;
 	unsigned char b_NumberOfPort =
 		(unsigned char) (devpriv->ps_BoardInfo->i_NbrTTLChannel / 8);

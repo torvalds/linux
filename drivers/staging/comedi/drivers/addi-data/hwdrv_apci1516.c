@@ -73,7 +73,7 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 |			                                                         |
 +----------------------------------------------------------------------------+
 */
-INT i_APCI1516_Read1DigitalInput(struct comedi_device * dev, struct comedi_subdevice * s,
+int i_APCI1516_Read1DigitalInput(struct comedi_device * dev, struct comedi_subdevice * s,
 	struct comedi_insn * insn, unsigned int * data)
 {
 	UINT ui_TmpValue = 0;
@@ -114,7 +114,7 @@ INT i_APCI1516_Read1DigitalInput(struct comedi_device * dev, struct comedi_subde
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1516_ReadMoreDigitalInput(struct comedi_device * dev, struct comedi_subdevice * s,
+int i_APCI1516_ReadMoreDigitalInput(struct comedi_device * dev, struct comedi_subdevice * s,
 	struct comedi_insn * insn, unsigned int * data)
 {
 
@@ -199,7 +199,7 @@ int i_APCI1516_ConfigDigitalOutput(struct comedi_device * dev, struct comedi_sub
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1516_WriteDigitalOutput(struct comedi_device * dev, struct comedi_subdevice * s,
+int i_APCI1516_WriteDigitalOutput(struct comedi_device * dev, struct comedi_subdevice * s,
 	struct comedi_insn * insn, unsigned int * data)
 {
 	UINT ui_Temp, ui_Temp1;
@@ -359,7 +359,7 @@ INT i_APCI1516_WriteDigitalOutput(struct comedi_device * dev, struct comedi_subd
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1516_ReadDigitalOutput(struct comedi_device * dev, struct comedi_subdevice * s,
+int i_APCI1516_ReadDigitalOutput(struct comedi_device * dev, struct comedi_subdevice * s,
 	struct comedi_insn * insn, unsigned int * data)
 {
 
@@ -532,7 +532,7 @@ int i_APCI1516_ReadWatchdog(struct comedi_device * dev, struct comedi_subdevice 
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1516_Reset(struct comedi_device * dev)
+int i_APCI1516_Reset(struct comedi_device * dev)
 {
 	outw(0x0, devpriv->iobase + APCI1516_DIGITAL_OP);	//RESETS THE DIGITAL OUTPUTS
 	outw(0x0, devpriv->i_IobaseAddon + APCI1516_WATCHDOG_ENABLEDISABLE);
