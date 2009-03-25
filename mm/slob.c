@@ -514,6 +514,8 @@ void kfree(const void *block)
 {
 	struct slob_page *sp;
 
+	trace_kfree(_RET_IP_, block);
+
 	if (unlikely(ZERO_OR_NULL_PTR(block)))
 		return;
 
@@ -524,8 +526,6 @@ void kfree(const void *block)
 		slob_free(m, *m + align);
 	} else
 		put_page(&sp->page);
-
-	trace_kfree(_RET_IP_, block);
 }
 EXPORT_SYMBOL(kfree);
 
