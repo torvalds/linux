@@ -372,7 +372,21 @@ File: slicoss/oasisdbgdownload.sys.ihex
 File: slicoss/oasisdownload.sys.ihex
 File: slicoss/oasisrcvucode.sys.ihex
 
-Licence: Unknown
+Licence:
+		Copyright (C) 1999-2009 Alacritech, Inc.
+
+	as an unpublished work. This notice does not imply unrestricted or
+	public access to the source code from which this firmware image is
+	derived.  Except as noted below this firmware image may not be
+	reproduced, used, sold or transferred to any third party without
+	Alacritech's prior written consent.  All Rights Reserved.
+
+	Permission is hereby granted for the distribution of this firmware
+	image as part of a Linux or other Open Source operating system kernel
+	in text or binary form as required.
+
+	This firmware may not be modified and may only be used with
+	Alacritech hardware.
 
 Found in hex form in kernel source.
 
@@ -383,10 +397,23 @@ Driver: SXG - Alacritech IS-NIC products
 File: sxg/saharadownloadB.sys.ihex
 File: sxg/saharadbgdownloadB.sys.ihex
 
-Licence: Unknown
+Licence:
+		Copyright (C) 1999-2009 Alacritech, Inc.
+
+	as an unpublished work. This notice does not imply unrestricted or
+	public access to the source code from which this firmware image is
+	derived.  Except as noted below this firmware image may not be
+	reproduced, used, sold or transferred to any third party without
+	Alacritech's prior written consent.  All Rights Reserved.
+
+	Permission is hereby granted for the distribution of this firmware
+	image as part of a Linux or other Open Source operating system kernel
+	in text or binary form as required.
+
+	This firmware may not be modified and may only be used with
+	Alacritech hardware.
 
 Found in hex form in kernel source.
-Copyright 1997-2009 Alacritech, Inc. All rights reserved.
 
 --------------------------------------------------------------------------
 
