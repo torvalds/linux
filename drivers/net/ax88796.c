@@ -93,6 +93,7 @@ struct ax_device {
 
 	unsigned char		 running;
 	unsigned char		 resume_open;
+	unsigned int		 irqflags;
 
 	u32			 reg_offsets[0x20];
 };
@@ -474,7 +475,8 @@ static int ax_open(struct net_device *dev)
 
 	dev_dbg(&ax->dev->dev, "%s: open\n", dev->name);
 
-	ret = request_irq(dev->irq, ax_ei_interrupt, 0, dev->name, dev);
+	ret = request_irq(dev->irq, ax_ei_interrupt, ax->irqflags,
+			  dev->name, dev);
 	if (ret)
 		return ret;
 
@@ -829,7 +831,7 @@ static int ax_probe(struct platform_device *pdev)
 	struct ax_device  *ax;
 	struct resource   *res;
 	size_t size;
-	int ret;
+	int ret = 0;
 
 	dev = ax__alloc_ei_netdev(sizeof(struct ax_device));
 	if (dev == NULL)
@@ -850,12 +852,14 @@ static int ax_probe(struct platform_device *pdev)
 
 	/* find the platform resources */
 
-	ret  = platform_get_irq(pdev, 0);
-	if (ret < 0) {
+	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
+	if (res == NULL) {
 		dev_err(&pdev->dev, "no IRQ specified\n");
 		goto exit_mem;
 	}
-	dev->irq = ret;
+
+	dev->irq = res->start;
+	ax->irqflags = res->flags & IRQF_TRIGGER_MASK;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (res == NULL) {
