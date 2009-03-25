@@ -669,6 +669,12 @@ static int nlattr_to_dccp(struct nlattr *cda[], struct nf_conn *ct)
 	write_unlock_bh(&dccp_lock);
 	return 0;
 }
+
+static int dccp_nlattr_size(void)
+{
+	return nla_total_size(0)	/* CTA_PROTOINFO_DCCP */
+		+ nla_policy_len(dccp_nla_policy, CTA_PROTOINFO_DCCP_MAX + 1);
+}
 #endif
 
 #ifdef CONFIG_SYSCTL
@@ -749,8 +755,10 @@ static struct nf_conntrack_l4proto dccp_proto4 __read_mostly = {
 	.print_conntrack	= dccp_print_conntrack,
 #if defined(CONFIG_NF_CT_NETLINK) || defined(CONFIG_NF_CT_NETLINK_MODULE)
 	.to_nlattr		= dccp_to_nlattr,
+	.nlattr_size		= dccp_nlattr_size,
 	.from_nlattr		= nlattr_to_dccp,
 	.tuple_to_nlattr	= nf_ct_port_tuple_to_nlattr,
+	.nlattr_tuple_size	= nf_ct_port_nlattr_tuple_size,
 	.nlattr_to_tuple	= nf_ct_port_nlattr_to_tuple,
 	.nla_policy		= nf_ct_port_nla_policy,
 #endif
@@ -771,6 +779,7 @@ static struct nf_conntrack_l4proto dccp_proto6 __read_mostly = {
 	.to_nlattr		= dccp_to_nlattr,
 	.from_nlattr		= nlattr_to_dccp,
 	.tuple_to_nlattr	= nf_ct_port_tuple_to_nlattr,
+	.nlattr_tuple_size	= nf_ct_port_nlattr_tuple_size,
 	.nlattr_to_tuple	= nf_ct_port_nlattr_to_tuple,
 	.nla_policy		= nf_ct_port_nla_policy,
 #endif
