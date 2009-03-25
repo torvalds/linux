@@ -671,6 +671,10 @@ void solos_bh(unsigned long card_arg)
 				memcpy_fromio(header, RX_BUF(card, port), sizeof(*header));
 
 				size = le16_to_cpu(header->size);
+				if (size > (card->buffer_size - sizeof(*header))){
+					dev_warn(&card->dev->dev, "Invalid buffer size\n");
+					continue;
+				}
 
 				skb = alloc_skb(size + 1, GFP_ATOMIC);
 				if (!skb) {
