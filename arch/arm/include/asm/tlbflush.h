@@ -39,6 +39,7 @@
 #define TLB_V6_D_ASID	(1 << 17)
 #define TLB_V6_I_ASID	(1 << 18)
 
+#define TLB_BTB		(1 << 28)
 #define TLB_L2CLEAN_FR	(1 << 29)		/* Feroceon */
 #define TLB_DCLEAN	(1 << 30)
 #define TLB_WB		(1 << 31)
@@ -140,7 +141,7 @@
 # define v4wb_always_flags	(-1UL)
 #endif
 
-#define v6wbi_tlb_flags (TLB_WB | TLB_DCLEAN | \
+#define v6wbi_tlb_flags (TLB_WB | TLB_DCLEAN | TLB_BTB | \
 			 TLB_V6_I_FULL | TLB_V6_D_FULL | \
 			 TLB_V6_I_PAGE | TLB_V6_D_PAGE | \
 			 TLB_V6_I_ASID | TLB_V6_D_ASID)
@@ -297,9 +298,7 @@ static inline void local_flush_tlb_all(void)
 	if (tlb_flag(TLB_V4_I_FULL | TLB_V6_I_FULL))
 		asm("mcr p15, 0, %0, c8, c5, 0" : : "r" (zero) : "cc");
 
-	if (tlb_flag(TLB_V6_I_FULL | TLB_V6_D_FULL |
-		     TLB_V6_I_PAGE | TLB_V6_D_PAGE |
-		     TLB_V6_I_ASID | TLB_V6_D_ASID)) {
+	if (tlb_flag(TLB_BTB)) {
 		/* flush the branch target cache */
 		asm("mcr p15, 0, %0, c7, c5, 6" : : "r" (zero) : "cc");
 		dsb();
@@ -334,9 +333,7 @@ static inline void local_flush_tlb_mm(struct mm_struct *mm)
 	if (tlb_flag(TLB_V6_I_ASID))
 		asm("mcr p15, 0, %0, c8, c5, 2" : : "r" (asid) : "cc");
 
-	if (tlb_flag(TLB_V6_I_FULL | TLB_V6_D_FULL |
-		     TLB_V6_I_PAGE | TLB_V6_D_PAGE |
-		     TLB_V6_I_ASID | TLB_V6_D_ASID)) {
+	if (tlb_flag(TLB_BTB)) {
 		/* flush the branch target cache */
 		asm("mcr p15, 0, %0, c7, c5, 6" : : "r" (zero) : "cc");
 		dsb();
@@ -374,9 +371,7 @@ local_flush_tlb_page(struct vm_area_struct *vma, unsigned long uaddr)
 	if (tlb_flag(TLB_V6_I_PAGE))
 		asm("mcr p15, 0, %0, c8, c5, 1" : : "r" (uaddr) : "cc");
 
-	if (tlb_flag(TLB_V6_I_FULL | TLB_V6_D_FULL |
-		     TLB_V6_I_PAGE | TLB_V6_D_PAGE |
-		     TLB_V6_I_ASID | TLB_V6_D_ASID)) {
+	if (tlb_flag(TLB_BTB)) {
 		/* flush the branch target cache */
 		asm("mcr p15, 0, %0, c7, c5, 6" : : "r" (zero) : "cc");
 		dsb();
@@ -411,9 +406,7 @@ static inline void local_flush_tlb_kernel_page(unsigned long kaddr)
 	if (tlb_flag(TLB_V6_I_PAGE))
 		asm("mcr p15, 0, %0, c8, c5, 1" : : "r" (kaddr) : "cc");
 
-	if (tlb_flag(TLB_V6_I_FULL | TLB_V6_D_FULL |
-		     TLB_V6_I_PAGE | TLB_V6_D_PAGE |
-		     TLB_V6_I_ASID | TLB_V6_D_ASID)) {
+	if (tlb_flag(TLB_BTB)) {
 		/* flush the branch target cache */
 		asm("mcr p15, 0, %0, c7, c5, 6" : : "r" (zero) : "cc");
 		dsb();
