@@ -37,7 +37,6 @@
 #define SUCCESS	1
 
 /* variable type definition */
-typedef unsigned long ULONG_PTR;
 
 typedef const struct comedi_lrange *PCRANGE;
 
@@ -356,7 +355,7 @@ typedef struct {
 	int i_IobaseAmcc;	// base+size for AMCC chip
 	int i_IobaseAddon;	//addon base address
 	int i_IobaseReserved;
-	ULONG_PTR dw_AiBase;
+	unsigned long dw_AiBase;
 	struct pcilst_struct *amcc;	// ptr too AMCC data
 	unsigned char allocated;		// we have blocked card
 	unsigned char b_ValidDriver;	// driver is ok
