@@ -9,6 +9,7 @@
  */
 
 #include <linux/fs.h>
+#include <linux/mm.h>
 #include <linux/cpu.h>
 #include <linux/smp.h>
 #include <linux/file.h>
@@ -16,15 +17,14 @@
 #include <linux/sysfs.h>
 #include <linux/ptrace.h>
 #include <linux/percpu.h>
+#include <linux/vmstat.h>
+#include <linux/hardirq.h>
+#include <linux/rculist.h>
 #include <linux/uaccess.h>
 #include <linux/syscalls.h>
 #include <linux/anon_inodes.h>
 #include <linux/kernel_stat.h>
 #include <linux/perf_counter.h>
-#include <linux/mm.h>
-#include <linux/vmstat.h>
-#include <linux/rculist.h>
-#include <linux/hardirq.h>
 
 #include <asm/irq_regs.h>
 
@@ -1411,16 +1411,20 @@ static const struct file_operations perf_fops = {
  * Output
  */
 
-static int perf_output_write(struct perf_counter *counter, int nmi,
-			     void *buf, ssize_t size)
+struct perf_output_handle {
+	struct perf_counter	*counter;
+	struct perf_mmap_data	*data;
+	unsigned int		offset;
+	int			wakeup;
+};
+
+static int perf_output_begin(struct perf_output_handle *handle,
+			     struct perf_counter *counter, unsigned int size)
 {
 	struct perf_mmap_data *data;
-	unsigned int offset, head, nr;
-	unsigned int len;
-	int ret, wakeup;
+	unsigned int offset, head;
 
 	rcu_read_lock();
-	ret = -ENOSPC;
 	data = rcu_dereference(counter->data);
 	if (!data)
 		goto out;
@@ -1428,45 +1432,82 @@ static int perf_output_write(struct perf_counter *counter, int nmi,
 	if (!data->nr_pages)
 		goto out;
 
-	ret = -EINVAL;
-	if (size > PAGE_SIZE)
-		goto out;
-
 	do {
 		offset = head = atomic_read(&data->head);
 		head += size;
 	} while (atomic_cmpxchg(&data->head, offset, head) != offset);
 
-	wakeup = (offset >> PAGE_SHIFT) != (head >> PAGE_SHIFT);
+	handle->counter	= counter;
+	handle->data	= data;
+	handle->offset	= offset;
+	handle->wakeup	= (offset >> PAGE_SHIFT) != (head >> PAGE_SHIFT);
 
-	nr = (offset >> PAGE_SHIFT) & (data->nr_pages - 1);
-	offset &= PAGE_SIZE - 1;
+	return 0;
 
-	len = min_t(unsigned int, PAGE_SIZE - offset, size);
-	memcpy(data->data_pages[nr] + offset, buf, len);
-	size -= len;
-
-	if (size) {
-		nr = (nr + 1) & (data->nr_pages - 1);
-		memcpy(data->data_pages[nr], buf + len, size);
-	}
-
-	/*
-	 * generate a poll() wakeup for every page boundary crossed
-	 */
-	if (wakeup) {
-		atomic_xchg(&data->wakeup, POLL_IN);
-		__perf_counter_update_userpage(counter, data);
-		if (nmi) {
-			counter->wakeup_pending = 1;
-			set_perf_counter_pending();
-		} else
-			wake_up(&counter->waitq);
-	}
-	ret = 0;
 out:
 	rcu_read_unlock();
 
+	return -ENOSPC;
+}
+
+static void perf_output_copy(struct perf_output_handle *handle,
+			     void *buf, unsigned int len)
+{
+	unsigned int pages_mask;
+	unsigned int offset;
+	unsigned int size;
+	void **pages;
+
+	offset		= handle->offset;
+	pages_mask	= handle->data->nr_pages - 1;
+	pages		= handle->data->data_pages;
+
+	do {
+		unsigned int page_offset;
+		int nr;
+
+		nr	    = (offset >> PAGE_SHIFT) & pages_mask;
+		page_offset = offset & (PAGE_SIZE - 1);
+		size	    = min_t(unsigned int, PAGE_SIZE - page_offset, len);
+
+		memcpy(pages[nr] + page_offset, buf, size);
+
+		len	    -= size;
+		buf	    += size;
+		offset	    += size;
+	} while (len);
+
+	handle->offset = offset;
+}
+
+static void perf_output_end(struct perf_output_handle *handle, int nmi)
+{
+	if (handle->wakeup) {
+		(void)atomic_xchg(&handle->data->wakeup, POLL_IN);
+		__perf_counter_update_userpage(handle->counter, handle->data);
+		if (nmi) {
+			handle->counter->wakeup_pending = 1;
+			set_perf_counter_pending();
+		} else
+			wake_up(&handle->counter->waitq);
+	}
+	rcu_read_unlock();
+}
+
+static int perf_output_write(struct perf_counter *counter, int nmi,
+			     void *buf, ssize_t size)
+{
+	struct perf_output_handle handle;
+	int ret;
+
+	ret = perf_output_begin(&handle, counter, size);
+	if (ret)
+		goto out;
+
+	perf_output_copy(&handle, buf, size);
+	perf_output_end(&handle, nmi);
+
+out:
 	return ret;
 }
 
