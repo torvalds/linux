@@ -3487,8 +3487,8 @@ group_next:
 
 /**
  * fix_small_imbalance - Calculate the minor imbalance that exists
- * 			amongst the groups of a sched_domain, during
- * 			load balancing.
+ *			amongst the groups of a sched_domain, during
+ *			load balancing.
  * @sds: Statistics of the sched_domain whose imbalance is to be calculated.
  * @this_cpu: The cpu at whose sched_domain we're performing load-balance.
  * @imbalance: Variable to store the imbalance.
@@ -3549,6 +3549,47 @@ static inline void fix_small_imbalance(struct sd_lb_stats *sds,
 	if (pwr_move > pwr_now)
 		*imbalance = sds->busiest_load_per_task;
 }
+
+/**
+ * calculate_imbalance - Calculate the amount of imbalance present within the
+ *			 groups of a given sched_domain during load balance.
+ * @sds: statistics of the sched_domain whose imbalance is to be calculated.
+ * @this_cpu: Cpu for which currently load balance is being performed.
+ * @imbalance: The variable to store the imbalance.
+ */
+static inline void calculate_imbalance(struct sd_lb_stats *sds, int this_cpu,
+		unsigned long *imbalance)
+{
+	unsigned long max_pull;
+	/*
+	 * In the presence of smp nice balancing, certain scenarios can have
+	 * max load less than avg load(as we skip the groups at or below
+	 * its cpu_power, while calculating max_load..)
+	 */
+	if (sds->max_load < sds->avg_load) {
+		*imbalance = 0;
+		return fix_small_imbalance(sds, this_cpu, imbalance);
+	}
+
+	/* Don't want to pull so many tasks that a group would go idle */
+	max_pull = min(sds->max_load - sds->avg_load,
+			sds->max_load - sds->busiest_load_per_task);
+
+	/* How much load to actually move to equalise the imbalance */
+	*imbalance = min(max_pull * sds->busiest->__cpu_power,
+		(sds->avg_load - sds->this_load) * sds->this->__cpu_power)
+			/ SCHED_LOAD_SCALE;
+
+	/*
+	 * if *imbalance is less than the average load per runnable task
+	 * there is no gaurantee that any tasks will be moved so we'll have
+	 * a think about bumping its value to force at least one task to be
+	 * moved
+	 */
+	if (*imbalance < sds->busiest_load_per_task)
+		return fix_small_imbalance(sds, this_cpu, imbalance);
+
+}
 /******* find_busiest_group() helpers end here *********************/
 
 /*
@@ -3562,7 +3603,6 @@ find_busiest_group(struct sched_domain *sd, int this_cpu,
 		   int *sd_idle, const struct cpumask *cpus, int *balance)
 {
 	struct sd_lb_stats sds;
-	unsigned long max_pull;
 
 	memset(&sds, 0, sizeof(sds));
 
@@ -3605,36 +3645,8 @@ find_busiest_group(struct sched_domain *sd, int this_cpu,
 	if (sds.max_load <= sds.busiest_load_per_task)
 		goto out_balanced;
 
-	/*
-	 * In the presence of smp nice balancing, certain scenarios can have
-	 * max load less than avg load(as we skip the groups at or below
-	 * its cpu_power, while calculating max_load..)
-	 */
-	if (sds.max_load < sds.avg_load) {
-		*imbalance = 0;
-		fix_small_imbalance(&sds, this_cpu, imbalance);
-		goto ret_busiest;
-	}
-
-	/* Don't want to pull so many tasks that a group would go idle */
-	max_pull = min(sds.max_load - sds.avg_load,
-			sds.max_load - sds.busiest_load_per_task);
-
-	/* How much load to actually move to equalise the imbalance */
-	*imbalance = min(max_pull * sds.busiest->__cpu_power,
-			(sds.avg_load - sds.this_load) * sds.this->__cpu_power)
-			/ SCHED_LOAD_SCALE;
-
-	/*
-	 * if *imbalance is less than the average load per runnable task
-	 * there is no gaurantee that any tasks will be moved so we'll have
-	 * a think about bumping its value to force at least one task to be
-	 * moved
-	 */
-	if (*imbalance < sds.busiest_load_per_task)
-		fix_small_imbalance(&sds, this_cpu, imbalance);
-
-ret_busiest:
+	/* Looks like there is an imbalance. Compute it */
+	calculate_imbalance(&sds, this_cpu, imbalance);
 	return sds.busiest;
 
 out_balanced:
