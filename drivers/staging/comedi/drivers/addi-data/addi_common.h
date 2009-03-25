@@ -201,9 +201,9 @@ struct addi_board {
 					 struct comedi_insn *insn, unsigned int *data);
 };
 
-//MODULE INFO STRUCTURE
+/* MODULE INFO STRUCTURE */
 
-typedef union {
+union str_ModuleInfo {
 	/* Incremental counter infos */
 	struct {
 		union {
@@ -342,7 +342,7 @@ typedef union {
 		unsigned char b_CDAReadFIFOOverflow;
 	} s_CDAModuleInfo;
 
-} str_ModuleInfo;
+};
 
 /* Private structure for the addi_apci3120 driver */
 typedef struct {
@@ -431,7 +431,7 @@ typedef struct {
 		} s_FIFOInterruptParameters[APCI1710_SAVE_INTERRUPT];
 	} s_InterruptParameters;
 
-	str_ModuleInfo s_ModuleInfo[4];
+	union str_ModuleInfo s_ModuleInfo[4];
 	unsigned int ul_TTLPortConfiguration[10];
 
 } addi_private;
