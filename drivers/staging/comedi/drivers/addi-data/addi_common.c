@@ -73,7 +73,7 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 //Update-0.7.57->0.7.68MODULE_LICENSE("GPL");
 
 #define devpriv ((addi_private *)dev->private)
-#define this_board ((boardtype *)dev->board_ptr)
+#define this_board ((struct addi_board *)dev->board_ptr)
 
 #if defined(CONFIG_APCI_1710) || defined(CONFIG_APCI_3200) || defined(CONFIG_APCI_3300)
 //BYTE b_SaveFPUReg [94];
@@ -219,7 +219,7 @@ static DEFINE_PCI_DEVICE_TABLE(addi_apci_tbl) = {
 
 MODULE_DEVICE_TABLE(pci, addi_apci_tbl);
 
-static const boardtype boardtypes[] = {
+static const struct addi_board boardtypes[] = {
 #ifdef CONFIG_APCI_3120
 	{"apci3120",
 			APCI3120_BOARD_VENDOR_ID,
@@ -2525,7 +2525,7 @@ static const boardtype boardtypes[] = {
 #endif
 };
 
-#define n_boardtypes (sizeof(boardtypes)/sizeof(boardtype))
+#define n_boardtypes (sizeof(boardtypes)/sizeof(struct addi_board))
 
 struct comedi_driver driver_addi = {
       driver_name:"addi_common",
@@ -2534,7 +2534,7 @@ struct comedi_driver driver_addi = {
       detach:i_ADDI_Detach,
       num_names:n_boardtypes,
       board_name:&boardtypes[0].pc_DriverName,
-      offset:sizeof(boardtype),
+      offset:sizeof(struct addi_board),
 };
 
 COMEDI_PCI_INITCLEANUP(driver_addi, addi_apci_tbl);
@@ -2662,7 +2662,7 @@ static int i_ADDI_Attach(struct comedi_device * dev, struct comedi_devconfig * i
 		it->options[2]);
 	dev->irq = irq;
 
-	// Read eepeom and fill boardtype Structure
+	// Read eepeom and fill addi_board Structure
 
 	if (this_board->i_PCIEeprom) {
 		printk("\nPCI Eeprom used");

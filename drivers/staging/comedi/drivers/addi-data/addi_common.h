@@ -61,7 +61,7 @@
 /* Structures */
 
 /* structure for the boardtype */
-typedef struct {
+struct addi_board {
 	const char *pc_DriverName;	// driver name
 	int i_VendorId;		//PCI vendor a device ID of card
 	int i_DeviceId;
@@ -199,7 +199,7 @@ typedef struct {
 	int (*i_hwdr_WriteTTLIOChlOnOff)(struct comedi_device *dev,
 					 struct comedi_subdevice *s,
 					 struct comedi_insn *insn, unsigned int *data);
-} boardtype;
+};
 
 //MODULE INFO STRUCTURE
 
@@ -406,7 +406,7 @@ typedef struct {
 
 	/* Pointer to the current process */
 	struct task_struct *tsk_Current;
-	boardtype *ps_BoardInfo;
+	struct addi_board *ps_BoardInfo;
 
 	/* Hardware board infos for 1710 */
 	struct {
