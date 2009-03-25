@@ -938,6 +938,23 @@ int cxio_rdev_open(struct cxio_rdev *rdev_p)
 	if (!rdev_p->t3cdev_p)
 		rdev_p->t3cdev_p = dev2t3cdev(netdev_p);
 	rdev_p->t3cdev_p->ulp = (void *) rdev_p;
+
+	err = rdev_p->t3cdev_p->ctl(rdev_p->t3cdev_p, GET_EMBEDDED_INFO,
+					 &(rdev_p->fw_info));
+	if (err) {
+		printk(KERN_ERR "%s t3cdev_p(%p)->ctl returned error %d.\n",
+		     __func__, rdev_p->t3cdev_p, err);
+		goto err1;
+	}
+	if (G_FW_VERSION_MAJOR(rdev_p->fw_info.fw_vers) != CXIO_FW_MAJ) {
+		printk(KERN_ERR MOD "fatal firmware version mismatch: "
+		       "need version %u but adapter has version %u\n",
+		       CXIO_FW_MAJ,
+		       G_FW_VERSION_MAJOR(rdev_p->fw_info.fw_vers));
+		err = -EINVAL;
+		goto err1;
+	}
+
 	err = rdev_p->t3cdev_p->ctl(rdev_p->t3cdev_p, RDMA_GET_PARAMS,
 					 &(rdev_p->rnic_info));
 	if (err) {
