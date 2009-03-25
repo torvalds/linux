@@ -134,6 +134,7 @@ struct p54_led_dev {
 
 struct p54_common {
 	struct ieee80211_hw *hw;
+	struct ieee80211_vif *vif;
 	void (*tx)(struct ieee80211_hw *dev, struct sk_buff *skb);
 	int (*open)(struct ieee80211_hw *dev);
 	void (*stop)(struct ieee80211_hw *dev);

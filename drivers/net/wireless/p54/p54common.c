@@ -1044,6 +1044,7 @@ static void p54_rx_stats(struct ieee80211_hw *dev, struct sk_buff *skb)
 
 static void p54_rx_trap(struct ieee80211_hw *dev, struct sk_buff *skb)
 {
+	struct p54_common *priv = dev->priv;
 	struct p54_hdr *hdr = (struct p54_hdr *) skb->data;
 	struct p54_trap *trap = (struct p54_trap *) hdr->data;
 	u16 event = le16_to_cpu(trap->event);
@@ -1057,6 +1058,8 @@ static void p54_rx_trap(struct ieee80211_hw *dev, struct sk_buff *skb)
 			wiphy_name(dev->wiphy), freq);
 		break;
 	case P54_TRAP_NO_BEACON:
+		if (priv->vif)
+			ieee80211_beacon_loss(priv->vif);
 		break;
 	case P54_TRAP_SCAN:
 		break;
@@ -1939,7 +1942,8 @@ static int p54_set_ps(struct ieee80211_hw *dev)
 	int i;
 
 	if (dev->conf.flags & IEEE80211_CONF_PS)
-		mode = P54_PSM | P54_PSM_DTIM | P54_PSM_MCBC;
+		mode = P54_PSM | P54_PSM_BEACON_TIMEOUT | P54_PSM_DTIM |
+		       P54_PSM_CHECKSUM | P54_PSM_MCBC;
 	else
 		mode = P54_PSM_CAM;
 
@@ -1957,9 +1961,10 @@ static int p54_set_ps(struct ieee80211_hw *dev)
 		psm->intervals[i].periods = cpu_to_le16(1);
 	}
 
-	psm->beacon_rssi_skip_max = 60;
+	psm->beacon_rssi_skip_max = 200;
 	psm->rssi_delta_threshold = 0;
-	psm->nr = 0;
+	psm->nr = 10;
+	psm->exclude[0] = 0;
 
 	priv->tx(dev, skb);
 
@@ -2114,6 +2119,8 @@ static int p54_add_interface(struct ieee80211_hw *dev,
 		return -EOPNOTSUPP;
 	}
 
+	priv->vif = conf->vif;
+
 	switch (conf->type) {
 	case NL80211_IFTYPE_STATION:
 	case NL80211_IFTYPE_ADHOC:
@@ -2138,6 +2145,7 @@ static void p54_remove_interface(struct ieee80211_hw *dev,
 	struct p54_common *priv = dev->priv;
 
 	mutex_lock(&priv->conf_mutex);
+	priv->vif = NULL;
 	if (priv->cached_beacon)
 		p54_tx_cancel(dev, priv->cached_beacon);
 	priv->mode = NL80211_IFTYPE_MONITOR;
@@ -2590,7 +2598,8 @@ struct ieee80211_hw *p54_init_common(size_t priv_data_len)
 	skb_queue_head_init(&priv->tx_queue);
 	dev->flags = IEEE80211_HW_RX_INCLUDES_FCS |
 		     IEEE80211_HW_SIGNAL_DBM |
-		     IEEE80211_HW_NOISE_DBM;
+		     IEEE80211_HW_NOISE_DBM |
+		     IEEE80211_HW_BEACON_FILTER;
 
 	dev->wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION) |
 				      BIT(NL80211_IFTYPE_ADHOC) |
