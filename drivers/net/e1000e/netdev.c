@@ -1261,7 +1261,8 @@ static irqreturn_t e1000_msix_other(int irq, void *data)
 	u32 icr = er32(ICR);
 
 	if (!(icr & E1000_ICR_INT_ASSERTED)) {
-		ew32(IMS, E1000_IMS_OTHER);
+		if (!test_bit(__E1000_DOWN, &adapter->state))
+			ew32(IMS, E1000_IMS_OTHER);
 		return IRQ_NONE;
 	}
 
@@ -1278,7 +1279,8 @@ static irqreturn_t e1000_msix_other(int irq, void *data)
 	}
 
 no_link_interrupt:
-	ew32(IMS, E1000_IMS_LSC | E1000_IMS_OTHER);
+	if (!test_bit(__E1000_DOWN, &adapter->state))
+		ew32(IMS, E1000_IMS_LSC | E1000_IMS_OTHER);
 
 	return IRQ_HANDLED;
 }
@@ -2015,10 +2017,12 @@ clean_rx:
 		if (adapter->itr_setting & 3)
 			e1000_set_itr(adapter);
 		napi_complete(napi);
-		if (adapter->msix_entries)
-			ew32(IMS, adapter->rx_ring->ims_val);
-		else
-			e1000_irq_enable(adapter);
+		if (!test_bit(__E1000_DOWN, &adapter->state)) {
+			if (adapter->msix_entries)
+				ew32(IMS, adapter->rx_ring->ims_val);
+			else
+				e1000_irq_enable(adapter);
+		}
 	}
 
 	return work_done;
