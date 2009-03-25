@@ -358,9 +358,14 @@ void ftrace_release(void *start, unsigned long size)
 
 	mutex_lock(&ftrace_lock);
 	do_for_each_ftrace_rec(pg, rec) {
-		if ((rec->ip >= s) && (rec->ip < e) &&
-		    !(rec->flags & FTRACE_FL_FREE))
+		if ((rec->ip >= s) && (rec->ip < e)) {
+			/*
+			 * rec->ip is changed in ftrace_free_rec()
+			 * It should not between s and e if record was freed.
+			 */
+			FTRACE_WARN_ON(rec->flags & FTRACE_FL_FREE);
 			ftrace_free_rec(rec);
+		}
 	} while_for_each_ftrace_rec();
 	mutex_unlock(&ftrace_lock);
 }
