@@ -37,7 +37,6 @@
 #define SUCCESS	1
 
 /* variable type definition */
-typedef unsigned short WORD, *PWORD;
 typedef int INT, *PINT;;
 typedef unsigned int UINT, *PUINT;
 typedef int LONG, *PLONG;		/* 32-bit */

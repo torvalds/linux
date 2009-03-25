@@ -952,7 +952,7 @@ int i_APCI3120_CyclicAnalogInput(int mode, struct comedi_device * dev,
 			outb(devpriv->b_TimerSelectMode,
 				dev->iobase + APCI3120_TIMER_CRT1);
 
-			//Writing LOW WORD
+			//Writing LOW unsigned short
 			b_Tmp = ((devpriv->
 					b_DigitalOutputRegister) & 0xF0) |
 				APCI3120_SELECT_TIMER_2_LOW_WORD;
@@ -960,7 +960,7 @@ int i_APCI3120_CyclicAnalogInput(int mode, struct comedi_device * dev,
 			outw(LOWORD(ui_TimerValue2),
 				dev->iobase + APCI3120_TIMER_VALUE);
 
-			//Writing HIGH WORD
+			//Writing HIGH unsigned short
 			b_Tmp = ((devpriv->
 					b_DigitalOutputRegister) & 0xF0) |
 				APCI3120_SELECT_TIMER_2_HIGH_WORD;
@@ -2027,12 +2027,12 @@ int i_APCI3120_InsnConfigTimer(struct comedi_device * dev, struct comedi_subdevi
 		outb(devpriv->b_TimerSelectMode,
 			devpriv->iobase + APCI3120_TIMER_CRT1);
 
-		//Configure the timer 2 for writing the LOW WORD of timer is Delay value
+		//Configure the timer 2 for writing the LOW unsigned short of timer is Delay value
 		//You must make a b_tmp variable with DigitalOutPutRegister because at Address_1+APCI3120_TIMER_CRT0
 		//you can set the digital output and configure the timer 2,and if you don't make this, digital output
 		//are erase (Set to 0)
 
-		//Writing LOW WORD
+		//Writing LOW unsigned short
 		b_Tmp = ((devpriv->
 				b_DigitalOutputRegister) & 0xF0) |
 			APCI3120_SELECT_TIMER_2_LOW_WORD;
@@ -2040,7 +2040,7 @@ int i_APCI3120_InsnConfigTimer(struct comedi_device * dev, struct comedi_subdevi
 		outw(LOWORD(ui_Timervalue2),
 			devpriv->iobase + APCI3120_TIMER_VALUE);
 
-		//Writing HIGH WORD
+		//Writing HIGH unsigned short
 		b_Tmp = ((devpriv->
 				b_DigitalOutputRegister) & 0xF0) |
 			APCI3120_SELECT_TIMER_2_HIGH_WORD;
@@ -2061,12 +2061,12 @@ int i_APCI3120_InsnConfigTimer(struct comedi_device * dev, struct comedi_subdevi
 		outb(devpriv->b_TimerSelectMode,
 			devpriv->iobase + APCI3120_TIMER_CRT1);
 
-		//Configure the timer 2 for writing the LOW WORD of timer is Delay value
+		//Configure the timer 2 for writing the LOW unsigned short of timer is Delay value
 		//You must make a b_tmp variable with DigitalOutPutRegister because at Address_1+APCI3120_TIMER_CRT0
 		//you can set the digital output and configure the timer 2,and if you don't make this, digital output
 		//are erase (Set to 0)
 
-		//Writing LOW WORD
+		//Writing LOW unsigned short
 		b_Tmp = ((devpriv->
 				b_DigitalOutputRegister) & 0xF0) |
 			APCI3120_SELECT_TIMER_2_LOW_WORD;
@@ -2074,7 +2074,7 @@ int i_APCI3120_InsnConfigTimer(struct comedi_device * dev, struct comedi_subdevi
 		outw(LOWORD(ui_Timervalue2),
 			devpriv->iobase + APCI3120_TIMER_VALUE);
 
-		//Writing HIGH WORD
+		//Writing HIGH unsigned short
 		b_Tmp = ((devpriv->
 				b_DigitalOutputRegister) & 0xF0) |
 			APCI3120_SELECT_TIMER_2_HIGH_WORD;
@@ -2256,7 +2256,7 @@ int i_APCI3120_InsnWriteTimer(struct comedi_device * dev, struct comedi_subdevic
 			//Calculate the time value to set in the timer
 			ui_Timervalue2 = ui_Timervalue2 / 70;
 		}
-		//Writing LOW WORD
+		//Writing LOW unsigned short
 		b_Tmp = ((devpriv->
 				b_DigitalOutputRegister) & 0xF0) |
 			APCI3120_SELECT_TIMER_2_LOW_WORD;
@@ -2265,7 +2265,7 @@ int i_APCI3120_InsnWriteTimer(struct comedi_device * dev, struct comedi_subdevic
 		outw(LOWORD(ui_Timervalue2),
 			devpriv->iobase + APCI3120_TIMER_VALUE);
 
-		//Writing HIGH WORD
+		//Writing HIGH unsigned short
 		b_Tmp = ((devpriv->
 				b_DigitalOutputRegister) & 0xF0) |
 			APCI3120_SELECT_TIMER_2_HIGH_WORD;
@@ -2319,7 +2319,7 @@ int i_APCI3120_InsnReadTimer(struct comedi_device * dev, struct comedi_subdevice
 	//this_board->i_hwdrv_InsnReadTimer(dev,data);
 	if (devpriv->b_Timer2Mode == APCI3120_TIMER) {
 
-		//Read the LOW WORD of Timer 2 register
+		//Read the LOW unsigned short of Timer 2 register
 		b_Tmp = ((devpriv->
 				b_DigitalOutputRegister) & 0xF0) |
 			APCI3120_SELECT_TIMER_2_LOW_WORD;
@@ -2327,7 +2327,7 @@ int i_APCI3120_InsnReadTimer(struct comedi_device * dev, struct comedi_subdevice
 
 		us_TmpValue = inw(devpriv->iobase + APCI3120_TIMER_VALUE);
 
-		//Read the HIGH WORD of Timer 2 register
+		//Read the HIGH unsigned short of Timer 2 register
 		b_Tmp = ((devpriv->
 				b_DigitalOutputRegister) & 0xF0) |
 			APCI3120_SELECT_TIMER_2_HIGH_WORD;

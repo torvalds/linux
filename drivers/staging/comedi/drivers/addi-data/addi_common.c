@@ -3049,8 +3049,8 @@ static irqreturn_t v_ADDI_Interrupt(int irq, void *d PT_REGS_ARG)
 static int i_ADDIDATA_InsnReadEeprom(struct comedi_device * dev, struct comedi_subdevice * s,
 	struct comedi_insn * insn, unsigned int * data)
 {
-	WORD w_Data;
-	WORD w_Address;
+	unsigned short w_Data;
+	unsigned short w_Address;
 	w_Address = CR_CHAN(insn->chanspec);	// address to be read as 0,1,2,3...255
 
 	w_Data = w_EepromReadWord(devpriv->i_IobaseAmcc,

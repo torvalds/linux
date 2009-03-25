@@ -52,23 +52,23 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 /*| Function   Name   : INT i_AddiHeaderRW_ReadEeprom                          |*/
 /*|                               (INT    i_NbOfWordsToRead,                   |*/
 /*|                                DWORD dw_PCIBoardEepromAddress,             |*/
-/*|                                WORD   w_EepromStartAddress,                |*/
-/*|                                PWORD pw_DataRead)                          |*/
+/*|                                unsigned short   w_EepromStartAddress,                |*/
+/*|                                unsigned short * pw_DataRead)                          |*/
 /*+----------------------------------------------------------------------------+*/
 /*| Task              : Read word from the 5920 eeprom.                        |*/
 /*+----------------------------------------------------------------------------+*/
 /*| Input Parameters  : INT    i_NbOfWordsToRead : Nbr. of word to read        |*/
 /*|                     DWORD dw_PCIBoardEepromAddress : Address of the eeprom |*/
-/*|                     WORD   w_EepromStartAddress : Eeprom strat address     |*/
+/*|                     unsigned short   w_EepromStartAddress : Eeprom strat address     |*/
 /*+----------------------------------------------------------------------------+*/
-/*| Output Parameters : PWORD pw_DataRead : Read data                          |*/
+/*| Output Parameters : unsigned short * pw_DataRead : Read data                          |*/
 /*+----------------------------------------------------------------------------+*/
 /*| Return Value      : -                                                      |*/
 /*+----------------------------------------------------------------------------+*/
 
 INT i_AddiHeaderRW_ReadEeprom(INT i_NbOfWordsToRead,
 	DWORD dw_PCIBoardEepromAddress,
-	WORD w_EepromStartAddress, PWORD pw_DataRead)
+	unsigned short w_EepromStartAddress, unsigned short * pw_DataRead)
 {
 	DWORD dw_eeprom_busy = 0;
 	INT i_Counter = 0;
@@ -79,7 +79,7 @@ INT i_AddiHeaderRW_ReadEeprom(INT i_NbOfWordsToRead,
 	unsigned char b_ReadHighByte = 0;
 	unsigned char b_SelectedAddressLow = 0;
 	unsigned char b_SelectedAddressHigh = 0;
-	WORD w_ReadWord = 0;
+	unsigned short w_ReadWord = 0;
 
 	for (i_WordCounter = 0; i_WordCounter < i_NbOfWordsToRead;
 		i_WordCounter++) {

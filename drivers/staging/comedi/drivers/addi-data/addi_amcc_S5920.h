@@ -24,4 +24,4 @@
 
 INT i_AddiHeaderRW_ReadEeprom(INT i_NbOfWordsToRead,
 			      DWORD dw_PCIBoardEepromAddress,
-			      WORD w_EepromStartAddress, PWORD pw_DataRead);
+			      unsigned short w_EepromStartAddress, unsigned short * pw_DataRead);
