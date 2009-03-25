@@ -76,11 +76,11 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 int i_APCI1516_Read1DigitalInput(struct comedi_device * dev, struct comedi_subdevice * s,
 	struct comedi_insn * insn, unsigned int * data)
 {
-	UINT ui_TmpValue = 0;
-	UINT ui_Channel;
+	unsigned int ui_TmpValue = 0;
+	unsigned int ui_Channel;
 	ui_Channel = CR_CHAN(insn->chanspec);
 	if (ui_Channel >= 0 && ui_Channel <= 7) {
-		ui_TmpValue = (UINT) inw(devpriv->iobase + APCI1516_DIGITAL_IP);
+		ui_TmpValue = (unsigned int) inw(devpriv->iobase + APCI1516_DIGITAL_IP);
 		//  since only 1 channel reqd  to bring it to last bit it is rotated
 		//  8 +(chan - 1) times then ANDed with 1 for last bit.
 		*data = (ui_TmpValue >> ui_Channel) & 0x1;
@@ -118,13 +118,13 @@ int i_APCI1516_ReadMoreDigitalInput(struct comedi_device * dev, struct comedi_su
 	struct comedi_insn * insn, unsigned int * data)
 {
 
-	UINT ui_PortValue = data[0];
-	UINT ui_Mask = 0;
-	UINT ui_NoOfChannels;
+	unsigned int ui_PortValue = data[0];
+	unsigned int ui_Mask = 0;
+	unsigned int ui_NoOfChannels;
 
 	ui_NoOfChannels = CR_CHAN(insn->chanspec);
 
-	*data = (UINT) inw(devpriv->iobase + APCI1516_DIGITAL_IP);
+	*data = (unsigned int) inw(devpriv->iobase + APCI1516_DIGITAL_IP);
 	switch (ui_NoOfChannels) {
 	case 2:
 		ui_Mask = 3;
@@ -202,8 +202,8 @@ int i_APCI1516_ConfigDigitalOutput(struct comedi_device * dev, struct comedi_sub
 int i_APCI1516_WriteDigitalOutput(struct comedi_device * dev, struct comedi_subdevice * s,
 	struct comedi_insn * insn, unsigned int * data)
 {
-	UINT ui_Temp, ui_Temp1;
-	UINT ui_NoOfChannel = CR_CHAN(insn->chanspec);	// get the channel
+	unsigned int ui_Temp, ui_Temp1;
+	unsigned int ui_NoOfChannel = CR_CHAN(insn->chanspec);	// get the channel
 
 	printk("EL311003 : @=%x\n", devpriv->iobase + APCI1516_DIGITAL_OP);
 
@@ -363,8 +363,8 @@ int i_APCI1516_ReadDigitalOutput(struct comedi_device * dev, struct comedi_subde
 	struct comedi_insn * insn, unsigned int * data)
 {
 
-	UINT ui_Temp;
-	UINT ui_NoOfChannel = CR_CHAN(insn->chanspec);	// get the channel
+	unsigned int ui_Temp;
+	unsigned int ui_NoOfChannel = CR_CHAN(insn->chanspec);	// get the channel
 	ui_Temp = data[0];
 	*data = inw(devpriv->iobase + APCI1516_DIGITAL_OP_RW);
 	if (ui_Temp == 0) {

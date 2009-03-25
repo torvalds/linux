@@ -82,10 +82,10 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
   int i_LastChannel;
   int i_Sum=0;
   int i_Offset;
-  UINT ui_Channel_num=0;
+  unsigned int ui_Channel_num=0;
   static int i_Count=0;
   int i_Initialised=0;
-  UINT ui_InterruptChannelValue[96]; //Buffer
+  unsigned int ui_InterruptChannelValue[96]; //Buffer
 */
 str_BoardInfos s_BoardInfos[100];	// 100 will be the max number of boards to be used
 //END JK 06.07.04: Management of sevrals boards
@@ -536,9 +536,9 @@ int i_APCI3200_GetChannelCalibrationValue(struct comedi_device * dev,
   | Task              : Read  value  of the selected channel or port           |
   +----------------------------------------------------------------------------+
   | Input Parameters  : struct comedi_device *dev      : Driver handle                |
-  |                     UINT ui_NoOfChannels    : No Of Channels To read  for Port
+  |                     unsigned int ui_NoOfChannels    : No Of Channels To read  for Port
   Channel Numberfor single channel
-  |                     UINT data[0]            : 0: Read single channel
+  |                     unsigned int data[0]            : 0: Read single channel
   1: Read port value
   data[1]              Port number
   +----------------------------------------------------------------------------+
@@ -553,8 +553,8 @@ int i_APCI3200_GetChannelCalibrationValue(struct comedi_device * dev,
 int i_APCI3200_ReadDigitalInput(struct comedi_device * dev, struct comedi_subdevice * s,
 	struct comedi_insn * insn, unsigned int * data)
 {
-	UINT ui_Temp = 0;
-	UINT ui_NoOfChannel = 0;
+	unsigned int ui_Temp = 0;
+	unsigned int ui_NoOfChannel = 0;
 	ui_NoOfChannel = CR_CHAN(insn->chanspec);
 	ui_Temp = data[0];
 	*data = inl(devpriv->i_IobaseReserved);
@@ -656,8 +656,8 @@ int i_APCI3200_ConfigDigitalOutput(struct comedi_device * dev, struct comedi_sub
 int i_APCI3200_WriteDigitalOutput(struct comedi_device * dev, struct comedi_subdevice * s,
 	struct comedi_insn * insn, unsigned int * data)
 {
-	UINT ui_Temp = 0, ui_Temp1 = 0;
-	UINT ui_NoOfChannel = CR_CHAN(insn->chanspec);	// get the channel
+	unsigned int ui_Temp = 0, ui_Temp1 = 0;
+	unsigned int ui_NoOfChannel = CR_CHAN(insn->chanspec);	// get the channel
 	if (devpriv->b_OutputMemoryStatus) {
 		ui_Temp = inl(devpriv->i_IobaseAddon);
 
@@ -752,8 +752,8 @@ int i_APCI3200_WriteDigitalOutput(struct comedi_device * dev, struct comedi_subd
   | Task              : Read  value  of the selected channel or port           |
   +----------------------------------------------------------------------------+
   | Input Parameters  : struct comedi_device *dev      : Driver handle                |
-  |                     UINT ui_NoOfChannels    : No Of Channels To read       |
-  |                     UINT *data              : Data Pointer to read status  |
+  |                     unsigned int ui_NoOfChannels    : No Of Channels To read       |
+  |                     unsigned int *data              : Data Pointer to read status  |
   data[0]                 :0 read single channel
   1 read port value
   data[1]                  port no
@@ -769,8 +769,8 @@ int i_APCI3200_WriteDigitalOutput(struct comedi_device * dev, struct comedi_subd
 int i_APCI3200_ReadDigitalOutput(struct comedi_device * dev, struct comedi_subdevice * s,
 	struct comedi_insn * insn, unsigned int * data)
 {
-	UINT ui_Temp;
-	UINT ui_NoOfChannel;
+	unsigned int ui_Temp;
+	unsigned int ui_NoOfChannel;
 	ui_NoOfChannel = CR_CHAN(insn->chanspec);
 	ui_Temp = data[0];
 	*data = inl(devpriv->i_IobaseAddon);
@@ -878,9 +878,9 @@ int i_APCI3200_ConfigAnalogInput(struct comedi_device * dev, struct comedi_subde
 	struct comedi_insn * insn, unsigned int * data)
 {
 
-	UINT ul_Config = 0, ul_Temp = 0;
-	UINT ui_ChannelNo = 0;
-	UINT ui_Dummy = 0;
+	unsigned int ul_Config = 0, ul_Temp = 0;
+	unsigned int ui_ChannelNo = 0;
+	unsigned int ui_Dummy = 0;
 	int i_err = 0;
 
 	//Begin JK 21.10.2004: APCI-3200 / APCI-3300 Reading of EEPROM values
@@ -1340,8 +1340,8 @@ int i_APCI3200_ConfigAnalogInput(struct comedi_device * dev, struct comedi_subde
   | Task              : Read  value  of the selected channel			         |
   +----------------------------------------------------------------------------+
   | Input Parameters  : struct comedi_device *dev      : Driver handle                |
-  |                     UINT ui_NoOfChannels    : No Of Channels To read       |
-  |                     UINT *data              : Data Pointer to read status  |
+  |                     unsigned int ui_NoOfChannels    : No Of Channels To read       |
+  |                     unsigned int *data              : Data Pointer to read status  |
   +----------------------------------------------------------------------------+
   | Output Parameters :	--													 |
   |				data[0]  : Digital Value Of Input             |
@@ -1364,7 +1364,7 @@ int i_APCI3200_ConfigAnalogInput(struct comedi_device * dev, struct comedi_subde
 int i_APCI3200_ReadAnalogInput(struct comedi_device * dev, struct comedi_subdevice * s,
 	struct comedi_insn * insn, unsigned int * data)
 {
-	UINT ui_DummyValue = 0;
+	unsigned int ui_DummyValue = 0;
 	int i_ConvertCJCCalibration;
 	int i = 0;
 
@@ -1639,8 +1639,8 @@ int i_APCI3200_ReadAnalogInput(struct comedi_device * dev, struct comedi_subdevi
   | Task              : Read  value  of the selected channel			         |
   +----------------------------------------------------------------------------+
   | Input Parameters  : struct comedi_device *dev      : Driver handle                |
-  |                     UINT ui_NoOfChannel    : Channel No to read            |
-  |                     UINT *data              : Data Pointer to read status  |
+  |                     unsigned int ui_NoOfChannel    : Channel No to read            |
+  |                     unsigned int *data              : Data Pointer to read status  |
   +----------------------------------------------------------------------------+
   | Output Parameters :	--													 |
   |			          data[0]  : Digital Value read                   |
@@ -1654,9 +1654,9 @@ int i_APCI3200_ReadAnalogInput(struct comedi_device * dev, struct comedi_subdevi
 int i_APCI3200_Read1AnalogInputChannel(struct comedi_device * dev,
 	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data)
 {
-	UINT ui_EOC = 0;
-	UINT ui_ChannelNo = 0;
-	UINT ui_CommandRegister = 0;
+	unsigned int ui_EOC = 0;
+	unsigned int ui_ChannelNo = 0;
+	unsigned int ui_CommandRegister = 0;
 
 	//BEGIN JK 06.07.04: Management of sevrals boards
 	//ui_ChannelNo=i_ChannelNo;
@@ -1765,7 +1765,7 @@ int i_APCI3200_Read1AnalogInputChannel(struct comedi_device * dev,
   | Task              : Read calibration offset  value  of the selected channel|
   +----------------------------------------------------------------------------+
   | Input Parameters  : struct comedi_device *dev      : Driver handle                |
-  |                     UINT *data              : Data Pointer to read status  |
+  |                     unsigned int *data              : Data Pointer to read status  |
   +----------------------------------------------------------------------------+
   | Output Parameters :	--													 |
   |			          data[0]  : Calibration offset Value   |
@@ -1776,10 +1776,10 @@ int i_APCI3200_Read1AnalogInputChannel(struct comedi_device * dev,
   |			                                                         |
   +----------------------------------------------------------------------------+
 */
-int i_APCI3200_ReadCalibrationOffsetValue(struct comedi_device * dev, UINT * data)
+int i_APCI3200_ReadCalibrationOffsetValue(struct comedi_device * dev, unsigned int * data)
 {
-	UINT ui_Temp = 0, ui_EOC = 0;
-	UINT ui_CommandRegister = 0;
+	unsigned int ui_Temp = 0, ui_EOC = 0;
+	unsigned int ui_CommandRegister = 0;
 
 	//BEGIN JK 06.07.04: Management of sevrals boards
 	//while (((inl(devpriv->iobase+i_Offset+12)>>19) & 1) != 1);
@@ -1901,7 +1901,7 @@ int i_APCI3200_ReadCalibrationOffsetValue(struct comedi_device * dev, UINT * dat
   | Task              : Read calibration gain  value  of the selected channel  |
   +----------------------------------------------------------------------------+
   | Input Parameters  : struct comedi_device *dev      : Driver handle                |
-  |                     UINT *data              : Data Pointer to read status  |
+  |                     unsigned int *data              : Data Pointer to read status  |
   +----------------------------------------------------------------------------+
   | Output Parameters :	--													 |
   |			          data[0]  : Calibration gain Value Of Input     |
@@ -1912,9 +1912,9 @@ int i_APCI3200_ReadCalibrationOffsetValue(struct comedi_device * dev, UINT * dat
   |			                                                         |
   +----------------------------------------------------------------------------+
 */
-int i_APCI3200_ReadCalibrationGainValue(struct comedi_device * dev, UINT * data)
+int i_APCI3200_ReadCalibrationGainValue(struct comedi_device * dev, unsigned int * data)
 {
-	UINT ui_EOC = 0;
+	unsigned int ui_EOC = 0;
 	int ui_CommandRegister = 0;
 
 	//while (((inl(devpriv->iobase+i_Offset+12)>>19) & 1) != 1);
@@ -2036,7 +2036,7 @@ int i_APCI3200_ReadCalibrationGainValue(struct comedi_device * dev, UINT * data)
   | Task              : Read CJC  value  of the selected channel               |
   +----------------------------------------------------------------------------+
   | Input Parameters  : struct comedi_device *dev      : Driver handle                |
-  |                     UINT *data              : Data Pointer to read status  |
+  |                     unsigned int *data              : Data Pointer to read status  |
   +----------------------------------------------------------------------------+
   | Output Parameters :	--													 |
   |			          data[0]  : CJC Value                           |
@@ -2050,7 +2050,7 @@ int i_APCI3200_ReadCalibrationGainValue(struct comedi_device * dev, UINT * data)
 
 int i_APCI3200_ReadCJCValue(struct comedi_device * dev, unsigned int * data)
 {
-	UINT ui_EOC = 0;
+	unsigned int ui_EOC = 0;
 	int ui_CommandRegister = 0;
 
   /******************************/
@@ -2156,7 +2156,7 @@ int i_APCI3200_ReadCJCValue(struct comedi_device * dev, unsigned int * data)
   | Task              : Read CJC calibration offset  value  of the selected channel
   +----------------------------------------------------------------------------+
   | Input Parameters  : struct comedi_device *dev      : Driver handle                |
-  |                     UINT *data              : Data Pointer to read status  |
+  |                     unsigned int *data              : Data Pointer to read status  |
   +----------------------------------------------------------------------------+
   | Output Parameters :	--													 |
   |			          data[0]  : CJC calibration offset Value
@@ -2169,7 +2169,7 @@ int i_APCI3200_ReadCJCValue(struct comedi_device * dev, unsigned int * data)
 */
 int i_APCI3200_ReadCJCCalOffset(struct comedi_device * dev, unsigned int * data)
 {
-	UINT ui_EOC = 0;
+	unsigned int ui_EOC = 0;
 	int ui_CommandRegister = 0;
   /*******************************************/
 	/*Read calibration offset value for the CJC */
@@ -2271,8 +2271,8 @@ int i_APCI3200_ReadCJCCalOffset(struct comedi_device * dev, unsigned int * data)
   | Task              : Read CJC calibration gain value
   +----------------------------------------------------------------------------+
   | Input Parameters  : struct comedi_device *dev      : Driver handle                |
-  |                     UINT ui_NoOfChannels    : No Of Channels To read       |
-  |                     UINT *data              : Data Pointer to read status  |
+  |                     unsigned int ui_NoOfChannels    : No Of Channels To read       |
+  |                     unsigned int *data              : Data Pointer to read status  |
   +----------------------------------------------------------------------------+
   | Output Parameters :	--													 |
   |			          data[0]  : CJC calibration gain value
@@ -2285,7 +2285,7 @@ int i_APCI3200_ReadCJCCalOffset(struct comedi_device * dev, unsigned int * data)
 */
 int i_APCI3200_ReadCJCCalGain(struct comedi_device * dev, unsigned int * data)
 {
-	UINT ui_EOC = 0;
+	unsigned int ui_EOC = 0;
 	int ui_CommandRegister = 0;
   /*******************************/
 	/* Set the convert timing unit */
@@ -2407,7 +2407,7 @@ int i_APCI3200_ReadCJCCalGain(struct comedi_device * dev, unsigned int * data)
 int i_APCI3200_InsnBits_AnalogInput_Test(struct comedi_device * dev,
 	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data)
 {
-	UINT ui_Configuration = 0;
+	unsigned int ui_Configuration = 0;
 	int i_Temp;		//,i_TimeUnit;
 	//if(i_Initialised==0)
 
@@ -2566,10 +2566,10 @@ int i_APCI3200_CommandTestAnalogInput(struct comedi_device * dev, struct comedi_
 
 	int err = 0;
 	int tmp;		// divisor1,divisor2;
-	UINT ui_ConvertTime = 0;
-	UINT ui_ConvertTimeBase = 0;
-	UINT ui_DelayTime = 0;
-	UINT ui_DelayTimeBase = 0;
+	unsigned int ui_ConvertTime = 0;
+	unsigned int ui_ConvertTimeBase = 0;
+	unsigned int ui_DelayTime = 0;
+	unsigned int ui_DelayTimeBase = 0;
 	int i_Triggermode = 0;
 	int i_TriggerEdge = 0;
 	int i_NbrOfChannel = 0;
@@ -2766,7 +2766,7 @@ int i_APCI3200_CommandTestAnalogInput(struct comedi_device * dev, struct comedi_
 
 int i_APCI3200_StopCyclicAcquisition(struct comedi_device * dev, struct comedi_subdevice * s)
 {
-	UINT ui_Configuration = 0;
+	unsigned int ui_Configuration = 0;
 	//i_InterruptFlag=0;
 	//i_Initialised=0;
 	//i_Count=0;
@@ -2817,17 +2817,17 @@ int i_APCI3200_StopCyclicAcquisition(struct comedi_device * dev, struct comedi_s
 int i_APCI3200_CommandAnalogInput(struct comedi_device * dev, struct comedi_subdevice * s)
 {
 	struct comedi_cmd *cmd = &s->async->cmd;
-	UINT ui_Configuration = 0;
+	unsigned int ui_Configuration = 0;
 	//INT  i_CurrentSource = 0;
-	UINT ui_Trigger = 0;
-	UINT ui_TriggerEdge = 0;
-	UINT ui_Triggermode = 0;
-	UINT ui_ScanMode = 0;
-	UINT ui_ConvertTime = 0;
-	UINT ui_ConvertTimeBase = 0;
-	UINT ui_DelayTime = 0;
-	UINT ui_DelayTimeBase = 0;
-	UINT ui_DelayMode = 0;
+	unsigned int ui_Trigger = 0;
+	unsigned int ui_TriggerEdge = 0;
+	unsigned int ui_Triggermode = 0;
+	unsigned int ui_ScanMode = 0;
+	unsigned int ui_ConvertTime = 0;
+	unsigned int ui_ConvertTimeBase = 0;
+	unsigned int ui_DelayTime = 0;
+	unsigned int ui_DelayTimeBase = 0;
+	unsigned int ui_DelayMode = 0;
 	//i_FirstChannel=cmd->chanlist[0];
 	//i_LastChannel=cmd->chanlist[1];
 	s_BoardInfos[dev->minor].i_FirstChannel = cmd->chanlist[0];
@@ -3060,13 +3060,13 @@ int i_APCI3200_Reset(struct comedi_device * dev)
 void v_APCI3200_Interrupt(int irq, void *d)
 {
 	struct comedi_device *dev = d;
-	UINT ui_StatusRegister = 0;
-	UINT ui_ChannelNumber = 0;
+	unsigned int ui_StatusRegister = 0;
+	unsigned int ui_ChannelNumber = 0;
 	int i_CalibrationFlag = 0;
 	int i_CJCFlag = 0;
-	UINT ui_DummyValue = 0;
-	UINT ui_DigitalTemperature = 0;
-	UINT ui_DigitalInput = 0;
+	unsigned int ui_DummyValue = 0;
+	unsigned int ui_DigitalTemperature = 0;
+	unsigned int ui_DigitalInput = 0;
 	int i_ConvertCJCCalibration;
 
 	//BEGIN JK TEST
@@ -3501,7 +3501,7 @@ void v_APCI3200_Interrupt(int irq, void *d)
 */
 int i_APCI3200_InterruptHandleEos(struct comedi_device * dev)
 {
-	UINT ui_StatusRegister = 0;
+	unsigned int ui_StatusRegister = 0;
 	struct comedi_subdevice *s = dev->subdevices + 0;
 
 	//BEGIN JK 18.10.2004: APCI-3200 Driver update 0.7.57 -> 0.7.68
@@ -3588,13 +3588,13 @@ int i_APCI3200_InterruptHandleEos(struct comedi_device * dev)
 
 			s_BoardInfos[dev->minor].i_Count = -1;
 
-			//async->buf_int_count+=(i_LastChannel-i_FirstChannel+4)*sizeof(UINT);
+			//async->buf_int_count+=(i_LastChannel-i_FirstChannel+4)*sizeof(unsigned int);
 			//Begin JK 18.10.2004: APCI-3200 Driver update 0.7.57 -> 0.7.68
-			//async->buf_int_count+=(s_BoardInfos [dev->minor].i_LastChannel-s_BoardInfos [dev->minor].i_FirstChannel+4)*sizeof(UINT);
+			//async->buf_int_count+=(s_BoardInfos [dev->minor].i_LastChannel-s_BoardInfos [dev->minor].i_FirstChannel+4)*sizeof(unsigned int);
 			//End JK 18.10.2004: APCI-3200 Driver update 0.7.57 -> 0.7.68
-			//async->buf_int_ptr+=(i_LastChannel-i_FirstChannel+4)*sizeof(UINT);
+			//async->buf_int_ptr+=(i_LastChannel-i_FirstChannel+4)*sizeof(unsigned int);
 			//Begin JK 18.10.2004: APCI-3200 Driver update 0.7.57 -> 0.7.68
-			//async->buf_int_ptr+=(s_BoardInfos [dev->minor].i_LastChannel-s_BoardInfos [dev->minor].i_FirstChannel+4)*sizeof(UINT);
+			//async->buf_int_ptr+=(s_BoardInfos [dev->minor].i_LastChannel-s_BoardInfos [dev->minor].i_FirstChannel+4)*sizeof(unsigned int);
 			//comedi_eos(dev,s);
 
 			// Set the event type (Comedi Buffer End Of Scan)

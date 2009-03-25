@@ -171,7 +171,7 @@ int i_APCI1710_InitExternalStrobe(struct comedi_device *dev,
 				  unsigned char b_ExternalStrobeLevel);
 
 int i_APCI1710_InitCompareLogic(struct comedi_device *dev,
-				unsigned char b_ModulNbr, UINT ui_CompareValue);
+				unsigned char b_ModulNbr, unsigned int ui_CompareValue);
 
 int i_APCI1710_InitFrequencyMeasurement(struct comedi_device *dev,
 					unsigned char b_ModulNbr,
@@ -207,7 +207,7 @@ int i_APCI1710_DisableLatchInterrupt(struct comedi_device *dev, unsigned char b_
 
 int i_APCI1710_Write16BitCounterValue(struct comedi_device *dev,
 				      unsigned char b_ModulNbr, unsigned char b_SelectedCounter,
-				      UINT ui_WriteValue);
+				      unsigned int ui_WriteValue);
 
 int i_APCI1710_Write32BitCounterValue(struct comedi_device *dev,
 				      unsigned char b_ModulNbr, ULONG ul_WriteValue);
@@ -238,7 +238,7 @@ int i_APCI1710_ReadLatchRegisterValue(struct comedi_device *dev,
 
 int i_APCI1710_Read16BitCounterValue(struct comedi_device *dev,
 				     unsigned char b_ModulNbr, unsigned char b_SelectedCounter,
-				     PUINT pui_CounterValue);
+				     unsigned int * pui_CounterValue);
 
 int i_APCI1710_Read32BitCounterValue(struct comedi_device *dev,
 				     unsigned char b_ModulNbr, PULONG pul_CounterValue);

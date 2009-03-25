@@ -56,8 +56,8 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 #include "hwdrv_apci1564.h"
 
 //Global variables
-UINT ui_InterruptStatus_1564 = 0;
-UINT ui_InterruptData, ui_Type;
+unsigned int ui_InterruptStatus_1564 = 0;
+unsigned int ui_InterruptData, ui_Type;
 
 /*
 +----------------------------------------------------------------------------+
@@ -137,7 +137,7 @@ int i_APCI1564_ConfigDigitalInput(struct comedi_device * dev, struct comedi_subd
 | Task              : Return the status of the digital input                 |
 +----------------------------------------------------------------------------+
 | Input Parameters  : struct comedi_device *dev      : Driver handle                |
-|		              UINT ui_Channel : Channel number to read       |
+|		              unsigned int ui_Channel : Channel number to read       |
 |                     unsigned int *data          : Data Pointer to read status  |
 +----------------------------------------------------------------------------+
 | Output Parameters :	--													 |
@@ -150,13 +150,13 @@ int i_APCI1564_ConfigDigitalInput(struct comedi_device * dev, struct comedi_subd
 int i_APCI1564_Read1DigitalInput(struct comedi_device * dev, struct comedi_subdevice * s,
 	struct comedi_insn * insn, unsigned int * data)
 {
-	UINT ui_TmpValue = 0;
-	UINT ui_Channel;
+	unsigned int ui_TmpValue = 0;
+	unsigned int ui_Channel;
 
 	ui_Channel = CR_CHAN(insn->chanspec);
 	if (ui_Channel >= 0 && ui_Channel <= 31) {
 		ui_TmpValue =
-			(UINT) inl(devpriv->i_IobaseAmcc + APCI1564_DIGITAL_IP);
+			(unsigned int) inl(devpriv->i_IobaseAmcc + APCI1564_DIGITAL_IP);
 		//  since only 1 channel reqd  to bring it to last bit it is rotated
 		//  8 +(chan - 1) times then ANDed with 1 for last bit.
 		*data = (ui_TmpValue >> ui_Channel) & 0x1;
@@ -177,8 +177,8 @@ int i_APCI1564_Read1DigitalInput(struct comedi_device * dev, struct comedi_subde
 | Task              : Return the status of the Requested digital inputs      |
 +----------------------------------------------------------------------------+
 | Input Parameters  : struct comedi_device *dev      : Driver handle                |
-|                     UINT ui_NoOfChannels    : No Of Channels To be Read    |
-|                      UINT *data             : Data Pointer to read status  |
+|                     unsigned int ui_NoOfChannels    : No Of Channels To be Read    |
+|                      unsigned int *data             : Data Pointer to read status  |
 +----------------------------------------------------------------------------+
 | Output Parameters :	--													 |
 +----------------------------------------------------------------------------+
@@ -190,13 +190,13 @@ int i_APCI1564_Read1DigitalInput(struct comedi_device * dev, struct comedi_subde
 int i_APCI1564_ReadMoreDigitalInput(struct comedi_device * dev, struct comedi_subdevice * s,
 	struct comedi_insn * insn, unsigned int * data)
 {
-	UINT ui_PortValue = data[0];
-	UINT ui_Mask = 0;
-	UINT ui_NoOfChannels;
+	unsigned int ui_PortValue = data[0];
+	unsigned int ui_Mask = 0;
+	unsigned int ui_NoOfChannels;
 
 	ui_NoOfChannels = CR_CHAN(insn->chanspec);
 	if (data[1] == 0) {
-		*data = (UINT) inl(devpriv->i_IobaseAmcc + APCI1564_DIGITAL_IP);
+		*data = (unsigned int) inl(devpriv->i_IobaseAmcc + APCI1564_DIGITAL_IP);
 		switch (ui_NoOfChannels) {
 		case 2:
 			ui_Mask = 3;
@@ -239,7 +239,7 @@ int i_APCI1564_ReadMoreDigitalInput(struct comedi_device * dev, struct comedi_su
 | Task              : Configures The Digital Output Subdevice.               |
 +----------------------------------------------------------------------------+
 | Input Parameters  : struct comedi_device *dev : Driver handle                     |
-|                     UINT *data         : Data Pointer contains             |
+|                     unsigned int *data         : Data Pointer contains             |
 |                                          configuration parameters as below |
 |                                                                            |
 |					  data[1]            : 1 Enable  VCC  Interrupt  |
@@ -302,8 +302,8 @@ int i_APCI1564_ConfigDigitalOutput(struct comedi_device * dev, struct comedi_sub
 | Task              : Writes port value  To the selected port                |
 +----------------------------------------------------------------------------+
 | Input Parameters  : struct comedi_device *dev      : Driver handle                |
-|                     UINT ui_NoOfChannels    : No Of Channels To Write      |
-|                     UINT *data              : Data Pointer to read status  |
+|                     unsigned int ui_NoOfChannels    : No Of Channels To Write      |
+|                     unsigned int *data              : Data Pointer to read status  |
 +----------------------------------------------------------------------------+
 | Output Parameters :	--													 |
 +----------------------------------------------------------------------------+
@@ -315,8 +315,8 @@ int i_APCI1564_ConfigDigitalOutput(struct comedi_device * dev, struct comedi_sub
 int i_APCI1564_WriteDigitalOutput(struct comedi_device * dev, struct comedi_subdevice * s,
 	struct comedi_insn * insn, unsigned int * data)
 {
-	UINT ui_Temp, ui_Temp1;
-	UINT ui_NoOfChannel;
+	unsigned int ui_Temp, ui_Temp1;
+	unsigned int ui_NoOfChannel;
 
 	ui_NoOfChannel = CR_CHAN(insn->chanspec);
 	if (devpriv->b_OutputMemoryStatus) {
@@ -476,8 +476,8 @@ int i_APCI1564_WriteDigitalOutput(struct comedi_device * dev, struct comedi_subd
 | Task              : Read  value  of the selected channel or port           |
 +----------------------------------------------------------------------------+
 | Input Parameters  : struct comedi_device *dev      : Driver handle                |
-|                     UINT ui_NoOfChannels    : No Of Channels To read       |
-|                     UINT *data              : Data Pointer to read status  |
+|                     unsigned int ui_NoOfChannels    : No Of Channels To read       |
+|                     unsigned int *data              : Data Pointer to read status  |
 +----------------------------------------------------------------------------+
 | Output Parameters :	--													 |
 +----------------------------------------------------------------------------+
@@ -489,8 +489,8 @@ int i_APCI1564_WriteDigitalOutput(struct comedi_device * dev, struct comedi_subd
 int i_APCI1564_ReadDigitalOutput(struct comedi_device * dev, struct comedi_subdevice * s,
 	struct comedi_insn * insn, unsigned int * data)
 {
-	UINT ui_Temp;
-	UINT ui_NoOfChannel;
+	unsigned int ui_Temp;
+	unsigned int ui_NoOfChannel;
 
 	ui_NoOfChannel = CR_CHAN(insn->chanspec);
 	ui_Temp = data[0];
@@ -543,7 +543,7 @@ int i_APCI1564_ReadDigitalOutput(struct comedi_device * dev, struct comedi_subde
 | Task              : Configures The Timer , Counter or Watchdog             |
 +----------------------------------------------------------------------------+
 | Input Parameters  : struct comedi_device *dev : Driver handle                     |
-|                     UINT *data         : Data Pointer contains             |
+|                     unsigned int *data         : Data Pointer contains             |
 |                                          configuration parameters as below |
 |                                                                            |
 |					  data[0]            : 0 Configure As Timer      |
@@ -701,7 +701,7 @@ int i_APCI1564_ConfigTimerCounterWatchdog(struct comedi_device * dev,
 | Task              : Start / Stop The Selected Timer , Counter or Watchdog  |
 +----------------------------------------------------------------------------+
 | Input Parameters  : struct comedi_device *dev : Driver handle                     |
-|                     UINT *data         : Data Pointer contains             |
+|                     unsigned int *data         : Data Pointer contains             |
 |                                          configuration parameters as below |
 |                                                                            |
 |					  data[0]            : 0 Timer                   |
@@ -801,7 +801,7 @@ int i_APCI1564_StartStopWriteTimerCounterWatchdog(struct comedi_device * dev,
 | Task              : Read The Selected Timer , Counter or Watchdog          |
 +----------------------------------------------------------------------------+
 | Input Parameters  : struct comedi_device *dev : Driver handle                     |
-|                     UINT *data         : Data Pointer contains             |
+|                     unsigned int *data         : Data Pointer contains             |
 |                                          configuration parameters as below |
 |                                                                            |
 
@@ -919,9 +919,9 @@ int i_APCI1564_ReadInterruptStatus(struct comedi_device * dev, struct comedi_sub
 static void v_APCI1564_Interrupt(int irq, void *d)
 {
 	struct comedi_device *dev = d;
-	UINT ui_DO, ui_DI;
-	UINT ui_Timer;
-	UINT ui_C1, ui_C2, ui_C3, ui_C4;
+	unsigned int ui_DO, ui_DI;
+	unsigned int ui_Timer;
+	unsigned int ui_C1, ui_C2, ui_C3, ui_C4;
 	ULONG ul_Command2 = 0;
 	ui_DI = inl(devpriv->i_IobaseAmcc + APCI1564_DIGITAL_IP +
 		APCI1564_DIGITAL_IP_IRQ) & 0x01;

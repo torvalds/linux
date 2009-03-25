@@ -186,7 +186,7 @@ int i_APCI3XXX_AnalogInputConfigOperatingMode(struct comedi_device * dev,
 								devpriv->
 									ui_EocEosConversionTime
 									=
-									(UINT)
+									(unsigned int)
 									dw_ReloadValue;
 								devpriv->
 									b_EocEosConversionTimeBase
@@ -635,7 +635,7 @@ void v_APCI3XXX_Interrupt(int irq, void *d)
 				b_CopyCpt < devpriv->ui_AiNbrofChannels;
 				b_CopyCpt++) {
 				devpriv->ui_AiReadData[b_CopyCpt] =
-					(UINT) readl((void *)(devpriv->
+					(unsigned int) readl((void *)(devpriv->
 						dw_AiBase + 28));
 			}
 

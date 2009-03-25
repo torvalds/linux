@@ -27,8 +27,8 @@ struct {
 	int i_Coupling;
 	int i_SingleDiff;
 	int i_AutoCalibration;
-	UINT ui_ReloadValue;
-	UINT ui_TimeUnitReloadVal;
+	unsigned int ui_ReloadValue;
+	unsigned int ui_TimeUnitReloadVal;
 	int i_Interrupt;
 	int i_ModuleSelection;
 } Config_Parameters_Module1, Config_Parameters_Module2,
@@ -132,11 +132,11 @@ typedef struct {
 	int i_LastChannel;
 	int i_Sum;
 	int i_Offset;
-	UINT ui_Channel_num;
+	unsigned int ui_Channel_num;
 	int i_Count;
 	int i_Initialised;
 	//UINT ui_InterruptChannelValue[96]; //Buffer
-	UINT ui_InterruptChannelValue[144];	//Buffer
+	unsigned int ui_InterruptChannelValue[144];	//Buffer
 	unsigned char b_StructInitialized;
 	//Begin JK 19.10.2004: APCI-3200 Driver update 0.7.57 -> 0.7.68
 	unsigned int ui_ScanValueArray[7 + 12];	// 7 is the maximal number of channels
@@ -179,8 +179,8 @@ int i_APCI3200_Reset(struct comedi_device *dev);
 
 int i_APCI3200_ReadCJCCalOffset(struct comedi_device *dev, unsigned int *data);
 int i_APCI3200_ReadCJCValue(struct comedi_device *dev, unsigned int *data);
-int i_APCI3200_ReadCalibrationGainValue(struct comedi_device *dev, UINT *data);
-int i_APCI3200_ReadCalibrationOffsetValue(struct comedi_device *dev, UINT *data);
+int i_APCI3200_ReadCalibrationGainValue(struct comedi_device *dev, unsigned int *data);
+int i_APCI3200_ReadCalibrationOffsetValue(struct comedi_device *dev, unsigned int *data);
 int i_APCI3200_Read1AnalogInputChannel(struct comedi_device *dev,
 				       struct comedi_subdevice *s, struct comedi_insn *insn,
 				       unsigned int *data);

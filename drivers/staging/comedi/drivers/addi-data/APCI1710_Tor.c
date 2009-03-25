@@ -857,7 +857,7 @@ int i_APCI1710_InsnConfigInitTorCounter(struct comedi_device * dev,
 		DPRINTK("Module number error\n");
 		i_ReturnValue = -2;
 	}
-	data[0] = (UINT) ul_RealTimingInterval;
+	data[0] = (unsigned int) ul_RealTimingInterval;
 	return (i_ReturnValue);
 }
 
@@ -1646,7 +1646,7 @@ int i_APCI1710_InsnReadGetTorCounterInitialisation(struct comedi_device * dev,
 |                               (unsigned char_     b_BoardHandle,                    |
 |                                unsigned char_     b_ModulNbr,                       |
 |				 unsigned char_     b_TorCounter,                     |
-|                                UINT_    ui_TimeOut,                        |
+|                                unsigned int_    ui_TimeOut,                        |
 |                                unsigned char *_   pb_TorCounterStatus,               |
 |                                PULONG_ pul_TorCounterValue)                |
 +----------------------------------------------------------------------------+
@@ -1666,7 +1666,7 @@ int i_APCI1710_InsnReadGetTorCounterInitialisation(struct comedi_device * dev,
 	b_ModulNbr    = CR_AREF(insn->chanspec);
 	b_ReadType    = (unsigned char) data[0];
 	b_TorCounter  =	(unsigned char) data[1];
-	ui_TimeOut	  = (UINT) data[2]; |
+	ui_TimeOut	  = (unsigned int) data[2]; |
 +----------------------------------------------------------------------------+
 | Output Parameters : unsigned char *_  pb_TorCounterStatus : Return the tor counter   |
 |                                                    status.                 |
@@ -1710,7 +1710,7 @@ int i_APCI1710_InsnBitsGetTorCounterProgressStatusAndValue(struct comedi_device 
 	unsigned char b_ModulNbr;
 	unsigned char b_TorCounter;
 	unsigned char b_ReadType;
-	UINT ui_TimeOut;
+	unsigned int ui_TimeOut;
 	unsigned char * pb_TorCounterStatus;
 	PULONG pul_TorCounterValue;
 
@@ -1718,7 +1718,7 @@ int i_APCI1710_InsnBitsGetTorCounterProgressStatusAndValue(struct comedi_device 
 	b_ModulNbr = CR_AREF(insn->chanspec);
 	b_ReadType = (unsigned char) data[0];
 	b_TorCounter = (unsigned char) data[1];
-	ui_TimeOut = (UINT) data[2];
+	ui_TimeOut = (unsigned int) data[2];
 	pb_TorCounterStatus = (unsigned char *) & data[0];
 	pul_TorCounterValue = (PULONG) & data[1];
 

@@ -45,7 +45,7 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 */
 
 #include "hwdrv_apci3120.h"
-static UINT ui_Temp = 0;
+static unsigned int ui_Temp = 0;
 
 // FUNCTION DEFINITIONS
 
@@ -77,7 +77,7 @@ static UINT ui_Temp = 0;
 int i_APCI3120_InsnConfigAnalogInput(struct comedi_device * dev, struct comedi_subdevice * s,
 	struct comedi_insn * insn, unsigned int * data)
 {
-	UINT i;
+	unsigned int i;
 
 	if ((data[0] != APCI3120_EOC_MODE) && (data[0] != APCI3120_EOS_MODE))
 		return -1;
@@ -373,7 +373,7 @@ int i_APCI3120_InsnReadAnalogInput(struct comedi_device * dev, struct comedi_sub
 					i++) {
 					//Read the result in FIFO and write them in shared memory
 					us_TmpValue = inw(devpriv->iobase);
-					data[i] = (UINT) us_TmpValue;
+					data[i] = (unsigned int) us_TmpValue;
 				}
 
 				devpriv->b_InterruptMode = APCI3120_EOC_MODE;	// Restore defaults.
@@ -711,7 +711,7 @@ int i_APCI3120_CyclicAnalogInput(int mode, struct comedi_device * dev,
 	struct comedi_subdevice * s)
 {
 	unsigned char b_Tmp;
-	UINT ui_Tmp, ui_DelayTiming = 0, ui_TimerValue1 = 0, dmalen0 =
+	unsigned int ui_Tmp, ui_DelayTiming = 0, ui_TimerValue1 = 0, dmalen0 =
 		0, dmalen1 = 0, ui_TimerValue2 =
 		0, ui_TimerValue0, ui_ConvertTiming;
 	unsigned short us_TmpValue;
@@ -800,21 +800,21 @@ int i_APCI3120_CyclicAnalogInput(int mode, struct comedi_device * dev,
 	 if((us_TmpValue & 0x00B0)==0x00B0)
 	 {
            f_ConvertValue=(((float)ui_ConvertTiming * 0.002) - 2);
-		ui_TimerValue0=(UINT)f_ConvertValue;
+		ui_TimerValue0=(unsigned int)f_ConvertValue;
 		if (mode==2)
 		{
 			f_DelayValue     = (((float)ui_DelayTiming * 0.00002) - 2);
-			ui_TimerValue1  =   (UINT) f_DelayValue;
+			ui_TimerValue1  =   (unsigned int) f_DelayValue;
 		}
 	 }
    	 else
 	 {
 		f_ConvertValue=(((float)ui_ConvertTiming * 0.0012926) - 1);
-		ui_TimerValue0=(UINT)f_ConvertValue;
+		ui_TimerValue0=(unsigned int)f_ConvertValue;
 		if (mode == 2)
 		{
 		     f_DelayValue     = (((float)ui_DelayTiming * 0.000012926) - 1);
-		     ui_TimerValue1  =   (UINT) f_DelayValue;
+		     ui_TimerValue1  =   (unsigned int) f_DelayValue;
 		}
 	}
 ***********************************************************************************************/
@@ -1464,7 +1464,7 @@ void v_APCI3120_Interrupt(int irq, void *d)
 			// Read the AI Value
 
 			devpriv->ui_AiReadData[0] =
-				(UINT) inw(devpriv->iobase + 0);
+				(unsigned int) inw(devpriv->iobase + 0);
 			devpriv->b_EocEosInterrupt = APCI3120_DISABLE;
 			send_sig(SIGIO, devpriv->tsk_Current, 0);	// send signal to the sample
 		} else {
@@ -1501,7 +1501,7 @@ void v_APCI3120_Interrupt(int irq, void *d)
 					i++) {
 					us_TmpValue = inw(devpriv->iobase + 0);
 					devpriv->ui_AiReadData[i] =
-						(UINT) us_TmpValue;
+						(unsigned int) us_TmpValue;
 				}
 				devpriv->b_EocEosInterrupt = APCI3120_DISABLE;
 				devpriv->b_InterruptMode = APCI3120_EOC_MODE;
@@ -1704,7 +1704,7 @@ void v_APCI3120_InterruptDma(int irq, void *d)
 	unsigned int next_dma_buf, samplesinbuf;
 	unsigned long low_word, high_word, var;
 
-	UINT ui_Tmp;
+	unsigned int ui_Tmp;
 	samplesinbuf =
 		devpriv->ui_DmaBufferUsesize[devpriv->ui_DmaActualBuffer] -
 		inl(devpriv->i_IobaseAmcc + AMCC_OP_REG_MWTC);
@@ -1972,7 +1972,7 @@ int i_APCI3120_InsnConfigTimer(struct comedi_device * dev, struct comedi_subdevi
 	struct comedi_insn * insn, unsigned int * data)
 {
 
-	UINT ui_Timervalue2;
+	unsigned int ui_Timervalue2;
 	unsigned short us_TmpValue;
 	unsigned char b_Tmp;
 
@@ -2123,7 +2123,7 @@ int i_APCI3120_InsnWriteTimer(struct comedi_device * dev, struct comedi_subdevic
 	struct comedi_insn * insn, unsigned int * data)
 {
 
-	UINT ui_Timervalue2 = 0;
+	unsigned int ui_Timervalue2 = 0;
 	unsigned short us_TmpValue;
 	unsigned char b_Tmp;
 
@@ -2336,7 +2336,7 @@ int i_APCI3120_InsnReadTimer(struct comedi_device * dev, struct comedi_subdevice
 		us_TmpValue_2 = inw(devpriv->iobase + APCI3120_TIMER_VALUE);
 
 		// combining both words
-		data[0] = (UINT) ((us_TmpValue) | ((us_TmpValue_2) << 16));
+		data[0] = (unsigned int) ((us_TmpValue) | ((us_TmpValue_2) << 16));
 
 	} else			// Read watch dog status
 	{
@@ -2384,13 +2384,13 @@ int i_APCI3120_InsnReadDigitalInput(struct comedi_device *dev,
 				    struct comedi_insn *insn,
 				    unsigned int *data)
 {
-	UINT ui_Chan, ui_TmpValue;
+	unsigned int ui_Chan, ui_TmpValue;
 
 	ui_Chan = CR_CHAN(insn->chanspec);	// channel specified
 
 	//this_board->i_hwdrv_InsnReadDigitalInput(dev,ui_Chan,data);
 	if (ui_Chan >= 0 && ui_Chan <= 3) {
-		ui_TmpValue = (UINT) inw(devpriv->iobase + APCI3120_RD_STATUS);
+		ui_TmpValue = (unsigned int) inw(devpriv->iobase + APCI3120_RD_STATUS);
 
 		//      since only 1 channel reqd  to bring it to last bit it is rotated
 		//  8 +(chan - 1) times then ANDed with 1 for last bit.
@@ -2426,8 +2426,8 @@ int i_APCI3120_InsnReadDigitalInput(struct comedi_device *dev,
 int i_APCI3120_InsnBitsDigitalInput(struct comedi_device * dev, struct comedi_subdevice * s,
 	struct comedi_insn * insn, unsigned int * data)
 {
-	UINT ui_TmpValue;
-	ui_TmpValue = (UINT) inw(devpriv->iobase + APCI3120_RD_STATUS);
+	unsigned int ui_TmpValue;
+	ui_TmpValue = (unsigned int) inw(devpriv->iobase + APCI3120_RD_STATUS);
 	/*****	state of 4 channels  in the 11, 10, 9, 8   bits of status reg
 			rotated right 8 times to bring them to last four bits
 			ANDed with oxf for  value.
@@ -2567,9 +2567,9 @@ int i_APCI3120_InsnWriteDigitalOutput(struct comedi_device *dev,
 				      unsigned int *data)
 {
 
-	UINT ui_Temp1;
+	unsigned int ui_Temp1;
 
-	UINT ui_NoOfChannel = CR_CHAN(insn->chanspec);	// get the channel
+	unsigned int ui_NoOfChannel = CR_CHAN(insn->chanspec);	// get the channel
 
 	if ((data[0] != 0) && (data[0] != 1)) {
 		comedi_error(dev,
@@ -2646,7 +2646,7 @@ int i_APCI3120_InsnWriteAnalogOutput(struct comedi_device *dev,
 				     struct comedi_insn *insn,
 				     unsigned int *data)
 {
-	UINT ui_Range, ui_Channel;
+	unsigned int ui_Range, ui_Channel;
 	unsigned short us_TmpValue;
 
 	ui_Range = CR_RANGE(insn->chanspec);

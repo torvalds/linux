@@ -62,8 +62,8 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 | Task              : Read  value  of the selected channel or port           |
 +----------------------------------------------------------------------------+
 | Input Parameters  : struct comedi_device *dev      : Driver handle                |
-|                     UINT ui_NoOfChannels    : No Of Channels To read       |
-|                     UINT *data              : Data Pointer to read status  |
+|                     unsigned int ui_NoOfChannels    : No Of Channels To read       |
+|                     unsigned int *data              : Data Pointer to read status  |
 +----------------------------------------------------------------------------+
 | Output Parameters :	--													 |
 +----------------------------------------------------------------------------+
@@ -76,8 +76,8 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 int i_APCI3501_ReadDigitalInput(struct comedi_device * dev, struct comedi_subdevice * s,
 	struct comedi_insn * insn, unsigned int * data)
 {
-	UINT ui_Temp;
-	UINT ui_NoOfChannel;
+	unsigned int ui_Temp;
+	unsigned int ui_NoOfChannel;
 	ui_NoOfChannel = CR_CHAN(insn->chanspec);
 	ui_Temp = data[0];
 	*data = inl(devpriv->iobase + APCI3501_DIGITAL_IP);
@@ -105,7 +105,7 @@ int i_APCI3501_ReadDigitalInput(struct comedi_device * dev, struct comedi_subdev
 | Task              : Configures The Digital Output Subdevice.               |
 +----------------------------------------------------------------------------+
 | Input Parameters  : struct comedi_device *dev : Driver handle                     |
-|                     UINT *data         : Data Pointer contains             |
+|                     unsigned int *data         : Data Pointer contains             |
 |                                          configuration parameters as below |
 |                                                                            |
 |					  data[1]            : 1 Enable  VCC  Interrupt  |
@@ -164,8 +164,8 @@ int i_APCI3501_ConfigDigitalOutput(struct comedi_device * dev, struct comedi_sub
 int i_APCI3501_WriteDigitalOutput(struct comedi_device * dev, struct comedi_subdevice * s,
 	struct comedi_insn * insn, unsigned int * data)
 {
-	UINT ui_Temp, ui_Temp1;
-	UINT ui_NoOfChannel = CR_CHAN(insn->chanspec);	// get the channel
+	unsigned int ui_Temp, ui_Temp1;
+	unsigned int ui_NoOfChannel = CR_CHAN(insn->chanspec);	// get the channel
 	if (devpriv->b_OutputMemoryStatus) {
 		ui_Temp = inl(devpriv->iobase + APCI3501_DIGITAL_OP);
 	}			//if(devpriv->b_OutputMemoryStatus )
@@ -238,8 +238,8 @@ int i_APCI3501_WriteDigitalOutput(struct comedi_device * dev, struct comedi_subd
 | Task              : Read  value  of the selected channel or port           |
 +----------------------------------------------------------------------------+
 | Input Parameters  : struct comedi_device *dev      : Driver handle                |
-|                     UINT ui_NoOfChannels    : No Of Channels To read       |
-|                     UINT *data              : Data Pointer to read status  |
+|                     unsigned int ui_NoOfChannels    : No Of Channels To read       |
+|                     unsigned int *data              : Data Pointer to read status  |
 +----------------------------------------------------------------------------+
 | Output Parameters :	--													 |
 +----------------------------------------------------------------------------+
@@ -251,8 +251,8 @@ int i_APCI3501_WriteDigitalOutput(struct comedi_device * dev, struct comedi_subd
 int i_APCI3501_ReadDigitalOutput(struct comedi_device * dev, struct comedi_subdevice * s,
 	struct comedi_insn * insn, unsigned int * data)
 {
-	UINT ui_Temp;
-	UINT ui_NoOfChannel;
+	unsigned int ui_Temp;
+	unsigned int ui_NoOfChannel;
 
 	ui_NoOfChannel = CR_CHAN(insn->chanspec);
 	ui_Temp = data[0];
@@ -392,7 +392,7 @@ int i_APCI3501_WriteAnalogOutput(struct comedi_device * dev, struct comedi_subde
 | Task              : Configures The Timer , Counter or Watchdog             |
 +----------------------------------------------------------------------------+
 | Input Parameters  : struct comedi_device *dev : Driver handle                     |
-|                     UINT *data         : Data Pointer contains             |
+|                     unsigned int *data         : Data Pointer contains             |
 |                                          configuration parameters as below |
 |                                                                            |
 |					  data[0]            : 0 Configure As Timer      |
@@ -495,7 +495,7 @@ int i_APCI3501_ConfigTimerCounterWatchdog(struct comedi_device * dev,
 | Task              : Start / Stop The Selected Timer , Counter or Watchdog  |
 +----------------------------------------------------------------------------+
 | Input Parameters  : struct comedi_device *dev : Driver handle                     |
-|                     UINT *data         : Data Pointer contains             |
+|                     unsigned int *data         : Data Pointer contains             |
 |                                          configuration parameters as below |
 |                                                                            |
 |					  data[0]            : 0 Timer                   |
@@ -598,7 +598,7 @@ int i_APCI3501_StartStopWriteTimerCounterWatchdog(struct comedi_device * dev,
 | Task              : Read The Selected Timer , Counter or Watchdog          |
 +----------------------------------------------------------------------------+
 | Input Parameters  : struct comedi_device *dev : Driver handle                     |
-|                     UINT *data         : Data Pointer contains             |
+|                     unsigned int *data         : Data Pointer contains             |
 |                                          configuration parameters as below |
 |                                                                            |
 |					  data[0]            : 0 Timer                   |

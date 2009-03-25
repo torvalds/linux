@@ -27,8 +27,8 @@ struct {
 	int i_Coupling;
 	int i_SingleDiff;
 	int i_AutoCalibration;
-	UINT ui_ReloadValue;
-	UINT ui_TimeUnitReloadVal;
+	unsigned int ui_ReloadValue;
+	unsigned int ui_TimeUnitReloadVal;
 	int i_Interrupt;
 	int i_ModuleSelection;
 } Config_Parameters_Main;

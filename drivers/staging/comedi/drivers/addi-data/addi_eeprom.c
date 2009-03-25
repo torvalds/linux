@@ -806,7 +806,7 @@ int i_EepromReadMainHeader(unsigned short w_PCIBoardEepromAddress,
 	char *pc_PCIChipInformation, struct comedi_device *dev)
 {
 	unsigned short w_Temp, i, w_Count = 0;
-	UINT ui_Temp;
+	unsigned int ui_Temp;
 	str_MainHeader s_MainHeader;
 	str_DigitalInputHeader s_DigitalInputHeader;
 	str_DigitalOutputHeader s_DigitalOutputHeader;
@@ -876,10 +876,10 @@ int i_EepromReadMainHeader(unsigned short w_PCIBoardEepromAddress,
 					s_AnalogInputHeader.w_Nchannel;
 			this_board->i_Dma = s_AnalogInputHeader.b_HasDma;
 			this_board->ui_MinAcquisitiontimeNs =
-				(UINT) s_AnalogInputHeader.w_MinConvertTiming *
+				(unsigned int) s_AnalogInputHeader.w_MinConvertTiming *
 				1000;
 			this_board->ui_MinDelaytimeNs =
-				(UINT) s_AnalogInputHeader.w_MinDelayTiming *
+				(unsigned int) s_AnalogInputHeader.w_MinDelayTiming *
 				1000;
 			ui_Temp = 0xffff;
 			this_board->i_AiMaxdata =

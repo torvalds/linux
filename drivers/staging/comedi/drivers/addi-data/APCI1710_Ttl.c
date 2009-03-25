@@ -832,7 +832,7 @@ int i_APCI1710_InsnWriteSetTTLIOChlOnOff(struct comedi_device * dev,
 	DWORD dw_StatusReg = 0;
 	unsigned char b_ModulNbr;
 	unsigned char b_OutputChannel;
-	UINT ui_State;
+	unsigned int ui_State;
 
 	i_ReturnValue = insn->n;
 	b_ModulNbr = CR_AREF(insn->chanspec);

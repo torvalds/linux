@@ -37,7 +37,6 @@
 #define SUCCESS	1
 
 /* variable type definition */
-typedef unsigned int UINT, *PUINT;
 typedef int LONG, *PLONG;		/* 32-bit */
 typedef unsigned int ULONG, *PULONG;	/* 32-bit */
 typedef unsigned int DWORD, *PDWORD;	/* 32-bit */
@@ -50,7 +49,7 @@ typedef const struct comedi_lrange *PCRANGE;
 #define MAKEWORD(H, L)	(unsigned short)((L) | ((H) << 8))
 #define LOWORD(W)	(unsigned short)((W) & 0xFFFF)
 #define HIWORD(W)	(unsigned short)(((W) >> 16) & 0xFFFF)
-#define MAKEDWORD(H, L)	(UINT)((L) | ((H) << 16))
+#define MAKEDWORD(H, L)	(unsigned int)((L) | ((H) << 16))
 
 #define ADDI_ENABLE		1
 #define ADDI_DISABLE		0
@@ -99,8 +98,8 @@ typedef struct {
 	int i_Dma;		// dma present or not
 	int i_Timer;		//   timer subdevice present or not
 	unsigned char b_AvailableConvertUnit;
-	UINT ui_MinAcquisitiontimeNs;	// Minimum Acquisition in Nano secs
-	UINT ui_MinDelaytimeNs;	// Minimum Delay in Nano secs
+	unsigned int ui_MinAcquisitiontimeNs;	// Minimum Acquisition in Nano secs
+	unsigned int ui_MinDelaytimeNs;	// Minimum Delay in Nano secs
 
 	/* interrupt and reset */
 	void (*v_hwdrv_Interrupt)(int irq, void *d);
@@ -366,33 +365,33 @@ typedef struct {
 	unsigned char b_ValidDriver;	// driver is ok
 	unsigned char b_AiContinuous;	// we do unlimited AI
 	unsigned char b_AiInitialisation;
-	UINT ui_AiActualScan;	//how many scans we finished
-	UINT ui_AiBufferPtr;	// data buffer ptr in samples
-	UINT ui_AiNbrofChannels;	// how many channels is measured
-	UINT ui_AiScanLength;	// Length of actual scanlist
-	UINT ui_AiActualScanPosition;	// position in actual scan
-	PUINT pui_AiChannelList;	// actual chanlist
-	UINT ui_AiChannelList[32];	// actual chanlist
+	unsigned int ui_AiActualScan;	//how many scans we finished
+	unsigned int ui_AiBufferPtr;	// data buffer ptr in samples
+	unsigned int ui_AiNbrofChannels;	// how many channels is measured
+	unsigned int ui_AiScanLength;	// Length of actual scanlist
+	unsigned int ui_AiActualScanPosition;	// position in actual scan
+	unsigned int * pui_AiChannelList;	// actual chanlist
+	unsigned int ui_AiChannelList[32];	// actual chanlist
 	unsigned char b_AiChannelConfiguration[32];	// actual chanlist
-	UINT ui_AiReadData[32];
+	unsigned int ui_AiReadData[32];
 	DWORD dw_AiInitialised;
-	UINT ui_AiTimer0;	//Timer Constant for Timer0
-	UINT ui_AiTimer1;	//Timer constant for Timer1
-	UINT ui_AiFlags;
-	UINT ui_AiDataLength;
+	unsigned int ui_AiTimer0;	//Timer Constant for Timer0
+	unsigned int ui_AiTimer1;	//Timer constant for Timer1
+	unsigned int ui_AiFlags;
+	unsigned int ui_AiDataLength;
 	short *AiData;	// Pointer to sample data
-	UINT ui_AiNbrofScans;	// number of scans to do
+	unsigned int ui_AiNbrofScans;	// number of scans to do
 	unsigned short us_UseDma;	// To use Dma or not
 	unsigned char b_DmaDoubleBuffer;	// we can use double buffering
-	UINT ui_DmaActualBuffer;	// which buffer is used now
+	unsigned int ui_DmaActualBuffer;	// which buffer is used now
 	//*UPDATE-0.7.57->0.7.68
 	//ULONG               ul_DmaBufferVirtual[2];// pointers to begin of DMA buffer
 	short *ul_DmaBufferVirtual[2];	// pointers to begin of DMA buffer
 	ULONG ul_DmaBufferHw[2];	// hw address of DMA buff
-	UINT ui_DmaBufferSize[2];	// size of dma buffer in bytes
-	UINT ui_DmaBufferUsesize[2];	// which size we may now used for transfer
-	UINT ui_DmaBufferSamples[2];	// size in samples
-	UINT ui_DmaBufferPages[2];	// number of pages in buffer
+	unsigned int ui_DmaBufferSize[2];	// size of dma buffer in bytes
+	unsigned int ui_DmaBufferUsesize[2];	// which size we may now used for transfer
+	unsigned int ui_DmaBufferSamples[2];	// size in samples
+	unsigned int ui_DmaBufferPages[2];	// number of pages in buffer
 	unsigned char b_DigitalOutputRegister;	// Digital Output Register
 	unsigned char b_OutputMemoryStatus;
 	unsigned char b_AnalogInputChannelNbr;	// Analog input channel Nbr
@@ -408,7 +407,7 @@ typedef struct {
 	unsigned char b_AiCyclicAcquisition;	// indicate cyclic acquisition
 	unsigned char b_InterruptMode;	// eoc eos or dma
 	unsigned char b_EocEosInterrupt;	// Enable disable eoc eos interrupt
-	UINT ui_EocEosConversionTime;
+	unsigned int ui_EocEosConversionTime;
 	unsigned char b_EocEosConversionTimeBase;
 	unsigned char b_SingelDiff;
 	unsigned char b_ExttrigEnable;	/* To enable or disable external trigger */
@@ -419,8 +418,8 @@ typedef struct {
 
 	/* Hardware board infos for 1710 */
 	struct {
-		UINT ui_Address;	/* Board address */
-		UINT ui_FlashAddress;
+		unsigned int ui_Address;	/* Board address */
+		unsigned int ui_FlashAddress;
 		unsigned char b_InterruptNbr;	/* Board interrupt number */
 		unsigned char b_SlotNumber;	/* PCI slot number */
 		unsigned char b_BoardVersion;
@@ -431,8 +430,8 @@ typedef struct {
 	struct {
 		ULONG ul_InterruptOccur;	/* 0   : No interrupt occur */
 						/* > 0 : Interrupt occur */
-		UINT ui_Read;	/* Read FIFO */
-		UINT ui_Write;	/* Write FIFO */
+		unsigned int ui_Read;	/* Read FIFO */
+		unsigned int ui_Write;	/* Write FIFO */
 		struct {
 			unsigned char b_OldModuleMask;
 			ULONG ul_OldInterruptMask;	/* Interrupt mask */

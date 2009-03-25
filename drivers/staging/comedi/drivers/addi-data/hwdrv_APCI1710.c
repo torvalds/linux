@@ -255,7 +255,7 @@ void v_APCI1710_Interrupt(int irq, void *d)
 	unsigned char b_PWMCpt = 0;
 	unsigned char b_TorCounterCpt = 0;
 	unsigned char b_PulseIncoderCpt = 0;
-	UINT ui_16BitValue;
+	unsigned int ui_16BitValue;
 	ULONG ul_InterruptLatchReg = 0;
 	ULONG ul_LatchRegisterValue = 0;
 	ULONG ul_82X54InterruptStatus;
@@ -675,7 +675,7 @@ void v_APCI1710_Interrupt(int irq, void *d)
 						if ((ul_LatchRegisterValue &
 								0xFFFFU) != 0) {
 							ui_16BitValue =
-								(UINT)
+								(unsigned int)
 								ul_LatchRegisterValue
 								& 0xFFFFU;
 							ul_LatchRegisterValue =
@@ -693,7 +693,7 @@ void v_APCI1710_Interrupt(int irq, void *d)
 								0xFFFF0000UL) !=
 							0) {
 							ui_16BitValue =
-								(UINT) (
+								(unsigned int) (
 								(ul_LatchRegisterValue
 									>> 16) &
 								0xFFFFU);
@@ -721,7 +721,7 @@ void v_APCI1710_Interrupt(int irq, void *d)
 					if ((ul_LatchRegisterValue &
 							0xFFFF0000UL) != 0) {
 						ui_16BitValue =
-							(UINT) (
+							(unsigned int) (
 							(ul_LatchRegisterValue
 								>> 16) &
 							0xFFFFU);
@@ -741,7 +741,7 @@ void v_APCI1710_Interrupt(int irq, void *d)
 					if ((ul_LatchRegisterValue & 0xFFFFU) !=
 						0) {
 						ui_16BitValue =
-							(UINT)
+							(unsigned int)
 							ul_LatchRegisterValue &
 							0xFFFFU;
 						ul_LatchRegisterValue =

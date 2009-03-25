@@ -506,7 +506,7 @@ int i_APCI1500_ConfigDigitalInputEvent(struct comedi_device * dev,
 | Task              :  Allows or disallows a port event                      |
 +----------------------------------------------------------------------------+
 | Input Parameters  : struct comedi_device *dev      : Driver handle                |
-|		              UINT ui_Channel : Channel number to read       |
+|		              unsigned int ui_Channel : Channel number to read       |
 |                     unsigned int *data          : Data Pointer to read status  |
                       data[0]                 :0 Start input event
                                                1 Stop input event
@@ -774,7 +774,7 @@ int i_APCI1500_StartStopInputEvent(struct comedi_device * dev, struct comedi_sub
 | Task              : Return the status of the digital input                 |
 +----------------------------------------------------------------------------+
 | Input Parameters  : struct comedi_device *dev      : Driver handle                |
-|		              UINT ui_Channel : Channel number to read       |
+|		              unsigned int ui_Channel : Channel number to read       |
 |                     unsigned int *data          : Data Pointer to read status  |
 +----------------------------------------------------------------------------+
 | Output Parameters :	--													 |
@@ -943,8 +943,8 @@ int i_APCI1500_Initialisation(struct comedi_device * dev, struct comedi_subdevic
 | Task              : Return the status of the Requested digital inputs      |
 +----------------------------------------------------------------------------+
 | Input Parameters  : struct comedi_device *dev      : Driver handle                |
-|                     UINT ui_NoOfChannels    : No Of Channels To be Read    |
-|                      UINT *data             : Data Pointer
+|                     unsigned int ui_NoOfChannels    : No Of Channels To be Read    |
+|                      unsigned int *data             : Data Pointer
                       data[0]                 : 0 Read a single channel
                                                 1 read a port value
                       data[1]                 : port value
@@ -960,17 +960,17 @@ int i_APCI1500_Initialisation(struct comedi_device * dev, struct comedi_subdevic
 int i_APCI1500_ReadMoreDigitalInput(struct comedi_device * dev, struct comedi_subdevice * s,
 	struct comedi_insn * insn, unsigned int * data)
 {
-	UINT ui_PortValue = data[1];
-	UINT ui_Mask = 0;
-	UINT ui_Channel;
-	UINT ui_TmpValue = 0;
+	unsigned int ui_PortValue = data[1];
+	unsigned int ui_Mask = 0;
+	unsigned int ui_Channel;
+	unsigned int ui_TmpValue = 0;
 	ui_Channel = CR_CHAN(insn->chanspec);
 
 	switch (data[0]) {
 	case 0:
 		if (ui_Channel >= 0 && ui_Channel <= 15) {
 			ui_TmpValue =
-				(UINT) inw(devpriv->i_IobaseAddon +
+				(unsigned int) inw(devpriv->i_IobaseAddon +
 				APCI1500_DIGITAL_IP);
 			*data = (ui_TmpValue >> ui_Channel) & 0x1;
 		}		//if(ui_Channel >= 0 && ui_Channel <=15)
@@ -981,7 +981,7 @@ int i_APCI1500_ReadMoreDigitalInput(struct comedi_device * dev, struct comedi_su
 		break;
 	case 1:
 
-		*data = (UINT) inw(devpriv->i_IobaseAddon +
+		*data = (unsigned int) inw(devpriv->i_IobaseAddon +
 			APCI1500_DIGITAL_IP);
 		switch (ui_Channel) {
 		case 2:
@@ -1056,8 +1056,8 @@ int i_APCI1500_ConfigDigitalOutputErrorInterrupt(struct comedi_device * dev,
 | Task              : Writes port value  To the selected port                |
 +----------------------------------------------------------------------------+
 | Input Parameters  : struct comedi_device *dev      : Driver handle                |
-|                     UINT ui_NoOfChannels    : No Of Channels To Write      |
-|                     UINT *data              : Data Pointer to read status  |
+|                     unsigned int ui_NoOfChannels    : No Of Channels To Write      |
+|                     unsigned int *data              : Data Pointer to read status  |
 +----------------------------------------------------------------------------+
 | Output Parameters :	--													 |
 +----------------------------------------------------------------------------+
@@ -1070,10 +1070,10 @@ int i_APCI1500_ConfigDigitalOutputErrorInterrupt(struct comedi_device * dev,
 int i_APCI1500_WriteDigitalOutput(struct comedi_device * dev, struct comedi_subdevice * s,
 	struct comedi_insn * insn, unsigned int * data)
 {
-	static UINT ui_Temp = 0;
-	UINT ui_Temp1;
+	static unsigned int ui_Temp = 0;
+	unsigned int ui_Temp1;
 
-	UINT ui_NoOfChannel = CR_CHAN(insn->chanspec);	// get the channel
+	unsigned int ui_NoOfChannel = CR_CHAN(insn->chanspec);	// get the channel
 
 	if (!devpriv->b_OutputMemoryStatus) {
 		ui_Temp = 0;
@@ -2404,7 +2404,7 @@ int i_APCI1500_ReadInterruptMask(struct comedi_device * dev, struct comedi_subde
 int i_APCI1500_ConfigureInterrupt(struct comedi_device * dev, struct comedi_subdevice * s,
 	struct comedi_insn * insn, unsigned int * data)
 {
-	UINT ui_Status;
+	unsigned int ui_Status;
 	int i_RegValue;
 	int i_Constant;
 	devpriv->tsk_Current = current;
@@ -2580,7 +2580,7 @@ static void v_APCI1500_Interrupt(int irq, void *d)
 {
 
 	struct comedi_device *dev = d;
-	UINT ui_InterruptStatus = 0;
+	unsigned int ui_InterruptStatus = 0;
 	int i_RegValue = 0;
 	i_InterruptMask = 0;
 
@@ -2679,7 +2679,7 @@ static void v_APCI1500_Interrupt(int irq, void *d)
 			/* Reads port B */
 	     /****************/
 			i_RegValue =
-				inb((UINT) devpriv->iobase +
+				inb((unsigned int) devpriv->iobase +
 				APCI1500_Z8536_PORT_B);
 
 			i_RegValue = i_RegValue & 0xC0;

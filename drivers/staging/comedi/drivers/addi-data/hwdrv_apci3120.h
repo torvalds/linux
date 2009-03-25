@@ -168,10 +168,10 @@ static const struct comedi_lrange range_apci3120_ao = { 2, {
 typedef struct {
 	unsigned char b_Type;		/* EOC or EOS */
 	unsigned char b_InterruptFlag;	/* Interrupt use or not                    */
-	UINT ui_ConvertTiming;	/* Selection of the convertion time        */
+	unsigned int ui_ConvertTiming;	/* Selection of the convertion time        */
 	unsigned char b_NbrOfChannel;	/* Number of channel to read               */
-	UINT ui_ChannelList[MAX_ANALOGINPUT_CHANNELS];	/* Number of the channel to be read        */
-	UINT ui_RangeList[MAX_ANALOGINPUT_CHANNELS];	/* Gain of each channel                    */
+	unsigned int ui_ChannelList[MAX_ANALOGINPUT_CHANNELS];	/* Number of the channel to be read        */
+	unsigned int ui_RangeList[MAX_ANALOGINPUT_CHANNELS];	/* Gain of each channel                    */
 
 } str_AnalogReadInformation;
 

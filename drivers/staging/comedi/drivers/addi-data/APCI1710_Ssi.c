@@ -137,7 +137,7 @@ int i_APCI1710_InsnConfigInitSSI(struct comedi_device * dev, struct comedi_subde
 	struct comedi_insn * insn, unsigned int * data)
 {
 	int i_ReturnValue = 0;
-	UINT ui_TimerValue;
+	unsigned int ui_TimerValue;
 	unsigned char b_ModulNbr, b_SSIProfile, b_PositionTurnLength, b_TurnCptLength,
 		b_PCIInputClock, b_SSICountingMode;
 	ULONG ul_SSIOutputClock;
@@ -250,7 +250,7 @@ int i_APCI1710_InsnConfigInitSSI(struct comedi_device * dev, struct comedi_subde
 
 										ui_TimerValue
 											=
-											(UINT)
+											(unsigned int)
 											(
 											((ULONG) (b_PCIInputClock) * 500000UL) / ul_SSIOutputClock);
 

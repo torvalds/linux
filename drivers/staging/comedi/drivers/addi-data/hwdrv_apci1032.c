@@ -54,7 +54,7 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 #include "hwdrv_apci1032.h"
 #include <linux/delay.h>
 //Global variables
-UINT ui_InterruptStatus = 0;
+unsigned int ui_InterruptStatus = 0;
 
 /*
 +----------------------------------------------------------------------------+
@@ -87,7 +87,7 @@ UINT ui_InterruptStatus = 0;
 int i_APCI1032_ConfigDigitalInput(struct comedi_device * dev, struct comedi_subdevice * s,
 	struct comedi_insn * insn, unsigned int * data)
 {
-	UINT ui_TmpValue;
+	unsigned int ui_TmpValue;
 
 	ULONG ul_Command1 = 0;
 	ULONG ul_Command2 = 0;
@@ -134,7 +134,7 @@ int i_APCI1032_ConfigDigitalInput(struct comedi_device * dev, struct comedi_subd
 | Task              : Return the status of the digital input                 |
 +----------------------------------------------------------------------------+
 | Input Parameters  : struct comedi_device *dev      : Driver handle                |
-|		              UINT ui_Channel : Channel number to read       |
+|		              unsigned int ui_Channel : Channel number to read       |
 |                     unsigned int *data          : Data Pointer to read status  |
 +----------------------------------------------------------------------------+
 | Output Parameters :	--													 |
@@ -147,11 +147,11 @@ int i_APCI1032_ConfigDigitalInput(struct comedi_device * dev, struct comedi_subd
 int i_APCI1032_Read1DigitalInput(struct comedi_device * dev, struct comedi_subdevice * s,
 	struct comedi_insn * insn, unsigned int * data)
 {
-	UINT ui_TmpValue = 0;
-	UINT ui_Channel;
+	unsigned int ui_TmpValue = 0;
+	unsigned int ui_Channel;
 	ui_Channel = CR_CHAN(insn->chanspec);
 	if (ui_Channel >= 0 && ui_Channel <= 31) {
-		ui_TmpValue = (UINT) inl(devpriv->iobase + APCI1032_DIGITAL_IP);
+		ui_TmpValue = (unsigned int) inl(devpriv->iobase + APCI1032_DIGITAL_IP);
 		//  since only 1 channel reqd  to bring it to last bit it is rotated
 		//  8 +(chan - 1) times then ANDed with 1 for last bit.
 		*data = (ui_TmpValue >> ui_Channel) & 0x1;
@@ -172,8 +172,8 @@ int i_APCI1032_Read1DigitalInput(struct comedi_device * dev, struct comedi_subde
 | Task              : Return the status of the Requested digital inputs      |
 +----------------------------------------------------------------------------+
 | Input Parameters  : struct comedi_device *dev      : Driver handle                |
-|                     UINT ui_NoOfChannels    : No Of Channels To be Read    |
-|                      UINT *data             : Data Pointer to read status  |
+|                     unsigned int ui_NoOfChannels    : No Of Channels To be Read    |
+|                      unsigned int *data             : Data Pointer to read status  |
 +----------------------------------------------------------------------------+
 | Output Parameters :	--													 |
 +----------------------------------------------------------------------------+
@@ -186,13 +186,13 @@ int i_APCI1032_Read1DigitalInput(struct comedi_device * dev, struct comedi_subde
 int i_APCI1032_ReadMoreDigitalInput(struct comedi_device * dev, struct comedi_subdevice * s,
 	struct comedi_insn * insn, unsigned int * data)
 {
-	UINT ui_PortValue = data[0];
-	UINT ui_Mask = 0;
-	UINT ui_NoOfChannels;
+	unsigned int ui_PortValue = data[0];
+	unsigned int ui_Mask = 0;
+	unsigned int ui_NoOfChannels;
 
 	ui_NoOfChannels = CR_CHAN(insn->chanspec);
 	if (data[1] == 0) {
-		*data = (UINT) inl(devpriv->iobase + APCI1032_DIGITAL_IP);
+		*data = (unsigned int) inl(devpriv->iobase + APCI1032_DIGITAL_IP);
 		switch (ui_NoOfChannels) {
 		case 2:
 			ui_Mask = 3;
@@ -247,7 +247,7 @@ static void v_APCI1032_Interrupt(int irq, void *d)
 {
 	struct comedi_device *dev = d;
 
-	UINT ui_Temp;
+	unsigned int ui_Temp;
 	//disable the interrupt
 	ui_Temp = inl(devpriv->iobase + APCI1032_DIGITAL_IP_IRQ);
 	outl(ui_Temp & APCI1032_DIGITAL_IP_INTERRUPT_DISABLE,

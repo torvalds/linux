@@ -1107,7 +1107,7 @@ int i_APCI1710_InsnReadChrono(struct comedi_device * dev, struct comedi_subdevic
 	case APCI1710_CHRONO_READVALUE:
 		i_ReturnValue = i_APCI1710_ReadChronoValue(dev,
 			(unsigned char) CR_AREF(insn->chanspec),
-			(UINT) insn->unused[0],
+			(unsigned int) insn->unused[0],
 			(unsigned char *) & data[0], (PULONG) & data[1]);
 		break;
 
@@ -1118,8 +1118,8 @@ int i_APCI1710_InsnReadChrono(struct comedi_device * dev, struct comedi_subdevic
 			(PULONG) & data[0],
 			(unsigned char *) & data[1],
 			(unsigned char *) & data[2],
-			(PUINT) & data[3],
-			(PUINT) & data[4], (PUINT) & data[5]);
+			(unsigned int *) & data[3],
+			(unsigned int *) & data[4], (unsigned int *) & data[5]);
 		break;
 
 	case APCI1710_CHRONO_READINTERRUPT:
@@ -1297,7 +1297,7 @@ int i_APCI1710_GetChronoProgressStatus(struct comedi_device * dev,
 | Function Name     : _INT_ i_APCI1710_ReadChronoValue                       |
 |                               (unsigned char_     b_BoardHandle,                    |
 |                                unsigned char_     b_ModulNbr,                       |
-|                                UINT_    ui_TimeOut,                        |
+|                                unsigned int_    ui_TimeOut,                        |
 |                                unsigned char *_   pb_ChronoStatus,                   |
 |                                PULONG_ pul_ChronoValue)                    |
 +----------------------------------------------------------------------------+
@@ -1357,7 +1357,7 @@ int i_APCI1710_GetChronoProgressStatus(struct comedi_device * dev,
 
 int i_APCI1710_ReadChronoValue(struct comedi_device * dev,
 	unsigned char b_ModulNbr,
-	UINT ui_TimeOut, unsigned char * pb_ChronoStatus, PULONG pul_ChronoValue)
+	unsigned int ui_TimeOut, unsigned char * pb_ChronoStatus, PULONG pul_ChronoValue)
 {
 	int i_ReturnValue = 0;
 	DWORD dw_Status;
@@ -1587,9 +1587,9 @@ int i_APCI1710_ReadChronoValue(struct comedi_device * dev,
 |                                PULONG_ pul_Hour,                           |
 |                                unsigned char *_   pb_Minute,                         |
 |                                unsigned char *_   pb_Second,                         |
-|                                PUINT_  pui_MilliSecond,                    |
-|                                PUINT_  pui_MicroSecond,                    |
-|                                PUINT_  pui_NanoSecond)                     |
+|                                unsigned int *_  pui_MilliSecond,                    |
+|                                unsigned int *_  pui_MicroSecond,                    |
+|                                unsigned int *_  pui_NanoSecond)                     |
 +----------------------------------------------------------------------------+
 | Task              : Convert the chronometer measured timing                |
 |                     (ul_ChronoValue) in to h, mn, s, ms, µs, ns.           |
@@ -1603,11 +1603,11 @@ int i_APCI1710_ReadChronoValue(struct comedi_device * dev,
 | Output Parameters : PULONG_   pul_Hour        : Chronometer timing hour    |
 |                     unsigned char *_     pb_Minute      : Chronometer timing minute  |
 |                     unsigned char *_     pb_Second      : Chronometer timing second  |
-|                     PUINT_    pui_MilliSecond  : Chronometer timing mini   |
+|                     unsigned int *_    pui_MilliSecond  : Chronometer timing mini   |
 |                                                 second                     |
-|                     PUINT_    pui_MicroSecond : Chronometer timing micro   |
+|                     unsigned int *_    pui_MicroSecond : Chronometer timing micro   |
 |                                                 second                     |
-|                     PUINT_    pui_NanoSecond  : Chronometer timing nano    |
+|                     unsigned int *_    pui_NanoSecond  : Chronometer timing nano    |
 |                                                 second                     |
 +----------------------------------------------------------------------------+
 | Return Value      :  0: No error                                           |
@@ -1625,7 +1625,7 @@ int i_APCI1710_ConvertChronoValue(struct comedi_device * dev,
 	PULONG pul_Hour,
 	unsigned char * pb_Minute,
 	unsigned char * pb_Second,
-	PUINT pui_MilliSecond, PUINT pui_MicroSecond, PUINT pui_NanoSecond)
+	unsigned int * pui_MilliSecond, unsigned int * pui_MicroSecond, unsigned int * pui_NanoSecond)
 {
 	int i_ReturnValue = 0;
 	double d_Hour;
@@ -1705,7 +1705,7 @@ int i_APCI1710_ConvertChronoValue(struct comedi_device * dev,
 
 					d_MilliSecond = d_Second - *pb_Second;
 					d_MilliSecond = d_MilliSecond * 1000;
-					*pui_MilliSecond = (UINT) d_MilliSecond;
+					*pui_MilliSecond = (unsigned int) d_MilliSecond;
 
 			    /******************************/
 					/* Calculate the micro second */
@@ -1715,7 +1715,7 @@ int i_APCI1710_ConvertChronoValue(struct comedi_device * dev,
 						d_MilliSecond -
 						*pui_MilliSecond;
 					d_MicroSecond = d_MicroSecond * 1000;
-					*pui_MicroSecond = (UINT) d_MicroSecond;
+					*pui_MicroSecond = (unsigned int) d_MicroSecond;
 
 			    /******************************/
 					/* Calculate the micro second */
@@ -1725,7 +1725,7 @@ int i_APCI1710_ConvertChronoValue(struct comedi_device * dev,
 						d_MicroSecond -
 						*pui_MicroSecond;
 					d_NanoSecond = d_NanoSecond * 1000;
-					*pui_NanoSecond = (UINT) d_NanoSecond;
+					*pui_NanoSecond = (unsigned int) d_NanoSecond;
 					break;
 				}
 

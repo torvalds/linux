@@ -53,7 +53,7 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 */
 
 #include "hwdrv_apci2032.h"
-UINT ui_InterruptData, ui_Type;
+unsigned int ui_InterruptData, ui_Type;
 /*
 +----------------------------------------------------------------------------+
 | Function   Name   : int i_APCI2032_ConfigDigitalOutput                     |
@@ -63,7 +63,7 @@ UINT ui_InterruptData, ui_Type;
 | Task              : Configures The Digital Output Subdevice.               |
 +----------------------------------------------------------------------------+
 | Input Parameters  : struct comedi_device *dev : Driver handle                     |
-|                     UINT *data         : Data Pointer contains             |
+|                     unsigned int *data         : Data Pointer contains             |
 |                                          configuration parameters as below |
 |                                                                            |
 |					  data[1]            : 1 Enable  VCC  Interrupt  |
@@ -123,8 +123,8 @@ int i_APCI2032_ConfigDigitalOutput(struct comedi_device * dev, struct comedi_sub
 | Task              : Writes port value  To the selected port                |
 +----------------------------------------------------------------------------+
 | Input Parameters  : struct comedi_device *dev      : Driver handle                |
-|                     UINT ui_NoOfChannels    : No Of Channels To Write      |
-|                     UINT *data              : Data Pointer to read status  |
+|                     unsigned int ui_NoOfChannels    : No Of Channels To Write      |
+|                     unsigned int *data              : Data Pointer to read status  |
 +----------------------------------------------------------------------------+
 | Output Parameters :	--													 |
 +----------------------------------------------------------------------------+
@@ -137,8 +137,8 @@ int i_APCI2032_ConfigDigitalOutput(struct comedi_device * dev, struct comedi_sub
 int i_APCI2032_WriteDigitalOutput(struct comedi_device * dev, struct comedi_subdevice * s,
 	struct comedi_insn * insn, unsigned int * data)
 {
-	UINT ui_Temp, ui_Temp1;
-	UINT ui_NoOfChannel = CR_CHAN(insn->chanspec);	// get the channel
+	unsigned int ui_Temp, ui_Temp1;
+	unsigned int ui_NoOfChannel = CR_CHAN(insn->chanspec);	// get the channel
 	if (devpriv->b_OutputMemoryStatus) {
 		ui_Temp = inl(devpriv->iobase + APCI2032_DIGITAL_OP);
 
@@ -302,8 +302,8 @@ int i_APCI2032_WriteDigitalOutput(struct comedi_device * dev, struct comedi_subd
 | Task              : Read  value  of the selected channel or port           |
 +----------------------------------------------------------------------------+
 | Input Parameters  : struct comedi_device *dev      : Driver handle                |
-|                     UINT ui_NoOfChannels    : No Of Channels To read       |
-|                     UINT *data              : Data Pointer to read status  |
+|                     unsigned int ui_NoOfChannels    : No Of Channels To read       |
+|                     unsigned int *data              : Data Pointer to read status  |
 +----------------------------------------------------------------------------+
 | Output Parameters :	--													 |
 +----------------------------------------------------------------------------+
@@ -316,8 +316,8 @@ int i_APCI2032_WriteDigitalOutput(struct comedi_device * dev, struct comedi_subd
 int i_APCI2032_ReadDigitalOutput(struct comedi_device * dev, struct comedi_subdevice * s,
 	struct comedi_insn * insn, unsigned int * data)
 {
-	UINT ui_Temp;
-	UINT ui_NoOfChannel;
+	unsigned int ui_Temp;
+	unsigned int ui_NoOfChannel;
 	ui_NoOfChannel = CR_CHAN(insn->chanspec);
 	ui_Temp = data[0];
 	*data = inl(devpriv->iobase + APCI2032_DIGITAL_OP_RW);

@@ -54,7 +54,7 @@ int i_APCI1710_GetChronoProgressStatus(struct comedi_device *dev,
 
 int i_APCI1710_ReadChronoValue(struct comedi_device *dev,
 			       unsigned char b_ModulNbr,
-			       UINT ui_TimeOut, unsigned char * pb_ChronoStatus,
+			       unsigned int ui_TimeOut, unsigned char * pb_ChronoStatus,
 			       PULONG pul_ChronoValue);
 
 int i_APCI1710_ConvertChronoValue(struct comedi_device *dev,
@@ -63,8 +63,8 @@ int i_APCI1710_ConvertChronoValue(struct comedi_device *dev,
 				  PULONG pul_Hour,
 				  unsigned char * pb_Minute,
 				  unsigned char * pb_Second,
-				  PUINT pui_MilliSecond, PUINT pui_MicroSecond,
-				  PUINT pui_NanoSecond);
+				  unsigned int * pui_MilliSecond, unsigned int * pui_MicroSecond,
+				  unsigned int * pui_NanoSecond);
 
 /*
  * CHRONOMETER DIGITAL INPUT OUTPUT FUNCTION

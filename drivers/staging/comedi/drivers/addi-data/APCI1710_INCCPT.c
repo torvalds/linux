@@ -78,7 +78,7 @@ struct comedi_insn *insn,unsigned int *data)
 int i_APCI1710_InsnConfigINCCPT(struct comedi_device * dev, struct comedi_subdevice * s,
 	struct comedi_insn * insn, unsigned int * data)
 {
-	UINT ui_ConfigType;
+	unsigned int ui_ConfigType;
 	int i_ReturnValue = 0;
 	ui_ConfigType = CR_CHAN(insn->chanspec);
 
@@ -119,7 +119,7 @@ int i_APCI1710_InsnConfigINCCPT(struct comedi_device * dev, struct comedi_subdev
 
 	case APCI1710_INCCPT_INITCOMPARELOGIC:
 		i_ReturnValue = i_APCI1710_InitCompareLogic(dev,
-			CR_AREF(insn->chanspec), (UINT) data[0]);
+			CR_AREF(insn->chanspec), (unsigned int) data[0]);
 		break;
 
 	case APCI1710_INCCPT_INITFREQUENCYMEASUREMENT:
@@ -1370,7 +1370,7 @@ int i_APCI1710_InitExternalStrobe(struct comedi_device * dev,
 	   | Function Name     : _INT_ i_APCI1710_InitCompareLogic                      |
 	   |                               (unsigned char_   b_BoardHandle,                      |
 	   |                                unsigned char_   b_ModulNbr,                         |
-	   |                                UINT_  ui_CompareValue)                     |
+	   |                                unsigned int_  ui_CompareValue)                     |
 	   +----------------------------------------------------------------------------+
 	   | Task              : Set the 32-Bit compare value. At that moment that the  |
 	   |                     incremental counter arrive to the compare value        |
@@ -1379,7 +1379,7 @@ int i_APCI1710_InitExternalStrobe(struct comedi_device * dev,
 	   | Input Parameters  : unsigned char_  b_BoardHandle    : Handle of board APCI-1710    |
 	   |                     unsigned char_  b_ModulNbr       : Module number to configure   |
 	   |                                               (0 to 3)                     |
-	   |                     UINT_ ui_CompareValue   : 32-Bit compare value         |
+	   |                     unsigned int_ ui_CompareValue   : 32-Bit compare value         |
 	   +----------------------------------------------------------------------------+
 	   | Output Parameters : -
 	   +----------------------------------------------------------------------------+
@@ -1392,7 +1392,7 @@ int i_APCI1710_InitExternalStrobe(struct comedi_device * dev,
 	 */
 
 int i_APCI1710_InitCompareLogic(struct comedi_device * dev,
-	unsigned char b_ModulNbr, UINT ui_CompareValue)
+	unsigned char b_ModulNbr, unsigned int ui_CompareValue)
 {
 	int i_ReturnValue = 0;
 
@@ -2018,7 +2018,7 @@ struct comedi_insn *insn,unsigned int *data)                   |
 int i_APCI1710_InsnBitsINCCPT(struct comedi_device * dev, struct comedi_subdevice * s,
 	struct comedi_insn * insn, unsigned int * data)
 {
-	UINT ui_BitsType;
+	unsigned int ui_BitsType;
 	int i_ReturnValue = 0;
 	ui_BitsType = CR_CHAN(insn->chanspec);
 	devpriv->tsk_Current = current;	// Save the current process task structure
@@ -2954,7 +2954,7 @@ struct comedi_insn *insn,unsigned int *data)                   |
 int i_APCI1710_InsnWriteINCCPT(struct comedi_device * dev, struct comedi_subdevice * s,
 	struct comedi_insn * insn, unsigned int * data)
 {
-	UINT ui_WriteType;
+	unsigned int ui_WriteType;
 	int i_ReturnValue = 0;
 
 	ui_WriteType = CR_CHAN(insn->chanspec);
@@ -2974,7 +2974,7 @@ int i_APCI1710_InsnWriteINCCPT(struct comedi_device * dev, struct comedi_subdevi
 	case APCI1710_INCCPT_WRITE16BITCOUNTERVALUE:
 		i_ReturnValue = i_APCI1710_Write16BitCounterValue(dev,
 			(unsigned char) CR_AREF(insn->chanspec),
-			(unsigned char) data[0], (UINT) data[1]);
+			(unsigned char) data[0], (unsigned int) data[1]);
 		break;
 
 	case APCI1710_INCCPT_WRITE32BITCOUNTERVALUE:
@@ -3207,7 +3207,7 @@ int i_APCI1710_DisableLatchInterrupt(struct comedi_device * dev, unsigned char b
 |                                               (unsigned char_  b_BoardHandle        |
 |                                                unsigned char_  b_ModulNbr,          |
 |                                                unsigned char_  b_SelectedCounter,   |
-|                                                UINT_ ui_WriteValue)        |
+|                                                unsigned int_ ui_WriteValue)        |
 +----------------------------------------------------------------------------+
 | Task              : Write a 16-Bit value (ui_WriteValue) in to the selected|
 |                     16-Bit counter (b_SelectedCounter) from selected module|
@@ -3218,7 +3218,7 @@ int i_APCI1710_DisableLatchInterrupt(struct comedi_device * dev, unsigned char b
 |                                              (0 to 3)                      |
 |                     unsigned char_ b_SelectedCounter : Selected 16-Bit counter      |
 |                                               (0 or 1)                     |
-|                     UINT_ ui_WriteValue     : 16-Bit write value           |
+|                     unsigned int_ ui_WriteValue     : 16-Bit write value           |
 +----------------------------------------------------------------------------+
 | Output Parameters : -                                                      |
 +----------------------------------------------------------------------------+
@@ -3232,7 +3232,7 @@ int i_APCI1710_DisableLatchInterrupt(struct comedi_device * dev, unsigned char b
 */
 
 int i_APCI1710_Write16BitCounterValue(struct comedi_device * dev,
-	unsigned char b_ModulNbr, unsigned char b_SelectedCounter, UINT ui_WriteValue)
+	unsigned char b_ModulNbr, unsigned char b_SelectedCounter, unsigned int ui_WriteValue)
 {
 	int i_ReturnValue = 0;
 
@@ -4052,7 +4052,7 @@ struct comedi_insn *insn,unsigned int *data)                   |
 int i_APCI1710_InsnReadINCCPT(struct comedi_device * dev, struct comedi_subdevice * s,
 	struct comedi_insn * insn, unsigned int * data)
 {
-	UINT ui_ReadType;
+	unsigned int ui_ReadType;
 	int i_ReturnValue = 0;
 
 	ui_ReadType = CR_CHAN(insn->chanspec);
@@ -4075,7 +4075,7 @@ int i_APCI1710_InsnReadINCCPT(struct comedi_device * dev, struct comedi_subdevic
 	case APCI1710_INCCPT_READ16BITCOUNTERVALUE:
 		i_ReturnValue = i_APCI1710_Read16BitCounterValue(dev,
 			(unsigned char) CR_AREF(insn->chanspec),
-			(unsigned char) CR_RANGE(insn->chanspec), (PUINT) & data[0]);
+			(unsigned char) CR_RANGE(insn->chanspec), (unsigned int *) & data[0]);
 		break;
 
 	case APCI1710_INCCPT_READ32BITCOUNTERVALUE:
@@ -4341,7 +4341,7 @@ int i_APCI1710_ReadLatchRegisterValue(struct comedi_device * dev,
 |                                       (unsigned char_     b_BoardHandle,            |
 |                                        unsigned char_     b_ModulNbr,               |
 |                                        unsigned char_     b_SelectedCounter,        |
-|                                        PUINT_   pui_CounterValue)          |
+|                                        unsigned int *_   pui_CounterValue)          |
 +----------------------------------------------------------------------------+
 | Task              : Latch the selected 16-Bit counter (b_SelectedCounter)  |
 |                     from selected module (b_ModulNbr) in to the first      |
@@ -4353,7 +4353,7 @@ int i_APCI1710_ReadLatchRegisterValue(struct comedi_device * dev,
 |                     unsigned char_ b_SelectedCounter : Selected 16-Bit counter      |
 |                                               (0 or 1)                     |
 +----------------------------------------------------------------------------+
-| Output Parameters : PUINT_ pui_CounterValue : 16-Bit counter value         |
+| Output Parameters : unsigned int *_ pui_CounterValue : 16-Bit counter value         |
 +----------------------------------------------------------------------------+
 | Return Value      :  0: No error                                           |
 |                     -1: The handle parameter of the board is wrong         |
@@ -4365,7 +4365,7 @@ int i_APCI1710_ReadLatchRegisterValue(struct comedi_device * dev,
 */
 
 int i_APCI1710_Read16BitCounterValue(struct comedi_device * dev,
-	unsigned char b_ModulNbr, unsigned char b_SelectedCounter, PUINT pui_CounterValue)
+	unsigned char b_ModulNbr, unsigned char b_SelectedCounter, unsigned int * pui_CounterValue)
 {
 	int i_ReturnValue = 0;
 	DWORD dw_LathchValue = 0;
@@ -4402,7 +4402,7 @@ int i_APCI1710_Read16BitCounterValue(struct comedi_device * dev,
 					ui_Address + 4 + (64 * b_ModulNbr));
 
 				*pui_CounterValue =
-					(UINT) ((dw_LathchValue >> (16 *
+					(unsigned int) ((dw_LathchValue >> (16 *
 							b_SelectedCounter)) &
 					0xFFFFU);
 			} else {
@@ -5150,7 +5150,7 @@ int i_APCI1710_ReadFrequencyMeasurement(struct comedi_device * dev,
 	unsigned char * pb_Status, unsigned char * pb_UDStatus, PULONG pul_ReadValue)
 {
 	int i_ReturnValue = 0;
-	UINT ui_16BitValue;
+	unsigned int ui_16BitValue;
 	DWORD dw_StatusReg;
 
 	/**************************/
@@ -5224,7 +5224,7 @@ int i_APCI1710_ReadFrequencyMeasurement(struct comedi_device * dev,
 								if ((*pul_ReadValue & 0xFFFFU) != 0) {
 									ui_16BitValue
 										=
-										(UINT)
+										(unsigned int)
 										*
 										pul_ReadValue
 										&
@@ -5247,7 +5247,7 @@ int i_APCI1710_ReadFrequencyMeasurement(struct comedi_device * dev,
 								if ((*pul_ReadValue & 0xFFFF0000UL) != 0) {
 									ui_16BitValue
 										=
-										(UINT)
+										(unsigned int)
 										(
 										(*pul_ReadValue
 											>>
@@ -5281,7 +5281,7 @@ int i_APCI1710_ReadFrequencyMeasurement(struct comedi_device * dev,
 								if ((*pul_ReadValue & 0xFFFF0000UL) != 0) {
 									ui_16BitValue
 										=
-										(UINT)
+										(unsigned int)
 										(
 										(*pul_ReadValue
 											>>
@@ -5307,7 +5307,7 @@ int i_APCI1710_ReadFrequencyMeasurement(struct comedi_device * dev,
 									if ((*pul_ReadValue & 0xFFFFU) != 0) {
 										ui_16BitValue
 											=
-											(UINT)
+											(unsigned int)
 											*
 											pul_ReadValue
 											&
