@@ -228,8 +228,15 @@ static int p54spi_request_eeprom(struct ieee80211_hw *dev)
 static int p54spi_upload_firmware(struct ieee80211_hw *dev)
 {
 	struct p54s_priv *priv = dev->priv;
-	unsigned long fw_len, fw_addr;
-	long _fw_len;
+	unsigned long fw_len, _fw_len;
+	unsigned int offset = 0;
+	int err = 0;
+	u8 *fw;
+
+	fw_len = priv->firmware->size;
+	fw = kmemdup(priv->firmware->data, fw_len, GFP_KERNEL);
+	if (!fw)
+		return -ENOMEM;
 
 	/* stop the device */
 	p54spi_write16(priv, SPI_ADRS_DEV_CTRL_STAT, cpu_to_le16(
@@ -244,9 +251,6 @@ static int p54spi_upload_firmware(struct ieee80211_hw *dev)
 
 	msleep(TARGET_BOOT_SLEEP);
 
-	fw_addr = ISL38XX_DEV_FIRMWARE_ADDR;
-	fw_len = priv->firmware->size;
-
 	while (fw_len > 0) {
 		_fw_len = min_t(long, fw_len, SPI_MAX_PACKET_SIZE);
 
@@ -257,23 +261,20 @@ static int p54spi_upload_firmware(struct ieee80211_hw *dev)
 				    cpu_to_le32(HOST_ALLOWED)) == 0) {
 			dev_err(&priv->spi->dev, "fw_upload not allowed "
 				"to DMA write.");
-			return -EAGAIN;
+			err = -EAGAIN;
+			goto out;
 		}
 
 		p54spi_write16(priv, SPI_ADRS_DMA_WRITE_LEN,
 			       cpu_to_le16(_fw_len));
-		p54spi_write32(priv, SPI_ADRS_DMA_WRITE_BASE,
-			       cpu_to_le32(fw_addr));
+		p54spi_write32(priv, SPI_ADRS_DMA_WRITE_BASE, cpu_to_le32(
+				ISL38XX_DEV_FIRMWARE_ADDR + offset));
 
 		p54spi_spi_write(priv, SPI_ADRS_DMA_DATA,
-				 &priv->firmware->data, _fw_len);
+				 (fw + offset), _fw_len);
 
 		fw_len -= _fw_len;
-		fw_addr += _fw_len;
-
-		/* FIXME: I think this doesn't work if firmware is large,
-		 * this loop goes to second round. fw->data is not
-		 * increased at all! */
+		offset += _fw_len;
 	}
 
 	BUG_ON(fw_len != 0);
@@ -292,7 +293,10 @@ static int p54spi_upload_firmware(struct ieee80211_hw *dev)
 	p54spi_write16(priv, SPI_ADRS_DEV_CTRL_STAT, cpu_to_le16(
 		       SPI_CTRL_STAT_HOST_OVERRIDE | SPI_CTRL_STAT_RAM_BOOT));
 	msleep(TARGET_BOOT_SLEEP);
-	return 0;
+
+out:
+	kfree(fw);
+	return err;
 }
 
 static void p54spi_power_off(struct p54s_priv *priv)
