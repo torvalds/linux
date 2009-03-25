@@ -134,15 +134,15 @@ int i_APCI1710_InsnConfigInitTorCounter(struct comedi_device * dev,
 	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data)
 {
 	int i_ReturnValue = 0;
-	ULONG ul_TimerValue = 0;
+	unsigned int ul_TimerValue = 0;
 	DWORD dw_Command;
 	double d_RealTimingInterval = 0;
 	unsigned char b_ModulNbr;
 	unsigned char b_TorCounter;
 	unsigned char b_PCIInputClock;
 	unsigned char b_TimingUnit;
-	ULONG ul_TimingInterval;
-	ULONG ul_RealTimingInterval = 0;
+	unsigned int ul_TimingInterval;
+	unsigned int ul_RealTimingInterval = 0;
 
 	i_ReturnValue = insn->n;
 	b_ModulNbr = (unsigned char) CR_AREF(insn->chanspec);
@@ -150,7 +150,7 @@ int i_APCI1710_InsnConfigInitTorCounter(struct comedi_device * dev,
 	b_TorCounter = (unsigned char) data[0];
 	b_PCIInputClock = (unsigned char) data[1];
 	b_TimingUnit = (unsigned char) data[2];
-	ul_TimingInterval = (ULONG) data[3];
+	ul_TimingInterval = (unsigned int) data[3];
 	printk("INPUT clock %d\n", b_PCIInputClock);
 
 		/**************************/
@@ -225,7 +225,7 @@ int i_APCI1710_InsnConfigInitTorCounter(struct comedi_device * dev,
 
 											ul_TimerValue
 												=
-												(ULONG)
+												(unsigned int)
 												(ul_TimingInterval
 												*
 												(0.00025 * b_PCIInputClock));
@@ -248,7 +248,7 @@ int i_APCI1710_InsnConfigInitTorCounter(struct comedi_device * dev,
 
 											ul_RealTimingInterval
 												=
-												(ULONG)
+												(unsigned int)
 												(ul_TimerValue
 												/
 												(0.00025 * (double)b_PCIInputClock));
@@ -284,7 +284,7 @@ int i_APCI1710_InsnConfigInitTorCounter(struct comedi_device * dev,
 											if (b_PCIInputClock != APCI1710_40MHZ) {
 												ul_TimerValue
 													=
-													(ULONG)
+													(unsigned int)
 													(
 													(double)
 													(ul_TimerValue)
@@ -306,7 +306,7 @@ int i_APCI1710_InsnConfigInitTorCounter(struct comedi_device * dev,
 
 											ul_TimerValue
 												=
-												(ULONG)
+												(unsigned int)
 												(ul_TimingInterval
 												*
 												(0.25 * b_PCIInputClock));
@@ -329,7 +329,7 @@ int i_APCI1710_InsnConfigInitTorCounter(struct comedi_device * dev,
 
 											ul_RealTimingInterval
 												=
-												(ULONG)
+												(unsigned int)
 												(ul_TimerValue
 												/
 												(0.25 * (double)b_PCIInputClock));
@@ -367,7 +367,7 @@ int i_APCI1710_InsnConfigInitTorCounter(struct comedi_device * dev,
 											if (b_PCIInputClock != APCI1710_40MHZ) {
 												ul_TimerValue
 													=
-													(ULONG)
+													(unsigned int)
 													(
 													(double)
 													(ul_TimerValue)
@@ -413,7 +413,7 @@ int i_APCI1710_InsnConfigInitTorCounter(struct comedi_device * dev,
 
 											ul_RealTimingInterval
 												=
-												(ULONG)
+												(unsigned int)
 												(ul_TimerValue
 												/
 												(250.0 * (double)b_PCIInputClock));
@@ -449,7 +449,7 @@ int i_APCI1710_InsnConfigInitTorCounter(struct comedi_device * dev,
 											if (b_PCIInputClock != APCI1710_40MHZ) {
 												ul_TimerValue
 													=
-													(ULONG)
+													(unsigned int)
 													(
 													(double)
 													(ul_TimerValue)
@@ -471,7 +471,7 @@ int i_APCI1710_InsnConfigInitTorCounter(struct comedi_device * dev,
 
 											ul_TimerValue
 												=
-												(ULONG)
+												(unsigned int)
 												(ul_TimingInterval
 												*
 												(250000.0
@@ -496,7 +496,7 @@ int i_APCI1710_InsnConfigInitTorCounter(struct comedi_device * dev,
 
 											ul_RealTimingInterval
 												=
-												(ULONG)
+												(unsigned int)
 												(ul_TimerValue
 												/
 												(250000.0
@@ -535,7 +535,7 @@ int i_APCI1710_InsnConfigInitTorCounter(struct comedi_device * dev,
 											if (b_PCIInputClock != APCI1710_40MHZ) {
 												ul_TimerValue
 													=
-													(ULONG)
+													(unsigned int)
 													(
 													(double)
 													(ul_TimerValue)
@@ -557,7 +557,7 @@ int i_APCI1710_InsnConfigInitTorCounter(struct comedi_device * dev,
 
 											ul_TimerValue
 												=
-												(ULONG)
+												(unsigned int)
 												(
 												(ul_TimingInterval
 													*
@@ -585,7 +585,7 @@ int i_APCI1710_InsnConfigInitTorCounter(struct comedi_device * dev,
 
 											ul_RealTimingInterval
 												=
-												(ULONG)
+												(unsigned int)
 												(ul_TimerValue
 												/
 												(250000.0
@@ -629,7 +629,7 @@ int i_APCI1710_InsnConfigInitTorCounter(struct comedi_device * dev,
 											if (b_PCIInputClock != APCI1710_40MHZ) {
 												ul_TimerValue
 													=
-													(ULONG)
+													(unsigned int)
 													(
 													(double)
 													(ul_TimerValue)
@@ -1442,7 +1442,7 @@ int i_APCI1710_InsnWriteEnableDisableTorCounter(struct comedi_device * dev,
 |                                                 Disable the tor counter    |
 |                                                 interrupt
 	pb_TimingUnit		=	(unsigned char *) &data[0];
-	pul_TimingInterval	=  (PULONG) &data[1];
+	pul_TimingInterval	=  (unsigned int *) &data[1];
 	pb_InputMode		=	(unsigned char *) &data[2];
 	pb_ExternGate		=	(unsigned char *) &data[3];
 	pb_CycleMode		=	(unsigned char *) &data[4];
@@ -1468,7 +1468,7 @@ int i_APCI1710_InsnReadGetTorCounterInitialisation(struct comedi_device * dev,
 	unsigned char b_ModulNbr;
 	unsigned char b_TorCounter;
 	unsigned char * pb_TimingUnit;
-	PULONG pul_TimingInterval;
+	unsigned int * pul_TimingInterval;
 	unsigned char * pb_InputMode;
 	unsigned char * pb_ExternGate;
 	unsigned char * pb_CycleMode;
@@ -1480,7 +1480,7 @@ int i_APCI1710_InsnReadGetTorCounterInitialisation(struct comedi_device * dev,
 	b_TorCounter = CR_CHAN(insn->chanspec);
 
 	pb_TimingUnit = (unsigned char *) & data[0];
-	pul_TimingInterval = (PULONG) & data[1];
+	pul_TimingInterval = (unsigned int *) & data[1];
 	pb_InputMode = (unsigned char *) & data[2];
 	pb_ExternGate = (unsigned char *) & data[3];
 	pb_CycleMode = (unsigned char *) & data[4];
@@ -1683,9 +1683,9 @@ int i_APCI1710_InsnReadGetTorCounterInitialisation(struct comedi_device * dev,
 |                                                   function                 |
 |                                                 "i_APCI1710_InitTorCounter"|
 |						4 : Timeeout occur           |
-|                     PULONG  pul_TorCounterValue  : Tor counter value.
+|                     unsigned int *  pul_TorCounterValue  : Tor counter value.
 	pb_TorCounterStatus=(unsigned char *) &data[0];
-	pul_TorCounterValue=(PULONG) &data[1];    |
+	pul_TorCounterValue=(unsigned int *) &data[1];    |
 +----------------------------------------------------------------------------+
 | Return Value      :  0: No error                                           |
 |                     -1: The handle parameter of the board is wrong         |
@@ -1712,7 +1712,7 @@ int i_APCI1710_InsnBitsGetTorCounterProgressStatusAndValue(struct comedi_device 
 	unsigned char b_ReadType;
 	unsigned int ui_TimeOut;
 	unsigned char * pb_TorCounterStatus;
-	PULONG pul_TorCounterValue;
+	unsigned int * pul_TorCounterValue;
 
 	i_ReturnValue = insn->n;
 	b_ModulNbr = CR_AREF(insn->chanspec);
@@ -1720,7 +1720,7 @@ int i_APCI1710_InsnBitsGetTorCounterProgressStatusAndValue(struct comedi_device 
 	b_TorCounter = (unsigned char) data[1];
 	ui_TimeOut = (unsigned int) data[2];
 	pb_TorCounterStatus = (unsigned char *) & data[0];
-	pul_TorCounterValue = (PULONG) & data[1];
+	pul_TorCounterValue = (unsigned int *) & data[1];
 
 	/**************************/
 	/* Test the module number */

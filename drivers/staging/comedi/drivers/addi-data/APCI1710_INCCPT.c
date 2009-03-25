@@ -126,7 +126,7 @@ int i_APCI1710_InsnConfigINCCPT(struct comedi_device * dev, struct comedi_subdev
 		i_ReturnValue = i_APCI1710_InitFrequencyMeasurement(dev,
 			CR_AREF(insn->chanspec),
 			(unsigned char) data[0],
-			(unsigned char) data[1], (ULONG) data[2], (PULONG) & data[0]);
+			(unsigned char) data[1], (unsigned int) data[2], (unsigned int *) & data[0]);
 		break;
 
 	default:
@@ -1491,10 +1491,10 @@ int i_APCI1710_InitFrequencyMeasurement(struct comedi_device * dev,
 	unsigned char b_ModulNbr,
 	unsigned char b_PCIInputClock,
 	unsigned char b_TimingUnity,
-	ULONG ul_TimingInterval, PULONG pul_RealTimingInterval)
+	unsigned int ul_TimingInterval, unsigned int * pul_RealTimingInterval)
 {
 	int i_ReturnValue = 0;
-	ULONG ul_TimerValue = 0;
+	unsigned int ul_TimerValue = 0;
 	double d_RealTimingInterval;
 	DWORD dw_Status = 0;
 
@@ -1720,7 +1720,7 @@ int i_APCI1710_InitFrequencyMeasurement(struct comedi_device * dev,
 
 									ul_TimerValue
 										=
-										(ULONG)
+										(unsigned int)
 										(ul_TimingInterval
 										*
 										(0.00025 * b_PCIInputClock));
@@ -1743,7 +1743,7 @@ int i_APCI1710_InitFrequencyMeasurement(struct comedi_device * dev,
 
 									*pul_RealTimingInterval
 										=
-										(ULONG)
+										(unsigned int)
 										(ul_TimerValue
 										/
 										(0.00025 * (double)b_PCIInputClock));
@@ -1790,7 +1790,7 @@ int i_APCI1710_InitFrequencyMeasurement(struct comedi_device * dev,
 
 									ul_TimerValue
 										=
-										(ULONG)
+										(unsigned int)
 										(ul_TimingInterval
 										*
 										(0.25 * b_PCIInputClock));
@@ -1813,7 +1813,7 @@ int i_APCI1710_InitFrequencyMeasurement(struct comedi_device * dev,
 
 									*pul_RealTimingInterval
 										=
-										(ULONG)
+										(unsigned int)
 										(ul_TimerValue
 										/
 										(0.25 * (double)b_PCIInputClock));
@@ -1886,7 +1886,7 @@ int i_APCI1710_InitFrequencyMeasurement(struct comedi_device * dev,
 
 									*pul_RealTimingInterval
 										=
-										(ULONG)
+										(unsigned int)
 										(ul_TimerValue
 										/
 										(250.0 * (double)b_PCIInputClock));
@@ -2979,7 +2979,7 @@ int i_APCI1710_InsnWriteINCCPT(struct comedi_device * dev, struct comedi_subdevi
 
 	case APCI1710_INCCPT_WRITE32BITCOUNTERVALUE:
 		i_ReturnValue = i_APCI1710_Write32BitCounterValue(dev,
-			(unsigned char) CR_AREF(insn->chanspec), (ULONG) data[0]);
+			(unsigned char) CR_AREF(insn->chanspec), (unsigned int) data[0]);
 
 		break;
 
@@ -3257,7 +3257,7 @@ int i_APCI1710_Write16BitCounterValue(struct comedi_device * dev,
 				/* Write the value */
 		 /*******************/
 
-				outl((ULONG) ((ULONG) (ui_WriteValue) << (16 *
+				outl((unsigned int) ((unsigned int) (ui_WriteValue) << (16 *
 							b_SelectedCounter)),
 					devpriv->s_BoardInfos.ui_Address + 8 +
 					(b_SelectedCounter * 4) +
@@ -3317,7 +3317,7 @@ int i_APCI1710_Write16BitCounterValue(struct comedi_device * dev,
 */
 
 int i_APCI1710_Write32BitCounterValue(struct comedi_device * dev,
-	unsigned char b_ModulNbr, ULONG ul_WriteValue)
+	unsigned char b_ModulNbr, unsigned int ul_WriteValue)
 {
 	int i_ReturnValue = 0;
 
@@ -3386,7 +3386,7 @@ int i_APCI1710_Write32BitCounterValue(struct comedi_device * dev,
 int i_APCI1710_EnableIndex(struct comedi_device * dev, unsigned char b_ModulNbr)
 {
 	int i_ReturnValue = 0;
-	ULONG ul_InterruptLatchReg;
+	unsigned int ul_InterruptLatchReg;
 
 	/**************************/
 	/* Test the module number */
@@ -4068,7 +4068,7 @@ int i_APCI1710_InsnReadINCCPT(struct comedi_device * dev, struct comedi_subdevic
 	case APCI1710_INCCPT_READLATCHREGISTERVALUE:
 		i_ReturnValue = i_APCI1710_ReadLatchRegisterValue(dev,
 			(unsigned char) CR_AREF(insn->chanspec),
-			(unsigned char) CR_RANGE(insn->chanspec), (PULONG) & data[0]);
+			(unsigned char) CR_RANGE(insn->chanspec), (unsigned int *) & data[0]);
 		printk("Latch Register Value %d\n", data[0]);
 		break;
 
@@ -4080,7 +4080,7 @@ int i_APCI1710_InsnReadINCCPT(struct comedi_device * dev, struct comedi_subdevic
 
 	case APCI1710_INCCPT_READ32BITCOUNTERVALUE:
 		i_ReturnValue = i_APCI1710_Read32BitCounterValue(dev,
-			(unsigned char) CR_AREF(insn->chanspec), (PULONG) & data[0]);
+			(unsigned char) CR_AREF(insn->chanspec), (unsigned int *) & data[0]);
 		break;
 
 	case APCI1710_INCCPT_GETINDEXSTATUS:
@@ -4124,7 +4124,7 @@ int i_APCI1710_InsnReadINCCPT(struct comedi_device * dev, struct comedi_subdevic
 		i_ReturnValue = i_APCI1710_ReadFrequencyMeasurement(dev,
 			(unsigned char) CR_AREF(insn->chanspec),
 			(unsigned char *) & data[0],
-			(unsigned char *) & data[1], (PULONG) & data[2]);
+			(unsigned char *) & data[1], (unsigned int *) & data[2]);
 		break;
 
 	case APCI1710_INCCPT_READINTERRUPT:
@@ -4281,7 +4281,7 @@ int i_APCI1710_ReadLatchRegisterStatus(struct comedi_device * dev,
 */
 
 int i_APCI1710_ReadLatchRegisterValue(struct comedi_device * dev,
-	unsigned char b_ModulNbr, unsigned char b_LatchReg, PULONG pul_LatchValue)
+	unsigned char b_ModulNbr, unsigned char b_LatchReg, unsigned int * pul_LatchValue)
 {
 	int i_ReturnValue = 0;
 
@@ -4460,7 +4460,7 @@ int i_APCI1710_Read16BitCounterValue(struct comedi_device * dev,
 */
 
 int i_APCI1710_Read32BitCounterValue(struct comedi_device * dev,
-	unsigned char b_ModulNbr, PULONG pul_CounterValue)
+	unsigned char b_ModulNbr, unsigned int * pul_CounterValue)
 {
 	int i_ReturnValue = 0;
 
@@ -5147,7 +5147,7 @@ int i_APCI1710_GetInterruptUDLatchedStatus(struct comedi_device * dev,
 
 int i_APCI1710_ReadFrequencyMeasurement(struct comedi_device * dev,
 	unsigned char b_ModulNbr,
-	unsigned char * pb_Status, unsigned char * pb_UDStatus, PULONG pul_ReadValue)
+	unsigned char * pb_Status, unsigned char * pb_UDStatus, unsigned int * pul_ReadValue)
 {
 	int i_ReturnValue = 0;
 	unsigned int ui_16BitValue;

@@ -37,7 +37,6 @@
 #define SUCCESS	1
 
 /* variable type definition */
-typedef unsigned int ULONG, *PULONG;	/* 32-bit */
 typedef unsigned int DWORD, *PDWORD;	/* 32-bit */
 typedef unsigned long ULONG_PTR;
 
@@ -308,7 +307,7 @@ typedef union {
 			unsigned char b_TimingUnit;
 			unsigned char b_InterruptEnable;
 			double d_TimingInterval;
-			ULONG ul_RealTimingInterval;
+			unsigned int ul_RealTimingInterval;
 		} s_TorCounterInfo[2];
 		unsigned char b_PCIInputClock;
 	} s_TorCounterModuleInfo;
@@ -321,8 +320,8 @@ typedef union {
 			unsigned char b_InterruptEnable;
 			double d_LowTiming;
 			double d_HighTiming;
-			ULONG ul_RealLowTiming;
-			ULONG ul_RealHighTiming;
+			unsigned int ul_RealLowTiming;
+			unsigned int ul_RealHighTiming;
 		} s_PWMInfo[2];
 		unsigned char b_ClockSelection;
 	} s_PWMModuleInfo;
@@ -337,7 +336,7 @@ typedef union {
 		unsigned char b_TimingUnit;
 		unsigned char b_ClockSelection;
 		double d_TimingInterval;
-		ULONG ul_Timing;
+		unsigned int ul_Timing;
 	} s_ETMModuleInfo;
 
 	/* CDA infos */
@@ -383,10 +382,10 @@ typedef struct {
 	unsigned short us_UseDma;	// To use Dma or not
 	unsigned char b_DmaDoubleBuffer;	// we can use double buffering
 	unsigned int ui_DmaActualBuffer;	// which buffer is used now
-	//*UPDATE-0.7.57->0.7.68
-	//ULONG               ul_DmaBufferVirtual[2];// pointers to begin of DMA buffer
+	/* UPDATE-0.7.57->0.7.68 */
+	/* unsigned int               ul_DmaBufferVirtual[2]; pointers to begin of DMA buffer */
 	short *ul_DmaBufferVirtual[2];	// pointers to begin of DMA buffer
-	ULONG ul_DmaBufferHw[2];	// hw address of DMA buff
+	unsigned int ul_DmaBufferHw[2];	// hw address of DMA buff
 	unsigned int ui_DmaBufferSize[2];	// size of dma buffer in bytes
 	unsigned int ui_DmaBufferUsesize[2];	// which size we may now used for transfer
 	unsigned int ui_DmaBufferSamples[2];	// size in samples
@@ -427,19 +426,19 @@ typedef struct {
 
 	/* Interrupt infos */
 	struct {
-		ULONG ul_InterruptOccur;	/* 0   : No interrupt occur */
+		unsigned int ul_InterruptOccur;	/* 0   : No interrupt occur */
 						/* > 0 : Interrupt occur */
 		unsigned int ui_Read;	/* Read FIFO */
 		unsigned int ui_Write;	/* Write FIFO */
 		struct {
 			unsigned char b_OldModuleMask;
-			ULONG ul_OldInterruptMask;	/* Interrupt mask */
-			ULONG ul_OldCounterLatchValue;	/* Interrupt counter value */
+			unsigned int ul_OldInterruptMask;	/* Interrupt mask */
+			unsigned int ul_OldCounterLatchValue;	/* Interrupt counter value */
 		} s_FIFOInterruptParameters[APCI1710_SAVE_INTERRUPT];
 	} s_InterruptParameters;
 
 	str_ModuleInfo s_ModuleInfo[4];
-	ULONG ul_TTLPortConfiguration[10];
+	unsigned int ul_TTLPortConfiguration[10];
 
 } addi_private;
 

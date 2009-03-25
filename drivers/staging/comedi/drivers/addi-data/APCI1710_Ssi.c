@@ -115,7 +115,7 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 	b_PositionTurnLength= (unsigned char) data[1];
 	b_TurnCptLength		= (unsigned char) data[2];
 	b_PCIInputClock		= (unsigned char) data[3];
-	ul_SSIOutputClock	= (ULONG) data[4];
+	ul_SSIOutputClock	= (unsigned int) data[4];
 	b_SSICountingMode	= (unsigned char)  data[5];     |
 +----------------------------------------------------------------------------+
 | Output Parameters : -                                                      |
@@ -140,14 +140,14 @@ int i_APCI1710_InsnConfigInitSSI(struct comedi_device * dev, struct comedi_subde
 	unsigned int ui_TimerValue;
 	unsigned char b_ModulNbr, b_SSIProfile, b_PositionTurnLength, b_TurnCptLength,
 		b_PCIInputClock, b_SSICountingMode;
-	ULONG ul_SSIOutputClock;
+	unsigned int ul_SSIOutputClock;
 
 	b_ModulNbr = CR_AREF(insn->chanspec);
 	b_SSIProfile = (unsigned char) data[0];
 	b_PositionTurnLength = (unsigned char) data[1];
 	b_TurnCptLength = (unsigned char) data[2];
 	b_PCIInputClock = (unsigned char) data[3];
-	ul_SSIOutputClock = (ULONG) data[4];
+	ul_SSIOutputClock = (unsigned int) data[4];
 	b_SSICountingMode = (unsigned char) data[5];
 
 	i_ReturnValue = insn->n;
@@ -252,7 +252,7 @@ int i_APCI1710_InsnConfigInitSSI(struct comedi_device * dev, struct comedi_subde
 											=
 											(unsigned int)
 											(
-											((ULONG) (b_PCIInputClock) * 500000UL) / ul_SSIOutputClock);
+											((unsigned int) (b_PCIInputClock) * 500000UL) / ul_SSIOutputClock);
 
 				   /************************/
 										/* Initialise the timer */
@@ -387,8 +387,8 @@ int i_APCI1710_InsnConfigInitSSI(struct comedi_device * dev, struct comedi_subde
 | Output Parameters : PULONG_  pul_Position       : SSI position in the turn |
 |                     PULONG_  pul_TurnCpt        : Number of turns
 
-pul_Position	=	(PULONG) &data[0];
-	pul_TurnCpt		=	(PULONG) &data[1];         |
+pul_Position	=	(unsigned int *) &data[0];
+	pul_TurnCpt		=	(unsigned int *) &data[1];         |
 +----------------------------------------------------------------------------+
 | Return Value      : 0: No error                                            |
 |                    -1: The handle parameter of the board is wrong          |
@@ -416,18 +416,18 @@ int i_APCI1710_InsnReadSSIValue(struct comedi_device * dev, struct comedi_subdev
 	unsigned char b_ModulNbr;
 	unsigned char b_SelectedSSI;
 	unsigned char b_ReadType;
-	PULONG pul_Position;
-	PULONG pul_TurnCpt;
-	PULONG pul_Position1;
-	PULONG pul_TurnCpt1;
+	unsigned int * pul_Position;
+	unsigned int * pul_TurnCpt;
+	unsigned int * pul_Position1;
+	unsigned int * pul_TurnCpt1;
 
 	i_ReturnValue = insn->n;
-	pul_Position1 = (PULONG) & data[0];
+	pul_Position1 = (unsigned int *) & data[0];
 // For Read1
-	pul_TurnCpt1 = (PULONG) & data[1];
+	pul_TurnCpt1 = (unsigned int *) & data[1];
 // For Read all
-	pul_Position = (PULONG) & data[0];	//0-2
-	pul_TurnCpt = (PULONG) & data[3];	//3-5
+	pul_Position = (unsigned int *) & data[0];	//0-2
+	pul_TurnCpt = (unsigned int *) & data[3];	//3-5
 	b_ModulNbr = (unsigned char) CR_AREF(insn->chanspec);
 	b_SelectedSSI = (unsigned char) CR_CHAN(insn->chanspec);
 	b_ReadType = (unsigned char) CR_RANGE(insn->chanspec);

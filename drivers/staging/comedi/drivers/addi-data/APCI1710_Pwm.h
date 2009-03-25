@@ -34,16 +34,16 @@ int i_APCI1710_InitPWM(struct comedi_device *dev,
 		       unsigned char b_PWM,
 		       unsigned char b_ClockSelection,
 		       unsigned char b_TimingUnit,
-		       ULONG ul_LowTiming,
-		       ULONG ul_HighTiming,
-		       PULONG pul_RealLowTiming, PULONG pul_RealHighTiming);
+		       unsigned int ul_LowTiming,
+		       unsigned int ul_HighTiming,
+		       unsigned int * pul_RealLowTiming, unsigned int * pul_RealHighTiming);
 
 int i_APCI1710_GetPWMInitialisation(struct comedi_device *dev,
 				    unsigned char b_ModulNbr,
 				    unsigned char b_PWM,
 				    unsigned char * pb_TimingUnit,
-				    PULONG pul_LowTiming,
-				    PULONG pul_HighTiming,
+				    unsigned int * pul_LowTiming,
+				    unsigned int * pul_HighTiming,
 				    unsigned char * pb_StartLevel,
 				    unsigned char * pb_StopMode,
 				    unsigned char * pb_StopLevel,
@@ -64,7 +64,7 @@ int i_APCI1710_EnablePWM(struct comedi_device *dev,
 int i_APCI1710_SetNewPWMTiming(struct comedi_device *dev,
 			       unsigned char b_ModulNbr,
 			       unsigned char b_PWM, unsigned char b_TimingUnit,
-			       ULONG ul_LowTiming, ULONG ul_HighTiming);
+			       unsigned int ul_LowTiming, unsigned int ul_HighTiming);
 
 int i_APCI1710_DisablePWM(struct comedi_device *dev, unsigned char b_ModulNbr, unsigned char b_PWM);
 

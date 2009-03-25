@@ -339,7 +339,7 @@ int i_APCI3501_ConfigAnalogOutput(struct comedi_device * dev, struct comedi_subd
 int i_APCI3501_WriteAnalogOutput(struct comedi_device * dev, struct comedi_subdevice * s,
 	struct comedi_insn * insn, unsigned int * data)
 {
-	ULONG ul_Command1 = 0, ul_Channel_no, ul_Polarity, ul_DAC_Ready = 0;;
+	unsigned int ul_Command1 = 0, ul_Channel_no, ul_Polarity, ul_DAC_Ready = 0;;
 
 	ul_Channel_no = CR_CHAN(insn->chanspec);
 
@@ -372,9 +372,9 @@ int i_APCI3501_WriteAnalogOutput(struct comedi_device * dev, struct comedi_subde
 	if (ul_DAC_Ready) {
 // Output the Value on the output channels.
 		ul_Command1 =
-			(ULONG) ((ULONG) (ul_Channel_no & 0xFF) |
-			(ULONG) ((*data << 0x8) & 0x7FFFFF00L) |
-			(ULONG) (ul_Polarity));
+			(unsigned int) ((unsigned int) (ul_Channel_no & 0xFF) |
+			(unsigned int) ((*data << 0x8) & 0x7FFFFF00L) |
+			(unsigned int) (ul_Polarity));
 		outl(ul_Command1,
 			devpriv->iobase + APCI3501_ANALOG_OUTPUT +
 			APCI3501_AO_PROG);
@@ -413,7 +413,7 @@ int i_APCI3501_WriteAnalogOutput(struct comedi_device * dev, struct comedi_subde
 int i_APCI3501_ConfigTimerCounterWatchdog(struct comedi_device * dev,
 	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data)
 {
-	ULONG ul_Command1 = 0;
+	unsigned int ul_Command1 = 0;
 	devpriv->tsk_Current = current;
 	if (data[0] == ADDIDATA_WATCHDOG) {
 
@@ -514,7 +514,7 @@ int i_APCI3501_ConfigTimerCounterWatchdog(struct comedi_device * dev,
 int i_APCI3501_StartStopWriteTimerCounterWatchdog(struct comedi_device * dev,
 	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data)
 {
-	ULONG ul_Command1 = 0;
+	unsigned int ul_Command1 = 0;
 	int i_Temp;
 	if (devpriv->b_TimerSelectMode == ADDIDATA_WATCHDOG) {
 
@@ -657,7 +657,7 @@ int i_APCI3501_ReadTimerCounterWatchdog(struct comedi_device * dev,
 int i_APCI3501_Reset(struct comedi_device * dev)
 {
 	int i_Count = 0, i_temp = 0;
-	ULONG ul_Command1 = 0, ul_Polarity, ul_DAC_Ready = 0;
+	unsigned int ul_Command1 = 0, ul_Polarity, ul_DAC_Ready = 0;
 	outl(0x0, devpriv->iobase + APCI3501_DIGITAL_OP);
 	outl(1, devpriv->iobase + APCI3501_ANALOG_OUTPUT +
 		APCI3501_AO_VOLT_MODE);
@@ -676,9 +676,9 @@ int i_APCI3501_Reset(struct comedi_device * dev)
 		if (ul_DAC_Ready) {
 			// Output the Value on the output channels.
 			ul_Command1 =
-				(ULONG) ((ULONG) (i_Count & 0xFF) |
-				(ULONG) ((i_temp << 0x8) & 0x7FFFFF00L) |
-				(ULONG) (ul_Polarity));
+				(unsigned int) ((unsigned int) (i_Count & 0xFF) |
+				(unsigned int) ((i_temp << 0x8) & 0x7FFFFF00L) |
+				(unsigned int) (ul_Polarity));
 			outl(ul_Command1,
 				devpriv->iobase + APCI3501_ANALOG_OUTPUT +
 				APCI3501_AO_PROG);

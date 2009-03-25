@@ -94,9 +94,9 @@ static const struct comedi_lrange range_apci3300_ai = { 4, {
 //END JK 21.10.2004: APCI-3200 / APCI-3300 Reading of EEPROM values
 
 typedef struct {
-	ULONG ul_NumberOfValue;
-	ULONG *pul_ResistanceValue;
-	ULONG *pul_TemperatureValue;
+	unsigned int ul_NumberOfValue;
+	unsigned int *pul_ResistanceValue;
+	unsigned int *pul_TemperatureValue;
 } str_ADDIDATA_RTDStruct, *pstr_ADDIDATA_RTDStruct;
 
 //BEGIN JK 21.10.2004: APCI-3200 / APCI-3300 Reading of EEPROM values

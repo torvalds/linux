@@ -258,7 +258,7 @@ int i_APCI1564_ReadMoreDigitalInput(struct comedi_device * dev, struct comedi_su
 int i_APCI1564_ConfigDigitalOutput(struct comedi_device * dev, struct comedi_subdevice * s,
 	struct comedi_insn * insn, unsigned int * data)
 {
-	ULONG ul_Command = 0;
+	unsigned int ul_Command = 0;
 
 	if ((data[0] != 0) && (data[0] != 1)) {
 		comedi_error(dev,
@@ -567,7 +567,7 @@ int i_APCI1564_ReadDigitalOutput(struct comedi_device * dev, struct comedi_subde
 int i_APCI1564_ConfigTimerCounterWatchdog(struct comedi_device * dev,
 	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data)
 {
-	ULONG ul_Command1 = 0;
+	unsigned int ul_Command1 = 0;
 	devpriv->tsk_Current = current;
 	if (data[0] == ADDIDATA_WATCHDOG) {
 		devpriv->b_TimerSelectMode = ADDIDATA_WATCHDOG;
@@ -666,7 +666,7 @@ int i_APCI1564_ConfigTimerCounterWatchdog(struct comedi_device * dev,
       /******************************/
 		ul_Command1 =
 			(ul_Command1 & 0xFFFC19E2UL) | 0x80000UL |
-			(ULONG) ((ULONG) data[4] << 16UL);
+			(unsigned int) ((unsigned int) data[4] << 16UL);
 		outl(ul_Command1,
 			devpriv->iobase + ((data[5] - 1) * 0x20) +
 			APCI1564_TCW_PROG);
@@ -721,7 +721,7 @@ int i_APCI1564_ConfigTimerCounterWatchdog(struct comedi_device * dev,
 int i_APCI1564_StartStopWriteTimerCounterWatchdog(struct comedi_device * dev,
 	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data)
 {
-	ULONG ul_Command1 = 0;
+	unsigned int ul_Command1 = 0;
 	if (devpriv->b_TimerSelectMode == ADDIDATA_WATCHDOG) {
 		switch (data[1]) {
 		case 0:	//stop the watchdog
@@ -816,7 +816,7 @@ int i_APCI1564_StartStopWriteTimerCounterWatchdog(struct comedi_device * dev,
 int i_APCI1564_ReadTimerCounterWatchdog(struct comedi_device * dev,
 	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data)
 {
-	ULONG ul_Command1 = 0;
+	unsigned int ul_Command1 = 0;
 
 	if (devpriv->b_TimerSelectMode == ADDIDATA_WATCHDOG) {
 		// Stores the status of the Watchdog
@@ -922,7 +922,7 @@ static void v_APCI1564_Interrupt(int irq, void *d)
 	unsigned int ui_DO, ui_DI;
 	unsigned int ui_Timer;
 	unsigned int ui_C1, ui_C2, ui_C3, ui_C4;
-	ULONG ul_Command2 = 0;
+	unsigned int ul_Command2 = 0;
 	ui_DI = inl(devpriv->i_IobaseAmcc + APCI1564_DIGITAL_IP +
 		APCI1564_DIGITAL_IP_IRQ) & 0x01;
 	ui_DO = inl(devpriv->i_IobaseAmcc + APCI1564_DIGITAL_OP +

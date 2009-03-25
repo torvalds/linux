@@ -108,7 +108,7 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 	b_PulseEncoderNbr		=(unsigned char) data[0];
 	b_InputLevelSelection	=(unsigned char) data[1];
 	b_TriggerOutputAction	=(unsigned char) data[2];
-	ul_StartValue			=(ULONG) data[3];
+	ul_StartValue			=(unsigned int) data[3];
        |
 +----------------------------------------------------------------------------+
 | Output Parameters : -                                                      |
@@ -133,13 +133,13 @@ int i_APCI1710_InsnConfigInitPulseEncoder(struct comedi_device * dev,
 	unsigned char b_PulseEncoderNbr;
 	unsigned char b_InputLevelSelection;
 	unsigned char b_TriggerOutputAction;
-	ULONG ul_StartValue;
+	unsigned int ul_StartValue;
 
 	b_ModulNbr = (unsigned char) CR_AREF(insn->chanspec);
 	b_PulseEncoderNbr = (unsigned char) data[0];
 	b_InputLevelSelection = (unsigned char) data[1];
 	b_TriggerOutputAction = (unsigned char) data[2];
-	ul_StartValue = (ULONG) data[3];
+	ul_StartValue = (unsigned int) data[3];
 
 	i_ReturnValue = insn->n;
 
@@ -717,15 +717,15 @@ int i_APCI1710_InsnBitsReadWritePulseEncoder(struct comedi_device * dev,
 	unsigned char b_PulseEncoderNbr;
 	unsigned char * pb_Status;
 	unsigned char b_Type;
-	PULONG pul_ReadValue;
-	ULONG ul_WriteValue;
+	unsigned int * pul_ReadValue;
+	unsigned int ul_WriteValue;
 
 	i_ReturnValue = insn->n;
 	b_ModulNbr = (unsigned char) CR_AREF(insn->chanspec);
 	b_Type = (unsigned char) data[0];
 	b_PulseEncoderNbr = (unsigned char) data[1];
 	pb_Status = (unsigned char *) & data[0];
-	pul_ReadValue = (PULONG) & data[1];
+	pul_ReadValue = (unsigned int *) & data[1];
 
 	/***********************************/
 	/* Test the selected module number */
@@ -794,7 +794,7 @@ int i_APCI1710_InsnBitsReadWritePulseEncoder(struct comedi_device * dev,
 					break;
 
 				case APCI1710_PULSEENCODER_WRITE:
-					ul_WriteValue = (ULONG) data[2];
+					ul_WriteValue = (unsigned int) data[2];
 			/*******************/
 					/* Write the value */
 			/*******************/

@@ -661,11 +661,11 @@ int i_APCI1710_InsnReadTTLIOAllPortValue(struct comedi_device * dev,
 	int i_ReturnValue = 0;
 	DWORD dw_StatusReg;
 	unsigned char b_ModulNbr;
-	PULONG pul_PortValue;
+	unsigned int * pul_PortValue;
 
 	b_ModulNbr = (unsigned char) CR_AREF(insn->chanspec);
 	i_ReturnValue = insn->n;
-	pul_PortValue = (PULONG) & data[0];
+	pul_PortValue = (unsigned int *) & data[0];
 
 	/**************************/
 	/* Test the module number */

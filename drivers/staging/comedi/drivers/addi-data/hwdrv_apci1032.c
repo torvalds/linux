@@ -89,8 +89,8 @@ int i_APCI1032_ConfigDigitalInput(struct comedi_device * dev, struct comedi_subd
 {
 	unsigned int ui_TmpValue;
 
-	ULONG ul_Command1 = 0;
-	ULONG ul_Command2 = 0;
+	unsigned int ul_Command1 = 0;
+	unsigned int ul_Command2 = 0;
 	devpriv->tsk_Current = current;
 
   /*******************************/

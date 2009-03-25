@@ -256,10 +256,10 @@ void v_APCI1710_Interrupt(int irq, void *d)
 	unsigned char b_TorCounterCpt = 0;
 	unsigned char b_PulseIncoderCpt = 0;
 	unsigned int ui_16BitValue;
-	ULONG ul_InterruptLatchReg = 0;
-	ULONG ul_LatchRegisterValue = 0;
-	ULONG ul_82X54InterruptStatus;
-	ULONG ul_StatusRegister;
+	unsigned int ul_InterruptLatchReg = 0;
+	unsigned int ul_LatchRegisterValue = 0;
+	unsigned int ul_82X54InterruptStatus;
+	unsigned int ul_StatusRegister;
 
 	str_ModuleInfo *ps_ModuleInfo;
 

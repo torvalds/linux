@@ -198,7 +198,7 @@ int i_InsnConfig_InitTimer(struct comedi_device *dev,struct comedi_subdevice *s,
 |b_ModulNbr        = (unsigned char) CR_AREF(insn->chanspec);
 	b_TimerNbr		  = (unsigned char) CR_CHAN(insn->chanspec);
 	b_TimerMode		  = (unsigned char) data[0];
-	ul_ReloadValue	  = (ULONG) data[1];
+	ul_ReloadValue	  = (unsigned int) data[1];
 	b_InputClockSelection	=(unsigned char) data[2];
 	b_InputClockLevel		=(unsigned char) data[3];
 	b_OutputLevel			=(unsigned char) data[4];
@@ -227,7 +227,7 @@ int i_APCI1710_InsnConfigInitTimer(struct comedi_device * dev, struct comedi_sub
 	unsigned char b_ModulNbr;
 	unsigned char b_TimerNbr;
 	unsigned char b_TimerMode;
-	ULONG ul_ReloadValue;
+	unsigned int ul_ReloadValue;
 	unsigned char b_InputClockSelection;
 	unsigned char b_InputClockLevel;
 	unsigned char b_OutputLevel;
@@ -241,7 +241,7 @@ int i_APCI1710_InsnConfigInitTimer(struct comedi_device * dev, struct comedi_sub
 	b_ModulNbr = (unsigned char) CR_AREF(insn->chanspec);
 	b_TimerNbr = (unsigned char) CR_CHAN(insn->chanspec);
 	b_TimerMode = (unsigned char) data[0];
-	ul_ReloadValue = (ULONG) data[1];
+	ul_ReloadValue = (unsigned int) data[1];
 	b_InputClockSelection = (unsigned char) data[2];
 	b_InputClockLevel = (unsigned char) data[3];
 	b_OutputLevel = (unsigned char) data[4];
@@ -595,11 +595,11 @@ int i_APCI1710_InsnReadAllTimerValue(struct comedi_device *dev, struct comedi_su
 {
 	int i_ReturnValue = 0;
 	unsigned char b_ModulNbr, b_ReadType;
-	PULONG pul_TimerValueArray;
+	unsigned int * pul_TimerValueArray;
 
 	b_ModulNbr = CR_AREF(insn->chanspec);
 	b_ReadType = CR_CHAN(insn->chanspec);
-	pul_TimerValueArray = (PULONG) data;
+	pul_TimerValueArray = (unsigned int *) data;
 	i_ReturnValue = insn->n;
 
 	switch (b_ReadType) {
@@ -695,7 +695,7 @@ int i_APCI1710_InsnBitsTimer(struct comedi_device * dev, struct comedi_subdevice
 		i_ReturnValue = i_APCI1710_ReadTimerValue(dev,
 							  (unsigned char)CR_AREF(insn->chanspec),
 							  (unsigned char)CR_CHAN(insn->chanspec),
-							  (PULONG) & data[0]);
+							  (unsigned int *) & data[0]);
 		break;
 
 	case APCI1710_TIMER_GETOUTPUTLEVEL:
@@ -716,7 +716,7 @@ int i_APCI1710_InsnBitsTimer(struct comedi_device * dev, struct comedi_subdevice
 		i_ReturnValue = i_APCI1710_WriteTimerValue(dev,
 							   (unsigned char)CR_AREF(insn->chanspec),
 							   (unsigned char)CR_CHAN(insn->chanspec),
-							   (ULONG)data[1]);
+							   (unsigned int)data[1]);
 
 		break;
 
@@ -762,7 +762,7 @@ int i_APCI1710_InsnBitsTimer(struct comedi_device * dev, struct comedi_subdevice
 
 int i_APCI1710_ReadTimerValue(struct comedi_device * dev,
 			      unsigned char b_ModulNbr, unsigned char b_TimerNbr,
-			      PULONG pul_TimerValue)
+			      unsigned int * pul_TimerValue)
 {
 	int i_ReturnValue = 0;
 
@@ -1008,7 +1008,7 @@ int i_APCI1710_GetTimerProgressStatus(struct comedi_device *dev,
 
 int i_APCI1710_WriteTimerValue(struct comedi_device * dev,
 			       unsigned char b_ModulNbr, unsigned char b_TimerNbr,
-			       ULONG ul_WriteValue)
+			       unsigned int ul_WriteValue)
 {
 	int i_ReturnValue = 0;
 

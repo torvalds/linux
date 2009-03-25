@@ -55,7 +55,7 @@ int i_APCI1710_InsnBitsTimer(struct comedi_device *dev, struct comedi_subdevice 
  */
 int i_APCI1710_ReadTimerValue(struct comedi_device *dev,
 			      unsigned char b_ModulNbr, unsigned char b_TimerNbr,
-			      PULONG pul_TimerValue);
+			      unsigned int * pul_TimerValue);
 
 int i_APCI1710_GetTimerOutputLevel(struct comedi_device *dev,
 				   unsigned char b_ModulNbr, unsigned char b_TimerNbr,
@@ -70,4 +70,4 @@ int i_APCI1710_GetTimerProgressStatus(struct comedi_device *dev,
  */
 int i_APCI1710_WriteTimerValue(struct comedi_device *dev,
 			       unsigned char b_ModulNbr, unsigned char b_TimerNbr,
-			       ULONG ul_WriteValue);
+			       unsigned int ul_WriteValue);

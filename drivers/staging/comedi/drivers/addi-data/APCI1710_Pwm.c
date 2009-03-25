@@ -83,10 +83,10 @@ int i_APCI1710_InsnConfigPWM(struct comedi_device * dev, struct comedi_subdevice
 			(unsigned char) data[0],	//b_PWM
 			(unsigned char) data[1],	// b_ClockSelection
 			(unsigned char) data[2],	// b_TimingUnit
-			(ULONG) data[3],	//ul_LowTiming
-			(ULONG) data[4],	//ul_HighTiming
-			(PULONG) & data[0],	//pul_RealLowTiming
-			(PULONG) & data[1]	//pul_RealHighTiming
+			(unsigned int) data[3],	//ul_LowTiming
+			(unsigned int) data[4],	//ul_HighTiming
+			(unsigned int *) & data[0],	//pul_RealLowTiming
+			(unsigned int *) & data[1]	//pul_RealHighTiming
 			);
 		break;
 
@@ -94,8 +94,8 @@ int i_APCI1710_InsnConfigPWM(struct comedi_device * dev, struct comedi_subdevice
 		i_ReturnValue = i_APCI1710_GetPWMInitialisation(dev, (unsigned char) CR_AREF(insn->chanspec),	// b_ModulNbr
 			(unsigned char) data[0],	//b_PWM
 			(unsigned char *) & data[0],	//pb_TimingUnit
-			(PULONG) & data[1],	//pul_LowTiming
-			(PULONG) & data[2],	//pul_HighTiming
+			(unsigned int *) & data[1],	//pul_LowTiming
+			(unsigned int *) & data[2],	//pul_HighTiming
 			(unsigned char *) & data[3],	// pb_StartLevel
 			(unsigned char *) & data[4],	// pb_StopMode
 			(unsigned char *) & data[5],	// pb_StopLevel
@@ -184,13 +184,13 @@ int i_APCI1710_InitPWM(struct comedi_device * dev,
 	unsigned char b_PWM,
 	unsigned char b_ClockSelection,
 	unsigned char b_TimingUnit,
-	ULONG ul_LowTiming,
-	ULONG ul_HighTiming,
-	PULONG pul_RealLowTiming, PULONG pul_RealHighTiming)
+	unsigned int ul_LowTiming,
+	unsigned int ul_HighTiming,
+	unsigned int * pul_RealLowTiming, unsigned int * pul_RealHighTiming)
 {
 	int i_ReturnValue = 0;
-	ULONG ul_LowTimerValue = 0;
-	ULONG ul_HighTimerValue = 0;
+	unsigned int ul_LowTimerValue = 0;
+	unsigned int ul_HighTimerValue = 0;
 	DWORD dw_Command;
 	double d_RealLowTiming = 0;
 	double d_RealHighTiming = 0;
@@ -392,7 +392,7 @@ int i_APCI1710_InitPWM(struct comedi_device * dev,
 
 										ul_LowTimerValue
 											=
-											(ULONG)
+											(unsigned int)
 											(ul_LowTiming
 											*
 											(0.00025 * b_ClockSelection));
@@ -415,7 +415,7 @@ int i_APCI1710_InitPWM(struct comedi_device * dev,
 
 										*pul_RealLowTiming
 											=
-											(ULONG)
+											(unsigned int)
 											(ul_LowTimerValue
 											/
 											(0.00025 * (double)b_ClockSelection));
@@ -451,7 +451,7 @@ int i_APCI1710_InitPWM(struct comedi_device * dev,
 										if (b_ClockSelection != APCI1710_40MHZ) {
 											ul_LowTimerValue
 												=
-												(ULONG)
+												(unsigned int)
 												(
 												(double)
 												(ul_LowTimerValue)
@@ -473,7 +473,7 @@ int i_APCI1710_InitPWM(struct comedi_device * dev,
 
 										ul_LowTimerValue
 											=
-											(ULONG)
+											(unsigned int)
 											(ul_LowTiming
 											*
 											(0.25 * b_ClockSelection));
@@ -496,7 +496,7 @@ int i_APCI1710_InitPWM(struct comedi_device * dev,
 
 										*pul_RealLowTiming
 											=
-											(ULONG)
+											(unsigned int)
 											(ul_LowTimerValue
 											/
 											(0.25 * (double)b_ClockSelection));
@@ -534,7 +534,7 @@ int i_APCI1710_InitPWM(struct comedi_device * dev,
 										if (b_ClockSelection != APCI1710_40MHZ) {
 											ul_LowTimerValue
 												=
-												(ULONG)
+												(unsigned int)
 												(
 												(double)
 												(ul_LowTimerValue)
@@ -580,7 +580,7 @@ int i_APCI1710_InitPWM(struct comedi_device * dev,
 
 										*pul_RealLowTiming
 											=
-											(ULONG)
+											(unsigned int)
 											(ul_LowTimerValue
 											/
 											(250.0 * (double)b_ClockSelection));
@@ -616,7 +616,7 @@ int i_APCI1710_InitPWM(struct comedi_device * dev,
 										if (b_ClockSelection != APCI1710_40MHZ) {
 											ul_LowTimerValue
 												=
-												(ULONG)
+												(unsigned int)
 												(
 												(double)
 												(ul_LowTimerValue)
@@ -637,7 +637,7 @@ int i_APCI1710_InitPWM(struct comedi_device * dev,
 
 										ul_LowTimerValue
 											=
-											(ULONG)
+											(unsigned int)
 											(ul_LowTiming
 											*
 											(250000.0
@@ -662,7 +662,7 @@ int i_APCI1710_InitPWM(struct comedi_device * dev,
 
 										*pul_RealLowTiming
 											=
-											(ULONG)
+											(unsigned int)
 											(ul_LowTimerValue
 											/
 											(250000.0
@@ -701,7 +701,7 @@ int i_APCI1710_InitPWM(struct comedi_device * dev,
 										if (b_ClockSelection != APCI1710_40MHZ) {
 											ul_LowTimerValue
 												=
-												(ULONG)
+												(unsigned int)
 												(
 												(double)
 												(ul_LowTimerValue)
@@ -723,7 +723,7 @@ int i_APCI1710_InitPWM(struct comedi_device * dev,
 
 										ul_LowTimerValue
 											=
-											(ULONG)
+											(unsigned int)
 											(
 											(ul_LowTiming
 												*
@@ -751,7 +751,7 @@ int i_APCI1710_InitPWM(struct comedi_device * dev,
 
 										*pul_RealLowTiming
 											=
-											(ULONG)
+											(unsigned int)
 											(ul_LowTimerValue
 											/
 											(250000.0
@@ -795,7 +795,7 @@ int i_APCI1710_InitPWM(struct comedi_device * dev,
 										if (b_ClockSelection != APCI1710_40MHZ) {
 											ul_LowTimerValue
 												=
-												(ULONG)
+												(unsigned int)
 												(
 												(double)
 												(ul_LowTimerValue)
@@ -823,7 +823,7 @@ int i_APCI1710_InitPWM(struct comedi_device * dev,
 
 										ul_HighTimerValue
 											=
-											(ULONG)
+											(unsigned int)
 											(ul_HighTiming
 											*
 											(0.00025 * b_ClockSelection));
@@ -846,7 +846,7 @@ int i_APCI1710_InitPWM(struct comedi_device * dev,
 
 										*pul_RealHighTiming
 											=
-											(ULONG)
+											(unsigned int)
 											(ul_HighTimerValue
 											/
 											(0.00025 * (double)b_ClockSelection));
@@ -882,7 +882,7 @@ int i_APCI1710_InitPWM(struct comedi_device * dev,
 										if (b_ClockSelection != APCI1710_40MHZ) {
 											ul_HighTimerValue
 												=
-												(ULONG)
+												(unsigned int)
 												(
 												(double)
 												(ul_HighTimerValue)
@@ -904,7 +904,7 @@ int i_APCI1710_InitPWM(struct comedi_device * dev,
 
 										ul_HighTimerValue
 											=
-											(ULONG)
+											(unsigned int)
 											(ul_HighTiming
 											*
 											(0.25 * b_ClockSelection));
@@ -927,7 +927,7 @@ int i_APCI1710_InitPWM(struct comedi_device * dev,
 
 										*pul_RealHighTiming
 											=
-											(ULONG)
+											(unsigned int)
 											(ul_HighTimerValue
 											/
 											(0.25 * (double)b_ClockSelection));
@@ -965,7 +965,7 @@ int i_APCI1710_InitPWM(struct comedi_device * dev,
 										if (b_ClockSelection != APCI1710_40MHZ) {
 											ul_HighTimerValue
 												=
-												(ULONG)
+												(unsigned int)
 												(
 												(double)
 												(ul_HighTimerValue)
@@ -1011,7 +1011,7 @@ int i_APCI1710_InitPWM(struct comedi_device * dev,
 
 										*pul_RealHighTiming
 											=
-											(ULONG)
+											(unsigned int)
 											(ul_HighTimerValue
 											/
 											(250.0 * (double)b_ClockSelection));
@@ -1047,7 +1047,7 @@ int i_APCI1710_InitPWM(struct comedi_device * dev,
 										if (b_ClockSelection != APCI1710_40MHZ) {
 											ul_HighTimerValue
 												=
-												(ULONG)
+												(unsigned int)
 												(
 												(double)
 												(ul_HighTimerValue)
@@ -1069,7 +1069,7 @@ int i_APCI1710_InitPWM(struct comedi_device * dev,
 
 										ul_HighTimerValue
 											=
-											(ULONG)
+											(unsigned int)
 											(ul_HighTiming
 											*
 											(250000.0
@@ -1094,7 +1094,7 @@ int i_APCI1710_InitPWM(struct comedi_device * dev,
 
 										*pul_RealHighTiming
 											=
-											(ULONG)
+											(unsigned int)
 											(ul_HighTimerValue
 											/
 											(250000.0
@@ -1133,7 +1133,7 @@ int i_APCI1710_InitPWM(struct comedi_device * dev,
 										if (b_ClockSelection != APCI1710_40MHZ) {
 											ul_HighTimerValue
 												=
-												(ULONG)
+												(unsigned int)
 												(
 												(double)
 												(ul_HighTimerValue)
@@ -1155,7 +1155,7 @@ int i_APCI1710_InitPWM(struct comedi_device * dev,
 
 										ul_HighTimerValue
 											=
-											(ULONG)
+											(unsigned int)
 											(
 											(ul_HighTiming
 												*
@@ -1183,7 +1183,7 @@ int i_APCI1710_InitPWM(struct comedi_device * dev,
 
 										*pul_RealHighTiming
 											=
-											(ULONG)
+											(unsigned int)
 											(ul_HighTimerValue
 											/
 											(250000.0
@@ -1227,7 +1227,7 @@ int i_APCI1710_InitPWM(struct comedi_device * dev,
 										if (b_ClockSelection != APCI1710_40MHZ) {
 											ul_HighTimerValue
 												=
-												(ULONG)
+												(unsigned int)
 												(
 												(double)
 												(ul_HighTimerValue)
@@ -1538,8 +1538,8 @@ int i_APCI1710_GetPWMInitialisation(struct comedi_device * dev,
 	unsigned char b_ModulNbr,
 	unsigned char b_PWM,
 	unsigned char * pb_TimingUnit,
-	PULONG pul_LowTiming,
-	PULONG pul_HighTiming,
+	unsigned int * pul_LowTiming,
+	unsigned int * pul_HighTiming,
 	unsigned char * pb_StartLevel,
 	unsigned char * pb_StopMode,
 	unsigned char * pb_StopLevel,
@@ -1709,7 +1709,7 @@ int i_APCI1710_InsnWritePWM(struct comedi_device * dev, struct comedi_subdevice 
 		i_ReturnValue = i_APCI1710_SetNewPWMTiming(dev,
 			(unsigned char) CR_AREF(insn->chanspec),
 			(unsigned char) data[0],
-			(unsigned char) data[1], (ULONG) data[2], (ULONG) data[3]);
+			(unsigned char) data[1], (unsigned int) data[2], (unsigned int) data[3]);
 		break;
 
 	default:
@@ -2191,14 +2191,14 @@ int i_APCI1710_DisablePWM(struct comedi_device * dev, unsigned char b_ModulNbr, 
 
 int i_APCI1710_SetNewPWMTiming(struct comedi_device * dev,
 	unsigned char b_ModulNbr,
-	unsigned char b_PWM, unsigned char b_TimingUnit, ULONG ul_LowTiming, ULONG ul_HighTiming)
+	unsigned char b_PWM, unsigned char b_TimingUnit, unsigned int ul_LowTiming, unsigned int ul_HighTiming)
 {
 	unsigned char b_ClockSelection;
 	int i_ReturnValue = 0;
-	ULONG ul_LowTimerValue = 0;
-	ULONG ul_HighTimerValue = 0;
-	ULONG ul_RealLowTiming = 0;
-	ULONG ul_RealHighTiming = 0;
+	unsigned int ul_LowTimerValue = 0;
+	unsigned int ul_HighTimerValue = 0;
+	unsigned int ul_RealLowTiming = 0;
+	unsigned int ul_RealHighTiming = 0;
 	DWORD dw_Status;
 	DWORD dw_Command;
 	double d_RealLowTiming = 0;
@@ -2400,7 +2400,7 @@ int i_APCI1710_SetNewPWMTiming(struct comedi_device * dev,
 
 									ul_LowTimerValue
 										=
-										(ULONG)
+										(unsigned int)
 										(ul_LowTiming
 										*
 										(0.00025 * b_ClockSelection));
@@ -2423,7 +2423,7 @@ int i_APCI1710_SetNewPWMTiming(struct comedi_device * dev,
 
 									ul_RealLowTiming
 										=
-										(ULONG)
+										(unsigned int)
 										(ul_LowTimerValue
 										/
 										(0.00025 * (double)b_ClockSelection));
@@ -2459,7 +2459,7 @@ int i_APCI1710_SetNewPWMTiming(struct comedi_device * dev,
 									if (b_ClockSelection != APCI1710_40MHZ) {
 										ul_LowTimerValue
 											=
-											(ULONG)
+											(unsigned int)
 											(
 											(double)
 											(ul_LowTimerValue)
@@ -2481,7 +2481,7 @@ int i_APCI1710_SetNewPWMTiming(struct comedi_device * dev,
 
 									ul_LowTimerValue
 										=
-										(ULONG)
+										(unsigned int)
 										(ul_LowTiming
 										*
 										(0.25 * b_ClockSelection));
@@ -2504,7 +2504,7 @@ int i_APCI1710_SetNewPWMTiming(struct comedi_device * dev,
 
 									ul_RealLowTiming
 										=
-										(ULONG)
+										(unsigned int)
 										(ul_LowTimerValue
 										/
 										(0.25 * (double)b_ClockSelection));
@@ -2542,7 +2542,7 @@ int i_APCI1710_SetNewPWMTiming(struct comedi_device * dev,
 									if (b_ClockSelection != APCI1710_40MHZ) {
 										ul_LowTimerValue
 											=
-											(ULONG)
+											(unsigned int)
 											(
 											(double)
 											(ul_LowTimerValue)
@@ -2588,7 +2588,7 @@ int i_APCI1710_SetNewPWMTiming(struct comedi_device * dev,
 
 									ul_RealLowTiming
 										=
-										(ULONG)
+										(unsigned int)
 										(ul_LowTimerValue
 										/
 										(250.0 * (double)b_ClockSelection));
@@ -2624,7 +2624,7 @@ int i_APCI1710_SetNewPWMTiming(struct comedi_device * dev,
 									if (b_ClockSelection != APCI1710_40MHZ) {
 										ul_LowTimerValue
 											=
-											(ULONG)
+											(unsigned int)
 											(
 											(double)
 											(ul_LowTimerValue)
@@ -2646,7 +2646,7 @@ int i_APCI1710_SetNewPWMTiming(struct comedi_device * dev,
 
 									ul_LowTimerValue
 										=
-										(ULONG)
+										(unsigned int)
 										(ul_LowTiming
 										*
 										(250000.0
@@ -2671,7 +2671,7 @@ int i_APCI1710_SetNewPWMTiming(struct comedi_device * dev,
 
 									ul_RealLowTiming
 										=
-										(ULONG)
+										(unsigned int)
 										(ul_LowTimerValue
 										/
 										(250000.0
@@ -2710,7 +2710,7 @@ int i_APCI1710_SetNewPWMTiming(struct comedi_device * dev,
 									if (b_ClockSelection != APCI1710_40MHZ) {
 										ul_LowTimerValue
 											=
-											(ULONG)
+											(unsigned int)
 											(
 											(double)
 											(ul_LowTimerValue)
@@ -2732,7 +2732,7 @@ int i_APCI1710_SetNewPWMTiming(struct comedi_device * dev,
 
 									ul_LowTimerValue
 										=
-										(ULONG)
+										(unsigned int)
 										(
 										(ul_LowTiming
 											*
@@ -2760,7 +2760,7 @@ int i_APCI1710_SetNewPWMTiming(struct comedi_device * dev,
 
 									ul_RealLowTiming
 										=
-										(ULONG)
+										(unsigned int)
 										(ul_LowTimerValue
 										/
 										(250000.0
@@ -2804,7 +2804,7 @@ int i_APCI1710_SetNewPWMTiming(struct comedi_device * dev,
 									if (b_ClockSelection != APCI1710_40MHZ) {
 										ul_LowTimerValue
 											=
-											(ULONG)
+											(unsigned int)
 											(
 											(double)
 											(ul_LowTimerValue)
@@ -2832,7 +2832,7 @@ int i_APCI1710_SetNewPWMTiming(struct comedi_device * dev,
 
 									ul_HighTimerValue
 										=
-										(ULONG)
+										(unsigned int)
 										(ul_HighTiming
 										*
 										(0.00025 * b_ClockSelection));
@@ -2855,7 +2855,7 @@ int i_APCI1710_SetNewPWMTiming(struct comedi_device * dev,
 
 									ul_RealHighTiming
 										=
-										(ULONG)
+										(unsigned int)
 										(ul_HighTimerValue
 										/
 										(0.00025 * (double)b_ClockSelection));
@@ -2891,7 +2891,7 @@ int i_APCI1710_SetNewPWMTiming(struct comedi_device * dev,
 									if (b_ClockSelection != APCI1710_40MHZ) {
 										ul_HighTimerValue
 											=
-											(ULONG)
+											(unsigned int)
 											(
 											(double)
 											(ul_HighTimerValue)
@@ -2913,7 +2913,7 @@ int i_APCI1710_SetNewPWMTiming(struct comedi_device * dev,
 
 									ul_HighTimerValue
 										=
-										(ULONG)
+										(unsigned int)
 										(ul_HighTiming
 										*
 										(0.25 * b_ClockSelection));
@@ -2936,7 +2936,7 @@ int i_APCI1710_SetNewPWMTiming(struct comedi_device * dev,
 
 									ul_RealHighTiming
 										=
-										(ULONG)
+										(unsigned int)
 										(ul_HighTimerValue
 										/
 										(0.25 * (double)b_ClockSelection));
@@ -2974,7 +2974,7 @@ int i_APCI1710_SetNewPWMTiming(struct comedi_device * dev,
 									if (b_ClockSelection != APCI1710_40MHZ) {
 										ul_HighTimerValue
 											=
-											(ULONG)
+											(unsigned int)
 											(
 											(double)
 											(ul_HighTimerValue)
@@ -3020,7 +3020,7 @@ int i_APCI1710_SetNewPWMTiming(struct comedi_device * dev,
 
 									ul_RealHighTiming
 										=
-										(ULONG)
+										(unsigned int)
 										(ul_HighTimerValue
 										/
 										(250.0 * (double)b_ClockSelection));
@@ -3056,7 +3056,7 @@ int i_APCI1710_SetNewPWMTiming(struct comedi_device * dev,
 									if (b_ClockSelection != APCI1710_40MHZ) {
 										ul_HighTimerValue
 											=
-											(ULONG)
+											(unsigned int)
 											(
 											(double)
 											(ul_HighTimerValue)
@@ -3078,7 +3078,7 @@ int i_APCI1710_SetNewPWMTiming(struct comedi_device * dev,
 
 									ul_HighTimerValue
 										=
-										(ULONG)
+										(unsigned int)
 										(ul_HighTiming
 										*
 										(250000.0
@@ -3103,7 +3103,7 @@ int i_APCI1710_SetNewPWMTiming(struct comedi_device * dev,
 
 									ul_RealHighTiming
 										=
-										(ULONG)
+										(unsigned int)
 										(ul_HighTimerValue
 										/
 										(250000.0
@@ -3142,7 +3142,7 @@ int i_APCI1710_SetNewPWMTiming(struct comedi_device * dev,
 									if (b_ClockSelection != APCI1710_40MHZ) {
 										ul_HighTimerValue
 											=
-											(ULONG)
+											(unsigned int)
 											(
 											(double)
 											(ul_HighTimerValue)
@@ -3164,7 +3164,7 @@ int i_APCI1710_SetNewPWMTiming(struct comedi_device * dev,
 
 									ul_HighTimerValue
 										=
-										(ULONG)
+										(unsigned int)
 										(
 										(ul_HighTiming
 											*
@@ -3192,7 +3192,7 @@ int i_APCI1710_SetNewPWMTiming(struct comedi_device * dev,
 
 									ul_RealHighTiming
 										=
-										(ULONG)
+										(unsigned int)
 										(ul_HighTimerValue
 										/
 										(250000.0
@@ -3236,7 +3236,7 @@ int i_APCI1710_SetNewPWMTiming(struct comedi_device * dev,
 									if (b_ClockSelection != APCI1710_40MHZ) {
 										ul_HighTimerValue
 											=
-											(ULONG)
+											(unsigned int)
 											(
 											(double)
 											(ul_HighTimerValue)

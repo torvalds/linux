@@ -135,9 +135,9 @@ int i_APCI1710_InsnConfigInitChrono(struct comedi_device * dev, struct comedi_su
 	struct comedi_insn * insn, unsigned int * data)
 {
 	int i_ReturnValue = 0;
-	ULONG ul_TimerValue = 0;
-	ULONG ul_TimingInterval = 0;
-	ULONG ul_RealTimingInterval = 0;
+	unsigned int ul_TimerValue = 0;
+	unsigned int ul_TimingInterval = 0;
+	unsigned int ul_RealTimingInterval = 0;
 	double d_RealTimingInterval = 0;
 	DWORD dw_ModeArray[8] =
 		{ 0x01, 0x05, 0x00, 0x04, 0x02, 0x0E, 0x0A, 0x06 };
@@ -147,7 +147,7 @@ int i_APCI1710_InsnConfigInitChrono(struct comedi_device * dev, struct comedi_su
 	b_ChronoMode = (unsigned char) data[0];
 	b_PCIInputClock = (unsigned char) data[1];
 	b_TimingUnit = (unsigned char) data[2];
-	ul_TimingInterval = (ULONG) data[3];
+	ul_TimingInterval = (unsigned int) data[3];
 	i_ReturnValue = insn->n;
 
 	/**************************/
@@ -214,7 +214,7 @@ int i_APCI1710_InsnConfigInitChrono(struct comedi_device * dev, struct comedi_su
 
 										ul_TimerValue
 											=
-											(ULONG)
+											(unsigned int)
 											(ul_TimingInterval
 											*
 											(0.001 * b_PCIInputClock));
@@ -237,7 +237,7 @@ int i_APCI1710_InsnConfigInitChrono(struct comedi_device * dev, struct comedi_su
 
 										ul_RealTimingInterval
 											=
-											(ULONG)
+											(unsigned int)
 											(ul_TimerValue
 											/
 											(0.001 * (double)b_PCIInputClock));
@@ -272,7 +272,7 @@ int i_APCI1710_InsnConfigInitChrono(struct comedi_device * dev, struct comedi_su
 										if (b_PCIInputClock != APCI1710_40MHZ) {
 											ul_TimerValue
 												=
-												(ULONG)
+												(unsigned int)
 												(
 												(double)
 												(ul_TimerValue)
@@ -294,7 +294,7 @@ int i_APCI1710_InsnConfigInitChrono(struct comedi_device * dev, struct comedi_su
 
 										ul_TimerValue
 											=
-											(ULONG)
+											(unsigned int)
 											(ul_TimingInterval
 											*
 											(1.0 * b_PCIInputClock));
@@ -317,7 +317,7 @@ int i_APCI1710_InsnConfigInitChrono(struct comedi_device * dev, struct comedi_su
 
 										ul_RealTimingInterval
 											=
-											(ULONG)
+											(unsigned int)
 											(ul_TimerValue
 											/
 											(1.0 * (double)b_PCIInputClock));
@@ -354,7 +354,7 @@ int i_APCI1710_InsnConfigInitChrono(struct comedi_device * dev, struct comedi_su
 										if (b_PCIInputClock != APCI1710_40MHZ) {
 											ul_TimerValue
 												=
-												(ULONG)
+												(unsigned int)
 												(
 												(double)
 												(ul_TimerValue)
@@ -400,7 +400,7 @@ int i_APCI1710_InsnConfigInitChrono(struct comedi_device * dev, struct comedi_su
 
 										ul_RealTimingInterval
 											=
-											(ULONG)
+											(unsigned int)
 											(ul_TimerValue
 											/
 											(1000.0 * (double)b_PCIInputClock));
@@ -435,7 +435,7 @@ int i_APCI1710_InsnConfigInitChrono(struct comedi_device * dev, struct comedi_su
 										if (b_PCIInputClock != APCI1710_40MHZ) {
 											ul_TimerValue
 												=
-												(ULONG)
+												(unsigned int)
 												(
 												(double)
 												(ul_TimerValue)
@@ -457,7 +457,7 @@ int i_APCI1710_InsnConfigInitChrono(struct comedi_device * dev, struct comedi_su
 
 										ul_TimerValue
 											=
-											(ULONG)
+											(unsigned int)
 											(ul_TimingInterval
 											*
 											(1000000.0
@@ -482,7 +482,7 @@ int i_APCI1710_InsnConfigInitChrono(struct comedi_device * dev, struct comedi_su
 
 										ul_RealTimingInterval
 											=
-											(ULONG)
+											(unsigned int)
 											(ul_TimerValue
 											/
 											(1000000.0
@@ -520,7 +520,7 @@ int i_APCI1710_InsnConfigInitChrono(struct comedi_device * dev, struct comedi_su
 										if (b_PCIInputClock != APCI1710_40MHZ) {
 											ul_TimerValue
 												=
-												(ULONG)
+												(unsigned int)
 												(
 												(double)
 												(ul_TimerValue)
@@ -542,7 +542,7 @@ int i_APCI1710_InsnConfigInitChrono(struct comedi_device * dev, struct comedi_su
 
 										ul_TimerValue
 											=
-											(ULONG)
+											(unsigned int)
 											(
 											(ul_TimingInterval
 												*
@@ -570,7 +570,7 @@ int i_APCI1710_InsnConfigInitChrono(struct comedi_device * dev, struct comedi_su
 
 										ul_RealTimingInterval
 											=
-											(ULONG)
+											(unsigned int)
 											(ul_TimerValue
 											/
 											(1000000.0
@@ -608,7 +608,7 @@ int i_APCI1710_InsnConfigInitChrono(struct comedi_device * dev, struct comedi_su
 										if (b_PCIInputClock != APCI1710_40MHZ) {
 											ul_TimerValue
 												=
-												(ULONG)
+												(unsigned int)
 												(
 												(double)
 												(ul_TimerValue)
@@ -1108,14 +1108,14 @@ int i_APCI1710_InsnReadChrono(struct comedi_device * dev, struct comedi_subdevic
 		i_ReturnValue = i_APCI1710_ReadChronoValue(dev,
 			(unsigned char) CR_AREF(insn->chanspec),
 			(unsigned int) insn->unused[0],
-			(unsigned char *) & data[0], (PULONG) & data[1]);
+			(unsigned char *) & data[0], (unsigned int *) & data[1]);
 		break;
 
 	case APCI1710_CHRONO_CONVERTVALUE:
 		i_ReturnValue = i_APCI1710_ConvertChronoValue(dev,
 			(unsigned char) CR_AREF(insn->chanspec),
-			(ULONG) insn->unused[0],
-			(PULONG) & data[0],
+			(unsigned int) insn->unused[0],
+			(unsigned int *) & data[0],
 			(unsigned char *) & data[1],
 			(unsigned char *) & data[2],
 			(unsigned int *) & data[3],
@@ -1341,7 +1341,7 @@ int i_APCI1710_GetChronoProgressStatus(struct comedi_device * dev,
 |                                                   timing witch the         |
 |                                                   function                 |
 |                                                   "i_APCI1710_InitChrono"  |
-|                     PULONG  pul_ChronoValue  : Chronometer timing value.   |
+|                     unsigned int *  pul_ChronoValue  : Chronometer timing value.   |
 +----------------------------------------------------------------------------+
 | Return Value      :  0: No error                                           |
 |                     -1: The handle parameter of the board is wrong         |
@@ -1357,7 +1357,7 @@ int i_APCI1710_GetChronoProgressStatus(struct comedi_device * dev,
 
 int i_APCI1710_ReadChronoValue(struct comedi_device * dev,
 	unsigned char b_ModulNbr,
-	unsigned int ui_TimeOut, unsigned char * pb_ChronoStatus, PULONG pul_ChronoValue)
+	unsigned int ui_TimeOut, unsigned char * pb_ChronoStatus, unsigned int * pul_ChronoValue)
 {
 	int i_ReturnValue = 0;
 	DWORD dw_Status;
@@ -1621,8 +1621,8 @@ int i_APCI1710_ReadChronoValue(struct comedi_device * dev,
 
 int i_APCI1710_ConvertChronoValue(struct comedi_device * dev,
 	unsigned char b_ModulNbr,
-	ULONG ul_ChronoValue,
-	PULONG pul_Hour,
+	unsigned int ul_ChronoValue,
+	unsigned int * pul_Hour,
 	unsigned char * pb_Minute,
 	unsigned char * pb_Second,
 	unsigned int * pui_MilliSecond, unsigned int * pui_MicroSecond, unsigned int * pui_NanoSecond)
@@ -1681,7 +1681,7 @@ int i_APCI1710_ConvertChronoValue(struct comedi_device * dev,
 			    /**********************/
 
 					d_Hour = d_Hour / (double)60.0;
-					*pul_Hour = (ULONG) d_Hour;
+					*pul_Hour = (unsigned int) d_Hour;
 
 			    /************************/
 					/* Calculate the minute */

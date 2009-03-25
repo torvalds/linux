@@ -82,7 +82,7 @@ unsigned int ui_InterruptData, ui_Type;
 int i_APCI2032_ConfigDigitalOutput(struct comedi_device * dev, struct comedi_subdevice * s,
 	struct comedi_insn * insn, unsigned int * data)
 {
-	ULONG ul_Command = 0;
+	unsigned int ul_Command = 0;
 	devpriv->tsk_Current = current;
 
 	if ((data[0] != 0) && (data[0] != 1)) {
