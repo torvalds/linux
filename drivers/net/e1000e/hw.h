@@ -339,6 +339,7 @@ enum e1e_registers {
 #define E1000_DEV_ID_82573E_IAMT		0x108C
 #define E1000_DEV_ID_82573L			0x109A
 #define E1000_DEV_ID_82574L			0x10D3
+#define E1000_DEV_ID_82574LA			0x10F6
 #define E1000_DEV_ID_82583V                     0x150C
 
 #define E1000_DEV_ID_80003ES2LAN_COPPER_DPT	0x1096
