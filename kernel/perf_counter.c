@@ -1528,16 +1528,30 @@ out:
 static void perf_output_simple(struct perf_counter *counter,
 			       int nmi, struct pt_regs *regs)
 {
+	unsigned int size;
 	struct {
 		struct perf_event_header header;
 		u64 ip;
+		u32 pid, tid;
 	} event;
 
 	event.header.type = PERF_EVENT_IP;
-	event.header.size = sizeof(event);
 	event.ip = instruction_pointer(regs);
 
-	perf_output_write(counter, nmi, &event, sizeof(event));
+	size = sizeof(event);
+
+	if (counter->hw_event.include_tid) {
+		/* namespace issues */
+		event.pid = current->group_leader->pid;
+		event.tid = current->pid;
+
+		event.header.type |= __PERF_EVENT_TID;
+	} else
+		size -= sizeof(u64);
+
+	event.header.size = size;
+
+	perf_output_write(counter, nmi, &event, size);
 }
 
 static void perf_output_group(struct perf_counter *counter, int nmi)

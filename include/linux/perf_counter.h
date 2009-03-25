@@ -127,8 +127,9 @@ struct perf_counter_hw_event {
 				exclude_kernel :  1, /* ditto kernel          */
 				exclude_hv     :  1, /* ditto hypervisor      */
 				exclude_idle   :  1, /* don't count when idle */
+				include_tid    :  1, /* include the tid */
 
-				__reserved_1   : 55;
+				__reserved_1   : 54;
 
 	__u32			extra_config_len;
 	__u32			__reserved_4;
@@ -164,6 +165,8 @@ struct perf_event_header {
 enum perf_event_type {
 	PERF_EVENT_IP		= 0,
 	PERF_EVENT_GROUP	= 1,
+
+	__PERF_EVENT_TID	= 0x100,
 };
 
 #ifdef __KERNEL__
