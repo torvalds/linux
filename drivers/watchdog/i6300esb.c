@@ -123,7 +123,7 @@ static int esb_timer_start(void)
 	esb_unlock_registers();
 	writew(ESB_WDT_RELOAD, ESB_RELOAD_REG);
 	/* Enable or Enable + Lock? */
-	val = 0x02 | (nowayout ? 0x01 : 0x00);
+	val = ESB_WDT_ENABLE | (nowayout ? ESB_WDT_LOCK : 0x00);
 	pci_write_config_byte(esb_pci, ESB_LOCK_REG, val);
 	spin_unlock(&esb_lock);
 	return 0;
@@ -143,7 +143,7 @@ static int esb_timer_stop(void)
 	spin_unlock(&esb_lock);
 
 	/* Returns 0 if the timer was disabled, non-zero otherwise */
-	return val & 0x01;
+	return val & ESB_WDT_ENABLE;
 }
 
 static void esb_timer_keepalive(void)
@@ -350,8 +350,6 @@ MODULE_DEVICE_TABLE(pci, esb_pci_tbl);
 
 static unsigned char __devinit esb_getdevice(void)
 {
-	u8 val1;
-	unsigned short val2;
 	/*
 	 *      Find the PCI device
 	 */
@@ -359,65 +357,77 @@ static unsigned char __devinit esb_getdevice(void)
 	esb_pci = pci_get_device(PCI_VENDOR_ID_INTEL,
 					PCI_DEVICE_ID_INTEL_ESB_9, NULL);
 
-	if (esb_pci) {
-		if (pci_enable_device(esb_pci)) {
-			printk(KERN_ERR PFX "failed to enable device\n");
-			goto err_devput;
-		}
+	if (!esb_pci)
+		return 0;
 
-		if (pci_request_region(esb_pci, 0, ESB_MODULE_NAME)) {
-			printk(KERN_ERR PFX "failed to request region\n");
-			goto err_disable;
-		}
+	if (pci_enable_device(esb_pci)) {
+		printk(KERN_ERR PFX "failed to enable device\n");
+		goto err_devput;
+	}
 
-		BASEADDR = pci_ioremap_bar(esb_pci, 0);
-		if (BASEADDR == NULL) {
-			/* Something's wrong here, BASEADDR has to be set */
-			printk(KERN_ERR PFX "failed to get BASEADDR\n");
-			goto err_release;
-		}
+	if (pci_request_region(esb_pci, 0, ESB_MODULE_NAME)) {
+		printk(KERN_ERR PFX "failed to request region\n");
+		goto err_disable;
+	}
 
-		/*
-		 * The watchdog has two timers, it can be setup so that the
-		 * expiry of timer1 results in an interrupt and the expiry of
-		 * timer2 results in a reboot. We set it to not generate
-		 * any interrupts as there is not much we can do with it
-		 * right now.
-		 *
-		 * We also enable reboots and set the timer frequency to
-		 * the PCI clock divided by 2^15 (approx 1KHz).
-		 */
-		pci_write_config_word(esb_pci, ESB_CONFIG_REG, 0x0003);
+	BASEADDR = pci_ioremap_bar(esb_pci, 0);
+	if (BASEADDR == NULL) {
+		/* Something's wrong here, BASEADDR has to be set */
+		printk(KERN_ERR PFX "failed to get BASEADDR\n");
+		goto err_release;
+	}
 
-		/* Check that the WDT isn't already locked */
-		pci_read_config_byte(esb_pci, ESB_LOCK_REG, &val1);
-		if (val1 & ESB_WDT_LOCK)
-			printk(KERN_WARNING PFX "nowayout already set\n");
-
-		/* Set the timer to watchdog mode and disable it for now */
-		pci_write_config_byte(esb_pci, ESB_LOCK_REG, 0x00);
-
-		/* Check if the watchdog was previously triggered */
-		esb_unlock_registers();
-		val2 = readw(ESB_RELOAD_REG);
-		if (val2 & ESB_WDT_TIMEOUT)
-			triggered = WDIOF_CARDRESET;
-
-		/* Reset trigger flag and timers */
-		esb_unlock_registers();
-		writew((ESB_WDT_TIMEOUT | ESB_WDT_RELOAD), ESB_RELOAD_REG);
-
-		/* Done */
-		return 1;
+	/* Done */
+	return 1;
 
 err_release:
-		pci_release_region(esb_pci, 0);
+	pci_release_region(esb_pci, 0);
 err_disable:
-		pci_disable_device(esb_pci);
+	pci_disable_device(esb_pci);
 err_devput:
-		pci_dev_put(esb_pci);
-	}
+	pci_dev_put(esb_pci);
 	return 0;
+}
+
+static void __devinit esb_initdevice(void)
+{
+	u8 val1;
+	u16 val2;
+
+	/*
+	 * Config register:
+	 * Bit    5 : 0 = Enable WDT_OUTPUT
+	 * Bit    2 : 0 = set the timer frequency to the PCI clock
+	 * divided by 2^15 (approx 1KHz).
+	 * Bits 1:0 : 11 = WDT_INT_TYPE Disabled.
+	 * The watchdog has two timers, it can be setup so that the
+	 * expiry of timer1 results in an interrupt and the expiry of
+	 * timer2 results in a reboot. We set it to not generate
+	 * any interrupts as there is not much we can do with it
+	 * right now.
+	 */
+	pci_write_config_word(esb_pci, ESB_CONFIG_REG, 0x0003);
+
+	/* Check that the WDT isn't already locked */
+	pci_read_config_byte(esb_pci, ESB_LOCK_REG, &val1);
+	if (val1 & ESB_WDT_LOCK)
+		printk(KERN_WARNING PFX "nowayout already set\n");
+
+	/* Set the timer to watchdog mode and disable it for now */
+	pci_write_config_byte(esb_pci, ESB_LOCK_REG, 0x00);
+
+	/* Check if the watchdog was previously triggered */
+	esb_unlock_registers();
+	val2 = readw(ESB_RELOAD_REG);
+	if (val2 & ESB_WDT_TIMEOUT)
+		triggered = WDIOF_CARDRESET;
+
+	/* Reset WDT_TIMEOUT flag and timers */
+	esb_unlock_registers();
+	writew((ESB_WDT_TIMEOUT | ESB_WDT_RELOAD), ESB_RELOAD_REG);
+
+	/* And set the correct timeout value */
+	esb_timer_set_heartbeat(heartbeat);
 }
 
 static int __devinit esb_probe(struct platform_device *dev)
@@ -430,13 +440,17 @@ static int __devinit esb_probe(struct platform_device *dev)
 
 	/* Check that the heartbeat value is within it's range;
 	   if not reset to the default */
-	if (esb_timer_set_heartbeat(heartbeat)) {
-		esb_timer_set_heartbeat(WATCHDOG_HEARTBEAT);
+	if (heartbeat < 0x1 || heartbeat > 2 * 0x03ff) {
+		heartbeat = WATCHDOG_HEARTBEAT;
 		printk(KERN_INFO PFX
 			"heartbeat value must be 1<heartbeat<2046, using %d\n",
 								heartbeat);
 	}
 
+	/* Initialize the watchdog and make sure it does not run */
+	esb_initdevice();
+
+	/* Register the watchdog so that userspace has access to it */
 	ret = misc_register(&esb_miscdev);
 	if (ret != 0) {
 		printk(KERN_ERR PFX
@@ -444,7 +458,6 @@ static int __devinit esb_probe(struct platform_device *dev)
 							WATCHDOG_MINOR, ret);
 		goto err_unmap;
 	}
-	esb_timer_stop();
 	printk(KERN_INFO PFX
 		"initialized (0x%p). heartbeat=%d sec (nowayout=%d)\n",
 						BASEADDR, heartbeat, nowayout);
@@ -452,11 +465,8 @@ static int __devinit esb_probe(struct platform_device *dev)
 
 err_unmap:
 	iounmap(BASEADDR);
-/* err_release: */
 	pci_release_region(esb_pci, 0);
-/* err_disable: */
 	pci_disable_device(esb_pci);
-/* err_devput: */
 	pci_dev_put(esb_pci);
 	return ret;
 }
