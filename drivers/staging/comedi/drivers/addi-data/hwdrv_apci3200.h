@@ -93,11 +93,11 @@ static const struct comedi_lrange range_apci3300_ai = { 4, {
 #define MAX_MODULE				4
 //END JK 21.10.2004: APCI-3200 / APCI-3300 Reading of EEPROM values
 
-typedef struct {
+struct str_ADDIDATA_RTDStruct {
 	unsigned int ul_NumberOfValue;
 	unsigned int *pul_ResistanceValue;
 	unsigned int *pul_TemperatureValue;
-} str_ADDIDATA_RTDStruct, *pstr_ADDIDATA_RTDStruct;
+};
 
 //BEGIN JK 21.10.2004: APCI-3200 / APCI-3300 Reading of EEPROM values
 struct str_Module {
