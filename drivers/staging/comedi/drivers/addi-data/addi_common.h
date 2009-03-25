@@ -36,10 +36,6 @@
 #define ERROR	-1
 #define SUCCESS	1
 
-/* variable type definition */
-
-typedef const struct comedi_lrange *PCRANGE;
-
 #define LOBYTE(W)	(unsigned char)((W) & 0xFF)
 #define HIBYTE(W)	(unsigned char)(((W) >> 8) & 0xFF)
 #define MAKEWORD(H, L)	(unsigned short)((L) | ((H) << 8))
@@ -81,15 +77,15 @@ typedef struct {
 	int i_NbrAoChannel;	// num of D/A chans
 	int i_AiMaxdata;	// resolution of A/D
 	int i_AoMaxdata;	// resolution of D/A
-	PCRANGE pr_AiRangelist;	// rangelist for A/D
-	PCRANGE pr_AoRangelist;	// rangelist for D/A
+        const struct comedi_lrange *pr_AiRangelist;	/* rangelist for A/D */
+        const struct comedi_lrange *pr_AoRangelist;	/* rangelist for D/A */
 
 	int i_NbrDiChannel;	// Number of DI channels
 	int i_NbrDoChannel;	// Number of DO channels
 	int i_DoMaxdata;	// data to set all chanels high
 
 	int i_NbrTTLChannel;	// Number of TTL channels
-	PCRANGE pr_TTLRangelist;	// rangelist for TTL
+	const struct comedi_lrange *pr_TTLRangelist;	/* rangelist for TTL */
 
 	int i_Dma;		// dma present or not
 	int i_Timer;		//   timer subdevice present or not
