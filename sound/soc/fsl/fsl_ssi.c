@@ -466,28 +466,12 @@ static int fsl_ssi_trigger(struct snd_pcm_substream *substream, int cmd,
 	case SNDRV_PCM_TRIGGER_START:
 		clrbits32(&ssi->scr, CCSR_SSI_SCR_SSIEN);
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
-		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
+		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
 			setbits32(&ssi->scr,
 				CCSR_SSI_SCR_SSIEN | CCSR_SSI_SCR_TE);
-		} else {
-			long timeout = jiffies + 10;
-
+		else
 			setbits32(&ssi->scr,
 				CCSR_SSI_SCR_SSIEN | CCSR_SSI_SCR_RE);
-
-			/* Wait until the SSI has filled its FIFO. Without this
-			 * delay, ALSA complains about overruns.  When the FIFO
-			 * is full, the DMA controller initiates its first
-			 * transfer.  Until then, however, the DMA's DAR
-			 * register is zero, which translates to an
-			 * out-of-bounds pointer.  This makes ALSA think an
-			 * overrun has occurred.
-			 */
-			while (!(in_be32(&ssi->sisr) & CCSR_SSI_SISR_RFF0) &&
-			       (jiffies < timeout));
-			if (!(in_be32(&ssi->sisr) & CCSR_SSI_SISR_RFF0))
-				return -EIO;
-		}
 		break;
 
 	case SNDRV_PCM_TRIGGER_STOP:
