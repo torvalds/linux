@@ -2672,10 +2672,7 @@ static void pvr2_hdw_remove_usb_stuff(struct pvr2_hdw *hdw)
 	/* If we don't do this, then there will be a dangling struct device
 	   reference to our disappearing device persisting inside the V4L
 	   core... */
-	if (hdw->v4l2_dev.dev) {
-		dev_set_drvdata(hdw->v4l2_dev.dev, NULL);
-		hdw->v4l2_dev.dev = NULL;
-	}
+	v4l2_device_disconnect(&hdw->v4l2_dev);
 	hdw->usb_dev = NULL;
 	hdw->usb_intf = NULL;
 	pvr2_hdw_render_useless(hdw);
