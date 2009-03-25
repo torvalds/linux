@@ -577,11 +577,29 @@ out:
 
 void e1000_down(struct e1000_adapter *adapter)
 {
+	struct e1000_hw *hw = &adapter->hw;
 	struct net_device *netdev = adapter->netdev;
+	u32 rctl, tctl;
 
 	/* signal that we're down so the interrupt handler does not
 	 * reschedule our watchdog timer */
 	set_bit(__E1000_DOWN, &adapter->flags);
+
+	/* disable receives in the hardware */
+	rctl = er32(RCTL);
+	ew32(RCTL, rctl & ~E1000_RCTL_EN);
+	/* flush and sleep below */
+
+	/* can be netif_tx_disable when NETIF_F_LLTX is removed */
+	netif_stop_queue(netdev);
+
+	/* disable transmits in the hardware */
+	tctl = er32(TCTL);
+	tctl &= ~E1000_TCTL_EN;
+	ew32(TCTL, tctl);
+	/* flush both disables and wait for them to finish */
+	E1000_WRITE_FLUSH();
+	msleep(10);
 
 	napi_disable(&adapter->napi);
 
@@ -595,7 +613,6 @@ void e1000_down(struct e1000_adapter *adapter)
 	adapter->link_speed = 0;
 	adapter->link_duplex = 0;
 	netif_carrier_off(netdev);
-	netif_stop_queue(netdev);
 
 	e1000_reset(adapter);
 	e1000_clean_all_tx_rings(adapter);
@@ -3744,10 +3761,12 @@ static irqreturn_t e1000_intr(int irq, void *data)
 		adapter->total_rx_bytes = 0;
 		adapter->total_rx_packets = 0;
 		__napi_schedule(&adapter->napi);
-	} else
+	} else {
 		/* this really should not happen! if it does it is basically a
 		 * bug, but not a hard error, so enable ints and continue */
-		e1000_irq_enable(adapter);
+		if (!test_bit(__E1000_DOWN, &adapter->flags))
+			e1000_irq_enable(adapter);
+	}
 
 	return IRQ_HANDLED;
 }
@@ -3777,7 +3796,8 @@ static int e1000_clean(struct napi_struct *napi, int budget)
 		if (likely(adapter->itr_setting & 3))
 			e1000_set_itr(adapter);
 		napi_complete(napi);
-		e1000_irq_enable(adapter);
+		if (!test_bit(__E1000_DOWN, &adapter->flags))
+			e1000_irq_enable(adapter);
 	}
 
 	return work_done;
