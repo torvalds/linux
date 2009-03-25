@@ -2582,6 +2582,7 @@ static int sxg_dumb_sgl(struct sxg_x64_sgl *pSgl,
 	u64 phys_addr;
 	unsigned long flags;
 	unsigned long queue_id=0;
+	int offload_cksum = 0;
 
 	SXG_TRACE(TRACE_SXG, SxgTraceBuffer, TRACE_NOISY, "DumbSgl",
 		  pSgl, SxgSgl, 0, 0);
@@ -2620,9 +2621,11 @@ static int sxg_dumb_sgl(struct sxg_x64_sgl *pSgl,
                 struct iphdr *ip;
 
                 ip = ip_hdr(skb);
-		if (ip->protocol != IPPROTO_TCP	|| !tcp_hdr(skb))
+		if (ip->protocol == IPPROTO_TCP)
+			offload_cksum = 1;
+		if (!offload_cksum || !tcp_hdr(skb))
 			queue_id = 0;
-		else if ((ip->protocol == IPPROTO_TCP)&&(DataLength >= sizeof(
+		else if (offload_cksum && (DataLength >= sizeof(
 							struct tcphdr))){
 			queue_id = ((ntohs(tcp_hdr(skb)->dest) == ISCSI_PORT) ?
 					(ntohs (tcp_hdr(skb)->source) &
@@ -2631,10 +2634,11 @@ static int sxg_dumb_sgl(struct sxg_x64_sgl *pSgl,
 						SXG_LARGE_SEND_QUEUE_MASK));
 		}
 	} else if (skb->protocol == htons(ETH_P_IPV6)) {
-		if (ipv6_hdr(skb)->nexthdr != IPPROTO_TCP || !tcp_hdr(skb))
+		if (ipv6_hdr(skb)->nexthdr == IPPROTO_TCP)
+			offload_cksum = 1;
+		if (!offload_cksum || !tcp_hdr(skb))
 			queue_id = 0;
-		else if ((ipv6_hdr(skb)->nexthdr == IPPROTO_TCP) && (DataLength
-						>= sizeof(struct tcphdr)) ) {
+		else if (offload_cksum && (DataLength>=sizeof(struct tcphdr))){
 			queue_id = ((ntohs(tcp_hdr(skb)->dest) == ISCSI_PORT) ?
 					(ntohs (tcp_hdr(skb)->source) &
 					SXG_LARGE_SEND_QUEUE_MASK):
@@ -2663,23 +2667,38 @@ static int sxg_dumb_sgl(struct sxg_x64_sgl *pSgl,
 	}
 	SXG_TRACE(TRACE_SXG, SxgTraceBuffer, TRACE_NOISY, "DumbCmd",
 		  XmtCmd, XmtRingInfo->Head, XmtRingInfo->Tail, 0);
-	/* Update stats */
-	adapter->stats.tx_packets++;
-	adapter->stats.tx_bytes += DataLength;
-#if XXXTODO			/* Stats stuff */
-	if (SXG_MULTICAST_PACKET(EtherHdr)) {
-		if (SXG_BROADCAST_PACKET(EtherHdr)) {
-			adapter->Stats.DumbXmtBcastPkts++;
-			adapter->Stats.DumbXmtBcastBytes += DataLength;
+	memset(XmtCmd, '\0', sizeof(*XmtCmd));
+	XmtCmd->SgEntries = 1;
+	XmtCmd->Flags = 0;
+	if (skb->ip_summed == CHECKSUM_PARTIAL) {
+		/*
+		 * We need to set the Checkum in IP  header to 0. This is
+		 * required by hardware.
+		 */
+		if (offload_cksum) {
+			ip_hdr(skb)->check = 0x0;
+			XmtCmd->CsumFlags.Flags |= SXG_SLOWCMD_CSUM_IP;
+			XmtCmd->CsumFlags.Flags |= SXG_SLOWCMD_CSUM_TCP;
+			/*
+			 * Dont know if length will require a change in
+			 * case of VLAN
+			 */
+			XmtCmd->CsumFlags.MacLen = ETH_HLEN;
+			XmtCmd->CsumFlags.IpHl = skb_network_header_len(skb) >>
+							SXG_NW_HDR_LEN_SHIFT;
 		} else {
-			adapter->Stats.DumbXmtMcastPkts++;
-			adapter->Stats.DumbXmtMcastBytes += DataLength;
+			if (skb_checksum_help(skb)){
+				printk(KERN_EMERG "Dropped UDP packet for"
+					" incorrect checksum calculation\n");
+				if (XmtCmd)
+					SXG_ABORT_CMD(XmtRingInfo);
+				spin_unlock_irqrestore(&adapter->XmtZeroLock,
+							 flags);
+				return STATUS_SUCCESS;
+			}
 		}
-	} else {
-		adapter->Stats.DumbXmtUcastPkts++;
-		adapter->Stats.DumbXmtUcastBytes += DataLength;
 	}
-#endif
+
 	/*
 	 * Fill in the command
 	 * Copy out the first SGE to the command and adjust for offset
@@ -2697,31 +2716,17 @@ static int sxg_dumb_sgl(struct sxg_x64_sgl *pSgl,
 		(SXG_INVALID_SGL(phys_addr,skb->data_len)))
 	{
 		spin_unlock_irqrestore(&adapter->XmtZeroLock, flags);
+		if (XmtCmd)
+			SXG_ABORT_CMD(XmtRingInfo);
 		/* Silently drop this packet */
 		printk(KERN_EMERG"Dropped a packet for 64k boundary problem\n");
 		return STATUS_SUCCESS;
 	}
-	memset(XmtCmd, '\0', sizeof(*XmtCmd));
 	XmtCmd->Buffer.FirstSgeAddress = phys_addr;
 	XmtCmd->Buffer.FirstSgeLength = DataLength;
 	XmtCmd->Buffer.SgeOffset = 0;
 	XmtCmd->Buffer.TotalLength = DataLength;
-	XmtCmd->SgEntries = 1;
-	XmtCmd->Flags = 0;
 
-	if (skb->ip_summed == CHECKSUM_PARTIAL) {
-		/*
-		 * We need to set the Checkum in IP  header to 0. This is
-		 * required by hardware.
-		 */
-		ip_hdr(skb)->check = 0x0;
-		XmtCmd->CsumFlags.Flags |= SXG_SLOWCMD_CSUM_IP;
-		XmtCmd->CsumFlags.Flags |= SXG_SLOWCMD_CSUM_TCP;
-		/* Dont know if length will require a change in case of VLAN */
-		XmtCmd->CsumFlags.MacLen = ETH_HLEN;
-		XmtCmd->CsumFlags.IpHl = skb_network_header_len(skb) >>
-							SXG_NW_HDR_LEN_SHIFT;
-	}
 	/*
 	 * Advance transmit cmd descripter by 1.
 	 * NOTE - See comments in SxgTcpOutput where we write
@@ -2733,6 +2738,24 @@ static int sxg_dumb_sgl(struct sxg_x64_sgl *pSgl,
 	ASSERT((queue_id & ~SXG_LARGE_SEND_QUEUE_MASK) == 0);
 	WRITE_REG(adapter->UcodeRegs[0].XmtCmd, ((queue_id << 16) | 1), TRUE);
 	adapter->Stats.XmtQLen++;	/* Stats within lock */
+	/* Update stats */
+	adapter->stats.tx_packets++;
+	adapter->stats.tx_bytes += DataLength;
+#if XXXTODO			/* Stats stuff */
+	if (SXG_MULTICAST_PACKET(EtherHdr)) {
+		if (SXG_BROADCAST_PACKET(EtherHdr)) {
+			adapter->Stats.DumbXmtBcastPkts++;
+			adapter->Stats.DumbXmtBcastBytes += DataLength;
+		} else {
+			adapter->Stats.DumbXmtMcastPkts++;
+			adapter->Stats.DumbXmtMcastBytes += DataLength;
+		}
+	} else {
+		adapter->Stats.DumbXmtUcastPkts++;
+		adapter->Stats.DumbXmtUcastBytes += DataLength;
+	}
+#endif
+
 	spin_unlock_irqrestore(&adapter->XmtZeroLock, flags);
 	SXG_TRACE(TRACE_SXG, SxgTraceBuffer, TRACE_NOISY, "XDumSgl2",
 		  XmtCmd, pSgl, SxgSgl, 0);
