@@ -72,11 +72,11 @@ EXPORT_SYMBOL_GPL(rcu_lock_map);
 	.n_force_qs_ngp = 0, \
 }
 
-static struct rcu_state rcu_state = RCU_STATE_INITIALIZER(rcu_state);
-static DEFINE_PER_CPU(struct rcu_data, rcu_data);
+struct rcu_state rcu_state = RCU_STATE_INITIALIZER(rcu_state);
+DEFINE_PER_CPU(struct rcu_data, rcu_data);
 
-static struct rcu_state rcu_bh_state = RCU_STATE_INITIALIZER(rcu_bh_state);
-static DEFINE_PER_CPU(struct rcu_data, rcu_bh_data);
+struct rcu_state rcu_bh_state = RCU_STATE_INITIALIZER(rcu_bh_state);
+DEFINE_PER_CPU(struct rcu_data, rcu_bh_data);
 
 /*
  * Increment the quiescent state counter.
