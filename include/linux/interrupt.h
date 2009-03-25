@@ -123,6 +123,20 @@ extern int __must_check
 request_irq(unsigned int irq, irq_handler_t handler, unsigned long flags,
 	    const char *name, void *dev);
 
+/*
+ * Special function to avoid ifdeffery in kernel/irq/devres.c which
+ * gets magically built by GENERIC_HARDIRQS=n architectures (sparc,
+ * m68k). I really love these $@%#!* obvious Makefile references:
+ * ../../../kernel/irq/devres.o
+ */
+static inline int __must_check
+request_threaded_irq(unsigned int irq, irq_handler_t handler,
+		     irq_handler_t thread_fn,
+		     unsigned long flags, const char *name, void *dev)
+{
+	return request_irq(irq, handler, flags, name, dev);
+}
+
 static inline void exit_irq_thread(void) { }
 #endif
 
