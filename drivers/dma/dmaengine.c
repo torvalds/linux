@@ -602,6 +602,24 @@ void dmaengine_put(void)
 }
 EXPORT_SYMBOL(dmaengine_put);
 
+static int get_dma_id(struct dma_device *device)
+{
+	int rc;
+
+ idr_retry:
+	if (!idr_pre_get(&dma_idr, GFP_KERNEL))
+		return -ENOMEM;
+	mutex_lock(&dma_list_mutex);
+	rc = idr_get_new(&dma_idr, NULL, &device->dev_id);
+	mutex_unlock(&dma_list_mutex);
+	if (rc == -EAGAIN)
+		goto idr_retry;
+	else if (rc != 0)
+		return rc;
+
+	return 0;
+}
+
 /**
  * dma_async_device_register - registers DMA devices found
  * @device: &dma_device
@@ -640,27 +658,25 @@ int dma_async_device_register(struct dma_device *device)
 	idr_ref = kmalloc(sizeof(*idr_ref), GFP_KERNEL);
 	if (!idr_ref)
 		return -ENOMEM;
-	atomic_set(idr_ref, 0);
- idr_retry:
-	if (!idr_pre_get(&dma_idr, GFP_KERNEL))
-		return -ENOMEM;
-	mutex_lock(&dma_list_mutex);
-	rc = idr_get_new(&dma_idr, NULL, &device->dev_id);
-	mutex_unlock(&dma_list_mutex);
-	if (rc == -EAGAIN)
-		goto idr_retry;
-	else if (rc != 0)
+	rc = get_dma_id(device);
+	if (rc != 0) {
+		kfree(idr_ref);
 		return rc;
+	}
+
+	atomic_set(idr_ref, 0);
 
 	/* represent channels in sysfs. Probably want devs too */
 	list_for_each_entry(chan, &device->channels, device_node) {
+		rc = -ENOMEM;
 		chan->local = alloc_percpu(typeof(*chan->local));
 		if (chan->local == NULL)
-			continue;
+			goto err_out;
 		chan->dev = kzalloc(sizeof(*chan->dev), GFP_KERNEL);
 		if (chan->dev == NULL) {
 			free_percpu(chan->local);
-			continue;
+			chan->local = NULL;
+			goto err_out;
 		}
 
 		chan->chan_id = chancnt++;
@@ -677,6 +693,8 @@ int dma_async_device_register(struct dma_device *device)
 		if (rc) {
 			free_percpu(chan->local);
 			chan->local = NULL;
+			kfree(chan->dev);
+			atomic_dec(idr_ref);
 			goto err_out;
 		}
 		chan->client_count = 0;
@@ -707,6 +725,15 @@ int dma_async_device_register(struct dma_device *device)
 	return 0;
 
 err_out:
+	/* if we never registered a channel just release the idr */
+	if (atomic_read(idr_ref) == 0) {
+		mutex_lock(&dma_list_mutex);
+		idr_remove(&dma_idr, device->dev_id);
+		mutex_unlock(&dma_list_mutex);
+		kfree(idr_ref);
+		return rc;
+	}
+
 	list_for_each_entry(chan, &device->channels, device_node) {
 		if (chan->local == NULL)
 			continue;
