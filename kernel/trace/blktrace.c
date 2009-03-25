@@ -426,11 +426,15 @@ int do_blk_trace_setup(struct request_queue *q, char *name, dev_t dev,
 
 	ret = -ENOENT;
 
+	mutex_lock(&blk_tree_mutex);
 	if (!blk_tree_root) {
 		blk_tree_root = debugfs_create_dir("block", NULL);
-		if (!blk_tree_root)
+		if (!blk_tree_root) {
+			mutex_unlock(&blk_tree_mutex);
 			goto err;
+		}
 	}
+	mutex_unlock(&blk_tree_mutex);
 
 	dir = debugfs_create_dir(buts->name, blk_tree_root);
 
