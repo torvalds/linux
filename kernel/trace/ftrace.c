@@ -69,7 +69,7 @@ static DEFINE_MUTEX(ftrace_lock);
 
 static struct ftrace_ops ftrace_list_end __read_mostly =
 {
-	.func = ftrace_stub,
+	.func		= ftrace_stub,
 };
 
 static struct ftrace_ops *ftrace_list __read_mostly = &ftrace_list_end;
@@ -271,8 +271,10 @@ struct ftrace_profile_stat {
 #define PROFILES_PER_PAGE					\
 	(PROFILE_RECORDS_SIZE / sizeof(struct ftrace_profile))
 
-static int ftrace_profile_bits;
-static int ftrace_profile_enabled;
+static int ftrace_profile_bits __read_mostly;
+static int ftrace_profile_enabled __read_mostly;
+
+/* ftrace_profile_lock - synchronize the enable and disable of the profiler */
 static DEFINE_MUTEX(ftrace_profile_lock);
 
 static DEFINE_PER_CPU(struct ftrace_profile_stat, ftrace_profile_stats);
@@ -651,7 +653,7 @@ static void unregister_ftrace_profiler(void)
 #else
 static struct ftrace_ops ftrace_profile_ops __read_mostly =
 {
-	.func = function_profile_call,
+	.func		= function_profile_call,
 };
 
 static int register_ftrace_profiler(void)
@@ -670,7 +672,7 @@ ftrace_profile_write(struct file *filp, const char __user *ubuf,
 		     size_t cnt, loff_t *ppos)
 {
 	unsigned long val;
-	char buf[64];
+	char buf[64];		/* big enough to hold a number */
 	int ret;
 
 	if (cnt >= sizeof(buf))
@@ -719,7 +721,7 @@ static ssize_t
 ftrace_profile_read(struct file *filp, char __user *ubuf,
 		     size_t cnt, loff_t *ppos)
 {
-	char buf[64];
+	char buf[64];		/* big enough to hold a number */
 	int r;
 
 	r = sprintf(buf, "%u\n", ftrace_profile_enabled);
@@ -734,12 +736,12 @@ static const struct file_operations ftrace_profile_fops = {
 
 /* used to initialize the real stat files */
 static struct tracer_stat function_stats __initdata = {
-	.name = "functions",
-	.stat_start = function_stat_start,
-	.stat_next = function_stat_next,
-	.stat_cmp = function_stat_cmp,
-	.stat_headers = function_stat_headers,
-	.stat_show = function_stat_show
+	.name		= "functions",
+	.stat_start	= function_stat_start,
+	.stat_next	= function_stat_next,
+	.stat_cmp	= function_stat_cmp,
+	.stat_headers	= function_stat_headers,
+	.stat_show	= function_stat_show
 };
 
 static void ftrace_profile_debugfs(struct dentry *d_tracer)
@@ -1954,7 +1956,7 @@ function_trace_probe_call(unsigned long ip, unsigned long parent_ip)
 
 static struct ftrace_ops trace_probe_ops __read_mostly =
 {
-	.func = function_trace_probe_call,
+	.func		= function_trace_probe_call,
 };
 
 static int ftrace_probe_registered;
