@@ -1374,7 +1374,7 @@ enum Interrupt_C_Status_Bits {
 
 #define M_SERIES_EEPROM_SIZE 1024
 
-typedef struct ni_board_struct {
+struct ni_board_struct {
 	int device_id;
 	int isapnp_id;
 	char *name;
@@ -1401,11 +1401,11 @@ typedef struct ni_board_struct {
 	unsigned int has_analog_trig:1;
 
 	enum caldac_enum caldac[3];
-} ni_board;
+};
 
-#define n_ni_boards  (sizeof(ni_boards)/sizeof(ni_board))
+#define n_ni_boards  (sizeof(ni_boards)/sizeof(struct ni_board_struct))
 
-#define boardtype (*(ni_board *)dev->board_ptr)
+#define boardtype (*(struct ni_board_struct *)dev->board_ptr)
 
 #define MAX_N_AO_CHAN 8
 #define NUM_GPCT 2

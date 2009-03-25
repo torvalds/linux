@@ -216,7 +216,7 @@ static const struct comedi_lrange range_ni_M_622x_ao = { 1, {
 	}
 };
 
-static const ni_board ni_boards[] = {
+static const struct ni_board_struct ni_boards[] = {
 	{
 			.device_id = 0x0162,	// NI also says 0x1620.  typo?
 			.name = "pci-mio-16xe-50",

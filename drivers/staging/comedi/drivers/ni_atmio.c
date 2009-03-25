@@ -114,7 +114,7 @@ are not supported.
 
 #define MAX_N_CALDACS 32
 
-static const ni_board ni_boards[] = {
+static const struct ni_board_struct ni_boards[] = {
       {device_id:44,
 	      isapnp_id:0x0000,/* XXX unknown */
 	      name:	"at-mio-16e-1",
