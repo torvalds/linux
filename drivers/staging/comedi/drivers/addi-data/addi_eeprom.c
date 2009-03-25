@@ -64,11 +64,11 @@ struct str_Functionality {
 	unsigned short w_Address;
 };
 
-typedef struct {
+struct str_MainHeader {
 	unsigned short w_HeaderSize;
 	unsigned char b_Nfunctions;
 	struct str_Functionality s_Functions[7];
-} str_MainHeader;
+};
 
 typedef struct {
 	unsigned short w_Nchannel;
@@ -801,7 +801,7 @@ int i_EepromReadMainHeader(unsigned short w_PCIBoardEepromAddress,
 {
 	unsigned short w_Temp, i, w_Count = 0;
 	unsigned int ui_Temp;
-	str_MainHeader s_MainHeader;
+	struct str_MainHeader s_MainHeader;
 	str_DigitalInputHeader s_DigitalInputHeader;
 	str_DigitalOutputHeader s_DigitalOutputHeader;
 	//str_TimerMainHeader     s_TimerMainHeader,s_WatchdogMainHeader;
