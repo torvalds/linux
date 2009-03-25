@@ -1121,7 +1121,7 @@ int nf_conntrack_set_hashsize(const char *val, struct kernel_param *kp)
 					struct nf_conntrack_tuple_hash, hnode);
 			hlist_del_rcu(&h->hnode);
 			bucket = __hash_conntrack(&h->tuple, hashsize, rnd);
-			hlist_add_head(&h->hnode, &hash[bucket]);
+			hlist_add_head_rcu(&h->hnode, &hash[bucket]);
 		}
 	}
 	old_size = nf_conntrack_htable_size;
