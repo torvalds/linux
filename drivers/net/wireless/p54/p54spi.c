@@ -171,7 +171,7 @@ static int p54spi_wait_bit(struct p54s_priv *priv, u16 reg, __le32 bits)
 
 	for (i = 0; i < 2000; i++) {
 		p54spi_spi_read(priv, reg, &buffer, sizeof(buffer));
-		if (buffer == bits)
+		if ((buffer & bits) == bits)
 			return 1;
 
 		msleep(1);
