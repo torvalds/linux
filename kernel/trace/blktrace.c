@@ -1168,7 +1168,7 @@ static int blk_trace_synthesize_old_trace(struct trace_iterator *iter)
 	const int offset = offsetof(struct blk_io_trace, sector);
 	struct blk_io_trace old = {
 		.magic	  = BLK_IO_TRACE_MAGIC | BLK_IO_TRACE_VERSION,
-		.time     = ns2usecs(iter->ts),
+		.time     = iter->ts,
 	};
 
 	if (!trace_seq_putmem(s, &old, offset))
