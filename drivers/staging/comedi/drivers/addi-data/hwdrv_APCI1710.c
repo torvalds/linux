@@ -234,11 +234,11 @@ int i_APCI1710_Reset(struct comedi_device * dev)
 /*
 +----------------------------------------------------------------------------+
 | Function's Name   : __void__ v_APCI1710_InterruptFunction                  |
-|				(BYTE b_Interrupt, __CPPARGS)                |
+|				(unsigned char b_Interrupt, __CPPARGS)                |
 +----------------------------------------------------------------------------+
 | Task              : APCI-1710 interrupt function                           |
 +----------------------------------------------------------------------------+
-| Input Parameters  : BYTE b_Interrupt : Interrupt number                    |
+| Input Parameters  : unsigned char b_Interrupt : Interrupt number                    |
 +----------------------------------------------------------------------------+
 | Output Parameters : -                                                      |
 +----------------------------------------------------------------------------+
@@ -250,11 +250,11 @@ int i_APCI1710_Reset(struct comedi_device * dev)
 void v_APCI1710_Interrupt(int irq, void *d)
 {
 	struct comedi_device *dev = d;
-	BYTE b_ModuleCpt = 0;
-	BYTE b_InterruptFlag = 0;
-	BYTE b_PWMCpt = 0;
-	BYTE b_TorCounterCpt = 0;
-	BYTE b_PulseIncoderCpt = 0;
+	unsigned char b_ModuleCpt = 0;
+	unsigned char b_InterruptFlag = 0;
+	unsigned char b_PWMCpt = 0;
+	unsigned char b_TorCounterCpt = 0;
+	unsigned char b_PulseIncoderCpt = 0;
 	UINT ui_16BitValue;
 	ULONG ul_InterruptLatchReg = 0;
 	ULONG ul_LatchRegisterValue = 0;

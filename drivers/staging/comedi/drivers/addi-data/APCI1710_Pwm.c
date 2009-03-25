@@ -73,16 +73,16 @@ struct comedi_subdevice *s,struct comedi_insn *insn,unsigned int *data)         
 INT i_APCI1710_InsnConfigPWM(struct comedi_device * dev, struct comedi_subdevice * s,
 	struct comedi_insn * insn, unsigned int * data)
 {
-	BYTE b_ConfigType;
+	unsigned char b_ConfigType;
 	INT i_ReturnValue = 0;
 	b_ConfigType = CR_CHAN(insn->chanspec);
 
 	switch (b_ConfigType) {
 	case APCI1710_PWM_INIT:
-		i_ReturnValue = i_APCI1710_InitPWM(dev, (BYTE) CR_AREF(insn->chanspec),	//  b_ModulNbr
-			(BYTE) data[0],	//b_PWM
-			(BYTE) data[1],	// b_ClockSelection
-			(BYTE) data[2],	// b_TimingUnit
+		i_ReturnValue = i_APCI1710_InitPWM(dev, (unsigned char) CR_AREF(insn->chanspec),	//  b_ModulNbr
+			(unsigned char) data[0],	//b_PWM
+			(unsigned char) data[1],	// b_ClockSelection
+			(unsigned char) data[2],	// b_TimingUnit
 			(ULONG) data[3],	//ul_LowTiming
 			(ULONG) data[4],	//ul_HighTiming
 			(PULONG) & data[0],	//pul_RealLowTiming
@@ -91,17 +91,17 @@ INT i_APCI1710_InsnConfigPWM(struct comedi_device * dev, struct comedi_subdevice
 		break;
 
 	case APCI1710_PWM_GETINITDATA:
-		i_ReturnValue = i_APCI1710_GetPWMInitialisation(dev, (BYTE) CR_AREF(insn->chanspec),	// b_ModulNbr
-			(BYTE) data[0],	//b_PWM
-			(PBYTE) & data[0],	//pb_TimingUnit
+		i_ReturnValue = i_APCI1710_GetPWMInitialisation(dev, (unsigned char) CR_AREF(insn->chanspec),	// b_ModulNbr
+			(unsigned char) data[0],	//b_PWM
+			(unsigned char *) & data[0],	//pb_TimingUnit
 			(PULONG) & data[1],	//pul_LowTiming
 			(PULONG) & data[2],	//pul_HighTiming
-			(PBYTE) & data[3],	// pb_StartLevel
-			(PBYTE) & data[4],	// pb_StopMode
-			(PBYTE) & data[5],	// pb_StopLevel
-			(PBYTE) & data[6],	// pb_ExternGate
-			(PBYTE) & data[7],	// pb_InterruptEnable
-			(PBYTE) & data[8]	// pb_Enable
+			(unsigned char *) & data[3],	// pb_StartLevel
+			(unsigned char *) & data[4],	// pb_StopMode
+			(unsigned char *) & data[5],	// pb_StopLevel
+			(unsigned char *) & data[6],	// pb_ExternGate
+			(unsigned char *) & data[7],	// pb_InterruptEnable
+			(unsigned char *) & data[8]	// pb_Enable
 			);
 		break;
 
@@ -117,11 +117,11 @@ INT i_APCI1710_InsnConfigPWM(struct comedi_device * dev, struct comedi_subdevice
 /*
 +----------------------------------------------------------------------------+
 | Function Name     : _INT_ i_APCI1710_InitPWM                               |
-|                                       (BYTE_     b_BoardHandle,            |
-|                                        BYTE_     b_ModulNbr,               |
-|                                        BYTE_     b_PWM,                    |
-|                                        BYTE_     b_ClockSelection,         |
-|                                        BYTE_     b_TimingUnit,             |
+|                                       (unsigned char_     b_BoardHandle,            |
+|                                        unsigned char_     b_ModulNbr,               |
+|                                        unsigned char_     b_PWM,                    |
+|                                        unsigned char_     b_ClockSelection,         |
+|                                        unsigned char_     b_TimingUnit,             |
 |                                        ULONG_   ul_LowTiming,              |
 |                                        ULONG_   ul_HighTiming,             |
 |                                        PULONG_ pul_RealLowTiming,          |
@@ -135,11 +135,11 @@ INT i_APCI1710_InsnConfigPWM(struct comedi_device * dev, struct comedi_subdevice
 |                     You must calling this function be for you call any     |
 |                     other function witch access of the PWM.                |
 +----------------------------------------------------------------------------+
-| Input Parameters  : BYTE_     b_BoardHandle    : Handle of board APCI-1710 |
-|                     BYTE_     b_ModulNbr       : Module number to configure|
+| Input Parameters  : unsigned char_     b_BoardHandle    : Handle of board APCI-1710 |
+|                     unsigned char_     b_ModulNbr       : Module number to configure|
 |                                                  (0 to 3)                  |
-|                     BYTE_     b_PWM            : Selected PWM (0 or 1).    |
-|                     BYTE_     b_ClockSelection : Selection from PCI bus    |
+|                     unsigned char_     b_PWM            : Selected PWM (0 or 1).    |
+|                     unsigned char_     b_ClockSelection : Selection from PCI bus    |
 |                                                  clock                     |
 |                                                   - APCI1710_30MHZ :       |
 |                                                     The PC have a 30 MHz   |
@@ -151,7 +151,7 @@ INT i_APCI1710_InsnConfigPWM(struct comedi_device * dev, struct comedi_subdevice
 |                                                     The APCI-1710 have a   |
 |                                                     integrated 40Mhz       |
 |                                                     quartz.                |
-|                     BYTE_     b_TimingUnit     : Base timing Unit (0 to 4) |
+|                     unsigned char_     b_TimingUnit     : Base timing Unit (0 to 4) |
 |                                                       0 : ns               |
 |                                                       1 : æs               |
 |                                                       2 : ms               |
@@ -180,10 +180,10 @@ INT i_APCI1710_InsnConfigPWM(struct comedi_device * dev, struct comedi_subdevice
 */
 
 INT i_APCI1710_InitPWM(struct comedi_device * dev,
-	BYTE b_ModulNbr,
-	BYTE b_PWM,
-	BYTE b_ClockSelection,
-	BYTE b_TimingUnit,
+	unsigned char b_ModulNbr,
+	unsigned char b_PWM,
+	unsigned char b_ClockSelection,
+	unsigned char b_TimingUnit,
 	ULONG ul_LowTiming,
 	ULONG ul_HighTiming,
 	PULONG pul_RealLowTiming, PULONG pul_RealHighTiming)
@@ -1442,29 +1442,29 @@ INT i_APCI1710_InitPWM(struct comedi_device * dev,
 /*
 +----------------------------------------------------------------------------+
 | Function Name     : _INT_ i_APCI1710_GetPWMInitialisation                  |
-|                                       (BYTE_     b_BoardHandle,            |
-|                                        BYTE_     b_ModulNbr,               |
-|                                        BYTE_     b_PWM,                    |
-|                                        PBYTE_   pb_TimingUnit,             |
+|                                       (unsigned char_     b_BoardHandle,            |
+|                                        unsigned char_     b_ModulNbr,               |
+|                                        unsigned char_     b_PWM,                    |
+|                                        unsigned char *_   pb_TimingUnit,             |
 |                                        PULONG_ pul_LowTiming,              |
 |                                        PULONG_ pul_HighTiming,             |
-|                                        PBYTE_   pb_StartLevel,             |
-|                                        PBYTE_   pb_StopMode,               |
-|                                        PBYTE_   pb_StopLevel,              |
-|                                        PBYTE_   pb_ExternGate,             |
-|                                        PBYTE_   pb_InterruptEnable,        |
-|                                        PBYTE_   pb_Enable)                 |
+|                                        unsigned char *_   pb_StartLevel,             |
+|                                        unsigned char *_   pb_StopMode,               |
+|                                        unsigned char *_   pb_StopLevel,              |
+|                                        unsigned char *_   pb_ExternGate,             |
+|                                        unsigned char *_   pb_InterruptEnable,        |
+|                                        unsigned char *_   pb_Enable)                 |
 +----------------------------------------------------------------------------+
 | Task              : Return the PWM (b_PWM) initialisation from selected    |
 |                     module (b_ModulNbr). You must calling the              |
 |                     "i_APCI1710_InitPWM" function be for you call this     |
 |                     function.                                              |
 +----------------------------------------------------------------------------+
-| Input Parameters  : BYTE_ b_BoardHandle : Handle of board APCI-1710        |
-|                     BYTE_ b_ModulNbr    : Selected module number (0 to 3)  |
-|                     BYTE_ b_PWM         : Selected PWM (0 or 1)            |
+| Input Parameters  : unsigned char_ b_BoardHandle : Handle of board APCI-1710        |
+|                     unsigned char_ b_ModulNbr    : Selected module number (0 to 3)  |
+|                     unsigned char_ b_PWM         : Selected PWM (0 or 1)            |
 +----------------------------------------------------------------------------+
-| Output Parameters : PBYTE_  pb_TimingUnit      : Base timing Unit (0 to 4) |
+| Output Parameters : unsigned char *_  pb_TimingUnit      : Base timing Unit (0 to 4) |
 |                                                       0 : ns               |
 |                                                       1 : æs               |
 |                                                       2 : ms               |
@@ -1472,13 +1472,13 @@ INT i_APCI1710_InitPWM(struct comedi_device * dev,
 |                                                       4 : mn               |
 |                     PULONG_ pul_LowTiming      : Low base timing value.    |
 |                     PULONG_ pul_HighTiming     : High base timing value.   |
-|                     PBYTE_  pb_StartLevel      : Start period level        |
+|                     unsigned char *_  pb_StartLevel      : Start period level        |
 |                                                  selection                 |
 |                                                       0 : The period start |
 |                                                           with a low level |
 |                                                       1 : The period start |
 |                                                           with a high level|
-|                     PBYTE_  pb_StopMode        : Stop mode selection       |
+|                     unsigned char *_  pb_StopMode        : Stop mode selection       |
 |                                                  0 : The PWM is stopped    |
 |                                                      directly after the    |
 |                                                     "i_APCI1710_DisablePWM"|
@@ -1489,7 +1489,7 @@ INT i_APCI1710_InitPWM(struct comedi_device * dev,
 |                                                      function the PWM is   |
 |                                                      stopped at the end    |
 |                                                      from last period cycle|
-|                     PBYTE_  pb_StopLevel        : Stop PWM level selection |
+|                     unsigned char *_  pb_StopLevel        : Stop PWM level selection |
 |                                                    0 : The output signal   |
 |                                                        keep the level after|
 |                                                        the                 |
@@ -1504,13 +1504,13 @@ INT i_APCI1710_InitPWM(struct comedi_device * dev,
 |                                                        the                 |
 |                                                     "i_APCI1710_DisablePWM"|
 |                                                        function            |
-|                     PBYTE_  pb_ExternGate      : Extern gate action        |
+|                     unsigned char *_  pb_ExternGate      : Extern gate action        |
 |                                                  selection                 |
 |                                                   0 : Extern gate signal   |
 |                                                       not used.            |
 |                                                   1 : Extern gate signal   |
 |                                                       used.                |
-|                     PBYTE_  pb_InterruptEnable : Enable or disable the PWM |
+|                     unsigned char *_  pb_InterruptEnable : Enable or disable the PWM |
 |                                                  interrupt.                |
 |                                                  - APCI1710_ENABLE :       |
 |                                                    Enable the PWM interrupt|
@@ -1519,7 +1519,7 @@ INT i_APCI1710_InitPWM(struct comedi_device * dev,
 |                                                  - APCI1710_DISABLE :      |
 |                                                    Disable the PWM         |
 |                                                    interrupt               |
-|                     PBYTE_  pb_Enable          : Indicate if the PWM is    |
+|                     unsigned char *_  pb_Enable          : Indicate if the PWM is    |
 |                                                  enabled or no             |
 |                                                       0 : PWM not enabled  |
 |                                                       1 : PWM enabled      |
@@ -1535,15 +1535,15 @@ INT i_APCI1710_InitPWM(struct comedi_device * dev,
 */
 
 INT i_APCI1710_GetPWMInitialisation(struct comedi_device * dev,
-	BYTE b_ModulNbr,
-	BYTE b_PWM,
-	PBYTE pb_TimingUnit,
+	unsigned char b_ModulNbr,
+	unsigned char b_PWM,
+	unsigned char * pb_TimingUnit,
 	PULONG pul_LowTiming,
 	PULONG pul_HighTiming,
-	PBYTE pb_StartLevel,
-	PBYTE pb_StopMode,
-	PBYTE pb_StopLevel,
-	PBYTE pb_ExternGate, PBYTE pb_InterruptEnable, PBYTE pb_Enable)
+	unsigned char * pb_StartLevel,
+	unsigned char * pb_StopMode,
+	unsigned char * pb_StopLevel,
+	unsigned char * pb_ExternGate, unsigned char * pb_InterruptEnable, unsigned char * pb_Enable)
 {
 	INT i_ReturnValue = 0;
 	DWORD dw_Status;
@@ -1602,20 +1602,20 @@ INT i_APCI1710_GetPWMInitialisation(struct comedi_device * dev,
 						(64 * b_ModulNbr));
 
 					*pb_StartLevel =
-						(BYTE) ((dw_Command >> 5) & 1);
+						(unsigned char) ((dw_Command >> 5) & 1);
 					*pb_StopMode =
-						(BYTE) ((dw_Command >> 0) & 1);
+						(unsigned char) ((dw_Command >> 0) & 1);
 					*pb_StopLevel =
-						(BYTE) ((dw_Command >> 1) & 1);
+						(unsigned char) ((dw_Command >> 1) & 1);
 					*pb_ExternGate =
-						(BYTE) ((dw_Command >> 4) & 1);
+						(unsigned char) ((dw_Command >> 4) & 1);
 					*pb_InterruptEnable =
-						(BYTE) ((dw_Command >> 3) & 1);
+						(unsigned char) ((dw_Command >> 3) & 1);
 
 					if (*pb_StopLevel) {
 						*pb_StopLevel =
 							*pb_StopLevel +
-							(BYTE) ((dw_Command >>
+							(unsigned char) ((dw_Command >>
 								2) & 1);
 					}
 
@@ -1628,7 +1628,7 @@ INT i_APCI1710_GetPWMInitialisation(struct comedi_device * dev,
 						(64 * b_ModulNbr));
 
 					*pb_Enable =
-						(BYTE) ((dw_Command >> 0) & 1);
+						(unsigned char) ((dw_Command >> 0) & 1);
 
 					*pb_TimingUnit = devpriv->
 						s_ModuleInfo[b_ModulNbr].
@@ -1686,30 +1686,30 @@ struct comedi_subdevice *s,struct comedi_insn *insn,unsigned int *data)         
 INT i_APCI1710_InsnWritePWM(struct comedi_device * dev, struct comedi_subdevice * s,
 	struct comedi_insn * insn, unsigned int * data)
 {
-	BYTE b_WriteType;
+	unsigned char b_WriteType;
 	INT i_ReturnValue = 0;
 	b_WriteType = CR_CHAN(insn->chanspec);
 
 	switch (b_WriteType) {
 	case APCI1710_PWM_ENABLE:
 		i_ReturnValue = i_APCI1710_EnablePWM(dev,
-			(BYTE) CR_AREF(insn->chanspec),
-			(BYTE) data[0],
-			(BYTE) data[1],
-			(BYTE) data[2],
-			(BYTE) data[3], (BYTE) data[4], (BYTE) data[5]);
+			(unsigned char) CR_AREF(insn->chanspec),
+			(unsigned char) data[0],
+			(unsigned char) data[1],
+			(unsigned char) data[2],
+			(unsigned char) data[3], (unsigned char) data[4], (unsigned char) data[5]);
 		break;
 
 	case APCI1710_PWM_DISABLE:
 		i_ReturnValue = i_APCI1710_DisablePWM(dev,
-			(BYTE) CR_AREF(insn->chanspec), (BYTE) data[0]);
+			(unsigned char) CR_AREF(insn->chanspec), (unsigned char) data[0]);
 		break;
 
 	case APCI1710_PWM_NEWTIMING:
 		i_ReturnValue = i_APCI1710_SetNewPWMTiming(dev,
-			(BYTE) CR_AREF(insn->chanspec),
-			(BYTE) data[0],
-			(BYTE) data[1], (ULONG) data[2], (ULONG) data[3]);
+			(unsigned char) CR_AREF(insn->chanspec),
+			(unsigned char) data[0],
+			(unsigned char) data[1], (ULONG) data[2], (ULONG) data[3]);
 		break;
 
 	default:
@@ -1724,14 +1724,14 @@ INT i_APCI1710_InsnWritePWM(struct comedi_device * dev, struct comedi_subdevice 
 /*
 +----------------------------------------------------------------------------+
 | Function Name     : _INT_     i_APCI1710_EnablePWM                         |
-|                                       (BYTE_  b_BoardHandle,               |
-|                                        BYTE_  b_ModulNbr,                  |
-|                                        BYTE_  b_PWM,                       |
-|                                        BYTE_  b_StartLevel,                |
-|                                        BYTE_  b_StopMode,                  |
-|                                        BYTE_  b_StopLevel,                 |
-|                                        BYTE_  b_ExternGate,                |
-|                                        BYTE_  b_InterruptEnable)           |
+|                                       (unsigned char_  b_BoardHandle,               |
+|                                        unsigned char_  b_ModulNbr,                  |
+|                                        unsigned char_  b_PWM,                       |
+|                                        unsigned char_  b_StartLevel,                |
+|                                        unsigned char_  b_StopMode,                  |
+|                                        unsigned char_  b_StopLevel,                 |
+|                                        unsigned char_  b_ExternGate,                |
+|                                        unsigned char_  b_InterruptEnable)           |
 +----------------------------------------------------------------------------+
 | Task              : Enable the selected PWM (b_PWM) from selected module   |
 |                     (b_ModulNbr). You must calling the "i_APCI1710_InitPWM"|
@@ -1741,16 +1741,16 @@ INT i_APCI1710_InsnWritePWM(struct comedi_device * dev, struct comedi_subdevice 
 |                     See function "i_APCI1710_SetBoardIntRoutineX" and the  |
 |                     Interrupt mask description chapter.                    |
 +----------------------------------------------------------------------------+
-| Input Parameters  : BYTE_ b_BoardHandle     : Handle of board APCI-1710    |
-|                     BYTE_ b_ModulNbr        : Selected module number       |
+| Input Parameters  : unsigned char_ b_BoardHandle     : Handle of board APCI-1710    |
+|                     unsigned char_ b_ModulNbr        : Selected module number       |
 |                                               (0 to 3)                     |
-|                     BYTE_ b_PWM             : Selected PWM (0 or 1)        |
-|                     BYTE_ b_StartLevel      : Start period level selection |
+|                     unsigned char_ b_PWM             : Selected PWM (0 or 1)        |
+|                     unsigned char_ b_StartLevel      : Start period level selection |
 |                                                0 : The period start with a |
 |                                                    low level               |
 |                                                1 : The period start with a |
 |                                                    high level              |
-|                     BYTE_ b_StopMode        : Stop mode selection          |
+|                     unsigned char_ b_StopMode        : Stop mode selection          |
 |                                                0 : The PWM is stopped      |
 |                                                    directly after the      |
 |                                                    "i_APCI1710_DisablePWM" |
@@ -1761,7 +1761,7 @@ INT i_APCI1710_InsnWritePWM(struct comedi_device * dev, struct comedi_subdevice 
 |                                                     function the PWM is    |
 |                                                     stopped at the end from|
 |                                                     last period cycle.     |
-|                     BYTE_ b_StopLevel       : Stop PWM level selection     |
+|                     unsigned char_ b_StopLevel       : Stop PWM level selection     |
 |                                                0 : The output signal keep  |
 |                                                    the level after the     |
 |                                                    "i_APCI1710_DisablePWM" |
@@ -1774,11 +1774,11 @@ INT i_APCI1710_InsnWritePWM(struct comedi_device * dev, struct comedi_subdevice 
 |                                                    to high after the       |
 |                                                    "i_APCI1710_DisablePWM" |
 |                                                    function                |
-|                     BYTE_ b_ExternGate      : Extern gate action selection |
+|                     unsigned char_ b_ExternGate      : Extern gate action selection |
 |                                                0 : Extern gate signal not  |
 |                                                    used.                   |
 |                                                1 : Extern gate signal used.|
-|                     BYTE_ b_InterruptEnable : Enable or disable the PWM    |
+|                     unsigned char_ b_InterruptEnable : Enable or disable the PWM    |
 |                                               interrupt.                   |
 |                                               - APCI1710_ENABLE :          |
 |                                                 Enable the PWM interrupt   |
@@ -1807,11 +1807,11 @@ INT i_APCI1710_InsnWritePWM(struct comedi_device * dev, struct comedi_subdevice 
 */
 
 INT i_APCI1710_EnablePWM(struct comedi_device * dev,
-	BYTE b_ModulNbr,
-	BYTE b_PWM,
-	BYTE b_StartLevel,
-	BYTE b_StopMode,
-	BYTE b_StopLevel, BYTE b_ExternGate, BYTE b_InterruptEnable)
+	unsigned char b_ModulNbr,
+	unsigned char b_PWM,
+	unsigned char b_StartLevel,
+	unsigned char b_StopMode,
+	unsigned char b_StopLevel, unsigned char b_ExternGate, unsigned char b_InterruptEnable)
 {
 	INT i_ReturnValue = 0;
 	DWORD dw_Status;
@@ -2034,9 +2034,9 @@ INT i_APCI1710_EnablePWM(struct comedi_device * dev,
 
 /*
 +----------------------------------------------------------------------------+
-| Function Name     : _INT_ i_APCI1710_DisablePWM (BYTE_  b_BoardHandle,     |
-|                                                  BYTE_  b_ModulNbr,        |
-|                                                  BYTE_  b_PWM)             |
+| Function Name     : _INT_ i_APCI1710_DisablePWM (unsigned char_  b_BoardHandle,     |
+|                                                  unsigned char_  b_ModulNbr,        |
+|                                                  unsigned char_  b_PWM)             |
 +----------------------------------------------------------------------------+
 | Task              : Disable the selected PWM (b_PWM) from selected module  |
 |                     (b_ModulNbr). The output signal level depend of the    |
@@ -2045,8 +2045,8 @@ INT i_APCI1710_EnablePWM(struct comedi_device * dev,
 |                     parameters from this function.                         |
 +----------------------------------------------------------------------------+
 | Input Parameters  :BYTE_ b_BoardHandle : Handle of board APCI-1710         |
-|                    BYTE_ b_ModulNbr    : Selected module number (0 to 3)   |
-|                    BYTE_ b_PWM         : Selected PWM (0 or 1)             |
+|                    unsigned char_ b_ModulNbr    : Selected module number (0 to 3)   |
+|                    unsigned char_ b_PWM         : Selected PWM (0 or 1)             |
 +----------------------------------------------------------------------------+
 | Output Parameters : -                                                      |
 +----------------------------------------------------------------------------+
@@ -2062,7 +2062,7 @@ INT i_APCI1710_EnablePWM(struct comedi_device * dev,
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_DisablePWM(struct comedi_device * dev, BYTE b_ModulNbr, BYTE b_PWM)
+INT i_APCI1710_DisablePWM(struct comedi_device * dev, unsigned char b_ModulNbr, unsigned char b_PWM)
 {
 	INT i_ReturnValue = 0;
 	DWORD dw_Status;
@@ -2150,11 +2150,11 @@ INT i_APCI1710_DisablePWM(struct comedi_device * dev, BYTE b_ModulNbr, BYTE b_PW
 /*
 +----------------------------------------------------------------------------+
 | Function Name     : _INT_ i_APCI1710_SetNewPWMTiming                       |
-|                                       (BYTE_     b_BoardHandle,            |
-|                                        BYTE_     b_ModulNbr,               |
-|                                        BYTE_     b_PWM,                    |
-|                                        BYTE_     b_ClockSelection,         |
-|                                        BYTE_     b_TimingUnit,             |
+|                                       (unsigned char_     b_BoardHandle,            |
+|                                        unsigned char_     b_ModulNbr,               |
+|                                        unsigned char_     b_PWM,                    |
+|                                        unsigned char_     b_ClockSelection,         |
+|                                        unsigned char_     b_TimingUnit,             |
 |                                        ULONG_   ul_LowTiming,              |
 |                                        ULONG_   ul_HighTiming)             |
 +----------------------------------------------------------------------------+
@@ -2162,11 +2162,11 @@ INT i_APCI1710_DisablePWM(struct comedi_device * dev, BYTE b_ModulNbr, BYTE b_PW
 |                     ul_TimingUnit determine the low/high timing base for   |
 |                     the period.                                            |
 +----------------------------------------------------------------------------+
-| Input Parameters  : BYTE_     b_BoardHandle    : Handle of board APCI-1710 |
-|                     BYTE_     b_ModulNbr       : Module number to configure|
+| Input Parameters  : unsigned char_     b_BoardHandle    : Handle of board APCI-1710 |
+|                     unsigned char_     b_ModulNbr       : Module number to configure|
 |                                                  (0 to 3)                  |
-|                     BYTE_     b_PWM            : Selected PWM (0 or 1).    |
-|                     BYTE_     b_TimingUnit     : Base timing Unit (0 to 4) |
+|                     unsigned char_     b_PWM            : Selected PWM (0 or 1).    |
+|                     unsigned char_     b_TimingUnit     : Base timing Unit (0 to 4) |
 |                                                       0 : ns               |
 |                                                       1 : æs               |
 |                                                       2 : ms               |
@@ -2190,10 +2190,10 @@ INT i_APCI1710_DisablePWM(struct comedi_device * dev, BYTE b_ModulNbr, BYTE b_PW
 */
 
 INT i_APCI1710_SetNewPWMTiming(struct comedi_device * dev,
-	BYTE b_ModulNbr,
-	BYTE b_PWM, BYTE b_TimingUnit, ULONG ul_LowTiming, ULONG ul_HighTiming)
+	unsigned char b_ModulNbr,
+	unsigned char b_PWM, unsigned char b_TimingUnit, ULONG ul_LowTiming, ULONG ul_HighTiming)
 {
-	BYTE b_ClockSelection;
+	unsigned char b_ClockSelection;
 	INT i_ReturnValue = 0;
 	ULONG ul_LowTimerValue = 0;
 	ULONG ul_HighTimerValue = 0;
@@ -3417,37 +3417,37 @@ INT i_APCI1710_SetNewPWMTiming(struct comedi_device * dev,
 /*
 +----------------------------------------------------------------------------+
 | Function Name     : _INT_ i_APCI1710_GetPWMStatus                          |
-|                               (BYTE_    b_BoardHandle,                     |
-|                                BYTE_    b_ModulNbr,                        |
-|                                BYTE_    b_PWM,                             |
-|                                PBYTE_  pb_PWMOutputStatus,                 |
-|                                PBYTE_  pb_ExternGateStatus)                |
+|                               (unsigned char_    b_BoardHandle,                     |
+|                                unsigned char_    b_ModulNbr,                        |
+|                                unsigned char_    b_PWM,                             |
+|                                unsigned char *_  pb_PWMOutputStatus,                 |
+|                                unsigned char *_  pb_ExternGateStatus)                |
 +----------------------------------------------------------------------------+
 | Task              : Return the status from selected PWM (b_PWM) from       |
 |                     selected module (b_ModulNbr).                          |
 +----------------------------------------------------------------------------+
-| Input Parameters  : BYTE_  b_BoardHandle : Handle of board APCI-1710       |
-|                     BYTE_  b_PWM         : Selected PWM (0 or 1)           |
-|                     BYTE_  b_ModulNbr    : Selected module number (0 to 3)
-	b_ModulNbr			=(BYTE)  CR_AREF(insn->chanspec);
-	b_PWM				=(BYTE)  data[0];
+| Input Parameters  : unsigned char_  b_BoardHandle : Handle of board APCI-1710       |
+|                     unsigned char_  b_PWM         : Selected PWM (0 or 1)           |
+|                     unsigned char_  b_ModulNbr    : Selected module number (0 to 3)
+	b_ModulNbr			=(unsigned char)  CR_AREF(insn->chanspec);
+	b_PWM				=(unsigned char)  data[0];
 
  |
 +----------------------------------------------------------------------------+
-| Output Parameters : PBYTE_  pb_PWMOutputStatus  : Return the PWM output    |
+| Output Parameters : unsigned char *_  pb_PWMOutputStatus  : Return the PWM output    |
 |                                                   level status.            |
 |                                                    0 : The PWM output level|
 |                                                        is low.             |
 |                                                    1 : The PWM output level|
 |                                                        is high.            |
-|                     PBYTE_  pb_ExternGateStatus : Return the extern gate   |
+|                     unsigned char *_  pb_ExternGateStatus : Return the extern gate   |
 |                                                   level status.            |
 |                                                    0 : The extern gate is  |
 |                                                        low.                |
 |                                                    1 : The extern gate is  |
 |                                                        high.
-    pb_PWMOutputStatus	=(PBYTE) data[0];
-	pb_ExternGateStatus =(PBYTE) data[1];             |
+    pb_PWMOutputStatus	=(unsigned char *) data[0];
+	pb_ExternGateStatus =(unsigned char *) data[1];             |
 +----------------------------------------------------------------------------+
 | Return Value      :  0: No error                                           |
 |                     -1: The handle parameter of the board is wrong         |
@@ -3466,16 +3466,16 @@ INT i_APCI1710_InsnReadGetPWMStatus(struct comedi_device * dev, struct comedi_su
 	INT i_ReturnValue = 0;
 	DWORD dw_Status;
 
-	BYTE b_ModulNbr;
-	BYTE b_PWM;
-	PBYTE pb_PWMOutputStatus;
-	PBYTE pb_ExternGateStatus;
+	unsigned char b_ModulNbr;
+	unsigned char b_PWM;
+	unsigned char * pb_PWMOutputStatus;
+	unsigned char * pb_ExternGateStatus;
 
 	i_ReturnValue = insn->n;
-	b_ModulNbr = (BYTE) CR_AREF(insn->chanspec);
-	b_PWM = (BYTE) CR_CHAN(insn->chanspec);
-	pb_PWMOutputStatus = (PBYTE) & data[0];
-	pb_ExternGateStatus = (PBYTE) & data[1];
+	b_ModulNbr = (unsigned char) CR_AREF(insn->chanspec);
+	b_PWM = (unsigned char) CR_CHAN(insn->chanspec);
+	pb_PWMOutputStatus = (unsigned char *) & data[0];
+	pb_ExternGateStatus = (unsigned char *) & data[1];
 
 	/**************************/
 	/* Test the module number */
@@ -3509,10 +3509,10 @@ INT i_APCI1710_InsnReadGetPWMStatus(struct comedi_device * dev, struct comedi_su
 
 					if (dw_Status & 0x1) {
 						*pb_PWMOutputStatus =
-							(BYTE) ((dw_Status >> 7)
+							(unsigned char) ((dw_Status >> 7)
 							& 1);
 						*pb_ExternGateStatus =
-							(BYTE) ((dw_Status >> 6)
+							(unsigned char) ((dw_Status >> 6)
 							& 1);
 					}	// if (dw_Status & 0x1)
 					else {

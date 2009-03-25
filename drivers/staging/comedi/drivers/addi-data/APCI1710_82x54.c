@@ -23,15 +23,15 @@
 /*
 +----------------------------------------------------------------------------+
 | Function Name     : _INT_     i_APCI1710_InitTimer                         |
-|                               (BYTE_   b_BoardHandle,                      |
-|                                BYTE_   b_ModulNbr,                         |
-|                                BYTE_   b_TimerNbr,                         |
-|                                BYTE_   b_TimerMode,                        |
+|                               (unsigned char_   b_BoardHandle,                      |
+|                                unsigned char_   b_ModulNbr,                         |
+|                                unsigned char_   b_TimerNbr,                         |
+|                                unsigned char_   b_TimerMode,                        |
 |                                ULONG_ ul_ReloadValue,                      |
-|                                BYTE_   b_InputClockSelection,              |
-|                                BYTE_   b_InputClockLevel,                  |
-|                                BYTE_   b_OutputLevel,                      |
-|                                BYTE_   b_HardwareGateLevel)
+|                                unsigned char_   b_InputClockSelection,              |
+|                                unsigned char_   b_InputClockLevel,                  |
+|                                unsigned char_   b_OutputLevel,                      |
+|                                unsigned char_   b_HardwareGateLevel)
 INT i_InsnConfig_InitTimer(struct comedi_device *dev,struct comedi_subdevice *s,
 	struct comedi_insn *insn,unsigned int *data)
 |
@@ -148,13 +148,13 @@ INT i_InsnConfig_InitTimer(struct comedi_device *dev,struct comedi_subdevice *s,
 |  +--------------------------------+------------------------------------+   |
 |                                                                            |
 +----------------------------------------------------------------------------+
-| Input Parameters  : BYTE_   b_BoardHandle        : Handle of board         |
+| Input Parameters  : unsigned char_   b_BoardHandle        : Handle of board         |
 |                                                    APCI-1710               |
-|                     BYTE_   b_ModulNbr           : Module number to        |
+|                     unsigned char_   b_ModulNbr           : Module number to        |
 |                                                    configure (0 to 3)      |
-|                     BYTE_   b_TimerNbr           : Timer number to         |
+|                     unsigned char_   b_TimerNbr           : Timer number to         |
 |                                                    configure (0 to 2)      |
-|                     BYTE_   b_TimerMode          : Timer mode selection    |
+|                     unsigned char_   b_TimerMode          : Timer mode selection    |
 |                                                    (0 to 5)                |
 |                                                    0: Interrupt on terminal|
 |                                                       count                |
@@ -173,21 +173,21 @@ INT i_InsnConfig_InitTimer(struct comedi_device *dev,struct comedi_subdevice *s,
 |                                                     or division factor     |
 |                                                     See timer mode         |
 |                                                     description table.     |
-|                     BYTE_   b_InputClockSelection : Selection from input   |
+|                     unsigned char_   b_InputClockSelection : Selection from input   |
 |                                                     timer clock.           |
 |                                                     See input clock        |
 |                                                     selection table.       |
-|                     BYTE_   b_InputClockLevel     : Selection from input   |
+|                     unsigned char_   b_InputClockLevel     : Selection from input   |
 |                                                     clock level.           |
 |                                                     0 : Low active         |
 |                                                         (Input inverted)   |
 |                                                     1 : High active        |
-|                     BYTE_   b_OutputLevel,        : Selection from output  |
+|                     unsigned char_   b_OutputLevel,        : Selection from output  |
 |                                                     clock level.           |
 |                                                     0 : Low active         |
 |                                                     1 : High active        |
 |                                                         (Output inverted)  |
-|                     BYTE_   b_HardwareGateLevel   : Selection from         |
+|                     unsigned char_   b_HardwareGateLevel   : Selection from         |
 |                                                     hardware gate level.   |
 |                                                     0 : Low active         |
 |                                                         (Input inverted)   |
@@ -195,14 +195,14 @@ INT i_InsnConfig_InitTimer(struct comedi_device *dev,struct comedi_subdevice *s,
 |                                                     If you will not used   |
 |                                                     the hardware gate set  |
 |                                                     this value to 0.
-|b_ModulNbr        = (BYTE) CR_AREF(insn->chanspec);
-	b_TimerNbr		  = (BYTE) CR_CHAN(insn->chanspec);
-	b_TimerMode		  = (BYTE) data[0];
+|b_ModulNbr        = (unsigned char) CR_AREF(insn->chanspec);
+	b_TimerNbr		  = (unsigned char) CR_CHAN(insn->chanspec);
+	b_TimerMode		  = (unsigned char) data[0];
 	ul_ReloadValue	  = (ULONG) data[1];
-	b_InputClockSelection	=(BYTE) data[2];
-	b_InputClockLevel		=(BYTE) data[3];
-	b_OutputLevel			=(BYTE) data[4];
-	b_HardwareGateLevel		=(BYTE) data[5];
+	b_InputClockSelection	=(unsigned char) data[2];
+	b_InputClockLevel		=(unsigned char) data[3];
+	b_OutputLevel			=(unsigned char) data[4];
+	b_HardwareGateLevel		=(unsigned char) data[5];
 +----------------------------------------------------------------------------+
 | Output Parameters : -                                                      |
 +----------------------------------------------------------------------------+
@@ -224,28 +224,28 @@ INT i_APCI1710_InsnConfigInitTimer(struct comedi_device * dev, struct comedi_sub
 {
 
 	INT i_ReturnValue = 0;
-	BYTE b_ModulNbr;
-	BYTE b_TimerNbr;
-	BYTE b_TimerMode;
+	unsigned char b_ModulNbr;
+	unsigned char b_TimerNbr;
+	unsigned char b_TimerMode;
 	ULONG ul_ReloadValue;
-	BYTE b_InputClockSelection;
-	BYTE b_InputClockLevel;
-	BYTE b_OutputLevel;
-	BYTE b_HardwareGateLevel;
+	unsigned char b_InputClockSelection;
+	unsigned char b_InputClockLevel;
+	unsigned char b_OutputLevel;
+	unsigned char b_HardwareGateLevel;
 
 	//BEGIN JK 27.10.2003 : Add the possibility to use a 40 Mhz quartz
 	DWORD dw_Test = 0;
 	//END JK 27.10.2003 : Add the possibility to use a 40 Mhz quartz
 
 	i_ReturnValue = insn->n;
-	b_ModulNbr = (BYTE) CR_AREF(insn->chanspec);
-	b_TimerNbr = (BYTE) CR_CHAN(insn->chanspec);
-	b_TimerMode = (BYTE) data[0];
+	b_ModulNbr = (unsigned char) CR_AREF(insn->chanspec);
+	b_TimerNbr = (unsigned char) CR_CHAN(insn->chanspec);
+	b_TimerMode = (unsigned char) data[0];
 	ul_ReloadValue = (ULONG) data[1];
-	b_InputClockSelection = (BYTE) data[2];
-	b_InputClockLevel = (BYTE) data[3];
-	b_OutputLevel = (BYTE) data[4];
-	b_HardwareGateLevel = (BYTE) data[5];
+	b_InputClockSelection = (unsigned char) data[2];
+	b_InputClockLevel = (unsigned char) data[3];
+	b_OutputLevel = (unsigned char) data[4];
+	b_HardwareGateLevel = (unsigned char) data[5];
 
 	/* Test the module number */
 	if (b_ModulNbr < 4) {
@@ -402,10 +402,10 @@ INT i_APCI1710_InsnConfigInitTimer(struct comedi_device * dev, struct comedi_sub
 /*
 +----------------------------------------------------------------------------+
 | Function Name     : _INT_     i_APCI1710_EnableTimer                       |
-|                               (BYTE_ b_BoardHandle,                        |
-|                                BYTE_ b_ModulNbr,                           |
-|                                BYTE_ b_TimerNbr,                           |
-|                                BYTE_ b_InterruptEnable)
+|                               (unsigned char_ b_BoardHandle,                        |
+|                                unsigned char_ b_ModulNbr,                           |
+|                                unsigned char_ b_TimerNbr,                           |
+|                                unsigned char_ b_InterruptEnable)
 INT i_APCI1710_InsnWriteEnableDisableTimer(struct comedi_device *dev,struct comedi_subdevice *s,
 	struct comedi_insn *insn,unsigned int *data)                |
 +----------------------------------------------------------------------------+
@@ -416,22 +416,22 @@ INT i_APCI1710_InsnWriteEnableDisableTimer(struct comedi_device *dev,struct come
 |                     generate a interrupt after the timer value reach       |
 |                     the zero. See function "i_APCI1710_SetBoardIntRoutineX"|
 +----------------------------------------------------------------------------+
-| Input Parameters  : BYTE_   b_BoardHandle     : Handle of board            |
+| Input Parameters  : unsigned char_   b_BoardHandle     : Handle of board            |
 |                                                 APCI-1710                  |
-|                     BYTE_   b_ModulNbr        : Selected module number     |
+|                     unsigned char_   b_ModulNbr        : Selected module number     |
 |                                                 (0 to 3)                   |
-|                     BYTE_   b_TimerNbr        : Timer number to enable     |
+|                     unsigned char_   b_TimerNbr        : Timer number to enable     |
 |                                                 (0 to 2)                   |
-|                     BYTE_   b_InterruptEnable : Enable or disable the      |
+|                     unsigned char_   b_InterruptEnable : Enable or disable the      |
 |                                                 timer interrupt.           |
 |                                                 APCI1710_ENABLE :          |
 |                                                 Enable the timer interrupt |
 |                                                 APCI1710_DISABLE :         |
 |                                                 Disable the timer interrupt|
 i_ReturnValue=insn->n;
-	b_ModulNbr        = (BYTE) CR_AREF(insn->chanspec);
-	b_TimerNbr		  = (BYTE) CR_CHAN(insn->chanspec);
-	b_ActionType      = (BYTE) data[0]; // enable disable
+	b_ModulNbr        = (unsigned char) CR_AREF(insn->chanspec);
+	b_TimerNbr		  = (unsigned char) CR_CHAN(insn->chanspec);
+	b_ActionType      = (unsigned char) data[0]; // enable disable
 +----------------------------------------------------------------------------+
 | Output Parameters : -                                                      |
 +----------------------------------------------------------------------------+
@@ -454,15 +454,15 @@ INT i_APCI1710_InsnWriteEnableDisableTimer(struct comedi_device * dev,
 {
 	INT i_ReturnValue = 0;
 	DWORD dw_DummyRead;
-	BYTE b_ModulNbr;
-	BYTE b_TimerNbr;
-	BYTE b_ActionType;
-	BYTE b_InterruptEnable;
+	unsigned char b_ModulNbr;
+	unsigned char b_TimerNbr;
+	unsigned char b_ActionType;
+	unsigned char b_InterruptEnable;
 
 	i_ReturnValue = insn->n;
-	b_ModulNbr = (BYTE) CR_AREF(insn->chanspec);
-	b_TimerNbr = (BYTE) CR_CHAN(insn->chanspec);
-	b_ActionType = (BYTE) data[0];	// enable disable
+	b_ModulNbr = (unsigned char) CR_AREF(insn->chanspec);
+	b_TimerNbr = (unsigned char) CR_CHAN(insn->chanspec);
+	b_ActionType = (unsigned char) data[0];	// enable disable
 
 	/* Test the module number */
 	if (b_ModulNbr < 4) {
@@ -475,7 +475,7 @@ INT i_APCI1710_InsnWriteEnableDisableTimer(struct comedi_device * dev,
 
 					switch (b_ActionType) {
 					case APCI1710_ENABLE:
-						b_InterruptEnable = (BYTE) data[1];
+						b_InterruptEnable = (unsigned char) data[1];
 						/* Test the interrupt selection */
 						if ((b_InterruptEnable == APCI1710_ENABLE) ||
 						    (b_InterruptEnable == APCI1710_DISABLE)) {
@@ -558,8 +558,8 @@ INT i_APCI1710_InsnWriteEnableDisableTimer(struct comedi_device * dev,
 /*
 +----------------------------------------------------------------------------+
 | Function Name     : _INT_     i_APCI1710_ReadAllTimerValue                 |
-|                                       (BYTE_     b_BoardHandle,            |
-|                                        BYTE_     b_ModulNbr,               |
+|                                       (unsigned char_     b_BoardHandle,            |
+|                                        unsigned char_     b_ModulNbr,               |
 |                                        PULONG_ pul_TimerValueArray)
 INT i_APCI1710_InsnReadAllTimerValue(struct comedi_device *dev,struct comedi_subdevice *s,
 	struct comedi_insn *insn,unsigned int *data)        |
@@ -567,9 +567,9 @@ INT i_APCI1710_InsnReadAllTimerValue(struct comedi_device *dev,struct comedi_sub
 | Task              : Return the all timer values from selected timer        |
 |                     module (b_ModulNbr).                                   |
 +----------------------------------------------------------------------------+
-| Input Parameters  : BYTE_   b_BoardHandle     : Handle of board            |
+| Input Parameters  : unsigned char_   b_BoardHandle     : Handle of board            |
 |                                                 APCI-1710                  |
-|                     BYTE_   b_ModulNbr        : Selected module number     |
+|                     unsigned char_   b_ModulNbr        : Selected module number     |
 |                                                 (0 to 3)                   |
 +----------------------------------------------------------------------------+
 | Output Parameters : PULONG_ pul_TimerValueArray : Timer value array.       |
@@ -594,7 +594,7 @@ INT i_APCI1710_InsnReadAllTimerValue(struct comedi_device *dev, struct comedi_su
 				     struct comedi_insn *insn, unsigned int *data)
 {
 	INT i_ReturnValue = 0;
-	BYTE b_ModulNbr, b_ReadType;
+	unsigned char b_ModulNbr, b_ReadType;
 	PULONG pul_TimerValueArray;
 
 	b_ModulNbr = CR_AREF(insn->chanspec);
@@ -684,7 +684,7 @@ struct comedi_subdevice *s,struct comedi_insn *insn,unsigned int *data)         
 INT i_APCI1710_InsnBitsTimer(struct comedi_device * dev, struct comedi_subdevice * s,
 			     struct comedi_insn * insn, unsigned int * data)
 {
-	BYTE b_BitsType;
+	unsigned char b_BitsType;
 	INT i_ReturnValue = 0;
 	b_BitsType = data[0];
 
@@ -693,29 +693,29 @@ INT i_APCI1710_InsnBitsTimer(struct comedi_device * dev, struct comedi_subdevice
 	switch (b_BitsType) {
 	case APCI1710_TIMER_READVALUE:
 		i_ReturnValue = i_APCI1710_ReadTimerValue(dev,
-							  (BYTE)CR_AREF(insn->chanspec),
-							  (BYTE)CR_CHAN(insn->chanspec),
+							  (unsigned char)CR_AREF(insn->chanspec),
+							  (unsigned char)CR_CHAN(insn->chanspec),
 							  (PULONG) & data[0]);
 		break;
 
 	case APCI1710_TIMER_GETOUTPUTLEVEL:
 		i_ReturnValue = i_APCI1710_GetTimerOutputLevel(dev,
-							       (BYTE)CR_AREF(insn->chanspec),
-							       (BYTE)CR_CHAN(insn->chanspec),
-							       (PBYTE) &data[0]);
+							       (unsigned char)CR_AREF(insn->chanspec),
+							       (unsigned char)CR_CHAN(insn->chanspec),
+							       (unsigned char *) &data[0]);
 		break;
 
 	case APCI1710_TIMER_GETPROGRESSSTATUS:
 		i_ReturnValue = i_APCI1710_GetTimerProgressStatus(dev,
-								  (BYTE)CR_AREF(insn->chanspec),
-								  (BYTE)CR_CHAN(insn->chanspec),
-								  (PBYTE)&data[0]);
+								  (unsigned char)CR_AREF(insn->chanspec),
+								  (unsigned char)CR_CHAN(insn->chanspec),
+								  (unsigned char *)&data[0]);
 		break;
 
 	case APCI1710_TIMER_WRITEVALUE:
 		i_ReturnValue = i_APCI1710_WriteTimerValue(dev,
-							   (BYTE)CR_AREF(insn->chanspec),
-							   (BYTE)CR_CHAN(insn->chanspec),
+							   (unsigned char)CR_AREF(insn->chanspec),
+							   (unsigned char)CR_CHAN(insn->chanspec),
 							   (ULONG)data[1]);
 
 		break;
@@ -733,19 +733,19 @@ INT i_APCI1710_InsnBitsTimer(struct comedi_device * dev, struct comedi_subdevice
 /*
 +----------------------------------------------------------------------------+
 | Function Name     : _INT_     i_APCI1710_ReadTimerValue                    |
-|                                       (BYTE_     b_BoardHandle,            |
-|                                        BYTE_     b_ModulNbr,               |
-|                                        BYTE_     b_TimerNbr,               |
+|                                       (unsigned char_     b_BoardHandle,            |
+|                                        unsigned char_     b_ModulNbr,               |
+|                                        unsigned char_     b_TimerNbr,               |
 |                                        PULONG_ pul_TimerValue)             |
 +----------------------------------------------------------------------------+
 | Task              : Return the timer value from selected digital timer     |
 |                     (b_TimerNbr) from selected timer  module (b_ModulNbr). |
 +----------------------------------------------------------------------------+
-| Input Parameters  : BYTE_   b_BoardHandle     : Handle of board            |
+| Input Parameters  : unsigned char_   b_BoardHandle     : Handle of board            |
 |                                                 APCI-1710                  |
-|                     BYTE_   b_ModulNbr        : Selected module number     |
+|                     unsigned char_   b_ModulNbr        : Selected module number     |
 |                                                 (0 to 3)                   |
-|                     BYTE_   b_TimerNbr        : Timer number to read       |
+|                     unsigned char_   b_TimerNbr        : Timer number to read       |
 |                                                 (0 to 2)                   |
 +----------------------------------------------------------------------------+
 | Output Parameters : PULONG_ pul_TimerValue    : Timer value                |
@@ -761,7 +761,7 @@ INT i_APCI1710_InsnBitsTimer(struct comedi_device * dev, struct comedi_subdevice
 */
 
 INT i_APCI1710_ReadTimerValue(struct comedi_device * dev,
-			      BYTE b_ModulNbr, BYTE b_TimerNbr,
+			      unsigned char b_ModulNbr, unsigned char b_TimerNbr,
 			      PULONG pul_TimerValue)
 {
 	INT i_ReturnValue = 0;
@@ -818,23 +818,23 @@ INT i_APCI1710_ReadTimerValue(struct comedi_device * dev,
 	/*
 	   +----------------------------------------------------------------------------+
 	   | Function Name     : _INT_     i_APCI1710_GetTimerOutputLevel               |
-	   |                                       (BYTE_     b_BoardHandle,            |
-	   |                                        BYTE_     b_ModulNbr,               |
-	   |                                        BYTE_     b_TimerNbr,               |
-	   |                                        PBYTE_   pb_OutputLevel)            |
+	   |                                       (unsigned char_     b_BoardHandle,            |
+	   |                                        unsigned char_     b_ModulNbr,               |
+	   |                                        unsigned char_     b_TimerNbr,               |
+	   |                                        unsigned char *_   pb_OutputLevel)            |
 	   +----------------------------------------------------------------------------+
 	   | Task              : Return the output signal level (pb_OutputLevel) from   |
 	   |                     selected digital timer (b_TimerNbr) from selected timer|
 	   |                     module (b_ModulNbr).                                   |
 	   +----------------------------------------------------------------------------+
-	   | Input Parameters  : BYTE_   b_BoardHandle     : Handle of board            |
+	   | Input Parameters  : unsigned char_   b_BoardHandle     : Handle of board            |
 	   |                                                 APCI-1710                  |
-	   |                     BYTE_   b_ModulNbr        : Selected module number     |
+	   |                     unsigned char_   b_ModulNbr        : Selected module number     |
 	   |                                                 (0 to 3)                   |
-	   |                     BYTE_   b_TimerNbr        : Timer number to test       |
+	   |                     unsigned char_   b_TimerNbr        : Timer number to test       |
 	   |                                                 (0 to 2)                   |
 	   +----------------------------------------------------------------------------+
-	   | Output Parameters : PBYTE_ pb_OutputLevel     : Output signal level        |
+	   | Output Parameters : unsigned char *_ pb_OutputLevel     : Output signal level        |
 	   |                                                 0 : The output is low      |
 	   |                                                 1 : The output is high     |
 	   +----------------------------------------------------------------------------+
@@ -849,8 +849,8 @@ INT i_APCI1710_ReadTimerValue(struct comedi_device * dev,
 	 */
 
 INT i_APCI1710_GetTimerOutputLevel(struct comedi_device * dev,
-				   BYTE b_ModulNbr, BYTE b_TimerNbr,
-				   PBYTE pb_OutputLevel)
+				   unsigned char b_ModulNbr, unsigned char b_TimerNbr,
+				   unsigned char * pb_OutputLevel)
 {
 	INT i_ReturnValue = 0;
 	DWORD dw_TimerStatus;
@@ -869,7 +869,7 @@ INT i_APCI1710_GetTimerOutputLevel(struct comedi_device * dev,
 					/* Read the timer status */
 					dw_TimerStatus = inl(devpriv->s_BoardInfos.ui_Address + 16 + (b_TimerNbr * 4) + (64 * b_ModulNbr));
 
-					*pb_OutputLevel = (BYTE) (((dw_TimerStatus >> 7) & 1) ^ devpriv-> s_ModuleInfo[b_ModulNbr].s_82X54ModuleInfo.s_82X54TimerInfo[b_TimerNbr].b_OutputLevel);
+					*pb_OutputLevel = (unsigned char) (((dw_TimerStatus >> 7) & 1) ^ devpriv-> s_ModuleInfo[b_ModulNbr].s_82X54ModuleInfo.s_82X54TimerInfo[b_TimerNbr].b_OutputLevel);
 				} else {
 					/* Timer not initialised see function */
 					DPRINTK("Timer not initialised see function\n");
@@ -897,23 +897,23 @@ INT i_APCI1710_GetTimerOutputLevel(struct comedi_device * dev,
 /*
 +----------------------------------------------------------------------------+
 | Function Name     : _INT_     i_APCI1710_GetTimerProgressStatus            |
-|                                       (BYTE_     b_BoardHandle,            |
-|                                        BYTE_     b_ModulNbr,               |
-|                                        BYTE_     b_TimerNbr,               |
-|                                        PBYTE_   pb_TimerStatus)            |
+|                                       (unsigned char_     b_BoardHandle,            |
+|                                        unsigned char_     b_ModulNbr,               |
+|                                        unsigned char_     b_TimerNbr,               |
+|                                        unsigned char *_   pb_TimerStatus)            |
 +----------------------------------------------------------------------------+
 | Task              : Return the progress status (pb_TimerStatus) from       |
 |                     selected digital timer (b_TimerNbr) from selected timer|
 |                     module (b_ModulNbr).                                   |
 +----------------------------------------------------------------------------+
-| Input Parameters  : BYTE_   b_BoardHandle     : Handle of board            |
+| Input Parameters  : unsigned char_   b_BoardHandle     : Handle of board            |
 |                                                 APCI-1710                  |
-|                     BYTE_   b_ModulNbr        : Selected module number     |
+|                     unsigned char_   b_ModulNbr        : Selected module number     |
 |                                                 (0 to 3)                   |
-|                     BYTE_   b_TimerNbr        : Timer number to test       |
+|                     unsigned char_   b_TimerNbr        : Timer number to test       |
 |                                                 (0 to 2)                   |
 +----------------------------------------------------------------------------+
-| Output Parameters : PBYTE_ pb_TimerStatus     : Output signal level        |
+| Output Parameters : unsigned char *_ pb_TimerStatus     : Output signal level        |
 |                                                 0 : Timer not in progress  |
 |                                                 1 : Timer in progress      |
 +----------------------------------------------------------------------------+
@@ -928,8 +928,8 @@ INT i_APCI1710_GetTimerOutputLevel(struct comedi_device * dev,
 */
 
 INT i_APCI1710_GetTimerProgressStatus(struct comedi_device *dev,
-				      BYTE b_ModulNbr, BYTE b_TimerNbr,
-				      PBYTE pb_TimerStatus)
+				      unsigned char b_ModulNbr, unsigned char b_TimerNbr,
+				      unsigned char * pb_TimerStatus)
 {
 	INT i_ReturnValue = 0;
 	DWORD dw_TimerStatus;
@@ -949,7 +949,7 @@ INT i_APCI1710_GetTimerProgressStatus(struct comedi_device *dev,
 					/* Read the timer status */
 					dw_TimerStatus = inl(devpriv->s_BoardInfos.ui_Address + 16 + (b_TimerNbr * 4) + (64 * b_ModulNbr));
 
-					*pb_TimerStatus = (BYTE) ((dw_TimerStatus) >> 8) & 1;
+					*pb_TimerStatus = (unsigned char) ((dw_TimerStatus) >> 8) & 1;
 					printk("ProgressStatus : %d", *pb_TimerStatus);
 				} else {
 					/* Timer not initialised see function */
@@ -976,9 +976,9 @@ INT i_APCI1710_GetTimerProgressStatus(struct comedi_device *dev,
 /*
 +----------------------------------------------------------------------------+
 | Function Name     : _INT_     i_APCI1710_WriteTimerValue                   |
-|                                       (BYTE_   b_BoardHandle,              |
-|                                        BYTE_   b_ModulNbr,                 |
-|                                        BYTE_   b_TimerNbr,                 |
+|                                       (unsigned char_   b_BoardHandle,              |
+|                                        unsigned char_   b_ModulNbr,                 |
+|                                        unsigned char_   b_TimerNbr,                 |
 |                                        ULONG_ ul_WriteValue)               |
 +----------------------------------------------------------------------------+
 | Task              : Write the value (ul_WriteValue) into the selected timer|
@@ -986,11 +986,11 @@ INT i_APCI1710_GetTimerProgressStatus(struct comedi_device *dev,
 |                     The action in depend of the time mode selection.       |
 |                     See timer mode description table.                      |
 +----------------------------------------------------------------------------+
-| Input Parameters  : BYTE_   b_BoardHandle     : Handle of board            |
+| Input Parameters  : unsigned char_   b_BoardHandle     : Handle of board            |
 |                                                 APCI-1710                  |
-|                     BYTE_   b_ModulNbr        : Selected module number     |
+|                     unsigned char_   b_ModulNbr        : Selected module number     |
 |                                                 (0 to 3)                   |
-|                     BYTE_   b_TimerNbr        : Timer number to write      |
+|                     unsigned char_   b_TimerNbr        : Timer number to write      |
 |                                                 (0 to 2)                   |
 |                     ULONG_ ul_WriteValue      : Value to write             |
 +----------------------------------------------------------------------------+
@@ -1007,7 +1007,7 @@ INT i_APCI1710_GetTimerProgressStatus(struct comedi_device *dev,
 */
 
 INT i_APCI1710_WriteTimerValue(struct comedi_device * dev,
-			       BYTE b_ModulNbr, BYTE b_TimerNbr,
+			       unsigned char b_ModulNbr, unsigned char b_TimerNbr,
 			       ULONG ul_WriteValue)
 {
 	INT i_ReturnValue = 0;

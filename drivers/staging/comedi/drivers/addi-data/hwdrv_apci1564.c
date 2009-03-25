@@ -850,22 +850,22 @@ INT i_APCI1564_ReadTimerCounterWatchdog(struct comedi_device * dev,
       /***********************************/
 		/* Get the software trigger status */
       /***********************************/
-		data[1] = (BYTE) ((ul_Command1 >> 1) & 1);
+		data[1] = (unsigned char) ((ul_Command1 >> 1) & 1);
 
       /***********************************/
 		/* Get the hardware trigger status */
       /***********************************/
-		data[2] = (BYTE) ((ul_Command1 >> 2) & 1);
+		data[2] = (unsigned char) ((ul_Command1 >> 2) & 1);
 
       /*********************************/
 		/* Get the software clear status */
       /*********************************/
-		data[3] = (BYTE) ((ul_Command1 >> 3) & 1);
+		data[3] = (unsigned char) ((ul_Command1 >> 3) & 1);
 
       /***************************/
 		/* Get the overflow status */
       /***************************/
-		data[4] = (BYTE) ((ul_Command1 >> 0) & 1);
+		data[4] = (unsigned char) ((ul_Command1 >> 0) & 1);
 	}			// else  if  (devpriv->b_TimerSelectMode==ADDIDATA_COUNTER)
 	else if ((devpriv->b_TimerSelectMode != ADDIDATA_TIMER)
 		&& (devpriv->b_TimerSelectMode != ADDIDATA_WATCHDOG)

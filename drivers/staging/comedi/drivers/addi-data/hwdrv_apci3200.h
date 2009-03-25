@@ -137,7 +137,7 @@ typedef struct {
 	INT i_Initialised;
 	//UINT ui_InterruptChannelValue[96]; //Buffer
 	UINT ui_InterruptChannelValue[144];	//Buffer
-	BYTE b_StructInitialized;
+	unsigned char b_StructInitialized;
 	//Begin JK 19.10.2004: APCI-3200 Driver update 0.7.57 -> 0.7.68
 	unsigned int ui_ScanValueArray[7 + 12];	// 7 is the maximal number of channels
 	//End JK 19.10.2004: APCI-3200 Driver update 0.7.57 -> 0.7.68

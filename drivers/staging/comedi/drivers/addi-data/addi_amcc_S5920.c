@@ -74,11 +74,11 @@ INT i_AddiHeaderRW_ReadEeprom(INT i_NbOfWordsToRead,
 	INT i_Counter = 0;
 	INT i_WordCounter;
 	INT i;
-	BYTE pb_ReadByte[1];
-	BYTE b_ReadLowByte = 0;
-	BYTE b_ReadHighByte = 0;
-	BYTE b_SelectedAddressLow = 0;
-	BYTE b_SelectedAddressHigh = 0;
+	unsigned char pb_ReadByte[1];
+	unsigned char b_ReadLowByte = 0;
+	unsigned char b_ReadHighByte = 0;
+	unsigned char b_SelectedAddressLow = 0;
+	unsigned char b_SelectedAddressHigh = 0;
 	WORD w_ReadWord = 0;
 
 	for (i_WordCounter = 0; i_WordCounter < i_NbOfWordsToRead;

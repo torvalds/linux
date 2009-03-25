@@ -63,12 +63,12 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 /*
 +----------------------------------------------------------------------------+
 | Function Name     : _INT_ i_APCI1710_InitTTLIODirection                    |
-|                               (BYTE_    b_BoardHandle,                     |
-|				 BYTE_    b_ModulNbr,                        |
-|				 BYTE_    b_PortAMode,                       |
-|				 BYTE_    b_PortBMode,                       |
-|				 BYTE_    b_PortCMode,                       |
-|				 BYTE_    b_PortDMode)                       |
+|                               (unsigned char_    b_BoardHandle,                     |
+|				 unsigned char_    b_ModulNbr,                        |
+|				 unsigned char_    b_PortAMode,                       |
+|				 unsigned char_    b_PortBMode,                       |
+|				 unsigned char_    b_PortCMode,                       |
+|				 unsigned char_    b_PortDMode)                       |
 +----------------------------------------------------------------------------+
 | Task           APCI1710_TTL_INIT (using defaults)   : Configure the TTL I/O operating mode from selected     |
 |                     module  (b_ModulNbr). You must calling this function be|
@@ -76,15 +76,15 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 				 APCI1710_TTL_INITDIRECTION(user inputs for direction)
 
 +----------------------------------------------------------------------------+
-| Input Parameters  : BYTE_ b_BoardHandle         : Handle of board APCI-1710|
-|                     BYTE_ b_ModulNbr            : Module number to         |
+| Input Parameters  : unsigned char_ b_BoardHandle         : Handle of board APCI-1710|
+|                     unsigned char_ b_ModulNbr            : Module number to         |
 |                                                   configure (0 to 3)
-		b_ModulNbr = (BYTE) CR_AREF(insn->chanspec);
-		b_InitType = (BYTE) data[0];
-		b_PortAMode	= (BYTE) data[1];
-		b_PortBMode = (BYTE) data[2];
-		b_PortCMode = (BYTE) data[3];
-		b_PortDMode	= (BYTE) data[4];|
+		b_ModulNbr = (unsigned char) CR_AREF(insn->chanspec);
+		b_InitType = (unsigned char) data[0];
+		b_PortAMode	= (unsigned char) data[1];
+		b_PortBMode = (unsigned char) data[2];
+		b_PortCMode = (unsigned char) data[3];
+		b_PortDMode	= (unsigned char) data[4];|
 +----------------------------------------------------------------------------+
 | Output Parameters : -                                                      |
 +----------------------------------------------------------------------------+
@@ -104,15 +104,15 @@ INT i_APCI1710_InsnConfigInitTTLIO(struct comedi_device * dev, struct comedi_sub
 	struct comedi_insn * insn, unsigned int * data)
 {
 	INT i_ReturnValue = 0;
-	BYTE b_ModulNbr;
-	BYTE b_InitType;
-	BYTE b_PortAMode;
-	BYTE b_PortBMode;
-	BYTE b_PortCMode;
-	BYTE b_PortDMode;
+	unsigned char b_ModulNbr;
+	unsigned char b_InitType;
+	unsigned char b_PortAMode;
+	unsigned char b_PortBMode;
+	unsigned char b_PortCMode;
+	unsigned char b_PortDMode;
 
-	b_ModulNbr = (BYTE) CR_AREF(insn->chanspec);
-	b_InitType = (BYTE) data[0];
+	b_ModulNbr = (unsigned char) CR_AREF(insn->chanspec);
+	b_InitType = (unsigned char) data[0];
 	i_ReturnValue = insn->n;
 
 	/**************************/
@@ -172,10 +172,10 @@ INT i_APCI1710_InsnConfigInitTTLIO(struct comedi_device * dev, struct comedi_sub
 
 			case APCI1710_TTL_INITDIRECTION:
 
-				b_PortAMode = (BYTE) data[1];
-				b_PortBMode = (BYTE) data[2];
-				b_PortCMode = (BYTE) data[3];
-				b_PortDMode = (BYTE) data[4];
+				b_PortAMode = (unsigned char) data[1];
+				b_PortBMode = (unsigned char) data[2];
+				b_PortCMode = (unsigned char) data[3];
+				b_PortDMode = (unsigned char) data[4];
 
 	      /********************/
 				/* Test the version */
@@ -352,11 +352,11 @@ INT i_APCI1710_InsnConfigInitTTLIO(struct comedi_device * dev, struct comedi_sub
 /*
 +----------------------------------------------------------------------------+
 | Function Name     : _INT_   i_APCI1710_ReadTTLIOChannelValue               |
-|                                       (BYTE_     b_BoardHandle,            |
-|                                        BYTE_     b_ModulNbr,               |
-|                                        BYTE_     b_SelectedPort,           |
-|                                        BYTE_     b_InputChannel,           |
-|                                        PBYTE_   pb_ChannelStatus)          |
+|                                       (unsigned char_     b_BoardHandle,            |
+|                                        unsigned char_     b_ModulNbr,               |
+|                                        unsigned char_     b_SelectedPort,           |
+|                                        unsigned char_     b_InputChannel,           |
+|                                        unsigned char *_   pb_ChannelStatus)          |
 +----------------------------------------------------------------------------+
 | Task              : Read the status from selected TTL digital input        |
 |                     (b_InputChannel)
@@ -366,32 +366,32 @@ INT i_APCI1710_InsnConfigInitTTLIO(struct comedi_device * dev, struct comedi_sub
 +----------------------------------------------------------------------------+
 
 +----------------------------------------------------------------------------+
-| Input Parameters  : BYTE_ b_BoardHandle         : Handle of board APCI-1710|
-|                     BYTE_ b_ModulNbr            : Module number to         |
+| Input Parameters  : unsigned char_ b_BoardHandle         : Handle of board APCI-1710|
+|                     unsigned char_ b_ModulNbr            : Module number to         |
 |                                                   configure (0 to 7)       |
-|                     BYTE_ b_SelectedPort,       : Selection from TTL I/O   |
+|                     unsigned char_ b_SelectedPort,       : Selection from TTL I/O   |
 |                                                   port (0 to 2)            |
 |                                                      0 : Port A selection  |
 |                                                      1 : Port B selection  |
 |                                                      2 : Port C selection  |
 |                                                      3 : Port D selection  |
-|                     BYTE_ b_InputChannel        : Selection from digital   |
+|                     unsigned char_ b_InputChannel        : Selection from digital   |
 |                                                   input ( 0 to 2)
 APCI1710_TTL_READCHANNEL
 	b_ModulNbr	  = CR_AREF(insn->chanspec);
 	b_SelectedPort= CR_RANGE(insn->chanspec);
 	b_InputChannel= CR_CHAN(insn->chanspec);
-	b_ReadType	  = (BYTE) data[0];
+	b_ReadType	  = (unsigned char) data[0];
 
  APCI1710_TTL_READPORT|
 	b_ModulNbr	  = CR_AREF(insn->chanspec);
 	b_SelectedPort= CR_RANGE(insn->chanspec);
-	b_ReadType	  = (BYTE) data[0];
+	b_ReadType	  = (unsigned char) data[0];
 
 +----------------------------------------------------------------------------+
 | Output Parameters : data[0]
 
-	PBYTE_  pb_ChannelStatus    : Digital input channel    |
+	unsigned char *_  pb_ChannelStatus    : Digital input channel    |
 |                                                   status                   |
 |                                                   0 : Channle is not active|
 |                                                   1 : Channle is active    |
@@ -411,15 +411,15 @@ INT i_APCI1710_InsnBitsReadTTLIO(struct comedi_device * dev, struct comedi_subde
 {
 	INT i_ReturnValue = 0;
 	DWORD dw_StatusReg;
-	BYTE b_ModulNbr;
-	BYTE b_SelectedPort;
-	BYTE b_InputChannel;
-	BYTE b_ReadType;
-	PBYTE pb_ChannelStatus;
-	PBYTE pb_PortValue;
+	unsigned char b_ModulNbr;
+	unsigned char b_SelectedPort;
+	unsigned char b_InputChannel;
+	unsigned char b_ReadType;
+	unsigned char * pb_ChannelStatus;
+	unsigned char * pb_PortValue;
 
 	i_ReturnValue = insn->n;
-	b_ReadType = (BYTE) data[0];
+	b_ReadType = (unsigned char) data[0];
 	b_ModulNbr = CR_AREF(insn->chanspec);
 	b_SelectedPort = CR_RANGE(insn->chanspec);
 	b_InputChannel = CR_CHAN(insn->chanspec);
@@ -439,7 +439,7 @@ INT i_APCI1710_InsnBitsReadTTLIO(struct comedi_device * dev, struct comedi_subde
 			switch (b_ReadType) {
 
 			case APCI1710_TTL_READCHANNEL:
-				pb_ChannelStatus = (PBYTE) & data[0];
+				pb_ChannelStatus = (unsigned char *) & data[0];
 	      /********************************/
 				/* Test the TTL I/O port number */
 	      /********************************/
@@ -493,7 +493,7 @@ INT i_APCI1710_InsnBitsReadTTLIO(struct comedi_device * dev, struct comedi_subde
 
 								*pb_ChannelStatus
 									=
-									(BYTE) (
+									(unsigned char) (
 									(dw_StatusReg
 										>>
 										(8 * b_SelectedPort)) >> b_InputChannel) & 1;
@@ -533,7 +533,7 @@ INT i_APCI1710_InsnBitsReadTTLIO(struct comedi_device * dev, struct comedi_subde
 				break;
 
 			case APCI1710_TTL_READPORT:
-				pb_PortValue = (PBYTE) & data[0];
+				pb_PortValue = (unsigned char *) & data[0];
 			  /********************************/
 				/* Test the TTL I/O port number */
 			  /********************************/
@@ -578,7 +578,7 @@ INT i_APCI1710_InsnBitsReadTTLIO(struct comedi_device * dev, struct comedi_subde
 								(64 * b_ModulNbr));
 
 							*pb_PortValue =
-								(BYTE) (
+								(unsigned char) (
 								(dw_StatusReg >>
 									(8 * b_SelectedPort)) & 0xFF);
 						} else {
@@ -640,8 +640,8 @@ INT i_APCI1710_InsnBitsReadTTLIO(struct comedi_device * dev, struct comedi_subde
 |                     (port A, port B and port C) from selected TTL          |
 |		      module (b_ModulNbr) 				     |
 +----------------------------------------------------------------------------+
-| Input Parameters  : BYTE_ b_BoardHandle         : Handle of board APCI-1710|
-|                     BYTE_ b_ModulNbr            : Module number to         |
+| Input Parameters  : unsigned char_ b_BoardHandle         : Handle of board APCI-1710|
+|                     unsigned char_ b_ModulNbr            : Module number to         |
 |                                                   configure (0 to 3)       |
 +----------------------------------------------------------------------------+
 | Output Parameters : PULONG_  pul_PortValue      : Digital TTL inputs port  |
@@ -660,10 +660,10 @@ INT i_APCI1710_InsnReadTTLIOAllPortValue(struct comedi_device * dev,
 {
 	INT i_ReturnValue = 0;
 	DWORD dw_StatusReg;
-	BYTE b_ModulNbr;
+	unsigned char b_ModulNbr;
 	PULONG pul_PortValue;
 
-	b_ModulNbr = (BYTE) CR_AREF(insn->chanspec);
+	b_ModulNbr = (unsigned char) CR_AREF(insn->chanspec);
 	i_ReturnValue = insn->n;
 	pul_PortValue = (PULONG) & data[0];
 
@@ -789,9 +789,9 @@ INT i_APCI1710_InsnReadTTLIOAllPortValue(struct comedi_device * dev,
 /*
 +----------------------------------------------------------------------------+
 | Function Name     : _INT_ i_APCI1710_SetTTLIOChlOn                         |
-|                               (BYTE_           b_BoardHandle,              |
-|                                BYTE_           b_ModulNbr,                 |
-|                                BYTE_           b_OutputChannel)
+|                               (unsigned char_           b_BoardHandle,              |
+|                                unsigned char_           b_ModulNbr,                 |
+|                                unsigned char_           b_OutputChannel)
 INT i_APCI1710_InsnWriteSetTTLIOChlOnOff(struct comedi_device *dev,struct comedi_subdevice *s,
 	struct comedi_insn *insn,unsigned int *data)           |
 +----------------------------------------------------------------------------+
@@ -799,9 +799,9 @@ INT i_APCI1710_InsnWriteSetTTLIOChlOnOff(struct comedi_device *dev,struct comedi
 |                     parameter b_Channel. Setting an output means setting   |
 |                     an ouput high.                                         |
 +----------------------------------------------------------------------------+
-| Input Parameters  : BYTE_ b_BoardHandle   : Handle of board APCI-1710      |
-|                     BYTE_ b_ModulNbr      : Selected module number (0 to 3)|
-|                     BYTE_ b_OutputChannel : Selection from digital output  |
+| Input Parameters  : unsigned char_ b_BoardHandle   : Handle of board APCI-1710      |
+|                     unsigned char_ b_ModulNbr      : Selected module number (0 to 3)|
+|                     unsigned char_ b_OutputChannel : Selection from digital output  |
 |                                             channel (0 or 1)               |
 |                                                0      : PD0                |
 |                                                1      : PD1                |
@@ -830,8 +830,8 @@ INT i_APCI1710_InsnWriteSetTTLIOChlOnOff(struct comedi_device * dev,
 {
 	INT i_ReturnValue = 0;
 	DWORD dw_StatusReg = 0;
-	BYTE b_ModulNbr;
-	BYTE b_OutputChannel;
+	unsigned char b_ModulNbr;
+	unsigned char b_OutputChannel;
 	UINT ui_State;
 
 	i_ReturnValue = insn->n;

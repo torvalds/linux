@@ -166,10 +166,10 @@ static const struct comedi_lrange range_apci3120_ao = { 2, {
 #define MAX_ANALOGINPUT_CHANNELS    32
 
 typedef struct {
-	BYTE b_Type;		/* EOC or EOS */
-	BYTE b_InterruptFlag;	/* Interrupt use or not                    */
+	unsigned char b_Type;		/* EOC or EOS */
+	unsigned char b_InterruptFlag;	/* Interrupt use or not                    */
 	UINT ui_ConvertTiming;	/* Selection of the convertion time        */
-	BYTE b_NbrOfChannel;	/* Number of channel to read               */
+	unsigned char b_NbrOfChannel;	/* Number of channel to read               */
 	UINT ui_ChannelList[MAX_ANALOGINPUT_CHANNELS];	/* Number of the channel to be read        */
 	UINT ui_RangeList[MAX_ANALOGINPUT_CHANNELS];	/* Gain of each channel                    */
 
@@ -214,7 +214,7 @@ int i_APCI3120_InsnReadDigitalInput(struct comedi_device *dev, struct comedi_sub
 				    struct comedi_insn *insn, unsigned int *data);
 
 //DO
-//int i_APCI3120_WriteDigitalOutput(struct comedi_device *dev, BYTE data);
+//int i_APCI3120_WriteDigitalOutput(struct comedi_device *dev, unsigned char data);
 int i_APCI3120_InsnConfigDigitalOutput(struct comedi_device *dev,
 				       struct comedi_subdevice *s, struct comedi_insn *insn,
 				       unsigned int *data);

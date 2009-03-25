@@ -149,7 +149,7 @@ int i_APCI3120_InsnReadAnalogInput(struct comedi_device * dev, struct comedi_sub
 	struct comedi_insn * insn, unsigned int * data)
 {
 	USHORT us_ConvertTiming, us_TmpValue, i;
-	BYTE b_Tmp;
+	unsigned char b_Tmp;
 
 	// fix convertion time to 10 us
 	if (!devpriv->ui_EocEosConversionTime) {
@@ -710,7 +710,7 @@ int i_APCI3120_CommandAnalogInput(struct comedi_device * dev, struct comedi_subd
 int i_APCI3120_CyclicAnalogInput(int mode, struct comedi_device * dev,
 	struct comedi_subdevice * s)
 {
-	BYTE b_Tmp;
+	unsigned char b_Tmp;
 	UINT ui_Tmp, ui_DelayTiming = 0, ui_TimerValue1 = 0, dmalen0 =
 		0, dmalen1 = 0, ui_TimerValue2 =
 		0, ui_TimerValue0, ui_ConvertTiming;
@@ -1426,7 +1426,7 @@ void v_APCI3120_Interrupt(int irq, void *d)
 
 	unsigned int int_amcc, ui_Check, i;
 	USHORT us_TmpValue;
-	BYTE b_DummyRead;
+	unsigned char b_DummyRead;
 
 	struct comedi_subdevice *s = dev->subdevices + 0;
 	ui_Check = 1;
@@ -1974,16 +1974,16 @@ int i_APCI3120_InsnConfigTimer(struct comedi_device * dev, struct comedi_subdevi
 
 	UINT ui_Timervalue2;
 	USHORT us_TmpValue;
-	BYTE b_Tmp;
+	unsigned char b_Tmp;
 
 	if (!data[1])
 		comedi_error(dev, "config:No timer constant !");
 
-	devpriv->b_Timer2Interrupt = (BYTE) data[2];	// save info whether to enable or disable interrupt
+	devpriv->b_Timer2Interrupt = (unsigned char) data[2];	// save info whether to enable or disable interrupt
 
 	ui_Timervalue2 = data[1] / 1000;	// convert nano seconds  to u seconds
 
-	//this_board->i_hwdrv_InsnConfigTimer(dev, ui_Timervalue2,(BYTE)data[0]);
+	//this_board->i_hwdrv_InsnConfigTimer(dev, ui_Timervalue2,(unsigned char)data[0]);
 	us_TmpValue = (USHORT) inw(devpriv->iobase + APCI3120_RD_STATUS);
 
 	//EL250804: Testing if board APCI3120 have the new Quartz or if it is an APCI3001
@@ -2125,7 +2125,7 @@ int i_APCI3120_InsnWriteTimer(struct comedi_device * dev, struct comedi_subdevic
 
 	UINT ui_Timervalue2 = 0;
 	USHORT us_TmpValue;
-	BYTE b_Tmp;
+	unsigned char b_Tmp;
 
 	if ((devpriv->b_Timer2Mode != APCI3120_WATCHDOG)
 		&& (devpriv->b_Timer2Mode != APCI3120_TIMER)) {
@@ -2308,7 +2308,7 @@ int i_APCI3120_InsnWriteTimer(struct comedi_device * dev, struct comedi_subdevic
 int i_APCI3120_InsnReadTimer(struct comedi_device * dev, struct comedi_subdevice * s,
 	struct comedi_insn * insn, unsigned int * data)
 {
-	BYTE b_Tmp;
+	unsigned char b_Tmp;
 	USHORT us_TmpValue, us_TmpValue_2, us_StatusValue;
 
 	if ((devpriv->b_Timer2Mode != APCI3120_WATCHDOG)

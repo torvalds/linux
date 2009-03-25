@@ -50,19 +50,19 @@ INT i_APCI1710_InsnReadChrono(struct comedi_device *dev, struct comedi_subdevice
 			      struct comedi_insn *insn, unsigned int *data);
 
 INT i_APCI1710_GetChronoProgressStatus(struct comedi_device *dev,
-				       BYTE b_ModulNbr, PBYTE pb_ChronoStatus);
+				       unsigned char b_ModulNbr, unsigned char * pb_ChronoStatus);
 
 INT i_APCI1710_ReadChronoValue(struct comedi_device *dev,
-			       BYTE b_ModulNbr,
-			       UINT ui_TimeOut, PBYTE pb_ChronoStatus,
+			       unsigned char b_ModulNbr,
+			       UINT ui_TimeOut, unsigned char * pb_ChronoStatus,
 			       PULONG pul_ChronoValue);
 
 INT i_APCI1710_ConvertChronoValue(struct comedi_device *dev,
-				  BYTE b_ModulNbr,
+				  unsigned char b_ModulNbr,
 				  ULONG ul_ChronoValue,
 				  PULONG pul_Hour,
-				  PBYTE pb_Minute,
-				  PBYTE pb_Second,
+				  unsigned char * pb_Minute,
+				  unsigned char * pb_Second,
 				  PUINT pui_MilliSecond, PUINT pui_MicroSecond,
 				  PUINT pui_NanoSecond);
 

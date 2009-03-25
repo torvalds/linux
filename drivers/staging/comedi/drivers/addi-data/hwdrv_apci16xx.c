@@ -69,11 +69,11 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 |                for you call any other function witch access of TTL.        |
 |                APCI16XX_TTL_INITDIRECTION(user inputs for direction)       |
 +----------------------------------------------------------------------------+
-| Input Parameters  : b_InitType    = (BYTE) data[0];                        |
-|                     b_Port0Mode   = (BYTE) data[1];                        |
-|                     b_Port1Mode   = (BYTE) data[2];                        |
-|                     b_Port2Mode   = (BYTE) data[3];                        |
-|                     b_Port3Mode   = (BYTE) data[4];                        |
+| Input Parameters  : b_InitType    = (unsigned char) data[0];                        |
+|                     b_Port0Mode   = (unsigned char) data[1];                        |
+|                     b_Port1Mode   = (unsigned char) data[2];                        |
+|                     b_Port2Mode   = (unsigned char) data[3];                        |
+|                     b_Port3Mode   = (unsigned char) data[4];                        |
 |                     ........                                               |
 +----------------------------------------------------------------------------+
 | Output Parameters : -                                                      |
@@ -94,10 +94,10 @@ int i_APCI16XX_InsnConfigInitTTLIO(struct comedi_device * dev,
 	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data)
 {
 	INT i_ReturnValue = insn->n;
-	BYTE b_Command = 0;
-	BYTE b_Cpt = 0;
-	BYTE b_NumberOfPort =
-		(BYTE) (devpriv->ps_BoardInfo->i_NbrTTLChannel / 8);
+	unsigned char b_Command = 0;
+	unsigned char b_Cpt = 0;
+	unsigned char b_NumberOfPort =
+		(unsigned char) (devpriv->ps_BoardInfo->i_NbrTTLChannel / 8);
 
 	/************************/
 	/* Test the buffer size */
@@ -108,7 +108,7 @@ int i_APCI16XX_InsnConfigInitTTLIO(struct comedi_device * dev,
 		/* Get the command */
 		/* **************** */
 
-		b_Command = (BYTE) data[0];
+		b_Command = (unsigned char) data[0];
 
 	   /********************/
 		/* Test the command */
@@ -122,7 +122,7 @@ int i_APCI16XX_InsnConfigInitTTLIO(struct comedi_device * dev,
 	      /***************************************/
 
 			if ((b_Command == APCI16XX_TTL_INITDIRECTION)
-				&& ((BYTE) (insn->n - 1) != b_NumberOfPort)) {
+				&& ((unsigned char) (insn->n - 1) != b_NumberOfPort)) {
 		 /*******************/
 				/* Data size error */
 		 /*******************/
@@ -132,7 +132,7 @@ int i_APCI16XX_InsnConfigInitTTLIO(struct comedi_device * dev,
 			}
 
 			if ((b_Command == APCI16XX_TTL_OUTPUTMEMORY)
-				&& ((BYTE) (insn->n) != 2)) {
+				&& ((unsigned char) (insn->n) != 2)) {
 		 /*******************/
 				/* Data size error */
 		 /*******************/
@@ -266,11 +266,11 @@ int i_APCI16XX_InsnConfigInitTTLIO(struct comedi_device * dev,
 |              APCI16XX_TTL_READCHANNEL                                      |
 |                    b_SelectedPort= CR_RANGE(insn->chanspec);               |
 |                    b_InputChannel= CR_CHAN(insn->chanspec);                |
-|                    b_ReadType	  = (BYTE) data[0];                          |
+|                    b_ReadType	  = (unsigned char) data[0];                          |
 |                                                                            |
 |              APCI16XX_TTL_READPORT                                         |
 |                    b_SelectedPort= CR_RANGE(insn->chanspec);               |
-|                    b_ReadType	  = (BYTE) data[0];                          |
+|                    b_ReadType	  = (unsigned char) data[0];                          |
 +----------------------------------------------------------------------------+
 | Output Parameters : data[0]    0 : Channle is not active                   |
 |                                1 : Channle is active                       |
@@ -287,12 +287,12 @@ int i_APCI16XX_InsnBitsReadTTLIO(struct comedi_device * dev,
 	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data)
 {
 	INT i_ReturnValue = insn->n;
-	BYTE b_Command = 0;
-	BYTE b_NumberOfPort =
-		(BYTE) (devpriv->ps_BoardInfo->i_NbrTTLChannel / 8);
-	BYTE b_SelectedPort = CR_RANGE(insn->chanspec);
-	BYTE b_InputChannel = CR_CHAN(insn->chanspec);
-	BYTE *pb_Status;
+	unsigned char b_Command = 0;
+	unsigned char b_NumberOfPort =
+		(unsigned char) (devpriv->ps_BoardInfo->i_NbrTTLChannel / 8);
+	unsigned char b_SelectedPort = CR_RANGE(insn->chanspec);
+	unsigned char b_InputChannel = CR_CHAN(insn->chanspec);
+	unsigned char *pb_Status;
 	DWORD dw_Status;
 
 	/************************/
@@ -304,7 +304,7 @@ int i_APCI16XX_InsnBitsReadTTLIO(struct comedi_device * dev,
 		/* Get the command */
 		/* **************** */
 
-		b_Command = (BYTE) data[0];
+		b_Command = (unsigned char) data[0];
 
 	   /********************/
 		/* Test the command */
@@ -380,7 +380,7 @@ int i_APCI16XX_InsnBitsReadTTLIO(struct comedi_device * dev,
 	/**************************/
 
 	if (i_ReturnValue >= 0) {
-		pb_Status = (PBYTE) & data[0];
+		pb_Status = (unsigned char *) & data[0];
 
 	   /*******************************/
 		/* Get the digital inpu status */
@@ -394,7 +394,7 @@ int i_APCI16XX_InsnBitsReadTTLIO(struct comedi_device * dev,
 		/* Save the port value */
 	   /***********************/
 
-		*pb_Status = (BYTE) dw_Status;
+		*pb_Status = (unsigned char) dw_Status;
 
 	   /***************************************/
 		/* Test if read channel status command */
@@ -433,10 +433,10 @@ int i_APCI16XX_InsnBitsReadTTLIO(struct comedi_device * dev,
 int i_APCI16XX_InsnReadTTLIOAllPortValue(struct comedi_device * dev,
 	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data)
 {
-	BYTE b_Command = (BYTE) CR_AREF(insn->chanspec);
+	unsigned char b_Command = (unsigned char) CR_AREF(insn->chanspec);
 	INT i_ReturnValue = insn->n;
-	BYTE b_Cpt = 0;
-	BYTE b_NumberOfPort = 0;
+	unsigned char b_Cpt = 0;
+	unsigned char b_NumberOfPort = 0;
 	unsigned int *pls_ReadData = data;
 
 	/********************/
@@ -450,7 +450,7 @@ int i_APCI16XX_InsnReadTTLIOAllPortValue(struct comedi_device * dev,
 	   /**********************************/
 
 		b_NumberOfPort =
-			(BYTE) (devpriv->ps_BoardInfo->i_NbrTTLChannel / 32);
+			(unsigned char) (devpriv->ps_BoardInfo->i_NbrTTLChannel / 32);
 		if ((b_NumberOfPort * 32) <
 			devpriv->ps_BoardInfo->i_NbrTTLChannel) {
 			b_NumberOfPort = b_NumberOfPort + 1;
@@ -551,11 +551,11 @@ int i_APCI16XX_InsnReadTTLIOAllPortValue(struct comedi_device * dev,
 |              APCI16XX_TTL_WRITECHANNEL_ON | APCI16XX_TTL_WRITECHANNEL_OFF  |
 |                    b_SelectedPort = CR_RANGE(insn->chanspec);              |
 |                    b_OutputChannel= CR_CHAN(insn->chanspec);               |
-|                    b_Command      = (BYTE) data[0];                        |
+|                    b_Command      = (unsigned char) data[0];                        |
 |                                                                            |
 |              APCI16XX_TTL_WRITEPORT_ON | APCI16XX_TTL_WRITEPORT_OFF        |
 |                    b_SelectedPort = CR_RANGE(insn->chanspec);              |
-|                    b_Command      = (BYTE) data[0];                        |
+|                    b_Command      = (unsigned char) data[0];                        |
 +----------------------------------------------------------------------------+
 | Output Parameters : data[0] : TTL output port 0 to 3 data                  |
 |                     data[1] : TTL output port 4 to 7 data                  |
@@ -574,11 +574,11 @@ int i_APCI16XX_InsnBitsWriteTTLIO(struct comedi_device * dev,
 	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data)
 {
 	INT i_ReturnValue = insn->n;
-	BYTE b_Command = 0;
-	BYTE b_NumberOfPort =
-		(BYTE) (devpriv->ps_BoardInfo->i_NbrTTLChannel / 8);
-	BYTE b_SelectedPort = CR_RANGE(insn->chanspec);
-	BYTE b_OutputChannel = CR_CHAN(insn->chanspec);
+	unsigned char b_Command = 0;
+	unsigned char b_NumberOfPort =
+		(unsigned char) (devpriv->ps_BoardInfo->i_NbrTTLChannel / 8);
+	unsigned char b_SelectedPort = CR_RANGE(insn->chanspec);
+	unsigned char b_OutputChannel = CR_CHAN(insn->chanspec);
 	DWORD dw_Status = 0;
 
 	/************************/
@@ -590,7 +590,7 @@ int i_APCI16XX_InsnBitsWriteTTLIO(struct comedi_device * dev,
 		/* Get the command */
 		/* **************** */
 
-		b_Command = (BYTE) data[0];
+		b_Command = (unsigned char) data[0];
 
 	   /********************/
 		/* Test the command */

@@ -68,19 +68,19 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 #define EEPROM_TIMER_WATCHDOG_COUNTER	10
 
 struct str_Functionality {
-	BYTE b_Type;
+	unsigned char b_Type;
 	WORD w_Address;
 };
 
 typedef struct {
 	WORD w_HeaderSize;
-	BYTE b_Nfunctions;
+	unsigned char b_Nfunctions;
 	struct str_Functionality s_Functions[7];
 } str_MainHeader;
 
 typedef struct {
 	WORD w_Nchannel;
-	BYTE b_Interruptible;
+	unsigned char b_Interruptible;
 	WORD w_NinterruptLogic;
 } str_DigitalInputHeader;
 
@@ -92,10 +92,10 @@ typedef struct {
 
 typedef struct {
 	WORD w_HeaderSize;
-	BYTE b_Resolution;
-	BYTE b_Mode;		// in case of Watchdog it is functionality
+	unsigned char b_Resolution;
+	unsigned char b_Mode;		// in case of Watchdog it is functionality
 	WORD w_MinTiming;
-	BYTE b_TimeBase;
+	unsigned char b_TimeBase;
 } str_TimerDetails;
 typedef struct {
 
@@ -105,15 +105,15 @@ typedef struct {
 
 typedef struct {
 	WORD w_Nchannel;
-	BYTE b_Resolution;
+	unsigned char b_Resolution;
 } str_AnalogOutputHeader;
 
 typedef struct {
 	WORD w_Nchannel;
 	WORD w_MinConvertTiming;
 	WORD w_MinDelayTiming;
-	BYTE b_HasDma;
-	BYTE b_Resolution;
+	unsigned char b_HasDma;
+	unsigned char b_Resolution;
 } str_AnalogInputHeader;
 
 		/*****************************************/
@@ -152,7 +152,7 @@ void v_EepromWaitBusy(WORD w_PCIBoardEepromAddress);
 void v_EepromClock76(DWORD dw_Address, DWORD dw_RegisterValue);
 void v_EepromWaitBusy(WORD w_PCIBoardEepromAddress);
 void v_EepromSendCommand76(DWORD dw_Address, DWORD dw_EepromCommand,
-	BYTE b_DataLengthInBits);
+	unsigned char b_DataLengthInBits);
 void v_EepromCs76Read(DWORD dw_Address, WORD w_offset, PWORD pw_Value);
 
 /*
@@ -180,17 +180,17 @@ WORD w_EepromReadWord(WORD w_PCIBoardEepromAddress, char *pc_PCIChipInformation,
 	WORD w_EepromStartAddress)
 {
 
-	BYTE b_Counter = 0;
+	unsigned char b_Counter = 0;
 
-	BYTE b_ReadByte = 0;
+	unsigned char b_ReadByte = 0;
 
-	BYTE b_ReadLowByte = 0;
+	unsigned char b_ReadLowByte = 0;
 
-	BYTE b_ReadHighByte = 0;
+	unsigned char b_ReadHighByte = 0;
 
-	BYTE b_SelectedAddressLow = 0;
+	unsigned char b_SelectedAddressLow = 0;
 
-	BYTE b_SelectedAddressHigh = 0;
+	unsigned char b_SelectedAddressHigh = 0;
 
 	WORD w_ReadWord = 0;
 
@@ -384,7 +384,7 @@ WORD w_EepromReadWord(WORD w_PCIBoardEepromAddress, char *pc_PCIChipInformation,
 void v_EepromWaitBusy(WORD w_PCIBoardEepromAddress)
 {
 
-	BYTE b_EepromBusy = 0;
+	unsigned char b_EepromBusy = 0;
 
 	do
 	{
@@ -492,7 +492,7 @@ void v_EepromClock76(DWORD dw_Address, DWORD dw_RegisterValue)
 
 |					   DWORD   dw_EepromCommand,                		  |
 
-|					   BYTE    b_DataLengthInBits)                        |
+|					   unsigned char    b_DataLengthInBits)                        |
 
 +---------------------------------------------------------------------------------+
 
@@ -504,7 +504,7 @@ void v_EepromClock76(DWORD dw_Address, DWORD dw_RegisterValue)
 
 |		      DWORD dw_EepromCommand : PCI eeprom command to write.       |
 
-|		      BYTE  b_DataLengthInBits : PCI eeprom command data length.  |
+|		      unsigned char  b_DataLengthInBits : PCI eeprom command data length.  |
 
 +---------------------------------------------------------------------------------+
 
@@ -519,7 +519,7 @@ void v_EepromClock76(DWORD dw_Address, DWORD dw_RegisterValue)
 */
 
 void v_EepromSendCommand76(DWORD dw_Address, DWORD dw_EepromCommand,
-	BYTE b_DataLengthInBits)
+	unsigned char b_DataLengthInBits)
 {
 
 	char c_BitPos = 0;
@@ -824,14 +824,14 @@ INT i_EepromReadMainHeader(WORD w_PCIBoardEepromAddress,
 	// Read nbr of functionality
 	w_Temp = w_EepromReadWord(w_PCIBoardEepromAddress,
 		pc_PCIChipInformation, 0x100 + 10);
-	s_MainHeader.b_Nfunctions = (BYTE) w_Temp & 0x00FF;
+	s_MainHeader.b_Nfunctions = (unsigned char) w_Temp & 0x00FF;
 
 	// Read functionality details
 	for (i = 0; i < s_MainHeader.b_Nfunctions; i++) {
 		// Read Type
 		w_Temp = w_EepromReadWord(w_PCIBoardEepromAddress,
 			pc_PCIChipInformation, 0x100 + 12 + w_Count);
-		s_MainHeader.s_Functions[i].b_Type = (BYTE) w_Temp & 0x3F;
+		s_MainHeader.s_Functions[i].b_Type = (unsigned char) w_Temp & 0x3F;
 		w_Count = w_Count + 2;
 		//Read Address
 		s_MainHeader.s_Functions[i].w_Address =
@@ -953,7 +953,7 @@ INT i_EepromReadDigitalInputHeader(WORD w_PCIBoardEepromAddress,
 	// interruptible or not
 	w_Temp = w_EepromReadWord(w_PCIBoardEepromAddress,
 		pc_PCIChipInformation, 0x100 + w_Address + 8);
-	s_Header->b_Interruptible = (BYTE) (w_Temp >> 7) & 0x01;
+	s_Header->b_Interruptible = (unsigned char) (w_Temp >> 7) & 0x01;
 
 // How many interruptible logic
 	s_Header->w_NinterruptLogic =
@@ -1039,11 +1039,11 @@ INT i_EepromReadTimerHeader(WORD w_PCIBoardEepromAddress,
 
 		//Read Resolution
 		s_Header->s_TimerDetails[i].b_Resolution =
-			(BYTE) (w_Temp >> 10) & 0x3F;
+			(unsigned char) (w_Temp >> 10) & 0x3F;
 
 		//Read Mode
 		s_Header->s_TimerDetails[i].b_Mode =
-			(BYTE) (w_Temp >> 4) & 0x3F;
+			(unsigned char) (w_Temp >> 4) & 0x3F;
 
 		w_Temp = w_EepromReadWord(w_PCIBoardEepromAddress,
 			pc_PCIChipInformation,
@@ -1053,7 +1053,7 @@ INT i_EepromReadTimerHeader(WORD w_PCIBoardEepromAddress,
 		s_Header->s_TimerDetails[i].w_MinTiming = (w_Temp >> 6) & 0x3FF;
 
 		//Read Timebase
-		s_Header->s_TimerDetails[i].b_TimeBase = (BYTE) (w_Temp) & 0x3F;
+		s_Header->s_TimerDetails[i].b_TimeBase = (unsigned char) (w_Temp) & 0x3F;
 		w_Size += s_Header->s_TimerDetails[i].w_HeaderSize;
 	}
 
@@ -1093,7 +1093,7 @@ INT i_EepromReadAnlogOutputHeader(WORD w_PCIBoardEepromAddress,
 	// Resolution for 1st hard component
 	w_Temp = w_EepromReadWord(w_PCIBoardEepromAddress,
 		pc_PCIChipInformation, 0x100 + w_Address + 16);
-	s_Header->b_Resolution = (BYTE) (w_Temp >> 8) & 0xFF;
+	s_Header->b_Resolution = (unsigned char) (w_Temp >> 8) & 0xFF;
 	return 0;
 }
 

@@ -60,11 +60,11 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 /*
 +----------------------------------------------------------------------------+
 | Function Name     : _INT_ i_APCI1710_InitPulseEncoder                      |
-|                               (BYTE_          b_BoardHandle,               |
-|                                BYTE_          b_ModulNbr,                  |
-|                                BYTE_          b_PulseEncoderNbr,           |
-|                                BYTE_          b_InputLevelSelection,       |
-|                                BYTE_          b_TriggerOutputAction,       |
+|                               (unsigned char_          b_BoardHandle,               |
+|                                unsigned char_          b_ModulNbr,                  |
+|                                unsigned char_          b_PulseEncoderNbr,           |
+|                                unsigned char_          b_InputLevelSelection,       |
+|                                unsigned char_          b_TriggerOutputAction,       |
 |                                ULONG_        ul_StartValue)                |
 +----------------------------------------------------------------------------+
 | Task              : Configure the pulse encoder operating mode selected via|
@@ -74,12 +74,12 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 |                     You must calling this function be for you call any     |
 |                     other function witch access of pulse encoders.         |
 +----------------------------------------------------------------------------+
-| Input Parameters  : BYTE_ b_BoardHandle         : Handle of board APCI-1710|
-|                     BYTE_ b_ModulNbr            : Module number to         |
+| Input Parameters  : unsigned char_ b_BoardHandle         : Handle of board APCI-1710|
+|                     unsigned char_ b_ModulNbr            : Module number to         |
 |                                                   configure (0 to 3)       |
-|                     BYTE_ b_PulseEncoderNbr     : Pulse encoder selection  |
+|                     unsigned char_ b_PulseEncoderNbr     : Pulse encoder selection  |
 |                                                   (0 to 3)                 |
-|                     BYTE_ b_InputLevelSelection : Input level selection    |
+|                     unsigned char_ b_InputLevelSelection : Input level selection    |
 |                                                   (0 or 1)                 |
 |                                                       0 : Set pulse encoder|
 |                                                           count the the low|
@@ -87,7 +87,7 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 |                                                       1 : Set pulse encoder|
 |                                                           count the the    |
 |                                                           high level pulse.|
-|                     BYTE_ b_TriggerOutputAction : Digital TRIGGER output   |
+|                     unsigned char_ b_TriggerOutputAction : Digital TRIGGER output   |
 |                                                   action                   |
 |                                                       0 : No action        |
 |                                                       1 : Set the trigger  |
@@ -104,10 +104,10 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 |                                                           encoder          |
 |                     ULONG_ ul_StartValue        : Pulse encoder start value|
 |                                                   (1 to 4294967295)
-	b_ModulNbr				=(BYTE) CR_AREF(insn->chanspec);
-	b_PulseEncoderNbr		=(BYTE) data[0];
-	b_InputLevelSelection	=(BYTE) data[1];
-	b_TriggerOutputAction	=(BYTE) data[2];
+	b_ModulNbr				=(unsigned char) CR_AREF(insn->chanspec);
+	b_PulseEncoderNbr		=(unsigned char) data[0];
+	b_InputLevelSelection	=(unsigned char) data[1];
+	b_TriggerOutputAction	=(unsigned char) data[2];
 	ul_StartValue			=(ULONG) data[3];
        |
 +----------------------------------------------------------------------------+
@@ -129,16 +129,16 @@ INT i_APCI1710_InsnConfigInitPulseEncoder(struct comedi_device * dev,
 	INT i_ReturnValue = 0;
 	DWORD dw_IntRegister;
 
-	BYTE b_ModulNbr;
-	BYTE b_PulseEncoderNbr;
-	BYTE b_InputLevelSelection;
-	BYTE b_TriggerOutputAction;
+	unsigned char b_ModulNbr;
+	unsigned char b_PulseEncoderNbr;
+	unsigned char b_InputLevelSelection;
+	unsigned char b_TriggerOutputAction;
 	ULONG ul_StartValue;
 
-	b_ModulNbr = (BYTE) CR_AREF(insn->chanspec);
-	b_PulseEncoderNbr = (BYTE) data[0];
-	b_InputLevelSelection = (BYTE) data[1];
-	b_TriggerOutputAction = (BYTE) data[2];
+	b_ModulNbr = (unsigned char) CR_AREF(insn->chanspec);
+	b_PulseEncoderNbr = (unsigned char) data[0];
+	b_InputLevelSelection = (unsigned char) data[1];
+	b_TriggerOutputAction = (unsigned char) data[2];
 	ul_StartValue = (ULONG) data[3];
 
 	i_ReturnValue = insn->n;
@@ -352,11 +352,11 @@ INT i_APCI1710_InsnConfigInitPulseEncoder(struct comedi_device * dev,
 /*
 +----------------------------------------------------------------------------+
 | Function Name     : _INT_ i_APCI1710_EnablePulseEncoder                    |
-|                                       (BYTE_  b_BoardHandle,               |
-|                                        BYTE_  b_ModulNbr,                  |
-|                                        BYTE_  b_PulseEncoderNbr,           |
-|                                        BYTE_  b_CycleSelection,            |
-|                                        BYTE_  b_InterruptHandling)         |
+|                                       (unsigned char_  b_BoardHandle,               |
+|                                        unsigned char_  b_ModulNbr,                  |
+|                                        unsigned char_  b_PulseEncoderNbr,           |
+|                                        unsigned char_  b_CycleSelection,            |
+|                                        unsigned char_  b_InterruptHandling)         |
 +----------------------------------------------------------------------------+
 | Task              : Enableor disable  the selected pulse encoder (b_PulseEncoderNbr)  |
 |                     from selected module (b_ModulNbr). Each input pulse    |
@@ -365,12 +365,12 @@ INT i_APCI1710_InsnConfigInitPulseEncoder(struct comedi_device * dev,
 |                     interrupt is generated when the pulse encoder has run  |
 |                     down.                                                  |
 +----------------------------------------------------------------------------+
-| Input Parameters  : BYTE_   b_BoardHandle       : Handle of board APCI-1710|
-|                     BYTE_   b_ModulNbr          : Module number to         |
+| Input Parameters  : unsigned char_   b_BoardHandle       : Handle of board APCI-1710|
+|                     unsigned char_   b_ModulNbr          : Module number to         |
 |                                                   configure (0 to 3)       |
-|                     BYTE_   b_PulseEncoderNbr   : Pulse encoder selection  |
+|                     unsigned char_   b_PulseEncoderNbr   : Pulse encoder selection  |
 |                                                   (0 to 3)                 |
-|                     BYTE_   b_CycleSelection    : APCI1710_CONTINUOUS:     |
+|                     unsigned char_   b_CycleSelection    : APCI1710_CONTINUOUS:     |
 |                                                       Each time the        |
 |                                                       counting value is set|
 |                                                       on "0", the pulse    |
@@ -381,7 +381,7 @@ INT i_APCI1710_InsnConfigInitPulseEncoder(struct comedi_device * dev,
 |                                                       If the counter is set|
 |                                                       on "0", the pulse    |
 |                                                       encoder is stopped.  |
-|                     BYTE_   b_InterruptHandling : Interrupts can be        |
+|                     unsigned char_   b_InterruptHandling : Interrupts can be        |
 |                                                   generated, when the pulse|
 |                                                   encoder has run down.    |
 |                                                   With this parameter the  |
@@ -393,11 +393,11 @@ INT i_APCI1710_InsnConfigInitPulseEncoder(struct comedi_device * dev,
 |                                                     APCI1710_DISABLE:      |
 |                                                     Interrupts are disabled
 
-  	b_ModulNbr			=(BYTE) CR_AREF(insn->chanspec);
-	b_Action			=(BYTE) data[0];
-	b_PulseEncoderNbr	=(BYTE) data[1];
-	b_CycleSelection	=(BYTE) data[2];
-	b_InterruptHandling	=(BYTE) data[3];|
+	b_ModulNbr			=(unsigned char) CR_AREF(insn->chanspec);
+	b_Action			=(unsigned char) data[0];
+	b_PulseEncoderNbr	=(unsigned char) data[1];
+	b_CycleSelection	=(unsigned char) data[2];
+	b_InterruptHandling	=(unsigned char) data[3];|
 +----------------------------------------------------------------------------+
 | Output Parameters : -                                                      |
 +----------------------------------------------------------------------------+
@@ -418,18 +418,18 @@ INT i_APCI1710_InsnWriteEnableDisablePulseEncoder(struct comedi_device * dev,
 	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data)
 {
 	INT i_ReturnValue = 0;
-	BYTE b_ModulNbr;
-	BYTE b_PulseEncoderNbr;
-	BYTE b_CycleSelection;
-	BYTE b_InterruptHandling;
-	BYTE b_Action;
+	unsigned char b_ModulNbr;
+	unsigned char b_PulseEncoderNbr;
+	unsigned char b_CycleSelection;
+	unsigned char b_InterruptHandling;
+	unsigned char b_Action;
 
 	i_ReturnValue = insn->n;
-	b_ModulNbr = (BYTE) CR_AREF(insn->chanspec);
-	b_Action = (BYTE) data[0];
-	b_PulseEncoderNbr = (BYTE) data[1];
-	b_CycleSelection = (BYTE) data[2];
-	b_InterruptHandling = (BYTE) data[3];
+	b_ModulNbr = (unsigned char) CR_AREF(insn->chanspec);
+	b_Action = (unsigned char) data[0];
+	b_PulseEncoderNbr = (unsigned char) data[1];
+	b_CycleSelection = (unsigned char) data[2];
+	b_InterruptHandling = (unsigned char) data[3];
 
 	/***********************************/
 	/* Test the selected module number */
@@ -662,33 +662,33 @@ INT i_APCI1710_InsnWriteEnableDisablePulseEncoder(struct comedi_device * dev,
 /*
 +----------------------------------------------------------------------------+
 | Function Name     : _INT_ i_APCI1710_ReadPulseEncoderStatus                |
-|                                       (BYTE_  b_BoardHandle,               |
-|                                        BYTE_  b_ModulNbr,                  |
-|                                        BYTE_  b_PulseEncoderNbr,           |
-|                                        PBYTE_ pb_Status)                   |
+|                                       (unsigned char_  b_BoardHandle,               |
+|                                        unsigned char_  b_ModulNbr,                  |
+|                                        unsigned char_  b_PulseEncoderNbr,           |
+|                                        unsigned char *_ pb_Status)                   |
 +----------------------------------------------------------------------------+
 | Task    APCI1710_PULSEENCODER_READ          : Reads the pulse encoder status
 											and valuefrom selected pulse     |
 |                     encoder (b_PulseEncoderNbr) from selected module       |
 |                     (b_ModulNbr).                                          |
 +----------------------------------------------------------------------------+
-	BYTE   b_Type; data[0]
+	unsigned char   b_Type; data[0]
    APCI1710_PULSEENCODER_WRITE
  Writes a 32-bit value (ul_WriteValue) into the selected|
 |                     pulse encoder (b_PulseEncoderNbr) from selected module |
 |                     (b_ModulNbr). This operation set the new start pulse   |
 |                     encoder value.
  APCI1710_PULSEENCODER_READ
-| Input Parameters  : BYTE_   b_BoardHandle       : Handle of board APCI-1710|
-|            CRAREF()         BYTE_   b_ModulNbr          : Module number to         |
+| Input Parameters  : unsigned char_   b_BoardHandle       : Handle of board APCI-1710|
+|            CRAREF()         unsigned char_   b_ModulNbr          : Module number to         |
 |                                                   configure (0 to 3)       |
-|              data[1]       BYTE_   b_PulseEncoderNbr   : Pulse encoder selection  |
+|              data[1]       unsigned char_   b_PulseEncoderNbr   : Pulse encoder selection  |
 |                                                   (0 to 3)
    APCI1710_PULSEENCODER_WRITE
 				data[2]		ULONG_ ul_WriteValue        : 32-bit value to be       |
 |                                                   written             |
 +----------------------------------------------------------------------------+
-| Output Parameters : PBYTE_ pb_Status            : Pulse encoder status.    |
+| Output Parameters : unsigned char *_ pb_Status            : Pulse encoder status.    |
 |                                                       0 : No overflow occur|
 |                                                       1 : Overflow occur
 						PULONG_ pul_ReadValue       : Pulse encoder value      |  |
@@ -702,29 +702,29 @@ INT i_APCI1710_InsnWriteEnableDisablePulseEncoder(struct comedi_device * dev,
 +----------------------------------------------------------------------------+
 */
 
-/*_INT_   i_APCI1710_ReadPulseEncoderStatus       (BYTE_   b_BoardHandle,
-						 BYTE_   b_ModulNbr,
-						 BYTE_   b_PulseEncoderNbr,
+/*_INT_   i_APCI1710_ReadPulseEncoderStatus       (unsigned char_   b_BoardHandle,
+						 unsigned char_   b_ModulNbr,
+						 unsigned char_   b_PulseEncoderNbr,
 
-   						 PBYTE_ pb_Status)
+						 unsigned char *_ pb_Status)
 						 */
 INT i_APCI1710_InsnBitsReadWritePulseEncoder(struct comedi_device * dev,
 	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data)
 {
 	INT i_ReturnValue = 0;
 	DWORD dw_StatusRegister;
-	BYTE b_ModulNbr;
-	BYTE b_PulseEncoderNbr;
-	PBYTE pb_Status;
-	BYTE b_Type;
+	unsigned char b_ModulNbr;
+	unsigned char b_PulseEncoderNbr;
+	unsigned char * pb_Status;
+	unsigned char b_Type;
 	PULONG pul_ReadValue;
 	ULONG ul_WriteValue;
 
 	i_ReturnValue = insn->n;
-	b_ModulNbr = (BYTE) CR_AREF(insn->chanspec);
-	b_Type = (BYTE) data[0];
-	b_PulseEncoderNbr = (BYTE) data[1];
-	pb_Status = (PBYTE) & data[0];
+	b_ModulNbr = (unsigned char) CR_AREF(insn->chanspec);
+	b_Type = (unsigned char) data[0];
+	b_PulseEncoderNbr = (unsigned char) data[1];
+	pb_Status = (unsigned char *) & data[0];
 	pul_ReadValue = (PULONG) & data[1];
 
 	/***********************************/
@@ -766,7 +766,7 @@ INT i_APCI1710_InsnBitsReadWritePulseEncoder(struct comedi_device * dev,
 						dw_StatusRegister;
 
 					*pb_Status =
-						(BYTE) (devpriv->
+						(unsigned char) (devpriv->
 						s_ModuleInfo[b_ModulNbr].
 						s_PulseEncoderModuleInfo.
 						dw_StatusRegister >> (1 +

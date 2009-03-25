@@ -148,124 +148,124 @@ INT i_APCI1710_InsnReadINCCPT(struct comedi_device *dev, struct comedi_subdevice
 
 /* INSN CONFIG */
 INT i_APCI1710_InitCounter(struct comedi_device *dev,
-			   BYTE b_ModulNbr,
-			   BYTE b_CounterRange,
-			   BYTE b_FirstCounterModus,
-			   BYTE b_FirstCounterOption,
-			   BYTE b_SecondCounterModus,
-			   BYTE b_SecondCounterOption);
+			   unsigned char b_ModulNbr,
+			   unsigned char b_CounterRange,
+			   unsigned char b_FirstCounterModus,
+			   unsigned char b_FirstCounterOption,
+			   unsigned char b_SecondCounterModus,
+			   unsigned char b_SecondCounterOption);
 
-INT i_APCI1710_CounterAutoTest(struct comedi_device *dev, PBYTE pb_TestStatus);
+INT i_APCI1710_CounterAutoTest(struct comedi_device *dev, unsigned char * pb_TestStatus);
 
 INT i_APCI1710_InitIndex(struct comedi_device *dev,
-			 BYTE b_ModulNbr,
-			 BYTE b_ReferenceAction,
-			 BYTE b_IndexOperation, BYTE b_AutoMode,
-			 BYTE b_InterruptEnable);
+			 unsigned char b_ModulNbr,
+			 unsigned char b_ReferenceAction,
+			 unsigned char b_IndexOperation, unsigned char b_AutoMode,
+			 unsigned char b_InterruptEnable);
 
 INT i_APCI1710_InitReference(struct comedi_device *dev,
-			     BYTE b_ModulNbr, BYTE b_ReferenceLevel);
+			     unsigned char b_ModulNbr, unsigned char b_ReferenceLevel);
 
 INT i_APCI1710_InitExternalStrobe(struct comedi_device *dev,
-				  BYTE b_ModulNbr, BYTE b_ExternalStrobe,
-				  BYTE b_ExternalStrobeLevel);
+				  unsigned char b_ModulNbr, unsigned char b_ExternalStrobe,
+				  unsigned char b_ExternalStrobeLevel);
 
 INT i_APCI1710_InitCompareLogic(struct comedi_device *dev,
-				BYTE b_ModulNbr, UINT ui_CompareValue);
+				unsigned char b_ModulNbr, UINT ui_CompareValue);
 
 INT i_APCI1710_InitFrequencyMeasurement(struct comedi_device *dev,
-					BYTE b_ModulNbr,
-					BYTE b_PCIInputClock,
-					BYTE b_TimingUnity,
+					unsigned char b_ModulNbr,
+					unsigned char b_PCIInputClock,
+					unsigned char b_TimingUnity,
 					ULONG ul_TimingInterval,
 					PULONG pul_RealTimingInterval);
 
 /* INSN BITS */
-INT i_APCI1710_ClearCounterValue(struct comedi_device *dev, BYTE b_ModulNbr);
+INT i_APCI1710_ClearCounterValue(struct comedi_device *dev, unsigned char b_ModulNbr);
 
 INT i_APCI1710_ClearAllCounterValue(struct comedi_device *dev);
 
 INT i_APCI1710_SetInputFilter(struct comedi_device *dev,
-			      BYTE b_ModulNbr, BYTE b_PCIInputClock,
-			      BYTE b_Filter);
+			      unsigned char b_ModulNbr, unsigned char b_PCIInputClock,
+			      unsigned char b_Filter);
 
 INT i_APCI1710_LatchCounter(struct comedi_device *dev,
-			    BYTE b_ModulNbr, BYTE b_LatchReg);
+			    unsigned char b_ModulNbr, unsigned char b_LatchReg);
 
 INT i_APCI1710_SetIndexAndReferenceSource(struct comedi_device *dev,
-					  BYTE b_ModulNbr,
-					  BYTE b_SourceSelection);
+					  unsigned char b_ModulNbr,
+					  unsigned char b_SourceSelection);
 
-INT i_APCI1710_SetDigitalChlOn(struct comedi_device *dev, BYTE b_ModulNbr);
+INT i_APCI1710_SetDigitalChlOn(struct comedi_device *dev, unsigned char b_ModulNbr);
 
-INT i_APCI1710_SetDigitalChlOff(struct comedi_device *dev, BYTE b_ModulNbr);
+INT i_APCI1710_SetDigitalChlOff(struct comedi_device *dev, unsigned char b_ModulNbr);
 
 /* INSN WRITE */
-INT i_APCI1710_EnableLatchInterrupt(struct comedi_device *dev, BYTE b_ModulNbr);
+INT i_APCI1710_EnableLatchInterrupt(struct comedi_device *dev, unsigned char b_ModulNbr);
 
-INT i_APCI1710_DisableLatchInterrupt(struct comedi_device *dev, BYTE b_ModulNbr);
+INT i_APCI1710_DisableLatchInterrupt(struct comedi_device *dev, unsigned char b_ModulNbr);
 
 INT i_APCI1710_Write16BitCounterValue(struct comedi_device *dev,
-				      BYTE b_ModulNbr, BYTE b_SelectedCounter,
+				      unsigned char b_ModulNbr, unsigned char b_SelectedCounter,
 				      UINT ui_WriteValue);
 
 INT i_APCI1710_Write32BitCounterValue(struct comedi_device *dev,
-				      BYTE b_ModulNbr, ULONG ul_WriteValue);
+				      unsigned char b_ModulNbr, ULONG ul_WriteValue);
 
-INT i_APCI1710_EnableIndex(struct comedi_device *dev, BYTE b_ModulNbr);
+INT i_APCI1710_EnableIndex(struct comedi_device *dev, unsigned char b_ModulNbr);
 
-INT i_APCI1710_DisableIndex(struct comedi_device *dev, BYTE b_ModulNbr);
+INT i_APCI1710_DisableIndex(struct comedi_device *dev, unsigned char b_ModulNbr);
 
-INT i_APCI1710_EnableCompareLogic(struct comedi_device *dev, BYTE b_ModulNbr);
+INT i_APCI1710_EnableCompareLogic(struct comedi_device *dev, unsigned char b_ModulNbr);
 
-INT i_APCI1710_DisableCompareLogic(struct comedi_device *dev, BYTE b_ModulNbr);
+INT i_APCI1710_DisableCompareLogic(struct comedi_device *dev, unsigned char b_ModulNbr);
 
 INT i_APCI1710_EnableFrequencyMeasurement(struct comedi_device *dev,
-					  BYTE b_ModulNbr,
-					  BYTE b_InterruptEnable);
+					  unsigned char b_ModulNbr,
+					  unsigned char b_InterruptEnable);
 
 INT i_APCI1710_DisableFrequencyMeasurement(struct comedi_device *dev,
-					   BYTE b_ModulNbr);
+					   unsigned char b_ModulNbr);
 
 /* INSN READ */
 INT i_APCI1710_ReadLatchRegisterStatus(struct comedi_device *dev,
-				       BYTE b_ModulNbr, BYTE b_LatchReg,
-				       PBYTE pb_LatchStatus);
+				       unsigned char b_ModulNbr, unsigned char b_LatchReg,
+				       unsigned char * pb_LatchStatus);
 
 INT i_APCI1710_ReadLatchRegisterValue(struct comedi_device *dev,
-				      BYTE b_ModulNbr, BYTE b_LatchReg,
+				      unsigned char b_ModulNbr, unsigned char b_LatchReg,
 				      PULONG pul_LatchValue);
 
 INT i_APCI1710_Read16BitCounterValue(struct comedi_device *dev,
-				     BYTE b_ModulNbr, BYTE b_SelectedCounter,
+				     unsigned char b_ModulNbr, unsigned char b_SelectedCounter,
 				     PUINT pui_CounterValue);
 
 INT i_APCI1710_Read32BitCounterValue(struct comedi_device *dev,
-				     BYTE b_ModulNbr, PULONG pul_CounterValue);
+				     unsigned char b_ModulNbr, PULONG pul_CounterValue);
 
 INT i_APCI1710_GetIndexStatus(struct comedi_device *dev,
-			      BYTE b_ModulNbr, PBYTE pb_IndexStatus);
+			      unsigned char b_ModulNbr, unsigned char * pb_IndexStatus);
 
 INT i_APCI1710_GetReferenceStatus(struct comedi_device *dev,
-				  BYTE b_ModulNbr, PBYTE pb_ReferenceStatus);
+				  unsigned char b_ModulNbr, unsigned char * pb_ReferenceStatus);
 
 INT i_APCI1710_GetUASStatus(struct comedi_device *dev,
-			    BYTE b_ModulNbr, PBYTE pb_UASStatus);
+			    unsigned char b_ModulNbr, unsigned char * pb_UASStatus);
 
 INT i_APCI1710_GetCBStatus(struct comedi_device *dev,
-			   BYTE b_ModulNbr, PBYTE pb_CBStatus);
+			   unsigned char b_ModulNbr, unsigned char * pb_CBStatus);
 
 INT i_APCI1710_Get16BitCBStatus(struct comedi_device *dev,
-				BYTE b_ModulNbr, PBYTE pb_CBStatusCounter0,
-				PBYTE pb_CBStatusCounter1);
+				unsigned char b_ModulNbr, unsigned char * pb_CBStatusCounter0,
+				unsigned char * pb_CBStatusCounter1);
 
 INT i_APCI1710_GetUDStatus(struct comedi_device *dev,
-			   BYTE b_ModulNbr, PBYTE pb_UDStatus);
+			   unsigned char b_ModulNbr, unsigned char * pb_UDStatus);
 
 INT i_APCI1710_GetInterruptUDLatchedStatus(struct comedi_device *dev,
-					   BYTE b_ModulNbr, PBYTE pb_UDStatus);
+					   unsigned char b_ModulNbr, unsigned char * pb_UDStatus);
 
 INT i_APCI1710_ReadFrequencyMeasurement(struct comedi_device *dev,
-					BYTE b_ModulNbr,
-					PBYTE pb_Status, PBYTE pb_UDStatus,
+					unsigned char b_ModulNbr,
+					unsigned char * pb_Status, unsigned char * pb_UDStatus,
 					PULONG pul_ReadValue);
