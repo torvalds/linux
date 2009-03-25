@@ -2524,6 +2524,17 @@ static int bcm4320_early_init(struct usbnet *usbdev)
 	return 0;
 }
 
+/* same as rndis_netdev_ops but with local multicast handler */
+static const struct net_device_ops rndis_wext_netdev_ops = {
+	.ndo_open		= usbnet_open,
+	.ndo_stop		= usbnet_stop,
+	.ndo_start_xmit		= usbnet_start_xmit,
+	.ndo_tx_timeout		= usbnet_tx_timeout,
+	.ndo_set_mac_address 	= eth_mac_addr,
+	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_set_multicast_list	= rndis_wext_set_multicast_list,
+};
+
 
 static int rndis_wext_bind(struct usbnet *usbdev, struct usb_interface *intf)
 {
@@ -2559,7 +2570,8 @@ static int rndis_wext_bind(struct usbnet *usbdev, struct usb_interface *intf)
 	 * rndis_host wants to avoid all OID as much as possible
 	 * so do promisc/multicast handling in rndis_wext.
 	 */
-	usbdev->net->set_multicast_list = rndis_wext_set_multicast_list;
+	usbdev->net->netdev_ops = &rndis_wext_netdev_ops;
+
 	tmp = RNDIS_PACKET_TYPE_DIRECTED | RNDIS_PACKET_TYPE_BROADCAST;
 	retval = rndis_set_oid(usbdev, OID_GEN_CURRENT_PACKET_FILTER, &tmp,
 								sizeof(tmp));
