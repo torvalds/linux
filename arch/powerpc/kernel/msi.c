@@ -9,6 +9,7 @@
 
 #include <linux/kernel.h>
 #include <linux/msi.h>
+#include <linux/pci.h>
 
 #include <asm/machdep.h>
 
