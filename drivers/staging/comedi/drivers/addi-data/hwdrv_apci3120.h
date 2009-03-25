@@ -165,7 +165,8 @@ static const struct comedi_lrange range_apci3120_ao = { 2, {
 
 #define MAX_ANALOGINPUT_CHANNELS    32
 
-typedef struct {
+struct str_AnalogReadInformation {
+
 	unsigned char b_Type;		/* EOC or EOS */
 	unsigned char b_InterruptFlag;	/* Interrupt use or not                    */
 	unsigned int ui_ConvertTiming;	/* Selection of the convertion time        */
@@ -173,7 +174,8 @@ typedef struct {
 	unsigned int ui_ChannelList[MAX_ANALOGINPUT_CHANNELS];	/* Number of the channel to be read        */
 	unsigned int ui_RangeList[MAX_ANALOGINPUT_CHANNELS];	/* Gain of each channel                    */
 
-} str_AnalogReadInformation;
+};
+
 
 // Function Declaration For APCI-3120
 
