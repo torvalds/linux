@@ -84,17 +84,19 @@ struct str_DigitalOutputHeader {
 
 // used for timer as well as watchdog
 
-typedef struct {
+struct str_TimerDetails {
+
 	unsigned short w_HeaderSize;
 	unsigned char b_Resolution;
 	unsigned char b_Mode;		// in case of Watchdog it is functionality
 	unsigned short w_MinTiming;
 	unsigned char b_TimeBase;
-} str_TimerDetails;
+};
+
 typedef struct {
 
 	unsigned short w_Ntimer;
-	str_TimerDetails s_TimerDetails[4];	//  supports 4 timers
+	struct str_TimerDetails s_TimerDetails[4];	//  supports 4 timers
 } str_TimerMainHeader;
 
 typedef struct {
