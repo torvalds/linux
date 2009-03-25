@@ -213,12 +213,12 @@ static void labpc_cs_detach(struct pcmcia_device *);
 
 static const dev_info_t dev_info = "daqcard-1200";
 
-typedef struct local_info_t {
+struct local_info_t {
 	struct pcmcia_device *link;
 	dev_node_t node;
 	int stop;
 	struct bus_operations *bus;
-} local_info_t;
+};
 
 /*======================================================================
 
@@ -234,12 +234,12 @@ typedef struct local_info_t {
 
 static int labpc_cs_attach(struct pcmcia_device *link)
 {
-	local_info_t *local;
+	struct local_info_t *local;
 
 	DEBUG(0, "labpc_cs_attach()\n");
 
 	/* Allocate space for private device-specific data */
-	local = kzalloc(sizeof(local_info_t), GFP_KERNEL);
+	local = kzalloc(sizeof(struct local_info_t), GFP_KERNEL);
 	if (!local)
 		return -ENOMEM;
 	local->link = link;
@@ -287,7 +287,7 @@ static void labpc_cs_detach(struct pcmcia_device *link)
 	   detach().
 	 */
 	if (link->dev_node) {
-		((local_info_t *) link->priv)->stop = 1;
+		((struct local_info_t *) link->priv)->stop = 1;
 		labpc_release(link);
 	}
 
@@ -307,7 +307,7 @@ static void labpc_cs_detach(struct pcmcia_device *link)
 
 static void labpc_config(struct pcmcia_device *link)
 {
-	local_info_t *dev = link->priv;
+	struct local_info_t *dev = link->priv;
 	tuple_t tuple;
 	cisparse_t parse;
 	int last_ret;
@@ -501,7 +501,7 @@ static void labpc_release(struct pcmcia_device *link)
 
 static int labpc_cs_suspend(struct pcmcia_device *link)
 {
-	local_info_t *local = link->priv;
+	struct local_info_t *local = link->priv;
 
 	/* Mark the device as stopped, to block IO until later */
 	local->stop = 1;
@@ -510,7 +510,7 @@ static int labpc_cs_suspend(struct pcmcia_device *link)
 
 static int labpc_cs_resume(struct pcmcia_device *link)
 {
-	local_info_t *local = link->priv;
+	struct local_info_t *local = link->priv;
 
 	local->stop = 0;
 	return 0;
