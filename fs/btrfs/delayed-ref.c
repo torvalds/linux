@@ -450,8 +450,12 @@ static noinline int __btrfs_add_delayed_ref(struct btrfs_trans_handle *trans,
 	 * the head node stores the sum of all the mods, so dropping a ref
 	 * should drop the sum in the head node by one.
 	 */
-	if (parent == (u64)-1 && action == BTRFS_DROP_DELAYED_REF)
-		count_mod = -1;
+	if (parent == (u64)-1) {
+		if (action == BTRFS_DROP_DELAYED_REF)
+			count_mod = -1;
+		else if (action == BTRFS_UPDATE_DELAYED_HEAD)
+			count_mod = 0;
+	}
 
 	/*
 	 * BTRFS_ADD_DELAYED_EXTENT means that we need to update
@@ -647,7 +651,7 @@ int btrfs_update_delayed_ref(struct btrfs_trans_handle *trans,
 	 */
 	ret = __btrfs_add_delayed_ref(trans, &head_ref->node, bytenr, num_bytes,
 				      (u64)-1, 0, 0, 0,
-				      BTRFS_ADD_DELAYED_REF, 0);
+				      BTRFS_UPDATE_DELAYED_HEAD, 0);
 	BUG_ON(ret);
 
 	ret = __btrfs_add_delayed_ref(trans, &ref->node, bytenr, num_bytes,

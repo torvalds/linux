@@ -22,6 +22,7 @@
 #define BTRFS_ADD_DELAYED_REF    1 /* add one backref to the tree */
 #define BTRFS_DROP_DELAYED_REF   2 /* delete one backref from the tree */
 #define BTRFS_ADD_DELAYED_EXTENT 3 /* record a full extent allocation */
+#define BTRFS_UPDATE_DELAYED_HEAD 4 /* not changing ref count on head ref */
 
 struct btrfs_delayed_ref_node {
 	struct rb_node rb_node;
