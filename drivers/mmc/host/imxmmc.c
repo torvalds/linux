@@ -938,7 +938,7 @@ static void imxmci_check_status(unsigned long data)
 	mod_timer(&host->timer, jiffies + (HZ>>1));
 }
 
-static int imxmci_probe(struct platform_device *pdev)
+static int __init imxmci_probe(struct platform_device *pdev)
 {
 	struct mmc_host *mmc;
 	struct imxmci_host *host = NULL;
@@ -1079,7 +1079,7 @@ out:
 	return ret;
 }
 
-static int imxmci_remove(struct platform_device *pdev)
+static int __exit imxmci_remove(struct platform_device *pdev)
 {
 	struct mmc_host *mmc = platform_get_drvdata(pdev);
 
@@ -1145,8 +1145,7 @@ static int imxmci_resume(struct platform_device *dev)
 #endif /* CONFIG_PM */
 
 static struct platform_driver imxmci_driver = {
-	.probe		= imxmci_probe,
-	.remove		= imxmci_remove,
+	.remove		= __exit_p(imxmci_remove),
 	.suspend	= imxmci_suspend,
 	.resume		= imxmci_resume,
 	.driver		= {
@@ -1157,7 +1156,7 @@ static struct platform_driver imxmci_driver = {
 
 static int __init imxmci_init(void)
 {
-	return platform_driver_register(&imxmci_driver);
+	return platform_driver_probe(&imxmci_driver, imxmci_probe);
 }
 
 static void __exit imxmci_exit(void)
