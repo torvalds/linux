@@ -52,10 +52,10 @@
 #define ESB_LOCK_REG    0x68            /* WDT lock register                 */
 
 /* Memory mapped registers */
-#define ESB_TIMER1_REG  BASEADDR + 0x00 /* Timer1 value after each reset     */
-#define ESB_TIMER2_REG  BASEADDR + 0x04 /* Timer2 value after each reset     */
-#define ESB_GINTSR_REG  BASEADDR + 0x08 /* General Interrupt Status Register */
-#define ESB_RELOAD_REG  BASEADDR + 0x0c /* Reload register                   */
+#define ESB_TIMER1_REG (BASEADDR + 0x00)/* Timer1 value after each reset     */
+#define ESB_TIMER2_REG (BASEADDR + 0x04)/* Timer2 value after each reset     */
+#define ESB_GINTSR_REG (BASEADDR + 0x08)/* General Interrupt Status Register */
+#define ESB_RELOAD_REG (BASEADDR + 0x0c)/* Reload register                   */
 
 /* Lock register bits */
 #define ESB_WDT_FUNC    (0x01 << 2)   /* Watchdog functionality            */
@@ -143,7 +143,7 @@ static int esb_timer_stop(void)
 	spin_unlock(&esb_lock);
 
 	/* Returns 0 if the timer was disabled, non-zero otherwise */
-	return (val & 0x01);
+	return val & 0x01;
 }
 
 static void esb_timer_keepalive(void)
