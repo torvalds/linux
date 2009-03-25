@@ -106,13 +106,14 @@ typedef struct {
 	unsigned char b_Resolution;
 } str_AnalogOutputHeader;
 
-typedef struct {
+struct str_AnalogInputHeader {
 	unsigned short w_Nchannel;
 	unsigned short w_MinConvertTiming;
 	unsigned short w_MinDelayTiming;
 	unsigned char b_HasDma;
 	unsigned char b_Resolution;
-} str_AnalogInputHeader;
+};
+
 
 		/*****************************************/
 		/*            Read Header Functions              */
@@ -139,7 +140,7 @@ int i_EepromReadAnlogOutputHeader(unsigned short w_PCIBoardEepromAddress,
 
 int i_EepromReadAnlogInputHeader(unsigned short w_PCIBoardEepromAddress,
 	char *pc_PCIChipInformation, unsigned short w_Address,
-	str_AnalogInputHeader * s_Header);
+	struct str_AnalogInputHeader * s_Header);
 
 		/******************************************/
 		/*      Eeprom Specific Functions                         */
@@ -812,7 +813,7 @@ int i_EepromReadMainHeader(unsigned short w_PCIBoardEepromAddress,
 	struct str_DigitalOutputHeader s_DigitalOutputHeader;
 	//struct str_TimerMainHeader     s_TimerMainHeader,s_WatchdogMainHeader;
 	str_AnalogOutputHeader s_AnalogOutputHeader;
-	str_AnalogInputHeader s_AnalogInputHeader;
+	struct str_AnalogInputHeader s_AnalogInputHeader;
 
 	// Read size
 	s_MainHeader.w_HeaderSize =
@@ -1099,7 +1100,7 @@ int i_EepromReadAnlogOutputHeader(unsigned short w_PCIBoardEepromAddress,
 +----------------------------------------------------------------------------+
 | Function Name  : int i_EepromReadAnlogInputHeader(unsigned short 					 |
 |			w_PCIBoardEepromAddress,char *pc_PCIChipInformation,     |
-|			unsigned short w_Address,str_AnalogInputHeader *s_Header)          |
+|			unsigned short w_Address,struct str_AnalogInputHeader *s_Header)          |
 +----------------------------------------------------------------------------+
 | Task              : Read Nalog Output  Header                              |
 +----------------------------------------------------------------------------+
@@ -1107,7 +1108,7 @@ int i_EepromReadAnlogOutputHeader(unsigned short w_PCIBoardEepromAddress,
 |																	 |
 |		      char *pc_PCIChipInformation  : PCI Chip Type.          |
 |																	 |
-|			 str_AnalogInputHeader *s_Header:Anlog Input Header      |
+|			 struct str_AnalogInputHeader *s_Header:Anlog Input Header      |
 |											   Pointer				 |
 +----------------------------------------------------------------------------+
 | Output Parameters : -                                                      |
@@ -1119,7 +1120,7 @@ int i_EepromReadAnlogOutputHeader(unsigned short w_PCIBoardEepromAddress,
 // Reads only for ONE  hardware component
 int i_EepromReadAnlogInputHeader(unsigned short w_PCIBoardEepromAddress,
 	char *pc_PCIChipInformation, unsigned short w_Address,
-	str_AnalogInputHeader * s_Header)
+	struct str_AnalogInputHeader * s_Header)
 {
 	unsigned short w_Temp, w_Offset;
 	w_Temp = w_EepromReadWord(w_PCIBoardEepromAddress,
