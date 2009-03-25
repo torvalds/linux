@@ -3189,6 +3189,43 @@ static int move_one_task(struct rq *this_rq, int this_cpu, struct rq *busiest,
 
 	return 0;
 }
+/********** Helpers for find_busiest_group ************************/
+
+/**
+ * group_first_cpu - Returns the first cpu in the cpumask of a sched_group.
+ * @group: The group whose first cpu is to be returned.
+ */
+static inline unsigned int group_first_cpu(struct sched_group *group)
+{
+	return cpumask_first(sched_group_cpus(group));
+}
+
+/**
+ * get_sd_load_idx - Obtain the load index for a given sched domain.
+ * @sd: The sched_domain whose load_idx is to be obtained.
+ * @idle: The Idle status of the CPU for whose sd load_icx is obtained.
+ */
+static inline int get_sd_load_idx(struct sched_domain *sd,
+					enum cpu_idle_type idle)
+{
+	int load_idx;
+
+	switch (idle) {
+	case CPU_NOT_IDLE:
+		load_idx = sd->busy_idx;
+		break;
+
+	case CPU_NEWLY_IDLE:
+		load_idx = sd->newidle_idx;
+		break;
+	default:
+		load_idx = sd->idle_idx;
+		break;
+	}
+
+	return load_idx;
+}
+/******* find_busiest_group() helpers end here *********************/
 
 /*
  * find_busiest_group finds and returns the busiest CPU group within the
@@ -3217,12 +3254,7 @@ find_busiest_group(struct sched_domain *sd, int this_cpu,
 	busiest_load_per_task = busiest_nr_running = 0;
 	this_load_per_task = this_nr_running = 0;
 
-	if (idle == CPU_NOT_IDLE)
-		load_idx = sd->busy_idx;
-	else if (idle == CPU_NEWLY_IDLE)
-		load_idx = sd->newidle_idx;
-	else
-		load_idx = sd->idle_idx;
+	load_idx = get_sd_load_idx(sd, idle);
 
 	do {
 		unsigned long load, group_capacity, max_cpu_load, min_cpu_load;
@@ -3238,7 +3270,7 @@ find_busiest_group(struct sched_domain *sd, int this_cpu,
 					       sched_group_cpus(group));
 
 		if (local_group)
-			balance_cpu = cpumask_first(sched_group_cpus(group));
+			balance_cpu = group_first_cpu(group);
 
 		/* Tally up the load of all CPUs in the group */
 		sum_weighted_load = sum_nr_running = avg_load = 0;
@@ -3359,8 +3391,7 @@ find_busiest_group(struct sched_domain *sd, int this_cpu,
 		 */
 		if ((sum_nr_running < min_nr_running) ||
 		    (sum_nr_running == min_nr_running &&
-		     cpumask_first(sched_group_cpus(group)) >
-		     cpumask_first(sched_group_cpus(group_min)))) {
+		     group_first_cpu(group) > group_first_cpu(group_min))) {
 			group_min = group;
 			min_nr_running = sum_nr_running;
 			min_load_per_task = sum_weighted_load /
@@ -3375,8 +3406,8 @@ find_busiest_group(struct sched_domain *sd, int this_cpu,
 		if (sum_nr_running <= group_capacity - 1) {
 			if (sum_nr_running > leader_nr_running ||
 			    (sum_nr_running == leader_nr_running &&
-			     cpumask_first(sched_group_cpus(group)) <
-			     cpumask_first(sched_group_cpus(group_leader)))) {
+			     group_first_cpu(group) <
+			     group_first_cpu(group_leader))) {
 				group_leader = group;
 				leader_nr_running = sum_nr_running;
 			}
@@ -3504,7 +3535,7 @@ out_balanced:
 		*imbalance = min_load_per_task;
 		if (sched_mc_power_savings >= POWERSAVINGS_BALANCE_WAKEUP) {
 			cpu_rq(this_cpu)->rd->sched_mc_preferred_wakeup_cpu =
-				cpumask_first(sched_group_cpus(group_leader));
+				group_first_cpu(group_leader);
 		}
 		return group_min;
 	}
