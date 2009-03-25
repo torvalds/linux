@@ -440,4 +440,10 @@ config MTD_NAND_TXX9NDFMC
 	help
 	  This enables the NAND flash controller on the TXx9 SoCs.
 
+config MTD_NAND_SOCRATES
+	tristate "Support for NAND on Socrates board"
+	depends on MTD_NAND && SOCRATES
+	help
+	  Enables support for NAND Flash chips wired onto Socrates board.
+
 endif # MTD_NAND
