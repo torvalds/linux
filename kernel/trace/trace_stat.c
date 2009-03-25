@@ -163,7 +163,7 @@ static void *stat_seq_start(struct seq_file *s, loff_t *pos)
 
 	/* If we are in the beginning of the file, print the headers */
 	if (!*pos && session->ts->stat_headers)
-		session->ts->stat_headers(s);
+		return SEQ_START_TOKEN;
 
 	return seq_list_start(&session->stat_list, *pos);
 }
@@ -171,6 +171,9 @@ static void *stat_seq_start(struct seq_file *s, loff_t *pos)
 static void *stat_seq_next(struct seq_file *s, void *p, loff_t *pos)
 {
 	struct tracer_stat_session *session = s->private;
+
+	if (p == SEQ_START_TOKEN)
+		return seq_list_start(&session->stat_list, *pos);
 
 	return seq_list_next(p, &session->stat_list, pos);
 }
@@ -185,6 +188,9 @@ static int stat_seq_show(struct seq_file *s, void *v)
 {
 	struct tracer_stat_session *session = s->private;
 	struct trace_stat_list *l = list_entry(v, struct trace_stat_list, list);
+
+	if (v == SEQ_START_TOKEN)
+		return session->ts->stat_headers(s);
 
 	return session->ts->stat_show(s, l->stat);
 }
