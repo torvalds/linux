@@ -70,11 +70,11 @@ struct str_MainHeader {
 	struct str_Functionality s_Functions[7];
 };
 
-typedef struct {
+struct str_DigitalInputHeader {
 	unsigned short w_Nchannel;
 	unsigned char b_Interruptible;
 	unsigned short w_NinterruptLogic;
-} str_DigitalInputHeader;
+};
 
 typedef struct {
 	unsigned short w_Nchannel;
@@ -117,7 +117,7 @@ int i_EepromReadMainHeader(unsigned short w_PCIBoardEepromAddress,
 
 int i_EepromReadDigitalInputHeader(unsigned short w_PCIBoardEepromAddress,
 	char *pc_PCIChipInformation, unsigned short w_Address,
-	str_DigitalInputHeader * s_Header);
+	struct str_DigitalInputHeader * s_Header);
 
 int i_EepromReadDigitalOutputHeader(unsigned short w_PCIBoardEepromAddress,
 	char *pc_PCIChipInformation, unsigned short w_Address,
@@ -802,7 +802,7 @@ int i_EepromReadMainHeader(unsigned short w_PCIBoardEepromAddress,
 	unsigned short w_Temp, i, w_Count = 0;
 	unsigned int ui_Temp;
 	struct str_MainHeader s_MainHeader;
-	str_DigitalInputHeader s_DigitalInputHeader;
+	struct str_DigitalInputHeader s_DigitalInputHeader;
 	str_DigitalOutputHeader s_DigitalOutputHeader;
 	//str_TimerMainHeader     s_TimerMainHeader,s_WatchdogMainHeader;
 	str_AnalogOutputHeader s_AnalogOutputHeader;
@@ -914,7 +914,7 @@ int i_EepromReadMainHeader(unsigned short w_PCIBoardEepromAddress,
 +----------------------------------------------------------------------------+
 | Function Name  : int i_EepromReadDigitalInputHeader(unsigned short 					 |
 |			w_PCIBoardEepromAddress,char *pc_PCIChipInformation,	 |
-|			unsigned short w_Address,str_DigitalInputHeader *s_Header)		 |
+|			unsigned short w_Address,struct str_DigitalInputHeader *s_Header)		 |
 |																	 |
 +----------------------------------------------------------------------------+
 | Task              : Read Digital Input Header                              |
@@ -923,7 +923,7 @@ int i_EepromReadMainHeader(unsigned short w_PCIBoardEepromAddress,
 |																	 |
 |		      char *pc_PCIChipInformation  : PCI Chip Type.          |
 |																	 |
-|			 str_DigitalInputHeader *s_Header: Digita Input Header   |
+|			 struct str_DigitalInputHeader *s_Header: Digita Input Header   |
 |												   Pointer			 |
 +----------------------------------------------------------------------------+
 | Output Parameters : -                                                      |
@@ -933,7 +933,7 @@ int i_EepromReadMainHeader(unsigned short w_PCIBoardEepromAddress,
 */
 int i_EepromReadDigitalInputHeader(unsigned short w_PCIBoardEepromAddress,
 	char *pc_PCIChipInformation, unsigned short w_Address,
-	str_DigitalInputHeader * s_Header)
+	struct str_DigitalInputHeader *s_Header)
 {
 	unsigned short w_Temp;
 
