@@ -61,7 +61,7 @@ static int dio24_detach(struct comedi_device * dev);
 
 enum dio24_bustype { pcmcia_bustype };
 
-typedef struct dio24_board_struct {
+struct dio24_board_struct {
 	const char *name;
 	int device_id;		// device id for pcmcia board
 	enum dio24_bustype bustype;	// PCMCIA
@@ -69,9 +69,9 @@ typedef struct dio24_board_struct {
 	// function pointers so we can use inb/outb or readb/writeb as appropriate
 	unsigned int (*read_byte) (unsigned int address);
 	void (*write_byte) (unsigned int byte, unsigned int address);
-} dio24_board;
+};
 
-static const dio24_board dio24_boards[] = {
+static const struct dio24_board_struct dio24_boards[] = {
 	{
 	      name:	"daqcard-dio24",
 	      device_id:0x475c,// 0x10b is manufacturer id, 0x475c is device id
@@ -89,7 +89,7 @@ static const dio24_board dio24_boards[] = {
 /*
  * Useful for shorthand access to the particular board structure
  */
-#define thisboard ((const dio24_board *)dev->board_ptr)
+#define thisboard ((const struct dio24_board_struct *)dev->board_ptr)
 
 struct dio24_private {
 
@@ -104,9 +104,9 @@ static struct comedi_driver driver_dio24 = {
       module:THIS_MODULE,
       attach:dio24_attach,
       detach:dio24_detach,
-      num_names:sizeof(dio24_boards) / sizeof(dio24_board),
+      num_names:sizeof(dio24_boards) / sizeof(struct dio24_board_struct),
       board_name:&dio24_boards[0].name,
-      offset:sizeof(dio24_board),
+      offset:sizeof(struct dio24_board_struct),
 };
 
 static int dio24_attach(struct comedi_device * dev, struct comedi_devconfig * it)
