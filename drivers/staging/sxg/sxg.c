@@ -322,6 +322,8 @@ int sxg_add_msi_isr(struct adapter_t *adapter)
 	int ret,i;
 
 	if (!adapter->intrregistered) {
+		spin_unlock_irqrestore(&sxg_global.driver_lock,
+					sxg_global.flags);
 		for (i=0; i<adapter->nr_msix_entries; i++) {
 			ret = request_irq (adapter->msi_entries[i].vector,
 					sxg_isr,
@@ -329,6 +331,8 @@ int sxg_add_msi_isr(struct adapter_t *adapter)
 					adapter->netdev->name,
 					adapter->netdev);
 			if (ret) {
+				spin_lock_irqsave(&sxg_global.driver_lock,
+						 sxg_global.flags);
 				DBG_ERROR("sxg: MSI-X request_irq (%s) "
 					"FAILED [%x]\n", adapter->netdev->name,
 					 ret);
@@ -336,6 +340,7 @@ int sxg_add_msi_isr(struct adapter_t *adapter)
 			}
 		}
 	}
+	spin_lock_irqsave(&sxg_global.driver_lock, sxg_global.flags);
 	adapter->msi_enabled = TRUE;
 	adapter->intrregistered = 1;
 	adapter->IntRegistered = TRUE;
