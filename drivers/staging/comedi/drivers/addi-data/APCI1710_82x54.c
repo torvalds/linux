@@ -234,7 +234,7 @@ int i_APCI1710_InsnConfigInitTimer(struct comedi_device * dev, struct comedi_sub
 	unsigned char b_HardwareGateLevel;
 
 	//BEGIN JK 27.10.2003 : Add the possibility to use a 40 Mhz quartz
-	DWORD dw_Test = 0;
+	unsigned int dw_Test = 0;
 	//END JK 27.10.2003 : Add the possibility to use a 40 Mhz quartz
 
 	i_ReturnValue = insn->n;
@@ -319,7 +319,7 @@ int i_APCI1710_InsnConfigInitTimer(struct comedi_device * dev, struct comedi_sub
 											   devpriv->s_ModuleInfo [b_ModulNbr].
 											   s_82X54ModuleInfo.
 											   s_82X54TimerInfo  [b_TimerNbr].
-											   dw_ConfigurationWord = (DWORD) (((b_HardwareGateLevel         << 0) & 0x1) |
+											   dw_ConfigurationWord = (unsigned int) (((b_HardwareGateLevel         << 0) & 0x1) |
 											   ((b_InputClockLevel           << 1) & 0x2) |
 											   (((~b_OutputLevel       & 1)  << 2) & 0x4) |
 											   ((b_InputClockSelection       << 4) & 0x10));
@@ -329,12 +329,12 @@ int i_APCI1710_InsnConfigInitTimer(struct comedi_device * dev, struct comedi_sub
 												b_InputClockSelection = 2;
 											}
 
-											devpriv->s_ModuleInfo[b_ModulNbr].s_82X54ModuleInfo.s_82X54TimerInfo[b_TimerNbr].dw_ConfigurationWord = (DWORD)(((b_HardwareGateLevel << 0) & 0x1) | ((b_InputClockLevel << 1) & 0x2) | (((~b_OutputLevel & 1) << 2) & 0x4) | ((b_InputClockSelection << 4) & 0x30));
+											devpriv->s_ModuleInfo[b_ModulNbr].s_82X54ModuleInfo.s_82X54TimerInfo[b_TimerNbr].dw_ConfigurationWord = (unsigned int)(((b_HardwareGateLevel << 0) & 0x1) | ((b_InputClockLevel << 1) & 0x2) | (((~b_OutputLevel & 1) << 2) & 0x4) | ((b_InputClockSelection << 4) & 0x30));
 											//END JK 27.10.03 : Add the possibility to use a 40 Mhz quartz
 											outl(devpriv->s_ModuleInfo[b_ModulNbr].s_82X54ModuleInfo.s_82X54TimerInfo[b_TimerNbr].dw_ConfigurationWord, devpriv->s_BoardInfos.ui_Address + 32 + (b_TimerNbr * 4) + (64 * b_ModulNbr));
 
 											/* Initialise the 82X54 Timer */
-											outl((DWORD) b_TimerMode, devpriv->s_BoardInfos.ui_Address + 16 + (b_TimerNbr * 4) + (64 * b_ModulNbr));
+											outl((unsigned int) b_TimerMode, devpriv->s_BoardInfos.ui_Address + 16 + (b_TimerNbr * 4) + (64 * b_ModulNbr));
 
 											/* Write the reload value */
 											outl(ul_ReloadValue, devpriv->s_BoardInfos.ui_Address + 0 + (b_TimerNbr * 4) + (64 * b_ModulNbr));
@@ -453,7 +453,7 @@ int i_APCI1710_InsnWriteEnableDisableTimer(struct comedi_device * dev,
 					   struct comedi_insn * insn, unsigned int * data)
 {
 	int i_ReturnValue = 0;
-	DWORD dw_DummyRead;
+	unsigned int dw_DummyRead;
 	unsigned char b_ModulNbr;
 	unsigned char b_TimerNbr;
 	unsigned char b_ActionType;
@@ -853,7 +853,7 @@ int i_APCI1710_GetTimerOutputLevel(struct comedi_device * dev,
 				   unsigned char * pb_OutputLevel)
 {
 	int i_ReturnValue = 0;
-	DWORD dw_TimerStatus;
+	unsigned int dw_TimerStatus;
 
 	/* Test the module number */
 	if (b_ModulNbr < 4) {
@@ -932,7 +932,7 @@ int i_APCI1710_GetTimerProgressStatus(struct comedi_device *dev,
 				      unsigned char * pb_TimerStatus)
 {
 	int i_ReturnValue = 0;
-	DWORD dw_TimerStatus;
+	unsigned int dw_TimerStatus;
 
 	/* Test the module number */
 	if (b_ModulNbr < 4) {

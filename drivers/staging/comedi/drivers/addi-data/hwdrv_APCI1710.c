@@ -202,7 +202,7 @@ void v_APCI1710_Interrupt(int irq, void *d);
 int i_APCI1710_Reset(struct comedi_device * dev)
 {
 	int ret;
-	DWORD dw_Dummy;
+	unsigned int dw_Dummy;
 
 	/*********************************/
 	/* Read all module configuration */

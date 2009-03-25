@@ -135,7 +135,7 @@ int i_APCI1710_InsnConfigInitTorCounter(struct comedi_device * dev,
 {
 	int i_ReturnValue = 0;
 	unsigned int ul_TimerValue = 0;
-	DWORD dw_Command;
+	unsigned int dw_Command;
 	double d_RealTimingInterval = 0;
 	unsigned char b_ModulNbr;
 	unsigned char b_TorCounter;
@@ -991,9 +991,9 @@ int i_APCI1710_InsnWriteEnableDisableTorCounter(struct comedi_device * dev,
 	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data)
 {
 	int i_ReturnValue = 0;
-	DWORD dw_Status;
-	DWORD dw_DummyRead;
-	DWORD dw_ConfigReg;
+	unsigned int dw_Status;
+	unsigned int dw_DummyRead;
+	unsigned int dw_ConfigReg;
 	unsigned char b_ModulNbr, b_Action;
 	unsigned char b_TorCounter;
 	unsigned char b_InputMode;
@@ -1464,7 +1464,7 @@ int i_APCI1710_InsnReadGetTorCounterInitialisation(struct comedi_device * dev,
 	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data)
 {
 	int i_ReturnValue = 0;
-	DWORD dw_Status;
+	unsigned int dw_Status;
 	unsigned char b_ModulNbr;
 	unsigned char b_TorCounter;
 	unsigned char * pb_TimingUnit;
@@ -1704,8 +1704,8 @@ int i_APCI1710_InsnBitsGetTorCounterProgressStatusAndValue(struct comedi_device 
 	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data)
 {
 	int i_ReturnValue = 0;
-	DWORD dw_Status;
-	DWORD dw_TimeOut = 0;
+	unsigned int dw_Status;
+	unsigned int dw_TimeOut = 0;
 
 	unsigned char b_ModulNbr;
 	unsigned char b_TorCounter;

@@ -139,7 +139,7 @@ int i_APCI1710_InsnConfigInitChrono(struct comedi_device * dev, struct comedi_su
 	unsigned int ul_TimingInterval = 0;
 	unsigned int ul_RealTimingInterval = 0;
 	double d_RealTimingInterval = 0;
-	DWORD dw_ModeArray[8] =
+	unsigned int dw_ModeArray[8] =
 		{ 0x01, 0x05, 0x00, 0x04, 0x02, 0x0E, 0x0A, 0x06 };
 	unsigned char b_ModulNbr, b_ChronoMode, b_PCIInputClock, b_TimingUnit;
 
@@ -1198,7 +1198,7 @@ int i_APCI1710_GetChronoProgressStatus(struct comedi_device * dev,
 	unsigned char b_ModulNbr, unsigned char * pb_ChronoStatus)
 {
 	int i_ReturnValue = 0;
-	DWORD dw_Status;
+	unsigned int dw_Status;
 
 	/**************************/
 	/* Test the module number */
@@ -1360,8 +1360,8 @@ int i_APCI1710_ReadChronoValue(struct comedi_device * dev,
 	unsigned int ui_TimeOut, unsigned char * pb_ChronoStatus, unsigned int * pul_ChronoValue)
 {
 	int i_ReturnValue = 0;
-	DWORD dw_Status;
-	DWORD dw_TimeOut = 0;
+	unsigned int dw_Status;
+	unsigned int dw_TimeOut = 0;
 
 	/**************************/
 	/* Test the module number */
@@ -1881,7 +1881,7 @@ int i_APCI1710_InsnBitsChronoDigitalIO(struct comedi_device * dev,
 {
 	int i_ReturnValue = 0;
 	unsigned char b_ModulNbr, b_OutputChannel, b_InputChannel, b_IOType;
-	DWORD dw_Status;
+	unsigned int dw_Status;
 	unsigned char * pb_ChannelStatus;
 	unsigned char * pb_PortValue;
 

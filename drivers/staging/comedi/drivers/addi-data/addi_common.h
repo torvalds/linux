@@ -37,7 +37,6 @@
 #define SUCCESS	1
 
 /* variable type definition */
-typedef unsigned int DWORD, *PDWORD;	/* 32-bit */
 typedef unsigned long ULONG_PTR;
 
 typedef const struct comedi_lrange *PCRANGE;
@@ -219,7 +218,7 @@ typedef union {
 				unsigned char b_ModeRegister3;
 				unsigned char b_ModeRegister4;
 			} s_ByteModeRegister;
-			DWORD dw_ModeRegister1_2_3_4;
+			unsigned int dw_ModeRegister1_2_3_4;
 		} s_ModeRegister;
 
 		struct {
@@ -254,7 +253,7 @@ typedef union {
 		unsigned char b_ChannelAMode;
 		unsigned char b_ChannelBMode;
 		unsigned char b_OutputMemoryEnabled;
-		DWORD dw_OutputMemory;
+		unsigned int dw_OutputMemory;
 	} s_DigitalIOInfo;
 
       /*********************/
@@ -268,7 +267,7 @@ typedef union {
 			unsigned char b_InputClockLevel;
 			unsigned char b_OutputLevel;
 			unsigned char b_HardwareGateLevel;
-			DWORD dw_ConfigurationWord;
+			unsigned int dw_ConfigurationWord;
 		} s_82X54TimerInfo[3];
 		unsigned char b_InterruptMask;
 	} s_82X54ModuleInfo;
@@ -284,7 +283,7 @@ typedef union {
 		unsigned char b_TimingUnit;
 		unsigned char b_CycleMode;
 		double d_TimingInterval;
-		DWORD dw_ConfigReg;
+		unsigned int dw_ConfigReg;
 	} s_ChronoModuleInfo;
 
       /***********************/
@@ -295,9 +294,9 @@ typedef union {
 		struct {
 			unsigned char b_PulseEncoderInit;
 		} s_PulseEncoderInfo[4];
-		DWORD dw_SetRegister;
-		DWORD dw_ControlRegister;
-		DWORD dw_StatusRegister;
+		unsigned int dw_SetRegister;
+		unsigned int dw_ControlRegister;
+		unsigned int dw_StatusRegister;
 	} s_PulseEncoderModuleInfo;
 
 	/* Tor conter infos */
@@ -372,7 +371,7 @@ typedef struct {
 	unsigned int ui_AiChannelList[32];	// actual chanlist
 	unsigned char b_AiChannelConfiguration[32];	// actual chanlist
 	unsigned int ui_AiReadData[32];
-	DWORD dw_AiInitialised;
+	unsigned int dw_AiInitialised;
 	unsigned int ui_AiTimer0;	//Timer Constant for Timer0
 	unsigned int ui_AiTimer1;	//Timer constant for Timer1
 	unsigned int ui_AiFlags;
@@ -421,7 +420,7 @@ typedef struct {
 		unsigned char b_InterruptNbr;	/* Board interrupt number */
 		unsigned char b_SlotNumber;	/* PCI slot number */
 		unsigned char b_BoardVersion;
-		DWORD dw_MolduleConfiguration[4];	/* Module config */
+		unsigned int dw_MolduleConfiguration[4];	/* Module config */
 	} s_BoardInfos;
 
 	/* Interrupt infos */

@@ -95,14 +95,14 @@ str_BoardInfos s_BoardInfos[100];	// 100 will be the max number of boards to be 
 /*+----------------------------------------------------------------------------+*/
 /*| Function   Name   : int i_AddiHeaderRW_ReadEeprom                          |*/
 /*|                               (int    i_NbOfWordsToRead,                   |*/
-/*|                                DWORD dw_PCIBoardEepromAddress,             |*/
+/*|                                unsigned int dw_PCIBoardEepromAddress,             |*/
 /*|                                unsigned short   w_EepromStartAddress,                |*/
 /*|                                unsigned short * pw_DataRead)                          |*/
 /*+----------------------------------------------------------------------------+*/
 /*| Task              : Read word from the 5920 eeprom.                        |*/
 /*+----------------------------------------------------------------------------+*/
 /*| Input Parameters  : int    i_NbOfWordsToRead : Nbr. of word to read        |*/
-/*|                     DWORD dw_PCIBoardEepromAddress : Address of the eeprom |*/
+/*|                     unsigned int dw_PCIBoardEepromAddress : Address of the eeprom |*/
 /*|                     unsigned short   w_EepromStartAddress : Eeprom strat address     |*/
 /*+----------------------------------------------------------------------------+*/
 /*| Output Parameters : unsigned short * pw_DataRead : Read data                          |*/
@@ -111,10 +111,10 @@ str_BoardInfos s_BoardInfos[100];	// 100 will be the max number of boards to be 
 /*+----------------------------------------------------------------------------+*/
 
 int i_AddiHeaderRW_ReadEeprom(int i_NbOfWordsToRead,
-	DWORD dw_PCIBoardEepromAddress,
+	unsigned int dw_PCIBoardEepromAddress,
 	unsigned short w_EepromStartAddress, unsigned short * pw_DataRead)
 {
-	DWORD dw_eeprom_busy = 0;
+	unsigned int dw_eeprom_busy = 0;
 	int i_Counter = 0;
 	int i_WordCounter;
 	int i;
@@ -258,7 +258,7 @@ int i_AddiHeaderRW_ReadEeprom(int i_NbOfWordsToRead,
 /*| Return Value      : -                                                      |*/
 /*+----------------------------------------------------------------------------+*/
 
-void v_GetAPCI3200EepromCalibrationValue(DWORD dw_PCIBoardEepromAddress,
+void v_GetAPCI3200EepromCalibrationValue(unsigned int dw_PCIBoardEepromAddress,
 	str_BoardInfos * BoardInformations)
 {
 	unsigned short w_AnalogInputMainHeaderAddress;
@@ -3004,7 +3004,7 @@ int i_APCI3200_CommandAnalogInput(struct comedi_device * dev, struct comedi_subd
 int i_APCI3200_Reset(struct comedi_device * dev)
 {
 	int i_Temp;
-	DWORD dw_Dummy;
+	unsigned int dw_Dummy;
 	//i_InterruptFlag=0;
 	//i_Initialised==0;
 	//i_Count=0;

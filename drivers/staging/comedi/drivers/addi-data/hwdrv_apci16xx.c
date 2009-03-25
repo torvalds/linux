@@ -293,7 +293,7 @@ int i_APCI16XX_InsnBitsReadTTLIO(struct comedi_device * dev,
 	unsigned char b_SelectedPort = CR_RANGE(insn->chanspec);
 	unsigned char b_InputChannel = CR_CHAN(insn->chanspec);
 	unsigned char *pb_Status;
-	DWORD dw_Status;
+	unsigned int dw_Status;
 
 	/************************/
 	/* Test the buffer size */
@@ -579,7 +579,7 @@ int i_APCI16XX_InsnBitsWriteTTLIO(struct comedi_device * dev,
 		(unsigned char) (devpriv->ps_BoardInfo->i_NbrTTLChannel / 8);
 	unsigned char b_SelectedPort = CR_RANGE(insn->chanspec);
 	unsigned char b_OutputChannel = CR_CHAN(insn->chanspec);
-	DWORD dw_Status = 0;
+	unsigned int dw_Status = 0;
 
 	/************************/
 	/* Test the buffer size */

@@ -105,7 +105,7 @@ int i_APCI1710_InsnConfigDigitalIO(struct comedi_device * dev, struct comedi_sub
 	unsigned char b_ModulNbr, b_ChannelAMode, b_ChannelBMode;
 	unsigned char b_MemoryOnOff, b_ConfigType;
 	int i_ReturnValue = 0;
-	DWORD dw_WriteConfig = 0;
+	unsigned int dw_WriteConfig = 0;
 
 	b_ModulNbr = (unsigned char) CR_AREF(insn->chanspec);
 	b_ConfigType = (unsigned char) data[0];	// Memory or  Init
@@ -197,7 +197,7 @@ int i_APCI1710_InsnConfigDigitalIO(struct comedi_device * dev, struct comedi_sub
 	/*****************************************/
 
 					dw_WriteConfig =
-						(DWORD) (b_ChannelAMode |
+						(unsigned int) (b_ChannelAMode |
 						(b_ChannelBMode * 2));
 
 	/***************************/
@@ -297,7 +297,7 @@ int i_APCI1710_InsnReadDigitalIOChlValue(struct comedi_device * dev,
 	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data)
 {
 	int i_ReturnValue = 0;
-	DWORD dw_StatusReg;
+	unsigned int dw_StatusReg;
 	unsigned char b_ModulNbr, b_InputChannel;
 	unsigned char * pb_ChannelStatus;
 	b_ModulNbr = (unsigned char) CR_AREF(insn->chanspec);
@@ -485,7 +485,7 @@ int i_APCI1710_InsnWriteDigitalIOChlOnOff(struct comedi_device * dev,
 	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data)
 {
 	int i_ReturnValue = 0;
-	DWORD dw_WriteValue = 0;
+	unsigned int dw_WriteValue = 0;
 	unsigned char b_ModulNbr, b_OutputChannel;
 	i_ReturnValue = insn->n;
 	b_ModulNbr = CR_AREF(insn->chanspec);
@@ -732,8 +732,8 @@ int i_APCI1710_InsnBitsDigitalIOPortOnOff(struct comedi_device * dev,
 	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data)
 {
 	int i_ReturnValue = 0;
-	DWORD dw_WriteValue = 0;
-	DWORD dw_StatusReg;
+	unsigned int dw_WriteValue = 0;
+	unsigned int dw_StatusReg;
 	unsigned char b_ModulNbr, b_PortValue;
 	unsigned char b_PortOperation, b_PortOnOFF;
 

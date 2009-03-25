@@ -127,7 +127,7 @@ int i_APCI1710_InsnConfigInitPulseEncoder(struct comedi_device * dev,
 	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data)
 {
 	int i_ReturnValue = 0;
-	DWORD dw_IntRegister;
+	unsigned int dw_IntRegister;
 
 	unsigned char b_ModulNbr;
 	unsigned char b_PulseEncoderNbr;
@@ -712,7 +712,7 @@ int i_APCI1710_InsnBitsReadWritePulseEncoder(struct comedi_device * dev,
 	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data)
 {
 	int i_ReturnValue = 0;
-	DWORD dw_StatusRegister;
+	unsigned int dw_StatusRegister;
 	unsigned char b_ModulNbr;
 	unsigned char b_PulseEncoderNbr;
 	unsigned char * pb_Status;

@@ -408,11 +408,11 @@ int i_APCI1710_InsnReadSSIValue(struct comedi_device * dev, struct comedi_subdev
 	unsigned char b_Length;
 	unsigned char b_Schift;
 	unsigned char b_SSICpt;
-	DWORD dw_And;
-	DWORD dw_And1;
-	DWORD dw_And2;
-	DWORD dw_StatusReg;
-	DWORD dw_CounterValue;
+	unsigned int dw_And;
+	unsigned int dw_And1;
+	unsigned int dw_And2;
+	unsigned int dw_StatusReg;
+	unsigned int dw_CounterValue;
 	unsigned char b_ModulNbr;
 	unsigned char b_SelectedSSI;
 	unsigned char b_ReadType;
@@ -739,7 +739,7 @@ int i_APCI1710_InsnBitsSSIDigitalIO(struct comedi_device * dev, struct comedi_su
 	struct comedi_insn * insn, unsigned int * data)
 {
 	int i_ReturnValue = 0;
-	DWORD dw_StatusReg;
+	unsigned int dw_StatusReg;
 	unsigned char b_ModulNbr;
 	unsigned char b_InputChannel;
 	unsigned char * pb_ChannelStatus;

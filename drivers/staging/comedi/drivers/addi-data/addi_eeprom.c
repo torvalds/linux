@@ -51,12 +51,6 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 #define EE76_CMD_LEN    	13	// bits in instructions
 #define EE_READ         	0x0180	// 01 1000 0000 read instruction
 
-#define PDWORD				unsigned int  *
-
-#ifndef DWORD
-#define	DWORD				unsigned int
-#endif
-
 #define EEPROM_DIGITALINPUT 			0
 #define EEPROM_DIGITALOUTPUT			1
 #define EEPROM_ANALOGINPUT				2
@@ -147,11 +141,11 @@ int i_EepromReadAnlogInputHeader(unsigned short w_PCIBoardEepromAddress,
 unsigned short w_EepromReadWord(unsigned short w_PCIBoardEepromAddress, char *pc_PCIChipInformation,
 	unsigned short w_EepromStartAddress);
 void v_EepromWaitBusy(unsigned short w_PCIBoardEepromAddress);
-void v_EepromClock76(DWORD dw_Address, DWORD dw_RegisterValue);
+void v_EepromClock76(unsigned int dw_Address, unsigned int dw_RegisterValue);
 void v_EepromWaitBusy(unsigned short w_PCIBoardEepromAddress);
-void v_EepromSendCommand76(DWORD dw_Address, DWORD dw_EepromCommand,
+void v_EepromSendCommand76(unsigned int dw_Address, unsigned int dw_EepromCommand,
 	unsigned char b_DataLengthInBits);
-void v_EepromCs76Read(DWORD dw_Address, unsigned short w_offset, unsigned short * pw_Value);
+void v_EepromCs76Read(unsigned int dw_Address, unsigned short w_offset, unsigned short * pw_Value);
 
 /*
 +----------------------------------------------------------------------------+
@@ -403,7 +397,7 @@ void v_EepromWaitBusy(unsigned short w_PCIBoardEepromAddress)
 
 		/*      unsigned short read  EEPROM=0x8000 andAMCC_OP_REG_MCSR+2                  */
 
-		/*      DWORD read  EEPROM=0x80000000 and AMCC_OP_REG_MCSR */
+		/*      unsigned int read  EEPROM=0x80000000 and AMCC_OP_REG_MCSR */
 
 	   /************************************************************************/
 
@@ -419,9 +413,9 @@ void v_EepromWaitBusy(unsigned short w_PCIBoardEepromAddress)
 
 +---------------------------------------------------------------------------------+
 
-| Function   Name   : void v_EepromClock76(DWORD dw_Address,                      |
+| Function   Name   : void v_EepromClock76(unsigned int dw_Address,                      |
 
-|					   DWORD dw_RegisterValue)                 			  |
+|					   unsigned int dw_RegisterValue)                 			  |
 
 +---------------------------------------------------------------------------------+
 
@@ -429,9 +423,9 @@ void v_EepromWaitBusy(unsigned short w_PCIBoardEepromAddress)
 
 +---------------------------------------------------------------------------------+
 
-| Input Parameters  : DWORD dw_Address : PCI eeprom base address                  |
+| Input Parameters  : unsigned int dw_Address : PCI eeprom base address                  |
 
-|		      DWORD dw_RegisterValue : PCI eeprom register value to write.|
+|		      unsigned int dw_RegisterValue : PCI eeprom register value to write.|
 
 +---------------------------------------------------------------------------------+
 
@@ -445,7 +439,7 @@ void v_EepromWaitBusy(unsigned short w_PCIBoardEepromAddress)
 
 */
 
-void v_EepromClock76(DWORD dw_Address, DWORD dw_RegisterValue)
+void v_EepromClock76(unsigned int dw_Address, unsigned int dw_RegisterValue)
 {
 
    /************************/
@@ -486,9 +480,9 @@ void v_EepromClock76(DWORD dw_Address, DWORD dw_RegisterValue)
 
 +---------------------------------------------------------------------------------+
 
-| Function   Name   : void v_EepromSendCommand76(DWORD dw_Address,                |
+| Function   Name   : void v_EepromSendCommand76(unsigned int dw_Address,                |
 
-|					   DWORD   dw_EepromCommand,                		  |
+|					   unsigned int   dw_EepromCommand,                		  |
 
 |					   unsigned char    b_DataLengthInBits)                        |
 
@@ -498,9 +492,9 @@ void v_EepromClock76(DWORD dw_Address, DWORD dw_RegisterValue)
 
 +---------------------------------------------------------------------------------+
 
-| Input Parameters  : DWORD dw_Address : PCI eeprom base address                  |
+| Input Parameters  : unsigned int dw_Address : PCI eeprom base address                  |
 
-|		      DWORD dw_EepromCommand : PCI eeprom command to write.       |
+|		      unsigned int dw_EepromCommand : PCI eeprom command to write.       |
 
 |		      unsigned char  b_DataLengthInBits : PCI eeprom command data length.  |
 
@@ -516,13 +510,13 @@ void v_EepromClock76(DWORD dw_Address, DWORD dw_RegisterValue)
 
 */
 
-void v_EepromSendCommand76(DWORD dw_Address, DWORD dw_EepromCommand,
+void v_EepromSendCommand76(unsigned int dw_Address, unsigned int dw_EepromCommand,
 	unsigned char b_DataLengthInBits)
 {
 
 	char c_BitPos = 0;
 
-	DWORD dw_RegisterValue = 0;
+	unsigned int dw_RegisterValue = 0;
 
    /*****************************/
 
@@ -621,7 +615,7 @@ void v_EepromSendCommand76(DWORD dw_Address, DWORD dw_EepromCommand,
 
 +---------------------------------------------------------------------------------+
 
-| Function   Name   : void v_EepromCs76Read(DWORD dw_Address,                     |
+| Function   Name   : void v_EepromCs76Read(unsigned int dw_Address,                     |
 
 |					   unsigned short    w_offset,                      			  |
 
@@ -633,7 +627,7 @@ void v_EepromSendCommand76(DWORD dw_Address, DWORD dw_EepromCommand,
 
 +---------------------------------------------------------------------------------+
 
-| Input Parameters  : DWORD dw_Address : PCI eeprom base address                  |
+| Input Parameters  : unsigned int dw_Address : PCI eeprom base address                  |
 
 |		      unsigned short    w_offset : Offset of the adress to read             |
 
@@ -651,14 +645,14 @@ void v_EepromSendCommand76(DWORD dw_Address, DWORD dw_EepromCommand,
 
 */
 
-void v_EepromCs76Read(DWORD dw_Address, unsigned short w_offset, unsigned short * pw_Value)
+void v_EepromCs76Read(unsigned int dw_Address, unsigned short w_offset, unsigned short * pw_Value)
 {
 
         char c_BitPos = 0;
 
-	DWORD dw_RegisterValue = 0;
+	unsigned int dw_RegisterValue = 0;
 
-	DWORD dw_RegisterValueRead = 0;
+	unsigned int dw_RegisterValueRead = 0;
 
    /*************************************************/
 

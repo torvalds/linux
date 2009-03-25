@@ -2563,7 +2563,7 @@ static int i_ADDI_Attach(struct comedi_device * dev, struct comedi_devconfig * i
 {
 	struct comedi_subdevice *s;
 	int ret, pages, i, n_subdevices;
-	DWORD dw_Dummy;
+	unsigned int dw_Dummy;
 	resource_size_t io_addr[5];
 	unsigned int irq;
 	resource_size_t iobase_a, iobase_main, iobase_addon, iobase_reserved;

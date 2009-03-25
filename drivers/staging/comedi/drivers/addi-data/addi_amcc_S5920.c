@@ -51,14 +51,14 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 /*+----------------------------------------------------------------------------+*/
 /*| Function   Name   : int i_AddiHeaderRW_ReadEeprom                          |*/
 /*|                               (int    i_NbOfWordsToRead,                   |*/
-/*|                                DWORD dw_PCIBoardEepromAddress,             |*/
+/*|                                unsigned int dw_PCIBoardEepromAddress,             |*/
 /*|                                unsigned short   w_EepromStartAddress,                |*/
 /*|                                unsigned short * pw_DataRead)                          |*/
 /*+----------------------------------------------------------------------------+*/
 /*| Task              : Read word from the 5920 eeprom.                        |*/
 /*+----------------------------------------------------------------------------+*/
 /*| Input Parameters  : int    i_NbOfWordsToRead : Nbr. of word to read        |*/
-/*|                     DWORD dw_PCIBoardEepromAddress : Address of the eeprom |*/
+/*|                     unsigned int dw_PCIBoardEepromAddress : Address of the eeprom |*/
 /*|                     unsigned short   w_EepromStartAddress : Eeprom strat address     |*/
 /*+----------------------------------------------------------------------------+*/
 /*| Output Parameters : unsigned short * pw_DataRead : Read data                          |*/
@@ -67,10 +67,10 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 /*+----------------------------------------------------------------------------+*/
 
 int i_AddiHeaderRW_ReadEeprom(int i_NbOfWordsToRead,
-	DWORD dw_PCIBoardEepromAddress,
+	unsigned int dw_PCIBoardEepromAddress,
 	unsigned short w_EepromStartAddress, unsigned short * pw_DataRead)
 {
-	DWORD dw_eeprom_busy = 0;
+	unsigned int dw_eeprom_busy = 0;
 	int i_Counter = 0;
 	int i_WordCounter;
 	int i;

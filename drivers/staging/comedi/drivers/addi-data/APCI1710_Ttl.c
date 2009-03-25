@@ -410,7 +410,7 @@ int i_APCI1710_InsnBitsReadTTLIO(struct comedi_device * dev, struct comedi_subde
 	struct comedi_insn * insn, unsigned int * data)
 {
 	int i_ReturnValue = 0;
-	DWORD dw_StatusReg;
+	unsigned int dw_StatusReg;
 	unsigned char b_ModulNbr;
 	unsigned char b_SelectedPort;
 	unsigned char b_InputChannel;
@@ -659,7 +659,7 @@ int i_APCI1710_InsnReadTTLIOAllPortValue(struct comedi_device * dev,
 	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data)
 {
 	int i_ReturnValue = 0;
-	DWORD dw_StatusReg;
+	unsigned int dw_StatusReg;
 	unsigned char b_ModulNbr;
 	unsigned int * pul_PortValue;
 
@@ -829,7 +829,7 @@ int i_APCI1710_InsnWriteSetTTLIOChlOnOff(struct comedi_device * dev,
 	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data)
 {
 	int i_ReturnValue = 0;
-	DWORD dw_StatusReg = 0;
+	unsigned int dw_StatusReg = 0;
 	unsigned char b_ModulNbr;
 	unsigned char b_OutputChannel;
 	unsigned int ui_State;
