@@ -93,11 +93,13 @@ struct str_TimerDetails {
 	unsigned char b_TimeBase;
 };
 
-typedef struct {
+struct str_TimerMainHeader {
+
 
 	unsigned short w_Ntimer;
 	struct str_TimerDetails s_TimerDetails[4];	//  supports 4 timers
-} str_TimerMainHeader;
+};
+
 
 typedef struct {
 	unsigned short w_Nchannel;
@@ -129,7 +131,7 @@ int i_EepromReadDigitalOutputHeader(unsigned short w_PCIBoardEepromAddress,
 
 int i_EepromReadTimerHeader(unsigned short w_PCIBoardEepromAddress,
 	char *pc_PCIChipInformation, unsigned short w_Address,
-	str_TimerMainHeader * s_Header);
+	struct str_TimerMainHeader * s_Header);
 
 int i_EepromReadAnlogOutputHeader(unsigned short w_PCIBoardEepromAddress,
 	char *pc_PCIChipInformation, unsigned short w_Address,
@@ -808,7 +810,7 @@ int i_EepromReadMainHeader(unsigned short w_PCIBoardEepromAddress,
 	struct str_MainHeader s_MainHeader;
 	struct str_DigitalInputHeader s_DigitalInputHeader;
 	struct str_DigitalOutputHeader s_DigitalOutputHeader;
-	//str_TimerMainHeader     s_TimerMainHeader,s_WatchdogMainHeader;
+	//struct str_TimerMainHeader     s_TimerMainHeader,s_WatchdogMainHeader;
 	str_AnalogOutputHeader s_AnalogOutputHeader;
 	str_AnalogInputHeader s_AnalogInputHeader;
 
@@ -995,7 +997,7 @@ int i_EepromReadDigitalOutputHeader(unsigned short w_PCIBoardEepromAddress,
 +----------------------------------------------------------------------------+
 | Function Name  : int i_EepromReadTimerHeader(unsigned short w_PCIBoardEepromAddress, |
 |			char *pc_PCIChipInformation,WORD w_Address,				 |
-|			str_TimerMainHeader *s_Header)							 |
+|			struct str_TimerMainHeader *s_Header)							 |
 +----------------------------------------------------------------------------+
 | Task              : Read Timer or Watchdog Header                          |
 +----------------------------------------------------------------------------+
@@ -1003,7 +1005,7 @@ int i_EepromReadDigitalOutputHeader(unsigned short w_PCIBoardEepromAddress,
 |																	 |
 |		      char *pc_PCIChipInformation  : PCI Chip Type.          |
 |																	 |
-|			 str_TimerMainHeader *s_Header: Timer Header			 |
+|			 struct str_TimerMainHeader *s_Header: Timer Header			 |
 |											   Pointer				 |
 +----------------------------------------------------------------------------+
 | Output Parameters : -                                                      |
@@ -1013,7 +1015,7 @@ int i_EepromReadDigitalOutputHeader(unsigned short w_PCIBoardEepromAddress,
 */
 int i_EepromReadTimerHeader(unsigned short w_PCIBoardEepromAddress,
 	char *pc_PCIChipInformation, unsigned short w_Address,
-	str_TimerMainHeader * s_Header)
+	struct str_TimerMainHeader * s_Header)
 {
 
 	unsigned short i, w_Size = 0, w_Temp;
