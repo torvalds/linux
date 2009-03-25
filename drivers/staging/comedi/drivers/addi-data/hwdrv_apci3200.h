@@ -116,7 +116,8 @@ struct str_Module {
 //END JK 21.10.2004: APCI-3200 / APCI-3300 Reading of EEPROM values
 
 //BEGIN JK 06.07.04: Management of sevrals boards
-typedef struct {
+struct str_BoardInfos {
+
 	int i_CJCAvailable;
 	int i_CJCPolarity;
 	int i_CJCGain;
@@ -149,7 +150,8 @@ typedef struct {
 	int i_NbrOfModule;
 	struct str_Module s_Module[MAX_MODULE];
 	//End JK 21.10.2004: APCI-3200 / APCI-3300 Reading of EEPROM values
-} str_BoardInfos;
+};
+
 //END JK 06.07.04: Management of sevrals boards
 
 // Hardware Layer  functions for Apci3200

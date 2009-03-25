@@ -87,7 +87,7 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
   int i_Initialised=0;
   unsigned int ui_InterruptChannelValue[96]; //Buffer
 */
-str_BoardInfos s_BoardInfos[100];	// 100 will be the max number of boards to be used
+struct str_BoardInfos s_BoardInfos[100];	// 100 will be the max number of boards to be used
 //END JK 06.07.04: Management of sevrals boards
 
 //Begin JK 21.10.2004: APCI-3200 / APCI-3300 Reading of EEPROM values
@@ -259,7 +259,7 @@ int i_AddiHeaderRW_ReadEeprom(int i_NbOfWordsToRead,
 /*+----------------------------------------------------------------------------+*/
 
 void v_GetAPCI3200EepromCalibrationValue(unsigned int dw_PCIBoardEepromAddress,
-	str_BoardInfos * BoardInformations)
+	struct str_BoardInfos *BoardInformations)
 {
 	unsigned short w_AnalogInputMainHeaderAddress;
 	unsigned short w_AnalogInputComponentAddress;
