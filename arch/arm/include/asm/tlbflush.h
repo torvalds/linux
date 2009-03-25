@@ -54,6 +54,7 @@
  *	  v4wb  - ARMv4 with write buffer without I TLB flush entry instruction
  *	  v4wbi - ARMv4 with write buffer with I TLB flush entry instruction
  *	  fr    - Feroceon (v4wbi with non-outer-cacheable page table walks)
+ *	  fa    - Faraday (v4 with write buffer with UTLB and branch target buffer (BTB))
  *	  v6wbi - ARMv6 with write buffer with I TLB flush entry instruction
  *	  v7wbi - identical to v6wbi
  */
@@ -88,6 +89,22 @@
 #else
 # define v4_possible_flags	0
 # define v4_always_flags	(-1UL)
+#endif
+
+#define fa_tlb_flags	(TLB_WB | TLB_BTB | TLB_DCLEAN | \
+			 TLB_V4_U_FULL | TLB_V4_U_PAGE)
+
+#ifdef CONFIG_CPU_TLB_FA
+# define fa_possible_flags	fa_tlb_flags
+# define fa_always_flags	fa_tlb_flags
+# ifdef _TLB
+#  define MULTI_TLB 1
+# else
+#  define _TLB fa
+# endif
+#else
+# define fa_possible_flags	0
+# define fa_always_flags	(-1UL)
 #endif
 
 #define v4wbi_tlb_flags	(TLB_WB | TLB_DCLEAN | \
@@ -268,6 +285,7 @@ extern struct cpu_tlb_fns cpu_tlb;
 				 v4wbi_possible_flags | \
 				 fr_possible_flags | \
 				 v4wb_possible_flags | \
+				 fa_possible_flags | \
 				 v6wbi_possible_flags | \
 				 v7wbi_possible_flags)
 
@@ -276,6 +294,7 @@ extern struct cpu_tlb_fns cpu_tlb;
 				 v4wbi_always_flags & \
 				 fr_always_flags & \
 				 v4wb_always_flags & \
+				 fa_always_flags & \
 				 v6wbi_always_flags & \
 				 v7wbi_always_flags)
 

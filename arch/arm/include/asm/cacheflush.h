@@ -46,6 +46,14 @@
 # define MULTI_CACHE 1
 #endif
 
+#if defined(CONFIG_CPU_FA526)
+# ifdef _CACHE
+#  define MULTI_CACHE 1
+# else
+#  define _CACHE fa
+# endif
+#endif
+
 #if defined(CONFIG_CPU_ARM926T)
 # ifdef _CACHE
 #  define MULTI_CACHE 1
