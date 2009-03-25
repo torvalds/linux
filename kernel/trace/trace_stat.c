@@ -125,23 +125,21 @@ static int stat_seq_init(struct tracer_stat_session *session)
 		INIT_LIST_HEAD(&new_entry->list);
 		new_entry->stat = stat;
 
-		list_for_each_entry(iter_entry, &session->stat_list, list) {
+		list_for_each_entry_reverse(iter_entry, &session->stat_list,
+				list) {
 
 			/* Insertion with a descendent sorting */
-			if (ts->stat_cmp(new_entry->stat,
-						iter_entry->stat) > 0) {
+			if (ts->stat_cmp(iter_entry->stat,
+					new_entry->stat) >= 0) {
 
-				list_add_tail(&new_entry->list,
-						&iter_entry->list);
-				break;
-
-			/* The current smaller value */
-			} else if (list_is_last(&iter_entry->list,
-						&session->stat_list)) {
 				list_add(&new_entry->list, &iter_entry->list);
 				break;
 			}
 		}
+
+		/* The current larger value */
+		if (list_empty(&new_entry->list))
+			list_add(&new_entry->list, &session->stat_list);
 	}
 exit:
 	mutex_unlock(&session->stat_mutex);
