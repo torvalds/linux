@@ -21,6 +21,15 @@
 #include <linux/spinlock.h>
 #include <linux/interrupt.h>
 
+/* on architectures without dma-mapping capabilities we need to ensure
+ * that the asynchronous path compiles away
+ */
+#ifdef CONFIG_HAS_DMA
+#define __async_inline
+#else
+#define __async_inline __always_inline
+#endif
+
 /**
  * dma_chan_ref - object used to manage dma channels received from the
  *   dmaengine core.
