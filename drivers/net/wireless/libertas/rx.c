@@ -160,8 +160,15 @@ int lbs_process_rxed_packet(struct lbs_private *priv, struct sk_buff *skb)
 
 	p_rx_pkt = (struct rxpackethdr *) skb->data;
 	p_rx_pd = &p_rx_pkt->rx_pd;
-	if (priv->mesh_dev && (p_rx_pd->rx_control & RxPD_MESH_FRAME))
-		dev = priv->mesh_dev;
+	if (priv->mesh_dev) {
+		if (priv->mesh_fw_ver == MESH_FW_OLD) {
+			if (p_rx_pd->rx_control & RxPD_MESH_FRAME)
+				dev = priv->mesh_dev;
+		} else if (priv->mesh_fw_ver == MESH_FW_NEW) {
+			if (p_rx_pd->u.bss.bss_num == MESH_IFACE_ID)
+				dev = priv->mesh_dev;
+		}
+	}
 
 	lbs_deb_hex(LBS_DEB_RX, "RX Data: Before chop rxpd", skb->data,
 		 min_t(unsigned int, skb->len, 100));
@@ -169,18 +176,6 @@ int lbs_process_rxed_packet(struct lbs_private *priv, struct sk_buff *skb)
 	if (skb->len < (ETH_HLEN + 8 + sizeof(struct rxpd))) {
 		lbs_deb_rx("rx err: frame received with bad length\n");
 		dev->stats.rx_length_errors++;
-		ret = 0;
-		dev_kfree_skb(skb);
-		goto done;
-	}
-
-	/*
-	 * Check rxpd status and update 802.3 stat,
-	 */
-	if (!(p_rx_pd->status & cpu_to_le16(MRVDRV_RXPD_STATUS_OK))) {
-		lbs_deb_rx("rx err: frame received with bad status\n");
-		lbs_pr_alert("rxpd not ok\n");
-		dev->stats.rx_errors++;
 		ret = 0;
 		dev_kfree_skb(skb);
 		goto done;
@@ -334,14 +329,6 @@ static int process_rxed_802_11_packet(struct lbs_private *priv,
 		goto done;
 	}
 
-	/*
-	 * Check rxpd status and update 802.3 stat,
-	 */
-	if (!(prxpd->status & cpu_to_le16(MRVDRV_RXPD_STATUS_OK))) {
-		//lbs_deb_rx("rx err: frame received with bad status\n");
-		dev->stats.rx_errors++;
-	}
-
 	lbs_deb_rx("rx data: skb->len-sizeof(RxPd) = %d-%zd = %zd\n",
 	       skb->len, sizeof(struct rxpd), skb->len - sizeof(struct rxpd));
 
@@ -353,8 +340,6 @@ static int process_rxed_802_11_packet(struct lbs_private *priv,
 	radiotap_hdr.hdr.it_pad = 0;
 	radiotap_hdr.hdr.it_len = cpu_to_le16 (sizeof(struct rx_radiotap_hdr));
 	radiotap_hdr.hdr.it_present = cpu_to_le32 (RX_RADIOTAP_PRESENT);
-	if (!(prxpd->status & cpu_to_le16(MRVDRV_RXPD_STATUS_OK)))
-		radiotap_hdr.flags |= IEEE80211_RADIOTAP_F_BADFCS;
 	radiotap_hdr.rate = convert_mv_rate_to_radiotap(prxpd->rx_rate);
 	/* XXX must check no carryout */
 	radiotap_hdr.antsignal = prxpd->snr + prxpd->nf;

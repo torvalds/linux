@@ -94,6 +94,8 @@ struct ieeetypes_assocrsp {
 #define TLV_TYPE_TSFTIMESTAMP	    (PROPRIETARY_TLV_BASE_ID + 19)
 #define TLV_TYPE_RSSI_HIGH          (PROPRIETARY_TLV_BASE_ID + 22)
 #define TLV_TYPE_SNR_HIGH           (PROPRIETARY_TLV_BASE_ID + 23)
+#define TLV_TYPE_MESH_ID            (PROPRIETARY_TLV_BASE_ID + 37)
+#define TLV_TYPE_OLD_MESH_ID        (PROPRIETARY_TLV_BASE_ID + 291)
 
 /** TLV related data structures*/
 struct mrvlietypesheader {
