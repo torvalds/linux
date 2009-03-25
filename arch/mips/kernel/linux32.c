@@ -235,7 +235,7 @@ SYSCALL_DEFINE6(32_ipc, u32, call, long, first, long, second, long, third,
 #else
 
 SYSCALL_DEFINE6(32_ipc, u32, call, int, first, int, second, int, third,
-	u32, ptr, u32 fifth)
+	u32, ptr, u32, fifth)
 {
 	return -ENOSYS;
 }

@@ -13,6 +13,8 @@
 
 #ifndef CONFIG_MACH_VOICEBLUE
 #define voiceblue_reset()		do {} while (0)
+#else
+extern void voiceblue_reset(void);
 #endif
 
 static inline void arch_idle(void)

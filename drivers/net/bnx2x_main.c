@@ -57,7 +57,7 @@
 #include "bnx2x.h"
 #include "bnx2x_init.h"
 
-#define DRV_MODULE_VERSION	"1.45.26"
+#define DRV_MODULE_VERSION	"1.45.27"
 #define DRV_MODULE_RELDATE	"2009/01/26"
 #define BNX2X_BC_VER		0x040200
 
@@ -4035,10 +4035,10 @@ static void bnx2x_zero_sb(struct bnx2x *bp, int sb_id)
 {
 	int port = BP_PORT(bp);
 
-	bnx2x_init_fill(bp, BAR_USTRORM_INTMEM +
+	bnx2x_init_fill(bp, USTORM_INTMEM_ADDR +
 			USTORM_SB_HOST_STATUS_BLOCK_OFFSET(port, sb_id), 0,
 			sizeof(struct ustorm_status_block)/4);
-	bnx2x_init_fill(bp, BAR_CSTRORM_INTMEM +
+	bnx2x_init_fill(bp, CSTORM_INTMEM_ADDR +
 			CSTORM_SB_HOST_STATUS_BLOCK_OFFSET(port, sb_id), 0,
 			sizeof(struct cstorm_status_block)/4);
 }
@@ -4092,18 +4092,18 @@ static void bnx2x_zero_def_sb(struct bnx2x *bp)
 {
 	int func = BP_FUNC(bp);
 
-	bnx2x_init_fill(bp, BAR_USTRORM_INTMEM +
-			USTORM_DEF_SB_HOST_STATUS_BLOCK_OFFSET(func), 0,
-			sizeof(struct ustorm_def_status_block)/4);
-	bnx2x_init_fill(bp, BAR_CSTRORM_INTMEM +
-			CSTORM_DEF_SB_HOST_STATUS_BLOCK_OFFSET(func), 0,
-			sizeof(struct cstorm_def_status_block)/4);
-	bnx2x_init_fill(bp, BAR_XSTRORM_INTMEM +
-			XSTORM_DEF_SB_HOST_STATUS_BLOCK_OFFSET(func), 0,
-			sizeof(struct xstorm_def_status_block)/4);
-	bnx2x_init_fill(bp, BAR_TSTRORM_INTMEM +
+	bnx2x_init_fill(bp, TSTORM_INTMEM_ADDR +
 			TSTORM_DEF_SB_HOST_STATUS_BLOCK_OFFSET(func), 0,
 			sizeof(struct tstorm_def_status_block)/4);
+	bnx2x_init_fill(bp, USTORM_INTMEM_ADDR +
+			USTORM_DEF_SB_HOST_STATUS_BLOCK_OFFSET(func), 0,
+			sizeof(struct ustorm_def_status_block)/4);
+	bnx2x_init_fill(bp, CSTORM_INTMEM_ADDR +
+			CSTORM_DEF_SB_HOST_STATUS_BLOCK_OFFSET(func), 0,
+			sizeof(struct cstorm_def_status_block)/4);
+	bnx2x_init_fill(bp, XSTORM_INTMEM_ADDR +
+			XSTORM_DEF_SB_HOST_STATUS_BLOCK_OFFSET(func), 0,
+			sizeof(struct xstorm_def_status_block)/4);
 }
 
 static void bnx2x_init_def_sb(struct bnx2x *bp,
@@ -4518,7 +4518,8 @@ static void bnx2x_init_context(struct bnx2x *bp)
 				(USTORM_ETH_ST_CONTEXT_CONFIG_ENABLE_TPA |
 				 USTORM_ETH_ST_CONTEXT_CONFIG_ENABLE_SGE_RING);
 			context->ustorm_st_context.common.sge_buff_size =
-					(u16)(BCM_PAGE_SIZE*PAGES_PER_SGE);
+				(u16)min((u32)SGE_PAGE_SIZE*PAGES_PER_SGE,
+					 (u32)0xffff);
 			context->ustorm_st_context.common.sge_page_base_hi =
 						U64_HI(fp->rx_sge_mapping);
 			context->ustorm_st_context.common.sge_page_base_lo =

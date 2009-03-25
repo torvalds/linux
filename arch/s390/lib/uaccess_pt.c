@@ -119,8 +119,6 @@ retry:
 			goto fault;
 
 		pfn = pte_pfn(*pte);
-		if (!pfn_valid(pfn))
-			goto out;
 
 		offset = uaddr & (PAGE_SIZE - 1);
 		size = min(n - done, PAGE_SIZE - offset);
@@ -135,7 +133,6 @@ retry:
 		done += size;
 		uaddr += size;
 	} while (done < n);
-out:
 	spin_unlock(&mm->page_table_lock);
 	return n - done;
 fault:
@@ -163,9 +160,6 @@ retry:
 		goto fault;
 
 	pfn = pte_pfn(*pte);
-	if (!pfn_valid(pfn))
-		goto out;
-
 	ret = (pfn << PAGE_SHIFT) + (uaddr & (PAGE_SIZE - 1));
 out:
 	return ret;
@@ -244,11 +238,6 @@ retry:
 			goto fault;
 
 		pfn = pte_pfn(*pte);
-		if (!pfn_valid(pfn)) {
-			done = -1;
-			goto out;
-		}
-
 		offset = uaddr & (PAGE_SIZE-1);
 		addr = (char *)(pfn << PAGE_SHIFT) + offset;
 		len = min(count - done, PAGE_SIZE - offset);
@@ -256,7 +245,6 @@ retry:
 		done += len_str;
 		uaddr += len_str;
 	} while ((len_str == len) && (done < count));
-out:
 	spin_unlock(&mm->page_table_lock);
 	return done + 1;
 fault:
@@ -325,12 +313,7 @@ retry:
 		}
 
 		pfn_from = pte_pfn(*pte_from);
-		if (!pfn_valid(pfn_from))
-			goto out;
 		pfn_to = pte_pfn(*pte_to);
-		if (!pfn_valid(pfn_to))
-			goto out;
-
 		offset_from = uaddr_from & (PAGE_SIZE-1);
 		offset_to = uaddr_from & (PAGE_SIZE-1);
 		offset_max = max(offset_from, offset_to);
@@ -342,7 +325,6 @@ retry:
 		uaddr_from += size;
 		uaddr_to += size;
 	} while (done < n);
-out:
 	spin_unlock(&mm->page_table_lock);
 	return n - done;
 fault:

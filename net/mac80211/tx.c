@@ -752,6 +752,8 @@ ieee80211_tx_h_fragment(struct ieee80211_tx_data *tx)
 		skb_copy_queue_mapping(frag, first);
 
 		frag->do_not_encrypt = first->do_not_encrypt;
+		frag->dev = first->dev;
+		frag->iif = first->iif;
 
 		pos += copylen;
 		left -= copylen;
