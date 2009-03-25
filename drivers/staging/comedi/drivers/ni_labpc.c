@@ -427,7 +427,7 @@ static const struct labpc_board_struct labpc_boards[] = {
 static const int dma_buffer_size = 0xff00;	// size in bytes of dma buffer
 static const int sample_size = 2;	// 2 bytes per sample
 
-#define devpriv ((labpc_private *)dev->private)
+#define devpriv ((struct labpc_private *)dev->private)
 
 static struct comedi_driver driver_labpc = {
 	.driver_name = DRV_NAME,
@@ -653,7 +653,7 @@ static int labpc_attach(struct comedi_device * dev, struct comedi_devconfig * it
 #endif
 
 	/* allocate and initialize dev->private */
-	if (alloc_private(dev, sizeof(labpc_private)) < 0)
+	if (alloc_private(dev, sizeof(struct labpc_private)) < 0)
 		return -ENOMEM;
 
 	// get base address, irq etc. based on bustype

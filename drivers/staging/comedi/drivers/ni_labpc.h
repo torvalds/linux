@@ -46,7 +46,7 @@ struct labpc_board_struct {
 	unsigned memory_mapped_io:1;	/* uses memory mapped io instead of ioports */
 };
 
-typedef struct {
+struct labpc_private {
 	struct mite_struct *mite;	// for mite chip on pci-1200
 	volatile unsigned long long count;	/* number of data points left to be taken */
 	unsigned int ao_value[NUM_AO_CHAN];	// software copy of analog output values
@@ -72,7 +72,7 @@ typedef struct {
 	// function pointers so we can use inb/outb or readb/writeb as appropriate
 	unsigned int (*read_byte) (unsigned long address);
 	void (*write_byte) (unsigned int byte, unsigned long address);
-} labpc_private;
+};
 
 int labpc_common_attach(struct comedi_device * dev, unsigned long iobase,
 	unsigned int irq, unsigned int dma);

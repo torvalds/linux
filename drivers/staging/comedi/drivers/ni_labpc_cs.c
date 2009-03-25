@@ -133,7 +133,7 @@ static int labpc_attach(struct comedi_device * dev, struct comedi_devconfig * it
 	struct pcmcia_device *link;
 
 	/* allocate and initialize dev->private */
-	if (alloc_private(dev, sizeof(labpc_private)) < 0)
+	if (alloc_private(dev, sizeof(struct labpc_private)) < 0)
 		return -ENOMEM;
 
 	// get base address, irq etc. based on bustype
