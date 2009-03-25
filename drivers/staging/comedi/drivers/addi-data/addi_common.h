@@ -37,7 +37,6 @@
 #define SUCCESS	1
 
 /* variable type definition */
-typedef unsigned short USHORT, *PUSHORT;
 typedef unsigned short WORD, *PWORD;
 typedef int INT, *PINT;;
 typedef unsigned int UINT, *PUINT;
@@ -50,9 +49,9 @@ typedef const struct comedi_lrange *PCRANGE;
 
 #define LOBYTE(W)	(unsigned char)((W) & 0xFF)
 #define HIBYTE(W)	(unsigned char)(((W) >> 8) & 0xFF)
-#define MAKEWORD(H, L)	(USHORT)((L) | ((H) << 8))
-#define LOWORD(W)	(USHORT)((W) & 0xFFFF)
-#define HIWORD(W)	(USHORT)(((W) >> 16) & 0xFFFF)
+#define MAKEWORD(H, L)	(unsigned short)((L) | ((H) << 8))
+#define LOWORD(W)	(unsigned short)((W) & 0xFFFF)
+#define HIWORD(W)	(unsigned short)(((W) >> 16) & 0xFFFF)
 #define MAKEDWORD(H, L)	(UINT)((L) | ((H) << 16))
 
 #define ADDI_ENABLE		1
@@ -385,7 +384,7 @@ typedef struct {
 	UINT ui_AiDataLength;
 	short *AiData;	// Pointer to sample data
 	UINT ui_AiNbrofScans;	// number of scans to do
-	USHORT us_UseDma;	// To use Dma or not
+	unsigned short us_UseDma;	// To use Dma or not
 	unsigned char b_DmaDoubleBuffer;	// we can use double buffering
 	UINT ui_DmaActualBuffer;	// which buffer is used now
 	//*UPDATE-0.7.57->0.7.68
@@ -402,7 +401,7 @@ typedef struct {
 	unsigned char b_AnalogOutputChannelNbr;	// Analog input Output  Nbr
 	unsigned char b_TimerSelectMode;	// Contain data written at iobase + 0C
 	unsigned char b_ModeSelectRegister;	// Contain data written at iobase + 0E
-	USHORT us_OutputRegister;	// Contain data written at iobase + 0
+	unsigned short us_OutputRegister;	// Contain data written at iobase + 0
 	unsigned char b_InterruptState;
 	unsigned char b_TimerInit;	// Specify if InitTimerWatchdog was load
 	unsigned char b_TimerStarted;	// Specify if timer 2 is running or not

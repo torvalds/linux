@@ -148,7 +148,7 @@ int i_APCI3120_InsnConfigAnalogInput(struct comedi_device * dev, struct comedi_s
 int i_APCI3120_InsnReadAnalogInput(struct comedi_device * dev, struct comedi_subdevice * s,
 	struct comedi_insn * insn, unsigned int * data)
 {
-	USHORT us_ConvertTiming, us_TmpValue, i;
+	unsigned short us_ConvertTiming, us_TmpValue, i;
 	unsigned char b_Tmp;
 
 	// fix convertion time to 10 us
@@ -156,7 +156,7 @@ int i_APCI3120_InsnReadAnalogInput(struct comedi_device * dev, struct comedi_sub
 		printk("No timer0 Value using 10 us\n");
 		us_ConvertTiming = 10;
 	} else
-		us_ConvertTiming = (USHORT) (devpriv->ui_EocEosConversionTime / 1000);	// nano to useconds
+		us_ConvertTiming = (unsigned short) (devpriv->ui_EocEosConversionTime / 1000);	// nano to useconds
 
 	// this_board->i_hwdrv_InsnReadAnalogInput(dev,us_ConvertTiming,insn->n,&insn->chanspec,data,insn->unused[0]);
 
@@ -179,7 +179,7 @@ int i_APCI3120_InsnReadAnalogInput(struct comedi_device * dev, struct comedi_sub
 		//to set in the timer
 
 		us_TmpValue =
-			(USHORT) inw(devpriv->iobase + APCI3120_RD_STATUS);
+			(unsigned short) inw(devpriv->iobase + APCI3120_RD_STATUS);
 
 		//EL250804: Testing if board APCI3120 have the new Quartz or if it is an APCI3001
 		if ((us_TmpValue & 0x00B0) == 0x00B0
@@ -190,7 +190,7 @@ int i_APCI3120_InsnReadAnalogInput(struct comedi_device * dev, struct comedi_sub
 				((us_ConvertTiming * 12926) / 10000) - 1;
 		}
 
-		us_TmpValue = (USHORT) devpriv->b_InterruptMode;
+		us_TmpValue = (unsigned short) devpriv->b_InterruptMode;
 
 		switch (us_TmpValue) {
 
@@ -260,7 +260,7 @@ int i_APCI3120_InsnReadAnalogInput(struct comedi_device * dev, struct comedi_sub
 				devpriv->iobase + APCI3120_TIMER_VALUE);
 
 			us_TmpValue =
-				(USHORT) inw(dev->iobase + APCI3120_RD_STATUS);
+				(unsigned short) inw(dev->iobase + APCI3120_RD_STATUS);
 
 			if (devpriv->b_EocEosInterrupt == APCI3120_DISABLE) {
 
@@ -714,7 +714,7 @@ int i_APCI3120_CyclicAnalogInput(int mode, struct comedi_device * dev,
 	UINT ui_Tmp, ui_DelayTiming = 0, ui_TimerValue1 = 0, dmalen0 =
 		0, dmalen1 = 0, ui_TimerValue2 =
 		0, ui_TimerValue0, ui_ConvertTiming;
-	USHORT us_TmpValue;
+	unsigned short us_TmpValue;
 
 	//BEGIN JK 07.05.04: Comparison between WIN32 and Linux driver
 	//devpriv->b_AiCyclicAcquisition=APCI3120_ENABLE;
@@ -795,7 +795,7 @@ int i_APCI3120_CyclicAnalogInput(int mode, struct comedi_device * dev,
 			devpriv->pui_AiChannelList, 0))
 		return -EINVAL;
 
-	us_TmpValue = (USHORT) inw(dev->iobase + APCI3120_RD_STATUS);
+	us_TmpValue = (unsigned short) inw(dev->iobase + APCI3120_RD_STATUS);
 /*** EL241003 : add this section in comment because floats must not be used
 	 if((us_TmpValue & 0x00B0)==0x00B0)
 	 {
@@ -861,7 +861,7 @@ int i_APCI3120_CyclicAnalogInput(int mode, struct comedi_device * dev,
 			APCI3120_SELECT_TIMER_0_WORD;
 		outb(b_Tmp, dev->iobase + APCI3120_TIMER_CRT0);
 		//Set the convertion time
-		outw(((USHORT) ui_TimerValue0),
+		outw(((unsigned short) ui_TimerValue0),
 			dev->iobase + APCI3120_TIMER_VALUE);
 		break;
 
@@ -879,7 +879,7 @@ int i_APCI3120_CyclicAnalogInput(int mode, struct comedi_device * dev,
 			APCI3120_SELECT_TIMER_1_WORD;
 		outb(b_Tmp, dev->iobase + APCI3120_TIMER_CRT0);
 		//Set the convertion time
-		outw(((USHORT) ui_TimerValue1),
+		outw(((unsigned short) ui_TimerValue1),
 			dev->iobase + APCI3120_TIMER_VALUE);
 
 		// init timer0 in mode 2
@@ -896,7 +896,7 @@ int i_APCI3120_CyclicAnalogInput(int mode, struct comedi_device * dev,
 		outb(b_Tmp, dev->iobase + APCI3120_TIMER_CRT0);
 
 		//Set the convertion time
-		outw(((USHORT) ui_TimerValue0),
+		outw(((unsigned short) ui_TimerValue0),
 			dev->iobase + APCI3120_TIMER_VALUE);
 		break;
 
@@ -1422,10 +1422,10 @@ int i_APCI3120_ExttrigDisable(struct comedi_device * dev)
 void v_APCI3120_Interrupt(int irq, void *d)
 {
 	struct comedi_device *dev = d;
-	USHORT int_daq;
+	unsigned short int_daq;
 
 	unsigned int int_amcc, ui_Check, i;
-	USHORT us_TmpValue;
+	unsigned short us_TmpValue;
 	unsigned char b_DummyRead;
 
 	struct comedi_subdevice *s = dev->subdevices + 0;
@@ -1973,7 +1973,7 @@ int i_APCI3120_InsnConfigTimer(struct comedi_device * dev, struct comedi_subdevi
 {
 
 	UINT ui_Timervalue2;
-	USHORT us_TmpValue;
+	unsigned short us_TmpValue;
 	unsigned char b_Tmp;
 
 	if (!data[1])
@@ -1984,7 +1984,7 @@ int i_APCI3120_InsnConfigTimer(struct comedi_device * dev, struct comedi_subdevi
 	ui_Timervalue2 = data[1] / 1000;	// convert nano seconds  to u seconds
 
 	//this_board->i_hwdrv_InsnConfigTimer(dev, ui_Timervalue2,(unsigned char)data[0]);
-	us_TmpValue = (USHORT) inw(devpriv->iobase + APCI3120_RD_STATUS);
+	us_TmpValue = (unsigned short) inw(devpriv->iobase + APCI3120_RD_STATUS);
 
 	//EL250804: Testing if board APCI3120 have the new Quartz or if it is an APCI3001
 	// and calculate the time value to set in the timer
@@ -2124,7 +2124,7 @@ int i_APCI3120_InsnWriteTimer(struct comedi_device * dev, struct comedi_subdevic
 {
 
 	UINT ui_Timervalue2 = 0;
-	USHORT us_TmpValue;
+	unsigned short us_TmpValue;
 	unsigned char b_Tmp;
 
 	if ((devpriv->b_Timer2Mode != APCI3120_WATCHDOG)
@@ -2244,7 +2244,7 @@ int i_APCI3120_InsnWriteTimer(struct comedi_device * dev, struct comedi_subdevic
 		}
 		// ui_Timervalue2=data[1]; // passed as argument
 		us_TmpValue =
-			(USHORT) inw(devpriv->iobase + APCI3120_RD_STATUS);
+			(unsigned short) inw(devpriv->iobase + APCI3120_RD_STATUS);
 
 		//EL250804: Testing if board APCI3120 have the new Quartz or if it is an APCI3001
 		// and calculate the time value to set in the timer
@@ -2309,7 +2309,7 @@ int i_APCI3120_InsnReadTimer(struct comedi_device * dev, struct comedi_subdevice
 	struct comedi_insn * insn, unsigned int * data)
 {
 	unsigned char b_Tmp;
-	USHORT us_TmpValue, us_TmpValue_2, us_StatusValue;
+	unsigned short us_TmpValue, us_TmpValue_2, us_StatusValue;
 
 	if ((devpriv->b_Timer2Mode != APCI3120_WATCHDOG)
 		&& (devpriv->b_Timer2Mode != APCI3120_TIMER)) {
@@ -2647,7 +2647,7 @@ int i_APCI3120_InsnWriteAnalogOutput(struct comedi_device *dev,
 				     unsigned int *data)
 {
 	UINT ui_Range, ui_Channel;
-	USHORT us_TmpValue;
+	unsigned short us_TmpValue;
 
 	ui_Range = CR_RANGE(insn->chanspec);
 	ui_Channel = CR_CHAN(insn->chanspec);
@@ -2678,19 +2678,19 @@ int i_APCI3120_InsnWriteAnalogOutput(struct comedi_device *dev,
 	do			//Waiting of DA_READY BIT
 	{
 		us_TmpValue =
-			((USHORT) inw(devpriv->iobase +
+			((unsigned short) inw(devpriv->iobase +
 				APCI3120_RD_STATUS)) & 0x0001;
 	} while (us_TmpValue != 0x0001);
 
 	if (ui_Channel <= 3)
 		// for channel 0-3 out at  the register 1 (wrDac1-8)
 		// data[i] typecasted to ushort since  word write is to be done
-		outw((USHORT) data[0],
+		outw((unsigned short) data[0],
 			devpriv->iobase + APCI3120_ANALOG_OUTPUT_1);
 	else
 		// for channel 4-7 out at the register 2 (wrDac5-8)
 		//data[i] typecasted to ushort since  word write is to be done
-		outw((USHORT) data[0],
+		outw((unsigned short) data[0],
 			devpriv->iobase + APCI3120_ANALOG_OUTPUT_2);
 
 	return insn->n;
