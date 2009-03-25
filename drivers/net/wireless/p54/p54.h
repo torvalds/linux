@@ -125,6 +125,7 @@ struct p54_led_dev {
 	struct led_classdev led_dev;
 	char name[P54_LED_MAX_NAME_LEN + 1];
 
+	unsigned int toggled;
 	unsigned int index;
 	unsigned int registered;
 };
@@ -186,10 +187,10 @@ struct p54_common {
 	u8 rx_keycache_size;
 
 	/* LED management */
-#ifdef CONFIG_P54_LEDS
-	struct p54_led_dev assoc_led;
-	struct p54_led_dev tx_led;
-#endif /* CONFIG_P54_LEDS */
+#ifdef CONFIG_MAC80211_LEDS
+	struct p54_led_dev leds[4];
+	struct delayed_work led_work;
+#endif /* CONFIG_MAC80211_LEDS */
 	u16 softled_state;		/* bit field of glowing LEDs */
 
 	/* statistics */
