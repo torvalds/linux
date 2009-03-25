@@ -3190,6 +3190,37 @@ static int move_one_task(struct rq *this_rq, int this_cpu, struct rq *busiest,
 	return 0;
 }
 /********** Helpers for find_busiest_group ************************/
+/**
+ * sd_lb_stats - Structure to store the statistics of a sched_domain
+ * 		during load balancing.
+ */
+struct sd_lb_stats {
+	struct sched_group *busiest; /* Busiest group in this sd */
+	struct sched_group *this;  /* Local group in this sd */
+	unsigned long total_load;  /* Total load of all groups in sd */
+	unsigned long total_pwr;   /*	Total power of all groups in sd */
+	unsigned long avg_load;	   /* Average load across all groups in sd */
+
+	/** Statistics of this group */
+	unsigned long this_load;
+	unsigned long this_load_per_task;
+	unsigned long this_nr_running;
+
+	/* Statistics of the busiest group */
+	unsigned long max_load;
+	unsigned long busiest_load_per_task;
+	unsigned long busiest_nr_running;
+
+	int group_imb; /* Is there imbalance in this sd */
+#if defined(CONFIG_SCHED_MC) || defined(CONFIG_SCHED_SMT)
+	int power_savings_balance; /* Is powersave balance needed for this sd */
+	struct sched_group *group_min; /* Least loaded group in sd */
+	struct sched_group *group_leader; /* Group which relieves group_min */
+	unsigned long min_load_per_task; /* load_per_task in group_min */
+	unsigned long leader_nr_running; /* Nr running of group_leader */
+	unsigned long min_nr_running; /* Nr running of group_min */
+#endif
+};
 
 /**
  * sg_lb_stats - stats of a sched_group required for load_balancing
@@ -3346,23 +3377,16 @@ find_busiest_group(struct sched_domain *sd, int this_cpu,
 		   unsigned long *imbalance, enum cpu_idle_type idle,
 		   int *sd_idle, const struct cpumask *cpus, int *balance)
 {
-	struct sched_group *busiest = NULL, *this = NULL, *group = sd->groups;
-	unsigned long max_load, avg_load, total_load, this_load, total_pwr;
+	struct sd_lb_stats sds;
+	struct sched_group *group = sd->groups;
 	unsigned long max_pull;
-	unsigned long busiest_load_per_task, busiest_nr_running;
-	unsigned long this_load_per_task, this_nr_running;
-	int load_idx, group_imb = 0;
+	int load_idx;
+
+	memset(&sds, 0, sizeof(sds));
 #if defined(CONFIG_SCHED_MC) || defined(CONFIG_SCHED_SMT)
-	int power_savings_balance = 1;
-	unsigned long leader_nr_running = 0, min_load_per_task = 0;
-	unsigned long min_nr_running = ULONG_MAX;
-	struct sched_group *group_min = NULL, *group_leader = NULL;
+	sds.power_savings_balance = 1;
+	sds.min_nr_running = ULONG_MAX;
 #endif
-
-	max_load = this_load = total_load = total_pwr = 0;
-	busiest_load_per_task = busiest_nr_running = 0;
-	this_load_per_task = this_nr_running = 0;
-
 	load_idx = get_sd_load_idx(sd, idle);
 
 	do {
@@ -3378,22 +3402,22 @@ find_busiest_group(struct sched_domain *sd, int this_cpu,
 		if (balance && !(*balance))
 			goto ret;
 
-		total_load += sgs.group_load;
-		total_pwr += group->__cpu_power;
+		sds.total_load += sgs.group_load;
+		sds.total_pwr += group->__cpu_power;
 
 		if (local_group) {
-			this_load = sgs.avg_load;
-			this = group;
-			this_nr_running = sgs.sum_nr_running;
-			this_load_per_task = sgs.sum_weighted_load;
-		} else if (sgs.avg_load > max_load &&
+			sds.this_load = sgs.avg_load;
+			sds.this = group;
+			sds.this_nr_running = sgs.sum_nr_running;
+			sds.this_load_per_task = sgs.sum_weighted_load;
+		} else if (sgs.avg_load > sds.max_load &&
 			   (sgs.sum_nr_running > sgs.group_capacity ||
 				sgs.group_imb)) {
-			max_load = sgs.avg_load;
-			busiest = group;
-			busiest_nr_running = sgs.sum_nr_running;
-			busiest_load_per_task = sgs.sum_weighted_load;
-			group_imb = sgs.group_imb;
+			sds.max_load = sgs.avg_load;
+			sds.busiest = group;
+			sds.busiest_nr_running = sgs.sum_nr_running;
+			sds.busiest_load_per_task = sgs.sum_weighted_load;
+			sds.group_imb = sgs.group_imb;
 		}
 
 #if defined(CONFIG_SCHED_MC) || defined(CONFIG_SCHED_SMT)
@@ -3409,15 +3433,16 @@ find_busiest_group(struct sched_domain *sd, int this_cpu,
 		 * If the local group is idle or completely loaded
 		 * no need to do power savings balance at this domain
 		 */
-		if (local_group && (this_nr_running >= sgs.group_capacity ||
-				    !this_nr_running))
-			power_savings_balance = 0;
+		if (local_group &&
+			(sds.this_nr_running >= sgs.group_capacity ||
+			!sds.this_nr_running))
+			sds.power_savings_balance = 0;
 
 		/*
 		 * If a group is already running at full capacity or idle,
 		 * don't include that group in power savings calculations
 		 */
-		if (!power_savings_balance ||
+		if (!sds.power_savings_balance ||
 			sgs.sum_nr_running >= sgs.group_capacity ||
 			!sgs.sum_nr_running)
 			goto group_next;
@@ -3427,12 +3452,13 @@ find_busiest_group(struct sched_domain *sd, int this_cpu,
 		 * This is the group from where we need to pick up the load
 		 * for saving power
 		 */
-		if ((sgs.sum_nr_running < min_nr_running) ||
-		    (sgs.sum_nr_running == min_nr_running &&
-		     group_first_cpu(group) > group_first_cpu(group_min))) {
-			group_min = group;
-			min_nr_running = sgs.sum_nr_running;
-			min_load_per_task = sgs.sum_weighted_load /
+		if ((sgs.sum_nr_running < sds.min_nr_running) ||
+		    (sgs.sum_nr_running == sds.min_nr_running &&
+		     group_first_cpu(group) >
+			group_first_cpu(sds.group_min))) {
+			sds.group_min = group;
+			sds.min_nr_running = sgs.sum_nr_running;
+			sds.min_load_per_task = sgs.sum_weighted_load /
 						sgs.sum_nr_running;
 		}
 
@@ -3444,29 +3470,32 @@ find_busiest_group(struct sched_domain *sd, int this_cpu,
 		if (sgs.sum_nr_running > sgs.group_capacity - 1)
 			goto group_next;
 
-		if (sgs.sum_nr_running > leader_nr_running ||
-		    (sgs.sum_nr_running == leader_nr_running &&
-		     group_first_cpu(group) < group_first_cpu(group_leader))) {
-			group_leader = group;
-			leader_nr_running = sgs.sum_nr_running;
+		if (sgs.sum_nr_running > sds.leader_nr_running ||
+		    (sgs.sum_nr_running == sds.leader_nr_running &&
+		     group_first_cpu(group) <
+			group_first_cpu(sds.group_leader))) {
+			sds.group_leader = group;
+			sds.leader_nr_running = sgs.sum_nr_running;
 		}
 group_next:
 #endif
 		group = group->next;
 	} while (group != sd->groups);
 
-	if (!busiest || this_load >= max_load || busiest_nr_running == 0)
+	if (!sds.busiest || sds.this_load >= sds.max_load
+		|| sds.busiest_nr_running == 0)
 		goto out_balanced;
 
-	avg_load = (SCHED_LOAD_SCALE * total_load) / total_pwr;
+	sds.avg_load = (SCHED_LOAD_SCALE * sds.total_load) / sds.total_pwr;
 
-	if (this_load >= avg_load ||
-			100*max_load <= sd->imbalance_pct*this_load)
+	if (sds.this_load >= sds.avg_load ||
+			100*sds.max_load <= sd->imbalance_pct * sds.this_load)
 		goto out_balanced;
 
-	busiest_load_per_task /= busiest_nr_running;
-	if (group_imb)
-		busiest_load_per_task = min(busiest_load_per_task, avg_load);
+	sds.busiest_load_per_task /= sds.busiest_nr_running;
+	if (sds.group_imb)
+		sds.busiest_load_per_task =
+			min(sds.busiest_load_per_task, sds.avg_load);
 
 	/*
 	 * We're trying to get all the cpus to the average_load, so we don't
@@ -3479,7 +3508,7 @@ group_next:
 	 * by pulling tasks to us. Be careful of negative numbers as they'll
 	 * appear as very large values with unsigned longs.
 	 */
-	if (max_load <= busiest_load_per_task)
+	if (sds.max_load <= sds.busiest_load_per_task)
 		goto out_balanced;
 
 	/*
@@ -3487,17 +3516,18 @@ group_next:
 	 * max load less than avg load(as we skip the groups at or below
 	 * its cpu_power, while calculating max_load..)
 	 */
-	if (max_load < avg_load) {
+	if (sds.max_load < sds.avg_load) {
 		*imbalance = 0;
 		goto small_imbalance;
 	}
 
 	/* Don't want to pull so many tasks that a group would go idle */
-	max_pull = min(max_load - avg_load, max_load - busiest_load_per_task);
+	max_pull = min(sds.max_load - sds.avg_load,
+			sds.max_load - sds.busiest_load_per_task);
 
 	/* How much load to actually move to equalise the imbalance */
-	*imbalance = min(max_pull * busiest->__cpu_power,
-				(avg_load - this_load) * this->__cpu_power)
+	*imbalance = min(max_pull * sds.busiest->__cpu_power,
+			(sds.avg_load - sds.this_load) * sds.this->__cpu_power)
 			/ SCHED_LOAD_SCALE;
 
 	/*
@@ -3506,24 +3536,27 @@ group_next:
 	 * a think about bumping its value to force at least one task to be
 	 * moved
 	 */
-	if (*imbalance < busiest_load_per_task) {
+	if (*imbalance < sds.busiest_load_per_task) {
 		unsigned long tmp, pwr_now, pwr_move;
 		unsigned int imbn;
 
 small_imbalance:
 		pwr_move = pwr_now = 0;
 		imbn = 2;
-		if (this_nr_running) {
-			this_load_per_task /= this_nr_running;
-			if (busiest_load_per_task > this_load_per_task)
+		if (sds.this_nr_running) {
+			sds.this_load_per_task /= sds.this_nr_running;
+			if (sds.busiest_load_per_task >
+					sds.this_load_per_task)
 				imbn = 1;
 		} else
-			this_load_per_task = cpu_avg_load_per_task(this_cpu);
+			sds.this_load_per_task =
+				cpu_avg_load_per_task(this_cpu);
 
-		if (max_load - this_load + busiest_load_per_task >=
-					busiest_load_per_task * imbn) {
-			*imbalance = busiest_load_per_task;
-			return busiest;
+		if (sds.max_load - sds.this_load +
+			sds.busiest_load_per_task >=
+				sds.busiest_load_per_task * imbn) {
+			*imbalance = sds.busiest_load_per_task;
+			return sds.busiest;
 		}
 
 		/*
@@ -3532,52 +3565,54 @@ small_imbalance:
 		 * moving them.
 		 */
 
-		pwr_now += busiest->__cpu_power *
-				min(busiest_load_per_task, max_load);
-		pwr_now += this->__cpu_power *
-				min(this_load_per_task, this_load);
+		pwr_now += sds.busiest->__cpu_power *
+				min(sds.busiest_load_per_task, sds.max_load);
+		pwr_now += sds.this->__cpu_power *
+				min(sds.this_load_per_task, sds.this_load);
 		pwr_now /= SCHED_LOAD_SCALE;
 
 		/* Amount of load we'd subtract */
-		tmp = sg_div_cpu_power(busiest,
-				busiest_load_per_task * SCHED_LOAD_SCALE);
-		if (max_load > tmp)
-			pwr_move += busiest->__cpu_power *
-				min(busiest_load_per_task, max_load - tmp);
+		tmp = sg_div_cpu_power(sds.busiest,
+				sds.busiest_load_per_task * SCHED_LOAD_SCALE);
+		if (sds.max_load > tmp)
+			pwr_move += sds.busiest->__cpu_power *
+				min(sds.busiest_load_per_task,
+						sds.max_load - tmp);
 
 		/* Amount of load we'd add */
-		if (max_load * busiest->__cpu_power <
-				busiest_load_per_task * SCHED_LOAD_SCALE)
-			tmp = sg_div_cpu_power(this,
-					max_load * busiest->__cpu_power);
+		if (sds.max_load * sds.busiest->__cpu_power <
+				sds.busiest_load_per_task * SCHED_LOAD_SCALE)
+			tmp = sg_div_cpu_power(sds.this,
+				sds.max_load * sds.busiest->__cpu_power);
 		else
-			tmp = sg_div_cpu_power(this,
-				busiest_load_per_task * SCHED_LOAD_SCALE);
-		pwr_move += this->__cpu_power *
-				min(this_load_per_task, this_load + tmp);
+			tmp = sg_div_cpu_power(sds.this,
+				sds.busiest_load_per_task * SCHED_LOAD_SCALE);
+		pwr_move += sds.this->__cpu_power *
+				min(sds.this_load_per_task,
+					sds.this_load + tmp);
 		pwr_move /= SCHED_LOAD_SCALE;
 
 		/* Move if we gain throughput */
 		if (pwr_move > pwr_now)
-			*imbalance = busiest_load_per_task;
+			*imbalance = sds.busiest_load_per_task;
 	}
 
-	return busiest;
+	return sds.busiest;
 
 out_balanced:
 #if defined(CONFIG_SCHED_MC) || defined(CONFIG_SCHED_SMT)
 	if (idle == CPU_NOT_IDLE || !(sd->flags & SD_POWERSAVINGS_BALANCE))
 		goto ret;
 
-	if (this != group_leader || group_leader == group_min)
+	if (sds.this != sds.group_leader || sds.group_leader == sds.group_min)
 		goto ret;
 
-	*imbalance = min_load_per_task;
+	*imbalance = sds.min_load_per_task;
 	if (sched_mc_power_savings >= POWERSAVINGS_BALANCE_WAKEUP) {
 		cpu_rq(this_cpu)->rd->sched_mc_preferred_wakeup_cpu =
-			group_first_cpu(group_leader);
+			group_first_cpu(sds.group_leader);
 	}
-	return group_min;
+	return sds.group_min;
 
 #endif
 ret:
