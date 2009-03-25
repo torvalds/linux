@@ -1422,6 +1422,7 @@ struct perf_output_handle {
 	struct perf_counter	*counter;
 	struct perf_mmap_data	*data;
 	unsigned int		offset;
+	unsigned int		head;
 	int			wakeup;
 };
 
@@ -1447,6 +1448,7 @@ static int perf_output_begin(struct perf_output_handle *handle,
 	handle->counter	= counter;
 	handle->data	= data;
 	handle->offset	= offset;
+	handle->head	= head;
 	handle->wakeup	= (offset >> PAGE_SHIFT) != (head >> PAGE_SHIFT);
 
 	return 0;
@@ -1485,6 +1487,8 @@ static void perf_output_copy(struct perf_output_handle *handle,
 	} while (len);
 
 	handle->offset = offset;
+
+	WARN_ON_ONCE(handle->offset > handle->head);
 }
 
 #define perf_output_put(handle, x) \
