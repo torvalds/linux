@@ -37,7 +37,6 @@
 #define SUCCESS	1
 
 /* variable type definition */
-typedef short SHORT, *PSHORT;
 typedef unsigned short USHORT, *PUSHORT;
 typedef unsigned short WORD, *PWORD;
 typedef int INT, *PINT;;
