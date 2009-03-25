@@ -46,8 +46,8 @@
 #include <linux/fb.h>
 #include <linux/pci.h>
 #include <linux/init.h>
+#include <linux/io.h>
 
-#include <asm/io.h>
 #include <asm/pgtable.h>
 #include <asm/system.h>
 
