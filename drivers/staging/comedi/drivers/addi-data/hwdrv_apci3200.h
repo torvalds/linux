@@ -100,7 +100,8 @@ typedef struct {
 } str_ADDIDATA_RTDStruct, *pstr_ADDIDATA_RTDStruct;
 
 //BEGIN JK 21.10.2004: APCI-3200 / APCI-3300 Reading of EEPROM values
-typedef struct {
+struct str_Module {
+
 	// Begin JK 05/08/2003 change for Linux
 	unsigned long ul_CurrentSourceCJC;
 	unsigned long ul_CurrentSource[5];
@@ -110,7 +111,8 @@ typedef struct {
 	unsigned long ul_GainFactor[8];	// Gain Factor
 	unsigned int w_GainValue[10];
 	// End CG 15/02/02 Rev 1.0 -> Rev 1.1 : Add Header Type 1
-} str_Module;
+};
+
 //END JK 21.10.2004: APCI-3200 / APCI-3300 Reading of EEPROM values
 
 //BEGIN JK 06.07.04: Management of sevrals boards
@@ -145,7 +147,7 @@ typedef struct {
 	//Begin JK 21.10.2004: APCI-3200 / APCI-3300 Reading of EEPROM values
 	int i_ConnectionType;
 	int i_NbrOfModule;
-	str_Module s_Module[MAX_MODULE];
+	struct str_Module s_Module[MAX_MODULE];
 	//End JK 21.10.2004: APCI-3200 / APCI-3300 Reading of EEPROM values
 } str_BoardInfos;
 //END JK 06.07.04: Management of sevrals boards
