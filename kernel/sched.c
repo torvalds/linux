@@ -3386,8 +3386,17 @@ static inline void update_sd_lb_stats(struct sched_domain *sd, int this_cpu,
 	int load_idx;
 
 #if defined(CONFIG_SCHED_MC) || defined(CONFIG_SCHED_SMT)
-	sds->power_savings_balance = 1;
-	sds->min_nr_running = ULONG_MAX;
+	/*
+	 * Busy processors will not participate in power savings
+	 * balance.
+	 */
+	if (idle == CPU_NOT_IDLE || !(sd->flags & SD_POWERSAVINGS_BALANCE))
+		sds->power_savings_balance = 0;
+	else {
+		sds->power_savings_balance = 1;
+		sds->min_nr_running = ULONG_MAX;
+		sds->leader_nr_running = 0;
+	}
 #endif
 	load_idx = get_sd_load_idx(sd, idle);
 
@@ -3422,12 +3431,8 @@ static inline void update_sd_lb_stats(struct sched_domain *sd, int this_cpu,
 		}
 
 #if defined(CONFIG_SCHED_MC) || defined(CONFIG_SCHED_SMT)
-		/*
-		 * Busy processors will not participate in power savings
-		 * balance.
-		 */
-		if (idle == CPU_NOT_IDLE ||
-				!(sd->flags & SD_POWERSAVINGS_BALANCE))
+
+		if (!sds->power_savings_balance)
 			goto group_next;
 
 		/*
@@ -3651,7 +3656,7 @@ find_busiest_group(struct sched_domain *sd, int this_cpu,
 
 out_balanced:
 #if defined(CONFIG_SCHED_MC) || defined(CONFIG_SCHED_SMT)
-	if (idle == CPU_NOT_IDLE || !(sd->flags & SD_POWERSAVINGS_BALANCE))
+	if (!sds.power_savings_balance)
 		goto ret;
 
 	if (sds.this != sds.group_leader || sds.group_leader == sds.group_min)
