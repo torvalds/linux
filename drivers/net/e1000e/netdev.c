@@ -48,7 +48,7 @@
 
 #include "e1000.h"
 
-#define DRV_VERSION "0.3.3.4-k2"
+#define DRV_VERSION "0.3.3.4-k4"
 char e1000e_driver_name[] = "e1000e";
 const char e1000e_driver_version[] = DRV_VERSION;
 
