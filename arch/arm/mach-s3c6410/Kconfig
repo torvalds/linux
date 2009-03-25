@@ -16,6 +16,7 @@ config CPU_S3C6410
 
 config S3C6410_SETUP_SDHCI
 	bool
+	select S3C64XX_SETUP_SDHCI_GPIO
 	help
 	  Internal helper functions for S3C6410 based SDHCI systems
 

@@ -40,7 +40,12 @@
 
 void __init s3c6400_map_io(void)
 {
-	/* the i2c device is directly compatible with s3c2440 */
+	/* setup SDHCI */
+
+	s3c6400_default_sdhci0();
+	s3c6400_default_sdhci1();
+
+	/* the i2c devices are directly compatible with s3c2440 */
 	s3c_i2c0_setname("s3c2440-i2c");
 }
 

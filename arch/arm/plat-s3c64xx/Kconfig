@@ -60,4 +60,9 @@ config S3C64XX_SETUP_FB_24BPP
 	help
 	  Common setup code for S3C64XX with an 24bpp RGB display helper.
 
+config S3C64XX_SETUP_SDHCI_GPIO
+	bool
+	help
+	  Common setup code for S3C64XX SDHCI GPIO configurations
+
 endif
