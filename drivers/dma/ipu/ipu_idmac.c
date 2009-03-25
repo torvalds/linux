@@ -983,8 +983,6 @@ static int idmac_desc_alloc(struct idmac_channel *ichan, int n)
 		memset(txd, 0, sizeof(*txd));
 		dma_async_tx_descriptor_init(txd, &ichan->dma_chan);
 		txd->tx_submit		= idmac_tx_submit;
-		txd->chan		= &ichan->dma_chan;
-		INIT_LIST_HEAD(&txd->tx_list);
 
 		list_add(&desc->list, &ichan->free_list);
 

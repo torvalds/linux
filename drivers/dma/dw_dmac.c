@@ -826,7 +826,6 @@ static int dwc_alloc_chan_resources(struct dma_chan *chan)
 		dma_async_tx_descriptor_init(&desc->txd, chan);
 		desc->txd.tx_submit = dwc_tx_submit;
 		desc->txd.flags = DMA_CTRL_ACK;
-		INIT_LIST_HEAD(&desc->txd.tx_list);
 		desc->txd.phys = dma_map_single(chan2parent(chan), &desc->lli,
 				sizeof(desc->lli), DMA_TO_DEVICE);
 		dwc_desc_put(dwc, desc);

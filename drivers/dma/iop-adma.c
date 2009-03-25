@@ -498,7 +498,6 @@ static int iop_adma_alloc_chan_resources(struct dma_chan *chan)
 		slot->async_tx.tx_submit = iop_adma_tx_submit;
 		INIT_LIST_HEAD(&slot->chain_node);
 		INIT_LIST_HEAD(&slot->slot_node);
-		INIT_LIST_HEAD(&slot->async_tx.tx_list);
 		hw_desc = (char *) iop_chan->device->dma_desc_pool;
 		slot->async_tx.phys =
 			(dma_addr_t) &hw_desc[idx * IOP_ADMA_SLOT_SIZE];
