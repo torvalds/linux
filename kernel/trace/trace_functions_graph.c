@@ -78,13 +78,14 @@ ftrace_push_return_trace(unsigned long ret, unsigned long func, int *depth)
 	current->ret_stack[index].ret = ret;
 	current->ret_stack[index].func = func;
 	current->ret_stack[index].calltime = calltime;
+	current->ret_stack[index].subtime = 0;
 	*depth = index;
 
 	return 0;
 }
 
 /* Retrieve a function return address to the trace stack on thread info.*/
-void
+static void
 ftrace_pop_return_trace(struct ftrace_graph_ret *trace, unsigned long *ret)
 {
 	int index;
@@ -104,9 +105,6 @@ ftrace_pop_return_trace(struct ftrace_graph_ret *trace, unsigned long *ret)
 	trace->calltime = current->ret_stack[index].calltime;
 	trace->overrun = atomic_read(&current->trace_overrun);
 	trace->depth = index;
-	barrier();
-	current->curr_ret_stack--;
-
 }
 
 /*
@@ -121,6 +119,8 @@ unsigned long ftrace_return_to_handler(void)
 	ftrace_pop_return_trace(&trace, &ret);
 	trace.rettime = trace_clock_local();
 	ftrace_graph_return(&trace);
+	barrier();
+	current->curr_ret_stack--;
 
 	if (unlikely(!ret)) {
 		ftrace_graph_stop();

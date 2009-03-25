@@ -604,6 +604,7 @@ static int profile_graph_entry(struct ftrace_graph_ent *trace)
 static void profile_graph_return(struct ftrace_graph_ret *trace)
 {
 	struct ftrace_profile_stat *stat;
+	unsigned long long calltime;
 	struct ftrace_profile *rec;
 	unsigned long flags;
 
@@ -612,9 +613,27 @@ static void profile_graph_return(struct ftrace_graph_ret *trace)
 	if (!stat->hash)
 		goto out;
 
+	calltime = trace->rettime - trace->calltime;
+
+	if (!(trace_flags & TRACE_ITER_GRAPH_TIME)) {
+		int index;
+
+		index = trace->depth;
+
+		/* Append this call time to the parent time to subtract */
+		if (index)
+			current->ret_stack[index - 1].subtime += calltime;
+
+		if (current->ret_stack[index].subtime < calltime)
+			calltime -= current->ret_stack[index].subtime;
+		else
+			calltime = 0;
+	}
+
 	rec = ftrace_find_profiled_func(stat, trace->func);
 	if (rec)
-		rec->time += trace->rettime - trace->calltime;
+		rec->time += calltime;
+
  out:
 	local_irq_restore(flags);
 }
