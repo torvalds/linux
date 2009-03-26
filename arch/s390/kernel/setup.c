@@ -86,6 +86,10 @@ volatile int __cpu_logical_map[NR_CPUS]; /* logical cpu to cpu address */
 int __initdata memory_end_set;
 unsigned long __initdata memory_end;
 
+/* An array with a pointer to the lowcore of every CPU. */
+struct _lowcore *lowcore_ptr[NR_CPUS];
+EXPORT_SYMBOL(lowcore_ptr);
+
 /*
  * This is set up by the setup-routine at boot-time
  * for S390 need to find out, what we have to setup
@@ -434,6 +438,7 @@ setup_lowcore(void)
 	lc->vdso_per_cpu_data = (unsigned long) &lc->paste[0];
 #endif
 	set_prefix((u32)(unsigned long) lc);
+	lowcore_ptr[0] = lc;
 }
 
 static void __init

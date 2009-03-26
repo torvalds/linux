@@ -50,12 +50,6 @@
 #include <asm/vdso.h>
 #include "entry.h"
 
-/*
- * An array with a pointer the lowcore of every CPU.
- */
-struct _lowcore *lowcore_ptr[NR_CPUS];
-EXPORT_SYMBOL(lowcore_ptr);
-
 static struct task_struct *current_set[NR_CPUS];
 
 static u8 smp_cpu_type;
@@ -81,9 +75,6 @@ void smp_send_stop(void)
 
 	/* Disable all interrupts/machine checks */
 	__load_psw_mask(psw_kernel_bits & ~PSW_MASK_MCHECK);
-
-	/* write magic number to zero page (absolute 0) */
-	lowcore_ptr[smp_processor_id()]->panic_magic = __PANIC_MAGIC;
 
 	/* stop all processors */
 	for_each_online_cpu(cpu) {
