@@ -3040,7 +3040,7 @@ static struct device *ehea_register_port(struct ehea_port *port,
 	port->ofdev.dev.parent = &port->adapter->ofdev->dev;
 	port->ofdev.dev.bus = &ibmebus_bus_type;
 
-	sprintf(port->ofdev.dev.bus_id, "port%d", port_name_cnt++);
+	dev_set_name(&port->ofdev.dev, "port%d", port_name_cnt++);
 	port->ofdev.dev.release = logical_port_release;
 
 	ret = of_device_register(&port->ofdev);

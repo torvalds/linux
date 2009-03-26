@@ -20,7 +20,7 @@ config SND_DAVINCI_SOC_EVM
 
 config SND_DAVINCI_SOC_SFFSDR
 	tristate "SoC Audio support for SFFSDR"
-	depends on SND_DAVINCI_SOC && MACH_DAVINCI_SFFSDR
+	depends on SND_DAVINCI_SOC && MACH_SFFSDR
 	select SND_DAVINCI_SOC_I2S
 	select SND_SOC_PCM3008
 	select SFFSDR_FPGA

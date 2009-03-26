@@ -171,6 +171,54 @@ int snd_ctl_boolean_stereo_info(struct snd_kcontrol *kcontrol,
  */
 struct snd_kcontrol *snd_ctl_make_virtual_master(char *name,
 						 const unsigned int *tlv);
-int snd_ctl_add_slave(struct snd_kcontrol *master, struct snd_kcontrol *slave);
-		      
+int _snd_ctl_add_slave(struct snd_kcontrol *master, struct snd_kcontrol *slave,
+		       unsigned int flags);
+/* optional flags for slave */
+#define SND_CTL_SLAVE_NEED_UPDATE	(1 << 0)
+
+/**
+ * snd_ctl_add_slave - Add a virtual slave control
+ * @master: vmaster element
+ * @slave: slave element to add
+ *
+ * Add a virtual slave control to the given master element created via
+ * snd_ctl_create_virtual_master() beforehand.
+ * Returns zero if successful or a negative error code.
+ *
+ * All slaves must be the same type (returning the same information
+ * via info callback).  The fucntion doesn't check it, so it's your
+ * responsibility.
+ *
+ * Also, some additional limitations:
+ * at most two channels,
+ * logarithmic volume control (dB level) thus no linear volume,
+ * master can only attenuate the volume without gain
+ */
+static inline int
+snd_ctl_add_slave(struct snd_kcontrol *master, struct snd_kcontrol *slave)
+{
+	return _snd_ctl_add_slave(master, slave, 0);
+}
+
+/**
+ * snd_ctl_add_slave_uncached - Add a virtual slave control
+ * @master: vmaster element
+ * @slave: slave element to add
+ *
+ * Add a virtual slave control to the given master.
+ * Unlike snd_ctl_add_slave(), the element added via this function
+ * is supposed to have volatile values, and get callback is called
+ * at each time quried from the master.
+ *
+ * When the control peeks the hardware values directly and the value
+ * can be changed by other means than the put callback of the element,
+ * this function should be used to keep the value always up-to-date.
+ */
+static inline int
+snd_ctl_add_slave_uncached(struct snd_kcontrol *master,
+			   struct snd_kcontrol *slave)
+{
+	return _snd_ctl_add_slave(master, slave, SND_CTL_SLAVE_NEED_UPDATE);
+}
+
 #endif	/* __SOUND_CONTROL_H */

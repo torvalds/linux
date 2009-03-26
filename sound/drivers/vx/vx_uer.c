@@ -103,7 +103,7 @@ static void vx_write_one_cbit(struct vx_core *chip, int index, int val)
  * returns the frequency of UER, or 0 if not sync,
  * or a negative error code.
  */
-static int vx_read_uer_status(struct vx_core *chip, int *mode)
+static int vx_read_uer_status(struct vx_core *chip, unsigned int *mode)
 {
 	int val, freq;
 

@@ -82,7 +82,9 @@ obj-$(CONFIG_HAVE_LMB) += lmb.o
 
 obj-$(CONFIG_HAVE_ARCH_TRACEHOOK) += syscall.o
 
-obj-$(CONFIG_DYNAMIC_PRINTK_DEBUG) += dynamic_printk.o
+obj-$(CONFIG_DYNAMIC_DEBUG) += dynamic_debug.o
+
+obj-$(CONFIG_NLATTR) += nlattr.o
 
 hostprogs-y	:= gen_crc32table
 clean-files	:= crc32table.h

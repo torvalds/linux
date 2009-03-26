@@ -31,72 +31,46 @@
 #include "bf5xx-sport.h"
 #include "bf5xx-ac97.h"
 
-#if defined(CONFIG_BF54x)
-#define PIN_REQ_SPORT_0 {P_SPORT0_TFS, P_SPORT0_DTPRI, P_SPORT0_TSCLK, \
-		P_SPORT0_RFS, P_SPORT0_DRPRI, P_SPORT0_RSCLK, 0}
-
-#define PIN_REQ_SPORT_1 {P_SPORT1_TFS, P_SPORT1_DTPRI, P_SPORT1_TSCLK, \
-		P_SPORT1_RFS, P_SPORT1_DRPRI, P_SPORT1_RSCLK, 0}
-
-#define PIN_REQ_SPORT_2 {P_SPORT2_TFS, P_SPORT2_DTPRI, P_SPORT2_TSCLK, \
-		P_SPORT2_RFS, P_SPORT2_DRPRI, P_SPORT2_RSCLK, 0}
-
-#define PIN_REQ_SPORT_3 {P_SPORT3_TFS, P_SPORT3_DTPRI, P_SPORT3_TSCLK, \
-		P_SPORT3_RFS, P_SPORT3_DRPRI, P_SPORT3_RSCLK, 0}
-#else
-#define PIN_REQ_SPORT_0 {P_SPORT0_DTPRI, P_SPORT0_TSCLK, P_SPORT0_RFS, \
-		 P_SPORT0_DRPRI, P_SPORT0_RSCLK, 0}
-
-#define PIN_REQ_SPORT_1 {P_SPORT1_DTPRI, P_SPORT1_TSCLK, P_SPORT1_RFS, \
-		 P_SPORT1_DRPRI, P_SPORT1_RSCLK, 0}
-#endif
-
 static int *cmd_count;
 static int sport_num = CONFIG_SND_BF5XX_SPORT_NUM;
 
+#define SPORT_REQ(x) \
+	[x] = {P_SPORT##x##_TFS, P_SPORT##x##_DTPRI, P_SPORT##x##_TSCLK, \
+	       P_SPORT##x##_RFS, P_SPORT##x##_DRPRI, P_SPORT##x##_RSCLK, 0}
 static u16 sport_req[][7] = {
-		PIN_REQ_SPORT_0,
-#ifdef PIN_REQ_SPORT_1
-		PIN_REQ_SPORT_1,
+#ifdef SPORT0_TCR1
+	SPORT_REQ(0),
 #endif
-#ifdef PIN_REQ_SPORT_2
-		PIN_REQ_SPORT_2,
+#ifdef SPORT1_TCR1
+	SPORT_REQ(1),
 #endif
-#ifdef PIN_REQ_SPORT_3
-		PIN_REQ_SPORT_3,
+#ifdef SPORT2_TCR1
+	SPORT_REQ(2),
 #endif
-	};
+#ifdef SPORT3_TCR1
+	SPORT_REQ(3),
+#endif
+};
 
-static struct sport_param sport_params[4] = {
-	{
-		.dma_rx_chan	= CH_SPORT0_RX,
-		.dma_tx_chan	= CH_SPORT0_TX,
-		.err_irq	= IRQ_SPORT0_ERROR,
-		.regs		= (struct sport_register *)SPORT0_TCR1,
-	},
-#ifdef PIN_REQ_SPORT_1
-	{
-		.dma_rx_chan	= CH_SPORT1_RX,
-		.dma_tx_chan	= CH_SPORT1_TX,
-		.err_irq	= IRQ_SPORT1_ERROR,
-		.regs		= (struct sport_register *)SPORT1_TCR1,
-	},
-#endif
-#ifdef PIN_REQ_SPORT_2
-	{
-		.dma_rx_chan	= CH_SPORT2_RX,
-		.dma_tx_chan	= CH_SPORT2_TX,
-		.err_irq	= IRQ_SPORT2_ERROR,
-		.regs		= (struct sport_register *)SPORT2_TCR1,
-	},
-#endif
-#ifdef PIN_REQ_SPORT_3
-	{
-		.dma_rx_chan	= CH_SPORT3_RX,
-		.dma_tx_chan	= CH_SPORT3_TX,
-		.err_irq	= IRQ_SPORT3_ERROR,
-		.regs		= (struct sport_register *)SPORT3_TCR1,
+#define SPORT_PARAMS(x) \
+	[x] = { \
+		.dma_rx_chan = CH_SPORT##x##_RX, \
+		.dma_tx_chan = CH_SPORT##x##_TX, \
+		.err_irq     = IRQ_SPORT##x##_ERROR, \
+		.regs        = (struct sport_register *)SPORT##x##_TCR1, \
 	}
+static struct sport_param sport_params[4] = {
+#ifdef SPORT0_TCR1
+	SPORT_PARAMS(0),
+#endif
+#ifdef SPORT1_TCR1
+	SPORT_PARAMS(1),
+#endif
+#ifdef SPORT2_TCR1
+	SPORT_PARAMS(2),
+#endif
+#ifdef SPORT3_TCR1
+	SPORT_PARAMS(3),
 #endif
 };
 
@@ -332,11 +306,11 @@ static int bf5xx_ac97_probe(struct platform_device *pdev,
 	if (cmd_count == NULL)
 		return -ENOMEM;
 
-	if (peripheral_request_list(&sport_req[sport_num][0], "soc-audio")) {
+	if (peripheral_request_list(sport_req[sport_num], "soc-audio")) {
 		pr_err("Requesting Peripherals failed\n");
 		ret =  -EFAULT;
 		goto peripheral_err;
-		}
+	}
 
 #ifdef CONFIG_SND_BF5XX_HAVE_COLD_RESET
 	/* Request PB3 as reset pin */
@@ -383,9 +357,9 @@ sport_config_err:
 sport_err:
 #ifdef CONFIG_SND_BF5XX_HAVE_COLD_RESET
 	gpio_free(CONFIG_SND_BF5XX_RESET_GPIO_NUM);
-#endif
 gpio_err:
-	peripheral_free_list(&sport_req[sport_num][0]);
+#endif
+	peripheral_free_list(sport_req[sport_num]);
 peripheral_err:
 	free_page((unsigned long)cmd_count);
 	cmd_count = NULL;
@@ -398,7 +372,7 @@ static void bf5xx_ac97_remove(struct platform_device *pdev,
 {
 	free_page((unsigned long)cmd_count);
 	cmd_count = NULL;
-	peripheral_free_list(&sport_req[sport_num][0]);
+	peripheral_free_list(sport_req[sport_num]);
 #ifdef CONFIG_SND_BF5XX_HAVE_COLD_RESET
 	gpio_free(CONFIG_SND_BF5XX_RESET_GPIO_NUM);
 #endif

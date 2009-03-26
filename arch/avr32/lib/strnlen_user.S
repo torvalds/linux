@@ -48,7 +48,7 @@ adjust_length:
 	lddpc	lr, _task_size
 	sub	r11, lr, r12
 	mov	r9, r11
-	rcall	__strnlen_user
+	call	__strnlen_user
 	cp.w	r12, r9
 	brgt	1f
 	popm	pc

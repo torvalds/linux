@@ -136,7 +136,7 @@ static int ninja32_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 	if (!base)
 		return -ENOMEM;
 	ap->ops = &ninja32_port_ops;
-	ap->pio_mask = 0x1F;
+	ap->pio_mask = ATA_PIO4;
 	ap->flags |= ATA_FLAG_SLAVE_POSS;
 
 	ap->ioaddr.cmd_addr = base + 0x10;

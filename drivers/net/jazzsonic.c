@@ -131,7 +131,8 @@ static int __init sonic_probe1(struct net_device *dev)
 	if (sonic_debug  &&  version_printed++ == 0)
 		printk(version);
 
-	printk(KERN_INFO "%s: Sonic ethernet found at 0x%08lx, ", lp->device->bus_id, dev->base_addr);
+	printk(KERN_INFO "%s: Sonic ethernet found at 0x%08lx, ",
+	       dev_name(lp->device), dev->base_addr);
 
 	/*
 	 * Put the sonic into software reset, then
@@ -156,7 +157,8 @@ static int __init sonic_probe1(struct net_device *dev)
 	if ((lp->descriptors = dma_alloc_coherent(lp->device,
 				SIZEOF_SONIC_DESC * SONIC_BUS_SCALE(lp->dma_bitmode),
 				&lp->descriptors_laddr, GFP_KERNEL)) == NULL) {
-		printk(KERN_ERR "%s: couldn't alloc DMA memory for descriptors.\n", lp->device->bus_id);
+		printk(KERN_ERR "%s: couldn't alloc DMA memory for descriptors.\n",
+		       dev_name(lp->device));
 		goto out;
 	}
 

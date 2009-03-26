@@ -211,25 +211,25 @@ MODULE_SUPPORTED_DEVICE("{{Aztech,AZF3328}}");
 #endif
 
 #if DEBUG_MIXER
-#define snd_azf3328_dbgmixer(format, args...) printk(format, ##args)
+#define snd_azf3328_dbgmixer(format, args...) printk(KERN_DEBUG format, ##args)
 #else
 #define snd_azf3328_dbgmixer(format, args...)
 #endif
 
 #if DEBUG_PLAY_REC
-#define snd_azf3328_dbgplay(format, args...) printk(KERN_ERR format, ##args)
+#define snd_azf3328_dbgplay(format, args...) printk(KERN_DEBUG format, ##args)
 #else
 #define snd_azf3328_dbgplay(format, args...)
 #endif
 
 #if DEBUG_MISC
-#define snd_azf3328_dbgtimer(format, args...) printk(KERN_ERR format, ##args)
+#define snd_azf3328_dbgtimer(format, args...) printk(KERN_DEBUG format, ##args)
 #else
 #define snd_azf3328_dbgtimer(format, args...)
 #endif
 
 #if DEBUG_GAME
-#define snd_azf3328_dbggame(format, args...) printk(KERN_ERR format, ##args)
+#define snd_azf3328_dbggame(format, args...) printk(KERN_DEBUG format, ##args)
 #else
 #define snd_azf3328_dbggame(format, args...)
 #endif
@@ -2216,9 +2216,9 @@ snd_azf3328_probe(struct pci_dev *pci, const struct pci_device_id *pci_id)
 		return -ENOENT;
 	}
 
-	card = snd_card_new(index[dev], id[dev], THIS_MODULE, 0);
-	if (card == NULL)
-		return -ENOMEM;
+	err = snd_card_create(index[dev], id[dev], THIS_MODULE, 0, &card);
+	if (err < 0)
+		return err;
 
 	strcpy(card->driver, "AZF3328");
 	strcpy(card->shortname, "Aztech AZF3328 (PCI168)");

@@ -174,4 +174,10 @@ config DISABLE_OBSOLETE_CPUMASK_FUNCTIONS
        bool "Disable obsolete cpumask functions" if DEBUG_PER_CPU_MAPS
        depends on EXPERIMENTAL && BROKEN
 
+#
+# Netlink attribute parsing support is select'ed if needed
+#
+config NLATTR
+	bool
+
 endmenu

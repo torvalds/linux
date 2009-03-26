@@ -29,13 +29,14 @@
 
 #include <mach/bast-map.h>
 #include <mach/bast-irq.h>
-#include <mach/usb-control.h>
 #include <mach/regs-gpio.h>
 
 #include <mach/hardware.h>
 #include <asm/irq.h>
 
+#include <plat/usb-control.h>
 #include <plat/devs.h>
+
 #include "usb-simtec.h"
 
 /* control power and monitor over-current events on various Simtec

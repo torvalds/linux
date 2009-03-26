@@ -429,7 +429,7 @@ static int __init mpc52xx_psc_spi_do_probe(struct device *dev, u32 regaddr,
 	INIT_LIST_HEAD(&mps->queue);
 
 	mps->workqueue = create_singlethread_workqueue(
-		master->dev.parent->bus_id);
+		dev_name(master->dev.parent));
 	if (mps->workqueue == NULL) {
 		ret = -EBUSY;
 		goto free_irq;
