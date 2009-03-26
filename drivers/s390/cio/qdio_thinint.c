@@ -370,10 +370,11 @@ void qdio_shutdown_thinint(struct qdio_irq *irq_ptr)
 
 void __exit tiqdio_unregister_thinints(void)
 {
-	tasklet_disable(&tiqdio_tasklet);
+	WARN_ON(!list_empty(&tiq_list));
 
 	if (tiqdio_alsi) {
 		s390_unregister_adapter_interrupt(tiqdio_alsi, QDIO_AIRQ_ISC);
 		isc_unregister(QDIO_AIRQ_ISC);
 	}
+	tasklet_kill(&tiqdio_tasklet);
 }
