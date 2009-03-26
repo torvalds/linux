@@ -43,8 +43,11 @@
 
 #define NORMAL_IRQ_NUM	32
 
+#define GPIO_IRQ_BASE	NORMAL_IRQ_NUM
+#define GPIO_IRQ_NUM	(3 * 32)
+
 #define ARCH_TIMER_IRQ	IRQ_TIMER2
 
-#define NR_IRQS		NORMAL_IRQ_NUM
+#define NR_IRQS		(NORMAL_IRQ_NUM + GPIO_IRQ_NUM)
 
 #endif /* __MACH_IRQS_H__ */

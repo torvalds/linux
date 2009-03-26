@@ -4,4 +4,4 @@
 
 # Object file lists.
 
-obj-y			:= irq.o mm.o time.o devices.o
+obj-y			:= irq.o mm.o time.o devices.o gpio.o
