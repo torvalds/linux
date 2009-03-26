@@ -111,7 +111,8 @@ static struct sctp_endpoint *sctp_endpoint_init(struct sctp_endpoint *ep,
 		if (sctp_addip_enable) {
 			auth_chunks->chunks[0] = SCTP_CID_ASCONF;
 			auth_chunks->chunks[1] = SCTP_CID_ASCONF_ACK;
-			auth_chunks->param_hdr.length += htons(2);
+			auth_chunks->param_hdr.length =
+					htons(sizeof(sctp_paramhdr_t) + 2);
 		}
 	}
 

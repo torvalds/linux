@@ -1374,6 +1374,12 @@ int btrfs_init_new_device(struct btrfs_root *root, char *device_path)
 		ret = btrfs_add_device(trans, root, device);
 	}
 
+	/*
+	 * we've got more storage, clear any full flags on the space
+	 * infos
+	 */
+	btrfs_clear_space_info_full(root->fs_info);
+
 	unlock_chunks(root);
 	btrfs_commit_transaction(trans, root);
 
@@ -1459,6 +1465,8 @@ static int __btrfs_grow_device(struct btrfs_trans_handle *trans,
 	device->fs_devices->total_rw_bytes += diff;
 
 	device->total_bytes = new_size;
+	btrfs_clear_space_info_full(device->dev_root->fs_info);
+
 	return btrfs_update_device(trans, device);
 }
 
@@ -2894,10 +2902,6 @@ static int read_one_chunk(struct btrfs_root *root, struct btrfs_key *key,
 		free_extent_map(em);
 	}
 
-	map = kzalloc(sizeof(*map), GFP_NOFS);
-	if (!map)
-		return -ENOMEM;
-
 	em = alloc_extent_map(GFP_NOFS);
 	if (!em)
 		return -ENOMEM;
@@ -3106,6 +3110,8 @@ int btrfs_read_sys_array(struct btrfs_root *root)
 	if (!sb)
 		return -ENOMEM;
 	btrfs_set_buffer_uptodate(sb);
+	btrfs_set_buffer_lockdep_class(sb, 0);
+
 	write_extent_buffer(sb, super_copy, 0, BTRFS_SUPER_INFO_SIZE);
 	array_size = btrfs_super_sys_array_size(super_copy);
 

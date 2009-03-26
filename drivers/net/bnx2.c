@@ -1,6 +1,6 @@
 /* bnx2.c: Broadcom NX2 network driver.
  *
- * Copyright (c) 2004-2008 Broadcom Corporation
+ * Copyright (c) 2004-2009 Broadcom Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -57,8 +57,8 @@
 
 #define DRV_MODULE_NAME		"bnx2"
 #define PFX DRV_MODULE_NAME	": "
-#define DRV_MODULE_VERSION	"1.9.0"
-#define DRV_MODULE_RELDATE	"Dec 16, 2008"
+#define DRV_MODULE_VERSION	"1.9.3"
+#define DRV_MODULE_RELDATE	"March 17, 2009"
 
 #define RUN_AT(x) (jiffies + (x))
 
@@ -2910,18 +2910,8 @@ bnx2_rx_int(struct bnx2 *bp, struct bnx2_napi *bnapi, int budget)
 
 		rx_hdr = (struct l2_fhdr *) skb->data;
 		len = rx_hdr->l2_fhdr_pkt_len;
+		status = rx_hdr->l2_fhdr_status;
 
-		if ((status = rx_hdr->l2_fhdr_status) &
-			(L2_FHDR_ERRORS_BAD_CRC |
-			L2_FHDR_ERRORS_PHY_DECODE |
-			L2_FHDR_ERRORS_ALIGNMENT |
-			L2_FHDR_ERRORS_TOO_SHORT |
-			L2_FHDR_ERRORS_GIANT_FRAME)) {
-
-			bnx2_reuse_rx_skb(bp, rxr, skb, sw_ring_cons,
-					  sw_ring_prod);
-			goto next_rx;
-		}
 		hdr_len = 0;
 		if (status & L2_FHDR_STATUS_SPLIT) {
 			hdr_len = rx_hdr->l2_fhdr_ip_xsum;
@@ -2929,6 +2919,24 @@ bnx2_rx_int(struct bnx2 *bp, struct bnx2_napi *bnapi, int budget)
 		} else if (len > bp->rx_jumbo_thresh) {
 			hdr_len = bp->rx_jumbo_thresh;
 			pg_ring_used = 1;
+		}
+
+		if (unlikely(status & (L2_FHDR_ERRORS_BAD_CRC |
+				       L2_FHDR_ERRORS_PHY_DECODE |
+				       L2_FHDR_ERRORS_ALIGNMENT |
+				       L2_FHDR_ERRORS_TOO_SHORT |
+				       L2_FHDR_ERRORS_GIANT_FRAME))) {
+
+			bnx2_reuse_rx_skb(bp, rxr, skb, sw_ring_cons,
+					  sw_ring_prod);
+			if (pg_ring_used) {
+				int pages;
+
+				pages = PAGE_ALIGN(len - hdr_len) >> PAGE_SHIFT;
+
+				bnx2_reuse_rx_skb_pages(bp, rxr, NULL, pages);
+			}
+			goto next_rx;
 		}
 
 		len -= 4;
@@ -5835,9 +5843,6 @@ bnx2_enable_msix(struct bnx2 *bp, int msix_vecs)
 	for (i = 0; i < BNX2_MAX_MSIX_VEC; i++) {
 		msix_ent[i].entry = i;
 		msix_ent[i].vector = 0;
-
-		snprintf(bp->irq_tbl[i].name, len, "%s-%d", dev->name, i);
-		bp->irq_tbl[i].handler = bnx2_msi_1shot;
 	}
 
 	rc = pci_enable_msix(bp->pdev, msix_ent, BNX2_MAX_MSIX_VEC);
@@ -5846,8 +5851,11 @@ bnx2_enable_msix(struct bnx2 *bp, int msix_vecs)
 
 	bp->irq_nvecs = msix_vecs;
 	bp->flags |= BNX2_FLAG_USING_MSIX | BNX2_FLAG_ONE_SHOT_MSI;
-	for (i = 0; i < BNX2_MAX_MSIX_VEC; i++)
+	for (i = 0; i < BNX2_MAX_MSIX_VEC; i++) {
 		bp->irq_tbl[i].vector = msix_ent[i].vector;
+		snprintf(bp->irq_tbl[i].name, len, "%s-%d", dev->name, i);
+		bp->irq_tbl[i].handler = bnx2_msi_1shot;
+	}
 }
 
 static void

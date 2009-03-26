@@ -464,13 +464,14 @@ static void de_rx (struct de_private *de)
 			drop = 1;
 
 rx_next:
-		de->rx_ring[rx_tail].opts1 = cpu_to_le32(DescOwn);
 		if (rx_tail == (DE_RX_RING_SIZE - 1))
 			de->rx_ring[rx_tail].opts2 =
 				cpu_to_le32(RingEnd | de->rx_buf_sz);
 		else
 			de->rx_ring[rx_tail].opts2 = cpu_to_le32(de->rx_buf_sz);
 		de->rx_ring[rx_tail].addr1 = cpu_to_le32(mapping);
+		wmb();
+		de->rx_ring[rx_tail].opts1 = cpu_to_le32(DescOwn);
 		rx_tail = NEXT_RX(rx_tail);
 	}
 

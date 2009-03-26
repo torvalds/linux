@@ -68,6 +68,7 @@ config VIDEO_ZORAN_AVS6EYES
 	tristate "AverMedia 6 Eyes support (EXPERIMENTAL)"
 	depends on VIDEO_ZORAN_ZR36060 && EXPERIMENTAL && VIDEO_V4L1
 	select VIDEO_BT856 if VIDEO_HELPER_CHIPS_AUTO
+	select VIDEO_BT866 if VIDEO_HELPER_CHIPS_AUTO
 	select VIDEO_KS0127 if VIDEO_HELPER_CHIPS_AUTO
 	help
 	  Support for the AverMedia 6 Eyes video surveillance card.

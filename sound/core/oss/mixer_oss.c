@@ -692,6 +692,9 @@ static int snd_mixer_oss_put_volume1(struct snd_mixer_oss_file *fmixer,
 		snd_mixer_oss_put_volume1_vol(fmixer, pslot, slot->numid[SNDRV_MIXER_OSS_ITEM_PVOLUME], left, right);
 		if (slot->present & SNDRV_MIXER_OSS_PRESENT_CVOLUME)
 			snd_mixer_oss_put_volume1_vol(fmixer, pslot, slot->numid[SNDRV_MIXER_OSS_ITEM_CVOLUME], left, right);
+	} else if (slot->present & SNDRV_MIXER_OSS_PRESENT_CVOLUME) {
+		snd_mixer_oss_put_volume1_vol(fmixer, pslot,
+			slot->numid[SNDRV_MIXER_OSS_ITEM_CVOLUME], left, right);
 	} else if (slot->present & SNDRV_MIXER_OSS_PRESENT_GVOLUME) {
 		snd_mixer_oss_put_volume1_vol(fmixer, pslot, slot->numid[SNDRV_MIXER_OSS_ITEM_GVOLUME], left, right);
 	} else if (slot->present & SNDRV_MIXER_OSS_PRESENT_GLOBAL) {

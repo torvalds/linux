@@ -117,6 +117,7 @@ repeat:
 		crst_table_init(table, entry);
 		pgd_populate(mm, (pgd_t *) table, (pud_t *) pgd);
 		mm->pgd = (pgd_t *) table;
+		mm->task_size = mm->context.asce_limit;
 		table = NULL;
 	}
 	spin_unlock(&mm->page_table_lock);
@@ -154,6 +155,7 @@ void crst_table_downgrade(struct mm_struct *mm, unsigned long limit)
 			BUG();
 		}
 		mm->pgd = (pgd_t *) (pgd_val(*pgd) & _REGION_ENTRY_ORIGIN);
+		mm->task_size = mm->context.asce_limit;
 		crst_table_free(mm, (unsigned long *) pgd);
 	}
 	update_mm(mm, current);

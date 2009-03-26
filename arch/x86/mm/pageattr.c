@@ -508,18 +508,24 @@ static int split_large_page(pte_t *kpte, unsigned long address)
 #endif
 
 	/*
-	 * Install the new, split up pagetable. Important details here:
+	 * Install the new, split up pagetable.
 	 *
-	 * On Intel the NX bit of all levels must be cleared to make a
-	 * page executable. See section 4.13.2 of Intel 64 and IA-32
-	 * Architectures Software Developer's Manual).
-	 *
-	 * Mark the entry present. The current mapping might be
-	 * set to not present, which we preserved above.
+	 * We use the standard kernel pagetable protections for the new
+	 * pagetable protections, the actual ptes set above control the
+	 * primary protection behavior:
 	 */
-	ref_prot = pte_pgprot(pte_mkexec(pte_clrhuge(*kpte)));
-	pgprot_val(ref_prot) |= _PAGE_PRESENT;
-	__set_pmd_pte(kpte, address, mk_pte(base, ref_prot));
+	__set_pmd_pte(kpte, address, mk_pte(base, __pgprot(_KERNPG_TABLE)));
+
+	/*
+	 * Intel Atom errata AAH41 workaround.
+	 *
+	 * The real fix should be in hw or in a microcode update, but
+	 * we also probabilistically try to reduce the window of having
+	 * a large TLB mixed with 4K TLBs while instruction fetches are
+	 * going on.
+	 */
+	__flush_tlb_all();
+
 	base = NULL;
 
 out_unlock:
@@ -575,7 +581,6 @@ static int __change_page_attr(struct cpa_data *cpa, int primary)
 		address = cpa->vaddr[cpa->curpage];
 	else
 		address = *cpa->vaddr;
-
 repeat:
 	kpte = lookup_address(address, &level);
 	if (!kpte)
@@ -812,6 +817,13 @@ static int change_page_attr_set_clr(unsigned long *addr, int numpages,
 
 	vm_unmap_aliases();
 
+	/*
+	 * If we're called with lazy mmu updates enabled, the
+	 * in-memory pte state may be stale.  Flush pending updates to
+	 * bring them up to date.
+	 */
+	arch_flush_lazy_mmu_mode();
+
 	cpa.vaddr = addr;
 	cpa.numpages = numpages;
 	cpa.mask_set = mask_set;
@@ -853,6 +865,13 @@ static int change_page_attr_set_clr(unsigned long *addr, int numpages,
 			cpa_flush_range(*addr, numpages, cache);
 	} else
 		cpa_flush_all(cache);
+
+	/*
+	 * If we've been called with lazy mmu updates enabled, then
+	 * make sure that everything gets flushed out before we
+	 * return.
+	 */
+	arch_flush_lazy_mmu_mode();
 
 out:
 	return ret;

@@ -679,28 +679,8 @@ xcall_new_mmu_context_version:
 #ifdef CONFIG_KGDB
 	.globl		xcall_kgdb_capture
 xcall_kgdb_capture:
-661:	rdpr		%pstate, %g2
-	wrpr		%g2, PSTATE_IG | PSTATE_AG, %pstate
-	.section	.sun4v_2insn_patch, "ax"
-	.word		661b
-	nop
-	nop
-	.previous
-
-	rdpr		%pil, %g2
-	wrpr		%g0, PIL_NORMAL_MAX, %pil
-	sethi		%hi(109f), %g7
-	ba,pt		%xcc, etrap_irq
-109:	 or		%g7, %lo(109b), %g7
-#ifdef CONFIG_TRACE_IRQFLAGS
-	call		trace_hardirqs_off
-	 nop
-#endif
-	call		smp_kgdb_capture_client
-	 add		%sp, PTREGS_OFF, %o0
-	/* Has to be a non-v9 branch due to the large distance. */
-	ba		rtrap_xcall
-	 ldx		[%sp + PTREGS_OFF + PT_V9_TSTATE], %l1
+	wr		%g0, (1 << PIL_KGDB_CAPTURE), %set_softint
+	retry
 #endif
 
 #endif /* CONFIG_SMP */

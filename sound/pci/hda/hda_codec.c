@@ -3088,6 +3088,16 @@ int snd_hda_multi_out_dig_prepare(struct hda_codec *codec,
 }
 EXPORT_SYMBOL_HDA(snd_hda_multi_out_dig_prepare);
 
+int snd_hda_multi_out_dig_cleanup(struct hda_codec *codec,
+				  struct hda_multi_out *mout)
+{
+	mutex_lock(&codec->spdif_mutex);
+	cleanup_dig_out_stream(codec, mout->dig_out_nid);
+	mutex_unlock(&codec->spdif_mutex);
+	return 0;
+}
+EXPORT_SYMBOL_HDA(snd_hda_multi_out_dig_cleanup);
+
 /*
  * release the digital out
  */

@@ -188,9 +188,9 @@ static struct ip_tunnel * ipip6_tunnel_locate(struct net *net,
 	}
 
 	nt = netdev_priv(dev);
-	ipip6_tunnel_init(dev);
 
 	nt->parms = *parms;
+	ipip6_tunnel_init(dev);
 
 	if (parms->i_flags & SIT_ISATAP)
 		dev->priv_flags |= IFF_ISATAP;

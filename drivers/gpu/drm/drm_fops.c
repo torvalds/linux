@@ -457,6 +457,9 @@ int drm_release(struct inode *inode, struct file *filp)
 	if (dev->driver->driver_features & DRIVER_GEM)
 		drm_gem_release(dev, file_priv);
 
+	if (dev->driver->driver_features & DRIVER_MODESET)
+		drm_fb_release(file_priv);
+
 	mutex_lock(&dev->ctxlist_mutex);
 	if (!list_empty(&dev->ctxlist)) {
 		struct drm_ctx_list *pos, *n;
@@ -481,11 +484,25 @@ int drm_release(struct inode *inode, struct file *filp)
 	mutex_lock(&dev->struct_mutex);
 
 	if (file_priv->is_master) {
+		struct drm_master *master = file_priv->master;
 		struct drm_file *temp;
 		list_for_each_entry(temp, &dev->filelist, lhead) {
 			if ((temp->master == file_priv->master) &&
 			    (temp != file_priv))
 				temp->authenticated = 0;
+		}
+
+		/**
+		 * Since the master is disappearing, so is the
+		 * possibility to lock.
+		 */
+
+		if (master->lock.hw_lock) {
+			if (dev->sigdata.lock == master->lock.hw_lock)
+				dev->sigdata.lock = NULL;
+			master->lock.hw_lock = NULL;
+			master->lock.file_priv = NULL;
+			wake_up_interruptible_all(&master->lock.lock_queue);
 		}
 
 		if (file_priv->minor->master == file_priv->master) {

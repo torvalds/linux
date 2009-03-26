@@ -3537,11 +3537,26 @@ static int bond_slave_netdev_event(unsigned long event, struct net_device *slave
 		}
 		break;
 	case NETDEV_CHANGE:
-		/*
-		 * TODO: is this what we get if somebody
-		 * sets up a hierarchical bond, then rmmod's
-		 * one of the slave bonding devices?
-		 */
+		if (bond->params.mode == BOND_MODE_8023AD || bond_is_lb(bond)) {
+			struct slave *slave;
+
+			slave = bond_get_slave_by_dev(bond, slave_dev);
+			if (slave) {
+				u16 old_speed = slave->speed;
+				u16 old_duplex = slave->duplex;
+
+				bond_update_speed_duplex(slave);
+
+				if (bond_is_lb(bond))
+					break;
+
+				if (old_speed != slave->speed)
+					bond_3ad_adapter_speed_changed(slave);
+				if (old_duplex != slave->duplex)
+					bond_3ad_adapter_duplex_changed(slave);
+			}
+		}
+
 		break;
 	case NETDEV_DOWN:
 		/*
@@ -4113,7 +4128,7 @@ static int bond_neigh_setup(struct net_device *dev, struct neigh_parms *parms)
 		const struct net_device_ops *slave_ops
 			= slave->dev->netdev_ops;
 		if (slave_ops->ndo_neigh_setup)
-			return slave_ops->ndo_neigh_setup(dev, parms);
+			return slave_ops->ndo_neigh_setup(slave->dev, parms);
 	}
 	return 0;
 }

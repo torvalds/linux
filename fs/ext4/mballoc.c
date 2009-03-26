@@ -1447,7 +1447,7 @@ static void ext4_mb_measure_extent(struct ext4_allocation_context *ac,
 	struct ext4_free_extent *gex = &ac->ac_g_ex;
 
 	BUG_ON(ex->fe_len <= 0);
-	BUG_ON(ex->fe_len >= EXT4_BLOCKS_PER_GROUP(ac->ac_sb));
+	BUG_ON(ex->fe_len > EXT4_BLOCKS_PER_GROUP(ac->ac_sb));
 	BUG_ON(ex->fe_start >= EXT4_BLOCKS_PER_GROUP(ac->ac_sb));
 	BUG_ON(ac->ac_status != AC_STATUS_CONTINUE);
 
@@ -3292,7 +3292,7 @@ ext4_mb_normalize_request(struct ext4_allocation_context *ac,
 	}
 	BUG_ON(start + size <= ac->ac_o_ex.fe_logical &&
 			start > ac->ac_o_ex.fe_logical);
-	BUG_ON(size <= 0 || size >= EXT4_BLOCKS_PER_GROUP(ac->ac_sb));
+	BUG_ON(size <= 0 || size > EXT4_BLOCKS_PER_GROUP(ac->ac_sb));
 
 	/* now prepare goal request */
 
@@ -3589,6 +3589,7 @@ static void ext4_mb_put_pa(struct ext4_allocation_context *ac,
 			struct super_block *sb, struct ext4_prealloc_space *pa)
 {
 	ext4_group_t grp;
+	ext4_fsblk_t grp_blk;
 
 	if (!atomic_dec_and_test(&pa->pa_count) || pa->pa_free != 0)
 		return;
@@ -3603,8 +3604,12 @@ static void ext4_mb_put_pa(struct ext4_allocation_context *ac,
 	pa->pa_deleted = 1;
 	spin_unlock(&pa->pa_lock);
 
-	/* -1 is to protect from crossing allocation group */
-	ext4_get_group_no_and_offset(sb, pa->pa_pstart - 1, &grp, NULL);
+	grp_blk = pa->pa_pstart;
+	/* If linear, pa_pstart may be in the next group when pa is used up */
+	if (pa->pa_linear)
+		grp_blk--;
+
+	ext4_get_group_no_and_offset(sb, grp_blk, &grp, NULL);
 
 	/*
 	 * possible race:
@@ -3693,6 +3698,8 @@ ext4_mb_new_inode_pa(struct ext4_allocation_context *ac)
 	pa->pa_free = pa->pa_len;
 	atomic_set(&pa->pa_count, 1);
 	spin_lock_init(&pa->pa_lock);
+	INIT_LIST_HEAD(&pa->pa_inode_list);
+	INIT_LIST_HEAD(&pa->pa_group_list);
 	pa->pa_deleted = 0;
 	pa->pa_linear = 0;
 
@@ -3755,6 +3762,7 @@ ext4_mb_new_group_pa(struct ext4_allocation_context *ac)
 	atomic_set(&pa->pa_count, 1);
 	spin_lock_init(&pa->pa_lock);
 	INIT_LIST_HEAD(&pa->pa_inode_list);
+	INIT_LIST_HEAD(&pa->pa_group_list);
 	pa->pa_deleted = 0;
 	pa->pa_linear = 1;
 
@@ -4476,23 +4484,26 @@ static int ext4_mb_release_context(struct ext4_allocation_context *ac)
 			pa->pa_free -= ac->ac_b_ex.fe_len;
 			pa->pa_len -= ac->ac_b_ex.fe_len;
 			spin_unlock(&pa->pa_lock);
-			/*
-			 * We want to add the pa to the right bucket.
-			 * Remove it from the list and while adding
-			 * make sure the list to which we are adding
-			 * doesn't grow big.
-			 */
-			if (likely(pa->pa_free)) {
-				spin_lock(pa->pa_obj_lock);
-				list_del_rcu(&pa->pa_inode_list);
-				spin_unlock(pa->pa_obj_lock);
-				ext4_mb_add_n_trim(ac);
-			}
 		}
-		ext4_mb_put_pa(ac, ac->ac_sb, pa);
 	}
 	if (ac->alloc_semp)
 		up_read(ac->alloc_semp);
+	if (pa) {
+		/*
+		 * We want to add the pa to the right bucket.
+		 * Remove it from the list and while adding
+		 * make sure the list to which we are adding
+		 * doesn't grow big.  We need to release
+		 * alloc_semp before calling ext4_mb_add_n_trim()
+		 */
+		if (pa->pa_linear && likely(pa->pa_free)) {
+			spin_lock(pa->pa_obj_lock);
+			list_del_rcu(&pa->pa_inode_list);
+			spin_unlock(pa->pa_obj_lock);
+			ext4_mb_add_n_trim(ac);
+		}
+		ext4_mb_put_pa(ac, ac->ac_sb, pa);
+	}
 	if (ac->ac_bitmap_page)
 		page_cache_release(ac->ac_bitmap_page);
 	if (ac->ac_buddy_page)

@@ -644,7 +644,7 @@ lba_fixup_bus(struct pci_bus *bus)
 	** Properly Setup MMIO resources for this bus.
 	** pci_alloc_primary_bus() mangles this.
 	*/
-	if (bus->self) {
+	if (bus->parent) {
 		int i;
 		/* PCI-PCI Bridge */
 		pci_read_bridge_bases(bus);
@@ -802,7 +802,7 @@ lba_fixup_bus(struct pci_bus *bus)
 ** Can't fixup here anyway....garr...
 */
 	if (fbb_enable) {
-		if (bus->self) {
+		if (bus->parent) {
 			u8 control;
 			/* enable on PPB */
 			(void) pci_read_config_byte(bus->self, PCI_BRIDGE_CONTROL, &control);

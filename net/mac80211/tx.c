@@ -752,6 +752,8 @@ ieee80211_tx_h_fragment(struct ieee80211_tx_data *tx)
 		skb_copy_queue_mapping(frag, first);
 
 		frag->do_not_encrypt = first->do_not_encrypt;
+		frag->dev = first->dev;
+		frag->iif = first->iif;
 
 		pos += copylen;
 		left -= copylen;
@@ -1342,6 +1344,8 @@ int ieee80211_master_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			list_for_each_entry_rcu(sdata, &local->interfaces,
 						list) {
 				if (!netif_running(sdata->dev))
+					continue;
+				if (sdata->vif.type != NL80211_IFTYPE_AP)
 					continue;
 				if (compare_ether_addr(sdata->dev->dev_addr,
 						       hdr->addr2)) {

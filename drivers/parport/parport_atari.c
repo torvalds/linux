@@ -84,7 +84,7 @@ parport_atari_frob_control(struct parport *p, unsigned char mask,
 static unsigned char
 parport_atari_read_status(struct parport *p)
 {
-	return ((mfp.par_dt_reg & 1 ? 0 : PARPORT_STATUS_BUSY) |
+	return ((st_mfp.par_dt_reg & 1 ? 0 : PARPORT_STATUS_BUSY) |
 		PARPORT_STATUS_SELECT | PARPORT_STATUS_ERROR);
 }
 
@@ -193,9 +193,9 @@ static int __init parport_atari_init(void)
 		sound_ym.wd_data = sound_ym.rd_data_reg_sel | (1 << 5);
 		local_irq_restore(flags);
 		/* MFP port I0 as input. */
-		mfp.data_dir &= ~1;
+		st_mfp.data_dir &= ~1;
 		/* MFP port I0 interrupt on high->low edge. */
-		mfp.active_edge &= ~1;
+		st_mfp.active_edge &= ~1;
 		p = parport_register_port((unsigned long)&sound_ym.wd_data,
 					  IRQ_MFP_BUSY, PARPORT_DMA_NONE,
 					  &parport_atari_ops);

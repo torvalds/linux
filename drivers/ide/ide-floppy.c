@@ -327,8 +327,10 @@ static ide_startstop_t ide_floppy_do_request(ide_drive_t *drive,
 		return ide_stopped;
 	}
 
-	ide_init_sg_cmd(drive, rq);
-	ide_map_sg(drive, rq);
+	if (blk_fs_request(rq) || pc->req_xfer) {
+		ide_init_sg_cmd(drive, rq);
+		ide_map_sg(drive, rq);
+	}
 
 	pc->sg = hwif->sg_table;
 	pc->sg_cnt = hwif->sg_nents;

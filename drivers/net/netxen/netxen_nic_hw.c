@@ -706,28 +706,6 @@ int netxen_nic_change_mtu(struct net_device *netdev, int mtu)
 	return rc;
 }
 
-int netxen_is_flash_supported(struct netxen_adapter *adapter)
-{
-	const int locs[] = { 0, 0x4, 0x100, 0x4000, 0x4128 };
-	int addr, val01, val02, i, j;
-
-	/* if the flash size less than 4Mb, make huge war cry and die */
-	for (j = 1; j < 4; j++) {
-		addr = j * NETXEN_NIC_WINDOW_MARGIN;
-		for (i = 0; i < ARRAY_SIZE(locs); i++) {
-			if (netxen_rom_fast_read(adapter, locs[i], &val01) == 0
-			    && netxen_rom_fast_read(adapter, (addr + locs[i]),
-						    &val02) == 0) {
-				if (val01 == val02)
-					return -1;
-			} else
-				return -1;
-		}
-	}
-
-	return 0;
-}
-
 static int netxen_get_flash_block(struct netxen_adapter *adapter, int base,
 				  int size, __le32 * buf)
 {
