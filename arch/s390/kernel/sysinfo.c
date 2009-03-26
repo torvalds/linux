@@ -1,9 +1,7 @@
 /*
- *  drivers/s390/sysinfo.c
- *
- *  Copyright IBM Corp. 2001, 2008
- *  Author(s): Ulrich Weigand (Ulrich.Weigand@de.ibm.com)
- *	       Martin Schwidefsky <schwidefsky@de.ibm.com>
+ *  Copyright IBM Corp. 2001, 2009
+ *  Author(s): Ulrich Weigand <Ulrich.Weigand@de.ibm.com>,
+ *	       Martin Schwidefsky <schwidefsky@de.ibm.com>,
  */
 
 #include <linux/kernel.h>
@@ -24,7 +22,7 @@
 
 static inline int stsi_0(void)
 {
-	int rc = stsi (NULL, 0, 0, 0);
+	int rc = stsi(NULL, 0, 0, 0);
 	return rc == -ENOSYS ? rc : (((unsigned int) rc) >> 28);
 }
 
@@ -78,23 +76,6 @@ static int stsi_1_1_1(struct sysinfo_1_1_1 *info, char *page, int len)
 	return len;
 }
 
-#if 0 /* Currently unused */
-static int stsi_1_2_1(struct sysinfo_1_2_1 *info, char *page, int len)
-{
-	if (stsi(info, 1, 2, 1) == -ENOSYS)
-		return len;
-
-	len += sprintf(page + len, "\n");
-	EBCASC(info->sequence, sizeof(info->sequence));
-	EBCASC(info->plant, sizeof(info->plant));
-	len += sprintf(page + len, "Sequence Code of CPU: %-16.16s\n",
-		       info->sequence);
-	len += sprintf(page + len, "Plant of CPU:         %-16.16s\n",
-		       info->plant);
-	return len;
-}
-#endif
-
 static int stsi_1_2_2(struct sysinfo_1_2_2 *info, char *page, int len)
 {
 	struct sysinfo_1_2_2_extension *ext;
@@ -145,33 +126,15 @@ static int stsi_1_2_2(struct sysinfo_1_2_2 *info, char *page, int len)
 	if (info->secondary_capability != 0)
 		len += sprintf(page + len, "Secondary Capability: %d\n",
 			       info->secondary_capability);
-
 	return len;
 }
-
-#if 0 /* Currently unused */
-static int stsi_2_2_1(struct sysinfo_2_2_1 *info, char *page, int len)
-{
-	if (stsi(info, 2, 2, 1) == -ENOSYS)
-		return len;
-
-	len += sprintf(page + len, "\n");
-	EBCASC (info->sequence, sizeof(info->sequence));
-	EBCASC (info->plant, sizeof(info->plant));
-	len += sprintf(page + len, "Sequence Code of logical CPU: %-16.16s\n",
-		       info->sequence);
-	len += sprintf(page + len, "Plant of logical CPU: %-16.16s\n",
-		       info->plant);
-	return len;
-}
-#endif
 
 static int stsi_2_2_2(struct sysinfo_2_2_2 *info, char *page, int len)
 {
 	if (stsi(info, 2, 2, 2) == -ENOSYS)
 		return len;
 
-	EBCASC (info->name, sizeof(info->name));
+	EBCASC(info->name, sizeof(info->name));
 
 	len += sprintf(page + len, "\n");
 	len += sprintf(page + len, "LPAR Number:          %d\n",
@@ -214,8 +177,8 @@ static int stsi_3_2_2(struct sysinfo_3_2_2 *info, char *page, int len)
 	if (stsi(info, 3, 2, 2) == -ENOSYS)
 		return len;
 	for (i = 0; i < info->count; i++) {
-		EBCASC (info->vm[i].name, sizeof(info->vm[i].name));
-		EBCASC (info->vm[i].cpi, sizeof(info->vm[i].cpi));
+		EBCASC(info->vm[i].name, sizeof(info->vm[i].name));
+		EBCASC(info->vm[i].cpi, sizeof(info->vm[i].cpi));
 		len += sprintf(page + len, "\n");
 		len += sprintf(page + len, "VM%02d Name:            %-8.8s\n",
 			       i, info->vm[i].name);
@@ -237,14 +200,13 @@ static int stsi_3_2_2(struct sysinfo_3_2_2 *info, char *page, int len)
 	return len;
 }
 
-
 static int proc_read_sysinfo(char *page, char **start,
-                             off_t off, int count,
-                             int *eof, void *data)
+			     off_t off, int count,
+			     int *eof, void *data)
 {
-	unsigned long info = get_zeroed_page (GFP_KERNEL);
+	unsigned long info = get_zeroed_page(GFP_KERNEL);
 	int level, len;
-	
+
 	if (!info)
 		return 0;
 
@@ -262,8 +224,8 @@ static int proc_read_sysinfo(char *page, char **start,
 	if (level >= 3)
 		len = stsi_3_2_2((struct sysinfo_3_2_2 *) info, page, len);
 
-	free_page (info);
-        return len;
+	free_page(info);
+	return len;
 }
 
 static __init int create_proc_sysinfo(void)
@@ -272,8 +234,7 @@ static __init int create_proc_sysinfo(void)
 			       proc_read_sysinfo, NULL);
 	return 0;
 }
-
-__initcall(create_proc_sysinfo);
+device_initcall(create_proc_sysinfo);
 
 /*
  * Service levels interface.
@@ -387,13 +348,11 @@ static __init int create_proc_service_level(void)
 		register_service_level(&service_level_vm);
 	return 0;
 }
-
 subsys_initcall(create_proc_service_level);
 
 /*
  * Bogomips calculation based on cpu capability.
  */
-
 int get_cpu_capability(unsigned int *capability)
 {
 	struct sysinfo_1_2_2 *info;
