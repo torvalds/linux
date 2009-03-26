@@ -282,6 +282,7 @@ spca561		10fd:7e50	FlyCam Usb 100
 zc3xx		10fd:8050	Typhoon Webshot II USB 300k
 ov534		1415:2000	Sony HD Eye for PS3 (SLEH 00201)
 pac207		145f:013a	Trust WB-1300N
+vc032x		15b8:6001	HP 2.0 Megapixel
 vc032x		15b8:6002	HP 2.0 Megapixel rz406aa
 spca501		1776:501c	Arowana 300K CMOS Camera
 t613		17a1:0128	TASCORP JPEG Webcam, NGS Cyclops
