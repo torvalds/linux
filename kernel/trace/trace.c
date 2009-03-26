@@ -3581,7 +3581,7 @@ struct dentry *tracing_dentry_percpu(void)
 static void tracing_init_debugfs_percpu(long cpu)
 {
 	struct dentry *d_percpu = tracing_dentry_percpu();
-	struct dentry *entry, *d_cpu;
+	struct dentry *d_cpu;
 	/* strlen(cpu) + MAX(log10(cpu)) + '\0' */
 	char cpu_dir[7];
 
@@ -3596,21 +3596,15 @@ static void tracing_init_debugfs_percpu(long cpu)
 	}
 
 	/* per cpu trace_pipe */
-	entry = debugfs_create_file("trace_pipe", 0444, d_cpu,
-				(void *) cpu, &tracing_pipe_fops);
-	if (!entry)
-		pr_warning("Could not create debugfs 'trace_pipe' entry\n");
+	trace_create_file("trace_pipe", 0444, d_cpu,
+			(void *) cpu, &tracing_pipe_fops);
 
 	/* per cpu trace */
-	entry = debugfs_create_file("trace", 0644, d_cpu,
-				(void *) cpu, &tracing_fops);
-	if (!entry)
-		pr_warning("Could not create debugfs 'trace' entry\n");
+	trace_create_file("trace", 0644, d_cpu,
+			(void *) cpu, &tracing_fops);
 
-	entry = debugfs_create_file("trace_pipe_raw", 0444, d_cpu,
-				    (void *) cpu, &tracing_buffers_fops);
-	if (!entry)
-		pr_warning("Could not create debugfs 'trace_pipe_raw' entry\n");
+	trace_create_file("trace_pipe_raw", 0444, d_cpu,
+			(void *) cpu, &tracing_buffers_fops);
 }
 
 #ifdef CONFIG_FTRACE_SELFTEST
@@ -3766,6 +3760,22 @@ static const struct file_operations trace_options_core_fops = {
 	.write = trace_options_core_write,
 };
 
+struct dentry *trace_create_file(const char *name,
+				 mode_t mode,
+				 struct dentry *parent,
+				 void *data,
+				 const struct file_operations *fops)
+{
+	struct dentry *ret;
+
+	ret = debugfs_create_file(name, mode, parent, data, fops);
+	if (!ret)
+		pr_warning("Could not create debugfs '%s' entry\n", name);
+
+	return ret;
+}
+
+
 static struct dentry *trace_options_init_dentry(void)
 {
 	struct dentry *d_tracer;
@@ -3793,7 +3803,6 @@ create_trace_option_file(struct trace_option_dentry *topt,
 			 struct tracer_opt *opt)
 {
 	struct dentry *t_options;
-	struct dentry *entry;
 
 	t_options = trace_options_init_dentry();
 	if (!t_options)
@@ -3802,10 +3811,8 @@ create_trace_option_file(struct trace_option_dentry *topt,
 	topt->flags = flags;
 	topt->opt = opt;
 
-	entry = debugfs_create_file(opt->name, 0644, t_options, topt,
+	topt->entry = trace_create_file(opt->name, 0644, t_options, topt,
 				    &trace_options_fops);
-
-	topt->entry = entry;
 
 }
 
@@ -3861,122 +3868,80 @@ static struct dentry *
 create_trace_option_core_file(const char *option, long index)
 {
 	struct dentry *t_options;
-	struct dentry *entry;
 
 	t_options = trace_options_init_dentry();
 	if (!t_options)
 		return NULL;
 
-	entry = debugfs_create_file(option, 0644, t_options, (void *)index,
+	return trace_create_file(option, 0644, t_options, (void *)index,
 				    &trace_options_core_fops);
-
-	return entry;
 }
 
 static __init void create_trace_options_dir(void)
 {
 	struct dentry *t_options;
-	struct dentry *entry;
 	int i;
 
 	t_options = trace_options_init_dentry();
 	if (!t_options)
 		return;
 
-	for (i = 0; trace_options[i]; i++) {
-		entry = create_trace_option_core_file(trace_options[i], i);
-		if (!entry)
-			pr_warning("Could not create debugfs %s entry\n",
-				   trace_options[i]);
-	}
+	for (i = 0; trace_options[i]; i++)
+		create_trace_option_core_file(trace_options[i], i);
 }
 
 static __init int tracer_init_debugfs(void)
 {
 	struct dentry *d_tracer;
-	struct dentry *entry;
 	int cpu;
 
 	d_tracer = tracing_init_dentry();
 
-	entry = debugfs_create_file("tracing_enabled", 0644, d_tracer,
-				    &global_trace, &tracing_ctrl_fops);
-	if (!entry)
-		pr_warning("Could not create debugfs 'tracing_enabled' entry\n");
+	trace_create_file("tracing_enabled", 0644, d_tracer,
+			&global_trace, &tracing_ctrl_fops);
 
-	entry = debugfs_create_file("trace_options", 0644, d_tracer,
-				    NULL, &tracing_iter_fops);
-	if (!entry)
-		pr_warning("Could not create debugfs 'trace_options' entry\n");
+	trace_create_file("trace_options", 0644, d_tracer,
+			NULL, &tracing_iter_fops);
 
-	create_trace_options_dir();
+	trace_create_file("tracing_cpumask", 0644, d_tracer,
+			NULL, &tracing_cpumask_fops);
 
-	entry = debugfs_create_file("tracing_cpumask", 0644, d_tracer,
-				    NULL, &tracing_cpumask_fops);
-	if (!entry)
-		pr_warning("Could not create debugfs 'tracing_cpumask' entry\n");
+	trace_create_file("trace", 0644, d_tracer,
+			(void *) TRACE_PIPE_ALL_CPU, &tracing_fops);
 
-	entry = debugfs_create_file("trace", 0644, d_tracer,
-				 (void *) TRACE_PIPE_ALL_CPU, &tracing_fops);
-	if (!entry)
-		pr_warning("Could not create debugfs 'trace' entry\n");
+	trace_create_file("available_tracers", 0444, d_tracer,
+			&global_trace, &show_traces_fops);
 
-	entry = debugfs_create_file("available_tracers", 0444, d_tracer,
-				    &global_trace, &show_traces_fops);
-	if (!entry)
-		pr_warning("Could not create debugfs 'available_tracers' entry\n");
+	trace_create_file("current_tracer", 0444, d_tracer,
+			&global_trace, &set_tracer_fops);
 
-	entry = debugfs_create_file("current_tracer", 0444, d_tracer,
-				    &global_trace, &set_tracer_fops);
-	if (!entry)
-		pr_warning("Could not create debugfs 'current_tracer' entry\n");
+	trace_create_file("tracing_max_latency", 0644, d_tracer,
+			&tracing_max_latency, &tracing_max_lat_fops);
 
-	entry = debugfs_create_file("tracing_max_latency", 0644, d_tracer,
-				    &tracing_max_latency,
-				    &tracing_max_lat_fops);
-	if (!entry)
-		pr_warning("Could not create debugfs "
-			   "'tracing_max_latency' entry\n");
+	trace_create_file("tracing_thresh", 0644, d_tracer,
+			&tracing_thresh, &tracing_max_lat_fops);
 
-	entry = debugfs_create_file("tracing_thresh", 0644, d_tracer,
-				    &tracing_thresh, &tracing_max_lat_fops);
-	if (!entry)
-		pr_warning("Could not create debugfs "
-			   "'tracing_thresh' entry\n");
-	entry = debugfs_create_file("README", 0644, d_tracer,
-				    NULL, &tracing_readme_fops);
-	if (!entry)
-		pr_warning("Could not create debugfs 'README' entry\n");
+	trace_create_file("README", 0644, d_tracer,
+			NULL, &tracing_readme_fops);
 
-	entry = debugfs_create_file("trace_pipe", 0444, d_tracer,
+	trace_create_file("trace_pipe", 0444, d_tracer,
 			(void *) TRACE_PIPE_ALL_CPU, &tracing_pipe_fops);
-	if (!entry)
-		pr_warning("Could not create debugfs "
-			   "'trace_pipe' entry\n");
 
-	entry = debugfs_create_file("buffer_size_kb", 0644, d_tracer,
-				    &global_trace, &tracing_entries_fops);
-	if (!entry)
-		pr_warning("Could not create debugfs "
-			   "'buffer_size_kb' entry\n");
+	trace_create_file("buffer_size_kb", 0644, d_tracer,
+			&global_trace, &tracing_entries_fops);
 
-	entry = debugfs_create_file("trace_marker", 0220, d_tracer,
-				    NULL, &tracing_mark_fops);
-	if (!entry)
-		pr_warning("Could not create debugfs "
-			   "'trace_marker' entry\n");
+	trace_create_file("trace_marker", 0220, d_tracer,
+			NULL, &tracing_mark_fops);
 
 #ifdef CONFIG_DYNAMIC_FTRACE
-	entry = debugfs_create_file("dyn_ftrace_total_info", 0444, d_tracer,
-				    &ftrace_update_tot_cnt,
-				    &tracing_dyn_info_fops);
-	if (!entry)
-		pr_warning("Could not create debugfs "
-			   "'dyn_ftrace_total_info' entry\n");
+	trace_create_file("dyn_ftrace_total_info", 0444, d_tracer,
+			&ftrace_update_tot_cnt, &tracing_dyn_info_fops);
 #endif
 #ifdef CONFIG_SYSPROF_TRACER
 	init_tracer_sysprof_debugfs(d_tracer);
 #endif
+
+	create_trace_options_dir();
 
 	for_each_tracing_cpu(cpu)
 		tracing_init_debugfs_percpu(cpu);

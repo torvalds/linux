@@ -321,11 +321,7 @@ static const struct file_operations sysprof_sample_fops = {
 
 void init_tracer_sysprof_debugfs(struct dentry *d_tracer)
 {
-	struct dentry *entry;
 
-	entry = debugfs_create_file("sysprof_sample_period", 0644,
+	trace_create_file("sysprof_sample_period", 0644,
 			d_tracer, NULL, &sysprof_sample_fops);
-	if (entry)
-		return;
-	pr_warning("Could not create debugfs 'sysprof_sample_period' entry\n");
 }

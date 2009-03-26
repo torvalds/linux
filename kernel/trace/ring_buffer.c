@@ -2845,14 +2845,11 @@ static const struct file_operations rb_simple_fops = {
 static __init int rb_init_debugfs(void)
 {
 	struct dentry *d_tracer;
-	struct dentry *entry;
 
 	d_tracer = tracing_init_dentry();
 
-	entry = debugfs_create_file("tracing_on", 0644, d_tracer,
-				    &ring_buffer_flags, &rb_simple_fops);
-	if (!entry)
-		pr_warning("Could not create debugfs 'tracing_on' entry\n");
+	trace_create_file("tracing_on", 0644, d_tracer,
+			    &ring_buffer_flags, &rb_simple_fops);
 
 	return 0;
 }

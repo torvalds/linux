@@ -2698,38 +2698,23 @@ static const struct file_operations ftrace_graph_fops = {
 
 static __init int ftrace_init_dyn_debugfs(struct dentry *d_tracer)
 {
-	struct dentry *entry;
 
-	entry = debugfs_create_file("available_filter_functions", 0444,
-				    d_tracer, NULL, &ftrace_avail_fops);
-	if (!entry)
-		pr_warning("Could not create debugfs "
-			   "'available_filter_functions' entry\n");
+	trace_create_file("available_filter_functions", 0444,
+			d_tracer, NULL, &ftrace_avail_fops);
 
-	entry = debugfs_create_file("failures", 0444,
-				    d_tracer, NULL, &ftrace_failures_fops);
-	if (!entry)
-		pr_warning("Could not create debugfs 'failures' entry\n");
+	trace_create_file("failures", 0444,
+			d_tracer, NULL, &ftrace_failures_fops);
 
-	entry = debugfs_create_file("set_ftrace_filter", 0644, d_tracer,
-				    NULL, &ftrace_filter_fops);
-	if (!entry)
-		pr_warning("Could not create debugfs "
-			   "'set_ftrace_filter' entry\n");
+	trace_create_file("set_ftrace_filter", 0644, d_tracer,
+			NULL, &ftrace_filter_fops);
 
-	entry = debugfs_create_file("set_ftrace_notrace", 0644, d_tracer,
+	trace_create_file("set_ftrace_notrace", 0644, d_tracer,
 				    NULL, &ftrace_notrace_fops);
-	if (!entry)
-		pr_warning("Could not create debugfs "
-			   "'set_ftrace_notrace' entry\n");
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
-	entry = debugfs_create_file("set_graph_function", 0444, d_tracer,
+	trace_create_file("set_graph_function", 0444, d_tracer,
 				    NULL,
 				    &ftrace_graph_fops);
-	if (!entry)
-		pr_warning("Could not create debugfs "
-			   "'set_graph_function' entry\n");
 #endif /* CONFIG_FUNCTION_GRAPH_TRACER */
 
 	return 0;
@@ -2987,7 +2972,6 @@ static const struct file_operations ftrace_pid_fops = {
 static __init int ftrace_init_debugfs(void)
 {
 	struct dentry *d_tracer;
-	struct dentry *entry;
 
 	d_tracer = tracing_init_dentry();
 	if (!d_tracer)
@@ -2995,11 +2979,8 @@ static __init int ftrace_init_debugfs(void)
 
 	ftrace_init_dyn_debugfs(d_tracer);
 
-	entry = debugfs_create_file("set_ftrace_pid", 0644, d_tracer,
-				    NULL, &ftrace_pid_fops);
-	if (!entry)
-		pr_warning("Could not create debugfs "
-			   "'set_ftrace_pid' entry\n");
+	trace_create_file("set_ftrace_pid", 0644, d_tracer,
+			    NULL, &ftrace_pid_fops);
 
 	ftrace_profile_debugfs(d_tracer);
 

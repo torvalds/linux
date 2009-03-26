@@ -28,4 +28,3 @@ void ftrace_profile_disable(int event_id)
 			return event->profile_disable(event);
 	}
 }
-
