@@ -2871,6 +2871,9 @@ static void t3_io_resume(struct pci_dev *pdev)
 {
 	struct adapter *adapter = pci_get_drvdata(pdev);
 
+	CH_ALERT(adapter, "adapter recovering, PEX ERR 0x%x\n",
+		 t3_read_reg(adapter, A_PCIE_PEX_ERR));
+
 	t3_resume_ports(adapter);
 }
 
@@ -3003,7 +3006,7 @@ static int __devinit init_one(struct pci_dev *pdev,
 	static int version_printed;
 
 	int i, err, pci_using_dac = 0;
-	unsigned long mmio_start, mmio_len;
+	resource_size_t mmio_start, mmio_len;
 	const struct adapter_info *ai;
 	struct adapter *adapter = NULL;
 	struct port_info *pi;
