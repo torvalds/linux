@@ -296,7 +296,7 @@ int s390_enable_sie(void)
 	tsk->mm = tsk->active_mm = mm;
 	preempt_disable();
 	update_mm(mm, tsk);
-	cpu_set(smp_processor_id(), mm->cpu_vm_mask);
+	cpumask_set_cpu(smp_processor_id(), mm_cpumask(mm));
 	preempt_enable();
 	task_unlock(tsk);
 	mmput(old_mm);
