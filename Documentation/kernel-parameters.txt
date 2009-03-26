@@ -44,6 +44,7 @@ parameter is applicable:
 	FB	The frame buffer device is enabled.
 	HW	Appropriate hardware is enabled.
 	IA-64	IA-64 architecture is enabled.
+	IMA     Integrity measurement architecture is enabled.
 	IOSCHED	More than one I/O scheduler is enabled.
 	IP_PNP	IP DHCP, BOOTP, or RARP is enabled.
 	ISAPNP	ISA PnP code is enabled.
@@ -901,6 +902,15 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	ihash_entries=	[KNL]
 			Set number of hash buckets for inode cache.
+
+	ima_audit=	[IMA]
+			Format: { "0" | "1" }
+			0 -- integrity auditing messages. (Default)
+			1 -- enable informational integrity auditing messages.
+
+	ima_hash=	[IMA]
+			Formt: { "sha1" | "md5" }
+			default: "sha1"
 
 	in2000=		[HW,SCSI]
 			See header of drivers/scsi/in2000.c.
