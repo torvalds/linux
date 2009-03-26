@@ -1269,7 +1269,7 @@ static int rndis_iw_get_range(struct net_device *dev,
 	range->max_frag = 2346;
 
 	range->max_qual.qual = 100;
-	range->max_qual.level = 154;
+	range->max_qual.level = 100;
 	range->max_qual.updated = IW_QUAL_QUAL_UPDATED
 				| IW_QUAL_LEVEL_UPDATED
 				| IW_QUAL_NOISE_INVALID;
@@ -1712,7 +1712,7 @@ static char *rndis_translate_scan(struct net_device *dev,
 	devdbg(usbdev, "QUAL %d", le32_to_cpu(bssid->rssi));
 	iwe.cmd = IWEVQUAL;
 	iwe.u.qual.qual  = level_to_qual(le32_to_cpu(bssid->rssi));
-	iwe.u.qual.level = le32_to_cpu(bssid->rssi);
+	iwe.u.qual.level = level_to_qual(le32_to_cpu(bssid->rssi));
 	iwe.u.qual.updated = IW_QUAL_QUAL_UPDATED
 			| IW_QUAL_LEVEL_UPDATED
 			| IW_QUAL_NOISE_INVALID;
@@ -2400,7 +2400,7 @@ static void rndis_update_wireless_stats(struct work_struct *work)
 	if (ret == 0) {
 		memset(&iwstats.qual, 0, sizeof(iwstats.qual));
 		iwstats.qual.qual  = level_to_qual(le32_to_cpu(rssi));
-		iwstats.qual.level = le32_to_cpu(rssi);
+		iwstats.qual.level = level_to_qual(le32_to_cpu(rssi));
 		iwstats.qual.updated = IW_QUAL_QUAL_UPDATED
 				| IW_QUAL_LEVEL_UPDATED
 				| IW_QUAL_NOISE_INVALID;
