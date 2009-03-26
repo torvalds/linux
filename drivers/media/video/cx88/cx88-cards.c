@@ -3127,6 +3127,8 @@ struct cx88_core *cx88_core_create(struct pci_dev *pci, int nr)
 	int i;
 
 	core = kzalloc(sizeof(*core), GFP_KERNEL);
+	if (core == NULL)
+		return NULL;
 
 	atomic_inc(&core->refcount);
 	core->pci_bus  = pci->bus->number;
@@ -3156,6 +3158,11 @@ struct cx88_core *cx88_core_create(struct pci_dev *pci, int nr)
 	core->lmmio = ioremap(pci_resource_start(pci, 0),
 			      pci_resource_len(pci, 0));
 	core->bmmio = (u8 __iomem *)core->lmmio;
+
+	if (core->lmmio == NULL) {
+		kfree(core);
+		return NULL;
+	}
 
 	/* board config */
 	core->boardnr = UNSET;
