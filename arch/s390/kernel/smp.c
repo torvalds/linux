@@ -534,18 +534,23 @@ int __cpuinit __cpu_up(unsigned int cpu)
 	struct _lowcore *cpu_lowcore;
 	struct stack_frame *sf;
 	sigp_ccode ccode;
+	u32 lowcore;
 
 	if (smp_cpu_state[cpu] != CPU_STATE_CONFIGURED)
 		return -EIO;
 	if (smp_alloc_lowcore(cpu))
 		return -ENOMEM;
+	do {
+		ccode = signal_processor(cpu, sigp_initial_cpu_reset);
+		if (ccode == sigp_busy)
+			udelay(10);
+		if (ccode == sigp_not_operational)
+			goto err_out;
+	} while (ccode == sigp_busy);
 
-	ccode = signal_processor_p((__u32)(unsigned long)(lowcore_ptr[cpu]),
-				   cpu, sigp_set_prefix);
-	if (ccode) {
-		smp_free_lowcore(cpu);
-		return -EIO;
-	}
+	lowcore = (u32)(unsigned long)lowcore_ptr[cpu];
+	while (signal_processor_p(lowcore, cpu, sigp_set_prefix) == sigp_busy)
+		udelay(10);
 
 	idle = current_set[cpu];
 	cpu_lowcore = lowcore_ptr[cpu];
@@ -574,6 +579,10 @@ int __cpuinit __cpu_up(unsigned int cpu)
 	while (!cpu_online(cpu))
 		cpu_relax();
 	return 0;
+
+err_out:
+	smp_free_lowcore(cpu);
+	return -EIO;
 }
 
 static int __init setup_possible_cpus(char *s)
