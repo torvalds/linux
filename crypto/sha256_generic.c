@@ -2,7 +2,7 @@
  * Cryptographic API.
  *
  * SHA-256, as specified in
- * http://csrc.nist.gov/cryptval/shs/sha256-384-512.pdf
+ * http://csrc.nist.gov/groups/STM/cavp/documents/shs/sha256-384-512.pdf
  *
  * SHA-256 code by Jean-Luc Cooke <jlcooke@certainkey.com>.
  *

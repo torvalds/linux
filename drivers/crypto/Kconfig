@@ -86,7 +86,7 @@ config ZCRYPT_MONOLITHIC
 config CRYPTO_SHA1_S390
 	tristate "SHA1 digest algorithm"
 	depends on S390
-	select CRYPTO_ALGAPI
+	select CRYPTO_HASH
 	help
 	  This is the s390 hardware accelerated implementation of the
 	  SHA-1 secure hash standard (FIPS 180-1/DFIPS 180-2).
@@ -94,7 +94,7 @@ config CRYPTO_SHA1_S390
 config CRYPTO_SHA256_S390
 	tristate "SHA256 digest algorithm"
 	depends on S390
-	select CRYPTO_ALGAPI
+	select CRYPTO_HASH
 	help
 	  This is the s390 hardware accelerated implementation of the
 	  SHA256 secure hash standard (DFIPS 180-2).
@@ -105,7 +105,7 @@ config CRYPTO_SHA256_S390
 config CRYPTO_SHA512_S390
 	tristate "SHA384 and SHA512 digest algorithm"
 	depends on S390
-	select CRYPTO_ALGAPI
+	select CRYPTO_HASH
 	help
 	  This is the s390 hardware accelerated implementation of the
 	  SHA512 secure hash standard.
@@ -199,5 +199,14 @@ config CRYPTO_DEV_IXP4XX
 	select CRYPTO_BLKCIPHER
 	help
 	  Driver for the IXP4xx NPE crypto engine.
+
+config CRYPTO_DEV_PPC4XX
+	tristate "Driver AMCC PPC4xx crypto accelerator"
+	depends on PPC && 4xx
+	select CRYPTO_HASH
+	select CRYPTO_ALGAPI
+	select CRYPTO_BLKCIPHER
+	help
+	  This option allows you to have support for AMCC crypto acceleration.
 
 endif # CRYPTO_HW

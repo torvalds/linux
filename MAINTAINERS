@@ -1269,6 +1269,12 @@ L:	linux-crypto@vger.kernel.org
 T:	git kernel.org:/pub/scm/linux/kernel/git/herbert/crypto-2.6.git
 S:	Maintained
 
+CRYPTOGRAPHIC RANDOM NUMBER GENERATOR
+P:	Neil Horman
+M:	nhorman@tuxdriver.com
+L:	linux-crypto@vger.kernel.org
+S:	Maintained
+
 CS5535 Audio ALSA driver
 P:	Jaya Kumar
 M:	jayakumar.alsa@gmail.com
