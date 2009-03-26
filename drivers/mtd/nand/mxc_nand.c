@@ -866,6 +866,7 @@ static int __init mxcnd_probe(struct platform_device *pdev)
 	mtd = &host->mtd;
 	mtd->priv = this;
 	mtd->owner = THIS_MODULE;
+	mtd->dev.parent = &pdev->dev;
 
 	/* 50 us command delay time */
 	this->chip_delay = 5;

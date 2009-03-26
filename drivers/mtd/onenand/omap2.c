@@ -676,6 +676,8 @@ static int __devinit omap2_onenand_probe(struct platform_device *pdev)
 	c->mtd.priv = &c->onenand;
 	c->mtd.owner = THIS_MODULE;
 
+	c->mtd.dev.parent = &pdev->dev;
+
 	if (c->dma_channel >= 0) {
 		struct onenand_chip *this = &c->onenand;
 

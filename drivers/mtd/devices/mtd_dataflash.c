@@ -664,6 +664,8 @@ add_dataflash_otp(struct spi_device *spi, char *name,
 	device->write = dataflash_write;
 	device->priv = priv;
 
+	device->dev.parent = &spi->dev;
+
 	if (revision >= 'c')
 		otp_tag = otp_setup(device, revision);
 
