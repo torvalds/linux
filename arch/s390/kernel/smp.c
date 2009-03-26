@@ -226,7 +226,7 @@ EXPORT_SYMBOL(smp_ctl_clear_bit);
  */
 #define CPU_INIT_NO	1
 
-#if defined(CONFIG_ZFCPDUMP) || defined(CONFIG_ZFCPDUMP_MODULE)
+#ifdef CONFIG_ZFCPDUMP
 
 /*
  * zfcpdump_prefix_array holds prefix registers for the following scenario:
@@ -267,7 +267,7 @@ EXPORT_SYMBOL_GPL(zfcpdump_save_areas);
 
 static inline void smp_get_save_area(unsigned int cpu, unsigned int phy_cpu) { }
 
-#endif /* CONFIG_ZFCPDUMP || CONFIG_ZFCPDUMP_MODULE */
+#endif /* CONFIG_ZFCPDUMP */
 
 static int cpu_stopped(int cpu)
 {

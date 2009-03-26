@@ -226,7 +226,7 @@ static void __init conmode_default(void)
 	}
 }
 
-#if defined(CONFIG_ZFCPDUMP) || defined(CONFIG_ZFCPDUMP_MODULE)
+#ifdef CONFIG_ZFCPDUMP
 static void __init setup_zfcpdump(unsigned int console_devno)
 {
 	static char str[41];
@@ -515,7 +515,7 @@ static void __init setup_memory_end(void)
 	unsigned long max_mem;
 	int i;
 
-#if defined(CONFIG_ZFCPDUMP) || defined(CONFIG_ZFCPDUMP_MODULE)
+#ifdef CONFIG_ZFCPDUMP
 	if (ipl_info.type == IPL_TYPE_FCP_DUMP) {
 		memory_end = ZFCPDUMP_HSA_SIZE;
 		memory_end_set = 1;
