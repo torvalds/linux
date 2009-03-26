@@ -103,11 +103,11 @@ static const struct file_operations me_file_operations = {
 	.release = me_release,
 };
 
-struct pci_driver me_pci_driver = {
+static struct pci_driver me_pci_driver = {
 	.name = MEMAIN_NAME,
 	.id_table = me_pci_table,
 	.probe = me_probe_pci,
-	.remove = me_remove_pci
+	.remove = __devexit_p(me_remove_pci),
 };
 
 /* //me_usb_driver
@@ -384,7 +384,8 @@ static me_device_t *get_dummy_instance(unsigned short vendor_id,
 	return instance;
 }
 
-static int me_probe_pci(struct pci_dev *dev, const struct pci_device_id *id)
+static int __devinit me_probe_pci(struct pci_dev *dev,
+		const struct pci_device_id *id)
 {
 	int err;
 	me_pci_constructor_t constructor = NULL;
@@ -582,7 +583,7 @@ static int insert_to_device_list(me_device_t *n_device)
 	return 0;
 }
 
-static void me_remove_pci(struct pci_dev *dev)
+static void __devexit me_remove_pci(struct pci_dev *dev)
 {
 	int vendor_id = dev->vendor;
 	int device_id = dev->device;
