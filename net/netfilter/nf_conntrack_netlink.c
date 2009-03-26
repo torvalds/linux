@@ -441,19 +441,28 @@ ctnetlink_alloc_skb(const struct nf_conntrack_tuple *tuple, gfp_t gfp)
 		+ 3 * NLA_TYPE_SIZE(u_int8_t)	/* CTA_PROTO_NUM */
 		+ NLA_TYPE_SIZE(u_int32_t)	/* CTA_ID */
 		+ NLA_TYPE_SIZE(u_int32_t)	/* CTA_STATUS */
+#ifdef CONFIG_NF_CT_ACCT
 		+ 2 * nla_total_size(0)		/* CTA_COUNTERS_ORIG|REPL */
 		+ 2 * NLA_TYPE_SIZE(uint64_t)	/* CTA_COUNTERS_PACKETS */
 		+ 2 * NLA_TYPE_SIZE(uint64_t)	/* CTA_COUNTERS_BYTES */
+#endif
 		+ NLA_TYPE_SIZE(u_int32_t)	/* CTA_TIMEOUT */
 		+ nla_total_size(0)		/* CTA_PROTOINFO */
 		+ nla_total_size(0)		/* CTA_HELP */
 		+ nla_total_size(NF_CT_HELPER_NAME_LEN)	/* CTA_HELP_NAME */
+#ifdef CONFIG_NF_CONNTRACK_SECMARK
 		+ NLA_TYPE_SIZE(u_int32_t)	/* CTA_SECMARK */
+#endif
+#ifdef CONFIG_NF_NAT_NEEDED
 		+ 2 * nla_total_size(0)		/* CTA_NAT_SEQ_ADJ_ORIG|REPL */
 		+ 2 * NLA_TYPE_SIZE(u_int32_t)	/* CTA_NAT_SEQ_CORRECTION_POS */
 		+ 2 * NLA_TYPE_SIZE(u_int32_t)	/* CTA_NAT_SEQ_CORRECTION_BEFORE */
 		+ 2 * NLA_TYPE_SIZE(u_int32_t)	/* CTA_NAT_SEQ_CORRECTION_AFTER */
-		+ NLA_TYPE_SIZE(u_int32_t);	/* CTA_MARK */
+#endif
+#ifdef CONFIG_NF_CONNTRACK_MARK
+		+ NLA_TYPE_SIZE(u_int32_t)	/* CTA_MARK */
+#endif
+		;
 
 #undef NLA_TYPE_SIZE
 
