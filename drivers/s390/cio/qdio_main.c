@@ -570,29 +570,30 @@ static int qdio_inbound_q_done(struct qdio_q *q)
 	}
 }
 
-void qdio_kick_inbound_handler(struct qdio_q *q)
+void qdio_kick_handler(struct qdio_q *q)
 {
-	int count, start, end;
-
-	qdio_perf_stat_inc(&perf_stats.inbound_handler);
-
-	start = q->first_to_kick;
-	end = q->first_to_check;
-	if (end >= start)
-		count = end - start;
-	else
-		count = end + QDIO_MAX_BUFFERS_PER_Q - start;
-
-	DBF_DEV_EVENT(DBF_INFO, q->irq_ptr, "kih s:%3d c:%3d", start, count);
+	int start = q->first_to_kick;
+	int end = q->first_to_check;
+	int count;
 
 	if (unlikely(q->irq_ptr->state != QDIO_IRQ_STATE_ACTIVE))
 		return;
 
-	q->handler(q->irq_ptr->cdev, q->qdio_error, q->nr,
-		   start, count, q->irq_ptr->int_parm);
+	count = sub_buf(end, start);
+
+	if (q->is_input_q) {
+		qdio_perf_stat_inc(&perf_stats.inbound_handler);
+		DBF_DEV_EVENT(DBF_INFO, q->irq_ptr, "kih s:%3d c:%3d", start, count);
+	} else {
+		DBF_DEV_EVENT(DBF_INFO, q->irq_ptr, "koh: nr:%1d", q->nr);
+		DBF_DEV_EVENT(DBF_INFO, q->irq_ptr, "s:%3d c:%3d", start, count);
+	}
+
+	q->handler(q->irq_ptr->cdev, q->qdio_error, q->nr, start, count,
+		   q->irq_ptr->int_parm);
 
 	/* for the next time */
-	q->first_to_kick = q->first_to_check;
+	q->first_to_kick = end;
 	q->qdio_error = 0;
 }
 
@@ -603,7 +604,7 @@ again:
 	if (!qdio_inbound_q_moved(q))
 		return;
 
-	qdio_kick_inbound_handler(q);
+	qdio_kick_handler(q);
 
 	if (!qdio_inbound_q_done(q))
 		/* means poll time is not yet over */
@@ -736,38 +737,13 @@ static int qdio_kick_outbound_q(struct qdio_q *q)
 	return cc;
 }
 
-static void qdio_kick_outbound_handler(struct qdio_q *q)
-{
-	int start, end, count;
-
-	start = q->first_to_kick;
-	end = q->last_move;
-	if (end >= start)
-		count = end - start;
-	else
-		count = end + QDIO_MAX_BUFFERS_PER_Q - start;
-
-	DBF_DEV_EVENT(DBF_INFO, q->irq_ptr, "kickouth: %1d", q->nr);
-	DBF_DEV_EVENT(DBF_INFO, q->irq_ptr, "s:%3d c:%3d", start, count);
-
-	if (unlikely(q->irq_ptr->state != QDIO_IRQ_STATE_ACTIVE))
-		return;
-
-	q->handler(q->irq_ptr->cdev, q->qdio_error, q->nr, start, count,
-		   q->irq_ptr->int_parm);
-
-	/* for the next time: */
-	q->first_to_kick = q->last_move;
-	q->qdio_error = 0;
-}
-
 static void __qdio_outbound_processing(struct qdio_q *q)
 {
 	qdio_perf_stat_inc(&perf_stats.tasklet_outbound);
 	BUG_ON(atomic_read(&q->nr_buf_used) < 0);
 
 	if (qdio_outbound_q_moved(q))
-		qdio_kick_outbound_handler(q);
+		qdio_kick_handler(q);
 
 	if (queue_type(q) == QDIO_ZFCP_QFMT)
 		if (!pci_out_supported(q) && !qdio_outbound_q_done(q))

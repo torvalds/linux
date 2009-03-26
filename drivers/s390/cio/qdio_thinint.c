@@ -161,7 +161,7 @@ static void __tiqdio_inbound_processing(struct qdio_q *q)
 	if (!qdio_inbound_q_moved(q))
 		return;
 
-	qdio_kick_inbound_handler(q);
+	qdio_kick_handler(q);
 
 	if (!tiqdio_inbound_q_done(q)) {
 		qdio_perf_stat_inc(&perf_stats.thinint_inbound_loop);
