@@ -270,13 +270,14 @@ static void sq905_dostream(struct work_struct *work)
 			}
 			frame = gspca_get_i_frame(gspca_dev);
 			if (frame && !discarding) {
-				gspca_frame_add(gspca_dev, packet_type,
+				frame = gspca_frame_add(gspca_dev, packet_type,
 						frame, data, data_len);
 				/* If entire frame fits in one packet we still
 				   need to add a LAST_PACKET */
-				if ((packet_type == FIRST_PACKET) &&
-				    (bytes_left == 0))
-					gspca_frame_add(gspca_dev, LAST_PACKET,
+				if (packet_type == FIRST_PACKET &&
+				    bytes_left == 0)
+					frame = gspca_frame_add(gspca_dev,
+							LAST_PACKET,
 							frame, data, 0);
 			} else {
 				discarding = 1;
