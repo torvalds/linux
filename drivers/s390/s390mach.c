@@ -357,8 +357,7 @@ s390_revalidate_registers(struct mci *mci)
 /*
  * machine check handler.
  */
-void
-s390_do_machine_check(struct pt_regs *regs)
+void notrace s390_do_machine_check(struct pt_regs *regs)
 {
 	static DEFINE_SPINLOCK(ipd_lock);
 	static unsigned long long last_ipd;
