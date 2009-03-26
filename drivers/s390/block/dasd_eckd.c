@@ -1265,6 +1265,8 @@ dasd_eckd_format_device(struct dasd_device * device,
 	int rpt, cyl, head;
 	int cplength, datasize;
 	int i;
+	int intensity = 0;
+	int r0_perm;
 
 	private = (struct dasd_eckd_private *) device->private;
 	rpt = recs_per_track(&private->rdc_data, 0, fdata->blksize);
@@ -1296,9 +1298,17 @@ dasd_eckd_format_device(struct dasd_device * device,
 	 *   Bit 1: write home address, currently not supported
 	 *   Bit 2: invalidate tracks
 	 *   Bit 3: use OS/390 compatible disk layout (cdl)
+	 *   Bit 4: do not allow storage subsystem to modify record zero
 	 * Only some bit combinations do make sense.
 	 */
-	switch (fdata->intensity) {
+	if (fdata->intensity & 0x10) {
+		r0_perm = 0;
+		intensity = fdata->intensity & ~0x10;
+	} else {
+		r0_perm = 1;
+		intensity = fdata->intensity;
+	}
+	switch (intensity) {
 	case 0x00:	/* Normal format */
 	case 0x08:	/* Normal format, use cdl. */
 		cplength = 2 + rpt;
@@ -1335,11 +1345,14 @@ dasd_eckd_format_device(struct dasd_device * device,
 	data = fcp->data;
 	ccw = fcp->cpaddr;
 
-	switch (fdata->intensity & ~0x08) {
+	switch (intensity & ~0x08) {
 	case 0x00: /* Normal format. */
 		define_extent(ccw++, (struct DE_eckd_data *) data,
 			      fdata->start_unit, fdata->start_unit,
 			      DASD_ECKD_CCW_WRITE_CKD, device);
+		/* grant subsystem permission to format R0 */
+		if (r0_perm)
+			((struct DE_eckd_data *)data)->ga_extended |= 0x04;
 		data += sizeof(struct DE_eckd_data);
 		ccw[-1].flags |= CCW_FLAG_CC;
 		locate_record(ccw++, (struct LO_eckd_data *) data,
@@ -1373,7 +1386,7 @@ dasd_eckd_format_device(struct dasd_device * device,
 		data += sizeof(struct LO_eckd_data);
 		break;
 	}
-	if (fdata->intensity & 0x01) {	/* write record zero */
+	if (intensity & 0x01) {	/* write record zero */
 		ect = (struct eckd_count *) data;
 		data += sizeof(struct eckd_count);
 		ect->cyl = cyl;
@@ -1388,7 +1401,7 @@ dasd_eckd_format_device(struct dasd_device * device,
 		ccw->cda = (__u32)(addr_t) ect;
 		ccw++;
 	}
-	if ((fdata->intensity & ~0x08) & 0x04) {	/* erase track */
+	if ((intensity & ~0x08) & 0x04) {	/* erase track */
 		ect = (struct eckd_count *) data;
 		data += sizeof(struct eckd_count);
 		ect->cyl = cyl;
@@ -1411,14 +1424,14 @@ dasd_eckd_format_device(struct dasd_device * device,
 			ect->kl = 0;
 			ect->dl = fdata->blksize;
 			/* Check for special tracks 0-1 when formatting CDL */
-			if ((fdata->intensity & 0x08) &&
+			if ((intensity & 0x08) &&
 			    fdata->start_unit == 0) {
 				if (i < 3) {
 					ect->kl = 4;
 					ect->dl = sizes_trk0[i] - 4;
 				}
 			}
-			if ((fdata->intensity & 0x08) &&
+			if ((intensity & 0x08) &&
 			    fdata->start_unit == 1) {
 				ect->kl = 44;
 				ect->dl = LABEL_SIZE - 44;
