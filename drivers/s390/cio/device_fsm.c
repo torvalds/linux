@@ -194,7 +194,7 @@ ccw_device_handle_oper(struct ccw_device *cdev)
 	    cdev->id.dev_type != cdev->private->senseid.dev_type ||
 	    cdev->id.dev_model != cdev->private->senseid.dev_model) {
 		PREPARE_WORK(&cdev->private->kick_work,
-			     ccw_device_do_unreg_rereg);
+			     ccw_device_do_unbind_bind);
 		queue_work(ccw_device_work, &cdev->private->kick_work);
 		return 0;
 	}
@@ -366,7 +366,7 @@ static void ccw_device_oper_notify(struct ccw_device *cdev)
 	}
 	/* Driver doesn't want device back. */
 	ccw_device_set_notoper(cdev);
-	PREPARE_WORK(&cdev->private->kick_work, ccw_device_do_unreg_rereg);
+	PREPARE_WORK(&cdev->private->kick_work, ccw_device_do_unbind_bind);
 	queue_work(ccw_device_work, &cdev->private->kick_work);
 }
 
