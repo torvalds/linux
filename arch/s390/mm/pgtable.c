@@ -258,6 +258,10 @@ int s390_enable_sie(void)
 	struct task_struct *tsk = current;
 	struct mm_struct *mm, *old_mm;
 
+	/* Do we have switched amode? If no, we cannot do sie */
+	if (!switch_amode)
+		return -EINVAL;
+
 	/* Do we have pgstes? if yes, we are done */
 	if (tsk->mm->context.has_pgste)
 		return 0;
