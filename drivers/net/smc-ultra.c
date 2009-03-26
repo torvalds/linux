@@ -196,7 +196,7 @@ static const struct net_device_ops ultra_netdev_ops = {
 	.ndo_set_mac_address 	= eth_mac_addr,
 	.ndo_change_mtu		= eth_change_mtu,
 #ifdef CONFIG_NET_POLL_CONTROLLER
-	.ndo_poll_controller 	= ei_poll,
+	.ndo_poll_controller 	= ultra_poll,
 #endif
 };
 
