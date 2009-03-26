@@ -603,7 +603,7 @@ debug_input(struct file *file, const char __user *user_buf, size_t length,
 static int
 debug_open(struct inode *inode, struct file *file)
 {
-	int i = 0, rc = 0;
+	int i, rc = 0;
 	file_private_info_t *p_info;
 	debug_info_t *debug_info, *debug_info_snapshot;
 
@@ -1155,7 +1155,6 @@ debug_unregister_view(debug_info_t * id, struct debug_view *view)
 	else {
 		debugfs_remove(id->debugfs_entries[i]);
 		id->views[i] = NULL;
-		rc = 0;
 	}
 	spin_unlock_irqrestore(&id->lock, flags);
 out:
