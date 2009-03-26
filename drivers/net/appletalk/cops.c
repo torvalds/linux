@@ -258,6 +258,15 @@ out:
 	return ERR_PTR(err);
 }
 
+static const struct net_device_ops cops_netdev_ops = {
+	.ndo_open               = cops_open,
+        .ndo_stop               = cops_close,
+	.ndo_start_xmit   	= cops_send_packet,
+	.ndo_tx_timeout		= cops_timeout,
+        .ndo_do_ioctl           = cops_ioctl,
+	.ndo_set_multicast_list = set_multicast_list,
+};
+
 /*
  *      This is the real probe routine. Linux has a history of friendly device
  *      probes on the ISA bus. A good device probes avoids doing writes, and
@@ -331,15 +340,9 @@ static int __init cops_probe1(struct net_device *dev, int ioaddr)
 	/* Copy local board variable to lp struct. */
 	lp->board               = board;
 
-	dev->hard_start_xmit    = cops_send_packet;
-	dev->tx_timeout		= cops_timeout;
+	dev->netdev_ops 	= &cops_netdev_ops;
 	dev->watchdog_timeo	= HZ * 2;
 
-	dev->open               = cops_open;
-        dev->stop               = cops_close;
-        dev->do_ioctl           = cops_ioctl;
-	dev->set_multicast_list = set_multicast_list;
-        dev->mc_list            = NULL;
 
 	/* Tell the user where the card is and what mode we're in. */
 	if(board==DAYNA)
