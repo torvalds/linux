@@ -995,10 +995,11 @@ static struct aaci * __devinit aaci_init_card(struct amba_device *dev)
 {
 	struct aaci *aaci;
 	struct snd_card *card;
+	int err;
 
-	card = snd_card_new(SNDRV_DEFAULT_IDX1, SNDRV_DEFAULT_STR1,
-			    THIS_MODULE, sizeof(struct aaci));
-	if (card == NULL)
+	err = snd_card_create(SNDRV_DEFAULT_IDX1, SNDRV_DEFAULT_STR1,
+			      THIS_MODULE, sizeof(struct aaci), &card);
+	if (err < 0)
 		return NULL;
 
 	card->private_free = aaci_free_card;

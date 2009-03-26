@@ -227,9 +227,9 @@ static void i_usX2Y_In04Int(struct urb *urb)
 	
 	if (usX2Y->US04) {
 		if (0 == usX2Y->US04->submitted)
-			do
+			do {
 				err = usb_submit_urb(usX2Y->US04->urb[usX2Y->US04->submitted++], GFP_ATOMIC);
-			while (!err && usX2Y->US04->submitted < usX2Y->US04->len);
+			} while (!err && usX2Y->US04->submitted < usX2Y->US04->len);
 	} else
 		if (us428ctls && us428ctls->p4outLast >= 0 && us428ctls->p4outLast < N_us428_p4out_BUFS) {
 			if (us428ctls->p4outLast != us428ctls->p4outSent) {
@@ -333,18 +333,21 @@ static struct usb_device_id snd_usX2Y_usb_id_table[] = {
 	{ /* terminator */ }
 };
 
-static struct snd_card *usX2Y_create_card(struct usb_device *device)
+static int usX2Y_create_card(struct usb_device *device, struct snd_card **cardp)
 {
 	int		dev;
 	struct snd_card *	card;
+	int err;
+
 	for (dev = 0; dev < SNDRV_CARDS; ++dev)
 		if (enable[dev] && !snd_usX2Y_card_used[dev])
 			break;
 	if (dev >= SNDRV_CARDS)
-		return NULL;
-	card = snd_card_new(index[dev], id[dev], THIS_MODULE, sizeof(struct usX2Ydev));
-	if (!card)
-		return NULL;
+		return -ENODEV;
+	err = snd_card_create(index[dev], id[dev], THIS_MODULE,
+			      sizeof(struct usX2Ydev), &card);
+	if (err < 0)
+		return err;
 	snd_usX2Y_card_used[usX2Y(card)->chip.index = dev] = 1;
 	card->private_free = snd_usX2Y_card_private_free;
 	usX2Y(card)->chip.dev = device;
@@ -362,26 +365,36 @@ static struct snd_card *usX2Y_create_card(struct usb_device *device)
 		usX2Y(card)->chip.dev->bus->busnum, usX2Y(card)->chip.dev->devnum
 		);
 	snd_card_set_dev(card, &device->dev);
-	return card;
+	*cardp = card;
+	return 0;
 }
 
 
-static void *usX2Y_usb_probe(struct usb_device *device, struct usb_interface *intf, const struct usb_device_id *device_id)
+static int usX2Y_usb_probe(struct usb_device *device,
+			   struct usb_interface *intf,
+			   const struct usb_device_id *device_id,
+			   struct snd_card **cardp)
 {
 	int		err;
 	struct snd_card *	card;
+
+	*cardp = NULL;
 	if (le16_to_cpu(device->descriptor.idVendor) != 0x1604 ||
 	    (le16_to_cpu(device->descriptor.idProduct) != USB_ID_US122 &&
 	     le16_to_cpu(device->descriptor.idProduct) != USB_ID_US224 &&
-	     le16_to_cpu(device->descriptor.idProduct) != USB_ID_US428) ||
-	    !(card = usX2Y_create_card(device)))
-		return NULL;
+	     le16_to_cpu(device->descriptor.idProduct) != USB_ID_US428))
+		return -EINVAL;
+
+	err = usX2Y_create_card(device, &card);
+	if (err < 0)
+		return err;
 	if ((err = usX2Y_hwdep_new(card, device)) < 0  ||
 	    (err = snd_card_register(card)) < 0) {
 		snd_card_free(card);
-		return NULL;
+		return err;
 	}
-	return card;
+	*cardp = card;
+	return 0;
 }
 
 /*
@@ -389,13 +402,14 @@ static void *usX2Y_usb_probe(struct usb_device *device, struct usb_interface *in
  */
 static int snd_usX2Y_probe(struct usb_interface *intf, const struct usb_device_id *id)
 {
-	void *chip;
-	chip = usX2Y_usb_probe(interface_to_usbdev(intf), intf, id);
-	if (chip) {
-		usb_set_intfdata(intf, chip);
-		return 0;
-	} else
-		return -EIO;
+	struct snd_card *card;
+	int err;
+
+	err = usX2Y_usb_probe(interface_to_usbdev(intf), intf, id, &card);
+	if (err < 0)
+		return err;
+	dev_set_drvdata(&intf->dev, card);
+	return 0;
 }
 
 static void snd_usX2Y_disconnect(struct usb_interface *intf)

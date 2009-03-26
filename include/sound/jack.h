@@ -30,6 +30,9 @@ struct input_dev;
 /**
  * Jack types which can be reported.  These values are used as a
  * bitmask.
+ *
+ * Note that this must be kept in sync with the lookup table in
+ * sound/core/jack.c.
  */
 enum snd_jack_types {
 	SND_JACK_HEADPHONE	= 0x0001,
@@ -37,6 +40,8 @@ enum snd_jack_types {
 	SND_JACK_HEADSET	= SND_JACK_HEADPHONE | SND_JACK_MICROPHONE,
 	SND_JACK_LINEOUT	= 0x0004,
 	SND_JACK_MECHANICAL	= 0x0008, /* If detected separately */
+	SND_JACK_VIDEOOUT	= 0x0010,
+	SND_JACK_AVOUT		= SND_JACK_LINEOUT | SND_JACK_VIDEOOUT,
 };
 
 struct snd_jack {
