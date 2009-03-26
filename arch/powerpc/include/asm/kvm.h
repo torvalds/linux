@@ -52,4 +52,11 @@ struct kvm_fpu {
 	__u64 fpr[32];
 };
 
+struct kvm_debug_exit_arch {
+};
+
+/* for KVM_SET_GUEST_DEBUG */
+struct kvm_guest_debug_arch {
+};
+
 #endif /* __LINUX_KVM_POWERPC_H */
