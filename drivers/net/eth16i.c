@@ -475,6 +475,17 @@ out:
 }
 #endif
 
+static const struct net_device_ops eth16i_netdev_ops = {
+	.ndo_open               = eth16i_open,
+	.ndo_stop               = eth16i_close,
+	.ndo_start_xmit    	= eth16i_tx,
+	.ndo_set_multicast_list = eth16i_multicast,
+	.ndo_tx_timeout 	= eth16i_timeout,
+	.ndo_change_mtu		= eth_change_mtu,
+	.ndo_set_mac_address 	= eth_mac_addr,
+	.ndo_validate_addr	= eth_validate_addr,
+};
+
 static int __init eth16i_probe1(struct net_device *dev, int ioaddr)
 {
 	struct eth16i_local *lp = netdev_priv(dev);
@@ -549,12 +560,7 @@ static int __init eth16i_probe1(struct net_device *dev, int ioaddr)
 	BITCLR(ioaddr + CONFIG_REG_1, POWERUP);
 
 	/* Initialize the device structure */
-	memset(lp, 0, sizeof(struct eth16i_local));
-	dev->open               = eth16i_open;
-	dev->stop               = eth16i_close;
-	dev->hard_start_xmit    = eth16i_tx;
-	dev->set_multicast_list = eth16i_multicast;
-	dev->tx_timeout 	= eth16i_timeout;
+	dev->netdev_ops         = &eth16i_netdev_ops;
 	dev->watchdog_timeo	= TX_TIMEOUT;
 	spin_lock_init(&lp->lock);
 
