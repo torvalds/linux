@@ -48,7 +48,10 @@ static int part_read(struct mtd_info *mtd, loff_t from, size_t len,
 		size_t *retlen, u_char *buf)
 {
 	struct mtd_part *part = PART(mtd);
+	struct mtd_ecc_stats stats;
 	int res;
+
+	stats = part->master->ecc_stats;
 
 	if (from >= mtd->size)
 		len = 0;
@@ -58,9 +61,9 @@ static int part_read(struct mtd_info *mtd, loff_t from, size_t len,
 				   len, retlen, buf);
 	if (unlikely(res)) {
 		if (res == -EUCLEAN)
-			mtd->ecc_stats.corrected++;
+			mtd->ecc_stats.corrected += part->master->ecc_stats.corrected - stats.corrected;
 		if (res == -EBADMSG)
-			mtd->ecc_stats.failed++;
+			mtd->ecc_stats.failed += part->master->ecc_stats.failed - stats.failed;
 	}
 	return res;
 }
