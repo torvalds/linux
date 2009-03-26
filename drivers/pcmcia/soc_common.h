@@ -135,7 +135,8 @@ extern void soc_pcmcia_enable_irqs(struct soc_pcmcia_socket *skt, struct pcmcia_
 extern void soc_common_pcmcia_get_timing(struct soc_pcmcia_socket *, struct soc_pcmcia_timing *);
 
 
-extern struct list_head soc_pcmcia_sockets;
+void soc_pcmcia_remove_one(struct soc_pcmcia_socket *skt);
+int soc_pcmcia_add_one(struct soc_pcmcia_socket *skt);
 
 extern int soc_common_drv_pcmcia_probe(struct device *dev, struct pcmcia_low_level *ops, struct skt_dev_info *sinfo);
 extern int soc_common_drv_pcmcia_remove(struct device *dev);
