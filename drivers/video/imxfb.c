@@ -327,7 +327,7 @@ static int imxfb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 		break;
 	case 16:
 	default:
-		if (readl(fbi->regs + LCDC_PCR) & PCR_TFT)
+		if (fbi->pcr & PCR_TFT)
 			rgb = &def_rgb_16_tft;
 		else
 			rgb = &def_rgb_16_stn;
