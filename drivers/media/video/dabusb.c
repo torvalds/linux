@@ -334,7 +334,7 @@ static int dabusb_loadmem (pdabusb_t s, const char *fname)
 {
 	int ret;
 	const struct ihex_binrec *rec;
-	const struct firmware *fw;
+	const struct firmware *uninitialized_var(fw);
 
 	dbg("Enter dabusb_loadmem (internal)");
 
