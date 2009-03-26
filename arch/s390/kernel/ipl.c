@@ -1722,7 +1722,7 @@ static int on_panic_notify(struct notifier_block *self,
 
 static struct notifier_block on_panic_nb = {
 	.notifier_call = on_panic_notify,
-	.priority = 0,
+	.priority = INT_MIN,
 };
 
 void __init setup_ipl(void)
