@@ -186,6 +186,9 @@ struct qdio_input_q {
 	/* input buffer acknowledgement flag */
 	int polling;
 
+	/* first ACK'ed buffer */
+	int ack_start;
+
 	/* how much sbals are acknowledged with qebsm */
 	int ack_count;
 
@@ -234,7 +237,7 @@ struct qdio_q {
 	int first_to_check;
 
 	/* first_to_check of the last time */
-	int last_move_ftc;
+	int last_move;
 
 	/* beginning position for calling the program */
 	int first_to_kick;

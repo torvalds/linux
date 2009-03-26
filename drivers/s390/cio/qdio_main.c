@@ -380,11 +380,11 @@ inline void qdio_stop_polling(struct qdio_q *q)
 
 	/* show the card that we are not polling anymore */
 	if (is_qebsm(q)) {
-		set_buf_states(q, q->last_move_ftc, SLSB_P_INPUT_NOT_INIT,
+		set_buf_states(q, q->u.in.ack_start, SLSB_P_INPUT_NOT_INIT,
 			       q->u.in.ack_count);
 		q->u.in.ack_count = 0;
 	} else
-		set_buf_state(q, q->last_move_ftc, SLSB_P_INPUT_NOT_INIT);
+		set_buf_state(q, q->u.in.ack_start, SLSB_P_INPUT_NOT_INIT);
 }
 
 static void announce_buffer_error(struct qdio_q *q, int count)
@@ -419,15 +419,15 @@ static inline void inbound_primed(struct qdio_q *q, int count)
 		if (!q->u.in.polling) {
 			q->u.in.polling = 1;
 			q->u.in.ack_count = count;
-			q->last_move_ftc = q->first_to_check;
+			q->u.in.ack_start = q->first_to_check;
 			return;
 		}
 
 		/* delete the previous ACK's */
-		set_buf_states(q, q->last_move_ftc, SLSB_P_INPUT_NOT_INIT,
+		set_buf_states(q, q->u.in.ack_start, SLSB_P_INPUT_NOT_INIT,
 			       q->u.in.ack_count);
 		q->u.in.ack_count = count;
-		q->last_move_ftc = q->first_to_check;
+		q->u.in.ack_start = q->first_to_check;
 		return;
 	}
 
@@ -439,18 +439,13 @@ static inline void inbound_primed(struct qdio_q *q, int count)
 	if (q->u.in.polling) {
 		/* reset the previous ACK but first set the new one */
 		set_buf_state(q, new, SLSB_P_INPUT_ACK);
-		set_buf_state(q, q->last_move_ftc, SLSB_P_INPUT_NOT_INIT);
+		set_buf_state(q, q->u.in.ack_start, SLSB_P_INPUT_NOT_INIT);
 	} else {
 		q->u.in.polling = 1;
 		set_buf_state(q, new, SLSB_P_INPUT_ACK);
 	}
 
-	/*
-	 * last_move_ftc points to the ACK'ed buffer and not to the last turns
-	 * first_to_check like for qebsm. Since it is only used to check if
-	 * the queue front moved in qdio_inbound_q_done this is not a problem.
-	 */
-	q->last_move_ftc = new;
+	q->u.in.ack_start = new;
 	count--;
 	if (!count)
 		return;
@@ -527,7 +522,8 @@ int qdio_inbound_q_moved(struct qdio_q *q)
 
 	bufnr = get_inbound_buffer_frontier(q);
 
-	if ((bufnr != q->last_move_ftc) || q->qdio_error) {
+	if ((bufnr != q->last_move) || q->qdio_error) {
+		q->last_move = bufnr;
 		if (!need_siga_sync(q) && !pci_out_supported(q))
 			q->u.in.timestamp = get_usecs();
 
@@ -702,8 +698,8 @@ static inline int qdio_outbound_q_moved(struct qdio_q *q)
 
 	bufnr = get_outbound_buffer_frontier(q);
 
-	if ((bufnr != q->last_move_ftc) || q->qdio_error) {
-		q->last_move_ftc = bufnr;
+	if ((bufnr != q->last_move) || q->qdio_error) {
+		q->last_move = bufnr;
 		DBF_DEV_EVENT(DBF_INFO, q->irq_ptr, "out moved:%1d", q->nr);
 		return 1;
 	} else
@@ -748,7 +744,7 @@ static void qdio_kick_outbound_handler(struct qdio_q *q)
 	int start, end, count;
 
 	start = q->first_to_kick;
-	end = q->last_move_ftc;
+	end = q->last_move;
 	if (end >= start)
 		count = end - start;
 	else
@@ -764,7 +760,7 @@ static void qdio_kick_outbound_handler(struct qdio_q *q)
 		   q->irq_ptr->int_parm);
 
 	/* for the next time: */
-	q->first_to_kick = q->last_move_ftc;
+	q->first_to_kick = q->last_move;
 	q->qdio_error = 0;
 }
 
@@ -1475,18 +1471,18 @@ static void handle_inbound(struct qdio_q *q, unsigned int callflags,
 		q->u.in.polling = 0;
 		q->u.in.ack_count = 0;
 		goto set;
-	} else if (buf_in_between(q->last_move_ftc, bufnr, count)) {
+	} else if (buf_in_between(q->u.in.ack_start, bufnr, count)) {
 		if (is_qebsm(q)) {
-			/* partial overwrite, just update last_move_ftc */
+			/* partial overwrite, just update ack_start */
 			diff = add_buf(bufnr, count);
-			diff = sub_buf(diff, q->last_move_ftc);
+			diff = sub_buf(diff, q->u.in.ack_start);
 			q->u.in.ack_count -= diff;
 			if (q->u.in.ack_count <= 0) {
 				q->u.in.polling = 0;
 				q->u.in.ack_count = 0;
 				goto set;
 			}
-			q->last_move_ftc = add_buf(q->last_move_ftc, diff);
+			q->u.in.ack_start = add_buf(q->u.in.ack_start, diff);
 		}
 		else
 			/* the only ACK will be deleted, so stop polling */
