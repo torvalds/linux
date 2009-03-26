@@ -728,7 +728,7 @@ static void ccw_device_generic_notoper(struct ccw_device *cdev,
 {
 	struct subchannel *sch;
 
-	cdev->private->state = DEV_STATE_NOT_OPER;
+	ccw_device_set_notoper(cdev);
 	sch = to_subchannel(cdev->dev.parent);
 	css_schedule_eval(sch->schid);
 }
