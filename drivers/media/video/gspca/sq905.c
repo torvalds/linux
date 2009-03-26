@@ -82,8 +82,6 @@ MODULE_LICENSE("GPL");
 struct sd {
 	struct gspca_dev gspca_dev;	/* !! must be the first item */
 
-	const struct v4l2_pix_format *cap_mode;
-
 	/*
 	 * Driver stuff
 	 */
@@ -218,6 +216,7 @@ static void sq905_dostream(struct work_struct *work)
 	int header_read; /* true if we have already read the frame header. */
 	int discarding; /* true if we failed to get space for frame. */
 	int packet_type;
+	int frame_sz;
 	int ret;
 	u8 *data;
 	u8 *buffer;
@@ -229,6 +228,9 @@ static void sq905_dostream(struct work_struct *work)
 		goto quit_stream;
 	}
 
+	frame_sz = gspca_dev->cam.cam_mode[gspca_dev->curr_mode].sizeimage
+			+ FRAME_HEADER_LEN;
+
 	while (gspca_dev->present && gspca_dev->streaming) {
 		/* Need a short delay to ensure streaming flag was set by
 		 * gspca and to make sure gspca can grab the mutex. */
@@ -237,7 +239,7 @@ static void sq905_dostream(struct work_struct *work)
 
 		/* request some data and then read it until we have
 		 * a complete frame. */
-		bytes_left = dev->cap_mode->sizeimage + FRAME_HEADER_LEN;
+		bytes_left = frame_sz;
 		header_read = 0;
 		discarding = 0;
 
@@ -367,21 +369,18 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	struct sd *dev = (struct sd *) gspca_dev;
 	int ret;
 
-	/* Set capture mode based on selected resolution. */
-	dev->cap_mode = gspca_dev->cam.cam_mode;
 	/* "Open the shutter" and set size, to start capture */
-	switch (gspca_dev->width) {
-	case 640:
+	switch (gspca_dev->curr_mode) {
+	default:
+/*	case 2: */
 		PDEBUG(D_STREAM, "Start streaming at high resolution");
-		dev->cap_mode += 2;
 		ret = sq905_command(&dev->gspca_dev, SQ905_CAPTURE_HIGH);
 		break;
-	case 320:
+	case 1:
 		PDEBUG(D_STREAM, "Start streaming at medium resolution");
-		dev->cap_mode++;
 		ret = sq905_command(&dev->gspca_dev, SQ905_CAPTURE_MED);
 		break;
-	default:
+	case 0:
 		PDEBUG(D_STREAM, "Start streaming at low resolution");
 		ret = sq905_command(&dev->gspca_dev, SQ905_CAPTURE_LOW);
 	}
