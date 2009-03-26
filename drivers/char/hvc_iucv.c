@@ -885,7 +885,7 @@ static int __init hvc_iucv_init(void)
 	unsigned int i;
 
 	if (!MACHINE_IS_VM) {
-		pr_info("The z/VM IUCV HVC device driver cannot "
+		pr_notice("The z/VM IUCV HVC device driver cannot "
 			   "be used without z/VM\n");
 		return -ENODEV;
 	}
@@ -893,8 +893,11 @@ static int __init hvc_iucv_init(void)
 	if (!hvc_iucv_devices)
 		return -ENODEV;
 
-	if (hvc_iucv_devices > MAX_HVC_IUCV_LINES)
+	if (hvc_iucv_devices > MAX_HVC_IUCV_LINES) {
+		pr_err("%lu is not a valid value for the hvc_iucv= "
+			"kernel parameter\n", hvc_iucv_devices);
 		return -EINVAL;
+	}
 
 	hvc_iucv_buffer_cache = kmem_cache_create(KMSG_COMPONENT,
 					   sizeof(struct iucv_tty_buffer),
