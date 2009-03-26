@@ -456,8 +456,6 @@ static ssize_t iwl_dbgfs_status_read(struct file *file,
 		test_bit(STATUS_GEO_CONFIGURED, &priv->status));
 	pos += scnprintf(buf + pos, bufsz - pos, "STATUS_EXIT_PENDING:\t %d\n",
 		test_bit(STATUS_EXIT_PENDING, &priv->status));
-	pos += scnprintf(buf + pos, bufsz - pos, "STATUS_IN_SUSPEND:\t %d\n",
-		test_bit(STATUS_IN_SUSPEND, &priv->status));
 	pos += scnprintf(buf + pos, bufsz - pos, "STATUS_STATISTICS:\t %d\n",
 		test_bit(STATUS_STATISTICS, &priv->status));
 	pos += scnprintf(buf + pos, bufsz - pos, "STATUS_SCANNING:\t %d\n",

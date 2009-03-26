@@ -2112,3 +2112,43 @@ void iwl_rx_reply_error(struct iwl_priv *priv,
 }
 EXPORT_SYMBOL(iwl_rx_reply_error);
 
+#ifdef CONFIG_PM
+
+int iwl_pci_suspend(struct pci_dev *pdev, pm_message_t state)
+{
+	struct iwl_priv *priv = pci_get_drvdata(pdev);
+
+	/*
+	 * This function is called when system goes into suspend state
+	 * mac80211 will call iwl_mac_stop() from the mac80211 suspend function
+	 * first but since iwl_mac_stop() has no knowledge of who the caller is,
+	 * it will not call apm_ops.stop() to stop the DMA operation.
+	 * Calling apm_ops.stop here to make sure we stop the DMA.
+	 */
+	priv->cfg->ops->lib->apm_ops.stop(priv);
+
+	pci_save_state(pdev);
+	pci_disable_device(pdev);
+	pci_set_power_state(pdev, PCI_D3hot);
+
+	return 0;
+}
+EXPORT_SYMBOL(iwl_pci_suspend);
+
+int iwl_pci_resume(struct pci_dev *pdev)
+{
+	struct iwl_priv *priv = pci_get_drvdata(pdev);
+	int ret;
+
+	pci_set_power_state(pdev, PCI_D0);
+	ret = pci_enable_device(pdev);
+	if (ret)
+		return ret;
+	pci_restore_state(pdev);
+	iwl_enable_interrupts(priv);
+
+	return 0;
+}
+EXPORT_SYMBOL(iwl_pci_resume);
+
+#endif /* CONFIG_PM */

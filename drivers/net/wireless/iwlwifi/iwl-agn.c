@@ -1654,7 +1654,7 @@ static void __iwl_down(struct iwl_priv *priv)
 		ieee80211_stop_queues(priv->hw);
 
 	/* If we have not previously called iwl_init() then
-	 * clear all bits but the RF Kill and SUSPEND bits and return */
+	 * clear all bits but the RF Kill bits and return */
 	if (!iwl_is_init(priv)) {
 		priv->status = test_bit(STATUS_RF_KILL_HW, &priv->status) <<
 					STATUS_RF_KILL_HW |
@@ -1662,23 +1662,19 @@ static void __iwl_down(struct iwl_priv *priv)
 					STATUS_RF_KILL_SW |
 			       test_bit(STATUS_GEO_CONFIGURED, &priv->status) <<
 					STATUS_GEO_CONFIGURED |
-			       test_bit(STATUS_IN_SUSPEND, &priv->status) <<
-					STATUS_IN_SUSPEND |
 			       test_bit(STATUS_EXIT_PENDING, &priv->status) <<
 					STATUS_EXIT_PENDING;
 		goto exit;
 	}
 
-	/* ...otherwise clear out all the status bits but the RF Kill and
-	 * SUSPEND bits and continue taking the NIC down. */
+	/* ...otherwise clear out all the status bits but the RF Kill
+	 * bits and continue taking the NIC down. */
 	priv->status &= test_bit(STATUS_RF_KILL_HW, &priv->status) <<
 				STATUS_RF_KILL_HW |
 			test_bit(STATUS_RF_KILL_SW, &priv->status) <<
 				STATUS_RF_KILL_SW |
 			test_bit(STATUS_GEO_CONFIGURED, &priv->status) <<
 				STATUS_GEO_CONFIGURED |
-			test_bit(STATUS_IN_SUSPEND, &priv->status) <<
-				STATUS_IN_SUSPEND |
 			test_bit(STATUS_FW_ERROR, &priv->status) <<
 				STATUS_FW_ERROR |
 		       test_bit(STATUS_EXIT_PENDING, &priv->status) <<
@@ -1703,7 +1699,7 @@ static void __iwl_down(struct iwl_priv *priv)
 	udelay(5);
 
 	/* FIXME: apm_ops.suspend(priv) */
-	if (exit_pending || test_bit(STATUS_IN_SUSPEND, &priv->status))
+	if (exit_pending)
 		priv->cfg->ops->lib->apm_ops.stop(priv);
 	else
 		priv->cfg->ops->lib->apm_ops.reset(priv);
@@ -2063,9 +2059,6 @@ static int iwl_mac_start(struct ieee80211_hw *hw)
 		goto out;
 
 	IWL_DEBUG_INFO(priv, "Start UP work done.\n");
-
-	if (test_bit(STATUS_IN_SUSPEND, &priv->status))
-		return 0;
 
 	/* Wait for START_ALIVE from Run Time ucode. Otherwise callbacks from
 	 * mac80211 will not be run successfully. */
@@ -3566,45 +3559,6 @@ static void __devexit iwl_pci_remove(struct pci_dev *pdev)
 	ieee80211_free_hw(priv->hw);
 }
 
-#ifdef CONFIG_PM
-
-static int iwl_pci_suspend(struct pci_dev *pdev, pm_message_t state)
-{
-	struct iwl_priv *priv = pci_get_drvdata(pdev);
-
-	if (priv->is_open) {
-		set_bit(STATUS_IN_SUSPEND, &priv->status);
-		iwl_mac_stop(priv->hw);
-		priv->is_open = 1;
-	}
-
-	pci_save_state(pdev);
-	pci_disable_device(pdev);
-	pci_set_power_state(pdev, PCI_D3hot);
-
-	return 0;
-}
-
-static int iwl_pci_resume(struct pci_dev *pdev)
-{
-	struct iwl_priv *priv = pci_get_drvdata(pdev);
-	int ret;
-
-	pci_set_power_state(pdev, PCI_D0);
-	ret = pci_enable_device(pdev);
-	if (ret)
-		return ret;
-	pci_restore_state(pdev);
-	iwl_enable_interrupts(priv);
-
-	if (priv->is_open)
-		iwl_mac_start(priv->hw);
-
-	clear_bit(STATUS_IN_SUSPEND, &priv->status);
-	return 0;
-}
-
-#endif /* CONFIG_PM */
 
 /*****************************************************************************
  *

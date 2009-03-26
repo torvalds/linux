@@ -432,6 +432,10 @@ static inline u16 iwl_pcie_link_ctl(struct iwl_priv *priv)
 	pci_read_config_word(priv->pci_dev, pos + PCI_EXP_LNKCTL, &pci_lnk_ctl);
 	return pci_lnk_ctl;
 }
+#ifdef CONFIG_PM
+int iwl_pci_suspend(struct pci_dev *pdev, pm_message_t state);
+int iwl_pci_resume(struct pci_dev *pdev);
+#endif /* CONFIG_PM */
 
 /*****************************************************
 *  Error Handling Debugging
@@ -458,7 +462,6 @@ void iwlcore_free_geos(struct iwl_priv *priv);
 #define STATUS_TEMPERATURE	8
 #define STATUS_GEO_CONFIGURED	9
 #define STATUS_EXIT_PENDING	10
-#define STATUS_IN_SUSPEND	11
 #define STATUS_STATISTICS	12
 #define STATUS_SCANNING		13
 #define STATUS_SCAN_ABORTING	14
