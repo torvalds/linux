@@ -732,4 +732,5 @@ extern int drm_mode_gamma_get_ioctl(struct drm_device *dev,
 				    void *data, struct drm_file *file_priv);
 extern int drm_mode_gamma_set_ioctl(struct drm_device *dev,
 				    void *data, struct drm_file *file_priv);
+extern bool drm_detect_hdmi_monitor(struct edid *edid);
 #endif /* __DRM_CRTC_H__ */

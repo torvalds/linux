@@ -742,6 +742,68 @@ end:
 }
 EXPORT_SYMBOL(drm_get_edid);
 
+#define HDMI_IDENTIFIER 0x000C03
+#define VENDOR_BLOCK    0x03
+/**
+ * drm_detect_hdmi_monitor - detect whether monitor is hdmi.
+ * @edid: monitor EDID information
+ *
+ * Parse the CEA extension according to CEA-861-B.
+ * Return true if HDMI, false if not or unknown.
+ */
+bool drm_detect_hdmi_monitor(struct edid *edid)
+{
+	char *edid_ext = NULL;
+	int i, hdmi_id, edid_ext_num;
+	int start_offset, end_offset;
+	bool is_hdmi = false;
+
+	/* No EDID or EDID extensions */
+	if (edid == NULL || edid->extensions == 0)
+		goto end;
+
+	/* Chose real EDID extension number */
+	edid_ext_num = edid->extensions > MAX_EDID_EXT_NUM ?
+		       MAX_EDID_EXT_NUM : edid->extensions;
+
+	/* Find CEA extension */
+	for (i = 0; i < edid_ext_num; i++) {
+		edid_ext = (char *)edid + EDID_LENGTH * (i + 1);
+		/* This block is CEA extension */
+		if (edid_ext[0] == 0x02)
+			break;
+	}
+
+	if (i == edid_ext_num)
+		goto end;
+
+	/* Data block offset in CEA extension block */
+	start_offset = 4;
+	end_offset = edid_ext[2];
+
+	/*
+	 * Because HDMI identifier is in Vendor Specific Block,
+	 * search it from all data blocks of CEA extension.
+	 */
+	for (i = start_offset; i < end_offset;
+		/* Increased by data block len */
+		i += ((edid_ext[i] & 0x1f) + 1)) {
+		/* Find vendor specific block */
+		if ((edid_ext[i] >> 5) == VENDOR_BLOCK) {
+			hdmi_id = edid_ext[i + 1] | (edid_ext[i + 2] << 8) |
+				  edid_ext[i + 3] << 16;
+			/* Find HDMI identifier */
+			if (hdmi_id == HDMI_IDENTIFIER)
+				is_hdmi = true;
+			break;
+		}
+	}
+
+end:
+	return is_hdmi;
+}
+EXPORT_SYMBOL(drm_detect_hdmi_monitor);
+
 /**
  * drm_add_edid_modes - add modes from EDID data, if available
  * @connector: connector we're probing
