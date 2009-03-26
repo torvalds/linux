@@ -609,15 +609,14 @@ static int soc_pcmcia_cpufreq_register(void)
 				"notifier for PCMCIA (%d)\n", ret);
 	return ret;
 }
+fs_initcall(soc_pcmcia_cpufreq_register);
 
 static void soc_pcmcia_cpufreq_unregister(void)
 {
 	cpufreq_unregister_notifier(&soc_pcmcia_notifier_block, CPUFREQ_TRANSITION_NOTIFIER);
 }
+module_exit(soc_pcmcia_cpufreq_unregister);
 
-#else
-static int soc_pcmcia_cpufreq_register(void) { return 0; }
-static void soc_pcmcia_cpufreq_unregister(void) {}
 #endif
 
 int soc_common_drv_pcmcia_probe(struct device *dev, struct pcmcia_low_level *ops,
@@ -667,9 +666,6 @@ int soc_common_drv_pcmcia_probe(struct device *dev, struct pcmcia_low_level *ops
 			ret = -ENOMEM;
 			goto out_err_5;
 		}
-
-		if (list_empty(&soc_pcmcia_sockets))
-			soc_pcmcia_cpufreq_register();
 
 		list_add(&skt->node, &soc_pcmcia_sockets);
 
@@ -743,6 +739,7 @@ int soc_common_drv_pcmcia_probe(struct device *dev, struct pcmcia_low_level *ops
 	mutex_unlock(&soc_pcmcia_sockets_lock);
 	return ret;
 }
+EXPORT_SYMBOL(soc_common_drv_pcmcia_probe);
 
 int soc_common_drv_pcmcia_remove(struct device *dev)
 {
@@ -773,9 +770,6 @@ int soc_common_drv_pcmcia_remove(struct device *dev)
 		release_resource(&skt->res_io);
 		release_resource(&skt->res_skt);
 	}
-	if (list_empty(&soc_pcmcia_sockets))
-		soc_pcmcia_cpufreq_unregister();
-
 	mutex_unlock(&soc_pcmcia_sockets_lock);
 
 	kfree(sinfo);
@@ -783,3 +777,7 @@ int soc_common_drv_pcmcia_remove(struct device *dev)
 	return 0;
 }
 EXPORT_SYMBOL(soc_common_drv_pcmcia_remove);
+
+MODULE_AUTHOR("John Dorsey <john+@cs.cmu.edu>");
+MODULE_DESCRIPTION("Linux PCMCIA Card Services: Common SoC support");
+MODULE_LICENSE("Dual MPL/GPL");
