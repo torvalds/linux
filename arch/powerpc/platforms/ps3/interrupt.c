@@ -60,6 +60,8 @@
  * gives a usable range of plug values of  {NUM_ISA_INTERRUPTS..63}.  Note
  * that there is no constraint on how many in this set an individual thread
  * can acquire.
+ *
+ * The mask is declared as unsigned long so we can use set/clear_bit on it.
  */
 
 #define PS3_BMP_MINALIGN 64
@@ -68,7 +70,7 @@ struct ps3_bmp {
 	struct {
 		u64 status;
 		u64 unused_1[3];
-		u64 mask;
+		unsigned long mask;
 		u64 unused_2[3];
 	};
 	u64 ipi_debug_brk_mask;
@@ -102,7 +104,7 @@ static void ps3_chip_mask(unsigned int virq)
 	struct ps3_private *pd = get_irq_chip_data(virq);
 	unsigned long flags;
 
-	pr_debug("%s:%d: thread_id %lu, virq %d\n", __func__, __LINE__,
+	pr_debug("%s:%d: thread_id %llu, virq %d\n", __func__, __LINE__,
 		pd->thread_id, virq);
 
 	local_irq_save(flags);
@@ -123,7 +125,7 @@ static void ps3_chip_unmask(unsigned int virq)
 	struct ps3_private *pd = get_irq_chip_data(virq);
 	unsigned long flags;
 
-	pr_debug("%s:%d: thread_id %lu, virq %d\n", __func__, __LINE__,
+	pr_debug("%s:%d: thread_id %llu, virq %d\n", __func__, __LINE__,
 		pd->thread_id, virq);
 
 	local_irq_save(flags);
@@ -221,7 +223,7 @@ static int ps3_virq_destroy(unsigned int virq)
 {
 	const struct ps3_private *pd = get_irq_chip_data(virq);
 
-	pr_debug("%s:%d: ppe_id %lu, thread_id %lu, virq %u\n", __func__,
+	pr_debug("%s:%d: ppe_id %llu, thread_id %llu, virq %u\n", __func__,
 		__LINE__, pd->ppe_id, pd->thread_id, virq);
 
 	set_irq_chip_data(virq, NULL);
@@ -291,7 +293,7 @@ int ps3_irq_plug_destroy(unsigned int virq)
 	int result;
 	const struct ps3_private *pd = get_irq_chip_data(virq);
 
-	pr_debug("%s:%d: ppe_id %lu, thread_id %lu, virq %u\n", __func__,
+	pr_debug("%s:%d: ppe_id %llu, thread_id %llu, virq %u\n", __func__,
 		__LINE__, pd->ppe_id, pd->thread_id, virq);
 
 	ps3_chip_mask(virq);
@@ -322,7 +324,7 @@ EXPORT_SYMBOL_GPL(ps3_irq_plug_destroy);
 int ps3_event_receive_port_setup(enum ps3_cpu_binding cpu, unsigned int *virq)
 {
 	int result;
-	unsigned long outlet;
+	u64 outlet;
 
 	result = lv1_construct_event_receive_port(&outlet);
 
@@ -468,7 +470,7 @@ int ps3_io_irq_setup(enum ps3_cpu_binding cpu, unsigned int interrupt_id,
 	unsigned int *virq)
 {
 	int result;
-	unsigned long outlet;
+	u64 outlet;
 
 	result = lv1_construct_io_irq_outlet(interrupt_id, &outlet);
 
@@ -525,7 +527,7 @@ int ps3_vuart_irq_setup(enum ps3_cpu_binding cpu, void* virt_addr_bmp,
 	unsigned int *virq)
 {
 	int result;
-	unsigned long outlet;
+	u64 outlet;
 	u64 lpar_addr;
 
 	BUG_ON(!is_kernel_addr((u64)virt_addr_bmp));
@@ -581,7 +583,7 @@ int ps3_spe_irq_setup(enum ps3_cpu_binding cpu, unsigned long spe_id,
 	unsigned int class, unsigned int *virq)
 {
 	int result;
-	unsigned long outlet;
+	u64 outlet;
 
 	BUG_ON(class > 2);
 
@@ -691,7 +693,7 @@ void __init ps3_register_ipi_debug_brk(unsigned int cpu, unsigned int virq)
 
 	pd->bmp.ipi_debug_brk_mask = 0x8000000000000000UL >> virq;
 
-	pr_debug("%s:%d: cpu %u, virq %u, mask %lxh\n", __func__, __LINE__,
+	pr_debug("%s:%d: cpu %u, virq %u, mask %llxh\n", __func__, __LINE__,
 		cpu, virq, pd->bmp.ipi_debug_brk_mask);
 }
 
@@ -710,7 +712,7 @@ static unsigned int ps3_get_irq(void)
 	plug &= 0x3f;
 
 	if (unlikely(plug == NO_IRQ)) {
-		pr_debug("%s:%d: no plug found: thread_id %lu\n", __func__,
+		pr_debug("%s:%d: no plug found: thread_id %llu\n", __func__,
 			__LINE__, pd->thread_id);
 		dump_bmp(&per_cpu(ps3_private, 0));
 		dump_bmp(&per_cpu(ps3_private, 1));
@@ -745,7 +747,7 @@ void __init ps3_init_IRQ(void)
 		pd->thread_id = get_hard_smp_processor_id(cpu);
 		spin_lock_init(&pd->bmp.lock);
 
-		pr_debug("%s:%d: ppe_id %lu, thread_id %lu, bmp %lxh\n",
+		pr_debug("%s:%d: ppe_id %llu, thread_id %llu, bmp %lxh\n",
 			__func__, __LINE__, pd->ppe_id, pd->thread_id,
 			ps3_mm_phys_to_lpar(__pa(&pd->bmp)));
 
@@ -770,6 +772,6 @@ void ps3_shutdown_IRQ(int cpu)
 	lv1_get_logical_ppe_id(&ppe_id);
 	result = lv1_configure_irq_state_bitmap(ppe_id, thread_id, 0);
 
-	DBG("%s:%d: lv1_configure_irq_state_bitmap (%lu:%lu/%d) %s\n", __func__,
+	DBG("%s:%d: lv1_configure_irq_state_bitmap (%llu:%llu/%d) %s\n", __func__,
 		__LINE__, ppe_id, thread_id, cpu, ps3_result(result));
 }

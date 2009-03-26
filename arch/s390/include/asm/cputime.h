@@ -145,7 +145,7 @@ cputime_to_timeval(const cputime_t cputime, struct timeval *value)
 	value->tv_usec = rp.subreg.even / 4096;
 	value->tv_sec = rp.subreg.odd;
 #else
-	value->tv_usec = cputime % 4096000000ULL;
+	value->tv_usec = (cputime % 4096000000ULL) / 4096;
 	value->tv_sec = cputime / 4096000000ULL;
 #endif
 }

@@ -102,7 +102,11 @@ int s5k4aa_probe(struct sd *sd)
 	}
 
 	/* Test some registers, but we don't know their exact meaning yet */
-	if (m5602_read_sensor(sd, 0x00, prod_id, sizeof(prod_id)))
+	if (m5602_read_sensor(sd, 0x00, prod_id, 2))
+		return -ENODEV;
+	if (m5602_read_sensor(sd, 0x02, prod_id+2, 2))
+		return -ENODEV;
+	if (m5602_read_sensor(sd, 0x04, prod_id+4, 2))
 		return -ENODEV;
 
 	if (memcmp(prod_id, expected_prod_id, sizeof(prod_id)))

@@ -58,14 +58,7 @@ fi
 # Check for svn and a svn repo.
 if rev=`svn info 2>/dev/null | grep '^Last Changed Rev'`; then
 	rev=`echo $rev | awk '{print $NF}'`
-	changes=`svn status 2>/dev/null | grep '^[AMD]' | wc -l`
-
-	# Are there uncommitted changes?
-	if [ $changes != 0 ]; then
-		printf -- '-svn%s%s' "$rev" -dirty
-	else
-		printf -- '-svn%s' "$rev"
-	fi
+	printf -- '-svn%s' "$rev"
 
 	# All done with svn
 	exit

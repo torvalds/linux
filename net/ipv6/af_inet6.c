@@ -72,6 +72,10 @@ MODULE_LICENSE("GPL");
 static struct list_head inetsw6[SOCK_MAX];
 static DEFINE_SPINLOCK(inetsw6_lock);
 
+static int disable_ipv6 = 0;
+module_param_named(disable, disable_ipv6, int, 0);
+MODULE_PARM_DESC(disable, "Disable IPv6 such that it is non-functional");
+
 static __inline__ struct ipv6_pinfo *inet6_sk_generic(struct sock *sk)
 {
 	const int offset = sk->sk_prot->obj_size - sizeof(struct ipv6_pinfo);
@@ -797,6 +801,7 @@ static struct sk_buff **ipv6_gro_receive(struct sk_buff **head,
 	unsigned int nlen;
 	int flush = 1;
 	int proto;
+	__wsum csum;
 
 	if (unlikely(!pskb_may_pull(skb, sizeof(*iph))))
 		goto out;
@@ -808,6 +813,7 @@ static struct sk_buff **ipv6_gro_receive(struct sk_buff **head,
 
 	rcu_read_lock();
 	proto = ipv6_gso_pull_exthdrs(skb, iph->nexthdr);
+	iph = ipv6_hdr(skb);
 	IPV6_GRO_CB(skb)->proto = proto;
 	ops = rcu_dereference(inet6_protos[proto]);
 	if (!ops || !ops->gro_receive)
@@ -839,7 +845,12 @@ static struct sk_buff **ipv6_gro_receive(struct sk_buff **head,
 
 	NAPI_GRO_CB(skb)->flush |= flush;
 
+	csum = skb->csum;
+	skb_postpull_rcsum(skb, iph, skb_network_header_len(skb));
+
 	pp = ops->gro_receive(head, skb);
+
+	skb->csum = csum;
 
 out_unlock:
 	rcu_read_unlock();
@@ -984,9 +995,20 @@ static int __init inet6_init(void)
 {
 	struct sk_buff *dummy_skb;
 	struct list_head *r;
-	int err;
+	int err = 0;
 
 	BUILD_BUG_ON(sizeof(struct inet6_skb_parm) > sizeof(dummy_skb->cb));
+
+	/* Register the socket-side information for inet6_create.  */
+	for(r = &inetsw6[0]; r < &inetsw6[SOCK_MAX]; ++r)
+		INIT_LIST_HEAD(r);
+
+	if (disable_ipv6) {
+		printk(KERN_INFO
+		       "IPv6: Loaded, but administratively disabled, "
+		       "reboot required to enable\n");
+		goto out;
+	}
 
 	err = proto_register(&tcpv6_prot, 1);
 	if (err)
@@ -1004,10 +1026,6 @@ static int __init inet6_init(void)
 	if (err)
 		goto out_unregister_udplite_proto;
 
-
-	/* Register the socket-side information for inet6_create.  */
-	for(r = &inetsw6[0]; r < &inetsw6[SOCK_MAX]; ++r)
-		INIT_LIST_HEAD(r);
 
 	/* We MUST register RAW sockets before we create the ICMP6,
 	 * IGMP6, or NDISC control sockets.
@@ -1174,6 +1192,9 @@ module_init(inet6_init);
 
 static void __exit inet6_exit(void)
 {
+	if (disable_ipv6)
+		return;
+
 	/* First of all disallow new sockets creation. */
 	sock_unregister(PF_INET6);
 	/* Disallow any further netlink messages */

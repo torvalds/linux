@@ -699,7 +699,8 @@ int ieee80211_if_change_type(struct ieee80211_sub_if_data *sdata,
 		return 0;
 
 	/* Setting ad-hoc mode on non-IBSS channel is not supported. */
-	if (sdata->local->oper_channel->flags & IEEE80211_CHAN_NO_IBSS)
+	if (sdata->local->oper_channel->flags & IEEE80211_CHAN_NO_IBSS &&
+	    type == NL80211_IFTYPE_ADHOC)
 		return -EOPNOTSUPP;
 
 	/*

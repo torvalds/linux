@@ -734,15 +734,15 @@ xfs_close_devices(
 {
 	if (mp->m_logdev_targp && mp->m_logdev_targp != mp->m_ddev_targp) {
 		struct block_device *logdev = mp->m_logdev_targp->bt_bdev;
-		xfs_free_buftarg(mp->m_logdev_targp);
+		xfs_free_buftarg(mp, mp->m_logdev_targp);
 		xfs_blkdev_put(logdev);
 	}
 	if (mp->m_rtdev_targp) {
 		struct block_device *rtdev = mp->m_rtdev_targp->bt_bdev;
-		xfs_free_buftarg(mp->m_rtdev_targp);
+		xfs_free_buftarg(mp, mp->m_rtdev_targp);
 		xfs_blkdev_put(rtdev);
 	}
-	xfs_free_buftarg(mp->m_ddev_targp);
+	xfs_free_buftarg(mp, mp->m_ddev_targp);
 }
 
 /*
@@ -811,9 +811,9 @@ xfs_open_devices(
 
  out_free_rtdev_targ:
 	if (mp->m_rtdev_targp)
-		xfs_free_buftarg(mp->m_rtdev_targp);
+		xfs_free_buftarg(mp, mp->m_rtdev_targp);
  out_free_ddev_targ:
-	xfs_free_buftarg(mp->m_ddev_targp);
+	xfs_free_buftarg(mp, mp->m_ddev_targp);
  out_close_rtdev:
 	if (rtdev)
 		xfs_blkdev_put(rtdev);
@@ -1197,6 +1197,7 @@ xfs_fs_remount(
 	struct xfs_mount	*mp = XFS_M(sb);
 	substring_t		args[MAX_OPT_ARGS];
 	char			*p;
+	int			error;
 
 	while ((p = strsep(&options, ",")) != NULL) {
 		int token;
@@ -1247,11 +1248,25 @@ xfs_fs_remount(
 		}
 	}
 
-	/* rw/ro -> rw */
+	/* ro -> rw */
 	if ((mp->m_flags & XFS_MOUNT_RDONLY) && !(*flags & MS_RDONLY)) {
 		mp->m_flags &= ~XFS_MOUNT_RDONLY;
 		if (mp->m_flags & XFS_MOUNT_BARRIER)
 			xfs_mountfs_check_barriers(mp);
+
+		/*
+		 * If this is the first remount to writeable state we
+		 * might have some superblock changes to update.
+		 */
+		if (mp->m_update_flags) {
+			error = xfs_mount_log_sb(mp, mp->m_update_flags);
+			if (error) {
+				cmn_err(CE_WARN,
+					"XFS: failed to write sb changes");
+				return error;
+			}
+			mp->m_update_flags = 0;
+		}
 	}
 
 	/* rw -> ro */
@@ -1269,14 +1284,14 @@ xfs_fs_remount(
  * need to take care of the metadata. Once that's done write a dummy
  * record to dirty the log in case of a crash while frozen.
  */
-STATIC void
-xfs_fs_lockfs(
+STATIC int
+xfs_fs_freeze(
 	struct super_block	*sb)
 {
 	struct xfs_mount	*mp = XFS_M(sb);
 
 	xfs_quiesce_attr(mp);
-	xfs_fs_log_dummy(mp);
+	return -xfs_fs_log_dummy(mp);
 }
 
 STATIC int
@@ -1557,7 +1572,7 @@ static struct super_operations xfs_super_operations = {
 	.put_super		= xfs_fs_put_super,
 	.write_super		= xfs_fs_write_super,
 	.sync_fs		= xfs_fs_sync_super,
-	.write_super_lockfs	= xfs_fs_lockfs,
+	.freeze_fs		= xfs_fs_freeze,
 	.statfs			= xfs_fs_statfs,
 	.remount_fs		= xfs_fs_remount,
 	.show_options		= xfs_fs_show_options,

@@ -19,6 +19,8 @@
 #define MAX_ILO_DEV	1
 /* max number of files */
 #define MAX_OPEN	(MAX_CCB * MAX_ILO_DEV)
+/* spin counter for open/close delay */
+#define MAX_WAIT	10000
 
 /*
  * Per device, used to track global memory allocations.

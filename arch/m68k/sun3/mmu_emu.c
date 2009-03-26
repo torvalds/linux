@@ -27,7 +27,6 @@
 #include <asm/mmu_context.h>
 #include <asm/dvma.h>
 
-extern void prom_reboot (char *) __attribute__ ((__noreturn__));
 
 #undef DEBUG_MMU_EMU
 #define DEBUG_PROM_MAPS

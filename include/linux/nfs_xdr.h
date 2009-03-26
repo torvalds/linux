@@ -406,6 +406,8 @@ struct nfs3_setaclargs {
 	int			mask;
 	struct posix_acl *	acl_access;
 	struct posix_acl *	acl_default;
+	size_t			len;
+	unsigned int		npages;
 	struct page **		pages;
 };
 

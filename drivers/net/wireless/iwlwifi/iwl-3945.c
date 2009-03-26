@@ -2219,7 +2219,7 @@ int iwl3945_txpower_set_from_eeprom(struct iwl3945_priv *priv)
 		/* set tx power value for all OFDM rates */
 		for (rate_index = 0; rate_index < IWL_OFDM_RATES;
 		     rate_index++) {
-			s32 power_idx;
+			s32 uninitialized_var(power_idx);
 			int rc;
 
 			/* use channel group's clip-power table,

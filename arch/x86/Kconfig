@@ -27,6 +27,7 @@ config X86
 	select HAVE_IOREMAP_PROT
 	select HAVE_KPROBES
 	select ARCH_WANT_OPTIONAL_GPIOLIB
+	select ARCH_WANT_FRAME_POINTERS
 	select HAVE_KRETPROBES
 	select HAVE_FTRACE_MCOUNT_RECORD
 	select HAVE_DYNAMIC_FTRACE
@@ -1803,6 +1804,17 @@ config DMAR
 	  These DMA remapping devices are reported via ACPI tables
 	  and include PCI device scope covered by these DMA
 	  remapping devices.
+
+config DMAR_DEFAULT_ON
+	def_bool y
+	prompt "Enable DMA Remapping Devices by default"
+	depends on DMAR
+	help
+	  Selecting this option will enable a DMAR device at boot time if
+	  one is found. If this option is not selected, DMAR support can
+	  be enabled by passing intel_iommu=on to the kernel. It is
+	  recommended you say N here while the DMAR code remains
+	  experimental.
 
 config DMAR_GFX_WA
 	def_bool y

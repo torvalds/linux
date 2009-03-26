@@ -649,7 +649,8 @@ static int ide_register_port(ide_hwif_t *hwif)
 	/* register with global device tree */
 	dev_set_name(&hwif->gendev, hwif->name);
 	hwif->gendev.driver_data = hwif;
-	hwif->gendev.parent = hwif->dev;
+	if (hwif->gendev.parent == NULL)
+		hwif->gendev.parent = hwif->dev;
 	hwif->gendev.release = hwif_release_dev;
 
 	ret = device_register(&hwif->gendev);
@@ -796,7 +797,7 @@ static int ide_probe_port(ide_hwif_t *hwif)
 	if (irqd)
 		disable_irq(hwif->irq);
 
-	local_irq_save(flags);
+	local_save_flags(flags);
 	local_irq_enable_in_hardirq();
 
 	if (ide_port_wait_ready(hwif) == -EBUSY)
@@ -949,6 +950,7 @@ static int ide_port_setup_devices(ide_hwif_t *hwif)
 static int init_irq (ide_hwif_t *hwif)
 {
 	struct ide_io_ports *io_ports = &hwif->io_ports;
+	irq_handler_t irq_handler;
 	int sa = 0;
 
 	mutex_lock(&ide_cfg_mtx);
@@ -957,6 +959,10 @@ static int init_irq (ide_hwif_t *hwif)
 	init_timer(&hwif->timer);
 	hwif->timer.function = &ide_timer_expiry;
 	hwif->timer.data = (unsigned long)hwif;
+
+	irq_handler = hwif->host->irq_handler;
+	if (irq_handler == NULL)
+		irq_handler = ide_intr;
 
 #if defined(__mc68000__)
 	sa = IRQF_SHARED;
@@ -968,7 +974,7 @@ static int init_irq (ide_hwif_t *hwif)
 	if (io_ports->ctl_addr)
 		hwif->tp_ops->set_irq(hwif, 1);
 
-	if (request_irq(hwif->irq, &ide_intr, sa, hwif->name, hwif))
+	if (request_irq(hwif->irq, irq_handler, sa, hwif->name, hwif))
 		goto out_up;
 
 	if (!hwif->rqsize) {
@@ -1466,6 +1472,30 @@ struct ide_host *ide_host_alloc(const struct ide_port_info *d, hw_regs_t **hws)
 }
 EXPORT_SYMBOL_GPL(ide_host_alloc);
 
+static void ide_port_free(ide_hwif_t *hwif)
+{
+	ide_port_free_devices(hwif);
+	ide_free_port_slot(hwif->index);
+	kfree(hwif);
+}
+
+static void ide_disable_port(ide_hwif_t *hwif)
+{
+	struct ide_host *host = hwif->host;
+	int i;
+
+	printk(KERN_INFO "%s: disabling port\n", hwif->name);
+
+	for (i = 0; i < MAX_HOST_PORTS; i++) {
+		if (host->ports[i] == hwif) {
+			host->ports[i] = NULL;
+			host->n_ports--;
+		}
+	}
+
+	ide_port_free(hwif);
+}
+
 int ide_host_register(struct ide_host *host, const struct ide_port_info *d,
 		      hw_regs_t **hws)
 {
@@ -1506,8 +1536,12 @@ int ide_host_register(struct ide_host *host, const struct ide_port_info *d,
 			hwif->present = 1;
 
 		if (hwif->chipset != ide_4drives || !hwif->mate ||
-		    !hwif->mate->present)
-			ide_register_port(hwif);
+		    !hwif->mate->present) {
+			if (ide_register_port(hwif)) {
+				ide_disable_port(hwif);
+				continue;
+			}
+		}
 
 		if (hwif->present)
 			ide_port_tune_devices(hwif);
@@ -1520,7 +1554,8 @@ int ide_host_register(struct ide_host *host, const struct ide_port_info *d,
 		if (hwif_init(hwif) == 0) {
 			printk(KERN_INFO "%s: failed to initialize IDE "
 					 "interface\n", hwif->name);
-			hwif->present = 0;
+			device_unregister(&hwif->gendev);
+			ide_disable_port(hwif);
 			continue;
 		}
 
@@ -1659,12 +1694,8 @@ void ide_host_free(struct ide_host *host)
 	int i;
 
 	ide_host_for_each_port(i, hwif, host) {
-		if (hwif == NULL)
-			continue;
-
-		ide_port_free_devices(hwif);
-		ide_free_port_slot(hwif->index);
-		kfree(hwif);
+		if (hwif)
+			ide_port_free(hwif);
 	}
 
 	kfree(host);

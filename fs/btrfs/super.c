@@ -37,7 +37,7 @@
 #include <linux/ctype.h>
 #include <linux/namei.h>
 #include <linux/miscdevice.h>
-#include <linux/version.h>
+#include <linux/magic.h>
 #include "compat.h"
 #include "ctree.h"
 #include "disk-io.h"
@@ -51,7 +51,6 @@
 #include "export.h"
 #include "compression.h"
 
-#define BTRFS_SUPER_MAGIC 0x9123683E
 
 static struct super_operations btrfs_super_ops;
 
@@ -380,7 +379,6 @@ int btrfs_sync_fs(struct super_block *sb, int wait)
 	btrfs_start_delalloc_inodes(root);
 	btrfs_wait_ordered_extents(root, 0);
 
-	btrfs_clean_old_snapshots(root);
 	trans = btrfs_start_transaction(root, 1);
 	ret = btrfs_commit_transaction(trans, root);
 	sb->s_dirt = 0;
@@ -512,6 +510,10 @@ static int btrfs_remount(struct super_block *sb, int *flags, char *data)
 	struct btrfs_root *root = btrfs_sb(sb);
 	int ret;
 
+	ret = btrfs_parse_options(root, data);
+	if (ret)
+		return -EINVAL;
+
 	if ((*flags & MS_RDONLY) == (sb->s_flags & MS_RDONLY))
 		return 0;
 
@@ -582,18 +584,20 @@ static long btrfs_control_ioctl(struct file *file, unsigned int cmd,
 {
 	struct btrfs_ioctl_vol_args *vol;
 	struct btrfs_fs_devices *fs_devices;
-	int ret = 0;
-	int len;
+	int ret = -ENOTTY;
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
 	vol = kmalloc(sizeof(*vol), GFP_KERNEL);
+	if (!vol)
+		return -ENOMEM;
+
 	if (copy_from_user(vol, (void __user *)arg, sizeof(*vol))) {
 		ret = -EFAULT;
 		goto out;
 	}
-	len = strnlen(vol->name, BTRFS_PATH_NAME_MAX);
+
 	switch (cmd) {
 	case BTRFS_IOC_SCAN_DEV:
 		ret = btrfs_scan_one_device(vol->name, FMODE_READ,
@@ -605,18 +609,20 @@ out:
 	return ret;
 }
 
-static void btrfs_write_super_lockfs(struct super_block *sb)
+static int btrfs_freeze(struct super_block *sb)
 {
 	struct btrfs_root *root = btrfs_sb(sb);
 	mutex_lock(&root->fs_info->transaction_kthread_mutex);
 	mutex_lock(&root->fs_info->cleaner_mutex);
+	return 0;
 }
 
-static void btrfs_unlockfs(struct super_block *sb)
+static int btrfs_unfreeze(struct super_block *sb)
 {
 	struct btrfs_root *root = btrfs_sb(sb);
 	mutex_unlock(&root->fs_info->cleaner_mutex);
 	mutex_unlock(&root->fs_info->transaction_kthread_mutex);
+	return 0;
 }
 
 static struct super_operations btrfs_super_ops = {
@@ -631,8 +637,8 @@ static struct super_operations btrfs_super_ops = {
 	.destroy_inode	= btrfs_destroy_inode,
 	.statfs		= btrfs_statfs,
 	.remount_fs	= btrfs_remount,
-	.write_super_lockfs = btrfs_write_super_lockfs,
-	.unlockfs	= btrfs_unlockfs,
+	.freeze_fs	= btrfs_freeze,
+	.unfreeze_fs	= btrfs_unfreeze,
 };
 
 static const struct file_operations btrfs_ctl_fops = {

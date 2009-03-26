@@ -282,7 +282,7 @@ static int do_drive_get_GTF(ide_drive_t *drive,
 	port = hwif->channel ? drive->dn - 2: drive->dn;
 
 	DEBPRINT("ENTER: %s at %s, port#: %d, hard_port#: %d\n",
-		 hwif->name, dev->bus_id, port, hwif->channel);
+		 hwif->name, dev_name(dev), port, hwif->channel);
 
 	if ((drive->dev_flags & IDE_DFLAG_PRESENT) == 0) {
 		DEBPRINT("%s drive %d:%d not present\n",

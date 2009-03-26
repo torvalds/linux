@@ -153,7 +153,7 @@ xen_post_smp_prepare_boot_cpu(void)
 	xen_setup_vcpu_info_placement();
 }
 
-static const struct pv_init_ops xen_init_ops __initdata = {
+static const struct pv_init_ops xen_init_ops __initconst = {
 	.banner = xen_banner,
 
 	.reserve_memory = xen_reserve_memory,
@@ -337,7 +337,7 @@ xen_iosapic_write(char __iomem *iosapic, unsigned int reg, u32 val)
 	HYPERVISOR_physdev_op(PHYSDEVOP_apic_write, &apic_op);
 }
 
-static const struct pv_iosapic_ops xen_iosapic_ops __initdata = {
+static const struct pv_iosapic_ops xen_iosapic_ops __initconst = {
 	.pcat_compat_init = xen_pcat_compat_init,
 	.__get_irq_chip = xen_iosapic_get_irq_chip,
 

@@ -29,6 +29,7 @@
 #include <asm/mach-types.h>
 
 #include <mach/regs-serial.h>
+#include <mach/map.h>
 
 #include "cpu.h"
 

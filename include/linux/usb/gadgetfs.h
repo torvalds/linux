@@ -18,7 +18,7 @@
 #ifndef __LINUX_USB_GADGETFS_H
 #define __LINUX_USB_GADGETFS_H
 
-#include <asm/types.h>
+#include <linux/types.h>
 #include <asm/ioctl.h>
 
 #include <linux/usb/ch9.h>

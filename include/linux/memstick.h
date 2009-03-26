@@ -100,8 +100,8 @@ struct mspro_param_register {
 #define MEMSTICK_SYS_PAR8   0x40
 #define MEMSTICK_SYS_SERIAL 0x80
 
-	unsigned short data_count;
-	unsigned int   data_address;
+	__be16 data_count;
+	__be32 data_address;
 	unsigned char  tpc_param;
 } __attribute__((packed));
 

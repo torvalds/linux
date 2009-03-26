@@ -108,7 +108,7 @@ void gdb_regs_to_pt_regs(unsigned long *gdb_regs, struct pt_regs *regs)
 }
 
 #ifdef CONFIG_SMP
-void smp_kgdb_capture_client(struct pt_regs *regs)
+void smp_kgdb_capture_client(int irq, struct pt_regs *regs)
 {
 	unsigned long flags;
 

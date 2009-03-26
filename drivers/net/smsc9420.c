@@ -341,7 +341,7 @@ static int smsc9420_eeprom_send_cmd(struct smsc9420_pdata *pd, u32 op)
 	do {
 		msleep(1);
 		e2cmd = smsc9420_reg_read(pd, E2P_CMD);
-	} while ((e2cmd & E2P_CMD_EPC_BUSY_) && (timeout--));
+	} while ((e2cmd & E2P_CMD_EPC_BUSY_) && (--timeout));
 
 	if (!timeout) {
 		smsc_info(HW, "TIMED OUT");
@@ -413,6 +413,7 @@ static int smsc9420_ethtool_get_eeprom(struct net_device *dev,
 	}
 
 	memcpy(data, &eeprom_data[eeprom->offset], len);
+	eeprom->magic = SMSC9420_EEPROM_MAGIC;
 	eeprom->len = len;
 	return 0;
 }
@@ -422,6 +423,9 @@ static int smsc9420_ethtool_set_eeprom(struct net_device *dev,
 {
 	struct smsc9420_pdata *pd = netdev_priv(dev);
 	int ret;
+
+	if (eeprom->magic != SMSC9420_EEPROM_MAGIC)
+		return -EINVAL;
 
 	smsc9420_eeprom_enable_access(pd);
 	smsc9420_eeprom_send_cmd(pd, E2P_CMD_EPC_CMD_EWEN_);
@@ -498,7 +502,7 @@ static void smsc9420_check_mac_address(struct net_device *dev)
 static void smsc9420_stop_tx(struct smsc9420_pdata *pd)
 {
 	u32 dmac_control, mac_cr, dma_intr_ena;
-	int timeOut = 1000;
+	int timeout = 1000;
 
 	/* disable TX DMAC */
 	dmac_control = smsc9420_reg_read(pd, DMAC_CONTROL);
@@ -506,13 +510,13 @@ static void smsc9420_stop_tx(struct smsc9420_pdata *pd)
 	smsc9420_reg_write(pd, DMAC_CONTROL, dmac_control);
 
 	/* Wait max 10ms for transmit process to stop */
-	while (timeOut--) {
+	while (--timeout) {
 		if (smsc9420_reg_read(pd, DMAC_STATUS) & DMAC_STS_TS_)
 			break;
 		udelay(10);
 	}
 
-	if (!timeOut)
+	if (!timeout)
 		smsc_warn(IFDOWN, "TX DMAC failed to stop");
 
 	/* ACK Tx DMAC stop bit */
@@ -596,7 +600,7 @@ static void smsc9420_free_rx_ring(struct smsc9420_pdata *pd)
 
 static void smsc9420_stop_rx(struct smsc9420_pdata *pd)
 {
-	int timeOut = 1000;
+	int timeout = 1000;
 	u32 mac_cr, dmac_control, dma_intr_ena;
 
 	/* mask RX DMAC interrupts */
@@ -617,13 +621,13 @@ static void smsc9420_stop_rx(struct smsc9420_pdata *pd)
 	smsc9420_pci_flush_write(pd);
 
 	/* wait up to 10ms for receive to stop */
-	while (timeOut--) {
+	while (--timeout) {
 		if (smsc9420_reg_read(pd, DMAC_STATUS) & DMAC_STS_RS_)
 			break;
 		udelay(10);
 	}
 
-	if (!timeOut)
+	if (!timeout)
 		smsc_warn(IFDOWN, "RX DMAC did not stop! timeout.");
 
 	/* ACK the Rx DMAC stop bit */
@@ -1378,6 +1382,7 @@ static int smsc9420_open(struct net_device *dev)
 
 	/* test the IRQ connection to the ISR */
 	smsc_dbg(IFUP, "Testing ISR using IRQ %d", dev->irq);
+	pd->software_irq_signal = false;
 
 	spin_lock_irqsave(&pd->int_lock, flags);
 	/* configure interrupt deassertion timer and enable interrupts */
@@ -1393,8 +1398,6 @@ static int smsc9420_open(struct net_device *dev)
 	smsc9420_pci_flush_write(pd);
 
 	timeout = 1000;
-	pd->software_irq_signal = false;
-	smp_wmb();
 	while (timeout--) {
 		if (pd->software_irq_signal)
 			break;
@@ -1551,6 +1554,7 @@ static const struct net_device_ops smsc9420_netdev_ops = {
 	.ndo_set_multicast_list	= smsc9420_set_multicast_list,
 	.ndo_do_ioctl		= smsc9420_do_ioctl,
 	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_set_mac_address 	= eth_mac_addr,
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller	= smsc9420_poll_controller,
 #endif /* CONFIG_NET_POLL_CONTROLLER */

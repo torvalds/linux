@@ -1088,6 +1088,11 @@ int dev_open(struct net_device *dev)
 		dev->flags |= IFF_UP;
 
 		/*
+		 *	Enable NET_DMA
+		 */
+		net_dmaengine_get();
+
+		/*
 		 *	Initialize multicasting status
 		 */
 		dev_set_rx_mode(dev);
@@ -1163,6 +1168,11 @@ int dev_close(struct net_device *dev)
 	 * Tell people we are down
 	 */
 	call_netdevice_notifiers(NETDEV_DOWN, dev);
+
+	/*
+	 *	Shutdown NET_DMA
+	 */
+	net_dmaengine_put();
 
 	return 0;
 }
@@ -1524,7 +1534,19 @@ struct sk_buff *skb_gso_segment(struct sk_buff *skb, int features)
 	skb->mac_len = skb->network_header - skb->mac_header;
 	__skb_pull(skb, skb->mac_len);
 
-	if (WARN_ON(skb->ip_summed != CHECKSUM_PARTIAL)) {
+	if (unlikely(skb->ip_summed != CHECKSUM_PARTIAL)) {
+		struct net_device *dev = skb->dev;
+		struct ethtool_drvinfo info = {};
+
+		if (dev && dev->ethtool_ops && dev->ethtool_ops->get_drvinfo)
+			dev->ethtool_ops->get_drvinfo(dev, &info);
+
+		WARN(1, "%s: caps=(0x%lx, 0x%lx) len=%d data_len=%d "
+			"ip_summed=%d",
+		     info.driver, dev ? dev->features : 0L,
+		     skb->sk ? skb->sk->sk_route_caps : 0L,
+		     skb->len, skb->data_len, skb->ip_summed);
+
 		if (skb_header_cloned(skb) &&
 		    (err = pskb_expand_head(skb, 0, 0, GFP_ATOMIC)))
 			return ERR_PTR(err);
@@ -2245,12 +2267,6 @@ int netif_receive_skb(struct sk_buff *skb)
 
 	rcu_read_lock();
 
-	/* Don't receive packets in an exiting network namespace */
-	if (!net_alive(dev_net(skb->dev))) {
-		kfree_skb(skb);
-		goto out;
-	}
-
 #ifdef CONFIG_NET_CLS_ACT
 	if (skb->tc_verd & TC_NCLS) {
 		skb->tc_verd = CLR_TC_NCLS(skb->tc_verd);
@@ -2382,6 +2398,9 @@ int dev_gro_receive(struct napi_struct *napi, struct sk_buff *skb)
 	if (!(skb->dev->features & NETIF_F_GRO))
 		goto normal;
 
+	if (skb_is_gso(skb) || skb_shinfo(skb)->frag_list)
+		goto normal;
+
 	rcu_read_lock();
 	list_for_each_entry_rcu(ptype, head, list) {
 		struct sk_buff *p;
@@ -2463,6 +2482,9 @@ static int __napi_gro_receive(struct napi_struct *napi, struct sk_buff *skb)
 
 int napi_gro_receive(struct napi_struct *napi, struct sk_buff *skb)
 {
+	if (netpoll_receive_skb(skb))
+		return NET_RX_DROP;
+
 	switch (__napi_gro_receive(napi, skb)) {
 	case -1:
 		return netif_receive_skb(skb);
@@ -2478,12 +2500,6 @@ EXPORT_SYMBOL(napi_gro_receive);
 
 void napi_reuse_skb(struct napi_struct *napi, struct sk_buff *skb)
 {
-	skb_shinfo(skb)->nr_frags = 0;
-
-	skb->len -= skb->data_len;
-	skb->truesize -= skb->data_len;
-	skb->data_len = 0;
-
 	__skb_pull(skb, skb_headlen(skb));
 	skb_reserve(skb, NET_IP_ALIGN - skb_headroom(skb));
 
@@ -2517,6 +2533,7 @@ struct sk_buff *napi_fraginfo_skb(struct napi_struct *napi,
 
 	if (!pskb_may_pull(skb, ETH_HLEN)) {
 		napi_reuse_skb(napi, skb);
+		skb = NULL;
 		goto out;
 	}
 
@@ -2536,6 +2553,9 @@ int napi_gro_frags(struct napi_struct *napi, struct napi_gro_fraginfo *info)
 	int err = NET_RX_DROP;
 
 	if (!skb)
+		goto out;
+
+	if (netpoll_receive_skb(skb))
 		goto out;
 
 	err = NET_RX_SUCCESS;
@@ -2568,9 +2588,9 @@ static int process_backlog(struct napi_struct *napi, int quota)
 		local_irq_disable();
 		skb = __skb_dequeue(&queue->input_pkt_queue);
 		if (!skb) {
-			__napi_complete(napi);
 			local_irq_enable();
-			break;
+			napi_complete(napi);
+			goto out;
 		}
 		local_irq_enable();
 
@@ -2579,6 +2599,7 @@ static int process_backlog(struct napi_struct *napi, int quota)
 
 	napi_gro_flush(napi);
 
+out:
 	return work;
 }
 
@@ -2651,7 +2672,7 @@ void netif_napi_del(struct napi_struct *napi)
 	struct sk_buff *skb, *next;
 
 	list_del_init(&napi->dev_list);
-	kfree(napi->skb);
+	kfree_skb(napi->skb);
 
 	for (skb = napi->gro_list; skb; skb = next) {
 		next = skb->next;
@@ -4262,6 +4283,39 @@ unsigned long netdev_fix_features(unsigned long features, const char *name)
 }
 EXPORT_SYMBOL(netdev_fix_features);
 
+/* Some devices need to (re-)set their netdev_ops inside
+ * ->init() or similar.  If that happens, we have to setup
+ * the compat pointers again.
+ */
+void netdev_resync_ops(struct net_device *dev)
+{
+#ifdef CONFIG_COMPAT_NET_DEV_OPS
+	const struct net_device_ops *ops = dev->netdev_ops;
+
+	dev->init = ops->ndo_init;
+	dev->uninit = ops->ndo_uninit;
+	dev->open = ops->ndo_open;
+	dev->change_rx_flags = ops->ndo_change_rx_flags;
+	dev->set_rx_mode = ops->ndo_set_rx_mode;
+	dev->set_multicast_list = ops->ndo_set_multicast_list;
+	dev->set_mac_address = ops->ndo_set_mac_address;
+	dev->validate_addr = ops->ndo_validate_addr;
+	dev->do_ioctl = ops->ndo_do_ioctl;
+	dev->set_config = ops->ndo_set_config;
+	dev->change_mtu = ops->ndo_change_mtu;
+	dev->neigh_setup = ops->ndo_neigh_setup;
+	dev->tx_timeout = ops->ndo_tx_timeout;
+	dev->get_stats = ops->ndo_get_stats;
+	dev->vlan_rx_register = ops->ndo_vlan_rx_register;
+	dev->vlan_rx_add_vid = ops->ndo_vlan_rx_add_vid;
+	dev->vlan_rx_kill_vid = ops->ndo_vlan_rx_kill_vid;
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	dev->poll_controller = ops->ndo_poll_controller;
+#endif
+#endif
+}
+EXPORT_SYMBOL(netdev_resync_ops);
+
 /**
  *	register_netdevice	- register a network device
  *	@dev: device to register
@@ -4306,27 +4360,7 @@ int register_netdevice(struct net_device *dev)
 	 * This is temporary until all network devices are converted.
 	 */
 	if (dev->netdev_ops) {
-		const struct net_device_ops *ops = dev->netdev_ops;
-
-		dev->init = ops->ndo_init;
-		dev->uninit = ops->ndo_uninit;
-		dev->open = ops->ndo_open;
-		dev->change_rx_flags = ops->ndo_change_rx_flags;
-		dev->set_rx_mode = ops->ndo_set_rx_mode;
-		dev->set_multicast_list = ops->ndo_set_multicast_list;
-		dev->set_mac_address = ops->ndo_set_mac_address;
-		dev->validate_addr = ops->ndo_validate_addr;
-		dev->do_ioctl = ops->ndo_do_ioctl;
-		dev->set_config = ops->ndo_set_config;
-		dev->change_mtu = ops->ndo_change_mtu;
-		dev->tx_timeout = ops->ndo_tx_timeout;
-		dev->get_stats = ops->ndo_get_stats;
-		dev->vlan_rx_register = ops->ndo_vlan_rx_register;
-		dev->vlan_rx_add_vid = ops->ndo_vlan_rx_add_vid;
-		dev->vlan_rx_kill_vid = ops->ndo_vlan_rx_kill_vid;
-#ifdef CONFIG_NET_POLL_CONTROLLER
-		dev->poll_controller = ops->ndo_poll_controller;
-#endif
+		netdev_resync_ops(dev);
 	} else {
 		char drivername[64];
 		pr_info("%s (%s): not using net_device_ops yet\n",
@@ -4422,6 +4456,45 @@ err_uninit:
 		dev->netdev_ops->ndo_uninit(dev);
 	goto out;
 }
+
+/**
+ *	init_dummy_netdev	- init a dummy network device for NAPI
+ *	@dev: device to init
+ *
+ *	This takes a network device structure and initialize the minimum
+ *	amount of fields so it can be used to schedule NAPI polls without
+ *	registering a full blown interface. This is to be used by drivers
+ *	that need to tie several hardware interfaces to a single NAPI
+ *	poll scheduler due to HW limitations.
+ */
+int init_dummy_netdev(struct net_device *dev)
+{
+	/* Clear everything. Note we don't initialize spinlocks
+	 * are they aren't supposed to be taken by any of the
+	 * NAPI code and this dummy netdev is supposed to be
+	 * only ever used for NAPI polls
+	 */
+	memset(dev, 0, sizeof(struct net_device));
+
+	/* make sure we BUG if trying to hit standard
+	 * register/unregister code path
+	 */
+	dev->reg_state = NETREG_DUMMY;
+
+	/* initialize the ref count */
+	atomic_set(&dev->refcnt, 1);
+
+	/* NAPI wants this */
+	INIT_LIST_HEAD(&dev->napi_list);
+
+	/* a dummy interface is started by default */
+	set_bit(__LINK_STATE_PRESENT, &dev->state);
+	set_bit(__LINK_STATE_START, &dev->state);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(init_dummy_netdev);
+
 
 /**
  *	register_netdev	- register a network device
@@ -5151,9 +5224,6 @@ static int __init net_dev_init(void)
 	hotcpu_notifier(dev_cpu_callback, 0);
 	dst_init();
 	dev_mcast_init();
-	#ifdef CONFIG_NET_DMA
-	dmaengine_get();
-	#endif
 	rc = 0;
 out:
 	return rc;

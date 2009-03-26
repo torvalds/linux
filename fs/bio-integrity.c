@@ -140,7 +140,6 @@ int bio_integrity_add_page(struct bio *bio, struct page *page,
 
 	iv = bip_vec_idx(bip, bip->bip_vcnt);
 	BUG_ON(iv == NULL);
-	BUG_ON(iv->bv_page != NULL);
 
 	iv->bv_page = page;
 	iv->bv_len = len;
@@ -465,7 +464,7 @@ static int bio_integrity_verify(struct bio *bio)
 
 		if (ret) {
 			kunmap_atomic(kaddr, KM_USER0);
-			break;
+			return ret;
 		}
 
 		sectors = bv->bv_len / bi->sector_size;
@@ -493,18 +492,13 @@ static void bio_integrity_verify_fn(struct work_struct *work)
 	struct bio_integrity_payload *bip =
 		container_of(work, struct bio_integrity_payload, bip_work);
 	struct bio *bio = bip->bip_bio;
-	int error = bip->bip_error;
+	int error;
 
-	if (bio_integrity_verify(bio)) {
-		clear_bit(BIO_UPTODATE, &bio->bi_flags);
-		error = -EIO;
-	}
+	error = bio_integrity_verify(bio);
 
 	/* Restore original bio completion handler */
 	bio->bi_end_io = bip->bip_end_io;
-
-	if (bio->bi_end_io)
-		bio->bi_end_io(bio, error);
+	bio_endio(bio, error);
 }
 
 /**
@@ -525,7 +519,17 @@ void bio_integrity_endio(struct bio *bio, int error)
 
 	BUG_ON(bip->bip_bio != bio);
 
-	bip->bip_error = error;
+	/* In case of an I/O error there is no point in verifying the
+	 * integrity metadata.  Restore original bio end_io handler
+	 * and run it.
+	 */
+	if (error) {
+		bio->bi_end_io = bip->bip_end_io;
+		bio_endio(bio, error);
+
+		return;
+	}
+
 	INIT_WORK(&bip->bip_work, bio_integrity_verify_fn);
 	queue_work(kintegrityd_wq, &bip->bip_work);
 }
@@ -681,19 +685,20 @@ EXPORT_SYMBOL(bio_integrity_split);
  * bio_integrity_clone - Callback for cloning bios with integrity metadata
  * @bio:	New bio
  * @bio_src:	Original bio
+ * @gfp_mask:	Memory allocation mask
  * @bs:		bio_set to allocate bip from
  *
  * Description:	Called to allocate a bip when cloning a bio
  */
 int bio_integrity_clone(struct bio *bio, struct bio *bio_src,
-			struct bio_set *bs)
+			gfp_t gfp_mask, struct bio_set *bs)
 {
 	struct bio_integrity_payload *bip_src = bio_src->bi_integrity;
 	struct bio_integrity_payload *bip;
 
 	BUG_ON(bip_src == NULL);
 
-	bip = bio_integrity_alloc_bioset(bio, GFP_NOIO, bip_src->bip_vcnt, bs);
+	bip = bio_integrity_alloc_bioset(bio, gfp_mask, bip_src->bip_vcnt, bs);
 
 	if (bip == NULL)
 		return -EIO;

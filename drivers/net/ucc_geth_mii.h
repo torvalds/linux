@@ -97,4 +97,5 @@ int uec_mdio_read(struct mii_bus *bus, int mii_id, int regnum);
 int uec_mdio_write(struct mii_bus *bus, int mii_id, int regnum, u16 value);
 int __init uec_mdio_init(void);
 void uec_mdio_exit(void);
+void uec_mdio_bus_name(char *name, struct device_node *np);
 #endif				/* __UEC_MII_H */

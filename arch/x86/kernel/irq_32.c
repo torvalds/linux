@@ -15,9 +15,9 @@
 #include <linux/notifier.h>
 #include <linux/cpu.h>
 #include <linux/delay.h>
+#include <linux/uaccess.h>
 
 #include <asm/apic.h>
-#include <asm/uaccess.h>
 
 DEFINE_PER_CPU_SHARED_ALIGNED(irq_cpustat_t, irq_stat);
 EXPORT_PER_CPU_SYMBOL(irq_stat);
@@ -93,7 +93,7 @@ execute_on_irq_stack(int overflow, struct irq_desc *desc, int irq)
 		return 0;
 
 	/* build the stack frame on the IRQ stack */
-	isp = (u32 *) ((char*)irqctx + sizeof(*irqctx));
+	isp = (u32 *) ((char *)irqctx + sizeof(*irqctx));
 	irqctx->tinfo.task = curctx->tinfo.task;
 	irqctx->tinfo.previous_esp = current_stack_pointer;
 
@@ -137,7 +137,7 @@ void __cpuinit irq_ctx_init(int cpu)
 
 	hardirq_ctx[cpu] = irqctx;
 
-	irqctx = (union irq_ctx*) &softirq_stack[cpu*THREAD_SIZE];
+	irqctx = (union irq_ctx *) &softirq_stack[cpu*THREAD_SIZE];
 	irqctx->tinfo.task		= NULL;
 	irqctx->tinfo.exec_domain	= NULL;
 	irqctx->tinfo.cpu		= cpu;
@@ -147,7 +147,7 @@ void __cpuinit irq_ctx_init(int cpu)
 	softirq_ctx[cpu] = irqctx;
 
 	printk(KERN_DEBUG "CPU %u irqstacks, hard=%p soft=%p\n",
-	       cpu,hardirq_ctx[cpu],softirq_ctx[cpu]);
+	       cpu, hardirq_ctx[cpu], softirq_ctx[cpu]);
 }
 
 void irq_ctx_exit(int cpu)
@@ -174,7 +174,7 @@ asmlinkage void do_softirq(void)
 		irqctx->tinfo.previous_esp = current_stack_pointer;
 
 		/* build the stack frame on the softirq stack */
-		isp = (u32*) ((char*)irqctx + sizeof(*irqctx));
+		isp = (u32 *) ((char *)irqctx + sizeof(*irqctx));
 
 		call_on_stack(__do_softirq, isp);
 		/*

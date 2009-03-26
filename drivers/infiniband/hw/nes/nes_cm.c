@@ -778,12 +778,13 @@ static struct nes_cm_node *find_node(struct nes_cm_core *cm_core,
 	unsigned long flags;
 	struct list_head *hte;
 	struct nes_cm_node *cm_node;
+	__be32 tmp_addr = cpu_to_be32(loc_addr);
 
 	/* get a handle on the hte */
 	hte = &cm_core->connected_nodes;
 
 	nes_debug(NES_DBG_CM, "Searching for an owner node: %pI4:%x from core %p->%p\n",
-		  &loc_addr, loc_port, cm_core, hte);
+		  &tmp_addr, loc_port, cm_core, hte);
 
 	/* walk list and find cm_node associated with this session ID */
 	spin_lock_irqsave(&cm_core->ht_lock, flags);
@@ -816,6 +817,7 @@ static struct nes_cm_listener *find_listener(struct nes_cm_core *cm_core,
 {
 	unsigned long flags;
 	struct nes_cm_listener *listen_node;
+	__be32 tmp_addr = cpu_to_be32(dst_addr);
 
 	/* walk list and find cm_node associated with this session ID */
 	spin_lock_irqsave(&cm_core->listen_list_lock, flags);
@@ -833,7 +835,7 @@ static struct nes_cm_listener *find_listener(struct nes_cm_core *cm_core,
 	spin_unlock_irqrestore(&cm_core->listen_list_lock, flags);
 
 	nes_debug(NES_DBG_CM, "Unable to find listener for %pI4:%x\n",
-		  &dst_addr, dst_port);
+		  &tmp_addr, dst_port);
 
 	/* no listener */
 	return NULL;
@@ -2059,6 +2061,7 @@ static int mini_cm_recv_pkt(struct nes_cm_core *cm_core,
 	struct tcphdr *tcph;
 	struct nes_cm_info nfo;
 	int skb_handled = 1;
+	__be32 tmp_daddr, tmp_saddr;
 
 	if (!skb)
 		return 0;
@@ -2074,8 +2077,11 @@ static int mini_cm_recv_pkt(struct nes_cm_core *cm_core,
 	nfo.rem_addr = ntohl(iph->saddr);
 	nfo.rem_port = ntohs(tcph->source);
 
+	tmp_daddr = cpu_to_be32(iph->daddr);
+	tmp_saddr = cpu_to_be32(iph->saddr);
+
 	nes_debug(NES_DBG_CM, "Received packet: dest=%pI4:0x%04X src=%pI4:0x%04X\n",
-		  &iph->daddr, tcph->dest, &iph->saddr, tcph->source);
+		  &tmp_daddr, tcph->dest, &tmp_saddr, tcph->source);
 
 	do {
 		cm_node = find_node(cm_core,
@@ -2484,12 +2490,14 @@ static int nes_disconnect(struct nes_qp *nesqp, int abrupt)
 	int ret = 0;
 	struct nes_vnic *nesvnic;
 	struct nes_device *nesdev;
+	struct nes_ib_device *nesibdev;
 
 	nesvnic = to_nesvnic(nesqp->ibqp.device);
 	if (!nesvnic)
 		return -EINVAL;
 
 	nesdev = nesvnic->nesdev;
+	nesibdev = nesvnic->nesibdev;
 
 	nes_debug(NES_DBG_CM, "netdev refcnt = %u.\n",
 			atomic_read(&nesvnic->netdev->refcnt));
@@ -2501,6 +2509,8 @@ static int nes_disconnect(struct nes_qp *nesqp, int abrupt)
 	} else {
 		/* Need to free the Last Streaming Mode Message */
 		if (nesqp->ietf_frame) {
+			if (nesqp->lsmm_mr)
+				nesibdev->ibdev.dereg_mr(nesqp->lsmm_mr);
 			pci_free_consistent(nesdev->pcidev,
 					nesqp->private_data_len+sizeof(struct ietf_mpa_frame),
 					nesqp->ietf_frame, nesqp->ietf_frame_pbase);
@@ -2537,6 +2547,12 @@ int nes_accept(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 	u32 crc_value;
 	int ret;
 	int passive_state;
+	struct nes_ib_device *nesibdev;
+	struct ib_mr *ibmr = NULL;
+	struct ib_phys_buf ibphysbuf;
+	struct nes_pd *nespd;
+
+
 
 	ibqp = nes_get_qp(cm_id->device, conn_param->qpn);
 	if (!ibqp)
@@ -2595,6 +2611,26 @@ int nes_accept(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 	if (cm_id->remote_addr.sin_addr.s_addr !=
 			cm_id->local_addr.sin_addr.s_addr) {
 		u64temp = (unsigned long)nesqp;
+		nesibdev = nesvnic->nesibdev;
+		nespd = nesqp->nespd;
+		ibphysbuf.addr = nesqp->ietf_frame_pbase;
+		ibphysbuf.size = conn_param->private_data_len +
+					sizeof(struct ietf_mpa_frame);
+		ibmr = nesibdev->ibdev.reg_phys_mr((struct ib_pd *)nespd,
+						&ibphysbuf, 1,
+						IB_ACCESS_LOCAL_WRITE,
+						(u64 *)&nesqp->ietf_frame);
+		if (!ibmr) {
+			nes_debug(NES_DBG_CM, "Unable to register memory region"
+					"for lSMM for cm_node = %p \n",
+					cm_node);
+			return -ENOMEM;
+		}
+
+		ibmr->pd = &nespd->ibpd;
+		ibmr->device = nespd->ibpd.device;
+		nesqp->lsmm_mr = ibmr;
+
 		u64temp |= NES_SW_CONTEXT_ALIGN>>1;
 		set_wqe_64bit_value(wqe->wqe_words,
 			NES_IWARP_SQ_WQE_COMP_CTX_LOW_IDX,
@@ -2605,14 +2641,13 @@ int nes_accept(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 		wqe->wqe_words[NES_IWARP_SQ_WQE_TOTAL_PAYLOAD_IDX] =
 			cpu_to_le32(conn_param->private_data_len +
 			sizeof(struct ietf_mpa_frame));
-		wqe->wqe_words[NES_IWARP_SQ_WQE_FRAG0_LOW_IDX] =
-			cpu_to_le32((u32)nesqp->ietf_frame_pbase);
-		wqe->wqe_words[NES_IWARP_SQ_WQE_FRAG0_HIGH_IDX] =
-			cpu_to_le32((u32)((u64)nesqp->ietf_frame_pbase >> 32));
+		set_wqe_64bit_value(wqe->wqe_words,
+					NES_IWARP_SQ_WQE_FRAG0_LOW_IDX,
+					(u64)nesqp->ietf_frame);
 		wqe->wqe_words[NES_IWARP_SQ_WQE_LENGTH0_IDX] =
 			cpu_to_le32(conn_param->private_data_len +
 			sizeof(struct ietf_mpa_frame));
-		wqe->wqe_words[NES_IWARP_SQ_WQE_STAG0_IDX] = 0;
+		wqe->wqe_words[NES_IWARP_SQ_WQE_STAG0_IDX] = ibmr->lkey;
 
 		nesqp->nesqp_context->ird_ord_sizes |=
 			cpu_to_le32(NES_QPCONTEXT_ORDIRD_LSMM_PRESENT |

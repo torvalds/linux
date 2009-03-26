@@ -934,9 +934,8 @@ struct kimage *kexec_crash_image;
 
 static DEFINE_MUTEX(kexec_mutex);
 
-asmlinkage long sys_kexec_load(unsigned long entry, unsigned long nr_segments,
-				struct kexec_segment __user *segments,
-				unsigned long flags)
+SYSCALL_DEFINE4(kexec_load, unsigned long, entry, unsigned long, nr_segments,
+		struct kexec_segment __user *, segments, unsigned long, flags)
 {
 	struct kimage **dest_image, *image;
 	int result;
@@ -1466,6 +1465,11 @@ int kernel_kexec(void)
 		error = device_power_down(PMSG_FREEZE);
 		if (error)
 			goto Enable_irqs;
+
+		/* Suspend system devices */
+		error = sysdev_suspend(PMSG_FREEZE);
+		if (error)
+			goto Power_up_devices;
 	} else
 #endif
 	{
@@ -1478,6 +1482,8 @@ int kernel_kexec(void)
 
 #ifdef CONFIG_KEXEC_JUMP
 	if (kexec_image->preserve_context) {
+		sysdev_resume();
+ Power_up_devices:
 		device_power_up(PMSG_RESTORE);
  Enable_irqs:
 		local_irq_enable();

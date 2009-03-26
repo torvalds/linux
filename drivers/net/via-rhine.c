@@ -622,6 +622,7 @@ static const struct net_device_ops rhine_netdev_ops = {
 	.ndo_get_stats		 = rhine_get_stats,
 	.ndo_set_multicast_list	 = rhine_set_rx_mode,
 	.ndo_validate_addr	 = eth_validate_addr,
+	.ndo_set_mac_address 	 = eth_mac_addr,
 	.ndo_do_ioctl		 = netdev_ioctl,
 	.ndo_tx_timeout 	 = rhine_tx_timeout,
 #ifdef CONFIG_NET_POLL_CONTROLLER

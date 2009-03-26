@@ -20,14 +20,6 @@
 
 
 /* ======================================================================== */
-/* PCI windows config                                                       */
-/* ======================================================================== */
-
-#define MPC52xx_PCI_TARGET_IO	0xf0000000
-#define MPC52xx_PCI_TARGET_MEM	0x00000000
-
-
-/* ======================================================================== */
 /* Structures mapping & Defines for PCI Unit                                */
 /* ======================================================================== */
 
@@ -244,7 +236,7 @@ static struct pci_ops mpc52xx_pci_ops = {
 
 static void __init
 mpc52xx_pci_setup(struct pci_controller *hose,
-                  struct mpc52xx_pci __iomem *pci_regs)
+                  struct mpc52xx_pci __iomem *pci_regs, phys_addr_t pci_phys)
 {
 	struct resource *res;
 	u32 tmp;
@@ -314,10 +306,14 @@ mpc52xx_pci_setup(struct pci_controller *hose,
 	/* Set all the IWCR fields at once; they're in the same reg */
 	out_be32(&pci_regs->iwcr, MPC52xx_PCI_IWCR_PACK(iwcr0, iwcr1, iwcr2));
 
-	out_be32(&pci_regs->tbatr0,
-		MPC52xx_PCI_TBATR_ENABLE | MPC52xx_PCI_TARGET_IO );
-	out_be32(&pci_regs->tbatr1,
-		MPC52xx_PCI_TBATR_ENABLE | MPC52xx_PCI_TARGET_MEM );
+	/* Map IMMR onto PCI bus */
+	pci_phys &= 0xfffc0000; /* bar0 has only 14 significant bits */
+	out_be32(&pci_regs->tbatr0, MPC52xx_PCI_TBATR_ENABLE | pci_phys);
+	out_be32(&pci_regs->bar0, PCI_BASE_ADDRESS_MEM_PREFETCH | pci_phys);
+
+	/* Map memory onto PCI bus */
+	out_be32(&pci_regs->tbatr1, MPC52xx_PCI_TBATR_ENABLE);
+	out_be32(&pci_regs->bar1, PCI_BASE_ADDRESS_MEM_PREFETCH);
 
 	out_be32(&pci_regs->tcr, MPC52xx_PCI_TCR_LD | MPC52xx_PCI_TCR_WCT8);
 
@@ -414,7 +410,7 @@ mpc52xx_add_bridge(struct device_node *node)
 
 	/* Finish setting up PCI using values obtained by
 	 * pci_proces_bridge_OF_ranges */
-	mpc52xx_pci_setup(hose, pci_regs);
+	mpc52xx_pci_setup(hose, pci_regs, rsrc.start);
 
 	return 0;
 }

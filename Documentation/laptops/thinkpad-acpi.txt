@@ -1,7 +1,7 @@
 		     ThinkPad ACPI Extras Driver
 
-                            Version 0.21
-                           May 29th, 2008
+                            Version 0.22
+                        November 23rd,  2008
 
                Borislav Deianov <borislav@users.sf.net>
              Henrique de Moraes Holschuh <hmh@hmh.eng.br>
@@ -16,7 +16,8 @@ supported by the generic Linux ACPI drivers.
 This driver used to be named ibm-acpi until kernel 2.6.21 and release
 0.13-20070314.  It used to be in the drivers/acpi tree, but it was
 moved to the drivers/misc tree and renamed to thinkpad-acpi for kernel
-2.6.22, and release 0.14.
+2.6.22, and release 0.14.  It was moved to drivers/platform/x86 for
+kernel 2.6.29 and release 0.22.
 
 The driver is named "thinkpad-acpi".  In some places, like module
 names, "thinkpad_acpi" is used because of userspace issues.
@@ -1410,6 +1411,24 @@ Sysfs notes:
 	2010.
 
 	rfkill controller switch "tpacpi_wwan_sw": refer to
+	Documentation/rfkill.txt for details.
+
+EXPERIMENTAL: UWB
+-----------------
+
+This feature is marked EXPERIMENTAL because it has not been extensively
+tested and validated in various ThinkPad models yet.  The feature may not
+work as expected. USE WITH CAUTION! To use this feature, you need to supply
+the experimental=1 parameter when loading the module.
+
+sysfs rfkill class: switch "tpacpi_uwb_sw"
+
+This feature exports an rfkill controller for the UWB device, if one is
+present and enabled in the BIOS.
+
+Sysfs notes:
+
+	rfkill controller switch "tpacpi_uwb_sw": refer to
 	Documentation/rfkill.txt for details.
 
 Multiple Commands, Module Parameters

@@ -117,6 +117,7 @@ void sbus_set_sbus64(struct device *dev, int bursts)
 		val |= (1UL << 4UL);
 	upa_writeq(val, cfg_reg);
 }
+EXPORT_SYMBOL(sbus_set_sbus64);
 
 /* INO number to IMAP register offset for SYSIO external IRQ's.
  * This should conform to both Sunfire/Wildfire server and Fusion

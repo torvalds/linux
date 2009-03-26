@@ -242,7 +242,7 @@ static int tda9875_g_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 static int tda9875_s_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 {
 	struct tda9875 *t = to_state(sd);
-	int chvol=0, volume, balance, left, right;
+	int chvol = 0, volume = 0, balance = 0, left, right;
 
 	switch (ctrl->id) {
 	case V4L2_CID_AUDIO_VOLUME:

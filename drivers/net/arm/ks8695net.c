@@ -560,7 +560,7 @@ ks8695_reset(struct ks8695_priv *ksp)
 		msleep(1);
 	}
 
-	if (reset_timeout == 0) {
+	if (reset_timeout < 0) {
 		dev_crit(ksp->dev,
 			 "Timeout waiting for DMA engines to reset\n");
 		/* And blithely carry on */
@@ -1357,6 +1357,7 @@ static const struct net_device_ops ks8695_netdev_ops = {
 	.ndo_start_xmit		= ks8695_start_xmit,
 	.ndo_tx_timeout		= ks8695_timeout,
 	.ndo_set_mac_address	= ks8695_set_mac,
+	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_multicast_list	= ks8695_set_multicast,
 };
 

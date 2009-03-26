@@ -44,6 +44,7 @@
  * Set in pm platform drivers (apc.c and pmc.c)
  */
 void (*pm_idle)(void);
+EXPORT_SYMBOL(pm_idle);
 
 /* 
  * Power-off handler instantiation for pm.h compliance
@@ -673,6 +674,7 @@ pid_t kernel_thread(int (*fn)(void *), void * arg, unsigned long flags)
 			     "g1", "g2", "g3", "o0", "o1", "memory", "cc");
 	return retval;
 }
+EXPORT_SYMBOL(kernel_thread);
 
 unsigned long get_wchan(struct task_struct *task)
 {

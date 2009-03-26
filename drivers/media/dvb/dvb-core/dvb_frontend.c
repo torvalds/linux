@@ -1290,9 +1290,6 @@ static int dtv_property_process_set(struct dvb_frontend *fe,
 		dprintk("%s() Finalised property cache\n", __func__);
 		dtv_property_cache_submit(fe);
 
-		/* Request the search algorithm to search */
-		fepriv->algo_status |= DVBFE_ALGO_SEARCH_AGAIN;
-
 		r |= dvb_frontend_ioctl_legacy(inode, file, FE_SET_FRONTEND,
 			&fepriv->parameters);
 		break;
@@ -1717,6 +1714,10 @@ static int dvb_frontend_ioctl_legacy(struct inode *inode, struct file *file,
 			fepriv->min_delay = (dvb_override_tune_delay * HZ) / 1000;
 
 		fepriv->state = FESTATE_RETUNE;
+
+		/* Request the search algorithm to search */
+		fepriv->algo_status |= DVBFE_ALGO_SEARCH_AGAIN;
+
 		dvb_frontend_wakeup(fe);
 		dvb_frontend_add_event(fe, 0);
 		fepriv->status = 0;

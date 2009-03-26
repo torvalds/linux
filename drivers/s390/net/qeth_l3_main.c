@@ -2894,7 +2894,7 @@ qeth_l3_neigh_setup(struct net_device *dev, struct neigh_parms *np)
 	return 0;
 }
 
-static struct net_device_ops qeth_l3_netdev_ops = {
+static const struct net_device_ops qeth_l3_netdev_ops = {
 	.ndo_open		= qeth_l3_open,
 	.ndo_stop		= qeth_l3_stop,
 	.ndo_get_stats		= qeth_get_stats,
@@ -2909,6 +2909,22 @@ static struct net_device_ops qeth_l3_netdev_ops = {
 	.ndo_tx_timeout	   	= qeth_tx_timeout,
 };
 
+static const struct net_device_ops qeth_l3_osa_netdev_ops = {
+	.ndo_open		= qeth_l3_open,
+	.ndo_stop		= qeth_l3_stop,
+	.ndo_get_stats		= qeth_get_stats,
+	.ndo_start_xmit		= qeth_l3_hard_start_xmit,
+	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_set_multicast_list = qeth_l3_set_multicast_list,
+	.ndo_do_ioctl	   	= qeth_l3_do_ioctl,
+	.ndo_change_mtu	   	= qeth_change_mtu,
+	.ndo_vlan_rx_register	= qeth_l3_vlan_rx_register,
+	.ndo_vlan_rx_add_vid	= qeth_l3_vlan_rx_add_vid,
+	.ndo_vlan_rx_kill_vid   = qeth_l3_vlan_rx_kill_vid,
+	.ndo_tx_timeout	   	= qeth_tx_timeout,
+	.ndo_neigh_setup	= qeth_l3_neigh_setup,
+};
+
 static int qeth_l3_setup_netdev(struct qeth_card *card)
 {
 	if (card->info.type == QETH_CARD_TYPE_OSAE) {
@@ -2919,12 +2935,12 @@ static int qeth_l3_setup_netdev(struct qeth_card *card)
 #endif
 			if (!card->dev)
 				return -ENODEV;
+			card->dev->netdev_ops = &qeth_l3_netdev_ops;
 		} else {
 			card->dev = alloc_etherdev(0);
 			if (!card->dev)
 				return -ENODEV;
-			qeth_l3_netdev_ops.ndo_neigh_setup =
-				qeth_l3_neigh_setup;
+			card->dev->netdev_ops = &qeth_l3_osa_netdev_ops;
 
 			/*IPv6 address autoconfiguration stuff*/
 			qeth_l3_get_unique_id(card);
@@ -2937,6 +2953,7 @@ static int qeth_l3_setup_netdev(struct qeth_card *card)
 		if (!card->dev)
 			return -ENODEV;
 		card->dev->flags |= IFF_NOARP;
+		card->dev->netdev_ops = &qeth_l3_netdev_ops;
 		qeth_l3_iqd_read_initial_mac(card);
 	} else
 		return -ENODEV;
@@ -2944,7 +2961,6 @@ static int qeth_l3_setup_netdev(struct qeth_card *card)
 	card->dev->ml_priv = card;
 	card->dev->watchdog_timeo = QETH_TX_TIMEOUT;
 	card->dev->mtu = card->info.initial_mtu;
-	card->dev->netdev_ops = &qeth_l3_netdev_ops;
 	SET_ETHTOOL_OPS(card->dev, &qeth_l3_ethtool_ops);
 	card->dev->features |=	NETIF_F_HW_VLAN_TX |
 				NETIF_F_HW_VLAN_RX |

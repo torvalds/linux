@@ -23,7 +23,7 @@
 #include <linux/err.h>
 #include <linux/io.h>
 
-#include <mach/imx-regs.h>
+#include <mach/hardware.h>
 
 /*
  * Very simple approach: We can't disable clocks, so we do

@@ -1040,6 +1040,17 @@ config NI65
 	  To compile this driver as a module, choose M here. The module
 	  will be called ni65.
 
+config DNET
+	tristate "Dave ethernet support (DNET)"
+	depends on NET_ETHERNET && HAS_IOMEM
+	select PHYLIB
+	help
+	  The Dave ethernet interface (DNET) is found on Qong Board FPGA.
+	  Say Y to include support for the DNET chip.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called dnet.
+
 source "drivers/net/tulip/Kconfig"
 
 config AT1700
@@ -1600,7 +1611,7 @@ config 8139_OLD_RX_RESET
 	  old RX-reset behavior.  If unsure, say N.
 
 config R6040
-	tristate "RDC R6040 Fast Ethernet Adapter support (EXPERIMENTAL)"
+	tristate "RDC R6040 Fast Ethernet Adapter support"
 	depends on NET_PCI && PCI
 	select CRC32
 	select MII
@@ -1829,7 +1840,7 @@ config 68360_ENET
 
 config FEC
 	bool "FEC ethernet controller (of ColdFire CPUs)"
-	depends on M523x || M527x || M5272 || M528x || M520x
+	depends on M523x || M527x || M5272 || M528x || M520x || M532x
 	help
 	  Say Y here if you want to use the built-in 10/100 Fast ethernet
 	  controller on some Motorola ColdFire processors.
@@ -2342,6 +2353,17 @@ config ATL1E
 	  To compile this driver as a module, choose M here.  The module
 	  will be called atl1e.
 
+config ATL1C
+	tristate "Atheros L1C Gigabit Ethernet support (EXPERIMENTAL)"
+	depends on PCI && EXPERIMENTAL
+	select CRC32
+	select MII
+	help
+	  This driver supports the Atheros L1C gigabit ethernet adapter.
+
+	  To compile this driver as a module, choose M here.  The module
+	  will be called atl1c.
+
 config JME
 	tristate "JMicron(R) PCI-Express Gigabit Ethernet support"
 	depends on PCI
@@ -2607,6 +2629,8 @@ config QLGE
 	  will be called qlge.
 
 source "drivers/net/sfc/Kconfig"
+
+source "drivers/net/benet/Kconfig"
 
 endif # NETDEV_10000
 

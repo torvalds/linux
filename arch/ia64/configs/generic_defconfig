@@ -578,7 +578,7 @@ CONFIG_ATA_PIIX=y
 # CONFIG_SATA_SIS is not set
 # CONFIG_SATA_ULI is not set
 # CONFIG_SATA_VIA is not set
-# CONFIG_SATA_VITESSE is not set
+CONFIG_SATA_VITESSE=y
 # CONFIG_SATA_INIC162X is not set
 # CONFIG_PATA_ACPI is not set
 # CONFIG_PATA_ALI is not set

@@ -176,33 +176,31 @@ static int __init visws_get_smp_config(unsigned int early)
  * No problem for Linux.
  */
 
-static void __init MP_processor_info(struct mpc_config_processor *m)
+static void __init MP_processor_info(struct mpc_cpu *m)
 {
 	int ver, logical_apicid;
 	physid_mask_t apic_cpus;
 
-	if (!(m->mpc_cpuflag & CPU_ENABLED))
+	if (!(m->cpuflag & CPU_ENABLED))
 		return;
 
-	logical_apicid = m->mpc_apicid;
+	logical_apicid = m->apicid;
 	printk(KERN_INFO "%sCPU #%d %u:%u APIC version %d\n",
-	       m->mpc_cpuflag & CPU_BOOTPROCESSOR ? "Bootup " : "",
-	       m->mpc_apicid,
-	       (m->mpc_cpufeature & CPU_FAMILY_MASK) >> 8,
-	       (m->mpc_cpufeature & CPU_MODEL_MASK) >> 4,
-	       m->mpc_apicver);
+	       m->cpuflag & CPU_BOOTPROCESSOR ? "Bootup " : "",
+	       m->apicid, (m->cpufeature & CPU_FAMILY_MASK) >> 8,
+	       (m->cpufeature & CPU_MODEL_MASK) >> 4, m->apicver);
 
-	if (m->mpc_cpuflag & CPU_BOOTPROCESSOR)
-		boot_cpu_physical_apicid = m->mpc_apicid;
+	if (m->cpuflag & CPU_BOOTPROCESSOR)
+		boot_cpu_physical_apicid = m->apicid;
 
-	ver = m->mpc_apicver;
-	if ((ver >= 0x14 && m->mpc_apicid >= 0xff) || m->mpc_apicid >= 0xf) {
+	ver = m->apicver;
+	if ((ver >= 0x14 && m->apicid >= 0xff) || m->apicid >= 0xf) {
 		printk(KERN_ERR "Processor #%d INVALID. (Max ID: %d).\n",
-			m->mpc_apicid, MAX_APICS);
+			m->apicid, MAX_APICS);
 		return;
 	}
 
-	apic_cpus = apicid_to_cpu_present(m->mpc_apicid);
+	apic_cpus = apicid_to_cpu_present(m->apicid);
 	physids_or(phys_cpu_present_map, phys_cpu_present_map, apic_cpus);
 	/*
 	 * Validate version
@@ -210,15 +208,15 @@ static void __init MP_processor_info(struct mpc_config_processor *m)
 	if (ver == 0x0) {
 		printk(KERN_ERR "BIOS bug, APIC version is 0 for CPU#%d! "
 			"fixing up to 0x10. (tell your hw vendor)\n",
-			m->mpc_apicid);
+			m->apicid);
 		ver = 0x10;
 	}
-	apic_version[m->mpc_apicid] = ver;
+	apic_version[m->apicid] = ver;
 }
 
 static int __init visws_find_smp_config(unsigned int reserve)
 {
-	struct mpc_config_processor *mp = phys_to_virt(CO_CPU_TAB_PHYS);
+	struct mpc_cpu *mp = phys_to_virt(CO_CPU_TAB_PHYS);
 	unsigned short ncpus = readw(phys_to_virt(CO_CPU_NUM_PHYS));
 
 	if (ncpus > CO_CPU_MAX) {

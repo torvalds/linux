@@ -249,6 +249,13 @@ static void __dma_memcpy(u32 daddr, s16 dmod, u32 saddr, s16 smod, size_t cnt, u
 
 	spin_lock_irqsave(&mdma_lock, flags);
 
+	/* Force a sync in case a previous config reset on this channel
+	 * occurred.  This is needed so subsequent writes to DMA registers
+	 * are not spuriously lost/corrupted.  Do it under irq lock and
+	 * without the anomaly version (because we are atomic already).
+	 */
+	__builtin_bfin_ssync();
+
 	if (bfin_read_MDMA_S0_CONFIG())
 		while (!(bfin_read_MDMA_D0_IRQ_STATUS() & DMA_DONE))
 			continue;

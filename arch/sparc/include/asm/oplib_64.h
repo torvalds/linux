@@ -218,16 +218,6 @@ extern void prom_unmap(unsigned long size, unsigned long vaddr);
 
 /* PROM device tree traversal functions... */
 
-#ifdef PROMLIB_INTERNAL
-
-/* Internal version of prom_getchild. */
-extern int __prom_getchild(int parent_node);
-
-/* Internal version of prom_getsibling. */
-extern int __prom_getsibling(int node);
-
-#endif
-
 /* Get the child node of the given node, or zero if no child exists. */
 extern int prom_getchild(int parent_node);
 

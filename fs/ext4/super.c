@@ -51,7 +51,7 @@ struct proc_dir_entry *ext4_proc_root;
 
 static int ext4_load_journal(struct super_block *, struct ext4_super_block *,
 			     unsigned long journal_devnum);
-static void ext4_commit_super(struct super_block *sb,
+static int ext4_commit_super(struct super_block *sb,
 			      struct ext4_super_block *es, int sync);
 static void ext4_mark_recovery_complete(struct super_block *sb,
 					struct ext4_super_block *es);
@@ -62,9 +62,9 @@ static const char *ext4_decode_error(struct super_block *sb, int errno,
 				     char nbuf[16]);
 static int ext4_remount(struct super_block *sb, int *flags, char *data);
 static int ext4_statfs(struct dentry *dentry, struct kstatfs *buf);
-static void ext4_unlockfs(struct super_block *sb);
+static int ext4_unfreeze(struct super_block *sb);
 static void ext4_write_super(struct super_block *sb);
-static void ext4_write_super_lockfs(struct super_block *sb);
+static int ext4_freeze(struct super_block *sb);
 
 
 ext4_fsblk_t ext4_block_bitmap(struct super_block *sb,
@@ -978,8 +978,8 @@ static const struct super_operations ext4_sops = {
 	.put_super	= ext4_put_super,
 	.write_super	= ext4_write_super,
 	.sync_fs	= ext4_sync_fs,
-	.write_super_lockfs = ext4_write_super_lockfs,
-	.unlockfs	= ext4_unlockfs,
+	.freeze_fs	= ext4_freeze,
+	.unfreeze_fs	= ext4_unfreeze,
 	.statfs		= ext4_statfs,
 	.remount_fs	= ext4_remount,
 	.clear_inode	= ext4_clear_inode,
@@ -2888,13 +2888,14 @@ static int ext4_load_journal(struct super_block *sb,
 	return 0;
 }
 
-static void ext4_commit_super(struct super_block *sb,
+static int ext4_commit_super(struct super_block *sb,
 			      struct ext4_super_block *es, int sync)
 {
 	struct buffer_head *sbh = EXT4_SB(sb)->s_sbh;
+	int error = 0;
 
 	if (!sbh)
-		return;
+		return error;
 	if (buffer_write_io_error(sbh)) {
 		/*
 		 * Oh, dear.  A previous attempt to write the
@@ -2918,14 +2919,19 @@ static void ext4_commit_super(struct super_block *sb,
 	BUFFER_TRACE(sbh, "marking dirty");
 	mark_buffer_dirty(sbh);
 	if (sync) {
-		sync_dirty_buffer(sbh);
-		if (buffer_write_io_error(sbh)) {
+		error = sync_dirty_buffer(sbh);
+		if (error)
+			return error;
+
+		error = buffer_write_io_error(sbh);
+		if (error) {
 			printk(KERN_ERR "EXT4-fs: I/O error while writing "
 			       "superblock for %s.\n", sb->s_id);
 			clear_buffer_write_io_error(sbh);
 			set_buffer_uptodate(sbh);
 		}
 	}
+	return error;
 }
 
 
@@ -3040,14 +3046,17 @@ static void ext4_write_super(struct super_block *sb)
 static int ext4_sync_fs(struct super_block *sb, int wait)
 {
 	int ret = 0;
+	tid_t target;
 
 	trace_mark(ext4_sync_fs, "dev %s wait %d", sb->s_id, wait);
 	sb->s_dirt = 0;
 	if (EXT4_SB(sb)->s_journal) {
-		if (wait)
-			ret = ext4_force_commit(sb);
-		else
- 			jbd2_journal_start_commit(EXT4_SB(sb)->s_journal, NULL);
+		if (jbd2_journal_start_commit(EXT4_SB(sb)->s_journal,
+					      &target)) {
+			if (wait)
+				jbd2_log_wait_commit(EXT4_SB(sb)->s_journal,
+						     target);
+		}
 	} else {
 		ext4_commit_super(sb, EXT4_SB(sb)->s_es, wait);
 	}
@@ -3058,12 +3067,14 @@ static int ext4_sync_fs(struct super_block *sb, int wait)
  * LVM calls this function before a (read-only) snapshot is created.  This
  * gives us a chance to flush the journal completely and mark the fs clean.
  */
-static void ext4_write_super_lockfs(struct super_block *sb)
+static int ext4_freeze(struct super_block *sb)
 {
+	int error = 0;
+	journal_t *journal;
 	sb->s_dirt = 0;
 
 	if (!(sb->s_flags & MS_RDONLY)) {
-		journal_t *journal = EXT4_SB(sb)->s_journal;
+		journal = EXT4_SB(sb)->s_journal;
 
 		if (journal) {
 			/* Now we set up the journal barrier. */
@@ -3073,21 +3084,28 @@ static void ext4_write_super_lockfs(struct super_block *sb)
 			 * We don't want to clear needs_recovery flag when we
 			 * failed to flush the journal.
 			 */
-			if (jbd2_journal_flush(journal) < 0)
-				return;
+			error = jbd2_journal_flush(journal);
+			if (error < 0)
+				goto out;
 		}
 
 		/* Journal blocked and flushed, clear needs_recovery flag. */
 		EXT4_CLEAR_INCOMPAT_FEATURE(sb, EXT4_FEATURE_INCOMPAT_RECOVER);
-		ext4_commit_super(sb, EXT4_SB(sb)->s_es, 1);
+		error = ext4_commit_super(sb, EXT4_SB(sb)->s_es, 1);
+		if (error)
+			goto out;
 	}
+	return 0;
+out:
+	jbd2_journal_unlock_updates(journal);
+	return error;
 }
 
 /*
  * Called by LVM after the snapshot is done.  We need to reset the RECOVER
  * flag here, even though the filesystem is not technically dirty yet.
  */
-static void ext4_unlockfs(struct super_block *sb)
+static int ext4_unfreeze(struct super_block *sb)
 {
 	if (EXT4_SB(sb)->s_journal && !(sb->s_flags & MS_RDONLY)) {
 		lock_super(sb);
@@ -3097,6 +3115,7 @@ static void ext4_unlockfs(struct super_block *sb)
 		unlock_super(sb);
 		jbd2_journal_unlock_updates(EXT4_SB(sb)->s_journal);
 	}
+	return 0;
 }
 
 static int ext4_remount(struct super_block *sb, int *flags, char *data)

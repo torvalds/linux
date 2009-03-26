@@ -5,10 +5,10 @@
 #include <linux/interrupt.h>
 #include <linux/kernel_stat.h>
 #include <linux/seq_file.h>
+#include <linux/smp.h>
 
 #include <asm/apic.h>
 #include <asm/io_apic.h>
-#include <asm/smp.h>
 #include <asm/irq.h>
 
 atomic_t irq_err_count;
