@@ -966,7 +966,6 @@ static void reipl_run(struct shutdown_trigger *trigger)
 		diag308(DIAG308_IPL, NULL);
 		break;
 	case REIPL_METHOD_FCP_DUMP:
-	default:
 		break;
 	}
 	disabled_wait((unsigned long) __builtin_return_address(0));
@@ -1075,10 +1074,12 @@ static int __init reipl_fcp_init(void)
 {
 	int rc;
 
-	if ((!diag308_set_works) && (ipl_info.type != IPL_TYPE_FCP))
-		return 0;
-	if ((!diag308_set_works) && (ipl_info.type == IPL_TYPE_FCP))
-		make_attrs_ro(reipl_fcp_attrs);
+	if (!diag308_set_works) {
+		if (ipl_info.type == IPL_TYPE_FCP)
+			make_attrs_ro(reipl_fcp_attrs);
+		else
+			return 0;
+	}
 
 	reipl_block_fcp = (void *) get_zeroed_page(GFP_KERNEL);
 	if (!reipl_block_fcp)
@@ -1259,7 +1260,6 @@ static void dump_run(struct shutdown_trigger *trigger)
 		diag308(DIAG308_DUMP, NULL);
 		break;
 	case DUMP_METHOD_NONE:
-	default:
 		return;
 	}
 	printk(KERN_EMERG "Dump failed!\n");
@@ -1746,7 +1746,6 @@ void __init setup_ipl(void)
 			sizeof(ipl_info.data.nss.name));
 		break;
 	case IPL_TYPE_UNKNOWN:
-	default:
 		/* We have no info to copy */
 		break;
 	}
