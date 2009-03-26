@@ -660,8 +660,12 @@ static void unicast_arp_send(struct sk_buff *skb, struct net_device *dev,
 
 	path = __path_find(dev, phdr->hwaddr + 4);
 	if (!path || !path->valid) {
-		if (!path)
+		int new_path = 0;
+
+		if (!path) {
 			path = path_rec_create(dev, phdr->hwaddr + 4);
+			new_path = 1;
+		}
 		if (path) {
 			/* put pseudoheader back on for next time */
 			skb_push(skb, sizeof *phdr);
@@ -669,7 +673,8 @@ static void unicast_arp_send(struct sk_buff *skb, struct net_device *dev,
 
 			if (!path->query && path_rec_start(dev, path)) {
 				spin_unlock_irqrestore(&priv->lock, flags);
-				path_free(dev, path);
+				if (new_path)
+					path_free(dev, path);
 				return;
 			} else
 				__path_add(dev, path);
