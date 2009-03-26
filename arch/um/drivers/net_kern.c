@@ -371,6 +371,18 @@ static void net_device_release(struct device *dev)
 	free_netdev(netdev);
 }
 
+static const struct net_device_ops uml_netdev_ops = {
+	.ndo_open 		= uml_net_open,
+	.ndo_stop 		= uml_net_close,
+	.ndo_start_xmit 	= uml_net_start_xmit,
+	.ndo_set_multicast_list = uml_net_set_multicast_list,
+	.ndo_tx_timeout 	= uml_net_tx_timeout,
+	.ndo_set_mac_address	= uml_net_set_mac,
+	.ndo_change_mtu 	= uml_net_change_mtu,
+	.ndo_set_mac_address 	= eth_mac_addr,
+	.ndo_validate_addr	= eth_validate_addr,
+};
+
 /*
  * Ensures that platform_driver_register is called only once by
  * eth_configure.  Will be set in an initcall.
@@ -467,13 +479,7 @@ static void eth_configure(int n, void *init, char *mac,
 
 	set_ether_mac(dev, device->mac);
 	dev->mtu = transport->user->mtu;
-	dev->open = uml_net_open;
-	dev->hard_start_xmit = uml_net_start_xmit;
-	dev->stop = uml_net_close;
-	dev->set_multicast_list = uml_net_set_multicast_list;
-	dev->tx_timeout = uml_net_tx_timeout;
-	dev->set_mac_address = uml_net_set_mac;
-	dev->change_mtu = uml_net_change_mtu;
+	dev->netdev_ops = &uml_netdev_ops;
 	dev->ethtool_ops = &uml_net_ethtool_ops;
 	dev->watchdog_timeo = (HZ >> 1);
 	dev->irq = UM_ETH_IRQ;
