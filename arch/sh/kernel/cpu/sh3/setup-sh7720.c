@@ -2,6 +2,7 @@
  * SH7720 Setup
  *
  *  Copyright (C) 2007  Markus Brunner, Mark Jonas
+ *  Copyright (C) 2009  Paul Mundt
  *
  *  Based on arch/sh/kernel/cpu/sh4/setup-sh7750.c:
  *
@@ -26,17 +27,7 @@ static struct resource rtc_resources[] = {
 		.flags	= IORESOURCE_IO,
 	},
 	[1] = {
-		/* Period IRQ */
-		.start	= 21,
-		.flags	= IORESOURCE_IRQ,
-	},
-	[2] = {
-		/* Carry IRQ */
-		.start	= 22,
-		.flags	= IORESOURCE_IRQ,
-	},
-	[3] = {
-		/* Alarm IRQ */
+		/* Shared Period/Carry/Alarm IRQ */
 		.start	= 20,
 		.flags	= IORESOURCE_IRQ,
 	},
@@ -150,60 +141,47 @@ enum {
 	UNUSED = 0,
 
 	/* interrupt sources */
-	TMU0, TMU1, TMU2, RTC_ATI, RTC_PRI, RTC_CUI,
-	WDT, REF_RCMI, SIM_ERI, SIM_RXI, SIM_TXI, SIM_TEND,
+	TMU0, TMU1, TMU2, RTC,
+	WDT, REF_RCMI, SIM,
 	IRQ0, IRQ1, IRQ2, IRQ3,
 	USBF_SPD, TMU_SUNI, IRQ5, IRQ4,
-	DMAC1_DEI0, DMAC1_DEI1, DMAC1_DEI2, DMAC1_DEI3, LCDC, SSL,
-	ADC, DMAC2_DEI4, DMAC2_DEI5, USBFI0, USBFI1, CMT,
+	DMAC1, LCDC, SSL,
+	ADC, DMAC2, USBFI, CMT,
 	SCIF0, SCIF1,
-	PINT07, PINT815, TPU0, TPU1, TPU2, TPU3, IIC,
-	SIOF0, SIOF1, MMCI0, MMCI1, MMCI2, MMCI3, PCC,
+	PINT07, PINT815, TPU, IIC,
+	SIOF0, SIOF1, MMC, PCC,
 	USBHI, AFEIF,
 	H_UDI,
-	/* interrupt groups */
-	TMU, RTC, SIM, DMAC1, USBFI, DMAC2, USB, TPU, MMC,
 };
 
 static struct intc_vect vectors[] __initdata = {
 	/* IRQ0->5 are handled in setup-sh3.c */
 	INTC_VECT(TMU0, 0x400),       INTC_VECT(TMU1, 0x420),
-	INTC_VECT(TMU2, 0x440),       INTC_VECT(RTC_ATI, 0x480),
-	INTC_VECT(RTC_PRI, 0x4a0),    INTC_VECT(RTC_CUI, 0x4c0),
-	INTC_VECT(SIM_ERI, 0x4e0),    INTC_VECT(SIM_RXI, 0x500),
-	INTC_VECT(SIM_TXI, 0x520),    INTC_VECT(SIM_TEND, 0x540),
+	INTC_VECT(TMU2, 0x440),       INTC_VECT(RTC, 0x480),
+	INTC_VECT(RTC, 0x4a0),	      INTC_VECT(RTC, 0x4c0),
+	INTC_VECT(SIM, 0x4e0),	      INTC_VECT(SIM, 0x500),
+	INTC_VECT(SIM, 0x520),	      INTC_VECT(SIM, 0x540),
 	INTC_VECT(WDT, 0x560),        INTC_VECT(REF_RCMI, 0x580),
 	/* H_UDI cannot be masked */  INTC_VECT(TMU_SUNI, 0x6c0),
-	INTC_VECT(USBF_SPD, 0x6e0),   INTC_VECT(DMAC1_DEI0, 0x800),
-	INTC_VECT(DMAC1_DEI1, 0x820), INTC_VECT(DMAC1_DEI2, 0x840),
-	INTC_VECT(DMAC1_DEI3, 0x860), INTC_VECT(LCDC, 0x900),
+	INTC_VECT(USBF_SPD, 0x6e0),   INTC_VECT(DMAC1, 0x800),
+	INTC_VECT(DMAC1, 0x820),      INTC_VECT(DMAC1, 0x840),
+	INTC_VECT(DMAC1, 0x860),      INTC_VECT(LCDC, 0x900),
 #if defined(CONFIG_CPU_SUBTYPE_SH7720)
 	INTC_VECT(SSL, 0x980),
 #endif
-	INTC_VECT(USBFI0, 0xa20),     INTC_VECT(USBFI1, 0xa40),
+	INTC_VECT(USBFI, 0xa20),      INTC_VECT(USBFI, 0xa40),
 	INTC_VECT(USBHI, 0xa60),
-	INTC_VECT(DMAC2_DEI4, 0xb80), INTC_VECT(DMAC2_DEI5, 0xba0),
+	INTC_VECT(DMAC2, 0xb80),      INTC_VECT(DMAC2, 0xba0),
 	INTC_VECT(ADC, 0xbe0),        INTC_VECT(SCIF0, 0xc00),
 	INTC_VECT(SCIF1, 0xc20),      INTC_VECT(PINT07, 0xc80),
 	INTC_VECT(PINT815, 0xca0),    INTC_VECT(SIOF0, 0xd00),
-	INTC_VECT(SIOF1, 0xd20),      INTC_VECT(TPU0, 0xd80),
-	INTC_VECT(TPU1, 0xda0),       INTC_VECT(TPU2, 0xdc0),
-	INTC_VECT(TPU3, 0xde0),       INTC_VECT(IIC, 0xe00),
-	INTC_VECT(MMCI0, 0xe80),      INTC_VECT(MMCI1, 0xea0),
-	INTC_VECT(MMCI2, 0xec0),      INTC_VECT(MMCI3, 0xee0),
+	INTC_VECT(SIOF1, 0xd20),      INTC_VECT(TPU, 0xd80),
+	INTC_VECT(TPU, 0xda0),        INTC_VECT(TPU, 0xdc0),
+	INTC_VECT(TPU, 0xde0),        INTC_VECT(IIC, 0xe00),
+	INTC_VECT(MMC, 0xe80),        INTC_VECT(MMC, 0xea0),
+	INTC_VECT(MMC, 0xec0),        INTC_VECT(MMC, 0xee0),
 	INTC_VECT(CMT, 0xf00),        INTC_VECT(PCC, 0xf60),
 	INTC_VECT(AFEIF, 0xfe0),
-};
-
-static struct intc_group groups[] __initdata = {
-	INTC_GROUP(TMU, TMU0, TMU1, TMU2),
-	INTC_GROUP(RTC, RTC_ATI, RTC_PRI, RTC_CUI),
-	INTC_GROUP(SIM, SIM_ERI, SIM_RXI, SIM_TXI, SIM_TEND),
-	INTC_GROUP(DMAC1, DMAC1_DEI0, DMAC1_DEI1, DMAC1_DEI2, DMAC1_DEI3),
-	INTC_GROUP(USBFI, USBFI0, USBFI1),
-	INTC_GROUP(DMAC2, DMAC2_DEI4, DMAC2_DEI5),
-	INTC_GROUP(TPU, TPU0, TPU1, TPU2, TPU3),
-	INTC_GROUP(MMC, MMCI0, MMCI1, MMCI2, MMCI3),
 };
 
 static struct intc_prio_reg prio_registers[] __initdata = {
@@ -219,7 +197,7 @@ static struct intc_prio_reg prio_registers[] __initdata = {
 	{ 0xA4080008UL, 0, 16, 4, /* IPRJ */ { 0, USBHI, 0, AFEIF } },
 };
 
-static DECLARE_INTC_DESC(intc_desc, "sh7720", vectors, groups,
+static DECLARE_INTC_DESC(intc_desc, "sh7720", vectors, NULL,
 		NULL, prio_registers, NULL);
 
 void __init plat_irq_setup(void)
