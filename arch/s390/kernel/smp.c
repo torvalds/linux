@@ -508,7 +508,6 @@ out:
 	return -ENOMEM;
 }
 
-#ifdef CONFIG_HOTPLUG_CPU
 static void smp_free_lowcore(int cpu)
 {
 	struct _lowcore *lowcore;
@@ -527,7 +526,6 @@ static void smp_free_lowcore(int cpu)
 	free_pages((unsigned long) lowcore, lc_order);
 	lowcore_ptr[cpu] = NULL;
 }
-#endif /* CONFIG_HOTPLUG_CPU */
 
 /* Upping and downing of CPUs */
 int __cpuinit __cpu_up(unsigned int cpu)
@@ -544,8 +542,10 @@ int __cpuinit __cpu_up(unsigned int cpu)
 
 	ccode = signal_processor_p((__u32)(unsigned long)(lowcore_ptr[cpu]),
 				   cpu, sigp_set_prefix);
-	if (ccode)
+	if (ccode) {
+		smp_free_lowcore(cpu);
 		return -EIO;
+	}
 
 	idle = current_set[cpu];
 	cpu_lowcore = lowcore_ptr[cpu];
