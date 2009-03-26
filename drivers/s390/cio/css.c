@@ -655,7 +655,7 @@ css_generate_pgid(struct channel_subsystem *css, u32 tod_high)
 		css->global_pgid.pgid_high.ext_cssid.cssid = css->cssid;
 	} else {
 #ifdef CONFIG_SMP
-		css->global_pgid.pgid_high.cpu_addr = hard_smp_processor_id();
+		css->global_pgid.pgid_high.cpu_addr = stap();
 #else
 		css->global_pgid.pgid_high.cpu_addr = 0;
 #endif

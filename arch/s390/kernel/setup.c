@@ -121,13 +121,10 @@ static struct resource data_resource = {
  */
 void __cpuinit cpu_init(void)
 {
-        int addr = hard_smp_processor_id();
-
         /*
          * Store processor id in lowcore (used e.g. in timer_interrupt)
          */
-	get_cpu_id(&S390_lowcore.cpu_data.cpu_id);
-        S390_lowcore.cpu_data.cpu_addr = addr;
+	get_cpu_id(&S390_lowcore.cpu_id);
 
         /*
          * Force FPU initialization:
@@ -686,7 +683,6 @@ setup_memory(void)
 static void __init setup_hwcaps(void)
 {
 	static const int stfl_bits[6] = { 0, 2, 7, 17, 19, 21 };
-	struct cpuinfo_S390 *cpuinfo = &S390_lowcore.cpu_data;
 	unsigned long long facility_list_extended;
 	unsigned int facility_list;
 	int i;
@@ -732,7 +728,7 @@ static void __init setup_hwcaps(void)
 	if (MACHINE_HAS_HPAGE)
 		elf_hwcap |= 1UL << 7;
 
-	switch (cpuinfo->cpu_id.machine) {
+	switch (S390_lowcore.cpu_id.machine) {
 	case 0x9672:
 #if !defined(CONFIG_64BIT)
 	default:	/* Use "g5" as default for 31 bit kernels. */
@@ -825,7 +821,7 @@ setup_arch(char **cmdline_p)
 	setup_lowcore();
 
         cpu_init();
-        __cpu_logical_map[0] = S390_lowcore.cpu_data.cpu_addr;
+	__cpu_logical_map[0] = stap();
 	s390_init_cpu_topology();
 
 	/*

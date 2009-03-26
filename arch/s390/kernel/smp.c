@@ -372,7 +372,7 @@ static void __init smp_detect_cpus(void)
 
 	c_cpus = 1;
 	s_cpus = 0;
-	boot_cpu_addr = S390_lowcore.cpu_data.cpu_addr;
+	boot_cpu_addr = __cpu_logical_map[0];
 	info = kmalloc(sizeof(*info), GFP_KERNEL);
 	if (!info)
 		panic("smp_detect_cpus failed to allocate memory\n");
@@ -446,7 +446,7 @@ int __cpuinit start_secondary(void *cpuvoid)
 	/* Switch on interrupts */
 	local_irq_enable();
 	/* Print info about this processor */
-	print_cpu_info(&S390_lowcore.cpu_data);
+	print_cpu_info();
 	/* cpu_idle will call schedule for us */
 	cpu_idle();
 	return 0;
@@ -564,7 +564,7 @@ int __cpuinit __cpu_up(unsigned int cpu)
 		: : "a" (&cpu_lowcore->access_regs_save_area) : "memory");
 	cpu_lowcore->percpu_offset = __per_cpu_offset[cpu];
 	cpu_lowcore->current_task = (unsigned long) idle;
-	cpu_lowcore->cpu_data.cpu_nr = cpu;
+	cpu_lowcore->cpu_nr = cpu;
 	cpu_lowcore->kernel_asce = S390_lowcore.kernel_asce;
 	cpu_lowcore->ipl_device = S390_lowcore.ipl_device;
 	eieio();
@@ -656,7 +656,7 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 	/* request the 0x1201 emergency signal external interrupt */
 	if (register_external_interrupt(0x1201, do_ext_call_interrupt) != 0)
 		panic("Couldn't request external interrupt 0x1201");
-	print_cpu_info(&S390_lowcore.cpu_data);
+	print_cpu_info();
 
 	/* Reallocate current lowcore, but keep its contents. */
 	lc_order = sizeof(long) == 8 ? 1 : 0;

@@ -80,7 +80,6 @@
 #define __LC_USER_ASCE			0xC50
 #define __LC_PANIC_STACK                0xC54
 #define __LC_CPUID                      0xC60
-#define __LC_CPUADDR                    0xC68
 #define __LC_IPLDEV                     0xC7C
 #define __LC_CURRENT			0xC90
 #define __LC_INT_CLOCK			0xC98
@@ -102,7 +101,6 @@
 #define __LC_USER_ASCE			0xD60
 #define __LC_PANIC_STACK                0xD68
 #define __LC_CPUID			0xD80
-#define __LC_CPUADDR			0xD88
 #define __LC_IPLDEV                     0xDB8
 #define __LC_CURRENT			0xDD8
 #define __LC_INT_CLOCK			0xDE8
@@ -273,8 +271,10 @@ struct _lowcore
 	__u32	     user_exec_asce;	       /* 0xc58 */
 	__u8	     pad10[0xc60-0xc5c];       /* 0xc5c */
 	/* entry.S sensitive area start */
-	struct       cpuinfo_S390 cpu_data;    /* 0xc60 */
-	__u32        ipl_device;               /* 0xc7c */
+	cpuid_t      cpu_id;		       /* 0xc60 */
+	__u32	     cpu_nr;		       /* 0xc68 */
+	__u32	     ipl_device;	       /* 0xc6c */
+	__u8	     pad_0xc70[0xc80-0xc70];   /* 0xc70 */
 	/* entry.S sensitive area end */
 
         /* SMP info area: defined by DJB */
@@ -366,9 +366,10 @@ struct _lowcore
 	__u64	     user_exec_asce;	       /* 0xd70 */
 	__u8	     pad10[0xd80-0xd78];       /* 0xd78 */
 	/* entry.S sensitive area start */
-	struct       cpuinfo_S390 cpu_data;    /* 0xd80 */
-	__u32        ipl_device;               /* 0xdb8 */
-	__u32        pad11;                    /* 0xdbc */
+	cpuid_t      cpu_id;		       /* 0xd80 */
+	__u32	     cpu_nr;		       /* 0xd88 */
+	__u32	     ipl_device;	       /* 0xd8c */
+	__u8	     pad_0xd90[0xdc0-0xd90];   /* 0xd90 */
 	/* entry.S sensitive area end */
 
         /* SMP info area: defined by DJB */
