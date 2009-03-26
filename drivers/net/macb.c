@@ -211,10 +211,10 @@ static int macb_mii_probe(struct net_device *dev)
 
 	/* attach the mac to the phy */
 	if (pdata && pdata->is_rmii) {
-		phydev = phy_connect(dev, phydev->dev.bus_id,
+		phydev = phy_connect(dev, dev_name(&phydev->dev),
 			&macb_handle_link_change, 0, PHY_INTERFACE_MODE_RMII);
 	} else {
-		phydev = phy_connect(dev, phydev->dev.bus_id,
+		phydev = phy_connect(dev, dev_name(&phydev->dev),
 			&macb_handle_link_change, 0, PHY_INTERFACE_MODE_MII);
 	}
 
@@ -1077,7 +1077,7 @@ static void macb_get_drvinfo(struct net_device *dev,
 
 	strcpy(info->driver, bp->pdev->dev.driver->name);
 	strcpy(info->version, "$Revision: 1.14 $");
-	strcpy(info->bus_info, bp->pdev->dev.bus_id);
+	strcpy(info->bus_info, dev_name(&bp->pdev->dev));
 }
 
 static struct ethtool_ops macb_ethtool_ops = {
@@ -1234,8 +1234,8 @@ static int __init macb_probe(struct platform_device *pdev)
 
 	phydev = bp->phy_dev;
 	printk(KERN_INFO "%s: attached PHY driver [%s] "
-		"(mii_bus:phy_addr=%s, irq=%d)\n",
-		dev->name, phydev->drv->name, phydev->dev.bus_id, phydev->irq);
+		"(mii_bus:phy_addr=%s, irq=%d)\n", dev->name,
+		phydev->drv->name, dev_name(&phydev->dev), phydev->irq);
 
 	return 0;
 

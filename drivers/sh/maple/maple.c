@@ -379,7 +379,6 @@ static void maple_attach_driver(struct maple_device *mdev)
 			dev_info(&mdev->dev, "no driver found\n");
 			mdev->driver = &maple_unsupported_device;
 		}
-
 		dev_set_name(&mdev->dev, "%d:0%d.%lX", mdev->port,
 			     mdev->unit, function);
 	}

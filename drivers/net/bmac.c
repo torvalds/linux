@@ -1240,7 +1240,7 @@ static void bmac_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *inf
 {
 	struct bmac_data *bp = netdev_priv(dev);
 	strcpy(info->driver, "bmac");
-	strcpy(info->bus_info, bp->mdev->ofdev.dev.bus_id);
+	strcpy(info->bus_info, dev_name(&bp->mdev->ofdev.dev));
 }
 
 static const struct ethtool_ops bmac_ethtool_ops = {

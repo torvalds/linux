@@ -140,7 +140,7 @@ static void del_conn(struct work_struct *work)
 		dev = device_find_child(&conn->dev, NULL, __match_tty);
 		if (!dev)
 			break;
-		device_move(dev, NULL);
+		device_move(dev, NULL, DPM_ORDER_DEV_LAST);
 		put_device(dev);
 	}
 

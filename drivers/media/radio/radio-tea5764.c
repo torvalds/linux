@@ -298,7 +298,8 @@ static int vidioc_querycap(struct file *file, void  *priv,
 
 	strlcpy(v->driver, dev->dev.driver->name, sizeof(v->driver));
 	strlcpy(v->card, dev->name, sizeof(v->card));
-	snprintf(v->bus_info, sizeof(v->bus_info), "I2C:%s", dev->dev.bus_id);
+	snprintf(v->bus_info, sizeof(v->bus_info),
+		 "I2C:%s", dev_name(&dev->dev));
 	v->version = RADIO_VERSION;
 	v->capabilities = V4L2_CAP_TUNER | V4L2_CAP_RADIO;
 	return 0;
