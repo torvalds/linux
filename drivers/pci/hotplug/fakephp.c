@@ -18,6 +18,7 @@
 #include <linux/sysfs.h>
 #include <linux/init.h>
 #include <linux/pci.h>
+#include <linux/device.h>
 #include "../pci.h"
 
 struct legacy_slot {
@@ -88,7 +89,7 @@ static int legacy_add_slot(struct pci_dev *pdev)
 
 	if (kobject_init_and_add(&slot->kobj, &legacy_ktype,
 				 &pci_slots_kset->kobj, "%s",
-				 pdev->dev.bus_id)) {
+				 dev_name(&pdev->dev))) {
 		dev_warn(&pdev->dev, "Failed to created legacy fake slot\n");
 		return -EINVAL;
 	}
