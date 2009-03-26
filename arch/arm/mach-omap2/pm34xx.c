@@ -130,9 +130,6 @@ static void omap3_save_secure_ram_context(u32 target_mpu_state)
 	u32 ret;
 
 	if (omap_type() != OMAP2_DEVICE_TYPE_GP) {
-		/* Disable dma irq before calling secure rom code API */
-		omap_dma_disable_irq(0);
-		omap_dma_disable_irq(1);
 		/*
 		 * MPU next state must be set to POWER_ON temporarily,
 		 * otherwise the WFI executed inside the ROM code

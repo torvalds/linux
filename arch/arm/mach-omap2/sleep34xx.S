@@ -68,7 +68,7 @@ save_secure_ram_debug:
 	mov	r0, #25			@ set service ID for PPA
 	mov	r12, r0			@ copy secure service ID in r12
 	mov	r1, #0			@ set task id for ROM code in r1
-	mov	r2, #7			@ set some flags in r2, r6
+	mov	r2, #4			@ set some flags in r2, r6
 	mov	r6, #0xff
 	mcr	p15, 0, r0, c7, c10, 4	@ data write barrier
 	mcr	p15, 0, r0, c7, c10, 5	@ data memory barrier
