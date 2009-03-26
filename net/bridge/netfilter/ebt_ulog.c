@@ -280,7 +280,7 @@ static struct xt_target ebt_ulog_tg_reg __read_mostly = {
 };
 
 static struct nf_logger ebt_ulog_logger __read_mostly = {
-	.name		= "ulog",
+	.name		= "ebt_ulog",
 	.logfn		= &ebt_log_packet,
 	.me		= THIS_MODULE,
 };
