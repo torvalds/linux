@@ -537,6 +537,8 @@ int register_ftrace_event(struct trace_event *event)
  out:
 	mutex_unlock(&trace_event_mutex);
 
+	WARN_ON_ONCE(next_event_type > FTRACE_MAX_EVENT);
+
 	return ret;
 }
 EXPORT_SYMBOL_GPL(register_ftrace_event);

@@ -16,12 +16,15 @@ struct dentry;
  *     bash-15816 [01]   235.197585: idle_cpu <- irq_enter
  */
 struct trace_entry {
-	int			type;
+	unsigned short		type;
 	unsigned char		flags;
 	unsigned char		preempt_count;
 	int			pid;
 	int			tgid;
 };
+
+#define FTRACE_MAX_EVENT						\
+	((1 << (sizeof(((struct trace_entry *)0)->type) * 8)) - 1)
 
 /*
  * Trace iterator - used by printout routines who present trace
