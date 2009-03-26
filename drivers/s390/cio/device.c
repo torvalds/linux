@@ -1019,8 +1019,6 @@ static void ccw_device_call_sch_unregister(struct work_struct *work)
 void
 io_subchannel_recog_done(struct ccw_device *cdev)
 {
-	struct subchannel *sch;
-
 	if (css_init_done == 0) {
 		cdev->private->flags.recog_done = 1;
 		return;
@@ -1031,7 +1029,6 @@ io_subchannel_recog_done(struct ccw_device *cdev)
 		/* Remove device found not operational. */
 		if (!get_device(&cdev->dev))
 			break;
-		sch = to_subchannel(cdev->dev.parent);
 		PREPARE_WORK(&cdev->private->kick_work,
 			     ccw_device_call_sch_unregister);
 		queue_work(slow_path_wq, &cdev->private->kick_work);
