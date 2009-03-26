@@ -279,7 +279,7 @@ static struct xt_target ebt_ulog_tg_reg __read_mostly = {
 	.me		= THIS_MODULE,
 };
 
-static const struct nf_logger ebt_ulog_logger = {
+static struct nf_logger ebt_ulog_logger __read_mostly = {
 	.name		= "ulog",
 	.logfn		= &ebt_log_packet,
 	.me		= THIS_MODULE,
