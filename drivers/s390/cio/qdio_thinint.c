@@ -31,6 +31,7 @@
 
 /* list of thin interrupt input queues */
 static LIST_HEAD(tiq_list);
+DEFINE_MUTEX(tiq_list_lock);
 
 /* adapter local summary indicator */
 static unsigned char *tiqdio_alsi;
@@ -95,10 +96,10 @@ void tiqdio_add_input_queues(struct qdio_irq *irq_ptr)
 	if (!css_qdio_omit_svs && irq_ptr->siga_flag.sync)
 		css_qdio_omit_svs = 1;
 
-	for_each_input_queue(irq_ptr, q, i) {
+	mutex_lock(&tiq_list_lock);
+	for_each_input_queue(irq_ptr, q, i)
 		list_add_rcu(&q->entry, &tiq_list);
-		synchronize_rcu();
-	}
+	mutex_unlock(&tiq_list_lock);
 	xchg(irq_ptr->dsci, 1);
 	tasklet_schedule(&tiqdio_tasklet);
 }
@@ -118,7 +119,10 @@ void tiqdio_remove_input_queues(struct qdio_irq *irq_ptr)
 		/* if establish triggered an error */
 		if (!q || !q->entry.prev || !q->entry.next)
 			continue;
+
+		mutex_lock(&tiq_list_lock);
 		list_del_rcu(&q->entry);
+		mutex_unlock(&tiq_list_lock);
 		synchronize_rcu();
 	}
 }

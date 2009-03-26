@@ -1112,6 +1112,7 @@ int qdio_shutdown(struct ccw_device *cdev, int how)
 	if (!irq_ptr)
 		return -ENODEV;
 
+	BUG_ON(irqs_disabled());
 	DBF_EVENT("qshutdown:%4x", cdev->private->schid.sch_no);
 
 	mutex_lock(&irq_ptr->setup_mutex);
