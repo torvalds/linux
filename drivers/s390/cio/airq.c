@@ -34,8 +34,8 @@ struct airq_t {
 	void *drv_data;
 };
 
-static union indicator_t indicators[MAX_ISC];
-static struct airq_t *airqs[MAX_ISC][NR_AIRQS];
+static union indicator_t indicators[MAX_ISC+1];
+static struct airq_t *airqs[MAX_ISC+1][NR_AIRQS];
 
 static int register_airq(struct airq_t *airq, u8 isc)
 {
