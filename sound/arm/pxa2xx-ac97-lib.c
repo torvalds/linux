@@ -239,6 +239,8 @@ static inline void pxa_ac97_cold_pxa3xx(void)
 
 bool pxa2xx_ac97_try_warm_reset(struct snd_ac97 *ac97)
 {
+	unsigned long gsr;
+
 #ifdef CONFIG_PXA25x
 	if (cpu_is_pxa25x())
 		pxa_ac97_warm_pxa25x();
@@ -255,10 +257,10 @@ bool pxa2xx_ac97_try_warm_reset(struct snd_ac97 *ac97)
 	else
 #endif
 		BUG();
-
-	if (!((GSR | gsr_bits) & (GSR_PCR | GSR_SCR))) {
+	gsr = GSR | gsr_bits;
+	if (!(gsr & (GSR_PCR | GSR_SCR))) {
 		printk(KERN_INFO "%s: warm reset timeout (GSR=%#lx)\n",
-				 __func__, gsr_bits);
+				 __func__, gsr);
 
 		return false;
 	}
@@ -269,6 +271,8 @@ EXPORT_SYMBOL_GPL(pxa2xx_ac97_try_warm_reset);
 
 bool pxa2xx_ac97_try_cold_reset(struct snd_ac97 *ac97)
 {
+	unsigned long gsr;
+
 #ifdef CONFIG_PXA25x
 	if (cpu_is_pxa25x())
 		pxa_ac97_cold_pxa25x();
@@ -286,9 +290,10 @@ bool pxa2xx_ac97_try_cold_reset(struct snd_ac97 *ac97)
 #endif
 		BUG();
 
-	if (!((GSR | gsr_bits) & (GSR_PCR | GSR_SCR))) {
+	gsr = GSR | gsr_bits;
+	if (!(gsr & (GSR_PCR | GSR_SCR))) {
 		printk(KERN_INFO "%s: cold reset timeout (GSR=%#lx)\n",
-				 __func__, gsr_bits);
+				 __func__, gsr);
 
 		return false;
 	}
