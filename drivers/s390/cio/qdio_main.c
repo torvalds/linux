@@ -778,21 +778,17 @@ static void __qdio_outbound_processing(struct qdio_q *q)
 
 	spin_unlock_irqrestore(&q->lock, flags);
 
-	if (queue_type(q) == QDIO_ZFCP_QFMT) {
+	if (queue_type(q) == QDIO_ZFCP_QFMT)
 		if (!pci_out_supported(q) && !qdio_outbound_q_done(q))
-			tasklet_schedule(&q->tasklet);
-		return;
-	}
+			goto sched;
 
 	/* bail out for HiperSockets unicast queues */
 	if (queue_type(q) == QDIO_IQDIO_QFMT && !multicast_outbound(q))
 		return;
 
 	if ((queue_type(q) == QDIO_IQDIO_QFMT) &&
-	    (atomic_read(&q->nr_buf_used)) > QDIO_IQDIO_POLL_LVL) {
-		tasklet_schedule(&q->tasklet);
-		return;
-	}
+	    (atomic_read(&q->nr_buf_used)) > QDIO_IQDIO_POLL_LVL)
+		goto sched;
 
 	if (q->u.out.pci_out_enabled)
 		return;
@@ -810,6 +806,12 @@ static void __qdio_outbound_processing(struct qdio_q *q)
 			qdio_perf_stat_inc(&perf_stats.debug_tl_out_timer);
 		}
 	}
+	return;
+
+sched:
+	if (unlikely(q->irq_ptr->state == QDIO_IRQ_STATE_STOPPED))
+		return;
+	tasklet_schedule(&q->tasklet);
 }
 
 /* outbound tasklet */
@@ -822,6 +824,9 @@ void qdio_outbound_processing(unsigned long data)
 void qdio_outbound_timer(unsigned long data)
 {
 	struct qdio_q *q = (struct qdio_q *)data;
+
+	if (unlikely(q->irq_ptr->state == QDIO_IRQ_STATE_STOPPED))
+		return;
 	tasklet_schedule(&q->tasklet);
 }
 
@@ -862,6 +867,9 @@ static void qdio_int_handler_pci(struct qdio_irq *irq_ptr)
 {
 	int i;
 	struct qdio_q *q;
+
+	if (unlikely(irq_ptr->state == QDIO_IRQ_STATE_STOPPED))
+		return;
 
 	qdio_perf_stat_inc(&perf_stats.pci_int);
 
@@ -1090,11 +1098,11 @@ static void qdio_shutdown_queues(struct ccw_device *cdev)
 	int i;
 
 	for_each_input_queue(irq_ptr, q, i)
-		tasklet_disable(&q->tasklet);
+		tasklet_kill(&q->tasklet);
 
 	for_each_output_queue(irq_ptr, q, i) {
-		tasklet_disable(&q->tasklet);
 		del_timer(&q->u.out.timer);
+		tasklet_kill(&q->tasklet);
 	}
 }
 
@@ -1124,6 +1132,12 @@ int qdio_shutdown(struct ccw_device *cdev, int how)
 		mutex_unlock(&irq_ptr->setup_mutex);
 		return 0;
 	}
+
+	/*
+	 * Indicate that the device is going down. Scheduling the queue
+	 * tasklets is forbidden from here on.
+	 */
+	qdio_set_state(irq_ptr, QDIO_IRQ_STATE_STOPPED);
 
 	tiqdio_remove_input_queues(irq_ptr);
 	qdio_shutdown_queues(cdev);
@@ -1556,7 +1570,6 @@ static void handle_outbound(struct qdio_q *q, unsigned int callflags,
 		qdio_perf_stat_inc(&perf_stats.fast_requeue);
 	}
 out:
-	/* Fixme: could wait forever if called from process context */
 	tasklet_schedule(&q->tasklet);
 }
 
