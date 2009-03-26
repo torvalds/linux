@@ -134,17 +134,15 @@ void ppc_enable_pmcs(void)
 }
 EXPORT_SYMBOL(ppc_enable_pmcs);
 
-
 #define SYSFS_PMCSETUP(NAME, ADDRESS) \
 static void read_##NAME(void *val) \
 { \
-	mtspr(ADDRESS, *(unsigned long *)val);	\
+	*(unsigned long *)val = mfspr(ADDRESS);	\
 } \
-static unsigned long write_##NAME(unsigned long val) \
+static void write_##NAME(void *val) \
 { \
 	ppc_enable_pmcs(); \
 	mtspr(ADDRESS, *(unsigned long *)val);	\
-	return 0; \
 } \
 static ssize_t show_##NAME(struct sys_device *dev, \
 			struct sysdev_attribute *attr, \
