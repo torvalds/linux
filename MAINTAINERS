@@ -502,6 +502,13 @@ P:	Richard Purdie
 M:	rpurdie@rpsys.net
 S:	Maintained
 
+ARM/CORTINA SYSTEMS GEMINI ARM ARCHITECTURE
+P:	Paulius Zaleckas
+M:	paulius.zaleckas@teltonika.lt
+L:	linux-arm-kernel@lists.arm.linux.org.uk (subscribers-only)
+T:	git gitorious.org/linux-gemini/mainline.git
+S:	Maintained
+
 ARM/EZX SMARTPHONES (A780, A910, A1200, E680, ROKR E2 and ROKR E6)
 P:	Daniel Ribeiro
 M:	drwyrm@gmail.com
@@ -511,6 +518,12 @@ P:	Harald Welte
 M:	laforge@openezx.org
 L:	openezx-devel@lists.openezx.org (subscribers-only)
 W:	http://www.openezx.org/
+S:	Maintained
+
+ARM/FARADAY FA526 PORT
+P:	Paulius Zaleckas
+M:	paulius.zaleckas@teltonika.lt
+L:	linux-arm-kernel@lists.arm.linux.org.uk (subscribers-only)
 S:	Maintained
 
 ARM/FREESCALE IMX / MXC ARM ARCHITECTURE
