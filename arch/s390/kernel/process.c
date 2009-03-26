@@ -141,6 +141,7 @@ int kernel_thread(int (*fn)(void *), void * arg, unsigned long flags)
 	return do_fork(flags | CLONE_VM | CLONE_UNTRACED,
 		       0, &regs, 0, NULL, NULL);
 }
+EXPORT_SYMBOL(kernel_thread);
 
 /*
  * Free current thread data structures etc..
@@ -318,6 +319,7 @@ int dump_fpu (struct pt_regs * regs, s390_fp_regs *fpregs)
 #endif /* CONFIG_64BIT */
 	return 1;
 }
+EXPORT_SYMBOL(dump_fpu);
 
 unsigned long get_wchan(struct task_struct *p)
 {

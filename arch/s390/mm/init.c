@@ -40,7 +40,9 @@
 DEFINE_PER_CPU(struct mmu_gather, mmu_gathers);
 
 pgd_t swapper_pg_dir[PTRS_PER_PGD] __attribute__((__aligned__(PAGE_SIZE)));
+
 char  empty_zero_page[PAGE_SIZE] __attribute__((__aligned__(PAGE_SIZE)));
+EXPORT_SYMBOL(empty_zero_page);
 
 /*
  * paging_init() sets up the page tables

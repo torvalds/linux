@@ -74,9 +74,17 @@ EXPORT_SYMBOL(uaccess);
  * Machine setup..
  */
 unsigned int console_mode = 0;
+EXPORT_SYMBOL(console_mode);
+
 unsigned int console_devno = -1;
+EXPORT_SYMBOL(console_devno);
+
 unsigned int console_irq = -1;
+EXPORT_SYMBOL(console_irq);
+
 unsigned long machine_flags;
+EXPORT_SYMBOL(machine_flags);
+
 unsigned long elf_hwcap = 0;
 char elf_platform[ELF_PLATFORM_SIZE];
 
