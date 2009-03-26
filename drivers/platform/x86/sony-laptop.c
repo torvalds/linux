@@ -1824,6 +1824,13 @@ static void sony_pic_detect_device_type(struct sony_pic_dev *dev)
 		goto out;
 	}
 
+	pcidev = pci_get_device(PCI_VENDOR_ID_INTEL,
+			PCI_DEVICE_ID_INTEL_ICH9_1, NULL);
+	if (pcidev) {
+		dev->control = &spic_types[2];
+		goto out;
+	}
+
 	/* default */
 	dev->control = &spic_types[1];
 
