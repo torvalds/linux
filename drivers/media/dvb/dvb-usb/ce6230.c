@@ -104,7 +104,7 @@ static int ce6230_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msg[],
 	struct dvb_usb_device *d = i2c_get_adapdata(adap);
 	int i = 0;
 	struct req_t req;
-	int ret;
+	int ret = 0;
 	memset(&req, 0, sizeof(&req));
 
 	if (num > 2)
