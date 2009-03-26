@@ -1,0 +1,12 @@
+if ARCH_GEMINI
+
+menu "Cortina Systems Gemini Implementations"
+
+endmenu
+
+config GEMINI_MEM_SWAP
+	bool "Gemini memory is swapped"
+	help
+	  Say Y here if Gemini memory is swapped by bootloader.
+
+endif

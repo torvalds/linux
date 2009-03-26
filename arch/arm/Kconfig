@@ -275,6 +275,12 @@ config ARCH_EP93XX
 	help
 	  This enables support for the Cirrus EP93xx series of CPUs.
 
+config ARCH_GEMINI
+	bool "Cortina Systems Gemini"
+	select CPU_FA526
+	help
+	  Support for the Cortina Systems Gemini family SoCs
+
 config ARCH_FOOTBRIDGE
 	bool "FootBridge"
 	select CPU_SA110
@@ -597,6 +603,8 @@ source "arch/arm/mach-clps711x/Kconfig"
 source "arch/arm/mach-ep93xx/Kconfig"
 
 source "arch/arm/mach-footbridge/Kconfig"
+
+source "arch/arm/mach-gemini/Kconfig"
 
 source "arch/arm/mach-integrator/Kconfig"
 
