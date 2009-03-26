@@ -952,6 +952,17 @@ static void print_eth(char *add)
 		(unsigned char) add[12], (unsigned char) add[13]);
 }
 
+static const struct net_device_ops i596_netdev_ops = {
+	.ndo_open		= i596_open,
+	.ndo_stop		= i596_close,
+	.ndo_start_xmit		= i596_start_xmit,
+	.ndo_set_multicast_list = set_multicast_list,
+	.ndo_tx_timeout		= i596_tx_timeout,
+	.ndo_change_mtu		= eth_change_mtu,
+	.ndo_set_mac_address 	= eth_mac_addr,
+	.ndo_validate_addr	= eth_validate_addr,
+};
+
 static int __init lp486e_probe(struct net_device *dev) {
 	struct i596_private *lp;
 	unsigned char eth_addr[6] = { 0, 0xaa, 0, 0, 0, 0 };
@@ -1014,12 +1025,8 @@ static int __init lp486e_probe(struct net_device *dev) {
 	printk("\n");
 
 	/* The LP486E-specific entries in the device structure. */
-	dev->open = &i596_open;
-	dev->stop = &i596_close;
-	dev->hard_start_xmit = &i596_start_xmit;
-	dev->set_multicast_list = &set_multicast_list;
+	dev->netdev_ops = &i596_netdev_ops;
 	dev->watchdog_timeo = 5*HZ;
-	dev->tx_timeout = i596_tx_timeout;
 
 #if 0
 	/* selftest reports 0x320925ae - don't know what that means */
