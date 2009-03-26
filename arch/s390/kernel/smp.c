@@ -297,8 +297,8 @@ static int smp_rescan_cpus_sigp(cpumask_t avail)
 {
 	int cpu_id, logical_cpu;
 
-	logical_cpu = first_cpu(avail);
-	if (logical_cpu == NR_CPUS)
+	logical_cpu = cpumask_first(&avail);
+	if (logical_cpu >= nr_cpu_ids)
 		return 0;
 	for (cpu_id = 0; cpu_id <= 65535; cpu_id++) {
 		if (cpu_known(cpu_id))
@@ -309,8 +309,8 @@ static int smp_rescan_cpus_sigp(cpumask_t avail)
 			continue;
 		cpu_set(logical_cpu, cpu_present_map);
 		smp_cpu_state[logical_cpu] = CPU_STATE_CONFIGURED;
-		logical_cpu = next_cpu(logical_cpu, avail);
-		if (logical_cpu == NR_CPUS)
+		logical_cpu = cpumask_next(logical_cpu, &avail);
+		if (logical_cpu >= nr_cpu_ids)
 			break;
 	}
 	return 0;
@@ -322,8 +322,8 @@ static int smp_rescan_cpus_sclp(cpumask_t avail)
 	int cpu_id, logical_cpu, cpu;
 	int rc;
 
-	logical_cpu = first_cpu(avail);
-	if (logical_cpu == NR_CPUS)
+	logical_cpu = cpumask_first(&avail);
+	if (logical_cpu >= nr_cpu_ids)
 		return 0;
 	info = kmalloc(sizeof(*info), GFP_KERNEL);
 	if (!info)
@@ -344,8 +344,8 @@ static int smp_rescan_cpus_sclp(cpumask_t avail)
 			smp_cpu_state[logical_cpu] = CPU_STATE_STANDBY;
 		else
 			smp_cpu_state[logical_cpu] = CPU_STATE_CONFIGURED;
-		logical_cpu = next_cpu(logical_cpu, avail);
-		if (logical_cpu == NR_CPUS)
+		logical_cpu = cpumask_next(logical_cpu, &avail);
+		if (logical_cpu >= nr_cpu_ids)
 			break;
 	}
 out:
@@ -591,7 +591,7 @@ static int __init setup_possible_cpus(char *s)
 
 	pcpus = simple_strtoul(s, NULL, 0);
 	cpu_possible_map = cpumask_of_cpu(0);
-	for (cpu = 1; cpu < pcpus && cpu < NR_CPUS; cpu++)
+	for (cpu = 1; cpu < pcpus && cpu < nr_cpu_ids; cpu++)
 		cpu_set(cpu, cpu_possible_map);
 	return 0;
 }
