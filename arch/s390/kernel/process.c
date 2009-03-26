@@ -1,18 +1,10 @@
 /*
- *  arch/s390/kernel/process.c
+ * This file handles the architecture dependent parts of process handling.
  *
- *  S390 version
- *    Copyright (C) 1999 IBM Deutschland Entwicklung GmbH, IBM Corporation
- *    Author(s): Martin Schwidefsky (schwidefsky@de.ibm.com),
- *               Hartmut Penner (hp@de.ibm.com),
- *               Denis Joseph Barrow (djbarrow@de.ibm.com,barrow_dj@yahoo.com),
- *
- *  Derived from "arch/i386/kernel/process.c"
- *    Copyright (C) 1995, Linus Torvalds
- */
-
-/*
- * This file handles the architecture-dependent parts of process handling..
+ *    Copyright IBM Corp. 1999,2009
+ *    Author(s): Martin Schwidefsky <schwidefsky@de.ibm.com>,
+ *		 Hartmut Penner <hp@de.ibm.com>,
+ *		 Denis Joseph Barrow,
  */
 
 #include <linux/compiler.h>
@@ -168,34 +160,34 @@ void release_thread(struct task_struct *dead_task)
 }
 
 int copy_thread(int nr, unsigned long clone_flags, unsigned long new_stackp,
-	unsigned long unused,
-        struct task_struct * p, struct pt_regs * regs)
+		unsigned long unused,
+		struct task_struct *p, struct pt_regs *regs)
 {
-        struct fake_frame
-          {
-	    struct stack_frame sf;
-            struct pt_regs childregs;
-          } *frame;
+	struct fake_frame
+	{
+		struct stack_frame sf;
+		struct pt_regs childregs;
+	} *frame;
 
-        frame = container_of(task_pt_regs(p), struct fake_frame, childregs);
-        p->thread.ksp = (unsigned long) frame;
+	frame = container_of(task_pt_regs(p), struct fake_frame, childregs);
+	p->thread.ksp = (unsigned long) frame;
 	/* Store access registers to kernel stack of new process. */
-        frame->childregs = *regs;
+	frame->childregs = *regs;
 	frame->childregs.gprs[2] = 0;	/* child returns 0 on fork. */
-        frame->childregs.gprs[15] = new_stackp;
-        frame->sf.back_chain = 0;
+	frame->childregs.gprs[15] = new_stackp;
+	frame->sf.back_chain = 0;
 
-        /* new return point is ret_from_fork */
-        frame->sf.gprs[8] = (unsigned long) ret_from_fork;
+	/* new return point is ret_from_fork */
+	frame->sf.gprs[8] = (unsigned long) ret_from_fork;
 
-        /* fake return stack for resume(), don't go back to schedule */
-        frame->sf.gprs[9] = (unsigned long) frame;
+	/* fake return stack for resume(), don't go back to schedule */
+	frame->sf.gprs[9] = (unsigned long) frame;
 
 	/* Save access registers to new thread structure. */
 	save_access_regs(&p->thread.acrs[0]);
 
 #ifndef CONFIG_64BIT
-        /*
+	/*
 	 * save fprs to current->thread.fp_regs to merge them with
 	 * the emulated registers and then copy the result to the child.
 	 */
@@ -220,10 +212,9 @@ int copy_thread(int nr, unsigned long clone_flags, unsigned long new_stackp,
 #endif /* CONFIG_64BIT */
 	/* start new process with ar4 pointing to the correct address space */
 	p->thread.mm_segment = get_fs();
-        /* Don't copy debug registers */
-        memset(&p->thread.per_info,0,sizeof(p->thread.per_info));
-
-        return 0;
+	/* Don't copy debug registers */
+	memset(&p->thread.per_info, 0, sizeof(p->thread.per_info));
+	return 0;
 }
 
 SYSCALL_DEFINE0(fork)
@@ -311,7 +302,7 @@ out:
 int dump_fpu (struct pt_regs * regs, s390_fp_regs *fpregs)
 {
 #ifndef CONFIG_64BIT
-        /*
+	/*
 	 * save fprs to current->thread.fp_regs to merge them with
 	 * the emulated registers and then copy the result to the dump.
 	 */
@@ -346,4 +337,3 @@ unsigned long get_wchan(struct task_struct *p)
 	}
 	return 0;
 }
-
