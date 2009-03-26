@@ -1073,8 +1073,9 @@ EXPORT_SYMBOL_GPL(qdio_get_ssqd_desc);
  * @cdev: associated ccw device
  * @how: use halt or clear to shutdown
  *
- * This function calls qdio_shutdown() for @cdev with method @how
- * and on success qdio_free() for @cdev.
+ * This function calls qdio_shutdown() for @cdev with method @how.
+ * and qdio_free(). The qdio_free() return value is ignored since
+ * !irq_ptr is already checked.
  */
 int qdio_cleanup(struct ccw_device *cdev, int how)
 {
@@ -1085,8 +1086,8 @@ int qdio_cleanup(struct ccw_device *cdev, int how)
 		return -ENODEV;
 
 	rc = qdio_shutdown(cdev, how);
-	if (rc == 0)
-		rc = qdio_free(cdev);
+
+	qdio_free(cdev);
 	return rc;
 }
 EXPORT_SYMBOL_GPL(qdio_cleanup);
