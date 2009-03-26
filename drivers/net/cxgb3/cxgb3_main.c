@@ -602,7 +602,6 @@ static int setup_sge_qsets(struct adapter *adap)
 				&adap->params.sge.qset[qset_idx], ntxq, dev,
 				netdev_get_tx_queue(dev, j));
 			if (err) {
-				t3_stop_sge_timers(adap);
 				t3_free_sge_resources(adap);
 				return err;
 			}
@@ -1046,6 +1045,8 @@ static int cxgb_up(struct adapter *adap)
 		setup_rss(adap);
 		if (!(adap->flags & NAPI_INIT))
 			init_napi(adap);
+
+		t3_start_sge_timers(adap);
 		adap->flags |= FULL_INIT_DONE;
 	}
 

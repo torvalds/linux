@@ -3044,9 +3044,6 @@ int t3_sge_alloc_qset(struct adapter *adapter, unsigned int id, int nports,
 	t3_write_reg(adapter, A_SG_GTS, V_RSPQ(q->rspq.cntxt_id) |
 		     V_NEWTIMER(q->rspq.holdoff_tmr));
 
-	mod_timer(&q->tx_reclaim_timer, jiffies + TX_RECLAIM_PERIOD);
-	mod_timer(&q->rx_reclaim_timer, jiffies + RX_RECLAIM_PERIOD);
-
 	return 0;
 
 err_unlock:
@@ -3054,6 +3051,27 @@ err_unlock:
 err:
 	t3_free_qset(adapter, q);
 	return ret;
+}
+
+/**
+ *      t3_start_sge_timers - start SGE timer call backs
+ *      @adap: the adapter
+ *
+ *      Starts each SGE queue set's timer call back
+ */
+void t3_start_sge_timers(struct adapter *adap)
+{
+	int i;
+
+	for (i = 0; i < SGE_QSETS; ++i) {
+		struct sge_qset *q = &adap->sge.qs[i];
+
+	if (q->tx_reclaim_timer.function)
+		mod_timer(&q->tx_reclaim_timer, jiffies + TX_RECLAIM_PERIOD);
+
+	if (q->rx_reclaim_timer.function)
+		mod_timer(&q->rx_reclaim_timer, jiffies + RX_RECLAIM_PERIOD);
+	}
 }
 
 /**
