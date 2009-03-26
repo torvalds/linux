@@ -67,7 +67,9 @@
  *
  * Alter PIO_MASK below according to table to set maximal PIO mode.
  */
-#define PIO_MASK (0x1f)
+enum {
+  PIO_MASK = ATA_PIO4,
+};
 
 /*
  * Struct containing private information about device.

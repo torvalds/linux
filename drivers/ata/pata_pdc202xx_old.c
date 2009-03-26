@@ -291,22 +291,22 @@ static int pdc202xx_init_one(struct pci_dev *dev, const struct pci_device_id *id
 	static const struct ata_port_info info[3] = {
 		{
 			.flags = ATA_FLAG_SLAVE_POSS,
-			.pio_mask = 0x1f,
-			.mwdma_mask = 0x07,
+			.pio_mask = ATA_PIO4,
+			.mwdma_mask = ATA_MWDMA2,
 			.udma_mask = ATA_UDMA2,
 			.port_ops = &pdc2024x_port_ops
 		},
 		{
 			.flags = ATA_FLAG_SLAVE_POSS,
-			.pio_mask = 0x1f,
-			.mwdma_mask = 0x07,
+			.pio_mask = ATA_PIO4,
+			.mwdma_mask = ATA_MWDMA2,
 			.udma_mask = ATA_UDMA4,
 			.port_ops = &pdc2026x_port_ops
 		},
 		{
 			.flags = ATA_FLAG_SLAVE_POSS,
-			.pio_mask = 0x1f,
-			.mwdma_mask = 0x07,
+			.pio_mask = ATA_PIO4,
+			.mwdma_mask = ATA_MWDMA2,
 			.udma_mask = ATA_UDMA5,
 			.port_ops = &pdc2026x_port_ops
 		}
