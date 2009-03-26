@@ -934,6 +934,7 @@ struct ubifs_debug_info;
  *          by @commit_sem
  * @cnt_lock: protects @highest_inum and @max_sqnum counters
  * @fmt_version: UBIFS on-flash format version
+ * @ro_compat_version: R/O compatibility version
  * @uuid: UUID from super block
  *
  * @lhead_lnum: log head logical eraseblock number
@@ -966,6 +967,7 @@ struct ubifs_debug_info;
  *                   recovery)
  * @bulk_read: enable bulk-reads
  * @default_compr: default compression algorithm (%UBIFS_COMPR_LZO, etc)
+ * @rw_incompat: the media is not R/W compatible
  *
  * @tnc_mutex: protects the Tree Node Cache (TNC), @zroot, @cnext, @enext, and
  *             @calc_idx_sz
@@ -1179,6 +1181,7 @@ struct ubifs_info {
 	unsigned long long cmt_no;
 	spinlock_t cnt_lock;
 	int fmt_version;
+	int ro_compat_version;
 	unsigned char uuid[16];
 
 	int lhead_lnum;
@@ -1207,6 +1210,7 @@ struct ubifs_info {
 	unsigned int no_chk_data_crc:1;
 	unsigned int bulk_read:1;
 	unsigned int default_compr:2;
+	unsigned int rw_incompat:1;
 
 	struct mutex tnc_mutex;
 	struct ubifs_zbranch zroot;

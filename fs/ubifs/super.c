@@ -1351,8 +1351,9 @@ static int mount_ubifs(struct ubifs_info *c)
 	x = (long long)c->log_lebs * c->leb_size + c->max_bud_bytes;
 	ubifs_msg("journal size:       %lld bytes (%lld KiB, %lld MiB, %d "
 		  "LEBs)", x, x >> 10, x >> 20, c->log_lebs + c->max_bud_cnt);
-	ubifs_msg("media format:       %d (latest is %d)",
-		  c->fmt_version, UBIFS_FORMAT_VERSION);
+	ubifs_msg("media format:       w%d/r%d (latest is w%d/r%d)",
+		  c->fmt_version, c->ro_compat_version,
+		  UBIFS_FORMAT_VERSION, UBIFS_RO_COMPAT_VERSION);
 	ubifs_msg("default compressor: %s", ubifs_compr_name(c->default_compr));
 	ubifs_msg("reserved for root:  %llu bytes (%llu KiB)",
 		c->report_rp_size, c->report_rp_size >> 10);
@@ -1491,6 +1492,15 @@ static void ubifs_umount(struct ubifs_info *c)
 static int ubifs_remount_rw(struct ubifs_info *c)
 {
 	int err, lnum;
+
+	if (c->rw_incompat) {
+		ubifs_err("the file-system is not R/W-compatible");
+		ubifs_msg("on-flash format version is w%d/r%d, but software "
+			  "only supports up to version w%d/r%d", c->fmt_version,
+			  c->ro_compat_version, UBIFS_FORMAT_VERSION,
+			  UBIFS_RO_COMPAT_VERSION);
+		return -EROFS;
+	}
 
 	mutex_lock(&c->umount_mutex);
 	dbg_save_space_info(c);
