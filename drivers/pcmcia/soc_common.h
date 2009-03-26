@@ -139,7 +139,6 @@ void soc_pcmcia_remove_one(struct soc_pcmcia_socket *skt);
 int soc_pcmcia_add_one(struct soc_pcmcia_socket *skt);
 
 extern int soc_common_drv_pcmcia_probe(struct device *dev, struct pcmcia_low_level *ops, struct skt_dev_info *sinfo);
-extern int soc_common_drv_pcmcia_remove(struct device *dev);
 
 
 #ifdef CONFIG_PCMCIA_DEBUG

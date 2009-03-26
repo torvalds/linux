@@ -297,7 +297,16 @@ static int pxa2xx_drv_pcmcia_probe(struct platform_device *dev)
 
 static int pxa2xx_drv_pcmcia_remove(struct platform_device *dev)
 {
-	return soc_common_drv_pcmcia_remove(&dev->dev);
+	struct skt_dev_info *sinfo = platform_get_drvdata(dev);
+	int i;
+
+	platform_set_drvdata(dev, NULL);
+
+	for (i = 0; i < sinfo->nskt; i++)
+		soc_pcmcia_remove_one(&sinfo->skt[i]);
+
+	kfree(sinfo);
+	return 0;
 }
 
 static int pxa2xx_drv_pcmcia_suspend(struct device *dev)

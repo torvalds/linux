@@ -152,7 +152,15 @@ static int pcmcia_probe(struct sa1111_dev *dev)
 
 static int __devexit pcmcia_remove(struct sa1111_dev *dev)
 {
-	soc_common_drv_pcmcia_remove(&dev->dev);
+	struct skt_dev_info *sinfo = dev_get_drvdata(&dev->dev);
+	int i;
+
+	dev_set_drvdata(&dev->dev, NULL);
+
+	for (i = 0; i < sinfo->nskt; i++)
+		soc_pcmcia_remove_one(&sinfo->skt[i]);
+
+	kfree(sinfo);
 	release_mem_region(dev->res.start, 512);
 	return 0;
 }

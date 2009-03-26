@@ -778,22 +778,6 @@ int soc_common_drv_pcmcia_probe(struct device *dev, struct pcmcia_low_level *ops
 }
 EXPORT_SYMBOL(soc_common_drv_pcmcia_probe);
 
-int soc_common_drv_pcmcia_remove(struct device *dev)
-{
-	struct skt_dev_info *sinfo = dev_get_drvdata(dev);
-	int i;
-
-	dev_set_drvdata(dev, NULL);
-
-	for (i = 0; i < sinfo->nskt; i++)
-		soc_pcmcia_remove_one(&sinfo->skt[i]);
-
-	kfree(sinfo);
-
-	return 0;
-}
-EXPORT_SYMBOL(soc_common_drv_pcmcia_remove);
-
 MODULE_AUTHOR("John Dorsey <john+@cs.cmu.edu>");
 MODULE_DESCRIPTION("Linux PCMCIA Card Services: Common SoC support");
 MODULE_LICENSE("Dual MPL/GPL");
