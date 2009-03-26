@@ -142,7 +142,7 @@ static void madgemc_sifwritew(struct net_device *dev, unsigned short val, unsign
 	return;
 }
 
-
+static struct net_device_ops madgemc_netdev_ops __read_mostly;
 
 static int __devinit madgemc_probe(struct device *device)
 {	
@@ -168,7 +168,7 @@ static int __devinit madgemc_probe(struct device *device)
 		goto getout;
 	}
 
-	dev->dma = 0;
+	dev->netdev_ops = &madgemc_netdev_ops;
 
 	card = kmalloc(sizeof(struct card_info), GFP_KERNEL);
 	if (card==NULL) {
@@ -347,9 +347,6 @@ static int __devinit madgemc_probe(struct device *device)
 	tp->DataRate = (card->ringspeed)?SPEED_16:SPEED_4;
 
 	memcpy(tp->ProductID, "Madge MCA 16/4    ", PROD_ID_SIZE + 1);
-
-	dev->open = madgemc_open;
-	dev->stop = madgemc_close;
 
 	tp->tmspriv = card;
 	dev_set_drvdata(device, dev);
@@ -758,6 +755,10 @@ static struct mca_driver madgemc_driver = {
 
 static int __init madgemc_init (void)
 {
+	madgemc_netdev_ops = tms380tr_netdev_ops;
+	madgemc_netdev_ops.ndo_open = madgemc_open;
+	madgemc_netdev_ops.ndo_stop = madgemc_close;
+
 	return mca_register_driver (&madgemc_driver);
 }
 
