@@ -32,6 +32,7 @@
 #include <linux/delay.h>
 #include <linux/cache.h>
 #include <linux/interrupt.h>
+#include <linux/irqflags.h>
 #include <linux/cpu.h>
 #include <linux/timex.h>
 #include <linux/bootmem.h>
@@ -75,6 +76,7 @@ void smp_send_stop(void)
 
 	/* Disable all interrupts/machine checks */
 	__load_psw_mask(psw_kernel_bits & ~PSW_MASK_MCHECK);
+	trace_hardirqs_off();
 
 	/* stop all processors */
 	for_each_online_cpu(cpu) {
