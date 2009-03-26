@@ -1404,9 +1404,8 @@ int qdio_activate(struct ccw_device *cdev)
 	switch (irq_ptr->state) {
 	case QDIO_IRQ_STATE_STOPPED:
 	case QDIO_IRQ_STATE_ERR:
-		mutex_unlock(&irq_ptr->setup_mutex);
-		qdio_shutdown(cdev, QDIO_FLAG_CLEANUP_USING_CLEAR);
-		return -EIO;
+		rc = -EIO;
+		break;
 	default:
 		qdio_set_state(irq_ptr, QDIO_IRQ_STATE_ACTIVE);
 		rc = 0;
