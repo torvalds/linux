@@ -315,8 +315,8 @@ struct _lowcore
 	__u8         op_access_id;             /* 0x0a2 */
 	__u8         ar_access_id;             /* 0x0a3 */
 	__u8         pad2[0xA8-0xA4];          /* 0x0a4 */
-	addr_t       trans_exc_code;           /* 0x0A0 */
-	addr_t       monitor_code;             /* 0x09c */
+	addr_t	     trans_exc_code;	       /* 0x0a8 */
+	addr_t	     monitor_code;	       /* 0x0b0 */
 	__u16        subchannel_id;            /* 0x0b8 */
 	__u16        subchannel_nr;            /* 0x0ba */
 	__u32        io_int_parm;              /* 0x0bc */
