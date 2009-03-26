@@ -24,6 +24,7 @@
 #include <asm/debug.h>
 #include <asm/processor.h>
 #include <asm/irqflags.h>
+#include <asm/checksum.h>
 #include "sclp.h"
 
 #define TRACE(x...) debug_sprintf_event(zcore_dbf, 1, x)
@@ -704,7 +705,8 @@ static int __init zcore_reipl_init(void)
 		free_page((unsigned long) ipl_block);
 		return rc;
 	}
-	if (cksm(ipl_block, ipl_block->hdr.len) != ipib_info.checksum) {
+	if (csum_partial(ipl_block, ipl_block->hdr.len, 0) !=
+	    ipib_info.checksum) {
 		TRACE("Checksum does not match\n");
 		free_page((unsigned long) ipl_block);
 		ipl_block = NULL;

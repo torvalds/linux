@@ -24,6 +24,7 @@
 #include <asm/reset.h>
 #include <asm/sclp.h>
 #include <asm/setup.h>
+#include <asm/checksum.h>
 
 #define IPL_PARM_BLOCK_VERSION 0
 
@@ -1359,7 +1360,8 @@ static void dump_reipl_run(struct shutdown_trigger *trigger)
 		"a" (&lowcore_ptr[smp_processor_id()]->ipib));
 #endif
 	asm volatile("stura %0,%1"
-		:: "a" (cksm(reipl_block_actual, reipl_block_actual->hdr.len)),
+		:: "a" (csum_partial(reipl_block_actual,
+				     reipl_block_actual->hdr.len, 0)),
 		"a" (&lowcore_ptr[smp_processor_id()]->ipib_checksum));
 	preempt_enable();
 	dump_run(trigger);

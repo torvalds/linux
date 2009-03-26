@@ -458,22 +458,6 @@ static inline unsigned short stap(void)
 	return cpu_address;
 }
 
-static inline u32 cksm(void *addr, unsigned long len)
-{
-	register unsigned long _addr asm("0") = (unsigned long) addr;
-	register unsigned long _len asm("1") = len;
-	unsigned long accu = 0;
-
-	asm volatile(
-		"0:\n"
-		"	cksm	%0,%1\n"
-		"	jnz	0b\n"
-		: "+d" (accu), "+d" (_addr), "+d" (_len)
-		:
-		: "cc", "memory");
-	return accu;
-}
-
 extern void (*_machine_restart)(char *command);
 extern void (*_machine_halt)(void);
 extern void (*_machine_power_off)(void);
