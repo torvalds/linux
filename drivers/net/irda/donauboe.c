@@ -1524,6 +1524,13 @@ toshoboe_close (struct pci_dev *pci_dev)
   free_netdev(self->netdev);
 }
 
+static const struct net_device_ops toshoboe_netdev_ops = {
+	.ndo_open	= toshoboe_net_open,
+	.ndo_stop	= toshoboe_net_close,
+	.ndo_start_xmit	= toshoboe_hard_xmit,
+	.ndo_do_ioctl	= toshoboe_net_ioctl,
+};
+
 static int
 toshoboe_open (struct pci_dev *pci_dev, const struct pci_device_id *pdid)
 {
@@ -1657,10 +1664,7 @@ toshoboe_open (struct pci_dev *pci_dev, const struct pci_device_id *pdid)
 #endif
 
   SET_NETDEV_DEV(dev, &pci_dev->dev);
-  dev->hard_start_xmit = toshoboe_hard_xmit;
-  dev->open = toshoboe_net_open;
-  dev->stop = toshoboe_net_close;
-  dev->do_ioctl = toshoboe_net_ioctl;
+  dev->netdev_ops = &toshoboe_netdev_ops;
 
   err = register_netdev(dev);
   if (err)
