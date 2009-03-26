@@ -1618,7 +1618,8 @@ static struct sock *udp_get_next(struct seq_file *seq, struct sock *sk)
 	} while (sk && (!net_eq(sock_net(sk), net) || sk->sk_family != state->family));
 
 	if (!sk) {
-		spin_unlock_bh(&state->udp_table->hash[state->bucket].lock);
+		if (state->bucket < UDP_HTABLE_SIZE)
+			spin_unlock_bh(&state->udp_table->hash[state->bucket].lock);
 		return udp_get_first(seq, state->bucket + 1);
 	}
 	return sk;
@@ -1636,6 +1637,9 @@ static struct sock *udp_get_idx(struct seq_file *seq, loff_t pos)
 
 static void *udp_seq_start(struct seq_file *seq, loff_t *pos)
 {
+	struct udp_iter_state *state = seq->private;
+	state->bucket = UDP_HTABLE_SIZE;
+
 	return *pos ? udp_get_idx(seq, *pos-1) : SEQ_START_TOKEN;
 }
 
