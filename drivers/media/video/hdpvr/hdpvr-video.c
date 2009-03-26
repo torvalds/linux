@@ -479,6 +479,7 @@ err:
 
 static unsigned int hdpvr_poll(struct file *filp, poll_table *wait)
 {
+	struct hdpvr_buffer *buf = NULL;
 	struct hdpvr_fh *fh = (struct hdpvr_fh *)filp->private_data;
 	struct hdpvr_device *dev = fh->dev;
 	unsigned int mask = 0;
@@ -499,19 +500,14 @@ static unsigned int hdpvr_poll(struct file *filp, poll_table *wait)
 	}
 	mutex_unlock(&dev->io_mutex);
 
-	poll_wait(filp, &dev->wait_data, wait);
-
-	mutex_lock(&dev->io_mutex);
-	if (!list_empty(&dev->rec_buff_list)) {
-
-		struct hdpvr_buffer *buf = list_entry(dev->rec_buff_list.next,
-						      struct hdpvr_buffer,
-						      buff_list);
-
-		if (buf->status == BUFSTAT_READY)
-			mask |= POLLIN | POLLRDNORM;
+	buf = hdpvr_get_next_buffer(dev);
+	/* only wait if no data is available */
+	if (!buf || buf->status != BUFSTAT_READY) {
+		poll_wait(filp, &dev->wait_data, wait);
+		buf = hdpvr_get_next_buffer(dev);
 	}
-	mutex_unlock(&dev->io_mutex);
+	if (buf && buf->status == BUFSTAT_READY)
+		mask |= POLLIN | POLLRDNORM;
 
 	return mask;
 }
