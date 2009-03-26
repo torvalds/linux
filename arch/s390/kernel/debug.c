@@ -642,8 +642,7 @@ found:
 	p_info = kmalloc(sizeof(file_private_info_t),
 						GFP_KERNEL);
 	if(!p_info){
-		if(debug_info_snapshot)
-			debug_info_free(debug_info_snapshot);
+		debug_info_free(debug_info_snapshot);
 		rc = -ENOMEM;
 		goto out;
 	}
