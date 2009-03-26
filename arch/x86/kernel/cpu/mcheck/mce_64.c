@@ -839,25 +839,29 @@ static int __init mcheck_disable(char *str)
 	mce_dont_init = 1;
 	return 1;
 }
+__setup("nomce", mcheck_disable);
 
-/* mce=off disables machine check.
-   mce=TOLERANCELEVEL (number, see above)
-   mce=bootlog Log MCEs from before booting. Disabled by default on AMD.
-   mce=nobootlog Don't log MCEs from before booting. */
+/*
+ * mce=off disables machine check
+ * mce=TOLERANCELEVEL (number, see above)
+ * mce=bootlog Log MCEs from before booting. Disabled by default on AMD.
+ * mce=nobootlog Don't log MCEs from before booting.
+ */
 static int __init mcheck_enable(char *str)
 {
 	if (!strcmp(str, "off"))
 		mce_dont_init = 1;
-	else if (!strcmp(str, "bootlog") || !strcmp(str,"nobootlog"))
-		mce_bootlog = str[0] == 'b';
+	else if (!strcmp(str, "bootlog") || !strcmp(str, "nobootlog"))
+		mce_bootlog = (str[0] == 'b');
 	else if (isdigit(str[0]))
 		get_option(&str, &tolerant);
-	else
-		printk("mce= argument %s ignored. Please use /sys", str);
+	else {
+		printk(KERN_INFO "mce= argument %s ignored. Please use /sys\n",
+		       str);
+		return 0;
+	}
 	return 1;
 }
-
-__setup("nomce", mcheck_disable);
 __setup("mce=", mcheck_enable);
 
 /*
