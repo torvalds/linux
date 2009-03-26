@@ -493,20 +493,20 @@ int t3_phy_lasi_intr_handler(struct cphy *phy)
 }
 
 static const struct adapter_info t3_adap_info[] = {
-	{2, 0,
+	{1, 1, 0,
 	 F_GPIO2_OEN | F_GPIO4_OEN |
 	 F_GPIO2_OUT_VAL | F_GPIO4_OUT_VAL, { S_GPIO3, S_GPIO5 }, 0,
 	 &mi1_mdio_ops, "Chelsio PE9000"},
-	{2, 0,
+	{1, 1, 0,
 	 F_GPIO2_OEN | F_GPIO4_OEN |
 	 F_GPIO2_OUT_VAL | F_GPIO4_OUT_VAL, { S_GPIO3, S_GPIO5 }, 0,
 	 &mi1_mdio_ops, "Chelsio T302"},
-	{1, 0,
+	{1, 0, 0,
 	 F_GPIO1_OEN | F_GPIO6_OEN | F_GPIO7_OEN | F_GPIO10_OEN |
 	 F_GPIO11_OEN | F_GPIO1_OUT_VAL | F_GPIO6_OUT_VAL | F_GPIO10_OUT_VAL,
 	 { 0 }, SUPPORTED_10000baseT_Full | SUPPORTED_AUI,
 	 &mi1_mdio_ext_ops, "Chelsio T310"},
-	{2, 0,
+	{1, 1, 0,
 	 F_GPIO1_OEN | F_GPIO2_OEN | F_GPIO4_OEN | F_GPIO5_OEN | F_GPIO6_OEN |
 	 F_GPIO7_OEN | F_GPIO10_OEN | F_GPIO11_OEN | F_GPIO1_OUT_VAL |
 	 F_GPIO5_OUT_VAL | F_GPIO6_OUT_VAL | F_GPIO10_OUT_VAL,
@@ -514,7 +514,7 @@ static const struct adapter_info t3_adap_info[] = {
 	 &mi1_mdio_ext_ops, "Chelsio T320"},
 	{},
 	{},
-	{1, 0,
+	{1, 0, 0,
 	 F_GPIO1_OEN | F_GPIO2_OEN | F_GPIO4_OEN | F_GPIO6_OEN | F_GPIO7_OEN |
 	 F_GPIO10_OEN | F_GPIO1_OUT_VAL | F_GPIO6_OUT_VAL | F_GPIO10_OUT_VAL,
 	 { S_GPIO9 }, SUPPORTED_10000baseT_Full | SUPPORTED_AUI,
@@ -3227,20 +3227,22 @@ int t3_mps_set_active_ports(struct adapter *adap, unsigned int port_mask)
 }
 
 /*
- * Perform the bits of HW initialization that are dependent on the number
- * of available ports.
+ * Perform the bits of HW initialization that are dependent on the Tx
+ * channels being used.
  */
-static void init_hw_for_avail_ports(struct adapter *adap, int nports)
+static void chan_init_hw(struct adapter *adap, unsigned int chan_map)
 {
 	int i;
 
-	if (nports == 1) {
+	if (chan_map != 3) {                                 /* one channel */
 		t3_set_reg_field(adap, A_ULPRX_CTL, F_ROUND_ROBIN, 0);
 		t3_set_reg_field(adap, A_ULPTX_CONFIG, F_CFG_RR_ARB, 0);
-		t3_write_reg(adap, A_MPS_CFG, F_TPRXPORTEN | F_TPTXPORT0EN |
-			     F_PORT0ACTIVE | F_ENFORCEPKT);
-		t3_write_reg(adap, A_PM1_TX_CFG, 0xffffffff);
-	} else {
+		t3_write_reg(adap, A_MPS_CFG, F_TPRXPORTEN | F_ENFORCEPKT |
+			     (chan_map == 1 ? F_TPTXPORT0EN | F_PORT0ACTIVE :
+					      F_TPTXPORT1EN | F_PORT1ACTIVE));
+		t3_write_reg(adap, A_PM1_TX_CFG,
+			     chan_map == 1 ? 0xffffffff : 0);
+	} else {                                             /* two channels */
 		t3_set_reg_field(adap, A_ULPRX_CTL, 0, F_ROUND_ROBIN);
 		t3_set_reg_field(adap, A_ULPTX_CONFIG, 0, F_CFG_RR_ARB);
 		t3_write_reg(adap, A_ULPTX_DMA_WEIGHT,
@@ -3548,7 +3550,7 @@ int t3_init_hw(struct adapter *adapter, u32 fw_params)
 	t3_write_reg(adapter, A_PM1_RX_CFG, 0xffffffff);
 	t3_write_reg(adapter, A_PM1_RX_MODE, 0);
 	t3_write_reg(adapter, A_PM1_TX_MODE, 0);
-	init_hw_for_avail_ports(adapter, adapter->params.nports);
+	chan_init_hw(adapter, adapter->params.chan_map);
 	t3_sge_init(adapter, &adapter->params.sge);
 
 	t3_write_reg(adapter, A_T3DBG_GPIO_ACT_LOW, calc_gpio_intr(adapter));
@@ -3785,7 +3787,8 @@ int t3_prep_adapter(struct adapter *adapter, const struct adapter_info *ai,
 	get_pci_mode(adapter, &adapter->params.pci);
 
 	adapter->params.info = ai;
-	adapter->params.nports = ai->nports;
+	adapter->params.nports = ai->nports0 + ai->nports1;
+	adapter->params.chan_map = !!ai->nports0 | (!!ai->nports1 << 1);
 	adapter->params.rev = t3_read_reg(adapter, A_PL_REV);
 	/*
 	 * We used to only run the "adapter check task" once a second if
@@ -3816,7 +3819,7 @@ int t3_prep_adapter(struct adapter *adapter, const struct adapter_info *ai,
 		mc7_prep(adapter, &adapter->pmtx, MC7_PMTX_BASE_ADDR, "PMTX");
 		mc7_prep(adapter, &adapter->cm, MC7_CM_BASE_ADDR, "CM");
 
-		p->nchan = ai->nports;
+		p->nchan = adapter->params.chan_map == 3 ? 2 : 1;
 		p->pmrx_size = t3_mc7_size(&adapter->pmrx);
 		p->pmtx_size = t3_mc7_size(&adapter->pmtx);
 		p->cm_size = t3_mc7_size(&adapter->cm);

@@ -3086,7 +3086,7 @@ static int __devinit init_one(struct pci_dev *pdev,
 	INIT_WORK(&adapter->fatal_error_handler_task, fatal_error_task);
 	INIT_DELAYED_WORK(&adapter->adap_check_task, t3_adap_check_task);
 
-	for (i = 0; i < ai->nports; ++i) {
+	for (i = 0; i < ai->nports0 + ai->nports1; ++i) {
 		struct net_device *netdev;
 
 		netdev = alloc_etherdev_mq(sizeof(struct port_info), SGE_QSETS);
@@ -3176,7 +3176,7 @@ static int __devinit init_one(struct pci_dev *pdev,
 
 out_free_dev:
 	iounmap(adapter->regs);
-	for (i = ai->nports - 1; i >= 0; --i)
+	for (i = ai->nports0 + ai->nports1 - 1; i >= 0; --i)
 		if (adapter->port[i])
 			free_netdev(adapter->port[i]);
 
