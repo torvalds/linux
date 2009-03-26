@@ -379,7 +379,7 @@ static int FNAME(page_fault)(struct kvm_vcpu *vcpu, gva_t addr,
 		return r;
 
 	/*
-	 * Look up the shadow pte for the faulting address.
+	 * Look up the guest pte for the faulting address.
 	 */
 	r = FNAME(walk_addr)(&walker, vcpu, addr, write_fault, user_fault,
 			     fetch_fault);
