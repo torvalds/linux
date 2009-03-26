@@ -1052,7 +1052,7 @@ ccw_device_offline_irq(struct ccw_device *cdev, enum dev_event dev_event)
 	sch = to_subchannel(cdev->dev.parent);
 	/*
 	 * An interrupt in state offline means a previous disable was not
-	 * successful. Try again.
+	 * successful - should not happen, but we try to disable again.
 	 */
 	cio_disable_subchannel(sch);
 }
