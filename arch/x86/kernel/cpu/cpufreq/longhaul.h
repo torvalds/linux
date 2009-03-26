@@ -49,14 +49,14 @@ union msr_longhaul {
 
 /*
  * Clock ratio tables. Div/Mod by 10 to get ratio.
- * The eblcr ones specify the ratio read from the CPU.
- * The clock_ratio ones specify what to write to the CPU.
+ * The eblcr values specify the ratio read from the CPU.
+ * The mults values specify what to write to the CPU.
  */
 
 /*
  * VIA C3 Samuel 1  & Samuel 2 (stepping 0)
  */
-static const int __initdata samuel1_clock_ratio[16] = {
+static const int __initdata samuel1_mults[16] = {
 	-1, /* 0000 -> RESERVED */
 	30, /* 0001 ->  3.0x */
 	40, /* 0010 ->  4.0x */
@@ -119,7 +119,7 @@ static const int __initdata samuel2_eblcr[16] = {
 /*
  * VIA C3 Ezra
  */
-static const int __initdata ezra_clock_ratio[16] = {
+static const int __initdata ezra_mults[16] = {
 	100, /* 0000 -> 10.0x */
 	30,  /* 0001 ->  3.0x */
 	40,  /* 0010 ->  4.0x */
@@ -160,7 +160,7 @@ static const int __initdata ezra_eblcr[16] = {
 /*
  * VIA C3 (Ezra-T) [C5M].
  */
-static const int __initdata ezrat_clock_ratio[32] = {
+static const int __initdata ezrat_mults[32] = {
 	100, /* 0000 -> 10.0x */
 	30,  /* 0001 ->  3.0x */
 	40,  /* 0010 ->  4.0x */
@@ -235,7 +235,7 @@ static const int __initdata ezrat_eblcr[32] = {
 /*
  * VIA C3 Nehemiah */
 
-static const int __initdata  nehemiah_clock_ratio[32] = {
+static const int __initdata  nehemiah_mults[32] = {
 	100, /* 0000 -> 10.0x */
 	-1, /* 0001 -> 16.0x */
 	40,  /* 0010 ->  4.0x */

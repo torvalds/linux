@@ -331,7 +331,6 @@ struct musb {
 	struct list_head	control;	/* of musb_qh */
 	struct list_head	in_bulk;	/* of musb_qh */
 	struct list_head	out_bulk;	/* of musb_qh */
-	struct musb_qh		*periodic[32];	/* tree of interrupt+iso */
 #endif
 
 	/* called with IRQs blocked; ON/nonzero implies starting a session,
@@ -479,10 +478,11 @@ static inline void musb_configure_ep0(struct musb *musb)
 static inline int musb_read_fifosize(struct musb *musb,
 		struct musb_hw_ep *hw_ep, u8 epnum)
 {
+	void *mbase = musb->mregs;
 	u8 reg = 0;
 
 	/* read from core using indexed model */
-	reg = musb_readb(hw_ep->regs, 0x10 + MUSB_FIFOSIZE);
+	reg = musb_readb(mbase, MUSB_EP_OFFSET(epnum, MUSB_FIFOSIZE));
 	/* 0's returned when no more endpoints */
 	if (!reg)
 		return -ENODEV;
@@ -509,6 +509,7 @@ static inline void musb_configure_ep0(struct musb *musb)
 {
 	musb->endpoints[0].max_packet_sz_tx = MUSB_EP0_FIFOSIZE;
 	musb->endpoints[0].max_packet_sz_rx = MUSB_EP0_FIFOSIZE;
+	musb->endpoints[0].is_shared_fifo = true;
 }
 #endif /* CONFIG_BLACKFIN */
 

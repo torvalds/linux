@@ -220,8 +220,8 @@ int btrfs_tree_unlock(struct extent_buffer *eb)
 	return 0;
 }
 
-int btrfs_tree_locked(struct extent_buffer *eb)
+void btrfs_assert_tree_locked(struct extent_buffer *eb)
 {
-	return test_bit(EXTENT_BUFFER_BLOCKING, &eb->bflags) ||
-			spin_is_locked(&eb->lock);
+	if (!test_bit(EXTENT_BUFFER_BLOCKING, &eb->bflags))
+		assert_spin_locked(&eb->lock);
 }

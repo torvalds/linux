@@ -1175,6 +1175,8 @@ struct task_struct {
 	/* ??? */
 	unsigned int personality;
 	unsigned did_exec:1;
+	unsigned in_execve:1;	/* Tell the LSMs that the process is doing an
+				 * execve */
 	pid_t pid;
 	pid_t tgid;
 
@@ -1418,6 +1420,9 @@ struct task_struct {
 	unsigned long trace;
 #endif
 };
+
+/* Future-safe accessor for struct task_struct's cpus_allowed. */
+#define tsk_cpumask(tsk) (&(tsk)->cpus_allowed)
 
 /*
  * Priority of a process goes from 0..MAX_PRIO-1, valid RT

@@ -1271,6 +1271,12 @@ L:	linux-crypto@vger.kernel.org
 T:	git kernel.org:/pub/scm/linux/kernel/git/herbert/crypto-2.6.git
 S:	Maintained
 
+CRYPTOGRAPHIC RANDOM NUMBER GENERATOR
+P:	Neil Horman
+M:	nhorman@tuxdriver.com
+L:	linux-crypto@vger.kernel.org
+S:	Maintained
+
 CS5535 Audio ALSA driver
 P:	Jaya Kumar
 M:	jayakumar.alsa@gmail.com
@@ -1471,8 +1477,6 @@ L:	linux-acpi@vger.kernel.org
 S:	Supported
 
 DOCUMENTATION (/Documentation directory)
-P:	Michael Kerrisk
-M:	mtk.manpages@gmail.com
 P:	Randy Dunlap
 M:	rdunlap@xenotime.net
 L:	linux-doc@vger.kernel.org
@@ -2220,6 +2224,11 @@ M:	stefanr@s5r6.in-berlin.de
 L:	linux1394-devel@lists.sourceforge.net
 S:	Maintained
 
+INTEGRITY MEASUREMENT ARCHITECTURE (IMA)
+P:	Mimi Zohar
+M:	zohar@us.ibm.com
+S:	Supported
+
 IMS TWINTURBO FRAMEBUFFER DRIVER
 L:	linux-fbdev-devel@lists.sourceforge.net (moderated for non-subscribers)
 S:	Orphan
@@ -2881,7 +2890,7 @@ P:	Michael Kerrisk
 M:	mtk.manpages@gmail.com
 W:	http://www.kernel.org/doc/man-pages
 L:	linux-man@vger.kernel.org
-S:	Supported
+S:	Maintained
 
 MARVELL LIBERTAS WIRELESS DRIVER
 P:	Dan Williams
@@ -3354,10 +3363,8 @@ S:	Maintained
 PARISC ARCHITECTURE
 P:	Kyle McMartin
 M:	kyle@mcmartin.ca
-P:	Matthew Wilcox
-M:	matthew@wil.cx
-P:	Grant Grundler
-M:	grundler@parisc-linux.org
+P:	Helge Deller
+M:	deller@gmx.de
 L:	linux-parisc@vger.kernel.org
 W:	http://www.parisc-linux.org/
 T:	git kernel.org:/pub/scm/linux/kernel/git/kyle/parisc-2.6.git
@@ -3856,6 +3863,7 @@ M:	jmorris@namei.org
 L:	linux-kernel@vger.kernel.org
 L:	linux-security-module@vger.kernel.org (suggested Cc:)
 T:	git kernel.org:pub/scm/linux/kernel/git/jmorris/security-testing-2.6.git
+W:	http://security.wiki.kernel.org/
 S:	Supported
 
 SECURITY CONTACT
@@ -4295,6 +4303,19 @@ P:	Samuel Chessman
 M:	chessman@tux.org
 L:	tlan-devel@lists.sourceforge.net (subscribers-only)
 W:	http://sourceforge.net/projects/tlan/
+S:	Maintained
+
+TOMOYO SECURITY MODULE
+P:	Kentaro Takeda
+M:	takedakn@nttdata.co.jp
+P:	Tetsuo Handa
+M:	penguin-kernel@I-love.SAKURA.ne.jp
+L:	linux-kernel@vger.kernel.org (kernel issues)
+L:	tomoyo-users-en@lists.sourceforge.jp (subscribers-only, for developers and users in English)
+L:	tomoyo-dev@lists.sourceforge.jp (subscribers-only, for developers in Japanese)
+L:	tomoyo-users@lists.sourceforge.jp (subscribers-only, for users in Japanese)
+W:	http://tomoyo.sourceforge.jp/
+T:	quilt http://svn.sourceforge.jp/svnroot/tomoyo/trunk/2.2.x/tomoyo-lsm/patches/
 S:	Maintained
 
 TOSHIBA ACPI EXTRAS DRIVER

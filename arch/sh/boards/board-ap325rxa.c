@@ -22,6 +22,7 @@
 #include <linux/gpio.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/spi_gpio.h>
+#include <media/soc_camera.h>
 #include <media/soc_camera_platform.h>
 #include <media/sh_mobile_ceu.h>
 #include <video/sh_mobile_lcdc.h>
@@ -165,6 +166,16 @@ static void ap320_wvga_power_on(void *board_data)
 	ctrl_outw(0x100, FPGA_BKLREG);
 }
 
+static void ap320_wvga_power_off(void *board_data)
+{
+	/* backlight */
+	ctrl_outw(0, FPGA_BKLREG);
+	gpio_set_value(GPIO_PTS3, 1);
+
+	/* ASD AP-320/325 LCD OFF */
+	ctrl_outw(0, FPGA_LCDREG);
+}
+
 static struct sh_mobile_lcdc_info lcdc_info = {
 	.clock_source = LCDC_CLK_EXTERNAL,
 	.ch[0] = {
@@ -190,6 +201,7 @@ static struct sh_mobile_lcdc_info lcdc_info = {
 		},
 		.board_cfg = {
 			.display_on = ap320_wvga_power_on,
+			.display_off = ap320_wvga_power_off,
 		},
 	}
 };

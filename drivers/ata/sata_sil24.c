@@ -429,25 +429,25 @@ static const struct ata_port_info sil24_port_info[] = {
 	{
 		.flags		= SIL24_COMMON_FLAGS | SIL24_NPORTS2FLAG(4) |
 				  SIL24_FLAG_PCIX_IRQ_WOC,
-		.pio_mask	= 0x1f,			/* pio0-4 */
-		.mwdma_mask	= 0x07,			/* mwdma0-2 */
-		.udma_mask	= ATA_UDMA5,		/* udma0-5 */
+		.pio_mask	= ATA_PIO4,
+		.mwdma_mask	= ATA_MWDMA2,
+		.udma_mask	= ATA_UDMA5,
 		.port_ops	= &sil24_ops,
 	},
 	/* sil_3132 */
 	{
 		.flags		= SIL24_COMMON_FLAGS | SIL24_NPORTS2FLAG(2),
-		.pio_mask	= 0x1f,			/* pio0-4 */
-		.mwdma_mask	= 0x07,			/* mwdma0-2 */
-		.udma_mask	= ATA_UDMA5,		/* udma0-5 */
+		.pio_mask	= ATA_PIO4,
+		.mwdma_mask	= ATA_MWDMA2,
+		.udma_mask	= ATA_UDMA5,
 		.port_ops	= &sil24_ops,
 	},
 	/* sil_3131/sil_3531 */
 	{
 		.flags		= SIL24_COMMON_FLAGS | SIL24_NPORTS2FLAG(1),
-		.pio_mask	= 0x1f,			/* pio0-4 */
-		.mwdma_mask	= 0x07,			/* mwdma0-2 */
-		.udma_mask	= ATA_UDMA5,		/* udma0-5 */
+		.pio_mask	= ATA_PIO4,
+		.mwdma_mask	= ATA_MWDMA2,
+		.udma_mask	= ATA_UDMA5,
 		.port_ops	= &sil24_ops,
 	},
 };

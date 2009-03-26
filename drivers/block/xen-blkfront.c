@@ -977,6 +977,8 @@ static void backend_changed(struct xenbus_device *dev,
 		break;
 
 	case XenbusStateClosing:
+		if (info->gd == NULL)
+			xenbus_dev_fatal(dev, -ENODEV, "gd is NULL");
 		bd = bdget_disk(info->gd, 0);
 		if (bd == NULL)
 			xenbus_dev_fatal(dev, -ENODEV, "bdget failed");

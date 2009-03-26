@@ -46,7 +46,7 @@ static const struct ide_port_ops delkin_cb_port_ops = {
 	.quirkproc		= ide_undecoded_slave,
 };
 
-static unsigned int delkin_cb_init_chipset(struct pci_dev *dev)
+static int delkin_cb_init_chipset(struct pci_dev *dev)
 {
 	unsigned long base = pci_resource_start(dev, 0);
 	int i;

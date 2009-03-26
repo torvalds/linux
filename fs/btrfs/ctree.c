@@ -277,7 +277,7 @@ static noinline int __btrfs_cow_block(struct btrfs_trans_handle *trans,
 	if (*cow_ret == buf)
 		unlock_orig = 1;
 
-	WARN_ON(!btrfs_tree_locked(buf));
+	btrfs_assert_tree_locked(buf);
 
 	if (parent)
 		parent_start = parent->start;
@@ -2365,7 +2365,7 @@ static int push_leaf_right(struct btrfs_trans_handle *trans, struct btrfs_root
 	if (slot >= btrfs_header_nritems(upper) - 1)
 		return 1;
 
-	WARN_ON(!btrfs_tree_locked(path->nodes[1]));
+	btrfs_assert_tree_locked(path->nodes[1]);
 
 	right = read_node_slot(root, upper, slot + 1);
 	btrfs_tree_lock(right);
@@ -2562,7 +2562,7 @@ static int push_leaf_left(struct btrfs_trans_handle *trans, struct btrfs_root
 	if (right_nritems == 0)
 		return 1;
 
-	WARN_ON(!btrfs_tree_locked(path->nodes[1]));
+	btrfs_assert_tree_locked(path->nodes[1]);
 
 	left = read_node_slot(root, path->nodes[1], slot - 1);
 	btrfs_tree_lock(left);
@@ -4101,7 +4101,7 @@ int btrfs_next_leaf(struct btrfs_root *root, struct btrfs_path *path)
 
 		next = read_node_slot(root, c, slot);
 		if (!path->skip_locking) {
-			WARN_ON(!btrfs_tree_locked(c));
+			btrfs_assert_tree_locked(c);
 			btrfs_tree_lock(next);
 			btrfs_set_lock_blocking(next);
 		}
@@ -4126,7 +4126,7 @@ int btrfs_next_leaf(struct btrfs_root *root, struct btrfs_path *path)
 			reada_for_search(root, path, level, slot, 0);
 		next = read_node_slot(root, next, 0);
 		if (!path->skip_locking) {
-			WARN_ON(!btrfs_tree_locked(path->nodes[level]));
+			btrfs_assert_tree_locked(path->nodes[level]);
 			btrfs_tree_lock(next);
 			btrfs_set_lock_blocking(next);
 		}

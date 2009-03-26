@@ -4,6 +4,7 @@
 
 menuconfig NET
 	bool "Networking support"
+	select NLATTR
 	---help---
 	  Unless you really know what you are doing, you should say Y here.
 	  The reason is that some programs need kernel networking support even

@@ -7,8 +7,6 @@ snd-i2c-objs := i2c.o
 snd-cs8427-objs := cs8427.o
 snd-tea6330t-objs := tea6330t.o
 
-obj-$(CONFIG_L3) += l3/
-
 obj-$(CONFIG_SND) += other/
 
 # Toplevel Module Dependency

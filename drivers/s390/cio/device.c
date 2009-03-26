@@ -799,7 +799,7 @@ static void sch_attach_disconnected_device(struct subchannel *sch,
 		return;
 	other_sch = to_subchannel(cdev->dev.parent);
 	/* Note: device_move() changes cdev->dev.parent */
-	ret = device_move(&cdev->dev, &sch->dev);
+	ret = device_move(&cdev->dev, &sch->dev, DPM_ORDER_PARENT_BEFORE_DEV);
 	if (ret) {
 		CIO_MSG_EVENT(0, "Moving disconnected device 0.%x.%04x failed "
 			      "(ret=%d)!\n", cdev->private->dev_id.ssid,
@@ -830,7 +830,7 @@ static void sch_attach_orphaned_device(struct subchannel *sch,
 	 * Try to move the ccw device to its new subchannel.
 	 * Note: device_move() changes cdev->dev.parent
 	 */
-	ret = device_move(&cdev->dev, &sch->dev);
+	ret = device_move(&cdev->dev, &sch->dev, DPM_ORDER_PARENT_BEFORE_DEV);
 	if (ret) {
 		CIO_MSG_EVENT(0, "Moving device 0.%x.%04x from orphanage "
 			      "failed (ret=%d)!\n",
@@ -897,7 +897,8 @@ void ccw_device_move_to_orphanage(struct work_struct *work)
 	 * ccw device can take its place on the subchannel.
 	 * Note: device_move() changes cdev->dev.parent
 	 */
-	ret = device_move(&cdev->dev, &css->pseudo_subchannel->dev);
+	ret = device_move(&cdev->dev, &css->pseudo_subchannel->dev,
+		DPM_ORDER_NONE);
 	if (ret) {
 		CIO_MSG_EVENT(0, "Moving device 0.%x.%04x to orphanage failed "
 			      "(ret=%d)!\n", cdev->private->dev_id.ssid,
@@ -981,7 +982,7 @@ io_subchannel_register(struct work_struct *work)
 	 * Now we know this subchannel will stay, we can throw
 	 * our delayed uevent.
 	 */
-	sch->dev.uevent_suppress = 0;
+	dev_set_uevent_suppress(&sch->dev, 0);
 	kobject_uevent(&sch->dev.kobj, KOBJ_ADD);
 	/* make it known to the system */
 	ret = ccw_device_register(cdev);
@@ -1129,7 +1130,7 @@ static void ccw_device_move_to_sch(struct work_struct *work)
 	 * Try to move the ccw device to its new subchannel.
 	 * Note: device_move() changes cdev->dev.parent
 	 */
-	rc = device_move(&cdev->dev, &sch->dev);
+	rc = device_move(&cdev->dev, &sch->dev, DPM_ORDER_PARENT_BEFORE_DEV);
 	mutex_unlock(&sch->reg_mutex);
 	if (rc) {
 		CIO_MSG_EVENT(0, "Moving device 0.%x.%04x to subchannel "
@@ -1243,7 +1244,7 @@ static int io_subchannel_probe(struct subchannel *sch)
 		 * the ccw_device and exit. This happens for all early
 		 * devices, e.g. the console.
 		 */
-		sch->dev.uevent_suppress = 0;
+		dev_set_uevent_suppress(&sch->dev, 0);
 		kobject_uevent(&sch->dev.kobj, KOBJ_ADD);
 		cdev->dev.groups = ccwdev_attr_groups;
 		device_initialize(&cdev->dev);

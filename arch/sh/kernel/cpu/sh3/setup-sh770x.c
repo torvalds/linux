@@ -2,6 +2,7 @@
  * SH3 Setup code for SH7706, SH7707, SH7708, SH7709
  *
  *  Copyright (C) 2007  Magnus Damm
+ *  Copyright (C) 2009  Paul Mundt
  *
  * Based on setup-sh7709.c
  *
@@ -24,61 +25,42 @@ enum {
 	/* interrupt sources */
 	IRQ0, IRQ1, IRQ2, IRQ3, IRQ4, IRQ5,
 	PINT07, PINT815,
-	DMAC_DEI0, DMAC_DEI1, DMAC_DEI2, DMAC_DEI3,
-	SCIF0_ERI, SCIF0_RXI, SCIF0_BRI, SCIF0_TXI,
-	SCIF2_ERI, SCIF2_RXI, SCIF2_BRI, SCIF2_TXI,
-	SCI_ERI, SCI_RXI, SCI_TXI, SCI_TEI,
-	ADC_ADI,
+	DMAC, SCIF0, SCIF2, SCI, ADC_ADI,
 	LCDC, PCC0, PCC1,
-	TMU0, TMU1, TMU2_TUNI, TMU2_TICPI,
-	RTC_ATI, RTC_PRI, RTC_CUI,
-	WDT,
-	REF_RCMI, REF_ROVI,
-
-	/* interrupt groups */
-	RTC, REF, TMU2, DMAC, SCI, SCIF2, SCIF0,
+	TMU0, TMU1, TMU2,
+	RTC, WDT, REF,
 };
 
 static struct intc_vect vectors[] __initdata = {
 	INTC_VECT(TMU0, 0x400), INTC_VECT(TMU1, 0x420),
-	INTC_VECT(TMU2_TUNI, 0x440), INTC_VECT(TMU2_TICPI, 0x460),
-	INTC_VECT(RTC_ATI, 0x480), INTC_VECT(RTC_PRI, 0x4a0),
-	INTC_VECT(RTC_CUI, 0x4c0),
-	INTC_VECT(SCI_ERI, 0x4e0), INTC_VECT(SCI_RXI, 0x500),
-	INTC_VECT(SCI_TXI, 0x520), INTC_VECT(SCI_TEI, 0x540),
+	INTC_VECT(TMU2, 0x440), INTC_VECT(TMU2, 0x460),
+	INTC_VECT(RTC, 0x480), INTC_VECT(RTC, 0x4a0),
+	INTC_VECT(RTC, 0x4c0),
+	INTC_VECT(SCI, 0x4e0), INTC_VECT(SCI, 0x500),
+	INTC_VECT(SCI, 0x520), INTC_VECT(SCI, 0x540),
 	INTC_VECT(WDT, 0x560),
-	INTC_VECT(REF_RCMI, 0x580),
-	INTC_VECT(REF_ROVI, 0x5a0),
+	INTC_VECT(REF, 0x580),
+	INTC_VECT(REF, 0x5a0),
 #if defined(CONFIG_CPU_SUBTYPE_SH7706) || \
     defined(CONFIG_CPU_SUBTYPE_SH7707) || \
     defined(CONFIG_CPU_SUBTYPE_SH7709)
 	/* IRQ0->5 are handled in setup-sh3.c */
-	INTC_VECT(DMAC_DEI0, 0x800), INTC_VECT(DMAC_DEI1, 0x820),
-	INTC_VECT(DMAC_DEI2, 0x840), INTC_VECT(DMAC_DEI3, 0x860),
+	INTC_VECT(DMAC, 0x800), INTC_VECT(DMAC, 0x820),
+	INTC_VECT(DMAC, 0x840), INTC_VECT(DMAC, 0x860),
 	INTC_VECT(ADC_ADI, 0x980),
-	INTC_VECT(SCIF2_ERI, 0x900), INTC_VECT(SCIF2_RXI, 0x920),
-	INTC_VECT(SCIF2_BRI, 0x940), INTC_VECT(SCIF2_TXI, 0x960),
+	INTC_VECT(SCIF2, 0x900), INTC_VECT(SCIF2, 0x920),
+	INTC_VECT(SCIF2, 0x940), INTC_VECT(SCIF2, 0x960),
 #endif
 #if defined(CONFIG_CPU_SUBTYPE_SH7707) || \
     defined(CONFIG_CPU_SUBTYPE_SH7709)
 	INTC_VECT(PINT07, 0x700), INTC_VECT(PINT815, 0x720),
-	INTC_VECT(SCIF0_ERI, 0x880), INTC_VECT(SCIF0_RXI, 0x8a0),
-	INTC_VECT(SCIF0_BRI, 0x8c0), INTC_VECT(SCIF0_TXI, 0x8e0),
+	INTC_VECT(SCIF0, 0x880), INTC_VECT(SCIF0, 0x8a0),
+	INTC_VECT(SCIF0, 0x8c0), INTC_VECT(SCIF0, 0x8e0),
 #endif
 #if defined(CONFIG_CPU_SUBTYPE_SH7707)
 	INTC_VECT(LCDC, 0x9a0),
 	INTC_VECT(PCC0, 0x9c0), INTC_VECT(PCC1, 0x9e0),
 #endif
-};
-
-static struct intc_group groups[] __initdata = {
-	INTC_GROUP(RTC, RTC_ATI, RTC_PRI, RTC_CUI),
-	INTC_GROUP(TMU2, TMU2_TUNI, TMU2_TICPI),
-	INTC_GROUP(REF, REF_RCMI, REF_ROVI),
-	INTC_GROUP(DMAC, DMAC_DEI0, DMAC_DEI1, DMAC_DEI2, DMAC_DEI3),
-	INTC_GROUP(SCI, SCI_ERI, SCI_RXI, SCI_TXI, SCI_TEI),
-	INTC_GROUP(SCIF0, SCIF0_ERI, SCIF0_RXI, SCIF0_BRI, SCIF0_TXI),
-	INTC_GROUP(SCIF2, SCIF2_ERI, SCIF2_RXI, SCIF2_BRI, SCIF2_TXI),
 };
 
 static struct intc_prio_reg prio_registers[] __initdata = {
@@ -101,7 +83,7 @@ static struct intc_prio_reg prio_registers[] __initdata = {
 #endif
 };
 
-static DECLARE_INTC_DESC(intc_desc, "sh770x", vectors, groups,
+static DECLARE_INTC_DESC(intc_desc, "sh770x", vectors, NULL,
 			 NULL, prio_registers, NULL);
 
 static struct resource rtc_resources[] = {
@@ -111,14 +93,6 @@ static struct resource rtc_resources[] = {
 		.flags  = IORESOURCE_IO,
 	},
 	[1] =	{
-		.start  = 21,
-		.flags	= IORESOURCE_IRQ,
-	},
-	[2] =	{
-		.start	= 22,
-		.flags	= IORESOURCE_IRQ,
-	},
-	[3] =	{
 		.start	= 20,
 		.flags  = IORESOURCE_IRQ,
 	},
@@ -136,7 +110,7 @@ static struct plat_sci_port sci_platform_data[] = {
 		.mapbase	= 0xfffffe80,
 		.flags		= UPF_BOOT_AUTOCONF,
 		.type		= PORT_SCI,
-		.irqs		= { 23, 24, 25, 0 },
+		.irqs		= { 23, 23, 23, 0 },
 	},
 #if defined(CONFIG_CPU_SUBTYPE_SH7706) || \
     defined(CONFIG_CPU_SUBTYPE_SH7707) || \
@@ -145,7 +119,7 @@ static struct plat_sci_port sci_platform_data[] = {
 		.mapbase	= 0xa4000150,
 		.flags		= UPF_BOOT_AUTOCONF,
 		.type		= PORT_SCIF,
-		.irqs		= { 56, 57, 59, 58 },
+		.irqs		= { 56, 56, 56, 56 },
 	},
 #endif
 #if defined(CONFIG_CPU_SUBTYPE_SH7707) || \
@@ -154,7 +128,7 @@ static struct plat_sci_port sci_platform_data[] = {
 		.mapbase	= 0xa4000140,
 		.flags		= UPF_BOOT_AUTOCONF,
 		.type		= PORT_IRDA,
-		.irqs		= { 52, 53, 55, 54 },
+		.irqs		= { 52, 52, 52, 52 },
 	},
 #endif
 	{

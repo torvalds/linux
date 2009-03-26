@@ -551,10 +551,7 @@ void flush_cache_range(struct vm_area_struct *vma,
 {
 	int sr3;
 
-	if (!vma->vm_mm->context) {
-		BUG();
-		return;
-	}
+	BUG_ON(!vma->vm_mm->context);
 
 	sr3 = mfsp(3);
 	if (vma->vm_mm->context == sr3) {
