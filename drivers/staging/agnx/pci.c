@@ -473,6 +473,7 @@ static int __devinit agnx_pci_probe(struct pci_dev *pdev,
 	if (pci_set_dma_mask(pdev, DMA_BIT_MASK(32)) ||
 	    pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32))) {
 		dev_err(&pdev->dev, "no suitable DMA available\n");
+		err = -EIO;
 		goto err_free_reg;
 	}
 
@@ -496,11 +497,13 @@ static int __devinit agnx_pci_probe(struct pci_dev *pdev,
 /*	dev_dbg(&pdev->dev, "MEM1 mapped address is 0x%p\n", priv->ctl); */
 	if (!priv->ctl) {
 		dev_err(&pdev->dev, "can't map device memory\n");
+		err = -ENOMEM;
 		goto err_free_dev;
 	}
 	priv->data = pci_iomap(pdev, 1, 0);
 	if (!priv->data) {
 		dev_err(&pdev->dev, "can't map device memory\n");
+		err = -ENOMEM;
 		goto err_iounmap2;
 	}
 
