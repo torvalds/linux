@@ -713,13 +713,15 @@ static void __init setup_hwcaps(void)
 	 * How many facility words are stored depends on the number of
 	 * doublewords passed to the instruction. The additional facilites
 	 * are:
-	 *   Bit 43: decimal floating point facility is installed
+	 *   Bit 42: decimal floating point facility is installed
+	 *   Bit 44: perform floating point operation facility is installed
 	 * translated to:
 	 *   HWCAP_S390_DFP bit 6.
 	 */
 	if ((elf_hwcap & (1UL << 2)) &&
 	    __stfle(&facility_list_extended, 1) > 0) {
-		if (facility_list_extended & (1ULL << (64 - 43)))
+		if ((facility_list_extended & (1ULL << (63 - 42)))
+		   && (facility_list_extended & (1ULL << (63 - 44))))
 			elf_hwcap |= 1UL << 6;
 	}
 
