@@ -479,6 +479,61 @@ static struct bin_attribute sysfs_sfp_attr = {
 	.read = qla2x00_sysfs_read_sfp,
 };
 
+static ssize_t
+qla2x00_sysfs_write_reset(struct kobject *kobj,
+			struct bin_attribute *bin_attr,
+			char *buf, loff_t off, size_t count)
+{
+	struct scsi_qla_host *vha = shost_priv(dev_to_shost(container_of(kobj,
+	    struct device, kobj)));
+	struct qla_hw_data *ha = vha->hw;
+	int type;
+
+	if (off != 0)
+		return 0;
+
+	type = simple_strtol(buf, NULL, 10);
+	switch (type) {
+	case 0x2025c:
+		qla_printk(KERN_INFO, ha,
+		    "Issuing ISP reset on (%ld).\n", vha->host_no);
+
+		scsi_block_requests(vha->host);
+		set_bit(ISP_ABORT_NEEDED, &vha->dpc_flags);
+		qla2xxx_wake_dpc(vha);
+		qla2x00_wait_for_chip_reset(vha);
+		scsi_unblock_requests(vha->host);
+		break;
+	case 0x2025d:
+		if (!IS_QLA81XX(ha))
+			break;
+
+		qla_printk(KERN_INFO, ha,
+		    "Issuing MPI reset on (%ld).\n", vha->host_no);
+
+		/* Make sure FC side is not in reset */
+		qla2x00_wait_for_hba_online(vha);
+
+		/* Issue MPI reset */
+		scsi_block_requests(vha->host);
+		if (qla81xx_restart_mpi_firmware(vha) != QLA_SUCCESS)
+			qla_printk(KERN_WARNING, ha,
+			    "MPI reset failed on (%ld).\n", vha->host_no);
+		scsi_unblock_requests(vha->host);
+		break;
+	}
+	return count;
+}
+
+static struct bin_attribute sysfs_reset_attr = {
+	.attr = {
+		.name = "reset",
+		.mode = S_IWUSR,
+	},
+	.size = 0,
+	.write = qla2x00_sysfs_write_reset,
+};
+
 static struct sysfs_entry {
 	char *name;
 	struct bin_attribute *attr;
@@ -490,6 +545,7 @@ static struct sysfs_entry {
 	{ "optrom_ctl", &sysfs_optrom_ctl_attr, },
 	{ "vpd", &sysfs_vpd_attr, 1 },
 	{ "sfp", &sysfs_sfp_attr, 1 },
+	{ "reset", &sysfs_reset_attr, },
 	{ NULL },
 };
 

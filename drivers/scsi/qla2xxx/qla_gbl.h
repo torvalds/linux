@@ -73,6 +73,7 @@ extern void qla2x00_abort_all_cmds(scsi_qla_host_t *, int);
 extern int qla2x00_post_aen_work(struct scsi_qla_host *, enum
     fc_host_event_code, u32);
 extern int qla2x00_post_idc_ack_work(struct scsi_qla_host *, uint16_t *);
+extern int qla81xx_restart_mpi_firmware(scsi_qla_host_t *);
 
 extern void qla2x00_abort_fcport_cmds(fc_port_t *);
 extern struct scsi_qla_host *qla2x00_create_host(struct scsi_host_template *,

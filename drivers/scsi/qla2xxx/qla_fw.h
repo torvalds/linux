@@ -1403,6 +1403,7 @@ struct access_chip_rsp_84xx {
 #define MBA_IDC_TIME_EXT	0x8102
 
 #define MBC_IDC_ACK		0x101
+#define MBC_RESTART_MPI_FW	0x3d
 #define MBC_FLASH_ACCESS_CTRL	0x3e	/* Control flash access. */
 
 /* Flash access control option field bit definitions */

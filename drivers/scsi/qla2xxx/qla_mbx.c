@@ -3325,3 +3325,29 @@ qla81xx_fac_erase_sector(scsi_qla_host_t *vha, uint32_t start, uint32_t finish)
 
 	return rval;
 }
+
+int
+qla81xx_restart_mpi_firmware(scsi_qla_host_t *vha)
+{
+	int rval = 0;
+	mbx_cmd_t mc;
+	mbx_cmd_t *mcp = &mc;
+
+	DEBUG11(printk("%s(%ld): entered.\n", __func__, vha->host_no));
+
+	mcp->mb[0] = MBC_RESTART_MPI_FW;
+	mcp->out_mb = MBX_0;
+	mcp->in_mb = MBX_0|MBX_1;
+	mcp->tov = MBX_TOV_SECONDS;
+	mcp->flags = 0;
+	rval = qla2x00_mailbox_command(vha, mcp);
+
+	if (rval != QLA_SUCCESS) {
+		DEBUG2_3_11(printk("%s(%ld): failed=%x mb[0]=0x%x mb[1]=0x%x.\n",
+		    __func__, vha->host_no, rval, mcp->mb[0], mcp->mb[1]));
+	} else {
+		DEBUG11(printk("%s(%ld): done.\n", __func__, vha->host_no));
+	}
+
+	return rval;
+}
