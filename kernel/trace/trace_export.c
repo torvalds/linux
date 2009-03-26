@@ -19,8 +19,12 @@
 #undef TRACE_STRUCT
 #define TRACE_STRUCT(args...) args
 
+extern void __bad_type_size(void);
+
 #undef TRACE_FIELD
 #define TRACE_FIELD(type, item, assign)					\
+	if (sizeof(type) != sizeof(field.item))				\
+		__bad_type_size();					\
 	ret = trace_seq_printf(s, "\tfield:" #type " " #item ";\t"	\
 			       "offset:%u;\tsize:%u;\n",		\
 			       (unsigned int)offsetof(typeof(field), item), \

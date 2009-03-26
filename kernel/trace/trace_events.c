@@ -381,8 +381,11 @@ event_enable_write(struct file *filp, const char __user *ubuf, size_t cnt,
 	return cnt;
 }
 
+extern char *__bad_type_size(void);
+
 #undef FIELD
 #define FIELD(type, name)						\
+	sizeof(type) != sizeof(field.name) ? __bad_type_size() :	\
 	#type, "common_" #name, offsetof(typeof(field), name),		\
 		sizeof(field.name)
 
