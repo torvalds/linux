@@ -133,6 +133,8 @@ void do_adapter_IO(u8 isc)
 		while (word) {
 			if (word & INDICATOR_MASK) {
 				airq = airqs[isc][i];
+				/* Make sure gcc reads from airqs only once. */
+				barrier();
 				if (likely(airq))
 					airq->handler(&indicators[isc].byte[i],
 						      airq->drv_data);
