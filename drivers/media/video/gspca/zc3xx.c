@@ -7629,7 +7629,7 @@ static const __devinitdata struct usb_device_id device_table[] = {
 	{USB_DEVICE(0x055f, 0xd004)},
 	{USB_DEVICE(0x0698, 0x2003)},
 	{USB_DEVICE(0x0ac8, 0x0301), .driver_info = SENSOR_PAS106},
-	{USB_DEVICE(0x0ac8, 0x0302)},
+	{USB_DEVICE(0x0ac8, 0x0302), .driver_info = SENSOR_PAS106},
 	{USB_DEVICE(0x0ac8, 0x301b)},
 	{USB_DEVICE(0x0ac8, 0x303b)},
 	{USB_DEVICE(0x0ac8, 0x305b), .driver_info = SENSOR_TAS5130C_VF0250},
