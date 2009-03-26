@@ -286,7 +286,7 @@ int kvm_arch_vcpu_setup(struct kvm_vcpu *vcpu)
 	setup_timer(&vcpu->arch.ckc_timer, kvm_s390_idle_wakeup,
 		 (unsigned long) vcpu);
 	get_cpu_id(&vcpu->arch.cpu_id);
-	vcpu->arch.cpu_id.version = 0xfe;
+	vcpu->arch.cpu_id.version = 0xff;
 	return 0;
 }
 
