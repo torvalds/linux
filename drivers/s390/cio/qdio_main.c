@@ -440,12 +440,16 @@ static inline void inbound_primed(struct qdio_q *q, int count)
 		/* reset the previous ACK but first set the new one */
 		set_buf_state(q, new, SLSB_P_INPUT_ACK);
 		set_buf_state(q, q->last_move_ftc, SLSB_P_INPUT_NOT_INIT);
-	}
-	else {
+	} else {
 		q->u.in.polling = 1;
-		set_buf_state(q, q->first_to_check, SLSB_P_INPUT_ACK);
+		set_buf_state(q, new, SLSB_P_INPUT_ACK);
 	}
 
+	/*
+	 * last_move_ftc points to the ACK'ed buffer and not to the last turns
+	 * first_to_check like for qebsm. Since it is only used to check if
+	 * the queue front moved in qdio_inbound_q_done this is not a problem.
+	 */
 	q->last_move_ftc = new;
 	count--;
 	if (!count)
@@ -455,7 +459,7 @@ static inline void inbound_primed(struct qdio_q *q, int count)
 	 * Need to change all PRIMED buffers to NOT_INIT, otherwise
 	 * we're loosing initiative in the thinint code.
 	 */
-	set_buf_states(q, next_buf(q->first_to_check), SLSB_P_INPUT_NOT_INIT,
+	set_buf_states(q, q->first_to_check, SLSB_P_INPUT_NOT_INIT,
 		       count);
 }
 
@@ -1480,7 +1484,6 @@ static void handle_inbound(struct qdio_q *q, unsigned int callflags,
 			if (q->u.in.ack_count <= 0) {
 				q->u.in.polling = 0;
 				q->u.in.ack_count = 0;
-				/* TODO: must we set last_move_ftc to something meaningful? */
 				goto set;
 			}
 			q->last_move_ftc = add_buf(q->last_move_ftc, diff);
