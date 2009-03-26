@@ -406,8 +406,17 @@ struct rndis_wext_private {
 	u8 command_buffer[COMMAND_BUFFER_SIZE];
 };
 
+/*
+ * cfg80211 ops
+ */
+static int rndis_change_virtual_intf(struct wiphy *wiphy, int ifindex,
+					enum nl80211_iftype type, u32 *flags,
+					struct vif_params *params);
 
-struct cfg80211_ops rndis_config_ops = { };
+struct cfg80211_ops rndis_config_ops = {
+	.change_virtual_intf = rndis_change_virtual_intf,
+};
+
 void *rndis_wiphy_privid = &rndis_wiphy_privid;
 
 static const int bcm4320_power_output[4] = { 25, 50, 75, 100 };
@@ -1125,6 +1134,37 @@ static void set_multicast_list(struct usbnet *usbdev)
 
 
 /*
+ * cfg80211 ops
+ */
+static int rndis_change_virtual_intf(struct wiphy *wiphy, int ifindex,
+					enum nl80211_iftype type, u32 *flags,
+					struct vif_params *params)
+{
+	struct net_device *dev;
+	struct usbnet *usbdev;
+	int mode;
+
+	/* we're under RTNL */
+	dev = __dev_get_by_index(&init_net, ifindex);
+	if (!dev)
+		return -ENODEV;
+	usbdev = netdev_priv(dev);
+
+	switch (type) {
+	case NL80211_IFTYPE_ADHOC:
+		mode = ndis_80211_infra_adhoc;
+		break;
+	case NL80211_IFTYPE_STATION:
+		mode = ndis_80211_infra_infra;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return set_infra_mode(usbdev, mode);
+}
+
+/*
  * wireless extension handlers
  */
 
@@ -1447,55 +1487,6 @@ static int rndis_iw_get_auth(struct net_device *dev,
 		return -EOPNOTSUPP;
 	}
 	return 0;
-}
-
-
-static int rndis_iw_get_mode(struct net_device *dev,
-				struct iw_request_info *info,
-				union iwreq_data *wrqu, char *extra)
-{
-	struct usbnet *usbdev = netdev_priv(dev);
-	struct rndis_wext_private *priv = get_rndis_wext_priv(usbdev);
-
-	switch (priv->infra_mode) {
-	case ndis_80211_infra_adhoc:
-		wrqu->mode = IW_MODE_ADHOC;
-		break;
-	case ndis_80211_infra_infra:
-		wrqu->mode = IW_MODE_INFRA;
-		break;
-	/*case ndis_80211_infra_auto_unknown:*/
-	default:
-		wrqu->mode = IW_MODE_AUTO;
-		break;
-	}
-	devdbg(usbdev, "SIOCGIWMODE: %08x", wrqu->mode);
-	return 0;
-}
-
-
-static int rndis_iw_set_mode(struct net_device *dev,
-    struct iw_request_info *info, union iwreq_data *wrqu, char *extra)
-{
-	struct usbnet *usbdev = netdev_priv(dev);
-	int mode;
-
-	devdbg(usbdev, "SIOCSIWMODE: %08x", wrqu->mode);
-
-	switch (wrqu->mode) {
-	case IW_MODE_ADHOC:
-		mode = ndis_80211_infra_adhoc;
-		break;
-	case IW_MODE_INFRA:
-		mode = ndis_80211_infra_infra;
-		break;
-	/*case IW_MODE_AUTO:*/
-	default:
-		mode = ndis_80211_infra_auto_unknown;
-		break;
-	}
-
-	return set_infra_mode(usbdev, mode);
 }
 
 
@@ -2196,8 +2187,8 @@ static const iw_handler rndis_iw_handler[] =
 	IW_IOCTL(SIOCGIWNAME)      = (iw_handler) cfg80211_wext_giwname,
 	IW_IOCTL(SIOCSIWFREQ)      = rndis_iw_set_freq,
 	IW_IOCTL(SIOCGIWFREQ)      = rndis_iw_get_freq,
-	IW_IOCTL(SIOCSIWMODE)      = rndis_iw_set_mode,
-	IW_IOCTL(SIOCGIWMODE)      = rndis_iw_get_mode,
+	IW_IOCTL(SIOCSIWMODE)      = (iw_handler) cfg80211_wext_siwmode,
+	IW_IOCTL(SIOCGIWMODE)      = (iw_handler) cfg80211_wext_giwmode,
 	IW_IOCTL(SIOCGIWRANGE)     = rndis_iw_get_range,
 	IW_IOCTL(SIOCSIWAP)        = rndis_iw_set_bssid,
 	IW_IOCTL(SIOCGIWAP)        = rndis_iw_get_bssid,
