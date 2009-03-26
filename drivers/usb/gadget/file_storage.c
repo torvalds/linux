@@ -1711,7 +1711,9 @@ static int do_write(struct fsg_dev *fsg)
 		curlun->sense_data = SS_WRITE_PROTECTED;
 		return -EINVAL;
 	}
+	spin_lock(&curlun->filp->f_lock);
 	curlun->filp->f_flags &= ~O_SYNC;	// Default is not to wait
+	spin_unlock(&curlun->filp->f_lock);
 
 	/* Get the starting Logical Block Address and check that it's
 	 * not too big */
@@ -1728,8 +1730,11 @@ static int do_write(struct fsg_dev *fsg)
 			curlun->sense_data = SS_INVALID_FIELD_IN_CDB;
 			return -EINVAL;
 		}
-		if (fsg->cmnd[1] & 0x08)	// FUA
+		if (fsg->cmnd[1] & 0x08) {	// FUA
+			spin_lock(&curlun->filp->f_lock);
 			curlun->filp->f_flags |= O_SYNC;
+			spin_unlock(&curlun->filp->f_lock);
+		}
 	}
 	if (lba >= curlun->num_sectors) {
 		curlun->sense_data = SS_LOGICAL_BLOCK_ADDRESS_OUT_OF_RANGE;

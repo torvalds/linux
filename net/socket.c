@@ -1074,6 +1074,13 @@ static int sock_fasync(int fd, struct file *filp, int on)
 
 	lock_sock(sk);
 
+	spin_lock(&filp->f_lock);
+	if (on)
+		filp->f_flags |= FASYNC;
+	else
+		filp->f_flags &= ~FASYNC;
+	spin_unlock(&filp->f_lock);
+
 	prev = &(sock->fasync_list);
 
 	for (fa = *prev; fa != NULL; prev = &fa->fa_next, fa = *prev)
