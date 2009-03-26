@@ -1093,7 +1093,6 @@ svc_process(struct svc_rqst *rqstp)
 	procp = versp->vs_proc + proc;
 	if (proc >= versp->vs_nproc || !procp->pc_func)
 		goto err_bad_proc;
-	rqstp->rq_server   = serv;
 	rqstp->rq_procinfo = procp;
 
 	/* Syntactic check complete */
