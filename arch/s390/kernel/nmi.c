@@ -59,28 +59,23 @@ void s390_handle_mcck(void)
 
 	if (mcck.channel_report)
 		crw_handle_channel_report();
-
-#ifdef CONFIG_MACHCHK_WARNING
-/*
- * The warning may remain for a prolonged period on the bare iron.
- * (actually till the machine is powered off, or until the problem is gone)
- * So we just stop listening for the WARNING MCH and prevent continuously
- * being interrupted.  One caveat is however, that we must do this per
- * processor and cannot use the smp version of ctl_clear_bit().
- * On VM we only get one interrupt per virtally presented machinecheck.
- * Though one suffices, we may get one interrupt per (virtual) processor.
- */
+	/*
+	 * A warning may remain for a prolonged period on the bare iron.
+	 * (actually until the machine is powered off, or the problem is gone)
+	 * So we just stop listening for the WARNING MCH and avoid continuously
+	 * being interrupted.  One caveat is however, that we must do this per
+	 * processor and cannot use the smp version of ctl_clear_bit().
+	 * On VM we only get one interrupt per virtally presented machinecheck.
+	 * Though one suffices, we may get one interrupt per (virtual) cpu.
+	 */
 	if (mcck.warning) {	/* WARNING pending ? */
 		static int mchchk_wng_posted = 0;
-		/*
-		 * Use single machine clear, as we cannot handle smp right now
-		 */
+
+		/* Use single cpu clear, as we cannot handle smp here. */
 		__ctl_clear_bit(14, 24);	/* Disable WARNING MCH */
 		if (xchg(&mchchk_wng_posted, 1) == 0)
 			kill_cad_pid(SIGPWR, 1);
 	}
-#endif
-
 	if (mcck.kill_task) {
 		local_irq_enable();
 		printk(KERN_EMERG "mcck: Terminating task because of machine "
@@ -375,9 +370,7 @@ static int __init machine_check_init(void)
 {
 	ctl_set_bit(14, 25);	/* enable external damage MCH */
 	ctl_set_bit(14, 27);	/* enable system recovery MCH */
-#ifdef CONFIG_MACHCHK_WARNING
 	ctl_set_bit(14, 24);	/* enable warning MCH */
-#endif
 	return 0;
 }
 arch_initcall(machine_check_init);
