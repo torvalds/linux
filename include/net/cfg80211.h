@@ -4,6 +4,10 @@
 #include <linux/netlink.h>
 #include <linux/skbuff.h>
 #include <linux/nl80211.h>
+#include <linux/if_ether.h>
+#include <linux/ieee80211.h>
+#include <linux/wireless.h>
+#include <net/iw_handler.h>
 #include <net/genetlink.h>
 /* remove once we remove the wext stuff */
 #include <net/iw_handler.h>
@@ -112,12 +116,14 @@ struct beacon_parameters {
  * @STATION_FLAG_SHORT_PREAMBLE: station is capable of receiving frames
  *	with short preambles
  * @STATION_FLAG_WME: station is WME/QoS capable
+ * @STATION_FLAG_MFP: station uses management frame protection
  */
 enum station_flags {
 	STATION_FLAG_CHANGED		= 1<<0,
 	STATION_FLAG_AUTHORIZED		= 1<<NL80211_STA_FLAG_AUTHORIZED,
 	STATION_FLAG_SHORT_PREAMBLE	= 1<<NL80211_STA_FLAG_SHORT_PREAMBLE,
 	STATION_FLAG_WME		= 1<<NL80211_STA_FLAG_WME,
+	STATION_FLAG_MFP		= 1<<NL80211_STA_FLAG_MFP,
 };
 
 /**
@@ -172,6 +178,8 @@ struct station_parameters {
  * @STATION_INFO_SIGNAL: @signal filled
  * @STATION_INFO_TX_BITRATE: @tx_bitrate fields are filled
  *  (tx_bitrate, tx_bitrate_flags and tx_bitrate_mcs)
+ * @STATION_INFO_RX_PACKETS: @rx_packets filled
+ * @STATION_INFO_TX_PACKETS: @tx_packets filled
  */
 enum station_info_flags {
 	STATION_INFO_INACTIVE_TIME	= 1<<0,
@@ -182,6 +190,8 @@ enum station_info_flags {
 	STATION_INFO_PLINK_STATE	= 1<<5,
 	STATION_INFO_SIGNAL		= 1<<6,
 	STATION_INFO_TX_BITRATE		= 1<<7,
+	STATION_INFO_RX_PACKETS		= 1<<8,
+	STATION_INFO_TX_PACKETS		= 1<<9,
 };
 
 /**
@@ -229,6 +239,8 @@ struct rate_info {
  * @plink_state: mesh peer link state
  * @signal: signal strength of last received packet in dBm
  * @txrate: current unicast bitrate to this station
+ * @rx_packets: packets received from this station
+ * @tx_packets: packets transmitted to this station
  */
 struct station_info {
 	u32 filled;
@@ -240,6 +252,8 @@ struct station_info {
 	u8 plink_state;
 	s8 signal;
 	struct rate_info txrate;
+	u32 rx_packets;
+	u32 tx_packets;
 };
 
 /**
@@ -335,24 +349,50 @@ struct bss_parameters {
 };
 
 /**
- * enum reg_set_by - Indicates who is trying to set the regulatory domain
- * @REGDOM_SET_BY_INIT: regulatory domain was set by initialization. We will be
- * 	using a static world regulatory domain by default.
- * @REGDOM_SET_BY_CORE: Core queried CRDA for a dynamic world regulatory domain.
- * @REGDOM_SET_BY_USER: User asked the wireless core to set the
- * 	regulatory domain.
- * @REGDOM_SET_BY_DRIVER: a wireless drivers has hinted to the wireless core
- *	it thinks its knows the regulatory domain we should be in.
- * @REGDOM_SET_BY_COUNTRY_IE: the wireless core has received an 802.11 country
- *	information element with regulatory information it thinks we
- *	should consider.
+ * enum environment_cap - Environment parsed from country IE
+ * @ENVIRON_ANY: indicates country IE applies to both indoor and
+ *	outdoor operation.
+ * @ENVIRON_INDOOR: indicates country IE applies only to indoor operation
+ * @ENVIRON_OUTDOOR: indicates country IE applies only to outdoor operation
  */
-enum reg_set_by {
-	REGDOM_SET_BY_INIT,
-	REGDOM_SET_BY_CORE,
-	REGDOM_SET_BY_USER,
-	REGDOM_SET_BY_DRIVER,
-	REGDOM_SET_BY_COUNTRY_IE,
+enum environment_cap {
+	ENVIRON_ANY,
+	ENVIRON_INDOOR,
+	ENVIRON_OUTDOOR,
+};
+
+/**
+ * struct regulatory_request - used to keep track of regulatory requests
+ *
+ * @wiphy_idx: this is set if this request's initiator is
+ * 	%REGDOM_SET_BY_COUNTRY_IE or %REGDOM_SET_BY_DRIVER. This
+ * 	can be used by the wireless core to deal with conflicts
+ * 	and potentially inform users of which devices specifically
+ * 	cased the conflicts.
+ * @initiator: indicates who sent this request, could be any of
+ * 	of those set in nl80211_reg_initiator (%NL80211_REGDOM_SET_BY_*)
+ * @alpha2: the ISO / IEC 3166 alpha2 country code of the requested
+ * 	regulatory domain. We have a few special codes:
+ * 	00 - World regulatory domain
+ * 	99 - built by driver but a specific alpha2 cannot be determined
+ * 	98 - result of an intersection between two regulatory domains
+ * @intersect: indicates whether the wireless core should intersect
+ * 	the requested regulatory domain with the presently set regulatory
+ * 	domain.
+ * @country_ie_checksum: checksum of the last processed and accepted
+ * 	country IE
+ * @country_ie_env: lets us know if the AP is telling us we are outdoor,
+ * 	indoor, or if it doesn't matter
+ * @list: used to insert into the reg_requests_list linked list
+ */
+struct regulatory_request {
+	int wiphy_idx;
+	enum nl80211_reg_initiator initiator;
+	char alpha2[2];
+	bool intersect;
+	u32 country_ie_checksum;
+	enum environment_cap country_ie_env;
+	struct list_head list;
 };
 
 struct ieee80211_freq_range {
@@ -431,11 +471,112 @@ struct ieee80211_txq_params {
 	u8 aifs;
 };
 
+/**
+ * struct mgmt_extra_ie_params - Extra management frame IE parameters
+ *
+ * Used to add extra IE(s) into management frames. If the driver cannot add the
+ * requested data into all management frames of the specified subtype that are
+ * generated in kernel or firmware/hardware, it must reject the configuration
+ * call. The IE data buffer is added to the end of the specified management
+ * frame body after all other IEs. This addition is not applied to frames that
+ * are injected through a monitor interface.
+ *
+ * @subtype: Management frame subtype
+ * @ies: IE data buffer or %NULL to remove previous data
+ * @ies_len: Length of @ies in octets
+ */
+struct mgmt_extra_ie_params {
+	u8 subtype;
+	u8 *ies;
+	int ies_len;
+};
+
 /* from net/wireless.h */
 struct wiphy;
 
 /* from net/ieee80211.h */
 struct ieee80211_channel;
+
+/**
+ * struct cfg80211_ssid - SSID description
+ * @ssid: the SSID
+ * @ssid_len: length of the ssid
+ */
+struct cfg80211_ssid {
+	u8 ssid[IEEE80211_MAX_SSID_LEN];
+	u8 ssid_len;
+};
+
+/**
+ * struct cfg80211_scan_request - scan request description
+ *
+ * @ssids: SSIDs to scan for (active scan only)
+ * @n_ssids: number of SSIDs
+ * @channels: channels to scan on.
+ * @n_channels: number of channels for each band
+ * @ie: optional information element(s) to add into Probe Request or %NULL
+ * @ie_len: length of ie in octets
+ * @wiphy: the wiphy this was for
+ * @ifidx: the interface index
+ */
+struct cfg80211_scan_request {
+	struct cfg80211_ssid *ssids;
+	int n_ssids;
+	struct ieee80211_channel **channels;
+	u32 n_channels;
+	u8 *ie;
+	size_t ie_len;
+
+	/* internal */
+	struct wiphy *wiphy;
+	int ifidx;
+};
+
+/**
+ * enum cfg80211_signal_type - signal type
+ *
+ * @CFG80211_SIGNAL_TYPE_NONE: no signal strength information available
+ * @CFG80211_SIGNAL_TYPE_MBM: signal strength in mBm (100*dBm)
+ * @CFG80211_SIGNAL_TYPE_UNSPEC: signal strength, increasing from 0 through 100
+ */
+enum cfg80211_signal_type {
+	CFG80211_SIGNAL_TYPE_NONE,
+	CFG80211_SIGNAL_TYPE_MBM,
+	CFG80211_SIGNAL_TYPE_UNSPEC,
+};
+
+/**
+ * struct cfg80211_bss - BSS description
+ *
+ * This structure describes a BSS (which may also be a mesh network)
+ * for use in scan results and similar.
+ *
+ * @bssid: BSSID of the BSS
+ * @tsf: timestamp of last received update
+ * @beacon_interval: the beacon interval as from the frame
+ * @capability: the capability field in host byte order
+ * @information_elements: the information elements (Note that there
+ *	is no guarantee that these are well-formed!)
+ * @len_information_elements: total length of the information elements
+ * @signal: signal strength value (type depends on the wiphy's signal_type)
+ * @free_priv: function pointer to free private data
+ * @priv: private area for driver use, has at least wiphy->bss_priv_size bytes
+ */
+struct cfg80211_bss {
+	struct ieee80211_channel *channel;
+
+	u8 bssid[ETH_ALEN];
+	u64 tsf;
+	u16 beacon_interval;
+	u16 capability;
+	u8 *information_elements;
+	size_t len_information_elements;
+
+	s32 signal;
+
+	void (*free_priv)(struct cfg80211_bss *bss);
+	u8 priv[0] __attribute__((__aligned__(sizeof(void *))));
+};
 
 /**
  * struct cfg80211_ops - backend description for wireless configuration
@@ -449,6 +590,9 @@ struct ieee80211_channel;
  * All operations are currently invoked under rtnl for consistency with the
  * wireless extensions but this is subject to reevaluation as soon as this
  * code is used more widely and we have a first user without wext.
+ *
+ * @suspend: wiphy device needs to be suspended
+ * @resume: wiphy device needs to be resumed
  *
  * @add_virtual_intf: create a new virtual interface with the given name,
  *	must set the struct wireless_dev's iftype.
@@ -470,6 +614,8 @@ struct ieee80211_channel;
  *	and @key_index
  *
  * @set_default_key: set the default key on an interface
+ *
+ * @set_default_mgmt_key: set the default management frame key on an interface
  *
  * @add_beacon: Add a beacon with given parameters, @head, @interval
  *	and @dtim_period will be valid, @tail is optional.
@@ -497,8 +643,18 @@ struct ieee80211_channel;
  * @set_txq_params: Set TX queue parameters
  *
  * @set_channel: Set channel
+ *
+ * @set_mgmt_extra_ie: Set extra IE data for management frames
+ *
+ * @scan: Request to do a scan. If returning zero, the scan request is given
+ *	the driver, and will be valid until passed to cfg80211_scan_done().
+ *	For scan results, call cfg80211_inform_bss(); you can call this outside
+ *	the scan/scan_done bracket too.
  */
 struct cfg80211_ops {
+	int	(*suspend)(struct wiphy *wiphy);
+	int	(*resume)(struct wiphy *wiphy);
+
 	int	(*add_virtual_intf)(struct wiphy *wiphy, char *name,
 				    enum nl80211_iftype type, u32 *flags,
 				    struct vif_params *params);
@@ -518,6 +674,9 @@ struct cfg80211_ops {
 	int	(*set_default_key)(struct wiphy *wiphy,
 				   struct net_device *netdev,
 				   u8 key_index);
+	int	(*set_default_mgmt_key)(struct wiphy *wiphy,
+					struct net_device *netdev,
+					u8 key_index);
 
 	int	(*add_beacon)(struct wiphy *wiphy, struct net_device *dev,
 			      struct beacon_parameters *info);
@@ -564,6 +723,13 @@ struct cfg80211_ops {
 	int	(*set_channel)(struct wiphy *wiphy,
 			       struct ieee80211_channel *chan,
 			       enum nl80211_channel_type channel_type);
+
+	int	(*set_mgmt_extra_ie)(struct wiphy *wiphy,
+				     struct net_device *dev,
+				     struct mgmt_extra_ie_params *params);
+
+	int	(*scan)(struct wiphy *wiphy, struct net_device *dev,
+			struct cfg80211_scan_request *request);
 };
 
 /* temporary wext handlers */
@@ -574,5 +740,71 @@ int cfg80211_wext_siwmode(struct net_device *dev, struct iw_request_info *info,
 			  u32 *mode, char *extra);
 int cfg80211_wext_giwmode(struct net_device *dev, struct iw_request_info *info,
 			  u32 *mode, char *extra);
+int cfg80211_wext_siwscan(struct net_device *dev,
+			  struct iw_request_info *info,
+			  union iwreq_data *wrqu, char *extra);
+int cfg80211_wext_giwscan(struct net_device *dev,
+			  struct iw_request_info *info,
+			  struct iw_point *data, char *extra);
+int cfg80211_wext_giwrange(struct net_device *dev,
+			   struct iw_request_info *info,
+			   struct iw_point *data, char *extra);
+
+/**
+ * cfg80211_scan_done - notify that scan finished
+ *
+ * @request: the corresponding scan request
+ * @aborted: set to true if the scan was aborted for any reason,
+ *	userspace will be notified of that
+ */
+void cfg80211_scan_done(struct cfg80211_scan_request *request, bool aborted);
+
+/**
+ * cfg80211_inform_bss - inform cfg80211 of a new BSS
+ *
+ * @wiphy: the wiphy reporting the BSS
+ * @bss: the found BSS
+ * @signal: the signal strength, type depends on the wiphy's signal_type
+ * @gfp: context flags
+ *
+ * This informs cfg80211 that BSS information was found and
+ * the BSS should be updated/added.
+ */
+struct cfg80211_bss*
+cfg80211_inform_bss_frame(struct wiphy *wiphy,
+			  struct ieee80211_channel *channel,
+			  struct ieee80211_mgmt *mgmt, size_t len,
+			  s32 signal, gfp_t gfp);
+
+struct cfg80211_bss *cfg80211_get_bss(struct wiphy *wiphy,
+				      struct ieee80211_channel *channel,
+				      const u8 *bssid,
+				      const u8 *ssid, size_t ssid_len,
+				      u16 capa_mask, u16 capa_val);
+static inline struct cfg80211_bss *
+cfg80211_get_ibss(struct wiphy *wiphy,
+		  struct ieee80211_channel *channel,
+		  const u8 *ssid, size_t ssid_len)
+{
+	return cfg80211_get_bss(wiphy, channel, NULL, ssid, ssid_len,
+				WLAN_CAPABILITY_IBSS, WLAN_CAPABILITY_IBSS);
+}
+
+struct cfg80211_bss *cfg80211_get_mesh(struct wiphy *wiphy,
+				       struct ieee80211_channel *channel,
+				       const u8 *meshid, size_t meshidlen,
+				       const u8 *meshcfg);
+void cfg80211_put_bss(struct cfg80211_bss *bss);
+/**
+ * cfg80211_unlink_bss - unlink BSS from internal data structures
+ * @wiphy: the wiphy
+ * @bss: the bss to remove
+ *
+ * This function removes the given BSS from the internal data structures
+ * thereby making it no longer show up in scan results etc. Use this
+ * function when you detect a BSS is gone. Normally BSSes will also time
+ * out, so it is not necessary to use this function at all.
+ */
+void cfg80211_unlink_bss(struct wiphy *wiphy, struct cfg80211_bss *bss);
 
 #endif /* __NET_CFG80211_H */

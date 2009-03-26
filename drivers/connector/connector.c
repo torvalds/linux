@@ -1,9 +1,9 @@
 /*
  * 	connector.c
- * 
+ *
  * 2004-2005 Copyright (c) Evgeniy Polyakov <johnpol@2ka.mipt.ru>
  * All rights reserved.
- * 
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
@@ -145,14 +145,13 @@ static int cn_call_callback(struct cn_msg *msg, void (*destruct_data)(void *), v
 				__cbq->data.ddata = data;
 				__cbq->data.destruct_data = destruct_data;
 
-				if (queue_work(dev->cbdev->cn_queue,
-							&__cbq->work))
+				if (queue_cn_work(__cbq, &__cbq->work))
 					err = 0;
 				else
 					err = -EINVAL;
 			} else {
 				struct cn_callback_data *d;
-				
+
 				err = -ENOMEM;
 				__new_cbq = kzalloc(sizeof(struct cn_callback_entry), GFP_ATOMIC);
 				if (__new_cbq) {
@@ -163,10 +162,12 @@ static int cn_call_callback(struct cn_msg *msg, void (*destruct_data)(void *), v
 					d->destruct_data = destruct_data;
 					d->free = __new_cbq;
 
+					__new_cbq->pdev = __cbq->pdev;
+
 					INIT_WORK(&__new_cbq->work,
 							&cn_queue_wrapper);
 
-					if (queue_work(dev->cbdev->cn_queue,
+					if (queue_cn_work(__new_cbq,
 						    &__new_cbq->work))
 						err = 0;
 					else {
@@ -237,7 +238,7 @@ static void cn_notify(struct cb_id *id, u32 notify_event)
 
 		req = (struct cn_notify_req *)ctl->data;
 		for (i = 0; i < ctl->idx_notify_num; ++i, ++req) {
-			if (id->idx >= req->first && 
+			if (id->idx >= req->first &&
 					id->idx < req->first + req->range) {
 				idx_found = 1;
 				break;
@@ -245,7 +246,7 @@ static void cn_notify(struct cb_id *id, u32 notify_event)
 		}
 
 		for (i = 0; i < ctl->val_notify_num; ++i, ++req) {
-			if (id->val >= req->first && 
+			if (id->val >= req->first &&
 					id->val < req->first + req->range) {
 				val_found = 1;
 				break;
@@ -459,7 +460,7 @@ static int __devinit cn_init(void)
 		netlink_kernel_release(dev->nls);
 		return -EINVAL;
 	}
-	
+
 	cn_already_initialized = 1;
 
 	err = cn_add_callback(&dev->id, "connector", &cn_callback);

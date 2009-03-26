@@ -14,6 +14,9 @@
 #include "ssb_private.h"
 
 
+static const struct ssb_sprom *fallback_sprom;
+
+
 static int sprom2hex(const u16 *sprom, char *buf, size_t buf_len,
 		     size_t sprom_size_words)
 {
@@ -130,4 +133,37 @@ out:
 	if (res)
 		return res;
 	return err ? err : count;
+}
+
+/**
+ * ssb_arch_set_fallback_sprom - Set a fallback SPROM for use if no SPROM is found.
+ *
+ * @sprom: The SPROM data structure to register.
+ *
+ * With this function the architecture implementation may register a fallback
+ * SPROM data structure. The fallback is only used for PCI based SSB devices,
+ * where no valid SPROM can be found in the shadow registers.
+ *
+ * This function is useful for weird architectures that have a half-assed SSB device
+ * hardwired to their PCI bus.
+ *
+ * Note that it does only work with PCI attached SSB devices. PCMCIA devices currently
+ * don't use this fallback.
+ * Architectures must provide the SPROM for native SSB devices anyway,
+ * so the fallback also isn't used for native devices.
+ *
+ * This function is available for architecture code, only. So it is not exported.
+ */
+int ssb_arch_set_fallback_sprom(const struct ssb_sprom *sprom)
+{
+	if (fallback_sprom)
+		return -EEXIST;
+	fallback_sprom = sprom;
+
+	return 0;
+}
+
+const struct ssb_sprom *ssb_get_fallback_sprom(void)
+{
+	return fallback_sprom;
 }

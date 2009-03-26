@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2005 - 2008 Intel Corporation. All rights reserved.
+ * Copyright(c) 2005 - 2009 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -30,7 +30,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2005 - 2008 Intel Corporation. All rights reserved.
+ * Copyright(c) 2005 - 2009 Intel Corporation. All rights reserved.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -89,64 +89,43 @@
 #define LONG_SLOT_TIME 20
 
 /* RSSI to dBm */
-#define IWL_RSSI_OFFSET	44
-
+#define IWL49_RSSI_OFFSET	44
 
 
 /* PCI registers */
 #define PCI_CFG_RETRY_TIMEOUT	0x041
-#define PCI_CFG_POWER_SOURCE	0x0C8
-#define PCI_REG_WUM8		0x0E8
-#define PCI_CFG_LINK_CTRL	0x0F0
 
 /* PCI register values */
 #define PCI_CFG_LINK_CTRL_VAL_L0S_EN	0x01
 #define PCI_CFG_LINK_CTRL_VAL_L1_EN	0x02
-#define PCI_CFG_CMD_REG_INT_DIS_MSK	0x04
-#define PCI_CFG_PMC_PME_FROM_D3COLD_SUPPORT         (0x80000000)
-
 
 #define IWL_NUM_SCAN_RATES         (2)
 
 #define IWL_DEFAULT_TX_RETRY  15
 
-#define RX_QUEUE_SIZE                         256
-#define RX_QUEUE_MASK                         255
-#define RX_QUEUE_SIZE_LOG                     8
-
-#define TFD_TX_CMD_SLOTS 256
-#define TFD_CMD_SLOTS 32
-
-/*
- * RX related structures and functions
- */
-#define RX_FREE_BUFFERS 64
-#define RX_LOW_WATERMARK 8
-
-/* Size of one Rx buffer in host DRAM */
-#define IWL_RX_BUF_SIZE_4K (4 * 1024)
-#define IWL_RX_BUF_SIZE_8K (8 * 1024)
 
 /* Sizes and addresses for instruction and data memory (SRAM) in
  * 4965's embedded processor.  Driver access is via HBUS_TARG_MEM_* regs. */
-#define RTC_INST_LOWER_BOUND			(0x000000)
+#define IWL49_RTC_INST_LOWER_BOUND		(0x000000)
 #define IWL49_RTC_INST_UPPER_BOUND		(0x018000)
 
-#define RTC_DATA_LOWER_BOUND			(0x800000)
+#define IWL49_RTC_DATA_LOWER_BOUND		(0x800000)
 #define IWL49_RTC_DATA_UPPER_BOUND		(0x80A000)
 
-#define IWL49_RTC_INST_SIZE  (IWL49_RTC_INST_UPPER_BOUND - RTC_INST_LOWER_BOUND)
-#define IWL49_RTC_DATA_SIZE  (IWL49_RTC_DATA_UPPER_BOUND - RTC_DATA_LOWER_BOUND)
+#define IWL49_RTC_INST_SIZE  (IWL49_RTC_INST_UPPER_BOUND - \
+				IWL49_RTC_INST_LOWER_BOUND)
+#define IWL49_RTC_DATA_SIZE  (IWL49_RTC_DATA_UPPER_BOUND - \
+				IWL49_RTC_DATA_LOWER_BOUND)
 
-#define IWL_MAX_INST_SIZE IWL49_RTC_INST_SIZE
-#define IWL_MAX_DATA_SIZE IWL49_RTC_DATA_SIZE
+#define IWL49_MAX_INST_SIZE IWL49_RTC_INST_SIZE
+#define IWL49_MAX_DATA_SIZE IWL49_RTC_DATA_SIZE
 
 /* Size of uCode instruction memory in bootstrap state machine */
-#define IWL_MAX_BSM_SIZE BSM_SRAM_SIZE
+#define IWL49_MAX_BSM_SIZE BSM_SRAM_SIZE
 
 static inline int iwl4965_hw_valid_rtc_data_addr(u32 addr)
 {
-	return (addr >= RTC_DATA_LOWER_BOUND) &&
+	return (addr >= IWL49_RTC_DATA_LOWER_BOUND) &&
 	       (addr < IWL49_RTC_DATA_UPPER_BOUND);
 }
 

@@ -830,7 +830,7 @@ static struct iw_statistics *lbs_get_wireless_stats(struct net_device *dev)
 	quality = rssi_qual;
 
 	/* Quality by TX errors */
-	priv->wstats.discard.retries = priv->stats.tx_errors;
+	priv->wstats.discard.retries = dev->stats.tx_errors;
 
 	memset(&log, 0, sizeof(log));
 	log.hdr.size = cpu_to_le16(sizeof(log));

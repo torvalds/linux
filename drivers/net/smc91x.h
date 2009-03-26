@@ -1141,6 +1141,16 @@ static const char * chip_ids[ 16 ] =  {
 
 #define SMC_GET_MII(lp)		SMC_inw(ioaddr, MII_REG(lp))
 
+#define SMC_GET_GP(lp)		SMC_inw(ioaddr, GP_REG(lp))
+
+#define SMC_SET_GP(lp, x)						\
+	do {								\
+		if (SMC_MUST_ALIGN_WRITE(lp))				\
+			SMC_outl((x)<<16, ioaddr, SMC_REG(lp, 8, 1));	\
+		else							\
+			SMC_outw(x, ioaddr, GP_REG(lp));		\
+	} while (0)
+
 #define SMC_SET_MII(lp, x)		SMC_outw(x, ioaddr, MII_REG(lp))
 
 #define SMC_GET_MIR(lp)		SMC_inw(ioaddr, MIR_REG(lp))

@@ -379,7 +379,7 @@ static struct xt_target ulog_tg_reg __read_mostly = {
 	.me		= THIS_MODULE,
 };
 
-static struct nf_logger ipt_ulog_logger = {
+static struct nf_logger ipt_ulog_logger __read_mostly = {
 	.name		= "ipt_ULOG",
 	.logfn		= ipt_logfn,
 	.me		= THIS_MODULE,

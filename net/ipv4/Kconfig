@@ -35,7 +35,7 @@ config IP_ADVANCED_ROUTER
 
 	  at boot time after the /proc file system has been mounted.
 
-	  If you turn on IP forwarding, you will also get the rp_filter, which
+	  If you turn on IP forwarding, you should consider the rp_filter, which
 	  automatically rejects incoming packets if the routing table entry
 	  for their source address doesn't match the network interface they're
 	  arriving on. This has security advantages because it prevents the
@@ -46,12 +46,16 @@ config IP_ADVANCED_ROUTER
 	  rp_filter on use:
 
 	  echo 1 > /proc/sys/net/ipv4/conf/<device>/rp_filter
-	  or
+	   and
 	  echo 1 > /proc/sys/net/ipv4/conf/all/rp_filter
+
+	  Note that some distributions enable it in startup scripts.
+	  For details about rp_filter strict and loose mode read
+	  <file:Documentation/networking/ip-sysctl.txt>.
 
 	  If unsure, say N here.
 
-choice 
+choice
 	prompt "Choose IP: FIB lookup algorithm (choose FIB_HASH if unsure)"
 	depends on IP_ADVANCED_ROUTER
 	default ASK_IP_FIB_HASH
@@ -59,27 +63,29 @@ choice
 config ASK_IP_FIB_HASH
 	bool "FIB_HASH"
 	---help---
-	Current FIB is very proven and good enough for most users.
+	  Current FIB is very proven and good enough for most users.
 
 config IP_FIB_TRIE
 	bool "FIB_TRIE"
 	---help---
-	Use new experimental LC-trie as FIB lookup algorithm. 
-        This improves lookup performance if you have a large
-	number of routes.
+	  Use new experimental LC-trie as FIB lookup algorithm.
+	  This improves lookup performance if you have a large
+	  number of routes.
 
-	LC-trie is a longest matching prefix lookup algorithm which
-	performs better than FIB_HASH for large routing tables.
-	But, it consumes more memory and is more complex.
-	
-	LC-trie is described in:
-	
- 	IP-address lookup using LC-tries. Stefan Nilsson and Gunnar Karlsson
- 	IEEE Journal on Selected Areas in Communications, 17(6):1083-1092, June 1999
-	An experimental study of compression methods for dynamic tries
- 	Stefan Nilsson and Matti Tikkanen. Algorithmica, 33(1):19-33, 2002.
- 	http://www.nada.kth.se/~snilsson/public/papers/dyntrie2/
-       
+	  LC-trie is a longest matching prefix lookup algorithm which
+	  performs better than FIB_HASH for large routing tables.
+	  But, it consumes more memory and is more complex.
+
+	  LC-trie is described in:
+
+	  IP-address lookup using LC-tries. Stefan Nilsson and Gunnar Karlsson
+	  IEEE Journal on Selected Areas in Communications, 17(6):1083-1092,
+	  June 1999
+
+	  An experimental study of compression methods for dynamic tries
+	  Stefan Nilsson and Matti Tikkanen. Algorithmica, 33(1):19-33, 2002.
+	  http://www.nada.kth.se/~snilsson/public/papers/dyntrie2/
+
 endchoice
 
 config IP_FIB_HASH
@@ -191,7 +197,7 @@ config IP_PNP_RARP
 	  <file:Documentation/filesystems/nfsroot.txt> for details.
 
 # not yet ready..
-#   bool '    IP: ARP support' CONFIG_IP_PNP_ARP		
+#   bool '    IP: ARP support' CONFIG_IP_PNP_ARP
 config NET_IPIP
 	tristate "IP: tunneling"
 	select INET_TUNNEL
@@ -361,7 +367,7 @@ config INET_IPCOMP
 	---help---
 	  Support for IP Payload Compression Protocol (IPComp) (RFC3173),
 	  typically needed for IPsec.
-	  
+
 	  If unsure, say Y.
 
 config INET_XFRM_TUNNEL
@@ -415,7 +421,7 @@ config INET_DIAG
 	  Support for INET (TCP, DCCP, etc) socket monitoring interface used by
 	  native Linux tools such as ss. ss is included in iproute2, currently
 	  downloadable at <http://linux-net.osdl.org/index.php/Iproute2>.
-	  
+
 	  If unsure, say Y.
 
 config INET_TCP_DIAG

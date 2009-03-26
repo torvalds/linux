@@ -790,6 +790,7 @@ static int e1000_reg_test(struct e1000_adapter *adapter, u64 *data)
 		break;
 	case e1000_82573:
 	case e1000_82574:
+	case e1000_82583:
 	case e1000_ich8lan:
 	case e1000_ich9lan:
 	case e1000_ich10lan:
@@ -1589,7 +1590,7 @@ static int e1000_link_test(struct e1000_adapter *adapter, u64 *data)
 	*data = 0;
 	if (hw->phy.media_type == e1000_media_type_internal_serdes) {
 		int i = 0;
-		hw->mac.serdes_has_link = 0;
+		hw->mac.serdes_has_link = false;
 
 		/*
 		 * On some blade server designs, link establishment

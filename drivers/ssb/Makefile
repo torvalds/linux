@@ -9,6 +9,7 @@ ssb-$(CONFIG_SSB_PCMCIAHOST)		+= pcmcia.o
 
 # built-in drivers
 ssb-y					+= driver_chipcommon.o
+ssb-y					+= driver_chipcommon_pmu.o
 ssb-$(CONFIG_SSB_DRIVER_MIPS)		+= driver_mipscore.o
 ssb-$(CONFIG_SSB_DRIVER_EXTIF)		+= driver_extif.o
 ssb-$(CONFIG_SSB_DRIVER_PCICORE)	+= driver_pcicore.o

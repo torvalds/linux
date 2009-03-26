@@ -7,6 +7,11 @@
 extern int nl80211_init(void);
 extern void nl80211_exit(void);
 extern void nl80211_notify_dev_rename(struct cfg80211_registered_device *rdev);
+extern void nl80211_send_scan_done(struct cfg80211_registered_device *rdev,
+				   struct net_device *netdev);
+extern void nl80211_send_scan_aborted(struct cfg80211_registered_device *rdev,
+				      struct net_device *netdev);
+extern void nl80211_send_reg_change_event(struct regulatory_request *request);
 #else
 static inline int nl80211_init(void)
 {
@@ -17,6 +22,18 @@ static inline void nl80211_exit(void)
 }
 static inline void nl80211_notify_dev_rename(
 	struct cfg80211_registered_device *rdev)
+{
+}
+static inline void
+nl80211_send_scan_done(struct cfg80211_registered_device *rdev,
+		       struct net_device *netdev)
+{}
+static inline void nl80211_send_scan_aborted(
+					struct cfg80211_registered_device *rdev,
+					struct net_device *netdev)
+{}
+static inline void
+nl80211_send_reg_change_event(struct regulatory_request *request)
 {
 }
 #endif /* CONFIG_NL80211 */

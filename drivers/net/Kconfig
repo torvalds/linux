@@ -26,6 +26,15 @@ menuconfig NETDEVICES
 # that for each of the symbols.
 if NETDEVICES
 
+config COMPAT_NET_DEV_OPS
+       default y
+       bool "Enable older network device API compatiablity"
+       ---help---
+          This option enables kernel compatiability with older network devices
+          that do not use net_device_ops interface.
+
+	  If unsure, say Y.
+
 config IFB
 	tristate "Intermediate Functional Block support"
 	depends on NET_CLS_ACT
@@ -1840,10 +1849,10 @@ config 68360_ENET
 
 config FEC
 	bool "FEC ethernet controller (of ColdFire CPUs)"
-	depends on M523x || M527x || M5272 || M528x || M520x || M532x
+	depends on M523x || M527x || M5272 || M528x || M520x || M532x || MACH_MX27
 	help
 	  Say Y here if you want to use the built-in 10/100 Fast ethernet
-	  controller on some Motorola ColdFire processors.
+	  controller on some Motorola ColdFire and Freescale i.MX processors.
 
 config FEC2
 	bool "Second FEC ethernet controller (on some ColdFire CPUs)"
@@ -2029,15 +2038,6 @@ config IGB
 
          To compile this driver as a module, choose M here. The module
          will be called igb.
-
-config IGB_LRO 
-	bool "Use software LRO"
-	depends on IGB && INET
-	select INET_LRO
-	---help---
-	  Say Y here if you want to use large receive offload. 
-
-	  If in doubt, say N.
 
 config IGB_DCA
 	bool "Direct Cache Access (DCA) Support"
@@ -2284,9 +2284,17 @@ config GELIC_WIRELESS_OLD_PSK_INTERFACE
 
           If unsure, say N.
 
+config FSL_PQ_MDIO
+	tristate "Freescale PQ MDIO"
+	depends on FSL_SOC
+	select PHYLIB
+	help
+	  This driver supports the MDIO bus used by the gianfar and UCC drivers.
+
 config GIANFAR
 	tristate "Gianfar Ethernet"
 	depends on FSL_SOC
+	select FSL_PQ_MDIO
 	select PHYLIB
 	select CRC32
 	help
@@ -2296,6 +2304,7 @@ config GIANFAR
 config UCC_GETH
 	tristate "Freescale QE Gigabit Ethernet"
 	depends on QUICC_ENGINE
+	select FSL_PQ_MDIO
 	select PHYLIB
 	help
 	  This driver supports the Gigabit Ethernet mode of the QUICC Engine,
@@ -2312,6 +2321,7 @@ config UGETH_TX_ON_DEMAND
 config MV643XX_ETH
 	tristate "Marvell Discovery (643XX) and Orion ethernet support"
 	depends on MV64360 || MV64X60 || (PPC_MULTIPLATFORM && PPC32) || PLAT_ORION
+	select INET_LRO
 	select PHYLIB
 	help
 	  This driver supports the gigabit ethernet MACs in the
@@ -2430,7 +2440,6 @@ config CHELSIO_T3
 	tristate "Chelsio Communications T3 10Gb Ethernet support"
 	depends on CHELSIO_T3_DEPENDS
 	select FW_LOADER
-	select INET_LRO
 	help
 	  This driver supports Chelsio T3-based gigabit and 10Gb Ethernet
 	  adapters.
@@ -2466,7 +2475,6 @@ config ENIC
 config IXGBE
 	tristate "Intel(R) 10GbE PCI Express adapters support"
 	depends on PCI && INET
-	select INET_LRO
 	---help---
 	  This driver supports Intel(R) 10GbE PCI Express family of
 	  adapters.  For more information on how to identify your adapter, go

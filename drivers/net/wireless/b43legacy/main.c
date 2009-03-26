@@ -2650,7 +2650,7 @@ out_unlock_mutex:
 	return err;
 }
 
-static void b43legacy_update_basic_rates(struct b43legacy_wldev *dev, u64 brates)
+static void b43legacy_update_basic_rates(struct b43legacy_wldev *dev, u32 brates)
 {
 	struct ieee80211_supported_band *sband =
 		dev->wl->hw->wiphy->bands[IEEE80211_BAND_2GHZ];

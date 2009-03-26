@@ -179,7 +179,7 @@ static int dn_node_address_handler(ctl_table *table, int write,
 	}
 
 	if (write) {
-		int len = (*lenp < DN_ASCBUF_LEN) ? *lenp : (DN_ASCBUF_LEN-1);
+		len = (*lenp < DN_ASCBUF_LEN) ? *lenp : (DN_ASCBUF_LEN-1);
 
 		if (copy_from_user(addr, buffer, len))
 			return -EFAULT;

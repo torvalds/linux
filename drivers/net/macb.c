@@ -513,7 +513,6 @@ static int macb_rx(struct macb *bp, int budget)
 static int macb_poll(struct napi_struct *napi, int budget)
 {
 	struct macb *bp = container_of(napi, struct macb, napi);
-	struct net_device *dev = bp->dev;
 	int work_done;
 	u32 status;
 
@@ -527,7 +526,7 @@ static int macb_poll(struct napi_struct *napi, int budget)
 		 * this function was called last time, and no packets
 		 * have been received since.
 		 */
-		netif_rx_complete(napi);
+		napi_complete(napi);
 		goto out;
 	}
 
@@ -538,13 +537,13 @@ static int macb_poll(struct napi_struct *napi, int budget)
 		dev_warn(&bp->pdev->dev,
 			 "No RX buffers complete, status = %02lx\n",
 			 (unsigned long)status);
-		netif_rx_complete(napi);
+		napi_complete(napi);
 		goto out;
 	}
 
 	work_done = macb_rx(bp, budget);
 	if (work_done < budget)
-		netif_rx_complete(napi);
+		napi_complete(napi);
 
 	/*
 	 * We've done what we can to clean the buffers. Make sure we
@@ -579,7 +578,7 @@ static irqreturn_t macb_interrupt(int irq, void *dev_id)
 		}
 
 		if (status & MACB_RX_INT_FLAGS) {
-			if (netif_rx_schedule_prep(&bp->napi)) {
+			if (napi_schedule_prep(&bp->napi)) {
 				/*
 				 * There's no point taking any more interrupts
 				 * until we have processed the buffers
@@ -587,7 +586,7 @@ static irqreturn_t macb_interrupt(int irq, void *dev_id)
 				macb_writel(bp, IDR, MACB_RX_INT_FLAGS);
 				dev_dbg(&bp->pdev->dev,
 					"scheduling RX softirq\n");
-				__netif_rx_schedule(&bp->napi);
+				__napi_schedule(&bp->napi);
 			}
 		}
 

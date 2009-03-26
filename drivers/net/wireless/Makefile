@@ -24,6 +24,8 @@ obj-$(CONFIG_ATMEL)             += atmel.o
 obj-$(CONFIG_PCI_ATMEL)         += atmel_pci.o 
 obj-$(CONFIG_PCMCIA_ATMEL)      += atmel_cs.o
 
+obj-$(CONFIG_AT76C50X_USB)      += at76c50x-usb.o
+
 obj-$(CONFIG_PRISM54)		+= prism54/
 
 obj-$(CONFIG_HOSTAP)		+= hostap/
@@ -45,6 +47,8 @@ obj-$(CONFIG_LIBERTAS)		+= libertas/
 obj-$(CONFIG_LIBERTAS_THINFIRM)	+= libertas_tf/
 
 obj-$(CONFIG_ADM8211)	+= adm8211.o
+
+obj-$(CONFIG_MWL8K)	+= mwl8k.o
 
 obj-$(CONFIG_IWLWIFI)	+= iwlwifi/
 obj-$(CONFIG_RT2X00)	+= rt2x00/
