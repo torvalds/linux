@@ -2101,7 +2101,8 @@ dasd_device_operations = {
 	.owner		= THIS_MODULE,
 	.open		= dasd_open,
 	.release	= dasd_release,
-	.locked_ioctl	= dasd_ioctl,
+	.ioctl		= dasd_ioctl,
+	.compat_ioctl	= dasd_ioctl,
 	.getgeo		= dasd_getgeo,
 };
 

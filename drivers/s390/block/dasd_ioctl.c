@@ -365,9 +365,9 @@ static int dasd_ioctl_readall_cmb(struct dasd_block *block, unsigned int cmd,
 	return ret;
 }
 
-int
-dasd_ioctl(struct block_device *bdev, fmode_t mode,
-	   unsigned int cmd, unsigned long arg)
+static int
+dasd_do_ioctl(struct block_device *bdev, fmode_t mode,
+	      unsigned int cmd, unsigned long arg)
 {
 	struct dasd_block *block = bdev->bd_disk->private_data;
 	void __user *argp = (void __user *)arg;
@@ -419,4 +419,15 @@ dasd_ioctl(struct block_device *bdev, fmode_t mode,
 
 		return -EINVAL;
 	}
+}
+
+int dasd_ioctl(struct block_device *bdev, fmode_t mode,
+	       unsigned int cmd, unsigned long arg)
+{
+	int rc;
+
+	lock_kernel();
+	rc = dasd_do_ioctl(bdev, mode, cmd, arg);
+	unlock_kernel();
+	return rc;
 }
