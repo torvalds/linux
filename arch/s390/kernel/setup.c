@@ -301,11 +301,7 @@ static int __init early_parse_mem(char *p)
 early_param("mem", early_parse_mem);
 
 #ifdef CONFIG_S390_SWITCH_AMODE
-#ifdef CONFIG_PGSTE
-unsigned int switch_amode = 1;
-#else
 unsigned int switch_amode = 0;
-#endif
 EXPORT_SYMBOL_GPL(switch_amode);
 
 static int set_amode_and_uaccess(unsigned long user_amode,
