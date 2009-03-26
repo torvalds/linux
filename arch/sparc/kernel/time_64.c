@@ -724,12 +724,14 @@ void timer_interrupt(int irq, struct pt_regs *regs)
 	unsigned long tick_mask = tick_ops->softint_mask;
 	int cpu = smp_processor_id();
 	struct clock_event_device *evt = &per_cpu(sparc64_events, cpu);
+	struct irq_desc *desc;
 
 	clear_softint(tick_mask);
 
 	irq_enter();
 
-	kstat_this_cpu.irqs[0]++;
+	desc = irq_to_desc(0);
+	kstat_incr_irqs_this_cpu(0, desc);
 
 	if (unlikely(!evt->event_handler)) {
 		printk(KERN_WARNING
