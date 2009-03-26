@@ -11,6 +11,7 @@
 #include <linux/atmioc.h>
 #include <linux/atm.h>
 #include <linux/if_ether.h>
+#include <linux/types.h>
 
 /* ATM lec daemon control socket */
 #define ATMLEC_CTRL	_IO('a', ATMIOC_LANE)
@@ -78,8 +79,8 @@ struct atmlec_msg {
 		} normal;
 		struct atmlec_config_msg config;
 		struct {
-			uint16_t lec_id;			/* requestor lec_id  */
-			uint32_t tran_id;			/* transaction id    */
+			__u16 lec_id;				/* requestor lec_id  */
+			__u32 tran_id;				/* transaction id    */
 			unsigned char mac_addr[ETH_ALEN];	/* dst mac addr      */
 			unsigned char atm_addr[ATM_ESA_LEN];	/* reqestor ATM addr */
 		} proxy;	/*

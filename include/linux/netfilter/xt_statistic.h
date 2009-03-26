@@ -1,6 +1,8 @@
 #ifndef _XT_STATISTIC_H
 #define _XT_STATISTIC_H
 
+#include <linux/types.h>
+
 enum xt_statistic_mode {
 	XT_STATISTIC_MODE_RANDOM,
 	XT_STATISTIC_MODE_NTH,
@@ -16,16 +18,16 @@ enum xt_statistic_flags {
 struct xt_statistic_priv;
 
 struct xt_statistic_info {
-	u_int16_t			mode;
-	u_int16_t			flags;
+	__u16			mode;
+	__u16			flags;
 	union {
 		struct {
-			u_int32_t	probability;
+			__u32	probability;
 		} random;
 		struct {
-			u_int32_t	every;
-			u_int32_t	packet;
-			u_int32_t	count; /* unused */
+			__u32	every;
+			__u32	packet;
+			__u32	count; /* unused */
 		} nth;
 	} u;
 	struct xt_statistic_priv *master __attribute__((aligned(8)));

@@ -58,7 +58,7 @@ struct xfrm_selector
 	__u8	prefixlen_s;
 	__u8	proto;
 	int	ifindex;
-	uid_t	user;
+	__kernel_uid32_t	user;
 };
 
 #define XFRM_INF (~(__u64)0)

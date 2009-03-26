@@ -1,6 +1,8 @@
 #ifndef _XT_MARK_H_target
 #define _XT_MARK_H_target
 
+#include <linux/types.h>
+
 /* Version 0 */
 struct xt_mark_target_info {
 	unsigned long mark;
@@ -15,11 +17,11 @@ enum {
 
 struct xt_mark_target_info_v1 {
 	unsigned long mark;
-	u_int8_t mode;
+	__u8 mode;
 };
 
 struct xt_mark_tginfo2 {
-	u_int32_t mark, mask;
+	__u32 mark, mask;
 };
 
 #endif /*_XT_MARK_H_target */
