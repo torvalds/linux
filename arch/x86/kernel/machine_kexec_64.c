@@ -18,15 +18,6 @@
 #include <asm/mmu_context.h>
 #include <asm/io.h>
 
-#define PAGE_ALIGNED __attribute__ ((__aligned__(PAGE_SIZE)))
-static u64 kexec_pgd[512] PAGE_ALIGNED;
-static u64 kexec_pud0[512] PAGE_ALIGNED;
-static u64 kexec_pmd0[512] PAGE_ALIGNED;
-static u64 kexec_pte0[512] PAGE_ALIGNED;
-static u64 kexec_pud1[512] PAGE_ALIGNED;
-static u64 kexec_pmd1[512] PAGE_ALIGNED;
-static u64 kexec_pte1[512] PAGE_ALIGNED;
-
 static void init_level2_page(pmd_t *level2p, unsigned long addr)
 {
 	unsigned long end_addr;
@@ -107,12 +98,65 @@ out:
 	return result;
 }
 
+static void free_transition_pgtable(struct kimage *image)
+{
+	free_page((unsigned long)image->arch.pud);
+	free_page((unsigned long)image->arch.pmd);
+	free_page((unsigned long)image->arch.pte);
+}
+
+static int init_transition_pgtable(struct kimage *image, pgd_t *pgd)
+{
+	pud_t *pud;
+	pmd_t *pmd;
+	pte_t *pte;
+	unsigned long vaddr, paddr;
+	int result = -ENOMEM;
+
+	vaddr = (unsigned long)relocate_kernel;
+	paddr = __pa(page_address(image->control_code_page)+PAGE_SIZE);
+	pgd += pgd_index(vaddr);
+	if (!pgd_present(*pgd)) {
+		pud = (pud_t *)get_zeroed_page(GFP_KERNEL);
+		if (!pud)
+			goto err;
+		image->arch.pud = pud;
+		set_pgd(pgd, __pgd(__pa(pud) | _KERNPG_TABLE));
+	}
+	pud = pud_offset(pgd, vaddr);
+	if (!pud_present(*pud)) {
+		pmd = (pmd_t *)get_zeroed_page(GFP_KERNEL);
+		if (!pmd)
+			goto err;
+		image->arch.pmd = pmd;
+		set_pud(pud, __pud(__pa(pmd) | _KERNPG_TABLE));
+	}
+	pmd = pmd_offset(pud, vaddr);
+	if (!pmd_present(*pmd)) {
+		pte = (pte_t *)get_zeroed_page(GFP_KERNEL);
+		if (!pte)
+			goto err;
+		image->arch.pte = pte;
+		set_pmd(pmd, __pmd(__pa(pte) | _KERNPG_TABLE));
+	}
+	pte = pte_offset_kernel(pmd, vaddr);
+	set_pte(pte, pfn_pte(paddr >> PAGE_SHIFT, PAGE_KERNEL_EXEC));
+	return 0;
+err:
+	free_transition_pgtable(image);
+	return result;
+}
+
 
 static int init_pgtable(struct kimage *image, unsigned long start_pgtable)
 {
 	pgd_t *level4p;
+	int result;
 	level4p = (pgd_t *)__va(start_pgtable);
-	return init_level4_page(image, level4p, 0, max_pfn << PAGE_SHIFT);
+	result = init_level4_page(image, level4p, 0, max_pfn << PAGE_SHIFT);
+	if (result)
+		return result;
+	return init_transition_pgtable(image, level4p);
 }
 
 static void set_idt(void *newidt, u16 limit)
@@ -174,7 +218,7 @@ int machine_kexec_prepare(struct kimage *image)
 
 void machine_kexec_cleanup(struct kimage *image)
 {
-	return;
+	free_transition_pgtable(image);
 }
 
 /*
@@ -195,22 +239,6 @@ void machine_kexec(struct kimage *image)
 	memcpy(control_page, relocate_kernel, PAGE_SIZE);
 
 	page_list[PA_CONTROL_PAGE] = virt_to_phys(control_page);
-	page_list[VA_CONTROL_PAGE] = (unsigned long)relocate_kernel;
-	page_list[PA_PGD] = virt_to_phys(&kexec_pgd);
-	page_list[VA_PGD] = (unsigned long)kexec_pgd;
-	page_list[PA_PUD_0] = virt_to_phys(&kexec_pud0);
-	page_list[VA_PUD_0] = (unsigned long)kexec_pud0;
-	page_list[PA_PMD_0] = virt_to_phys(&kexec_pmd0);
-	page_list[VA_PMD_0] = (unsigned long)kexec_pmd0;
-	page_list[PA_PTE_0] = virt_to_phys(&kexec_pte0);
-	page_list[VA_PTE_0] = (unsigned long)kexec_pte0;
-	page_list[PA_PUD_1] = virt_to_phys(&kexec_pud1);
-	page_list[VA_PUD_1] = (unsigned long)kexec_pud1;
-	page_list[PA_PMD_1] = virt_to_phys(&kexec_pmd1);
-	page_list[VA_PMD_1] = (unsigned long)kexec_pmd1;
-	page_list[PA_PTE_1] = virt_to_phys(&kexec_pte1);
-	page_list[VA_PTE_1] = (unsigned long)kexec_pte1;
-
 	page_list[PA_TABLE_PAGE] =
 	  (unsigned long)__pa(page_address(image->control_code_page));
 

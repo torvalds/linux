@@ -183,6 +183,10 @@ static int __init oprofile_init(void)
 {
 	int err;
 
+	err = buffer_sync_init();
+	if (err)
+		return err;
+
 	err = oprofile_arch_init(&oprofile_ops);
 
 	if (err < 0 || timer) {
@@ -191,8 +195,10 @@ static int __init oprofile_init(void)
 	}
 
 	err = oprofilefs_register();
-	if (err)
+	if (err) {
 		oprofile_arch_exit();
+		buffer_sync_cleanup();
+	}
 
 	return err;
 }
@@ -202,6 +208,7 @@ static void __exit oprofile_exit(void)
 {
 	oprofilefs_unregister();
 	oprofile_arch_exit();
+	buffer_sync_cleanup();
 }
 
 
