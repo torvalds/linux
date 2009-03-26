@@ -230,6 +230,9 @@ static int sony_laptop_input_index[] = {
 	53,	/* 66 SONYPI_EVENT_PKEY_P4 */
 	54,	/* 67 SONYPI_EVENT_PKEY_P5 */
 	55,	/* 68 SONYPI_EVENT_SETTINGKEY_PRESSED */
+	56,	/* 69 SONYPI_EVENT_VOLUME_INC_PRESSED */
+	57,	/* 70 SONYPI_EVENT_VOLUME_DEC_PRESSED */
+	-1,	/* 71 SONYPI_EVENT_BRIGHTNESS_PRESSED */
 };
 
 static int sony_laptop_input_keycode_map[] = {
@@ -289,6 +292,8 @@ static int sony_laptop_input_keycode_map[] = {
 	KEY_PROG4,	/* 53 SONYPI_EVENT_PKEY_P4 */
 	KEY_F14,	/* 54 SONYPI_EVENT_PKEY_P5 */
 	KEY_F15,	/* 55 SONYPI_EVENT_SETTINGKEY_PRESSED */
+	KEY_VOLUMEUP,	/* 56 SONYPI_EVENT_VOLUME_INC_PRESSED */
+	KEY_VOLUMEDOWN,	/* 57 SONYPI_EVENT_VOLUME_DEC_PRESSED */
 };
 
 /* release buttons after a short delay if pressed */
@@ -1555,6 +1560,7 @@ static struct sonypi_event sonypi_pkeyev[] = {
 	{ 0x01, SONYPI_EVENT_PKEY_P1 },
 	{ 0x02, SONYPI_EVENT_PKEY_P2 },
 	{ 0x04, SONYPI_EVENT_PKEY_P3 },
+	{ 0x20, SONYPI_EVENT_PKEY_P1 },
 	{ 0, 0 }
 };
 
@@ -1598,6 +1604,7 @@ static struct sonypi_event sonypi_zoomev[] = {
 	{ 0x39, SONYPI_EVENT_ZOOM_PRESSED },
 	{ 0x10, SONYPI_EVENT_ZOOM_IN_PRESSED },
 	{ 0x20, SONYPI_EVENT_ZOOM_OUT_PRESSED },
+	{ 0x04, SONYPI_EVENT_ZOOM_PRESSED },
 	{ 0, 0 }
 };
 
@@ -1625,6 +1632,19 @@ static struct sonypi_event sonypi_memorystickev[] = {
 static struct sonypi_event sonypi_batteryev[] = {
 	{ 0x20, SONYPI_EVENT_BATTERY_INSERT },
 	{ 0x30, SONYPI_EVENT_BATTERY_REMOVE },
+	{ 0, 0 }
+};
+
+/* The set of possible volume events */
+static struct sonypi_event sonypi_volumeev[] = {
+	{ 0x01, SONYPI_EVENT_VOLUME_INC_PRESSED },
+	{ 0x02, SONYPI_EVENT_VOLUME_DEC_PRESSED },
+	{ 0, 0 }
+};
+
+/* The set of possible brightness events */
+static struct sonypi_event sonypi_brightnessev[] = {
+	{ 0x80, SONYPI_EVENT_BRIGHTNESS_PRESSED },
 	{ 0, 0 }
 };
 
@@ -1668,6 +1688,8 @@ static struct sonypi_eventtypes type3_events[] = {
 	{ 0x05, SONYPI_PKEY_MASK, sonypi_pkeyev },
 	{ 0x05, SONYPI_ZOOM_MASK, sonypi_zoomev },
 	{ 0x05, SONYPI_CAPTURE_MASK, sonypi_captureev },
+	{ 0x05, SONYPI_PKEY_MASK, sonypi_volumeev },
+	{ 0x05, SONYPI_PKEY_MASK, sonypi_brightnessev },
 	{ 0 },
 };
 
