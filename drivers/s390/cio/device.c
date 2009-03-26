@@ -457,12 +457,13 @@ int ccw_device_set_online(struct ccw_device *cdev)
 	return (ret == 0) ? -ENODEV : ret;
 }
 
-static void online_store_handle_offline(struct ccw_device *cdev)
+static int online_store_handle_offline(struct ccw_device *cdev)
 {
 	if (cdev->private->state == DEV_STATE_DISCONNECTED)
 		ccw_device_remove_disconnected(cdev);
-	else if (cdev->drv && cdev->drv->set_offline)
-		ccw_device_set_offline(cdev);
+	else if (cdev->online && cdev->drv && cdev->drv->set_offline)
+		return ccw_device_set_offline(cdev);
+	return 0;
 }
 
 static int online_store_recog_and_online(struct ccw_device *cdev)
@@ -530,13 +531,10 @@ static ssize_t online_store (struct device *dev, struct device_attribute *attr,
 		goto out;
 	switch (i) {
 	case 0:
-		online_store_handle_offline(cdev);
-		ret = count;
+		ret = online_store_handle_offline(cdev);
 		break;
 	case 1:
 		ret = online_store_handle_online(cdev, force);
-		if (!ret)
-			ret = count;
 		break;
 	default:
 		ret = -EINVAL;
@@ -545,7 +543,7 @@ out:
 	if (cdev->drv)
 		module_put(cdev->drv->owner);
 	atomic_set(&cdev->private->onoff, 0);
-	return ret;
+	return (ret < 0) ? ret : count;
 }
 
 static ssize_t
