@@ -589,6 +589,7 @@ __chsc_do_secm(struct channel_subsystem *css, int enable, void *page)
 	case 0x0102:
 	case 0x0103:
 		ret = -EINVAL;
+		break;
 	default:
 		ret = chsc_error_from_response(secm_area->response.code);
 	}
