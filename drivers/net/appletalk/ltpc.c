@@ -1012,6 +1012,12 @@ static int __init ltpc_probe_dma(int base, int dma)
 	return (want & 2) ? 3 : 1;
 }
 
+static const struct net_device_ops ltpc_netdev = {
+	.ndo_start_xmit		= ltpc_xmit,
+	.ndo_do_ioctl		= ltpc_ioctl,
+	.ndo_set_multicast_list = set_multicast_list,
+};
+
 struct net_device * __init ltpc_probe(void)
 {
 	struct net_device *dev;
@@ -1118,13 +1124,7 @@ struct net_device * __init ltpc_probe(void)
 	else
 		printk(KERN_INFO "Apple/Farallon LocalTalk-PC card at %03x, DMA%d.  Using polled mode.\n",io,dma);
 
-	/* Fill in the fields of the device structure with ethernet-generic values. */
-	dev->hard_start_xmit = ltpc_xmit;
-
-	/* add the ltpc-specific things */
-	dev->do_ioctl = &ltpc_ioctl;
-
-	dev->set_multicast_list = &set_multicast_list;
+	dev->netdev_ops = &ltpc_netdev;
 	dev->mc_list = NULL;
 	dev->base_addr = io;
 	dev->irq = irq;
