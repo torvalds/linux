@@ -2001,18 +2001,14 @@ int sony_pic_camera_command(int command, u8 value)
 EXPORT_SYMBOL(sony_pic_camera_command);
 
 /* gprs/edge modem (SZ460N and SZ210P), thanks to Joshua Wise */
-static void sony_pic_set_wwanpower(u8 state)
+static void __sony_pic_set_wwanpower(u8 state)
 {
 	state = !!state;
-	mutex_lock(&spic_dev.lock);
-	if (spic_dev.wwan_power == state) {
-		mutex_unlock(&spic_dev.lock);
+	if (spic_dev.wwan_power == state)
 		return;
-	}
 	sony_pic_call2(0xB0, state);
 	sony_pic_call1(0x82);
 	spic_dev.wwan_power = state;
-	mutex_unlock(&spic_dev.lock);
 }
 
 static ssize_t sony_pic_wwanpower_store(struct device *dev,
@@ -2024,7 +2020,9 @@ static ssize_t sony_pic_wwanpower_store(struct device *dev,
 		return -EINVAL;
 
 	value = simple_strtoul(buffer, NULL, 10);
-	sony_pic_set_wwanpower(value);
+	mutex_lock(&spic_dev.lock);
+	__sony_pic_set_wwanpower(value);
+	mutex_unlock(&spic_dev.lock);
 
 	return count;
 }
