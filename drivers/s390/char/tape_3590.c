@@ -664,8 +664,7 @@ tape_3590_bread(struct tape_device *device, struct request *req)
 			ccw++;
 			dst += TAPEBLOCK_HSEC_SIZE;
 		}
-		if (off > bv->bv_len)
-			BUG();
+		BUG_ON(off > bv->bv_len);
 	}
 	ccw = tape_ccw_end(ccw, NOP, 0, NULL);
 	DBF_EVENT(6, "xBREDccwg\n");

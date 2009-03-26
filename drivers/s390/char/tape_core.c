@@ -624,8 +624,7 @@ tape_alloc_request(int cplength, int datasize)
 {
 	struct tape_request *request;
 
-	if (datasize > PAGE_SIZE || (cplength*sizeof(struct ccw1)) > PAGE_SIZE)
-		BUG();
+	BUG_ON(datasize > PAGE_SIZE || (cplength*sizeof(struct ccw1)) > PAGE_SIZE);
 
 	DBF_LH(6, "tape_alloc_request(%d, %d)\n", cplength, datasize);
 
@@ -782,8 +781,7 @@ static void tape_long_busy_timeout(unsigned long data)
 	device = (struct tape_device *) data;
 	spin_lock_irq(get_ccwdev_lock(device->cdev));
 	request = list_entry(device->req_queue.next, struct tape_request, list);
-	if (request->status != TAPE_REQUEST_LONG_BUSY)
-		BUG();
+	BUG_ON(request->status != TAPE_REQUEST_LONG_BUSY);
 	DBF_LH(6, "%08x: Long busy timeout.\n", device->cdev_id);
 	__tape_start_next_request(device);
 	device->lb_timeout.data = (unsigned long) tape_put_device(device);

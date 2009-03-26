@@ -698,8 +698,7 @@ debug_info_t *debug_register_mode(const char *name, int pages_per_area,
 	if ((uid != 0) || (gid != 0))
 		pr_warning("Root becomes the owner of all s390dbf files "
 			   "in sysfs\n");
-	if (!initialized)
-		BUG();
+	BUG_ON(!initialized);
 	mutex_lock(&debug_mutex);
 
         /* create new debug_info */
