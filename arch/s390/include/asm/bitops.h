@@ -57,7 +57,7 @@
  * with operation of the form "set_bit(bitnr, flags)".
  */
 
-/* bitmap tables from arch/S390/kernel/bitmap.S */
+/* bitmap tables from arch/s390/kernel/bitmap.c */
 extern const char _oi_bitmap[];
 extern const char _ni_bitmap[];
 extern const char _zb_findmap[];
