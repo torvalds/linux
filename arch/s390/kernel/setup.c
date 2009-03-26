@@ -696,14 +696,21 @@ static void __init setup_hwcaps(void)
 	 *   Bit 17: the message-security assist is installed
 	 *   Bit 19: the long-displacement facility is installed
 	 *   Bit 21: the extended-immediate facility is installed
+	 *   Bit 22: extended-translation facility 3 is installed
+	 *   Bit 30: extended-translation facility 3 enhancement facility
 	 * These get translated to:
 	 *   HWCAP_S390_ESAN3 bit 0, HWCAP_S390_ZARCH bit 1,
 	 *   HWCAP_S390_STFLE bit 2, HWCAP_S390_MSA bit 3,
-	 *   HWCAP_S390_LDISP bit 4, and HWCAP_S390_EIMM bit 5.
+	 *   HWCAP_S390_LDISP bit 4, HWCAP_S390_EIMM bit 5 and
+	 *   HWCAP_S390_ETF3EH bit 8 (22 && 30).
 	 */
 	for (i = 0; i < 6; i++)
 		if (facility_list & (1UL << (31 - stfl_bits[i])))
 			elf_hwcap |= 1UL << i;
+
+	if ((facility_list & (1UL << (31 - 22)))
+	    && (facility_list & (1UL << (31 - 30))))
+		elf_hwcap |= 1UL << 8;
 
 	/*
 	 * Check for additional facilities with store-facility-list-extended.
@@ -716,12 +723,12 @@ static void __init setup_hwcaps(void)
 	 *   Bit 42: decimal floating point facility is installed
 	 *   Bit 44: perform floating point operation facility is installed
 	 * translated to:
-	 *   HWCAP_S390_DFP bit 6.
+	 *   HWCAP_S390_DFP bit 6 (42 && 44).
 	 */
 	if ((elf_hwcap & (1UL << 2)) &&
 	    __stfle(&facility_list_extended, 1) > 0) {
 		if ((facility_list_extended & (1ULL << (63 - 42)))
-		   && (facility_list_extended & (1ULL << (63 - 44))))
+		    && (facility_list_extended & (1ULL << (63 - 44))))
 			elf_hwcap |= 1UL << 6;
 	}
 
