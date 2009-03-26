@@ -163,6 +163,7 @@ int copy_thread(int nr, unsigned long clone_flags, unsigned long new_stackp,
 		unsigned long unused,
 		struct task_struct *p, struct pt_regs *regs)
 {
+	struct thread_info *ti;
 	struct fake_frame
 	{
 		struct stack_frame sf;
@@ -214,6 +215,10 @@ int copy_thread(int nr, unsigned long clone_flags, unsigned long new_stackp,
 	p->thread.mm_segment = get_fs();
 	/* Don't copy debug registers */
 	memset(&p->thread.per_info, 0, sizeof(p->thread.per_info));
+	/* Initialize per thread user and system timer values */
+	ti = task_thread_info(p);
+	ti->user_timer = 0;
+	ti->system_timer = 0;
 	return 0;
 }
 
