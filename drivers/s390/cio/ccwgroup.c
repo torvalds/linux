@@ -391,27 +391,28 @@ ccwgroup_online_store (struct device *dev, struct device_attribute *attr, const 
 	unsigned long value;
 	int ret;
 
-	gdev = to_ccwgroupdev(dev);
 	if (!dev->driver)
-		return count;
+		return -ENODEV;
 
-	gdrv = to_ccwgroupdrv (gdev->dev.driver);
+	gdev = to_ccwgroupdev(dev);
+	gdrv = to_ccwgroupdrv(dev->driver);
+
 	if (!try_module_get(gdrv->owner))
 		return -EINVAL;
 
 	ret = strict_strtoul(buf, 0, &value);
 	if (ret)
 		goto out;
-	ret = count;
+
 	if (value == 1)
-		ccwgroup_set_online(gdev);
+		ret = ccwgroup_set_online(gdev);
 	else if (value == 0)
-		ccwgroup_set_offline(gdev);
+		ret = ccwgroup_set_offline(gdev);
 	else
 		ret = -EINVAL;
 out:
 	module_put(gdrv->owner);
-	return ret;
+	return (ret == 0) ? count : ret;
 }
 
 static ssize_t
