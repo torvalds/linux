@@ -378,7 +378,7 @@ struct dasd_block {
 	struct block_device *bdev;
 	atomic_t open_count;
 
-	unsigned long blocks;	   /* size of volume in blocks */
+	unsigned long long blocks; /* size of volume in blocks */
 	unsigned int bp_block;	   /* bytes per block */
 	unsigned int s2b_shift;	   /* log2 (bp_block/512) */
 

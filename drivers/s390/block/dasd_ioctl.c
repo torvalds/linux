@@ -146,7 +146,7 @@ static int dasd_format(struct dasd_block *block, struct format_data_t *fdata)
 	}
 
 	DBF_DEV_EVENT(DBF_NOTICE, base,
-		      "formatting units %d to %d (%d B blocks) flags %d",
+		      "formatting units %u to %u (%u B blocks) flags %u",
 		      fdata->start_unit,
 		      fdata->stop_unit, fdata->blksize, fdata->intensity);
 
@@ -170,7 +170,7 @@ static int dasd_format(struct dasd_block *block, struct format_data_t *fdata)
 		if (rc) {
 			if (rc != -ERESTARTSYS)
 				DEV_MESSAGE(KERN_ERR, base,
-					    " Formatting of unit %d failed "
+					    " Formatting of unit %u failed "
 					    "with rc = %d",
 					    fdata->start_unit, rc);
 			return rc;

@@ -48,6 +48,11 @@
 #define PSF_ORDER_PRSSD 0x18
 #define PSF_ORDER_SSC	0x1D
 
+/*
+ * Size that is reportet for large volumes in the old 16-bit no_cyl field
+ */
+#define LV_COMPAT_CYL 0xFFFE
+
 /*****************************************************************************
  * SECTION: Type Definitions
  ****************************************************************************/
@@ -228,7 +233,8 @@ struct dasd_eckd_characteristics {
 	__u8 factor7;
 	__u8 factor8;
 	__u8 reserved2[3];
-	__u8 reserved3[10];
+	__u8 reserved3[6];
+	__u32 long_no_cyl;
 } __attribute__ ((packed));
 
 /* elements of the configuration data */
@@ -406,6 +412,7 @@ struct dasd_eckd_private {
 	int uses_cdl;
 	struct attrib_data_t attrib;	/* e.g. cache operations */
 	struct dasd_rssd_features features;
+	u32 real_cyl;
 
 	/* alias managemnet */
 	struct dasd_uid uid;
