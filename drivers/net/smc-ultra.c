@@ -142,9 +142,6 @@ static int __init do_ultra_probe(struct net_device *dev)
 	int base_addr = dev->base_addr;
 	int irq = dev->irq;
 
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	dev->poll_controller = &ultra_poll;
-#endif
 	if (base_addr > 0x1ff)		/* Check a single specified location. */
 		return ultra_probe1(dev, base_addr);
 	else if (base_addr != 0)	/* Don't probe at all. */
