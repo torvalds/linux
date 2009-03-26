@@ -20,33 +20,6 @@
 
 #include <asm/uaccess.h>
 
-static struct class *mtd_class;
-
-static void mtd_notify_add(struct mtd_info* mtd)
-{
-	if (!mtd)
-		return;
-
-	device_create(mtd_class, NULL, MKDEV(MTD_CHAR_MAJOR, mtd->index*2),
-		      NULL, "mtd%d", mtd->index);
-
-	device_create(mtd_class, NULL, MKDEV(MTD_CHAR_MAJOR, mtd->index*2+1),
-		      NULL, "mtd%dro", mtd->index);
-}
-
-static void mtd_notify_remove(struct mtd_info* mtd)
-{
-	if (!mtd)
-		return;
-
-	device_destroy(mtd_class, MKDEV(MTD_CHAR_MAJOR, mtd->index*2));
-	device_destroy(mtd_class, MKDEV(MTD_CHAR_MAJOR, mtd->index*2+1));
-}
-
-static struct mtd_notifier notifier = {
-	.add	= mtd_notify_add,
-	.remove	= mtd_notify_remove,
-};
 
 /*
  * Data structure to hold the pointer to the mtd device as well
@@ -854,34 +827,26 @@ static const struct file_operations mtd_fops = {
 
 static int __init init_mtdchar(void)
 {
-	if (register_chrdev(MTD_CHAR_MAJOR, "mtd", &mtd_fops)) {
+	int status;
+
+	status = register_chrdev(MTD_CHAR_MAJOR, "mtd", &mtd_fops);
+	if (status < 0) {
 		printk(KERN_NOTICE "Can't allocate major number %d for Memory Technology Devices.\n",
 		       MTD_CHAR_MAJOR);
-		return -EAGAIN;
 	}
 
-	mtd_class = class_create(THIS_MODULE, "mtd");
-
-	if (IS_ERR(mtd_class)) {
-		printk(KERN_ERR "Error creating mtd class.\n");
-		unregister_chrdev(MTD_CHAR_MAJOR, "mtd");
-		return PTR_ERR(mtd_class);
-	}
-
-	register_mtd_user(&notifier);
-	return 0;
+	return status;
 }
 
 static void __exit cleanup_mtdchar(void)
 {
-	unregister_mtd_user(&notifier);
-	class_destroy(mtd_class);
 	unregister_chrdev(MTD_CHAR_MAJOR, "mtd");
 }
 
 module_init(init_mtdchar);
 module_exit(cleanup_mtdchar);
 
+MODULE_ALIAS_CHARDEV_MAJOR(MTD_CHAR_MAJOR);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("David Woodhouse <dwmw2@infradead.org>");

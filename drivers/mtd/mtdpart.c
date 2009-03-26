@@ -356,6 +356,11 @@ static struct mtd_part *add_one_partition(struct mtd_info *master,
 	slave->mtd.owner = master->owner;
 	slave->mtd.backing_dev_info = master->backing_dev_info;
 
+	/* NOTE:  we don't arrange MTDs as a tree; it'd be error-prone
+	 * to have the same data be in two different partitions.
+	 */
+	slave->mtd.dev.parent = master->dev.parent;
+
 	slave->mtd.read = part_read;
 	slave->mtd.write = part_write;
 
@@ -508,7 +513,9 @@ out_register:
  * This function, given a master MTD object and a partition table, creates
  * and registers slave MTD objects which are bound to the master according to
  * the partition definitions.
- * (Q: should we register the master MTD object as well?)
+ *
+ * We don't register the master, or expect the caller to have done so,
+ * for reasons of data integrity.
  */
 
 int add_mtd_partitions(struct mtd_info *master,

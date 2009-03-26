@@ -23,6 +23,9 @@
 
 #include "mtdcore.h"
 
+
+static struct class *mtd_class;
+
 /* These are exported solely for the purpose of mtd_blkdevs.c. You
    should not use them for _anything_ else */
 DEFINE_MUTEX(mtd_table_mutex);
@@ -33,6 +36,82 @@ EXPORT_SYMBOL_GPL(mtd_table);
 
 static LIST_HEAD(mtd_notifiers);
 
+
+#if defined(CONFIG_MTD_CHAR) || defined(CONFIG_MTD_CHAR_MODULE)
+#define MTD_DEVT(index) MKDEV(MTD_CHAR_MAJOR, (index)*2)
+#else
+#define MTD_DEVT(index) 0
+#endif
+
+/* REVISIT once MTD uses the driver model better, whoever allocates
+ * the mtd_info will probably want to use the release() hook...
+ */
+static void mtd_release(struct device *dev)
+{
+	struct mtd_info *mtd = dev_to_mtd(dev);
+
+	/* remove /dev/mtdXro node if needed */
+	if (MTD_DEVT(mtd->index))
+		device_destroy(mtd_class, MTD_DEVT(mtd->index) + 1);
+}
+
+static ssize_t mtd_type_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct mtd_info *mtd = dev_to_mtd(dev);
+	char *type;
+
+	switch (mtd->type) {
+	case MTD_ABSENT:
+		type = "absent";
+		break;
+	case MTD_RAM:
+		type = "ram";
+		break;
+	case MTD_ROM:
+		type = "rom";
+		break;
+	case MTD_NORFLASH:
+		type = "nor";
+		break;
+	case MTD_NANDFLASH:
+		type = "nand";
+		break;
+	case MTD_DATAFLASH:
+		type = "dataflash";
+		break;
+	case MTD_UBIVOLUME:
+		type = "ubi";
+		break;
+	default:
+		type = "unknown";
+	}
+
+	return snprintf(buf, PAGE_SIZE, "%s\n", type);
+}
+static DEVICE_ATTR(mtd_type, S_IRUGO, mtd_type_show, NULL);
+
+static struct attribute *mtd_attrs[] = {
+	&dev_attr_mtd_type.attr,
+	/* FIXME provide a /proc/mtd superset */
+	NULL,
+};
+
+struct attribute_group mtd_group = {
+	.attrs		= mtd_attrs,
+};
+
+struct attribute_group *mtd_groups[] = {
+	&mtd_group,
+	NULL,
+};
+
+static struct device_type mtd_devtype = {
+	.name		= "mtd",
+	.groups		= mtd_groups,
+	.release	= mtd_release,
+};
+
 /**
  *	add_mtd_device - register an MTD device
  *	@mtd: pointer to new MTD device info structure
@@ -41,6 +120,7 @@ static LIST_HEAD(mtd_notifiers);
  *	notify each currently active MTD 'user' of its arrival. Returns
  *	zero on success or 1 on failure, which currently will only happen
  *	if the number of present devices exceeds MAX_MTD_DEVICES (i.e. 16)
+ *	or there's a sysfs error.
  */
 
 int add_mtd_device(struct mtd_info *mtd)
@@ -94,6 +174,23 @@ int add_mtd_device(struct mtd_info *mtd)
 					       "writes may not work\n",
 					       mtd->name);
 			}
+
+			/* Caller should have set dev.parent to match the
+			 * physical device.
+			 */
+			mtd->dev.type = &mtd_devtype;
+			mtd->dev.class = mtd_class;
+			mtd->dev.devt = MTD_DEVT(i);
+			dev_set_name(&mtd->dev, "mtd%d", i);
+			if (device_register(&mtd->dev) != 0) {
+				mtd_table[i] = NULL;
+				break;
+			}
+
+			if (MTD_DEVT(i))
+				device_create(mtd_class, mtd->dev.parent,
+						MTD_DEVT(i) + 1,
+						NULL, "mtd%dro", i);
 
 			DEBUG(0, "mtd: Giving out device %d to %s\n",i, mtd->name);
 			/* No need to get a refcount on the module containing
@@ -357,6 +454,24 @@ EXPORT_SYMBOL_GPL(put_mtd_device);
 EXPORT_SYMBOL_GPL(register_mtd_user);
 EXPORT_SYMBOL_GPL(unregister_mtd_user);
 EXPORT_SYMBOL_GPL(default_mtd_writev);
+
+static int __init mtd_setup(void)
+{
+	mtd_class = class_create(THIS_MODULE, "mtd");
+
+	if (IS_ERR(mtd_class)) {
+		pr_err("Error creating mtd class.\n");
+		return PTR_ERR(mtd_class);
+	}
+	return 0;
+}
+core_initcall(mtd_setup);
+
+static void __exit mtd_teardown(void)
+{
+	class_destroy(mtd_class);
+}
+__exitcall(mtd_teardown);
 
 #ifdef CONFIG_PROC_FS
 
