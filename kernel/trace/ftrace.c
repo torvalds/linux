@@ -347,8 +347,10 @@ static int function_stat_cmp(void *p1, void *p2)
 static int function_stat_headers(struct seq_file *m)
 {
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
-	seq_printf(m, "  Function                               Hit    Time\n"
-		      "  --------                               ---    ----\n");
+	seq_printf(m, "  Function                               "
+		   "Hit    Time            Avg\n"
+		      "  --------                               "
+		   "---    ----            ---\n");
 #else
 	seq_printf(m, "  Function                               Hit\n"
 		      "  --------                               ---\n");
@@ -361,12 +363,9 @@ static int function_stat_show(struct seq_file *m, void *v)
 	struct ftrace_profile *rec = v;
 	char str[KSYM_SYMBOL_LEN];
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
-	static struct trace_seq s;
 	static DEFINE_MUTEX(mutex);
-
-	mutex_lock(&mutex);
-	trace_seq_init(&s);
-	trace_print_graph_duration(rec->time, &s);
+	static struct trace_seq s;
+	unsigned long long avg;
 #endif
 
 	kallsyms_lookup(rec->ip, NULL, NULL, NULL, str);
@@ -374,6 +373,14 @@ static int function_stat_show(struct seq_file *m, void *v)
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 	seq_printf(m, "    ");
+	avg = rec->time;
+	do_div(avg, rec->counter);
+
+	mutex_lock(&mutex);
+	trace_seq_init(&s);
+	trace_print_graph_duration(rec->time, &s);
+	trace_seq_puts(&s, "    ");
+	trace_print_graph_duration(avg, &s);
 	trace_print_seq(m, &s);
 	mutex_unlock(&mutex);
 #endif
