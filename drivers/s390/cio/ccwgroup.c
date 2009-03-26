@@ -314,16 +314,32 @@ error:
 }
 EXPORT_SYMBOL(ccwgroup_create_from_string);
 
-static int __init
-init_ccwgroup (void)
+static int ccwgroup_notifier(struct notifier_block *nb, unsigned long action,
+			     void *data);
+
+static struct notifier_block ccwgroup_nb = {
+	.notifier_call = ccwgroup_notifier
+};
+
+static int __init init_ccwgroup(void)
 {
-	return bus_register (&ccwgroup_bus_type);
+	int ret;
+
+	ret = bus_register(&ccwgroup_bus_type);
+	if (ret)
+		return ret;
+
+	ret = bus_register_notifier(&ccwgroup_bus_type, &ccwgroup_nb);
+	if (ret)
+		bus_unregister(&ccwgroup_bus_type);
+
+	return ret;
 }
 
-static void __exit
-cleanup_ccwgroup (void)
+static void __exit cleanup_ccwgroup(void)
 {
-	bus_unregister (&ccwgroup_bus_type);
+	bus_unregister_notifier(&ccwgroup_bus_type, &ccwgroup_nb);
+	bus_unregister(&ccwgroup_bus_type);
 }
 
 module_init(init_ccwgroup);
@@ -455,6 +471,7 @@ ccwgroup_remove (struct device *dev)
 	struct ccwgroup_driver *gdrv;
 
 	device_remove_file(dev, &dev_attr_online);
+	device_remove_file(dev, &dev_attr_ungroup);
 
 	if (!dev->driver)
 		return 0;
@@ -491,6 +508,19 @@ static struct bus_type ccwgroup_bus_type = {
 	.remove = ccwgroup_remove,
 	.shutdown = ccwgroup_shutdown,
 };
+
+
+static int ccwgroup_notifier(struct notifier_block *nb, unsigned long action,
+			     void *data)
+{
+	struct device *dev = data;
+
+	if (action == BUS_NOTIFY_UNBIND_DRIVER)
+		device_schedule_callback(dev, ccwgroup_ungroup_callback);
+
+	return NOTIFY_OK;
+}
+
 
 /**
  * ccwgroup_driver_register() - register a ccw group driver
