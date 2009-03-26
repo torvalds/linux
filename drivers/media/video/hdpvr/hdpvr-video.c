@@ -1193,7 +1193,8 @@ static const struct video_device hdpvr_video_template = {
 		V4L2_STD_PAL_60,
 };
 
-int hdpvr_register_videodev(struct hdpvr_device *dev, int devnum)
+int hdpvr_register_videodev(struct hdpvr_device *dev, struct device *parent,
+			    int devnum)
 {
 	/* setup and register video device */
 	dev->video_dev = video_device_alloc();
@@ -1204,7 +1205,7 @@ int hdpvr_register_videodev(struct hdpvr_device *dev, int devnum)
 
 	*(dev->video_dev) = hdpvr_video_template;
 	strcpy(dev->video_dev->name, "Hauppauge HD PVR");
-	dev->video_dev->parent = &dev->udev->dev;
+	dev->video_dev->parent = parent;
 	video_set_drvdata(dev->video_dev, dev);
 
 	if (video_register_device(dev->video_dev, VFL_TYPE_GRABBER, devnum)) {

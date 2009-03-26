@@ -284,7 +284,8 @@ int get_input_lines_info(struct hdpvr_device *dev);
 
 /*========================================================================*/
 /* v4l2 registration */
-int hdpvr_register_videodev(struct hdpvr_device *dev, int devnumber);
+int hdpvr_register_videodev(struct hdpvr_device *dev, struct device *parent,
+			    int devnumber);
 
 int hdpvr_cancel_queue(struct hdpvr_device *dev);
 
