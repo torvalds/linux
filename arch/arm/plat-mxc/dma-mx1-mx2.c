@@ -737,10 +737,7 @@ void imx_dma_free(int channel)
 
 	local_irq_save(flags);
 	/* Disable interrupts */
-	__raw_writel(__raw_readl(DMA_BASE + DMA_DIMR) | (1 << channel),
-		DMA_BASE + DMA_DIMR);
-	__raw_writel(__raw_readl(DMA_BASE + DMA_CCR(channel)) & ~CCR_CEN,
-		DMA_BASE + DMA_CCR(channel));
+	imx_dma_disable(channel);
 	imxdma->name = NULL;
 
 #ifdef CONFIG_ARCH_MX2
