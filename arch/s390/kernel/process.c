@@ -39,6 +39,7 @@
 #include <asm/processor.h>
 #include <asm/irq.h>
 #include <asm/timer.h>
+#include <asm/nmi.h>
 #include "entry.h"
 
 asmlinkage void ret_from_fork(void) asm ("ret_from_fork");
@@ -68,7 +69,6 @@ unsigned long thread_saved_pc(struct task_struct *tsk)
 	return sf->gprs[8];
 }
 
-extern void s390_handle_mcck(void);
 /*
  * The idle loop on a S390...
  */

@@ -18,8 +18,8 @@
 #include <linux/list.h>
 #include <linux/reboot.h>
 #include <asm/isc.h>
+#include <asm/crw.h>
 
-#include "../s390mach.h"
 #include "css.h"
 #include "cio.h"
 #include "cio_debug.h"
@@ -765,7 +765,7 @@ init_channel_subsystem (void)
 	if (ret)
 		goto out;
 
-	ret = s390_register_crw_handler(CRW_RSC_SCH, css_process_crw);
+	ret = crw_register_handler(CRW_RSC_SCH, css_process_crw);
 	if (ret)
 		goto out;
 
@@ -845,7 +845,7 @@ out_unregister:
 out_bus:
 	bus_unregister(&css_bus_type);
 out:
-	s390_unregister_crw_handler(CRW_RSC_CSS);
+	crw_unregister_handler(CRW_RSC_CSS);
 	chsc_free_sei_area();
 	kfree(slow_subchannel_set);
 	pr_alert("The CSS device driver initialization failed with "

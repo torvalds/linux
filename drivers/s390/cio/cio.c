@@ -30,6 +30,8 @@
 #include <asm/isc.h>
 #include <asm/cpu.h>
 #include <asm/fcx.h>
+#include <asm/nmi.h>
+#include <asm/crw.h>
 #include "cio.h"
 #include "css.h"
 #include "chsc.h"
@@ -38,7 +40,6 @@
 #include "blacklist.h"
 #include "cio_debug.h"
 #include "chp.h"
-#include "../s390mach.h"
 
 debug_info_t *cio_debug_msg_id;
 debug_info_t *cio_debug_trace_id;

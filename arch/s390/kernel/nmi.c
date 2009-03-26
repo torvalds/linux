@@ -1,137 +1,23 @@
 /*
- *  drivers/s390/s390mach.c
- *   S/390 machine check handler
+ *   Machine check handler
  *
- *    Copyright IBM Corp. 2000,2008
- *    Author(s): Ingo Adlung (adlung@de.ibm.com)
- *		 Martin Schwidefsky (schwidefsky@de.ibm.com)
- *		 Cornelia Huck <cornelia.huck@de.ibm.com>
+ *    Copyright IBM Corp. 2000,2009
+ *    Author(s): Ingo Adlung <adlung@de.ibm.com>,
+ *		 Martin Schwidefsky <schwidefsky@de.ibm.com>,
+ *		 Cornelia Huck <cornelia.huck@de.ibm.com>,
+ *		 Heiko Carstens <heiko.carstens@de.ibm.com>,
  */
 
 #include <linux/init.h>
-#include <linux/sched.h>
 #include <linux/errno.h>
-#include <linux/workqueue.h>
 #include <linux/time.h>
-#include <linux/device.h>
-#include <linux/kthread.h>
-#include <asm/etr.h>
+#include <linux/module.h>
 #include <asm/lowcore.h>
-#include <asm/cio.h>
+#include <asm/smp.h>
+#include <asm/etr.h>
 #include <asm/cpu.h>
-#include "s390mach.h"
-
-static struct semaphore m_sem;
-
-static NORET_TYPE void
-s390_handle_damage(char *msg)
-{
-#ifdef CONFIG_SMP
-	smp_send_stop();
-#endif
-	disabled_wait((unsigned long) __builtin_return_address(0));
-	for(;;);
-}
-
-static crw_handler_t crw_handlers[NR_RSCS];
-
-/**
- * s390_register_crw_handler() - register a channel report word handler
- * @rsc: reporting source code to handle
- * @handler: handler to be registered
- *
- * Returns %0 on success and a negative error value otherwise.
- */
-int s390_register_crw_handler(int rsc, crw_handler_t handler)
-{
-	if ((rsc < 0) || (rsc >= NR_RSCS))
-		return -EINVAL;
-	if (!cmpxchg(&crw_handlers[rsc], NULL, handler))
-		return 0;
-	return -EBUSY;
-}
-
-/**
- * s390_unregister_crw_handler() - unregister a channel report word handler
- * @rsc: reporting source code to handle
- */
-void s390_unregister_crw_handler(int rsc)
-{
-	if ((rsc < 0) || (rsc >= NR_RSCS))
-		return;
-	xchg(&crw_handlers[rsc], NULL);
-	synchronize_sched();
-}
-
-/*
- * Retrieve CRWs and call function to handle event.
- */
-static int s390_collect_crw_info(void *param)
-{
-	struct crw crw[2];
-	int ccode;
-	struct semaphore *sem;
-	unsigned int chain;
-	int ignore;
-
-	sem = (struct semaphore *)param;
-repeat:
-	ignore = down_interruptible(sem);
-	chain = 0;
-	while (1) {
-		if (unlikely(chain > 1)) {
-			struct crw tmp_crw;
-
-			printk(KERN_WARNING"%s: Code does not support more "
-			       "than two chained crws; please report to "
-			       "linux390@de.ibm.com!\n", __func__);
-			ccode = stcrw(&tmp_crw);
-			printk(KERN_WARNING"%s: crw reports slct=%d, oflw=%d, "
-			       "chn=%d, rsc=%X, anc=%d, erc=%X, rsid=%X\n",
-			       __func__, tmp_crw.slct, tmp_crw.oflw,
-			       tmp_crw.chn, tmp_crw.rsc, tmp_crw.anc,
-			       tmp_crw.erc, tmp_crw.rsid);
-			printk(KERN_WARNING"%s: This was crw number %x in the "
-			       "chain\n", __func__, chain);
-			if (ccode != 0)
-				break;
-			chain = tmp_crw.chn ? chain + 1 : 0;
-			continue;
-		}
-		ccode = stcrw(&crw[chain]);
-		if (ccode != 0)
-			break;
-		printk(KERN_DEBUG "crw_info : CRW reports slct=%d, oflw=%d, "
-		       "chn=%d, rsc=%X, anc=%d, erc=%X, rsid=%X\n",
-		       crw[chain].slct, crw[chain].oflw, crw[chain].chn,
-		       crw[chain].rsc, crw[chain].anc, crw[chain].erc,
-		       crw[chain].rsid);
-		/* Check for overflows. */
-		if (crw[chain].oflw) {
-			int i;
-
-			pr_debug("%s: crw overflow detected!\n", __func__);
-			for (i = 0; i < NR_RSCS; i++) {
-				if (crw_handlers[i])
-					crw_handlers[i](NULL, NULL, 1);
-			}
-			chain = 0;
-			continue;
-		}
-		if (crw[0].chn && !chain) {
-			chain++;
-			continue;
-		}
-		if (crw_handlers[crw[chain].rsc])
-			crw_handlers[crw[chain].rsc](&crw[0],
-						     chain ? &crw[1] : NULL,
-						     0);
-		/* chain is always 0 or 1 here. */
-		chain = crw[chain].chn ? chain + 1 : 0;
-	}
-	goto repeat;
-	return 0;
-}
+#include <asm/nmi.h>
+#include <asm/crw.h>
 
 struct mcck_struct {
 	int kill_task;
@@ -142,12 +28,18 @@ struct mcck_struct {
 
 static DEFINE_PER_CPU(struct mcck_struct, cpu_mcck);
 
+static NORET_TYPE void s390_handle_damage(char *msg)
+{
+	smp_send_stop();
+	disabled_wait((unsigned long) __builtin_return_address(0));
+	while (1);
+}
+
 /*
  * Main machine check handler function. Will be called with interrupts enabled
  * or disabled and machine checks enabled or disabled.
  */
-void
-s390_handle_mcck(void)
+void s390_handle_mcck(void)
 {
 	unsigned long flags;
 	struct mcck_struct mcck;
@@ -166,7 +58,7 @@ s390_handle_mcck(void)
 	local_irq_restore(flags);
 
 	if (mcck.channel_report)
-		up(&m_sem);
+		crw_handle_channel_report();
 
 #ifdef CONFIG_MACHCHK_WARNING
 /*
@@ -204,8 +96,7 @@ EXPORT_SYMBOL_GPL(s390_handle_mcck);
  * returns 0 if all registers could be validated
  * returns 1 otherwise
  */
-static int
-s390_revalidate_registers(struct mci *mci)
+static int notrace s390_revalidate_registers(struct mci *mci)
 {
 	int kill_task;
 	u64 tmpclock;
@@ -214,22 +105,21 @@ s390_revalidate_registers(struct mci *mci)
 
 	kill_task = 0;
 	zero = 0;
-	/* General purpose registers */
-	if (!mci->gr)
+
+	if (!mci->gr) {
 		/*
 		 * General purpose registers couldn't be restored and have
 		 * unknown contents. Process needs to be terminated.
 		 */
 		kill_task = 1;
-
-	/* Revalidate floating point registers */
-	if (!mci->fp)
+	}
+	if (!mci->fp) {
 		/*
 		 * Floating point registers can't be restored and
 		 * therefore the process needs to be terminated.
 		 */
 		kill_task = 1;
-
+	}
 #ifndef CONFIG_64BIT
 	asm volatile(
 		"	ld	0,0(%0)\n"
@@ -245,9 +135,8 @@ s390_revalidate_registers(struct mci *mci)
 		fpt_creg_save_area = &S390_lowcore.fpt_creg_save_area;
 #else
 		fpt_save_area = (void *) S390_lowcore.extended_save_area_addr;
-		fpt_creg_save_area = fpt_save_area+128;
+		fpt_creg_save_area = fpt_save_area + 128;
 #endif
-		/* Floating point control register */
 		if (!mci->fc) {
 			/*
 			 * Floating point control register can't be restored.
@@ -278,26 +167,25 @@ s390_revalidate_registers(struct mci *mci)
 			"	ld	15,120(%0)\n"
 			: : "a" (fpt_save_area));
 	}
-
 	/* Revalidate access registers */
 	asm volatile(
 		"	lam	0,15,0(%0)"
 		: : "a" (&S390_lowcore.access_regs_save_area));
-	if (!mci->ar)
+	if (!mci->ar) {
 		/*
 		 * Access registers have unknown contents.
 		 * Terminating task.
 		 */
 		kill_task = 1;
-
+	}
 	/* Revalidate control registers */
-	if (!mci->cr)
+	if (!mci->cr) {
 		/*
 		 * Control registers have unknown contents.
 		 * Can't recover and therefore stopping machine.
 		 */
 		s390_handle_damage("invalid control registers.");
-	else
+	} else {
 #ifdef CONFIG_64BIT
 		asm volatile(
 			"	lctlg	0,15,0(%0)"
@@ -307,12 +195,11 @@ s390_revalidate_registers(struct mci *mci)
 			"	lctl	0,15,0(%0)"
 			: : "a" (&S390_lowcore.cregs_save_area));
 #endif
-
+	}
 	/*
 	 * We don't even try to revalidate the TOD register, since we simply
 	 * can't write something sensible into that register.
 	 */
-
 #ifdef CONFIG_64BIT
 	/*
 	 * See if we can revalidate the TOD programmable register with its
@@ -330,7 +217,6 @@ s390_revalidate_registers(struct mci *mci)
 			: : "a" (&S390_lowcore.tod_progreg_save_area)
 			: "0", "cc");
 #endif
-
 	/* Revalidate clock comparator register */
 	asm volatile(
 		"	stck	0(%1)\n"
@@ -354,31 +240,35 @@ s390_revalidate_registers(struct mci *mci)
 #define MAX_IPD_COUNT	29
 #define MAX_IPD_TIME	(5 * 60 * USEC_PER_SEC) /* 5 minutes */
 
+#define ED_STP_ISLAND	6	/* External damage STP island check */
+#define ED_STP_SYNC	7	/* External damage STP sync check */
+#define ED_ETR_SYNC	12	/* External damage ETR sync check */
+#define ED_ETR_SWITCH	13	/* External damage ETR switch to local */
+
 /*
  * machine check handler.
  */
 void notrace s390_do_machine_check(struct pt_regs *regs)
 {
+	static int ipd_count;
 	static DEFINE_SPINLOCK(ipd_lock);
 	static unsigned long long last_ipd;
-	static int ipd_count;
+	struct mcck_struct *mcck;
 	unsigned long long tmp;
 	struct mci *mci;
-	struct mcck_struct *mcck;
 	int umode;
 
 	lockdep_off();
-
 	s390_idle_check();
 
 	mci = (struct mci *) &S390_lowcore.mcck_interruption_code;
 	mcck = &__get_cpu_var(cpu_mcck);
 	umode = user_mode(regs);
 
-	if (mci->sd)
+	if (mci->sd) {
 		/* System damage -> stopping machine */
 		s390_handle_damage("received system damage machine check.");
-
+	}
 	if (mci->pd) {
 		if (mci->b) {
 			/* Processing backup -> verify if we can survive this */
@@ -408,24 +298,17 @@ void notrace s390_do_machine_check(struct pt_regs *regs)
 			 * Nullifying exigent condition, therefore we might
 			 * retry this instruction.
 			 */
-
 			spin_lock(&ipd_lock);
-
 			tmp = get_clock();
-
 			if (((tmp - last_ipd) >> 12) < MAX_IPD_TIME)
 				ipd_count++;
 			else
 				ipd_count = 1;
-
 			last_ipd = tmp;
-
 			if (ipd_count == MAX_IPD_COUNT)
 				s390_handle_damage("too many ipd retries.");
-
 			spin_unlock(&ipd_lock);
-		}
-		else {
+		} else {
 			/* Processing damage -> stopping machine */
 			s390_handle_damage("received instruction processing "
 					   "damage machine check.");
@@ -440,20 +323,18 @@ void notrace s390_do_machine_check(struct pt_regs *regs)
 			mcck->kill_task = 1;
 			mcck->mcck_code = *(unsigned long long *) mci;
 			set_thread_flag(TIF_MCCK_PENDING);
-		}
-		else
+		} else {
 			/*
 			 * Couldn't restore all register contents while in
 			 * kernel mode -> stopping machine.
 			 */
 			s390_handle_damage("unable to revalidate registers.");
+		}
 	}
-
 	if (mci->cd) {
 		/* Timing facility damage */
 		s390_handle_damage("TOD clock damaged");
 	}
-
 	if (mci->ed && mci->ec) {
 		/* External damage */
 		if (S390_lowcore.external_damage_code & (1U << ED_ETR_SYNC))
@@ -465,28 +346,23 @@ void notrace s390_do_machine_check(struct pt_regs *regs)
 		if (S390_lowcore.external_damage_code & (1U << ED_STP_ISLAND))
 			stp_island_check();
 	}
-
 	if (mci->se)
 		/* Storage error uncorrected */
 		s390_handle_damage("received storage error uncorrected "
 				   "machine check.");
-
 	if (mci->ke)
 		/* Storage key-error uncorrected */
 		s390_handle_damage("received storage key-error uncorrected "
 				   "machine check.");
-
 	if (mci->ds && mci->fa)
 		/* Storage degradation */
 		s390_handle_damage("received storage degradation machine "
 				   "check.");
-
 	if (mci->cp) {
 		/* Channel report word pending */
 		mcck->channel_report = 1;
 		set_thread_flag(TIF_MCCK_PENDING);
 	}
-
 	if (mci->w) {
 		/* Warning pending */
 		mcck->warning = 1;
@@ -495,43 +371,13 @@ void notrace s390_do_machine_check(struct pt_regs *regs)
 	lockdep_on();
 }
 
-/*
- * s390_init_machine_check
- *
- * initialize machine check handling
- */
-static int
-machine_check_init(void)
+static int __init machine_check_init(void)
 {
-	init_MUTEX_LOCKED(&m_sem);
 	ctl_set_bit(14, 25);	/* enable external damage MCH */
-	ctl_set_bit(14, 27);    /* enable system recovery MCH */
+	ctl_set_bit(14, 27);	/* enable system recovery MCH */
 #ifdef CONFIG_MACHCHK_WARNING
 	ctl_set_bit(14, 24);	/* enable warning MCH */
 #endif
 	return 0;
 }
-
-/*
- * Initialize the machine check handler really early to be able to
- * catch all machine checks that happen during boot
- */
 arch_initcall(machine_check_init);
-
-/*
- * Machine checks for the channel subsystem must be enabled
- * after the channel subsystem is initialized
- */
-static int __init
-machine_check_crw_init (void)
-{
-	struct task_struct *task;
-
-	task = kthread_run(s390_collect_crw_info, &m_sem, "kmcheck");
-	if (IS_ERR(task))
-		return PTR_ERR(task);
-	ctl_set_bit(14, 28);	/* enable channel report MCH */
-	return 0;
-}
-
-device_initcall (machine_check_crw_init);
