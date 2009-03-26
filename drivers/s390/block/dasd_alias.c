@@ -5,6 +5,8 @@
  * Author(s): Stefan Weinhuber <wein@de.ibm.com>
  */
 
+#define KMSG_COMPONENT "dasd"
+
 #include <linux/list.h>
 #include <asm/ebcdic.h>
 #include "dasd_int.h"
@@ -503,7 +505,7 @@ static void lcu_update_work(struct work_struct *work)
 	 */
 	spin_lock_irqsave(&lcu->lock, flags);
 	if (rc || (lcu->flags & NEED_UAC_UPDATE)) {
-		DEV_MESSAGE(KERN_WARNING, device, "could not update"
+		DBF_DEV_EVENT(DBF_WARNING, device, "could not update"
 			    " alias data in lcu (rc = %d), retry later", rc);
 		schedule_delayed_work(&lcu->ruac_data.dwork, 30*HZ);
 	} else {
@@ -875,7 +877,7 @@ void dasd_alias_handle_summary_unit_check(struct dasd_device *device,
 
 	lcu = private->lcu;
 	if (!lcu) {
-		DEV_MESSAGE(KERN_WARNING, device, "%s",
+		DBF_DEV_EVENT(DBF_WARNING, device, "%s",
 			    "device not ready to handle summary"
 			    " unit check (no lcu structure)");
 		return;
@@ -888,7 +890,7 @@ void dasd_alias_handle_summary_unit_check(struct dasd_device *device,
 	 * the next interrupt on a different device
 	 */
 	if (list_empty(&device->alias_list)) {
-		DEV_MESSAGE(KERN_WARNING, device, "%s",
+		DBF_DEV_EVENT(DBF_WARNING, device, "%s",
 			    "device is in offline processing,"
 			    " don't do summary unit check handling");
 		spin_unlock(&lcu->lock);
@@ -896,7 +898,7 @@ void dasd_alias_handle_summary_unit_check(struct dasd_device *device,
 	}
 	if (lcu->suc_data.device) {
 		/* already scheduled or running */
-		DEV_MESSAGE(KERN_WARNING, device, "%s",
+		DBF_DEV_EVENT(DBF_WARNING, device, "%s",
 			    "previous instance of summary unit check worker"
 			    " still pending");
 		spin_unlock(&lcu->lock);

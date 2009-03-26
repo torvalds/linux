@@ -6,6 +6,8 @@
  *  Author(s): Stefan Weinhuber <wein@de.ibm.com>
  */
 
+#define KMSG_COMPONENT "dasd"
+
 #include <linux/init.h>
 #include <linux/fs.h>
 #include <linux/kernel.h>
@@ -539,7 +541,7 @@ static int dasd_eer_open(struct inode *inp, struct file *filp)
 	if (eerb->buffer_page_count < 1 ||
 	    eerb->buffer_page_count > INT_MAX / PAGE_SIZE) {
 		kfree(eerb);
-		MESSAGE(KERN_WARNING, "can't open device since module "
+		DBF_EVENT(DBF_WARNING, "can't open device since module "
 			"parameter eer_pages is smaller than 1 or"
 			" bigger than %d", (int)(INT_MAX / PAGE_SIZE));
 		unlock_kernel();
@@ -692,7 +694,7 @@ int __init dasd_eer_init(void)
 	if (rc) {
 		kfree(dasd_eer_dev);
 		dasd_eer_dev = NULL;
-		MESSAGE(KERN_ERR, "%s", "dasd_eer_init could not "
+		DBF_EVENT(DBF_ERR, "%s", "dasd_eer_init could not "
 		       "register misc device");
 		return rc;
 	}

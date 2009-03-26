@@ -9,6 +9,9 @@
  *
  */
 
+#define KMSG_COMPONENT "dasd"
+#define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
+
 #include <linux/kmod.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
@@ -222,7 +225,7 @@ static int dasd_state_known_to_basic(struct dasd_device *device)
 			return rc;
 	}
 	/* register 'device' debug area, used for all DBF_DEV_XXX calls */
-	device->debug_area = debug_register(dev_name(&device->cdev->dev), 1, 1,
+	device->debug_area = debug_register(dev_name(&device->cdev->dev), 4, 1,
 					    8 * sizeof(long));
 	debug_register_view(device->debug_area, &debug_sprintf_view);
 	debug_set_level(device->debug_area, DBF_WARNING);
@@ -763,7 +766,7 @@ static inline int dasd_check_cqr(struct dasd_ccw_req *cqr)
 		return -EINVAL;
 	device = cqr->startdev;
 	if (strncmp((char *) &cqr->magic, device->discipline->ebcname, 4)) {
-		DEV_MESSAGE(KERN_WARNING, device,
+		DBF_DEV_EVENT(DBF_WARNING, device,
 			    " dasd_ccw_req 0x%08x magic doesn't match"
 			    " discipline 0x%08x",
 			    cqr->magic,
@@ -783,6 +786,7 @@ int dasd_term_IO(struct dasd_ccw_req *cqr)
 {
 	struct dasd_device *device;
 	int retries, rc;
+	char errorstring[ERRORLENGTH];
 
 	/* Check the cqr */
 	rc = dasd_check_cqr(cqr);
@@ -816,10 +820,10 @@ int dasd_term_IO(struct dasd_ccw_req *cqr)
 				      "device busy, retry later");
 			break;
 		default:
-			DEV_MESSAGE(KERN_ERR, device,
-				    "line %d unknown RC=%d, please "
-				    "report to linux390@de.ibm.com",
-				    __LINE__, rc);
+			/* internal error 10 - unknown rc*/
+			snprintf(errorstring, ERRORLENGTH, "10 %d", rc);
+			dev_err(&device->cdev->dev, "An error occurred in the "
+				"DASD device driver, reason=%s\n", errorstring);
 			BUG();
 			break;
 		}
@@ -837,6 +841,7 @@ int dasd_start_IO(struct dasd_ccw_req *cqr)
 {
 	struct dasd_device *device;
 	int rc;
+	char errorstring[ERRORLENGTH];
 
 	/* Check the cqr */
 	rc = dasd_check_cqr(cqr);
@@ -844,9 +849,10 @@ int dasd_start_IO(struct dasd_ccw_req *cqr)
 		return rc;
 	device = (struct dasd_device *) cqr->startdev;
 	if (cqr->retries < 0) {
-		DEV_MESSAGE(KERN_DEBUG, device,
-			    "start_IO: request %p (%02x/%i) - no retry left.",
-			    cqr, cqr->status, cqr->retries);
+		/* internal error 14 - start_IO run out of retries */
+		sprintf(errorstring, "14 %p", cqr);
+		dev_err(&device->cdev->dev, "An error occurred in the DASD "
+			"device driver, reason=%s\n", errorstring);
 		cqr->status = DASD_CQR_ERROR;
 		return -EIO;
 	}
@@ -868,11 +874,11 @@ int dasd_start_IO(struct dasd_ccw_req *cqr)
 			      cqr);
 		break;
 	case -EBUSY:
-		DBF_DEV_EVENT(DBF_ERR, device, "%s",
+		DBF_DEV_EVENT(DBF_DEBUG, device, "%s",
 			      "start_IO: device busy, retry later");
 		break;
 	case -ETIMEDOUT:
-		DBF_DEV_EVENT(DBF_ERR, device, "%s",
+		DBF_DEV_EVENT(DBF_DEBUG, device, "%s",
 			      "start_IO: request timeout, retry later");
 		break;
 	case -EACCES:
@@ -882,7 +888,7 @@ int dasd_start_IO(struct dasd_ccw_req *cqr)
 		 * Do a retry with all available pathes.
 		 */
 		cqr->lpm = LPM_ANYPATH;
-		DBF_DEV_EVENT(DBF_ERR, device, "%s",
+		DBF_DEV_EVENT(DBF_DEBUG, device, "%s",
 			      "start_IO: selected pathes gone,"
 			      " retry on all pathes");
 		break;
@@ -891,13 +897,15 @@ int dasd_start_IO(struct dasd_ccw_req *cqr)
 			      "start_IO: -ENODEV device gone, retry");
 		break;
 	case -EIO:
-		DBF_DEV_EVENT(DBF_ERR, device, "%s",
+		DBF_DEV_EVENT(DBF_DEBUG, device, "%s",
 			      "start_IO: -EIO device gone, retry");
 		break;
 	default:
-		DEV_MESSAGE(KERN_ERR, device,
-			    "line %d unknown RC=%d, please report"
-			    " to linux390@de.ibm.com", __LINE__, rc);
+		/* internal error 11 - unknown rc */
+		snprintf(errorstring, ERRORLENGTH, "11 %d", rc);
+		dev_err(&device->cdev->dev,
+			"An error occurred in the DASD device driver, "
+			"reason=%s\n", errorstring);
 		BUG();
 		break;
 	}
@@ -954,7 +962,7 @@ static void dasd_handle_killed_request(struct ccw_device *cdev,
 		return;
 	cqr = (struct dasd_ccw_req *) intparm;
 	if (cqr->status != DASD_CQR_IN_IO) {
-		MESSAGE(KERN_DEBUG,
+		DBF_EVENT(DBF_DEBUG,
 			"invalid status in handle_killed_request: "
 			"bus_id %s, status %02x",
 			dev_name(&cdev->dev), cqr->status);
@@ -965,8 +973,8 @@ static void dasd_handle_killed_request(struct ccw_device *cdev,
 	if (device == NULL ||
 	    device != dasd_device_from_cdev_locked(cdev) ||
 	    strncmp(device->discipline->ebcname, (char *) &cqr->magic, 4)) {
-		MESSAGE(KERN_DEBUG, "invalid device in request: bus_id %s",
-			dev_name(&cdev->dev));
+		DBF_DEV_EVENT(DBF_DEBUG, device, "invalid device in request: "
+			      "bus_id %s", dev_name(&cdev->dev));
 		return;
 	}
 
@@ -1005,11 +1013,11 @@ void dasd_int_handler(struct ccw_device *cdev, unsigned long intparm,
 		case -EIO:
 			break;
 		case -ETIMEDOUT:
-			printk(KERN_WARNING"%s(%s): request timed out\n",
+			DBF_EVENT(DBF_WARNING, "%s(%s): request timed out\n",
 			       __func__, dev_name(&cdev->dev));
 			break;
 		default:
-			printk(KERN_WARNING"%s(%s): unknown error %ld\n",
+			DBF_EVENT(DBF_WARNING, "%s(%s): unknown error %ld\n",
 			       __func__, dev_name(&cdev->dev), PTR_ERR(irb));
 		}
 		dasd_handle_killed_request(cdev, intparm);
@@ -1017,10 +1025,6 @@ void dasd_int_handler(struct ccw_device *cdev, unsigned long intparm,
 	}
 
 	now = get_clock();
-
-	DBF_EVENT(DBF_ERR, "Interrupt: bus_id %s CS/DS %04x ip %08x",
-		  dev_name(&cdev->dev), ((irb->scsw.cmd.cstat << 8) |
-		  irb->scsw.cmd.dstat), (unsigned int) intparm);
 
 	/* check for unsolicited interrupts */
 	cqr = (struct dasd_ccw_req *) intparm;
@@ -1042,8 +1046,8 @@ void dasd_int_handler(struct ccw_device *cdev, unsigned long intparm,
 	device = (struct dasd_device *) cqr->startdev;
 	if (!device ||
 	    strncmp(device->discipline->ebcname, (char *) &cqr->magic, 4)) {
-		MESSAGE(KERN_DEBUG, "invalid device in request: bus_id %s",
-			dev_name(&cdev->dev));
+		DBF_DEV_EVENT(DBF_DEBUG, device, "invalid device in request: "
+			      "bus_id %s", dev_name(&cdev->dev));
 		return;
 	}
 
@@ -1059,13 +1063,11 @@ void dasd_int_handler(struct ccw_device *cdev, unsigned long intparm,
 
 	/* check status - the request might have been killed by dyn detach */
 	if (cqr->status != DASD_CQR_IN_IO) {
-		MESSAGE(KERN_DEBUG,
-			"invalid status: bus_id %s, status %02x",
-			dev_name(&cdev->dev), cqr->status);
+		DBF_DEV_EVENT(DBF_DEBUG, device, "invalid status: bus_id %s, "
+			      "status %02x", dev_name(&cdev->dev), cqr->status);
 		return;
 	}
-	DBF_DEV_EVENT(DBF_DEBUG, device, "Int: CS/DS 0x%04x for cqr %p",
-		      ((irb->scsw.cmd.cstat << 8) | irb->scsw.cmd.dstat), cqr);
+
 	next = NULL;
 	expires = 0;
 	if (scsw_dstat(&irb->scsw) == (DEV_STAT_CHN_END | DEV_STAT_DEV_END) &&
@@ -1080,18 +1082,23 @@ void dasd_int_handler(struct ccw_device *cdev, unsigned long intparm,
 		}
 	} else {  /* error */
 		memcpy(&cqr->irb, irb, sizeof(struct irb));
+		/* log sense for every failed I/O to s390 debugfeature */
+		dasd_log_sense_dbf(cqr, irb);
 		if (device->features & DASD_FEATURE_ERPLOG) {
 			dasd_log_sense(cqr, irb);
 		}
+
 		/*
 		 * If we don't want complex ERP for this request, then just
 		 * reset this and retry it in the fastpath
 		 */
 		if (!test_bit(DASD_CQR_FLAGS_USE_ERP, &cqr->flags) &&
 		    cqr->retries > 0) {
-			DEV_MESSAGE(KERN_DEBUG, device,
-				    "default ERP in fastpath (%i retries left)",
-				    cqr->retries);
+			if (cqr->lpm == LPM_ANYPATH)
+				DBF_DEV_EVENT(DBF_DEBUG, device,
+					      "default ERP in fastpath "
+					      "(%i retries left)",
+					      cqr->retries);
 			cqr->lpm    = LPM_ANYPATH;
 			cqr->status = DASD_CQR_QUEUED;
 			next = cqr;
@@ -1102,10 +1109,6 @@ void dasd_int_handler(struct ccw_device *cdev, unsigned long intparm,
 	    (!device->stopped)) {
 		if (device->discipline->start_IO(next) == 0)
 			expires = next->expires;
-		else
-			DEV_MESSAGE(KERN_DEBUG, device, "%s",
-				    "Interrupt fastpath "
-				    "failed!");
 	}
 	if (expires != 0)
 		dasd_device_set_timer(device, expires);
@@ -1178,6 +1181,7 @@ static void __dasd_device_process_final_queue(struct dasd_device *device,
 	struct dasd_block *block;
 	void (*callback)(struct dasd_ccw_req *, void *data);
 	void *callback_data;
+	char errorstring[ERRORLENGTH];
 
 	list_for_each_safe(l, n, final_queue) {
 		cqr = list_entry(l, struct dasd_ccw_req, devlist);
@@ -1198,10 +1202,11 @@ static void __dasd_device_process_final_queue(struct dasd_device *device,
 			cqr->status = DASD_CQR_TERMINATED;
 			break;
 		default:
-			DEV_MESSAGE(KERN_ERR, device,
-				    "wrong cqr status in __dasd_process_final_queue "
-				    "for cqr %p, status %x",
-				    cqr, cqr->status);
+			/* internal error 12 - wrong cqr status*/
+			snprintf(errorstring, ERRORLENGTH, "12 %p %x02", cqr, cqr->status);
+			dev_err(&device->cdev->dev,
+				"An error occurred in the DASD device driver, "
+				"reason=%s\n", errorstring);
 			BUG();
 		}
 		if (cqr->callback != NULL)
@@ -1226,18 +1231,17 @@ static void __dasd_device_check_expire(struct dasd_device *device)
 	    (time_after_eq(jiffies, cqr->expires + cqr->starttime))) {
 		if (device->discipline->term_IO(cqr) != 0) {
 			/* Hmpf, try again in 5 sec */
-			DEV_MESSAGE(KERN_ERR, device,
-				    "internal error - timeout (%is) expired "
-				    "for cqr %p, termination failed, "
-				    "retrying in 5s",
-				    (cqr->expires/HZ), cqr);
+			dev_err(&device->cdev->dev,
+				"cqr %p timed out (%is) but cannot be "
+				"ended, retrying in 5 s\n",
+				cqr, (cqr->expires/HZ));
 			cqr->expires += 5*HZ;
 			dasd_device_set_timer(device, 5*HZ);
 		} else {
-			DEV_MESSAGE(KERN_ERR, device,
-				    "internal error - timeout (%is) expired "
-				    "for cqr %p (%i retries left)",
-				    (cqr->expires/HZ), cqr, cqr->retries);
+			dev_err(&device->cdev->dev,
+				"cqr %p timed out (%is), %i retries "
+				"remaining\n", cqr, (cqr->expires/HZ),
+				cqr->retries);
 		}
 	}
 }
@@ -1299,10 +1303,9 @@ int dasd_flush_device_queue(struct dasd_device *device)
 			rc = device->discipline->term_IO(cqr);
 			if (rc) {
 				/* unable to terminate requeust */
-				DEV_MESSAGE(KERN_ERR, device,
-					    "dasd flush ccw_queue is unable "
-					    " to terminate request %p",
-					    cqr);
+				dev_err(&device->cdev->dev,
+					"Flushing the DASD request queue "
+					"failed for request %p\n", cqr);
 				/* stop flush processing */
 				goto finished;
 			}
@@ -1546,10 +1549,9 @@ int dasd_cancel_req(struct dasd_ccw_req *cqr)
 		/* request in IO - terminate IO and release again */
 		rc = device->discipline->term_IO(cqr);
 		if (rc) {
-			DEV_MESSAGE(KERN_ERR, device,
-				    "dasd_cancel_req is unable "
-				    " to terminate request %p, rc = %d",
-				    cqr, rc);
+			dev_err(&device->cdev->dev,
+				"Cancelling request %p failed with rc=%d\n",
+				cqr, rc);
 		} else {
 			cqr->stopclk = get_clock();
 			rc = 1;
@@ -1626,7 +1628,7 @@ static inline void __dasd_block_process_erp(struct dasd_block *block,
 	if (cqr->status == DASD_CQR_DONE)
 		DBF_DEV_EVENT(DBF_NOTICE, device, "%s", "ERP successful");
 	else
-		DEV_MESSAGE(KERN_ERR, device, "%s", "ERP unsuccessful");
+		dev_err(&device->cdev->dev, "ERP failed for the DASD\n");
 	erp_fn = device->discipline->erp_postaction(cqr);
 	erp_fn(cqr);
 }
@@ -2055,8 +2057,9 @@ static int dasd_open(struct block_device *bdev, fmode_t mode)
 	}
 
 	if (dasd_probeonly) {
-		DEV_MESSAGE(KERN_INFO, base, "%s",
-			    "No access to device due to probeonly mode");
+		dev_info(&base->cdev->dev,
+			 "Accessing the DASD failed because it is in "
+			 "probeonly mode\n");
 		rc = -EPERM;
 		goto out;
 	}
@@ -2156,14 +2159,14 @@ int dasd_generic_probe(struct ccw_device *cdev,
 
 	ret = ccw_device_set_options(cdev, CCWDEV_DO_PATHGROUP);
 	if (ret) {
-		printk(KERN_WARNING
+		DBF_EVENT(DBF_WARNING,
 		       "dasd_generic_probe: could not set ccw-device options "
 		       "for %s\n", dev_name(&cdev->dev));
 		return ret;
 	}
 	ret = dasd_add_sysfs_files(cdev);
 	if (ret) {
-		printk(KERN_WARNING
+		DBF_EVENT(DBF_WARNING,
 		       "dasd_generic_probe: could not add sysfs entries "
 		       "for %s\n", dev_name(&cdev->dev));
 		return ret;
@@ -2179,9 +2182,7 @@ int dasd_generic_probe(struct ccw_device *cdev,
 	    (dasd_autodetect && dasd_busid_known(dev_name(&cdev->dev)) != 0))
 		ret = ccw_device_set_online(cdev);
 	if (ret)
-		printk(KERN_WARNING
-		       "dasd_generic_probe: could not initially "
-		       "online ccw-device %s; return code: %d\n",
+		pr_warning("%s: Setting the DASD online failed with rc=%d\n",
 		       dev_name(&cdev->dev), ret);
 	return 0;
 }
@@ -2245,10 +2246,9 @@ int dasd_generic_set_online(struct ccw_device *cdev,
 	discipline = base_discipline;
 	if (device->features & DASD_FEATURE_USEDIAG) {
 	  	if (!dasd_diag_discipline_pointer) {
-		        printk (KERN_WARNING
-				"dasd_generic couldn't online device %s "
-				"- discipline DIAG not available\n",
-				dev_name(&cdev->dev));
+			pr_warning("%s Setting the DASD online failed because "
+				   "of missing DIAG discipline\n",
+				   dev_name(&cdev->dev));
 			dasd_delete_device(device);
 			return -ENODEV;
 		}
@@ -2269,10 +2269,9 @@ int dasd_generic_set_online(struct ccw_device *cdev,
 	/* check_device will allocate block device if necessary */
 	rc = discipline->check_device(device);
 	if (rc) {
-		printk (KERN_WARNING
-			"dasd_generic couldn't online device %s "
-			"with discipline %s rc=%i\n",
-			dev_name(&cdev->dev), discipline->name, rc);
+		pr_warning("%s Setting the DASD online with discipline %s "
+			   "failed with rc=%i\n",
+			   dev_name(&cdev->dev), discipline->name, rc);
 		module_put(discipline->owner);
 		module_put(base_discipline->owner);
 		dasd_delete_device(device);
@@ -2281,9 +2280,8 @@ int dasd_generic_set_online(struct ccw_device *cdev,
 
 	dasd_set_target_state(device, DASD_STATE_ONLINE);
 	if (device->state <= DASD_STATE_KNOWN) {
-		printk (KERN_WARNING
-			"dasd_generic discipline not found for %s\n",
-			dev_name(&cdev->dev));
+		pr_warning("%s Setting the DASD online failed because of a "
+			   "missing discipline\n", dev_name(&cdev->dev));
 		rc = -ENODEV;
 		dasd_set_target_state(device, DASD_STATE_NEW);
 		if (device->block)
@@ -2327,13 +2325,13 @@ int dasd_generic_set_offline(struct ccw_device *cdev)
 		open_count = atomic_read(&device->block->open_count);
 		if (open_count > max_count) {
 			if (open_count > 0)
-				printk(KERN_WARNING "Can't offline dasd "
-				       "device with open count = %i.\n",
-				       open_count);
+				pr_warning("%s: The DASD cannot be set offline "
+					   "with open count %i\n",
+					   dev_name(&cdev->dev), open_count);
 			else
-				printk(KERN_WARNING "%s",
-				       "Can't offline dasd device due "
-				       "to internal use\n");
+				pr_warning("%s: The DASD cannot be set offline "
+					   "while it is in use\n",
+					   dev_name(&cdev->dev));
 			clear_bit(DASD_FLAG_OFFLINE, &device->flags);
 			dasd_put_device(device);
 			return -EBUSY;
@@ -2406,8 +2404,10 @@ static struct dasd_ccw_req *dasd_generic_build_rdc(struct dasd_device *device,
 	cqr = dasd_smalloc_request(magic, 1 /* RDC */, rdc_buffer_size, device);
 
 	if (IS_ERR(cqr)) {
-		DEV_MESSAGE(KERN_WARNING, device, "%s",
-			    "Could not allocate RDC request");
+		/* internal error 13 - Allocating the RDC request failed*/
+		dev_err(&device->cdev->dev,
+			 "An error occurred in the DASD device driver, "
+			 "reason=%s\n", "13");
 		return cqr;
 	}
 
@@ -2519,7 +2519,7 @@ static int __init dasd_init(void)
 
 	return 0;
 failed:
-	MESSAGE(KERN_INFO, "%s", "initialization not performed due to errors");
+	pr_info("The DASD device driver could not be initialized\n");
 	dasd_exit();
 	return rc;
 }

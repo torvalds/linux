@@ -112,6 +112,9 @@ do { \
 				d_data); \
 } while(0)
 
+/* limit size for an errorstring */
+#define ERRORLENGTH 30
+
 /* definition of dbf debug levels */
 #define	DBF_EMERG	0	/* system is unusable			*/
 #define	DBF_ALERT	1	/* action must be taken immediately	*/
@@ -281,6 +284,8 @@ struct dasd_discipline {
 	dasd_erp_fn_t(*erp_postaction) (struct dasd_ccw_req *);
 	void (*dump_sense) (struct dasd_device *, struct dasd_ccw_req *,
 			    struct irb *);
+	void (*dump_sense_dbf) (struct dasd_device *, struct dasd_ccw_req *,
+			    struct irb *, char *);
 
 	void (*handle_unsolicited_interrupt) (struct dasd_device *,
 					      struct irb *);
@@ -626,6 +631,7 @@ struct dasd_ccw_req *dasd_alloc_erp_request(char *, int, int,
 					    struct dasd_device *);
 void dasd_free_erp_request(struct dasd_ccw_req *, struct dasd_device *);
 void dasd_log_sense(struct dasd_ccw_req *, struct irb *);
+void dasd_log_sense_dbf(struct dasd_ccw_req *cqr, struct irb *irb);
 
 /* externals in dasd_3990_erp.c */
 struct dasd_ccw_req *dasd_3990_erp_action(struct dasd_ccw_req *);

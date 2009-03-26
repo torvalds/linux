@@ -11,6 +11,8 @@
  *
  */
 
+#define KMSG_COMPONENT "dasd"
+
 #include <linux/stddef.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
@@ -87,7 +89,7 @@ dasd_eckd_probe (struct ccw_device *cdev)
 	/* set ECKD specific ccw-device options */
 	ret = ccw_device_set_options(cdev, CCWDEV_ALLOW_FORCE);
 	if (ret) {
-		printk(KERN_WARNING
+		DBF_EVENT(DBF_WARNING,
 		       "dasd_eckd_probe: could not set ccw-device options "
 		       "for %s\n", dev_name(&cdev->dev));
 		return ret;
@@ -248,8 +250,8 @@ define_extent(struct ccw1 *ccw, struct DE_eckd_data *data, unsigned int trk,
 		rc = check_XRC (ccw, data, device);
 		break;
 	default:
-		DBF_DEV_EVENT(DBF_ERR, device,
-			    "PFX LRE unknown opcode 0x%x", cmd);
+		dev_err(&device->cdev->dev,
+			"0x%x is not a known command\n", cmd);
 		break;
 	}
 
@@ -647,7 +649,8 @@ locate_record(struct ccw1 *ccw, struct LO_eckd_data *data, unsigned int trk,
 		data->operation.operation = 0x0b;
 		break;
 	default:
-		DEV_MESSAGE(KERN_ERR, device, "unknown opcode 0x%x", cmd);
+		DBF_DEV_EVENT(DBF_ERR, device, "unknown locate record "
+			      "opcode 0x%x", cmd);
 	}
 	set_ch_t(&data->seek_addr,
 		 trk / private->rdc_data.trk_per_cyl,
@@ -742,8 +745,8 @@ static struct dasd_ccw_req *dasd_eckd_build_rcd_lpm(struct dasd_device *device,
 	cqr = dasd_smalloc_request("ECKD", 1 /* RCD */, ciw->count, device);
 
 	if (IS_ERR(cqr)) {
-		DEV_MESSAGE(KERN_WARNING, device, "%s",
-			    "Could not allocate RCD request");
+		DBF_DEV_EVENT(DBF_WARNING, device, "%s",
+			      "Could not allocate RCD request");
 		return cqr;
 	}
 
@@ -893,14 +896,16 @@ static int dasd_eckd_read_conf(struct dasd_device *device)
 			rc = dasd_eckd_read_conf_lpm(device, &conf_data,
 						     &conf_len, lpm);
 			if (rc && rc != -EOPNOTSUPP) {	/* -EOPNOTSUPP is ok */
-				MESSAGE(KERN_WARNING,
-					"Read configuration data returned "
-					"error %d", rc);
+				DBF_EVENT(DBF_WARNING,
+					  "Read configuration data returned "
+					  "error %d for device: %s", rc,
+					  dev_name(&device->cdev->dev));
 				return rc;
 			}
 			if (conf_data == NULL) {
-				MESSAGE(KERN_WARNING, "%s", "No configuration "
-					"data retrieved");
+				DBF_EVENT(DBF_WARNING, "No configuration "
+					  "data retrieved for device: %s",
+					  dev_name(&device->cdev->dev));
 				continue;	/* no error */
 			}
 			/* save first valid configuration data */
@@ -947,8 +952,9 @@ static int dasd_eckd_read_features(struct dasd_device *device)
 				    sizeof(struct dasd_rssd_features)),
 				   device);
 	if (IS_ERR(cqr)) {
-		DEV_MESSAGE(KERN_WARNING, device, "%s",
-			    "Could not allocate initialization request");
+		DBF_EVENT(DBF_WARNING, "Could not allocate initialization "
+			  "request for device: %s",
+			  dev_name(&device->cdev->dev));
 		return PTR_ERR(cqr);
 	}
 	cqr->startdev = device;
@@ -1009,7 +1015,7 @@ static struct dasd_ccw_req *dasd_eckd_build_psf_ssc(struct dasd_device *device,
 				  device);
 
 	if (IS_ERR(cqr)) {
-		DEV_MESSAGE(KERN_WARNING, device, "%s",
+		DBF_DEV_EVENT(DBF_WARNING, device, "%s",
 			   "Could not allocate PSF-SSC request");
 		return cqr;
 	}
@@ -1074,10 +1080,10 @@ static int dasd_eckd_validate_server(struct dasd_device *device)
 	/* may be requested feature is not available on server,
 	 * therefore just report error and go ahead */
 	private = (struct dasd_eckd_private *) device->private;
-	DEV_MESSAGE(KERN_INFO, device,
-		    "PSF-SSC on storage subsystem %s.%s.%04x returned rc=%d",
-		    private->uid.vendor, private->uid.serial,
-		    private->uid.ssid, rc);
+	DBF_EVENT(DBF_WARNING, "PSF-SSC on storage subsystem %s.%s.%04x "
+		  "returned rc=%d for device: %s",
+		  private->uid.vendor, private->uid.serial,
+		  private->uid.ssid, rc, dev_name(&device->cdev->dev));
 	/* RE-Read Configuration Data */
 	return dasd_eckd_read_conf(device);
 }
@@ -1099,9 +1105,9 @@ dasd_eckd_check_characteristics(struct dasd_device *device)
 		private = kzalloc(sizeof(struct dasd_eckd_private),
 				  GFP_KERNEL | GFP_DMA);
 		if (private == NULL) {
-			DEV_MESSAGE(KERN_WARNING, device, "%s",
-				    "memory allocation failed for private "
-				    "data");
+			dev_warn(&device->cdev->dev,
+				 "Allocating memory for private DASD data "
+				 "failed\n");
 			return -ENOMEM;
 		}
 		device->private = (void *) private;
@@ -1126,8 +1132,9 @@ dasd_eckd_check_characteristics(struct dasd_device *device)
 	if (private->uid.type == UA_BASE_DEVICE) {
 		block = dasd_alloc_block();
 		if (IS_ERR(block)) {
-			DEV_MESSAGE(KERN_WARNING, device, "%s",
-				    "could not allocate dasd block structure");
+			DBF_EVENT(DBF_WARNING, "could not allocate dasd "
+				  "block structure for device: %s",
+				  dev_name(&device->cdev->dev));
 			rc = PTR_ERR(block);
 			goto out_err1;
 		}
@@ -1158,9 +1165,9 @@ dasd_eckd_check_characteristics(struct dasd_device *device)
 	memset(rdc_data, 0, sizeof(rdc_data));
 	rc = dasd_generic_read_dev_chars(device, "ECKD", &rdc_data, 64);
 	if (rc) {
-		DEV_MESSAGE(KERN_WARNING, device,
-			    "Read device characteristics returned "
-			    "rc=%d", rc);
+		DBF_EVENT(DBF_WARNING,
+			  "Read device characteristics failed, rc=%d for "
+			  "device: %s", rc, dev_name(&device->cdev->dev));
 		goto out_err3;
 	}
 	/* find the vaild cylinder size */
@@ -1170,15 +1177,15 @@ dasd_eckd_check_characteristics(struct dasd_device *device)
 	else
 		private->real_cyl = private->rdc_data.no_cyl;
 
-	DEV_MESSAGE(KERN_INFO, device,
-		    "%04X/%02X(CU:%04X/%02X) Cyl:%d Head:%d Sec:%d",
-		    private->rdc_data.dev_type,
-		    private->rdc_data.dev_model,
-		    private->rdc_data.cu_type,
-		    private->rdc_data.cu_model.model,
+	dev_info(&device->cdev->dev, "New DASD %04X/%02X (CU %04X/%02X) "
+		 "with %d cylinders, %d heads, %d sectors\n",
+		 private->rdc_data.dev_type,
+		 private->rdc_data.dev_model,
+		 private->rdc_data.cu_type,
+		 private->rdc_data.cu_model.model,
 		    private->real_cyl,
-		    private->rdc_data.trk_per_cyl,
-		    private->rdc_data.sec_per_trk);
+		 private->rdc_data.trk_per_cyl,
+		 private->rdc_data.sec_per_trk);
 	return 0;
 
 out_err3:
@@ -1319,8 +1326,8 @@ dasd_eckd_end_analysis(struct dasd_block *block)
 	status = private->init_cqr_status;
 	private->init_cqr_status = -1;
 	if (status != DASD_CQR_DONE) {
-		DEV_MESSAGE(KERN_WARNING, device, "%s",
-			    "volume analysis returned unformatted disk");
+		dev_warn(&device->cdev->dev,
+			    "The DASD is not formatted\n");
 		return -EMEDIUMTYPE;
 	}
 
@@ -1348,8 +1355,8 @@ dasd_eckd_end_analysis(struct dasd_block *block)
 			count_area = &private->count_area[0];
 	} else {
 		if (private->count_area[3].record == 1)
-			DEV_MESSAGE(KERN_WARNING, device, "%s",
-				    "Trk 0: no records after VTOC!");
+			dev_warn(&device->cdev->dev,
+				 "Track 0 has no records following the VTOC\n");
 	}
 	if (count_area != NULL && count_area->kl == 0) {
 		/* we found notthing violating our disk layout */
@@ -1357,8 +1364,8 @@ dasd_eckd_end_analysis(struct dasd_block *block)
 			block->bp_block = count_area->dl;
 	}
 	if (block->bp_block == 0) {
-		DEV_MESSAGE(KERN_WARNING, device, "%s",
-			    "Volume has incompatible disk layout");
+		dev_warn(&device->cdev->dev,
+			 "The disk layout of the DASD is not supported\n");
 		return -EMEDIUMTYPE;
 	}
 	block->s2b_shift = 0;	/* bits to shift 512 to get a block */
@@ -1370,15 +1377,15 @@ dasd_eckd_end_analysis(struct dasd_block *block)
 			  private->rdc_data.trk_per_cyl *
 			  blk_per_trk);
 
-	DEV_MESSAGE(KERN_INFO, device,
-		    "(%dkB blks): %dkB at %dkB/trk %s",
-		    (block->bp_block >> 10),
-		    ((private->real_cyl *
-		      private->rdc_data.trk_per_cyl *
-		      blk_per_trk * (block->bp_block >> 9)) >> 1),
-		    ((blk_per_trk * block->bp_block) >> 10),
-		    private->uses_cdl ?
-		    "compatible disk layout" : "linux disk layout");
+	dev_info(&device->cdev->dev,
+		 "DASD with %d KB/block, %d KB total size, %d KB/track, "
+		 "%s\n", (block->bp_block >> 10),
+		 ((private->real_cyl *
+		   private->rdc_data.trk_per_cyl *
+		   blk_per_trk * (block->bp_block >> 9)) >> 1),
+		 ((blk_per_trk * block->bp_block) >> 10),
+		 private->uses_cdl ?
+		 "compatible disk layout" : "linux disk layout");
 
 	return 0;
 }
@@ -1444,19 +1451,19 @@ dasd_eckd_format_device(struct dasd_device * device,
 	/* Sanity checks. */
 	if (fdata->start_unit >=
 	    (private->real_cyl * private->rdc_data.trk_per_cyl)) {
-		DEV_MESSAGE(KERN_INFO, device, "Track no %u too big!",
-			    fdata->start_unit);
+		dev_warn(&device->cdev->dev, "Start track number %d used in "
+			 "formatting is too big\n", fdata->start_unit);
 		return ERR_PTR(-EINVAL);
 	}
 	if (fdata->start_unit > fdata->stop_unit) {
-		DEV_MESSAGE(KERN_INFO, device, "Track %u reached! ending.",
-			    fdata->start_unit);
+		dev_warn(&device->cdev->dev, "Start track %d used in "
+			 "formatting exceeds end track\n", fdata->start_unit);
 		return ERR_PTR(-EINVAL);
 	}
 	if (dasd_check_blocksize(fdata->blksize) != 0) {
-		DEV_MESSAGE(KERN_WARNING, device,
-			    "Invalid blocksize %u...terminating!",
-			    fdata->blksize);
+		dev_warn(&device->cdev->dev,
+			 "The DASD cannot be formatted with block size %d\n",
+			 fdata->blksize);
 		return ERR_PTR(-EINVAL);
 	}
 
@@ -1500,8 +1507,8 @@ dasd_eckd_format_device(struct dasd_device * device,
 			sizeof(struct eckd_count);
 		break;
 	default:
-		DEV_MESSAGE(KERN_WARNING, device, "Invalid flags 0x%x.",
-			    fdata->intensity);
+		dev_warn(&device->cdev->dev, "An I/O control call used "
+			 "incorrect flags 0x%x\n", fdata->intensity);
 		return ERR_PTR(-EINVAL);
 	}
 	/* Allocate the format ccw request. */
@@ -1696,13 +1703,14 @@ static void dasd_eckd_handle_unsolicited_interrupt(struct dasd_device *device,
 
 	if (!sense) {
 		/* just report other unsolicited interrupts */
-		DEV_MESSAGE(KERN_ERR, device, "%s",
+		DBF_DEV_EVENT(DBF_ERR, device, "%s",
 			    "unsolicited interrupt received");
 	} else {
-		DEV_MESSAGE(KERN_ERR, device, "%s",
+		DBF_DEV_EVENT(DBF_ERR, device, "%s",
 			    "unsolicited interrupt received "
 			    "(sense available)");
-		device->discipline->dump_sense(device, NULL, irb);
+		device->discipline->dump_sense_dbf(device, NULL, irb,
+						   "unsolicited");
 	}
 
 	dasd_schedule_device_bh(device);
@@ -2553,7 +2561,7 @@ dasd_eckd_release(struct dasd_device *device)
 	cqr = dasd_smalloc_request(dasd_eckd_discipline.name,
 				   1, 32, device);
 	if (IS_ERR(cqr)) {
-		DEV_MESSAGE(KERN_WARNING, device, "%s",
+		DBF_DEV_EVENT(DBF_WARNING, device, "%s",
 			    "Could not allocate initialization request");
 		return PTR_ERR(cqr);
 	}
@@ -2596,7 +2604,7 @@ dasd_eckd_reserve(struct dasd_device *device)
 	cqr = dasd_smalloc_request(dasd_eckd_discipline.name,
 				   1, 32, device);
 	if (IS_ERR(cqr)) {
-		DEV_MESSAGE(KERN_WARNING, device, "%s",
+		DBF_DEV_EVENT(DBF_WARNING, device, "%s",
 			    "Could not allocate initialization request");
 		return PTR_ERR(cqr);
 	}
@@ -2638,7 +2646,7 @@ dasd_eckd_steal_lock(struct dasd_device *device)
 	cqr = dasd_smalloc_request(dasd_eckd_discipline.name,
 				   1, 32, device);
 	if (IS_ERR(cqr)) {
-		DEV_MESSAGE(KERN_WARNING, device, "%s",
+		DBF_DEV_EVENT(DBF_WARNING, device, "%s",
 			    "Could not allocate initialization request");
 		return PTR_ERR(cqr);
 	}
@@ -2680,7 +2688,7 @@ dasd_eckd_performance(struct dasd_device *device, void __user *argp)
 				    sizeof(struct dasd_rssd_perf_stats_t)),
 				   device);
 	if (IS_ERR(cqr)) {
-		DEV_MESSAGE(KERN_WARNING, device, "%s",
+		DBF_DEV_EVENT(DBF_WARNING, device, "%s",
 			    "Could not allocate initialization request");
 		return PTR_ERR(cqr);
 	}
@@ -2770,9 +2778,9 @@ dasd_eckd_set_attrib(struct dasd_device *device, void __user *argp)
 		return -EFAULT;
 	private->attrib = attrib;
 
-	DEV_MESSAGE(KERN_INFO, device,
-		    "cache operation mode set to %x (%i cylinder prestage)",
-		    private->attrib.operation, private->attrib.nr_cyl);
+	dev_info(&device->cdev->dev,
+		 "The DASD cache mode was set to %x (%i cylinder prestage)\n",
+		 private->attrib.operation, private->attrib.nr_cyl);
 	return 0;
 }
 
@@ -2823,7 +2831,7 @@ static int dasd_symm_io(struct dasd_device *device, void __user *argp)
 	/* setup CCWs for PSF + RSSD */
 	cqr = dasd_smalloc_request("ECKD", 2 , 0, device);
 	if (IS_ERR(cqr)) {
-		DEV_MESSAGE(KERN_WARNING, device, "%s",
+		DBF_DEV_EVENT(DBF_WARNING, device, "%s",
 			"Could not allocate initialization request");
 		rc = PTR_ERR(cqr);
 		goto out_free;
@@ -2932,6 +2940,49 @@ dasd_eckd_dump_ccw_range(struct ccw1 *from, struct ccw1 *to, char *page)
 	return len;
 }
 
+static void
+dasd_eckd_dump_sense_dbf(struct dasd_device *device, struct dasd_ccw_req *req,
+			 struct irb *irb, char *reason)
+{
+	u64 *sense;
+	int sl;
+	struct tsb *tsb;
+
+	sense = NULL;
+	tsb = NULL;
+	if (req && scsw_is_tm(&req->irb.scsw)) {
+		if (irb->scsw.tm.tcw)
+			tsb = tcw_get_tsb(
+				(struct tcw *)(unsigned long)irb->scsw.tm.tcw);
+		if (tsb && (irb->scsw.tm.fcxs == 0x01)) {
+			switch (tsb->flags & 0x07) {
+			case 1:	/* tsa_iostat */
+				sense = (u64 *)tsb->tsa.iostat.sense;
+			break;
+			case 2: /* ts_ddpc */
+				sense = (u64 *)tsb->tsa.ddpc.sense;
+			break;
+			case 3: /* tsa_intrg */
+			break;
+			}
+		}
+	} else {
+		if (irb->esw.esw0.erw.cons)
+			sense = (u64 *)irb->ecw;
+	}
+	if (sense) {
+		for (sl = 0; sl < 4; sl++) {
+			DBF_DEV_EVENT(DBF_EMERG, device,
+				      "%s: %016llx %016llx %016llx %016llx",
+				      reason, sense[0], sense[1], sense[2],
+				      sense[3]);
+		}
+	} else {
+		DBF_DEV_EVENT(DBF_EMERG, device, "%s",
+			      "SORRY - NO VALID SENSE AVAILABLE\n");
+	}
+}
+
 /*
  * Print sense data and related channel program.
  * Parts are printed because printk buffer is only 1024 bytes.
@@ -2945,8 +2996,8 @@ static void dasd_eckd_dump_sense_ccw(struct dasd_device *device,
 
 	page = (char *) get_zeroed_page(GFP_ATOMIC);
 	if (page == NULL) {
-		DEV_MESSAGE(KERN_ERR, device, " %s",
-			    "No memory to dump sense data");
+		DBF_DEV_EVENT(DBF_WARNING, device, "%s",
+			      "No memory to dump sense data\n");
 		return;
 	}
 	/* dump the sense data */
@@ -3047,7 +3098,7 @@ static void dasd_eckd_dump_sense_tcw(struct dasd_device *device,
 
 	page = (char *) get_zeroed_page(GFP_ATOMIC);
 	if (page == NULL) {
-		DEV_MESSAGE(KERN_ERR, device, " %s",
+		DBF_DEV_EVENT(DBF_WARNING, device, " %s",
 			    "No memory to dump sense data");
 		return;
 	}
@@ -3206,6 +3257,7 @@ static struct dasd_discipline dasd_eckd_discipline = {
 	.build_cp = dasd_eckd_build_alias_cp,
 	.free_cp = dasd_eckd_free_alias_cp,
 	.dump_sense = dasd_eckd_dump_sense,
+	.dump_sense_dbf = dasd_eckd_dump_sense_dbf,
 	.fill_info = dasd_eckd_fill_info,
 	.ioctl = dasd_eckd_ioctl,
 };
