@@ -67,6 +67,8 @@ int dasd_probeonly =  0;	/* is true, when probeonly mode is active */
 int dasd_autodetect = 0;	/* is true, when autodetection is active */
 int dasd_nopav = 0;		/* is true, when PAV is disabled */
 EXPORT_SYMBOL_GPL(dasd_nopav);
+int dasd_nofcx;			/* disable High Performance Ficon */
+EXPORT_SYMBOL_GPL(dasd_nofcx);
 
 /*
  * char *dasd[] is intended to hold the ranges supplied by the dasd= statement
@@ -270,6 +272,11 @@ dasd_parse_keyword( char *parsestring ) {
 			dasd_nopav = 1;
 			MESSAGE(KERN_INFO, "%s", "disable PAV mode");
 		}
+		return residual_str;
+	}
+	if (strncmp("nofcx", parsestring, length) == 0) {
+		dasd_nofcx = 1;
+		MESSAGE(KERN_INFO, "%s", "disable High Performance Ficon");
 		return residual_str;
 	}
 	if (strncmp("fixedbuffers", parsestring, length) == 0) {

@@ -297,11 +297,12 @@ static void dasd_eer_write_standard_trigger(struct dasd_device *device,
 	struct dasd_eer_header header;
 	unsigned long flags;
 	struct eerbuffer *eerb;
+	char *sense;
 
 	/* go through cqr chain and count the valid sense data sets */
 	data_size = 0;
 	for (temp_cqr = cqr; temp_cqr; temp_cqr = temp_cqr->refers)
-		if (temp_cqr->irb.esw.esw0.erw.cons)
+		if (dasd_get_sense(&temp_cqr->irb))
 			data_size += 32;
 
 	header.total_size = sizeof(header) + data_size + 4; /* "EOR" */
@@ -316,9 +317,11 @@ static void dasd_eer_write_standard_trigger(struct dasd_device *device,
 	list_for_each_entry(eerb, &bufferlist, list) {
 		dasd_eer_start_record(eerb, header.total_size);
 		dasd_eer_write_buffer(eerb, (char *) &header, sizeof(header));
-		for (temp_cqr = cqr; temp_cqr; temp_cqr = temp_cqr->refers)
-			if (temp_cqr->irb.esw.esw0.erw.cons)
-				dasd_eer_write_buffer(eerb, cqr->irb.ecw, 32);
+		for (temp_cqr = cqr; temp_cqr; temp_cqr = temp_cqr->refers) {
+			sense = dasd_get_sense(&temp_cqr->irb);
+			if (sense)
+				dasd_eer_write_buffer(eerb, sense, 32);
+		}
 		dasd_eer_write_buffer(eerb, "EOR", 4);
 	}
 	spin_unlock_irqrestore(&bufferlock, flags);
@@ -451,6 +454,7 @@ int dasd_eer_enable(struct dasd_device *device)
 {
 	struct dasd_ccw_req *cqr;
 	unsigned long flags;
+	struct ccw1 *ccw;
 
 	if (device->eer_cqr)
 		return 0;
@@ -468,10 +472,11 @@ int dasd_eer_enable(struct dasd_device *device)
 	cqr->expires = 10 * HZ;
 	clear_bit(DASD_CQR_FLAGS_USE_ERP, &cqr->flags);
 
-	cqr->cpaddr->cmd_code = DASD_ECKD_CCW_SNSS;
-	cqr->cpaddr->count = SNSS_DATA_SIZE;
-	cqr->cpaddr->flags = 0;
-	cqr->cpaddr->cda = (__u32)(addr_t) cqr->data;
+	ccw = cqr->cpaddr;
+	ccw->cmd_code = DASD_ECKD_CCW_SNSS;
+	ccw->count = SNSS_DATA_SIZE;
+	ccw->flags = 0;
+	ccw->cda = (__u32)(addr_t) cqr->data;
 
 	cqr->buildclk = get_clock();
 	cqr->status = DASD_CQR_FILLED;

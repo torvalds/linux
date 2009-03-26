@@ -1561,6 +1561,13 @@ dasd_3990_erp_action_1B_32(struct dasd_ccw_req * default_erp, char *sense)
 		cqr = cqr->refers;
 	}
 
+	if (scsw_is_tm(&cqr->irb.scsw)) {
+		DBF_DEV_EVENT(DBF_WARNING, device, "%s",
+			      "32 bit sense, action 1B is not defined"
+			      " in transport mode - just retry");
+		return default_erp;
+	}
+
 	/* for imprecise ending just do default erp */
 	if (sense[1] & 0x01) {
 
@@ -1599,7 +1606,7 @@ dasd_3990_erp_action_1B_32(struct dasd_ccw_req * default_erp, char *sense)
 	oldccw = cqr->cpaddr;
 	if (oldccw->cmd_code == DASD_ECKD_CCW_PFX) {
 		PFX_data = cqr->data;
-		memcpy(DE_data, &PFX_data->define_extend,
+		memcpy(DE_data, &PFX_data->define_extent,
 		       sizeof(struct DE_eckd_data));
 	} else
 		memcpy(DE_data, cqr->data, sizeof(struct DE_eckd_data));
@@ -1710,6 +1717,13 @@ dasd_3990_update_1B(struct dasd_ccw_req * previous_erp, char *sense)
 
 	while (cqr->refers != NULL) {
 		cqr = cqr->refers;
+	}
+
+	if (scsw_is_tm(&cqr->irb.scsw)) {
+		DBF_DEV_EVENT(DBF_WARNING, device, "%s",
+			      "32 bit sense, action 1B, update,"
+			      " in transport mode - just retry");
+		return previous_erp;
 	}
 
 	/* for imprecise ending just do default erp */
@@ -2171,7 +2185,7 @@ dasd_3990_erp_control_check(struct dasd_ccw_req *erp)
 {
 	struct dasd_device *device = erp->startdev;
 
-	if (erp->refers->irb.scsw.cmd.cstat & (SCHN_STAT_INTF_CTRL_CHK
+	if (scsw_cstat(&erp->refers->irb.scsw) & (SCHN_STAT_INTF_CTRL_CHK
 					   | SCHN_STAT_CHN_CTRL_CHK)) {
 		DEV_MESSAGE(KERN_DEBUG, device, "%s",
 			    "channel or interface control check");
@@ -2193,21 +2207,23 @@ dasd_3990_erp_control_check(struct dasd_ccw_req *erp)
  *   erp_new		contens was possibly modified
  */
 static struct dasd_ccw_req *
-dasd_3990_erp_inspect(struct dasd_ccw_req * erp)
+dasd_3990_erp_inspect(struct dasd_ccw_req *erp)
 {
 
 	struct dasd_ccw_req *erp_new = NULL;
-	/* sense data are located in the refers record of the */
-	/* already set up new ERP !			      */
-	char *sense = erp->refers->irb.ecw;
+	char *sense;
 
 	/* if this problem occured on an alias retry on base */
 	erp_new = dasd_3990_erp_inspect_alias(erp);
 	if (erp_new)
 		return erp_new;
 
-	/* check if no concurrent sens is available */
-	if (!erp->refers->irb.esw.esw0.erw.cons)
+	/* sense data are located in the refers record of the
+	 * already set up new ERP !
+	 * check if concurrent sens is available
+	 */
+	sense = dasd_get_sense(&erp->refers->irb);
+	if (!sense)
 		erp_new = dasd_3990_erp_control_check(erp);
 	/* distinguish between 24 and 32 byte sense data */
 	else if (sense[27] & DASD_SENSE_BIT_0) {
@@ -2231,7 +2247,11 @@ dasd_3990_erp_inspect(struct dasd_ccw_req * erp)
  * DESCRIPTION
  *   This funtion adds an additional request block (ERP) to the head of
  *   the given cqr (or erp).
- *   This erp is initialized as an default erp (retry TIC)
+ *   For a command mode cqr the erp is initialized as an default erp
+ *   (retry TIC).
+ *   For transport mode we make a copy of the original TCW (points to
+ *   the original TCCB, TIDALs, etc.) but give it a fresh
+ *   TSB so the original sense data will not be changed.
  *
  * PARAMETER
  *   cqr		head of the current ERP-chain (or single cqr if
@@ -2239,17 +2259,27 @@ dasd_3990_erp_inspect(struct dasd_ccw_req * erp)
  * RETURN VALUES
  *   erp		pointer to new ERP-chain head
  */
-static struct dasd_ccw_req *
-dasd_3990_erp_add_erp(struct dasd_ccw_req * cqr)
+static struct dasd_ccw_req *dasd_3990_erp_add_erp(struct dasd_ccw_req *cqr)
 {
 
 	struct dasd_device *device = cqr->startdev;
 	struct ccw1 *ccw;
+	struct dasd_ccw_req *erp;
+	int cplength, datasize;
+	struct tcw *tcw;
+	struct tsb *tsb;
+
+	if (cqr->cpmode == 1) {
+		cplength = 0;
+		datasize = sizeof(struct tcw) + sizeof(struct tsb);
+	} else {
+		cplength = 2;
+		datasize = 0;
+	}
 
 	/* allocate additional request block */
-	struct dasd_ccw_req *erp;
-
-	erp = dasd_alloc_erp_request((char *) &cqr->magic, 2, 0, device);
+	erp = dasd_alloc_erp_request((char *) &cqr->magic,
+				     cplength, datasize, device);
 	if (IS_ERR(erp)) {
                 if (cqr->retries <= 0) {
 		        DEV_MESSAGE(KERN_ERR, device, "%s",
@@ -2266,13 +2296,24 @@ dasd_3990_erp_add_erp(struct dasd_ccw_req * cqr)
 		return cqr;
 	}
 
-	/* initialize request with default TIC to current ERP/CQR */
-	ccw = erp->cpaddr;
-	ccw->cmd_code = CCW_CMD_NOOP;
-	ccw->flags = CCW_FLAG_CC;
-	ccw++;
-	ccw->cmd_code = CCW_CMD_TIC;
-	ccw->cda      = (long)(cqr->cpaddr);
+	if (cqr->cpmode == 1) {
+		/* make a shallow copy of the original tcw but set new tsb */
+		erp->cpmode = 1;
+		erp->cpaddr = erp->data;
+		tcw = erp->data;
+		tsb = (struct tsb *) &tcw[1];
+		*tcw = *((struct tcw *)cqr->cpaddr);
+		tcw->tsb = (long)tsb;
+	} else {
+		/* initialize request with default TIC to current ERP/CQR */
+		ccw = erp->cpaddr;
+		ccw->cmd_code = CCW_CMD_NOOP;
+		ccw->flags = CCW_FLAG_CC;
+		ccw++;
+		ccw->cmd_code = CCW_CMD_TIC;
+		ccw->cda      = (long)(cqr->cpaddr);
+	}
+
 	erp->function = dasd_3990_erp_add_erp;
 	erp->refers   = cqr;
 	erp->startdev = device;
@@ -2282,7 +2323,6 @@ dasd_3990_erp_add_erp(struct dasd_ccw_req * cqr)
 	erp->expires  = 0;
 	erp->retries  = 256;
 	erp->buildclk = get_clock();
-
 	erp->status = DASD_CQR_FILLED;
 
 	return erp;
@@ -2340,28 +2380,33 @@ dasd_3990_erp_additional_erp(struct dasd_ccw_req * cqr)
  *   match		'boolean' for match found
  *			returns 1 if match found, otherwise 0.
  */
-static int
-dasd_3990_erp_error_match(struct dasd_ccw_req *cqr1, struct dasd_ccw_req *cqr2)
+static int dasd_3990_erp_error_match(struct dasd_ccw_req *cqr1,
+				     struct dasd_ccw_req *cqr2)
 {
+	char *sense1, *sense2;
 
 	if (cqr1->startdev != cqr2->startdev)
 		return 0;
 
-	if (cqr1->irb.esw.esw0.erw.cons != cqr2->irb.esw.esw0.erw.cons)
-		return 0;
+	sense1 = dasd_get_sense(&cqr1->irb);
+	sense2 = dasd_get_sense(&cqr2->irb);
 
-	if ((cqr1->irb.esw.esw0.erw.cons == 0) &&
-	    (cqr2->irb.esw.esw0.erw.cons == 0))	{
-		if ((cqr1->irb.scsw.cmd.cstat & (SCHN_STAT_INTF_CTRL_CHK |
-					     SCHN_STAT_CHN_CTRL_CHK)) ==
-		    (cqr2->irb.scsw.cmd.cstat & (SCHN_STAT_INTF_CTRL_CHK |
-					     SCHN_STAT_CHN_CTRL_CHK)))
+	/* one request has sense data, the other not -> no match, return 0 */
+	if (!sense1 != !sense2)
+		return 0;
+	/* no sense data in both cases -> check cstat for IFCC */
+	if (!sense1 && !sense2)	{
+		if ((scsw_cstat(&cqr1->irb.scsw) & (SCHN_STAT_INTF_CTRL_CHK |
+						    SCHN_STAT_CHN_CTRL_CHK)) ==
+		    (scsw_cstat(&cqr2->irb.scsw) & (SCHN_STAT_INTF_CTRL_CHK |
+						    SCHN_STAT_CHN_CTRL_CHK)))
 			return 1; /* match with ifcc*/
 	}
 	/* check sense data; byte 0-2,25,27 */
-	if (!((memcmp (cqr1->irb.ecw, cqr2->irb.ecw, 3) == 0) &&
-	      (cqr1->irb.ecw[27] == cqr2->irb.ecw[27]) &&
-	      (cqr1->irb.ecw[25] == cqr2->irb.ecw[25]))) {
+	if (!(sense1 && sense2 &&
+	      (memcmp(sense1, sense2, 3) == 0) &&
+	      (sense1[27] == sense2[27]) &&
+	      (sense1[25] == sense2[25]))) {
 
 		return 0;	/* sense doesn't match */
 	}
@@ -2434,7 +2479,7 @@ dasd_3990_erp_further_erp(struct dasd_ccw_req *erp)
 {
 
 	struct dasd_device *device = erp->startdev;
-	char *sense = erp->irb.ecw;
+	char *sense = dasd_get_sense(&erp->irb);
 
 	/* check for 24 byte sense ERP */
 	if ((erp->function == dasd_3990_erp_bus_out) ||
@@ -2449,7 +2494,7 @@ dasd_3990_erp_further_erp(struct dasd_ccw_req *erp)
 		/* prepare erp for retry on different channel path */
 		erp = dasd_3990_erp_action_1(erp);
 
-		if (!(sense[2] & DASD_SENSE_BIT_0)) {
+		if (sense && !(sense[2] & DASD_SENSE_BIT_0)) {
 
 			/* issue a Diagnostic Control command with an
 			 * Inhibit Write subcommand */
@@ -2479,10 +2524,11 @@ dasd_3990_erp_further_erp(struct dasd_ccw_req *erp)
 		}
 
 		/* check for 32 byte sense ERP */
-	} else if ((erp->function == dasd_3990_erp_compound_retry) ||
-		   (erp->function == dasd_3990_erp_compound_path) ||
-		   (erp->function == dasd_3990_erp_compound_code) ||
-		   (erp->function == dasd_3990_erp_compound_config)) {
+	} else if (sense &&
+		   ((erp->function == dasd_3990_erp_compound_retry) ||
+		    (erp->function == dasd_3990_erp_compound_path) ||
+		    (erp->function == dasd_3990_erp_compound_code) ||
+		    (erp->function == dasd_3990_erp_compound_config))) {
 
 		erp = dasd_3990_erp_compound(erp, sense);
 
@@ -2548,18 +2594,19 @@ dasd_3990_erp_handle_match_erp(struct dasd_ccw_req *erp_head,
 
 	if (erp->retries > 0) {
 
-		char *sense = erp->refers->irb.ecw;
+		char *sense = dasd_get_sense(&erp->refers->irb);
 
 		/* check for special retries */
-		if (erp->function == dasd_3990_erp_action_4) {
+		if (sense && erp->function == dasd_3990_erp_action_4) {
 
 			erp = dasd_3990_erp_action_4(erp, sense);
 
-		} else if (erp->function == dasd_3990_erp_action_1B_32) {
+		} else if (sense &&
+			   erp->function == dasd_3990_erp_action_1B_32) {
 
 			erp = dasd_3990_update_1B(erp, sense);
 
-		} else if (erp->function == dasd_3990_erp_int_req) {
+		} else if (sense && erp->function == dasd_3990_erp_int_req) {
 
 			erp = dasd_3990_erp_int_req(erp);
 
@@ -2622,8 +2669,8 @@ dasd_3990_erp_action(struct dasd_ccw_req * cqr)
 	}
 
 	/* double-check if current erp/cqr was successful */
-	if ((cqr->irb.scsw.cmd.cstat == 0x00) &&
-	    (cqr->irb.scsw.cmd.dstat ==
+	if ((scsw_cstat(&cqr->irb.scsw) == 0x00) &&
+	    (scsw_dstat(&cqr->irb.scsw) ==
 	     (DEV_STAT_CHN_END | DEV_STAT_DEV_END))) {
 
 		DEV_MESSAGE(KERN_DEBUG, device,

@@ -646,14 +646,16 @@ static int reset_summary_unit_check(struct alias_lcu *lcu,
 {
 	struct dasd_ccw_req *cqr;
 	int rc = 0;
+	struct ccw1 *ccw;
 
 	cqr = lcu->rsu_cqr;
 	strncpy((char *) &cqr->magic, "ECKD", 4);
 	ASCEBC((char *) &cqr->magic, 4);
-	cqr->cpaddr->cmd_code = DASD_ECKD_CCW_RSCK;
-	cqr->cpaddr->flags = 0 ;
-	cqr->cpaddr->count = 16;
-	cqr->cpaddr->cda = (__u32)(addr_t) cqr->data;
+	ccw = cqr->cpaddr;
+	ccw->cmd_code = DASD_ECKD_CCW_RSCK;
+	ccw->flags = 0 ;
+	ccw->count = 16;
+	ccw->cda = (__u32)(addr_t) cqr->data;
 	((char *)cqr->data)[0] = reason;
 
 	clear_bit(DASD_CQR_FLAGS_USE_ERP, &cqr->flags);
@@ -855,12 +857,21 @@ void dasd_alias_handle_summary_unit_check(struct dasd_device *device,
 	struct alias_lcu *lcu;
 	char reason;
 	struct dasd_eckd_private *private;
+	char *sense;
 
 	private = (struct dasd_eckd_private *) device->private;
 
-	reason = irb->ecw[8];
-	DEV_MESSAGE(KERN_WARNING, device, "%s %x",
-		    "eckd handle summary unit check: reason", reason);
+	sense = dasd_get_sense(irb);
+	if (sense) {
+		reason = sense[8];
+		DBF_DEV_EVENT(DBF_NOTICE, device, "%s %x",
+			    "eckd handle summary unit check: reason", reason);
+	} else {
+		DBF_DEV_EVENT(DBF_WARNING, device, "%s",
+			    "eckd handle summary unit check:"
+			    " no reason code available");
+		return;
+	}
 
 	lcu = private->lcu;
 	if (!lcu) {

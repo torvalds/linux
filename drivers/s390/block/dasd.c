@@ -22,6 +22,7 @@
 #include <asm/ebcdic.h>
 #include <asm/idals.h>
 #include <asm/todclk.h>
+#include <asm/itcw.h>
 
 /* This is ugly... */
 #define PRINTK_HEADER "dasd:"
@@ -852,8 +853,13 @@ int dasd_start_IO(struct dasd_ccw_req *cqr)
 	cqr->startclk = get_clock();
 	cqr->starttime = jiffies;
 	cqr->retries--;
-	rc = ccw_device_start(device->cdev, cqr->cpaddr, (long) cqr,
-			      cqr->lpm, 0);
+	if (cqr->cpmode == 1) {
+		rc = ccw_device_tm_start(device->cdev, cqr->cpaddr,
+					 (long) cqr, cqr->lpm);
+	} else {
+		rc = ccw_device_start(device->cdev, cqr->cpaddr,
+				      (long) cqr, cqr->lpm, 0);
+	}
 	switch (rc) {
 	case 0:
 		cqr->status = DASD_CQR_IN_IO;
@@ -881,9 +887,12 @@ int dasd_start_IO(struct dasd_ccw_req *cqr)
 			      " retry on all pathes");
 		break;
 	case -ENODEV:
+		DBF_DEV_EVENT(DBF_DEBUG, device, "%s",
+			      "start_IO: -ENODEV device gone, retry");
+		break;
 	case -EIO:
 		DBF_DEV_EVENT(DBF_ERR, device, "%s",
-			      "start_IO: device gone, retry");
+			      "start_IO: -EIO device gone, retry");
 		break;
 	default:
 		DEV_MESSAGE(KERN_ERR, device,
@@ -1015,9 +1024,9 @@ void dasd_int_handler(struct ccw_device *cdev, unsigned long intparm,
 
 	/* check for unsolicited interrupts */
 	cqr = (struct dasd_ccw_req *) intparm;
-	if (!cqr || ((irb->scsw.cmd.cc == 1) &&
-		     (irb->scsw.cmd.fctl & SCSW_FCTL_START_FUNC) &&
-		     (irb->scsw.cmd.stctl & SCSW_STCTL_STATUS_PEND))) {
+	if (!cqr || ((scsw_cc(&irb->scsw) == 1) &&
+		     (scsw_fctl(&irb->scsw) & SCSW_FCTL_START_FUNC) &&
+		     (scsw_stctl(&irb->scsw) & SCSW_STCTL_STATUS_PEND))) {
 		if (cqr && cqr->status == DASD_CQR_IN_IO)
 			cqr->status = DASD_CQR_QUEUED;
 		device = dasd_device_from_cdev_locked(cdev);
@@ -1040,7 +1049,7 @@ void dasd_int_handler(struct ccw_device *cdev, unsigned long intparm,
 
 	/* Check for clear pending */
 	if (cqr->status == DASD_CQR_CLEAR_PENDING &&
-	    irb->scsw.cmd.fctl & SCSW_FCTL_CLEAR_FUNC) {
+	    scsw_fctl(&irb->scsw) & SCSW_FCTL_CLEAR_FUNC) {
 		cqr->status = DASD_CQR_CLEARED;
 		dasd_device_clear_timer(device);
 		wake_up(&dasd_flush_wq);
@@ -1048,7 +1057,7 @@ void dasd_int_handler(struct ccw_device *cdev, unsigned long intparm,
 		return;
 	}
 
- 	/* check status - the request might have been killed by dyn detach */
+	/* check status - the request might have been killed by dyn detach */
 	if (cqr->status != DASD_CQR_IN_IO) {
 		MESSAGE(KERN_DEBUG,
 			"invalid status: bus_id %s, status %02x",
@@ -1059,8 +1068,8 @@ void dasd_int_handler(struct ccw_device *cdev, unsigned long intparm,
 		      ((irb->scsw.cmd.cstat << 8) | irb->scsw.cmd.dstat), cqr);
 	next = NULL;
 	expires = 0;
-	if (irb->scsw.cmd.dstat == (DEV_STAT_CHN_END | DEV_STAT_DEV_END) &&
-	    irb->scsw.cmd.cstat == 0 && !irb->esw.esw0.erw.cons) {
+	if (scsw_dstat(&irb->scsw) == (DEV_STAT_CHN_END | DEV_STAT_DEV_END) &&
+	    scsw_cstat(&irb->scsw) == 0) {
 		/* request was completed successfully */
 		cqr->status = DASD_CQR_SUCCESS;
 		cqr->stopclk = now;
@@ -1991,8 +2000,11 @@ static void dasd_setup_queue(struct dasd_block *block)
 	blk_queue_max_sectors(block->request_queue, max);
 	blk_queue_max_phys_segments(block->request_queue, -1L);
 	blk_queue_max_hw_segments(block->request_queue, -1L);
-	blk_queue_max_segment_size(block->request_queue, -1L);
-	blk_queue_segment_boundary(block->request_queue, -1L);
+	/* with page sized segments we can translate each segement into
+	 * one idaw/tidaw
+	 */
+	blk_queue_max_segment_size(block->request_queue, PAGE_SIZE);
+	blk_queue_segment_boundary(block->request_queue, PAGE_SIZE - 1);
 	blk_queue_ordered(block->request_queue, QUEUE_ORDERED_DRAIN, NULL);
 }
 
@@ -2431,6 +2443,40 @@ int dasd_generic_read_dev_chars(struct dasd_device *device, char *magic,
 	return ret;
 }
 EXPORT_SYMBOL_GPL(dasd_generic_read_dev_chars);
+
+/*
+ *   In command mode and transport mode we need to look for sense
+ *   data in different places. The sense data itself is allways
+ *   an array of 32 bytes, so we can unify the sense data access
+ *   for both modes.
+ */
+char *dasd_get_sense(struct irb *irb)
+{
+	struct tsb *tsb = NULL;
+	char *sense = NULL;
+
+	if (scsw_is_tm(&irb->scsw) && (irb->scsw.tm.fcxs == 0x01)) {
+		if (irb->scsw.tm.tcw)
+			tsb = tcw_get_tsb((struct tcw *)(unsigned long)
+					  irb->scsw.tm.tcw);
+		if (tsb && tsb->length == 64 && tsb->flags)
+			switch (tsb->flags & 0x07) {
+			case 1:	/* tsa_iostat */
+				sense = tsb->tsa.iostat.sense;
+				break;
+			case 2: /* tsa_ddpc */
+				sense = tsb->tsa.ddpc.sense;
+				break;
+			default:
+				/* currently we don't use interrogate data */
+				break;
+			}
+	} else if (irb->esw.esw0.erw.cons) {
+		sense = irb->ecw;
+	}
+	return sense;
+}
+EXPORT_SYMBOL_GPL(dasd_get_sense);
 
 static int __init dasd_init(void)
 {
