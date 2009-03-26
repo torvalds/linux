@@ -184,7 +184,7 @@ static int das1800_attach(struct comedi_device * dev, struct comedi_devconfig * 
 static int das1800_detach(struct comedi_device * dev);
 static int das1800_probe(struct comedi_device * dev);
 static int das1800_cancel(struct comedi_device * dev, struct comedi_subdevice * s);
-static irqreturn_t das1800_interrupt(int irq, void *d PT_REGS_ARG);
+static irqreturn_t das1800_interrupt(int irq, void *d);
 static int das1800_ai_poll(struct comedi_device * dev, struct comedi_subdevice * s);
 static void das1800_ai_handler(struct comedi_device * dev);
 static void das1800_handle_dma(struct comedi_device * dev, struct comedi_subdevice * s,
@@ -879,7 +879,7 @@ static int das1800_ai_poll(struct comedi_device * dev, struct comedi_subdevice *
 	return s->async->buf_write_count - s->async->buf_read_count;
 }
 
-static irqreturn_t das1800_interrupt(int irq, void *d PT_REGS_ARG)
+static irqreturn_t das1800_interrupt(int irq, void *d)
 {
 	struct comedi_device *dev = d;
 	unsigned int status;

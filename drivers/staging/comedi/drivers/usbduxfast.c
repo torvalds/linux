@@ -314,7 +314,7 @@ static int usbduxfast_ai_cancel(struct comedi_device *dev, struct comedi_subdevi
  * analogue IN
  * interrupt service routine
  */
-static void usbduxfastsub_ai_Irq(struct urb *urb PT_REGS_ARG)
+static void usbduxfastsub_ai_Irq(struct urb *urb)
 {
 	int n, err;
 	struct usbduxfastsub_s *udfs;

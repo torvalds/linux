@@ -762,7 +762,7 @@ static inline void ni_set_bits(struct comedi_device * dev, int reg, unsigned bit
 	ni_set_bitfield(dev, reg, bits, bit_values);
 }
 
-static irqreturn_t ni_E_interrupt(int irq, void *d PT_REGS_ARG)
+static irqreturn_t ni_E_interrupt(int irq, void *d)
 {
 	struct comedi_device *dev = d;
 	unsigned short a_status;

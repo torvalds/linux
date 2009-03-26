@@ -810,7 +810,7 @@ static irqreturn_t interrupt_pcl818_ai_mode13_fifo(int irq, void *d)
 ==============================================================================
     INT procedure
 */
-static irqreturn_t interrupt_pcl818(int irq, void *d PT_REGS_ARG)
+static irqreturn_t interrupt_pcl818(int irq, void *d)
 {
 	struct comedi_device *dev = d;
 

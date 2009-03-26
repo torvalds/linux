@@ -618,7 +618,7 @@ static int icp_multi_insn_write_ctr(struct comedi_device *dev, struct comedi_sub
 
 ==============================================================================
 */
-static irqreturn_t interrupt_service_icp_multi(int irq, void *d PT_REGS_ARG)
+static irqreturn_t interrupt_service_icp_multi(int irq, void *d)
 {
 	struct comedi_device *dev = d;
 	int int_no;

@@ -59,7 +59,7 @@ static int hpdi_cmd(struct comedi_device * dev, struct comedi_subdevice * s);
 static int hpdi_cmd_test(struct comedi_device * dev, struct comedi_subdevice * s,
 	struct comedi_cmd * cmd);
 static int hpdi_cancel(struct comedi_device * dev, struct comedi_subdevice * s);
-static irqreturn_t handle_interrupt(int irq, void *d PT_REGS_ARG);
+static irqreturn_t handle_interrupt(int irq, void *d);
 static int dio_config_block_size(struct comedi_device * dev, unsigned int * data);
 
 #undef HPDI_DEBUG		/*  disable debugging messages */
@@ -945,7 +945,7 @@ static void drain_dma_buffers(struct comedi_device * dev, unsigned int channel)
 	/*  XXX check for buffer overrun somehow */
 }
 
-static irqreturn_t handle_interrupt(int irq, void *d PT_REGS_ARG)
+static irqreturn_t handle_interrupt(int irq, void *d)
 {
 	struct comedi_device *dev = d;
 	struct comedi_subdevice *s = dev->read_subdev;

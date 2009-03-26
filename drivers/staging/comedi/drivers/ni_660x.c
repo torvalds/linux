@@ -909,7 +909,7 @@ static void ni_660x_handle_gpct_interrupt(struct comedi_device * dev,
 	}
 }
 
-static irqreturn_t ni_660x_interrupt(int irq, void *d PT_REGS_ARG)
+static irqreturn_t ni_660x_interrupt(int irq, void *d)
 {
 	struct comedi_device *dev = d;
 	struct comedi_subdevice *s;

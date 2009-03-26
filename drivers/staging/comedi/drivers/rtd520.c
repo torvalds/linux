@@ -706,7 +706,7 @@ static int rtd_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s);
 static int rtd_ai_cancel(struct comedi_device *dev, struct comedi_subdevice *s);
 /* static int rtd_ai_poll (struct comedi_device *dev,struct comedi_subdevice *s); */
 static int rtd_ns_to_timer(unsigned int *ns, int roundMode);
-static irqreturn_t rtd_interrupt(int irq, void *d PT_REGS_ARG);
+static irqreturn_t rtd_interrupt(int irq, void *d);
 static int rtd520_probe_fifo_depth(struct comedi_device *dev);
 
 /*
@@ -1494,8 +1494,7 @@ static int ai_process_dma(struct comedi_device *dev, struct comedi_subdevice *s)
   The data conversion may someday happen in a "bottom half".
 */
 static irqreturn_t rtd_interrupt(int irq,	/* interrupt number (ignored) */
-	void *d			/* our data */
-	PT_REGS_ARG)
+	void *d)		/* our data */
 {				/* cpu context (ignored) */
 	struct comedi_device *dev = d;	/* must be called "dev" for devpriv */
 	u16 status;

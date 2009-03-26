@@ -258,7 +258,7 @@ static int pcmuio_dio_insn_bits(struct comedi_device * dev, struct comedi_subdev
 static int pcmuio_dio_insn_config(struct comedi_device * dev, struct comedi_subdevice * s,
 	struct comedi_insn * insn, unsigned int * data);
 
-static irqreturn_t interrupt_pcmuio(int irq, void *d PT_REGS_ARG);
+static irqreturn_t interrupt_pcmuio(int irq, void *d);
 static void pcmuio_stop_intr(struct comedi_device *, struct comedi_subdevice *);
 static int pcmuio_cancel(struct comedi_device * dev, struct comedi_subdevice * s);
 static int pcmuio_cmd(struct comedi_device * dev, struct comedi_subdevice * s);
@@ -688,7 +688,7 @@ static void unlock_port(struct comedi_device * dev, int asic, int port)
 }
 #endif /* notused */
 
-static irqreturn_t interrupt_pcmuio(int irq, void *d PT_REGS_ARG)
+static irqreturn_t interrupt_pcmuio(int irq, void *d)
 {
 	int asic, got1 = 0;
 	struct comedi_device *dev = (struct comedi_device *) d;

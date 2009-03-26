@@ -479,7 +479,7 @@ void ni_pcidio_event(struct comedi_device * dev, struct comedi_subdevice * s)
 	comedi_event(dev, s);
 }
 
-static irqreturn_t nidio_interrupt(int irq, void *d PT_REGS_ARG)
+static irqreturn_t nidio_interrupt(int irq, void *d)
 {
 	struct comedi_device *dev = d;
 	struct comedi_subdevice *s = dev->subdevices;

@@ -187,9 +187,11 @@ Extra triggered scan functionality, interrupt bug-fix added by Steve Sharples.
 Support for PCI230+/260+, more triggered scan functionality, and workarounds
 for (or detection of) various hardware problems added by Ian Abbott.
 */
+
 #include "../comedidev.h"
 
 #include <linux/delay.h>
+#include <linux/interrupt.h>
 
 #include "comedi_pci.h"
 #include "8253.h"
@@ -625,7 +627,7 @@ static void pci230_ct_setup_ns_mode(struct comedi_device * dev, unsigned int ct,
 	unsigned int mode, uint64_t ns, unsigned int round);
 static void pci230_ns_to_single_timer(unsigned int *ns, unsigned int round);
 static void pci230_cancel_ct(struct comedi_device * dev, unsigned int ct);
-static irqreturn_t pci230_interrupt(int irq, void *d PT_REGS_ARG);
+static irqreturn_t pci230_interrupt(int irq, void *d);
 static int pci230_ao_cmdtest(struct comedi_device * dev, struct comedi_subdevice * s,
 	struct comedi_cmd * cmd);
 static int pci230_ao_cmd(struct comedi_device * dev, struct comedi_subdevice * s);
@@ -2559,7 +2561,7 @@ static void pci230_cancel_ct(struct comedi_device * dev, unsigned int ct)
 }
 
 /* Interrupt handler */
-static irqreturn_t pci230_interrupt(int irq, void *d PT_REGS_ARG)
+static irqreturn_t pci230_interrupt(int irq, void *d)
 {
 	unsigned char status_int, valid_status_int;
 	struct comedi_device *dev = (struct comedi_device *) d;

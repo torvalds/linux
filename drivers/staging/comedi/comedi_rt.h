@@ -33,6 +33,7 @@
 #include <linux/errno.h>
 #include <linux/spinlock.h>
 #include <linux/delay.h>
+#include <linux/interrupt.h>
 
 #ifdef CONFIG_COMEDI_RT
 
@@ -56,8 +57,8 @@
 #define rt_printk printk
 #endif
 
-int comedi_request_irq(unsigned int irq, irqreturn_t(*handler) (int,
-		void *PT_REGS_ARG), unsigned long flags, const char *device,
+int comedi_request_irq(unsigned int irq, irq_handler_t handler,
+		unsigned long flags, const char *device,
 		struct comedi_device *dev_id);
 void comedi_free_irq(unsigned int irq, struct comedi_device *dev_id);
 void comedi_rt_init(void);

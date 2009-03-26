@@ -41,6 +41,8 @@ Configuration options:
           device will be used.
 */
 
+#include <linux/interrupt.h>
+
 #include "../comedidev.h"
 
 #include "comedi_pci.h"
@@ -760,7 +762,7 @@ static void interrupt_pci1710_half_fifo(void *d)
 /*
 ==============================================================================
 */
-static irqreturn_t interrupt_service_pci1710(int irq, void *d PT_REGS_ARG)
+static irqreturn_t interrupt_service_pci1710(int irq, void *d)
 {
 	struct comedi_device *dev = d;
 

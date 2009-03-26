@@ -108,7 +108,7 @@ static const struct comedi_lrange das16cs_ai_range = { 4, {
 	}
 };
 
-static irqreturn_t das16cs_interrupt(int irq, void *d PT_REGS_ARG);
+static irqreturn_t das16cs_interrupt(int irq, void *d);
 static int das16cs_ai_rinsn(struct comedi_device * dev, struct comedi_subdevice * s,
 	struct comedi_insn * insn, unsigned int * data);
 static int das16cs_ai_cmd(struct comedi_device * dev, struct comedi_subdevice * s);
@@ -276,7 +276,7 @@ static int das16cs_detach(struct comedi_device * dev)
 	return 0;
 }
 
-static irqreturn_t das16cs_interrupt(int irq, void *d PT_REGS_ARG)
+static irqreturn_t das16cs_interrupt(int irq, void *d)
 {
 	//struct comedi_device *dev = d;
 	return IRQ_HANDLED;

@@ -409,7 +409,7 @@ static irqreturn_t interrupt_pcl816_ai_mode13_dma(int irq, void *d)
 ==============================================================================
     INT procedure
 */
-static irqreturn_t interrupt_pcl816(int irq, void *d PT_REGS_ARG)
+static irqreturn_t interrupt_pcl816(int irq, void *d)
 {
 	struct comedi_device *dev = d;
 	DPRINTK("<I>");

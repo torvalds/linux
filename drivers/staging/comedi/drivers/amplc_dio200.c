@@ -205,6 +205,8 @@ is packed into a short value, one bit per requested channel, in the
 order they appear in the channel list.
 */
 
+#include <linux/interrupt.h>
+
 #include "../comedidev.h"
 
 #include "comedi_pci.h"
@@ -1010,7 +1012,7 @@ dio200_subdev_intr_cleanup(struct comedi_device * dev, struct comedi_subdevice *
 /*
  * Interrupt service routine.
  */
-static irqreturn_t dio200_interrupt(int irq, void *d PT_REGS_ARG)
+static irqreturn_t dio200_interrupt(int irq, void *d)
 {
 	struct comedi_device *dev = d;
 	int handled;

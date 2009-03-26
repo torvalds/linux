@@ -185,7 +185,7 @@ struct pcl711_private {
 
 #define devpriv ((struct pcl711_private *)dev->private)
 
-static irqreturn_t pcl711_interrupt(int irq, void *d PT_REGS_ARG)
+static irqreturn_t pcl711_interrupt(int irq, void *d)
 {
 	int lo, hi;
 	int data;

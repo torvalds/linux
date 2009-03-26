@@ -77,6 +77,7 @@ TODO:
 #include "../comedidev.h"
 
 #include <linux/delay.h>
+#include <linux/interrupt.h>
 
 #include "8253.h"
 #include "comedi_pci.h"
@@ -884,7 +885,7 @@ static void pci9111_ai_munge(struct comedi_device * dev, struct comedi_subdevice
 
 #undef INTERRUPT_DEBUG
 
-static irqreturn_t pci9111_interrupt(int irq, void *p_device PT_REGS_ARG)
+static irqreturn_t pci9111_interrupt(int irq, void *p_device)
 {
 	struct comedi_device *dev = p_device;
 	struct comedi_subdevice *subdevice = dev->read_subdev;

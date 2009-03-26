@@ -63,6 +63,7 @@ analog triggering on 1602 series
 
 #include "../comedidev.h"
 #include <linux/delay.h>
+#include <linux/interrupt.h>
 
 #include "8253.h"
 #include "8255.h"
@@ -468,7 +469,7 @@ static int cb_pcidas_ao_inttrig(struct comedi_device *dev,
 				unsigned int trig_num);
 static int cb_pcidas_ao_cmdtest(struct comedi_device * dev, struct comedi_subdevice * s,
 	struct comedi_cmd * cmd);
-static irqreturn_t cb_pcidas_interrupt(int irq, void *d PT_REGS_ARG);
+static irqreturn_t cb_pcidas_interrupt(int irq, void *d);
 static void handle_ao_interrupt(struct comedi_device * dev, unsigned int status);
 static int cb_pcidas_cancel(struct comedi_device * dev, struct comedi_subdevice * s);
 static int cb_pcidas_ao_cancel(struct comedi_device * dev, struct comedi_subdevice * s);
@@ -1476,7 +1477,7 @@ static int cb_pcidas_ao_inttrig(struct comedi_device *dev,
 	return 0;
 }
 
-static irqreturn_t cb_pcidas_interrupt(int irq, void *d PT_REGS_ARG)
+static irqreturn_t cb_pcidas_interrupt(int irq, void *d)
 {
 	struct comedi_device *dev = (struct comedi_device *) d;
 	struct comedi_subdevice *s = dev->read_subdev;

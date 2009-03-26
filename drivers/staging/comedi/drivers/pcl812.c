@@ -1061,7 +1061,7 @@ static irqreturn_t interrupt_pcl812_ai_dma(int irq, void *d)
 /*
 ==============================================================================
 */
-static irqreturn_t interrupt_pcl812(int irq, void *d PT_REGS_ARG)
+static irqreturn_t interrupt_pcl812(int irq, void *d)
 {
 	struct comedi_device *dev = d;
 

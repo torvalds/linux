@@ -165,7 +165,7 @@ NI manuals:
 
 static int labpc_attach(struct comedi_device * dev, struct comedi_devconfig * it);
 static int labpc_cancel(struct comedi_device * dev, struct comedi_subdevice * s);
-static irqreturn_t labpc_interrupt(int irq, void *d PT_REGS_ARG);
+static irqreturn_t labpc_interrupt(int irq, void *d);
 static int labpc_drain_fifo(struct comedi_device * dev);
 static void labpc_drain_dma(struct comedi_device * dev);
 static void handle_isa_dma(struct comedi_device * dev);
@@ -1309,7 +1309,7 @@ static int labpc_ai_cmd(struct comedi_device * dev, struct comedi_subdevice * s)
 }
 
 /* interrupt service routine */
-static irqreturn_t labpc_interrupt(int irq, void *d PT_REGS_ARG)
+static irqreturn_t labpc_interrupt(int irq, void *d)
 {
 	struct comedi_device *dev = d;
 	struct comedi_subdevice *s = dev->read_subdev;

@@ -52,6 +52,8 @@ the IRQ jumper.  If no interrupt is connected, then subdevice 1 is
 unused.
 */
 
+#include <linux/interrupt.h>
+
 #include "../comedidev.h"
 
 #include "comedi_pci.h"
@@ -194,7 +196,7 @@ static int pc236_intr_cmdtest(struct comedi_device * dev, struct comedi_subdevic
 	struct comedi_cmd * cmd);
 static int pc236_intr_cmd(struct comedi_device * dev, struct comedi_subdevice * s);
 static int pc236_intr_cancel(struct comedi_device * dev, struct comedi_subdevice * s);
-static irqreturn_t pc236_interrupt(int irq, void *d PT_REGS_ARG);
+static irqreturn_t pc236_interrupt(int irq, void *d);
 
 /*
  * This function looks for a PCI device matching the requested board name,
@@ -638,7 +640,7 @@ static int pc236_intr_cancel(struct comedi_device * dev, struct comedi_subdevice
  * Interrupt service routine.
  * Based on the comedi_parport driver.
  */
-static irqreturn_t pc236_interrupt(int irq, void *d PT_REGS_ARG)
+static irqreturn_t pc236_interrupt(int irq, void *d)
 {
 	struct comedi_device *dev = d;
 	struct comedi_subdevice *s = dev->subdevices + 1;

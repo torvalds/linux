@@ -85,6 +85,7 @@ TODO:
 
 #include "../comedidev.h"
 #include <linux/delay.h>
+#include <linux/interrupt.h>
 #include <asm/system.h>
 
 #include "comedi_pci.h"
@@ -1152,7 +1153,7 @@ static int ao_inttrig(struct comedi_device * dev, struct comedi_subdevice * subd
 	unsigned int trig_num);
 static int ao_cmdtest(struct comedi_device * dev, struct comedi_subdevice * s,
 	struct comedi_cmd * cmd);
-static irqreturn_t handle_interrupt(int irq, void *d PT_REGS_ARG);
+static irqreturn_t handle_interrupt(int irq, void *d);
 static int ai_cancel(struct comedi_device * dev, struct comedi_subdevice * s);
 static int ao_cancel(struct comedi_device * dev, struct comedi_subdevice * s);
 static int dio_callback(int dir, int port, int data, unsigned long arg);
@@ -3128,7 +3129,7 @@ static void handle_ao_interrupt(struct comedi_device * dev, unsigned short statu
 	cfc_handle_events(dev, s);
 }
 
-static irqreturn_t handle_interrupt(int irq, void *d PT_REGS_ARG)
+static irqreturn_t handle_interrupt(int irq, void *d)
 {
 	struct comedi_device *dev = d;
 	unsigned short status;

@@ -454,7 +454,7 @@ static int ni_65xx_dio_insn_bits(struct comedi_device * dev, struct comedi_subde
 	return insn->n;
 }
 
-static irqreturn_t ni_65xx_interrupt(int irq, void *d PT_REGS_ARG)
+static irqreturn_t ni_65xx_interrupt(int irq, void *d)
 {
 	struct comedi_device *dev = d;
 	struct comedi_subdevice *s = dev->subdevices + 2;

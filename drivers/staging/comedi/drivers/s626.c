@@ -253,7 +253,7 @@ static int s626_ns_to_timer(int *nanosec, int round_mode);
 static int s626_ai_load_polllist(uint8_t *ppl, struct comedi_cmd *cmd);
 static int s626_ai_inttrig(struct comedi_device *dev, struct comedi_subdevice *s,
 	unsigned int trignum);
-static irqreturn_t s626_irq_handler(int irq, void *d PT_REGS_ARG);
+static irqreturn_t s626_irq_handler(int irq, void *d);
 static unsigned int s626_ai_reg_to_uint(int data);
 /* static unsigned int s626_uint_to_reg(struct comedi_subdevice *s, int data); */
 
@@ -968,7 +968,7 @@ static unsigned int s626_ai_reg_to_uint(int data)
 /*   return 0; */
 /* } */
 
-static irqreturn_t s626_irq_handler(int irq, void *d PT_REGS_ARG)
+static irqreturn_t s626_irq_handler(int irq, void *d)
 {
 	struct comedi_device *dev = d;
 	struct comedi_subdevice *s;

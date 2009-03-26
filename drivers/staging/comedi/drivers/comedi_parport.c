@@ -82,6 +82,7 @@ pin, which can be used to wake up tasks.
  */
 
 #include "../comedidev.h"
+#include <linux/interrupt.h>
 #include <linux/ioport.h>
 
 #define PARPORT_SIZE 3
@@ -274,7 +275,7 @@ static int parport_intr_cancel(struct comedi_device *dev, struct comedi_subdevic
 	return 0;
 }
 
-static irqreturn_t parport_interrupt(int irq, void *d PT_REGS_ARG)
+static irqreturn_t parport_interrupt(int irq, void *d)
 {
 	struct comedi_device *dev = d;
 	struct comedi_subdevice *s = dev->subdevices + 3;

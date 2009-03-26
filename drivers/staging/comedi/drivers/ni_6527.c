@@ -212,7 +212,7 @@ static int ni6527_do_insn_bits(struct comedi_device * dev, struct comedi_subdevi
 	return 2;
 }
 
-static irqreturn_t ni6527_interrupt(int irq, void *d PT_REGS_ARG)
+static irqreturn_t ni6527_interrupt(int irq, void *d)
 {
 	struct comedi_device *dev = d;
 	struct comedi_subdevice *s = dev->subdevices + 2;

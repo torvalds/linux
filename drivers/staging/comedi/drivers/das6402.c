@@ -151,7 +151,7 @@ static void das6402_setcounter(struct comedi_device * dev)
 	outb_p(p, dev->iobase + 14);
 }
 
-static irqreturn_t intr_handler(int irq, void *d PT_REGS_ARG)
+static irqreturn_t intr_handler(int irq, void *d)
 {
 	struct comedi_device *dev = d;
 	struct comedi_subdevice *s = dev->subdevices;

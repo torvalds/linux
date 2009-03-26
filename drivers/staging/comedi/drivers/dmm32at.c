@@ -304,7 +304,7 @@ static int dmm32at_ai_cmdtest(struct comedi_device * dev, struct comedi_subdevic
 static int dmm32at_ai_cmd(struct comedi_device * dev, struct comedi_subdevice * s);
 static int dmm32at_ai_cancel(struct comedi_device * dev, struct comedi_subdevice * s);
 static int dmm32at_ns_to_timer(unsigned int *ns, int round);
-static irqreturn_t dmm32at_isr(int irq, void *d PT_REGS_ARG);
+static irqreturn_t dmm32at_isr(int irq, void *d);
 void dmm32at_setaitimer(struct comedi_device * dev, unsigned int nansec);
 
 /*
@@ -828,7 +828,7 @@ static int dmm32at_ai_cancel(struct comedi_device * dev, struct comedi_subdevice
 	return 0;
 }
 
-static irqreturn_t dmm32at_isr(int irq, void *d PT_REGS_ARG)
+static irqreturn_t dmm32at_isr(int irq, void *d)
 {
 	unsigned char intstat;
 	unsigned int samp;

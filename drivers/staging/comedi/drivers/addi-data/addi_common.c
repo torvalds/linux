@@ -3003,7 +3003,7 @@ static int i_ADDI_Reset(struct comedi_device * dev)
 /*
 +----------------------------------------------------------------------------+
 | Function name     :                                                        |
-|static void v_ADDI_Interrupt(int irq, void *d  PT_REGS_ARG)                 |
+|static void v_ADDI_Interrupt(int irq, void *d)                 |
 |                                        									 |
 +----------------------------------------------------------------------------+
 | Task              : Registerd interrupt routine						     |
@@ -3018,7 +3018,7 @@ static int i_ADDI_Reset(struct comedi_device * dev)
 +----------------------------------------------------------------------------+
 */
 
-static irqreturn_t v_ADDI_Interrupt(int irq, void *d PT_REGS_ARG)
+static irqreturn_t v_ADDI_Interrupt(int irq, void *d)
 {
 	struct comedi_device *dev = d;
 	this_board->v_hwdrv_Interrupt(irq, d);

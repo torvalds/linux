@@ -70,7 +70,7 @@ static struct comedi_driver driver_dt2814 = {
 
 COMEDI_INITCLEANUP(driver_dt2814);
 
-static irqreturn_t dt2814_interrupt(int irq, void *dev PT_REGS_ARG);
+static irqreturn_t dt2814_interrupt(int irq, void *dev);
 
 struct dt2814_private {
 
@@ -343,7 +343,7 @@ static int dt2814_detach(struct comedi_device * dev)
 	return 0;
 }
 
-static irqreturn_t dt2814_interrupt(int irq, void *d PT_REGS_ARG)
+static irqreturn_t dt2814_interrupt(int irq, void *d)
 {
 	int lo, hi;
 	struct comedi_device *dev = d;

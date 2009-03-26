@@ -103,6 +103,8 @@ Caveats:
      correctly.
 */
 
+#include <linux/interrupt.h>
+
 #include "../comedidev.h"
 
 #include "comedi_pci.h"
@@ -1212,7 +1214,7 @@ pci224_ao_munge(struct comedi_device * dev, struct comedi_subdevice * s, void *d
 /*
  * Interrupt handler.
  */
-static irqreturn_t pci224_interrupt(int irq, void *d PT_REGS_ARG)
+static irqreturn_t pci224_interrupt(int irq, void *d)
 {
 	struct comedi_device *dev = d;
 	struct comedi_subdevice *s = &dev->subdevices[0];

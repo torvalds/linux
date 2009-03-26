@@ -256,7 +256,7 @@ static struct comedi_driver driver_das800 = {
       offset:sizeof(struct das800_board),
 };
 
-static irqreturn_t das800_interrupt(int irq, void *d PT_REGS_ARG);
+static irqreturn_t das800_interrupt(int irq, void *d);
 static void enable_das800(struct comedi_device * dev);
 static void disable_das800(struct comedi_device * dev);
 static int das800_ai_do_cmdtest(struct comedi_device * dev, struct comedi_subdevice * s,
@@ -343,7 +343,7 @@ static int das800_probe(struct comedi_device * dev)
 COMEDI_INITCLEANUP(driver_das800);
 
 /* interrupt service routine */
-static irqreturn_t das800_interrupt(int irq, void *d PT_REGS_ARG)
+static irqreturn_t das800_interrupt(int irq, void *d)
 {
 	short i;		/* loop index */
 	short dataPoint = 0;

@@ -66,6 +66,7 @@ Configuration options:
 #include "../pci_ids.h"
 
 #include <linux/delay.h>
+#include <linux/interrupt.h>
 
 #include "amcc_s5933.h"
 #include "8253.h"
@@ -674,7 +675,7 @@ static void interrupt_pci9118_ai_dma(struct comedi_device * dev, struct comedi_s
 /*
 ==============================================================================
 */
-static irqreturn_t interrupt_pci9118(int irq, void *d PT_REGS_ARG)
+static irqreturn_t interrupt_pci9118(int irq, void *d)
 {
 	struct comedi_device *dev = d;
 	unsigned int int_daq = 0, int_amcc, int_adstat;

@@ -183,7 +183,7 @@ static int ai_prepare(struct comedi_device *dev,
 static int ai_write_chanlist(struct comedi_device *dev,
 	struct comedi_subdevice *s, struct comedi_cmd *cmd);
 
-static irqreturn_t me4000_ai_isr(int irq, void *dev_id PT_REGS_ARG);
+static irqreturn_t me4000_ai_isr(int irq, void *dev_id);
 
 static int me4000_ai_do_cmd_test(struct comedi_device *dev,
 	struct comedi_subdevice *s, struct comedi_cmd *cmd);
@@ -1740,7 +1740,7 @@ static int me4000_ai_do_cmd_test(struct comedi_device *dev,
 	return 0;
 }
 
-static irqreturn_t me4000_ai_isr(int irq, void *dev_id PT_REGS_ARG)
+static irqreturn_t me4000_ai_isr(int irq, void *dev_id)
 {
 	unsigned int tmp;
 	struct comedi_device *dev = dev_id;

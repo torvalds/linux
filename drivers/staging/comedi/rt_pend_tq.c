@@ -69,7 +69,7 @@ void rt_pend_irq_handler(void)
 #elif defined(CONFIG_COMEDI_FUSION)
 void rt_pend_irq_handler(void *cookie)
 #elif defined(CONFIG_COMEDI_RTL)
-void rt_pend_irq_handler(int irq, void *dev PT_REGS_ARG)
+void rt_pend_irq_handler(int irq, void *dev)
 #endif
 {
 	while (rt_pend_head != rt_pend_tail) {
