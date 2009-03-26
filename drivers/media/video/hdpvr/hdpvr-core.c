@@ -390,8 +390,10 @@ static void hdpvr_disconnect(struct usb_interface *interface)
 	video_unregister_device(dev->video_dev);
 	wake_up_interruptible(&dev->wait_data);
 	wake_up_interruptible(&dev->wait_buffer);
+	mutex_unlock(&dev->io_mutex);
 	msleep(100);
 	flush_workqueue(dev->workqueue);
+	mutex_lock(&dev->io_mutex);
 	hdpvr_cancel_queue(dev);
 	destroy_workqueue(dev->workqueue);
 	mutex_unlock(&dev->io_mutex);

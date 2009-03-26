@@ -300,12 +300,14 @@ static int hdpvr_stop_streaming(struct hdpvr_device *dev)
 
 	dev->status = STATUS_SHUTTING_DOWN;
 	hdpvr_config_call(dev, CTRL_STOP_STREAMING_VALUE, 0x00);
+	mutex_unlock(&dev->io_mutex);
 
 	wake_up_interruptible(&dev->wait_buffer);
 	msleep(50);
 
 	flush_workqueue(dev->workqueue);
 
+	mutex_lock(&dev->io_mutex);
 	/* kill the still outstanding urbs */
 	hdpvr_cancel_queue(dev);
 
@@ -1130,7 +1132,7 @@ static int vidioc_encoder_cmd(struct file *filp, void *priv,
 	default:
 		v4l2_dbg(MSG_INFO, hdpvr_debug, dev->video_dev,
 			 "Unsupported encoder cmd %d\n", a->cmd);
-		return -EINVAL;
+		res = -EINVAL;
 	}
 	mutex_unlock(&dev->io_mutex);
 	return res;
