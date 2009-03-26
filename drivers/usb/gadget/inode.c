@@ -1334,7 +1334,7 @@ static void make_qualifier (struct dev_data *dev)
 
 	qual.bLength = sizeof qual;
 	qual.bDescriptorType = USB_DT_DEVICE_QUALIFIER;
-	qual.bcdUSB = __constant_cpu_to_le16 (0x0200);
+	qual.bcdUSB = cpu_to_le16 (0x0200);
 
 	desc = dev->dev;
 	qual.bDeviceClass = desc->bDeviceClass;
@@ -1908,7 +1908,7 @@ dev_config (struct file *fd, const char __user *buf, size_t len, loff_t *ptr)
 			|| dev->dev->bNumConfigurations != 1)
 		goto fail;
 	dev->dev->bNumConfigurations = 1;
-	dev->dev->bcdUSB = __constant_cpu_to_le16 (0x0200);
+	dev->dev->bcdUSB = cpu_to_le16 (0x0200);
 
 	/* triggers gadgetfs_bind(); then we can enumerate. */
 	spin_unlock_irq (&dev->lock);

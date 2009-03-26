@@ -1,10 +1,4 @@
-/* Driver for Lexar "Jumpshot" USB Compact Flash reader
- * Header File
- *
- * Current development and maintenance by:
- *   (c) 2000 Jimmie Mayfield (mayfield+usb@sackheads.org)
- *
- * See jumpshot.c for more explanation
+/* Unusual Devices File for the Lexar "Jumpshot" Compact Flash reader
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -21,19 +15,13 @@
  * 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-#ifndef _USB_JUMPSHOT_H
-#define _USB_JUMPSHOT_H
+#if defined(CONFIG_USB_STORAGE_JUMPSHOT) || \
+		defined(CONFIG_USB_STORAGE_JUMPSHOT_MODULE)
 
-extern int jumpshot_transport(struct scsi_cmnd *srb, struct us_data *us);
+UNUSUAL_DEV(  0x05dc, 0x0001, 0x0000, 0x0001,
+		"Lexar",
+		"Jumpshot USB CF Reader",
+		US_SC_SCSI, US_PR_JUMPSHOT, NULL,
+		US_FL_NEED_OVERRIDE),
 
-struct jumpshot_info {
-   unsigned long   sectors;     // total sector count
-   unsigned long   ssize;       // sector size in bytes
- 
-   // the following aren't used yet
-   unsigned char   sense_key;
-   unsigned long   sense_asc;   // additional sense code
-   unsigned long   sense_ascq;  // additional sense code qualifier
-};
-
-#endif
+#endif /* defined(CONFIG_USB_STORAGE_JUMPSHOT) || ... */

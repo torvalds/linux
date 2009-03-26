@@ -78,6 +78,7 @@ static int  ipaq_open(struct tty_struct *tty,
 			struct usb_serial_port *port, struct file *filp);
 static void ipaq_close(struct tty_struct *tty,
 			struct usb_serial_port *port, struct file *filp);
+static int  ipaq_calc_num_ports(struct usb_serial *serial);
 static int  ipaq_startup(struct usb_serial *serial);
 static void ipaq_shutdown(struct usb_serial *serial);
 static int ipaq_write(struct tty_struct *tty, struct usb_serial_port *port,
@@ -572,15 +573,10 @@ static struct usb_serial_driver ipaq_device = {
 	.description =		"PocketPC PDA",
 	.usb_driver = 		&ipaq_driver,
 	.id_table =		ipaq_id_table,
-	/*
-	 * some devices have an extra endpoint, which
-	 * must be ignored as it would make the core
-	 * create a second port which oopses when used
-	 */
-	.num_ports =		1,
 	.open =			ipaq_open,
 	.close =		ipaq_close,
 	.attach =		ipaq_startup,
+	.calc_num_ports =	ipaq_calc_num_ports,
 	.shutdown =		ipaq_shutdown,
 	.write =		ipaq_write,
 	.write_room =		ipaq_write_room,
@@ -956,14 +952,49 @@ static void ipaq_destroy_lists(struct usb_serial_port *port)
 }
 
 
+static int ipaq_calc_num_ports(struct usb_serial *serial)
+{
+	/*
+	 * some devices have 3 endpoints, the 3rd of which
+	 * must be ignored as it would make the core
+	 * create a second port which oopses when used
+	 */
+	int ipaq_num_ports = 1;
+
+	dbg("%s - numberofendpoints: %d", __FUNCTION__,
+		(int)serial->interface->cur_altsetting->desc.bNumEndpoints);
+
+	/*
+	 * a few devices have 4 endpoints, seemingly Yakuma devices,
+	 * and we need the second pair, so let them have 2 ports
+	 *
+	 * TODO: can we drop port 1 ?
+	 */
+	if (serial->interface->cur_altsetting->desc.bNumEndpoints > 3) {
+		ipaq_num_ports = 2;
+	}
+
+	return ipaq_num_ports;
+}
+
+
 static int ipaq_startup(struct usb_serial *serial)
 {
 	dbg("%s", __func__);
 	if (serial->dev->actconfig->desc.bConfigurationValue != 1) {
+		/*
+		 * FIXME: HP iPaq rx3715, possibly others, have 1 config that
+		 * is labeled as 2
+		 */
+
 		dev_err(&serial->dev->dev, "active config #%d != 1 ??\n",
 			serial->dev->actconfig->desc.bConfigurationValue);
 		return -ENODEV;
 	}
+
+	dbg("%s - iPAQ module configured for %d ports",
+		__FUNCTION__, serial->num_ports);
+
 	return usb_reset_configuration(serial->dev);
 }
 

@@ -1,11 +1,4 @@
-/* Header File for In-System Design, Inc. ISD200 ASIC
- *
- * First release
- *
- * Current development and maintenance by:
- *   (c) 2000 In-System Design, Inc. (support@in-system.com)
- *
- * See isd200.c for more information.
+/* Unusual Devices File for the Rio Karma
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -22,10 +15,12 @@
  * 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-#ifndef _USB_ISD200_H
-#define _USB_ISD200_H
+#if defined(CONFIG_USB_STORAGE_KARMA) || \
+		defined(CONFIG_USB_STORAGE_KARMA_MODULE)
 
-extern void isd200_ata_command(struct scsi_cmnd *srb, struct us_data *us);
-extern int isd200_Initialization(struct us_data *us);
+UNUSUAL_DEV(  0x045a, 0x5210, 0x0101, 0x0101,
+		"Rio",
+		"Rio Karma",
+		US_SC_SCSI, US_PR_KARMA, rio_karma_init, 0),
 
-#endif
+#endif /* defined(CONFIG_USB_STORAGE_KARMA) || ... */

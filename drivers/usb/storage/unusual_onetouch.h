@@ -1,8 +1,4 @@
-/*
- * Support for emulating SAT (ata pass through) on devices based
- *       on the Cypress USB/ATA bridge supporting ATACB.
- *
- * Copyright (c) 2008 Matthieu Castet (castet.matthieu@free.fr)
+/* Unusual Devices File for the Maxtor OneTouch USB hard drive's button
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -19,7 +15,22 @@
  * 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-#ifndef _CYPRESS_ATACB_H_
-#define _CYPRESS_ATACB_H_
-extern void cypress_atacb_passthrough(struct scsi_cmnd*, struct us_data*);
-#endif
+#if defined(CONFIG_USB_STORAGE_ONETOUCH) || \
+		defined(CONFIG_USB_STORAGE_ONETOUCH_MODULE)
+
+/* Submitted by: Nick Sillik <n.sillik@temple.edu>
+ * Needed for OneTouch extension to usb-storage
+ */
+UNUSUAL_DEV(  0x0d49, 0x7000, 0x0000, 0x9999,
+		"Maxtor",
+		"OneTouch External Harddrive",
+		US_SC_DEVICE, US_PR_DEVICE, onetouch_connect_input,
+		0),
+
+UNUSUAL_DEV(  0x0d49, 0x7010, 0x0000, 0x9999,
+		"Maxtor",
+		"OneTouch External Harddrive",
+		US_SC_DEVICE, US_PR_DEVICE, onetouch_connect_input,
+		0),
+
+#endif /* defined(CONFIG_USB_STORAGE_ONETOUCH) || ... */

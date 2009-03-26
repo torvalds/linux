@@ -11,10 +11,6 @@
  * thanks to Karl Hiramoto karl@hiramoto.org. RTSCTS hardware flow
  * control thanks to Munir Nassar nassarmu@real-time.com
  *
- * Outstanding Issues:
- *  Buffers are not flushed when the port is opened.
- *  Multiple calls to write() may fail with "Resource temporarily unavailable"
- *
  */
 
 #include <linux/kernel.h>
@@ -31,7 +27,7 @@
 /*
  * Version Information
  */
-#define DRIVER_VERSION "v0.07"
+#define DRIVER_VERSION "v0.08"
 #define DRIVER_DESC "Silicon Labs CP2101/CP2102 RS232 serial adaptor driver"
 
 /*
@@ -42,16 +38,20 @@ static int cp2101_open(struct tty_struct *, struct usb_serial_port *,
 static void cp2101_cleanup(struct usb_serial_port *);
 static void cp2101_close(struct tty_struct *, struct usb_serial_port *,
 							struct file*);
-static void cp2101_get_termios(struct tty_struct *);
+static void cp2101_get_termios(struct tty_struct *,
+	struct usb_serial_port *port);
+static void cp2101_get_termios_port(struct usb_serial_port *port,
+	unsigned int *cflagp, unsigned int *baudp);
 static void cp2101_set_termios(struct tty_struct *, struct usb_serial_port *,
 							struct ktermios*);
 static int cp2101_tiocmget(struct tty_struct *, struct file *);
 static int cp2101_tiocmset(struct tty_struct *, struct file *,
 		unsigned int, unsigned int);
+static int cp2101_tiocmset_port(struct usb_serial_port *port, struct file *,
+		unsigned int, unsigned int);
 static void cp2101_break_ctl(struct tty_struct *, int);
 static int cp2101_startup(struct usb_serial *);
 static void cp2101_shutdown(struct usb_serial *);
-
 
 static int debug;
 
@@ -91,6 +91,7 @@ static struct usb_device_id id_table [] = {
 	{ USB_DEVICE(0x10c4, 0x8293) }, /* Telegesys ETRX2USB */
 	{ USB_DEVICE(0x10C4, 0x8341) }, /* Siemens MC35PU GPRS Modem */
 	{ USB_DEVICE(0x10C4, 0x83A8) }, /* Amber Wireless AMB2560 */
+	{ USB_DEVICE(0x10C4, 0x846E) }, /* BEI USB Sensor Interface (VCP) */
 	{ USB_DEVICE(0x10C4, 0xEA60) }, /* Silicon Labs factory default */
 	{ USB_DEVICE(0x10C4, 0xEA61) }, /* Silicon Labs factory default */
 	{ USB_DEVICE(0x10C4, 0xF001) }, /* Elan Digital Systems USBscope50 */
@@ -225,7 +226,7 @@ static int cp2101_get_config(struct usb_serial_port *port, u8 request,
 	kfree(buf);
 
 	if (result != size) {
-		dev_err(&port->dev, "%s - Unable to send config request, "
+		dbg("%s - Unable to send config request, "
 				"request=0x%x size=%d result=%d\n",
 				__func__, request, size, result);
 		return -EPROTO;
@@ -276,7 +277,7 @@ static int cp2101_set_config(struct usb_serial_port *port, u8 request,
 	kfree(buf);
 
 	if ((size > 2 && result != size) || result < 0) {
-		dev_err(&port->dev, "%s - Unable to send request, "
+		dbg("%s - Unable to send request, "
 				"request=0x%x size=%d result=%d\n",
 				__func__, request, size, result);
 		return -EPROTO;
@@ -299,6 +300,47 @@ static inline int cp2101_set_config_single(struct usb_serial_port *port,
 		u8 request, unsigned int data)
 {
 	return cp2101_set_config(port, request, &data, 2);
+}
+
+/*
+ * cp2101_quantise_baudrate
+ * Quantises the baud rate as per AN205 Table 1
+ */
+static unsigned int cp2101_quantise_baudrate(unsigned int baud) {
+	if      (baud <= 56)       baud = 0;
+	else if (baud <= 300)      baud = 300;
+	else if (baud <= 600)      baud = 600;
+	else if (baud <= 1200)     baud = 1200;
+	else if (baud <= 1800)     baud = 1800;
+	else if (baud <= 2400)     baud = 2400;
+	else if (baud <= 4000)     baud = 4000;
+	else if (baud <= 4803)     baud = 4800;
+	else if (baud <= 7207)     baud = 7200;
+	else if (baud <= 9612)     baud = 9600;
+	else if (baud <= 14428)    baud = 14400;
+	else if (baud <= 16062)    baud = 16000;
+	else if (baud <= 19250)    baud = 19200;
+	else if (baud <= 28912)    baud = 28800;
+	else if (baud <= 38601)    baud = 38400;
+	else if (baud <= 51558)    baud = 51200;
+	else if (baud <= 56280)    baud = 56000;
+	else if (baud <= 58053)    baud = 57600;
+	else if (baud <= 64111)    baud = 64000;
+	else if (baud <= 77608)    baud = 76800;
+	else if (baud <= 117028)   baud = 115200;
+	else if (baud <= 129347)   baud = 128000;
+	else if (baud <= 156868)   baud = 153600;
+	else if (baud <= 237832)   baud = 230400;
+	else if (baud <= 254234)   baud = 250000;
+	else if (baud <= 273066)   baud = 256000;
+	else if (baud <= 491520)   baud = 460800;
+	else if (baud <= 567138)   baud = 500000;
+	else if (baud <= 670254)   baud = 576000;
+	else if (baud <= 1053257)  baud = 921600;
+	else if (baud <= 1474560)  baud = 1228800;
+	else if (baud <= 2457600)  baud = 1843200;
+	else                       baud = 3686400;
+	return baud;
 }
 
 static int cp2101_open(struct tty_struct *tty, struct usb_serial_port *port,
@@ -331,10 +373,12 @@ static int cp2101_open(struct tty_struct *tty, struct usb_serial_port *port,
 	}
 
 	/* Configure the termios structure */
-	cp2101_get_termios(tty);
+	cp2101_get_termios(tty, port);
 
 	/* Set the DTR and RTS pins low */
-	cp2101_tiocmset(tty, NULL, TIOCM_DTR | TIOCM_RTS, 0);
+	cp2101_tiocmset_port(tty ? (struct usb_serial_port *) tty->driver_data
+			: port,
+		NULL, TIOCM_DTR | TIOCM_RTS, 0);
 
 	return 0;
 }
@@ -376,9 +420,31 @@ static void cp2101_close(struct tty_struct *tty, struct usb_serial_port *port,
  * from the device, corrects any unsupported values, and configures the
  * termios structure to reflect the state of the device
  */
-static void cp2101_get_termios (struct tty_struct *tty)
+static void cp2101_get_termios(struct tty_struct *tty,
+	struct usb_serial_port *port)
 {
-	struct usb_serial_port *port = tty->driver_data;
+	unsigned int baud;
+
+	if (tty) {
+		cp2101_get_termios_port(tty->driver_data,
+			&tty->termios->c_cflag, &baud);
+		tty_encode_baud_rate(tty, baud, baud);
+	}
+
+	else {
+		unsigned int cflag;
+		cflag = 0;
+		cp2101_get_termios_port(port, &cflag, &baud);
+	}
+}
+
+/*
+ * cp2101_get_termios_port
+ * This is the heart of cp2101_get_termios which always uses a &usb_serial_port.
+ */
+static void cp2101_get_termios_port(struct usb_serial_port *port,
+	unsigned int *cflagp, unsigned int *baudp)
+{
 	unsigned int cflag, modem_ctl[4];
 	unsigned int baud;
 	unsigned int bits;
@@ -388,12 +454,12 @@ static void cp2101_get_termios (struct tty_struct *tty)
 	cp2101_get_config(port, CP2101_BAUDRATE, &baud, 2);
 	/* Convert to baudrate */
 	if (baud)
-		baud = BAUD_RATE_GEN_FREQ / baud;
+		baud = cp2101_quantise_baudrate((BAUD_RATE_GEN_FREQ + baud/2)/ baud);
 
 	dbg("%s - baud rate = %d", __func__, baud);
+	*baudp = baud;
 
-	tty_encode_baud_rate(tty, baud, baud);
-	cflag = tty->termios->c_cflag;
+	cflag = *cflagp;
 
 	cp2101_get_config(port, CP2101_BITS, &bits, 2);
 	cflag &= ~CSIZE;
@@ -499,7 +565,7 @@ static void cp2101_get_termios (struct tty_struct *tty)
 		cflag &= ~CRTSCTS;
 	}
 
-	tty->termios->c_cflag = cflag;
+	*cflagp = cflag;
 }
 
 static void cp2101_set_termios(struct tty_struct *tty,
@@ -517,46 +583,16 @@ static void cp2101_set_termios(struct tty_struct *tty,
 	tty->termios->c_cflag &= ~CMSPAR;
 	cflag = tty->termios->c_cflag;
 	old_cflag = old_termios->c_cflag;
-	baud = tty_get_baud_rate(tty);
+	baud = cp2101_quantise_baudrate(tty_get_baud_rate(tty));
 
 	/* If the baud rate is to be updated*/
-	if (baud != tty_termios_baud_rate(old_termios)) {
-		switch (baud) {
-		case 0:
-		case 600:
-		case 1200:
-		case 1800:
-		case 2400:
-		case 4800:
-		case 7200:
-		case 9600:
-		case 14400:
-		case 19200:
-		case 28800:
-		case 38400:
-		case 55854:
-		case 57600:
-		case 115200:
-		case 127117:
-		case 230400:
-		case 460800:
-		case 921600:
-		case 3686400:
-			break;
-		default:
-			baud = 9600;
-			break;
-		}
-
-		if (baud) {
-			dbg("%s - Setting baud rate to %d baud", __func__,
-					baud);
-			if (cp2101_set_config_single(port, CP2101_BAUDRATE,
-						(BAUD_RATE_GEN_FREQ / baud))) {
-				dev_err(&port->dev, "Baud rate requested not "
-						"supported by device\n");
-				baud = tty_termios_baud_rate(old_termios);
-			}
+	if (baud != tty_termios_baud_rate(old_termios) && baud != 0) {
+		dbg("%s - Setting baud rate to %d baud", __func__,
+				baud);
+		if (cp2101_set_config_single(port, CP2101_BAUDRATE,
+					((BAUD_RATE_GEN_FREQ + baud/2) / baud))) {
+			dbg("Baud rate requested not supported by device\n");
+			baud = tty_termios_baud_rate(old_termios);
 		}
 	}
 	/* Report back the resulting baud rate */
@@ -588,14 +624,14 @@ static void cp2101_set_termios(struct tty_struct *tty,
 			dbg("%s - data bits = 9", __func__);
 			break;*/
 		default:
-			dev_err(&port->dev, "cp2101 driver does not "
+			dbg("cp2101 driver does not "
 					"support the number of bits requested,"
 					" using 8 bit mode\n");
 				bits |= BITS_DATA_8;
 				break;
 		}
 		if (cp2101_set_config(port, CP2101_BITS, &bits, 2))
-			dev_err(&port->dev, "Number of data bits requested "
+			dbg("Number of data bits requested "
 					"not supported by device\n");
 	}
 
@@ -612,7 +648,7 @@ static void cp2101_set_termios(struct tty_struct *tty,
 			}
 		}
 		if (cp2101_set_config(port, CP2101_BITS, &bits, 2))
-			dev_err(&port->dev, "Parity mode not supported "
+			dbg("Parity mode not supported "
 					"by device\n");
 	}
 
@@ -627,7 +663,7 @@ static void cp2101_set_termios(struct tty_struct *tty,
 			dbg("%s - stop bits = 1", __func__);
 		}
 		if (cp2101_set_config(port, CP2101_BITS, &bits, 2))
-			dev_err(&port->dev, "Number of stop bits requested "
+			dbg("Number of stop bits requested "
 					"not supported by device\n");
 	}
 
@@ -661,6 +697,12 @@ static int cp2101_tiocmset (struct tty_struct *tty, struct file *file,
 		unsigned int set, unsigned int clear)
 {
 	struct usb_serial_port *port = tty->driver_data;
+	return cp2101_tiocmset_port(port, file, set, clear);
+}
+
+static int cp2101_tiocmset_port(struct usb_serial_port *port, struct file *file,
+		unsigned int set, unsigned int clear)
+{
 	unsigned int control = 0;
 
 	dbg("%s - port %d", __func__, port->number);
@@ -685,7 +727,6 @@ static int cp2101_tiocmset (struct tty_struct *tty, struct file *file,
 	dbg("%s - control = 0x%.4x", __func__, control);
 
 	return cp2101_set_config(port, CP2101_CONTROL, &control, 2);
-
 }
 
 static int cp2101_tiocmget (struct tty_struct *tty, struct file *file)
