@@ -566,7 +566,6 @@ int __cpuinit __cpu_up(unsigned int cpu)
 	cpu_lowcore->current_task = (unsigned long) idle;
 	cpu_lowcore->cpu_nr = cpu;
 	cpu_lowcore->kernel_asce = S390_lowcore.kernel_asce;
-	cpu_lowcore->ipl_device = S390_lowcore.ipl_device;
 	eieio();
 
 	while (signal_processor(cpu, sigp_restart) == sigp_busy)

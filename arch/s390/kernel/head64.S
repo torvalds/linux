@@ -86,7 +86,6 @@ startup_continue:
 	lctlg	%c0,%c15,.Lctl-.LPG1(%r13)	# load control registers
 	lg	%r12,.Lparmaddr-.LPG1(%r13)	# pointer to parameter area
 					# move IPL device to lowcore
-	mvc	__LC_IPLDEV(4),IPL_DEVICE+4-PARMAREA(%r12)
 	lghi	%r0,__LC_PASTE
 	stg	%r0,__LC_VDSO_PER_CPU
 #
