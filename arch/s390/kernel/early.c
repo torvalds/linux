@@ -352,7 +352,6 @@ static void __init setup_boot_command_line(void)
 
 	/* copy arch command line */
 	strlcpy(boot_command_line, COMMAND_LINE, ARCH_COMMAND_LINE_SIZE);
-	boot_command_line[ARCH_COMMAND_LINE_SIZE - 1] = 0;
 
 	/* append IPL PARM data to the boot command line */
 	if (MACHINE_IS_VM) {
