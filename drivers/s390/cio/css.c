@@ -83,6 +83,25 @@ static int call_fn_unknown_sch(struct subchannel_id schid, void *data)
 	return rc;
 }
 
+static int call_fn_all_sch(struct subchannel_id schid, void *data)
+{
+	struct cb_data *cb = data;
+	struct subchannel *sch;
+	int rc = 0;
+
+	sch = get_subchannel_by_schid(schid);
+	if (sch) {
+		if (cb->fn_known_sch)
+			rc = cb->fn_known_sch(sch, cb->data);
+		put_device(&sch->dev);
+	} else {
+		if (cb->fn_unknown_sch)
+			rc = cb->fn_unknown_sch(schid, cb->data);
+	}
+
+	return rc;
+}
+
 int for_each_subchannel_staged(int (*fn_known)(struct subchannel *, void *),
 			       int (*fn_unknown)(struct subchannel_id,
 			       void *), void *data)
@@ -90,13 +109,17 @@ int for_each_subchannel_staged(int (*fn_known)(struct subchannel *, void *),
 	struct cb_data cb;
 	int rc;
 
-	cb.set = idset_sch_new();
-	if (!cb.set)
-		return -ENOMEM;
-	idset_fill(cb.set);
 	cb.data = data;
 	cb.fn_known_sch = fn_known;
 	cb.fn_unknown_sch = fn_unknown;
+
+	cb.set = idset_sch_new();
+	if (!cb.set)
+		/* fall back to brute force scanning in case of oom */
+		return for_each_subchannel(call_fn_all_sch, &cb);
+
+	idset_fill(cb.set);
+
 	/* Process registered subchannels. */
 	rc = bus_for_each_dev(&css_bus_type, NULL, &cb, call_fn_known_sch);
 	if (rc)
