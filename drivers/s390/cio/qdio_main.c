@@ -706,13 +706,13 @@ static inline int qdio_outbound_q_moved(struct qdio_q *q)
 		return 0;
 }
 
-static void qdio_kick_outbound_q(struct qdio_q *q)
+static int qdio_kick_outbound_q(struct qdio_q *q)
 {
 	unsigned int busy_bit;
 	int cc;
 
 	if (!need_siga_out(q))
-		return;
+		return 0;
 
 	DBF_DEV_EVENT(DBF_INFO, q->irq_ptr, "siga-w:%1d", q->nr);
 	qdio_perf_stat_inc(&perf_stats.siga_out);
@@ -724,19 +724,16 @@ static void qdio_kick_outbound_q(struct qdio_q *q)
 	case 2:
 		if (busy_bit) {
 			DBF_ERROR("%4x cc2 REP:%1d", SCH_NO(q), q->nr);
-			q->qdio_error = cc | QDIO_ERROR_SIGA_BUSY;
-		} else {
-			DBF_DEV_EVENT(DBF_INFO, q->irq_ptr, "siga-w cc2:%1d",
-				      q->nr);
-			q->qdio_error = cc;
-		}
+			cc |= QDIO_ERROR_SIGA_BUSY;
+		} else
+			DBF_DEV_EVENT(DBF_INFO, q->irq_ptr, "siga-w cc2:%1d", q->nr);
 		break;
 	case 1:
 	case 3:
 		DBF_ERROR("%4x SIGA-W:%1d", SCH_NO(q), cc);
-		q->qdio_error = cc;
 		break;
 	}
+	return cc;
 }
 
 static void qdio_kick_outbound_handler(struct qdio_q *q)
@@ -766,17 +763,11 @@ static void qdio_kick_outbound_handler(struct qdio_q *q)
 
 static void __qdio_outbound_processing(struct qdio_q *q)
 {
-	unsigned long flags;
-
 	qdio_perf_stat_inc(&perf_stats.tasklet_outbound);
-	spin_lock_irqsave(&q->lock, flags);
-
 	BUG_ON(atomic_read(&q->nr_buf_used) < 0);
 
 	if (qdio_outbound_q_moved(q))
 		qdio_kick_outbound_handler(q);
-
-	spin_unlock_irqrestore(&q->lock, flags);
 
 	if (queue_type(q) == QDIO_ZFCP_QFMT)
 		if (!pci_out_supported(q) && !qdio_outbound_q_done(q))
@@ -1457,10 +1448,10 @@ static inline int buf_in_between(int bufnr, int start, int count)
  * @bufnr: first buffer to process
  * @count: how many buffers are emptied
  */
-static void handle_inbound(struct qdio_q *q, unsigned int callflags,
-			   int bufnr, int count)
+static int handle_inbound(struct qdio_q *q, unsigned int callflags,
+			  int bufnr, int count)
 {
-	int used, cc, diff;
+	int used, diff;
 
 	if (!q->u.in.polling)
 		goto set;
@@ -1497,13 +1488,11 @@ set:
 
 	/* no need to signal as long as the adapter had free buffers */
 	if (used)
-		return;
+		return 0;
 
-	if (need_siga_in(q)) {
-		cc = qdio_siga_input(q);
-		if (cc)
-			q->qdio_error = cc;
-	}
+	if (need_siga_in(q))
+		return qdio_siga_input(q);
+	return 0;
 }
 
 /**
@@ -1513,11 +1502,11 @@ set:
  * @bufnr: first buffer to process
  * @count: how many buffers are filled
  */
-static void handle_outbound(struct qdio_q *q, unsigned int callflags,
-			    int bufnr, int count)
+static int handle_outbound(struct qdio_q *q, unsigned int callflags,
+			   int bufnr, int count)
 {
 	unsigned char state;
-	int used;
+	int used, rc = 0;
 
 	qdio_perf_stat_inc(&perf_stats.outbound_handler);
 
@@ -1532,27 +1521,26 @@ static void handle_outbound(struct qdio_q *q, unsigned int callflags,
 
 	if (queue_type(q) == QDIO_IQDIO_QFMT) {
 		if (multicast_outbound(q))
-			qdio_kick_outbound_q(q);
+			rc = qdio_kick_outbound_q(q);
 		else
 			if ((q->irq_ptr->ssqd_desc.mmwc > 1) &&
 			    (count > 1) &&
 			    (count <= q->irq_ptr->ssqd_desc.mmwc)) {
 				/* exploit enhanced SIGA */
 				q->u.out.use_enh_siga = 1;
-				qdio_kick_outbound_q(q);
+				rc = qdio_kick_outbound_q(q);
 			} else {
 				/*
 				* One siga-w per buffer required for unicast
 				* HiperSockets.
 				*/
 				q->u.out.use_enh_siga = 0;
-				while (count--)
-					qdio_kick_outbound_q(q);
+				while (count--) {
+					rc = qdio_kick_outbound_q(q);
+					if (rc)
+						goto out;
+				}
 			}
-
-		/* report CC=2 conditions synchronously */
-		if (q->qdio_error)
-			__qdio_outbound_processing(q);
 		goto out;
 	}
 
@@ -1564,13 +1552,14 @@ static void handle_outbound(struct qdio_q *q, unsigned int callflags,
 	/* try to fast requeue buffers */
 	get_buf_state(q, prev_buf(bufnr), &state, 0);
 	if (state != SLSB_CU_OUTPUT_PRIMED)
-		qdio_kick_outbound_q(q);
+		rc = qdio_kick_outbound_q(q);
 	else {
 		DBF_DEV_EVENT(DBF_INFO, q->irq_ptr, "fast-req");
 		qdio_perf_stat_inc(&perf_stats.fast_requeue);
 	}
 out:
 	tasklet_schedule(&q->tasklet);
+	return rc;
 }
 
 /**
@@ -1609,14 +1598,12 @@ int do_QDIO(struct ccw_device *cdev, unsigned int callflags,
 		return -EBUSY;
 
 	if (callflags & QDIO_FLAG_SYNC_INPUT)
-		handle_inbound(irq_ptr->input_qs[q_nr], callflags, bufnr,
-			       count);
+		return handle_inbound(irq_ptr->input_qs[q_nr],
+				      callflags, bufnr, count);
 	else if (callflags & QDIO_FLAG_SYNC_OUTPUT)
-		handle_outbound(irq_ptr->output_qs[q_nr], callflags, bufnr,
-				count);
-	else
-		return -EINVAL;
-	return 0;
+		return handle_outbound(irq_ptr->output_qs[q_nr],
+				       callflags, bufnr, count);
+	return -EINVAL;
 }
 EXPORT_SYMBOL_GPL(do_QDIO);
 

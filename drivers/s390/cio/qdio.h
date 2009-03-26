@@ -247,7 +247,6 @@ struct qdio_q {
 
 	struct qdio_irq *irq_ptr;
 	struct tasklet_struct tasklet;
-	spinlock_t lock;
 
 	/* error condition during a data transfer */
 	unsigned int qdio_error;
