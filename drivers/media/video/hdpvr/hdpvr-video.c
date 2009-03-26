@@ -28,6 +28,12 @@
 
 #define BULK_URB_TIMEOUT 1250 /* 1.25 seconds */
 
+#define print_buffer_status() v4l2_dbg(MSG_BUFFER, hdpvr_debug, dev->video_dev,\
+				       "%s:%d buffer stat: %d free, %d proc\n",\
+				       __func__, __LINE__,		\
+				       list_size(&dev->free_buff_list),	\
+				       list_size(&dev->rec_buff_list))
+
 struct hdpvr_fh {
 	struct hdpvr_device	*dev;
 };
@@ -191,10 +197,7 @@ static int hdpvr_submit_buffers(struct hdpvr_device *dev)
 		list_move_tail(&buf->buff_list, &dev->rec_buff_list);
 	}
 err:
-	v4l2_dbg(MSG_BUFFER, hdpvr_debug, dev->video_dev,
-		 "buffer queue stat: %d free, %d proc\n",
-		 list_size(&dev->free_buff_list),
-		 list_size(&dev->rec_buff_list));
+	print_buffer_status();
 	mutex_unlock(&dev->io_mutex);
 	return ret;
 }
@@ -399,11 +402,7 @@ static ssize_t hdpvr_read(struct file *file, char __user *buffer, size_t count,
 			mutex_unlock(&dev->io_mutex);
 			goto err;
 		}
-
-		v4l2_dbg(MSG_BUFFER, hdpvr_debug, dev->video_dev,
-			 "buffer queue stat: %d free, %d proc\n",
-			 list_size(&dev->free_buff_list),
-			 list_size(&dev->rec_buff_list));
+		print_buffer_status();
 	}
 	mutex_unlock(&dev->io_mutex);
 
@@ -463,10 +462,7 @@ static ssize_t hdpvr_read(struct file *file, char __user *buffer, size_t count,
 
 			list_move_tail(&buf->buff_list, &dev->free_buff_list);
 
-			v4l2_dbg(MSG_BUFFER, hdpvr_debug, dev->video_dev,
-				 "buffer queue stat: %d free, %d proc\n",
-				 list_size(&dev->free_buff_list),
-				 list_size(&dev->rec_buff_list));
+			print_buffer_status();
 
 			mutex_unlock(&dev->io_mutex);
 
@@ -499,10 +495,7 @@ static unsigned int hdpvr_poll(struct file *filp, poll_table *wait)
 			dev->status = STATUS_IDLE;
 		}
 
-		v4l2_dbg(MSG_BUFFER, hdpvr_debug, dev->video_dev,
-			 "buffer queue stat: %d free, %d proc\n",
-			 list_size(&dev->free_buff_list),
-			 list_size(&dev->rec_buff_list));
+		print_buffer_status();
 	}
 	mutex_unlock(&dev->io_mutex);
 
