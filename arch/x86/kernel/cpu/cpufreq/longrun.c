@@ -11,12 +11,13 @@
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/cpufreq.h>
+#include <linux/timex.h>
 
 #include <asm/msr.h>
 #include <asm/processor.h>
-#include <asm/timex.h>
 
-#define dprintk(msg...) cpufreq_debug_printk(CPUFREQ_DEBUG_DRIVER, "longrun", msg)
+#define dprintk(msg...) cpufreq_debug_printk(CPUFREQ_DEBUG_DRIVER, \
+		"longrun", msg)
 
 static struct cpufreq_driver	longrun_driver;
 
@@ -51,7 +52,7 @@ static void __init longrun_get_policy(struct cpufreq_policy *policy)
 	msr_lo &= 0x0000007F;
 	msr_hi &= 0x0000007F;
 
-	if ( longrun_high_freq <= longrun_low_freq ) {
+	if (longrun_high_freq <= longrun_low_freq) {
 		/* Assume degenerate Longrun table */
 		policy->min = policy->max = longrun_high_freq;
 	} else {
@@ -79,7 +80,7 @@ static int longrun_set_policy(struct cpufreq_policy *policy)
 	if (!policy)
 		return -EINVAL;
 
-	if ( longrun_high_freq <= longrun_low_freq ) {
+	if (longrun_high_freq <= longrun_low_freq) {
 		/* Assume degenerate Longrun table */
 		pctg_lo = pctg_hi = 100;
 	} else {
@@ -152,7 +153,7 @@ static unsigned int longrun_get(unsigned int cpu)
 	cpuid(0x80860007, &eax, &ebx, &ecx, &edx);
 	dprintk("cpuid eax is %u\n", eax);
 
-	return (eax * 1000);
+	return eax * 1000;
 }
 
 /**
@@ -196,7 +197,8 @@ static unsigned int __init longrun_determine_freqs(unsigned int *low_freq,
 		rdmsr(MSR_TMTA_LRTI_VOLT_MHZ, msr_lo, msr_hi);
 		*high_freq = msr_lo * 1000; /* to kHz */
 
-		dprintk("longrun table interface told %u - %u kHz\n", *low_freq, *high_freq);
+		dprintk("longrun table interface told %u - %u kHz\n",
+				*low_freq, *high_freq);
 
 		if (*low_freq > *high_freq)
 			*low_freq = *high_freq;
@@ -219,7 +221,7 @@ static unsigned int __init longrun_determine_freqs(unsigned int *low_freq,
 	cpuid(0x80860007, &eax, &ebx, &ecx, &edx);
 	/* try decreasing in 10% steps, some processors react only
 	 * on some barrier values */
-	for (try_hi = 80; try_hi > 0 && ecx > 90; try_hi -=10) {
+	for (try_hi = 80; try_hi > 0 && ecx > 90; try_hi -= 10) {
 		/* set to 0 to try_hi perf_pctg */
 		msr_lo &= 0xFFFFFF80;
 		msr_hi &= 0xFFFFFF80;
@@ -236,7 +238,7 @@ static unsigned int __init longrun_determine_freqs(unsigned int *low_freq,
 
 	/* performance_pctg = (current_freq - low_freq)/(high_freq - low_freq)
 	 * eqals
-	 * low_freq * ( 1 - perf_pctg) = (cur_freq - high_freq * perf_pctg)
+	 * low_freq * (1 - perf_pctg) = (cur_freq - high_freq * perf_pctg)
 	 *
 	 * high_freq * perf_pctg is stored tempoarily into "ebx".
 	 */
@@ -317,9 +319,10 @@ static void __exit longrun_exit(void)
 }
 
 
-MODULE_AUTHOR ("Dominik Brodowski <linux@brodo.de>");
-MODULE_DESCRIPTION ("LongRun driver for Transmeta Crusoe and Efficeon processors.");
-MODULE_LICENSE ("GPL");
+MODULE_AUTHOR("Dominik Brodowski <linux@brodo.de>");
+MODULE_DESCRIPTION("LongRun driver for Transmeta Crusoe and "
+		"Efficeon processors.");
+MODULE_LICENSE("GPL");
 
 module_init(longrun_init);
 module_exit(longrun_exit);

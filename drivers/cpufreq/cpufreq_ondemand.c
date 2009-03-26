@@ -21,6 +21,7 @@
 #include <linux/hrtimer.h>
 #include <linux/tick.h>
 #include <linux/ktime.h>
+#include <linux/sched.h>
 
 /*
  * dbs is used in this file as a shortform for demandbased switching
@@ -51,8 +52,20 @@ static unsigned int def_sampling_rate;
 			(MIN_SAMPLING_RATE_RATIO * jiffies_to_usecs(10))
 #define MIN_SAMPLING_RATE			\
 			(def_sampling_rate / MIN_SAMPLING_RATE_RATIO)
+/* Above MIN_SAMPLING_RATE will vanish with its sysfs file soon
+ * Define the minimal settable sampling rate to the greater of:
+ *   - "HW transition latency" * 100 (same as default sampling / 10)
+ *   - MIN_STAT_SAMPLING_RATE
+ * To avoid that userspace shoots itself.
+*/
+static unsigned int minimum_sampling_rate(void)
+{
+	return max(def_sampling_rate / 10, MIN_STAT_SAMPLING_RATE);
+}
+
+/* This will also vanish soon with removing sampling_rate_max */
 #define MAX_SAMPLING_RATE			(500 * def_sampling_rate)
-#define DEF_SAMPLING_RATE_LATENCY_MULTIPLIER	(1000)
+#define LATENCY_MULTIPLIER			(1000)
 #define TRANSITION_LATENCY_LIMIT		(10 * 1000 * 1000)
 
 static void do_dbs_timer(struct work_struct *work);
@@ -65,14 +78,14 @@ struct cpu_dbs_info_s {
 	cputime64_t prev_cpu_wall;
 	cputime64_t prev_cpu_nice;
 	struct cpufreq_policy *cur_policy;
- 	struct delayed_work work;
+	struct delayed_work work;
 	struct cpufreq_frequency_table *freq_table;
 	unsigned int freq_lo;
 	unsigned int freq_lo_jiffies;
 	unsigned int freq_hi_jiffies;
 	int cpu;
 	unsigned int enable:1,
-	             sample_type:1;
+		sample_type:1;
 };
 static DEFINE_PER_CPU(struct cpu_dbs_info_s, cpu_dbs_info);
 
@@ -203,12 +216,28 @@ static void ondemand_powersave_bias_init(void)
 /************************** sysfs interface ************************/
 static ssize_t show_sampling_rate_max(struct cpufreq_policy *policy, char *buf)
 {
-	return sprintf (buf, "%u\n", MAX_SAMPLING_RATE);
+	static int print_once;
+
+	if (!print_once) {
+		printk(KERN_INFO "CPUFREQ: ondemand sampling_rate_max "
+		       "sysfs file is deprecated - used by: %s\n",
+		       current->comm);
+		print_once = 1;
+	}
+	return sprintf(buf, "%u\n", MAX_SAMPLING_RATE);
 }
 
 static ssize_t show_sampling_rate_min(struct cpufreq_policy *policy, char *buf)
 {
-	return sprintf (buf, "%u\n", MIN_SAMPLING_RATE);
+	static int print_once;
+
+	if (!print_once) {
+		printk(KERN_INFO "CPUFREQ: ondemand sampling_rate_min "
+		       "sysfs file is deprecated - used by: %s\n",
+		       current->comm);
+		print_once = 1;
+	}
+	return sprintf(buf, "%u\n", MIN_SAMPLING_RATE);
 }
 
 #define define_one_ro(_name)		\
@@ -238,13 +267,11 @@ static ssize_t store_sampling_rate(struct cpufreq_policy *unused,
 	ret = sscanf(buf, "%u", &input);
 
 	mutex_lock(&dbs_mutex);
-	if (ret != 1 || input > MAX_SAMPLING_RATE
-		     || input < MIN_SAMPLING_RATE) {
+	if (ret != 1) {
 		mutex_unlock(&dbs_mutex);
 		return -EINVAL;
 	}
-
-	dbs_tuners_ins.sampling_rate = input;
+	dbs_tuners_ins.sampling_rate = max(input, minimum_sampling_rate());
 	mutex_unlock(&dbs_mutex);
 
 	return count;
@@ -279,14 +306,14 @@ static ssize_t store_ignore_nice_load(struct cpufreq_policy *policy,
 	unsigned int j;
 
 	ret = sscanf(buf, "%u", &input);
-	if ( ret != 1 )
+	if (ret != 1)
 		return -EINVAL;
 
-	if ( input > 1 )
+	if (input > 1)
 		input = 1;
 
 	mutex_lock(&dbs_mutex);
-	if ( input == dbs_tuners_ins.ignore_nice ) { /* nothing to do */
+	if (input == dbs_tuners_ins.ignore_nice) { /* nothing to do */
 		mutex_unlock(&dbs_mutex);
 		return count;
 	}
@@ -337,7 +364,7 @@ define_one_rw(up_threshold);
 define_one_rw(ignore_nice_load);
 define_one_rw(powersave_bias);
 
-static struct attribute * dbs_attributes[] = {
+static struct attribute *dbs_attributes[] = {
 	&sampling_rate_max.attr,
 	&sampling_rate_min.attr,
 	&sampling_rate.attr,
@@ -512,8 +539,7 @@ static void do_dbs_timer(struct work_struct *work)
 		}
 	} else {
 		__cpufreq_driver_target(dbs_info->cur_policy,
-	                        	dbs_info->freq_lo,
-	                        	CPUFREQ_RELATION_H);
+			dbs_info->freq_lo, CPUFREQ_RELATION_H);
 	}
 	queue_delayed_work_on(cpu, kondemand_wq, &dbs_info->work, delay);
 	unlock_policy_rwsem_write(cpu);
@@ -530,7 +556,7 @@ static inline void dbs_timer_init(struct cpu_dbs_info_s *dbs_info)
 	dbs_info->sample_type = DBS_NORMAL_SAMPLE;
 	INIT_DELAYED_WORK_DEFERRABLE(&dbs_info->work, do_dbs_timer);
 	queue_delayed_work_on(dbs_info->cpu, kondemand_wq, &dbs_info->work,
-	                      delay);
+		delay);
 }
 
 static inline void dbs_timer_exit(struct cpu_dbs_info_s *dbs_info)
@@ -591,11 +617,9 @@ static int cpufreq_governor_dbs(struct cpufreq_policy *policy,
 			if (latency == 0)
 				latency = 1;
 
-			def_sampling_rate = latency *
-					DEF_SAMPLING_RATE_LATENCY_MULTIPLIER;
-
-			if (def_sampling_rate < MIN_STAT_SAMPLING_RATE)
-				def_sampling_rate = MIN_STAT_SAMPLING_RATE;
+			def_sampling_rate =
+				max(latency * LATENCY_MULTIPLIER,
+				    MIN_STAT_SAMPLING_RATE);
 
 			dbs_tuners_ins.sampling_rate = def_sampling_rate;
 		}
@@ -617,12 +641,10 @@ static int cpufreq_governor_dbs(struct cpufreq_policy *policy,
 		mutex_lock(&dbs_mutex);
 		if (policy->max < this_dbs_info->cur_policy->cur)
 			__cpufreq_driver_target(this_dbs_info->cur_policy,
-			                        policy->max,
-			                        CPUFREQ_RELATION_H);
+				policy->max, CPUFREQ_RELATION_H);
 		else if (policy->min > this_dbs_info->cur_policy->cur)
 			__cpufreq_driver_target(this_dbs_info->cur_policy,
-			                        policy->min,
-			                        CPUFREQ_RELATION_L);
+				policy->min, CPUFREQ_RELATION_L);
 		mutex_unlock(&dbs_mutex);
 		break;
 	}
@@ -677,7 +699,7 @@ static void __exit cpufreq_gov_dbs_exit(void)
 MODULE_AUTHOR("Venkatesh Pallipadi <venkatesh.pallipadi@intel.com>");
 MODULE_AUTHOR("Alexey Starikovskiy <alexey.y.starikovskiy@intel.com>");
 MODULE_DESCRIPTION("'cpufreq_ondemand' - A dynamic cpufreq governor for "
-                   "Low Latency Frequency Transition capable processors");
+	"Low Latency Frequency Transition capable processors");
 MODULE_LICENSE("GPL");
 
 #ifdef CONFIG_CPU_FREQ_DEFAULT_GOV_ONDEMAND
