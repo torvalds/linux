@@ -1089,7 +1089,7 @@ static void write_tx_pkt_wr(struct adapter *adap, struct sk_buff *skb,
 	struct tx_desc *d = &q->desc[pidx];
 	struct cpl_tx_pkt *cpl = (struct cpl_tx_pkt *)d;
 
-	cpl->len = htonl(skb->len | 0x80000000);
+	cpl->len = htonl(skb->len);
 	cntrl = V_TXPKT_INTF(pi->port_id);
 
 	if (vlan_tx_tag_present(skb) && pi->vlan_grp)
