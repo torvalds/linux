@@ -70,16 +70,21 @@ STATIC void	xlog_recover_check_summary(xlog_t *);
 xfs_buf_t *
 xlog_get_bp(
 	xlog_t		*log,
-	int		num_bblks)
+	int		nbblks)
 {
-	ASSERT(num_bblks > 0);
+	if (nbblks <= 0 || nbblks > log->l_logBBsize) {
+		xlog_warn("XFS: Invalid block length (0x%x) given for buffer", nbblks);
+		XFS_ERROR_REPORT("xlog_get_bp(1)",
+				 XFS_ERRLEVEL_HIGH, log->l_mp);
+		return NULL;
+	}
 
 	if (log->l_sectbb_log) {
-		if (num_bblks > 1)
-			num_bblks += XLOG_SECTOR_ROUNDUP_BBCOUNT(log, 1);
-		num_bblks = XLOG_SECTOR_ROUNDUP_BBCOUNT(log, num_bblks);
+		if (nbblks > 1)
+			nbblks += XLOG_SECTOR_ROUNDUP_BBCOUNT(log, 1);
+		nbblks = XLOG_SECTOR_ROUNDUP_BBCOUNT(log, nbblks);
 	}
-	return xfs_buf_get_noaddr(BBTOB(num_bblks), log->l_mp->m_logdev_targp);
+	return xfs_buf_get_noaddr(BBTOB(nbblks), log->l_mp->m_logdev_targp);
 }
 
 void
@@ -101,6 +106,13 @@ xlog_bread(
 	xfs_buf_t	*bp)
 {
 	int		error;
+
+	if (nbblks <= 0 || nbblks > log->l_logBBsize) {
+		xlog_warn("XFS: Invalid block length (0x%x) given for buffer", nbblks);
+		XFS_ERROR_REPORT("xlog_bread(1)",
+				 XFS_ERRLEVEL_HIGH, log->l_mp);
+		return EFSCORRUPTED;
+	}
 
 	if (log->l_sectbb_log) {
 		blk_no = XLOG_SECTOR_ROUNDDOWN_BLKNO(log, blk_no);
@@ -138,6 +150,13 @@ xlog_bwrite(
 	xfs_buf_t	*bp)
 {
 	int		error;
+
+	if (nbblks <= 0 || nbblks > log->l_logBBsize) {
+		xlog_warn("XFS: Invalid block length (0x%x) given for buffer", nbblks);
+		XFS_ERROR_REPORT("xlog_bwrite(1)",
+				 XFS_ERRLEVEL_HIGH, log->l_mp);
+		return EFSCORRUPTED;
+	}
 
 	if (log->l_sectbb_log) {
 		blk_no = XLOG_SECTOR_ROUNDDOWN_BLKNO(log, blk_no);
@@ -1436,10 +1455,19 @@ xlog_recover_add_to_trans(
 	item = item->ri_prev;
 
 	if (item->ri_total == 0) {		/* first region to be added */
-		item->ri_total	= in_f->ilf_size;
-		ASSERT(item->ri_total <= XLOG_MAX_REGIONS_IN_ITEM);
-		item->ri_buf = kmem_zalloc((item->ri_total *
-					    sizeof(xfs_log_iovec_t)), KM_SLEEP);
+		if (in_f->ilf_size == 0 ||
+		    in_f->ilf_size > XLOG_MAX_REGIONS_IN_ITEM) {
+			xlog_warn(
+	"XFS: bad number of regions (%d) in inode log format",
+				  in_f->ilf_size);
+			ASSERT(0);
+			return XFS_ERROR(EIO);
+		}
+
+		item->ri_total = in_f->ilf_size;
+		item->ri_buf =
+			kmem_zalloc(item->ri_total * sizeof(xfs_log_iovec_t),
+				    KM_SLEEP);
 	}
 	ASSERT(item->ri_total > item->ri_cnt);
 	/* Description region is ri_buf[0] */

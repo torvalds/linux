@@ -161,11 +161,15 @@ static void bfin_core_unmask_irq(unsigned int irq)
 
 static void bfin_internal_mask_irq(unsigned int irq)
 {
+	unsigned long flags;
+
 #ifdef CONFIG_BF53x
+	local_irq_save_hw(flags);
 	bfin_write_SIC_IMASK(bfin_read_SIC_IMASK() &
 			     ~(1 << SIC_SYSIRQ(irq)));
 #else
 	unsigned mask_bank, mask_bit;
+	local_irq_save_hw(flags);
 	mask_bank = SIC_SYSIRQ(irq) / 32;
 	mask_bit = SIC_SYSIRQ(irq) % 32;
 	bfin_write_SIC_IMASK(mask_bank, bfin_read_SIC_IMASK(mask_bank) &
@@ -175,15 +179,20 @@ static void bfin_internal_mask_irq(unsigned int irq)
 			     ~(1 << mask_bit));
 #endif
 #endif
+	local_irq_restore_hw(flags);
 }
 
 static void bfin_internal_unmask_irq(unsigned int irq)
 {
+	unsigned long flags;
+
 #ifdef CONFIG_BF53x
+	local_irq_save_hw(flags);
 	bfin_write_SIC_IMASK(bfin_read_SIC_IMASK() |
 			     (1 << SIC_SYSIRQ(irq)));
 #else
 	unsigned mask_bank, mask_bit;
+	local_irq_save_hw(flags);
 	mask_bank = SIC_SYSIRQ(irq) / 32;
 	mask_bit = SIC_SYSIRQ(irq) % 32;
 	bfin_write_SIC_IMASK(mask_bank, bfin_read_SIC_IMASK(mask_bank) |
@@ -193,6 +202,7 @@ static void bfin_internal_unmask_irq(unsigned int irq)
 			     (1 << mask_bit));
 #endif
 #endif
+	local_irq_restore_hw(flags);
 }
 
 #ifdef CONFIG_PM
@@ -390,7 +400,7 @@ static void bfin_demux_error_irq(unsigned int int_err_irq,
 static inline void bfin_set_irq_handler(unsigned irq, irq_flow_handler_t handle)
 {
 #ifdef CONFIG_IPIPE
-	_set_irq_handler(irq, handle_edge_irq);
+	_set_irq_handler(irq, handle_level_irq);
 #else
 	struct irq_desc *desc = irq_desc + irq;
 	/* May not call generic set_irq_handler() due to spinlock
@@ -1055,13 +1065,18 @@ int __init init_arch_irq(void)
 #endif
 		default:
 #ifdef CONFIG_IPIPE
-	/*
-	 * We want internal interrupt sources to be masked, because
-	 * ISRs may trigger interrupts recursively (e.g. DMA), but
-	 * interrupts are _not_ masked at CPU level. So let's handle
-	 * them as level interrupts.
-	 */
-			set_irq_handler(irq, handle_level_irq);
+			/*
+			 * We want internal interrupt sources to be
+			 * masked, because ISRs may trigger interrupts
+			 * recursively (e.g. DMA), but interrupts are
+			 * _not_ masked at CPU level. So let's handle
+			 * most of them as level interrupts, except
+			 * the timer interrupt which is special.
+			 */
+			if (irq == IRQ_SYSTMR || irq == IRQ_CORETMR)
+				set_irq_handler(irq, handle_simple_irq);
+			else
+				set_irq_handler(irq, handle_level_irq);
 #else /* !CONFIG_IPIPE */
 			set_irq_handler(irq, handle_simple_irq);
 #endif /* !CONFIG_IPIPE */
@@ -1101,10 +1116,9 @@ int __init init_arch_irq(void)
 	    IMASK_IVG14 | IMASK_IVG13 | IMASK_IVG12 | IMASK_IVG11 |
 	    IMASK_IVG10 | IMASK_IVG9 | IMASK_IVG8 | IMASK_IVG7 | IMASK_IVGHW;
 
-#if defined(CONFIG_BF54x) || defined(CONFIG_BF52x) || defined(CONFIG_BF561) \
-	|| defined(BF538_FAMILY) || defined(CONFIG_BF51x)
+#ifdef SIC_IWR0
 	bfin_write_SIC_IWR0(IWR_DISABLE_ALL);
-#if defined(CONFIG_BF52x) || defined(CONFIG_BF51x)
+# ifdef SIC_IWR1
 	/* BF52x/BF51x system reset does not properly reset SIC_IWR1 which
 	 * will screw up the bootrom as it relies on MDMA0/1 waking it
 	 * up from IDLE instructions.  See this report for more info:
@@ -1114,10 +1128,8 @@ int __init init_arch_irq(void)
 		bfin_write_SIC_IWR1(IWR_ENABLE(10) | IWR_ENABLE(11));
 	else
 		bfin_write_SIC_IWR1(IWR_DISABLE_ALL);
-#else
-	bfin_write_SIC_IWR1(IWR_DISABLE_ALL);
-#endif
-# ifdef CONFIG_BF54x
+# endif
+# ifdef SIC_IWR2
 	bfin_write_SIC_IWR2(IWR_DISABLE_ALL);
 # endif
 #else
@@ -1126,9 +1138,8 @@ int __init init_arch_irq(void)
 
 #ifdef CONFIG_IPIPE
 	for (irq = 0; irq < NR_IRQS; irq++) {
-		struct irq_desc *desc = irq_desc + irq;
+		struct irq_desc *desc = irq_to_desc(irq);
 		desc->ic_prio = __ipipe_get_irq_priority(irq);
-		desc->thr_prio = __ipipe_get_irqthread_priority(irq);
 	}
 #endif /* CONFIG_IPIPE */
 
@@ -1211,76 +1222,21 @@ int __ipipe_get_irq_priority(unsigned irq)
 	return IVG15;
 }
 
-int __ipipe_get_irqthread_priority(unsigned irq)
-{
-	int ient, prio;
-	int demux_irq;
-
-	/* The returned priority value is rescaled to [0..IVG13+1]
-	 * with 0 being the lowest effective priority level. */
-
-	if (irq <= IRQ_CORETMR)
-		return IVG13 - irq + 1;
-
-	/* GPIO IRQs are given the priority of the demux
-	 * interrupt. */
-	if (IS_GPIOIRQ(irq)) {
-#if defined(CONFIG_BF54x)
-		u32 bank = PINT_2_BANK(irq2pint_lut[irq - SYS_IRQS]);
-		demux_irq = (bank == 0 ? IRQ_PINT0 :
-				bank == 1 ? IRQ_PINT1 :
-				bank == 2 ? IRQ_PINT2 :
-				IRQ_PINT3);
-#elif defined(CONFIG_BF561)
-		demux_irq = (irq >= IRQ_PF32 ? IRQ_PROG2_INTA :
-				irq >= IRQ_PF16 ? IRQ_PROG1_INTA :
-				IRQ_PROG0_INTA);
-#elif defined(CONFIG_BF52x)
-		demux_irq = (irq >= IRQ_PH0 ? IRQ_PORTH_INTA :
-				irq >= IRQ_PG0 ? IRQ_PORTG_INTA :
-				IRQ_PORTF_INTA);
-#else
-		demux_irq = irq;
-#endif
-		return IVG13 - PRIO_GPIODEMUX(demux_irq) + 1;
-	}
-
-	/* The GPIO demux interrupt is given a lower priority
-	 * than the GPIO IRQs, so that its threaded handler
-	 * unmasks the interrupt line after the decoded IRQs
-	 * have been processed. */
-	prio = PRIO_GPIODEMUX(irq);
-	/* demux irq? */
-	if (prio != -1)
-		return IVG13 - prio;
-
-	for (ient = 0; ient < NR_PERI_INTS; ient++) {
-		struct ivgx *ivg = ivg_table + ient;
-		if (ivg->irqno == irq) {
-			for (prio = 0; prio <= IVG13-IVG7; prio++) {
-				if (ivg7_13[prio].ifirst <= ivg &&
-				    ivg7_13[prio].istop > ivg)
-					return IVG7 - prio;
-			}
-		}
-	}
-
-	return 0;
-}
-
 /* Hw interrupts are disabled on entry (check SAVE_CONTEXT). */
 #ifdef CONFIG_DO_IRQ_L1
 __attribute__((l1_text))
 #endif
 asmlinkage int __ipipe_grab_irq(int vec, struct pt_regs *regs)
 {
+	struct ipipe_percpu_domain_data *p = ipipe_root_cpudom_ptr();
+	struct ipipe_domain *this_domain = ipipe_current_domain;
 	struct ivgx *ivg_stop = ivg7_13[vec-IVG7].istop;
 	struct ivgx *ivg = ivg7_13[vec-IVG7].ifirst;
-	int irq;
+	int irq, s;
 
 	if (likely(vec == EVT_IVTMR_P)) {
 		irq = IRQ_CORETMR;
-		goto handle_irq;
+		goto core_tick;
 	}
 
 	SSYNC();
@@ -1322,24 +1278,39 @@ asmlinkage int __ipipe_grab_irq(int vec, struct pt_regs *regs)
 	irq = ivg->irqno;
 
 	if (irq == IRQ_SYSTMR) {
+#ifdef CONFIG_GENERIC_CLOCKEVENTS
+core_tick:
+#else
 		bfin_write_TIMER_STATUS(1); /* Latch TIMIL0 */
+#endif
 		/* This is basically what we need from the register frame. */
 		__raw_get_cpu_var(__ipipe_tick_regs).ipend = regs->ipend;
 		__raw_get_cpu_var(__ipipe_tick_regs).pc = regs->pc;
-		if (!ipipe_root_domain_p)
-			__raw_get_cpu_var(__ipipe_tick_regs).ipend |= 0x10;
-		else
+		if (this_domain != ipipe_root_domain)
 			__raw_get_cpu_var(__ipipe_tick_regs).ipend &= ~0x10;
+		else
+			__raw_get_cpu_var(__ipipe_tick_regs).ipend |= 0x10;
 	}
 
-handle_irq:
+#ifndef CONFIG_GENERIC_CLOCKEVENTS
+core_tick:
+#endif
+	if (this_domain == ipipe_root_domain) {
+		s = __test_and_set_bit(IPIPE_SYNCDEFER_FLAG, &p->status);
+		barrier();
+	}
 
 	ipipe_trace_irq_entry(irq);
 	__ipipe_handle_irq(irq, regs);
-       ipipe_trace_irq_exit(irq);
+	ipipe_trace_irq_exit(irq);
 
-       if (ipipe_root_domain_p)
-		return !test_bit(IPIPE_STALL_FLAG, &ipipe_root_cpudom_var(status));
+	if (this_domain == ipipe_root_domain) {
+		set_thread_flag(TIF_IRQ_SYNC);
+		if (!s) {
+			__clear_bit(IPIPE_SYNCDEFER_FLAG, &p->status);
+			return !test_bit(IPIPE_STALL_FLAG, &p->status);
+		}
+	}
 
        return 0;
 }

@@ -700,7 +700,7 @@ CONFIG_WATCHDOG_NOWAYOUT=y
 # Watchdog Device Drivers
 #
 # CONFIG_SOFT_WATCHDOG is not set
-CONFIG_AT91SAM9_WATCHDOG=y
+CONFIG_AT91SAM9X_WATCHDOG=y
 
 #
 # USB-based Watchdog Cards

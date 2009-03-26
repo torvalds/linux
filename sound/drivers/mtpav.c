@@ -706,7 +706,6 @@ static int __devinit snd_mtpav_probe(struct platform_device *dev)
 	mtp_card->card = card;
 	mtp_card->irq = -1;
 	mtp_card->share_irq = 0;
-	mtp_card->inmidiport = 0xffffffff;
 	mtp_card->inmidistate = 0;
 	mtp_card->outmidihwport = 0xffffffff;
 	init_timer(&mtp_card->timer);
@@ -718,6 +717,8 @@ static int __devinit snd_mtpav_probe(struct platform_device *dev)
 	err = snd_mtpav_get_RAWMIDI(mtp_card);
 	if (err < 0)
 		goto __error;
+
+	mtp_card->inmidiport = mtp_card->num_ports + MTPAV_PIDX_BROADCAST;
 
 	err = snd_mtpav_get_ISA(mtp_card);
 	if (err < 0)

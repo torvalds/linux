@@ -80,7 +80,7 @@ static struct buffer_head *get_block_length(struct super_block *sb,
  * generated a larger block - this does occasionally happen with zlib).
  */
 int squashfs_read_data(struct super_block *sb, void **buffer, u64 index,
-			int length, u64 *next_index, int srclength)
+			int length, u64 *next_index, int srclength, int pages)
 {
 	struct squashfs_sb_info *msblk = sb->s_fs_info;
 	struct buffer_head **bh;
@@ -184,7 +184,7 @@ int squashfs_read_data(struct super_block *sb, void **buffer, u64 index,
 				offset = 0;
 			}
 
-			if (msblk->stream.avail_out == 0) {
+			if (msblk->stream.avail_out == 0 && page < pages) {
 				msblk->stream.next_out = buffer[page++];
 				msblk->stream.avail_out = PAGE_CACHE_SIZE;
 			}
@@ -201,25 +201,20 @@ int squashfs_read_data(struct super_block *sb, void **buffer, u64 index,
 				zlib_init = 1;
 			}
 
-			zlib_err = zlib_inflate(&msblk->stream, Z_NO_FLUSH);
+			zlib_err = zlib_inflate(&msblk->stream, Z_SYNC_FLUSH);
 
 			if (msblk->stream.avail_in == 0 && k < b)
 				put_bh(bh[k++]);
 		} while (zlib_err == Z_OK);
 
 		if (zlib_err != Z_STREAM_END) {
-			ERROR("zlib_inflate returned unexpected result"
-				" 0x%x, srclength %d, avail_in %d,"
-				" avail_out %d\n", zlib_err, srclength,
-				msblk->stream.avail_in,
-				msblk->stream.avail_out);
+			ERROR("zlib_inflate error, data probably corrupt\n");
 			goto release_mutex;
 		}
 
 		zlib_err = zlib_inflateEnd(&msblk->stream);
 		if (zlib_err != Z_OK) {
-			ERROR("zlib_inflateEnd returned unexpected result 0x%x,"
-				" srclength %d\n", zlib_err, srclength);
+			ERROR("zlib_inflate error, data probably corrupt\n");
 			goto release_mutex;
 		}
 		length = msblk->stream.total_out;
@@ -268,7 +263,8 @@ block_release:
 		put_bh(bh[k]);
 
 read_failure:
-	ERROR("sb_bread failed reading block 0x%llx\n", cur_index);
+	ERROR("squashfs_read_data failed to read block 0x%llx\n",
+					(unsigned long long) index);
 	kfree(bh);
 	return -EIO;
 }

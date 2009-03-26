@@ -29,6 +29,7 @@
 #include <linux/cpu.h>
 #include <linux/elfcore.h>
 #include <linux/sysrq.h>
+#include <linux/nmi.h>
 
 #include <asm/uaccess.h>
 #include <asm/system.h>
@@ -52,8 +53,10 @@
 
 static void sparc64_yield(int cpu)
 {
-	if (tlb_type != hypervisor)
+	if (tlb_type != hypervisor) {
+		touch_nmi_watchdog();
 		return;
+	}
 
 	clear_thread_flag(TIF_POLLING_NRFLAG);
 	smp_mb__after_clear_bit();

@@ -663,8 +663,8 @@ static const struct pci_device_id mv_pci_tbl[] = {
 	{ PCI_VDEVICE(MARVELL, 0x5081), chip_508x },
 	/* RocketRAID 1720/174x have different identifiers */
 	{ PCI_VDEVICE(TTI, 0x1720), chip_6042 },
-	{ PCI_VDEVICE(TTI, 0x1740), chip_508x },
-	{ PCI_VDEVICE(TTI, 0x1742), chip_508x },
+	{ PCI_VDEVICE(TTI, 0x1740), chip_6042 },
+	{ PCI_VDEVICE(TTI, 0x1742), chip_6042 },
 
 	{ PCI_VDEVICE(MARVELL, 0x6040), chip_604x },
 	{ PCI_VDEVICE(MARVELL, 0x6041), chip_604x },
@@ -2218,11 +2218,12 @@ static irqreturn_t mv_interrupt(int irq, void *dev_instance)
 		else
 			handled = mv_host_intr(host, pending_irqs);
 	}
-	spin_unlock(&host->lock);
 
 	/* for MSI: unmask; interrupt cause bits will retrigger now */
 	if (using_msi)
 		writel(hpriv->main_irq_mask, hpriv->main_irq_mask_addr);
+
+	spin_unlock(&host->lock);
 
 	return IRQ_RETVAL(handled);
 }
@@ -3114,19 +3115,17 @@ static int mv_init_host(struct ata_host *host, unsigned int board_idx)
 		writelfl(0, hc_mmio + HC_IRQ_CAUSE_OFS);
 	}
 
-	if (!IS_SOC(hpriv)) {
-		/* Clear any currently outstanding host interrupt conditions */
-		writelfl(0, mmio + hpriv->irq_cause_ofs);
+	/* Clear any currently outstanding host interrupt conditions */
+	writelfl(0, mmio + hpriv->irq_cause_ofs);
 
-		/* and unmask interrupt generation for host regs */
-		writelfl(hpriv->unmask_all_irqs, mmio + hpriv->irq_mask_ofs);
+	/* and unmask interrupt generation for host regs */
+	writelfl(hpriv->unmask_all_irqs, mmio + hpriv->irq_mask_ofs);
 
-		/*
-		 * enable only global host interrupts for now.
-		 * The per-port interrupts get done later as ports are set up.
-		 */
-		mv_set_main_irq_mask(host, 0, PCI_ERR);
-	}
+	/*
+	 * enable only global host interrupts for now.
+	 * The per-port interrupts get done later as ports are set up.
+	 */
+	mv_set_main_irq_mask(host, 0, PCI_ERR);
 done:
 	return rc;
 }

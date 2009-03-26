@@ -88,7 +88,7 @@ void set_fiq_handler(void *start, unsigned int length)
  * disable irqs for the duration.  Note - these functions are almost
  * entirely coded in assembly.
  */
-void __attribute__((naked)) set_fiq_regs(struct pt_regs *regs)
+void __naked set_fiq_regs(struct pt_regs *regs)
 {
 	register unsigned long tmp;
 	asm volatile (
@@ -106,7 +106,7 @@ void __attribute__((naked)) set_fiq_regs(struct pt_regs *regs)
 	: "r" (&regs->ARM_r8), "I" (PSR_I_BIT | PSR_F_BIT | FIQ_MODE));
 }
 
-void __attribute__((naked)) get_fiq_regs(struct pt_regs *regs)
+void __naked get_fiq_regs(struct pt_regs *regs)
 {
 	register unsigned long tmp;
 	asm volatile (

@@ -470,6 +470,7 @@ static void frontend_init(struct budget *budget)
 		budget->dvb_frontend = dvb_attach(l64781_attach, &grundig_29504_401_config, &budget->i2c_adap);
 		if (budget->dvb_frontend) {
 			budget->dvb_frontend->ops.tuner_ops.set_params = grundig_29504_401_tuner_set_params;
+			budget->dvb_frontend->tuner_priv = NULL;
 			break;
 		}
 		break;

@@ -275,7 +275,7 @@ enum {
 	 * advised to wait only for the following duration before
 	 * doing SRST.
 	 */
-	ATA_TMOUT_PMP_SRST_WAIT	= 1000,
+	ATA_TMOUT_PMP_SRST_WAIT	= 5000,
 
 	/* ATA bus states */
 	BUS_UNKNOWN		= 0,
@@ -380,6 +380,7 @@ enum {
 	ATA_HORKAGE_ATAPI_MOD16_DMA = (1 << 11), /* use ATAPI DMA for commands
 						    not multiple of 16 bytes */
 	ATA_HORKAGE_FIRMWARE_WARN = (1 << 12),	/* firwmare update warning */
+	ATA_HORKAGE_1_5_GBPS	= (1 << 13),	/* force 1.5 Gbps */
 
 	 /* DMA mask for user DMA control: User visible values; DO NOT
 	    renumber */
@@ -529,6 +530,7 @@ struct ata_queued_cmd {
 	unsigned long		flags;		/* ATA_QCFLAG_xxx */
 	unsigned int		tag;
 	unsigned int		n_elem;
+	unsigned int		orig_n_elem;
 
 	int			dma_dir;
 
@@ -580,7 +582,7 @@ struct ata_device {
 	acpi_handle		acpi_handle;
 	union acpi_object	*gtf_cache;
 #endif
-	/* n_sector is used as CLEAR_OFFSET, read comment above CLEAR_OFFSET */
+	/* n_sector is CLEAR_BEGIN, read comment above CLEAR_BEGIN */
 	u64			n_sectors;	/* size of device, if ATA */
 	unsigned int		class;		/* ATA_DEV_xxx */
 	unsigned long		unpark_deadline;
@@ -605,20 +607,22 @@ struct ata_device {
 	u16			heads;		/* Number of heads */
 	u16			sectors;	/* Number of sectors per track */
 
-	/* error history */
-	int			spdn_cnt;
-	struct ata_ering	ering;
-
 	union {
 		u16		id[ATA_ID_WORDS]; /* IDENTIFY xxx DEVICE data */
 		u32		gscr[SATA_PMP_GSCR_DWORDS]; /* PMP GSCR block */
 	};
+
+	/* error history */
+	int			spdn_cnt;
+	/* ering is CLEAR_END, read comment above CLEAR_END */
+	struct ata_ering	ering;
 };
 
-/* Offset into struct ata_device.  Fields above it are maintained
- * acress device init.  Fields below are zeroed.
+/* Fields between ATA_DEVICE_CLEAR_BEGIN and ATA_DEVICE_CLEAR_END are
+ * cleared to zero on ata_dev_init().
  */
-#define ATA_DEVICE_CLEAR_OFFSET		offsetof(struct ata_device, n_sectors)
+#define ATA_DEVICE_CLEAR_BEGIN		offsetof(struct ata_device, n_sectors)
+#define ATA_DEVICE_CLEAR_END		offsetof(struct ata_device, ering)
 
 struct ata_eh_info {
 	struct ata_device	*dev;		/* offending device */
@@ -747,7 +751,8 @@ struct ata_port {
 	acpi_handle		acpi_handle;
 	struct ata_acpi_gtm	__acpi_init_gtm; /* use ata_acpi_init_gtm() */
 #endif
-	u8			sector_buf[ATA_SECT_SIZE]; /* owned by EH */
+	/* owned by EH */
+	u8			sector_buf[ATA_SECT_SIZE] ____cacheline_aligned;
 };
 
 /* The following initializer overrides a method to NULL whether one of

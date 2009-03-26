@@ -73,7 +73,7 @@ extern unsigned int tlbcam_index;
 /*
  * Return PA for this VA if it is mapped by a CAM, or 0
  */
-unsigned long v_mapped_by_tlbcam(unsigned long va)
+phys_addr_t v_mapped_by_tlbcam(unsigned long va)
 {
 	int b;
 	for (b = 0; b < tlbcam_index; ++b)
@@ -85,7 +85,7 @@ unsigned long v_mapped_by_tlbcam(unsigned long va)
 /*
  * Return VA for a given PA or 0 if not mapped
  */
-unsigned long p_mapped_by_tlbcam(unsigned long pa)
+unsigned long p_mapped_by_tlbcam(phys_addr_t pa)
 {
 	int b;
 	for (b = 0; b < tlbcam_index; ++b)

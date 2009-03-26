@@ -143,14 +143,6 @@ void skb_under_panic(struct sk_buff *skb, int sz, void *here)
 	BUG();
 }
 
-void skb_truesize_bug(struct sk_buff *skb)
-{
-	WARN(net_ratelimit(), KERN_ERR "SKB BUG: Invalid truesize (%u) "
-	       "len=%u, sizeof(sk_buff)=%Zd\n",
-	       skb->truesize, skb->len, sizeof(struct sk_buff));
-}
-EXPORT_SYMBOL(skb_truesize_bug);
-
 /* 	Allocate a new skbuff. We do this ourselves so we can fill in a few
  *	'private' fields and also do memory statistics to find all the
  *	[BEEP] leaks.
@@ -2212,10 +2204,10 @@ unsigned int skb_seq_read(unsigned int consumed, const u8 **data,
 		return 0;
 
 next_skb:
-	block_limit = skb_headlen(st->cur_skb);
+	block_limit = skb_headlen(st->cur_skb) + st->stepped_offset;
 
 	if (abs_offset < block_limit) {
-		*data = st->cur_skb->data + abs_offset;
+		*data = st->cur_skb->data + (abs_offset - st->stepped_offset);
 		return block_limit - abs_offset;
 	}
 
@@ -2250,13 +2242,14 @@ next_skb:
 		st->frag_data = NULL;
 	}
 
-	if (st->cur_skb->next) {
-		st->cur_skb = st->cur_skb->next;
+	if (st->root_skb == st->cur_skb &&
+	    skb_shinfo(st->root_skb)->frag_list) {
+		st->cur_skb = skb_shinfo(st->root_skb)->frag_list;
 		st->frag_idx = 0;
 		goto next_skb;
-	} else if (st->root_skb == st->cur_skb &&
-		   skb_shinfo(st->root_skb)->frag_list) {
-		st->cur_skb = skb_shinfo(st->root_skb)->frag_list;
+	} else if (st->cur_skb->next) {
+		st->cur_skb = st->cur_skb->next;
+		st->frag_idx = 0;
 		goto next_skb;
 	}
 

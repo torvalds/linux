@@ -709,6 +709,7 @@ int omap_request_dma(int dev_id, const char *dev_name,
 	chan->dev_name = dev_name;
 	chan->callback = callback;
 	chan->data = data;
+	chan->flags = 0;
 
 #ifndef CONFIG_ARCH_OMAP1
 	if (cpu_class_is_omap2()) {
@@ -1888,10 +1889,10 @@ static int omap2_dma_handle_ch(int ch)
 		status = dma_read(CSR(ch));
 	}
 
+	dma_write(status, CSR(ch));
+
 	if (likely(dma_chan[ch].callback != NULL))
 		dma_chan[ch].callback(ch, status, dma_chan[ch].data);
-
-	dma_write(status, CSR(ch));
 
 	return 0;
 }

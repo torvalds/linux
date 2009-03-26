@@ -113,7 +113,7 @@ extern struct atari_hw_present atari_hw_present;
  * of nops on various machines. Somebody claimed that the tstb takes 600 ns.
  */
 #define	MFPDELAY() \
-	__asm__ __volatile__ ( "tstb %0" : : "m" (mfp.par_dt_reg) : "cc" );
+	__asm__ __volatile__ ( "tstb %0" : : "m" (st_mfp.par_dt_reg) : "cc" );
 
 /* Do cache push/invalidate for DMA read/write. This function obeys the
  * snooping on some machines (Medusa) and processors: The Medusa itself can
@@ -565,7 +565,7 @@ struct MFP
   u_char char_dummy23;
   u_char usart_dta;
  };
-# define mfp ((*(volatile struct MFP*)MFP_BAS))
+# define st_mfp ((*(volatile struct MFP*)MFP_BAS))
 
 /* TT's second MFP */
 

@@ -1237,8 +1237,9 @@ static void end_sync_write(struct bio *bio, int error)
 	update_head_pos(mirror, r1_bio);
 
 	if (atomic_dec_and_test(&r1_bio->remaining)) {
-		md_done_sync(mddev, r1_bio->sectors, uptodate);
+		sector_t s = r1_bio->sectors;
 		put_buf(r1_bio);
+		md_done_sync(mddev, s, uptodate);
 	}
 }
 
@@ -1640,7 +1641,8 @@ static void raid1d(mddev_t *mddev)
 			}
 
 			bio = r1_bio->bios[r1_bio->read_disk];
-			if ((disk=read_balance(conf, r1_bio)) == -1) {
+			if ((disk=read_balance(conf, r1_bio)) == -1 ||
+			    disk == r1_bio->read_disk) {
 				printk(KERN_ALERT "raid1: %s: unrecoverable I/O"
 				       " read error for block %llu\n",
 				       bdevname(bio->bi_bdev,b),

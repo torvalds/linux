@@ -658,6 +658,9 @@ again:			remove_next = 1 + (end > next->vm_end);
 	validate_mm(mm);
 }
 
+/* Flags that can be inherited from an existing mapping when merging */
+#define VM_MERGEABLE_FLAGS (VM_CAN_NONLINEAR)
+
 /*
  * If the vma has a ->close operation then the driver probably needs to release
  * per-vma resources, so we don't attempt to merge those.
@@ -665,7 +668,7 @@ again:			remove_next = 1 + (end > next->vm_end);
 static inline int is_mergeable_vma(struct vm_area_struct *vma,
 			struct file *file, unsigned long vm_flags)
 {
-	if (vma->vm_flags != vm_flags)
+	if ((vma->vm_flags ^ vm_flags) & ~VM_MERGEABLE_FLAGS)
 		return 0;
 	if (vma->vm_file != file)
 		return 0;
@@ -915,7 +918,6 @@ unsigned long do_mmap_pgoff(struct file *file, unsigned long addr,
 	struct inode *inode;
 	unsigned int vm_flags;
 	int error;
-	int accountable = 1;
 	unsigned long reqprot = prot;
 
 	/*
@@ -1016,8 +1018,6 @@ unsigned long do_mmap_pgoff(struct file *file, unsigned long addr,
 					return -EPERM;
 				vm_flags &= ~VM_MAYEXEC;
 			}
-			if (is_file_hugepages(file))
-				accountable = 0;
 
 			if (!file->f_op || !file->f_op->mmap)
 				return -ENODEV;
@@ -1050,8 +1050,7 @@ unsigned long do_mmap_pgoff(struct file *file, unsigned long addr,
 	if (error)
 		return error;
 
-	return mmap_region(file, addr, len, flags, vm_flags, pgoff,
-			   accountable);
+	return mmap_region(file, addr, len, flags, vm_flags, pgoff);
 }
 EXPORT_SYMBOL(do_mmap_pgoff);
 
@@ -1087,10 +1086,25 @@ int vma_wants_writenotify(struct vm_area_struct *vma)
 		mapping_cap_account_dirty(vma->vm_file->f_mapping);
 }
 
+/*
+ * We account for memory if it's a private writeable mapping,
+ * not hugepages and VM_NORESERVE wasn't set.
+ */
+static inline int accountable_mapping(struct file *file, unsigned int vm_flags)
+{
+	/*
+	 * hugetlb has its own accounting separate from the core VM
+	 * VM_HUGETLB may not be set yet so we cannot check for that flag.
+	 */
+	if (file && is_file_hugepages(file))
+		return 0;
+
+	return (vm_flags & (VM_NORESERVE | VM_SHARED | VM_WRITE)) == VM_WRITE;
+}
+
 unsigned long mmap_region(struct file *file, unsigned long addr,
 			  unsigned long len, unsigned long flags,
-			  unsigned int vm_flags, unsigned long pgoff,
-			  int accountable)
+			  unsigned int vm_flags, unsigned long pgoff)
 {
 	struct mm_struct *mm = current->mm;
 	struct vm_area_struct *vma, *prev;
@@ -1114,23 +1128,28 @@ munmap_back:
 	if (!may_expand_vm(mm, len >> PAGE_SHIFT))
 		return -ENOMEM;
 
-	if (flags & MAP_NORESERVE)
-		vm_flags |= VM_NORESERVE;
+	/*
+	 * Set 'VM_NORESERVE' if we should not account for the
+	 * memory use of this mapping.
+	 */
+	if ((flags & MAP_NORESERVE)) {
+		/* We honor MAP_NORESERVE if allowed to overcommit */
+		if (sysctl_overcommit_memory != OVERCOMMIT_NEVER)
+			vm_flags |= VM_NORESERVE;
 
-	if (accountable && (!(flags & MAP_NORESERVE) ||
-			    sysctl_overcommit_memory == OVERCOMMIT_NEVER)) {
-		if (vm_flags & VM_SHARED) {
-			/* Check memory availability in shmem_file_setup? */
-			vm_flags |= VM_ACCOUNT;
-		} else if (vm_flags & VM_WRITE) {
-			/*
-			 * Private writable mapping: check memory availability
-			 */
-			charged = len >> PAGE_SHIFT;
-			if (security_vm_enough_memory(charged))
-				return -ENOMEM;
-			vm_flags |= VM_ACCOUNT;
-		}
+		/* hugetlb applies strict overcommit unless MAP_NORESERVE */
+		if (file && is_file_hugepages(file))
+			vm_flags |= VM_NORESERVE;
+	}
+
+	/*
+	 * Private writable mapping: check memory availability
+	 */
+	if (accountable_mapping(file, vm_flags)) {
+		charged = len >> PAGE_SHIFT;
+		if (security_vm_enough_memory(charged))
+			return -ENOMEM;
+		vm_flags |= VM_ACCOUNT;
 	}
 
 	/*
@@ -1180,14 +1199,6 @@ munmap_back:
 		if (error)
 			goto free_vma;
 	}
-
-	/* We set VM_ACCOUNT in a shared mapping's vm_flags, to inform
-	 * shmem_zero_setup (perhaps called through /dev/zero's ->mmap)
-	 * that memory reservation must be checked; but that reservation
-	 * belongs to shared memory object, not to vma: so now clear it.
-	 */
-	if ((vm_flags & (VM_SHARED|VM_ACCOUNT)) == (VM_SHARED|VM_ACCOUNT))
-		vma->vm_flags &= ~VM_ACCOUNT;
 
 	/* Can addr have changed??
 	 *
@@ -2073,11 +2084,7 @@ void exit_mmap(struct mm_struct *mm)
 	unsigned long end;
 
 	/* mm's last user has gone, and its about to be pulled down */
-	arch_exit_mmap(mm);
 	mmu_notifier_release(mm);
-
-	if (!mm->mmap)	/* Can happen if dup_mmap() received an OOM */
-		return;
 
 	if (mm->locked_vm) {
 		vma = mm->mmap;
@@ -2087,7 +2094,13 @@ void exit_mmap(struct mm_struct *mm)
 			vma = vma->vm_next;
 		}
 	}
+
+	arch_exit_mmap(mm);
+
 	vma = mm->mmap;
+	if (!vma)	/* Can happen if dup_mmap() received an OOM */
+		return;
+
 	lru_add_drain();
 	flush_cache_mm(mm);
 	tlb = tlb_gather_mmu(mm, 1);

@@ -46,7 +46,7 @@ menuconfig IDE
 	  SMART parameters from disk drives.
 
 	  To compile this driver as a module, choose M here: the
-	  module will be called ide.
+	  module will be called ide-core.ko.
 
 	  For further information, please read <file:Documentation/ide/ide.txt>.
 
@@ -465,6 +465,16 @@ config BLK_DEV_CS5535
 
 	  It is safe to say Y to this question.
 
+config BLK_DEV_CS5536
+	tristate "CS5536 chipset support"
+	depends on X86_32
+	select BLK_DEV_IDEDMA_PCI
+	help
+	  This option enables support for the AMD CS5536
+	  companion chip used with the Geode LX processor family.
+
+	  If unsure, say N.
+
 config BLK_DEV_HPT366
 	tristate "HPT36X/37X chipset support"
 	select BLK_DEV_IDEDMA_PCI
@@ -710,6 +720,11 @@ config BLK_DEV_IDE_TX4939
 	tristate "TX4939 internal IDE support"
 	depends on SOC_TX4939
 	select BLK_DEV_IDEDMA_SFF
+
+config BLK_DEV_IDE_AT91
+	tristate "Atmel AT91 (SAM9, CAP9, AT572D940HF) IDE support"
+	depends on ARM && ARCH_AT91 && !ARCH_AT91RM9200 && !ARCH_AT91X40
+	select IDE_TIMINGS
 
 config IDE_ARM
 	tristate "ARM IDE support"

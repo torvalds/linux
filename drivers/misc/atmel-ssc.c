@@ -35,7 +35,7 @@ struct ssc_device *ssc_request(unsigned int ssc_num)
 
 	if (!ssc_valid) {
 		spin_unlock(&user_lock);
-		dev_dbg(&ssc->pdev->dev, "could not find requested device\n");
+		pr_err("ssc: ssc%d platform device is missing\n", ssc_num);
 		return ERR_PTR(-ENODEV);
 	}
 

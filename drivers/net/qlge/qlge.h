@@ -787,12 +787,12 @@ struct mbox_params {
 
 struct flash_params {
 	u8 dev_id_str[4];
-	u16 size;
-	u16 csum;
-	u16 ver;
-	u16 sub_dev_id;
+	__le16 size;
+	__le16 csum;
+	__le16 ver;
+	__le16 sub_dev_id;
 	u8 mac_addr[6];
-	u16 res;
+	__le16 res;
 };
 
 
@@ -927,6 +927,7 @@ struct ib_mac_iocb_rsp {
 	u8 flags1;
 #define IB_MAC_IOCB_RSP_OI	0x01	/* Overide intr delay */
 #define IB_MAC_IOCB_RSP_I	0x02	/* Disble Intr Generation */
+#define IB_MAC_CSUM_ERR_MASK 0x1c	/* A mask to use for csum errs */
 #define IB_MAC_IOCB_RSP_TE	0x04	/* Checksum error */
 #define IB_MAC_IOCB_RSP_NU	0x08	/* No checksum rcvd */
 #define IB_MAC_IOCB_RSP_IE	0x10	/* IPv4 checksum error */

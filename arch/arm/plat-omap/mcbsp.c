@@ -214,6 +214,7 @@ EXPORT_SYMBOL(omap_mcbsp_set_io_type);
 int omap_mcbsp_request(unsigned int id)
 {
 	struct omap_mcbsp *mcbsp;
+	int i;
 	int err;
 
 	if (!omap_mcbsp_check_valid_id(id)) {
@@ -225,7 +226,8 @@ int omap_mcbsp_request(unsigned int id)
 	if (mcbsp->pdata && mcbsp->pdata->ops && mcbsp->pdata->ops->request)
 		mcbsp->pdata->ops->request(id);
 
-	clk_enable(mcbsp->clk);
+	for (i = 0; i < mcbsp->num_clks; i++)
+		clk_enable(mcbsp->clks[i]);
 
 	spin_lock(&mcbsp->lock);
 	if (!mcbsp->free) {
@@ -276,6 +278,7 @@ EXPORT_SYMBOL(omap_mcbsp_request);
 void omap_mcbsp_free(unsigned int id)
 {
 	struct omap_mcbsp *mcbsp;
+	int i;
 
 	if (!omap_mcbsp_check_valid_id(id)) {
 		printk(KERN_ERR "%s: Invalid id (%d)\n", __func__, id + 1);
@@ -286,7 +289,8 @@ void omap_mcbsp_free(unsigned int id)
 	if (mcbsp->pdata && mcbsp->pdata->ops && mcbsp->pdata->ops->free)
 		mcbsp->pdata->ops->free(id);
 
-	clk_disable(mcbsp->clk);
+	for (i = mcbsp->num_clks - 1; i >= 0; i--)
+		clk_disable(mcbsp->clks[i]);
 
 	spin_lock(&mcbsp->lock);
 	if (mcbsp->free) {
@@ -872,6 +876,7 @@ static int __devinit omap_mcbsp_probe(struct platform_device *pdev)
 	struct omap_mcbsp_platform_data *pdata = pdev->dev.platform_data;
 	struct omap_mcbsp *mcbsp;
 	int id = pdev->id - 1;
+	int i;
 	int ret = 0;
 
 	if (!pdata) {
@@ -916,14 +921,25 @@ static int __devinit omap_mcbsp_probe(struct platform_device *pdev)
 	mcbsp->dma_rx_sync = pdata->dma_rx_sync;
 	mcbsp->dma_tx_sync = pdata->dma_tx_sync;
 
-	if (pdata->clk_name)
-		mcbsp->clk = clk_get(&pdev->dev, pdata->clk_name);
-	if (IS_ERR(mcbsp->clk)) {
-		dev_err(&pdev->dev,
-			"Invalid clock configuration for McBSP%d.\n",
-			mcbsp->id);
-		ret = PTR_ERR(mcbsp->clk);
-		goto err_clk;
+	if (pdata->num_clks) {
+		mcbsp->num_clks = pdata->num_clks;
+		mcbsp->clks = kzalloc(mcbsp->num_clks * sizeof(struct clk *),
+					GFP_KERNEL);
+		if (!mcbsp->clks) {
+			ret = -ENOMEM;
+			goto exit;
+		}
+		for (i = 0; i < mcbsp->num_clks; i++) {
+			mcbsp->clks[i] = clk_get(&pdev->dev, pdata->clk_names[i]);
+			if (IS_ERR(mcbsp->clks[i])) {
+				dev_err(&pdev->dev,
+					"Invalid %s configuration for McBSP%d.\n",
+					pdata->clk_names[i], mcbsp->id);
+				ret = PTR_ERR(mcbsp->clks[i]);
+				goto err_clk;
+			}
+		}
+
 	}
 
 	mcbsp->pdata = pdata;
@@ -932,6 +948,9 @@ static int __devinit omap_mcbsp_probe(struct platform_device *pdev)
 	return 0;
 
 err_clk:
+	while (i--)
+		clk_put(mcbsp->clks[i]);
+	kfree(mcbsp->clks);
 	iounmap(mcbsp->io_base);
 err_ioremap:
 	mcbsp->free = 0;
@@ -942,6 +961,7 @@ exit:
 static int __devexit omap_mcbsp_remove(struct platform_device *pdev)
 {
 	struct omap_mcbsp *mcbsp = platform_get_drvdata(pdev);
+	int i;
 
 	platform_set_drvdata(pdev, NULL);
 	if (mcbsp) {
@@ -950,12 +970,18 @@ static int __devexit omap_mcbsp_remove(struct platform_device *pdev)
 				mcbsp->pdata->ops->free)
 			mcbsp->pdata->ops->free(mcbsp->id);
 
-		clk_disable(mcbsp->clk);
-		clk_put(mcbsp->clk);
+		for (i = mcbsp->num_clks - 1; i >= 0; i--) {
+			clk_disable(mcbsp->clks[i]);
+			clk_put(mcbsp->clks[i]);
+		}
 
 		iounmap(mcbsp->io_base);
 
-		mcbsp->clk = NULL;
+		if (mcbsp->num_clks) {
+			kfree(mcbsp->clks);
+			mcbsp->clks = NULL;
+			mcbsp->num_clks = 0;
+		}
 		mcbsp->free = 0;
 		mcbsp->dev = NULL;
 	}

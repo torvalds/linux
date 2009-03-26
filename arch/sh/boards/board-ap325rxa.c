@@ -22,6 +22,7 @@
 #include <linux/gpio.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/spi_gpio.h>
+#include <media/soc_camera.h>
 #include <media/soc_camera_platform.h>
 #include <media/sh_mobile_ceu.h>
 #include <video/sh_mobile_lcdc.h>
@@ -216,6 +217,12 @@ static struct platform_device lcdc_device = {
 	},
 };
 
+static void camera_power(int val)
+{
+	gpio_set_value(GPIO_PTZ5, val); /* RST_CAM/RSTB */
+	mdelay(10);
+}
+
 #ifdef CONFIG_I2C
 static unsigned char camera_ncm03j_magic[] =
 {
@@ -245,9 +252,11 @@ static int camera_set_capture(struct soc_camera_platform_info *info,
 	int ret = 0;
 	int i;
 
+	camera_power(0);
 	if (!enable)
 		return 0; /* no disable for now */
 
+	camera_power(1);
 	for (i = 0; i < ARRAY_SIZE(camera_ncm03j_magic); i += 2) {
 		u_int8_t buf[8];
 
@@ -426,7 +435,7 @@ static int __init ap325rxa_devices_setup(void)
 	gpio_request(GPIO_PTZ6, NULL);
 	gpio_direction_output(GPIO_PTZ6, 0); /* STBY_CAM */
 	gpio_request(GPIO_PTZ5, NULL);
-	gpio_direction_output(GPIO_PTZ5, 1); /* RST_CAM */
+	gpio_direction_output(GPIO_PTZ5, 0); /* RST_CAM */
 	gpio_request(GPIO_PTZ4, NULL);
 	gpio_direction_output(GPIO_PTZ4, 0); /* SADDR */
 

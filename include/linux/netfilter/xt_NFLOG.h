@@ -4,7 +4,7 @@
 #include <linux/types.h>
 
 #define XT_NFLOG_DEFAULT_GROUP		0x1
-#define XT_NFLOG_DEFAULT_THRESHOLD	1
+#define XT_NFLOG_DEFAULT_THRESHOLD	0
 
 #define XT_NFLOG_MASK			0x0
 

@@ -501,6 +501,13 @@ static void hrtimer_force_reprogram(struct hrtimer_cpu_base *cpu_base)
 			continue;
 		timer = rb_entry(base->first, struct hrtimer, node);
 		expires = ktime_sub(hrtimer_get_expires(timer), base->offset);
+		/*
+		 * clock_was_set() has changed base->offset so the
+		 * result might be negative. Fix it up to prevent a
+		 * false positive in clockevents_program_event()
+		 */
+		if (expires.tv64 < 0)
+			expires.tv64 = 0;
 		if (expires.tv64 < cpu_base->expires_next.tv64)
 			cpu_base->expires_next = expires;
 	}
@@ -1158,6 +1165,29 @@ static void __run_hrtimer(struct hrtimer *timer)
 
 #ifdef CONFIG_HIGH_RES_TIMERS
 
+static int force_clock_reprogram;
+
+/*
+ * After 5 iteration's attempts, we consider that hrtimer_interrupt()
+ * is hanging, which could happen with something that slows the interrupt
+ * such as the tracing. Then we force the clock reprogramming for each future
+ * hrtimer interrupts to avoid infinite loops and use the min_delta_ns
+ * threshold that we will overwrite.
+ * The next tick event will be scheduled to 3 times we currently spend on
+ * hrtimer_interrupt(). This gives a good compromise, the cpus will spend
+ * 1/4 of their time to process the hrtimer interrupts. This is enough to
+ * let it running without serious starvation.
+ */
+
+static inline void
+hrtimer_interrupt_hanging(struct clock_event_device *dev,
+			ktime_t try_time)
+{
+	force_clock_reprogram = 1;
+	dev->min_delta_ns = (unsigned long)try_time.tv64 * 3;
+	printk(KERN_WARNING "hrtimer: interrupt too slow, "
+		"forcing clock min delta to %lu ns\n", dev->min_delta_ns);
+}
 /*
  * High resolution timer interrupt
  * Called with interrupts disabled
@@ -1167,6 +1197,7 @@ void hrtimer_interrupt(struct clock_event_device *dev)
 	struct hrtimer_cpu_base *cpu_base = &__get_cpu_var(hrtimer_bases);
 	struct hrtimer_clock_base *base;
 	ktime_t expires_next, now;
+	int nr_retries = 0;
 	int i;
 
 	BUG_ON(!cpu_base->hres_active);
@@ -1174,6 +1205,10 @@ void hrtimer_interrupt(struct clock_event_device *dev)
 	dev->next_event.tv64 = KTIME_MAX;
 
  retry:
+	/* 5 retries is enough to notice a hang */
+	if (!(++nr_retries % 5))
+		hrtimer_interrupt_hanging(dev, ktime_sub(ktime_get(), now));
+
 	now = ktime_get();
 
 	expires_next.tv64 = KTIME_MAX;
@@ -1226,7 +1261,7 @@ void hrtimer_interrupt(struct clock_event_device *dev)
 
 	/* Reprogramming necessary ? */
 	if (expires_next.tv64 != KTIME_MAX) {
-		if (tick_program_event(expires_next, 0))
+		if (tick_program_event(expires_next, force_clock_reprogram))
 			goto retry;
 	}
 }
@@ -1580,6 +1615,10 @@ static int __cpuinit hrtimer_cpu_notify(struct notifier_block *self,
 		break;
 
 #ifdef CONFIG_HOTPLUG_CPU
+	case CPU_DYING:
+	case CPU_DYING_FROZEN:
+		clockevents_notify(CLOCK_EVT_NOTIFY_CPU_DYING, &scpu);
+		break;
 	case CPU_DEAD:
 	case CPU_DEAD_FROZEN:
 	{

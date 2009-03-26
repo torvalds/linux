@@ -210,7 +210,7 @@
 #define MAX_CMD_DESCRIPTORS_HOST	1024
 #define MAX_RCV_DESCRIPTORS_1G		2048
 #define MAX_RCV_DESCRIPTORS_10G		4096
-#define MAX_JUMBO_RCV_DESCRIPTORS	512
+#define MAX_JUMBO_RCV_DESCRIPTORS	1024
 #define MAX_LRO_RCV_DESCRIPTORS		8
 #define MAX_RCVSTATUS_DESCRIPTORS	MAX_RCV_DESCRIPTORS
 #define MAX_JUMBO_RCV_DESC	MAX_JUMBO_RCV_DESCRIPTORS
@@ -1203,7 +1203,7 @@ typedef struct {
 #define NETXEN_IS_MSI_FAMILY(adapter) \
 	((adapter)->flags & (NETXEN_NIC_MSI_ENABLED | NETXEN_NIC_MSIX_ENABLED))
 
-#define MSIX_ENTRIES_PER_ADAPTER	8
+#define MSIX_ENTRIES_PER_ADAPTER	1
 #define NETXEN_MSIX_TBL_SPACE		8192
 #define NETXEN_PCI_REG_MSIX_TBL		0x44
 
@@ -1595,7 +1595,6 @@ dma_watchdog_wakeup(struct netxen_adapter *adapter)
 }
 
 
-int netxen_is_flash_supported(struct netxen_adapter *adapter);
 int netxen_get_flash_mac_addr(struct netxen_adapter *adapter, __le64 *mac);
 int netxen_p3_get_mac_addr(struct netxen_adapter *adapter, __le64 *mac);
 extern void netxen_change_ringparam(struct netxen_adapter *adapter);

@@ -206,10 +206,11 @@ static int __init igb_init_module(void)
 
 	global_quad_port_a = 0;
 
-	ret = pci_register_driver(&igb_driver);
 #ifdef CONFIG_IGB_DCA
 	dca_register_notify(&dca_notifier);
 #endif
+
+	ret = pci_register_driver(&igb_driver);
 	return ret;
 }
 
@@ -1022,11 +1023,10 @@ static int __devinit igb_probe(struct pci_dev *pdev,
 	struct net_device *netdev;
 	struct igb_adapter *adapter;
 	struct e1000_hw *hw;
-	struct pci_dev *us_dev;
 	const struct e1000_info *ei = igb_info_tbl[ent->driver_data];
 	unsigned long mmio_start, mmio_len;
-	int i, err, pci_using_dac, pos;
-	u16 eeprom_data = 0, state = 0;
+	int i, err, pci_using_dac;
+	u16 eeprom_data = 0;
 	u16 eeprom_apme_mask = IGB_EEPROM_APME;
 	u32 part_num;
 	int bars, need_ioport;
@@ -1059,27 +1059,6 @@ static int __devinit igb_probe(struct pci_dev *pdev,
 				goto err_dma;
 			}
 		}
-	}
-
-	/* 82575 requires that the pci-e link partner disable the L0s state */
-	switch (pdev->device) {
-	case E1000_DEV_ID_82575EB_COPPER:
-	case E1000_DEV_ID_82575EB_FIBER_SERDES:
-	case E1000_DEV_ID_82575GB_QUAD_COPPER:
-		us_dev = pdev->bus->self;
-		pos = pci_find_capability(us_dev, PCI_CAP_ID_EXP);
-		if (pos) {
-			pci_read_config_word(us_dev, pos + PCI_EXP_LNKCTL,
-			                     &state);
-			state &= ~PCIE_LINK_STATE_L0S;
-			pci_write_config_word(us_dev, pos + PCI_EXP_LNKCTL,
-			                      state);
-			dev_info(&pdev->dev,
-				 "Disabling ASPM L0s upstream switch port %s\n",
-				 pci_name(us_dev));
-		}
-	default:
-		break;
 	}
 
 	err = pci_request_selected_regions(pdev, bars, igb_driver_name);
@@ -1156,11 +1135,10 @@ static int __devinit igb_probe(struct pci_dev *pdev,
 
 	/* set flags */
 	switch (hw->mac.type) {
-	case e1000_82576:
 	case e1000_82575:
-		adapter->flags |= IGB_FLAG_HAS_DCA;
 		adapter->flags |= IGB_FLAG_NEED_CTX_IDX;
 		break;
+	case e1000_82576:
 	default:
 		break;
 	}
@@ -1310,8 +1288,7 @@ static int __devinit igb_probe(struct pci_dev *pdev,
 		goto err_register;
 
 #ifdef CONFIG_IGB_DCA
-	if ((adapter->flags & IGB_FLAG_HAS_DCA) &&
-	    (dca_add_requester(&pdev->dev) == 0)) {
+	if (dca_add_requester(&pdev->dev) == 0) {
 		adapter->flags |= IGB_FLAG_DCA_ENABLED;
 		dev_info(&pdev->dev, "DCA enabled\n");
 		/* Always use CB2 mode, difference is masked
@@ -1835,11 +1812,11 @@ static void igb_setup_rctl(struct igb_adapter *adapter)
 	rctl |= E1000_RCTL_SECRC;
 
 	/*
-	 * disable store bad packets, long packet enable, and clear size bits.
+	 * disable store bad packets and clear size bits.
 	 */
-	rctl &= ~(E1000_RCTL_SBP | E1000_RCTL_LPE | E1000_RCTL_SZ_256);
+	rctl &= ~(E1000_RCTL_SBP | E1000_RCTL_SZ_256);
 
-	if (adapter->netdev->mtu > ETH_DATA_LEN)
+	/* enable LPE when to prevent packets larger than max_frame_size */
 		rctl |= E1000_RCTL_LPE;
 
 	/* Setup buffer sizes */
@@ -1865,7 +1842,7 @@ static void igb_setup_rctl(struct igb_adapter *adapter)
 	 */
 	/* allocations using alloc_page take too long for regular MTU
 	 * so only enable packet split for jumbo frames */
-	if (rctl & E1000_RCTL_LPE) {
+	if (adapter->netdev->mtu > ETH_DATA_LEN) {
 		adapter->rx_ps_hdr_size = IGB_RXBUFFER_128;
 		srrctl |= adapter->rx_ps_hdr_size <<
 			 E1000_SRRCTL_BSIZEHDRSIZE_SHIFT;
@@ -3473,19 +3450,16 @@ static int __igb_notify_dca(struct device *dev, void *data)
 	struct e1000_hw *hw = &adapter->hw;
 	unsigned long event = *(unsigned long *)data;
 
-	if (!(adapter->flags & IGB_FLAG_HAS_DCA))
-		goto out;
-
 	switch (event) {
 	case DCA_PROVIDER_ADD:
 		/* if already enabled, don't do it again */
 		if (adapter->flags & IGB_FLAG_DCA_ENABLED)
 			break;
-		adapter->flags |= IGB_FLAG_DCA_ENABLED;
 		/* Always use CB2 mode, difference is masked
 		 * in the CB driver. */
 		wr32(E1000_DCA_CTRL, 2);
 		if (dca_add_requester(dev) == 0) {
+			adapter->flags |= IGB_FLAG_DCA_ENABLED;
 			dev_info(&adapter->pdev->dev, "DCA enabled\n");
 			igb_setup_dca(adapter);
 			break;
@@ -3502,7 +3476,7 @@ static int __igb_notify_dca(struct device *dev, void *data)
 		}
 		break;
 	}
-out:
+
 	return 0;
 }
 

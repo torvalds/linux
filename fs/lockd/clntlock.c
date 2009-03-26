@@ -139,6 +139,55 @@ int nlmclnt_block(struct nlm_wait *block, struct nlm_rqst *req, long timeout)
 	return 0;
 }
 
+#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+static const struct in6_addr *nlmclnt_map_v4addr(const struct sockaddr *sap,
+						 struct in6_addr *addr_mapped)
+{
+	const struct sockaddr_in *sin = (const struct sockaddr_in *)sap;
+
+	switch (sap->sa_family) {
+	case AF_INET6:
+		return &((const struct sockaddr_in6 *)sap)->sin6_addr;
+	case AF_INET:
+		ipv6_addr_set_v4mapped(sin->sin_addr.s_addr, addr_mapped);
+		return addr_mapped;
+	}
+
+	return NULL;
+}
+
+/*
+ * If lockd is using a PF_INET6 listener, all incoming requests appear
+ * to come from AF_INET6 remotes.  The address of AF_INET remotes are
+ * mapped to AF_INET6 automatically by the network layer.  In case the
+ * user passed an AF_INET server address at mount time, ensure both
+ * addresses are AF_INET6 before comparing them.
+ */
+static int nlmclnt_cmp_addr(const struct nlm_host *host,
+			    const struct sockaddr *sap)
+{
+	const struct in6_addr *addr1;
+	const struct in6_addr *addr2;
+	struct in6_addr addr1_mapped;
+	struct in6_addr addr2_mapped;
+
+	addr1 = nlmclnt_map_v4addr(nlm_addr(host), &addr1_mapped);
+	if (likely(addr1 != NULL)) {
+		addr2 = nlmclnt_map_v4addr(sap, &addr2_mapped);
+		if (likely(addr2 != NULL))
+			return ipv6_addr_equal(addr1, addr2);
+	}
+
+	return 0;
+}
+#else	/* !(CONFIG_IPV6 || CONFIG_IPV6_MODULE) */
+static int nlmclnt_cmp_addr(const struct nlm_host *host,
+			    const struct sockaddr *sap)
+{
+	return nlm_cmp_addr(nlm_addr(host), sap);
+}
+#endif	/* !(CONFIG_IPV6 || CONFIG_IPV6_MODULE) */
+
 /*
  * The server lockd has called us back to tell us the lock was granted
  */
@@ -166,7 +215,7 @@ __be32 nlmclnt_grant(const struct sockaddr *addr, const struct nlm_lock *lock)
 		 */
 		if (fl_blocked->fl_u.nfs_fl.owner->pid != lock->svid)
 			continue;
-		if (!nlm_cmp_addr(nlm_addr(block->b_host), addr))
+		if (!nlmclnt_cmp_addr(block->b_host, addr))
 			continue;
 		if (nfs_compare_fh(NFS_FH(fl_blocked->fl_file->f_path.dentry->d_inode) ,fh) != 0)
 			continue;

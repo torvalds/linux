@@ -1091,8 +1091,7 @@ struct ucc_geth_info {
 	u32 eventRegMask;
 	u16 pausePeriod;
 	u16 extensionField;
-	u8 phy_address;
-	char mdio_bus[MII_BUS_ID_SIZE];
+	char phy_bus_id[BUS_ID_SIZE];
 	u8 weightfactor[NUM_TX_QUEUES];
 	u8 interruptcoalescingmaxvalue[NUM_RX_QUEUES];
 	u8 l2qt[UCC_GETH_VLAN_PRIORITY_MAX];
@@ -1186,6 +1185,8 @@ struct ucc_geth_private {
 	int oldspeed;
 	int oldduplex;
 	int oldlink;
+
+	struct device_node *node;
 };
 
 void uec_set_ethtool_ops(struct net_device *netdev);

@@ -83,7 +83,7 @@ static struct pxa3xx_mfp_addr_map pxa320_mfp_addr_map[] __initdata = {
 static DEFINE_PXA3_CKEN(pxa320_nand, NAND, 104000000, 0);
 
 static struct clk_lookup pxa320_clkregs[] = {
-	INIT_CLKREG(&clk_pxa320_nand, "pxa3xx-nand", "NANDCLK"),
+	INIT_CLKREG(&clk_pxa320_nand, "pxa3xx-nand", NULL),
 };
 
 static int __init pxa320_init(void)

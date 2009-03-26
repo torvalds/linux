@@ -182,7 +182,7 @@ static inline int inet_ehash_locks_alloc(struct inet_hashinfo *hashinfo)
 		size = 2048;
 	if (nr_pcpus >= 32)
 		size = 4096;
-	if (sizeof(rwlock_t) != 0) {
+	if (sizeof(spinlock_t) != 0) {
 #ifdef CONFIG_NUMA
 		if (size * sizeof(spinlock_t) > PAGE_SIZE)
 			hashinfo->ehash_locks = vmalloc(size * sizeof(spinlock_t));

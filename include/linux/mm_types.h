@@ -276,4 +276,7 @@ struct mm_struct {
 #endif
 };
 
+/* Future-safe accessor for struct mm_struct's cpu_vm_mask. */
+#define mm_cpumask(mm) (&(mm)->cpu_vm_mask)
+
 #endif /* _LINUX_MM_TYPES_H */

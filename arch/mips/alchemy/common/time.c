@@ -89,7 +89,7 @@ static struct clock_event_device au1x_rtcmatch2_clockdev = {
 	.irq		= AU1000_RTC_MATCH2_INT,
 	.set_next_event	= au1x_rtcmatch2_set_next_event,
 	.set_mode	= au1x_rtcmatch2_set_mode,
-	.cpumask	= CPU_MASK_ALL,
+	.cpumask	= CPU_MASK_ALL_PTR,
 };
 
 static struct irqaction au1x_rtcmatch2_irqaction = {
@@ -118,7 +118,7 @@ void __init plat_time_init(void)
 	 * setup counter 1 (RTC) to tick at full speed
 	 */
 	t = 0xffffff;
-	while ((au_readl(SYS_COUNTER_CNTRL) & SYS_CNTRL_T1S) && t--)
+	while ((au_readl(SYS_COUNTER_CNTRL) & SYS_CNTRL_T1S) && --t)
 		asm volatile ("nop");
 	if (!t)
 		goto cntr_err;
@@ -127,7 +127,7 @@ void __init plat_time_init(void)
 	au_sync();
 
 	t = 0xffffff;
-	while ((au_readl(SYS_COUNTER_CNTRL) & SYS_CNTRL_C1S) && t--)
+	while ((au_readl(SYS_COUNTER_CNTRL) & SYS_CNTRL_C1S) && --t)
 		asm volatile ("nop");
 	if (!t)
 		goto cntr_err;
@@ -135,7 +135,7 @@ void __init plat_time_init(void)
 	au_sync();
 
 	t = 0xffffff;
-	while ((au_readl(SYS_COUNTER_CNTRL) & SYS_CNTRL_C1S) && t--)
+	while ((au_readl(SYS_COUNTER_CNTRL) & SYS_CNTRL_C1S) && --t)
 		asm volatile ("nop");
 	if (!t)
 		goto cntr_err;
