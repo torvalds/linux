@@ -521,7 +521,7 @@ config APPLDATA_OS
 
 config APPLDATA_NET_SUM
 	tristate "Monitor overall network statistics"
-	depends on APPLDATA_BASE
+	depends on APPLDATA_BASE && NET
 	help
 	  This provides network related data to the Linux - VM Monitor Stream,
 	  currently there is only a total sum of network I/O statistics, no
