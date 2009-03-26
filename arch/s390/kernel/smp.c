@@ -590,9 +590,8 @@ static int __init setup_possible_cpus(char *s)
 	int pcpus, cpu;
 
 	pcpus = simple_strtoul(s, NULL, 0);
-	cpu_possible_map = cpumask_of_cpu(0);
-	for (cpu = 1; cpu < pcpus && cpu < nr_cpu_ids; cpu++)
-		cpu_set(cpu, cpu_possible_map);
+	for (cpu = 0; cpu < pcpus && cpu < nr_cpu_ids; cpu++)
+		set_cpu_possible(cpu, true);
 	return 0;
 }
 early_param("possible_cpus", setup_possible_cpus);
