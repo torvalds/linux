@@ -1714,6 +1714,7 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 	case BOND_MODE_ALB:
 		new_slave->state = BOND_STATE_ACTIVE;
 		bond_set_slave_inactive_flags(new_slave);
+		bond_select_active_slave(bond);
 		break;
 	default:
 		pr_debug("This slave is always active in trunk mode\n");
