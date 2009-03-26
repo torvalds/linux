@@ -118,6 +118,18 @@ config CIFS_DEBUG2
 	   option can be turned off unless you are debugging
 	   cifs problems.  If unsure, say N.
 
+config CIFS_DFS_UPCALL
+	  bool "DFS feature support"
+	  depends on CIFS && KEYS
+	  help
+	    Distributed File System (DFS) support is used to access shares
+	    transparently in an enterprise name space, even if the share
+	    moves to a different server.  This feature also enables
+	    an upcall mechanism for CIFS which contacts userspace helper
+	    utilities to provide server name resolution (host names to
+	    IP addresses) which is needed for implicit mounts of DFS junction
+	    points. If unsure, say N.
+
 config CIFS_EXPERIMENTAL
 	  bool "CIFS Experimental Features (EXPERIMENTAL)"
 	  depends on CIFS && EXPERIMENTAL
@@ -131,12 +143,3 @@ config CIFS_EXPERIMENTAL
 	    (which is disabled by default). See the file fs/cifs/README
 	    for more details.  If unsure, say N.
 
-config CIFS_DFS_UPCALL
-	  bool "DFS feature support (EXPERIMENTAL)"
-	  depends on CIFS_EXPERIMENTAL
-	  depends on KEYS
-	  help
-	    Enables an upcall mechanism for CIFS which contacts userspace
-	    helper utilities to provide server name resolution (host names to
-	    IP addresses) which is needed for implicit mounts of DFS junction
-	    points. If unsure, say N.

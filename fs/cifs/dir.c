@@ -129,7 +129,7 @@ cifs_bp_rename_retry:
 	return full_path;
 }
 
-static int cifs_posix_open(char *full_path, struct inode **pinode,
+int cifs_posix_open(char *full_path, struct inode **pinode,
 		    struct super_block *sb, int mode, int oflags,
 		    int *poplock, __u16 *pnetfid, int xid)
 {
@@ -187,7 +187,9 @@ static int cifs_posix_open(char *full_path, struct inode **pinode,
 	if (!pinode)
 		goto posix_open_ret; /* caller does not need info */
 
-	*pinode = cifs_new_inode(sb, &presp_data->UniqueId);
+	if (*pinode == NULL)
+		*pinode = cifs_new_inode(sb, &presp_data->UniqueId);
+	/* else an inode was passed in. Update its info, don't create one */
 
 	/* We do not need to close the file if new_inode fails since
 	   the caller will retry qpathinfo as long as inode is null */
