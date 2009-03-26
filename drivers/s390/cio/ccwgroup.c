@@ -454,13 +454,17 @@ ccwgroup_remove (struct device *dev)
 	struct ccwgroup_device *gdev;
 	struct ccwgroup_driver *gdrv;
 
+	device_remove_file(dev, &dev_attr_online);
+
+	if (!dev->driver)
+		return 0;
+
 	gdev = to_ccwgroupdev(dev);
 	gdrv = to_ccwgroupdrv(dev->driver);
 
-	device_remove_file(dev, &dev_attr_online);
-
-	if (gdrv && gdrv->remove)
+	if (gdrv->remove)
 		gdrv->remove(gdev);
+
 	return 0;
 }
 
@@ -469,9 +473,13 @@ static void ccwgroup_shutdown(struct device *dev)
 	struct ccwgroup_device *gdev;
 	struct ccwgroup_driver *gdrv;
 
+	if (!dev->driver)
+		return;
+
 	gdev = to_ccwgroupdev(dev);
 	gdrv = to_ccwgroupdrv(dev->driver);
-	if (gdrv && gdrv->shutdown)
+
+	if (gdrv->shutdown)
 		gdrv->shutdown(gdev);
 }
 
