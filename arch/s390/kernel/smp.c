@@ -32,6 +32,7 @@
 #include <linux/delay.h>
 #include <linux/cache.h>
 #include <linux/interrupt.h>
+#include <linux/irqflags.h>
 #include <linux/cpu.h>
 #include <linux/timex.h>
 #include <linux/bootmem.h>
@@ -49,12 +50,6 @@
 #include <asm/cpu.h>
 #include <asm/vdso.h>
 #include "entry.h"
-
-/*
- * An array with a pointer the lowcore of every CPU.
- */
-struct _lowcore *lowcore_ptr[NR_CPUS];
-EXPORT_SYMBOL(lowcore_ptr);
 
 static struct task_struct *current_set[NR_CPUS];
 
@@ -81,9 +76,7 @@ void smp_send_stop(void)
 
 	/* Disable all interrupts/machine checks */
 	__load_psw_mask(psw_kernel_bits & ~PSW_MASK_MCHECK);
-
-	/* write magic number to zero page (absolute 0) */
-	lowcore_ptr[smp_processor_id()]->panic_magic = __PANIC_MAGIC;
+	trace_hardirqs_off();
 
 	/* stop all processors */
 	for_each_online_cpu(cpu) {
@@ -233,7 +226,7 @@ EXPORT_SYMBOL(smp_ctl_clear_bit);
  */
 #define CPU_INIT_NO	1
 
-#if defined(CONFIG_ZFCPDUMP) || defined(CONFIG_ZFCPDUMP_MODULE)
+#ifdef CONFIG_ZFCPDUMP
 
 /*
  * zfcpdump_prefix_array holds prefix registers for the following scenario:
@@ -274,7 +267,7 @@ EXPORT_SYMBOL_GPL(zfcpdump_save_areas);
 
 static inline void smp_get_save_area(unsigned int cpu, unsigned int phy_cpu) { }
 
-#endif /* CONFIG_ZFCPDUMP || CONFIG_ZFCPDUMP_MODULE */
+#endif /* CONFIG_ZFCPDUMP */
 
 static int cpu_stopped(int cpu)
 {
@@ -304,8 +297,8 @@ static int smp_rescan_cpus_sigp(cpumask_t avail)
 {
 	int cpu_id, logical_cpu;
 
-	logical_cpu = first_cpu(avail);
-	if (logical_cpu == NR_CPUS)
+	logical_cpu = cpumask_first(&avail);
+	if (logical_cpu >= nr_cpu_ids)
 		return 0;
 	for (cpu_id = 0; cpu_id <= 65535; cpu_id++) {
 		if (cpu_known(cpu_id))
@@ -316,8 +309,8 @@ static int smp_rescan_cpus_sigp(cpumask_t avail)
 			continue;
 		cpu_set(logical_cpu, cpu_present_map);
 		smp_cpu_state[logical_cpu] = CPU_STATE_CONFIGURED;
-		logical_cpu = next_cpu(logical_cpu, avail);
-		if (logical_cpu == NR_CPUS)
+		logical_cpu = cpumask_next(logical_cpu, &avail);
+		if (logical_cpu >= nr_cpu_ids)
 			break;
 	}
 	return 0;
@@ -329,8 +322,8 @@ static int smp_rescan_cpus_sclp(cpumask_t avail)
 	int cpu_id, logical_cpu, cpu;
 	int rc;
 
-	logical_cpu = first_cpu(avail);
-	if (logical_cpu == NR_CPUS)
+	logical_cpu = cpumask_first(&avail);
+	if (logical_cpu >= nr_cpu_ids)
 		return 0;
 	info = kmalloc(sizeof(*info), GFP_KERNEL);
 	if (!info)
@@ -351,8 +344,8 @@ static int smp_rescan_cpus_sclp(cpumask_t avail)
 			smp_cpu_state[logical_cpu] = CPU_STATE_STANDBY;
 		else
 			smp_cpu_state[logical_cpu] = CPU_STATE_CONFIGURED;
-		logical_cpu = next_cpu(logical_cpu, avail);
-		if (logical_cpu == NR_CPUS)
+		logical_cpu = cpumask_next(logical_cpu, &avail);
+		if (logical_cpu >= nr_cpu_ids)
 			break;
 	}
 out:
@@ -379,7 +372,7 @@ static void __init smp_detect_cpus(void)
 
 	c_cpus = 1;
 	s_cpus = 0;
-	boot_cpu_addr = S390_lowcore.cpu_data.cpu_addr;
+	boot_cpu_addr = __cpu_logical_map[0];
 	info = kmalloc(sizeof(*info), GFP_KERNEL);
 	if (!info)
 		panic("smp_detect_cpus failed to allocate memory\n");
@@ -453,7 +446,7 @@ int __cpuinit start_secondary(void *cpuvoid)
 	/* Switch on interrupts */
 	local_irq_enable();
 	/* Print info about this processor */
-	print_cpu_info(&S390_lowcore.cpu_data);
+	print_cpu_info();
 	/* cpu_idle will call schedule for us */
 	cpu_idle();
 	return 0;
@@ -515,7 +508,6 @@ out:
 	return -ENOMEM;
 }
 
-#ifdef CONFIG_HOTPLUG_CPU
 static void smp_free_lowcore(int cpu)
 {
 	struct _lowcore *lowcore;
@@ -534,7 +526,6 @@ static void smp_free_lowcore(int cpu)
 	free_pages((unsigned long) lowcore, lc_order);
 	lowcore_ptr[cpu] = NULL;
 }
-#endif /* CONFIG_HOTPLUG_CPU */
 
 /* Upping and downing of CPUs */
 int __cpuinit __cpu_up(unsigned int cpu)
@@ -543,16 +534,23 @@ int __cpuinit __cpu_up(unsigned int cpu)
 	struct _lowcore *cpu_lowcore;
 	struct stack_frame *sf;
 	sigp_ccode ccode;
+	u32 lowcore;
 
 	if (smp_cpu_state[cpu] != CPU_STATE_CONFIGURED)
 		return -EIO;
 	if (smp_alloc_lowcore(cpu))
 		return -ENOMEM;
+	do {
+		ccode = signal_processor(cpu, sigp_initial_cpu_reset);
+		if (ccode == sigp_busy)
+			udelay(10);
+		if (ccode == sigp_not_operational)
+			goto err_out;
+	} while (ccode == sigp_busy);
 
-	ccode = signal_processor_p((__u32)(unsigned long)(lowcore_ptr[cpu]),
-				   cpu, sigp_set_prefix);
-	if (ccode)
-		return -EIO;
+	lowcore = (u32)(unsigned long)lowcore_ptr[cpu];
+	while (signal_processor_p(lowcore, cpu, sigp_set_prefix) == sigp_busy)
+		udelay(10);
 
 	idle = current_set[cpu];
 	cpu_lowcore = lowcore_ptr[cpu];
@@ -571,9 +569,8 @@ int __cpuinit __cpu_up(unsigned int cpu)
 		: : "a" (&cpu_lowcore->access_regs_save_area) : "memory");
 	cpu_lowcore->percpu_offset = __per_cpu_offset[cpu];
 	cpu_lowcore->current_task = (unsigned long) idle;
-	cpu_lowcore->cpu_data.cpu_nr = cpu;
+	cpu_lowcore->cpu_nr = cpu;
 	cpu_lowcore->kernel_asce = S390_lowcore.kernel_asce;
-	cpu_lowcore->ipl_device = S390_lowcore.ipl_device;
 	eieio();
 
 	while (signal_processor(cpu, sigp_restart) == sigp_busy)
@@ -582,6 +579,10 @@ int __cpuinit __cpu_up(unsigned int cpu)
 	while (!cpu_online(cpu))
 		cpu_relax();
 	return 0;
+
+err_out:
+	smp_free_lowcore(cpu);
+	return -EIO;
 }
 
 static int __init setup_possible_cpus(char *s)
@@ -589,9 +590,8 @@ static int __init setup_possible_cpus(char *s)
 	int pcpus, cpu;
 
 	pcpus = simple_strtoul(s, NULL, 0);
-	cpu_possible_map = cpumask_of_cpu(0);
-	for (cpu = 1; cpu < pcpus && cpu < NR_CPUS; cpu++)
-		cpu_set(cpu, cpu_possible_map);
+	for (cpu = 0; cpu < pcpus && cpu < nr_cpu_ids; cpu++)
+		set_cpu_possible(cpu, true);
 	return 0;
 }
 early_param("possible_cpus", setup_possible_cpus);
@@ -663,7 +663,7 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 	/* request the 0x1201 emergency signal external interrupt */
 	if (register_external_interrupt(0x1201, do_ext_call_interrupt) != 0)
 		panic("Couldn't request external interrupt 0x1201");
-	print_cpu_info(&S390_lowcore.cpu_data);
+	print_cpu_info();
 
 	/* Reallocate current lowcore, but keep its contents. */
 	lc_order = sizeof(long) == 8 ? 1 : 0;

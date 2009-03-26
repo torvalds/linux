@@ -2680,40 +2680,21 @@ static int qeth_handle_send_error(struct qeth_card *card,
 		struct qeth_qdio_out_buffer *buffer, unsigned int qdio_err)
 {
 	int sbalf15 = buffer->buffer->element[15].flags & 0xff;
-	int cc = qdio_err & 3;
 
 	QETH_DBF_TEXT(TRACE, 6, "hdsnderr");
 	qeth_check_qdio_errors(buffer->buffer, qdio_err, "qouterr");
-	switch (cc) {
-	case 0:
-		if (qdio_err) {
-			QETH_DBF_TEXT(TRACE, 1, "lnkfail");
-			QETH_DBF_TEXT_(TRACE, 1, "%s", CARD_BUS_ID(card));
-			QETH_DBF_TEXT_(TRACE, 1, "%04x %02x",
-				       (u16)qdio_err, (u8)sbalf15);
-			return QETH_SEND_ERROR_LINK_FAILURE;
-		}
+
+	if (!qdio_err)
 		return QETH_SEND_ERROR_NONE;
-	case 2:
-		if (qdio_err & QDIO_ERROR_SIGA_BUSY) {
-			QETH_DBF_TEXT(TRACE, 1, "SIGAcc2B");
-			QETH_DBF_TEXT_(TRACE, 1, "%s", CARD_BUS_ID(card));
-			return QETH_SEND_ERROR_KICK_IT;
-		}
-		if ((sbalf15 >= 15) && (sbalf15 <= 31))
-			return QETH_SEND_ERROR_RETRY;
-		return QETH_SEND_ERROR_LINK_FAILURE;
-		/* look at qdio_error and sbalf 15 */
-	case 1:
-		QETH_DBF_TEXT(TRACE, 1, "SIGAcc1");
-		QETH_DBF_TEXT_(TRACE, 1, "%s", CARD_BUS_ID(card));
-		return QETH_SEND_ERROR_LINK_FAILURE;
-	case 3:
-	default:
-		QETH_DBF_TEXT(TRACE, 1, "SIGAcc3");
-		QETH_DBF_TEXT_(TRACE, 1, "%s", CARD_BUS_ID(card));
-		return QETH_SEND_ERROR_KICK_IT;
-	}
+
+	if ((sbalf15 >= 15) && (sbalf15 <= 31))
+		return QETH_SEND_ERROR_RETRY;
+
+	QETH_DBF_TEXT(TRACE, 1, "lnkfail");
+	QETH_DBF_TEXT_(TRACE, 1, "%s", CARD_BUS_ID(card));
+	QETH_DBF_TEXT_(TRACE, 1, "%04x %02x",
+		       (u16)qdio_err, (u8)sbalf15);
+	return QETH_SEND_ERROR_LINK_FAILURE;
 }
 
 /*
@@ -2849,10 +2830,14 @@ static void qeth_flush_buffers(struct qeth_qdio_out_q *queue, int index,
 			qeth_get_micros() -
 			queue->card->perf_stats.outbound_do_qdio_start_time;
 	if (rc) {
+		queue->card->stats.tx_errors += count;
+		/* ignore temporary SIGA errors without busy condition */
+		if (rc == QDIO_ERROR_SIGA_TARGET)
+			return;
 		QETH_DBF_TEXT(TRACE, 2, "flushbuf");
 		QETH_DBF_TEXT_(TRACE, 2, " err%d", rc);
 		QETH_DBF_TEXT_(TRACE, 2, "%s", CARD_DDEV_ID(queue->card));
-		queue->card->stats.tx_errors += count;
+
 		/* this must not happen under normal circumstances. if it
 		 * happens something is really wrong -> recover */
 		qeth_schedule_recovery(queue->card);
@@ -2927,13 +2912,7 @@ void qeth_qdio_output_handler(struct ccw_device *ccwdev,
 	}
 	for (i = first_element; i < (first_element + count); ++i) {
 		buffer = &queue->bufs[i % QDIO_MAX_BUFFERS_PER_Q];
-		/*we only handle the KICK_IT error by doing a recovery */
-		if (qeth_handle_send_error(card, buffer, qdio_error)
-				== QETH_SEND_ERROR_KICK_IT){
-			netif_stop_queue(card->dev);
-			qeth_schedule_recovery(card);
-			return;
-		}
+		qeth_handle_send_error(card, buffer, qdio_error);
 		qeth_clear_output_buffer(queue, buffer);
 	}
 	atomic_sub(count, &queue->used_buffers);

@@ -23,7 +23,7 @@
 #include <linux/timer.h>
 #include <asm/lowcore.h>
 #include <asm/pgtable.h>
-
+#include <asm/nmi.h>
 #include "kvm-s390.h"
 #include "gaccess.h"
 
@@ -286,7 +286,7 @@ int kvm_arch_vcpu_setup(struct kvm_vcpu *vcpu)
 	setup_timer(&vcpu->arch.ckc_timer, kvm_s390_idle_wakeup,
 		 (unsigned long) vcpu);
 	get_cpu_id(&vcpu->arch.cpu_id);
-	vcpu->arch.cpu_id.version = 0xfe;
+	vcpu->arch.cpu_id.version = 0xff;
 	return 0;
 }
 
@@ -439,8 +439,6 @@ int kvm_arch_vcpu_ioctl_set_mpstate(struct kvm_vcpu *vcpu,
 {
 	return -EINVAL; /* not implemented yet */
 }
-
-extern void s390_handle_mcck(void);
 
 static void __vcpu_run(struct kvm_vcpu *vcpu)
 {
