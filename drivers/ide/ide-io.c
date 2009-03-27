@@ -357,9 +357,7 @@ static ide_startstop_t ide_special_rq(ide_drive_t *drive, struct request *rq)
 	case REQ_DRIVE_RESET:
 		return ide_do_reset(drive);
 	default:
-		blk_dump_rq_flags(rq, "ide_special_rq - bad request");
-		ide_end_request(drive, 0, 0);
-		return ide_stopped;
+		BUG();
 	}
 }
 
