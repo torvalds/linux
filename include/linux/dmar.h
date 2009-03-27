@@ -108,6 +108,8 @@ struct irte {
 #ifdef CONFIG_INTR_REMAP
 extern int intr_remapping_enabled;
 extern int enable_intr_remapping(int);
+extern void disable_intr_remapping(void);
+extern int reenable_intr_remapping(int);
 
 extern int get_irte(int irq, struct irte *entry);
 extern int modify_irte(int irq, struct irte *irte_modified);

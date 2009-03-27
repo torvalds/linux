@@ -108,6 +108,10 @@ extern void native_apic_icr_write(u32 low, u32 id);
 extern u64 native_apic_icr_read(void);
 
 #ifdef CONFIG_X86_X2APIC
+
+#define EIM_8BIT_APIC_ID	0
+#define EIM_32BIT_APIC_ID	1
+
 /*
  * Make previous memory operations globally visible before
  * sending the IPI through x2apic wrmsr. We need a serializing instruction or
