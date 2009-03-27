@@ -25,7 +25,7 @@ typedef __uint16_t	xfs_acl_perm_t;
 typedef __int32_t	xfs_acl_tag_t;
 typedef __int32_t	xfs_acl_id_t;
 
-#define XFS_ACL_MAX_ENTRIES 25
+#define XFS_ACL_MAX_ENTRIES 100
 #define XFS_ACL_NOT_PRESENT (-1)
 
 typedef struct xfs_acl_entry {
