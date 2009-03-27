@@ -61,19 +61,19 @@ Configuration Options:
 #include <linux/ioport.h>
 #include <linux/delay.h>
 
-// Consecutive I/O port addresses
+/* Consecutive I/O port addresses */
 #define MPC624_SIZE             16
 
-// Offsets of different ports
-#define MPC624_MASTER_CONTROL	0	// not used
-#define MPC624_GNMUXCH          1	// Gain, Mux, Channel of ADC
-#define MPC624_ADC              2	// read/write to/from ADC
-#define MPC624_EE               3	// read/write to/from serial EEPROM via I2C
-#define MPC624_LEDS             4	// write to LEDs
-#define MPC624_DIO              5	// read/write to/from digital I/O ports
-#define MPC624_IRQ_MASK         6	// IRQ masking enable/disable
+/* Offsets of different ports */
+#define MPC624_MASTER_CONTROL	0	/*  not used */
+#define MPC624_GNMUXCH          1	/*  Gain, Mux, Channel of ADC */
+#define MPC624_ADC              2	/*  read/write to/from ADC */
+#define MPC624_EE               3	/*  read/write to/from serial EEPROM via I2C */
+#define MPC624_LEDS             4	/*  write to LEDs */
+#define MPC624_DIO              5	/*  read/write to/from digital I/O ports */
+#define MPC624_IRQ_MASK         6	/*  IRQ masking enable/disable */
 
-// Register bits' names
+/* Register bits' names */
 #define MPC624_ADBUSY           (1<<5)
 #define MPC624_ADSDO            (1<<4)
 #define MPC624_ADFO             (1<<3)
@@ -81,19 +81,19 @@ Configuration Options:
 #define MPC624_ADSCK            (1<<1)
 #define MPC624_ADSDI            (1<<0)
 
-// SDI Speed/Resolution Programming bits
+/* SDI Speed/Resolution Programming bits */
 #define MPC624_OSR4             (1<<31)
 #define MPC624_OSR3             (1<<30)
 #define MPC624_OSR2             (1<<29)
 #define MPC624_OSR1             (1<<28)
 #define MPC624_OSR0             (1<<27)
 
-// 32-bit output value bits' names
+/* 32-bit output value bits' names */
 #define MPC624_EOC_BIT          (1<<31)
 #define MPC624_DMY_BIT          (1<<30)
 #define MPC624_SGN_BIT          (1<<29)
 
-// Convertion speeds
+/* Convertion speeds */
 /* OSR4 OSR3 OSR2 OSR1 OSR0  Convertion rate  RMS noise  ENOB^
  *  X    0    0    0    1        3.52kHz        23uV      17
  *  X    0    0    1    0        1.76kHz       3.5uV      20
@@ -119,36 +119,36 @@ Configuration Options:
 #define MPC624_SPEED_27_5_Hz    (MPC624_OSR4 | MPC624_OSR3                                          )
 #define MPC624_SPEED_13_75_Hz   (MPC624_OSR4 | MPC624_OSR3                             | MPC624_OSR0)
 #define MPC624_SPEED_6_875_Hz   (MPC624_OSR4 | MPC624_OSR3 | MPC624_OSR2 | MPC624_OSR1 | MPC624_OSR0)
-//----------------------------------------------------------------------------
+/* ---------------------------------------------------------------------------- */
 struct skel_private {
 
-	unsigned long int ulConvertionRate;	// set by mpc624_attach() from driver's parameters
+	unsigned long int ulConvertionRate;	/*  set by mpc624_attach() from driver's parameters */
 };
 
 
 #define devpriv ((struct skel_private *)dev->private)
-//----------------------------------------------------------------------------
+/* ---------------------------------------------------------------------------- */
 static const struct comedi_lrange range_mpc624_bipolar1 = {
 	1,
 	{
-//    BIP_RANGE(1.01) // this is correct,
-			// but my MPC-624 actually seems to have a range of 2.02
+/* BIP_RANGE(1.01)  this is correct, */
+			/*  but my MPC-624 actually seems to have a range of 2.02 */
 			BIP_RANGE(2.02)
 		}
 };
 static const struct comedi_lrange range_mpc624_bipolar10 = {
 	1,
 	{
-//    BIP_RANGE(10.1) // this is correct,
-			// but my MPC-624 actually seems to have a range of 20.2
+/* BIP_RANGE(10.1)   this is correct, */
+			/*  but my MPC-624 actually seems to have a range of 20.2 */
 			BIP_RANGE(20.2)
 		}
 };
 
-//----------------------------------------------------------------------------
+/* ---------------------------------------------------------------------------- */
 static int mpc624_attach(struct comedi_device * dev, struct comedi_devconfig * it);
 static int mpc624_detach(struct comedi_device * dev);
-//----------------------------------------------------------------------------
+/* ---------------------------------------------------------------------------- */
 static struct comedi_driver driver_mpc624 = {
       driver_name:"mpc624",
       module:THIS_MODULE,
@@ -156,10 +156,10 @@ static struct comedi_driver driver_mpc624 = {
       detach:mpc624_detach
 };
 
-//----------------------------------------------------------------------------
+/* ---------------------------------------------------------------------------- */
 static int mpc624_ai_rinsn(struct comedi_device * dev, struct comedi_subdevice * s,
 	struct comedi_insn * insn, unsigned int * data);
-//----------------------------------------------------------------------------
+/* ---------------------------------------------------------------------------- */
 static int mpc624_attach(struct comedi_device * dev, struct comedi_devconfig * it)
 {
 	struct comedi_subdevice *s;
@@ -175,7 +175,7 @@ static int mpc624_attach(struct comedi_device * dev, struct comedi_devconfig * i
 	dev->iobase = iobase;
 	dev->board_name = "mpc624";
 
-	// Private structure initialization
+	/*  Private structure initialization */
 	if (alloc_private(dev, sizeof(struct skel_private)) < 0)
 		return -ENOMEM;
 
@@ -226,7 +226,7 @@ static int mpc624_attach(struct comedi_device * dev, struct comedi_devconfig * i
 		devpriv->ulConvertionRate = MPC624_SPEED_3_52_kHz;
 	}
 
-	// Subdevices structures
+	/*  Subdevices structures */
 	if (alloc_subdevices(dev, 1) < 0)
 		return -ENOMEM;
 
@@ -267,7 +267,7 @@ static int mpc624_detach(struct comedi_device * dev)
 	return 0;
 }
 
-// Timeout 200ms
+/* Timeout 200ms */
 #define TIMEOUT 200
 
 static int mpc624_ai_rinsn(struct comedi_device * dev, struct comedi_subdevice * s,
@@ -277,16 +277,16 @@ static int mpc624_ai_rinsn(struct comedi_device * dev, struct comedi_subdevice *
 	unsigned long int data_in, data_out;
 	unsigned char ucPort;
 
-	// WARNING: We always write 0 to GNSWA bit, so the channel range is +-/10.1Vdc
+	/*  WARNING: We always write 0 to GNSWA bit, so the channel range is +-/10.1Vdc */
 	outb(insn->chanspec, dev->iobase + MPC624_GNMUXCH);
-//    rt_printk("Channel %d: \n", insn->chanspec);
+/* rt_printk("Channel %d: \n", insn->chanspec); */
 	if (!insn->n) {
 		rt_printk("MPC624: Warning, no data to aquire\n");
 		return 0;
 	}
 
 	for (n = 0; n < insn->n; n++) {
-		// Trigger the convertion
+		/*  Trigger the convertion */
 		outb(MPC624_ADSCK, dev->iobase + MPC624_ADC);
 		comedi_udelay(1);
 		outb(MPC624_ADCS | MPC624_ADSCK, dev->iobase + MPC624_ADC);
@@ -294,7 +294,7 @@ static int mpc624_ai_rinsn(struct comedi_device * dev, struct comedi_subdevice *
 		outb(0, dev->iobase + MPC624_ADC);
 		comedi_udelay(1);
 
-		// Wait for the convertion to end
+		/*  Wait for the convertion to end */
 		for (i = 0; i < TIMEOUT; i++) {
 			ucPort = inb(dev->iobase + MPC624_ADC);
 			if (ucPort & MPC624_ADBUSY)
@@ -307,32 +307,32 @@ static int mpc624_ai_rinsn(struct comedi_device * dev, struct comedi_subdevice *
 			data[n] = 0;
 			return -ETIMEDOUT;
 		}
-		// Start reading data
+		/*  Start reading data */
 		data_in = 0;
 		data_out = devpriv->ulConvertionRate;
 		comedi_udelay(1);
 		for (i = 0; i < 32; i++) {
-			// Set the clock low
+			/*  Set the clock low */
 			outb(0, dev->iobase + MPC624_ADC);
 			comedi_udelay(1);
 
-			if (data_out & (1 << 31))	// the next bit is a 1
+			if (data_out & (1 << 31))	/*  the next bit is a 1 */
 			{
-				// Set the ADSDI line (send to MPC624)
+				/*  Set the ADSDI line (send to MPC624) */
 				outb(MPC624_ADSDI, dev->iobase + MPC624_ADC);
 				comedi_udelay(1);
-				// Set the clock high
+				/*  Set the clock high */
 				outb(MPC624_ADSCK | MPC624_ADSDI,
 					dev->iobase + MPC624_ADC);
-			} else	// the next bit is a 0
+			} else	/*  the next bit is a 0 */
 			{
-				// Set the ADSDI line (send to MPC624)
+				/*  Set the ADSDI line (send to MPC624) */
 				outb(0, dev->iobase + MPC624_ADC);
 				comedi_udelay(1);
-				// Set the clock high
+				/*  Set the clock high */
 				outb(MPC624_ADSCK, dev->iobase + MPC624_ADC);
 			}
-			// Read ADSDO on high clock (receive from MPC624)
+			/*  Read ADSDO on high clock (receive from MPC624) */
 			comedi_udelay(1);
 			data_in <<= 1;
 			data_in |=
@@ -343,18 +343,18 @@ static int mpc624_ai_rinsn(struct comedi_device * dev, struct comedi_subdevice *
 			data_out <<= 1;
 		}
 
-		// Received 32-bit long value consist of:
-		//   31: EOC (End Of Transmission) bit - should be 0
-		//   30: DMY (Dummy) bit               - should be 0
-		//   29: SIG (Sign) bit                - 1 if the voltage is positive, 0 if negative
-		//   28: MSB (Most Significant Bit)    - the first bit of convertion result
-		//   ....
-		//   05: LSB (Least Significant Bit)   - the last bit of convertion result
-		//   04: sub-LSB                       - sub-LSBs are basically noise, but when
-		//   03: sub-LSB                         averaged properly, they can increase convertion
-		//   02: sub-LSB                         precision up to 29 bits; they can be discarded
-		//   01: sub-LSB                         without loss of resolution.
-		//   00: sub-LSB
+		/*  Received 32-bit long value consist of: */
+		/*    31: EOC (End Of Transmission) bit - should be 0 */
+		/*    30: DMY (Dummy) bit               - should be 0 */
+		/*    29: SIG (Sign) bit                - 1 if the voltage is positive, 0 if negative */
+		/*    28: MSB (Most Significant Bit)    - the first bit of convertion result */
+		/*    .... */
+		/*    05: LSB (Least Significant Bit)   - the last bit of convertion result */
+		/*    04: sub-LSB                       - sub-LSBs are basically noise, but when */
+		/*    03: sub-LSB                         averaged properly, they can increase convertion */
+		/*    02: sub-LSB                         precision up to 29 bits; they can be discarded */
+		/*    01: sub-LSB                         without loss of resolution. */
+		/*    00: sub-LSB */
 
 		if (data_in & MPC624_EOC_BIT)
 			rt_printk("MPC624: EOC bit is set (data_in=%lu)!",
@@ -362,24 +362,24 @@ static int mpc624_ai_rinsn(struct comedi_device * dev, struct comedi_subdevice *
 		if (data_in & MPC624_DMY_BIT)
 			rt_printk("MPC624: DMY bit is set (data_in=%lu)!",
 				data_in);
-		if (data_in & MPC624_SGN_BIT)	// check the sign bit
-		{		// The voltage is positive
-			data_in &= 0x3FFFFFFF;	// EOC and DMY should be 0, but we will mask them out just to be sure
-			data[n] = data_in;	// comedi operates on unsigned numbers, so we don't clear the SGN bit
-			// SGN bit is still set! It's correct, since we're converting to unsigned.
-		} else {	// The voltage is negative
-			// data_in contains a number in 30-bit two's complement code and we must deal with it
+		if (data_in & MPC624_SGN_BIT)	/*  check the sign bit */
+		{		/*  The voltage is positive */
+			data_in &= 0x3FFFFFFF;	/*  EOC and DMY should be 0, but we will mask them out just to be sure */
+			data[n] = data_in;	/*  comedi operates on unsigned numbers, so we don't clear the SGN bit */
+			/*  SGN bit is still set! It's correct, since we're converting to unsigned. */
+		} else {	/*  The voltage is negative */
+			/*  data_in contains a number in 30-bit two's complement code and we must deal with it */
 			data_in |= MPC624_SGN_BIT;
 			data_in = ~data_in;
 			data_in += 1;
 			data_in &= ~(MPC624_EOC_BIT | MPC624_DMY_BIT);
-			// clear EOC and DMY bits
+			/*  clear EOC and DMY bits */
 			data_in = 0x20000000 - data_in;
 			data[n] = data_in;
 		}
 	}
 
-	// Return the number of samples read/written
+	/*  Return the number of samples read/written */
 	return n;
 }
 
