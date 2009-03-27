@@ -228,15 +228,9 @@ static void do_identify(ide_drive_t *drive, u8 cmd, u16 *id)
 	m[ATA_ID_PROD_LEN - 1] = '\0';
 
 	if (strstr(m, "E X A B Y T E N E S T"))
-		goto err_misc;
-
-	drive->dev_flags |= IDE_DFLAG_PRESENT;
-	drive->dev_flags &= ~IDE_DFLAG_DEAD;
-
-	return;
-err_misc:
-	kfree(id);
-	drive->dev_flags &= ~IDE_DFLAG_PRESENT;
+		drive->dev_flags &= ~IDE_DFLAG_PRESENT;
+	else
+		drive->dev_flags |= IDE_DFLAG_PRESENT;
 }
 
 /**
@@ -505,8 +499,7 @@ static u8 probe_for_drive(ide_drive_t *drive)
 		}
 
 		if ((drive->dev_flags & IDE_DFLAG_PRESENT) == 0)
-			/* drive not found */
-			return 0;
+			goto out_free;
 
 		/* identification failed? */
 		if ((drive->dev_flags & IDE_DFLAG_ID_READ) == 0) {
@@ -530,7 +523,7 @@ static u8 probe_for_drive(ide_drive_t *drive)
 	}
 
 	if ((drive->dev_flags & IDE_DFLAG_PRESENT) == 0)
-		return 0;
+		goto out_free;
 
 	/* The drive wasn't being helpful. Add generic info only */
 	if ((drive->dev_flags & IDE_DFLAG_ID_READ) == 0) {
@@ -543,7 +536,10 @@ static u8 probe_for_drive(ide_drive_t *drive)
 		ide_disk_init_mult_count(drive);
 	}
 
-	return !!(drive->dev_flags & IDE_DFLAG_PRESENT);
+	return 1;
+out_free:
+	kfree(drive->id);
+	return 0;
 }
 
 static void hwif_release_dev(struct device *dev)
