@@ -555,11 +555,32 @@ address_error:
 	return 1;
 }
 
+static bool b43_rx_buffer_is_poisoned(struct b43_dmaring *ring, struct sk_buff *skb)
+{
+	unsigned char *f = skb->data + ring->frameoffset;
+
+	return ((f[0] & f[1] & f[2] & f[3] & f[4] & f[5] & f[6] & f[7]) == 0xFF);
+}
+
+static void b43_poison_rx_buffer(struct b43_dmaring *ring, struct sk_buff *skb)
+{
+	struct b43_rxhdr_fw4 *rxhdr;
+	unsigned char *frame;
+
+	/* This poisons the RX buffer to detect DMA failures. */
+
+	rxhdr = (struct b43_rxhdr_fw4 *)(skb->data);
+	rxhdr->frame_len = 0;
+
+	B43_WARN_ON(ring->rx_buffersize < ring->frameoffset + sizeof(struct b43_plcp_hdr6) + 2);
+	frame = skb->data + ring->frameoffset;
+	memset(frame, 0xFF, sizeof(struct b43_plcp_hdr6) + 2 /* padding */);
+}
+
 static int setup_rx_descbuffer(struct b43_dmaring *ring,
 			       struct b43_dmadesc_generic *desc,
 			       struct b43_dmadesc_meta *meta, gfp_t gfp_flags)
 {
-	struct b43_rxhdr_fw4 *rxhdr;
 	dma_addr_t dmaaddr;
 	struct sk_buff *skb;
 
@@ -568,6 +589,7 @@ static int setup_rx_descbuffer(struct b43_dmaring *ring,
 	skb = __dev_alloc_skb(ring->rx_buffersize, gfp_flags);
 	if (unlikely(!skb))
 		return -ENOMEM;
+	b43_poison_rx_buffer(ring, skb);
 	dmaaddr = map_descbuffer(ring, skb->data, ring->rx_buffersize, 0);
 	if (b43_dma_mapping_error(ring, dmaaddr, ring->rx_buffersize, 0)) {
 		/* ugh. try to realloc in zone_dma */
@@ -578,6 +600,7 @@ static int setup_rx_descbuffer(struct b43_dmaring *ring,
 		skb = __dev_alloc_skb(ring->rx_buffersize, gfp_flags);
 		if (unlikely(!skb))
 			return -ENOMEM;
+		b43_poison_rx_buffer(ring, skb);
 		dmaaddr = map_descbuffer(ring, skb->data,
 					 ring->rx_buffersize, 0);
 		if (b43_dma_mapping_error(ring, dmaaddr, ring->rx_buffersize, 0)) {
@@ -591,9 +614,6 @@ static int setup_rx_descbuffer(struct b43_dmaring *ring,
 	meta->dmaaddr = dmaaddr;
 	ring->ops->fill_descriptor(ring, desc, dmaaddr,
 				   ring->rx_buffersize, 0, 0, 0);
-
-	rxhdr = (struct b43_rxhdr_fw4 *)(skb->data);
-	rxhdr->frame_len = 0;
 
 	return 0;
 }
@@ -1488,6 +1508,15 @@ static void dma_rx(struct b43_dmaring *ring, int *slot)
 						   ring->rx_buffersize);
 			goto drop;
 		}
+	}
+	if (unlikely(b43_rx_buffer_is_poisoned(ring, skb))) {
+		/* Something went wrong with the DMA.
+		 * The device did not touch the buffer and did not overwrite the poison. */
+		b43dbg(ring->dev->wl, "DMA RX: Dropping poisoned buffer.\n");
+		/* recycle the descriptor buffer. */
+		sync_descbuffer_for_device(ring, meta->dmaaddr,
+					   ring->rx_buffersize);
+		goto drop;
 	}
 	if (unlikely(len > ring->rx_buffersize)) {
 		/* The data did not fit into one descriptor buffer
