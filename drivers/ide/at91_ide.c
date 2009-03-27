@@ -156,7 +156,7 @@ static void at91_ide_input_data(ide_drive_t *drive, struct request *rq,
 	len++;
 
 	enter_16bit(chipselect, mode);
-	__ide_mm_insw((void __iomem *) io_ports->data_addr, buf, len / 2);
+	readsw((void __iomem *)io_ports->data_addr, buf, len / 2);
 	leave_16bit(chipselect, mode);
 }
 
@@ -171,7 +171,7 @@ static void at91_ide_output_data(ide_drive_t *drive, struct request *rq,
 	pdbg("cs %u buf %p len %d\n", chipselect,  buf, len);
 
 	enter_16bit(chipselect, mode);
-	__ide_mm_outsw((void __iomem *) io_ports->data_addr, buf, len / 2);
+	writesw((void __iomem *)io_ports->data_addr, buf, len / 2);
 	leave_16bit(chipselect, mode);
 }
 
