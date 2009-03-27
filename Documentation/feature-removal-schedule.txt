@@ -355,17 +355,6 @@ Who:	Hans de Goede <hdegoede@redhat.com>
 
 ---------------------------
 
-What:	SELinux "compat_net" functionality
-When:	2.6.30 at the earliest
-Why:	In 2.6.18 the Secmark concept was introduced to replace the "compat_net"
-	network access control functionality of SELinux.  Secmark offers both
-	better performance and greater flexibility than the "compat_net"
-	mechanism.  Now that the major Linux distributions have moved to
-	Secmark, it is time to deprecate the older mechanism and start the
-	process of removing the old code.
-Who:	Paul Moore <paul.moore@hp.com>
----------------------------
-
 What:	sysfs ui for changing p4-clockmod parameters
 When:	September 2009
 Why:	See commits 129f8ae9b1b5be94517da76009ea956e89104ce8 and

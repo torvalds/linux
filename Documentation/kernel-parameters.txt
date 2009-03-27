@@ -2019,15 +2019,6 @@ and is between 256 and 4096 characters. It is defined in the file
 			If enabled at boot time, /selinux/disable can be used
 			later to disable prior to initial policy load.
 
-	selinux_compat_net =
-			[SELINUX] Set initial selinux_compat_net flag value.
-                        Format: { "0" | "1" }
-                        0 -- use new secmark-based packet controls
-                        1 -- use legacy packet controls
-                        Default value is 0 (preferred).
-                        Value can be changed at runtime via
-                        /selinux/compat_net.
-
 	serialnumber	[BUGS=X86-32]
 
 	shapers=	[NET]
