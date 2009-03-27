@@ -579,6 +579,7 @@ cppi_next_tx_segment(struct musb *musb, struct cppi_channel *tx)
 	 * trigger the "send a ZLP?" confusion.
 	 */
 	rndis = (maxpacket & 0x3f) == 0
+		&& length > maxpacket
 		&& length < 0xffff
 		&& (length % maxpacket) != 0;
 
