@@ -145,10 +145,4 @@ int fcoe_hostlist_remove(const struct fc_lport *);
 
 struct Scsi_Host *fcoe_host_alloc(struct scsi_host_template *, int);
 int fcoe_libfc_config(struct fc_lport *, struct libfc_function_template *);
-
-/* fcoe sw hba */
-int __init fcoe_sw_init(void);
-int __exit fcoe_sw_exit(void);
-int fcoe_sw_create(struct net_device *);
-int fcoe_sw_destroy(struct net_device *);
 #endif /* _LIBFCOE_H */
