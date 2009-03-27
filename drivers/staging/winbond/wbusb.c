@@ -83,32 +83,14 @@ static void wbsoft_configure_filter(struct ieee80211_hw *dev,
 				     unsigned int *total_flags,
 				     int mc_count, struct dev_mc_list *mclist)
 {
-	unsigned int bit_nr, new_flags;
-	u32 mc_filter[2];
-	int i;
+	unsigned int new_flags;
 
 	new_flags = 0;
 
-	if (*total_flags & FIF_PROMISC_IN_BSS) {
+	if (*total_flags & FIF_PROMISC_IN_BSS)
 		new_flags |= FIF_PROMISC_IN_BSS;
-		mc_filter[1] = mc_filter[0] = ~0;
-	} else if ((*total_flags & FIF_ALLMULTI) || (mc_count > 32)) {
+	else if ((*total_flags & FIF_ALLMULTI) || (mc_count > 32))
 		new_flags |= FIF_ALLMULTI;
-		mc_filter[1] = mc_filter[0] = ~0;
-	} else {
-		mc_filter[1] = mc_filter[0] = 0;
-		for (i = 0; i < mc_count; i++) {
-			if (!mclist)
-				break;
-			printk("Should call ether_crc here\n");
-			//bit_nr = ether_crc(ETH_ALEN, mclist->dmi_addr) >> 26;
-			bit_nr = 0;
-
-			bit_nr &= 0x3F;
-			mc_filter[bit_nr >> 5] |= 1 << (bit_nr & 31);
-			mclist = mclist->next;
-		}
-	}
 
 	dev->flags &= ~IEEE80211_HW_RX_INCLUDES_FCS;
 
