@@ -875,7 +875,7 @@ xen_iosapic_write(char __iomem *iosapic, unsigned int reg, u32 val)
 	HYPERVISOR_physdev_op(PHYSDEVOP_apic_write, &apic_op);
 }
 
-static const struct pv_iosapic_ops xen_iosapic_ops __initconst = {
+static struct pv_iosapic_ops xen_iosapic_ops __initdata = {
 	.pcat_compat_init = xen_pcat_compat_init,
 	.__get_irq_chip = xen_iosapic_get_irq_chip,
 
