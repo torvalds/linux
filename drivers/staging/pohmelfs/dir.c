@@ -328,7 +328,7 @@ static int pohmelfs_sync_remote_dir(struct pohmelfs_inode *pi)
 {
 	struct inode *inode = &pi->vfs_inode;
 	struct pohmelfs_sb *psb = POHMELFS_SB(inode->i_sb);
-	long ret = msecs_to_jiffies(25000);
+	long ret = psb->wait_on_page_timeout;
 	int err;
 
 	dprintk("%s: dir: %llu, state: %lx: remote_synced: %d.\n",
