@@ -61,35 +61,35 @@ struct pci6208_board {
 	const char *name;
 	unsigned short dev_id;	/* `lspci` will show you this */
 	int ao_chans;
-	//int ao_bits;
+	/* int ao_bits; */
 };
 
 static const struct pci6208_board pci6208_boards[] = {
 	/*{
 	   name :  "pci6208v",
-	   dev_id       :  0x6208,      //not sure
+	   dev_id       :  0x6208,      // not sure
 	   ao_chans:  8
-	   //,  ao_bits :  16
+	   // ,  ao_bits :  16
 	   },
 	   {
 	   name :  "pci6216v",
-	   dev_id       :  0x6208,      //not sure
+	   dev_id       :  0x6208,      // not sure
 	   ao_chans:  16
-	   //,  ao_bits :  16
+	   // ,  ao_bits :  16
 	   }, */
 	{
 	      name:	"pci6208a",
 	      dev_id:	0x6208,
 	      ao_chans:8
-			//,     ao_bits :  16
+			/* ,     ao_bits :  16 */
 		}
 };
 
 /* This is used by modprobe to translate PCI IDs to drivers.  Should
  * only be used for PCI and ISA-PnP devices */
 static DEFINE_PCI_DEVICE_TABLE(pci6208_pci_table) = {
-	//{ PCI_VENDOR_ID_ADLINK, 0x6208, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
-	//{ PCI_VENDOR_ID_ADLINK, 0x6208, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	/* { PCI_VENDOR_ID_ADLINK, 0x6208, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 }, */
+	/* { PCI_VENDOR_ID_ADLINK, 0x6208, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 }, */
 	{PCI_VENDOR_ID_ADLINK, 0x6208, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{0}
 };
@@ -132,10 +132,10 @@ static int pci6208_ao_winsn(struct comedi_device * dev, struct comedi_subdevice 
 	struct comedi_insn * insn, unsigned int * data);
 static int pci6208_ao_rinsn(struct comedi_device * dev, struct comedi_subdevice * s,
 	struct comedi_insn * insn, unsigned int * data);
-//static int pci6208_dio_insn_bits(struct comedi_device *dev,struct comedi_subdevice *s,
-//      struct comedi_insn *insn,unsigned int *data);
-//static int pci6208_dio_insn_config(struct comedi_device *dev,struct comedi_subdevice *s,
-//      struct comedi_insn *insn,unsigned int *data);
+/* static int pci6208_dio_insn_bits(struct comedi_device *dev,struct comedi_subdevice *s, */
+/* struct comedi_insn *insn,unsigned int *data); */
+/* static int pci6208_dio_insn_config(struct comedi_device *dev,struct comedi_subdevice *s, */
+/* struct comedi_insn *insn,unsigned int *data); */
 
 /*
  * Attach is called by the Comedi core to configure the driver
@@ -176,22 +176,22 @@ static int pci6208_attach(struct comedi_device * dev, struct comedi_devconfig * 
 	s = dev->subdevices + 0;
 	/* analog output subdevice */
 	s->type = COMEDI_SUBD_AO;
-	s->subdev_flags = SDF_WRITABLE;	//anything else to add here??
+	s->subdev_flags = SDF_WRITABLE;	/* anything else to add here?? */
 	s->n_chan = thisboard->ao_chans;
-	s->maxdata = 0xffff;	//16-bit DAC
-	s->range_table = &range_bipolar10;	//this needs to be checked.
+	s->maxdata = 0xffff;	/* 16-bit DAC */
+	s->range_table = &range_bipolar10;	/* this needs to be checked. */
 	s->insn_write = pci6208_ao_winsn;
 	s->insn_read = pci6208_ao_rinsn;
 
-	//s=dev->subdevices+1;
+	/* s=dev->subdevices+1; */
 	/* digital i/o subdevice */
-	//s->type=COMEDI_SUBD_DIO;
-	//s->subdev_flags=SDF_READABLE|SDF_WRITABLE;
-	//s->n_chan=16;
-	//s->maxdata=1;
-	//s->range_table=&range_digital;
-	//s->insn_bits = pci6208_dio_insn_bits;
-	//s->insn_config = pci6208_dio_insn_config;
+	/* s->type=COMEDI_SUBD_DIO; */
+	/* s->subdev_flags=SDF_READABLE|SDF_WRITABLE; */
+	/* s->n_chan=16; */
+	/* s->maxdata=1; */
+	/* s->range_table=&range_digital; */
+	/* s->insn_bits = pci6208_dio_insn_bits; */
+	/* s->insn_config = pci6208_dio_insn_config; */
 
 	printk("attached\n");
 
@@ -262,49 +262,49 @@ static int pci6208_ao_rinsn(struct comedi_device * dev, struct comedi_subdevice 
  * useful to applications if you implement the insn_bits interface.
  * This allows packed reading/writing of the DIO channels.  The
  * comedi core can convert between insn_bits and insn_read/write */
-//static int pci6208_dio_insn_bits(struct comedi_device *dev,struct comedi_subdevice *s,
-//      struct comedi_insn *insn,unsigned int *data)
-//{
-//      if(insn->n!=2)return -EINVAL;
+/* static int pci6208_dio_insn_bits(struct comedi_device *dev,struct comedi_subdevice *s, */
+/* struct comedi_insn *insn,unsigned int *data) */
+/* { */
+/* if(insn->n!=2)return -EINVAL; */
 
 	/* The insn data is a mask in data[0] and the new data
 	 * in data[1], each channel cooresponding to a bit. */
-//      if(data[0]){
-//              s->state &= ~data[0];
-//              s->state |= data[0]&data[1];
+/* if(data[0]){ */
+/* s->state &= ~data[0]; */
+/* s->state |= data[0]&data[1]; */
 		/* Write out the new digital output lines */
-		//outw(s->state,dev->iobase + SKEL_DIO);
-//      }
+		/* outw(s->state,dev->iobase + SKEL_DIO); */
+/* } */
 
 	/* on return, data[1] contains the value of the digital
 	 * input and output lines. */
-	//data[1]=inw(dev->iobase + SKEL_DIO);
+	/* data[1]=inw(dev->iobase + SKEL_DIO); */
 	/* or we could just return the software copy of the output values if
 	 * it was a purely digital output subdevice */
-	//data[1]=s->state;
+	/* data[1]=s->state; */
 
-//      return 2;
-//}
+/* return 2; */
+/* } */
 
-//static int pci6208_dio_insn_config(struct comedi_device *dev,struct comedi_subdevice *s,
-//      struct comedi_insn *insn,unsigned int *data)
-//{
-//      int chan=CR_CHAN(insn->chanspec);
+/* static int pci6208_dio_insn_config(struct comedi_device *dev,struct comedi_subdevice *s, */
+/* struct comedi_insn *insn,unsigned int *data) */
+/* { */
+/* int chan=CR_CHAN(insn->chanspec); */
 
 	/* The input or output configuration of each digital line is
 	 * configured by a special insn_config instruction.  chanspec
 	 * contains the channel to be changed, and data[0] contains the
 	 * value COMEDI_INPUT or COMEDI_OUTPUT. */
 
-//      if(data[0]==COMEDI_OUTPUT){
-//              s->io_bits |= 1<<chan;
-//      }else{
-//              s->io_bits &= ~(1<<chan);
-//      }
-	//outw(s->io_bits,dev->iobase + SKEL_DIO_CONFIG);
+/* if(data[0]==COMEDI_OUTPUT){ */
+/* s->io_bits |= 1<<chan; */
+/* }else{ */
+/* s->io_bits &= ~(1<<chan); */
+/* } */
+	/* outw(s->io_bits,dev->iobase + SKEL_DIO_CONFIG); */
 
-//      return 1;
-//}
+/* return 1; */
+/* } */
 
 static int pci6208_find_device(struct comedi_device * dev, int bus, int slot)
 {
@@ -317,9 +317,9 @@ static int pci6208_find_device(struct comedi_device * dev, int bus, int slot)
 		if (pci_dev->vendor == PCI_VENDOR_ID_ADLINK) {
 			for (i = 0; i < pci6208_board_nbr; i++) {
 				if (pci6208_boards[i].dev_id == pci_dev->device) {
-					// was a particular bus/slot requested?
+					/*  was a particular bus/slot requested? */
 					if ((bus != 0) || (slot != 0)) {
-						// are we on the wrong bus/slot?
+						/*  are we on the wrong bus/slot? */
 						if (pci_dev->bus->number
 							!= bus ||
 							PCI_SLOT(pci_dev->devfn)
@@ -346,10 +346,10 @@ static int pci6208_find_device(struct comedi_device * dev, int bus, int slot)
 		PCI_SLOT(pci_dev->devfn),
 		PCI_FUNC(pci_dev->devfn), pci_dev->irq);
 
-	// TODO: Warn about non-tested boards.
-	//switch(board->device_id)
-	//{
-	//};
+	/*  TODO: Warn about non-tested boards. */
+	/* switch(board->device_id) */
+	/* { */
+	/* }; */
 
 	devpriv->pci_dev = pci_dev;
 
@@ -362,19 +362,19 @@ pci6208_pci_setup(struct pci_dev *pci_dev, unsigned long *io_base_ptr,
 {
 	unsigned long io_base, io_range, lcr_io_base, lcr_io_range;
 
-	// Enable PCI device and request regions
+	/*  Enable PCI device and request regions */
 	if (comedi_pci_enable(pci_dev, PCI6208_DRIVER_NAME) < 0) {
 		printk("comedi%d: Failed to enable PCI device and request regions\n", dev_minor);
 		return -EIO;
 	}
-	// Read local configuration register base address [PCI_BASE_ADDRESS #1].
+	/*  Read local configuration register base address [PCI_BASE_ADDRESS #1]. */
 	lcr_io_base = pci_resource_start(pci_dev, 1);
 	lcr_io_range = pci_resource_len(pci_dev, 1);
 
 	printk("comedi%d: local config registers at address 0x%4lx [0x%4lx]\n",
 		dev_minor, lcr_io_base, lcr_io_range);
 
-	// Read PCI6208 register base address [PCI_BASE_ADDRESS #2].
+	/*  Read PCI6208 register base address [PCI_BASE_ADDRESS #2]. */
 	io_base = pci_resource_start(pci_dev, 2);
 	io_range = pci_resource_end(pci_dev, 2) - io_base + 1;
 
@@ -382,10 +382,10 @@ pci6208_pci_setup(struct pci_dev *pci_dev, unsigned long *io_base_ptr,
 		dev_minor, io_base, io_range);
 
 	*io_base_ptr = io_base;
-	//devpriv->io_range = io_range;
-	//devpriv->is_valid=0;
-	//devpriv->lcr_io_base=lcr_io_base;
-	//devpriv->lcr_io_range=lcr_io_range;
+	/* devpriv->io_range = io_range; */
+	/* devpriv->is_valid=0; */
+	/* devpriv->lcr_io_base=lcr_io_base; */
+	/* devpriv->lcr_io_range=lcr_io_range; */
 
 	return 0;
 }
