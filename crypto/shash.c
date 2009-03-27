@@ -77,6 +77,9 @@ static int shash_update_unaligned(struct shash_desc *desc, const u8 *data,
 	u8 buf[shash_align_buffer_size(unaligned_len, alignmask)]
 		__attribute__ ((aligned));
 
+	if (unaligned_len > len)
+		unaligned_len = len;
+
 	memcpy(buf, data, unaligned_len);
 
 	return shash->update(desc, buf, unaligned_len) ?:
