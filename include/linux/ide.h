@@ -1327,6 +1327,8 @@ enum {
 	IDE_HFLAG_SERIALIZE		= (1 << 20),
 	/* host is DTC2278 */
 	IDE_HFLAG_DTC2278		= (1 << 21),
+	/* 4 devices on a single set of I/O ports */
+	IDE_HFLAG_4DRIVES		= (1 << 22),
 	/* host is TRM290 */
 	IDE_HFLAG_TRM290		= (1 << 23),
 	/* use 32-bit I/O ops */

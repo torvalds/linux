@@ -1381,8 +1381,8 @@ int ide_host_register(struct ide_host *host, const struct ide_port_info *d,
 		if (ide_probe_port(hwif) == 0)
 			hwif->present = 1;
 
-		if (hwif->chipset != ide_4drives || !hwif->mate ||
-		    !hwif->mate->present) {
+		if ((hwif->host_flags & IDE_HFLAG_4DRIVES) == 0 ||
+		    hwif->mate == NULL || hwif->mate->present == 0) {
 			if (ide_register_port(hwif)) {
 				ide_disable_port(hwif);
 				continue;
