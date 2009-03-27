@@ -54,18 +54,18 @@ See the source for configuration details.
 
 #define SIZE_8255	4
 
-// #define PCL724_IRQ   1  /* no IRQ support now */
+/* #define PCL724_IRQ   1  no IRQ support now */
 
 static int pcl724_attach(struct comedi_device * dev, struct comedi_devconfig * it);
 static int pcl724_detach(struct comedi_device * dev);
 
 struct pcl724_board {
 
-	const char *name;	// board name
-	int dio;		// num of DIO
-	int numofports;		// num of 8255 subdevices
-	unsigned int IRQbits;	// allowed interrupts
-	unsigned int io_range;	// len of IO space
+	const char *name;	/*  board name */
+	int dio;		/*  num of DIO */
+	int numofports;		/*  num of 8255 subdevices */
+	unsigned int IRQbits;	/*  allowed interrupts */
+	unsigned int io_range;	/*  len of IO space */
 	char can_have96;
 	char is_pet48;
 };
@@ -137,7 +137,7 @@ static int pcl724_attach(struct comedi_device * dev, struct comedi_devconfig * i
 	iorange = this_board->io_range;
 	if ((this_board->can_have96) && ((it->options[1] == 1)
 			|| (it->options[1] == 96)))
-		iorange = PCL722_96_SIZE;	// PCL-724 in 96 DIO configuration
+		iorange = PCL722_96_SIZE;	/*  PCL-724 in 96 DIO configuration */
 	printk("comedi%d: pcl724: board=%s, 0x%03lx ", dev->minor,
 		this_board->name, iobase);
 	if (!request_region(iobase, iorange, "pcl724")) {
@@ -181,7 +181,7 @@ static int pcl724_attach(struct comedi_device * dev, struct comedi_devconfig * i
 	n_subdevices = this_board->numofports;
 	if ((this_board->can_have96) && ((it->options[1] == 1)
 			|| (it->options[1] == 96)))
-		n_subdevices = 4;	// PCL-724 in 96 DIO configuration
+		n_subdevices = 4;	/*  PCL-724 in 96 DIO configuration */
 
 	if ((ret = alloc_subdevices(dev, n_subdevices)) < 0)
 		return ret;
@@ -204,7 +204,7 @@ static int pcl724_detach(struct comedi_device * dev)
 {
 	int i;
 
-//      printk("comedi%d: pcl724: remove\n",dev->minor);
+/* printk("comedi%d: pcl724: remove\n",dev->minor); */
 
 	for (i = 0; i < dev->n_subdevices; i++) {
 		subdev_8255_cleanup(dev, dev->subdevices + i);
