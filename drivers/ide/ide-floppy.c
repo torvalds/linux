@@ -91,9 +91,7 @@ static int ide_floppy_end_request(ide_drive_t *drive, int uptodate, int nsecs)
 
 	if (error)
 		floppy->failed_pc = NULL;
-	/* Why does this happen? */
-	if (!rq)
-		return 0;
+
 	if (!blk_special_request(rq)) {
 		/* our real local end request function */
 		ide_end_request(drive, uptodate, nsecs);
