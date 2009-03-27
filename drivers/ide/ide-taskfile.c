@@ -419,12 +419,14 @@ static ide_startstop_t task_out_intr (ide_drive_t *drive)
 
 static ide_startstop_t pre_task_out_intr(ide_drive_t *drive, struct request *rq)
 {
+	ide_hwif_t *hwif = drive->hwif;
 	ide_startstop_t startstop;
 
 	if (ide_wait_stat(&startstop, drive, ATA_DRQ,
 			  drive->bad_wstat, WAIT_DRQ)) {
 		printk(KERN_ERR "%s: no DRQ after issuing %sWRITE%s\n",
-			drive->name, drive->hwif->data_phase ? "MULT" : "",
+			drive->name,
+			hwif->data_phase == TASKFILE_MULTI_OUT ? "MULT" : "",
 			(drive->dev_flags & IDE_DFLAG_LBA48) ? "_EXT" : "");
 		return startstop;
 	}
