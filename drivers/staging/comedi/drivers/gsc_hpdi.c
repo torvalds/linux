@@ -62,8 +62,8 @@ static int hpdi_cancel(struct comedi_device * dev, struct comedi_subdevice * s);
 static irqreturn_t handle_interrupt(int irq, void *d PT_REGS_ARG);
 static int dio_config_block_size(struct comedi_device * dev, unsigned int * data);
 
-#undef HPDI_DEBUG		// disable debugging messages
-//#define HPDI_DEBUG    // enable debugging code
+#undef HPDI_DEBUG		/*  disable debugging messages */
+/* #define HPDI_DEBUG      enable debugging code */
 
 #ifdef HPDI_DEBUG
 #define DEBUG_PRINT(format, args...)  rt_printk(format , ## args )
@@ -71,12 +71,12 @@ static int dio_config_block_size(struct comedi_device * dev, unsigned int * data
 #define DEBUG_PRINT(format, args...)
 #endif
 
-#define TIMER_BASE 50		// 20MHz master clock
+#define TIMER_BASE 50		/*  20MHz master clock */
 #define DMA_BUFFER_SIZE 0x10000
 #define NUM_DMA_BUFFERS 4
 #define NUM_DMA_DESCRIPTORS 256
 
-// indices of base address regions
+/* indices of base address regions */
 enum base_address_regions {
 	PLX9080_BADDRINDEX = 0,
 	HPDI_BADDRINDEX = 2,
@@ -115,7 +115,7 @@ int command_channel_valid(unsigned int channel)
 	return 1;
 }
 
-// bit definitions
+/* bit definitions */
 
 enum firmware_revision_bits {
 	FEATURES_REG_PRESENT_BIT = 0x8000,
@@ -184,7 +184,7 @@ enum board_status_bits {
 
 uint32_t almost_full_bits(unsigned int num_words)
 {
-// XXX need to add or subtract one?
+/* XXX need to add or subtract one? */
 	return (num_words << 16) & 0xff0000;
 }
 
@@ -194,7 +194,7 @@ uint32_t almost_empty_bits(unsigned int num_words)
 }
 unsigned int almost_full_num_words(uint32_t bits)
 {
-// XXX need to add or subtract one?
+/* XXX need to add or subtract one? */
 	return (bits >> 16) & 0xffff;
 }
 unsigned int almost_empty_num_words(uint32_t bits)
@@ -263,8 +263,8 @@ uint32_t intr_active_high_bit(int interrupt_source)
 struct hpdi_board {
 
 	char *name;
-	int device_id;		// pci device id
-	int subdevice_id;	// pci subdevice id
+	int device_id;		/*  pci device id */
+	int subdevice_id;	/*  pci subdevice id */
 };
 
 
@@ -303,25 +303,25 @@ static inline struct hpdi_board *board(const struct comedi_device * dev)
 
 struct hpdi_private {
 
-	struct pci_dev *hw_dev;	// pointer to board's pci_dev struct
-	// base addresses (physical)
+	struct pci_dev *hw_dev;	/*  pointer to board's pci_dev struct */
+	/*  base addresses (physical) */
 	resource_size_t plx9080_phys_iobase;
 	resource_size_t hpdi_phys_iobase;
-	// base addresses (ioremapped)
+	/*  base addresses (ioremapped) */
 	void *plx9080_iobase;
 	void *hpdi_iobase;
-	uint32_t *dio_buffer[NUM_DMA_BUFFERS];	// dma buffers
-	dma_addr_t dio_buffer_phys_addr[NUM_DMA_BUFFERS];	// physical addresses of dma buffers
-	struct plx_dma_desc *dma_desc;	// array of dma descriptors read by plx9080, allocated to get proper alignment
-	dma_addr_t dma_desc_phys_addr;	// physical address of dma descriptor array
+	uint32_t *dio_buffer[NUM_DMA_BUFFERS];	/*  dma buffers */
+	dma_addr_t dio_buffer_phys_addr[NUM_DMA_BUFFERS];	/*  physical addresses of dma buffers */
+	struct plx_dma_desc *dma_desc;	/*  array of dma descriptors read by plx9080, allocated to get proper alignment */
+	dma_addr_t dma_desc_phys_addr;	/*  physical address of dma descriptor array */
 	unsigned int num_dma_descriptors;
-	uint32_t *desc_dio_buffer[NUM_DMA_DESCRIPTORS];	// pointer to start of buffers indexed by descriptor
-	volatile unsigned int dma_desc_index;	// index of the dma descriptor that is currently being used
+	uint32_t *desc_dio_buffer[NUM_DMA_DESCRIPTORS];	/*  pointer to start of buffers indexed by descriptor */
+	volatile unsigned int dma_desc_index;	/*  index of the dma descriptor that is currently being used */
 	unsigned int tx_fifo_size;
 	unsigned int rx_fifo_size;
 	volatile unsigned long dio_count;
-	volatile uint32_t bits[24];	// software copies of values written to hpdi registers
-	volatile unsigned int block_size;	// number of bytes at which to generate COMEDI_CB_BLOCK events
+	volatile uint32_t bits[24];	/*  software copies of values written to hpdi registers */
+	volatile unsigned int block_size;	/*  number of bytes at which to generate COMEDI_CB_BLOCK events */
 	unsigned dio_config_output:1;
 };
 
@@ -373,13 +373,13 @@ static void disable_plx_interrupts(struct comedi_device * dev)
 	writel(0, priv(dev)->plx9080_iobase + PLX_INTRCS_REG);
 }
 
-// initialize plx9080 chip
+/* initialize plx9080 chip */
 static void init_plx9080(struct comedi_device * dev)
 {
 	uint32_t bits;
 	void *plx_iobase = priv(dev)->plx9080_iobase;
 
-	// plx9080 dump
+	/*  plx9080 dump */
 	DEBUG_PRINT(" plx interrupt status 0x%x\n",
 		readl(plx_iobase + PLX_INTRCS_REG));
 	DEBUG_PRINT(" plx id bits 0x%x\n", readl(plx_iobase + PLX_ID_REG));
@@ -417,21 +417,21 @@ static void init_plx9080(struct comedi_device * dev)
 	abort_dma(dev, 0);
 	abort_dma(dev, 1);
 
-	// configure dma0 mode
+	/*  configure dma0 mode */
 	bits = 0;
-	// enable ready input
+	/*  enable ready input */
 	bits |= PLX_DMA_EN_READYIN_BIT;
-	// enable dma chaining
+	/*  enable dma chaining */
 	bits |= PLX_EN_CHAIN_BIT;
-	// enable interrupt on dma done (probably don't need this, since chain never finishes)
+	/*  enable interrupt on dma done (probably don't need this, since chain never finishes) */
 	bits |= PLX_EN_DMA_DONE_INTR_BIT;
-	// don't increment local address during transfers (we are transferring from a fixed fifo register)
+	/*  don't increment local address during transfers (we are transferring from a fixed fifo register) */
 	bits |= PLX_LOCAL_ADDR_CONST_BIT;
-	// route dma interrupt to pci bus
+	/*  route dma interrupt to pci bus */
 	bits |= PLX_DMA_INTR_PCI_BIT;
-	// enable demand mode
+	/*  enable demand mode */
 	bits |= PLX_DEMAND_MODE_BIT;
-	// enable local burst mode
+	/*  enable local burst mode */
 	bits |= PLX_DMA_LOCAL_BURST_EN_BIT;
 	bits |= PLX_LOCAL_BUS_32_WIDE_BITS;
 	writel(bits, plx_iobase + PLX_DMA0_MODE_REG);
@@ -484,7 +484,7 @@ static int init_hpdi(struct comedi_device * dev)
 
 	writel(0, priv(dev)->hpdi_iobase + INTERRUPT_CONTROL_REG);
 
-	// enable interrupts
+	/*  enable interrupts */
 	plx_intcsr_bits =
 		ICS_AERR | ICS_PERR | ICS_PIE | ICS_PLIE | ICS_PAIE | ICS_LIE |
 		ICS_DMA0_E;
@@ -493,7 +493,7 @@ static int init_hpdi(struct comedi_device * dev)
 	return 0;
 }
 
-// setup dma descriptors so a link completes every 'transfer_size' bytes
+/* setup dma descriptors so a link completes every 'transfer_size' bytes */
 static int setup_dma_descriptors(struct comedi_device * dev,
 	unsigned int transfer_size)
 {
@@ -545,7 +545,7 @@ static int setup_dma_descriptors(struct comedi_device * dev,
 			(unsigned long)priv(dev)->dma_desc[i].next);
 	}
 	priv(dev)->num_dma_descriptors = i;
-	// fix last descriptor to point back to first
+	/*  fix last descriptor to point back to first */
 	priv(dev)->dma_desc[i - 1].next =
 		cpu_to_le32(priv(dev)->dma_desc_phys_addr | next_bits);
 	DEBUG_PRINT(" desc %i next fixup 0x%lx\n", i - 1,
@@ -573,9 +573,9 @@ static int hpdi_attach(struct comedi_device * dev, struct comedi_devconfig * it)
 			pcidev = pci_get_subsys(PCI_VENDOR_ID_PLX,
 				hpdi_boards[i].device_id, PCI_VENDOR_ID_PLX,
 				hpdi_boards[i].subdevice_id, pcidev);
-			// was a particular bus/slot requested?
+			/*  was a particular bus/slot requested? */
 			if (it->options[0] || it->options[1]) {
-				// are we on the wrong bus/slot?
+				/*  are we on the wrong bus/slot? */
 				if (pcidev->bus->number != it->options[0] ||
 					PCI_SLOT(pcidev->devfn) !=
 					it->options[1])
@@ -603,7 +603,7 @@ static int hpdi_attach(struct comedi_device * dev, struct comedi_devconfig * it)
 	}
 	pci_set_master(pcidev);
 
-	//Initialize dev->board_name
+	/* Initialize dev->board_name */
 	dev->board_name = board(dev)->name;
 
 	priv(dev)->plx9080_phys_iobase =
@@ -611,7 +611,7 @@ static int hpdi_attach(struct comedi_device * dev, struct comedi_devconfig * it)
 	priv(dev)->hpdi_phys_iobase =
 		pci_resource_start(pcidev, HPDI_BADDRINDEX);
 
-	// remap, won't work with 2.0 kernels but who cares
+	/*  remap, won't work with 2.0 kernels but who cares */
 	priv(dev)->plx9080_iobase = ioremap(priv(dev)->plx9080_phys_iobase,
 		pci_resource_len(pcidev, PLX9080_BADDRINDEX));
 	priv(dev)->hpdi_iobase = ioremap(priv(dev)->hpdi_phys_iobase,
@@ -626,7 +626,7 @@ static int hpdi_attach(struct comedi_device * dev, struct comedi_devconfig * it)
 
 	init_plx9080(dev);
 
-	// get irq
+	/*  get irq */
 	if (comedi_request_irq(pcidev->irq, handle_interrupt, IRQF_SHARED,
 			driver_hpdi.driver_name, dev)) {
 		printk(" unable to allocate irq %u\n", pcidev->irq);
@@ -636,7 +636,7 @@ static int hpdi_attach(struct comedi_device * dev, struct comedi_devconfig * it)
 
 	printk(" irq %u\n", dev->irq);
 
-	// alocate pci dma buffers
+	/*  alocate pci dma buffers */
 	for (i = 0; i < NUM_DMA_BUFFERS; i++) {
 		priv(dev)->dio_buffer[i] =
 			pci_alloc_consistent(priv(dev)->hw_dev, DMA_BUFFER_SIZE,
@@ -645,7 +645,7 @@ static int hpdi_attach(struct comedi_device * dev, struct comedi_devconfig * it)
 			priv(dev)->dio_buffer[i],
 			(unsigned long)priv(dev)->dio_buffer_phys_addr[i]);
 	}
-	// allocate dma descriptors
+	/*  allocate dma descriptors */
 	priv(dev)->dma_desc = pci_alloc_consistent(priv(dev)->hw_dev,
 		sizeof(struct plx_dma_desc) * NUM_DMA_DESCRIPTORS,
 		&priv(dev)->dma_desc_phys_addr);
@@ -681,7 +681,7 @@ static int hpdi_detach(struct comedi_device * dev)
 			}
 			if (priv(dev)->hpdi_iobase)
 				iounmap((void *)priv(dev)->hpdi_iobase);
-			// free pci dma buffers
+			/*  free pci dma buffers */
 			for (i = 0; i < NUM_DMA_BUFFERS; i++) {
 				if (priv(dev)->dio_buffer[i])
 					pci_free_consistent(priv(dev)->hw_dev,
@@ -690,7 +690,7 @@ static int hpdi_detach(struct comedi_device * dev)
 						priv(dev)->
 						dio_buffer_phys_addr[i]);
 			}
-			// free dma descriptors
+			/*  free dma descriptors */
 			if (priv(dev)->dma_desc)
 				pci_free_consistent(priv(dev)->hw_dev,
 					sizeof(struct plx_dma_desc) *
@@ -761,7 +761,7 @@ static int di_cmd_test(struct comedi_device * dev, struct comedi_subdevice * s,
 
 	/* step 2: make sure trigger sources are unique and mutually compatible */
 
-	// uniqueness check
+	/*  uniqueness check */
 	if (cmd->stop_src != TRIG_COUNT && cmd->stop_src != TRIG_NONE)
 		err++;
 
@@ -807,7 +807,7 @@ static int di_cmd_test(struct comedi_device * dev, struct comedi_subdevice * s,
 	if (cmd->chanlist) {
 		for (i = 1; i < cmd->chanlist_len; i++) {
 			if (CR_CHAN(cmd->chanlist[i]) != i) {
-				// XXX could support 8 channels or 16 channels
+				/*  XXX could support 8 channels or 16 channels */
 				comedi_error(dev,
 					"chanlist must be channels 0 to 31 in order");
 				err++;
@@ -860,15 +860,15 @@ static int di_cmd(struct comedi_device * dev, struct comedi_subdevice * s)
 	writel(0, priv(dev)->plx9080_iobase + PLX_DMA0_TRANSFER_SIZE_REG);
 	writel(0, priv(dev)->plx9080_iobase + PLX_DMA0_PCI_ADDRESS_REG);
 	writel(0, priv(dev)->plx9080_iobase + PLX_DMA0_LOCAL_ADDRESS_REG);
-	// give location of first dma descriptor
+	/*  give location of first dma descriptor */
 	bits = priv(dev)->
 		dma_desc_phys_addr | PLX_DESC_IN_PCI_BIT | PLX_INTR_TERM_COUNT |
 		PLX_XFER_LOCAL_TO_PCI;
 	writel(bits, priv(dev)->plx9080_iobase + PLX_DMA0_DESCRIPTOR_REG);
 
-	// spinlock for plx dma control/status reg
+	/*  spinlock for plx dma control/status reg */
 	comedi_spin_lock_irqsave(&dev->spinlock, flags);
-	// enable dma transfer
+	/*  enable dma transfer */
 	writeb(PLX_DMA_EN_BIT | PLX_DMA_START_BIT | PLX_CLEAR_DMA_INTR_BIT,
 		priv(dev)->plx9080_iobase + PLX_DMA0_CS_REG);
 	comedi_spin_unlock_irqrestore(&dev->spinlock, flags);
@@ -878,10 +878,10 @@ static int di_cmd(struct comedi_device * dev, struct comedi_subdevice * s)
 	else
 		priv(dev)->dio_count = 1;
 
-	// clear over/under run status flags
+	/*  clear over/under run status flags */
 	writel(RX_UNDERRUN_BIT | RX_OVERRUN_BIT,
 		priv(dev)->hpdi_iobase + BOARD_STATUS_REG);
-	// enable interrupts
+	/*  enable interrupts */
 	writel(intr_bit(RX_FULL_INTR),
 		priv(dev)->hpdi_iobase + INTERRUPT_CONTROL_REG);
 
@@ -914,7 +914,7 @@ static void drain_dma_buffers(struct comedi_device * dev, unsigned int channel)
 		pci_addr_reg =
 			priv(dev)->plx9080_iobase + PLX_DMA0_PCI_ADDRESS_REG;
 
-	// loop until we have read all the full buffers
+	/*  loop until we have read all the full buffers */
 	j = 0;
 	for (next_transfer_addr = readl(pci_addr_reg);
 		(next_transfer_addr <
@@ -925,7 +925,7 @@ static void drain_dma_buffers(struct comedi_device * dev, unsigned int channel)
 					dma_desc_index].pci_start_addr) +
 			priv(dev)->block_size)
 		&& j < priv(dev)->num_dma_descriptors; j++) {
-		// transfer data from dma buffer to comedi buffer
+		/*  transfer data from dma buffer to comedi buffer */
 		num_samples = priv(dev)->block_size / sizeof(uint32_t);
 		if (async->cmd.stop_src == TRIG_COUNT) {
 			if (num_samples > priv(dev)->dio_count)
@@ -942,7 +942,7 @@ static void drain_dma_buffers(struct comedi_device * dev, unsigned int channel)
 			priv(dev)->dma_desc[priv(dev)->dma_desc_index].next);
 		DEBUG_PRINT("pci addr reg 0x%x\n", next_transfer_addr);
 	}
-	// XXX check for buffer overrun somehow
+	/*  XXX check for buffer overrun somehow */
 }
 
 static irqreturn_t handle_interrupt(int irq, void *d PT_REGS_ARG)
@@ -975,10 +975,10 @@ static irqreturn_t handle_interrupt(int irq, void *d PT_REGS_ARG)
 		writel(hpdi_intr_status,
 			priv(dev)->hpdi_iobase + INTERRUPT_STATUS_REG);
 	}
-	// spin lock makes sure noone else changes plx dma control reg
+	/*  spin lock makes sure noone else changes plx dma control reg */
 	comedi_spin_lock_irqsave(&dev->spinlock, flags);
 	dma0_status = readb(priv(dev)->plx9080_iobase + PLX_DMA0_CS_REG);
-	if (plx_status & ICS_DMA0_A) {	// dma chan 0 interrupt
+	if (plx_status & ICS_DMA0_A) {	/*  dma chan 0 interrupt */
 		writeb((dma0_status & PLX_DMA_EN_BIT) | PLX_CLEAR_DMA_INTR_BIT,
 			priv(dev)->plx9080_iobase + PLX_DMA0_CS_REG);
 
@@ -990,11 +990,11 @@ static irqreturn_t handle_interrupt(int irq, void *d PT_REGS_ARG)
 	}
 	comedi_spin_unlock_irqrestore(&dev->spinlock, flags);
 
-	// spin lock makes sure noone else changes plx dma control reg
+	/*  spin lock makes sure noone else changes plx dma control reg */
 	comedi_spin_lock_irqsave(&dev->spinlock, flags);
 	dma1_status = readb(priv(dev)->plx9080_iobase + PLX_DMA1_CS_REG);
-	if (plx_status & ICS_DMA1_A)	// XXX
-	{			// dma chan 1 interrupt
+	if (plx_status & ICS_DMA1_A)	/*  XXX */
+	{			/*  dma chan 1 interrupt */
 		writeb((dma1_status & PLX_DMA_EN_BIT) | PLX_CLEAR_DMA_INTR_BIT,
 			priv(dev)->plx9080_iobase + PLX_DMA1_CS_REG);
 		DEBUG_PRINT("dma1 status 0x%x\n", dma1_status);
@@ -1003,8 +1003,8 @@ static irqreturn_t handle_interrupt(int irq, void *d PT_REGS_ARG)
 	}
 	comedi_spin_unlock_irqrestore(&dev->spinlock, flags);
 
-	// clear possible plx9080 interrupt sources
-	if (plx_status & ICS_LDIA) {	// clear local doorbell interrupt
+	/*  clear possible plx9080 interrupt sources */
+	if (plx_status & ICS_LDIA) {	/*  clear local doorbell interrupt */
 		plx_bits = readl(priv(dev)->plx9080_iobase + PLX_DBR_OUT_REG);
 		writel(plx_bits, priv(dev)->plx9080_iobase + PLX_DBR_OUT_REG);
 		DEBUG_PRINT(" cleared local doorbell bits 0x%x\n", plx_bits);
@@ -1040,7 +1040,7 @@ void abort_dma(struct comedi_device * dev, unsigned int channel)
 {
 	unsigned long flags;
 
-	// spinlock for plx dma control/status reg
+	/*  spinlock for plx dma control/status reg */
 	comedi_spin_lock_irqsave(&dev->spinlock, flags);
 
 	plx9080_abort_dma(priv(dev)->plx9080_iobase, channel);
