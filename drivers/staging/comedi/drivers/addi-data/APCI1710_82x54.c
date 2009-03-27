@@ -233,9 +233,9 @@ int i_APCI1710_InsnConfigInitTimer(struct comedi_device * dev, struct comedi_sub
 	unsigned char b_OutputLevel;
 	unsigned char b_HardwareGateLevel;
 
-	//BEGIN JK 27.10.2003 : Add the possibility to use a 40 Mhz quartz
+	/* BEGIN JK 27.10.2003 : Add the possibility to use a 40 Mhz quartz */
 	unsigned int dw_Test = 0;
-	//END JK 27.10.2003 : Add the possibility to use a 40 Mhz quartz
+	/* END JK 27.10.2003 : Add the possibility to use a 40 Mhz quartz */
 
 	i_ReturnValue = insn->n;
 	b_ModulNbr = (unsigned char) CR_AREF(insn->chanspec);
@@ -256,7 +256,7 @@ int i_APCI1710_InsnConfigInitTimer(struct comedi_device * dev, struct comedi_sub
 			if (b_TimerNbr <= 2) {
 				/* Test the timer mode */
 				if (b_TimerMode <= 5) {
-					//BEGIN JK 27.10.2003 : Add the possibility to use a 40 Mhz quartz
+					/* BEGIN JK 27.10.2003 : Add the possibility to use a 40 Mhz quartz */
 					/* Test te imput clock selection */
 					/*
 					   if (((b_TimerNbr == 0) && (b_InputClockSelection == 0)) ||
@@ -271,11 +271,11 @@ int i_APCI1710_InsnConfigInitTimer(struct comedi_device * dev, struct comedi_sub
 					     ((b_InputClockSelection == APCI1710_PCI_BUS_CLOCK) ||
 					      (b_InputClockSelection == APCI1710_FRONT_CONNECTOR_INPUT) ||
 					      (b_InputClockSelection == APCI1710_10MHZ)))) {
-						//BEGIN JK 27.10.2003 : Add the possibility to use a 40 Mhz quartz
+						/* BEGIN JK 27.10.2003 : Add the possibility to use a 40 Mhz quartz */
 						if (((b_InputClockSelection == APCI1710_10MHZ) &&
 						     ((devpriv->s_BoardInfos.dw_MolduleConfiguration[b_ModulNbr] & 0x0000FFFFUL) >= 0x3131)) ||
 						     (b_InputClockSelection != APCI1710_10MHZ)) {
-							//END JK 27.10.2003 : Add the possibility to use a 40 Mhz quartz
+							/* END JK 27.10.2003 : Add the possibility to use a 40 Mhz quartz */
 							/* Test the input clock level selection */
 
 							if ((b_InputClockLevel == 0) ||
@@ -284,7 +284,7 @@ int i_APCI1710_InsnConfigInitTimer(struct comedi_device * dev, struct comedi_sub
 								if ((b_OutputLevel == 0) || (b_OutputLevel == 1)) {
 									/* Test the hardware gate level selection */
 									if ((b_HardwareGateLevel == 0) || (b_HardwareGateLevel == 1)) {
-										//BEGIN JK 27.10.03 : Add the possibility to use a 40 Mhz quartz
+										/* BEGIN JK 27.10.03 : Add the possibility to use a 40 Mhz quartz */
 										/* Test if version > 1.1 and clock selection = 10MHz */
 										if ((b_InputClockSelection == APCI1710_10MHZ) && ((devpriv->s_BoardInfos.dw_MolduleConfiguration[b_ModulNbr] & 0x0000FFFFUL) > 0x3131)) {
 											/* Test if 40MHz quartz on board */
@@ -297,7 +297,7 @@ int i_APCI1710_InsnConfigInitTimer(struct comedi_device * dev, struct comedi_sub
 
 										/* Test if detection OK */
 										if (dw_Test == 1) {
-											//END JK 27.10.03 : Add the possibility to use a 40 Mhz quartz
+											/* END JK 27.10.03 : Add the possibility to use a 40 Mhz quartz */
 											/* Initialisation OK */
 											devpriv->s_ModuleInfo[b_ModulNbr].s_82X54ModuleInfo.s_82X54TimerInfo[b_TimerNbr].b_82X54Init = 1;
 
@@ -314,7 +314,7 @@ int i_APCI1710_InsnConfigInitTimer(struct comedi_device * dev, struct comedi_sub
 											devpriv->s_ModuleInfo[b_ModulNbr].s_82X54ModuleInfo.s_82X54TimerInfo[b_TimerNbr].b_HardwareGateLevel = b_HardwareGateLevel;
 
 											/* Set the configuration word and disable the timer */
-											//BEGIN JK 27.10.03 : Add the possibility to use a 40 Mhz quartz
+											/* BEGIN JK 27.10.03 : Add the possibility to use a 40 Mhz quartz */
 											/*
 											   devpriv->s_ModuleInfo [b_ModulNbr].
 											   s_82X54ModuleInfo.
@@ -330,7 +330,7 @@ int i_APCI1710_InsnConfigInitTimer(struct comedi_device * dev, struct comedi_sub
 											}
 
 											devpriv->s_ModuleInfo[b_ModulNbr].s_82X54ModuleInfo.s_82X54TimerInfo[b_TimerNbr].dw_ConfigurationWord = (unsigned int)(((b_HardwareGateLevel << 0) & 0x1) | ((b_InputClockLevel << 1) & 0x2) | (((~b_OutputLevel & 1) << 2) & 0x4) | ((b_InputClockSelection << 4) & 0x30));
-											//END JK 27.10.03 : Add the possibility to use a 40 Mhz quartz
+											/* END JK 27.10.03 : Add the possibility to use a 40 Mhz quartz */
 											outl(devpriv->s_ModuleInfo[b_ModulNbr].s_82X54ModuleInfo.s_82X54TimerInfo[b_TimerNbr].dw_ConfigurationWord, devpriv->s_BoardInfos.ui_Address + 32 + (b_TimerNbr * 4) + (64 * b_ModulNbr));
 
 											/* Initialise the 82X54 Timer */
@@ -338,31 +338,31 @@ int i_APCI1710_InsnConfigInitTimer(struct comedi_device * dev, struct comedi_sub
 
 											/* Write the reload value */
 											outl(ul_ReloadValue, devpriv->s_BoardInfos.ui_Address + 0 + (b_TimerNbr * 4) + (64 * b_ModulNbr));
-											//BEGIN JK 27.10.03 : Add the possibility to use a 40 Mhz quartz
-										}	// if (dw_Test == 1)
+											/* BEGIN JK 27.10.03 : Add the possibility to use a 40 Mhz quartz */
+										}	/*  if (dw_Test == 1) */
 										else {
 											/* Input timer clock selection is wrong */
 											i_ReturnValue = -6;
-										}	// if (dw_Test == 1)
-										//END JK 27.10.03 : Add the possibility to use a 40 Mhz quartz
-									}	// if ((b_HardwareGateLevel == 0) || (b_HardwareGateLevel == 1))
+										}	/*  if (dw_Test == 1) */
+										/* END JK 27.10.03 : Add the possibility to use a 40 Mhz quartz */
+									}	/*  if ((b_HardwareGateLevel == 0) || (b_HardwareGateLevel == 1)) */
 									else {
 										/* Selection from hardware gate level is wrong */
 										DPRINTK("Selection from hardware gate level is wrong\n");
 										i_ReturnValue = -9;
-									}	// if ((b_HardwareGateLevel == 0) || (b_HardwareGateLevel == 1))
-								}	// if ((b_OutputLevel == 0) || (b_OutputLevel == 1))
+									}	/*  if ((b_HardwareGateLevel == 0) || (b_HardwareGateLevel == 1)) */
+								}	/*  if ((b_OutputLevel == 0) || (b_OutputLevel == 1)) */
 								else {
 									/* Selection from output clock level is wrong */
 									DPRINTK("Selection from output clock level is wrong\n");
 									i_ReturnValue = -8;
-								}	// if ((b_OutputLevel == 0) || (b_OutputLevel == 1))
-							}	// if ((b_InputClockLevel == 0) || (b_InputClockLevel == 1))
+								}	/*  if ((b_OutputLevel == 0) || (b_OutputLevel == 1)) */
+							}	/*  if ((b_InputClockLevel == 0) || (b_InputClockLevel == 1)) */
 							else {
 								/* Selection from input clock level is wrong */
 								DPRINTK("Selection from input clock level is wrong\n");
 								i_ReturnValue = -7;
-							}	// if ((b_InputClockLevel == 0) || (b_InputClockLevel == 1))
+							}	/*  if ((b_InputClockLevel == 0) || (b_InputClockLevel == 1)) */
 						} else {
 							/* Input timer clock selection is wrong */
 							DPRINTK("Input timer clock selection is wrong\n");
@@ -373,18 +373,18 @@ int i_APCI1710_InsnConfigInitTimer(struct comedi_device * dev, struct comedi_sub
 						DPRINTK("Input timer clock selection is wrong\n");
 						i_ReturnValue = -6;
 					}
-				}	// if ((b_TimerMode >= 0) && (b_TimerMode <= 5))
+				}	/*  if ((b_TimerMode >= 0) && (b_TimerMode <= 5)) */
 				else {
 					/* Timer mode selection is wrong */
 					DPRINTK("Timer mode selection is wrong\n");
 					i_ReturnValue = -5;
-				}	// if ((b_TimerMode >= 0) && (b_TimerMode <= 5))
-			}	// if ((b_TimerNbr >= 0) && (b_TimerNbr <= 2))
+				}	/*  if ((b_TimerMode >= 0) && (b_TimerMode <= 5)) */
+			}	/*  if ((b_TimerNbr >= 0) && (b_TimerNbr <= 2)) */
 			else {
 				/* Timer selection wrong */
 				DPRINTK("Timer selection wrong\n");
 				i_ReturnValue = -3;
-			}	// if ((b_TimerNbr >= 0) && (b_TimerNbr <= 2))
+			}	/*  if ((b_TimerNbr >= 0) && (b_TimerNbr <= 2)) */
 		} else {
 			/* The module is not a TIMER module */
 			DPRINTK("The module is not a TIMER module\n");
@@ -431,7 +431,7 @@ int i_APCI1710_InsnWriteEnableDisableTimer(struct comedi_device *dev,struct come
 i_ReturnValue=insn->n;
 	b_ModulNbr        = (unsigned char) CR_AREF(insn->chanspec);
 	b_TimerNbr		  = (unsigned char) CR_CHAN(insn->chanspec);
-	b_ActionType      = (unsigned char) data[0]; // enable disable
+	b_ActionType      = (unsigned char) data[0]; /*  enable disable */
 +----------------------------------------------------------------------------+
 | Output Parameters : -                                                      |
 +----------------------------------------------------------------------------+
@@ -462,7 +462,7 @@ int i_APCI1710_InsnWriteEnableDisableTimer(struct comedi_device * dev,
 	i_ReturnValue = insn->n;
 	b_ModulNbr = (unsigned char) CR_AREF(insn->chanspec);
 	b_TimerNbr = (unsigned char) CR_CHAN(insn->chanspec);
-	b_ActionType = (unsigned char) data[0];	// enable disable
+	b_ActionType = (unsigned char) data[0];	/*  enable disable */
 
 	/* Test the module number */
 	if (b_ModulNbr < 4) {
@@ -487,9 +487,9 @@ int i_APCI1710_InsnWriteEnableDisableTimer(struct comedi_device * dev,
 								devpriv->s_ModuleInfo[b_ModulNbr].s_82X54ModuleInfo.s_82X54TimerInfo[b_TimerNbr].dw_ConfigurationWord = devpriv->s_ModuleInfo[b_ModulNbr].s_82X54ModuleInfo.s_82X54TimerInfo[b_TimerNbr].dw_ConfigurationWord | 0x8;
 
 								outl(devpriv->s_ModuleInfo[b_ModulNbr].s_82X54ModuleInfo.s_82X54TimerInfo[b_TimerNbr].dw_ConfigurationWord, devpriv->s_BoardInfos.ui_Address + 32 + (b_TimerNbr * 4) + (64 * b_ModulNbr));
-								devpriv->tsk_Current = current;	// Save the current process task structure
+								devpriv->tsk_Current = current;	/*  Save the current process task structure */
 
-							}	// if (b_InterruptEnable == APCI1710_ENABLE)
+							}	/*  if (b_InterruptEnable == APCI1710_ENABLE) */
 							else {
 								/* Disable the interrupt */
 								devpriv->s_ModuleInfo[b_ModulNbr].s_82X54ModuleInfo.s_82X54TimerInfo[b_TimerNbr].dw_ConfigurationWord = devpriv->s_ModuleInfo[b_ModulNbr].s_82X54ModuleInfo.s_82X54TimerInfo[b_TimerNbr].dw_ConfigurationWord & 0xF7;
@@ -498,7 +498,7 @@ int i_APCI1710_InsnWriteEnableDisableTimer(struct comedi_device * dev,
 
 								/* Save the interrupt flag */
 								devpriv->s_ModuleInfo[b_ModulNbr].s_82X54ModuleInfo.b_InterruptMask = devpriv->s_ModuleInfo[b_ModulNbr].s_82X54ModuleInfo.b_InterruptMask & (0xFF - (1 << b_TimerNbr));
-							}	// if (b_InterruptEnable == APCI1710_ENABLE)
+							}	/*  if (b_InterruptEnable == APCI1710_ENABLE) */
 
 							/* Test if error occur */
 							if (i_ReturnValue >= 0) {
@@ -530,7 +530,7 @@ int i_APCI1710_InsnWriteEnableDisableTimer(struct comedi_device * dev,
 						/* Disable the timer */
 						outl(0, devpriv->s_BoardInfos.ui_Address + 44 + (b_TimerNbr * 4) + (64 * b_ModulNbr));
 						break;
-					}	// Switch end
+					}	/*  Switch end */
 				} else {
 					/* Timer not initialised see function */
 					DPRINTK ("Timer not initialised see function\n");
@@ -540,7 +540,7 @@ int i_APCI1710_InsnWriteEnableDisableTimer(struct comedi_device * dev,
 				/* Timer selection wrong */
 				DPRINTK("Timer selection wrong\n");
 				i_ReturnValue = -3;
-			}	// if ((b_TimerNbr >= 0) && (b_TimerNbr <= 2))
+			}	/*  if ((b_TimerNbr >= 0) && (b_TimerNbr <= 2)) */
 		} else {
 			/* The module is not a TIMER module */
 			DPRINTK("The module is not a TIMER module\n");
@@ -662,7 +662,7 @@ int i_APCI1710_InsnReadAllTimerValue(struct comedi_device *dev, struct comedi_su
 			i_ReturnValue = -2;
 		}
 
-	}			// End of Switch
+	}			/*  End of Switch */
 	return (i_ReturnValue);
 }
 
@@ -800,7 +800,7 @@ int i_APCI1710_ReadTimerValue(struct comedi_device * dev,
 				/* Timer selection wrong */
 				DPRINTK("Timer selection wrong\n");
 				i_ReturnValue = -3;
-			}	// if ((b_TimerNbr >= 0) && (b_TimerNbr <= 2))
+			}	/*  if ((b_TimerNbr >= 0) && (b_TimerNbr <= 2)) */
 		} else {
 			/* The module is not a TIMER module */
 			DPRINTK("The module is not a TIMER module\n");
@@ -879,7 +879,7 @@ int i_APCI1710_GetTimerOutputLevel(struct comedi_device * dev,
 				/* Timer selection wrong */
 				DPRINTK("Timer selection wrong\n");
 				i_ReturnValue = -3;
-			}	// if ((b_TimerNbr >= 0) && (b_TimerNbr <= 2))
+			}	/*  if ((b_TimerNbr >= 0) && (b_TimerNbr <= 2)) */
 		} else {
 			/* The module is not a TIMER module */
 			DPRINTK("The module is not a TIMER module\n");
@@ -958,7 +958,7 @@ int i_APCI1710_GetTimerProgressStatus(struct comedi_device *dev,
 			} else {
 				/* Timer selection wrong */
 				i_ReturnValue = -3;
-			}	// if ((b_TimerNbr >= 0) && (b_TimerNbr <= 2))
+			}	/*  if ((b_TimerNbr >= 0) && (b_TimerNbr <= 2)) */
 		} else {
 			/* The module is not a TIMER module */
 
@@ -1031,7 +1031,7 @@ int i_APCI1710_WriteTimerValue(struct comedi_device * dev,
 				/* Timer selection wrong */
 				DPRINTK("Timer selection wrong\n");
 				i_ReturnValue = -3;
-			}	// if ((b_TimerNbr >= 0) && (b_TimerNbr <= 2))
+			}	/*  if ((b_TimerNbr >= 0) && (b_TimerNbr <= 2)) */
 		} else {
 			/* The module is not a TIMER module */
 			DPRINTK("The module is not a TIMER module\n");
