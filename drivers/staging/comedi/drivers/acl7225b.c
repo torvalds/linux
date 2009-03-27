@@ -26,8 +26,8 @@ static int acl7225b_attach(struct comedi_device *dev, struct comedi_devconfig * 
 static int acl7225b_detach(struct comedi_device *dev);
 
 struct boardtype {
-	const char *name;	// driver name
-	int io_range;		// len of I/O space
+	const char *name;	/*  driver name */
+	int io_range;		/*  len of I/O space */
 };
 
 static const struct boardtype boardtypes[] = {
