@@ -762,7 +762,7 @@ static ide_startstop_t idetape_do_request(ide_drive_t *drive,
 			"request queue (%d)\n", drive->name, rq->cmd_type);
 		if (blk_fs_request(rq) == 0 && rq->errors == 0)
 			rq->errors = -EIO;
-		ide_end_request(drive, 0, 0);
+		ide_complete_rq(drive, -EIO, ide_rq_bytes(rq));
 		return ide_stopped;
 	}
 

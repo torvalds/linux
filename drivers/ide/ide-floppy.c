@@ -68,7 +68,7 @@ static void idefloppy_update_buffers(ide_drive_t *drive,
 	struct bio *bio = rq->bio;
 
 	while ((bio = rq->bio) != NULL)
-		ide_end_request(drive, 1, 0);
+		ide_complete_rq(drive, 0, ide_rq_bytes(rq));
 }
 
 static int ide_floppy_callback(ide_drive_t *drive, int dsc)
@@ -300,7 +300,7 @@ out_end:
 	drive->failed_pc = NULL;
 	if (blk_fs_request(rq) == 0 && rq->errors == 0)
 		rq->errors = -EIO;
-	ide_end_request(drive, 0, 0);
+	ide_complete_rq(drive, -EIO, ide_rq_bytes(rq));
 	return ide_stopped;
 }
 

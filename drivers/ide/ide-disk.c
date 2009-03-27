@@ -186,7 +186,7 @@ static ide_startstop_t ide_do_rw_disk(ide_drive_t *drive, struct request *rq,
 		blk_dump_rq_flags(rq, "ide_do_rw_disk - bad command");
 		if (rq->errors == 0)
 			rq->errors = -EIO;
-		ide_end_request(drive, 0, 0);
+		ide_complete_rq(drive, -EIO, ide_rq_bytes(rq));
 		return ide_stopped;
 	}
 

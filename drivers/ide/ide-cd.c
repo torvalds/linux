@@ -298,7 +298,7 @@ static void cdrom_end_request(ide_drive_t *drive, int uptodate)
 	if (blk_fs_request(rq) == 0 && uptodate <= 0 && rq->errors == 0)
 		rq->errors = -EIO;
 
-	ide_end_request(drive, uptodate, nsectors);
+	ide_complete_rq(drive, uptodate ? 0 : -EIO, nsectors << 9);
 }
 
 static void ide_dump_status_no_sense(ide_drive_t *drive, const char *msg, u8 st)
@@ -793,10 +793,11 @@ static ide_startstop_t cdrom_newpc_intr(ide_drive_t *drive)
 		if (dma_error)
 			return ide_error(drive, "dma error", stat);
 		if (blk_fs_request(rq)) {
-			ide_end_request(drive, 1, rq->nr_sectors);
+			ide_complete_rq(drive, 0, rq->nr_sectors
+				? (rq->nr_sectors << 9) : ide_rq_bytes(rq));
 			return ide_stopped;
 		} else if (rq->cmd_type == REQ_TYPE_ATA_PC && !rq->bio) {
-			ide_end_request(drive, 1, 1);
+			ide_complete_rq(drive, 0, 512);
 			return ide_stopped;
 		}
 		goto end_request;

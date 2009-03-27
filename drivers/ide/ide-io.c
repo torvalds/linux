@@ -71,48 +71,6 @@ int ide_end_rq(ide_drive_t *drive, struct request *rq, int error,
 }
 EXPORT_SYMBOL_GPL(ide_end_rq);
 
-/**
- *	ide_end_request		-	complete an IDE I/O
- *	@drive: IDE device for the I/O
- *	@uptodate:
- *	@nr_sectors: number of sectors completed
- *
- *	This is our end_request wrapper function. We complete the I/O
- *	update random number input and dequeue the request, which if
- *	it was tagged may be out of order.
- */
-
-int ide_end_request (ide_drive_t *drive, int uptodate, int nr_sectors)
-{
-	unsigned int nr_bytes = nr_sectors << 9;
-	struct request *rq = drive->hwif->rq;
-	int rc, error = 0;
-
-	if (!nr_bytes) {
-		if (blk_pc_request(rq))
-			nr_bytes = rq->data_len;
-		else
-			nr_bytes = rq->hard_cur_sectors << 9;
-	}
-
-	/*
-	 * if failfast is set on a request, override number of sectors
-	 * and complete the whole request right now
-	 */
-	if (blk_noretry_request(rq) && uptodate <= 0)
-		nr_bytes = rq->hard_nr_sectors << 9;
-
-	if (uptodate <= 0)
-		error = uptodate ? uptodate : -EIO;
-
-	rc = ide_end_rq(drive, rq, error, nr_bytes);
-	if (rc == 0)
-		drive->hwif->rq = NULL;
-
-	return rc;
-}
-EXPORT_SYMBOL(ide_end_request);
-
 void ide_complete_cmd(ide_drive_t *drive, struct ide_cmd *cmd, u8 stat, u8 err)
 {
 	struct ide_taskfile *tf = &cmd->tf;
@@ -141,11 +99,28 @@ void ide_complete_cmd(ide_drive_t *drive, struct ide_cmd *cmd, u8 stat, u8 err)
 		kfree(cmd);
 }
 
+/* obsolete, blk_rq_bytes() should be used instead */
+unsigned int ide_rq_bytes(struct request *rq)
+{
+	if (blk_pc_request(rq))
+		return rq->data_len;
+	else
+		return rq->hard_cur_sectors << 9;
+}
+EXPORT_SYMBOL_GPL(ide_rq_bytes);
+
 int ide_complete_rq(ide_drive_t *drive, int error, unsigned int nr_bytes)
 {
 	ide_hwif_t *hwif = drive->hwif;
 	struct request *rq = hwif->rq;
 	int rc;
+
+	/*
+	 * if failfast is set on a request, override number of sectors
+	 * and complete the whole request right now
+	 */
+	if (blk_noretry_request(rq) && error <= 0)
+		nr_bytes = rq->hard_nr_sectors << 9;
 
 	rc = ide_end_rq(drive, rq, error, nr_bytes);
 	if (rc == 0)
@@ -170,7 +145,7 @@ void ide_kill_rq(ide_drive_t *drive, struct request *rq)
 			rq->errors = IDE_DRV_ERROR_GENERAL;
 		else if (blk_fs_request(rq) == 0 && rq->errors == 0)
 			rq->errors = -EIO;
-		ide_end_request(drive, 0, 0);
+		ide_complete_rq(drive, -EIO, ide_rq_bytes(rq));
 	}
 }
 

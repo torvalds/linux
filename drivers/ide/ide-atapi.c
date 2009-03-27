@@ -410,7 +410,8 @@ static ide_startstop_t ide_pc_intr(ide_drive_t *drive)
 				if (rq->errors == 0)
 					rq->errors = -EIO;
 			}
-			ide_end_request(drive, uptodate, 0);
+			ide_complete_rq(drive, uptodate ? 0 : -EIO,
+					ide_rq_bytes(rq));
 		}
 
 		return ide_stopped;
@@ -469,7 +470,8 @@ static ide_startstop_t ide_pc_intr(ide_drive_t *drive)
 
 		/* FIXME: don't do partial completions */
 		if (drive->media == ide_floppy)
-			ide_end_request(drive, 1, done >> 9);
+			ide_complete_rq(drive, 0,
+					done ? done : ide_rq_bytes(rq));
 	} else
 		xferfunc(drive, NULL, pc->cur_pos, bcount);
 

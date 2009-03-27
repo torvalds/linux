@@ -283,7 +283,7 @@ static void ide_error_cmd(ide_drive_t *drive, struct ide_cmd *cmd)
 		}
 
 		if (sectors > 0)
-			ide_end_request(drive, 1, sectors);
+			ide_complete_rq(drive, 0, sectors << 9);
 	}
 }
 
@@ -352,7 +352,7 @@ out_end:
 	if ((cmd->tf_flags & IDE_TFLAG_FS) == 0)
 		ide_finish_cmd(drive, cmd, stat);
 	else
-		ide_end_request(drive, 1, cmd->rq->nr_sectors);
+		ide_complete_rq(drive, 0, cmd->rq->nr_sectors << 9);
 	return ide_stopped;
 out_err:
 	ide_error_cmd(drive, cmd);
