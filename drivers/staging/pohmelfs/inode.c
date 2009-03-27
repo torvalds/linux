@@ -1845,6 +1845,8 @@ static int pohmelfs_fill_super(struct super_block *sb, void *data, int silent)
 		err = PTR_ERR(npi);
 		goto err_out_crypto_exit;
 	}
+	set_bit(NETFS_INODE_REMOTE_SYNCED, &npi->state);
+	clear_bit(NETFS_INODE_OWNED, &npi->state);
 
 	root = &npi->vfs_inode;
 
