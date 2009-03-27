@@ -228,11 +228,11 @@ static ide_startstop_t do_special (ide_drive_t *drive)
 	return ide_stopped;
 }
 
-void ide_map_sg(ide_drive_t *drive, struct request *rq)
+void ide_map_sg(ide_drive_t *drive, struct ide_cmd *cmd)
 {
 	ide_hwif_t *hwif = drive->hwif;
-	struct ide_cmd *cmd = &hwif->cmd;
 	struct scatterlist *sg = hwif->sg_table;
+	struct request *rq = cmd->rq;
 
 	if (rq->cmd_type == REQ_TYPE_ATA_TASKFILE) {
 		sg_init_one(sg, rq->buffer, rq->nr_sectors * SECTOR_SIZE);
@@ -273,7 +273,7 @@ static ide_startstop_t execute_drive_cmd (ide_drive_t *drive,
 	if (cmd) {
 		if (cmd->protocol == ATA_PROT_PIO) {
 			ide_init_sg_cmd(cmd, rq->nr_sectors);
-			ide_map_sg(drive, rq);
+			ide_map_sg(drive, cmd);
 		}
 
 		return do_rw_taskfile(drive, cmd);

@@ -209,15 +209,14 @@ static void auide_set_dma_mode(ide_drive_t *drive, const u8 speed)
  */
 
 #ifdef CONFIG_BLK_DEV_IDE_AU1XXX_MDMA2_DBDMA
-static int auide_build_dmatable(ide_drive_t *drive)
+static int auide_build_dmatable(ide_drive_t *drive, struct ide_cmd *cmd)
 {
 	ide_hwif_t *hwif = drive->hwif;
-	struct request *rq = hwif->rq;
 	_auide_hwif *ahwif = &auide_hwif;
 	struct scatterlist *sg;
-	int i = hwif->cmd.sg_nents, iswrite, count = 0;
+	int i = cmd->sg_nents, count = 0;
+	int iswrite = !!(cmd->tf_flags & IDE_TFLAG_WRITE);
 
-	iswrite = (rq_data_dir(rq) == WRITE);
 	/* Save for interrupt context */
 	ahwif->drive = drive;
 
@@ -298,12 +297,10 @@ static void auide_dma_exec_cmd(ide_drive_t *drive, u8 command)
 			    (2*WAIT_CMD), NULL);
 }
 
-static int auide_dma_setup(ide_drive_t *drive)
+static int auide_dma_setup(ide_drive_t *drive, struct ide_cmd *cmd)
 {
-	struct request *rq = drive->hwif->rq;
-
-	if (!auide_build_dmatable(drive)) {
-		ide_map_sg(drive, rq);
+	if (auide_build_dmatable(drive, cmd) == 0) {
+		ide_map_sg(drive, cmd);
 		return 1;
 	}
 

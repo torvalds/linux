@@ -216,11 +216,11 @@ static int ns87415_dma_end(ide_drive_t *drive)
 	return (dma_stat & 7) != 4;
 }
 
-static int ns87415_dma_setup(ide_drive_t *drive)
+static int ns87415_dma_setup(ide_drive_t *drive, struct ide_cmd *cmd)
 {
 	/* select DMA xfer */
 	ns87415_prepare_drive(drive, 1);
-	if (!ide_dma_setup(drive))
+	if (ide_dma_setup(drive, cmd) == 0)
 		return 0;
 	/* DMA failed: select PIO xfer */
 	ns87415_prepare_drive(drive, 0);

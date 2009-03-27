@@ -424,12 +424,11 @@ sgiioc4_configure_for_dma(int dma_direction, ide_drive_t * drive)
 /* | Upper 32 bits - Zero	    |EOL| 15 unused     | 16 Bit Length| */
 /* --------------------------------------------------------------------- */
 /* Creates the scatter gather list, DMA Table */
-static unsigned int
-sgiioc4_build_dma_table(ide_drive_t * drive, struct request *rq, int ddir)
+static int sgiioc4_build_dmatable(ide_drive_t *drive, struct ide_cmd *cmd)
 {
 	ide_hwif_t *hwif = drive->hwif;
 	unsigned int *table = hwif->dmatable_cpu;
-	unsigned int count = 0, i = hwif->cmd.sg_nents;
+	unsigned int count = 0, i = cmd->sg_nents;
 	struct scatterlist *sg = hwif->sg_table;
 
 	while (i && sg_dma_len(sg)) {
@@ -484,24 +483,18 @@ use_pio_instead:
 	return 0;		/* revert to PIO for this request */
 }
 
-static int sgiioc4_dma_setup(ide_drive_t *drive)
+static int sgiioc4_dma_setup(ide_drive_t *drive, struct ide_cmd *cmd)
 {
-	struct request *rq = drive->hwif->rq;
-	unsigned int count = 0;
 	int ddir;
+	u8 write = !!(cmd->tf_flags & IDE_TFLAG_WRITE);
 
-	if (rq_data_dir(rq))
-		ddir = PCI_DMA_TODEVICE;
-	else
-		ddir = PCI_DMA_FROMDEVICE;
-
-	if (!(count = sgiioc4_build_dma_table(drive, rq, ddir))) {
+	if (sgiioc4_build_dmatable(drive, cmd) == 0) {
 		/* try PIO instead of DMA */
-		ide_map_sg(drive, rq);
+		ide_map_sg(drive, cmd);
 		return 1;
 	}
 
-	if (rq_data_dir(rq))
+	if (write)
 		/* Writes TO the IOC4 FROM Main Memory */
 		ddir = IOC4_DMA_READ;
 	else

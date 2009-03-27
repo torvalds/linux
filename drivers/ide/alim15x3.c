@@ -191,17 +191,18 @@ static void ali_set_dma_mode(ide_drive_t *drive, const u8 speed)
 /**
  *	ali15x3_dma_setup	-	begin a DMA phase
  *	@drive:	target device
+ *	@cmd: command
  *
  *	Returns 1 if the DMA cannot be performed, zero on success.
  */
 
-static int ali15x3_dma_setup(ide_drive_t *drive)
+static int ali15x3_dma_setup(ide_drive_t *drive, struct ide_cmd *cmd)
 {
 	if (m5229_revision < 0xC2 && drive->media != ide_disk) {
-		if (rq_data_dir(drive->hwif->rq))
+		if (cmd->tf_flags & IDE_TFLAG_WRITE)
 			return 1;	/* try PIO instead of DMA */
 	}
-	return ide_dma_setup(drive);
+	return ide_dma_setup(drive, cmd);
 }
 
 /**

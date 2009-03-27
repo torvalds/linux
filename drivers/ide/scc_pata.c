@@ -303,8 +303,9 @@ static void scc_dma_host_set(ide_drive_t *drive, int on)
 }
 
 /**
- *	scc_ide_dma_setup	-	begin a DMA phase
+ *	scc_dma_setup	-	begin a DMA phase
  *	@drive: target device
+ *	@cmd: command
  *
  *	Build an IDE DMA PRD (IDE speak for scatter gather table)
  *	and then set up the DMA transfer registers.
@@ -313,21 +314,15 @@ static void scc_dma_host_set(ide_drive_t *drive, int on)
  *	is returned.
  */
 
-static int scc_dma_setup(ide_drive_t *drive)
+static int scc_dma_setup(ide_drive_t *drive, struct ide_cmd *cmd)
 {
 	ide_hwif_t *hwif = drive->hwif;
-	struct request *rq = hwif->rq;
-	unsigned int reading;
+	u32 rw = (cmd->tf_flags & IDE_TFLAG_WRITE) ? 0 : ATA_DMA_WR;
 	u8 dma_stat;
 
-	if (rq_data_dir(rq))
-		reading = 0;
-	else
-		reading = 1 << 3;
-
 	/* fall back to pio! */
-	if (!ide_build_dmatable(drive, rq)) {
-		ide_map_sg(drive, rq);
+	if (ide_build_dmatable(drive, cmd) == 0) {
+		ide_map_sg(drive, cmd);
 		return 1;
 	}
 
@@ -335,7 +330,7 @@ static int scc_dma_setup(ide_drive_t *drive)
 	out_be32((void __iomem *)(hwif->dma_base + 8), hwif->dmatable_dma);
 
 	/* specify r/w */
-	out_be32((void __iomem *)hwif->dma_base, reading);
+	out_be32((void __iomem *)hwif->dma_base, rw);
 
 	/* read DMA status for INTR & ERROR flags */
 	dma_stat = scc_dma_sff_read_status(hwif);

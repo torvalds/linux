@@ -307,15 +307,14 @@ static void icside_dma_start(ide_drive_t *drive)
 	enable_dma(ec->dma);
 }
 
-static int icside_dma_setup(ide_drive_t *drive)
+static int icside_dma_setup(ide_drive_t *drive, struct ide_cmd *cmd)
 {
 	ide_hwif_t *hwif = drive->hwif;
 	struct expansion_card *ec = ECARD_DEV(hwif->dev);
 	struct icside_state *state = ecard_get_drvdata(ec);
-	struct request *rq = hwif->rq;
 	unsigned int dma_mode;
 
-	if (rq_data_dir(rq))
+	if (cmd->tf_flags & IDE_TFLAG_WRITE)
 		dma_mode = DMA_MODE_WRITE;
 	else
 		dma_mode = DMA_MODE_READ;
@@ -344,7 +343,7 @@ static int icside_dma_setup(ide_drive_t *drive)
 	 * Tell the DMA engine about the SG table and
 	 * data direction.
 	 */
-	set_dma_sg(ec->dma, hwif->sg_table, hwif->cmd.sg_nents);
+	set_dma_sg(ec->dma, hwif->sg_table, cmd->sg_nents);
 	set_dma_mode(ec->dma, dma_mode);
 
 	drive->waiting_for_dma = 1;

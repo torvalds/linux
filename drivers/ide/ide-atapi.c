@@ -638,11 +638,19 @@ ide_startstop_t ide_issue_pc(ide_drive_t *drive)
 {
 	struct ide_atapi_pc *pc;
 	ide_hwif_t *hwif = drive->hwif;
+	const struct ide_dma_ops *dma_ops = hwif->dma_ops;
+	struct ide_cmd *cmd = &hwif->cmd;
 	ide_expiry_t *expiry = NULL;
 	struct request *rq = hwif->rq;
 	unsigned int timeout;
 	u32 tf_flags;
 	u16 bcount;
+
+	if (drive->media != ide_floppy) {
+		if (rq_data_dir(rq))
+			cmd->tf_flags |= IDE_TFLAG_WRITE;
+		cmd->rq = rq;
+	}
 
 	if (dev_is_idecd(drive)) {
 		tf_flags = IDE_TFLAG_OUT_NSECT | IDE_TFLAG_OUT_LBAL;
@@ -651,8 +659,8 @@ ide_startstop_t ide_issue_pc(ide_drive_t *drive)
 		timeout = ATAPI_WAIT_PC;
 
 		if (drive->dma) {
-			if (ide_build_sglist(drive, rq))
-				drive->dma = !hwif->dma_ops->dma_setup(drive);
+			if (ide_build_sglist(drive, cmd))
+				drive->dma = !dma_ops->dma_setup(drive, cmd);
 			else
 				drive->dma = 0;
 		}
@@ -675,8 +683,8 @@ ide_startstop_t ide_issue_pc(ide_drive_t *drive)
 
 		if ((pc->flags & PC_FLAG_DMA_OK) &&
 		     (drive->dev_flags & IDE_DFLAG_USING_DMA)) {
-			if (ide_build_sglist(drive, rq))
-				drive->dma = !hwif->dma_ops->dma_setup(drive);
+			if (ide_build_sglist(drive, cmd))
+				drive->dma = !dma_ops->dma_setup(drive, cmd);
 			else
 				drive->dma = 0;
 		}

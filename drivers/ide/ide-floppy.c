@@ -285,9 +285,13 @@ static ide_startstop_t ide_floppy_do_request(ide_drive_t *drive,
 		goto out_end;
 	}
 
+	if (rq_data_dir(rq))
+		cmd->tf_flags |= IDE_TFLAG_WRITE;
+	cmd->rq = rq;
+
 	if (blk_fs_request(rq) || pc->req_xfer) {
 		ide_init_sg_cmd(cmd, rq->nr_sectors);
-		ide_map_sg(drive, rq);
+		ide_map_sg(drive, cmd);
 	}
 
 	pc->sg = hwif->sg_table;

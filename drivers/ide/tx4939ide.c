@@ -232,7 +232,7 @@ static u8 tx4939ide_clear_dma_status(void __iomem *base)
 
 #ifdef __BIG_ENDIAN
 /* custom ide_build_dmatable to handle swapped layout */
-static int tx4939ide_build_dmatable(ide_drive_t *drive, struct request *rq)
+static int tx4939ide_build_dmatable(ide_drive_t *drive, struct ide_cmd *cmd)
 {
 	ide_hwif_t *hwif = drive->hwif;
 	u32 *table = (u32 *)hwif->dmatable_cpu;
@@ -240,7 +240,7 @@ static int tx4939ide_build_dmatable(ide_drive_t *drive, struct request *rq)
 	int i;
 	struct scatterlist *sg;
 
-	for_each_sg(hwif->sg_table, sg, hwif->cmd.sg_nents, i) {
+	for_each_sg(hwif->sg_table, sg, cmd->sg_nents, i) {
 		u32 cur_addr, cur_len, bcount;
 
 		cur_addr = sg_dma_address(sg);
@@ -287,23 +287,15 @@ use_pio_instead:
 #define tx4939ide_build_dmatable	ide_build_dmatable
 #endif
 
-static int tx4939ide_dma_setup(ide_drive_t *drive)
+static int tx4939ide_dma_setup(ide_drive_t *drive, struct ide_cmd *cmd)
 {
 	ide_hwif_t *hwif = drive->hwif;
 	void __iomem *base = TX4939IDE_BASE(hwif);
-	struct request *rq = hwif->rq;
-	u8 reading;
-	int nent;
-
-	if (rq_data_dir(rq))
-		reading = 0;
-	else
-		reading = ATA_DMA_WR;
+	u8 rw = (cmd->tf_flags & IDE_TFLAG_WRITE) ? 0 : ATA_DMA_WR;
 
 	/* fall back to PIO! */
-	nent = tx4939ide_build_dmatable(drive, rq);
-	if (!nent) {
-		ide_map_sg(drive, rq);
+	if (tx4939ide_build_dmatable(drive, cmd) == 0) {
+		ide_map_sg(drive, cmd);
 		return 1;
 	}
 
@@ -311,7 +303,7 @@ static int tx4939ide_dma_setup(ide_drive_t *drive)
 	tx4939ide_writel(hwif->dmatable_dma, base, TX4939IDE_PRD_Ptr);
 
 	/* specify r/w */
-	tx4939ide_writeb(reading, base, TX4939IDE_DMA_Cmd);
+	tx4939ide_writeb(rw, base, TX4939IDE_DMA_Cmd);
 
 	/* clear INTR & ERROR flags */
 	tx4939ide_clear_dma_status(base);
@@ -320,7 +312,9 @@ static int tx4939ide_dma_setup(ide_drive_t *drive)
 
 	tx4939ide_writew(SECTOR_SIZE / 2, base, drive->dn ?
 			 TX4939IDE_Xfer_Cnt_2 : TX4939IDE_Xfer_Cnt_1);
-	tx4939ide_writew(rq->nr_sectors, base, TX4939IDE_Sec_Cnt);
+
+	tx4939ide_writew(cmd->rq->nr_sectors, base, TX4939IDE_Sec_Cnt);
+
 	return 0;
 }
 

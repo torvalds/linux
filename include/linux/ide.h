@@ -714,7 +714,7 @@ struct ide_port_ops {
 
 struct ide_dma_ops {
 	void	(*dma_host_set)(struct ide_drive_s *, int);
-	int	(*dma_setup)(struct ide_drive_s *);
+	int	(*dma_setup)(struct ide_drive_s *, struct ide_cmd *);
 	void	(*dma_exec_cmd)(struct ide_drive_s *, u8);
 	void	(*dma_start)(struct ide_drive_s *);
 	int	(*dma_end)(struct ide_drive_s *);
@@ -1412,7 +1412,7 @@ int ide_pci_resume(struct pci_dev *);
 #define ide_pci_resume NULL
 #endif
 
-void ide_map_sg(ide_drive_t *, struct request *);
+void ide_map_sg(ide_drive_t *, struct ide_cmd *);
 void ide_init_sg_cmd(struct ide_cmd *, int);
 
 #define BAD_DMA_DRIVE		0
@@ -1447,14 +1447,14 @@ ide_startstop_t ide_dma_intr(ide_drive_t *);
 int ide_allocate_dma_engine(ide_hwif_t *);
 void ide_release_dma_engine(ide_hwif_t *);
 
-int ide_build_sglist(ide_drive_t *, struct request *);
+int ide_build_sglist(ide_drive_t *, struct ide_cmd *);
 void ide_destroy_dmatable(ide_drive_t *);
 
 #ifdef CONFIG_BLK_DEV_IDEDMA_SFF
 int config_drive_for_dma(ide_drive_t *);
-extern int ide_build_dmatable(ide_drive_t *, struct request *);
+int ide_build_dmatable(ide_drive_t *, struct ide_cmd *);
 void ide_dma_host_set(ide_drive_t *, int);
-extern int ide_dma_setup(ide_drive_t *);
+int ide_dma_setup(ide_drive_t *, struct ide_cmd *);
 void ide_dma_exec_cmd(ide_drive_t *, u8);
 extern void ide_dma_start(ide_drive_t *);
 int ide_dma_end(ide_drive_t *);
@@ -1482,7 +1482,7 @@ static inline void ide_check_dma_crc(ide_drive_t *drive) { ; }
 static inline ide_startstop_t ide_dma_timeout_retry(ide_drive_t *drive, int error) { return ide_stopped; }
 static inline void ide_release_dma_engine(ide_hwif_t *hwif) { ; }
 static inline int ide_build_sglist(ide_drive_t *drive,
-				   struct request *rq) { return 0; }
+				   struct ide_cmd *cmd) { return 0; }
 #endif /* CONFIG_BLK_DEV_IDEDMA */
 
 #ifdef CONFIG_BLK_DEV_IDEACPI

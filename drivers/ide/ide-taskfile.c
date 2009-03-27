@@ -102,8 +102,8 @@ ide_startstop_t do_rw_taskfile(ide_drive_t *drive, struct ide_cmd *orig_cmd)
 		return ide_started;
 	default:
 		if ((drive->dev_flags & IDE_DFLAG_USING_DMA) == 0 ||
-		    ide_build_sglist(drive, hwif->rq) == 0 ||
-		    dma_ops->dma_setup(drive))
+		    ide_build_sglist(drive, cmd) == 0 ||
+		    dma_ops->dma_setup(drive, cmd))
 			return ide_stopped;
 		dma_ops->dma_exec_cmd(drive, tf->command);
 		dma_ops->dma_start(drive);

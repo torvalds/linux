@@ -99,11 +99,6 @@ static ide_startstop_t __ide_do_rw_disk(ide_drive_t *drive, struct request *rq,
 	memset(&cmd, 0, sizeof(cmd));
 	cmd.tf_flags = IDE_TFLAG_TF | IDE_TFLAG_DEVICE;
 
-	if (dma == 0) {
-		ide_init_sg_cmd(&cmd, nsectors);
-		ide_map_sg(drive, rq);
-	}
-
 	if (drive->dev_flags & IDE_DFLAG_LBA) {
 		if (lba48) {
 			pr_debug("%s: LBA=0x%012llx\n", drive->name,
@@ -155,6 +150,11 @@ static ide_startstop_t __ide_do_rw_disk(ide_drive_t *drive, struct request *rq,
 
 	ide_tf_set_cmd(drive, &cmd, dma);
 	cmd.rq = rq;
+
+	if (dma == 0) {
+		ide_init_sg_cmd(&cmd, nsectors);
+		ide_map_sg(drive, &cmd);
+	}
 
 	rc = do_rw_taskfile(drive, &cmd);
 

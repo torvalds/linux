@@ -120,7 +120,7 @@ int ide_dma_good_drive(ide_drive_t *drive)
 /**
  *	ide_build_sglist	-	map IDE scatter gather for DMA I/O
  *	@drive: the drive to build the DMA table for
- *	@rq: the request holding the sg list
+ *	@cmd: command
  *
  *	Perform the DMA mapping magic necessary to access the source or
  *	target buffers of a request via DMA.  The lower layers of the
@@ -128,23 +128,22 @@ int ide_dma_good_drive(ide_drive_t *drive)
  *	operate in a portable fashion.
  */
 
-int ide_build_sglist(ide_drive_t *drive, struct request *rq)
+int ide_build_sglist(ide_drive_t *drive, struct ide_cmd *cmd)
 {
 	ide_hwif_t *hwif = drive->hwif;
 	struct scatterlist *sg = hwif->sg_table;
-	struct ide_cmd *cmd = &hwif->cmd;
 	int i;
 
-	ide_map_sg(drive, rq);
+	ide_map_sg(drive, cmd);
 
-	if (rq_data_dir(rq) == READ)
-		cmd->sg_dma_direction = DMA_FROM_DEVICE;
-	else
+	if (cmd->tf_flags & IDE_TFLAG_WRITE)
 		cmd->sg_dma_direction = DMA_TO_DEVICE;
+	else
+		cmd->sg_dma_direction = DMA_FROM_DEVICE;
 
 	i = dma_map_sg(hwif->dev, sg, cmd->sg_nents, cmd->sg_dma_direction);
 	if (i == 0)
-		ide_map_sg(drive, rq);
+		ide_map_sg(drive, cmd);
 	else {
 		cmd->orig_sg_nents = cmd->sg_nents;
 		cmd->sg_nents = i;
