@@ -297,6 +297,7 @@ enum {
 	IDE_TFLAG_IO_16BIT		= (1 << 26),
 	/* struct ide_cmd was allocated using kmalloc() */
 	IDE_TFLAG_DYN			= (1 << 27),
+	IDE_TFLAG_FS			= (1 << 28),
 };
 
 enum {
@@ -655,10 +656,10 @@ struct ide_tp_ops {
 	void	(*tf_load)(ide_drive_t *, struct ide_cmd *);
 	void	(*tf_read)(ide_drive_t *, struct ide_cmd *);
 
-	void	(*input_data)(ide_drive_t *, struct request *, void *,
-			      unsigned int);
-	void	(*output_data)(ide_drive_t *, struct request *, void *,
-			       unsigned int);
+	void	(*input_data)(ide_drive_t *, struct ide_cmd *,
+			      void *, unsigned int);
+	void	(*output_data)(ide_drive_t *, struct ide_cmd *,
+			       void *, unsigned int);
 };
 
 extern const struct ide_tp_ops default_tp_ops;
@@ -866,7 +867,7 @@ typedef ide_startstop_t (ide_handler_t)(ide_drive_t *);
 typedef int (ide_expiry_t)(ide_drive_t *);
 
 /* used by ide-cd, ide-floppy, etc. */
-typedef void (xfer_func_t)(ide_drive_t *, struct request *rq, void *, unsigned);
+typedef void (xfer_func_t)(ide_drive_t *, struct ide_cmd *, void *, unsigned);
 
 extern struct mutex ide_setting_mtx;
 
@@ -1175,8 +1176,8 @@ void ide_set_irq(ide_hwif_t *, int);
 void ide_tf_load(ide_drive_t *, struct ide_cmd *);
 void ide_tf_read(ide_drive_t *, struct ide_cmd *);
 
-void ide_input_data(ide_drive_t *, struct request *, void *, unsigned int);
-void ide_output_data(ide_drive_t *, struct request *, void *, unsigned int);
+void ide_input_data(ide_drive_t *, struct ide_cmd *, void *, unsigned int);
+void ide_output_data(ide_drive_t *, struct ide_cmd *, void *, unsigned int);
 
 int ide_io_buffers(ide_drive_t *, struct ide_atapi_pc *, unsigned int, int);
 
@@ -1226,7 +1227,7 @@ ide_startstop_t ide_issue_pc(ide_drive_t *);
 
 ide_startstop_t do_rw_taskfile(ide_drive_t *, struct ide_cmd *);
 
-void task_end_request(ide_drive_t *, struct request *, u8);
+void ide_finish_cmd(ide_drive_t *, struct ide_cmd *, u8);
 
 int ide_raw_taskfile(ide_drive_t *, struct ide_cmd *, u8 *, u16);
 int ide_no_data_taskfile(ide_drive_t *, struct ide_cmd *);

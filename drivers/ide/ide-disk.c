@@ -156,6 +156,8 @@ static ide_startstop_t __ide_do_rw_disk(ide_drive_t *drive, struct request *rq,
 		tf->device = head;
 	}
 
+	cmd.tf_flags |= IDE_TFLAG_FS;
+
 	if (rq_data_dir(rq))
 		cmd.tf_flags |= IDE_TFLAG_WRITE;
 

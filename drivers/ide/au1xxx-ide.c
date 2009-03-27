@@ -86,13 +86,13 @@ void auide_outsw(unsigned long port, void *addr, u32 count)
 	ctp->cur_ptr = au1xxx_ddma_get_nextptr_virt(dp);
 }
 
-static void au1xxx_input_data(ide_drive_t *drive, struct request *rq,
+static void au1xxx_input_data(ide_drive_t *drive, struct ide_cmd *cmd,
 			      void *buf, unsigned int len)
 {
 	auide_insw(drive->hwif->io_ports.data_addr, buf, (len + 1) / 2);
 }
 
-static void au1xxx_output_data(ide_drive_t *drive, struct request *rq,
+static void au1xxx_output_data(ide_drive_t *drive, struct ide_cmd *cmd,
 			       void *buf, unsigned int len)
 {
 	auide_outsw(drive->hwif->io_ports.data_addr, buf, (len + 1) / 2);

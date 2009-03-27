@@ -143,7 +143,7 @@ static void apply_timings(const u8 chipselect, const u8 pio,
 	set_smc_timings(chipselect, cycle, setup, pulse, data_float, use_iordy);
 }
 
-static void at91_ide_input_data(ide_drive_t *drive, struct request *rq,
+static void at91_ide_input_data(ide_drive_t *drive, struct ide_cmd *cmd,
 				void *buf, unsigned int len)
 {
 	ide_hwif_t *hwif = drive->hwif;
@@ -160,7 +160,7 @@ static void at91_ide_input_data(ide_drive_t *drive, struct request *rq,
 	leave_16bit(chipselect, mode);
 }
 
-static void at91_ide_output_data(ide_drive_t *drive, struct request *rq,
+static void at91_ide_output_data(ide_drive_t *drive, struct ide_cmd *cmd,
 				 void *buf, unsigned int len)
 {
 	ide_hwif_t *hwif = drive->hwif;

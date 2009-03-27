@@ -219,7 +219,7 @@ static void ata_vlb_sync(unsigned long port)
  * so if an odd len is specified, be sure that there's at least one
  * extra byte allocated for the buffer.
  */
-void ide_input_data(ide_drive_t *drive, struct request *rq, void *buf,
+void ide_input_data(ide_drive_t *drive, struct ide_cmd *cmd, void *buf,
 		    unsigned int len)
 {
 	ide_hwif_t *hwif = drive->hwif;
@@ -265,7 +265,7 @@ EXPORT_SYMBOL_GPL(ide_input_data);
 /*
  * This is used for most PIO data transfers *to* the IDE interface
  */
-void ide_output_data(ide_drive_t *drive, struct request *rq, void *buf,
+void ide_output_data(ide_drive_t *drive, struct ide_cmd *cmd, void *buf,
 		     unsigned int len)
 {
 	ide_hwif_t *hwif = drive->hwif;

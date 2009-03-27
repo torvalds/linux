@@ -750,7 +750,7 @@ static void scc_tf_read(ide_drive_t *drive, struct ide_cmd *cmd)
 	}
 }
 
-static void scc_input_data(ide_drive_t *drive, struct request *rq,
+static void scc_input_data(ide_drive_t *drive, struct ide_cmd *cmd,
 			   void *buf, unsigned int len)
 {
 	unsigned long data_addr = drive->hwif->io_ports.data_addr;
@@ -766,7 +766,7 @@ static void scc_input_data(ide_drive_t *drive, struct request *rq,
 		scc_ide_insw(data_addr, buf, len / 2);
 }
 
-static void scc_output_data(ide_drive_t *drive,  struct request *rq,
+static void scc_output_data(ide_drive_t *drive,  struct ide_cmd *cmd,
 			    void *buf, unsigned int len)
 {
 	unsigned long data_addr = drive->hwif->io_ports.data_addr;

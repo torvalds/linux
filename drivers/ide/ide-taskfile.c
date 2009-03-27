@@ -54,19 +54,20 @@ int taskfile_lib_get_identify (ide_drive_t *drive, u8 *buf)
 }
 
 static ide_startstop_t task_no_data_intr(ide_drive_t *);
-static ide_startstop_t pre_task_out_intr(ide_drive_t *, struct request *);
+static ide_startstop_t pre_task_out_intr(ide_drive_t *, struct ide_cmd *);
 static ide_startstop_t task_in_intr(ide_drive_t *);
 
-ide_startstop_t do_rw_taskfile(ide_drive_t *drive, struct ide_cmd *cmd)
+ide_startstop_t do_rw_taskfile(ide_drive_t *drive, struct ide_cmd *orig_cmd)
 {
 	ide_hwif_t *hwif = drive->hwif;
+	struct ide_cmd *cmd = &hwif->cmd;
 	struct ide_taskfile *tf = &cmd->tf;
 	ide_handler_t *handler = NULL;
 	const struct ide_tp_ops *tp_ops = hwif->tp_ops;
 	const struct ide_dma_ops *dma_ops = hwif->dma_ops;
 
-	if (cmd->data_phase == TASKFILE_MULTI_IN ||
-	    cmd->data_phase == TASKFILE_MULTI_OUT) {
+	if (orig_cmd->data_phase == TASKFILE_MULTI_IN ||
+	    orig_cmd->data_phase == TASKFILE_MULTI_OUT) {
 		if (!drive->mult_count) {
 			printk(KERN_ERR "%s: multimode not set!\n",
 					drive->name);
@@ -74,10 +75,10 @@ ide_startstop_t do_rw_taskfile(ide_drive_t *drive, struct ide_cmd *cmd)
 		}
 	}
 
-	if (cmd->ftf_flags & IDE_FTFLAG_FLAGGED)
-		cmd->ftf_flags |= IDE_FTFLAG_SET_IN_FLAGS;
+	if (orig_cmd->ftf_flags & IDE_FTFLAG_FLAGGED)
+		orig_cmd->ftf_flags |= IDE_FTFLAG_SET_IN_FLAGS;
 
-	memcpy(&hwif->cmd, cmd, sizeof(*cmd));
+	memcpy(cmd, orig_cmd, sizeof(*cmd));
 
 	if ((cmd->tf_flags & IDE_TFLAG_DMA_PIO_FALLBACK) == 0) {
 		ide_tf_dump(drive->name, tf);
@@ -91,7 +92,7 @@ ide_startstop_t do_rw_taskfile(ide_drive_t *drive, struct ide_cmd *cmd)
 	case TASKFILE_OUT:
 		tp_ops->exec_command(hwif, tf->command);
 		ndelay(400);	/* FIXME */
-		return pre_task_out_intr(drive, cmd->rq);
+		return pre_task_out_intr(drive, cmd);
 	case TASKFILE_MULTI_IN:
 	case TASKFILE_IN:
 		handler = task_in_intr;
@@ -203,7 +204,7 @@ static u8 wait_drive_not_busy(ide_drive_t *drive)
 	return stat;
 }
 
-static void ide_pio_sector(ide_drive_t *drive, struct request *rq,
+static void ide_pio_sector(ide_drive_t *drive, struct ide_cmd *cmd,
 			   unsigned int write)
 {
 	ide_hwif_t *hwif = drive->hwif;
@@ -244,9 +245,9 @@ static void ide_pio_sector(ide_drive_t *drive, struct request *rq,
 
 	/* do the actual data transfer */
 	if (write)
-		hwif->tp_ops->output_data(drive, rq, buf, SECTOR_SIZE);
+		hwif->tp_ops->output_data(drive, cmd, buf, SECTOR_SIZE);
 	else
-		hwif->tp_ops->input_data(drive, rq, buf, SECTOR_SIZE);
+		hwif->tp_ops->input_data(drive, cmd, buf, SECTOR_SIZE);
 
 	kunmap_atomic(buf, KM_BIO_SRC_IRQ);
 #ifdef CONFIG_HIGHMEM
@@ -254,24 +255,23 @@ static void ide_pio_sector(ide_drive_t *drive, struct request *rq,
 #endif
 }
 
-static void ide_pio_multi(ide_drive_t *drive, struct request *rq,
+static void ide_pio_multi(ide_drive_t *drive, struct ide_cmd *cmd,
 			  unsigned int write)
 {
 	unsigned int nsect;
 
 	nsect = min_t(unsigned int, drive->hwif->nleft, drive->mult_count);
 	while (nsect--)
-		ide_pio_sector(drive, rq, write);
+		ide_pio_sector(drive, cmd, write);
 }
 
-static void ide_pio_datablock(ide_drive_t *drive, struct request *rq,
-				     unsigned int write)
+static void ide_pio_datablock(ide_drive_t *drive, struct ide_cmd *cmd,
+			      unsigned int write)
 {
-	struct ide_cmd *cmd = &drive->hwif->cmd;
 	u8 saved_io_32bit = drive->io_32bit;
 
-	if (blk_fs_request(rq))
-		rq->errors = 0;
+	if (cmd->tf_flags & IDE_TFLAG_FS)
+		cmd->rq->errors = 0;
 
 	if (cmd->tf_flags & IDE_TFLAG_IO_16BIT)
 		drive->io_32bit = 0;
@@ -281,22 +281,21 @@ static void ide_pio_datablock(ide_drive_t *drive, struct request *rq,
 	switch (cmd->data_phase) {
 	case TASKFILE_MULTI_IN:
 	case TASKFILE_MULTI_OUT:
-		ide_pio_multi(drive, rq, write);
+		ide_pio_multi(drive, cmd, write);
 		break;
 	default:
-		ide_pio_sector(drive, rq, write);
+		ide_pio_sector(drive, cmd, write);
 		break;
 	}
 
 	drive->io_32bit = saved_io_32bit;
 }
 
-static ide_startstop_t task_error(ide_drive_t *drive, struct request *rq,
+static ide_startstop_t task_error(ide_drive_t *drive, struct ide_cmd *cmd,
 				  const char *s, u8 stat)
 {
-	if (blk_fs_request(rq)) {
+	if (cmd->tf_flags & IDE_TFLAG_FS) {
 		ide_hwif_t *hwif = drive->hwif;
-		struct ide_cmd *cmd = &hwif->cmd;
 		int sectors = hwif->nsect - hwif->nleft;
 
 		switch (cmd->data_phase) {
@@ -323,19 +322,17 @@ static ide_startstop_t task_error(ide_drive_t *drive, struct request *rq,
 	return ide_error(drive, s, stat);
 }
 
-void task_end_request(ide_drive_t *drive, struct request *rq, u8 stat)
+void ide_finish_cmd(ide_drive_t *drive, struct ide_cmd *cmd, u8 stat)
 {
-	if (blk_fs_request(rq) == 0) {
-		struct ide_cmd *cmd = rq->special;
+	if ((cmd->tf_flags & IDE_TFLAG_FS) == 0) {
 		u8 err = ide_read_error(drive);
 
-		if (cmd)
-			ide_complete_cmd(drive, cmd, stat, err);
+		ide_complete_cmd(drive, cmd, stat, err);
 		ide_complete_rq(drive, err);
 		return;
 	}
 
-	ide_end_request(drive, 1, rq->nr_sectors);
+	ide_end_request(drive, 1, cmd->rq->nr_sectors);
 }
 
 /*
@@ -344,11 +341,12 @@ void task_end_request(ide_drive_t *drive, struct request *rq, u8 stat)
  * It might be a spurious irq (shared irq), but it might be a
  * command that had no output.
  */
-static ide_startstop_t task_in_unexpected(ide_drive_t *drive, struct request *rq, u8 stat)
+static ide_startstop_t task_in_unexpected(ide_drive_t *drive,
+					  struct ide_cmd *cmd, u8 stat)
 {
 	/* Command all done? */
 	if (OK_STAT(stat, ATA_DRDY, ATA_BUSY)) {
-		task_end_request(drive, rq, stat);
+		ide_finish_cmd(drive, cmd, stat);
 		return ide_stopped;
 	}
 
@@ -363,25 +361,25 @@ static ide_startstop_t task_in_unexpected(ide_drive_t *drive, struct request *rq
 static ide_startstop_t task_in_intr(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif = drive->hwif;
-	struct request *rq = hwif->rq;
+	struct ide_cmd *cmd = &drive->hwif->cmd;
 	u8 stat = hwif->tp_ops->read_status(hwif);
 
 	/* Error? */
 	if (stat & ATA_ERR)
-		return task_error(drive, rq, __func__, stat);
+		return task_error(drive, cmd, __func__, stat);
 
 	/* Didn't want any data? Odd. */
 	if ((stat & ATA_DRQ) == 0)
-		return task_in_unexpected(drive, rq, stat);
+		return task_in_unexpected(drive, cmd, stat);
 
-	ide_pio_datablock(drive, rq, 0);
+	ide_pio_datablock(drive, cmd, 0);
 
 	/* Are we done? Check status and finish transfer. */
 	if (!hwif->nleft) {
 		stat = wait_drive_not_busy(drive);
 		if (!OK_STAT(stat, 0, BAD_STAT))
-			return task_error(drive, rq, __func__, stat);
-		task_end_request(drive, rq, stat);
+			return task_error(drive, cmd, __func__, stat);
+		ide_finish_cmd(drive, cmd, stat);
 		return ide_stopped;
 	}
 
@@ -397,31 +395,31 @@ static ide_startstop_t task_in_intr(ide_drive_t *drive)
 static ide_startstop_t task_out_intr (ide_drive_t *drive)
 {
 	ide_hwif_t *hwif = drive->hwif;
-	struct request *rq = hwif->rq;
+	struct ide_cmd *cmd = &drive->hwif->cmd;
 	u8 stat = hwif->tp_ops->read_status(hwif);
 
 	if (!OK_STAT(stat, DRIVE_READY, drive->bad_wstat))
-		return task_error(drive, rq, __func__, stat);
+		return task_error(drive, cmd, __func__, stat);
 
 	/* Deal with unexpected ATA data phase. */
 	if (((stat & ATA_DRQ) == 0) ^ !hwif->nleft)
-		return task_error(drive, rq, __func__, stat);
+		return task_error(drive, cmd, __func__, stat);
 
 	if (!hwif->nleft) {
-		task_end_request(drive, rq, stat);
+		ide_finish_cmd(drive, cmd, stat);
 		return ide_stopped;
 	}
 
 	/* Still data left to transfer. */
-	ide_pio_datablock(drive, rq, 1);
+	ide_pio_datablock(drive, cmd, 1);
 	ide_set_handler(drive, &task_out_intr, WAIT_WORSTCASE, NULL);
 
 	return ide_started;
 }
 
-static ide_startstop_t pre_task_out_intr(ide_drive_t *drive, struct request *rq)
+static ide_startstop_t pre_task_out_intr(ide_drive_t *drive,
+					 struct ide_cmd *cmd)
 {
-	struct ide_cmd *cmd = &drive->hwif->cmd;
 	ide_startstop_t startstop;
 
 	if (ide_wait_stat(&startstop, drive, ATA_DRQ,
@@ -437,7 +435,7 @@ static ide_startstop_t pre_task_out_intr(ide_drive_t *drive, struct request *rq)
 		local_irq_disable();
 
 	ide_set_handler(drive, &task_out_intr, WAIT_WORSTCASE, NULL);
-	ide_pio_datablock(drive, rq, 1);
+	ide_pio_datablock(drive, cmd, 1);
 
 	return ide_started;
 }

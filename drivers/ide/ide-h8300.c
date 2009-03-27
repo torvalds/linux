@@ -143,13 +143,13 @@ static void mm_insw(unsigned long addr, void *buf, u32 len)
 		*bp = bswap(*(volatile u16 *)addr);
 }
 
-static void h8300_input_data(ide_drive_t *drive, struct request *rq,
+static void h8300_input_data(ide_drive_t *drive, struct ide_cmd *cmd,
 			     void *buf, unsigned int len)
 {
 	mm_insw(drive->hwif->io_ports.data_addr, buf, (len + 1) / 2);
 }
 
-static void h8300_output_data(ide_drive_t *drive, struct request *rq,
+static void h8300_output_data(ide_drive_t *drive, struct ide_cmd *cmd,
 			      void *buf, unsigned int len)
 {
 	mm_outsw(drive->hwif->io_ports.data_addr, buf, (len + 1) / 2);

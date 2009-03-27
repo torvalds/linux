@@ -96,9 +96,9 @@ ide_startstop_t ide_dma_intr(ide_drive_t *drive)
 
 	if (OK_STAT(stat, DRIVE_READY, drive->bad_wstat | ATA_DRQ)) {
 		if (!dma_stat) {
-			struct request *rq = hwif->rq;
+			struct ide_cmd *cmd = &hwif->cmd;
 
-			task_end_request(drive, rq, stat);
+			ide_finish_cmd(drive, cmd, stat);
 			return ide_stopped;
 		}
 		printk(KERN_ERR "%s: %s: bad DMA status (0x%02x)\n",
