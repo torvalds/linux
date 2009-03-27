@@ -337,9 +337,7 @@ static ide_startstop_t execute_drive_cmd (ide_drive_t *drive,
 #ifdef DEBUG
  	printk("%s: DRIVE_CMD (null)\n", drive->name);
 #endif
-	(void)hwif->tp_ops->read_status(hwif);
-
-	ide_complete_rq(drive, ide_read_error(drive));
+	ide_complete_rq(drive, 0);
 
  	return ide_stopped;
 }
