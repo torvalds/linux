@@ -55,7 +55,7 @@ struct tomoyo_path_info {
 struct tomoyo_path_info_with_data {
 	/* Keep "head" first, for this pointer is passed to tomoyo_free(). */
 	struct tomoyo_path_info head;
-	char bariier1[16]; /* Safeguard for overrun. */
+	char barrier1[16]; /* Safeguard for overrun. */
 	char body[TOMOYO_MAX_PATHNAME_LEN];
 	char barrier2[16]; /* Safeguard for overrun. */
 };
