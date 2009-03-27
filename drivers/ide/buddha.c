@@ -144,7 +144,7 @@ static void __init buddha_setup_ports(hw_regs_t *hw, unsigned long base,
 }
 
 static const struct ide_port_info buddha_port_info = {
-	.host_flags		= IDE_HFLAG_NO_DMA,
+	.host_flags		= IDE_HFLAG_MMIO | IDE_HFLAG_NO_DMA,
 };
 
     /*
@@ -175,10 +175,6 @@ static int __init buddha_init(void)
 			continue;
 		
 		board = z->resource.start;
-
-/*
- * FIXME: we now have selectable mmio v/s iomio transports.
- */
 
 		if(type != BOARD_XSURF) {
 			if (!request_mem_region(board+BUDDHA_BASE1, 0x800, "IDE"))

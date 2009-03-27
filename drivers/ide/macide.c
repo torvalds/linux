@@ -81,7 +81,7 @@ static void __init macide_setup_ports(hw_regs_t *hw, unsigned long base,
 }
 
 static const struct ide_port_info macide_port_info = {
-	.host_flags		= IDE_HFLAG_NO_DMA,
+	.host_flags		= IDE_HFLAG_MMIO | IDE_HFLAG_NO_DMA,
 };
 
 static const char *mac_ide_name[] =

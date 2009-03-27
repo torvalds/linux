@@ -111,7 +111,7 @@ static const struct ide_tp_ops q40ide_tp_ops = {
 
 static const struct ide_port_info q40ide_port_info = {
 	.tp_ops			= &q40ide_tp_ops,
-	.host_flags		= IDE_HFLAG_NO_DMA,
+	.host_flags		= IDE_HFLAG_MMIO | IDE_HFLAG_NO_DMA,
 };
 
 /* 
