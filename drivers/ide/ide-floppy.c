@@ -70,7 +70,6 @@
  */
 static int ide_floppy_end_request(ide_drive_t *drive, int uptodate, int nsecs)
 {
-	struct ide_disk_obj *floppy = drive->driver_data;
 	struct request *rq = drive->hwif->rq;
 	int error;
 
@@ -90,7 +89,7 @@ static int ide_floppy_end_request(ide_drive_t *drive, int uptodate, int nsecs)
 	}
 
 	if (error)
-		floppy->failed_pc = NULL;
+		drive->failed_pc = NULL;
 
 	if (!blk_special_request(rq)) {
 		/* our real local end request function */
@@ -121,8 +120,8 @@ static void ide_floppy_callback(ide_drive_t *drive, int dsc)
 
 	ide_debug_log(IDE_DBG_FUNC, "enter");
 
-	if (floppy->failed_pc == pc)
-		floppy->failed_pc = NULL;
+	if (drive->failed_pc == pc)
+		drive->failed_pc = NULL;
 
 	if (pc->c[0] == GPCMD_READ_10 || pc->c[0] == GPCMD_WRITE_10 ||
 	    (pc->rq && blk_pc_request(pc->rq)))
@@ -137,9 +136,9 @@ static void ide_floppy_callback(ide_drive_t *drive, int dsc)
 			floppy->progress_indication = buf[15] & 0x80 ?
 				(u16)get_unaligned((u16 *)&buf[16]) : 0x10000;
 
-			if (floppy->failed_pc)
+			if (drive->failed_pc)
 				ide_debug_log(IDE_DBG_PC, "pc = %x",
-					      floppy->failed_pc->c[0]);
+					      drive->failed_pc->c[0]);
 
 			ide_debug_log(IDE_DBG_SENSE, "sense key = %x, asc = %x,"
 				      "ascq = %x", floppy->sense_key,
@@ -173,9 +172,9 @@ static ide_startstop_t idefloppy_issue_pc(ide_drive_t *drive,
 {
 	struct ide_disk_obj *floppy = drive->driver_data;
 
-	if (floppy->failed_pc == NULL &&
+	if (drive->failed_pc == NULL &&
 	    pc->c[0] != GPCMD_REQUEST_SENSE)
-		floppy->failed_pc = pc;
+		drive->failed_pc = pc;
 
 	/* Set the current packet command */
 	drive->pc = pc;
@@ -186,7 +185,7 @@ static ide_startstop_t idefloppy_issue_pc(ide_drive_t *drive,
 		/* Giving up */
 		pc->error = IDEFLOPPY_ERROR_GENERAL;
 
-		floppy->failed_pc = NULL;
+		drive->failed_pc = NULL;
 		drive->pc_callback(drive, 0);
 		return ide_stopped;
 	}
@@ -290,8 +289,8 @@ static ide_startstop_t ide_floppy_do_request(ide_drive_t *drive,
 					: "dev?"));
 
 	if (rq->errors >= ERROR_MAX) {
-		if (floppy->failed_pc)
-			ide_floppy_report_error(floppy, floppy->failed_pc);
+		if (drive->failed_pc)
+			ide_floppy_report_error(floppy, drive->failed_pc);
 		else
 			printk(KERN_ERR PFX "%s: I/O error\n", drive->name);
 

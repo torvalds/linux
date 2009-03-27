@@ -609,6 +609,9 @@ struct ide_drive_s {
 	/* current packet command */
 	struct ide_atapi_pc *pc;
 
+	/* last failed packet command */
+	struct ide_atapi_pc *failed_pc;
+
 	/* callback for packet commands */
 	void (*pc_callback)(struct ide_drive_s *, int);
 

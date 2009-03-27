@@ -171,14 +171,6 @@ typedef struct ide_tape_obj {
 	struct gendisk		*disk;
 	struct device		dev;
 
-	/*
-	 *	failed_pc points to the last failed packet command, or contains
-	 *	NULL if we do not need to retry any packet command. This is
-	 *	required since an additional packet command is needed before the
-	 *	retry, to get detailed information on what went wrong.
-	 */
-	/* Last failed packet command */
-	struct ide_atapi_pc *failed_pc;
 	/* used by REQ_IDETAPE_{READ,WRITE} requests */
 	struct ide_atapi_pc queued_pc;
 
@@ -397,7 +389,7 @@ static void idetape_update_buffers(ide_drive_t *drive, struct ide_atapi_pc *pc)
 static void idetape_analyze_error(ide_drive_t *drive, u8 *sense)
 {
 	idetape_tape_t *tape = drive->driver_data;
-	struct ide_atapi_pc *pc = tape->failed_pc;
+	struct ide_atapi_pc *pc = drive->failed_pc;
 
 	tape->sense_key = sense[2] & 0xF;
 	tape->asc       = sense[12];
@@ -477,7 +469,6 @@ static void ide_tape_kfree_buffer(idetape_tape_t *tape)
 static int idetape_end_request(ide_drive_t *drive, int uptodate, int nr_sects)
 {
 	struct request *rq = drive->hwif->rq;
-	idetape_tape_t *tape = drive->driver_data;
 	int error;
 
 	debug_log(DBG_PROCS, "Enter %s\n", __func__);
@@ -489,7 +480,7 @@ static int idetape_end_request(ide_drive_t *drive, int uptodate, int nr_sects)
 	}
 	rq->errors = error;
 	if (error)
-		tape->failed_pc = NULL;
+		drive->failed_pc = NULL;
 
 	if (!blk_special_request(rq)) {
 		ide_end_request(drive, uptodate, nr_sects);
@@ -514,8 +505,8 @@ static void ide_tape_callback(ide_drive_t *drive, int dsc)
 	if (dsc)
 		ide_tape_handle_dsc(drive);
 
-	if (tape->failed_pc == pc)
-		tape->failed_pc = NULL;
+	if (drive->failed_pc == pc)
+		drive->failed_pc = NULL;
 
 	if (pc->c[0] == REQUEST_SENSE) {
 		if (uptodate)
@@ -653,8 +644,8 @@ static ide_startstop_t idetape_issue_pc(ide_drive_t *drive,
 			"Two request sense in serial were issued\n");
 	}
 
-	if (tape->failed_pc == NULL && pc->c[0] != REQUEST_SENSE)
-		tape->failed_pc = pc;
+	if (drive->failed_pc == NULL && pc->c[0] != REQUEST_SENSE)
+		drive->failed_pc = pc;
 
 	/* Set the current packet command */
 	drive->pc = pc;
@@ -680,7 +671,7 @@ static ide_startstop_t idetape_issue_pc(ide_drive_t *drive,
 			/* Giving up */
 			pc->error = IDETAPE_ERROR_GENERAL;
 		}
-		tape->failed_pc = NULL;
+		drive->failed_pc = NULL;
 		drive->pc_callback(drive, 0);
 		return ide_stopped;
 	}
@@ -740,7 +731,7 @@ static ide_startstop_t idetape_media_access_finished(ide_drive_t *drive)
 		pc->error = 0;
 	} else {
 		pc->error = IDETAPE_ERROR_GENERAL;
-		tape->failed_pc = NULL;
+		drive->failed_pc = NULL;
 	}
 	drive->pc_callback(drive, 0);
 	return ide_stopped;
@@ -799,8 +790,8 @@ static ide_startstop_t idetape_do_request(ide_drive_t *drive,
 	}
 
 	/* Retry a failed packet command */
-	if (tape->failed_pc && drive->pc->c[0] == REQUEST_SENSE) {
-		pc = tape->failed_pc;
+	if (drive->failed_pc && drive->pc->c[0] == REQUEST_SENSE) {
+		pc = drive->failed_pc;
 		goto out;
 	}
 

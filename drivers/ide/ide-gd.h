@@ -20,8 +20,6 @@ struct ide_disk_obj {
 	struct device		dev;
 	unsigned int		openers;	/* protected by BKL for now */
 
-	/* Last failed packet command */
-	struct ide_atapi_pc *failed_pc;
 	/* used for blk_{fs,pc}_request() requests */
 	struct ide_atapi_pc queued_pc;
 
