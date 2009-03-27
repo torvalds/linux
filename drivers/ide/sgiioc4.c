@@ -557,6 +557,7 @@ static const struct ide_port_info sgiioc4_port_info __devinitconst = {
 	.port_ops		= &sgiioc4_port_ops,
 	.dma_ops		= &sgiioc4_dma_ops,
 	.host_flags		= IDE_HFLAG_MMIO,
+	.irq_flags		= IRQF_SHARED,
 	.mwdma_mask		= ATA_MWDMA2_ONLY,
 };
 

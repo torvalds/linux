@@ -105,6 +105,7 @@ static const struct ide_port_info falconide_port_info = {
 	.tp_ops			= &falconide_tp_ops,
 	.host_flags		= IDE_HFLAG_MMIO | IDE_HFLAG_SERIALIZE |
 				  IDE_HFLAG_NO_DMA,
+	.irq_flags		= IRQF_SHARED,
 };
 
 static void __init falconide_setup_ports(hw_regs_t *hw)

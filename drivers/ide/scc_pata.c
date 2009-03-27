@@ -891,6 +891,7 @@ static const struct ide_port_info scc_chipset __devinitdata = {
 	.port_ops	= &scc_port_ops,
 	.dma_ops	= &scc_dma_ops,
 	.host_flags	= IDE_HFLAG_SINGLE,
+	.irq_flags	= IRQF_SHARED,
 	.pio_mask	= ATA_PIO4,
 };
 

@@ -66,6 +66,7 @@ static const struct ide_port_info delkin_cb_port_info = {
 	.port_ops		= &delkin_cb_port_ops,
 	.host_flags		= IDE_HFLAG_IO_32BIT | IDE_HFLAG_UNMASK_IRQS |
 				  IDE_HFLAG_NO_DMA,
+	.irq_flags		= IRQF_SHARED,
 	.init_chipset		= delkin_cb_init_chipset,
 };
 
