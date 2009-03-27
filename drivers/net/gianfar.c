@@ -1317,7 +1317,7 @@ static int gfar_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		skb_new = skb_realloc_headroom(skb, GMAC_FCB_LEN);
 		if (!skb_new) {
 			dev->stats.tx_errors++;
-			kfree(skb);
+			kfree_skb(skb);
 			return NETDEV_TX_OK;
 		}
 		kfree_skb(skb);
