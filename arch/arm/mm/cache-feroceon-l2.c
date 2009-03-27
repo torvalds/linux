@@ -258,9 +258,7 @@ static void __init enable_dcache(void)
 
 static void __init __invalidate_icache(void)
 {
-	int dummy;
-
-	__asm__ __volatile__("mcr p15, 0, %0, c7, c5, 0" : "=r" (dummy));
+	__asm__("mcr p15, 0, %0, c7, c5, 0" : : "r" (0));
 }
 
 static int __init invalidate_and_disable_icache(void)
