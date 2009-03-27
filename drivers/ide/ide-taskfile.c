@@ -586,7 +586,14 @@ int ide_taskfile_ioctl(ide_drive_t *drive, unsigned long arg)
 	if (req_task->in_flags.b.data)
 		cmd.ftf_flags |= IDE_FTFLAG_IN_DATA;
 
-	switch(req_task->data_phase) {
+	if (req_task->req_cmd == IDE_DRIVE_TASK_RAW_WRITE) {
+		/* fixup data phase if needed */
+		if (req_task->data_phase == TASKFILE_IN_DMAQ ||
+		    req_task->data_phase == TASKFILE_IN_DMA)
+			cmd.data_phase = TASKFILE_OUT_DMA;
+	}
+
+	switch (cmd.data_phase) {
 		case TASKFILE_MULTI_OUT:
 			if (!drive->mult_count) {
 				/* (hs): give up if multcount is not set */
@@ -601,6 +608,7 @@ int ide_taskfile_ioctl(ide_drive_t *drive, unsigned long arg)
 			/* fall through */
 		case TASKFILE_OUT_DMAQ:
 		case TASKFILE_OUT_DMA:
+			cmd.tf_flags |= IDE_TFLAG_WRITE;
 			nsect = taskout / SECTOR_SIZE;
 			data_buf = outbuf;
 			break;
@@ -640,9 +648,6 @@ int ide_taskfile_ioctl(ide_drive_t *drive, unsigned long arg)
 			goto abort;
 		}
 	}
-
-	if (req_task->req_cmd == IDE_DRIVE_TASK_RAW_WRITE)
-		cmd.tf_flags |= IDE_TFLAG_WRITE;
 
 	err = ide_raw_taskfile(drive, &cmd, data_buf, nsect);
 
