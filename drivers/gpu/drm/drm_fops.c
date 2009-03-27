@@ -274,6 +274,7 @@ static int drm_open_helper(struct inode *inode, struct file *filp,
 		/* create a new master */
 		priv->minor->master = drm_master_create(priv->minor);
 		if (!priv->minor->master) {
+			mutex_unlock(&dev->struct_mutex);
 			ret = -ENOMEM;
 			goto out_free;
 		}
