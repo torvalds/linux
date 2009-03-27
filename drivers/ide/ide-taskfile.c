@@ -314,27 +314,6 @@ void ide_finish_cmd(ide_drive_t *drive, struct ide_cmd *cmd, u8 stat)
 }
 
 /*
- * We got an interrupt on a task_in case, but no errors and no DRQ.
- *
- * It might be a spurious irq (shared irq), but it might be a
- * command that had no output.
- */
-static ide_startstop_t task_in_unexpected(ide_drive_t *drive,
-					  struct ide_cmd *cmd, u8 stat)
-{
-	/* Command all done? */
-	if (OK_STAT(stat, ATA_DRDY, ATA_BUSY)) {
-		ide_finish_cmd(drive, cmd, stat);
-		return ide_stopped;
-	}
-
-	/* Assume it was a spurious irq */
-	ide_set_handler(drive, &task_pio_intr, WAIT_WORSTCASE, NULL);
-
-	return ide_started;
-}
-
-/*
  * Handler for command with PIO data phase.
  */
 static ide_startstop_t task_pio_intr(ide_drive_t *drive)
@@ -350,8 +329,19 @@ static ide_startstop_t task_pio_intr(ide_drive_t *drive)
 			return task_error(drive, cmd, __func__, stat);
 
 		/* Didn't want any data? Odd. */
-		if ((stat & ATA_DRQ) == 0)
-			return task_in_unexpected(drive, cmd, stat);
+		if ((stat & ATA_DRQ) == 0) {
+			/* Command all done? */
+			if (OK_STAT(stat, ATA_DRDY, ATA_BUSY)) {
+				ide_finish_cmd(drive, cmd, stat);
+				return ide_stopped;
+			}
+
+			/* Assume it was a spurious irq */
+			ide_set_handler(drive, &task_pio_intr, WAIT_WORSTCASE,
+					NULL);
+
+			return ide_started;
+		}
 	} else {
 		if (!OK_STAT(stat, DRIVE_READY, drive->bad_wstat))
 			return task_error(drive, cmd, __func__, stat);
