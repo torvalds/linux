@@ -1131,8 +1131,8 @@ int generic_ide_ioctl(ide_drive_t *, struct block_device *, unsigned, unsigned l
 extern int ide_vlb_clk;
 extern int ide_pci_clk;
 
+int ide_end_rq(ide_drive_t *, struct request *, int, unsigned int);
 int ide_end_request(ide_drive_t *, int, int);
-int ide_end_dequeued_request(ide_drive_t *, struct request *, int, int);
 void ide_kill_rq(ide_drive_t *, struct request *);
 
 void __ide_set_handler(ide_drive_t *, ide_handler_t *, unsigned int,

@@ -54,10 +54,9 @@
 #include <asm/uaccess.h>
 #include <asm/io.h>
 
-static int __ide_end_request(ide_drive_t *drive, struct request *rq,
-			     int uptodate, unsigned int nr_bytes, int dequeue)
+int ide_end_rq(ide_drive_t *drive, struct request *rq, int uptodate,
+	       unsigned int nr_bytes)
 {
-	int ret = 1;
 	int error = 0;
 
 	if (uptodate <= 0)
@@ -83,14 +82,9 @@ static int __ide_end_request(ide_drive_t *drive, struct request *rq,
 		ide_dma_on(drive);
 	}
 
-	if (!blk_end_request(rq, error, nr_bytes))
-		ret = 0;
-
-	if (ret == 0 && dequeue)
-		drive->hwif->rq = NULL;
-
-	return ret;
+	return blk_end_request(rq, error, nr_bytes);
 }
+EXPORT_SYMBOL_GPL(ide_end_rq);
 
 /**
  *	ide_end_request		-	complete an IDE I/O
@@ -107,6 +101,7 @@ int ide_end_request (ide_drive_t *drive, int uptodate, int nr_sectors)
 {
 	unsigned int nr_bytes = nr_sectors << 9;
 	struct request *rq = drive->hwif->rq;
+	int rc;
 
 	if (!nr_bytes) {
 		if (blk_pc_request(rq))
@@ -115,33 +110,13 @@ int ide_end_request (ide_drive_t *drive, int uptodate, int nr_sectors)
 			nr_bytes = rq->hard_cur_sectors << 9;
 	}
 
-	return __ide_end_request(drive, rq, uptodate, nr_bytes, 1);
+	rc = ide_end_rq(drive, rq, uptodate, nr_bytes);
+	if (rc == 0)
+		drive->hwif->rq = NULL;
+
+	return rc;
 }
 EXPORT_SYMBOL(ide_end_request);
-
-/**
- *	ide_end_dequeued_request	-	complete an IDE I/O
- *	@drive: IDE device for the I/O
- *	@uptodate:
- *	@nr_sectors: number of sectors completed
- *
- *	Complete an I/O that is no longer on the request queue. This
- *	typically occurs when we pull the request and issue a REQUEST_SENSE.
- *	We must still finish the old request but we must not tamper with the
- *	queue in the meantime.
- *
- *	NOTE: This path does not handle barrier, but barrier is not supported
- *	on ide-cd anyway.
- */
-
-int ide_end_dequeued_request(ide_drive_t *drive, struct request *rq,
-			     int uptodate, int nr_sectors)
-{
-	BUG_ON(!blk_rq_started(rq));
-
-	return __ide_end_request(drive, rq, uptodate, nr_sectors << 9, 0);
-}
-EXPORT_SYMBOL_GPL(ide_end_dequeued_request);
 
 void ide_complete_cmd(ide_drive_t *drive, struct ide_cmd *cmd, u8 stat, u8 err)
 {

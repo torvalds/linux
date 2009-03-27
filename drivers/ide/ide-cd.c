@@ -272,8 +272,8 @@ static void cdrom_end_request(ide_drive_t *drive, int uptodate)
 			 * now end the failed request
 			 */
 			if (blk_fs_request(failed)) {
-				if (ide_end_dequeued_request(drive, failed, 0,
-						failed->hard_nr_sectors))
+				if (ide_end_rq(drive, failed, 0,
+						failed->hard_nr_sectors << 9))
 					BUG();
 			} else {
 				if (blk_end_request(failed, -EIO,
