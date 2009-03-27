@@ -1171,11 +1171,11 @@ static int pohmelfs_getattr(struct vfsmount *mnt, struct dentry *dentry, struct 
 	struct inode *inode = dentry->d_inode;
 	struct pohmelfs_inode *pi = POHMELFS_I(inode);
 	int err;
-
+#if 0
 	err = pohmelfs_data_lock(pi, 0, ~0, POHMELFS_READ_LOCK);
 	if (err)
 		return err;
-
+#endif
 	dprintk("%s: ino: %llu, mode: %o, uid: %u, gid: %u, size: %llu.\n",
 			__func__, pi->ino, inode->i_mode, inode->i_uid,
 			inode->i_gid, inode->i_size);
