@@ -280,8 +280,7 @@ static void ide_pio_datablock(ide_drive_t *drive, struct ide_cmd *cmd,
 	drive->io_32bit = saved_io_32bit;
 }
 
-static ide_startstop_t task_error(ide_drive_t *drive, struct ide_cmd *cmd,
-				  const char *s, u8 stat)
+static void ide_error_cmd(ide_drive_t *drive, struct ide_cmd *cmd)
 {
 	if (cmd->tf_flags & IDE_TFLAG_FS) {
 		int sectors = cmd->nsect - cmd->nleft;
@@ -297,7 +296,6 @@ static ide_startstop_t task_error(ide_drive_t *drive, struct ide_cmd *cmd,
 		if (sectors > 0)
 			ide_end_request(drive, 1, sectors);
 	}
-	return ide_error(drive, s, stat);
 }
 
 void ide_finish_cmd(ide_drive_t *drive, struct ide_cmd *cmd, u8 stat)
@@ -368,7 +366,8 @@ out_end:
 	ide_finish_cmd(drive, cmd, stat);
 	return ide_stopped;
 out_err:
-	return task_error(drive, cmd, __func__, stat);
+	ide_error_cmd(drive, cmd);
+	return ide_error(drive, __func__, stat);
 }
 
 static ide_startstop_t pre_task_out_intr(ide_drive_t *drive,
