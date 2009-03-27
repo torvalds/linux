@@ -350,7 +350,7 @@ struct ide_cmd {
 	int			orig_sg_nents;
 	int			sg_dma_direction; /* DMA transfer direction */
 
-	unsigned int		nsect;
+	unsigned int		nbytes;
 	unsigned int		nleft;
 	struct scatterlist	*cursg;
 	unsigned int		cursg_ofs;
@@ -1409,7 +1409,7 @@ int ide_pci_resume(struct pci_dev *);
 #endif
 
 void ide_map_sg(ide_drive_t *, struct ide_cmd *);
-void ide_init_sg_cmd(struct ide_cmd *, int);
+void ide_init_sg_cmd(struct ide_cmd *, unsigned int);
 
 #define BAD_DMA_DRIVE		0
 #define GOOD_DMA_DRIVE		1

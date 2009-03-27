@@ -152,7 +152,7 @@ static ide_startstop_t __ide_do_rw_disk(ide_drive_t *drive, struct request *rq,
 	cmd.rq = rq;
 
 	if (dma == 0) {
-		ide_init_sg_cmd(&cmd, nsectors);
+		ide_init_sg_cmd(&cmd, nsectors << 9);
 		ide_map_sg(drive, &cmd);
 	}
 
@@ -162,7 +162,7 @@ static ide_startstop_t __ide_do_rw_disk(ide_drive_t *drive, struct request *rq,
 		/* fallback to PIO */
 		cmd.tf_flags |= IDE_TFLAG_DMA_PIO_FALLBACK;
 		ide_tf_set_cmd(drive, &cmd, 0);
-		ide_init_sg_cmd(&cmd, nsectors);
+		ide_init_sg_cmd(&cmd, nsectors << 9);
 		rc = do_rw_taskfile(drive, &cmd);
 	}
 

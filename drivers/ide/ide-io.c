@@ -245,9 +245,9 @@ void ide_map_sg(ide_drive_t *drive, struct ide_cmd *cmd)
 }
 EXPORT_SYMBOL_GPL(ide_map_sg);
 
-void ide_init_sg_cmd(struct ide_cmd *cmd, int nsect)
+void ide_init_sg_cmd(struct ide_cmd *cmd, unsigned int nr_bytes)
 {
-	cmd->nsect = cmd->nleft = nsect;
+	cmd->nbytes = cmd->nleft = nr_bytes;
 	cmd->cursg_ofs = 0;
 	cmd->cursg = NULL;
 }
@@ -272,7 +272,7 @@ static ide_startstop_t execute_drive_cmd (ide_drive_t *drive,
 
 	if (cmd) {
 		if (cmd->protocol == ATA_PROT_PIO) {
-			ide_init_sg_cmd(cmd, rq->nr_sectors);
+			ide_init_sg_cmd(cmd, rq->nr_sectors << 9);
 			ide_map_sg(drive, cmd);
 		}
 
