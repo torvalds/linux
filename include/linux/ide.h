@@ -40,6 +40,13 @@
 #define ERROR_RESET	3	/* Reset controller every 4th retry */
 #define ERROR_RECAL	1	/* Recalibrate every 2nd retry */
 
+/* Error codes returned in rq->errors to the higher part of the driver. */
+enum {
+	IDE_DRV_ERROR_GENERAL	= 101,
+	IDE_DRV_ERROR_FILEMARK	= 102,
+	IDE_DRV_ERROR_EOD	= 103,
+};
+
 /*
  * Definitions for accessing IDE controller registers
  */

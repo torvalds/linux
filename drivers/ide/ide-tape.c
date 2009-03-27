@@ -152,11 +152,6 @@ struct idetape_bh {
 #define IDETAPE_LU_RETENSION_MASK	2
 #define IDETAPE_LU_EOT_MASK		4
 
-/* Error codes returned in rq->errors to the higher part of the driver. */
-#define IDETAPE_ERROR_GENERAL		101
-#define IDETAPE_ERROR_FILEMARK		102
-#define IDETAPE_ERROR_EOD		103
-
 /* Structures related to the SELECT SENSE / MODE SENSE packet commands. */
 #define IDETAPE_BLOCK_DESCRIPTOR	0
 #define IDETAPE_CAPABILITIES_PAGE	0x2a
@@ -422,19 +417,19 @@ static void idetape_analyze_error(ide_drive_t *drive, u8 *sense)
 		}
 	}
 	if (pc->c[0] == READ_6 && (sense[2] & 0x80)) {
-		pc->error = IDETAPE_ERROR_FILEMARK;
+		pc->error = IDE_DRV_ERROR_FILEMARK;
 		pc->flags |= PC_FLAG_ABORT;
 	}
 	if (pc->c[0] == WRITE_6) {
 		if ((sense[2] & 0x40) || (tape->sense_key == 0xd
 		     && tape->asc == 0x0 && tape->ascq == 0x2)) {
-			pc->error = IDETAPE_ERROR_EOD;
+			pc->error = IDE_DRV_ERROR_EOD;
 			pc->flags |= PC_FLAG_ABORT;
 		}
 	}
 	if (pc->c[0] == READ_6 || pc->c[0] == WRITE_6) {
 		if (tape->sense_key == 8) {
-			pc->error = IDETAPE_ERROR_EOD;
+			pc->error = IDE_DRV_ERROR_EOD;
 			pc->flags |= PC_FLAG_ABORT;
 		}
 		if (!(pc->flags & PC_FLAG_ABORT) &&
@@ -474,7 +469,7 @@ static int idetape_end_request(ide_drive_t *drive, int uptodate, int nr_sects)
 	debug_log(DBG_PROCS, "Enter %s\n", __func__);
 
 	switch (uptodate) {
-	case 0:	error = IDETAPE_ERROR_GENERAL; break;
+	case 0: error = IDE_DRV_ERROR_GENERAL; break;
 	case 1: error = 0; break;
 	default: error = uptodate;
 	}
@@ -669,7 +664,7 @@ static ide_startstop_t idetape_issue_pc(ide_drive_t *drive,
 						tape->ascq);
 			}
 			/* Giving up */
-			pc->error = IDETAPE_ERROR_GENERAL;
+			pc->error = IDE_DRV_ERROR_GENERAL;
 		}
 		drive->failed_pc = NULL;
 		drive->pc_callback(drive, 0);
@@ -730,7 +725,7 @@ static ide_startstop_t idetape_media_access_finished(ide_drive_t *drive)
 		}
 		pc->error = 0;
 	} else {
-		pc->error = IDETAPE_ERROR_GENERAL;
+		pc->error = IDE_DRV_ERROR_GENERAL;
 		drive->failed_pc = NULL;
 	}
 	drive->pc_callback(drive, 0);
@@ -1210,7 +1205,7 @@ static int idetape_queue_rw_tail(ide_drive_t *drive, int cmd, int blocks,
 
 	if (tape->merge_bh)
 		idetape_init_merge_buffer(tape);
-	if (errors == IDETAPE_ERROR_GENERAL)
+	if (errors == IDE_DRV_ERROR_GENERAL)
 		return -EIO;
 	return ret;
 }

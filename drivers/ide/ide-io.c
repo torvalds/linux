@@ -178,7 +178,12 @@ EXPORT_SYMBOL(ide_complete_rq);
 
 void ide_kill_rq(ide_drive_t *drive, struct request *rq)
 {
-	if (rq->rq_disk) {
+	drive->failed_pc = NULL;
+
+	if (drive->media == ide_tape)
+		rq->errors = IDE_DRV_ERROR_GENERAL;
+
+	if (blk_special_request(rq) && rq->rq_disk) {
 		struct ide_driver *drv;
 
 		drv = *(struct ide_driver **)rq->rq_disk->private_data;

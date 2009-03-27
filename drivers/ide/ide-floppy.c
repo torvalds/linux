@@ -61,9 +61,6 @@
  */
 #define IDEFLOPPY_PC_DELAY	(HZ/20)	/* default delay for ZIP 100 (50ms) */
 
-/* Error code returned in rq->errors to the higher part of the driver. */
-#define	IDEFLOPPY_ERROR_GENERAL		101
-
 /*
  * Used to finish servicing a request. For read/write requests, we will call
  * ide_end_request to pass to the next buffer.
@@ -77,7 +74,7 @@ static int ide_floppy_end_request(ide_drive_t *drive, int uptodate, int nsecs)
 
 	switch (uptodate) {
 	case 0:
-		error = IDEFLOPPY_ERROR_GENERAL;
+		error = IDE_DRV_ERROR_GENERAL;
 		break;
 
 	case 1:
@@ -183,7 +180,7 @@ static ide_startstop_t idefloppy_issue_pc(ide_drive_t *drive,
 		if (!(pc->flags & PC_FLAG_SUPPRESS_ERROR))
 			ide_floppy_report_error(floppy, pc);
 		/* Giving up */
-		pc->error = IDEFLOPPY_ERROR_GENERAL;
+		pc->error = IDE_DRV_ERROR_GENERAL;
 
 		drive->failed_pc = NULL;
 		drive->pc_callback(drive, 0);
