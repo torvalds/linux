@@ -134,7 +134,7 @@ ide_startstop_t ide_error(ide_drive_t *drive, const char *msg, u8 stat)
 			return ide_stopped;
 		}
 		rq->errors = err;
-		ide_complete_rq(drive, err ? -EIO : 0);
+		ide_complete_rq(drive, err ? -EIO : 0, blk_rq_bytes(rq));
 		return ide_stopped;
 	}
 

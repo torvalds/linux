@@ -141,13 +141,13 @@ void ide_complete_cmd(ide_drive_t *drive, struct ide_cmd *cmd, u8 stat, u8 err)
 		kfree(cmd);
 }
 
-int ide_complete_rq(ide_drive_t *drive, int error)
+int ide_complete_rq(ide_drive_t *drive, int error, unsigned int nr_bytes)
 {
 	ide_hwif_t *hwif = drive->hwif;
 	struct request *rq = hwif->rq;
 	int rc;
 
-	rc = blk_end_request(rq, error, blk_rq_bytes(rq));
+	rc = blk_end_request(rq, error, nr_bytes);
 	if (rc == 0)
 		hwif->rq = NULL;
 
@@ -164,7 +164,7 @@ void ide_kill_rq(ide_drive_t *drive, struct request *rq)
 
 	if ((media == ide_floppy || media == ide_tape) && drv_req) {
 		rq->errors = 0;
-		ide_complete_rq(drive, 0);
+		ide_complete_rq(drive, 0, blk_rq_bytes(rq));
 	} else {
 		if (media == ide_tape)
 			rq->errors = IDE_DRV_ERROR_GENERAL;
@@ -312,7 +312,7 @@ static ide_startstop_t execute_drive_cmd (ide_drive_t *drive,
  	printk("%s: DRIVE_CMD (null)\n", drive->name);
 #endif
 	rq->errors = 0;
-	ide_complete_rq(drive, 0);
+	ide_complete_rq(drive, 0, blk_rq_bytes(rq));
 
  	return ide_stopped;
 }

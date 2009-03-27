@@ -261,7 +261,7 @@ static ide_startstop_t ide_floppy_do_request(ide_drive_t *drive,
 
 		if (blk_special_request(rq)) {
 			rq->errors = 0;
-			ide_complete_rq(drive, 0);
+			ide_complete_rq(drive, 0, blk_rq_bytes(rq));
 			return ide_stopped;
 		} else
 			goto out_end;

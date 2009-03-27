@@ -778,7 +778,7 @@ static ide_startstop_t idetape_do_request(ide_drive_t *drive,
 					"Two DSC requests were queued\n");
 			drive->failed_pc = NULL;
 			rq->errors = 0;
-			ide_complete_rq(drive, 0);
+			ide_complete_rq(drive, 0, blk_rq_bytes(rq));
 			return ide_stopped;
 		}
 

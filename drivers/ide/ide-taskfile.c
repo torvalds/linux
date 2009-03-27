@@ -294,7 +294,7 @@ void ide_finish_cmd(ide_drive_t *drive, struct ide_cmd *cmd, u8 stat)
 
 	ide_complete_cmd(drive, cmd, stat, err);
 	rq->errors = err;
-	ide_complete_rq(drive, err ? -EIO : 0);
+	ide_complete_rq(drive, err ? -EIO : 0, blk_rq_bytes(rq));
 }
 
 /*
