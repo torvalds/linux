@@ -143,6 +143,10 @@ static void __init buddha_setup_ports(hw_regs_t *hw, unsigned long base,
 	hw->chipset = ide_generic;
 }
 
+static const struct ide_port_info buddha_port_info = {
+	.host_flags		= IDE_HFLAG_NO_DMA,
+};
+
     /*
      *  Probe for a Buddha or Catweasel IDE interface
      */
@@ -224,7 +228,7 @@ fail_base2:
 			hws[i] = &hw[i];
 		}
 
-		ide_host_add(NULL, hws, NULL);
+		ide_host_add(&buddha_port_info, hws, NULL);
 	}
 
 	return 0;
