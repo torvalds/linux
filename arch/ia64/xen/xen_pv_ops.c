@@ -416,6 +416,11 @@ xen_intrin_local_irq_restore(unsigned long mask)
 	xen_ ## name (unsigned long arg);	\
 	__DEFINE_FUNC(name, code)
 
+#define DEFINE_VOID_FUNC1_VOID(name, code)	\
+	extern void				\
+	xen_ ## name (void *arg);		\
+	__DEFINE_FUNC(name, code)
+
 #define DEFINE_VOID_FUNC2(name, code)		\
 	extern void				\
 	xen_ ## name (unsigned long arg0,	\
@@ -530,8 +535,8 @@ DEFINE_FUNC0(get_itc,
 	     "(p6) hint @pause\n"
 	     "(p6) br.cond.spnt 888b\n");
 
-DEFINE_VOID_FUNC1(fc,
-		  "break " __stringify(HYPERPRIVOP_FC) "\n");
+DEFINE_VOID_FUNC1_VOID(fc,
+		       "break " __stringify(HYPERPRIVOP_FC) "\n");
 
 /*
  * psr_i_addr_addr = XEN_PSR_I_ADDR_ADDR

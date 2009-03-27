@@ -70,7 +70,14 @@ struct pv_init_ops pv_init_ops =
 	ia64_native_ ## name ## _func(unsigned long arg)	\
 	{							\
 		ia64_native_ ## name(arg);			\
-	}							\
+	}
+
+#define DEFINE_VOID_FUNC1_VOID(name)				\
+	static void						\
+	ia64_native_ ## name ## _func(void *arg)		\
+	{							\
+		ia64_native_ ## name(arg);			\
+	}
 
 #define DEFINE_VOID_FUNC2(name)					\
 	static void						\
@@ -78,7 +85,7 @@ struct pv_init_ops pv_init_ops =
 				      unsigned long arg1)	\
 	{							\
 		ia64_native_ ## name(arg0, arg1);		\
-	}							\
+	}
 
 #define DEFINE_FUNC0(name)			\
 	static unsigned long			\
@@ -94,7 +101,7 @@ struct pv_init_ops pv_init_ops =
 		return ia64_native_ ## name(arg);	\
 	}						\
 
-DEFINE_VOID_FUNC1(fc);
+DEFINE_VOID_FUNC1_VOID(fc);
 DEFINE_VOID_FUNC1(intrin_local_irq_restore);
 
 DEFINE_VOID_FUNC2(ptcga);
@@ -308,6 +315,11 @@ ia64_native_setreg_func(int regnum, unsigned long val)
 	ia64_native_ ## name ## _func(unsigned long arg);	\
 	__DEFINE_FUNC(name, code)
 
+#define DEFINE_VOID_FUNC1_VOID(name, code)			\
+	extern void						\
+	ia64_native_ ## name ## _func(void *arg);		\
+	__DEFINE_FUNC(name, code)
+
 #define DEFINE_VOID_FUNC2(name, code)				\
 	extern void						\
 	ia64_native_ ## name ## _func(unsigned long arg0,	\
@@ -324,8 +336,8 @@ ia64_native_setreg_func(int regnum, unsigned long val)
 	ia64_native_ ## name ## _func(type arg);	\
 	__DEFINE_FUNC(name, code)
 
-DEFINE_VOID_FUNC1(fc,
-		  "fc r8\n");
+DEFINE_VOID_FUNC1_VOID(fc,
+		       "fc r8\n");
 DEFINE_VOID_FUNC1(intrin_local_irq_restore,
 		  ";;\n"
 		  "     cmp.ne p6, p7 = r8, r0\n"

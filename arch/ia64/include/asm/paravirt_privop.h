@@ -33,7 +33,7 @@
  */
 
 struct pv_cpu_ops {
-	void (*fc)(unsigned long addr);
+	void (*fc)(void *addr);
 	unsigned long (*thash)(unsigned long addr);
 	unsigned long (*get_cpuid)(int index);
 	unsigned long (*get_pmd)(int index);
@@ -248,7 +248,7 @@ void paravirt_cpu_asm_init(const struct pv_cpu_asm_switch *cpu_asm_switch);
 		"r15", "r16", "r17"
 
 #define PARAVIRT_REG_CLOBBERS1					\
-	"r2","r3", /*"r8",*/ "r9", "r10", "r11", "r14",	\
+	"r2","r3", /*"r8",*/ "r9", "r10", "r11", "r14",		\
 		"r15", "r16", "r17"
 
 #define PARAVIRT_REG_CLOBBERS2					\
@@ -330,6 +330,15 @@ void paravirt_cpu_asm_init(const struct pv_cpu_asm_switch *cpu_asm_switch);
 		      : PARAVIRT_OP(op), "0"(__##arg1)		\
 		      : PARAVIRT_CLOBBERS1)
 
+#define PARAVIRT_BR1_VOID(op, type, arg1)			\
+	register void *__##arg1 asm ("r8") = arg1;		\
+	register unsigned long ia64_clobber asm ("r8");		\
+	asm volatile (paravirt_alt_bundle(__PARAVIRT_BR,	\
+					  PARAVIRT_TYPE(type))	\
+		      :	"=r"(ia64_clobber)			\
+		      : PARAVIRT_OP(op), "0"(__##arg1)		\
+		      : PARAVIRT_CLOBBERS1)
+
 #define PARAVIRT_BR2(op, type, arg1, arg2)				\
 	register unsigned long __##arg1 asm ("r8") = arg1;		\
 	register unsigned long __##arg2 asm ("r9") = arg2;		\
@@ -357,6 +366,13 @@ void paravirt_cpu_asm_init(const struct pv_cpu_asm_switch *cpu_asm_switch);
 		return ia64_intri_res;			\
 	}
 
+#define PARAVIRT_DEFINE_CPU_OP1_VOID(op, type)		\
+	static inline void				\
+	paravirt_ ## op (void *arg1)			\
+	{						\
+		PARAVIRT_BR1_VOID(op, type, arg1);	\
+	}
+
 #define PARAVIRT_DEFINE_CPU_OP1(op, type)		\
 	static inline void				\
 	paravirt_ ## op (unsigned long arg1)		\
@@ -381,7 +397,7 @@ void paravirt_cpu_asm_init(const struct pv_cpu_asm_switch *cpu_asm_switch);
 	}
 
 
-PARAVIRT_DEFINE_CPU_OP1(fc, FC);
+PARAVIRT_DEFINE_CPU_OP1_VOID(fc, FC);
 PARAVIRT_DEFINE_CPU_OP1_RET(thash, THASH)
 PARAVIRT_DEFINE_CPU_OP1_RET(get_cpuid, GET_CPUID)
 PARAVIRT_DEFINE_CPU_OP1_RET(get_pmd, GET_PMD)

@@ -69,7 +69,7 @@
  *  may have different semantics depending on whether they are executed
  *  at PL0 vs PL!=0.  When paravirtualized, these instructions mustn't
  *  be allowed to execute directly, lest incorrect semantics result. */
-extern void xen_fc(unsigned long addr);
+extern void xen_fc(void *addr);
 extern unsigned long xen_thash(unsigned long addr);
 
 /* Note that "ttag" and "cover" are also privilege-sensitive; "ttag"

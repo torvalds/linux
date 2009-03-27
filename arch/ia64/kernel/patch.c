@@ -249,7 +249,7 @@ void ia64_patch_phys_stack_reg(unsigned long val)
 	while (offp < end) {
 		ip = (u64) offp + *offp;
 		ia64_patch(ip, mask, imm);
-		ia64_fc(ip);
+		ia64_fc((void *)ip);
 		++offp;
 	}
 	ia64_sync_i();
