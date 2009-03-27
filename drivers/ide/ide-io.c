@@ -178,11 +178,7 @@ void ide_end_drive_cmd (ide_drive_t *drive, u8 stat, u8 err)
 				kfree(task);
 		}
 	} else if (blk_pm_request(rq)) {
-		struct request_pm_state *pm = rq->data;
-
-		ide_complete_power_step(drive, rq);
-		if (pm->pm_step == IDE_PM_COMPLETED)
-			ide_complete_pm_request(drive, rq);
+		ide_complete_pm_rq(drive, rq);
 		return;
 	}
 
@@ -438,7 +434,7 @@ static ide_startstop_t start_request (ide_drive_t *drive, struct request *rq)
 			startstop = ide_start_power_step(drive, rq);
 			if (startstop == ide_stopped &&
 			    pm->pm_step == IDE_PM_COMPLETED)
-				ide_complete_pm_request(drive, rq);
+				ide_complete_pm_rq(drive, rq);
 			return startstop;
 		} else if (!rq->rq_disk && blk_special_request(rq))
 			/*

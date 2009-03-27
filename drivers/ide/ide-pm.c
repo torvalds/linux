@@ -169,17 +169,22 @@ out_do_tf:
 }
 
 /**
- *	ide_complete_pm_request - end the current Power Management request
+ *	ide_complete_pm_rq - end the current Power Management request
  *	@drive: target drive
  *	@rq: request
  *
  *	This function cleans up the current PM request and stops the queue
  *	if necessary.
  */
-void ide_complete_pm_request(ide_drive_t *drive, struct request *rq)
+void ide_complete_pm_rq(ide_drive_t *drive, struct request *rq)
 {
 	struct request_queue *q = drive->queue;
+	struct request_pm_state *pm = rq->data;
 	unsigned long flags;
+
+	ide_complete_power_step(drive, rq);
+	if (pm->pm_step != IDE_PM_COMPLETED)
+		return;
 
 #ifdef DEBUG_PM
 	printk("%s: completing PM request, %s\n", drive->name,

@@ -1081,7 +1081,7 @@ int generic_ide_resume(struct device *);
 
 void ide_complete_power_step(ide_drive_t *, struct request *);
 ide_startstop_t ide_start_power_step(ide_drive_t *, struct request *);
-void ide_complete_pm_request(ide_drive_t *, struct request *);
+void ide_complete_pm_rq(ide_drive_t *, struct request *);
 void ide_check_pm_state(ide_drive_t *, struct request *);
 
 /*
