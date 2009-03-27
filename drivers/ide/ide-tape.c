@@ -464,23 +464,13 @@ static void ide_tape_kfree_buffer(idetape_tape_t *tape)
 static int idetape_end_request(ide_drive_t *drive, int uptodate, int nr_sects)
 {
 	struct request *rq = drive->hwif->rq;
-	int error;
 
 	debug_log(DBG_PROCS, "Enter %s\n", __func__);
 
-	switch (uptodate) {
-	case 0: error = IDE_DRV_ERROR_GENERAL; break;
-	case 1: error = 0; break;
-	default: error = uptodate;
-	}
-	rq->errors = error;
-	if (error)
-		drive->failed_pc = NULL;
+	rq->errors = uptodate ? 0 : IDE_DRV_ERROR_GENERAL;
 
-	if (!blk_special_request(rq)) {
-		ide_end_request(drive, uptodate, nr_sects);
-		return 0;
-	}
+	if (uptodate == 0)
+		drive->failed_pc = NULL;
 
 	ide_complete_rq(drive, 0);
 
@@ -493,7 +483,9 @@ static void ide_tape_callback(ide_drive_t *drive, int dsc)
 {
 	idetape_tape_t *tape = drive->driver_data;
 	struct ide_atapi_pc *pc = drive->pc;
+	struct request *rq = drive->hwif->rq;
 	int uptodate = pc->error ? 0 : 1;
+	int err = uptodate ? 0 : IDE_DRV_ERROR_GENERAL;
 
 	debug_log(DBG_PROCS, "Enter %s\n", __func__);
 
@@ -510,7 +502,6 @@ static void ide_tape_callback(ide_drive_t *drive, int dsc)
 			printk(KERN_ERR "ide-tape: Error in REQUEST SENSE "
 					"itself - Aborting request!\n");
 	} else if (pc->c[0] == READ_6 || pc->c[0] == WRITE_6) {
-		struct request *rq = drive->hwif->rq;
 		int blocks = pc->xferred / tape->blk_size;
 
 		tape->avg_size += blocks * tape->blk_size;
@@ -525,8 +516,10 @@ static void ide_tape_callback(ide_drive_t *drive, int dsc)
 		tape->first_frame += blocks;
 		rq->current_nr_sectors -= blocks;
 
-		if (pc->error)
-			uptodate = pc->error;
+		if (pc->error) {
+			uptodate = 0;
+			err = pc->error;
+		}
 	} else if (pc->c[0] == READ_POSITION && uptodate) {
 		u8 *readpos = pc->buf;
 
@@ -540,6 +533,7 @@ static void ide_tape_callback(ide_drive_t *drive, int dsc)
 					 "to the tape\n");
 			clear_bit(IDE_AFLAG_ADDRESS_VALID, &drive->atapi_flags);
 			uptodate = 0;
+			err = IDE_DRV_ERROR_GENERAL;
 		} else {
 			debug_log(DBG_SENSE, "Block Location - %u\n",
 					be32_to_cpup((__be32 *)&readpos[4]));
@@ -550,7 +544,15 @@ static void ide_tape_callback(ide_drive_t *drive, int dsc)
 		}
 	}
 
-	idetape_end_request(drive, uptodate, 0);
+	rq->errors = err;
+
+	if (uptodate == 0)
+		drive->failed_pc = NULL;
+
+	if (blk_special_request(rq))
+		ide_complete_rq(drive, 0);
+	else
+		ide_end_request(drive, uptodate, 0);
 }
 
 /*
@@ -794,7 +796,9 @@ static ide_startstop_t idetape_do_request(ide_drive_t *drive,
 		if (rq != postponed_rq) {
 			printk(KERN_ERR "ide-tape: ide-tape.c bug - "
 					"Two DSC requests were queued\n");
-			idetape_end_request(drive, 0, 0);
+			rq->errors = IDE_DRV_ERROR_GENERAL;
+			drive->failed_pc = NULL;
+			ide_complete_rq(drive, 0);
 			return ide_stopped;
 		}
 

@@ -62,40 +62,21 @@
 #define IDEFLOPPY_PC_DELAY	(HZ/20)	/* default delay for ZIP 100 (50ms) */
 
 /*
- * Used to finish servicing a request. For read/write requests, we will call
- * ide_end_request to pass to the next buffer.
+ * Used to finish servicing a private request.
  */
 static int ide_floppy_end_request(ide_drive_t *drive, int uptodate, int nsecs)
 {
 	struct request *rq = drive->hwif->rq;
-	int error;
 
 	ide_debug_log(IDE_DBG_FUNC, "enter");
 
-	switch (uptodate) {
-	case 0:
-		error = IDE_DRV_ERROR_GENERAL;
-		break;
-
-	case 1:
-		error = 0;
-		break;
-
-	default:
-		error = uptodate;
-	}
-
-	if (error)
+	if (uptodate == 0)
 		drive->failed_pc = NULL;
 
-	if (!blk_special_request(rq)) {
-		/* our real local end request function */
-		ide_end_request(drive, uptodate, nsecs);
-		return 0;
-	}
-	rq->errors = error;
-	/* fixme: need to move this local also */
+	rq->errors = uptodate ? 0 : IDE_DRV_ERROR_GENERAL;
+
 	ide_complete_rq(drive, 0);
+
 	return 0;
 }
 
@@ -106,13 +87,14 @@ static void idefloppy_update_buffers(ide_drive_t *drive,
 	struct bio *bio = rq->bio;
 
 	while ((bio = rq->bio) != NULL)
-		ide_floppy_end_request(drive, 1, 0);
+		ide_end_request(drive, 1, 0);
 }
 
 static void ide_floppy_callback(ide_drive_t *drive, int dsc)
 {
 	struct ide_disk_obj *floppy = drive->driver_data;
 	struct ide_atapi_pc *pc = drive->pc;
+	struct request *rq = pc->rq;
 	int uptodate = pc->error ? 0 : 1;
 
 	ide_debug_log(IDE_DBG_FUNC, "enter");
@@ -121,7 +103,7 @@ static void ide_floppy_callback(ide_drive_t *drive, int dsc)
 		drive->failed_pc = NULL;
 
 	if (pc->c[0] == GPCMD_READ_10 || pc->c[0] == GPCMD_WRITE_10 ||
-	    (pc->rq && blk_pc_request(pc->rq)))
+	    (rq && blk_pc_request(rq)))
 		uptodate = 1; /* FIXME */
 	else if (pc->c[0] == GPCMD_REQUEST_SENSE) {
 		u8 *buf = pc->buf;
@@ -145,7 +127,14 @@ static void ide_floppy_callback(ide_drive_t *drive, int dsc)
 			       "Aborting request!\n");
 	}
 
-	ide_floppy_end_request(drive, uptodate, 0);
+	if (uptodate == 0)
+		drive->failed_pc = NULL;
+
+	if (blk_special_request(rq)) {
+		rq->errors = uptodate ? 0 : IDE_DRV_ERROR_GENERAL;
+		ide_complete_rq(drive, 0);
+	} else
+		ide_end_request(drive, uptodate, 0);
 }
 
 static void ide_floppy_report_error(struct ide_disk_obj *floppy,
@@ -286,21 +275,25 @@ static ide_startstop_t ide_floppy_do_request(ide_drive_t *drive,
 					: "dev?"));
 
 	if (rq->errors >= ERROR_MAX) {
-		if (drive->failed_pc)
+		if (drive->failed_pc) {
 			ide_floppy_report_error(floppy, drive->failed_pc);
-		else
+			drive->failed_pc = NULL;
+		} else
 			printk(KERN_ERR PFX "%s: I/O error\n", drive->name);
 
-		ide_floppy_end_request(drive, 0, 0);
-		return ide_stopped;
+		if (blk_special_request(rq)) {
+			rq->errors = IDE_DRV_ERROR_GENERAL;
+			ide_complete_rq(drive, 0);
+			return ide_stopped;
+		} else
+			goto out_end;
 	}
 	if (blk_fs_request(rq)) {
 		if (((long)rq->sector % floppy->bs_factor) ||
 		    (rq->nr_sectors % floppy->bs_factor)) {
 			printk(KERN_ERR PFX "%s: unsupported r/w rq size\n",
 				drive->name);
-			ide_floppy_end_request(drive, 0, 0);
-			return ide_stopped;
+			goto out_end;
 		}
 		pc = &floppy->queued_pc;
 		idefloppy_create_rw_cmd(drive, pc, rq, (unsigned long)block);
@@ -311,8 +304,7 @@ static ide_startstop_t ide_floppy_do_request(ide_drive_t *drive,
 		idefloppy_blockpc_cmd(floppy, pc, rq);
 	} else {
 		blk_dump_rq_flags(rq, PFX "unsupported command in queue");
-		ide_floppy_end_request(drive, 0, 0);
-		return ide_stopped;
+		goto out_end;
 	}
 
 	if (blk_fs_request(rq) || pc->req_xfer) {
@@ -326,6 +318,10 @@ static ide_startstop_t ide_floppy_do_request(ide_drive_t *drive,
 	pc->rq = rq;
 
 	return idefloppy_issue_pc(drive, pc);
+out_end:
+	drive->failed_pc = NULL;
+	ide_end_request(drive, 0, 0);
+	return ide_stopped;
 }
 
 /*
