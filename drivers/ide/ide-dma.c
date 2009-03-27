@@ -98,7 +98,10 @@ ide_startstop_t ide_dma_intr(ide_drive_t *drive)
 		if (!dma_stat) {
 			struct ide_cmd *cmd = &hwif->cmd;
 
-			ide_finish_cmd(drive, cmd, stat);
+			if ((cmd->tf_flags & IDE_TFLAG_FS) == 0)
+				ide_finish_cmd(drive, cmd, stat);
+			else
+				ide_end_request(drive, 1, cmd->rq->nr_sectors);
 			return ide_stopped;
 		}
 		printk(KERN_ERR "%s: %s: bad DMA status (0x%02x)\n",

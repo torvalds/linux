@@ -155,12 +155,8 @@ static ide_startstop_t task_no_data_intr(ide_drive_t *drive)
 
 		if (blk_pm_request(rq))
 			ide_complete_pm_rq(drive, rq);
-		else {
-			u8 err = ide_read_error(drive);
-
-			ide_complete_cmd(drive, cmd, stat, err);
-			ide_complete_rq(drive, err);
-		}
+		else
+			ide_finish_cmd(drive, cmd, stat);
 	}
 
 	return ide_stopped;
@@ -293,15 +289,10 @@ static void ide_error_cmd(ide_drive_t *drive, struct ide_cmd *cmd)
 
 void ide_finish_cmd(ide_drive_t *drive, struct ide_cmd *cmd, u8 stat)
 {
-	if ((cmd->tf_flags & IDE_TFLAG_FS) == 0) {
-		u8 err = ide_read_error(drive);
+	u8 err = ide_read_error(drive);
 
-		ide_complete_cmd(drive, cmd, stat, err);
-		ide_complete_rq(drive, err);
-		return;
-	}
-
-	ide_end_request(drive, 1, cmd->rq->nr_sectors);
+	ide_complete_cmd(drive, cmd, stat, err);
+	ide_complete_rq(drive, err);
 }
 
 /*
@@ -356,7 +347,10 @@ out_wait:
 	ide_set_handler(drive, &task_pio_intr, WAIT_WORSTCASE, NULL);
 	return ide_started;
 out_end:
-	ide_finish_cmd(drive, cmd, stat);
+	if ((cmd->tf_flags & IDE_TFLAG_FS) == 0)
+		ide_finish_cmd(drive, cmd, stat);
+	else
+		ide_end_request(drive, 1, cmd->rq->nr_sectors);
 	return ide_stopped;
 out_err:
 	ide_error_cmd(drive, cmd);
