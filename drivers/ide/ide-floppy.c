@@ -130,8 +130,9 @@ static void ide_floppy_report_error(struct ide_disk_obj *floppy,
 
 }
 
-static ide_startstop_t idefloppy_issue_pc(ide_drive_t *drive,
-		struct ide_atapi_pc *pc)
+static ide_startstop_t ide_floppy_issue_pc(ide_drive_t *drive,
+					   struct ide_cmd *cmd,
+					   struct ide_atapi_pc *pc)
 {
 	struct ide_disk_obj *floppy = drive->driver_data;
 
@@ -157,7 +158,7 @@ static ide_startstop_t idefloppy_issue_pc(ide_drive_t *drive,
 
 	pc->retries++;
 
-	return ide_issue_pc(drive);
+	return ide_issue_pc(drive, cmd);
 }
 
 void ide_floppy_create_read_capacity_cmd(struct ide_atapi_pc *pc)
@@ -244,7 +245,7 @@ static ide_startstop_t ide_floppy_do_request(ide_drive_t *drive,
 {
 	struct ide_disk_obj *floppy = drive->driver_data;
 	ide_hwif_t *hwif = drive->hwif;
-	struct ide_cmd *cmd = &hwif->cmd;
+	struct ide_cmd cmd;
 	struct ide_atapi_pc *pc;
 
 	if (drive->debug_mask & IDE_DBG_RQ)
@@ -285,21 +286,24 @@ static ide_startstop_t ide_floppy_do_request(ide_drive_t *drive,
 		goto out_end;
 	}
 
+	memset(&cmd, 0, sizeof(cmd));
+
 	if (rq_data_dir(rq))
-		cmd->tf_flags |= IDE_TFLAG_WRITE;
-	cmd->rq = rq;
+		cmd.tf_flags |= IDE_TFLAG_WRITE;
+
+	cmd.rq = rq;
 
 	if (blk_fs_request(rq) || pc->req_xfer) {
-		ide_init_sg_cmd(cmd, rq->nr_sectors);
-		ide_map_sg(drive, cmd);
+		ide_init_sg_cmd(&cmd, rq->nr_sectors);
+		ide_map_sg(drive, &cmd);
 	}
 
 	pc->sg = hwif->sg_table;
-	pc->sg_cnt = cmd->sg_nents;
+	pc->sg_cnt = cmd.sg_nents;
 
 	pc->rq = rq;
 
-	return idefloppy_issue_pc(drive, pc);
+	return ide_floppy_issue_pc(drive, &cmd, pc);
 out_end:
 	drive->failed_pc = NULL;
 	if (blk_fs_request(rq) == 0 && rq->errors == 0)

@@ -580,7 +580,7 @@ static int ide_tape_io_buffers(ide_drive_t *drive, struct ide_atapi_pc *pc,
  *
  * The handling will be done in three stages:
  *
- * 1. idetape_issue_pc will send the packet command to the drive, and will set
+ * 1. ide_tape_issue_pc will send the packet command to the drive, and will set
  * the interrupt handler to ide_pc_intr.
  *
  * 2. On each interrupt, ide_pc_intr will be called. This step will be
@@ -608,8 +608,9 @@ static int ide_tape_io_buffers(ide_drive_t *drive, struct ide_atapi_pc *pc,
  * request.
  */
 
-static ide_startstop_t idetape_issue_pc(ide_drive_t *drive,
-		struct ide_atapi_pc *pc)
+static ide_startstop_t ide_tape_issue_pc(ide_drive_t *drive,
+					 struct ide_cmd *cmd,
+					 struct ide_atapi_pc *pc)
 {
 	idetape_tape_t *tape = drive->driver_data;
 
@@ -654,7 +655,7 @@ static ide_startstop_t idetape_issue_pc(ide_drive_t *drive,
 
 	pc->retries++;
 
-	return ide_issue_pc(drive);
+	return ide_issue_pc(drive, cmd);
 }
 
 /* A mode sense command is used to "sense" tape parameters. */
@@ -749,6 +750,7 @@ static ide_startstop_t idetape_do_request(ide_drive_t *drive,
 	idetape_tape_t *tape = drive->driver_data;
 	struct ide_atapi_pc *pc = NULL;
 	struct request *postponed_rq = tape->postponed_rq;
+	struct ide_cmd cmd;
 	u8 stat;
 
 	debug_log(DBG_SENSE, "sector: %llu, nr_sectors: %lu,"
@@ -844,7 +846,14 @@ static ide_startstop_t idetape_do_request(ide_drive_t *drive,
 	BUG();
 
 out:
-	return idetape_issue_pc(drive, pc);
+	memset(&cmd, 0, sizeof(cmd));
+
+	if (rq_data_dir(rq))
+		cmd.tf_flags |= IDE_TFLAG_WRITE;
+
+	cmd.rq = rq;
+
+	return ide_tape_issue_pc(drive, &cmd, pc);
 }
 
 /*

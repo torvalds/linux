@@ -487,23 +487,15 @@ next_irq:
 	return ide_started;
 }
 
-static void ide_pktcmd_tf_load(ide_drive_t *drive, u32 tf_flags, u16 bcount)
+static void ide_init_packet_cmd(struct ide_cmd *cmd, u32 tf_flags,
+				u16 bcount, u8 dma)
 {
-	ide_hwif_t *hwif = drive->hwif;
-	struct ide_cmd cmd;
-	u8 dma = drive->dma;
-
-	memset(&cmd, 0, sizeof(cmd));
-	cmd.tf_flags = IDE_TFLAG_OUT_LBAH | IDE_TFLAG_OUT_LBAM |
-		       IDE_TFLAG_OUT_FEATURE | tf_flags;
-	cmd.tf.feature = dma;		/* Use PIO/DMA */
-	cmd.tf.lbam    = bcount & 0xff;
-	cmd.tf.lbah    = (bcount >> 8) & 0xff;
-
-	ide_tf_dump(drive->name, &cmd.tf);
-	hwif->tp_ops->set_irq(hwif, 1);
-	SELECT_MASK(drive, 0);
-	hwif->tp_ops->tf_load(drive, &cmd);
+	cmd->protocol  = dma ? ATAPI_PROT_DMA : ATAPI_PROT_PIO;
+	cmd->tf_flags |= IDE_TFLAG_OUT_LBAH | IDE_TFLAG_OUT_LBAM |
+			 IDE_TFLAG_OUT_FEATURE | tf_flags;
+	cmd->tf.feature = dma;		/* Use PIO/DMA */
+	cmd->tf.lbam    = bcount & 0xff;
+	cmd->tf.lbah    = (bcount >> 8) & 0xff;
 }
 
 static u8 ide_read_ireason(ide_drive_t *drive)
@@ -634,23 +626,16 @@ static ide_startstop_t ide_transfer_pc(ide_drive_t *drive)
 	return ide_started;
 }
 
-ide_startstop_t ide_issue_pc(ide_drive_t *drive)
+ide_startstop_t ide_issue_pc(ide_drive_t *drive, struct ide_cmd *cmd)
 {
 	struct ide_atapi_pc *pc;
 	ide_hwif_t *hwif = drive->hwif;
 	const struct ide_dma_ops *dma_ops = hwif->dma_ops;
-	struct ide_cmd *cmd = &hwif->cmd;
 	ide_expiry_t *expiry = NULL;
 	struct request *rq = hwif->rq;
 	unsigned int timeout;
 	u32 tf_flags;
 	u16 bcount;
-
-	if (drive->media != ide_floppy) {
-		if (rq_data_dir(rq))
-			cmd->tf_flags |= IDE_TFLAG_WRITE;
-		cmd->rq = rq;
-	}
 
 	if (dev_is_idecd(drive)) {
 		tf_flags = IDE_TFLAG_OUT_NSECT | IDE_TFLAG_OUT_LBAL;
@@ -696,7 +681,9 @@ ide_startstop_t ide_issue_pc(ide_drive_t *drive)
 						       : WAIT_TAPE_CMD;
 	}
 
-	ide_pktcmd_tf_load(drive, tf_flags, bcount);
+	ide_init_packet_cmd(cmd, tf_flags, bcount, drive->dma);
+
+	(void)do_rw_taskfile(drive, cmd);
 
 	/* Issue the packet command */
 	if (drive->atapi_flags & IDE_AFLAG_DRQ_INTERRUPT) {
