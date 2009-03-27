@@ -326,35 +326,28 @@ static ide_startstop_t task_pio_intr(ide_drive_t *drive)
 	if (write == 0) {
 		/* Error? */
 		if (stat & ATA_ERR)
-			return task_error(drive, cmd, __func__, stat);
+			goto out_err;
 
 		/* Didn't want any data? Odd. */
 		if ((stat & ATA_DRQ) == 0) {
 			/* Command all done? */
-			if (OK_STAT(stat, ATA_DRDY, ATA_BUSY)) {
-				ide_finish_cmd(drive, cmd, stat);
-				return ide_stopped;
-			}
+			if (OK_STAT(stat, ATA_DRDY, ATA_BUSY))
+				goto out_end;
 
 			/* Assume it was a spurious irq */
-			ide_set_handler(drive, &task_pio_intr, WAIT_WORSTCASE,
-					NULL);
-
-			return ide_started;
+			goto out_wait;
 		}
 	} else {
 		if (!OK_STAT(stat, DRIVE_READY, drive->bad_wstat))
-			return task_error(drive, cmd, __func__, stat);
+			goto out_err;
 
 		/* Deal with unexpected ATA data phase. */
 		if (((stat & ATA_DRQ) == 0) ^ (cmd->nleft == 0))
-			return task_error(drive, cmd, __func__, stat);
+			goto out_err;
 	}
 
-	if (write && cmd->nleft == 0) {
-		ide_finish_cmd(drive, cmd, stat);
-		return ide_stopped;
-	}
+	if (write && cmd->nleft == 0)
+		goto out_end;
 
 	/* Still data left to transfer. */
 	ide_pio_datablock(drive, cmd, write);
@@ -363,15 +356,19 @@ static ide_startstop_t task_pio_intr(ide_drive_t *drive)
 	if (write == 0 && cmd->nleft == 0) {
 		stat = wait_drive_not_busy(drive);
 		if (!OK_STAT(stat, 0, BAD_STAT))
-			return task_error(drive, cmd, __func__, stat);
-		ide_finish_cmd(drive, cmd, stat);
-		return ide_stopped;
-	}
+			goto out_err;
 
+		goto out_end;
+	}
+out_wait:
 	/* Still data left to transfer. */
 	ide_set_handler(drive, &task_pio_intr, WAIT_WORSTCASE, NULL);
-
 	return ide_started;
+out_end:
+	ide_finish_cmd(drive, cmd, stat);
+	return ide_stopped;
+out_err:
+	return task_error(drive, cmd, __func__, stat);
 }
 
 static ide_startstop_t pre_task_out_intr(ide_drive_t *drive,
