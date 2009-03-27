@@ -268,7 +268,7 @@ static void ide_pio_datablock(ide_drive_t *drive, struct request *rq,
 	ide_task_t *task = &drive->hwif->task;
 	u8 saved_io_32bit = drive->io_32bit;
 
-	if (rq->bio)	/* fs request */
+	if (blk_fs_request(rq))
 		rq->errors = 0;
 
 	if (task->tf_flags & IDE_TFLAG_IO_16BIT)
@@ -292,7 +292,7 @@ static void ide_pio_datablock(ide_drive_t *drive, struct request *rq,
 static ide_startstop_t task_error(ide_drive_t *drive, struct request *rq,
 				  const char *s, u8 stat)
 {
-	if (rq->bio) {
+	if (blk_fs_request(rq)) {
 		ide_hwif_t *hwif = drive->hwif;
 		ide_task_t *task = &hwif->task;
 		int sectors = hwif->nsect - hwif->nleft;
@@ -323,7 +323,7 @@ static ide_startstop_t task_error(ide_drive_t *drive, struct request *rq,
 
 void task_end_request(ide_drive_t *drive, struct request *rq, u8 stat)
 {
-	if (rq->cmd_type == REQ_TYPE_ATA_TASKFILE) {
+	if (blk_fs_request(rq) == 0) {
 		ide_task_t *task = rq->special;
 		u8 err = ide_read_error(drive);
 
