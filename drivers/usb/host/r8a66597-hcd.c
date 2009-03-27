@@ -2373,7 +2373,7 @@ static int __init_or_module r8a66597_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static int __init r8a66597_probe(struct platform_device *pdev)
+static int __devinit r8a66597_probe(struct platform_device *pdev)
 {
 #if defined(CONFIG_SUPERH_ON_CHIP_R8A66597) && defined(CONFIG_HAVE_CLK)
 	char clk_name[8];
