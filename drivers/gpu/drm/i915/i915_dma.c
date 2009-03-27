@@ -1049,7 +1049,7 @@ static int i915_load_modeset_init(struct drm_device *dev)
 
 	intel_modeset_init(dev);
 
-	drm_helper_initial_config(dev, false);
+	drm_helper_initial_config(dev);
 
 	return 0;
 

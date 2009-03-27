@@ -913,7 +913,6 @@ bool drm_helper_plugged_event(struct drm_device *dev)
 /**
  * drm_initial_config - setup a sane initial connector configuration
  * @dev: DRM device
- * @can_grow: this configuration is growable
  *
  * LOCKING:
  * Called at init time, must take mode config lock.
@@ -925,7 +924,7 @@ bool drm_helper_plugged_event(struct drm_device *dev)
  * RETURNS:
  * Zero if everything went ok, nonzero otherwise.
  */
-bool drm_helper_initial_config(struct drm_device *dev, bool can_grow)
+bool drm_helper_initial_config(struct drm_device *dev)
 {
 	struct drm_connector *connector;
 	int count = 0;
