@@ -326,6 +326,10 @@ static int icside_dma_setup(ide_drive_t *drive)
 	BUG_ON(dma_channel_active(ec->dma));
 
 	hwif->sg_nents = ide_build_sglist(drive, rq);
+	if (hwif->sg_nents == 0) {
+		ide_map_sg(drive, rq);
+		return 1;
+	}
 
 	/*
 	 * Ensure that we have the right interrupt routed.
