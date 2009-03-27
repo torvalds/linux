@@ -1908,11 +1908,29 @@ static int pohmelfs_get_sb(struct file_system_type *fs_type,
 				mnt);
 }
 
+/*
+ * We need this to sync all inodes earlier, since when writeback
+ * is invoked from the umount/mntput path dcache is already shrunk,
+ * see generic_shutdown_super(), and no inodes can access the path.
+ */
+static void pohmelfs_kill_super(struct super_block *sb)
+{
+	struct writeback_control wbc = {
+		.sync_mode	= WB_SYNC_ALL,
+		.range_start	= 0,
+		.range_end	= LLONG_MAX,
+		.nr_to_write	= LONG_MAX,
+	};
+	generic_sync_sb_inodes(sb, &wbc);
+
+	kill_anon_super(sb);
+}
+
 static struct file_system_type pohmel_fs_type = {
 	.owner		= THIS_MODULE,
 	.name		= "pohmel",
 	.get_sb		= pohmelfs_get_sb,
-	.kill_sb 	= kill_anon_super,
+	.kill_sb 	= pohmelfs_kill_super,
 };
 
 /*
