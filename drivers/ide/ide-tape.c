@@ -245,9 +245,6 @@ typedef struct ide_tape_obj {
 	/* Wasted space in each stage */
 	int excess_bh_size;
 
-	/* protects the ide-tape queue */
-	spinlock_t lock;
-
 	/* Measures average tape speed */
 	unsigned long avg_time;
 	int avg_size;
@@ -481,7 +478,6 @@ static int idetape_end_request(ide_drive_t *drive, int uptodate, int nr_sects)
 {
 	struct request *rq = drive->hwif->rq;
 	idetape_tape_t *tape = drive->driver_data;
-	unsigned long flags;
 	int error;
 
 	debug_log(DBG_PROCS, "Enter %s\n", __func__);
@@ -500,11 +496,8 @@ static int idetape_end_request(ide_drive_t *drive, int uptodate, int nr_sects)
 		return 0;
 	}
 
-	spin_lock_irqsave(&tape->lock, flags);
-
 	ide_complete_rq(drive, 0);
 
-	spin_unlock_irqrestore(&tape->lock, flags);
 	return 0;
 }
 
@@ -2191,8 +2184,6 @@ static void idetape_setup(ide_drive_t *drive, idetape_tape_t *tape, int minor)
 	drive->pc_callback	 = ide_tape_callback;
 	drive->pc_update_buffers = idetape_update_buffers;
 	drive->pc_io_buffers	 = ide_tape_io_buffers;
-
-	spin_lock_init(&tape->lock);
 
 	drive->dev_flags |= IDE_DFLAG_DSC_OVERLAP;
 
