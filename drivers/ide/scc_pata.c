@@ -868,12 +868,12 @@ static const struct ide_port_ops scc_port_ops = {
 static const struct ide_dma_ops scc_dma_ops = {
 	.dma_host_set		= scc_dma_host_set,
 	.dma_setup		= scc_dma_setup,
-	.dma_exec_cmd		= ide_dma_exec_cmd,
 	.dma_start		= scc_dma_start,
 	.dma_end		= scc_dma_end,
 	.dma_test_irq		= scc_dma_test_irq,
 	.dma_lost_irq		= ide_dma_lost_irq,
 	.dma_timeout		= ide_dma_timeout,
+	.dma_timer_expiry	= ide_dma_sff_timer_expiry,
 	.dma_sff_read_status	= scc_dma_sff_read_status,
 };
 

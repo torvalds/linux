@@ -351,12 +351,6 @@ static int icside_dma_setup(ide_drive_t *drive, struct ide_cmd *cmd)
 	return 0;
 }
 
-static void icside_dma_exec_cmd(ide_drive_t *drive, u8 cmd)
-{
-	/* issue cmd to drive */
-	ide_execute_command(drive, cmd, ide_dma_intr, 2 * WAIT_CMD, NULL);
-}
-
 static int icside_dma_test_irq(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif = drive->hwif;
@@ -380,7 +374,6 @@ static int icside_dma_init(ide_hwif_t *hwif, const struct ide_port_info *d)
 static const struct ide_dma_ops icside_v6_dma_ops = {
 	.dma_host_set		= icside_dma_host_set,
 	.dma_setup		= icside_dma_setup,
-	.dma_exec_cmd		= icside_dma_exec_cmd,
 	.dma_start		= icside_dma_start,
 	.dma_end		= icside_dma_end,
 	.dma_test_irq		= icside_dma_test_irq,

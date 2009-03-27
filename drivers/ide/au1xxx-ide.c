@@ -290,13 +290,6 @@ static void auide_dma_start(ide_drive_t *drive )
 }
 
 
-static void auide_dma_exec_cmd(ide_drive_t *drive, u8 command)
-{
-	/* issue cmd to drive */
-	ide_execute_command(drive, command, &ide_dma_intr,
-			    (2*WAIT_CMD), NULL);
-}
-
 static int auide_dma_setup(ide_drive_t *drive, struct ide_cmd *cmd)
 {
 	if (auide_build_dmatable(drive, cmd) == 0) {
@@ -356,7 +349,6 @@ static void auide_init_dbdma_dev(dbdev_tab_t *dev, u32 dev_id, u32 tsize, u32 de
 static const struct ide_dma_ops au1xxx_dma_ops = {
 	.dma_host_set		= auide_dma_host_set,
 	.dma_setup		= auide_dma_setup,
-	.dma_exec_cmd		= auide_dma_exec_cmd,
 	.dma_start		= auide_dma_start,
 	.dma_end		= auide_dma_end,
 	.dma_test_irq		= auide_dma_test_irq,

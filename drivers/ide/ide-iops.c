@@ -454,7 +454,6 @@ EXPORT_SYMBOL(ide_set_handler);
  *	@command: command byte to write
  *	@handler: handler for next phase
  *	@timeout: timeout for command
- *	@expiry:  handler to run on timeout
  *
  *	Helper function to issue an IDE command. This handles the
  *	atomicity requirements, command timing and ensures that the
@@ -463,12 +462,10 @@ EXPORT_SYMBOL(ide_set_handler);
  */
 
 void ide_execute_command(ide_drive_t *drive, u8 cmd, ide_handler_t *handler,
-			 unsigned timeout, ide_expiry_t *expiry)
+			 unsigned timeout)
 {
 	ide_hwif_t *hwif = drive->hwif;
 	unsigned long flags;
-
-	hwif->expiry = expiry;
 
 	spin_lock_irqsave(&hwif->lock, flags);
 	__ide_set_handler(drive, handler, timeout);
@@ -482,7 +479,6 @@ void ide_execute_command(ide_drive_t *drive, u8 cmd, ide_handler_t *handler,
 	ndelay(400);
 	spin_unlock_irqrestore(&hwif->lock, flags);
 }
-EXPORT_SYMBOL(ide_execute_command);
 
 void ide_execute_pkt_cmd(ide_drive_t *drive)
 {

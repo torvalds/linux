@@ -224,7 +224,7 @@ int ide_dma_setup(ide_drive_t *drive, struct ide_cmd *cmd)
 EXPORT_SYMBOL_GPL(ide_dma_setup);
 
 /**
- *	dma_timer_expiry	-	handle a DMA timeout
+ *	ide_dma_sff_timer_expiry	-	handle a DMA timeout
  *	@drive: Drive that timed out
  *
  *	An IDE DMA transfer timed out. In the event of an error we ask
@@ -237,7 +237,7 @@ EXPORT_SYMBOL_GPL(ide_dma_setup);
  *	This can occur if an interrupt is lost or due to hang or bugs.
  */
 
-static int dma_timer_expiry(ide_drive_t *drive)
+int ide_dma_sff_timer_expiry(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif = drive->hwif;
 	u8 dma_stat = hwif->dma_ops->dma_sff_read_status(hwif);
@@ -261,14 +261,7 @@ static int dma_timer_expiry(ide_drive_t *drive)
 
 	return 0;	/* Status is unknown -- reset the bus */
 }
-
-void ide_dma_exec_cmd(ide_drive_t *drive, u8 command)
-{
-	/* issue cmd to drive */
-	ide_execute_command(drive, command, &ide_dma_intr, 2 * WAIT_CMD,
-			    dma_timer_expiry);
-}
-EXPORT_SYMBOL_GPL(ide_dma_exec_cmd);
+EXPORT_SYMBOL_GPL(ide_dma_sff_timer_expiry);
 
 void ide_dma_start(ide_drive_t *drive)
 {
@@ -342,10 +335,10 @@ EXPORT_SYMBOL_GPL(ide_dma_test_irq);
 const struct ide_dma_ops sff_dma_ops = {
 	.dma_host_set		= ide_dma_host_set,
 	.dma_setup		= ide_dma_setup,
-	.dma_exec_cmd		= ide_dma_exec_cmd,
 	.dma_start		= ide_dma_start,
 	.dma_end		= ide_dma_end,
 	.dma_test_irq		= ide_dma_test_irq,
+	.dma_timer_expiry	= ide_dma_sff_timer_expiry,
 	.dma_timeout		= ide_dma_timeout,
 	.dma_lost_irq		= ide_dma_lost_irq,
 	.dma_sff_read_status	= ide_dma_sff_read_status,

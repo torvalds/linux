@@ -691,8 +691,9 @@ ide_startstop_t ide_issue_pc(ide_drive_t *drive, struct ide_cmd *cmd)
 	if (drive->atapi_flags & IDE_AFLAG_DRQ_INTERRUPT) {
 		if (drive->dma)
 			drive->waiting_for_dma = 0;
+		hwif->expiry = expiry;
 		ide_execute_command(drive, ATA_CMD_PACKET, ide_transfer_pc,
-				    timeout, expiry);
+				    timeout);
 		return ide_started;
 	} else {
 		ide_execute_pkt_cmd(drive);

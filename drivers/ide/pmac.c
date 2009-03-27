@@ -1527,13 +1527,6 @@ static int pmac_ide_dma_setup(ide_drive_t *drive, struct ide_cmd *cmd)
 	return 0;
 }
 
-static void
-pmac_ide_dma_exec_cmd(ide_drive_t *drive, u8 command)
-{
-	/* issue cmd to drive */
-	ide_execute_command(drive, command, &ide_dma_intr, 2*WAIT_CMD, NULL);
-}
-
 /*
  * Kick the DMA controller into life after the DMA command has been issued
  * to the drive.
@@ -1654,7 +1647,6 @@ pmac_ide_dma_lost_irq (ide_drive_t *drive)
 static const struct ide_dma_ops pmac_dma_ops = {
 	.dma_host_set		= pmac_ide_dma_host_set,
 	.dma_setup		= pmac_ide_dma_setup,
-	.dma_exec_cmd		= pmac_ide_dma_exec_cmd,
 	.dma_start		= pmac_ide_dma_start,
 	.dma_end		= pmac_ide_dma_end,
 	.dma_test_irq		= pmac_ide_dma_test_irq,

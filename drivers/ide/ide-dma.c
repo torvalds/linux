@@ -110,7 +110,6 @@ ide_startstop_t ide_dma_intr(ide_drive_t *drive)
 	}
 	return ide_error(drive, "dma_intr", stat);
 }
-EXPORT_SYMBOL_GPL(ide_dma_intr);
 
 int ide_dma_good_drive(ide_drive_t *drive)
 {

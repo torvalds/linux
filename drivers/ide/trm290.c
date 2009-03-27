@@ -176,11 +176,6 @@ static void trm290_selectproc (ide_drive_t *drive)
 	trm290_prepare_drive(drive, !!(drive->dev_flags & IDE_DFLAG_USING_DMA));
 }
 
-static void trm290_dma_exec_cmd(ide_drive_t *drive, u8 command)
-{
-	ide_execute_command(drive, command, &ide_dma_intr, WAIT_CMD, NULL);
-}
-
 static int trm290_dma_setup(ide_drive_t *drive, struct ide_cmd *cmd)
 {
 	ide_hwif_t *hwif = drive->hwif;
@@ -315,7 +310,6 @@ static const struct ide_port_ops trm290_port_ops = {
 static struct ide_dma_ops trm290_dma_ops = {
 	.dma_host_set		= trm290_dma_host_set,
 	.dma_setup 		= trm290_dma_setup,
-	.dma_exec_cmd		= trm290_dma_exec_cmd,
 	.dma_start 		= trm290_dma_start,
 	.dma_end		= trm290_dma_end,
 	.dma_test_irq		= trm290_dma_test_irq,
