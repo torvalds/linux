@@ -359,7 +359,7 @@ int ath5k_hw_nic_wakeup(struct ath5k_hw *ah, int flags, bool initial)
 			mode |= AR5K_PHY_MODE_FREQ_5GHZ;
 
 			if (ah->ah_radio == AR5K_RF5413)
-				clock |= AR5K_PHY_PLL_40MHZ_5413;
+				clock = AR5K_PHY_PLL_40MHZ_5413;
 			else
 				clock |= AR5K_PHY_PLL_40MHZ;
 
