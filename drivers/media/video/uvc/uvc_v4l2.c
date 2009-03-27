@@ -673,10 +673,16 @@ static long uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 	{
 		struct v4l2_fmtdesc *fmt = arg;
 		struct uvc_format *format;
+		enum v4l2_buf_type type = fmt->type;
+		__u32 index = fmt->index;
 
 		if (fmt->type != video->streaming->type ||
 		    fmt->index >= video->streaming->nformats)
 			return -EINVAL;
+
+		memset(fmt, 0, sizeof(*fmt));
+		fmt->index = index;
+		fmt->type = type;
 
 		format = &video->streaming->format[fmt->index];
 		fmt->flags = 0;
