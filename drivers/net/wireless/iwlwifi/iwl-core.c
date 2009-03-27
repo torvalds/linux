@@ -2054,7 +2054,7 @@ void iwl_bg_rf_kill(struct work_struct *work)
 			  "HW and/or SW RF Kill no longer active, restarting "
 			  "device\n");
 		if (!test_bit(STATUS_EXIT_PENDING, &priv->status) &&
-		    test_bit(STATUS_ALIVE, &priv->status))
+		    priv->is_open)
 			queue_work(priv->workqueue, &priv->restart);
 	} else {
 		/* make sure mac80211 stop sending Tx frame */
