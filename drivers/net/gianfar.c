@@ -1310,8 +1310,10 @@ static int gfar_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	base = priv->tx_bd_base;
 
-	/* make space for additional header */
-	if (skb_headroom(skb) < GMAC_FCB_LEN) {
+	/* make space for additional header when fcb is needed */
+	if (((skb->ip_summed == CHECKSUM_PARTIAL) ||
+			(priv->vlgrp && vlan_tx_tag_present(skb))) &&
+			(skb_headroom(skb) < GMAC_FCB_LEN)) {
 		struct sk_buff *skb_new;
 
 		skb_new = skb_realloc_headroom(skb, GMAC_FCB_LEN);
