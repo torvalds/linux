@@ -141,15 +141,17 @@ void ide_complete_cmd(ide_drive_t *drive, struct ide_cmd *cmd, u8 stat, u8 err)
 		kfree(cmd);
 }
 
-void ide_complete_rq(ide_drive_t *drive, int error)
+int ide_complete_rq(ide_drive_t *drive, int error)
 {
 	ide_hwif_t *hwif = drive->hwif;
 	struct request *rq = hwif->rq;
+	int rc;
 
-	hwif->rq = NULL;
+	rc = blk_end_request(rq, error, blk_rq_bytes(rq));
+	if (rc == 0)
+		hwif->rq = NULL;
 
-	if (unlikely(blk_end_request(rq, error, blk_rq_bytes(rq))))
-		BUG();
+	return rc;
 }
 EXPORT_SYMBOL(ide_complete_rq);
 
