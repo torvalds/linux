@@ -521,8 +521,8 @@ struct dentry *pohmelfs_lookup(struct inode *dir, struct dentry *dentry, struct 
 		ino = n->ino;
 	mutex_unlock(&parent->offset_lock);
 
-	dprintk("%s: start ino: %lu, inode: %p, name: '%s', hash: %x, parent_state: %lx.\n",
-			__func__, ino, inode, str.name, str.hash, parent->state);
+	dprintk("%s: start ino: %lu, inode: %p, name: '%s', hash: %x, parent_state: %lx, need_lock: %d.\n",
+			__func__, ino, inode, str.name, str.hash, parent->state, need_lock);
 
 	if (ino) {
 		inode = ilookup(dir->i_sb, ino);
