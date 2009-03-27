@@ -147,12 +147,9 @@ static ide_startstop_t task_no_data_intr(ide_drive_t *drive)
 			}
 		}
 		return ide_error(drive, "task_no_data_intr", stat);
-		/* calls ide_end_drive_cmd */
 	}
 
-	if (!custom)
-		ide_end_drive_cmd(drive, stat, ide_read_error(drive));
-	else if (tf->command == ATA_CMD_IDLEIMMEDIATE) {
+	if (custom && tf->command == ATA_CMD_IDLEIMMEDIATE) {
 		hwif->tp_ops->tf_read(drive, task);
 		if (tf->lbal != 0xc4) {
 			printk(KERN_ERR "%s: head unload failed!\n",
@@ -160,9 +157,21 @@ static ide_startstop_t task_no_data_intr(ide_drive_t *drive)
 			ide_tf_dump(drive->name, tf);
 		} else
 			drive->dev_flags |= IDE_DFLAG_PARKED;
-		ide_end_drive_cmd(drive, stat, ide_read_error(drive));
-	} else if (tf->command == ATA_CMD_SET_MULTI)
+	} else if (custom && tf->command == ATA_CMD_SET_MULTI)
 		drive->mult_count = drive->mult_req;
+
+	if (custom == 0 || tf->command == ATA_CMD_IDLEIMMEDIATE) {
+		struct request *rq = hwif->rq;
+		u8 err = ide_read_error(drive);
+
+		if (blk_pm_request(rq))
+			ide_complete_pm_rq(drive, rq);
+		else {
+			if (rq->cmd_type == REQ_TYPE_ATA_TASKFILE)
+				ide_complete_task(drive, task, stat, err);
+			ide_complete_rq(drive, err);
+		}
+	}
 
 	return ide_stopped;
 }
@@ -321,9 +330,12 @@ static ide_startstop_t task_error(ide_drive_t *drive, struct request *rq,
 void task_end_request(ide_drive_t *drive, struct request *rq, u8 stat)
 {
 	if (rq->cmd_type == REQ_TYPE_ATA_TASKFILE) {
+		ide_task_t *task = rq->special;
 		u8 err = ide_read_error(drive);
 
-		ide_end_drive_cmd(drive, stat, err);
+		if (task)
+			ide_complete_task(drive, task, stat, err);
+		ide_complete_rq(drive, err);
 		return;
 	}
 

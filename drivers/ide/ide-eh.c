@@ -124,7 +124,16 @@ ide_startstop_t ide_error(ide_drive_t *drive, const char *msg, u8 stat)
 	/* retry only "normal" I/O: */
 	if (!blk_fs_request(rq)) {
 		rq->errors = 1;
-		ide_end_drive_cmd(drive, stat, err);
+		if (rq->cmd_type == REQ_TYPE_ATA_TASKFILE) {
+			ide_task_t *task = rq->special;
+
+			if (task)
+				ide_complete_task(drive, task, stat, err);
+		} else if (blk_pm_request(rq)) {
+			ide_complete_pm_rq(drive, rq);
+			return ide_stopped;
+		}
+		ide_complete_rq(drive, err);
 		return ide_stopped;
 	}
 

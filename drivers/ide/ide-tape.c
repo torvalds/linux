@@ -502,7 +502,7 @@ static int idetape_end_request(ide_drive_t *drive, int uptodate, int nr_sects)
 
 	spin_lock_irqsave(&tape->lock, flags);
 
-	ide_end_drive_cmd(drive, 0, 0);
+	ide_complete_rq(drive, 0);
 
 	spin_unlock_irqrestore(&tape->lock, flags);
 	return 0;

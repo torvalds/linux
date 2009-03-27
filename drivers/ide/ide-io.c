@@ -144,48 +144,27 @@ int ide_end_dequeued_request(ide_drive_t *drive, struct request *rq,
 }
 EXPORT_SYMBOL_GPL(ide_end_dequeued_request);
 
-static void ide_complete_task(ide_drive_t *drive, ide_task_t *task,
-			      u8 stat, u8 err)
+void ide_complete_task(ide_drive_t *drive, ide_task_t *task, u8 stat, u8 err)
 {
 	struct ide_taskfile *tf = &task->tf;
+	struct request *rq = task->rq;
 
 	tf->error = err;
 	tf->status = stat;
 
 	drive->hwif->tp_ops->tf_read(drive, task);
 
+	if (rq && rq->cmd_type == REQ_TYPE_ATA_TASKFILE)
+		memcpy(rq->special, task, sizeof(*task));
+
 	if (task->tf_flags & IDE_TFLAG_DYN)
 		kfree(task);
 }
 
-/**
- *	ide_end_drive_cmd	-	end an explicit drive command
- *	@drive: command 
- *	@stat: status bits
- *	@err: error bits
- *
- *	Clean up after success/failure of an explicit drive command.
- *	These get thrown onto the queue so they are synchronized with
- *	real I/O operations on the drive.
- *
- *	In LBA48 mode we have to read the register set twice to get
- *	all the extra information out.
- */
- 
-void ide_end_drive_cmd (ide_drive_t *drive, u8 stat, u8 err)
+void ide_complete_rq(ide_drive_t *drive, u8 err)
 {
 	ide_hwif_t *hwif = drive->hwif;
 	struct request *rq = hwif->rq;
-
-	if (rq->cmd_type == REQ_TYPE_ATA_TASKFILE) {
-		ide_task_t *task = (ide_task_t *)rq->special;
-
-		if (task)
-			ide_complete_task(drive, task, stat, err);
-	} else if (blk_pm_request(rq)) {
-		ide_complete_pm_rq(drive, rq);
-		return;
-	}
 
 	hwif->rq = NULL;
 
@@ -195,7 +174,7 @@ void ide_end_drive_cmd (ide_drive_t *drive, u8 stat, u8 err)
 				     blk_rq_bytes(rq))))
 		BUG();
 }
-EXPORT_SYMBOL(ide_end_drive_cmd);
+EXPORT_SYMBOL(ide_complete_rq);
 
 void ide_kill_rq(ide_drive_t *drive, struct request *rq)
 {
@@ -358,8 +337,9 @@ static ide_startstop_t execute_drive_cmd (ide_drive_t *drive,
 #ifdef DEBUG
  	printk("%s: DRIVE_CMD (null)\n", drive->name);
 #endif
-	ide_end_drive_cmd(drive, hwif->tp_ops->read_status(hwif),
-			  ide_read_error(drive));
+	(void)hwif->tp_ops->read_status(hwif);
+
+	ide_complete_rq(drive, ide_read_error(drive));
 
  	return ide_stopped;
 }

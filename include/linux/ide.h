@@ -1158,7 +1158,8 @@ extern ide_startstop_t ide_do_reset (ide_drive_t *);
 extern int ide_devset_execute(ide_drive_t *drive,
 			      const struct ide_devset *setting, int arg);
 
-extern void ide_end_drive_cmd(ide_drive_t *, u8, u8);
+void ide_complete_task(ide_drive_t *, ide_task_t *, u8, u8);
+void ide_complete_rq(ide_drive_t *, u8);
 
 void ide_tf_dump(const char *, struct ide_taskfile *);
 

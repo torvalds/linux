@@ -101,7 +101,7 @@ static int ide_floppy_end_request(ide_drive_t *drive, int uptodate, int nsecs)
 	}
 	rq->errors = error;
 	/* fixme: need to move this local also */
-	ide_end_drive_cmd(drive, 0, 0);
+	ide_complete_rq(drive, 0);
 	return 0;
 }
 
