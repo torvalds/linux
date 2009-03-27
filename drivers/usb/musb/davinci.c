@@ -265,6 +265,7 @@ static irqreturn_t davinci_interrupt(int irq, void *__hci)
 	irqreturn_t	retval = IRQ_NONE;
 	struct musb	*musb = __hci;
 	void __iomem	*tibase = musb->ctrl_base;
+	struct cppi	*cppi;
 	u32		tmp;
 
 	spin_lock_irqsave(&musb->lock, flags);
@@ -281,16 +282,9 @@ static irqreturn_t davinci_interrupt(int irq, void *__hci)
 	/* CPPI interrupts share the same IRQ line, but have their own
 	 * mask, state, "vector", and EOI registers.
 	 */
-	if (is_cppi_enabled()) {
-		u32 cppi_tx = musb_readl(tibase, DAVINCI_TXCPPI_MASKED_REG);
-		u32 cppi_rx = musb_readl(tibase, DAVINCI_RXCPPI_MASKED_REG);
-
-		if (cppi_tx || cppi_rx) {
-			DBG(4, "CPPI IRQ t%x r%x\n", cppi_tx, cppi_rx);
-			cppi_completion(musb, cppi_rx, cppi_tx);
-			retval = IRQ_HANDLED;
-		}
-	}
+	cppi = container_of(musb->dma_controller, struct cppi, controller);
+	if (is_cppi_enabled() && musb->dma_controller && !cppi->irq)
+		retval = cppi_interrupt(irq, __hci);
 
 	/* ack and handle non-CPPI interrupts */
 	tmp = musb_readl(tibase, DAVINCI_USB_INT_SRC_MASKED_REG);
