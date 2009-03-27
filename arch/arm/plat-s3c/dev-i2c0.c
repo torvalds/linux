@@ -52,7 +52,7 @@ static struct s3c2410_platform_i2c default_i2c_data0 __initdata = {
 	.slave_addr	= 0x10,
 	.bus_freq	= 100*1000,
 	.max_freq	= 400*1000,
-	.sda_delay	= S3C2410_IICLC_SDA_DELAY5 | S3C2410_IICLC_FILTER_ON,
+	.sda_delay	= 100,
 };
 
 void __init s3c_i2c0_set_platdata(struct s3c2410_platform_i2c *pd)

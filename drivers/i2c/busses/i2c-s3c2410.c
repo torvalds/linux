@@ -663,6 +663,23 @@ static int s3c24xx_i2c_clockrate(struct s3c24xx_i2c *i2c, unsigned int *got)
 
 	writel(iiccon, i2c->regs + S3C2410_IICCON);
 
+	if (s3c24xx_i2c_is2440(i2c)) {
+		unsigned long sda_delay;
+
+		if (pdata->sda_delay) {
+			sda_delay = (freq / 1000) * pdata->sda_delay;
+			sda_delay /= 1000000;
+			sda_delay = DIV_ROUND_UP(sda_delay, 5);
+			if (sda_delay > 3)
+				sda_delay = 3;
+			sda_delay |= S3C2410_IICLC_FILTER_ON;
+		} else
+			sda_delay = 0;
+
+		dev_dbg(i2c->dev, "IICLC=%08lx\n", sda_delay);
+		writel(sda_delay, i2c->regs + S3C2440_IICLC);
+	}
+
 	return 0;
 }
 
@@ -769,11 +786,8 @@ static int s3c24xx_i2c_init(struct s3c24xx_i2c *i2c)
 
 	/* check for s3c2440 i2c controller  */
 
-	if (s3c24xx_i2c_is2440(i2c)) {
-		dev_dbg(i2c->dev, "S3C2440_IICLC=%08x\n", pdata->sda_delay);
-
-		writel(pdata->sda_delay, i2c->regs + S3C2440_IICLC);
-	}
+	if (s3c24xx_i2c_is2440(i2c))
+		writel(0x0, i2c->regs + S3C2440_IICLC);
 
 	return 0;
 }
