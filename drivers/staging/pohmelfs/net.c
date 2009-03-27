@@ -450,8 +450,24 @@ static int pohmelfs_readdir_response(struct netfs_state *st)
 			if (err != -EEXIST)
 				goto err_out_put;
 		} else {
+			struct dentry *dentry, *alias, *pd;
+
 			set_bit(NETFS_INODE_REMOTE_SYNCED, &npi->state);
 			clear_bit(NETFS_INODE_OWNED, &npi->state);
+
+			pd = d_find_alias(&parent->vfs_inode);
+			if (pd) {
+				str.hash = full_name_hash(str.name, str.len);
+				dentry = d_alloc(pd, &str);
+				if (dentry) {
+					alias = d_materialise_unique(dentry, &npi->vfs_inode);
+					if (alias)
+						dput(dentry);
+				}
+
+				dput(dentry);
+				dput(pd);
+			}
 		}
 	}
 out:
