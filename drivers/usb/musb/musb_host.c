@@ -593,10 +593,17 @@ musb_rx_reinit(struct musb *musb, struct musb_qh *qh, struct musb_hw_ep *ep)
 		csr = musb_readw(ep->regs, MUSB_TXCSR);
 		if (csr & MUSB_TXCSR_MODE) {
 			musb_h_tx_flush_fifo(ep);
+			csr = musb_readw(ep->regs, MUSB_TXCSR);
 			musb_writew(ep->regs, MUSB_TXCSR,
-					MUSB_TXCSR_FRCDATATOG);
+				    csr | MUSB_TXCSR_FRCDATATOG);
 		}
-		/* clear mode (and everything else) to enable Rx */
+
+		/*
+		 * Clear the MODE bit (and everything else) to enable Rx.
+		 * NOTE: we mustn't clear the DMAMODE bit before DMAENAB.
+		 */
+		if (csr & MUSB_TXCSR_DMAMODE)
+			musb_writew(ep->regs, MUSB_TXCSR, MUSB_TXCSR_DMAMODE);
 		musb_writew(ep->regs, MUSB_TXCSR, 0);
 
 	/* scrub all previous state, clearing toggle */
@@ -693,12 +700,17 @@ static void musb_ep_program(struct musb *musb, u8 epnum,
 
 		/* general endpoint setup */
 		if (epnum) {
-			/* ASSERT:  TXCSR_DMAENAB was already cleared */
-
 			/* flush all old state, set default */
 			musb_h_tx_flush_fifo(hw_ep);
+
+			/*
+			 * We must not clear the DMAMODE bit before or in
+			 * the same cycle with the DMAENAB bit, so we clear
+			 * the latter first...
+			 */
 			csr &= ~(MUSB_TXCSR_H_NAKTIMEOUT
-					| MUSB_TXCSR_DMAMODE
+					| MUSB_TXCSR_AUTOSET
+					| MUSB_TXCSR_DMAENAB
 					| MUSB_TXCSR_FRCDATATOG
 					| MUSB_TXCSR_H_RXSTALL
 					| MUSB_TXCSR_H_ERROR
@@ -706,16 +718,15 @@ static void musb_ep_program(struct musb *musb, u8 epnum,
 					);
 			csr |= MUSB_TXCSR_MODE;
 
-			if (usb_gettoggle(urb->dev,
-					qh->epnum, 1))
+			if (usb_gettoggle(urb->dev, qh->epnum, 1))
 				csr |= MUSB_TXCSR_H_WR_DATATOGGLE
 					| MUSB_TXCSR_H_DATATOGGLE;
 			else
 				csr |= MUSB_TXCSR_CLRDATATOG;
 
-			/* twice in case of double packet buffering */
 			musb_writew(epio, MUSB_TXCSR, csr);
 			/* REVISIT may need to clear FLUSHFIFO ... */
+			csr &= ~MUSB_TXCSR_DMAMODE;
 			musb_writew(epio, MUSB_TXCSR, csr);
 			csr = musb_readw(epio, MUSB_TXCSR);
 		} else {
@@ -759,34 +770,19 @@ static void musb_ep_program(struct musb *musb, u8 epnum,
 
 #ifdef CONFIG_USB_INVENTRA_DMA
 		if (dma_channel) {
-
-			/* clear previous state */
-			csr = musb_readw(epio, MUSB_TXCSR);
-			csr &= ~(MUSB_TXCSR_AUTOSET
-				| MUSB_TXCSR_DMAMODE
-				| MUSB_TXCSR_DMAENAB);
-			csr |= MUSB_TXCSR_MODE;
-			musb_writew(epio, MUSB_TXCSR,
-				csr | MUSB_TXCSR_MODE);
-
 			qh->segsize = min(len, dma_channel->max_len);
-
 			if (qh->segsize <= packet_sz)
 				dma_channel->desired_mode = 0;
 			else
 				dma_channel->desired_mode = 1;
 
-
 			if (dma_channel->desired_mode == 0) {
-				csr &= ~(MUSB_TXCSR_AUTOSET
-					| MUSB_TXCSR_DMAMODE);
+				/* Against the programming guide */
 				csr |= (MUSB_TXCSR_DMAENAB);
-					/* against programming guide */
 			} else
 				csr |= (MUSB_TXCSR_AUTOSET
 					| MUSB_TXCSR_DMAENAB
 					| MUSB_TXCSR_DMAMODE);
-
 			musb_writew(epio, MUSB_TXCSR, csr);
 
 			dma_ok = dma_controller->channel_program(
@@ -803,6 +799,17 @@ static void musb_ep_program(struct musb *musb, u8 epnum,
 				else
 					hw_ep->rx_channel = NULL;
 				dma_channel = NULL;
+
+				/*
+				 * The programming guide says that we must
+				 * clear the DMAENAB bit before DMAMODE...
+				 */
+				csr = musb_readw(epio, MUSB_TXCSR);
+				csr &= ~(MUSB_TXCSR_DMAENAB
+						| MUSB_TXCSR_AUTOSET);
+				musb_writew(epio, MUSB_TXCSR, csr);
+				csr &= ~MUSB_TXCSR_DMAMODE;
+				musb_writew(epio, MUSB_TXCSR, csr);
 			}
 		}
 #endif
@@ -810,18 +817,7 @@ static void musb_ep_program(struct musb *musb, u8 epnum,
 		/* candidate for DMA */
 		if ((is_cppi_enabled() || tusb_dma_omap()) && dma_channel) {
 
-			/* program endpoint CSRs first, then setup DMA.
-			 * assume CPPI setup succeeds.
-			 * defer enabling dma.
-			 */
-			csr = musb_readw(epio, MUSB_TXCSR);
-			csr &= ~(MUSB_TXCSR_AUTOSET
-					| MUSB_TXCSR_DMAMODE
-					| MUSB_TXCSR_DMAENAB);
-			csr |= MUSB_TXCSR_MODE;
-			musb_writew(epio, MUSB_TXCSR,
-				csr | MUSB_TXCSR_MODE);
-
+			/* Defer enabling DMA */
 			dma_channel->actual_len = 0L;
 			qh->segsize = len;
 
@@ -850,20 +846,9 @@ static void musb_ep_program(struct musb *musb, u8 epnum,
 		}
 
 		if (load_count) {
-			/* ASSERT:  TXCSR_DMAENAB was already cleared */
-
 			/* PIO to load FIFO */
 			qh->segsize = load_count;
 			musb_write_fifo(hw_ep, load_count, buf);
-			csr = musb_readw(epio, MUSB_TXCSR);
-			csr &= ~(MUSB_TXCSR_DMAENAB
-				| MUSB_TXCSR_DMAMODE
-				| MUSB_TXCSR_AUTOSET);
-			/* write CSR */
-			csr |= MUSB_TXCSR_MODE;
-
-			if (epnum)
-				musb_writew(epio, MUSB_TXCSR, csr);
 		}
 
 		/* re-enable interrupt */
