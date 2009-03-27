@@ -1841,7 +1841,7 @@ static int musb_urb_enqueue(
 	unsigned long			flags;
 	struct musb			*musb = hcd_to_musb(hcd);
 	struct usb_host_endpoint	*hep = urb->ep;
-	struct musb_qh			*qh = hep->hcpriv;
+	struct musb_qh			*qh;
 	struct usb_endpoint_descriptor	*epd = &hep->desc;
 	int				ret;
 	unsigned			type_reg;
@@ -1853,22 +1853,21 @@ static int musb_urb_enqueue(
 
 	spin_lock_irqsave(&musb->lock, flags);
 	ret = usb_hcd_link_urb_to_ep(hcd, urb);
+	qh = ret ? NULL : hep->hcpriv;
+	if (qh)
+		urb->hcpriv = qh;
 	spin_unlock_irqrestore(&musb->lock, flags);
-	if (ret)
-		return ret;
 
 	/* DMA mapping was already done, if needed, and this urb is on
-	 * hep->urb_list ... so there's little to do unless hep wasn't
-	 * yet scheduled onto a live qh.
+	 * hep->urb_list now ... so we're done, unless hep wasn't yet
+	 * scheduled onto a live qh.
 	 *
 	 * REVISIT best to keep hep->hcpriv valid until the endpoint gets
 	 * disabled, testing for empty qh->ring and avoiding qh setup costs
 	 * except for the first urb queued after a config change.
 	 */
-	if (qh) {
-		urb->hcpriv = qh;
-		return 0;
-	}
+	if (qh || ret)
+		return ret;
 
 	/* Allocate and initialize qh, minimizing the work done each time
 	 * hw_ep gets reprogrammed, or with irqs blocked.  Then schedule it.
