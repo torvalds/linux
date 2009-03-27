@@ -160,8 +160,6 @@ static ide_startstop_t __ide_do_rw_disk(ide_drive_t *drive, struct request *rq,
 		task.tf_flags |= IDE_TFLAG_WRITE;
 
 	ide_tf_set_cmd(drive, &task, dma);
-	if (!dma)
-		hwif->data_phase = task.data_phase;
 	task.rq = rq;
 
 	rc = do_rw_taskfile(drive, &task);
@@ -170,7 +168,6 @@ static ide_startstop_t __ide_do_rw_disk(ide_drive_t *drive, struct request *rq,
 		/* fallback to PIO */
 		task.tf_flags |= IDE_TFLAG_DMA_PIO_FALLBACK;
 		ide_tf_set_cmd(drive, &task, 0);
-		hwif->data_phase = task.data_phase;
 		ide_init_sg_cmd(drive, rq);
 		rc = do_rw_taskfile(drive, &task);
 	}

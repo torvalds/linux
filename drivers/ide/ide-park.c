@@ -81,7 +81,7 @@ ide_startstop_t ide_do_park_unpark(ide_drive_t *drive, struct request *rq)
 
 	task.tf_flags |= IDE_TFLAG_TF | IDE_TFLAG_DEVICE;
 	task.rq = rq;
-	drive->hwif->data_phase = task.data_phase = TASKFILE_NO_DATA;
+	task.data_phase = TASKFILE_NO_DATA;
 	return do_rw_taskfile(drive, &task);
 }
 

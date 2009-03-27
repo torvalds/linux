@@ -265,21 +265,18 @@ static void ide_pio_multi(ide_drive_t *drive, struct request *rq,
 static void ide_pio_datablock(ide_drive_t *drive, struct request *rq,
 				     unsigned int write)
 {
+	ide_task_t *task = &drive->hwif->task;
 	u8 saved_io_32bit = drive->io_32bit;
 
 	if (rq->bio)	/* fs request */
 		rq->errors = 0;
 
-	if (rq->cmd_type == REQ_TYPE_ATA_TASKFILE) {
-		ide_task_t *task = rq->special;
-
-		if (task->tf_flags & IDE_TFLAG_IO_16BIT)
-			drive->io_32bit = 0;
-	}
+	if (task->tf_flags & IDE_TFLAG_IO_16BIT)
+		drive->io_32bit = 0;
 
 	touch_softlockup_watchdog();
 
-	switch (drive->hwif->data_phase) {
+	switch (task->data_phase) {
 	case TASKFILE_MULTI_IN:
 	case TASKFILE_MULTI_OUT:
 		ide_pio_multi(drive, rq, write);
@@ -297,9 +294,10 @@ static ide_startstop_t task_error(ide_drive_t *drive, struct request *rq,
 {
 	if (rq->bio) {
 		ide_hwif_t *hwif = drive->hwif;
+		ide_task_t *task = &hwif->task;
 		int sectors = hwif->nsect - hwif->nleft;
 
-		switch (hwif->data_phase) {
+		switch (task->data_phase) {
 		case TASKFILE_IN:
 			if (hwif->nleft)
 				break;
@@ -431,14 +429,14 @@ static ide_startstop_t task_out_intr (ide_drive_t *drive)
 
 static ide_startstop_t pre_task_out_intr(ide_drive_t *drive, struct request *rq)
 {
-	ide_hwif_t *hwif = drive->hwif;
+	ide_task_t *task = &drive->hwif->task;
 	ide_startstop_t startstop;
 
 	if (ide_wait_stat(&startstop, drive, ATA_DRQ,
 			  drive->bad_wstat, WAIT_DRQ)) {
 		printk(KERN_ERR "%s: no DRQ after issuing %sWRITE%s\n",
 			drive->name,
-			hwif->data_phase == TASKFILE_MULTI_OUT ? "MULT" : "",
+			task->data_phase == TASKFILE_MULTI_OUT ? "MULT" : "",
 			(drive->dev_flags & IDE_DFLAG_LBA48) ? "_EXT" : "");
 		return startstop;
 	}

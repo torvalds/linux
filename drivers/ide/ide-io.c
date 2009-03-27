@@ -310,13 +310,10 @@ EXPORT_SYMBOL_GPL(ide_init_sg_cmd);
 static ide_startstop_t execute_drive_cmd (ide_drive_t *drive,
 		struct request *rq)
 {
-	ide_hwif_t *hwif = drive->hwif;
 	ide_task_t *task = rq->special;
 
 	if (task) {
-		hwif->data_phase = task->data_phase;
-
-		switch (hwif->data_phase) {
+		switch (task->data_phase) {
 		case TASKFILE_MULTI_OUT:
 		case TASKFILE_OUT:
 		case TASKFILE_MULTI_IN:
