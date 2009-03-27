@@ -972,6 +972,14 @@ config ENC28J60_WRITEVERIFY
 	  Enable the verify after the buffer write useful for debugging purpose.
 	  If unsure, say N.
 
+config ETHOC
+	tristate "OpenCores 10/100 Mbps Ethernet MAC support"
+	depends on NET_ETHERNET
+	select MII
+	select PHYLIB
+	help
+	  Say Y here if you want to use the OpenCores 10/100 Mbps Ethernet MAC.
+
 config SMC911X
 	tristate "SMSC LAN911[5678] support"
 	select CRC32
