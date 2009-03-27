@@ -833,6 +833,16 @@ static int af9015_read_config(struct usb_device *udev)
 					  af9015_ir_table_msi;
 					af9015_config.ir_table_size =
 					  ARRAY_SIZE(af9015_ir_table_msi);
+				} else if (udev->descriptor.idProduct ==
+					cpu_to_le16(USB_PID_TREKSTOR_DVBT)) {
+					af9015_properties[i].rc_key_map =
+					  af9015_rc_keys_trekstor;
+					af9015_properties[i].rc_key_map_size =
+					  ARRAY_SIZE(af9015_rc_keys_trekstor);
+					af9015_config.ir_table =
+					  af9015_ir_table_trekstor;
+					af9015_config.ir_table_size =
+					  ARRAY_SIZE(af9015_ir_table_trekstor);
 				}
 				break;
 			case USB_VID_AVERMEDIA:
@@ -1238,6 +1248,7 @@ static struct usb_device_id af9015_usb_table[] = {
 	{USB_DEVICE(USB_VID_KWORLD_2,  USB_PID_KWORLD_395U)},
 	{USB_DEVICE(USB_VID_KWORLD_2,  USB_PID_KWORLD_395U_2)},
 	{USB_DEVICE(USB_VID_KWORLD_2,  USB_PID_KWORLD_395U_3)},
+	{USB_DEVICE(USB_VID_AFATECH,   USB_PID_TREKSTOR_DVBT)},
 	{0},
 };
 MODULE_DEVICE_TABLE(usb, af9015_usb_table);
@@ -1402,7 +1413,7 @@ static struct dvb_usb_device_properties af9015_properties[] = {
 
 		.i2c_algo = &af9015_i2c_algo,
 
-		.num_device_descs = 7,
+		.num_device_descs = 8,
 		.devices = {
 			{
 				.name = "Xtensions XD-380",
@@ -1440,6 +1451,11 @@ static struct dvb_usb_device_properties af9015_properties[] = {
 				.cold_ids = {&af9015_usb_table[16],
 					     &af9015_usb_table[17],
 					     &af9015_usb_table[18], NULL},
+				.warm_ids = {NULL},
+			},
+			{
+				.name = "TrekStor DVB-T USB Stick",
+				.cold_ids = {&af9015_usb_table[19], NULL},
 				.warm_ids = {NULL},
 			},
 		}
