@@ -1387,7 +1387,7 @@ static int smack_netlabel(struct sock *sk, int labeled)
 	else {
 		netlbl_secattr_init(&secattr);
 		smack_to_secattr(ssp->smk_out, &secattr);
-		rc = netlbl_sock_setattr(sk, &secattr);
+		rc = netlbl_sock_setattr(sk, sk->sk_family, &secattr);
 		netlbl_secattr_destroy(&secattr);
 	}
 

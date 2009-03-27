@@ -311,7 +311,7 @@ static int sk_alloc_security(struct sock *sk, int family, gfp_t priority)
 	ssec->sid = SECINITSID_UNLABELED;
 	sk->sk_security = ssec;
 
-	selinux_netlbl_sk_security_reset(ssec, family);
+	selinux_netlbl_sk_security_reset(ssec);
 
 	return 0;
 }
@@ -2945,7 +2945,6 @@ static void selinux_inode_getsecid(const struct inode *inode, u32 *secid)
 static int selinux_revalidate_file_permission(struct file *file, int mask)
 {
 	const struct cred *cred = current_cred();
-	int rc;
 	struct inode *inode = file->f_path.dentry->d_inode;
 
 	if (!mask) {
@@ -2957,29 +2956,15 @@ static int selinux_revalidate_file_permission(struct file *file, int mask)
 	if ((file->f_flags & O_APPEND) && (mask & MAY_WRITE))
 		mask |= MAY_APPEND;
 
-	rc = file_has_perm(cred, file,
-			   file_mask_to_av(inode->i_mode, mask));
-	if (rc)
-		return rc;
-
-	return selinux_netlbl_inode_permission(inode, mask);
+	return file_has_perm(cred, file,
+			     file_mask_to_av(inode->i_mode, mask));
 }
 
 static int selinux_file_permission(struct file *file, int mask)
 {
-	struct inode *inode = file->f_path.dentry->d_inode;
-	struct file_security_struct *fsec = file->f_security;
-	struct inode_security_struct *isec = inode->i_security;
-	u32 sid = current_sid();
-
-	if (!mask) {
+	if (!mask)
 		/* No permission to check.  Existence test. */
 		return 0;
-	}
-
-	if (sid == fsec->sid && fsec->isid == isec->sid
-	    && fsec->pseqno == avc_policy_seqno())
-		return selinux_netlbl_inode_permission(inode, mask);
 
 	return selinux_revalidate_file_permission(file, mask);
 }
@@ -3723,7 +3708,7 @@ static int selinux_socket_post_create(struct socket *sock, int family,
 		sksec = sock->sk->sk_security;
 		sksec->sid = isec->sid;
 		sksec->sclass = isec->sclass;
-		err = selinux_netlbl_socket_post_create(sock);
+		err = selinux_netlbl_socket_post_create(sock->sk, family);
 	}
 
 	return err;
@@ -3914,13 +3899,7 @@ static int selinux_socket_accept(struct socket *sock, struct socket *newsock)
 static int selinux_socket_sendmsg(struct socket *sock, struct msghdr *msg,
 				  int size)
 {
-	int rc;
-
-	rc = socket_has_perm(current, sock, SOCKET__WRITE);
-	if (rc)
-		return rc;
-
-	return selinux_netlbl_inode_permission(SOCK_INODE(sock), MAY_WRITE);
+	return socket_has_perm(current, sock, SOCKET__WRITE);
 }
 
 static int selinux_socket_recvmsg(struct socket *sock, struct msghdr *msg,
@@ -4304,7 +4283,7 @@ static void selinux_sk_clone_security(const struct sock *sk, struct sock *newsk)
 	newssec->peer_sid = ssec->peer_sid;
 	newssec->sclass = ssec->sclass;
 
-	selinux_netlbl_sk_security_reset(newssec, newsk->sk_family);
+	selinux_netlbl_sk_security_reset(newssec);
 }
 
 static void selinux_sk_getsecid(struct sock *sk, u32 *secid)
@@ -4348,16 +4327,15 @@ static int selinux_inet_conn_request(struct sock *sk, struct sk_buff *skb,
 	if (peersid == SECSID_NULL) {
 		req->secid = sksec->sid;
 		req->peer_secid = SECSID_NULL;
-		return 0;
+	} else {
+		err = security_sid_mls_copy(sksec->sid, peersid, &newsid);
+		if (err)
+			return err;
+		req->secid = newsid;
+		req->peer_secid = peersid;
 	}
 
-	err = security_sid_mls_copy(sksec->sid, peersid, &newsid);
-	if (err)
-		return err;
-
-	req->secid = newsid;
-	req->peer_secid = peersid;
-	return 0;
+	return selinux_netlbl_inet_conn_request(req, family);
 }
 
 static void selinux_inet_csk_clone(struct sock *newsk,
@@ -4374,7 +4352,7 @@ static void selinux_inet_csk_clone(struct sock *newsk,
 
 	/* We don't need to take any sort of lock here as we are the only
 	 * thread with access to newsksec */
-	selinux_netlbl_sk_security_reset(newsksec, req->rsk_ops->family);
+	selinux_netlbl_inet_csk_clone(newsk, req->rsk_ops->family);
 }
 
 static void selinux_inet_conn_established(struct sock *sk, struct sk_buff *skb)
@@ -4387,8 +4365,6 @@ static void selinux_inet_conn_established(struct sock *sk, struct sk_buff *skb)
 		family = PF_INET;
 
 	selinux_skb_peerlbl_sid(skb, family, &sksec->peer_sid);
-
-	selinux_netlbl_inet_conn_established(sk, family);
 }
 
 static void selinux_req_classify_flow(const struct request_sock *req,
