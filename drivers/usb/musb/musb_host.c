@@ -125,6 +125,29 @@ static void musb_h_tx_flush_fifo(struct musb_hw_ep *ep)
 	}
 }
 
+static void musb_h_ep0_flush_fifo(struct musb_hw_ep *ep)
+{
+	void __iomem	*epio = ep->regs;
+	u16		csr;
+	int		retries = 5;
+
+	/* scrub any data left in the fifo */
+	do {
+		csr = musb_readw(epio, MUSB_TXCSR);
+		if (!(csr & (MUSB_CSR0_TXPKTRDY | MUSB_CSR0_RXPKTRDY)))
+			break;
+		musb_writew(epio, MUSB_TXCSR, MUSB_CSR0_FLUSHFIFO);
+		csr = musb_readw(epio, MUSB_TXCSR);
+		udelay(10);
+	} while (--retries);
+
+	WARN(!retries, "Could not flush host TX%d fifo: csr: %04x\n",
+			ep->epnum, csr);
+
+	/* and reset for the next transfer */
+	musb_writew(epio, MUSB_TXCSR, 0);
+}
+
 /*
  * Start transmit. Caller is responsible for locking shared resources.
  * musb must be locked.
@@ -694,10 +717,7 @@ static void musb_ep_program(struct musb *musb, u8 epnum,
 			csr = musb_readw(epio, MUSB_TXCSR);
 		} else {
 			/* endpoint 0: just flush */
-			musb_writew(epio, MUSB_CSR0,
-				csr | MUSB_CSR0_FLUSHFIFO);
-			musb_writew(epio, MUSB_CSR0,
-				csr | MUSB_CSR0_FLUSHFIFO);
+			musb_h_ep0_flush_fifo(hw_ep);
 		}
 
 		/* target addr and (for multipoint) hub addr/port */
@@ -1063,11 +1083,7 @@ irqreturn_t musb_h_ep0_irq(struct musb *musb)
 			csr &= ~MUSB_CSR0_H_NAKTIMEOUT;
 			musb_writew(epio, MUSB_CSR0, csr);
 		} else {
-			csr |= MUSB_CSR0_FLUSHFIFO;
-			musb_writew(epio, MUSB_CSR0, csr);
-			musb_writew(epio, MUSB_CSR0, csr);
-			csr &= ~MUSB_CSR0_H_NAKTIMEOUT;
-			musb_writew(epio, MUSB_CSR0, csr);
+			musb_h_ep0_flush_fifo(hw_ep);
 		}
 
 		musb_writeb(epio, MUSB_NAKLIMIT0, 0);
@@ -1081,10 +1097,7 @@ irqreturn_t musb_h_ep0_irq(struct musb *musb)
 		 * SHOULD NEVER HAPPEN! */
 		ERR("no URB for end 0\n");
 
-		musb_writew(epio, MUSB_CSR0, MUSB_CSR0_FLUSHFIFO);
-		musb_writew(epio, MUSB_CSR0, MUSB_CSR0_FLUSHFIFO);
-		musb_writew(epio, MUSB_CSR0, 0);
-
+		musb_h_ep0_flush_fifo(hw_ep);
 		goto done;
 	}
 
@@ -2043,7 +2056,7 @@ static int musb_cleanup_urb(struct urb *urb, struct musb_qh *qh, int is_in)
 		 * endpoint's irq status here to avoid bogus irqs.
 		 * clearing that status is platform-specific...
 		 */
-	} else {
+	} else if (ep->epnum) {
 		musb_h_tx_flush_fifo(ep);
 		csr = musb_readw(epio, MUSB_TXCSR);
 		csr &= ~(MUSB_TXCSR_AUTOSET
@@ -2057,6 +2070,8 @@ static int musb_cleanup_urb(struct urb *urb, struct musb_qh *qh, int is_in)
 		musb_writew(epio, MUSB_TXCSR, csr);
 		/* flush cpu writebuffer */
 		csr = musb_readw(epio, MUSB_TXCSR);
+	} else  {
+		musb_h_ep0_flush_fifo(ep);
 	}
 	if (status == 0)
 		musb_advance_schedule(ep->musb, urb, ep, is_in);
