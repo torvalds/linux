@@ -295,9 +295,8 @@ start:
 	}
 }
 
-/* caller owns controller lock, irqs are blocked */
-static void
-__musb_giveback(struct musb *musb, struct urb *urb, int status)
+/* Context: caller owns controller lock, IRQs are blocked */
+static void musb_giveback(struct musb *musb, struct urb *urb, int status)
 __releases(musb->lock)
 __acquires(musb->lock)
 {
@@ -350,14 +349,22 @@ static inline void musb_save_toggle(struct musb_qh *qh, int is_in,
 	usb_settoggle(urb->dev, qh->epnum, !is_in, csr ? 1 : 0);
 }
 
-/* caller owns controller lock, irqs are blocked */
-static struct musb_qh *
-musb_giveback(struct musb_qh *qh, struct urb *urb, int status)
+/*
+ * Advance this hardware endpoint's queue, completing the specified URB and
+ * advancing to either the next URB queued to that qh, or else invalidating
+ * that qh and advancing to the next qh scheduled after the current one.
+ *
+ * Context: caller owns controller lock, IRQs are blocked
+ */
+static void musb_advance_schedule(struct musb *musb, struct urb *urb,
+				  struct musb_hw_ep *hw_ep, int is_in)
 {
+	struct musb_qh		*qh = musb_ep_get_qh(hw_ep, is_in);
 	struct musb_hw_ep	*ep = qh->hw_ep;
-	struct musb		*musb = ep->musb;
-	int			is_in = usb_pipein(urb->pipe);
 	int			ready = qh->is_ready;
+	int			status;
+
+	status = (urb->status == -EINPROGRESS) ? 0 : urb->status;
 
 	/* save toggle eagerly, for paranoia */
 	switch (qh->type) {
@@ -366,13 +373,13 @@ musb_giveback(struct musb_qh *qh, struct urb *urb, int status)
 		musb_save_toggle(qh, is_in, urb);
 		break;
 	case USB_ENDPOINT_XFER_ISOC:
-		if (status == 0 && urb->error_count)
+		if (urb->error_count)
 			status = -EXDEV;
 		break;
 	}
 
 	qh->is_ready = 0;
-	__musb_giveback(musb, urb, status);
+	musb_giveback(musb, urb, status);
 	qh->is_ready = ready;
 
 	/* reclaim resources (and bandwidth) ASAP; deschedule it, and
@@ -416,31 +423,10 @@ musb_giveback(struct musb_qh *qh, struct urb *urb, int status)
 			break;
 		}
 	}
-	return qh;
-}
-
-/*
- * Advance this hardware endpoint's queue, completing the specified urb and
- * advancing to either the next urb queued to that qh, or else invalidating
- * that qh and advancing to the next qh scheduled after the current one.
- *
- * Context: caller owns controller lock, irqs are blocked
- */
-static void
-musb_advance_schedule(struct musb *musb, struct urb *urb,
-		struct musb_hw_ep *hw_ep, int is_in)
-{
-	struct musb_qh		*qh = musb_ep_get_qh(hw_ep, is_in);
-
-	if (urb->status == -EINPROGRESS)
-		qh = musb_giveback(qh, urb, 0);
-	else
-		qh = musb_giveback(qh, urb, urb->status);
 
 	if (qh != NULL && qh->is_ready) {
 		DBG(4, "... next ep%d %cX urb %p\n",
-				hw_ep->epnum, is_in ? 'R' : 'T',
-				next_urb(qh));
+		    hw_ep->epnum, is_in ? 'R' : 'T', next_urb(qh));
 		musb_start_urb(musb, is_in, qh);
 	}
 }
@@ -2126,7 +2112,7 @@ static int musb_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 		int	ready = qh->is_ready;
 
 		qh->is_ready = 0;
-		__musb_giveback(musb, urb, 0);
+		musb_giveback(musb, urb, 0);
 		qh->is_ready = ready;
 
 		/* If nothing else (usually musb_giveback) is using it
@@ -2188,7 +2174,7 @@ musb_h_disable(struct usb_hcd *hcd, struct usb_host_endpoint *hep)
 		 * will activate any of these as it advances.
 		 */
 		while (!list_empty(&hep->urb_list))
-			__musb_giveback(musb, next_urb(qh), -ESHUTDOWN);
+			musb_giveback(musb, next_urb(qh), -ESHUTDOWN);
 
 		hep->hcpriv = NULL;
 		list_del(&qh->ring);
