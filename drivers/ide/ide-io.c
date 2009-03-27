@@ -144,6 +144,20 @@ int ide_end_dequeued_request(ide_drive_t *drive, struct request *rq,
 }
 EXPORT_SYMBOL_GPL(ide_end_dequeued_request);
 
+static void ide_complete_task(ide_drive_t *drive, ide_task_t *task,
+			      u8 stat, u8 err)
+{
+	struct ide_taskfile *tf = &task->tf;
+
+	tf->error = err;
+	tf->status = stat;
+
+	drive->hwif->tp_ops->tf_read(drive, task);
+
+	if (task->tf_flags & IDE_TFLAG_DYN)
+		kfree(task);
+}
+
 /**
  *	ide_end_drive_cmd	-	end an explicit drive command
  *	@drive: command 
@@ -166,17 +180,8 @@ void ide_end_drive_cmd (ide_drive_t *drive, u8 stat, u8 err)
 	if (rq->cmd_type == REQ_TYPE_ATA_TASKFILE) {
 		ide_task_t *task = (ide_task_t *)rq->special;
 
-		if (task) {
-			struct ide_taskfile *tf = &task->tf;
-
-			tf->error = err;
-			tf->status = stat;
-
-			drive->hwif->tp_ops->tf_read(drive, task);
-
-			if (task->tf_flags & IDE_TFLAG_DYN)
-				kfree(task);
-		}
+		if (task)
+			ide_complete_task(drive, task, stat, err);
 	} else if (blk_pm_request(rq)) {
 		ide_complete_pm_rq(drive, rq);
 		return;
