@@ -298,6 +298,8 @@ static ide_startstop_t ide_floppy_do_request(ide_drive_t *drive,
 	return idefloppy_issue_pc(drive, pc);
 out_end:
 	drive->failed_pc = NULL;
+	if (blk_fs_request(rq) == 0 && rq->errors == 0)
+		rq->errors = -EIO;
 	ide_end_request(drive, 0, 0);
 	return ide_stopped;
 }

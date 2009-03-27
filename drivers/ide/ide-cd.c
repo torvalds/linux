@@ -295,6 +295,9 @@ static void cdrom_end_request(ide_drive_t *drive, int uptodate)
 	ide_debug_log(IDE_DBG_FUNC, "uptodate: 0x%x, nsectors: %d",
 				    uptodate, nsectors);
 
+	if (blk_fs_request(rq) == 0 && uptodate <= 0 && rq->errors == 0)
+		rq->errors = -EIO;
+
 	ide_end_request(drive, uptodate, nsectors);
 }
 

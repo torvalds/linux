@@ -102,9 +102,6 @@ int ide_end_request (ide_drive_t *drive, int uptodate, int nr_sectors)
 	if (blk_noretry_request(rq) && uptodate <= 0)
 		nr_bytes = rq->hard_nr_sectors << 9;
 
-	if (blk_fs_request(rq) == 0 && uptodate <= 0 && rq->errors == 0)
-		rq->errors = -EIO;
-
 	if (uptodate <= 0)
 		error = uptodate ? uptodate : -EIO;
 
@@ -169,6 +166,8 @@ void ide_kill_rq(ide_drive_t *drive, struct request *rq)
 	} else {
 		if (media == ide_tape)
 			rq->errors = IDE_DRV_ERROR_GENERAL;
+		else if (blk_fs_request(rq) == 0 && rq->errors == 0)
+			rq->errors = -EIO;
 		ide_end_request(drive, 0, 0);
 	}
 }

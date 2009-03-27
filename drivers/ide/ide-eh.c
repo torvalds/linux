@@ -146,8 +146,11 @@ static inline void ide_complete_drive_reset(ide_drive_t *drive, int err)
 {
 	struct request *rq = drive->hwif->rq;
 
-	if (rq && blk_special_request(rq) && rq->cmd[0] == REQ_DRIVE_RESET)
+	if (rq && blk_special_request(rq) && rq->cmd[0] == REQ_DRIVE_RESET) {
+		if (err <= 0 && rq->errors == 0)
+			rq->errors = -EIO;
 		ide_end_request(drive, err ? err : 1, 0);
+	}
 }
 
 /* needed below */

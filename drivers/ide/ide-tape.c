@@ -760,6 +760,8 @@ static ide_startstop_t idetape_do_request(ide_drive_t *drive,
 		/* We do not support buffer cache originated requests. */
 		printk(KERN_NOTICE "ide-tape: %s: Unsupported request in "
 			"request queue (%d)\n", drive->name, rq->cmd_type);
+		if (blk_fs_request(rq) == 0 && rq->errors == 0)
+			rq->errors = -EIO;
 		ide_end_request(drive, 0, 0);
 		return ide_stopped;
 	}
