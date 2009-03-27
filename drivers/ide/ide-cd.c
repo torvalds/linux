@@ -959,7 +959,8 @@ static ide_startstop_t cdrom_newpc_intr(ide_drive_t *drive)
 			expiry = ide_cd_expiry;
 	}
 
-	ide_set_handler(drive, cdrom_newpc_intr, timeout, expiry);
+	hwif->expiry = expiry;
+	ide_set_handler(drive, cdrom_newpc_intr, timeout);
 	return ide_started;
 
 end_request:

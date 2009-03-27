@@ -140,7 +140,7 @@ static ide_startstop_t task_no_data_intr(ide_drive_t *drive)
 		} else if (custom && tf->command == ATA_CMD_INIT_DEV_PARAMS) {
 			if ((stat & (ATA_ERR | ATA_DRQ)) == 0) {
 				ide_set_handler(drive, &task_no_data_intr,
-						WAIT_WORSTCASE, NULL);
+						WAIT_WORSTCASE);
 				return ide_started;
 			}
 		}
@@ -347,7 +347,7 @@ static ide_startstop_t task_pio_intr(ide_drive_t *drive)
 	}
 out_wait:
 	/* Still data left to transfer. */
-	ide_set_handler(drive, &task_pio_intr, WAIT_WORSTCASE, NULL);
+	ide_set_handler(drive, &task_pio_intr, WAIT_WORSTCASE);
 	return ide_started;
 out_end:
 	if ((cmd->tf_flags & IDE_TFLAG_FS) == 0)
@@ -377,7 +377,7 @@ static ide_startstop_t pre_task_out_intr(ide_drive_t *drive,
 	if ((drive->dev_flags & IDE_DFLAG_UNMASK) == 0)
 		local_irq_disable();
 
-	ide_set_handler(drive, &task_pio_intr, WAIT_WORSTCASE, NULL);
+	ide_set_handler(drive, &task_pio_intr, WAIT_WORSTCASE);
 
 	ide_pio_datablock(drive, cmd, 1);
 

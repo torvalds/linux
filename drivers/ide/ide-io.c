@@ -651,6 +651,7 @@ void ide_timer_expiry (unsigned long data)
 			}
 		}
 		hwif->handler = NULL;
+		hwif->expiry = NULL;
 		/*
 		 * We need to simulate a real interrupt when invoking
 		 * the handler() function, which means we need to
@@ -830,6 +831,7 @@ irqreturn_t ide_intr (int irq, void *dev_id)
 		goto out;
 
 	hwif->handler = NULL;
+	hwif->expiry = NULL;
 	hwif->req_gen++;
 	del_timer(&hwif->timer);
 	spin_unlock(&hwif->lock);

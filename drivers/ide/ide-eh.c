@@ -175,8 +175,7 @@ static ide_startstop_t atapi_reset_pollfunc(ide_drive_t *drive)
 		printk(KERN_INFO "%s: ATAPI reset complete\n", drive->name);
 	else {
 		if (time_before(jiffies, hwif->poll_timeout)) {
-			ide_set_handler(drive, &atapi_reset_pollfunc, HZ/20,
-					NULL);
+			ide_set_handler(drive, &atapi_reset_pollfunc, HZ/20);
 			/* continue polling */
 			return ide_started;
 		}
@@ -238,7 +237,7 @@ static ide_startstop_t reset_pollfunc(ide_drive_t *drive)
 
 	if (!OK_STAT(tmp, 0, ATA_BUSY)) {
 		if (time_before(jiffies, hwif->poll_timeout)) {
-			ide_set_handler(drive, &reset_pollfunc, HZ/20, NULL);
+			ide_set_handler(drive, &reset_pollfunc, HZ/20);
 			/* continue polling */
 			return ide_started;
 		}
@@ -355,7 +354,7 @@ static ide_startstop_t do_reset1(ide_drive_t *drive, int do_not_try_atapi)
 		ndelay(400);
 		hwif->poll_timeout = jiffies + WAIT_WORSTCASE;
 		hwif->polling = 1;
-		__ide_set_handler(drive, &atapi_reset_pollfunc, HZ/20, NULL);
+		__ide_set_handler(drive, &atapi_reset_pollfunc, HZ/20);
 		spin_unlock_irqrestore(&hwif->lock, flags);
 		return ide_started;
 	}
@@ -415,7 +414,7 @@ static ide_startstop_t do_reset1(ide_drive_t *drive, int do_not_try_atapi)
 	udelay(10);
 	hwif->poll_timeout = jiffies + WAIT_WORSTCASE;
 	hwif->polling = 1;
-	__ide_set_handler(drive, &reset_pollfunc, HZ/20, NULL);
+	__ide_set_handler(drive, &reset_pollfunc, HZ/20);
 
 	/*
 	 * Some weird controller like resetting themselves to a strange

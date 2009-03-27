@@ -1135,10 +1135,8 @@ unsigned int ide_rq_bytes(struct request *);
 int ide_end_rq(ide_drive_t *, struct request *, int, unsigned int);
 void ide_kill_rq(ide_drive_t *, struct request *);
 
-void __ide_set_handler(ide_drive_t *, ide_handler_t *, unsigned int,
-		       ide_expiry_t *);
-void ide_set_handler(ide_drive_t *, ide_handler_t *, unsigned int,
-		     ide_expiry_t *);
+void __ide_set_handler(ide_drive_t *, ide_handler_t *, unsigned int);
+void ide_set_handler(ide_drive_t *, ide_handler_t *, unsigned int);
 
 void ide_execute_command(ide_drive_t *, u8, ide_handler_t *, unsigned int,
 			 ide_expiry_t *);

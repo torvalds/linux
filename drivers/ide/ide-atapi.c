@@ -483,7 +483,7 @@ static ide_startstop_t ide_pc_intr(ide_drive_t *drive)
 		  rq->cmd[0], bcount);
 next_irq:
 	/* And set the interrupt handler again */
-	ide_set_handler(drive, ide_pc_intr, timeout, NULL);
+	ide_set_handler(drive, ide_pc_intr, timeout);
 	return ide_started;
 }
 
@@ -602,11 +602,13 @@ static ide_startstop_t ide_transfer_pc(ide_drive_t *drive)
 		}
 	}
 
+	hwif->expiry = expiry;
+
 	/* Set the interrupt routine */
 	ide_set_handler(drive,
 			(dev_is_idecd(drive) ? drive->irq_handler
 					     : ide_pc_intr),
-			timeout, expiry);
+			timeout);
 
 	/* Begin DMA, if necessary */
 	if (dev_is_idecd(drive)) {
