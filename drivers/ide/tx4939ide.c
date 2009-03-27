@@ -240,7 +240,7 @@ static int tx4939ide_build_dmatable(ide_drive_t *drive, struct request *rq)
 	int i;
 	struct scatterlist *sg;
 
-	for_each_sg(hwif->sg_table, sg, hwif->sg_nents, i) {
+	for_each_sg(hwif->sg_table, sg, hwif->cmd.sg_nents, i) {
 		u32 cur_addr, cur_len, bcount;
 
 		cur_addr = sg_dma_address(sg);

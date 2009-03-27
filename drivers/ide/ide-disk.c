@@ -104,13 +104,13 @@ static ide_startstop_t __ide_do_rw_disk(ide_drive_t *drive, struct request *rq,
 			lba48 = 0;
 	}
 
-	if (!dma) {
-		ide_init_sg_cmd(drive, rq);
-		ide_map_sg(drive, rq);
-	}
-
 	memset(&cmd, 0, sizeof(cmd));
 	cmd.tf_flags = IDE_TFLAG_TF | IDE_TFLAG_DEVICE;
+
+	if (dma == 0) {
+		ide_init_sg_cmd(&cmd, nsectors);
+		ide_map_sg(drive, rq);
+	}
 
 	if (drive->dev_flags & IDE_DFLAG_LBA) {
 		if (lba48) {
@@ -170,7 +170,7 @@ static ide_startstop_t __ide_do_rw_disk(ide_drive_t *drive, struct request *rq,
 		/* fallback to PIO */
 		cmd.tf_flags |= IDE_TFLAG_DMA_PIO_FALLBACK;
 		ide_tf_set_cmd(drive, &cmd, 0);
-		ide_init_sg_cmd(drive, rq);
+		ide_init_sg_cmd(&cmd, nsectors);
 		rc = do_rw_taskfile(drive, &cmd);
 	}
 

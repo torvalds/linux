@@ -128,21 +128,22 @@ int ide_build_sglist(ide_drive_t *drive, struct request *rq)
 {
 	ide_hwif_t *hwif = drive->hwif;
 	struct scatterlist *sg = hwif->sg_table;
+	struct ide_cmd *cmd = &hwif->cmd;
 	int i;
 
 	ide_map_sg(drive, rq);
 
 	if (rq_data_dir(rq) == READ)
-		hwif->sg_dma_direction = DMA_FROM_DEVICE;
+		cmd->sg_dma_direction = DMA_FROM_DEVICE;
 	else
-		hwif->sg_dma_direction = DMA_TO_DEVICE;
+		cmd->sg_dma_direction = DMA_TO_DEVICE;
 
-	i = dma_map_sg(hwif->dev, sg, hwif->sg_nents, hwif->sg_dma_direction);
+	i = dma_map_sg(hwif->dev, sg, cmd->sg_nents, cmd->sg_dma_direction);
 	if (i == 0)
 		ide_map_sg(drive, rq);
 	else {
-		hwif->orig_sg_nents = hwif->sg_nents;
-		hwif->sg_nents = i;
+		cmd->orig_sg_nents = cmd->sg_nents;
+		cmd->sg_nents = i;
 	}
 
 	return i;
@@ -162,9 +163,10 @@ int ide_build_sglist(ide_drive_t *drive, struct request *rq)
 void ide_destroy_dmatable(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif = drive->hwif;
+	struct ide_cmd *cmd = &hwif->cmd;
 
-	dma_unmap_sg(hwif->dev, hwif->sg_table, hwif->orig_sg_nents,
-		     hwif->sg_dma_direction);
+	dma_unmap_sg(hwif->dev, hwif->sg_table, cmd->orig_sg_nents,
+		     cmd->sg_dma_direction);
 }
 EXPORT_SYMBOL_GPL(ide_destroy_dmatable);
 

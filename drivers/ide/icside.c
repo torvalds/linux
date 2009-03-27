@@ -344,7 +344,7 @@ static int icside_dma_setup(ide_drive_t *drive)
 	 * Tell the DMA engine about the SG table and
 	 * data direction.
 	 */
-	set_dma_sg(ec->dma, hwif->sg_table, hwif->sg_nents);
+	set_dma_sg(ec->dma, hwif->sg_table, hwif->cmd.sg_nents);
 	set_dma_mode(ec->dma, dma_mode);
 
 	drive->waiting_for_dma = 1;

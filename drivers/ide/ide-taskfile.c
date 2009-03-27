@@ -209,7 +209,7 @@ static void ide_pio_sector(ide_drive_t *drive, struct ide_cmd *cmd,
 {
 	ide_hwif_t *hwif = drive->hwif;
 	struct scatterlist *sg = hwif->sg_table;
-	struct scatterlist *cursg = hwif->cursg;
+	struct scatterlist *cursg = cmd->cursg;
 	struct page *page;
 #ifdef CONFIG_HIGHMEM
 	unsigned long flags;
@@ -217,14 +217,14 @@ static void ide_pio_sector(ide_drive_t *drive, struct ide_cmd *cmd,
 	unsigned int offset;
 	u8 *buf;
 
-	cursg = hwif->cursg;
+	cursg = cmd->cursg;
 	if (!cursg) {
 		cursg = sg;
-		hwif->cursg = sg;
+		cmd->cursg = sg;
 	}
 
 	page = sg_page(cursg);
-	offset = cursg->offset + hwif->cursg_ofs * SECTOR_SIZE;
+	offset = cursg->offset + cmd->cursg_ofs * SECTOR_SIZE;
 
 	/* get the current page and offset */
 	page = nth_page(page, (offset >> PAGE_SHIFT));
@@ -235,12 +235,12 @@ static void ide_pio_sector(ide_drive_t *drive, struct ide_cmd *cmd,
 #endif
 	buf = kmap_atomic(page, KM_BIO_SRC_IRQ) + offset;
 
-	hwif->nleft--;
-	hwif->cursg_ofs++;
+	cmd->nleft--;
+	cmd->cursg_ofs++;
 
-	if ((hwif->cursg_ofs * SECTOR_SIZE) == cursg->length) {
-		hwif->cursg = sg_next(hwif->cursg);
-		hwif->cursg_ofs = 0;
+	if ((cmd->cursg_ofs * SECTOR_SIZE) == cursg->length) {
+		cmd->cursg = sg_next(cmd->cursg);
+		cmd->cursg_ofs = 0;
 	}
 
 	/* do the actual data transfer */
@@ -260,7 +260,7 @@ static void ide_pio_multi(ide_drive_t *drive, struct ide_cmd *cmd,
 {
 	unsigned int nsect;
 
-	nsect = min_t(unsigned int, drive->hwif->nleft, drive->mult_count);
+	nsect = min_t(unsigned int, cmd->nleft, drive->mult_count);
 	while (nsect--)
 		ide_pio_sector(drive, cmd, write);
 }
@@ -295,19 +295,18 @@ static ide_startstop_t task_error(ide_drive_t *drive, struct ide_cmd *cmd,
 				  const char *s, u8 stat)
 {
 	if (cmd->tf_flags & IDE_TFLAG_FS) {
-		ide_hwif_t *hwif = drive->hwif;
-		int sectors = hwif->nsect - hwif->nleft;
+		int sectors = cmd->nsect - cmd->nleft;
 
 		switch (cmd->data_phase) {
 		case TASKFILE_IN:
-			if (hwif->nleft)
+			if (cmd->nleft)
 				break;
 			/* fall through */
 		case TASKFILE_OUT:
 			sectors--;
 			break;
 		case TASKFILE_MULTI_IN:
-			if (hwif->nleft)
+			if (cmd->nleft)
 				break;
 			/* fall through */
 		case TASKFILE_MULTI_OUT:
@@ -375,7 +374,7 @@ static ide_startstop_t task_in_intr(ide_drive_t *drive)
 	ide_pio_datablock(drive, cmd, 0);
 
 	/* Are we done? Check status and finish transfer. */
-	if (!hwif->nleft) {
+	if (cmd->nleft == 0) {
 		stat = wait_drive_not_busy(drive);
 		if (!OK_STAT(stat, 0, BAD_STAT))
 			return task_error(drive, cmd, __func__, stat);
@@ -402,10 +401,10 @@ static ide_startstop_t task_out_intr (ide_drive_t *drive)
 		return task_error(drive, cmd, __func__, stat);
 
 	/* Deal with unexpected ATA data phase. */
-	if (((stat & ATA_DRQ) == 0) ^ !hwif->nleft)
+	if (((stat & ATA_DRQ) == 0) ^ (cmd->nleft == 0))
 		return task_error(drive, cmd, __func__, stat);
 
-	if (!hwif->nleft) {
+	if (cmd->nleft == 0) {
 		ide_finish_cmd(drive, cmd, stat);
 		return ide_stopped;
 	}

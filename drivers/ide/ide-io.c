@@ -274,30 +274,26 @@ static ide_startstop_t do_special (ide_drive_t *drive)
 void ide_map_sg(ide_drive_t *drive, struct request *rq)
 {
 	ide_hwif_t *hwif = drive->hwif;
+	struct ide_cmd *cmd = &hwif->cmd;
 	struct scatterlist *sg = hwif->sg_table;
 
 	if (rq->cmd_type == REQ_TYPE_ATA_TASKFILE) {
 		sg_init_one(sg, rq->buffer, rq->nr_sectors * SECTOR_SIZE);
-		hwif->sg_nents = 1;
+		cmd->sg_nents = 1;
 	} else if (!rq->bio) {
 		sg_init_one(sg, rq->data, rq->data_len);
-		hwif->sg_nents = 1;
-	} else {
-		hwif->sg_nents = blk_rq_map_sg(drive->queue, rq, sg);
-	}
+		cmd->sg_nents = 1;
+	} else
+		cmd->sg_nents = blk_rq_map_sg(drive->queue, rq, sg);
 }
-
 EXPORT_SYMBOL_GPL(ide_map_sg);
 
-void ide_init_sg_cmd(ide_drive_t *drive, struct request *rq)
+void ide_init_sg_cmd(struct ide_cmd *cmd, int nsect)
 {
-	ide_hwif_t *hwif = drive->hwif;
-
-	hwif->nsect = hwif->nleft = rq->nr_sectors;
-	hwif->cursg_ofs = 0;
-	hwif->cursg = NULL;
+	cmd->nsect = cmd->nleft = nsect;
+	cmd->cursg_ofs = 0;
+	cmd->cursg = NULL;
 }
-
 EXPORT_SYMBOL_GPL(ide_init_sg_cmd);
 
 /**
@@ -323,7 +319,7 @@ static ide_startstop_t execute_drive_cmd (ide_drive_t *drive,
 		case TASKFILE_OUT:
 		case TASKFILE_MULTI_IN:
 		case TASKFILE_IN:
-			ide_init_sg_cmd(drive, rq);
+			ide_init_sg_cmd(cmd, rq->nr_sectors);
 			ide_map_sg(drive, rq);
 		default:
 			break;

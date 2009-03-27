@@ -215,7 +215,7 @@ static int auide_build_dmatable(ide_drive_t *drive)
 	struct request *rq = hwif->rq;
 	_auide_hwif *ahwif = &auide_hwif;
 	struct scatterlist *sg;
-	int i = hwif->sg_nents, iswrite, count = 0;
+	int i = hwif->cmd.sg_nents, iswrite, count = 0;
 
 	iswrite = (rq_data_dir(rq) == WRITE);
 	/* Save for interrupt context */

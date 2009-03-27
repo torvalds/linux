@@ -344,6 +344,16 @@ struct ide_cmd {
 	u8			ftf_flags;	/* for TASKFILE ioctl */
 	u32			tf_flags;
 	int			data_phase;
+
+	int			sg_nents;	  /* number of sg entries */
+	int			orig_sg_nents;
+	int			sg_dma_direction; /* DMA transfer direction */
+
+	unsigned int		nsect;
+	unsigned int		nleft;
+	struct scatterlist	*cursg;
+	unsigned int		cursg_ofs;
+
 	struct request		*rq;		/* copy of request */
 	void			*special;	/* valid_t generally */
 };
@@ -772,16 +782,8 @@ typedef struct hwif_s {
 	/* Scatter-gather list used to build the above */
 	struct scatterlist *sg_table;
 	int sg_max_nents;		/* Maximum number of entries in it */
-	int sg_nents;			/* Current number of entries in it */
-	int orig_sg_nents;
-	int sg_dma_direction;		/* dma transfer direction */
 
 	struct ide_cmd cmd;		/* current command */
-
-	unsigned int nsect;
-	unsigned int nleft;
-	struct scatterlist *cursg;
-	unsigned int cursg_ofs;
 
 	int		rqsize;		/* max sectors per request */
 	int		irq;		/* our irq number */
@@ -1410,7 +1412,7 @@ int ide_pci_resume(struct pci_dev *);
 #endif
 
 void ide_map_sg(ide_drive_t *, struct request *);
-void ide_init_sg_cmd(ide_drive_t *, struct request *);
+void ide_init_sg_cmd(struct ide_cmd *, int);
 
 #define BAD_DMA_DRIVE		0
 #define GOOD_DMA_DRIVE		1

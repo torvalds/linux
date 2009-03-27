@@ -1432,7 +1432,7 @@ pmac_ide_build_dmatable(ide_drive_t *drive, struct request *rq)
 	volatile struct dbdma_regs __iomem *dma = pmif->dma_regs;
 	struct scatterlist *sg;
 	int wr = (rq_data_dir(rq) == WRITE);
-	int i = hwif->sg_nents, count = 0;
+	int i = hwif->cmd.sg_nents, count = 0;
 
 	/* DMA table is already aligned */
 	table = (struct dbdma_cmd *) pmif->dma_table_cpu;

@@ -244,6 +244,7 @@ static ide_startstop_t ide_floppy_do_request(ide_drive_t *drive,
 {
 	struct ide_disk_obj *floppy = drive->driver_data;
 	ide_hwif_t *hwif = drive->hwif;
+	struct ide_cmd *cmd = &hwif->cmd;
 	struct ide_atapi_pc *pc;
 
 	if (drive->debug_mask & IDE_DBG_RQ)
@@ -285,12 +286,12 @@ static ide_startstop_t ide_floppy_do_request(ide_drive_t *drive,
 	}
 
 	if (blk_fs_request(rq) || pc->req_xfer) {
-		ide_init_sg_cmd(drive, rq);
+		ide_init_sg_cmd(cmd, rq->nr_sectors);
 		ide_map_sg(drive, rq);
 	}
 
 	pc->sg = hwif->sg_table;
-	pc->sg_cnt = hwif->sg_nents;
+	pc->sg_cnt = cmd->sg_nents;
 
 	pc->rq = rq;
 
