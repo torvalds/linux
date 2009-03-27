@@ -493,6 +493,7 @@ static void ide_init_packet_cmd(struct ide_cmd *cmd, u32 tf_flags,
 	cmd->protocol  = dma ? ATAPI_PROT_DMA : ATAPI_PROT_PIO;
 	cmd->tf_flags |= IDE_TFLAG_OUT_LBAH | IDE_TFLAG_OUT_LBAM |
 			 IDE_TFLAG_OUT_FEATURE | tf_flags;
+	cmd->tf.command = ATA_CMD_PACKET;
 	cmd->tf.feature = dma;		/* Use PIO/DMA */
 	cmd->tf.lbam    = bcount & 0xff;
 	cmd->tf.lbah    = (bcount >> 8) & 0xff;
@@ -638,6 +639,7 @@ ide_startstop_t ide_issue_pc(ide_drive_t *drive, struct ide_cmd *cmd)
 	unsigned int timeout;
 	u32 tf_flags;
 	u16 bcount;
+	u8 drq_int = !!(drive->atapi_flags & IDE_AFLAG_DRQ_INTERRUPT);
 
 	if (dev_is_idecd(drive)) {
 		tf_flags = IDE_TFLAG_OUT_NSECT | IDE_TFLAG_OUT_LBAL;
@@ -687,17 +689,14 @@ ide_startstop_t ide_issue_pc(ide_drive_t *drive, struct ide_cmd *cmd)
 
 	(void)do_rw_taskfile(drive, cmd);
 
-	/* Issue the packet command */
-	if (drive->atapi_flags & IDE_AFLAG_DRQ_INTERRUPT) {
+	if (drq_int) {
 		if (drive->dma)
 			drive->waiting_for_dma = 0;
 		hwif->expiry = expiry;
-		ide_execute_command(drive, ATA_CMD_PACKET, ide_transfer_pc,
-				    timeout);
-		return ide_started;
-	} else {
-		ide_execute_pkt_cmd(drive);
-		return ide_transfer_pc(drive);
 	}
+
+	ide_execute_command(drive, cmd, ide_transfer_pc, timeout);
+
+	return drq_int ? ide_started : ide_transfer_pc(drive);
 }
 EXPORT_SYMBOL_GPL(ide_issue_pc);

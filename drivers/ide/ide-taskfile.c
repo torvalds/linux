@@ -97,8 +97,7 @@ ide_startstop_t do_rw_taskfile(ide_drive_t *drive, struct ide_cmd *orig_cmd)
 	case ATA_PROT_NODATA:
 		if (handler == NULL)
 			handler = task_no_data_intr;
-		ide_execute_command(drive, tf->command, handler,
-				    WAIT_WORSTCASE);
+		ide_execute_command(drive, cmd, handler, WAIT_WORSTCASE);
 		return ide_started;
 	case ATA_PROT_DMA:
 		if ((drive->dev_flags & IDE_DFLAG_USING_DMA) == 0 ||
@@ -106,8 +105,7 @@ ide_startstop_t do_rw_taskfile(ide_drive_t *drive, struct ide_cmd *orig_cmd)
 		    dma_ops->dma_setup(drive, cmd))
 			return ide_stopped;
 		hwif->expiry = dma_ops->dma_timer_expiry;
-		ide_execute_command(drive, tf->command, ide_dma_intr,
-				    2 * WAIT_CMD);
+		ide_execute_command(drive, cmd, ide_dma_intr, 2 * WAIT_CMD);
 		dma_ops->dma_start(drive);
 	default:
 		return ide_started;

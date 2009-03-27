@@ -451,7 +451,7 @@ EXPORT_SYMBOL(ide_set_handler);
 /**
  *	ide_execute_command	-	execute an IDE command
  *	@drive: IDE drive to issue the command against
- *	@command: command byte to write
+ *	@cmd: command
  *	@handler: handler for next phase
  *	@timeout: timeout for command
  *
@@ -461,15 +461,18 @@ EXPORT_SYMBOL(ide_set_handler);
  *	should go via this function or do equivalent locking.
  */
 
-void ide_execute_command(ide_drive_t *drive, u8 cmd, ide_handler_t *handler,
-			 unsigned timeout)
+void ide_execute_command(ide_drive_t *drive, struct ide_cmd *cmd,
+			 ide_handler_t *handler, unsigned timeout)
 {
 	ide_hwif_t *hwif = drive->hwif;
 	unsigned long flags;
 
 	spin_lock_irqsave(&hwif->lock, flags);
-	__ide_set_handler(drive, handler, timeout);
-	hwif->tp_ops->exec_command(hwif, cmd);
+	if ((cmd->protocol != ATAPI_PROT_DMA &&
+	     cmd->protocol != ATAPI_PROT_PIO) ||
+	    (drive->atapi_flags & IDE_AFLAG_DRQ_INTERRUPT))
+		__ide_set_handler(drive, handler, timeout);
+	hwif->tp_ops->exec_command(hwif, cmd->tf.command);
 	/*
 	 * Drive takes 400nS to respond, we must avoid the IRQ being
 	 * serviced before that.
@@ -479,18 +482,6 @@ void ide_execute_command(ide_drive_t *drive, u8 cmd, ide_handler_t *handler,
 	ndelay(400);
 	spin_unlock_irqrestore(&hwif->lock, flags);
 }
-
-void ide_execute_pkt_cmd(ide_drive_t *drive)
-{
-	ide_hwif_t *hwif = drive->hwif;
-	unsigned long flags;
-
-	spin_lock_irqsave(&hwif->lock, flags);
-	hwif->tp_ops->exec_command(hwif, ATA_CMD_PACKET);
-	ndelay(400);
-	spin_unlock_irqrestore(&hwif->lock, flags);
-}
-EXPORT_SYMBOL_GPL(ide_execute_pkt_cmd);
 
 /*
  * ide_wait_not_busy() waits for the currently selected device on the hwif

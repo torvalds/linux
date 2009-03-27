@@ -1138,9 +1138,8 @@ void ide_kill_rq(ide_drive_t *, struct request *);
 void __ide_set_handler(ide_drive_t *, ide_handler_t *, unsigned int);
 void ide_set_handler(ide_drive_t *, ide_handler_t *, unsigned int);
 
-void ide_execute_command(ide_drive_t *, u8, ide_handler_t *, unsigned int);
-
-void ide_execute_pkt_cmd(ide_drive_t *);
+void ide_execute_command(ide_drive_t *, struct ide_cmd *, ide_handler_t *,
+			 unsigned int);
 
 void ide_pad_transfer(ide_drive_t *, int, int);
 
