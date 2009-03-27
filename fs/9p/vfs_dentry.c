@@ -104,12 +104,12 @@ void v9fs_dentry_release(struct dentry *dentry)
 	}
 }
 
-struct dentry_operations v9fs_cached_dentry_operations = {
+const struct dentry_operations v9fs_cached_dentry_operations = {
 	.d_delete = v9fs_cached_dentry_delete,
 	.d_release = v9fs_dentry_release,
 };
 
-struct dentry_operations v9fs_dentry_operations = {
+const struct dentry_operations v9fs_dentry_operations = {
 	.d_delete = v9fs_dentry_delete,
 	.d_release = v9fs_dentry_release,
 };

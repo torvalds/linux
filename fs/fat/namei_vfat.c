@@ -166,13 +166,13 @@ static int vfat_cmp(struct dentry *dentry, struct qstr *a, struct qstr *b)
 	return 1;
 }
 
-static struct dentry_operations vfat_ci_dentry_ops = {
+static const struct dentry_operations vfat_ci_dentry_ops = {
 	.d_revalidate	= vfat_revalidate_ci,
 	.d_hash		= vfat_hashi,
 	.d_compare	= vfat_cmpi,
 };
 
-static struct dentry_operations vfat_dentry_ops = {
+static const struct dentry_operations vfat_dentry_ops = {
 	.d_revalidate	= vfat_revalidate,
 	.d_hash		= vfat_hash,
 	.d_compare	= vfat_cmp,

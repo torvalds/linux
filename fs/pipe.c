@@ -860,7 +860,7 @@ static char *pipefs_dname(struct dentry *dentry, char *buffer, int buflen)
 				dentry->d_inode->i_ino);
 }
 
-static struct dentry_operations pipefs_dentry_operations = {
+static const struct dentry_operations pipefs_dentry_operations = {
 	.d_delete	= pipefs_delete_dentry,
 	.d_dname	= pipefs_dname,
 };
@@ -1022,11 +1022,6 @@ int do_pipe_flags(int *fd, int flags)
  err_write_pipe:
 	free_write_pipe(fw);
 	return error;
-}
-
-int do_pipe(int *fd)
-{
-	return do_pipe_flags(fd, 0);
 }
 
 /*
