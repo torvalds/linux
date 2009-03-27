@@ -294,7 +294,7 @@ void clear_inode(struct inode *inode)
 	BUG_ON(!(inode->i_state & I_FREEING));
 	BUG_ON(inode->i_state & I_CLEAR);
 	inode_sync_wait(inode);
-	DQUOT_DROP(inode);
+	vfs_dq_drop(inode);
 	if (inode->i_sb->s_op->clear_inode)
 		inode->i_sb->s_op->clear_inode(inode);
 	if (S_ISBLK(inode->i_mode) && inode->i_bdev)
@@ -1168,7 +1168,7 @@ void generic_delete_inode(struct inode *inode)
 	if (op->delete_inode) {
 		void (*delete)(struct inode *) = op->delete_inode;
 		if (!is_bad_inode(inode))
-			DQUOT_INIT(inode);
+			vfs_dq_init(inode);
 		/* Filesystems implementing their own
 		 * s_op->delete_inode are required to call
 		 * truncate_inode_pages and clear_inode()

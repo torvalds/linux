@@ -356,7 +356,7 @@ static int jfs_rmdir(struct inode *dip, struct dentry *dentry)
 	jfs_info("jfs_rmdir: dip:0x%p name:%s", dip, dentry->d_name.name);
 
 	/* Init inode for quota operations. */
-	DQUOT_INIT(ip);
+	vfs_dq_init(ip);
 
 	/* directory must be empty to be removed */
 	if (!dtEmpty(ip)) {
@@ -483,7 +483,7 @@ static int jfs_unlink(struct inode *dip, struct dentry *dentry)
 	jfs_info("jfs_unlink: dip:0x%p name:%s", dip, dentry->d_name.name);
 
 	/* Init inode for quota operations. */
-	DQUOT_INIT(ip);
+	vfs_dq_init(ip);
 
 	if ((rc = get_UCSname(&dname, dentry)))
 		goto out;
@@ -1136,7 +1136,7 @@ static int jfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	} else if (new_ip) {
 		IWRITE_LOCK(new_ip, RDWRLOCK_NORMAL);
 		/* Init inode for quota operations. */
-		DQUOT_INIT(new_ip);
+		vfs_dq_init(new_ip);
 	}
 
 	/*

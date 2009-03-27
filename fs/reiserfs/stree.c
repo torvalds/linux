@@ -1297,7 +1297,7 @@ int reiserfs_delete_item(struct reiserfs_transaction_handle *th, struct treepath
 		       "reiserquota delete_item(): freeing %u, id=%u type=%c",
 		       quota_cut_bytes, p_s_inode->i_uid, head2type(&s_ih));
 #endif
-	DQUOT_FREE_SPACE_NODIRTY(p_s_inode, quota_cut_bytes);
+	vfs_dq_free_space_nodirty(p_s_inode, quota_cut_bytes);
 
 	/* Return deleted body length */
 	return n_ret_value;
@@ -1383,7 +1383,7 @@ void reiserfs_delete_solid_item(struct reiserfs_transaction_handle *th,
 					       quota_cut_bytes, inode->i_uid,
 					       key2type(key));
 #endif
-				DQUOT_FREE_SPACE_NODIRTY(inode,
+				vfs_dq_free_space_nodirty(inode,
 							 quota_cut_bytes);
 			}
 			break;
@@ -1734,7 +1734,7 @@ int reiserfs_cut_from_item(struct reiserfs_transaction_handle *th,
 		       "reiserquota cut_from_item(): freeing %u id=%u type=%c",
 		       quota_cut_bytes, p_s_inode->i_uid, '?');
 #endif
-	DQUOT_FREE_SPACE_NODIRTY(p_s_inode, quota_cut_bytes);
+	vfs_dq_free_space_nodirty(p_s_inode, quota_cut_bytes);
 	return n_ret_value;
 }
 
@@ -1971,7 +1971,7 @@ int reiserfs_paste_into_item(struct reiserfs_transaction_handle *th, struct tree
 		       key2type(&(p_s_key->on_disk_key)));
 #endif
 
-	if (DQUOT_ALLOC_SPACE_NODIRTY(inode, n_pasted_size)) {
+	if (vfs_dq_alloc_space_nodirty(inode, n_pasted_size)) {
 		pathrelse(p_s_search_path);
 		return -EDQUOT;
 	}
@@ -2027,7 +2027,7 @@ int reiserfs_paste_into_item(struct reiserfs_transaction_handle *th, struct tree
 		       n_pasted_size, inode->i_uid,
 		       key2type(&(p_s_key->on_disk_key)));
 #endif
-	DQUOT_FREE_SPACE_NODIRTY(inode, n_pasted_size);
+	vfs_dq_free_space_nodirty(inode, n_pasted_size);
 	return retval;
 }
 
@@ -2060,7 +2060,7 @@ int reiserfs_insert_item(struct reiserfs_transaction_handle *th, struct treepath
 #endif
 		/* We can't dirty inode here. It would be immediately written but
 		 * appropriate stat item isn't inserted yet... */
-		if (DQUOT_ALLOC_SPACE_NODIRTY(inode, quota_bytes)) {
+		if (vfs_dq_alloc_space_nodirty(inode, quota_bytes)) {
 			pathrelse(p_s_path);
 			return -EDQUOT;
 		}
@@ -2112,6 +2112,6 @@ int reiserfs_insert_item(struct reiserfs_transaction_handle *th, struct treepath
 		       quota_bytes, inode->i_uid, head2type(p_s_ih));
 #endif
 	if (inode)
-		DQUOT_FREE_SPACE_NODIRTY(inode, quota_bytes);
+		vfs_dq_free_space_nodirty(inode, quota_bytes);
 	return retval;
 }
