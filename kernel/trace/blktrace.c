@@ -994,8 +994,8 @@ static void get_pdu_remap(const struct trace_entry *ent,
 static int blk_log_action_iter(struct trace_iterator *iter, const char *act)
 {
 	char rwbs[6];
-	unsigned long long ts  = ns2usecs(iter->ts);
-	unsigned long usec_rem = do_div(ts, USEC_PER_SEC);
+	unsigned long long ts  = iter->ts;
+	unsigned long nsec_rem = do_div(ts, NSEC_PER_SEC);
 	unsigned secs	       = (unsigned long)ts;
 	const struct trace_entry *ent = iter->ent;
 	const struct blk_io_trace *t = (const struct blk_io_trace *)ent;
@@ -1003,9 +1003,9 @@ static int blk_log_action_iter(struct trace_iterator *iter, const char *act)
 	fill_rwbs(rwbs, t);
 
 	return trace_seq_printf(&iter->seq,
-				"%3d,%-3d %2d %5d.%06lu %5u %2s %3s ",
+				"%3d,%-3d %2d %5d.%09lu %5u %2s %3s ",
 				MAJOR(t->device), MINOR(t->device), iter->cpu,
-				secs, usec_rem, ent->pid, act, rwbs);
+				secs, nsec_rem, ent->pid, act, rwbs);
 }
 
 static int blk_log_action_seq(struct trace_seq *s, const struct blk_io_trace *t,
