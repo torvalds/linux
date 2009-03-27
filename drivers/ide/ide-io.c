@@ -54,24 +54,9 @@
 #include <asm/uaccess.h>
 #include <asm/io.h>
 
-int ide_end_rq(ide_drive_t *drive, struct request *rq, int uptodate,
+int ide_end_rq(ide_drive_t *drive, struct request *rq, int error,
 	       unsigned int nr_bytes)
 {
-	int error = 0;
-
-	if (uptodate <= 0)
-		error = uptodate ? uptodate : -EIO;
-
-	/*
-	 * if failfast is set on a request, override number of sectors and
-	 * complete the whole request right now
-	 */
-	if (blk_noretry_request(rq) && error)
-		nr_bytes = rq->hard_nr_sectors << 9;
-
-	if (!blk_fs_request(rq) && error && !rq->errors)
-		rq->errors = -EIO;
-
 	/*
 	 * decide whether to reenable DMA -- 3 is a random magic for now,
 	 * if we DMA timeout more than 3 times, just stay in PIO
@@ -101,7 +86,7 @@ int ide_end_request (ide_drive_t *drive, int uptodate, int nr_sectors)
 {
 	unsigned int nr_bytes = nr_sectors << 9;
 	struct request *rq = drive->hwif->rq;
-	int rc;
+	int rc, error = 0;
 
 	if (!nr_bytes) {
 		if (blk_pc_request(rq))
@@ -110,7 +95,20 @@ int ide_end_request (ide_drive_t *drive, int uptodate, int nr_sectors)
 			nr_bytes = rq->hard_cur_sectors << 9;
 	}
 
-	rc = ide_end_rq(drive, rq, uptodate, nr_bytes);
+	/*
+	 * if failfast is set on a request, override number of sectors
+	 * and complete the whole request right now
+	 */
+	if (blk_noretry_request(rq) && uptodate <= 0)
+		nr_bytes = rq->hard_nr_sectors << 9;
+
+	if (blk_fs_request(rq) == 0 && uptodate <= 0 && rq->errors == 0)
+		rq->errors = -EIO;
+
+	if (uptodate <= 0)
+		error = uptodate ? uptodate : -EIO;
+
+	rc = ide_end_rq(drive, rq, error, nr_bytes);
 	if (rc == 0)
 		drive->hwif->rq = NULL;
 
