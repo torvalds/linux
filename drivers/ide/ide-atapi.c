@@ -336,11 +336,6 @@ static ide_startstop_t ide_pc_intr(ide_drive_t *drive)
 	timeout = (drive->media == ide_floppy) ? WAIT_FLOPPY_CMD
 					       : WAIT_TAPE_CMD;
 
-	if (pc->flags & PC_FLAG_TIMEDOUT) {
-		drive->pc_callback(drive, 0);
-		return ide_stopped;
-	}
-
 	/* Clear the interrupt */
 	stat = tp_ops->read_status(hwif);
 
