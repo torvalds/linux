@@ -1943,7 +1943,7 @@ int gspca_dev_probe(struct usb_interface *intf,
 
 	/* init video stuff */
 	memcpy(&gspca_dev->vdev, &gspca_template, sizeof gspca_template);
-	gspca_dev->vdev.parent = &dev->dev;
+	gspca_dev->vdev.parent = &intf->dev;
 	gspca_dev->module = module;
 	gspca_dev->present = 1;
 	ret = video_register_device(&gspca_dev->vdev,
