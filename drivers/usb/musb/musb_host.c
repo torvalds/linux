@@ -4,6 +4,7 @@
  * Copyright 2005 Mentor Graphics Corporation
  * Copyright (C) 2005-2006 by Texas Instruments
  * Copyright (C) 2006-2007 Nokia Corporation
+ * Copyright (C) 2008-2009 MontaVista Software, Inc. <source@mvista.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -168,13 +169,15 @@ static inline void musb_h_tx_start(struct musb_hw_ep *ep)
 
 }
 
-static inline void cppi_host_txdma_start(struct musb_hw_ep *ep)
+static inline void musb_h_tx_dma_start(struct musb_hw_ep *ep)
 {
 	u16	txcsr;
 
 	/* NOTE: no locks here; caller should lock and select EP */
 	txcsr = musb_readw(ep->regs, MUSB_TXCSR);
 	txcsr |= MUSB_TXCSR_DMAENAB | MUSB_TXCSR_H_WZC_BITS;
+	if (is_cppi_enabled())
+		txcsr |= MUSB_TXCSR_DMAMODE;
 	musb_writew(ep->regs, MUSB_TXCSR, txcsr);
 }
 
@@ -279,7 +282,7 @@ start:
 		if (!hw_ep->tx_channel)
 			musb_h_tx_start(hw_ep);
 		else if (is_cppi_enabled() || tusb_dma_omap())
-			cppi_host_txdma_start(hw_ep);
+			musb_h_tx_dma_start(hw_ep);
 	}
 }
 
@@ -1248,6 +1251,67 @@ void musb_host_tx(struct musb *musb, u8 epnum)
 		DBG(4, "extra TX%d ready, csr %04x\n", epnum, tx_csr);
 		goto finish;
 
+	}
+
+	if (is_dma_capable() && dma && !status) {
+		/*
+		 * DMA has completed.  But if we're using DMA mode 1 (multi
+		 * packet DMA), we need a terminal TXPKTRDY interrupt before
+		 * we can consider this transfer completed, lest we trash
+		 * its last packet when writing the next URB's data.  So we
+		 * switch back to mode 0 to get that interrupt; we'll come
+		 * back here once it happens.
+		 */
+		if (tx_csr & MUSB_TXCSR_DMAMODE) {
+			/*
+			 * We shouldn't clear DMAMODE with DMAENAB set; so
+			 * clear them in a safe order.  That should be OK
+			 * once TXPKTRDY has been set (and I've never seen
+			 * it being 0 at this moment -- DMA interrupt latency
+			 * is significant) but if it hasn't been then we have
+			 * no choice but to stop being polite and ignore the
+			 * programmer's guide... :-)
+			 *
+			 * Note that we must write TXCSR with TXPKTRDY cleared
+			 * in order not to re-trigger the packet send (this bit
+			 * can't be cleared by CPU), and there's another caveat:
+			 * TXPKTRDY may be set shortly and then cleared in the
+			 * double-buffered FIFO mode, so we do an extra TXCSR
+			 * read for debouncing...
+			 */
+			tx_csr &= musb_readw(epio, MUSB_TXCSR);
+			if (tx_csr & MUSB_TXCSR_TXPKTRDY) {
+				tx_csr &= ~(MUSB_TXCSR_DMAENAB |
+					    MUSB_TXCSR_TXPKTRDY);
+				musb_writew(epio, MUSB_TXCSR,
+					    tx_csr | MUSB_TXCSR_H_WZC_BITS);
+			}
+			tx_csr &= ~(MUSB_TXCSR_DMAMODE |
+				    MUSB_TXCSR_TXPKTRDY);
+			musb_writew(epio, MUSB_TXCSR,
+				    tx_csr | MUSB_TXCSR_H_WZC_BITS);
+
+			/*
+			 * There is no guarantee that we'll get an interrupt
+			 * after clearing DMAMODE as we might have done this
+			 * too late (after TXPKTRDY was cleared by controller).
+			 * Re-read TXCSR as we have spoiled its previous value.
+			 */
+			tx_csr = musb_readw(epio, MUSB_TXCSR);
+		}
+
+		/*
+		 * We may get here from a DMA completion or TXPKTRDY interrupt.
+		 * In any case, we must check the FIFO status here and bail out
+		 * only if the FIFO still has data -- that should prevent the
+		 * "missed" TXPKTRDY interrupts and deal with double-buffered
+		 * FIFO mode too...
+		 */
+		if (tx_csr & (MUSB_TXCSR_FIFONOTEMPTY | MUSB_TXCSR_TXPKTRDY)) {
+			DBG(2, "DMA complete but packet still in FIFO, "
+			    "CSR %04x\n", tx_csr);
+			return;
+		}
 	}
 
 	/* REVISIT this looks wrong... */

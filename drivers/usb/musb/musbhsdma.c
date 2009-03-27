@@ -304,12 +304,9 @@ static irqreturn_t dma_controller_irq(int irq, void *private_data)
 							musb_channel->epnum,
 							MUSB_TXCSR),
 						MUSB_TXCSR_TXPKTRDY);
-				} else {
-					musb_dma_completion(
-						musb,
-						musb_channel->epnum,
-						musb_channel->transmit);
 				}
+				musb_dma_completion(musb, musb_channel->epnum,
+						    musb_channel->transmit);
 			}
 		}
 	}

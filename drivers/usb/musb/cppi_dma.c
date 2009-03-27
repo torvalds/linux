@@ -1228,27 +1228,7 @@ void cppi_completion(struct musb *musb, u32 rx, u32 tx)
 
 				hw_ep = tx_ch->hw_ep;
 
-				/* Peripheral role never repurposes the
-				 * endpoint, so immediate completion is
-				 * safe.  Host role waits for the fifo
-				 * to empty (TXPKTRDY irq) before going
-				 * to the next queued bulk transfer.
-				 */
-				if (is_host_active(cppi->musb)) {
-#if 0
-					/* WORKAROUND because we may
-					 * not always get TXKPTRDY ...
-					 */
-					int	csr;
-
-					csr = musb_readw(hw_ep->regs,
-						MUSB_TXCSR);
-					if (csr & MUSB_TXCSR_TXPKTRDY)
-#endif
-						completed = false;
-				}
-				if (completed)
-					musb_dma_completion(musb, index + 1, 1);
+				musb_dma_completion(musb, index + 1, 1);
 
 			} else {
 				/* Bigger transfer than we could fit in
