@@ -1503,20 +1503,16 @@ static void dma_rx(struct b43_dmaring *ring, int *slot)
 			len = le16_to_cpu(rxhdr->frame_len);
 		} while (len == 0 && i++ < 5);
 		if (unlikely(len == 0)) {
-			/* recycle the descriptor buffer. */
-			sync_descbuffer_for_device(ring, meta->dmaaddr,
-						   ring->rx_buffersize);
-			goto drop;
+			dmaaddr = meta->dmaaddr;
+			goto drop_recycle_buffer;
 		}
 	}
 	if (unlikely(b43_rx_buffer_is_poisoned(ring, skb))) {
 		/* Something went wrong with the DMA.
 		 * The device did not touch the buffer and did not overwrite the poison. */
 		b43dbg(ring->dev->wl, "DMA RX: Dropping poisoned buffer.\n");
-		/* recycle the descriptor buffer. */
-		sync_descbuffer_for_device(ring, meta->dmaaddr,
-					   ring->rx_buffersize);
-		goto drop;
+		dmaaddr = meta->dmaaddr;
+		goto drop_recycle_buffer;
 	}
 	if (unlikely(len > ring->rx_buffersize)) {
 		/* The data did not fit into one descriptor buffer
@@ -1530,6 +1526,7 @@ static void dma_rx(struct b43_dmaring *ring, int *slot)
 		while (1) {
 			desc = ops->idx2desc(ring, *slot, &meta);
 			/* recycle the descriptor buffer. */
+			b43_poison_rx_buffer(ring, meta->skb);
 			sync_descbuffer_for_device(ring, meta->dmaaddr,
 						   ring->rx_buffersize);
 			*slot = next_slot(ring, *slot);
@@ -1548,8 +1545,7 @@ static void dma_rx(struct b43_dmaring *ring, int *slot)
 	err = setup_rx_descbuffer(ring, desc, meta, GFP_ATOMIC);
 	if (unlikely(err)) {
 		b43dbg(ring->dev->wl, "DMA RX: setup_rx_descbuffer() failed\n");
-		sync_descbuffer_for_device(ring, dmaaddr, ring->rx_buffersize);
-		goto drop;
+		goto drop_recycle_buffer;
 	}
 
 	unmap_descbuffer(ring, dmaaddr, ring->rx_buffersize, 0);
@@ -1559,6 +1555,11 @@ static void dma_rx(struct b43_dmaring *ring, int *slot)
 	b43_rx(ring->dev, skb, rxhdr);
 drop:
 	return;
+
+drop_recycle_buffer:
+	/* Poison and recycle the RX buffer. */
+	b43_poison_rx_buffer(ring, skb);
+	sync_descbuffer_for_device(ring, dmaaddr, ring->rx_buffersize);
 }
 
 void b43_dma_rx(struct b43_dmaring *ring)
