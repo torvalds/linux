@@ -64,12 +64,11 @@ static struct workqueue_struct *kblockd_workqueue;
 
 static void drive_stat_acct(struct request *rq, int new_io)
 {
-	struct gendisk *disk = rq->rq_disk;
 	struct hd_struct *part;
 	int rw = rq_data_dir(rq);
 	int cpu;
 
-	if (!blk_fs_request(rq) || !disk || !blk_do_io_stat(disk->queue))
+	if (!blk_fs_request(rq) || !blk_do_io_stat(rq))
 		return;
 
 	cpu = part_stat_lock();
@@ -1675,9 +1674,7 @@ EXPORT_SYMBOL(blkdev_dequeue_request);
 
 static void blk_account_io_completion(struct request *req, unsigned int bytes)
 {
-	struct gendisk *disk = req->rq_disk;
-
-	if (!disk || !blk_do_io_stat(disk->queue))
+	if (!blk_do_io_stat(req))
 		return;
 
 	if (blk_fs_request(req)) {
@@ -1694,9 +1691,7 @@ static void blk_account_io_completion(struct request *req, unsigned int bytes)
 
 static void blk_account_io_done(struct request *req)
 {
-	struct gendisk *disk = req->rq_disk;
-
-	if (!disk || !blk_do_io_stat(disk->queue))
+	if (!blk_do_io_stat(req))
 		return;
 
 	/*
@@ -1711,7 +1706,7 @@ static void blk_account_io_done(struct request *req)
 		int cpu;
 
 		cpu = part_stat_lock();
-		part = disk_map_sector_rcu(disk, req->sector);
+		part = disk_map_sector_rcu(req->rq_disk, req->sector);
 
 		part_stat_inc(cpu, part, ios[rw]);
 		part_stat_add(cpu, part, ticks[rw], duration);

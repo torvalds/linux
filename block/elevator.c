@@ -573,7 +573,7 @@ void elv_requeue_request(struct request_queue *q, struct request *rq)
 	elv_insert(q, rq, ELEVATOR_INSERT_REQUEUE);
 }
 
-static void elv_drain_elevator(struct request_queue *q)
+void elv_drain_elevator(struct request_queue *q)
 {
 	static int printed;
 	while (q->elevator->ops->elevator_dispatch_fn(q, 1))
