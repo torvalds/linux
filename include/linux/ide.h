@@ -619,7 +619,7 @@ struct ide_drive_s {
 	struct ide_atapi_pc *failed_pc;
 
 	/* callback for packet commands */
-	void (*pc_callback)(struct ide_drive_s *, int);
+	int  (*pc_callback)(struct ide_drive_s *, int);
 
 	void (*pc_update_buffers)(struct ide_drive_s *, struct ide_atapi_pc *);
 	int  (*pc_io_buffers)(struct ide_drive_s *, struct ide_atapi_pc *,

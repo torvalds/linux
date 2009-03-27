@@ -357,6 +357,8 @@ static ide_startstop_t ide_pc_intr(ide_drive_t *drive)
 
 	/* No more interrupts */
 	if ((stat & ATA_DRQ) == 0) {
+		int uptodate;
+
 		debug_log("Packet command completed, %d bytes transferred\n",
 			  pc->xferred);
 
@@ -395,7 +397,15 @@ static ide_startstop_t ide_pc_intr(ide_drive_t *drive)
 			dsc = 1;
 
 		/* Command finished - Call the callback function */
-		drive->pc_callback(drive, dsc);
+		uptodate = drive->pc_callback(drive, dsc);
+
+		if (uptodate == 0)
+			drive->failed_pc = NULL;
+
+		if (blk_special_request(rq))
+			ide_complete_rq(drive, 0);
+		else
+			ide_end_request(drive, uptodate, 0);
 
 		return ide_stopped;
 	}

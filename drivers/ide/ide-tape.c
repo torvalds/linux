@@ -463,7 +463,7 @@ static void ide_tape_kfree_buffer(idetape_tape_t *tape)
 
 static void ide_tape_handle_dsc(ide_drive_t *);
 
-static void ide_tape_callback(ide_drive_t *drive, int dsc)
+static int ide_tape_callback(ide_drive_t *drive, int dsc)
 {
 	idetape_tape_t *tape = drive->driver_data;
 	struct ide_atapi_pc *pc = drive->pc;
@@ -530,13 +530,7 @@ static void ide_tape_callback(ide_drive_t *drive, int dsc)
 
 	rq->errors = err;
 
-	if (uptodate == 0)
-		drive->failed_pc = NULL;
-
-	if (blk_special_request(rq))
-		ide_complete_rq(drive, 0);
-	else
-		ide_end_request(drive, uptodate, 0);
+	return uptodate;
 }
 
 /*

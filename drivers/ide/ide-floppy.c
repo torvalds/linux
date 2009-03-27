@@ -71,7 +71,7 @@ static void idefloppy_update_buffers(ide_drive_t *drive,
 		ide_end_request(drive, 1, 0);
 }
 
-static void ide_floppy_callback(ide_drive_t *drive, int dsc)
+static int ide_floppy_callback(ide_drive_t *drive, int dsc)
 {
 	struct ide_disk_obj *floppy = drive->driver_data;
 	struct ide_atapi_pc *pc = drive->pc;
@@ -108,14 +108,10 @@ static void ide_floppy_callback(ide_drive_t *drive, int dsc)
 			       "Aborting request!\n");
 	}
 
-	if (uptodate == 0)
-		drive->failed_pc = NULL;
-
-	if (blk_special_request(rq)) {
+	if (blk_special_request(rq))
 		rq->errors = uptodate ? 0 : IDE_DRV_ERROR_GENERAL;
-		ide_complete_rq(drive, 0);
-	} else
-		ide_end_request(drive, uptodate, 0);
+
+	return uptodate;
 }
 
 static void ide_floppy_report_error(struct ide_disk_obj *floppy,
