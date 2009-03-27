@@ -395,7 +395,12 @@ static int p54spi_rx(struct p54s_priv *priv)
 		return 0;
 	}
 
-	skb = dev_alloc_skb(len);
+
+	/* Firmware may insert up to 4 padding bytes after the lmac header,
+	 * but it does not amend the size of SPI data transfer.
+	 * Such packets has correct data size in header, thus referencing
+	 * past the end of allocated skb. Reserve extra 4 bytes for this case */
+	skb = dev_alloc_skb(len + 4);
 	if (!skb) {
 		dev_err(&priv->spi->dev, "could not alloc skb");
 		return 0;
@@ -403,6 +408,9 @@ static int p54spi_rx(struct p54s_priv *priv)
 
 	p54spi_spi_read(priv, SPI_ADRS_DMA_DATA, skb_put(skb, len), len);
 	p54spi_sleep(priv);
+	/* Put additional bytes to compensate for the possible
+	 * alignment-caused truncation */
+	skb_put(skb, 4);
 
 	if (p54_rx(priv->hw, skb) == 0)
 		dev_kfree_skb(skb);
