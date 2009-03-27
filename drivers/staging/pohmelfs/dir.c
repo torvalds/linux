@@ -557,10 +557,10 @@ struct dentry *pohmelfs_lookup(struct inode *dir, struct dentry *dentry, struct 
 
 	if (ino) {
 		inode = ilookup(dir->i_sb, ino);
-		printk("%s: second lookup ino: %lu, inode: %p, name: '%s', hash: %x.\n",
+		dprintk("%s: second lookup ino: %lu, inode: %p, name: '%s', hash: %x.\n",
 				__func__, ino, inode, str.name, str.hash);
 		if (!inode) {
-			printk("%s: No inode for ino: %lu, name: '%s', hash: %x.\n",
+			dprintk("%s: No inode for ino: %lu, name: '%s', hash: %x.\n",
 				__func__, ino, str.name, str.hash);
 			//return NULL;
 			return ERR_PTR(-EACCES);
