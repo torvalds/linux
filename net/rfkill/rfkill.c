@@ -200,7 +200,7 @@ static void __rfkill_switch_all(const enum rfkill_type type,
 
 	rfkill_global_states[type].current_state = state;
 	list_for_each_entry(rfkill, &rfkill_list, node) {
-		if ((!rfkill->user_claim) && (rfkill->type == type)) {
+		if (rfkill->type == type) {
 			mutex_lock(&rfkill->mutex);
 			rfkill_toggle_radio(rfkill, state, 0);
 			mutex_unlock(&rfkill->mutex);
@@ -447,53 +447,14 @@ static ssize_t rfkill_claim_show(struct device *dev,
 				 struct device_attribute *attr,
 				 char *buf)
 {
-	struct rfkill *rfkill = to_rfkill(dev);
-
-	return sprintf(buf, "%d\n", rfkill->user_claim);
+	return sprintf(buf, "%d\n", 0);
 }
 
 static ssize_t rfkill_claim_store(struct device *dev,
 				  struct device_attribute *attr,
 				  const char *buf, size_t count)
 {
-	struct rfkill *rfkill = to_rfkill(dev);
-	unsigned long claim_tmp;
-	bool claim;
-	int error;
-
-	if (!capable(CAP_NET_ADMIN))
-		return -EPERM;
-
-	if (rfkill->user_claim_unsupported)
-		return -EOPNOTSUPP;
-
-	error = strict_strtoul(buf, 0, &claim_tmp);
-	if (error)
-		return error;
-	claim = !!claim_tmp;
-
-	/*
-	 * Take the global lock to make sure the kernel is not in
-	 * the middle of rfkill_switch_all
-	 */
-	error = mutex_lock_killable(&rfkill_global_mutex);
-	if (error)
-		return error;
-
-	if (rfkill->user_claim != claim) {
-		if (!claim && !rfkill_epo_lock_active) {
-			mutex_lock(&rfkill->mutex);
-			rfkill_toggle_radio(rfkill,
-					rfkill_global_states[rfkill->type].current_state,
-					0);
-			mutex_unlock(&rfkill->mutex);
-		}
-		rfkill->user_claim = claim;
-	}
-
-	mutex_unlock(&rfkill_global_mutex);
-
-	return error ? error : count;
+	return -EOPNOTSUPP;
 }
 
 static struct device_attribute rfkill_dev_attrs[] = {

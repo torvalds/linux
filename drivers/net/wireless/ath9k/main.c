@@ -1267,7 +1267,6 @@ static int ath_init_sw_rfkill(struct ath_softc *sc)
 	sc->rf_kill.rfkill->data = sc;
 	sc->rf_kill.rfkill->toggle_radio = ath_sw_toggle_radio;
 	sc->rf_kill.rfkill->state = RFKILL_STATE_UNBLOCKED;
-	sc->rf_kill.rfkill->user_claim_unsupported = 1;
 
 	return 0;
 }

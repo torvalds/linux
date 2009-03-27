@@ -521,16 +521,12 @@ status of the system.
 Input devices may issue events that are related to rfkill.  These are the
 various KEY_* events and SW_* events supported by rfkill-input.c.
 
-******IMPORTANT******
-When rfkill-input is ACTIVE, userspace is NOT TO CHANGE THE STATE OF AN RFKILL
-SWITCH IN RESPONSE TO AN INPUT EVENT also handled by rfkill-input, unless it
-has set to true the user_claim attribute for that particular switch.  This rule
-is *absolute*; do NOT violate it.
-******IMPORTANT******
+Userspace may not change the state of an rfkill switch in response to an
+input event, it should refrain from changing states entirely.
 
-Userspace must not assume it is the only source of control for rfkill switches.
-Their state CAN and WILL change due to firmware actions, direct user actions,
-and the rfkill-input EPO override for *_RFKILL_ALL.
+Userspace cannot assume it is the only source of control for rfkill switches.
+Their state can change due to firmware actions, direct user actions, and the
+rfkill-input EPO override for *_RFKILL_ALL.
 
 When rfkill-input is not active, userspace must initiate a rfkill status
 change by writing to the "state" attribute in order for anything to happen.

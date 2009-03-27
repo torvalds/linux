@@ -434,7 +434,6 @@ static int __init hp_wmi_bios_setup(struct platform_device *device)
 		wifi_rfkill->name = "hp-wifi";
 		wifi_rfkill->state = hp_wmi_wifi_state();
 		wifi_rfkill->toggle_radio = hp_wmi_wifi_set;
-		wifi_rfkill->user_claim_unsupported = 1;
 		err = rfkill_register(wifi_rfkill);
 		if (err)
 			goto add_sysfs_error;
@@ -446,7 +445,6 @@ static int __init hp_wmi_bios_setup(struct platform_device *device)
 		bluetooth_rfkill->name = "hp-bluetooth";
 		bluetooth_rfkill->state = hp_wmi_bluetooth_state();
 		bluetooth_rfkill->toggle_radio = hp_wmi_bluetooth_set;
-		bluetooth_rfkill->user_claim_unsupported = 1;
 		err = rfkill_register(bluetooth_rfkill);
 		if (err)
 			goto register_bluetooth_error;
@@ -457,7 +455,6 @@ static int __init hp_wmi_bios_setup(struct platform_device *device)
 		wwan_rfkill->name = "hp-wwan";
 		wwan_rfkill->state = hp_wmi_wwan_state();
 		wwan_rfkill->toggle_radio = hp_wmi_wwan_set;
-		wwan_rfkill->user_claim_unsupported = 1;
 		err = rfkill_register(wwan_rfkill);
 		if (err)
 			goto register_wwan_err;

@@ -58,9 +58,6 @@ enum rfkill_state {
  * @type: Radio type which the button controls, the value stored
  *	here should be a value from enum rfkill_type.
  * @state: State of the switch, "UNBLOCKED" means radio can operate.
- * @user_claim_unsupported: Whether the hardware supports exclusive
- *	RF-kill control by userspace. Set this before registering.
- * @user_claim: Set when the switch is controlled exlusively by userspace.
  * @mutex: Guards switch state transitions.  It serializes callbacks
  *	and also protects the state.
  * @data: Pointer to the RF button drivers private data which will be
@@ -82,9 +79,6 @@ enum rfkill_state {
 struct rfkill {
 	const char *name;
 	enum rfkill_type type;
-
-	bool user_claim_unsupported;
-	bool user_claim;
 
 	/* the mutex serializes callbacks and also protects
 	 * the state */

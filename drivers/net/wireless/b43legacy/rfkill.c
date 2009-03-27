@@ -142,7 +142,6 @@ void b43legacy_rfkill_init(struct b43legacy_wldev *dev)
 	rfk->rfkill->state = RFKILL_STATE_UNBLOCKED;
 	rfk->rfkill->data = dev;
 	rfk->rfkill->toggle_radio = b43legacy_rfkill_soft_toggle;
-	rfk->rfkill->user_claim_unsupported = 1;
 
 	rfk->poll_dev = input_allocate_polled_device();
 	if (!rfk->poll_dev) {

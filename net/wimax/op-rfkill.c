@@ -364,7 +364,6 @@ int wimax_rfkill_add(struct wimax_dev *wimax_dev)
 	rfkill->state = RFKILL_STATE_UNBLOCKED;
 	rfkill->data = wimax_dev;
 	rfkill->toggle_radio = wimax_rfkill_toggle_radio;
-	rfkill->user_claim_unsupported = 1;
 
 	/* Initialize the input device for the hw key */
 	input_dev = input_allocate_device();
