@@ -240,10 +240,6 @@ static int tx4939ide_build_dmatable(ide_drive_t *drive, struct request *rq)
 	int i;
 	struct scatterlist *sg;
 
-	hwif->sg_nents = ide_build_sglist(drive, rq);
-	if (hwif->sg_nents == 0)
-		return 0;
-
 	for_each_sg(hwif->sg_table, sg, hwif->sg_nents, i) {
 		u32 cur_addr, cur_len, bcount;
 

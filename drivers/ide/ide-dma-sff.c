@@ -120,10 +120,6 @@ int ide_build_dmatable(ide_drive_t *drive, struct request *rq)
 	struct scatterlist *sg;
 	u8 is_trm290 = !!(hwif->host_flags & IDE_HFLAG_TRM290);
 
-	hwif->sg_nents = ide_build_sglist(drive, rq);
-	if (hwif->sg_nents == 0)
-		return 0;
-
 	for_each_sg(hwif->sg_table, sg, hwif->sg_nents, i) {
 		u32 cur_addr, cur_len, xcount, bcount;
 

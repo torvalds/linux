@@ -211,20 +211,15 @@ static void auide_set_dma_mode(ide_drive_t *drive, const u8 speed)
 #ifdef CONFIG_BLK_DEV_IDE_AU1XXX_MDMA2_DBDMA
 static int auide_build_dmatable(ide_drive_t *drive)
 {
-	int i, iswrite, count = 0;
 	ide_hwif_t *hwif = drive->hwif;
 	struct request *rq = hwif->rq;
 	_auide_hwif *ahwif = &auide_hwif;
 	struct scatterlist *sg;
+	int i = hwif->sg_nents, iswrite, count = 0;
 
 	iswrite = (rq_data_dir(rq) == WRITE);
 	/* Save for interrupt context */
 	ahwif->drive = drive;
-
-	hwif->sg_nents = i = ide_build_sglist(drive, rq);
-
-	if (!i)
-		return 0;
 
 	/* fill the descriptors */
 	sg = hwif->sg_table;

@@ -1429,10 +1429,10 @@ pmac_ide_build_dmatable(ide_drive_t *drive, struct request *rq)
 	pmac_ide_hwif_t *pmif =
 		(pmac_ide_hwif_t *)dev_get_drvdata(hwif->gendev.parent);
 	struct dbdma_cmd *table;
-	int i, count = 0;
 	volatile struct dbdma_regs __iomem *dma = pmif->dma_regs;
 	struct scatterlist *sg;
 	int wr = (rq_data_dir(rq) == WRITE);
+	int i = hwif->sg_nents, count = 0;
 
 	/* DMA table is already aligned */
 	table = (struct dbdma_cmd *) pmif->dma_table_cpu;
@@ -1441,11 +1441,6 @@ pmac_ide_build_dmatable(ide_drive_t *drive, struct request *rq)
 	writel((RUN|PAUSE|FLUSH|WAKE|DEAD) << 16, &dma->control);
 	while (readl(&dma->status) & RUN)
 		udelay(1);
-
-	hwif->sg_nents = i = ide_build_sglist(drive, rq);
-
-	if (!i)
-		return 0;
 
 	/* Build DBDMA commands list */
 	sg = hwif->sg_table;

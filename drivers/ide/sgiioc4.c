@@ -429,15 +429,9 @@ sgiioc4_build_dma_table(ide_drive_t * drive, struct request *rq, int ddir)
 {
 	ide_hwif_t *hwif = drive->hwif;
 	unsigned int *table = hwif->dmatable_cpu;
-	unsigned int count = 0, i = 1;
-	struct scatterlist *sg;
+	unsigned int count = 0, i = hwif->sg_nents;
+	struct scatterlist *sg = hwif->sg_table;
 
-	hwif->sg_nents = i = ide_build_sglist(drive, rq);
-
-	if (!i)
-		return 0;	/* sglist of length Zero */
-
-	sg = hwif->sg_table;
 	while (i && sg_dma_len(sg)) {
 		dma_addr_t cur_addr;
 		int cur_len;
