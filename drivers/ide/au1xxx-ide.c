@@ -286,12 +286,7 @@ static int auide_build_dmatable(ide_drive_t *drive)
 
 static int auide_dma_end(ide_drive_t *drive)
 {
-	ide_hwif_t *hwif = drive->hwif;
-
-	if (hwif->sg_nents) {
-		ide_destroy_dmatable(drive);
-		hwif->sg_nents = 0;
-	}
+	ide_destroy_dmatable(drive);
 
 	return 0;
 }
