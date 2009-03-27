@@ -774,8 +774,8 @@ static ide_startstop_t idetape_do_request(ide_drive_t *drive,
 		if (rq != postponed_rq) {
 			printk(KERN_ERR "ide-tape: ide-tape.c bug - "
 					"Two DSC requests were queued\n");
-			rq->errors = IDE_DRV_ERROR_GENERAL;
 			drive->failed_pc = NULL;
+			rq->errors = 0;
 			ide_complete_rq(drive, 0);
 			return ide_stopped;
 		}

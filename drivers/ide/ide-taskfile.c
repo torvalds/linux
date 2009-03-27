@@ -289,10 +289,12 @@ static void ide_error_cmd(ide_drive_t *drive, struct ide_cmd *cmd)
 
 void ide_finish_cmd(ide_drive_t *drive, struct ide_cmd *cmd, u8 stat)
 {
+	struct request *rq = drive->hwif->rq;
 	u8 err = ide_read_error(drive);
 
 	ide_complete_cmd(drive, cmd, stat, err);
-	ide_complete_rq(drive, err);
+	rq->errors = err;
+	ide_complete_rq(drive, err ? -EIO : 0);
 }
 
 /*

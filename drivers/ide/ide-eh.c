@@ -123,17 +123,18 @@ ide_startstop_t ide_error(ide_drive_t *drive, const char *msg, u8 stat)
 
 	/* retry only "normal" I/O: */
 	if (!blk_fs_request(rq)) {
-		rq->errors = 1;
 		if (rq->cmd_type == REQ_TYPE_ATA_TASKFILE) {
 			struct ide_cmd *cmd = rq->special;
 
 			if (cmd)
 				ide_complete_cmd(drive, cmd, stat, err);
 		} else if (blk_pm_request(rq)) {
+			rq->errors = 1;
 			ide_complete_pm_rq(drive, rq);
 			return ide_stopped;
 		}
-		ide_complete_rq(drive, err);
+		rq->errors = err;
+		ide_complete_rq(drive, err ? -EIO : 0);
 		return ide_stopped;
 	}
 

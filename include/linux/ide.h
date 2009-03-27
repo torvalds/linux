@@ -1166,7 +1166,7 @@ extern int ide_devset_execute(ide_drive_t *drive,
 			      const struct ide_devset *setting, int arg);
 
 void ide_complete_cmd(ide_drive_t *, struct ide_cmd *, u8, u8);
-void ide_complete_rq(ide_drive_t *, u8);
+void ide_complete_rq(ide_drive_t *, int);
 
 void ide_tf_dump(const char *, struct ide_taskfile *);
 

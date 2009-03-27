@@ -260,7 +260,7 @@ static ide_startstop_t ide_floppy_do_request(ide_drive_t *drive,
 			printk(KERN_ERR PFX "%s: I/O error\n", drive->name);
 
 		if (blk_special_request(rq)) {
-			rq->errors = IDE_DRV_ERROR_GENERAL;
+			rq->errors = 0;
 			ide_complete_rq(drive, 0);
 			return ide_stopped;
 		} else

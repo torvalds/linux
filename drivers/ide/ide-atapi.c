@@ -402,9 +402,10 @@ static ide_startstop_t ide_pc_intr(ide_drive_t *drive)
 		if (uptodate == 0)
 			drive->failed_pc = NULL;
 
-		if (blk_special_request(rq))
+		if (blk_special_request(rq)) {
+			rq->errors = 0;
 			ide_complete_rq(drive, 0);
-		else
+		} else
 			ide_end_request(drive, uptodate, 0);
 
 		return ide_stopped;
