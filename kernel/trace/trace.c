@@ -3630,9 +3630,6 @@ tracing_stats_read(struct file *filp, char __user *ubuf,
 	cnt = ring_buffer_commit_overrun_cpu(tr->buffer, cpu);
 	trace_seq_printf(s, "commit overrun: %ld\n", cnt);
 
-	cnt = ring_buffer_nmi_dropped_cpu(tr->buffer, cpu);
-	trace_seq_printf(s, "nmi dropped: %ld\n", cnt);
-
 	count = simple_read_from_buffer(ubuf, count, ppos, s->buffer, s->len);
 
 	kfree(s);
