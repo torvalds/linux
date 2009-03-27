@@ -1,6 +1,5 @@
 #include <linux/kernel.h>
 #include <linux/ide.h>
-#include <linux/hdreg.h>
 
 #include "ide-disk.h"
 
@@ -30,8 +29,8 @@ static int get_smart_data(ide_drive_t *drive, u8 *buf, u8 sub_cmd)
 	tf->lbam    = ATA_SMART_LBAM_PASS;
 	tf->lbah    = ATA_SMART_LBAH_PASS;
 	tf->command = ATA_CMD_SMART;
-	cmd.tf_flags	= IDE_TFLAG_TF | IDE_TFLAG_DEVICE;
-	cmd.data_phase	= TASKFILE_IN;
+	cmd.tf_flags = IDE_TFLAG_TF | IDE_TFLAG_DEVICE;
+	cmd.protocol = ATA_PROT_PIO;
 
 	return ide_raw_taskfile(drive, &cmd, buf, 1);
 }

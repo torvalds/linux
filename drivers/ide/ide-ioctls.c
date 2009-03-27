@@ -148,7 +148,7 @@ static int ide_cmd_ioctl(ide_drive_t *drive, unsigned long arg)
 			       IDE_TFLAG_IN_NSECT;
 	}
 	tf->command = args[0];
-	cmd.data_phase = args[3] ? TASKFILE_IN : TASKFILE_NO_DATA;
+	cmd.protocol = args[3] ? ATA_PROT_PIO : ATA_PROT_NODATA;
 
 	if (args[3]) {
 		cmd.tf_flags |= IDE_TFLAG_IO_16BIT;

@@ -298,6 +298,7 @@ enum {
 	/* struct ide_cmd was allocated using kmalloc() */
 	IDE_TFLAG_DYN			= (1 << 27),
 	IDE_TFLAG_FS			= (1 << 28),
+	IDE_TFLAG_MULTI_PIO		= (1 << 29),
 };
 
 enum {
@@ -343,7 +344,7 @@ struct ide_cmd {
 	};
 	u8			ftf_flags;	/* for TASKFILE ioctl */
 	u32			tf_flags;
-	int			data_phase;
+	int			protocol;
 
 	int			sg_nents;	  /* number of sg entries */
 	int			orig_sg_nents;

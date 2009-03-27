@@ -40,7 +40,6 @@
 #include <linux/pci.h>
 #include <linux/delay.h>
 #include <linux/ide.h>
-#include <linux/hdreg.h>
 #include <linux/completion.h>
 #include <linux/reboot.h>
 #include <linux/cdrom.h>
@@ -220,7 +219,7 @@ static ide_startstop_t ide_disk_special(ide_drive_t *drive)
 	struct ide_cmd cmd;
 
 	memset(&cmd, 0, sizeof(cmd));
-	cmd.data_phase = TASKFILE_NO_DATA;
+	cmd.protocol = ATA_PROT_NODATA;
 
 	if (s->b.set_geometry) {
 		s->b.set_geometry = 0;
@@ -314,15 +313,9 @@ static ide_startstop_t execute_drive_cmd (ide_drive_t *drive,
 	struct ide_cmd *cmd = rq->special;
 
 	if (cmd) {
-		switch (cmd->data_phase) {
-		case TASKFILE_MULTI_OUT:
-		case TASKFILE_OUT:
-		case TASKFILE_MULTI_IN:
-		case TASKFILE_IN:
+		if (cmd->protocol == ATA_PROT_PIO) {
 			ide_init_sg_cmd(cmd, rq->nr_sectors);
 			ide_map_sg(drive, rq);
-		default:
-			break;
 		}
 
 		return do_rw_taskfile(drive, cmd);

@@ -28,7 +28,6 @@
 #include <linux/mutex.h>
 #include <linux/leds.h>
 #include <linux/ide.h>
-#include <linux/hdreg.h>
 
 #include <asm/byteorder.h>
 #include <asm/irq.h>
@@ -53,15 +52,6 @@ static const u8 ide_rw_cmds[] = {
 	ATA_CMD_WRITE_EXT,
 };
 
-static const u8 ide_data_phases[] = {
-	TASKFILE_MULTI_IN,
-	TASKFILE_MULTI_OUT,
-	TASKFILE_IN,
-	TASKFILE_OUT,
-	TASKFILE_IN_DMA,
-	TASKFILE_OUT_DMA,
-};
-
 static void ide_tf_set_cmd(ide_drive_t *drive, struct ide_cmd *cmd, u8 dma)
 {
 	u8 index, lba48, write;
@@ -69,17 +59,19 @@ static void ide_tf_set_cmd(ide_drive_t *drive, struct ide_cmd *cmd, u8 dma)
 	lba48 = (cmd->tf_flags & IDE_TFLAG_LBA48) ? 2 : 0;
 	write = (cmd->tf_flags & IDE_TFLAG_WRITE) ? 1 : 0;
 
-	if (dma)
+	if (dma) {
+		cmd->protocol = ATA_PROT_DMA;
 		index = 8;
-	else
-		index = drive->mult_count ? 0 : 4;
+	} else {
+		cmd->protocol = ATA_PROT_PIO;
+		if (drive->mult_count) {
+			cmd->tf_flags |= IDE_TFLAG_MULTI_PIO;
+			index = 0;
+		} else
+			index = 4;
+	}
 
 	cmd->tf.command = ide_rw_cmds[index + lba48 + write];
-
-	if (dma)
-		index = 8; /* fixup index */
-
-	cmd->data_phase = ide_data_phases[index / 2 + write];
 }
 
 /*
@@ -401,9 +393,9 @@ static void idedisk_prepare_flush(struct request_queue *q, struct request *rq)
 		cmd->tf.command = ATA_CMD_FLUSH_EXT;
 	else
 		cmd->tf.command = ATA_CMD_FLUSH;
-	cmd->tf_flags	 = IDE_TFLAG_OUT_TF | IDE_TFLAG_OUT_DEVICE |
-			   IDE_TFLAG_DYN;
-	cmd->data_phase = TASKFILE_NO_DATA;
+	cmd->tf_flags = IDE_TFLAG_OUT_TF | IDE_TFLAG_OUT_DEVICE |
+			IDE_TFLAG_DYN;
+	cmd->protocol = ATA_PROT_NODATA;
 
 	rq->cmd_type = REQ_TYPE_ATA_TASKFILE;
 	rq->cmd_flags |= REQ_SOFTBARRIER;

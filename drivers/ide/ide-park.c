@@ -1,6 +1,5 @@
 #include <linux/kernel.h>
 #include <linux/ide.h>
-#include <linux/hdreg.h>
 #include <linux/jiffies.h>
 #include <linux/blkdev.h>
 
@@ -80,8 +79,9 @@ ide_startstop_t ide_do_park_unpark(ide_drive_t *drive, struct request *rq)
 		tf->command = ATA_CMD_CHK_POWER;
 
 	cmd.tf_flags |= IDE_TFLAG_TF | IDE_TFLAG_DEVICE;
+	cmd.protocol = ATA_PROT_NODATA;
+
 	cmd.rq = rq;
-	cmd.data_phase = TASKFILE_NO_DATA;
 
 	return do_rw_taskfile(drive, &cmd);
 }

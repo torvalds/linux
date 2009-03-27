@@ -1,6 +1,5 @@
 #include <linux/kernel.h>
 #include <linux/ide.h>
-#include <linux/hdreg.h>
 
 int generic_ide_suspend(struct device *dev, pm_message_t mesg)
 {
@@ -164,8 +163,8 @@ ide_startstop_t ide_start_power_step(ide_drive_t *drive, struct request *rq)
 	return ide_stopped;
 
 out_do_tf:
-	cmd->tf_flags	 = IDE_TFLAG_TF | IDE_TFLAG_DEVICE;
-	cmd->data_phase = TASKFILE_NO_DATA;
+	cmd->tf_flags = IDE_TFLAG_TF | IDE_TFLAG_DEVICE;
+	cmd->protocol = ATA_PROT_NODATA;
 
 	return do_rw_taskfile(drive, cmd);
 }

@@ -47,8 +47,8 @@ int taskfile_lib_get_identify (ide_drive_t *drive, u8 *buf)
 		cmd.tf.command = ATA_CMD_ID_ATA;
 	else
 		cmd.tf.command = ATA_CMD_ID_ATAPI;
-	cmd.tf_flags	= IDE_TFLAG_TF | IDE_TFLAG_DEVICE;
-	cmd.data_phase	= TASKFILE_IN;
+	cmd.tf_flags = IDE_TFLAG_TF | IDE_TFLAG_DEVICE;
+	cmd.protocol = ATA_PROT_PIO;
 
 	return ide_raw_taskfile(drive, &cmd, buf, 1);
 }
@@ -66,13 +66,11 @@ ide_startstop_t do_rw_taskfile(ide_drive_t *drive, struct ide_cmd *orig_cmd)
 	const struct ide_tp_ops *tp_ops = hwif->tp_ops;
 	const struct ide_dma_ops *dma_ops = hwif->dma_ops;
 
-	if (orig_cmd->data_phase == TASKFILE_MULTI_IN ||
-	    orig_cmd->data_phase == TASKFILE_MULTI_OUT) {
-		if (!drive->mult_count) {
-			printk(KERN_ERR "%s: multimode not set!\n",
-					drive->name);
-			return ide_stopped;
-		}
+	if (orig_cmd->protocol == ATA_PROT_PIO &&
+	    (orig_cmd->tf_flags & IDE_TFLAG_MULTI_PIO) &&
+	    drive->mult_count == 0) {
+		printk(KERN_ERR "%s: multimode not set!\n", drive->name);
+		return ide_stopped;
 	}
 
 	if (orig_cmd->ftf_flags & IDE_FTFLAG_FLAGGED)
@@ -87,17 +85,16 @@ ide_startstop_t do_rw_taskfile(ide_drive_t *drive, struct ide_cmd *orig_cmd)
 		tp_ops->tf_load(drive, cmd);
 	}
 
-	switch (cmd->data_phase) {
-	case TASKFILE_MULTI_OUT:
-	case TASKFILE_OUT:
-		tp_ops->exec_command(hwif, tf->command);
-		ndelay(400);	/* FIXME */
-		return pre_task_out_intr(drive, cmd);
-	case TASKFILE_MULTI_IN:
-	case TASKFILE_IN:
+	switch (cmd->protocol) {
+	case ATA_PROT_PIO:
+		if (cmd->tf_flags & IDE_TFLAG_WRITE) {
+			tp_ops->exec_command(hwif, tf->command);
+			ndelay(400);	/* FIXME */
+			return pre_task_out_intr(drive, cmd);
+		}
 		handler = task_in_intr;
 		/* fall-through */
-	case TASKFILE_NO_DATA:
+	case ATA_PROT_NODATA:
 		if (handler == NULL)
 			handler = task_no_data_intr;
 		ide_execute_command(drive, tf->command, handler,
@@ -115,9 +112,6 @@ ide_startstop_t do_rw_taskfile(ide_drive_t *drive, struct ide_cmd *orig_cmd)
 }
 EXPORT_SYMBOL_GPL(do_rw_taskfile);
 
-/*
- * Handler for commands without a data phase
- */
 static ide_startstop_t task_no_data_intr(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif = drive->hwif;
@@ -278,15 +272,10 @@ static void ide_pio_datablock(ide_drive_t *drive, struct ide_cmd *cmd,
 
 	touch_softlockup_watchdog();
 
-	switch (cmd->data_phase) {
-	case TASKFILE_MULTI_IN:
-	case TASKFILE_MULTI_OUT:
+	if (cmd->tf_flags & IDE_TFLAG_MULTI_PIO)
 		ide_pio_multi(drive, cmd, write);
-		break;
-	default:
+	else
 		ide_pio_sector(drive, cmd, write);
-		break;
-	}
 
 	drive->io_32bit = saved_io_32bit;
 }
@@ -297,22 +286,12 @@ static ide_startstop_t task_error(ide_drive_t *drive, struct ide_cmd *cmd,
 	if (cmd->tf_flags & IDE_TFLAG_FS) {
 		int sectors = cmd->nsect - cmd->nleft;
 
-		switch (cmd->data_phase) {
-		case TASKFILE_IN:
-			if (cmd->nleft)
-				break;
-			/* fall through */
-		case TASKFILE_OUT:
-			sectors--;
-			break;
-		case TASKFILE_MULTI_IN:
-			if (cmd->nleft)
-				break;
-			/* fall through */
-		case TASKFILE_MULTI_OUT:
-			sectors -= drive->mult_count;
-		default:
-			break;
+		if (cmd->protocol == ATA_PROT_PIO &&
+		    ((cmd->tf_flags & IDE_TFLAG_WRITE) || cmd->nleft == 0)) {
+			if (cmd->tf_flags & IDE_TFLAG_MULTI_PIO)
+				sectors -= drive->mult_count;
+			else
+				sectors--;
 		}
 
 		if (sectors > 0)
@@ -425,7 +404,7 @@ static ide_startstop_t pre_task_out_intr(ide_drive_t *drive,
 			  drive->bad_wstat, WAIT_DRQ)) {
 		printk(KERN_ERR "%s: no DRQ after issuing %sWRITE%s\n",
 			drive->name,
-			cmd->data_phase == TASKFILE_MULTI_OUT ? "MULT" : "",
+			(cmd->tf_flags & IDE_TFLAG_MULTI_PIO) ? "MULT" : "",
 			(drive->dev_flags & IDE_DFLAG_LBA48) ? "_EXT" : "");
 		return startstop;
 	}
@@ -474,7 +453,7 @@ EXPORT_SYMBOL(ide_raw_taskfile);
 
 int ide_no_data_taskfile(ide_drive_t *drive, struct ide_cmd *cmd)
 {
-	cmd->data_phase = TASKFILE_NO_DATA;
+	cmd->protocol = ATA_PROT_NODATA;
 
 	return ide_raw_taskfile(drive, cmd, NULL, 0);
 }
@@ -545,7 +524,6 @@ int ide_taskfile_ioctl(ide_drive_t *drive, unsigned long arg)
 	memcpy(&cmd.tf_array[6], req_task->io_ports,
 	       HDIO_DRIVE_TASK_HDR_SIZE);
 
-	cmd.data_phase = req_task->data_phase;
 	cmd.tf_flags   = IDE_TFLAG_IO_16BIT | IDE_TFLAG_DEVICE |
 			 IDE_TFLAG_IN_TF;
 
@@ -590,10 +568,12 @@ int ide_taskfile_ioctl(ide_drive_t *drive, unsigned long arg)
 		/* fixup data phase if needed */
 		if (req_task->data_phase == TASKFILE_IN_DMAQ ||
 		    req_task->data_phase == TASKFILE_IN_DMA)
-			cmd.data_phase = TASKFILE_OUT_DMA;
+			cmd.tf_flags |= IDE_TFLAG_WRITE;
 	}
 
-	switch (cmd.data_phase) {
+	cmd.protocol = ATA_PROT_DMA;
+
+	switch (req_task->data_phase) {
 		case TASKFILE_MULTI_OUT:
 			if (!drive->mult_count) {
 				/* (hs): give up if multcount is not set */
@@ -603,8 +583,10 @@ int ide_taskfile_ioctl(ide_drive_t *drive, unsigned long arg)
 				err = -EPERM;
 				goto abort;
 			}
+			cmd.tf_flags |= IDE_TFLAG_MULTI_PIO;
 			/* fall through */
 		case TASKFILE_OUT:
+			cmd.protocol = ATA_PROT_PIO;
 			/* fall through */
 		case TASKFILE_OUT_DMAQ:
 		case TASKFILE_OUT_DMA:
@@ -621,8 +603,10 @@ int ide_taskfile_ioctl(ide_drive_t *drive, unsigned long arg)
 				err = -EPERM;
 				goto abort;
 			}
+			cmd.tf_flags |= IDE_TFLAG_MULTI_PIO;
 			/* fall through */
 		case TASKFILE_IN:
+			cmd.protocol = ATA_PROT_PIO;
 			/* fall through */
 		case TASKFILE_IN_DMAQ:
 		case TASKFILE_IN_DMA:
@@ -630,6 +614,7 @@ int ide_taskfile_ioctl(ide_drive_t *drive, unsigned long arg)
 			data_buf = inbuf;
 			break;
 		case TASKFILE_NO_DATA:
+			cmd.protocol = ATA_PROT_NODATA;
 			break;
 		default:
 			err = -EFAULT;
