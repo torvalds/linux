@@ -171,7 +171,8 @@ enum musb_h_ep0_state {
 
 /* peripheral side ep0 states */
 enum musb_g_ep0_state {
-	MUSB_EP0_STAGE_SETUP,		/* idle, waiting for setup */
+	MUSB_EP0_STAGE_IDLE,		/* idle, waiting for SETUP */
+	MUSB_EP0_STAGE_SETUP,		/* received SETUP */
 	MUSB_EP0_STAGE_TX,		/* IN data */
 	MUSB_EP0_STAGE_RX,		/* OUT data */
 	MUSB_EP0_STAGE_STATUSIN,	/* (after OUT data) */

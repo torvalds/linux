@@ -372,12 +372,7 @@ static irqreturn_t davinci_interrupt(int irq, void *__hci)
 
 	spin_unlock_irqrestore(&musb->lock, flags);
 
-	/* REVISIT we sometimes get unhandled IRQs
-	 * (e.g. ep0).  not clear why...
-	 */
-	if (retval != IRQ_HANDLED)
-		DBG(5, "unhandled? %08x\n", tmp);
-	return IRQ_HANDLED;
+	return retval;
 }
 
 int musb_platform_set_mode(struct musb *musb, u8 mode)
