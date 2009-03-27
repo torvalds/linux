@@ -149,16 +149,16 @@ static ide_startstop_t task_no_data_intr(ide_drive_t *drive)
 	if (custom && tf->command == ATA_CMD_SET_MULTI)
 		drive->mult_count = drive->mult_req;
 
-	if (custom == 0 || tf->command == ATA_CMD_IDLEIMMEDIATE) {
+	if (custom == 0 || tf->command == ATA_CMD_IDLEIMMEDIATE ||
+	    tf->command == ATA_CMD_CHK_POWER) {
 		struct request *rq = hwif->rq;
-		u8 err = ide_read_error(drive);
 
 		if (blk_pm_request(rq))
 			ide_complete_pm_rq(drive, rq);
 		else {
-			if (rq->cmd_type == REQ_TYPE_ATA_TASKFILE ||
-			    tf->command == ATA_CMD_IDLEIMMEDIATE)
-				ide_complete_cmd(drive, cmd, stat, err);
+			u8 err = ide_read_error(drive);
+
+			ide_complete_cmd(drive, cmd, stat, err);
 			ide_complete_rq(drive, err);
 		}
 	}

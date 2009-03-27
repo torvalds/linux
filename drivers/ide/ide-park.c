@@ -74,11 +74,11 @@ ide_startstop_t ide_do_park_unpark(ide_drive_t *drive, struct request *rq)
 		tf->lbal = 0x4c;
 		tf->lbam = 0x4e;
 		tf->lbah = 0x55;
-		cmd.tf_flags |= IDE_TFLAG_CUSTOM_HANDLER;
+		cmd.tf_flags = IDE_TFLAG_TF | IDE_TFLAG_DEVICE;
 	} else		/* cmd == REQ_UNPARK_HEADS */
 		tf->command = ATA_CMD_CHK_POWER;
 
-	cmd.tf_flags |= IDE_TFLAG_TF | IDE_TFLAG_DEVICE;
+	cmd.tf_flags |= IDE_TFLAG_CUSTOM_HANDLER;
 	cmd.protocol = ATA_PROT_NODATA;
 
 	cmd.rq = rq;
