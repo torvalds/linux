@@ -116,16 +116,20 @@ struct pohmelfs_crypto
 	unsigned char		data[0];	/* Algorithm string, key and IV */
 };
 
+#define POHMELFS_IO_PERM_READ		(1<<0)
+#define POHMELFS_IO_PERM_WRITE		(1<<1)
+
 /*
  * Configuration command used to create table of different remote servers.
  */
 struct pohmelfs_ctl
 {
-	unsigned int		idx;		/* Config index */
-	unsigned int		type;		/* Socket type */
-	unsigned int		proto;		/* Socket protocol */
-	unsigned int		addrlen;	/* Size of the address */
-	unsigned short		unused;		/* Align structure by 4 bytes */
+	__u32			idx;		/* Config index */
+	__u32			type;		/* Socket type */
+	__u32			proto;		/* Socket protocol */
+	__u16			addrlen;	/* Size of the address */
+	__u16			perm;		/* IO permission */
+	__u16			prio;		/* IO priority */
 	struct saddr		addr;		/* Remote server address */
 };
 

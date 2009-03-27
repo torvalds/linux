@@ -1759,6 +1759,45 @@ err_out_exit:
 	return err;
 }
 
+static int pohmelfs_show_stats(struct seq_file *m, struct vfsmount *mnt)
+{
+	struct netfs_state *st;
+	struct pohmelfs_ctl *ctl;
+	struct pohmelfs_sb *psb = POHMELFS_SB(mnt->mnt_sb);
+	struct pohmelfs_config *c;
+
+	mutex_lock(&psb->state_lock);
+
+	seq_printf(m, "\nidx addr(:port) socket_type protocol active priority permissions\n");
+
+	list_for_each_entry(c, &psb->state_list, config_entry) {
+		st = &c->state;
+		ctl = &st->ctl;
+
+		seq_printf(m, "%u ", ctl->idx);
+		if (ctl->addr.sa_family == AF_INET) {
+			struct sockaddr_in *sin = (struct sockaddr_in *)&st->ctl.addr;
+			//seq_printf(m, "%pi4:%u", &sin->sin_addr.s_addr, ntohs(sin->sin_port));
+			seq_printf(m, "%u.%u.%u.%u:%u", NIPQUAD(sin->sin_addr.s_addr), ntohs(sin->sin_port));
+		} else if (ctl->addr.sa_family == AF_INET6) {
+			struct sockaddr_in6 *sin = (struct sockaddr_in6 *)&st->ctl.addr;
+			seq_printf(m, "%pi6:%u", &sin->sin6_addr, ntohs(sin->sin6_port));
+		} else {
+			unsigned int i;
+			for (i=0; i<ctl->addrlen; ++i)
+				seq_printf(m, "%02x.", ctl->addr.addr[i]);
+		}
+
+		seq_printf(m, " %u %u %d %u %x\n",
+				ctl->type, ctl->proto,
+				st->socket != NULL,
+				ctl->prio, ctl->perm);
+	}
+	mutex_unlock(&psb->state_lock);
+
+	return 0;
+}
+
 static const struct super_operations pohmelfs_sb_ops = {
 	.alloc_inode	= pohmelfs_alloc_inode,
 	.destroy_inode	= pohmelfs_destroy_inode,
@@ -1768,6 +1807,7 @@ static const struct super_operations pohmelfs_sb_ops = {
 	.remount_fs	= pohmelfs_remount,
 	.statfs		= pohmelfs_statfs,
 	.show_options	= pohmelfs_show_options,
+	.show_stats	= pohmelfs_show_stats,
 };
 
 /*
