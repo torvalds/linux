@@ -478,7 +478,7 @@ int do_blk_trace_setup(struct request_queue *q, char *name, dev_t dev,
 		goto err;
 	}
 
-	if (atomic_add_return(1, &blk_probes_ref) == 1)
+	if (atomic_inc_return(&blk_probes_ref) == 1)
 		blk_register_tracepoints();
 
 	return 0;
@@ -1091,8 +1091,6 @@ static void blk_tracer_print_header(struct seq_file *m)
 
 static void blk_tracer_start(struct trace_array *tr)
 {
-	if (atomic_add_return(1, &blk_probes_ref) == 1)
-		blk_register_tracepoints();
 	trace_flags &= ~TRACE_ITER_CONTEXT_INFO;
 }
 
@@ -1107,15 +1105,10 @@ static int blk_tracer_init(struct trace_array *tr)
 static void blk_tracer_stop(struct trace_array *tr)
 {
 	trace_flags |= TRACE_ITER_CONTEXT_INFO;
-	if (atomic_dec_and_test(&blk_probes_ref))
-		blk_unregister_tracepoints();
 }
 
 static void blk_tracer_reset(struct trace_array *tr)
 {
-	if (!atomic_read(&blk_probes_ref))
-		return;
-
 	blk_tracer_enabled = false;
 	blk_tracer_stop(tr);
 }
@@ -1254,6 +1247,9 @@ static int blk_trace_remove_queue(struct request_queue *q)
 	if (bt == NULL)
 		return -EINVAL;
 
+	if (atomic_dec_and_test(&blk_probes_ref))
+		blk_unregister_tracepoints();
+
 	kfree(bt);
 	return 0;
 }
@@ -1279,6 +1275,9 @@ static int blk_trace_setup_queue(struct request_queue *q, dev_t dev)
 		kfree(bt);
 		return -EBUSY;
 	}
+
+	if (atomic_inc_return(&blk_probes_ref) == 1)
+		blk_register_tracepoints();
 
 	return 0;
 }
