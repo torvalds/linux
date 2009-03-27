@@ -2089,14 +2089,14 @@ static int musb_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 {
 	struct musb		*musb = hcd_to_musb(hcd);
 	struct musb_qh		*qh;
-	struct list_head	*sched;
 	unsigned long		flags;
+	int			is_in  = usb_pipein(urb->pipe);
 	int			ret;
 
 	DBG(4, "urb=%p, dev%d ep%d%s\n", urb,
 			usb_pipedevice(urb->pipe),
 			usb_pipeendpoint(urb->pipe),
-			usb_pipein(urb->pipe) ? "in" : "out");
+			is_in ? "in" : "out");
 
 	spin_lock_irqsave(&musb->lock, flags);
 	ret = usb_hcd_check_unlink_urb(hcd, urb, status);
@@ -2107,45 +2107,23 @@ static int musb_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 	if (!qh)
 		goto done;
 
-	/* Any URB not actively programmed into endpoint hardware can be
+	/*
+	 * Any URB not actively programmed into endpoint hardware can be
 	 * immediately given back; that's any URB not at the head of an
 	 * endpoint queue, unless someday we get real DMA queues.  And even
 	 * if it's at the head, it might not be known to the hardware...
 	 *
-	 * Otherwise abort current transfer, pending dma, etc.; urb->status
+	 * Otherwise abort current transfer, pending DMA, etc.; urb->status
 	 * has already been updated.  This is a synchronous abort; it'd be
 	 * OK to hold off until after some IRQ, though.
+	 *
+	 * NOTE: qh is invalid unless !list_empty(&hep->urb_list)
 	 */
-	if (!qh->is_ready || urb->urb_list.prev != &qh->hep->urb_list)
-		ret = -EINPROGRESS;
-	else {
-		switch (qh->type) {
-		case USB_ENDPOINT_XFER_CONTROL:
-			sched = &musb->control;
-			break;
-		case USB_ENDPOINT_XFER_BULK:
-			if (qh->mux == 1) {
-				if (usb_pipein(urb->pipe))
-					sched = &musb->in_bulk;
-				else
-					sched = &musb->out_bulk;
-				break;
-			}
-		default:
-			/* REVISIT when we get a schedule tree, periodic
-			 * transfers won't always be at the head of a
-			 * singleton queue...
-			 */
-			sched = NULL;
-			break;
-		}
-	}
-
-	/* NOTE:  qh is invalid unless !list_empty(&hep->urb_list) */
-	if (ret < 0 || (sched && qh != first_qh(sched))) {
+	if (!qh->is_ready
+			|| urb->urb_list.prev != &qh->hep->urb_list
+			|| musb_ep_get_qh(qh->hw_ep, is_in) != qh) {
 		int	ready = qh->is_ready;
 
-		ret = 0;
 		qh->is_ready = 0;
 		__musb_giveback(musb, urb, 0);
 		qh->is_ready = ready;
@@ -2169,13 +2147,11 @@ done:
 static void
 musb_h_disable(struct usb_hcd *hcd, struct usb_host_endpoint *hep)
 {
-	u8			epnum = hep->desc.bEndpointAddress;
+	u8			is_in = hep->desc.bEndpointAddress & USB_DIR_IN;
 	unsigned long		flags;
 	struct musb		*musb = hcd_to_musb(hcd);
-	u8			is_in = epnum & USB_DIR_IN;
 	struct musb_qh		*qh;
 	struct urb		*urb;
-	struct list_head	*sched;
 
 	spin_lock_irqsave(&musb->lock, flags);
 
@@ -2183,31 +2159,11 @@ musb_h_disable(struct usb_hcd *hcd, struct usb_host_endpoint *hep)
 	if (qh == NULL)
 		goto exit;
 
-	switch (qh->type) {
-	case USB_ENDPOINT_XFER_CONTROL:
-		sched = &musb->control;
-		break;
-	case USB_ENDPOINT_XFER_BULK:
-		if (qh->mux == 1) {
-			if (is_in)
-				sched = &musb->in_bulk;
-			else
-				sched = &musb->out_bulk;
-			break;
-		}
-	default:
-		/* REVISIT when we get a schedule tree, periodic transfers
-		 * won't always be at the head of a singleton queue...
-		 */
-		sched = NULL;
-		break;
-	}
+	/* NOTE: qh is invalid unless !list_empty(&hep->urb_list) */
 
-	/* NOTE:  qh is invalid unless !list_empty(&hep->urb_list) */
-
-	/* kick first urb off the hardware, if needed */
+	/* Kick the first URB off the hardware, if needed */
 	qh->is_ready = 0;
-	if (!sched || qh == first_qh(sched)) {
+	if (musb_ep_get_qh(qh->hw_ep, is_in) == qh) {
 		urb = next_urb(qh);
 
 		/* make software (then hardware) stop ASAP */
