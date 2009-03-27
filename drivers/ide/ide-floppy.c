@@ -61,25 +61,6 @@
  */
 #define IDEFLOPPY_PC_DELAY	(HZ/20)	/* default delay for ZIP 100 (50ms) */
 
-/*
- * Used to finish servicing a private request.
- */
-static int ide_floppy_end_request(ide_drive_t *drive, int uptodate, int nsecs)
-{
-	struct request *rq = drive->hwif->rq;
-
-	ide_debug_log(IDE_DBG_FUNC, "enter");
-
-	if (uptodate == 0)
-		drive->failed_pc = NULL;
-
-	rq->errors = uptodate ? 0 : IDE_DRV_ERROR_GENERAL;
-
-	ide_complete_rq(drive, 0);
-
-	return 0;
-}
-
 static void idefloppy_update_buffers(ide_drive_t *drive,
 				struct ide_atapi_pc *pc)
 {
@@ -560,6 +541,5 @@ const struct ide_disk_ops ide_atapi_disk_ops = {
 	.init_media	= ide_floppy_init_media,
 	.set_doorlock	= ide_set_media_lock,
 	.do_request	= ide_floppy_do_request,
-	.end_request	= ide_floppy_end_request,
 	.ioctl		= ide_floppy_ioctl,
 };

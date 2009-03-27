@@ -461,22 +461,6 @@ static void ide_tape_kfree_buffer(idetape_tape_t *tape)
 	}
 }
 
-static int idetape_end_request(ide_drive_t *drive, int uptodate, int nr_sects)
-{
-	struct request *rq = drive->hwif->rq;
-
-	debug_log(DBG_PROCS, "Enter %s\n", __func__);
-
-	rq->errors = uptodate ? 0 : IDE_DRV_ERROR_GENERAL;
-
-	if (uptodate == 0)
-		drive->failed_pc = NULL;
-
-	ide_complete_rq(drive, 0);
-
-	return 0;
-}
-
 static void ide_tape_handle_dsc(ide_drive_t *);
 
 static void ide_tape_callback(ide_drive_t *drive, int dsc)
@@ -2306,7 +2290,6 @@ static struct ide_driver idetape_driver = {
 	.remove			= ide_tape_remove,
 	.version		= IDETAPE_VERSION,
 	.do_request		= idetape_do_request,
-	.end_request		= idetape_end_request,
 #ifdef CONFIG_IDE_PROC_FS
 	.proc_entries		= ide_tape_proc_entries,
 	.proc_devsets		= ide_tape_proc_devsets,

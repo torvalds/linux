@@ -427,7 +427,6 @@ struct ide_disk_ops {
 					int);
 	ide_startstop_t	(*do_request)(struct ide_drive_s *, struct request *,
 				      sector_t);
-	int		(*end_request)(struct ide_drive_s *, int, int);
 	int		(*ioctl)(struct ide_drive_s *, struct block_device *,
 				 fmode_t, unsigned int, unsigned long);
 };
@@ -1098,7 +1097,6 @@ void ide_check_pm_state(ide_drive_t *, struct request *);
 struct ide_driver {
 	const char			*version;
 	ide_startstop_t	(*do_request)(ide_drive_t *, struct request *, sector_t);
-	int		(*end_request)(ide_drive_t *, int, int);
 	struct device_driver	gen_driver;
 	int		(*probe)(ide_drive_t *);
 	void		(*remove)(ide_drive_t *);

@@ -178,17 +178,17 @@ EXPORT_SYMBOL(ide_complete_rq);
 
 void ide_kill_rq(ide_drive_t *drive, struct request *rq)
 {
+	u8 drv_req = blk_special_request(rq) && rq->rq_disk;
+	u8 media = drive->media;
+
 	drive->failed_pc = NULL;
 
-	if (drive->media == ide_tape)
+	if ((media == ide_floppy && drv_req) || media == ide_tape)
 		rq->errors = IDE_DRV_ERROR_GENERAL;
 
-	if (blk_special_request(rq) && rq->rq_disk) {
-		struct ide_driver *drv;
-
-		drv = *(struct ide_driver **)rq->rq_disk->private_data;
-		drv->end_request(drive, 0, 0);
-	} else
+	if ((media == ide_floppy || media == ide_tape) && drv_req)
+		ide_complete_rq(drive, 0);
+	else
 		ide_end_request(drive, 0, 0);
 }
 

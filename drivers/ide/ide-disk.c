@@ -734,6 +734,5 @@ const struct ide_disk_ops ide_ata_disk_ops = {
 	.init_media	= ide_disk_init_media,
 	.set_doorlock	= ide_disk_set_doorlock,
 	.do_request	= ide_do_rw_disk,
-	.end_request	= ide_end_request,
 	.ioctl		= ide_disk_ioctl,
 };

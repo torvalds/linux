@@ -145,11 +145,6 @@ static ide_startstop_t ide_gd_do_request(ide_drive_t *drive,
 	return drive->disk_ops->do_request(drive, rq, sector);
 }
 
-static int ide_gd_end_request(ide_drive_t *drive, int uptodate, int nrsecs)
-{
-	return drive->disk_ops->end_request(drive, uptodate, nrsecs);
-}
-
 static struct ide_driver ide_gd_driver = {
 	.gen_driver = {
 		.owner		= THIS_MODULE,
@@ -162,7 +157,6 @@ static struct ide_driver ide_gd_driver = {
 	.shutdown		= ide_gd_shutdown,
 	.version		= IDE_GD_VERSION,
 	.do_request		= ide_gd_do_request,
-	.end_request		= ide_gd_end_request,
 #ifdef CONFIG_IDE_PROC_FS
 	.proc_entries		= ide_disk_proc_entries,
 	.proc_devsets		= ide_disk_proc_devsets,
