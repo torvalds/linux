@@ -389,11 +389,11 @@ static int pohmelfs_readdir(struct file *file, void *dirent, filldir_t filldir)
 	dprintk("%s: parent: %llu, fpos: %llu, hash: %08lx.\n",
 			__func__, pi->ino, (u64)file->f_pos,
 			(unsigned long)file->private_data);
-
+#if 0
 	err = pohmelfs_data_lock(pi, 0, ~0, POHMELFS_READ_LOCK);
 	if (err)
 		return err;
-
+#endif
 	err = pohmelfs_sync_remote_dir(pi);
 	if (err)
 		return err;
@@ -513,10 +513,6 @@ struct dentry *pohmelfs_lookup(struct inode *dir, struct dentry *dentry, struct 
 
 	need_lock = pohmelfs_need_lock(parent, lock_type);
 
-	err = pohmelfs_data_lock(parent, 0, ~0, lock_type);
-	if (err)
-		goto out;
-
 	str.hash = jhash(dentry->d_name.name, dentry->d_name.len, 0);
 
 	mutex_lock(&parent->offset_lock);
@@ -525,7 +521,7 @@ struct dentry *pohmelfs_lookup(struct inode *dir, struct dentry *dentry, struct 
 		ino = n->ino;
 	mutex_unlock(&parent->offset_lock);
 
-	dprintk("%s: 1 ino: %lu, inode: %p, name: '%s', hash: %x, parent_state: %lx.\n",
+	dprintk("%s: start ino: %lu, inode: %p, name: '%s', hash: %x, parent_state: %lx.\n",
 			__func__, ino, inode, str.name, str.hash, parent->state);
 
 	if (ino) {
@@ -534,7 +530,7 @@ struct dentry *pohmelfs_lookup(struct inode *dir, struct dentry *dentry, struct 
 			goto out;
 	}
 
-	dprintk("%s: dir: %p, dir_ino: %llu, name: '%s', len: %u, dir_state: %lx, ino: %lu.\n",
+	dprintk("%s: no inode dir: %p, dir_ino: %llu, name: '%s', len: %u, dir_state: %lx, ino: %lu.\n",
 			__func__, dir, parent->ino,
 			str.name, str.len, parent->state, ino);
 
@@ -542,6 +538,10 @@ struct dentry *pohmelfs_lookup(struct inode *dir, struct dentry *dentry, struct 
 		if (!need_lock)
 			goto out;
 	}
+
+	err = pohmelfs_data_lock(parent, 0, ~0, lock_type);
+	if (err)
+		goto out;
 
 	err = pohmelfs_lookup_single(parent, &str, ino);
 	if (err)
